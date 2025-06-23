@@ -556,7 +556,6 @@ arm_gic_intr(void *arg)
 	struct arm_gic_softc *sc = arg;
 	struct gic_irqsrc *gi;
 	uint32_t irq_active_reg, irq;
-	struct trapframe *tf;
 
 	irq_active_reg = gic_c_read_4(sc, GICC_IAR);
 	irq = irq_active_reg & 0x3FF;
@@ -587,7 +586,6 @@ arm_gic_intr(void *arg)
 		return (FILTER_HANDLED);
 	}
 
-	tf = curthread->td_intr_frame;
 dispatch_irq:
 	gi = sc->gic_irqs + irq;
 	/*
@@ -613,7 +611,7 @@ dispatch_irq:
 	if ((gi->gi_flags & GI_FLAG_EARLY_EOI) == GI_FLAG_EARLY_EOI)
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
 
-	if (intr_isrc_dispatch(&gi->gi_isrc, tf) != 0) {
+	if (intr_isrc_dispatch(&gi->gi_isrc) != 0) {
 		gic_irq_mask(sc, irq);
 		if ((gi->gi_flags & GI_FLAG_EARLY_EOI) != GI_FLAG_EARLY_EOI)
 			gic_c_write_4(sc, GICC_EOIR, irq_active_reg);

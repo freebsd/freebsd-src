@@ -207,7 +207,6 @@ xlnx_pcib_handle_msi_intr(void *arg, int msireg)
 	struct generic_pcie_core_softc *sc;
 	struct xlnx_pcib_softc *xlnx_sc;
 	struct xlnx_pcib_irqsrc *xi;
-	struct trapframe *tf;
 	int irq;
 	int reg;
 	int i;
@@ -215,7 +214,6 @@ xlnx_pcib_handle_msi_intr(void *arg, int msireg)
 	xlnx_sc = arg;
 	fdt_sc = &xlnx_sc->fdt_sc;
 	sc = &fdt_sc->base;
-	tf = curthread->td_intr_frame;
 
 	do {
 		reg = bus_read_4(sc->res, msireg);
@@ -229,7 +227,7 @@ xlnx_pcib_handle_msi_intr(void *arg, int msireg)
 					irq += 32;
 
 				xi = &xlnx_sc->isrcs[irq];
-				if (intr_isrc_dispatch(&xi->isrc, tf) != 0) {
+				if (intr_isrc_dispatch(&xi->isrc) != 0) {
 					/* Disable stray. */
 					xlnx_pcib_msi_mask(sc->dev,
 					    &xi->isrc, 1);

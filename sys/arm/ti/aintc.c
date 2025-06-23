@@ -133,8 +133,7 @@ ti_aintc_intr(void *arg)
 
 	/* Only level-sensitive interrupts detection is supported. */
 	irq &= INTC_SIR_ACTIVE_MASK;
-	if (intr_isrc_dispatch(&sc->aintc_isrcs[irq].tai_isrc,
-	    curthread->td_intr_frame) != 0) {
+	if (intr_isrc_dispatch(&sc->aintc_isrcs[irq].tai_isrc) != 0) {
 		ti_aintc_irq_mask(sc, irq);
 		ti_aintc_irq_eoi(sc);
 		device_printf(sc->sc_dev, "Stray irq %u disabled\n", irq);

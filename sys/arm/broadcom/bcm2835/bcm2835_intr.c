@@ -219,8 +219,7 @@ bcm2835_intc_intr(void *arg)
 		irq = bcm2835_intc_active_intr(sc);
 		if (irq == -1)
 			break;
-		if (intr_isrc_dispatch(&sc->intc_isrcs[irq].bii_isrc,
-		    curthread->td_intr_frame) != 0) {
+		if (intr_isrc_dispatch(&sc->intc_isrcs[irq].bii_isrc) != 0) {
 			bcm_intc_isrc_mask(sc, &sc->intc_isrcs[irq]);
 			device_printf(sc->sc_dev, "Stray irq %u disabled\n",
 			    irq);

@@ -389,7 +389,7 @@ intr_child_irq_handler(struct intr_pic *parent, uintptr_t irq)
  *  source is learned.
  */
 int
-intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
+intr_isrc_dispatch(struct intr_irqsrc *isrc)
 {
 
 	/* The assembly <=> C interface is responsible for incrementing

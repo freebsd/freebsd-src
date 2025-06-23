@@ -197,8 +197,7 @@ a10_intr(void *arg)
 			    irq);
 			return (FILTER_HANDLED);
 		}
-		if (intr_isrc_dispatch(&sc->isrcs[irq].isrc,
-		    curthread->td_intr_frame) != 0) {
+		if (intr_isrc_dispatch(&sc->isrcs[irq].isrc) != 0) {
 			a10_intr_mask(sc, irq);
 			a10_intr_eoi(sc, irq);
 			device_printf(sc->sc_dev,
