@@ -413,7 +413,7 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 	} else
 #endif
 	if (isrc->isrc_event != NULL) {
-		if (intr_event_handle(isrc->isrc_event, tf) == 0)
+		if (intr_event_handle(isrc->isrc_event) == 0)
 			return (0);
 	}
 
