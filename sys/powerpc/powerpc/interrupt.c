@@ -91,7 +91,9 @@ powerpc_interrupt(struct trapframe *framep)
 	case EXC_EXI:
 	case EXC_HVI:
 		critical_enter();
+		++td->td_intr_nesting_level;
 		PIC_DISPATCH(root_pic, framep);
+		--td->td_intr_nesting_level;
 		critical_exit();
 #ifdef BOOKE
 		framep->srr1 &= ~PSL_WE;
@@ -135,5 +137,5 @@ powerpc_interrupt(struct trapframe *framep)
 		if (ee != 0)
 			mtmsr(mfmsr() | ee);
 		trap(framep);
-	}	        
+	}
 }
