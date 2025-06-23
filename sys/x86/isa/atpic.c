@@ -526,6 +526,7 @@ void
 atpic_handle_intr(u_int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
+	struct trapframe *oldframe;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
@@ -557,9 +558,12 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 
 	critical_enter();
 	++curthread->td_intr_nesting_level;
+	oldframe = curthread->td_intr_frame;
+	curthread->td_intr_frame = frame;
 
 	intr_execute_handlers(isrc, frame);
 
+	curthread->td_intr_frame = oldframe;
 	--curthread->td_intr_nesting_level;
 	critical_exit();
 }

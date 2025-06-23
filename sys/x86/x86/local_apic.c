@@ -1271,9 +1271,12 @@ void
 lapic_handle_intr(int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
+	struct trapframe *oldframe;
 
 	critical_enter();
 	++curthread->td_intr_nesting_level;
+	oldframe = curthread->td_intr_frame;
+	curthread->td_intr_frame = frame;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 	kmsan_mark(&vector, sizeof(vector), KMSAN_STATE_INITED);
@@ -1284,6 +1287,7 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 	    vector));
 	intr_execute_handlers(isrc, frame);
 
+	curthread->td_intr_frame = oldframe;
 	--curthread->td_intr_nesting_level;
 	critical_exit();
 }
