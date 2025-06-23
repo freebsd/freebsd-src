@@ -42,6 +42,7 @@
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/msan.h>
+#include <sys/proc.h>
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -553,7 +554,14 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 		if ((isr & IRQ_MASK(7)) == 0)
 			return;
 	}
+
+	critical_enter();
+	++curthread->td_intr_nesting_level;
+
 	intr_execute_handlers(isrc, frame);
+
+	--curthread->td_intr_nesting_level;
+	critical_exit();
 }
 
 #ifdef DEV_ISA
