@@ -458,7 +458,7 @@ preserve_dir_acls(const char *source_dir, const char *dest_dir)
 {
 	int source_fd = -1, dest_fd = -1, ret;
 
-	if ((source_fd = open(source_dir, O_PATH)) < 0) {
+	if ((source_fd = open(source_dir, O_DIRECTORY | O_RDONLY)) < 0) {
 		warn("%s: failed to copy ACLs", source_dir);
 		return (-1);
 	}
