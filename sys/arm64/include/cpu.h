@@ -232,10 +232,18 @@ void	ptrauth_mp_start(uint64_t);
 
 /* Functions to read the sanitised view of the special registers */
 void	update_special_regs(u_int);
-void	update_special_reg(u_int reg, uint64_t, uint64_t);
-bool	get_kernel_reg(u_int, uint64_t *);
-bool	get_kernel_reg_masked(u_int, uint64_t *, uint64_t);
-bool	get_user_reg(u_int, uint64_t *, bool);
+void	update_special_reg_iss(u_int, uint64_t, uint64_t);
+#define	update_special_reg(reg, clear, set)			\
+    update_special_reg_iss(reg ## _ISS, clear, set)
+bool	get_kernel_reg_iss(u_int, uint64_t *);
+#define	get_kernel_reg(reg, valp)				\
+    get_kernel_reg_iss(reg ## _ISS, valp)
+bool	get_kernel_reg_iss_masked(u_int, uint64_t *, uint64_t);
+#define	get_kernel_reg_masked(reg, valp, mask)			\
+    get_kernel_reg_iss_masked(reg ## _ISS, valp, mask)
+bool	get_user_reg_iss(u_int, uint64_t *, bool);
+#define	get_user_reg(reg, valp, fbsd)					\
+    get_user_reg_iss(reg ## _ISS, valp, fbsd)
 
 void	cpu_desc_init(void);
 

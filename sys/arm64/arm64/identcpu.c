@@ -2195,7 +2195,6 @@ static const struct mrs_field mvfr1_fields[] = {
 #endif /* COMPAT_FREEBSD32 */
 
 struct mrs_user_reg {
-	u_int		reg;
 	u_int		iss;
 	bool		is64bit;
 	size_t		offset;
@@ -2204,7 +2203,6 @@ struct mrs_user_reg {
 
 #define	USER_REG(name, field_name, _is64bit)				\
 	{								\
-		.reg = name,						\
 		.iss = name##_ISS,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
 		.fields = field_name##_fields,				\
@@ -2497,12 +2495,12 @@ mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 }
 
 bool
-get_kernel_reg(u_int reg, uint64_t *val)
+get_kernel_reg_iss(u_int iss, uint64_t *val)
 {
 	int i;
 
 	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
+		if (user_regs[i].iss == iss) {
 			*val = CPU_DESC_FIELD(kern_cpu_desc, i);
 			return (true);
 		}
@@ -2516,13 +2514,13 @@ get_kernel_reg(u_int reg, uint64_t *val)
  * do not exceed those in the mask.
  */
 bool
-get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
+get_kernel_reg_iss_masked(u_int iss, uint64_t *valp, uint64_t mask)
 {
 	const struct mrs_field *fields;
 	uint64_t val;
 
 	for (int i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
+		if (user_regs[i].iss == iss) {
 			val = CPU_DESC_FIELD(kern_cpu_desc, i);
 			fields = user_regs[i].fields;
 			for (int j = 0; fields[j].type != 0; j++) {
@@ -2539,12 +2537,12 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 }
 
 bool
-get_user_reg(u_int reg, uint64_t *val, bool fbsd)
+get_user_reg_iss(u_int iss, uint64_t *val, bool fbsd)
 {
 	int i;
 
 	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
+		if (user_regs[i].iss == iss) {
 			if (fbsd)
 				*val = CPU_DESC_FIELD(user_cpu_desc, i);
 			else
@@ -2694,7 +2692,7 @@ update_special_regs(u_int cpu)
  * HWCAPs are set the check for these is enough.
  */
 void
-update_special_reg(u_int reg, uint64_t clear, uint64_t set)
+update_special_reg_iss(u_int iss, uint64_t clear, uint64_t set)
 {
 	MPASS(hwcaps_set == false);
 	/* There is no locking here, so we only support changing this on CPU0 */
@@ -2702,7 +2700,7 @@ update_special_reg(u_int reg, uint64_t clear, uint64_t set)
 	MPASS(PCPU_GET(cpuid) == 0);
 
 	for (int i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg != reg)
+		if (user_regs[i].iss != iss)
 			continue;
 
 		clear_set_special_reg_idx(i, clear, set);
