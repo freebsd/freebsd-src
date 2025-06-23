@@ -126,7 +126,7 @@ aw_nmi_intr(void *arg)
 		return (FILTER_HANDLED);
 	}
 
-	if (intr_isrc_dispatch(&sc->intr.isrc, curthread->td_intr_frame) != 0) {
+	if (intr_isrc_dispatch(&sc->intr.isrc) != 0) {
 		SC_NMI_WRITE(sc, sc->cfg->enable_reg, ~NMI_IRQ_ENABLE);
 		device_printf(sc->dev, "Stray interrupt, NMI disabled\n");
 	}

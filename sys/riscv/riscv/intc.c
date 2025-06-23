@@ -279,7 +279,7 @@ intc_intr(void *arg)
 		return (FILTER_HANDLED);
 
 	src = &sc->isrcs[active_irq];
-	if (intr_isrc_dispatch(&src->isrc, frame) != 0) {
+	if (intr_isrc_dispatch(&src->isrc) != 0) {
 		intc_disable_intr(sc->dev, &src->isrc);
 		device_printf(sc->dev, "Stray irq %lu disabled\n",
 		    active_irq);

@@ -1204,7 +1204,6 @@ gicv3_its_intr(void *arg, uintptr_t irq)
 {
 	struct gicv3_its_softc *sc = arg;
 	struct gicv3_its_irqsrc *girq;
-	struct trapframe *tf;
 
 	irq -= sc->sc_irq_base;
 	girq = sc->sc_irqs[irq];
@@ -1212,8 +1211,7 @@ gicv3_its_intr(void *arg, uintptr_t irq)
 		panic("gicv3_its_intr: Invalid interrupt %ld",
 		    irq + sc->sc_irq_base);
 
-	tf = curthread->td_intr_frame;
-	intr_isrc_dispatch(&girq->gi_isrc, tf);
+	intr_isrc_dispatch(&girq->gi_isrc);
 	return (FILTER_HANDLED);
 }
 
