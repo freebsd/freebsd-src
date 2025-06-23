@@ -34,6 +34,7 @@
 #include <sys/queue.h>
 #include <sys/fbio.h>
 #include <sys/kernel.h>
+#include <sys/endian.h>
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
@@ -76,6 +77,22 @@ vt_fb_mem_wr2(struct fb_info *sc, uint32_t o, uint16_t v)
 
 	KASSERT((o + 1 < sc->fb_size), ("Offset %#08x out of fb size", o + 1));
 	*(uint16_t *)(sc->fb_vbase + o) = v;
+}
+
+static void
+vt_fb_mem_wr3(struct fb_info *sc, uint32_t o, uint32_t v)
+{
+	uint8_t *b = (uint8_t *)sc->fb_vbase + o;
+
+	KASSERT((o + 2 < sc->fb_size), ("Offset %#08x out of fb size", o + 2));
+	/*
+	 * We want to write three bytes, independent
+	 * of endianness. Multiply _QUAD_LOWWORD and
+	 * _QUAD_HIGHWORD by 2 to skip the middle byte.
+	 */
+	b[_QUAD_LOWWORD * 2] = v & 0xff;
+	b[1] = (v >> 8) & 0xff;
+	b[_QUAD_HIGHWORD * 2] = (v >> 16) & 0xff;
 }
 
 static void
@@ -187,9 +204,7 @@ vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 		vt_fb_mem_wr2(info, o, c);
 		break;
 	case 3:
-		vt_fb_mem_wr1(info, o, (c >> 16) & 0xff);
-		vt_fb_mem_wr1(info, o + 1, (c >> 8) & 0xff);
-		vt_fb_mem_wr1(info, o + 2, c & 0xff);
+		vt_fb_mem_wr3(info, o, c);
 		break;
 	case 4:
 		vt_fb_mem_wr4(info, o, c);
@@ -246,12 +261,7 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 	case 3:
 		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride - 2; o += 3) {
-				vt_fb_mem_wr1(info, h*info->fb_stride + o,
-				    (c >> 16) & 0xff);
-				vt_fb_mem_wr1(info, h*info->fb_stride + o + 1,
-				    (c >> 8) & 0xff);
-				vt_fb_mem_wr1(info, h*info->fb_stride + o + 2,
-				    c & 0xff);
+				vt_fb_mem_wr3(info, h*info->fb_stride + o, c);
 			}
 		break;
 	case 4:
@@ -317,10 +327,7 @@ vt_fb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 				vt_fb_mem_wr2(info, o, cc);
 				break;
 			case 3:
-				/* Packed mode, so unaligned. Byte access. */
-				vt_fb_mem_wr1(info, o, (cc >> 16) & 0xff);
-				vt_fb_mem_wr1(info, o + 1, (cc >> 8) & 0xff);
-				vt_fb_mem_wr1(info, o + 2, cc & 0xff);
+				vt_fb_mem_wr3(info, o, cc);
 				break;
 			case 4:
 				vt_fb_mem_wr4(info, o, cc);
