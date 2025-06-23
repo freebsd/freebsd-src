@@ -4665,9 +4665,9 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 			rv = pf_match_rule(ctx, &child->ruleset);
 			if ((rv == PF_TEST_QUICK) || (rv == PF_TEST_FAIL)) {
 				/*
-				 * we either hit a rule qith quick action
+				 * we either hit a rule with quick action
 				 * (more likely), or hit some runtime
-				 * error (e.g. pool_get() faillure).
+				 * error (e.g. pool_get() failure).
 				 */
 				break;
 			}
@@ -5512,6 +5512,8 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 {
 	struct pf_krule_item	*ri;
 	struct pf_krule		*r;
+	struct pf_krule		*save_a;
+	struct pf_kruleset	*save_aruleset;
 	struct pf_pdesc		*pd = ctx->pd;
 	u_short			 transerror;
 
@@ -5681,13 +5683,22 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 				break;
 			}
 		} else {
+			save_a = ctx->a;
+			save_aruleset = ctx->aruleset;
+
 			ctx->a = r;			/* remember anchor */
 			ctx->aruleset = ruleset;	/* and its ruleset */
 			if (ctx->a->quick)
 				ctx->test_status = PF_TEST_QUICK;
+			/*
+			 * Note: we don't need to restore if we are not going
+			 * to continue with ruleset evaluation.
+			 */
 			if (pf_step_into_anchor(ctx, r) != PF_TEST_OK) {
 				break;
 			}
+			ctx->a = save_a;
+			ctx->aruleset = save_aruleset;
 		}
 		r = TAILQ_NEXT(r, entries);
 	}
