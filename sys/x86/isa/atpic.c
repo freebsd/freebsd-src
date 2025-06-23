@@ -561,7 +561,7 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 	oldframe = curthread->td_intr_frame;
 	curthread->td_intr_frame = frame;
 
-	intr_execute_handlers(isrc, frame);
+	intr_execute_handlers(isrc);
 
 	curthread->td_intr_frame = oldframe;
 	--curthread->td_intr_nesting_level;
