@@ -2497,23 +2497,6 @@ mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 }
 
 bool
-extract_user_id_field(u_int reg, u_int field_shift, uint8_t *val)
-{
-	uint64_t value;
-	int i;
-
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
-			value = CPU_DESC_FIELD(user_cpu_desc, i);
-			*val = value >> field_shift;
-			return (true);
-		}
-	}
-
-	return (false);
-}
-
-bool
 get_kernel_reg(u_int reg, uint64_t *val)
 {
 	int i;
