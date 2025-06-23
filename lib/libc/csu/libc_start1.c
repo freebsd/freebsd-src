@@ -28,6 +28,7 @@
 #include <sys/param.h>
 #include <sys/elf.h>
 #include <sys/elf_common.h>
+#include <errno.h>
 #include <stdlib.h>
 #include "libc_private.h"
 
@@ -169,6 +170,13 @@ __libc_start1(int argc, char *argv[], char *env[], void (*cleanup)(void),
 	}
 
 	handle_static_init(argc, argv, env);
+
+	/*
+	 * C17 4.3 paragraph 3:
+	 * The value of errno in the initial thread is zero at program
+	 * startup.
+	 */
+	errno = 0;
 	exit(mainX(argc, argv, env));
 }
 
@@ -194,5 +202,6 @@ __libc_start1_gcrt(int argc, char *argv[], char *env[],
 	monstartup(eprolp, etextp);
 
 	handle_static_init(argc, argv, env);
+	errno = 0;
 	exit(mainX(argc, argv, env));
 }
