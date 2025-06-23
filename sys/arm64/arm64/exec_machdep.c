@@ -191,17 +191,27 @@ int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
 	struct debug_monitor_state *monitor;
+	uint64_t dfr0;
 	int i;
 	uint8_t debug_ver, nbkpts, nwtpts;
 
 	memset(regs, 0, sizeof(*regs));
 
-	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_DebugVer_SHIFT,
-	    &debug_ver);
-	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_BRPs_SHIFT,
-	    &nbkpts);
-	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_WRPs_SHIFT,
-	    &nwtpts);
+	/*
+	 * Read these the Debug Feature Register 0 to get info we need.
+	 * It will be identical on FreeBSD and Linux, so there is no need
+	 * to check which the target is.
+	 */
+	if (!get_user_reg(ID_AA64DFR0_EL1, &dfr0, true)) {
+		debug_ver = ID_AA64DFR0_DebugVer_8;
+		nbkpts = 0;
+		nwtpts = 0;
+	} else {
+		debug_ver = ID_AA64DFR0_DebugVer_VAL(dfr0) >>
+		    ID_AA64DFR0_DebugVer_SHIFT;
+		nbkpts = ID_AA64DFR0_BRPs_VAL(dfr0) >> ID_AA64DFR0_BRPs_SHIFT;
+		nwtpts = ID_AA64DFR0_WRPs_VAL(dfr0) >> ID_AA64DFR0_WRPs_SHIFT;
+	}
 
 	/*
 	 * The BRPs field contains the number of breakpoints - 1. Armv8-A
