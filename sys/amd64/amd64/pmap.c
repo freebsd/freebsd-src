@@ -1686,12 +1686,43 @@ bootaddr_rwx(vm_paddr_t pa)
 	return (pg_nx);
 }
 
+extern const char la57_trampoline[];
+
+static void
+pmap_bootstrap_la57(vm_paddr_t *firstaddr)
+{
+	void (*la57_tramp)(uint64_t pml5);
+	pml5_entry_t *pt;
+
+	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
+		return;
+	TUNABLE_INT_FETCH("vm.pmap.la57", &la57);
+	if (!la57)
+		return;
+
+	KPML5phys = allocpages(firstaddr, 1);
+	KPML4phys = rcr3() & 0xfffff000; /* pml4 from loader must be < 4G */
+
+	pt = (pml5_entry_t *)KPML5phys;
+	pt[0] = KPML4phys | X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
+	pt[NPML4EPG - 1] = KPML4phys | X86_PG_V | X86_PG_RW | X86_PG_A |
+	    X86_PG_M;
+
+	la57_tramp = (void (*)(uint64_t))((uintptr_t)la57_trampoline -
+	    KERNSTART + amd64_loadaddr());
+	printf("Calling la57 trampoline at %p, KPML5phys %#lx ...",
+	    la57_tramp, KPML5phys);
+	la57_tramp(KPML5phys);
+	printf(" alive in la57 mode\n");
+}
+
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
 	pd_entry_t *pd_p;
 	pdp_entry_t *pdp_p;
 	pml4_entry_t *p4_p;
+	pml5_entry_t *p5_p;
 	uint64_t DMPDkernphys;
 	vm_paddr_t pax;
 #ifdef KASAN
@@ -1919,6 +1950,27 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 
 	kernel_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
+
+	if (la57) {
+		/* XXXKIB bootstrap KPML5phys page is lost */
+		KPML5phys = allocpages(firstaddr, 1);
+		for (i = 0, p5_p = (pml5_entry_t *)KPML5phys; i < NPML5EPG;
+		    i++) {
+			if (i == PML5PML5I) {
+				/*
+				 * Recursively map PML5 to itself in
+				 * order to get PTmap and PDmap.
+				 */
+				p5_p[i] = KPML5phys | X86_PG_RW | X86_PG_A |
+				    X86_PG_M | X86_PG_V | pg_nx;
+			} else if (i == pmap_pml5e_index(UPT_MAX_ADDRESS)) {
+				p5_p[i] = KPML4phys | X86_PG_RW | X86_PG_A |
+				    X86_PG_M | X86_PG_V;
+			} else {
+				p5_p[i] = 0;
+			}
+		}
+	}
 	TSEXIT();
 }
 
@@ -1952,6 +2004,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/*
 	 * Create an initial set of page tables to run the kernel in.
 	 */
+	pmap_bootstrap_la57(firstaddr);
 	create_pagetables(firstaddr);
 
 	pcpu0_phys = allocpages(firstaddr, 1);
@@ -1981,7 +2034,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	cr4 = rcr4();
 	cr4 |= CR4_PGE;
 	load_cr4(cr4);
-	load_cr3(KPML4phys);
+	load_cr3(la57 ? KPML5phys : KPML4phys);
 	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
 		cr4 |= CR4_SMEP;
 	if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
@@ -1994,8 +2047,20 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * later unmapped (using pmap_remove()) and freed.
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
-	kernel_pmap->pm_pmltop = kernel_pml4;
-	kernel_pmap->pm_cr3 = KPML4phys;
+	if (la57) {
+		vtoptem = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +
+		    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
+		PTmap = (vm_offset_t)P5Tmap;
+		vtopdem = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
+		    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
+		PDmap = (vm_offset_t)P5Dmap;
+		kernel_pmap->pm_pmltop = (void *)PHYS_TO_DMAP(KPML5phys);
+		kernel_pmap->pm_cr3 = KPML5phys;
+		pmap_pt_page_count_adj(kernel_pmap, 1);	/* top-level page */
+	} else {
+		kernel_pmap->pm_pmltop = kernel_pml4;
+		kernel_pmap->pm_cr3 = KPML4phys;
+	}
 	kernel_pmap->pm_ucr3 = PMAP_NO_CR3;
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	kernel_pmap->pm_stats.resident_count = res;
@@ -2050,6 +2115,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/*
 	 * Re-initialize PCPU area for BSP after switching.
 	 * Make hardware use gdt and common_tss from the new PCPU.
+	 * Also clears the usage of temporary gdt during switch to
+	 * LA57 paging.
 	 */
 	STAILQ_INIT(&cpuhead);
 	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
@@ -2178,140 +2245,6 @@ pmap_page_alloc_below_4g(bool zeroed)
 	return (vm_page_alloc_noobj_contig((zeroed ? VM_ALLOC_ZERO : 0),
 	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT));
 }
-
-extern const char la57_trampoline[], la57_trampoline_gdt_desc[],
-    la57_trampoline_gdt[], la57_trampoline_end[];
-
-static void
-pmap_bootstrap_la57(void *arg __unused)
-{
-	char *v_code;
-	pml5_entry_t *v_pml5;
-	pml4_entry_t *v_pml4;
-	pdp_entry_t *v_pdp;
-	pd_entry_t *v_pd;
-	pt_entry_t *v_pt;
-	vm_page_t m_code, m_pml4, m_pdp, m_pd, m_pt, m_pml5;
-	void (*la57_tramp)(uint64_t pml5);
-	struct region_descriptor r_gdt;
-
-	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
-		return;
-	TUNABLE_INT_FETCH("vm.pmap.la57", &la57);
-	if (!la57)
-		return;
-
-	r_gdt.rd_limit = NGDT * sizeof(struct user_segment_descriptor) - 1;
-	r_gdt.rd_base = (long)__pcpu[0].pc_gdt;
-
-	m_code = pmap_page_alloc_below_4g(true);
-	v_code = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_code));
-	m_pml5 = pmap_page_alloc_below_4g(true);
-	KPML5phys = VM_PAGE_TO_PHYS(m_pml5);
-	v_pml5 = (pml5_entry_t *)PHYS_TO_DMAP(KPML5phys);
-	m_pml4 = pmap_page_alloc_below_4g(true);
-	v_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pml4));
-	m_pdp = pmap_page_alloc_below_4g(true);
-	v_pdp = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pdp));
-	m_pd = pmap_page_alloc_below_4g(true);
-	v_pd = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd));
-	m_pt = pmap_page_alloc_below_4g(true);
-	v_pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pt));
-
-	/*
-	 * Map m_code 1:1, it appears below 4G in KVA due to physical
-	 * address being below 4G.  Since kernel KVA is in upper half,
-	 * the pml4e should be zero and free for temporary use.
-	 */
-	kernel_pmap->pm_pmltop[pmap_pml4e_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pdp) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pdp[pmap_pdpe_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pd) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pd[pmap_pde_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pt) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pt[pmap_pte_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_code) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-
-	/*
-	 * Add pml5 entry at top of KVA pointing to existing pml4 table,
-	 * entering all existing kernel mappings into level 5 table.
-	 */
-	v_pml5[pmap_pml5e_index(UPT_MAX_ADDRESS)] = KPML4phys | X86_PG_V |
-	    X86_PG_RW | X86_PG_A | X86_PG_M;
-
-	/*
-	 * Add pml5 entry for 1:1 trampoline mapping after LA57 is turned on.
-	 */
-	v_pml5[pmap_pml5e_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pml4) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pml4[pmap_pml4e_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pdp) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-
-	/*
-	 * Copy and call the 48->57 trampoline, hope we return there, alive.
-	 */
-	bcopy(la57_trampoline, v_code, la57_trampoline_end - la57_trampoline);
-	*(u_long *)(v_code + 2 + (la57_trampoline_gdt_desc - la57_trampoline)) =
-	    la57_trampoline_gdt - la57_trampoline + VM_PAGE_TO_PHYS(m_code);
-	la57_tramp = (void (*)(uint64_t))VM_PAGE_TO_PHYS(m_code);
-	pmap_invalidate_all(kernel_pmap);
-	if (bootverbose) {
-		printf("entering LA57 trampoline at %#lx\n",
-		    (vm_offset_t)la57_tramp);
-	}
-	la57_tramp(KPML5phys);
-
-	/*
-	 * gdt was necessary reset, switch back to our gdt.
-	 */
-	lgdt(&r_gdt);
-	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_ufssel);
-	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
-	ltr(GSEL(GPROC0_SEL, SEL_KPL));
-	lidt(&r_idt);
-
-	if (bootverbose)
-		printf("LA57 trampoline returned, CR4 %#lx\n", rcr4());
-
-	/*
-	 * Now unmap the trampoline, and free the pages.
-	 * Clear pml5 entry used for 1:1 trampoline mapping.
-	 */
-	pte_clear(&v_pml5[pmap_pml5e_index(VM_PAGE_TO_PHYS(m_code))]);
-	invlpg((vm_offset_t)v_code);
-	vm_page_free(m_code);
-	vm_page_free(m_pdp);
-	vm_page_free(m_pd);
-	vm_page_free(m_pt);
-
-	/* 
-	 * Recursively map PML5 to itself in order to get PTmap and
-	 * PDmap.
-	 */
-	v_pml5[PML5PML5I] = KPML5phys | X86_PG_RW | X86_PG_V | pg_nx;
-
-	vtoptem = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +
-	    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
-	PTmap = (vm_offset_t)P5Tmap;
-	vtopdem = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
-	    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
-	PDmap = (vm_offset_t)P5Dmap;
-
-	kernel_pmap->pm_cr3 = KPML5phys;
-	kernel_pmap->pm_pmltop = v_pml5;
-	pmap_pt_page_count_adj(kernel_pmap, 1);
-}
-SYSINIT(la57, SI_SUB_KMEM, SI_ORDER_ANY, pmap_bootstrap_la57, NULL);
 
 /*
  *	Initialize a vm_page's machine-dependent fields.
