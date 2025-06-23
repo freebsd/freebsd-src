@@ -699,10 +699,14 @@ vtblk_alloc_virtqueue(struct vtblk_softc *sc)
 {
 	device_t dev;
 	struct vq_alloc_info vq_info;
+	int indir_segs;
 
 	dev = sc->vtblk_dev;
 
-	VQ_ALLOC_INFO_INIT(&vq_info, sc->vtblk_max_nsegs,
+	indir_segs = 0;
+	if (sc->vtblk_flags & VTBLK_FLAG_INDIRECT)
+		indir_segs = sc->vtblk_max_nsegs;
+	VQ_ALLOC_INFO_INIT(&vq_info, indir_segs,
 	    vtblk_vq_intr, sc, &sc->vtblk_vq,
 	    "%s request", device_get_nameunit(dev));
 
