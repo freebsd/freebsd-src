@@ -214,7 +214,6 @@ static int
 rk_gpio_intr(void *arg)
 {
 	struct rk_gpio_softc *sc = (struct rk_gpio_softc *)arg;
-	struct trapframe *tf = curthread->td_intr_frame;
 	uint32_t status;
 
 	RK_GPIO_LOCK(sc);
@@ -226,7 +225,7 @@ rk_gpio_intr(void *arg)
 		int pin = ffs(status) - 1;
 
 		status &= ~(1 << pin);
-		if (intr_isrc_dispatch(RK_GPIO_ISRC(sc, pin), tf)) {
+		if (intr_isrc_dispatch(RK_GPIO_ISRC(sc, pin))) {
 			device_printf(sc->sc_dev, "Interrupt pin=%d unhandled\n",
 			    pin);
 			continue;

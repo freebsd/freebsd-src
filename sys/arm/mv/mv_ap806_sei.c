@@ -277,12 +277,10 @@ mv_ap806_sei_intr(void *arg)
 {
 	struct mv_ap806_sei_softc *sc;
 	struct mv_ap806_sei_irqsrc *sirq;
-	struct trapframe *tf;
 	uint64_t cause;
 	u_int irq;
 
 	sc = (struct mv_ap806_sei_softc *)arg;
-	tf = curthread->td_intr_frame;
 	while (1) {
 		cause = RD4(sc, GICP_SECR1);
 		cause <<= 32;
@@ -292,7 +290,7 @@ mv_ap806_sei_intr(void *arg)
 		if (irq == 0) break;
 		irq--;
 		sirq = &sc->isrcs[irq];
-		if (intr_isrc_dispatch(&sirq->isrc, tf) != 0) {
+		if (intr_isrc_dispatch(&sirq->isrc) != 0) {
 			mv_ap806_sei_isrc_mask(sc, sirq, 0);
 			mv_ap806_sei_isrc_eoi(sc, sirq);
 			device_printf(sc->dev,
