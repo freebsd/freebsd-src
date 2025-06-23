@@ -130,11 +130,11 @@ int	 scandir_b(const char *, struct dirent ***,
 #endif
 #endif
 #if __BSD_VISIBLE
-int	 fscandir(int, struct dirent ***,
+int	 fdscandir(int, struct dirent ***,
 	    int (*)(const struct dirent *), int (*)(const struct dirent **,
 	    const struct dirent **));
 #ifdef __BLOCKS__
-int	 fscandir_b(int, struct dirent ***,
+int	 fdscandir_b(int, struct dirent ***,
 	    int (^)(const struct dirent *),
 	    int (^)(const struct dirent **, const struct dirent **));
 #endif

@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250623: fscandir() renamed to fdscandir()
+OLD_FILES+=usr/share/man/man3/fscandir.3.gz
+OLD_FILES+=usr/share/man/man3/fscandir_b.3.gz
+
 # 20250615: don't install man page for absent function
 OLD_FILES+=usr/share/man/man9/vm_map_simplify_entry.9.gz
 
