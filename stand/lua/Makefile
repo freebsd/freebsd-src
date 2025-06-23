@@ -25,6 +25,7 @@ FILES=	cli.lua \
 	gfx-beastie.lua \
 	gfx-beastiebw.lua \
 	gfx-fbsdbw.lua \
+	gfx-install.lua \
 	gfx-orb.lua \
 	gfx-orbbw.lua \
 	menu.lua \
