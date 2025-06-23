@@ -1332,29 +1332,22 @@ ithread_loop(void *arg)
  *
  * Input:
  * o ie:                        the event connected to this interrupt.
---------------------------------------------------------------------------------
- * o frame:                     the current trap frame. If the client interrupt
- *				handler needs this frame, they should get it
- *				via curthread->td_intr_frame.
  *
  * Return value:
  * o 0:                         everything ok.
  * o EINVAL:                    stray interrupt.
  */
 int
-intr_event_handle(struct intr_event *ie, struct trapframe *frame)
+intr_event_handle(struct intr_event *ie)
 {
 	struct intr_handler *ih;
-	struct trapframe *oldframe;
-	struct thread *td;
 	int phase;
 	int ret;
 	bool filter, thread;
-
-	td = curthread;
+	struct trapframe *frame = curthread->td_intr_frame;
 
 #ifdef KSTACK_USAGE_PROF
-	intr_prof_stack_use(td, frame);
+	intr_prof_stack_use(curthread, frame);
 #endif
 
 	/* The assembly <=> C interface is responsible for incrementing
@@ -1373,8 +1366,6 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	filter = false;
 	thread = false;
 	ret = 0;
-	oldframe = td->td_intr_frame;
-	td->td_intr_frame = frame;
 
 	phase = ie->ie_phase;
 	atomic_add_int(&ie->ie_active[phase], 1);
@@ -1435,8 +1426,6 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		}
 	}
 	atomic_add_rel_int(&ie->ie_active[phase], -1);
-
-	td->td_intr_frame = oldframe;
 
 	if (thread) {
 		if (ie->ie_pre_ithread != NULL)
