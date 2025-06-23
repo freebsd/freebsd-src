@@ -1480,6 +1480,7 @@ cam_fill_mmcio(struct ccb_mmcio *mmcio, uint32_t retries,
 	mmcio->cmd.opcode = mmc_opcode;
 	mmcio->cmd.arg = mmc_arg;
 	mmcio->cmd.flags = mmc_flags;
+	mmcio->cmd.error = 0;
 	mmcio->stop.opcode = 0;
 	mmcio->stop.arg = 0;
 	mmcio->stop.flags = 0;
