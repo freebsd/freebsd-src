@@ -74,7 +74,7 @@ static void
 vt_fb_mem_wr2(struct fb_info *sc, uint32_t o, uint16_t v)
 {
 
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
+	KASSERT((o + 1 < sc->fb_size), ("Offset %#08x out of fb size", o + 1));
 	*(uint16_t *)(sc->fb_vbase + o) = v;
 }
 
@@ -82,7 +82,7 @@ static void
 vt_fb_mem_wr4(struct fb_info *sc, uint32_t o, uint32_t v)
 {
 
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
+	KASSERT((o + 3 < sc->fb_size), ("Offset %#08x out of fb size", o + 3));
 	*(uint32_t *)(sc->fb_vbase + o) = v;
 }
 
