@@ -107,8 +107,8 @@ typedef DECLARE_BLOCK(int, glob_b_block, const char*, int);
 struct glob_limit {
 	size_t	l_brace_cnt;
 	size_t	l_path_lim;
-	size_t	l_readdir_cnt;	
-	size_t	l_stat_cnt;	
+	size_t	l_readdir_cnt;
+	size_t	l_stat_cnt;
 	size_t	l_string_cnt;
 };
 
