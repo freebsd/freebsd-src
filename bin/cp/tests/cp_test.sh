@@ -183,6 +183,7 @@ atf_test_case pflag_acls
 pflag_acls_body()
 {
 	mkdir dir
+	ln -s dir lnk
 	echo "hello" >dir/file
 	if ! setfacl -m g:staff:D::allow dir ||
 	   ! setfacl -m g:staff:d::allow dir/file ; then
@@ -204,12 +205,21 @@ pflag_acls_body()
 	atf_check cp -rp dir dst4
 	atf_check -o match:"group:staff:-+D-+" getfacl dst4
 	atf_check -o match:"group:staff:-+d-+" getfacl dst4/file
+	# source is a link without -p
+	atf_check cp -r lnk dst5
+	atf_check -o not-match:"group:staff:-+D-+" getfacl dst5
+	atf_check -o not-match:"group:staff:-+d-+" getfacl dst5/file
+	# source is a link with -p
+	atf_check cp -rp lnk dst6
+	atf_check -o match:"group:staff:-+D-+" getfacl dst6
+	atf_check -o match:"group:staff:-+d-+" getfacl dst6/file
 }
 
 atf_test_case pflag_flags
 pflag_flags_body()
 {
 	mkdir dir
+	ln -s dir lnk
 	echo "hello" >dir/file
 	if ! chflags nodump dir ||
 	   ! chflags nodump dir/file ; then
@@ -231,6 +241,14 @@ pflag_flags_body()
 	atf_check cp -rp dir dst4
 	atf_check -o match:"nodump" stat -f%Sf dst4
 	atf_check -o match:"nodump" stat -f%Sf dst4/file
+	# source is a link without -p
+	atf_check cp -r lnk dst5
+	atf_check -o not-match:"nodump" stat -f%Sf dst5
+	atf_check -o not-match:"nodump" stat -f%Sf dst5/file
+	# source is a link with -p
+	atf_check cp -rp lnk dst6
+	atf_check -o match:"nodump" stat -f%Sf dst6
+	atf_check -o match:"nodump" stat -f%Sf dst6/file
 }
 
 recursive_link_setup()
