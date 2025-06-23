@@ -17,8 +17,6 @@ SUBDIR=	krb5_private krb5 gssrpc gssapi
 
 SUBDIR_PARALLEL=
 
-.include <bsd.subdir.mk>
-
 INCSGROUPS=	INCS COM_ERR VERTO GSSAPI_KRB5
 
 INCSDIR=	${INCLUDEDIR}
@@ -45,7 +43,6 @@ rebuild-error-tables: ${K5_ET_HEADERS}
 force:
 
 stage_includes: copies
-installincludes: copies
 SDESTDIR?=	${SYSROOT:U${DESTDIR}}
 
 .PHONY: force rebuild-error-tables osconf.h
@@ -61,7 +58,7 @@ VERTO=		verto-module.h \
 
 .PATH:	${KRB5_DIR}/include/krb5
 
-copies:
+copies:	.PHONY .META
 	cd ${KRB5_DIR}/include; \
 	${INSTALL} -C ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m444 ${INCS} ${SDESTDIR}${INCLUDEDIR}
 	cd ${KRB5_DIR}/util/et; \
@@ -71,3 +68,5 @@ copies:
 
 
 .include <bsd.prog.mk>
+
+installincludes: copies
