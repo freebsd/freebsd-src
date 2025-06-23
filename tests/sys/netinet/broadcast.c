@@ -90,7 +90,11 @@ firstbcast(struct in_addr *out)
 }
 
 /* Application sends to INADDR_BROADCAST, and this goes on the wire. */
-ATF_TC_WITHOUT_HEAD(INADDR_BROADCAST);
+ATF_TC(INADDR_BROADCAST);
+ATF_TC_HEAD(INADDR_BROADCAST, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
 ATF_TC_BODY(INADDR_BROADCAST, tc)
 {
 	struct sockaddr_in sin = {
