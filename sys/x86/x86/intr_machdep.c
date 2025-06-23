@@ -336,7 +336,7 @@ intr_disable_src(void *arg)
 }
 
 void
-intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
+intr_execute_handlers(struct intsrc *isrc)
 {
 	struct intr_event *ie;
 	int vector;

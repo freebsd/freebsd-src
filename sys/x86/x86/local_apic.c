@@ -1288,7 +1288,7 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 
 	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
 	    vector));
-	intr_execute_handlers(isrc, frame);
+	intr_execute_handlers(isrc);
 
 	curthread->td_intr_frame = oldframe;
 	--curthread->td_intr_nesting_level;
