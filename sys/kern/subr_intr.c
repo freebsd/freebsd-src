@@ -348,7 +348,9 @@ intr_irq_handler(struct trapframe *tf, uint32_t rootnum)
 	td = curthread;
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = tf;
+	++td->td_intr_nesting_level;
 	(root->filter)(root->arg);
+	--td->td_intr_nesting_level;
 	td->td_intr_frame = oldframe;
 	critical_exit();
 #ifdef HWPMC_HOOKS
@@ -389,6 +391,12 @@ intr_child_irq_handler(struct intr_pic *parent, uintptr_t irq)
 int
 intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 {
+
+	/* The assembly <=> C interface is responsible for incrementing
+	 * interrupt nesting level and setting critical state */
+	KASSERT(curthread->td_intr_nesting_level > 0,
+	    ("Unexpected thread context"));
+	CRITICAL_ASSERT(curthread);
 
 	KASSERT(isrc != NULL, ("%s: no source", __func__));
 

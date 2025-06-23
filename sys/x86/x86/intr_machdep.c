@@ -336,10 +336,14 @@ intr_disable_src(void *arg)
 }
 
 void
-intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
+_intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
 	struct intr_event *ie;
 	int vector;
+
+	KASSERT(curthread->td_intr_nesting_level > 0,
+	    ("Unexpected thread context"));
+	CRITICAL_ASSERT(curthread);
 
 	/*
 	 * We count software interrupts when we process them.  The
@@ -374,6 +378,19 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
 	}
+}
+
+void
+intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
+{
+
+	++curthread->td_intr_nesting_level;
+	critical_enter();
+
+	_intr_execute_handlers(isrc, frame);
+
+	critical_exit();
+	--curthread->td_intr_nesting_level;
 }
 
 void

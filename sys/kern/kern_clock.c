@@ -530,7 +530,12 @@ hardclock(int cnt, int usermode)
 			if (left > 0 && left <= newticks)
 				watchdog_fire();
 		}
+
+		curthread->td_intr_nesting_level++;
+		critical_enter();
 		intr_event_handle(clk_intr_event, NULL);
+		critical_exit();
+		curthread->td_intr_nesting_level--;
 	}
 	if (curcpu == CPU_FIRST())
 		cpu_tick_calibration();
