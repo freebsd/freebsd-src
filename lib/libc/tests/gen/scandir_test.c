@@ -63,19 +63,19 @@ ATF_TC_BODY(scandir_test, tc)
 	free(namelist);
 }
 
-ATF_TC(fscandir_test);
-ATF_TC_HEAD(fscandir_test, tc)
+ATF_TC(fdscandir_test);
+ATF_TC_HEAD(fdscandir_test, tc)
 {
-	atf_tc_set_md_var(tc, "descr", "Test fscandir()");
+	atf_tc_set_md_var(tc, "descr", "Test fdscandir()");
 }
-ATF_TC_BODY(fscandir_test, tc)
+ATF_TC_BODY(fdscandir_test, tc)
 {
 	struct dirent **namelist = NULL;
 	int fd, i, ret;
 
 	scandir_prepare(tc);
 	ATF_REQUIRE((fd = open("dir", O_DIRECTORY | O_RDONLY)) >= 0);
-	ret = fscandir(fd, &namelist, scandir_select, scandir_compare);
+	ret = fdscandir(fd, &namelist, scandir_select, scandir_compare);
 	scandir_verify(tc, ret, namelist);
 	for (i = 0; i < ret; i++)
 		free(namelist[i]);
@@ -127,7 +127,7 @@ ATF_TC_BODY(scandir_none, tc)
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, scandir_test);
-	ATF_TP_ADD_TC(tp, fscandir_test);
+	ATF_TP_ADD_TC(tp, fdscandir_test);
 	ATF_TP_ADD_TC(tp, scandirat_test);
 	ATF_TP_ADD_TC(tp, scandir_none);
 	return (atf_no_error());

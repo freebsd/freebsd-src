@@ -460,6 +460,8 @@ FBSD_1.8 {
 	execvpe;
 	fscandir;
 	fscandir_b;
+	fdscandir;
+	fdscandir_b;
 	fts_open_b;
 	glob_b;
 	psiginfo;

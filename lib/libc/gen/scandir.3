@@ -30,11 +30,11 @@
 .Os
 .Sh NAME
 .Nm scandir ,
-.Nm fscandir ,
+.Nm fdscandir ,
 .Nm scandirat ,
 .Nm scandir_b ,
-.Nm fscandir_b ,
-.Nm fscandirat_b ,
+.Nm fdscandir_b ,
+.Nm fdscandirat_b ,
 .Nm alphasort ,
 .Nm versionsort
 .Nd scan a directory
@@ -50,7 +50,7 @@
 .Fa "int \*(lp*compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
 .Fc
 .Ft int
-.Fo fscandir
+.Fo fdscandir
 .Fa "int dirfd"
 .Fa "struct dirent ***namelist"
 .Fa "int \*(lp*select\*(rp\*(lpconst struct dirent *\*(rp"
@@ -72,7 +72,7 @@
 .Fa "int \*(lp^compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
 .Fc
 .Ft int
-.Fo fscandir_b
+.Fo fdscandir_b
 .Fa "int dirfd"
 .Fa "struct dirent ***namelist"
 .Fa "int \*(lp^select\*(rp\*(lpconst struct dirent *\*(rp"
@@ -144,7 +144,7 @@ The memory allocated for the array can be deallocated with
 by freeing each pointer in the array and then the array itself.
 .Pp
 The
-.Fn fscandir
+.Fn fdscandir
 function is similar to
 .Fn scandir ,
 but takes a file descriptor referencing a directory instead of a path.
@@ -185,12 +185,12 @@ for additional details.
 .Pp
 The
 .Fn scandir_b ,
-.Fn fscandir_b ,
+.Fn fdscandir_b ,
 and
 .Fn scandirat_b
 functions behave in the same way as
 .Fn scandir ,
-.Fn fscandir ,
+.Fn fdscandir ,
 and
 .Fn scandirat ,
 respectively,
@@ -201,10 +201,10 @@ rather than
 .Sh DIAGNOSTICS
 The
 .Fn scandir ,
-.Fn fscandir ,
+.Fn fdscandir ,
 .Fn scandirat ,
 .Fn scandir_b ,
-.Fn fscandir_b ,
+.Fn fdscandir_b ,
 and
 .Fn scandirat_b
 functions return the number of directory entries found on succes.
@@ -236,9 +236,9 @@ and
 .Fn versionsort
 functions are GNU extensions and conform to no standard.
 The
-.Fn fscandir ,
+.Fn fdscandir ,
 .Fn scandir_b ,
-.Fn fscandir_b ,
+.Fn fdscandir_b ,
 and
 .Fn scandirat_b
 functions are
@@ -262,8 +262,8 @@ and
 functions were added in
 .Fx 13.2 .
 The
-.Fn fscandir ,
-.Fn fscandir_b ,
+.Fn fdscandir ,
+.Fn fdscandir_b ,
 and
 .Fn scandirat_b
 functions were added in

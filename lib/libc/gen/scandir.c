@@ -159,10 +159,10 @@ scandir(const char *dirname, struct dirent ***namelist,
 
 int
 #ifdef I_AM_SCANDIR_B
-fscandir_b(int dirfd, struct dirent ***namelist, select_block select,
+fdscandir_b(int dirfd, struct dirent ***namelist, select_block select,
     dcomp_block dcomp)
 #else
-fscandir(int dirfd, struct dirent ***namelist,
+fdscandir(int dirfd, struct dirent ***namelist,
     int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
     const struct dirent **))
 #endif
@@ -203,9 +203,9 @@ scandirat(int dirfd, const char *dirname, struct dirent ***namelist,
 		return (-1);
 	ret =
 #ifdef I_AM_SCANDIR_B
-	    fscandir_b
+	    fdscandir_b
 #else
-	    fscandir
+	    fdscandir
 #endif
 	    (fd, namelist, select, dcomp);
 	serrno = errno;
@@ -241,4 +241,10 @@ scandir_thunk_cmp(const void *p1, const void *p2, void *thunk)
 	dc = *(int (**)(const struct dirent **, const struct dirent **))thunk;
 	return (dc((const struct dirent **)p1, (const struct dirent **)p2));
 }
+#endif
+
+#ifdef I_AM_SCANDIR_B
+__weak_reference(fdscandir_b, fscandir_b);
+#else
+__weak_reference(fdscandir, fscandir);
 #endif

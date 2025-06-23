@@ -83,7 +83,7 @@ vscandir(struct inodetree *tree, const char *path, struct dirent ***dirp,
 		*dirp = NULL;
 		return (0);
 	}
-	if ((ret = fscandir(fd, dirp, selectf, comparf)) < 0)
+	if ((ret = fdscandir(fd, dirp, selectf, comparf)) < 0)
 		goto fail;
 	RB_INSERT(inodetree, tree, ino);
 	close(fd);
