@@ -1572,9 +1572,7 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_gone = sddadiskgonecb;
 	part->disk->d_name = part->name;
 	part->disk->d_drv1 = part;
-	part->disk->d_maxsize =
-	    MIN(maxphys, sdda_get_max_data(periph,
-		    (union ccb *)&cpi) * mmc_get_sector_size(periph));
+	part->disk->d_maxsize = MIN(maxphys, cpi.maxio);
 	part->disk->d_unit = cnt;
 	part->disk->d_flags = 0;
 	strlcpy(part->disk->d_descr, sc->card_id_string,

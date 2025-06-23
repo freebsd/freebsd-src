@@ -109,7 +109,7 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 		} else {
 			mmc_path_inq(&ccb->cpi, "Deglitch Networks",
-			    sim, mmc.host_max_data);
+			    sim, mmc.host_max_data * MMC_SECTOR_SIZE);
 		}
 		break;
 	case XPT_GET_TRAN_SETTINGS:
