@@ -568,6 +568,12 @@ rkcodec_dai_setup_mixer(device_t dev, device_t pcmdev)
 	return (0);
 }
 
+static int
+rkcodec_dai_set_sysclk(device_t dev, unsigned int rate, int dai_dir)
+{
+	return (0);
+}
+
 static device_method_t rkcodec_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		rkcodec_probe),
@@ -577,6 +583,7 @@ static device_method_t rkcodec_methods[] = {
 	DEVMETHOD(audio_dai_init,	rkcodec_dai_init),
 	DEVMETHOD(audio_dai_setup_mixer,	rkcodec_dai_setup_mixer),
 	DEVMETHOD(audio_dai_trigger,	rkcodec_dai_trigger),
+	DEVMETHOD(audio_dai_set_sysclk,	rkcodec_dai_set_sysclk),
 
 	DEVMETHOD_END
 };
