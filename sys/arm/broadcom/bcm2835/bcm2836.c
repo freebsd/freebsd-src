@@ -342,8 +342,7 @@ bcm_lintc_ipi_write(struct bcm_lintc_softc *sc, cpuset_t cpus, u_int ipi)
 }
 
 static inline void
-bcm_lintc_ipi_dispatch(struct bcm_lintc_softc *sc, u_int cpu,
-    struct trapframe *tf)
+bcm_lintc_ipi_dispatch(struct bcm_lintc_softc *sc, u_int cpu)
 {
 	u_int ipi;
 	uint32_t mask;
@@ -373,13 +372,12 @@ bcm_lintc_ipi_dispatch(struct bcm_lintc_softc *sc, u_int cpu,
 #endif
 
 static inline void
-bcm_lintc_irq_dispatch(struct bcm_lintc_softc *sc, u_int irq,
-    struct trapframe *tf)
+bcm_lintc_irq_dispatch(struct bcm_lintc_softc *sc, u_int irq)
 {
 	struct bcm_lintc_irqsrc *bli;
 
 	bli = &sc->bls_isrcs[irq];
-	if (intr_isrc_dispatch(&bli->bli_isrc, tf) != 0)
+	if (intr_isrc_dispatch(&bli->bli_isrc) != 0)
 		device_printf(sc->bls_dev, "Stray irq %u detected\n", irq);
 }
 
@@ -389,11 +387,9 @@ bcm_lintc_intr(void *arg)
 	struct bcm_lintc_softc *sc;
 	u_int cpu;
 	uint32_t num, reg;
-	struct trapframe *tf;
 
 	sc = arg;
 	cpu = PCPU_GET(cpuid);
-	tf = curthread->td_intr_frame;
 
 	for (num = 0; ; num++) {
 		reg = bcm_lintc_read_4(sc, BCM_LINTC_PENDING_REG(cpu));
@@ -401,20 +397,20 @@ bcm_lintc_intr(void *arg)
 			break;
 #ifdef SMP
 		if (reg & BCM_LINTC_MBOX0_IRQ_MASK)
-			bcm_lintc_ipi_dispatch(sc, cpu, tf);
+			bcm_lintc_ipi_dispatch(sc, cpu);
 #endif
 		if (reg & BCM_LINTC_TIMER0_IRQ_MASK)
-			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER0_IRQ, tf);
+			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER0_IRQ);
 		if (reg & BCM_LINTC_TIMER1_IRQ_MASK)
-			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER1_IRQ, tf);
+			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER1_IRQ);
 		if (reg & BCM_LINTC_TIMER2_IRQ_MASK)
-			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER2_IRQ, tf);
+			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER2_IRQ);
 		if (reg & BCM_LINTC_TIMER3_IRQ_MASK)
-			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER3_IRQ, tf);
+			bcm_lintc_irq_dispatch(sc, BCM_LINTC_TIMER3_IRQ);
 		if (reg & BCM_LINTC_GPU_IRQ_MASK)
-			bcm_lintc_irq_dispatch(sc, BCM_LINTC_GPU_IRQ, tf);
+			bcm_lintc_irq_dispatch(sc, BCM_LINTC_GPU_IRQ);
 		if (reg & BCM_LINTC_PMU_IRQ_MASK)
-			bcm_lintc_irq_dispatch(sc, BCM_LINTC_PMU_IRQ, tf);
+			bcm_lintc_irq_dispatch(sc, BCM_LINTC_PMU_IRQ);
 
 		arm_irq_memory_barrier(0); /* XXX */
 	}
