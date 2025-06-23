@@ -37,26 +37,6 @@ typedef int (*undef_handler_t)(vm_offset_t, uint32_t, struct trapframe *,
     uint32_t);
 typedef bool (*undef_sys_handler_t)(uint64_t, struct trapframe *);
 
-static inline int
-mrs_Op0(uint32_t insn)
-{
-
-	/* op0 is encoded without the top bit in a mrs instruction */
-	return (2 | ((insn & MRS_Op0_MASK) >> MRS_Op0_SHIFT));
-}
-
-#define	MRS_GET(op)						\
-static inline int						\
-mrs_##op(uint32_t insn)						\
-{								\
-								\
-	return ((insn & MRS_##op##_MASK) >> MRS_##op##_SHIFT);	\
-}
-MRS_GET(Op1)
-MRS_GET(CRn)
-MRS_GET(CRm)
-MRS_GET(Op2)
-
 void undef_init(void);
 void install_sys_handler(undef_sys_handler_t);
 void *install_undef_handler(undef_handler_t);
