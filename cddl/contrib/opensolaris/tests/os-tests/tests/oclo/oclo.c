@@ -1298,8 +1298,12 @@ oclo_exec(void)
 
 	argv[0] = file;
 	for (size_t i = 0; i < oclo_rtdata_next; i++) {
-		if (asprintf(&argv[i + 1], "0x%x", oclo_rtdata[i].crt_flags) ==
-		    -1) {
+		/*
+		 * https://austingroupbugs.net/view.php?id=1851
+		 * FD_CLOFORK should not be preserved across exec
+		 */
+		int flags = oclo_rtdata[i].crt_flags & ~FD_CLOFORK;
+		if (asprintf(&argv[i + 1], "0x%x", flags) == -1) {
 			err(EXIT_FAILURE, "TEST FAILED: failed to assemble "
 			    "exec argument %zu", i + 1);
 		}

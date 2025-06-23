@@ -2755,6 +2755,12 @@ fdcloseexec(struct thread *td)
 			fdfree(fdp, i);
 			(void) closefp(fdp, i, fp, td, false, false);
 			FILEDESC_UNLOCK_ASSERT(fdp);
+		} else if (fde->fde_flags & UF_FOCLOSE) {
+			/*
+			 * https://austingroupbugs.net/view.php?id=1851
+			 * FD_CLOFORK should not be preserved across exec
+			 */
+			fde->fde_flags &= ~UF_FOCLOSE;
 		}
 	}
 }
