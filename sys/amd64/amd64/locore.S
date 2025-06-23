@@ -119,6 +119,8 @@ ENTRY(la57_trampoline)
 	leaq	la57_trampoline_end(%rip),%rsp /* priv stack */
 
 	movq	%cr0,%rbp
+	leaq	la57_trampoline_gdt(%rip),%rax
+	movq	%rax,la57_trampoline_gdt_desc+2(%rip)
 	lgdtq	la57_trampoline_gdt_desc(%rip)
 
 	pushq	$(2<<3)
