@@ -57,7 +57,7 @@ static inline u_long
 xen_arch_intr_execute_handlers(struct xenisrc *isrc, struct trapframe *frame)
 {
 
-	intr_execute_handlers(&isrc->xi_arch.intsrc, frame);
+	intr_execute_handlers(&isrc->xi_arch.intsrc);
 	return (0);
 }
 
