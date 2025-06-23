@@ -327,16 +327,30 @@ static bool
 undef_sys_insn(struct trapframe *frame, uint32_t insn)
 {
 	uint64_t esr;
-	int op0;
 	bool read;
+
+#define	MRS_MASK			0xfff00000
+#define	MRS_VALUE			0xd5300000
+#define	MSR_REG_VALUE			0xd5100000
+#define	MSR_IMM_VALUE			0xd5000000
+#define	MRS_REGISTER(insn)		((insn) & 0x0000001f)
+#define	 MRS_Op0_SHIFT			19
+#define	 MRS_Op0_MASK			0x00180000
+#define	 MRS_Op1_SHIFT			16
+#define	 MRS_Op1_MASK			0x00070000
+#define	 MRS_CRn_SHIFT			12
+#define	 MRS_CRn_MASK			0x0000f000
+#define	 MRS_CRm_SHIFT			8
+#define	 MRS_CRm_MASK			0x00000f00
+#define	 MRS_Op2_SHIFT			5
+#define	 MRS_Op2_MASK			0x000000e0
 
 	read = false;
 	switch (insn & MRS_MASK) {
 	case MRS_VALUE:
 		read = true;
-		/* FALLTHROUGH */
+		break;
 	case MSR_REG_VALUE:
-		op0 = mrs_Op0(insn);
 		break;
 	case MSR_IMM_VALUE:
 		/*
@@ -346,9 +360,10 @@ undef_sys_insn(struct trapframe *frame, uint32_t insn)
 		 */
 		if (MRS_REGISTER(insn) != 31)
 			return (false);
-		if (mrs_CRn(insn) != 4)
+		if ((insn & MRS_CRn_MASK) >> MRS_CRn_SHIFT != 4)
 			return (false);
-		op0 = 0;
+		if ((insn & MRS_Op0_MASK) >> MRS_Op0_SHIFT != 0)
+			return (false);
 		break;
 	default:
 		return (false);
@@ -357,11 +372,31 @@ undef_sys_insn(struct trapframe *frame, uint32_t insn)
 	/* Create a fake EXCP_MSR esr value */
 	esr = EXCP_MSR << ESR_ELx_EC_SHIFT;
 	esr |= ESR_ELx_IL;
-	esr |= __ISS_MSR_REG(op0, mrs_Op1(insn), mrs_CRn(insn), mrs_CRm(insn),
-	    mrs_Op2(insn));
+	esr |= __ISS_MSR_REG(
+	    (insn & MRS_Op0_MASK) >> MRS_Op0_SHIFT,
+	    (insn & MRS_Op1_MASK) >> MRS_Op1_SHIFT,
+	    (insn & MRS_CRn_MASK) >> MRS_CRn_SHIFT,
+	    (insn & MRS_CRm_MASK) >> MRS_CRm_SHIFT,
+	    (insn & MRS_Op2_MASK) >> MRS_Op2_SHIFT);
 	esr |= MRS_REGISTER(insn) << ISS_MSR_Rt_SHIFT;
 	if (read)
 		esr |= ISS_MSR_DIR;
+
+#undef MRS_MASK
+#undef MRS_VALUE
+#undef MSR_REG_VALUE
+#undef MSR_IMM_VALUE
+#undef MRS_REGISTER
+#undef MRS_Op0_SHIFT
+#undef MRS_Op0_MASK
+#undef MRS_Op1_SHIFT
+#undef MRS_Op1_MASK
+#undef MRS_CRn_SHIFT
+#undef MRS_CRn_MASK
+#undef MRS_CRm_SHIFT
+#undef MRS_CRm_MASK
+#undef MRS_Op2_SHIFT
+#undef MRS_Op2_MASK
 
 	return (undef_sys(esr, frame));
 }
