@@ -336,7 +336,7 @@ intr_disable_src(void *arg)
 }
 
 void
-_intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
+_intr_execute_handlers(struct intsrc *isrc)
 {
 	struct intr_event *ie;
 	int vector;
@@ -368,7 +368,7 @@ _intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * For stray interrupts, mask and EOI the source, bump the
 	 * stray count, and log the condition.
 	 */
-	if (intr_event_handle(ie, frame) != 0) {
+	if (intr_event_handle(ie) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
@@ -383,12 +383,16 @@ _intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 void
 intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
+	struct trapframe *oldframe;
 
 	++curthread->td_intr_nesting_level;
 	critical_enter();
+	oldframe = curthread->td_intr_frame;
+	curthread->td_intr_frame = frame;
 
-	_intr_execute_handlers(isrc, frame);
+	_intr_execute_handlers(isrc);
 
+	curthread->td_intr_frame = oldframe;
 	critical_exit();
 	--curthread->td_intr_nesting_level;
 }

@@ -365,6 +365,7 @@ xen_intr_handle_upcall(void *unused __unused)
 
 	/* We must remain on the same vCPU during this function */
 	CRITICAL_ASSERT(curthread);
+	MPASS(curthread->td_intr_frame != NULL);
 
 	cpu = PCPU_GET(cpuid);
 	pc  = DPCPU_PTR(xen_intr_pcpu);

@@ -393,10 +393,11 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 {
 
 	/* The assembly <=> C interface is responsible for incrementing
-	 * interrupt nesting level and setting critical state */
+	 * interrupt nesting level, setting critical state and saving frame */
 	KASSERT(curthread->td_intr_nesting_level > 0,
 	    ("Unexpected thread context"));
 	CRITICAL_ASSERT(curthread);
+	MPASS(curthread->td_intr_frame != NULL);
 
 	KASSERT(isrc != NULL, ("%s: no source", __func__));
 
@@ -413,7 +414,7 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 	} else
 #endif
 	if (isrc->isrc_event != NULL) {
-		if (intr_event_handle(isrc->isrc_event, tf) == 0)
+		if (intr_event_handle(isrc->isrc_event) == 0)
 			return (0);
 	}
 
