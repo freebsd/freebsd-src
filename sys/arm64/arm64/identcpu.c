@@ -2555,6 +2555,24 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 	return (false);
 }
 
+bool
+get_user_reg(u_int reg, uint64_t *val, bool fbsd)
+{
+	int i;
+
+	for (i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg == reg) {
+			if (fbsd)
+				*val = CPU_DESC_FIELD(user_cpu_desc, i);
+			else
+				*val = CPU_DESC_FIELD(l_user_cpu_desc, i);
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
 static uint64_t
 update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
     u_int width, u_int shift, bool sign)

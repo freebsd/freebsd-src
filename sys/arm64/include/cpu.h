@@ -236,6 +236,7 @@ void	update_special_reg(u_int reg, uint64_t, uint64_t);
 bool	extract_user_id_field(u_int, u_int, uint8_t *);
 bool	get_kernel_reg(u_int, uint64_t *);
 bool	get_kernel_reg_masked(u_int, uint64_t *, uint64_t);
+bool	get_user_reg(u_int, uint64_t *, bool);
 
 void	cpu_desc_init(void);
 
