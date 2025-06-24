@@ -69,10 +69,10 @@ __init_elf_aux_vector(void)
 
 static int aux_once;
 static int pagesize, osreldate, canary_len, ncpus, pagesizes_len, bsdflags;
-static int hwcap_present, hwcap2_present;
+static int hwcap_present, hwcap2_present, hwcap3_present, hwcap4_present;
 static char *canary, *pagesizes, *execpath;
 static void *ps_strings, *timekeep;
-static u_long hwcap, hwcap2;
+static u_long hwcap, hwcap2, hwcap3, hwcap4;
 static void *fxrng_seed_version;
 static u_long usrstackbase, usrstacklim;
 
@@ -121,6 +121,16 @@ init_aux(void)
 		case AT_HWCAP2:
 			hwcap2_present = 1;
 			hwcap2 = (u_long)(aux->a_un.a_val);
+			break;
+
+		case AT_HWCAP3:
+			hwcap3_present = 1;
+			hwcap3 = (u_long)(aux->a_un.a_val);
+			break;
+
+		case AT_HWCAP4:
+			hwcap4_present = 1;
+			hwcap4 = (u_long)(aux->a_un.a_val);
 			break;
 
 		case AT_PAGESIZES:
@@ -314,6 +324,20 @@ _elf_aux_info(int aux, void *buf, int buflen)
 	case AT_HWCAP2:
 		if (hwcap2_present && buflen == sizeof(u_long)) {
 			*(u_long *)buf = hwcap2;
+			res = 0;
+		} else
+			res = ENOENT;
+		break;
+	case AT_HWCAP3:
+		if (hwcap3_present && buflen == sizeof(u_long)) {
+			*(u_long *)buf = hwcap3;
+			res = 0;
+		} else
+			res = ENOENT;
+		break;
+	case AT_HWCAP4:
+		if (hwcap4_present && buflen == sizeof(u_long)) {
+			*(u_long *)buf = hwcap4;
 			res = 0;
 		} else
 			res = ENOENT;
