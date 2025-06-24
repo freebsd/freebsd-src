@@ -2601,6 +2601,8 @@ int		 pf_tag_packet(struct pf_pdesc *, int);
 int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
 		    sa_family_t);
 
+uint8_t*	 pf_find_tcpopt(u_int8_t *, u_int8_t *, size_t,
+		    u_int8_t, u_int8_t);
 u_int16_t	 pf_get_mss(struct pf_pdesc *);
 u_int8_t	 pf_get_wscale(struct pf_pdesc *);
 struct mbuf 	*pf_build_tcp(const struct pf_krule *, sa_family_t,
