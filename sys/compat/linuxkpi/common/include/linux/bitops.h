@@ -62,10 +62,10 @@
 #define	hweight64(x)	bitcount64(x)
 #define	hweight_long(x)	bitcountl(x)
 
-#define	HWEIGHT8(x)	(bitcount8((uint8_t)(x)) + 1)
-#define	HWEIGHT16(x)	(bitcount16(x) + 1)
-#define	HWEIGHT32(x)	(bitcount32(x) + 1)
-#define	HWEIGHT64(x)	(bitcount64(x) + 1)
+#define	HWEIGHT8(x)	(bitcount8((uint8_t)(x)))
+#define	HWEIGHT16(x)	(bitcount16(x))
+#define	HWEIGHT32(x)	(bitcount32(x))
+#define	HWEIGHT64(x)	(bitcount64(x))
 
 static inline int
 __ffs(int mask)
