@@ -1336,7 +1336,7 @@ static pdp_entry_t *pmap_pti_pdpe(vm_offset_t va);
 static pd_entry_t *pmap_pti_pde(vm_offset_t va);
 static void pmap_pti_wire_pte(void *pte);
 static int pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
-    struct spglist *free, struct rwlock **lockp);
+    bool remove_pt, struct spglist *free, struct rwlock **lockp);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp);
 static vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
@@ -5996,7 +5996,7 @@ pmap_demote_pde_abort(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
 
 	SLIST_INIT(&free);
 	sva = trunc_2mpage(va);
-	pmap_remove_pde(pmap, pde, sva, &free, lockp);
+	pmap_remove_pde(pmap, pde, sva, true, &free, lockp);
 	if ((oldpde & pmap_global_bit(pmap)) == 0)
 		pmap_invalidate_pde_page(pmap, sva, oldpde);
 	vm_page_free_pages_toq(&free, true);
@@ -6150,7 +6150,8 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
  * pmap_remove_kernel_pde: Remove a kernel superpage mapping.
  */
 static void
-pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
+pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
+    bool remove_pt)
 {
 	pd_entry_t newpde;
 	vm_paddr_t mptepa;
@@ -6158,7 +6159,10 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 
 	KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	mpte = pmap_remove_pt_page(pmap, va);
+	if (remove_pt)
+		mpte = pmap_remove_pt_page(pmap, va);
+	else
+		mpte = vm_radix_lookup(&pmap->pm_root, pmap_pde_pindex(va));
 	if (mpte == NULL)
 		panic("pmap_remove_kernel_pde: Missing pt page.");
 
@@ -6190,7 +6194,7 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
  * pmap_remove_pde: do the things to unmap a superpage in a process
  */
 static int
-pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
+pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool remove_pt,
     struct spglist *free, struct rwlock **lockp)
 {
 	struct md_page *pvh;
@@ -6231,7 +6235,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		}
 	}
 	if (pmap == kernel_pmap) {
-		pmap_remove_kernel_pde(pmap, pdq, sva);
+		pmap_remove_kernel_pde(pmap, pdq, sva, remove_pt);
 	} else {
 		mpte = pmap_remove_pt_page(pmap, sva);
 		if (mpte != NULL) {
@@ -6473,7 +6477,8 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 				 */
 				if ((ptpaddr & PG_G) == 0)
 					anyvalid = 1;
-				pmap_remove_pde(pmap, pde, sva, &free, &lock);
+				pmap_remove_pde(pmap, pde, sva, true, &free,
+				    &lock);
 				continue;
 			} else if (!pmap_demote_pde_locked(pmap, pde, sva,
 			    &lock)) {
@@ -7542,13 +7547,36 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 			/*
 			 * The reference to the PD page that was acquired by
 			 * pmap_alloc_pde() ensures that it won't be freed.
-			 * However, if the PDE resulted from a promotion, then
+			 * However, if the PDE resulted from a promotion, and
+			 * the mapping is not from kernel_pmap, then
 			 * a reserved PT page could be freed.
 			 */
-			(void)pmap_remove_pde(pmap, pde, va, &free, lockp);
+			(void)pmap_remove_pde(pmap, pde, va,
+			    pmap != kernel_pmap, &free, lockp);
 			if ((oldpde & PG_G) == 0)
 				pmap_invalidate_pde_page(pmap, va, oldpde);
 		} else {
+			if (va >= VM_MAXUSER_ADDRESS) {
+				/*
+				 * Try to save the ptp in the trie
+				 * before any changes to mappings are
+				 * made.  Abort on failure.
+				 */
+				mt = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
+				if (pmap_insert_pt_page(pmap, mt, false, false)) {
+					if (pdpg != NULL)
+						pdpg->ref_count--;
+					CTR1(KTR_PMAP,
+			    "pmap_enter_pde: cannot ins kern ptp va %#lx",
+					    va);
+					return (KERN_RESOURCE_SHORTAGE);
+				}
+				/*
+				 * Both pmap_remove_pde() and
+				 * pmap_remove_ptes() will zero-fill
+				 * the kernel page table page.
+				 */
+			}
 			pmap_delayed_invl_start();
 			if (pmap_remove_ptes(pmap, va, va + NBPDR, pde, &free,
 			    lockp))
@@ -7562,14 +7590,6 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		} else {
 			KASSERT(SLIST_EMPTY(&free),
 			    ("pmap_enter_pde: freed kernel page table page"));
-
-			/*
-			 * Both pmap_remove_pde() and pmap_remove_ptes() will
-			 * leave the kernel page table page zero filled.
-			 */
-			mt = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
-			if (pmap_insert_pt_page(pmap, mt, false, false))
-				panic("pmap_enter_pde: trie insert failed");
 		}
 	}
 
