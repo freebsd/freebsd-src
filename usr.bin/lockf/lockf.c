@@ -35,6 +35,7 @@
 #include <limits.h>
 #include <signal.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +65,7 @@ static int lockfd = -1;
 static int keep;
 static int fdlock;
 static int status;
+static bool termchild;
 static volatile sig_atomic_t timed_out;
 
 /*
@@ -109,7 +111,7 @@ main(int argc, char **argv)
 	silent = keep = writepid = 0;
 	flags = O_CREAT | O_RDONLY;
 	waitsec = -1;	/* Infinite. */
-	while ((ch = getopt(argc, argv, "knpst:w")) != -1) {
+	while ((ch = getopt(argc, argv, "knpsTt:w")) != -1) {
 		switch (ch) {
 		case 'k':
 			keep = 1;
@@ -119,6 +121,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			silent = 1;
+			break;
+		case 'T':
+			termchild = true;
 			break;
 		case 't':
 		{
@@ -356,6 +361,8 @@ static void
 killed(int sig)
 {
 
+	if (termchild && child >= 0)
+		kill(child, sig);
 	cleanup();
 	signal(sig, SIG_DFL);
 	if (kill(getpid(), sig) == -1)
