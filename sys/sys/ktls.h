@@ -233,7 +233,6 @@ struct ktls_session {
 } __aligned(CACHE_LINE_SIZE);
 
 extern unsigned int ktls_ifnet_max_rexmit_pct;
-extern uint64_t ktls_glob_gen;
 
 typedef enum {
 	KTLS_MBUF_CRYPTO_ST_MIXED = 0,
@@ -281,12 +280,6 @@ ktls_free(struct ktls_session *tls)
 
 	if (refcount_release(&tls->refcount))
 		ktls_destroy(tls);
-}
-
-static inline bool
-ktls_session_genvis(const struct ktls_session *ks, uint64_t gen)
-{
-	return (ks != NULL && ks->gen <= gen);
 }
 
 void ktls_session_to_xktls_onedir(const struct ktls_session *ks,
