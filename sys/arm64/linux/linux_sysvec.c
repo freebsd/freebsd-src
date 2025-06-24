@@ -156,6 +156,8 @@ linux64_arch_copyout_auxargs(struct image_params *imgp, Elf_Auxinfo **pos)
 	AUXARGS_ENTRY((*pos), LINUX_AT_SYSINFO_EHDR, linux_vdso_base);
 	AUXARGS_ENTRY((*pos), LINUX_AT_HWCAP, *imgp->sysent->sv_hwcap);
 	AUXARGS_ENTRY((*pos), LINUX_AT_HWCAP2, *imgp->sysent->sv_hwcap2);
+	AUXARGS_ENTRY((*pos), LINUX_AT_HWCAP3, *imgp->sysent->sv_hwcap3);
+	AUXARGS_ENTRY((*pos), LINUX_AT_HWCAP4, *imgp->sysent->sv_hwcap4);
 	AUXARGS_ENTRY((*pos), LINUX_AT_PLATFORM, PTROUT(linux_platform));
 }
 
@@ -458,8 +460,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_trap	= NULL,
 	.sv_hwcap	= &linux_elf_hwcap,
 	.sv_hwcap2	= &linux_elf_hwcap2,
-	.sv_hwcap3	= NULL,
-	.sv_hwcap4	= NULL,
+	.sv_hwcap3	= &linux_elf_hwcap3,
+	.sv_hwcap4	= &linux_elf_hwcap4,
 	.sv_onexec	= linux_on_exec_vmspace,
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
