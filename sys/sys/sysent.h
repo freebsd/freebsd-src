@@ -145,6 +145,8 @@ struct sysentvec {
 	int		(*sv_trap)(struct thread *);
 	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
 	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
+	u_long		*sv_hwcap3;	/* Value passed in AT_HWCAP3. */
+	u_long		*sv_hwcap4;	/* Value passed in AT_HWCAP4. */
 	const char	*(*sv_machine_arch)(struct proc *);
 	vm_offset_t	sv_fxrng_gen_offset;
 	void		(*sv_onexec_old)(struct thread *td);
