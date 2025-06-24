@@ -62,35 +62,35 @@ _Static_assert(sizeof(sig_atomic_t) >= sizeof(pid_t),
     "PIDs cannot be managed safely from a signal handler on this platform.");
 static sig_atomic_t child = -1;
 static int lockfd = -1;
-static int keep;
-static int fdlock;
+static bool keep;
+static bool fdlock;
 static int status;
 static bool termchild;
-static volatile sig_atomic_t timed_out;
+static sig_atomic_t timed_out;
 
 /*
  * Check if fdlock is implied by the given `lockname`.  We'll write the fd that
  * is represented by it out to ofd, and the caller is expected to do any
  * necessary validation on it.
  */
-static int
+static bool
 fdlock_implied(const char *name, long *ofd)
 {
 	char *endp;
 	long fd;
 
 	if (strncmp(name, FDLOCK_PREFIX, sizeof(FDLOCK_PREFIX) - 1) != 0)
-		return (0);
+		return (false);
 
 	/* Skip past the prefix. */
 	name += sizeof(FDLOCK_PREFIX) - 1;
 	errno = 0;
 	fd = strtol(name, &endp, 10);
 	if (errno != 0 || *endp != '\0')
-		return (0);
+		return (false);
 
 	*ofd = fd;
-	return (1);
+	return (true);
 }
 
 /*
@@ -105,38 +105,36 @@ main(int argc, char **argv)
 	}, sa_prev;
 	sigset_t mask, omask;
 	long long waitsec;
+	const char *errstr;
 	union lock_subject subj;
-	int ch, flags, silent, writepid;
+	int ch, flags;
+	bool silent, writepid;
 
-	silent = keep = writepid = 0;
+	silent = writepid = false;
 	flags = O_CREAT | O_RDONLY;
 	waitsec = -1;	/* Infinite. */
 	while ((ch = getopt(argc, argv, "knpsTt:w")) != -1) {
 		switch (ch) {
 		case 'k':
-			keep = 1;
+			keep = true;
 			break;
 		case 'n':
 			flags &= ~O_CREAT;
 			break;
 		case 's':
-			silent = 1;
+			silent = true;
 			break;
 		case 'T':
 			termchild = true;
 			break;
 		case 't':
-		{
-			const char *errstr;
-
 			waitsec = strtonum(optarg, 0, UINT_MAX, &errstr);
 			if (errstr != NULL)
 				errx(EX_USAGE,
 				    "invalid timeout \"%s\"", optarg);
-		}
 			break;
 		case 'p':
-			writepid = 1;
+			writepid = true;
 			flags |= O_TRUNC;
 			/* FALLTHROUGH */
 		case 'w':
@@ -162,7 +160,7 @@ main(int argc, char **argv)
 	 * If there aren't any arguments left, then we must be in fdlock mode.
 	 */
 	if (argc == 0 && *lockname != '/') {
-		fdlock = 1;
+		fdlock = true;
 		subj.subj_fd = -1;
 	} else {
 		fdlock = fdlock_implied(lockname, &subj.subj_fd);
@@ -227,13 +225,16 @@ main(int argc, char **argv)
 	 */
 	lockfd = acquire_lock(&subj, flags | O_NONBLOCK, silent);
 	while (lockfd == -1 && !timed_out && waitsec != 0) {
-		if (keep || fdlock)
+		if (keep || fdlock) {
 			lockfd = acquire_lock(&subj, flags, silent);
-		else {
+		} else {
 			wait_for_lock(lockname);
 			lockfd = acquire_lock(&subj, flags | O_NONBLOCK,
 			    silent);
 		}
+
+		/* timed_out */
+		atomic_signal_fence(memory_order_acquire);
 	}
 	if (waitsec > 0)
 		alarm(0);
@@ -365,7 +366,7 @@ killed(int sig)
 		kill(child, sig);
 	cleanup();
 	signal(sig, SIG_DFL);
-	if (kill(getpid(), sig) == -1)
+	if (raise(sig) == -1)
 		_Exit(EX_OSERR);
 }
 
@@ -397,6 +398,7 @@ timeout(int sig __unused)
 {
 
 	timed_out = 1;
+	atomic_signal_fence(memory_order_release);
 }
 
 static void
