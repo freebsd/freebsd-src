@@ -91,15 +91,15 @@ fdlock_implied(const char *name, long *ofd)
 int
 main(int argc, char **argv)
 {
-	int ch, flags, silent, status;
+	int ch, flags, silent, status, writepid;
 	long long waitsec;
 	pid_t child;
 	union lock_subject subj;
 
-	silent = keep = 0;
+	silent = keep = writepid = 0;
 	flags = O_CREAT | O_RDONLY;
 	waitsec = -1;	/* Infinite. */
-	while ((ch = getopt(argc, argv, "knst:w")) != -1) {
+	while ((ch = getopt(argc, argv, "knpst:w")) != -1) {
 		switch (ch) {
 		case 'k':
 			keep = 1;
@@ -120,6 +120,10 @@ main(int argc, char **argv)
 				    "invalid timeout \"%s\"", optarg);
 		}
 			break;
+		case 'p':
+			writepid = 1;
+			flags |= O_TRUNC;
+			/* FALLTHROUGH */
 		case 'w':
 			flags = (flags & ~O_RDONLY) | O_WRONLY;
 			break;
@@ -249,6 +253,11 @@ main(int argc, char **argv)
 	fclose(stdin);
 	fclose(stdout);
 	fclose(stderr);
+
+	/* Write out the pid before we sleep on it. */
+	if (writepid)
+		(void)dprintf(lockfd, "%d\n", child);
+
 	if (waitpid(child, &status, 0) == -1)
 		exit(EX_OSERR);
 	return (WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE);
