@@ -75,6 +75,7 @@ LIBADD.socket_msg_waitall+=		pthread
 LIBADD.sendfile_helper+=		pthread
 LIBADD.fdgrowtable_test+=		util pthread kvm procstat
 LIBADD.sigwait+=			rt
+LIBADD.unix_passfd_test+=		jail
 
 NETBSD_ATF_TESTS_C+=	lockf_test
 NETBSD_ATF_TESTS_C+=	mqueue_test
