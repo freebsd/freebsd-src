@@ -58,7 +58,6 @@
  *	need a proper out-of-band
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -68,6 +67,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -2433,21 +2433,33 @@ unp_freerights(struct filedescent **fdep, int fdcount)
 	free(fdep[0], M_FILECAPS);
 }
 
+static bool
+restrict_rights(struct file *fp, struct thread *td)
+{
+	struct prison *prison1, *prison2;
+
+	prison1 = fp->f_cred->cr_prison;
+	prison2 = td->td_ucred->cr_prison;
+	return (prison1 != prison2 && prison1->pr_root != prison2->pr_root &&
+	    prison2 != &prison0);
+}
+
 static int
 unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 {
 	struct thread *td = curthread;		/* XXX */
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
-	int i;
 	int *fdp;
 	struct filedesc *fdesc = td->td_proc->p_fd;
 	struct filedescent **fdep;
 	void *data;
 	socklen_t clen = control->m_len, datalen;
-	int error, newfds;
+	int error, fdflags, newfds;
 	u_int newlen;
 
 	UNP_LINK_UNLOCK_ASSERT();
+
+	fdflags = (flags & MSG_CMSG_CLOEXEC) ? O_CLOEXEC : 0;
 
 	error = 0;
 	if (controlp != NULL) /* controlp == NULL => free control messages */
@@ -2490,11 +2502,14 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				*controlp = NULL;
 				goto next;
 			}
-			for (i = 0; i < newfds; i++, fdp++) {
-				_finstall(fdesc, fdep[i]->fde_file, *fdp,
-				    (flags & MSG_CMSG_CLOEXEC) != 0 ? O_CLOEXEC : 0,
-				    &fdep[i]->fde_caps);
-				unp_externalize_fp(fdep[i]->fde_file);
+			for (int i = 0; i < newfds; i++, fdp++) {
+				struct file *fp;
+
+				fp = fdep[i]->fde_file;
+				_finstall(fdesc, fp, *fdp, fdflags |
+				    (restrict_rights(fp, td) ?
+				    O_RESOLVE_BENEATH : 0), &fdep[i]->fde_caps);
+				unp_externalize_fp(fp);
 			}
 
 			/*
