@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\"
-.Dd December 7, 2021
+.Dd June 5, 2025
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -82,6 +82,11 @@ associated with the new file descriptor is cleared, so the file descriptor is
 to remain open across
 .Xr execve 2
 system calls.
+.It
+The
+.Dv FD_RESOLVE_BENEATH
+flag, described below, will be set if it was set on the original
+descriptor.
 .El
 .It Dv F_DUPFD_CLOEXEC
 Like
@@ -115,29 +120,47 @@ Use
 instead of
 .Dv F_DUP2FD .
 .It Dv F_GETFD
-Get the close-on-exec flag associated with the file descriptor
-.Fa fd
-as
-.Dv FD_CLOEXEC .
-If the returned value ANDed with
-.Dv FD_CLOEXEC
-is 0,
-the file will remain open across
-.Fn exec ,
-otherwise the file will be closed upon execution of
+Get the flags associated with the file descriptor
+.Fa fd .
+The following flags are defined:
+.Bl -tag -width FD_RESOLVE_BENEATH
+.It Dv FD_CLOEXEC
+The file will be closed upon execution of
 .Fn exec
 .Fa ( arg
 is ignored).
+Otherwise, the file descriptor will remain open.
+.It Dv FD_RESOLVE_BENEATH
+All path name lookups relative to that file descriptor
+will behave as if the lookup had
+.Dv O_RESOLVE_BENEATH
+or
+.Dv AT_RESOLVE_BENEATH
+semantics.
+It is not permitted to call
+.Xr fchdir 2
+or
+.Xr fchroot 2
+on such a file descriptor.
+The
+.Dv FD_RESOLVE_BENEATH
+flag is sticky, meaning that it is preserved by
+.Xr dup 2
+and similar operations, and opening a directory with
+.Xr openat 2
+where the directory descriptor has the flag set causes the new directory
+descriptor to also have the flag set.
+.El
 .It Dv F_SETFD
-Set the close-on-exec flag associated with
-.Fa fd
-to
-.Fa arg ,
-where
-.Fa arg
-is either 0 or
-.Dv FD_CLOEXEC ,
-as described above.
+Set flags associated with
+.Fa fd .
+The available flags are
+.Dv FD_CLOEXEC
+and
+.Dv FD_RESOLVE_BENEATH .
+The
+.Dv FD_RESOLVE_BENEATH
+flag cannot be cleared once set.
 .It Dv F_GETFL
 Get descriptor status flags, as described below
 .Fa ( arg

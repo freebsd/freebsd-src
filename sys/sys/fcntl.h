@@ -290,6 +290,8 @@ typedef	__pid_t		pid_t;
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define	FD_CLOEXEC	1		/* close-on-exec flag */
+#define	FD_RESOLVE_BENEATH 2		/* all lookups relative to fd have
+					   O_RESOLVE_BENEATH semantics */
 
 /* record locking flags (F_GETLK, F_SETLK, F_SETLKW) */
 #define	F_RDLCK		1		/* shared or read lock */
