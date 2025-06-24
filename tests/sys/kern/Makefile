@@ -96,6 +96,8 @@ LIBADD.sendfile_helper+=		pthread
 LIBADD.fdgrowtable_test+=		util pthread kvm procstat
 LIBADD.sigwait+=			rt
 LIBADD.ktrace_test+=			sysdecode
+LIBADD.unix_passfd_dgram+=		jail
+LIBADD.unix_passfd_stream+=		jail
 LIBADD.unix_stream+=			pthread
 
 NETBSD_ATF_TESTS_C+=	lockf_test
