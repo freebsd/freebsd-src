@@ -7143,6 +7143,8 @@ pushfile(const char *name, int secret)
 
 	if ((nfile = calloc(1, sizeof(struct file))) == NULL ||
 	    (nfile->name = strdup(name)) == NULL) {
+		if (nfile)
+			free(nfile);
 		warn("malloc");
 		return (NULL);
 	}
