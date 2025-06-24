@@ -576,10 +576,22 @@ void _gone_in_dev(device_t dev, int major, const char *msg, ...)
 #else
 #define	__gone_ok(m, msg)
 #endif
-#define gone_in(major, msg, ...)		__gone_ok(major, msg) \
-	_gone_in(major, msg __VA_OPT__(,) __VA_ARGS__)
-#define gone_in_dev(dev, major, msg, ...)	__gone_ok(major, msg) \
-	_gone_in_dev(dev, major, msg __VA_OPT__(,) __VA_ARGS__)
+#define gone_in(major, msg, ...)	do {				\
+	static bool __read_mostly __gone_in_ ## __LINE__ = true;	\
+	__gone_ok(major, msg);						\
+	if (__predict_false(__gone_in_ ## __LINE__)) {			\
+		__gone_in_ ## __LINE__ = false;				\
+		_gone_in(major, msg __VA_OPT__(,) __VA_ARGS__);		\
+	}								\
+} while (0)
+#define gone_in_dev(dev, major, msg, ...)	do {			\
+	static bool __read_mostly __gone_in_ ## __LINE__ = true;	\
+	__gone_ok(major, msg);						\
+	if (__predict_false(__gone_in_ ## __LINE__)) {			\
+		__gone_in_ ## __LINE__ = false;				\
+		_gone_in_dev(dev, major, msg __VA_OPT__(,) __VA_ARGS__);\
+	}								\
+} while (0)
 
 #ifdef INVARIANTS
 #define	__diagused
