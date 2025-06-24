@@ -108,7 +108,7 @@ smccc_arch_features(uint32_t smccc_func_id)
 
 	MPASS(smccc_version != 0);
 	if (smccc_version == SMCCC_VERSION_1_0)
-		return (PSCI_RETVAL_NOT_SUPPORTED);
+		return (SMCCC_RET_NOT_SUPPORTED);
 
 	return (arm_smccc_invoke(SMCCC_ARCH_FEATURES, smccc_func_id, NULL));
 }
