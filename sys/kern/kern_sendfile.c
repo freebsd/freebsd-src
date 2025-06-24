@@ -798,7 +798,11 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	SFSTAT_INC(sf_syscalls);
 	SFSTAT_ADD(sf_rhpages_requested, SF_READAHEAD(flags));
 
-	if (flags & SF_SYNC) {
+	if (__predict_false(flags & SF_SYNC)) {
+		gone_in(16, "Warning! %s[%u] uses SF_SYNC sendfile(2) flag. "
+		    "Please follow up to https://bugs.freebsd.org/"
+		    "bugzilla/show_bug.cgi?id=287348. ",
+		    td->td_proc->p_comm, td->td_proc->p_pid);
 		sfs = malloc(sizeof(*sfs), M_SENDFILE, M_WAITOK | M_ZERO);
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
