@@ -62,6 +62,13 @@ basic_body()
 	atf_check test ! -e "testlock"
 }
 
+atf_test_case bubble_error
+bubble_error_body()
+{
+	# Ensure that lockf bubbles up the error as expected.
+	atf_check -s exit:9 lockf testlock sh -c 'exit 9'
+}
+
 atf_test_case fdlock
 fdlock_body()
 {
@@ -233,6 +240,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case badargs
 	atf_add_test_case basic
+	atf_add_test_case bubble_error
 	atf_add_test_case fdlock
 	atf_add_test_case keep
 	atf_add_test_case needfile

@@ -34,6 +34,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,14 +51,19 @@ union lock_subject {
 static int acquire_lock(union lock_subject *subj, int flags, int silent);
 static void cleanup(void);
 static void killed(int sig);
+static void sigchld(int sig);
 static void timeout(int sig);
 static void usage(void) __dead2;
 static void wait_for_lock(const char *name);
 
 static const char *lockname;
+_Static_assert(sizeof(sig_atomic_t) >= sizeof(pid_t),
+    "PIDs cannot be managed safely from a signal handler on this platform.");
+static sig_atomic_t child = -1;
 static int lockfd = -1;
 static int keep;
 static int fdlock;
+static int status;
 static volatile sig_atomic_t timed_out;
 
 /*
@@ -91,10 +97,14 @@ fdlock_implied(const char *name, long *ofd)
 int
 main(int argc, char **argv)
 {
-	int ch, flags, silent, status, writepid;
+	struct sigaction sa_chld = {
+	    .sa_handler = sigchld,
+	    .sa_flags = SA_NOCLDSTOP,
+	}, sa_prev;
+	sigset_t mask, omask;
 	long long waitsec;
-	pid_t child;
 	union lock_subject subj;
+	int ch, flags, silent, writepid;
 
 	silent = keep = writepid = 0;
 	flags = O_CREAT | O_RDONLY;
@@ -238,9 +248,30 @@ main(int argc, char **argv)
 
 	if (atexit(cleanup) == -1)
 		err(EX_OSERR, "atexit failed");
+
+	/*
+	 * Block SIGTERM while SIGCHLD is being processed, so that we can safely
+	 * waitpid(2) for the child without a concurrent termination observing
+	 * an invalid pid (i.e., waited-on).  If our setup between here and the
+	 * sigsuspend loop gets any more complicated, we should rewrite it to
+	 * just use a pipe to signal the child onto execvp().
+	 *
+	 * We're blocking SIGCHLD and SIGTERM here so that we don't do any
+	 * cleanup before we're ready to (after the pid is written out).
+	 */
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGCHLD);
+	sigaddset(&mask, SIGTERM);
+	(void)sigprocmask(SIG_BLOCK, &mask, &omask);
+
+	memcpy(&sa_chld.sa_mask, &omask, sizeof(omask));
+	sigaddset(&sa_chld.sa_mask, SIGTERM);
+	(void)sigaction(SIGCHLD, &sa_chld, &sa_prev);
+
 	if ((child = fork()) == -1)
 		err(EX_OSERR, "cannot fork");
 	if (child == 0) {	/* The child process. */
+		(void)sigprocmask(SIG_SETMASK, &omask, NULL);
 		close(lockfd);
 		execvp(argv[0], argv);
 		warn("%s", argv[0]);
@@ -250,16 +281,24 @@ main(int argc, char **argv)
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, killed);
+
 	fclose(stdin);
 	fclose(stdout);
 	fclose(stderr);
 
 	/* Write out the pid before we sleep on it. */
 	if (writepid)
-		(void)dprintf(lockfd, "%d\n", child);
+		(void)dprintf(lockfd, "%d\n", (int)child);
 
-	if (waitpid(child, &status, 0) == -1)
-		exit(EX_OSERR);
+	/* Just in case they were blocked on entry. */
+	sigdelset(&omask, SIGCHLD);
+	sigdelset(&omask, SIGTERM);
+	while (child >= 0) {
+		(void)sigsuspend(&omask);
+		/* child */
+		atomic_signal_fence(memory_order_acquire);
+	}
+
 	return (WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE);
 }
 
@@ -321,6 +360,26 @@ killed(int sig)
 	signal(sig, SIG_DFL);
 	if (kill(getpid(), sig) == -1)
 		_Exit(EX_OSERR);
+}
+
+/*
+ * Signal handler for SIGCHLD.  Simply waits for the child and ensures that we
+ * don't end up in a sticky situation if we receive a SIGTERM around the same
+ * time.
+ */
+static void
+sigchld(int sig __unused)
+{
+	int ostatus;
+
+	while (waitpid(child, &ostatus, 0) != child) {
+		if (errno != EINTR)
+			_exit(EX_OSERR);
+	}
+
+	status = ostatus;
+	child = -1;
+	atomic_signal_fence(memory_order_release);
 }
 
 /*
