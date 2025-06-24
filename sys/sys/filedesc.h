@@ -148,6 +148,7 @@ struct filedesc_to_leader {
  * Per-process open flags.
  */
 #define	UF_EXCLOSE	0x01		/* auto-close on exec */
+#define	UF_RESOLVE_BENEATH 0x02		/* lookups must be beneath this dir */
 
 #ifdef _KERNEL
 
@@ -278,17 +279,20 @@ struct filedesc_to_leader *
 int	getvnode(struct thread *td, int fd, const cap_rights_t *rightsp,
 	    struct file **fpp);
 int	getvnode_path(struct thread *td, int fd, const cap_rights_t *rightsp,
-	    struct file **fpp);
+	    uint8_t *flagsp, struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
 int	fget_cap_noref(struct filedesc *fdp, int fd,
 	    const cap_rights_t *needrightsp, struct file **fpp,
 	    struct filecaps *havecapsp);
 int	fget_cap(struct thread *td, int fd, const cap_rights_t *needrightsp,
-	    struct file **fpp, struct filecaps *havecapsp);
+	    uint8_t *flagsp, struct file **fpp, struct filecaps *havecapsp);
 /* Return a referenced file from an unlocked descriptor. */
 int	fget_unlocked(struct thread *td, int fd,
 	    const cap_rights_t *needrightsp, struct file **fpp);
+int	fget_unlocked_flags(struct thread *td, int fd,
+	    const cap_rights_t *needrightsp, uint8_t *flagsp,
+	    struct file **fpp);
 /* Return a file pointer without a ref. FILEDESC_IS_ONLY_USER must be true.  */
 int	fget_only_user(struct filedesc *fdp, int fd,
 	    const cap_rights_t *needrightsp, struct file **fpp);
