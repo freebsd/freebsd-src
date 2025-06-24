@@ -922,6 +922,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 		if (pfctl_get_rule_h(pf->h, nr, rules.ticket, "", PF_PASS,
 		    &rule, anchor_call)) {
 			warn("DIOCGETRULENV");
+			free(por);
 			return (1);
 		}
 		memcpy(&por->por_rule, &rule, sizeof(por->por_rule));
