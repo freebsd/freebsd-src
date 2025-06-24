@@ -77,7 +77,7 @@ typedef struct {
 #define	l_fd_set	fd_set
 
 /* Miscellaneous */
-#define	LINUX_AT_COUNT		21	/* Count of used aux entry types.
+#define	LINUX_AT_COUNT		23	/* Count of used aux entry types.
 					 * Keep this synchronized with
 					 * linux_copyout_auxargs() code.
 					 */
