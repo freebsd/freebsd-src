@@ -122,7 +122,7 @@ trng_read(void *buf, unsigned usz)
 	if (ret < 0)
 		return (0);
 
-	memcpy(buf, &res.a0, len);
+	memcpy(buf, &res.a3, len);
 	return (len);
 }
 
