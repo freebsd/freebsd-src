@@ -2492,14 +2492,6 @@ pfrule		: action dir logquick interface route af proto fromto
 						    "apply to tcp");
 					YYERROR;
 				}
-#if 0
-				if (($9.flags.b1 & parse_flags("S")) == 0 &&
-				    $8.src_os) {
-					yyerror("OS fingerprinting requires "
-					    "the SYN TCP flag (flags S/SA)");
-					YYERROR;
-				}
-#endif
 			}
 
 			r.tos = $9.tos;
