@@ -23,6 +23,7 @@ INCS=	\
 	pmap_clnt.h \
 	pmap_prot.h \
 	pmap_rmt.h \
+	rename.h \
 	rpc_msg.h \
 	rpc.h \
 	svc_auth.h \
