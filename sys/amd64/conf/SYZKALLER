@@ -1,0 +1,5 @@
+include GENERIC-KASAN
+ident SYZKALLER
+
+options 	COVERAGE
+options 	KCOV
