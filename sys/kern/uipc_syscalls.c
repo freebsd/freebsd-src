@@ -93,7 +93,7 @@ getsock_cap(struct thread *td, int fd, const cap_rights_t *rightsp,
 	struct file *fp;
 	int error;
 
-	error = fget_cap(td, fd, rightsp, &fp, havecapsp);
+	error = fget_cap(td, fd, rightsp, NULL, &fp, havecapsp);
 	if (__predict_false(error != 0))
 		return (error);
 	if (__predict_false(fp->f_type != DTYPE_SOCKET)) {
