@@ -2089,6 +2089,7 @@ int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
 int	(*vlan_pcp_p)(struct ifnet *, uint16_t *);
 int	(*vlan_setcookie_p)(struct ifnet *, void *);
 void	*(*vlan_cookie_p)(struct ifnet *);
+void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /*
  * Handle a change in the interface link state. To avoid LORs
