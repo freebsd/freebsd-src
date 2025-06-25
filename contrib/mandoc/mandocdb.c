@@ -1,6 +1,6 @@
-/* $Id: mandocdb.c,v 1.274 2024/05/14 21:19:12 schwarze Exp $ */
+/* $Id: mandocdb.c,v 1.275 2025/06/05 12:33:41 schwarze Exp $ */
 /*
- * Copyright (c) 2011-2021, 2024 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2021, 2024, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2016 Ed Maste <emaste@freebsd.org>
  *
@@ -151,6 +151,8 @@ static	int	 parse_mdoc_Fn(struct mpage *, const struct roff_meta *,
 			const struct roff_node *);
 static	int	 parse_mdoc_Fo(struct mpage *, const struct roff_meta *,
 			const struct roff_node *);
+static	int	 parse_mdoc_Lb(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
 static	int	 parse_mdoc_Nd(struct mpage *, const struct roff_meta *,
 			const struct roff_node *);
 static	int	 parse_mdoc_Nm(struct mpage *, const struct roff_meta *,
@@ -299,7 +301,7 @@ static	const struct mdoc_handler mdoc_handlers[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, 0, 0 },  /* Hf */
 	{ NULL, 0, 0 },  /* Fr */
 	{ NULL, 0, 0 },  /* Ud */
-	{ NULL, TYPE_Lb, NODE_NOSRC },  /* Lb */
+	{ parse_mdoc_Lb, 0, 0 },  /* Lb */
 	{ NULL, 0, 0 },  /* Lp */
 	{ NULL, TYPE_Lk, 0 },  /* Lk */
 	{ NULL, TYPE_Mt, NODE_NOSRC },  /* Mt */
@@ -1750,6 +1752,25 @@ parse_mdoc_Fo(struct mpage *mpage, const struct roff_meta *meta,
 	if (n->child != NULL)
 		parse_mdoc_fname(mpage, n->child);
 
+	return 0;
+}
+
+static int
+parse_mdoc_Lb(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
+{
+	char *cp;
+
+	for (n = n->child; n != NULL; n = n->next) {
+		if (n->flags & NODE_NOSRC)
+			continue;
+		cp = n->string;
+		if (n->sec == SEC_SYNOPSIS)
+			mandoc_asprintf(&cp, "lib%s", cp);
+		putkey(mpage, cp, TYPE_Lb);
+		if (n->sec == SEC_SYNOPSIS)
+			free(cp);
+	}
 	return 0;
 }
 
