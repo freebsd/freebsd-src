@@ -38,8 +38,8 @@
  *      BLOCK-END                       # Indentation decrease.
  *      FLOW-SEQUENCE-START             # '['
  *      FLOW-SEQUENCE-END               # ']'
- *      BLOCK-SEQUENCE-START            # '{'
- *      BLOCK-SEQUENCE-END              # '}'
+ *      FLOW-MAPPING-START              # '{'
+ *      FLOW-MAPPING-END                # '}'
  *      BLOCK-ENTRY                     # '-'
  *      FLOW-ENTRY                      # ','
  *      KEY                             # '?' or nothing (simple keys).
@@ -70,7 +70,7 @@
  *      %TAG    !yaml!  tag:yaml.org,2002:
  *      ---
  *
- * The correspoding sequence of tokens:
+ * The corresponding sequence of tokens:
  *
  *      STREAM-START(utf-8)
  *      VERSION-DIRECTIVE(1,1)
@@ -348,6 +348,7 @@
  *          SCALAR("another value",plain)
  *          KEY
  *          SCALAR("a mapping",plain)
+ *          VALUE
  *          BLOCK-MAPPING-START
  *          KEY
  *          SCALAR("key 1",plain)
@@ -615,14 +616,11 @@ yaml_parser_decrease_flow_level(yaml_parser_t *parser);
  */
 
 static int
-yaml_parser_roll_indent(yaml_parser_t *parser, size_t column,
-        int number, yaml_token_type_t type, yaml_mark_t mark);
+yaml_parser_roll_indent(yaml_parser_t *parser, ptrdiff_t column,
+        ptrdiff_t number, yaml_token_type_t type, yaml_mark_t mark);
 
 static int
-yaml_parser_unroll_indent(yaml_parser_t *parser, size_t column);
-
-static int
-yaml_parser_reset_indent(yaml_parser_t *parser);
+yaml_parser_unroll_indent(yaml_parser_t *parser, ptrdiff_t column);
 
 /*
  * Token fetchers.
@@ -714,7 +712,7 @@ yaml_parser_scan_tag_handle(yaml_parser_t *parser, int directive,
         yaml_mark_t start_mark, yaml_char_t **handle);
 
 static int
-yaml_parser_scan_tag_uri(yaml_parser_t *parser, int directive,
+yaml_parser_scan_tag_uri(yaml_parser_t *parser, int uri_char, int directive,
         yaml_char_t *head, yaml_mark_t start_mark, yaml_char_t **uri);
 
 static int
@@ -765,7 +763,7 @@ yaml_parser_scan(yaml_parser_t *parser, yaml_token_t *token)
     }
 
     /* Fetch the next token from the queue. */
-    
+
     *token = DEQUEUE(parser, parser->tokens);
     parser->token_available = 0;
     parser->tokens_parsed ++;
@@ -1106,14 +1104,7 @@ yaml_parser_save_simple_key(yaml_parser_t *parser)
      */
 
     int required = (!parser->flow_level
-            && parser->indent == (int)parser->mark.column);
-
-    /*
-     * A simple key is required only when it is the first token in the current
-     * line.  Therefore it is always allowed.  But we add a check anyway.
-     */
-
-    assert(parser->simple_key_allowed || !required);    /* Impossible. */
+            && parser->indent == (ptrdiff_t)parser->mark.column);
 
     /*
      * If the current position may start a simple key, save it.
@@ -1124,7 +1115,7 @@ yaml_parser_save_simple_key(yaml_parser_t *parser)
         yaml_simple_key_t simple_key;
         simple_key.possible = 1;
         simple_key.required = required;
-        simple_key.token_number = 
+        simple_key.token_number =
             parser->tokens_parsed + (parser->tokens.tail - parser->tokens.head);
         simple_key.mark = parser->mark;
 
@@ -1179,6 +1170,11 @@ yaml_parser_increase_flow_level(yaml_parser_t *parser)
 
     /* Increase the flow level. */
 
+    if (parser->flow_level == INT_MAX) {
+        parser->error = YAML_MEMORY_ERROR;
+        return 0;
+    }
+
     parser->flow_level++;
 
     return 1;
@@ -1191,11 +1187,9 @@ yaml_parser_increase_flow_level(yaml_parser_t *parser)
 static int
 yaml_parser_decrease_flow_level(yaml_parser_t *parser)
 {
-    yaml_simple_key_t dummy_key;    /* Used to eliminate a compiler warning. */
-
     if (parser->flow_level) {
         parser->flow_level --;
-        dummy_key = POP(parser, parser->simple_keys);
+        (void)POP(parser, parser->simple_keys);
     }
 
     return 1;
@@ -1205,12 +1199,12 @@ yaml_parser_decrease_flow_level(yaml_parser_t *parser)
  * Push the current indentation level to the stack and set the new level
  * the current column is greater than the indentation level.  In this case,
  * append or insert the specified token into the token queue.
- * 
+ *
  */
 
 static int
-yaml_parser_roll_indent(yaml_parser_t *parser, size_t column,
-        int number, yaml_token_type_t type, yaml_mark_t mark)
+yaml_parser_roll_indent(yaml_parser_t *parser, ptrdiff_t column,
+        ptrdiff_t number, yaml_token_type_t type, yaml_mark_t mark)
 {
     yaml_token_t token;
 
@@ -1219,7 +1213,7 @@ yaml_parser_roll_indent(yaml_parser_t *parser, size_t column,
     if (parser->flow_level)
         return 1;
 
-    if (parser->indent == -1 || parser->indent < column)
+    if (parser->indent < column)
     {
         /*
          * Push the current indentation level to the stack and set the new
@@ -1228,6 +1222,11 @@ yaml_parser_roll_indent(yaml_parser_t *parser, size_t column,
 
         if (!PUSH(parser, parser->indents, parser->indent))
             return 0;
+
+        if (column > INT_MAX) {
+            parser->error = YAML_MEMORY_ERROR;
+            return 0;
+        }
 
         parser->indent = column;
 
@@ -1251,13 +1250,13 @@ yaml_parser_roll_indent(yaml_parser_t *parser, size_t column,
 
 /*
  * Pop indentation levels from the indents stack until the current level
- * becomes less or equal to the column.  For each intendation level, append
+ * becomes less or equal to the column.  For each indentation level, append
  * the BLOCK-END token.
  */
 
 
 static int
-yaml_parser_unroll_indent(yaml_parser_t *parser, size_t column)
+yaml_parser_unroll_indent(yaml_parser_t *parser, ptrdiff_t column)
 {
     yaml_token_t token;
 
@@ -1266,53 +1265,9 @@ yaml_parser_unroll_indent(yaml_parser_t *parser, size_t column)
     if (parser->flow_level)
         return 1;
 
-    /*
-     * column is unsigned and parser->indent is signed, so if
-     * parser->indent is less than zero the conditional in the while
-     * loop below is incorrect.  Guard against that.
-     */
-    
-    if (parser->indent < 0)
-        return 1;
-
-    /* Loop through the intendation levels in the stack. */
+    /* Loop through the indentation levels in the stack. */
 
     while (parser->indent > column)
-    {
-        /* Create a token and append it to the queue. */
-
-        TOKEN_INIT(token, YAML_BLOCK_END_TOKEN, parser->mark, parser->mark);
-
-        if (!ENQUEUE(parser, parser->tokens, token))
-            return 0;
-
-        /* Pop the indentation level. */
-
-        parser->indent = POP(parser, parser->indents);
-    }
-
-    return 1;
-}
-
-/*
- * Pop indentation levels from the indents stack until the current
- * level resets to -1.  For each intendation level, append the
- * BLOCK-END token.
- */
-
-static int
-yaml_parser_reset_indent(yaml_parser_t *parser)
-{
-    yaml_token_t token;
-
-    /* In the flow context, do nothing. */
-
-    if (parser->flow_level)
-        return 1;
-
-    /* Loop through the intendation levels in the stack. */
-
-    while (parser->indent > -1)
     {
         /* Create a token and append it to the queue. */
 
@@ -1385,7 +1340,7 @@ yaml_parser_fetch_stream_end(yaml_parser_t *parser)
 
     /* Reset the indentation level. */
 
-    if (!yaml_parser_reset_indent(parser))
+    if (!yaml_parser_unroll_indent(parser, -1))
         return 0;
 
     /* Reset simple keys. */
@@ -1416,7 +1371,7 @@ yaml_parser_fetch_directive(yaml_parser_t *parser)
 
     /* Reset the indentation level. */
 
-    if (!yaml_parser_reset_indent(parser))
+    if (!yaml_parser_unroll_indent(parser, -1))
         return 0;
 
     /* Reset simple keys. */
@@ -1454,7 +1409,7 @@ yaml_parser_fetch_document_indicator(yaml_parser_t *parser,
 
     /* Reset the indentation level. */
 
-    if (!yaml_parser_reset_indent(parser))
+    if (!yaml_parser_unroll_indent(parser, -1))
         return 0;
 
     /* Reset simple keys. */
@@ -1682,7 +1637,7 @@ yaml_parser_fetch_key(yaml_parser_t *parser)
 
     if (!parser->flow_level)
     {
-        /* Check if we are allowed to start a new key (not nessesary simple). */
+        /* Check if we are allowed to start a new key (not necessary simple). */
 
         if (!parser->simple_key_allowed) {
             return yaml_parser_set_scanner_error(parser, NULL, parser->mark,
@@ -1982,7 +1937,7 @@ yaml_parser_scan_to_next_token(yaml_parser_t *parser)
          *
          *  - in the flow context;
          *  - in the block context, but not at the beginning of the line or
-         *  after '-', '?', or ':' (complex value).  
+         *  after '-', '?', or ':' (complex value).
          */
 
         if (!CACHE(parser, 1)) return 0;
@@ -2097,7 +2052,7 @@ yaml_parser_scan_directive(yaml_parser_t *parser, yaml_token_t *token)
     else
     {
         yaml_parser_set_scanner_error(parser, "while scanning a directive",
-                start_mark, "found uknown directive name");
+                start_mark, "found unknown directive name");
         goto error;
     }
 
@@ -2338,7 +2293,7 @@ yaml_parser_scan_tag_directive_value(yaml_parser_t *parser,
 
     /* Scan a prefix. */
 
-    if (!yaml_parser_scan_tag_uri(parser, 1, NULL, start_mark, &prefix_value))
+    if (!yaml_parser_scan_tag_uri(parser, 1, 1, NULL, start_mark, &prefix_value))
         goto error;
 
     /* Expect a whitespace or line break. */
@@ -2445,7 +2400,7 @@ yaml_parser_scan_tag(yaml_parser_t *parser, yaml_token_t *token)
     {
         /* Set the handle to '' */
 
-        handle = yaml_malloc(1);
+        handle = YAML_MALLOC(1);
         if (!handle) goto error;
         handle[0] = '\0';
 
@@ -2456,7 +2411,7 @@ yaml_parser_scan_tag(yaml_parser_t *parser, yaml_token_t *token)
 
         /* Consume the tag value. */
 
-        if (!yaml_parser_scan_tag_uri(parser, 0, NULL, start_mark, &suffix))
+        if (!yaml_parser_scan_tag_uri(parser, 1, 0, NULL, start_mark, &suffix))
             goto error;
 
         /* Check for '>' and eat it. */
@@ -2484,20 +2439,20 @@ yaml_parser_scan_tag(yaml_parser_t *parser, yaml_token_t *token)
         {
             /* Scan the suffix now. */
 
-            if (!yaml_parser_scan_tag_uri(parser, 0, NULL, start_mark, &suffix))
+            if (!yaml_parser_scan_tag_uri(parser, 0, 0, NULL, start_mark, &suffix))
                 goto error;
         }
         else
         {
             /* It wasn't a handle after all.  Scan the rest of the tag. */
 
-            if (!yaml_parser_scan_tag_uri(parser, 0, handle, start_mark, &suffix))
+            if (!yaml_parser_scan_tag_uri(parser, 0, 0, handle, start_mark, &suffix))
                 goto error;
 
             /* Set the handle to '!'. */
 
             yaml_free(handle);
-            handle = yaml_malloc(2);
+            handle = YAML_MALLOC(2);
             if (!handle) goto error;
             handle[0] = '!';
             handle[1] = '\0';
@@ -2520,9 +2475,11 @@ yaml_parser_scan_tag(yaml_parser_t *parser, yaml_token_t *token)
     if (!CACHE(parser, 1)) goto error;
 
     if (!IS_BLANKZ(parser->buffer)) {
-        yaml_parser_set_scanner_error(parser, "while scanning a tag",
-                start_mark, "did not find expected whitespace or line break");
-        goto error;
+        if (!parser->flow_level || !CHECK(parser->buffer, ',') ) {
+            yaml_parser_set_scanner_error(parser, "while scanning a tag",
+                    start_mark, "did not find expected whitespace or line break");
+            goto error;
+        }
     }
 
     end_mark = parser->mark;
@@ -2611,7 +2568,7 @@ error:
  */
 
 static int
-yaml_parser_scan_tag_uri(yaml_parser_t *parser, int directive,
+yaml_parser_scan_tag_uri(yaml_parser_t *parser, int uri_char, int directive,
         yaml_char_t *head, yaml_mark_t start_mark, yaml_char_t **uri)
 {
     size_t length = head ? strlen((char *)head) : 0;
@@ -2621,7 +2578,7 @@ yaml_parser_scan_tag_uri(yaml_parser_t *parser, int directive,
 
     /* Resize the string to include the head. */
 
-    while (string.end - string.start <= (int)length) {
+    while ((size_t)(string.end - string.start) <= length) {
         if (!yaml_string_extend(&string.start, &string.pointer, &string.end)) {
             parser->error = YAML_MEMORY_ERROR;
             goto error;
@@ -2647,8 +2604,11 @@ yaml_parser_scan_tag_uri(yaml_parser_t *parser, int directive,
      * The set of characters that may appear in URI is as follows:
      *
      *      '0'-'9', 'A'-'Z', 'a'-'z', '_', '-', ';', '/', '?', ':', '@', '&',
-     *      '=', '+', '$', ',', '.', '!', '~', '*', '\'', '(', ')', '[', ']',
-     *      '%'.
+     *      '=', '+', '$', '.', '!', '~', '*', '\'', '(', ')', '%'.
+     *
+     * If we are inside a verbatim tag <...> (parameter uri_char is true)
+     * then also the following flow indicators are allowed:
+     *      ',', '[', ']'
      */
 
     while (IS_ALPHA(parser->buffer) || CHECK(parser->buffer, ';')
@@ -2656,16 +2616,22 @@ yaml_parser_scan_tag_uri(yaml_parser_t *parser, int directive,
             || CHECK(parser->buffer, ':') || CHECK(parser->buffer, '@')
             || CHECK(parser->buffer, '&') || CHECK(parser->buffer, '=')
             || CHECK(parser->buffer, '+') || CHECK(parser->buffer, '$')
-            || CHECK(parser->buffer, ',') || CHECK(parser->buffer, '.')
+            || CHECK(parser->buffer, '.') || CHECK(parser->buffer, '%')
             || CHECK(parser->buffer, '!') || CHECK(parser->buffer, '~')
             || CHECK(parser->buffer, '*') || CHECK(parser->buffer, '\'')
             || CHECK(parser->buffer, '(') || CHECK(parser->buffer, ')')
-            || CHECK(parser->buffer, '[') || CHECK(parser->buffer, ']')
-            || CHECK(parser->buffer, '%'))
+            || (uri_char && (
+                CHECK(parser->buffer, ',')
+                || CHECK(parser->buffer, '[') || CHECK(parser->buffer, ']')
+                )
+            ))
     {
         /* Check if it is a URI-escape sequence. */
 
         if (CHECK(parser->buffer, '%')) {
+            if (!STRING_EXTEND(parser, string))
+                goto error;
+
             if (!yaml_parser_scan_uri_escapes(parser,
                         directive, start_mark, &string)) goto error;
         }
@@ -2816,15 +2782,15 @@ yaml_parser_scan_block_scalar(yaml_parser_t *parser, yaml_token_t *token,
 
         if (IS_DIGIT(parser->buffer))
         {
-            /* Check that the intendation is greater than 0. */
+            /* Check that the indentation is greater than 0. */
 
             if (CHECK(parser->buffer, '0')) {
                 yaml_parser_set_scanner_error(parser, "while scanning a block scalar",
-                        start_mark, "found an intendation indicator equal to 0");
+                        start_mark, "found an indentation indicator equal to 0");
                 goto error;
             }
 
-            /* Get the intendation level and eat the indicator. */
+            /* Get the indentation level and eat the indicator. */
 
             increment = AS_DIGIT(parser->buffer);
 
@@ -2838,7 +2804,7 @@ yaml_parser_scan_block_scalar(yaml_parser_t *parser, yaml_token_t *token,
     {
         if (CHECK(parser->buffer, '0')) {
             yaml_parser_set_scanner_error(parser, "while scanning a block scalar",
-                    start_mark, "found an intendation indicator equal to 0");
+                    start_mark, "found an indentation indicator equal to 0");
             goto error;
         }
 
@@ -2888,7 +2854,7 @@ yaml_parser_scan_block_scalar(yaml_parser_t *parser, yaml_token_t *token,
 
     end_mark = parser->mark;
 
-    /* Set the intendation level if it was specified. */
+    /* Set the indentation level if it was specified. */
 
     if (increment) {
         indent = parser->indent >= 0 ? parser->indent+increment : increment;
@@ -2903,7 +2869,7 @@ yaml_parser_scan_block_scalar(yaml_parser_t *parser, yaml_token_t *token,
 
     if (!CACHE(parser, 1)) goto error;
 
-    while ((int)parser->mark.column == indent && !IS_Z(parser->buffer))
+    while ((int)parser->mark.column == indent && !(IS_Z(parser->buffer)))
     {
         /*
          * We are at the beginning of a non-empty line.
@@ -2954,7 +2920,7 @@ yaml_parser_scan_block_scalar(yaml_parser_t *parser, yaml_token_t *token,
 
         if (!READ_LINE(parser, leading_break)) goto error;
 
-        /* Eat the following intendation spaces and line breaks. */
+        /* Eat the following indentation spaces and line breaks. */
 
         if (!yaml_parser_scan_block_scalar_breaks(parser,
                     &indent, &trailing_breaks, start_mark, &end_mark)) goto error;
@@ -2989,8 +2955,8 @@ error:
 }
 
 /*
- * Scan intendation spaces and line breaks for a block scalar.  Determine the
- * intendation level if needed.
+ * Scan indentation spaces and line breaks for a block scalar.  Determine the
+ * indentation level if needed.
  */
 
 static int
@@ -3002,11 +2968,11 @@ yaml_parser_scan_block_scalar_breaks(yaml_parser_t *parser,
 
     *end_mark = parser->mark;
 
-    /* Eat the intendation spaces and line breaks. */
+    /* Eat the indentation spaces and line breaks. */
 
     while (1)
     {
-        /* Eat the intendation spaces. */
+        /* Eat the indentation spaces. */
 
         if (!CACHE(parser, 1)) return 0;
 
@@ -3019,12 +2985,12 @@ yaml_parser_scan_block_scalar_breaks(yaml_parser_t *parser,
         if ((int)parser->mark.column > max_indent)
             max_indent = (int)parser->mark.column;
 
-        /* Check for a tab character messing the intendation. */
+        /* Check for a tab character messing the indentation. */
 
         if ((!*indent || (int)parser->mark.column < *indent)
                 && IS_TAB(parser->buffer)) {
             return yaml_parser_set_scanner_error(parser, "while scanning a block scalar",
-                    start_mark, "found a tab character where an intendation space is expected");
+                    start_mark, "found a tab character where an indentation space is expected");
         }
 
         /* Have we found a non-empty line? */
@@ -3048,7 +3014,7 @@ yaml_parser_scan_block_scalar_breaks(yaml_parser_t *parser,
             *indent = 1;
     }
 
-   return 1; 
+   return 1;
 }
 
 /*
@@ -3203,8 +3169,8 @@ yaml_parser_scan_flow_scalar(yaml_parser_t *parser, yaml_token_t *token,
                         *(string.pointer++) = '"';
                         break;
 
-                    case '\'':
-                        *(string.pointer++) = '\'';
+                    case '/':
+                        *(string.pointer++) = '/';
                         break;
 
                     case '\\':
@@ -3321,6 +3287,11 @@ yaml_parser_scan_flow_scalar(yaml_parser_t *parser, yaml_token_t *token,
 
         /* Check if we are at the end of the scalar. */
 
+        /* Fix for crash unitialized value crash
+         * Credit for the bug and input is to OSS Fuzz
+         * Credit for the fix to Alex Gaynor
+         */
+        if (!CACHE(parser, 1)) goto error;
         if (CHECK(parser->buffer, single ? '\'' : '"'))
             break;
 
@@ -3468,11 +3439,22 @@ yaml_parser_scan_plain_scalar(yaml_parser_t *parser, yaml_token_t *token)
 
         while (!IS_BLANKZ(parser->buffer))
         {
-            /* Check for 'x:x' in the flow context. TODO: Fix the test "spec-08-13". */
+            /* Check for "x:" + one of ',?[]{}' in the flow context. TODO: Fix the test "spec-08-13".
+             * This is not completely according to the spec
+             * See http://yaml.org/spec/1.1/#id907281 9.1.3. Plain
+             */
 
             if (parser->flow_level
                     && CHECK(parser->buffer, ':')
-                    && !IS_BLANKZ_AT(parser->buffer, 1)) {
+                    && (
+                        CHECK_AT(parser->buffer, ',', 1)
+                        || CHECK_AT(parser->buffer, '?', 1)
+                        || CHECK_AT(parser->buffer, '[', 1)
+                        || CHECK_AT(parser->buffer, ']', 1)
+                        || CHECK_AT(parser->buffer, '{', 1)
+                        || CHECK_AT(parser->buffer, '}', 1)
+                    )
+                    ) {
                 yaml_parser_set_scanner_error(parser, "while scanning a plain scalar",
                         start_mark, "found unexpected ':'");
                 goto error;
@@ -3482,8 +3464,8 @@ yaml_parser_scan_plain_scalar(yaml_parser_t *parser, yaml_token_t *token)
 
             if ((CHECK(parser->buffer, ':') && IS_BLANKZ_AT(parser->buffer, 1))
                     || (parser->flow_level &&
-                        (CHECK(parser->buffer, ',') || CHECK(parser->buffer, ':')
-                         || CHECK(parser->buffer, '?') || CHECK(parser->buffer, '[')
+                        (CHECK(parser->buffer, ',')
+                         || CHECK(parser->buffer, '[')
                          || CHECK(parser->buffer, ']') || CHECK(parser->buffer, '{')
                          || CHECK(parser->buffer, '}'))))
                 break;
@@ -3545,12 +3527,12 @@ yaml_parser_scan_plain_scalar(yaml_parser_t *parser, yaml_token_t *token)
         {
             if (IS_BLANK(parser->buffer))
             {
-                /* Check for tab character that abuse intendation. */
+                /* Check for tab characters that abuse indentation. */
 
                 if (leading_blanks && (int)parser->mark.column < indent
                         && IS_TAB(parser->buffer)) {
                     yaml_parser_set_scanner_error(parser, "while scanning a plain scalar",
-                            start_mark, "found a tab character that violate intendation");
+                            start_mark, "found a tab character that violates indentation");
                     goto error;
                 }
 
@@ -3583,7 +3565,7 @@ yaml_parser_scan_plain_scalar(yaml_parser_t *parser, yaml_token_t *token)
             if (!CACHE(parser, 1)) goto error;
         }
 
-        /* Check intendation level. */
+        /* Check indentation level. */
 
         if (!parser->flow_level && (int)parser->mark.column < indent)
             break;
@@ -3614,4 +3596,3 @@ error:
 
     return 0;
 }
-
