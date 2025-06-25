@@ -26,17 +26,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
-atf_test_case "basic" "cleanup"
-basic_head()
+common_setup()
 {
-	atf_set descr 'Basic maximum packet rate test'
-	atf_set require.user root
-}
-
-basic_body()
-{
-	pft_init
-
 	epair=$(vnet_mkepair)
 
 	ifconfig ${epair}a inet 192.0.2.2/24 up
@@ -49,10 +40,10 @@ basic_body()
 	    ping -c 1 192.0.2.1
 
 	jexec alcatraz pfctl -e
-	pft_set_rules alcatraz \
-	    "block" \
-	    "pass in proto icmp max-pkt-rate 2/2"
+}
 
+common_test()
+{
 	# One ping will pass
 	atf_check -s exit:0 -o ignore \
 	    ping -c 1 192.0.2.1
@@ -71,7 +62,54 @@ basic_body()
 	    ping -c 1 192.0.2.1
 }
 
+atf_test_case "basic" "cleanup"
+basic_head()
+{
+	atf_set descr 'Basic maximum packet rate test'
+	atf_set require.user root
+}
+
+basic_body()
+{
+	pft_init
+
+	common_setup
+
+	pft_set_rules alcatraz \
+	    "block" \
+	    "pass in proto icmp max-pkt-rate 2/2"
+
+	common_test
+}
+
 basic_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "anchor" "cleanup"
+anchor_head()
+{
+	atf_set descr 'maximum packet rate on anchor'
+	atf_set require.user root
+}
+
+anchor_body()
+{
+	pft_init
+
+	common_setup
+
+	pft_set_rules alcatraz \
+	    "block" \
+	    "anchor \"foo\" proto icmp max-pkt-rate 2/2 {\n \
+	    	pass \n \
+	    }"
+
+	common_test
+}
+
+anchor_cleanup()
 {
 	pft_cleanup
 }
@@ -79,4 +117,5 @@ basic_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "anchor"
 }
