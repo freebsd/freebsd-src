@@ -1056,7 +1056,7 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 	reclen = DIRSIZ_SWAP(0, &de, needswap);
 	de.d_reclen = ufs_rw16(reclen, needswap);
 
-	dp = (struct direct *)(dbuf->buf + dbuf->cur);
+	dp = dbuf->buf == NULL ? NULL : (struct direct *)(dbuf->buf + dbuf->cur);
 	llen = 0;
 	if (dp != NULL)
 		llen = DIRSIZ_SWAP(0, dp, needswap);
