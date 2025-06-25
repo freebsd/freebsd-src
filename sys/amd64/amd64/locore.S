@@ -112,7 +112,7 @@ ENTRY(btext)
  * - reset IDT back to long mode.
  */
 ENTRY(la57_trampoline)
-	movq	%rsp,lst(%rip)		/* save registers into memeory */
+	movq	%rsp,lst(%rip)		/* save registers into memory */
 	movq	%rbx,lst+8(%rip)	/* upper halves are not saved .. */
 	movq	%rbp,lst+0x10(%rip)	/* by 64->32->64 switch */
 	movq	%cr4,%rax
