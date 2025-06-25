@@ -50,23 +50,23 @@ hellocheck(int wr, int rd)
 ATF_TC_WITHOUT_HEAD(udp_connect);
 ATF_TC_BODY(udp_connect, tc)
 {
+	struct ngm_mkpeer mkp = {
+		.type = NG_KSOCKET_NODE_TYPE,
+		.ourhook = OURHOOK,
+		.peerhook = "inet/dgram/udp",
+	};
 	struct sockaddr_in sin = {
 		.sin_family = AF_INET,
 		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
 		.sin_len = sizeof(sin),
 	};
 	socklen_t slen = sizeof(sin);
-	int ds, cs, us;
+	int cs, ds, us;
 
 	ATF_REQUIRE((us = socket(PF_INET, SOCK_DGRAM, 0)) > 0);
 	ATF_REQUIRE(bind(us, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	ATF_REQUIRE(getsockname(us, (struct sockaddr *)&sin, &slen) == 0);
 
-	struct ngm_mkpeer mkp = {
-		.type = NG_KSOCKET_NODE_TYPE,
-		.ourhook = OURHOOK,
-		.peerhook = "inet/dgram/udp",
-	};
 	ATF_REQUIRE(NgMkSockNode(NULL, &cs, &ds) == 0);
 	ATF_REQUIRE(NgSendMsg(cs, ".", NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
 	    sizeof(mkp)) >= 0);
@@ -79,19 +79,19 @@ ATF_TC_BODY(udp_connect, tc)
 ATF_TC_WITHOUT_HEAD(udp_bind);
 ATF_TC_BODY(udp_bind, tc)
 {
+	struct ngm_mkpeer mkp = {
+		.type = NG_KSOCKET_NODE_TYPE,
+		.ourhook = OURHOOK,
+		.peerhook = "inet/dgram/udp",
+	};
 	struct sockaddr_in sin = {
 		.sin_family = AF_INET,
 		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
 		.sin_len = sizeof(sin),
 	};
 	struct ng_mesg *rep;
-	int ds, cs, us;
+	int cs, ds, us;
 
-	struct ngm_mkpeer mkp = {
-		.type = NG_KSOCKET_NODE_TYPE,
-		.ourhook = OURHOOK,
-		.peerhook = "inet/dgram/udp",
-	};
 	ATF_REQUIRE(NgMkSockNode(NULL, &cs, &ds) == 0);
 	ATF_REQUIRE(NgSendMsg(cs, ".", NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
 	    sizeof(mkp)) >= 0);
@@ -109,10 +109,72 @@ ATF_TC_BODY(udp_bind, tc)
 	hellocheck(us, ds);
 }
 
+ATF_TC_WITHOUT_HEAD(udp6_connect);
+ATF_TC_BODY(udp6_connect, tc)
+{
+	struct ngm_mkpeer mkp = {
+		.type = NG_KSOCKET_NODE_TYPE,
+		.ourhook = OURHOOK,
+		.peerhook = "inet6/dgram/udp6",
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+	};
+	socklen_t slen = sizeof(sin6);
+	int cs, ds, us;
+
+	ATF_REQUIRE((us = socket(PF_INET6, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE(bind(us, (struct sockaddr *)&sin6, sizeof(sin6)) == 0);
+	ATF_REQUIRE(getsockname(us, (struct sockaddr *)&sin6, &slen) == 0);
+
+	ATF_REQUIRE(NgMkSockNode(NULL, &cs, &ds) == 0);
+	ATF_REQUIRE(NgSendMsg(cs, ".", NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
+	    sizeof(mkp)) >= 0);
+	ATF_REQUIRE(NgSendMsg(cs, ".:" OURHOOK, NGM_KSOCKET_COOKIE,
+	    NGM_KSOCKET_CONNECT, &sin6, sizeof(sin6)) >= 0);
+
+	hellocheck(ds, us);
+}
+
+
+ATF_TC_WITHOUT_HEAD(udp6_bind);
+ATF_TC_BODY(udp6_bind, tc)
+{
+	struct ngm_mkpeer mkp = {
+		.type = NG_KSOCKET_NODE_TYPE,
+		.ourhook = OURHOOK,
+		.peerhook = "inet6/dgram/udp6",
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+	};
+	struct ng_mesg *rep;
+	int cs, ds, us;
+
+	ATF_REQUIRE(NgMkSockNode(NULL, &cs, &ds) == 0);
+	ATF_REQUIRE(NgSendMsg(cs, ".", NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
+	    sizeof(mkp)) >= 0);
+	ATF_REQUIRE(NgSendMsg(cs, ".:" OURHOOK, NGM_KSOCKET_COOKIE,
+	    NGM_KSOCKET_BIND, &sin6, sizeof(sin6)) >= 0);
+	ATF_REQUIRE(NgSendMsg(cs, ".:" OURHOOK, NGM_KSOCKET_COOKIE,
+	    NGM_KSOCKET_GETNAME, NULL, 0) >= 0);
+	ATF_REQUIRE(NgAllocRecvMsg(cs, &rep, NULL) == sizeof(struct ng_mesg) +
+	    sizeof(struct sockaddr_in6));
+
+	ATF_REQUIRE((us = socket(PF_INET6, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE(connect(us, (struct sockaddr *)rep->data,
+			sizeof(struct sockaddr_in6)) == 0);
+
+	hellocheck(us, ds);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, udp_connect);
 	ATF_TP_ADD_TC(tp, udp_bind);
+	ATF_TP_ADD_TC(tp, udp6_connect);
+	ATF_TP_ADD_TC(tp, udp6_bind);
 
 	return (atf_no_error());
 }
