@@ -6281,8 +6281,8 @@ _gone_in(int major, const char *msg, ...)
 {
 	va_list ap;
 
-	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg, ap);
 	va_start(ap, msg);
+	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg, ap);
 	vprintf(msg, ap);
 	va_end(ap);
 	if (P_OSREL_MAJOR(__FreeBSD_version) < major)
@@ -6294,8 +6294,8 @@ _gone_in_dev(device_t dev, int major, const char *msg, ...)
 {
 	va_list ap;
 
-	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg, ap);
 	va_start(ap, msg);
+	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg, ap);
 	device_printf(dev, msg, ap);
 	va_end(ap);
 	if (P_OSREL_MAJOR(__FreeBSD_version) < major)
