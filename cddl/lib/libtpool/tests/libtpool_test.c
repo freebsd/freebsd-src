@@ -11,9 +11,12 @@ static void
 tp_delay(void *arg)
 {
 	pthread_barrier_t *barrier = arg;
+	int r;
 
 	/* Block this task until all thread pool workers have been created. */
-	pthread_barrier_wait(barrier);
+	r = pthread_barrier_wait(barrier);
+	ATF_REQUIRE_MSG(r == 0 || r == PTHREAD_BARRIER_SERIAL_THREAD,
+	    "pthread_barrier_wait failed: %s", strerror(r));
 }
 
 /*
@@ -37,7 +40,6 @@ ATF_TC_BODY(complete_exhaustion, tc)
 	int max_threads_per_proc = 0;
 	int nworkers;
 	int r, i;
-
 
 	len = sizeof(max_threads_per_proc);
 	r = sysctlbyname("kern.threads.max_threads_per_proc",
@@ -65,7 +67,9 @@ ATF_TC_BODY(complete_exhaustion, tc)
 	ATF_REQUIRE_EQ(tpool_dispatch(tp1, tp_delay, NULL), -1);
 
 	/* Cleanup */
-	ATF_REQUIRE_EQ(pthread_barrier_wait(&barrier), 0);
+	r = pthread_barrier_wait(&barrier);
+	ATF_REQUIRE_MSG(r == 0 || r == PTHREAD_BARRIER_SERIAL_THREAD,
+	    "pthread_barrier_wait failed: %s", strerror(r));
 	tpool_wait(tp1);
 	tpool_wait(tp0);
 }
