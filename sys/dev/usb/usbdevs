@@ -4976,9 +4976,11 @@ product WAVESENSE JAZZ		0xaaaa	Jazz blood glucose meter
 product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
 product WCH2 DUMMY		0x0000	Dummy product
 product WCH2 CH341SER_2		0x5523	CH341/CH340 USB-Serial Bridge
+product WCH2 CH343SER		0x55d3	CH343 USB Serial
+product WCH2 CH9102SER		0x55d4	CH9102 USB Serial
 product WCH2 CH341SER_3		0x7522	CH341/CH340 USB-Serial Bridge
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
-product WCH2 U2M		0X752d	CH345 USB2.0-MIDI
+product WCH2 U2M		0x752d	CH345 USB2.0-MIDI
 
 /* West Mountain Radio products */
 product WESTMOUNTAIN RIGBLASTER_ADVANTAGE	0x0003	RIGblaster Advantage
