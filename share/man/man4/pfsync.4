@@ -32,6 +32,14 @@
 .Nd packet filter state table synchronisation interface
 .Sh SYNOPSIS
 .Cd "device pfsync"
+.Pp
+In
+.Xr loader.conf 5 :
+.Cd net.pfsync.pfsync_buckets
+.Pp
+In
+.Xr sysctl.conf 5 :
+.Cd net.pfsync.carp_demotion_factor
 .Sh DESCRIPTION
 The
 .Nm
@@ -155,12 +163,14 @@ Compatibility with FreeBSD 13.1 has been verified.
 .It Cm 1400
 FreeBSD release 14.0.
 .El
-.Pp
-.Nm
-has the following
-.Xr sysctl 8
-tunables:
-.Bl -tag -width ".Va net.pfsync"
+.Sh SYSCTL VARIABLES
+The following variables can be entered at the
+.Xr loader 8
+prompt, set in
+.Xr loader.conf 5 ,
+or changed at runtime with
+.Xr sysctl 8 :
+.Bl -tag -width indent
 .It Va net.pfsync.carp_demotion_factor
 Value added to
 .Va net.inet.carp.demotion
@@ -171,6 +181,14 @@ See
 .Xr carp 4
 for more information.
 Default value is 240.
+.El
+.Sh LOADER TUNABLES
+The following tunable may be set in
+.Xr loader.conf 5
+or at the
+.Xr loader 8
+prompt:
+.Bl -tag -width indent
 .It Va net.pfsync.pfsync_buckets
 The number of
 .Nm
