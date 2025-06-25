@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250625:
+	"make delete-old" will now remove the Forth bootloader entirely
+	if the system is built with WITHOUT_FORTH.
+
 20250614:
 	MIT KRB5 (MIT Kerberos5) has been imported into 15-CURRENT. To
 	and install MIT KRB5, add WITH_MITKRB5=yes to /etc/src.conf. This

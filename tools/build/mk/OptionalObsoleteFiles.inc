@@ -1992,6 +1992,32 @@ OLD_FILES+=usr/share/man/man8/fdcontrol.8.gz
 .endif
 
 .if ${MK_FORTH} == no
+OLD_FILES+=boot/beastie.4th
+OLD_FILES+=boot/brand-fbsd.4th
+OLD_FILES+=boot/brand.4th
+OLD_FILES+=boot/check-password.4th
+OLD_FILES+=boot/color.4th
+OLD_FILES+=boot/delay.4th
+OLD_FILES+=boot/efi.4th
+OLD_FILES+=boot/frames.4th
+OLD_FILES+=boot/loader_4th
+OLD_FILES+=boot/loader_4th.efi
+OLD_FILES+=boot/loader_4th.efi.old
+OLD_FILES+=boot/loader_4th.old
+OLD_FILES+=boot/loader.4th
+OLD_FILES+=boot/logo-beastie.4th
+OLD_FILES+=boot/logo-beastiebw.4th
+OLD_FILES+=boot/logo-fbsdbw.4th
+OLD_FILES+=boot/logo-orb.4th
+OLD_FILES+=boot/logo-orbbw.4th
+OLD_FILES+=boot/menu-commands.4th
+OLD_FILES+=boot/menu.4th
+OLD_FILES+=boot/menusets.4th
+OLD_FILES+=boot/screen.4th
+OLD_FILES+=boot/shortcuts.4th
+OLD_FILES+=boot/support.4th
+OLD_LIBS+=boot/userboot_4th.so
+OLD_FILES+=boot/version.4th
 OLD_FILES+=usr/share/man/man8/beastie.4th.8.gz
 OLD_FILES+=usr/share/man/man8/brand.4th.8.gz
 OLD_FILES+=usr/share/man/man8/check-password.4th.8.gz
