@@ -80,7 +80,7 @@ Sets the data link type on the
 .Va in
 hook (to help calculate relative offset). Currently, supported types are
 .Cm DLT_RAW
-(raw IP datagrams , no offset applied, the default) and
+(raw IP datagrams, no offset applied, the default) and
 .Cm DLT_EN10MB
 (Ethernet). DLT_ definitions can be found in
 .In net/bpf.h .
@@ -135,6 +135,17 @@ corresponding checksum before transmitting packet on output interface.
 The
 .Nm
 node does not do any checksum correction by itself.
+.Pp
+The
+.Va offset
+value for the
+.Vt ng_patch_op
+structure is calculated from zero by default (the first byte of
+packet headers).
+If
+.Va relative_offset
+is enabled (set to 1) during configuration, the operation will have an
+additional amount added to the offset based on the data link type.
 .It Dv NGM_PATCH_GETCONFIG Pq Ic getconfig
 This control message returns the current set of modify operations,
 in the form of a
