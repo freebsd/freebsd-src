@@ -106,8 +106,6 @@ int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
 void	(*ng_ether_attach_p)(struct ifnet *ifp);
 void	(*ng_ether_detach_p)(struct ifnet *ifp);
 
-void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
-
 /* if_bridge(4) support */
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 bool	(*bridge_same_p)(const void *, const void *);

@@ -168,6 +168,7 @@ extern	int (*vlan_tag_p)(struct ifnet *, uint16_t *);
 extern	int (*vlan_pcp_p)(struct ifnet *, uint16_t *);
 extern	int (*vlan_setcookie_p)(struct ifnet *, void *);
 extern	void *(*vlan_cookie_p)(struct ifnet *);
+extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 #include <sys/_eventhandler.h>
 

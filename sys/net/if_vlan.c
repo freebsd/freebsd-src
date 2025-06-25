@@ -888,15 +888,6 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
 	return (ifp);
 }
 
-/*
- * VLAN support can be loaded as a module.  The only place in the
- * system that's intimately aware of this is ether_input.  We hook
- * into this code through vlan_input_p which is defined there and
- * set here.  No one else in the system should be aware of this so
- * we use an explicit reference here.
- */
-extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
-
 /* For if_link_state_change() eyes only... */
 extern	void (*vlan_link_state_p)(struct ifnet *);
 
