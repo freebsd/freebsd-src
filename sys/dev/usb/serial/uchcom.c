@@ -58,8 +58,7 @@
  */
 
 /*
- * Driver for WinChipHead CH341/340, the worst USB-serial chip in the
- * world.
+ * Driver for WinChipHead CH9102/343/341/340.
  */
 
 #include <sys/stdint.h>
@@ -101,17 +100,19 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uchcom_debug, 0, "uchcom debug level");
 #endif
 
-#define	UCHCOM_IFACE_INDEX	0
-#define	UCHCOM_CONFIG_INDEX	0
+#define	UCHCOM_IFACE_INDEX		0
+#define	UCHCOM_CONFIG_INDEX		0
+#define	UCHCOM_SECOND_IFACE_INDEX	1
 
 #define	UCHCOM_REV_CH340	0x0250
 #define	UCHCOM_INPUT_BUF_SIZE	8
 
-#define	UCHCOM_REQ_GET_VERSION	0x5F
-#define	UCHCOM_REQ_READ_REG	0x95
-#define	UCHCOM_REQ_WRITE_REG	0x9A
-#define	UCHCOM_REQ_RESET	0xA1
-#define	UCHCOM_REQ_SET_DTRRTS	0xA4
+#define	UCHCOM_REQ_GET_VERSION		0x5F
+#define	UCHCOM_REQ_READ_REG		0x95
+#define	UCHCOM_REQ_WRITE_REG		0x9A
+#define	UCHCOM_REQ_RESET		0xA1
+#define	UCHCOM_REQ_SET_DTRRTS		0xA4
+#define UCHCOM_REQ_CH343_WRITE_REG	0xA8
 
 #define	UCHCOM_REG_STAT1	0x06
 #define	UCHCOM_REG_STAT2	0x07
@@ -134,13 +135,21 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UCHCOM_RTS_MASK		0x40
 
 #define	UCHCOM_BRK_MASK		0x01
+#define	UCHCOM_ABRK_MASK	0x10
+#define	UCHCOM_CH343_BRK_MASK	0x80
 
 #define	UCHCOM_LCR1_MASK	0xAF
 #define	UCHCOM_LCR2_MASK	0x07
 #define	UCHCOM_LCR1_RX		0x80
 #define	UCHCOM_LCR1_TX		0x40
 #define	UCHCOM_LCR1_PARENB	0x08
+#define	UCHCOM_LCR1_CS5		0x00
+#define	UCHCOM_LCR1_CS6		0x01
+#define	UCHCOM_LCR1_CS7		0x02
 #define	UCHCOM_LCR1_CS8		0x03
+#define	UCHCOM_LCR1_STOPB	0x04
+#define	UCHCOM_LCR1_PARODD	0x00
+#define	UCHCOM_LCR1_PAREVEN	0x10
 #define	UCHCOM_LCR2_PAREVEN	0x07
 #define	UCHCOM_LCR2_PARODD	0x06
 #define	UCHCOM_LCR2_PARMARK	0x05
@@ -150,12 +159,18 @@ SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UCHCOM_INTR_STAT2	0x03
 #define	UCHCOM_INTR_LEAST	4
 
-#define	UCHCOM_BULK_BUF_SIZE 1024	/* bytes */
+#define	UCHCOM_T		0x08
+#define	UCHCOM_CL		0x04
+#define	UCHCOM_CH343_CT		0x80
+#define	UCHCOM_CT		0x90
+
+#define	UCHCOM_BULK_BUF_SIZE	1024	/* bytes */
+
+#define	TYPE_CH343		1
 
 enum {
 	UCHCOM_BULK_DT_WR,
 	UCHCOM_BULK_DT_RD,
-	UCHCOM_INTR_DT_RD,
 	UCHCOM_N_TRANSFER,
 };
 
@@ -164,6 +179,7 @@ struct uchcom_softc {
 	struct ucom_softc sc_ucom;
 
 	struct usb_xfer *sc_xfer[UCHCOM_N_TRANSFER];
+	struct usb_xfer *sc_intr_xfer;	/* Interrupt endpoint */
 	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
@@ -171,39 +187,19 @@ struct uchcom_softc {
 	uint8_t	sc_rts;			/* local copy */
 	uint8_t	sc_version;
 	uint8_t	sc_msr;
-	uint8_t	sc_lsr;			/* local status register */
+	uint8_t sc_lsr;			/* local status register */
+	uint8_t sc_chiptype;		/* type of chip */
+	uint8_t sc_ctrl_iface_no;
+	uint8_t sc_iface_index;
 };
-
-struct uchcom_divider {
-	uint8_t	dv_prescaler;
-	uint8_t	dv_div;
-	uint8_t	dv_mod;
-};
-
-struct uchcom_divider_record {
-	uint32_t dvr_high;
-	uint32_t dvr_low;
-	uint32_t dvr_base_clock;
-	struct uchcom_divider dvr_divider;
-};
-
-static const struct uchcom_divider_record dividers[] =
-{
-	{307200, 307200, UCHCOM_BASE_UNKNOWN, {7, 0xD9, 0}},
-	{921600, 921600, UCHCOM_BASE_UNKNOWN, {7, 0xF3, 0}},
-	{2999999, 23530, 6000000, {3, 0, 0}},
-	{23529, 2942, 750000, {2, 0, 0}},
-	{2941, 368, 93750, {1, 0, 0}},
-	{367, 1, 11719, {0, 0, 0}},
-};
-
-#define	NUM_DIVIDERS	nitems(dividers)
 
 static const STRUCT_USB_HOST_ID uchcom_devs[] = {
 	{USB_VPI(USB_VENDOR_WCH, USB_PRODUCT_WCH_CH341SER, 0)},
 	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER, 0)},
 	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER_2, 0)},
 	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER_3, 0)},
+	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH343SER, 0)},
+	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH9102SER, 0)},
 };
 
 /* protypes */
@@ -225,8 +221,9 @@ static void	uchcom_update_version(struct uchcom_softc *);
 static void	uchcom_convert_status(struct uchcom_softc *, uint8_t);
 static void	uchcom_update_status(struct uchcom_softc *);
 static void	uchcom_set_dtr_rts(struct uchcom_softc *);
-static int	uchcom_calc_divider_settings(struct uchcom_divider *, uint32_t);
-static void	uchcom_set_baudrate(struct uchcom_softc *, uint32_t);
+static void	uchcom_calc_baudrate(struct uchcom_softc *, uint32_t, uint8_t *,
+		    uint8_t *);
+static void	uchcom_set_baudrate(struct uchcom_softc *, uint32_t, uint16_t);
 static void	uchcom_poll(struct ucom_softc *ucom);
 
 static device_probe_t uchcom_probe;
@@ -244,7 +241,7 @@ static const struct usb_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UCHCOM_BULK_BUF_SIZE,
-		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.flags = {.pipe_bof = 1,},
 		.callback = &uchcom_write_callback,
 	},
 
@@ -256,8 +253,10 @@ static const struct usb_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uchcom_read_callback,
 	},
+};
 
-	[UCHCOM_INTR_DT_RD] = {
+static const struct usb_config uchcom_intr_config_data[1] = {
+	[0] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -311,8 +310,9 @@ uchcom_attach(device_t dev)
 {
 	struct uchcom_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
 	int error;
-	uint8_t iface_index;
 
 	DPRINTFN(11, "\n");
 
@@ -330,20 +330,49 @@ uchcom_attach(device_t dev)
 	case USB_PRODUCT_WCH2_CH341SER_3:
 		device_printf(dev, "CH341 detected\n");
 		break;
+	case USB_PRODUCT_WCH2_CH343SER:
+		device_printf(dev, "CH343 detected\n");
+		break;
+	case USB_PRODUCT_WCH2_CH9102SER:
+		device_printf(dev, "CH9102 detected\n");
+		break;
 	default:
-		device_printf(dev, "New CH340/CH341 product 0x%04x detected\n",
-		    uaa->info.idProduct);
+		device_printf(dev, "New CH340/CH341/CH343/CH9102 product "
+		    "0x%04x detected\n", uaa->info.idProduct);
 		break;
 	}
 
-	iface_index = UCHCOM_IFACE_INDEX;
-	error = usbd_transfer_setup(uaa->device,
-	    &iface_index, sc->sc_xfer, uchcom_config_data,
-	    UCHCOM_N_TRANSFER, sc, &sc->sc_mtx);
+	/* CH343/CH9102 has two interfaces. */
+	sc->sc_ctrl_iface_no = uaa->info.bIfaceNum;
 
+	iface = usbd_get_iface(uaa->device, UCHCOM_SECOND_IFACE_INDEX);
+	if (iface) {
+		id = usbd_get_interface_descriptor(iface);
+		if (id == NULL) {
+			device_printf(dev, "no interface descriptor\n");
+			goto detach;
+		}
+		sc->sc_iface_index = UCHCOM_SECOND_IFACE_INDEX;
+		usbd_set_parent_iface(uaa->device, UCHCOM_SECOND_IFACE_INDEX,
+		    uaa->info.bIfaceIndex);
+		sc->sc_chiptype = TYPE_CH343;
+	} else {
+		sc->sc_iface_index = UCHCOM_IFACE_INDEX;
+	}
+
+	/* Setup all transfers. */
+	error = usbd_transfer_setup(uaa->device, &sc->sc_iface_index,
+	    sc->sc_xfer, uchcom_config_data, UCHCOM_N_TRANSFER, sc,
+	    &sc->sc_mtx);
 	if (error) {
-		DPRINTF("one or more missing USB endpoints, "
-		    "error=%s\n", usbd_errstr(error));
+		device_printf(dev, "could not allocate all pipes\n");
+		goto detach;
+	}
+	error = usbd_transfer_setup(uaa->device, &sc->sc_ctrl_iface_no,
+	    &sc->sc_intr_xfer, uchcom_intr_config_data, 1, sc, &sc->sc_mtx);
+	if (error) {
+		device_printf(dev, "allocating USB transfers failed for "
+		    "interrupt\n");
 		goto detach;
 	}
 
@@ -449,7 +478,9 @@ uchcom_write_reg(struct uchcom_softc *sc,
 	    (unsigned)reg1, (unsigned)val1,
 	    (unsigned)reg2, (unsigned)val2);
 	uchcom_ctrl_write(
-	    sc, UCHCOM_REQ_WRITE_REG,
+	    sc, 
+	    (sc->sc_chiptype != TYPE_CH343) ?
+	    UCHCOM_REQ_WRITE_REG : UCHCOM_REQ_CH343_WRITE_REG,
 	    reg1 | ((uint16_t)reg2 << 8), val1 | ((uint16_t)val2 << 8));
 }
 
@@ -516,9 +547,6 @@ uchcom_update_version(struct uchcom_softc *sc)
 static void
 uchcom_convert_status(struct uchcom_softc *sc, uint8_t cur)
 {
-	sc->sc_dtr = !(cur & UCHCOM_DTR_MASK);
-	sc->sc_rts = !(cur & UCHCOM_RTS_MASK);
-
 	cur = ~cur & 0x0F;
 	sc->sc_msr = (cur << 4) | ((sc->sc_msr >> 4) ^ cur);
 }
@@ -555,78 +583,69 @@ uchcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	uint8_t brk1;
 	uint8_t brk2;
 
-	uchcom_read_reg(sc, UCHCOM_REG_BREAK1, &brk1, UCHCOM_REG_LCR1, &brk2);
-	if (onoff) {
-		/* on - clear bits */
-		brk1 &= ~UCHCOM_BRK_MASK;
-		brk2 &= ~UCHCOM_LCR1_TX;
+	if (sc->sc_chiptype == TYPE_CH343) {
+		brk1 = UCHCOM_CH343_BRK_MASK;
+		if (!onoff)
+			brk1 |= UCHCOM_ABRK_MASK;
+		uchcom_write_reg(sc, brk1, 0, 0, 0);
 	} else {
-		/* off - set bits */
-		brk1 |= UCHCOM_BRK_MASK;
-		brk2 |= UCHCOM_LCR1_TX;
-	}
-	uchcom_write_reg(sc, UCHCOM_REG_BREAK1, brk1, UCHCOM_REG_LCR1, brk2);
-}
-
-static int
-uchcom_calc_divider_settings(struct uchcom_divider *dp, uint32_t rate)
-{
-	const struct uchcom_divider_record *rp;
-	uint32_t div;
-	uint32_t rem;
-	uint32_t mod;
-	uint8_t i;
-
-	/* find record */
-	for (i = 0; i != NUM_DIVIDERS; i++) {
-		if (dividers[i].dvr_high >= rate &&
-		    dividers[i].dvr_low <= rate) {
-			rp = &dividers[i];
-			goto found;
+		uchcom_read_reg(sc, UCHCOM_REG_BREAK1, &brk1, UCHCOM_REG_LCR1,
+		    &brk2);
+		if (onoff) {
+			/* on - clear bits */
+			brk1 &= ~UCHCOM_BRK_MASK;
+			brk2 &= ~UCHCOM_LCR1_TX;
+		} else {
+			/* off - set bits */
+			brk1 |= UCHCOM_BRK_MASK;
+			brk2 |= UCHCOM_LCR1_TX;
 		}
+		uchcom_write_reg(sc, UCHCOM_REG_BREAK1, brk1, UCHCOM_REG_LCR1,
+		    brk2);
 	}
-	return (-1);
-
-found:
-	dp->dv_prescaler = rp->dvr_divider.dv_prescaler;
-	if (rp->dvr_base_clock == UCHCOM_BASE_UNKNOWN)
-		dp->dv_div = rp->dvr_divider.dv_div;
-	else {
-		div = rp->dvr_base_clock / rate;
-		rem = rp->dvr_base_clock % rate;
-		if (div == 0 || div >= 0xFF)
-			return (-1);
-		if ((rem << 1) >= rate)
-			div += 1;
-		dp->dv_div = (uint8_t)-div;
-	}
-
-	mod = (UCHCOM_BPS_MOD_BASE / rate) + UCHCOM_BPS_MOD_BASE_OFS;
-	mod = mod + (mod / 2);
-
-	dp->dv_mod = (mod + 0xFF) / 0x100;
-
-	return (0);
 }
 
 static void
-uchcom_set_baudrate(struct uchcom_softc *sc, uint32_t rate)
+uchcom_calc_baudrate(struct uchcom_softc *sc, uint32_t rate, uint8_t *divisor,
+    uint8_t *factor)
 {
-	struct uchcom_divider dv;
+	uint32_t clk = 12000000;
 
-	if (uchcom_calc_divider_settings(&dv, rate))
-		return;
+	if (rate >= 256000 && sc->sc_chiptype == TYPE_CH343)
+		*divisor = 7;
+	else if (rate > 23529) {
+		clk /= 2;
+		*divisor = 3;
+	} else if (rate > 2941) {
+		clk /=  16;
+		*divisor = 2;
+	} else if (rate > 367) {
+		clk /= 128;
+		*divisor = 1;
+	} else {
+		clk = 11719;
+		*divisor = 0;
+	}
 
-	/*
-	 * According to linux code we need to set bit 7 of UCHCOM_REG_BPS_PRE,
-	 * otherwise the chip will buffer data.
-	 */
-	uchcom_write_reg(sc,
-	    UCHCOM_REG_BPS_PRE, dv.dv_prescaler | 0x80,
-	    UCHCOM_REG_BPS_DIV, dv.dv_div);
-	uchcom_write_reg(sc,
-	    UCHCOM_REG_BPS_MOD, dv.dv_mod,
-	    UCHCOM_REG_BPS_PAD, 0);
+	*factor = 256 - clk / rate;
+
+	if (rate == 921600 && sc->sc_chiptype != TYPE_CH343) {
+		*divisor = 7;
+		*factor = 243;
+	}
+}
+
+static void
+uchcom_set_baudrate(struct uchcom_softc *sc, uint32_t rate, uint16_t lcr)
+{
+	uint16_t idx;
+	uint8_t factor, div;
+
+	uchcom_calc_baudrate(sc, rate, &div, &factor);
+	div |= (sc->sc_chiptype != TYPE_CH343) ? 0x80 : 0x00;
+	idx = (factor << 8) | div;
+
+	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, lcr, idx);
 }
 
 /* ----------------------------------------------------------------------
@@ -673,6 +692,14 @@ uchcom_cfg_open(struct ucom_softc *ucom)
 
 	DPRINTF("\n");
 
+	if (sc->sc_chiptype != TYPE_CH343) {
+		/* Set default configuration. */
+		uchcom_get_version(sc, NULL);
+		uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0, 0);
+		uchcom_write_reg(sc, UCHCOM_REG_BPS_PRE, 0x82,
+		    UCHCOM_REG_BPS_DIV, 0xd9);
+		uchcom_write_reg(sc, 0x2c, 0x07, UCHCOM_REG_BPS_PAD, 0);
+	}
 	uchcom_update_version(sc);
 	uchcom_update_status(sc);
 }
@@ -680,53 +707,69 @@ uchcom_cfg_open(struct ucom_softc *ucom)
 static int
 uchcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
-	struct uchcom_divider dv;
+	struct uchcom_softc *sc = ucom->sc_parent;
 
-	switch (t->c_cflag & CSIZE) {
-	case CS8:
+	/* 
+	 * Check requested baud rate.
+	 * The CH340/CH341 can set any baud rate up to 2Mb.
+	 * The CH9102/CH343 can set any baud rate up to 6Mb.
+	 */
+	switch (sc->sc_chiptype) {
+	case TYPE_CH343:
+		if (t->c_ospeed <= 6000000)
+			return (0);
 		break;
 	default:
-		return (EIO);
+		if (t->c_ospeed <= 2000000)
+			return (0);
+		break;
 	}
-	if ((t->c_cflag & CSTOPB) != 0)
-		return (EIO);
-	if ((t->c_cflag & PARENB) != 0)
-		return (EIO);
 
-	if (uchcom_calc_divider_settings(&dv, t->c_ospeed)) {
-		return (EIO);
-	}
-	return (0);			/* success */
+	return (EIO);
 }
 
 static void
 uchcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
+	uint8_t lcr;
 
-	uchcom_get_version(sc, NULL);
-	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0, 0);
-	uchcom_set_baudrate(sc, t->c_ospeed);
-	if (sc->sc_version < UCHCOM_VER_30) {
-		uchcom_read_reg(sc, UCHCOM_REG_LCR1, NULL,
-		    UCHCOM_REG_LCR2, NULL);
-		uchcom_write_reg(sc, UCHCOM_REG_LCR1, 0x50,
-		    UCHCOM_REG_LCR2, 0x00);
-	} else {
-		/*
-		 * Set up line control:
-		 * - enable transmit and receive
-		 * - set 8n1 mode
-		 * To do: support other sizes, parity, stop bits.
-		 */
-		uchcom_write_reg(sc,
-		    UCHCOM_REG_LCR1,
-		    UCHCOM_LCR1_RX | UCHCOM_LCR1_TX | UCHCOM_LCR1_CS8,
-		    UCHCOM_REG_LCR2, 0x00);
+	lcr = UCHCOM_LCR1_RX | UCHCOM_LCR1_TX;
+
+	if (t->c_cflag & CSTOPB)
+		lcr |= UCHCOM_LCR1_STOPB;
+
+	if (t->c_cflag & PARENB) {
+		lcr |= UCHCOM_LCR1_PARENB;
+		if (t->c_cflag & PARODD)
+			lcr |= UCHCOM_LCR1_PARODD;
+		else
+			lcr |= UCHCOM_LCR1_PAREVEN;
 	}
-	uchcom_update_status(sc);
-	uchcom_ctrl_write(sc, UCHCOM_REQ_RESET, 0x501f, 0xd90a);
-	uchcom_set_baudrate(sc, t->c_ospeed);
+
+	switch (t->c_cflag & CSIZE) {
+	case CS5:
+		lcr |= UCHCOM_LCR1_CS5;
+		break;
+	case CS6:
+		lcr |= UCHCOM_LCR1_CS6;
+		break;
+	case CS7:
+		lcr |= UCHCOM_LCR1_CS7;
+		break;
+	case CS8:
+	default:
+		lcr |= UCHCOM_LCR1_CS8;
+		break;
+	}
+
+	if (sc->sc_chiptype == TYPE_CH343)
+		uchcom_set_baudrate(sc, t->c_ospeed,
+		    UCHCOM_T | UCHCOM_CL | UCHCOM_CH343_CT | lcr << 8);
+	else
+		uchcom_set_baudrate(sc, t->c_ospeed,
+		    UCHCOM_T | UCHCOM_CL | UCHCOM_CT | lcr << 8);
+
 	uchcom_set_dtr_rts(sc);
 	uchcom_update_status(sc);
 }
@@ -737,7 +780,7 @@ uchcom_start_read(struct ucom_softc *ucom)
 	struct uchcom_softc *sc = ucom->sc_parent;
 
 	/* start interrupt endpoint */
-	usbd_transfer_start(sc->sc_xfer[UCHCOM_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_intr_xfer);
 
 	/* start read endpoint */
 	usbd_transfer_start(sc->sc_xfer[UCHCOM_BULK_DT_RD]);
@@ -749,7 +792,7 @@ uchcom_stop_read(struct ucom_softc *ucom)
 	struct uchcom_softc *sc = ucom->sc_parent;
 
 	/* stop interrupt endpoint */
-	usbd_transfer_stop(sc->sc_xfer[UCHCOM_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_intr_xfer);
 
 	/* stop read endpoint */
 	usbd_transfer_stop(sc->sc_xfer[UCHCOM_BULK_DT_RD]);
@@ -779,7 +822,8 @@ uchcom_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uchcom_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
-	uint8_t buf[UCHCOM_INTR_LEAST];
+	uint32_t intrstat;
+	uint8_t buf[16];
 	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
@@ -791,13 +835,12 @@ uchcom_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if (actlen >= UCHCOM_INTR_LEAST) {
 			pc = usbd_xfer_get_frame(xfer, 0);
-			usbd_copy_out(pc, 0, buf, UCHCOM_INTR_LEAST);
+			usbd_copy_out(pc, 0, buf, sizeof(buf));
 
-			DPRINTF("data = 0x%02X 0x%02X 0x%02X 0x%02X\n",
-			    (unsigned)buf[0], (unsigned)buf[1],
-			    (unsigned)buf[2], (unsigned)buf[3]);
+			intrstat = (sc->sc_chiptype == TYPE_CH343) ?
+			    actlen - 1 : UCHCOM_INTR_STAT1;
 
-			uchcom_convert_status(sc, buf[UCHCOM_INTR_STAT1]);
+			uchcom_convert_status(sc, buf[intrstat]);
 			ucom_status_change(&sc->sc_ucom);
 		}
 	case USB_ST_SETUP:
