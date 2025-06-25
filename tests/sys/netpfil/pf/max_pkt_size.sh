@@ -26,17 +26,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
-atf_test_case "basic" "cleanup"
-basic_head()
+common_setup()
 {
-	atf_set descr 'Basic max-pkt-size test'
-	atf_set require.user root
-}
-
-basic_body()
-{
-	pft_init
-
 	epair=$(vnet_mkepair)
 
 	ifconfig ${epair}b 192.0.2.2/24 up
@@ -45,9 +36,10 @@ basic_body()
 	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
 
 	jexec alcatraz pfctl -e
-	pft_set_rules alcatraz \
-	    "pass max-pkt-size 128"
+}
 
+common_test()
+{
 	# Small packets pass
 	atf_check -s exit:0 -o ignore \
 	    ping -c 1 192.0.2.1
@@ -59,6 +51,25 @@ basic_body()
 	    ping -c 3 -s 101 192.0.2.1
 	atf_check -s exit:2 -o ignore \
 	    ping -c 3 -s 128 192.0.2.1
+}
+
+atf_test_case "basic" "cleanup"
+basic_head()
+{
+	atf_set descr 'Basic max-pkt-size test'
+	atf_set require.user root
+}
+
+basic_body()
+{
+	pft_init
+
+	common_setup
+
+	pft_set_rules alcatraz \
+	    "pass max-pkt-size 128"
+
+	common_test
 
 	# We can enforce this on fragmented packets too
 	pft_set_rules alcatraz \
@@ -79,7 +90,33 @@ basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "match" "cleanup"
+match_head()
+{
+	atf_set descr 'max-pkt-size on match rules'
+	atf_set require.user root
+}
+
+match_body()
+{
+	pft_init
+
+	common_setup
+
+	pft_set_rules alcatraz \
+	    "match in max-pkt-size 128" \
+	    "pass"
+
+	common_test
+}
+
+match_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "match"
 }

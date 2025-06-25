@@ -690,6 +690,7 @@ struct pf_rule_actions {
 	uint8_t		 set_prio[2];
 	uint8_t		 rt;
 	uint8_t		 allow_opts;
+	uint16_t	 max_pkt_size;
 };
 
 union pf_keth_rule_ptr {

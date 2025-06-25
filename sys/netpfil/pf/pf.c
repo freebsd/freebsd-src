@@ -4886,6 +4886,8 @@ pf_rule_to_actions(struct pf_krule *r, struct pf_rule_actions *a)
 	}
 	if (r->allow_opts)
 		a->allow_opts = r->allow_opts;
+	if (r->max_pkt_size)
+		a->max_pkt_size = r->max_pkt_size;
 }
 
 int
@@ -10668,8 +10670,10 @@ done:
 	if (pd.m == NULL)
 		goto eat_pkt;
 
-	if (action == PF_PASS && pd.badopts &&
-	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || pd.act.allow_opts)) {
+	if (s)
+		memcpy(&pd.act, &s->act, sizeof(s->act));
+
+	if (action == PF_PASS && pd.badopts && !pd.act.allow_opts) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_IPOPTIONS);
 		pd.act.log = PF_LOG_FORCE;
@@ -10677,7 +10681,8 @@ done:
 		    ("pf: dropping packet with dangerous headers\n"));
 	}
 
-	if (r && r->max_pkt_size && pd.tot_len > r->max_pkt_size) {
+	if (pd.act.max_pkt_size && pd.act.max_pkt_size &&
+	    pd.tot_len > pd.act.max_pkt_size) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_NORM);
 		pd.act.log = PF_LOG_FORCE;
