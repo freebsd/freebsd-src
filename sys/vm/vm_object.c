@@ -2577,6 +2577,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_memattr = obj->memattr;
 		kvo->kvo_active = 0;
 		kvo->kvo_inactive = 0;
+		kvo->kvo_laundry = 0;
 		kvo->kvo_flags = 0;
 		if (!swap_only) {
 			TAILQ_FOREACH(m, &obj->memq, listq) {
