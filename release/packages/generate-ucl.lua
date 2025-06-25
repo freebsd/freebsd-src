@@ -31,5 +31,5 @@ if not f then
 	os.exit(1)
 end
 local obj = parser:get_object()
-f:write(ucl.to_format(obj, 'ucl'))
+f:write(ucl.to_format(obj, 'ucl', true))
 f:close()
