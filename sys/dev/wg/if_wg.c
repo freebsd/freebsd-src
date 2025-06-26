@@ -314,6 +314,8 @@ static void wg_timers_run_zero_key_material(void *);
 static void wg_timers_run_persistent_keepalive(void *);
 static int wg_aip_add(struct wg_softc *, struct wg_peer *, sa_family_t,
     const void *, uint8_t);
+static int wg_aip_del(struct wg_softc *, struct wg_peer *, sa_family_t,
+    const void *, uint8_t);
 static struct wg_peer *wg_aip_lookup(struct wg_softc *, sa_family_t, void *);
 static void wg_aip_remove_all(struct wg_softc *, struct wg_peer *);
 static struct wg_peer *wg_peer_create(struct wg_softc *,
@@ -606,6 +608,58 @@ wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af,
 	}
 	RADIX_NODE_HEAD_UNLOCK(root);
 	return (ret);
+}
+
+static int
+wg_aip_del(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af,
+    const void *baddr, uint8_t cidr)
+{
+	struct radix_node_head	*root = NULL;
+	struct radix_node	*dnode __diagused, *node;
+	struct wg_aip		 *aip, addr;
+	int			 ret = 0;
+
+	/*
+	 * We need to be sure that all padding is cleared, as it is above when
+	 * new AllowedIPs are added, since we want to do a direct comparison.
+	 */
+	memset(&addr, 0, sizeof(addr));
+	addr.a_af = af;
+
+	ret = wg_aip_addrinfo(&addr, baddr, cidr);
+	if (ret != 0)
+		return (ret);
+
+	root = af == AF_INET ? sc->sc_aip4 : sc->sc_aip6;
+
+	MPASS(root != NULL);
+	RADIX_NODE_HEAD_LOCK(root);
+
+	node = root->rnh_lookup(&addr.a_addr, &addr.a_mask, &root->rh);
+	if (node == NULL) {
+		RADIX_NODE_HEAD_UNLOCK(root);
+		return (0);
+	}
+
+	aip = (struct wg_aip *)node;
+	if (aip->a_peer != peer) {
+		/*
+		 * They could have specified an allowed-ip that belonged to a
+		 * different peer, in which case our job is done because the
+		 * AllowedIP has been removed.
+		 */
+		RADIX_NODE_HEAD_UNLOCK(root);
+		return (0);
+	}
+
+	dnode = root->rnh_deladdr(&aip->a_addr, &aip->a_mask, &root->rh);
+	MPASS(dnode == node);
+	RADIX_NODE_HEAD_UNLOCK(root);
+
+	LIST_REMOVE(aip, a_entry);
+	peer->p_aips_num--;
+	free(aip, M_WG);
+	return (0);
 }
 
 static struct wg_peer *
@@ -2479,11 +2533,19 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 		aipl = nvlist_get_nvlist_array(nvl, "allowed-ips", &allowedip_count);
 		for (size_t idx = 0; idx < allowedip_count; idx++) {
 			sa_family_t ipaf;
+			int ipflags;
 
 			if (!nvlist_exists_number(aipl[idx], "cidr"))
 				continue;
 
 			ipaf = AF_UNSPEC;
+			ipflags = 0;
+			if (nvlist_exists_number(aipl[idx], "flags"))
+				ipflags = nvlist_get_number(aipl[idx], "flags");
+			if ((ipflags & ~WGALLOWEDIP_VALID_FLAGS) != 0) {
+				err = EOPNOTSUPP;
+				goto out;
+			}
 			cidr = nvlist_get_number(aipl[idx], "cidr");
 			if (nvlist_exists_binary(aipl[idx], "ipv4")) {
 				addr = nvlist_get_binary(aipl[idx], "ipv4", &size);
@@ -2506,7 +2568,13 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 			}
 
 			MPASS(ipaf != AF_UNSPEC);
-			if ((err = wg_aip_add(sc, peer, ipaf, addr, cidr)) != 0)
+			if ((ipflags & WGALLOWEDIP_REMOVE_ME) != 0) {
+				err = wg_aip_del(sc, peer, ipaf, addr, cidr);
+			} else {
+				err = wg_aip_add(sc, peer, ipaf, addr, cidr);
+			}
+
+			if (err != 0)
 				goto out;
 		}
 	}
