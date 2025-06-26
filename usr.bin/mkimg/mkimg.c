@@ -62,6 +62,8 @@ static struct option longopts[] = {
 static uint64_t min_capacity = 0;
 static uint64_t max_capacity = 0;
 
+bool reproducible = false;
+
 struct partlisthead partlist = TAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
@@ -562,7 +564,7 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt_long(argc, argv, "a:b:c:C:f:o:p:s:vyH:P:S:T:",
+	while ((c = getopt_long(argc, argv, "a:b:c:C:f:o:p:s:vyH:P:RS:T:",
 	    longopts, NULL)) != -1) {
 		switch (c) {
 		case 'a':	/* ACTIVE PARTITION, if supported */
@@ -606,6 +608,9 @@ main(int argc, char *argv[])
 			error = parse_part(optarg);
 			if (error)
 				errc(EX_DATAERR, error, "partition");
+			break;
+		case 'R':
+			reproducible = true;
 			break;
 		case 's':	/* SCHEME */
 			if (scheme_selected() != NULL)
@@ -675,6 +680,9 @@ main(int argc, char *argv[])
 		usage("no partitions");
 	if (max_capacity != 0 && min_capacity > max_capacity)
 		usage("minimum capacity cannot be larger than the maximum one");
+
+	if (reproducible)
+		srandom(42);
 
 	if (secsz > blksz) {
 		if (blksz != 0)

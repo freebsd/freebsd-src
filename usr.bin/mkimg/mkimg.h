@@ -29,6 +29,9 @@
 
 #include <sys/queue.h>
 #include <sys/types.h>
+#include <stdbool.h>
+
+extern bool reproducible;	/* Generate reproducible output. */
 
 struct part {
 	TAILQ_ENTRY(part) link;
