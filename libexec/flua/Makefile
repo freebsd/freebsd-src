@@ -5,6 +5,7 @@ SUBDIR+=	libfreebsd
 SUBDIR+=	libhash
 SUBDIR+=	libjail
 SUBDIR+=	libucl
+SUBDIR+=	liblyaml
 
 LUASRC?=	${SRCTOP}/contrib/lua/src
 .PATH: ${LUASRC}

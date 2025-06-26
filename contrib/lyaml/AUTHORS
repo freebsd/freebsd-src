@@ -1,0 +1,6 @@
+lyaml is the work of several authors (see git history for
+contributors).
+
+There is an earlier C LibYAML binding
+
+  Copyright Andrew Danforth <acd@weirdness.net>
