@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
+# Copyright (c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -29,6 +29,7 @@ atf_test_case config2_userdata_update_packages
 atf_test_case config2_userdata_upgrade_packages
 atf_test_case config2_userdata_shebang
 atf_test_case config2_userdata_fqdn_and_hostname
+atf_test_case config2_userdata_write_files
 
 setup_test_adduser()
 {
@@ -847,6 +848,39 @@ EOF
 	fi
 }
 
+config2_userdata_write_files_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+write_files:
+- content: "plop"
+  path: /file1
+- path: /emptyfile
+- content: !!binary |
+    YmxhCg==
+  path: /file_base64
+  encoding: b64
+  permissions: '0755'
+  owner: nobody
+- content: "bob"
+  path: "/foo"
+  defer: true
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"plop" cat file1
+	atf_check -o inline:"" cat emptyfile
+	atf_check -o inline:"bla\n" cat file_base64
+	test -f foo && atf_fail "foo creation should have been defered"
+	atf_check -o match:"^-rwxr-xr-x.*nobody" ls -l file_base64
+	rm file1 emptyfile file_base64
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	test -f file1 -o -f emptyfile -o -f file_base64 && atf_fail "defer not working properly"
+	atf_check -o inline:"bob" cat foo
+}
+
 config2_userdata_fqdn_and_hostname_body()
 {
 	mkdir -p media/nuageinit
@@ -892,4 +926,5 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_upgrade_packages
 	atf_add_test_case config2_userdata_shebang
 	atf_add_test_case config2_userdata_fqdn_and_hostname
+	atf_add_test_case config2_userdata_write_files
 }

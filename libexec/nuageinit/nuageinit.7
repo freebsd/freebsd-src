@@ -2,7 +2,7 @@
 .\"
 .\" Copyright (c) 2025 Baptiste Daroussin <bapt@FreeBSD.org>
 .\"
-.Dd June 16, 2025
+.Dd June 26, 2025
 .Dt NUAGEINIT 7
 .Os
 .Sh NAME
@@ -238,6 +238,42 @@ If the textline starts with
 where x is a number, then the password is considered encrypted,
 otherwise the password is considered plaintext.
 .El
+.El
+.It Ic write_files
+An array of objects representing files to be created at first boot.
+The files are being created before the installation of any packages
+and the creation of the users.
+The only mandatory field is:
+.Ic path .
+It accepts the following keys for each objects:
+.Bl -tag -width "permissions"
+.It Ic content
+The content to be written to the file.
+If this key is not existing then an empty file will be created.
+.It Ic encoding
+Specifiy the encoding used for content.
+If not specified, then plain text is considered.
+Only
+.Ar b64
+and
+.Ar base64
+are supported for now.
+.It Ic path
+The path of the file to be created.
+.Pq Note intermerdiary directories will not be created .
+.It Ic permissions
+A string representing the permission of the file in octal.
+.It Ic owner
+A string representing the owner, two forms are possible:
+.Ar user
+or
+.Ar user:group .
+.It Ic append
+A boolean to specify the content should be appended to the file if the file
+exists.
+.It Ic defer
+A boolean to specify that the files should be created after the packages are
+installed and the users are created.
 .El
 .El
 .Sh EXAMPLES
