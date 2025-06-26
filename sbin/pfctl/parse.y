@@ -5492,18 +5492,18 @@ expand_label_str(char *label, size_t len, const char *srch, const char *repl)
 	char *p, *q;
 
 	if ((tmp = calloc(1, len)) == NULL)
-		err(1, "expand_label_str: calloc");
+		err(1, "%s: calloc", __func__);
 	p = q = label;
 	while ((q = strstr(p, srch)) != NULL) {
 		*q = '\0';
 		if ((strlcat(tmp, p, len) >= len) ||
 		    (strlcat(tmp, repl, len) >= len))
-			errx(1, "expand_label: label too long");
+			errx(1, "%s: label too long", __func__);
 		q += strlen(srch);
 		p = q;
 	}
 	if (strlcat(tmp, p, len) >= len)
-		errx(1, "expand_label: label too long");
+		errx(1, "%s: label too long", __func__);
 	strlcpy(label, tmp, len);	/* always fits */
 	free(tmp);
 }
@@ -5669,7 +5669,7 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 		memcpy(&pa, a, sizeof(struct pf_altq));
 		if (strlcpy(pa.ifname, interface->ifname,
 		    sizeof(pa.ifname)) >= sizeof(pa.ifname))
-			errx(1, "expand_altq: strlcpy");
+			errx(1, "%s: strlcpy", __func__);
 
 		if (interface->not) {
 			yyerror("altq on ! <interface> is not supported");
@@ -5703,16 +5703,16 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 				memset(&pb, 0, sizeof(struct pf_altq));
 				if (strlcpy(qname, "root_", sizeof(qname)) >=
 				    sizeof(qname))
-					errx(1, "expand_altq: strlcpy");
+					errx(1, "%s: strlcpy", __func__);
 				if (strlcat(qname, interface->ifname,
 				    sizeof(qname)) >= sizeof(qname))
-					errx(1, "expand_altq: strlcat");
+					errx(1, "%s: strlcat", __func__);
 				if (strlcpy(pb.qname, qname,
 				    sizeof(pb.qname)) >= sizeof(pb.qname))
-					errx(1, "expand_altq: strlcpy");
+					errx(1, "%s: strlcpy", __func__);
 				if (strlcpy(pb.ifname, interface->ifname,
 				    sizeof(pb.ifname)) >= sizeof(pb.ifname))
-					errx(1, "expand_altq: strlcpy");
+					errx(1, "%s: strlcpy", __func__);
 				pb.qlimit = pa.qlimit;
 				pb.scheduler = pa.scheduler;
 				bw.bw_absolute = pa.ifbandwidth;
@@ -5727,20 +5727,20 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 			LOOP_THROUGH(struct node_queue, queue, nqueues,
 				n = calloc(1, sizeof(struct node_queue));
 				if (n == NULL)
-					err(1, "expand_altq: calloc");
+					err(1, "%s: calloc", __func__);
 				if (pa.scheduler == ALTQT_CBQ ||
 				    pa.scheduler == ALTQT_HFSC ||
 				    pa.scheduler == ALTQT_FAIRQ)
 					if (strlcpy(n->parent, qname,
 					    sizeof(n->parent)) >=
 					    sizeof(n->parent))
-						errx(1, "expand_altq: strlcpy");
+						errx(1, "%s: strlcpy", __func__);
 				if (strlcpy(n->queue, queue->queue,
 				    sizeof(n->queue)) >= sizeof(n->queue))
-					errx(1, "expand_altq: strlcpy");
+					errx(1, "%s: strlcpy", __func__);
 				if (strlcpy(n->ifname, interface->ifname,
 				    sizeof(n->ifname)) >= sizeof(n->ifname))
-					errx(1, "expand_altq: strlcpy");
+					errx(1, "%s: strlcpy", __func__);
 				n->scheduler = pa.scheduler;
 				n->next = NULL;
 				n->tail = n;
@@ -5823,10 +5823,10 @@ expand_queue(struct pf_altq *a, struct node_if *interfaces,
 
 				if (strlcpy(pa.ifname, tqueue->ifname,
 				    sizeof(pa.ifname)) >= sizeof(pa.ifname))
-					errx(1, "expand_queue: strlcpy");
+					errx(1, "%s: strlcpy", __func__);
 				if (strlcpy(pa.parent, tqueue->parent,
 				    sizeof(pa.parent)) >= sizeof(pa.parent))
-					errx(1, "expand_queue: strlcpy");
+					errx(1, "%s: strlcpy", __func__);
 
 				if (eval_pfqueue(pf, &pa, &bwspec, opts))
 					errs++;
@@ -5844,19 +5844,19 @@ expand_queue(struct pf_altq *a, struct node_if *interfaces,
 					n = calloc(1,
 					    sizeof(struct node_queue));
 					if (n == NULL)
-						err(1, "expand_queue: calloc");
+						err(1, "%s: calloc", __func__);
 					if (strlcpy(n->parent, a->qname,
 					    sizeof(n->parent)) >=
 					    sizeof(n->parent))
-						errx(1, "expand_queue strlcpy");
+						errx(1, "%s strlcpy", __func__);
 					if (strlcpy(n->queue, nq->queue,
 					    sizeof(n->queue)) >=
 					    sizeof(n->queue))
-						errx(1, "expand_queue strlcpy");
+						errx(1, "%s strlcpy", __func__);
 					if (strlcpy(n->ifname, tqueue->ifname,
 					    sizeof(n->ifname)) >=
 					    sizeof(n->ifname))
-						errx(1, "expand_queue strlcpy");
+						errx(1, "%s strlcpy", __func__);
 					n->scheduler = tqueue->scheduler;
 					n->next = NULL;
 					n->tail = n;
@@ -5925,12 +5925,12 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 	char qname[PF_QNAME_SIZE];
 
 	if (strlcpy(tagname, r->tagname, sizeof(tagname)) >= sizeof(tagname))
-		errx(1, "expand_eth_rule: tagname");
+		errx(1, "%s: tagname", __func__);
 	if (strlcpy(match_tagname, r->match_tagname, sizeof(match_tagname)) >=
 	    sizeof(match_tagname))
-		errx(1, "expand_eth_rule: match_tagname");
+		errx(1, "%s: match_tagname", __func__);
 	if (strlcpy(qname, r->qname, sizeof(qname)) >= sizeof(qname))
-		errx(1, "expand_eth_rule: qname");
+		errx(1, "%s: qname", __func__);
 
 	LOOP_THROUGH(struct node_if, interface, interfaces,
 	LOOP_THROUGH(struct node_etherproto, proto, protos,
@@ -5962,12 +5962,12 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 
 		if (strlcpy(r->tagname, tagname, sizeof(r->tagname)) >=
 		    sizeof(r->tagname))
-			errx(1, "expand_eth_rule: r->tagname");
+			errx(1, "%s: r->tagname", __func__);
 		if (strlcpy(r->match_tagname, match_tagname,
 		    sizeof(r->match_tagname)) >= sizeof(r->match_tagname))
-			errx(1, "expand_eth_rule: r->match_tagname");
+			errx(1, "%s: r->match_tagname", __func__);
 		if (strlcpy(r->qname, qname, sizeof(r->qname)) >= sizeof(r->qname))
-			errx(1, "expand_eth_rule: r->qname");
+			errx(1, "%s: r->qname", __func__);
 
 		if (bridge_to)
 			strlcpy(r->bridge_to, bridge_to, sizeof(r->bridge_to));
@@ -6101,12 +6101,12 @@ apply_redirspec(struct pfctl_pool *rpool, struct redirspec *rs)
 	for (h = rs->host; h != NULL; h = h->next) {
 		pa = calloc(1, sizeof(struct pf_pooladdr));
 		if (pa == NULL)
-			err(1, "expand_rule: calloc");
+			err(1, "%s: calloc", __func__);
 		pa->addr = h->addr;
 		if (h->ifname != NULL) {
 			if (strlcpy(pa->ifname, h->ifname,
 			    sizeof(pa->ifname)) >= sizeof(pa->ifname))
-				errx(1, "expand_rule: strlcpy");
+				errx(1, "%s: strlcpy", __func__);
 		} else
 			pa->ifname[0] = 0;
 		TAILQ_INSERT_TAIL(&(rpool->list), pa, entries);
@@ -6244,10 +6244,10 @@ expand_rule(struct pfctl_rule *r, bool keeprule,
 	memcpy(label, r->label, sizeof(r->label));
 	assert(sizeof(r->label) == sizeof(label));
 	if (strlcpy(tagname, r->tagname, sizeof(tagname)) >= sizeof(tagname))
-		errx(1, "expand_rule: strlcpy");
+		errx(1, "%s: strlcpy", __func__);
 	if (strlcpy(match_tagname, r->match_tagname, sizeof(match_tagname)) >=
 	    sizeof(match_tagname))
-		errx(1, "expand_rule: strlcpy");
+		errx(1, "%s: strlcpy", __func__);
 	flags = r->flags;
 	flagset = r->flagset;
 	keep_state = r->keep_state;
@@ -6300,21 +6300,21 @@ expand_rule(struct pfctl_rule *r, bool keeprule,
 		memcpy(r->label, label, sizeof(r->label));
 		if (strlcpy(r->tagname, tagname, sizeof(r->tagname)) >=
 		    sizeof(r->tagname))
-			errx(1, "expand_rule: strlcpy");
+			errx(1, "%s: strlcpy", __func__);
 		if (strlcpy(r->match_tagname, match_tagname,
 		    sizeof(r->match_tagname)) >= sizeof(r->match_tagname))
-			errx(1, "expand_rule: strlcpy");
+			errx(1, "%s: strlcpy", __func__);
 
 		osrch = odsth = NULL;
 		if (src_host->addr.type == PF_ADDR_DYNIFTL) {
 			osrch = src_host;
 			if ((src_host = gen_dynnode(src_host, r->af)) == NULL)
-				err(1, "expand_rule: calloc");
+				err(1, "%s: calloc", __func__);
 		}
 		if (dst_host->addr.type == PF_ADDR_DYNIFTL) {
 			odsth = dst_host;
 			if ((dst_host = gen_dynnode(dst_host, r->af)) == NULL)
-				err(1, "expand_rule: calloc");
+				err(1, "%s: calloc", __func__);
 		}
 
 		error += check_netmask(src_host, r->af);
@@ -6767,7 +6767,7 @@ lungetc(int c)
 	if (file->ungetpos >= file->ungetsize) {
 		void *p = reallocarray(file->ungetbuf, file->ungetsize, 2);
 		if (p == NULL)
-			err(1, "lungetc");
+			err(1, "%s", __func__);
 		file->ungetbuf = p;
 		file->ungetsize *= 2;
 	}
@@ -6877,7 +6877,7 @@ top:
 		}
 		yylval.v.string = strdup(buf);
 		if (yylval.v.string == NULL)
-			err(1, "yylex: strdup");
+			err(1, "%s: strdup", __func__);
 		return (STRING);
 		case '!':
 			next = lgetc(0);
@@ -6965,7 +6965,7 @@ nodigits:
 		*p = '\0';
 		if ((token = lookup(buf)) == STRING)
 			if ((yylval.v.string = strdup(buf)) == NULL)
-				err(1, "yylex: strdup");
+				err(1, "%s: strdup", __func__);
 		return (token);
 	}
 	if (c == '\n') {
@@ -7150,7 +7150,7 @@ pfctl_cmdline_symset(char *s)
 		return (-1);
 
 	if ((sym = malloc(strlen(s) - strlen(val) + 1)) == NULL)
-		err(1, "pfctl_cmdline_symset: malloc");
+		err(1, "%s: malloc", __func__);
 
 	strlcpy(sym, s, strlen(s) - strlen(val) + 1);
 
@@ -7514,7 +7514,7 @@ node_mac_from_string(const char *str)
 
 	m = calloc(1, sizeof(struct node_mac));
 	if (m == NULL)
-		err(1, "mac: calloc");
+		err(1, "%s: calloc", __func__);
 
 	if (sscanf(str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
 	    &m->mac[0], &m->mac[1], &m->mac[2], &m->mac[3], &m->mac[4],
