@@ -5803,6 +5803,7 @@ OLD_LIBS+=usr/lib/libkrb5profile.so.121
 OLD_FILES+=usr/lib/libkrb5support.a
 OLD_FILES+=usr/lib/libkrb5support.so
 OLD_LIBS+=usr/lib/libkrb5support.so.121
+OLD_FILES+=usr/lib/libverto.a
 OLD_FILES+=usr/lib/libverto.so
 OLD_LIBS+=usr/lib/libverto.so.121
 OLD_FILES+=usr/libdata/pkgconfig/gssrpc.pc
