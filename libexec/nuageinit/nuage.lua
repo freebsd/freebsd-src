@@ -287,7 +287,13 @@ local function addsudo(pwd)
 		warnmsg("impossible to open " .. sudoers)
 		return
 	end
-	f:write(pwd.name .. " " .. pwd.sudo .. "\n")
+	if type(pwd.sudo) == "string" then
+		f:write(pwd.name .. " " .. pwd.sudo .. "\n")
+	elseif type(pwd.sudo) == "table" then
+		for _, str in ipairs(pwd.sudo) do
+			f:write(pwd.name .. " " .. str .. "\n")
+		end
+	end
 	f:close()
 	if chmodsudoers then
 		sys_stat.chmod(sudoers, 416)
