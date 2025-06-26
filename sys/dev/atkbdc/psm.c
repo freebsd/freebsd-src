@@ -598,6 +598,7 @@ static d_read_t		psmread;
 static d_write_t	psmwrite;
 static d_ioctl_t	psmioctl;
 static d_poll_t		psmpoll;
+static d_kqfilter_t	psmkqfilter;
 
 static int	psmopen(struct psm_softc *);
 static int	psmclose(struct psm_softc *);
@@ -750,6 +751,7 @@ static struct cdevsw psm_cdevsw = {
 	.d_write =	psmwrite,
 	.d_ioctl =	psmioctl,
 	.d_poll =	psmpoll,
+	.d_kqfilter =	psmkqfilter,
 	.d_name =	PSM_DRIVER_NAME,
 };
 
@@ -1946,6 +1948,7 @@ psmattach(device_t dev)
 	sc->state = PSM_VALID;
 	callout_init(&sc->callout, 0);
 	callout_init(&sc->softcallout, 0);
+	knlist_init_mtx(&sc->rsel.si_note, &Giant);
 
 	/* Setup our interrupt handler */
 	rid = KBDC_RID_AUX;
@@ -2057,6 +2060,8 @@ psmdetach(device_t dev)
 	destroy_dev(sc->cdev);
 	destroy_dev(sc->bdev);
 
+	knlist_clear(&sc->rsel.si_note, 1);
+	knlist_destroy(&sc->rsel.si_note);
 	callout_drain(&sc->callout);
 	callout_drain(&sc->softcallout);
 
@@ -5212,6 +5217,7 @@ next:
 		wakeup(sc);
 	}
 	selwakeuppri(&sc->rsel, PZERO);
+	KNOTE_LOCKED(&sc->rsel.si_note, 0);
 	if (sc->async != NULL) {
 		pgsigio(&sc->async, SIGIO, 0);
 	}
@@ -5247,6 +5253,45 @@ psmpoll(struct cdev *dev, int events, struct thread *td)
 	splx(s);
 
 	return (revents);
+}
+
+static void
+psmfilter_detach(struct knote *kn)
+{
+	struct psm_softc *sc = kn->kn_hook;
+
+	knlist_remove(&sc->rsel.si_note, kn, 0);
+}
+
+static int
+psmfilter(struct knote *kn, long hint)
+{
+	struct psm_softc *sc = kn->kn_hook;
+
+	GIANT_REQUIRED;
+
+	return (sc->queue.count != 0 ? 1 : 0);
+}
+
+static const struct filterops psmfiltops = {
+	.f_isfd = 1,
+	.f_detach = psmfilter_detach,
+	.f_event = psmfilter,
+};
+
+static int
+psmkqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct psm_softc *sc = dev->si_drv1;
+
+	if (kn->kn_filter != EVFILT_READ)
+		return(EOPNOTSUPP);
+
+	kn->kn_fop = &psmfiltops;
+	kn->kn_hook = sc;
+	knlist_add(&sc->rsel.si_note, kn, 1);
+
+	return (0);
 }
 
 /* vendor/model specific routines */
