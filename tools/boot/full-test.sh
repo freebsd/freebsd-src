@@ -208,6 +208,10 @@ autoboot_delay=2
 zfs_load="YES"
 boot_verbose=yes
 kern.cfg.order="acpi,fdt"
+boot_serial="YES"
+hw.uart.console="io:1016,br:115200"
+vfs.root.mountfrom="ufs:/dev/ufs/root"
+vfs.root.mountfrom.options="rw"
 EOF
 }
 
