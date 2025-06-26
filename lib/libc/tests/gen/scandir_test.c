@@ -7,7 +7,9 @@
 #include <sys/stat.h>
 
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <atf-c.h>
@@ -124,11 +126,72 @@ ATF_TC_BODY(scandir_none, tc)
 	free(namelist);
 }
 
+/*
+ * Test that scandir() propagates errors from readdir(): we create a
+ * directory with enough entries that it can't be read in a single
+ * getdirentries() call, then abuse the selection callback to close the
+ * file descriptor scandir() is using after the first call, causing the
+ * next one to fail, and verify that readdir() returns an error instead of
+ * a partial result.  We make two passes, one in which nothing was
+ * selected before the error occurred, and one in which everything was.
+ */
+static int scandir_error_count;
+static int scandir_error_fd;
+static int scandir_error_select_return;
+
+static int
+scandir_error_select(const struct dirent *ent __unused)
+{
+	if (scandir_error_count++ == 0)
+		close(scandir_error_fd);
+	return (scandir_error_select_return);
+}
+
+ATF_TC(scandir_error);
+ATF_TC_HEAD(scandir_error, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test that scandir() propagates errors from readdir()");
+}
+ATF_TC_BODY(scandir_error, tc)
+{
+	char path[16];
+	struct dirent **namelist = NULL;
+	int fd, i, ret;
+
+	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
+	for (i = 0; i < 1024; i++) {
+		snprintf(path, sizeof(path), "dir/%04x", i);
+		ATF_REQUIRE_EQ(0, symlink(path + 4, path));
+	}
+
+	/* first pass, select nothing */
+	ATF_REQUIRE((fd = open("dir", O_DIRECTORY | O_RDONLY)) >= 0);
+	scandir_error_count = 0;
+	scandir_error_fd = fd;
+	scandir_error_select_return = 0;
+	ret = fdscandir(fd, &namelist, scandir_error_select, NULL);
+	ATF_CHECK_EQ(-1, ret);
+	ATF_CHECK_ERRNO(EBADF, ret < 0);
+	ATF_CHECK_EQ(NULL, namelist);
+
+	/* second pass, select everything */
+	ATF_REQUIRE((fd = open("dir", O_DIRECTORY | O_RDONLY)) >= 0);
+	scandir_error_count = 0;
+	scandir_error_fd = fd;
+	scandir_error_select_return = 1;
+	ret = fdscandir(fd, &namelist, scandir_error_select, NULL);
+	ATF_CHECK_EQ(-1, ret);
+	ATF_CHECK_ERRNO(EBADF, ret < 0);
+	ATF_CHECK_EQ(NULL, namelist);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, scandir_test);
 	ATF_TP_ADD_TC(tp, fdscandir_test);
 	ATF_TP_ADD_TC(tp, scandirat_test);
 	ATF_TP_ADD_TC(tp, scandir_none);
+	ATF_TP_ADD_TC(tp, scandir_error);
 	return (atf_no_error());
 }
