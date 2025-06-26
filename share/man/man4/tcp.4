@@ -780,6 +780,13 @@ Minimum TCP Maximum Segment Size; used to prevent a denial of service attack
 from an unreasonably low MSS.
 .It Va msl
 The Maximum Segment Lifetime, in milliseconds, for a packet.
+.It Va msl_local
+The Maximum Segment Lifetime, in milliseconds, for a packet when both endpoints
+are local.
+.Va msl_local
+is only used if
+.Va nolocaltimewait
+is zero.
 .It Va mssdflt
 The default value used for the TCP Maximum Segment Size
 .Pq Dq MSS

@@ -74,6 +74,7 @@
  * Time constants.
  */
 #define	TCPTV_MSL	MSEC_2_TICKS(30000)	/* max seg lifetime (hah!) */
+#define	TCPTV_MSL_LOCAL	MSEC_2_TICKS(10)	/* max seg lifetime for local comm */
 #define	TCPTV_SRTTBASE	0			/* base roundtrip time;
 						   if 0, no idea yet */
 #define	TCPTV_RTOBASE	MSEC_2_TICKS(1000)	/* assumed RTO if no info */
@@ -183,6 +184,8 @@ VNET_DECLARE(int, tcp_v6pmtud_blackhole_mss);
 #define V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
 VNET_DECLARE(int, tcp_msl);
 #define V_tcp_msl			VNET(tcp_msl)
+VNET_DECLARE(int, tcp_msl_local);
+#define V_tcp_msl_local			VNET(tcp_msl_local)
 
 #endif /* _KERNEL */
 
