@@ -109,6 +109,12 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl,
     &VNET_NAME(tcp_msl), 0, sysctl_msec_to_ticks, "I",
     "Maximum segment lifetime");
 
+VNET_DEFINE(int, tcp_msl_local);
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl_local,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(tcp_msl_local), 0, sysctl_msec_to_ticks, "I",
+    "Maximum segment lifetime for local communication");
+
 int	tcp_rexmit_initial;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_initial, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_rexmit_initial, 0, sysctl_msec_to_ticks, "I",
