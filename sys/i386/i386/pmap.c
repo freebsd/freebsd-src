@@ -2234,7 +2234,7 @@ __CONCAT(PMTYPE, release)(pmap_t pmap)
 /*
  * grow the number of kernel page table entries, if needed
  */
-static void
+static int
 __CONCAT(PMTYPE, growkernel)(vm_offset_t addr)
 {
 	vm_paddr_t ptppaddr;
@@ -2258,7 +2258,7 @@ __CONCAT(PMTYPE, growkernel)(vm_offset_t addr)
 		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 		    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (nkpg == NULL)
-			panic("pmap_growkernel: no memory to grow kernel");
+			return (KERN_RESOURCE_SHORTAGE);
 		nkpg->pindex = kernel_vm_end >> PDRSHIFT;
 		nkpt++;
 
@@ -2273,6 +2273,8 @@ __CONCAT(PMTYPE, growkernel)(vm_offset_t addr)
 			break;
 		}
 	}
+
+	return (KERN_SUCCESS);
 }
 
 /***************************************************

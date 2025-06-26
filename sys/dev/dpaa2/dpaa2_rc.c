@@ -2905,7 +2905,7 @@ dpaa2_rc_add_child(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
 	}
 
 	/* Add a device for the DPAA2 object. */
-	dev = device_add_child(rcdev, devclass, -1);
+	dev = device_add_child(rcdev, devclass, DEVICE_UNIT_ANY);
 	if (dev == NULL) {
 		device_printf(rcdev, "%s: failed to add a device for DPAA2 "
 		    "object: type=%s, id=%u\n", __func__, dpaa2_ttos(obj->type),
@@ -3031,7 +3031,7 @@ dpaa2_rc_add_managed_child(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
 	}
 
 	/* Add a device for the DPAA2 object. */
-	dev = device_add_child(rcdev, devclass, -1);
+	dev = device_add_child(rcdev, devclass, DEVICE_UNIT_ANY);
 	if (dev == NULL) {
 		device_printf(rcdev, "%s: failed to add a device for DPAA2 "
 		    "object: type=%s, id=%u\n", __func__, dpaa2_ttos(obj->type),

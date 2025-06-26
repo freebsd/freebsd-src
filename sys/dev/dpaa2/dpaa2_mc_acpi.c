@@ -229,7 +229,7 @@ dpaa2_mc_acpi_probe_child(ACPI_HANDLE h, device_t *dev, int level, void *arg)
 	if ((ad = malloc(sizeof(*ad), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL)
 		return (AE_OK);
 
-	child = device_add_child(ctx->dev, "dpaa2_mac_dev", -1);
+	child = device_add_child(ctx->dev, "dpaa2_mac_dev", DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		free(ad, M_DEVBUF);
 		return (AE_OK);

@@ -308,6 +308,10 @@ static struct filter_opts {
 	int			 settos;
 	int			 randomid;
 	int			 max_mss;
+	struct {
+		uint32_t	limit;
+		uint32_t	seconds;
+	}			pktrate;
 } filter_opts;
 
 static struct antispoof_opts {
@@ -531,7 +535,7 @@ int	parseport(char *, struct range *r, int);
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW ALLOW_RELATED
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY BRIDGE_TO RECEIVEDON NE LE GE AFTO NATTO RDRTO
-%token	BINATTO
+%token	BINATTO MAXPKTRATE
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
 %token	<v.i>			PORTBINARY
@@ -898,6 +902,8 @@ varset		: STRING '=' varstring	{
 				if (isspace((unsigned char)*s)) {
 					yyerror("macro name cannot contain "
 					   "whitespace");
+					free($1);
+					free($3);
 					YYERROR;
 				}
 			}
@@ -1012,6 +1018,8 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			r.prob = $9.prob;
 			r.rtableid = $9.rtableid;
 			r.ridentifier = $9.ridentifier;
+			r.pktrate.limit = $9.pktrate.limit;
+			r.pktrate.seconds = $9.pktrate.seconds;
 
 			if ($9.tag)
 				if (strlcpy(r.tagname, $9.tag,
@@ -1199,7 +1207,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 loadrule	: LOAD ANCHOR string FROM string	{
 			struct loadanchors	*loadanchor;
 
-			if (strlen(pf->anchor->name) + 1 +
+			if (strlen(pf->anchor->path) + 1 +
 			    strlen($3) >= MAXPATHLEN) {
 				yyerror("anchorname %s too long, max %u\n",
 				    $3, MAXPATHLEN - 1);
@@ -1214,7 +1222,7 @@ loadrule	: LOAD ANCHOR string FROM string	{
 				err(1, "loadrule: malloc");
 			if (pf->anchor->name[0])
 				snprintf(loadanchor->anchorname, MAXPATHLEN,
-				    "%s/%s", pf->anchor->name, $3);
+				    "%s/%s", pf->anchor->path, $3);
 			else
 				strlcpy(loadanchor->anchorname, $3, MAXPATHLEN);
 			if ((loadanchor->filename = strdup($5)) == NULL)
@@ -2489,6 +2497,8 @@ pfrule		: action dir logquick interface route af proto fromto
 
 			r.tos = $9.tos;
 			r.keep_state = $9.keep.action;
+			r.pktrate.limit = $9.pktrate.limit;
+			r.pktrate.seconds = $9.pktrate.seconds;
 			o = $9.keep.options;
 
 			/* 'keep state' by default on pass rules. */
@@ -3111,6 +3121,19 @@ filter_opt	: USER uids {
 				YYERROR;
 			}
 			filter_opts.marker |= FOM_AFTO;
+		}
+		| MAXPKTRATE NUMBER '/' NUMBER {
+			if ($2 < 0 || $2 > UINT_MAX ||
+			    $4 < 0 || $4 > UINT_MAX) {
+				yyerror("only positive values permitted");
+				YYERROR;
+			}
+			if (filter_opts.pktrate.limit) {
+				yyerror("cannot respecify max-pkt-rate");
+				YYERROR;
+			}
+			filter_opts.pktrate.limit = $2;
+			filter_opts.pktrate.seconds = $4;
 		}
 		| filter_sets
 		;
@@ -5527,7 +5550,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 		    &opts->init_nodes);
 	if (!(pf->opts & PF_OPT_NOACTION) &&
 	    pfctl_define_table(name, opts->flags, opts->init_addr,
-	    pf->anchor->name, &ab, pf->anchor->ruleset.tticket)) {
+	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket)) {
 
 		if (sysctlbyname("net.pf.request_maxcount", &maxcount, &s,
 		    NULL, 0) == -1)
@@ -6697,6 +6720,7 @@ lookup(char *s)
 		{ "matches",	MATCHES},
 		{ "max",		MAXIMUM},
 		{ "max-mss",		MAXMSS},
+		{ "max-pkt-rate",       MAXPKTRATE},
 		{ "max-src-conn",	MAXSRCCONN},
 		{ "max-src-conn-rate",	MAXSRCCONNRATE},
 		{ "max-src-nodes",	MAXSRCNODES},

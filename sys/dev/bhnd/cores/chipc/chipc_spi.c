@@ -107,7 +107,8 @@ chipc_spi_attach(device_t dev)
 	 * XXX: This should be replaced with a DEVICE_IDENTIFY implementation
 	 * in chipc-specific subclasses of the mx25l and at45d drivers.
 	 */
-	if ((spibus = device_add_child(dev, "spibus", -1)) == NULL) {
+	if ((spibus = device_add_child(dev, "spibus",
+	    DEVICE_UNIT_ANY)) == NULL) {
 		device_printf(dev, "failed to add spibus\n");
 		error = ENXIO;
 		goto failed;
@@ -121,7 +122,8 @@ chipc_spi_attach(device_t dev)
 	ccaps = BHND_CHIPC_GET_CAPS(device_get_parent(dev));
 	flash_name = chipc_sflash_device_name(ccaps->flash_type);
 	if (flash_name != NULL) {
-		flash_dev = BUS_ADD_CHILD(spibus, 0, flash_name, DEVICE_UNIT_ANY);
+		flash_dev = BUS_ADD_CHILD(spibus, 0, flash_name,
+		    DEVICE_UNIT_ANY);
 		if (flash_dev == NULL) {
 			device_printf(dev, "failed to add %s\n", flash_name);
 			error = ENXIO;

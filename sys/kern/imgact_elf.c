@@ -1487,6 +1487,10 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 		AUXARGS_ENTRY(pos, AT_HWCAP, *imgp->sysent->sv_hwcap);
 	if (imgp->sysent->sv_hwcap2 != NULL)
 		AUXARGS_ENTRY(pos, AT_HWCAP2, *imgp->sysent->sv_hwcap2);
+	if (imgp->sysent->sv_hwcap3 != NULL)
+		AUXARGS_ENTRY(pos, AT_HWCAP3, *imgp->sysent->sv_hwcap3);
+	if (imgp->sysent->sv_hwcap4 != NULL)
+		AUXARGS_ENTRY(pos, AT_HWCAP4, *imgp->sysent->sv_hwcap4);
 	bsdflags = 0;
 	bsdflags |= __elfN(sigfastblock) ? ELF_BSDF_SIGFASTBLK : 0;
 	oc = atomic_load_int(&vm_overcommit);

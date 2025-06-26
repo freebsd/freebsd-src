@@ -101,6 +101,39 @@ local function processFile(gfxname)
 	return true
 end
 
+-- Backwards compatibility shims for previous FreeBSD versions, please document
+-- new additions
+local function adapt_fb_shim(def)
+	-- In FreeBSD 14.x+, we have improved framebuffer support in the loader
+	-- and some graphics may have images that we can actually draw on the
+	-- screen.  Those graphics may come with shifts that are distinct from
+	-- the ASCII version, so we move both ascii and image versions into
+	-- their own tables.
+	if not def.ascii then
+		def.ascii = {
+			image = def.graphic,
+			requires_color = def.requires_color,
+			shift = def.shift,
+		}
+	end
+	if def.image then
+		assert(not def.fb,
+		    "Unrecognized graphic definition format")
+
+		-- Legacy images may have adapted a shift from the ASCII
+		-- version, or perhaps we just didn't care enough to adjust it.
+		-- Steal the shift.
+		def.fb = {
+			image = def.image,
+			width = def.image_rl,
+			shift = def.shift,
+		}
+	end
+
+	def.adapted = true
+	return def
+end
+
 local function getBranddef(brand)
 	if brand == nil then
 		return nil
@@ -123,6 +156,8 @@ local function getBranddef(brand)
 		end
 
 		branddef = branddefs[brand]
+	elseif not branddef.adapted then
+		adapt_fb_shim(branddef)
 	end
 
 	return branddef
@@ -150,6 +185,8 @@ local function getLogodef(logo)
 		end
 
 		logodef = logodefs[logo]
+	elseif not logodef.adapted then
+		adapt_fb_shim(logodef)
 	end
 
 	return logodef
@@ -470,7 +507,7 @@ branddefs = {
 		},
 	},
 	["none"] = {
-		fb = { image = none },
+		ascii = { image = none },
 	},
 }
 
@@ -510,37 +547,6 @@ drawer.default_bw_logodef = 'orbbw'
 -- For when things go terribly wrong; this def should be present here in the
 -- drawer module in case it's a filesystem issue.
 drawer.default_fallback_logodef = 'none'
-
--- Backwards compatibility shims for previous FreeBSD versions, please document
--- new additions
-local function adapt_fb_shim(def)
-	-- In FreeBSD 14.x+, we have improved framebuffer support in the loader
-	-- and some graphics may have images that we can actually draw on the
-	-- screen.  Those graphics may come with shifts that are distinct from
-	-- the ASCII version, so we move both ascii and image versions into
-	-- their own tables.
-	if not def.ascii then
-		def.ascii = {
-			image = def.graphic,
-			requires_color = def.requires_color,
-			shift = def.shift,
-		}
-	end
-	if def.image then
-		assert(not def.fb,
-		    "Unrecognized graphic definition format")
-
-		-- Legacy images may have adapted a shift from the ASCII
-		-- version, or perhaps we just didn't care enough to adjust it.
-		-- Steal the shift.
-		def.fb = {
-			image = def.image,
-			width = def.image_rl,
-			shift = def.shift,
-		}
-	end
-	return def
-end
 
 function drawer.addBrand(name, def)
 	branddefs[name] = adapt_fb_shim(def)

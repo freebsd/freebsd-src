@@ -3,6 +3,7 @@
 
 
 LIB=	tpool
+SHLIBDIR?=	/lib
 LIBADD=	spl
 PACKAGE=	libzfs
 
@@ -21,5 +22,10 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID 
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+
+.include <src.opts.mk>
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.lib.mk>

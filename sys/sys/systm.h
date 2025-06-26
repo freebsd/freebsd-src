@@ -566,17 +566,32 @@ void counted_warning(unsigned *counter, const char *msg);
 /*
  * APIs to manage deprecation and obsolescence.
  */
-void _gone_in(int major, const char *msg);
-void _gone_in_dev(device_t dev, int major, const char *msg);
+void _gone_in(int major, const char *msg, ...) __printflike(2, 3);
+void _gone_in_dev(device_t dev, int major, const char *msg, ...)
+    __printflike(3, 4);
 #ifdef NO_OBSOLETE_CODE
 #define __gone_ok(m, msg)					 \
 	_Static_assert(m < P_OSREL_MAJOR(__FreeBSD_version)),	 \
-	    "Obsolete code: " msg);
+	    "Obsolete code: " msg)
 #else
 #define	__gone_ok(m, msg)
 #endif
-#define gone_in(major, msg)		__gone_ok(major, msg) _gone_in(major, msg)
-#define gone_in_dev(dev, major, msg)	__gone_ok(major, msg) _gone_in_dev(dev, major, msg)
+#define gone_in(major, msg, ...)	do {				\
+	static bool __read_mostly __gone_in_ ## __LINE__ = true;	\
+	__gone_ok(major, msg);						\
+	if (__predict_false(__gone_in_ ## __LINE__)) {			\
+		__gone_in_ ## __LINE__ = false;				\
+		_gone_in(major, msg __VA_OPT__(,) __VA_ARGS__);		\
+	}								\
+} while (0)
+#define gone_in_dev(dev, major, msg, ...)	do {			\
+	static bool __read_mostly __gone_in_ ## __LINE__ = true;	\
+	__gone_ok(major, msg);						\
+	if (__predict_false(__gone_in_ ## __LINE__)) {			\
+		__gone_in_ ## __LINE__ = false;				\
+		_gone_in_dev(dev, major, msg __VA_OPT__(,) __VA_ARGS__);\
+	}								\
+} while (0)
 
 #ifdef INVARIANTS
 #define	__diagused

@@ -143,7 +143,7 @@ cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-F ${"${_CW:MEC2-BUILDER}" != "":?ufs:${_FS}} \
 		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE} -c ${${_CW:tu}CONF}
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE} -c ${${_CW:tu}CONF} || true
 	touch ${.TARGET}
 .   endfor
 .  endfor
@@ -156,7 +156,7 @@ CLOUDTARGETS+=	cw-${_CW:tl}-${_FMT}
 CLEANFILES+=	${_CW:tl}.${_FMT}
 ${_CW:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FMT}
 cw-${_CW:tl}-${_FMT}: cw-${_CW:tl}-${VMFS}-${_FMT}
-	ln -f ${${_CW:tu}${VMFS:tu}${_FMT:tu}IMAGE} ${${_CW:tu}${_FMT:tu}IMAGE}
+	ln -f ${${_CW:tu}${VMFS:tu}${_FMT:tu}IMAGE} ${${_CW:tu}${_FMT:tu}IMAGE} || true
 .  endfor
 
 # Targets without a disk format listed are the first disk format on the list
@@ -196,7 +196,7 @@ vm-image:	${QEMUTGT}
 		-C ${.CURDIR}/tools/vmimage.subr \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
 		-i ${.OBJDIR}/${FORMAT}.${FS}.img -s ${VMSIZE} -f ${FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT}
+		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT} || true
 .  endfor
 . endfor
 .endif

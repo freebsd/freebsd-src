@@ -58,7 +58,6 @@
 #include <netinet/tcp_seq.h>
 #define	TCPSTATES
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
@@ -769,8 +768,12 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p1a(tcps_sc_unreach, "\t\t{:unreachable/%ju} {N:/unreach}\n");
 	p(tcps_sc_zonefail, "\t\t{:zone-failures/%ju} {N:/zone failure%s}\n");
 	p(tcps_sc_sendcookie, "\t{:sent-cookies/%ju} {N:/cookie%s sent}\n");
-	p(tcps_sc_recvcookie, "\t{:receivd-cookies/%ju} "
+	p(tcps_sc_recvcookie, "\t{:received-cookies/%ju} "
 	    "{N:/cookie%s received}\n");
+	p(tcps_sc_spurcookie, "\t{:spurious-cookies/%ju} "
+	    "{N:/spurious cookie%s rejected}\n");
+	p(tcps_sc_failcookie, "\t{:failed-cookies/%ju} "
+	    "{N:/failed cookie%s rejected}\n");
 
 	xo_close_container("syncache");
 

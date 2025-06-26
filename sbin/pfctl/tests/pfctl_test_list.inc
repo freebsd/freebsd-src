@@ -176,3 +176,4 @@ PFCTL_TEST_IFACE(1064, "Interface translation: IPv6 rule, interface with bracket
 PFCTL_TEST(1065, "no nat")
 PFCTL_TEST(1066, "no rdr")
 PFCTL_TEST_FAIL(1067, "route-to can't be used on block rules")
+PFCTL_TEST(1068, "max-pkt-rate")

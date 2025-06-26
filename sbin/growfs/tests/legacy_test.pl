@@ -30,9 +30,9 @@ sub fsck_md {
 sub setsize {
     my ($partszMB, $unitszMB) = @_;
 
-    open my $fd, "|-", "bsdlabel -R md$unit /dev/stdin" or die;
-    print $fd "a: ", ($partszMB * BLKS_PER_MB), " 0 4.2BSD 1024 8192\n";
-    print $fd "c: ", ($unitszMB * BLKS_PER_MB), " 0 unused 0 0\n";
+    open my $fd, "|-", "gpart restore -F md$unit" or die;
+    print $fd "BSD 8\n";
+    print $fd "1 freebsd-ufs 0 ", ($partszMB * BLKS_PER_MB), "\n";
     close $fd;
 }
 

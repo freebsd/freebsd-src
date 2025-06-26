@@ -261,7 +261,7 @@ nvdimm_e820_identify(driver_t *driver, device_t parent)
 	if (resource_disabled(driver->name, 0))
 		return;
 	/* Just create a single instance of the fake bus. */
-	if (device_find_child(parent, driver->name, -1) != NULL)
+	if (device_find_child(parent, driver->name, DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	smapbase = (const void *)preload_search_info(preload_kmdp,

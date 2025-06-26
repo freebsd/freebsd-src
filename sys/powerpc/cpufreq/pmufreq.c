@@ -89,14 +89,14 @@ pmufreq_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "pmufreq", -1) != NULL)
+	if (device_find_child(parent, "pmufreq", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/*
 	 * We attach a child for every CPU since settings need to
 	 * be performed on every CPU in the SMP case.
 	 */
-	if (BUS_ADD_CHILD(parent, 10, "pmufreq", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 10, "pmufreq", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add pmufreq child failed\n");
 }
 

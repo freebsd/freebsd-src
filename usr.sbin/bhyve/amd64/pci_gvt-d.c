@@ -39,6 +39,7 @@
 
 #define GVT_D_MAP_GSM 0
 #define GVT_D_MAP_OPREGION 1
+#define GVT_D_MAP_VBT 2
 
 static int
 gvt_d_probe(struct pci_devinst *const pi)
@@ -178,12 +179,77 @@ gvt_d_setup_gsm(struct pci_devinst *const pi)
 }
 
 static int
+gvt_d_setup_vbt(struct pci_devinst *const pi, int memfd, uint64_t vbt_hpa,
+    uint64_t vbt_len, vm_paddr_t *vbt_gpa)
+{
+	struct passthru_softc *sc;
+	struct passthru_mmio_mapping *vbt;
+
+	sc = pi->pi_arg;
+
+	vbt = passthru_get_mmio(sc, GVT_D_MAP_VBT);
+	if (vbt == NULL) {
+		warnx("%s: Unable to access VBT", __func__);
+		return (-1);
+	}
+
+	vbt->hpa = vbt_hpa;
+	vbt->len = vbt_len;
+
+	vbt->hva = mmap(NULL, vbt->len, PROT_READ, MAP_SHARED, memfd, vbt->hpa);
+	if (vbt->hva == MAP_FAILED) {
+		warn("%s: Unable to map VBT", __func__);
+		return (-1);
+	}
+
+	vbt->gpa = gvt_d_alloc_mmio_memory(vbt->hpa, vbt->len,
+	    E820_ALIGNMENT_NONE, E820_TYPE_NVS);
+	if (vbt->gpa == 0) {
+		warnx(
+		    "%s: Unable to add VBT to E820 table (hpa 0x%lx len 0x%lx)",
+		    __func__, vbt->hpa, vbt->len);
+		munmap(vbt->hva, vbt->len);
+		e820_dump_table();
+		return (-1);
+	}
+	vbt->gva = vm_map_gpa(pi->pi_vmctx, vbt->gpa, vbt->len);
+	if (vbt->gva == NULL) {
+		warnx("%s: Unable to map guest VBT", __func__);
+		munmap(vbt->hva, vbt->len);
+		return (-1);
+	}
+
+	if (vbt->gpa != vbt->hpa) {
+		/*
+		 * A 1:1 host to guest mapping is not required but this could
+		 * change in the future.
+		 */
+		warnx(
+		    "Warning: Unable to reuse host address of VBT. GPU passthrough might not work properly.");
+	}
+
+	memcpy(vbt->gva, vbt->hva, vbt->len);
+
+	/*
+	 * Return the guest physical address. It's used to patch the OpRegion
+	 * properly.
+	 */
+	*vbt_gpa = vbt->gpa;
+
+	return (0);
+}
+
+static int
 gvt_d_setup_opregion(struct pci_devinst *const pi)
 {
 	struct passthru_softc *sc;
 	struct passthru_mmio_mapping *opregion;
+	struct igd_opregion *opregion_ptr;
 	struct igd_opregion_header *header;
+	vm_paddr_t vbt_gpa = 0;
+	vm_paddr_t vbt_hpa;
 	uint64_t asls;
+	int error = 0;
 	int memfd;
 
 	sc = pi->pi_arg;
@@ -236,6 +302,38 @@ gvt_d_setup_opregion(struct pci_devinst *const pi)
 		close(memfd);
 		return (-1);
 	}
+
+	opregion_ptr = (struct igd_opregion *)opregion->hva;
+	if (opregion_ptr->mbox3.rvda != 0) {
+		/*
+		 * OpRegion v2.0 contains a physical address to the VBT. This
+		 * address is useless in a guest environment. It's possible to
+		 * patch that but we don't support that yet. So, the only thing
+		 * we can do is give up.
+		 */
+		if (opregion_ptr->header.over == 0x02000000) {
+			warnx(
+			    "%s: VBT lays outside OpRegion. That's not yet supported for a version 2.0 OpRegion",
+			    __func__);
+			close(memfd);
+			return (-1);
+		}
+		vbt_hpa = opregion->hpa + opregion_ptr->mbox3.rvda;
+		if (vbt_hpa < opregion->hpa) {
+			warnx(
+			    "%s: overflow when calculating VBT address (OpRegion @ 0x%lx, RVDA = 0x%lx)",
+			    __func__, opregion->hpa, opregion_ptr->mbox3.rvda);
+			close(memfd);
+			return (-1);
+		}
+
+		if ((error = gvt_d_setup_vbt(pi, memfd, vbt_hpa,
+		    opregion_ptr->mbox3.rvds, &vbt_gpa)) != 0) {
+			close(memfd);
+			return (error);
+		}
+	}
+
 	close(memfd);
 
 	opregion->gpa = gvt_d_alloc_mmio_memory(opregion->hpa, opregion->len,
@@ -262,6 +360,20 @@ gvt_d_setup_opregion(struct pci_devinst *const pi)
 	}
 
 	memcpy(opregion->gva, opregion->hva, opregion->len);
+
+	/*
+	 * Patch the VBT address to match our guest physical address.
+	 */
+	if (vbt_gpa != 0) {
+		if (vbt_gpa < opregion->gpa) {
+			warnx(
+			    "%s: invalid guest VBT address 0x%16lx (OpRegion @ 0x%16lx)",
+			    __func__, vbt_gpa, opregion->gpa);
+			return (-1);
+		}
+
+		((struct igd_opregion *)opregion->gva)->mbox3.rvda = vbt_gpa - opregion->gpa;
+	}
 
 	pci_set_cfgdata32(pi, PCIR_ASLS_CTL, opregion->gpa);
 

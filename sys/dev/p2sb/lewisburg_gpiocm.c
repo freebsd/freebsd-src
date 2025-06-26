@@ -315,7 +315,7 @@ lbggpiocm_attach(device_t dev)
 		group->npins = npins < MAX_PAD_PER_GROUP ? npins :
 			MAX_PAD_PER_GROUP;
 		npins -= group->npins;
-		group->dev = device_add_child(dev, "gpio", -1);
+		group->dev = device_add_child(dev, "gpio", DEVICE_UNIT_ANY);
 	}
 	sc->community->ngroups = i;
 	bus_attach_children(dev);

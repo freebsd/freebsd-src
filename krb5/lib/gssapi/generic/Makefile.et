@@ -1,0 +1,30 @@
+#
+# SPDX-License-Idendifier: BSD-2-Clause
+#
+# Copyright (c) 2025 FreeBSD Foundation
+#
+# This sofware was developed by Cy Schubert <cy@FreeBSD.org>
+# under sponsorship from the FreeBSD Foundation.
+#
+
+GEN_GSSAPI_ERR_GENERIC=		gssapi_err_generic.et
+GEN_GSSAPI_ERR_GENERIC_C=	${GEN_GSSAPI_ERR_GENERIC:S/.et$/.c/}
+GEN_GSSAPI_ERR_GENERIC_H=	${GEN_GSSAPI_ERR_GENERIC:S/.et$/.h/}
+CLEANFILES+=	${GEN_GSSAPI_ERR_GENERIC_C} ${GEN_GSSAPI_ERR_GENERIC_H}
+GGEN+=		${GEN_GSSAPI_ERR_GENERIC_C}
+GGENI+=		${GEN_GSSAPI_ERR_GENERIC_H}
+
+${GEN_GSSAPI_ERR_GENERIC:[2..-1]}: .NOMETA
+${GEN_GSSAPI_ERR_GENERIC_H}: ${GEN_GSSAPI_ERR_GENERIC}
+	rm -f ${PFX}-et-h-${.PREFIX}.et ${PFX}-et-h-${.PREFIX}.c ${PFX}-et-h-${.PREFIX}.h
+	cp ${.ALLSRC} ${PFX}-et-h-${.PREFIX}.et
+	${COMPILE_ET} ${PFX}-et-h-${.PREFIX}.et
+	mv ${PFX}-et-h-${.PREFIX}.h ${.PREFIX}.h
+	rm -f ${PFX}-et-h-${.PREFIX}.et ${PFX}-et-h-${.PREFIX}.h
+
+${GEN_GSSAPI_ERR_GENERIC_C}: ${GEN_GSSAPI_ERR_GENERIC}
+	rm -f ${PFX}-et-c-${.PREFIX}.et ${PFX}-et-c-${.PREFIX}.c ${PFX}-et-c-${.PREFIX}.h
+	cp ${.ALLSRC} ${PFX}-et-c-${.PREFIX}.et
+	${COMPILE_ET} ${PFX}-et-c-${.PREFIX}.et
+	mv ${PFX}-et-c-${.PREFIX}.c ${.PREFIX}.c
+	rm -f ${PFX}-et-c-${.PREFIX}.et ${PFX}-et-c-${.PREFIX}.c

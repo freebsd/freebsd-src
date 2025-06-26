@@ -205,6 +205,8 @@ VNET_DEFINE(size_t, pf_allrulecount);
 VNET_DEFINE(struct pf_krule *, pf_rulemarker);
 #endif
 
+#define PF_SCTP_MAX_ENDPOINTS		8
+
 struct pf_sctp_endpoint;
 RB_HEAD(pf_sctp_endpoints, pf_sctp_endpoint);
 struct pf_sctp_source {
@@ -307,10 +309,7 @@ VNET_DEFINE(uma_zone_t,	 pf_udp_mapping_z);
 VNET_DEFINE(struct unrhdr64, pf_stateid);
 
 static void		 pf_src_tree_remove_state(struct pf_kstate *);
-static void		 pf_init_threshold(struct pf_threshold *, u_int32_t,
-			    u_int32_t);
-static void		 pf_add_threshold(struct pf_threshold *);
-static int		 pf_check_threshold(struct pf_threshold *);
+static int		 pf_check_threshold(struct pf_kthreshold *);
 
 static void		 pf_change_ap(struct pf_pdesc *, struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int16_t);
@@ -328,7 +327,7 @@ int			 pf_change_icmp_af(struct mbuf *, int,
 			    sa_family_t);
 int			 pf_translate_icmp_af(int, void *);
 static void		 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
-			    sa_family_t, struct pf_krule *, int);
+			    int, sa_family_t, struct pf_krule *, int);
 static void		 pf_detach_state(struct pf_kstate *);
 static int		 pf_state_key_attach(struct pf_state_key *,
 			    struct pf_state_key *, struct pf_kstate *);
@@ -448,6 +447,12 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 		SDT_PROBE5(pf, ip, state, lookup, pd->kif, k, (pd->dir), pd, (s));	\
 		if ((s) == NULL)					\
 			return (PF_DROP);				\
+		if ((s)->rule->pktrate.limit && pd->dir == (s)->direction) {	\
+			if (pf_check_threshold(&(s)->rule->pktrate)) {	\
+				s = NULL;				\
+				return (PF_DROP);			\
+			}						\
+		}							\
 		if (PACKET_LOOPED(pd))					\
 			return (PF_PASS);				\
 	} while (0)
@@ -795,34 +800,21 @@ pf_set_protostate(struct pf_kstate *s, int which, u_int8_t newstate)
 	s->src.state = newstate;
 }
 
-static void
-pf_init_threshold(struct pf_threshold *threshold,
+bool
+pf_init_threshold(struct pf_kthreshold *threshold,
     u_int32_t limit, u_int32_t seconds)
 {
-	threshold->limit = limit * PF_THRESHOLD_MULT;
+	threshold->limit = limit;
 	threshold->seconds = seconds;
-	threshold->count = 0;
-	threshold->last = time_uptime;
-}
+	threshold->cr = counter_rate_alloc(M_NOWAIT, seconds);
 
-static void
-pf_add_threshold(struct pf_threshold *threshold)
-{
-	u_int32_t t = time_uptime, diff = t - threshold->last;
-
-	if (diff >= threshold->seconds)
-		threshold->count = 0;
-	else
-		threshold->count -= threshold->count * diff /
-		    threshold->seconds;
-	threshold->count += PF_THRESHOLD_MULT;
-	threshold->last = t;
+	return (threshold->cr != NULL);
 }
 
 static int
-pf_check_threshold(struct pf_threshold *threshold)
+pf_check_threshold(struct pf_kthreshold *threshold)
 {
-	return (threshold->count > threshold->limit);
+	return (counter_ratecheck(threshold->cr, threshold->limit) < 0);
 }
 
 static bool
@@ -837,7 +829,6 @@ pf_src_connlimit(struct pf_kstate *state)
 
 	src_node->conn++;
 	state->src.tcp_est = 1;
-	pf_add_threshold(&src_node->conn_rate);
 
 	if (state->rule->max_src_conn &&
 	    state->rule->max_src_conn <
@@ -1031,6 +1022,7 @@ pf_free_src_node(struct pf_ksrc_node *sn)
 		counter_u64_free(sn->bytes[i]);
 		counter_u64_free(sn->packets[i]);
 	}
+	counter_rate_free(sn->conn_rate.cr);
 	uma_zfree(V_pf_sources_z, sn);
 }
 
@@ -1095,9 +1087,13 @@ pf_insert_src_node(struct pf_ksrc_node *sns[PF_SN_MAX],
 		}
 
 		if (sn_type == PF_SN_LIMIT)
-			pf_init_threshold(&(*sn)->conn_rate,
+			if (! pf_init_threshold(&(*sn)->conn_rate,
 			    rule->max_src_conn_rate.limit,
-			    rule->max_src_conn_rate.seconds);
+			    rule->max_src_conn_rate.seconds)) {
+				pf_free_src_node(*sn);
+				reason = PFRES_MEMORY;
+				goto done;
+			}
 
 		MPASS((*sn)->lock == NULL);
 		(*sn)->lock = &(*sh)->lock;
@@ -4346,11 +4342,11 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 	} else if (pd->proto != IPPROTO_ICMP && pd->af == AF_INET &&
 		r->return_icmp)
 		pf_send_icmp(pd->m, r->return_icmp >> 8,
-			r->return_icmp & 255, pd->af, r, rtableid);
+			r->return_icmp & 255, 0, pd->af, r, rtableid);
 	else if (pd->proto != IPPROTO_ICMPV6 && pd->af == AF_INET6 &&
 		r->return_icmp6)
 		pf_send_icmp(pd->m, r->return_icmp6 >> 8,
-			r->return_icmp6 & 255, pd->af, r, rtableid);
+			r->return_icmp6 & 255, 0, pd->af, r, rtableid);
 }
 
 static int
@@ -4407,8 +4403,8 @@ pf_send_challenge_ack(struct pf_pdesc *pd, struct pf_kstate *s,
 }
 
 static void
-pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
-    struct pf_krule *r, int rtableid)
+pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, int mtu,
+    sa_family_t af, struct pf_krule *r, int rtableid)
 {
 	struct pf_send_entry *pfse;
 	struct mbuf *m0;
@@ -4473,6 +4469,7 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	pfse->pfse_m = m0;
 	pfse->icmpopts.type = type;
 	pfse->icmpopts.code = code;
+	pfse->icmpopts.mtu = mtu;
 	pf_send(pfse);
 }
 
@@ -4668,9 +4665,9 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 			rv = pf_match_rule(ctx, &child->ruleset);
 			if ((rv == PF_TEST_QUICK) || (rv == PF_TEST_FAIL)) {
 				/*
-				 * we either hit a rule qith quick action
+				 * we either hit a rule with quick action
 				 * (more likely), or hit some runtime
-				 * error (e.g. pool_get() faillure).
+				 * error (e.g. pool_get() failure).
 				 */
 				break;
 			}
@@ -5515,6 +5512,8 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 {
 	struct pf_krule_item	*ri;
 	struct pf_krule		*r;
+	struct pf_krule		*save_a;
+	struct pf_kruleset	*save_aruleset;
 	struct pf_pdesc		*pd = ctx->pd;
 	u_short			 transerror;
 
@@ -5618,6 +5617,11 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 		    pf_osfp_fingerprint(pd, ctx->th),
 		    r->os_fingerprint)),
 			TAILQ_NEXT(r, entries));
+		/* must be last! */
+		if (r->pktrate.limit) {
+			PF_TEST_ATTRIB((pf_check_threshold(&r->pktrate)),
+			    TAILQ_NEXT(r, entries));
+		}
 		/* FALLTHROUGH */
 		if (r->tag)
 			ctx->tag = r->tag;
@@ -5679,13 +5683,22 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 				break;
 			}
 		} else {
+			save_a = ctx->a;
+			save_aruleset = ctx->aruleset;
+
 			ctx->a = r;			/* remember anchor */
 			ctx->aruleset = ruleset;	/* and its ruleset */
 			if (ctx->a->quick)
 				ctx->test_status = PF_TEST_QUICK;
+			/*
+			 * Note: we don't need to restore if we are not going
+			 * to continue with ruleset evaluation.
+			 */
 			if (pf_step_into_anchor(ctx, r) != PF_TEST_OK) {
 				break;
 			}
+			ctx->a = save_a;
+			ctx->aruleset = save_aruleset;
 		}
 		r = TAILQ_NEXT(r, entries);
 	}
@@ -7298,6 +7311,7 @@ pf_sctp_multihome_add_addr(struct pf_pdesc *pd, struct pf_addr *a, uint32_t v_ta
 	};
 	struct pf_sctp_source *i;
 	struct pf_sctp_endpoint *ep;
+	int count;
 
 	PF_SCTP_ENDPOINTS_LOCK();
 
@@ -7316,11 +7330,19 @@ pf_sctp_multihome_add_addr(struct pf_pdesc *pd, struct pf_addr *a, uint32_t v_ta
 	}
 
 	/* Avoid inserting duplicates. */
+	count = 0;
 	TAILQ_FOREACH(i, &ep->sources, entry) {
+		count++;
 		if (pf_addr_cmp(&i->addr, a, pd->af) == 0) {
 			PF_SCTP_ENDPOINTS_UNLOCK();
 			return;
 		}
+	}
+
+	/* Limit the number of addresses per endpoint. */
+	if (count >= PF_SCTP_MAX_ENDPOINTS) {
+		PF_SCTP_ENDPOINTS_UNLOCK();
+		return;
 	}
 
 	i = malloc(sizeof(*i), M_PFTEMP, M_NOWAIT);
@@ -8938,7 +8960,18 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 	dst->sin_len = sizeof(struct sockaddr_in);
 	dst->sin_addr.s_addr = pd->act.rt_addr.v4.s_addr;
 
-	if (s != NULL){
+	if (pd->dir == PF_IN) {
+		if (ip->ip_ttl <= IPTTLDEC) {
+			if (r->rt != PF_DUPTO)
+				pf_send_icmp(m0, ICMP_TIMXCEED,
+				    ICMP_TIMXCEED_INTRANS, 0, pd->af, r,
+				    pd->act.rtableid);
+			goto bad_locked;
+		}
+		ip->ip_ttl -= IPTTLDEC;
+	}
+
+	if (s != NULL) {
 		if (ifp == NULL && (pd->af != pd->naf)) {
 			/* We're in the AFTO case. Do a route lookup. */
 			const struct nhop_object *nh;
@@ -9073,14 +9106,11 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 				    s);
 			}
 
-			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
-			    ifp->if_mtu);
-			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
-			goto done;
-		} else {
-			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
-			goto bad;
+			pf_send_icmp(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
+			   ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
+		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+		goto bad;
 	}
 
 	error = ip_fragment(ip, &m0, ifp->if_mtu, ifp->if_hwassist);
@@ -9223,6 +9253,17 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	dst.sin6_len = sizeof(dst);
 	PF_ACPY((struct pf_addr *)&dst.sin6_addr, &pd->act.rt_addr, AF_INET6);
 
+	if (pd->dir == PF_IN) {
+		if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
+			if (r->rt != PF_DUPTO)
+				pf_send_icmp(m0, ICMP6_TIME_EXCEEDED,
+				    ICMP6_TIME_EXCEED_TRANSIT, 0, pd->af, r,
+				    pd->act.rtableid);
+			goto bad_locked;
+		}
+		ip6->ip6_hlim -= IPV6_HLIMDEC;
+	}
+
 	if (s != NULL) {
 		if (ifp == NULL && (pd->af != pd->naf)) {
 			const struct nhop_object *nh;
@@ -9360,12 +9401,12 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 				    sizeof(struct ip6_hdr), s);
 			}
 
-			icmp6_error(m0, ICMP6_PACKET_TOO_BIG, 0, ifp->if_mtu);
-			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
-		} else {
-			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
-			goto bad;
+			if (r->rt != PF_DUPTO)
+				pf_send_icmp(m0, ICMP6_PACKET_TOO_BIG, 0,
+				    ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
+		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
+		goto bad;
 	}
 
 done:
@@ -9819,9 +9860,11 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 	pd->proto = h->ip6_nxt;
 	for (hdr_cnt = 0; hdr_cnt < PF_HDR_LIMIT; hdr_cnt++) {
 		switch (pd->proto) {
+		case IPPROTO_ROUTING:
 		case IPPROTO_HOPOPTS:
 		case IPPROTO_DSTOPTS:
 			pd->badopts++;
+			break;
 		}
 		switch (pd->proto) {
 		case IPPROTO_FRAGMENT:
@@ -10210,6 +10253,14 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		case ND_NEIGHBOR_SOLICIT:
 		case ND_NEIGHBOR_ADVERT:
 			icmp_hlen = sizeof(struct nd_neighbor_solicit);
+			/* FALLTHROUGH */
+		case ND_ROUTER_SOLICIT:
+		case ND_ROUTER_ADVERT:
+		case ND_REDIRECT:
+			if (pd->ttl != 255) {
+				REASON_SET(reason, PFRES_NORM);
+				return (PF_DROP);
+			}
 			break;
 		}
 		if (icmp_hlen > sizeof(struct icmp6_hdr) &&

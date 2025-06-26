@@ -1577,6 +1577,11 @@ static int sp_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &sp_enabled, 0, "Are large page mappings enabled?");
 
+static int pmap_growkernel_panic = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, growkernel_panic, CTLFLAG_RDTUN,
+    &pmap_growkernel_panic, 0,
+    "panic on failure to allocate kernel page table page");
+
 bool
 pmap_ps_enabled(pmap_t pmap __unused)
 {
@@ -2031,8 +2036,8 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 /*
  *  Grow the number of kernel L2 page table entries, if needed.
  */
-void
-pmap_growkernel(vm_offset_t addr)
+static int
+pmap_growkernel_nopanic(vm_offset_t addr)
 {
 	vm_page_t m;
 	vm_paddr_t pt2pg_pa, pt2_pa;
@@ -2085,7 +2090,7 @@ pmap_growkernel(vm_offset_t addr)
 			m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (m == NULL)
-				panic("%s: no memory to grow kernel", __func__);
+				return (KERN_RESOURCE_SHORTAGE);
 			m->pindex = pte1_index(kernel_vm_end) & ~PT2PG_MASK;
 
 			/*
@@ -2110,6 +2115,18 @@ pmap_growkernel(vm_offset_t addr)
 			break;
 		}
 	}
+	return (KERN_SUCCESS);
+}
+
+int
+pmap_growkernel(vm_offset_t addr)
+{
+	int rv;
+
+	rv = pmap_growkernel_nopanic(addr);
+	if (rv != KERN_SUCCESS && pmap_growkernel_panic)
+		panic("pmap_growkernel: no memory to grow kernel");
+	return (rv);
 }
 
 static int

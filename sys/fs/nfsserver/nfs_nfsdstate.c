@@ -557,7 +557,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 */
 		while (clp->lc_cbref) {
 			clp->lc_flags |= LCL_WAKEUPWANTED;
-			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1,
+			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PVFS,
 			    "nfsd clp", 10 * hz);
 		}
 		NFSUNLOCKSTATE();
@@ -634,7 +634,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			NFSLOCKSTATE();
 		while (clp->lc_cbref) {
 			clp->lc_flags |= LCL_WAKEUPWANTED;
-			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1,
+			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PVFS,
 			    "nfsdclp", 10 * hz);
 		}
 		NFSUNLOCKSTATE();
@@ -9008,4 +9008,30 @@ nfsrv_issuedelegation(struct vnode *vp, struct nfsclient *clp,
 		nfsrv_openpluslock++;
 		nfsrv_delegatecnt++;
 	}
+}
+
+/*
+ * Find and remove any delegations for the fh.
+ */
+void
+nfsrv_removedeleg(fhandle_t *fhp, struct nfsrv_descript *nd, NFSPROC_T *p)
+{
+	struct nfsclient *clp;
+	struct nfsstate *stp, *nstp;
+	struct nfslockfile *lfp;
+	int error;
+
+	NFSLOCKSTATE();
+	error = nfsrv_getclient(nd->nd_clientid, CLOPS_RENEW, &clp, NULL,
+	    (nfsquad_t)((u_quad_t)0), 0, nd, p);
+	if (error == 0)
+		error = nfsrv_getlockfile(NFSLCK_CHECK, NULL, &lfp, fhp, 0);
+	/*
+	 * Now we must free any delegations.
+	 */
+	if (error == 0) {
+		LIST_FOREACH_SAFE(stp, &lfp->lf_deleg, ls_file, nstp)
+			nfsrv_freedeleg(stp);
+	}
+	NFSUNLOCKSTATE();
 }

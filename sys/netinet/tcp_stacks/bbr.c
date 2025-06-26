@@ -10150,7 +10150,7 @@ bbr_init(struct tcpcb *tp, void **ptr)
 	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
 	TCPT_RANGESET(tp->t_rxtcur,
 	    ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1,
-	    tp->t_rttmin, TCPTV_REXMTMAX);
+	    tp->t_rttmin, tcp_rexmit_max);
 	bbr_start_hpts_timer(bbr, tp, cts, 5, 0, 0);
 	return (0);
 }

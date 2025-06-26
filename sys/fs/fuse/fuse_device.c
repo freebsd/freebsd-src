@@ -82,6 +82,8 @@
 #include <sys/sysctl.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
+#define EXTERR_CATEGORY EXTERR_CAT_FUSE
+#include <sys/exterrvar.h>
 
 #include "fuse.h"
 #include "fuse_internal.h"
@@ -152,7 +154,7 @@ fdata_dtor(void *arg)
 	FUSE_LOCK();
 	fuse_lck_mtx_lock(fdata->aw_mtx);
 	/* wakup poll()ers */
-	selwakeuppri(&fdata->ks_rsel, PZERO + 1);
+	selwakeuppri(&fdata->ks_rsel, PZERO);
 	/* Don't let syscall handlers wait in vain */
 	while ((tick = fuse_aw_pop(fdata))) {
 		fuse_lck_mtx_lock(tick->tk_aw_mtx);
@@ -193,7 +195,7 @@ fuse_device_filter(struct cdev *dev, struct knote *kn)
 		kn->kn_fop = &fuse_device_wfiltops;
 		error = 0;
 	} else if (error == 0) {
-		error = EINVAL;
+		error = EXTERROR(EINVAL, "Unsupported kevent filter");
 		kn->kn_data = error;
 	}
 
@@ -319,7 +321,7 @@ again:
 			"we know early on that reader should be kicked so we "
 			"don't wait for news");
 		fuse_lck_mtx_unlock(data->ms_mtx);
-		return (ENODEV);
+		return (EXTERROR(ENODEV, "This FUSE session is about to be closed"));
 	}
 	if (!(tick = fuse_ms_pop(data))) {
 		/* check if we may block */
@@ -331,7 +333,10 @@ again:
 			err = msleep(data, &data->ms_mtx, PCATCH, "fu_msg", 0);
 			if (err != 0) {
 				fuse_lck_mtx_unlock(data->ms_mtx);
-				return (fdata_get_dead(data) ? ENODEV : err);
+				if (fdata_get_dead(data))
+					err = EXTERROR(ENODEV,
+						"This FUSE session is about to be closed");
+				return (err);
 			}
 			tick = fuse_ms_pop(data);
 		}
@@ -361,8 +366,8 @@ again:
 			FUSE_ASSERT_MS_DONE(tick);
 			fuse_ticket_drop(tick);
 		}
-		return (ENODEV);	/* This should make the daemon get off
-					 * of us */
+		/* This should make the daemon get off of us */
+		return (EXTERROR(ENODEV, "This FUSE session is about to be closed"));
 	}
 	SDT_PROBE2(fusefs, , device, trace, 1,
 		"fuse device read message successfully");
@@ -385,7 +390,7 @@ again:
 		fdata_set_dead(data);
 		SDT_PROBE2(fusefs, , device, trace, 2,
 		    "daemon is stupid, kick it off...");
-		err = ENODEV;
+		err = EXTERROR(ENODEV, "Partial read attempted");
 	} else {
 		err = uiomove(buf, buflen, uio);
 	}
@@ -403,12 +408,14 @@ fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 		SDT_PROBE2(fusefs, , device, trace, 1,
 			"Format error: body size "
 			"differs from size claimed by header");
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Format error: body size "
+		    "differs from size claimed by header"));
 	}
 	if (uio->uio_resid && ohead->unique != 0 && ohead->error) {
 		SDT_PROBE2(fusefs, , device, trace, 1, 
 			"Format error: non zero error but message had a body");
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Format error: non zero error, "
+		    "but message had a body"));
 	}
 
 	return (0);
@@ -444,7 +451,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		SDT_PROBE2(fusefs, , device, trace, 1,
 			"fuse_device_write got less than a header!");
 		fdata_set_dead(data);
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "fuse_device_write got less than a header!"));
 	}
 	if ((err = uiomove(&ohead, sizeof(struct fuse_out_header), uio)) != 0)
 		return (err);
@@ -452,7 +459,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	if (data->linux_errnos != 0 && ohead.error != 0) {
 		err = -ohead.error;
 		if (err < 0 || err >= nitems(linux_to_bsd_errtbl))
-			return (EINVAL);
+			return (EXTERROR(EINVAL, "Unknown Linux errno", err));
 
 		/* '-', because it will get flipped again below */
 		ohead.error = -linux_to_bsd_errtbl[err];
@@ -520,7 +527,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 				memcpy(&tick->tk_aw_ohead, &ohead,
 					sizeof(ohead));
 				tick->tk_aw_handler(tick, uio);
-				err = EINVAL;
+				err = EXTERROR(EINVAL, "Unknown errno", ohead.error);
 			} else {
 				memcpy(&tick->tk_aw_ohead, &ohead,
 					sizeof(ohead));
@@ -570,7 +577,8 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			/* Unimplemented.  See comments in fuse_vnops */
 		default:
 			/* Not implemented */
-			err = ENOSYS;
+			err = EXTERROR(ENOSYS, "Unimplemented FUSE notification code",
+				ohead.error);
 		}
 		vfs_unbusy(mp);
 	} else {
@@ -589,7 +597,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			 */
 			err = 0;
 		} else {
-			err = EINVAL;
+			err = EXTERROR(EINVAL, "FUSE ticket is missing");
 		}
 	}
 

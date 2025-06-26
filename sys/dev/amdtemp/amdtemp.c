@@ -287,7 +287,7 @@ amdtemp_identify(driver_t *driver, device_t parent)
 	device_t child;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "amdtemp", -1) != NULL)
+	if (device_find_child(parent, "amdtemp", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	if (amdtemp_match(parent, NULL)) {

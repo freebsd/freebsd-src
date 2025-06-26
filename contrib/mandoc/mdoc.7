@@ -1,7 +1,7 @@
-.\" $Id: mdoc.7,v 1.296 2025/01/27 03:17:33 schwarze Exp $
+.\" $Id: mdoc.7,v 1.299 2025/06/13 16:18:28 schwarze Exp $
 .\"
+.\" Copyright (c) 2010-2021, 2024, 2025 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2011, 2013-2020 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 27 2025 $
+.Dd $Mdocdate: June 13 2025 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -195,15 +195,13 @@ See
 and
 .Ic \&Nd .
 .It Em LIBRARY
-The name of the library containing the documented material, which is
-assumed to be a function in a section 2, 3, or 9 manual.
-The syntax for this is as follows:
-.Bd -literal -offset indent
-\&.Lb libarm
-.Ed
-.Pp
-See
-.Ic \&Lb .
+The name of the library containing the documented functions.
+Using this section is no longer recommended.
+If any
+.Ic \&Lb
+macro is needed, put it at the beginning of the
+.Em SYNOPSIS
+section instead.
 .It Em SYNOPSIS
 Documents the utility invocation syntax, function call syntax, or device
 configuration.
@@ -225,11 +223,12 @@ Commands should be ordered alphabetically.
 .Pp
 For the second, function calls (sections 2, 3, 9):
 .Bd -literal -offset indent
+\&.Lb libname \e" unless the functions are in libc
 \&.In header.h
 \&.Vt extern const char *global;
-\&.Ft "char *"
+\&.Ft char *
 \&.Fn foo "const char *src"
-\&.Ft "char *"
+\&.Ft char *
 \&.Fn bar "const char *src"
 .Ed
 .Pp
@@ -467,7 +466,8 @@ in the alphabetical
 .Op Fl compact
 .It Ic \&D1 Ta indented display (one line)
 .It Ic \&Dl Ta indented literal display (one line)
-.It Ic \&Ql Ta in-line literal display: Ql text
+.It Ic \&Ql Ta normal in-line literal display: Ql text
+.It Ic \&Li Ta unquoted in-line literal display: Li text
 .It Ic \&Bl , \&El Ta list block:
 .Fl Ar type
 .Op Fl width Ar val
@@ -498,7 +498,7 @@ in the alphabetical
 .El
 .Ss Semantic markup for function libraries
 .Bl -column "Brq, Bro, Brc" description
-.It Ic \&Lb Ta function library (one argument)
+.It Ic \&Lb Ta function library (>0 arguments)
 .It Ic \&In Ta include file (one argument)
 .It Ic \&Fd Ta other preprocessor directive (>0 arguments)
 .It Ic \&Ft Ta function type (>0 arguments)
@@ -1277,9 +1277,9 @@ and
 .Ic \&Os .
 .Tg Dl
 .It Ic \&Dl Ar line
-One-line indented display.
-This is formatted as literal text and is useful for commands and
-invocations.
+One-line indented literal display.
+This is formatted using a constant-width font
+and is useful for commands and invocations.
 It is followed by a newline.
 .Pp
 Examples:
@@ -1867,34 +1867,45 @@ but not the whitespace before the semicolon.
 See also
 .Ic \&Bl .
 .Tg Lb
-.It Ic \&Lb Cm lib Ns Ar name
-Specify a library.
-.Pp
-The
-.Ar name
-parameter may be a system library, such as
-.Cm z
-or
-.Cm pam ,
-in which case a small library description is printed next to the linker
-invocation; or a custom library, in which case the library name is
-printed in quotes.
-This is most commonly used in the
+.It Ic \&Lb Cm lib Ns Ar name Op Cm lib Ns Ar name ...
+Specify one or more libraries to link against.
+Putting this macro at the beginning of the
 .Em SYNOPSIS
-section as described in
-.Sx MANUAL STRUCTURE .
+section is recommended, in which case it prints this comment:
+.D1 /* Fl l Ns Ar name Oo Fl l Ns Ar name ... Oc */
 .Pp
-Examples:
-.Dl \&.Lb libz
-.Dl \&.Lb libmandoc
+If used outside the
+.Em SYNOPSIS ,
+this macro prints
+.D1 library Dq Cm lib Ns Ar name
+instead.
+For system libraries, some operating systems
+print a short library description.
+.Pp
+Example:
+.Bd -literal -offset indent -compact
+\&.Sh SYNOPSIS
+\&.Lb libtls libssl libcrypto
+\&.In tls.h
+\&.Ft int
+\&.Fn tls_init void
+.Ed
 .Tg Li
 .It Ic \&Li Ar word ...
-Request a typewriter (literal) font.
-Deprecated because on terminal output devices, this is usually
-indistinguishable from normal text.
-For literal displays, use
-.Ic \&Ql Pq in-line ,
-.Ic \&Dl Pq single line ,
+Unquoted in-line literal display, always set in a constant-width font.
+In most cases, use
+.Ic \&Ql
+instead because on terminal output devices,
+.Ic \&Li
+is usually indistinguishable from normal text.
+This macro is only useful when enclosing the argument in quotes
+is explicitly not desired, for example because it already stands out
+due to being wrapped in another macro, e.g. in an
+.Ic \&It
+head.
+.Pp
+For longer literal displays, use
+.Ic \&Dl Pq single line
 or
 .Ic \&Bd Fl literal Pq multi-line
 instead.
@@ -2207,15 +2218,17 @@ Close quoted context opened by
 .Ic \&Qo .
 .Tg Ql
 .It Ic \&Ql Ar line
-In-line literal display.
+Normal in-line literal display, always set in constant-width font and
+additionally enclosed in quotes by many formatters in many cases.
 This can be used for complete command invocations and for multi-word
 code examples when an indented display is not desired.
 .Pp
 See also
-.Ic \&Dl
-and
+.Ic \&Dl ,
 .Ic \&Bd
-.Fl literal .
+.Fl literal ,
+and
+.Ic \&Li .
 .It Ic \&Qo Ar block
 Multi-line version of
 .Ic \&Qq .
@@ -3031,7 +3044,7 @@ then the macro accepts an arbitrary number of arguments.
 .It Ic \&Hf  Ta    \&No     Ta    \&No     Ta    n
 .It Ic \&Ic  Ta    Yes      Ta    Yes      Ta    >0
 .It Ic \&In  Ta    Yes      Ta    Yes      Ta    1
-.It Ic \&Lb  Ta    \&No     Ta    \&No     Ta    1
+.It Ic \&Lb  Ta    \&No     Ta    \&No     Ta    >0
 .It Ic \&Li  Ta    Yes      Ta    Yes      Ta    >0
 .It Ic \&Lk  Ta    Yes      Ta    Yes      Ta    >0
 .It Ic \&Lp  Ta    \&No     Ta    \&No     Ta    0

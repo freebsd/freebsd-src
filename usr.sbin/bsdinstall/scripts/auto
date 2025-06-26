@@ -178,6 +178,14 @@ environment_save
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
+# With pkgbase, pkg OOM has been observed with QEMU-default 128 MiB memory size.
+# Ensure we have at least about 256 MiB (with an allowance for rounding etc.).
+physmem=$(($(sysctl -n hw.physmem) / 1048576))
+if [ $physmem -lt 200 ]; then
+        bsddialog --backtitle "$OSNAME Installer" --title "Warning" \
+	    --msgbox "Insufficient physical memory (${physmem} MiB) detected. At least 256 MiB is recommended. The installer or installed system may not function correctly." 0 0
+fi
+
 [ -f /usr/libexec/bsdinstall/local.pre-everything ] && f_dprintf "Running local.pre-everything" && sh /usr/libexec/bsdinstall/local.pre-everything "$BSDINSTALL_CHROOT"
 
 trap true SIGINT	# This section is optional
@@ -186,15 +194,28 @@ trap true SIGINT	# This section is optional
 trap error SIGINT	# Catch cntrl-C here
 if [ -z "$BSDINSTALL_SKIP_HOSTNAME" ]; then bsdinstall hostname || error "Set hostname failed"; fi
 
-bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
-	--yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
-	"Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
-if [ $? -eq 1 ]; then
+if [ -f /usr/freebsd-packages/repos/FreeBSD-base-offline.conf ]; then
+	HAVE_BASE_PACKAGES=yes
+	PKGBASE_DEFAULT_BUTTON=--default-no
+else
+	unset HAVE_BASE_PACKAGES
+	unset PKGBASE_DEFAULT_BUTTON
+fi
+
+if [ ! -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	PKGBASE=yes
+else
+	bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
+		--yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
+		$PKGBASE_DEFAULT_BUTTON \
+		"Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
+	if [ $? -eq 1 ]; then
+		PKGBASE=yes
+	fi
 fi
 
 if [ "$PKGBASE" == yes ]; then
-	if [ -f /usr/freebsd-packages/repos/FreeBSD-base-offline.conf ]; then
+	if [ "$HAVE_BASE_PACKAGES" == yes ]; then
 		bsddialog --backtitle "$OSNAME Installer" --title "Network or Offline Installation" \
 		    --yes-label "Network" --no-label "Offline (Limited Packages)" --yesno \
 		    "Would you like to fetch packages from the internet or use the limited set of packages included in this installation media?" 0 0

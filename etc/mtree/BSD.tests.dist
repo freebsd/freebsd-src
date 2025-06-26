@@ -80,6 +80,8 @@
     ..
     cddl
         lib
+            libtpool
+            ..
         ..
         sbin
         ..
@@ -316,6 +318,8 @@
             ..
             dynamicpie
             ..
+            errno
+            ..
             static
             ..
         ..
@@ -508,6 +512,8 @@
         route
         ..
         savecore
+        ..
+        swapon
         ..
         sysctl
         ..

@@ -57,7 +57,7 @@ ipmi_isa_identify(driver_t *driver, device_t parent)
 	uint32_t devid;
 
 	if (ipmi_smbios_identify(&info) && info.iface_type != SSIF_MODE &&
-	    device_find_child(parent, "ipmi", -1) == NULL) {
+	    device_find_child(parent, "ipmi", DEVICE_UNIT_ANY) == NULL) {
 		/*
 		 * XXX: Hack alert.  On some broken systems, the IPMI
 		 * interface is described via SMBIOS, but the actual

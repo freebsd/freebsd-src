@@ -135,7 +135,7 @@ ppi_identify(driver_t *driver, device_t parent)
 
 	device_t dev;
 
-	dev = device_find_child(parent, "ppi", -1);
+	dev = device_find_child(parent, "ppi", DEVICE_UNIT_ANY);
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, "ppi", DEVICE_UNIT_ANY);
 }

@@ -27,15 +27,19 @@
  */
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <jail.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1032,6 +1036,135 @@ ATF_TC_BODY(control_creates_records, tc)
 	closesocketpair(fd);
 }
 
+ATF_TC_WITH_CLEANUP(cross_jail_dirfd);
+ATF_TC_HEAD(cross_jail_dirfd, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(cross_jail_dirfd, tc)
+{
+	int error, sock[2], jid1, jid2, status;
+	pid_t pid1, pid2;
+
+	domainsocketpair(sock);
+
+	error = mkdir("./a", 0755);
+	ATF_REQUIRE(error == 0);
+	error = mkdir("./b", 0755);
+	ATF_REQUIRE(error == 0);
+	error = mkdir("./c", 0755);
+	ATF_REQUIRE(error == 0);
+	error = mkdir("./a/c", 0755);
+	ATF_REQUIRE(error == 0);
+
+	jid1 = jail_setv(JAIL_CREATE,
+	    "name", "passfd_test_cross_jail_dirfd1",
+	    "path", "./a",
+	    "persist", NULL,
+	    NULL);
+	ATF_REQUIRE_MSG(jid1 >= 0, "jail_setv: %s", jail_errmsg);
+
+	jid2 = jail_setv(JAIL_CREATE,
+	    "name", "passfd_test_cross_jail_dirfd2",
+	    "path", "./b",
+	    "persist", NULL,
+	    NULL);
+	ATF_REQUIRE_MSG(jid2 >= 0, "jail_setv: %s", jail_errmsg);
+
+	pid1 = fork();
+	ATF_REQUIRE(pid1 >= 0);
+	if (pid1 == 0) {
+		ssize_t len;
+		int dfd, error;
+		char ch;
+
+		error = jail_attach(jid1);
+		if (error != 0)
+			err(1, "jail_attach");
+
+		dfd = open(".", O_RDONLY | O_DIRECTORY);
+		if (dfd < 0)
+			err(1, "open(\".\") in jail %d", jid1);
+
+		ch = 0;
+		len = sendfd_payload(sock[0], dfd, &ch, sizeof(ch));
+		if (len == -1)
+			err(1, "sendmsg");
+
+		_exit(0);
+	}
+
+	pid2 = fork();
+	ATF_REQUIRE(pid2 >= 0);
+	if (pid2 == 0) {
+		ssize_t len;
+		int dfd, dfd2, error, fd;
+		char ch;
+
+		error = jail_attach(jid2);
+		if (error != 0)
+			err(1, "jail_attach");
+
+		/* Get a directory from outside the jail root. */
+		len = recvfd_payload(sock[1], &dfd, &ch, sizeof(ch),
+		    CMSG_SPACE(sizeof(int)), 0);
+		if (len == -1)
+			err(1, "recvmsg");
+
+		if ((fcntl(dfd, F_GETFD) & FD_RESOLVE_BENEATH) == 0)
+			errx(1, "dfd does not have FD_RESOLVE_BENEATH set");
+
+		/* Make sure we can't chdir. */
+		error = fchdir(dfd);
+		if (error == 0)
+			errx(1, "fchdir succeeded");
+		if (errno != ENOTCAPABLE)
+			err(1, "fchdir");
+
+		/* Make sure a dotdot access fails. */
+		fd = openat(dfd, "../c", O_RDONLY | O_DIRECTORY);
+		if (fd >= 0)
+			errx(1, "openat(\"../c\") succeeded");
+		if (errno != ENOTCAPABLE)
+			err(1, "openat");
+
+		/* Accesses within the sender's jail root are ok. */
+		fd = openat(dfd, "c", O_RDONLY | O_DIRECTORY);
+		if (fd < 0)
+			err(1, "openat(\"c\")");
+
+		dfd2 = openat(dfd, "", O_EMPTY_PATH | O_RDONLY | O_DIRECTORY);
+		if (dfd2 < 0)
+			err(1, "openat(\"\")");
+		if ((fcntl(dfd2, F_GETFD) & FD_RESOLVE_BENEATH) == 0)
+			errx(1, "dfd2 does not have FD_RESOLVE_BENEATH set");
+
+		_exit(0);
+	}
+
+	error = waitpid(pid1, &status, 0);
+	ATF_REQUIRE(error != -1);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+	error = waitpid(pid2, &status, 0);
+	ATF_REQUIRE(error != -1);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	closesocketpair(sock);
+}
+ATF_TC_CLEANUP(cross_jail_dirfd, tc)
+{
+	int jid;
+
+	jid = jail_getid("passfd_test_cross_jail_dirfd1");
+	if (jid >= 0 && jail_remove(jid) != 0)
+		err(1, "jail_remove");
+	jid = jail_getid("passfd_test_cross_jail_dirfd2");
+	if (jid >= 0 && jail_remove(jid) != 0)
+		err(1, "jail_remove");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -1052,6 +1185,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, copyout_rights_error);
 	ATF_TP_ADD_TC(tp, empty_rights_message);
 	ATF_TP_ADD_TC(tp, control_creates_records);
+	ATF_TP_ADD_TC(tp, cross_jail_dirfd);
 
 	return (atf_no_error());
 }

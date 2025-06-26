@@ -126,6 +126,9 @@ static ofw_bus_map_intr_t	nexus_ofw_map_intr;
 #endif
 
 static device_method_t nexus_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_print_child,	nexus_print_child),

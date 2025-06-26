@@ -48,6 +48,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/runq.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/smp.h>
@@ -72,15 +73,17 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
  */
-#define	ESTCPULIM(e) \
-    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) - \
-    RQ_PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
 #ifdef SMP
 #define	INVERSE_ESTCPU_WEIGHT	(8 * smp_cpus)
 #else
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
+#define	ESTCPULIM(e)							\
+	min((e), INVERSE_ESTCPU_WEIGHT *				\
+	    (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) +			\
+	    PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)			\
+	    + INVERSE_ESTCPU_WEIGHT - 1)
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
 
@@ -683,13 +686,14 @@ schedinit_ap(void)
 	/* Nothing needed. */
 }
 
-int
+bool
 sched_runnable(void)
 {
 #ifdef SMP
-	return runq_check(&runq) + runq_check(&runq_pcpu[PCPU_GET(cpuid)]);
+	return (runq_not_empty(&runq) ||
+	    runq_not_empty(&runq_pcpu[PCPU_GET(cpuid)]));
 #else
-	return runq_check(&runq);
+	return (runq_not_empty(&runq));
 #endif
 }
 
@@ -871,7 +875,7 @@ sched_priority(struct thread *td, u_char prio)
 	if (td->td_priority == prio)
 		return;
 	td->td_priority = prio;
-	if (TD_ON_RUNQ(td) && td->td_rqindex != (prio / RQ_PPQ)) {
+	if (TD_ON_RUNQ(td) && td->td_rqindex != RQ_PRI_TO_QUEUE_IDX(prio)) {
 		sched_rem(td);
 		sched_add(td, SRQ_BORING | SRQ_HOLDTD);
 	}
@@ -1679,7 +1683,7 @@ sched_idletd(void *dummy)
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
-		while (sched_runnable() == 0) {
+		while (!sched_runnable()) {
 			cpu_idle(stat->idlecalls + stat->oldidlecalls > 64);
 			stat->idlecalls++;
 		}

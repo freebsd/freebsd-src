@@ -173,9 +173,9 @@ adm6996fc_attach_phys(struct adm6996fc_softc *sc)
 		sc->ifpport[phy] = port;
 		sc->portphy[port] = phy;
 		sc->ifp[port] = if_alloc(IFT_ETHER);
-		sc->ifp[port]->if_softc = sc;
-		sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
-		    IFF_DRV_RUNNING | IFF_SIMPLEX;
+		if_setsoftc(sc->ifp[port], sc);
+		if_setflagbits(sc->ifp[port], IFF_UP | IFF_BROADCAST |
+		    IFF_DRV_RUNNING | IFF_SIMPLEX, 0);
 		if_initname(sc->ifp[port], name, port);
 		sc->miibus[port] = malloc(sizeof(device_t), M_ADM6996FC,
 		    M_WAITOK | M_ZERO);
@@ -184,7 +184,7 @@ adm6996fc_attach_phys(struct adm6996fc_softc *sc)
 		    BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
 		DPRINTF(sc->sc_dev, "%s attached to pseudo interface %s\n",
 		    device_get_nameunit(*sc->miibus[port]),
-		    sc->ifp[port]->if_xname);
+		    if_name(sc->ifp[port]));
 		if (err != 0) {
 			device_printf(sc->sc_dev,
 			    "attaching PHY %d failed\n",

@@ -115,14 +115,14 @@ pmcr_identify(driver_t *driver, device_t parent)
 {
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "pmcr", -1) != NULL)
+	if (device_find_child(parent, "pmcr", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/*
 	 * We attach a child for every CPU since settings need to
 	 * be performed on every CPU in the SMP case.
 	 */
-	if (BUS_ADD_CHILD(parent, 10, "pmcr", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 10, "pmcr", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add pmcr child failed\n");
 }
 

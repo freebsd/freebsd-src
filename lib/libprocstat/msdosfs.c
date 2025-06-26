@@ -44,30 +44,21 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>
 
 #include <netinet/in.h>
 
-#define	_KERNEL
-#include <sys/mount.h>
+#define _WANT_MSDOSFS_INTERNALS
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/msdosfsmount.h>
-#undef _KERNEL
-
-#include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 
 #include <err.h>
 #include <kvm.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-/*
- * XXX -
- * VTODE is defined in denode.h only if _KERNEL is defined, but that leads to
- * header explosion
- */
-#define VTODE(vp) ((struct denode *)getvnodedata(vp))
 
 #include "libprocstat.h"
 #include "common_kvm.h"

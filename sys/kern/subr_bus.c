@@ -6258,8 +6258,10 @@ SYSCTL_INT(_debug, OID_AUTO, obsolete_panic, CTLFLAG_RWTUN, &obsolete_panic, 0,
     "2 = if deprecated)");
 
 static void
-gone_panic(int major, int running, const char *msg)
+gone_panic(int major, int running, const char *msg, ...)
 {
+	va_list ap;
+
 	switch (obsolete_panic)
 	{
 	case 0:
@@ -6269,32 +6271,36 @@ gone_panic(int major, int running, const char *msg)
 			return;
 		/* FALLTHROUGH */
 	default:
-		panic("%s", msg);
+		va_start(ap, msg);
+		vpanic(msg, ap);
 	}
 }
 
 void
-_gone_in(int major, const char *msg)
+_gone_in(int major, const char *msg, ...)
 {
-	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg);
-	if (P_OSREL_MAJOR(__FreeBSD_version) >= major)
-		printf("Obsolete code will be removed soon: %s\n", msg);
-	else
-		printf("Deprecated code (to be removed in FreeBSD %d): %s\n",
-		    major, msg);
+	va_list ap;
+
+	va_start(ap, msg);
+	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg, ap);
+	vprintf(msg, ap);
+	va_end(ap);
+	if (P_OSREL_MAJOR(__FreeBSD_version) < major)
+		printf("To be removed in FreeBSD %d\n", major);
 }
 
 void
-_gone_in_dev(device_t dev, int major, const char *msg)
+_gone_in_dev(device_t dev, int major, const char *msg, ...)
 {
-	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg);
-	if (P_OSREL_MAJOR(__FreeBSD_version) >= major)
+	va_list ap;
+
+	va_start(ap, msg);
+	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg, ap);
+	device_printf(dev, msg, ap);
+	va_end(ap);
+	if (P_OSREL_MAJOR(__FreeBSD_version) < major)
 		device_printf(dev,
-		    "Obsolete code will be removed soon: %s\n", msg);
-	else
-		device_printf(dev,
-		    "Deprecated code (to be removed in FreeBSD %d): %s\n",
-		    major, msg);
+		    "to be removed in FreeBSD %d\n", major);
 }
 
 #ifdef DDB

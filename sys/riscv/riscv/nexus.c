@@ -100,6 +100,7 @@ static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_fdt_probe),
 	DEVMETHOD(device_attach,	nexus_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* OFW interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),

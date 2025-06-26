@@ -1310,7 +1310,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		if (i == sc->cur_scp->index)
 			return 0;
 		error =
-		    tsleep(VTY_WCHAN(sc, i), (PZERO + 1) | PCATCH, "waitvt", 0);
+		    tsleep(VTY_WCHAN(sc, i), PZERO | PCATCH, "waitvt", 0);
 		return error;
 
 	case VT_GETACTIVE: /* get active vty # */

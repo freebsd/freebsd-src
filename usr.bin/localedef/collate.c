@@ -422,7 +422,7 @@ collchar_compare(const void *n1, const void *n2)
 	wchar_t	k1 = ((const collchar_t *)n1)->wc;
 	wchar_t	k2 = ((const collchar_t *)n2)->wc;
 
-	return (k1 < k2 ? -1 : k1 > k2 ? 1 : 0);
+	return (wchar_cmp(k1, k2));
 }
 
 RB_GENERATE_STATIC(collchars, collchar, entry, collchar_compare);
@@ -1273,7 +1273,7 @@ dump_collate(void)
 	RB_FOREACH(cc, collchars, &collchars) {
 		int	undef = 0;
 		/* we already gathered those */
-		if (cc->wc <= UCHAR_MAX)
+		if ((uint32_t)cc->wc <= UCHAR_MAX)
 			continue;
 		for (j = 0; j < NUM_WT; j++) {
 			if ((pri = get_weight(cc->ref[j], j)) < 0) {

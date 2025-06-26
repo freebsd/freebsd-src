@@ -80,7 +80,7 @@ qpi_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Add a qpi bus device. */
-	if (BUS_ADD_CHILD(parent, 20, "qpi", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 20, "qpi", DEVICE_UNIT_ANY) == NULL)
 		panic("Failed to add qpi bus");
 }
 

@@ -140,6 +140,8 @@ verify_event_validity(libusb_context *ctx)
 				return (valid_event);
 			return (invalid_event);
 		}
+		if (errno == EBADF)
+			return (broken_event);
 		return (invalid_event);
 	} else if (ctx->usb_event_mode == usb_event_devd) {
 		char buf[DEVCTL_MAXBUF];

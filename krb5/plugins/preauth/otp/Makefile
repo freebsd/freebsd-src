@@ -1,0 +1,30 @@
+#
+# SPDX-License-Idendifier: BSD-2-Clause
+#
+# Copyright (c) 2025 FreeBSD Foundation
+#
+# This sofware was developed by Cy Schubert <cy@FreeBSD.org>
+# under sponsorship from the FreeBSD Foundation.
+#
+
+PACKAGE=	krb5
+
+.include <src.opts.mk>
+
+.include "../Makefile.inc"
+
+LIB=		otp
+LIBDIR=		${PLUGINSDIR}/preauth
+LDFLAGS=-Wl,--no-undefined
+LIBADD=	krb5profile krad verto krb5 k5crypto com_err krb5support m
+
+.PATH:	${KRB5_DIR}/plugins/preauth/otp
+
+SRCS=	main.c \
+	otp_state.c
+
+CFLAGS+=-I${KRB5_DIR}/plugins/preauth/otp \
+	-I${KRB5_DIR}/include \
+	-I${KRB5_SRCTOP}/include
+
+.include <bsd.lib.mk>

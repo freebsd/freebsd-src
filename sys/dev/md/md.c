@@ -256,7 +256,7 @@ struct md_s {
 	unsigned opencount;
 	unsigned fwheads;
 	unsigned fwsectors;
-	char ident[32];
+	char ident[DISK_IDENT_SIZE];
 	unsigned flags;
 	char name[20];
 	struct proc *procp;

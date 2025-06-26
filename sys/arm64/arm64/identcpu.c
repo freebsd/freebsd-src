@@ -218,19 +218,28 @@ static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_CORTEX_A76AE, "Cortex-A76AE" },
 	{ CPU_PART_CORTEX_A77, "Cortex-A77" },
 	{ CPU_PART_CORTEX_A78, "Cortex-A78" },
+	{ CPU_PART_CORTEX_A78AE, "Cortex-A78AE" },
 	{ CPU_PART_CORTEX_A78C, "Cortex-A78C" },
 	{ CPU_PART_CORTEX_A510, "Cortex-A510" },
+	{ CPU_PART_CORTEX_A520, "Cortex-A520" },
 	{ CPU_PART_CORTEX_A710, "Cortex-A710" },
 	{ CPU_PART_CORTEX_A715, "Cortex-A715" },
+	{ CPU_PART_CORTEX_A720, "Cortex-A720" },
+	{ CPU_PART_CORTEX_A725, "Cortex-A725" },
+	{ CPU_PART_CORTEX_X925, "Cortex-A925" },
 	{ CPU_PART_CORTEX_X1, "Cortex-X1" },
 	{ CPU_PART_CORTEX_X1C, "Cortex-X1C" },
 	{ CPU_PART_CORTEX_X2, "Cortex-X2" },
 	{ CPU_PART_CORTEX_X3, "Cortex-X3" },
+	{ CPU_PART_CORTEX_X4, "Cortex-X4" },
 	{ CPU_PART_NEOVERSE_E1, "Neoverse-E1" },
 	{ CPU_PART_NEOVERSE_N1, "Neoverse-N1" },
 	{ CPU_PART_NEOVERSE_N2, "Neoverse-N2" },
+	{ CPU_PART_NEOVERSE_N3, "Neoverse-N3" },
 	{ CPU_PART_NEOVERSE_V1, "Neoverse-V1" },
 	{ CPU_PART_NEOVERSE_V2, "Neoverse-V2" },
+	{ CPU_PART_NEOVERSE_V3, "Neoverse-V3" },
+	{ CPU_PART_NEOVERSE_V3AE, "Neoverse-V3AE" },
 	CPU_PART_NONE,
 };
 
@@ -241,9 +250,22 @@ static const struct cpu_parts cpu_parts_cavium[] = {
 	CPU_PART_NONE,
 };
 
-/* APM / Ampere */
+/* APM (now Ampere) */
 static const struct cpu_parts cpu_parts_apm[] = {
 	{ CPU_PART_EMAG8180, "eMAG 8180" },
+	CPU_PART_NONE,
+};
+
+/* Ampere */
+static const struct cpu_parts cpu_parts_ampere[] = {
+	{ CPU_PART_AMPERE1, "AmpereOne AC03" },
+	{ CPU_PART_AMPERE1A, "AmpereOne AC04" },
+	CPU_PART_NONE,
+};
+
+/* Microsoft */
+static const struct cpu_parts cpu_parts_microsoft[] = {
+	{ CPU_PART_AZURE_COBALT_100, "Azure Cobalt 100" },
 	CPU_PART_NONE,
 };
 
@@ -280,7 +302,7 @@ static const struct cpu_parts cpu_parts_none[] = {
  * Implementers table.
  */
 const struct cpu_implementers cpu_implementers[] = {
-	{ CPU_IMPL_AMPERE,	"Ampere",	cpu_parts_none },
+	{ CPU_IMPL_AMPERE,	"Ampere",	cpu_parts_ampere },
 	{ CPU_IMPL_APPLE,	"Apple",	cpu_parts_apple },
 	{ CPU_IMPL_APM,		"APM",		cpu_parts_apm },
 	{ CPU_IMPL_ARM,		"ARM",		cpu_parts_arm },
@@ -289,9 +311,11 @@ const struct cpu_implementers cpu_implementers[] = {
 	{ CPU_IMPL_DEC,		"DEC",		cpu_parts_none },
 	{ CPU_IMPL_FREESCALE,	"Freescale",	cpu_parts_none },
 	{ CPU_IMPL_FUJITSU,	"Fujitsu",	cpu_parts_none },
+	{ CPU_IMPL_HISILICON,	"HiSilicon",	cpu_parts_none },
 	{ CPU_IMPL_INFINEON,	"IFX",		cpu_parts_none },
 	{ CPU_IMPL_INTEL,	"Intel",	cpu_parts_none },
 	{ CPU_IMPL_MARVELL,	"Marvell",	cpu_parts_none },
+	{ CPU_IMPL_MICROSOFT,	"Microsoft",	cpu_parts_microsoft },
 	{ CPU_IMPL_NVIDIA,	"NVIDIA",	cpu_parts_none },
 	{ CPU_IMPL_QUALCOMM,	"Qualcomm",	cpu_parts_qcom },
 	CPU_IMPLEMENTER_NONE,
@@ -2195,7 +2219,6 @@ static const struct mrs_field mvfr1_fields[] = {
 #endif /* COMPAT_FREEBSD32 */
 
 struct mrs_user_reg {
-	u_int		reg;
 	u_int		iss;
 	bool		is64bit;
 	size_t		offset;
@@ -2204,7 +2227,6 @@ struct mrs_user_reg {
 
 #define	USER_REG(name, field_name, _is64bit)				\
 	{								\
-		.reg = name,						\
 		.iss = name##_ISS,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
 		.fields = field_name##_fields,				\
@@ -2497,29 +2519,12 @@ mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 }
 
 bool
-extract_user_id_field(u_int reg, u_int field_shift, uint8_t *val)
-{
-	uint64_t value;
-	int i;
-
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
-			value = CPU_DESC_FIELD(user_cpu_desc, i);
-			*val = value >> field_shift;
-			return (true);
-		}
-	}
-
-	return (false);
-}
-
-bool
-get_kernel_reg(u_int reg, uint64_t *val)
+get_kernel_reg_iss(u_int iss, uint64_t *val)
 {
 	int i;
 
 	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
+		if (user_regs[i].iss == iss) {
 			*val = CPU_DESC_FIELD(kern_cpu_desc, i);
 			return (true);
 		}
@@ -2533,13 +2538,13 @@ get_kernel_reg(u_int reg, uint64_t *val)
  * do not exceed those in the mask.
  */
 bool
-get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
+get_kernel_reg_iss_masked(u_int iss, uint64_t *valp, uint64_t mask)
 {
 	const struct mrs_field *fields;
 	uint64_t val;
 
 	for (int i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg == reg) {
+		if (user_regs[i].iss == iss) {
 			val = CPU_DESC_FIELD(kern_cpu_desc, i);
 			fields = user_regs[i].fields;
 			for (int j = 0; fields[j].type != 0; j++) {
@@ -2548,6 +2553,24 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 				    fields[j].shift, fields[j].sign);
 			}
 			*valp = mask;
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+bool
+get_user_reg_iss(u_int iss, uint64_t *val, bool fbsd)
+{
+	int i;
+
+	for (i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].iss == iss) {
+			if (fbsd)
+				*val = CPU_DESC_FIELD(user_cpu_desc, i);
+			else
+				*val = CPU_DESC_FIELD(l_user_cpu_desc, i);
 			return (true);
 		}
 	}
@@ -2693,7 +2716,7 @@ update_special_regs(u_int cpu)
  * HWCAPs are set the check for these is enough.
  */
 void
-update_special_reg(u_int reg, uint64_t clear, uint64_t set)
+update_special_reg_iss(u_int iss, uint64_t clear, uint64_t set)
 {
 	MPASS(hwcaps_set == false);
 	/* There is no locking here, so we only support changing this on CPU0 */
@@ -2701,7 +2724,7 @@ update_special_reg(u_int reg, uint64_t clear, uint64_t set)
 	MPASS(PCPU_GET(cpuid) == 0);
 
 	for (int i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].reg != reg)
+		if (user_regs[i].iss != iss)
 			continue;
 
 		clear_set_special_reg_idx(i, clear, set);

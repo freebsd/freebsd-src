@@ -74,39 +74,33 @@
 #include <netinet/tcpip.h>
 
 int    tcp_persmin;
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmin,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmin, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_persmin, 0, sysctl_msec_to_ticks, "I",
     "minimum persistence interval");
 
 int    tcp_persmax;
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmax,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmax, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_persmax, 0, sysctl_msec_to_ticks, "I",
     "maximum persistence interval");
 
 int	tcp_keepinit;
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_keepinit, 0, sysctl_msec_to_ticks, "I",
     "time to establish connection");
 
 int	tcp_keepidle;
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_keepidle, 0, sysctl_msec_to_ticks, "I",
     "time before keepalive probes begin");
 
 int	tcp_keepintvl;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    &tcp_keepintvl, 0, sysctl_msec_to_ticks, "I",
+    CTLTYPE_INT | CTLFLAG_RW, &tcp_keepintvl, 0, sysctl_msec_to_ticks, "I",
     "time between keepalive probes");
 
 int	tcp_delacktime;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
+    CTLTYPE_INT | CTLFLAG_RW, &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
     "Time before a delayed ACK is sent");
 
 VNET_DEFINE(int, tcp_msl);
@@ -116,20 +110,22 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl,
     "Maximum segment lifetime");
 
 int	tcp_rexmit_initial;
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_initial,
-   CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_initial, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_rexmit_initial, 0, sysctl_msec_to_ticks, "I",
     "Initial Retransmission Timeout");
 
 int	tcp_rexmit_min;
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_min,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_min, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_rexmit_min, 0, sysctl_msec_to_ticks, "I",
     "Minimum Retransmission Timeout");
 
+int	tcp_rexmit_max;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_max, CTLTYPE_INT | CTLFLAG_RW,
+    &tcp_rexmit_max, 0, sysctl_msec_to_ticks, "I",
+    "Maximum Retransmission Timeout");
+
 int	tcp_rexmit_slop;
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I",
     "Retransmission Timer Slop");
 
@@ -144,8 +140,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, fast_finwait2_recycle, CTLFLAG_RW,
     "Recycle closed FIN_WAIT_2 connections faster");
 
 int    tcp_finwait2_timeout;
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, finwait2_timeout,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, finwait2_timeout, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_finwait2_timeout, 0, sysctl_msec_to_ticks, "I",
     "FIN-WAIT2 timeout");
 
@@ -162,8 +157,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     "Drop TCP options from 3rd and later retransmitted SYN");
 
 int	tcp_maxunacktime = TCPTV_MAXUNACKTIME;
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxunacktime,
-    CTLTYPE_INT|CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxunacktime, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_maxunacktime, 0, sysctl_msec_to_ticks, "I",
     "Maximum time (in ms) that a session can linger without making progress");
 
@@ -629,8 +623,7 @@ tcp_timer_rexmt(struct tcpcb *tp)
 		rexmt = tcp_rexmit_initial * tcp_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
-	TCPT_RANGESET(tp->t_rxtcur, rexmt,
-		      tp->t_rttmin, TCPTV_REXMTMAX);
+	TCPT_RANGESET(tp->t_rxtcur, rexmt, tp->t_rttmin, tcp_rexmit_max);
 
 	/*
 	 * We enter the path for PLMTUD if connection is established or, if

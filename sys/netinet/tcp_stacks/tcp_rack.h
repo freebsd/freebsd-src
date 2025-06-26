@@ -327,8 +327,6 @@ extern counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
 /*
  * Locking for the rack control block.
  * a) Locked by INP_WLOCK
- * b) Locked by the hpts-mutex
- *
  */
 #define RACK_GP_HIST 4	/* How much goodput history do we maintain? */
 #define RETRAN_CNT_SIZE 16
@@ -614,7 +612,6 @@ struct rack_control {
 
 struct tcp_rack {
 	/* First cache line 0x00 */
-	TAILQ_ENTRY(tcp_rack) r_hpts;	/* hptsi queue next Lock(b) */
 	int32_t(*r_substate) (struct mbuf *, struct tcphdr *,
 	    struct socket *, struct tcpcb *, struct tcpopt *,
 	    int32_t, int32_t, uint32_t, int, int, uint8_t);	/* Lock(a) */

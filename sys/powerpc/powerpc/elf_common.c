@@ -93,6 +93,7 @@ __elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 		AUXARGS_ENTRY(pos, AT_OLD_HWCAP, *imgp->sysent->sv_hwcap);
 	if (imgp->sysent->sv_hwcap2 != NULL)
 		AUXARGS_ENTRY(pos, AT_OLD_HWCAP2, *imgp->sysent->sv_hwcap2);
+	if (imgp->sysent->sv_hwcap3 != NULL)
 	AUXARGS_ENTRY(pos, AT_OLD_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);

@@ -29,6 +29,7 @@
 #ifndef	_FREEBSD_ZFS_SYS_ZNODE_IMPL_H
 #define	_FREEBSD_ZFS_SYS_ZNODE_IMPL_H
 
+#ifdef _KERNEL
 #include <sys/list.h>
 #include <sys/dmu.h>
 #include <sys/sa.h>
@@ -42,6 +43,7 @@
 #include <sys/zfs_project.h>
 #include <vm/vm_object.h>
 #include <sys/uio.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -54,13 +56,15 @@ extern "C" {
  */
 #define	ZNODE_OS_FIELDS                 \
 	struct zfsvfs	*z_zfsvfs;      \
-	vnode_t		*z_vnode;       \
+	struct vnode	*z_vnode;       \
 	char		*z_cached_symlink;	\
 	uint64_t		z_uid;          \
 	uint64_t		z_gid;          \
 	uint64_t		z_gen;          \
 	uint64_t		z_atime[2];     \
 	uint64_t		z_links;
+
+#ifdef _KERNEL
 
 #define	ZFS_LINK_MAX	UINT64_MAX
 
@@ -183,6 +187,9 @@ extern int zfs_znode_parent_and_name(struct znode *zp, struct znode **dzpp,
     char *buf, uint64_t buflen);
 
 extern int zfs_rlimit_fsize(off_t fsize);
+
+#endif	/* _KERNEL */
+
 #ifdef	__cplusplus
 }
 #endif

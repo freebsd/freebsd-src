@@ -141,7 +141,7 @@ kvm_clock_identify(driver_t *driver, device_t parent)
 	if ((regs[0] &
 	    (KVM_FEATURE_CLOCKSOURCE2 | KVM_FEATURE_CLOCKSOURCE)) == 0)
 		return;
-	if (device_find_child(parent, KVM_CLOCK_DEVNAME, -1))
+	if (device_find_child(parent, KVM_CLOCK_DEVNAME, DEVICE_UNIT_ANY))
 		return;
 	BUS_ADD_CHILD(parent, 0, KVM_CLOCK_DEVNAME, 0);
 }

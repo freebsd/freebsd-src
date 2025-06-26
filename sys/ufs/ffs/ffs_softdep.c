@@ -497,7 +497,7 @@ softdep_check_suspend(struct mount *mp,
 	while (mp->mnt_secondary_writes != 0) {
 		BO_UNLOCK(bo);
 		msleep(&mp->mnt_secondary_writes, MNT_MTX(mp),
-		    (PUSER - 1) | PDROP, "secwr", 0);
+		    PRI_MAX_KERN | PDROP, "secwr", 0);
 		BO_LOCK(bo);
 		MNT_ILOCK(mp);
 	}
@@ -14572,7 +14572,7 @@ softdep_check_suspend(struct mount *mp,
 		while (mp->mnt_secondary_writes != 0) {
 			BO_UNLOCK(bo);
 			msleep(&mp->mnt_secondary_writes, MNT_MTX(mp),
-			    (PUSER - 1) | PDROP, "secwr", 0);
+			    PRI_MAX_KERN | PDROP, "secwr", 0);
 			BO_LOCK(bo);
 			MNT_ILOCK(mp);
 		}
@@ -14612,7 +14612,7 @@ softdep_check_suspend(struct mount *mp,
 			BO_UNLOCK(bo);
 			msleep(&mp->mnt_secondary_writes,
 			       MNT_MTX(mp),
-			       (PUSER - 1) | PDROP, "secwr", 0);
+			       PRI_MAX_KERN | PDROP, "secwr", 0);
 			BO_LOCK(bo);
 			continue;
 		}

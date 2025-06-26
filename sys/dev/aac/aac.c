@@ -473,7 +473,7 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 		      mir->MntTable[0].FileSystemName,
 		      mir->MntTable[0].Capacity, mir->MntTable[0].VolType);
 
-		if ((child = device_add_child(sc->aac_dev, "aacd", -1)) == NULL)
+		if ((child = device_add_child(sc->aac_dev, "aacd", DEVICE_UNIT_ANY)) == NULL)
 			device_printf(sc->aac_dev, "device_add_child failed\n");
 		else
 			device_set_ivars(child, co);

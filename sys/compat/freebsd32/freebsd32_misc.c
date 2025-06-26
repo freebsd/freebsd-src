@@ -1177,7 +1177,7 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 			pscr_args[i] = pscr_args32[i];
 		r.sr.pscr_args = pscr_args;
 		break;
-	case PTLINUX_FIRST ... PTLINUX_LAST:
+	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
 	default:

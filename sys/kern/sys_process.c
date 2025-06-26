@@ -690,7 +690,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 			break;
 		r.sr.pscr_args = pscr_args;
 		break;
-	case PTLINUX_FIRST ... PTLINUX_LAST:
+	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
 	default:
@@ -1324,8 +1324,15 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				p->p_flag2 &= ~P2_PTRACE_FSTP;
 			}
 
-			/* should we send SIGCHLD? */
-			/* childproc_continued(p); */
+			/*
+			 * Send SIGCHLD and wakeup the parent as needed.  It
+			 * may be the case that they had stopped the child
+			 * before it got ptraced, and now they're in the middle
+			 * of a wait(2) for it to continue.
+			 */
+			PROC_LOCK(p->p_pptr);
+			childproc_continued(p);
+			PROC_UNLOCK(p->p_pptr);
 			break;
 		}
 

@@ -51,6 +51,9 @@
 #include <netlink/netlink_debug.h>
 _DECLARE_DEBUG(LOG_DEBUG);
 
+static bool nlattr_add_pf_threshold(struct nl_writer *, int,
+    struct pf_kthreshold *);
+
 struct nl_parsed_state {
 	uint8_t		version;
 	uint32_t	id;
@@ -679,6 +682,14 @@ nlattr_add_timeout(struct nl_writer *nw, int attrtype, uint32_t *timeout)
 	return (true);
 }
 
+#define _OUT(_field)	offsetof(struct pf_kthreshold, _field)
+static const struct nlattr_parser nla_p_threshold[] = {
+	{ .type = PF_TH_LIMIT, .off = _OUT(limit), .cb = nlattr_get_uint32 },
+	{ .type = PF_TH_SECONDS, .off = _OUT(seconds), .cb = nlattr_get_uint32 },
+};
+NL_DECLARE_ATTR_PARSER(threshold_parser, nla_p_threshold);
+#undef _OUT
+
 #define _OUT(_field)	offsetof(struct pf_krule, _field)
 static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_SRC, .off = _OUT(src), .arg = &rule_addr_parser,.cb = nlattr_get_nested },
@@ -749,6 +760,7 @@ static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_NAF, .off = _OUT(naf), .cb = nlattr_get_uint8 },
 	{ .type = PF_RT_RPOOL_RT, .off = _OUT(route), .arg = &pool_parser, .cb = nlattr_get_nested },
 	{ .type = PF_RT_RCV_IFNOT, .off = _OUT(rcvifnot), .cb = nlattr_get_bool },
+	{ .type = PF_RT_PKTRATE, .off = _OUT(pktrate), .arg = &threshold_parser, .cb = nlattr_get_nested },
 };
 NL_DECLARE_ATTR_PARSER(rule_parser, nla_p_rule);
 #undef _OUT
@@ -1003,6 +1015,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u64(nw, PF_RT_SRC_NODES_LIMIT, counter_u64_fetch(rule->src_nodes[PF_SN_LIMIT]));
 	nlattr_add_u64(nw, PF_RT_SRC_NODES_NAT, counter_u64_fetch(rule->src_nodes[PF_SN_NAT]));
 	nlattr_add_u64(nw, PF_RT_SRC_NODES_ROUTE, counter_u64_fetch(rule->src_nodes[PF_SN_ROUTE]));
+	nlattr_add_pf_threshold(nw, PF_RT_PKTRATE, &rule->pktrate);
 
 	error = pf_kanchor_copyout(ruleset, rule, anchor_call, sizeof(anchor_call));
 	MPASS(error == 0);
@@ -1728,23 +1741,18 @@ pf_handle_get_ruleset(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 static bool
 nlattr_add_pf_threshold(struct nl_writer *nw, int attrtype,
-    struct pf_threshold *t, int secs)
+    struct pf_kthreshold *t)
 {
 	int	 off = nlattr_add_nested(nw, attrtype);
-	int	 diff, conn_rate_count;
+	int	 conn_rate_count = 0;
 
 	/* Adjust the connection rate estimate. */
-	conn_rate_count = t->count;
-	diff = secs - t->last;
-	if (diff >= t->seconds)
-		conn_rate_count = 0;
-	else
-		conn_rate_count -= t->count * diff / t->seconds;
+	if (t->cr != NULL)
+		conn_rate_count = counter_rate_get(t->cr);
 
 	nlattr_add_u32(nw, PF_TH_LIMIT, t->limit);
 	nlattr_add_u32(nw, PF_TH_SECONDS, t->seconds);
 	nlattr_add_u32(nw, PF_TH_COUNT, conn_rate_count);
-	nlattr_add_u32(nw, PF_TH_LAST, t->last);
 
 	nlattr_set_len(nw, off);
 
@@ -1803,7 +1811,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 				nlattr_add_u64(nw, PF_SN_EXPIRE, 0);
 
 			nlattr_add_pf_threshold(nw, PF_SN_CONNECTION_RATE,
-			    &n->conn_rate, secs);
+			    &n->conn_rate);
 
 			nlattr_add_u8(nw, PF_SN_NODE_TYPE, n->type);
 

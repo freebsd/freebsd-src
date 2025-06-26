@@ -205,6 +205,11 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	devinit();
 	extract_currdev();
 
+#if !defined(USERBOOT_KERNEL_SUPPORT)
+	printf("WARNING: This userboot does not support loading a kernel\n");
+	delay(1500000);
+#endif
+
 	/*
 	 * Checking the interpreter isn't worth the overhead unless we
 	 * actually have the swap_interpreter callback, so we actually version

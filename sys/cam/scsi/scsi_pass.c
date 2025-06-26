@@ -60,8 +60,9 @@
 #include <cam/cam_compat.h>
 #include <cam/cam_xpt_periph.h>
 
-#include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_pass.h>
+
+#define PERIPH_NAME "pass"
 
 typedef enum {
 	PASS_FLAG_OPEN			= 0x01,
@@ -185,7 +186,7 @@ static	void		passflags(union ccb *ccb, uint32_t *cam_flags,
 
 static struct periph_driver passdriver =
 {
-	passinit, "pass",
+	passinit, PERIPH_NAME,
 	TAILQ_HEAD_INITIALIZER(passdriver.units), /* generation */ 0
 };
 
@@ -199,7 +200,7 @@ static struct cdevsw pass_cdevsw = {
 	.d_ioctl =	passioctl,
 	.d_poll = 	passpoll,
 	.d_kqfilter = 	passkqfilter,
-	.d_name =	"pass",
+	.d_name =	PERIPH_NAME,
 };
 
 static const struct filterops passread_filtops = {
@@ -505,7 +506,7 @@ passasync(void *callback_arg, uint32_t code,
 		 * process.
 		 */
 		status = cam_periph_alloc(passregister, passoninvalidate,
-					  passcleanup, passstart, "pass",
+					  passcleanup, passstart, PERIPH_NAME,
 					  CAM_PERIPH_BIO, path,
 					  passasync, AC_FOUND_DEVICE, cgd);
 
@@ -610,13 +611,17 @@ passregister(struct cam_periph *periph, void *arg)
 		softc->flags |= PASS_FLAG_UNMAPPED_CAPABLE;
 
 	/*
-	 * We pass in 0 for a blocksize, since we don't 
-	 * know what the blocksize of this device is, if 
-	 * it even has a blocksize.
+	 * We pass in 0 for a blocksize, since we don't know what the blocksize
+	 * of this device is, if it even has a blocksize.
+	 *
+	 * Note: no_tags is valid only for SCSI peripherals, but we don't do any
+	 * devstat accounting for tags on any other transport. SCSI is the only
+	 * transport that uses the tag_action (ata has only vestigial references
+	 * to it, others ignore it entirely).
 	 */
 	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
-	softc->device_stats = devstat_new_entry("pass",
+	softc->device_stats = devstat_new_entry(PERIPH_NAME,
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
@@ -895,23 +900,23 @@ static void
 passdone(struct cam_periph *periph, union ccb *done_ccb)
 { 
 	struct pass_softc *softc;
-	struct ccb_scsiio *csio;
+	struct ccb_hdr *hdr;
 
 	softc = (struct pass_softc *)periph->softc;
 
 	cam_periph_assert(periph, MA_OWNED);
 
-	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_type) {
+	hdr = &done_ccb->ccb_h;
+	switch (hdr->ccb_type) {
 	case PASS_CCB_QUEUED_IO: {
 		struct pass_io_req *io_req;
 
-		io_req = done_ccb->ccb_h.ccb_ioreq;
+		io_req = hdr->ccb_ioreq;
 #if 0
 		xpt_print(periph->path, "%s: called for user CCB %p\n",
 			  __func__, io_req->user_ccb_ptr);
 #endif
-		if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) &&
+		if (((hdr->status & CAM_STATUS_MASK) != CAM_REQ_CMP) &&
 		    ((io_req->flags & PASS_IO_ABANDONED) == 0)) {
 			int error;
 			uint32_t cam_flags, sense_flags;
@@ -935,14 +940,14 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 		/*
 		 * Log data/transaction completion with devstat(9).
 		 */
-		switch (done_ccb->ccb_h.func_code) {
+		switch (hdr->func_code) {
 		case XPT_SCSI_IO:
 			devstat_end_transaction(softc->device_stats,
 			    done_ccb->csio.dxfer_len - done_ccb->csio.resid,
 			    done_ccb->csio.tag_action & 0x3,
-			    ((done_ccb->ccb_h.flags & CAM_DIR_MASK) ==
+			    ((hdr->flags & CAM_DIR_MASK) ==
 			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA :
-			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?
+			    (hdr->flags & CAM_DIR_OUT) ?
 			    DEVSTAT_WRITE : DEVSTAT_READ, NULL,
 			    &io_req->start_time);
 			break;
@@ -950,9 +955,9 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 			devstat_end_transaction(softc->device_stats,
 			    done_ccb->ataio.dxfer_len - done_ccb->ataio.resid,
 			    0, /* Not used in ATA */
-			    ((done_ccb->ccb_h.flags & CAM_DIR_MASK) ==
+			    ((hdr->flags & CAM_DIR_MASK) ==
 			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA : 
-			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?
+			    (hdr->flags & CAM_DIR_OUT) ?
 			    DEVSTAT_WRITE : DEVSTAT_READ, NULL,
 			    &io_req->start_time);
 			break;
@@ -973,6 +978,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 			    DEVSTAT_TAG_SIMPLE, DEVSTAT_READ, NULL,
 			    &io_req->start_time);
 			break;
+		/* XXX XPT_NVME_IO and XPT_NVME_ADMIN need cases here for resid */
 		default:
 			devstat_end_transaction(softc->device_stats, 0,
 			    DEVSTAT_TAG_NONE, DEVSTAT_NO_DATA, NULL,
@@ -1117,12 +1123,14 @@ static void
 passiocleanup(struct pass_softc *softc, struct pass_io_req *io_req)
 {
 	union ccb *ccb;
+	struct ccb_hdr *hdr;
 	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	int i, numbufs;
 
 	ccb = &io_req->ccb;
+	hdr = &ccb->ccb_h;
 
-	switch (ccb->ccb_h.func_code) {
+	switch (hdr->func_code) {
 	case XPT_DEV_MATCH:
 		numbufs = min(io_req->num_bufs, 2);
 
@@ -1278,6 +1286,7 @@ static int
 passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 {
 	union ccb *ccb;
+	struct ccb_hdr *hdr;
 	struct pass_softc *softc;
 	int numbufs, i;
 	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
@@ -1294,11 +1303,12 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 
 	error = 0;
 	ccb = &io_req->ccb;
+	hdr = &ccb->ccb_h;
 	maxmap = 0;
 	num_segs = 0;
 	seg_cnt_ptr = NULL;
 
-	switch(ccb->ccb_h.func_code) {
+	switch(hdr->func_code) {
 	case XPT_DEV_MATCH:
 		if (ccb->cdm.match_buf_len == 0) {
 			printf("%s: invalid match buffer length 0\n", __func__);
@@ -1322,40 +1332,40 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 		break;
 	case XPT_SCSI_IO:
 	case XPT_CONT_TARGET_IO:
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+		if ((hdr->flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
 
 		/*
 		 * The user shouldn't be able to supply a bio.
 		 */
-		if ((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO)
+		if ((hdr->flags & CAM_DATA_MASK) == CAM_DATA_BIO)
 			return (EINVAL);
 
-		io_req->data_flags = ccb->ccb_h.flags & CAM_DATA_MASK;
+		io_req->data_flags = hdr->flags & CAM_DATA_MASK;
 
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		lengths[0] = ccb->csio.dxfer_len;
-		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		dirs[0] = hdr->flags & CAM_DIR_MASK;
 		num_segs = ccb->csio.sglist_cnt;
 		seg_cnt_ptr = &ccb->csio.sglist_cnt;
 		numbufs = 1;
 		maxmap = softc->maxio;
 		break;
 	case XPT_ATA_IO:
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+		if ((hdr->flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
 
 		/*
 		 * We only support a single virtual address for ATA I/O.
 		 */
-		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+		if ((hdr->flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
 			return (EINVAL);
 
 		io_req->data_flags = CAM_DATA_VADDR;
 
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		lengths[0] = ccb->ataio.dxfer_len;
-		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		dirs[0] = hdr->flags & CAM_DIR_MASK;
 		numbufs = 1;
 		maxmap = softc->maxio;
 		break;
@@ -1384,14 +1394,14 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 		break;
 	case XPT_NVME_ADMIN:
 	case XPT_NVME_IO:
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+		if ((hdr->flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return (0);
 
-		io_req->data_flags = ccb->ccb_h.flags & CAM_DATA_MASK;
+		io_req->data_flags = hdr->flags & CAM_DATA_MASK;
 
 		data_ptrs[0] = &ccb->nvmeio.data_ptr;
 		lengths[0] = ccb->nvmeio.dxfer_len;
-		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		dirs[0] = hdr->flags & CAM_DIR_MASK;
 		num_segs = ccb->nvmeio.sglist_cnt;
 		seg_cnt_ptr = &ccb->nvmeio.sglist_cnt;
 		numbufs = 1;

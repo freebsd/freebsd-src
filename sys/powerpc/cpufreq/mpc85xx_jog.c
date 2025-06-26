@@ -143,7 +143,7 @@ mpc85xx_jog_identify(driver_t *driver, device_t parent)
 	struct ofw_compat_data *compat;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "mpc85xx_jog", -1) != NULL)
+	if (device_find_child(parent, "mpc85xx_jog", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	compat = mpc85xx_jog_devcompat();
@@ -154,7 +154,7 @@ mpc85xx_jog_identify(driver_t *driver, device_t parent)
 	 * We attach a child for every CPU since settings need to
 	 * be performed on every CPU in the SMP case.
 	 */
-	if (BUS_ADD_CHILD(parent, 10, "jog", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 10, "jog", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add jog child failed\n");
 }
 

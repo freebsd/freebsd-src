@@ -14306,7 +14306,7 @@ ctl_work_thread(void *arg)
 
 	CTL_DEBUG_PRINT(("ctl_work_thread starting\n"));
 	thread_lock(curthread);
-	sched_prio(curthread, PUSER - 1);
+	sched_prio(curthread, PRI_MAX_KERN);
 	thread_unlock(curthread);
 
 	while (!softc->shutdown) {
@@ -14398,7 +14398,7 @@ ctl_thresh_thread(void *arg)
 
 	CTL_DEBUG_PRINT(("ctl_thresh_thread starting\n"));
 	thread_lock(curthread);
-	sched_prio(curthread, PUSER - 1);
+	sched_prio(curthread, PRI_MAX_KERN);
 	thread_unlock(curthread);
 
 	while (!softc->shutdown) {

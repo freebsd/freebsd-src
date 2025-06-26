@@ -1,9 +1,18 @@
 .PATH: ${.CURDIR}/../../include
 
+# XXX We need to include this to avoid installing MIT KRB5 includes on
+# XXX Heimdal systems. Remove the following line when Heimdal is finally
+# XXX removed.
+.include <src.opts.mk>
+
 LIB=		egacy
 SRC=
 INCSGROUPS=	INCS SYSINCS CASPERINC UFSINCS FFSINCS MSDOSFSINCS DISKINCS
 INCSGROUPS+=	MACHINESYSINCS RPCINCS
+.if ${MK_MITKRB5} != "no"
+INCSGROUPS+=	EDITINC K5GSSRPCINC GSSAPIINC
+INCSGROUPS+=	K5GSSAPIINC K52GSSAPIINC KRB5INC
+.endif
 INCS=
 
 SYSINCSDIR=	${INCLUDEDIR}/sys
@@ -15,6 +24,16 @@ MSDOSFSINCSDIR=	${INCLUDEDIR}/fs/msdosfs
 DISKINCSDIR=	${INCLUDEDIR}/sys/disk
 MACHINESYSINCSDIR=	${INCLUDEDIR}/machine
 RPCINCSDIR=	${INCLUDEDIR}/rpc
+.if ${MK_MITKRB5} != "no"
+EDITINCDIR=	${INCLUDEDIR}/edit/readline
+K5GSSRPCINCDIR=	${INCLUDEDIR}/gssrpc
+GSSAPIINCDIR=	${INCLUDEDIR}/gssapi
+K5GSSAPIINCDIR=	${INCLUDEDIR}/gssapi_krb5
+K52GSSAPIINCDIR=${INCLUDEDIR}/gssapi_krb5/gssapi
+KRB5INCDIR=	${INCLUDEDIR}/krb5
+KDB5INCDIR=	${INCLUDEDIR}/kdb5
+KADM5INCDIR=	${INCLUDEDIR}/kadm5
+.endif
 
 BOOTSTRAPPING?=	0
 
@@ -251,10 +270,61 @@ subr_capability.c: ${SRCTOP}/sys/kern/subr_capability.c
 	cp ${.ALLSRC} ${.TARGET}
 SRCS+=	subr_capability.c
 CLEANFILES+=	subr_capability.c
+
+# Headers needed for msdosfs use in makefs
+SYSINCS+=	${SRCTOP}/sys/sys/_callout.h
+SYSINCS+=	${SRCTOP}/sys/sys/_lock.h
+SYSINCS+=	${SRCTOP}/sys/sys/_lockmgr.h
+SYSINCS+=	${SRCTOP}/sys/sys/_task.h
 .endif # ${MAKE.OS} != "FreeBSD"
 
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_net/cap_net.h
+
+.if ${MK_MITKRB5} != "no"
+EDITINC+=	${SRCTOP}/contrib/libedit/readline/readline.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/auth.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/auth_gss.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/auth_gssapi.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/auth_unix.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/clnt.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/netdb.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/pmap_clnt.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/pmap_prot.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/pmap_rmt.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/rpc_msg.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/rpc.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/svc_auth.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/svc.h
+K5GSSRPCINC+=	${SRCTOP}/krb5/include/gssrpc/types.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/xdr.h
+K5GSSRPCINC+=	${SRCTOP}/crypto/krb5/src/include/gssrpc/xdr.h
+GSSAPIINC+=	${SRCTOP}/crypto/krb5/src/lib/gssapi/krb5/gssapi_krb5.h
+GSSAPIINC+=	${SRCTOP}/crypto/krb5/src/lib/gssapi/generic/gssapi_alloc.h
+GSSAPIINC+=	${SRCTOP}/crypto/krb5/src/lib/gssapi/generic/gssapi_generic.h
+GSSAPIINC+=	${SRCTOP}/crypto/krb5/src/lib/gssapi/generic/gssapi_ext.h
+K5GSSAPIINC+=	${SRCTOP}/crypto/krb5/src/include/gssapi.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/ccselect_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/certauth_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/clpreauth_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/hostrealm_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/kadm5_auth_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/kadm5_hook_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/kdcpolicy_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/kdcpreauth_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/localauth_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/locate_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/preauth_plugin.h
+KRB5INC+=	${SRCTOP}/crypto/krb5/src/include/krb5/pwqual_plugin.h
+INCS+=		${SRCTOP}/crypto/krb5/src/include/gssapi.h
+INCS+=		${SRCTOP}/crypto/krb5/src/include/kdb.h
+INCS+=		${SRCTOP}/crypto/krb5/src/include/krb5.h
+INCS+=		${SRCTOP}/crypto/krb5/src/include/krad.h
+INCS+=		${SRCTOP}/crypto/krb5/src/util/et/com_err.h
+INCS+=		${SRCTOP}/crypto/krb5/src/util/verto/verto-module.h
+INCS+=		${SRCTOP}/crypto/krb5/src/util/verto/verto.h
+.endif
 
 .if empty(SRCS)
 SRCS=		dummy.c

@@ -72,7 +72,7 @@
 #define MSIX_TABLE_COUNT(ctrl) (((ctrl) & PCIM_MSIXCTRL_TABLE_SIZE) + 1)
 #define MSIX_CAPLEN 12
 
-#define PASSTHRU_MMIO_MAX 2
+#define PASSTHRU_MMIO_MAX 3
 
 static int pcifd = -1;
 

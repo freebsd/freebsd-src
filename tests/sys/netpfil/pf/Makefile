@@ -22,6 +22,7 @@ ATF_TESTS_SH+=	altq \
 		killstate \
 		macro \
 		match \
+		max_pkt_rate \
 		max_states \
 		mbuf \
 		modulate \

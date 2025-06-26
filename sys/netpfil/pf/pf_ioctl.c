@@ -1537,7 +1537,7 @@ pf_addr_copyout(struct pf_addr_wrap *addr)
 static void
 pf_src_node_copy(const struct pf_ksrc_node *in, struct pf_src_node *out)
 {
-	int	secs = time_uptime, diff;
+	int	secs = time_uptime;
 
 	bzero(out, sizeof(struct pf_src_node));
 
@@ -1564,14 +1564,11 @@ pf_src_node_copy(const struct pf_ksrc_node *in, struct pf_src_node *out)
 		out->expire = 0;
 
 	/* Adjust the connection rate estimate. */
-	out->conn_rate = in->conn_rate;
-	diff = secs - in->conn_rate.last;
-	if (diff >= in->conn_rate.seconds)
-		out->conn_rate.count = 0;
-	else
-		out->conn_rate.count -=
-		    in->conn_rate.count * diff /
-		    in->conn_rate.seconds;
+	out->conn_rate.limit = in->conn_rate.limit;
+	out->conn_rate.seconds = in->conn_rate.seconds;
+	/* If there's no limit there's no counter_rate. */
+	if (in->conn_rate.cr != NULL)
+		out->conn_rate.count = counter_rate_get(in->conn_rate.cr);
 }
 
 #ifdef ALTQ
@@ -2159,7 +2156,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	if (rule->rtableid > 0 && rule->rtableid >= rt_numfibs)
 		error = EBUSY;
-
 #ifdef ALTQ
 	/* set queue IDs */
 	if (rule->qname[0] != 0) {
@@ -2184,6 +2180,9 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		error = EINVAL;
 	if (!rule->log)
 		rule->logif = 0;
+	if (! pf_init_threshold(&rule->pktrate, rule->pktrate.limit,
+	   rule->pktrate.seconds))
+		error = ENOMEM;
 	if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
 		error = ENOMEM;
 	if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))

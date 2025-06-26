@@ -199,7 +199,7 @@ test_periodic_modify(void)
     kevent_cmp(&kev, kevent_get(kqfd));
 
     /* Check if the event occurs again */
-    EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD, 0, 500, NULL);
+    EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD, 0, 495, NULL);
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
 

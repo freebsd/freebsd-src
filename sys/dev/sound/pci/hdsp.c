@@ -890,7 +890,7 @@ hdsp_attach(device_t dev)
 		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		scp->hc = &chan_map[i];
 		scp->sc = sc;
-		scp->dev = device_add_child(dev, "pcm", -1);
+		scp->dev = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(scp->dev, scp);
 	}
 

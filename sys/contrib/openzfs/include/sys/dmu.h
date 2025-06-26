@@ -360,7 +360,6 @@ void dmu_objset_evict_dbufs(objset_t *os);
 int dmu_objset_create(const char *name, dmu_objset_type_t type, uint64_t flags,
     struct dsl_crypto_params *dcp, dmu_objset_create_sync_func_t func,
     void *arg);
-int dmu_objset_clone(const char *name, const char *origin);
 int dsl_destroy_snapshots_nvl(struct nvlist *snaps, boolean_t defer,
     struct nvlist *errlist);
 int dmu_objset_snapshot_one(const char *fsname, const char *snapname);
@@ -856,7 +855,7 @@ void dmu_tx_hold_append(dmu_tx_t *tx, uint64_t object, uint64_t off, int len);
 void dmu_tx_hold_append_by_dnode(dmu_tx_t *tx, dnode_t *dn, uint64_t off,
     int len);
 void dmu_tx_hold_clone_by_dnode(dmu_tx_t *tx, dnode_t *dn, uint64_t off,
-    int len);
+    uint64_t len, uint_t blksz);
 void dmu_tx_hold_free(dmu_tx_t *tx, uint64_t object, uint64_t off,
     uint64_t len);
 void dmu_tx_hold_free_by_dnode(dmu_tx_t *tx, dnode_t *dn, uint64_t off,

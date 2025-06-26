@@ -223,10 +223,11 @@ rc_trace()
 list_vars()
 {
 	# Localize 'set' option below.
-	local -
+	local - _s
 	local IFS=$'\n' line varname
 
-	# Disable path expansion in unquoted 'for' parameters below.
+	# Disable path expansion temporarily in unquoted 'for' parameters below.
+	_s=$(set +o)
 	set -o noglob
 
 	for line in $(set); do
@@ -241,6 +242,7 @@ list_vars()
 			;;
 		esac
 	done
+	eval $_s
 }
 
 # set_rcvar [var] [defval] [desc]
@@ -290,6 +292,19 @@ set_rcvar_obsolete()
 	eval ${1}_newvar=\"$2\"
 	shift 2
 	eval ${_var}_obsolete_msg=\"$*\"
+}
+
+# expandpath str
+#	Apply pathname expansion to str.
+#
+expandpath()
+{
+	local _s
+
+	_s=$(set +o)
+	set +o noglob
+	echo $1
+	eval $_s
 }
 
 #
@@ -1783,18 +1798,19 @@ _run_rc_setup()
 
 _run_rc_doit()
 {
-	local _m
+	local _m _s
 
 	debug "run_rc_command: doit: $*"
 	_m=$(umask)
 	${_umask:+umask ${_umask}}
 
 	# Disable pathname expansion temporarily for run_rc_command. 
+	_s=$(set +o)
 	set -o noglob
 	eval "$@"
-	set +o noglob
 	_return=$?
 	umask ${_m}
+	eval $_s
 
 	# If command failed and force isn't set, request exit.
 	if [ $_return -ne 0 ] && [ -z "$rc_force" ]; then

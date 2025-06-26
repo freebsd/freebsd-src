@@ -122,7 +122,7 @@ p4tcc_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "p4tcc", -1) != NULL)
+	if (device_find_child(parent, "p4tcc", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/*

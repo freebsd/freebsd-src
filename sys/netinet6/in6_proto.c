@@ -217,15 +217,19 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_ESP, ipsec6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 static int
 sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 {
-	int error, val;
+	int error, val, ndf;
 
 	val = V_ip6_temp_preferred_lifetime;
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error != 0 || !req->newptr)
 		return (error);
-	if (val < V_ip6_desync_factor + V_ip6_temp_regen_advance)
+	ndf =  TEMP_MAX_DESYNC_FACTOR_BASE + (val >> 2) + (val >> 3);
+	if (val < ndf + V_ip6_temp_regen_advance ||
+	    val > V_ip6_temp_valid_lifetime)
 		return (EINVAL);
 	V_ip6_temp_preferred_lifetime = val;
+	V_ip6_temp_max_desync_factor = ndf;
+	V_ip6_desync_factor = arc4random() % ndf;
 	return (0);
 }
 

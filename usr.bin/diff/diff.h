@@ -108,21 +108,21 @@ struct excludes {
 	struct excludes *next;
 };
 
-extern bool	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
-extern bool    ignore_file_case, suppress_common, color, noderef, algorithm_set;
-extern int     diff_format, diff_context, diff_algorithm, status;
-extern bool	diff_algorithm_set;
-extern int	tabsize, width;
+extern bool	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
+extern bool	 ignore_file_case, suppress_common, color, noderef, algorithm_set;
+extern int	 diff_format, diff_context, diff_algorithm, status;
+extern bool	 diff_algorithm_set;
+extern int	 tabsize, width;
 extern char	*start, *ifdefname, *diffargs, *label[2];
 extern char	*ignore_pats, *most_recent_pat;
 extern char	*group_format;
 extern const char	*add_code, *del_code;
-extern struct	stat stb1, stb2;
-extern struct	excludes *excludes_list;
-extern regex_t	ignore_re, most_recent_re;
+extern struct stat stb1, stb2;
+extern struct excludes *excludes_list;
+extern regex_t	 ignore_re, most_recent_re;
 
-int	diffreg(char *, char *, int, int);
-int	diffreg_new(char *, char *, int, int);
-bool	can_libdiff(int);
-void	diffdir(char *, char *, int);
-void	print_status(int, char *, char *, const char *);
+int	 diffreg(char *, char *, int, int);
+int	 diffreg_new(char *, char *, int, int);
+bool	 can_libdiff(int);
+void	 diffdir(char *, char *, int);
+void	 print_status(int, char *, char *, const char *);

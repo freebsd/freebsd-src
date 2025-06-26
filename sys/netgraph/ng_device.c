@@ -462,7 +462,7 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 			mtx_lock(&priv->ngd_mtx);
 			priv->flags |= NGDF_RWAIT;
 			if ((error = msleep(priv, &priv->ngd_mtx,
-			    PDROP | PCATCH | (PZERO + 1),
+			    PDROP | PCATCH | PZERO,
 			    "ngdread", 0)) != 0)
 				return (error);
 		}

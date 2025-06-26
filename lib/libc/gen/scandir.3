@@ -25,13 +25,16 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 31, 2023
+.Dd June 25, 2025
 .Dt SCANDIR 3
 .Os
 .Sh NAME
 .Nm scandir ,
+.Nm fdscandir ,
 .Nm scandirat ,
 .Nm scandir_b ,
+.Nm fdscandir_b ,
+.Nm fdscandirat_b ,
 .Nm alphasort ,
 .Nm versionsort
 .Nd scan a directory
@@ -47,6 +50,13 @@
 .Fa "int \*(lp*compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
 .Fc
 .Ft int
+.Fo fdscandir
+.Fa "int dirfd"
+.Fa "struct dirent ***namelist"
+.Fa "int \*(lp*select\*(rp\*(lpconst struct dirent *\*(rp"
+.Fa "int \*(lp*compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Fc
+.Ft int
 .Fo scandirat
 .Fa "int dirfd"
 .Fa "const char *dirname"
@@ -56,6 +66,21 @@
 .Fc
 .Ft int
 .Fo scandir_b
+.Fa "const char *dirname"
+.Fa "struct dirent ***namelist"
+.Fa "int \*(lp^select\*(rp\*(lpconst struct dirent *\*(rp"
+.Fa "int \*(lp^compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Fc
+.Ft int
+.Fo fdscandir_b
+.Fa "int dirfd"
+.Fa "struct dirent ***namelist"
+.Fa "int \*(lp^select\*(rp\*(lpconst struct dirent *\*(rp"
+.Fa "int \*(lp^compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Fc
+.Ft int
+.Fo scandirat_b
+.Fa "int dirfd"
 .Fa "const char *dirname"
 .Fa "struct dirent ***namelist"
 .Fa "int \*(lp^select\*(rp\*(lpconst struct dirent *\*(rp"
@@ -77,7 +102,8 @@ entries using
 It returns the number of entries in the array.
 A pointer to the array of directory entries is stored in the location
 referenced by
-.Fa namelist .
+.Fa namelist
+(even if no entries were selected).
 .Pp
 The
 .Fa select
@@ -118,6 +144,13 @@ The memory allocated for the array can be deallocated with
 by freeing each pointer in the array and then the array itself.
 .Pp
 The
+.Fn fdscandir
+function is similar to
+.Fn scandir ,
+but takes a file descriptor referencing a directory instead of a path.
+The file descriptor is left open on return, regardless of outcome.
+.Pp
+The
 .Fn scandirat
 function is similar to
 .Fn scandir ,
@@ -151,17 +184,67 @@ See
 for additional details.
 .Pp
 The
-.Fn scandir_b
-function behaves in the same way as
+.Fn scandir_b ,
+.Fn fdscandir_b ,
+and
+.Fn scandirat_b
+functions behave in the same way as
 .Fn scandir ,
-but takes blocks as arguments instead of function pointers and calls
+.Fn fdscandir ,
+and
+.Fn scandirat ,
+respectively,
+but take blocks as arguments instead of function pointers and call
 .Fn qsort_b
 rather than
 .Fn qsort .
 .Sh DIAGNOSTICS
-Returns \-1 if the directory cannot be opened for reading or if
+The
+.Fn scandir ,
+.Fn fdscandir ,
+.Fn scandirat ,
+.Fn scandir_b ,
+.Fn fdscandir_b ,
+and
+.Fn scandirat_b
+functions return the number of directory entries found on succes.
+If the directory cannot be opened for reading, an error occurs
+while reading the directory, or
 .Xr malloc 3
-cannot allocate enough memory to hold all the data structures.
+cannot allocate enough memory to hold all the directory entries,
+they return \-1 and set
+.Va errno
+to an appropriate value.
+.Sh ERRORS
+The
+.Fn scandir ,
+.Fn scandirat ,
+.Fn scandir_b ,
+and
+.Fn scandirat_b
+functions may fail and set
+.Va errno
+for any of the errors specified for the
+.Xr opendir 3 ,
+.Xr malloc 3 ,
+.Xr readdir 3 ,
+and
+.Xr closedir 3
+functions.
+.Pp
+The
+.Fn fdscandir
+and
+.Fn fdscandir_b
+functions may fail and set
+.Va errno
+for any of the errors specified for the
+.Xr fdopendir 3 ,
+.Xr malloc 3 ,
+.Xr readdir 3 ,
+and
+.Xr closedir 3
+functions.
 .Sh SEE ALSO
 .Xr openat 2 ,
 .Xr directory 3 ,
@@ -172,8 +255,25 @@ cannot allocate enough memory to hold all the data structures.
 .Xr dir 5
 .Sh STANDARDS
 The
+.Fn alphasort
+and
+.Fn scandir
+functions are expected to conform to
+.St -p1003.1-2008 .
+The
+.Fn scandirat
+and
 .Fn versionsort
-function is a GNU extension and conforms to no standard.
+functions are GNU extensions and conform to no standard.
+The
+.Fn fdscandir ,
+.Fn scandir_b ,
+.Fn fdscandir_b ,
+and
+.Fn scandirat_b
+functions are
+.Fx
+extensions.
 .Sh HISTORY
 The
 .Fn scandir
@@ -182,8 +282,19 @@ and
 functions appeared in
 .Bx 4.2 .
 The
+.Fn scandir_b
+function was added in
+.Fx 11.0 .
+The
 .Fn scandirat
 and
 .Fn versionsort
 functions were added in
 .Fx 13.2 .
+The
+.Fn fdscandir ,
+.Fn fdscandir_b ,
+and
+.Fn scandirat_b
+functions were added in
+.Fx 15.0 .

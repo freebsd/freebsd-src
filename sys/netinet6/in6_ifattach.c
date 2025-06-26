@@ -83,7 +83,6 @@ VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
 static int get_rand_ifid(struct ifnet *, struct in6_addr *);
-static int generate_tmp_ifid(u_int8_t *, const u_int8_t *, u_int8_t *);
 static int get_ifid(struct ifnet *, struct ifnet *, struct in6_addr *);
 static int in6_ifattach_linklocal(struct ifnet *, struct ifnet *);
 static int in6_ifattach_loopback(struct ifnet *);
@@ -148,84 +147,6 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	return 0;
 }
 
-static int
-generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
-{
-	MD5_CTX ctxt;
-	u_int8_t seed[16], digest[16], nullbuf[8];
-	u_int32_t val32;
-
-	/* If there's no history, start with a random seed. */
-	bzero(nullbuf, sizeof(nullbuf));
-	if (bcmp(nullbuf, seed0, sizeof(nullbuf)) == 0) {
-		int i;
-
-		for (i = 0; i < 2; i++) {
-			val32 = arc4random();
-			bcopy(&val32, seed + sizeof(val32) * i, sizeof(val32));
-		}
-	} else
-		bcopy(seed0, seed, 8);
-
-	/* copy the right-most 64-bits of the given address */
-	/* XXX assumption on the size of IFID */
-	bcopy(seed1, &seed[8], 8);
-
-	if (0) {		/* for debugging purposes only */
-		int i;
-
-		printf("generate_tmp_ifid: new randomized ID from: ");
-		for (i = 0; i < 16; i++)
-			printf("%02x", seed[i]);
-		printf(" ");
-	}
-
-	/* generate 16 bytes of pseudo-random value. */
-	bzero(&ctxt, sizeof(ctxt));
-	MD5Init(&ctxt);
-	MD5Update(&ctxt, seed, sizeof(seed));
-	MD5Final(digest, &ctxt);
-
-	/*
-	 * RFC 3041 3.2.1. (3)
-	 * Take the left-most 64-bits of the MD5 digest and set bit 6 (the
-	 * left-most bit is numbered 0) to zero.
-	 */
-	bcopy(digest, ret, 8);
-	ret[0] &= ~EUI64_UBIT;
-
-	/*
-	 * XXX: we'd like to ensure that the generated value is not zero
-	 * for simplicity.  If the caclculated digest happens to be zero,
-	 * use a random non-zero value as the last resort.
-	 */
-	if (bcmp(nullbuf, ret, sizeof(nullbuf)) == 0) {
-		nd6log((LOG_INFO,
-		    "generate_tmp_ifid: computed MD5 value is zero.\n"));
-
-		val32 = arc4random();
-		val32 = 1 + (val32 % (0xffffffff - 1));
-	}
-
-	/*
-	 * RFC 3041 3.2.1. (4)
-	 * Take the rightmost 64-bits of the MD5 digest and save them in
-	 * stable storage as the history value to be used in the next
-	 * iteration of the algorithm.
-	 */
-	bcopy(&digest[8], seed0, 8);
-
-	if (0) {		/* for debugging purposes only */
-		int i;
-
-		printf("to: ");
-		for (i = 0; i < 16; i++)
-			printf("%02x", digest[i]);
-		printf("\n");
-	}
-
-	return 0;
-}
 
 /*
  * Get interface identifier for the specified interface.
@@ -791,60 +712,15 @@ in6_ifdetach_destroy(struct ifnet *ifp)
 	_in6_ifdetach(ifp, 0);
 }
 
-int
-in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
-    const u_int8_t *baseid, int generate)
-{
-	u_int8_t nullbuf[8];
-	struct nd_ifinfo *ndi = ND_IFINFO(ifp);
-
-	bzero(nullbuf, sizeof(nullbuf));
-	if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) == 0) {
-		/* we've never created a random ID.  Create a new one. */
-		generate = 1;
-	}
-
-	if (generate) {
-		bcopy(baseid, ndi->randomseed1, sizeof(ndi->randomseed1));
-
-		/* generate_tmp_ifid will update seedn and buf */
-		(void)generate_tmp_ifid(ndi->randomseed0, ndi->randomseed1,
-		    ndi->randomid);
-	}
-	bcopy(ndi->randomid, retbuf, 8);
-
-	return (0);
-}
-
 void
 in6_tmpaddrtimer(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
-	struct epoch_tracker et;
-	struct nd_ifinfo *ndi;
-	u_int8_t nullbuf[8];
-	struct ifnet *ifp;
 
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
 	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
 
-	bzero(nullbuf, sizeof(nullbuf));
-	NET_EPOCH_ENTER(et);
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_afdata[AF_INET6] == NULL)
-			continue;
-		ndi = ND_IFINFO(ifp);
-		if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) != 0) {
-			/*
-			 * We've been generating a random ID on this interface.
-			 * Create a new one.
-			 */
-			(void)generate_tmp_ifid(ndi->randomseed0,
-			    ndi->randomseed1, ndi->randomid);
-		}
-	}
-	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
 

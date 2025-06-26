@@ -35,6 +35,19 @@
 .Sh SYNOPSIS
 .Cd "device pf"
 .Cd "options PF_DEFAULT_TO_DROP"
+.Pp
+In
+.Xr loader.conf 5 :
+.Cd net.pf.states_hashsize
+.Cd net.pf.source_nodes_hashsize
+.Cd net.pf.rule_tag_hashsize
+.Cd net.pf.udpendpoint_hashsize
+.Cd net.pf.default_to_drop
+.Pp
+In
+.Xr sysctl.conf 5 :
+.Cd net.pf.request_maxcount
+.Cd net.pf.filter_local
 .Sh DESCRIPTION
 Packet filtering takes place in the kernel.
 A pseudo-device,
@@ -74,10 +87,28 @@ separated by
 characters, similar to how file system hierarchies are laid out.
 The final component of the anchor path is the anchor under which
 operations will be performed.
-.Sh SYSCTL VARIABLES AND LOADER TUNABLES
-The following
+.Sh SYSCTL VARIABLES
+The following variables can be entered at the
 .Xr loader 8
-tunables are available.
+prompt, set in
+.Xr loader.conf 5 ,
+.Xr sysctl.conf 5 ,
+or changed at runtime with
+.Xr sysctl 8 :
+.Bl -tag -width indent
+.It Va net.pf.filter_local
+This tells
+.Nm
+to also filter on the loopback output hook.
+This is typically used to allow redirect rules to adjust the source address.
+.It Va net.pf.request_maxcount
+The maximum number of items in a single ioctl call.
+.El
+.Sh LOADER TUNABLES
+The following tunables can be entered at the
+.Xr loader 8
+prompt, or set in
+.Xr loader.conf 5 :
 .Bl -tag -width indent
 .It Va net.pf.states_hashsize
 Size of hash table that stores states.
@@ -104,11 +135,6 @@ to also filter on the loopback output hook.
 This is typically used to allow redirect rules to adjust the source address.
 .It Va net.pf.request_maxcount
 The maximum number of items in a single ioctl call.
-.It Va net.pf.rdr_srcport_rewrite_tries
-The maximum number of times to try and find a free source port when handling
-redirects.
-Such rules are typically applied to external traffic, so an exhaustive search
-may be too expensive.
 .El
 .Pp
 Read only

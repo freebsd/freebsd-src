@@ -796,6 +796,9 @@ fuse_vnop_close(struct vop_close_args *ap)
 	if (fflag & IO_NDELAY)
 		return 0;
 
+	if (cred == NULL)
+		cred = td->td_ucred;
+
 	err = fuse_flush(vp, cred, pid, fflag);
 	if (err == 0 && (fvdat->flag & FN_ATIMECHANGE) && !vfs_isrdonly(mp)) {
 		struct vattr vap;

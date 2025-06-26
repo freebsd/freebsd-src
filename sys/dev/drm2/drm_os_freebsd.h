@@ -154,18 +154,11 @@ typedef void			irqreturn_t;
 
 #if !defined(__arm__)
 #if defined(__i386__) || defined(__amd64__) || defined(__powerpc__) || defined(__aarch64__)
-#define DRM_MSG "This code is deprecated.  Install the graphics/drm-kmod pkg\n"
+#define DRM_MSG "WARNING! drm2 module is deprecated.  Install the graphics/drm-kmod pkg\n"
 #else
-#define DRM_MSG "This code is deprecated."
+#define DRM_MSG "WARNING! drm2 module is deprecated.\n"
 #endif
-
-#define DRM_OBSOLETE(dev)							\
-    do {									\
-	device_printf(dev, "=======================================================\n"); \
-	device_printf(dev, DRM_MSG);						\
-	device_printf(dev, "=======================================================\n"); \
-	gone_in_dev(dev, 13, "drm2 drivers");					\
-    } while (0)
+#define DRM_OBSOLETE(dev)	gone_in_dev(dev, 13, DRM_MSG)
 #endif /* __arm__ */
 
 /* DRM_READMEMORYBARRIER() prevents reordering of reads.

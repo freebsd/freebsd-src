@@ -106,8 +106,6 @@ int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
 void	(*ng_ether_attach_p)(struct ifnet *ifp);
 void	(*ng_ether_detach_p)(struct ifnet *ifp);
 
-void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
-
 /* if_bridge(4) support */
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 bool	(*bridge_same_p)(const void *, const void *);
@@ -987,7 +985,8 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 	struct sockaddr_dl *sdl;
 
 	ifp->if_addrlen = ETHER_ADDR_LEN;
-	ifp->if_hdrlen = ETHER_HDR_LEN;
+	ifp->if_hdrlen = (ifp->if_capabilities & IFCAP_VLAN_MTU) != 0 ?
+	    ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN : ETHER_HDR_LEN;
 	ifp->if_mtu = ETHERMTU;
 	if_attach(ifp);
 	ifp->if_output = ether_output;

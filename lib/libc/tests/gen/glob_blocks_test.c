@@ -8,42 +8,55 @@
 
 #include <errno.h>
 #include <glob.h>
+#include <stdbool.h>
 
 #include <atf-c.h>
 
-static int glob_callback_invoked;
-
-ATF_TC_WITHOUT_HEAD(glob_b_callback_test);
-ATF_TC_BODY(glob_b_callback_test, tc)
+ATF_TC(glob_b_callback);
+ATF_TC_HEAD(glob_b_callback, tc)
 {
-	int rv;
-	glob_t g;
-
-	glob_callback_invoked = 0;
-	ATF_REQUIRE_EQ(0, mkdir("test", 0007));
-	int (^errblk)(const char *, int) =
+	atf_tc_set_md_var(tc, "descr",
+	    "Test ability of callback block to suppress errors");
+	atf_tc_set_md_var(tc, "require.user", "unprivileged");
+}
+ATF_TC_BODY(glob_b_callback, tc)
+{
+	static bool glob_callback_invoked;
+	static int (^errblk)(const char *, int) =
 	    ^(const char *path, int err) {
-		ATF_REQUIRE_STREQ(path, "test/");
-		ATF_REQUIRE(err == EACCES);
-		glob_callback_invoked = 1;
+		ATF_CHECK_STREQ(path, "test/");
+		ATF_CHECK(err == EACCES);
+		glob_callback_invoked = true;
 		/* Suppress EACCES errors. */
 		return (0);
 	};
+	glob_t g;
+	int rv;
 
+	ATF_REQUIRE_EQ(0, mkdir("test", 0755));
+	ATF_REQUIRE_EQ(0, symlink("foo", "test/foo"));
+	ATF_REQUIRE_EQ(0, chmod("test", 0));
+
+	glob_callback_invoked = false;
 	rv = glob_b("test/*", 0, errblk, &g);
-	ATF_REQUIRE_MSG(glob_callback_invoked == 1,
+	ATF_CHECK_MSG(glob_callback_invoked,
 	    "glob(3) failed to invoke callback block");
-	ATF_REQUIRE_MSG(rv == GLOB_NOMATCH,
-	    "error callback function failed to suppress EACCES");
+	ATF_CHECK_EQ_MSG(GLOB_NOMATCH, rv,
+	    "callback function failed to suppress EACCES");
+	globfree(&g);
 
 	/* GLOB_ERR should ignore the suppressed error. */
+	glob_callback_invoked = false;
 	rv = glob_b("test/*", GLOB_ERR, errblk, &g);
-	ATF_REQUIRE_MSG(rv == GLOB_ABORTED,
-	    "GLOB_ERR didn't override error callback block");
+	ATF_CHECK_MSG(glob_callback_invoked,
+	    "glob(3) failed to invoke callback block");
+	ATF_CHECK_EQ_MSG(GLOB_ABORTED, rv,
+	    "GLOB_ERR didn't override callback block");
+	globfree(&g);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp, glob_b_callback_test);
+	ATF_TP_ADD_TC(tp, glob_b_callback);
 	return (atf_no_error());
 }

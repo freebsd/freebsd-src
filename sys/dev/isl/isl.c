@@ -149,7 +149,7 @@ static void
 isl_identify(driver_t *driver, device_t parent)
 {
 
-	if (device_find_child(parent, "asl", -1)) {
+	if (device_find_child(parent, "asl", DEVICE_UNIT_ANY)) {
 		if (bootverbose)
 			printf("asl: device(s) already created\n");
 		return;

@@ -420,7 +420,7 @@ qcom_spi_attach(device_t dev)
 	}
 	QCOM_SPI_UNLOCK(sc);
 
-	sc->spibus = device_add_child(dev, "spibus", -1);
+	sc->spibus = device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 
 	/* We're done, so shut down the interface clock for now */
 	device_printf(dev, "DONE: shutting down interface clock for now\n");

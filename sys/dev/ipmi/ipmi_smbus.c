@@ -59,7 +59,7 @@ ipmi_smbus_identify(driver_t *driver, device_t parent)
 	struct ipmi_get_info info;
 
 	if (ipmi_smbios_identify(&info) && info.iface_type == SSIF_MODE &&
-	    device_find_child(parent, "ipmi", -1) == NULL)
+	    device_find_child(parent, "ipmi", DEVICE_UNIT_ANY) == NULL)
 		BUS_ADD_CHILD(parent, 0, "ipmi", DEVICE_UNIT_ANY);
 }
 

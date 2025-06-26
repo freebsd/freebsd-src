@@ -554,8 +554,8 @@ typedef struct {
 #define	PT_GNU_EH_FRAME	0x6474e550
 #define	PT_GNU_STACK	0x6474e551
 #define	PT_GNU_RELRO	0x6474e552
-#define	PT_DUMP_DELTA	0x6fb5d000	/* va->pa map for kernel dumps
-					   (currently arm). */
+#define	PT_DUMP_DELTA	0x6fb5d000	/* va->pa map for arm and amd64 kernel
+					   dumps */
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -1015,8 +1015,10 @@ typedef struct {
 #define	AT_USRSTACKBASE	35	/* Top of user stack */
 #define	AT_USRSTACKLIM	36	/* Grow limit of user stack */
 #define	AT_CHERI_STATS	37	/* Reserved */
+#define	AT_HWCAP3	38	/* CPU feature flags 3. */
+#define	AT_HWCAP4	39	/* CPU feature flags 4. */
 
-#define	AT_COUNT	38	/* Count of defined aux entry types. */
+#define	AT_COUNT	40	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.

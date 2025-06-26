@@ -35,7 +35,6 @@
 #include <sys/ptrace.h>
 #include <sys/procfs.h>
 #include <sys/queue.h>
-#include <sys/runq.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -2028,7 +2027,7 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_signal, tc)
 		    sched_get_priority_min(SCHED_FIFO)) / 2;
 		CHILD_REQUIRE(pthread_setschedparam(pthread_self(),
 		    SCHED_FIFO, &sched_param) == 0);
-		sched_param.sched_priority -= RQ_PPQ;
+		sched_param.sched_priority -= 1;
 		CHILD_REQUIRE(pthread_setschedparam(t, SCHED_FIFO,
 		    &sched_param) == 0);
 
@@ -2131,7 +2130,7 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 		    sched_get_priority_min(SCHED_FIFO)) / 2;
 		CHILD_REQUIRE(pthread_setschedparam(pthread_self(),
 		    SCHED_FIFO, &sched_param) == 0);
-		sched_param.sched_priority -= RQ_PPQ;
+		sched_param.sched_priority -= 1;
 		CHILD_REQUIRE(pthread_setschedparam(t, SCHED_FIFO,
 		    &sched_param) == 0);
 
@@ -4524,6 +4523,73 @@ ATF_TC_BODY(ptrace__PT_ATTACH_no_EINTR, tc)
 	ATF_REQUIRE(timespeccmp(&shm->sleep_time, &twelve_sec, <=));
 }
 
+ATF_TC_WITHOUT_HEAD(ptrace__PT_DETACH_continued);
+ATF_TC_BODY(ptrace__PT_DETACH_continued, tc)
+{
+	char buf[256];
+	pid_t debuggee, debugger;
+	int dpipe[2] = {-1, -1}, status;
+
+	/* Setup the debuggee's pipe, which we'll use to let it terminate. */
+	ATF_REQUIRE(pipe(dpipe) == 0);
+	ATF_REQUIRE((debuggee = fork()) != -1);
+
+	if (debuggee == 0) {
+		ssize_t readsz;
+
+		/*
+		 * The debuggee will just absorb everything until the parent
+		 * closes it.  In the process, we expect it to get SIGSTOP'd,
+		 * then ptrace(2)d and finally, it should resume after we detach
+		 * and the parent will be notified.
+		 */
+		close(dpipe[1]);
+		while ((readsz = read(dpipe[0], buf, sizeof(buf))) != 0) {
+			if (readsz > 0 || errno == EINTR)
+				continue;
+			_exit(1);
+		}
+
+		_exit(0);
+	}
+
+	close(dpipe[0]);
+
+	ATF_REQUIRE(kill(debuggee, SIGSTOP) == 0);
+	REQUIRE_EQ(waitpid(debuggee, &status, WUNTRACED), debuggee);
+	ATF_REQUIRE(WIFSTOPPED(status));
+
+	/* Child is stopped, enter the debugger to attach/detach. */
+	ATF_REQUIRE((debugger = fork()) != -1);
+	if (debugger == 0) {
+		REQUIRE_EQ(ptrace(PT_ATTACH, debuggee, 0, 0), 0);
+		REQUIRE_EQ(waitpid(debuggee, &status, 0), debuggee);
+		ATF_REQUIRE(WIFSTOPPED(status));
+		REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+		REQUIRE_EQ(ptrace(PT_DETACH, debuggee, 0, 0), 0);
+		_exit(0);
+	}
+
+	REQUIRE_EQ(waitpid(debugger, &status, 0), debugger);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 0);
+
+	REQUIRE_EQ(waitpid(debuggee, &status, WCONTINUED), debuggee);
+	ATF_REQUIRE(WIFCONTINUED(status));
+
+	/*
+	 * Closing the pipe will trigger the debuggee to exit now that the
+	 * child has resumed following detach.
+	 */
+	close(dpipe[1]);
+
+	REQUIRE_EQ(waitpid(debuggee, &status, 0), debuggee);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 0);
+
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, ptrace__parent_wait_after_trace_me);
@@ -4593,6 +4659,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_getpid);
 	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_no_EINTR);
+	ATF_TP_ADD_TC(tp, ptrace__PT_DETACH_continued);
 
 	return (atf_no_error());
 }

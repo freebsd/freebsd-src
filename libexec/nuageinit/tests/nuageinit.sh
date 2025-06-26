@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
+# Copyright (c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -28,6 +28,8 @@ atf_test_case config2_userdata_packages
 atf_test_case config2_userdata_update_packages
 atf_test_case config2_userdata_upgrade_packages
 atf_test_case config2_userdata_shebang
+atf_test_case config2_userdata_fqdn_and_hostname
+atf_test_case config2_userdata_write_files
 
 setup_test_adduser()
 {
@@ -116,10 +118,16 @@ users:
   - name: foobar
     gecos: Foo B. Bar
     primary_group: foobar
+    sudo: ALL=(ALL) NOPASSWD:ALL
     groups: users
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+  - name: bla
+    sudo:
+    - "ALL=(ALL) NOPASSWD:/usr/sbin/pw"
+    - "ALL=(ALL) ALL"
 EOF
 	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	cat > expectedgroup << EOF
 wheel:*:0:root,freebsd
 users:*:1:foobar
@@ -127,16 +135,19 @@ admingroup:*:1001:root,sys
 cloud-users:*:1002:
 freebsd:*:1003:
 foobar:*:1004:
+bla:*:1005:
 EOF
 	cat > expectedpasswd << 'EOF'
 root:*:0:0::0:0:Charlie &:/root:/bin/sh
 sys:*:1:0::0:0:Sys:/home/sys:/bin/sh
 freebsd:freebsd:1001:1003::0:0:FreeBSD User:/home/freebsd:/bin/sh
 foobar:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1002:1004::0:0:Foo B. Bar:/home/foobar:/bin/sh
+bla::1003:1005::0:0:bla User:/home/bla:/bin/sh
 EOF
 	sed -i "" "s/freebsd:.*:1001/freebsd:freebsd:1001/" "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedpasswd cat "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedgroup cat "${PWD}"/etc/group
+	atf_check -o inline:"foobar ALL=(ALL) NOPASSWD:ALL\nbla ALL=(ALL) NOPASSWD:/usr/sbin/pw\nbla ALL=(ALL) ALL\n" cat ${PWD}/usr/local/etc/sudoers.d/90-nuageinit-users
 }
 
 nocloud_network_head()
@@ -473,6 +484,7 @@ EOF
 MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
 ...
 -----END RSA PRIVATE KEY-----
+
 "
 	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_rsa_key
 	_expected="ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...\n"
@@ -480,7 +492,9 @@ MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
 	_expected="-----BEGIN OPENSSH PRIVATE KEY-----
 blabla
 ...
------END OPENSSH PRIVATE KEY-----\n"
+-----END OPENSSH PRIVATE KEY-----
+
+"
 	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_ed25519_key
 	_expected="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK+MH4E8KO32N5CXRvXVqvyZVl0+6ue4DobdhU0FqFd+\n"
 	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_ed25519_key.pub
@@ -565,7 +579,8 @@ chpasswd:
   - { user: "sys", password: RANDOM }
 EOF
 
-	atf_check -o empty -e inline:"nuageinit: Invalid entry for chpasswd.users: missing 'name'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e inline:"nuageinit: Invalid entry for chpasswd.users: missing 'name'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	# nothing modified
 	atf_check -o inline:"sys:*:1:0::0:0:Sys:/home/sys:/bin/sh\n" pw -R $(pwd) usershow sys
 
@@ -576,7 +591,7 @@ chpasswd:
   users:
   - { name: "sys", pwd: RANDOM }
 EOF
-	atf_check -o empty -e inline:"nuageinit: Invalid entry for chpasswd.users: missing 'password'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e inline:"nuageinit: Invalid entry for chpasswd.users: missing 'password'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	# nothing modified
 	atf_check -o inline:"sys:*:1:0::0:0:Sys:/home/sys:/bin/sh\n" pw -R $(pwd) usershow sys
 
@@ -588,7 +603,7 @@ chpasswd:
   - { name: "sys", password: RANDOM }
 EOF
 	# not empty because the password is printed to stdout
-	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	atf_check -o match:'sys:\$.*:1:0::0:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
 
 	cat > media/nuageinit/user-data << 'EOF'
@@ -599,7 +614,7 @@ chpasswd:
   - { name: "sys", password: RANDOM }
 EOF
 	# not empty because the password is printed to stdout
-	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	atf_check -o match:'sys:\$.*:1:0::1:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
 
 	cat > media/nuageinit/user-data << 'EOF'
@@ -610,7 +625,7 @@ chpasswd:
   - { name: "user", password: "$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/" }
 EOF
 	# not empty because the password is printed to stdout
-	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	atf_check -o inline:'user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1:0::1:0:Sys:/home/sys:/bin/sh\n' pw -R $(pwd) usershow user
 }
 
@@ -642,7 +657,8 @@ chpasswd:
      sys:RANDOM
 EOF
 
-	atf_check -o empty -e inline:"nuageinit: chpasswd.list is deprecated consider using chpasswd.users\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e inline:"nuageinit: chpasswd.list is deprecated consider using chpasswd.users\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	atf_check -o match:'sys:\$.*:1:0::1:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
 
 	cat > media/nuageinit/user-data << 'EOF'
@@ -655,7 +671,7 @@ chpasswd:
      root:R
 EOF
 
-	atf_check -o empty -e ignore /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e ignore /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	atf_check -o match:'sys:\$.*:1:0::0:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
 	atf_check -o inline:'user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1:0::0:0:Sys:/home/sys:/bin/sh\n' pw -R $(pwd) usershow user
 	atf_check -o match:'root:\$.*:0:0::0:0:Charlie &:/root:/bin/sh$' pw -R $(pwd) usershow root
@@ -688,7 +704,8 @@ chpasswd:
   - sys:RANDOM
 EOF
 
-	atf_check -o empty -e inline:"nuageinit: chpasswd.list is deprecated consider using chpasswd.users\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e inline:"nuageinit: chpasswd.list is deprecated consider using chpasswd.users\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	atf_check -o match:'sys:\$.*:1:0::1:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
 
 	cat > media/nuageinit/user-data << 'EOF'
@@ -701,7 +718,7 @@ chpasswd:
   - root:R
 EOF
 
-	atf_check -o empty -e ignore /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o empty -e ignore /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	atf_check -o match:'sys:\$.*:1:0::0:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
 	atf_check -o inline:'user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1:0::0:0:Sys:/home/sys:/bin/sh\n' pw -R $(pwd) usershow user
 	atf_check -o match:'root:\$.*:0:0::0:0:Charlie &:/root:/bin/sh$' pw -R $(pwd) usershow root
@@ -721,7 +738,7 @@ config2_userdata_runcmd_body()
 runcmd:
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
 	cat > media/nuageinit/user_data << 'EOF'
 #cloud-config
 runcmd:
@@ -760,14 +777,14 @@ config2_userdata_packages_body()
 packages:
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	cat > media/nuageinit/user_data << 'EOF'
 #cloud-config
 packages:
   - yeah/plop
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:0 -o inline:"pkg install -y yeah/plop\npkg info -q yeah/plop\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -s exit:0 -o inline:"pkg install -y yeah/plop\npkg info -q yeah/plop\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 
 	cat > media/nuageinit/user_data << 'EOF'
 #cloud-config
@@ -775,7 +792,7 @@ packages:
   - curl
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 
 	cat > media/nuageinit/user_data << 'EOF'
 #cloud-config
@@ -784,7 +801,7 @@ packages:
   - meh: bla
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" -e inline:"nuageinit: Invalid type : table for packages entry number 2\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" -e inline:"nuageinit: Invalid type: table for packages entry number 2\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_update_packages_body()
@@ -798,7 +815,7 @@ config2_userdata_update_packages_body()
 package_update: true
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg update -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"pkg update -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_upgrade_packages_body()
@@ -812,7 +829,7 @@ config2_userdata_upgrade_packages_body()
 package_upgrade: true
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg upgrade -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"pkg upgrade -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_shebang_body()
@@ -835,6 +852,59 @@ EOF
 	if [ -f var/cache/nuageinit/user_data ]; then
 		atf_fail "File should not have been created"
 	fi
+}
+
+config2_userdata_write_files_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+write_files:
+- content: "plop"
+  path: /file1
+- path: /emptyfile
+- content: !!binary |
+    YmxhCg==
+  path: /file_base64
+  encoding: b64
+  permissions: '0755'
+  owner: nobody
+- content: "bob"
+  path: "/foo"
+  defer: true
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"plop" cat file1
+	atf_check -o inline:"" cat emptyfile
+	atf_check -o inline:"bla\n" cat file_base64
+	test -f foo && atf_fail "foo creation should have been defered"
+	atf_check -o match:"^-rwxr-xr-x.*nobody" ls -l file_base64
+	rm file1 emptyfile file_base64
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	test -f file1 -o -f emptyfile -o -f file_base64 && atf_fail "defer not working properly"
+	atf_check -o inline:"bob" cat foo
+}
+
+config2_userdata_fqdn_and_hostname_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+fqdn: host.domain.tld
+hostname: host
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"hostname=\"host.domain.tld\"\n" cat ${PWD}/etc/rc.conf.d/hostname
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+hostname: host
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"hostname=\"host\"\n" cat ${PWD}/etc/rc.conf.d/hostname
 }
 
 atf_init_test_cases()
@@ -861,4 +931,6 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_update_packages
 	atf_add_test_case config2_userdata_upgrade_packages
 	atf_add_test_case config2_userdata_shebang
+	atf_add_test_case config2_userdata_fqdn_and_hostname
+	atf_add_test_case config2_userdata_write_files
 }

@@ -51,6 +51,19 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250626: For 11 days 15.0-CURRENT installed libtpool to the wrong location
+MOVED_LIBS+=usr/lib/libtpool.so.2
+
+# 20250626: replace yaml.lua with lyaml
+OLD_FILES+=usr/share/flua/yaml.lua
+
+# 20250623: fscandir() renamed to fdscandir()
+OLD_FILES+=usr/share/man/man3/fscandir.3.gz
+OLD_FILES+=usr/share/man/man3/fscandir_b.3.gz
+
+# 20250615: don't install man page for absent function
+OLD_FILES+=usr/share/man/man9/vm_map_simplify_entry.9.gz
+
 # 20250521: don't install zoneinfo version
 OLD_FILES+=usr/share/zoneinfo/version
 
@@ -4022,9 +4035,9 @@ OLD_FILES+=usr/share/man/man4/twa.4.gz
 OLD_FILES+=usr/share/man/man9/kernel_vmount.9.gz
 
 # 20211115: vm_page busy functions removed
-OLD_FILES+=share/man/man9/vm_page_sbusy.9.gz
-OLD_FILES+=share/man/man9/vm_page_xbusy.9.gz
-OLD_FILES+=share/man/man9/vm_page_sleep_if_busy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_sbusy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_xbusy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_sleep_if_busy.9.gz
 
 # 20211113: new clang import which bumps version from 12.0.1 to 13.0.0
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm

@@ -315,7 +315,7 @@ cpufreq_dt_identify(driver_t *driver, device_t parent)
 	    !OF_hasprop(node, "operating-points-v2"))
 		return;
 
-	if (device_find_child(parent, "cpufreq_dt", -1) != NULL)
+	if (device_find_child(parent, "cpufreq_dt", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	if (BUS_ADD_CHILD(parent, 0, "cpufreq_dt", device_get_unit(parent))
