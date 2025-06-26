@@ -327,8 +327,6 @@ extern counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
 /*
  * Locking for the rack control block.
  * a) Locked by INP_WLOCK
- * b) Locked by the hpts-mutex
- *
  */
 #define RACK_GP_HIST 4	/* How much goodput history do we maintain? */
 #define RETRAN_CNT_SIZE 16
