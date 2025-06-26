@@ -1474,11 +1474,7 @@ tcp_init(void *arg __unused)
 	tcp_keepintvl = TCPTV_KEEPINTVL;
 	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
 	tcp_rexmit_initial = TCPTV_RTOBASE;
-	if (tcp_rexmit_initial < 1)
-		tcp_rexmit_initial = 1;
 	tcp_rexmit_min = TCPTV_MIN;
-	if (tcp_rexmit_min < 1)
-		tcp_rexmit_min = 1;
 	tcp_rexmit_max = TCPTV_REXMTMAX;
 	tcp_persmin = TCPTV_PERSMIN;
 	tcp_persmax = TCPTV_PERSMAX;
