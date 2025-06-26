@@ -320,6 +320,9 @@ same_ip_multiple_ifaces_fib0_body()
 	# Setup the interfaces, then remove one alias.  It should not panic.
 	setup_tap 0 inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
+	# After commit 361a8395f0b0e6f254fd138798232529679d99f6 it became
+	# an error to assign the same interface address twice.
+	atf_expect_fail "The test results in an ifconfig error and thus spuriously fails"
 	setup_tap 0 inet ${ADDR} ${MASK1}
 	TAP1=${TAP}
 	ifconfig ${TAP1} -alias ${ADDR}
