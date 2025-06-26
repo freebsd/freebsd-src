@@ -523,11 +523,11 @@ local function addfile(file, defer)
 	if file.permissions then
 		-- convert from octal to decimal
 		local perm = tonumber(file.permissions, 8)
-		sys_stat.chmod(file.path, perm)
+		sys_stat.chmod(filepath, perm)
 	end
 	if file.owner then
 		local owner, group = string.match(file.owner, "([^:]+):([^:]+)")
-		unistd.chown(file.path, owner, group)
+		unistd.chown(filepath, owner, group)
 	end
 	return true
 end
