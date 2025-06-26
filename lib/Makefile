@@ -109,6 +109,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libwrap \
 	libxo \
 	liby \
+	libyaml \
 	libz \
 	libzstd \
 	ncurses \
