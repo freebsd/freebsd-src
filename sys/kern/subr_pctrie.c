@@ -268,6 +268,111 @@ pctrie_node_size(void)
 }
 
 /*
+ * Return the value associated with the node, if the node is a leaf that matches
+ * the index; otherwise NULL.
+ */
+static __always_inline uint64_t *
+pctrie_match_value(struct pctrie_node *node, uint64_t index)
+{
+	uint64_t *m;
+
+	if (!pctrie_isleaf(node) || (m = pctrie_toval(node)) == NULL ||
+	    *m != index)
+		m = NULL;
+	return (m);
+}
+
+/*
+ * Returns the last node examined in the search for the index, and sets the
+ * parent of that node.
+ */
+static __always_inline struct pctrie_node *
+_pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
+    uint64_t index, struct pctrie_node **parent_out,
+    smr_t smr, enum pctrie_access access)
+{
+	struct pctrie_node *parent;
+	int slot;
+
+	parent = node;
+	if (parent == NULL)
+		node = pctrie_root_load(ptree, smr, access);
+
+	/*
+	 * Climb the search path to find the lowest node from which to start the
+	 * search for a value matching 'index'.
+	 */
+	while (parent != NULL) {
+		KASSERT(access == PCTRIE_SMR || !powerof2(parent->pn_popmap),
+		    ("%s: freed node in iter path", __func__));
+		node = parent;
+		if (!pctrie_keybarr(node, index, &slot))
+			break;
+		parent = pctrie_parent(node);
+	}
+
+	/* Seek a node that matches index. */
+	while (!pctrie_isleaf(node) && !pctrie_keybarr(node, index, &slot)) {
+		parent = node;
+		KASSERT(access == PCTRIE_SMR || !powerof2(parent->pn_popmap),
+		    ("%s: freed node in iter path", __func__));
+		node = pctrie_node_load(&node->pn_child[slot], smr, access);
+	}
+	*parent_out = parent;
+	return (node);
+}
+
+/*
+ * Returns the value stored at the index, assuming access is externally
+ * synchronized by a lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+uint64_t *
+pctrie_lookup(struct pctrie *ptree, uint64_t index)
+{
+	struct pctrie_node *node, *parent;
+
+	node = _pctrie_lookup_node(ptree, NULL, index, &parent, NULL,
+	    PCTRIE_LOCKED);
+	return (pctrie_match_value(node, index));
+}
+
+/*
+ * Returns the value stored at the index without requiring an external lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+uint64_t *
+pctrie_lookup_unlocked(struct pctrie *ptree, uint64_t index, smr_t smr)
+{
+	struct pctrie_node *node, *parent;
+	uint64_t *res;
+
+	smr_enter(smr);
+	node = _pctrie_lookup_node(ptree, NULL, index, &parent, smr,
+	    PCTRIE_SMR);
+	res = pctrie_match_value(node, index);
+	smr_exit(smr);
+	return (res);
+}
+
+/*
+ * Returns the value stored at a given index value, possibly NULL, assuming
+ * access is externally synchronized by a lock.
+ */
+uint64_t *
+pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index)
+{
+	struct pctrie_node *node;
+
+	node = _pctrie_lookup_node(it->ptree, it->node, index, &it->node,
+	    NULL, PCTRIE_LOCKED);
+	it->index = index;
+	return (pctrie_match_value(node, index));
+}
+
+/*
  * Look for where to insert the key-value pair into the trie.  Complete the
  * insertion if it replaces a null leaf.  Return the insertion location if the
  * insertion needs to be completed by the caller; otherwise return NULL.
@@ -276,45 +381,26 @@ pctrie_node_size(void)
  * pctrie_lookup().
  */
 static __always_inline void *
-pctrie_insert_lookup_compound(struct pctrie *ptree, uint64_t *val,
-    struct pctrie_node **parent_out, uint64_t **found_out)
+_pctrie_insert_lookup(struct pctrie *ptree, struct pctrie_node *parent,
+    uint64_t *val, struct pctrie_node **parent_out, uint64_t **found_out)
 {
-	uint64_t index;
-	struct pctrie_node *node, *parent;
-	int slot;
+	struct pctrie_node *node;
 
-	index = *val;
-
-	/*
-	 * The owner of record for root is not really important because it
-	 * will never be used.
-	 */
-	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
-	parent = NULL;
-	for (;;) {
-		if (pctrie_isleaf(node)) {
-			if (node == PCTRIE_NULL) {
-				if (parent == NULL)
-					pctrie_node_store(pctrie_root(ptree),
-					    pctrie_toleaf(val), PCTRIE_LOCKED);
-				else
-					pctrie_addnode(parent, index,
-					    pctrie_toleaf(val), PCTRIE_LOCKED);
-				*parent_out = parent;
-				return (NULL);
-			}
-			if (*pctrie_toval(node) == index) {
-				*found_out = pctrie_toval(node);
-				*parent_out = parent;
-				return (NULL);
-			}
-			break;
-		}
-		if (pctrie_keybarr(node, index, &slot))
-			break;
-		parent = node;
-		node = pctrie_node_load(&node->pn_child[slot], NULL,
-		    PCTRIE_LOCKED);
+	node = _pctrie_lookup_node(ptree, parent, *val, parent_out, NULL,
+	    PCTRIE_LOCKED);
+	*found_out = NULL;
+	if (node == PCTRIE_NULL) {
+		if (*parent_out == NULL)
+			pctrie_node_store(pctrie_root(ptree),
+			    pctrie_toleaf(val), PCTRIE_LOCKED);
+		else
+			pctrie_addnode(*parent_out, *val,
+			    pctrie_toleaf(val), PCTRIE_LOCKED);
+		return (NULL);
+	}
+	if (__predict_false(pctrie_match_value(node, *val) != NULL)) {
+		*found_out = pctrie_toval(node);
+		return (NULL);
 	}
 
 	/*
@@ -322,12 +408,11 @@ pctrie_insert_lookup_compound(struct pctrie *ptree, uint64_t *val,
 	 * children 'node' and 'val'. Return the place that points to 'node'
 	 * now, and will point to to the new branching node later.
 	 */
-	*parent_out = parent;
-	return ((parent == NULL) ? pctrie_root(ptree): &parent->pn_child[slot]);
+	return (pctrie_child(ptree, *parent_out, *val));
 }
 
 /*
- * Wrap pctrie_insert_lookup_compound to implement a strict insertion.  Panic
+ * Wrap _pctrie_insert_lookup to implement a strict insertion.  Panic
  * if the key already exists, and do not look for neighboring entries.
  */
 void *
@@ -337,9 +422,7 @@ pctrie_insert_lookup_strict(struct pctrie *ptree, uint64_t *val,
 	void *parentp;
 	uint64_t *found;
 
-	found = NULL;
-	parentp = pctrie_insert_lookup_compound(ptree, val, parent_out,
-	    &found);
+	parentp = _pctrie_insert_lookup(ptree, NULL, val, parent_out, &found);
 	if (__predict_false(found != NULL))
 		panic("%s: key %jx is already present", __func__,
 		    (uintmax_t)*val);
@@ -347,16 +430,34 @@ pctrie_insert_lookup_strict(struct pctrie *ptree, uint64_t *val,
 }
 
 /*
- * Wrap pctrie_insert_lookup_compound to implement find-or-insert.  Do not look
+ * Wrap _pctrie_insert_lookup to implement find-or-insert.  Do not look
  * for neighboring entries.
  */
 void *
 pctrie_insert_lookup(struct pctrie *ptree, uint64_t *val,
     struct pctrie_node **parent_out, uint64_t **found_out)
 {
-	*found_out = NULL;
-	return (pctrie_insert_lookup_compound(ptree, val, parent_out,
-	    found_out));
+	return (_pctrie_insert_lookup(ptree, NULL, val, parent_out, found_out));
+}
+
+/*
+ * Insert the val in the trie, starting search with iterator.  Return a pointer
+ * to indicate where a new node must be allocated to complete insertion.
+ * Assumes access is externally synchronized by a lock.
+ */
+void *
+pctrie_iter_insert_lookup(struct pctrie_iter *it, uint64_t *val)
+{
+	void *res;
+	uint64_t *found;
+
+	it->index = *val;
+	res = _pctrie_insert_lookup(it->ptree, it->node, val, &it->node,
+	    &found);
+	if (__predict_false(found != NULL))
+		panic("%s: key %jx is already present", __func__,
+		    (uintmax_t)it->index);
+	return (res);
 }
 
 /*
@@ -414,156 +515,6 @@ pctrie_insert_node(uint64_t *val, struct pctrie_node *parent, void *parentp,
 	pctrie_addnode(child, newind, node, PCTRIE_UNSERIALIZED);
 	/* Synchronize to make the above visible. */
 	pctrie_node_store(parentp, child, PCTRIE_LOCKED);
-}
-
-/*
- * Return the value associated with the node, if the node is a leaf that matches
- * the index; otherwise NULL.
- */
-static __always_inline uint64_t *
-pctrie_match_value(struct pctrie_node *node, uint64_t index)
-{
-	uint64_t *m;
-
-	if (!pctrie_isleaf(node) || (m = pctrie_toval(node)) == NULL ||
-	    *m != index)
-		m = NULL;
-	return (m);
-}
-
-/*
- * Returns the value stored at the index.  If the index is not present,
- * NULL is returned.
- */
-static __always_inline uint64_t *
-_pctrie_lookup(struct pctrie *ptree, uint64_t index, smr_t smr,
-    enum pctrie_access access)
-{
-	struct pctrie_node *node;
-	int slot;
-
-	node = pctrie_root_load(ptree, smr, access);
-	/* Seek a node that matches index. */
-	while (!pctrie_isleaf(node) && !pctrie_keybarr(node, index, &slot))
-		node = pctrie_node_load(&node->pn_child[slot], smr, access);
-	return (pctrie_match_value(node, index));
-}
-
-/*
- * Returns the value stored at the index, assuming access is externally
- * synchronized by a lock.
- *
- * If the index is not present, NULL is returned.
- */
-uint64_t *
-pctrie_lookup(struct pctrie *ptree, uint64_t index)
-{
-	return (_pctrie_lookup(ptree, index, NULL, PCTRIE_LOCKED));
-}
-
-/*
- * Returns the value stored at the index without requiring an external lock.
- *
- * If the index is not present, NULL is returned.
- */
-uint64_t *
-pctrie_lookup_unlocked(struct pctrie *ptree, uint64_t index, smr_t smr)
-{
-	uint64_t *res;
-
-	smr_enter(smr);
-	res = _pctrie_lookup(ptree, index, smr, PCTRIE_SMR);
-	smr_exit(smr);
-	return (res);
-}
-
-/*
- * Returns the last node examined in the search for the index, and sets the
- * parent of that node.
- */
-static __always_inline struct pctrie_node *
-_pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
-    uint64_t index, struct pctrie_node **parent_out,
-    smr_t smr, enum pctrie_access access)
-{
-	struct pctrie_node *parent;
-	int slot;
-
-	parent = node;
-	if (parent == NULL)
-		node = pctrie_root_load(ptree, smr, access);
-
-	/*
-	 * Climb the search path to find the lowest node from which to start the
-	 * search for a value matching 'index'.
-	 */
-	while (parent != NULL) {
-		KASSERT(access == PCTRIE_SMR || !powerof2(parent->pn_popmap),
-		    ("%s: freed node in iter path", __func__));
-		node = parent;
-		if (!pctrie_keybarr(node, index, &slot))
-			break;
-		parent = pctrie_parent(node);
-	}
-
-	/* Seek a node that matches index. */
-	while (!pctrie_isleaf(node) && !pctrie_keybarr(node, index, &slot)) {
-		parent = node;
-		KASSERT(access == PCTRIE_SMR || !powerof2(parent->pn_popmap),
-		    ("%s: freed node in iter path", __func__));
-		node = pctrie_node_load(&node->pn_child[slot], smr, access);
-	}
-	*parent_out = parent;
-	return (node);
-}
-
-/*
- * Returns the value stored at a given index value, possibly NULL, assuming
- * access is externally synchronized by a lock.
- */
-uint64_t *
-pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index)
-{
-	struct pctrie_node *node;
-
-	node = _pctrie_lookup_node(it->ptree, it->node, index, &it->node,
-	    NULL, PCTRIE_LOCKED);
-	it->index = index;
-	return (pctrie_match_value(node, index));
-}
-
-/*
- * Insert the val in the trie, starting search with iterator.  Return a pointer
- * to indicate where a new node must be allocated to complete insertion.
- * Assumes access is externally synchronized by a lock.
- */
-void *
-pctrie_iter_insert_lookup(struct pctrie_iter *it, uint64_t *val)
-{
-	struct pctrie_node *node;
-
-	node = _pctrie_lookup_node(it->ptree, it->node, *val, &it->node,
-	    NULL, PCTRIE_LOCKED);
-	it->index = *val;
-	if (node == PCTRIE_NULL) {
-		if (it->node == NULL)
-			pctrie_node_store(pctrie_root(it->ptree),
-			    pctrie_toleaf(val), PCTRIE_LOCKED);
-		else
-			pctrie_addnode(it->node, it->index,
-			    pctrie_toleaf(val), PCTRIE_LOCKED);
-		return (NULL);
-	}
-	if (__predict_false(pctrie_match_value(node, it->index) != NULL))
-		panic("%s: key %jx is already present", __func__,
-		    (uintmax_t)it->index);
-
-	/*
-	 * 'node' must be replaced in the tree with a new branch node, with
-	 * children 'node' and 'val'. Return the place that points to 'node'
-	 * now, and will point to to the new branching node later.
-	 */
-	return (pctrie_child(it->ptree, it->node, it->index));
 }
 
 /*
@@ -966,20 +917,14 @@ uint64_t *
 pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
     struct pctrie_node **freenode)
 {
-	struct pctrie_node *child, *node;
+	struct pctrie_node *node, *parent;
 	uint64_t *m;
-	int slot;
 
-	node = NULL;
-	child = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
-	while (!pctrie_isleaf(child)) {
-		node = child;
-		slot = pctrie_slot(node, index);
-		child = pctrie_node_load(&node->pn_child[slot], NULL,
-		    PCTRIE_LOCKED);
-	}
-	if ((m = pctrie_match_value(child, index)) != NULL)
-		pctrie_remove(ptree, node, index, freenode);
+	node = _pctrie_lookup_node(ptree, NULL, index, &parent, NULL,
+	    PCTRIE_LOCKED);
+	m = pctrie_match_value(node, index);
+	if (m != NULL)
+		pctrie_remove(ptree, parent, index, freenode);
 	else
 		*freenode = NULL;
 	return (m);
@@ -1117,36 +1062,17 @@ pctrie_reclaim_begin_cb(struct pctrie_node **pnode, struct pctrie *ptree,
 uint64_t *
 pctrie_replace(struct pctrie *ptree, uint64_t *newval)
 {
-	struct pctrie_node *leaf, *parent, *node;
+	struct pctrie_node *node, *parent;
 	uint64_t *m;
-	uint64_t index;
-	int slot;
 
-	leaf = pctrie_toleaf(newval);
-	index = *newval;
-	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
-	parent = NULL;
-	for (;;) {
-		if (pctrie_isleaf(node)) {
-			if ((m = pctrie_toval(node)) != NULL && *m == index) {
-				if (parent == NULL)
-					pctrie_node_store(pctrie_root(ptree),
-					    leaf, PCTRIE_LOCKED);
-				else
-					pctrie_node_store(
-					    &parent->pn_child[slot], leaf,
-					    PCTRIE_LOCKED);
-				return (m);
-			}
-			break;
-		}
-		if (pctrie_keybarr(node, index, &slot))
-			break;
-		parent = node;
-		node = pctrie_node_load(&node->pn_child[slot], NULL,
-		    PCTRIE_LOCKED);
-	}
-	panic("%s: original replacing value not found", __func__);
+	node = _pctrie_lookup_node(ptree, NULL, *newval, &parent, NULL,
+	    PCTRIE_LOCKED);
+	m = pctrie_match_value(node, *newval);
+	if (m == NULL)
+		panic("%s: original replacing value not found", __func__);
+	pctrie_node_store(pctrie_child(ptree, parent, *newval),
+	    pctrie_toleaf(newval), PCTRIE_LOCKED);
+	return (m);
 }
 
 #ifdef DDB
