@@ -1,0 +1,34 @@
+--[[
+ LYAML binding for Lua 5.1, 5.2, 5.3 & 5.4
+ Copyright (C) 2013-2022 Gary V. Vaughan
+]]
+
+title = '@package@ @version@ Reference'
+project = '@package@ @version@'
+description = [[
+# LYAML binding for Lua
+
+This is a Lua binding for the fast libYAML C library for converting
+between `%YAML 1.1` and Lua tables, with a flexible Lua language
+API to load and save YAML documents.
+
+It works with Lua 5.1 (including LuaJIT), 5.2, 5.3 and 5.4.
+
+## LICENSE
+
+The code is copyright by its respective authors, and released under the
+MIT license (the same license as Lua itself).  There is no warranty.
+]]
+
+dir = '../doc'
+
+file = {
+  '../lib/lyaml/init.lua',
+  '../lib/lyaml/explicit.lua',
+  '../lib/lyaml/functional.lua',
+  '../lib/lyaml/implicit.lua',
+}
+
+format = 'markdown'
+backtick_references = false
+sort = false

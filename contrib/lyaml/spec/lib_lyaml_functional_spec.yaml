@@ -1,0 +1,121 @@
+# LYAML binding for Lua 5.1, 5.2, 5.3 & 5.4
+# Copyright (C) 2013-2022 Gary V. Vaughan
+
+before:
+  this_module = 'lyaml.functional'
+  global_table = '_G'
+
+  exported_apis = {'NULL', 'anyof', 'id', 'iscallable', 'isnull'}
+
+  M = require(this_module)
+
+  nop = function() end
+
+  fail = function() return nil end
+  pass = function() return false end
+  throw = function() error 'oh noes!' end
+
+  parmlist = pack(
+     nil,
+     false,
+     42,
+     'str',
+     io.stderr,
+     {},
+     nop,
+     setmetatable({}, {__call=nop})
+  )
+
+
+specify functional:
+- context when required:
+  - context by name:
+    - it does not touch the global table:
+        expect(show_apis{added_to=global_table, by=this_module}).to_equal{}
+    - it exports the decumented apis:
+        t = {}
+        for k in pairs(M) do t[#t + 1] = k end
+        expect(t).to_contain.a_permutation_of(exported_apis)
+
+
+- describe anyof:
+  - before:
+      f = M.anyof
+
+  - it returns a callable:
+      expect(f{nop}).to_be_callable()
+      expect(f{nop, nop}).to_be_callable()
+  - it returns a lazy function that calls arguments if necessary:
+      expect(f{pass, throw}()).not_to_raise 'any error'
+      expect(f{pass, throw}()).not_to_be(nil)
+  - it silently skips non-callable arguments:
+      expect(f(list({nil, false, true}))()).to_be(nil)
+      expect(f{1, 2, pass, 'pass'}()).not_to_be(nil)
+  - it returns non-nil if any callable returns non-nil:
+      expect(f{pass, pass, fail}()).not_to_be(nil)
+      expect(f{pass, fail}()).not_to_be(nil)
+      expect(f{fail, pass}()).not_to_be(nil)
+  - it returns nil if all callables are nil:
+      expect(f{fail}()).to_be(nil)
+      expect(f{fail, fail}()).to_be(nil)
+      expect(f{fail, fail, fail}()).to_be(nil)
+  - it propagates data to all callables:
+      expect(f{fail, function(...) return select('#', ...) end}(nil)).to_be(1)
+      expect(f{function(...) return select('#', ...) end, fail}(nil, false)).to_be(2)
+      expect(f{function(...) return select('#', ...) end, pass}(nil, false)).to_be(2)
+  - it returns the first non-nil callables result:
+      expect(f{fail, function(...) return ... end}(42)).to_be(42)
+      expect(f{function(...) return ... end, fail}(42)).to_be(42)
+      expect(f{pass, fail}(42)).to_be(false)
+      expect(f{fail, pass}(42)).to_be(false)
+  - it propagates only the first return value:
+      expect(f{fail, function(...) return ... end}(1, 2, 5)).to_be(1)
+      expect(f{function(...) return ... end, fail}(1, 2, 5)).to_be(1)
+      expect(f{function(...) return ... end, pass}(1, 2, 5)).to_be(1)
+
+
+- describe id:
+  - before:
+      f = M.id
+
+  - it returns its own argument:
+      expect(f(false)).to_be(false)
+      expect(f(42)).to_be(42)
+  - it handles nil argumen:
+      expect(f(nil)).to_be(nil)
+  - it handles missing argument:
+      expect(f()).to_be()
+  - it returns multiple arguments:
+      expect(f(nil, 1, fn, false, nil)).to_be(nil, 1, fn, false, nil)
+
+
+- describe iscallable:
+  - before:
+      f = M.iscallable
+
+  - it returns callable for a callable:
+      expect(f(f)).to_be(f)
+      expect(f(setmetatable({}, {__call=f}))).to_be(f)
+  - it returns nil for a non-callable:
+      expect(f()).to_be(nil)
+      expect(f(nil)).to_be(nil)
+      expect(f(false)).to_be(nil)
+      expect(f(true)).to_be(nil)
+      expect(f'str').to_be(nil)
+      expect(f(42)).to_be(nil)
+      expect(f(setmetatable({}, {__index={}}))).to_be(nil)
+      expect(f(setmetatable({}, {__call=42}))).to_be(nil)
+
+
+- describe isnull:
+  - before:
+      NULL = M.NULL
+      f = M.isnull
+
+  - it returns 'true' for a NULL argument:
+      expect(f(NULL)).to_be(true)
+  - it returns 'false' for any argument other than NULL:
+      for i=1,parmlist.n do
+         expect(f(parmlist[i])).to_be(false)
+      end
+

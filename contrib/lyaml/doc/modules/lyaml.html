@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>lyaml 6.2.8 Reference</title>
+    <link rel="stylesheet" href="../ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>lyaml 6.2.8</h1>
+
+<ul>
+  <li><a href="../index.html">Index</a></li>
+</ul>
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Functions">Functions</a></li>
+<li><a href="#Tables">Tables</a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="nowrap">
+  <li><strong>lyaml</strong></li>
+  <li><a href="../modules/lyaml.explicit.html">lyaml.explicit</a></li>
+  <li><a href="../modules/lyaml.functional.html">lyaml.functional</a></li>
+  <li><a href="../modules/lyaml.implicit.html">lyaml.implicit</a></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>lyaml</code></h1>
+<p>
+
+</p>
+<p>
+
+</p>
+
+
+<h2><a href="#Functions">Functions</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#dump">dump (documents[, opts])</a></td>
+	<td class="summary">Dump a list of Lua tables to an equivalent YAML stream.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#load">load (s[, opts])</a></td>
+	<td class="summary">Load a YAML stream into a Lua table.</td>
+	</tr>
+</table>
+<h2><a href="#Tables">Tables</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#dumper_opts">dumper_opts</a></td>
+	<td class="summary">Dump options table.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#loader_opts">loader_opts</a></td>
+	<td class="summary">Load options table.</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header "><a name="Functions"></a>Functions</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "dump"></a>
+    <strong>dump (documents[, opts])</strong>
+    </dt>
+    <dd>
+    Dump a list of Lua tables to an equivalent YAML stream.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">documents</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+         a sequence of Lua tables.
+        </li>
+        <li><span class="parameter">opts</span>
+            <span class="types"><span class="type">dumper_opts</span></span>
+         initialisation options
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+        equivalest YAML stream
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "load"></a>
+    <strong>load (s[, opts])</strong>
+    </dt>
+    <dd>
+    Load a YAML stream into a Lua table.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">s</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         YAML stream
+        </li>
+        <li><span class="parameter">opts</span>
+            <span class="types"><span class="type">loader_opts</span></span>
+         initialisation options
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+        Lua table equivalent of stream <em>s</em>
+    </ol>
+
+
+
+
+</dd>
+</dl>
+    <h2 class="section-header "><a name="Tables"></a>Tables</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "dumper_opts"></a>
+    <strong>dumper_opts</strong>
+    </dt>
+    <dd>
+    Dump options table.
+
+
+    <h3>Fields:</h3>
+    <ul>
+        <li><span class="parameter">anchors</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+         map initial anchor names to values
+        </li>
+        <li><span class="parameter">implicit_scalar</span>
+            <span class="types"><span class="type">function</span></span>
+         parse implicit scalar values
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "loader_opts"></a>
+    <strong>loader_opts</strong>
+    </dt>
+    <dd>
+    Load options table.
+
+
+    <h3>Fields:</h3>
+    <ul>
+        <li><span class="parameter">all</span>
+            <span class="types"><span class="type">boolean</span></span>
+         load all documents from the stream
+        </li>
+        <li><span class="parameter">explicit_scalar</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+         map full tag-names to parser functions
+        </li>
+        <li><span class="parameter">implicit_scalar</span>
+            <span class="types"><span class="type">function</span></span>
+         parse implicit scalar values
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
+<i style="float:right;">Last updated 2022-10-22 17:12:03 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>

@@ -1,0 +1,9 @@
+*~
+*.o
+*.so
+*.src.rock
+/ChangeLog
+/build-aux/config.ld
+/luacov.*.out
+/lyaml-*.tar.gz
+/TAGS

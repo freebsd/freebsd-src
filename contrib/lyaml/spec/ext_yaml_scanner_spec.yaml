@@ -1,0 +1,380 @@
+# LYAML binding for Lua 5.1, 5.2, 5.3 & 5.4
+# Copyright (C) 2013-2022 Gary V. Vaughan
+
+before:
+  function consume (n, str)
+    local k = yaml.scanner (str)
+    for n = 1, n do k () end
+    return k
+  end
+
+specify scanning:
+- it scans empty streams:
+    k = yaml.scanner ""
+    expect (k ().type).to_be "STREAM_START"
+    expect (k ().type).to_be "STREAM_END"
+    expect (k ()).to_be (nil)
+    expect (k ()).to_be (nil)
+- it ignores comments: '
+    k = yaml.scanner "# A comment\nnon-comment # trailing comment\n"
+    expect (k ().type).to_be "STREAM_START"
+    expect (k ().value).to_be "non-comment"
+    expect (k ().type).to_be "STREAM_END"'
+
+- describe STREAM_START:
+  - before:
+      k = yaml.scanner "# no BOM"
+  - it is the first token:
+      expect (k ().type).to_be "STREAM_START"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 0, index = 0}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 0, index = 0}
+  - it uses UTF-8 by default:
+      expect (k ().encoding).to_be "UTF8"
+  - it recognizes UTF-16 BOM:
+      k = yaml.scanner (BOM .. " BOM")
+      expect (k ().encoding).to_match "UTF16[BL]E"
+
+- describe STREAM_END:
+  - before:
+      for t in yaml.scanner "nothing to see" do k = t end
+  - it is the last token:
+      expect (k.type).to_be "STREAM_END"
+  - it reports token start marker:
+      expect (k.start_mark).to_equal {line = 1, column = 0, index = 14}
+  - it reports token end marker:
+      expect (k.end_mark).to_equal {line = 1, column = 0, index = 14}
+
+- describe VERSION_DIRECTIVE:
+  - before:
+      k = consume (1, "%YAML 1.0")
+  - it can recognize document versions:
+      expect (filter (k (), "type", "major", "minor")).
+         to_equal {type = "VERSION_DIRECTIVE", major = 1, minor = 0}
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 0, index = 0}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 9, index = 9}
+
+- describe TAG_DIRECTIVE:
+  - it can recognize primary tag handles:
+      k = consume (1, "%TAG ! tag:ben-kiki.org,2000:app/")
+      expect (filter (k (), "handle", "prefix")).
+         to_equal {handle = "!", prefix = "tag:ben-kiki.org,2000:app/"}
+  - it can recognize secondary tag handles:
+      k = consume (1, "%TAG !! tag:yaml.org,2002:")
+      expect (filter (k (), "handle", "prefix")).
+         to_equal {handle = "!!", prefix = "tag:yaml.org,2002:"}
+  - it can recognize named tag handles:
+      k = consume (1, "%TAG !o! tag:ben-kiki.org,2000:\n---")
+      expect (filter (k (), "handle", "prefix")).
+         to_equal {handle = "!o!", prefix = "tag:ben-kiki.org,2000:"}
+
+- describe DOCUMENT_START:
+  - before:
+      k = consume (1, "---")
+  - it recognizes document start marker:
+      expect (k ().type).to_be "DOCUMENT_START"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 0, index = 0}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 3, index = 3}
+
+- describe DOCUMENT_END:
+  - before:
+      k = consume (2, "foo\n...")
+  - it recognizes the document end marker:
+      expect (k ().type).to_be "DOCUMENT_END"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 1, column = 0, index = 4}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 1, column = 3, index = 7}
+
+- describe ALIAS:
+  - before:
+      k = consume (15, "---\n" ..
+                      "hr:\n" ..
+                      "- Mark McGwire\n" ..
+                      "- &SS Sammy Sosa\n" ..
+                      "rbi:\n" ..
+                      "- *SS\n" ..
+                      "- Ken Griffey")
+  - it recognizes an alias token:
+      expect (filter (k (), "type", "value")).
+         to_equal {type = "ALIAS", value = "SS"}
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 5, column = 2, index = 47}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 5, column = 5, index = 50}
+
+- describe ANCHOR:
+  - before:
+      k = consume (9, "---\n" ..
+                      "hr:\n" ..
+                      "- Mark McGwire\n" ..
+                      "- &SS Sammy Sosa\n" ..
+                      "rbi:\n" ..
+                      "- *SS\n" ..
+                      "- Ken Griffey")
+  - it recognizes an anchor token:
+      expect (filter (k (), "type", "value")).
+         to_equal {type = "ANCHOR", value = "SS"}
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 3, column = 2, index = 25}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 3, column = 5, index = 28}
+
+- describe SCALAR:
+  - before:
+      k = consume (10, "---\n" ..
+                      "hr:\n" ..
+                      "- Mark McGwire\n" ..
+                      "- &SS Sammy Sosa\n" ..
+                      "rbi:\n" ..
+                      "- *SS\n" ..
+                      "- Ken Griffey")
+  - it recognizes a scalar token:
+      expect (filter (k (), "type", "value")).
+         to_equal {type = "SCALAR",  value = "Sammy Sosa"}
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 3, column = 6, index = 29}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 3, column = 16, index = 39}
+
+  - context with quoting style:
+    - context plain style:
+      - before:
+          k = consume (2, "---\n" ..
+                          "  Mark McGwire's\n" ..
+                          "  year was crippled\n" ..
+                          "  by a knee injury.\n")
+      - it ignores line-breaks and indentation:
+          expect (k ().value).
+             to_be "Mark McGwire's year was crippled by a knee injury."
+      - it recognizes PLAIN style:
+          expect (k ().style).to_be "PLAIN"
+    - context folded style:
+      - before:
+          k = consume (1, ">\n" ..
+                          "  Sammy Sosa completed another\n" ..
+                          "  fine season with great stats.\n" ..
+                          "\n" ..
+                          "    63 Home Runs\n" ..
+                          "    0.288 Batting Average\n" ..
+                          "\n" ..
+                          "  What a year!\n")
+      - it preserves blank lines and deeper indentation:
+          expect (k ().value).
+             to_be ("Sammy Sosa completed another fine season with great stats.\n" ..
+                       "\n" ..
+                       "  63 Home Runs\n" ..
+                       "  0.288 Batting Average\n" ..
+                       "\n" ..
+                       "What a year!\n")
+      - it recognizes FOLDED style:
+          expect (k ().style).to_be "FOLDED"
+    - context literal style:
+      - before:
+          k = consume (2, [[# ASCII Art]] .. "\n" ..
+                          [[--- |]] .. "\n" ..
+                          [[  \//||\/||]] .. "\n" ..
+                          [[  // ||  ||__]] .. "\n")
+      - it removes indentation but preserves all line-breaks:
+          expect (k ().value).
+             to_be ([[\//||\/||]] .. "\n" ..
+                       [[// ||  ||__]] .. "\n")
+      - it recognizes LITERAL style:
+          expect (k ().style).to_be "LITERAL"
+
+    - context single quoted style:
+      - before:
+          k = consume (1, [['This quoted scalar]] .. "\n" ..
+                          [[  spans two lines.']])
+      - it folds line breaks:
+          expect (k ().value).
+             to_be "This quoted scalar spans two lines."
+      - it does not process escape sequences:
+          # Lua [[ quoting makes sure libyaml sees all the quotes.
+          k = consume (1, [['"Howdy!"\t\u263A']])
+          expect (k ().value).to_be [["Howdy!"\t\u263A]]
+      - it recognizes LITERAL style:
+          expect (k ().style).to_be "SINGLE_QUOTED"
+
+    # Note that we have to single quote the Lua snippets to prevent
+    # libyaml from interpreting the bytes as the spec file is read, so
+    # that the raw strings get correctly passed to the Lua compiler.
+    - context double quoted style:
+      - it folds line breaks: '
+          k = consume (5, [[quoted: "This quoted scalar]] .. "\n" ..
+                          [[  spans two lines\n"]])
+          expect (k ().value).
+             to_be "This quoted scalar spans two lines\n"'
+      - it recognizes unicode escape sequences: '
+          k = consume (5, [[unicode: "Sosa did fine.\u263A"]])
+          expect (k ().value).to_be "Sosa did fine.\226\152\186"'
+      - it recognizes control escape sequences: '
+          k = consume (5, [[control: "\b1998\t1999\t2000\n"]])
+          expect (k ().value).to_be "\b1998\t1999\t2000\n"'
+      - it recognizes hexadecimal escape sequences: '
+          k = consume (5, [[hexesc: "\x41\x42\x43 is ABC"]])
+          expect (k ().value).to_be "ABC is ABC"'
+
+    - context indentation determines scope: '
+        k = consume (5, "name: Mark McGwire\n" ..
+                        "accomplishment: >\n" ..
+                        "  Mark set a major league\n" ..
+                        "  home run record in 1998.\n" ..
+                        "stats: |\n" ..
+                        "  65 Home Runs\n" ..
+                        "  0.278 Batting Average\n")
+        expect (k ().value).to_be "Mark McGwire"
+        expect (k ().type).to_be "KEY"
+        expect (k ().value).to_be "accomplishment"
+        expect (k ().type).to_be "VALUE"
+        expect (k ().value).
+          to_be "Mark set a major league home run record in 1998.\n"
+        expect (k ().type).to_be "KEY"
+        expect (k ().value).to_be "stats"
+        expect (k ().type).to_be "VALUE"
+        expect (k ().value).to_be "65 Home Runs\n0.278 Batting Average\n"'
+
+- describe TAG:
+  - it recognizes local tags: '
+      k = consume (5, "application specific tag: !something |\n" ..
+                      " The semantics of the tag\n" ..
+                      " above may be different for\n" ..
+                      " different documents.")
+      expect (filter (k (), "type", "handle", "suffix")).
+         to_equal {type = "TAG", handle = "!", suffix = "something"}'
+  - it recognizes global tags: '
+      k = consume (5, "picture: !!binary |\n" ..
+                      " R0lGODlhDAAMAIQAAP//9/X\n" ..
+                      " 17unp5WZmZgAAAOfn515eXv\n" ..
+                      " Pz7Y6OjuDg4J+fn5OTk6enp\n" ..
+                      " 56enmleECcgggoBADs=")
+      expect (filter (k (), "type", "handle", "suffix")).
+         to_equal {type = "TAG", handle = "!!", suffix = "binary"}'
+
+- describe BLOCK_SEQUENCE_START:
+  - before: '
+      k = consume (5, "fubar:\n" ..
+                      "  - foo\n" ..
+                      "  - bar\n")'
+  - it recognizes a sequence start token:
+      expect (k ().type).to_be "BLOCK_SEQUENCE_START"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 1, column = 2, index = 9}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 1, column = 2, index = 9}
+
+- describe BLOCK_MAPPING_START:
+  - before: 'k = consume (3, "-\n  foo: bar\n-")'
+  - it recognizes a mapping start token:
+      expect (k ().type).to_be "BLOCK_MAPPING_START"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 1, column = 2, index = 4}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 1, column = 2, index = 4}
+
+- describe BLOCK_ENTRY:
+  - before: 'k = consume (2, "-\n  foo: bar\n-")'
+  - it recognizes a sequence block entry token: '
+      k = consume (8, "fubar:\n" ..
+                      "  - foo\n" ..
+                      "  - bar\n")
+      expect (k ().type).to_be "BLOCK_ENTRY"'
+  - it recognizes a mapping block entry token:
+      expect (k ().type).to_be "BLOCK_ENTRY"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 0, index = 0}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 1, index = 1}
+
+- describe BLOCK_END:
+  - before: 'k = consume (8, "-\n  foo: bar\n-")'
+  - it recognizes a sequence block end token: '
+      k = consume (10, "fubar:\n" ..
+                      "  - foo\n" ..
+                      "  - bar\n")
+      expect (k ().type).to_be "BLOCK_END"'
+  - it recognizes a mapping block end token:
+      expect (k ().type).to_be "BLOCK_END"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 2, column = 0, index = 13}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 2, column = 0, index = 13}
+
+- describe FLOW_SEQUENCE_START:
+  - before: '
+      k = consume (5, "fubar: [foo, bar]\n")'
+  - it recognizes a sequence start token:
+      expect (k ().type).to_be "FLOW_SEQUENCE_START"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 7, index = 7}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 8, index = 8}
+
+- describe FLOW_SEQUENCE_END:
+  - before: '
+      k = consume (9, "fubar: [foo, bar]\n")'
+  - it recognizes a sequence end token:
+      expect (k ().type).to_equal "FLOW_SEQUENCE_END"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 16, index = 16}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 17, index = 17}
+
+- describe FLOW_ENTRY:
+  - before: 'k = consume (6, "{foo: bar, baz: quux}")'
+  - it recognizes a sequence flow entry: '
+      k = consume (6, "[foo: bar, baz: quux]")
+      expect (k ().type).to_be "FLOW_ENTRY"'
+  - it recognizes a mapping flow entry:
+      expect (k ().type).to_be "FLOW_ENTRY"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 9, index = 9}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 10, index = 10}
+
+- describe FLOW_MAPPING_START:
+  - before: 'k = consume (1, "{foo: bar, baz: quux}")'
+  - it recognizes flow style:
+      expect (k ().type).to_be "FLOW_MAPPING_START"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 0, index = 0}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 1, index = 1}
+
+- describe FLOW_MAPPING_END:
+  - before: 'k = consume (6, "{foo: bar}\n")'
+  - it recognizes the mapping end token:
+      expect (k ().type).to_equal "FLOW_MAPPING_END"
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 9, index = 9}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 10, index = 10}
+
+- describe KEY:
+  - before: 'k = consume (2, "{the key: the value, another key: meh}")'
+  - it recognizes a flow mapping key token:
+      expect (k ().type).to_be "KEY"
+  - it recognizes a block mapping key token: '
+      k = consume (2, "the key: the value\nanother key: meh\n")
+      expect (k ().type).to_be "KEY"'
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 1, index = 1}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 1, index = 1}
+
+- describe VALUE:
+  - before: 'k = consume (4, "{the key: the value, another key: meh}")'
+  - it recognizes a flow mapping value token:
+      expect (k ().type).to_be "VALUE"
+  - it recognizes a block mapping key value: '
+      k = consume (4, "the key: the value\nanother key: meh\n")
+      expect (k ().type).to_be "VALUE"'
+  - it reports token start marker:
+      expect (k ().start_mark).to_equal {line = 0, column = 8, index = 8}
+  - it reports token end marker:
+      expect (k ().end_mark).to_equal {line = 0, column = 9, index = 9}

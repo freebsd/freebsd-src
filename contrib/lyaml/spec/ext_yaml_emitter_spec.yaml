@@ -1,0 +1,239 @@
+# LYAML binding for Lua 5.1, 5.2, 5.3 & 5.4
+# Copyright (C) 2013-2022 Gary V. Vaughan
+
+specify emitting:
+- it diagnoses an invalid event:
+    emitter = yaml.emitter ()
+    expect (emitter.emit "not an event").to_raise "expected table"
+- it can generate an empty stream:
+    pending (github_issue "2")
+    expect (emit {
+                  {type = "DOCUMENT_START", implicit = true},
+                  {type = "SCALAR", value = ""},
+                  {type = "DOCUMENT_END", implicit = true},
+                 }).
+       to_equal ""
+
+- describe STREAM_START:
+  - it diagnoses unrecognised encodings:
+      expect (emitevents (yaml.emitter (), {
+                          {type = "STREAM_START", encoding = "notexists"},
+                          "STREAM_END"})).
+         to_raise "invalid stream encoding 'notexists'"
+  - it accepts an encoding parameter:
+      expect (emitevents (yaml.emitter (), {
+                          {type = "STREAM_START", encoding = "UTF16BE"},
+                          "STREAM_END"})).
+          to_equal (BOM)
+
+- describe STREAM_END:
+  - it returns the yaml document from the preceding events:
+      expect (emit {"DOCUMENT_START", {type = "SCALAR", value = "woo!"},
+                    "DOCUMENT_END"}).
+         to_equal "--- woo!\n...\n"
+
+- describe DOCUMENT_START:
+  - it accepts a version directive parameter:
+      expect (emit {{type = "DOCUMENT_START",
+                     version_directive = { major = 1, minor = 1 }},
+                    {type = "SCALAR", value = ""},
+                    "DOCUMENT_END"}).
+         to_match "^%%YAML 1.1\n---"
+  - it accepts a list of tag directives:
+      expect (emit {{type = "DOCUMENT_START",
+                     tag_directives = {{handle = "!",
+                                        prefix = "tag:ben-kiki.org,2000:app/"}}},
+                    {type = "SCALAR", value = ""},
+                    "DOCUMENT_END"}).
+         to_contain "%TAG ! tag:ben-kiki.org,2000:app/\n---"
+      expect (emit {
+                    {type = "DOCUMENT_START",
+                     tag_directives = {{handle = "!",
+                                        prefix = "tag:ben-kiki.org,2000:app/"},
+                                       {handle = "!!",
+                                        prefix = "tag:yaml.org,2002:"}}},
+                    {type = "SCALAR", value = ""},
+                    "DOCUMENT_END"}).
+         to_contain ("%TAG ! tag:ben-kiki.org,2000:app/\n" ..
+                        "%TAG !! tag:yaml.org,2002:\n---")
+  - it accepts an implicit parameter:
+      expect (emit {{type = "DOCUMENT_START", implicit = true},
+                    {type = "SCALAR", value = ""}, "DOCUMENT_END"}).
+         not_to_contain "--- \n"
+      pending (github_issue "2")
+      expect (emit {{type = "DOCUMENT_START", implicit = false},
+                    {type = "SCALAR", value = ""}, "DOCUMENT_END"}).
+         not_to_contain "---"
+
+- describe DOCUMENT_END:
+  - it accepts an implicit parameter:
+      expect (emit {"DOCUMENT_START", {type = "SCALAR", value = ""},
+                    {type = "DOCUMENT_END", implicit = false}}).
+         to_contain "\n..."
+      pending (github_issue "2")
+      expect (emit {"DOCUMENT_START", {type = "SCALAR", value = ""},
+                    {type = "DOCUMENT_END", implicit = true}}).
+         not_to_contain "\n..."
+
+- describe MAPPING_START:
+  - it accepts an anchor parameter:
+      expect (emit {"DOCUMENT_START",
+                    {type = "MAPPING_START", anchor = "foo"},
+                    "MAPPING_END", "DOCUMENT_END"}).
+         to_contain "&foo"
+  - it diagnoses unrecognised styles:
+      expect (emit {"DOCUMENT_START",
+                    {type = "MAPPING_START", style = "notexists"},
+                    "MAPPING_END", "DOCUMENT_END"}).
+         to_raise "invalid mapping style 'notexists'"
+  - it understands block style: '
+      expect (emit {"DOCUMENT_START",
+                    {type = "MAPPING_START", style = "BLOCK"},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "MAPPING_END", "DOCUMENT_END"}).
+         to_contain "foo: bar\n"'
+  - it understands flow style: '
+      expect (emit {"DOCUMENT_START",
+                    {type = "MAPPING_START", style = "FLOW"},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    {type = "SCALAR", value = "baz"}, {type = "SCALAR", value = "qux"},
+                    "MAPPING_END", "DOCUMENT_END"}).
+         to_contain "{foo: bar, baz: qux}\n"'
+  - it accepts an explicit tag parameter: '
+      expect (emit {"DOCUMENT_START",
+                    {type = "MAPPING_START", style = "FLOW",
+                     tag = "tag:yaml.org,2002:map", implicit = false},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "MAPPING_END", "DOCUMENT_END"}).
+         to_contain "!!map {foo: bar}"'
+  - it accepts an implicit tag parameter: '
+      expect (emit {"DOCUMENT_START",
+      {type = "MAPPING_START", tag = "tag:yaml.org,2002:map", implicit = true},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "MAPPING_END", "DOCUMENT_END"}).
+         not_to_contain "map"'
+
+- describe MAPPING_END:
+  - it requires no parameters: '
+      expect (emit {"DOCUMENT_START", "MAPPING_START",
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "MAPPING_END", "DOCUMENT_END"}).
+         to_contain "foo: bar\n"'
+
+- describe SEQUENCE_START:
+  - it accepts an anchor parameter:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SEQUENCE_START", anchor = "foo"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         to_contain "&foo"
+  - it diagnoses unrecognised styles:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SEQUENCE_START", style = "notexists"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         to_raise "invalid sequence style 'notexists'"
+  - it understands block style:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SEQUENCE_START", style = "BLOCK"},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         to_contain "- foo\n- bar\n"
+  - it understands flow style:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SEQUENCE_START", style = "FLOW"},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         to_contain "[foo, bar]"
+  - it accepts an explicit tag parameter:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SEQUENCE_START", style = "FLOW",
+                     tag = "tag:yaml.org,2002:sequence", implicit = false},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         to_contain "!!sequence [foo, bar]\n"
+  - it accepts an implicit tag parameter:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SEQUENCE_START", style = "FLOW",
+                     tag = "tag:yaml.org,2002:sequence", implicit = true},
+                    {type = "SCALAR", value = "foo"}, {type = "SCALAR", value = "bar"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         not_to_contain "sequence"
+
+- describe SEQUENCE_END:
+  - it requires no parameters: '
+      expect (emit {"DOCUMENT_START", "SEQUENCE_START",
+                    {type = "SCALAR", value = "moo"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         to_contain "- moo\n"'
+
+- describe SCALAR:
+  - it diagnoses a missing value parameter:
+  - it accepts a value parameter:
+      expect (emit {"DOCUMENT_START", {type = "SCALAR", value = "boo"},
+                    "DOCUMENT_END"}).
+         to_contain "boo"
+  - it diagnoses unrecognised styles:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "notexists", value = "foo"},
+                    "DOCUMENT_END"}).
+         to_raise "invalid scalar style 'notexists'"
+  - it understands plain style:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "PLAIN", value = "boo"},
+                    "DOCUMENT_END"}).
+         to_contain "boo\n"
+  - it understands single quoted style:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "SINGLE_QUOTED", value = "bar"},
+                    "DOCUMENT_END"}).
+         to_contain "'bar'\n"
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "SINGLE_QUOTED", value = "bar'"},
+                    "DOCUMENT_END"}).
+         to_contain "'bar'''\n"
+  - it understands double quoted style:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "DOUBLE_QUOTED", value = "baz"},
+                    "DOCUMENT_END"}).
+         to_contain '"baz"\n'
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "DOUBLE_QUOTED", value = '"baz"'},
+                    "DOCUMENT_END"}).
+         to_contain ([["\"baz\""]] .. "\n")
+  - it understands literal style:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "LITERAL", value = "quux"},
+                    "DOCUMENT_END"}).
+         to_contain "|-\n  quux\n"
+  - it understands folded style:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "FOLDED", value = "thud"},
+                    "DOCUMENT_END"}).
+         to_contain ">-\n  thud\n"
+  - it understands plain_implicit:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "PLAIN", value = "hello", plain_implicit=false},
+                    "DOCUMENT_END"}).
+         to_contain "'hello'\n"
+  - it understands quoted_implicit:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "PLAIN", value = "- world", quoted_implicit=false},
+                    "DOCUMENT_END"}).
+         to_contain "! '- world'\n"
+  - it understands tag:
+      expect (emit {"DOCUMENT_START",
+                    {type = "SCALAR", style = "PLAIN", value = "bug_squash", tag="tagger", plain_implicit=false, quoted_implicit=false},
+                    "DOCUMENT_END"}).
+         to_contain "!<tagger> bug_squash\n"
+
+- describe ALIAS:
+  - it diagnoses missing anchor parameter:
+  - it diagnoses non-alphanumeric anchor characters:
+      expect (emit {"DOCUMENT_START", {type = "ALIAS", anchor = "woo!"},
+                    "DOCUMENT_END"}).
+         to_raise "must contain alphanumerical characters only"
+  - it accepts an anchor parameter:
+      expect (emit {"DOCUMENT_START", "SEQUENCE_START",
+                    {type = "SCALAR", anchor = "woo",  value = "hoo"},
+                    {type = "ALIAS", anchor = "woo"},
+                    "SEQUENCE_END", "DOCUMENT_END"}).
+         to_contain.all_of {"&woo", "*woo"}

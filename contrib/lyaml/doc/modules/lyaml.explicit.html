@@ -1,0 +1,267 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>lyaml 6.2.8 Reference</title>
+    <link rel="stylesheet" href="../ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>lyaml 6.2.8</h1>
+
+<ul>
+  <li><a href="../index.html">Index</a></li>
+</ul>
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Functions">Functions</a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="nowrap">
+  <li><a href="../modules/lyaml.html">lyaml</a></li>
+  <li><strong>lyaml.explicit</strong></li>
+  <li><a href="../modules/lyaml.functional.html">lyaml.functional</a></li>
+  <li><a href="../modules/lyaml.implicit.html">lyaml.implicit</a></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>lyaml.explicit</code></h1>
+<p>
+
+</p>
+<p>
+
+</p>
+
+
+<h2><a href="#Functions">Functions</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#bool">bool (value)</a></td>
+	<td class="summary">Parse the value following an explicit <code>!!bool</code> tag.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#float">float (value)</a></td>
+	<td class="summary">Parse the value following an explicit <code>!!float</code> tag.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#int">int (value)</a></td>
+	<td class="summary">Parse the value following an explicit <code>!!int</code> tag.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#null">null ()</a></td>
+	<td class="summary">Parse an explicit <code>!!null</code> tag.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#str">str (value)</a></td>
+	<td class="summary">Parse the value following an explicit <code>!!str</code> tag.</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header "><a name="Functions"></a>Functions</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "bool"></a>
+    <strong>bool (value)</strong>
+    </dt>
+    <dd>
+    Parse the value following an explicit <code>!!bool</code> tag.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/lyaml.explicit.html#bool">bool</a></span>
+        boolean equivalent, if a valid value was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_bool = explicit.bool(tagarg)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "float"></a>
+    <strong>float (value)</strong>
+    </dt>
+    <dd>
+    Parse the value following an explicit <code>!!float</code> tag.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">number</span></span>
+        float equivalent, if a valid value was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_float = explicit.float(tagarg)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "int"></a>
+    <strong>int (value)</strong>
+    </dt>
+    <dd>
+    Parse the value following an explicit <code>!!int</code> tag.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/lyaml.explicit.html#int">int</a></span>
+        integer equivalent, if a valid value was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_int = explicit.int(tagarg)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "null"></a>
+    <strong>null ()</strong>
+    </dt>
+    <dd>
+    Parse an explicit <code>!!null</code> tag.
+
+
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">lyaml.null</span></span>
+
+
+
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">null = explicit.null(tagarg)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "str"></a>
+    <strong>str (value)</strong>
+    </dt>
+    <dd>
+    Parse the value following an explicit <code>!!str</code> tag.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+        <em>value</em> which was a string already
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">tagarg = explicit.str(tagarg)</pre>
+    </ul>
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
+<i style="float:right;">Last updated 2022-10-22 17:12:03 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>

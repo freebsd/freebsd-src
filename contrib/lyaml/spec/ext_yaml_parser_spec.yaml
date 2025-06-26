@@ -1,0 +1,391 @@
+# LYAML binding for Lua 5.1, 5.2, 5.3 & 5.4
+# Copyright (C) 2013-2022 Gary V. Vaughan
+
+specify parsing:
+- it parses empty streams:
+    e = yaml.parser ""
+    expect (e ().type).to_be "STREAM_START"
+    expect (e ().type).to_be "STREAM_END"
+    expect (e ()).to_be (nil)
+    expect (e ()).to_be (nil)
+- it ignores comments: '
+    e = yaml.parser "# A comment\nnon-comment # trailing comment\n"
+    expect (e ().type).to_be "STREAM_START"
+    expect (e ().type).to_be "DOCUMENT_START"
+    expect (e ().value).to_be "non-comment"
+    expect (e ().type).to_be "DOCUMENT_END"'
+
+- describe STREAM_START:
+  - before:
+      e = yaml.parser "# no BOM"
+  - it is the first event:
+      expect (e ().type).to_be "STREAM_START"
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 0, column = 0, index = 0}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 0, column = 0, index = 0}
+  - it uses UTF-8 by default:
+      expect (e ().encoding).to_be "UTF8"
+  - it recognizes UTF-16 BOM:
+      e = yaml.parser (BOM .. " BOM")
+      expect (e ().encoding).to_match "UTF16[BL]E"
+
+- describe STREAM_END:
+  - before:
+      for t in yaml.parser "nothing to see" do ev = t end
+  - it is the last event:
+      expect (ev.type).to_be "STREAM_END"
+  - it reports event start marker:
+      expect (ev.start_mark).to_equal {line = 1, column = 0, index = 14}
+  - it reports event end marker:
+      expect (ev.end_mark).to_equal {line = 1, column = 0, index = 14}
+
+- describe DOCUMENT_START:
+  - before:
+      e = consume (1, "---")
+  - it recognizes document start marker:
+      expect (filter (e (), "type", "implicit")).
+        to_equal {type = "DOCUMENT_START", implicit = false}
+  - it reports implicit document start:
+      e = consume (1, "foo")
+      expect (e ().implicit).to_be (true)
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 0, column = 0, index = 0}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 0, column = 3, index = 3}
+
+  - context parser directives:
+    - it can recognize document versions:
+        e = consume (1, "%YAML 1.1\n---")
+        expect (e ().version_directive).to_equal {major = 1, minor = 1}
+    - it can diagnose missing document start:
+        e = consume (1, "%YAML 1.1\n")
+        expect (e ()).to_error "expected <document start>"
+    - it can diagnose multiple versions:
+        e = consume (1, "%YAML 1.1\n%YAML 1.1\n---")
+        expect (e ()).to_error "duplicate %YAML directive"
+    - it can diagnose too-new versions:
+        e = consume (1, "%YAML 2.0\n---")
+        expect (e ()).to_error "incompatible YAML document"
+    - it warns of newer minor versions:
+        pending (github_issue "1")
+        e = consume (1, "%YAML 1.9\n---")
+        expect (e ()).
+           to_error "attempting parsing of newer minor document version"
+
+    - it can recognize primary tag handles:
+        e = consume (1, "%TAG ! tag:ben-kiki.org,2000:app/\n---")
+        expect (e ().tag_directives).
+           to_equal {{handle = "!", prefix = "tag:ben-kiki.org,2000:app/"}}
+    - it can recognize secondary tag handles:
+        e = consume (1, "%TAG !! tag:yaml.org,2002:\n---")
+        expect (e ().tag_directives).
+           to_equal {{handle = "!!", prefix = "tag:yaml.org,2002:"}}
+    - it can recognize named tag handles:
+        e = consume (1, "%TAG !o! tag:ben-kiki.org,2000:\n---")
+        expect (e ().tag_directives).
+           to_equal {{handle = "!o!", prefix = "tag:ben-kiki.org,2000:"}}
+    - it can concatenate multiple tag handles:
+        e = consume (1, "%TAG ! !\n" ..
+                        "%TAG !! tag:yaml.org,2002:\n" ..
+                        "%TAG !o! tag:ben-kiki.org,2000:\n" ..
+                        "---")
+        expect (e ().tag_directives).to_contain.
+           all_of {{handle = "!", prefix = "!"},
+                   {handle = "!!", prefix = "tag:yaml.org,2002:"},
+                   {handle = "!o!", prefix = "tag:ben-kiki.org,2000:"}}
+    - it can diagnose missing document start:
+        e = consume (1, "%TAG ! !\n")
+        expect (e ()).to_error "expected <document start>"
+
+- describe DOCUMENT_END:
+  - before:
+      e = consume (3, "foo\n...")
+  - it recognizes the document end marker:
+      expect (filter (e (), "type", "implicit")).
+         to_equal {type = "DOCUMENT_END", implicit = false}
+  - it reports an implicit document end marker:
+      e = consume (3, "foo\n")
+      expect (filter (e (), "type", "implicit")).
+         to_equal {type = "DOCUMENT_END", implicit = true}
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 1, column = 0, index = 4}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 1, column = 3, index = 7}
+
+- describe ALIAS:
+  - before:
+      e = consume (10, "---\n" ..
+                      "hr:\n" ..
+                      "- Mark McGwire\n" ..
+                      "- &SS Sammy Sosa\n" ..
+                      "rbi:\n" ..
+                      "- *SS\n" ..
+                      "- Ken Griffey")
+  - it recognizes an alias event:
+      expect (filter (e (), "type", "anchor")).
+         to_equal {type = "ALIAS", anchor = "SS"}
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 5, column = 2, index = 47}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 5, column = 5, index = 50}
+
+- describe SCALAR:
+  - before:
+      e = consume (6, "---\n" ..
+                      "hr:\n" ..
+                      "- Mark McGwire\n" ..
+                      "- &SS Sammy Sosa\n" ..
+                      "rbi:\n" ..
+                      "- *SS\n" ..
+                      "- Ken Griffey")
+  - it recognizes a scalar event:
+      expect (filter (e (), "type", "value")).
+         to_equal {type = "SCALAR",  value = "Sammy Sosa"}
+  - it records anchors:
+      expect (e ().anchor).to_be "SS"
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 3, column = 2, index = 25}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 3, column = 16, index = 39}
+
+  - context with quoting style:
+    - context plain style:
+      - before:
+          e = consume (2, "---\n" ..
+                          "  Mark McGwire's\n" ..
+                          "  year was crippled\n" ..
+                          "  by a knee injury.\n")
+      - it ignores line-breaks and indentation:
+          expect (e ().value).
+             to_be "Mark McGwire's year was crippled by a knee injury."
+      - it recognizes implicit plain style:
+          e = consume (2, "---\n" ..
+                          "  Mark McGwire's\n" ..
+                          "  year was crippled\n" ..
+                          "  by a knee injury.\n")
+          expect (e ().plain_implicit).to_be (true)
+      - it recognizes explicit plain style:
+          e = consume (2, "|\n" ..
+                          "  Mark McGwire's\n" ..
+                          "  year was crippled\n" ..
+                          "  by a knee injury.\n")
+          expect (e ().plain_implicit).to_be (false)
+      - it recognizes implicit quoted style:
+          e = consume (2, "|\n" ..
+                          "  Mark McGwire's\n" ..
+                          "  year was crippled\n" ..
+                          "  by a knee injury.\n")
+          expect (e ().quoted_implicit).to_be (true)
+      - it recognizes explicit quoted style:
+          e = consume (2, "'\n" ..
+                          "  Mark McGwire's\n" ..
+                          "  year was crippled\n" ..
+                          "  by a knee injury.'\n")
+          expect (e ().plain_implicit).to_be (false)
+    - context folded style:
+      - it preserves blank lines and deeper indentation:
+          e = consume (2, ">\n" ..
+                          "  Sammy Sosa completed another\n" ..
+                          "  fine season with great stats.\n" ..
+                          "\n" ..
+                          "    63 Home Runs\n" ..
+                          "    0.288 Batting Average\n" ..
+                          "\n" ..
+                          "  What a year!\n")
+          expect (e ().value).
+             to_be ("Sammy Sosa completed another fine season with great stats.\n" ..
+                       "\n" ..
+                       "  63 Home Runs\n" ..
+                       "  0.288 Batting Average\n" ..
+                       "\n" ..
+                       "What a year!\n")
+    - context literal style:
+      - it removes indentation but preserves all line-breaks:
+          e = consume (2, [[# ASCII Art]] .. "\n" ..
+                          [[--- |]] .. "\n" ..
+                          [[  \//||\/||]] .. "\n" ..
+                          [[  // ||  ||__]] .. "\n")
+          expect (e ().value).
+             to_be ([[\//||\/||]] .. "\n" ..
+                        [[// ||  ||__]] .. "\n")
+
+    - context single quoted style:
+      - it folds line breaks:
+          e = consume (2, [['This quoted scalar]] .. "\n" ..
+                          [[  spans two lines.']])
+          expect (e ().value).
+             to_be "This quoted scalar spans two lines."
+      - it does not process escape sequences:
+          # Lua [[ quoting makes sure libyaml sees all the quotes.
+          e = consume (2, [['"Howdy!"\t\u263A']])
+          expect (e ().value).to_be [["Howdy!"\t\u263A]]
+
+    # Note that we have to single quote the Lua snippets to prevent
+    # libyaml from interpreting the bytes as the spec file is read, so
+    # that the raw strings get correctly passed to the Lua compiler.
+    - context double quoted style:
+      - it folds line breaks: '
+          e = consume (4, [[quoted: "This quoted scalar]] .. "\n" ..
+                          [[  spans two lines\n"]])
+          expect (e ().value).
+             to_be "This quoted scalar spans two lines\n"'
+      - it recognizes unicode escape sequences: '
+          e = consume (4, [[unicode: "Sosa did fine.\u263A"]])
+          expect (e ().value).to_be "Sosa did fine.\226\152\186"'
+      - it recognizes control escape sequences: '
+          e = consume (4, [[control: "\b1998\t1999\t2000\n"]])
+          expect (e ().value).to_be "\b1998\t1999\t2000\n"'
+      - it recognizes hexadecimal escape sequences: '
+          e = consume (4, [[hexesc: "\x41\x42\x43 is ABC"]])
+          expect (e ().value).to_be "ABC is ABC"'
+
+    - context indentation determines scope: '
+        e = consume (4, "name: Mark McGwire\n" ..
+                        "accomplishment: >\n" ..
+                        "  Mark set a major league\n" ..
+                        "  home run record in 1998.\n" ..
+                        "stats: |\n" ..
+                        "  65 Home Runs\n" ..
+                        "  0.278 Batting Average\n")
+        expect (e ().value).to_be "Mark McGwire"
+        expect (e ().value).to_be "accomplishment"
+        expect (e ().value).
+           to_be "Mark set a major league home run record in 1998.\n"
+        expect (e ().value).to_be "stats"
+        expect (e ().value).to_be "65 Home Runs\n0.278 Batting Average\n"'
+
+  - context with tag:
+    - it recognizes local tags: '
+        e = consume (4, "application specific tag: !something |\n" ..
+                        " The semantics of the tag\n" ..
+                        " above may be different for\n" ..
+                        " different documents.")
+        expect (e ().tag).to_be "!something"'
+    - it recognizes global tags: '
+        e = consume (4, "picture: !!binary |\n" ..
+                        " R0lGODlhDAAMAIQAAP//9/X\n" ..
+                        " 17unp5WZmZgAAAOfn515eXv\n" ..
+                        " Pz7Y6OjuDg4J+fn5OTk6enp\n" ..
+                        " 56enmleECcgggoBADs=")
+        expect (e ().tag).to_be "tag:yaml.org,2002:binary"'
+    - it resolves %TAG declarations: '
+        e = consume (5, "%TAG ! tag:clarkevans.com,2002:\n" ..
+                        "---\n" ..
+                        "shape:\n" ..
+                        "- !circle\n" ..
+                        "  center: &ORIGIN {x: 73, y: 129}\n" ..
+                        "  radius: 7")
+        expect (e ().tag).to_be "tag:clarkevans.com,2002:circle"'
+
+- describe SEQUENCE_START:
+  - before: '
+      e = consume (4, "fubar: &FOO\n" ..
+                      "  - foo\n" ..
+                      "  - bar\n")'
+  - it recognizes a sequence start event:
+      expect (e ().type).to_be "SEQUENCE_START"
+  - it records anchors:
+      expect (e ().anchor).to_be "FOO"
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 0, column = 7, index = 7}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 1, column = 2, index = 14}
+
+  - context with tag:
+    - it recognizes local tags: '
+        e = consume (2, "--- !something\n" ..
+                        "- foo\n")
+        expect (filter (e (), "type", "tag")).
+           to_equal {type = "SEQUENCE_START", tag = "!something"}'
+    - it recognizes global tags: '
+        e = consume (2, "--- !!omap\n" ..
+                        "- Mark McGwire: 65\n" ..
+                        "- Sammy Sosa: 63\n" ..
+                        "- Ken Griffy: 58\n")
+        expect (filter (e (), "type", "tag")).
+           to_equal {type = "SEQUENCE_START",
+                        tag  = "tag:yaml.org,2002:omap"}'
+    - it resolves %TAG declarations: '
+        e = consume (2, "%TAG ! tag:clarkevans.com,2002:\n" ..
+                        "--- !shape\n" ..
+                        "- !circle\n" ..
+                        "  center: &ORIGIN {x: 73, y: 129}\n" ..
+                        "  radius: 7\n")
+        expect (filter (e (), "type", "tag")).
+           to_equal {type = "SEQUENCE_START",
+                        tag  = "tag:clarkevans.com,2002:shape"}'
+
+  - context with style:
+    - it recognizes block style:
+        e = consume (2, "- first\n- second")
+        expect (filter (e (), "type", "style")).
+           to_equal {type = "SEQUENCE_START", style = "BLOCK"}
+    - it recognizes flow style:
+        e = consume (2, "[first, second]")
+        expect (filter (e (), "type", "style")).
+           to_equal {type = "SEQUENCE_START", style = "FLOW"}
+
+- describe SEQUENCE_END:
+  - before:
+      e = consume (5, "- foo\n- bar\n")
+  - it recognizes a sequence end event:
+      expect (e ().type).to_equal "SEQUENCE_END"
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 2, column = 0, index = 12}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 2, column = 0, index = 12}
+
+- describe MAPPING_START:
+  - before: 'e = consume (3, "- &FUBAR\n  foo: bar\n")'
+  - it recognizes a mapping start event:
+        expect (e ().type).to_be "MAPPING_START"
+  - it records anchors:
+      expect (e ().anchor).to_be "FUBAR"
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 0, column = 2, index = 2}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 1, column = 2, index = 11}
+
+  - context with tag:
+    - it recognizes local tags: '
+    e = consume (2, "--- !something\nfoo: bar\n")
+        expect (filter (e (), "type", "tag")).
+           to_equal {type = "MAPPING_START", tag = "!something"}'
+    - it recognizes global tags: '
+        e = consume (2, "--- !!set\n" ..
+                        "? Mark McGwire\n" ..
+                        "? Sammy Sosa\n" ..
+                        "? Ken Griffy\n")
+        expect (filter (e (), "type", "tag")).
+           to_equal {type = "MAPPING_START",
+                        tag  = "tag:yaml.org,2002:set"}'
+    - it resolves %TAG declarations: '
+        e = consume (3, "%TAG ! tag:clarkevans.com,2002:\n" ..
+                        "--- !shape\n" ..
+                        "- !circle\n" ..
+                        "  center: &ORIGIN {x: 73, y: 129}\n" ..
+                        "  radius: 7\n")
+        expect (filter (e (), "type", "tag")).
+           to_equal {type = "MAPPING_START",
+                        tag  = "tag:clarkevans.com,2002:circle"}'
+
+  - context with style:
+    - it recognizes block style: '
+        e = consume (2, "foo: bar\nbaz:\n  quux")
+        expect (filter (e (), "type", "style")).
+           to_equal {type = "MAPPING_START", style = "BLOCK"}'
+    - it recognizes flow style: '
+        e = consume (2, "{foo: bar, baz: quux}")
+        expect (filter (e (), "type", "style")).
+           to_equal {type = "MAPPING_START", style = "FLOW"}'
+
+
+- describe MAPPING_END:
+  - before: 'e = consume (5, "foo: bar\n")'
+  - it recognizes the mapping end event:
+      expect (e ().type).to_equal "MAPPING_END"
+  - it reports event start marker:
+      expect (e ().start_mark).to_equal {line = 1, column = 0, index = 9}
+  - it reports event end marker:
+      expect (e ().end_mark).to_equal {line = 1, column = 0, index = 9}

@@ -1,0 +1,8 @@
+modules = {
+   ['lyaml'] = 'lib/lyaml/init.lua',
+   ['lyaml.*'] = 'lib',
+}
+
+runreport = true
+
+tick = true
