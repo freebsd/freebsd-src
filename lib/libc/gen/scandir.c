@@ -69,8 +69,8 @@ scandir_dirp_b(DIR *dirp, struct dirent ***namelist, select_block select,
     dcomp_block dcomp)
 #else
 scandir_dirp(DIR *dirp, struct dirent ***namelist,
-    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
-    const struct dirent **))
+    int (*select)(const struct dirent *),
+    int (*dcomp)(const struct dirent **, const struct dirent **))
 #endif
 {
 	struct dirent *d, *p = NULL, **names = NULL, **names2;
@@ -100,7 +100,7 @@ scandir_dirp(DIR *dirp, struct dirent ***namelist,
 		 * realloc the maximum size.
 		 */
 		if (numitems >= arraysz) {
-			arraysz = arraysz ? arraysz * 2 : 32;
+			arraysz = arraysz * 2;
 			names2 = reallocarray(names, arraysz, sizeof(*names));
 			if (names2 == NULL)
 				goto fail;
@@ -115,13 +115,15 @@ scandir_dirp(DIR *dirp, struct dirent ***namelist,
 	 */
 	if (errno != 0)
 		goto fail;
-	if (numitems && dcomp != NULL)
+	if (numitems > 0 && dcomp != NULL) {
 #ifdef I_AM_SCANDIR_B
-		qsort_b(names, numitems, sizeof(struct dirent *), (void*)dcomp);
+		qsort_b(names, numitems, sizeof(struct dirent *),
+		    (void *)dcomp);
 #else
 		qsort_r(names, numitems, sizeof(struct dirent *),
 		    scandir_thunk_cmp, &dcomp);
 #endif
+	}
 	*namelist = names;
 	return (numitems);
 
@@ -142,8 +144,8 @@ scandir_b(const char *dirname, struct dirent ***namelist, select_block select,
     dcomp_block dcomp)
 #else
 scandir(const char *dirname, struct dirent ***namelist,
-    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
-    const struct dirent **))
+    int (*select)(const struct dirent *),
+    int (*dcomp)(const struct dirent **, const struct dirent **))
 #endif
 {
 	DIR *dirp;
@@ -171,8 +173,8 @@ fdscandir_b(int dirfd, struct dirent ***namelist, select_block select,
     dcomp_block dcomp)
 #else
 fdscandir(int dirfd, struct dirent ***namelist,
-    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
-    const struct dirent **))
+    int (*select)(const struct dirent *),
+    int (*dcomp)(const struct dirent **, const struct dirent **))
 #endif
 {
 	DIR *dirp;
@@ -200,8 +202,8 @@ scandirat_b(int dirfd, const char *dirname, struct dirent ***namelist,
     select_block select, dcomp_block dcomp)
 #else
 scandirat(int dirfd, const char *dirname, struct dirent ***namelist,
-    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
-    const struct dirent **))
+    int (*select)(const struct dirent *),
+    int (*dcomp)(const struct dirent **, const struct dirent **))
 #endif
 {
 	int fd, ret, serrno;
