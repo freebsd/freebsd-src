@@ -1177,10 +1177,10 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len,
 	ifp->if_ratelimit_query = vlan_ratelimit_query;
 #endif
 	ifp->if_flags = VLAN_IFFLAGS;
+	ifp->if_type = IFT_L2VLAN;
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
-	ifp->if_type = IFT_L2VLAN;
 	ifp->if_hdrlen = ETHER_VLAN_ENCAP_LEN;
 	ifa = ifp->if_addr;
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
