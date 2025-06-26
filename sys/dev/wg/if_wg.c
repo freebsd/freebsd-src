@@ -2459,8 +2459,12 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 
 		aipl = nvlist_get_nvlist_array(nvl, "allowed-ips", &allowedip_count);
 		for (size_t idx = 0; idx < allowedip_count; idx++) {
+			sa_family_t ipaf;
+
 			if (!nvlist_exists_number(aipl[idx], "cidr"))
 				continue;
+
+			ipaf = AF_UNSPEC;
 			cidr = nvlist_get_number(aipl[idx], "cidr");
 			if (nvlist_exists_binary(aipl[idx], "ipv4")) {
 				addr = nvlist_get_binary(aipl[idx], "ipv4", &size);
@@ -2468,19 +2472,23 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 					err = EINVAL;
 					goto out;
 				}
-				if ((err = wg_aip_add(sc, peer, AF_INET, addr, cidr)) != 0)
-					goto out;
+
+				ipaf = AF_INET;
 			} else if (nvlist_exists_binary(aipl[idx], "ipv6")) {
 				addr = nvlist_get_binary(aipl[idx], "ipv6", &size);
 				if (addr == NULL || cidr > 128 || size != sizeof(struct in6_addr)) {
 					err = EINVAL;
 					goto out;
 				}
-				if ((err = wg_aip_add(sc, peer, AF_INET6, addr, cidr)) != 0)
-					goto out;
+
+				ipaf = AF_INET6;
 			} else {
 				continue;
 			}
+
+			MPASS(ipaf != AF_UNSPEC);
+			if ((err = wg_aip_add(sc, peer, ipaf, addr, cidr)) != 0)
+				goto out;
 		}
 	}
 	if (remote != NULL)
