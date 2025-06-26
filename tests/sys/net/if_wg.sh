@@ -424,6 +424,208 @@ wg_vnet_parent_routing_cleanup()
 	vnet_cleanup
 }
 
+# The kernel should now allow removing a single allowed-ip without having to
+# replace the whole list.  We can't really test the atomicity of it all that
+# easily, but we'll trust that it worked right if just that addr/mask is gone.
+atf_test_case "wg_allowedip_incremental" "cleanup"
+wg_allowedip_incremental_head()
+{
+	atf_set descr "Add/remove allowed-ips from a peer with the +/- incremental syntax"
+	atf_set require.user root
+}
+
+wg_allowedip_incremental_body()
+{
+	local pri1 pri2 pub1 pub2 wg1
+	local tunnel1 tunnel2 tunnel3
+
+	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
+
+	pri1=$(wg genkey)
+	pri2=$(wg genkey)
+	pub2=$(echo "$pri2" | wg pubkey)
+
+	tunnel1=169.254.0.1
+	tunnel2=169.254.0.2
+	tunnel3=169.254.0.3
+
+	vnet_mkjail wgtest1
+
+	wg1=$(jexec wgtest1 ifconfig wg create)
+	echo "$pri1" | jexec wgtest1 wg set $wg1 private-key /dev/stdin
+	pub1=$(jexec wgtest1 wg show $wg1 public-key)
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "${tunnel1}/32,${tunnel2}/32"
+
+	atf_check -o save:wg.allowed jexec wgtest1 wg show $wg1 allowed-ips
+	atf_check grep -q "${tunnel1}/32" wg.allowed
+	atf_check grep -q "${tunnel2}/32" wg.allowed
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "-${tunnel2}/32"
+
+	atf_check -o save:wg-2.allowed jexec wgtest1 wg show $wg1 allowed-ips
+	atf_check grep -q "${tunnel1}/32" wg-2.allowed
+	atf_check -s not-exit:0 grep -q "${tunnel2}/32" wg-2.allowed
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "+${tunnel2}/32"
+
+	atf_check -o save:wg-3.allowed jexec wgtest1 wg show $wg1 allowed-ips
+	atf_check grep -q "${tunnel1}/32" wg-3.allowed
+	atf_check grep -q "${tunnel2}/32" wg-3.allowed
+
+	# Now attempt to add the address yet again to confirm that it's not
+	# harmful.
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "+${tunnel2}/32"
+
+	atf_check -o save:wg-4.allowed -x \
+	    "jexec wgtest1 wg show $wg1 allowed-ips | cut -f2 | tr ' ' '\n'"
+	atf_check -o match:"2 wg-4.allowed$" wc -l wg-4.allowed
+
+	# Finally, let's try removing an address that we never had at all and
+	# confirm that we still have our two addresses.
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "-${tunnel3}/32"
+
+	atf_check -o save:wg-5.allowed -x \
+	    "jexec wgtest1 wg show $wg1 allowed-ips | cut -f2 | tr ' ' '\n'"
+	atf_check cmp -s wg-4.allowed wg-5.allowed
+}
+
+wg_allowedip_incremental_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "wg_allowedip_incremental_inet6" "cleanup"
+wg_allowedip_incremental_inet6_head()
+{
+	atf_set descr "Add/remove IPv6 allowed-ips from a peer with the +/- incremental syntax"
+	atf_set require.user root
+}
+
+wg_allowedip_incremental_inet6_body()
+{
+	local pri1 pri2 pub1 pub2 wg1
+	local tunnel1 tunnel2
+
+	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
+
+	pri1=$(wg genkey)
+	pri2=$(wg genkey)
+	pub2=$(echo "$pri2" | wg pubkey)
+
+	tunnel1=2001:db8:1::1
+	tunnel2=2001:db8:1::2
+
+	vnet_mkjail wgtest1
+
+	wg1=$(jexec wgtest1 ifconfig wg create)
+	echo "$pri1" | jexec wgtest1 wg set $wg1 private-key /dev/stdin
+	pub1=$(jexec wgtest1 wg show $wg1 public-key)
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "${tunnel1}/128"
+	atf_check -o save:wg.allowed jexec wgtest1 wg show $wg1 allowed-ips
+	atf_check grep -q "${tunnel1}/128" wg.allowed
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "+${tunnel2}/128"
+	atf_check -o save:wg-2.allowed jexec wgtest1 wg show $wg1 allowed-ips
+	atf_check grep -q "${tunnel1}/128" wg-2.allowed
+	atf_check grep -q "${tunnel2}/128" wg-2.allowed
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "-${tunnel1}/128"
+	atf_check -o save:wg-3.allowed jexec wgtest1 wg show $wg1 allowed-ips
+	atf_check -s not-exit:0 grep -q "${tunnel1}/128" wg-3.allowed
+	atf_check grep -q "${tunnel2}/128" wg-3.allowed
+}
+
+wg_allowedip_incremental_inet6_cleanup()
+{
+	vnet_cleanup
+}
+
+
+atf_test_case "wg_allowedip_incremental_stealing" "cleanup"
+wg_allowedip_incremental_stealing_head()
+{
+	atf_set descr "Add/remove allowed-ips from a peer with the +/- incremental syntax to steal"
+	atf_set require.user root
+}
+
+wg_allowedip_incremental_stealing_body()
+{
+	local pri1 pri2 pri3 pub1 pub2 pub3 wg1
+	local regex2 regex3
+	local tunnel1 tunnel2
+
+	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
+
+	pri1=$(wg genkey)
+	pri2=$(wg genkey)
+	pri3=$(wg genkey)
+	pub2=$(echo "$pri2" | wg pubkey)
+	pub3=$(echo "$pri3" | wg pubkey)
+
+	regex2=$(echo "$pub2" | sed -e 's/[+]/[+]/g')
+	regex3=$(echo "$pub3" | sed -e 's/[+]/[+]/g')
+
+	tunnel1=169.254.0.1
+	tunnel2=169.254.0.2
+	tunnel3=169.254.0.3
+
+	vnet_mkjail wgtest1
+
+	wg1=$(jexec wgtest1 ifconfig wg create)
+	echo "$pri1" | jexec wgtest1 wg set $wg1 private-key /dev/stdin
+	pub1=$(jexec wgtest1 wg show $wg1 public-key)
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "${tunnel1}/32,${tunnel2}/32"
+
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub3 \
+	    allowed-ips "${tunnel3}/32"
+
+	# First, confirm that the negative syntax doesn't do anything because
+	# we have the wrong peer.
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "-${tunnel3}/32"
+
+	atf_check -o save:wg.allowed jexec wgtest1 wg show $wg1 allowed-ips
+	atf_check grep -Eq "^${regex3}.+${tunnel3}/32" wg.allowed
+
+	# Next, steal it with an incremental move and check that it moved.
+	atf_check -s exit:0 \
+	    jexec wgtest1 wg set $wg1 peer $pub2 \
+	    allowed-ips "+${tunnel3}/32"
+
+	atf_check -o save:wg-2.allowed jexec wgtest1 wg show $wg1 allowed-ips
+
+	atf_check grep -Eq "^${regex2}.+${tunnel3}/32" wg-2.allowed
+	atf_check grep -Evq "^${regex3}.+${tunnel3}/32" wg-2.allowed
+}
+
+wg_allowedip_incremental_stealing_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "wg_basic"
@@ -432,4 +634,7 @@ atf_init_test_cases()
 	atf_add_test_case "wg_key_peerdev_shared"
 	atf_add_test_case "wg_key_peerdev_makeshared"
 	atf_add_test_case "wg_vnet_parent_routing"
+	atf_add_test_case "wg_allowedip_incremental"
+	atf_add_test_case "wg_allowedip_incremental_inet6"
+	atf_add_test_case "wg_allowedip_incremental_stealing"
 }
