@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250626: replace yaml.lua with lyaml
+OLD_FILES+=usr/share/flua/yaml.lua
+
 # 20250623: fscandir() renamed to fdscandir()
 OLD_FILES+=usr/share/man/man3/fscandir.3.gz
 OLD_FILES+=usr/share/man/man3/fscandir_b.3.gz

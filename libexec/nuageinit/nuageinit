@@ -6,7 +6,7 @@
 
 local nuage = require("nuage")
 local ucl = require("ucl")
-local yaml = require("yaml")
+local yaml = require("lyaml")
 local sys_stat = require("posix.sys.stat")
 
 if #arg ~= 2 then
@@ -408,7 +408,7 @@ elseif citype == "nocloud" then
 	if err then
 		nuage.err("error parsing nocloud meta-data: " .. err)
 	end
-	local obj = yaml.eval(f:read("*a"))
+	local obj = yaml.load(f:read("*a"))
 	f:close()
 	if not obj then
 		nuage.err("error parsing nocloud meta-data")
@@ -466,7 +466,7 @@ if line == "#cloud-config" then
 	}
 
 	f = io.open(ni_path .. "/" .. ud)
-	local obj = yaml.eval(f:read("*a"))
+	local obj = yaml.load(f:read("*a"))
 	f:close()
 	if not obj then
 		nuage.err("error parsing cloud-config file: " .. ud)

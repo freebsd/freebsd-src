@@ -477,6 +477,7 @@ EOF
 MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
 ...
 -----END RSA PRIVATE KEY-----
+
 "
 	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_rsa_key
 	_expected="ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...\n"
@@ -484,7 +485,9 @@ MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
 	_expected="-----BEGIN OPENSSH PRIVATE KEY-----
 blabla
 ...
------END OPENSSH PRIVATE KEY-----\n"
+-----END OPENSSH PRIVATE KEY-----
+
+"
 	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_ed25519_key
 	_expected="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK+MH4E8KO32N5CXRvXVqvyZVl0+6ue4DobdhU0FqFd+\n"
 	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_ed25519_key.pub
@@ -728,7 +731,7 @@ config2_userdata_runcmd_body()
 runcmd:
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
 	cat > media/nuageinit/user_data << 'EOF'
 #cloud-config
 runcmd:
@@ -767,7 +770,7 @@ config2_userdata_packages_body()
 packages:
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 	cat > media/nuageinit/user_data << 'EOF'
 #cloud-config
 packages:
