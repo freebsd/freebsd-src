@@ -1,0 +1,47 @@
+--[[
+ LYAML binding for Lua 5.1, 5.2, 5.3 & 5.4
+ Copyright (C) 2013-2022 Gary V. Vaughan
+]]
+
+package  = 'lyaml'
+version  = '$USER'
+
+defines  = {
+   PACKAGE              = '"$package"',
+   VERSION              = '"$version"',
+   NDEBUG               = 1,
+   _FORTIFY_SOURCE      = 2,
+   platforms   = {    
+      aix      = {_ALL_SOURCE       = 1},
+      bsd      = {_BSD_SOURCE       = 1},
+      freebsd  = {__BSD_VISIBLE     = 1},
+      macosx   = {_DARWIN_C_SOURCE  = 1},
+   },
+}
+
+external_dependencies   = {
+   YAML  = {
+      library = {checksymbol='yaml_document_initialize', library='yaml'},
+   },
+}
+
+incdirs  = {
+   'ext/include',
+   '$LUA_INCDIR',
+}
+
+ldocs    = 'build-aux/config.ld.in'
+
+modules  = {
+   ['yaml']    = {
+      'ext/yaml/yaml.c',
+      'ext/yaml/emitter.c',
+      'ext/yaml/parser.c',
+      'ext/yaml/scanner.c',
+   },
+
+   ['lyaml']            = 'lib/lyaml/init.lua',
+   ['lyaml.explicit']   = 'lib/lyaml/explicit.lua',
+   ['lyaml.functional'] = 'lib/lyaml/functional.lua',
+   ['lyaml.implicit']   = 'lib/lyaml/implicit.lua',
+}
