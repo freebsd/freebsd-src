@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250708: replace yaml.lua with lyaml
+OLD_FILES+=usr/share/flua/yaml.lua
+
 # 20250524: don't install zoneinfo version
 OLD_FILES+=usr/share/zoneinfo/version
 
