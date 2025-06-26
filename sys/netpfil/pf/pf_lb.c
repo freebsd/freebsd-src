@@ -233,7 +233,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 		return (1);
 
 	if (proto == IPPROTO_ICMP) {
-		if (*nport == htons(ICMP_ECHO)) {
+		if (dport == htons(ICMP_ECHO)) {
 			low = 1;
 			high = 65535;
 		} else
@@ -241,7 +241,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 	}
 #ifdef INET6
 	if (proto == IPPROTO_ICMPV6) {
-		if (*nport == htons(ICMP6_ECHO_REQUEST)) {
+		if (dport == htons(ICMP6_ECHO_REQUEST)) {
 			low = 1;
 			high = 65535;
 		} else
