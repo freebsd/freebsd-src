@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250626: For 11 days 15.0-CURRENT installed libtpool to the wrong location
+MOVED_LIBS+=usr/lib/libtpool.so.2
+
 # 20250626: replace yaml.lua with lyaml
 OLD_FILES+=usr/share/flua/yaml.lua
 

@@ -3,6 +3,7 @@
 
 
 LIB=	tpool
+SHLIBDIR?=	/lib
 LIBADD=	spl
 PACKAGE=	libzfs
 
