@@ -32,6 +32,7 @@ _PRIVATELIBS=	\
 		ssh \
 		ucl \
 		unbound \
+		yaml \
 		zstd
 
 # Let projects based on FreeBSD append to _PRIVATELIBS
