@@ -7,6 +7,39 @@ local unistd = require("posix.unistd")
 local sys_stat = require("posix.sys.stat")
 local lfs = require("lfs")
 
+local function decode_base64(input)
+	local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+	input = string.gsub(input, '[^'..b..'=]', '')
+
+	local result = {}
+	local bits = ''
+
+	-- convert all characters in bits
+	for i = 1, #input do
+		local x = input:sub(i, i)
+		if x == '=' then
+			break
+		end
+		local f = b:find(x) - 1
+		for j = 6, 1, -1 do
+			bits = bits .. (f % 2^j - f % 2^(j-1) > 0 and '1' or '0')
+		end
+	end
+
+	for i = 1, #bits, 8 do
+		local byte = bits:sub(i, i + 7)
+		if #byte == 8 then
+			local c = 0
+			for j = 1, 8 do
+				c = c + (byte:sub(j, j) == '1' and 2^(8 - j) or 0)
+			end
+			table.insert(result, string.char(c))
+		end
+	end
+
+	return table.concat(result)
+end
+
 local function warnmsg(str, prepend)
 	if not str then
 		return
@@ -441,6 +474,58 @@ local function upgrade_packages()
 	return run_pkg_cmd("upgrade")
 end
 
+local function addfile(file, defer)
+	if type(file) ~= "table" then
+		return false, "Invalid object"
+	end
+	if defer and not file.defer then
+		return true
+	end
+	if not defer and file.defer then
+		return true
+	end
+	if not file.path then
+		return false, "No path provided for the file to write"
+	end
+	local content = nil
+	if file.content then
+		if file.encoding then
+			if file.encoding == "b64" or file.encoding == "base64" then
+				content = decode_base64(file.content)
+			else
+				return false, "Unsupported encoding: " .. file.encoding
+			end
+		else
+			content = file.content
+		end
+	end
+	local mode = "w"
+	if file.append then
+		mode = "a"
+	end
+
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	if not root then
+		root = ""
+	end
+	local filepath = root .. file.path
+	local f = assert(io.open(filepath, mode))
+	if content then
+		f:write(content)
+	end
+	f:close()
+	if file.permissions then
+		-- convert from octal to decimal
+		local perm = tonumber(file.permissions, 8)
+		sys_stat.chmod(file.path, perm)
+	end
+	if file.owner then
+		local owner, group = string.match(file.owner, "([^:]+):([^:]+)")
+		unistd.chown(file.path, owner, group)
+	end
+	return true
+end
+
 local n = {
 	warn = warnmsg,
 	err = errmsg,
@@ -456,7 +541,8 @@ local n = {
 	install_package = install_package,
 	update_packages = update_packages,
 	upgrade_packages = upgrade_packages,
-	addsudo = addsudo
+	addsudo = addsudo,
+	addfile = addfile
 }
 
 return n
