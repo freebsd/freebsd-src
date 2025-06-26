@@ -56,7 +56,8 @@
 .Fl b |
 .Fl c |
 .Fl e |
-.Fl f Oo Fl C Oc |
+.Fl f |
+.Fl F Oo Fl C Oc |
 .Fl i Oo Fl n Oc |
 .Fl j Oo Fl n Oc |
 .Fl k Oo Fl k Oc |
@@ -80,7 +81,8 @@
 .Fl b |
 .Fl c |
 .Fl e |
-.Fl f Oo Fl C Oc |
+.Fl f |
+.Fl F Oo Fl C Oc |
 .Fl i Oo Fl n Oc |
 .Fl j Oo Fl n Oc |
 .Fl k Oo Fl k Oc |
@@ -181,7 +183,9 @@ Display the cpuset information for the thread.
 Display environment variables for the process.
 .Pp
 Substring commands are accepted.
-.It Ar file(s) | Ar fd(s) | Fl f
+.It Ar f
+Display page fault counts for the process.
+.It Ar file(s) | Ar fd(s) | Fl F
 Display file descriptor information for the process.
 .Pp
 If the

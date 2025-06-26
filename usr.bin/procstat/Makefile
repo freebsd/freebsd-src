@@ -21,7 +21,8 @@ SRCS=	procstat.c		\
 	procstat_rusage.c	\
 	procstat_sigs.c		\
 	procstat_threads.c	\
-	procstat_vm.c
+	procstat_vm.c		\
+	procstat_faults.c
 
 MLINKS+=	procstat.1 pargs.1
 MLINKS+=	procstat.1 penv.1

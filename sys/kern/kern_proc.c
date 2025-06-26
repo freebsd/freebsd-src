@@ -74,6 +74,7 @@
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/user.h>
+#include <sys/resourcevar.h> /* For struct rusage and rufetchcalc */
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #ifdef KTRACE
@@ -3458,6 +3459,56 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_SIGFASTBLK, sigfastblk, CTLFLAG_RD |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_VM_LAYOUT, vm_layout, CTLFLAG_RD |
 	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_vm_layout,
 	"Process virtual address space layout info");
+
+static int
+sysctl_kern_proc_pid_faults(SYSCTL_HANDLER_ARGS)
+{
+	struct proc *p;
+	struct rusage ru;
+	pid_t pid;
+	long fault_count;
+	int error;
+	int fault_kind;
+
+	pid = (pid_t)arg1; /* PID is passed as arg1 by SYSCTL_PROC_OID_CALL */
+	fault_kind = arg2; /* FAULT_TYPE_MINFLT or FAULT_TYPE_MAJFLT */
+
+	if (req->newptr != NULL)
+		return (EPERM);
+
+	error = pget(pid, PGET_CANSEE | PGET_HOLD, &p);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * rufetchcalc() acquires necessary locks (p_mtx, p_statmtx)
+	 * and updates 'ru' with the process's aggregated rusage.
+	 */
+	PROC_LOCK(p);
+	rufetchcalc(p, &ru, &ru.ru_utime, &ru.ru_stime);
+	PROC_UNLOCK(p);
+
+	if (fault_kind == KERN_PROC_PID_MINFLT) {
+		fault_count = ru.ru_minflt;
+	} else if (fault_kind == KERN_PROC_PID_MAJFLT) {
+		fault_count = ru.ru_majflt;
+	} else {
+		PRELE(p);
+		return (EINVAL);
+	}
+
+	PRELE(p);
+
+	return (SYSCTL_OUT(req, &fault_count, sizeof(fault_count)));
+}
+
+SYSCTL_PROC_OID_CALL(_kern_proc_pid, KERN_PROC_PID_MINFLT, minflt,
+    CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, KERN_PROC_PID_MINFLT, sysctl_kern_proc_pid_faults, "L", "Minor Page Faults");
+
+SYSCTL_PROC_OID_CALL(_kern_proc_pid, KERN_PROC_PID_MAJFLT, majflt,
+    CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, KERN_PROC_PID_MAJFLT, sysctl_kern_proc_pid_faults, "L", "Major Page Faults");
 
 static struct sx stop_all_proc_blocker;
 SX_SYSINIT(stop_all_proc_blocker, &stop_all_proc_blocker, "sapblk");

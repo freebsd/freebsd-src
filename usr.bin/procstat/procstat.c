@@ -100,10 +100,10 @@ static const struct procstat_cmd cmd_table[] = {
 	    PS_CMP_PLURAL | PS_CMP_SUBSTR },
 	{ "environment", "environment", NULL, &procstat_env, &cmdopt_none,
 	    PS_CMP_SUBSTR },
-	{ "fd", "files", "[-C]", &procstat_files, &cmdopt_files,
+	{ "files", "files", "[-C]", &procstat_files, &cmdopt_files, /* Changed command name from fd/file to files for clarity with -F */
 	    PS_CMP_PLURAL },
-	{ "file", "files", "[-C]", &procstat_files, &cmdopt_files,
-	    PS_CMP_PLURAL },
+	{ "page_faults", "page_faults", NULL, &procstat_page_faults, &cmdopt_none, /* New command for page faults */
+	    PS_CMP_NORMAL },
 	{ "kqueue", "kqueues", NULL, &procstat_kqueues, &cmdopt_kqueue,
 	    PS_CMP_PLURAL },
 	{ "kstack", "kstack", "[-v]", &procstat_kstack, &cmdopt_verbose,
@@ -147,17 +147,19 @@ usage(const struct procstat_cmd *cmd)
 		    " [-w interval] command\n"
 		    "       procstat [--libxo] [-h] [-M core] [-N system]"
 		    " [-w interval]\n"
-		    "                [-S | -b | -c | -e | -f [-C] | -i [-n] | "
+		    "                [-S | -b | -c | -e | -f | -F [-C] | -i [-n] | " /* -f for faults, -F for files */
 		    "-j [-n] | -k [-k] |\n"
 		    "                 -l | -r [-H] | -s | -t | -v | -x] "
 		    "[pid ... | core ...]\n"
 		    "       procstat [--libxo] -a [-h] [-M core] [-N system]"
 		    " [-w interval]\n"
-		    "                [-S | -b | -c | -e | -f [-C] | -i [-n] | "
+		    "                [-S | -b | -c | -e | -f | -F [-C] | -i [-n] | " /* -f for faults, -F for files */
 		    "-j [-n] | -k [-k] |\n"
 		    "                 -l | -r [-H] | -s | -t | -v | -x]\n"
 		    "       procstat [--libxo] -L [-h] [-M core] [-N system] core ...\n"
-		    "Available commands:\n");
+		    "Available commands:\n"
+		    "       F [-C] (open files)\n"
+		    "       f (page faults)\n");
 		for (i = 0, l = nitems(cmd_table); i < l; i++) {
 			multi = i + 1 < l && cmd_table[i].cmd ==
 			    cmd_table[i + 1].cmd;
@@ -297,6 +299,7 @@ main(int argc, char *argv[])
 	long l;
 	pid_t pid;
 	int aflag, ch, cnt, i, interval;
+	// int fopt = 0; // Flag for our new -f option. Not needed if -f directly implies the command.
 
 	interval = 0;
 	cmd = NULL;
@@ -307,7 +310,8 @@ main(int argc, char *argv[])
 	progname = getprogname();
 	cmd = getcmdbyprogname(progname);
 
-	while ((ch = getopt(argc, argv, "abCcefHhijkLlM:N:nrSstvw:x")) != -1) {
+	// New getopt string: "abCcDeFfHhijkLlM:N:nrSstvw:x" -> f for faults, F for files.
+	while ((ch = getopt(argc, argv, "abCcDeFfHhijkLlM:N:nrSstvw:x")) != -1) {
 		switch (ch) {
 		case 'a':
 			aflag++;
@@ -318,6 +322,8 @@ main(int argc, char *argv[])
 			cmd = getcmd("binary");
 			break;
 		case 'C':
+			// This option is now only relevant to 'F' (files)
+			// We'll check later if cmd is indeed for files.
 			procstat_opts |= PS_OPT_CAPABILITIES;
 			break;
 		case 'c':
@@ -330,10 +336,16 @@ main(int argc, char *argv[])
 				usage(cmd);
 			cmd = getcmd("environment");
 			break;
-		case 'f':
+		case 'F': // Files option
 			if (cmd != NULL)
 				usage(cmd);
 			cmd = getcmd("files");
+			break;
+		case 'f': // Page Faults option
+			if (cmd != NULL)
+				usage(cmd);
+			cmd = getcmd("page_faults");
+			// fopt = 1; // Not needed if -f directly sets cmd
 			break;
 		case 'H':
 			procstat_opts |= PS_OPT_PERTHREAD;
