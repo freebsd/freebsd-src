@@ -32,6 +32,8 @@
 #ifndef _NETINET_TCP_TIMER_H_
 #define _NETINET_TCP_TIMER_H_
 
+#ifdef _KERNEL
+
 /*
  * The TCPT_REXMT timer is used to force retransmissions.
  * The TCP has the TCPT_REXMT timer set whenever segments
@@ -132,8 +134,6 @@
 	if ((u_long)(tv) > (u_long)(tvmax)) \
 		(tv) = (tvmax); \
 } while(0)
-
-#ifdef _KERNEL
 
 #define	TP_KEEPINIT(tp)	((tp)->t_keepinit ? (tp)->t_keepinit : tcp_keepinit)
 #define	TP_KEEPIDLE(tp)	((tp)->t_keepidle ? (tp)->t_keepidle : tcp_keepidle)
