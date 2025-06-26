@@ -521,6 +521,9 @@ local function addfile(file, defer)
 	end
 	if file.owner then
 		local owner, group = string.match(file.owner, "([^:]+):([^:]+)")
+		if not owner then
+			owner = file.owner
+		end
 		unistd.chown(filepath, owner, group)
 	end
 	return true
