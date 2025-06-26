@@ -121,6 +121,10 @@ users:
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: users
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+  - name: bla
+    sudo:
+    - "ALL=(ALL) NOPASSWD:/usr/sbin/pw"
+    - "ALL=(ALL) ALL"
 EOF
 	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
 	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
@@ -131,17 +135,19 @@ admingroup:*:1001:root,sys
 cloud-users:*:1002:
 freebsd:*:1003:
 foobar:*:1004:
+bla:*:1005:
 EOF
 	cat > expectedpasswd << 'EOF'
 root:*:0:0::0:0:Charlie &:/root:/bin/sh
 sys:*:1:0::0:0:Sys:/home/sys:/bin/sh
 freebsd:freebsd:1001:1003::0:0:FreeBSD User:/home/freebsd:/bin/sh
 foobar:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1002:1004::0:0:Foo B. Bar:/home/foobar:/bin/sh
+bla::1003:1005::0:0:bla User:/home/bla:/bin/sh
 EOF
 	sed -i "" "s/freebsd:.*:1001/freebsd:freebsd:1001/" "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedpasswd cat "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedgroup cat "${PWD}"/etc/group
-	atf_check -o inline:"foobar ALL=(ALL) NOPASSWD:ALL\n" cat ${PWD}/usr/local/etc/sudoers.d/90-nuageinit-users
+	atf_check -o inline:"foobar ALL=(ALL) NOPASSWD:ALL\nbla ALL=(ALL) NOPASSWD:/usr/sbin/pw\nbla ALL=(ALL) ALL\n" cat ${PWD}/usr/local/etc/sudoers.d/90-nuageinit-users
 }
 
 nocloud_network_head()
