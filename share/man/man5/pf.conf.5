@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 17, 2025
+.Dd June 26, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -361,8 +361,8 @@ For example:
 .Bd -literal -offset indent
 set timeout tcp.first 120
 set timeout tcp.established 86400
-set timeout { adaptive.start 6000, adaptive.end 12000 }
-set limit states 10000
+set timeout { adaptive.start 60000, adaptive.end 120000 }
+set limit states 100000
 .Ed
 .Pp
 With 9000 state table entries, the timeout values are scaled to 50%
