@@ -312,7 +312,8 @@ static void wg_timers_run_send_keepalive(void *);
 static void wg_timers_run_new_handshake(void *);
 static void wg_timers_run_zero_key_material(void *);
 static void wg_timers_run_persistent_keepalive(void *);
-static int wg_aip_add(struct wg_softc *, struct wg_peer *, sa_family_t, const void *, uint8_t);
+static int wg_aip_add(struct wg_softc *, struct wg_peer *, sa_family_t,
+    const void *, uint8_t);
 static struct wg_peer *wg_aip_lookup(struct wg_softc *, sa_family_t, void *);
 static void wg_aip_remove_all(struct wg_softc *, struct wg_peer *);
 static struct wg_peer *wg_peer_create(struct wg_softc *,
@@ -526,11 +527,46 @@ wg_peer_get_endpoint(struct wg_peer *peer, struct wg_endpoint *e)
 	rw_runlock(&peer->p_endpoint_lock);
 }
 
+static int
+wg_aip_addrinfo(struct wg_aip *aip, const void *baddr, uint8_t cidr)
+{
+	struct aip_addr *addr, *mask;
+
+	addr = &aip->a_addr;
+	mask = &aip->a_mask;
+	switch (aip->a_af) {
+#ifdef INET
+	case AF_INET:
+		if (cidr > 32) cidr = 32;
+		addr->in = *(const struct in_addr *)baddr;
+		mask->ip = htonl(~((1LL << (32 - cidr)) - 1) & 0xffffffff);
+		addr->ip &= mask->ip;
+		addr->length = mask->length = offsetof(struct aip_addr, in) + sizeof(struct in_addr);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (cidr > 128) cidr = 128;
+		addr->in6 = *(const struct in6_addr *)baddr;
+		in6_prefixlen2mask(&mask->in6, cidr);
+		for (int i = 0; i < 4; i++)
+			addr->ip6[i] &= mask->ip6[i];
+		addr->length = mask->length = offsetof(struct aip_addr, in6) + sizeof(struct in6_addr);
+		break;
+#endif
+	default:
+		return (EAFNOSUPPORT);
+	}
+
+	return (0);
+}
+
 /* Allowed IP */
 static int
-wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af, const void *addr, uint8_t cidr)
+wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af,
+    const void *baddr, uint8_t cidr)
 {
-	struct radix_node_head	*root;
+	struct radix_node_head	*root = NULL;
 	struct radix_node	*node;
 	struct wg_aip		*aip;
 	int			 ret = 0;
@@ -539,33 +575,14 @@ wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af, const void
 	aip->a_peer = peer;
 	aip->a_af = af;
 
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		if (cidr > 32) cidr = 32;
-		root = sc->sc_aip4;
-		aip->a_addr.in = *(const struct in_addr *)addr;
-		aip->a_mask.ip = htonl(~((1LL << (32 - cidr)) - 1) & 0xffffffff);
-		aip->a_addr.ip &= aip->a_mask.ip;
-		aip->a_addr.length = aip->a_mask.length = offsetof(struct aip_addr, in) + sizeof(struct in_addr);
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		if (cidr > 128) cidr = 128;
-		root = sc->sc_aip6;
-		aip->a_addr.in6 = *(const struct in6_addr *)addr;
-		in6_prefixlen2mask(&aip->a_mask.in6, cidr);
-		for (int i = 0; i < 4; i++)
-			aip->a_addr.ip6[i] &= aip->a_mask.ip6[i];
-		aip->a_addr.length = aip->a_mask.length = offsetof(struct aip_addr, in6) + sizeof(struct in6_addr);
-		break;
-#endif
-	default:
+	ret = wg_aip_addrinfo(aip, baddr, cidr);
+	if (ret != 0) {
 		free(aip, M_WG);
-		return (EAFNOSUPPORT);
+		return (ret);
 	}
 
+	root = af == AF_INET ? sc->sc_aip4 : sc->sc_aip6;
+	MPASS(root != NULL);
 	RADIX_NODE_HEAD_LOCK(root);
 	node = root->rnh_addaddr(&aip->a_addr, &aip->a_mask, &root->rh, aip->a_nodes);
 	if (node == aip->a_nodes) {
