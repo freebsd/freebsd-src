@@ -90,7 +90,7 @@
 VNET_DEFINE_STATIC(bool, nolocaltimewait) = true;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
 SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, nolocaltimewait,
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nolocaltimewait), true,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nolocaltimewait), 0,
     "Do not create TCP TIME_WAIT state for local connections");
 
 static u_int
