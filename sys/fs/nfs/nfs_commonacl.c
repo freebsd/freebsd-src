@@ -352,32 +352,7 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 		if (ace->ae_perm & ACL_SYNCHRONIZE)
 			acemask |= NFSV4ACE_SYNCHRONIZE;
 	} else {
-		if (ace->ae_perm & ACL_READ_DATA)
-			acemask |= NFSV4ACE_READDATA;
-		if (ace->ae_perm & ACL_WRITE_DATA)
-			acemask |= NFSV4ACE_WRITEDATA;
-		if (ace->ae_perm & ACL_APPEND_DATA)
-			acemask |= NFSV4ACE_APPENDDATA;
-		if (ace->ae_perm & ACL_READ_NAMED_ATTRS)
-			acemask |= NFSV4ACE_READNAMEDATTR;
-		if (ace->ae_perm & ACL_WRITE_NAMED_ATTRS)
-			acemask |= NFSV4ACE_WRITENAMEDATTR;
-		if (ace->ae_perm & ACL_EXECUTE)
-			acemask |= NFSV4ACE_EXECUTE;
-		if (ace->ae_perm & ACL_READ_ATTRIBUTES)
-			acemask |= NFSV4ACE_READATTRIBUTES;
-		if (ace->ae_perm & ACL_WRITE_ATTRIBUTES)
-			acemask |= NFSV4ACE_WRITEATTRIBUTES;
-		if (ace->ae_perm & ACL_DELETE)
-			acemask |= NFSV4ACE_DELETE;
-		if (ace->ae_perm & ACL_READ_ACL)
-			acemask |= NFSV4ACE_READACL;
-		if (ace->ae_perm & ACL_WRITE_ACL)
-			acemask |= NFSV4ACE_WRITEACL;
-		if (ace->ae_perm & ACL_WRITE_OWNER)
-			acemask |= NFSV4ACE_WRITEOWNER;
-		if (ace->ae_perm & ACL_SYNCHRONIZE)
-			acemask |= NFSV4ACE_SYNCHRONIZE;
+		acemask = nfs_aceperm(ace->ae_perm);
 	}
 	*tl++ = txdr_unsigned(acemask);
 	*tl++ = txdr_unsigned(namelen);
@@ -385,6 +360,43 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 		*(tl + (namelen / NFSX_UNSIGNED)) = 0x0;
 	NFSBCOPY(name, (caddr_t)tl, namelen);
 	return (full_len + 4 * NFSX_UNSIGNED);
+}
+
+/*
+ * Convert ae_perm to NFSv4 ACL acemask4 for regular files.
+ */
+uint32_t
+nfs_aceperm(acl_perm_t ae_perm)
+{
+	uint32_t acemask = 0x0;
+
+	if (ae_perm & ACL_READ_DATA)
+		acemask |= NFSV4ACE_READDATA;
+	if (ae_perm & ACL_WRITE_DATA)
+		acemask |= NFSV4ACE_WRITEDATA;
+	if (ae_perm & ACL_APPEND_DATA)
+		acemask |= NFSV4ACE_APPENDDATA;
+	if (ae_perm & ACL_READ_NAMED_ATTRS)
+		acemask |= NFSV4ACE_READNAMEDATTR;
+	if (ae_perm & ACL_WRITE_NAMED_ATTRS)
+		acemask |= NFSV4ACE_WRITENAMEDATTR;
+	if (ae_perm & ACL_EXECUTE)
+		acemask |= NFSV4ACE_EXECUTE;
+	if (ae_perm & ACL_READ_ATTRIBUTES)
+		acemask |= NFSV4ACE_READATTRIBUTES;
+	if (ae_perm & ACL_WRITE_ATTRIBUTES)
+		acemask |= NFSV4ACE_WRITEATTRIBUTES;
+	if (ae_perm & ACL_DELETE)
+		acemask |= NFSV4ACE_DELETE;
+	if (ae_perm & ACL_READ_ACL)
+		acemask |= NFSV4ACE_READACL;
+	if (ae_perm & ACL_WRITE_ACL)
+		acemask |= NFSV4ACE_WRITEACL;
+	if (ae_perm & ACL_WRITE_OWNER)
+		acemask |= NFSV4ACE_WRITEOWNER;
+	if (ae_perm & ACL_SYNCHRONIZE)
+		acemask |= NFSV4ACE_SYNCHRONIZE;
+	return (acemask);
 }
 
 /*
