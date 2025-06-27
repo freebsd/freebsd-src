@@ -10593,7 +10593,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			use_2nd_queue = 1;
 		action = pf_normalize_tcp(&pd);
 		if (action == PF_DROP)
-			goto done;
+			break;
 		action = pf_test_state(&s, &pd, &reason);
 		if (action == PF_PASS || action == PF_AFRT) {
 			if (V_pfsync_update_state_ptr != NULL)
@@ -10642,7 +10642,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	case IPPROTO_SCTP:
 		action = pf_normalize_sctp(&pd);
 		if (action == PF_DROP)
-			goto done;
+			break;
 		/* fallthrough */
 	case IPPROTO_UDP:
 	default:
@@ -10665,14 +10665,14 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			REASON_SET(&reason, PFRES_NORM);
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("dropping IPv6 packet with ICMPv4 payload"));
-			goto done;
+			break;
 		}
 		if (pd.virtual_proto == IPPROTO_ICMPV6 && af != AF_INET6) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_NORM);
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: dropping IPv4 packet with ICMPv6 payload\n"));
-			goto done;
+			break;
 		}
 		action = pf_test_state_icmp(&s, &pd, &reason);
 		if (action == PF_PASS || action == PF_AFRT) {
