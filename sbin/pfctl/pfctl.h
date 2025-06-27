@@ -124,7 +124,6 @@ void	 print_addr_str(sa_family_t, struct pf_addr *);
 void	 print_host(struct pf_addr *, u_int16_t p, sa_family_t, int);
 void	 print_seq(struct pfctl_state_peer *);
 void	 print_state(struct pfctl_state *, int);
-int	 unmask(struct pf_addr *, sa_family_t);
 
 int	 pfctl_cmdline_symset(char *);
 int	 pfctl_add_trans(struct pfr_buffer *, int, const char *);

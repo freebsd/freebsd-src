@@ -1267,7 +1267,7 @@ add_opt_table(struct pfctl *pf, struct pf_opt_tbl **tbl, sa_family_t af,
 #ifdef OPT_DEBUG
 	DEBUG("<%s> adding %s/%d", (*tbl)->pt_name, inet_ntop(af,
 	    &node_host.addr.v.a.addr, buf, sizeof(buf)),
-	    unmask(&node_host.addr.v.a.mask, af));
+	    unmask(&node_host.addr.v.a.mask));
 #endif /* OPT_DEBUG */
 
 	if (append_addr_host((*tbl)->pt_buf, &node_host, 0, 0)) {
@@ -1602,8 +1602,8 @@ exclude_supersets(struct pfctl_rule *super, struct pfctl_rule *sub)
 	    sub->src.addr.type == PF_ADDR_ADDRMASK &&
 	    super->src.neg == sub->src.neg &&
 	    super->af == sub->af &&
-	    unmask(&super->src.addr.v.a.mask, super->af) <
-	    unmask(&sub->src.addr.v.a.mask, sub->af) &&
+	    unmask(&super->src.addr.v.a.mask) <
+	    unmask(&sub->src.addr.v.a.mask) &&
 	    super->src.addr.v.a.addr.addr32[0] ==
 	    (sub->src.addr.v.a.addr.addr32[0] &
 	    super->src.addr.v.a.mask.addr32[0]) &&
@@ -1630,8 +1630,8 @@ exclude_supersets(struct pfctl_rule *super, struct pfctl_rule *sub)
 	    sub->dst.addr.type == PF_ADDR_ADDRMASK &&
 	    super->dst.neg == sub->dst.neg &&
 	    super->af == sub->af &&
-	    unmask(&super->dst.addr.v.a.mask, super->af) <
-	    unmask(&sub->dst.addr.v.a.mask, sub->af) &&
+	    unmask(&super->dst.addr.v.a.mask) <
+	    unmask(&sub->dst.addr.v.a.mask) &&
 	    super->dst.addr.v.a.addr.addr32[0] ==
 	    (sub->dst.addr.v.a.addr.addr32[0] &
 	    super->dst.addr.v.a.mask.addr32[0]) &&
