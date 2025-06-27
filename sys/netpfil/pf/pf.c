@@ -386,8 +386,8 @@ static void		 pf_print_state_parts(struct pf_kstate *,
 			    struct pf_state_key *, struct pf_state_key *);
 static int		 pf_patch_8(struct pf_pdesc *, u_int8_t *, u_int8_t,
 			    bool);
-static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
-			    const struct pf_state_key_cmp *, u_int);
+static int		 pf_find_state(struct pf_pdesc *,
+			    const struct pf_state_key_cmp *, struct pf_kstate **);
 static bool		 pf_src_connlimit(struct pf_kstate *);
 static int		 pf_match_rcvif(struct mbuf *, struct pf_krule *);
 static void		 pf_counters_inc(int, struct pf_pdesc *,
@@ -440,22 +440,6 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 
 #define	PACKET_LOOPED(pd)	((pd)->pf_mtag &&			\
 				 (pd)->pf_mtag->flags & PF_MTAG_FLAG_PACKET_LOOPED)
-
-#define	STATE_LOOKUP(k, s, pd)						\
-	do {								\
-		(s) = pf_find_state((pd->kif), (k), (pd->dir));		\
-		SDT_PROBE5(pf, ip, state, lookup, pd->kif, k, (pd->dir), pd, (s));	\
-		if ((s) == NULL)					\
-			return (PF_DROP);				\
-		if ((s)->rule->pktrate.limit && pd->dir == (s)->direction) {	\
-			if (pf_check_threshold(&(s)->rule->pktrate)) {	\
-				s = NULL;				\
-				return (PF_DROP);			\
-			}						\
-		}							\
-		if (PACKET_LOOPED(pd))					\
-			return (PF_PASS);				\
-	} while (0)
 
 static struct pfi_kkif *
 BOUND_IFACE(struct pf_kstate *st, struct pf_pdesc *pd)
@@ -1878,14 +1862,16 @@ pf_find_state_byid(uint64_t id, uint32_t creatorid)
  * Find state by key.
  * Returns with ID hash slot locked on success.
  */
-static struct pf_kstate *
-pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
-    u_int dir)
+static int
+pf_find_state(struct pf_pdesc *pd, const struct pf_state_key_cmp *key,
+    struct pf_kstate **state)
 {
 	struct pf_keyhash	*kh;
 	struct pf_state_key	*sk;
 	struct pf_kstate	*s;
 	int idx;
+
+	*state = NULL;
 
 	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
@@ -1897,14 +1883,15 @@ pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
 			break;
 	if (sk == NULL) {
 		PF_HASHROW_UNLOCK(kh);
-		return (NULL);
+		return (PF_DROP);
 	}
 
-	idx = (dir == PF_IN ? PF_SK_WIRE : PF_SK_STACK);
+	idx = (pd->dir == PF_IN ? PF_SK_WIRE : PF_SK_STACK);
 
 	/* List is sorted, if-bound states before floating ones. */
 	TAILQ_FOREACH(s, &sk->states[idx], key_list[idx])
-		if (s->kif == V_pfi_all || s->kif == kif || s->orig_kif == kif) {
+		if (s->kif == V_pfi_all || s->kif == pd->kif ||
+		    s->orig_kif == pd->kif) {
 			PF_STATE_LOCK(s);
 			PF_HASHROW_UNLOCK(kh);
 			if (__predict_false(s->timeout >= PFTM_MAX)) {
@@ -1914,9 +1901,11 @@ pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
 				 * is scheduled for immediate expiry.
 				 */
 				PF_STATE_UNLOCK(s);
-				return (NULL);
+				SDT_PROBE5(pf, ip, state, lookup, pd->kif,
+				    key, (pd->dir), pd, *state);
+				return (PF_DROP);
 			}
-			return (s);
+			goto out;
 		}
 
 	/* Look through the other list, in case of AF-TO */
@@ -1924,7 +1913,8 @@ pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
 	TAILQ_FOREACH(s, &sk->states[idx], key_list[idx]) {
 		if (s->key[PF_SK_WIRE]->af == s->key[PF_SK_STACK]->af)
 			continue;
-		if (s->kif == V_pfi_all || s->kif == kif || s->orig_kif == kif) {
+		if (s->kif == V_pfi_all || s->kif == pd->kif ||
+		    s->orig_kif == pd->kif) {
 			PF_STATE_LOCK(s);
 			PF_HASHROW_UNLOCK(kh);
 			if (__predict_false(s->timeout >= PFTM_MAX)) {
@@ -1934,15 +1924,39 @@ pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
 				 * is scheduled for immediate expiry.
 				 */
 				PF_STATE_UNLOCK(s);
-				return (NULL);
+				SDT_PROBE5(pf, ip, state, lookup, pd->kif,
+				    key, (pd->dir), pd, NULL);
+				return (PF_DROP);
 			}
-			return (s);
+			goto out;
 		}
 	}
 
 	PF_HASHROW_UNLOCK(kh);
 
-	return (NULL);
+out:
+	SDT_PROBE5(pf, ip, state, lookup, pd->kif, key, (pd->dir), pd, *state);
+
+	if (s == NULL || s->timeout == PFTM_PURGE) {
+		if (s)
+			PF_STATE_UNLOCK(s);
+		return (PF_DROP);
+	}
+
+	if ((s)->rule->pktrate.limit && pd->dir == (s)->direction) {
+		if (pf_check_threshold(&(s)->rule->pktrate)) {
+			PF_STATE_UNLOCK(s);
+			return (PF_DROP);
+		}
+	}
+	if (PACKET_LOOPED(pd)) {
+		PF_STATE_UNLOCK(s);
+		return (PF_PASS);
+	}
+
+	*state = s;
+
+	return (PF_MATCH);
 }
 
 /*
@@ -6990,7 +7004,7 @@ pf_test_state(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reason)
 	int			 copyback = 0;
 	struct pf_state_peer	*src, *dst;
 	uint8_t			 psrc, pdst;
-	int			 action = PF_PASS;
+	int			 action;
 
 	bzero(&key, sizeof(key));
 	key.af = pd->af;
@@ -7000,8 +7014,11 @@ pf_test_state(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reason)
 	key.port[pd->sidx] = pd->osport;
 	key.port[pd->didx] = pd->odport;
 
-	STATE_LOOKUP(&key, *state, pd);
+	action = pf_find_state(pd, &key, state);
+	if (action != PF_MATCH)
+		return (action);
 
+	action = PF_PASS;
 	if (pd->dir == (*state)->direction) {
 		if (PF_REVERSED_KEY(*state, pd->af)) {
 			src = &(*state)->dst;
@@ -7473,6 +7490,7 @@ again:
 		case SCTP_DEL_IP_ADDRESS: {
 			struct pf_state_key_cmp key;
 			uint8_t psrc;
+			int action;
 
 			bzero(&key, sizeof(key));
 			key.af = j->pd.af;
@@ -7489,8 +7507,8 @@ again:
 				key.port[0] = j->pd.hdr.sctp.dest_port;
 			}
 
-			sm = pf_find_state(kif, &key, j->pd.dir);
-			if (sm != NULL) {
+			action = pf_find_state(&j->pd, &key, &sm);
+			if (action == PF_MATCH) {
 				PF_STATE_LOCK_ASSERT(sm);
 				if (j->pd.dir == sm->direction) {
 					psrc = PF_PEER_SRC;
@@ -7681,7 +7699,7 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
     struct pf_kstate **state, u_int16_t icmpid, u_int16_t type, int icmp_dir,
     int *iidx, int multi, int inner)
 {
-	int	 direction = pd->dir;
+	int	 action, direction = pd->dir;
 
 	key->af = pd->af;
 	key->proto = pd->proto;
@@ -7697,7 +7715,9 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
 	if (pf_state_key_addr_setup(pd, key, multi))
 		return (PF_DROP);
 
-	STATE_LOOKUP(key, *state, pd);
+	action = pf_find_state(pd, key, state);
+	if (action != PF_MATCH)
+		return (action);
 
 	if ((*state)->state_flags & PFSTATE_SLOPPY)
 		return (-1);
@@ -7908,6 +7928,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		pd2.sidx = (pd->dir == PF_IN) ? 1 : 0;
 		pd2.didx = (pd->dir == PF_IN) ? 0 : 1;
 		pd2.m = pd->m;
+		pd2.pf_mtag = pd->pf_mtag;
 		pd2.kif = pd->kif;
 		switch (pd->af) {
 #ifdef INET
@@ -7992,6 +8013,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			struct pf_state_peer	*src, *dst;
 			u_int8_t		 dws;
 			int			 copyback = 0;
+			int			 action;
 
 			/*
 			 * Only the first 8 bytes of the TCP header can be
@@ -8014,7 +8036,9 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			key.port[pd2.sidx] = th->th_sport;
 			key.port[pd2.didx] = th->th_dport;
 
-			STATE_LOOKUP(&key, *state, pd);
+			action = pf_find_state(&pd2, &key, state);
+			if (action != PF_MATCH)
+				return (action);
 
 			if (pd->dir == (*state)->direction) {
 				if (PF_REVERSED_KEY(*state, pd->af)) {
@@ -8189,6 +8213,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		}
 		case IPPROTO_UDP: {
 			struct udphdr		*uh = &pd2.hdr.udp;
+			int			 action;
 
 			if (!pf_pull_hdr(pd->m, pd2.off, uh, sizeof(*uh),
 			    NULL, reason, pd2.af)) {
@@ -8206,7 +8231,9 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			key.port[pd2.sidx] = uh->uh_sport;
 			key.port[pd2.didx] = uh->uh_dport;
 
-			STATE_LOOKUP(&key, *state, pd);
+			action = pf_find_state(&pd2, &key, state);
+			if (action != PF_MATCH)
+				return (action);
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -8318,6 +8345,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			struct sctphdr		*sh = &pd2.hdr.sctp;
 			struct pf_state_peer	*src;
 			int			 copyback = 0;
+			int			 action;
 
 			if (! pf_pull_hdr(pd->m, pd2.off, sh, sizeof(*sh), NULL, reason,
 			    pd2.af)) {
@@ -8335,7 +8363,9 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			key.port[pd2.sidx] = sh->src_port;
 			key.port[pd2.didx] = sh->dest_port;
 
-			STATE_LOOKUP(&key, *state, pd);
+			action = pf_find_state(&pd2, &key, state);
+			if (action != PF_MATCH)
+				return (action);
 
 			if (pd->dir == (*state)->direction) {
 				if (PF_REVERSED_KEY(*state, pd->af))
@@ -8706,13 +8736,17 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		}
 #endif /* INET6 */
 		default: {
+			int	action;
+
 			key.af = pd2.af;
 			key.proto = pd2.proto;
 			PF_ACPY(&key.addr[pd2.sidx], pd2.src, key.af);
 			PF_ACPY(&key.addr[pd2.didx], pd2.dst, key.af);
 			key.port[0] = key.port[1] = 0;
 
-			STATE_LOOKUP(&key, *state, pd);
+			action = pf_find_state(&pd2, &key, state);
+			if (action != PF_MATCH)
+				return (action);
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
