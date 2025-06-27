@@ -66,6 +66,7 @@
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
+void		 copy_satopfaddr(struct pf_addr *, struct sockaddr *);
 void		 print_op (u_int8_t, const char *, const char *);
 void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *, int);
 void		 print_ugid (u_int8_t, unsigned, unsigned, const char *, unsigned);
@@ -227,6 +228,15 @@ pfctl_parser_init(void)
 	 */
 	if (hcreate_r(0, &isgroup_map) == 0)
 		err(1, "Failed to create interface group query response map");
+}
+
+void
+copy_satopfaddr(struct pf_addr *pfa, struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET6)
+		pfa->v6 = ((struct sockaddr_in6 *)sa)->sin6_addr;
+	else
+		pfa->v4 = ((struct sockaddr_in *)sa)->sin_addr;
 }
 
 const struct icmptypeent *
@@ -1502,42 +1512,20 @@ ifa_load(void)
 		}
 #endif
 		n->ifindex = 0;
-		if (n->af == AF_INET) {
-			memcpy(&n->addr.v.a.addr, &((struct sockaddr_in *)
-			    ifa->ifa_addr)->sin_addr.s_addr,
-			    sizeof(struct in_addr));
-			memcpy(&n->addr.v.a.mask, &((struct sockaddr_in *)
-			    ifa->ifa_netmask)->sin_addr.s_addr,
-			    sizeof(struct in_addr));
-			if (ifa->ifa_broadaddr != NULL)
-				memcpy(&n->bcast, &((struct sockaddr_in *)
-				    ifa->ifa_broadaddr)->sin_addr.s_addr,
-				    sizeof(struct in_addr));
-			if (ifa->ifa_dstaddr != NULL)
-				memcpy(&n->peer, &((struct sockaddr_in *)
-				    ifa->ifa_dstaddr)->sin_addr.s_addr,
-				    sizeof(struct in_addr));
-		} else if (n->af == AF_INET6) {
-			memcpy(&n->addr.v.a.addr, &((struct sockaddr_in6 *)
-			    ifa->ifa_addr)->sin6_addr.s6_addr,
-			    sizeof(struct in6_addr));
-			memcpy(&n->addr.v.a.mask, &((struct sockaddr_in6 *)
-			    ifa->ifa_netmask)->sin6_addr.s6_addr,
-			    sizeof(struct in6_addr));
-			if (ifa->ifa_broadaddr != NULL)
-				memcpy(&n->bcast, &((struct sockaddr_in6 *)
-				    ifa->ifa_broadaddr)->sin6_addr.s6_addr,
-				    sizeof(struct in6_addr));
-			if (ifa->ifa_dstaddr != NULL)
-				 memcpy(&n->peer, &((struct sockaddr_in6 *)
-				    ifa->ifa_dstaddr)->sin6_addr.s6_addr,
-				    sizeof(struct in6_addr));
-			n->ifindex = ((struct sockaddr_in6 *)
-			    ifa->ifa_addr)->sin6_scope_id;
-		} else if (n->af == AF_LINK) {
-			ifa_add_groups_to_map(ifa->ifa_name);
+		if (n->af == AF_LINK) {
 			n->ifindex = ((struct sockaddr_dl *)
 			    ifa->ifa_addr)->sdl_index;
+			ifa_add_groups_to_map(ifa->ifa_name);
+		} else {
+			copy_satopfaddr(&n->addr.v.a.addr, ifa->ifa_addr);
+			copy_satopfaddr(&n->addr.v.a.mask, ifa->ifa_netmask);
+			if (ifa->ifa_broadaddr != NULL)
+				copy_satopfaddr(&n->bcast, ifa->ifa_broadaddr);
+			if (ifa->ifa_dstaddr != NULL)
+				copy_satopfaddr(&n->peer, ifa->ifa_dstaddr);
+			if (n->af == AF_INET6)
+				n->ifindex = ((struct sockaddr_in6 *)
+				    ifa->ifa_addr) ->sin6_scope_id;
 		}
 		if ((n->ifname = strdup(ifa->ifa_name)) == NULL)
 			err(1, "%s: strdup", __func__);
@@ -1918,9 +1906,7 @@ host_v6(const char *s, int mask)
 			err(1, "address: calloc");
 		h->ifname = NULL;
 		h->af = AF_INET6;
-		memcpy(&h->addr.v.a.addr,
-		    &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
-		    sizeof(h->addr.v.a.addr));
+		copy_satopfaddr(&h->addr.v.a.addr, res->ai_addr);
 		h->ifindex =
 		    ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id;
 		set_ipmask(h, mask);
@@ -1974,20 +1960,10 @@ host_dns(const char *s, int mask, int numeric)
 			err(1, "host_dns: calloc");
 		n->ifname = NULL;
 		n->af = res->ai_family;
-		if (res->ai_family == AF_INET) {
-			memcpy(&n->addr.v.a.addr,
-			    &((struct sockaddr_in *)
-			    res->ai_addr)->sin_addr.s_addr,
-			    sizeof(struct in_addr));
-		} else {
-			memcpy(&n->addr.v.a.addr,
-			    &((struct sockaddr_in6 *)
-			    res->ai_addr)->sin6_addr.s6_addr,
-			    sizeof(struct in6_addr));
+		copy_satopfaddr(&n->addr.v.a.addr, res->ai_addr);
+		if (res->ai_family == AF_INET6)
 			n->ifindex =
-			    ((struct sockaddr_in6 *)
-			    res->ai_addr)->sin6_scope_id;
-		}
+			    ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id;
 		set_ipmask(n, mask);
 		n->next = NULL;
 		n->tail = n;
