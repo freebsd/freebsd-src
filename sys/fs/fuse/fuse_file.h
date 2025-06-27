@@ -139,7 +139,7 @@ struct fuse_filehandle {
 
 	/*
 	 * flags returned by FUSE_OPEN
-	 * Supported flags: FOPEN_DIRECT_IO, FOPEN_KEEP_CACHE
+	 * Supported flags: FOPEN_DIRECT_IO, FOPEN_KEEP_CACHE, FOPEN_NOFLUSH
 	 * Unsupported:
 	 *     FOPEN_NONSEEKABLE: Adding support would require a new per-file
 	 *     or per-vnode attribute, which would have to be checked by
