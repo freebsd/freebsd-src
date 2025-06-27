@@ -1803,13 +1803,14 @@ struct node_host *
 host(const char *s, int opts)
 {
 	struct node_host	*h = NULL;
-	int			 mask, v4mask, v6mask, cont = 1;
-	char			*p, *q, *ps;
+	int			 mask, v4mask, v6mask = 128, cont = 1;
+	char			*p, *ps;
+	const char		*errstr;
 
 	if ((p = strrchr(s, '/')) != NULL) {
-		mask = strtol(p+1, &q, 0);
-		if (!q || *q || mask > 128 || q == (p+1)) {
-			fprintf(stderr, "invalid netmask '%s'\n", p);
+		mask = strtonum(p+1, 0, v6mask, &errstr);
+		if (errstr) {
+			fprintf(stderr, "netmask is %s: %s\n", errstr, p);
 			return (NULL);
 		}
 		if ((ps = malloc(strlen(s) - strlen(p) + 1)) == NULL)
