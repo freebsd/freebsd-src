@@ -112,7 +112,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, nolocaltimewait,
     "Do not create TCP TIME_WAIT state for local connections");
 
 static u_int
-tcp_msl(struct tcpcb *tp)
+tcp_eff_msl(struct tcpcb *tp)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 #ifdef INET6
@@ -180,7 +180,7 @@ tcp_twstart(struct tcpcb *tp)
 		return;
 	}
 
-	tcp_timer_activate(tp, TT_2MSL, 2 * tcp_msl(tp));
+	tcp_timer_activate(tp, TT_2MSL, 2 * tcp_eff_msl(tp));
 	INP_WUNLOCK(inp);
 }
 
@@ -323,7 +323,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	if (thflags & TH_FIN) {
 		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
 		if (seq + 1 == tp->rcv_nxt)
-			tcp_timer_activate(tp, TT_2MSL, 2 * tcp_msl(tp));
+			tcp_timer_activate(tp, TT_2MSL, 2 * tcp_eff_msl(tp));
 	}
 
 	/*
