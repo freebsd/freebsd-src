@@ -3192,8 +3192,6 @@ main(int argc, char *argv[])
 	if (loadopt == 0)
 		loadopt = ~0;
 
-	if ((path = calloc(1, MAXPATHLEN)) == NULL)
-		errx(1, "pfctl: calloc");
 	memset(anchorname, 0, sizeof(anchorname));
 	if (anchoropt != NULL) {
 		int len = strlen(anchoropt);
@@ -3246,6 +3244,9 @@ main(int argc, char *argv[])
 	if (opts & PF_OPT_DISABLE)
 		if (pfctl_disable(dev, opts))
 			error = 1;
+
+	if ((path = calloc(1, MAXPATHLEN)) == NULL)
+		errx(1, "%s: calloc", __func__);
 
 	if (showopt != NULL) {
 		switch (*showopt) {
