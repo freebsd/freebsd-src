@@ -1233,15 +1233,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		if (PF_AZERO(&r->divert.addr, r->af)) {
 			printf(" divert-reply");
 		} else {
-			/* XXX cut&paste from print_addr */
-			char buf[48];
-
 			printf(" divert-to ");
-			if (inet_ntop(r->af, &r->divert.addr, buf,
-			    sizeof(buf)) == NULL)
-				printf("?");
-			else
-				printf("%s", buf);
+			print_addr_str(r->af, &r->divert.addr);
 			printf(" port %u", ntohs(r->divert.port));
 		}
 #endif
