@@ -12160,7 +12160,7 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 
 	if (pmap_is_la57(pmap)) {
 		pml5 = pmap_pml5e(pmap, va);
-		db_printf(" pml5e 0x%016lx", *pml5);
+		db_printf(" pml5e@0x%016lx 0x%016lx", (uint64_t)pml5, *pml5);
 		if ((*pml5 & PG_V) == 0) {
 			db_printf("\n");
 			return;
@@ -12169,25 +12169,25 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	} else {
 		pml4 = pmap_pml4e(pmap, va);
 	}
-	db_printf(" pml4e 0x%016lx", *pml4);
+	db_printf(" pml4e@0x%016lx 0x%016lx", (uint64_t)pml4, *pml4);
 	if ((*pml4 & PG_V) == 0) {
 		db_printf("\n");
 		return;
 	}
 	pdp = pmap_pml4e_to_pdpe(pml4, va);
-	db_printf(" pdpe 0x%016lx", *pdp);
+	db_printf(" pdpe@0x%016lx 0x%016lx", (uint64_t)pdp, *pdp);
 	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pde = pmap_pdpe_to_pde(pdp, va);
-	db_printf(" pde 0x%016lx", *pde);
+	db_printf(" pde@0x%016lx 0x%016lx", (uint64_t)pde, *pde);
 	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pte = pmap_pde_to_pte(pde, va);
-	db_printf(" pte 0x%016lx\n", *pte);
+	db_printf(" pte@0x%016lx 0x%016lx\n", (uint64_t)pte, *pte);
 }
 
 DB_SHOW_COMMAND(phys2dmap, pmap_phys2dmap)
