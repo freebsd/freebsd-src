@@ -87,10 +87,28 @@
 
 #include <security/mac/mac_framework.h>
 
-VNET_DEFINE_STATIC(bool, nolocaltimewait) = true;
+VNET_DEFINE_STATIC(bool, nolocaltimewait) = false;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
-SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, nolocaltimewait,
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nolocaltimewait), 0,
+
+static int
+sysctl_net_inet_tcp_nolocaltimewait(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	bool new;
+
+	new = V_nolocaltimewait;
+	error = sysctl_handle_bool(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		V_nolocaltimewait = new;
+		gone_in(16, "net.inet.tcp.nolocaltimewait is obsolete."
+		    " Use net.inet.tcp.local_msl instead.\n");
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, nolocaltimewait,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLTYPE_U8,
+    &VNET_NAME(nolocaltimewait), 0, sysctl_net_inet_tcp_nolocaltimewait, "CU",
     "Do not create TCP TIME_WAIT state for local connections");
 
 static u_int
