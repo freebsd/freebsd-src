@@ -7619,12 +7619,8 @@ filteropts_to_rule(struct pfctl_rule *r, struct filter_opts *opts)
 		r->rule_flag |= PFRULE_AFTO;
 	if (opts->marker & FOM_SCRUB_TCP)
 		r->scrub_flags |= PFSTATE_SCRUB_TCP;
-	if (opts->marker & FOM_PRIO) {
-		if (opts->prio == 0)
-			r->prio = PF_PRIO_ZERO;
-		else
-			r->prio = opts->prio;
-	}
+	if (opts->marker & FOM_PRIO)
+		r->prio = opts->prio ? opts->prio : PF_PRIO_ZERO;
 	if (opts->marker & FOM_SETPRIO) {
 		r->set_prio[0] = opts->set_prio[0];
 		r->set_prio[1] = opts->set_prio[1];
