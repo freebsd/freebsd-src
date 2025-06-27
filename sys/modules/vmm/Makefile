@@ -88,7 +88,8 @@ SRCS+=	opt_acpi.h		\
 	opt_bhyve_snapshot.h	\
 	opt_ddb.h
 
-SRCS+=	vmm_host.c	\
+SRCS+=	vmm_cpuid.c	\
+	vmm_host.c	\
 	vmm_ioport.c	\
 	vmm_lapic.c	\
 	vmm_mem_machdep.c \

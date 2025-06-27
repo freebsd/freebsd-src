@@ -138,7 +138,8 @@ enum x2apic_state {
 	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */ \
 	cpuset_t	exitinfo_cpuset; /* (x) storage for vmexit handlers */ \
 	uint64_t	nextrip;	/* (x) next instruction to execute */ \
-	uint64_t	tsc_offset	/* (o) TSC offsetting */
+	uint64_t	tsc_offset;	/* (o) TSC offsetting */	\
+	vcpu_cpuid_config_t cpuid_cfg	/* (x) cpuid configuration */
 
 #define	VMM_VM_MD_FIELDS						\
 	cpuset_t	startup_cpus;	/* (i) [r] waiting for startup */ \
@@ -690,5 +691,71 @@ vm_inject_ss(struct vcpu *vcpu, int errcode)
 }
 
 void vm_inject_pf(struct vcpu *vcpu, int error_code, uint64_t cr2);
+
+/*
+ * Describes an entry for `cpuid` emulation.
+ * Used internally by bhyve (kernel) in addition to exposed ioctl(2) interface.
+ */
+struct vcpu_cpuid_entry {
+	uint32_t	vce_function;
+	uint32_t	vce_index;
+	uint32_t	vce_flags;
+	uint32_t	vce_eax;
+	uint32_t	vce_ebx;
+	uint32_t	vce_ecx;
+	uint32_t	vce_edx;
+	uint32_t	_pad;
+};
+
+/*
+ * Defined flags for vcpu_cpuid_entry`vce_flags are below.
+ */
+
+/* Use index (ecx) input value when matching entry */
+#define	VCE_FLAG_MATCH_INDEX		(1 << 0)
+
+/* All valid flags for vcpu_cpuid_entry`vce_flags */
+#define	VCE_FLAGS_VALID		VCE_FLAG_MATCH_INDEX
+
+/*
+ * Defined flags for vcpu_cpuid configuration are below.
+ * These are used by both the ioctl(2) interface via vm_vcpu_cpuid_config and
+ * internally in the kernel vmm.
+ */
+
+/* Use legacy hard-coded cpuid masking tables applied to the host CPU */
+#define	VCC_FLAG_LEGACY_HANDLING	(1 << 0)
+/*
+ * Emulate Intel-style fallback behavior (emit highest "standard" entry) if the
+ * queried function/index do not match.  If not set, emulate AMD-style, where
+ * all zeroes are returned in such cases.
+ */
+#define	VCC_FLAG_INTEL_FALLBACK		(1 << 1)
+
+/* All valid flags for vm_vcpu_cpuid_config`vvcc_flags */
+#define	VCC_FLAGS_VALID		\
+	(VCC_FLAG_LEGACY_HANDLING | VCC_FLAG_INTEL_FALLBACK)
+
+/* Maximum vcpu_cpuid_entry records per vCPU */
+#define	VMM_MAX_CPUID_ENTRIES		256
+
+#ifdef _KERNEL
+typedef struct vcpu_cpuid_config {
+	uint32_t		vcc_flags;
+	uint32_t		vcc_nent;
+	struct vcpu_cpuid_entry	*vcc_entries;
+} vcpu_cpuid_config_t;
+
+vcpu_cpuid_config_t *vm_cpuid_config(struct vcpu *);
+int vm_get_cpuid(struct vcpu *, vcpu_cpuid_config_t *);
+int vm_set_cpuid(struct vcpu *, const vcpu_cpuid_config_t *);
+void vcpu_emulate_cpuid(struct vcpu *, uint64_t *, uint64_t *, uint64_t *,
+    uint64_t *);
+void legacy_emulate_cpuid(struct vcpu *, uint32_t *, uint32_t *, uint32_t *,
+    uint32_t *);
+void vcpu_cpuid_init(vcpu_cpuid_config_t *);
+void vcpu_cpuid_cleanup(vcpu_cpuid_config_t *);
+#endif
+
 
 #endif	/* _VMM_H_ */

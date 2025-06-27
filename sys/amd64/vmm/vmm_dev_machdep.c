@@ -33,6 +33,7 @@
 #include <sys/conf.h>
 #include <sys/libkern.h>
 #include <sys/ioccom.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
 #include <sys/proc.h>
@@ -58,6 +59,9 @@
 #include "io/vioapic.h"
 #include "io/vhpet.h"
 #include "io/vrtc.h"
+#include "x86.h"
+
+static MALLOC_DEFINE(M_VMMDEV, "vmmdev", "vmmdev");
 
 #ifdef COMPAT_FREEBSD13
 struct vm_stats_13 {
@@ -165,6 +169,9 @@ const struct vmmdev_ioctl vmmdev_machdep_ioctls[] = {
 	VMMDEV_IOCTL(VM_ISA_DEASSERT_IRQ, 0),
 	VMMDEV_IOCTL(VM_ISA_PULSE_IRQ, 0),
 	VMMDEV_IOCTL(VM_ISA_SET_IRQ_TRIGGER, 0),
+	VMMDEV_IOCTL(VM_GET_CPUID, VMMDEV_IOCTL_LOCK_ONE_VCPU),
+	VMMDEV_IOCTL(VM_SET_CPUID, VMMDEV_IOCTL_LOCK_ONE_VCPU),
+	VMMDEV_IOCTL(VM_LEGACY_CPUID, VMMDEV_IOCTL_LOCK_ONE_VCPU),
 	VMMDEV_IOCTL(VM_GET_GPA_PMAP, 0),
 	VMMDEV_IOCTL(VM_GET_HPET_CAPABILITIES, 0),
 	VMMDEV_IOCTL(VM_RTC_READ, 0),
@@ -486,6 +493,108 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 
 		x2apic = (struct vm_x2apic *)data;
 		error = vm_get_x2apic_state(vcpu, &x2apic->state);
+		break;
+	}
+	case VM_GET_CPUID: {
+		struct vm_vcpu_cpuid_config *cfg = (void *)data;
+		struct vcpu_cpuid_entry *entries = NULL;
+
+		if (cfg->vvcc_vcpuid != vcpu_vcpuid(vcpu)) {
+			error = EINVAL;
+			break;
+		}
+		if (cfg->vvcc_nent > VMM_MAX_CPUID_ENTRIES) {
+			error = EINVAL;
+			break;
+		}
+
+		const size_t entries_size =
+		    cfg->vvcc_nent * sizeof(struct vcpu_cpuid_entry);
+		if (entries_size != 0) {
+			entries = malloc(entries_size, M_VMMDEV,
+			    M_WAITOK | M_ZERO);
+		}
+
+		vcpu_cpuid_config_t vm_cfg = {
+			.vcc_nent = cfg->vvcc_nent,
+			.vcc_entries = entries,
+		};
+		error = vm_get_cpuid(vcpu, &vm_cfg);
+
+		/*
+		 * Only attempt to copy out the resultant entries if we were
+		 * able to query them from the instance.  The flags and number
+		 * of entries are emitted regardless.
+		 */
+		cfg->vvcc_flags = vm_cfg.vcc_flags;
+		cfg->vvcc_nent = vm_cfg.vcc_nent;
+		if (entries != NULL) {
+			if (error == 0)
+				error = copyout(entries, cfg->vvcc_entries,
+				    entries_size);
+
+			free(entries, M_VMMDEV);
+		} else if (error == E2BIG) {
+			/*
+			 * If vm_get_cpuid() returned E2BIG, clear the error to
+			 * allow flags and number of entries to be returned.
+			 */
+			error = 0;
+		}
+
+		break;
+	}
+	case VM_SET_CPUID: {
+		struct vm_vcpu_cpuid_config *cfg = (void *)data;
+		struct vcpu_cpuid_entry *entries = NULL;
+		size_t entries_size = 0;
+
+		if (cfg->vvcc_vcpuid != vcpu_vcpuid(vcpu)) {
+			error = EINVAL;
+			break;
+		}
+		if (cfg->vvcc_nent > VMM_MAX_CPUID_ENTRIES) {
+			error = EFBIG;
+			break;
+		}
+		if ((cfg->vvcc_flags & VCC_FLAG_LEGACY_HANDLING) != 0) {
+			/*
+			 * If we are being instructed to use "legacy" handling,
+			 * then no entries should be provided, since the static
+			 * in-kernel masking will be used.
+			 */
+			if (cfg->vvcc_nent != 0) {
+				error = EINVAL;
+				break;
+			}
+		} else if (cfg->vvcc_nent != 0) {
+			entries_size =
+			    cfg->vvcc_nent * sizeof(struct vcpu_cpuid_entry);
+			entries = malloc(entries_size, M_VMMDEV, M_WAITOK);
+
+			error = copyin(cfg->vvcc_entries, entries,
+			    entries_size);
+			if (error != 0) {
+				free(entries, M_VMMDEV);
+				break;
+			}
+		}
+
+		vcpu_cpuid_config_t vm_cfg = {
+			.vcc_flags = cfg->vvcc_flags,
+			.vcc_nent = cfg->vvcc_nent,
+			.vcc_entries = entries,
+		};
+		error = vm_set_cpuid(vcpu, &vm_cfg);
+
+		free(entries, M_VMMDEV);
+		break;
+	}
+	case VM_LEGACY_CPUID: {
+		struct vm_legacy_cpuid *vlc = (void *)data;
+
+		legacy_emulate_cpuid(vcpu, &vlc->vlc_eax, &vlc->vlc_ebx,
+		    &vlc->vlc_ecx, &vlc->vlc_edx);
 		break;
 	}
 	case VM_GET_GPA_PMAP: {

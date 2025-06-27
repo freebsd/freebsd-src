@@ -1592,9 +1592,9 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		break;
 	case VMCB_EXIT_CPUID:
 		vmm_stat_incr(vcpu->vcpu, VMEXIT_CPUID, 1);
-		handled = x86_emulate_cpuid(vcpu->vcpu,
-		    &state->rax, &ctx->sctx_rbx, &ctx->sctx_rcx,
-		    &ctx->sctx_rdx);
+		vcpu_emulate_cpuid(vcpu->vcpu, &state->rax,
+		    &ctx->sctx_rbx, &ctx->sctx_rcx, &ctx->sctx_rdx);
+		handled = 1;
 		break;
 	case VMCB_EXIT_HLT:
 		vmm_stat_incr(vcpu->vcpu, VMEXIT_HLT, 1);

@@ -1247,17 +1247,6 @@ vmx_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	return (vcpu);
 }
 
-static int
-vmx_handle_cpuid(struct vmx_vcpu *vcpu, struct vmxctx *vmxctx)
-{
-	int handled;
-
-	handled = x86_emulate_cpuid(vcpu->vcpu, (uint64_t *)&vmxctx->guest_rax,
-	    (uint64_t *)&vmxctx->guest_rbx, (uint64_t *)&vmxctx->guest_rcx,
-	    (uint64_t *)&vmxctx->guest_rdx);
-	return (handled);
-}
-
 static __inline void
 vmx_run_trace(struct vmx_vcpu *vcpu)
 {
@@ -2670,7 +2659,12 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_CPUID:
 		vmm_stat_incr(vcpu->vcpu, VMEXIT_CPUID, 1);
 		SDT_PROBE3(vmm, vmx, exit, cpuid, vmx, vcpuid, vmexit);
-		handled = vmx_handle_cpuid(vcpu, vmxctx);
+		vcpu_emulate_cpuid(vcpu->vcpu,
+		    (uint64_t *)&vmxctx->guest_rax,
+		    (uint64_t *)&vmxctx->guest_rbx,
+		    (uint64_t *)&vmxctx->guest_rcx,
+		    (uint64_t *)&vmxctx->guest_rdx);
+		handled = HANDLED;
 		break;
 	case EXIT_REASON_EXCEPTION:
 		vmm_stat_incr(vcpu->vcpu, VMEXIT_EXCEPTION, 1);

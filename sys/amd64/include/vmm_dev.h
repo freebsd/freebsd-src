@@ -253,6 +253,23 @@ struct vm_readwrite_kernemu_device {
 };
 _Static_assert(sizeof(struct vm_readwrite_kernemu_device) == 24, "ABI");
 
+struct vm_vcpu_cpuid_config {
+	int		vvcc_vcpuid;
+	uint32_t	vvcc_flags;
+	uint32_t	vvcc_nent;
+	uint32_t	_pad;
+	void		*vvcc_entries;
+};
+
+/* Query the computed legacy cpuid value for a vcpuid with VM_LEGACY_CPUID */
+struct vm_legacy_cpuid {
+	int		vlc_vcpuid;
+	uint32_t	vlc_eax;
+	uint32_t	vlc_ebx;
+	uint32_t	vlc_ecx;
+	uint32_t	vlc_edx;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -320,6 +337,11 @@ enum {
 	/* CPU Topology */
 	IOCNUM_SET_TOPOLOGY = 63,
 	IOCNUM_GET_TOPOLOGY = 64,
+
+	/* CPUID override */
+	IOCNUM_GET_CPUID = 65,
+	IOCNUM_SET_CPUID = 66,
+	IOCNUM_LEGACY_CPUID = 67,
 
 	/* legacy interrupt injection */
 	IOCNUM_ISA_ASSERT_IRQ = 80,
@@ -439,6 +461,12 @@ enum {
 	_IOW('v', IOCNUM_SET_TOPOLOGY, struct vm_cpu_topology)
 #define VM_GET_TOPOLOGY \
 	_IOR('v', IOCNUM_GET_TOPOLOGY, struct vm_cpu_topology)
+#define	VM_GET_CPUID \
+	_IOWR('v', IOCNUM_GET_CPUID, struct vm_vcpu_cpuid_config)
+#define	VM_SET_CPUID \
+	_IOW('v', IOCNUM_SET_CPUID, struct vm_vcpu_cpuid_config)
+#define	VM_LEGACY_CPUID \
+	_IOWR('v', IOCNUM_LEGACY_CPUID, struct vm_legacy_cpuid)
 #define	VM_GET_GPA_PMAP \
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #define	VM_GLA2GPA	\
