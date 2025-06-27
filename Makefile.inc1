@@ -2113,7 +2113,9 @@ create-packages-source:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${SSTAGEDIR} \
-			PKG_VERSION=${PKG_VERSION} create-source-packages
+			PKG_VERSION=${PKG_VERSION} \
+			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
+			create-source-packages
 
 create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
 
@@ -2322,7 +2324,10 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 
 sign-packages:	.PHONY
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} real-sign-packages
+		${MAKE} -f Makefile.inc1 \
+			PKG_VERSION=${PKG_VERSION} \
+			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
+			real-sign-packages
 
 real-sign-packages:	_pkgbootstrap .PHONY
 	printf "version = 2;\n" > ${WSTAGEDIR}/meta
