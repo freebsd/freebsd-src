@@ -1797,11 +1797,11 @@ host(const char *s, int opts)
 			goto error;
 		}
 		if ((ps = malloc(strlen(s) - strlen(p) + 1)) == NULL)
-			err(1, "host: malloc");
+			err(1, "%s: malloc", __func__);
 		strlcpy(ps, s, strlen(s) - strlen(p) + 1);
 	} else {
 		if ((ps = strdup(s)) == NULL)
-			err(1, "host: strdup");
+			err(1, "%s: strdup", __func__);
 	}
 
 	if ((h = host_ip(ps, mask)) == NULL &&
