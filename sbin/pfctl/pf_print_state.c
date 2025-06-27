@@ -134,34 +134,28 @@ print_addr_str(sa_family_t af, struct pf_addr *addr)
 void
 print_name(struct pf_addr *addr, sa_family_t af)
 {
-	char host[NI_MAXHOST];
+	struct sockaddr_storage	 ss;
+	struct sockaddr_in	*sin;
+	struct sockaddr_in6	*sin6;
+	char			 host[NI_MAXHOST];
 
-	strlcpy(host, "?", sizeof(host));
-	switch (af) {
-	case AF_INET: {
-		struct sockaddr_in sin;
+	memset(&ss, 0, sizeof(ss));
+	ss.ss_family = af;
+	if (ss.ss_family == AF_INET) {
+		sin = (struct sockaddr_in *)&ss;
+		sin->sin_len = sizeof(*sin);
+		sin->sin_addr = addr->v4;
+	} else {
+		sin6 = (struct sockaddr_in6 *)&ss;
+		sin6->sin6_len = sizeof(*sin6);
+		sin6->sin6_addr = addr->v6;
+	}
 
-		memset(&sin, 0, sizeof(sin));
-		sin.sin_len = sizeof(sin);
-		sin.sin_family = AF_INET;
-		sin.sin_addr = addr->v4;
-		getnameinfo((struct sockaddr *)&sin, sin.sin_len,
-		    host, sizeof(host), NULL, 0, NI_NOFQDN);
-		break;
-	}
-	case AF_INET6: {
-		struct sockaddr_in6 sin6;
-
-		memset(&sin6, 0, sizeof(sin6));
-		sin6.sin6_len = sizeof(sin6);
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_addr = addr->v6;
-		getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
-		    host, sizeof(host), NULL, 0, NI_NOFQDN);
-		break;
-	}
-	}
-	printf("%s", host);
+	if (getnameinfo((struct sockaddr *)&ss, ss.ss_len, host, sizeof(host),
+		NULL, 0, NI_NOFQDN) != 0)
+		printf("?");
+	else
+		printf("%s", host);
 }
 
 void
