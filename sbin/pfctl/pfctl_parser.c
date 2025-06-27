@@ -1387,7 +1387,6 @@ struct node_host *
 gen_dynnode(struct node_host *h, sa_family_t af)
 {
 	struct node_host	*n;
-	struct pf_addr		*m;
 
 	if (h->addr.type != PF_ADDR_DYNIFTL)
 		return (NULL);
@@ -1400,8 +1399,7 @@ gen_dynnode(struct node_host *h, sa_family_t af)
 	n->tail = NULL;
 
 	/* fix up netmask */
-	m = &n->addr.v.a.mask;
-	if (af == AF_INET && unmask(m) > 32)
+	if (af == AF_INET && unmask(&n->addr.v.a.mask) > 32)
 		set_ipmask(n, 32);
 
 	return (n);
