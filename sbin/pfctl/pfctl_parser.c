@@ -77,7 +77,7 @@ int		 ifa_skip_if(const char *filter, struct node_host *p);
 struct node_host	*host_if(const char *, int);
 struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
-struct node_host	*host_dns(const char *, int, int, int);
+struct node_host	*host_dns(const char *, int, int);
 
 const char * const tcpflags = "FSRPAUEWe";
 
@@ -1803,12 +1803,12 @@ struct node_host *
 host(const char *s, int opts)
 {
 	struct node_host	*h = NULL;
-	int			 mask, v4mask, v6mask = 128;
+	int			 mask = -1;
 	char			*p, *ps;
 	const char		*errstr;
 
 	if ((p = strrchr(s, '/')) != NULL) {
-		mask = strtonum(p+1, 0, v6mask, &errstr);
+		mask = strtonum(p+1, 0, 128, &errstr);
 		if (errstr) {
 			fprintf(stderr, "netmask is %s: %s\n", errstr, p);
 			goto error;
@@ -1816,19 +1816,15 @@ host(const char *s, int opts)
 		if ((ps = malloc(strlen(s) - strlen(p) + 1)) == NULL)
 			err(1, "host: malloc");
 		strlcpy(ps, s, strlen(s) - strlen(p) + 1);
-		v4mask = v6mask = mask;
 	} else {
 		if ((ps = strdup(s)) == NULL)
 			err(1, "host: strdup");
-		v4mask = 32;
-		v6mask = 128;
-		mask = -1;
 	}
 
 	if ((h = host_v4(s, mask)) == NULL &&
-	    (h = host_v6(ps, v6mask)) == NULL &&
+	    (h = host_v6(ps, mask)) == NULL &&
 	    (h = host_if(ps, mask)) == NULL &&
-	    (h = host_dns(ps, v4mask, v6mask, (opts & PF_OPT_NODNS))) == NULL) {
+	    (h = host_dns(ps, mask, (opts & PF_OPT_NODNS))) == NULL) {
 		fprintf(stderr, "no IP address found for %s\n", s);
 		goto error;
 	}
@@ -1877,7 +1873,7 @@ host_if(const char *s, int mask)
 		/* interface with this name exists */
 		h = ifa_lookup(ps, flags);
 		for (n = h; n != NULL && mask > -1; n = n->next)
-			set_ipmask(n, mask);
+			set_ipmask(n, mask > -1 ? mask : 128);
 	}
 
 	free(ps);
@@ -1944,7 +1940,7 @@ host_v6(const char *s, int mask)
 }
 
 struct node_host *
-host_dns(const char *s, int v4mask, int v6mask, int numeric)
+host_dns(const char *s, int mask, int numeric)
 {
 	struct addrinfo		 hints, *res0, *res;
 	struct node_host	*n, *h = NULL;
@@ -1990,7 +1986,7 @@ host_dns(const char *s, int v4mask, int v6mask, int numeric)
 			    &((struct sockaddr_in *)
 			    res->ai_addr)->sin_addr.s_addr,
 			    sizeof(struct in_addr));
-			set_ipmask(n, v4mask);
+			set_ipmask(n, mask > -1 ? mask : 32);
 		} else {
 			memcpy(&n->addr.v.a.addr,
 			    &((struct sockaddr_in6 *)
@@ -1999,7 +1995,7 @@ host_dns(const char *s, int v4mask, int v6mask, int numeric)
 			n->ifindex =
 			    ((struct sockaddr_in6 *)
 			    res->ai_addr)->sin6_scope_id;
-			set_ipmask(n, v6mask);
+			set_ipmask(n, mask > -1 ? mask : 128);
 		}
 		n->next = NULL;
 		n->tail = n;
