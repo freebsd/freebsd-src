@@ -74,7 +74,7 @@ void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
 		    struct pf_rule_addr *, sa_family_t, u_int8_t, int, int);
 int		 ifa_skip_if(const char *filter, struct node_host *p);
 
-struct node_host	*host_if(const char *, int, int *);
+struct node_host	*host_if(const char *, int);
 struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
 struct node_host	*host_dns(const char *, int, int, int);
@@ -1803,7 +1803,7 @@ struct node_host *
 host(const char *s, int opts)
 {
 	struct node_host	*h = NULL;
-	int			 mask, v4mask, v6mask = 128, cont = 1;
+	int			 mask, v4mask, v6mask = 128;
 	char			*p, *ps;
 	const char		*errstr;
 
@@ -1811,7 +1811,7 @@ host(const char *s, int opts)
 		mask = strtonum(p+1, 0, v6mask, &errstr);
 		if (errstr) {
 			fprintf(stderr, "netmask is %s: %s\n", errstr, p);
-			return (NULL);
+			goto error;
 		}
 		if ((ps = malloc(strlen(s) - strlen(p) + 1)) == NULL)
 			err(1, "host: malloc");
@@ -1825,34 +1825,21 @@ host(const char *s, int opts)
 		mask = -1;
 	}
 
-	/* IPv4 address? */
-	if (cont && (h = host_v4(s, mask)) != NULL)
-		cont = 0;
-
-	/* IPv6 address? */
-	if (cont && (h = host_v6(ps, v6mask)) != NULL)
-		cont = 0;
-
-	/* interface with this name exists? */
-	/* expensive with thousands of interfaces - prioritze IPv4/6 check */
-	if (cont && (h = host_if(ps, mask, &cont)) != NULL)
-		cont = 0;
-
-	/* dns lookup */
-	if (cont && (h = host_dns(ps, v4mask, v6mask,
-	    (opts & PF_OPT_NODNS))) != NULL)
-		cont = 0;
-	free(ps);
-
-	if (h == NULL || cont == 1) {
+	if ((h = host_v4(s, mask)) == NULL &&
+	    (h = host_v6(ps, v6mask)) == NULL &&
+	    (h = host_if(ps, mask)) == NULL &&
+	    (h = host_dns(ps, v4mask, v6mask, (opts & PF_OPT_NODNS))) == NULL) {
 		fprintf(stderr, "no IP address found for %s\n", s);
-		return (NULL);
+		goto error;
 	}
+
+error:
+	free(ps);
 	return (h);
 }
 
 struct node_host *
-host_if(const char *s, int mask, int *cont)
+host_if(const char *s, int mask)
 {
 	struct node_host	*n, *h = NULL;
 	char			*p, *ps;
@@ -1874,7 +1861,6 @@ host_if(const char *s, int mask, int *cont)
 			return (NULL);
 		}
 		*p = '\0';
-		*cont = 0;
 	}
 	if (flags & (flags - 1) & PFI_AFLAG_MODEMASK) { /* Yep! */
 		fprintf(stderr, "illegal combination of interface modifiers\n");
