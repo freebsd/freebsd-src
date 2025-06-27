@@ -20,7 +20,7 @@ execute_user_data_script()
 		/var/cache/nuageinit/runcmds 2>&1 | tee -a /var/log/nuageinit.log
 	fi
 	test -x /var/cache/nuageinit/user_data || return
-	echo "Executing user_data script" | tee -a /var/log/nuageinnit.log
+	echo "Executing user_data script" | tee -a /var/log/nuageinit.log
 	/var/cache/nuageinit/user_data 2>&1 | tee -a /var/log/nuageinit.log
 }
 
