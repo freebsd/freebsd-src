@@ -1788,11 +1788,7 @@ _run_rc_doit()
 	debug "run_rc_command: doit: $*"
 	_m=$(umask)
 	${_umask:+umask ${_umask}}
-
-	# Disable pathname expansion temporarily for run_rc_command. 
-	set -o noglob
 	eval "$@"
-	set +o noglob
 	_return=$?
 	umask ${_m}
 
