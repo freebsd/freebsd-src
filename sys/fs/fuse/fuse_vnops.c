@@ -289,6 +289,10 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 	if (err)
 		return err;
 
+	if (fufh->fuse_open_flags & FOPEN_NOFLUSH &&
+	    (!fsess_opt_writeback(vnode_mount(vp))))
+		return (0);
+
 	fdisp_init(&fdi, sizeof(*ffi));
 	fdisp_make_vp(&fdi, FUSE_FLUSH, vp, td, cred);
 	ffi = fdi.indata;

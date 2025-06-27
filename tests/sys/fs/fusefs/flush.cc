@@ -109,6 +109,36 @@ TEST_F(Flush, open_twice)
 	EXPECT_EQ(0, close(fd)) << strerror(errno);
 }
 
+/**
+ * Test for FOPEN_NOFLUSH: we expect that zero flush calls will be performed.
+ */
+TEST_F(Flush, open_noflush)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	uint64_t pid = (uint64_t)getpid();
+	int fd;
+
+	expect_lookup(RELPATH, ino, 1);
+	expect_open(ino, FOPEN_NOFLUSH, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_FLUSH &&
+				in.header.nodeid == ino &&
+				in.body.flush.lock_owner == pid &&
+				in.body.flush.fh == FH);
+		}, Eq(true)),
+		_)
+	).Times(0);
+	expect_release();
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	// close MUST not flush
+	EXPECT_EQ(0, close(fd)) << strerror(errno);
+}
+
 /*
  * Some FUSE filesystem cache data internally and flush it on release.  Such
  * filesystems may generate errors during release.  On Linux, these get
