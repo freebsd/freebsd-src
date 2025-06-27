@@ -1885,11 +1885,10 @@ host_v4(const char *s, int mask)
 {
 	struct node_host	*h = NULL;
 	struct in_addr		 ina;
-	int			 bits = 32;
 
-	memset(&ina, 0, sizeof(struct in_addr));
-	if (strrchr(s, '/') != NULL) {
-		if ((bits = inet_net_pton(AF_INET, s, &ina, sizeof(ina))) == -1)
+	memset(&ina, 0, sizeof(ina));
+	if (mask > -1) {
+		if (inet_net_pton(AF_INET, s, &ina, sizeof(ina)) == -1)
 			return (NULL);
 	} else {
 		if (inet_pton(AF_INET, s, &ina) != 1)
@@ -1902,7 +1901,7 @@ host_v4(const char *s, int mask)
 	h->ifname = NULL;
 	h->af = AF_INET;
 	h->addr.v.a.addr.addr32[0] = ina.s_addr;
-	set_ipmask(h, bits);
+	set_ipmask(h, mask > -1 ? mask : 32);
 	h->next = NULL;
 	h->tail = h;
 
