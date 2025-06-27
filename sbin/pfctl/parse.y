@@ -3640,9 +3640,9 @@ host		: STRING			{
 			if (b->af != e->af ||
 			    b->addr.type != PF_ADDR_ADDRMASK ||
 			    e->addr.type != PF_ADDR_ADDRMASK ||
-			    unmask(&b->addr.v.a.mask, b->af) !=
+			    unmask(&b->addr.v.a.mask) !=
 			    (b->af == AF_INET ? 32 : 128) ||
-			    unmask(&e->addr.v.a.mask, e->af) !=
+			    unmask(&e->addr.v.a.mask) !=
 			    (e->af == AF_INET ? 32 : 128) ||
 			    b->next != NULL || b->not ||
 			    e->next != NULL || e->not) {
@@ -5551,7 +5551,7 @@ expand_label_addr(const char *name, char *label, size_t len, sa_family_t af,
 				    sizeof(a)) == NULL)
 					snprintf(tmp, sizeof(tmp), "?");
 				else {
-					bits = unmask(&addr->addr.v.a.mask, af);
+					bits = unmask(&addr->addr.v.a.mask);
 					if ((af == AF_INET && bits < 32) ||
 					    (af == AF_INET6 && bits < 128))
 						snprintf(tmp, sizeof(tmp),
