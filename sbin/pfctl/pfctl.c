@@ -3183,7 +3183,7 @@ main(int argc, char *argv[])
 			loadopt |= PFCTL_FLAG_TABLE;
 			tblcmdopt = NULL;
 		} else
-			mode = strchr("acdefkrz", ch) ? O_RDWR : O_RDONLY;
+			mode = strchr("st", ch) ? O_RDONLY : O_RDWR;
 	} else if (argc != optind) {
 		warnx("unknown command line argument: %s ...", argv[optind]);
 		usage();
