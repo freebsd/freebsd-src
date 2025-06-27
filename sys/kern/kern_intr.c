@@ -111,7 +111,7 @@ static struct mtx event_lock;
 MTX_SYSINIT(intr_event_list, &event_lock, "intr event list", MTX_DEF);
 
 static void	intr_event_update(struct intr_event *ie);
-static int	intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame);
+static int	intr_event_schedule_thread(struct intr_event *ie);
 static struct intr_thread *ithread_create(const char *name);
 static void	ithread_destroy(struct intr_thread *ithread);
 static void	ithread_execute_handlers(struct proc *p, 
@@ -810,8 +810,15 @@ intr_handler_barrier(struct intr_handler *handler)
 		return;
 	}
 	if ((handler->ih_flags & IH_CHANGED) == 0) {
+#ifdef HWPMC_HOOKS
+		struct trapframe *oldframe = curthread->td_intr_frame;
+		curthread->td_intr_frame = NULL;
+#endif
 		handler->ih_flags |= IH_CHANGED;
-		intr_event_schedule_thread(ie, NULL);
+		intr_event_schedule_thread(ie);
+#ifdef HWPMC_HOOKS
+		curthread->td_intr_frame = oldframe;
+#endif
 	}
 	while ((handler->ih_flags & IH_CHANGED) != 0)
 		msleep(handler, &ie->ie_lock, 0, "ih_barr", 0);
@@ -894,6 +901,10 @@ intr_event_remove_handler(void *cookie)
 		CK_SLIST_REMOVE_PREVPTR(prevptr, ih, ih_next);
 		intr_event_barrier(ie);
 	} else {
+#ifdef HWPMC_HOOKS
+		struct trapframe *oldframe = curthread->td_intr_frame;
+		curthread->td_intr_frame = NULL;
+#endif
 		/*
 		 * Let the interrupt thread do the job.  The interrupt source is
 		 * disabled when the interrupt thread is running, so it does not
@@ -902,7 +913,10 @@ intr_event_remove_handler(void *cookie)
 		KASSERT((handler->ih_flags & IH_DEAD) == 0,
 		    ("duplicate handle remove"));
 		handler->ih_flags |= IH_DEAD;
-		intr_event_schedule_thread(ie, NULL);
+		intr_event_schedule_thread(ie);
+#ifdef HWPMC_HOOKS
+		curthread->td_intr_frame = oldframe;
+#endif
 		while (handler->ih_flags & IH_DEAD)
 			msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	}
@@ -956,12 +970,15 @@ intr_event_resume_handler(void *cookie)
 }
 
 static int
-intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
+intr_event_schedule_thread(struct intr_event *ie)
 {
 	struct intr_entropy entropy;
 	struct intr_thread *it;
 	struct thread *td;
 	struct thread *ctd;
+#ifdef HWPMC_HOOKS
+	struct trapframe *frame = curthread->td_intr_frame;
+#endif
 
 	/*
 	 * If no ithread or no handlers, then we have a stray interrupt.
@@ -1105,8 +1122,15 @@ swi_sched(void *cookie, int flags)
 		ipi_self_from_nmi(IPI_SWI);
 #endif
 	} else {
+#ifdef HWPMC_HOOKS
+		struct trapframe *oldframe = curthread->td_intr_frame;
+		curthread->td_intr_frame = NULL;
+#endif
 		VM_CNT_INC(v_soft);
-		error = intr_event_schedule_thread(ie, NULL);
+		error = intr_event_schedule_thread(ie);
+#ifdef HWPMC_HOOKS
+		curthread->td_intr_frame = oldframe;
+#endif
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
 }
@@ -1344,7 +1368,9 @@ intr_event_handle(struct intr_event *ie)
 	int phase;
 	int ret;
 	bool filter, thread;
+#if defined(KSTACK_USAGE_PROF) || defined(HWPMC_HOOKS)
 	struct trapframe *frame = curthread->td_intr_frame;
+#endif
 
 #ifdef KSTACK_USAGE_PROF
 	intr_prof_stack_use(curthread, frame);
@@ -1439,7 +1465,7 @@ intr_event_handle(struct intr_event *ie)
 	if (thread) {
 		int error __unused;
 
-		error =  intr_event_schedule_thread(ie, frame);
+		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("bad stray interrupt"));
 	}
 #ifdef notyet
