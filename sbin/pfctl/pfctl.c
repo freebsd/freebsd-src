@@ -3198,6 +3198,15 @@ main(int argc, char *argv[])
 	if (anchoropt != NULL) {
 		int len = strlen(anchoropt);
 
+		if (mode == O_RDONLY && showopt == NULL) {
+			warnx("anchors apply to -f, -F and -s only");
+			usage();
+		}
+		if (mode == O_RDWR &&
+		    (anchoropt[0] == '_' || strstr(anchoropt, "/_") != NULL))
+			errx(1, "anchor names beginning with '_' cannot "
+			    "be modified from the command line");
+
 		if (len >= 1 && anchoropt[len - 1] == '*') {
 			if (len >= 2 && anchoropt[len - 2] == '/')
 				anchoropt[len - 2] = '\0';
@@ -3329,10 +3338,6 @@ main(int argc, char *argv[])
 	}
 
 	if (clearopt != NULL) {
-		if (anchorname[0] == '_' || strstr(anchorname, "/_") != NULL)
-			errx(1, "anchor names beginning with '_' cannot "
-			    "be modified from the command line");
-
 		switch (*clearopt) {
 		case 'e':
 			pfctl_flush_eth_rules(dev, opts, anchorname);
@@ -3423,9 +3428,6 @@ main(int argc, char *argv[])
 			error = 1;
 
 	if (rulesopt != NULL) {
-		if (anchorname[0] == '_' || strstr(anchorname, "/_") != NULL)
-			errx(1, "anchor names beginning with '_' cannot "
-			    "be modified from the command line");
 		if (pfctl_rules(dev, rulesopt, opts, optimize,
 		    anchorname, NULL))
 			error = 1;
