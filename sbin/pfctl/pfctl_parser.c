@@ -1852,22 +1852,18 @@ host_if(const char *s, int mask)
 			flags |= PFI_AFLAG_PEER;
 		else if (!strcmp(p+1, "0"))
 			flags |= PFI_AFLAG_NOALIAS;
-		else {
-			free(ps);
-			return (NULL);
-		}
+		else
+			goto error;
 		*p = '\0';
 	}
 	if (flags & (flags - 1) & PFI_AFLAG_MODEMASK) { /* Yep! */
 		fprintf(stderr, "illegal combination of interface modifiers\n");
-		free(ps);
-		return (NULL);
+		goto error;
 	}
 	if ((flags & (PFI_AFLAG_NETWORK|PFI_AFLAG_BROADCAST)) && mask > -1) {
 		fprintf(stderr, "network or broadcast lookup, but "
 		    "extra netmask given\n");
-		free(ps);
-		return (NULL);
+		goto error;
 	}
 	if (ifa_exists(ps) || !strncmp(ps, "self", IFNAMSIZ)) {
 		/* interface with this name exists */
@@ -1876,6 +1872,7 @@ host_if(const char *s, int mask)
 			set_ipmask(n, mask > -1 ? mask : 128);
 	}
 
+error:
 	free(ps);
 	return (h);
 }
