@@ -167,19 +167,14 @@ print_name(struct pf_addr *addr, sa_family_t af)
 void
 print_host(struct pf_addr *addr, u_int16_t port, sa_family_t af, int opts)
 {
+	struct pf_addr_wrap	 aw;
+
 	if (opts & PF_OPT_USEDNS)
 		print_name(addr, af);
 	else {
-		struct pf_addr_wrap aw;
-
 		memset(&aw, 0, sizeof(aw));
 		aw.v.a.addr = *addr;
-		if (af == AF_INET)
-			aw.v.a.mask.addr32[0] = 0xffffffff;
-		else {
-			memset(&aw.v.a.mask, 0xff, sizeof(aw.v.a.mask));
-			af = AF_INET6;
-		}
+		memset(&aw.v.a.mask, 0xff, sizeof(aw.v.a.mask));
 		print_addr(&aw, af, opts & PF_OPT_VERBOSE2);
 	}
 
