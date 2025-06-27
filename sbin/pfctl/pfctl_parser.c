@@ -1483,7 +1483,7 @@ ifa_load(void)
 				continue;
 		n = calloc(1, sizeof(struct node_host));
 		if (n == NULL)
-			err(1, "address: calloc");
+			err(1, "%s: calloc", __func__);
 		n->af = ifa->ifa_addr->sa_family;
 		n->ifa_flags = ifa->ifa_flags;
 #ifdef __KAME__
@@ -1540,7 +1540,7 @@ ifa_load(void)
 			    ifa->ifa_addr)->sdl_index;
 		}
 		if ((n->ifname = strdup(ifa->ifa_name)) == NULL)
-			err(1, "ifa_load: strdup");
+			err(1, "%s: strdup", __func__);
 		n->next = NULL;
 		n->tail = n;
 		if (h == NULL)
@@ -1743,7 +1743,7 @@ ifa_lookup(char *ifa_name, int flags)
 			got6 = 1;
 		n = calloc(1, sizeof(struct node_host));
 		if (n == NULL)
-			err(1, "address: calloc");
+			err(1, "%s: calloc", __func__);
 		n->af = p->af;
 		if (flags & PFI_AFLAG_BROADCAST)
 			memcpy(&n->addr.v.a.addr, &p->bcast,
