@@ -120,6 +120,7 @@ void		 pfaltq_store(struct pf_altq *);
 char		*rate2str(double);
 
 void	 print_addr(struct pf_addr_wrap *, sa_family_t, int);
+void	 print_addr_str(sa_family_t, struct pf_addr *);
 void	 print_host(struct pf_addr *, u_int16_t p, sa_family_t, int);
 void	 print_seq(struct pfctl_state_peer *);
 void	 print_state(struct pfctl_state *, int);
