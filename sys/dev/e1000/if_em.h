@@ -246,6 +246,7 @@
 
 /* Define the interrupt rates and ITR helpers */
 #define EM_INTS_4K		4000
+#define EM_INTS_10K		10000 /* New interrupt rate */
 #define EM_INTS_20K		20000
 #define EM_INTS_70K		70000
 #define EM_INTS_DEFAULT		8000

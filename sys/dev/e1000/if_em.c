@@ -1632,7 +1632,8 @@ enum itr_latency_target {
 	itr_latency_disabled = 0,
 	itr_latency_lowest = 1,
 	itr_latency_low = 2,
-	itr_latency_bulk = 3
+	itr_latency_medium = 3, /* New intermediate state */
+	itr_latency_bulk = 4
 };
 /*********************************************************************
  *
@@ -1696,36 +1697,47 @@ em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
 			break;
 		case itr_latency_lowest: /* 70k ints/s */
 			/* TSO and jumbo frames */
-			if (bytes_per_packet > 8000)
+			if (bytes_per_packet > 8000) /* Approx > 5 full size MTU packets */
 				nextlatency = itr_latency_bulk;
-			else if ((packets < 5) && (bytes > 512))
+			else if (packets > 15 && bytes > 6000) /* X_low_pkts, Y_low_bytes */
+				nextlatency = itr_latency_medium;
+			else if (packets > 5 && bytes > 2000) /* Loosened original transition to low */
 				nextlatency = itr_latency_low;
+			/* else stay in lowest */
 			break;
 		case itr_latency_low: /* 20k ints/s */
-			if (bytes > 10000) {
-				/* Handle TSO */
-				if (bytes_per_packet > 8000)
+			if (bytes > 10000) { /* High volume */
+				if (bytes_per_packet > 8000 || packets < 10 || bytes_per_packet > 1200)
 					nextlatency = itr_latency_bulk;
-				else if ((packets < 10) ||
-				    (bytes_per_packet > 1200))
-					nextlatency = itr_latency_bulk;
-				else if (packets > 35)
+				else if (packets > 35) /* High packet rate, not necessarily TSO/Jumbo */
 					nextlatency = itr_latency_lowest;
-			} else if (bytes_per_packet > 2000) {
-				nextlatency = itr_latency_bulk;
-			} else if (packets < 3 && bytes < 512) {
+				else /* High volume, but not meeting bulk or lowest criteria */
+					nextlatency = itr_latency_medium;
+			} else if (bytes_per_packet > 2000) { /* Large frames, but not high volume */
+				nextlatency = itr_latency_medium; /* Go to medium instead of directly to bulk */
+			} else if (packets < 3 && bytes < 512) { /* Very few, small packets */
 				nextlatency = itr_latency_lowest;
 			}
+			/* else stay in low */
+			break;
+		case itr_latency_medium: /* ~10k ints/s - NEW STATE */
+			if (bytes > 18000 && packets > 25) /* Z_high_bytes, W_high_pkts */
+				nextlatency = itr_latency_bulk;
+			else if (bytes < 6000 && packets < 15) /* Y_low_bytes, X_low_pkts */
+				nextlatency = itr_latency_low;
+			else if (packets < 5 && bytes < 1000) /* Light traffic again */
+				nextlatency = itr_latency_lowest;
+			/* else stay in medium */
 			break;
 		case itr_latency_bulk: /* 4k ints/s */
-			if (bytes > 25000) {
-				if (packets > 35)
-					nextlatency = itr_latency_low;
-			} else if (bytes < 1500)
-				nextlatency = itr_latency_low;
+			if (bytes > 25000 && packets > 35)
+				nextlatency = itr_latency_medium; /* Go to medium first */
+			else if (bytes < 1500 && packets < 20) /* Adjusted threshold for moving up */
+				nextlatency = itr_latency_medium; /* Go to medium first */
+			/* else stay in bulk */
 			break;
 		default:
-			nextlatency = itr_latency_low;
+			nextlatency = itr_latency_medium; /* Default to medium if state is unexpected */
 			device_printf(sc->dev,
 			    "Unexpected newitr transition %d\n", nextlatency);
 			break;
@@ -1750,6 +1762,9 @@ em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
 		break;
 	case itr_latency_low:
 		newitr = EM_INTS_20K;
+		break;
+	case itr_latency_medium: /* New case */
+		newitr = EM_INTS_10K;
 		break;
 	case itr_latency_bulk:
 		newitr = EM_INTS_4K;
