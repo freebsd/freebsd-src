@@ -1784,8 +1784,14 @@ vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
 {
 	int old_vote;
 
+	/*
+	 * Do not trigger an OOM kill if the page daemon is able to make
+	 * progress, or if there is no instantaneous shortage.  The latter case
+	 * can happen if the PID controller is still reacting to an acute
+	 * shortage, and the inactive queue is full of dirty pages.
+	 */
 	if (starting_page_shortage <= 0 || starting_page_shortage !=
-	    page_shortage)
+	    page_shortage || !vm_paging_needed(vmd, vmd->vmd_free_count))
 		vmd->vmd_oom_seq = 0;
 	else
 		vmd->vmd_oom_seq++;
