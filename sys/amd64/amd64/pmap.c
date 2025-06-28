@@ -1745,7 +1745,8 @@ create_pagetables(vm_paddr_t *firstaddr)
 		 * Each NDMPML4E allows 512 GB, so limit to that,
 		 * and then readjust ndmpdp and ndmpdpphys.
 		 */
-		printf("NDMPML4E limits system to %d GB\n", NDMPML4E * 512);
+		printf("NDMPML4E limits system to %lu GB\n",
+		    (u_long)NDMPML4E * NBPML4 / 1024 / 1024 / 1024);
 		Maxmem = atop(NDMPML4E * NBPML4);
 		ndmpdpphys = NDMPML4E;
 		ndmpdp = NDMPML4E * NPDEPG;
