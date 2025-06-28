@@ -57,6 +57,15 @@ make: varmod-ifelse.mk:314: Unknown modifier ":X-then"
 make: varmod-ifelse.mk:314: Unknown modifier ":X-else"
 	while parsing "${:X-else}}"
 	while evaluating else-branch of condition "1"
+make: varmod-ifelse.mk:322: Bad condition
+	while evaluating condition " < 0 "
+make: varmod-ifelse.mk:322: Unknown modifier ":Z1"
+	while parsing "${:Z1}:${:Z2}}>"
+	while evaluating then-branch of condition " < 0 "
+make: varmod-ifelse.mk:322: Unknown modifier ":Z2"
+	while parsing "${:Z2}}>"
+	while evaluating else-branch of condition " < 0 "
+make: varmod-ifelse.mk:322: <>
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -1,5 +1,5 @@
 make: (stdin):2: Zero byte read from file
-	in directory <curdir>
+	in make[1] in directory "<curdir>"
 *** Error code 2 (continuing)
 
 Stop.

@@ -1,4 +1,4 @@
-#*** Input graph:
+#*** Begin input graph for pass 1 in <curdir>:
 # all, unmade, type OP_DEPENDS, flags none
 
 
@@ -59,4 +59,5 @@ MFLAGS           =   -r -k -d g1
 .cpp.a          :
 	: Making ${.TARGET} from impsrc ${.IMPSRC} allsrc ${.ALLSRC}.
 
+#*** End input graph for pass 1 in <curdir>:
 exit status 0

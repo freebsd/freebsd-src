@@ -8,7 +8,7 @@ make: directive-for-errors.mk:44: invalid character '$' in .for loop variable na
 make: directive-for-errors.mk:52: no iteration variables in for
 make: directive-for-errors.mk:64: Wrong number of words (5) in .for substitution list with 3 variables
 make: directive-for-errors.mk:78: missing `in' in for
-make: directive-for-errors.mk:86: Unknown modifier ":Z"
+make: directive-for-errors.mk:85: Unknown modifier ":Z"
 	while evaluating "${:U3:Z} 4" with value "3"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests

@@ -1728,13 +1728,16 @@ SSPPEECCIIAALL TTAARRGGEETTSS
 EENNVVIIRROONNMMEENNTT
      bbmmaakkee uses the following environment variables, if they exist: MACHINE,
      MACHINE_ARCH, MAKE, MAKEFLAGS, MAKEOBJDIR, MAKEOBJDIRPREFIX, MAKESYSPATH,
-     PWD, and TMPDIR.
+     MAKE_STACK_TRACE, PWD, and TMPDIR.
 
      MAKEOBJDIRPREFIX and MAKEOBJDIR should be set in the environment or on
      the command line to bbmmaakkee and not as makefile variables; see the
      description of `_._O_B_J_D_I_R' for more details.  It is possible to set these
      via makefile variables but unless done very early and the `..OOBBJJDDIIRR'
      target is used to reset `_._O_B_J_D_I_R', there may be unexpected side effects.
+
+     If the MAKE_STACK_TRACE environment variable is set to "yes", any stack
+     traces include the call chain of the parent processes.
 
 FFIILLEESS
      .depend        list of dependencies
@@ -1828,4 +1831,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.2-RELEASE-p1          April 4, 2025         FreeBSD 14.2-RELEASE-p1
+FreeBSD 14.2-RELEASE-p1          June 12, 2025         FreeBSD 14.2-RELEASE-p1

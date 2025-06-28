@@ -1,4 +1,4 @@
-/*	$NetBSD: make_malloc.c,v 1.26 2022/01/07 08:30:04 rillig Exp $	*/
+/*	$NetBSD: make_malloc.c,v 1.27 2025/06/12 18:51:05 rillig Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: make_malloc.c,v 1.26 2022/01/07 08:30:04 rillig Exp $");
+MAKE_RCSID("$NetBSD: make_malloc.c,v 1.27 2025/06/12 18:51:05 rillig Exp $");
 
 #ifndef USE_EMALLOC
 
@@ -38,7 +38,7 @@ MAKE_RCSID("$NetBSD: make_malloc.c,v 1.26 2022/01/07 08:30:04 rillig Exp $");
 static MAKE_ATTR_DEAD void
 enomem(void)
 {
-	(void)fprintf(stderr, "%s: %s.\n", progname, strerror(ENOMEM));
+	(void)fprintf(stderr, "%s: %s\n", progname, strerror(errno));
 	exit(2);
 }
 

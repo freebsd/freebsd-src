@@ -1,6 +1,6 @@
 job_pipe -1 -1, maxjobs 1, tokens 1, compat 0
-Job_TokenWithdraw(<pid>): aborting 0, running 0
-(<pid>) withdrew token
+TokenPool_Take: pid <pid>, aborting NONE, running 0
+TokenPool_Take: pid <pid> took a token
 # echo off
 echo silent
 # echo on
@@ -16,12 +16,12 @@ set -e
 echo always
 Running all
 	Command: <shell>
-JobExec(all): pid <pid> added to jobs table
-job table @ job started
-job 0, status 3, flags ---, pid <pid>
+JobExec: target all, pid <pid> added to jobs table
+job started, job table:
+job 0, status running, flags ---, pid <pid>
 silent
 ignerr
 always
-Job_TokenWithdraw(<pid>): aborting 0, running 0
-(<pid>) withdrew token
+TokenPool_Take: pid <pid>, aborting NONE, running 0
+TokenPool_Take: pid <pid> took a token
 exit status 0

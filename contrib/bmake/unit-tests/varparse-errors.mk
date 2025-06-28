@@ -1,4 +1,4 @@
-# $NetBSD: varparse-errors.mk,v 1.24 2025/03/30 09:51:51 rillig Exp $
+# $NetBSD: varparse-errors.mk,v 1.25 2025/05/03 08:18:33 rillig Exp $
 
 # Tests for parsing and evaluating all kinds of expressions.
 #
@@ -122,6 +122,6 @@ UNCLOSED:=	${:U:localtime
 _!=	echo '.info $${VALUE}' > varparse-errors.tmp
 VALUE=	${INDIRECT}
 INDIRECT=	${:Z}
-# The "${.OBJDIR}/" is necessary to skip the directory cache.
+# The "${.OBJDIR}/" is necessary to bypass the directory cache.
 .include "${.OBJDIR}/varparse-errors.tmp"
 _!=	rm -f varparse-errors.tmp

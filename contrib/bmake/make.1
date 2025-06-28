@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.384 2025/04/04 18:36:47 sjg Exp $
+.\"	$NetBSD: make.1,v 1.385 2025/06/13 03:51:18 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd April  4, 2025
+.Dd June 12, 2025
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -2699,6 +2699,7 @@ uses the following environment variables, if they exist:
 .Ev MAKEOBJDIR ,
 .Ev MAKEOBJDIRPREFIX ,
 .Ev MAKESYSPATH ,
+.Ev MAKE_STACK_TRACE ,
 .Ev PWD ,
 and
 .Ev TMPDIR .
@@ -2718,6 +2719,12 @@ very early and the
 target is used to reset
 .Sq Va .OBJDIR ,
 there may be unexpected side effects.
+.Pp
+If the
+.Ev MAKE_STACK_TRACE
+environment variable is set to
+.Dq yes ,
+any stack traces include the call chain of the parent processes.
 .Sh FILES
 .Bl -tag -width /usr/share/mk -compact
 .It .depend

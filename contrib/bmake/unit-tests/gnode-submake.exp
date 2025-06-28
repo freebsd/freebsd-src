@@ -1,4 +1,4 @@
-#*** Input graph:
+#*** Begin input graph for pass 1 in <curdir>:
 # all, unmade, type OP_DEPENDS, flags none
 # makeinfo, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
 # make-index, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none

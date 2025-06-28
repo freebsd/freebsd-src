@@ -15,11 +15,12 @@
 #
 #	-C "compress"
 #		Compact old logs (other than .0) with "compress"
-#		(default is 'gzip' or 'compress' if no 'gzip').
+#		(default is "$NEWLOG_COMPRESS" 'gzip' or 'compress' if
+#		no 'gzip').
 #
 #	-E "ext"
 #		If "compress" produces a file extention other than
-#		'.Z' or '.gz' we need to know.
+#		'.Z' or '.gz' we need to know ("$NEWLOG_EXT").
 #
 #	-G "gens"
 #		"gens" is a comma separated list of "log":"num" pairs
@@ -39,6 +40,7 @@
 #		uniquely name it when using the '-S' option.
 #		If a "log" is saved more than once per second we add
 #		an extra suffix of our process-id.
+#		The default can be set in the env via "$NEWLOG_FMT".
 #
 #	-d	The "log" to be rotated/saved is a directory.
 #		We leave the mode of old directories alone.
@@ -50,21 +52,24 @@
 #		Set the group of "log" to "group".
 #
 #	-m "mode"
-#		Set the mode of "log".
+#		Set the mode of "log" ("$NEWLOG_MODE").
 #
 #	-M "mode"
-#		Set the mode of old logs (default 444).
+#		Set the mode of old logs (default "$NEWLOG_OLD_MODE"
+#		or 444).
 #
 #	-n "num"
-#		Keep "num" generations of "log".
+#		Keep "num" generations of "log" ("$NEWLOG_NUM").
 #
 #	-o "owner"
 #		Set the owner of "log".
 #
-#	Regardless of whether '-R' or '-S' is provided, we attempt to
-#	choose the correct behavior based on observation of "log.0" if
-#	it exists; if it is a symbolic link, we save, otherwise
-#	we rotate.
+#	The default method for dealing with logs can be set via
+#	"$NEWLOG_METHOD" ('save' or 'rotate').
+#	Regardless of "$NEWLOG_METHOD" or whether '-R' or '-S' is
+#	provided, we attempt to choose the correct behavior based on
+#	observation of "log.0" if it exists; if it is a symbolic link,
+#	we 'save', otherwise we 'rotate'.
 #
 # BUGS:
 #	'Newlog.sh' tries to avoid being fooled by symbolic links, but
@@ -76,11 +81,11 @@
 #
 
 # RCSid:
-#	$Id: newlog.sh,v 1.27 2024/02/17 17:26:57 sjg Exp $
+#	$Id: newlog.sh,v 1.30 2025/06/01 05:07:48 sjg Exp $
 #
 #	SPDX-License-Identifier: BSD-2-Clause
 #
-#	@(#) Copyright (c) 1993-2016 Simon J. Gerraty
+#	@(#) Copyright (c) 1993-2025 Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -168,6 +173,10 @@ get_mode() {
 		$STAT -f %Op $1 | sed 's,.*\(....\),\1,'
 		return
 		;;
+	Linux,$STAT)		# works on Ubuntu
+		$STAT -c %a $1 2> /dev/null &&
+		return
+		;;
 	esac
 	# fallback to find
 	fmode `find $1 -ls -prune | awk '{ print $3 }'`
@@ -179,21 +188,33 @@ get_mtime_suffix() {
 		$STAT -t "${2:-$opt_f}" -f %Sm $1
 		return
 		;;
+	Linux,*)		# works on Ubuntu
+		mtime=`$STAT --format=%Y $1 2> /dev/null`
+		if [ ${mtime:-0} -gt 1 ]; then
+			date --date=@$mtime "+${2:-$opt_f}" 2> /dev/null &&
+			return
+		fi
+		;;
 	esac
 	# this will have to do
 	date "+${2:-$opt_f}"
 }
 
 case /$0 in
-*/newlog*) rotate_func=rotate_log;;
+*/newlog*) rotate_func=${NEWLOG_METHOD:-rotate_log};;
 */save*) rotate_func=save_log;;
-*) rotate_func=rotate_log;;
+*) rotate_func=${NEWLOG_METHOD:-rotate_log};;
+esac
+case "$rotate_func" in
+save|rotate) rotate_func=${rotate_func}_log;;
 esac
 
-opt_n=7
-opt_m=
-opt_M=444
-opt_f=%Y%m%d.%H%M%S
+opt_C=${NEWLOG_COMPRESS}
+opt_E=${NEWLOG_EXT}
+opt_n=${NEWLOG_NUM:-7}
+opt_m=${NEWLOG_MODE}
+opt_M=${NEWLOG_OLD_MODE:-444}
+opt_f=${NEWLOG_FMT:-%Y-%m-%dT%T} # rfc3339
 opt_str=dNn:o:g:G:C:M:m:eE:f:RS
 
 . setopts.sh
@@ -241,7 +262,7 @@ case "${opt_R:-0}" in
 esac
 case "${opt_S:-0}" in
 0) ;;
-*) rotate_func=save_log opt_S=;;
+*) rotate_func=save_log;;
 esac
 
 # see whether test handles -h or -L
@@ -345,12 +366,7 @@ save_log() {
 	$ECHO rm $rm_f `'ls' -1td $log.* 2> /dev/null | sed "1,${n}d"`
 
 	mode=${opt_m:-`get_mode $log`}
-	# this is our default suffix
-	opt_S=${opt_S:-`get_mtime_suffix $log $fmt`}
-	case "$fmt" in
-	""|$opt_f) suffix=$opt_S;;
-	*) suffix=`get_mtime_suffix $log $fmt`;;
-	esac
+	suffix=`get_mtime_suffix $log $fmt`
 
 	# find a unique name to save current log as
 	for nlog in $log.$suffix $log.$suffix.$$
