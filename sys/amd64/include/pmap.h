@@ -169,11 +169,12 @@
  * the recursive page table map.
  */
 #define	NDMPML4E	8
+#define	NDMPML5E	32
 
 /*
- * These values control the layout of virtual memory.  The starting address
- * of the direct map, which is controlled by DMPML4I, must be a multiple of
- * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
+ * These values control the layout of virtual memory.  The starting
+ * address of the direct map is controlled by DMPML4I on LA48 and
+ * DMPML5I on LA57.
  *
  * Note: KPML4I is the index of the (single) level 4 page that maps
  * the KVA that holds KERNBASE, while KPML4BASE is the index of the
@@ -191,6 +192,7 @@
 
 #define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
 #define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
+#define	DMPML5I		(NPML5EPG / 2 + 1)
 
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
