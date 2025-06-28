@@ -130,7 +130,7 @@ name##_PCTRIE_PTR2VAL(struct type *ptr)					\
 									\
 static __inline __unused int						\
 name##_PCTRIE_INSERT_BASE(struct pctrie *ptree, uint64_t *val,		\
-    struct pctrie_node *parent, void *parentp,				\
+    struct pctrie_node **parent, void *parentp,				\
     uint64_t *found, struct type **found_out)				\
 {									\
 	struct pctrie_node *child;					\
@@ -146,7 +146,8 @@ name##_PCTRIE_INSERT_BASE(struct pctrie *ptree, uint64_t *val,		\
 				*found_out = NULL;			\
 			return (ENOMEM);				\
 		}							\
-		pctrie_insert_node(val, parent, parentp, child);	\
+		pctrie_insert_node(val, *parent, parentp, child);	\
+		*parent = child;					\
 	}								\
 	return (0);							\
 }									\
@@ -159,7 +160,7 @@ name##_PCTRIE_INSERT(struct pctrie *ptree, struct type *ptr)		\
 	uint64_t *val = name##_PCTRIE_PTR2VAL(ptr);			\
 									\
 	parentp = pctrie_insert_lookup_strict(ptree, val, &parent);	\
-	return (name##_PCTRIE_INSERT_BASE(ptree, val, parent, parentp,	\
+	return (name##_PCTRIE_INSERT_BASE(ptree, val, &parent, parentp,	\
 	    NULL, NULL));						\
 }									\
 									\
@@ -173,7 +174,7 @@ name##_PCTRIE_FIND_OR_INSERT(struct pctrie *ptree, struct type *ptr,	\
 	uint64_t *found;						\
 									\
 	parentp = pctrie_insert_lookup(ptree, val, &parent, &found);	\
-	return (name##_PCTRIE_INSERT_BASE(ptree, val, parent, parentp,	\
+	return (name##_PCTRIE_INSERT_BASE(ptree, val, &parent, parentp,	\
 	    found, found_out_opt));					\
 }									\
 									\
@@ -188,7 +189,7 @@ name##_PCTRIE_INSERT_LOOKUP_LE(struct pctrie *ptree, struct type *ptr,	\
 	int retval;							\
 									\
 	parentp = pctrie_insert_lookup(ptree, val, &parent, &found);	\
-	retval = name##_PCTRIE_INSERT_BASE(ptree, val, parent, parentp, \
+	retval = name##_PCTRIE_INSERT_BASE(ptree, val, &parent, parentp, \
 	    found, found_out);						\
 	if (retval != 0)						\
 		return (retval);					\
@@ -204,7 +205,7 @@ name##_PCTRIE_ITER_INSERT(struct pctrie_iter *it, struct type *ptr)	\
 	uint64_t *val = name##_PCTRIE_PTR2VAL(ptr);			\
 									\
 	parentp = pctrie_iter_insert_lookup(it, val);			\
-	return (name##_PCTRIE_INSERT_BASE(it->ptree, val, it->node,	\
+	return (name##_PCTRIE_INSERT_BASE(it->ptree, val, &it->node,	\
 	    parentp, NULL, NULL));					\
 }									\
 									\
