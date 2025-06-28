@@ -4,7 +4,7 @@ false
 false
 *** Error code 1 (continuing)
 `all' not remade because of errors.
-#*** Input graph:
+#*** Begin input graph for pass 2 in <curdir>:
 # made-target, made, type OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_ALLSRC
 #
 # *** MAIN TARGET ***
@@ -85,6 +85,7 @@ MFLAGS           =   -r -k -d g2
 
 #*** Suffixes:
 #*** Transformations:
+#*** End input graph for pass 2 in <curdir>:
 
 Stop.
 make: stopped making "all" in unit-tests

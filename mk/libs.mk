@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: libs.mk,v 1.7 2024/02/17 17:26:57 sjg Exp $
+# $Id: libs.mk,v 1.8 2025/05/19 19:15:22 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
@@ -59,7 +59,7 @@ $v += ${${v}_${LIB}:U${${v}.${LIB}}}
 
 # for meta mode, there can be only one!
 .if ${LIB} == ${UPDATE_DEPENDFILE_LIB:Uno}
-UPDATE_DEPENDFILE ?= yes
+UPDATE_DEPENDFILE ?= ${MK_UPDATE_DEPENDFILE:Uyes}
 .endif
 UPDATE_DEPENDFILE ?= NO
 

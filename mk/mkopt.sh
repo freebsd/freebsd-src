@@ -2,9 +2,9 @@
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: mkopt.sh,v 1.16 2024/02/17 17:26:57 sjg Exp $
+# $Id: mkopt.sh,v 1.17 2025/05/22 22:35:14 sjg Exp $
 #
-#	@(#) Copyright (c) 2014-2022, Simon J. Gerraty
+#	@(#) Copyright (c) 2014-2025, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -89,18 +89,19 @@ _mk_opts_defaults() {
 # _mk_cmdline_opts opt ...
 # look at the command line (saved in _cmdline)
 # to see any options we care about are being set with -DWITH*
-# or MK_*= if 'opt' is '*' then all options are of interest.
+# or MK_*= and WITH[OUT]_*= if 'opt' is '*' then all options are of interest.
 _cmdline="$0 $@"
 _mk_cmdline_opts() {
     for _x in $_cmdline
     do
 	case "$_x" in
-	-DWITH*|${_MKOPT_PREFIX:-MK_}*)
+	-DWITH*|WITH*=*|${_MKOPT_PREFIX:-MK_}*=*)
 	    for _o in "$@"
 	    do
 		case "$_x" in
 		-DWITH_$_o|-DWITHOUT_$_o) eval ${_x#-D}=1;;
 		-DWITH_$_o=*|-DWITHOUT_$_o=*) eval ${_x#-D};;
+		WITH_$_o=*|WITHOUT_$_o=*) eval "$_x";;
 		${_MKOPT_PREFIX:-MK_}$_o=*) eval "$_x";;
 		esac
 	    done

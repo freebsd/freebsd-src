@@ -1,4 +1,4 @@
-# $NetBSD: var-op-expand.mk,v 1.23 2025/03/29 19:08:52 rillig Exp $
+# $NetBSD: var-op-expand.mk,v 1.24 2025/04/30 06:01:07 rillig Exp $
 #
 # Tests for the := variable assignment operator, which expands its
 # right-hand side.
@@ -288,5 +288,10 @@ later=	lowercase-value
 .endif
 
 
-all:
-	@:;
+# FIXME: The expression is evaluated twice, for no obvious reason.
+# expect+5: Bad condition
+# expect+4: Unknown modifier ":Z1"
+# expect+3: Unknown modifier ":Z2"
+# expect+2: Unknown modifier ":Z1"
+# expect+1: Unknown modifier ":Z2"
+_:=	${ < 0 :?${:Z1}:${:Z2}}
