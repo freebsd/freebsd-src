@@ -325,6 +325,10 @@ initializecpu(void)
 		wrmsr(MSR_EFER, msr);
 		pg_nx = PG_NX;
 	}
+	if ((amd_feature2 & AMDID2_TCE) != 0) {
+		msr = rdmsr(MSR_EFER) | EFER_TCE;
+		wrmsr(MSR_EFER, msr);
+	}
 	hw_ibrs_recalculate(false);
 	hw_ssb_recalculate(false);
 	amd64_syscall_ret_flush_l1d_recalc();
