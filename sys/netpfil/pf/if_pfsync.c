@@ -437,6 +437,10 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	mtx_destroy(&sc->sc_mtx);
 	mtx_destroy(&sc->sc_bulk_mtx);
 
+	for (c = 0; c < pfsync_buckets; c++) {
+		b = &sc->sc_buckets[c];
+		mtx_destroy(&b->b_mtx);
+	}
 	free(sc->sc_buckets, M_PFSYNC);
 	free(sc, M_PFSYNC);
 
