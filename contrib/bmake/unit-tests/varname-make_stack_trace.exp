@@ -1,0 +1,40 @@
+make: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in make[2] in directory "<curdir>"
+*** Error code 2 (continuing)
+
+Stop.
+make: stopped making "disabled-compat" in unit-tests
+make: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in make[2] in directory "<curdir>"
+*** [disabled-parallel] Error code 2
+
+make: stopped making "disabled-parallel" in unit-tests
+make: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in make[2] in directory "<curdir>"
+	in command "make -f varname-make_stack_trace.mk provoke-error"
+	in target "enabled-compat"
+	in make[1] in directory "<curdir>"
+*** Error code 2 (continuing)
+
+Stop.
+make: stopped making "enabled-compat" in unit-tests
+make: Unknown modifier ":Z"
+	while evaluating "${:Z}" with value ""
+	in command "@echo ${:Z}"
+	in target "provoke-error"
+	in make[2] in directory "<curdir>"
+	in target "enabled-parallel"
+	in make[1] in directory "<curdir>"
+*** [enabled-parallel] Error code 2
+
+make: stopped making "enabled-parallel" in unit-tests
+exit status 0

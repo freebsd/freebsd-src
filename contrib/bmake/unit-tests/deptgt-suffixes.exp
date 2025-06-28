@@ -26,6 +26,7 @@
 .src-right.tgt-left:
 	: Making ${.TARGET} from ${.IMPSRC}.
 
+#*** End input graph for pass 1 in <curdir>:
 : Making deptgt-suffixes.src-left out of nothing.
 : Making deptgt-suffixes.tgt-right from deptgt-suffixes.src-left.
 : Making deptgt-suffixes.src-right out of nothing.

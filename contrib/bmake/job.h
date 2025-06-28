@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.81 2025/01/03 04:51:42 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.84 2025/04/22 19:28:50 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -78,106 +78,7 @@
 #ifndef MAKE_JOB_H
 #define MAKE_JOB_H
 
-#define TMPPAT	"makeXXXXXX"	/* relative to tmpdir */
-
-#ifdef USE_SELECT
-/*
- * Emulate poll() in terms of select().  This is not a complete
- * emulation but it is sufficient for make's purposes.
- */
-
-#define poll emul_poll
-#define pollfd emul_pollfd
-
-struct emul_pollfd {
-	int fd;
-	short events;
-	short revents;
-};
-
-#define POLLIN		0x0001
-#define POLLOUT		0x0004
-
-int emul_poll(struct pollfd *, int, int);
-#endif
-
-/*
- * The POLL_MSEC constant determines the maximum number of milliseconds spent
- * in poll before coming out to see if a child has finished.
- */
-#define POLL_MSEC	5000
-
-struct pollfd;
-
-
-#ifdef USE_META
-# include "meta.h"
-#endif
-
-typedef enum JobStatus {
-	JOB_ST_FREE	= 0,	/* Job is available */
-	JOB_ST_SET_UP	= 1,	/* Job is allocated but otherwise invalid */
-	/* XXX: What about the 2? */
-	JOB_ST_RUNNING	= 3,	/* Job is running, pid valid */
-	JOB_ST_FINISHED	= 4	/* Job is done (ie after SIGCHLD) */
-} JobStatus;
-
-/*
- * A Job manages the shell commands that are run to create a single target.
- * Each job is run in a separate subprocess by a shell.  Several jobs can run
- * in parallel.
- *
- * The shell commands for the target are written to a temporary file,
- * then the shell is run with the temporary file as stdin, and the output
- * of that shell is captured via a pipe.
- *
- * When a job is finished, Make_Update updates all parents of the node
- * that was just remade, marking them as ready to be made next if all
- * other dependencies are finished as well.
- */
-typedef struct Job {
-	/* The process ID of the shell running the commands */
-	int pid;
-
-	/* The target the child is making */
-	GNode *node;
-
-	/*
-	 * If one of the shell commands is "...", all following commands are
-	 * delayed until the .END node is made.  This list node points to the
-	 * first of these commands, if any.
-	 */
-	StringListNode *tailCmds;
-
-	/* This is where the shell commands go. */
-	FILE *cmdFILE;
-
-	int exit_status;	/* from wait4() in signal handler */
-
-	JobStatus status;
-
-	bool suspended;
-
-	/* Ignore non-zero exits */
-	bool ignerr;
-	/* Output the command before or instead of running it. */
-	bool echo;
-	/* Target is a special one. */
-	bool special;
-
-	int inPipe;		/* Pipe for reading output from job */
-	int outPipe;		/* Pipe for writing control commands */
-	struct pollfd *inPollfd; /* pollfd associated with inPipe */
-
-#define JOB_BUFSIZE	1024
-	/* Buffer for storing the output of the job, line by line. */
-	char outBuf[JOB_BUFSIZE + 1];
-	size_t curPos;		/* Current position in outBuf. */
-
-#ifdef USE_META
-	struct BuildMon bm;
-#endif
-} Job;
+typedef struct Job Job;
 
 extern char *shellPath;
 extern const char *shellName;
@@ -187,6 +88,11 @@ extern int jobTokensRunning;	/* tokens currently "out" */
 
 void Shell_Init(void);
 const char *Shell_GetNewline(void) MAKE_ATTR_USE;
+
+void TokenPool_Init(int, int, int);
+bool TokenPool_Take(void) MAKE_ATTR_USE;
+void TokenPool_Return(void);
+
 void Job_Touch(GNode *, bool);
 bool Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...))
     MAKE_ATTR_USE;
@@ -201,12 +107,14 @@ void Job_End(void);
 #endif
 void Job_Wait(void);
 void Job_AbortAll(void);
-void Job_TokenReturn(void);
-bool Job_TokenWithdraw(void) MAKE_ATTR_USE;
-void Job_ServerStart(int, int, int);
 void Job_SetPrefix(void);
 bool Job_RunTarget(const char *, const char *);
 void Job_FlagsToString(const Job *, char *, size_t);
 int Job_TempFile(const char *, char *, size_t) MAKE_ATTR_USE;
+#ifdef USE_META
+struct BuildMon *Job_BuildMon(Job *) MAKE_ATTR_USE;
+#endif
+GNode *Job_Node(Job *) MAKE_ATTR_USE;
+int Job_Pid(Job *) MAKE_ATTR_USE;
 
 #endif

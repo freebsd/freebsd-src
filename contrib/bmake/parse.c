@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.743 2025/04/13 09:34:43 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.752 2025/06/16 18:20:00 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -110,7 +110,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.743 2025/04/13 09:34:43 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.752 2025/06/16 18:20:00 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -130,7 +130,7 @@ typedef struct IncludedFile {
 	unsigned forBodyReadLines; /* the number of physical lines that have
 				 * been read from the file above the body of
 				 * the .for loop */
-	unsigned int condMinDepth; /* depth of nested 'if' directives, at the
+	unsigned condMinDepth;	/* depth of nested 'if' directives, at the
 				 * beginning of the file */
 	bool depending;		/* state of doing_depend on EOF */
 
@@ -342,7 +342,7 @@ CurFile(void)
 	return GetInclude(includes.len - 1);
 }
 
-unsigned int
+unsigned
 CurFile_CondMinDepth(void)
 {
 	return CurFile()->condMinDepth;
@@ -372,7 +372,7 @@ LoadFile(const char *path, int fd)
 		assert(buf.len < buf.cap);
 		n = read(fd, buf.data + buf.len, buf.cap - buf.len);
 		if (n < 0) {
-			Error("%s: read error: %s", path, strerror(errno));
+			Error("%s: %s", path, strerror(errno));
 			exit(2);	/* Not 1 so -q can distinguish error */
 		}
 		if (n == 0)
@@ -388,23 +388,43 @@ LoadFile(const char *path, int fd)
 	return buf;		/* may not be null-terminated */
 }
 
+const char *
+GetParentStackTrace(void)
+{
+	static bool initialized;
+	static const char *parentStackTrace;
+
+	if (!initialized) {
+		const char *env = getenv("MAKE_STACK_TRACE");
+		parentStackTrace = env == NULL ? NULL
+		    : env[0] == '\t' ? bmake_strdup(env)
+		    : strcmp(env, "yes") == 0 ? bmake_strdup("")
+		    : NULL;
+		initialized = true;
+	}
+	return parentStackTrace;
+}
+
 /*
  * Print the current chain of .include and .for directives.  In Parse_Fatal
  * or other functions that already print the location, includingInnermost
  * would be redundant, but in other cases like Error or Fatal it needs to be
  * included.
  */
-void
-PrintStackTrace(bool includingInnermost)
+char *
+GetStackTrace(bool includingInnermost)
 {
+	const char *parentStackTrace;
+	Buffer buffer, *buf = &buffer;
 	const IncludedFile *entries;
 	size_t i, n;
+	bool hasDetails;
 
-	bool hasDetails = EvalStack_PrintDetails();
-
+	Buf_Init(buf);
+	hasDetails = EvalStack_Details(buf);
 	n = includes.len;
 	if (n == 0)
-		return;
+		goto add_parent_stack_trace;
 
 	entries = GetInclude(0);
 	if (!includingInnermost && !(hasDetails && n > 1)
@@ -424,16 +444,49 @@ PrintStackTrace(bool includingInnermost)
 
 		if (entry->forLoop != NULL) {
 			char *details = ForLoop_Details(entry->forLoop);
-			debug_printf("\tin .for loop from %s:%u with %s\n",
-			    fname, entry->forHeadLineno, details);
+			Buf_AddStr(buf, "\tin .for loop from ");
+			Buf_AddStr(buf, fname);
+			Buf_AddStr(buf, ":");
+			Buf_AddInt(buf, (int)entry->forHeadLineno);
+			Buf_AddStr(buf, " with ");
+			Buf_AddStr(buf, details);
+			Buf_AddStr(buf, "\n");
 			free(details);
 		} else if (i + 1 < n && entries[i + 1].forLoop != NULL) {
 			/* entry->lineno is not a useful line number */
-		} else
-			debug_printf("\tin %s:%u\n", fname, entry->lineno);
+		} else {
+			Buf_AddStr(buf, "\tin ");
+			Buf_AddStr(buf, fname);
+			Buf_AddStr(buf, ":");
+			Buf_AddInt(buf, (int)entry->lineno);
+			Buf_AddStr(buf, "\n");
+		}
 	}
-	if (makelevel > 0)
-		debug_printf("\tin directory %s\n", curdir);
+
+add_parent_stack_trace:
+	parentStackTrace = GetParentStackTrace();
+	if ((makelevel > 0 && (n > 0 || !includingInnermost))
+	    || parentStackTrace != NULL) {
+		Buf_AddStr(buf, "\tin ");
+		Buf_AddStr(buf, progname);
+		Buf_AddStr(buf, " in directory \"");
+		Buf_AddStr(buf, curdir);
+		Buf_AddStr(buf, "\"\n");
+	}
+
+	if (parentStackTrace != NULL)
+		Buf_AddStr(buf, parentStackTrace);
+
+	return Buf_DoneData(buf);
+}
+
+void
+PrintStackTrace(bool includingInnermost)
+{
+	char *stackTrace = GetStackTrace(includingInnermost);
+	fprintf(stderr, "%s", stackTrace);
+	fflush(stderr);
+	free(stackTrace);
 }
 
 /* Check if the current character is escaped on the current line. */
@@ -547,7 +600,8 @@ ParseVErrorInternal(FILE *f, bool useVars, const GNode *gn,
 		parseErrors++;
 	}
 
-	if (level == PARSE_FATAL || DEBUG(PARSE))
+	if (level == PARSE_FATAL || DEBUG(PARSE)
+	    || (gn == NULL && includes.len == 0 /* see PrintLocation */))
 		PrintStackTrace(false);
 }
 
@@ -713,7 +767,7 @@ TryApplyDependencyOperator(GNode *gn, GNodeType op)
 		cohort->centurion = gn;
 		gn->unmade_cohorts++;
 		snprintf(cohort->cohort_num, sizeof cohort->cohort_num, "#%d",
-		    (unsigned int)gn->unmade_cohorts % 1000000);
+		    (unsigned)gn->unmade_cohorts % 1000000);
 	} else {
 		gn->type |= op;	/* preserve any previous flags */
 	}

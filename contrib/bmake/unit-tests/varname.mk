@@ -1,12 +1,11 @@
-# $NetBSD: varname.mk,v 1.16 2025/01/11 20:16:40 rillig Exp $
+# $NetBSD: varname.mk,v 1.17 2025/06/12 04:33:00 rillig Exp $
 #
-# Tests for special variables, such as .MAKE or .PARSEDIR.
-# And for variable names in general.
+# Tests for variable names.
 
 .MAKEFLAGS: -dv
 
-# In variable names, braces are allowed, but they must be balanced.
-# Parentheses and braces may be mixed.
+# In a variable assignment, braces are allowed in the variable name, but they
+# must be balanced.  Parentheses and braces may be mixed.
 VAR{{{}}}=	3 braces
 .if "${VAR{{{}}}}" != "3 braces"
 .  error
@@ -86,4 +85,61 @@ ASDZguv.param=		once
 .  error
 .endif
 
-all:
+
+# Warn about expressions in the style of GNU make, as these would silently
+# expand to an empty string instead.
+#
+# https://pubs.opengroup.org/onlinepubs/9799919799/utilities/make.html says:
+#	a macro name shall not contain an <equals-sign>, <blank>, or control
+#	character.
+#
+GNU_MAKE_IF=	$(if ${HAVE_STRLEN},yes,no)
+# expect+1: warning: Invalid character " " in variable name "if ,yes,no"
+.if ${GNU_MAKE_IF} != ""
+.  error
+.endif
+#
+# This requirement needs to be ignored for expressions with a ":L" or ":?:"
+# modifier, as these modifiers rely on arbitrary characters in the expression
+# name.
+.if ${"left" == "right":?equal:unequal} != "unequal"
+.  error
+.endif
+#
+# In fact, this requirement is ignored for any expression that has a modifier.
+# In this indirect case, though, the expression with the space in the name is
+# a nested expression, so the ":U" modifier doesn't affect the warning.
+# expect+1: warning: Invalid character " " in variable name "if ,yes,no"
+.if ${GNU_MAKE_IF:Ufallback} != ""
+.  error
+.endif
+#
+# A modifier in a nested expression does not affect the warning.
+GNU_MAKE_IF_EXPR=	$(if ${HAVE_STRLEN},${HEADERS:.h=.c},)
+# expect+1: warning: Invalid character " " in variable name "if ,,"
+.if ${GNU_MAKE_IF_EXPR} != ""
+.  error
+.endif
+#
+# When the GNU make expression contains a colon, chances are good that the
+# colon is interpreted as an unknown modifier.
+GNU_MAKE_IF_MODIFIER=	$(if ${HAVE_STRLEN},answer:yes,answer:no)
+# expect+1: Unknown modifier ":yes,answer"
+.if ${GNU_MAKE_IF_MODIFIER} != "no)"
+.  error
+.endif
+#
+# If the variable name contains a non-printable character, the warning
+# contains the numeric character value instead, to prevent control sequences
+# in the output.
+CONTROL_CHARACTER=	${:U a b:ts\t}
+# expect+2: warning: Invalid character "\x09" in variable name "a	b"
+# expect+1: Variable "a	b" is undefined
+.if ${${CONTROL_CHARACTER}} != ""
+.endif
+#
+# For now, only whitespace generates a warning, non-ASCII characters don't.
+UMLAUT=		ÄÖÜ
+# expect+1: Variable "ÄÖÜ" is undefined
+.if ${${UMLAUT}} != ""
+.endif

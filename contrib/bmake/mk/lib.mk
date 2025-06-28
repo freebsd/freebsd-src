@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.85 2024/12/12 19:56:36 sjg Exp $
+# $Id: lib.mk,v 1.86 2025/05/20 17:19:37 sjg Exp $
 
 # should be set properly in sys.mk
 _this ?= ${.PARSEFILE:S,bsd.,,}
@@ -396,7 +396,7 @@ realbuild: ${_LIBS}
 all: _SUBDIRUSE
 
 .for s in ${SRCS:${OBJS_SRCS_PRE_FILTER:ts:}:M*/*}
-${.o .po .lo:L:@o@${s:${OBJS_SRCS_FILTER:ts:}}$o@}: $s
+${.SUFFIXES:U.o .po .lo:M*o:@o@${s:${OBJS_SRCS_FILTER:ts:}}$o@}: $s
 .endfor
 
 OBJS_SRCS = ${SRCS:${OBJS_SRCS_FILTER:ts:}}

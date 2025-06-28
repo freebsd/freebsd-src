@@ -5,6 +5,7 @@ level 3: variable 2, env 3
 ok
 : set-env-different
 make: Cannot override read-only global variable ".MAKE.LEVEL.ENV" with a command line variable
+	in make[1] in directory "<curdir>"
 make: Fatal errors encountered -- cannot continue
 make: stopped making "ok" in unit-tests
 set-env-different: exit 1

@@ -1,6 +1,6 @@
 job_pipe -1 -1, maxjobs 1, tokens 1, compat 0
-Job_TokenWithdraw(<pid>): aborting 0, running 0
-(<pid>) withdrew token
+TokenPool_Take: pid <pid>, aborting NONE, running 0
+TokenPool_Take: pid <pid> took a token
 echo ": expanded expression"
 { : expanded expression 
 } || exit $?
@@ -13,15 +13,15 @@ echo ": 'single' and \"double\" quotes"
 { sleep 1 
 } || exit $?
 Running all
-	Command: <shell> 
-JobExec(all): pid <pid> added to jobs table
-job table @ job started
-job 0, status 3, flags ---, pid <pid>
+	Command: <shell>
+JobExec: target all, pid <pid> added to jobs table
+job started, job table:
+job 0, status running, flags ---, pid <pid>
 : expanded expression
 :  variable
 : 'single' and "double" quotes
-Process <pid> exited/stopped status 0.
-JobFinish: <pid> [all], status 0
-Job_TokenWithdraw(<pid>): aborting 0, running 0
-(<pid>) withdrew token
+Process with pid <pid> exited/stopped with status 0.
+JobFinish: target all, pid <pid>, status 0
+TokenPool_Take: pid <pid>, aborting NONE, running 0
+TokenPool_Take: pid <pid> took a token
 exit status 0

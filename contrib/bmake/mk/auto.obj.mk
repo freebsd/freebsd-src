@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: auto.obj.mk,v 1.19 2025/03/27 15:51:06 sjg Exp $
+# $Id: auto.obj.mk,v 1.20 2025/05/17 15:29:55 sjg Exp $
 #
-#	@(#) Copyright (c) 2004, Simon J. Gerraty
+#	@(#) Copyright (c) 2004-2025, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.

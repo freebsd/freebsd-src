@@ -61,6 +61,9 @@ make: Unfinished modifier after "value	# missing closing brace", expecting "}"
 	in target "mod-assign-parse-3"
 ok=word
 make: warning: Command " echo word; (exit 13) " exited with status 13
+	while evaluating variable "SH_ERR" with value "previous"
+	in command "@${SH_ERR::!= echo word; (exit 13) } echo err=${SH_ERR}"
+	in target "mod-assign-shell-error"
 err=previous
 Command: TARGET_CMD_VAR = cmd-value
 Global: TARGET_GLOBAL_VAR = global-value

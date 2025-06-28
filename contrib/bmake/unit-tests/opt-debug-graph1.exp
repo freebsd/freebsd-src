@@ -1,4 +1,4 @@
-#*** Input graph:
+#*** Begin input graph for pass 1 in <curdir>:
 # all, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
 # made-target, unmade, type OP_DEPENDS, flags none
 # made-target-no-sources, unmade, type OP_DEPENDS, flags none
@@ -50,4 +50,5 @@ MFLAGS           =   -r -k -d g1
 
 #*** Suffixes:
 #*** Transformations:
+#*** End input graph for pass 1 in <curdir>:
 exit status 0

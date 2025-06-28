@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: progs.mk,v 1.18 2024/04/09 17:18:24 sjg Exp $
+# $Id: progs.mk,v 1.19 2025/05/19 19:15:22 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
@@ -68,7 +68,7 @@ $v += ${${v}_${PROG}:U${${v}.${PROG}}}
 
 # for meta mode, there can be only one!
 .if ${PROG} == ${UPDATE_DEPENDFILE_PROG:Uno}
-UPDATE_DEPENDFILE ?= yes
+UPDATE_DEPENDFILE ?= ${MK_UPDATE_DEPENDFILE:Uyes}
 .endif
 UPDATE_DEPENDFILE ?= NO
 

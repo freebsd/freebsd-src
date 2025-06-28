@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: meta.autodep.mk,v 1.65 2025/03/14 20:28:42 sjg Exp $
+# $Id: meta.autodep.mk,v 1.70 2025/05/28 20:03:00 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010-2025, Simon J. Gerraty
@@ -21,6 +21,12 @@ _this ?= ${.PARSEFILE}
 __${_this}__: .NOTMAIN
 
 .-include <local.autodep.mk>
+
+.if ${DEBUG_AUTODEP:Uno:@m@${RELDIR:M$m}@} != ""
+_debug.autodep = 1
+.else
+_debug.autodep = 0
+.endif
 
 PICO?= .pico
 
@@ -85,9 +91,9 @@ UPDATE_DEPENDFILE = NO
 _bootstrap_dirdeps = yes
 .endif
 _bootstrap_dirdeps ?= no
-UPDATE_DEPENDFILE ?= yes
+UPDATE_DEPENDFILE ?= ${MK_UPDATE_DEPENDFILE:Uyes}
 
-.if ${DEBUG_AUTODEP:Uno:@m@${RELDIR:M$m}@} != ""
+.if ${_debug.autodep}
 .info ${_DEPENDFILE:S,${SRCTOP}/,,} update=${UPDATE_DEPENDFILE}
 .endif
 
@@ -111,7 +117,7 @@ WANT_UPDATE_DEPENDFILE ?= yes
 UPDATE_DEPENDFILE = no
 .endif
 
-.if ${DEBUG_AUTODEP:Uno:@m@${RELDIR:M$m}@} != ""
+.if ${_debug.autodep}
 .info ${_DEPENDFILE:S,${SRCTOP}/,,} update=${UPDATE_DEPENDFILE}
 .endif
 
@@ -207,7 +213,7 @@ CAT_DEPEND = /dev/null
 _depend =
 .endif
 
-.if ${DEBUG_AUTODEP:Uno:@m@${RELDIR:M$m}@} != ""
+.if ${_debug.autodep}
 .info ${_DEPENDFILE:S,${SRCTOP}/,,} _depend=${_depend}
 .endif
 
@@ -253,19 +259,33 @@ _gendirdeps_mutex = ${GENDIRDEPS_MUTEXER} ${GENDIRDEPS_MUTEX:U${_CURDIR}/Makefil
 # but we need to behave as if we did.
 # Avoid adding glob patterns to .MAKE.META.CREATED though.
 .MAKE.META.CREATED += ${META_XTRAS:N*\**:O:u}
+OPTIMIZE_OBJECT_META_FILES ?= no
 
-.if make(gendirdeps)
-META_FILES = *.meta
-.elif ${OPTIMIZE_OBJECT_META_FILES:Uno:tl} == "no"
-META_FILES = ${.MAKE.META.FILES:T:N.depend*:O:u}
-.else
-# if we have 1000's of .o.meta, ${PICO}.meta etc we need only look at one set
-# it is left as an exercise for the reader to work out what this does
-META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
-	${.MAKE.META.FILES:T:M*.${.MAKE.META.FILES:M*o.meta:R:E:O:u:[1]}.meta:O:u}
+.if ${OPTIMIZE_OBJECT_META_FILES} == "yes"
+# If we have lots of .o.meta, ${PICO}.meta etc we need only look at one set.
+# If META_FILE_OBJ_FILTER is not already set, we default it to a
+# .SUFFIX which matches the first *o.meta.
+# There is no guarantee it will be just .o or .So etc,
+META_FILE_OBJ_FILTER ?= \
+	${.SUFFIXES:M*o:@o@${"${.MAKE.META.FILES:T:M*$o.meta:[1]}":?M*$o.meta:}@:[1]}
 .endif
 
-.if ${DEBUG_AUTODEP:Uno:@m@${RELDIR:M$m}@} != ""
+# parent may have set META_FILE_OBJ_FILTER
+.if ${OPTIMIZE_OBJECT_META_FILES} == "yes" || !empty(META_FILE_OBJ_FILTER)
+META_FILES = \
+	${.MAKE.META.FILES:N.depend*:N*o.meta} \
+	${.MAKE.META.FILES:${META_FILE_OBJ_FILTER}}
+.else
+META_FILES = ${.MAKE.META.FILES:N.depend*}
+.endif
+# ensure this is not empty (this will sort after any M and N
+# we use S,${_OBJDIR}/,, rather than :T since some makefiles have
+# objects in subdirs
+META_FILE_FILTER += S,${_OBJDIR}/,,:O:u
+# we have to defer evaluation until the target script runs
+GENDIRDEPS_ENV += META_FILES="${META_FILES:${META_FILE_FILTER:O:u:ts:}}}"
+
+.if ${_debug.autodep}
 .info ${_DEPENDFILE:S,${SRCTOP}/,,}: ${_depend} ${.PARSEDIR}/gendirdeps.mk ${META2DEPS} xtras=${META_XTRAS}
 .endif
 
@@ -276,9 +296,6 @@ META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
 .if !empty(GENDIRDEPS_FILTER)
 .export GENDIRDEPS_FILTER
 .endif
-# export to avoid blowing command line limit
-META_FILES := ${META_XTRAS:U:O:u} ${META_FILES:U:T:O:u:${META_FILE_FILTER:ts:}}
-.export META_FILES
 .endif
 
 _this_dir := ${_PARSEDIR}
@@ -301,7 +318,7 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 	@(cd . && ${GENDIRDEPS_ENV} \
 	SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS:O:u}' \
 	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
-	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE})
+	${.MAKE} -B -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE})
 	@test -s $@ && touch $@; :
 .endif
 

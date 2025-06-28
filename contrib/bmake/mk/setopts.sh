@@ -12,17 +12,17 @@
 #	This module sets shell variables for each option specified in
 #	"opt_str".
 #
-#	If the option is followed by a ``:'' it requires an argument.
+#	If the option is followed by a ':' it requires an argument.
 #	It defaults to an empty string and specifying that option on
 #	the command line overrides the current value. 
 #	
-#	If the option is followed by a ``.'' then it is treated as for
-#	``:'' except that any argument provided on the command line is
-#	appended to the current value using the value of "opt_dot" as
-#	separator (default is a space).
+#	If the option "o" is followed by a '.' then it is treated as for
+#	':' except that any argument provided on the command line is
+#	appended to the current value using the value of "opt_dot_$o"
+#	if set, or "opt_dot" as separator (default is a space).
 #
-#	If the option is followed by a ``,'' then it is treated as for
-#	a ``.'' except that the separator is "opt_comma" (default ,).
+#	If the option is followed by a ',' then it is treated as for
+#	a '.' except that the separator is "opt_comma" (default ',').
 #
 #	If the option is followed by ``='' it requires an argument
 #	of the form "var=val" which will be evaluated.
@@ -50,9 +50,9 @@
 #
 
 # RCSid:
-#	$Id: setopts.sh,v 1.13 2023/02/20 19:30:06 sjg Exp $
+#	$Id: setopts.sh,v 1.15 2025/06/01 02:10:31 sjg Exp $
 #
-#	@(#) Copyright (c) 1995-2023 Simon J. Gerraty
+#	@(#) Copyright (c) 1995-2025 Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -87,7 +87,7 @@ set1opt() {
 
 	case "$opt_str" in
 	*${o}:*) eval "opt_$o=\"$a\"";;
-	*${o}.*) eval "opt_$o=\"\${opt_$o}\${opt_$o:+$opt_dot}$a\"";;
+	*${o}.*) eval "opt_$o=\"\${opt_$o}\${opt_$o:+\${opt_dot_$o:-$opt_dot}}$a\"";;
 	*${o},*) eval "opt_$o=\"\${opt_$o}\${opt_$o:+$opt_comma}$a\"";;
 	*${o}=*)
 		case "$a" in

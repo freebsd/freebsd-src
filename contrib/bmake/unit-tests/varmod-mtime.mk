@@ -1,4 +1,4 @@
-# $NetBSD: varmod-mtime.mk,v 1.15 2025/03/29 19:08:52 rillig Exp $
+# $NetBSD: varmod-mtime.mk,v 1.16 2025/06/12 18:51:05 rillig Exp $
 #
 # Tests for the ':mtime' variable modifier, which maps each word of the
 # expression to that file's modification time.
@@ -63,8 +63,8 @@ _!=	rm -f ${COOKIE}
 # If the optional argument of the ':mtime' modifier is the word 'error', the
 # modifier fails with an error message, once for each affected file.
 #
-# expect+2: Cannot determine mtime for 'no/such/file1': <ENOENT>
-# expect+1: Cannot determine mtime for 'no/such/file2': <ENOENT>
+# expect+2: Cannot determine mtime for "no/such/file1": <ENOENT>
+# expect+1: Cannot determine mtime for "no/such/file2": <ENOENT>
 .if ${no/such/file1 no/such/file2:L:mtime=error}
 .  error
 .else

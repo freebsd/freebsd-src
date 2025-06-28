@@ -76,6 +76,7 @@ unit-tests/archive-suffix.exp
 unit-tests/archive-suffix.mk
 unit-tests/archive.exp
 unit-tests/archive.mk
+unit-tests/check-expect.lua
 unit-tests/cmd-errors-jobs.exp
 unit-tests/cmd-errors-jobs.mk
 unit-tests/cmd-errors-lint.exp
@@ -410,6 +411,8 @@ unit-tests/job-output-long-lines.exp
 unit-tests/job-output-long-lines.mk
 unit-tests/job-output-null.exp
 unit-tests/job-output-null.mk
+unit-tests/job-output.exp
+unit-tests/job-output.mk
 unit-tests/jobs-empty-commands-error.exp
 unit-tests/jobs-empty-commands-error.mk
 unit-tests/jobs-empty-commands.exp
@@ -859,6 +862,8 @@ unit-tests/varname-make_print_var_on_error-jobs.exp
 unit-tests/varname-make_print_var_on_error-jobs.mk
 unit-tests/varname-make_print_var_on_error.exp
 unit-tests/varname-make_print_var_on_error.mk
+unit-tests/varname-make_stack_trace.exp
+unit-tests/varname-make_stack_trace.mk
 unit-tests/varname-makefile.exp
 unit-tests/varname-makefile.mk
 unit-tests/varname-makeflags.exp

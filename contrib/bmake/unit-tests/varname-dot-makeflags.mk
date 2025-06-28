@@ -1,4 +1,4 @@
-# $NetBSD: varname-dot-makeflags.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: varname-dot-makeflags.mk,v 1.11 2025/05/20 17:56:40 sjg Exp $
 #
 # Tests for the special .MAKEFLAGS variable, which collects almost all
 # command line arguments and passes them on to any child processes via
