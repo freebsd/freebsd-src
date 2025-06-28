@@ -397,23 +397,6 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	sc->sc_flags |= PFSYNCF_OK;
 	sc->sc_maxupdates = 128;
 	sc->sc_version = PFSYNC_MSG_VERSION_DEFAULT;
-
-	ifp = sc->sc_ifp = if_alloc(IFT_PFSYNC);
-	if_initname(ifp, pfsyncname, unit);
-	ifp->if_softc = sc;
-	ifp->if_ioctl = pfsyncioctl;
-	ifp->if_output = pfsyncoutput;
-	ifp->if_hdrlen = sizeof(struct pfsync_header);
-	ifp->if_mtu = ETHERMTU;
-	mtx_init(&sc->sc_mtx, pfsyncname, NULL, MTX_DEF);
-	mtx_init(&sc->sc_bulk_mtx, "pfsync bulk", NULL, MTX_DEF);
-	callout_init_mtx(&sc->sc_bulk_tmo, &sc->sc_bulk_mtx, 0);
-	callout_init_mtx(&sc->sc_bulkfail_tmo, &sc->sc_bulk_mtx, 0);
-
-	if_attach(ifp);
-
-	bpfattach(ifp, DLT_PFSYNC, PFSYNC_HDRLEN);
-
 	sc->sc_buckets = mallocarray(pfsync_buckets, sizeof(*sc->sc_buckets),
 	    M_PFSYNC, M_ZERO | M_WAITOK);
 	for (c = 0; c < pfsync_buckets; c++) {
@@ -434,6 +417,22 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 
 		b->b_snd.ifq_maxlen = ifqmaxlen;
 	}
+
+	ifp = sc->sc_ifp = if_alloc(IFT_PFSYNC);
+	if_initname(ifp, pfsyncname, unit);
+	ifp->if_softc = sc;
+	ifp->if_ioctl = pfsyncioctl;
+	ifp->if_output = pfsyncoutput;
+	ifp->if_hdrlen = sizeof(struct pfsync_header);
+	ifp->if_mtu = ETHERMTU;
+	mtx_init(&sc->sc_mtx, pfsyncname, NULL, MTX_DEF);
+	mtx_init(&sc->sc_bulk_mtx, "pfsync bulk", NULL, MTX_DEF);
+	callout_init_mtx(&sc->sc_bulk_tmo, &sc->sc_bulk_mtx, 0);
+	callout_init_mtx(&sc->sc_bulkfail_tmo, &sc->sc_bulk_mtx, 0);
+
+	if_attach(ifp);
+
+	bpfattach(ifp, DLT_PFSYNC, PFSYNC_HDRLEN);
 
 	V_pfsyncif = sc;
 
