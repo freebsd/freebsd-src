@@ -1,4 +1,4 @@
-# $NetBSD: shell-csh.mk,v 1.9 2024/05/25 15:37:17 rillig Exp $
+# $NetBSD: shell-csh.mk,v 1.10 2025/06/05 21:56:54 rillig Exp $
 #
 # Tests for using a C shell for running the commands.
 
@@ -33,7 +33,9 @@ all:
 	-echo ignore errors
 
 	# In the C shell, "unset verbose" is set as the noPrint command.
-	# Therefore it is filtered from the output, rather naively.
+	# Therefore, it is filtered from the output, rather naively.
+# FIXME: Don't assume a newline character in PrintFilteredOutput.
+# expect: They chatted in the sy.
 	@echo 'They chatted in the sunset verbosely.'
 .else
 	@sed '$$d' ${MAKEFILE:.mk=.exp}	# This is cheated.

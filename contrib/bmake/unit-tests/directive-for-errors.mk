@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-errors.mk,v 1.16 2025/03/30 16:43:10 rillig Exp $
+# $NetBSD: directive-for-errors.mk,v 1.17 2025/05/03 08:18:33 rillig Exp $
 #
 # Tests for error handling in .for loops.
 
@@ -73,11 +73,10 @@ ${:U\\}=	backslash	# see whether the "variable" '\' is local
 .endfor
 
 
-# A missing 'in' should parse the .for loop but skip the body.
+# A missing 'in' parses the .for loop but skips the body.
 # expect+1: missing `in' in for
 .for i over k
-# XXX: As of 2020-12-31, this line is reached once.
-.  warning Should not be reached.
+.  error
 .endfor
 
 
