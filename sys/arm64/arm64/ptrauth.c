@@ -110,7 +110,7 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	 */
 
 	/*
-	 * The QARMA5 or implementation efined algorithms are reported in
+	 * The QARMA5 or implementation defined algorithms are reported in
 	 * ID_AA64ISAR1_EL1.
 	 */
 	if (get_kernel_reg(ID_AA64ISAR1_EL1, &isar)) {
