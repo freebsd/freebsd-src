@@ -4343,21 +4343,13 @@ void
 pmap_pinit_pml5(vm_page_t pml5pg)
 {
 	pml5_entry_t *pm_pml5;
+	int i;
 
 	pm_pml5 = (pml5_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml5pg));
-
-	/*
-	 * Add pml5 entry at top of KVA pointing to existing pml4 table,
-	 * entering all existing kernel mappings into level 5 table.
-	 */
-	pm_pml5[pmap_pml5e_index(UPT_MAX_ADDRESS)] = KPML4phys | X86_PG_V |
-	    X86_PG_RW | X86_PG_A | X86_PG_M;
-
-	/*
-	 * Install self-referential address mapping entry.
-	 */
-	pm_pml5[PML5PML5I] = VM_PAGE_TO_PHYS(pml5pg) |
-	    X86_PG_RW | X86_PG_V | X86_PG_M | X86_PG_A;
+	for (i = 0; i < NPML5EPG / 2; i++)
+		pm_pml5[i] = 0;
+	for (; i < NPML5EPG; i++)
+		pm_pml5[i] = kernel_pmap->pm_pmltop[i];
 }
 
 static void
