@@ -2966,7 +2966,7 @@ fget_cap(struct thread *td, int fd, const cap_rights_t *needrightsp,
     uint8_t *flagsp, struct file **fpp, struct filecaps *havecapsp)
 {
 	int error;
-	error = fget_unlocked(td, fd, needrightsp, flagsp, fpp);
+	error = fget_unlocked_flags(td, fd, needrightsp, flagsp, fpp);
 	if (havecapsp != NULL && error == 0)
 		filecaps_fill(havecapsp);
 
@@ -3143,7 +3143,6 @@ fgetvp_lookup_smr(struct nameidata *ndp, struct vnode **vpp, int *flagsp)
 	flags = fp->f_flag & FSEARCH;
 	flags |= (fde->fde_flags & UF_RESOLVE_BENEATH) != 0 ?
 	    O_RESOLVE_BENEATH : 0;
-	*fsearch = ((fp->f_flag & FSEARCH) != 0);
 	vp = fp->f_vnode;
 	if (__predict_false(vp == NULL || vp->v_type != VDIR)) {
 		return (EAGAIN);
