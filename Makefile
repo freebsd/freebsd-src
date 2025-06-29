@@ -376,13 +376,22 @@ buildworld: upgrade_checks
 kernel-toolchain: upgrade_checks
 .endif
 
+# we need the system time(1) command, not from the shell
+time_cmd= /usr/bin/time
+
+# mktemp(1) is not portable
+mktemp_cmd= mktemp /tmp/_time-logging-XXXXXXXXX
+
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
 
 tinderbox toolchains kernel-toolchains: .MAKE
 ${TGTS}: .PHONY .MAKE
-	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
+	${_+_}@cd ${.CURDIR}; _time_tmp=$$(${mktemp_cmd}); \
+	  ${time_cmd} -o $${_time_tmp} -p env ${_MAKE} ${.TARGET}; \
+	  echo ">>> Time spent on target ${.TARGET}: $$(tr '\n' ' ' < $${_time_tmp})"; \
+	  rm -f $${_time_tmp}
 
 # The historic default "all" target creates files which may cause stale
 # or (in the cross build case) unlinkable results. Fail with an error
