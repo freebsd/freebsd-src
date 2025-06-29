@@ -690,6 +690,7 @@ struct pf_rule_actions {
 	uint8_t		 set_prio[2];
 	uint8_t		 rt;
 	uint8_t		 allow_opts;
+	uint16_t	 max_pkt_size;
 };
 
 union pf_keth_rule_ptr {
@@ -845,6 +846,7 @@ struct pf_krule {
 		u_int32_t		limit;
 		u_int32_t		seconds;
 	}			 max_src_conn_rate;
+	uint16_t		 max_pkt_size;
 	u_int16_t		 qid;
 	u_int16_t		 pqid;
 	u_int16_t		 dnpipe;
@@ -2599,6 +2601,8 @@ int		 pf_tag_packet(struct pf_pdesc *, int);
 int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
 		    sa_family_t);
 
+uint8_t*	 pf_find_tcpopt(u_int8_t *, u_int8_t *, size_t,
+		    u_int8_t, u_int8_t);
 u_int16_t	 pf_get_mss(struct pf_pdesc *);
 u_int8_t	 pf_get_wscale(struct pf_pdesc *);
 struct mbuf 	*pf_build_tcp(const struct pf_krule *, sa_family_t,

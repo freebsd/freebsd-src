@@ -1,3 +1,43 @@
+2025-05-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250528
+
+	* add dirdeps2dplibs.mk
+
+2025-05-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250518
+
+	* meta.autodep.mk (META_FILES): re-work to fix filtering.
+	if OPTIMIZE_OBJECT_META_FILES==yes
+	provide a default META_FILE_OBJ_FILTER that selects a valid
+	.SUFFIX to match *o.meta, there's no guarantee that it will be as
+	simple as .o or .So etc.
+	We have to defer evaluation until the target script is run
+	for any of these filters to have any effect.
+	Use :S,${.OBJDIR}/,, rather than :T incase there are objects
+	in sub-dirs.
+
+	* lib.mk: leverage ${.SUFFIXES} when setting dependencies.
+
+	* add UPDATE_DEPENDFILE as a dependent option - follows
+	DIRDEPS_BUILD and use MK_UPDATE_DEPENDFILE as default for
+	UPDATE_DEPENDFILE when we think it should be yes.
+	This allows override with -DWITH[OUT]_UPDATE_DEPENDFILE
+	without overriding UPDATE_DEPENDFILE directly - which can lead to
+	trouble.
+
+2025-05-16  Simon J Gerraty  <sjg@beast.crufty.net>
+	
+	* install-mk (MK_VERSION): 20250515
+
+	* meta2deps.py: resolve the target of a Move or Link first
+	and track the last path resolved, then if the src is a relative
+	path we can easily use that last path to resolve the src correctly.
+
+	* meta2deps.sh: for a Move or Link add the dir of target path to
+	the list used to resolve the src path.
+
 2025-04-18  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* init.mk: include Skipping ${RELDIR} when _SKIP_BUILD is not empty.

@@ -183,7 +183,7 @@ packagesystem: ${DISTRIBUTIONS}
 .if !defined(NODISTSETS)
 disc1: packagesystem
 bootonly: packagesystem
-dvd1: packagesystem
+dvd: packagesystem
 .endif
 
 .if defined(PKGBASE)

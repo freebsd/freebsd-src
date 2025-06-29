@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.79 2024/07/07 09:37:00 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.80 2025/04/22 19:28:50 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.79 2024/07/07 09:37:00 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.80 2025/04/22 19:28:50 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -83,10 +83,10 @@ MAKE_RCSID("$NetBSD: hash.c,v 1.79 2024/07/07 09:37:00 rillig Exp $");
 #define rebuildLimit 3
 
 /* This hash function matches Gosling's Emacs and java.lang.String. */
-static unsigned int
+static unsigned
 Hash_String(const char *key, const char **out_keyEnd)
 {
-	unsigned int h;
+	unsigned h;
 	const char *p;
 
 	h = 0;
@@ -98,10 +98,10 @@ Hash_String(const char *key, const char **out_keyEnd)
 }
 
 /* This hash function matches Gosling's Emacs and java.lang.String. */
-unsigned int
+unsigned
 Hash_Substring(Substring key)
 {
-	unsigned int h;
+	unsigned h;
 	const char *p;
 
 	h = 0;
@@ -111,7 +111,7 @@ Hash_Substring(Substring key)
 }
 
 static HashEntry *
-HashTable_Find(HashTable *t, Substring key, unsigned int h)
+HashTable_Find(HashTable *t, Substring key, unsigned h)
 {
 	HashEntry *he;
 	size_t keyLen = Substring_Length(key);
@@ -135,7 +135,7 @@ HashTable_Find(HashTable *t, Substring key, unsigned int h)
 void
 HashTable_Init(HashTable *t)
 {
-	unsigned int n = 16, i;
+	unsigned n = 16, i;
 	HashEntry **buckets = bmake_malloc(sizeof *buckets * n);
 	for (i = 0; i < n; i++)
 		buckets[i] = NULL;
@@ -176,7 +176,7 @@ HashEntry *
 HashTable_FindEntry(HashTable *t, const char *key)
 {
 	const char *keyEnd;
-	unsigned int h = Hash_String(key, &keyEnd);
+	unsigned h = Hash_String(key, &keyEnd);
 	return HashTable_Find(t, Substring_Init(key, keyEnd), h);
 }
 
@@ -193,7 +193,7 @@ HashTable_FindValue(HashTable *t, const char *key)
  * or return NULL.
  */
 void *
-HashTable_FindValueBySubstringHash(HashTable *t, Substring key, unsigned int h)
+HashTable_FindValueBySubstringHash(HashTable *t, Substring key, unsigned h)
 {
 	HashEntry *he = HashTable_Find(t, key, h);
 	return he != NULL ? he->value : NULL;
@@ -220,10 +220,10 @@ HashTable_MaxChain(const HashTable *t)
 static void
 HashTable_Enlarge(HashTable *t)
 {
-	unsigned int oldSize = t->bucketsSize;
+	unsigned oldSize = t->bucketsSize;
 	HashEntry **oldBuckets = t->buckets;
-	unsigned int newSize = 2 * oldSize;
-	unsigned int newMask = newSize - 1;
+	unsigned newSize = 2 * oldSize;
+	unsigned newMask = newSize - 1;
 	HashEntry **newBuckets = bmake_malloc(sizeof *newBuckets * newSize);
 	size_t i;
 
@@ -257,7 +257,7 @@ HashEntry *
 HashTable_CreateEntry(HashTable *t, const char *key, bool *out_isNew)
 {
 	const char *keyEnd;
-	unsigned int h = Hash_String(key, &keyEnd);
+	unsigned h = Hash_String(key, &keyEnd);
 	HashEntry *he = HashTable_Find(t, Substring_Init(key, keyEnd), h);
 
 	if (he != NULL) {
@@ -313,7 +313,7 @@ HashIter_Next(HashIter *hi)
 	HashTable *t = hi->table;
 	HashEntry *he = hi->entry;
 	HashEntry **buckets = t->buckets;
-	unsigned int bucketsSize = t->bucketsSize;
+	unsigned bucketsSize = t->bucketsSize;
 
 	if (he != NULL)
 		he = he->next;	/* skip the most recently returned entry */

@@ -510,6 +510,9 @@
 /* folio_wait_bit() exists */
 /* #undef HAVE_PAGEMAP_FOLIO_WAIT_BIT */
 
+/* readahead_page() exists */
+/* #undef HAVE_PAGEMAP_READAHEAD_PAGE */
+
 /* part_to_dev() exists */
 /* #undef HAVE_PART_TO_DEV */
 
@@ -722,6 +725,9 @@
 /* splice_copy_file_range() is available */
 /* #undef HAVE_VFS_SPLICE_COPY_FILE_RANGE */
 
+/* address_space_operations->writepage exists */
+/* #undef HAVE_VFS_WRITEPAGE */
+
 /* __vmalloc page flags exists */
 /* #undef HAVE_VMALLOC_PAGE_KERNEL */
 
@@ -812,7 +818,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-437-FreeBSD_g8170eb6eb"
+#define ZFS_META_ALIAS "zfs-2.3.99-443-FreeBSD_g69ee01aa4"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -842,7 +848,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "437-FreeBSD_g8170eb6eb"
+#define ZFS_META_RELEASE "443-FreeBSD_g69ee01aa4"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.3.99"

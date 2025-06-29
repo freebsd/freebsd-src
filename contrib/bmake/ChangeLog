@@ -1,3 +1,88 @@
+2025-06-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250618
+	Merge with NetBSD make, pick up
+	o parse.c: in a warning without location information,
+	print the stack trace
+
+2025-06-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250615
+	Merge with NetBSD make, pick up
+	o add on-demand inter-process stack traces
+	o job.c,meta.c: do not discard empty lines in the output of a command
+	o job.c: add job prefix if necessary in non-default filtered mode
+	o parse.c,var.c: skip inter-process stack trace when
+	MAKE_STACK_TRACE=no
+
+2025-06-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250612
+	Merge with NetBSD make, pick up
+	o use a common style for unexpected error messages
+	o parse.c: add program name to stack traces from sub-makes
+	add quotes to "in directory" line in stack traces
+	o var.c: check variable names for invalid characters when there
+	are no modifiers to apply.  This detects and warns about gmake
+	syntax like: $(addprefix -I, $(LIST))
+
+2025-06-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250606
+	Merge with NetBSD make, pick up
+	o main.c: fix bug in handling of output of children in jobs mode
+
+2025-05-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250528
+	Merge with NetBSD make, pick up
+	o show contents of MAKEFLAGS in the stack trace.
+	o main.c: delay warning about bogus -J flag, if we end up in
+	compat mode before the call to InitMaxJobs, the warning isn't
+	necessary.
+
+2025-05-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250525
+	Merge with NetBSD make, pick up
+	o main.c: set .CURDIR earlier so it can be reported in some errors.
+
+2025-05-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250520
+	Merge with NetBSD make, pick up
+	o rename variables, remove now-redundant comments
+	o job.c: clean up building the shell commands in parallel mode
+	remove timeout for polling in parallel mode
+	o main.c: clean up error message for malformed internal -J option
+
+2025-05-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250511
+	Merge with NetBSD make, pick up
+	o job.c: rename token pool variables to be more descriptive
+	move ContinueJobs further up, to eliminate a forward declaration
+	error out if writing to an internal pipe fails
+	clean up constant names and function names
+	use uniform debug log messages for the token pool
+	in the debug log, replace magic numbers with identifiers
+	o main.c: clean up error message for malformed internal -J option
+	o make.c: replace bitset in trace output with descriptive node
+	attributes
+	o targ.c: add end marker for -dg1, -dg2 and -dg3 debug log
+	o var.c: fix order of error messages in the ":?" modifier
+
+2025-04-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250424
+	Merge with NetBSD make, pick up
+	o cleanup; replace unsigned int with just unsigned
+	Inline the TMPPAT macro, as it is only needed in a single place
+	o move struct Job from job.h to job.c
+	o job.c: group the code for handling the job token pool
+	avoid excessive values of -j
+	o make.c: fix grammar in debug log message
+
 2025-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20250414

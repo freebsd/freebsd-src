@@ -89,6 +89,10 @@ static struct file {
 	TAILQ_ENTRY(file)	 entry;
 	FILE			*stream;
 	char			*name;
+	size_t			 ungetpos;
+	size_t			 ungetsize;
+	u_char			*ungetbuf;
+	int			 eof_reached;
 	int			 lineno;
 	int			 errors;
 } *file;
@@ -100,8 +104,9 @@ int		 yylex(void);
 int		 yyerror(const char *, ...);
 int		 kw_cmp(const void *, const void *);
 int		 lookup(char *);
+int		 igetc(void);
 int		 lgetc(int);
-int		 lungetc(int);
+void		 lungetc(int);
 int		 findeol(void);
 
 static TAILQ_HEAD(symhead, sym)	 symhead = TAILQ_HEAD_INITIALIZER(symhead);
@@ -312,6 +317,7 @@ static struct filter_opts {
 		uint32_t	limit;
 		uint32_t	seconds;
 	}			pktrate;
+	int			 max_pkt_size;
 } filter_opts;
 
 static struct antispoof_opts {
@@ -535,7 +541,7 @@ int	parseport(char *, struct range *r, int);
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW ALLOW_RELATED
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY BRIDGE_TO RECEIVEDON NE LE GE AFTO NATTO RDRTO
-%token	BINATTO MAXPKTRATE
+%token	BINATTO MAXPKTRATE MAXPKTSIZE
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
 %token	<v.i>			PORTBINARY
@@ -1020,6 +1026,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			r.ridentifier = $9.ridentifier;
 			r.pktrate.limit = $9.pktrate.limit;
 			r.pktrate.seconds = $9.pktrate.seconds;
+			r.max_pkt_size = $9.max_pkt_size;
 
 			if ($9.tag)
 				if (strlcpy(r.tagname, $9.tag,
@@ -2485,20 +2492,13 @@ pfrule		: action dir logquick interface route af proto fromto
 						    "apply to tcp");
 					YYERROR;
 				}
-#if 0
-				if (($9.flags.b1 & parse_flags("S")) == 0 &&
-				    $8.src_os) {
-					yyerror("OS fingerprinting requires "
-					    "the SYN TCP flag (flags S/SA)");
-					YYERROR;
-				}
-#endif
 			}
 
 			r.tos = $9.tos;
 			r.keep_state = $9.keep.action;
 			r.pktrate.limit = $9.pktrate.limit;
 			r.pktrate.seconds = $9.pktrate.seconds;
+			r.max_pkt_size = $9.max_pkt_size;
 			o = $9.keep.options;
 
 			/* 'keep state' by default on pass rules. */
@@ -3134,6 +3134,13 @@ filter_opt	: USER uids {
 			}
 			filter_opts.pktrate.limit = $2;
 			filter_opts.pktrate.seconds = $4;
+		}
+		| MAXPKTSIZE NUMBER {
+			if ($2 < 0 || $2 > UINT16_MAX) {
+				yyerror("only positive values permitted");
+				YYERROR;
+			}
+			filter_opts.max_pkt_size = $2;
 		}
 		| filter_sets
 		;
@@ -6721,6 +6728,7 @@ lookup(char *s)
 		{ "max",		MAXIMUM},
 		{ "max-mss",		MAXMSS},
 		{ "max-pkt-rate",       MAXPKTRATE},
+		{ "max-pkt-size",	MAXPKTSIZE},
 		{ "max-src-conn",	MAXSRCCONN},
 		{ "max-src-conn-rate",	MAXSRCCONNRATE},
 		{ "max-src-nodes",	MAXSRCNODES},
@@ -6814,34 +6822,37 @@ lookup(char *s)
 	}
 }
 
-#define MAXPUSHBACK	128
+#define	START_EXPAND	1
+#define	DONE_EXPAND		2
 
-static char	*parsebuf;
-static int	 parseindex;
-static char	 pushback_buffer[MAXPUSHBACK];
-static int	 pushback_index = 0;
+static int expanding;
+
+int
+igetc(void)
+{
+	int c;
+	while (1) {
+		if (file->ungetpos > 0)
+			c = file->ungetbuf[--file->ungetpos];
+		else
+			c = getc(file->stream);
+		if (c == START_EXPAND)
+			expanding = 1;
+		else if (c == DONE_EXPAND)
+			expanding = 0;
+		else
+			break;
+	}
+	return (c);
+}
 
 int
 lgetc(int quotec)
 {
-	int		c, next;
-
-	if (parsebuf) {
-		/* Read character from the parsebuffer instead of input. */
-		if (parseindex >= 0) {
-			c = parsebuf[parseindex++];
-			if (c != '\0')
-				return (c);
-			parsebuf = NULL;
-		} else
-			parseindex++;
-	}
-
-	if (pushback_index)
-		return (pushback_buffer[--pushback_index]);
+	int	c, next;
 
 	if (quotec) {
-		if ((c = getc(file->stream)) == EOF) {
+		if ((c = igetc()) == EOF) {
 			yyerror("reached end of file while parsing quoted string");
 			if (popfile() == EOF)
 				return (EOF);
@@ -6850,8 +6861,8 @@ lgetc(int quotec)
 		return (c);
 	}
 
-	while ((c = getc(file->stream)) == '\\') {
-		next = getc(file->stream);
+	while ((c = igetc()) == '\\') {
+		next = igetc();
 		if (next != '\n') {
 			c = next;
 			break;
@@ -6860,28 +6871,38 @@ lgetc(int quotec)
 		file->lineno++;
 	}
 
-	while (c == EOF) {
-		if (popfile() == EOF)
-			return (EOF);
-		c = getc(file->stream);
+	if (c == EOF) {
+		/*
+		 * Fake EOL when hit EOF for the first time. This gets line
+		 * count right if last line in included file is syntactically
+		 * invalid and has no newline.
+		 */
+		if (file->eof_reached == 0) {
+			file->eof_reached = 1;
+			return ('\n');
+		}
+		while (c == EOF) {
+			if (popfile() == EOF)
+				return (EOF);
+			c = igetc();
+		}
 	}
 	return (c);
 }
 
-int
+void
 lungetc(int c)
 {
 	if (c == EOF)
-		return (EOF);
-	if (parsebuf) {
-		parseindex--;
-		if (parseindex >= 0)
-			return (c);
+		return;
+	if (file->ungetpos >= file->ungetsize) {
+		void *p = reallocarray(file->ungetbuf, file->ungetsize, 2);
+		if (p == NULL)
+			err(1, "lungetc");
+		file->ungetbuf = p;
+		file->ungetsize *= 2;
 	}
-	if (pushback_index < MAXPUSHBACK-1)
-		return (pushback_buffer[pushback_index++] = c);
-	else
-		return (EOF);
+	file->ungetbuf[file->ungetpos++] = c;
 }
 
 int
@@ -6889,14 +6910,9 @@ findeol(void)
 {
 	int	c;
 
-	parsebuf = NULL;
-
 	/* skip to either EOF or the first real EOL */
 	while (1) {
-		if (pushback_index)
-			c = pushback_buffer[--pushback_index];
-		else
-			c = lgetc(0);
+		c = lgetc(0);
 		if (c == '\n') {
 			file->lineno++;
 			break;
@@ -6924,7 +6940,7 @@ top:
 	if (c == '#')
 		while ((c = lgetc(0)) != '\n' && c != EOF)
 			; /* nothing */
-	if (c == '$' && parsebuf == NULL) {
+	if (c == '$' && !expanding) {
 		while (1) {
 			if ((c = lgetc(0)) == EOF)
 				return (0);
@@ -6946,8 +6962,13 @@ top:
 			yyerror("macro '%s' not defined", buf);
 			return (findeol());
 		}
-		parsebuf = val;
-		parseindex = 0;
+		p = val + strlen(val) - 1;
+		lungetc(DONE_EXPAND);
+		while (p >= val) {
+			lungetc(*p);
+			p--;
+		}
+		lungetc(START_EXPAND);
 		goto top;
 	}
 
@@ -7114,19 +7135,21 @@ pushfile(const char *name, int secret)
 
 	if ((nfile = calloc(1, sizeof(struct file))) == NULL ||
 	    (nfile->name = strdup(name)) == NULL) {
-		warn("malloc");
+		warn("%s", __func__);
+		if (nfile)
+			free(nfile);
 		return (NULL);
 	}
 	if (TAILQ_FIRST(&files) == NULL && strcmp(nfile->name, "-") == 0) {
 		nfile->stream = stdin;
 		free(nfile->name);
 		if ((nfile->name = strdup("stdin")) == NULL) {
-			warn("strdup");
+			warn("%s", __func__);
 			free(nfile);
 			return (NULL);
 		}
 	} else if ((nfile->stream = fopen(nfile->name, "r")) == NULL) {
-		warn("%s", nfile->name);
+		warn("%s: %s", __func__, nfile->name);
 		free(nfile->name);
 		free(nfile);
 		return (NULL);
@@ -7137,7 +7160,16 @@ pushfile(const char *name, int secret)
 		free(nfile);
 		return (NULL);
 	}
-	nfile->lineno = 1;
+	nfile->lineno = TAILQ_EMPTY(&files) ? 1 : 0;
+	nfile->ungetsize = 16;
+	nfile->ungetbuf = malloc(nfile->ungetsize);
+	if (nfile->ungetbuf == NULL) {
+		warn("%s", __func__);
+		fclose(nfile->stream);
+		free(nfile->name);
+		free(nfile);
+		return (NULL);
+	}
 	TAILQ_INSERT_TAIL(&files, nfile, entry);
 	return (nfile);
 }
@@ -7152,6 +7184,7 @@ popfile(void)
 		TAILQ_REMOVE(&files, file, entry);
 		fclose(file->stream);
 		free(file->name);
+		free(file->ungetbuf);
 		free(file);
 		file = prev;
 		return (0);

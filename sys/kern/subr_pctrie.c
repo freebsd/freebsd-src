@@ -872,19 +872,17 @@ pctrie_iter_jump_le(struct pctrie_iter *it, int64_t jump)
  * 'node'.  If doing so causes 'node' to have only one child, purge it from the
  * pctrie and save it in *freenode for later disposal.
  */
-static void
-pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
-    struct pctrie_node **freenode)
+static bool
+pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index)
 {
 	smr_pctnode_t *parentp;
 	struct pctrie_node *child;
 	int slot;
 
-	*freenode = NULL;
 	parentp = pctrie_child(ptree, node, index);
 	if (node == NULL) {
 		pctrie_node_store(parentp, PCTRIE_NULL, PCTRIE_LOCKED);
-		return;
+		return (false);
 	}
 	slot = pctrie_slot(node, index);
 	KASSERT((node->pn_popmap & (1 << slot)) != 0,
@@ -893,12 +891,11 @@ pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
 	node->pn_popmap ^= 1 << slot;
 	if (!powerof2(node->pn_popmap)) {
 		pctrie_node_store(parentp, PCTRIE_NULL, PCTRIE_LOCKED);
-		return;
+		return (false);
 	}
 	pctrie_node_store(parentp, PCTRIE_NULL, PCTRIE_UNSERIALIZED);
 	KASSERT(node->pn_popmap != 0, ("%s: bad popmap all zeroes", __func__));
 	slot = ffs(node->pn_popmap) - 1;
-	*freenode = node;
 	child = pctrie_node_load(&node->pn_child[slot], NULL, PCTRIE_LOCKED);
 	KASSERT(child != PCTRIE_NULL,
 	    ("%s: bad popmap slot %d in node %p", __func__, slot, node));
@@ -907,6 +904,7 @@ pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
 		pctrie_setparent(child, node);
 	parentp = pctrie_child(ptree, node, index);
 	pctrie_node_store(parentp, child, PCTRIE_LOCKED);
+	return (true);
 }
 
 /*
@@ -923,8 +921,8 @@ pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
 	node = _pctrie_lookup_node(ptree, NULL, index, &parent, NULL,
 	    PCTRIE_LOCKED);
 	m = pctrie_match_value(node, index);
-	if (m != NULL)
-		pctrie_remove(ptree, parent, index, freenode);
+	if (m != NULL && pctrie_remove(ptree, parent, index))
+		*freenode = parent;
 	else
 		*freenode = NULL;
 	return (m);
@@ -941,9 +939,11 @@ pctrie_iter_remove(struct pctrie_iter *it, struct pctrie_node **freenode)
 	    it->ptree, it->node, it->index), NULL, PCTRIE_LOCKED), it->index),
 	    ("%s: removing value %jx not at iter", __func__,
 	    (uintmax_t)it->index));
-	pctrie_remove(it->ptree, it->node, it->index, freenode);
-	if (*freenode != NULL)
+	if (pctrie_remove(it->ptree, it->node, it->index)) {
+		*freenode = it->node;
 		it->node = pctrie_parent(it->node);
+	} else
+		*freenode = NULL;
 }
 
 /*

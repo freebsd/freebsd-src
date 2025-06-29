@@ -211,6 +211,7 @@ struct pfctl_rule {
 		uint32_t		limit;
 		uint32_t		seconds;
 	}			 max_src_conn_rate;
+	uint16_t		 max_pkt_size;
 	uint32_t		 qid;
 	uint32_t		 pqid;
 	uint16_t		 dnpipe;

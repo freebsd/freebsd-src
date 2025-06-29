@@ -1,0 +1,13 @@
+begin empty-lines
+
+
+end empty-lines
+begin stdout-and-stderr
+only stdout:
+This is stdout.
+This is stderr.
+only stderr:
+end stdout-and-stderr
+This is stdout.
+This is stderr.
+exit status 0

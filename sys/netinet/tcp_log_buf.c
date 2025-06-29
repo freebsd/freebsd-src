@@ -3027,14 +3027,8 @@ db_print_tcphdr(struct tcp_log_buffer *tlm_buf)
 	if (flags & TH_ECE) {
 		db_printf("E");
 	}
-	if (flags & TH_FIN) {
-		db_printf("F");
-	}
 	if (flags & TH_CWR) {
 		db_printf("W");
-	}
-	if (flags & TH_FIN) {
-		db_printf("F");
 	}
 	if (flags & TH_AE) {
 		db_printf("A");
