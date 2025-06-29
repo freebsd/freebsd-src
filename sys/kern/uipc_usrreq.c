@@ -3463,7 +3463,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 
 	UNP_LINK_UNLOCK_ASSERT();
 
-	fdflags = (flags & MSG_CMSG_CLOEXEC) ? O_CLOEXEC : 0;
+	fdflags = ((flags & MSG_CMSG_CLOEXEC) ? O_CLOEXEC : 0) |
+	    ((flags & MSG_CMSG_CLOFORK) ? O_CLOFORK : 0);
 
 	error = 0;
 	if (controlp != NULL) /* controlp == NULL => free control messages */
