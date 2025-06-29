@@ -417,7 +417,7 @@ and records a pointer
 to be passed to the drain on callback.
 The drain function cannot be changed while
 .Fa sbuf_len
-is non-zero.
+is nonzero.
 .Pp
 The registered drain function
 .Vt sbuf_drain_func
@@ -464,7 +464,7 @@ address into the
 .Fa sbuf .
 If the
 .Fa len
-argument is non-zero, no more than
+argument is nonzero, no more than
 .Fa len
 characters (not counting the terminating NUL) are copied; otherwise
 the entire string, or as much of it as can fit in the
@@ -571,7 +571,7 @@ with an attached drain,
 .Fn sbuf_len
 returns the length of the un-drained data.
 .Fn sbuf_done
-returns non-zero if the
+returns nonzero if the
 .Fa sbuf
 is finished.
 .Pp
@@ -690,7 +690,7 @@ all return \-1 if the buffer overflowed, and zero otherwise.
 .Pp
 The
 .Fn sbuf_error
-function returns a non-zero value if the buffer has an overflow or
+function returns a nonzero value if the buffer has an overflow or
 drain error, and zero otherwise.
 .Pp
 The
