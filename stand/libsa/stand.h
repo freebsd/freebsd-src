@@ -275,6 +275,11 @@ static __inline int ispunct(int c)
 	    (c >= '[' && c <= '`') || (c >= '{' && c <= '~');
 }
 
+static __inline int isprint(int c)
+{
+	return (c >= ' ') && (c <= '~');
+}
+
 static __inline int toupper(int c)
 {
     return islower(c) ? c - 'a' + 'A' : c;
