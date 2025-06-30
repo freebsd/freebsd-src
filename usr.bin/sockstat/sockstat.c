@@ -97,6 +97,7 @@ static bool	 opt_s;		/* Show protocol state if applicable */
 static bool	 opt_U;		/* Show remote UDP encapsulation port number */
 static bool	 opt_u;		/* Show Unix domain sockets */
 static u_int	 opt_v;		/* Verbose mode */
+static bool	 opt_w;		/* Automatically size the columns */
 
 /*
  * Default protocols to use if no -P was defined.
@@ -1101,7 +1102,7 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 	/* Remote peer we connect(2) to, if any. */
 	if (faddr->conn != 0) {
 		struct sock *p;
-		pos += strlcpy(buf, "-> ", bufsize);
+		pos += strlcpy(SAFEBUF, "-> ", SAFESIZE);
 		p = RB_FIND(pcbs_t, &pcbs,
 			&(struct sock){ .pcb = faddr->conn });
 		if (__predict_false(p == NULL)) {
@@ -1132,8 +1133,7 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 		while ((p = RB_FIND(pcbs_t, &pcbs,
 			&(struct sock){ .pcb = ref })) != 0) {
 			f = RB_FIND(files_t, &ftree,
-				&(struct file){ .xf_data =
-				p->socket });
+				&(struct file){ .xf_data = p->socket });
 			if (f != NULL) {
 				pos += snprintf(SAFEBUF, SAFESIZE,
 					"%s[%lu %d]", fref ? "" : ",",
@@ -1178,13 +1178,10 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 	len = strlen(s->protoname);
 	if (s->vflag & (INP_IPV4 | INP_IPV6))
 		len += 1;
-	if (laddr != NULL && faddr != NULL && s->family == AF_UNIX &&
-		laddr->address.ss_len == 0 && faddr->conn == 0)
-		len += strlen(" (not connected)");
 	cw->proto = MAX(cw->proto, len);
 
 	while (laddr != NULL || faddr != NULL) {
-		if (s->family == AF_UNIX) {
+		if (opt_w && s->family == AF_UNIX) {
 			if ((laddr == NULL) || (faddr == NULL))
 				errx(1, "laddr = %p or faddr = %p is NULL",
 					(void *)laddr, (void *)faddr);
@@ -1193,7 +1190,7 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 			cw->local_addr = MAX(cw->local_addr, len);
 			len = format_unix_faddr(faddr, NULL, 0);
 			cw->foreign_addr = MAX(cw->foreign_addr, len);
-		} else {
+		} else if (opt_w) {
 			if (laddr != NULL) {
 				len = formataddr(&laddr->address, NULL, 0);
 				cw->local_addr = MAX(cw->local_addr, len);
@@ -1296,23 +1293,6 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 static void
 calculate_column_widths(struct col_widths *cw)
 {
-	cw->user = 4;
-	cw->command = 10;
-	cw->pid = 3;
-	cw->fd = 2;
-	cw->proto = 5;
-	cw->local_addr = 13;
-	cw->foreign_addr = 15;
-	cw->pcb_kva = 18;
-	cw->fib = 3;
-	cw->splice_address = 14;
-	cw->inp_gencnt = 2;
-	cw->encaps = 6;
-	cw->path_state = 10;
-	cw->conn_state = 10;
-	cw->stack = 5;
-	cw->cc = 2;
-
 	int n, len;
 	struct file *xf;
 	struct sock *s;
@@ -1366,13 +1346,10 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 	faddr = s->faddr;
 	first = true;
 
-	snprintf(buf, bufsize, "%s%s%s%s",
+	snprintf(buf, bufsize, "%s%s%s",
 		s->protoname,
 		s->vflag & INP_IPV4 ? "4" : "",
-		s->vflag & INP_IPV6 ? "6" : "",
-		(laddr != NULL && faddr != NULL &&
-		s->family == AF_UNIX && laddr->address.ss_len == 0 &&
-		faddr->conn == 0) ? " (not connected)" : "");
+		s->vflag & INP_IPV6 ? "6" : "");
 	printf(" %-*s", cw->proto, buf);
 	while (laddr != NULL || faddr != NULL) {
 		if (s->family == AF_UNIX) {
@@ -1381,23 +1358,27 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					(void *)laddr, (void *)faddr);
 			if (laddr->address.ss_len > 0)
 				formataddr(&laddr->address, buf, bufsize);
+			else if (laddr->address.ss_len == 0 && faddr->conn == 0)
+				strlcpy(buf, "(not connected)", bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->local_addr, buf);
+			printf(" %-*.*s", cw->local_addr, cw->local_addr, buf);
 			if (format_unix_faddr(faddr, buf, bufsize) == 0)
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->foreign_addr, buf);
+			printf(" %-*.*s", cw->foreign_addr,
+				cw->foreign_addr, buf);
 		} else {
 			if (laddr != NULL)
 				formataddr(&laddr->address, buf, bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->local_addr, buf);
+			printf(" %-*.*s", cw->local_addr, cw->local_addr, buf);
 			if (faddr != NULL)
 				formataddr(&faddr->address, buf, bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->foreign_addr, buf);
+			printf(" %-*.*s", cw->foreign_addr,
+				cw->foreign_addr, buf);
 		}
 		if (opt_A)
 			printf(" %#*" PRIx64, cw->pcb_kva, s->pcb);
@@ -1411,6 +1392,8 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				if (sp != NULL)
 					formataddr(&sp->laddr->address,
 								buf, bufsize);
+				else
+					strlcpy(buf, "??", bufsize);
 			} else
 				strlcpy(buf, "??", bufsize);
 			printf(" %-*s", cw->splice_address, buf);
@@ -1510,6 +1493,25 @@ display(void)
 		err(1, "malloc()");
 		return;
 	}
+
+	cw = (struct col_widths) {
+		.user = strlen("USER"),
+		.command = 10,
+		.pid = strlen("PID"),
+		.fd = strlen("FD"),
+		.proto = strlen("PROTO"),
+		.local_addr = opt_w ? strlen("LOCAL ADDRESS") : 21,
+		.foreign_addr = opt_w ? strlen("FOREIGN ADDRESS") : 21,
+		.pcb_kva = 18,
+		.fib = strlen("FIB"),
+		.splice_address = strlen("SPLICE ADDRESS"),
+		.inp_gencnt = strlen("ID"),
+		.encaps = strlen("ENCAPS"),
+		.path_state = strlen("PATH STATE"),
+		.conn_state = strlen("CONN STATE"),
+		.stack = strlen("STACK"),
+		.cc = strlen("CC"),
+	};
 	calculate_column_widths(&cw);
 
 	if (!opt_q) {
@@ -1642,7 +1644,7 @@ static void
 usage(void)
 {
 	errx(1,
-    "usage: sockstat [-46ACcfIiLlnqSsUuv] [-j jid] [-p ports] [-P protocols]");
+    "usage: sockstat [-46ACcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
 }
 
 int
@@ -1721,7 +1723,7 @@ main(int argc, char *argv[])
 			++opt_v;
 			break;
 		case 'w':
-			/* left for backward compatibility. */
+			opt_w = true;
 			break;
 		default:
 			usage();
