@@ -480,6 +480,18 @@ nfs_access(struct vop_access_args *ap)
 			break;
 		}
 	}
+
+	/*
+	 * For NFSv4, check for a delegation with an Allow ACE, to see
+	 * if that permits access.
+	 */
+	if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOCTO) != 0) {
+		error = nfscl_delegacecheck(vp, ap->a_accmode, ap->a_cred);
+		if (error == 0)
+			return (error);
+		error = 0;
+	}
+
 	/*
 	 * For nfs v3 or v4, check to see if we have done this recently, and if
 	 * so return our cached result instead of making an ACCESS call.
