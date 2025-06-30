@@ -234,8 +234,10 @@ copy_satopfaddr(struct pf_addr *pfa, struct sockaddr *sa)
 {
 	if (sa->sa_family == AF_INET6)
 		pfa->v6 = ((struct sockaddr_in6 *)sa)->sin6_addr;
-	else
+	else if (sa->sa_family == AF_INET)
 		pfa->v4 = ((struct sockaddr_in *)sa)->sin_addr;
+	else
+		warnx("unhandled af %d", sa->sa_family);
 }
 
 const struct icmptypeent *
@@ -1515,11 +1517,16 @@ ifa_load(void)
 			ifa_add_groups_to_map(ifa->ifa_name);
 		} else {
 			copy_satopfaddr(&n->addr.v.a.addr, ifa->ifa_addr);
+			ifa->ifa_netmask->sa_family = ifa->ifa_addr->sa_family;
 			copy_satopfaddr(&n->addr.v.a.mask, ifa->ifa_netmask);
-			if (ifa->ifa_broadaddr != NULL)
+			if (ifa->ifa_broadaddr != NULL) {
+				ifa->ifa_broadaddr->sa_family = ifa->ifa_addr->sa_family;
 				copy_satopfaddr(&n->bcast, ifa->ifa_broadaddr);
-			if (ifa->ifa_dstaddr != NULL)
+			}
+			if (ifa->ifa_dstaddr != NULL) {
+				ifa->ifa_dstaddr->sa_family = ifa->ifa_addr->sa_family;
 				copy_satopfaddr(&n->peer, ifa->ifa_dstaddr);
+			}
 			if (n->af == AF_INET6)
 				n->ifindex = ((struct sockaddr_in6 *)
 				    ifa->ifa_addr) ->sin6_scope_id;
