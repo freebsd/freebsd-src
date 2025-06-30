@@ -2633,7 +2633,7 @@ int			 pf_kanchor_copyout(const struct pf_kruleset *,
 			    const struct pf_krule *, char *, size_t);
 int			 pf_kanchor_nvcopyout(const struct pf_kruleset *,
 			    const struct pf_krule *, nvlist_t *);
-void			 pf_kanchor_remove(struct pf_krule *);
+void			 pf_remove_kanchor(struct pf_krule *);
 void			 pf_remove_if_empty_kruleset(struct pf_kruleset *);
 struct pf_kruleset	*pf_find_kruleset(const char *);
 struct pf_kruleset	*pf_get_leaf_kruleset(char *, char **);
