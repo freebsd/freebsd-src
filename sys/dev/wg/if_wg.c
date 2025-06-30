@@ -532,10 +532,12 @@ wg_peer_get_endpoint(struct wg_peer *peer, struct wg_endpoint *e)
 static int
 wg_aip_addrinfo(struct wg_aip *aip, const void *baddr, uint8_t cidr)
 {
+#if defined(INET) || defined(INET6)
 	struct aip_addr *addr, *mask;
 
 	addr = &aip->a_addr;
 	mask = &aip->a_mask;
+#endif
 	switch (aip->a_af) {
 #ifdef INET
 	case AF_INET:
