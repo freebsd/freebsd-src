@@ -259,8 +259,8 @@ pf_create_kanchor(struct pf_kanchor *parent, const char *aname)
 
 	if ((dup = RB_INSERT(pf_kanchor_global, &V_pf_anchors, anchor)) !=
 	    NULL) {
-		printf("pf_find_or_create_ruleset: RB_INSERT1 "
-		    "'%s' '%s' collides with '%s' '%s'\n",
+		printf("%s: RB_INSERT1 "
+		    "'%s' '%s' collides with '%s' '%s'\n", __func__,
 		    anchor->path, anchor->name, dup->path, dup->name);
 		rs_free(anchor);
 		return (NULL);
@@ -270,10 +270,10 @@ pf_create_kanchor(struct pf_kanchor *parent, const char *aname)
 		anchor->parent = parent;
 		if ((dup = RB_INSERT(pf_kanchor_node, &parent->children,
 		    anchor)) != NULL) {
-			printf("pf_find_or_create_ruleset: "
+			printf("%s: "
 			    "RB_INSERT2 '%s' '%s' collides with "
-			    "'%s' '%s'\n", anchor->path, anchor->name,
-			    dup->path, dup->name);
+			    "'%s' '%s'\n", __func__, anchor->path,
+			    anchor->name, dup->path, dup->name);
 			RB_REMOVE(pf_kanchor_global, &V_pf_anchors,
 			    anchor);
 			rs_free(anchor);
@@ -444,7 +444,7 @@ pf_kanchor_copyout(const struct pf_kruleset *rs, const struct pf_krule *r,
 			    anchor_call_len);
 		}
 		if (strncmp(a, r->anchor->path, strlen(a))) {
-			printf("pf_anchor_copyout: '%s' '%s'\n", a,
+			printf("%s: '%s' '%s'\n", __func__, a,
 			    r->anchor->path);
 			return (1);
 		}
@@ -530,7 +530,7 @@ pf_kanchor_remove(struct pf_krule *r)
 	if (r->anchor == NULL)
 		return;
 	if (r->anchor->refcnt <= 0) {
-		printf("pf_anchor_remove: broken refcount\n");
+		printf("%s: broken refcount\n", __func__);
 		r->anchor = NULL;
 		return;
 	}
