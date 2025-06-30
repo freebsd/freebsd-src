@@ -560,6 +560,9 @@ OLD_FILES+=usr/include/c++/v1/__type_traits/is_trivially_move_constructible.h
 OLD_FILES+=usr/include/c++/v1/__type_traits/operation_traits.h
 OLD_FILES+=usr/include/c++/v1/experimental/__memory
 
+# 20241112: move p9fs from section 5 to section 4
+OLD_FILES+=usr/share/man/man5/p9fs.5.gz
+
 # 20240827: retire fips.so
 OLD_LIBS+=usr/lib/ossl-modules/fips.so
 
