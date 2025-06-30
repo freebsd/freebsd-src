@@ -32,8 +32,8 @@ attach_mdX_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
-	atf_check -s exit:0 -o save:fstab.out -x "echo 'md3    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md3 as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o save:fstab.out -x "echo 'md31    none    swap    sw,file=swapfile  0       0'"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md31 as swap device" -x "swapon -F fstab.out -a"
 }
 attach_mdX_cleanup()
 {
@@ -50,8 +50,8 @@ attach_dev_mdX_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
-	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md3    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md3 as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md32    none    swap    sw,file=swapfile  0       0'"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md32 as swap device" -x "swapon -F fstab.out -a"
 }
 attach_dev_mdX_cleanup()
 {
@@ -62,14 +62,14 @@ attach_dev_mdX_cleanup()
 atf_test_case attach_md cleanup
 attach_md_head()
 {
-	atf_set "descr" "mdX device should attach"
+	atf_set "descr" "md device should attach"
 }
 attach_md_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo 'md    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md0 as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]* as swap device" -x "swapon -F fstab.out -a"
 }
 attach_md_cleanup()
 {
@@ -87,7 +87,7 @@ attach_dev_md_body()
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md0 as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]* as swap device" -x "swapon -F fstab.out -a"
 }
 attach_dev_md_cleanup()
 {
@@ -104,8 +104,8 @@ attach_mdX_eli_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
-	atf_check -s exit:0 -o save:fstab.out -x "echo 'md3.eli    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md3.eli as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o save:fstab.out -x "echo 'md33.eli    none    swap    sw,file=swapfile  0       0'"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md33.eli as swap device" -x "swapon -F fstab.out -a"
 }
 attach_mdX_eli_cleanup()
 {
@@ -122,8 +122,8 @@ attach_dev_mdX_eli_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
-	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md3.eli    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md3.eli as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md34.eli    none    swap    sw,file=swapfile  0       0'"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md34.eli as swap device" -x "swapon -F fstab.out -a"
 }
 attach_dev_mdX_eli_cleanup()
 {
@@ -141,7 +141,7 @@ attach_md_eli_body()
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo 'md.eli    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md0.eli as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]*.eli as swap device" -x "swapon -F fstab.out -a"
 }
 attach_md_eli_cleanup()
 {
@@ -159,7 +159,7 @@ attach_dev_md_eli_body()
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
 	atf_check -s exit:0 -x "truncate -s 10k swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md.eli    none    swap    sw,file=swapfile  0       0'"
-	atf_check -s exit:0 -o match:"swapon: adding /dev/md0.eli as swap device" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]*.eli as swap device" -x "swapon -F fstab.out -a"
 }
 attach_dev_md_eli_cleanup()
 {
