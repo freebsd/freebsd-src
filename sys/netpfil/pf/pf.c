@@ -4676,10 +4676,11 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 	} else {
 		rv = pf_match_rule(ctx, &r->anchor->ruleset);
 		/*
-		 * Unless there was an error inside the anchor,
-		 * retain its quick state.
+		 * Unless errors occured, stop iff any rule matched
+		 * within quick anchors.
 		 */
-		if (rv != PF_TEST_FAIL && r->quick == PF_TEST_QUICK)
+		if (rv != PF_TEST_FAIL && r->quick == PF_TEST_QUICK &&
+		    *ctx->am == r)
 			rv = PF_TEST_QUICK;
 	}
 
