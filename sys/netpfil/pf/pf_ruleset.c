@@ -525,16 +525,13 @@ done:
 }
 
 void
-pf_kanchor_remove(struct pf_krule *r)
+pf_remove_kanchor(struct pf_krule *r)
 {
 	if (r->anchor == NULL)
 		return;
-	if (r->anchor->refcnt <= 0) {
+	if (r->anchor->refcnt <= 0)
 		printf("%s: broken refcount\n", __func__);
-		r->anchor = NULL;
-		return;
-	}
-	if (!--r->anchor->refcnt)
+	else if (!--r->anchor->refcnt)
 		pf_remove_if_empty_kruleset(&r->anchor->ruleset);
 	r->anchor = NULL;
 }
