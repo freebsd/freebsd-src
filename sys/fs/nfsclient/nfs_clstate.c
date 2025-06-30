@@ -5954,6 +5954,57 @@ tryagain:
 }
 
 /*
+ * Check access against a delegation ace.
+ * Return EINVAL for any case where the check cannot be completed.
+ */
+int
+nfscl_delegacecheck(struct vnode *vp, accmode_t accmode, struct ucred *cred)
+{
+	struct nfsclclient *clp;
+	struct nfscldeleg *dp;
+	struct nfsnode *np;
+	struct nfsmount *nmp;
+	struct acl *aclp;
+	int error;
+
+	np = VTONFS(vp);
+	nmp = VFSTONFS(vp->v_mount);
+	if (!NFSHASNFSV4(nmp) || !NFSHASNFSV4N(nmp) || vp->v_type != VREG)
+		return (EINVAL);
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return (EINVAL);
+	}
+	NFSUNLOCKMNT(nmp);
+	aclp = acl_alloc(M_WAITOK);
+	NFSLOCKCLSTATE();
+	clp = nfscl_findcl(nmp);
+	if (clp == NULL) {
+		NFSUNLOCKCLSTATE();
+		acl_free(aclp);
+		return (EINVAL);
+	}
+	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
+	if (dp != NULL && (dp->nfsdl_flags & (NFSCLDL_RECALL |
+	    NFSCLDL_DELEGRET)) == 0) {
+		memcpy(&aclp->acl_entry[0], &dp->nfsdl_ace,
+		    sizeof(struct acl_entry));
+		NFSUNLOCKCLSTATE();
+		aclp->acl_cnt = 1;
+		error = vaccess_acl_nfs4(vp->v_type, np->n_vattr.na_uid,
+		    np->n_vattr.na_gid, aclp, accmode, cred);
+		acl_free(aclp);
+		if (error == 0 || error == EACCES)
+			return (error);
+	} else {
+		NFSUNLOCKCLSTATE();
+		acl_free(aclp);
+	}
+	return (EINVAL);
+}
+
+/*
  * Start the recall of a delegation.  Called for CB_RECALL and REMOVE
  * when nlink == 0 after the REMOVE.
  */

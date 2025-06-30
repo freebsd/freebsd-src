@@ -658,6 +658,7 @@ void nfscl_freelayout(struct nfscllayout *);
 void nfscl_freeflayout(struct nfsclflayout *);
 void nfscl_freedevinfo(struct nfscldevinfo *);
 int nfscl_layoutcommit(vnode_t, NFSPROC_T *);
+int nfscl_delegacecheck(struct vnode *, accmode_t, struct ucred *);
 void nfscl_startdelegrecall(struct nfsclclient *, struct nfsfh *);
 
 /* nfs_clport.c */
