@@ -401,6 +401,42 @@ include_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "quick" "cleanup"
+quick_head()
+{
+	atf_set descr 'Test quick on anchors'
+	atf_set require.user root
+}
+
+quick_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "anchor quick {\n\
+	        pass\n\
+	    }" \
+	    "block"
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	jexec alcatraz pfctl -sr -vv -a "*"
+}
+
+quick_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "pr183198"
@@ -413,4 +449,5 @@ atf_init_test_cases()
 	atf_add_test_case "counter"
 	atf_add_test_case "nat"
 	atf_add_test_case "include"
+	atf_add_test_case "quick"
 }
