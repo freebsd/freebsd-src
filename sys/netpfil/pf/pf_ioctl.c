@@ -2740,7 +2740,7 @@ pf_ioctl_get_rulesets(struct pfioc_ruleset *pr)
 		return (ENOENT);
 	}
 	pr->nr = 0;
-	if (ruleset->anchor == NULL) {
+	if (ruleset == &pf_main_ruleset) {
 		/* XXX kludge for pf_main_ruleset */
 		RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors)
 			if (anchor->parent == NULL)
@@ -2772,7 +2772,7 @@ pf_ioctl_get_ruleset(struct pfioc_ruleset *pr)
 	}
 
 	pr->name[0] = 0;
-	if (ruleset->anchor == NULL) {
+	if (ruleset == &pf_main_ruleset) {
 		/* XXX kludge for pf_main_ruleset */
 		RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors)
 			if (anchor->parent == NULL && nr++ == pr->nr) {
