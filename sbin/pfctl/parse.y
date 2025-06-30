@@ -3926,14 +3926,14 @@ uid		: STRING			{
 			if (!strcmp($1, "unknown"))
 				$$ = UID_MAX;
 			else {
-				struct passwd	*pw;
+				uid_t uid;
 
-				if ((pw = getpwnam($1)) == NULL) {
+				if (uid_from_user($1, &uid) == -1) {
 					yyerror("unknown user %s", $1);
 					free($1);
 					YYERROR;
 				}
-				$$ = pw->pw_uid;
+				$$ = uid;
 			}
 			free($1);
 		}
@@ -4004,14 +4004,14 @@ gid		: STRING			{
 			if (!strcmp($1, "unknown"))
 				$$ = GID_MAX;
 			else {
-				struct group	*grp;
+				gid_t gid;
 
-				if ((grp = getgrnam($1)) == NULL) {
+				if (gid_from_group($1, &gid) == -1) {
 					yyerror("unknown group %s", $1);
 					free($1);
 					YYERROR;
 				}
-				$$ = grp->gr_gid;
+				$$ = gid;
 			}
 			free($1);
 		}
