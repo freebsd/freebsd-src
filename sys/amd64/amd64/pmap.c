@@ -1303,6 +1303,8 @@ static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static boolean_t pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde,
     vm_offset_t va, struct rwlock **lockp);
+static bool	pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde,
+    vm_offset_t va, struct rwlock **lockp, vm_page_t mpte);
 static bool	pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe,
     vm_offset_t va, vm_page_t m);
 static int	pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m,
@@ -6008,11 +6010,17 @@ static boolean_t
 pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     struct rwlock **lockp)
 {
+	return (pmap_demote_pde_mpte(pmap, pde, va, lockp, NULL));
+}
+
+static bool
+pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
+    struct rwlock **lockp, vm_page_t mpte)
+{
 	pd_entry_t newpde, oldpde;
 	pt_entry_t *firstpte, newpte;
 	pt_entry_t PG_A, PG_G, PG_M, PG_PKU_MASK, PG_RW, PG_V;
 	vm_paddr_t mptepa;
-	vm_page_t mpte;
 	int PG_PTE_CACHE;
 	bool in_kernel;
 
@@ -6025,10 +6033,10 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	PG_PKU_MASK = pmap_pku_mask_bit(pmap);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	in_kernel = va >= VM_MAXUSER_ADDRESS;
 	oldpde = *pde;
 	KASSERT((oldpde & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pde: oldpde is missing PG_PS and/or PG_V"));
+<<<<<<< HEAD
 
 	/*
 	 * Invalidate the 2MB page mapping and return "failure" if the
@@ -6042,44 +6050,64 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	}
 
 	mpte = pmap_remove_pt_page(pmap, va);
+=======
+	KASSERT((oldpde & PG_MANAGED) == 0 || lockp != NULL,
+	    ("pmap_demote_pde: lockp for a managed mapping is NULL"));
+	in_kernel = va >= VM_MAXUSER_ADDRESS;
+>>>>>>> 88c8cba04395 (amd64 pmap: preallocate another page table page in pmap_demote_DMAP())
 	if (mpte == NULL) {
-		KASSERT((oldpde & PG_W) == 0,
-		    ("pmap_demote_pde: page table page for a wired mapping"
-		    " is missing"));
-
 		/*
-		 * If the page table page is missing and the mapping
-		 * is for a kernel address, the mapping must belong to
-		 * the direct map.  Page table pages are preallocated
-		 * for every other part of the kernel address space,
-		 * so the direct map region is the only part of the
-		 * kernel address space that must be handled here.
+		 * Invalidate the 2MB page mapping and return "failure" if the
+		 * mapping was never accessed.
 		 */
-		KASSERT(!in_kernel || (va >= DMAP_MIN_ADDRESS &&
-		    va < DMAP_MAX_ADDRESS),
-		    ("pmap_demote_pde: No saved mpte for va %#lx", va));
-
-		/*
-		 * If the 2MB page mapping belongs to the direct map
-		 * region of the kernel's address space, then the page
-		 * allocation request specifies the highest possible
-		 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the
-		 * priority is normal.
-		 */
-		mpte = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
-		    (in_kernel ? VM_ALLOC_INTERRUPT : 0) | VM_ALLOC_WIRED);
-
-		/*
-		 * If the allocation of the new page table page fails,
-		 * invalidate the 2MB page mapping and return "failure".
-		 */
-		if (mpte == NULL) {
+		if ((oldpde & PG_A) == 0) {
+			KASSERT((oldpde & PG_W) == 0,
+		    ("pmap_demote_pde: a wired mapping is missing PG_A"));
 			pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
 			return (FALSE);
 		}
 
-		if (!in_kernel)
-			mpte->ref_count = NPTEPG;
+		mpte = pmap_remove_pt_page(pmap, va);
+		if (mpte == NULL) {
+			KASSERT((oldpde & PG_W) == 0,
+    ("pmap_demote_pde: page table page for a wired mapping is missing"));
+
+			/*
+			 * If the page table page is missing and the mapping
+			 * is for a kernel address, the mapping must belong to
+			 * the direct map.  Page table pages are preallocated
+			 * for every other part of the kernel address space,
+			 * so the direct map region is the only part of the
+			 * kernel address space that must be handled here.
+			 */
+			KASSERT(!in_kernel || (va >= DMAP_MIN_ADDRESS &&
+			    va < DMAP_MAX_ADDRESS),
+			    ("pmap_demote_pde: No saved mpte for va %#lx", va));
+
+			/*
+			 * If the 2MB page mapping belongs to the direct map
+			 * region of the kernel's address space, then the page
+			 * allocation request specifies the highest possible
+			 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the
+			 * priority is normal.
+			 */
+			mpte = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
+			    (in_kernel ? VM_ALLOC_INTERRUPT : 0) |
+			    VM_ALLOC_WIRED);
+
+			/*
+			 * If the allocation of the new page table page fails,
+			 * invalidate the 2MB page mapping and return "failure".
+			 */
+			if (mpte == NULL) {
+				pmap_demote_pde_abort(pmap, va, pde, oldpde,
+				    lockp);
+				return (false);
+			}
+
+			if (!in_kernel)
+				mpte->ref_count = NPTEPG;
+		}
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
@@ -9965,8 +9993,8 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 {
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
-	vm_page_t m;
 	vm_offset_t va;
+	vm_page_t m, mpte;
 	bool changed;
 
 	if (len == 0)
@@ -9986,6 +10014,11 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 		 * x86_mr_split_dmap() function.
 		 */
 		m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
+		if (len < NBPDR) {
+			mpte = vm_page_alloc_noobj(VM_ALLOC_WIRED |
+			    VM_ALLOC_WAITOK);
+		} else
+			mpte = NULL;
 
 		PMAP_LOCK(kernel_pmap);
 		pdpe = pmap_pdpe(kernel_pmap, va);
@@ -10002,9 +10035,13 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 			if ((*pde & X86_PG_V) == 0)
 				panic("pmap_demote_DMAP: invalid PDE");
 			if ((*pde & PG_PS) != 0) {
-				if (!pmap_demote_pde(kernel_pmap, pde, va))
+				mpte->pindex = pmap_pde_pindex(va);
+				pmap_pt_page_count_adj(kernel_pmap, 1);
+				if (!pmap_demote_pde_mpte(kernel_pmap, pde, va,
+				    NULL, mpte))
 					panic("pmap_demote_DMAP: PDE failed");
-				changed = TRUE;
+				changed = true;
+				mpte = NULL;
 			}
 		}
 		if (changed && invalidate)
@@ -10013,6 +10050,10 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 		if (m != NULL) {
 			vm_page_unwire_noq(m);
 			vm_page_free(m);
+		}
+		if (mpte != NULL) {
+			vm_page_unwire_noq(mpte);
+			vm_page_free(mpte);
 		}
 	}
 }
