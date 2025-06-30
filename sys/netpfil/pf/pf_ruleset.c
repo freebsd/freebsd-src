@@ -232,7 +232,7 @@ pf_get_leaf_kruleset(char *path, char **path_remainder)
 	return (ruleset);
 }
 
-struct pf_kanchor *
+static struct pf_kanchor *
 pf_create_kanchor(struct pf_kanchor *parent, const char *aname)
 {
 	struct pf_kanchor	*anchor, *dup;
