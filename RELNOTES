@@ -10,6 +10,15 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+50e733f19b37, 171f66b0c2ca:
+	These commits helped improve utilization of NFSv4.1/4.2
+	delegations.  The changes are only used when the NFSv4
+	mount uses the "nocto" mount option and requires an
+	up-to-date NFSv4.1/4.2 server with delegations enabled.
+	For example: For a FreeBSD kernel build with both src
+	and obj NFSv4 mounted, the total RPC count dropped from
+	5461286 to 945643, with a 20% drop in elapsed time.
+
 cd240957d7ba
 	Making a connection to INADDR_ANY (i.e., using INADDR_ANY as an alias
 	for localhost) is now disabled by default.  This functionality can be
