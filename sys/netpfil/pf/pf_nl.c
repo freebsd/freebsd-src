@@ -1308,9 +1308,9 @@ pf_handle_natlook(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	key.af = attrs.af;
 	key.proto = attrs.proto;
-	PF_ACPY(&key.addr[sidx], &attrs.src, attrs.af);
+	pf_addrcpy(&key.addr[sidx], &attrs.src, attrs.af);
 	key.port[sidx] = attrs.sport;
-	PF_ACPY(&key.addr[didx], &attrs.dst, attrs.af);
+	pf_addrcpy(&key.addr[didx], &attrs.dst, attrs.af);
 	key.port[didx] = attrs.dport;
 
 	state = pf_find_state_all(&key, attrs.direction, &m);

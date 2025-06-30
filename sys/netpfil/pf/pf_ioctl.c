@@ -2350,15 +2350,17 @@ relock_DIOCKILLSTATES:
 		if (psk->psk_proto && psk->psk_proto != sk->proto)
 			continue;
 
-		if (! PF_MATCHA(psk->psk_src.neg, &psk->psk_src.addr.v.a.addr,
+		if (! pf_match_addr(psk->psk_src.neg,
+		    &psk->psk_src.addr.v.a.addr,
 		    &psk->psk_src.addr.v.a.mask, srcaddr, sk->af))
 			continue;
 
-		if (! PF_MATCHA(psk->psk_dst.neg, &psk->psk_dst.addr.v.a.addr,
+		if (! pf_match_addr(psk->psk_dst.neg,
+		    &psk->psk_dst.addr.v.a.addr,
 		    &psk->psk_dst.addr.v.a.mask, dstaddr, sk->af))
 			continue;
 
-		if (!  PF_MATCHA(psk->psk_rt_addr.neg,
+		if (!  pf_match_addr(psk->psk_rt_addr.neg,
 		    &psk->psk_rt_addr.addr.v.a.addr,
 		    &psk->psk_rt_addr.addr.v.a.mask,
 		    &s->act.rt_addr, sk->af))
@@ -2398,10 +2400,10 @@ relock_DIOCKILLSTATES:
 
 			match_key.af = s->key[idx]->af;
 			match_key.proto = s->key[idx]->proto;
-			PF_ACPY(&match_key.addr[0],
+			pf_addrcpy(&match_key.addr[0],
 			    &s->key[idx]->addr[1], match_key.af);
 			match_key.port[0] = s->key[idx]->port[1];
-			PF_ACPY(&match_key.addr[1],
+			pf_addrcpy(&match_key.addr[1],
 			    &s->key[idx]->addr[0], match_key.af);
 			match_key.port[1] = s->key[idx]->port[0];
 		}
@@ -4152,9 +4154,9 @@ DIOCGETSTATESV2_full:
 			bzero(&key, sizeof(key));
 			key.af = pnl->af;
 			key.proto = pnl->proto;
-			PF_ACPY(&key.addr[sidx], &pnl->saddr, pnl->af);
+			pf_addrcpy(&key.addr[sidx], &pnl->saddr, pnl->af);
 			key.port[sidx] = pnl->sport;
-			PF_ACPY(&key.addr[didx], &pnl->daddr, pnl->af);
+			pf_addrcpy(&key.addr[didx], &pnl->daddr, pnl->af);
 			key.port[didx] = pnl->dport;
 
 			state = pf_find_state_all(&key, direction, &m);
@@ -4166,9 +4168,11 @@ DIOCGETSTATESV2_full:
 					error = E2BIG;	/* more than one state */
 				} else {
 					sk = state->key[sidx];
-					PF_ACPY(&pnl->rsaddr, &sk->addr[sidx], sk->af);
+					pf_addrcpy(&pnl->rsaddr,
+					    &sk->addr[sidx], sk->af);
 					pnl->rsport = sk->port[sidx];
-					PF_ACPY(&pnl->rdaddr, &sk->addr[didx], sk->af);
+					pf_addrcpy(&pnl->rdaddr,
+					    &sk->addr[didx], sk->af);
 					pnl->rdport = sk->port[didx];
 					PF_STATE_UNLOCK(state);
 				}
@@ -4606,7 +4610,7 @@ DIOCGETSTATESV2_full:
 		}
 
 		pool->cur = TAILQ_FIRST(&pool->list);
-		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr, pca->af);
+		pf_addrcpy(&pool->counter, &pool->cur->addr.v.a.addr, pca->af);
 		PF_RULES_WUNLOCK();
 		break;
 
@@ -6024,11 +6028,11 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 		PF_HASHROW_LOCK(sh);
 		LIST_FOREACH_SAFE(sn, &sh->nodes, entry, tmp)
 			if (psnk == NULL ||
-			    (PF_MATCHA(psnk->psnk_src.neg,
+			    (pf_match_addr(psnk->psnk_src.neg,
 			      &psnk->psnk_src.addr.v.a.addr,
 			      &psnk->psnk_src.addr.v.a.mask,
 			      &sn->addr, sn->af) &&
-			    PF_MATCHA(psnk->psnk_dst.neg,
+			    pf_match_addr(psnk->psnk_dst.neg,
 			      &psnk->psnk_dst.addr.v.a.addr,
 			      &psnk->psnk_dst.addr.v.a.mask,
 			      &sn->raddr, sn->af))) {
@@ -6132,10 +6136,10 @@ relock_DIOCCLRSTATES:
 
 				match_key.af = s->key[idx]->af;
 				match_key.proto = s->key[idx]->proto;
-				PF_ACPY(&match_key.addr[0],
+				pf_addrcpy(&match_key.addr[0],
 				    &s->key[idx]->addr[1], match_key.af);
 				match_key.port[0] = s->key[idx]->port[1];
-				PF_ACPY(&match_key.addr[1],
+				pf_addrcpy(&match_key.addr[1],
 				    &s->key[idx]->addr[0], match_key.af);
 				match_key.port[1] = s->key[idx]->port[0];
 			}
