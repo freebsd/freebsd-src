@@ -339,7 +339,7 @@ pf_remove_if_empty_kruleset(struct pf_kruleset *ruleset)
 	int			 i;
 
 	while (ruleset != NULL) {
-		if (ruleset == &pf_main_ruleset || ruleset->anchor == NULL ||
+		if (ruleset == &pf_main_ruleset ||
 		    !RB_EMPTY(&ruleset->anchor->children) ||
 		    ruleset->anchor->refcnt > 0 || ruleset->tables > 0 ||
 		    ruleset->topen)
@@ -407,7 +407,7 @@ pf_kanchor_setup(struct pf_krule *r, const struct pf_kruleset *s,
 	}
 	ruleset = pf_find_or_create_kruleset(path);
 	rs_free(path);
-	if (ruleset == NULL || ruleset->anchor == NULL) {
+	if (ruleset == NULL || ruleset == &pf_main_ruleset) {
 		DPFPRINTF("%s: ruleset\n", __func__);
 		return (1);
 	}
@@ -432,7 +432,7 @@ pf_kanchor_copyout(const struct pf_kruleset *rs, const struct pf_krule *r,
 		char	 a[MAXPATHLEN];
 		char	*p;
 		int	 i;
-		if (rs->anchor == NULL)
+		if (rs == &pf_main_ruleset)
 			a[0] = 0;
 		else
 			strlcpy(a, rs->anchor->path, MAXPATHLEN);
