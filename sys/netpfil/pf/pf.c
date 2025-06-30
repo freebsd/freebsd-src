@@ -4675,6 +4675,12 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 		}
 	} else {
 		rv = pf_match_rule(ctx, &r->anchor->ruleset);
+		/*
+		 * Unless there was an error inside the anchor,
+		 * retain its quick state.
+		 */
+		if (rv != PF_TEST_FAIL && r->quick == PF_TEST_QUICK)
+			rv = PF_TEST_QUICK;
 	}
 
 	ctx->depth--;
