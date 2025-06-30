@@ -3196,11 +3196,11 @@ main(int argc, char *argv[])
 	if (anchoropt != NULL) {
 		int len = strlen(anchoropt);
 
-		if (mode == O_RDONLY && showopt == NULL) {
-			warnx("anchors apply to -f, -F and -s only");
+		if (mode == O_RDONLY && showopt == NULL && tblcmdopt == NULL) {
+			warnx("anchors apply to -f, -F, -s, and -T only");
 			usage();
 		}
-		if (mode == O_RDWR &&
+		if (mode == O_RDWR && tblcmdopt == NULL &&
 		    (anchoropt[0] == '_' || strstr(anchoropt, "/_") != NULL))
 			errx(1, "anchor names beginning with '_' cannot "
 			    "be modified from the command line");
