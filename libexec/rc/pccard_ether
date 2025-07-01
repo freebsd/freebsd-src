@@ -69,16 +69,17 @@ checkauto()
 
 pccard_ether_start()
 {
-	ifexists $ifn || exit 1
-
-	if [ -z "$rc_force" ]; then
-		for uif in `ifconfig -ul`; do
-			if [ "${uif}" = "${ifn}" ]; then
-				# Interface is already up, so ignore it.
+	ifisup $ifn
+	case $? in
+		0)	# Interface is already up, so ignore it.
+			if [ -z "$rc_force"]; then
 				exit 0
 			fi
-		done
-	fi
+			;;
+		2)	# Interface does not exist.
+			exit 1
+			;;
+	esac
 
 	/etc/rc.d/netif quietstart $ifn
 
