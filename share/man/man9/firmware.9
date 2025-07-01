@@ -201,7 +201,7 @@ whether compiled in, or preloaded by
 or manually loaded with
 .Xr kldload 8 .
 However, a system can implement additional mechanisms to bring
-these images in memory before calling
+these images into memory before calling
 .Fn firmware_register .
 .Pp
 When
@@ -347,7 +347,7 @@ If
 .Fa imagename
 matches the trailing subpath of a registered image with a full path, that image is returned.
 .It
-he kernel linker searches for a kernel module named
+The kernel linker searches for a kernel module named
 .Fa imagename .
 If a kernel module is found, it is loaded, and
 the list of registered firmware images is searched again.
