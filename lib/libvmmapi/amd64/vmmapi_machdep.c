@@ -71,6 +71,9 @@ const char *vm_capstrmap[] = {
 	VM_ISA_PULSE_IRQ,		\
 	VM_ISA_SET_IRQ_TRIGGER,		\
 	VM_INJECT_NMI,			\
+	VM_GET_CPUID,			\
+	VM_SET_CPUID,			\
+	VM_LEGACY_CPUID,		\
 	VM_SET_X2APIC_STATE,		\
 	VM_GET_X2APIC_STATE,		\
 	VM_GET_HPET_CAPABILITIES,	\
@@ -344,6 +347,36 @@ vm_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state state)
 	x2apic.state = state;
 
 	error = vcpu_ioctl(vcpu, VM_SET_X2APIC_STATE, &x2apic);
+
+	return (error);
+}
+
+int
+vm_get_cpuid(struct vcpu *vcpu, struct vm_vcpu_cpuid_config *cfg)
+{
+	int error;
+
+	error = vcpu_ioctl(vcpu, VM_GET_CPUID, cfg);
+
+	return (error);
+}
+
+int
+vm_set_cpuid(struct vcpu *vcpu, struct vm_vcpu_cpuid_config *cfg)
+{
+	int error;
+
+	error = vcpu_ioctl(vcpu, VM_SET_CPUID, cfg);
+
+	return (error);
+}
+
+int
+vm_legacy_cpuid(struct vcpu *vcpu, struct vm_legacy_cpuid *vlc)
+{
+	int error;
+
+	error = vcpu_ioctl(vcpu, VM_LEGACY_CPUID, vlc);
 
 	return (error);
 }
