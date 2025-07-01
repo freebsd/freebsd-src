@@ -141,6 +141,7 @@ typedef	__pid_t		pid_t;
 #if __BSD_VISIBLE
 #define	O_EMPTY_PATH	0x02000000
 #define	O_NAMEDATTR	0x04000000	/* NFSv4 named attributes */
+#define	O_XATTR		O_NAMEDATTR	/* Solaris compatibility */
 #endif
 
 /*
