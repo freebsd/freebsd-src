@@ -1032,10 +1032,6 @@ tcp_default_fb_init(struct tcpcb *tp, void **ptr)
 	/* We don't use the pointer */
 	*ptr = NULL;
 
-	KASSERT(tp->t_state < TCPS_TIME_WAIT,
-	    ("%s: connection %p in unexpected state %d", __func__, tp,
-	    tp->t_state));
-
 	/* Make sure we get no interesting mbuf queuing behavior */
 	/* All mbuf queue/ack compress flags should be off */
 	tcp_lro_features_off(tp);
