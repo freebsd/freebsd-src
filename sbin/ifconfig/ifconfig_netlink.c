@@ -162,7 +162,7 @@ struct ifmap {
  * Memory is allocated using snl temporary buffers
  */
 static struct ifmap *
-prepare_ifmap(struct snl_state *ss)
+prepare_ifmap(struct snl_state *ss, const char *ifname)
 {
 	struct snl_writer nw = {};
 
@@ -170,6 +170,8 @@ prepare_ifmap(struct snl_state *ss)
 	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_GETLINK);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	snl_reserve_msg_object(&nw, struct ifinfomsg);
+       if (ifname != NULL)
+               snl_add_msg_attr_string(&nw, IFLA_IFNAME, ifname);
 
 	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (NULL);
@@ -457,7 +459,7 @@ list_interfaces_nl(struct ifconfig_args *args)
 
 	nl_init_socket(&ss);
 
-	struct ifmap *ifmap = prepare_ifmap(&ss);
+       struct ifmap *ifmap = prepare_ifmap(&ss, args->ifname);
 	struct iface **sorted_ifaces = snl_allocz(&ss, ifmap->count * sizeof(void *));
 	for (uint32_t i = 0, num = 0; i < ifmap->size; i++) {
 		if (ifmap->ifaces[i] != NULL) {
