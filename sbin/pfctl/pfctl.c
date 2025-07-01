@@ -3365,6 +3365,11 @@ main(int argc, char *argv[])
 			pfctl_clear_stats(pfh, opts);
 			break;
 		case 'a':
+			if (ifaceopt) {
+				warnx("don't specify an interface with -Fall");
+				usage();
+				/* NOTREACHED */
+			}
 			pfctl_flush_eth_rules(dev, opts, anchorname);
 			pfctl_flush_rules(dev, opts, anchorname);
 			pfctl_flush_nat(dev, opts, anchorname);
