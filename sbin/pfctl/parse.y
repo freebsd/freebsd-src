@@ -5424,6 +5424,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 	if (pf->opts & PF_OPT_VERBOSE)
 		print_tabledef(name, opts->flags, opts->init_addr,
 		    &opts->init_nodes);
+	warn_duplicate_tables(name, pf->anchor->path);
 	if (!(pf->opts & PF_OPT_NOACTION) &&
 	    pfctl_define_table(name, opts->flags, opts->init_addr,
 	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket)) {

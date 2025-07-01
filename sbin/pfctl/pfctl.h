@@ -86,7 +86,7 @@ void	 pfctl_show_tables(const char *, int);
 int	 pfctl_table(int, char *[], char *, const char *, char *,
 	    const char *, int);
 int	 pfctl_show_altq(int, const char *, int, int);
-void	 warn_namespace_collision(const char *);
+void	 warn_duplicate_tables(const char *, const char *);
 void	 pfctl_show_ifaces(const char *, int);
 void	pfctl_show_creators(int);
 FILE	*pfctl_fopen(const char *, const char *);
