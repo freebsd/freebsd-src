@@ -1866,33 +1866,33 @@ host_ip(const char *s, int mask)
 	struct addrinfo		 hints, *res;
 	struct node_host	*h = NULL;
 
+	h = calloc(1, sizeof(*h));
+	if (h == NULL)
+		err(1, "%s: calloc", __func__);
+	if (mask != -1) {
+		/* Try to parse 10/8 */
+		h->af = AF_INET;
+		if (inet_net_pton(AF_INET, s, &h->addr.v.a.addr.v4,
+		    sizeof(h->addr.v.a.addr.v4)) != -1)
+			goto out;
+	}
+
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM; /*dummy*/
 	hints.ai_flags = AI_NUMERICHOST;
 	if (getaddrinfo(s, NULL, &hints, &res) == 0) {
-		h = calloc(1, sizeof(*h));
-		if (h == NULL)
-			err(1, "%s: calloc", __func__);
 		h->af = res->ai_family;
 		copy_satopfaddr(&h->addr.v.a.addr, res->ai_addr);
 		if (h->af == AF_INET6)
 			h->ifindex =
 			    ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id;
 		freeaddrinfo(res);
-	} else { /* ie. for 10/8 parsing */
-		if (mask == -1)
-			return (NULL);
-		h = calloc(1, sizeof(*h));
-		if (h == NULL)
-			err(1, "%s: calloc", __func__);
-		h->af = AF_INET;
-		if (inet_net_pton(AF_INET, s, &h->addr.v.a.addr.v4,
-			sizeof(h->addr.v.a.addr.v4)) == -1) {
-			free(h);
-			return (NULL);
-		}
+	} else {
+		free(h);
+		return (NULL);
 	}
+out:
 	set_ipmask(h, mask);
 	h->ifname = NULL;
 	h->next = NULL;
