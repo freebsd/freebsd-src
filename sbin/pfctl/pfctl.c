@@ -3435,9 +3435,6 @@ main(int argc, char *argv[])
 		if (pfctl_rules(dev, rulesopt, opts, optimize,
 		    anchorname, NULL))
 			error = 1;
-		else if (!(opts & PF_OPT_NOACTION) &&
-		    (loadopt & PFCTL_FLAG_TABLE))
-			warn_namespace_collision(NULL);
 	}
 
 	if (opts & PF_OPT_ENABLE)
