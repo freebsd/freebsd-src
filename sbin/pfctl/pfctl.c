@@ -78,7 +78,7 @@ int	 pfctl_clear_altq(int, int);
 void	 pfctl_clear_src_nodes(int, int);
 void	 pfctl_clear_iface_states(int, const char *, int);
 void	 pfctl_addrprefix(char *, struct pf_addr *);
-void	 pfctl_kill_src_nodes(int, const char *, int);
+void	 pfctl_kill_src_nodes(int, int);
 void	 pfctl_net_kill_states(int, const char *, int);
 void	 pfctl_gateway_kill_states(int, const char *, int);
 void	 pfctl_label_kill_states(int, const char *, int);
@@ -590,7 +590,7 @@ pfctl_addrprefix(char *addr, struct pf_addr *mask)
 }
 
 void
-pfctl_kill_src_nodes(int dev, const char *iface, int opts)
+pfctl_kill_src_nodes(int dev, int opts)
 {
 	struct pfioc_src_node_kill psnk;
 	struct addrinfo *res[2], *resp[2];
@@ -3400,7 +3400,7 @@ main(int argc, char *argv[])
 	}
 
 	if (src_node_killers)
-		pfctl_kill_src_nodes(dev, ifaceopt, opts);
+		pfctl_kill_src_nodes(dev, opts);
 
 	if (tblcmdopt != NULL) {
 		error = pfctl_table(argc, argv, tableopt,
