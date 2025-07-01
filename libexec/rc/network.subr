@@ -661,7 +661,7 @@ ifisup()
 {
 	local _if
 
-	[ -z "$1" ] && return 1
+	[ -z "$1" ] && return 2
 	_if="$1"
 
 	set -- $(${IFCONFIG_CMD} -n ${_if} 2>/dev/null)
