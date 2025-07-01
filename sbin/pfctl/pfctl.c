@@ -2115,7 +2115,6 @@ pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
 			}
 		} else if (pf->opts & PF_OPT_VERBOSE)
 			printf("\n");
-
 	}
 
 	if (pf->optimize && rs_num == PF_RULESET_FILTER)
@@ -2958,7 +2957,7 @@ pfctl_show_anchors(int dev, int opts, char *anchorname)
 			errc(1, ret, "DIOCGETRULESET");
 		if (!strcmp(pr.name, PF_RESERVED_ANCHOR))
 			continue;
-		sub[0] = 0;
+		sub[0] = '\0';
 		if (pr.path[0]) {
 			strlcat(sub, pr.path, sizeof(sub));
 			strlcat(sub, "/", sizeof(sub));
@@ -3307,12 +3306,14 @@ main(int argc, char *argv[])
 			    0);
 
 			pfctl_show_nat(dev, path, opts, anchorname, 0, 0);
-			pfctl_show_rules(dev, path, opts, 0, anchorname, 0, 0);
+			pfctl_show_rules(dev, path, opts, PFCTL_SHOW_RULES,
+			    anchorname, 0, 0);
 			pfctl_show_altq(dev, ifaceopt, opts, 0);
 			pfctl_show_states(dev, ifaceopt, opts);
 			pfctl_show_src_nodes(dev, opts);
 			pfctl_show_status(dev, opts);
-			pfctl_show_rules(dev, path, opts, 1, anchorname, 0, 0);
+			pfctl_show_rules(dev, path, opts, PFCTL_SHOW_LABELS,
+			    anchorname, 0, 0);
 			pfctl_show_timeouts(dev, opts);
 			pfctl_show_limits(dev, opts);
 			pfctl_show_tables(anchorname, opts);
