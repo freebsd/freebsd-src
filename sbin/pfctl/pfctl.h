@@ -83,7 +83,7 @@ int	 pfi_clr_istats(const char *, int *, int);
 void	 pfctl_print_title(char *);
 void	 pfctl_do_clear_tables(const char *, int);
 void	 pfctl_show_tables(const char *, int);
-int	 pfctl_command_tables(int, char *[], char *, const char *, char *,
+int	 pfctl_table(int, char *[], char *, const char *, char *,
 	    const char *, int);
 int	 pfctl_show_altq(int, const char *, int, int);
 void	 warn_namespace_collision(const char *);
