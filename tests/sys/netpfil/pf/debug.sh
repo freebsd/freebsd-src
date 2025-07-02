@@ -50,7 +50,57 @@ basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "reset" "cleanup"
+reset_head()
+{
+	atf_set descr 'Test resetting debug level'
+	atf_set require.user root
+}
+
+reset_body()
+{
+	pft_init
+
+	vnet_mkjail debug
+
+	# Default is Urgent
+	atf_check -s exit:0 -o match:'Debug: Urgent' \
+	    jexec debug pfctl -sa
+	state_limit=$(jexec debug pfctl -sa | grep 'states.*hard limit' | awk '{ print $4; }')
+
+	# Change defaults
+	pft_set_rules debug \
+	    "set limit states 42"
+	atf_check -s exit:0 -e ignore \
+	    jexec debug pfctl -x loud
+
+	atf_check -s exit:0 -o match:'Debug: Loud' \
+	    jexec debug pfctl -sa
+	new_state_limit=$(jexec debug pfctl -sa | grep 'states.*hard limit' | awk '{ print $4; }')
+	if [ $state_limit -eq $new_state_limit ]; then
+		jexec debug pfctl -sa
+		atf_fail "Failed to change state limit"
+	fi
+
+	# Reset
+	atf_check -s exit:0 -o ignore -e ignore \
+	    jexec debug pfctl -FR
+	atf_check -s exit:0 -o match:'Debug: Urgent' \
+	    jexec debug pfctl -sa
+	new_state_limit=$(jexec debug pfctl -sa | grep 'states.*hard limit' | awk '{ print $4; }')
+	if [ $state_limit -ne $new_state_limit ]; then
+		jexec debug pfctl -sa
+		atf_fail "Failed to reset state limit"
+	fi
+}
+
+reset_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "reset"
 }
