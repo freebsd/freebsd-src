@@ -67,16 +67,13 @@ ipf_p_netbios_main_unload(void)
 
 
 int
-ipf_p_netbios_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
+ipf_p_netbios_out(void *arg, fr_info_t *fin, ap_session_t *aps __unused, nat_t *nat __unused)
 {
 	char dgmbuf[6];
 	int off, dlen;
 	udphdr_t *udp;
 	ip_t *ip;
 	mb_t *m;
-
-	aps = aps;	/* LINT */
-	nat = nat;	/* LINT */
 
 	m = fin->fin_m;
 	dlen = fin->fin_dlen - sizeof(*udp);
