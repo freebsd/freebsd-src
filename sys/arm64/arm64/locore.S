@@ -373,9 +373,8 @@ LENTRY(enter_kernel_el)
 	ldr	x2, =INIT_SCTLR_EL1
 	msr	sctlr_el1, x2
 
-	/* Check if the E2H flag is set */
-	tst	x4, #HCR_E2H
-	b.eq	.Lno_vhe
+	/* Check for VHE */
+	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, VH, .Lno_vhe)
 
 	/*
 	 * The kernel will be running in EL2, route exceptions here rather
