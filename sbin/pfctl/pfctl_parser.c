@@ -1794,7 +1794,7 @@ host(const char *s, int opts)
 	char			*p, *ps;
 	const char		*errstr;
 
-	if ((p = strrchr(s, '/')) != NULL) {
+	if ((p = strchr(s, '/')) != NULL) {
 		mask = strtonum(p+1, 0, 128, &errstr);
 		if (errstr) {
 			fprintf(stderr, "netmask is %s: %s\n", errstr, p);
