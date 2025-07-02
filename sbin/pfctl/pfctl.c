@@ -622,15 +622,7 @@ pfctl_kill_src_nodes(int dev, int opts)
 		psnk.psnk_af = resp[0]->ai_family;
 		sources++;
 
-		if (psnk.psnk_af == AF_INET)
-			psnk.psnk_src.addr.v.a.addr.v4 =
-			    ((struct sockaddr_in *)resp[0]->ai_addr)->sin_addr;
-		else if (psnk.psnk_af == AF_INET6)
-			psnk.psnk_src.addr.v.a.addr.v6 =
-			    ((struct sockaddr_in6 *)resp[0]->ai_addr)->
-			    sin6_addr;
-		else
-			errx(1, "Unknown address family %d", psnk.psnk_af);
+		copy_satopfaddr(&psnk.psnk_src.addr.v.a.addr, resp[0]->ai_addr);
 
 		if (src_node_killers > 1) {
 			dests = 0;
@@ -654,18 +646,8 @@ pfctl_kill_src_nodes(int dev, int opts)
 
 				dests++;
 
-				if (psnk.psnk_af == AF_INET)
-					psnk.psnk_dst.addr.v.a.addr.v4 =
-					    ((struct sockaddr_in *)resp[1]->
-					    ai_addr)->sin_addr;
-				else if (psnk.psnk_af == AF_INET6)
-					psnk.psnk_dst.addr.v.a.addr.v6 =
-					    ((struct sockaddr_in6 *)resp[1]->
-					    ai_addr)->sin6_addr;
-				else
-					errx(1, "Unknown address family %d",
-					    psnk.psnk_af);
-
+				copy_satopfaddr(&psnk.psnk_src.addr.v.a.addr,
+				    resp[1]->ai_addr);
 				if (ioctl(dev, DIOCKILLSRCNODES, &psnk))
 					err(1, "DIOCKILLSRCNODES");
 				killed += psnk.psnk_killed;
@@ -729,15 +711,7 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 		kill.af = resp[0]->ai_family;
 		sources++;
 
-		if (kill.af == AF_INET)
-			kill.src.addr.v.a.addr.v4 =
-			    ((struct sockaddr_in *)resp[0]->ai_addr)->sin_addr;
-		else if (kill.af == AF_INET6)
-			kill.src.addr.v.a.addr.v6 =
-			    ((struct sockaddr_in6 *)resp[0]->ai_addr)->
-			    sin6_addr;
-		else
-			errx(1, "Unknown address family %d", kill.af);
+		copy_satopfaddr(&kill.src.addr.v.a.addr, resp[0]->ai_addr);
 
 		if (state_killers > 1) {
 			dests = 0;
@@ -761,17 +735,8 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 
 				dests++;
 
-				if (kill.af == AF_INET)
-					kill.dst.addr.v.a.addr.v4 =
-					    ((struct sockaddr_in *)resp[1]->
-					    ai_addr)->sin_addr;
-				else if (kill.af == AF_INET6)
-					kill.dst.addr.v.a.addr.v6 =
-					    ((struct sockaddr_in6 *)resp[1]->
-					    ai_addr)->sin6_addr;
-				else
-					errx(1, "Unknown address family %d",
-					    kill.af);
+				copy_satopfaddr(&kill.src.addr.v.a.addr,
+				    resp[1]->ai_addr);
 
 				if ((ret = pfctl_kill_states_h(pfh, &kill, &newkilled)) != 0)
 					errc(1, ret, "DIOCKILLSTATES");
@@ -830,16 +795,8 @@ pfctl_gateway_kill_states(int dev, const char *iface, int opts)
 
 		kill.af = resp->ai_family;
 
-		if (kill.af == AF_INET)
-			kill.rt_addr.addr.v.a.addr.v4 =
-			    ((struct sockaddr_in *)resp->ai_addr)->sin_addr;
-		else if (kill.af == AF_INET6)
-			kill.rt_addr.addr.v.a.addr.v6 =
-			    ((struct sockaddr_in6 *)resp->ai_addr)->
-			    sin6_addr;
-		else
-			errx(1, "Unknown address family %d", kill.af);
-
+		copy_satopfaddr(&kill.rt_addr.addr.v.a.addr,
+		    resp->ai_addr);
 		if (pfctl_kill_states_h(pfh, &kill, &newkilled))
 			err(1, "DIOCKILLSTATES");
 		killed += newkilled;
@@ -984,8 +941,6 @@ pfctl_parse_host(char *str, struct pf_rule_addr *addr)
 {
 	char *s = NULL, *sbs, *sbe;
 	struct addrinfo hints, *ai;
-	struct sockaddr_in *sin4;
-	struct sockaddr_in6 *sin6;
 
 	s = strdup(str);
 	if (!s)
@@ -1008,19 +963,10 @@ pfctl_parse_host(char *str, struct pf_rule_addr *addr)
 	if (getaddrinfo(s, sbs, &hints, &ai) != 0)
 		goto error;
 
-	switch (ai->ai_family) {
-	case AF_INET:
-		sin4 = (struct sockaddr_in *)ai->ai_addr;
-		addr->addr.v.a.addr.v4 = sin4->sin_addr;
-		addr->port[0] = sin4->sin_port;
-		break;
-
-	case AF_INET6:
-		sin6 = (struct sockaddr_in6 *)ai->ai_addr;
-		addr->addr.v.a.addr.v6 = sin6->sin6_addr;
-		addr->port[0] = sin6->sin6_port;
-		break;
-	}
+	copy_satopfaddr(&addr->addr.v.a.addr, ai->ai_addr);
+	addr->port[0] = ai->ai_family == AF_INET6 ?
+	    ((struct sockaddr_in6 *)ai->ai_addr)->sin6_port :
+	    ((struct sockaddr_in *)ai->ai_addr)->sin_port;
 	freeaddrinfo(ai);
 	free(s);
 
