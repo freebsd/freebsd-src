@@ -276,6 +276,8 @@ struct pf_opt_rule {
 
 TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 
+void	copy_satopfaddr(struct pf_addr *, struct sockaddr *);
+
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
