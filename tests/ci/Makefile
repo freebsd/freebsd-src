@@ -144,10 +144,10 @@ portinstall-pkg: .PHONY
 .endif
 
 portinstall-qemu: portinstall-pkg .PHONY
-.if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
+.if !exists(/usr/local/bin/qemu-${QEMU_ARCH}-static)
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu-user-static
 .endif
-.if !exists(/usr/local/bin/qemu-system-${QEMU_ARCH})
+.if !exists(${QEMUBIN})
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu@nox11
 .endif
 
