@@ -1510,9 +1510,7 @@ ether_gen_addr_byname(const char *nameunit, struct ether_addr *hwaddr)
 	SHA1Final(digest, &ctx);
 	free(buf, M_TEMP);
 
-	addr = ((digest[0] << 16) | (digest[1] << 8) | digest[2]) &
-	    OUI_FREEBSD_GENERATED_MASK;
-	addr = OUI_FREEBSD(addr);
+	addr = (digest[0] << 8) | digest[1] | OUI_FREEBSD_GENERATED_LOW;
 	for (i = 0; i < ETHER_ADDR_LEN; ++i) {
 		hwaddr->octet[i] = addr >> ((ETHER_ADDR_LEN - i - 1) * 8) &
 		    0xFF;
