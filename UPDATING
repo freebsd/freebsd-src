@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250702:
+	13.5-RELEASE-p2	EN-25:09.libc
+			EN-25:10.zfs
+			EN-25:11.ena
+			SA-25:06.xz
+
+	Fix dynamically-loaded C++ libraries crashing at exit [EN-25:09.libc]
+
+	Fix corruption in ZFS replication streams from encrypted datasets [EN-25:10.zfs]
+
+	Fix ena resets and kernel panic on Nitro v4 or newer instances [EN-25:11.ena]
+
+	Fix use-after-free in multi-threaded xz decoder [SA-25:06.xz]
+
 20250410:
 	13.5-RELEASE-p1 EN-25:04.tzdata
 			EN-25:05.expat
