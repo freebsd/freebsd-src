@@ -40,9 +40,9 @@ INCS=	a.out.h ar.h assert.h bitstring.h byteswap.h \
 .PATH: ${SRCTOP}/contrib/libc-vis
 INCS+=	vis.h
 
-MHDRS=	float.h floatingpoint.h stdarg.h
+MHDRS=	float.h floatingpoint.h
 
-PHDRS=	_semaphore.h
+PHDRS=	_semaphore.h stdarg.h
 
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
