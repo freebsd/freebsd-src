@@ -667,7 +667,7 @@ unrdir_body()
 }
 
 atf_test_case unrfile
-unrdir_head()
+unrfile_head()
 {
 	atf_set "descr" "Test handling of unreadable files"
 }
