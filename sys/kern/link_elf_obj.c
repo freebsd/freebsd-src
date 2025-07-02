@@ -1514,19 +1514,17 @@ static void
 link_elf_ifunc_symbol_value(linker_file_t lf, caddr_t *valp, size_t *sizep)
 {
 	c_linker_sym_t sym;
-	elf_file_t ef;
 	const Elf_Sym *es;
 	caddr_t val;
 	long off;
 
 	val = *valp;
-	ef = (elf_file_t)lf;
 
 	/* Provide the value and size of the target symbol, if available. */
 	val = ((caddr_t (*)(void))val)();
 	if (link_elf_search_symbol(lf, val, &sym, &off) == 0 && off == 0) {
 		es = (const Elf_Sym *)sym;
-		*valp = (caddr_t)ef->address + es->st_value;
+		*valp = (caddr_t)es->st_value;
 		*sizep = es->st_size;
 	} else {
 		*valp = val;
