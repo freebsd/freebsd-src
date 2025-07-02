@@ -123,6 +123,7 @@ int	 pfctl_load_ruleset(struct pfctl *, char *,
 		struct pfctl_ruleset *, int, int);
 int	 pfctl_load_rule(struct pfctl *, char *, struct pfctl_rule *, int);
 const char	*pfctl_lookup_option(char *, const char * const *);
+void	 pfctl_reset(int, int);
 
 static struct pfctl_anchor_global	 pf_anchors;
 struct pfctl_anchor	 pf_main_anchor;
@@ -231,7 +232,7 @@ static const struct {
 static const char * const clearopt_list[] = {
 	"nat", "queue", "rules", "Sources",
 	"states", "info", "Tables", "osfp", "all",
-	"ethernet", NULL
+	"ethernet", "Reset", NULL
 };
 
 static const char * const showopt_list[] = {
@@ -2947,6 +2948,45 @@ pfctl_lookup_option(char *cmd, const char * const *list)
 	return (NULL);
 }
 
+void
+pfctl_reset(int dev, int opts)
+{
+	struct pfctl pf;
+	struct pfr_buffer t;
+	int i;
+
+	pf.dev = dev;
+	pf.h = pfh;
+	pfctl_init_options(&pf);
+
+	/* Force reset upon pfctl_load_options() */
+	pf.debug_set = 1;
+	pf.reass_set = 1;
+	pf.syncookieswat_set = 1;
+	pf.ifname = strdup("none");
+	if (pf.ifname == NULL)
+		err(1, "%s: strdup", __func__);
+	pf.ifname_set = 1;
+
+	memset(&t, 0, sizeof(t));
+	t.pfrb_type = PFRB_TRANS;
+	if (pfctl_trans(dev, &t, DIOCXBEGIN, 0))
+		err(1, "%s: DIOCXBEGIN", __func__);
+
+	for (i = 0; pf_limits[i].name; i++)
+		pf.limit_set[pf_limits[i].index] = 1;
+
+	for (i = 0; pf_timeouts[i].name; i++)
+		pf.timeout_set[pf_timeouts[i].timeout] = 1;
+
+	pfctl_load_options(&pf);
+
+	if (pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+		err(1, "%s: DIOCXCOMMIT", __func__);
+
+	pfctl_clear_interface_flags(dev, opts);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -3314,7 +3354,7 @@ main(int argc, char *argv[])
 				pfctl_clear_src_nodes(dev, opts);
 				pfctl_clear_stats(pfh, opts);
 				pfctl_clear_fingerprints(dev, opts);
-				pfctl_clear_interface_flags(dev, opts);
+				pfctl_reset(dev, opts);
 			}
 			break;
 		case 'o':
@@ -3322,6 +3362,9 @@ main(int argc, char *argv[])
 			break;
 		case 'T':
 			pfctl_do_clear_tables(anchorname, opts);
+			break;
+		case 'R':
+			pfctl_reset(dev, opts);
 			break;
 		}
 	}
