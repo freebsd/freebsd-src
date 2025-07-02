@@ -99,8 +99,6 @@ cdcmd(int argc __unused, char **argv __unused)
 
 	if ((dest = *argptr) == NULL && (dest = bltinlookup("HOME", 1)) == NULL)
 		error("HOME not set");
-	if (*dest == '\0')
-		dest = ".";
 	if (dest[0] == '-' && dest[1] == '\0') {
 		dest = bltinlookup("OLDPWD", 1);
 		if (dest == NULL)
