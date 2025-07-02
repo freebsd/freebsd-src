@@ -1489,3 +1489,4 @@ MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
 MODULE_DEPEND(nfscl, krpc, 1, 1, 1);
 MODULE_DEPEND(nfscl, nfssvc, 1, 1, 1);
 MODULE_DEPEND(nfscl, xdr, 1, 1, 1);
+MODULE_DEPEND(nfscl, acl_nfs4, 1, 1, 1);
