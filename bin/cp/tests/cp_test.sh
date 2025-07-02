@@ -618,6 +618,76 @@ to_root_cleanup()
 	(dst=$(cat dst) && rm "/$dst") 2>/dev/null || true
 }
 
+atf_test_case dirloop
+dirloop_head()
+{
+	atf_set "descr" "Test cycle detection when recursing"
+}
+dirloop_body()
+{
+	mkdir -p src/a src/b
+	ln -s ../b src/a
+	ln -s ../a src/b
+	atf_check \
+	    -s exit:1 \
+	    -e match:"src/a/b/a: directory causes a cycle" \
+	    -e match:"src/b/a/b: directory causes a cycle" \
+	    cp -r src dst
+	atf_check test -d dst
+	atf_check test -d dst/a
+	atf_check test -d dst/b
+	atf_check test -d dst/a/b
+	atf_check test ! -e dst/a/b/a
+	atf_check test -d dst/b/a
+	atf_check test ! -e dst/b/a/b
+}
+
+atf_test_case unrdir
+unrdir_head()
+{
+	atf_set "descr" "Test handling of unreadable directories"
+}
+unrdir_body()
+{
+	for d in a b c ; do
+		mkdir -p src/$d
+		echo "$d" >src/$d/f
+	done
+	chmod 0 src/b
+	atf_check \
+	    -s exit:1 \
+	    -e match:"^cp: src/b: Permission denied" \
+	    cp -R src dst
+	atf_check test -d dst/a
+	atf_check cmp src/a/f dst/a/f
+	atf_check test -d dst/b
+	atf_check test ! -e dst/b/f
+	atf_check test -d dst/c
+	atf_check cmp src/c/f dst/c/f
+}
+
+atf_test_case unrfile
+unrdir_head()
+{
+	atf_set "descr" "Test handling of unreadable files"
+}
+unrfile_body()
+{
+	mkdir src
+	for d in a b c ; do
+		echo "$d" >src/$d
+	done
+	chmod 0 src/b
+	atf_check \
+	    -s exit:1 \
+	    -e match:"^cp: src/b: Permission denied" \
+	    cp -R src dst
+	atf_check test -d dst
+	atf_check cmp src/a dst/a
+	atf_check test ! -e dst/b
+	atf_check cmp src/c dst/c
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -656,4 +726,7 @@ atf_init_test_cases()
 	atf_add_test_case to_link_outside
 	atf_add_test_case dstmode
 	atf_add_test_case to_root
+	atf_add_test_case dirloop
+	atf_add_test_case unrdir
+	atf_add_test_case unrfile
 }
