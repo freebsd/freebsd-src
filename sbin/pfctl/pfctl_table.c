@@ -85,6 +85,8 @@ static const char	*istats_text[2][2][2] = {
 	} while (0)
 
 #define CREATE_TABLE do {						\
+		warn_duplicate_tables(table.pfrt_name,			\
+		    table.pfrt_anchor);					\
 		table.pfrt_flags |= PFR_TFLAG_PERSIST;			\
 		if ((!(opts & PF_OPT_NOACTION) ||			\
 		    (opts & PF_OPT_DUMMYACTION)) &&			\
@@ -94,8 +96,6 @@ static const char	*istats_text[2][2][2] = {
 			goto _error;					\
 		}							\
 		if (nadd) {						\
-			warn_duplicate_tables(table.pfrt_name,		\
-			    table.pfrt_anchor);				\
 			xprintf(opts, "%d table created", nadd);	\
 			if (opts & PF_OPT_NOACTION)			\
 				return (0);				\
