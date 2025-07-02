@@ -1,0 +1,8 @@
+Issues to be addressed for src/lib/crypto/sha1: -*- text -*-
+
+
+Assumes int (look for "count") is >= 32 bits.
+
+Changing the types of internal variables is easy, but shsUpdate takes
+an int parameter; changing that could change the ABI on some
+platforms.

@@ -1,0 +1,81 @@
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.Dd May 16, 2025
+.Dt PTHREAD_SIGNALS_BLOCK_NP 3
+.Os
+.Sh NAME
+.Nm pthread_signals_block_np ,
+.Nm pthread_signals_unblock_np
+.Nd fast asynchronous signals blocking and unblocking
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft void
+.Fn pthread_signals_block_np "void"
+.Ft void
+.Fn pthread_signals_unblock_np "void"
+.Sh DESCRIPTION
+The
+.Fn pthread_signals_block_np
+and
+.Fn pthread_signals_unblock_np
+functions provide user programs an interface to the fast asynchronous
+signals blocking facility
+.Xr sigfastblock 2 .
+.Pp
+Blocking signals with
+.Fn pthread_signals_block_np
+disables delivery of any asynchronous signal, until unblocked.
+Signal blocking establishes a critical section where the execution
+flow of the thread cannot be diverted into a signal handler.
+Blocking signals is fast, it is performed by a single memory write into
+a location established with the kernel.
+.Pp
+Synchronous signal delivery cannot be blocked in general, including with
+these functions.
+.Pp
+The blocked state established by the
+.Fn pthread_signals_block_np
+is not completely POSIX-compliant.
+Specifically, system calls executed while in a blocked section,
+might abort sleep and return
+.Er EINTR
+upon queuing of an asynchronous signal to the thread,
+but the signal handler is not called until the last unblock is done.
+.Pp
+Calls to
+.Nm pthread_signals_block_np
+can be nested, and must be complemented by an equal count of
+calls to
+.Nm pthread_signals_unblock_np
+to return the calling thread to the standard mode of signal receiving.
+.Pp
+An example use of these function might be the construction of the CPU
+state that cannot be done atomically, and which includes stages where
+the state of the thread is not ABI compliant.
+If a signal is delivered while such state is not yet finished, signal
+handlers would misbehave.
+Using standard functions
+.Pq Fn sigprocmask
+to establish critical section might be much slower, because
+.Fn sigprocmask
+is system call, while
+.Fn pthread_signals_block_np
+consists of a single atomic memory write.
+.Sh RETURN VALUES
+The functions do not return a value.
+.Sh ERRORS
+There are no errors reported by the functions.
+.Sh SEE ALSO
+.Xr sigfastblock 2 ,
+.Xr sigprocmask 2 ,
+.Xr pthread_sigmask 3 ,
+.Xr pthread_np 3

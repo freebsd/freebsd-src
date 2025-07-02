@@ -1,0 +1,20 @@
+# Test PKINIT auth with a PIN prompt.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth = no_ccache use_pkinit pkinit_user=PKCS12:%0
+
+[run]
+    authenticate  = PAM_SUCCESS
+
+[prompts]
+    echo_off = Pass phrase for %0: |%1
+
+[output]
+    INFO user %u authenticated as %u

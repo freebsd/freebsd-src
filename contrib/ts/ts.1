@@ -1,0 +1,112 @@
+.\"	$OpenBSD: ts.1,v 1.6 2022/06/30 21:40:41 jmc Exp $
+.\"
+.\" Copyright (c) 2022 Job Snijders <job@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd June 30, 2022
+.Dt TS 1
+.Os
+.Sh NAME
+.Nm ts
+.Nd timestamp input
+.Sh SYNOPSIS
+.Nm
+.Op Fl i | s
+.Op Fl m
+.Op Ar format
+.Sh DESCRIPTION
+The
+.Nm
+utility prepends a timestamp to each line of standard input and writes
+it to standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl i
+Display time elapsed since the last timestamp.
+.It Fl m
+Display timestamps derived from a strictly linearly increasing clock.
+Without
+.Fl m ,
+timestamps reflect the current date and time, including time jumps if the
+system time is changed.
+.It Fl s
+Display time elapsed since the start of the program.
+.El
+.Pp
+The optional
+.Ar format
+argument controls how the timestamp is displayed, according to the conversion
+specifications described in the
+.Xr strftime 3
+manual page.
+The default format is
+.Qq %b %d %H:%M:%S ;
+or
+.Qq %H:%M:%S
+if one of the
+.Fl i
+or
+.Fl s
+options is used.
+.Pp
+Some additional conversion specifications are also supported
+to append microsecond resolution:
+.Cm %.S ,
+.Cm %.s ,
+and
+.Cm %.T ;
+which are similar to
+.Cm %S ,
+.Cm %s ,
+and
+.Cm \&%T .
+Examples:
+.Qq 10.00001 ,
+.Qq 1656427781.00001 ,
+and
+.Qq 4:20:00.00001 .
+.Sh EXAMPLES
+.Bd -literal -offset indent
+$ (echo foo; sleep 2; echo bar) | ts
+Jun 28 12:13:38 foo
+Jun 28 12:13:40 bar
+
+$ ls | ts -i %.S
+00.000452 CVS
+00.000595 Makefile
+00.000004 ts.1
+00.000004 ts.c
+.Ed
+.Sh SEE ALSO
+.Xr strftime 3
+.Sh HISTORY
+A
+.Nm
+utility first appeared in the moreutils collection by Joey Hess, and was
+rewritten from scratch for
+.Ox 7.2 .
+.Pp
+It was imported to
+.Fx
+by
+.An -nosplit
+.An Juraj Lutter Aq Mt otis@FreeBSD.org .
+.Sh AUTHORS
+This
+.Nm
+utility was written by
+.An Job Snijders Aq Mt job@openbsd.org
+and
+.An Claudio Jeker Aq Mt claudio@openbsd.org .

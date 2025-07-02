@@ -3,7 +3,7 @@
 /* Whether loading unversioned modules support is disabled */
 #undef DISABLE_UNVERSIONED_MODULES
 
-/* Define to 1 if you have the `asprintf' function. */
+/* Define to 1 if you have the 'asprintf' function. */
 #undef HAVE_ASPRINTF
 
 /* Define to 1 if you have cryb-test */
@@ -15,28 +15,28 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
-/* Define to 1 if you have the `dlfunc' function. */
+/* Define to 1 if you have the 'dlfunc' function. */
 #undef HAVE_DLFUNC
 
-/* Define to 1 if you have the `fdlopen' function. */
+/* Define to 1 if you have the 'fdlopen' function. */
 #undef HAVE_FDLOPEN
 
-/* Define to 1 if you have the `fpurge' function. */
+/* Define to 1 if you have the 'fpurge' function. */
 #undef HAVE_FPURGE
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `dl' library (-ldl). */
+/* Define to 1 if you have the 'dl' library (-ldl). */
 #undef HAVE_LIBDL
 
-/* Define to 1 if you have the `pam' library (-lpam). */
+/* Define to 1 if you have the 'pam' library (-lpam). */
 #undef HAVE_LIBPAM
 
 /* Define to 1 if you have the <minix/config.h> header file. */
 #undef HAVE_MINIX_CONFIG_H
 
-/* Define to 1 if you have the `setlogmask' function. */
+/* Define to 1 if you have the 'setlogmask' function. */
 #undef HAVE_SETLOGMASK
 
 /* Define to 1 if you have the <stdint.h> header file. */
@@ -54,16 +54,16 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the `strlcat' function. */
+/* Define to 1 if you have the 'strlcat' function. */
 #undef HAVE_STRLCAT
 
-/* Define to 1 if you have the `strlcmp' function. */
+/* Define to 1 if you have the 'strlcmp' function. */
 #undef HAVE_STRLCMP
 
-/* Define to 1 if you have the `strlcpy' function. */
+/* Define to 1 if you have the 'strlcpy' function. */
 #undef HAVE_STRLCPY
 
-/* Define to 1 if you have the `strlset' function. */
+/* Define to 1 if you have the 'strlset' function. */
 #undef HAVE_STRLSET
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
@@ -75,7 +75,7 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the `vasprintf' function. */
+/* Define to 1 if you have the 'vasprintf' function. */
 #undef HAVE_VASPRINTF
 
 /* Define to 1 if you have the <wchar.h> header file. */
@@ -83,6 +83,9 @@
 
 /* OpenPAM library major number */
 #undef LIB_MAJ
+
+/* Base directory for local policies and modules */
+#undef LOCALBASE
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
@@ -114,12 +117,12 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
-/* Enable extensions on AIX 3, Interix.  */
+/* Enable extensions on AIX, Interix, z/OS.  */
 #ifndef _ALL_SOURCE
 # undef _ALL_SOURCE
 #endif
@@ -180,11 +183,15 @@
 #ifndef __STDC_WANT_IEC_60559_DFP_EXT__
 # undef __STDC_WANT_IEC_60559_DFP_EXT__
 #endif
+/* Enable extensions specified by C23 Annex F.  */
+#ifndef __STDC_WANT_IEC_60559_EXT__
+# undef __STDC_WANT_IEC_60559_EXT__
+#endif
 /* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
 #ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
 # undef __STDC_WANT_IEC_60559_FUNCS_EXT__
 #endif
-/* Enable extensions specified by ISO/IEC TS 18661-3:2015.  */
+/* Enable extensions specified by C23 Annex H and ISO/IEC TS 18661-3:2015.  */
 #ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
 # undef __STDC_WANT_IEC_60559_TYPES_EXT__
 #endif
@@ -213,7 +220,7 @@
 /* Define to 1 if code coverage is enabled */
 #undef WITH_CODE_COVERAGE
 
-/* Define to empty if `const' does not conform to ANSI C. */
+/* Define to empty if 'const' does not conform to ANSI C. */
 #undef const
 
 /* Define to the equivalent of the C99 'restrict' keyword, or to
@@ -231,6 +238,6 @@
 # define __restrict__
 #endif
 
-/* Define to empty if the keyword `volatile' does not work. Warning: valid
-   code using `volatile' can become incorrect without. Disable with care. */
+/* Define to empty if the keyword 'volatile' does not work. Warning: valid
+   code using 'volatile' can become incorrect without. Disable with care. */
 #undef volatile

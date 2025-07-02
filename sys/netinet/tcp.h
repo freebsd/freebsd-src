@@ -77,7 +77,7 @@ struct tcphdr {
 	u_short	th_win;			/* window */
 	u_short	th_sum;			/* checksum */
 	u_short	th_urp;			/* urgent pointer */
-};
+} __packed;
 
 static __inline uint16_t
 __tcp_get_flags(const struct tcphdr *th)

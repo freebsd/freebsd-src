@@ -174,7 +174,7 @@ SYSCTL_BOOL(_kern, OID_AUTO, sig_discard_ign, CTLFLAG_RWTUN,
     "Discard ignored signals on delivery, otherwise queue them to "
     "the target queue");
 
-static bool pt_attach_transparent = true;
+bool pt_attach_transparent = true;
 SYSCTL_BOOL(_debug, OID_AUTO, ptrace_attach_transparent, CTLFLAG_RWTUN,
     &pt_attach_transparent, 0,
     "Hide wakes from PT_ATTACH on interruptible sleeps");

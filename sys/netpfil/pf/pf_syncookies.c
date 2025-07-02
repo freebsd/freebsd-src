@@ -518,5 +518,5 @@ pf_syncookie_recreate_syn(struct pf_pdesc *pd)
 	return (pf_build_tcp(NULL, pd->af, pd->src, pd->dst, *pd->sport,
 	    *pd->dport, seq, 0, TH_SYN, wscale, mss, pd->ttl,
 	    (pd->m->m_flags & M_LOOP), 0, PF_MTAG_FLAG_SYNCOOKIE_RECREATED,
-	    pd->act.rtableid));
+	    cookie.flags.sack_ok, pd->act.rtableid));
 }

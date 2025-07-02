@@ -159,6 +159,8 @@ SRCS+= \
 	ttyname.c \
 	ttyslot.c \
 	ualarm.c \
+	uexterr_format.c \
+	uexterr_gettext.c \
 	ulimit.c \
 	uname.c \
 	unvis-compat.c \
@@ -170,6 +172,7 @@ SRCS+= \
 
 .if ${COMPILER_FEATURES:Mblocks}
 CFLAGS.fts.c= -fblocks
+CFLAGS.glob.c= -fblocks
 .endif
 
 CFLAGS.arc4random.c= -I${SRCTOP}/sys -I${SRCTOP}/sys/crypto/chacha20

@@ -1,0 +1,47 @@
+krb5_cksumtype_to_string -  Convert a checksum type to a string. 
+=================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cksumtype_to_string(krb5_cksumtype cksumtype, char * buffer, size_t buflen)
+
+..
+
+
+:param:
+
+	          **[in]** **cksumtype** - Checksum type
+
+	          **[out]** **buffer** - Buffer to hold converted checksum type
+
+	          **[in]** **buflen** - Storage available in *buffer*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

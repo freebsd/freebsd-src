@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-LRQ-ALL-PW-EXPTIME-data:
+
+KRB5_LRQ_ALL_PW_EXPTIME
+=======================
+
+..
+.. data:: KRB5_LRQ_ALL_PW_EXPTIME
+..
+
+
+
+
+============================== ======================
+``KRB5_LRQ_ALL_PW_EXPTIME``       ``6``
+============================== ======================

@@ -196,8 +196,8 @@ DEFINE_CLASS_0(e6000sw, e6000sw_driver, e6000sw_methods,
     sizeof(e6000sw_softc_t));
 
 DRIVER_MODULE(e6000sw, mdio, e6000sw_driver, 0, 0);
-DRIVER_MODULE(etherswitch, e6000sw, etherswitch_driver, 0, 0);
 DRIVER_MODULE(miibus, e6000sw, miibus_driver, 0, 0);
+DRIVER_MODULE_ORDERED(etherswitch, e6000sw, etherswitch_driver, 0, 0, SI_ORDER_ANY);
 MODULE_DEPEND(e6000sw, mdio, 1, 1, 1);
 MODULE_DEPEND(e6000sw, etherswitch, 1, 1, 1);
 
@@ -1402,11 +1402,17 @@ e6000sw_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 static __inline struct mii_data*
 e6000sw_miiforphy(e6000sw_softc_t *sc, unsigned int phy)
 {
+	device_t mii_dev;
 
 	if (!e6000sw_is_phyport(sc, phy))
 		return (NULL);
+	mii_dev = sc->miibus[phy];
+	if (mii_dev == NULL)
+		return (NULL);
+	if (device_get_state(mii_dev) != DS_ATTACHED)
+		return (NULL);
 
-	return (device_get_softc(sc->miibus[phy]));
+	return (device_get_softc(mii_dev));
 }
 
 static int

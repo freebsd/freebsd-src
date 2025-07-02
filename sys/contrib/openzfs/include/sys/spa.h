@@ -784,6 +784,7 @@ extern int bpobj_enqueue_free_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx);
 #define	SPA_ASYNC_L2CACHE_TRIM			0x1000
 #define	SPA_ASYNC_REBUILD_DONE			0x2000
 #define	SPA_ASYNC_DETACH_SPARE			0x4000
+#define	SPA_ASYNC_REMOVE_BY_USER		0x8000
 
 /* device manipulation */
 extern int spa_vdev_add(spa_t *spa, nvlist_t *nvroot, boolean_t ashift_check);
@@ -980,9 +981,9 @@ extern void spa_iostats_trim_add(spa_t *spa, trim_type_t type,
     uint64_t extents_skipped, uint64_t bytes_skipped,
     uint64_t extents_failed, uint64_t bytes_failed);
 extern void spa_iostats_read_add(spa_t *spa, uint64_t size, uint64_t iops,
-    uint32_t flags);
+    dmu_flags_t flags);
 extern void spa_iostats_write_add(spa_t *spa, uint64_t size, uint64_t iops,
-    uint32_t flags);
+    dmu_flags_t flags);
 extern void spa_import_progress_add(spa_t *spa);
 extern void spa_import_progress_remove(uint64_t spa_guid);
 extern int spa_import_progress_set_mmp_check(uint64_t pool_guid,
@@ -1179,7 +1180,7 @@ extern void zfs_ereport_taskq_fini(void);
 extern void zfs_ereport_clear(spa_t *spa, vdev_t *vd);
 extern nvlist_t *zfs_event_create(spa_t *spa, vdev_t *vd, const char *type,
     const char *name, nvlist_t *aux);
-extern void zfs_post_remove(spa_t *spa, vdev_t *vd);
+extern void zfs_post_remove(spa_t *spa, vdev_t *vd, boolean_t by_kernel);
 extern void zfs_post_state_change(spa_t *spa, vdev_t *vd, uint64_t laststate);
 extern void zfs_post_autoreplace(spa_t *spa, vdev_t *vd);
 extern uint64_t spa_approx_errlog_size(spa_t *spa);

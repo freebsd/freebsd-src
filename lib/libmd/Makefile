@@ -117,9 +117,12 @@ USE_ASM_SOURCES:=0
 .endif
 
 .if ${USE_ASM_SOURCES} != 0
-.if exists(${MACHINE_ARCH}/sha.S)
-SRCS+=	sha.S
+.if exists(${MACHINE_ARCH}/sha1block.S)
+SRCS+=	sha1block.S
 CFLAGS+= -DSHA1_ASM
+.if exists(${MACHINE_ARCH}/sha1dispatch.c)
+SRCS+=  sha1dispatch.c
+.endif
 .endif
 .if exists(${MACHINE_ARCH}/rmd160.S)
 SRCS+=	rmd160.S
@@ -135,7 +138,7 @@ CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace w
 # the assembly vs C versions, and skein_block needs to be rebuilt if it changes.
 skein_block.o skein_block.pico: Makefile
 .endif
-.if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.S)
+.if exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.S)
 ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64"

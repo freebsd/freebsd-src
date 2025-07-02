@@ -1,0 +1,70 @@
+krb5_kt_get_entry -  Get an entry from a key table. 
+====================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_get_entry(krb5_context context, krb5_keytab keytab, krb5_const_principal principal, krb5_kvno vno, krb5_enctype enctype, krb5_keytab_entry * entry)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **keytab** - Key table handle
+
+	          **[in]** **principal** - Principal name
+
+	          **[in]** **vno** - Key version number (0 for highest available)
+
+	          **[in]** **enctype** - Encryption type (0 zero for any enctype)
+
+	          **[out]** **entry** - Returned entry from key table
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   Kerberos   error codes on failure
+
+
+..
+
+
+
+
+
+
+
+Retrieve an entry from a key table which matches the *keytab* , *principal* , *vno* , and *enctype* . If *vno* is zero, retrieve the highest-numbered kvno matching the other fields. If *enctype* is 0, match any enctype.
+
+
+
+Use krb5_free_keytab_entry_contents() to free *entry* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 If *vno* is zero, the function retrieves the highest-numbered-kvno entry that matches the specified principal.
+ 
+
+
+

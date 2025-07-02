@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-TC-MATCH-TIMES-EXACT-data:
+
+KRB5_TC_MATCH_TIMES_EXACT
+=========================
+
+..
+.. data:: KRB5_TC_MATCH_TIMES_EXACT
+..
+
+All the time fields must match exactly.
+
+
+
+================================ ======================
+``KRB5_TC_MATCH_TIMES_EXACT``       ``0x00000008``
+================================ ======================

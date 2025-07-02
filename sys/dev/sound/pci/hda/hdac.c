@@ -1639,6 +1639,35 @@ hdac_attach2(void *arg)
 }
 
 /****************************************************************************
+ * int hdac_shutdown(device_t)
+ *
+ * Power down HDA bus and codecs.
+ ****************************************************************************/
+static int
+hdac_shutdown(device_t dev)
+{
+	struct hdac_softc *sc = device_get_softc(dev);
+
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Shutdown...\n");
+	);
+	callout_drain(&sc->poll_callout);
+	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
+	bus_generic_shutdown(dev);
+
+	hdac_lock(sc);
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Reset controller...\n");
+	);
+	hdac_reset(sc, false);
+	hdac_unlock(sc);
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Shutdown done\n");
+	);
+	return (0);
+}
+
+/****************************************************************************
  * int hdac_suspend(device_t)
  *
  * Suspend and power down HDA bus and codecs.
@@ -1748,8 +1777,10 @@ hdac_detach(device_t dev)
 		return (error);
 
 	hdac_lock(sc);
+	callout_stop(&sc->poll_callout);
 	hdac_reset(sc, false);
 	hdac_unlock(sc);
+	callout_drain(&sc->poll_callout);
 	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
 	hdac_irq_free(sc);
 
@@ -2146,6 +2177,7 @@ static device_method_t hdac_methods[] = {
 	DEVMETHOD(device_probe,		hdac_probe),
 	DEVMETHOD(device_attach,	hdac_attach),
 	DEVMETHOD(device_detach,	hdac_detach),
+	DEVMETHOD(device_shutdown,	hdac_shutdown),
 	DEVMETHOD(device_suspend,	hdac_suspend),
 	DEVMETHOD(device_resume,	hdac_resume),
 	/* Bus interface */

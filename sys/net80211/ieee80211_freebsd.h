@@ -262,9 +262,9 @@ void	ieee80211_flush_ifq(struct ifqueue *, struct ieee80211vap *);
 void	ieee80211_vap_destroy(struct ieee80211vap *);
 const char *	ieee80211_get_vap_ifname(struct ieee80211vap *);
 
-#define	IFNET_IS_UP_RUNNING(_ifp) \
-	(((_ifp)->if_flags & IFF_UP) && \
-	 ((_ifp)->if_drv_flags & IFF_DRV_RUNNING))
+#define	IFNET_IS_UP_RUNNING(_ifp)				\
+	(((if_getflags(_ifp) & IFF_UP) != 0) &&			\
+	 ((if_getdrvflags(_ifp) & IFF_DRV_RUNNING) != 0))
 
 #define	msecs_to_ticks(ms)	MSEC_2_TICKS(ms)
 #define	ticks_to_msecs(t)	TICKS_2_MSEC(t)
@@ -539,6 +539,21 @@ struct debugnet80211_methods {
 #define DEBUGNET80211_DEFINE(driver)
 #define DEBUGNET80211_SET(ic, driver)
 #endif /* DEBUGNET */
+
+void ieee80211_vap_sync_mac_address(struct ieee80211vap *);
+void ieee80211_vap_copy_mac_address(struct ieee80211vap *);
+void ieee80211_vap_deliver_data(struct ieee80211vap *, struct mbuf *);
+bool ieee80211_vap_ifp_check_is_monitor(struct ieee80211vap *);
+bool ieee80211_vap_ifp_check_is_simplex(struct ieee80211vap *);
+bool ieee80211_vap_ifp_check_is_running(struct ieee80211vap *);
+void ieee80211_vap_ifp_set_running_state(struct ieee80211vap *, bool);
+const uint8_t * ieee80211_vap_get_broadcast_address(struct ieee80211vap *);
+
+void	net80211_printf(const char *fmt, ...) __printflike(1, 2);
+void	net80211_vap_printf(const struct ieee80211vap *, const char *fmt, ...)
+	    __printflike(2, 3);
+void	net80211_ic_printf(const struct ieee80211com *, const char *fmt, ...)
+	    __printflike(2, 3);
 
 #endif /* _KERNEL */
 

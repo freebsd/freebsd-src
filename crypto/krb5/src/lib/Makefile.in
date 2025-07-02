@@ -1,0 +1,145 @@
+mydir=lib
+SUBDIRS=crypto krb5 gssapi rpc kdb kadm5 apputils krad
+WINSUBDIRS=crypto krb5 gssapi
+BUILDTOP=$(REL)..
+
+all-unix:
+
+CLEANLIBS = libkrb5.a libkdb5.a libcrypto.a libgssapi_krb5.a libkadm.a \
+	libcom_err.a libpty.a ibss.a libgssapi.a libapputils.a libkrb5.so \
+	libcrypto.so
+
+clean-unix::
+
+clean-windows::
+
+# Windows stuff to make krb5 and gssapi DLLs.
+
+##MIT##!if !defined(VS_INC)
+##MIT##!message Must define VS_INC to point to version server include dir!
+##MIT##!error
+##MIT##!endif
+##MIT##!if !defined(VS_LIB)
+##MIT##!message Must define VS_LIB to point to version server library!
+##MIT##!error
+##MIT##!endif
+##MIT##MITLIBS=$(VS_LIB)
+##MIT##MITFLAGS=-I$(VS_INC) /DVERSERV=1
+
+
+
+##WIN32##SLIBS = $(BUILDTOP)\util\support\$(OUTPRE)k5sprt$(BITS).lib
+##WIN32##CLIBS = $(BUILDTOP)\util\et\$(OUTPRE)comerr.lib
+##WIN32##PLIBS = $(BUILDTOP)\util\profile\$(OUTPRE)profile.lib
+##WIN32##KLIBS = krb5\$(OUTPRE)krb5.lib crypto\$(OUTPRE)crypto.lib \
+##WIN32##	$(BUILDTOP)\util\profile\$(OUTPRE)profile.lib
+##WIN32##GLIBS = gssapi\$(OUTPRE)gssapi.lib
+
+
+##WIN32##SDEF = k5sprt32.def
+##WIN32##CDEF = comerr32.def
+##WIN32##PDEF = xpprof32.def
+##WIN32##KDEF = krb5_32.def
+##WIN32##GDEF = gssapi32.def
+
+
+
+##WIN32##KRB5RC = krb5.rc
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+
+##WIN32##!if defined(VISUALSTUDIOVERSION)
+##WIN32##!if $(VISUALSTUDIOVERSION:.=) >= 140
+##WIN32##!ifdef NODEBUG
+##WIN32##WINCRTEXTRA = ucrt.lib vcruntime.lib
+##WIN32##!else
+##WIN32##WINCRTEXTRA = ucrtd.lib vcruntimed.lib
+##WIN32##!endif
+##WIN32##!endif
+##WIN32##!endif
+##WIN32##WINLIBS = kernel32.lib ws2_32.lib user32.lib shell32.lib oldnames.lib \
+##WIN32##	version.lib secur32.lib advapi32.lib gdi32.lib delayimp.lib \
+##WIN32##	$(WINCRTEXTRA)
+##WIN32##WINDLLFLAGS = $(DLL_LINKOPTS) -base:0x1c000000 /DELAYLOAD:secur32.dll \
+##WIN32##	/DELAYLOAD:advapi32.dll /DELAY:UNLOAD /DELAY:NOBIND
+
+##WIN32##S_GLUE=$(OUTPRE)support_glue.obj
+##WIN32##K5_GLUE=$(OUTPRE)k5_glue.obj
+##WIN32##GSS_GLUE=$(OUTPRE)gss_glue.obj
+##WIN32##COMERR_GLUE=$(OUTPRE)comerr_glue.obj
+##WIN32##PROF_GLUE=$(OUTPRE)prof_glue.obj
+
+##WIN32##SGLUE=$(S_GLUE)
+##WIN32##CGLUE=$(COMERR_GLUE)
+##WIN32##PGLUE=$(PROF_GLUE)
+##WIN32##KGLUE=$(K5_GLUE)
+##WIN32##GGLUE=$(GSS_GLUE)
+
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##SRES=$(SLIB:.lib=.res)
+##WIN32##CRES=$(CLIB:.lib=.res)
+##WIN32##PRES=$(PLIB:.lib=.res)
+##WIN32##KRES=$(KLIB:.lib=.res)
+##WIN32##GRES=$(GLIB:.lib=.res)
+
+##WIN32##$(SRES): $(VERSIONRC)
+##WIN32##	$(RC) $(RCFLAGS) -DSUPPORT_LIB -fo $@ -r $**
+##WIN32##$(CRES): $(VERSIONRC)
+##WIN32##	$(RC) $(RCFLAGS) -DCE_LIB -fo $@ -r $**
+##WIN32##$(PRES): $(VERSIONRC)
+##WIN32##	$(RC) $(RCFLAGS) -DPROF_LIB -fo $@ -r $**
+##WIN32##$(KRES): $(KRB5RC)
+##WIN32##	$(RC) $(RCFLAGS) -DKRB5_LIB -fo $@ -r $**
+##WIN32##$(GRES): $(VERSIONRC)
+##WIN32##	$(RC) $(RCFLAGS) -DGSSAPI_LIB -fo $@ -r $**
+##WIN32##$(KRB5RC): $(VERSIONRC)
+
+##WIN32##$(SLIB): $(SDEF) $(SLIBS) $(SGLUE) $(SRES)
+##WIN32##	link $(WINDLLFLAGS) -def:$(SDEF) -out:$*.dll \
+##WIN32##	  $(SLIBS) $(SGLUE) $(SRES) $(WINLIBS)
+##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
+##WIN32##$(SDEF): ..\util\support\libkrb5support.exports
+##WIN32##	echo EXPORTS > $(SDEF).new
+##WIN32##	type ..\util\support\libkrb5support.exports >> $(SDEF).new
+##WIN32##	-$(RM) $(SDEF)
+##WIN32##	ren $(SDEF).new $(SDEF)
+
+##WIN32##$(CLIB): $(CDEF) $(CLIBS) $(CGLUE) $(CRES) $(SLIB)
+##WIN32##	link $(WINDLLFLAGS) -def:$(CDEF) -out:$*.dll \
+##WIN32##	  $(CLIBS) $(CGLUE) $(CRES) $(SLIB) $(WINLIBS)
+##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
+
+##WIN32##$(PLIB): $(PDEF) $(PLIBS) $(PGLUE) $(PRES) $(CLIB) $(SLIB)
+##WIN32##	link $(WINDLLFLAGS) -def:$(PDEF) -out:$*.dll \
+##WIN32##	  $(PLIBS) $(PGLUE) $(PRES) $(CLIB) $(SLIB) $(WINLIBS)
+##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
+
+##WIN32##$(KLIB): $(KDEF) $(KLIBS) $(KGLUE) $(KRES) $(CLIB) $(SLIB) $(MITLIBS)
+##WIN32##	link $(WINDLLFLAGS) -def:$(KDEF) -out:$*.dll \
+##WIN32##	  $(KLIBS) $(KGLUE) $(KRES) $(CLIB) $(SLIB) $(MITLIBS) $(DNSLIBS) $(WINLIBS)
+##WIN32##	$(_VC_MANIFEST_EMBED_DLL)
+
+##WIN32##$(GLIB): $(GDEF) $(GLIBS) $(GGLUE) $(GRES) $(KLIB) $(CLIB) $(SLIB)
+##WIN32##	link $(WINDLLFLAGS) -def:$(GDEF) -out:$*.dll \
+##WIN32##	  $(GLIBS) $(GGLUE) $(GRES) $(KLIB) $(CLIB) $(SLIB) $(WINLIBS)
+##WIN32##		$(_VC_MANIFEST_EMBED_DLL)
+
+##WIN32##$(K5_GLUE): win_glue.c
+##WIN32##	$(CC) $(ALL_CFLAGS) $(MITFLAGS) /c /DKRB5=1 /Fo$@ $**
+##WIN32##$(GSS_GLUE): win_glue.c
+##WIN32##	$(CC) $(ALL_CFLAGS) /c /DGSSAPI=1 /Fo$@ $**
+##WIN32##$(COMERR_GLUE): win_glue.c
+##WIN32##	$(CC) $(ALL_CFLAGS) /c /DCOMERR=1 /Fo$@ $**
+##WIN32##$(PROF_GLUE): win_glue.c
+##WIN32##	$(CC) $(ALL_CFLAGS) /c /DPROFILELIB=1 /Fo$@ $**
+##WIN32##$(S_GLUE): win_glue.c
+##WIN32##	$(CC) $(ALL_CFLAGS) /c /DSUPPORTLIB=1 /Fo$@ $**
+
+##WIN32### Build Convenience
+##WIN32##comerr.lib: $(CLIB)
+##WIN32##krb5.lib:   $(KLIB)
+##WIN32##gssapi.lib: $(GLIB)
+##WIN32##profile.lib: $(PLIB)
+
+##WIN32##all-windows: all-recurse lib-windows
+##WIN32##lib-windows: krb5.lib gssapi.lib profile.lib

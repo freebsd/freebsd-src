@@ -336,6 +336,7 @@ static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 static void	bridge_forward(struct bridge_softc *, struct bridge_iflist *,
 		    struct mbuf *m);
+static bool	bridge_member_ifaddrs(void);
 
 static void	bridge_timer(void *);
 
@@ -502,6 +503,19 @@ SYSCTL_BOOL(_net_link_bridge, OID_AUTO, log_mac_flap,
     CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(log_mac_flap), true,
     "Log MAC address port flapping");
 
+/* allow IP addresses on bridge members */
+VNET_DEFINE_STATIC(bool, member_ifaddrs) = false;
+#define	V_member_ifaddrs	VNET(member_ifaddrs)
+SYSCTL_BOOL(_net_link_bridge, OID_AUTO, member_ifaddrs,
+    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(member_ifaddrs), false,
+    "Allow layer 3 addresses on bridge members");
+
+static bool
+bridge_member_ifaddrs(void)
+{
+	return (V_member_ifaddrs);
+}
+
 VNET_DEFINE_STATIC(int, log_interval) = 5;
 VNET_DEFINE_STATIC(int, log_count) = 0;
 VNET_DEFINE_STATIC(struct timeval, log_last) = { 0 };
@@ -665,6 +679,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_dn_p = bridge_dummynet;
 		bridge_same_p = bridge_same;
 		bridge_get_softc_p = bridge_get_softc;
+		bridge_member_ifaddrs_p = bridge_member_ifaddrs;
 		bridge_detach_cookie = EVENTHANDLER_REGISTER(
 		    ifnet_departure_event, bridge_ifdetach, NULL,
 		    EVENTHANDLER_PRI_ANY);
@@ -675,6 +690,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_dn_p = NULL;
 		bridge_same_p = NULL;
 		bridge_get_softc_p = NULL;
+		bridge_member_ifaddrs_p = NULL;
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -1351,6 +1367,26 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		}
 	}
 #endif
+
+	/*
+	 * If member_ifaddrs is disabled, do not allow an interface with
+	 * assigned IP addresses to be added to a bridge.
+	 */
+	if (!V_member_ifaddrs) {
+		struct ifaddr *ifa;
+
+		CK_STAILQ_FOREACH(ifa, &ifs->if_addrhead, ifa_link) {
+#ifdef INET
+			if (ifa->ifa_addr->sa_family == AF_INET)
+				return (EINVAL);
+#endif
+#ifdef INET6
+			if (ifa->ifa_addr->sa_family == AF_INET6)
+				return (EINVAL);
+#endif
+		}
+	}
+
 	/* Allow the first Ethernet member to define the MTU */
 	if (CK_LIST_EMPTY(&sc->sc_iflist))
 		sc->sc_ifp->if_mtu = ifs->if_mtu;
@@ -2742,17 +2778,22 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	do { GRAB_OUR_PACKETS(bifp) } while (0);
 
 	/*
-	 * Give a chance for ifp at first priority. This will help when	the
-	 * packet comes through the interface like VLAN's with the same MACs
-	 * on several interfaces from the same bridge. This also will save
-	 * some CPU cycles in case the destination interface and the input
-	 * interface (eq ifp) are the same.
+	 * Check the interface the packet arrived on.  For tagged frames,
+	 * we need to do this even if member_ifaddrs is disabled because
+	 * vlan(4) might need to handle the traffic.
 	 */
-	do { GRAB_OUR_PACKETS(ifp) } while (0);
+	if (V_member_ifaddrs || (vlan && ifp->if_vlantrunk))
+		do { GRAB_OUR_PACKETS(ifp) } while (0);
 
-	/* Now check the all bridge members. */
-	CK_LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
-		GRAB_OUR_PACKETS(bif2->bif_ifp)
+	/*
+	 * We only need to check other members interface if member_ifaddrs
+	 * is enabled; otherwise we should have never traffic destined for
+	 * a member's lladdr.
+	 */
+	if (V_member_ifaddrs) {
+		CK_LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
+			GRAB_OUR_PACKETS(bif2->bif_ifp)
+		}
 	}
 
 #undef CARP_CHECK_WE_ARE_DST

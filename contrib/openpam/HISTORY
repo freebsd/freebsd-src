@@ -1,3 +1,15 @@
+OpenPAM Zingiber						2025-05-31
+
+ - BUGFIX: In openpam_borrow_cred(3), the wrong debugging macro was
+   being used, which resulted in an attempt to interpret the target
+   UID as an item identifier.
+
+ - ENHANCE: Allow missing modules or subpolicies to be ignored.
+
+ - ENHANCE: Previously, OpenPAM was hardcoded to look for policies in
+   /usr/local/etc in addition to /etc and modules in /usr/local/lib in
+   addition to /usr/lib.  This is now configurable at compile time.
+============================================================================
 OpenPAM Ximenia							2023-06-27
 
  - BUGFIX: Fix race condition in openpam_ttyconv(3) when used with

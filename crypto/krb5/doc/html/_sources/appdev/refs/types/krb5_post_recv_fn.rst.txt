@@ -1,0 +1,22 @@
+.. highlight:: c
+
+.. _krb5-post-recv-fn-struct:
+
+krb5_post_recv_fn
+=================
+
+..
+.. c:type:: krb5_post_recv_fn
+..
+
+Hook function for inspecting or overriding KDC replies.
+
+If *code* is non-zero, KDC communication failed and *reply* should be ignored. The hook function may return *code* or a different error code, or may synthesize a reply by setting *new_reply_out* and return successfully.
+The hook function should use krb5_copy_data() to construct the value for *new_reply_out* , to ensure that it can be freed correctly by the library.
+
+Declaration
+------------
+
+typedef krb5_error_code( \* krb5_post_recv_fn) (krb5_context context, void \*data, krb5_error_code code, const krb5_data \*realm, const krb5_data \*message, const krb5_data \*reply, krb5_data \*\*new_reply_out)
+
+

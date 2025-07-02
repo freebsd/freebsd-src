@@ -1,0 +1,1037 @@
+\documentstyle[fullpage,12pt]{article}
+
+\title{GSS-API Extensions to Sun RPC}
+\date{Draft---\today}
+\author{Barry Jaspan}
+
+\setlength{\parskip}{.7\baselineskip}
+\setlength{\parindent}{0pt}
+
+\makeatletter
+\newcount\savecnt\savecnt=0
+\def\saveenum#1{\global\savecnt=\csname c@enum#1\endcsname}
+\def\restoreenum#1{\csname c@enum#1\endcsname=\savecnt}
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Make _ actually generate an _, and allow line-breaking after it.
+\let\underscore=\_
+\catcode`_=13
+\def_{\underscore\penalty75\relax}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+
+{\setlength{\parskip}{0pt}\maketitle\tableofcontents}
+
+\section{Introduction}
+
+This document describes the integration of GSS-API authentication and
+security with Sun RPC.
+
+\section{Requirements}
+
+The requirements of the GSS-API authentication system for Sun RPC are:
+
+\begin{enumerate}
+\item It must provide mutual authentication between RPC clients and
+servers.
+
+\item It must provide for integrity checking and encryption of all
+procedure arguments and results passed over the network.
+\saveenum{i}
+\end{enumerate}
+
+The following features are desired, but not mandatory:
+
+\begin{enumerate}
+\restoreenum{i}
+\item It should provide for integrity checking and encryption of all
+``header information'' that specifies the program and procedure being
+called.
+
+\item It should obey the Sun RPC protocol so that clients using
+it can interoperate with existing servers.  In this case,
+``interoperate'' means that existing servers will return an error code
+indicating that they do not understand the authentication flavor, but
+not that they do not understand the request at all.
+
+\item It should require minimal or no changes to the standard Sun RPC
+programming paradigm for either clients or servers so that existing
+code can use it with little or no effort.
+
+\item It should operate correctly with all the standard Sun RPC
+transport mechansims (e.g. UDP and TCP).
+\saveenum{i}
+\end{enumerate}
+
+\section{Functional Specification}
+
+This section describes the programmer's interface to the GSS-API
+authentication flavor.   Knowledge of standard Sun RPC programming is
+assumed.
+
+\subsection{Client Side}
+
+A RPC client can select the GSS-API authentication flavor in the same
+way it can select any other authentication flavor, by setting the
+cl_auth field of the CLIENT structure to the appropriate value:
+
+\begin{verbatim}
+    clnt = clnt_create(server_host, PROG_NUM, PROG_VERS, protocol);
+    clnt->cl_auth = auth_gssapi_create(clnt, ...);
+\end{verbatim}
+
+There are two functions that create GSS-API authentication flavor
+structures for the cl_auth field, auth_gssapi_create and
+auth_gssapi_create_default.
+
+\begin{verbatim}
+AUTH *auth_gssapi_create(CLIENT         *clnt,
+                        OM_uint32       *major_status,
+                        OM_uint32       *minor_status,
+                        gss_cred_id_t   claimant_cred_handle,
+                        gss_name_t      target_name,
+                        gss_OID         mech_type,
+                        int             req_flags,
+                        int             time_req,
+                        gss_OID         *actual_mech_type,
+                        int             *ret_flags,
+                        OM_uint32       *time_rec);
+\end{verbatim}
+
+auth_gssapi_create creates a GSS-API authentication structure and
+provides most of the flexibility of gss_init_sec_context.  The
+arguments have the same interpretation as those of
+gss_init_sec_context with the same name, except:
+
+\begin{description}
+\item[clnt] The CLIENT structure returned by client_create or one of
+its relatives.  It is not modified.
+\end{description}
+
+auth_gssapi_create calls gss_init_sec_context as needed, passing each
+generated token to and processing each token returned from the RPC
+server specified by the RPC handle clnt.  On return, if major_status
+is GSS_S_COMPLETE, the context has been established, the returned AUTH
+structure is valid, and all of the arguments filled in by
+gss_init_sec_context have the correct values.  If major_status is not
+GSS_S_COMPLETE then it and minor_status contain error codes that can
+be passed to gss_display_status and the returned value is NULL.
+
+\begin{verbatim}
+AUTH *auth_gssapi_create_default(CLIENT *clnt, char *service_name);
+\end{verbatim}
+
+auth_gssapi_create_default is a shorthand for auth_gssapi_create that
+attempts to create a context that provides procedure call and result
+integrity, using the default credentials and GSS-API mechanism.
+service_name is parsed as a GSS-API ``service'' name and used as the
+target name.  The other arguments to auth_gssapi_create are as follows:
+
+\begin{verbatim}
+auth_gssapi_create(clnt,
+                   &dummy,
+                   &dummy,
+                   GSS_C_NO_CREDENTIAL,
+                   target_name,
+                   GSS_C_NULL_OID,
+                   GSS_C_MUTUAL_FLAG | GSS_C_REPLAY_FLAG,
+                   0,
+                   NULL,
+                   NULL,
+                   NULL);
+\end{verbatim}
+
+Note that if the underlying default mechanism does not support data
+integrity (e.g. the trust mechanism), this function will fail.
+
+The GSS-API major and minor status codes can be interpreted with
+auth_gssapi_display_status:
+
+\begin{verbatim}
+void auth_gssapi_display_status(char *msg, OM_uint32 major, 
+                                OM_uint32 minor); 
+\end{verbatim}
+
+All of the error messages associated with the major and minor status
+are displated on the standard error output, preceeded by the message
+``GSS-API authentication error $<$msg$>$:''.
+
+\subsection{Server Side}
+
+\subsubsection{Service Name Registration}
+
+An application server must register the service name(s) that it will
+use for GSS-API connections before any AUTH_GSSAPI requests will
+succeed.
+
+\begin{verbatim}
+typedef struct _auth_gssapi_name {
+     char *name;
+     gss_OID type;
+} auth_gssapi_name;
+
+bool_t _svcauth_gssapi_set_names(auth_gssapi_name *names, int num);
+\end{verbatim}
+
+names is an array of name specifications, each of which consists of a
+null-terminated ASCII representation of a name and the GSS-API name
+type that should be used to import it with gss_import_name.  The
+name type ``gss_nt_service_name'' is recommended.
+
+\subsubsection{Calling Client and Service Identification}
+
+Each application server's dispatch function is passed two arguments,
+the transport mechanism (transp) and the RPC service request (rqstp).
+If the service request's credential flavor (rq_cred.oa_flavor) is
+AUTH_GSSAPI (300001)\footnote{The value 4 was originally used, but
+300001 has been officially assigned by the IETF.}, then the call has
+been authenticated.  The rq_clntcred field of transp contains the
+gss_name_t of the authenticated caller and can be passed to
+gss_display_name to obtain a string represtation or gss_compare_name
+to compare it with other names.  The rq_svccred field of transp
+contains the GSS-API context established with the caller and can be
+passed to gss_inquire_context.
+
+\subsubsection{Error Logging}
+
+An application server can register a function to be called when a
+failure occurs during GSS-API context establishment with
+_svcauth_set_log_badauth_func.
+
+\begin{verbatim}
+typedef void (*auth_gssapi_log_badauth_func)(OM_uint32 major,
+                                             OM_uint32 minor,
+                                             struct sockaddr_in *raddr,
+                                             caddr_t data);
+   
+void _svcauth_set_log_badauth_func(auth_gssapi_log_badauth_func func,
+                                   caddr_t data); 
+\end{verbatim}
+
+The function func is called each time gss_accept_sec_context fails.
+The major and minor arguments indicate the GSS-API major and minor
+status codes returned.  The raddr field contains the INET socket that
+the request came from, and the data field contains the data argument
+of _svcauth_gssapi_set_log_badauth_func.
+
+An application server can register a function to be called when an RPC
+request with an invalid verifier arrives with
+_svcauth_set_log_badverf_func.
+
+\begin{verbatim}
+typedef void (*auth_gssapi_log_badverf_func)(gss_name_t client,
+                                             gss_name_t server,
+                                             struct svc_req *rqst,
+                                             struct rpc_msg *msg,
+                                             caddr_t data);
+
+void _svcauth_set_log_badverf_func(auth_gssapi_log_badverf_func func,
+                                   caddr_t data); 
+\end{verbatim}
+
+The function specified in func is called each time an invalid verifier
+is received.  The client and server fields identify the (falsely
+claimed) originating client and the server it originally authenticated
+to.  The raddr and addrlen fields contain the INET socket that the
+request (claims to have) come from, and data contains the data
+argument of _svcauth_set_log_badverf_func.
+
+\section{Modifications to Sun RPC}
+
+The Sun RPC extensible authentication mechanism is designed to allow
+different authentication systems to be integrated into Sun RPC easily.
+Unfortunately, it has two drawbacks.  First, the existing system has a
+number of non-general design properties that are intended specifically
+for Sun's Secure RPC, and second, the existing system has no concept
+of or ability to perform authentication-flavor-specific operations on
+function arguments and results passed over the wire.  The first
+problem merely makes the system confusing, since a number of features
+touted as ``general'' do not make any sense for arbitrary
+authentication systems.  The second problem is more substantial, and
+can only be corrected by modifications to Sun RPC internals.
+
+The following sections describe the necessary modifications to Sun
+RPC.
+
+\subsection{Client Side Authentication, AUTH Structure}
+
+The AUTH structure (figure \ref{fig:auth}) encapsulates the data and
+function pointers for an authentication flavor instance.  It has been
+changed in two ways.
+
+\begin{figure}[htbp]
+\begin{verbatim}
+typedef struct {
+        struct  opaque_auth     ah_cred;
+        struct  opaque_auth     ah_verf;
+        union   des_block       ah_key;
+        struct auth_ops {
+                void    (*ah_nextverf)();
+                int     (*ah_marshal)();        /* nextverf & serialize */
+                int     (*ah_validate)();       /* validate varifier */
+                int     (*ah_refresh)();        /* refresh credentials */
+                int     (*ah_wrap)();           /* encode data for wire */
+                int     (*ah_unwrap)();         /* decode data from wire */
+                void    (*ah_destroy)();        /* destroy this structure */
+        } *ah_ops;
+        caddr_t ah_private;
+} AUTH;
+\end{verbatim}
+\caption{The AUTH structure, with the new function pointers ah_wrap
+and ah_unwrap.}
+\label{fig:auth}
+\end{figure}
+
+First, the new functions ah_wrap and ah_unwrap prepare function
+arguments and results for transmission over the wire.  The
+authentication mechanism can use them to sign, encrypt, or perform any
+other operation on the data.  Their prototype is:
+
+\begin{verbatim}
+bool_t ah_wrap(AUTH *auth, XDR *out_xdrs, xdrproc_t func, caddr_t ptr);
+bool_t ah_unwrap(AUTH *auth, XDR *in_xdrs, xdrproc_t func, caddr_t ptr);
+\end{verbatim}
+
+ah_wrap encodes function arguments for transmission.  func and ptr are
+the XDR procedure and pointer that serialize the arguments, and
+out_xdrs is the xdr stream that the encoded arguments should be
+written to.  ah_unwrap decodes function arguments received from the
+network.  Its arguments are the converse of those to ah_wrap.
+
+It is the responsibility of RPC transport mechanisms to call an
+authorization flavor's ah_wrap and ah_unwrap functions when function
+arguments or results would normally be written to or read from the
+wire.  Authorization flavors that do not need to perform any encoding
+or decoding can use the provided function authany_wrap for ah_wrap
+and ah_unwrap; it consists of the single statement ``return
+(*func)(out_xdrs, ptr)'' (or in_xdrs, as appropriate).
+
+Second, the function ah_refresh has been changed to take the RPC error
+message that resulted in its being called as an argument.  This is
+necessary since the contents of the error message may dictate how
+ah_refresh should go about correcting the authentication failure.
+
+\subsection{Client Side Transport Mechanisms}
+
+Each client side transport mechanism must be modified to call the
+ah_wrap and ah_unwrap functions from the cl_auth field of the CLIENT
+structure during the call and reply process.  The modification is
+fairly simple.  For example, the UDP transport mechanism used to
+encode procedure calls like this:
+
+\begin{verbatim}
+        if ((! XDR_PUTLONG(xdrs, (long *)&proc)) ||
+            (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
+            (! (*xargs)(xdrs, argsp)))
+                return (cu->cu_error.re_status = RPC_CANTENCODEARGS);
+\end{verbatim}
+
+The last function call in the conditional serializes the arguments
+onto the xdr stream.  This must be replaced with a call to the
+appropriate ah_wrap function:
+
+\begin{verbatim}
+        if ((! XDR_PUTLONG(xdrs, (long *)&proc)) ||
+            (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
+            (! AUTH_WRAP(cl->cl_auth, xdrs, xargs, argsp)))
+                return (cu->cu_error.re_status = RPC_CANTENCODEARGS);
+\end{verbatim}
+
+AUTH_WRAP is a macro that takes the four arguments for an ah_wrap
+function and extracts and calls the function pointer from the cl_auth
+structure with the specified arguments.
+
+Similarly, the transport mechanism must unwrap procedure results.
+Again, the UDP mechanism will be instructive.  It used to deserialize
+function results like this:
+
+\begin{verbatim}
+        reply_msg.acpted_rply.ar_results.where = resultsp;
+        reply_msg.acpted_rply.ar_results.proc = xresults;
+
+        ok = xdr_replymsg(&reply_xdrs, &reply_msg);
+\end{verbatim}
+
+The problem here is that xdr_replymsg deserializes an entire reply
+message, including the results.  Since xresults and resultsp are the
+function and pointer to decode the results, they will be automatically
+deserialized {\it without} ah_unwrap being invoked.  The simplest
+solution (which is also the normal method used by the TCP mechanism)
+is to arrange to deserialize the function results explicitly:
+
+\begin{verbatim}
+        reply_msg.acpted_rply.ar_results.where = NULL;
+        reply_msg.acpted_rply.ar_results.proc = xdr_void;
+
+        if ((! xdr_replymsg(&reply_xdrs, &reply_msg)) ||
+            (! AUTH_UNWRAP(cl->cl_auth, reply_xdrs, xresults,
+                           resultsp))) {
+                return (cu->cu_error.re_status = RPC_CANTENCODEARGS);
+        }
+\end{verbatim}
+
+Since xdr_void does not read any data from the XDR stream, the
+function results are still available when AUTH_UNWRAP is called.  Note
+that AUTH_UNWRAP should only be called on {\it successful} calls; if
+the reply message status is not RPC_SUCCESS there are no arguments to
+read.
+
+Currently, the UDP and TCP transport mechanisms has been
+converted.\footnote{The ``raw'' mechanism, for direct connections, has
+not been.}
+
+\subsection{Service Side Authentication, SVCAUTH and XPRT}
+
+Standard Sun RPC service-side authentication consists of a single
+function per authentication flavor; there is no concept of an AUTH
+structure containing function pointers and private data as with the
+client side.  Previously, nothing else was necessary, because each
+flavor only did a single thing (authenticated individual calls in a
+stateless manner).  More functions and state are now required,
+however; they are stored in the SVCAUTH structure, see figure
+\ref{fig:svcauth}.
+
+\begin{figure}[htbp]
+\begin{verbatim}
+typedef struct {
+     struct svc_auth_ops {
+          int   (*svc_ah_wrap)();
+          int   (*svc_ah_unwrap)();
+     } *svc_ah_ops;
+     caddr_t svc_ah_private;
+} SVCAUTH;
+\end{verbatim}
+\caption{The new SVCAUTH structure.}
+\label{fig:svcauth}
+\end{figure}
+
+There is one SVCAUTH structure per authentication flavor (there is a
+default, svc_auth_any, for existing authentication flavors that do not
+need the extra functionality).  The svc_ah_wrap and svc_ah_unwrap
+perform the same logical function as their client-side counterparts.
+
+Just as with the client side, it is the responsibility of the
+transport mechanism to call the svc_ah_wrap and svc_ah_unwrap
+functions associated with the authentication flavor associated with
+each RPC call at the appropriate time.  Unfortunately, the transport
+mechanism code does not have access to the RPC call structure
+containing the authenticator flavor because the RPC call structure
+itself is not passed as an argument to the necessary functions.  The
+present solution is to add another argument to the transport mechanism
+structure, xp_auth, that stores the SVCAUTH of the {\it current} call
+on that mechanism; see figure \ref{fig:xprt}.  xp_auth is initialized
+to svc_auth_any so that existing authentication mechanisms that do not
+set the field will still operate correctly.  \footnote{This is not an
+great solution, because it forces each transport mechanism to be
+single threaded.  The correct solution is to store the SVCAUTH
+associated with each RPC call in the RPC call structure; however,
+doing so would require changing a lot of code to pass around the RPC
+call structure that currently does not do so.  Since other parts of
+Sun RPC use the XPRT structure in a non-reentrant way, the present
+solution does not make the situation any
+worse.}$^{\mbox{,}}$\footnote{A somewhat irrelevant side effect of
+adding SVCAUTH to XPRT is that the standard include file
+$<$rpc/rpc.h$>$ had to be changed to include $<$rpc/svc_auth$>$ before
+$<$rpc/svc.h$>$, whereas they used to be in the opposite order.}
+
+\begin{figure}[htbp]
+\begin{verbatim}
+typedef struct {
+        int             xp_sock;
+        u_short         xp_port;         /* associated port number */
+        struct xp_ops {
+            bool_t      (*xp_recv)();    /* receive incomming requests */
+            enum xprt_stat (*xp_stat)(); /* get transport status */
+            bool_t      (*xp_getargs)(); /* get arguments */
+            bool_t      (*xp_reply)();   /* send reply */
+            bool_t      (*xp_freeargs)();/* free mem allocated for args */
+            void        (*xp_destroy)(); /* destroy this struct */
+        } *xp_ops;
+        int             xp_addrlen;      /* length of remote address */
+        struct sockaddr_in xp_raddr;     /* remote address */
+        struct opaque_auth xp_verf;      /* raw response verifier */
+        SVCAUTH         *xp_auth;        /* auth flavor of current req */
+        caddr_t         xp_p1;           /* private */
+        caddr_t         xp_p2;           /* private */
+} SVCXPRT;
+\end{verbatim}
+\caption{The modified XPRT structure, with the xp_auth field.}
+\label{fig:xprt}
+\end{figure}
+
+Finally, with the modified XPRT structure carrying around the
+authentication flavor structure, the functions that serialize and
+deserialize function arguments and results must be modified to use the
+svc_ah_wrap and svc_ah_unwrap functions.  Each service-side transport
+mechanism has getargs and reply functions that must be modified to use
+the SVCAUTH_UNWRAP and SVCAUTH_WRAP macros, respectively, in a manner
+completely parallel to the client side.
+
+\subsection{Authenticated Service Identification, svc_req}
+
+Sun RPC provides the authenticated credentials of a client to the
+application server via rq_clntcred (``cooked credentials'') field of
+the service request (svc_req) structure.  In many authentication
+systems, services are also named entities, and there is no reason that
+an RPC should be restricted to accepting connections as a single
+authenticated service name.  However, access control decisions may be
+based on the service name a client authenticated to, so that
+information must be available to the application server.
+
+Figure \ref{fig:svc-req} shows the modified service request structure
+that contains a single new field, rq_svccred.  Like rq_clntcred, the
+authentication flavor is responsible for setting rq_svccred to the
+``cooked'' service credentials associated with a given RPC call.
+Authentication flavors that do not have the concept of service names
+can of course leave this field blank.
+
+\begin{figure}[htbp]
+\begin{verbatim}
+struct svc_req {
+        u_long          rq_prog;        /* service program number */
+        u_long          rq_vers;        /* service protocol version */
+        u_long          rq_proc;        /* the desired procedure */
+        struct opaque_auth rq_cred;     /* raw creds from the wire */
+        caddr_t         rq_clntcred;    /* read only cooked client cred */
+        caddr_t         rq_svccred;     /* read only cooked svc cred */
+        SVCXPRT         *rq_xprt;       /* associated transport */
+};
+\end{verbatim}
+\caption{The modified svc_req structure, with the rq_svccred field.}
+\label{fig:svc-req}
+\end{figure}
+
+
+
+\subsection{Authentication Negotiation, no_dispatch}
+
+In order to avoid having to transmit a full set of authentication
+information with every call, the service-side authentication mechanism
+must save state between calls.  Establishing that state may require
+multiple messages between the client-side and service-side
+authentication mechanisms.  The client-side authentication mechanism
+can make arbitrary RPC calls to the server simply by requiring the
+programmer to specify the CLIENT structure to the authentication
+flavor initialization routine.  The service side, however, is more
+complex.  In the normal course of events, an RPC call comes in, is
+authenticated, and is then dispatched to the appropriate procedure.
+For client- and service-side authentication flavors to communicate
+independent of the server implemented above the RPC layer, the
+service-side flavor must be able to send a reply to the client
+directly and {\it prevent} the call from being dispatched.
+
+This is implemented by a simple modification to the _authenticate
+routine, which dispatches each RPC call to the appropriate
+authentication flavor; see figure \ref{fig:authenticate}.  It takes an
+additional argument, no_dispatch, that instructs the mechanism not to
+dispatch the RPC call to the specified procedure.
+
+\begin{figure}[htbp]
+\begin{verbatim}
+                why=_authenticate(&r, &msg, &no_dispatch);
+                if (why != AUTH_OK) {
+                     svcerr_auth(xprt, why);
+                     goto call_done;
+                } else if (no_dispatch) {
+                     goto call_done;
+                }
+\end{verbatim}
+\caption{A call to the modified _authenticate.}
+\label{fig:authenticate}
+\end{figure}
+
+If _authenticate sets no_dispatch to true, the call is considered
+finished and no procedure dispatch takes place.  Presumably, an
+authentication flavor that sets no_dispatch to true also replies to
+the RPC call with svc_sendreply.  Authentication flavors that do not
+modify no_dispatch implicitly leave it set to false, so the normal
+dispatch takes place.
+
+\subsection{Affected Files}
+
+Table \ref{tab:modfiles} lists the files that were
+affected for each of the modifications described in previous sections.
+
+\begin{table}[htbp]
+\centering
+\caption{Files modified for each change to Sun RPC.}
+\label{tab:modfiles}
+\begin{tabular}{ll}
+AUTH structure                  & auth.h \\
+                                & auth_none.c \\
+                                & auth_exit.c \\
+                                & auth_any.c \\
+Client Transport Mechanisms     & clnt_udp.c \\
+                                & clnt_tcp.c \\
+SVCAUTH and XPRT structures     & rpc.h \\
+                                & svc.h \\
+                                & svc_auth.h \\
+                                & svc.c \\
+                                & svc_auth.c \\
+                                & svc_auth_any.c \\
+                                & svc_auth_unix.c \\
+Server Transport Mechanisms     & svc_udp.c \\
+                                & svc_tcp.c
+\end{tabular}
+\end{table}
+
+\section{GSS-API Authentication Flavor}
+
+The following sections describe the implementation of the GSS-API
+authentication flavor for Sun RPC.
+
+\subsection{Authentication Algorithms}
+\label{sec:algorithms}
+
+\subsubsection{Context Initiation}
+
+The client creates a GSS-API context with the server each time it
+calls auth_gssapi_create.  The context is created using the standard
+gss_init_sec_context and gss_accept_sec_context function calls.  The
+generated tokens are passed between the client and server as arguments
+and results of normal RPC calls.
+
+The client side, in auth_gssapi_create, performs the following steps
+to initiate a context:
+
+\begin{enumerate}
+\item\label{item:process-token} The client calls gss_init_sec_context.
+On the first such call, no input token is provided; on subsequent
+calls, the token received from the server is provided.
+
+\item If gss_init_sec_context produces an output token:
+
+\begin{enumerate}
+\item The client transmits the token to the server, identifying itself
+with client_handle if it has already been received (see next step).
+The return value from the server will contain a client_handle and one
+or both of a token and a signed initial sequence number.  
+
+\item If this is the first response from the server, the client_handle
+is stored for subsequent calls.  Otherwise, the client_handle should be
+the same as returned on the previous call.
+
+\item If the response contains a signed initian sequence number but
+the context is not yet established, then the response also contains a
+token that will established the context.  The signed initial sequence
+number is stored.
+
+\item If the response contains a token, step \ref{item:process-token}
+repeated.
+\end{enumerate}
+
+\item The signed initial sequence number is verified using the
+established context.
+\end{enumerate}
+
+The server side, in _svcauth_gssapi, performs the following steps to
+initiate a context:
+
+\begin{enumerate}
+\item If a call arrives with no client_handle, a new client_handle is
+allocated and stored in the database.  Otherwise, the client's
+previous state is is looked up in the database.
+
+\item The received token is passed to gss_accept_sec_context.  If an
+output token is generated, it is returned to the client.  Note that
+since the application server may have registered multiple service
+names and there is no way to determine {\it a priori} which service a
+token is for, _svcauth_gssapi calls gss_accept_sec_context once for
+each registered credential until one of them succeeds.  The code
+assumes that GSS_S_FAILURE is the only error that can result from a
+credential mismatch, so any other error terminates the loop
+immediately.
+
+\item If the context is established, the server signs an initial
+sequence number and returns it to the client.
+\end{enumerate}
+
+Note that these algorithms require context establishment to be
+synchronous.  If gss_init_sec_context returns GSS_S_COMPLETE upon
+processing a token, it will either produce a token or not.  If it
+does, then gss_accept_sec_context will return GSS_S_COMPLETE when that
+token is processed; if it does not, then gss_accept_sec_context
+already returned GSS_S_COMPLETE (and presumably returned the token
+that caused gss_init_sec_context to return GSS_S_COMPLETE when
+processed).  The reverse is also true.
+
+\subsubsection{RPC Calls}
+
+After the GSS-API context is established, both the server and the
+client possess a client handle and a corresponding sequence number.
+Each call from the client contains the client handle as the
+``credential'' so that the server can identify which context to apply
+to the call.
+
+Each client call and server response includes a ``verifier'' that
+contains the sealed current sequence number.\footnote{In a future
+version, the verifier will also contain a signature block for the call
+header, including the procedure number called.} The sequence number
+prevents replay attacks\footnote{Although some GSS-API mechanisms
+provide replay detection themselves, not all of them do; explicitly
+including the sequence number in the RPC therefore provides better
+end-to-end security}, but by itself it does not prevent splicing
+attacks.
+
+Each procedure argument and result block consists of the current
+sequence number and the actual serialized argument string, all sealed
+with gss_seal.  Combining the sequence number with the argument/result
+data prevents splicing attacks.
+
+The sequence number is incremented by one for each RPC call and by one
+for each response.  The client and server will both reject messages
+that do not contain the expected sequence number.  Packets
+retransmitted by the client should use the {\it same} sequence number
+as the original packet, since even if the server receives multiple
+copies only one will be honored.
+
+\subsection{RPC Call Credential Structure}
+
+Every message transmitted from the client to the server has a
+credentials (cb_cred) field of the type auth_gssapi_creds:
+
+\begin{verbatim}
+typedef struct _auth_gssapi_creds {
+        bool_t       auth_msg;
+        gss_buffer_desc client_handle;
+};
+\end{verbatim}
+
+The auth_msg field indicates whether the message is intended for the
+authentication mechanism for the actual server.  Any message whose
+auth_msg field is true is processed by the authentication mechanism;
+any message whose auth_msg is false is passed to the application
+server's dispatch function if authentication succeeds.  All messages
+must have an auth_msg of true until the context is established, since
+authentication cannot succeed until it is.
+
+The client_handle field contains the client handle obtained from the
+first call to the server.  On the first call, this field is empty.
+
+\subsection{GSS-API Authentication Flavor Procedures}
+
+The GSS-API authentication flavor uses standard RPC calls over the
+client handle it is provided for the interactions described in
+\ref{sec:algorithms}.  All of the following procedures require the
+auth_msg field in the credentials to be true; otherwise, the
+server-side authentication flavor will simply attempt to authenticate
+the caller and pass the call to the application server.  The
+server-side authentication flavor uses the no_dispatch variable to
+indicate that it has handled the call.
+
+\subsubsection{AUTH_GSSAPI_INIT, AUTH_GSSAPI_CONTINUE_INIT}
+
+Context initiation is performed via AUTH_GSSAPI_INIT and
+AUTH_GSSAPI_CONTINUE_INIT.  The former is used to transfer the first
+token generated by gss_init_sec_context, when no client handle is
+included in the credentials; the latter is used on subsequent calls,
+when a client handle is included.
+
+Both procedures take an argument of type auth_gssapi_init_arg and
+return results of the type auth_gssapi_init_res.
+
+\begin{verbatim}
+typedef struct _auth_gssapi_init_arg {
+        u_long       version;
+        gss_buffer_desc token;
+} auth_gssapi_init_arg;
+\end{verbatim}
+
+\begin{description}
+\item[version]  Three versions are presently defined.
+
+\begin{description}
+\item[1] The original version, as described in this document
+
+\item[2] In earlier versions of Secure there was a bug in the GSS-API
+library that affected the contents of accept_sec_context output
+tokens.  A client specifies version 2 to indicate that it expects the
+correct (fixed) behavior.  If the server indicates AUTH_BADCRED or
+AUTH_FAILED it does not understand this version, so the client should
+fall back to version 1.
+
+\item[3] Version three indicates that channel bindings are in use.
+The client must specify channel bindings with the version, and the
+server will as well.  If the server indicates AUTH_BADCRED or
+AUTH_FAILED it does not understand this version, so the client should
+fall back to version 2 (and cease specifying channel bindings).
+
+\item[4] The previous versions all used the old GSS-API krb5 mechanism
+oid; this version uses the new one specified in the RFC.  
+\end{description}
+
+\item[token] The token field contains the token generated by
+gss_init_sec_context.
+\end{description}
+
+\begin{verbatim}
+typedef struct _auth_gssapi_init_res {
+        u_long       version;
+        gss_buffer_desc client_handle;
+        gss_buffer_desc token;
+        OM_uint32 gss_major, gss_minor;
+        gss_buffer_desc signed_isn;
+} auth_gssapi_init_res;
+\end{verbatim}
+
+\begin{description}
+\item[version] There are two versions currently defined.
+\begin{description}
+\item[1] The original version, as described in this document.  This is
+the response version for {\it both} versions 1 and 2.  The Secure 1.1
+server will always return this version.
+
+\item[3] Version three indicates that the server specified channel
+bindings in response to a call arg version number of three.  The
+server must not specify this version unless the client does.
+\end{description}
+
+\item[client_handle] The client_handle field contains the client
+handle that the client must use in the credentials field in all
+subsequent RPC calls.  In response to AUTH_GSSAPI_CONTINUE_INIT, it is
+the same client handle that arrived in the credentials.
+
+\item[gss_major, gss_minor] The GSS-API error codes that resulted from
+processing the auth_gssapi_init_arg.  If gss_major is GSS_S_COMPLETE,
+the argument token was processed successfully.  Otherwise, gss_major
+and gss_minor contain the relevant major and minor status codes, and
+the context currently being negotiated is no longer valid.
+
+\item[token] In any response that the client is expecting another
+token (i.e.: gss_init_sec_context last returned GSS_S_CONTINUE), the
+token field contains the output token from gss_accept_sec_context.  If
+the client is not expecting a token and this field is not empty, an
+error has occurred.
+
+\item[signed_isn]  If the client is not expecting another token (i.e.:
+the previous call to gss_init_sec_context yielded a token and returned
+GSS_S_COMPLETE) or the supplied token completes the context, the
+signed_isn field contains the signed initial sequence number.  The
+server expects the first RPC call to have a sequence number one
+greater than the initial sequence number (so that the signed_isn block
+cannot be replayed).  If the client is expecting another token and the
+signed_isn field is not empty, an error has occurred.
+\end{description}
+
+\subsubsection{AUTH_GSSAPI_DESTROY}
+
+Context tear-down is performed via AUTH_GSSAPI_DESTROY.  This
+procedure takes no arguments and returns no results; it merely informs
+the server that the client wishes to destroy the established context.
+
+When a client wishes to tear down an established context between
+itself and a server, auth_gssapi_destroy first calls the
+AUTH_GSSAPI_DESTROY procedure.  The server authenticates the message
+and immediately sends a ``success'' response with no results.  The
+client and server then both independently call gss_delete_sec_context
+and discard the context-destruction token that is generated.
+
+No RPC error checking is performed by either the client or the server.
+The client waits a brief time for a success response from the server,
+but if none arrives it destroys the context anyway since presumably
+the user is waiting for the application to exit.  The server similar
+ignores any RPC errors since it knows that the client will ignore any
+errors that are reported.
+
+\subsection{RPC Call Authentication Implementation}
+
+Once the context has been established, all subsequent RPC calls are
+authenticated via the verifier described in section
+\ref{sec:algorithms}.
+
+auth_gssapi_marshall, invoked via AUTH_MARSHALL while the RPC call is
+being created on the client side, serializes the client_handle
+obtained during context initiation {\it in plaintext} as the
+credentials and serializes the current sequence number, sealed with
+gss_seal, as the verifier.
+
+auth_gssapi_wrap, invoked next via AUTH_WRAP, serializes a sealed
+token containing both the sequence number of the current call and the
+serialized arguments.
+
+_svcauth_gssapi, invoked on the server side by _authenticate, uses the
+client_handle contained in the credentials to look up the correct
+context and verifies the sequence number provided in the verifier; if
+the sequence number is not correct, it declares a potential replay
+attack.\footnote{Retransmitted packets will appear as replay attacks,
+of course.} The response verifier is set to the serialized sealed
+incremented sequence number.
+
+svc_auth_gssapi_unwrap, invoked when either the application server or
+_svcauth_gssapi (in response to an AUTH_GSSAPI authentication flavor
+message) attempts to read its arguments, deserialzes and unseals the
+block containing the current sequence number and serialized arguments.
+If the sequence number is incorrect, it declares a splicing attack;
+otherwise, it unserializes the arguments into the original structure.
+
+svc_auth_gssapi_wrap, invoked when either the application server or
+_svcauth_gssapi attempts to write its response, performs the same
+operation as auth_gssapi_wrap.
+
+auth_gssapi_validate, invoked by the client-side RPC mechanism when
+an RPC_SUCCESS response is received, verifies that the returned sequence
+number is one greater than the previous value sent by
+auth_gssapi_marshall.
+
+Finally, auth_gssapi_unwrap, invoked by the client-side RPC mechanism
+after auth_gssapi_validate succeeds, performs the same operation as
+svc_auth_gssapi_unwrap.
+
+If an RPC request generates an error message (a status of other than
+RPC_SUCCESS), auth_gssapi_refresh is called.  If the error status is
+AUTH_REJECTEDVERF, then the server rejected the sequence number as
+invalid or replayed.  The client guesses that, on some previous call,
+the server received a message but the server's response did not make
+it back to the client; this could happen if the packet got lost or if
+the server was being debugged and the client timed out waiting for it.
+As a result, the server is expected a higher sequence number than the
+client sent.  auth_gssapi_refresh increments the sequence number and
+returns true so that the call will be tried again.  The transport
+mechanism will only call auth_gssapi_refresh twice for each RPC
+request, so if some other error occurred an infinite loop will not
+result; however, it is unlikely the the client and server will be able
+to resynchronize after such an event.
+
+\subsection{Client State Information}
+
+The client-side GSS-API authentication flavor maintains an
+auth_gssapi_data structure for each authentication instance:
+
+\begin{verbatim}
+struct auth_gssapi_data {
+     bool_t established;
+     CLIENT *clnt;
+     gss_ctx_id_t context;
+     gss_buffer_desc client_handle;
+     u_long seq_num;
+     int def_cred;
+
+     /* pre-serialized ah_cred */
+     u_char cred_buf[MAX_AUTH_BYTES];
+     u_long cred_len;
+};
+\end{verbatim}
+
+The established field indicates whether the authentication context
+between the client and server has been established.  It is set to true
+when gss_init_sec_context returns GSS_S_COM\-PLETE.  When this field is
+false, the auth_gssapi functions marshall, validate, wrap, and unwrap
+mimic the ``no authentication'' flavor since there is no context with
+which to perform authentication functions.\footnote{This field is
+necessary because, when auth_gssapi_create calls clnt_call to make an
+RPC call, it has to have set the client's authentication flavor to
+AUTH_GSSAPI; otherwise, the service-side RPC mechanism will not know
+to dispatch the call to _svcauth_gssapi.  However, with the client's
+authentication flavor set, all of the authentication flavor's
+functions will be automatically invoked, even though they are not
+ready to operate.}
+
+The clnt field contains the RPC client structure that can be used to
+communicate with the GSS-API authentication flavor on the server.
+
+The context field contains the context structure created by
+gss_init_sec_context.
+
+The client_handle field contains the client handle used on all RPC
+calls except the first one; the handle is obtained as the result of
+the first call.
+
+The sequence_number field contains the sequence number that will be
+used when transmitting RPC calls to the server and verifying the
+server's responses after the context is initialized.
+
+The def_cred field is true if gss_init_sec_context created a default
+credential, in which case the authentication mechanism is responsible
+for releasing the default credential that gets automatically
+allocated.
+
+The cred_buf and cred_len fields contain the pre-serialized
+credentials structure used in each call.  This provides a small
+performance enhancement since the credentials structure does not
+change very often; the same pre-serialized version can be used on
+virtually every call.
+
+\subsection{Server State Information}
+\label{sec:server-state}
+
+The server-side GSS-API authentication flavor maintains an
+svcauth_gssapi_data structure for each established or partially
+established context:
+
+\begin{verbatim}
+typedef struct _svc_auth_gssapi_data {
+     bool_t established;
+     gss_ctx_id_t context;
+     gss_name_t client_name, server_name;
+     gss_cred_id_t server_creds;
+
+     u_long expiration;
+     u_long seq_num;
+     u_long key;
+
+     SVCAUTH svcauth;
+} svc_auth_gssapi_data;
+\end{verbatim}
+
+The established field indicates whether the context is fully
+established.
+
+The context field contains the context created by
+gss_accept_sec_context.
+
+The client_name field contains the client's authenticated name, as
+returned by gss_accept_sec_context.  _svcauth_gssapi sets the ``cooked
+credentials'' field of the RPC call structure to this value after the
+call is authenticated; the application server can use it to perform
+authorization.
+
+The server_name field contains the service name that the client
+established a context with.  This is useful if the application server
+registered more than one service name with the library; it allows the
+server to determine which service the client chose.
+
+The server_creds field contains the service credentials that the
+client established a context with.  It is used to avoid having to scan
+through the server_creds_list multiple times in the case that context
+establishment requires more than one round-trip to the server.
+
+The expiration field contains the expiration time of the context, as a
+Unix timestamp.  If a context has no expiration (time_rec is
+GSS_C_INDEFINITE), the expiration time is set to 24 hours in the
+future.  When the structure is created, before the context is
+established, the expiration time is initialized to small duration
+(currently 5 minutes) so that partially created and abandoned contexts
+will be expired quickly.
+
+The seq_num field is the current sequence number for the client.
+
+The key field is the client's key into the hash table (see below).
+The client_handle field sent to the client is the key treated as an
+arbitrary four-byte string.
+
+The svcauth field is a kludge that allows the svc_auth_gssapi
+functions to access the per-client data structure while processing a
+call.  One SVCAUTH structure is allocated for each client structure,
+and the svc_ah_private field is set to the corresponding client.  The
+client's svcauth field is then set to the new SVCAUTH structure, so
+that client_data->svcauth->svc_ah_private == client_data.  As each
+request is processed, the transport mechanism's xp_auth field is set
+to the client's svcauth field; thus, the server-side functions that
+dispatch to server-side authentication flavors can access an
+appropriate SVCAUTH structure, and the server-side authentication
+function that is called can determine the appropriate per-client
+structure from the SVCAUTH structure.
+
+The per-client structures are all stored both in a BSD 4.4 db library
+hash table and b-tree.  The hash table maps client handles (key
+fields) the client structures, and is used to look up client
+structures based on the client_handle field of a call's credentials
+structure.  The b-tree stores the client structures as keys, sorted by
+their expiration time.  Each time _svcauth_gssapi is activated, it
+traverses the tree and destroys all client structures that have
+expired.
+
+\end{document}

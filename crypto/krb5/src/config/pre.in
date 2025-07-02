@@ -1,0 +1,610 @@
+############################################################
+## config/pre.in
+## common prefix for all Makefile.in in the Kerberos V5 tree.
+##
+
+# These are set per-directory by autoconf 2.52 and 2.53:
+#  srcdir=@srcdir@
+#  top_srcdir=@top_srcdir@
+# but these are only set by autoconf 2.53, and thus not useful to us on
+# macOS yet (as of 10.2):
+#  abs_srcdir=@abs_srcdir@
+#  abs_top_srcdir=@abs_top_srcdir@
+#  builddir=@builddir@
+#  abs_builddir=@abs_builddir@
+#  top_builddir=@top_builddir@
+#  abs_top_builddir=@abs_top_builddir@
+# The "top" variables refer to the directory with the configure (or
+# config.status) script.
+
+WHAT = unix
+SHELL=/bin/sh
+
+all: all-$(WHAT)
+
+clean: clean-$(WHAT)
+
+distclean: distclean-$(WHAT)
+
+install: install-$(WHAT)
+
+check: check-$(WHAT)
+
+install-headers: install-headers-$(WHAT)
+
+##############################
+# Recursion rule support
+#
+
+# The commands for the recursion targets live in config/post.in.
+#
+# General form of recursion rules:
+#
+# Each recursive target foo-unix has related targets: foo-prerecurse,
+# foo-recurse, and foo-postrecurse
+#
+# The foo-recurse rule is in post.in.  It is what actually recursively
+# calls make.
+#
+# foo-recurse depends on foo-prerecurse, so any targets that must be
+# built before descending into subdirectories must be dependencies of
+# foo-prerecurse.
+#
+# foo-postrecurse depends on foo-recurse, but targets that must be
+# built after descending into subdirectories should be have
+# foo-recurse as dependencies in addition to being listed under
+# foo-postrecurse, to avoid ordering issues.
+#
+# The foo-prerecurse, foo-recurse, and foo-postrecurse rules are all
+# single-colon rules, to avoid nasty ordering problems with
+# double-colon rules.
+#
+# e.g.
+# all: includes foo
+# foo:
+#	echo foo
+# includes:
+#	echo bar
+# includes:
+#	echo baz
+#
+# will result in "bar", "foo", "baz" on AIX, and possibly others.
+all-unix: all-postrecurse
+all-postrecurse: all-recurse
+all-recurse: all-prerecurse
+
+all-prerecurse:
+all-postrecurse:
+
+clean-unix:: clean-postrecurse
+clean-postrecurse: clean-recurse
+clean-recurse: clean-prerecurse
+
+clean-prerecurse:
+clean-postrecurse:
+
+distclean-unix: distclean-postrecurse
+distclean-postrecurse: distclean-recurse
+distclean-recurse: distclean-prerecurse
+
+distclean-prerecurse:
+distclean-postrecurse:
+
+install-unix: install-postrecurse
+install-postrecurse: install-recurse
+install-recurse: install-prerecurse
+
+install-prerecurse:
+install-postrecurse:
+
+install-headers-unix: install-headers-postrecurse
+install-headers-postrecurse: install-headers-recurse
+install-headers-recurse: install-headers-prerecurse
+
+install-headers-prerecurse:
+install-headers-postrecurse:
+
+check-unix: check-postrecurse
+check-postrecurse: check-recurse
+check-recurse: check-prerecurse
+
+check-prerecurse:
+check-postrecurse:
+
+Makefiles: Makefiles-postrecurse
+Makefiles-postrecurse: Makefiles-recurse
+Makefiles-recurse: Makefiles-prerecurse
+
+Makefiles-prerecurse:
+Makefiles-postrecurse:
+
+generate-files-mac: generate-files-mac-postrecurse
+generate-files-mac-postrecurse: generate-files-mac-recurse
+generate-files-mac-recurse: generate-files-mac-prerecurse
+generate-files-mac-prerecurse:
+
+#
+# end recursion rule support
+##############################
+
+# Directory syntax:
+#
+# begin relative path
+REL=
+# this is magic... should only be used for preceding a program invocation
+C=./
+# "/" for UNIX, "\" for Windows; *sigh*
+S=/
+
+#
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+CONFIG_RELTOPDIR = @CONFIG_RELTOPDIR@
+
+# DEFS		set by configure
+# DEFINES	set by local Makefile.in
+# LOCALINCLUDES	set by local Makefile.in
+# CPPFLAGS	user override
+# CFLAGS	user override but starts off set by configure
+# WARN_CFLAGS	user override but starts off set by configure
+# PTHREAD_CFLAGS set by configure, not included in CFLAGS so that we
+#		don't pull the pthreads library into shared libraries
+# ASAN_FLAGS    set by configure when --enable-asan is used
+ALL_CFLAGS = $(DEFS) $(DEFINES) $(KRB_INCLUDES) $(LOCALINCLUDES) \
+	-DKRB5_DEPRECATED=1 \
+	-DKRB5_PRIVATE \
+	$(CPPFLAGS) $(CFLAGS) $(WARN_CFLAGS) $(PTHREAD_CFLAGS) $(ASAN_FLAGS)
+ALL_CXXFLAGS = $(DEFS) $(DEFINES) $(KRB_INCLUDES) $(LOCALINCLUDES) \
+	-DKRB5_DEPRECATED=1 \
+	-DKRB5_PRIVATE \
+	$(CPPFLAGS) $(CXXFLAGS) $(WARN_CXXFLAGS) $(PTHREAD_CFLAGS) \
+	$(ASAN_FLAGS)
+
+CFLAGS = @CFLAGS@
+CXXFLAGS = @CXXFLAGS@
+WARN_CFLAGS = @WARN_CFLAGS@
+WARN_CXXFLAGS = @WARN_CXXFLAGS@
+ASAN_FLAGS = @ASAN_FLAGS@
+PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_LIBS = @PTHREAD_LIBS@
+THREAD_LINKOPTS = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+CPPFLAGS = @CPPFLAGS@
+DEFS = @DEFS@
+CC = @CC@
+CXX = @CXX@
+LD = $(PURE) @LD@
+KRB_INCLUDES = -I$(BUILDTOP)/include -I$(top_srcdir)/include
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+
+INSTALL=@INSTALL@
+INSTALL_STRIP=
+INSTALL_PROGRAM=@INSTALL_PROGRAM@ $(INSTALL_STRIP)
+INSTALL_SCRIPT=@INSTALL_PROGRAM@
+INSTALL_DATA=@INSTALL_DATA@
+INSTALL_SHLIB=@INSTALL_SHLIB@
+INSTALL_SETUID=$(INSTALL) $(INSTALL_STRIP) -m 4755 -o root
+## This is needed because autoconf will sometimes define @exec_prefix@ to be
+## ${prefix}.
+prefix=@prefix@
+INSTALL_PREFIX=$(prefix)
+INSTALL_EXEC_PREFIX=@exec_prefix@
+exec_prefix=@exec_prefix@
+datarootdir=@datarootdir@
+localstatedir=@localstatedir@
+runstatedir=@runstatedir@
+datadir = @datadir@
+EXAMPLEDIR = $(datadir)/examples/krb5
+
+KRB5MANROOT = @mandir@
+ADMIN_BINDIR = @sbindir@
+SERVER_BINDIR = @sbindir@
+CLIENT_BINDIR =@bindir@
+PKGCONFIG_DIR = @libdir@/pkgconfig
+ADMIN_MANDIR = $(KRB5MANROOT)/man8
+SERVER_MANDIR = $(KRB5MANROOT)/man8
+CLIENT_MANDIR = $(KRB5MANROOT)/man1
+FILE_MANDIR = $(KRB5MANROOT)/man5
+ADMIN_CATDIR = $(KRB5MANROOT)/cat8
+SERVER_CATDIR = $(KRB5MANROOT)/cat8
+CLIENT_CATDIR = $(KRB5MANROOT)/cat1
+FILE_CATDIR = $(KRB5MANROOT)/cat5
+OVERVIEW_MANDIR = $(KRB5MANROOT)/man7
+OVERVIEW_CATDIR = $(KRB5MANROOT)/cat7
+KRB5_LIBDIR = @libdir@
+KRB5_INCDIR = @includedir@
+MODULE_DIR = @libdir@/krb5/plugins
+KRB5_DB_MODULE_DIR = $(MODULE_DIR)/kdb
+KRB5_PA_MODULE_DIR = $(MODULE_DIR)/preauth
+KRB5_AD_MODULE_DIR = $(MODULE_DIR)/authdata
+KRB5_LIBKRB5_MODULE_DIR = $(MODULE_DIR)/libkrb5
+KRB5_TLS_MODULE_DIR = $(MODULE_DIR)/tls
+KRB5_LOCALEDIR = @localedir@
+GSS_MODULE_DIR = @libdir@/gss
+KRB5_INCSUBDIRS = \
+	$(KRB5_INCDIR)/kadm5 \
+	$(KRB5_INCDIR)/krb5 \
+	$(KRB5_INCDIR)/gssapi \
+	$(KRB5_INCDIR)/gssrpc
+
+SKIPTESTS	= $(BUILDTOP)/skiptests
+
+RUNPYTEST	= PYTHONPATH=$(top_srcdir)/util VALGRIND="$(VALGRIND)" \
+			$(PYTHON)
+
+
+transform = @program_transform_name@
+
+RM = rm -f
+CP = cp
+MV = mv -f
+RANLIB = @RANLIB@
+AWK = @AWK@
+YACC = @YACC@
+PERL = @PERL@
+PYTHON = @PYTHON@
+AUTOCONF = autoconf
+AUTOCONFFLAGS =
+AUTOHEADER = autoheader
+AUTOHEADERFLAGS =
+MOVEIFCHANGED = $(top_srcdir)/config/move-if-changed
+
+TOPLIBD = $(BUILDTOP)/lib
+
+OBJEXT = o
+EXEEXT =
+
+#
+# variables for libraries, for use in linking programs
+# -- this may want to get broken out into a separate frag later
+#
+# invocation is like:
+# prog: foo.o bar.o $(KRB5_BASE_DEPLIBS)
+# 	$(CC_LINK) -o $@ foo.o bar.o $(KRB5_BASE_LIBS)
+
+CC_LINK=@CC_LINK@ $(ASAN_FLAGS)
+CXX_LINK=@CXX_LINK@ $(ASAN_FLAGS)
+
+# Makefile.in files which build programs can override the list of
+# directories to look for dependent libraries in (in the form -Ldir1
+# -Ldir2 ...) and also the list of rpath directories to search (in the
+# form dir1:dir2:...).
+PROG_LIBPATH=-L$(TOPLIBD)
+PROG_RPATH=$(KRB5_LIBDIR)
+
+# Library Makefile.in files can override this list of directories to
+# look for dependent libraries in (in the form -Ldir1 -Ldir2 ...) and
+# also the list of rpath directories to search (in the form
+# dir1:dir2:...)
+SHLIB_DIRS=-L$(TOPLIBD)
+SHLIB_RDIRS=$(KRB5_LIBDIR)
+
+# Multi-directory library Makefile.in files should override this list
+# of object files with the full list.
+STOBJLISTS=OBJS.ST
+
+# prefix (with no spaces after) for rpath flag to cc
+RPATH_FLAG=@RPATH_FLAG@
+
+# link flags to add PROG_RPATH to the rpath
+PROG_RPATH_FLAGS=@PROG_RPATH_FLAGS@
+
+# this gets set by configure to either $(STLIBEXT) or $(SHLIBEXT),
+# depending on whether we're building with shared libraries.
+DEPLIBEXT=@DEPLIBEXT@
+
+KDB5_PLUGIN_DEPLIBS = @KDB5_PLUGIN_DEPLIBS@
+KDB5_PLUGIN_LIBS = @KDB5_PLUGIN_LIBS@
+
+KADMCLNT_DEPLIB	= $(TOPLIBD)/libkadm5clnt_mit$(DEPLIBEXT)
+KADMSRV_DEPLIB	= $(TOPLIBD)/libkadm5srv_mit$(DEPLIBEXT)
+KDB5_DEPLIB	= $(TOPLIBD)/libkdb5$(DEPLIBEXT)
+GSSRPC_DEPLIB	= $(TOPLIBD)/libgssrpc$(DEPLIBEXT)
+GSS_DEPLIB	= $(TOPLIBD)/libgssapi_krb5$(DEPLIBEXT)
+KRB5_DEPLIB	= $(TOPLIBD)/libkrb5$(DEPLIBEXT)
+CRYPTO_DEPLIB	= $(TOPLIBD)/libk5crypto$(DEPLIBEXT)
+COM_ERR_DEPLIB	= $(COM_ERR_DEPLIB-@COM_ERR_VERSION@)
+COM_ERR_DEPLIB-sys = # empty
+COM_ERR_DEPLIB-intlsys = # empty
+COM_ERR_DEPLIB-k5 = $(TOPLIBD)/libcom_err$(DEPLIBEXT)
+COM_ERR_LIB = @COM_ERR_LIB@
+SUPPORT_LIBNAME=krb5support
+SUPPORT_DEPLIB	= $(TOPLIBD)/lib$(SUPPORT_LIBNAME)$(DEPLIBEXT)
+
+# These are forced to use ".a" as an extension because they're never
+# built shared.
+SS_DEPLIB	= $(SS_DEPLIB-@SS_VERSION@)
+SS_DEPLIB-k5	= $(TOPLIBD)/libss.a
+SS_DEPLIB-sys	=
+APPUTILS_DEPLIB	= $(TOPLIBD)/libapputils.a
+
+KRB5_BASE_DEPLIBS	= $(KRB5_DEPLIB) $(CRYPTO_DEPLIB) $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+KDB5_DEPLIBS		= $(KDB5_DEPLIB) $(KDB5_PLUGIN_DEPLIBS)
+GSS_DEPLIBS		= $(GSS_DEPLIB)
+GSSRPC_DEPLIBS		= $(GSSRPC_DEPLIB) $(GSS_DEPLIBS)
+KADM_COMM_DEPLIBS	= $(GSSRPC_DEPLIBS) $(KDB5_DEPLIBS) $(GSSRPC_DEPLIBS)
+KADMSRV_DEPLIBS		= $(KADMSRV_DEPLIB) $(KDB5_DEPLIBS) $(KADM_COMM_DEPLIBS)
+KADMCLNT_DEPLIBS	= $(KADMCLNT_DEPLIB) $(KADM_COMM_DEPLIBS)
+
+# Header file dependencies we might override.
+# See util/depfix.sed.
+# Also see depend-verify-* in post.in, which wants to confirm that we're using
+# the in-tree versions.
+COM_ERR_VERSION = @COM_ERR_VERSION@
+COM_ERR_DEPS	= $(COM_ERR_DEPS-@COM_ERR_VERSION@)
+COM_ERR_DEPS-sys =
+COM_ERR_DEPS-intlsys =
+COM_ERR_DEPS-k5	= $(BUILDTOP)/include/com_err.h
+SS_VERSION	= @SS_VERSION@
+SS_DEPS		= $(SS_DEPS-@SS_VERSION@)
+SS_DEPS-sys	=
+SS_DEPS-k5	= $(BUILDTOP)/include/ss/ss.h $(BUILDTOP)/include/ss/ss_err.h
+VERTO_VERSION	= @VERTO_VERSION@
+VERTO_DEPS	= $(VERTO_DEPS-@VERTO_VERSION@)
+VERTO_DEPS-sys	=
+VERTO_DEPS-k5	= $(BUILDTOP)/include/verto.h
+
+# LIBS gets substituted in... e.g. -lnsl -lsocket
+
+# GEN_LIB is -lgen if needed for regexp
+GEN_LIB		= @GEN_LIB@
+
+# Editline or readline flags and libraries.
+RL_CFLAGS	= @RL_CFLAGS@
+RL_LIBS		= @RL_LIBS@
+
+SS_LIB		= $(SS_LIB-@SS_VERSION@)
+SS_LIB-sys	= @SS_LIB@
+SS_LIB-k5	= $(TOPLIBD)/libss.a $(RL_LIBS)
+KDB5_LIB	= -lkdb5 $(KDB5_PLUGIN_LIBS)
+
+VERTO_DEPLIB	= $(VERTO_DEPLIB-@VERTO_VERSION@)
+VERTO_DEPLIB-sys = # empty
+VERTO_DEPLIB-k5	= $(TOPLIBD)/libverto$(DEPLIBEXT)
+VERTO_CFLAGS	= @VERTO_CFLAGS@
+VERTO_LIBS	= @VERTO_LIBS@
+
+DL_LIB		= @DL_LIB@
+
+CMOCKA_LIBS	= @CMOCKA_LIBS@
+LDAP_LIBS	= @LDAP_LIBS@
+LMDB_LIBS	= @LMDB_LIBS@
+
+KRB5_LIB			= -lkrb5
+K5CRYPTO_LIB			= -lk5crypto
+GSS_KRB5_LIB			= -lgssapi_krb5
+SUPPORT_LIB			= -l$(SUPPORT_LIBNAME)
+
+# HESIOD_LIBS is -lhesiod...
+HESIOD_LIBS	= @HESIOD_LIBS@
+
+KRB5_BASE_LIBS	= $(KRB5_LIB) $(K5CRYPTO_LIB) $(COM_ERR_LIB) $(SUPPORT_LIB) $(GEN_LIB) $(LIBS) $(DL_LIB)
+KDB5_LIBS	= $(KDB5_LIB) $(GSSRPC_LIBS)
+GSS_LIBS	= $(GSS_KRB5_LIB)
+# needs fixing if ever used on macOS!
+GSSRPC_LIBS	= -lgssrpc $(GSS_LIBS)
+KADM_COMM_LIBS	= $(GSSRPC_LIBS)
+# need fixing if ever used on macOS!
+KADMSRV_LIBS	= -lkadm5srv_mit $(HESIOD_LIBS) $(KDB5_LIBS) $(KADM_COMM_LIBS)
+KADMCLNT_LIBS	= -lkadm5clnt_mit $(KADM_COMM_LIBS)
+
+# Misc stuff for linking server programs (and maybe some others,
+# eventually) but which we don't want to install.
+APPUTILS_LIB	= -lapputils
+
+# So test programs can find their libraries without "make install", etc.
+RUN_SETUP=@KRB5_RUN_ENV@
+RUN_VARS=@KRB5_RUN_VARS@
+
+# Appropriate command prefix for most C test programs: use libraries
+# from the build tree, avoid referencing the installed krb5.conf and
+# message catalog, and use valgrind when asked.
+RUN_TEST=$(RUN_SETUP) KRB5_CONFIG=$(top_srcdir)/config-files/krb5.conf \
+    LC_ALL=C $(VALGRIND)
+
+# libk5crypto dependencies
+CRYPTO_IMPL_CFLAGS	= @CRYPTO_IMPL_CFLAGS@
+CRYPTO_IMPL_LIBS	= @CRYPTO_IMPL_LIBS@
+
+# TLS implementation selection
+TLS_IMPL	= @TLS_IMPL@
+TLS_IMPL_CFLAGS = @TLS_IMPL_CFLAGS@
+TLS_IMPL_LIBS	= @TLS_IMPL_LIBS@
+
+# SPAKE preauth back-end libraries
+SPAKE_OPENSSL_LIBS = @SPAKE_OPENSSL_LIBS@
+
+# Whether we have the SASL header file for the LDAP KDB module
+HAVE_SASL = @HAVE_SASL@
+
+# Whether we are building support for NIST SPAKE groups using OpenSSL
+HAVE_SPAKE_OPENSSL = @HAVE_SPAKE_OPENSSL@
+
+# Whether we are building the LMDB KDB module
+HAVE_LMDB = @HAVE_LMDB@
+
+# Whether we have libresolv 1.1.5 for URI discovery tests
+HAVE_RESOLV_WRAPPER = @HAVE_RESOLV_WRAPPER@
+
+SIZEOF_TIME_T = @SIZEOF_TIME_T@
+
+# error table rules
+#
+### /* these are invoked as $(...) foo.et, which works, but could be better */
+COMPILE_ET= $(COMPILE_ET-@COM_ERR_VERSION@)
+COMPILE_ET-sys= compile_et
+COMPILE_ET-intlsys= compile_et --textdomain mit-krb5
+COMPILE_ET-k5= $(BUILDTOP)/util/et/compile_et -d $(top_srcdir)/util/et \
+	--textdomain mit-krb5
+
+.SUFFIXES:  .h .c .et .ct
+
+# These versions cause both .c and .h files to be generated at once.
+# But GNU make doesn't understand this, and parallel builds can trigger
+# both of them at once, causing them to stomp on each other.  The versions
+# below only update one of the files, so compile_et has to get run twice,
+# but it won't break parallel builds.
+#.et.h: ; $(COMPILE_ET) $<
+#.et.c: ; $(COMPILE_ET) $<
+
+.et.h:
+	$(RM) et-h-$*.et et-h-$*.c et-h-$*.h
+	$(CP) $< et-h-$*.et
+	$(COMPILE_ET) et-h-$*.et
+	$(MV) et-h-$*.h $*.h
+	$(RM) et-h-$*.et et-h-$*.c
+.et.c:
+	$(RM) et-c-$*.et et-c-$*.c et-c-$*.h
+	$(CP) $< et-c-$*.et
+	$(COMPILE_ET) et-c-$*.et
+	$(MV) et-c-$*.c $*.c
+	$(RM) et-c-$*.et et-c-$*.h
+
+# rule to make object files
+#
+.SUFFIXES: .cpp .c .o
+.c.o:
+	$(CC) $(ALL_CFLAGS) -c $<
+# Use .cpp because that's what autoconf uses in its test.
+# If the compiler doesn't accept a .cpp suffix here, it wouldn't
+# have accepted it when autoconf tested it.
+.cpp.o:
+	$(CXX) $(ALL_CXXFLAGS) -c $<
+
+# ss command table rules
+#
+MAKE_COMMANDS= $(MAKE_COMMANDS-@SS_VERSION@)
+MAKE_COMMANDS-sys= mk_cmds
+MAKE_COMMANDS-k5= $(BUILDTOP)/util/ss/mk_cmds
+
+.ct.c:
+	$(MAKE_COMMANDS) $<
+
+## Parameters to be set by configure for use in lib.in:
+##
+#
+# These settings are for building shared libraries only.  Including
+# libpriv.in will override with values appropriate for static
+# libraries that we don't install.  Some values will depend on whether
+# the platform supports major and minor version number extensions on
+# shared libraries, hence the FOO_@@ settings.
+
+LN_S=@LN_S@
+AR=@AR@
+
+# Set to "lib$(LIBBASE)$(STLIBEXT) lib$(LIBBASE)$(SHLIBEXT)" or some
+# subset thereof by configure; determines which types of libs get
+# built.
+LIBLIST=@LIBLIST@
+
+# Set by configure; list of library symlinks to make to $(TOPLIBD)
+LIBLINKS=@LIBLINKS@
+
+# Set by configure; name of plugin module to build (libfoo.a or foo.so)
+PLUGIN=@PLUGIN@
+
+# Set by configure; symlink for plugin module for static plugin linking
+PLUGINLINK=@PLUGINLINK@
+
+# Set by configure; list of install targets for libraries
+LIBINSTLIST=@LIBINSTLIST@
+
+# Set by configure; install target
+PLUGININST=@PLUGININST@
+
+# Some of these should really move to pre.in, since programs will need
+# it too. (e.g. stuff that has dependencies on the libraries)
+
+# usually .a
+STLIBEXT=@STLIBEXT@
+
+# usually .so.$(LIBMAJOR).$(LIBMINOR)
+SHLIBVEXT=@SHLIBVEXT@
+
+# usually .so.$(LIBMAJOR) (to allow for major-version compat)
+SHLIBSEXT=@SHLIBSEXT@
+
+# usually .so
+SHLIBEXT=@SHLIBEXT@
+
+# usually _p.a
+PFLIBEXT=@PFLIBEXT@
+
+#
+DYNOBJEXT=@DYNOBJEXT@
+MAKE_DYNOBJ_COMMAND=@MAKE_DYNOBJ_COMMAND@
+DYNOBJ_EXPDEPS=@DYNOBJ_EXPDEPS@
+DYNOBJ_EXPFLAGS=@DYNOBJ_EXPFLAGS@
+
+# For some platforms, a flag which causes shared library creation to
+# check for undefined symbols.  Suppressed when using --enable-asan.
+UNDEF_CHECK=@UNDEF_CHECK@
+
+# File with symbol names to be exported, both functions and data,
+# currently not distinguished.
+SHLIB_EXPORT_FILE=$(srcdir)/$(LIBPREFIX)$(LIBBASE).exports
+
+# File that needs to be current for building the shared library,
+# usually SHLIB_EXPORT_FILE, but not always, if we have to convert
+# it to another, intermediate form for the linker.
+SHLIB_EXPORT_FILE_DEP=@SHLIB_EXPORT_FILE_DEP@
+
+# Export file checker to run when building in maintainer mode on
+# Linux.  This gets included in LDCOMBINE_TAIL.
+EXPORT_CHECK_CMD = && $(PERL) -w $(top_srcdir)/util/export-check.pl \
+	$(SHLIB_EXPORT_FILE) $@
+EXPORT_CHECK = @MAINT@ $(EXPORT_CHECK_CMD)
+
+# Command to run to build a shared library.
+# In systems that require multiple commands, like AIX, it may need
+# to change to rearrange where the various parameters fit in.
+MAKE_SHLIB_COMMAND=@MAKE_SHLIB_COMMAND@
+
+# run path flags for explicit libraries depending on this one,
+# e.g. "-R$(SHLIB_RPATH)"
+SHLIB_RPATH_FLAGS=@SHLIB_RPATH_FLAGS@
+
+# flags for explicit libraries depending on this one,
+# e.g. "$(SHLIB_RPATH_FLAGS) $(SHLIB_SHLIB_DIRFLAGS) $(SHLIB_EXPLIBS)"
+SHLIB_EXPFLAGS=@SHLIB_EXPFLAGS@
+
+## Parameters to be set by configure for use in libobj.in:
+
+# Set to "OBJS.ST OBJS.SH OBJS.PF" or some subset thereof by
+# configure; determines which types of object files get built.
+OBJLISTS=@OBJLISTS@
+
+# Note that $(LIBSRCS) *cannot* contain any variable references, or
+# the suffix substitution will break on some platforms!
+SHLIBOBJS=$(STLIBOBJS:.o=@SHOBJEXT@)
+PFLIBOBJS=$(STLIBOBJS:.o=@PFOBJEXT@)
+
+#
+# rules to make various types of object files
+#
+PICFLAGS=@PICFLAGS@
+PROFFLAGS=@PROFFLAGS@
+
+# platform-dependent temporary files that should get cleaned up
+EXTRA_FILES=@EXTRA_FILES@
+
+VALGRIND=
+# Need absolute paths here because under kshd or ftpd we may run programs
+# while in other directories.
+VALGRIND_LOGDIR = `cd $(BUILDTOP)&&pwd`
+VALGRIND1 = valgrind --tool=memcheck --log-file=$(VALGRIND_LOGDIR)/vg.%p --trace-children=yes --leak-check=yes --suppressions=`cd $(top_srcdir)&&pwd`/util/valgrind-suppressions
+
+# Set OFFLINE=yes to disable tests that assume network connectivity.
+# (Specifically, this concerns the ability to fetch DNS data for
+# mit.edu, to verify that SRV queries are working.)  Note that other
+# tests still assume that the local hostname can be resolved into
+# something that looks like an FQDN, with an IPv4 address.
+OFFLINE=no
+
+# Used when running Python tests.
+PYTESTFLAGS=
+
+##
+## end of pre.in
+############################################################

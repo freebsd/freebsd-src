@@ -1,0 +1,39 @@
+mydir=kadmin$(S)cli
+BUILDTOP=$(REL)..$(S)..
+KDB_DEP_LIB=$(DL_LIB) $(THREAD_LINKOPTS)
+
+PROG = kadmin
+COMMON_OBJS = kadmin.o kadmin_ct.o ss_wrapper.o getdate.o
+KADMIN_OBJS = $(COMMON_OBJS) keytab.o
+LOCAL_OBJS = $(COMMON_OBJS) keytab_local.o
+
+SRCS = kadmin.c kadmin_ct.c ss_wrapper.c getdate.c keytab.c keytab_local.c
+
+LOCALINCLUDES=-I$(srcdir)
+
+all: $(PROG).local $(PROG)
+
+$(PROG).local: $(LOCAL_OBJS) $(SS_DEPLIB) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $(PROG).local $(LOCAL_OBJS) $(SS_LIB) $(KADMSRV_LIBS) $(KDB_DEP_LIB) $(KRB5_BASE_LIBS)
+
+$(PROG): $(KADMIN_OBJS) $(SS_DEPLIB) $(KADMCLNT_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $(PROG) $(KADMIN_OBJS) $(SS_LIB) $(KADMCLNT_LIBS) $(KRB5_BASE_LIBS)
+
+kadmin_ct.o: kadmin_ct.c
+
+install:
+	$(INSTALL_PROGRAM) $(PROG).local ${DESTDIR}$(ADMIN_BINDIR)/$(PROG).local
+	$(INSTALL_PROGRAM) $(PROG) ${DESTDIR}$(CLIENT_BINDIR)/$(PROG)
+	$(INSTALL_SCRIPT) $(srcdir)/k5srvutil.sh ${DESTDIR}$(CLIENT_BINDIR)/k5srvutil
+
+generate-files-mac: kadmin_ct.c getdate.c
+
+clean:
+	$(RM) $(PROG).local $(PROG) $(COMMON_OBJS) $(KADMIN_OBJS) $(LOCAL_OBJS)
+clean-unix::
+	$(RM) datetest getdate.c kadmin_ct.c
+
+# for testing getdate.y
+# CC_LINK is not meant for compilation and this use may break in the future.
+datetest: getdate.c
+	$(CC_LINK) $(ALL_CFLAGS) -DTEST -o datetest getdate.c

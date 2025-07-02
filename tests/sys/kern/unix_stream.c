@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 #include <sys/socket.h>
 #include <sys/event.h>
+#include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <errno.h>
@@ -35,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <poll.h>
+#include <pthread.h>
+#include <pthread_np.h>
 
 #include <atf-c.h>
 
@@ -100,47 +103,102 @@ ATF_TC_BODY(send_0, tc)
 }
 
 static void
-check_writable(int fd, int expect)
+check_readable_select(int fd, int expect, bool timeout)
+{
+	fd_set rdfds;
+	int nfds;
+
+	FD_ZERO(&rdfds);
+	FD_SET(fd, &rdfds);
+	nfds = select(fd + 1, &rdfds, NULL, NULL, timeout ?
+	    &(struct timeval){.tv_usec = 1000} : NULL);
+	ATF_REQUIRE_MSG(nfds == expect,
+	    "select() returns %d errno %d", nfds, errno);
+}
+
+static void
+check_writable_select(int fd, int expect, bool timeout)
 {
 	fd_set wrfds;
-	struct pollfd pfd[1];
-	struct kevent kev;
-	int nfds, kq;
+	int nfds;
 
 	FD_ZERO(&wrfds);
 	FD_SET(fd, &wrfds);
-	nfds = select(fd + 1, NULL, &wrfds, NULL,
-	    &(struct timeval){.tv_usec = 1000});
+	nfds = select(fd + 1, NULL, &wrfds, NULL, timeout ?
+	    &(struct timeval){.tv_usec = 1000} : NULL);
 	ATF_REQUIRE_MSG(nfds == expect,
 	    "select() returns %d errno %d", nfds, errno);
+}
+
+static void
+check_readable_poll(int fd, int expect, bool timeout)
+{
+	struct pollfd pfd[1];
+	int nfds;
+
+	pfd[0] = (struct pollfd){
+		.fd = fd,
+		.events = POLLIN | POLLRDNORM,
+	};
+	nfds = poll(pfd, 1, timeout ? 1 : INFTIM);
+	ATF_REQUIRE_MSG(nfds == expect,
+	    "poll() returns %d errno %d", nfds, errno);
+}
+
+static void
+check_writable_poll(int fd, int expect, bool timeout)
+{
+	struct pollfd pfd[1];
+	int nfds;
 
 	pfd[0] = (struct pollfd){
 		.fd = fd,
 		.events = POLLOUT | POLLWRNORM,
 	};
-	nfds = poll(pfd, 1, 1);
+	nfds = poll(pfd, 1, timeout ? 1 : INFTIM);
 	ATF_REQUIRE_MSG(nfds == expect,
 	    "poll() returns %d errno %d", nfds, errno);
+}
+
+static void
+check_writable_kevent(int fd, int expect, bool timeout)
+{
+	struct kevent kev;
+	int nfds, kq;
 
 	ATF_REQUIRE(kq = kqueue());
 	EV_SET(&kev, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
-	ATF_REQUIRE(kevent(kq, &kev, 1, NULL, 0, NULL) == 0);
-	nfds = kevent(kq, NULL, 0, &kev, 1,
-	    &(struct timespec){.tv_nsec = 1000000});
+	nfds = kevent(kq, &kev, 1, NULL, 0, NULL);
+	ATF_REQUIRE_MSG(nfds == 0,
+	    "kevent() returns %d errno %d", nfds, errno);
+	nfds = kevent(kq, NULL, 0, &kev, 1, timeout ?
+	    &(struct timespec){.tv_nsec = 1000000} : NULL);
 	ATF_REQUIRE_MSG(nfds == expect,
-		"kevent() returns %d errno %d", nfds, errno);
+	    "kevent() returns %d errno %d", nfds, errno);
 	close(kq);
 }
 
-/*
- * Make sure that a full socket is not reported as writable by event APIs.
- */
-ATF_TC_WITHOUT_HEAD(full_not_writable);
-ATF_TC_BODY(full_not_writable, tc)
+typedef void check_writable_func_t(int, int, bool);
+struct check_writable_ctx {
+	check_writable_func_t	*method;
+	int			fd;
+};
+
+static void *
+check_writable_blocking_thread(void *arg)
+{
+	struct check_writable_ctx *ctx = arg;
+
+	ctx->method(ctx->fd, 1, false);
+
+	return (NULL);
+}
+
+static void
+full_socketpair(int *sv)
 {
 	void *buf;
 	u_long sendspace;
-	int sv[2];
 
 	sendspace = getsendspace();
 	ATF_REQUIRE((buf = malloc(sendspace)) != NULL);
@@ -149,15 +207,175 @@ ATF_TC_BODY(full_not_writable, tc)
 	do {} while (send(sv[0], buf, sendspace, 0) == (ssize_t)sendspace);
 	ATF_REQUIRE(errno == EAGAIN);
 	ATF_REQUIRE(fcntl(sv[0], F_SETFL, 0) != -1);
-
-	check_writable(sv[0], 0);
-
-	/* Read some data and re-check. */
-	ATF_REQUIRE(read(sv[1], buf, sendspace / 2) == (ssize_t)sendspace / 2);
-
-	check_writable(sv[0], 1);
-
 	free(buf);
+}
+
+static void
+full_writability_check(int *sv, check_writable_func_t method)
+{
+	struct check_writable_ctx ctx = {
+		.method = method,
+		.fd = sv[0],
+	};
+	pthread_t thr;
+	void *buf;
+	u_long space;
+
+	space = getsendspace() / 2;
+	ATF_REQUIRE((buf = malloc(space)) != NULL);
+
+	/* First check with timeout, expecting 0 fds returned. */
+	method(sv[0], 0, true);
+
+	/* Launch blocking thread. */
+	ATF_REQUIRE(pthread_create(&thr, NULL, check_writable_blocking_thread,
+	    &ctx) == 0);
+
+	/* Sleep a bit to make sure that thread is put to sleep. */
+	usleep(10000);
+	ATF_REQUIRE(pthread_peekjoin_np(thr, NULL) == EBUSY);
+
+	/* Read some data and re-check, the fd is expected to be returned. */
+	ATF_REQUIRE(read(sv[1], buf, space) == (ssize_t)space);
+
+	method(sv[0], 1, true);
+
+	/* Now check that thread was successfully woken up and exited. */
+	ATF_REQUIRE(pthread_join(thr, NULL) == 0);
+
+	close(sv[0]);
+	close(sv[1]);
+	free(buf);
+}
+
+/*
+ * Make sure that a full socket is not reported as writable by event APIs.
+ */
+ATF_TC_WITHOUT_HEAD(full_writability_select);
+ATF_TC_BODY(full_writability_select, tc)
+{
+	int sv[2];
+
+	full_socketpair(sv);
+	full_writability_check(sv, check_writable_select);
+	close(sv[0]);
+	close(sv[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(full_writability_poll);
+ATF_TC_BODY(full_writability_poll, tc)
+{
+	int sv[2];
+
+	full_socketpair(sv);
+	full_writability_check(sv, check_writable_poll);
+	close(sv[0]);
+	close(sv[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(full_writability_kevent);
+ATF_TC_BODY(full_writability_kevent, tc)
+{
+	int sv[2];
+
+	full_socketpair(sv);
+	full_writability_check(sv, check_writable_kevent);
+	close(sv[0]);
+	close(sv[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(connected_writability);
+ATF_TC_BODY(connected_writability, tc)
+{
+	int sv[2];
+
+	do_socketpair(sv);
+	check_writable_select(sv[0], 1, true);
+	check_writable_poll(sv[0], 1, true);
+	check_writable_kevent(sv[0], 1, true);
+	close(sv[0]);
+	close(sv[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(unconnected_writability);
+ATF_TC_BODY(unconnected_writability, tc)
+{
+	int s;
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_STREAM, 0)) > 0);
+	check_writable_select(s, 0, true);
+	check_writable_poll(s, 0, true);
+	check_writable_kevent(s, 0, true);
+	close(s);
+}
+
+ATF_TC_WITHOUT_HEAD(peerclosed_writability);
+ATF_TC_BODY(peerclosed_writability, tc)
+{
+	struct kevent kev;
+	int sv[2], kq;
+
+	do_socketpair(sv);
+	close(sv[1]);
+
+	check_writable_select(sv[0], 1, false);
+	check_writable_poll(sv[0], 1, false);
+
+	ATF_REQUIRE(kq = kqueue());
+	EV_SET(&kev, sv[0], EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+	ATF_REQUIRE(kevent(kq, &kev, 1, &kev, 1, NULL) == 1);
+	ATF_REQUIRE(kev.ident == (uintptr_t)sv[0] &&
+	    kev.filter == EVFILT_WRITE &&
+	    kev.flags == EV_EOF);
+
+	close(sv[0]);
+}
+
+ATF_TC_WITHOUT_HEAD(peershutdown_writability);
+ATF_TC_BODY(peershutdown_writability, tc)
+{
+	int sv[2];
+
+	do_socketpair(sv);
+	shutdown(sv[1], SHUT_RD);
+
+	check_writable_select(sv[0], 1, false);
+	check_writable_poll(sv[0], 1, false);
+	/*
+	 * XXXGL: historically unix(4) sockets were not reporting peer's
+	 * shutdown(SHUT_RD) as our EV_EOF.  The kevent(2) manual page says
+	 * "filter will set EV_EOF when the reader disconnects", which is hard
+	 * to interpret unambigously.  For now leave the historic behavior,
+	 * but we may want to change that in uipc_usrreq.c:uipc_filt_sowrite(),
+	 * and then this test will look like the peerclosed_writability test.
+	 */
+	check_writable_kevent(sv[0], 1, false);
+
+	close(sv[0]);
+	close(sv[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(peershutdown_readability);
+ATF_TC_BODY(peershutdown_readability, tc)
+{
+	ssize_t readsz;
+	int sv[2];
+	char c;
+
+	do_socketpair(sv);
+	shutdown(sv[1], SHUT_WR);
+
+	/*
+	 * The other side should flag as readable in select(2) to allow it to
+	 * read(2) and observe EOF.  Ensure that both poll(2) and select(2)
+	 * are consistent here.
+	 */
+	check_readable_select(sv[0], 1, false);
+	check_readable_poll(sv[0], 1, false);
+
+	readsz = read(sv[0], &c, sizeof(c));
+	ATF_REQUIRE_INTEQ(0, readsz);
+
 	close(sv[0]);
 	close(sv[1]);
 }
@@ -166,7 +384,14 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpeereid);
 	ATF_TP_ADD_TC(tp, send_0);
-	ATF_TP_ADD_TC(tp, full_not_writable);
+	ATF_TP_ADD_TC(tp, connected_writability);
+	ATF_TP_ADD_TC(tp, unconnected_writability);
+	ATF_TP_ADD_TC(tp, full_writability_select);
+	ATF_TP_ADD_TC(tp, full_writability_poll);
+	ATF_TP_ADD_TC(tp, full_writability_kevent);
+	ATF_TP_ADD_TC(tp, peerclosed_writability);
+	ATF_TP_ADD_TC(tp, peershutdown_writability);
+	ATF_TP_ADD_TC(tp, peershutdown_readability);
 
 	return atf_no_error();
 }

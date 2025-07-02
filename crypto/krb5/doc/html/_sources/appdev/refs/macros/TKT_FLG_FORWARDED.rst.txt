@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _TKT-FLG-FORWARDED-data:
+
+TKT_FLG_FORWARDED
+=================
+
+..
+.. data:: TKT_FLG_FORWARDED
+..
+
+
+
+
+======================== ======================
+``TKT_FLG_FORWARDED``       ``0x20000000``
+======================== ======================

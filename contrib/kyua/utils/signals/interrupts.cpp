@@ -145,9 +145,9 @@ setup_handlers(void)
 static void
 cleanup_handlers(void)
 {
-    sighup_handler->unprogram(); sighup_handler.reset(NULL);
-    sigint_handler->unprogram(); sigint_handler.reset(NULL);
-    sigterm_handler->unprogram(); sigterm_handler.reset(NULL);
+    sighup_handler->unprogram(); sighup_handler.reset();
+    sigint_handler->unprogram(); sigint_handler.reset();
+    sigterm_handler->unprogram(); sigterm_handler.reset();
 }
 
 

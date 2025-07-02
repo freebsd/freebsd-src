@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-AUTHDATA-AUTH-INDICATOR-data:
+
+KRB5_AUTHDATA_AUTH_INDICATOR
+============================
+
+..
+.. data:: KRB5_AUTHDATA_AUTH_INDICATOR
+..
+
+
+
+
+=================================== ======================
+``KRB5_AUTHDATA_AUTH_INDICATOR``       ``97``
+=================================== ======================

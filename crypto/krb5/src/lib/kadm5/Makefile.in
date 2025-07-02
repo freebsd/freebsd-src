@@ -1,0 +1,113 @@
+mydir=lib$(S)kadm5
+BUILDTOP=$(REL)..$(S)..
+SUBDIRS = clnt srv
+
+##DOSBUILDTOP = ..\..
+
+kadm_err.$(OBJEXT): kadm_err.c
+chpass_util_strings.$(OBJEXT): chpass_util_strings.c
+
+kadm_err.c kadm_err.h: $(srcdir)/kadm_err.et
+chpass_util_strings.c chpass_util_strings.h: $(srcdir)/chpass_util_strings.et
+
+clean:
+	$(RM) kadm_err.c kadm_err.h kadm_err.o
+	$(RM) chpass_util_strings.c chpass_util_strings.h chpass_util_strings.o
+
+SRCS =	kadm_err.c \
+	chpass_util_strings.c \
+	$(srcdir)/misc_free.c \
+	$(srcdir)/kadm_rpc_xdr.c \
+	$(srcdir)/chpass_util.c \
+	$(srcdir)/alt_prof.c \
+	$(srcdir)/str_conv.c \
+	$(srcdir)/logger.c
+
+OBJS =	kadm_err.$(OBJEXT) \
+	chpass_util_strings.$(OBJEXT) \
+	misc_free.$(OBJEXT) \
+	kadm_rpc_xdr.$(OBJEXT) \
+	chpass_util.$(OBJEXT) \
+	alt_prof.$(OBJEXT) \
+	str_conv.$(OBJEXT) \
+	logger.$(OBJEXT)
+
+STLIBOBJS = \
+	kadm_err.o \
+	chpass_util_strings.o \
+	misc_free.o \
+	kadm_rpc_xdr.o \
+	chpass_util.o \
+	alt_prof.o \
+	str_conv.o \
+	logger.o
+
+HDRDIR=$(BUILDTOP)/include/kadm5
+HDRS =	$(HDRDIR)/admin.h \
+	$(HDRDIR)/admin_internal.h \
+	$(HDRDIR)/admin_xdr.h \
+	$(HDRDIR)/kadm_rpc.h \
+	$(HDRDIR)/server_internal.h \
+	$(HDRDIR)/chpass_util_strings.h \
+	$(HDRDIR)/kadm_err.h
+
+BUILD_HDRS = chpass_util_strings.h kadm_err.h
+SRC_HDRS = admin.h admin_internal.h admin_xdr.h kadm_rpc.h \
+		server_internal.h 
+
+$(HDRS): includes
+
+includes: $(SRC_HDRS) $(BUILD_HDRS)
+	if [ -d $(HDRDIR) ]; then :; else mkdir -p $(HDRDIR); fi
+	for i in $(SRC_HDRS) ; do \
+		i=`basename $$i`; \
+		if cmp $(srcdir)/$$i $(HDRDIR)/$$i >/dev/null 2>&1; then :; \
+		else \
+			(set -x; $(RM) $(HDRDIR)/$$i; \
+			 $(CP) $(srcdir)/$$i $(HDRDIR)/$$i) ; \
+		fi ; \
+	done
+	for i in $(BUILD_HDRS) ; do \
+		i=`basename $$i`; \
+		if cmp $$i $(HDRDIR)/$$i >/dev/null 2>&1; then :; \
+		else \
+			(set -x; $(RM) $(HDRDIR)/$$i; \
+			 $(CP) $$i $(HDRDIR)/$$i) ; \
+		fi ; \
+	done
+
+clean-unix::
+	$(RM) -r $(HDRDIR)
+
+all-prerecurse: includes
+all-prerecurse: all-libobjs
+
+all-windows: $(OBJS)
+
+t_kadm5clnt: t_kadm5.o $(KADMCLNT_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_kadm5.o $(KADMCLNT_LIBS) $(KRB5_BASE_LIBS)
+
+t_kadm5srv: t_kadm5.o $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_kadm5.o $(KADMSRV_LIBS) $(KRB5_BASE_LIBS)
+
+check-pytests: t_kadm5clnt t_kadm5srv
+	$(RUNPYTEST) $(srcdir)/t_kadm5.py $(PYTESTFLAGS)
+
+generate-files-mac-prerecurse: includes
+
+check-windows:
+
+clean-unix:: clean-libobjs
+	$(RM) t_kadm5clnt t_kadm5srv t_kadm5.o
+
+clean-windows::
+
+install-headers-unix install: $(BUILD_HDRS)
+	$(INSTALL_DATA) $(srcdir)/admin.h $(DESTDIR)$(KRB5_INCDIR)$(S)kadm5$(S)admin.h
+	$(INSTALL_DATA) chpass_util_strings.h $(DESTDIR)$(KRB5_INCDIR)$(S)kadm5$(S)chpass_util_strings.h
+	$(INSTALL_DATA) kadm_err.h $(DESTDIR)$(KRB5_INCDIR)$(S)kadm5$(S)kadm_err.h
+
+depend: includes
+
+@libobj_frag@
+

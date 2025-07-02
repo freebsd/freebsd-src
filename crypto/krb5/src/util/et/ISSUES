@@ -1,0 +1,64 @@
+Issues to be addressed for src/util/et: -*- text -*-
+
+
+Non-thread-safe aspects:
+
+error_message uses a static buffer for "unknown error code" messages;
+a per-thread buffer may be better, but that depends on dynamic
+allocation working.  A caller-provided buffer would be best, but
+that's a API change.
+
+initialize_foo_error_table uses a global linked list hung off an
+unprotected variable in the library.  {add,remove}_error_table do
+likewise, but can be changed without externally visible effect.
+
+Workaround: Use a global lock for all calls to error_message and
+com_err, and when adding or removing error tables.
+
+
+API divergence:
+
+Transarc and Heimdal both have APIs that are different from this
+version.  (Specifics?)
+
+Karl Ramm has offered to try to combine them.
+
+Workaround:
+
+
+Reference counting:
+
+If libraries are dynamically loaded and unloaded, and the init/fini
+functions add and remove error tables for *other* libraries they
+depend on (e.g., if a dynamically loadable Zephyr library's fini
+function removes the krb4 library error table and then dlcloses the
+krb4 library, while another dlopen reference keeps the krb4 library
+around), the error table is kept; a table must be removed the same
+number of times it was added before the library itself can be
+discarded.
+
+It's not implemented as a reference count, but the effect is the same.
+
+Fix needed: Update documentation.
+
+
+64-bit support:
+
+Values are currently computed as 32-bit values, sign-extended to
+"long", and output with "L" suffixes.  Type errcode_t is "long".
+Kerberos uses a separately chosen signed type of at least 32 bits for
+error codes.  The com_err library only look at the low 32 bits, so
+this is mostly just an issue for application code -- if anything
+truncates to 32 bits, and then widens without sign-extending, the
+value may not compare equal to the macro defined in the .h file.  This
+isn't anything unusual for signed constants, of course, just something
+to keep in mind....
+
+Workaround: Always use signed types of at least 32 bits for error
+codes.
+
+
+man page:
+
+No documentation on add_error_table/remove_error_table interfaces,
+even though they're the new, preferred interface.

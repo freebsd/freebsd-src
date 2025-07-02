@@ -1,0 +1,56 @@
+krb5_cccol_cursor_new -  Prepare to iterate over the collection of known credential caches. 
+============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cccol_cursor_new(krb5_context context, krb5_cccol_cursor * cursor)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **cursor** - Cursor
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Get a new cache iteration *cursor* that will iterate over all known credential caches independent of type.
+
+
+
+Use krb5_cccol_cursor_free() to release *cursor* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         krb5_cccol_cursor_next()
+ 
+
+
+
+

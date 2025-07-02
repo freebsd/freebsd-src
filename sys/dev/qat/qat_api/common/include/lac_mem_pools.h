@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  ***************************************************************************
  * @file lac_mem_pools.h
@@ -15,20 +15,20 @@
  *     This component is designed as a set of utility functions for the
  * creation of pre-allocated memory pools. Each pool will be created using OS
  * memory with a user specified number of elements, element size and element
- * alignment(alignmnet is at byte granularity).
+ * alignment(alignment is at byte granularity).
  * @lld_dependencies
  *     These utilities rely on QAT Utils for locking mechanisms and memory
- *allocation
+ * allocation
  * @lld_initialisation
  *     Pool creation needs to be done by each component. There is no specific
  * initialisation required for this feature.
  * @lld_module_algorithms
- *     The following is a diagram of how the memory is layed out for each block
+ *     The following is a diagram of how the memory is laid out for each block
  * in a pool. Each element must be aligned on the boundary requested for in the
  * create call.  In order to hide the management of the pools from the user,
  * the memory block data is hidden prior to the
  * data pointer. This way it can be accessed easily on a free call with pointer
- * arithmatic. The Padding at the start is simply there for alignment and is
+ * arithmetic. The Padding at the start is simply there for alignment and is
  * unused in the pools.
  *
  *   -------------------------------------------------------
@@ -73,7 +73,7 @@ typedef struct lac_mem_blk_s {
 	CpaBoolean isInUse;
 	/**< indicates if the pool item is in use */
 	struct lac_mem_blk_s *pNext;
-	/**< link to next blcok in the pool */
+	/**< link to next block in the pool */
 	struct lac_mem_pool_hdr_s *pPoolID;
 	/**< identifier of the pool that this block was allocated from */
 } lac_mem_blk_t;
@@ -82,7 +82,7 @@ typedef struct lac_mem_blk_s {
 	(((lac_mem_blk_t *)((LAC_ARCH_UINT)pVirtAddr - sizeof(lac_mem_blk_t))) \
 	     ->physDataPtr)
 /**< @ingroup LacMemPool
- *   macro for retreiving the physical address of the memory block. */
+ *   macro for retrieving the physical address of the memory block. */
 
 #define LAC_MEM_POOL_INIT_POOL_ID 0
 /**< @ingroup LacMemPool

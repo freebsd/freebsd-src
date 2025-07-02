@@ -98,12 +98,10 @@ pfs_alloc_node(struct pfs_info *pi, const char *name, pfs_type_t type)
 /*
  * Add a node to a directory
  */
-static void
+static int
 pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 {
-#ifdef INVARIANTS
 	struct pfs_node *iter;
-#endif
 
 	KASSERT(parent != NULL,
 	    ("%s(): parent is NULL", __func__));
@@ -123,8 +121,6 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 			KASSERT(iter->pn_type != pfstype_procdir,
 			    ("%s(): nested process directories", __func__));
 	for (iter = parent->pn_nodes; iter != NULL; iter = iter->pn_next) {
-		KASSERT(strcmp(pn->pn_name, iter->pn_name) != 0,
-		    ("%s(): homonymous siblings", __func__));
 		if (pn->pn_type == pfstype_procdir)
 			KASSERT(iter->pn_type != pfstype_procdir,
 			    ("%s(): sibling process directories", __func__));
@@ -133,8 +129,19 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 
 	pn->pn_parent = parent;
 	pfs_fileno_alloc(pn);
-
 	pfs_lock(parent);
+	for (iter = parent->pn_nodes; iter != NULL; iter = iter->pn_next) {
+		if (strcmp(pn->pn_name, iter->pn_name) != 0)
+			continue;
+		printf("pfs_add_node: homonymous siblings: '%s/%s' type %d",
+		    parent->pn_name, pn->pn_name, pn->pn_type);
+		/* Do not detach, because we are not yet attached. */
+		pn->pn_parent = NULL;
+		pfs_unlock(parent);
+		return (EEXIST);
+	}
+
+
 	if ((parent->pn_flags & PFS_PROCDEP) != 0)
 		pn->pn_flags |= PFS_PROCDEP;
 	if (parent->pn_nodes == NULL) {
@@ -151,10 +158,11 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 		parent->pn_last_node = pn;
 	}
 	pfs_unlock(parent);
+	return (0);
 }
 
 /*
- * Detach a node from its aprent
+ * Detach a node from its parent
  */
 static void
 pfs_detach_node(struct pfs_node *pn)
@@ -196,6 +204,7 @@ static int
 pfs_fixup_dir_flags(struct pfs_node *parent, int flags)
 {
 	struct pfs_node *dot, *dotdot;
+	int rc;
 
 	dot = pfs_alloc_node_flags(parent->pn_info, ".", pfstype_this, flags);
 	if (dot == NULL)
@@ -205,9 +214,14 @@ pfs_fixup_dir_flags(struct pfs_node *parent, int flags)
 		pfs_destroy(dot);
 		return (ENOMEM);
 	}
-	pfs_add_node(parent, dot);
-	pfs_add_node(parent, dotdot);
-	return (0);
+	rc = pfs_add_node(parent, dot);
+	if (rc == 0)
+		rc = pfs_add_node(parent, dotdot);
+	if (rc != 0) {
+		pfs_destroy(dot);
+		pfs_destroy(dotdot);
+	}
+	return (rc);
 }
 
 static void
@@ -236,11 +250,12 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
 	pn->pn_vis = vis;
 	pn->pn_destroy = destroy;
 	pn->pn_flags = flags;
-	pfs_add_node(parent, pn);
-	rc = pfs_fixup_dir_flags(pn, flags);
-	if (rc) {
+	rc = pfs_add_node(parent, pn);
+	if (rc == 0)
+		rc = pfs_fixup_dir_flags(pn, flags);
+	if (rc != 0) {
 		pfs_destroy(pn);
-		return (NULL);
+		pn = NULL;
 	}
 	return (pn);
 }
@@ -263,8 +278,10 @@ pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 	pn->pn_vis = vis;
 	pn->pn_destroy = destroy;
 	pn->pn_flags = flags;
-	pfs_add_node(parent, pn);
-
+	if (pfs_add_node(parent, pn) != 0) {
+		pfs_destroy(pn);
+		pn = NULL;
+	}
 	return (pn);
 }
 
@@ -286,7 +303,10 @@ pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 	pn->pn_vis = vis;
 	pn->pn_destroy = destroy;
 	pn->pn_flags = flags;
-	pfs_add_node(parent, pn);
+	if (pfs_add_node(parent, pn) != 0) {
+		pfs_destroy(pn);
+		pn = NULL;
+	}
 
 	return (pn);
 }

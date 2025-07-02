@@ -1,0 +1,42 @@
+krb5_free_cksumtypes -  Free an array of checksum types. 
+=========================================================
+
+..
+
+.. c:function:: void krb5_free_cksumtypes(krb5_context context, krb5_cksumtype * val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Array of checksum types to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

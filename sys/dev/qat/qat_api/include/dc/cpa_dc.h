@@ -1,38 +1,5 @@
-/****************************************************************************
- *
- *   BSD LICENSE
- * 
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
- *   All rights reserved.
- * 
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- * 
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- *
- ***************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /*
  *****************************************************************************
@@ -134,6 +101,7 @@ extern"C" {
     (CPA_DC_API_VERSION_NUM_MAJOR < major ||                                   \
      (CPA_DC_API_VERSION_NUM_MAJOR == major &&                                 \
       CPA_DC_API_VERSION_NUM_MINOR < minor))
+
 
 /**
  *****************************************************************************
@@ -999,7 +967,7 @@ typedef struct _CpaCrcData {
         /**< CRC32 calculated on the input buffer during compression
          * requests and on the output buffer during decompression requests. */
         Cpa32U adler32;
-        /**< ADLER32 calculated on the input buffer during compression
+        /**< Adler32 calculated on the input buffer during compression
          * requests and on the output buffer during decompression requests. */
         CpaIntegrityCrc integrityCrc;
           /**< 32bit Integrity CRCs */
@@ -1289,7 +1257,7 @@ cpaDcResetSession(const CpaInstanceHandle dcInstance,
  *      This function will reset the internal xxHash state maintained within a
  *      session. This would be used in conjunction with the
  *      CpaDcSessionSetupData.accumulateXXHash flag being set to TRUE for this
- *      session. It will enable reseting (reinitialising) just the xxHash
+ *      session. It will enable resetting (reinitialising) just the xxHash
  *      calculation back to the state when the session was first initialised.
  *
  * @context
@@ -1761,7 +1729,7 @@ cpaDcLZ4SCompressBound(const CpaInstanceHandle dcInstance,
  *  session, the checksum passed to cpaDcCompressData should be set to the
  *  checksum value produced by the previous call to cpaDcCompressData().
  *  When the last block of input data is passed to cpaDcCompressData(), the
- *  flush flag should be set to CP_DC_FLUSH_FINAL. This will cause the BFINAL
+ *  flush flag should be set to CPA_DC_FLUSH_FINAL. This will cause the BFINAL
  *  bit to be set in a deflate stream. It is the responsibility of the calling
  *  application to maintain overall lengths across the stateless requests
  *  and to pass the checksum produced by one request into the next request.
@@ -2286,7 +2254,7 @@ cpaDcNsDecompressData( CpaInstanceHandle dcInstance,
  *          - Content size = 0
  *          - Dictionary ID = 0
  *          - Header checksum = 1 byte representing the second byte of the
- *                              XXH32 of the frame decriptor field.
+ *                              XXH32 of the frame descriptor field.
  *
  *      The counter parameter will be set to the number of bytes added to the
  *      buffer. The pData will be not be changed.

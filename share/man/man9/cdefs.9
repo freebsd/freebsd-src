@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd January 6, 2025
+.Dd May 9, 2025
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -118,9 +118,20 @@ family of functions.
 .It Sy __fastcall Ta Use the
 .Dq fastcall
 ABI to call and name mangle this function.
-.It Sy __result_use_check Ta Warn if function caller does not use it's return value
-.It Sy __result_use_or_ignore_check Ta Warn if function caller does not use it's return value.
-Allows the value to be explicitly ignored with a (void) cast.
+.It Sy __result_use_check Ta Warn if function caller does not use its return value
+.It Sy __nodiscard Ta Equivalent to the standard
+.Dq [[nodiscard]]
+attribute.
+If applied to a function, warn if function caller does not use its
+return value.
+The warning may be silenced using a cast to
+.Vt void ,
+or in C++, using an assignment to
+.Va std::ignore .
+If applied to a struct, C++ class or enum, this applies to all functions
+returning values of that type.
+If applied to a C++ constructor, this applies to creating instances of
+the class using that constructor.
 .It Sy __returns_twice Ta Returns multiple times, like
 .Xr fork 2
 .It Sy __unreachable Ta This code is not reachable at runtime

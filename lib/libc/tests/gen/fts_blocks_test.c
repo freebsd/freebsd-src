@@ -19,7 +19,12 @@
  * order they were created while ZFS will sort them lexicographically; in
  * both cases, the order we expect is the reverse.
  */
-ATF_TC_WITHOUT_HEAD(fts_blocks_test);
+ATF_TC(fts_blocks_test);
+ATF_TC_HEAD(fts_blocks_test, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test FTS with a block in lieu of a comparison function");
+}
 ATF_TC_BODY(fts_blocks_test, tc)
 {
 	char *args[] = {

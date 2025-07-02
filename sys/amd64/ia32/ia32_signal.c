@@ -958,4 +958,5 @@ ia32_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 
 	/* Return via doreti so that we can change to a different %cs */
 	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
+	clear_pcb_flags(pcb, PCB_TLSBASE);
 }

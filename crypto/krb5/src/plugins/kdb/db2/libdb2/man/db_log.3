@@ -1,0 +1,290 @@
+.\" Copyright (c) 1990, 1993, 1994, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)db_log.3	8.15 (Berkeley) 8/3/95
+.\"
+.TH DB_LOG 3 "August 3, 1995"
+.UC 7
+.SH NAME
+db_log \- log-manager access method
+.SH DESCRIPTION
+.so db.so
+.GN
+specific details of the logging access method.
+.PP
+These functions provide a general-purpose logging facility sufficient
+for transaction management.
+Logs can be shared by multiple processes.
+.PP
+A log is represented by the directory,
+.IR "not the file" ,
+named by the first argument to
+.IR db_open (3).
+The first argument must be non-NULL,
+and the directory must already exist
+.I db_open
+is called.
+In that directory, the log is stored in one or more files named
+in the format ``log.YYYY.MM.DD.HH.MM.SS'', where ``YYYY.MM.DD.HH.SS''
+is the approximate creation time of the log file, and is guaranteed
+to be unique in the directory.
+.PP
+The group of the created files is based on the system and directory
+defaults, and is not further specified by the log access method.
+All files are created with the
+.I mode
+specified to
+.IR db_open ,
+(as described in
+.IR chmod (2))
+and modified by the process' umask value (see
+.IR umask (2)).
+.PP
+The
+.I flags
+argument to
+.I db_open
+must be 0 for the
+.I db_log
+access method.
+.SH "ACCESS METHOD SPECIFIC INFORMATION"
+The log access method specific data structure provided to
+.I db_open
+is typedef'd and named LOGINFO.
+A LOGINFO structure has at least the following fields,
+which may be initialized before calling
+.IR db_open :
+.TP 5
+off_t max_file_size;
+The maximum size of a single file in the log.
+If not specified, the maximum size defaults to an implementation-specific
+value.
+.TP 5
+int lorder;
+The byte order for integers in the stored database metadata.
+The number should represent the order as an integer; for example, 
+big endian order would be the number 4,321.
+If
+.I lorder
+is 0 (no order is specified) the current host order is used.
+.PP
+If the log already exists, the values specified for the parameters
+max_file_size and lorder are ignored in favor of the values used
+when the log was created.
+.SH "DB OPERATIONS"
+The data part of the key/data pair used by the log access method
+is the same as for other access methods.
+The key is different.
+Each log record is identified by a log sequence number (LSN),
+which is stored in a DBT, and which is used as the
+.I key
+for all log functions that take
+.I key
+arguments.
+Applications cannot create LSN's, and all LSN's provided to functions
+as arguments must first be retrieved using the
+.I put
+or
+.I seq
+functions.
+To provide a distinguished value for applications, it is guaranteed that
+no valid LSN will ever have a size of 0.
+.PP
+Applications can compare LSN's using the
+.I log_lsn_compare
+function (see below).
+.PP
+Applications can associate LSN's with specific log files.
+The function
+.I log_lsn_file
+(see below), returns the name of the log file containing the
+record with a specified LSN.
+(The mapping of LSN to file is needed for database administration.
+For example, a transaction manager typically records the earliest LSN
+needed for restart, and the database administrator may want to archive
+log files to tape when they contain only LSN's before the earliest one
+needed for restart.)
+.PP
+Applications can truncate the log file up to a specific LSN using the 
+.I log_trunc
+function (see below).
+.PP
+The functions returned by
+.I db_open
+for the log access method are as described in
+.IR db_open ,
+with the following exceptions and additions:
+.TP 5
+type
+The type is DB_LOG.
+.TP 5
+del
+The
+.I del
+function always returns an error for the log-manager access method,
+setting
+.I errno
+to EINVAL.
+.TP 5
+int (*log_flush)(const DB *db, const DBT *lsn);
+The
+.I log_flush
+function flushes the log up to and including the log record
+.IR lsn .
+.RT log_flush
+.TP 5
+int (*log_lsn_compare)(const DB *,
+.ti +5
+const DBT *lsn1, const DBT *lsn2);
+A pointer to a function which is provided to permit applications to
+compare LSN's.
+The
+.I log_lsn_compare
+function returns an integer less than, equal to, or greater than zero
+if the first LSN is considered to be respectively less than, equal to,
+or greater than the second LSN.
+.TP 5
+int (*log_lsn_file)(const DB *db,
+.ti +5
+const DBT *lsn, char *name);
+.br
+The
+.I log_lsn_file
+function stores a pointer to the name of the file containing
+.I lsn
+in the address referenced by
+.IR name.
+This pointer is to an internal static object, and subsequent calls to
+the same function will modify the same object.
+.IP
+.RT log_lsn_file
+.TP 5
+int (*log_unlink)(const char *path, int force);
+The
+.I log_unlink
+function destroys the log represented by
+.IR path .
+If the
+.I force
+parameter is not set to 1 and there are other processes using the
+log, then
+.I log_unlink
+will return -1, setting
+.IR errno
+to EBUSY.
+If
+.I force is not set or there are no processes using the log, then all files
+used by the log are destroyed.
+.I log_unlink
+will return -1 on failure, setting
+.IR errno ,
+and 0 on success.
+.TP 5
+int (*log_trunc)(const DB *db, const DBT *lsn);
+The
+.I log_trunc
+function truncates the log up to an LSN which is less than
+.IR lsn .
+.RT log_trunc
+.TP 5
+put
+A log record containing
+.I data
+is appended to the log.
+Unlike the
+.I put
+functions for other access methods, the key parameter is not initialized
+by the application, instead, the LSN assigned to the data is returned in
+the
+.I key
+parameter.
+.IP
+The caller is responsible for providing any necessary structure to
+.I data .
+(For example, in a write-ahead logging protocol, the application must
+understand what part of
+.I data
+is an operation code, what part is redo information, and what part is
+undo information.
+In addition, most transaction managers will store in
+.I data
+the LSN of the previous log record for the same transaction,
+to support chaining back through the transaction's log records
+during undo.)
+.IP
+The parameter
+.I flag
+must be set to 0 or exactly one of the following values:
+.RS
+.TP 5
+R_CHECKPOINT
+Specify the key/data pair of the current call as the one to be returned
+when the
+.I seq
+function is next called with the R_CHECKPOINT flag.
+.TP 5
+R_FLUSH
+Flush immediately (ignoring any possibility for group commit).
+.RE
+.TP 5
+seq
+The
+.I seq
+function takes the following additional flag:
+.RS
+.TP 5
+R_CHECKPOINT
+The last key/data pair stored by the
+.I put
+function (using the R_CHECKPOINT flag) is returned,
+and the cursor is set or initialized to reference it.
+The expected use of this flag is during restart and to determine what
+part of the log must be available for restart.
+Therefore, the log record retrieved with R_CHECKPOINT should contain
+all the information that the transaction manager will need for this
+purpose.
+.RE
+.TP 5
+sync
+The
+.I sync
+function always returns an error for the log-manager access method,
+setting
+.I errno
+to EINVAL.
+.SH "SEE ALSO"
+.IR db_btree (3),
+.IR db_hash (3),
+.IR db_lock (3),
+.IR db_mpool (3),
+.IR db_open (3),
+.IR db_recno (3),
+.IR db_txn (3)

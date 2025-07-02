@@ -88,7 +88,10 @@
 #include <unistd.h>
 #include <wchar.h>
 
+#include "block_abi.h"
 #include "collate.h"
+
+typedef DECLARE_BLOCK(int, glob_b_block, const char*, int);
 
 /*
  * glob(3) expansion limits. Stop the expansion if any of these limits
@@ -179,9 +182,8 @@ static int	 err_aborted(glob_t *, int, char *);
 static void	 qprintf(const char *, Char *);
 #endif
 
-int
-glob(const char * __restrict pattern, int flags,
-	 int (*errfunc)(const char *, int), glob_t * __restrict pglob)
+static int
+__glob(const char *pattern, glob_t *pglob)
 {
 	struct glob_limit limit = { 0, 0, 0, 0, 0 };
 	const char *patnext;
@@ -192,25 +194,23 @@ glob(const char * __restrict pattern, int flags,
 	int too_long;
 
 	patnext = pattern;
-	if (!(flags & GLOB_APPEND)) {
+	if (!(pglob->gl_flags & GLOB_APPEND)) {
 		pglob->gl_pathc = 0;
 		pglob->gl_pathv = NULL;
-		if (!(flags & GLOB_DOOFFS))
+		if (!(pglob->gl_flags & GLOB_DOOFFS))
 			pglob->gl_offs = 0;
 	}
-	if (flags & GLOB_LIMIT) {
+	if (pglob->gl_flags & GLOB_LIMIT) {
 		limit.l_path_lim = pglob->gl_matchc;
 		if (limit.l_path_lim == 0)
 			limit.l_path_lim = GLOB_LIMIT_PATH;
 	}
-	pglob->gl_flags = flags & ~GLOB_MAGCHAR;
-	pglob->gl_errfunc = errfunc;
 	pglob->gl_matchc = 0;
 
 	bufnext = patbuf;
 	bufend = bufnext + MAXPATHLEN - 1;
 	too_long = 1;
-	if (flags & GLOB_NOESCAPE) {
+	if (pglob->gl_flags & GLOB_NOESCAPE) {
 		memset(&mbs, 0, sizeof(mbs));
 		while (bufnext <= bufend) {
 			clen = mbrtowc(&wc, patnext, MB_LEN_MAX, &mbs);
@@ -250,15 +250,45 @@ glob(const char * __restrict pattern, int flags,
 		return (err_nomatch(pglob, &limit, pattern));
 	*bufnext = EOS;
 
-	if (flags & GLOB_BRACE)
+	if (pglob->gl_flags & GLOB_BRACE)
 	    return (globexp0(patbuf, pglob, &limit, pattern));
 	else
 	    return (glob0(patbuf, pglob, &limit, pattern));
 }
 
+int
+glob(const char * __restrict pattern, int flags,
+    int (*errfunc)(const char *, int), glob_t * __restrict pglob)
+{
+	int rv;
+
+	pglob->gl_flags = flags & ~(GLOB_MAGCHAR | _GLOB_ERR_BLOCK);
+	pglob->gl_errfunc = errfunc;
+	rv = __glob(pattern, pglob);
+	pglob->gl_errfunc = NULL;
+
+	return (rv);
+}
+
+int
+glob_b(const char * __restrict pattern, int flags,
+    glob_b_block block, glob_t * __restrict pglob)
+{
+	int rv;
+
+	pglob->gl_flags = flags & ~GLOB_MAGCHAR;
+	pglob->gl_flags |= _GLOB_ERR_BLOCK;
+	pglob->gl_errblk = block;
+	rv = __glob(pattern, pglob);
+	pglob->gl_errblk = NULL;
+
+	return (rv);
+}
+
 static int
 globexp0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
-    const char *origpat) {
+    const char *origpat)
+{
 	int rv;
 	size_t oldpathc;
 
@@ -724,7 +754,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		return (GLOB_NOSPACE);
 	}
 	*pathend = EOS;
-	if (pglob->gl_errfunc != NULL &&
+	if ((pglob->gl_errfunc != NULL || pglob->gl_errblk != NULL) &&
 	    g_Ctoc(pathbuf, buf, sizeof(buf))) {
 		errno = E2BIG;
 		return (GLOB_NOSPACE);
@@ -1085,10 +1115,21 @@ err_nomatch(glob_t *pglob, struct glob_limit *limit, const char *origpat) {
 }
 
 static int
-err_aborted(glob_t *pglob, int err, char *buf) {
-	if ((pglob->gl_errfunc != NULL && pglob->gl_errfunc(buf, err)) ||
-	    (pglob->gl_flags & GLOB_ERR))
+err_aborted(glob_t *pglob, int err, char *buf)
+{
+	int rv = 0;
+
+	if ((pglob->gl_flags & _GLOB_ERR_BLOCK) != 0) {
+		if (pglob->gl_errblk != NULL)
+			rv = CALL_BLOCK((glob_b_block)pglob->gl_errblk, buf,
+			    errno);
+	} else if (pglob->gl_errfunc != NULL) {
+		rv = pglob->gl_errfunc(buf, errno);
+	}
+	/* GLOB_ERR is allowed to override the error callback function. */
+	if (rv != 0 || pglob->gl_flags & GLOB_ERR) {
 		return (GLOB_ABORTED);
+	}
 	return (0);
 }
 

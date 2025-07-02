@@ -1,0 +1,60 @@
+krb5_auth_con_setflags -  Set a flags field in a krb5_auth_context structure. 
+==============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_setflags(krb5_context context, krb5_auth_context auth_context, krb5_int32 flags)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **flags** - Flags bit mask
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+Valid values for *flags* are: 
+ 
+	 - #KRB5_AUTH_CONTEXT_DO_TIME Use timestamps
+ 
+ 
+	 - #KRB5_AUTH_CONTEXT_RET_TIME Save timestamps
+ 
+ 
+	 - #KRB5_AUTH_CONTEXT_DO_SEQUENCE Use sequence numbers
+ 
+ 
+	 - #KRB5_AUTH_CONTEXT_RET_SEQUENCE Save sequence numbers
+ 
+ 
+
+
+
+
+
+
+..
+
+
+
+
+

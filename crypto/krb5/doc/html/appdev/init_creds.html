@@ -1,0 +1,433 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Initial credentials &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Principal manipulation and parsing" href="princ_handle.html" />
+    <link rel="prev" title="Differences between Heimdal and MIT Kerberos API" href="h5l_mit_apidiff.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="h5l_mit_apidiff.html" title="Differences between Heimdal and MIT Kerberos API"
+            accesskey="P">previous</a> |
+        <a href="princ_handle.html" title="Principal manipulation and parsing"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Initial credentials">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="initial-credentials">
+<h1>Initial credentials<a class="headerlink" href="#initial-credentials" title="Permalink to this headline">¶</a></h1>
+<p>Software that performs tasks such as logging users into a computer
+when they type their Kerberos password needs to get initial
+credentials (usually ticket granting tickets) from Kerberos.  Such
+software shares some behavior with the <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a> program.</p>
+<p>Whenever a program grants access to a resource (such as a local login
+session on a desktop computer) based on a user successfully getting
+initial Kerberos credentials, it must verify those credentials against
+a secure shared secret (e.g., a host keytab) to ensure that the user
+credentials actually originate from a legitimate KDC.  Failure to
+perform this verification is a critical vulnerability, because a
+malicious user can execute the “Zanarotti attack”: the user constructs
+a fake response that appears to come from the legitimate KDC, but
+whose contents come from an attacker-controlled KDC.</p>
+<p>Some applications read a Kerberos password over the network (ideally
+over a secure channel), which they then verify against the KDC.  While
+this technique may be the only practical way to integrate Kerberos
+into some existing legacy systems, its use is contrary to the original
+design goals of Kerberos.</p>
+<p>The function <a class="reference internal" href="refs/api/krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_password()</span></code></a> will get initial
+credentials for a client using a password.  An application that needs
+to verify the credentials can call <a class="reference internal" href="refs/api/krb5_verify_init_creds.html#c.krb5_verify_init_creds" title="krb5_verify_init_creds"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_verify_init_creds()</span></code></a>.
+Here is an example of code to obtain and verify TGT credentials, given
+strings <em>princname</em> and <em>password</em> for the client principal name and
+password:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">krb5_error_code</span> <span class="n">ret</span><span class="p">;</span>
+<span class="n">krb5_creds</span> <span class="n">creds</span><span class="p">;</span>
+<span class="n">krb5_principal</span> <span class="n">client_princ</span> <span class="o">=</span> <span class="n">NULL</span><span class="p">;</span>
+
+<span class="n">memset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">sizeof</span><span class="p">(</span><span class="n">creds</span><span class="p">));</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_parse_name</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">princname</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">client_princ</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+    <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_password</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="n">client_princ</span><span class="p">,</span>
+                                   <span class="n">password</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+    <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_verify_init_creds</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">);</span>
+
+<span class="n">cleanup</span><span class="p">:</span>
+<span class="n">krb5_free_principal</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">client_princ</span><span class="p">);</span>
+<span class="n">krb5_free_cred_contents</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">);</span>
+<span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+</pre></div>
+</div>
+<section id="options-for-get-init-creds">
+<h2>Options for get_init_creds<a class="headerlink" href="#options-for-get-init-creds" title="Permalink to this headline">¶</a></h2>
+<p>The function <a class="reference internal" href="refs/api/krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_password()</span></code></a> takes an options
+parameter (which can be a null pointer).  Use the function
+<a class="reference internal" href="refs/api/krb5_get_init_creds_opt_alloc.html#c.krb5_get_init_creds_opt_alloc" title="krb5_get_init_creds_opt_alloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_opt_alloc()</span></code></a> to allocate an options
+structure, and <a class="reference internal" href="refs/api/krb5_get_init_creds_opt_free.html#c.krb5_get_init_creds_opt_free" title="krb5_get_init_creds_opt_free"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_opt_free()</span></code></a> to free it.  For
+example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">krb5_error_code</span> <span class="n">ret</span><span class="p">;</span>
+<span class="n">krb5_get_init_creds_opt</span> <span class="o">*</span><span class="n">opt</span> <span class="o">=</span> <span class="n">NULL</span><span class="p">;</span>
+<span class="n">krb5_creds</span> <span class="n">creds</span><span class="p">;</span>
+
+<span class="n">memset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">sizeof</span><span class="p">(</span><span class="n">creds</span><span class="p">));</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_opt_alloc</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">opt</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+    <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+<span class="n">krb5_get_init_creds_opt_set_tkt_life</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span><span class="p">);</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_password</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="n">client_princ</span><span class="p">,</span>
+                                   <span class="n">password</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">opt</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+    <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+
+<span class="n">cleanup</span><span class="p">:</span>
+<span class="n">krb5_get_init_creds_opt_free</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">opt</span><span class="p">);</span>
+<span class="n">krb5_free_cred_contents</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">);</span>
+<span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="getting-anonymous-credentials">
+<h2>Getting anonymous credentials<a class="headerlink" href="#getting-anonymous-credentials" title="Permalink to this headline">¶</a></h2>
+<p>As of release 1.8, it is possible to obtain fully anonymous or
+partially anonymous (realm-exposed) credentials, if the KDC supports
+it.  The MIT KDC supports issuing fully anonymous credentials as of
+release 1.8 if configured appropriately (see <a class="reference internal" href="../admin/pkinit.html#anonymous-pkinit"><span class="std std-ref">Anonymous PKINIT</span></a>),
+but does not support issuing realm-exposed anonymous credentials at
+this time.</p>
+<p>To obtain fully anonymous credentials, call
+<a class="reference internal" href="refs/api/krb5_get_init_creds_opt_set_anonymous.html#c.krb5_get_init_creds_opt_set_anonymous" title="krb5_get_init_creds_opt_set_anonymous"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_opt_set_anonymous()</span></code></a> on the options
+structure to set the anonymous flag, and specify a client principal
+with the KDC’s realm and a single empty data component (the principal
+obtained by parsing <code class="docutils literal notranslate"><span class="pre">&#64;</span></code><em>realmname</em>).  Authentication will take
+place using anonymous PKINIT; if successful, the client principal of
+the resulting tickets will be
+<code class="docutils literal notranslate"><span class="pre">WELLKNOWN/ANONYMOUS&#64;WELLKNOWN:ANONYMOUS</span></code>.  Here is an example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">krb5_get_init_creds_opt_set_anonymous</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_build_principal</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">client_princ</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">myrealm</span><span class="p">),</span>
+                           <span class="n">myrealm</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">char</span> <span class="o">*</span><span class="p">)</span><span class="n">NULL</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+    <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_password</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="n">client_princ</span><span class="p">,</span>
+                                   <span class="n">password</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">opt</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+    <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>To obtain realm-exposed anonymous credentials, set the anonymous flag
+on the options structure as above, but specify a normal client
+principal in order to prove membership in the realm.  Authentication
+will take place as it normally does; if successful, the client
+principal of the resulting tickets will be <code class="docutils literal notranslate"><span class="pre">WELLKNOWN/ANONYMOUS&#64;</span></code><em>realmname</em>.</p>
+</section>
+<section id="user-interaction">
+<h2>User interaction<a class="headerlink" href="#user-interaction" title="Permalink to this headline">¶</a></h2>
+<p>Authenticating a user usually requires the entry of secret
+information, such as a password.  A password can be supplied directly
+to <a class="reference internal" href="refs/api/krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_password()</span></code></a> via the <em>password</em>
+parameter, or the application can supply prompter and/or responder
+callbacks instead.  If callbacks are used, the user can also be
+queried for other secret information such as a PIN, informed of
+impending password expiration, or prompted to change a password which
+has expired.</p>
+<section id="prompter-callback">
+<h3>Prompter callback<a class="headerlink" href="#prompter-callback" title="Permalink to this headline">¶</a></h3>
+<p>A prompter callback can be specified via the <em>prompter</em> and <em>data</em>
+parameters to <a class="reference internal" href="refs/api/krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_password()</span></code></a>.  The prompter
+will be invoked each time the krb5 library has a question to ask or
+information to present.  When the prompter callback is invoked, the
+<em>banner</em> argument (if not null) is intended to be displayed to the
+user, and the questions to be answered are specified in the <em>prompts</em>
+array.  Each prompt contains a text question in the <em>prompt</em> field, a
+<em>hidden</em> bit to indicate whether the answer should be hidden from
+display, and a storage area for the answer in the <em>reply</em> field.  The
+callback should fill in each question’s <code class="docutils literal notranslate"><span class="pre">reply-&gt;data</span></code> with the
+answer, up to a maximum number of <code class="docutils literal notranslate"><span class="pre">reply-&gt;length</span></code> bytes, and then
+reset <code class="docutils literal notranslate"><span class="pre">reply-&gt;length</span></code> to the length of the answer.</p>
+<p>A prompter callback can call <a class="reference internal" href="refs/api/krb5_get_prompt_types.html#c.krb5_get_prompt_types" title="krb5_get_prompt_types"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_prompt_types()</span></code></a> to get an
+array of type constants corresponding to the prompts, to get
+programmatic information about the semantic meaning of the questions.
+<a class="reference internal" href="refs/api/krb5_get_prompt_types.html#c.krb5_get_prompt_types" title="krb5_get_prompt_types"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_prompt_types()</span></code></a> may return a null pointer if no prompt
+type information is available.</p>
+<p>Text-based applications can use a built-in text prompter
+implementation by supplying <a class="reference internal" href="refs/api/krb5_prompter_posix.html#c.krb5_prompter_posix" title="krb5_prompter_posix"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_prompter_posix()</span></code></a> as the
+<em>prompter</em> parameter and a null pointer as the <em>data</em> parameter.  For
+example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_password</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="n">client_princ</span><span class="p">,</span>
+                                   <span class="n">NULL</span><span class="p">,</span> <span class="n">krb5_prompter_posix</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                   <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="responder-callback">
+<h3>Responder callback<a class="headerlink" href="#responder-callback" title="Permalink to this headline">¶</a></h3>
+<p>A responder callback can be specified through the init_creds options
+using the <a class="reference internal" href="refs/api/krb5_get_init_creds_opt_set_responder.html#c.krb5_get_init_creds_opt_set_responder" title="krb5_get_init_creds_opt_set_responder"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_opt_set_responder()</span></code></a> function.
+Responder callbacks can present a more sophisticated user interface
+for authentication secrets.  The responder callback is usually invoked
+only once per authentication, with a list of questions produced by all
+of the allowed preauthentication mechanisms.</p>
+<p>When the responder callback is invoked, the <em>rctx</em> argument can be
+accessed to obtain the list of questions and to answer them.  The
+<a class="reference internal" href="refs/api/krb5_responder_list_questions.html#c.krb5_responder_list_questions" title="krb5_responder_list_questions"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_responder_list_questions()</span></code></a> function retrieves an array of
+question types.  For each question type, the
+<a class="reference internal" href="refs/api/krb5_responder_get_challenge.html#c.krb5_responder_get_challenge" title="krb5_responder_get_challenge"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_responder_get_challenge()</span></code></a> function retrieves additional
+information about the question, if applicable, and the
+<a class="reference internal" href="refs/api/krb5_responder_set_answer.html#c.krb5_responder_set_answer" title="krb5_responder_set_answer"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_responder_set_answer()</span></code></a> function sets the answer.</p>
+<p>Responder question types, challenges, and answers are UTF-8 strings.
+The question type is a well-known string; the meaning of the challenge
+and answer depend on the question type.  If an application does not
+understand a question type, it cannot interpret the challenge or
+provide an answer.  Failing to answer a question typically results in
+the prompter callback being used as a fallback.</p>
+<section id="password-question">
+<h4>Password question<a class="headerlink" href="#password-question" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="xref c c-macro docutils literal notranslate"><span class="pre">KRB5_RESPONDER_QUESTION_PASSWORD</span></code> (or <code class="docutils literal notranslate"><span class="pre">&quot;password&quot;</span></code>)
+question type requests the user’s password.  This question does not
+have a challenge, and the response is simply the password string.</p>
+</section>
+<section id="one-time-password-question">
+<h4>One-time password question<a class="headerlink" href="#one-time-password-question" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="xref c c-macro docutils literal notranslate"><span class="pre">KRB5_RESPONDER_QUESTION_OTP</span></code> (or <code class="docutils literal notranslate"><span class="pre">&quot;otp&quot;</span></code>) question
+type requests a choice among one-time password tokens and the PIN and
+value for the chosen token.  The challenge and answer are JSON-encoded
+strings, but an application can use convenience functions to avoid
+doing any JSON processing itself.</p>
+<p>The <a class="reference internal" href="refs/api/krb5_responder_otp_get_challenge.html#c.krb5_responder_otp_get_challenge" title="krb5_responder_otp_get_challenge"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_responder_otp_get_challenge()</span></code></a> function decodes the
+challenge into a krb5_responder_otp_challenge structure.  The
+<a class="reference internal" href="refs/api/krb5_responder_otp_set_answer.html#c.krb5_responder_otp_set_answer" title="krb5_responder_otp_set_answer"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_responder_otp_set_answer()</span></code></a> function selects one of the
+token information elements from the challenge and supplies the value
+and pin for that token.</p>
+</section>
+<section id="pkinit-password-or-pin-question">
+<h4>PKINIT password or PIN question<a class="headerlink" href="#pkinit-password-or-pin-question" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="xref c c-macro docutils literal notranslate"><span class="pre">KRB5_RESPONDER_QUESTION_PKINIT</span></code> (or <code class="docutils literal notranslate"><span class="pre">&quot;pkinit&quot;</span></code>) question
+type requests PINs for hardware devices and/or passwords for encrypted
+credentials which are stored on disk, potentially also supplying
+information about the state of the hardware devices.  The challenge and
+answer are JSON-encoded strings, but an application can use convenience
+functions to avoid doing any JSON processing itself.</p>
+<p>The <a class="reference internal" href="refs/api/krb5_responder_pkinit_get_challenge.html#c.krb5_responder_pkinit_get_challenge" title="krb5_responder_pkinit_get_challenge"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_responder_pkinit_get_challenge()</span></code></a> function decodes the
+challenges into a krb5_responder_pkinit_challenge structure.  The
+<a class="reference internal" href="refs/api/krb5_responder_pkinit_set_answer.html#c.krb5_responder_pkinit_set_answer" title="krb5_responder_pkinit_set_answer"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_responder_pkinit_set_answer()</span></code></a> function can be used to
+supply the PIN or password for a particular client credential, and can
+be called multiple times.</p>
+</section>
+<section id="example">
+<h4>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h4>
+<p>Here is an example of using a responder callback:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">static</span> <span class="n">krb5_error_code</span>
+<span class="n">my_responder</span><span class="p">(</span><span class="n">krb5_context</span> <span class="n">context</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span>
+             <span class="n">krb5_responder_context</span> <span class="n">rctx</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">krb5_error_code</span> <span class="n">ret</span><span class="p">;</span>
+    <span class="n">krb5_responder_otp_challenge</span> <span class="o">*</span><span class="n">chl</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">krb5_responder_get_challenge</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">rctx</span><span class="p">,</span>
+                                     <span class="n">KRB5_RESPONDER_QUESTION_PASSWORD</span><span class="p">))</span> <span class="p">{</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_responder_set_answer</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">rctx</span><span class="p">,</span>
+                                        <span class="n">KRB5_RESPONDER_QUESTION_PASSWORD</span><span class="p">,</span>
+                                        <span class="s2">&quot;open sesame&quot;</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_responder_otp_get_challenge</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">rctx</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">chl</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">chl</span> <span class="o">!=</span> <span class="n">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_responder_otp_set_answer</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">rctx</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;1234&quot;</span><span class="p">,</span>
+                                            <span class="n">NULL</span><span class="p">);</span>
+        <span class="n">krb5_responder_otp_challenge_free</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">rctx</span><span class="p">,</span> <span class="n">chl</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">static</span> <span class="n">krb5_error_code</span>
+<span class="n">get_creds</span><span class="p">(</span><span class="n">krb5_context</span> <span class="n">context</span><span class="p">,</span> <span class="n">krb5_principal</span> <span class="n">client_princ</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">krb5_error_code</span> <span class="n">ret</span><span class="p">;</span>
+    <span class="n">krb5_get_init_creds_opt</span> <span class="o">*</span><span class="n">opt</span> <span class="o">=</span> <span class="n">NULL</span><span class="p">;</span>
+    <span class="n">krb5_creds</span> <span class="n">creds</span><span class="p">;</span>
+
+    <span class="n">memset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">sizeof</span><span class="p">(</span><span class="n">creds</span><span class="p">));</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_opt_alloc</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">opt</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+        <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_opt_set_responder</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">opt</span><span class="p">,</span> <span class="n">my_responder</span><span class="p">,</span>
+                                                <span class="n">NULL</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+        <span class="n">goto</span> <span class="n">cleanup</span><span class="p">;</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_get_init_creds_password</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="n">client_princ</span><span class="p">,</span>
+                                       <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">opt</span><span class="p">);</span>
+
+<span class="n">cleanup</span><span class="p">:</span>
+    <span class="n">krb5_get_init_creds_opt_free</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">opt</span><span class="p">);</span>
+    <span class="n">krb5_free_cred_contents</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="verifying-initial-credentials">
+<h2>Verifying initial credentials<a class="headerlink" href="#verifying-initial-credentials" title="Permalink to this headline">¶</a></h2>
+<p>Use the function <a class="reference internal" href="refs/api/krb5_verify_init_creds.html#c.krb5_verify_init_creds" title="krb5_verify_init_creds"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_verify_init_creds()</span></code></a> to verify initial
+credentials.  It takes an options structure (which can be a null
+pointer).  Use <a class="reference internal" href="refs/api/krb5_verify_init_creds_opt_init.html#c.krb5_verify_init_creds_opt_init" title="krb5_verify_init_creds_opt_init"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_verify_init_creds_opt_init()</span></code></a> to initialize
+the caller-allocated options structure, and
+<a class="reference internal" href="refs/api/krb5_verify_init_creds_opt_set_ap_req_nofail.html#c.krb5_verify_init_creds_opt_set_ap_req_nofail" title="krb5_verify_init_creds_opt_set_ap_req_nofail"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_verify_init_creds_opt_set_ap_req_nofail()</span></code></a> to set the
+“nofail” option.  For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">krb5_verify_init_creds_opt</span> <span class="n">vopt</span><span class="p">;</span>
+
+<span class="n">krb5_verify_init_creds_opt_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">vopt</span><span class="p">);</span>
+<span class="n">krb5_verify_init_creds_opt_set_ap_req_nofail</span><span class="p">(</span><span class="o">&amp;</span><span class="n">vopt</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+<span class="n">ret</span> <span class="o">=</span> <span class="n">krb5_verify_init_creds</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">creds</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">vopt</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The confusingly named “nofail” option, when set, means that the
+verification must actually succeed in order for
+<a class="reference internal" href="refs/api/krb5_verify_init_creds.html#c.krb5_verify_init_creds" title="krb5_verify_init_creds"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_verify_init_creds()</span></code></a> to indicate success.  The default
+state of this option (cleared) means that if there is no key material
+available to verify the user credentials, the verification will
+succeed anyway.  (The default can be changed by a configuration file
+setting.)</p>
+<p>This accommodates a use case where a large number of unkeyed shared
+desktop workstations need to allow users to log in using Kerberos.
+The security risks from this practice are mitigated by the absence of
+valuable state on the shared workstations—any valuable resources
+that the users would access reside on networked servers.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Initial credentials</a><ul>
+<li><a class="reference internal" href="#options-for-get-init-creds">Options for get_init_creds</a></li>
+<li><a class="reference internal" href="#getting-anonymous-credentials">Getting anonymous credentials</a></li>
+<li><a class="reference internal" href="#user-interaction">User interaction</a><ul>
+<li><a class="reference internal" href="#prompter-callback">Prompter callback</a></li>
+<li><a class="reference internal" href="#responder-callback">Responder callback</a><ul>
+<li><a class="reference internal" href="#password-question">Password question</a></li>
+<li><a class="reference internal" href="#one-time-password-question">One-time password question</a></li>
+<li><a class="reference internal" href="#pkinit-password-or-pin-question">PKINIT password or PIN question</a></li>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#verifying-initial-credentials">Verifying initial credentials</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="refs/index.html">Complete reference - API and datatypes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="h5l_mit_apidiff.html" title="Differences between Heimdal and MIT Kerberos API"
+            >previous</a> |
+        <a href="princ_handle.html" title="Principal manipulation and parsing"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Initial credentials">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007 - 2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -8,13 +8,12 @@
 #include "adf_gen4_hw_data.h"
 #include "adf_fw_counters.h"
 #include "adf_cfg_device.h"
+#include "adf_dbgfs.h"
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <machine/bus_dma.h>
 #include <dev/pci/pcireg.h>
-#include "adf_heartbeat_dbg.h"
-#include "adf_cnvnr_freq_counters.h"
 
 static MALLOC_DEFINE(M_QAT_4XXX, "qat_4xxx", "qat_4xxx");
 
@@ -47,6 +46,74 @@ adf_probe(device_t dev)
 	return ENXIO;
 }
 
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+static int adf_4xxx_sysctl_disable_safe_dc_mode(SYSCTL_HANDLER_ARGS)
+{
+	struct adf_accel_dev *accel_dev = arg1;
+	int error, value = accel_dev->disable_safe_dc_mode;
+
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	if (value != 1 && value != 0)
+		return EINVAL;
+
+	if (adf_dev_started(accel_dev)) {
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "QAT: configuration can only be changed in \"down\" device state\n");
+		return EBUSY;
+	}
+
+	accel_dev->disable_safe_dc_mode = (u8)value;
+
+	return 0;
+}
+
+static void
+adf_4xxx_disable_safe_dc_sysctl_add(struct adf_accel_dev *accel_dev)
+{
+	struct sysctl_ctx_list *qat_sysctl_ctx;
+	struct sysctl_oid *qat_sysctl_tree;
+
+	qat_sysctl_ctx =
+	    device_get_sysctl_ctx(accel_dev->accel_pci_dev.pci_dev);
+	qat_sysctl_tree =
+	    device_get_sysctl_tree(accel_dev->accel_pci_dev.pci_dev);
+	accel_dev->safe_dc_mode =
+	    SYSCTL_ADD_OID(qat_sysctl_ctx,
+			   SYSCTL_CHILDREN(qat_sysctl_tree),
+			   OID_AUTO,
+			   "disable_safe_dc_mode",
+			   CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_TUN |
+			       CTLFLAG_SKIP,
+			   accel_dev,
+			   0,
+			   adf_4xxx_sysctl_disable_safe_dc_mode,
+			   "LU",
+			   "Disable QAT safe data compression mode");
+}
+
+static void
+adf_4xxx_disable_safe_dc_sysctl_remove(struct adf_accel_dev *accel_dev)
+{
+	int ret;
+	struct sysctl_ctx_list *qat_sysctl_ctx =
+	    device_get_sysctl_ctx(accel_dev->accel_pci_dev.pci_dev);
+
+	ret = sysctl_ctx_entry_del(qat_sysctl_ctx, accel_dev->safe_dc_mode);
+	if (ret) {
+		device_printf(GET_DEV(accel_dev), "Failed to delete entry\n");
+	} else {
+		ret = sysctl_remove_oid(accel_dev->safe_dc_mode, 1, 1);
+		if (ret)
+			device_printf(GET_DEV(accel_dev),
+				      "Failed to delete oid\n");
+	}
+}
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
+
 static void
 adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 {
@@ -76,6 +143,10 @@ adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		free(accel_dev->hw_device, M_QAT_4XXX);
 		accel_dev->hw_device = NULL;
 	}
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+	adf_4xxx_disable_safe_dc_sysctl_remove(accel_dev);
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
+	adf_dbgfs_exit(accel_dev);
 	adf_cfg_dev_remove(accel_dev);
 	adf_devmgr_rm_dev(accel_dev, NULL);
 }
@@ -87,7 +158,7 @@ adf_attach(device_t dev)
 	struct adf_accel_pci *accel_pci_dev;
 	struct adf_hw_device_data *hw_data;
 	unsigned int bar_nr;
-	int ret, rid;
+	int ret = 0, rid;
 	struct adf_cfg_device *cfg_dev = NULL;
 
 	/* Set pci MaxPayLoad to 512. Implemented to avoid the issue of
@@ -99,6 +170,7 @@ adf_attach(device_t dev)
 
 	accel_dev = device_get_softc(dev);
 
+	mutex_init(&accel_dev->lock);
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
 	accel_pci_dev = &accel_dev->accel_pci_dev;
 	accel_pci_dev->pci_dev = dev;
@@ -109,9 +181,10 @@ adf_attach(device_t dev)
 	/* Add accel device to accel table.
 	 * This should be called before adf_cleanup_accel is called
 	 */
-	if (adf_devmgr_add_dev(accel_dev, NULL)) {
+	ret = adf_devmgr_add_dev(accel_dev, NULL);
+	if (ret) {
 		device_printf(dev, "Failed to add new accelerator device.\n");
-		return ENXIO;
+		goto out_err_lock;
 	}
 
 	/* Allocate and configure device configuration structure */
@@ -121,11 +194,6 @@ adf_attach(device_t dev)
 	adf_init_hw_data_4xxx(accel_dev->hw_device, pci_get_device(dev));
 	accel_pci_dev->revid = pci_get_revid(dev);
 	hw_data->fuses = pci_read_config(dev, ADF_4XXX_FUSECTL4_OFFSET, 4);
-	if (accel_pci_dev->revid == 0x00) {
-		device_printf(dev, "A0 stepping is not supported.\n");
-		ret = ENODEV;
-		goto out_err;
-	}
 
 	/* Get PPAERUCM values and store */
 	ret = adf_aer_store_ppaerucm_reg(dev, hw_data);
@@ -152,6 +220,10 @@ adf_attach(device_t dev)
 	ret = adf_clock_debugfs_add(accel_dev);
 	if (ret)
 		goto out_err;
+
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+	adf_4xxx_disable_safe_dc_sysctl_add(accel_dev);
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
 
 	pci_set_max_read_req(dev, 4096);
 
@@ -203,16 +275,20 @@ adf_attach(device_t dev)
 		bar->base_addr = rman_get_start(bar->virt_addr);
 		bar->size = rman_get_size(bar->virt_addr);
 	}
-	pci_enable_busmaster(dev);
+	ret = pci_enable_busmaster(dev);
+	if (ret)
+		goto out_err;
+
+	adf_dbgfs_init(accel_dev);
 
 	if (!accel_dev->hw_device->config_device) {
 		ret = EFAULT;
-		goto out_err;
+		goto out_err_disable;
 	}
 
 	ret = accel_dev->hw_device->config_device(accel_dev);
 	if (ret)
-		goto out_err;
+		goto out_err_disable;
 
 	ret = adf_dev_init(accel_dev);
 	if (ret)
@@ -231,8 +307,13 @@ out_dev_stop:
 	adf_dev_stop(accel_dev);
 out_dev_shutdown:
 	adf_dev_shutdown(accel_dev);
+out_err_disable:
+	pci_disable_busmaster(dev);
 out_err:
 	adf_cleanup_accel(accel_dev);
+out_err_lock:
+	mutex_destroy(&accel_dev->lock);
+
 	return ret;
 }
 
@@ -248,7 +329,9 @@ adf_detach(device_t dev)
 
 	adf_dev_shutdown(accel_dev);
 
+	pci_disable_busmaster(dev);
 	adf_cleanup_accel(accel_dev);
+	mutex_destroy(&accel_dev->lock);
 
 	return 0;
 }

@@ -68,6 +68,8 @@
 #define	MAXMEMDOM	1
 #endif
 
+#define	__HAVE_STATIC_DEVMAP
+
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
 /*

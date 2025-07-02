@@ -1,0 +1,42 @@
+krb5_init_creds_free -  Free an initial credentials context. 
+=============================================================
+
+..
+
+.. c:function:: void krb5_init_creds_free(krb5_context context, krb5_init_creds_context ctx)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - Initial credentials context
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+ *context* must be the same as the one passed to krb5_init_creds_init() for this initial credentials context.
+
+
+
+
+
+
+..
+
+
+
+
+

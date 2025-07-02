@@ -49,7 +49,6 @@
 #include <net/if_llc.h>
 #include <net/if_dl.h>
 #include <net/if_var.h>
-#include <net/if_private.h>
 #include <net/ethernet.h>
 
 #include <net/bpf.h>
@@ -415,7 +414,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    ether_sprintf(ni->ni_bssid));
 				ieee80211_print_essid(vap->iv_bss->ni_essid,
 				    ni->ni_esslen);
-				printf(" channel %d start %uMbit/s\n",
+				net80211_printf(" channel %d start %uMbit/s\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan),
 				    ieee80211_node_get_txrate_kbit(ni) / 1000);
 			}
@@ -634,10 +633,10 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * XXX process data frames whilst scanning.
 		 */
 		if ((! IEEE80211_IS_MULTICAST(wh->i_addr1))
-		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, IF_LLADDR(ifp)))) {
+		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, vap->iv_myaddr))) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    bssid, NULL, "not to cur sta: lladdr=%6D, addr1=%6D",
-			    IF_LLADDR(ifp), ":", wh->i_addr1, ":");
+			    vap->iv_myaddr, ":", wh->i_addr1, ":");
 			vap->iv_stats.is_rx_wrongbss++;
 			goto out;
 		}
@@ -681,7 +680,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 	resubmit_ampdu:
 		if (dir == IEEE80211_FC1_DIR_FROMDS) {
-			if ((ifp->if_flags & IFF_SIMPLEX) &&
+			if (ieee80211_vap_ifp_check_is_simplex(vap) &&
 			    isfromds_mcastecho(vap, wh)) {
 				/*
 				 * In IEEE802.11 network, multicast
@@ -716,7 +715,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 				vap->iv_stats.is_rx_wrongdir++;
 				goto out;
 			}
-			if ((ifp->if_flags & IFF_SIMPLEX) &&
+			if (ieee80211_vap_ifp_check_is_simplex(vap) &&
 			    isdstods_mcastecho(vap, wh)) {
 				/*
 				 * In IEEE802.11 network, multicast
@@ -916,7 +915,8 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 #ifdef IEEE80211_DEBUG
 		if ((ieee80211_msg_debug(vap) && doprint(vap, subtype)) ||
 		    ieee80211_msg_dumppkts(vap)) {
-			if_printf(ifp, "received %s from %s rssi %d\n",
+			net80211_vap_printf(vap,
+			    "received %s from %s rssi %d\n",
 			    ieee80211_mgt_subtype_name(subtype),
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
@@ -1869,10 +1869,9 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				 * We aren't ready for 2GHz VHT support.
 				 */
 				if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
-					printf("%s: peer %6D: VHT on 2GHz, ignoring\n",
-					    __func__,
-					    ni->ni_macaddr,
-					    ":");
+					net80211_vap_printf(vap,
+					    "%s: peer %6D: VHT on 2GHz, ignoring\n",
+					    __func__, ni->ni_macaddr, ":");
 				} else {
 					ieee80211_vht_node_init(ni);
 					ieee80211_vht_updateparams(ni, vhtcap, vhtopmode);

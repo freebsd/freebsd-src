@@ -1,0 +1,73 @@
+mydir=lib$(S)krad
+BUILDTOP=$(REL)..$(S)..
+RELDIR=krad
+
+PROG_LIBPATH=-L$(TOPLIBD)
+PROG_RPATH=$(KRB5_LIBDIR)
+
+SHLIB_EXPLIBS=$(KRB5_BASE_LIBS) $(VERTO_LIBS)
+SHLIB_EXPDEPLIBS=$(KRB5_BASE_DEPLIBS) $(VERTO_DEPLIB)
+SHLIB_DIRS=-L$(TOPLIBD)
+SHLIB_RDIRS=$(KRB5_LIBDIR)
+
+LIBBASE=krad
+LIBMAJOR=0
+LIBMINOR=0
+
+STLIBOBJS=attr.o attrset.o client.o code.o packet.o remote.o
+LIBOBJS=$(OUTPRE)attr.$(OBJEXT) \
+	$(OUTPRE)attrset.$(OBJEXT) \
+	$(OUTPRE)client.$(OBJEXT) \
+	$(OUTPRE)code.$(OBJEXT) \
+	$(OUTPRE)packet.$(OBJEXT) \
+	$(OUTPRE)remote.$(OBJEXT)
+SRCS=attr.c attrset.c client.c code.c packet.c remote.c \
+	t_attr.c t_attrset.c t_client.c t_code.c t_packet.c t_remote.c t_test.c
+
+STOBJLISTS=OBJS.ST
+
+all-unix: all-liblinks
+install-unix: install-libs
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+check-unix: t_attr t_attrset t_code t_packet t_remote t_client
+	$(RUN_TEST) ./t_attr
+	$(RUN_TEST) ./t_attrset
+	$(RUN_TEST) ./t_code
+	$(RUN_TEST) ./t_packet $(PYTHON) $(srcdir)/t_daemon.py
+	$(RUN_TEST) ./t_remote $(PYTHON) $(srcdir)/t_daemon.py
+	$(RUN_TEST) ./t_client $(PYTHON) $(srcdir)/t_daemon.py
+
+TESTDEPS=t_test.o $(KRB5_BASE_DEPLIBS)
+TESTLIBS=t_test.o $(KRB5_BASE_LIBS)
+
+T_ATTR_OBJS=attr.o t_attr.o
+t_attr: $(T_ATTR_OBJS) $(TESTDEPS)
+	$(CC_LINK) -o $@ $(T_ATTR_OBJS) $(TESTLIBS)
+
+T_ATTRSET_OBJS=attr.o attrset.o t_attrset.o
+t_attrset: $(T_ATTRSET_OBJS) $(TESTDEPS)
+	$(CC_LINK) -o $@ $(T_ATTRSET_OBJS) $(TESTLIBS)
+
+T_CODE_OBJS=code.o t_code.o
+t_code: $(T_CODE_OBJS) $(TESTDEPS)
+	$(CC_LINK) -o $@ $(T_CODE_OBJS) $(TESTLIBS)
+
+T_PACKET_OBJS=attr.o attrset.o code.o packet.o t_packet.o
+t_packet: $(T_PACKET_OBJS) $(TESTDEPS)
+	$(CC_LINK) -o $@ $(T_PACKET_OBJS) $(TESTLIBS)
+
+T_REMOTE_OBJS=attr.o attrset.o code.o packet.o remote.o t_remote.o
+t_remote: $(T_REMOTE_OBJS) $(TESTDEPS) $(VERTO_DEPLIB)
+	$(CC_LINK) -o $@ $(T_REMOTE_OBJS) $(TESTLIBS) $(VERTO_LIBS)
+
+T_CLIENT_OBJS=attr.o attrset.o code.o packet.o remote.o client.o t_client.o
+t_client: $(T_CLIENT_OBJS) $(TESTDEPS) $(VERTO_DEPLIB)
+	$(CC_LINK) -o $@ $(T_CLIENT_OBJS) $(TESTLIBS) $(VERTO_LIBS)
+
+clean-unix:: clean-libobjs
+	$(RM) *.o t_attr t_attrset t_code t_packet t_remote t_client
+
+@lib_frag@
+@libobj_frag@

@@ -1,0 +1,45 @@
+krb5_kt_get_type -  Return the type of a key table. 
+====================================================
+
+..
+
+.. c:function:: const char * krb5_kt_get_type(krb5_context context, krb5_keytab keytab)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **keytab** - Key table handle
+
+
+..
+
+
+
+:return:
+         -  The type of a key table as an alias that must not be modified or freed by the caller. 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

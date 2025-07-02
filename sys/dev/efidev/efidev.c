@@ -52,12 +52,13 @@ efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 	switch (cmd) {
 	case EFIIOC_GET_TABLE:
 	{
-		struct efi_get_table_ioc *egtioc =
-		    (struct efi_get_table_ioc *)addr;
+		struct efi_get_table_ioctl *egtioc =
+		    (struct efi_get_table_ioctl *)addr;
 		void *buf = NULL;
 
-		error = efi_copy_table(&egtioc->uuid, egtioc->buf ? &buf : NULL,
-		    egtioc->buf_len, &egtioc->table_len);
+		error = efi_copy_table(&egtioc->guid,
+		    egtioc->buf != NULL ? &buf : NULL, egtioc->buf_len,
+		    &egtioc->table_len);
 
 		if (error != 0 || egtioc->buf == NULL)
 			break;
@@ -89,7 +90,7 @@ efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 	}
 	case EFIIOC_GET_WAKETIME:
 	{
-		struct efi_waketime_ioc *wt = (struct efi_waketime_ioc *)addr;
+		struct efi_waketime_ioctl *wt = (struct efi_waketime_ioctl *)addr;
 
 		error = efi_get_waketime(&wt->enabled, &wt->pending,
 		    &wt->waketime);
@@ -97,14 +98,14 @@ efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 	}
 	case EFIIOC_SET_WAKETIME:
 	{
-		struct efi_waketime_ioc *wt = (struct efi_waketime_ioc *)addr;
+		struct efi_waketime_ioctl *wt = (struct efi_waketime_ioctl *)addr;
 
 		error = efi_set_waketime(wt->enabled, &wt->waketime);
 		break;
 	}
 	case EFIIOC_VAR_GET:
 	{
-		struct efi_var_ioc *ev = (struct efi_var_ioc *)addr;
+		struct efi_var_ioctl *ev = (struct efi_var_ioctl *)addr;
 		void *data;
 		efi_char *name;
 
@@ -140,7 +141,7 @@ vg_out:
 	}
 	case EFIIOC_VAR_NEXT:
 	{
-		struct efi_var_ioc *ev = (struct efi_var_ioc *)addr;
+		struct efi_var_ioctl *ev = (struct efi_var_ioctl *)addr;
 		efi_char *name;
 
 		name = malloc(ev->namesize, M_TEMP, M_WAITOK);
@@ -162,7 +163,7 @@ vg_out:
 	}
 	case EFIIOC_VAR_SET:
 	{
-		struct efi_var_ioc *ev = (struct efi_var_ioc *)addr;
+		struct efi_var_ioctl *ev = (struct efi_var_ioctl *)addr;
 		void *data = NULL;
 		efi_char *name;
 

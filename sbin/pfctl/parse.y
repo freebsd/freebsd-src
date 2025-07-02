@@ -6091,7 +6091,7 @@ apply_rdr_ports(struct pfctl_rule *r, struct pfctl_pool *rpool, struct redirspec
 
 	rpool->proxy_port[0] = ntohs(rs->rport.a);
 
-	if (!rs->rport.b && rs->rport.t && r->dst.port != NULL) {
+	if (!rs->rport.b && rs->rport.t) {
 		rpool->proxy_port[1] = ntohs(rs->rport.a) +
 		    (ntohs(r->dst.port[1]) - ntohs(r->dst.port[0]));
 	} else
@@ -7178,9 +7178,10 @@ symset(const char *nam, const char *val, int persist)
 {
 	struct sym	*sym;
 
-	for (sym = TAILQ_FIRST(&symhead); sym && strcmp(nam, sym->nam);
-	    sym = TAILQ_NEXT(sym, entry))
-		;	/* nothing */
+	TAILQ_FOREACH(sym, &symhead, entry) {
+		if (strcmp(nam, sym->nam) == 0)
+			break;
+	}
 
 	if (sym != NULL) {
 		if (sym->persist == 1)
@@ -7237,11 +7238,12 @@ symget(const char *nam)
 {
 	struct sym	*sym;
 
-	TAILQ_FOREACH(sym, &symhead, entry)
+	TAILQ_FOREACH(sym, &symhead, entry) {
 		if (strcmp(nam, sym->nam) == 0) {
 			sym->used = 1;
 			return (sym->val);
 		}
+	}
 	return (NULL);
 }
 

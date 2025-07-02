@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-auth-context-struct:
+
+krb5_auth_context
+=================
+
+..
+.. c:type:: krb5_auth_context
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_auth_context\* krb5_auth_context
+
+

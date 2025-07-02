@@ -1,0 +1,21 @@
+.. highlight:: c
+
+.. _krb5-timestamp-struct:
+
+krb5_timestamp
+==============
+
+..
+.. c:type:: krb5_timestamp
+..
+
+Represents a timestamp in seconds since the POSIX epoch.
+
+This legacy type is used frequently in the ABI, but cannot represent timestamps after 2038 as a positive number. Code which uses this type should cast values of it to uint32_t so that negative values are treated as timestamps between 2038 and 2106 on platforms with 64-bit time_t.
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_timestamp
+
+

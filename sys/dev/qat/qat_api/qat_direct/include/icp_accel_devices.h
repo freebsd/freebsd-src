@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /*****************************************************************************
  * @file icp_accel_devices.h
  *
@@ -126,7 +126,7 @@ typedef struct accel_dev_s {
 	QatUtilsAtomic usageCounter;  /* Usage counter. Prevents
 				     shutting down the dev if not 0*/
 	Cpa32U deviceMemAvail; /* Device memory for intermediate buffers */
-	/* Component specific fields - cast to relevent layer */
+	/* Component specific fields - cast to relevant layer */
 	void *pRingInflight;       /* For offload optimization */
 	void *pSalHandle;	  /* For SAL*/
 	void *pQatStats;	   /* For QATAL/SAL stats */

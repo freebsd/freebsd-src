@@ -1,0 +1,621 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kdb5_util &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="kdb5_ldap_util" href="kdb5_ldap_util.html" />
+    <link rel="prev" title="kadmind" href="kadmind.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kadmind.html" title="kadmind"
+            accesskey="P">previous</a> |
+        <a href="kdb5_ldap_util.html" title="kdb5_ldap_util"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdb5_util">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kdb5-util">
+<span id="kdb5-util-8"></span><h1>kdb5_util<a class="headerlink" href="#kdb5-util" title="Permalink to this headline">¶</a></h1>
+<section id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p id="kdb5-util-synopsis"><strong>kdb5_util</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-d</strong> <em>dbname</em>]
+[<strong>-k</strong> <em>mkeytype</em>]
+[<strong>-kv</strong> <em>mkeyVNO</em>]
+[<strong>-M</strong> <em>mkeyname</em>]
+[<strong>-m</strong>]
+[<strong>-sf</strong> <em>stashfilename</em>]
+[<strong>-P</strong> <em>password</em>]
+[<strong>-x</strong> <em>db_args</em>]
+<em>command</em> [<em>command_options</em>]</p>
+</section>
+<section id="description">
+<span id="kdb5-util-synopsis-end"></span><h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>kdb5_util allows an administrator to perform maintenance procedures on
+the KDC database.  Databases can be created, destroyed, and dumped to
+or loaded from ASCII files.  kdb5_util can create a Kerberos master
+key stash file or perform live rollover of the master key.</p>
+<p>When kdb5_util is run, it attempts to acquire the master key and open
+the database.  However, execution continues regardless of whether or
+not kdb5_util successfully opens the database, because the database
+may not exist yet or the stash file may be corrupt.</p>
+<p>Note that some KDC database modules may not support all kdb5_util
+commands.</p>
+</section>
+<section id="command-line-options">
+<h2>COMMAND-LINE OPTIONS<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<dl class="simple" id="kdb5-util-options">
+<dt><strong>-r</strong> <em>realm</em></dt><dd><p>specifies the Kerberos realm of the database.</p>
+</dd>
+<dt><strong>-d</strong> <em>dbname</em></dt><dd><p>specifies the name under which the principal database is stored;
+by default the database is that listed in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.  The
+password policy database and lock files are also derived from this
+value.</p>
+</dd>
+<dt><strong>-k</strong> <em>mkeytype</em></dt><dd><p>specifies the key type of the master key in the database.  The
+default is given by the <strong>master_key_type</strong> variable in
+<a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</dd>
+<dt><strong>-kv</strong> <em>mkeyVNO</em></dt><dd><p>Specifies the version number of the master key in the database;
+the default is 1.  Note that 0 is not allowed.</p>
+</dd>
+<dt><strong>-M</strong> <em>mkeyname</em></dt><dd><p>principal name for the master key in the database.  If not
+specified, the name is determined by the <strong>master_key_name</strong>
+variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</dd>
+<dt><strong>-m</strong></dt><dd><p>specifies that the master database password should be read from
+the keyboard rather than fetched from a file on disk.</p>
+</dd>
+<dt><strong>-sf</strong> <em>stash_file</em></dt><dd><p>specifies the stash filename of the master database password.  If
+not specified, the filename is determined by the
+<strong>key_stash_file</strong> variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</dd>
+<dt><strong>-P</strong> <em>password</em></dt><dd><p>specifies the master database password.  Using this option may
+expose the password to other users on the system via the process
+list.</p>
+</dd>
+<dt><strong>-x</strong> <em>db_args</em></dt><dd><p>specifies database-specific options.  See <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> for
+supported options.</p>
+</dd>
+</dl>
+</section>
+<section id="commands">
+<span id="kdb5-util-options-end"></span><h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<section id="create">
+<h3>create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-util-create">
+<div><p><strong>create</strong> [<strong>-s</strong>]</p>
+</div></blockquote>
+<p>Creates a new database.  If the <strong>-s</strong> option is specified, the stash
+file is also created.  This command fails if the database already
+exists.  If the command is successful, the database is opened just as
+if it had already existed when the program was first run.</p>
+</section>
+<section id="destroy">
+<span id="kdb5-util-create-end"></span><h3>destroy<a class="headerlink" href="#destroy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-util-destroy">
+<div><p><strong>destroy</strong> [<strong>-f</strong>]</p>
+</div></blockquote>
+<p>Destroys the database, first overwriting the disk sectors and then
+unlinking the files, after prompting the user for confirmation.  With
+the <strong>-f</strong> argument, does not prompt the user.</p>
+</section>
+<section id="stash">
+<span id="kdb5-util-destroy-end"></span><h3>stash<a class="headerlink" href="#stash" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-util-stash">
+<div><p><strong>stash</strong> [<strong>-f</strong> <em>keyfile</em>]</p>
+</div></blockquote>
+<p>Stores the master principal’s keys in a stash file.  The <strong>-f</strong>
+argument can be used to override the <em>keyfile</em> specified in
+<a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</section>
+<section id="dump">
+<span id="kdb5-util-stash-end"></span><h3>dump<a class="headerlink" href="#dump" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-util-dump">
+<div><p><strong>dump</strong> [<strong>-b7</strong>|<strong>-r13</strong>|<strong>-r18</strong>]
+[<strong>-verbose</strong>] [<strong>-mkey_convert</strong>] [<strong>-new_mkey_file</strong>
+<em>mkey_file</em>] [<strong>-rev</strong>] [<strong>-recurse</strong>] [<em>filename</em>
+[<em>principals</em>…]]</p>
+</div></blockquote>
+<p>Dumps the current Kerberos and KADM5 database into an ASCII file.  By
+default, the database is dumped in current format, “kdb5_util
+load_dump version 7”.  If filename is not specified, or is the string
+“-”, the dump is sent to standard output.  Options:</p>
+<dl>
+<dt><strong>-b7</strong></dt><dd><p>causes the dump to be in the Kerberos 5 Beta 7 format (“kdb5_util
+load_dump version 4”).  This was the dump format produced on
+releases prior to 1.2.2.</p>
+</dd>
+<dt><strong>-r13</strong></dt><dd><p>causes the dump to be in the Kerberos 5 1.3 format (“kdb5_util
+load_dump version 5”).  This was the dump format produced on
+releases prior to 1.8.</p>
+</dd>
+<dt><strong>-r18</strong></dt><dd><p>causes the dump to be in the Kerberos 5 1.8 format (“kdb5_util
+load_dump version 6”).  This was the dump format produced on
+releases prior to 1.11.</p>
+</dd>
+<dt><strong>-verbose</strong></dt><dd><p>causes the name of each principal and policy to be printed as it
+is dumped.</p>
+</dd>
+<dt><strong>-mkey_convert</strong></dt><dd><p>prompts for a new master key.  This new master key will be used to
+re-encrypt principal key data in the dumpfile.  The principal keys
+themselves will not be changed.</p>
+</dd>
+<dt><strong>-new_mkey_file</strong> <em>mkey_file</em></dt><dd><p>the filename of a stash file.  The master key in this stash file
+will be used to re-encrypt the key data in the dumpfile.  The key
+data in the database will not be changed.</p>
+</dd>
+<dt><strong>-rev</strong></dt><dd><p>dumps in reverse order.  This may recover principals that do not
+dump normally, in cases where database corruption has occurred.</p>
+</dd>
+<dt><strong>-recurse</strong></dt><dd><p>causes the dump to walk the database recursively (btree only).
+This may recover principals that do not dump normally, in cases
+where database corruption has occurred.  In cases of such
+corruption, this option will probably retrieve more principals
+than the <strong>-rev</strong> option will.</p>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 1.15: </span>Release 1.15 restored the functionality of the <strong>-recurse</strong>
+option.</p>
+</div>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 1.5: </span>The <strong>-recurse</strong> option ceased working until release 1.15,
+doing a normal dump instead of a recursive traversal.</p>
+</div>
+</dd>
+</dl>
+</section>
+<section id="load">
+<span id="kdb5-util-dump-end"></span><h3>load<a class="headerlink" href="#load" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-util-load">
+<div><p><strong>load</strong> [<strong>-b7</strong>|<strong>-r13</strong>|<strong>-r18</strong>] [<strong>-hash</strong>]
+[<strong>-verbose</strong>] [<strong>-update</strong>] <em>filename</em></p>
+</div></blockquote>
+<p>Loads a database dump from the named file into the named database.  If
+no option is given to determine the format of the dump file, the
+format is detected automatically and handled as appropriate.  Unless
+the <strong>-update</strong> option is given, <strong>load</strong> creates a new database
+containing only the data in the dump file, overwriting the contents of
+any previously existing database.  Note that when using the LDAP KDC
+database module, the <strong>-update</strong> flag is required.</p>
+<p>Options:</p>
+<dl class="simple">
+<dt><strong>-b7</strong></dt><dd><p>requires the database to be in the Kerberos 5 Beta 7 format
+(“kdb5_util load_dump version 4”).  This was the dump format
+produced on releases prior to 1.2.2.</p>
+</dd>
+<dt><strong>-r13</strong></dt><dd><p>requires the database to be in Kerberos 5 1.3 format (“kdb5_util
+load_dump version 5”).  This was the dump format produced on
+releases prior to 1.8.</p>
+</dd>
+<dt><strong>-r18</strong></dt><dd><p>requires the database to be in Kerberos 5 1.8 format (“kdb5_util
+load_dump version 6”).  This was the dump format produced on
+releases prior to 1.11.</p>
+</dd>
+<dt><strong>-hash</strong></dt><dd><p>stores the database in hash format, if using the DB2 database
+type.  If this option is not specified, the database will be
+stored in btree format.  This option is not recommended, as
+databases stored in hash format are known to corrupt data and lose
+principals.</p>
+</dd>
+<dt><strong>-verbose</strong></dt><dd><p>causes the name of each principal and policy to be printed as it
+is dumped.</p>
+</dd>
+<dt><strong>-update</strong></dt><dd><p>records from the dump file are added to or updated in the existing
+database.  Otherwise, a new database is created containing only
+what is in the dump file and the old one destroyed upon successful
+completion.</p>
+</dd>
+</dl>
+</section>
+<section id="ark">
+<span id="kdb5-util-load-end"></span><h3>ark<a class="headerlink" href="#ark" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>ark</strong> [<strong>-e</strong> <em>enc</em>:<em>salt</em>,…] <em>principal</em></p>
+</div></blockquote>
+<p>Adds new random keys to <em>principal</em> at the next available key version
+number.  Keys for the current highest key version number will be
+preserved.  The <strong>-e</strong> option specifies the list of encryption and
+salt types to be used for the new keys.</p>
+</section>
+<section id="add-mkey">
+<h3>add_mkey<a class="headerlink" href="#add-mkey" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>add_mkey</strong> [<strong>-e</strong> <em>etype</em>] [<strong>-s</strong>]</p>
+</div></blockquote>
+<p>Adds a new master key to the master key principal, but does not mark
+it as active.  Existing master keys will remain.  The <strong>-e</strong> option
+specifies the encryption type of the new master key; see
+<a class="reference internal" href="../conf_files/kdc_conf.html#encryption-types"><span class="std std-ref">Encryption types</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> for a list of possible
+values.  The <strong>-s</strong> option stashes the new master key in the stash
+file, which will be created if it doesn’t already exist.</p>
+<p>After a new master key is added, it should be propagated to replica
+servers via a manual or periodic invocation of <a class="reference internal" href="kprop.html#kprop-8"><span class="std std-ref">kprop</span></a>.  Then,
+the stash files on the replica servers should be updated with the
+kdb5_util <strong>stash</strong> command.  Once those steps are complete, the key
+is ready to be marked active with the kdb5_util <strong>use_mkey</strong> command.</p>
+</section>
+<section id="use-mkey">
+<h3>use_mkey<a class="headerlink" href="#use-mkey" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>use_mkey</strong> <em>mkeyVNO</em> [<em>time</em>]</p>
+</div></blockquote>
+<p>Sets the activation time of the master key specified by <em>mkeyVNO</em>.
+Once a master key becomes active, it will be used to encrypt newly
+created principal keys.  If no <em>time</em> argument is given, the current
+time is used, causing the specified master key version to become
+active immediately.  The format for <em>time</em> is <a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string.</p>
+<p>After a new master key becomes active, the kdb5_util
+<strong>update_princ_encryption</strong> command can be used to update all
+principal keys to be encrypted in the new master key.</p>
+</section>
+<section id="list-mkeys">
+<h3>list_mkeys<a class="headerlink" href="#list-mkeys" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>list_mkeys</strong></p>
+</div></blockquote>
+<p>List all master keys, from most recent to earliest, in the master key
+principal.  The output will show the kvno, enctype, and salt type for
+each mkey, similar to the output of <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> <strong>getprinc</strong>.  A
+<code class="docutils literal notranslate"><span class="pre">*</span></code> following an mkey denotes the currently active master key.</p>
+</section>
+<section id="purge-mkeys">
+<h3>purge_mkeys<a class="headerlink" href="#purge-mkeys" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>purge_mkeys</strong> [<strong>-f</strong>] [<strong>-n</strong>] [<strong>-v</strong>]</p>
+</div></blockquote>
+<p>Delete master keys from the master key principal that are not used to
+protect any principals.  This command can be used to remove old master
+keys all principal keys are protected by a newer master key.</p>
+<dl class="simple">
+<dt><strong>-f</strong></dt><dd><p>does not prompt for confirmation.</p>
+</dd>
+<dt><strong>-n</strong></dt><dd><p>performs a dry run, showing master keys that would be purged, but
+not actually purging any keys.</p>
+</dd>
+<dt><strong>-v</strong></dt><dd><p>gives more verbose output.</p>
+</dd>
+</dl>
+</section>
+<section id="update-princ-encryption">
+<h3>update_princ_encryption<a class="headerlink" href="#update-princ-encryption" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>update_princ_encryption</strong> [<strong>-f</strong>] [<strong>-n</strong>] [<strong>-v</strong>]
+[<em>princ-pattern</em>]</p>
+</div></blockquote>
+<p>Update all principal records (or only those matching the
+<em>princ-pattern</em> glob pattern) to re-encrypt the key data using the
+active database master key, if they are encrypted using a different
+version, and give a count at the end of the number of principals
+updated.  If the <strong>-f</strong> option is not given, ask for confirmation
+before starting to make changes.  The <strong>-v</strong> option causes each
+principal processed to be listed, with an indication as to whether it
+needed updating or not.  The <strong>-n</strong> option performs a dry run, only
+showing the actions which would have been taken.</p>
+</section>
+<section id="tabdump">
+<h3>tabdump<a class="headerlink" href="#tabdump" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>tabdump</strong> [<strong>-H</strong>] [<strong>-c</strong>] [<strong>-e</strong>] [<strong>-n</strong>] [<strong>-o</strong> <em>outfile</em>]
+<em>dumptype</em></p>
+</div></blockquote>
+<p>Dump selected fields of the database in a tabular format suitable for
+reporting (e.g., using traditional Unix text processing tools) or
+importing into relational databases.  The data format is tab-separated
+(default), or optionally comma-separated (CSV), with a fixed number of
+columns.  The output begins with a header line containing field names,
+unless suppression is requested using the <strong>-H</strong> option.</p>
+<p>The <em>dumptype</em> parameter specifies the name of an output table (see
+below).</p>
+<p>Options:</p>
+<dl class="simple">
+<dt><strong>-H</strong></dt><dd><p>suppress writing the field names in a header line</p>
+</dd>
+<dt><strong>-c</strong></dt><dd><p>use comma separated values (CSV) format, with minimal quoting,
+instead of the default tab-separated (unquoted, unescaped) format</p>
+</dd>
+<dt><strong>-e</strong></dt><dd><p>write empty hexadecimal string fields as empty fields instead of
+as “-1”.</p>
+</dd>
+<dt><strong>-n</strong></dt><dd><p>produce numeric output for fields that normally have symbolic
+output, such as enctypes and flag names.  Also requests output of
+time stamps as decimal POSIX time_t values.</p>
+</dd>
+<dt><strong>-o</strong> <em>outfile</em></dt><dd><p>write the dump to the specified output file instead of to standard
+output</p>
+</dd>
+</dl>
+<p>Dump types:</p>
+<dl>
+<dt><strong>keydata</strong></dt><dd><p>principal encryption key information, including actual key data
+(which is still encrypted in the master key)</p>
+<dl class="simple">
+<dt><strong>name</strong></dt><dd><p>principal name</p>
+</dd>
+<dt><strong>keyindex</strong></dt><dd><p>index of this key in the principal’s key list</p>
+</dd>
+<dt><strong>kvno</strong></dt><dd><p>key version number</p>
+</dd>
+<dt><strong>enctype</strong></dt><dd><p>encryption type</p>
+</dd>
+<dt><strong>key</strong></dt><dd><p>key data as a hexadecimal string</p>
+</dd>
+<dt><strong>salttype</strong></dt><dd><p>salt type</p>
+</dd>
+<dt><strong>salt</strong></dt><dd><p>salt data as a hexadecimal string</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>keyinfo</strong></dt><dd><p>principal encryption key information (as in <strong>keydata</strong> above),
+excluding actual key data</p>
+</dd>
+<dt><strong>princ_flags</strong></dt><dd><p>principal boolean attributes.  Flag names print as hexadecimal
+numbers if the <strong>-n</strong> option is specified, and all flag positions
+are printed regardless of whether or not they are set.  If <strong>-n</strong>
+is not specified, print all known flag names for each principal,
+but only print hexadecimal flag names if the corresponding flag is
+set.</p>
+<dl class="simple">
+<dt><strong>name</strong></dt><dd><p>principal name</p>
+</dd>
+<dt><strong>flag</strong></dt><dd><p>flag name</p>
+</dd>
+<dt><strong>value</strong></dt><dd><p>boolean value (0 for clear, or 1 for set)</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>princ_lockout</strong></dt><dd><p>state information used for tracking repeated password failures</p>
+<dl class="simple">
+<dt><strong>name</strong></dt><dd><p>principal name</p>
+</dd>
+<dt><strong>last_success</strong></dt><dd><p>time stamp of most recent successful authentication</p>
+</dd>
+<dt><strong>last_failed</strong></dt><dd><p>time stamp of most recent failed authentication</p>
+</dd>
+<dt><strong>fail_count</strong></dt><dd><p>count of failed attempts</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>princ_meta</strong></dt><dd><p>principal metadata</p>
+<dl class="simple">
+<dt><strong>name</strong></dt><dd><p>principal name</p>
+</dd>
+<dt><strong>modby</strong></dt><dd><p>name of last principal to modify this principal</p>
+</dd>
+<dt><strong>modtime</strong></dt><dd><p>timestamp of last modification</p>
+</dd>
+<dt><strong>lastpwd</strong></dt><dd><p>timestamp of last password change</p>
+</dd>
+<dt><strong>policy</strong></dt><dd><p>policy object name</p>
+</dd>
+<dt><strong>mkvno</strong></dt><dd><p>key version number of the master key that encrypts this
+principal’s key data</p>
+</dd>
+<dt><strong>hist_kvno</strong></dt><dd><p>key version number of the history key that encrypts the key
+history data for this principal</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>princ_stringattrs</strong></dt><dd><p>string attributes (key/value pairs)</p>
+<dl class="simple">
+<dt><strong>name</strong></dt><dd><p>principal name</p>
+</dd>
+<dt><strong>key</strong></dt><dd><p>attribute name</p>
+</dd>
+<dt><strong>value</strong></dt><dd><p>attribute value</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>princ_tktpolicy</strong></dt><dd><p>per-principal ticket policy data, including maximum ticket
+lifetimes</p>
+<dl class="simple">
+<dt><strong>name</strong></dt><dd><p>principal name</p>
+</dd>
+<dt><strong>expiration</strong></dt><dd><p>principal expiration date</p>
+</dd>
+<dt><strong>pw_expiration</strong></dt><dd><p>password expiration date</p>
+</dd>
+<dt><strong>max_life</strong></dt><dd><p>maximum ticket lifetime</p>
+</dd>
+<dt><strong>max_renew_life</strong></dt><dd><p>maximum renewable ticket lifetime</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ kdb5_util tabdump -o keyinfo.txt keyinfo
+$ cat keyinfo.txt
+name        keyindex        kvno    enctype salttype        salt
+K/M@EXAMPLE.COM     0       1       aes256-cts-hmac-sha384-192      normal  -1
+foo@EXAMPLE.COM     0       1       aes128-cts-hmac-sha1-96 normal  -1
+bar@EXAMPLE.COM     0       1       aes128-cts-hmac-sha1-96 normal  -1
+$ sqlite3
+sqlite&gt; .mode tabs
+sqlite&gt; .import keyinfo.txt keyinfo
+sqlite&gt; select * from keyinfo where enctype like &#39;aes256-%&#39;;
+K/M@EXAMPLE.COM     1       1       aes256-cts-hmac-sha384-192      normal  -1
+sqlite&gt; .quit
+$ awk -F&#39;\t&#39; &#39;$4 ~ /aes256-/ { print }&#39; keyinfo.txt
+K/M@EXAMPLE.COM     1       1       aes256-cts-hmac-sha384-192      normal  -1
+</pre></div>
+</div>
+</section>
+</section>
+<section id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kdb5_util</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#command-line-options">COMMAND-LINE OPTIONS</a></li>
+<li><a class="reference internal" href="#commands">COMMANDS</a><ul>
+<li><a class="reference internal" href="#create">create</a></li>
+<li><a class="reference internal" href="#destroy">destroy</a></li>
+<li><a class="reference internal" href="#stash">stash</a></li>
+<li><a class="reference internal" href="#dump">dump</a></li>
+<li><a class="reference internal" href="#load">load</a></li>
+<li><a class="reference internal" href="#ark">ark</a></li>
+<li><a class="reference internal" href="#add-mkey">add_mkey</a></li>
+<li><a class="reference internal" href="#use-mkey">use_mkey</a></li>
+<li><a class="reference internal" href="#list-mkeys">list_mkeys</a></li>
+<li><a class="reference internal" href="#purge-mkeys">purge_mkeys</a></li>
+<li><a class="reference internal" href="#update-princ-encryption">update_princ_encryption</a></li>
+<li><a class="reference internal" href="#tabdump">tabdump</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Administration  programs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kadmin_local.html">kadmin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadmind.html">kadmind</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kdb5_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sserver.html">sserver</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kadmind.html" title="kadmind"
+            >previous</a> |
+        <a href="kdb5_ldap_util.html" title="kdb5_ldap_util"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdb5_util">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

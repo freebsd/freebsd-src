@@ -521,11 +521,11 @@ get_usage(zpool_help_t idx)
 		return (gettext("\ttrim [-dw] [-r <rate>] [-c | -s] <pool> "
 		    "[<device> ...]\n"));
 	case HELP_STATUS:
-		return (gettext("\tstatus [--power] [-j [--json-int, "
-		    "--json-flat-vdevs, ...\n"
-		    "\t    --json-pool-key-guid]] [-c [script1,script2,...]] "
-		    "[-dDegiLpPstvx] ...\n"
-		    "\t    [-T d|u] [pool] [interval [count]]\n"));
+		return (gettext("\tstatus [-DdegiLPpstvx] "
+		    "[-c script1[,script2,...]] ...\n"
+		    "\t    [-j|--json [--json-flat-vdevs] [--json-int] "
+		    "[--json-pool-key-guid]] ...\n"
+		    "\t    [-T d|u] [--power] [pool] [interval [count]]\n"));
 	case HELP_UPGRADE:
 		return (gettext("\tupgrade\n"
 		    "\tupgrade -v\n"
@@ -10432,10 +10432,9 @@ print_status_reason(zpool_handle_t *zhp, status_cbdata_t *cbp,
 		break;
 
 	case ZPOOL_STATUS_REMOVED_DEV:
-		snprintf(status, ST_SIZE, gettext("One or more devices has "
-		    "been removed by the administrator.\n\tSufficient "
-		    "replicas exist for the pool to continue functioning in "
-		    "a\n\tdegraded state.\n"));
+		snprintf(status, ST_SIZE, gettext("One or more devices have "
+		    "been removed.\n\tSufficient replicas exist for the pool "
+		    "to continue functioning in a\n\tdegraded state.\n"));
 		snprintf(action, AC_SIZE, gettext("Online the device "
 		    "using zpool online' or replace the device with\n\t'zpool "
 		    "replace'.\n"));
@@ -10980,28 +10979,30 @@ status_callback(zpool_handle_t *zhp, void *data)
 }
 
 /*
- * zpool status [-c [script1,script2,...]] [-dDegiLpPstvx] [--power] ...
- *              [-T d|u] [pool] [interval [count]]
+ * zpool status [-dDegiLpPstvx] [-c [script1,script2,...]] ...
+ * 				[-j|--json [--json-flat-vdevs] [--json-int] ...
+ * 				[--json-pool-key-guid]] [--power] [-T d|u] ...
+ * 				[pool] [interval [count]]
  *
  *	-c CMD	For each vdev, run command CMD
- *	-d	Display Direct I/O write verify errors
  *	-D	Display dedup status (undocumented)
+ *	-d	Display Direct I/O write verify errors
  *	-e	Display only unhealthy vdevs
  *	-g	Display guid for individual vdev name.
  *	-i	Display vdev initialization status.
+ *	-j [...]	Display output in JSON format
+ *	   --json-flat-vdevs Display vdevs in flat hierarchy
+ *	   --json-int Display numbers in integer format instead of string
+ *	   --json-pool-key-guid Use pool GUID as key for pool objects
  *	-L	Follow links when resolving vdev path name.
- *	-p	Display values in parsable (exact) format.
  *	-P	Display full path for vdev name.
+ *	-p	Display values in parsable (exact) format.
+ *	--power	Display vdev enclosure slot power status
  *	-s	Display slow IOs column.
- *	-t	Display vdev TRIM status.
  *	-T	Display a timestamp in date(1) or Unix format
+ *	-t	Display vdev TRIM status.
  *	-v	Display complete error logs
  *	-x	Display only pools with potential problems
- *	-j	Display output in JSON format
- *	--power	Display vdev enclosure slot power status
- *	--json-int Display numbers in inteeger format instead of string
- *	--json-flat-vdevs Display vdevs in flat hierarchy
- *	--json-pool-key-guid Use pool GUID as key for pool objects
  *
  * Describes the health status of all pools or some subset.
  */
@@ -12069,6 +12070,11 @@ zpool_do_events_nvprint(nvlist_t *nvl, int depth)
 				    sizeof (flagstr));
 				printf(gettext("0x%x [%s]"), i32, flagstr);
 			} else if (strcmp(name,
+			    FM_EREPORT_PAYLOAD_ZFS_ZIO_TYPE) == 0) {
+				zfs_valstr_zio_type(i32, flagstr,
+				    sizeof (flagstr));
+				printf(gettext("0x%x [%s]"), i32, flagstr);
+			} else if (strcmp(name,
 			    FM_EREPORT_PAYLOAD_ZFS_ZIO_PRIORITY) == 0) {
 				zfs_valstr_zio_priority(i32, flagstr,
 				    sizeof (flagstr));
@@ -12747,11 +12753,13 @@ found:
 
 			if (strcmp(argv[1], "root") == 0)
 				vdev = strdup("root-0");
-			else
-				vdev = strdup(argv[1]);
 
 			/* ... and the rest are vdev names */
-			cb.cb_vdevs.cb_names = &vdev;
+			if (vdev == NULL)
+				cb.cb_vdevs.cb_names = argv + 1;
+			else
+				cb.cb_vdevs.cb_names = &vdev;
+
 			cb.cb_vdevs.cb_names_count = argc - 1;
 			cb.cb_type = ZFS_TYPE_VDEV;
 			argc = 1; /* One pool to process */

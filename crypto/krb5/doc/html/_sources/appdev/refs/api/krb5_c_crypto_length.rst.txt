@@ -1,0 +1,49 @@
+krb5_c_crypto_length -  Return a length of a message field specific to the encryption type. 
+============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_crypto_length(krb5_context context, krb5_enctype enctype, krb5_cryptotype type, unsigned int * size)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enctype** - Encryption type
+
+	          **[in]** **type** - Type field (See KRB5_CRYPTO_TYPE macros)
+
+	          **[out]** **size** - Length of the *type* specific to *enctype*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

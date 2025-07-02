@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 10, 2025
+.Dd May 9, 2025
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -254,13 +254,14 @@ option may be specified, which will kill all the source tracking
 entries from the first host/network to the second.
 .It Xo
 .Fl k
-.Ar host | network | label | id | gateway | nat
+.Ar host | network | label | id | key | gateway | nat
 .Xc
 Kill all of the state entries matching the specified
 .Ar host ,
 .Ar network ,
 .Ar label ,
 .Ar id ,
+.Ar key ,
 .Ar gateway,
 or
 .Ar nat.
@@ -293,7 +294,7 @@ To kill all states with the target
 .Pp
 .Dl # pfctl -k 0.0.0.0/0 -k host2
 .Pp
-It is also possible to kill states by rule label or state ID.
+It is also possible to kill states by rule label, state key or state ID.
 In this mode the first
 .Fl k
 argument is used to specify the type
@@ -303,6 +304,17 @@ from rules carrying the label
 .Dq foobar :
 .Pp
 .Dl # pfctl -k label -k foobar
+.Pp
+To kill one specific state by its key
+(protocol, host1, port1, direction, host2 and port2 in the same format
+of pfctl -s state),
+use the
+.Ar key
+modifier and as a second argument the state key.
+To kill a state whose protocol is TCP and originating from
+10.0.0.101:32123 to 10.0.0.1:80 use:
+.Pp
+.Dl # pfctl -k key -k 'tcp 10.0.0.1:80 <- 10.0.0.101:32123'
 .Pp
 To kill one specific state by its unique state ID
 (as shown by pfctl -s state -vv),

@@ -1,0 +1,30 @@
+# Test PKINIT auth without saving a ticket cache w/debug.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = debug no_ccache use_pkinit pkinit_user=FILE:%0
+    account = debug no_ccache
+    session = debug no_ccache
+
+[run]
+    authenticate  = PAM_SUCCESS
+    acct_mgmt     = PAM_SUCCESS
+    open_session  = PAM_SUCCESS
+    close_session = PAM_SUCCESS
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    INFO user %u authenticated as %u
+    DEBUG pam_sm_authenticate: exit (success)
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG pam_sm_acct_mgmt: exit (success)
+    DEBUG pam_sm_open_session: entry
+    DEBUG pam_sm_open_session: exit (success)
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

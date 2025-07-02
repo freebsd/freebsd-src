@@ -1,0 +1,60 @@
+.. highlight:: c
+
+.. _krb5-kdc-rep-struct:
+
+krb5_kdc_rep
+============
+
+..
+.. c:type:: krb5_kdc_rep
+..
+
+Representation of the *KDC-REP* protocol message.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_kdc_rep krb5_kdc_rep
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_kdc_rep.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_msgtype	krb5_kdc_rep.msg_type
+
+                                             KRB5_AS_REP or KRB5_KDC_REP.
+                                             
+
+.. c:member:: krb5_pa_data  **	krb5_kdc_rep.padata
+
+                                             Preauthentication data from KDC.
+                                             
+
+.. c:member:: krb5_principal	krb5_kdc_rep.client
+
+                                             Client principal and realm.
+                                             
+
+.. c:member:: krb5_ticket  *	krb5_kdc_rep.ticket
+
+                                             Ticket.
+                                             
+
+.. c:member:: krb5_enc_data	krb5_kdc_rep.enc_part
+
+                                             Encrypted part of reply.
+                                             
+
+.. c:member:: krb5_enc_kdc_rep_part  *	krb5_kdc_rep.enc_part2
+
+                                             Unencrypted version, if available.
+                                             
+

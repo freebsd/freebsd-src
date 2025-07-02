@@ -162,7 +162,7 @@ if [ -n "$RCORDER" ]; then
 	exit 0
 fi
 
-if [ $# -gt 1 ]; then
+if [ $# -gt 0 ]; then
 	script=$1
 	shift
 else
@@ -174,7 +174,7 @@ cd /
 for dir in /etc/rc.d $local_startup; do
 	if [ -x "$dir/$script" ]; then
 		[ -n "$VERBOSE" ] && echo "$script is located in $dir"
-		exec env -i -L -/daemon HOME=/ PATH=/sbin:/bin:/usr/sbin:/usr/bin ${VARS} "$dir/$script" "$@"
+		exec /usr/bin/env -i -L -/daemon HOME=/ PATH=/sbin:/bin:/usr/sbin:/usr/bin ${VARS} "$dir/$script" "$@"
 	fi
 done
 

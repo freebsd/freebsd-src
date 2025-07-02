@@ -8,7 +8,6 @@ EDITDIR=	${SRCTOP}/contrib/libedit
 SHLIB_MAJOR=	8
 SHLIBDIR?= /lib
 
-WARNS?=	3
 LIB=	edit
 
 LIBADD=	tinfow

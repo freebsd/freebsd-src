@@ -144,7 +144,7 @@ main () {
 		echo "Validating"
 		VALIDRESULT=$(/usr/local/bin/curl -s "${ATLAS_UPLOAD_URL}/api/v1/box/${USERNAME}/${BOX}/version/${VERSION}/provider/${PROVIDER}?access_token=${KEY}")
 		HOSTED_TOKEN=$(echo $VALIDRESULT | sed -e 's/.*"hosted"://' -e 's/,.*$//')
-		if [ ! -z ${TOKEN} -a "${HOSTED_TOKEN}" != "true" ]; then
+		if [ -n ${TOKEN} -a "${HOSTED_TOKEN}" != "true" ]; then
 			echo "Upload failed, try again."
 			exit 2
 		fi

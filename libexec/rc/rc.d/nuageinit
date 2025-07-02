@@ -75,13 +75,13 @@ nuageinit_start()
 		for d in openstack ec2; do
 			dir=/media/nuageinit/$d/latest
 			if [ -d $dir ]; then
-				/usr/libexec/nuageinit $dir $citype
+				/usr/libexec/nuageinit $dir $citype 2>&1 | tee -a /var/log/nuageinit.log
 				break
 			fi
 		done
 		;;
 	nocloud)
-		/usr/libexec/nuageinit /media/nuageinit $citype
+		/usr/libexec/nuageinit /media/nuageinit $citype 2>&1 | tee -a /var/log/nuageinit.log
 		;;
 	esac
 	if [ -n "$drive" ]; then

@@ -1,13 +1,21 @@
 #
-# To disable this repository, instead of modifying or removing this file,
-# create a /usr/local/etc/pkg/repos/FreeBSD.conf file:
+# To disable a repository, instead of modifying or removing this file,
+# create a /usr/local/etc/pkg/repos/FreeBSD.conf file, e.g.:
 #
 #   mkdir -p /usr/local/etc/pkg/repos
 #   echo "FreeBSD: { enabled: no }" > /usr/local/etc/pkg/repos/FreeBSD.conf
+#   echo "FreeBSD-kmods: { enabled: no }" >> /usr/local/etc/pkg/repos/FreeBSD.conf
 #
 
 FreeBSD: {
   url: "pkg+https://pkg.FreeBSD.org/${ABI}/quarterly",
+  mirror_type: "srv",
+  signature_type: "fingerprints",
+  fingerprints: "/usr/share/keys/pkg",
+  enabled: yes
+}
+FreeBSD-kmods: {
+  url: "pkg+https://pkg.FreeBSD.org/${ABI}/kmods_quarterly",
   mirror_type: "srv",
   signature_type: "fingerprints",
   fingerprints: "/usr/share/keys/pkg",

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -34,7 +34,9 @@ static constant struct lesskey_cmdname cmdnames[] =
 	{ "back-bracket",         A_B_BRACKET },
 	{ "back-line",            A_B_LINE },
 	{ "back-line-force",      A_BF_LINE },
+	{ "back-newline",         A_B_NEWLINE },
 	{ "back-screen",          A_B_SCREEN },
+	{ "back-screen-force",    A_BF_SCREEN },
 	{ "back-scroll",          A_B_SCROLL },
 	{ "back-search",          A_B_SEARCH },
 	{ "back-window",          A_B_WINDOW },
@@ -55,6 +57,7 @@ static constant struct lesskey_cmdname cmdnames[] =
 	{ "forw-forever",         A_F_FOREVER },
 	{ "forw-line",            A_F_LINE },
 	{ "forw-line-force",      A_FF_LINE },
+	{ "forw-newline",         A_F_NEWLINE },
 	{ "forw-screen",          A_F_SCREEN },
 	{ "forw-screen-force",    A_FF_SCREEN },
 	{ "forw-scroll",          A_F_SCROLL },
@@ -69,6 +72,8 @@ static constant struct lesskey_cmdname cmdnames[] =
 	{ "index-file",           A_INDEX_FILE },
 	{ "invalid",              A_UINVALID },
 	{ "left-scroll",          A_LSHIFT },
+	{ "mouse",                A_X11MOUSE_IN },
+	{ "mouse6",               A_X116MOUSE_IN },
 	{ "next-file",            A_NEXT_FILE },
 	{ "next-tag",             A_NEXT_TAG },
 	{ "no-scroll",            A_LLSHIFT },
@@ -118,6 +123,8 @@ static constant struct lesskey_cmdname editnames[] =
 	{ "abort",              EC_ABORT },
 	{ "left",               EC_LEFT },
 	{ "literal",            EC_LITERAL },
+	{ "mouse",              EC_X11MOUSE },
+	{ "mouse6",             EC_X116MOUSE },
 	{ "right",              EC_RIGHT },
 	{ "up",                 EC_UP },
 	{ "word-backspace",     EC_W_BACKSPACE },

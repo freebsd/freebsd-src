@@ -250,3 +250,59 @@ BOOT_MACHINE_DIR:= ${BOOT_MACHINE_DIR.${DEP_MACHINE}}
 KERNEL_NAME:= ${KERNEL_NAME.${DEP_MACHINE}}
 
 .-include <site.dirdeps.mk>
+
+.if ${MK_RUN_TESTS} == "yes"
+# some the tests below will not run correctly on the host
+# as they require support files not present in .CURDIR
+BROKEN_HOST_TESTS += \
+	${BROKEN_HOST_DEP_TESTS} \
+	bin/cp/tests \
+	lib/atf/libatf-c++/tests \
+	lib/atf/libatf-c/tests \
+	lib/libarchive/tests \
+	lib/libnv/tests \
+	libexec/rtld-elf/tests \
+	sbin/devd/tests \
+	usr.bin/comm/tests \
+	usr.bin/du/tests \
+	usr.bin/procstat/tests \
+	usr.bin/sed/tests \
+	usr.bin/tar/tests \
+	usr.bin/tr/tests \
+	usr.bin/xargs/tests \
+	usr.bin/yacc/tests \
+	usr.sbin/makefs/tests \
+	usr.sbin/rpcbind/tests \
+
+# these all have broken dependencies which we choose not to fix for host
+BROKEN_HOST_DEP_TESTS += \
+	lib/msun/tests \
+	usr.bin/cut/tests \
+	usr.bin/diff/tests \
+	usr.bin/grep/tests \
+	usr.bin/gzip/tests \
+	usr.bin/printf/tests \
+
+
+TESTS_DIR_LIST += tests
+# most of the tree only has Makefile.depend
+# by default we only want to run host tests for Makefile.depend.host
+TESTS_DEPENDFILE_PREFERENCE ?= Makefile.depend.host
+EXCLUDE_TESTS_FILTER += . \
+	lib/libcasper/services/cap_* \
+
+.for t in ${TESTS_DIR_LIST:O:u}
+.if !target(${DEP_RELDIR}/$t.test)
+.if ${BROKEN_HOST_TESTS:U:M${DEP_RELDIR}/$t} == "" && \
+	${RUN_TESTS_FILTER:U*:@m@${DEP_RELDIR:M$m}@} != "" && \
+	${DEP_RELDIR:${EXCLUDE_TESTS_FILTER:Uno:${M_ListToSkip}}} != "" && \
+	${TESTS_DEPENDFILE_PREFERENCE:@m@${exists(${SRCTOP}/${DEP_RELDIR}/$t/$m):?$m:}@} != ""
+# build but not via DIRDEPS to avoid circular dependencies
+_build_xtra_dirs += ${SRCTOP}/${DEP_RELDIR}/$t.host
+# mark it done
+${DEP_RELDIR}/$t.test:
+.endif
+.endif
+.endfor
+.endif
+

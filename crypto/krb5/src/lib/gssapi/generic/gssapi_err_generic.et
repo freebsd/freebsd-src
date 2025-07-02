@@ -1,0 +1,49 @@
+# 
+# Copyright 1993 by OpenVision Technologies, Inc.
+# 
+# Permission to use, copy, modify, distribute, and sell this software
+# and its documentation for any purpose is hereby granted without fee,
+# provided that the above copyright notice appears in all copies and
+# that both that copyright notice and this permission notice appear in
+# supporting documentation, and that the name of OpenVision not be used
+# in advertising or publicity pertaining to distribution of the software
+# without specific, written prior permission. OpenVision makes no
+# representations about the suitability of this software for any
+# purpose.  It is provided "as is" without express or implied warranty.
+# 
+# OPENVISION DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+# INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+# EVENT SHALL OPENVISION BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+# CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+# USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+# 
+
+#
+# $Id$
+#
+
+error_table ggss
+
+error_code G_BAD_SERVICE_NAME, "No @ in SERVICE-NAME name string"
+error_code G_BAD_STRING_UID, "STRING-UID-NAME contains nondigits"
+error_code G_NOUSER, "UID does not resolve to username"
+error_code G_VALIDATE_FAILED, "Validation error"
+error_code G_BUFFER_ALLOC, "Couldn't allocate gss_buffer_t data"
+error_code G_BAD_MSG_CTX, "Message context invalid"
+error_code G_WRONG_SIZE, "Buffer is the wrong size"
+error_code G_BAD_USAGE, "Credential usage type is unknown"
+error_code G_UNKNOWN_QOP, "Unknown quality of protection specified"
+error_code G_NO_HOSTNAME, "Local host name could not be determined"
+error_code G_BAD_HOSTNAME, "Hostname in SERVICE-NAME string could not be canonicalized"
+error_code G_WRONG_MECH, "Mechanism is incorrect"
+error_code G_BAD_TOK_HEADER, "Token header is malformed or corrupt"
+error_code G_BAD_DIRECTION, "Packet was replayed in wrong direction"
+error_code G_TOK_TRUNC, "Token is missing data"
+error_code G_REFLECT, "Token was reflected"
+error_code G_WRONG_TOKID, "Received token ID does not match expected token ID"
+error_code G_CRED_USAGE_MISMATCH, "The given credential's usage does not match the requested usage"
+error_code G_STORE_ACCEPTOR_CRED_NOSUPP, "Storing of acceptor credentials is not supported by the mechanism"
+error_code G_STORE_NON_DEFAULT_CRED_NOSUPP, "Storing of non-default credentials is not supported by the mechanism"
+end

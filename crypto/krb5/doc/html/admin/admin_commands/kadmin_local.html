@@ -1,0 +1,1018 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kadmin &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="kadmind" href="kadmind.html" />
+    <link rel="prev" title="Administration programs" href="index.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="Administration programs"
+            accesskey="P">previous</a> |
+        <a href="kadmind.html" title="kadmind"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kadmin">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kadmin">
+<span id="kadmin-1"></span><h1>kadmin<a class="headerlink" href="#kadmin" title="Permalink to this headline">¶</a></h1>
+<section id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p id="kadmin-synopsis"><strong>kadmin</strong>
+[<strong>-O</strong>|<strong>-N</strong>]
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-p</strong> <em>principal</em>]
+[<strong>-q</strong> <em>query</em>]
+[[<strong>-c</strong> <em>cache_name</em>]|[<strong>-k</strong> [<strong>-t</strong> <em>keytab</em>]]|<strong>-n</strong>]
+[<strong>-w</strong> <em>password</em>]
+[<strong>-s</strong> <em>admin_server</em>[:<em>port</em>]]
+[command args…]</p>
+<p><strong>kadmin.local</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-p</strong> <em>principal</em>]
+[<strong>-q</strong> <em>query</em>]
+[<strong>-d</strong> <em>dbname</em>]
+[<strong>-e</strong> <em>enc</em>:<em>salt</em> …]
+[<strong>-m</strong>]
+[<strong>-x</strong> <em>db_args</em>]
+[command args…]</p>
+</section>
+<section id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>kadmin and kadmin.local are command-line interfaces to the Kerberos V5
+administration system.  They provide nearly identical functionalities;
+the difference is that kadmin.local directly accesses the KDC
+database, while kadmin performs operations using <a class="reference internal" href="kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a>.
+Except as explicitly noted otherwise, this man page will use “kadmin”
+to refer to both versions.  kadmin provides for the maintenance of
+Kerberos principals, password policies, and service key tables
+(keytabs).</p>
+<p>The remote kadmin client uses Kerberos to authenticate to kadmind
+using the service principal <code class="docutils literal notranslate"><span class="pre">kadmin/admin</span></code> or <code class="docutils literal notranslate"><span class="pre">kadmin/ADMINHOST</span></code>
+(where <em>ADMINHOST</em> is the fully-qualified hostname of the admin
+server).  If the credentials cache contains a ticket for one of these
+principals, and the <strong>-c</strong> credentials_cache option is specified, that
+ticket is used to authenticate to kadmind.  Otherwise, the <strong>-p</strong> and
+<strong>-k</strong> options are used to specify the client Kerberos principal name
+used to authenticate.  Once kadmin has determined the principal name,
+it requests a service ticket from the KDC, and uses that service
+ticket to authenticate to kadmind.</p>
+<p>Since kadmin.local directly accesses the KDC database, it usually must
+be run directly on the primary KDC with sufficient permissions to read
+the KDC database.  If the KDC database uses the LDAP database module,
+kadmin.local can be run on any host which can access the LDAP server.</p>
+</section>
+<section id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="simple" id="kadmin-options">
+<dt><strong>-r</strong> <em>realm</em></dt><dd><p>Use <em>realm</em> as the default database realm.</p>
+</dd>
+<dt><strong>-p</strong> <em>principal</em></dt><dd><p>Use <em>principal</em> to authenticate.  Otherwise, kadmin will append
+<code class="docutils literal notranslate"><span class="pre">/admin</span></code> to the primary principal name of the default ccache,
+the value of the <strong>USER</strong> environment variable, or the username as
+obtained with getpwuid, in order of preference.</p>
+</dd>
+<dt><strong>-k</strong></dt><dd><p>Use a keytab to decrypt the KDC response instead of prompting for
+a password.  In this case, the default principal will be
+<code class="docutils literal notranslate"><span class="pre">host/hostname</span></code>.  If there is no keytab specified with the
+<strong>-t</strong> option, then the default keytab will be used.</p>
+</dd>
+<dt><strong>-t</strong> <em>keytab</em></dt><dd><p>Use <em>keytab</em> to decrypt the KDC response.  This can only be used
+with the <strong>-k</strong> option.</p>
+</dd>
+<dt><strong>-n</strong></dt><dd><p>Requests anonymous processing.  Two types of anonymous principals
+are supported.  For fully anonymous Kerberos, configure PKINIT on
+the KDC and configure <strong>pkinit_anchors</strong> in the client’s
+<a class="reference internal" href="../conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  Then use the <strong>-n</strong> option with a principal
+of the form <code class="docutils literal notranslate"><span class="pre">&#64;REALM</span></code> (an empty principal name followed by the
+at-sign and a realm name).  If permitted by the KDC, an anonymous
+ticket will be returned.  A second form of anonymous tickets is
+supported; these realm-exposed tickets hide the identity of the
+client but not the client’s realm.  For this mode, use <code class="docutils literal notranslate"><span class="pre">kinit</span>
+<span class="pre">-n</span></code> with a normal principal name.  If supported by the KDC, the
+principal (but not realm) will be replaced by the anonymous
+principal.  As of release 1.8, the MIT Kerberos KDC only supports
+fully anonymous operation.</p>
+</dd>
+<dt><strong>-c</strong> <em>credentials_cache</em></dt><dd><p>Use <em>credentials_cache</em> as the credentials cache.  The cache
+should contain a service ticket for the <code class="docutils literal notranslate"><span class="pre">kadmin/admin</span></code> or
+<code class="docutils literal notranslate"><span class="pre">kadmin/ADMINHOST</span></code> (where <em>ADMINHOST</em> is the fully-qualified
+hostname of the admin server) service; it can be acquired with the
+<a class="reference internal" href="../../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a> program.  If this option is not specified, kadmin
+requests a new service ticket from the KDC, and stores it in its
+own temporary ccache.</p>
+</dd>
+<dt><strong>-w</strong> <em>password</em></dt><dd><p>Use <em>password</em> instead of prompting for one.  Use this option with
+care, as it may expose the password to other users on the system
+via the process list.</p>
+</dd>
+<dt><strong>-q</strong> <em>query</em></dt><dd><p>Perform the specified query and then exit.</p>
+</dd>
+<dt><strong>-d</strong> <em>dbname</em></dt><dd><p>Specifies the name of the KDC database.  This option does not
+apply to the LDAP database module.</p>
+</dd>
+<dt><strong>-s</strong> <em>admin_server</em>[:<em>port</em>]</dt><dd><p>Specifies the admin server which kadmin should contact.</p>
+</dd>
+<dt><strong>-m</strong></dt><dd><p>If using kadmin.local, prompt for the database master password
+instead of reading it from a stash file.</p>
+</dd>
+<dt><strong>-e</strong> “<em>enc</em>:<em>salt</em> …”</dt><dd><p>Sets the keysalt list to be used for any new keys created.  See
+<a class="reference internal" href="../conf_files/kdc_conf.html#keysalt-lists"><span class="std std-ref">Keysalt lists</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> for a list of possible
+values.</p>
+</dd>
+<dt><strong>-O</strong></dt><dd><p>Force use of old AUTH_GSSAPI authentication flavor.</p>
+</dd>
+<dt><strong>-N</strong></dt><dd><p>Prevent fallback to AUTH_GSSAPI authentication flavor.</p>
+</dd>
+<dt><strong>-x</strong> <em>db_args</em></dt><dd><p>Specifies the database specific arguments.  See the next section
+for supported options.</p>
+</dd>
+</dl>
+<p>Starting with release 1.14, if any command-line arguments remain after
+the options, they will be treated as a single query to be executed.
+This mode of operation is intended for scripts and behaves differently
+from the interactive mode in several respects:</p>
+<ul class="simple">
+<li><p>Query arguments are split by the shell, not by kadmin.</p></li>
+<li><p>Informational and warning messages are suppressed.  Error messages
+and query output (e.g. for <strong>get_principal</strong>) will still be
+displayed.</p></li>
+<li><p>Confirmation prompts are disabled (as if <strong>-force</strong> was given).
+Password prompts will still be issued as required.</p></li>
+<li><p>The exit status will be non-zero if the query fails.</p></li>
+</ul>
+<p>The <strong>-q</strong> option does not carry these behavior differences; the query
+will be processed as if it was entered interactively.  The <strong>-q</strong>
+option cannot be used in combination with a query in the remaining
+arguments.</p>
+</section>
+<section id="database-options">
+<span id="dboptions"></span><h2>DATABASE OPTIONS<a class="headerlink" href="#database-options" title="Permalink to this headline">¶</a></h2>
+<p>Database options can be used to override database-specific defaults.
+Supported options for the DB2 module are:</p>
+<blockquote>
+<div><dl class="simple">
+<dt><strong>-x dbname=</strong>*filename*</dt><dd><p>Specifies the base filename of the DB2 database.</p>
+</dd>
+<dt><strong>-x lockiter</strong></dt><dd><p>Make iteration operations hold the lock for the duration of
+the entire operation, rather than temporarily releasing the
+lock while handling each principal.  This is the default
+behavior, but this option exists to allow command line
+override of a [dbmodules] setting.  First introduced in
+release 1.13.</p>
+</dd>
+<dt><strong>-x unlockiter</strong></dt><dd><p>Make iteration operations unlock the database for each
+principal, instead of holding the lock for the duration of the
+entire operation.  First introduced in release 1.13.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Supported options for the LDAP module are:</p>
+<blockquote>
+<div><dl class="simple">
+<dt><strong>-x host=</strong><em>ldapuri</em></dt><dd><p>Specifies the LDAP server to connect to by a LDAP URI.</p>
+</dd>
+<dt><strong>-x binddn=</strong><em>bind_dn</em></dt><dd><p>Specifies the DN used to bind to the LDAP server.</p>
+</dd>
+<dt><strong>-x bindpwd=</strong><em>password</em></dt><dd><p>Specifies the password or SASL secret used to bind to the LDAP
+server.  Using this option may expose the password to other
+users on the system via the process list; to avoid this,
+instead stash the password using the <strong>stashsrvpw</strong> command of
+<a class="reference internal" href="kdb5_ldap_util.html#kdb5-ldap-util-8"><span class="std std-ref">kdb5_ldap_util</span></a>.</p>
+</dd>
+<dt><strong>-x sasl_mech=</strong><em>mechanism</em></dt><dd><p>Specifies the SASL mechanism used to bind to the LDAP server.
+The bind DN is ignored if a SASL mechanism is used.  New in
+release 1.13.</p>
+</dd>
+<dt><strong>-x sasl_authcid=</strong><em>name</em></dt><dd><p>Specifies the authentication name used when binding to the
+LDAP server with a SASL mechanism, if the mechanism requires
+one.  New in release 1.13.</p>
+</dd>
+<dt><strong>-x sasl_authzid=</strong><em>name</em></dt><dd><p>Specifies the authorization name used when binding to the LDAP
+server with a SASL mechanism.  New in release 1.13.</p>
+</dd>
+<dt><strong>-x sasl_realm=</strong><em>realm</em></dt><dd><p>Specifies the realm used when binding to the LDAP server with
+a SASL mechanism, if the mechanism uses one.  New in release
+1.13.</p>
+</dd>
+<dt><strong>-x debug=</strong><em>level</em></dt><dd><p>sets the OpenLDAP client library debug level.  <em>level</em> is an
+integer to be interpreted by the library.  Debugging messages
+are printed to standard error.  New in release 1.12.</p>
+</dd>
+</dl>
+</div></blockquote>
+</section>
+<section id="commands">
+<h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<p>When using the remote client, available commands may be restricted
+according to the privileges specified in the <a class="reference internal" href="../conf_files/kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a> file
+on the admin server.</p>
+<section id="add-principal">
+<span id="id1"></span><h3>add_principal<a class="headerlink" href="#add-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>add_principal</strong> [<em>options</em>] <em>newprinc</em></p>
+</div></blockquote>
+<p>Creates the principal <em>newprinc</em>, prompting twice for a password.  If
+no password policy is specified with the <strong>-policy</strong> option, and the
+policy named <code class="docutils literal notranslate"><span class="pre">default</span></code> is assigned to the principal if it exists.
+However, creating a policy named <code class="docutils literal notranslate"><span class="pre">default</span></code> will not automatically
+assign this policy to previously existing principals.  This policy
+assignment can be suppressed with the <strong>-clearpolicy</strong> option.</p>
+<p>This command requires the <strong>add</strong> privilege.</p>
+<p>Aliases: <strong>addprinc</strong>, <strong>ank</strong></p>
+<p>Options:</p>
+<dl>
+<dt><strong>-expire</strong> <em>expdate</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) The expiration date of the principal.</p>
+</dd>
+<dt><strong>-pwexpire</strong> <em>pwexpdate</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) The password expiration date.</p>
+</dd>
+<dt><strong>-maxlife</strong> <em>maxlife</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> or <a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) The maximum ticket life
+for the principal.</p>
+</dd>
+<dt><strong>-maxrenewlife</strong> <em>maxrenewlife</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> or <a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) The maximum renewable
+life of tickets for the principal.</p>
+</dd>
+<dt><strong>-kvno</strong> <em>kvno</em></dt><dd><p>The initial key version number.</p>
+</dd>
+<dt><strong>-policy</strong> <em>policy</em></dt><dd><p>The password policy used by this principal.  If not specified, the
+policy <code class="docutils literal notranslate"><span class="pre">default</span></code> is used if it exists (unless <strong>-clearpolicy</strong>
+is specified).</p>
+</dd>
+<dt><strong>-clearpolicy</strong></dt><dd><p>Prevents any policy from being assigned when <strong>-policy</strong> is not
+specified.</p>
+</dd>
+<dt>{-|+}<strong>allow_postdated</strong></dt><dd><p><strong>-allow_postdated</strong> prohibits this principal from obtaining
+postdated tickets.  <strong>+allow_postdated</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>allow_forwardable</strong></dt><dd><p><strong>-allow_forwardable</strong> prohibits this principal from obtaining
+forwardable tickets.  <strong>+allow_forwardable</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>allow_renewable</strong></dt><dd><p><strong>-allow_renewable</strong> prohibits this principal from obtaining
+renewable tickets.  <strong>+allow_renewable</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>allow_proxiable</strong></dt><dd><p><strong>-allow_proxiable</strong> prohibits this principal from obtaining
+proxiable tickets.  <strong>+allow_proxiable</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>allow_dup_skey</strong></dt><dd><p><strong>-allow_dup_skey</strong> disables user-to-user authentication for this
+principal by prohibiting others from obtaining a service ticket
+encrypted in this principal’s TGT session key.
+<strong>+allow_dup_skey</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>requires_preauth</strong></dt><dd><p><strong>+requires_preauth</strong> requires this principal to preauthenticate
+before being allowed to kinit.  <strong>-requires_preauth</strong> clears this
+flag.  When <strong>+requires_preauth</strong> is set on a service principal,
+the KDC will only issue service tickets for that service principal
+if the client’s initial authentication was performed using
+preauthentication.</p>
+</dd>
+<dt>{-|+}<strong>requires_hwauth</strong></dt><dd><p><strong>+requires_hwauth</strong> requires this principal to preauthenticate
+using a hardware device before being allowed to kinit.
+<strong>-requires_hwauth</strong> clears this flag.  When <strong>+requires_hwauth</strong> is
+set on a service principal, the KDC will only issue service tickets
+for that service principal if the client’s initial authentication was
+performed using a hardware device to preauthenticate.</p>
+</dd>
+<dt>{-|+}<strong>ok_as_delegate</strong></dt><dd><p><strong>+ok_as_delegate</strong> sets the <strong>okay as delegate</strong> flag on tickets
+issued with this principal as the service.  Clients may use this
+flag as a hint that credentials should be delegated when
+authenticating to the service.  <strong>-ok_as_delegate</strong> clears this
+flag.</p>
+</dd>
+<dt>{-|+}<strong>allow_svr</strong></dt><dd><p><strong>-allow_svr</strong> prohibits the issuance of service tickets for this
+principal.  In release 1.17 and later, user-to-user service
+tickets are still allowed unless the <strong>-allow_dup_skey</strong> flag is
+also set.  <strong>+allow_svr</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>allow_tgs_req</strong></dt><dd><p><strong>-allow_tgs_req</strong> specifies that a Ticket-Granting Service (TGS)
+request for a service ticket for this principal is not permitted.
+<strong>+allow_tgs_req</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>allow_tix</strong></dt><dd><p><strong>-allow_tix</strong> forbids the issuance of any tickets for this
+principal.  <strong>+allow_tix</strong> clears this flag.</p>
+</dd>
+<dt>{-|+}<strong>needchange</strong></dt><dd><p><strong>+needchange</strong> forces a password change on the next initial
+authentication to this principal.  <strong>-needchange</strong> clears this
+flag.</p>
+</dd>
+<dt>{-|+}<strong>password_changing_service</strong></dt><dd><p><strong>+password_changing_service</strong> marks this principal as a password
+change service principal.</p>
+</dd>
+<dt>{-|+}<strong>ok_to_auth_as_delegate</strong></dt><dd><p><strong>+ok_to_auth_as_delegate</strong> allows this principal to acquire
+forwardable tickets to itself from arbitrary users, for use with
+constrained delegation.</p>
+</dd>
+<dt>{-|+}<strong>no_auth_data_required</strong></dt><dd><p><strong>+no_auth_data_required</strong> prevents PAC or AD-SIGNEDPATH data from
+being added to service tickets for the principal.</p>
+</dd>
+<dt>{-|+}<strong>lockdown_keys</strong></dt><dd><p><strong>+lockdown_keys</strong> prevents keys for this principal from leaving
+the KDC via kadmind.  The chpass and extract operations are denied
+for a principal with this attribute.  The chrand operation is
+allowed, but will not return the new keys.  The delete and rename
+operations are also denied if this attribute is set, in order to
+prevent a malicious administrator from replacing principals like
+krbtgt/* or kadmin/* with new principals without the attribute.
+This attribute can be set via the network protocol, but can only
+be removed using kadmin.local.</p>
+</dd>
+<dt><strong>-randkey</strong></dt><dd><p>Sets the key of the principal to a random value.</p>
+</dd>
+<dt><strong>-nokey</strong></dt><dd><p>Causes the principal to be created with no key.  New in release
+1.12.</p>
+</dd>
+<dt><strong>-pw</strong> <em>password</em></dt><dd><p>Sets the password of the principal to the specified string and
+does not prompt for a password.  Note: using this option in a
+shell script may expose the password to other users on the system
+via the process list.</p>
+</dd>
+<dt><strong>-e</strong> <em>enc</em>:<em>salt</em>,…</dt><dd><p>Uses the specified keysalt list for setting the keys of the
+principal.  See <a class="reference internal" href="../conf_files/kdc_conf.html#keysalt-lists"><span class="std std-ref">Keysalt lists</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> for a
+list of possible values.</p>
+</dd>
+<dt><strong>-x</strong> <em>db_princ_args</em></dt><dd><p>Indicates database-specific options.  The options for the LDAP
+database module are:</p>
+<dl class="simple">
+<dt><strong>-x dn=</strong><em>dn</em></dt><dd><p>Specifies the LDAP object that will contain the Kerberos
+principal being created.</p>
+</dd>
+<dt><strong>-x linkdn=</strong><em>dn</em></dt><dd><p>Specifies the LDAP object to which the newly created Kerberos
+principal object will point.</p>
+</dd>
+<dt><strong>-x containerdn=</strong><em>container_dn</em></dt><dd><p>Specifies the container object under which the Kerberos
+principal is to be created.</p>
+</dd>
+<dt><strong>-x tktpolicy=</strong><em>policy</em></dt><dd><p>Associates a ticket policy to the Kerberos principal.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>The <strong>containerdn</strong> and <strong>linkdn</strong> options cannot be
+specified with the <strong>dn</strong> option.</p></li>
+<li><p>If the <em>dn</em> or <em>containerdn</em> options are not specified while
+adding the principal, the principals are created under the
+principal container configured in the realm or the realm
+container.</p></li>
+<li><p><em>dn</em> and <em>containerdn</em> should be within the subtrees or
+principal container configured in the realm.</p></li>
+</ul>
+</div>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">addprinc</span> <span class="n">jennifer</span>
+<span class="n">No</span> <span class="n">policy</span> <span class="n">specified</span> <span class="k">for</span> <span class="s2">&quot;jennifer@ATHENA.MIT.EDU&quot;</span><span class="p">;</span>
+<span class="n">defaulting</span> <span class="n">to</span> <span class="n">no</span> <span class="n">policy</span><span class="o">.</span>
+<span class="n">Enter</span> <span class="n">password</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="p">:</span>
+<span class="n">Re</span><span class="o">-</span><span class="n">enter</span> <span class="n">password</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="p">:</span>
+<span class="n">Principal</span> <span class="s2">&quot;jennifer@ATHENA.MIT.EDU&quot;</span> <span class="n">created</span><span class="o">.</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="modify-principal">
+<span id="id2"></span><h3>modify_principal<a class="headerlink" href="#modify-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>modify_principal</strong> [<em>options</em>] <em>principal</em></p>
+</div></blockquote>
+<p>Modifies the specified principal, changing the fields as specified.
+The options to <strong>add_principal</strong> also apply to this command, except
+for the <strong>-randkey</strong>, <strong>-pw</strong>, and <strong>-e</strong> options.  In addition, the
+option <strong>-clearpolicy</strong> will clear the current policy of a principal.</p>
+<p>This command requires the <em>modify</em> privilege.</p>
+<p>Alias: <strong>modprinc</strong></p>
+<p>Options (in addition to the <strong>addprinc</strong> options):</p>
+<dl class="simple">
+<dt><strong>-unlock</strong></dt><dd><p>Unlocks a locked principal (one which has received too many failed
+authentication attempts without enough time between them according
+to its password policy) so that it can successfully authenticate.</p>
+</dd>
+</dl>
+</section>
+<section id="rename-principal">
+<span id="id3"></span><h3>rename_principal<a class="headerlink" href="#rename-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>rename_principal</strong> [<strong>-force</strong>] <em>old_principal</em> <em>new_principal</em></p>
+</div></blockquote>
+<p>Renames the specified <em>old_principal</em> to <em>new_principal</em>.  This
+command prompts for confirmation, unless the <strong>-force</strong> option is
+given.</p>
+<p>This command requires the <strong>add</strong> and <strong>delete</strong> privileges.</p>
+<p>Alias: <strong>renprinc</strong></p>
+</section>
+<section id="delete-principal">
+<span id="id4"></span><h3>delete_principal<a class="headerlink" href="#delete-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>delete_principal</strong> [<strong>-force</strong>] <em>principal</em></p>
+</div></blockquote>
+<p>Deletes the specified <em>principal</em> from the database.  This command
+prompts for deletion, unless the <strong>-force</strong> option is given.</p>
+<p>This command requires the <strong>delete</strong> privilege.</p>
+<p>Alias: <strong>delprinc</strong></p>
+</section>
+<section id="change-password">
+<span id="id5"></span><h3>change_password<a class="headerlink" href="#change-password" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>change_password</strong> [<em>options</em>] <em>principal</em></p>
+</div></blockquote>
+<p>Changes the password of <em>principal</em>.  Prompts for a new password if
+neither <strong>-randkey</strong> or <strong>-pw</strong> is specified.</p>
+<p>This command requires the <strong>changepw</strong> privilege, or that the
+principal running the program is the same as the principal being
+changed.</p>
+<p>Alias: <strong>cpw</strong></p>
+<p>The following options are available:</p>
+<dl class="simple">
+<dt><strong>-randkey</strong></dt><dd><p>Sets the key of the principal to a random value.</p>
+</dd>
+<dt><strong>-pw</strong> <em>password</em></dt><dd><p>Set the password to the specified string.  Using this option in a
+script may expose the password to other users on the system via
+the process list.</p>
+</dd>
+<dt><strong>-e</strong> <em>enc</em>:<em>salt</em>,…</dt><dd><p>Uses the specified keysalt list for setting the keys of the
+principal.  See <a class="reference internal" href="../conf_files/kdc_conf.html#keysalt-lists"><span class="std std-ref">Keysalt lists</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> for a
+list of possible values.</p>
+</dd>
+<dt><strong>-keepold</strong></dt><dd><p>Keeps the existing keys in the database.  This flag is usually not
+necessary except perhaps for <code class="docutils literal notranslate"><span class="pre">krbtgt</span></code> principals.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">cpw</span> <span class="n">systest</span>
+<span class="n">Enter</span> <span class="n">password</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">systest</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span><span class="p">:</span>
+<span class="n">Re</span><span class="o">-</span><span class="n">enter</span> <span class="n">password</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">systest</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span><span class="p">:</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">systest</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span> <span class="n">changed</span><span class="o">.</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="purgekeys">
+<span id="id6"></span><h3>purgekeys<a class="headerlink" href="#purgekeys" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>purgekeys</strong> [<strong>-all</strong>|<strong>-keepkvno</strong> <em>oldest_kvno_to_keep</em>] <em>principal</em></p>
+</div></blockquote>
+<p>Purges previously retained old keys (e.g., from <strong>change_password
+-keepold</strong>) from <em>principal</em>.  If <strong>-keepkvno</strong> is specified, then
+only purges keys with kvnos lower than <em>oldest_kvno_to_keep</em>.  If
+<strong>-all</strong> is specified, then all keys are purged.  The <strong>-all</strong> option
+is new in release 1.12.</p>
+<p>This command requires the <strong>modify</strong> privilege.</p>
+</section>
+<section id="get-principal">
+<span id="id7"></span><h3>get_principal<a class="headerlink" href="#get-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>get_principal</strong> [<strong>-terse</strong>] <em>principal</em></p>
+</div></blockquote>
+<p>Gets the attributes of principal.  With the <strong>-terse</strong> option, outputs
+fields as quoted tab-separated strings.</p>
+<p>This command requires the <strong>inquire</strong> privilege, or that the principal
+running the the program to be the same as the one being listed.</p>
+<p>Alias: <strong>getprinc</strong></p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">getprinc</span> <span class="n">tlyu</span><span class="o">/</span><span class="n">admin</span>
+<span class="n">Principal</span><span class="p">:</span> <span class="n">tlyu</span><span class="o">/</span><span class="n">admin</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">Expiration</span> <span class="n">date</span><span class="p">:</span> <span class="p">[</span><span class="n">never</span><span class="p">]</span>
+<span class="n">Last</span> <span class="n">password</span> <span class="n">change</span><span class="p">:</span> <span class="n">Mon</span> <span class="n">Aug</span> <span class="mi">12</span> <span class="mi">14</span><span class="p">:</span><span class="mi">16</span><span class="p">:</span><span class="mi">47</span> <span class="n">EDT</span> <span class="mi">1996</span>
+<span class="n">Password</span> <span class="n">expiration</span> <span class="n">date</span><span class="p">:</span> <span class="p">[</span><span class="n">never</span><span class="p">]</span>
+<span class="n">Maximum</span> <span class="n">ticket</span> <span class="n">life</span><span class="p">:</span> <span class="mi">0</span> <span class="n">days</span> <span class="mi">10</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Maximum</span> <span class="n">renewable</span> <span class="n">life</span><span class="p">:</span> <span class="mi">7</span> <span class="n">days</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Last</span> <span class="n">modified</span><span class="p">:</span> <span class="n">Mon</span> <span class="n">Aug</span> <span class="mi">12</span> <span class="mi">14</span><span class="p">:</span><span class="mi">16</span><span class="p">:</span><span class="mi">47</span> <span class="n">EDT</span> <span class="mi">1996</span> <span class="p">(</span><span class="n">bjaspan</span><span class="o">/</span><span class="n">admin</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span><span class="p">)</span>
+<span class="n">Last</span> <span class="n">successful</span> <span class="n">authentication</span><span class="p">:</span> <span class="p">[</span><span class="n">never</span><span class="p">]</span>
+<span class="n">Last</span> <span class="n">failed</span> <span class="n">authentication</span><span class="p">:</span> <span class="p">[</span><span class="n">never</span><span class="p">]</span>
+<span class="n">Failed</span> <span class="n">password</span> <span class="n">attempts</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">Number</span> <span class="n">of</span> <span class="n">keys</span><span class="p">:</span> <span class="mi">1</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">1</span><span class="p">,</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha384</span><span class="o">-</span><span class="mi">192</span>
+<span class="n">MKey</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">1</span>
+<span class="n">Attributes</span><span class="p">:</span>
+<span class="n">Policy</span><span class="p">:</span> <span class="p">[</span><span class="n">none</span><span class="p">]</span>
+
+<span class="n">kadmin</span><span class="p">:</span> <span class="n">getprinc</span> <span class="o">-</span><span class="n">terse</span> <span class="n">systest</span>
+<span class="n">systest</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span>   <span class="mi">3</span>    <span class="mi">86400</span>     <span class="mi">604800</span>    <span class="mi">1</span>
+<span class="mi">785926535</span> <span class="mi">753241234</span> <span class="mi">785900000</span>
+<span class="n">tlyu</span><span class="o">/</span><span class="n">admin</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span>     <span class="mi">786100034</span> <span class="mi">0</span>    <span class="mi">0</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="list-principals">
+<span id="id8"></span><h3>list_principals<a class="headerlink" href="#list-principals" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>list_principals</strong> [<em>expression</em>]</p>
+</div></blockquote>
+<p>Retrieves all or some principal names.  <em>expression</em> is a shell-style
+glob expression that can contain the wild-card characters <code class="docutils literal notranslate"><span class="pre">?</span></code>,
+<code class="docutils literal notranslate"><span class="pre">*</span></code>, and <code class="docutils literal notranslate"><span class="pre">[]</span></code>.  All principal names matching the expression are
+printed.  If no expression is provided, all principal names are
+printed.  If the expression does not contain an <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> character, an
+<code class="docutils literal notranslate"><span class="pre">&#64;</span></code> character followed by the local realm is appended to the
+expression.</p>
+<p>This command requires the <strong>list</strong> privilege.</p>
+<p>Alias: <strong>listprincs</strong>, <strong>get_principals</strong>, <strong>getprincs</strong></p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span>  <span class="n">listprincs</span> <span class="n">test</span><span class="o">*</span>
+<span class="n">test3</span><span class="nd">@SECURE</span><span class="o">-</span><span class="n">TEST</span><span class="o">.</span><span class="n">OV</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">test2</span><span class="nd">@SECURE</span><span class="o">-</span><span class="n">TEST</span><span class="o">.</span><span class="n">OV</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">test1</span><span class="nd">@SECURE</span><span class="o">-</span><span class="n">TEST</span><span class="o">.</span><span class="n">OV</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">testuser</span><span class="nd">@SECURE</span><span class="o">-</span><span class="n">TEST</span><span class="o">.</span><span class="n">OV</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="get-strings">
+<span id="id9"></span><h3>get_strings<a class="headerlink" href="#get-strings" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>get_strings</strong> <em>principal</em></p>
+</div></blockquote>
+<p>Displays string attributes on <em>principal</em>.</p>
+<p>This command requires the <strong>inquire</strong> privilege.</p>
+<p>Alias: <strong>getstrs</strong></p>
+</section>
+<section id="set-string">
+<span id="id10"></span><h3>set_string<a class="headerlink" href="#set-string" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>set_string</strong> <em>principal</em> <em>name</em> <em>value</em></p>
+</div></blockquote>
+<p>Sets a string attribute on <em>principal</em>.  String attributes are used to
+supply per-principal configuration to the KDC and some KDC plugin
+modules.  The following string attribute names are recognized by the
+KDC:</p>
+<dl class="simple">
+<dt><strong>require_auth</strong></dt><dd><p>Specifies an authentication indicator which is required to
+authenticate to the principal as a service.  Multiple indicators
+can be specified, separated by spaces; in this case any of the
+specified indicators will be accepted.  (New in release 1.14.)</p>
+</dd>
+<dt><strong>session_enctypes</strong></dt><dd><p>Specifies the encryption types supported for session keys when the
+principal is authenticated to as a server.  See
+<a class="reference internal" href="../conf_files/kdc_conf.html#encryption-types"><span class="std std-ref">Encryption types</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> for a list of the
+accepted values.</p>
+</dd>
+<dt><strong>otp</strong></dt><dd><p>Enables One Time Passwords (OTP) preauthentication for a client
+<em>principal</em>.  The <em>value</em> is a JSON string representing an array
+of objects, each having optional <code class="docutils literal notranslate"><span class="pre">type</span></code> and <code class="docutils literal notranslate"><span class="pre">username</span></code> fields.</p>
+</dd>
+<dt><strong>pkinit_cert_match</strong></dt><dd><p>Specifies a matching expression that defines the certificate
+attributes required for the client certificate used by the
+principal during PKINIT authentication.  The matching expression
+is in the same format as those used by the <strong>pkinit_cert_match</strong>
+option in <a class="reference internal" href="../conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  (New in release 1.16.)</p>
+</dd>
+<dt><strong>pac_privsvr_enctype</strong></dt><dd><p>Forces the encryption type of the PAC KDC checksum buffers to the
+specified encryption type for tickets issued to this server, by
+deriving a key from the local krbtgt key if it is of a different
+encryption type.  It may be necessary to set this value to
+“aes256-sha1” on the cross-realm krbtgt entry for an Active
+Directory realm when using aes-sha2 keys on the local krbtgt
+entry.</p>
+</dd>
+</dl>
+<p>This command requires the <strong>modify</strong> privilege.</p>
+<p>Alias: <strong>setstr</strong></p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">set_string</span> <span class="n">host</span><span class="o">/</span><span class="n">foo</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="n">session_enctypes</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span>
+<span class="n">set_string</span> <span class="n">user</span><span class="nd">@FOO</span><span class="o">.</span><span class="n">COM</span> <span class="n">otp</span> <span class="s2">&quot;[{&quot;&quot;type&quot;&quot;:&quot;&quot;hotp&quot;&quot;,&quot;&quot;username&quot;&quot;:&quot;&quot;al&quot;&quot;}]&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="del-string">
+<span id="id11"></span><h3>del_string<a class="headerlink" href="#del-string" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>del_string</strong> <em>principal</em> <em>key</em></p>
+</div></blockquote>
+<p>Deletes a string attribute from <em>principal</em>.</p>
+<p>This command requires the <strong>delete</strong> privilege.</p>
+<p>Alias: <strong>delstr</strong></p>
+</section>
+<section id="add-policy">
+<span id="id12"></span><h3>add_policy<a class="headerlink" href="#add-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>add_policy</strong> [<em>options</em>] <em>policy</em></p>
+</div></blockquote>
+<p>Adds a password policy named <em>policy</em> to the database.</p>
+<p>This command requires the <strong>add</strong> privilege.</p>
+<p>Alias: <strong>addpol</strong></p>
+<p>The following options are available:</p>
+<dl class="simple">
+<dt><strong>-maxlife</strong> <em>time</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> or <a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Sets the maximum
+lifetime of a password.</p>
+</dd>
+<dt><strong>-minlife</strong> <em>time</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> or <a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Sets the minimum
+lifetime of a password.</p>
+</dd>
+<dt><strong>-minlength</strong> <em>length</em></dt><dd><p>Sets the minimum length of a password.</p>
+</dd>
+<dt><strong>-minclasses</strong> <em>number</em></dt><dd><p>Sets the minimum number of character classes required in a
+password.  The five character classes are lower case, upper case,
+numbers, punctuation, and whitespace/unprintable characters.</p>
+</dd>
+<dt><strong>-history</strong> <em>number</em></dt><dd><p>Sets the number of past keys kept for a principal.  This option is
+not supported with the LDAP KDC database module.</p>
+</dd>
+</dl>
+<dl class="simple" id="policy-maxfailure">
+<dt><strong>-maxfailure</strong> <em>maxnumber</em></dt><dd><p>Sets the number of authentication failures before the principal is
+locked.  Authentication failures are only tracked for principals
+which require preauthentication.  The counter of failed attempts
+resets to 0 after a successful attempt to authenticate.  A
+<em>maxnumber</em> value of 0 (the default) disables lockout.</p>
+</dd>
+</dl>
+<dl class="simple" id="policy-failurecountinterval">
+<dt><strong>-failurecountinterval</strong> <em>failuretime</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> or <a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Sets the allowable time
+between authentication failures.  If an authentication failure
+happens after <em>failuretime</em> has elapsed since the previous
+failure, the number of authentication failures is reset to 1.  A
+<em>failuretime</em> value of 0 (the default) means forever.</p>
+</dd>
+</dl>
+<dl class="simple" id="policy-lockoutduration">
+<dt><strong>-lockoutduration</strong> <em>lockouttime</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> or <a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Sets the duration for
+which the principal is locked from authenticating if too many
+authentication failures occur without the specified failure count
+interval elapsing.  A duration of 0 (the default) means the
+principal remains locked out until it is administratively unlocked
+with <code class="docutils literal notranslate"><span class="pre">modprinc</span> <span class="pre">-unlock</span></code>.</p>
+</dd>
+<dt><strong>-allowedkeysalts</strong></dt><dd><p>Specifies the key/salt tuples supported for long-term keys when
+setting or changing a principal’s password/keys.  See
+<a class="reference internal" href="../conf_files/kdc_conf.html#keysalt-lists"><span class="std std-ref">Keysalt lists</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> for a list of the
+accepted values, but note that key/salt tuples must be separated
+with commas (‘,’) only.  To clear the allowed key/salt policy use
+a value of ‘-‘.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">add_policy</span> <span class="o">-</span><span class="n">maxlife</span> <span class="s2">&quot;2 days&quot;</span> <span class="o">-</span><span class="n">minlength</span> <span class="mi">5</span> <span class="n">guests</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="modify-policy">
+<span id="id13"></span><h3>modify_policy<a class="headerlink" href="#modify-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>modify_policy</strong> [<em>options</em>] <em>policy</em></p>
+</div></blockquote>
+<p>Modifies the password policy named <em>policy</em>.  Options are as described
+for <strong>add_policy</strong>.</p>
+<p>This command requires the <strong>modify</strong> privilege.</p>
+<p>Alias: <strong>modpol</strong></p>
+</section>
+<section id="delete-policy">
+<span id="id14"></span><h3>delete_policy<a class="headerlink" href="#delete-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>delete_policy</strong> [<strong>-force</strong>] <em>policy</em></p>
+</div></blockquote>
+<p>Deletes the password policy named <em>policy</em>.  Prompts for confirmation
+before deletion.  The command will fail if the policy is in use by any
+principals.</p>
+<p>This command requires the <strong>delete</strong> privilege.</p>
+<p>Alias: <strong>delpol</strong></p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>kadmin: del_policy guests
+Are you sure you want to delete the policy &quot;guests&quot;?
+(yes/no): yes
+kadmin:
+</pre></div>
+</div>
+</section>
+<section id="get-policy">
+<span id="id15"></span><h3>get_policy<a class="headerlink" href="#get-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>get_policy</strong> [ <strong>-terse</strong> ] <em>policy</em></p>
+</div></blockquote>
+<p>Displays the values of the password policy named <em>policy</em>.  With the
+<strong>-terse</strong> flag, outputs the fields as quoted strings separated by
+tabs.</p>
+<p>This command requires the <strong>inquire</strong> privilege.</p>
+<p>Alias: <strong>getpol</strong></p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">get_policy</span> <span class="n">admin</span>
+<span class="n">Policy</span><span class="p">:</span> <span class="n">admin</span>
+<span class="n">Maximum</span> <span class="n">password</span> <span class="n">life</span><span class="p">:</span> <span class="mi">180</span> <span class="n">days</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Minimum</span> <span class="n">password</span> <span class="n">life</span><span class="p">:</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Minimum</span> <span class="n">password</span> <span class="n">length</span><span class="p">:</span> <span class="mi">6</span>
+<span class="n">Minimum</span> <span class="n">number</span> <span class="n">of</span> <span class="n">password</span> <span class="n">character</span> <span class="n">classes</span><span class="p">:</span> <span class="mi">2</span>
+<span class="n">Number</span> <span class="n">of</span> <span class="n">old</span> <span class="n">keys</span> <span class="n">kept</span><span class="p">:</span> <span class="mi">5</span>
+<span class="n">Reference</span> <span class="n">count</span><span class="p">:</span> <span class="mi">17</span>
+
+<span class="n">kadmin</span><span class="p">:</span> <span class="n">get_policy</span> <span class="o">-</span><span class="n">terse</span> <span class="n">admin</span>
+<span class="n">admin</span>     <span class="mi">15552000</span>  <span class="mi">0</span>    <span class="mi">6</span>    <span class="mi">2</span>    <span class="mi">5</span>    <span class="mi">17</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+<p>The “Reference count” is the number of principals using that policy.
+With the LDAP KDC database module, the reference count field is not
+meaningful.</p>
+</section>
+<section id="list-policies">
+<span id="id16"></span><h3>list_policies<a class="headerlink" href="#list-policies" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>list_policies</strong> [<em>expression</em>]</p>
+</div></blockquote>
+<p>Retrieves all or some policy names.  <em>expression</em> is a shell-style
+glob expression that can contain the wild-card characters <code class="docutils literal notranslate"><span class="pre">?</span></code>,
+<code class="docutils literal notranslate"><span class="pre">*</span></code>, and <code class="docutils literal notranslate"><span class="pre">[]</span></code>.  All policy names matching the expression are
+printed.  If no expression is provided, all existing policy names are
+printed.</p>
+<p>This command requires the <strong>list</strong> privilege.</p>
+<p>Aliases: <strong>listpols</strong>, <strong>get_policies</strong>, <strong>getpols</strong>.</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span>  <span class="n">listpols</span>
+<span class="n">test</span><span class="o">-</span><span class="n">pol</span>
+<span class="nb">dict</span><span class="o">-</span><span class="n">only</span>
+<span class="n">once</span><span class="o">-</span><span class="n">a</span><span class="o">-</span><span class="nb">min</span>
+<span class="n">test</span><span class="o">-</span><span class="n">pol</span><span class="o">-</span><span class="n">nopw</span>
+
+<span class="n">kadmin</span><span class="p">:</span>  <span class="n">listpols</span> <span class="n">t</span><span class="o">*</span>
+<span class="n">test</span><span class="o">-</span><span class="n">pol</span>
+<span class="n">test</span><span class="o">-</span><span class="n">pol</span><span class="o">-</span><span class="n">nopw</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="ktadd">
+<span id="id17"></span><h3>ktadd<a class="headerlink" href="#ktadd" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><div class="line-block">
+<div class="line"><strong>ktadd</strong> [options] <em>principal</em></div>
+<div class="line"><strong>ktadd</strong> [options] <strong>-glob</strong> <em>princ-exp</em></div>
+</div>
+</div></blockquote>
+<p>Adds a <em>principal</em>, or all principals matching <em>princ-exp</em>, to a
+keytab file.  Each principal’s keys are randomized in the process.
+The rules for <em>princ-exp</em> are described in the <strong>list_principals</strong>
+command.</p>
+<p>This command requires the <strong>inquire</strong> and <strong>changepw</strong> privileges.
+With the <strong>-glob</strong> form, it also requires the <strong>list</strong> privilege.</p>
+<p>The options are:</p>
+<dl class="simple">
+<dt><strong>-k[eytab]</strong> <em>keytab</em></dt><dd><p>Use <em>keytab</em> as the keytab file.  Otherwise, the default keytab is
+used.</p>
+</dd>
+<dt><strong>-e</strong> <em>enc</em>:<em>salt</em>,…</dt><dd><p>Uses the specified keysalt list for setting the new keys of the
+principal.  See <a class="reference internal" href="../conf_files/kdc_conf.html#keysalt-lists"><span class="std std-ref">Keysalt lists</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> for a
+list of possible values.</p>
+</dd>
+<dt><strong>-q</strong></dt><dd><p>Display less verbose information.</p>
+</dd>
+<dt><strong>-norandkey</strong></dt><dd><p>Do not randomize the keys. The keys and their version numbers stay
+unchanged.  This option cannot be specified in combination with the
+<strong>-e</strong> option.</p>
+</dd>
+</dl>
+<p>An entry for each of the principal’s unique encryption types is added,
+ignoring multiple keys with the same encryption type but different
+salt types.</p>
+<p>Alias: <strong>xst</strong></p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">ktadd</span> <span class="o">-</span><span class="n">k</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">foo</span><span class="o">-</span><span class="n">new</span><span class="o">-</span><span class="n">keytab</span> <span class="n">host</span><span class="o">/</span><span class="n">foo</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">foo</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">3</span><span class="p">,</span>
+     <span class="n">encryption</span> <span class="nb">type</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span>
+     <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">foo</span><span class="o">-</span><span class="n">new</span><span class="o">-</span><span class="n">keytab</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="ktremove">
+<span id="id18"></span><h3>ktremove<a class="headerlink" href="#ktremove" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p><strong>ktremove</strong> [options] <em>principal</em> [<em>kvno</em> | <em>all</em> | <em>old</em>]</p>
+</div></blockquote>
+<p>Removes entries for the specified <em>principal</em> from a keytab.  Requires
+no permissions, since this does not require database access.</p>
+<p>If the string “all” is specified, all entries for that principal are
+removed; if the string “old” is specified, all entries for that
+principal except those with the highest kvno are removed.  Otherwise,
+the value specified is parsed as an integer, and all entries whose
+kvno match that integer are removed.</p>
+<p>The options are:</p>
+<dl class="simple">
+<dt><strong>-k[eytab]</strong> <em>keytab</em></dt><dd><p>Use <em>keytab</em> as the keytab file.  Otherwise, the default keytab is
+used.</p>
+</dd>
+<dt><strong>-q</strong></dt><dd><p>Display less verbose information.</p>
+</dd>
+</dl>
+<p>Alias: <strong>ktrem</strong></p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">ktremove</span> <span class="n">kadmin</span><span class="o">/</span><span class="n">admin</span> <span class="nb">all</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">kadmin</span><span class="o">/</span><span class="n">admin</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">3</span> <span class="n">removed</span> <span class="kn">from</span> <span class="nn">keytab</span>
+     <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
+<span class="n">kadmin</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="lock">
+<h3>lock<a class="headerlink" href="#lock" title="Permalink to this headline">¶</a></h3>
+<p>Lock database exclusively.  Use with extreme caution!  This command
+only works with the DB2 KDC database module.</p>
+</section>
+<section id="unlock">
+<h3>unlock<a class="headerlink" href="#unlock" title="Permalink to this headline">¶</a></h3>
+<p>Release the exclusive database lock.</p>
+</section>
+<section id="list-requests">
+<h3>list_requests<a class="headerlink" href="#list-requests" title="Permalink to this headline">¶</a></h3>
+<p>Lists available for kadmin requests.</p>
+<p>Aliases: <strong>lr</strong>, <strong>?</strong></p>
+</section>
+<section id="quit">
+<h3>quit<a class="headerlink" href="#quit" title="Permalink to this headline">¶</a></h3>
+<p>Exit program.  If the database was locked, the lock is released.</p>
+<p>Aliases: <strong>exit</strong>, <strong>q</strong></p>
+</section>
+</section>
+<section id="history">
+<h2>HISTORY<a class="headerlink" href="#history" title="Permalink to this headline">¶</a></h2>
+<p>The kadmin program was originally written by Tom Yu at MIT, as an
+interface to the OpenVision Kerberos administration program.</p>
+</section>
+<section id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="../../user/user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a>, <a class="reference internal" href="kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kadmin</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#options">OPTIONS</a></li>
+<li><a class="reference internal" href="#database-options">DATABASE OPTIONS</a></li>
+<li><a class="reference internal" href="#commands">COMMANDS</a><ul>
+<li><a class="reference internal" href="#add-principal">add_principal</a></li>
+<li><a class="reference internal" href="#modify-principal">modify_principal</a></li>
+<li><a class="reference internal" href="#rename-principal">rename_principal</a></li>
+<li><a class="reference internal" href="#delete-principal">delete_principal</a></li>
+<li><a class="reference internal" href="#change-password">change_password</a></li>
+<li><a class="reference internal" href="#purgekeys">purgekeys</a></li>
+<li><a class="reference internal" href="#get-principal">get_principal</a></li>
+<li><a class="reference internal" href="#list-principals">list_principals</a></li>
+<li><a class="reference internal" href="#get-strings">get_strings</a></li>
+<li><a class="reference internal" href="#set-string">set_string</a></li>
+<li><a class="reference internal" href="#del-string">del_string</a></li>
+<li><a class="reference internal" href="#add-policy">add_policy</a></li>
+<li><a class="reference internal" href="#modify-policy">modify_policy</a></li>
+<li><a class="reference internal" href="#delete-policy">delete_policy</a></li>
+<li><a class="reference internal" href="#get-policy">get_policy</a></li>
+<li><a class="reference internal" href="#list-policies">list_policies</a></li>
+<li><a class="reference internal" href="#ktadd">ktadd</a></li>
+<li><a class="reference internal" href="#ktremove">ktremove</a></li>
+<li><a class="reference internal" href="#lock">lock</a></li>
+<li><a class="reference internal" href="#unlock">unlock</a></li>
+<li><a class="reference internal" href="#list-requests">list_requests</a></li>
+<li><a class="reference internal" href="#quit">quit</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#history">HISTORY</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Administration  programs</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kadmin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadmind.html">kadmind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sserver.html">sserver</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="Administration programs"
+            >previous</a> |
+        <a href="kadmind.html" title="kadmind"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kadmin">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

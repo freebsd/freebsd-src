@@ -1,0 +1,17 @@
+# Test account and session behavior with no context.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[run]
+    acct_mgmt                  = PAM_IGNORE
+    setcred(DELETE_CRED)       = PAM_SUCCESS
+    setcred(ESTABLISH_CRED)    = PAM_SUCCESS
+    setcred(REFRESH_CRED)      = PAM_SUCCESS
+    setcred(REINITIALIZE_CRED) = PAM_SUCCESS
+    open_session               = PAM_IGNORE
+    close_session              = PAM_SUCCESS

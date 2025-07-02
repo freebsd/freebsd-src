@@ -43,6 +43,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -102,6 +103,13 @@ main(int argc, char *argv[])
 	const char	*specfile;
 
 	setprogname(argv[0]);
+
+	/*
+	 * Set the locale for collation, so that directory entry sorting is
+	 * consistent.
+	 */
+	if (setlocale(LC_COLLATE, "C") == NULL)
+		err(1, "setlocale");
 
 	debug = 0;
 	if ((fstype = get_fstype(DEFAULT_FSTYPE)) == NULL)
@@ -428,6 +436,22 @@ set_option_var(const option_t *options, const char *var, const char *val,
 	return -1;
 }
 
+void
+set_tstamp(fsnode *cur)
+{
+	cur->inode->st.st_atime = stampst.st_atime;
+	cur->inode->st.st_mtime = stampst.st_mtime;
+	cur->inode->st.st_ctime = stampst.st_ctime;
+#if HAVE_STRUCT_STAT_ST_MTIMENSEC
+	cur->inode->st.st_atimensec = stampst.st_atimensec;
+	cur->inode->st.st_mtimensec = stampst.st_mtimensec;
+	cur->inode->st.st_ctimensec = stampst.st_ctimensec;
+#endif
+#if HAVE_STRUCT_STAT_BIRTHTIME
+	cur->inode->st.st_birthtime = stampst.st_birthtime;
+	cur->inode->st.st_birthtimensec = stampst.st_birthtimensec;
+#endif
+}
 
 static fstype_t *
 get_fstype(const char *type)
@@ -470,7 +494,7 @@ get_tstamp(const char *b, struct stat *st)
 	}
 
 	st->st_ino = 1;
-#ifdef HAVE_STRUCT_STAT_BIRTHTIME
+#if HAVE_STRUCT_STAT_BIRTHTIME
 	st->st_birthtime =
 #endif
 	st->st_mtime = st->st_ctime = st->st_atime = when;

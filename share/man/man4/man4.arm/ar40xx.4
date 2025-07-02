@@ -1,0 +1,35 @@
+.\"
+.\" Copyright (c) 2025 Alexander Ziaee
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 10, 2025
+.Dt AR40XX 4 arm
+.Sh NAME
+.Nm ar40xx_switch
+.Nd Qualcomm IPQ4018/IPQ4019 Gigabit Ethernet switch driver
+.Sh SYNOPSIS
+.Cd device mdio
+.Cd etherswitch
+.Cd ar40xx_switch
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Gigabit Ethernet switch inside the
+Qualcomm IPQ4018/IPQ4019 SoC.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Gigabit Ethernet switch controllers:
+.Pp
+.Bl -bullet -compact
+.It
+Qualcomm IPQ 4019 Five-port Gigabit Ethernet Switch
+.It
+Qualcomm IPQ 4018 Five-port Gigabit Ethernet Switch
+.El
+.Sh SEE ALSO
+.Xr etherswitch 4 ,
+.Xr etherswitchcfg 8
+.Sh CAVEATS
+This driver currently only supports L2 port/VLAN mapping modes.

@@ -115,8 +115,8 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 	     sizeof(struct ieee80211_superg), M_80211_VAP,
 	     IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (sg == NULL) {
-		printf("%s: cannot allocate SuperG state block\n",
-		    __func__);
+		net80211_ic_printf(ic,
+		    "%s: cannot allocate SuperG state block\n", __func__);
 		return;
 	}
 	TIMEOUT_TASK_INIT(ic->ic_tq, &sg->ff_qtimer, 0, ff_age_all, ic);
@@ -382,7 +382,8 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	ETHER_HEADER_COPY(&eh1, mtod(m1, caddr_t));
 	m1 = ieee80211_mbuf_adjust(vap, hdrspace, key, m1);
 	if (m1 == NULL) {
-		printf("%s: failed initial mbuf_adjust\n", __func__);
+		net80211_vap_printf(vap, "%s: failed initial mbuf_adjust\n",
+		    __func__);
 		/* NB: ieee80211_mbuf_adjust handles msgs+statistics */
 		m_freem(m2);
 		goto bad;
@@ -398,7 +399,7 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	m2 = ieee80211_mbuf_adjust(vap, 4, NULL, m2);
 	if (m2 == NULL) {
 		/* NB: ieee80211_mbuf_adjust handles msgs+statistics */
-		printf("%s: failed second \n", __func__);
+		net80211_vap_printf(vap, "%s: failed second \n", __func__);
 		goto bad;
 	}
 
@@ -714,13 +715,14 @@ stageq_remove(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf 
 		}
 		mprev = m;
 	}
-	printf("%s: packet not found\n", __func__);
+	net80211_ic_printf(ic, "%s: packet not found\n", __func__);
 }
 
 static uint32_t
 ff_approx_txtime(struct ieee80211_node *ni,
 	const struct mbuf *m1, const struct mbuf *m2)
 {
+	struct ieee80211_node_txrate txr;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint32_t framelen;
@@ -743,20 +745,33 @@ ff_approx_txtime(struct ieee80211_node *ni,
 	if (m2 != NULL)
 		framelen += m2->m_pkthdr.len;
 
-	/*
-	 * For now, we assume non-shortgi, 20MHz, just because I want to
-	 * at least test 802.11n.
-	 */
-	dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
-	if (dot11rate & IEEE80211_RATE_MCS)
+	ieee80211_node_get_txrate(ni, &txr);
+
+	switch (txr.type) {
+	case IEEE80211_NODE_TXRATE_LEGACY:
+		dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
+		frame_time = ieee80211_compute_duration(ic->ic_rt, framelen,
+			    dot11rate, 0);
+		break;
+	case IEEE80211_NODE_TXRATE_HT:
+		/* TODO: check ht40/shortgi */
+		dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
 		frame_time = ieee80211_compute_duration_ht(framelen,
 		    dot11rate,
 		    IEEE80211_HT_RC_2_STREAMS(dot11rate),
 		    0, /* isht40 */
 		    0); /* isshortgi */
-	else
-		frame_time = ieee80211_compute_duration(ic->ic_rt, framelen,
-			    dot11rate, 0);
+		break;
+	case IEEE80211_NODE_TXRATE_VHT:
+		/* TODO: there's no VHT frame length calculation just yet */
+		frame_time = 1000;	/* 1ms */
+		break;
+	case IEEE80211_NODE_TXRATE_UNDEFINED:
+		/* TODO: proper error handling */
+		frame_time = 4000; /* 4ms */
+		break;
+	}
+
 	return (frame_time);
 }
 

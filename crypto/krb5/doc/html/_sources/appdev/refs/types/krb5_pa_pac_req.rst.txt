@@ -1,0 +1,29 @@
+.. highlight:: c
+
+.. _krb5-pa-pac-req-struct:
+
+krb5_pa_pac_req
+===============
+
+..
+.. c:type:: krb5_pa_pac_req
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_pa_pac_req krb5_pa_pac_req
+
+
+Members
+---------
+
+
+.. c:member:: krb5_boolean	krb5_pa_pac_req.include_pac
+
+                                             TRUE if a PAC should be included in TGS-REP.
+                                             
+

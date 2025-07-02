@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-GET-FROM-TYPED-DATA-data:
+
+KRB5_PADATA_GET_FROM_TYPED_DATA
+===============================
+
+..
+.. data:: KRB5_PADATA_GET_FROM_TYPED_DATA
+..
+
+Embedded in typed data.
+
+RFC 4120
+
+====================================== ======================
+``KRB5_PADATA_GET_FROM_TYPED_DATA``       ``22``
+====================================== ======================

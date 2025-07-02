@@ -434,6 +434,7 @@ MIASM =  \
 	getrlimitusage.o \
 	fchroot.o \
 	setcred.o \
+	exterrctl.o \
 	osdb_exec.o \
 	osdb_prepare_v2.o \
 	osdb_step.o \

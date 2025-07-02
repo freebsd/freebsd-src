@@ -1,0 +1,42 @@
+krb5_free_keyblock_contents -  Free the contents of a krb5_keyblock structure. 
+===============================================================================
+
+..
+
+.. c:function:: void krb5_free_keyblock_contents(krb5_context context, krb5_keyblock * key)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Keyblock to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees the contents of *key* , but not the structure itself.
+
+
+
+
+
+
+..
+
+
+
+
+

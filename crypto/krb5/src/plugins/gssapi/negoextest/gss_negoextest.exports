@@ -1,0 +1,13 @@
+gss_accept_sec_context
+gss_acquire_cred
+gss_acquire_cred_with_password
+gss_delete_sec_context
+gss_display_status
+gss_import_name
+gss_init_sec_context
+gss_inquire_sec_context_by_oid
+gss_release_cred
+gss_release_name
+gssspi_exchange_meta_data
+gssspi_query_mechanism_info
+gssspi_query_meta_data

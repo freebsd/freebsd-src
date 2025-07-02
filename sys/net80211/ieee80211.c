@@ -273,19 +273,6 @@ null_update_chw(struct ieee80211com *ic)
 	ic_printf(ic, "%s: need callback\n", __func__);
 }
 
-int
-ic_printf(struct ieee80211com *ic, const char * fmt, ...)
-{
-	va_list ap;
-	int retval;
-
-	retval = printf("%s: ", ic->ic_name);
-	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
-	va_end(ap);
-	return (retval);
-}
-
 static LIST_HEAD(, ieee80211com) ic_head = LIST_HEAD_INITIALIZER(ic_head);
 static struct mtx ic_list_mtx;
 MTX_SYSINIT(ic_list, &ic_list_mtx, "ieee80211com list", MTX_DEF);
@@ -564,7 +551,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp = if_alloc(IFT_ETHER);
 	if_initname(ifp, name, unit);
 	ifp->if_softc = vap;			/* back pointer */
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
+	if_setflags(ifp, IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 	ifp->if_transmit = ieee80211_vap_transmit;
 	ifp->if_qflush = ieee80211_vap_qflush;
 	ifp->if_ioctl = ieee80211_ioctl;
@@ -722,7 +709,8 @@ ieee80211_vap_attach(struct ieee80211vap *vap, ifm_change_cb_t media_change,
 		ifp->if_baudrate = IF_Mbps(maxrate);
 
 	ether_ifattach(ifp, macaddr);
-	IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
+	/* Do initial MAC address sync */
+	ieee80211_vap_copy_mac_address(vap);
 	/* hook output method setup by ether_ifattach */
 	vap->iv_output = ifp->if_output;
 	ifp->if_output = ieee80211_output;
@@ -1216,7 +1204,7 @@ set_vht_extchan(struct ieee80211_channel *c)
 		return (0);
 
 	if (IEEE80211_IS_CHAN_VHT80P80(c)) {
-		printf("%s: TODO VHT80+80 channel (ieee=%d, flags=0x%08x)\n",
+		net80211_printf("%s: TODO VHT80+80 channel (ieee=%d, flags=0x%08x)\n",
 		    __func__, c->ic_ieee, c->ic_flags);
 	}
 
@@ -1231,7 +1219,7 @@ set_vht_extchan(struct ieee80211_channel *c)
 				    ieee80211_mhz2ieee(midpoint, c->ic_flags);
 				c->ic_vht_ch_freq2 = 0;
 #if 0
-				printf("%s: %d, freq=%d, midpoint=%d, freq1=%d, freq2=%d\n",
+				net80211_printf("%s: %d, freq=%d, midpoint=%d, freq1=%d, freq2=%d\n",
 				    __func__, c->ic_ieee, c->ic_freq, midpoint,
 				    c->ic_vht_ch_freq1, c->ic_vht_ch_freq2);
 #endif
@@ -1252,7 +1240,7 @@ set_vht_extchan(struct ieee80211_channel *c)
 				    ieee80211_mhz2ieee(midpoint, c->ic_flags);
 				c->ic_vht_ch_freq2 = 0;
 #if 0
-				printf("%s: %d, freq=%d, midpoint=%d, freq1=%d, freq2=%d\n",
+				net80211_printf("%s: %d, freq=%d, midpoint=%d, freq1=%d, freq2=%d\n",
 				    __func__, c->ic_ieee, c->ic_freq, midpoint,
 				    c->ic_vht_ch_freq1, c->ic_vht_ch_freq2);
 #endif
@@ -1277,7 +1265,7 @@ set_vht_extchan(struct ieee80211_channel *c)
 		return (1);
 	}
 
-	printf("%s: unknown VHT channel type (ieee=%d, flags=0x%08x)\n",
+	net80211_printf("%s: unknown VHT channel type (ieee=%d, flags=0x%08x)\n",
 	    __func__, c->ic_ieee, c->ic_flags);
 
 	return (0);
@@ -1325,7 +1313,7 @@ addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
 		return (ENOBUFS);
 
 #if 0
-	printf("%s: %d of %d: ieee=%d, freq=%d, flags=0x%08x\n",
+	net80211_printf("%s: %d of %d: ieee=%d, freq=%d, flags=0x%08x\n",
 	    __func__, *nchans, maxchans, ieee, freq, flags);
 #endif
 
@@ -1355,7 +1343,7 @@ copychan_prev(struct ieee80211_channel chans[], int maxchans, int *nchans,
 		return (ENOBUFS);
 
 #if 0
-	printf("%s: %d of %d: flags=0x%08x\n",
+	net80211_printf("%s: %d of %d: flags=0x%08x\n",
 	    __func__, *nchans, maxchans, flags);
 #endif
 
@@ -2087,10 +2075,10 @@ ieee80211_announce(struct ieee80211com *ic)
 			if (mword == 0)
 				continue;
 			rate = ieee80211_media2rate(mword);
-			printf("%s%d%sMbps", (i != 0 ? " " : ""),
+			net80211_printf("%s%d%sMbps", (i != 0 ? " " : ""),
 			    rate / 2, ((rate & 0x1) != 0 ? ".5" : ""));
 		}
-		printf("\n");
+		net80211_printf("\n");
 	}
 	ieee80211_ht_announce(ic);
 	ieee80211_vht_announce(ic);
@@ -2103,7 +2091,7 @@ ieee80211_announce_channels(struct ieee80211com *ic)
 	char type;
 	int i, cw;
 
-	printf("Chan  Freq  CW  RegPwr  MinPwr  MaxPwr\n");
+	net80211_printf("Chan  Freq  CW  RegPwr  MinPwr  MaxPwr\n");
 	for (i = 0; i < ic->ic_nchans; i++) {
 		c = &ic->ic_channels[i];
 		if (IEEE80211_IS_CHAN_ST(c))
@@ -2130,7 +2118,7 @@ ieee80211_announce_channels(struct ieee80211com *ic)
 			cw = 5;
 		else
 			cw = 20;
-		printf("%4d  %4d%c %2d%c %6d  %4d.%d  %4d.%d\n"
+		net80211_printf("%4d  %4d%c %2d%c %6d  %4d.%d  %4d.%d\n"
 			, c->ic_ieee, c->ic_freq, type
 			, cw
 			, IEEE80211_IS_CHAN_HT40U(c) ? '+' :
@@ -2378,7 +2366,7 @@ ieee80211_chan2mode(const struct ieee80211_channel *chan)
 		return IEEE80211_MODE_FH;
 
 	/* NB: should not get here */
-	printf("%s: cannot map channel to mode; freq %u flags 0x%x\n",
+	net80211_printf("%s: cannot map channel to mode; freq %u flags 0x%x\n",
 		__func__, chan->ic_freq, chan->ic_flags);
 	return IEEE80211_MODE_11B;
 }
@@ -2760,7 +2748,7 @@ ieee80211_is_ctl_frame_for_vap(struct ieee80211_node *ni, const struct mbuf *m0)
 	KASSERT(IEEE80211_IS_CTL(wh), ("%s: not a CTL frame (fc[0]=0x%04x)",
 	    __func__, wh->i_fc[0]));
 	if (!IEEE80211_IS_CTL(wh)) {
-		if_printf(vap->iv_ifp,
+		net80211_vap_printf(vap,
 		    "%s: not a control frame (fc[0]=0x%04x)\n",
 		    __func__, wh->i_fc[0]);
 		return (false);

@@ -1,0 +1,1587 @@
+encode_krb5_authenticator:
+
+[Krb5 Authenticator]
+.  [Sequence/Sequence Of]
+.  .  [authenticator-vno] [Integer] 5
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [cksum] [Sequence/Sequence Of]
+.  .  .  [cksumtype] [Integer] 1
+.  .  .  [checksum] [Octet String] "1234"
+.  .  [cusec] [Integer] 123456
+.  .  [ctime] [Generalized Time] "19940610060317Z"
+.  .  [subkey] [Sequence/Sequence Of]
+.  .  .  [keytype] [Integer] 1
+.  .  .  [keyvalue] [Octet String] "12345678"
+.  .  [seq-number] [Integer] 17
+.  .  [authorization-data] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [ad-type] [Integer] 1
+.  .  .  .  [ad-data] [Octet String] "foobar"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [ad-type] [Integer] 1
+.  .  .  .  [ad-data] [Octet String] "foobar"
+
+encode_krb5_authenticator(optionals empty):
+
+[Krb5 Authenticator]
+.  [Sequence/Sequence Of]
+.  .  [authenticator-vno] [Integer] 5
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [cusec] [Integer] 123456
+.  .  [ctime] [Generalized Time] "19940610060317Z"
+
+encode_krb5_authenticator(optionals NULL):
+
+[Krb5 Authenticator]
+.  [Sequence/Sequence Of]
+.  .  [authenticator-vno] [Integer] 5
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [cusec] [Integer] 123456
+.  .  [ctime] [Generalized Time] "19940610060317Z"
+
+encode_krb5_ticket:
+
+[Krb5 Ticket]
+.  [Sequence/Sequence Of]
+.  .  [tkt-vno] [Integer] 5
+.  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  [sname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_keyblock:
+
+[Sequence/Sequence Of]
+.  [keytype] [Integer] 1
+.  [keyvalue] [Octet String] "12345678"
+
+encode_krb5_enc_tkt_part:
+
+[Krb5 Encrypted ticket part]
+.  [Sequence/Sequence Of]
+.  .  [flags] [Bit String] 0xfedcba98
+.  .  [key] [Sequence/Sequence Of]
+.  .  .  [keytype] [Integer] 1
+.  .  .  [keyvalue] [Octet String] "12345678"
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [transited] [Sequence/Sequence Of]
+.  .  .  [flags] [Integer] 1
+.  .  .  [key] [Octet String] "EDU,MIT.,ATHENA.,WASHINGTON.EDU,CS."
+.  .  [authtime] [Generalized Time] "19940610060317Z"
+.  .  [starttime] [Generalized Time] "19940610060317Z"
+.  .  [endtime] [Generalized Time] "19940610060317Z"
+.  .  [renew-till] [Generalized Time] "19940610060317Z"
+.  .  [caddr] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  [address] [Octet String] <4>
+               12 d0 00 23                                   ...#
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  [address] [Octet String] <4>
+               12 d0 00 23                                   ...#
+.  .  [authorization-data] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [ad-type] [Integer] 1
+.  .  .  .  [ad-data] [Octet String] "foobar"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [ad-type] [Integer] 1
+.  .  .  .  [ad-data] [Octet String] "foobar"
+
+encode_krb5_enc_tkt_part(optionals NULL):
+
+[Krb5 Encrypted ticket part]
+.  [Sequence/Sequence Of]
+.  .  [flags] [Bit String] 0xfedcba98
+.  .  [key] [Sequence/Sequence Of]
+.  .  .  [keytype] [Integer] 1
+.  .  .  [keyvalue] [Octet String] "12345678"
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [transited] [Sequence/Sequence Of]
+.  .  .  [flags] [Integer] 1
+.  .  .  [key] [Octet String] "EDU,MIT.,ATHENA.,WASHINGTON.EDU,CS."
+.  .  [authtime] [Generalized Time] "19940610060317Z"
+.  .  [endtime] [Generalized Time] "19940610060317Z"
+
+encode_krb5_enc_kdc_rep_part:
+
+[Krb5 Encrypted TGS-REP part]
+.  [Sequence/Sequence Of]
+.  .  [key] [Sequence/Sequence Of]
+.  .  .  [keytype] [Integer] 1
+.  .  .  [keyvalue] [Octet String] "12345678"
+.  .  [last-req] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [lr-type] [Integer] -5
+.  .  .  .  [lr-value] [Generalized Time] "19940610060317Z"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [lr-type] [Integer] -5
+.  .  .  .  [lr-value] [Generalized Time] "19940610060317Z"
+.  .  [nonce] [Integer] 42
+.  .  [key-expiration] [Generalized Time] "19940610060317Z"
+.  .  [flags] [Bit String] 0xfedcba98
+.  .  [authtime] [Generalized Time] "19940610060317Z"
+.  .  [starttime] [Generalized Time] "19940610060317Z"
+.  .  [enddtime] [Generalized Time] "19940610060317Z"
+.  .  [renew-till] [Generalized Time] "19940610060317Z"
+.  .  [srealm] [General string] "ATHENA.MIT.EDU"
+.  .  [sname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [caddr] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  [address] [Octet String] <4>
+               12 d0 00 23                                   ...#
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  [address] [Octet String] <4>
+               12 d0 00 23                                   ...#
+
+encode_krb5_enc_kdc_rep_part(optionals NULL):
+
+[Krb5 Encrypted TGS-REP part]
+.  [Sequence/Sequence Of]
+.  .  [key] [Sequence/Sequence Of]
+.  .  .  [keytype] [Integer] 1
+.  .  .  [keyvalue] [Octet String] "12345678"
+.  .  [last-req] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [lr-type] [Integer] -5
+.  .  .  .  [lr-value] [Generalized Time] "19940610060317Z"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [lr-type] [Integer] -5
+.  .  .  .  [lr-value] [Generalized Time] "19940610060317Z"
+.  .  [nonce] [Integer] 42
+.  .  [flags] [Bit String] 0xfe5cba98
+.  .  [authtime] [Generalized Time] "19940610060317Z"
+.  .  [enddtime] [Generalized Time] "19940610060317Z"
+.  .  [srealm] [General string] "ATHENA.MIT.EDU"
+.  .  [sname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+
+encode_krb5_as_rep:
+
+[Krb5 AS-REP packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 11
+.  .  [padata] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [ticket] [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [enc-part] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_as_rep(optionals NULL):
+
+[Krb5 AS-REP packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 11
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [ticket] [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [enc-part] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_tgs_rep:
+
+[Krb5 TGS-REP packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 13
+.  .  [padata] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [ticket] [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [enc-part] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_tgs_rep(optionals NULL):
+
+[Krb5 TGS-REP packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 13
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [ticket] [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [enc-part] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_ap_req:
+
+[Krb5 AP-REQ packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 14
+.  .  [ap-options] [Bit String] 0xfedcba98
+.  .  [ticket] [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [authenticator] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_ap_rep:
+
+[Krb5 AP-REP packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 15
+.  .  [enc-part] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_ap_rep_enc_part:
+
+[Krb5 Encrypted AP-REP part]
+.  [Sequence/Sequence Of]
+.  .  [ctime] [Generalized Time] "19940610060317Z"
+.  .  [cusec] [Integer] 123456
+.  .  [subkey] [Sequence/Sequence Of]
+.  .  .  [keytype] [Integer] 1
+.  .  .  [keyvalue] [Octet String] "12345678"
+.  .  [seq-number] [Integer] 17
+
+encode_krb5_ap_rep_enc_part(optionals NULL):
+
+[Krb5 Encrypted AP-REP part]
+.  [Sequence/Sequence Of]
+.  .  [ctime] [Generalized Time] "19940610060317Z"
+.  .  [cusec] [Integer] 123456
+
+encode_krb5_as_req:
+
+[Krb5 AS-REQ packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 10
+.  .  [padata] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  [req-body] [Sequence/Sequence Of]
+.  .  .  [kdc-options] [Bit String] 0xfedcba90
+.  .  .  [cname] [Sequence/Sequence Of]
+.  .  .  .  [name-type] [Integer] 1
+.  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  [General string] "extra"
+.  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  [name-type] [Integer] 1
+.  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  [General string] "extra"
+.  .  .  [from] [Generalized Time] "19940610060317Z"
+.  .  .  [till] [Generalized Time] "19940610060317Z"
+.  .  .  [rtime] [Generalized Time] "19940610060317Z"
+.  .  .  [nonce] [Integer] 42
+.  .  .  [etype] [Sequence/Sequence Of]
+.  .  .  .  [Integer] 0
+.  .  .  .  [Integer] 1
+.  .  .  [addresses] [Sequence/Sequence Of]
+.  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  [address] [Octet String] <4>
+                  12 d0 00 23                                ...#
+.  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  [address] [Octet String] <4>
+                  12 d0 00 23                                ...#
+.  .  .  [enc-authorization-data] [Sequence/Sequence Of]
+.  .  .  .  [etype] [Integer] 0
+.  .  .  .  [kvno] [Integer] 5
+.  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  .  [additional-tickets] [Sequence/Sequence Of]
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_as_req(optionals NULL except second_ticket):
+
+[Krb5 AS-REQ packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 10
+.  .  [req-body] [Sequence/Sequence Of]
+.  .  .  [kdc-options] [Bit String] 0xfedcba98
+.  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  [till] [Generalized Time] "19940610060317Z"
+.  .  .  [nonce] [Integer] 42
+.  .  .  [etype] [Sequence/Sequence Of]
+.  .  .  .  [Integer] 0
+.  .  .  .  [Integer] 1
+.  .  .  [additional-tickets] [Sequence/Sequence Of]
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_as_req(optionals NULL except server):
+
+[Krb5 AS-REQ packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 10
+.  .  [req-body] [Sequence/Sequence Of]
+.  .  .  [kdc-options] [Bit String] 0xfedcba90
+.  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  [name-type] [Integer] 1
+.  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  [General string] "extra"
+.  .  .  [till] [Generalized Time] "19940610060317Z"
+.  .  .  [nonce] [Integer] 42
+.  .  .  [etype] [Sequence/Sequence Of]
+.  .  .  .  [Integer] 0
+.  .  .  .  [Integer] 1
+
+encode_krb5_tgs_req:
+
+[Krb5 TGS-REQ packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 12
+.  .  [padata] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [padata-type] [Integer] 13
+.  .  .  .  [pa-data] [Octet String] "pa-data"
+.  .  [req-body] [Sequence/Sequence Of]
+.  .  .  [kdc-options] [Bit String] 0xfedcba90
+.  .  .  [cname] [Sequence/Sequence Of]
+.  .  .  .  [name-type] [Integer] 1
+.  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  [General string] "extra"
+.  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  [name-type] [Integer] 1
+.  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  [General string] "extra"
+.  .  .  [from] [Generalized Time] "19940610060317Z"
+.  .  .  [till] [Generalized Time] "19940610060317Z"
+.  .  .  [rtime] [Generalized Time] "19940610060317Z"
+.  .  .  [nonce] [Integer] 42
+.  .  .  [etype] [Sequence/Sequence Of]
+.  .  .  .  [Integer] 0
+.  .  .  .  [Integer] 1
+.  .  .  [addresses] [Sequence/Sequence Of]
+.  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  [address] [Octet String] <4>
+                  12 d0 00 23                                ...#
+.  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  [address] [Octet String] <4>
+                  12 d0 00 23                                ...#
+.  .  .  [enc-authorization-data] [Sequence/Sequence Of]
+.  .  .  .  [etype] [Integer] 0
+.  .  .  .  [kvno] [Integer] 5
+.  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  .  [additional-tickets] [Sequence/Sequence Of]
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_tgs_req(optionals NULL except second_ticket):
+
+[Krb5 TGS-REQ packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 12
+.  .  [req-body] [Sequence/Sequence Of]
+.  .  .  [kdc-options] [Bit String] 0xfedcba98
+.  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  [till] [Generalized Time] "19940610060317Z"
+.  .  .  [nonce] [Integer] 42
+.  .  .  [etype] [Sequence/Sequence Of]
+.  .  .  .  [Integer] 0
+.  .  .  .  [Integer] 1
+.  .  .  [additional-tickets] [Sequence/Sequence Of]
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  .  .  [Krb5 Ticket]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_tgs_req(optionals NULL except server):
+
+[Krb5 TGS-REQ packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 12
+.  .  [req-body] [Sequence/Sequence Of]
+.  .  .  [kdc-options] [Bit String] 0xfedcba90
+.  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  [name-type] [Integer] 1
+.  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  [General string] "extra"
+.  .  .  [till] [Generalized Time] "19940610060317Z"
+.  .  .  [nonce] [Integer] 42
+.  .  .  [etype] [Sequence/Sequence Of]
+.  .  .  .  [Integer] 0
+.  .  .  .  [Integer] 1
+
+encode_krb5_kdc_req_body:
+
+[Sequence/Sequence Of]
+.  [kdc-options] [Bit String] 0xfedcba90
+.  [cname] [Sequence/Sequence Of]
+.  .  [name-type] [Integer] 1
+.  .  [name-string] [Sequence/Sequence Of]
+.  .  .  [General string] "hftsai"
+.  .  .  [General string] "extra"
+.  [realm] [General string] "ATHENA.MIT.EDU"
+.  [sname] [Sequence/Sequence Of]
+.  .  [name-type] [Integer] 1
+.  .  [name-string] [Sequence/Sequence Of]
+.  .  .  [General string] "hftsai"
+.  .  .  [General string] "extra"
+.  [from] [Generalized Time] "19940610060317Z"
+.  [till] [Generalized Time] "19940610060317Z"
+.  [rtime] [Generalized Time] "19940610060317Z"
+.  [nonce] [Integer] 42
+.  [etype] [Sequence/Sequence Of]
+.  .  [Integer] 0
+.  .  [Integer] 1
+.  [addresses] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [addr-type] [Integer] 2
+.  .  .  [address] [Octet String] <4>
+            12 d0 00 23                                      ...#
+.  .  [Sequence/Sequence Of]
+.  .  .  [addr-type] [Integer] 2
+.  .  .  [address] [Octet String] <4>
+            12 d0 00 23                                      ...#
+.  [enc-authorization-data] [Sequence/Sequence Of]
+.  .  [etype] [Integer] 0
+.  .  [kvno] [Integer] 5
+.  .  [cipher] [Octet String] "krbASN.1 test message"
+.  [additional-tickets] [Sequence/Sequence Of]
+.  .  [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_kdc_req_body(optionals NULL except second_ticket):
+
+[Sequence/Sequence Of]
+.  [kdc-options] [Bit String] 0xfedcba98
+.  [realm] [General string] "ATHENA.MIT.EDU"
+.  [till] [Generalized Time] "19940610060317Z"
+.  [nonce] [Integer] 42
+.  [etype] [Sequence/Sequence Of]
+.  .  [Integer] 0
+.  .  [Integer] 1
+.  [additional-tickets] [Sequence/Sequence Of]
+.  .  [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [Krb5 Ticket]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_kdc_req_body(optionals NULL except server):
+
+[Sequence/Sequence Of]
+.  [kdc-options] [Bit String] 0xfedcba90
+.  [realm] [General string] "ATHENA.MIT.EDU"
+.  [sname] [Sequence/Sequence Of]
+.  .  [name-type] [Integer] 1
+.  .  [name-string] [Sequence/Sequence Of]
+.  .  .  [General string] "hftsai"
+.  .  .  [General string] "extra"
+.  [till] [Generalized Time] "19940610060317Z"
+.  [nonce] [Integer] 42
+.  [etype] [Sequence/Sequence Of]
+.  .  [Integer] 0
+.  .  [Integer] 1
+
+encode_krb5_safe:
+
+[Krb5 SAFE packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 20
+.  .  [safe-body] [Sequence/Sequence Of]
+.  .  .  [user-data] [Octet String] "krb5data"
+.  .  .  [timestamp] [Generalized Time] "19940610060317Z"
+.  .  .  [usec] [Integer] 123456
+.  .  .  [seq-number] [Integer] 17
+.  .  .  [s-address] [Sequence/Sequence Of]
+.  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  [address] [Octet String] <4>
+               12 d0 00 23                                   ...#
+.  .  .  [r-address] [Sequence/Sequence Of]
+.  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  [address] [Octet String] <4>
+               12 d0 00 23                                   ...#
+.  .  [cksum] [Sequence/Sequence Of]
+.  .  .  [cksumtype] [Integer] 1
+.  .  .  [checksum] [Octet String] "1234"
+
+encode_krb5_safe(optionals NULL):
+
+[Krb5 SAFE packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 20
+.  .  [safe-body] [Sequence/Sequence Of]
+.  .  .  [user-data] [Octet String] "krb5data"
+.  .  .  [s-address] [Sequence/Sequence Of]
+.  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  [address] [Octet String] <4>
+               12 d0 00 23                                   ...#
+.  .  [cksum] [Sequence/Sequence Of]
+.  .  .  [cksumtype] [Integer] 1
+.  .  .  [checksum] [Octet String] "1234"
+
+encode_krb5_priv:
+
+[Krb5 PRIV packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 21
+.  .  [3] [Sequence/Sequence Of]
+.  .  .  [pvno] [Integer] 0
+.  .  .  [msg-type] [Integer] 5
+.  .  .  [enc-part] [Octet String] "krbASN.1 test message"
+
+encode_krb5_enc_priv_part:
+
+[Krb5 Encrypted PRIV part]
+.  [Sequence/Sequence Of]
+.  .  [user-data] [Octet String] "krb5data"
+.  .  [timestamp] [Generalized Time] "19940610060317Z"
+.  .  [usec] [Integer] 123456
+.  .  [seq-number] [Integer] 17
+.  .  [s-address] [Sequence/Sequence Of]
+.  .  .  [addr-type] [Integer] 2
+.  .  .  [address] [Octet String] <4>
+            12 d0 00 23                                      ...#
+.  .  [r-address] [Sequence/Sequence Of]
+.  .  .  [addr-type] [Integer] 2
+.  .  .  [address] [Octet String] <4>
+            12 d0 00 23                                      ...#
+
+encode_krb5_enc_priv_part(optionals NULL):
+
+[Krb5 Encrypted PRIV part]
+.  [Sequence/Sequence Of]
+.  .  [user-data] [Octet String] "krb5data"
+.  .  [s-address] [Sequence/Sequence Of]
+.  .  .  [addr-type] [Integer] 2
+.  .  .  [address] [Octet String] <4>
+            12 d0 00 23                                      ...#
+
+encode_krb5_cred:
+
+[Krb5 CRED packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 22
+.  .  [tickets] [Sequence/Sequence Of]
+.  .  .  [Krb5 Ticket]
+.  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  .  [Krb5 Ticket]
+.  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  [tkt-vno] [Integer] 5
+.  .  .  .  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  .  [General string] "extra"
+.  .  .  .  .  [tkt-enc-part] [Sequence/Sequence Of]
+.  .  .  .  .  .  [etype] [Integer] 0
+.  .  .  .  .  .  [kvno] [Integer] 5
+.  .  .  .  .  .  [cipher] [Octet String] "krbASN.1 test message"
+.  .  [enc-part] [Sequence/Sequence Of]
+.  .  .  [etype] [Integer] 0
+.  .  .  [kvno] [Integer] 5
+.  .  .  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_enc_cred_part:
+
+[Krb5 Encrypted CRED part]
+.  [Sequence/Sequence Of]
+.  .  [ticket-info] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [key] [Sequence/Sequence Of]
+.  .  .  .  .  [keytype] [Integer] 1
+.  .  .  .  .  [keyvalue] [Octet String] "12345678"
+.  .  .  .  [prealm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [pname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [flags] [Bit String] 0xfedcba98
+.  .  .  .  [authtime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [startime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [endtime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [renew-till] [Generalized Time] "19940610060317Z"
+.  .  .  .  [srealm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [caddr] [Sequence/Sequence Of]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  .  [address] [Octet String] <4>
+                     12 d0 00 23                             ...#
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  .  [address] [Octet String] <4>
+                     12 d0 00 23                             ...#
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [key] [Sequence/Sequence Of]
+.  .  .  .  .  [keytype] [Integer] 1
+.  .  .  .  .  [keyvalue] [Octet String] "12345678"
+.  .  .  .  [prealm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [pname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [flags] [Bit String] 0xfedcba98
+.  .  .  .  [authtime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [startime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [endtime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [renew-till] [Generalized Time] "19940610060317Z"
+.  .  .  .  [srealm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [caddr] [Sequence/Sequence Of]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  .  [address] [Octet String] <4>
+                     12 d0 00 23                             ...#
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  .  [address] [Octet String] <4>
+                     12 d0 00 23                             ...#
+.  .  [nonce] [Integer] 42
+.  .  [timestamp] [Generalized Time] "19940610060317Z"
+.  .  [usec] [Integer] 123456
+.  .  [s-address] [Sequence/Sequence Of]
+.  .  .  [addr-type] [Integer] 2
+.  .  .  [address] [Octet String] <4>
+            12 d0 00 23                                      ...#
+.  .  [r-address] [Sequence/Sequence Of]
+.  .  .  [addr-type] [Integer] 2
+.  .  .  [address] [Octet String] <4>
+            12 d0 00 23                                      ...#
+
+encode_krb5_enc_cred_part(optionals NULL):
+
+[Krb5 Encrypted CRED part]
+.  [Sequence/Sequence Of]
+.  .  [ticket-info] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [key] [Sequence/Sequence Of]
+.  .  .  .  .  [keytype] [Integer] 1
+.  .  .  .  .  [keyvalue] [Octet String] "12345678"
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [key] [Sequence/Sequence Of]
+.  .  .  .  .  [keytype] [Integer] 1
+.  .  .  .  .  [keyvalue] [Octet String] "12345678"
+.  .  .  .  [prealm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [pname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [flags] [Bit String] 0xfedcba98
+.  .  .  .  [authtime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [startime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [endtime] [Generalized Time] "19940610060317Z"
+.  .  .  .  [renew-till] [Generalized Time] "19940610060317Z"
+.  .  .  .  [srealm] [General string] "ATHENA.MIT.EDU"
+.  .  .  .  [sname] [Sequence/Sequence Of]
+.  .  .  .  .  [name-type] [Integer] 1
+.  .  .  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  .  [General string] "extra"
+.  .  .  .  [caddr] [Sequence/Sequence Of]
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  .  [address] [Octet String] <4>
+                     12 d0 00 23                             ...#
+.  .  .  .  .  [Sequence/Sequence Of]
+.  .  .  .  .  .  [addr-type] [Integer] 2
+.  .  .  .  .  .  [address] [Octet String] <4>
+                     12 d0 00 23                             ...#
+
+encode_krb5_error:
+
+[Krb5 ERROR packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 30
+.  .  [ctime] [Generalized Time] "19940610060317Z"
+.  .  [cusec] [Integer] 123456
+.  .  [stime] [Generalized Time] "19940610060317Z"
+.  .  [susec] [Integer] 123456
+.  .  [error-code] [Integer] 60
+.  .  [crealm] [General string] "ATHENA.MIT.EDU"
+.  .  [cname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  [sname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [e-text] [General string] "krb5data"
+.  .  [e-data] [Octet String] "krb5data"
+
+encode_krb5_error(optionals NULL):
+
+[Krb5 ERROR packet]
+.  [Sequence/Sequence Of]
+.  .  [pvno] [Integer] 5
+.  .  [msg-type] [Integer] 30
+.  .  [cusec] [Integer] 123456
+.  .  [stime] [Generalized Time] "19940610060317Z"
+.  .  [susec] [Integer] 123456
+.  .  [error-code] [Integer] 60
+.  .  [realm] [General string] "ATHENA.MIT.EDU"
+.  .  [sname] [Sequence/Sequence Of]
+.  .  .  [name-type] [Integer] 1
+.  .  .  [name-string] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+
+encode_krb5_authorization_data:
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [ad-type] [Integer] 1
+.  .  [ad-data] [Octet String] "foobar"
+.  [Sequence/Sequence Of]
+.  .  [ad-type] [Integer] 1
+.  .  [ad-data] [Octet String] "foobar"
+
+encode_krb5_padata_sequence:
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [1] [Integer] 13
+.  .  [2] [Octet String] "pa-data"
+.  [Sequence/Sequence Of]
+.  .  [1] [Integer] 13
+.  .  [2] [Octet String] "pa-data"
+
+encode_krb5_typed_data:
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 13
+.  .  [1] [Octet String] "pa-data"
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 13
+.  .  [1] [Octet String] "pa-data"
+
+encode_krb5_padata_sequence(empty):
+
+[Sequence/Sequence Of]
+
+encode_krb5_etype_info:
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 0
+.  .  [1] [Octet String] "Morton's #0"
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 2
+.  .  [1] [Octet String] "Morton's #2"
+
+encode_krb5_etype_info(only 1):
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 0
+.  .  [1] [Octet String] "Morton's #0"
+
+encode_krb5_etype_info(no info):
+
+[Sequence/Sequence Of]
+
+encode_krb5_etype_info2:
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 0
+.  .  [1] [General string] "Morton's #0"
+.  .  [2] [Octet String] "s2k: 0"
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [2] [Octet String] "s2k: 1"
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 2
+.  .  [1] [General string] "Morton's #2"
+.  .  [2] [Octet String] "s2k: 2"
+
+encode_krb5_etype_info2(only 1):
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 0
+.  .  [1] [General string] "Morton's #0"
+.  .  [2] [Octet String] "s2k: 0"
+
+encode_krb5_pa_enc_ts:
+
+[Sequence/Sequence Of]
+.  [0] [Generalized Time] "19940610060317Z"
+.  [1] [Integer] 123456
+
+encode_krb5_pa_enc_ts (no usec):
+
+[Sequence/Sequence Of]
+.  [0] [Generalized Time] "19940610060317Z"
+
+encode_krb5_enc_data:
+
+[Sequence/Sequence Of]
+.  [etype] [Integer] 0
+.  [kvno] [Integer] 5
+.  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_enc_data(MSB-set kvno):
+
+[Sequence/Sequence Of]
+.  [etype] [Integer] 0
+.  [kvno] [Integer] -16777216
+.  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_enc_data(kvno=-1):
+
+[Sequence/Sequence Of]
+.  [etype] [Integer] 0
+.  [kvno] [Integer] -1
+.  [cipher] [Octet String] "krbASN.1 test message"
+
+encode_krb5_sam_challenge_2:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [Octet String] "challenge"
+.  [1] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "1234"
+
+encode_krb5_sam_challenge_2_body:
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 42
+.  [1] [Bit String] 0x80000000
+.  [2] [Octet String] "type name"
+.  [4] [Octet String] "challenge label"
+.  [5] [Octet String] "challenge ipse"
+.  [6] [Octet String] "response_prompt ipse"
+.  [8] [Integer] 5517840
+.  [9] [Integer] 20
+
+encode_krb5_sam_response_2:
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 43
+.  [1] [Bit String] 0x80000000
+.  [2] [Octet String] "track data"
+.  [3] [Sequence/Sequence Of]
+.  .  [0] [Integer] 20
+.  .  [1] [Integer] 3382
+.  .  [2] [Octet String] "nonce or sad"
+.  [4] [Integer] 5517840
+
+encode_krb5_enc_sam_response_enc_2:
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 88
+.  [1] [Octet String] "enc_sam_response_enc_2"
+
+encode_krb5_pa_for_user:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Sequence/Sequence Of]
+.  .  .  [General string] "hftsai"
+.  .  .  [General string] "extra"
+.  [1] [General string] "ATHENA.MIT.EDU"
+.  [2] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "1234"
+.  [3] [General string] "krb5data"
+
+encode_krb5_pa_s4u_x509_user:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [0] [Integer] 13243546
+.  .  [1] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [2] [General string] "ATHENA.MIT.EDU"
+.  .  [3] [Octet String] "pa_s4u_x509_user"
+.  .  [4] [Bit String] 0x80000000
+.  [1] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "1234"
+
+encode_krb5_ad_kdcissued:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "1234"
+.  [1] [General string] "ATHENA.MIT.EDU"
+.  [2] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Sequence/Sequence Of]
+.  .  .  [General string] "hftsai"
+.  .  .  [General string] "extra"
+.  [3] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "foobar"
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "foobar"
+
+encode_krb5_iakerb_header:
+
+[Sequence/Sequence Of]
+.  [1] [Octet String] "krb5data"
+.  [2] [Octet String] "krb5data"
+
+encode_krb5_iakerb_finished:
+
+[Sequence/Sequence Of]
+.  [1] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "1234"
+
+encode_krb5_fast_response:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [1] [Integer] 13
+.  .  .  [2] [Octet String] "pa-data"
+.  .  [Sequence/Sequence Of]
+.  .  .  [1] [Integer] 13
+.  .  .  [2] [Octet String] "pa-data"
+.  [1] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "12345678"
+.  [2] [Sequence/Sequence Of]
+.  .  [0] [Generalized Time] "19940610060317Z"
+.  .  [1] [Integer] 123456
+.  .  [2] [General string] "ATHENA.MIT.EDU"
+.  .  [3] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [4] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "1234"
+.  [3] [Integer] 42
+
+encode_krb5_pa_fx_fast_reply:
+
+[CONT 0]
+.  [Sequence/Sequence Of]
+.  .  [0] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 0
+.  .  .  [1] [Integer] 5
+.  .  .  [2] [Octet String] "krbASN.1 test message"
+
+encode_krb5_otp_tokeninfo(optionals NULL):
+
+[Sequence/Sequence Of]
+.  [0] <5>
+      00 00 00 00 00                                      .....
+
+encode_krb5_otp_tokeninfo:
+
+[Sequence/Sequence Of]
+.  [0] <5>
+      00 77 00 00 00                                      .w...
+.  [1] <11>
+      45 78 61 6d 70 6c 65 63 6f 72 70                    Examplecorp
+.  [2] <5>
+      68 61 72 6b 21                                      hark!
+.  [3] 0x0 (10 unused bits)
+.  [4] <1>
+      02                                                  .
+.  [5] <9>
+      79 6f 75 72 74 6f 6b 65 6e                          yourtoken
+.  [6] <40>
+      75 72 6e 3a 69 65 74 66 3a 70 61 72 61 6d 73 3a     urn:ietf:params:
+      78 6d 6c 3a 6e 73 3a 6b 65 79 70 72 6f 76 3a 70     xml:ns:keyprov:p
+      73 6b 63 3a 68 6f 74 70                             skc:hotp
+.  [7] [Sequence/Sequence Of]
+.  .  [Object Identifier] <9>
+         60 86 48 01 65 03 04 02 01                       `.H.e....
+.  [Sequence/Sequence Of]
+.  .  [Object Identifier] <5>
+         2b 0e 03 02 1a                                   +....
+.  [8] <2>
+      03 e8                                               ..
+
+encode_krb5_pa_otp_challenge(optionals NULL):
+
+[Sequence/Sequence Of]
+.  [0] <8>
+      6d 69 6e 6e 6f 6e 63 65                             minnonce
+.  [2] [Sequence/Sequence Of]
+.  .  [0] <5>
+         00 00 00 00 00                                   .....
+
+encode_krb5_pa_otp_challenge:
+
+[Sequence/Sequence Of]
+.  [0] <8>
+      6d 61 78 6e 6f 6e 63 65                             maxnonce
+.  [1] <11>
+      74 65 73 74 73 65 72 76 69 63 65                    testservice
+.  [2] [Sequence/Sequence Of]
+.  .  [0] <5>
+         00 00 00 00 00                                   .....
+.  [Sequence/Sequence Of]
+.  .  [0] <5>
+         00 77 00 00 00                                   .w...
+.  .  [1] <11>
+         45 78 61 6d 70 6c 65 63 6f 72 70                 Examplecorp
+.  .  [2] <5>
+         68 61 72 6b 21                                   hark!
+.  .  [3] 0x0 (10 unused bits)
+.  .  [4] <1>
+         02                                               .
+.  .  [5] <9>
+         79 6f 75 72 74 6f 6b 65 6e                       yourtoken
+.  .  [6] <40>
+         75 72 6e 3a 69 65 74 66 3a 70 61 72 61 6d 73     urn:ietf:params
+         3a 78 6d 6c 3a 6e 73 3a 6b 65 79 70 72 6f 76     :xml:ns:keyprov
+         3a 70 73 6b 63 3a 68 6f 74 70                    :pskc:hotp
+.  .  [7] [Sequence/Sequence Of]
+.  .  .  [Object Identifier] <9>
+            60 86 48 01 65 03 04 02 01                       `.H.e....
+.  .  [Sequence/Sequence Of]
+.  .  .  [Object Identifier] <5>
+            2b 0e 03 02 1a                                   +....
+.  .  [8] <2>
+         03 e8                                            ..
+.  [3] <7>
+      6b 65 79 73 61 6c 74                                keysalt
+.  [4] "1234"
+
+encode_krb5_pa_otp_req(optionals NULL):
+
+[Sequence/Sequence Of]
+.  [0] <5>
+      00 00 00 00 00                                      .....
+.  [2] [0] [Integer] 0
+.  [1] [Integer] 5
+.  [2] [Octet String] "krbASN.1 test message"
+
+encode_krb5_pa_otp_req:
+
+[Sequence/Sequence Of]
+.  [0] <5>
+      00 60 00 00 00                                      .`...
+.  [1] <5>
+      6e 6f 6e 63 65                                      nonce
+.  [2] [0] [Integer] 0
+.  [1] [Integer] 5
+.  [2] [Octet String] "krbASN.1 test message"
+.  [3] [Object Identifier] <9>
+      60 86 48 01 65 03 04 02 01                          `.H.e....
+.  [4] <2>
+      03 e8                                               ..
+.  [5] <5>
+      66 72 6f 67 73                                      frogs
+.  [6] <10>
+      6d 79 66 69 72 73 74 70 69 6e                       myfirstpin
+.  [7] <5>
+      68 61 72 6b 21                                      hark!
+.  [8] <15>
+      31 39 39 34 30 36 31 30 30 36 30 33 31 37 5a        19940610060317Z
+.  [9] <3>
+      33 34 36                                            346
+.  [10] <1>
+      02                                                  .
+.  [11] <9>
+      79 6f 75 72 74 6f 6b 65 6e                          yourtoken
+.  [12] <40>
+      75 72 6e 3a 69 65 74 66 3a 70 61 72 61 6d 73 3a     urn:ietf:params:
+      78 6d 6c 3a 6e 73 3a 6b 65 79 70 72 6f 76 3a 70     xml:ns:keyprov:p
+      73 6b 63 3a 68 6f 74 70                             skc:hotp
+.  [13] <11>
+      45 78 61 6d 70 6c 65 63 6f 72 70                    Examplecorp
+
+encode_krb5_pa_otp_enc_req:
+
+[Sequence/Sequence Of]
+.  [0] <8>
+      6b 72 62 35 64 61 74 61                             krb5data
+
+encode_krb5_kkdcp_message:
+
+[Sequence/Sequence Of]
+.  [0] [Octet String] <488>
+      6a 82 01 e4 30 82 01 e0 a1 03 02 01 05 a2 03 02     j...0...........
+      01 0a a3 26 30 24 30 10 a1 03 02 01 0d a2 09 04     ...&0$0.........
+      07 70 61 2d 64 61 74 61 30 10 a1 03 02 01 0d a2     .pa-data0.......
+      09 04 07 70 61 2d 64 61 74 61 a4 82 01 aa 30 82     ...pa-data....0.
+      01 a6 a0 07 03 05 00 fe dc ba 98 a1 1a 30 18 a0     .............0..
+      03 02 01 01 a1 11 30 0f 1b 06 68 66 74 73 61 69     ......0...hftsai
+      1b 05 65 78 74 72 61 a2 10 1b 0e 41 54 48 45 4e     ..extra....ATHEN
+      41 2e 4d 49 54 2e 45 44 55 a3 1a 30 18 a0 03 02     A.MIT.EDU..0....
+      01 01 a1 11 30 0f 1b 06 68 66 74 73 61 69 1b 05     ....0...hftsai..
+      65 78 74 72 61 a4 11 18 0f 31 39 39 34 30 36 31     extra....1994061
+      30 30 36 30 33 31 37 5a a5 11 18 0f 31 39 39 34     0060317Z....1994
+      30 36 31 30 30 36 30 33 31 37 5a a6 11 18 0f 31     0610060317Z....1
+      39 39 34 30 36 31 30 30 36 30 33 31 37 5a a7 03     9940610060317Z..
+      02 01 2a a8 08 30 06 02 01 00 02 01 01 a9 20 30     ..*..0........ 0
+      1e 30 0d a0 03 02 01 02 a1 06 04 04 12 d0 00 23     .0.............#
+      30 0d a0 03 02 01 02 a1 06 04 04 12 d0 00 23 aa     0.............#.
+      25 30 23 a0 03 02 01 00 a1 03 02 01 05 a2 17 04     %0#.............
+      15 6b 72 62 41 53 4e 2e 31 20 74 65 73 74 20 6d     .krbASN.1 test m
+      65 73 73 61 67 65 ab 81 bf 30 81 bc 61 5c 30 5a     essage...0..a\0Z
+      a0 03 02 01 05 a1 10 1b 0e 41 54 48 45 4e 41 2e     .........ATHENA.
+      4d 49 54 2e 45 44 55 a2 1a 30 18 a0 03 02 01 01     MIT.EDU..0......
+      a1 11 30 0f 1b 06 68 66 74 73 61 69 1b 05 65 78     ..0...hftsai..ex
+      74 72 61 a3 25 30 23 a0 03 02 01 00 a1 03 02 01     tra.%0#.........
+      05 a2 17 04 15 6b 72 62 41 53 4e 2e 31 20 74 65     .....krbASN.1 te
+      73 74 20 6d 65 73 73 61 67 65 61 5c 30 5a a0 03     st messagea\0Z..
+      02 01 05 a1 10 1b 0e 41 54 48 45 4e 41 2e 4d 49     .......ATHENA.MI
+      54 2e 45 44 55 a2 1a 30 18 a0 03 02 01 01 a1 11     T.EDU..0........
+      30 0f 1b 06 68 66 74 73 61 69 1b 05 65 78 74 72     0...hftsai..extr
+      61 a3 25 30 23 a0 03 02 01 00 a1 03 02 01 05 a2     a.%0#...........
+      17 04 15 6b 72 62 41 53 4e 2e 31 20 74 65 73 74     ...krbASN.1 test
+      20 6d 65 73 73 61 67 65                              message
+.  [1] [General string] "krb5data"
+
+encode_krb5_cammac(optionals NULL):
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "ad1"
+
+encode_krb5_cammac:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "ad1"
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 2
+.  .  .  [1] [Octet String] "ad2"
+.  [1] [Sequence/Sequence Of]
+.  .  [0] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [1] [Integer] 5
+.  .  [2] [Integer] 16
+.  .  [3] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "cksumkdc"
+.  [2] [Sequence/Sequence Of]
+.  .  [0] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Sequence/Sequence Of]
+.  .  .  .  [General string] "hftsai"
+.  .  .  .  [General string] "extra"
+.  .  [1] [Integer] 5
+.  .  [2] [Integer] 16
+.  .  [3] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 1
+.  .  .  [1] [Octet String] "cksumsvc"
+.  [3] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [3] [Sequence/Sequence Of]
+.  .  .  .  [0] [Integer] 1
+.  .  .  .  [1] [Octet String] "cksum1"
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Sequence/Sequence Of]
+.  .  .  .  [0] [Integer] 1
+.  .  .  .  [1] [Sequence/Sequence Of]
+.  .  .  .  .  [General string] "hftsai"
+.  .  .  .  .  [General string] "extra"
+.  .  .  [1] [Integer] 5
+.  .  .  [2] [Integer] 16
+.  .  .  [3] [Sequence/Sequence Of]
+.  .  .  .  [0] [Integer] 1
+.  .  .  .  [1] [Octet String] "cksum2"
+
+encode_krb5_secure_cookie:
+
+[Sequence/Sequence Of]
+.  [Integer] 771228197
+.  [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [1] [Integer] 13
+.  .  .  [2] [Octet String] "pa-data"
+.  .  [Sequence/Sequence Of]
+.  .  .  [1] [Integer] 13
+.  .  .  [2] [Octet String] "pa-data"
+
+encode_krb5_spake_factor(optionals NULL):
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 1
+
+encode_krb5_spake_factor:
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 2
+.  [1] [Octet String] "fdata"
+
+encode_krb5_pa_spake(support):
+
+[CONT 0]
+.  [Sequence/Sequence Of]
+.  .  [0] [Sequence/Sequence Of]
+.  .  .  [Integer] 1
+.  .  .  [Integer] 2
+
+encode_krb5_pa_spake(challenge):
+
+[CONT 1]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "T value"
+.  .  [2] [Sequence/Sequence Of]
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [0] [Integer] 1
+.  .  .  [Sequence/Sequence Of]
+.  .  .  .  [0] [Integer] 2
+.  .  .  .  [1] [Octet String] "fdata"
+
+encode_krb5_pa_spake(response):
+
+[CONT 2]
+.  [Sequence/Sequence Of]
+.  .  [0] [Octet String] "S value"
+.  .  [1] [Sequence/Sequence Of]
+.  .  .  [0] [Integer] 0
+.  .  .  [1] [Integer] 5
+.  .  .  [2] [Octet String] "krbASN.1 test message"
+
+encode_krb5_pa_spake(encdata):
+
+[CONT 3]
+.  [Sequence/Sequence Of]
+.  .  [0] [Integer] 0
+.  .  [1] [Integer] 5
+.  .  [2] [Octet String] "krbASN.1 test message"

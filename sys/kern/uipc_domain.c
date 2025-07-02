@@ -145,6 +145,12 @@ pr_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 }
 
 static int
+pr_sendfile_wait_notsupp(struct socket *so, off_t need, int *space)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
 pr_ready_notsupp(struct socket *so, struct mbuf *m, int count)
 {
 	return (EOPNOTSUPP);
@@ -191,6 +197,7 @@ pr_init(struct domain *dom, struct protosw *pr)
 	DEFAULT(pr_sopoll, sopoll_generic);
 	DEFAULT(pr_setsbopt, sbsetopt);
 	DEFAULT(pr_aio_queue, soaio_queue_generic);
+	DEFAULT(pr_kqfilter, sokqfilter_generic);
 
 #define NOTSUPP(foo)	if (pr->foo == NULL)  pr->foo = foo ## _notsupp
 	NOTSUPP(pr_accept);
@@ -207,6 +214,7 @@ pr_init(struct domain *dom, struct protosw *pr)
 	NOTSUPP(pr_rcvd);
 	NOTSUPP(pr_rcvoob);
 	NOTSUPP(pr_send);
+	NOTSUPP(pr_sendfile_wait);
 	NOTSUPP(pr_shutdown);
 	NOTSUPP(pr_sockaddr);
 	NOTSUPP(pr_sosend);

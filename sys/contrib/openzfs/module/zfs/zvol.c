@@ -90,11 +90,15 @@
 
 unsigned int zvol_inhibit_dev = 0;
 unsigned int zvol_volmode = ZFS_VOLMODE_GEOM;
+unsigned int zvol_threads = 0;
+unsigned int zvol_num_taskqs = 0;
+unsigned int zvol_request_sync = 0;
 
 struct hlist_head *zvol_htable;
 static list_t zvol_state_list;
 krwlock_t zvol_state_lock;
 extern int zfs_bclone_wait_dirty;
+zv_taskq_t zvol_taskqs;
 
 typedef enum {
 	ZVOL_ASYNC_REMOVE_MINORS,
@@ -110,6 +114,22 @@ typedef struct {
 	char name2[MAXNAMELEN];
 	uint64_t value;
 } zvol_task_t;
+
+zv_request_task_t *
+zv_request_task_create(zv_request_t zvr)
+{
+	zv_request_task_t *task;
+	task = kmem_alloc(sizeof (zv_request_task_t), KM_SLEEP);
+	taskq_init_ent(&task->ent);
+	task->zvr = zvr;
+	return (task);
+}
+
+void
+zv_request_task_free(zv_request_task_t *task)
+{
+	kmem_free(task, sizeof (*task));
+}
 
 uint64_t
 zvol_name_hash(const char *name)
@@ -851,7 +871,7 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 	uint32_t blocksize = zv->zv_volblocksize;
 	zilog_t *zilog = zv->zv_zilog;
 	itx_wr_state_t write_state;
-	uint64_t sz = size;
+	uint64_t log_size = 0;
 
 	if (zil_replaying(zilog, tx))
 		return;
@@ -880,13 +900,18 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 		itx = zil_itx_create(TX_WRITE, sizeof (*lr) +
 		    (wr_state == WR_COPIED ? len : 0));
 		lr = (lr_write_t *)&itx->itx_lr;
-		if (wr_state == WR_COPIED && dmu_read_by_dnode(zv->zv_dn,
-		    offset, len, lr+1, DMU_READ_NO_PREFETCH) != 0) {
+		if (wr_state == WR_COPIED &&
+		    dmu_read_by_dnode(zv->zv_dn, offset, len, lr + 1,
+		    DMU_READ_NO_PREFETCH | DMU_KEEP_CACHING) != 0) {
 			zil_itx_destroy(itx);
 			itx = zil_itx_create(TX_WRITE, sizeof (*lr));
 			lr = (lr_write_t *)&itx->itx_lr;
 			wr_state = WR_NEED_COPY;
 		}
+
+		log_size += itx->itx_size;
+		if (wr_state == WR_NEED_COPY)
+			log_size += len;
 
 		itx->itx_wr_state = wr_state;
 		lr->lr_foid = ZVOL_OBJ;
@@ -903,9 +928,7 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 		size -= len;
 	}
 
-	if (write_state == WR_COPIED || write_state == WR_NEED_COPY) {
-		dsl_pool_wrlog_count(zilog->zl_dmu_pool, sz, tx->tx_txg);
-	}
+	dsl_pool_wrlog_count(zilog->zl_dmu_pool, log_size, tx->tx_txg);
 }
 
 /*
@@ -974,7 +997,7 @@ zvol_get_data(void *arg, uint64_t arg2, lr_write_t *lr, char *buf,
 		zgd->zgd_lr = zfs_rangelock_enter(&zv->zv_rangelock, offset,
 		    size, RL_READER);
 		error = dmu_read_by_dnode(zv->zv_dn, offset, size, buf,
-		    DMU_READ_NO_PREFETCH);
+		    DMU_READ_NO_PREFETCH | DMU_KEEP_CACHING);
 	} else { /* indirect write */
 		ASSERT3P(zio, !=, NULL);
 		/*
@@ -2018,6 +2041,75 @@ zvol_init_impl(void)
 {
 	int i;
 
+	/*
+	 * zvol_threads is the module param the user passes in.
+	 *
+	 * zvol_actual_threads is what we use internally, since the user can
+	 * pass zvol_thread = 0 to mean "use all the CPUs" (the default).
+	 */
+	static unsigned int zvol_actual_threads;
+
+	if (zvol_threads == 0) {
+		/*
+		 * See dde9380a1 for why 32 was chosen here.  This should
+		 * probably be refined to be some multiple of the number
+		 * of CPUs.
+		 */
+		zvol_actual_threads = MAX(max_ncpus, 32);
+	} else {
+		zvol_actual_threads = MIN(MAX(zvol_threads, 1), 1024);
+	}
+
+	/*
+	 * Use at least 32 zvol_threads but for many core system,
+	 * prefer 6 threads per taskq, but no more taskqs
+	 * than threads in them on large systems.
+	 *
+	 *                 taskq   total
+	 * cpus    taskqs  threads threads
+	 * ------- ------- ------- -------
+	 * 1       1       32       32
+	 * 2       1       32       32
+	 * 4       1       32       32
+	 * 8       2       16       32
+	 * 16      3       11       33
+	 * 32      5       7        35
+	 * 64      8       8        64
+	 * 128     11      12       132
+	 * 256     16      16       256
+	 */
+	zv_taskq_t *ztqs = &zvol_taskqs;
+	int num_tqs = MIN(max_ncpus, zvol_num_taskqs);
+	if (num_tqs == 0) {
+		num_tqs = 1 + max_ncpus / 6;
+		while (num_tqs * num_tqs > zvol_actual_threads)
+			num_tqs--;
+	}
+
+	int per_tq_thread = zvol_actual_threads / num_tqs;
+	if (per_tq_thread * num_tqs < zvol_actual_threads)
+		per_tq_thread++;
+
+	ztqs->tqs_cnt = num_tqs;
+	ztqs->tqs_taskq = kmem_alloc(num_tqs * sizeof (taskq_t *), KM_SLEEP);
+
+	for (uint_t i = 0; i < num_tqs; i++) {
+		char name[32];
+		(void) snprintf(name, sizeof (name), "%s_tq-%u",
+		    ZVOL_DRIVER, i);
+		ztqs->tqs_taskq[i] = taskq_create(name, per_tq_thread,
+		    maxclsyspri, per_tq_thread, INT_MAX,
+		    TASKQ_PREPOPULATE | TASKQ_DYNAMIC);
+		if (ztqs->tqs_taskq[i] == NULL) {
+			for (int j = i - 1; j >= 0; j--)
+				taskq_destroy(ztqs->tqs_taskq[j]);
+			kmem_free(ztqs->tqs_taskq, ztqs->tqs_cnt *
+			    sizeof (taskq_t *));
+			ztqs->tqs_taskq = NULL;
+			return (SET_ERROR(ENOMEM));
+		}
+	}
+
 	list_create(&zvol_state_list, sizeof (zvol_state_t),
 	    offsetof(zvol_state_t, zv_next));
 	rw_init(&zvol_state_lock, NULL, RW_DEFAULT, NULL);
@@ -2033,6 +2125,8 @@ zvol_init_impl(void)
 void
 zvol_fini_impl(void)
 {
+	zv_taskq_t *ztqs = &zvol_taskqs;
+
 	zvol_remove_minors_impl(NULL);
 
 	/*
@@ -2046,4 +2140,25 @@ zvol_fini_impl(void)
 	kmem_free(zvol_htable, ZVOL_HT_SIZE * sizeof (struct hlist_head));
 	list_destroy(&zvol_state_list);
 	rw_destroy(&zvol_state_lock);
+
+	if (ztqs->tqs_taskq == NULL) {
+		ASSERT3U(ztqs->tqs_cnt, ==, 0);
+	} else {
+		for (uint_t i = 0; i < ztqs->tqs_cnt; i++) {
+			ASSERT3P(ztqs->tqs_taskq[i], !=, NULL);
+			taskq_destroy(ztqs->tqs_taskq[i]);
+		}
+		kmem_free(ztqs->tqs_taskq, ztqs->tqs_cnt *
+		    sizeof (taskq_t *));
+		ztqs->tqs_taskq = NULL;
+	}
 }
+
+ZFS_MODULE_PARAM(zfs_vol, zvol_, inhibit_dev, UINT, ZMOD_RW,
+	"Do not create zvol device nodes");
+ZFS_MODULE_PARAM(zfs_vol, zvol_, threads, UINT, ZMOD_RW,
+	"Number of threads for I/O requests. Set to 0 to use all active CPUs");
+ZFS_MODULE_PARAM(zfs_vol, zvol_, num_taskqs, UINT, ZMOD_RW,
+	"Number of zvol taskqs");
+ZFS_MODULE_PARAM(zfs_vol, zvol_, request_sync, UINT, ZMOD_RW,
+	"Synchronously handle bio requests");

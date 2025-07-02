@@ -1,0 +1,106 @@
+[OPTIONS]
+Binary Index=No
+Compatibility=1.1 or later
+Compiled file=MITKerberosHelp.chm
+Contents file=TOC.hhc
+Default Window=Leash Help
+Default topic=HTML\Using_Leash_Menus.htm
+Display compile progress=No
+Full text search stop list file=stoplist.stp
+Full-text search=Yes
+Index file=Index.hhk
+Language=0x409 English (United States)
+Title=MIT Kerberos Help
+
+[WINDOWS]
+Leash Help="MIT Kerberos Help","TOC.hhc","Index.hhk",,,,,,,0x62420,,0x100e,[0,0,585,559],,,,,,,0
+MIT Kerberos Help="MIT Kerberos Help","TOC.hhc","Index.hhk","Html\Getting_Started.htm",,,,,,0x20,,0x0,[271,372,593,566],,,,,,,0
+
+
+[FILES]
+Leash.css
+HTML\FAQ.htm
+HTML\Command_Line.htm
+HTML\KDESTROY.htm
+HTML\KLIST.htm
+HTML\KINIT.htm
+HTML\Troubleshooting.htm
+HTML\Kerberos_Terminology.htm
+HTML\Report_Bugs.htm
+HTML\Encryption_Types.htm
+HTML\KCPYTKT.htm
+HTML\KVNO.htm
+HTML\KSWITCH.htm
+HTML\KPASSWD.htm
+HTML\Glossary.htm
+HTML\Debugging.htm
+HTML\Keyboard_Shortcuts.htm
+HTML\How_Kerberos_Works.htm
+HTML\Principals.htm
+HTML\Make_Default.htm
+HTML\Manage_Multiple_Principals.htm
+HTML\Forget_Principals.htm
+HTML\Home_Tab.htm
+HTML\Options_Tab.htm
+HTML\Getting_Started.htm
+HTML\Change_Password.htm
+HTML\Forget_Password.htm
+HTML\Kerberos.htm
+HTML\Password_Tips.htm
+HTML\Using_Leash_Menus.htm
+HTML\Passwords.htm
+HTML\Tickets.htm
+HTML\Destroy_Tickets.htm
+HTML\Get_Tickets.htm
+HTML\Renew_Tickets.htm
+HTML\Ticket_Settings.htm
+HTML\View_Tickets.htm
+
+[ALIAS]
+HID_ABOUT_KERBEROS = html\Getting_Started.htm
+HID_CHANGE_PASSWORD_COMMAND = html\Change_Password.htm
+HID_DESTROY_TICKETS_COMMAND = html\Destroy_Tickets.htm
+HID_DESTROY_TICKETS_ON_EXIT = html\Options_Tab.htm
+HID_GET_TICKETS_COMMAND = html\Get_Tickets.htm
+HID_RENEW_TICKETS_COMMAND = html\Renew_Tickets.htm
+HID_HELP_CONTENTS = html\Getting_Started.htm
+HID_LEASH_COMMANDS = html\Getting_Started.htm
+HID_LEASH_PROGRAM = html\Getting_Started.htm
+hid_app_about = html\hid_app_about.htm
+hid_app_exit = html\hid_app_exit.htm
+hid_help_index = html\hid_help_index.htm
+hid_help_using = html\hid_help_using.htm
+hid_context_help = html\hid_context_help.htm
+hid_sc_size = html\hid_sc_size.htm
+hid_sc_move = html\hid_sc_move.htm
+hid_sc_minimize = html\hid_sc_minimize.htm
+hid_sc_maximize = html\hid_sc_maximize.htm
+hid_sc_close = html\hid_sc_close.htm
+hid_sc_restore = html\hid_sc_restore.htm
+
+[MAP]
+#define HID_ABOUT_KERBEROS              98320
+#define HID_ABOUT_LEASH32_COMMAND       123200
+#define HID_ABOUT_LEASH32_MODULES       131225
+#define HID_CHANGE_PASSWORD_COMMAND		98315
+#define HID_DEBUG_WINDOW				131229
+#define HID_DEBUG_WINDOW_OPTION			98317
+#define HID_DESTROY_TICKETS_COMMAND     98313
+#define HID_DESTROY_TICKETS_ON_EXIT		98321
+#define HID_GET_TICKETS_COMMAND			98343
+#define HID_RENEW_TICKETS_COMMAND       98312
+#define HID_HELP_CONTENTS				98340
+#define HID_KRBCHECK_OPTION				98335
+#define HID_LEASH_COMMANDS              131200
+#define HID_LEASH_PROGRAM               98319
+#define HID_LOW_TICKET_ALARM_OPTION		98334
+#define KRB_BAD_NAME		            39525457
+#define KRB_BAD_TIME		            39525413
+#DEFINE KRB_ERROR_78		            39525454
+#define KRB_INCORR_PASSWD	            39525438
+#define KRB_NO_TKT_FILE 	            39525446
+#define KRB_UNKNOWN_REALM	            39525433
+#define KRB_UNKNOWN_USER	            39525384
+#define LSH_INVINSTANCE 	            40591875
+
+[INFOTYPES]

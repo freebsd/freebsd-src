@@ -40,9 +40,9 @@
 #ifdef LINUXKPI_DEBUG_80211
 #define	LKPI_80211_TRACE_MO(fmt, ...)					\
     if (linuxkpi_debug_80211 & D80211_TRACE_MO)				\
-	printf("LKPI_80211_TRACE_MO %s:%d: %d %d %u_" fmt "\n",		\
+	printf("LKPI_80211_TRACE_MO %s:%d: %d %d %lu: " fmt "\n",	\
 	    __func__, __LINE__, curcpu, curthread->td_tid,		\
-	    (unsigned int)ticks, __VA_ARGS__)
+	    jiffies, __VA_ARGS__)
 #else
 #define	LKPI_80211_TRACE_MO(...)	do { } while(0)
 #endif

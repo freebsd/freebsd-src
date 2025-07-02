@@ -504,7 +504,7 @@ static	const struct ieee80211_aclator *acl = NULL;
 void
 ieee80211_aclator_register(const struct ieee80211_aclator *iac)
 {
-	printf("wlan: %s acl policy registered\n", iac->iac_name);
+	net80211_printf("wlan: %s acl policy registered\n", iac->iac_name);
 	acl = iac;
 }
 
@@ -513,7 +513,7 @@ ieee80211_aclator_unregister(const struct ieee80211_aclator *iac)
 {
 	if (acl == iac)
 		acl = NULL;
-	printf("wlan: %s acl policy unregistered\n", iac->iac_name);
+	net80211_printf("wlan: %s acl policy unregistered\n", iac->iac_name);
 }
 
 const struct ieee80211_aclator *
@@ -538,14 +538,14 @@ ieee80211_print_essid(const uint8_t *essid, int len)
 			break;
 	}
 	if (i == len) {
-		printf("\"");
+		net80211_printf("\"");
 		for (i = 0, p = essid; i < len; i++, p++)
-			printf("%c", *p);
-		printf("\"");
+			net80211_printf("%c", *p);
+		net80211_printf("\"");
 	} else {
-		printf("0x");
+		net80211_printf("0x");
 		for (i = 0, p = essid; i < len; i++, p++)
-			printf("%02x", *p);
+			net80211_printf("%02x", *p);
 	}
 }
 
@@ -559,67 +559,67 @@ ieee80211_dump_pkt(struct ieee80211com *ic,
 	wh = (const struct ieee80211_frame *)buf;
 	switch (wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) {
 	case IEEE80211_FC1_DIR_NODS:
-		printf("NODS %s", ether_sprintf(wh->i_addr2));
-		printf("->%s", ether_sprintf(wh->i_addr1));
-		printf("(%s)", ether_sprintf(wh->i_addr3));
+		net80211_printf("NODS %s", ether_sprintf(wh->i_addr2));
+		net80211_printf("->%s", ether_sprintf(wh->i_addr1));
+		net80211_printf("(%s)", ether_sprintf(wh->i_addr3));
 		break;
 	case IEEE80211_FC1_DIR_TODS:
-		printf("TODS %s", ether_sprintf(wh->i_addr2));
-		printf("->%s", ether_sprintf(wh->i_addr3));
-		printf("(%s)", ether_sprintf(wh->i_addr1));
+		net80211_printf("TODS %s", ether_sprintf(wh->i_addr2));
+		net80211_printf("->%s", ether_sprintf(wh->i_addr3));
+		net80211_printf("(%s)", ether_sprintf(wh->i_addr1));
 		break;
 	case IEEE80211_FC1_DIR_FROMDS:
-		printf("FRDS %s", ether_sprintf(wh->i_addr3));
-		printf("->%s", ether_sprintf(wh->i_addr1));
-		printf("(%s)", ether_sprintf(wh->i_addr2));
+		net80211_printf("FRDS %s", ether_sprintf(wh->i_addr3));
+		net80211_printf("->%s", ether_sprintf(wh->i_addr1));
+		net80211_printf("(%s)", ether_sprintf(wh->i_addr2));
 		break;
 	case IEEE80211_FC1_DIR_DSTODS:
-		printf("DSDS %s", ether_sprintf((const uint8_t *)&wh[1]));
-		printf("->%s", ether_sprintf(wh->i_addr3));
-		printf("(%s", ether_sprintf(wh->i_addr2));
-		printf("->%s)", ether_sprintf(wh->i_addr1));
+		net80211_printf("DSDS %s", ether_sprintf((const uint8_t *)&wh[1]));
+		net80211_printf("->%s", ether_sprintf(wh->i_addr3));
+		net80211_printf("(%s", ether_sprintf(wh->i_addr2));
+		net80211_printf("->%s)", ether_sprintf(wh->i_addr1));
 		break;
 	}
 	switch (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
 	case IEEE80211_FC0_TYPE_DATA:
-		printf(" data");
+		net80211_printf(" data");
 		break;
 	case IEEE80211_FC0_TYPE_MGT:
-		printf(" %s", ieee80211_mgt_subtype_name(wh->i_fc[0]));
+		net80211_printf(" %s", ieee80211_mgt_subtype_name(wh->i_fc[0]));
 		break;
 	default:
-		printf(" type#%d", wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK);
+		net80211_printf(" type#%d", wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK);
 		break;
 	}
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
 		const struct ieee80211_qosframe *qwh = 
 			(const struct ieee80211_qosframe *)buf;
-		printf(" QoS [TID %u%s]", qwh->i_qos[0] & IEEE80211_QOS_TID,
+		net80211_printf(" QoS [TID %u%s]", qwh->i_qos[0] & IEEE80211_QOS_TID,
 			qwh->i_qos[0] & IEEE80211_QOS_ACKPOLICY ? " ACM" : "");
 	}
 	if (IEEE80211_IS_PROTECTED(wh)) {
 		int off;
 
 		off = ieee80211_anyhdrspace(ic, wh);
-		printf(" WEP [IV %.02x %.02x %.02x",
+		net80211_printf(" WEP [IV %.02x %.02x %.02x",
 			buf[off+0], buf[off+1], buf[off+2]);
 		if (buf[off+IEEE80211_WEP_IVLEN] & IEEE80211_WEP_EXTIV)
-			printf(" %.02x %.02x %.02x",
+			net80211_printf(" %.02x %.02x %.02x",
 				buf[off+4], buf[off+5], buf[off+6]);
-		printf(" KID %u]", buf[off+IEEE80211_WEP_IVLEN] >> 6);
+		net80211_printf(" KID %u]", buf[off+IEEE80211_WEP_IVLEN] >> 6);
 	}
 	if (rate >= 0)
-		printf(" %dM", rate / 2);
+		net80211_printf(" %dM", rate / 2);
 	if (rssi >= 0)
-		printf(" +%d", rssi);
-	printf("\n");
+		net80211_printf(" +%d", rssi);
+	net80211_printf("\n");
 	if (len > 0) {
 		for (i = 0; i < len; i++) {
 			if ((i & 1) == 0)
-				printf(" ");
-			printf("%02x", buf[i]);
+				net80211_printf(" ");
+			net80211_printf("%02x", buf[i]);
 		}
-		printf("\n");
+		net80211_printf("\n");
 	}
 }
 
@@ -1976,7 +1976,6 @@ ieee80211_start_reset_chan(struct ieee80211vap *vap)
 void
 ieee80211_start_locked(struct ieee80211vap *vap)
 {
-	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211com *ic = vap->iv_ic;
 
 	IEEE80211_LOCK_ASSERT(ic);
@@ -1985,7 +1984,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
 		"start running, %d vaps running\n", ic->ic_nrunning);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if (!ieee80211_vap_ifp_check_is_running(vap)) {
 		/*
 		 * Mark us running.  Note that it's ok to do this first;
 		 * if we need to bring the parent device up we defer that
@@ -1994,7 +1993,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		 * through ieee80211_start_all at which point we'll come
 		 * back in here and complete the work.
 		 */
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		ieee80211_vap_ifp_set_running_state(vap, true);
 		ieee80211_notify_ifnet_change(vap, IFF_DRV_RUNNING);
 
 		/*
@@ -2099,7 +2098,6 @@ void
 ieee80211_stop_locked(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *ifp = vap->iv_ifp;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
@@ -2107,8 +2105,9 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 	    "stop running, %d vaps running\n", ic->ic_nrunning);
 
 	ieee80211_new_state_locked(vap, IEEE80211_S_INIT, -1);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;	/* mark us stopped */
+	if (ieee80211_vap_ifp_check_is_running(vap)) {
+		/* mark us stopped */
+		ieee80211_vap_ifp_set_running_state(vap, false);
 		ieee80211_notify_ifnet_change(vap, IFF_DRV_RUNNING);
 		if (--ic->ic_nrunning == 0) {
 			IEEE80211_DPRINTF(vap,

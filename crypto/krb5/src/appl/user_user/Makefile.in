@@ -1,0 +1,22 @@
+mydir=appl$(S)user_user
+BUILDTOP=$(REL)..$(S)..
+# If you remove the -DDEBUG, the test program needs a line changed
+DEFINES = -DDEBUG
+
+all: uuclient uuserver
+
+check-pytests: uuclient uuserver
+	$(RUNPYTEST) $(srcdir)/t_user2user.py $(PYTESTFLAGS)
+
+uuclient: client.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o uuclient client.o $(KRB5_BASE_LIBS)
+
+uuserver: server.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o uuserver server.o $(KRB5_BASE_LIBS)
+
+install:
+	$(INSTALL_PROGRAM) uuclient $(DESTDIR)$(CLIENT_BINDIR)/uuclient
+	$(INSTALL_PROGRAM) uuserver $(DESTDIR)$(SERVER_BINDIR)/uuserver
+
+clean:
+	$(RM) client.o server.o uuclient uuserver

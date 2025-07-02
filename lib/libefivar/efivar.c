@@ -23,12 +23,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <efivar.h>
 #include <sys/efiio.h>
 #include <sys/param.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,7 +41,7 @@ static int efi_fd = -2;
 
 const efi_guid_t efi_guid_empty = Z;
 
-static struct uuid_table guid_tbl [] =
+static struct guid_table guid_tbl [] =
 {
 	{ "00000000-0000-0000-0000-000000000000", "zero", Z },
 	{ "093e0fae-a6c4-4f50-9f1b-d41e2b89c19a", "sha512", Z },
@@ -75,32 +75,39 @@ static struct uuid_table guid_tbl [] =
 	{ "e2b36190-879b-4a3d-ad8d-f2e7bba32784", "rsa2048_sha256", Z },
 	{ "ff3e5307-9fd0-48c9-85f1-8ad56c701e01", "sha384", Z },
 	{ "f46ee6f4-4785-43a3-923d-7f786c3c8479", "lenovo_startup_interrupt", Z },
-	{ "ffffffff-ffff-ffff-ffff-ffffffffffff", "zzignore-this-guid", Z },
 };
-#undef Z
+
+int
+efi_str_to_guid(const char *s, efi_guid_t *guid)
+{
+	uint32_t status;
+
+	/* knows efi_guid_t is binary compatible with uuid_t */
+	uuid_from_string(s, (uuid_t *)guid, &status);
+
+	return (status == uuid_s_ok ? 0 : -1);
+}
 
 static void
 efi_guid_tbl_compile(void)
 {
 	size_t i;
-	uint32_t status;
-	static int done = 0;
+	static bool done = false;
+	struct guid_table *ent;
 
 	if (done)
 		return;
 	for (i = 0; i < nitems(guid_tbl); i++) {
-		uuid_from_string(guid_tbl[i].uuid_str, &guid_tbl[i].guid,
-		    &status);
-		/* all f's is a bad version, so ignore that error */
-		if (status != uuid_s_ok && status != uuid_s_bad_version)
-			fprintf(stderr, "Can't convert %s to a uuid for %s: %d\n",
-			    guid_tbl[i].uuid_str, guid_tbl[i].name, (int)status);
+		ent = &guid_tbl[i];
+		if (efi_str_to_guid(ent->uuid_str, &ent->guid) != 0)
+			fprintf(stderr, "Can't convert %s to a guid for %s\n",
+			    ent->uuid_str, ent->name);
 	}
-	done = 1;
+	done = true;
 }
 
 int
-efi_known_guid(struct uuid_table **tbl)
+efi_known_guid(struct guid_table **tbl)
 {
 
 	*tbl = guid_tbl;
@@ -121,7 +128,7 @@ efi_open_dev(void)
 }
 
 static void
-efi_var_reset(struct efi_var_ioc *var)
+efi_var_reset(struct efi_var_ioctl *var)
 {
 	var->name = NULL;
 	var->namesize = 0;
@@ -162,7 +169,7 @@ int
 efi_get_variable(efi_guid_t guid, const char *name,
     uint8_t **data, size_t *data_size, uint32_t *attributes)
 {
-	struct efi_var_ioc var;
+	struct efi_var_ioctl var;
 	int rv;
 	static uint8_t buf[1024*32];
 
@@ -212,7 +219,7 @@ efi_get_variable_size(efi_guid_t guid, const char *name,
 int
 efi_get_next_variable_name(efi_guid_t **guid, char **name)
 {
-	struct efi_var_ioc var;
+	struct efi_var_ioctl var;
 	int rv;
 	static efi_char *buf;
 	static size_t buflen = 256 * sizeof(efi_char);
@@ -287,28 +294,23 @@ done:
 int
 efi_guid_cmp(const efi_guid_t *guid1, const efi_guid_t *guid2)
 {
-	uint32_t status;
-
-	return uuid_compare(guid1, guid2, &status);
+	return (memcmp(guid1, guid2, sizeof(*guid1)));
 }
 
 int
 efi_guid_is_zero(const efi_guid_t *guid)
 {
-	uint32_t status;
-
-	return uuid_is_nil(guid, &status);
+	return (memcmp(guid, &efi_guid_empty, sizeof(*guid)) == 0);
 }
 
 int
 efi_guid_to_name(efi_guid_t *guid, char **name)
 {
 	size_t i;
-	uint32_t status;
 
 	efi_guid_tbl_compile();
 	for (i = 0; i < nitems(guid_tbl); i++) {
-		if (uuid_equal(guid, &guid_tbl[i].guid, &status)) {
+		if (memcmp(guid, &guid_tbl[i].guid, sizeof(*guid)) == 0) {
 			*name = strdup(guid_tbl[i].name);
 			return (0);
 		}
@@ -332,8 +334,8 @@ efi_guid_to_str(const efi_guid_t *guid, char **sp)
 {
 	uint32_t status;
 
-	/* knows efi_guid_t is a typedef of uuid_t */
-	uuid_to_string(guid, sp, &status);
+	/* knows efi_guid_t is binary compatible with uuid_t */
+	uuid_to_string((const uuid_t *)guid, sp, &status);
 
 	return (status == uuid_s_ok ? 0 : -1);
 }
@@ -357,7 +359,7 @@ int
 efi_set_variable(efi_guid_t guid, const char *name,
     uint8_t *data, size_t data_size, uint32_t attributes)
 {
-	struct efi_var_ioc var;
+	struct efi_var_ioctl var;
 	int rv;
 
 	if (efi_open_dev() == -1)
@@ -376,17 +378,6 @@ errout:
 	free(var.name);
 
 	return rv;
-}
-
-int
-efi_str_to_guid(const char *s, efi_guid_t *guid)
-{
-	uint32_t status;
-
-	/* knows efi_guid_t is a typedef of uuid_t */
-	uuid_from_string(s, guid, &status);
-
-	return (status == uuid_s_ok ? 0 : -1);
 }
 
 int

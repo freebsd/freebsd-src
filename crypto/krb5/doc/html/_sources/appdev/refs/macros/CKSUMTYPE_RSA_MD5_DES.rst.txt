@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _CKSUMTYPE-RSA-MD5-DES-data:
+
+CKSUMTYPE_RSA_MD5_DES
+=====================
+
+..
+.. data:: CKSUMTYPE_RSA_MD5_DES
+..
+
+
+
+
+============================ ======================
+``CKSUMTYPE_RSA_MD5_DES``       ``0x0008``
+============================ ======================

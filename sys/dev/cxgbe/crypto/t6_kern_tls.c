@@ -1167,7 +1167,8 @@ ktls_write_tcp_options(struct sge_txq *txq, void *dst, struct mbuf *m,
 	} else {
 		ip6 = (void *)((char *)eh + m->m_pkthdr.l2hlen);
 		newip6 = *ip6;
-		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen);
+		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen -
+		    sizeof(*ip6));
 		copy_to_txd(&txq->eq, (caddr_t)&newip6, &out, sizeof(newip6));
 		MPASS(m->m_pkthdr.l3hlen == sizeof(*ip6));
 		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP6) |
@@ -1267,7 +1268,8 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	} else {
 		ip6 = (void *)((char *)eh + m->m_pkthdr.l2hlen);
 		newip6 = *ip6;
-		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen);
+		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen -
+		    sizeof(*ip6));
 		copy_to_txd(&txq->eq, (caddr_t)&newip6, &out, sizeof(newip6));
 		MPASS(m->m_pkthdr.l3hlen == sizeof(*ip6));
 		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP6) |
@@ -1793,9 +1795,11 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq, void *dst,
 	}
 
 	if (imm_len % 16 != 0) {
-		/* Zero pad to an 8-byte boundary. */
-		memset(out, 0, 8 - (imm_len % 8));
-		out += 8 - (imm_len % 8);
+		if (imm_len % 8 != 0) {
+			/* Zero pad to an 8-byte boundary. */
+			memset(out, 0, 8 - (imm_len % 8));
+			out += 8 - (imm_len % 8);
+		}
 
 		/*
 		 * Insert a ULP_TX_SC_NOOP if needed so the SGL is
@@ -1909,7 +1913,8 @@ ktls_write_tcp_fin(struct sge_txq *txq, void *dst, struct mbuf *m,
 	} else {
 		ip6 = (void *)((char *)eh + m->m_pkthdr.l2hlen);
 		newip6 = *ip6;
-		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen);
+		newip6.ip6_plen = htons(pktlen - m->m_pkthdr.l2hlen -
+		    sizeof(*ip6));
 		copy_to_txd(&txq->eq, (caddr_t)&newip6, &out, sizeof(newip6));
 		MPASS(m->m_pkthdr.l3hlen == sizeof(*ip6));
 		ctrl1 = V_TXPKT_CSUM_TYPE(TX_CSUM_TCPIP6) |

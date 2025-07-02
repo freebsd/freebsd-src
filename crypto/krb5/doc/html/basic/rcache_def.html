@@ -1,0 +1,231 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>replay cache &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="stash file" href="stash_file_def.html" />
+    <link rel="prev" title="keytab" href="keytab_def.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="keytab_def.html" title="keytab"
+            accesskey="P">previous</a> |
+        <a href="stash_file_def.html" title="stash file"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__replay cache">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="replay-cache">
+<span id="rcache-definition"></span><h1>replay cache<a class="headerlink" href="#replay-cache" title="Permalink to this headline">¶</a></h1>
+<p>A replay cache (or “rcache”) keeps track of all authenticators
+recently presented to a service.  If a duplicate authentication
+request is detected in the replay cache, an error message is sent to
+the application program.</p>
+<p>The replay cache interface, like the credential cache and
+<a class="reference internal" href="keytab_def.html#keytab-definition"><span class="std std-ref">keytab</span></a> interfaces, uses <cite>type:residual</cite> strings to
+indicate the type of replay cache and any associated cache naming
+data to use.</p>
+<section id="background-information">
+<h2>Background information<a class="headerlink" href="#background-information" title="Permalink to this headline">¶</a></h2>
+<p>Some Kerberos or GSSAPI services use a simple authentication mechanism
+where a message is sent containing an authenticator, which establishes
+the encryption key that the client will use for talking to the
+service.  But nothing about that prevents an eavesdropper from
+recording the messages sent by the client, establishing a new
+connection, and re-sending or “replaying” the same messages; the
+replayed authenticator will establish the same encryption key for the
+new session, and the following messages will be decrypted and
+processed.  The attacker may not know what the messages say, and can’t
+generate new messages under the same encryption key, but in some
+instances it may be harmful to the user (or helpful to the attacker)
+to cause the server to see the same messages again a second time.  For
+example, if the legitimate client sends “delete first message in
+mailbox”, a replay from an attacker may delete another, different
+“first” message.  (Protocol design to guard against such problems has
+been discussed in <span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4120.html#section-10"><strong>RFC 4120#section-10</strong></a>.)</p>
+<p>Even if one protocol uses further protection to verify that the client
+side of the connection actually knows the encryption keys (and thus is
+presumably a legitimate user), if another service uses the same
+service principal name, it may be possible to record an authenticator
+used with the first protocol and “replay” it against the second.</p>
+<p>The replay cache mitigates these attacks somewhat, by keeping track of
+authenticators that have been seen until their five-minute window
+expires.  Different authenticators generated by multiple connections
+from the same legitimate client will generally have different
+timestamps, and thus will not be considered the same.</p>
+<p>This mechanism isn’t perfect.  If a message is sent to one application
+server but a man-in-the-middle attacker can prevent it from actually
+arriving at that server, the attacker could then use the authenticator
+(once!) against a different service on the same host.  This could be a
+problem if the message from the client included something more than
+authentication in the first message that could be useful to the
+attacker (which is uncommon; in most protocols the server has to
+indicate a successful authentication before the client sends
+additional messages), or if the simple act of presenting the
+authenticator triggers some interesting action in the service being
+attacked.</p>
+</section>
+<section id="replay-cache-types">
+<h2>Replay cache types<a class="headerlink" href="#replay-cache-types" title="Permalink to this headline">¶</a></h2>
+<p>Unlike the credential cache and keytab interfaces, replay cache types
+are in lowercase.  The following types are defined:</p>
+<ol class="arabic simple">
+<li><p><strong>none</strong> disables the replay cache.  The residual value is ignored.</p></li>
+<li><p><strong>file2</strong> (new in release 1.18) uses a hash-based format to store
+replay records.  The file may grow to accommodate hash collisions.
+The residual value is the filename.</p></li>
+<li><p><strong>dfl</strong> is the default type if no environment variable or
+configuration specifies a different type.  It stores replay data in
+a file2 replay cache with a filename based on the effective uid.
+The residual value is ignored.</p></li>
+</ol>
+<p>For the dfl type, the location of the replay cache file is determined
+as follows:</p>
+<ol class="arabic simple">
+<li><p>The directory is taken from the <strong>KRB5RCACHEDIR</strong> environment
+variable, or the <strong>TMPDIR</strong> environment variable, or a temporary
+directory determined at configuration time such as <code class="docutils literal notranslate"><span class="pre">/var/tmp</span></code>, in
+descending order of preference.</p></li>
+<li><p>The filename is <code class="docutils literal notranslate"><span class="pre">krb5_EUID.rcache2</span></code> where EUID is the effective
+uid of the process.</p></li>
+<li><p>The file is opened without following symbolic links, and ownership
+of the file is verified to match the effective uid.</p></li>
+</ol>
+<p>On Windows, the directory for the dfl type is the local appdata
+directory, unless overridden by the <strong>KRB5RCACHEDIR</strong> environment
+variable.  The filename on Windows is <code class="docutils literal notranslate"><span class="pre">krb5.rcache2</span></code>, and the file
+is opened normally.</p>
+</section>
+<section id="default-replay-cache-name">
+<h2>Default replay cache name<a class="headerlink" href="#default-replay-cache-name" title="Permalink to this headline">¶</a></h2>
+<p>The default replay cache name is determined by the following, in
+descending order of priority:</p>
+<ol class="arabic simple">
+<li><p>The <strong>KRB5RCACHENAME</strong> environment variable (new in release 1.18).</p></li>
+<li><p>The <strong>KRB5RCACHETYPE</strong> environment variable.  If this variable is
+set, the residual value is empty.</p></li>
+<li><p>The <strong>default_rcache_name</strong> profile variable in <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>
+(new in release 1.18).</p></li>
+<li><p>If none of the above are set, the default replay cache name is
+<code class="docutils literal notranslate"><span class="pre">dfl:</span></code>.</p></li>
+</ol>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">replay cache</a><ul>
+<li><a class="reference internal" href="#background-information">Background information</a></li>
+<li><a class="reference internal" href="#replay-cache-types">Replay cache types</a></li>
+<li><a class="reference internal" href="#default-replay-cache-name">Default replay cache name</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Kerberos V5 concepts</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_def.html">Credential cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="keytab_def.html">keytab</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">replay cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stash_file_def.html">stash file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="date_format.html">Supported date and time formats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="keytab_def.html" title="keytab"
+            >previous</a> |
+        <a href="stash_file_def.html" title="stash file"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__replay cache">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

@@ -27,6 +27,59 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250603:
+	LinuxKPI dma-mapping.h were pulled into the tree from drm-kmod.
+	Bump _FreeBSD_version to 1500045 to be able to detect this change.
+
+20250527:
+	pf changed extension header handling. It now treats AH headers on IPv4 just
+	like AH headers on IPv6 and skips over them, allowing filtering on the inner
+	protocol.
+
+20250527:
+	pf now blocks IPv6 packets with a hop-by-hop or destination options header by
+	default. Such packets can be passed by adding "allow-opts" to the rule. IPv6
+	options are now handled just like their IPv4 counterparts.
+
+20250527:
+	The CAM target layer userland, i.e. ctld(8), ctladm(8) and ctlstat(8),
+	has moved to the new FreeBSD-ctl package.  If you use pkgbase and you
+	need the CAM Target Layer, you should install the new package.
+
+	Development-related tools (e.g. ar and nm) have moved to the new
+	"FreeBSD-toolchain" package, which subsumes and obsoletes the
+	existing "FreeBSD-elftoolchain" package.  If you use pkgbase and
+	need to compile software, you should install the new package and
+	ensure the old FreeBSD-elftoolchain* packages are completely removed.
+
+20250521:
+	Commit e64fe5ad3a23 removed in6_maxmtu and its setter in6_setmaxmtu().
+	in6_maxmtu is used to store the max IPv6 MTU of all interfaces,
+	however it does not have any in-tree consumers since the introduction
+	from the KAME project. The removal should have little impact, and the
+	max IPv6 MTU can be easily retrieved by iterating over all the attached
+	interface if 3rd party modules need it.
+
+20250515:
+	Commit 772258c89f28 changed the internal API between the nfscommon
+	and nfscl modules.  Both need to be built from updated sources.
+
+20250513:
+	The bridge(4) sysctl net.link.bridge.member_ifaddrs now defaults to 0,
+	meaning that interfaces added to a bridge may not have IP addresses
+	assigned.  Refer to bridge(4) for more information.
+
+20250507:
+	UMASS quirks and auto-quirk probing has been overhauled. CAM now won't
+	send SYNCHRONIZE CACHE unless MODE PAGE 8 is present and valid. This
+	should allow more devices to work (since the auto quirk code was updated
+	in 14 and broke several e-readers and the like). Please send imp@freebsd.org
+	any regression reports.
+
+20250504:
+	Commit 9419e086e1a3 changed the internal API between the nfscommon
+	and nfscl modules.  Both need to be built from updated sources.
+
 20250412:
 	LinuxKPI alloc routines were changed to return physically contiguous
 	memory where expected. These changes may require out-of-tree drivers
@@ -2135,10 +2188,11 @@ COMMON ITEMS:
 	# Note: sometimes if you are running current you gotta do more than
 	# is listed here if you are upgrading from a really old current.
 
-	<make sure you have good level 0 dumps>
+	<make sure you have good level 0 dumps>		[2]
 	make buildworld
+	<make sure any needed PORTS_MODULES are set>	[1]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2172,10 +2226,11 @@ COMMON ITEMS:
 
 	To upgrade in-place from stable to current
 	----------------------------------------------
-	<make sure you have good level 0 dumps>
+	<make sure you have good level 0 dumps>		[2]
 	make buildworld					[9]
+	<make sure any needed PORTS_MODULES are set>	[1]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2207,6 +2262,11 @@ FOOTNOTES:
 	the port origin directories to PORTS_MODULES instead is also automatic
 	and effective, eg:
 	     PORTS_MODULES+=graphics/drm-kmod graphics/nvidia-drm-kmod
+
+	[2] To make complete dumps on zfs(4), use bectl(8), which
+	creates bootable snapshots of configurable depth that are
+	selectable via the bootloader. For ufs(4), use dump(8) and
+	restore(8).
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p

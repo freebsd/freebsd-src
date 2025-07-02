@@ -3,7 +3,7 @@
 .\" Copyright (c) 2013 by Turbo Fredriksson <turbo@bayour.com>. All rights reserved.
 .\" Copyright (c) 2019, 2021 by Delphix. All rights reserved.
 .\" Copyright (c) 2019 Datto Inc.
-.\" Copyright (c) 2023, 2024 Klara, Inc.
+.\" Copyright (c) 2023, 2024, 2025, Klara, Inc.
 .\" The contents of this file are subject to the terms of the Common Development
 .\" and Distribution License (the "License").  You may not use this file except
 .\" in compliance with the License. You can obtain a copy of the license at
@@ -17,9 +17,7 @@
 .\" own identifying information:
 .\" Portions Copyright [yyyy] [name of copyright owner]
 .\"
-.\" Copyright (c) 2024, Klara, Inc.
-.\"
-.Dd November 1, 2024
+.Dd May 29, 2025
 .Dt ZFS 4
 .Os
 .
@@ -94,10 +92,6 @@ when the DDT can not report the correct reference count.
 .It Sy dmu_prefetch_max Ns = Ns Sy 134217728 Ns B Po 128 MiB Pc Pq uint
 Limit the amount we can prefetch with one call to this amount in bytes.
 This helps to limit the amount of memory that can be used by prefetching.
-.
-.It Sy ignore_hole_birth Pq int
-Alias for
-.Sy send_holes_without_birth_time .
 .
 .It Sy l2arc_feed_again Ns = Ns Sy 1 Ns | Ns 0 Pq int
 Turbo L2ARC warm-up.
@@ -304,13 +298,18 @@ Default dnode block size as a power of 2.
 .It Sy zfs_default_ibs Ns = Ns Sy 17 Po 128 KiB Pc Pq int
 Default dnode indirect block size as a power of 2.
 .
-.It Sy zfs_dio_enabled Ns = Ns Sy 0 Ns | Ns 1 Pq int
+.It Sy zfs_dio_enabled Ns = Ns Sy 1 Ns | Ns 0 Pq int
 Enable Direct I/O.
 If this setting is 0, then all I/O requests will be directed through the ARC
 acting as though the dataset property
 .Sy direct
 was set to
 .Sy disabled .
+.
+.It Sy zfs_dio_strict Ns = Ns Sy 0 Ns | Ns 1 Pq int
+Strictly enforce alignment for Direct I/O requests, returning
+.Sy EINVAL
+if not page-aligned instead of silently falling back to uncached I/O.
 .
 .It Sy zfs_history_output_max Ns = Ns Sy 1048576 Ns B Po 1 MiB Pc Pq u64
 When attempting to log an output nvlist of an ioctl in the on-disk history,
@@ -735,6 +734,40 @@ Number ARC headers to evict per sub-list before proceeding to another sub-list.
 This batch-style operation prevents entire sub-lists from being evicted at once
 but comes at a cost of additional unlocking and locking.
 .
+.It Sy zfs_arc_evict_threads Ns = Ns Sy 0 Pq int
+Sets the number of ARC eviction threads to be used.
+.Pp
+If set greater than 0, ZFS will dedicate up to that many threads to ARC
+eviction.
+Each thread will process one sub-list at a time,
+until the eviction target is reached or all sub-lists have been processed.
+When set to 0, ZFS will compute a reasonable number of eviction threads based
+on the number of CPUs.
+.TS
+box;
+lb l l .
+	CPUs	Threads
+_
+	1-4	1
+	5-8	2
+	9-15	3
+	16-31	4
+	32-63	6
+	64-95	8
+	96-127	9
+	128-160	11
+	160-191	12
+	192-223	13
+	224-255	14
+	256+	16
+.TE
+.Pp
+More threads may improve the responsiveness of ZFS to memory pressure.
+This can be important for performance when eviction from the ARC becomes
+a bottleneck for reads and writes.
+.Pp
+This parameter can only be set at module load time.
+.
 .It Sy zfs_arc_grow_retry Ns = Ns Sy 0 Ns s Pq uint
 If set to a non zero value, it will replace the
 .Sy arc_grow_retry
@@ -872,7 +905,9 @@ pressure on the pagecache, yet still allows the ARC to be reclaimed down to
 .Sy zfs_arc_min
 if necessary.
 This value is specified as percent of pagecache size (as measured by
-.Sy NR_FILE_PAGES ) ,
+.Sy NR_ACTIVE_FILE
++
+.Sy NR_INACTIVE_FILE ) ,
 where that percent may exceed
 .Sy 100 .
 This
@@ -1556,22 +1591,6 @@ If this is higher than the maximum allowed by the device queue or the kernel
 itself, it will be clamped.
 Setting it to zero will cause the kernel's ideal size to be used.
 This parameter only applies on Linux.
-This parameter is ignored if
-.Sy zfs_vdev_disk_classic Ns = Ns Sy 1 .
-.
-.It Sy zfs_vdev_disk_classic Ns = Ns Sy 0 Ns | Ns 1 Pq uint
-If set to 1, OpenZFS will submit IO to Linux using the method it used in 2.2
-and earlier.
-This "classic" method has known issues with highly fragmented IO requests and
-is slower on many workloads, but it has been in use for many years and is known
-to be very stable.
-If you set this parameter, please also open a bug report why you did so,
-including the workload involved and any error messages.
-.Pp
-This parameter and the classic submission method will be removed once we have
-total confidence in the new method.
-.Pp
-This parameter only applies on Linux, and can only be set at module load time.
 .
 .It Sy zfs_expire_snapshot Ns = Ns Sy 300 Ns s Pq int
 Time before expiring
@@ -2375,10 +2394,6 @@ aarch64_neon	NEON	Aarch64/64-bit ARMv8
 aarch64_neonx2	NEON with more unrolling	Aarch64/64-bit ARMv8
 powerpc_altivec	Altivec	PowerPC
 .TE
-.
-.It Sy zfs_vdev_scheduler Pq charp
-.Sy DEPRECATED .
-Prints warning to kernel log for compatibility.
 .
 .It Sy zfs_zevent_len_max Ns = Ns Sy 512 Pq uint
 Max event queue length.

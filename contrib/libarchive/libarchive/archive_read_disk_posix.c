@@ -276,7 +276,7 @@ tree_dir_next_posix(struct tree *t);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *, int, int);
+static struct tree *tree_open(const char *, char, int);
 static struct tree *tree_reopen(struct tree *, const char *, int);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
@@ -514,7 +514,7 @@ _archive_read_close(struct archive *_a)
 
 static void
 setup_symlink_mode(struct archive_read_disk *a, char symlink_mode,
-    int follow_symlinks)
+    char follow_symlinks)
 {
 	a->symlink_mode = symlink_mode;
 	a->follow_symlinks = follow_symlinks;
@@ -778,7 +778,8 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	 */
 	if (t->current_sparse->offset > t->entry_total) {
 		if (lseek(t->entry_fd,
-		    (off_t)t->current_sparse->offset, SEEK_SET) < 0) {
+		    (off_t)t->current_sparse->offset, SEEK_SET) !=
+		    t->current_sparse->offset) {
 			archive_set_error(&a->archive, errno, "Seek error");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
@@ -2180,7 +2181,7 @@ tree_append(struct tree *t, const char *name, size_t name_length)
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path, int symlink_mode, int restore_time)
+tree_open(const char *path, char symlink_mode, int restore_time)
 {
 	struct tree *t;
 

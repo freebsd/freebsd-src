@@ -402,32 +402,43 @@ out:
 static int
 sysctl_igmp_default_version(SYSCTL_HANDLER_ARGS)
 {
+	struct epoch_tracker	 et;
 	int	 error;
 	int	 new;
+	struct igmp_ifsoftc *igi;
 
 	error = sysctl_wire_old_buffer(req, sizeof(int));
 	if (error)
 		return (error);
 
-	IGMP_LOCK();
-
 	new = V_igmp_default_version;
 
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error || !req->newptr)
-		goto out_locked;
+		return (error);
 
-	if (new < IGMP_VERSION_1 || new > IGMP_VERSION_3) {
-		error = EINVAL;
-		goto out_locked;
+	if (new < IGMP_VERSION_1 || new > IGMP_VERSION_3)
+		return (EINVAL);
+
+	IN_MULTI_LIST_LOCK();
+	IGMP_LOCK();
+	NET_EPOCH_ENTER(et);
+
+	if (V_igmp_default_version != new) {
+		CTR2(KTR_IGMPV3, "change igmp_default_version from %d to %d",
+			V_igmp_default_version, new);
+
+		V_igmp_default_version = new;
+
+		LIST_FOREACH(igi, &V_igi_head, igi_link) {
+			if (igi->igi_version > V_igmp_default_version){
+				igmp_set_version(igi, V_igmp_default_version);
+			}
+		}
 	}
 
-	CTR2(KTR_IGMPV3, "change igmp_default_version from %d to %d",
-	     V_igmp_default_version, new);
-
-	V_igmp_default_version = new;
-
-out_locked:
+	NET_EPOCH_EXIT(et);
+	IN_MULTI_LIST_UNLOCK();
 	IGMP_UNLOCK();
 	return (error);
 }

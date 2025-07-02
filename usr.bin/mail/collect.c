@@ -152,7 +152,7 @@ cont:
 	}
 	for (;;) {
 		colljmp_p = 1;
-		c = readline(stdin, linebuf, LINESIZE);
+		c = readline(stdin, linebuf, sizeof(linebuf));
 		colljmp_p = 0;
 		if (c < 0) {
 			if (value("interactive") != NULL &&
@@ -163,7 +163,7 @@ cont:
 			break;
 		}
 		lastlong = longline;
-		longline = c == LINESIZE - 1;
+		longline = c == sizeof(linebuf) - 1;
 		eofcount = 0;
 		hadintr = 0;
 		if (linebuf[0] == '.' && linebuf[1] == '\0' &&
@@ -384,11 +384,12 @@ cont:
 			(void)fflush(stdout);
 			lc = 0;
 			cc = 0;
-			while ((rc = readline(fbuf, linebuf, LINESIZE)) >= 0) {
-				if (rc != LINESIZE - 1)
+			while ((rc = readline(fbuf, linebuf,
+			    sizeof(linebuf))) >= 0) {
+				if (rc != sizeof(linebuf) - 1)
 					lc++;
 				if ((t = putline(collf, linebuf,
-					 rc != LINESIZE - 1)) < 0) {
+					 rc != sizeof(linebuf) - 1)) < 0) {
 					(void)Fclose(fbuf);
 					goto err;
 				}
@@ -698,7 +699,7 @@ collint(int s __unused)
 
 /*ARGSUSED*/
 void
-collhup(int s __unused)
+collhup(int signo)
 {
 	rewind(collf);
 	savedeadletter(collf);
@@ -706,7 +707,8 @@ collhup(int s __unused)
 	 * Let's pretend nobody else wants to clean up,
 	 * a true statement at this time.
 	 */
-	exit(1);
+	signal(signo, SIG_DFL);
+	raise(signo);
 }
 
 void

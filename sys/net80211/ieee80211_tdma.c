@@ -153,7 +153,8 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	     sizeof(struct ieee80211_tdma_state), M_80211_VAP,
 	     IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ts == NULL) {
-		printf("%s: cannot allocate TDMA state block\n", __func__);
+		net80211_vap_printf(vap,
+		    "%s: cannot allocate TDMA state block\n", __func__);
 		/* NB: fall back to adhdemo mode */
 		vap->iv_caps &= ~IEEE80211_C_TDMA;
 		return;
@@ -419,8 +420,9 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	if (tdma->tdma_slotcnt != ts->tdma_slotcnt) {
 		if (!TDMA_SLOTCNT_VALID(tdma->tdma_slotcnt)) {
 			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
-				printf("%s: bad slot cnt %u\n",
-				    __func__, tdma->tdma_slotcnt);
+				net80211_vap_printf(vap,
+				    "%s: bad slot cnt %u\n", __func__,
+				    tdma->tdma_slotcnt);
 			return 0;
 		}
 		update |= TDMA_UPDATE_SLOTCNT;
@@ -429,8 +431,8 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	if (slotlen != ts->tdma_slotlen) {
 		if (!TDMA_SLOTLEN_VALID(slotlen)) {
 			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
-				printf("%s: bad slot len %u\n",
-				    __func__, slotlen);
+				net80211_vap_printf(vap,
+				    "%s: bad slot len %u\n", __func__, slotlen);
 			return 0;
 		}
 		update |= TDMA_UPDATE_SLOTLEN;
@@ -438,8 +440,9 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	if (tdma->tdma_bintval != ts->tdma_bintval) {
 		if (!TDMA_BINTVAL_VALID(tdma->tdma_bintval)) {
 			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
-				printf("%s: bad beacon interval %u\n",
-				    __func__, tdma->tdma_bintval);
+				net80211_vap_printf(vap,
+				    "%s: bad beacon interval %u\n", __func__,
+				    tdma->tdma_bintval);
 			return 0;
 		}
 		update |= TDMA_UPDATE_BINTVAL;
@@ -453,9 +456,10 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 			if (isclr(tdma->tdma_inuse, slot))
 				break;
 		if (slot <= 0) {
-			printf("%s: no free slot, slotcnt %u inuse: 0x%x\n",
-				__func__, tdma->tdma_slotcnt,
-				tdma->tdma_inuse[0]);
+			net80211_vap_printf(vap,
+			    "%s: no free slot, slotcnt %u inuse: 0x%x\n",
+			    __func__, tdma->tdma_slotcnt,
+			    tdma->tdma_inuse[0]);
 			/* XXX need to do something better */
 			return 0;
 		}

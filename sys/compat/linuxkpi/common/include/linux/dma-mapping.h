@@ -96,13 +96,17 @@ void *linux_dma_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
 void *linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
-dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);
-void linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t size);
+dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);	/* backward compat */
+dma_addr_t lkpi_dma_map_phys(struct device *, vm_paddr_t, size_t,
+    enum dma_data_direction, unsigned long);
+void linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t size);	/* backward compat */
+void lkpi_dma_unmap(struct device *, dma_addr_t, size_t,
+    enum dma_data_direction, unsigned long);
 int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
-    int nents, enum dma_data_direction dir __unused,
+    int nents, enum dma_data_direction direction,
     unsigned long attrs __unused);
 void linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
-    int nents __unused, enum dma_data_direction dir __unused,
+    int nents __unused, enum dma_data_direction direction,
     unsigned long attrs __unused);
 void linuxkpi_dma_sync(struct device *, dma_addr_t, size_t, bus_dmasync_op_t);
 
@@ -173,16 +177,17 @@ dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
     dma_addr_t dma_addr)
 {
 
-	linux_dma_unmap(dev, dma_addr, size);
+	lkpi_dma_unmap(dev, dma_addr, size, DMA_BIDIRECTIONAL, 0);
 	kmem_free(cpu_addr, size);
 }
 
 static inline dma_addr_t
 dma_map_page_attrs(struct device *dev, struct page *page, size_t offset,
-    size_t size, enum dma_data_direction dir, unsigned long attrs)
+    size_t size, enum dma_data_direction direction, unsigned long attrs)
 {
 
-	return (linux_dma_map_phys(dev, page_to_phys(page) + offset, size));
+	return (lkpi_dma_map_phys(dev, page_to_phys(page) + offset, size,
+	    direction, attrs));
 }
 
 /* linux_dma_(un)map_sg_attrs does not support attrs yet */
@@ -197,7 +202,8 @@ dma_map_page(struct device *dev, struct page *page,
     unsigned long offset, size_t size, enum dma_data_direction direction)
 {
 
-	return (linux_dma_map_phys(dev, page_to_phys(page) + offset, size));
+	return (lkpi_dma_map_phys(dev, page_to_phys(page) + offset, size,
+	    direction, 0));
 }
 
 static inline void
@@ -205,7 +211,21 @@ dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
     enum dma_data_direction direction)
 {
 
-	linux_dma_unmap(dev, dma_address, size);
+	lkpi_dma_unmap(dev, dma_address, size, direction, 0);
+}
+
+static inline dma_addr_t
+dma_map_resource(struct device *dev, phys_addr_t paddr, size_t size,
+    enum dma_data_direction direction, unsigned long attrs)
+{
+	return (lkpi_dma_map_phys(dev, paddr, size, direction, attrs));
+}
+
+static inline void
+dma_unmap_resource(struct device *dev, dma_addr_t dma, size_t size,
+    enum dma_data_direction direction, unsigned long attrs)
+{
+	lkpi_dma_unmap(dev, dma, size, direction, attrs);
 }
 
 static inline void
@@ -263,28 +283,33 @@ dma_sync_single_for_device(struct device *dev, dma_addr_t dma,
 	linuxkpi_dma_sync(dev, dma, size, op);
 }
 
+/* (20250329) These four seem to be unused code. */
 static inline void
 dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
     enum dma_data_direction direction)
 {
+	pr_debug("%s:%d: TODO dir %d\n", __func__, __LINE__, direction);
 }
 
 static inline void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
     enum dma_data_direction direction)
 {
+	pr_debug("%s:%d: TODO dir %d\n", __func__, __LINE__, direction);
 }
 
 static inline void
 dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_handle,
-    unsigned long offset, size_t size, int direction)
+    unsigned long offset, size_t size, enum dma_data_direction direction)
 {
+	pr_debug("%s:%d: TODO dir %d\n", __func__, __LINE__, direction);
 }
 
 static inline void
 dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
-    unsigned long offset, size_t size, int direction)
+    unsigned long offset, size_t size, enum dma_data_direction direction)
 {
+	pr_debug("%s:%d: TODO dir %d\n", __func__, __LINE__, direction);
 }
 
 #define	DMA_MAPPING_ERROR	(~(dma_addr_t)0)
@@ -306,24 +331,17 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
 
 static inline dma_addr_t
 _dma_map_single_attrs(struct device *dev, void *ptr, size_t size,
-    enum dma_data_direction direction, unsigned long attrs __unused)
+    enum dma_data_direction direction, unsigned long attrs)
 {
-	dma_addr_t dma;
-
-	dma = linux_dma_map_phys(dev, vtophys(ptr), size);
-	if (!dma_mapping_error(dev, dma))
-		dma_sync_single_for_device(dev, dma, size, direction);
-
-	return (dma);
+	return (lkpi_dma_map_phys(dev, vtophys(ptr), size,
+	    direction, attrs));
 }
 
 static inline void
 _dma_unmap_single_attrs(struct device *dev, dma_addr_t dma, size_t size,
-    enum dma_data_direction direction, unsigned long attrs __unused)
+    enum dma_data_direction direction, unsigned long attrs)
 {
-
-	dma_sync_single_for_cpu(dev, dma, size, direction);
-	linux_dma_unmap(dev, dma, size);
+	lkpi_dma_unmap(dev, dma, size, direction, attrs);
 }
 
 static inline size_t

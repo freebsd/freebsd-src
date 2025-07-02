@@ -1118,12 +1118,14 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 		.name = "RTM_DELROUTE",
 		.cb = &rtnl_handle_delroute,
 		.priv = PRIV_NET_ROUTE,
+		.flags = RTNL_F_ALLOW_NONVNET_JAIL,
 	},
 	{
 		.cmd = NL_RTM_NEWROUTE,
 		.name = "RTM_NEWROUTE",
 		.cb = &rtnl_handle_newroute,
 		.priv = PRIV_NET_ROUTE,
+		.flags = RTNL_F_ALLOW_NONVNET_JAIL,
 	}
 };
 

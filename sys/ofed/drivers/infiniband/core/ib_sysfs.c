@@ -874,7 +874,7 @@ static ssize_t set_stats_lifespan(struct kobject *kobj,
 	struct hw_stats_attribute *hsa;
 	struct rdma_hw_stats *stats;
 	int msecs;
-	int jiffies;
+	unsigned long jiffies;
 	int ret;
 
 	ret = kstrtoint(buf, 10, &msecs);

@@ -35,6 +35,11 @@
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
+
+struct sbuf;
 
 #define	NVME_PASSTHROUGH_CMD		_IOWR('n', 0, struct nvme_pt_command)
 #define	NVME_RESET_CONTROLLER		_IO('n', 1)
@@ -1901,6 +1906,9 @@ struct nvme_hmb_desc {
 #define nvme_completion_is_error(cpl)					\
 	(NVME_STATUS_GET_SC((cpl)->status) != 0 || NVME_STATUS_GET_SCT((cpl)->status) != 0)
 
+void	nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
+void	nvme_opcode_sbuf(bool admin, uint8_t opc, struct sbuf *sb);
+void	nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
 void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
 
 #ifdef _KERNEL

@@ -206,12 +206,12 @@ process::child::fork_capture_aux(void)
         new signals::interrupts_inhibiter);
     pid_t pid = detail::syscall_fork();
     if (pid == -1) {
-        inhibiter.reset(NULL);  // Unblock signals.
+        inhibiter.reset();  // Unblock signals.
         ::close(fds[0]);
         ::close(fds[1]);
         throw process::system_error("fork(2) failed", errno);
     } else if (pid == 0) {
-        inhibiter.reset(NULL);  // Unblock signals.
+        inhibiter.reset();  // Unblock signals.
         ::setsid();
 
         try {
@@ -223,7 +223,7 @@ process::child::fork_capture_aux(void)
             std::cerr << F("Failed to set up subprocess: %s\n") % e.what();
             std::abort();
         }
-        return std::unique_ptr< process::child >(NULL);
+        return {};
     } else {
         ::close(fds[1]);
         LD(F("Spawned process %s: stdout and stderr inherited") % pid);
@@ -263,10 +263,10 @@ process::child::fork_files_aux(const fs::path& stdout_file,
         new signals::interrupts_inhibiter);
     pid_t pid = detail::syscall_fork();
     if (pid == -1) {
-        inhibiter.reset(NULL);  // Unblock signals.
+        inhibiter.reset();  // Unblock signals.
         throw process::system_error("fork(2) failed", errno);
     } else if (pid == 0) {
-        inhibiter.reset(NULL);  // Unblock signals.
+        inhibiter.reset();  // Unblock signals.
         ::setsid();
 
         try {
@@ -284,12 +284,12 @@ process::child::fork_files_aux(const fs::path& stdout_file,
             std::cerr << F("Failed to set up subprocess: %s\n") % e.what();
             std::abort();
         }
-        return std::unique_ptr< process::child >(NULL);
+        return {};
     } else {
         LD(F("Spawned process %s: stdout=%s, stderr=%s") % pid % stdout_file %
            stderr_file);
         signals::add_pid_to_kill(pid);
-        inhibiter.reset(NULL);  // Unblock signals.
+        inhibiter.reset();  // Unblock signals.
         return std::unique_ptr< process::child >(
             new process::child(new impl(pid, NULL)));
     }

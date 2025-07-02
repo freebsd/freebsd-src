@@ -82,41 +82,23 @@ struct undef_handler {
 	undef_handler_t		uh_handler;
 };
 
-/*
- * Create two undefined instruction handler lists, one for userspace, one for
- * the kernel. This allows us to handle instructions that will trap
- */
-LIST_HEAD(, undef_handler) undef_handlers[2];
+/* System instruction handlers, e.g. msr, mrs, sys */
+struct sys_handler {
+	LIST_ENTRY(sys_handler) sys_link;
+	undef_sys_handler_t	sys_handler;
+};
 
 /*
- * Work around a bug in QEMU prior to 2.5.1 where reading unknown ID
- * registers would raise an exception when they should return 0.
+ * Create the undefined instruction handler lists.
+ * This allows us to handle instructions that will trap.
  */
-static int
-id_aa64mmfr2_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
-{
-	int reg;
-
-#define	 MRS_ID_AA64MMFR2_EL0_MASK	(MRS_MASK | 0x000fffe0)
-#define	 MRS_ID_AA64MMFR2_EL0_VALUE	(MRS_VALUE | 0x00080740)
-
-	/* mrs xn, id_aa64mfr2_el1 */
-	if ((insn & MRS_ID_AA64MMFR2_EL0_MASK) == MRS_ID_AA64MMFR2_EL0_VALUE) {
-		reg = MRS_REGISTER(insn);
-
-		frame->tf_elr += INSN_SIZE;
-		if (reg < nitems(frame->tf_x)) {
-			frame->tf_x[reg] = 0;
-		} else if (reg == 30) {
-			frame->tf_lr = 0;
-		}
-		/* If reg is 32 then write to xzr, i.e. do nothing */
-
-		return (1);
-	}
-	return (0);
-}
+LIST_HEAD(, sys_handler) sys_handlers = LIST_HEAD_INITIALIZER(sys_handler);
+LIST_HEAD(, undef_handler) undef_handlers =
+    LIST_HEAD_INITIALIZER(undef_handlers);
+#ifdef COMPAT_FREEBSD32
+LIST_HEAD(, undef_handler) undef32_handlers =
+    LIST_HEAD_INITIALIZER(undef32_handlers);
+#endif
 
 static bool
 arm_cond_match(uint32_t insn, struct trapframe *frame)
@@ -179,8 +161,7 @@ gdb_trapper(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	struct thread *td = curthread;
 
 	if (insn == GDB_BREAKPOINT || insn == GDB5_BREAKPOINT) {
-		if (SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
-		    va < VM_MAXUSER_ADDRESS) {
+		if (va < VM_MAXUSER_ADDRESS) {
 			ksiginfo_t ksi;
 
 			ksiginfo_init_trap(&ksi);
@@ -212,8 +193,7 @@ swp_emulate(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	 * swp, swpb only; there are no Thumb swp/swpb instructions so we can
 	 * safely bail out if we're in Thumb mode.
 	 */
-	if (!compat32_emul_swp || !SV_PROC_FLAG(td->td_proc, SV_ILP32) ||
-	    (frame->tf_spsr & PSR_T) != 0)
+	if (!compat32_emul_swp || (frame->tf_spsr & PSR_T) != 0)
 		return (0);
 	else if ((insn & 0x0fb00ff0) != 0x01000090)
 		return (0);
@@ -278,28 +258,37 @@ fault:
 void
 undef_init(void)
 {
-
-	LIST_INIT(&undef_handlers[0]);
-	LIST_INIT(&undef_handlers[1]);
-
-	install_undef_handler(false, id_aa64mmfr2_handler);
 #ifdef COMPAT_FREEBSD32
-	install_undef_handler(true, gdb_trapper);
-	install_undef_handler(true, swp_emulate);
+	install_undef32_handler(gdb_trapper);
+	install_undef32_handler(swp_emulate);
 #endif
 }
 
 void *
-install_undef_handler(bool user, undef_handler_t func)
+install_undef_handler(undef_handler_t func)
 {
 	struct undef_handler *uh;
 
 	uh = malloc(sizeof(*uh), M_UNDEF, M_WAITOK);
 	uh->uh_handler = func;
-	LIST_INSERT_HEAD(&undef_handlers[user ? 0 : 1], uh, uh_link);
+	LIST_INSERT_HEAD(&undef_handlers, uh, uh_link);
 
 	return (uh);
 }
+
+#ifdef COMPAT_FREEBSD32
+void *
+install_undef32_handler(undef_handler_t func)
+{
+	struct undef_handler *uh;
+
+	uh = malloc(sizeof(*uh), M_UNDEF, M_WAITOK);
+	uh->uh_handler = func;
+	LIST_INSERT_HEAD(&undef32_handlers, uh, uh_link);
+
+	return (uh);
+}
+#endif
 
 void
 remove_undef_handler(void *handle)
@@ -311,24 +300,100 @@ remove_undef_handler(void *handle)
 	free(handle, M_UNDEF);
 }
 
+void
+install_sys_handler(undef_sys_handler_t func)
+{
+	struct sys_handler *sysh;
+
+	sysh = malloc(sizeof(*sysh), M_UNDEF, M_WAITOK);
+	sysh->sys_handler = func;
+	LIST_INSERT_HEAD(&sys_handlers, sysh, sys_link);
+}
+
+bool
+undef_sys(uint64_t esr, struct trapframe *frame)
+{
+	struct sys_handler *sysh;
+
+	LIST_FOREACH(sysh, &sys_handlers, sys_link) {
+		if (sysh->sys_handler(esr, frame))
+			return (true);
+	}
+
+	return (false);
+}
+
+static bool
+undef_sys_insn(struct trapframe *frame, uint32_t insn)
+{
+	uint64_t esr;
+	int op0;
+	bool read;
+
+	read = false;
+	switch (insn & MRS_MASK) {
+	case MRS_VALUE:
+		read = true;
+		/* FALLTHROUGH */
+	case MSR_REG_VALUE:
+		op0 = mrs_Op0(insn);
+		break;
+	case MSR_IMM_VALUE:
+		/*
+		 * MSR (immediate) needs special handling. The
+		 * source register is always 31 (xzr), CRn is 4,
+		 * and op0 is hard coded as 0.
+		 */
+		if (MRS_REGISTER(insn) != 31)
+			return (false);
+		if (mrs_CRn(insn) != 4)
+			return (false);
+		op0 = 0;
+		break;
+	default:
+		return (false);
+	}
+
+	/* Create a fake EXCP_MSR esr value */
+	esr = EXCP_MSR << ESR_ELx_EC_SHIFT;
+	esr |= ESR_ELx_IL;
+	esr |= __ISS_MSR_REG(op0, mrs_Op1(insn), mrs_CRn(insn), mrs_CRm(insn),
+	    mrs_Op2(insn));
+	esr |= MRS_REGISTER(insn) << ISS_MSR_Rt_SHIFT;
+	if (read)
+		esr |= ISS_MSR_DIR;
+
+	return (undef_sys(esr, frame));
+}
+
 int
-undef_insn(u_int el, struct trapframe *frame)
+undef_insn(struct trapframe *frame)
 {
 	struct undef_handler *uh;
 	uint32_t insn;
 	int ret;
 
-	KASSERT(el < 2, ("Invalid exception level %u", el));
+	ret = fueword32((uint32_t *)frame->tf_elr, &insn);
+	/* Raise a SIGILL if we are unable to read the instruction */
+	if (ret != 0)
+		return (0);
 
-	if (el == 0) {
-		ret = fueword32((uint32_t *)frame->tf_elr, &insn);
-		if (ret != 0)
-			panic("Unable to read userspace faulting instruction");
-	} else {
-		insn = *(uint32_t *)frame->tf_elr;
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(curthread->td_proc, SV_ILP32)) {
+		LIST_FOREACH(uh, &undef32_handlers, uh_link) {
+			ret = uh->uh_handler(frame->tf_elr, insn, frame,
+			    frame->tf_esr);
+			if (ret)
+				return (1);
+		}
+		return (0);
 	}
+#endif
 
-	LIST_FOREACH(uh, &undef_handlers[el], uh_link) {
+	if (undef_sys_insn(frame, insn))
+		return (1);
+
+	LIST_FOREACH(uh, &undef_handlers, uh_link) {
 		ret = uh->uh_handler(frame->tf_elr, insn, frame, frame->tf_esr);
 		if (ret)
 			return (1);

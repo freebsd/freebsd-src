@@ -2,7 +2,7 @@
 ---
 -- SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 --
--- Copyright(c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
+-- Copyright(c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
 
 local nuage = require("nuage")
 local ucl = require("ucl")
@@ -67,6 +67,22 @@ local function get_ifaces()
 		end
 	end
 	return myifaces
+end
+
+local function install_packages(packages)
+	if not nuage.pkg_bootstrap() then
+		nuage.warn("Failed to bootstrap pkg, skip installing packages")
+		return
+	end
+	for n, p in pairs(packages) do
+		if type(p) == "string" then
+			if not nuage.install_package(p) then
+				nuage.warn("Failed to install : " .. p)
+			end
+		else
+			nuage.warn("Invalid type : " .. type(p) .. " for packages entry number " .. n)
+		end
+	end
 end
 
 local function config2_network(p)
@@ -358,6 +374,27 @@ if line == "#cloud-config" then
 			value = "yes"
 		end
 		nuage.update_sshd_config("PasswordAuthentication", value)
+	end
+	if obj.chpasswd ~= nil then
+		nuage.chpasswd(obj.chpasswd)
+	end
+	if obj.runcmd then
+		for _, c in ipairs(obj.runcmd) do
+			if not os.execute(c) then
+				nuage.warn("Failed to execute '" .. c .. "'")
+				-- execute the next command anyway --
+			end
+		end
+	end
+	if obj.packages then
+		install_packages(obj.packages)
+	end
+
+	if obj.package_update then
+		nuage.update_packages()
+	end
+	if obj.package_upgrade then
+		nuage.upgrade_packages()
 	end
 else
 	local res, err = os.execute(path .. "/" .. ud)

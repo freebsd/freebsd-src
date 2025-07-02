@@ -36,11 +36,14 @@
 #if !defined(DRIVERS_DEBUG_TEST_HPP)
 #define DRIVERS_DEBUG_TEST_HPP
 
+#include "engine/debugger.hpp"
 #include "engine/filters.hpp"
 #include "model/test_result.hpp"
 #include "utils/config/tree_fwd.hpp"
 #include "utils/fs/path_fwd.hpp"
 #include "utils/optional_fwd.hpp"
+
+using engine::debugger;
 
 namespace drivers {
 namespace debug_test {
@@ -68,7 +71,8 @@ public:
 };
 
 
-result drive(const utils::fs::path&, const utils::optional< utils::fs::path >,
+result drive(std::shared_ptr< debugger >,
+             const utils::fs::path&, const utils::optional< utils::fs::path >,
              const engine::test_filter&, const utils::config::tree&,
              const utils::fs::path&, const utils::fs::path&);
 

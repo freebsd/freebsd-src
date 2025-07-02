@@ -147,7 +147,7 @@ static struct pf_fragment *pf_fillup_fragment(struct pf_fragment_cmp *,
 		    struct pf_frent *, u_short *);
 static struct mbuf *pf_join_fragment(struct pf_fragment *);
 #ifdef INET
-static int	pf_reassemble(struct mbuf **, int, u_short *);
+static int	pf_reassemble(struct mbuf **, u_short *);
 #endif	/* INET */
 #ifdef INET6
 static int	pf_reassemble6(struct mbuf **,
@@ -163,7 +163,7 @@ static int	pf_reassemble6(struct mbuf **,
 
 #ifdef INET
 static void
-pf_ip2key(struct ip *ip, int dir, struct pf_fragment_cmp *key)
+pf_ip2key(struct ip *ip, struct pf_fragment_cmp *key)
 {
 
 	key->frc_src.v4 = ip->ip_src;
@@ -603,16 +603,16 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 	/* Non terminal fragments must have more fragments flag. */
 	if (frent->fe_off + frent->fe_len < total && !frent->fe_mff)
-		goto bad_fragment;
+		goto free_ipv6_fragment;
 
 	/* Check if we saw the last fragment already. */
 	if (!TAILQ_LAST(&frag->fr_queue, pf_fragq)->fe_mff) {
 		if (frent->fe_off + frent->fe_len > total ||
 		    (frent->fe_off + frent->fe_len == total && frent->fe_mff))
-			goto bad_fragment;
+			goto free_ipv6_fragment;
 	} else {
 		if (frent->fe_off + frent->fe_len == total && !frent->fe_mff)
-			goto bad_fragment;
+			goto free_ipv6_fragment;
 	}
 
 	/* Find neighbors for newly inserted fragment */
@@ -680,6 +680,9 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 	return (frag);
 
+free_ipv6_fragment:
+	if (frag->fr_af == AF_INET)
+		goto bad_fragment;
 free_fragment:
 	/*
 	 * RFC 5722, Errata 3089:  When reassembling an IPv6 datagram, if one
@@ -732,7 +735,7 @@ pf_join_fragment(struct pf_fragment *frag)
 
 #ifdef INET
 static int
-pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
+pf_reassemble(struct mbuf **m0, u_short *reason)
 {
 	struct mbuf		*m = *m0;
 	struct ip		*ip = mtod(m, struct ip *);
@@ -756,7 +759,7 @@ pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 	frent->fe_off = (ntohs(ip->ip_off) & IP_OFFMASK) << 3;
 	frent->fe_mff = ntohs(ip->ip_off) & IP_MF;
 
-	pf_ip2key(ip, dir, &key);
+	pf_ip2key(ip, &key);
 
 	if ((frag = pf_fillup_fragment(&key, frent, reason)) == NULL)
 		return (PF_DROP);
@@ -1197,7 +1200,7 @@ pf_normalize_ip(u_short *reason, struct pf_pdesc *pd)
 		 * Might return a completely reassembled mbuf, or NULL */
 		PF_FRAG_LOCK();
 		DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
-		verdict = pf_reassemble(&pd->m, pd->dir, reason);
+		verdict = pf_reassemble(&pd->m, reason);
 		PF_FRAG_UNLOCK();
 
 		if (verdict != PF_PASS)

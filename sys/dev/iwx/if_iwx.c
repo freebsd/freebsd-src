@@ -195,6 +195,8 @@ int iwx_lomark = 192;
 
 #include <dev/iwx/if_iwx_debug.h>
 
+#define	PCI_CFG_RETRY_TIMEOUT	0x41
+
 #define PCI_VENDOR_INTEL		0x8086
 #define	PCI_PRODUCT_INTEL_WL_22500_1	0x2723		/* Wi-Fi 6 AX200 */
 #define	PCI_PRODUCT_INTEL_WL_22500_2	0x02f0		/* Wi-Fi 6 AX201 */
@@ -2607,7 +2609,7 @@ iwx_apm_stop(struct iwx_softc *sc)
 	if (!iwx_poll_bit(sc, IWX_CSR_RESET,
 	    IWX_CSR_RESET_REG_FLAG_MASTER_DISABLED,
 	    IWX_CSR_RESET_REG_FLAG_MASTER_DISABLED, 100))
-		printf("%s: timeout waiting for master\n", DEVNAME(sc));
+		printf("%s: timeout waiting for bus master\n", DEVNAME(sc));
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -3697,7 +3699,7 @@ iwx_load_firmware(struct iwx_softc *sc)
 	/* wait for the firmware to load */
 	err = msleep(&sc->sc_uc, &sc->sc_mtx, 0, "iwxuc", hz);
 	if (err || !sc->sc_uc.uc_ok) {
-		printf("%s: could not load firmware, %d\n", DEVNAME(sc), err);
+		printf("%s: firmware upload failed, %d\n", DEVNAME(sc), err);
 		iwx_ctxt_info_free_paging(sc);
 	}
 
@@ -4050,7 +4052,8 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 	sc->sc_init_complete = 0;
 	err = iwx_load_ucode_wait_alive(sc);
 	if (err) {
-		printf("%s: failed to load init firmware\n", DEVNAME(sc));
+		IWX_DPRINTF(sc, IWX_DEBUG_FIRMWARE_TLV,
+		    "%s: failed to load init firmware\n", DEVNAME(sc));
 		return err;
 	} else {
 		IWX_DPRINTF(sc, IWX_DEBUG_FIRMWARE_TLV,
@@ -10141,7 +10144,6 @@ iwx_attach(device_t dev)
 	 * We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state.
 	 */
-#define	PCI_CFG_RETRY_TIMEOUT	0x41
 	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 
 	if (pci_msix_count(dev)) {
@@ -10656,8 +10658,11 @@ static int
 iwx_suspend(device_t dev)
 {
 	struct iwx_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	if (sc->sc_flags & IWX_FLAG_HW_INITED) {
+		ieee80211_suspend_all(ic);
+
 		iwx_stop(sc);
 		sc->sc_flags &= ~IWX_FLAG_HW_INITED;
 	}
@@ -10668,21 +10673,27 @@ static int
 iwx_resume(device_t dev)
 {
 	struct iwx_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = &sc->sc_ic;
 	int err;
 
-	err = iwx_start_hw(sc);
-	if (err) {
-		return err;
-	}
+	/*
+	 * We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 
-	err = iwx_init_hw(sc);
+	IWX_LOCK(sc);
+
+	err = iwx_init(sc);
 	if (err) {
 		iwx_stop_device(sc);
+		IWX_UNLOCK(sc);
 		return err;
 	}
 
-	ieee80211_start_all(&sc->sc_ic);
+	IWX_UNLOCK(sc);
 
+	ieee80211_resume_all(ic);
 	return (0);
 }
 

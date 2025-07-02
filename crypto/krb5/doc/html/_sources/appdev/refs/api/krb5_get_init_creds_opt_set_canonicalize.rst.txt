@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_set_canonicalize -  Set or unset the canonicalize flag in initial credential options. 
+==============================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_canonicalize(krb5_get_init_creds_opt * opt, int canonicalize)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **canonicalize** - Whether to canonicalize client principal
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

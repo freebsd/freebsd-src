@@ -1,0 +1,72 @@
+krb5_get_etype_info -  Retrieve enctype, salt and s2kparams from KDC. 
+======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_etype_info(krb5_context context, krb5_principal principal, krb5_get_init_creds_opt * opt, krb5_enctype * enctype_out, krb5_data * salt_out, krb5_data * s2kparams_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **principal** - Principal whose information is requested
+
+	          **[in]** **opt** - Initial credential options
+
+	          **[out]** **enctype_out** - The enctype chosen by KDC
+
+	          **[out]** **salt_out** - Salt returned from KDC
+
+	          **[out]** **s2kparams_out** - String-to-key parameters returned from KDC
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  A Kerberos error code 
+
+..
+
+
+
+
+
+
+
+Send an initial ticket request for *principal* and extract the encryption type, salt type, and string-to-key parameters from the KDC response. If the KDC provides no etype-info, set *enctype_out* to **ENCTYPE_NULL** and set *salt_out* and *s2kparams_out* to empty. If the KDC etype-info provides no salt, compute the default salt and place it in *salt_out* . If the KDC etype-info provides no string-to-key parameters, set *s2kparams_out* to empty.
+
+
+
+ *opt* may be used to specify options which affect the initial request, such as request encryption types or a FAST armor cache (see krb5_get_init_creds_opt_set_etype_list() and krb5_get_init_creds_opt_set_fast_ccache_name()).
+
+
+
+Use krb5_free_data_contents() to free *salt_out* and *s2kparams_out* when they are no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.17
+ 
+

@@ -31,15 +31,16 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ktrace.h"
 
-#include <sys/param.h>
-#include <sys/capsicum.h>
+#define	EXTERR_CATEGORY	EXTERR_KTRACE
 #include <sys/systm.h>
+#include <sys/capsicum.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
@@ -48,16 +49,15 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/unistd.h>
-#include <sys/vnode.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/ktrace.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -104,6 +104,7 @@ struct ktr_request {
 		struct	ktr_fault ktr_fault;
 		struct	ktr_faultend ktr_faultend;
 		struct  ktr_struct_array ktr_struct_array;
+		struct	ktr_exterr ktr_exterr;
 	} ktr_data;
 	STAILQ_ENTRY(ktr_request) ktr_list;
 };
@@ -126,6 +127,7 @@ static const int data_lengths[] = {
 	[KTR_STRUCT_ARRAY] = sizeof(struct ktr_struct_array),
 	[KTR_ARGS] = 0,
 	[KTR_ENVS] = 0,
+	[KTR_EXTERR] = sizeof(struct ktr_exterr),
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -1033,7 +1035,34 @@ ktrfaultend(int result)
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
+
+void
+ktrexterr(struct thread *td)
+{
+	struct ktr_request *req;
+	struct ktr_exterr *ktre;
+
+	if (!KTRPOINT(td, KTR_EXTERR))
+		return;
+
+	req = ktr_getrequest(KTR_EXTERR);
+	if (req == NULL)
+		return;
+	ktre = &req->ktr_data.ktr_exterr;
+	if (exterr_to_ue(td, &ktre->ue) == 0)
+		ktr_enqueuerequest(td, req);
+	else
+		ktr_freerequest(req);
+	ktrace_exit(td);
+}
 #endif /* KTRACE */
+
+#ifndef KTRACE
+void
+ktrexterr(struct thread *td __unused)
+{
+}
+#endif
 
 /* Interface and common routines */
 

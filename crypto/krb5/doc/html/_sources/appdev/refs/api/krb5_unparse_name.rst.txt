@@ -1,0 +1,58 @@
+krb5_unparse_name -  Convert a krb5_principal structure to a string representation. 
+====================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_unparse_name(krb5_context context, krb5_const_principal principal, char ** name)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **principal** - Principal
+
+	          **[out]** **name** - String representation of principal name
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+The resulting string representation uses the format and quoting conventions described for krb5_parse_name().
+
+
+
+Use krb5_free_unparsed_name() to free *name* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

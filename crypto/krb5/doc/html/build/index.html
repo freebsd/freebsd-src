@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Building Kerberos V5 &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Organization of the source directory" href="directory_org.html" />
+    <link rel="prev" title="KDC policy interface (kdcpolicy)" href="../plugindev/kdcpolicy.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="../plugindev/kdcpolicy.html" title="KDC policy interface (kdcpolicy)"
+            accesskey="P">previous</a> |
+        <a href="directory_org.html" title="Organization of the source directory"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Building Kerberos V5">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="building-kerberos-v5">
+<span id="build-v5"></span><h1>Building Kerberos V5<a class="headerlink" href="#building-kerberos-v5" title="Permalink to this headline">¶</a></h1>
+<p>This section details how to build and install MIT Kerberos software
+from the source.</p>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<p>In order to build Kerberos V5, you will need approximately 60-70
+megabytes of disk space.  The exact amount will vary depending on the
+platform and whether the distribution is compiled with debugging
+symbol tables or not.</p>
+<p>Your C compiler must conform to ANSI C (ISO/IEC 9899:1990, “c89”).
+Some operating systems do not have an ANSI C compiler, or their
+default compiler requires extra command-line options to enable ANSI C
+conformance.</p>
+<p>If you wish to keep a separate build tree, which contains the compiled
+*.o file and executables, separate from your source tree, you will
+need a make program which supports <strong>VPATH</strong>, or you will need to use
+a tool such as lndir to produce a symbolic link tree for your build
+tree.</p>
+</section>
+<section id="obtaining-the-software">
+<h2>Obtaining the software<a class="headerlink" href="#obtaining-the-software" title="Permalink to this headline">¶</a></h2>
+<p>The source code can be obtained from MIT Kerberos Distribution page,
+at <a class="reference external" href="https://kerberos.org/dist/index.html">https://kerberos.org/dist/index.html</a>.
+The MIT Kerberos distribution comes in an archive file, generally
+named krb5-VERSION-signed.tar, where <em>VERSION</em> is a placeholder for
+the major and minor versions of MIT Kerberos.  (For example, MIT
+Kerberos 1.9 has major version “1” and minor version “9”.)</p>
+<p>The krb5-VERSION-signed.tar contains a compressed tar file consisting
+of the sources for all of Kerberos (generally named
+krb5-VERSION.tar.gz) and a PGP signature file for this source tree
+(generally named krb5-VERSION.tar.gz.asc).  MIT highly recommends that
+you verify the integrity of the source code using this signature,
+e.g., by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tar</span> <span class="n">xf</span> <span class="n">krb5</span><span class="o">-</span><span class="n">VERSION</span><span class="o">-</span><span class="n">signed</span><span class="o">.</span><span class="n">tar</span>
+<span class="n">gpg</span> <span class="o">--</span><span class="n">verify</span> <span class="n">krb5</span><span class="o">-</span><span class="n">VERSION</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span><span class="o">.</span><span class="n">asc</span>
+</pre></div>
+</div>
+<p>Unpack krb5-VERSION.tar.gz in some directory. In this section we will assume
+that you have chosen the top directory of the distribution the directory
+<code class="docutils literal notranslate"><span class="pre">/u1/krb5-VERSION</span></code>.</p>
+<p>Review the README file for the license, copyright and other sprecific to the
+distribution information.</p>
+</section>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="directory_org.html">Organization of the source directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="doing_build.html">Doing the build</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options2configure.html">Options to <em>configure</em></a></li>
+<li class="toctree-l1"><a class="reference internal" href="osconf.html">osconf.hin</a></li>
+</ul>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Building Kerberos V5</a><ul>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li><a class="reference internal" href="#obtaining-the-software">Obtaining the software</a></li>
+<li><a class="reference internal" href="#contents">Contents</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Building Kerberos V5</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="directory_org.html">Organization of the source directory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="doing_build.html">Doing the build</a></li>
+<li class="toctree-l2"><a class="reference internal" href="options2configure.html">Options to <em>configure</em></a></li>
+<li class="toctree-l2"><a class="reference internal" href="osconf.html">osconf.hin</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="../plugindev/kdcpolicy.html" title="KDC policy interface (kdcpolicy)"
+            >previous</a> |
+        <a href="directory_org.html" title="Organization of the source directory"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Building Kerberos V5">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

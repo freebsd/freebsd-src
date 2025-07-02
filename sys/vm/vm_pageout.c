@@ -438,7 +438,7 @@ vm_pageout_cluster(vm_page_t m)
 	}
 
 	return (vm_pageout_flush(&mc[page_base], pageout_count,
-	    VM_PAGER_PUT_NOREUSE, 0, NULL, NULL));
+	    VM_PAGER_PUT_NOREUSE, NULL));
 }
 
 /*
@@ -450,14 +450,14 @@ vm_pageout_cluster(vm_page_t m)
  *	the parent to do more sophisticated things we may have to change
  *	the ordering.
  *
- *	Returned runlen is the count of pages between mreq and first
- *	page after mreq with status VM_PAGER_AGAIN.
- *	*eio is set to TRUE if pager returned VM_PAGER_ERROR or VM_PAGER_FAIL
- *	for any page in runlen set.
+ *	If eio is not NULL, returns the count of pages between 0 and first page
+ *	with status VM_PAGER_AGAIN.  *eio is set to true if pager returned
+ *	VM_PAGER_ERROR or VM_PAGER_FAIL for any page in that set.
+ *
+ *	Otherwise, returns the number of paged-out pages.
  */
 int
-vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
-    boolean_t *eio)
+vm_pageout_flush(vm_page_t *mc, int count, int flags, bool *eio)
 {
 	vm_object_t object = mc[0]->object;
 	int pageout_status[count];
@@ -488,9 +488,9 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 
 	vm_pager_put_pages(object, mc, count, flags, pageout_status);
 
-	runlen = count - mreq;
+	runlen = count;
 	if (eio != NULL)
-		*eio = FALSE;
+		*eio = false;
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
@@ -540,12 +540,12 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 				numpagedout++;
 			} else
 				vm_page_activate(mt);
-			if (eio != NULL && i >= mreq && i - mreq < runlen)
-				*eio = TRUE;
+			if (eio != NULL)
+				*eio = true;
 			break;
 		case VM_PAGER_AGAIN:
-			if (i >= mreq && i - mreq < runlen)
-				runlen = i - mreq;
+			if (runlen == count)
+				runlen = i;
 			break;
 		}
 
@@ -560,8 +560,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 			vm_page_sunbusy(mt);
 		}
 	}
-	if (prunlen != NULL)
-		*prunlen = runlen;
+	if (eio != NULL)
+		return (runlen);
 	return (numpagedout);
 }
 

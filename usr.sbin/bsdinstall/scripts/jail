@@ -31,12 +31,23 @@
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 
-############################################################ MAIN
+############################################################ GLOBALS
 
-: ${BSDDIALOG_OK=0}
+#
+# List of environment variables that may be defined by the user, but modified
+# during the installation process. They are then restored when restarting this
+# script.
+#
+user_env_vars="BSDINSTALL_DISTSITE DISTRIBUTIONS"
 
-f_dprintf "Began Installation at %s" "$( date )"
+############################################################ FUNCTIONS
 
+# error [$msg]
+#
+# Display generic error message when a script fails. An optional message
+# argument can preceed the generic message. User is given the choice of
+# restarting the installer or exiting.
+#
 error() {
 	local msg
 	if [ -n "$1" ]; then
@@ -48,7 +59,7 @@ error() {
 	if [ $? -ne $BSDDIALOG_OK ]; then
 		exit
 	else
-		[ -z "$MIRROR_BUTTON" ] || unset BSDINSTALL_DISTSITE
+		environment_restore
 		exec $0 $BSDINSTALL_CHROOT
 	fi
 }
@@ -111,10 +122,41 @@ distbase() {
 	bsdinstall distextract || error "Distribution extract failed"
 }
 
+# environment_restore
+#
+# Restore a list of environment variables when this script is restarted.
+#
+environment_restore()
+{
+	for var in $user_env_vars; do
+		eval "if [ -n \"\${ORIG_$var}\" -o -z \"\${ORIG_$var-z}\" ]; then $var=\${ORIG_$var}; else unset $var; fi"
+	done
+}
+
+# environment_save
+#
+# Save any user-defined environment variable that may be modified during the
+# installation process. They are then restored when restarting this script.
+#
+environment_save()
+{
+	for var in $user_env_vars; do
+		eval "if [ -n \"\${$var}\" -o -z \"\${$var-z}\" ]; then ORIG_$var=\${$var}; else unset ORIG_$var; fi"
+	done
+}
+
+############################################################ MAIN
+
+: ${BSDDIALOG_OK=0}
+
+f_dprintf "Began Installation at %s" "$( date )"
+
 if [ -z "$1" ]; then
 	error "Directory can not be empty\n\nUsage:\nbsdinstall jail directory"
 fi
 export BSDINSTALL_CHROOT=$1
+
+environment_save
 
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC

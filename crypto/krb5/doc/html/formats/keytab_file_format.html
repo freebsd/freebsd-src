@@ -1,0 +1,179 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Keytab file format &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Replay cache file format" href="rcache_file_format.html" />
+    <link rel="prev" title="Credential cache file format" href="ccache_file_format.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="ccache_file_format.html" title="Credential cache file format"
+            accesskey="P">previous</a> |
+        <a href="rcache_file_format.html" title="Replay cache file format"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Keytab file format">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="keytab-file-format">
+<span id="id1"></span><h1>Keytab file format<a class="headerlink" href="#keytab-file-format" title="Permalink to this headline">¶</a></h1>
+<p>There are two versions of the file format used by the FILE keytab
+type.  The first byte of the file always has the value 5, and the
+value of the second byte contains the version number (1 or 2).
+Version 1 of the file format uses native byte order for integer
+representations.  Version 2 always uses big-endian byte order.</p>
+<p>After the two-byte version indicator, the file contains a sequence of
+signed 32-bit record lengths followed by key records or holes.  A
+positive record length indicates a valid key entry whose size is equal
+to or less than the record length.  A negative length indicates a
+zero-filled hole whose size is the inverse of the length.  A length of
+0 indicates the end of the file.</p>
+<section id="key-entry-format">
+<h2>Key entry format<a class="headerlink" href="#key-entry-format" title="Permalink to this headline">¶</a></h2>
+<p>A key entry may be smaller in size than the record length which
+precedes it, because it may have replaced a hole which is larger than
+the key entry.  Key entries use the following informal grammar:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entry</span> <span class="p">:</span><span class="o">:=</span>
+    <span class="n">principal</span>
+    <span class="n">timestamp</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">key</span> <span class="n">version</span> <span class="p">(</span><span class="mi">8</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">enctype</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">key</span> <span class="n">length</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">key</span> <span class="n">contents</span>
+    <span class="n">key</span> <span class="n">version</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="ow">in</span> <span class="n">release</span> <span class="mf">1.14</span> <span class="ow">and</span> <span class="n">later</span><span class="p">]</span>
+
+<span class="n">principal</span> <span class="p">:</span><span class="o">:=</span>
+    <span class="n">count</span> <span class="n">of</span> <span class="n">components</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">includes</span> <span class="n">realm</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">realm</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">component1</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">component2</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="o">...</span>
+    <span class="n">name</span> <span class="nb">type</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">omitted</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
+
+<span class="n">data</span> <span class="p">:</span><span class="o">:=</span>
+    <span class="n">length</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
+    <span class="n">value</span> <span class="p">(</span><span class="n">length</span> <span class="nb">bytes</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The 32-bit key version overrides the 8-bit key version.  To determine
+if it is present, the implementation must check that at least 4 bytes
+remain in the record after the other fields are read, and that the
+value of the 32-bit integer contained in those bytes is non-zero.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Keytab file format</a><ul>
+<li><a class="reference internal" href="#key-entry-format">Key entry format</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Protocols and file formats</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_file_format.html">Credential cache file format</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Keytab file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="ccache_file_format.html" title="Credential cache file format"
+            >previous</a> |
+        <a href="rcache_file_format.html" title="Replay cache file format"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Keytab file format">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

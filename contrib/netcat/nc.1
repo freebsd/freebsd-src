@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2025
+.Dd May 14, 2025
 .Dt NC 1
 .Os
 .Sh NAME
@@ -351,8 +351,8 @@ sockets, a destination is required and is the socket path to connect to
 option is given).
 .Pp
 .Ar port
-can be a single integer or a range of ports.
-Ranges are in the form nn-mm.
+can be a specified as a numeric port number, or as a service name.
+Ports may be specified in a range of the form nn-mm.
 In general,
 a destination port must be specified,
 unless the

@@ -1,0 +1,551 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kdb5_ldap_util &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="krb5kdc" href="krb5kdc.html" />
+    <link rel="prev" title="kdb5_util" href="kdb5_util.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kdb5_util.html" title="kdb5_util"
+            accesskey="P">previous</a> |
+        <a href="krb5kdc.html" title="krb5kdc"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdb5_ldap_util">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kdb5-ldap-util">
+<span id="kdb5-ldap-util-8"></span><h1>kdb5_ldap_util<a class="headerlink" href="#kdb5-ldap-util" title="Permalink to this headline">¶</a></h1>
+<section id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p id="kdb5-ldap-util-synopsis"><strong>kdb5_ldap_util</strong>
+[<strong>-D</strong> <em>user_dn</em> [<strong>-w</strong> <em>passwd</em>]]
+[<strong>-H</strong> <em>ldapuri</em>]
+<strong>command</strong>
+[<em>command_options</em>]</p>
+</section>
+<section id="description">
+<span id="kdb5-ldap-util-synopsis-end"></span><h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>kdb5_ldap_util allows an administrator to manage realms, Kerberos
+services and ticket policies.</p>
+</section>
+<section id="command-line-options">
+<h2>COMMAND-LINE OPTIONS<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<dl class="simple" id="kdb5-ldap-util-options">
+<dt><strong>-r</strong> <em>realm</em></dt><dd><p>Specifies the realm to be operated on.</p>
+</dd>
+<dt><strong>-D</strong> <em>user_dn</em></dt><dd><p>Specifies the Distinguished Name (DN) of the user who has
+sufficient rights to perform the operation on the LDAP server.</p>
+</dd>
+<dt><strong>-w</strong> <em>passwd</em></dt><dd><p>Specifies the password of <em>user_dn</em>.  This option is not
+recommended.</p>
+</dd>
+<dt><strong>-H</strong> <em>ldapuri</em></dt><dd><p>Specifies the URI of the LDAP server.</p>
+</dd>
+</dl>
+<p>By default, kdb5_ldap_util operates on the default realm (as specified
+in <a class="reference internal" href="../conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>) and connects and authenticates to the LDAP
+server in the same manner as :ref:kadmind(8)` would given the
+parameters in <a class="reference internal" href="../conf_files/kdc_conf.html#dbdefaults"><span class="std std-ref">[dbdefaults]</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</section>
+<section id="commands">
+<span id="kdb5-ldap-util-options-end"></span><h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<section id="create">
+<h3>create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-create">
+<div><p><strong>create</strong>
+[<strong>-subtrees</strong> <em>subtree_dn_list</em>]
+[<strong>-sscope</strong> <em>search_scope</em>]
+[<strong>-containerref</strong> <em>container_reference_dn</em>]
+[<strong>-k</strong> <em>mkeytype</em>]
+[<strong>-kv</strong> <em>mkeyVNO</em>]
+[<strong>-M</strong> <em>mkeyname</em>]
+[<strong>-m|-P</strong> <em>password</em>|<strong>-sf</strong> <em>stashfilename</em>]
+[<strong>-s</strong>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]</p>
+</div></blockquote>
+<p>Creates realm in directory. Options:</p>
+<dl class="simple">
+<dt><strong>-subtrees</strong> <em>subtree_dn_list</em></dt><dd><p>Specifies the list of subtrees containing the principals of a
+realm.  The list contains the DNs of the subtree objects separated
+by colon (<code class="docutils literal notranslate"><span class="pre">:</span></code>).</p>
+</dd>
+<dt><strong>-sscope</strong> <em>search_scope</em></dt><dd><p>Specifies the scope for searching the principals under the
+subtree.  The possible values are 1 or one (one level), 2 or sub
+(subtrees).</p>
+</dd>
+<dt><strong>-containerref</strong> <em>container_reference_dn</em></dt><dd><p>Specifies the DN of the container object in which the principals
+of a realm will be created.  If the container reference is not
+configured for a realm, the principals will be created in the
+realm container.</p>
+</dd>
+<dt><strong>-k</strong> <em>mkeytype</em></dt><dd><p>Specifies the key type of the master key in the database.  The
+default is given by the <strong>master_key_type</strong> variable in
+<a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</dd>
+<dt><strong>-kv</strong> <em>mkeyVNO</em></dt><dd><p>Specifies the version number of the master key in the database;
+the default is 1.  Note that 0 is not allowed.</p>
+</dd>
+<dt><strong>-M</strong> <em>mkeyname</em></dt><dd><p>Specifies the principal name for the master key in the database.
+If not specified, the name is determined by the
+<strong>master_key_name</strong> variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</dd>
+<dt><strong>-m</strong></dt><dd><p>Specifies that the master database password should be read from
+the TTY rather than fetched from a file on the disk.</p>
+</dd>
+<dt><strong>-P</strong> <em>password</em></dt><dd><p>Specifies the master database password. This option is not
+recommended.</p>
+</dd>
+<dt><strong>-sf</strong> <em>stashfilename</em></dt><dd><p>Specifies the stash file of the master database password.</p>
+</dd>
+<dt><strong>-s</strong></dt><dd><p>Specifies that the stash file is to be created.</p>
+</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Specifies maximum ticket life for
+principals in this realm.</p>
+</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Specifies maximum renewable life of
+tickets for principals in this realm.</p>
+</dd>
+<dt><em>ticket_flags</em></dt><dd><p>Specifies global ticket flags for the realm.  Allowable flags are
+documented in the description of the <strong>add_principal</strong> command in
+<a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span> <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+    <span class="o">-</span><span class="n">r</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="n">create</span> <span class="o">-</span><span class="n">subtrees</span> <span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">sscope</span> <span class="n">SUB</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+<span class="n">Initializing</span> <span class="n">database</span> <span class="k">for</span> <span class="n">realm</span> <span class="s1">&#39;ATHENA.MIT.EDU&#39;</span>
+<span class="n">You</span> <span class="n">will</span> <span class="n">be</span> <span class="n">prompted</span> <span class="k">for</span> <span class="n">the</span> <span class="n">database</span> <span class="n">Master</span> <span class="n">Password</span><span class="o">.</span>
+<span class="n">It</span> <span class="ow">is</span> <span class="n">important</span> <span class="n">that</span> <span class="n">you</span> <span class="n">NOT</span> <span class="n">FORGET</span> <span class="n">this</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Enter</span> <span class="n">KDC</span> <span class="n">database</span> <span class="n">master</span> <span class="n">key</span><span class="p">:</span>
+<span class="n">Re</span><span class="o">-</span><span class="n">enter</span> <span class="n">KDC</span> <span class="n">database</span> <span class="n">master</span> <span class="n">key</span> <span class="n">to</span> <span class="n">verify</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="modify">
+<span id="kdb5-ldap-util-create-end"></span><h3>modify<a class="headerlink" href="#modify" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-modify">
+<div><p><strong>modify</strong>
+[<strong>-subtrees</strong> <em>subtree_dn_list</em>]
+[<strong>-sscope</strong> <em>search_scope</em>]
+[<strong>-containerref</strong> <em>container_reference_dn</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]</p>
+</div></blockquote>
+<p>Modifies the attributes of a realm.  Options:</p>
+<dl class="simple">
+<dt><strong>-subtrees</strong> <em>subtree_dn_list</em></dt><dd><p>Specifies the list of subtrees containing the principals of a
+realm.  The list contains the DNs of the subtree objects separated
+by colon (<code class="docutils literal notranslate"><span class="pre">:</span></code>).  This list replaces the existing list.</p>
+</dd>
+<dt><strong>-sscope</strong> <em>search_scope</em></dt><dd><p>Specifies the scope for searching the principals under the
+subtrees.  The possible values are 1 or one (one level), 2 or sub
+(subtrees).</p>
+</dd>
+<dt><strong>-containerref</strong> <em>container_reference_dn</em> Specifies the DN of the</dt><dd><p>container object in which the principals of a realm will be
+created.</p>
+</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Specifies maximum ticket life for
+principals in this realm.</p>
+</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Specifies maximum renewable life of
+tickets for principals in this realm.</p>
+</dd>
+<dt><em>ticket_flags</em></dt><dd><p>Specifies global ticket flags for the realm.  Allowable flags are
+documented in the description of the <strong>add_principal</strong> command in
+<a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">r</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span>
+    <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="n">modify</span> <span class="o">+</span><span class="n">requires_preauth</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+</section>
+<section id="view">
+<span id="kdb5-ldap-util-modify-end"></span><h3>view<a class="headerlink" href="#view" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-view">
+<div><p><strong>view</strong></p>
+</div></blockquote>
+<p>Displays the attributes of a realm.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span> <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+    <span class="o">-</span><span class="n">r</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="n">view</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+<span class="n">Realm</span> <span class="n">Name</span><span class="p">:</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">Subtree</span><span class="p">:</span> <span class="n">ou</span><span class="o">=</span><span class="n">users</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span>
+<span class="n">Subtree</span><span class="p">:</span> <span class="n">ou</span><span class="o">=</span><span class="n">servers</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span>
+<span class="n">SearchScope</span><span class="p">:</span> <span class="n">ONE</span>
+<span class="n">Maximum</span> <span class="n">ticket</span> <span class="n">life</span><span class="p">:</span> <span class="mi">0</span> <span class="n">days</span> <span class="mi">01</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Maximum</span> <span class="n">renewable</span> <span class="n">life</span><span class="p">:</span> <span class="mi">0</span> <span class="n">days</span> <span class="mi">10</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Ticket</span> <span class="n">flags</span><span class="p">:</span> <span class="n">DISALLOW_FORWARDABLE</span> <span class="n">REQUIRES_PWCHANGE</span>
+</pre></div>
+</div>
+</section>
+<section id="destroy">
+<span id="kdb5-ldap-util-view-end"></span><h3>destroy<a class="headerlink" href="#destroy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-destroy">
+<div><p><strong>destroy</strong> [<strong>-f</strong>]</p>
+</div></blockquote>
+<p>Destroys an existing realm. Options:</p>
+<dl class="simple">
+<dt><strong>-f</strong></dt><dd><p>If specified, will not prompt the user for confirmation.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>shell% kdb5_ldap_util -r ATHENA.MIT.EDU -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu destroy
+Password for &quot;cn=admin,o=org&quot;:
+Deleting KDC database of &#39;ATHENA.MIT.EDU&#39;, are you sure?
+(type &#39;yes&#39; to confirm)? yes
+OK, deleting database of &#39;ATHENA.MIT.EDU&#39;...
+shell%
+</pre></div>
+</div>
+</section>
+<section id="list">
+<span id="kdb5-ldap-util-destroy-end"></span><h3>list<a class="headerlink" href="#list" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-list">
+<div><p><strong>list</strong></p>
+</div></blockquote>
+<p>Lists the names of realms under the container.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span>
+    <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="nb">list</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+<span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">OPENLDAP</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">MEDIA</span><span class="o">-</span><span class="n">LAB</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+</section>
+<section id="stashsrvpw">
+<span id="kdb5-ldap-util-list-end"></span><h3>stashsrvpw<a class="headerlink" href="#stashsrvpw" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-stashsrvpw">
+<div><p><strong>stashsrvpw</strong>
+[<strong>-f</strong> <em>filename</em>]
+<em>name</em></p>
+</div></blockquote>
+<p>Allows an administrator to store the password for service object in a
+file so that KDC and Administration server can use it to authenticate
+to the LDAP server.  Options:</p>
+<dl class="simple">
+<dt><strong>-f</strong> <em>filename</em></dt><dd><p>Specifies the complete path of the service password file. By
+default, <code class="docutils literal notranslate"><span class="pre">/usr/local/var/service_passwd</span></code> is used.</p>
+</dd>
+<dt><em>name</em></dt><dd><p>Specifies the name of the object whose password is to be stored.
+If <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> or <a class="reference internal" href="kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> are configured for
+simple binding, this should be the distinguished name it will
+use as given by the <strong>ldap_kdc_dn</strong> or <strong>ldap_kadmind_dn</strong>
+variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.  If the KDC or kadmind is
+configured for SASL binding, this should be the authentication
+name it will use as given by the <strong>ldap_kdc_sasl_authcid</strong> or
+<strong>ldap_kadmind_sasl_authcid</strong> variable.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="n">stashsrvpw</span> <span class="o">-</span><span class="n">f</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">andrew</span><span class="o">/</span><span class="n">conf_keyfile</span>
+    <span class="n">cn</span><span class="o">=</span><span class="n">service</span><span class="o">-</span><span class="n">kdc</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=service-kdc,o=org&quot;</span><span class="p">:</span>
+<span class="n">Re</span><span class="o">-</span><span class="n">enter</span> <span class="n">password</span> <span class="k">for</span> <span class="s2">&quot;cn=service-kdc,o=org&quot;</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="create-policy">
+<span id="kdb5-ldap-util-stashsrvpw-end"></span><h3>create_policy<a class="headerlink" href="#create-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-create-policy">
+<div><p><strong>create_policy</strong>
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]
+<em>policy_name</em></p>
+</div></blockquote>
+<p>Creates a ticket policy in the directory.  Options:</p>
+<dl class="simple">
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Specifies maximum ticket life for
+principals.</p>
+</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) Specifies maximum renewable life of
+tickets for principals.</p>
+</dd>
+<dt><em>ticket_flags</em></dt><dd><p>Specifies the ticket flags.  If this option is not specified, by
+default, no restriction will be set by the policy.  Allowable
+flags are documented in the description of the <strong>add_principal</strong>
+command in <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>.</p>
+</dd>
+<dt><em>policy_name</em></dt><dd><p>Specifies the name of the ticket policy.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span> <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+    <span class="o">-</span><span class="n">r</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="n">create_policy</span> <span class="o">-</span><span class="n">maxtktlife</span> <span class="s2">&quot;1 day&quot;</span>
+    <span class="o">-</span><span class="n">maxrenewlife</span> <span class="s2">&quot;1 week&quot;</span> <span class="o">-</span><span class="n">allow_postdated</span> <span class="o">+</span><span class="n">needchange</span>
+    <span class="o">-</span><span class="n">allow_forwardable</span> <span class="n">tktpolicy</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="modify-policy">
+<span id="kdb5-ldap-util-create-policy-end"></span><h3>modify_policy<a class="headerlink" href="#modify-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-modify-policy">
+<div><p><strong>modify_policy</strong>
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]
+<em>policy_name</em></p>
+</div></blockquote>
+<p>Modifies the attributes of a ticket policy.  Options are same as for
+<strong>create_policy</strong>.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span>
+    <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="o">-</span><span class="n">r</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="n">modify_policy</span>
+    <span class="o">-</span><span class="n">maxtktlife</span> <span class="s2">&quot;60 minutes&quot;</span> <span class="o">-</span><span class="n">maxrenewlife</span> <span class="s2">&quot;10 hours&quot;</span>
+    <span class="o">+</span><span class="n">allow_postdated</span> <span class="o">-</span><span class="n">requires_preauth</span> <span class="n">tktpolicy</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="view-policy">
+<span id="kdb5-ldap-util-modify-policy-end"></span><h3>view_policy<a class="headerlink" href="#view-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-view-policy">
+<div><p><strong>view_policy</strong>
+<em>policy_name</em></p>
+</div></blockquote>
+<p>Displays the attributes of the named ticket policy.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span> <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+    <span class="o">-</span><span class="n">r</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="n">view_policy</span> <span class="n">tktpolicy</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+<span class="n">Ticket</span> <span class="n">policy</span><span class="p">:</span> <span class="n">tktpolicy</span>
+<span class="n">Maximum</span> <span class="n">ticket</span> <span class="n">life</span><span class="p">:</span> <span class="mi">0</span> <span class="n">days</span> <span class="mi">01</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Maximum</span> <span class="n">renewable</span> <span class="n">life</span><span class="p">:</span> <span class="mi">0</span> <span class="n">days</span> <span class="mi">10</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="n">Ticket</span> <span class="n">flags</span><span class="p">:</span> <span class="n">DISALLOW_FORWARDABLE</span> <span class="n">REQUIRES_PWCHANGE</span>
+</pre></div>
+</div>
+</section>
+<section id="destroy-policy">
+<span id="kdb5-ldap-util-view-policy-end"></span><h3>destroy_policy<a class="headerlink" href="#destroy-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-destroy-policy">
+<div><p><strong>destroy_policy</strong>
+[<strong>-force</strong>]
+<em>policy_name</em></p>
+</div></blockquote>
+<p>Destroys an existing ticket policy.  Options:</p>
+<dl class="simple">
+<dt><strong>-force</strong></dt><dd><p>Forces the deletion of the policy object.  If not specified, the
+user will be prompted for confirmation before deleting the policy.</p>
+</dd>
+<dt><em>policy_name</em></dt><dd><p>Specifies the name of the ticket policy.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    -r ATHENA.MIT.EDU destroy_policy tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+This will delete the policy object &#39;tktpolicy&#39;, are you sure?
+(type &#39;yes&#39; to confirm)? yes
+** policy object &#39;tktpolicy&#39; deleted.
+</pre></div>
+</div>
+</section>
+<section id="list-policy">
+<span id="kdb5-ldap-util-destroy-policy-end"></span><h3>list_policy<a class="headerlink" href="#list-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-list-policy">
+<div><p><strong>list_policy</strong></p>
+</div></blockquote>
+<p>Lists ticket policies.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="o">-</span><span class="n">D</span> <span class="n">cn</span><span class="o">=</span><span class="n">admin</span><span class="p">,</span><span class="n">o</span><span class="o">=</span><span class="n">org</span> <span class="o">-</span><span class="n">H</span> <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">ldap</span><span class="o">-</span><span class="n">server1</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+    <span class="o">-</span><span class="n">r</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="n">list_policy</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="s2">&quot;cn=admin,o=org&quot;</span><span class="p">:</span>
+<span class="n">tktpolicy</span>
+<span class="n">tmppolicy</span>
+<span class="n">userpolicy</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="environment">
+<span id="kdb5-ldap-util-list-policy-end"></span><h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kdb5_ldap_util</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#command-line-options">COMMAND-LINE OPTIONS</a></li>
+<li><a class="reference internal" href="#commands">COMMANDS</a><ul>
+<li><a class="reference internal" href="#create">create</a></li>
+<li><a class="reference internal" href="#modify">modify</a></li>
+<li><a class="reference internal" href="#view">view</a></li>
+<li><a class="reference internal" href="#destroy">destroy</a></li>
+<li><a class="reference internal" href="#list">list</a></li>
+<li><a class="reference internal" href="#stashsrvpw">stashsrvpw</a></li>
+<li><a class="reference internal" href="#create-policy">create_policy</a></li>
+<li><a class="reference internal" href="#modify-policy">modify_policy</a></li>
+<li><a class="reference internal" href="#view-policy">view_policy</a></li>
+<li><a class="reference internal" href="#destroy-policy">destroy_policy</a></li>
+<li><a class="reference internal" href="#list-policy">list_policy</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Administration  programs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kadmin_local.html">kadmin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadmind.html">kadmind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kdb5_ldap_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sserver.html">sserver</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kdb5_util.html" title="kdb5_util"
+            >previous</a> |
+        <a href="krb5kdc.html" title="krb5kdc"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdb5_ldap_util">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

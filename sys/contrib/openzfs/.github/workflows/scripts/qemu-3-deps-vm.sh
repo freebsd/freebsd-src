@@ -4,6 +4,8 @@
 # 3) install dependencies for compiling and loading
 #
 # $1: OS name (like 'fedora41')
+# $2: (optional) Experimental Fedora kernel version, like "6.14" to
+#     install instead of Fedora defaults.
 ######################################################################
 
 set -eu
@@ -55,6 +57,7 @@ function freebsd() {
     '^samba4[[:digit:]]+$' \
     '^py3[[:digit:]]+-cffi$' \
     '^py3[[:digit:]]+-sysctl$' \
+    '^py3[[:digit:]]+-setuptools$' \
     '^py3[[:digit:]]+-packaging$'
   echo "##[endgroup]"
 }
@@ -94,6 +97,25 @@ function tumbleweed() {
   echo "##[endgroup]"
 }
 
+# $1: Kernel version to install (like '6.14rc7')
+function install_fedora_experimental_kernel {
+
+  our_version="$1"
+  sudo dnf -y copr enable @kernel-vanilla/stable
+  sudo dnf -y copr enable @kernel-vanilla/mainline
+  all="$(sudo dnf list --showduplicates kernel-*)"
+  echo "Available versions:"
+  echo "$all"
+
+  # You can have a bunch of minor variants of the version we want '6.14'.
+  # Pick the newest variant (sorted by version number).
+  specific_version=$(echo "$all" | grep $our_version | awk '{print $2}' | sort -V | tail -n 1)
+  list="$(echo "$all" | grep $specific_version | grep -Ev 'kernel-rt|kernel-selftests|kernel-debuginfo' | sed 's/.x86_64//g' | awk '{print $1"-"$2}')"
+  sudo dnf install -y $list
+  sudo dnf -y copr disable @kernel-vanilla/stable
+  sudo dnf -y copr disable @kernel-vanilla/mainline
+}
+
 # Install dependencies
 case "$1" in
   almalinux8)
@@ -106,7 +128,7 @@ case "$1" in
     sudo dnf install -y kernel-abi-whitelists
     echo "##[endgroup]"
     ;;
-  almalinux9|centos-stream9|centos-stream10)
+  almalinux9|almalinux10|centos-stream9|centos-stream10)
     echo "##[group]Enable epel and crb repositories"
     sudo dnf config-manager -y --set-enabled crb
     sudo dnf install -y epel-release
@@ -129,6 +151,14 @@ case "$1" in
   fedora*)
     rhel
     sudo dnf install -y libunwind-devel
+
+    # Fedora 42+ moves /usr/bin/script from 'util-linux' to 'util-linux-script'
+    sudo dnf install -y util-linux-script || true
+
+    # Optional: Install an experimental kernel ($2 = kernel version)
+    if [ -n "${2:-}" ] ; then
+      install_fedora_experimental_kernel "$2"
+    fi
     ;;
   freebsd*)
     freebsd
@@ -141,9 +171,7 @@ case "$1" in
     echo "##[group]Install Ubuntu specific"
     sudo apt-get install -yq linux-tools-common libtirpc-dev \
       linux-modules-extra-$(uname -r)
-    if [ "$1" != "ubuntu20" ]; then
-      sudo apt-get install -yq dh-sequence-dkms
-    fi
+    sudo apt-get install -yq dh-sequence-dkms
     echo "##[endgroup]"
     echo "##[group]Delete Ubuntu OpenZFS modules"
     for i in $(find /lib/modules -name zfs -type d); do sudo rm -rvf $i; done

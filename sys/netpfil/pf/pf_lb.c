@@ -75,8 +75,9 @@ VNET_DEFINE_STATIC(int, pf_rdr_srcport_rewrite_tries) = 16;
 
 static uint64_t		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
-struct pf_krule		*pf_match_translation(struct pf_pdesc *,
-			    int, struct pf_kanchor_stackframe *);
+struct pf_krule		*pf_match_translation(int, struct pf_test_ctx *);
+static enum pf_test_status pf_step_into_translation_anchor(int, struct pf_test_ctx *,
+			    struct pf_krule *);
 static int		 pf_get_sport(struct pf_pdesc *, struct pf_krule *,
 			    struct pf_addr *, uint16_t *, uint16_t, uint16_t,
 			    struct pf_ksrc_node **, struct pf_srchash **,
@@ -128,17 +129,21 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 	return (res);
 }
 
-struct pf_krule *
-pf_match_translation(struct pf_pdesc *pd,
-    int rs_num, struct pf_kanchor_stackframe *anchor_stack)
-{
-	struct pf_krule		*r, *rm = NULL;
-	struct pf_kruleset	*ruleset = NULL;
-	int			 tag = -1;
-	int			 rtableid = -1;
-	int			 asd = 0;
+#define PF_TEST_ATTRIB(t, a)		\
+	if (t) {			\
+		r = a;			\
+		continue;		\
+	} else do {			\
+	} while (0)
 
-	r = TAILQ_FIRST(pf_main_ruleset.rules[rs_num].active.ptr);
+static enum pf_test_status
+pf_match_translation_rule(int rs_num, struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
+{
+	struct pf_krule		*r;
+	struct pf_pdesc		*pd = ctx->pd;
+	int			 rtableid = -1;
+
+	r = TAILQ_FIRST(ruleset->rules[rs_num].active.ptr);
 	while (r != NULL) {
 		struct pf_rule_addr	*src = NULL, *dst = NULL;
 		struct pf_addr_wrap	*xdst = NULL;
@@ -153,68 +158,136 @@ pf_match_translation(struct pf_pdesc *pd,
 		}
 
 		pf_counter_u64_add(&r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
-			r = r->skip[PF_SKIP_IFP];
-		else if (r->direction && r->direction != pd->dir)
-			r = r->skip[PF_SKIP_DIR];
-		else if (r->af && r->af != pd->af)
-			r = r->skip[PF_SKIP_AF];
-		else if (r->proto && r->proto != pd->proto)
-			r = r->skip[PF_SKIP_PROTO];
-		else if (PF_MISMATCHAW(&src->addr, &pd->nsaddr, pd->af,
-		    src->neg, pd->kif, M_GETFIB(pd->m)))
-			r = r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
-			    PF_SKIP_DST_ADDR];
-		else if (src->port_op && !pf_match_port(src->port_op,
-		    src->port[0], src->port[1], pd->nsport))
-			r = r->skip[src == &r->src ? PF_SKIP_SRC_PORT :
-			    PF_SKIP_DST_PORT];
-		else if (dst != NULL &&
+		PF_TEST_ATTRIB(pfi_kkif_match(r->kif, pd->kif) == r->ifnot,
+			r->skip[PF_SKIP_IFP]);
+		PF_TEST_ATTRIB(r->direction && r->direction != pd->dir,
+			r->skip[PF_SKIP_DIR]);
+		PF_TEST_ATTRIB(r->af && r->af != pd->af,
+			r->skip[PF_SKIP_AF]);
+		PF_TEST_ATTRIB(r->proto && r->proto != pd->proto,
+			r->skip[PF_SKIP_PROTO]);
+		PF_TEST_ATTRIB(PF_MISMATCHAW(&src->addr, &pd->nsaddr, pd->af,
+		    src->neg, pd->kif, M_GETFIB(pd->m)),
+			r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
+			    PF_SKIP_DST_ADDR]);
+		PF_TEST_ATTRIB(src->port_op && !pf_match_port(src->port_op,
+		    src->port[0], src->port[1], pd->nsport),
+			r->skip[src == &r->src ? PF_SKIP_SRC_PORT :
+			    PF_SKIP_DST_PORT]);
+		PF_TEST_ATTRIB(dst != NULL &&
 		    PF_MISMATCHAW(&dst->addr, &pd->ndaddr, pd->af, dst->neg, NULL,
-		    M_GETFIB(pd->m)))
-			r = r->skip[PF_SKIP_DST_ADDR];
-		else if (xdst != NULL && PF_MISMATCHAW(xdst, &pd->ndaddr, pd->af,
-		    0, NULL, M_GETFIB(pd->m)))
-			r = TAILQ_NEXT(r, entries);
-		else if (dst != NULL && dst->port_op &&
+		    M_GETFIB(pd->m)),
+			r->skip[PF_SKIP_DST_ADDR]);
+		PF_TEST_ATTRIB(xdst != NULL && PF_MISMATCHAW(xdst, &pd->ndaddr, pd->af,
+		    0, NULL, M_GETFIB(pd->m)),
+			TAILQ_NEXT(r, entries));
+		PF_TEST_ATTRIB(dst != NULL && dst->port_op &&
 		    !pf_match_port(dst->port_op, dst->port[0],
-		    dst->port[1], pd->ndport))
-			r = r->skip[PF_SKIP_DST_PORT];
-		else if (r->match_tag && !pf_match_tag(pd->m, r, &tag,
-		    pd->pf_mtag ? pd->pf_mtag->tag : 0))
-			r = TAILQ_NEXT(r, entries);
-		else if (r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
+		    dst->port[1], pd->ndport),
+			r->skip[PF_SKIP_DST_PORT]);
+		PF_TEST_ATTRIB(r->match_tag && !pf_match_tag(pd->m, r, &ctx->tag,
+		    pd->pf_mtag ? pd->pf_mtag->tag : 0),
+			TAILQ_NEXT(r, entries));
+		PF_TEST_ATTRIB(r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
 		    IPPROTO_TCP || !pf_osfp_match(pf_osfp_fingerprint(pd,
-		    &pd->hdr.tcp), r->os_fingerprint)))
-			r = TAILQ_NEXT(r, entries);
-		else {
-			if (r->tag)
-				tag = r->tag;
-			if (r->rtableid >= 0)
-				rtableid = r->rtableid;
-			if (r->anchor == NULL) {
-				rm = r;
-				if (rm->action == PF_NONAT ||
-				    rm->action == PF_NORDR ||
-				    rm->action == PF_NOBINAT) {
-					rm = NULL;
-				}
+		    &pd->hdr.tcp), r->os_fingerprint)),
+			TAILQ_NEXT(r, entries));
+		if (r->tag)
+			ctx->tag = r->tag;
+		if (r->rtableid >= 0)
+			rtableid = r->rtableid;
+		if (r->anchor == NULL) {
+			if (r->action == PF_NONAT ||
+			    r->action == PF_NORDR ||
+			    r->action == PF_NOBINAT) {
+				*ctx->rm = NULL;
+			} else {
+				/*
+				 * found matching r
+				 */
+				ctx->tr = r;
+				/*
+				 * anchor, with ruleset, where r belongs to
+				 */
+				*ctx->am = ctx->a;
+				/*
+				 * ruleset where r belongs to
+				 */
+				*ctx->rsm = ruleset;
+				/*
+				 * ruleset, where anchor belongs to.
+				 */
+				ctx->arsm = ctx->aruleset;
+			}
+		} else {
+			ctx->a = r;			/* remember anchor */
+			ctx->aruleset = ruleset;	/* and its ruleset */
+			if (pf_step_into_translation_anchor(rs_num, ctx,
+			    r) != PF_TEST_OK) {
 				break;
-			} else
-				pf_step_into_anchor(anchor_stack, &asd,
-				    &ruleset, rs_num, &r, NULL);
+			}
 		}
-		if (r == NULL)
-			pf_step_out_of_anchor(anchor_stack, &asd, &ruleset,
-			    rs_num, &r, NULL, NULL);
+		r = TAILQ_NEXT(r, entries);
 	}
 
-	if (tag > 0 && pf_tag_packet(pd, tag))
-		return (NULL);
+	if (ctx->tag > 0 && pf_tag_packet(pd, ctx->tag))
+		return (PF_TEST_FAIL);
 	if (rtableid >= 0)
 		M_SETFIB(pd->m, rtableid);
 
-	return (rm);
+	return (PF_TEST_OK);
+}
+
+static enum pf_test_status
+pf_step_into_translation_anchor(int rs_num, struct pf_test_ctx *ctx, struct pf_krule *r)
+{
+	enum pf_test_status	rv;
+
+	PF_RULES_RASSERT();
+
+	if (ctx->depth >= PF_ANCHOR_STACK_MAX) {
+		printf("%s: anchor stack overflow on %s\n",
+		    __func__, r->anchor->name);
+		return (PF_TEST_FAIL);
+	}
+
+	ctx->depth++;
+
+	if (r->anchor_wildcard) {
+		struct pf_kanchor *child;
+		rv = PF_TEST_OK;
+		RB_FOREACH(child, pf_kanchor_node, &r->anchor->children) {
+			rv = pf_match_translation_rule(rs_num, ctx, &child->ruleset);
+			if ((rv == PF_TEST_QUICK) || (rv == PF_TEST_FAIL)) {
+				/*
+				 * we either hit a rule qith quick action
+				 * (more likely), or hit some runtime
+				 * error (e.g. pool_get() faillure).
+				 */
+				break;
+			}
+		}
+	} else {
+		rv = pf_match_translation_rule(rs_num, ctx, &r->anchor->ruleset);
+	}
+
+	ctx->depth--;
+
+	return (rv);
+}
+
+struct pf_krule *
+pf_match_translation(int rs_num, struct pf_test_ctx *ctx)
+{
+	enum pf_test_status rv;
+
+	MPASS(ctx->depth == 0);
+	rv = pf_match_translation_rule(rs_num, ctx, &pf_main_ruleset);
+	MPASS(ctx->depth == 0);
+	if (rv != PF_TEST_OK)
+		return (NULL);
+
+	return (ctx->tr);
 }
 
 static int
@@ -770,28 +843,25 @@ done:
 }
 
 u_short
-pf_get_translation(struct pf_pdesc *pd, int off,
-    struct pf_state_key **skp, struct pf_state_key **nkp,
-    struct pf_kanchor_stackframe *anchor_stack, struct pf_krule **rp,
-    struct pf_udp_mapping **udp_mapping)
+pf_get_translation(struct pf_test_ctx *ctx)
 {
 	struct pf_krule	*r = NULL;
 	u_short		 transerror;
 
 	PF_RULES_RASSERT();
-	KASSERT(*skp == NULL, ("*skp not NULL"));
-	KASSERT(*nkp == NULL, ("*nkp not NULL"));
+	KASSERT(ctx->sk == NULL, ("*skp not NULL"));
+	KASSERT(ctx->nk == NULL, ("*nkp not NULL"));
 
-	*rp = NULL;
+	ctx->nr = NULL;
 
-	if (pd->dir == PF_OUT) {
-		r = pf_match_translation(pd, PF_RULESET_BINAT, anchor_stack);
+	if (ctx->pd->dir == PF_OUT) {
+		r = pf_match_translation(PF_RULESET_BINAT, ctx);
 		if (r == NULL)
-			r = pf_match_translation(pd, PF_RULESET_NAT, anchor_stack);
+			r = pf_match_translation(PF_RULESET_NAT, ctx);
 	} else {
-		r = pf_match_translation(pd, PF_RULESET_RDR, anchor_stack);
+		r = pf_match_translation(PF_RULESET_RDR, ctx);
 		if (r == NULL)
-			r = pf_match_translation(pd, PF_RULESET_BINAT, anchor_stack);
+			r = pf_match_translation(PF_RULESET_BINAT, ctx);
 	}
 
 	if (r == NULL)
@@ -804,19 +874,18 @@ pf_get_translation(struct pf_pdesc *pd, int off,
 		return (PFRES_MAX);
 	}
 
-	transerror = pf_get_transaddr(pd, skp, nkp, r, udp_mapping, r->action, &(r->rdr));
+	transerror = pf_get_transaddr(ctx, r, r->action, &(r->rdr));
 	if (transerror == PFRES_MATCH)
-		*rp = r;
+		ctx->nr = r;
 
 	return (transerror);
 }
 
 u_short
-pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
-    struct pf_state_key **nkp, struct pf_krule *r,
-    struct pf_udp_mapping **udp_mapping, uint8_t nat_action,
-    struct pf_kpool *rpool)
+pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
+    uint8_t nat_action, struct pf_kpool *rpool)
 {
+	struct pf_pdesc	*pd = ctx->pd;
 	struct pf_addr	*naddr;
 	struct pf_ksrc_node	*sn = NULL;
 	struct pf_srchash	*sh = NULL;
@@ -828,13 +897,14 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 	KASSERT(r != NULL, ("r is NULL"));
 	KASSERT(!(r->rule_flag & PFRULE_AFTO), ("AFTO rule"));
 
-	if (*skp == NULL && *nkp == NULL) {
-		if (pf_state_key_setup(pd, pd->nsport, pd->ndport, skp, nkp))
+	if (ctx->sk == NULL && ctx->nk == NULL) {
+		if (pf_state_key_setup(pd, pd->nsport, pd->ndport, &ctx->sk,
+		    &ctx->nk))
 			return (PFRES_MEMORY);
 	}
 
-	naddr = &(*nkp)->addr[1];
-	nportp = &(*nkp)->port[1];
+	naddr = &ctx->nk->addr[1];
+	nportp = &ctx->nk->port[1];
 
 	switch (nat_action) {
 	case PF_NAT:
@@ -847,7 +917,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 		}
 		if (rpool->mape.offset > 0) {
 			if (pf_get_mape_sport(pd, r, naddr, nportp, &sn,
-			    &sh, udp_mapping, rpool)) {
+			    &sh, &ctx->udp_mapping, rpool)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: MAP-E port allocation (%u/%u/%u)"
 				    " failed\n",
@@ -858,7 +928,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 				goto notrans;
 			}
 		} else if (pf_get_sport(pd, r, naddr, nportp, low, high, &sn,
-		    &sh, rpool, udp_mapping, PF_SN_NAT)) {
+		    &sh, rpool, &ctx->udp_mapping, PF_SN_NAT)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    rpool->proxy_port[0], rpool->proxy_port[1]));
@@ -1005,7 +1075,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 			key.port[0] = htons(tmp);
 			if (!pf_find_state_all_exists(&key, PF_OUT)) {
 				/* Update the source port. */
-				(*nkp)->port[0] = htons(tmp);
+				ctx->nk->port[0] = htons(tmp);
 				goto out;
 			}
 		}
@@ -1015,7 +1085,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 			key.port[0] = htons(tmp);
 			if (!pf_find_state_all_exists(&key, PF_OUT)) {
 				/* Update the source port. */
-				(*nkp)->port[0] = htons(tmp);
+				ctx->nk->port[0] = htons(tmp);
 				goto out;
 			}
 		}
@@ -1033,7 +1103,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 out:
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: RDR source port allocation %u->%u\n",
-		    ntohs(pd->nsport), ntohs((*nkp)->port[0])));
+		    ntohs(pd->nsport), ntohs(ctx->nk->port[0])));
 		break;
 	}
 	default:
@@ -1041,15 +1111,15 @@ out:
 	}
 
 	/* Return success only if translation really happened. */
-	if (bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp))) {
+	if (bcmp(ctx->sk, ctx->nk, sizeof(struct pf_state_key_cmp))) {
 		return (PFRES_MATCH);
 	}
 
 	reason = PFRES_MAX;
 notrans:
-	uma_zfree(V_pf_state_key_z, *nkp);
-	uma_zfree(V_pf_state_key_z, *skp);
-	*skp = *nkp = NULL;
+	uma_zfree(V_pf_state_key_z, ctx->nk);
+	uma_zfree(V_pf_state_key_z, ctx->sk);
+	ctx->sk = ctx->nk = NULL;
 
 	return (reason);
 }

@@ -162,7 +162,7 @@ struct sysentvec {
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */
 #define	SV_LP64		0x000200	/* 64-bit executable. */
-#define	SV_IA32		0x004000	/* Intel 32-bit executable. */
+#define	SV_RESERVED0	0x004000	/* Formerly SV_IA32 */
 #define	SV_AOUT		0x008000	/* a.out executable. */
 #define	SV_SHP		0x010000	/* Shared page. */
 #define	SV_SIGSYS	0x020000	/* SIGSYS for non-existing syscall */

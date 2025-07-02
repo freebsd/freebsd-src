@@ -1,0 +1,767 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif\r\n"
+    "#include ""res\\Leash.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\Leash.ico"
+IDR_LeashTYPE           ICON                    "res\\Leash_Doc.ico"
+IDI_LEASH_PRINCIPAL_GOOD ICON                    "res\\Leash_user_green.ico"
+IDI_LEASH_PRINCIPAL_LOW ICON                    "res\\Leash_user_orange.ico"
+IDI_LEASH_PRINCIPAL_EXPIRED ICON                    "res\\Leash_user_red.ico"
+IDI_LEASH_PRINCIPAL_NONE ICON                    "res\\Leash_user_out.ico"
+IDI_LEASH               ICON                    "res\\Leash.ico"
+IDI_TICKETTYPE_GOOD     ICON                    "res\\Leash_tickets_green.ico"
+IDI_TICKETTYPE_LOW      ICON                    "res\\Leash_tickets_orange.ico"
+IDI_TICKETTYPE_EXPIRED  ICON                    "res\\Leash_tickets_red.ico"
+IDI_TICKETTYPE_NOTINSTALLED ICON                    "res\\Leash_tickets_out.ico"
+IDI_TICKET_GOOD         ICON                    "res\\Leash_tkt_green.ico"
+IDI_TICKET_LOW          ICON                    "res\\Leash_tkt_orange.ico"
+IDI_TICKET_EXPIRED      ICON                    "res\\Leash_tkt_red.ico"
+IDI_LEASH_TRAY_GOOD     ICON                    "res\\status_greenK.ico"
+IDI_LEASH_TRAY_LOW      ICON                    "res\\status_yelloK.ico"
+IDI_LEASH_TRAY_EXPIRED  ICON                    "res\\status_redK.ico"
+IDI_LEASH_TRAY_NONE     ICON                    "res\\status_grayK.ico"
+IDI_LEASH_TICKET_ADDRESS ICON                    "res\\address.ico"
+IDI_LEASH_TICKET_SESSION ICON                    "res\\key.ico"
+IDI_LEASH_TICKET_ENCRYPTION ICON                    "res\\encryption.ico"
+IDI_TOOLBAR_INIT        ICON                    "res\\new.ico"
+IDI_TOOLBAR_RENEW       ICON                    "res\\renew.ico"
+IDI_TOOLBAR_DESTROY     ICON                    "res\\destroy.ico"
+IDI_TOOLBAR_PASSWORD    ICON                    "res\\password.ico"
+IDI_TOOLBAR_REFRESH     ICON                    "res\\refresh.ico"
+IDI_TOOLBAR_SYNC        ICON                    "res\\sync.ico"
+IDI_TOOLBAR_INIT_DISABLED ICON                    "res\\new_disabled.ico"
+IDI_TOOLBAR_RENEW_DISABLED ICON                    "res\\renew_disabled.ico"
+IDI_TOOLBAR_DESTROY_DISABLED ICON                    "res\\destroy_disabled.ico"
+IDI_TOOLBAR_PASSWORD_DISABLED ICON                    "res\\password_disabled.ico"
+IDI_TOOLBAR_REFRESH_DISABLED ICON                    "res\\refresh_disabled.ico"
+IDI_TOOLBAR_SYNC_DISABLED ICON                    "res\\sync_disabled.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Get Ticket(s)\tCtrl+T",      ID_INIT_TICKET
+        MENUITEM "&Renew Ticket(s)\tCtrl+R",    ID_RENEW_TICKET
+        MENUITEM "&Destroy Ticket(s)\tCtrl+D",  ID_DESTROY_TICKET
+        MENUITEM SEPARATOR
+        MENUITEM "&Change Password...",         ID_CHANGE_PASSWORD
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Time Issued",                ID_TIME_ISSUED
+        MENUITEM "&Renewable Until",            ID_RENEWABLE_UNTIL
+        MENUITEM "&Valid Until",                ID_VALID_UNTIL
+        MENUITEM "&Encryption Type",            ID_ENCRYPTION_TYPE
+        MENUITEM "&Flags",                      ID_SHOW_TICKET_FLAGS
+        MENUITEM "&Credential Cache Name",      ID_CCACHE_NAME
+    END
+    POPUP "&Options"
+    BEGIN
+        MENUITEM "Upper &Case Realm Name",      ID_UPPERCASE_REALM
+        MENUITEM "&Automatic Ticket Renewal",   ID_AUTO_RENEW
+        MENUITEM "&Expiration Alarm",           ID_LOW_TICKET_ALARM
+        MENUITEM "&Destroy Tickets on Exit",    ID_KILL_TIX_ONEXIT
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "Why Use Leash",               ID_HELP_WHYUSELEASH32
+        MENUITEM "About &Kerberos ",            ID_HELP_KERBEROS_
+        MENUITEM SEPARATOR
+        MENUITEM "&Contents",                   ID_HELP_LEASH32
+        MENUITEM "&Index",                      ID_HELP_LEASH_
+        MENUITEM SEPARATOR
+        MENUITEM "&About Leash",                ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS
+BEGIN
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    "D",            ID_DESTROY_TICKET,      VIRTKEY, CONTROL, NOINVERT
+    "M",            ID_MAKE_DEFAULT,        VIRTKEY, CONTROL, NOINVERT
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
+    "P",            ID_CHANGE_PASSWORD,     VIRTKEY, CONTROL, NOINVERT
+    "R",            ID_RENEW_TICKET,        VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_INIT_TICKET,         VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT, NOINVERT
+    VK_DELETE,      ID_BUTTON_REALM_REMOVE, VIRTKEY, NOINVERT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT, NOINVERT
+    VK_F1,          ID_HELP,                VIRTKEY, NOINVERT
+    VK_F1,          ID_CONTEXT_HELP,        VIRTKEY, SHIFT, NOINVERT
+    VK_F5,          ID_UPDATE_DISPLAY,      VIRTKEY, NOINVERT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_FRAMEOWNER DIALOG  0, 0, 219, 49
+STYLE DS_SETFONT | WS_POPUP
+FONT 8, "MS Sans Serif"
+BEGIN
+END
+
+IDD_LEASH_FORMVIEW DIALOGEX 0, 0, 349, 163
+STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    CONTROL         "Tree1",IDC_TREEVIEW,"SysTreeView32",TVS_HASBUTTONS |
+                    TVS_HASLINES | TVS_LINESATROOT | TVS_DISABLEDRAGDROP |
+                    TVS_INFOTIP | WS_HSCROLL | WS_TABSTOP,0,19,164,13
+    LTEXT           "Your Kerberos Tickets (Issued/Expires/[Renew]/Principal)",
+                    IDC_LABEL_KERB_TICKETS,6,5,280,12
+    CONTROL         "",IDC_LEASH_MAINVIEW,"SysListView32",LVS_REPORT |
+                    LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,0,43,347,88
+END
+
+IDD_LEASH_ABOUTBOX DIALOGEX 0, 0, 310, 146
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About MIT Kerberos"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    CONTROL         "Leash Modules",IDC_LEASH_MODULES,"Button",
+                    BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,10,127,64,10
+    CONTROL         "Missing Modules",IDC_NOT_LOADED_MODULES,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,77,127,68,10
+    CONTROL         "All Modules",IDC_ALL_MODULES,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,148,127,52,10
+    PUSHBUTTON      "&Properties",IDC_PROPERTIES,209,125,56,14
+    DEFPUSHBUTTON   "&OK",IDOK,268,125,35,14
+    LISTBOX         IDC_LEASH_MODULE_LB,7,50,296,62,LBS_SORT |
+                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_HSCROLL |
+                    WS_TABSTOP
+    ICON            IDR_MAINFRAME,IDC_STATIC_ABOUTBOX_LEASH,11,9,20,20
+    LTEXT           "Modules Loaded:",IDC_STATIC_MODULES_LOADED,8,40,56,8
+    LTEXT           "3",IDC_STATIC_NO_OF_MODULES,67,40,8,8
+    EDITTEXT        IDC_ABOUT_COPYRIGHT,40,19,263,11,ES_AUTOHSCROLL |
+                    ES_READONLY | NOT WS_BORDER | WS_GROUP | NOT WS_TABSTOP
+    EDITTEXT        IDC_ABOUT_VERSION,40,8,263,11,ES_AUTOHSCROLL |
+                    ES_READONLY | NOT WS_BORDER | WS_GROUP | NOT WS_TABSTOP
+END
+
+IDD_LEASH_DEBUG_WINDOW DIALOG  200, 200, 338, 197
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION |
+    WS_SYSMENU
+CAPTION "Leash Debug Window"
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Copy &All To Clipboard",IDC_COPY_TO_CLIPBOARD,181,179,
+                    96,14
+    LISTBOX         IDC_DEBUG_LISTBOX,7,7,324,162,LBS_NOINTEGRALHEIGHT |
+                    WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Cancel",IDCANCEL,281,179,50,14
+    LTEXT           "Log File Location:",IDC_LOG_FILE_LOCATION_LABEL,10,182,
+                    57,8
+    LTEXT           "C:\\TEMP\\",IDC_LOG_FILE_LOCATION_TEXT,68,182,105,8
+END
+
+IDD_LEASH_MESSAGE_BOX DIALOG  0, 0, 257, 60
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP |
+    WS_CAPTION
+CAPTION "MIT Kerberos Warning"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,104,42,50,14
+    CTEXT           "Leash Warning Here!!!",IDC_LEASH_WARNING_MSG,0,7,257,27
+END
+
+IDD_KRB_PROP_CONTENT DIALOG  0, 0, 314, 172
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Default Realm Configuration"
+FONT 8, "MS Sans Serif"
+BEGIN
+    COMBOBOX        IDC_EDIT_DEFAULT_REALM,12,28,289,84,CBS_DROPDOWNLIST |
+                    CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_EDIT_REALM_HOSTNAME,12,57,289,12,ES_AUTOHSCROLL |
+                    ES_READONLY | NOT WS_TABSTOP
+    LTEXT           "Your Kerberos Realm:",IDC_STATIC_DEFAULT_REALM,12,17,70,
+                    8
+    GROUPBOX        "Kerberos Realm/Host Server",IDC_STATIC_KRB,7,3,300,77
+    GROUPBOX        "Computer Host/Domain Name",IDC_STATIC_KRBREALM,7,89,300,
+                    75
+    LTEXT           "Your Computer's Host Name",IDC_STATIC_HOST,12,101,90,8
+    LTEXT           "Your Computer's Domain Name:",IDC_STATIC_DOMAIN,12,129,
+                    101,8
+    EDITTEXT        IDC_EDIT_HOSTNAME,12,112,289,12,ES_AUTOHSCROLL |
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_DOMAINNAME,12,140,289,12,ES_AUTOHSCROLL |
+                    ES_READONLY | NOT WS_TABSTOP
+    LTEXT           "Your Kerberos Server:",IDC_STATIC_REALM_HOSTNAME,12,46,
+                    70,8
+END
+
+IDD_LEASH_FILESPECIAL DIALOG  0, 0, 241, 112
+STYLE DS_SETFONT | WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS
+FONT 8, "MS Sans Serif"
+BEGIN
+    GROUPBOX        "",stc32,7,7,227,98,NOT WS_VISIBLE
+END
+
+IDD_KRB5_PROP_CONTENT DIALOG  0, 0, 321, 126
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Configuration Options"
+FONT 8, "MS Sans Serif"
+BEGIN
+    GROUPBOX        "Ticket Options",IDC_STATIC_TICKET_OPTIONS,7,7,307,41
+    CONTROL         "&Forwardable",IDC_CHECK_FORWARDABLE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,18,23,55,10
+    CONTROL         "&Proxiable",IDC_CHECK_PROXIABLE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,94,23,45,10
+    CONTROL         "&Renewable",IDC_CHECK_RENEWABLE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,160,23,52,10
+    CONTROL         "No &Addresses",IDC_CHECK_NO_ADDRESS,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,233,23,60,10
+END
+
+IDD_KRB5_PROP_LOCATION DIALOG  0, 0, 321, 173
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "File Location"
+FONT 8, "MS Sans Serif"
+BEGIN
+    GROUPBOX        "&Ticket File",IDC_STATIC__KRB5_TICKETFILE,7,8,307,67
+    EDITTEXT        IDC_EDIT_KRB5_TXT_FILE,17,21,291,12,ES_AUTOHSCROLL
+    LTEXT           "Ticket file name is set in your computer's environment!\nTo edit, remove it from the environment.",
+                    IDC_STATIC_TICKETFILE,12,51,284,19
+    GROUPBOX        "&Configuration File",IDC_STATIC_TICKET_FILE,7,86,307,80
+    EDITTEXT        IDC_EDIT_KRB5INI_LOCATION,17,100,237,12,ES_AUTOHSCROLL |
+                    WS_GROUP
+    PUSHBUTTON      "&Browse",IDC_BUTTON_KRB5INI_BROWSE,259,99,50,14,
+                    WS_GROUP
+    CONTROL         "Confirm that new configuration file &exists.",
+                    IDC_CHECK_CONFIRM_KRB5_EXISTS,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,12,123,143,10
+    LTEXT           "Configuration file location is set in your computer's environment!\nTo edit, remove it from the environment.",
+                    IDC_STATIC_INIFILES,12,142,284,19
+END
+
+IDD_KRB_REALMHOST_MAINT DIALOG  0, 0, 316, 213
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Realm / Server Mapping"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "In&sert",IDC_BUTTON_REALM_HOST_ADD,27,190,34,14
+    PUSHBUTTON      "&Remove",ID_BUTTON_REALM_REMOVE,64,190,34,14
+    PUSHBUTTON      "Re&name",IDC_BUTTON_REALM_EDIT,102,190,34,14
+    LISTBOX         IDC_LIST_KDC_REALM,7,21,146,160,LBS_SORT |
+                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LISTBOX         IDC_LIST_KDC_HOST,163,21,146,78,LBS_NOINTEGRALHEIGHT |
+                    WS_VSCROLL | WS_HSCROLL | WS_TABSTOP
+    LTEXT           "Kerberos Realms",IDC_STATIC_REALM,8,11,54,8
+    LTEXT           "Servers Hosting a KDC",IDC_STATIC,163,11,74,8
+    PUSHBUTTON      "&Make Admin",IDC_BUTTON_ADMINSERVER,176,106,55,14,
+                    WS_DISABLED
+    DEFPUSHBUTTON   "Inser&t",IDC_BUTTON_KDCHOST_ADD,183,127,34,14
+    PUSHBUTTON      "Rem&ove",IDC_BUTTON_KDCHOST_REMOVE,220,127,34,14
+    PUSHBUTTON      "Ed&it",IDC_BUTTON_KDCHOST_EDIT,257,126,34,14
+    PUSHBUTTON      "R&emove Admin",IDC_BUTTON_REMOVE_ADMINSERVER,242,106,55,
+                    14,WS_DISABLED
+    CONTROL         "Use DNS KDC Lookup",IDC_DNS_KDC,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,169,158,131,10
+END
+
+IDD_KRB_ADD_REALM DIALOG  0, 0, 295, 94
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add a Kerberos Realm"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_REALM,70,39,213,12,ES_UPPERCASE |
+                    ES_AUTOHSCROLL
+    PUSHBUTTON      "&OK",IDOK,232,67,50,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,179,67,50,14
+    LTEXT           "Kerberos Realm:",IDC_STATIC_REALM_HOSTNAME,12,41,53,8
+    LTEXT           "NOTE: You are about to add a Realm to the ""Kerberos Realm"" Listbox!!!",
+                    IDC_STATIC_NOTE,11,15,271,8
+END
+
+IDD_KRB_EDIT_REALM DIALOG  0, 0, 295, 94
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Edit Kerberos Realm"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_REALM,70,39,213,12,ES_UPPERCASE |
+                    ES_AUTOHSCROLL
+    PUSHBUTTON      "&OK",IDOK,231,67,50,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,179,67,50,14
+    LTEXT           "Kerberos Realm:",IDC_STATIC_DEFAULT_REALM,12,41,53,8
+    LTEXT           "NOTE: You are about to edit a Realm to the ""Kerberos Realm"" Listbox!!!",
+                    IDC_STATIC_NOTE,11,15,267,8
+END
+
+IDD_KRB_ADD_KDC_HOSTSERVER DIALOG  0, 0, 295, 94
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add a Kerberos Host Server"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_KDC_HOST,70,39,213,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,231,67,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,179,67,50,14
+    LTEXT           "Kerberos Server:",IDC_STATIC_DEFAULT_REALM,11,41,54,8
+    LTEXT           "NOTE: You are about to add a Server to the"" Server Hosting a KDC"" Listbox!!! ",
+                    IDC_STATIC_NOTE,11,15,267,8
+END
+
+IDD_KRB_EDIT_KDC_HOSTSERVER DIALOG  0, 0, 295, 94
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Edit a Kerberos Server"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_KDC_HOST,70,39,213,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "&OK",IDOK,231,67,50,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,180,67,50,14
+    LTEXT           "Kerberos Server:",IDC_STATIC_REALM,11,41,54,8
+    LTEXT           "NOTE: You are about to edit a Server to the"" Server Hosting a KDC"" Listbox!!! ",
+                    IDC_STATIC_NOTE,11,15,267,8
+END
+
+IDD_KRB_DOMAINREALM_MAINT DIALOG  0, 0, 314, 213
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "DNS / Realm Mapping"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LISTBOX         IDC_LIST_DOMAINREALM,7,7,299,174,LBS_SORT |
+                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "&Insert",IDC_BUTTON_HOST_ADD,77,192,50,14
+    PUSHBUTTON      "&Remove",ID_BUTTON_HOST_REMOVE,131,192,50,14
+    PUSHBUTTON      "&Edit",IDC_BUTTON_HOST_EDIT,185,192,50,14
+END
+
+IDD_KRB_PROP_MISC DIALOGEX 0, 0, 314, 215
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Ticket Lifetime and Other Initialization Options"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    GROUPBOX        "Default Ticket Lifetime",
+                    IDC_STATIC_KRB_DEFAULT_LIFETIME,7,7,147,39
+    GROUPBOX        "Ticket Lifetime Range",IDC_STATIC_LIFETIME_RANGE,7,47,
+                    148,97
+    GROUPBOX        "Ticket Renew Till Range",IDC_STATIC_RENEW_TILL_RANGE,
+                    155,47,152,97
+    EDITTEXT        IDC_EDIT_LIFETIME_D,21,23,20,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFETIME_H,59,23,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFETIME_M,97,23,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFE_MIN_D,23,77,20,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFE_MIN_H,59,77,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFE_MIN_M,98,77,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFE_MAX_D,23,109,20,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFE_MAX_H,59,109,20,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_LIFE_MAX_M,99,109,20,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    GROUPBOX        "Minimum Lifetime",IDC_STATIC_LIFE_RANGE_MIN,16,64,132,
+                    32
+    GROUPBOX        "Maximum Lifetime",IDC_STATIC,16,99,132,30
+    GROUPBOX        "Minimum Renewable Lifetime",IDC_STATIC,161,64,136,31
+    GROUPBOX        "Maximum Renewable Lifetime",IDC_STATIC,162,98,136,31
+    EDITTEXT        IDC_EDIT_RENEWTILL_D,168,23,20,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEWTILL_H,206,23,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEWTILL_M,244,23,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEW_MIN_D,168,77,25,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEW_MIN_H,207,77,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEW_MIN_M,245,77,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEW_MAX_D,168,109,26,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEW_MAX_H,208,109,21,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RENEW_MAX_M,246,109,20,14,ES_RIGHT |
+                    ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "d",IDC_STATIC,46,80,8,8
+    LTEXT           "h",IDC_STATIC,82,79,8,8
+    LTEXT           "m",IDC_STATIC,121,80,8,8
+    LTEXT           "d",IDC_STATIC,45,112,8,8
+    LTEXT           "h",IDC_STATIC,81,112,8,8
+    LTEXT           "m",IDC_STATIC,123,112,8,8
+    LTEXT           "d",IDC_STATIC,194,80,8,8
+    LTEXT           "h",IDC_STATIC,229,80,8,8
+    LTEXT           "m",IDC_STATIC,267,80,8,8
+    LTEXT           "d",IDC_STATIC,194,112,8,8
+    LTEXT           "h",IDC_STATIC,230,112,8,8
+    LTEXT           "m",IDC_STATIC,267,112,8,8
+    LTEXT           "d",IDC_STATIC,45,26,8,8
+    LTEXT           "h",IDC_STATIC,83,26,8,8
+    LTEXT           "m",IDC_STATIC,120,26,8,8
+    GROUPBOX        "Default Ticket Renewable Lifetime",
+                    IDC_STATIC_KRB_DEFAULT_RENEWTILL,155,7,151,39
+    LTEXT           "d",IDC_STATIC,192,26,8,8
+    LTEXT           "h",IDC_STATIC,230,26,8,8
+    LTEXT           "m",IDC_STATIC,267,26,8,8
+    GROUPBOX        "Ticket Initialization Options",IDC_STATIC,7,151,300,59
+    CONTROL         "Preserve Ticket Initialization Dialog Options",
+                    IDC_CHECK_PRESERVE_KINIT_OPTIONS,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,20,182,208,10
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_LEASH_FORMVIEW, DIALOG
+    BEGIN
+        RIGHTMARGIN, 347
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 156
+    END
+
+    IDD_LEASH_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 303
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 139
+    END
+
+    IDD_LEASH_DEBUG_WINDOW, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 331
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 190
+    END
+
+    IDD_LEASH_MESSAGE_BOX, DIALOG
+    BEGIN
+    END
+
+    IDD_KRB_PROP_CONTENT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 307
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 164
+    END
+
+    IDD_LEASH_FILESPECIAL, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 234
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 105
+    END
+
+    IDD_KRB5_PROP_CONTENT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 314
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 55
+        HORZGUIDE, 48
+    END
+
+    IDD_KRB5_PROP_LOCATION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 314
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 166
+    END
+
+    IDD_KRB_REALMHOST_MAINT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 309
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 206
+    END
+
+    IDD_KRB_ADD_REALM, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 288
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 87
+    END
+
+    IDD_KRB_EDIT_REALM, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 288
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 87
+    END
+
+    IDD_KRB_ADD_KDC_HOSTSERVER, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 288
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 87
+    END
+
+    IDD_KRB_EDIT_KDC_HOSTSERVER, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 288
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 87
+    END
+
+    IDD_KRB_DOMAINREALM_MAINT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 307
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 206
+    END
+
+    IDD_KRB_PROP_MISC, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 307
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 210
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_MAINFRAME TOOLBAR  18, 18
+BEGIN
+    BUTTON      ID_INIT_TICKET
+    BUTTON      ID_RENEW_TICKET
+    BUTTON      ID_DESTROY_TICKET
+    SEPARATOR
+    BUTTON      ID_CHANGE_PASSWORD
+    SEPARATOR
+    BUTTON      ID_UPDATE_DISPLAY
+    BUTTON      ID_SYN_TIME
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_MAINFRAME           BITMAP                  "res\\Leash_toolbar.bmp"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDR_MAINFRAME           "Leash32\n\nLeash32\n\n\nLeash32.Document\nLeash32 Document"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_APP_TITLE       "Leash"
+    AFX_IDS_IDLEMESSAGE     "For Help, press F1"
+    AFX_IDS_HELPMODEMESSAGE "Select an object on which to get Help"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_TOOLBAR         "Show or hide the toolbar\nToggle ToolBar"
+    ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle StatusBar"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCSIZE          "Change the window size"
+    AFX_IDS_SCMOVE          "Change the window position"
+    AFX_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    AFX_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    AFX_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    AFX_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCRESTORE       "Restore the window to normal size"
+    AFX_IDS_SCTASKLIST      "Activate Task List"
+END
+
+STRINGTABLE
+BEGIN
+    ID_PROPERTIES           "Enables you to change settings"
+    ID_INIT_TICKET          "Obtain a new ticket\n Get Ticket"
+    ID_AUTO_RENEW           "Automatically attempt to renew tickets.\n Automatic Ticket Renewal"
+    ID_TIME_ISSUED          "Display column showing when your tickets will expire.\n Issued"
+    ID_RENEWABLE_UNTIL      "Display column showing the date and time each renewable ticket can no longer be renewed.\n Renewable Until"
+    ID_SHOW_TICKET_FLAGS    "Display column showing how your tickets were flagged when you obtained them.\n Flags"
+END
+
+STRINGTABLE
+BEGIN
+    ID_RENEW_TICKET         "Extend the tickets' valid lifetime, resetting it to the length of the original ticket, for the selected principal(s).\n Renew Tickets(s) "
+    ID_DESTROY_TICKET       "Dispose of all tickets for the selected principal(s).\n Destroy Ticket(s) "
+    ID_SYN_TIME             "Synchronize Time\n Synchronize Time  "
+    ID_CHANGE_PASSWORD      "Modify password\n Change Password "
+    ID_UPDATE_DISPLAY       "Refresh ticket tree display\n Update Display "
+    ID_DEBUG_MODE           "Show or hide the Debug window"
+    ID_CFG_FILES            "Configure dialog"
+END
+
+STRINGTABLE
+BEGIN
+    ID_KILL_TIX_ONEXIT      "Automatically dispose of tickets on exit.\n Destroy Tickets on Exit"
+    ID_LARGE_ICONS          "Show large or small tree icons"
+    ID_UPPERCASE_REALM      "Allow realm names that include lower case letters.\n Allow Mixed Case Realm Name"
+    ID_OPTIONS_RESETWINDOWSIZE
+                            "Puts Leash's main window back to its default size "
+    ID_RESET_WINDOW_SIZE    "Refresh Leash window to its default size/position"
+    ID_SYSTEM_CONTROL_PANEL "Open your System Properties window"
+    ID_OPTIONS_LOWTICKETALARMSOUND
+                            "Turn alarm off or on,  when ticket time is low"
+    ID_LOW_TICKET_ALARM     "Provide an audible alarm 15, 10, and 5 minutes before tickets expire.\n Expiration Alarm"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FORGET_PRINCIPALS    "Clear the Principal history.  This only affects autocompletion in the Get Tickets and Change Password dialogs.\n Forget Principals"
+    ID_ENCRYPTION_TYPE      "Display column showing the encryption type for your tickets and session keys.\n Encryption Type"
+    ID_VALID_UNTIL          "Display column showing when your tickets will expire.\n Valid Until"
+    ID_CCACHE_NAME          "Display column showing the name of the credential cache containing this ticket.\n Cache Name"
+END
+
+STRINGTABLE
+BEGIN
+    ID_MAKE_DEFAULT         "Make the selected principal the default principal.\n Make Default"
+    ID_EXPORT_TICKET        "Export tickets to your Windows Logon Sesion.\n Export Tickets"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif
+#include "res\Leash.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// UIFILE
+//
+
+#include "kfwribbon.rc"

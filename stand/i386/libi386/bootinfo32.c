@@ -118,7 +118,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 	    addr = xp->f_addr + xp->f_size;
     }
     /* pad to a page boundary */
-    addr = roundup(addr, PAGE_SIZE);
+    addr = md_align(addr);
 
     addr = build_font_module(addr);
 
@@ -127,7 +127,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     addr = md_copyenv(addr);
 
     /* pad to a page boundary */
-    addr = roundup(addr, PAGE_SIZE);
+    addr = md_align(addr);
 
     kfp = file_findfile(NULL, md_kerntype);
     if (kfp == NULL)
@@ -145,7 +145,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* Figure out the size and location of the metadata */
     *modulep = addr;
     size = md_copymodules(0, false);
-    kernend = roundup(addr + size, PAGE_SIZE);
+    kernend = md_align(addr + size);
     *kernendp = kernend;
 
     /* patch MODINFOMD_KERNEND */

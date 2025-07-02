@@ -63,10 +63,10 @@ ee_COMMENT= 		Easy Editor Utilities
 ee_DESC= 		Easy Editor Utilities
 efi-tools_COMMENT=	UEFI Utilities
 efi-tools_DESC=		UEFI Utilities
-elftoolchain_COMMENT=	ElfToolchain programs and libraries
-elftoolchain_DESC=	ElfToolchain programs and libraries
 examples_COMMENT=	Examples in /usr/share/examples
 examples_DESC=		Examples in /usr/share/examples
+fd_COMMENT=		Floppy disk support
+fd_DESC=		Floppy disk support
 fetch_COMMENT=		Fetch Utility
 fetch_DESC=		Fetch Utility
 firmware-iwm_DESC=	iwm(4) firmwares
@@ -136,8 +136,12 @@ periodic_COMMENT=	Periodic Utility
 periodic_DESC=		Periodic Utility
 rc_COMMENT= 		RC Scripts
 rc_DESC= 		RC Scripts
-rcmds_COMMENT= 		Remote Command Utilities
-rcmds_DESC= 		Remote Command Utilities
+rcmds_COMMENT= 		BSD/SunOS remote status commands
+rcmds_DESC=\
+The BSD/SunOS remote status commands, which can be used to query or interact\
+with remote hosts over the network.  This includes the command-line utilities\
+rwho, ruptime, rup, rusers and rwall and the daemons rwhod, rpc.rstatd,\
+rpc.rusersd, and rpc.rwalld.
 rdma_COMMENT=		RDMA Utilities
 rdma_DESC=		RDMA Utilities
 rescue_COMMENT= 	Rescue Utilities
@@ -169,6 +173,8 @@ telnet_COMMENT=		Telnet client
 telnet_DESC=		Telnet client
 tests_COMMENT= 		Test Suite
 tests_DESC= 		Test Suite
+toolchain_COMMENT=	Utilities for program development
+toolchain_DESC=		Utilities for program development
 ufs_COMMENT=		UFS Libraries and Utilities
 ufs_DESC=		UFS Libraries and Utilities
 unbound_COMMENT= 	Unbound DNS Resolver

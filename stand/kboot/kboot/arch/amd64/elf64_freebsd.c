@@ -178,9 +178,9 @@ elf64_exec(struct preloaded_file *fp)
 	/*
 	 * Figure out where to put it.
 	 *
-	 * Linux does not allow to do kexec_load into any part of memory. Ask
-	 * arch_loadaddr to resolve the first available chunk of physical memory
-	 * where loading is possible (load_addr).
+	 * Linux does not allow us to do kexec_load into any part of memory. Ask
+	 * kboot_get_phys_load_segment to resolve the first available chunk of
+	 * physical memory where loading is possible (staging).
 	 *
 	 * The kernel is loaded at the 'base' address in continguous physical
 	 * pages (using 2MB super pages). The first such page is unused by the

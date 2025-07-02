@@ -93,8 +93,7 @@ index_encode(void *coder_ptr,
 		}
 
 		coder->sequence = SEQ_UNPADDED;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_UNPADDED:
 	case SEQ_UNCOMPRESSED: {
@@ -127,8 +126,7 @@ index_encode(void *coder_ptr,
 				*out_pos - out_start, coder->crc32);
 
 		coder->sequence = SEQ_CRC32;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_CRC32:
 		// We don't use the main loop, because we don't want

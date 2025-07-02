@@ -1,0 +1,132 @@
+### config/libnover.in
+# *** keep this in sync with lib.in
+#
+# Makefile fragment that creates shared libraries sans version
+# info (plugin modules).
+#
+# The following variables must be set in the Makefile.in:
+#
+# LIBBASE	library name without "lib" or extension
+# SHLIB_EXPDEPS	list of libraries that this one has explicit
+#			dependencies on, pref. in the form libfoo$(SHLIBEXT)
+# SHLIB_EXPLIBS	list of libraries that this one has explicit
+#			dependencies on, in "-lfoo" form.
+# RELDIR	path to this directory relative to $(TOPLIBD)
+#
+# Makefile.in can also override the defaults for SHLIB_DIRS,
+# SHLIB_RDIRS, and STOBJLISTS from pre.in.
+
+LIBPREFIX=
+
+SHOBJLISTS=$(STOBJLISTS:.ST=.SH)
+PFOBJLISTS=$(STOBJLISTS:.ST=.PF)
+
+dummy-target-1 $(SUBDIROBJLISTS) $(SUBDIROBJLISTS:.ST=.SH) $(SUBDIROBJLISTS:.ST=.PF): all-recurse
+
+# Gets invoked as $(PARSE_OBJLISTS) list-of-OBJS.*-files
+PARSE_OBJLISTS= set -x && $(PERL) -p -e 'BEGIN { $$SIG{__WARN__} = sub {die @_} }; $$e=$$ARGV; $$e =~ s/OBJS\...$$//; s/^/ /; s/ $$//; s/ / $$e/g;'
+
+LIBINSTLIST=install-shared
+
+libkrb5_$(LIBBASE)$(STLIBEXT): $(STOBJLISTS)
+	$(RM) $@
+	@echo "building static $(LIBBASE) library"
+	set -x; objlist=`$(PARSE_OBJLISTS) $(STOBJLISTS)` && $(AR) cq $@ $$objlist
+	$(RANLIB) $@
+
+$(LIBBASE)$(DYNOBJEXT): $(SHOBJLISTS) $(DYNOBJ_EXPDEPS) $(SHLIB_EXPORT_FILE_DEP)
+	$(RM) $@
+	@echo "building dynamic $(LIBBASE) object"
+	set -x; objlist=`$(PARSE_OBJLISTS) $(SHOBJLISTS)` && $(MAKE_DYNOBJ_COMMAND)
+
+binutils.versions: $(SHLIB_EXPORT_FILE) Makefile
+	echo >  binutils.versions "HIDDEN { local: __*; _rest*; _save*; *; };"
+	echo >> binutils.versions "$(LIBBASE)_$(LIBMAJOR)_MIT {"
+	sed  >> binutils.versions < $(SHLIB_EXPORT_FILE) "s/$$/;/"
+	echo >> binutils.versions "};"
+
+osf1.exports: $(SHLIB_EXPORT_FILE) Makefile
+	$(RM) osf1.tmp osf1.exports
+	sed "s/^/-exported_symbol /" < $(SHLIB_EXPORT_FILE) > osf1.tmp
+	for f in . $(LIBINITFUNC); do \
+	  if test "$$f" != "." ; then \
+	    echo " -init $$f"__auxinit >> osf1.tmp; \
+	  else :; fi; \
+	done
+	a=""; \
+	for f in . $(LIBFINIFUNC); do \
+	  if test "$$f" != "." ; then \
+	    a="-fini $$f $$a"; \
+	  else :; fi; \
+	done; echo " $$a" >> osf1.tmp; \
+	mv -f osf1.tmp osf1.exports
+
+hpux.exports: $(SHLIB_EXPORT_FILE) Makefile
+	$(RM) hpux.tmp hpux.exports
+	sed "s/^/+e /" < $(SHLIB_EXPORT_FILE) > hpux.tmp
+	a=""; \
+	for f in . $(LIBFINIFUNC); do \
+	  if test "$$f" != .; then \
+	    a="+I $${f}__auxfini $$a"; \
+	  else :; fi; \
+	done; echo "$$a" >> hpux.tmp
+	echo "+e errno" >> hpux.tmp
+	mv -f hpux.tmp hpux.exports
+
+darwin.exports: $(SHLIB_EXPORT_FILE) Makefile
+	$(RM) darwin.exports
+	sed "s/^/_/" < $(SHLIB_EXPORT_FILE) > darwin.exports
+
+libkrb5_$(LIBBASE)$(PFLIBEXT): $(PFOBJLISTS)
+	$(RM) $@
+	@echo "building profiled $(LIBBASE) library"
+	set -x; objlist=`$(PARSE_OBJLISTS) $(PFOBJLISTS)` && $(AR) cq $@ $$objlist
+	$(RANLIB) $@
+
+# For static builds, we make a symlink in the main library directory,
+# allowing the plugin library to be a dependency of the core libraries
+# which use it.
+$(TOPLIBD)/libkrb5_$(LIBBASE)$(STLIBEXT):
+	$(RM) $@
+	(cd $(TOPLIBD) && $(LN_S) $(RELDIR)/libkrb5_$(LIBBASE)$(STLIBEXT) .)
+
+# For shared builds, we make a symlink in the parent directory, allowing
+# tests to point plugin_base_dir at $(BUILDTOP)/plugins.
+../$(LIBBASE)$(DYNOBJEXT):
+	$(RM) $@
+	(cd .. && $(LN_S) `basename $(mydir)`/$(LIBBASE)$(DYNOBJEXT) .)
+
+all-liblinks: all-libs $(PLUGINLINK)
+all-libs: $(PLUGIN)
+
+clean-libs:
+	$(RM) $(LIBBASE)$(DYNOBJEXT)
+	$(RM) binutils.versions osf1.exports darwin.exports hpux.exports
+
+clean-liblinks:
+	$(RM) $(PLUGINLINK)
+
+install-libs: $(PLUGININST)
+install-static:
+	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/libkrb5_$(LIBBASE)$(STLIBEXT)
+	$(INSTALL_DATA) libkrb5_$(LIBBASE)$(STLIBEXT) $(DESTDIR)$(KRB5_LIBDIR)
+	$(RANLIB) $(DESTDIR)$(KRB5_LIBDIR)/libkrb5_$(LIBBASE)$(STLIBEXT)
+install-plugin:
+	$(RM) $(DESTDIR)$(MODULE_INSTALL_DIR)/$(LIBBASE)$(DYNOBJEXT)
+	$(INSTALL_SHLIB) $(LIBBASE)$(DYNOBJEXT) $(DESTDIR)$(MODULE_INSTALL_DIR)
+
+Makefile: $(top_srcdir)/config/libnover.in
+$(BUILDTOP)/config.status: $(top_srcdir)/config/shlib.conf
+
+# Use the following if links need to be made to $(TOPLIBD):
+# all-unix: all-liblinks
+# install-unix: install-libs
+# clean-unix:: clean-liblinks clean-libs
+
+# Use the following if links need not be made:
+# all-unix: all-libs
+# install-unix: install-libs
+# clean-unix:: clean-libs
+
+###
+### end config/libnovers.in

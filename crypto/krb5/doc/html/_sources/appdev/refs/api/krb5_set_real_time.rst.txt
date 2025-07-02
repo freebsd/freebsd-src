@@ -1,0 +1,51 @@
+krb5_set_real_time -  Set time offset field in a krb5_context structure. 
+=========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_set_real_time(krb5_context context, krb5_timestamp seconds, krb5_int32 microseconds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **seconds** - Real time, seconds portion
+
+	          **[in]** **microseconds** - Real time, microseconds portion
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function sets the time offset in *context* to the difference between the system time and the real time as determined by *seconds* and *microseconds* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

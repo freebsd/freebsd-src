@@ -1,0 +1,45 @@
+krb5_string_to_timestamp -  Convert a string to a timestamp. 
+=============================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_string_to_timestamp(char * string, krb5_timestamp * timestampp)
+
+..
+
+
+:param:
+
+	          **[in]** **string** - String to be converted
+
+	          **[out]** **timestampp** - Pointer to timestamp
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - EINVAL
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

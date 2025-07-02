@@ -1,0 +1,51 @@
+krb5_copy_principal -  Copy a principal. 
+=========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_principal(krb5_context context, krb5_const_principal inprinc, krb5_principal * outprinc)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **inprinc** - Principal to be copied
+
+	          **[out]** **outprinc** - Copy of *inprinc*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates a new principal structure with the contents of *inprinc* . Use krb5_free_principal() to free *outprinc* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

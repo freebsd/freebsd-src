@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 20, 2025
+.Dd May 21, 2025
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1751,7 +1751,7 @@ is added to all of
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 and the
 .Va ipv6_activate_all_interfaces
-is defined as
+variable is defined as
 .Dq Li YES .
 .It Va ipv6_prefer
 .Pq Vt bool
@@ -2712,22 +2712,6 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to the
 .Xr rpcbind 8
-daemon.
-.It Va keyserv_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr keyserv 8
-daemon on boot for running Secure RPC.
-.It Va keyserv_flags
-.Pq Vt str
-If
-.Va keyserv_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to
-.Xr keyserv 8
 daemon.
 .It Va pppoed_enable
 .Pq Vt bool
@@ -4956,6 +4940,16 @@ daemon.
 .Dq Li YES ,
 these are the flags to pass to the
 .Xr sendmail 8
+.It Va precious_machine
+If set to
+.Dq Li YES ,
+some destructive actions require removal of the action-specific safe-belts
+before being allowed.
+For instance, the file
+.Pa /var/run/noshutdown
+is created to prevent
+.Xr shutdown 8
+targeted at the wrong machine.
 .El
 .Sh SERVICE JAILS
 The service jails part of the rc system automatically puts a service
@@ -5009,6 +5003,8 @@ allows to open raw sockets, and allows to open sockets of protocol stacks that
 have not had jail functionality added to them.
 .It nfsd
 Allows to run nfsd and affiliated daemons.
+.It routing
+Allows to modify the system routing table.
 .It settime
 Allows to set and slew the system time.
 .It sysvipc

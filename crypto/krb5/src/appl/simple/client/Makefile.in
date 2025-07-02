@@ -1,0 +1,15 @@
+mydir=appl$(S)simple$(S)client
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+all: sim_client
+
+LOCALINCLUDES= -I$(srcdir)/..
+
+sim_client: sim_client.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o sim_client sim_client.o $(KRB5_BASE_LIBS)
+
+install:
+	$(INSTALL_PROGRAM) sim_client $(DESTDIR)$(CLIENT_BINDIR)/sim_client
+
+clean:
+	$(RM) sim_client.o sim_client

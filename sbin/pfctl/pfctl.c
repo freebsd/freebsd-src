@@ -66,23 +66,25 @@
 void	 usage(void);
 int	 pfctl_enable(int, int);
 int	 pfctl_disable(int, int);
-int	 pfctl_clear_stats(struct pfctl_handle *, int);
-int	 pfctl_get_skip_ifaces(void);
-int	 pfctl_check_skip_ifaces(char *);
-int	 pfctl_adjust_skip_ifaces(struct pfctl *);
-int	 pfctl_clear_interface_flags(int, int);
-int	 pfctl_flush_eth_rules(int, int, char *);
-int	 pfctl_flush_rules(int, int, char *);
-int	 pfctl_flush_nat(int, int, char *);
+void	 pfctl_clear_stats(struct pfctl_handle *, int);
+void	 pfctl_get_skip_ifaces(void);
+void	 pfctl_check_skip_ifaces(char *);
+void	 pfctl_adjust_skip_ifaces(struct pfctl *);
+void	 pfctl_clear_interface_flags(int, int);
+void	 pfctl_flush_eth_rules(int, int, char *);
+void	 pfctl_flush_rules(int, int, char *);
+void	 pfctl_flush_nat(int, int, char *);
 int	 pfctl_clear_altq(int, int);
-int	 pfctl_clear_src_nodes(int, int);
-int	 pfctl_clear_iface_states(int, const char *, int);
+void	 pfctl_clear_src_nodes(int, int);
+void	 pfctl_clear_iface_states(int, const char *, int);
 void	 pfctl_addrprefix(char *, struct pf_addr *);
-int	 pfctl_kill_src_nodes(int, const char *, int);
-int	 pfctl_net_kill_states(int, const char *, int);
-int	 pfctl_gateway_kill_states(int, const char *, int);
-int	 pfctl_label_kill_states(int, const char *, int);
-int	 pfctl_id_kill_states(int, const char *, int);
+void	 pfctl_kill_src_nodes(int, const char *, int);
+void	 pfctl_net_kill_states(int, const char *, int);
+void	 pfctl_gateway_kill_states(int, const char *, int);
+void	 pfctl_label_kill_states(int, const char *, int);
+void	 pfctl_id_kill_states(int, const char *, int);
+void	 pfctl_key_kill_states(int, const char *, int);
+int	 pfctl_parse_host(char *, struct pf_rule_addr *);
 void	 pfctl_init_options(struct pfctl *);
 int	 pfctl_load_options(struct pfctl *);
 int	 pfctl_load_limit(struct pfctl *, unsigned int, unsigned int);
@@ -352,7 +354,7 @@ pfctl_disable(int dev, int opts)
 	return (0);
 }
 
-int
+void
 pfctl_clear_stats(struct pfctl_handle *h, int opts)
 {
 	int ret;
@@ -360,10 +362,9 @@ pfctl_clear_stats(struct pfctl_handle *h, int opts)
 		errc(1, ret, "DIOCCLRSTATUS");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "pf: statistics cleared\n");
-	return (0);
 }
 
-int
+void
 pfctl_get_skip_ifaces(void)
 {
 	bzero(&skip_b, sizeof(skip_b));
@@ -376,10 +377,9 @@ pfctl_get_skip_ifaces(void)
 		if (skip_b.pfrb_size <= skip_b.pfrb_msize)
 			break;
 	}
-	return (0);
 }
 
-int
+void
 pfctl_check_skip_ifaces(char *ifname)
 {
 	struct pfi_kif		*p;
@@ -401,10 +401,9 @@ pfctl_check_skip_ifaces(char *ifname)
 			}
 		}
 	}
-	return (0);
 }
 
-int
+void
 pfctl_adjust_skip_ifaces(struct pfctl *pf)
 {
 	struct pfi_kif		*p, *pp;
@@ -437,11 +436,9 @@ pfctl_adjust_skip_ifaces(struct pfctl *pf)
 
 		pfctl_set_interface_flags(pf, p->pfik_name, PFI_IFLAG_SKIP, 0);
 	}
-
-	return (0);
 }
 
-int
+void
 pfctl_clear_interface_flags(int dev, int opts)
 {
 	struct pfioc_iface	pi;
@@ -455,10 +452,9 @@ pfctl_clear_interface_flags(int dev, int opts)
 		if ((opts & PF_OPT_QUIET) == 0)
 			fprintf(stderr, "pf: interface flags reset\n");
 	}
-	return (0);
 }
 
-int
+void
 pfctl_flush_eth_rules(int dev, int opts, char *anchorname)
 {
 	int ret;
@@ -469,11 +465,9 @@ pfctl_flush_eth_rules(int dev, int opts, char *anchorname)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "Ethernet rules cleared\n");
-
-	return (ret);
 }
 
-int
+void
 pfctl_flush_rules(int dev, int opts, char *anchorname)
 {
 	int ret;
@@ -483,10 +477,9 @@ pfctl_flush_rules(int dev, int opts, char *anchorname)
 		err(1, "pfctl_clear_rules");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "rules cleared\n");
-	return (0);
 }
 
-int
+void
 pfctl_flush_nat(int dev, int opts, char *anchorname)
 {
 	int ret;
@@ -496,7 +489,6 @@ pfctl_flush_nat(int dev, int opts, char *anchorname)
 		err(1, "pfctl_clear_nat");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "nat cleared\n");
-	return (0);
 }
 
 int
@@ -517,17 +509,16 @@ pfctl_clear_altq(int dev, int opts)
 	return (0);
 }
 
-int
+void
 pfctl_clear_src_nodes(int dev, int opts)
 {
 	if (ioctl(dev, DIOCCLRSRCNODES))
 		err(1, "DIOCCLRSRCNODES");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "source tracking entries cleared\n");
-	return (0);
 }
 
-int
+void
 pfctl_clear_iface_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -546,7 +537,6 @@ pfctl_clear_iface_states(int dev, const char *iface, int opts)
 		errc(1, ret, "DIOCCLRSTATES");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "%d states cleared\n", killed);
-	return (0);
 }
 
 void
@@ -599,7 +589,7 @@ pfctl_addrprefix(char *addr, struct pf_addr *mask)
 	freeaddrinfo(res);
 }
 
-int
+void
 pfctl_kill_src_nodes(int dev, const char *iface, int opts)
 {
 	struct pfioc_src_node_kill psnk;
@@ -699,10 +689,9 @@ pfctl_kill_src_nodes(int dev, const char *iface, int opts)
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d src nodes from %d sources and %d "
 		    "destinations\n", killed, sources, dests);
-	return (0);
 }
 
-int
+void
 pfctl_net_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -815,10 +804,9 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states from %d sources and %d "
 		    "destinations\n", killed, sources, dests);
-	return (0);
 }
 
-int
+void
 pfctl_gateway_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -879,10 +867,9 @@ pfctl_gateway_kill_states(int dev, const char *iface, int opts)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states\n", killed);
-	return (0);
 }
 
-int
+void
 pfctl_label_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -910,11 +897,9 @@ pfctl_label_kill_states(int dev, const char *iface, int opts)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states\n", killed);
-
-	return (0);
 }
 
-int
+void
 pfctl_id_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -950,8 +935,122 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states\n", killed);
+}
+
+void
+pfctl_key_kill_states(int dev, const char *iface, int opts)
+{
+	struct pfctl_kill kill;
+	char *s, *token, *tokens[4];
+	struct protoent *p;
+	u_int i, sidx, didx;
+	int ret, killed;
+
+	if (state_killers != 2 || (strlen(state_kill[1]) == 0)) {
+		warnx("no key specified");
+		usage();
+	}
+	memset(&kill, 0, sizeof(kill));
+
+	if (iface != NULL &&
+	    strlcpy(kill.ifname, iface, sizeof(kill.ifname)) >=
+	    sizeof(kill.ifname))
+		errx(1, "invalid interface: %s", iface);
+
+	s = strdup(state_kill[1]);
+	if (!s)
+		errx(1, "%s: strdup", __func__);
+	i = 0;
+	while ((token = strsep(&s, " \t")) != NULL)
+		if (*token != '\0') {
+			if (i < 4)
+				tokens[i] = token;
+			i++;
+		}
+	if (i != 4)
+		errx(1, "%s: key must be "
+		    "\"protocol host1:port1 direction host2:port2\" format",
+		    __func__);
+
+	if ((p = getprotobyname(tokens[0])) == NULL)
+		errx(1, "invalid protocol: %s", tokens[0]);
+	kill.proto = p->p_proto;
+
+	if (strcmp(tokens[2], "->") == 0) {
+		sidx = 1;
+		didx = 3;
+	} else if (strcmp(tokens[2], "<-") == 0) {
+		sidx = 3;
+		didx = 1;
+	} else
+		errx(1, "invalid direction: %s", tokens[2]);
+
+	if (pfctl_parse_host(tokens[sidx], &kill.src) == -1)
+		errx(1, "invalid host: %s", tokens[sidx]);
+	if (pfctl_parse_host(tokens[didx], &kill.dst) == -1)
+		errx(1, "invalid host: %s", tokens[didx]);
+
+	if ((ret = pfctl_kill_states_h(pfh, &kill, &killed)) != 0)
+		errc(1, ret, "DIOCKILLSTATES");
+
+	if ((opts & PF_OPT_QUIET) == 0)
+		fprintf(stderr, "killed %d states\n", killed);
+}
+
+int
+pfctl_parse_host(char *str, struct pf_rule_addr *addr)
+{
+	char *s = NULL, *sbs, *sbe;
+	struct addrinfo hints, *ai;
+	struct sockaddr_in *sin4;
+	struct sockaddr_in6 *sin6;
+
+	s = strdup(str);
+	if (!s)
+		errx(1, "pfctl_parse_host: strdup");
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_DGRAM; /* dummy */
+	hints.ai_flags = AI_NUMERICHOST;
+
+	if ((sbs = strchr(s, '[')) != NULL && (sbe = strrchr(s, ']')) != NULL) {
+		hints.ai_family = AF_INET6;
+		*(sbs++) = *sbe = '\0';
+	} else if ((sbs = strchr(s, ':')) != NULL) {
+		hints.ai_family = AF_INET;
+		*(sbs++) = '\0';
+	} else {
+		/* Assume that no ':<number>' means port 0 */
+	}
+
+	if (getaddrinfo(s, sbs, &hints, &ai) != 0)
+		goto error;
+
+	switch (ai->ai_family) {
+	case AF_INET:
+		sin4 = (struct sockaddr_in *)ai->ai_addr;
+		addr->addr.v.a.addr.v4 = sin4->sin_addr;
+		addr->port[0] = sin4->sin_port;
+		break;
+
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+		addr->addr.v.a.addr.v6 = sin6->sin6_addr;
+		addr->port[0] = sin6->sin6_port;
+		break;
+	}
+	freeaddrinfo(ai);
+	free(s);
+
+	memset(&addr->addr.v.a.mask, 0xff, sizeof(struct pf_addr));
+	addr->port_op = PF_OP_EQ;
+	addr->addr.type = PF_ADDR_ADDRMASK;
 
 	return (0);
+
+error:
+	free(s);
+	return (-1);
 }
 
 int
@@ -1126,7 +1225,7 @@ pfctl_show_eth_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 	if (anchorname[0] == '/') {
 		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-			errx(1, "pfctl_rules: calloc");
+			errx(1, "calloc");
 		snprintf(npath, MAXPATHLEN, "%s", anchorname);
 	} else {
 		if (path[0])
@@ -1242,7 +1341,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 	if (anchorname[0] == '/') {
 		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-			errx(1, "pfctl_rules: calloc");
+			errx(1, "calloc");
 		strlcpy(npath, anchorname, MAXPATHLEN);
 	} else {
 		if (path[0])
@@ -1461,7 +1560,7 @@ pfctl_show_nat(int dev, const char *path, int opts, char *anchorname, int depth,
 	}
 
 	if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-		errx(1, "pfctl_rules: calloc");
+		errx(1, "calloc");
 
 	if (anchorname[0] == '/') {
 		snprintf(npath, MAXPATHLEN, "%s", anchorname);
@@ -2396,7 +2495,7 @@ pfctl_load_options(struct pfctl *pf)
 	}
 
 	/*
-	 * If we've set the limit, but haven't explicitly set adaptive
+	 * If we've set the states limit, but haven't explicitly set adaptive
 	 * timeouts, do it now with a start of 60% and end of 120%.
 	 */
 	if (pf->limit_set[PF_LIMIT_STATES] &&
@@ -3282,6 +3381,8 @@ main(int argc, char *argv[])
 			pfctl_id_kill_states(dev, ifaceopt, opts);
 		else if (!strcmp(state_kill[0], "gateway"))
 			pfctl_gateway_kill_states(dev, ifaceopt, opts);
+		else if (!strcmp(state_kill[0], "key"))
+			pfctl_key_kill_states(dev, ifaceopt, opts);
 		else
 			pfctl_net_kill_states(dev, ifaceopt, opts);
 	}
@@ -3311,8 +3412,7 @@ main(int argc, char *argv[])
 
 	if ((rulesopt != NULL) && (loadopt & PFCTL_FLAG_OPTION) &&
 	    !anchorname[0] && !(opts & PF_OPT_NOACTION))
-		if (pfctl_get_skip_ifaces())
-			error = 1;
+		pfctl_get_skip_ifaces();
 
 	if (rulesopt != NULL && !(opts & PF_OPT_MERGE) &&
 	    !anchorname[0] && (loadopt & PFCTL_FLAG_OPTION))

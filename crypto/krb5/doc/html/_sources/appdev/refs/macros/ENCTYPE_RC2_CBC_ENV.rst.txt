@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _ENCTYPE-RC2-CBC-ENV-data:
+
+ENCTYPE_RC2_CBC_ENV
+===================
+
+..
+.. data:: ENCTYPE_RC2_CBC_ENV
+..
+
+RC2 cbc mode, CMS enveloped data.
+
+
+
+========================== ======================
+``ENCTYPE_RC2_CBC_ENV``       ``0x000c``
+========================== ======================

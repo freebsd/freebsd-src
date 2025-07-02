@@ -1001,6 +1001,13 @@ skb_get_queue_mapping(struct sk_buff *skb)
 	return (skb->qmap);
 }
 
+static inline void
+skb_copy_header(struct sk_buff *to, const struct sk_buff *from)
+{
+	SKB_TRACE2(to, from);
+	SKB_TODO();
+}
+
 static inline bool
 skb_header_cloned(struct sk_buff *skb)
 {
@@ -1046,7 +1053,7 @@ skb_orphan(struct sk_buff *skb)
 	SKB_TODO();
 }
 
-static inline __sum16
+static inline __wsum
 csum_unfold(__sum16 sum)
 {
 	return (sum);

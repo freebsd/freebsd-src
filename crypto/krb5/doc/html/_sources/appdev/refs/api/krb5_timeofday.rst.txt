@@ -1,0 +1,52 @@
+krb5_timeofday -  Retrieve the current time with context specific time offset adjustment. 
+==========================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_timeofday(krb5_context context, krb5_timestamp * timeret)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **timeret** - Timestamp to fill in
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function retrieves the system time of day with the context specific time offset adjustment.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

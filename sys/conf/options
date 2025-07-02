@@ -53,6 +53,7 @@ DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
 DDB_CTF		opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
 EARLY_PRINTF	opt_global.h
+BLOAT_KERNEL_WITH_EXTERR	opt_global.h
 FULL_BUF_TRACKING	opt_global.h
 GDB
 KDB		opt_global.h
@@ -155,6 +156,7 @@ MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_DDB		opt_dontuse.h
 MAC_DEBUG	opt_mac.h
+MAC_DO		opt_dontuse.h
 MAC_IFOFF	opt_dontuse.h
 MAC_IPACL	opt_dontuse.h
 MAC_LOMAC	opt_dontuse.h
@@ -1012,3 +1014,6 @@ HIDRAW_MAKE_UHID_ALIAS	opt_hid.h
 # This option is insecure except in controlled environments where the static
 # environment's contents are known to be safe.
 PRESERVE_EARLY_KENV	opt_global.h
+
+# Options for the Intel QuickAssist (QAT) driver.
+QAT_DISABLE_SAFE_DC_MODE	opt_qat.h

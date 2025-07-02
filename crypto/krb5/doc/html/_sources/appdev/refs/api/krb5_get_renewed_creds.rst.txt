@@ -1,0 +1,62 @@
+krb5_get_renewed_creds -  Get renewed credential from KDC using an existing credential. 
+========================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_renewed_creds(krb5_context context, krb5_creds * creds, krb5_principal client, krb5_ccache ccache, const char * in_tkt_service)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **creds** - Renewed credentials
+
+	          **[in]** **client** - Client principal name
+
+	          **[in]** **ccache** - Credential cache
+
+	          **[in]** **in_tkt_service** - Server principal string (or NULL)
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function gets a renewed credential using an existing one from *ccache* . If *in_tkt_service* is specified, it is parsed (with the realm part ignored) and used as the server principal of the credential; otherwise, the ticket-granting service is used.
+
+
+
+If successful, the renewed credential is placed in *creds* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

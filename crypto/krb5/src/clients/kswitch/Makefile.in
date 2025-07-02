@@ -1,0 +1,33 @@
+mydir=clients$(S)kswitch
+BUILDTOP=$(REL)..$(S)..
+
+SRCS=kswitch.c
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##KSWITCH=$(OUTPRE)kswitch.exe
+
+##WIN32##EXERES=$(KSWITCH:.exe=.res)
+
+##WIN32##$(EXERES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DKSWITCH_APP -fo $@ -r $**
+
+all-unix: kswitch
+##WIN32##all-windows: $(KSWITCH)
+
+kswitch: kswitch.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ kswitch.o $(KRB5_BASE_LIBS)
+
+##WIN32##$(KSWITCH): $(OUTPRE)kswitch.obj $(SLIB) $(KLIB) $(CLIB) $(EXERES)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $**
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+clean-unix::
+	$(RM) kswitch.o kswitch
+
+install-unix:
+	for f in kswitch; do \
+	  $(INSTALL_PROGRAM) $$f \
+		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done

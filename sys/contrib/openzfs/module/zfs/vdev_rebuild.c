@@ -287,7 +287,7 @@ vdev_rebuild_initiate(vdev_t *vd)
 	ASSERT(!vd->vdev_rebuilding);
 
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
-	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT));
+	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 
 	vd->vdev_rebuilding = B_TRUE;
 
@@ -529,7 +529,7 @@ vdev_rebuild_blkptr_init(blkptr_t *bp, vdev_t *vd, uint64_t start,
 	    vd->vdev_ops == &vdev_spare_ops);
 
 	uint64_t psize = vd->vdev_ops == &vdev_draid_ops ?
-	    vdev_draid_asize_to_psize(vd, asize) : asize;
+	    vdev_draid_asize_to_psize(vd, asize, 0) : asize;
 
 	BP_ZERO(bp);
 
@@ -592,7 +592,7 @@ vdev_rebuild_range(vdev_rebuild_t *vr, uint64_t start, uint64_t size)
 	mutex_exit(&vr->vr_io_lock);
 
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
-	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT));
+	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 	uint64_t txg = dmu_tx_get_txg(tx);
 
 	spa_config_enter(spa, SCL_STATE_ALL, vd, RW_READER);
@@ -932,7 +932,7 @@ vdev_rebuild_thread(void *arg)
 
 	dsl_pool_t *dp = spa_get_dsl(spa);
 	dmu_tx_t *tx = dmu_tx_create_dd(dp->dp_mos_dir);
-	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT));
+	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 
 	mutex_enter(&vd->vdev_rebuild_lock);
 	if (error == 0) {

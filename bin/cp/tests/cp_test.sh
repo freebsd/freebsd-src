@@ -179,6 +179,52 @@ matching_srctgt_nonexistent_body()
 	atf_check -e not-empty -s not-exit:0 stat foo/dne/foo
 }
 
+atf_test_case pflag_acls
+pflag_acls_body()
+{
+	mkdir dir
+	echo "hello" >dir/file
+	if ! setfacl -m g:staff:D::allow dir ||
+	   ! setfacl -m g:staff:d::allow dir/file ; then
+		atf_skip "file system does not support ACLs"
+	fi
+	atf_check cp -p dir/file dst
+	atf_check -o match:"group:staff:-+d-+" getfacl dst
+	rm dst
+	mkdir dst
+	atf_check cp -rp dir dst
+	atf_check -o not-match:"group:staff:-+D-+" getfacl dst
+	atf_check -o match:"group:staff:-+D-+" getfacl dst/dir
+	atf_check -o match:"group:staff:-+d-+" getfacl dst/dir/file
+	rm -rf dst
+	atf_check cp -rp dir dst
+	atf_check -o match:"group:staff:-+D-+" getfacl dst/
+	atf_check -o match:"group:staff:-+d-+" getfacl dst/file
+}
+
+atf_test_case pflag_flags
+pflag_flags_body()
+{
+	mkdir dir
+	echo "hello" >dir/file
+	if ! chflags nodump dir ||
+	   ! chflags nodump dir/file ; then
+		atf_skip "file system does not support flags"
+	fi
+	atf_check cp -p dir/file dst
+	atf_check -o match:"nodump" stat -f%Sf dst
+	rm dst
+	mkdir dst
+	atf_check cp -rp dir dst
+	atf_check -o not-match:"nodump" stat -f%Sf dst
+	atf_check -o match:"nodump" stat -f%Sf dst/dir
+	atf_check -o match:"nodump" stat -f%Sf dst/dir/file
+	rm -rf dst
+	atf_check cp -rp dir dst
+	atf_check -o match:"nodump" stat -f%Sf dst
+	atf_check -o match:"nodump" stat -f%Sf dst/file
+}
+
 recursive_link_setup()
 {
 	extra_cpflag=$1
@@ -392,6 +438,160 @@ overwrite_directory_body()
 	    cp -r bar foo
 }
 
+atf_test_case to_dir_dne
+to_dir_dne_body()
+{
+	mkdir dir
+	echo "foo" >dir/foo
+	atf_check cp -r dir dne
+	atf_check test -d dne
+	atf_check test -f dne/foo
+	atf_check cmp dir/foo dne/foo
+}
+
+atf_test_case to_nondir
+to_nondir_body()
+{
+	echo "foo" >foo
+	echo "bar" >bar
+	echo "baz" >baz
+	# This is described as “case 1” in source code comments
+	atf_check cp foo bar
+	atf_check cmp -s foo bar
+	# This is “case 2”, the target must be a directory
+	atf_check -s not-exit:0 -e match:"Not a directory" \
+	    cp foo bar baz
+}
+
+atf_test_case to_deadlink
+to_deadlink_body()
+{
+	echo "foo" >foo
+	ln -s bar baz
+	atf_check cp foo baz
+	atf_check cmp -s foo bar
+}
+
+atf_test_case to_deadlink_append
+to_deadlink_append_body()
+{
+	echo "foo" >foo
+	mkdir bar
+	ln -s baz bar/foo
+	atf_check cp foo bar
+	atf_check cmp -s foo bar/baz
+	rm -f bar/foo bar/baz
+	ln -s baz bar/foo
+	atf_check cp foo bar/
+	atf_check cmp -s foo bar/baz
+	rm -f bar/foo bar/baz
+	ln -s $PWD/baz bar/foo
+	atf_check cp foo bar/
+	atf_check cmp -s foo baz
+}
+
+atf_test_case to_dirlink
+to_dirlink_body()
+{
+	mkdir src dir
+	echo "foo" >src/file
+	ln -s dir dst
+	atf_check cp -r src dst
+	atf_check cmp -s src/file dir/src/file
+	rm -r dir/*
+	atf_check cp -r src dst/
+	atf_check cmp -s src/file dir/src/file
+	rm -r dir/*
+	# If the source is a directory and ends in a slash, our cp has
+	# traditionally copied the contents of the source rather than
+	# the source itself.  It is unclear whether this is intended
+	# or simply a consequence of how FTS handles the situation.
+	# Notably, GNU cp does not behave in this manner.
+	atf_check cp -r src/ dst
+	atf_check cmp -s src/file dir/file
+	rm -r dir/*
+	atf_check cp -r src/ dst/
+	atf_check cmp -s src/file dir/file
+	rm -r dir/*
+}
+
+atf_test_case to_deaddirlink
+to_deaddirlink_body()
+{
+	mkdir src
+	echo "foo" >src/file
+	ln -s dir dst
+	# It is unclear which error we should expect in these cases.
+	# Our current implementation always reports ENOTDIR, but one
+	# might be equally justified in expecting EEXIST or ENOENT.
+	# GNU cp reports EEXIST when the destination is given with a
+	# trailing slash and “cannot overwrite non-directory with
+	# directory” otherwise.
+	atf_check -s not-exit:0 -e ignore \
+	    cp -r src dst
+	atf_check -s not-exit:0 -e ignore \
+	    cp -r src dst/
+	atf_check -s not-exit:0 -e ignore \
+	    cp -r src/ dst
+	atf_check -s not-exit:0 -e ignore \
+	    cp -r src/ dst/
+	atf_check -s not-exit:0 -e ignore \
+	    cp -R src dst
+	atf_check -s not-exit:0 -e ignore \
+	    cp -R src dst/
+	atf_check -s not-exit:0 -e ignore \
+	    cp -R src/ dst
+	atf_check -s not-exit:0 -e ignore \
+	    cp -R src/ dst/
+}
+
+atf_test_case to_link_outside
+to_link_outside_body()
+{
+	mkdir dir dst dst/dir
+	echo "foo" >dir/file
+	ln -s ../../file dst/dir/file
+	atf_check \
+	    -s exit:1 \
+	    -e match:"dst/dir/file: Permission denied" \
+	    cp -r dir dst
+}
+
+atf_test_case dstmode
+dstmode_body()
+{
+	mkdir -m 0755 dir
+	echo "foo" >dir/file
+	umask 0177
+	atf_check cp -R dir dst
+	umask 022
+	atf_check -o inline:"40600\n" stat -f%p dst
+	atf_check chmod 0750 dst
+	atf_check cmp dir/file dst/file
+}
+
+atf_test_case to_root cleanup
+to_root_head()
+{
+	atf_set "require.user" "unprivileged"
+}
+to_root_body()
+{
+	dst="test.$(atf_get ident).$$"
+	echo "$dst" >dst
+	echo "foo" >"$dst"
+	atf_check -s not-exit:0 \
+	    -e match:"^cp: /$dst: (Permission|Read-only)" \
+	    cp "$dst" /
+	atf_check -s not-exit:0 \
+	    -e match:"^cp: /$dst: (Permission|Read-only)" \
+	    cp "$dst" //
+}
+to_root_cleanup()
+{
+	(dst=$(cat dst) && rm "/$dst") 2>/dev/null || true
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -404,6 +604,8 @@ atf_init_test_cases()
 	atf_add_test_case matching_srctgt_contained
 	atf_add_test_case matching_srctgt_link
 	atf_add_test_case matching_srctgt_nonexistent
+	atf_add_test_case pflag_acls
+	atf_add_test_case pflag_flags
 	atf_add_test_case recursive_link_dflt
 	atf_add_test_case recursive_link_Hflag
 	atf_add_test_case recursive_link_Lflag
@@ -419,4 +621,13 @@ atf_init_test_cases()
 	atf_add_test_case symlink_exists_force
 	atf_add_test_case directory_to_symlink
 	atf_add_test_case overwrite_directory
+	atf_add_test_case to_dir_dne
+	atf_add_test_case to_nondir
+	atf_add_test_case to_deadlink
+	atf_add_test_case to_deadlink_append
+	atf_add_test_case to_dirlink
+	atf_add_test_case to_deaddirlink
+	atf_add_test_case to_link_outside
+	atf_add_test_case dstmode
+	atf_add_test_case to_root
 }

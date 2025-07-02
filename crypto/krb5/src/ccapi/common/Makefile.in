@@ -1,0 +1,65 @@
+mydir=ccapi$(S)common
+BUILDTOP=$(REL)..$(S)..
+SUBDIRS=unix
+
+SRCS= \
+	cci_array_internal.c \
+	cci_cred_union.c \
+	cci_debugging.c \
+	cci_identifier.c \
+	cci_message.c \
+	cci_stream.c
+
+STLIBOBJS= \
+	cci_array_internal.o \
+	cci_cred_union.o \
+	cci_debugging.o \
+	cci_identifier.o \
+	cci_message.o \
+	cci_stream.o
+
+OBJS= \
+	$(OUTPRE)cci_array_internal.$(OBJEXT) \
+	$(OUTPRE)cci_cred_union.$(OBJEXT) \
+	$(OUTPRE)cci_debugging.$(OBJEXT) \
+	$(OUTPRE)cci_identifier.$(OBJEXT) \
+	$(OUTPRE)cci_message.$(OBJEXT) \
+	$(OUTPRE)cci_stream.$(OBJEXT)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+
+# +++ Dependency line eater +++
+# 
+# Makefile dependencies follow.  This must be the last section in
+# the Makefile.in file
+#
+cci_array_internal.so cci_array_internal.po $(OUTPRE)cci_array_internal.$(OBJEXT): \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  cci_array_internal.c cci_array_internal.h cci_common.h \
+  cci_cred_union.h cci_debugging.h cci_identifier.h cci_message.h \
+  cci_stream.h cci_types.h
+cci_cred_union.so cci_cred_union.po $(OUTPRE)cci_cred_union.$(OBJEXT): \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  cci_common.h cci_cred_union.c cci_cred_union.h cci_debugging.h \
+  cci_identifier.h cci_message.h cci_stream.h cci_types.h
+cci_debugging.so cci_debugging.po $(OUTPRE)cci_debugging.$(OBJEXT): \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  cci_common.h cci_cred_union.h cci_debugging.c cci_debugging.h \
+  cci_identifier.h cci_message.h cci_os_debugging.h cci_stream.h \
+  cci_types.h
+cci_identifier.so cci_identifier.po $(OUTPRE)cci_identifier.$(OBJEXT): \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  cci_common.h cci_cred_union.h cci_debugging.h cci_identifier.c \
+  cci_identifier.h cci_message.h cci_os_identifier.h \
+  cci_stream.h cci_types.h
+cci_message.so cci_message.po $(OUTPRE)cci_message.$(OBJEXT): \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  cci_common.h cci_cred_union.h cci_debugging.h cci_identifier.h \
+  cci_message.c cci_message.h cci_stream.h cci_types.h
+cci_stream.so cci_stream.po $(OUTPRE)cci_stream.$(OBJEXT): \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  cci_common.h cci_cred_union.h cci_debugging.h cci_identifier.h \
+  cci_message.h cci_stream.c cci_stream.h cci_types.h

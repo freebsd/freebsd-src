@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-LRQ-ONE-LAST-RENEWAL-data:
+
+KRB5_LRQ_ONE_LAST_RENEWAL
+=========================
+
+..
+.. data:: KRB5_LRQ_ONE_LAST_RENEWAL
+..
+
+
+
+
+================================ ======================
+``KRB5_LRQ_ONE_LAST_RENEWAL``       ``(-4)``
+================================ ======================

@@ -1,6 +1,7 @@
-PROG =	rpc.rwalld
-SRCS =	rwalld.c
-MAN =	rpc.rwalld.8
+PACKAGE= rcmds
+PROG=	rpc.rwalld
+SRCS=	rwalld.c
+MAN=	rpc.rwalld.8
 
 LIBADD=	util
 

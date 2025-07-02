@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+KDB5_DB_LIB=@KDB5_DB_LIB@
+
+Name: kdb
+Description: Kerberos database access libraries
+Version: @KRB5_VERSION@
+Requires.private: mit-krb5-gssapi mit-krb5 gssrpc
+Cflags: -I${includedir}
+Libs: -L${libdir} -lkdb5
+Libs.private: ${KDB5_DB_LIB}

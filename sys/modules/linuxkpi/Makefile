@@ -7,6 +7,7 @@ SRCS=	linux_compat.c \
 	linux_dmi.c \
 	linux_domain.c \
 	linux_firmware.c \
+	linux_folio.c \
 	linux_fpu.c \
 	linux_hrtimer.c \
 	linux_idr.c \

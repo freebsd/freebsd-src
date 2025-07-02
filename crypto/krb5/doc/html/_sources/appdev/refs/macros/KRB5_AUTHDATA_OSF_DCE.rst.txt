@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-AUTHDATA-OSF-DCE-data:
+
+KRB5_AUTHDATA_OSF_DCE
+=====================
+
+..
+.. data:: KRB5_AUTHDATA_OSF_DCE
+..
+
+
+
+
+============================ ======================
+``KRB5_AUTHDATA_OSF_DCE``       ``64``
+============================ ======================

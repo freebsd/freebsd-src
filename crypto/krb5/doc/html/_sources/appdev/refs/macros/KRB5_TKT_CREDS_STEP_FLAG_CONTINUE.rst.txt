@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-TKT-CREDS-STEP-FLAG-CONTINUE-data:
+
+KRB5_TKT_CREDS_STEP_FLAG_CONTINUE
+=================================
+
+..
+.. data:: KRB5_TKT_CREDS_STEP_FLAG_CONTINUE
+..
+
+More responses needed.
+
+
+
+======================================== ======================
+``KRB5_TKT_CREDS_STEP_FLAG_CONTINUE``       ``0x1``
+======================================== ======================

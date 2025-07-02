@@ -1,0 +1,58 @@
+BUILDTOP=..\..
+
+DLL_NAME=leashw$(BITS)
+DEF_FILE=leashw32.def
+
+OBJS=	$(OUTPRE)krb5routines.$(OBJEXT) \
+	$(OUTPRE)leashdll.$(OBJEXT) \
+	$(OUTPRE)leasherr.$(OBJEXT) \
+	$(OUTPRE)lsh_pwd.$(OBJEXT) \
+	$(OUTPRE)lshfunc.$(OBJEXT) \
+	$(OUTPRE)lshutil.$(OBJEXT) \
+	$(OUTPRE)timesync.$(OBJEXT) \
+	$(OUTPRE)winerr.$(OBJEXT) \
+	$(OUTPRE)winutil.$(OBJEXT)
+
+#TODO: Fix resource compilation
+RESFILE = $(OUTPRE)lsh_pwd.res
+XOBJS	= $(RESFILE)
+
+RCFLAGS = -I$(BUILDTOP)\include -I$(BUILDTOP) -DLEASHDLL_LIB
+
+###From another project inside K 1.9:
+###VERSIONRC = $(BUILDTOP)\windows\version.rc
+###RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+
+# Set NODEBUG if building release instead of debug
+
+LOCALINCLUDES = -I$(BUILDTOP)\include -I$(BUILDTOP)\windows\include
+
+WINLIBS = kernel32.lib advapi32.lib user32.lib gdi32.lib Version.lib \
+	  ws2_32.lib dnsapi.lib $(BUILDTOP)\ccapi\lib\win\srctmp\$(CCLIB).lib
+
+WINDLLFLAGS = /nologo /dll /incremental:no /release $(LOPTS)
+
+
+DEFINES = -DWINSOCK -DWIN32 -DWINDOWS -DUSE_MESSAGE_BOX
+!ifdef NODEBUG
+DEFINES = $(DEFINES)
+!else
+DEFINES = $(DEFINES) -DDBG
+!endif
+
+all-windows:
+all-windows: $(OUTPRE)$(DLL_NAME).dll
+
+clean-windows::
+	$(RM) $(OUTPRE)$(DLL_NAME).dll
+
+$(OUTPRE)$(DLL_NAME).dll: $(DEF_FILE) $(OBJS) $(XOBJS)
+	link $(WINDLLFLAGS) -def:$(DEF_FILE) -out:$*.dll \
+	$(OBJS) $(XOBJS) $(WINLIBS) ../lib/$(OUTPRE)libwin.lib
+	$(_VC_MANIFEST_EMBED_DLL)
+
+#TODO: Add dependencies on include files here
+
+$(RESFILE): lsh_pwd.rc ../version.rc ../kerberos.ver
+

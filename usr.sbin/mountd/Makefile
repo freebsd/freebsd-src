@@ -1,3 +1,4 @@
+PACKAGE= nfs
 PROG=	mountd
 MAN=	exports.5 netgroup.5 mountd.8
 

@@ -1,0 +1,34 @@
+.. highlight:: c
+
+.. _krb5-responder-pkinit-identity-struct:
+
+krb5_responder_pkinit_identity
+==============================
+
+..
+.. c:type:: krb5_responder_pkinit_identity
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_responder_pkinit_identity krb5_responder_pkinit_identity
+
+
+Members
+---------
+
+
+.. c:member:: char *	krb5_responder_pkinit_identity.identity
+
+                                             
+                                             
+
+.. c:member:: krb5_int32	krb5_responder_pkinit_identity.token_flags
+
+                                             
+                                             
+

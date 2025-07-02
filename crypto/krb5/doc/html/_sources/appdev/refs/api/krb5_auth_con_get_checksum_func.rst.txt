@@ -1,0 +1,49 @@
+krb5_auth_con_get_checksum_func -  Get the checksum callback from an auth context. 
+===================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_get_checksum_func(krb5_context context, krb5_auth_context auth_context, krb5_mk_req_checksum_func * func, void ** data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[out]** **func** - Checksum callback
+
+	          **[out]** **data** - Callback argument
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,17 @@
+# English translations for Kerberos 5 package.
+# Copyright (C) 2011 MIT
+# This file is distributed under the same license as the Kerberos 5 package.
+# Greg Hudson <ghudson@mit.edu>, 2011.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mit-krb5 1.10-prerelease\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-06-06 00:34-0400\n"
+"PO-Revision-Date: 2011-06-06 00:35-0400\n"
+"Last-Translator: Greg Hudson <ghudson@mit.edu>\n"
+"Language-Team: English\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"

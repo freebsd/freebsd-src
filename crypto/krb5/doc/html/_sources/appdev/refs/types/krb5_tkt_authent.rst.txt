@@ -1,0 +1,45 @@
+.. highlight:: c
+
+.. _krb5-tkt-authent-struct:
+
+krb5_tkt_authent
+================
+
+..
+.. c:type:: krb5_tkt_authent
+..
+
+Ticket authentication data.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_tkt_authent krb5_tkt_authent
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_tkt_authent.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_ticket  *	krb5_tkt_authent.ticket
+
+                                             
+                                             
+
+.. c:member:: krb5_authenticator  *	krb5_tkt_authent.authenticator
+
+                                             
+                                             
+
+.. c:member:: krb5_flags	krb5_tkt_authent.ap_options
+
+                                             
+                                             
+

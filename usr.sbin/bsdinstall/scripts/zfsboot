@@ -121,7 +121,7 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_BOOT_TYPE:=}
 
 #
-# How much swap to put on each block device in the boot zpool
+# How much swap to put on each block device in the boot pool
 # NOTE: Value passed to gpart(8); which supports SI unit suffixes.
 #
 : ${ZFSBOOT_SWAP_SIZE:=2g}
@@ -137,7 +137,7 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_SWAP_MIRROR=}
 
 #
-# Default ZFS datasets for root zpool
+# Default ZFS datasets for root pool
 #
 # NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME
 # NOTE: Anything after pound/hash character [#] is ignored as a comment.
@@ -285,12 +285,12 @@ msg_odd_disk_selected="An even number of disks must be selected to create a RAID
 msg_ok="OK"
 msg_partition_scheme="Partition Scheme"
 msg_partition_scheme_help="Select partitioning scheme. GPT is recommended."
-msg_please_enter_a_name_for_your_zpool="Please enter a name for your zpool:"
+msg_please_enter_a_name_for_your_pool="Please enter a name for your pool:"
 msg_please_enter_amount_of_swap_space="Please enter amount of swap space (SI-Unit suffixes\nrecommended; e.g., \`2g' for 2 Gigabytes):"
-msg_please_select_one_or_more_disks="Please select one or more disks to create a zpool:"
+msg_please_select_one_or_more_disks="Please select one or more disks to create a pool:"
 msg_pool_name="Pool Name"
 msg_pool_name_cannot_be_empty="Pool name cannot be empty."
-msg_pool_name_help="Customize the name of the zpool to be created (Required)"
+msg_pool_name_help="Customize the name of the pool to be created (Required)"
 msg_pool_type_disks="Pool Type/Disks:"
 msg_pool_type_disks_help="Choose type of ZFS Virtual Device and disks to use (Required)"
 msg_processing_selection="Processing selection..."
@@ -323,9 +323,9 @@ msg_unsupported_partition_scheme="%s is an unsupported partition scheme"
 msg_user_cancelled="User Cancelled."
 msg_yes="YES"
 msg_zfs_configuration="ZFS Configuration"
-msg_please_enter_options_for_your_zpool="Please enter options for your zpool"
+msg_please_enter_options_for_your_pool="Please enter options for your pool"
 msg_zfs_options_name="ZFS Pool Options"
-msg_zfs_options_name_help="Customize ZFS options for the zpool to be created"
+msg_zfs_options_name_help="Customize ZFS options for the pool to be created"
 
 ############################################################ FUNCTIONS
 
@@ -748,8 +748,8 @@ dialog_menu_layout()
 
 # zfs_create_diskpart $disk $index
 #
-# For each block device to be used in the zpool, rather than just create the
-# zpool with the raw block devices (e.g., da0, da1, etc.) we create partitions
+# For each block device to be used in the pool, rather than just create the
+# pool with the raw block devices (e.g., da0, da1, etc.) we create partitions
 # so we can have some real swap. This also provides wiggle room incase your
 # replacement drivers do not have the exact same sector counts.
 #
@@ -905,7 +905,7 @@ zfs_create_diskpart()
 			fi
 		fi
 
-		# NB: zpool will use the `zfs#' GPT labels
+		# NB: ZFS pools will use `zfs#' GPT labels
 		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
 			if [ "$ZFSBOOT_BOOT_POOL" ]; then
 				bootpart=p3 swappart=p4 targetpart=p4
@@ -1006,7 +1006,7 @@ zfs_create_diskpart()
 		f_eval_catch $funcname gpart "$GPART_CREATE" BSD ${disk}s1 ||
 		             return $FAILURE
 
-		# NB: zpool will use s1a (no labels)
+		# NB: ZFS pools will use s1a (no labels)
 		bootpart=s1a swappart=s1b targetpart=s1d mbrindex=4
 
 		#
@@ -1594,7 +1594,7 @@ dialog_menu_diskinfo()
 	return $SUCCESS
 }
 
-dialog_zpool_name()
+dialog_pool_name()
 {
 	local prompt="$* is already taken, please enter a name for the ZFS pool \
 	(Or confirm using the same name by just pressing enter)"
@@ -1639,7 +1639,7 @@ for pool in ${pools}; do
 	f_dprintf "Checking ${pool} against ${ZFSBOOT_POOL_NAME}"
 	if [ "${pool}" = "${ZFSBOOT_POOL_NAME}" ]; then
 		f_dprintf "Pool ${pool} already taken"
-		ZFSBOOT_POOL_NAME=$(dialog_zpool_name "${ZFSBOOT_POOL_NAME}")
+		ZFSBOOT_POOL_NAME=$(dialog_pool_name "${ZFSBOOT_POOL_NAME}")
 		break
 	fi
 done
@@ -1771,7 +1771,7 @@ while :; do
 	?" $msg_pool_name")
 		# Prompt the user to input/change the name for the new pool
 		f_dialog_input input \
-			"$msg_please_enter_a_name_for_your_zpool" \
+			"$msg_please_enter_a_name_for_your_pool" \
 			"$ZFSBOOT_POOL_NAME" &&
 			ZFSBOOT_POOL_NAME="$input"
 		;;
@@ -1860,7 +1860,7 @@ while :; do
 	?" $msg_zfs_options_name")
 		# Prompt the user to input/change the pool options
 		f_dialog_input input \
-			"$msg_please_enter_options_for_your_zpool" \
+			"$msg_please_enter_options_for_your_pool" \
 			"$ZFSBOOT_POOL_CREATE_OPTIONS" &&
 			ZFSBOOT_POOL_CREATE_OPTIONS="$input"
 		;;

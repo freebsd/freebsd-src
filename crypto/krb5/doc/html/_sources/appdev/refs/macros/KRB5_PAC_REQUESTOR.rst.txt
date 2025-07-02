@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PAC-REQUESTOR-data:
+
+KRB5_PAC_REQUESTOR
+==================
+
+..
+.. data:: KRB5_PAC_REQUESTOR
+..
+
+PAC requestor SID.
+
+
+
+========================= ======================
+``KRB5_PAC_REQUESTOR``       ``18``
+========================= ======================

@@ -1,0 +1,181 @@
+prefix=@prefix@
+bindir=@bindir@
+datadir=@datadir@
+mydatadir=$(datadir)/et
+mydir=util$(S)et
+BUILDTOP=$(REL)..$(S)..
+RELDIR=../util/et
+SED = sed
+
+##DOS##BUILDTOP = ..\..
+##DOS##LIBNAME=$(OUTPRE)comerr.lib
+##DOS##XTRA=
+##DOS##OBJFILE=$(OUTPRE)comerr.lst
+
+STLIBOBJS=error_message.o et_name.o com_err.o
+LIBBASE=com_err
+LIBMAJOR=3
+LIBMINOR=0
+LIBINITFUNC=com_err_initialize
+LIBFINIFUNC=com_err_terminate
+
+all-unix: all-liblinks
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+install-unix: install-libs
+
+LINTFLAGS=-uhvb 
+LINTFILES= error_message.c et_name.c com_err.c
+LIBOBJS=$(OUTPRE)com_err.$(OBJEXT) \
+	$(OUTPRE)error_message.$(OBJEXT) \
+	$(OUTPRE)et_name.$(OBJEXT)
+LOCALINCLUDES=-I.
+
+SRCS= $(srcdir)/error_message.c \
+	$(srcdir)/et_name.c \
+	$(srcdir)/com_err.c
+
+#
+# Warning flags
+#
+# Uncomment WFLAGS if you want really anal GCC warning messages
+#
+#
+WFLAGS=		-ansi -D_POSIX_SOURCE -pedantic \
+			-Wall -Wwrite-strings -Wpointer-arith \
+			-Wcast-qual -Wcast-align -Wtraditional \
+			-Wstrict-prototypes -Wmissing-prototypes \
+			-Wnested-externs -Winline -DNO_INLINE_FUNCS -Wshadow 
+
+DEPLIBS=
+SHLIB_LIBS=
+SHLIB_EXPDEPS = $(SUPPORT_DEPLIB)
+SHLIB_EXPLIBS=-l$(SUPPORT_LIBNAME) $(LIBS)
+SHLIB_LDFLAGS= $(LDFLAGS) @SHLIB_RPATH_DIRS@	
+
+COM_ERR_HDR=$(BUILDTOP)$(S)include$(S)com_err.h
+
+all-windows: $(COM_ERR_HDR)
+
+$(COM_ERR_HDR): com_err.h
+	$(CP) com_err.h "$@"
+
+generate-files-mac: compile_et
+
+com_err.o : com_err.c
+
+test1.o: test1.c
+test2.o: test2.c
+test_et.o: test1.h test2.h
+et1.o: et1.c
+et2.o: et2.c
+test1.c test2.c et1.c et2.c test1.h test2.h et1.h et2.h: \
+	compile_et et_c.awk et_h.awk
+t_com_err.o: et1.h et2.h t_com_err.c
+
+#test_et: test_et.o test1.o test2.o $(LIBOBJS)
+#	$(CC) -o test_et test_et.o test1.o test2.o $(LIBOBJS)
+#t_com_err: t_com_err.o et1.o et2.o $(LIBOBJS)
+#	$(CC) -o t_com_err t_com_err.o et1.o et2.o $(LIBOBJS)
+
+test_et: test_et.o test1.o test2.o $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o test_et test_et.o test1.o test2.o $(COM_ERR_LIB) $(SUPPORT_LIB)
+t_com_err: t_com_err.o et1.o et2.o $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o t_com_err t_com_err.o et1.o et2.o $(COM_ERR_LIB) $(SUPPORT_LIB)
+
+$(OUTPRE)test_et.exe: $(OUTPRE)test_et.$(OBJEXT) $(OUTPRE)test1.$(OBJEXT) \
+	$(OUTPRE)test2.$(OBJEXT) $(CLIB)
+	link $(EXE_LINKOPTS) -out:$(OUTPRE)test_et$(EXEEXT) $**
+
+all-unix: compile_et includes
+
+includes: com_err.h
+	if cmp $(srcdir)/com_err.h \
+	$(BUILDTOP)/include/com_err.h >/dev/null 2>&1; then :; \
+	else \
+		(set -x; $(RM) $(BUILDTOP)/include/com_err.h; \
+		 $(CP) $(srcdir)/com_err.h \
+			$(BUILDTOP)/include/com_err.h) ; \
+	fi
+
+clean-unix::
+	$(RM) $(BUILDTOP)/include/com_err.h
+
+# test_et doesn't have an interesting exit status, but it'll exercise
+# some cases that t_com_err doesn't, so let's see if it crashes.
+check-unix: t_com_err test_et
+	$(RUN_TEST) ./test_et
+	$(RUN_TEST) ./t_com_err
+
+check-windows: $(OUTPRE)test_et$(EXEEXT)
+	set path=$(BUILDTOP)\lib\$(OUTPRE);%path%;
+	path
+	$(OUTPRE)test_et$(EXEEXT)
+
+install-unix: compile_et compile_et.1
+	$(INSTALL) compile_et $(DESTDIR)$(bindir)/compile_et
+	test -d $(DESTDIR)$(mydatadir) || mkdir $(DESTDIR)$(mydatadir)
+	$(INSTALL_DATA) $(srcdir)/et_c.awk $(DESTDIR)$(mydatadir)
+	$(INSTALL_DATA) $(srcdir)/et_h.awk $(DESTDIR)$(mydatadir)
+	$(INSTALL_DATA) $(srcdir)/compile_et.1 $(DESTDIR)$(CLIENT_MANDIR)/compile_et.1
+
+
+install-headers: compile_et
+
+compile_et: $(srcdir)/compile_et.sh $(srcdir)/config_script
+	$(SHELL) $(srcdir)/config_script $(srcdir)/compile_et.sh \
+		"$(mydatadir)" $(AWK) $(SED) > compile_et
+	chmod 755 compile_et	
+
+rebuild: rebuild-c rebuild-h
+rebuild-c:
+	a2p < $(srcdir)/et_c.awk | awk 'NR != 1 || $$0 !~ /^\043!/{print;}' > $(srcdir)/et_c.tmp
+	mv -f $(srcdir)/et_c.tmp $(srcdir)/et_c.pl
+rebuild-h:
+	a2p < $(srcdir)/et_h.awk | awk 'NR != 1 || $$0 !~ /^\043!/{print;}' > $(srcdir)/et_h.tmp
+	mv -f $(srcdir)/et_h.tmp $(srcdir)/et_h.pl
+
+clean-unix::
+	$(RM) compile_et
+
+depend:
+
+install: com_err.h
+	$(INSTALL_DATA) $(srcdir)/com_err.h  $(DESTDIR)$(KRB5_INCDIR)/com_err.h
+
+
+## install_library_target(com_err,$(LIBOBJS),$(LINTFILES),)
+
+clean-unix:: clean-files
+
+clean-files:
+	rm -f *~ \#* *.bak \
+		*.otl *.aux *.toc *.PS *.dvi *.x9700 *.ps \
+		*.cp *.fn *.ky *.log *.pg *.tp *.vr \
+		*.o profiled/?*.o libcom_err.a libcom_err_p.a \
+		com_err.o compile_et \
+		et.ar TAGS \
+		test1.h test1.c test2.h test2.c test_et \
+		et1.c et1.h et2.c et2.h t_com_err \
+		eddep makedep *.ln
+
+clean-windows::
+	$(RM) $(COM_ERR_HDR)
+
+com_err.ps : com_err.dvi
+com_err.dvi: com_err.texinfo
+
+libcom_err.o:	$(LIBOBJS)
+	ld -r -s -o libcom_err.o $(LIBOBJS)
+	chmod -x libcom_err.o
+
+archive:	et.tar
+
+TAGS:	et_name.c error_message.c
+	etags et_name.c error_message.c
+
+depend:  includes compile_et
+
+
+@lib_frag@
+@libobj_frag@
+

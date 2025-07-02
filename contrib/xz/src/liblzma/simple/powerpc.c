@@ -18,8 +18,10 @@ powerpc_code(void *simple lzma_attribute((__unused__)),
 		uint32_t now_pos, bool is_encoder,
 		uint8_t *buffer, size_t size)
 {
+	size &= ~(size_t)3;
+
 	size_t i;
-	for (i = 0; i + 4 <= size; i += 4) {
+	for (i = 0; i < size; i += 4) {
 		// PowerPC branch 6(48) 24(Offset) 1(Abs) 1(Link)
 		if ((buffer[i] >> 2) == 0x12
 				&& ((buffer[i + 3] & 3) == 1)) {

@@ -1,0 +1,46 @@
+krb5_get_init_creds_opt_set_pa -  Supply options for preauthentication in initial credential options. 
+======================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_set_pa(krb5_context context, krb5_get_init_creds_opt * opt, const char * attr, const char * value)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **attr** - Preauthentication option name
+
+	          **[in]** **value** - Preauthentication option value
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function allows the caller to supply options for preauthentication. The values of *attr* and *value* are supplied to each preauthentication module available within *context* .
+
+
+
+
+
+
+..
+
+
+
+
+

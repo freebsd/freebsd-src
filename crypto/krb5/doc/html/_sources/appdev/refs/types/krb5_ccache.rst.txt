@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-ccache-struct:
+
+krb5_ccache
+===========
+
+..
+.. c:type:: krb5_ccache
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_ccache\* krb5_ccache
+
+

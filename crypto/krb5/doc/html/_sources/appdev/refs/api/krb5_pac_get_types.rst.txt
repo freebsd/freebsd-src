@@ -1,0 +1,49 @@
+krb5_pac_get_types -  Return an array of buffer types in a PAC handle. 
+=======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_pac_get_types(krb5_context context, krb5_pac pac, size_t * len, krb5_ui_4 ** types)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **pac** - PAC handle
+
+	          **[out]** **len** - Number of entries in *types*
+
+	          **[out]** **types** - Array of buffer types
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

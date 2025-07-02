@@ -48,7 +48,6 @@
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
-#include <net/if_private.h>
 #include <net/ethernet.h>
 
 #include <net/bpf.h>
@@ -235,7 +234,7 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    ether_sprintf(ni->ni_bssid));
 				ieee80211_print_essid(vap->iv_bss->ni_essid,
 				    ni->ni_esslen);
-				printf(" channel %d start %uMbit/s\n",
+				net80211_printf(" channel %d start %uMbit/s\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan),
 				    ieee80211_node_get_txrate_kbit(ni) / 1000);
 			}
@@ -395,7 +394,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		     (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
 		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) &&
 		    !IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
-		    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
+		    !IEEE80211_ADDR_EQ(bssid,
+		        ieee80211_vap_get_broadcast_address(vap))) {
 			/* not interested in */
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    bssid, NULL, "%s", "not to bss");
@@ -644,7 +644,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 #ifdef IEEE80211_DEBUG
 		if ((ieee80211_msg_debug(vap) && doprint(vap, subtype)) ||
 		    ieee80211_msg_dumppkts(vap)) {
-			if_printf(ifp, "received %s from %s rssi %d\n",
+			net80211_vap_printf(vap,
+			    "received %s from %s rssi %d\n",
 			    ieee80211_mgt_subtype_name(subtype),
 			    ether_sprintf(wh->i_addr2), rssi);
 		}

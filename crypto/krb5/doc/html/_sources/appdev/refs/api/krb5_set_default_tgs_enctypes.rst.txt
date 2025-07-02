@@ -1,0 +1,61 @@
+krb5_set_default_tgs_enctypes -  Set default TGS encryption types in a krb5_context structure. 
+===============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_set_default_tgs_enctypes(krb5_context context, const krb5_enctype * etypes)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **etypes** - Encryption type(s) to set
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   KRB5_PROG_ETYPE_NOSUPP   Program lacks support for encryption type
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function sets the default enctype list for TGS requests made using *context* to *etypes* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 This overrides the default list (from config file or built-in).
+ 
+
+
+

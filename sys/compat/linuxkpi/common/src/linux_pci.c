@@ -287,18 +287,22 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 struct pci_dev *
 lkpi_pci_get_device(uint16_t vendor, uint16_t device, struct pci_dev *odev)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev, *found;
 
 	KASSERT(odev == NULL, ("%s: odev argument not yet supported\n", __func__));
 
+	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (pdev->vendor == vendor && pdev->device == device)
+		if (pdev->vendor == vendor && pdev->device == device) {
+			found = pdev;
 			break;
+		}
 	}
+	pci_dev_get(found);
 	spin_unlock(&pci_lock);
 
-	return (pdev);
+	return (found);
 }
 
 static void
@@ -309,9 +313,18 @@ lkpi_pci_dev_release(struct device *dev)
 	spin_lock_destroy(&dev->devres_lock);
 }
 
-static void
+static int
 lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 {
+	int error;
+
+	error = kobject_init_and_add(&pdev->dev.kobj, &linux_dev_ktype,
+	    &linux_root_device.kobj, device_get_nameunit(dev));
+	if (error != 0) {
+		printf("%s:%d: kobject_init_and_add returned %d\n",
+		    __func__, __LINE__, error);
+		return (error);
+	}
 
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->vendor = pci_get_vendor(dev);
@@ -341,12 +354,10 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 		pdev->msi_desc = malloc(pci_msi_count(dev) *
 		    sizeof(*pdev->msi_desc), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
-	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
-	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
-	    kobject_name(&pdev->dev.kobj));
 	spin_lock_init(&pdev->dev.devres_lock);
 	INIT_LIST_HEAD(&pdev->dev.devres_head);
+
+	return (0);
 }
 
 static void
@@ -374,9 +385,14 @@ struct pci_dev *
 lkpinew_pci_dev(device_t dev)
 {
 	struct pci_dev *pdev;
+	int error;
 
 	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
-	lkpifill_pci_dev(dev, pdev);
+	error = lkpifill_pci_dev(dev, pdev);
+	if (error != 0) {
+		free(pdev, M_DEVBUF);
+		return (NULL);
+	}
 	pdev->dev.release = lkpinew_pci_dev_release;
 
 	return (pdev);
@@ -525,7 +541,10 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 		device_set_ivars(dev, dinfo);
 	}
 
-	lkpifill_pci_dev(dev, pdev);
+	error = lkpifill_pci_dev(dev, pdev);
+	if (error != 0)
+		return (error);
+
 	if (isdrm)
 		PCI_GET_ID(device_get_parent(parent), parent, PCI_ID_RID, &rid);
 	else
@@ -1511,17 +1530,34 @@ linux_dma_map_phys_common(struct device *dev __unused, vm_paddr_t phys,
 #endif
 
 dma_addr_t
-linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
+lkpi_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len,
+    enum dma_data_direction direction, unsigned long attrs)
 {
 	struct linux_dma_priv *priv;
+	dma_addr_t dma;
 
 	priv = dev->dma_priv;
-	return (linux_dma_map_phys_common(dev, phys, len, priv->dmat));
+	dma = linux_dma_map_phys_common(dev, phys, len, priv->dmat);
+	if (dma_mapping_error(dev, dma))
+		return (dma);
+
+	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0)
+		dma_sync_single_for_device(dev, dma, len, direction);
+
+	return (dma);
+}
+
+/* For backward compat only so we can MFC this. Remove before 15. */
+dma_addr_t
+linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
+{
+	return (lkpi_dma_map_phys(dev, phys, len, DMA_NONE, 0));
 }
 
 #if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 void
-linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
+lkpi_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len,
+    enum dma_data_direction direction, unsigned long attrs)
 {
 	struct linux_dma_priv *priv;
 	struct linux_dma_obj *obj;
@@ -1538,6 +1574,10 @@ linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
 		return;
 	}
 	LINUX_DMA_PCTRIE_REMOVE(&priv->ptree, dma_addr);
+
+	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0)
+		dma_sync_single_for_cpu(dev, dma_addr, len, direction);
+
 	bus_dmamap_unload(obj->dmat, obj->dmamap);
 	bus_dmamap_destroy(obj->dmat, obj->dmamap);
 	DMA_PRIV_UNLOCK(priv);
@@ -1546,10 +1586,18 @@ linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
 }
 #else
 void
-linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
+lkpi_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len,
+    enum dma_data_direction direction, unsigned long attrs)
 {
 }
 #endif
+
+/* For backward compat only so we can MFC this. Remove before 15. */
+void
+linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
+{
+	lkpi_dma_unmap(dev, dma_addr, len, DMA_NONE, 0);
+}
 
 void *
 linux_dma_alloc_coherent(struct device *dev, size_t size,
@@ -1652,7 +1700,7 @@ linuxkpi_dma_sync(struct device *dev, dma_addr_t dma_addr, size_t size,
 
 int
 linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
-    enum dma_data_direction direction, unsigned long attrs __unused)
+    enum dma_data_direction direction, unsigned long attrs)
 {
 	struct linux_dma_priv *priv;
 	struct scatterlist *sg;
@@ -1686,6 +1734,9 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 		sg_dma_address(sg) = seg.ds_addr;
 	}
 
+	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) != 0)
+		goto skip_sync;
+
 	switch (direction) {
 	case DMA_BIDIRECTIONAL:
 		bus_dmamap_sync(priv->dmat, sgl->dma_map, BUS_DMASYNC_PREWRITE);
@@ -1699,6 +1750,7 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 	default:
 		break;
 	}
+skip_sync:
 
 	DMA_PRIV_UNLOCK(priv);
 
@@ -1708,13 +1760,16 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 void
 linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
     int nents __unused, enum dma_data_direction direction,
-    unsigned long attrs __unused)
+    unsigned long attrs)
 {
 	struct linux_dma_priv *priv;
 
 	priv = dev->dma_priv;
 
 	DMA_PRIV_LOCK(priv);
+
+	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) != 0)
+		goto skip_sync;
 
 	switch (direction) {
 	case DMA_BIDIRECTIONAL:
@@ -1730,6 +1785,7 @@ linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
 	default:
 		break;
 	}
+skip_sync:
 
 	bus_dmamap_unload(priv->dmat, sgl->dma_map);
 	bus_dmamap_destroy(priv->dmat, sgl->dma_map);

@@ -544,6 +544,51 @@ ATF_TC_BODY(send_overflow, tc)
 	closesocketpair(fd);
 }
 
+/*
+ * Make sure that we do not receive descriptors with MSG_PEEK.
+ */
+ATF_TC_WITHOUT_HEAD(peek);
+ATF_TC_BODY(peek, tc)
+{
+	int fd[2], getfd, putfd, nfds;
+
+	domainsocketpair(fd);
+	tempfile(&putfd);
+	nfds = getnfds();
+	sendfd(fd[0], putfd);
+	ATF_REQUIRE(getnfds() == nfds);
+
+	/* First make MSG_PEEK recvmsg(2)... */
+	char cbuf[CMSG_SPACE(sizeof(int))];
+	char buf[1];
+	struct iovec iov = {
+		.iov_base = buf,
+		.iov_len = sizeof(buf)
+	};
+	struct msghdr msghdr = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = cbuf,
+		.msg_controllen = sizeof(cbuf),
+	};
+	ATF_REQUIRE(1 == recvmsg(fd[1], &msghdr, MSG_PEEK));
+	for (struct cmsghdr *cmsghdr = CMSG_FIRSTHDR(&msghdr);
+	     cmsghdr != NULL; cmsghdr = CMSG_NXTHDR(&msghdr, cmsghdr)) {
+		/* Usually this is some garbage. */
+		printf("level %d type %d len %u\n",
+		    cmsghdr->cmsg_level, cmsghdr->cmsg_type, cmsghdr->cmsg_len);
+	}
+
+	/* ... and make sure we did not receive any descriptors! */
+	ATF_REQUIRE(getnfds() == nfds);
+
+	/* Now really receive a descriptor. */
+	recvfd(fd[1], &getfd, 0);
+	ATF_REQUIRE(getnfds() == nfds + 1);
+	close(putfd);
+	close(getfd);
+	closesocketpair(fd);
+}
 
 /*
  * Send two files.  Then receive them.  Make sure they are returned in the
@@ -997,6 +1042,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_and_shutdown);
 	ATF_TP_ADD_TC(tp, send_a_lot);
 	ATF_TP_ADD_TC(tp, send_overflow);
+	ATF_TP_ADD_TC(tp, peek);
 	ATF_TP_ADD_TC(tp, two_files);
 	ATF_TP_ADD_TC(tp, bundle);
 	ATF_TP_ADD_TC(tp, bundle_cancel);

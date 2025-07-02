@@ -74,6 +74,8 @@ syscallenter(struct thread *td)
 			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
 	}
+	if ((td->td_pflags2 & TDP2_UEXTERR) != 0)
+		td->td_pflags2 &= ~TDP2_EXTERR;
 	error = (p->p_sysent->sv_fetch_syscall_args)(td);
 	se = sa->callp;
 #ifdef KTRACE
@@ -207,6 +209,8 @@ syscallenter(struct thread *td)
 		PROC_UNLOCK(p);
 	}
 	(p->p_sysent->sv_set_syscall_retval)(td, error);
+	if (error != 0 && (td->td_pflags2 & TDP2_UEXTERR) != 0)
+		exterr_copyout(td);
 }
 
 static inline void

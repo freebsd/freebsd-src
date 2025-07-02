@@ -76,8 +76,8 @@ static void
 smbios_identify (driver_t *driver, device_t parent)
 {
 #ifdef ARCH_MAY_USE_EFI
-	struct uuid efi_smbios = EFI_TABLE_SMBIOS;
-	struct uuid efi_smbios3 = EFI_TABLE_SMBIOS3;
+	efi_guid_t efi_smbios = EFI_TABLE_SMBIOS;
+	efi_guid_t efi_smbios3 = EFI_TABLE_SMBIOS3;
 	void *addr_efi;
 #endif
 	struct smbios_eps *eps;

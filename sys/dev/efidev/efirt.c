@@ -340,7 +340,7 @@ efi_leave(void)
 }
 
 static int
-get_table(struct uuid *uuid, void **ptr)
+get_table(efi_guid_t *guid, void **ptr)
 {
 	struct efi_cfgtbl *ct;
 	u_long count;
@@ -354,7 +354,7 @@ get_table(struct uuid *uuid, void **ptr)
 	count = efi_systbl->st_entries;
 	ct = efi_cfgtbl;
 	while (count--) {
-		if (!bcmp(&ct->ct_uuid, uuid, sizeof(*uuid))) {
+		if (!bcmp(&ct->ct_guid, guid, sizeof(*guid))) {
 			*ptr = ct->ct_data;
 			efi_leave();
 			return (0);
@@ -373,13 +373,13 @@ get_table_length(enum efi_table_type type, size_t *table_len, void **taddr)
 	case TYPE_ESRT:
 	{
 		struct efi_esrt_table *esrt = NULL;
-		struct uuid uuid = EFI_TABLE_ESRT;
+		efi_guid_t guid = EFI_TABLE_ESRT;
 		uint32_t fw_resource_count = 0;
 		size_t len = sizeof(*esrt);
 		int error;
 		void *buf;
 
-		error = efi_get_table(&uuid, (void **)&esrt);
+		error = efi_get_table(&guid, (void **)&esrt);
 		if (error != 0)
 			return (error);
 
@@ -415,14 +415,14 @@ get_table_length(enum efi_table_type type, size_t *table_len, void **taddr)
 	}
 	case TYPE_PROP:
 	{
-		struct uuid uuid = EFI_PROPERTIES_TABLE;
+		efi_guid_t guid = EFI_PROPERTIES_TABLE;
 		struct efi_prop_table *prop;
 		size_t len = sizeof(*prop);
 		uint32_t prop_len;
 		int error;
 		void *buf;
 
-		error = efi_get_table(&uuid, (void **)&prop);
+		error = efi_get_table(&guid, (void **)&prop);
 		if (error != 0)
 			return (error);
 
@@ -450,10 +450,10 @@ get_table_length(enum efi_table_type type, size_t *table_len, void **taddr)
 }
 
 static int
-copy_table(struct uuid *uuid, void **buf, size_t buf_len, size_t *table_len)
+copy_table(efi_guid_t *guid, void **buf, size_t buf_len, size_t *table_len)
 {
 	static const struct known_table {
-		struct uuid uuid;
+		efi_guid_t guid;
 		enum efi_table_type type;
 	} tables[] = {
 		{ EFI_TABLE_ESRT,       TYPE_ESRT },
@@ -464,7 +464,7 @@ copy_table(struct uuid *uuid, void **buf, size_t buf_len, size_t *table_len)
 	int rc;
 
 	for (table_idx = 0; table_idx < nitems(tables); table_idx++) {
-		if (!bcmp(&tables[table_idx].uuid, uuid, sizeof(*uuid)))
+		if (!bcmp(&tables[table_idx].guid, guid, sizeof(*guid)))
 			break;
 	}
 
@@ -730,7 +730,7 @@ set_time(struct efi_tm *tm)
 }
 
 static int
-var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
+var_get(efi_char *name, efi_guid_t *vendor, uint32_t *attrib,
     size_t *datasize, void *data)
 {
 	struct efirt_callinfo ec;
@@ -754,7 +754,7 @@ var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
 }
 
 static int
-var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
+var_nextname(size_t *namesize, efi_char *name, efi_guid_t *vendor)
 {
 	struct efirt_callinfo ec;
 	int error;
@@ -775,7 +775,7 @@ var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
 }
 
 static int
-var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
+var_set(efi_char *name, efi_guid_t *vendor, uint32_t attrib,
     size_t datasize, void *data)
 {
 	struct efirt_callinfo ec;

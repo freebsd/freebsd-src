@@ -879,7 +879,7 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 		if (nread != 0 && nread <= SMBBLOCKTRANS_MAX) {
 			*count = nread;
 			for (i = 0; i < nread; i++)
-				bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
+				buf[i] = bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
 		} else
 			error = SMB_EBUSERR;
 	}

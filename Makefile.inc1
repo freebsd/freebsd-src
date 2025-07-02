@@ -767,7 +767,6 @@ BSARGS= 	DESTDIR= \
 		BOOTSTRAPPING=${BOOTSTRAPPING_OSRELDATE} \
 		BWPHASE=${.TARGET:C,^_,,} \
 		-DNO_CPU_CFLAGS \
-		-DNO_LINT \
 		-DNO_PIC \
 		-DNO_SHARED \
 		MK_ASAN=no \
@@ -800,7 +799,6 @@ TMAKE=		\
 		BOOTSTRAPPING=${BOOTSTRAPPING_OSRELDATE} \
 		BWPHASE=${.TARGET:C,^_,,} \
 		-DNO_CPU_CFLAGS \
-		-DNO_LINT \
 		MK_ASAN=no \
 		MK_CTF=no \
 		MK_CLANG_EXTRAS=no \
@@ -838,7 +836,6 @@ KTMAKE=		${TIME_ENV} \
 		MAKEOBJDIRPREFIX= \
 		BOOTSTRAPPING=${BOOTSTRAPPING_OSRELDATE} \
 		-DNO_CPU_CFLAGS \
-		-DNO_LINT \
 		-DNO_PIC \
 		-DNO_SHARED \
 		MK_CTF=no \
@@ -1223,7 +1220,7 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
+	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_MAN=no \
 	    MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
 	    libraries
 everything: .PHONY
@@ -1938,7 +1935,6 @@ distributekernel distributekernel.debug: .PHONY
 .endif
 
 packagekernel: .PHONY
-.if defined(NO_ROOT)
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    ${TAR_CMD} cvf - --exclude '*.debug' \
@@ -1964,30 +1960,6 @@ packagekernel: .PHONY
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endif
 .endfor
-.endif
-.else
-.if !defined(NO_INSTALLKERNEL)
-	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    ${TAR_CMD} cvf - --exclude '*.debug' . | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
-.endif
-.if ${MK_DEBUG_FILES} != "no"
-	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    ${TAR_CMD} cvf - --include '*/*/*.debug' $$(eval find .) | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
-.endif
-.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-.for _kernel in ${BUILDKERNELS:[2..-1]}
-	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    ${TAR_CMD} cvf - --exclude '*.debug' . | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
-.if ${MK_DEBUG_FILES} != "no"
-	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    ${TAR_CMD} cvf - --include '*/*/*.debug' $$(eval find .) | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
-.endif
-.endfor
-.endif
 .endif
 
 stagekernel: .PHONY
@@ -3742,7 +3714,7 @@ XDEV_CPUTYPE?=${CPUTYPE}
 XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
-NOFUN=-DNO_FSCHG MK_HTML=no -DNO_LINT \
+NOFUN=-DNO_FSCHG MK_HTML=no \
 	MK_MAN=no MK_NLS=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WERROR=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \

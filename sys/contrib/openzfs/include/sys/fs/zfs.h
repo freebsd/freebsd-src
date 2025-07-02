@@ -197,6 +197,12 @@ typedef enum {
 	ZFS_PROP_VOLTHREADING,
 	ZFS_PROP_DIRECT,
 	ZFS_PROP_LONGNAME,
+	ZFS_PROP_DEFAULTUSERQUOTA,
+	ZFS_PROP_DEFAULTGROUPQUOTA,
+	ZFS_PROP_DEFAULTPROJECTQUOTA,
+	ZFS_PROP_DEFAULTUSEROBJQUOTA,
+	ZFS_PROP_DEFAULTGROUPOBJQUOTA,
+	ZFS_PROP_DEFAULTPROJECTOBJQUOTA,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -1613,6 +1619,15 @@ typedef enum zfs_ioc {
 	    ZFS_SPARSE)
 
 #endif
+
+typedef struct zfs_rewrite_args {
+	uint64_t	off;
+	uint64_t	len;
+	uint64_t	flags;
+	uint64_t	arg;
+} zfs_rewrite_args_t;
+
+#define	ZFS_IOC_REWRITE		_IOW(0x83, 3, zfs_rewrite_args_t)
 
 /*
  * ZFS-specific error codes used for returning descriptive errors

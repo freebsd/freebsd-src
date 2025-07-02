@@ -1,0 +1,49 @@
+krb5_c_init_state -  Initialize a new cipher state. 
+====================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_init_state(krb5_context context, const krb5_keyblock * key, krb5_keyusage usage, krb5_data * new_state)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Key
+
+	          **[in]** **usage** - Key usage (see KRB5_KEYUSAGE macros)
+
+	          **[out]** **new_state** - New cipher state
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,42 @@
+krb5_free_default_realm -  Free a default realm string returned by krb5_get_default_realm(). 
+=============================================================================================
+
+..
+
+.. c:function:: void krb5_free_default_realm(krb5_context context, char * lrealm)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **lrealm** - Realm to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef _ICP_QAT_FW_INIT_ADMIN_H_
 #define _ICP_QAT_FW_INIT_ADMIN_H_
 
@@ -43,6 +43,8 @@ enum icp_qat_fw_cnv_error_type {
 	CNV_ERR_TYPE_UNKNOWN_ERROR
 };
 
+#define ICP_QAT_FW_INIT_DISABLE_SAFE_DC_MODE_FLAG 0x02
+
 #define CNV_ERROR_TYPE_GET(latest_error)                                       \
 	({                                                                     \
 		__typeof__(latest_error) _lerror = latest_error;               \
@@ -69,7 +71,8 @@ struct icp_qat_fw_init_admin_req {
 		struct {
 			u64 resrvd2;
 			u16 ibuf_size_in_kb;
-			u16 resrvd3;
+			u8 fw_flags;
+			u8 resrvd3;
 			u32 resrvd4;
 		};
 		/* ICP_QAT_FW_CONSTANTS_CFG */
@@ -195,8 +198,8 @@ struct icp_qat_fw_init_admin_resp {
 enum icp_qat_fw_init_admin_init_flag { ICP_QAT_FW_INIT_FLAG_PKE_DISABLED = 0 };
 
 struct icp_qat_fw_init_admin_hb_cnt {
-	u16 resp_heartbeat_cnt;
 	u16 req_heartbeat_cnt;
+	u16 resp_heartbeat_cnt;
 };
 
 #define ICP_QAT_FW_COMN_HEARTBEAT_OK 0

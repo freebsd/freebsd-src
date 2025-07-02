@@ -106,48 +106,8 @@ nvme_print_ident_short(const struct nvme_controller_data *cdata,
 	sbuf_putc(sb, '>');
 }
 
-/* XXX need to do nvme admin opcodes too, but those aren't used yet by nda */
-static const char *
-nvme_opc2str[] = {
-	"FLUSH",
-	"WRITE",
-	"READ",
-	"RSVD-3",
-	"WRITE_UNCORRECTABLE",
-	"COMPARE",
-	"RSVD-6",
-	"RSVD-7",
-	"WRITE_ZEROES",
-	"DATASET_MANAGEMENT",
-	"RSVD-a",
-	"RSVD-b",
-	"RSVD-c",
-	"RESERVATION_REGISTER",
-	"RESERVATION_REPORT",
-	"RSVD-f",
-	"RSVD-10",
-	"RESERVATION_ACQUIRE",
-	"RSVD-12",
-	"RSVD-13",
-	"RSVD-14",
-	"RESERVATION_RELEASE",
-};
-
 const char *
-nvme_op_string(const struct nvme_command *cmd, int admin)
-{
-
-	if (admin) {
-		return "ADMIN";
-	} else {
-		if (cmd->opc >= nitems(nvme_opc2str))
-			return "UNKNOWN";
-		return nvme_opc2str[cmd->opc];
-	}
-}
-
-const char *
-nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
+nvme_command_string(struct ccb_nvmeio *nvmeio, char *cmd_string, size_t len)
 {
 	struct sbuf sb;
 	int error;
@@ -156,7 +116,7 @@ nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 		return ("");
 
 	sbuf_new(&sb, cmd_string, len, SBUF_FIXEDLEN);
-	nvme_cmd_sbuf(cmd, &sb);
+	nvme_command_sbuf(nvmeio, &sb);
 
 	error = sbuf_finish(&sb);
 	if (error != 0 &&
@@ -193,10 +153,21 @@ int
 nvme_command_sbuf(struct ccb_nvmeio *nvmeio, struct sbuf *sb)
 {
 
-	sbuf_printf(sb, "%s. NCB: ", nvme_op_string(&nvmeio->cmd,
-	    nvmeio->ccb_h.func_code == XPT_NVME_ADMIN));
+	nvme_opcode_sbuf(nvmeio->ccb_h.func_code == XPT_NVME_ADMIN,
+	    nvmeio->cmd.opc, sb);
+	sbuf_cat(sb, ". NCB: ");
 	nvme_cmd_sbuf(&nvmeio->cmd, sb);
 	return(0);
+}
+
+/*
+ * nvme_status_sbuf() returns 0 for success and -1 for failure.
+ */
+int
+nvme_status_sbuf(struct ccb_nvmeio *nvmeio, struct sbuf *sb)
+{
+	nvme_cpl_sbuf(&nvmeio->cpl, sb);
+	return (0);
 }
 
 #ifdef _KERNEL

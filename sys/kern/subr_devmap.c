@@ -37,6 +37,13 @@
 #include <vm/pmap.h>
 #include <machine/vmparam.h>
 
+#ifdef __arm__
+#include <machine/pte.h>
+#endif
+
+#ifdef __HAVE_STATIC_DEVMAP
+#define	DEVMAP_PADDR_NOTFOUND	((vm_paddr_t)(-1))
+
 static const struct devmap_entry *devmap_table;
 static boolean_t devmap_bootstrap_done = false;
 
@@ -49,12 +56,14 @@ static boolean_t devmap_bootstrap_done = false;
 #define	AKVA_DEVMAP_MAX_ENTRIES	32
 static struct devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
+#endif
 static vm_offset_t		akva_devmap_vaddr = DEVMAP_MAX_VADDR;
 
 #if defined(__aarch64__) || defined(__riscv)
 extern int early_boot;
 #endif
 
+#ifdef __HAVE_STATIC_DEVMAP
 /*
  * Print the contents of the static mapping table using the provided printf-like
  * output function (which will be either printf or db_printf).
@@ -133,17 +142,14 @@ devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 		devmap_register_table(akva_devmap_entries);
 
 	 /* Allocate virtual address space from the top of kva downwards. */
-#ifdef __arm__
 	/*
 	 * If the range being mapped is aligned and sized to 1MB boundaries then
 	 * also align the virtual address to the next-lower 1MB boundary so that
 	 * we end with a nice efficient section mapping.
 	 */
-	if ((pa & 0x000fffff) == 0 && (sz & 0x000fffff) == 0) {
+	if ((pa & L1_S_OFFSET) == 0 && (sz & L1_S_OFFSET) == 0) {
 		akva_devmap_vaddr = trunc_1mpage(akva_devmap_vaddr - sz);
-	} else
-#endif
-	{
+	} else {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - sz);
 	}
 	m = &akva_devmap_entries[akva_devmap_idx++];
@@ -181,12 +187,8 @@ devmap_bootstrap(void)
 		return;
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
-#if defined(__arm__)
 		pmap_preboot_map_attr(pd->pd_pa, pd->pd_va, pd->pd_size,
 		    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
-#elif defined(__aarch64__) || defined(__riscv)
-		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
-#endif
 	}
 }
 
@@ -194,7 +196,7 @@ devmap_bootstrap(void)
  * Look up the given physical address in the static mapping data and return the
  * corresponding virtual address, or NULL if not found.
  */
-void *
+static void *
 devmap_ptov(vm_paddr_t pa, vm_size_t size)
 {
 	const struct devmap_entry *pd;
@@ -214,7 +216,7 @@ devmap_ptov(vm_paddr_t pa, vm_size_t size)
  * Look up the given virtual address in the static mapping data and return the
  * corresponding physical address, or DEVMAP_PADDR_NOTFOUND if not found.
  */
-vm_paddr_t
+static vm_paddr_t
 devmap_vtop(void * vpva, vm_size_t size)
 {
 	const struct devmap_entry *pd;
@@ -231,6 +233,7 @@ devmap_vtop(void * vpva, vm_size_t size)
 
 	return (DEVMAP_PADDR_NOTFOUND);
 }
+#endif
 
 /*
  * Map a set of physical memory pages into the kernel virtual address space.
@@ -246,62 +249,40 @@ devmap_vtop(void * vpva, vm_size_t size)
 void *
 pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
-	vm_offset_t va, offset;
-	void * rva;
-
-	/* First look in the static mapping table. */
-	if ((rva = devmap_ptov(pa, size)) != NULL)
-		return (rva);
-
-	offset = pa & PAGE_MASK;
-	pa = trunc_page(pa);
-	size = round_page(size + offset);
-
-#if defined(__aarch64__) || defined(__riscv)
-	if (early_boot) {
-		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
-		va = akva_devmap_vaddr;
-		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE,
-		    ("Too many early devmap mappings"));
-	} else
-#endif
-#ifdef __aarch64__
-	if (size >= L2_SIZE && (pa & L2_OFFSET) == 0)
-		va = kva_alloc_aligned(size, L2_SIZE);
-	else if (size >= L3C_SIZE && (pa & L3C_OFFSET) == 0)
-		va = kva_alloc_aligned(size, L3C_SIZE);
-	else
-#endif
-		va = kva_alloc(size);
-	if (!va)
-		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-
-	pmap_kenter_device(va, size, pa);
-
-	return ((void *)(va + offset));
+	return (pmap_mapdev_attr(pa, size, VM_MEMATTR_DEVICE));
 }
 
-#if defined(__aarch64__) || defined(__riscv)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	vm_offset_t va, offset;
+#ifdef __HAVE_STATIC_DEVMAP
 	void * rva;
 
-	/* First look in the static mapping table. */
-	if ((rva = devmap_ptov(pa, size)) != NULL)
+	/*
+	 * First look in the static mapping table. These are all mapped
+	 * as device memory, so only use the devmap for VM_MEMATTR_DEVICE.
+	 */
+	if ((rva = devmap_ptov(pa, size)) != NULL) {
+		KASSERT(ma == VM_MEMATTR_DEVICE,
+		    ("%s: Non-device mapping for pa %jx (type %x)", __func__,
+		    (uintmax_t)pa, ma));
 		return (rva);
+	}
+#endif
 
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
 
+#ifdef PMAP_MAPDEV_EARLY_SIZE
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
-		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE)),
-		    ("Too many early devmap mappings 2"));
+		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE),
+		    ("%s: Too many early devmap mappings", __func__));
 	} else
+#endif
 #ifdef __aarch64__
 	if (size >= L2_SIZE && (pa & L2_OFFSET) == 0)
 		va = kva_alloc_aligned(size, L2_SIZE);
@@ -317,7 +298,6 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 
 	return ((void *)(va + offset));
 }
-#endif
 
 /*
  * Unmap device memory and free the kva space.
@@ -327,9 +307,11 @@ pmap_unmapdev(void *p, vm_size_t size)
 {
 	vm_offset_t offset, va;
 
+#ifdef __HAVE_STATIC_DEVMAP
 	/* Nothing to do if we find the mapping in the static table. */
 	if (devmap_vtop(p, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
+#endif
 
 	va = (vm_offset_t)p;
 	offset = va & PAGE_MASK;
@@ -341,6 +323,7 @@ pmap_unmapdev(void *p, vm_size_t size)
 }
 
 #ifdef DDB
+#ifdef __HAVE_STATIC_DEVMAP
 #include <ddb/ddb.h>
 
 DB_SHOW_COMMAND_FLAGS(devmap, db_show_devmap, DB_CMD_MEMSAFE)
@@ -348,4 +331,5 @@ DB_SHOW_COMMAND_FLAGS(devmap, db_show_devmap, DB_CMD_MEMSAFE)
 	devmap_dump_table(db_printf);
 }
 
+#endif
 #endif /* DDB */

@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-kvno-struct:
+
+krb5_kvno
+=========
+
+..
+.. c:type:: krb5_kvno
+..
+
+
+
+
+Declaration
+------------
+
+typedef unsigned int krb5_kvno
+
+

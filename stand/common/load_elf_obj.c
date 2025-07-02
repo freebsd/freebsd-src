@@ -157,10 +157,7 @@ __elfN(obj_loadfile)(char *filename, uint64_t dest,
 		goto oerr;
 	}
 
-	if (archsw.arch_loadaddr != NULL)
-		dest = archsw.arch_loadaddr(LOAD_ELF, hdr, dest);
-	else
-		dest = roundup(dest, PAGE_SIZE);
+	dest = md_align(dest);
 
 	/*
 	 * Ok, we think we should handle this.

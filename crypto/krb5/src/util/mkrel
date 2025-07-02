@@ -1,0 +1,221 @@
+#!/bin/sh
+set -e
+repository=git.mit.edu:/git/krb5.git
+dodoc=t
+dosrc=t
+checkout=t
+multitar=nil
+: ${TAR=tar}
+while test $# -gt 2; do
+	case $1 in
+	--srconly)
+		dodoc=nil;;
+	--doconly)
+		dosrc=nil;;
+	--multi*)
+		multitar=t;;
+	--repository)
+		shift; repository=$1;;
+	--nocheckout)
+		checkout=nil;;
+	esac
+	shift
+done
+if test $# -lt 2; then
+	echo "usage: $0 [opts] release-tag release-dir"
+	echo "	release-tag is relative to $repository/"
+	exit 1
+fi
+
+reltag=$1
+reldir=$2
+
+relmajor=0
+relminor=0
+relpatch=0
+relhead=
+# reltail=
+reldate=`date +%Y%m%d`
+
+case "$reldir" in
+*/*)
+	echo "release-dir may not contain slashes."
+	exit 1
+	;;
+*" "*|*"	"*)
+	echo "release-dir may  not contain whitespace."
+	exit 1
+	;;
+krb5-*.*.*-*)
+	release=`echo $reldir|sed -e 's/krb5-//'`
+	relhead=`echo $release|sed -e 's/-.*//'`
+	reltail=`echo $release|sed -e 's/.*-//'`
+	relmajor=`echo $relhead|awk -F. '{print $1}'`
+	relminor=`echo $relhead|awk -F. '{print $2}'`
+	relpatch=`echo $relhead|awk -F. '{print $3}'`
+	;;
+krb5-*.*.*)
+	release=`echo $reldir|sed -e 's/krb5-//'`
+	relmajor=`echo $release|awk -F. '{print $1}'`
+	relminor=`echo $release|awk -F. '{print $2}'`
+	relpatch=`echo $release|awk -F. '{print $3}'`
+	;;
+krb5-*.*-current)
+	release=`echo $reldir|sed -e 's/krb5-//'`
+	relhead=`echo $release|sed -e 's/-.*//'`
+	relmajor=`echo $relhead|awk -F. '{print $1}'`
+	relminor=`echo $relhead|awk -F. '{print $2}'`
+	release=${relhead}-$reldate
+	;;
+krb5-*.*-*)
+	release=`echo $reldir|sed -e 's/krb5-//'`
+	relhead=`echo $release|sed -e 's/-.*//'`
+	reltail=`echo $release|sed -e 's/.*-//'`
+	relmajor=`echo $relhead|awk -F. '{print $1}'`
+	relminor=`echo $relhead|awk -F. '{print $2}'`
+	;;
+krb5-*.*)
+	release=`echo $reldir|sed -e 's/krb5-//'`
+	relmajor=`echo $release|awk -F. '{print $1}'`
+	relminor=`echo $release|awk -F. '{print $2}'`
+	;;
+krb5-current)
+	release=current-$reldate
+	;;
+*)
+	release="$reldir"
+	;;
+esac
+
+echo "release=$release"
+echo "major=$relmajor minor=$relminor patch=$relpatch"
+
+# $release is used for send-pr
+# $reltag, $release, $reldate are used for brand.c currently
+# $relmajor, $relminor, $relpatch are used for patchlevel.h currently
+
+if test $checkout = t; then
+	echo "Checking out krb5 with tag $reltag into directory $reldir..."
+	git clone -q -n $repository $reldir
+	(cd $reldir && git checkout -q $reltag)
+fi
+
+#
+# $newstyle = t if patchlevel.h is the master version stamp file.  If
+# so, we don't edit it here.
+#
+if grep KRB5_RELDATE $reldir/src/patchlevel.h > /dev/null 2>&1; then
+	newstyle=t;
+else
+	newstyle=nil;
+fi
+
+if test $newstyle = t; then
+	echo "parsing new style patchlevel.h..."
+	eval `sed -n 's/#define \([A-Z0-9_]*\)[ \t]*\(.*\)/\1=\2/p' < $reldir/src/patchlevel.h`
+	if test "$KRB5_RELTAG" != $reltag && \
+		test "$KRB5_RELTAG" != `echo $reltag|sed 's%[^/]*/%%'` ; then
+		echo "WARNING: patchlevel.h '$KRB5_RELTAG' != $reltag"
+	fi
+	if test "$KRB5_MAJOR_RELEASE" != "$relmajor" || \
+		test "$KRB5_MINOR_RELEASE" != "$relminor" || \
+		test "$KRB5_PATCHLEVEL" != "$relpatch" || \
+		( test -n "$reltail" && \
+			test "$KRB5_RELTAIL" != "$reltail" ); then
+
+		echo "WARNING: patchlevel.h $KRB5_MAJOR_RELEASE.$KRB5_MINOR_RELEASE.$KRB5_PATCHLEVEL${KRB5_RELTAIL+-$KRB5_RELTAIL} != $relmajor.$relminor.$relpatch${reltail+-$reltail}"
+	fi
+else
+	echo "old style patchlevel.h"
+fi
+
+echo "Editing release-specific files..."
+
+if test $newstyle = t; then 
+	(cd $reldir/src && \
+		sed -e '/#[a-z 	]*KRB5_RELDATE/c\
+#define KRB5_RELDATE "'"$reldate"'"' patchlevel.h > patchlevel.h.new && \
+		mv patchlevel.h.new patchlevel.h)
+else
+
+	(cd $reldir/src/lib/krb5/krb && \
+		sed -e '/static/s%KRB5_BRAND:[^"]*"%'"KRB5_BRAND: $reltag $release $reldate"'"%' \
+			brand.c > brand.c.new && mv brand.c.new brand.c; \
+		rm -f brand.c.new)
+
+	(cd $reldir/src/util/send-pr && \
+		sed -e 's%RELEASE=.*%RELEASE='"krb5-$release"'%' Makefile.in \
+			> Makefile.in.new && mv Makefile.in.new Makefile.in)
+
+	(cd $reldir/src && \
+		cat > patchlevel.h <<EOF
+#define KRB5_MAJOR_RELEASE $relmajor
+#define KRB5_MINOR_RELEASE $relminor
+#define KRB5_PATCHLEVEL    $relpatch
+EOF
+	)
+fi
+
+if test $dosrc = t; then
+	if test -d $reldir/src/util/autoconf; then
+		echo "Building autoconf..."
+		(cd $reldir/src/util/autoconf
+			M4=gm4 ./configure
+			make)
+	fi
+	echo "Creating configure scripts..."
+	(cd $reldir/src; autoreconf -v)
+
+	if test -d $reldir/src/util/autoconf; then
+		echo "Cleaning src/util/autoconf..."
+		(cd $reldir/src/util/autoconf; make distclean)
+	fi
+fi
+
+echo "Nuking unneeded files..."
+find $reldir \( -name TODO -o -name todo -o -name .cvsignore \
+	-o -name .gitignore -o -name BADSYMS -o -name .Sanitize \
+	-o -name .rconf \) -print | xargs rm -f || true
+find $reldir -depth -type d \( -name autom4te.cache \
+	-o -name \$ac_config_fragdir \) -exec rm -rf {} \; || true
+rm -rf $reldir/.git || true
+
+if test $dodoc = t; then
+	echo "Building doc..."
+	(cd $reldir/src/doc && make -f Makefile.in \
+	    top_srcdir=.. srcdir=. SPHINX_ARGS=-W PYTHON=python3 html pdf)
+	(cd $reldir/src/doc && make -f Makefile.in \
+	    top_srcdir=.. srcdir=. SPHINX_ARGS=-W PYTHON=python3 clean)
+fi
+
+echo "Generating tarfiles..."
+GZIP=-9; export GZIP
+if test $multitar = t; then
+	if test -d $reldir/src/lib/des425; then
+		des425=$reldir/src/lib/des425
+	fi
+	if test -f $reldir/NOTICE;
+		then notice=$reldir/NOTICE
+	fi
+	if test $dosrc = t; then
+		$TAR --exclude $reldir/src/lib/crypto \
+			--exclude $reldir/src/lib/des425 \
+			--exclude $reldir/doc \
+			-zcf ${reldir}.src.tar.gz $reldir
+
+		$TAR zcf ${reldir}.crypto.tar.gz \
+			$reldir/src/lib/crypto \
+			$des425
+	fi
+	if test $dodoc = t; then
+		$TAR zcf ${reldir}.doc.tar.gz $reldir/doc $reldir/README $notice
+	fi
+	ls -l ${reldir}.*.tar.gz
+fi
+
+$TAR zcf ${reldir}.tar.gz $reldir
+ls -l ${reldir}.tar.gz
+
+echo "Done."
+
+exit 0

@@ -1,0 +1,39 @@
+krb5_k_free_key -  Decrement the reference count on a key and free it if it hits zero. 
+=======================================================================================
+
+..
+
+.. c:function:: void krb5_k_free_key(krb5_context context, krb5_key key)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **key**
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

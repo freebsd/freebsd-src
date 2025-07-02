@@ -1021,7 +1021,7 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func, uint64_t txgstart,
 			if (err == 0) {
 				spa_event_notify(spa, NULL, NULL,
 				    ESC_ZFS_ERRORSCRUB_RESUME);
-				return (ECANCELED);
+				return (0);
 			}
 			return (SET_ERROR(err));
 		}
@@ -1037,7 +1037,7 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func, uint64_t txgstart,
 		    POOL_SCRUB_NORMAL);
 		if (err == 0) {
 			spa_event_notify(spa, NULL, NULL, ESC_ZFS_SCRUB_RESUME);
-			return (SET_ERROR(ECANCELED));
+			return (0);
 		}
 		return (SET_ERROR(err));
 	}
@@ -1132,10 +1132,6 @@ dsl_scan_done(dsl_scan_t *scn, boolean_t complete, dmu_tx_t *tx)
 		}
 	}
 
-	scn->scn_phys.scn_state = complete ? DSS_FINISHED : DSS_CANCELED;
-
-	spa_notify_waiters(spa);
-
 	if (dsl_scan_restarting(scn, tx)) {
 		spa_history_log_internal(spa, "scan aborted, restarting", tx,
 		    "errors=%llu", (u_longlong_t)spa_approx_errlog_size(spa));
@@ -1194,6 +1190,9 @@ dsl_scan_done(dsl_scan_t *scn, boolean_t complete, dmu_tx_t *tx)
 		 * Don't clear flag until after vdev_dtl_reassess to ensure that
 		 * DTL_MISSING will get updated when possible.
 		 */
+		scn->scn_phys.scn_state = complete ? DSS_FINISHED :
+		    DSS_CANCELED;
+		scn->scn_phys.scn_end_time = gethrestime_sec();
 		spa->spa_scrub_started = B_FALSE;
 
 		/*
@@ -1223,9 +1222,13 @@ dsl_scan_done(dsl_scan_t *scn, boolean_t complete, dmu_tx_t *tx)
 		/* Clear recent error events (i.e. duplicate events tracking) */
 		if (complete)
 			zfs_ereport_clear(spa, NULL);
+	} else {
+		scn->scn_phys.scn_state = complete ? DSS_FINISHED :
+		    DSS_CANCELED;
+		scn->scn_phys.scn_end_time = gethrestime_sec();
 	}
 
-	scn->scn_phys.scn_end_time = gethrestime_sec();
+	spa_notify_waiters(spa);
 
 	if (spa->spa_errata == ZPOOL_ERRATA_ZOL_2094_SCRUB)
 		spa->spa_errata = 0;
@@ -1434,7 +1437,7 @@ dsl_scan_restart_resilver(dsl_pool_t *dp, uint64_t txg)
 	if (txg == 0) {
 		dmu_tx_t *tx;
 		tx = dmu_tx_create_dd(dp->dp_mos_dir);
-		VERIFY(0 == dmu_tx_assign(tx, DMU_TX_WAIT));
+		VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 
 		txg = dmu_tx_get_txg(tx);
 		dp->dp_scan->scn_restart_txg = txg;

@@ -53,6 +53,7 @@ CFLAGS+=-D_PTHREAD_FORCED_UNWIND
 .endif
 
 LDFLAGS+=-Wl,-znodelete
+LDFLAGS+=-Wl,-zinitfirst
 LDFLAGS+=-Wl,--auxiliary,libsys.so.7
 
 VERSION_DEF=${SRCTOP}/lib/libc/Versions.def

@@ -1,0 +1,43 @@
+mydir=kadmin$(S)dbutil
+BUILDTOP=$(REL)..$(S)..
+LOCALINCLUDES = -I.
+KDB_DEP_LIB=$(DL_LIB) $(THREAD_LINKOPTS)
+
+PROG = kdb5_util
+
+SRCS = kdb5_util.c kdb5_create.c kadm5_create.c kdb5_destroy.c \
+	   kdb5_stash.c import_err.c strtok.c dump.c ovload.c kdb5_mkey.c \
+	   tabdump.c tdumputil.c
+EXTRADEPSRCS = t_tdumputil.c
+
+OBJS = kdb5_util.o kdb5_create.o kadm5_create.o kdb5_destroy.o \
+	   kdb5_stash.o import_err.o strtok.o dump.o ovload.o kdb5_mkey.o \
+	   tabdump.o tdumputil.o
+
+GETDATE = ../cli/getdate.o
+
+all: $(PROG)
+
+$(PROG): $(OBJS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS) $(GETDATE)
+	$(CC_LINK) -o $(PROG) $(OBJS) $(GETDATE) $(KADMSRV_LIBS) $(KDB_DEP_LIB) $(KRB5_BASE_LIBS)
+
+import_err.c import_err.h: $(srcdir)/import_err.et
+
+$(OBJS): import_err.h
+
+install:
+	$(INSTALL_PROGRAM) $(PROG) ${DESTDIR}$(ADMIN_BINDIR)/$(PROG)
+
+clean:
+	$(RM) $(PROG) $(OBJS) import_err.c import_err.h
+	$(RM) t_tdumputil.o t_tdumputil
+
+T_TDUMPUTIL_OBJS = t_tdumputil.o tdumputil.o
+
+t_tdumputil: $(T_TDUMPUTIL_OBJS) $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o $@ $(T_TDUMPUTIL_OBJS) $(SUPPORT_LIB)
+
+depend: import_err.h
+
+check-pytests: t_tdumputil
+	$(RUNPYTEST) $(srcdir)/t_tdumputil.py $(PYTESTFLAGS)

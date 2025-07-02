@@ -1,0 +1,1073 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kdc.conf &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="kadm5.acl" href="kadm5_acl.html" />
+    <link rel="prev" title="krb5.conf" href="krb5_conf.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="krb5_conf.html" title="krb5.conf"
+            accesskey="P">previous</a> |
+        <a href="kadm5_acl.html" title="kadm5.acl"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdc.conf">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kdc-conf">
+<span id="kdc-conf-5"></span><h1>kdc.conf<a class="headerlink" href="#kdc-conf" title="Permalink to this headline">¶</a></h1>
+<p>The kdc.conf file supplements <a class="reference internal" href="krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> for programs which
+are typically only used on a KDC, such as the <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> and
+<a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemons and the <a class="reference internal" href="../admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> program.
+Relations documented here may also be specified in krb5.conf; for the
+KDC programs mentioned, krb5.conf and kdc.conf will be merged into a
+single configuration profile.</p>
+<p>Normally, the kdc.conf file is found in the KDC state directory,
+<a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code>.  You can override the default location by setting the
+environment variable <strong>KRB5_KDC_PROFILE</strong>.</p>
+<p>Please note that you need to restart the KDC daemon for any configuration
+changes to take effect.</p>
+<section id="structure">
+<h2>Structure<a class="headerlink" href="#structure" title="Permalink to this headline">¶</a></h2>
+<p>The kdc.conf file is set up in the same format as the
+<a class="reference internal" href="krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> file.</p>
+</section>
+<section id="sections">
+<h2>Sections<a class="headerlink" href="#sections" title="Permalink to this headline">¶</a></h2>
+<p>The kdc.conf file may contain the following sections:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 71%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kdcdefaults"><span class="std std-ref">[kdcdefaults]</span></a></p></td>
+<td><p>Default values for KDC behavior</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#kdc-realms"><span class="std std-ref">[realms]</span></a></p></td>
+<td><p>Realm-specific database configuration and settings</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#dbdefaults"><span class="std std-ref">[dbdefaults]</span></a></p></td>
+<td><p>Default database settings</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#dbmodules"><span class="std std-ref">[dbmodules]</span></a></p></td>
+<td><p>Per-database settings</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#logging"><span class="std std-ref">[logging]</span></a></p></td>
+<td><p>Controls how Kerberos daemons perform logging</p></td>
+</tr>
+</tbody>
+</table>
+<section id="kdcdefaults">
+<span id="id1"></span><h3>[kdcdefaults]<a class="headerlink" href="#kdcdefaults" title="Permalink to this headline">¶</a></h3>
+<p>Some relations in the [kdcdefaults] section specify default values for
+realm variables, to be used if the [realms] subsection does not
+contain a relation for the tag.  See the <a class="reference internal" href="#kdc-realms"><span class="std std-ref">[realms]</span></a> section for
+the definitions of these relations.</p>
+<ul class="simple">
+<li><p><strong>host_based_services</strong></p></li>
+<li><p><strong>kdc_listen</strong></p></li>
+<li><p><strong>kdc_ports</strong></p></li>
+<li><p><strong>kdc_tcp_listen</strong></p></li>
+<li><p><strong>kdc_tcp_ports</strong></p></li>
+<li><p><strong>no_host_referral</strong></p></li>
+<li><p><strong>restrict_anonymous_to_tgt</strong></p></li>
+</ul>
+<p>The following [kdcdefaults] variables have no per-realm equivalent:</p>
+<dl class="simple">
+<dt><strong>kdc_max_dgram_reply_size</strong></dt><dd><p>Specifies the maximum packet size that can be sent over UDP.  The
+default value is 4096 bytes.</p>
+</dd>
+<dt><strong>kdc_tcp_listen_backlog</strong></dt><dd><p>(Integer.)  Set the size of the listen queue length for the KDC
+daemon.  The value may be limited by OS settings.  The default
+value is 5.</p>
+</dd>
+<dt><strong>spake_preauth_kdc_challenge</strong></dt><dd><p>(String.)  Specifies the group for a SPAKE optimistic challenge.
+See the <strong>spake_preauth_groups</strong> variable in <a class="reference internal" href="krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>
+for possible values.  The default is not to issue an optimistic
+challenge.  (New in release 1.17.)</p>
+</dd>
+</dl>
+</section>
+<section id="realms">
+<span id="kdc-realms"></span><h3>[realms]<a class="headerlink" href="#realms" title="Permalink to this headline">¶</a></h3>
+<p>Each tag in the [realms] section is the name of a Kerberos realm.  The
+value of the tag is a subsection where the relations define KDC
+parameters for that particular realm.  The following example shows how
+to define one parameter for the ATHENA.MIT.EDU realm:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">realms</span><span class="p">]</span>
+    <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">max_renewable_life</span> <span class="o">=</span> <span class="mi">7</span><span class="n">d</span> <span class="mi">0</span><span class="n">h</span> <span class="mi">0</span><span class="n">m</span> <span class="mi">0</span><span class="n">s</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>The following tags may be specified in a [realms] subsection:</p>
+<dl>
+<dt><strong>acl_file</strong></dt><dd><p>(String.)  Location of the access control list file that
+<a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> uses to determine which principals are allowed
+which permissions on the Kerberos database.  To operate without an
+ACL file, set this relation to the empty string with <code class="docutils literal notranslate"><span class="pre">acl_file</span> <span class="pre">=</span>
+<span class="pre">&quot;&quot;</span></code>.  The default value is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/kadm5.acl</span></code>.  For more
+information on Kerberos ACL file see <a class="reference internal" href="kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a>.</p>
+</dd>
+<dt><strong>database_module</strong></dt><dd><p>(String.)  This relation indicates the name of the configuration
+section under <a class="reference internal" href="#dbmodules"><span class="std std-ref">[dbmodules]</span></a> for database-specific parameters
+used by the loadable database library.  The default value is the
+realm name.  If this configuration section does not exist, default
+values will be used for all database parameters.</p>
+</dd>
+<dt><strong>database_name</strong></dt><dd><p>(String, deprecated.)  This relation specifies the location of the
+Kerberos database for this realm, if the DB2 module is being used
+and the <a class="reference internal" href="#dbmodules"><span class="std std-ref">[dbmodules]</span></a> configuration section does not specify a
+database name.  The default value is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/principal</span></code>.</p>
+</dd>
+<dt><strong>default_principal_expiration</strong></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#abstime"><span class="std std-ref">Absolute time</span></a> string.)  Specifies the default expiration date of
+principals created in this realm.  The default value is 0, which
+means no expiration date.</p>
+</dd>
+<dt><strong>default_principal_flags</strong></dt><dd><p>(Flag string.)  Specifies the default attributes of principals
+created in this realm.  The format for this string is a
+comma-separated list of flags, with ‘+’ before each flag that
+should be enabled and ‘-’ before each flag that should be
+disabled.  The <strong>postdateable</strong>, <strong>forwardable</strong>, <strong>tgt-based</strong>,
+<strong>renewable</strong>, <strong>proxiable</strong>, <strong>dup-skey</strong>, <strong>allow-tickets</strong>, and
+<strong>service</strong> flags default to enabled.</p>
+<p>There are a number of possible flags:</p>
+<dl class="simple">
+<dt><strong>allow-tickets</strong></dt><dd><p>Enabling this flag means that the KDC will issue tickets for
+this principal.  Disabling this flag essentially deactivates
+the principal within this realm.</p>
+</dd>
+<dt><strong>dup-skey</strong></dt><dd><p>Enabling this flag allows the KDC to issue user-to-user
+service tickets for this principal.</p>
+</dd>
+<dt><strong>forwardable</strong></dt><dd><p>Enabling this flag allows the principal to obtain forwardable
+tickets.</p>
+</dd>
+<dt><strong>hwauth</strong></dt><dd><p>If this flag is enabled, then the principal is required to
+preauthenticate using a hardware device before receiving any
+tickets.</p>
+</dd>
+<dt><strong>no-auth-data-required</strong></dt><dd><p>Enabling this flag prevents PAC or AD-SIGNEDPATH data from
+being added to service tickets for the principal.</p>
+</dd>
+<dt><strong>ok-as-delegate</strong></dt><dd><p>If this flag is enabled, it hints the client that credentials
+can and should be delegated when authenticating to the
+service.</p>
+</dd>
+<dt><strong>ok-to-auth-as-delegate</strong></dt><dd><p>Enabling this flag allows the principal to use S4USelf tickets.</p>
+</dd>
+<dt><strong>postdateable</strong></dt><dd><p>Enabling this flag allows the principal to obtain postdateable
+tickets.</p>
+</dd>
+<dt><strong>preauth</strong></dt><dd><p>If this flag is enabled on a client principal, then that
+principal is required to preauthenticate to the KDC before
+receiving any tickets.  On a service principal, enabling this
+flag means that service tickets for this principal will only
+be issued to clients with a TGT that has the preauthenticated
+bit set.</p>
+</dd>
+<dt><strong>proxiable</strong></dt><dd><p>Enabling this flag allows the principal to obtain proxy
+tickets.</p>
+</dd>
+<dt><strong>pwchange</strong></dt><dd><p>Enabling this flag forces a password change for this
+principal.</p>
+</dd>
+<dt><strong>pwservice</strong></dt><dd><p>If this flag is enabled, it marks this principal as a password
+change service.  This should only be used in special cases,
+for example, if a user’s password has expired, then the user
+has to get tickets for that principal without going through
+the normal password authentication in order to be able to
+change the password.</p>
+</dd>
+<dt><strong>renewable</strong></dt><dd><p>Enabling this flag allows the principal to obtain renewable
+tickets.</p>
+</dd>
+<dt><strong>service</strong></dt><dd><p>Enabling this flag allows the the KDC to issue service tickets
+for this principal.  In release 1.17 and later, user-to-user
+service tickets are still allowed if the <strong>dup-skey</strong> flag is
+set.</p>
+</dd>
+<dt><strong>tgt-based</strong></dt><dd><p>Enabling this flag allows a principal to obtain tickets based
+on a ticket-granting-ticket, rather than repeating the
+authentication process that was used to obtain the TGT.</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>dict_file</strong></dt><dd><p>(String.)  Location of the dictionary file containing strings that
+are not allowed as passwords.  The file should contain one string
+per line, with no additional whitespace.  If none is specified or
+if there is no policy assigned to the principal, no dictionary
+checks of passwords will be performed.</p>
+</dd>
+<dt><strong>disable_pac</strong></dt><dd><p>(Boolean value.)  If true, the KDC will not issue PACs for this
+realm, and S4U2Self and S4U2Proxy operations will be disabled.
+The default is false, which will permit the KDC to issue PACs.
+New in release 1.20.</p>
+</dd>
+<dt><strong>encrypted_challenge_indicator</strong></dt><dd><p>(String.)  Specifies the authentication indicator value that the KDC
+asserts into tickets obtained using FAST encrypted challenge
+pre-authentication.  New in 1.16.</p>
+</dd>
+<dt><strong>host_based_services</strong></dt><dd><p>(Whitespace- or comma-separated list.)  Lists services which will
+get host-based referral processing even if the server principal is
+not marked as host-based by the client.</p>
+</dd>
+<dt><strong>iprop_enable</strong></dt><dd><p>(Boolean value.)  Specifies whether incremental database
+propagation is enabled.  The default value is false.</p>
+</dd>
+<dt><strong>iprop_ulogsize</strong></dt><dd><p>(Integer.)  Specifies the maximum number of log entries to be
+retained for incremental propagation.  The default value is 1000.
+Prior to release 1.11, the maximum value was 2500.  New in release
+1.19.</p>
+</dd>
+<dt><strong>iprop_master_ulogsize</strong></dt><dd><p>The name for <strong>iprop_ulogsize</strong> prior to release 1.19.  Its value is
+used as a fallback if <strong>iprop_ulogsize</strong> is not specified.</p>
+</dd>
+<dt><strong>iprop_replica_poll</strong></dt><dd><p>(Delta time string.)  Specifies how often the replica KDC polls
+for new updates from the primary.  The default value is <code class="docutils literal notranslate"><span class="pre">2m</span></code>
+(that is, two minutes).  New in release 1.17.</p>
+</dd>
+<dt><strong>iprop_slave_poll</strong></dt><dd><p>(Delta time string.)  The name for <strong>iprop_replica_poll</strong> prior to
+release 1.17.  Its value is used as a fallback if
+<strong>iprop_replica_poll</strong> is not specified.</p>
+</dd>
+<dt><strong>iprop_listen</strong></dt><dd><p>(Whitespace- or comma-separated list.)  Specifies the iprop RPC
+listening addresses and/or ports for the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemon.
+Each entry may be an interface address, a port number, or an
+address and port number separated by a colon.  If the address
+contains colons, enclose it in square brackets.  If no address is
+specified, the wildcard address is used.  If kadmind fails to bind
+to any of the specified addresses, it will fail to start.  The
+default (when <strong>iprop_enable</strong> is true) is to bind to the wildcard
+address at the port specified in <strong>iprop_port</strong>.  New in release
+1.15.</p>
+</dd>
+<dt><strong>iprop_port</strong></dt><dd><p>(Port number.)  Specifies the port number to be used for
+incremental propagation.  When <strong>iprop_enable</strong> is true, this
+relation is required in the replica KDC configuration file, and
+this relation or <strong>iprop_listen</strong> is required in the primary
+configuration file, as there is no default port number.  Port
+numbers specified in <strong>iprop_listen</strong> entries will override this
+port number for the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemon.</p>
+</dd>
+<dt><strong>iprop_resync_timeout</strong></dt><dd><p>(Delta time string.)  Specifies the amount of time to wait for a
+full propagation to complete.  This is optional in configuration
+files, and is used by replica KDCs only.  The default value is 5
+minutes (<code class="docutils literal notranslate"><span class="pre">5m</span></code>).  New in release 1.11.</p>
+</dd>
+<dt><strong>iprop_logfile</strong></dt><dd><p>(File name.)  Specifies where the update log file for the realm
+database is to be stored.  The default is to use the
+<strong>database_name</strong> entry from the realms section of the krb5 config
+file, with <code class="docutils literal notranslate"><span class="pre">.ulog</span></code> appended.  (NOTE: If <strong>database_name</strong> isn’t
+specified in the realms section, perhaps because the LDAP database
+back end is being used, or the file name is specified in the
+[dbmodules] section, then the hard-coded default for
+<strong>database_name</strong> is used.  Determination of the <strong>iprop_logfile</strong>
+default value will not use values from the [dbmodules] section.)</p>
+</dd>
+<dt><strong>kadmind_listen</strong></dt><dd><p>(Whitespace- or comma-separated list.)  Specifies the kadmin RPC
+listening addresses and/or ports for the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemon.
+Each entry may be an interface address, a port number, or an
+address and port number separated by a colon.  If the address
+contains colons, enclose it in square brackets.  If no address is
+specified, the wildcard address is used.  If kadmind fails to bind
+to any of the specified addresses, it will fail to start.  The
+default is to bind to the wildcard address at the port specified
+in <strong>kadmind_port</strong>, or the standard kadmin port (749).  New in
+release 1.15.</p>
+</dd>
+<dt><strong>kadmind_port</strong></dt><dd><p>(Port number.)  Specifies the port on which the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a>
+daemon is to listen for this realm.  Port numbers specified in
+<strong>kadmind_listen</strong> entries will override this port number.  The
+assigned port for kadmind is 749, which is used by default.</p>
+</dd>
+<dt><strong>key_stash_file</strong></dt><dd><p>(String.)  Specifies the location where the master key has been
+stored (via kdb5_util stash).  The default is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/.k5.REALM</span></code>, where <em>REALM</em> is the Kerberos realm.</p>
+</dd>
+<dt><strong>kdc_listen</strong></dt><dd><p>(Whitespace- or comma-separated list.)  Specifies the UDP
+listening addresses and/or ports for the <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> daemon.
+Each entry may be an interface address, a port number, or an
+address and port number separated by a colon.  If the address
+contains colons, enclose it in square brackets.  If no address is
+specified, the wildcard address is used.  If no port is specified,
+the standard port (88) is used.  If the KDC daemon fails to bind
+to any of the specified addresses, it will fail to start.  The
+default is to bind to the wildcard address on the standard port.
+New in release 1.15.</p>
+</dd>
+<dt><strong>kdc_ports</strong></dt><dd><p>(Whitespace- or comma-separated list, deprecated.)  Prior to
+release 1.15, this relation lists the ports for the
+<a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> daemon to listen on for UDP requests.  In
+release 1.15 and later, it has the same meaning as <strong>kdc_listen</strong>
+if that relation is not defined.</p>
+</dd>
+<dt><strong>kdc_tcp_listen</strong></dt><dd><p>(Whitespace- or comma-separated list.)  Specifies the TCP
+listening addresses and/or ports for the <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> daemon.
+Each entry may be an interface address, a port number, or an
+address and port number separated by a colon.  If the address
+contains colons, enclose it in square brackets.  If no address is
+specified, the wildcard address is used.  If no port is specified,
+the standard port (88) is used.  To disable listening on TCP, set
+this relation to the empty string with <code class="docutils literal notranslate"><span class="pre">kdc_tcp_listen</span> <span class="pre">=</span> <span class="pre">&quot;&quot;</span></code>.
+If the KDC daemon fails to bind to any of the specified addresses,
+it will fail to start.  The default is to bind to the wildcard
+address on the standard port.  New in release 1.15.</p>
+</dd>
+<dt><strong>kdc_tcp_ports</strong></dt><dd><p>(Whitespace- or comma-separated list, deprecated.)  Prior to
+release 1.15, this relation lists the ports for the
+<a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> daemon to listen on for UDP requests.  In
+release 1.15 and later, it has the same meaning as
+<strong>kdc_tcp_listen</strong> if that relation is not defined.</p>
+</dd>
+<dt><strong>kpasswd_listen</strong></dt><dd><p>(Comma-separated list.)  Specifies the kpasswd listening addresses
+and/or ports for the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemon.  Each entry may be
+an interface address, a port number, or an address and port number
+separated by a colon.  If the address contains colons, enclose it
+in square brackets.  If no address is specified, the wildcard
+address is used.  If kadmind fails to bind to any of the specified
+addresses, it will fail to start.  The default is to bind to the
+wildcard address at the port specified in <strong>kpasswd_port</strong>, or the
+standard kpasswd port (464).  New in release 1.15.</p>
+</dd>
+<dt><strong>kpasswd_port</strong></dt><dd><p>(Port number.)  Specifies the port on which the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a>
+daemon is to listen for password change requests for this realm.
+Port numbers specified in <strong>kpasswd_listen</strong> entries will override
+this port number.  The assigned port for password change requests
+is 464, which is used by default.</p>
+</dd>
+<dt><strong>master_key_name</strong></dt><dd><p>(String.)  Specifies the name of the principal associated with the
+master key.  The default is <code class="docutils literal notranslate"><span class="pre">K/M</span></code>.</p>
+</dd>
+<dt><strong>master_key_type</strong></dt><dd><p>(Key type string.)  Specifies the master key’s key type.  The
+default value for this is <code class="docutils literal notranslate"><span class="pre">aes256-cts-hmac-sha1-96</span></code>.  For a list of all possible
+values, see <a class="reference internal" href="#encryption-types"><span class="std std-ref">Encryption types</span></a>.</p>
+</dd>
+<dt><strong>max_life</strong></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Specifies the maximum time period for
+which a ticket may be valid in this realm.  The default value is
+24 hours.</p>
+</dd>
+<dt><strong>max_renewable_life</strong></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Specifies the maximum time period
+during which a valid ticket may be renewed in this realm.
+The default value is 0.</p>
+</dd>
+<dt><strong>no_host_referral</strong></dt><dd><p>(Whitespace- or comma-separated list.)  Lists services to block
+from getting host-based referral processing, even if the client
+marks the server principal as host-based or the service is also
+listed in <strong>host_based_services</strong>.  <code class="docutils literal notranslate"><span class="pre">no_host_referral</span> <span class="pre">=</span> <span class="pre">*</span></code> will
+disable referral processing altogether.</p>
+</dd>
+<dt><strong>reject_bad_transit</strong></dt><dd><p>(Boolean value.)  If set to true, the KDC will check the list of
+transited realms for cross-realm tickets against the transit path
+computed from the realm names and the capaths section of its
+<a class="reference internal" href="krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> file; if the path in the ticket to be issued
+contains any realms not in the computed path, the ticket will not
+be issued, and an error will be returned to the client instead.
+If this value is set to false, such tickets will be issued
+anyways, and it will be left up to the application server to
+validate the realm transit path.</p>
+<p>If the disable-transited-check flag is set in the incoming
+request, this check is not performed at all.  Having the
+<strong>reject_bad_transit</strong> option will cause such ticket requests to
+be rejected always.</p>
+<p>This transit path checking and config file option currently apply
+only to TGS requests.</p>
+<p>The default value is true.</p>
+</dd>
+<dt><strong>restrict_anonymous_to_tgt</strong></dt><dd><p>(Boolean value.)  If set to true, the KDC will reject ticket
+requests from anonymous principals to service principals other
+than the realm’s ticket-granting service.  This option allows
+anonymous PKINIT to be enabled for use as FAST armor tickets
+without allowing anonymous authentication to services.  The
+default value is false.  New in release 1.9.</p>
+</dd>
+<dt><strong>spake_preauth_indicator</strong></dt><dd><p>(String.)  Specifies an authentication indicator value that the
+KDC asserts into tickets obtained using SPAKE pre-authentication.
+The default is not to add any indicators.  This option may be
+specified multiple times.  New in release 1.17.</p>
+</dd>
+<dt><strong>supported_enctypes</strong></dt><dd><p>(List of <em>key</em>:<em>salt</em> strings.)  Specifies the default key/salt
+combinations of principals for this realm.  Any principals created
+through <a class="reference internal" href="../admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> will have keys of these types.  The
+default value for this tag is <code class="docutils literal notranslate"><span class="pre">aes256-cts-hmac-sha1-96:normal</span> <span class="pre">aes128-cts-hmac-sha1-96:normal</span></code>.  For lists of
+possible values, see <a class="reference internal" href="#keysalt-lists"><span class="std std-ref">Keysalt lists</span></a>.</p>
+</dd>
+</dl>
+</section>
+<section id="dbdefaults">
+<span id="id2"></span><h3>[dbdefaults]<a class="headerlink" href="#dbdefaults" title="Permalink to this headline">¶</a></h3>
+<p>The [dbdefaults] section specifies default values for some database
+parameters, to be used if the [dbmodules] subsection does not contain
+a relation for the tag.  See the <a class="reference internal" href="#dbmodules"><span class="std std-ref">[dbmodules]</span></a> section for the
+definitions of these relations.</p>
+<ul class="simple">
+<li><p><strong>ldap_kerberos_container_dn</strong></p></li>
+<li><p><strong>ldap_kdc_dn</strong></p></li>
+<li><p><strong>ldap_kdc_sasl_authcid</strong></p></li>
+<li><p><strong>ldap_kdc_sasl_authzid</strong></p></li>
+<li><p><strong>ldap_kdc_sasl_mech</strong></p></li>
+<li><p><strong>ldap_kdc_sasl_realm</strong></p></li>
+<li><p><strong>ldap_kadmind_dn</strong></p></li>
+<li><p><strong>ldap_kadmind_sasl_authcid</strong></p></li>
+<li><p><strong>ldap_kadmind_sasl_authzid</strong></p></li>
+<li><p><strong>ldap_kadmind_sasl_mech</strong></p></li>
+<li><p><strong>ldap_kadmind_sasl_realm</strong></p></li>
+<li><p><strong>ldap_service_password_file</strong></p></li>
+<li><p><strong>ldap_conns_per_server</strong></p></li>
+</ul>
+</section>
+<section id="dbmodules">
+<span id="id3"></span><h3>[dbmodules]<a class="headerlink" href="#dbmodules" title="Permalink to this headline">¶</a></h3>
+<p>The [dbmodules] section contains parameters used by the KDC database
+library and database modules.  Each tag in the [dbmodules] section is
+the name of a Kerberos realm or a section name specified by a realm’s
+<strong>database_module</strong> parameter.  The following example shows how to
+define one database parameter for the ATHENA.MIT.EDU realm:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
+    <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">disable_last_success</span> <span class="o">=</span> <span class="n">true</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>The following tags may be specified in a [dbmodules] subsection:</p>
+<dl class="simple">
+<dt><strong>database_name</strong></dt><dd><p>This DB2-specific tag indicates the location of the database in
+the filesystem.  The default is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/principal</span></code>.</p>
+</dd>
+<dt><strong>db_library</strong></dt><dd><p>This tag indicates the name of the loadable database module.  The
+value should be <code class="docutils literal notranslate"><span class="pre">db2</span></code> for the DB2 module, <code class="docutils literal notranslate"><span class="pre">klmdb</span></code> for the LMDB
+module, or <code class="docutils literal notranslate"><span class="pre">kldap</span></code> for the LDAP module.</p>
+</dd>
+<dt><strong>disable_last_success</strong></dt><dd><p>If set to <code class="docutils literal notranslate"><span class="pre">true</span></code>, suppresses KDC updates to the “Last successful
+authentication” field of principal entries requiring
+preauthentication.  Setting this flag may improve performance.
+(Principal entries which do not require preauthentication never
+update the “Last successful authentication” field.).  First
+introduced in release 1.9.</p>
+</dd>
+<dt><strong>disable_lockout</strong></dt><dd><p>If set to <code class="docutils literal notranslate"><span class="pre">true</span></code>, suppresses KDC updates to the “Last failed
+authentication” and “Failed password attempts” fields of principal
+entries requiring preauthentication.  Setting this flag may
+improve performance, but also disables account lockout.  First
+introduced in release 1.9.</p>
+</dd>
+<dt><strong>ldap_conns_per_server</strong></dt><dd><p>This LDAP-specific tag indicates the number of connections to be
+maintained per LDAP server.</p>
+</dd>
+<dt><strong>ldap_kdc_dn</strong> and <strong>ldap_kadmind_dn</strong></dt><dd><p>These LDAP-specific tags indicate the default DN for binding to
+the LDAP server.  The <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> daemon uses
+<strong>ldap_kdc_dn</strong>, while the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemon and other
+administrative programs use <strong>ldap_kadmind_dn</strong>.  The kadmind DN
+must have the rights to read and write the Kerberos data in the
+LDAP database.  The KDC DN must have the same rights, unless
+<strong>disable_lockout</strong> and <strong>disable_last_success</strong> are true, in
+which case it only needs to have rights to read the Kerberos data.
+These tags are ignored if a SASL mechanism is set with
+<strong>ldap_kdc_sasl_mech</strong> or <strong>ldap_kadmind_sasl_mech</strong>.</p>
+</dd>
+<dt><strong>ldap_kdc_sasl_mech</strong> and <strong>ldap_kadmind_sasl_mech</strong></dt><dd><p>These LDAP-specific tags specify the SASL mechanism (such as
+<code class="docutils literal notranslate"><span class="pre">EXTERNAL</span></code>) to use when binding to the LDAP server.  New in
+release 1.13.</p>
+</dd>
+<dt><strong>ldap_kdc_sasl_authcid</strong> and <strong>ldap_kadmind_sasl_authcid</strong></dt><dd><p>These LDAP-specific tags specify the SASL authentication identity
+to use when binding to the LDAP server.  Not all SASL mechanisms
+require an authentication identity.  If the SASL mechanism
+requires a secret (such as the password for <code class="docutils literal notranslate"><span class="pre">DIGEST-MD5</span></code>), these
+tags also determine the name within the
+<strong>ldap_service_password_file</strong> where the secret is stashed.  New
+in release 1.13.</p>
+</dd>
+<dt><strong>ldap_kdc_sasl_authzid</strong> and <strong>ldap_kadmind_sasl_authzid</strong></dt><dd><p>These LDAP-specific tags specify the SASL authorization identity
+to use when binding to the LDAP server.  In most circumstances
+they do not need to be specified.  New in release 1.13.</p>
+</dd>
+<dt><strong>ldap_kdc_sasl_realm</strong> and <strong>ldap_kadmind_sasl_realm</strong></dt><dd><p>These LDAP-specific tags specify the SASL realm to use when
+binding to the LDAP server.  In most circumstances they do not
+need to be set.  New in release 1.13.</p>
+</dd>
+<dt><strong>ldap_kerberos_container_dn</strong></dt><dd><p>This LDAP-specific tag indicates the DN of the container object
+where the realm objects will be located.</p>
+</dd>
+<dt><strong>ldap_servers</strong></dt><dd><p>This LDAP-specific tag indicates the list of LDAP servers that the
+Kerberos servers can connect to.  The list of LDAP servers is
+whitespace-separated.  The LDAP server is specified by a LDAP URI.
+It is recommended to use <code class="docutils literal notranslate"><span class="pre">ldapi:</span></code> or <code class="docutils literal notranslate"><span class="pre">ldaps:</span></code> URLs to connect
+to the LDAP server.</p>
+</dd>
+<dt><strong>ldap_service_password_file</strong></dt><dd><p>This LDAP-specific tag indicates the file containing the stashed
+passwords (created by <code class="docutils literal notranslate"><span class="pre">kdb5_ldap_util</span> <span class="pre">stashsrvpw</span></code>) for the
+<strong>ldap_kdc_dn</strong> and <strong>ldap_kadmind_dn</strong> objects, or for the
+<strong>ldap_kdc_sasl_authcid</strong> or <strong>ldap_kadmind_sasl_authcid</strong> names
+for SASL authentication.  This file must be kept secure.</p>
+</dd>
+<dt><strong>mapsize</strong></dt><dd><p>This LMDB-specific tag indicates the maximum size of the two
+database environments in megabytes.  The default value is 128.
+Increase this value to address “Environment mapsize limit reached”
+errors.  New in release 1.17.</p>
+</dd>
+<dt><strong>max_readers</strong></dt><dd><p>This LMDB-specific tag indicates the maximum number of concurrent
+reading processes for the databases.  The default value is 128.
+New in release 1.17.</p>
+</dd>
+<dt><strong>nosync</strong></dt><dd><p>This LMDB-specific tag can be set to improve the throughput of
+kadmind and other administrative agents, at the expense of
+durability (recent database changes may not survive a power outage
+or other sudden reboot).  It does not affect the throughput of the
+KDC.  The default value is false.  New in release 1.17.</p>
+</dd>
+<dt><strong>unlockiter</strong></dt><dd><p>If set to <code class="docutils literal notranslate"><span class="pre">true</span></code>, this DB2-specific tag causes iteration
+operations to release the database lock while processing each
+principal.  Setting this flag to <code class="docutils literal notranslate"><span class="pre">true</span></code> can prevent extended
+blocking of KDC or kadmin operations when dumps of large databases
+are in progress.  First introduced in release 1.13.</p>
+</dd>
+</dl>
+<p>The following tag may be specified directly in the [dbmodules]
+section to control where database modules are loaded from:</p>
+<dl class="simple">
+<dt><strong>db_module_dir</strong></dt><dd><p>This tag controls where the plugin system looks for database
+modules.  The value should be an absolute path.</p>
+</dd>
+</dl>
+</section>
+<section id="logging">
+<span id="id4"></span><h3>[logging]<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h3>
+<p>The [logging] section indicates how <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> and
+<a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> perform logging.  It may contain the following
+relations:</p>
+<dl class="simple">
+<dt><strong>admin_server</strong></dt><dd><p>Specifies how <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> performs logging.</p>
+</dd>
+<dt><strong>kdc</strong></dt><dd><p>Specifies how <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> performs logging.</p>
+</dd>
+<dt><strong>default</strong></dt><dd><p>Specifies how either daemon performs logging in the absence of
+relations specific to the daemon.</p>
+</dd>
+<dt><strong>debug</strong></dt><dd><p>(Boolean value.)  Specifies whether debugging messages are
+included in log outputs other than SYSLOG.  Debugging messages are
+always included in the system log output because syslog performs
+its own priority filtering.  The default value is false.  New in
+release 1.15.</p>
+</dd>
+</dl>
+<p>Logging specifications may have the following forms:</p>
+<dl>
+<dt><strong>FILE=</strong><em>filename</em> or <strong>FILE:</strong><em>filename</em></dt><dd><p>This value causes the daemon’s logging messages to go to the
+<em>filename</em>.  If the <code class="docutils literal notranslate"><span class="pre">=</span></code> form is used, the file is overwritten.
+If the <code class="docutils literal notranslate"><span class="pre">:</span></code> form is used, the file is appended to.</p>
+</dd>
+<dt><strong>STDERR</strong></dt><dd><p>This value causes the daemon’s logging messages to go to its
+standard error stream.</p>
+</dd>
+<dt><strong>CONSOLE</strong></dt><dd><p>This value causes the daemon’s logging messages to go to the
+console, if the system supports it.</p>
+</dd>
+<dt><strong>DEVICE=</strong><em>&lt;devicename&gt;</em></dt><dd><p>This causes the daemon’s logging messages to go to the specified
+device.</p>
+</dd>
+<dt><strong>SYSLOG</strong>[<strong>:</strong><em>severity</em>[<strong>:</strong><em>facility</em>]]</dt><dd><p>This causes the daemon’s logging messages to go to the system log.</p>
+<p>For backward compatibility, a severity argument may be specified,
+and must be specified in order to specify a facility.  This
+argument will be ignored.</p>
+<p>The facility argument specifies the facility under which the
+messages are logged.  This may be any of the following facilities
+supported by the syslog(3) call minus the LOG_ prefix: <strong>KERN</strong>,
+<strong>USER</strong>, <strong>MAIL</strong>, <strong>DAEMON</strong>, <strong>AUTH</strong>, <strong>LPR</strong>, <strong>NEWS</strong>,
+<strong>UUCP</strong>, <strong>CRON</strong>, and <strong>LOCAL0</strong> through <strong>LOCAL7</strong>.  If no
+facility is specified, the default is <strong>AUTH</strong>.</p>
+</dd>
+</dl>
+<p>In the following example, the logging messages from the KDC will go to
+the console and to the system log under the facility LOG_DAEMON, and
+the logging messages from the administrative server will be appended
+to the file <code class="docutils literal notranslate"><span class="pre">/var/adm/kadmin.log</span></code> and sent to the device
+<code class="docutils literal notranslate"><span class="pre">/dev/tty04</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">logging</span><span class="p">]</span>
+    <span class="n">kdc</span> <span class="o">=</span> <span class="n">CONSOLE</span>
+    <span class="n">kdc</span> <span class="o">=</span> <span class="n">SYSLOG</span><span class="p">:</span><span class="n">INFO</span><span class="p">:</span><span class="n">DAEMON</span>
+    <span class="n">admin_server</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">adm</span><span class="o">/</span><span class="n">kadmin</span><span class="o">.</span><span class="n">log</span>
+    <span class="n">admin_server</span> <span class="o">=</span> <span class="n">DEVICE</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">tty04</span>
+</pre></div>
+</div>
+<p>If no logging specification is given, the default is to use syslog.
+To disable logging entirely, specify <code class="docutils literal notranslate"><span class="pre">default</span> <span class="pre">=</span> <span class="pre">DEVICE=/dev/null</span></code>.</p>
+</section>
+<section id="otp">
+<span id="id5"></span><h3>[otp]<a class="headerlink" href="#otp" title="Permalink to this headline">¶</a></h3>
+<p>Each subsection of [otp] is the name of an OTP token type.  The tags
+within the subsection define the configuration required to forward a
+One Time Password request to a RADIUS server.</p>
+<p>For each token type, the following tags may be specified:</p>
+<dl class="simple">
+<dt><strong>server</strong></dt><dd><p>This is the server to send the RADIUS request to.  It can be a
+hostname with optional port, an ip address with optional port, or
+a Unix domain socket address.  The default is
+<a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/&lt;name&gt;.socket</span></code>.</p>
+</dd>
+<dt><strong>secret</strong></dt><dd><p>This tag indicates a filename (which may be relative to <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code>)
+containing the secret used to encrypt the RADIUS packets.  The
+secret should appear in the first line of the file by itself;
+leading and trailing whitespace on the line will be removed.  If
+the value of <strong>server</strong> is a Unix domain socket address, this tag
+is optional, and an empty secret will be used if it is not
+specified.  Otherwise, this tag is required.</p>
+</dd>
+<dt><strong>timeout</strong></dt><dd><p>An integer which specifies the time in seconds during which the
+KDC should attempt to contact the RADIUS server.  This tag is the
+total time across all retries and should be less than the time
+which an OTP value remains valid for.  The default is 5 seconds.</p>
+</dd>
+<dt><strong>retries</strong></dt><dd><p>This tag specifies the number of retries to make to the RADIUS
+server.  The default is 3 retries (4 tries).</p>
+</dd>
+<dt><strong>strip_realm</strong></dt><dd><p>If this tag is <code class="docutils literal notranslate"><span class="pre">true</span></code>, the principal without the realm will be
+passed to the RADIUS server.  Otherwise, the realm will be
+included.  The default value is <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+</dd>
+<dt><strong>indicator</strong></dt><dd><p>This tag specifies an authentication indicator to be included in
+the ticket if this token type is used to authenticate.  This
+option may be specified multiple times.  (New in release 1.14.)</p>
+</dd>
+</dl>
+<p>In the following example, requests are sent to a remote server via UDP:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[otp]
+    MyRemoteTokenType = {
+        server = radius.mydomain.com:1812
+        secret = SEmfiajf42$
+        timeout = 15
+        retries = 5
+        strip_realm = true
+    }
+</pre></div>
+</div>
+<p>An implicit default token type named <code class="docutils literal notranslate"><span class="pre">DEFAULT</span></code> is defined for when
+the per-principal configuration does not specify a token type.  Its
+configuration is shown below.  You may override this token type to
+something applicable for your situation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">otp</span><span class="p">]</span>
+    <span class="n">DEFAULT</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">strip_realm</span> <span class="o">=</span> <span class="n">false</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="pkinit-options">
+<h2>PKINIT options<a class="headerlink" href="#pkinit-options" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following are pkinit-specific options.  These values may
+be specified in [kdcdefaults] as global defaults, or within
+a realm-specific subsection of [realms].  Also note that a
+realm-specific value over-rides, does not add to, a generic
+[kdcdefaults] specification.  The search order is:</p>
+</div>
+<ol class="arabic">
+<li><p>realm-specific subsection of [realms]:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">realms</span><span class="p">]</span>
+    <span class="n">EXAMPLE</span><span class="o">.</span><span class="n">COM</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">pkinit_anchors</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">.</span><span class="n">crt</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p>generic value in the [kdcdefaults] section:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">kdcdefaults</span><span class="p">]</span>
+    <span class="n">pkinit_anchors</span> <span class="o">=</span> <span class="n">DIR</span><span class="p">:</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">generic_trusted_cas</span><span class="o">/</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p>For information about the syntax of some of these options, see
+<a class="reference internal" href="krb5_conf.html#pkinit-identity"><span class="std std-ref">Specifying PKINIT identity information</span></a> in
+<a class="reference internal" href="krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.</p>
+<dl>
+<dt><strong>pkinit_anchors</strong></dt><dd><p>Specifies the location of trusted anchor (root) certificates which
+the KDC trusts to sign client certificates.  This option is
+required if pkinit is to be supported by the KDC.  This option may
+be specified multiple times.</p>
+</dd>
+<dt><strong>pkinit_dh_min_bits</strong></dt><dd><p>Specifies the minimum number of bits the KDC is willing to accept
+for a client’s Diffie-Hellman key.  The default is 2048.</p>
+</dd>
+<dt><strong>pkinit_allow_upn</strong></dt><dd><p>Specifies that the KDC is willing to accept client certificates
+with the Microsoft UserPrincipalName (UPN) Subject Alternative
+Name (SAN).  This means the KDC accepts the binding of the UPN in
+the certificate to the Kerberos principal name.  The default value
+is false.</p>
+<p>Without this option, the KDC will only accept certificates with
+the id-pkinit-san as defined in <span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a>.  There is currently
+no option to disable SAN checking in the KDC.</p>
+</dd>
+<dt><strong>pkinit_eku_checking</strong></dt><dd><p>This option specifies what Extended Key Usage (EKU) values the KDC
+is willing to accept in client certificates.  The values
+recognized in the kdc.conf file are:</p>
+<dl class="simple">
+<dt><strong>kpClientAuth</strong></dt><dd><p>This is the default value and specifies that client
+certificates must have the id-pkinit-KPClientAuth EKU as
+defined in <span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a>.</p>
+</dd>
+<dt><strong>scLogin</strong></dt><dd><p>If scLogin is specified, client certificates with the
+Microsoft Smart Card Login EKU (id-ms-kp-sc-logon) will be
+accepted.</p>
+</dd>
+<dt><strong>none</strong></dt><dd><p>If none is specified, then client certificates will not be
+checked to verify they have an acceptable EKU.  The use of
+this option is not recommended.</p>
+</dd>
+</dl>
+</dd>
+<dt><strong>pkinit_identity</strong></dt><dd><p>Specifies the location of the KDC’s X.509 identity information.
+This option is required if pkinit is to be supported by the KDC.</p>
+</dd>
+<dt><strong>pkinit_indicator</strong></dt><dd><p>Specifies an authentication indicator to include in the ticket if
+pkinit is used to authenticate.  This option may be specified
+multiple times.  (New in release 1.14.)</p>
+</dd>
+<dt><strong>pkinit_pool</strong></dt><dd><p>Specifies the location of intermediate certificates which may be
+used by the KDC to complete the trust chain between a client’s
+certificate and a trusted anchor.  This option may be specified
+multiple times.</p>
+</dd>
+<dt><strong>pkinit_revoke</strong></dt><dd><p>Specifies the location of Certificate Revocation List (CRL)
+information to be used by the KDC when verifying the validity of
+client certificates.  This option may be specified multiple times.</p>
+</dd>
+<dt><strong>pkinit_require_crl_checking</strong></dt><dd><p>The default certificate verification process will always check the
+available revocation information to see if a certificate has been
+revoked.  If a match is found for the certificate in a CRL,
+verification fails.  If the certificate being verified is not
+listed in a CRL, or there is no CRL present for its issuing CA,
+and <strong>pkinit_require_crl_checking</strong> is false, then verification
+succeeds.</p>
+<p>However, if <strong>pkinit_require_crl_checking</strong> is true and there is
+no CRL information available for the issuing CA, then verification
+fails.</p>
+<p><strong>pkinit_require_crl_checking</strong> should be set to true if the
+policy is such that up-to-date CRLs must be present for every CA.</p>
+</dd>
+<dt><strong>pkinit_require_freshness</strong></dt><dd><p>Specifies whether to require clients to include a freshness token
+in PKINIT requests.  The default value is false.  (New in release
+1.17.)</p>
+</dd>
+</dl>
+</section>
+<section id="encryption-types">
+<span id="id6"></span><h2>Encryption types<a class="headerlink" href="#encryption-types" title="Permalink to this headline">¶</a></h2>
+<p>Any tag in the configuration files which requires a list of encryption
+types can be set to some combination of the following strings.
+Encryption types marked as “weak” and “deprecated” are available for
+compatibility but not recommended for use.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 70%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>des3-cbc-raw</p></td>
+<td><p>Triple DES cbc mode raw (weak)</p></td>
+</tr>
+<tr class="row-even"><td><p>des3-cbc-sha1 des3-hmac-sha1 des3-cbc-sha1-kd</p></td>
+<td><p>Triple DES cbc mode with HMAC/sha1 (deprecated)</p></td>
+</tr>
+<tr class="row-odd"><td><p>aes256-cts-hmac-sha1-96 aes256-cts aes256-sha1</p></td>
+<td><p>AES-256 CTS mode with 96-bit SHA-1 HMAC</p></td>
+</tr>
+<tr class="row-even"><td><p>aes128-cts-hmac-sha1-96 aes128-cts aes128-sha1</p></td>
+<td><p>AES-128 CTS mode with 96-bit SHA-1 HMAC</p></td>
+</tr>
+<tr class="row-odd"><td><p>aes256-cts-hmac-sha384-192 aes256-sha2</p></td>
+<td><p>AES-256 CTS mode with 192-bit SHA-384 HMAC</p></td>
+</tr>
+<tr class="row-even"><td><p>aes128-cts-hmac-sha256-128 aes128-sha2</p></td>
+<td><p>AES-128 CTS mode with 128-bit SHA-256 HMAC</p></td>
+</tr>
+<tr class="row-odd"><td><p>arcfour-hmac rc4-hmac arcfour-hmac-md5</p></td>
+<td><p>RC4 with HMAC/MD5 (deprecated)</p></td>
+</tr>
+<tr class="row-even"><td><p>arcfour-hmac-exp rc4-hmac-exp arcfour-hmac-md5-exp</p></td>
+<td><p>Exportable RC4 with HMAC/MD5 (weak)</p></td>
+</tr>
+<tr class="row-odd"><td><p>camellia256-cts-cmac camellia256-cts</p></td>
+<td><p>Camellia-256 CTS mode with CMAC</p></td>
+</tr>
+<tr class="row-even"><td><p>camellia128-cts-cmac camellia128-cts</p></td>
+<td><p>Camellia-128 CTS mode with CMAC</p></td>
+</tr>
+<tr class="row-odd"><td><p>des3</p></td>
+<td><p>The triple DES family: des3-cbc-sha1</p></td>
+</tr>
+<tr class="row-even"><td><p>aes</p></td>
+<td><p>The AES family: aes256-cts-hmac-sha1-96, aes128-cts-hmac-sha1-96, aes256-cts-hmac-sha384-192, and aes128-cts-hmac-sha256-128</p></td>
+</tr>
+<tr class="row-odd"><td><p>rc4</p></td>
+<td><p>The RC4 family: arcfour-hmac</p></td>
+</tr>
+<tr class="row-even"><td><p>camellia</p></td>
+<td><p>The Camellia family: camellia256-cts-cmac and camellia128-cts-cmac</p></td>
+</tr>
+</tbody>
+</table>
+<p>The string <strong>DEFAULT</strong> can be used to refer to the default set of
+types for the variable in question.  Types or families can be removed
+from the current list by prefixing them with a minus sign (“-“).
+Types or families can be prefixed with a plus sign (“+”) for symmetry;
+it has the same meaning as just listing the type or family.  For
+example, “<code class="docutils literal notranslate"><span class="pre">DEFAULT</span> <span class="pre">-rc4</span></code>” would be the default set of encryption
+types with RC4 types removed, and “<code class="docutils literal notranslate"><span class="pre">des3</span> <span class="pre">DEFAULT</span></code>” would be the
+default set of encryption types with triple DES types moved to the
+front.</p>
+<p>While <strong>aes128-cts</strong> and <strong>aes256-cts</strong> are supported for all Kerberos
+operations, they are not supported by very old versions of our GSSAPI
+implementation (krb5-1.3.1 and earlier).  Services running versions of
+krb5 without AES support must not be given keys of these encryption
+types in the KDC database.</p>
+<p>The <strong>aes128-sha2</strong> and <strong>aes256-sha2</strong> encryption types are new in
+release 1.15.  Services running versions of krb5 without support for
+these newer encryption types must not be given keys of these
+encryption types in the KDC database.</p>
+</section>
+<section id="keysalt-lists">
+<span id="id7"></span><h2>Keysalt lists<a class="headerlink" href="#keysalt-lists" title="Permalink to this headline">¶</a></h2>
+<p>Kerberos keys for users are usually derived from passwords.  Kerberos
+commands and configuration parameters that affect generation of keys
+take lists of enctype-salttype (“keysalt”) pairs, known as <em>keysalt
+lists</em>.  Each keysalt pair is an enctype name followed by a salttype
+name, in the format <em>enc</em>:<em>salt</em>.  Individual keysalt list members are
+separated by comma (“,”) characters or space characters.  For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span> <span class="o">-</span><span class="n">e</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="p">:</span><span class="n">normal</span><span class="p">,</span><span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="p">:</span><span class="n">normal</span>
+</pre></div>
+</div>
+<p>would start up kadmin so that by default it would generate
+password-derived keys for the <strong>aes256-cts</strong> and <strong>aes128-cts</strong>
+encryption types, using a <strong>normal</strong> salt.</p>
+<p>To ensure that people who happen to pick the same password do not have
+the same key, Kerberos 5 incorporates more information into the key
+using something called a salt.  The supported salt types are as
+follows:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 75%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>normal</p></td>
+<td><p>default for Kerberos Version 5</p></td>
+</tr>
+<tr class="row-even"><td><p>norealm</p></td>
+<td><p>same as the default, without using realm information</p></td>
+</tr>
+<tr class="row-odd"><td><p>onlyrealm</p></td>
+<td><p>uses only realm information as the salt</p></td>
+</tr>
+<tr class="row-even"><td><p>special</p></td>
+<td><p>generate a random salt</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sample-kdc-conf-file">
+<h2>Sample kdc.conf File<a class="headerlink" href="#sample-kdc-conf-file" title="Permalink to this headline">¶</a></h2>
+<p>Here’s an example of a kdc.conf file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">kdcdefaults</span><span class="p">]</span>
+    <span class="n">kdc_listen</span> <span class="o">=</span> <span class="mi">88</span>
+    <span class="n">kdc_tcp_listen</span> <span class="o">=</span> <span class="mi">88</span>
+<span class="p">[</span><span class="n">realms</span><span class="p">]</span>
+    <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">kadmind_port</span> <span class="o">=</span> <span class="mi">749</span>
+        <span class="n">max_life</span> <span class="o">=</span> <span class="mi">12</span><span class="n">h</span> <span class="mi">0</span><span class="n">m</span> <span class="mi">0</span><span class="n">s</span>
+        <span class="n">max_renewable_life</span> <span class="o">=</span> <span class="mi">7</span><span class="n">d</span> <span class="mi">0</span><span class="n">h</span> <span class="mi">0</span><span class="n">m</span> <span class="mi">0</span><span class="n">s</span>
+        <span class="n">master_key_type</span> <span class="o">=</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span>
+        <span class="n">supported_enctypes</span> <span class="o">=</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span>
+        <span class="n">database_module</span> <span class="o">=</span> <span class="n">openldap_ldapconf</span>
+    <span class="p">}</span>
+
+<span class="p">[</span><span class="n">logging</span><span class="p">]</span>
+    <span class="n">kdc</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">krb5kdc</span><span class="o">/</span><span class="n">kdc</span><span class="o">.</span><span class="n">log</span>
+    <span class="n">admin_server</span> <span class="o">=</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">krb5kdc</span><span class="o">/</span><span class="n">kadmin</span><span class="o">.</span><span class="n">log</span>
+
+<span class="p">[</span><span class="n">dbdefaults</span><span class="p">]</span>
+    <span class="n">ldap_kerberos_container_dn</span> <span class="o">=</span> <span class="n">cn</span><span class="o">=</span><span class="n">krbcontainer</span><span class="p">,</span><span class="n">dc</span><span class="o">=</span><span class="n">mit</span><span class="p">,</span><span class="n">dc</span><span class="o">=</span><span class="n">edu</span>
+
+<span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
+    <span class="n">openldap_ldapconf</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">db_library</span> <span class="o">=</span> <span class="n">kldap</span>
+        <span class="n">disable_last_success</span> <span class="o">=</span> <span class="n">true</span>
+        <span class="n">ldap_kdc_dn</span> <span class="o">=</span> <span class="s2">&quot;cn=krbadmin,dc=mit,dc=edu&quot;</span>
+            <span class="c1"># this object needs to have read rights on</span>
+            <span class="c1"># the realm container and principal subtrees</span>
+        <span class="n">ldap_kadmind_dn</span> <span class="o">=</span> <span class="s2">&quot;cn=krbadmin,dc=mit,dc=edu&quot;</span>
+            <span class="c1"># this object needs to have read and write rights on</span>
+            <span class="c1"># the realm container and principal subtrees</span>
+        <span class="n">ldap_service_password_file</span> <span class="o">=</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">kerberos</span><span class="o">/</span><span class="n">service</span><span class="o">.</span><span class="n">keyfile</span>
+        <span class="n">ldap_servers</span> <span class="o">=</span> <span class="n">ldaps</span><span class="p">:</span><span class="o">//</span><span class="n">kerberos</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+        <span class="n">ldap_conns_per_server</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="files">
+<h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/kdc.conf</span></code></p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>, <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a>, <a class="reference internal" href="kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kdc.conf</a><ul>
+<li><a class="reference internal" href="#structure">Structure</a></li>
+<li><a class="reference internal" href="#sections">Sections</a><ul>
+<li><a class="reference internal" href="#kdcdefaults">[kdcdefaults]</a></li>
+<li><a class="reference internal" href="#realms">[realms]</a></li>
+<li><a class="reference internal" href="#dbdefaults">[dbdefaults]</a></li>
+<li><a class="reference internal" href="#dbmodules">[dbmodules]</a></li>
+<li><a class="reference internal" href="#logging">[logging]</a></li>
+<li><a class="reference internal" href="#otp">[otp]</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pkinit-options">PKINIT options</a></li>
+<li><a class="reference internal" href="#encryption-types">Encryption types</a></li>
+<li><a class="reference internal" href="#keysalt-lists">Keysalt lists</a></li>
+<li><a class="reference internal" href="#sample-kdc-conf-file">Sample kdc.conf File</a></li>
+<li><a class="reference internal" href="#files">FILES</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Configuration Files</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="krb5_conf.html">krb5.conf</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kdc.conf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadm5_acl.html">kadm5.acl</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="krb5_conf.html" title="krb5.conf"
+            >previous</a> |
+        <a href="kadm5_acl.html" title="kadm5.acl"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdc.conf">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

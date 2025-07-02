@@ -31,7 +31,7 @@ SYM_MAPS+= ${LIBC_SRCTOP}/stdlib/Symbol.map
 # machine-dependent stdlib sources
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/stdlib/Makefile.inc"
 
-MAN+=	a64l.3 abort.3 abs.3 alloca.3 atexit.3 atof.3 \
+MAN+=	a64l.3 abort.3 abs.3 atexit.3 atof.3 \
 	atoi.3 atol.3 at_quick_exit.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getopt_long.3 getsubopt.3 \
 	hcreate.3 imaxabs.3 imaxdiv.3 insque.3 labs.3 ldiv.3 llabs.3 lldiv.3 \

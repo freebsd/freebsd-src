@@ -1,0 +1,51 @@
+krb5_cc_set_flags -  Set options flags on a credential cache. 
+==============================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_set_flags(krb5_context context, krb5_ccache cache, krb5_flags flags)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+	          **[in]** **flags** - Flag bit mask
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function resets *cache* flags to *flags* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -29,6 +29,7 @@
 #include "cli/cmd_debug.hpp"
 
 #include <cstdlib>
+#include <iostream>
 
 #include "cli/common.ipp"
 #include "drivers/debug_test.hpp"
@@ -38,11 +39,74 @@
 #include "utils/cmdline/parser.ipp"
 #include "utils/cmdline/ui.hpp"
 #include "utils/format/macros.hpp"
+#include "utils/process/executor.hpp"
 
 namespace cmdline = utils::cmdline;
 namespace config = utils::config;
+namespace executor = utils::process::executor;
 
 using cli::cmd_debug;
+
+
+namespace {
+
+
+const cmdline::bool_option pause_before_cleanup_upon_fail_option(
+    'p',
+    "pause-before-cleanup-upon-fail",
+    "Pauses right before the test cleanup upon fail");
+
+
+const cmdline::bool_option pause_before_cleanup_option(
+    "pause-before-cleanup",
+    "Pauses right before the test cleanup");
+
+
+/// The debugger interface implementation.
+class dbg : public engine::debugger {
+    /// Object to interact with the I/O of the program.
+    cmdline::ui* _ui;
+
+    /// Representation of the command line to the subcommand.
+    const cmdline::parsed_cmdline& _cmdline;
+
+public:
+    /// Constructor.
+    ///
+    /// \param ui_ Object to interact with the I/O of the program.
+    /// \param cmdline Representation of the command line to the subcommand.
+    dbg(cmdline::ui* ui, const cmdline::parsed_cmdline& cmdline) :
+        _ui(ui), _cmdline(cmdline)
+    {}
+
+    void before_cleanup(
+        const model::test_program_ptr&,
+        const model::test_case&,
+        optional< model::test_result >& result,
+        executor::exit_handle& eh) const
+    {
+        if (_cmdline.has_option(pause_before_cleanup_upon_fail_option
+            .long_name())) {
+            if (result && !result.get().good()) {
+                _ui->out("The test failed and paused right before its cleanup "
+                    "routine.");
+                _ui->out(F("Test work dir: %s") % eh.work_directory().str());
+                _ui->out("Press any key to continue...");
+                (void) std::cin.get();
+            }
+        } else if (_cmdline.has_option(pause_before_cleanup_option
+            .long_name())) {
+            _ui->out("The test paused right before its cleanup routine.");
+            _ui->out(F("Test work dir: %s") % eh.work_directory().str());
+            _ui->out("Press any key to continue...");
+            (void) std::cin.get();
+        }
+    };
+
+};
+
+
+}  // anonymous namespace
 
 
 /// Default constructor for cmd_debug.
@@ -52,6 +116,9 @@ cmd_debug::cmd_debug(void) : cli_command(
 {
     add_option(build_root_option);
     add_option(kyuafile_option);
+
+    add_option(pause_before_cleanup_upon_fail_option);
+    add_option(pause_before_cleanup_option);
 
     add_option(cmdline::path_option(
         "stdout", "Where to direct the standard output of the test case",
@@ -82,7 +149,10 @@ cmd_debug::run(cmdline::ui* ui, const cmdline::parsed_cmdline& cmdline,
     const engine::test_filter filter = engine::test_filter::parse(
         test_case_name);
 
+    auto debugger = std::shared_ptr< engine::debugger >(new dbg(ui, cmdline));
+
     const drivers::debug_test::result result = drivers::debug_test::drive(
+        debugger,
         kyuafile_path(cmdline), build_root_path(cmdline), filter, user_config,
         cmdline.get_option< cmdline::path_option >("stdout"),
         cmdline.get_option< cmdline::path_option >("stderr"));

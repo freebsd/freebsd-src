@@ -1,0 +1,34 @@
+.. highlight:: c
+
+.. _krb5-verify-init-creds-opt-struct:
+
+krb5_verify_init_creds_opt
+==========================
+
+..
+.. c:type:: krb5_verify_init_creds_opt
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_verify_init_creds_opt krb5_verify_init_creds_opt
+
+
+Members
+---------
+
+
+.. c:member:: krb5_flags	krb5_verify_init_creds_opt.flags
+
+                                             
+                                             
+
+.. c:member:: int	krb5_verify_init_creds_opt.ap_req_nofail
+
+                                             boolean
+                                             
+

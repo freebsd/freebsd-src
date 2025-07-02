@@ -39,6 +39,9 @@ SRCS=	${LIBOPENSSH_SRCS} \
 	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c \
 	sshbuf-io.c
 
+# Add ${SKSRCS} to avoid linking problems.
+SRCS+=	${SKSRCS}
+
 PACKAGE=	ssh
 
 # Portability layer
@@ -61,8 +64,6 @@ LIBADD+=	ldns
 .if defined(LOCALBASE)
 CFLAGS+= -D_PATH_SSH_ASKPASS_DEFAULT='"${LOCALBASE}/bin/ssh-askpass"'
 .endif
-
-NO_LINT=
 
 LIBADD+=	crypto crypt z
 

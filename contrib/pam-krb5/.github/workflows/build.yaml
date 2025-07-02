@@ -1,0 +1,44 @@
+name: build
+
+on:
+  push:
+    branches-ignore:
+      - "debian/**"
+      - "pristine-tar"
+      - "ubuntu/**"
+      - "upstream/**"
+    tags:
+      - "release/*"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      AUTHOR_TESTING: 1
+      C_TAP_VERBOSE: 1
+
+    strategy:
+      fail-fast: false
+      matrix:
+        kerberos:
+          - "mit"
+          - "heimdal"
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install
+        run: sudo ci/install
+      - name: kdc-setup-mit
+        run: sudo ci/kdc-setup-mit
+        if: matrix.kerberos == 'mit'
+      - name: kdc-setup-heimdal
+        run: sudo ci/kdc-setup-heimdal
+        if: matrix.kerberos == 'heimdal'
+      - name: test
+        run: ci/test
+        env:
+          KERBEROS: ${{ matrix.kerberos }}

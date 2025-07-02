@@ -39,7 +39,9 @@
  */
 typedef struct {
 	const char	vb_bit;
-	const char	vb_pair[2];
+
+	/* 2 byte name + 1 byte NULL terminator to make GCC happy */
+	const char	vb_pair[3];
 	const char	*vb_name;
 } valstr_bit_t;
 
@@ -220,6 +222,7 @@ _VALSTR_BITFIELD_IMPL(zio_flag,
 	{ '.', "EX", "REEXECUTED" },
 	{ '.', "DG", "DELEGATED" },
 	{ '.', "DC", "DIO_CHKSUM_ERR" },
+	{ '.', "PA", "PREALLOCATED" },
 )
 
 /*
@@ -254,6 +257,17 @@ _VALSTR_BITFIELD_IMPL(zio_stage,
 	{ 'C', "CV", "CHECKSUM_VERIFY" },
 	{ 'C', "DC", "DIO_CHECKSUM_VERIFY" },
 	{ 'X', "X ", "DONE" },
+)
+
+/* ZIO type: zio_type_t, typically zio->io_type */
+_VALSTR_ENUM_IMPL(zio_type,
+	"NULL",
+	"READ",
+	"WRITE",
+	"FREE",
+	"CLAIM",
+	"FLUSH",
+	"TRIM",
 )
 
 /* ZIO priority: zio_priority_t, typically zio->io_priority */

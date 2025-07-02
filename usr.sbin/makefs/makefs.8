@@ -259,9 +259,13 @@ can be a
 .Pa pathname ,
 where the timestamps are derived from that file, or an integer
 value interpreted as the number of seconds from the Epoch.
-Note that timestamps specified in an
+Timestamps in a
 .Xr mtree 5
-spec file, override the default timestamp.
+specfile (specified with
+.Fl F )
+are used even if a default timestamp is specified.
+However, the timestamps in an mtree manifest are ignored
+if a default timestamp is specified.
 .It Fl t Ar fs-type
 Create an
 .Ar fs-type

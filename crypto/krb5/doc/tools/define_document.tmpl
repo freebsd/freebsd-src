@@ -1,0 +1,27 @@
+.. highlight:: c
+
+.. $composite.macro_reference($composite.name):
+
+#set $title = $composite.name
+$title
+#echo ''.join(['=']*len($title)) #
+
+..
+.. data:: $composite.name
+..
+
+#if $composite.short_description is not None and len($composite.short_description)
+$composite.short_description
+#end if
+
+$composite.long_description
+
+#if $composite.name_signature is not None and len($composite.name_signature)
+#echo ''.join(['=']*(len($composite.name_signature)+4)) + '== ======================' #
+``$composite.name_signature``       ``$composite.initializer``
+#echo ''.join(['=']*(len($composite.name_signature)+4)) + '== ======================' #
+#else
+#echo ''.join(['=']*(len($composite.name)+4)) + '=== ======================' #
+``$composite.name``       ``$composite.initializer``
+#echo ''.join(['=']*(len($composite.name)+4)) + '=== ======================' #
+#end if

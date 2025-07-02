@@ -61,8 +61,8 @@
 #include <vm/uma.h>
 #include <vm/uma_dbg.h>
 
-_Static_assert(MJUMPAGESIZE > MCLBYTES,
-    "Cluster must be smaller than a jumbo page");
+_Static_assert(MCLBYTES <= MJUMPAGESIZE,
+    "Cluster must not be larger than a jumbo page");
 
 /*
  * In FreeBSD, Mbufs and Mbuf Clusters are allocated from UMA
@@ -1462,8 +1462,7 @@ m_getjcl(int how, short type, int flags, int size)
 
 /*
  * Allocate mchain of a given length of mbufs and/or clusters (whatever fits
- * best).  May fail due to ENOMEM.  In case of failure state of mchain is
- * inconsistent.
+ * best).  May fail due to ENOMEM.
  */
 int
 mc_get(struct mchain *mc, u_int length, int how, short type, int flags)
@@ -1501,8 +1500,9 @@ mc_get(struct mchain *mc, u_int length, int how, short type, int flags)
 			 * Fail the whole operation if one mbuf can't be
 			 * allocated.
 			 */
-			if (mb == NULL) {
+			if (__predict_false(mb == NULL)) {
 				m_freem(mc_first(mc));
+				*mc = MCHAIN_INITIALIZER(mc);
 				return (ENOMEM);
 			}
 		}

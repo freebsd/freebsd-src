@@ -479,22 +479,14 @@ prot_addrf:
 	jz	6f			/* already running with kernel GS.base */
 	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
 	jz	2f
-	cmpw	$KUF32SEL,TF_FS(%rsp)
-	jne	1f
 	rdfsbase %rax
-1:	cmpw	$KUG32SEL,TF_GS(%rsp)
-	jne	2f
 	rdgsbase %rdx
 2:	swapgs
 	lfence
 	movq	PCPU(CURPCB),%rdi
 	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
 	jz	4f
-	cmpw	$KUF32SEL,TF_FS(%rsp)
-	jne	3f
 	movq	%rax,PCB_FSBASE(%rdi)
-3:	cmpw	$KUG32SEL,TF_GS(%rsp)
-	jne	4f
 	movq	%rdx,PCB_GSBASE(%rdi)
 	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* full iret from user #gp */
 4:	call	handle_ibrs_entry
@@ -730,12 +722,8 @@ dbg_fromuserspace:
 	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
 	jz	3f
-	cmpw	$KUF32SEL,TF_FS(%rsp)
-	jne	2f
 	rdfsbase %rax
 	movq	%rax,PCB_FSBASE(%rdi)
-2:	cmpw	$KUG32SEL,TF_GS(%rsp)
-	jne	3f
 	movl	$MSR_KGSBASE,%ecx
 	rdmsr
 	shlq	$32,%rdx
@@ -842,12 +830,8 @@ nmi_fromuserspace:
 	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
 	jz	3f
-	cmpw	$KUF32SEL,TF_FS(%rsp)
-	jne	2f
 	rdfsbase %rax
 	movq	%rax,PCB_FSBASE(%rdi)
-2:	cmpw	$KUG32SEL,TF_GS(%rsp)
-	jne	3f
 	movl	$MSR_KGSBASE,%ecx
 	rdmsr
 	shlq	$32,%rdx
@@ -1177,15 +1161,12 @@ do_segs:
 	.globl	ld_fs
 ld_fs:
 	movw	%ax,%fs
-	cmpw	$KUF32SEL,%ax
-	jne	1f
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
 	.globl	ld_fsbase
 ld_fsbase:
 	wrmsr
-1:
 	/* Restore %gs and gsbase */
 	movw	TF_GS(%rsp),%si
 	pushfq
@@ -1198,10 +1179,6 @@ ld_fsbase:
 	.globl	ld_gs
 ld_gs:
 	movw	%si,%gs
-	/* Save user %gs base into %r14d:%r15d */
-	rdmsr
-	movl	%eax,%r14d
-	movl	%edx,%r15d
 	/* Restore kernel %gs base */
 	movl	%r12d,%eax
 	movl	%r13d,%edx
@@ -1212,14 +1189,8 @@ ld_gs:
 	 * from the previously saved msr read.
 	 */
 	movl	$MSR_KGSBASE,%ecx
-	cmpw	$KUG32SEL,%si
-	jne	1f
 	movl	PCB_GSBASE(%r8),%eax
 	movl	PCB_GSBASE+4(%r8),%edx
-	jmp	ld_gsbase
-1:
-	movl	%r14d,%eax
-	movl	%r15d,%edx
 	.globl	ld_gsbase
 ld_gsbase:
 	wrmsr	/* May trap if non-canonical, but only for TLS. */

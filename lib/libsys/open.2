@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 28, 2025
+.Dd April 3, 2025
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -210,6 +210,8 @@ record only the target path in the opened descriptor
 open file referenced by
 .Fa fd
 if path is empty
+.It Dv O_NAMEDATTR
+open a named attribute or named attribute directory
 .El
 .Pp
 Exactly one of the flags
@@ -464,6 +466,13 @@ flag for
 .Xr fstatat 2
 and related syscalls.
 .Pp
+Conversely, a file descriptor
+.Dv fd
+referencing a filesystem file can be converted to the
+.Dv O_PATH
+type of descriptor by using the following call
+.Dl opath_fd = openat(fd, \[dq]\[dq], O_EMPTY_PATH | O_PATH);
+.Pp
 If successful,
 .Fn open
 returns a non-negative integer, termed a file descriptor.
@@ -498,6 +507,42 @@ system calls; see
 and the description of the
 .Dv O_CLOEXEC
 flag.
+.Pp
+When the
+.Dv O_NAMEDATTR
+flag is specified for an
+.Fn openat
+where the
+.Fa fd
+argument is for a file object,
+a named attribute for the file object
+is opened and not the file object itself.
+If the
+.Dv O_CREAT
+flag has been specified as well, the named attribute will be
+created if it does not exist.
+When the
+.Dv O_NAMEDATTR
+flag is specified for a
+.Fn open ,
+a named attribute for the current working directory is opened and
+not the current working directory.
+The
+.Fa path
+argument for this
+.Fn openat
+or
+.Fn open
+must be a single component name with no embedded
+.Ql / .
+If the
+.Fa path
+argument is
+.Ql .\&
+then the named attribute directory for the file object is opened.
+(See
+.Xr named_attribute 7
+for more information.)
 .Pp
 The system imposes a limit on the number of file descriptors
 open simultaneously by one process.
@@ -730,6 +775,10 @@ contains a ".." component, the
 .Dv vfs.lookup_cap_dotdot
 .Xr sysctl 3
 is set, and the process is in capability mode.
+.It Bq Er ENOATTR
+.Dv O_NAMEDATTR
+has been specified and the file object is not a named attribute
+directory or named attribute.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,
@@ -745,7 +794,8 @@ is set, and the process is in capability mode.
 .Xr umask 2 ,
 .Xr write 2 ,
 .Xr fopen 3 ,
-.Xr capsicum 4
+.Xr capsicum 4 ,
+.Xr named_attribute 7
 .Sh STANDARDS
 These functions are specified by
 .St -p1003.1-2008 .
@@ -794,6 +844,8 @@ function was introduced in
 .Fx 8.0 .
 .Dv O_DSYNC
 appeared in 13.0.
+.Dv O_NAMEDATTR
+appeared in 15.0.
 .Sh BUGS
 The
 .Fa mode

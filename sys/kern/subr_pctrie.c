@@ -494,7 +494,7 @@ _pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
 	 * search for a value matching 'index'.
 	 */
 	while (node != NULL) {
-		KASSERT(!powerof2(node->pn_popmap),
+		KASSERT(access == PCTRIE_SMR || !powerof2(node->pn_popmap),
 		    ("%s: freed node in iter path", __func__));
 		if (!pctrie_keybarr(node, index, &slot))
 			break;
@@ -514,33 +514,23 @@ _pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
 		parent = node;
 		node = pctrie_node_load(&node->pn_child[slot], smr, access);
 	}
-	if (parent_out != NULL)
-		*parent_out = parent;
+	*parent_out = parent;
 	return (node);
 }
 
 /*
- * Returns the value stored at a given index value, possibly NULL.
+ * Returns the value stored at a given index value, possibly NULL, assuming
+ * access is externally synchronized by a lock.
  */
-static __always_inline uint64_t *
-_pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index, smr_t smr,
-    enum pctrie_access access)
+uint64_t *
+pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index)
 {
 	struct pctrie_node *node;
 
 	it->index = index;
 	node = _pctrie_lookup_node(it->ptree, it->node, index, &it->node,
-	    smr, access);
+	    NULL, PCTRIE_LOCKED);
 	return (pctrie_match_value(node, index));
-}
-
-/*
- * Returns the value stored at a given index value, possibly NULL.
- */
-uint64_t *
-pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index)
-{
-	return (_pctrie_iter_lookup(it, index, NULL, PCTRIE_LOCKED));
 }
 
 /*
@@ -581,9 +571,8 @@ pctrie_iter_insert_lookup(struct pctrie_iter *it, uint64_t *val)
  * Returns the value stored at a fixed offset from the current index value,
  * possibly NULL.
  */
-static __always_inline uint64_t *
-_pctrie_iter_stride(struct pctrie_iter *it, int stride, smr_t smr,
-    enum pctrie_access access)
+uint64_t *
+pctrie_iter_stride(struct pctrie_iter *it, int stride)
 {
 	uint64_t index = it->index + stride;
 
@@ -594,17 +583,7 @@ _pctrie_iter_stride(struct pctrie_iter *it, int stride, smr_t smr,
 	if ((index < it->limit) != (it->index < it->limit))
 		return (NULL);
 
-	return (_pctrie_iter_lookup(it, index, smr, access));
-}
-
-/*
- * Returns the value stored at a fixed offset from the current index value,
- * possibly NULL.
- */
-uint64_t *
-pctrie_iter_stride(struct pctrie_iter *it, int stride)
-{
-	return (_pctrie_iter_stride(it, stride, NULL, PCTRIE_LOCKED));
+	return (pctrie_iter_lookup(it, index));
 }
 
 /*
@@ -614,7 +593,7 @@ pctrie_iter_stride(struct pctrie_iter *it, int stride)
 uint64_t *
 pctrie_iter_next(struct pctrie_iter *it)
 {
-	return (_pctrie_iter_stride(it, 1, NULL, PCTRIE_LOCKED));
+	return (pctrie_iter_stride(it, 1));
 }
 
 /*
@@ -624,7 +603,120 @@ pctrie_iter_next(struct pctrie_iter *it)
 uint64_t *
 pctrie_iter_prev(struct pctrie_iter *it)
 {
-	return (_pctrie_iter_stride(it, -1, NULL, PCTRIE_LOCKED));
+	return (pctrie_iter_stride(it, -1));
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, starting at index.
+ */
+static __always_inline int
+_pctrie_lookup_range(struct pctrie *ptree, struct pctrie_node *node,
+    uint64_t index, uint64_t *value[], int count,
+    struct pctrie_node **parent_out, smr_t smr, enum pctrie_access access)
+{
+	struct pctrie_node *parent;
+	uint64_t *val;
+	int base, end, i;
+
+	parent = node;
+	for (i = 0; i < count;) {
+		node = _pctrie_lookup_node(ptree, parent, index + i, &parent,
+		    smr, access);
+		if ((val = pctrie_match_value(node, index + i)) == NULL)
+			break;
+		value[i++] = val;
+		base = (index + i) % PCTRIE_COUNT;
+		if (base == 0 || parent == NULL || parent->pn_clev != 0)
+			continue;
+
+		/*
+		 * For PCTRIE_SMR, compute an upper bound on the number of
+		 * children of this parent left to examine.  For PCTRIE_LOCKED,
+		 * compute the number of non-NULL children from base up to the
+		 * first NULL child, if any, using the fact that pn_popmap has
+		 * bits set for only the non-NULL children.
+		 *
+		 * The pn_popmap field is accessed only when a lock is held.
+		 * To use it for PCTRIE_SMR here would require that we know that
+		 * race conditions cannot occur if the tree is modified while
+		 * accessed here.  Guarantees about the visibility of changes to
+		 * child pointers, enforced by memory barriers on the writing of
+		 * pointers, are not present for the pn_popmap field, so that
+		 * the popmap bit for a child page may, for an instant,
+		 * misrepresent the nullness of the child page because an
+		 * operation modifying the pctrie is in progress.
+		 */
+		end = (access == PCTRIE_SMR) ? PCTRIE_COUNT - base :
+		    ffs((parent->pn_popmap >> base) + 1) - 1;
+		end = MIN(count, i + end);
+		while (i < end) {
+			node = pctrie_node_load(&parent->pn_child[base++],
+			    smr, access);
+			val = pctrie_toval(node);
+			if (access == PCTRIE_SMR && val == NULL)
+				break;
+			value[i++] = val;
+			KASSERT(val != NULL,
+			    ("%s: null child written to range", __func__));
+		}
+		if (access == PCTRIE_SMR) {
+			if (i < end)
+				break;
+		} else {
+			if (base < PCTRIE_COUNT)
+				break;
+		}
+	}
+	if (parent_out != NULL)
+		*parent_out = parent;
+	return (i);
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, starting at index, assuming access is externally synchronized by a
+ * lock.
+ */
+int
+pctrie_lookup_range(struct pctrie *ptree, uint64_t index,
+    uint64_t *value[], int count)
+{
+	return (_pctrie_lookup_range(ptree, NULL, index, value, count, NULL,
+	    NULL, PCTRIE_LOCKED));
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, starting at index, without requiring an external lock.  These entries
+ * *may* never have been in the pctrie all at one time, but for a series of
+ * times t0, t1, t2, ..., with ti <= t(i+1), value[i] was in the trie at time
+ * ti.
+ */
+int
+pctrie_lookup_range_unlocked(struct pctrie *ptree, uint64_t index,
+    uint64_t *value[], int count, smr_t smr)
+{
+	int res;
+
+	smr_enter(smr);
+	res = _pctrie_lookup_range(ptree, NULL, index, value, count, NULL,
+	    smr, PCTRIE_SMR);
+	smr_exit(smr);
+	return (res);
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, starting at index, assuming access is externally synchronized by a
+ * lock.  Uses an iterator.
+ */
+int
+pctrie_iter_lookup_range(struct pctrie_iter *it, uint64_t index,
+    uint64_t *value[], int count)
+{
+	return (_pctrie_lookup_range(it->ptree, it->node, index, value, count,
+	    &it->node, NULL, PCTRIE_LOCKED));
 }
 
 /*

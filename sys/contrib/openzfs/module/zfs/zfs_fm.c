@@ -659,6 +659,8 @@ zfs_ereport_start(nvlist_t **ereport_out, nvlist_t **detector_out,
 		    DATA_TYPE_UINT64, zio->io_timestamp, NULL);
 		fm_payload_set(ereport, FM_EREPORT_PAYLOAD_ZFS_ZIO_DELTA,
 		    DATA_TYPE_UINT64, zio->io_delta, NULL);
+		fm_payload_set(ereport, FM_EREPORT_PAYLOAD_ZFS_ZIO_TYPE,
+		    DATA_TYPE_UINT32, zio->io_type, NULL);
 		fm_payload_set(ereport, FM_EREPORT_PAYLOAD_ZFS_ZIO_PRIORITY,
 		    DATA_TYPE_UINT32, zio->io_priority, NULL);
 
@@ -1433,9 +1435,23 @@ zfs_post_common(spa_t *spa, vdev_t *vd, const char *type, const char *name,
  * removal.
  */
 void
-zfs_post_remove(spa_t *spa, vdev_t *vd)
+zfs_post_remove(spa_t *spa, vdev_t *vd, boolean_t by_kernel)
 {
-	zfs_post_common(spa, vd, FM_RSRC_CLASS, FM_RESOURCE_REMOVED, NULL);
+	nvlist_t *aux = NULL;
+
+	if (by_kernel) {
+		/*
+		 * Add optional supplemental keys to payload
+		 */
+		aux = fm_nvlist_create(NULL);
+		if (aux)
+			fnvlist_add_boolean(aux, "by_kernel");
+	}
+
+	zfs_post_common(spa, vd, FM_RSRC_CLASS, FM_RESOURCE_REMOVED, aux);
+
+	if (by_kernel && aux)
+		fm_nvlist_destroy(aux, FM_NVA_FREE);
 }
 
 /*

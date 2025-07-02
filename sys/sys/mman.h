@@ -53,6 +53,8 @@
 #define	PROT_WRITE	0x02	/* pages can be written */
 #define	PROT_EXEC	0x04	/* pages can be executed */
 #if __BSD_VISIBLE
+#define	PROT_CHERI0	0x08
+#define	PROT_CHERI1	0x10
 #define	_PROT_ALL	(PROT_READ | PROT_WRITE | PROT_EXEC)
 #define	PROT_EXTRACT(prot)	((prot) & _PROT_ALL)
 

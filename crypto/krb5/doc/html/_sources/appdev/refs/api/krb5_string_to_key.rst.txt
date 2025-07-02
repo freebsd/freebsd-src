@@ -1,0 +1,50 @@
+krb5_string_to_key
+==================
+
+..
+
+.. c:function:: krb5_error_code krb5_string_to_key(krb5_context context, const krb5_encrypt_block * eblock, krb5_keyblock * keyblock, const krb5_data * data, const krb5_data * salt)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **eblock**
+
+	          **keyblock**
+
+	          **data**
+
+	          **salt**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED See krb5_c_string_to_key() 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

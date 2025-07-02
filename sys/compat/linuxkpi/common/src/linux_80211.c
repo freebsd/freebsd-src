@@ -174,6 +174,7 @@ static void lkpi_ieee80211_free_skb_mbuf(void *);
 #ifdef LKPI_80211_WME
 static int lkpi_wme_update(struct lkpi_hw *, struct ieee80211vap *, bool);
 #endif
+static void lkpi_ieee80211_wake_queues_locked(struct ieee80211_hw *);
 
 static const char *
 lkpi_rate_info_bw_to_str(enum rate_info_bw bw)
@@ -482,12 +483,6 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 	sta->deflink.ht_cap.cap = htcap->cap_info;
 	sta->deflink.ht_cap.mcs = htcap->mcs;
 
-	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0 &&
-	    IEEE80211_IS_CHAN_HT40(ni->ni_chan))
-		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
-	else
-		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
-
 	/*
 	 * 802.11n-2009 20.6 Parameters for HT MCSs gives the mandatory/
 	 * optional MCS for Nss=1..4.  We need to check the first four
@@ -496,11 +491,21 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 	 */
 	rx_nss = 0;
 	for (i = 0; i < 4; i++) {
-		if (htcap->mcs.rx_mask[i])
+		if (htcap->mcs.rx_mask[i] != 0)
 			rx_nss++;
 	}
-	if (rx_nss > 0)
+	if (rx_nss > 0) {
 		sta->deflink.rx_nss = rx_nss;
+	} else {
+		sta->deflink.ht_cap.ht_supported = false;
+		return;
+	}
+
+	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0 &&
+	    IEEE80211_IS_CHAN_HT40(ni->ni_chan))
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
+	else
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 
 	IMPROVE("sta->wme");
 
@@ -522,6 +527,7 @@ static void
 lkpi_sta_sync_vht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
     struct ieee80211_node *ni)
 {
+	enum ieee80211_sta_rx_bw bw;
 	uint32_t width;
 	int rx_nss;
 	uint16_t rx_mcs_map;
@@ -545,23 +551,38 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 	if (ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_USE_HT)
 		goto skip_bw;
 
+	bw = sta->deflink.bandwidth;
 	width = (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
 	switch (width) {
-#if 0
+	/* Deprecated. */
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
-		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160;
+		bw = IEEE80211_STA_RX_BW_160;
 		break;
-#endif
 	default:
 		/* Check if we do support 160Mhz somehow after all. */
-#if 0
 		if ((sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) != 0)
-			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160;
+			bw = IEEE80211_STA_RX_BW_160;
 		else
-#endif
-			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_80;
+			bw = IEEE80211_STA_RX_BW_80;
 	}
+	/*
+	 * While we can set what is possibly supported we also need to be
+	 * on a channel which supports that bandwidth; e.g., we can support
+	 * VHT160 but the AP only does VHT80.
+	 * Further ni_chan will also have filtered out what we disabled
+	 * by configuration.
+	 * Once net80211 channel selection is fixed for 802.11-2020 and
+	 * VHT160 we can possibly spare ourselves the above.
+	 */
+	if (bw == IEEE80211_STA_RX_BW_160 &&
+	    !IEEE80211_IS_CHAN_VHT160(ni->ni_chan) &&
+	    !IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan))
+		bw = IEEE80211_STA_RX_BW_80;
+	if (bw == IEEE80211_STA_RX_BW_80 &&
+	    !IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
+		bw = sta->deflink.bandwidth;
+	sta->deflink.bandwidth = bw;
 skip_bw:
 
 	rx_nss = 0;
@@ -603,6 +624,13 @@ lkpi_sta_sync_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 #if defined(LKPI_80211_VHT)
 	lkpi_sta_sync_vht_from_ni(vif, sta, ni);
 #endif
+
+	/*
+	 * Ensure rx_nss is at least 1 as otherwise drivers run into
+	 * unexpected problems.
+	 */
+	sta->deflink.rx_nss = MAX(1, sta->deflink.rx_nss);
+
 	/*
 	 * We are also called from node allocation which net80211
 	 * can do even on `ifconfig down`; in that case the chanctx
@@ -1037,10 +1065,15 @@ lkpi_net80211_to_l80211_cipher_suite(uint32_t cipher, uint8_t keylen)
 
 	switch (cipher) {
 	case IEEE80211_CIPHER_WEP:
-		if (keylen < 8)
+		if (keylen == (40/NBBY))
 			return (WLAN_CIPHER_SUITE_WEP40);
-		else
+		else if (keylen == (104/NBBY))
 			return (WLAN_CIPHER_SUITE_WEP104);
+		else {
+			printf("%s: WEP with unsupported keylen %d\n",
+			    __func__, keylen * NBBY);
+			return (0);
+		}
 		break;
 	case IEEE80211_CIPHER_TKIP:
 		return (WLAN_CIPHER_SUITE_TKIP);
@@ -1211,18 +1244,19 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(lsta->ni->ni_ic, "%s: running set_key cmd %d(%s) for "
+			ic_printf(lsta->ni->ni_ic, "%d %lu %s: running set_key cmd %d(%s) for "
 			    "sta %6D: keyidx %u hw_key_idx %u flags %b\n",
-			    __func__, DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
+			    curthread->td_tid, jiffies, __func__,
+			    DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
 			    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
 		err = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif,
 		    LSTA_TO_STA(lsta), kc);
 		if (err != 0) {
-			ic_printf(lsta->ni->ni_ic, "%s: set_key cmd %d(%s) for "
-			    "sta %6D failed: %d\n", __func__, DISABLE_KEY,
-			    "DISABLE", lsta->sta.addr, ":", err);
+			ic_printf(lsta->ni->ni_ic, "%d %lu %s: set_key cmd %d(%s) for "
+			    "sta %6D failed: %d\n", curthread->td_tid, jiffies, __func__,
+			    DISABLE_KEY, "DISABLE", lsta->sta.addr, ":", err);
 			error++;
 
 			/*
@@ -1234,9 +1268,10 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(lsta->ni->ni_ic, "%s: set_key cmd %d(%s) for "
+			ic_printf(lsta->ni->ni_ic, "%d %lu %s: set_key cmd %d(%s) for "
 			    "sta %6D succeeded: keyidx %u hw_key_idx %u flags %b\n",
-			    __func__, DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
+			    curthread->td_tid, jiffies, __func__,
+			    DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
 			    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
@@ -1264,6 +1299,16 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	int error;
 
 	ic = vap->iv_ic;
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+
+	/*
+	 * Make sure we do not make it here without going through
+	 * lkpi_iv_key_update_begin() first.
+	 */
+	lockdep_assert_wiphy(hw->wiphy);
+
 	if (IEEE80211_KEY_UNDEFINED(k)) {
 		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
 		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
@@ -1289,51 +1334,40 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	if (lsta->kc[k->wk_keyix] == NULL) {
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(ic, "%s: sta %6D and no key information, "
+			ic_printf(ic, "%d %lu %s: sta %6D and no key information, "
 			    "keyidx %u wk_macaddr %6D; returning success\n",
-			    __func__, sta->addr, ":",
+			    curthread->td_tid, jiffies, __func__, sta->addr, ":",
 			    k->wk_keyix, k->wk_macaddr, ":");
 #endif
 		ieee80211_free_node(ni);
 		return (1);
 	}
-
 	kc = lsta->kc[k->wk_keyix];
-	/* Re-check under lock. */
-	if (kc == NULL) {
-#ifdef LINUXKPI_DEBUG_80211
-		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(ic, "%s: sta %6D and key information vanished, "
-			    "returning success\n", __func__, sta->addr, ":");
-#endif
-		error = 1;
-		goto out;
-	}
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: running  set_key cmd %d(%s) for sta %6D: "
-		    "keyidx %u hw_key_idx %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: running set_key cmd %d(%s) for sta %6D: "
+		    "keyidx %u hw_key_idx %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    DISABLE_KEY, "DISABLE", sta->addr, ":",
 		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
-	lhw = ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
 	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif, sta, kc);
 	if (error != 0) {
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D failed: %d\n",
-		    __func__, DISABLE_KEY, "DISABLE", sta->addr, ":", error);
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D failed: %d\n",
+		    curthread->td_tid, jiffies, __func__,
+		    DISABLE_KEY, "DISABLE", sta->addr, ":", error);
 		error = 0;
 		goto out;
 	}
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D succeeded: "
-		    "keyidx %u hw_key_idx %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D succeeded: "
+		    "keyidx %u hw_key_idx %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    DISABLE_KEY, "DISABLE", sta->addr, ":",
 		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
@@ -1363,6 +1397,15 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	int error;
 
 	ic = vap->iv_ic;
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+
+	/*
+	 * Make sure we do not make it here without going through
+	 * lkpi_iv_key_update_begin() first.
+	 */
+	lockdep_assert_wiphy(hw->wiphy);
+
 	if (IEEE80211_KEY_UNDEFINED(k)) {
 		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
 		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
@@ -1388,10 +1431,11 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	lcipher = lkpi_net80211_to_l80211_cipher_suite(
 	    k->wk_cipher->ic_cipher, k->wk_keylen);
 	switch (lcipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		keylen += 2 * k->wk_cipher->ic_miclen;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
 		break;
 	default:
 		ic_printf(ic, "%s: CIPHER SUITE %#x (%s) not supported\n",
@@ -1427,16 +1471,16 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	if (k->wk_flags & IEEE80211_KEY_GROUP)
 		kc->flags &= ~IEEE80211_KEY_FLAG_PAIRWISE;
 
+	kc->iv_len = k->wk_cipher->ic_header;
+	kc->icv_len = k->wk_cipher->ic_trailer;
+
 	switch (kc->cipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-		kc->iv_len = k->wk_cipher->ic_header;
-		kc->icv_len = k->wk_cipher->ic_trailer;
-		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY, k->wk_txmic, k->wk_cipher->ic_miclen);
 		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY, k->wk_rxmic, k->wk_cipher->ic_miclen);
-		kc->iv_len = k->wk_cipher->ic_header;
-		kc->icv_len = k->wk_cipher->ic_trailer;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
 		break;
 	default:
 		/* currently UNREACH */
@@ -1447,20 +1491,20 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: running set_key cmd %d(%s) for sta %6D: "
-		    "kc %p keyidx %u hw_key_idx %u keylen %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: running set_key cmd %d(%s) for sta %6D: "
+		    "kc %p keyidx %u hw_key_idx %u keylen %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    SET_KEY, "SET", sta->addr, ":", kc, kc->keyidx, kc->hw_key_idx,
 		    kc->keylen, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
-	lhw = ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
 	lvif = VAP_TO_LVIF(vap);
 	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, SET_KEY, vif, sta, kc);
 	if (error != 0) {
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D failed: %d\n",
-		    __func__, SET_KEY, "SET", sta->addr, ":", error);
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D failed: %d\n",
+		    curthread->td_tid, jiffies, __func__,
+		    SET_KEY, "SET", sta->addr, ":", error);
 		lsta->kc[k->wk_keyix] = NULL;
 		free(kc, M_LKPI80211);
 		ieee80211_free_node(ni);
@@ -1469,8 +1513,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D succeeded: "
-		    "kc %p keyidx %u hw_key_idx %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D succeeded: "
+		    "kc %p keyidx %u hw_key_idx %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    SET_KEY, "SET", sta->addr, ":",
 		    kc, kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
@@ -1501,6 +1546,7 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 #endif
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
 		exp_flags = (IEEE80211_KEY_FLAG_PAIRWISE |
 		    IEEE80211_KEY_FLAG_PUT_IV_SPACE |
 		    IEEE80211_KEY_FLAG_GENERATE_IV |
@@ -1548,9 +1594,9 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: tid %d vap %p ic %p %slocked nt %p %slocked "
-		    "lvif ic_unlocked %d nt_unlocked %d\n", __func__,
-		    curthread->td_tid, vap,
+		ic_printf(ic, "%d %lu %s: vap %p ic %p %slocked nt %p %slocked "
+		    "lvif ic_unlocked %d nt_unlocked %d\n",
+		    curthread->td_tid, jiffies, __func__, vap,
 		    ic, icislocked ? "" : "un", nt, ntislocked ? "" : "un",
 		    lvif->ic_unlocked, lvif->nt_unlocked);
 #endif
@@ -1586,6 +1632,11 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 		refcount_acquire(&lvif->ic_unlocked);
 	if (ntislocked)
 		refcount_acquire(&lvif->nt_unlocked);
+
+	/*
+	 * Stop the queues while doing key updates.
+	 */
+	ieee80211_stop_queues(hw);
 }
 
 static void
@@ -1604,6 +1655,11 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 	lvif = VAP_TO_LVIF(vap);
 	nt = &ic->ic_sta;
 
+	/*
+	 * Re-enabled the queues after the key update.
+	 */
+	lkpi_ieee80211_wake_queues_locked(hw);
+
 	icislocked = IEEE80211_IS_LOCKED(ic);
 	MPASS(!icislocked);
 	ntislocked = IEEE80211_NODE_IS_LOCKED(nt);
@@ -1611,9 +1667,9 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: tid %d vap %p ic %p %slocked nt %p %slocked "
-		    "lvif ic_unlocked %d nt_unlocked %d\n", __func__,
-		    curthread->td_tid, vap,
+		ic_printf(ic, "%d %lu %s: vap %p ic %p %slocked nt %p %slocked "
+		    "lvif ic_unlocked %d nt_unlocked %d\n",
+		    curthread->td_tid, jiffies, __func__, vap,
 		    ic, icislocked ? "" : "un", nt, ntislocked ? "" : "un",
 		    lvif->ic_unlocked, lvif->nt_unlocked);
 #endif
@@ -2021,6 +2077,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	struct ieee80211_prep_tx_info prep_tx_info;
 	uint32_t changed;
 	int error;
+	bool synched;
 
 	/*
 	 * In here we use vap->iv_bss until lvif->lvif_bss is set.
@@ -2111,14 +2168,11 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 #endif
 #ifdef LKPI_80211_VHT
 	if (IEEE80211_IS_CHAN_VHT_5GHZ(ni->ni_chan)) {
-#ifdef __notyet__
 		if (IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan))
 			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80P80;
 		else if (IEEE80211_IS_CHAN_VHT160(ni->ni_chan))
 			chanctx_conf->def.width = NL80211_CHAN_WIDTH_160;
-		else
-#endif
-		if (IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
+		else if (IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
 			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80;
 	}
 #endif
@@ -2211,14 +2265,6 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	    __func__, ni, ni->ni_drv_data));
 	lsta = ni->ni_drv_data;
 
-	/*
-	 * Make sure in case the sta did not change and we re-add it,
-	 * that we can tx again.
-	 */
-	LKPI_80211_LSTA_TXQ_LOCK(lsta);
-	lsta->txq_ready = true;
-	LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
-
 	/* Insert the [l]sta into the list of known stations. */
 	list_add_tail(&lsta->lsta_list, &lvif->lsta_list);
 
@@ -2292,10 +2338,10 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	ieee80211_ref_node(lsta->ni);
 	lvif->lvif_bss = lsta;
 	if (lsta->ni == vap->iv_bss) {
-		lvif->lvif_bss_synched = true;
+		lvif->lvif_bss_synched = synched = true;
 	} else {
 		/* Set to un-synched no matter what. */
-		lvif->lvif_bss_synched = false;
+		lvif->lvif_bss_synched = synched = false;
 		/*
 		 * We do not error as someone has to take us down.
 		 * If we are followed by a 2nd, new net80211::join1() going to
@@ -2305,9 +2351,20 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		 * to net80211 as we never used the node beyond alloc()/free()
 		 * and we do not hold an extra reference for that anymore given
 		 * ni : lsta == 1:1.
+		 * Problem is if we do not error a MGMT/AUTH frame will be
+		 * sent from net80211::sta_newstate(); disable lsta queue below.
 		 */
 	}
 	LKPI_80211_LVIF_UNLOCK(lvif);
+	/*
+	 * Make sure in case the sta did not change and we re-added it,
+	 * that we can tx again but only if the vif/iv_bss are in sync.
+	 * Otherwise this should prevent the MGMT/AUTH frame from being
+	 * sent triggering a warning in iwlwifi.
+	 */
+	LKPI_80211_LSTA_TXQ_LOCK(lsta);
+	lsta->txq_ready = synched;
+	LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 	goto out_relocked;
 
 out:
@@ -2921,9 +2978,14 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		IMPROVE("net80211 does not consider node authorized");
 	}
 
-	sta->deflink.rx_nss = MAX(1, sta->deflink.rx_nss);
 	IMPROVE("Is this the right spot, has net80211 done all updates already?");
 	lkpi_sta_sync_from_ni(hw, vif, sta, ni, true);
+
+	/* Update thresholds. */
+	hw->wiphy->frag_threshold = vap->iv_fragthreshold;
+	lkpi_80211_mo_set_frag_threshold(hw, vap->iv_fragthreshold);
+	hw->wiphy->rts_threshold = vap->iv_rtsthreshold;
+	lkpi_80211_mo_set_rts_threshold(hw, vap->iv_rtsthreshold);
 
 	/* Update sta_state (ASSOC to AUTHORIZED). */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
@@ -4062,12 +4124,26 @@ lkpi_scan_ies_add(uint8_t *p, struct ieee80211_scan_ies *scan_ies,
 		channels = supband->channels;
 		chan = NULL;
 		for (i = 0; i < supband->n_channels; i++) {
+			uint32_t flags;
 
 			if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 				continue;
 
+			flags = 0;
+			switch (band) {
+			case NL80211_BAND_2GHZ:
+				flags |= IEEE80211_CHAN_G;
+				break;
+			case NL80211_BAND_5GHZ:
+				flags |= IEEE80211_CHAN_A;
+				break;
+			default:
+				panic("%s:%d: unupported band %d\n",
+				    __func__, __LINE__, band);
+			}
+
 			chan = ieee80211_find_channel(ic,
-			    channels[i].center_freq, 0);
+			    channels[i].center_freq, flags);
 			if (chan != NULL)
 				break;
 		}
@@ -4782,6 +4858,7 @@ encrypt:
 	TODO("sw encrypt");
 	return (ENXIO);
 }
+
 static int
 lkpi_hw_crypto_prepare_ccmp(struct ieee80211_key *k,
     struct ieee80211_key_conf *kc, struct sk_buff *skb)
@@ -4849,10 +4926,11 @@ lkpi_hw_crypto_prepare(struct lkpi_sta *lsta, struct ieee80211_key *k,
 		return (lkpi_hw_crypto_prepare_tkip(k, kc, skb));
 	case WLAN_CIPHER_SUITE_CCMP:
 		return (lkpi_hw_crypto_prepare_ccmp(k, kc, skb));
+	case WLAN_CIPHER_SUITE_GCMP:
+		return (lkpi_hw_crypto_prepare_ccmp(k, kc, skb));
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
@@ -5091,11 +5169,11 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	skb_queue_tail(&ltxq->skbq, skb);
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
-		printf("%s:%d mo_wake_tx_queue :: %d %u lsta %p sta %p "
+		printf("%s:%d mo_wake_tx_queue :: %d %lu lsta %p sta %p "
 		    "ni %p %6D skb %p lxtq %p { qlen %u, ac %d tid %u } "
 		    "WAKE_TX_Q ac %d prio %u qmap %u\n",
 		    __func__, __LINE__,
-		    curthread->td_tid, (unsigned int)ticks,
+		    curthread->td_tid, jiffies,
 		    lsta, sta, ni, ni->ni_macaddr, ":", skb, ltxq,
 		    skb_queue_len(&ltxq->skbq), ltxq->txq.ac,
 		    ltxq->txq.tid, ac, skb->priority, skb->qmap);
@@ -6097,6 +6175,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		 * Also permit TKIP if turned on.
 		 */
 		hwciphers &= (IEEE80211_CRYPTO_AES_CCM |
+		    IEEE80211_CRYPTO_AES_GCM_128 |
 		    (lkpi_hwcrypto_tkip ? (IEEE80211_CRYPTO_TKIP |
 		    IEEE80211_CRYPTO_TKIPMIC) : 0));
 		ieee80211_set_hardware_ciphers(ic, hwciphers);
@@ -6793,7 +6872,7 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * For now do the data copy; we can later improve things. Might even
 	 * have an mbuf backing the skb data then?
 	 */
-	m = m_get2(skb->len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_get3(skb->len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		counter_u64_add(ic->ic_ierrors, 1);
 		goto err;
@@ -7347,6 +7426,7 @@ linuxkpi_ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	struct lkpi_vif *lvif;
 	struct sk_buff *skb;
 
+	IMPROVE("wiphy_lock? or assert?");
 	skb = NULL;
 	ltxq = TXQ_TO_LTXQ(txq);
 	ltxq->seen_dequeue = true;
@@ -7850,8 +7930,8 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 
 						ltxq->stopped = false;
 
-						/* XXX-BZ see when this explodes with all the locking. taskq? */
-						lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+						if (!skb_queue_empty(&ltxq->skbq))
+							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
 					}
 				}
 				rcu_read_unlock();
@@ -7861,8 +7941,8 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 }
 
-void
-linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
+static void
+lkpi_ieee80211_wake_queues_locked(struct ieee80211_hw *hw)
 {
 	int i;
 
@@ -7872,13 +7952,23 @@ linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
 }
 
 void
+linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
+{
+	wiphy_lock(hw->wiphy);
+	lkpi_ieee80211_wake_queues_locked(hw);
+	wiphy_unlock(hw->wiphy);
+}
+
+void
 linuxkpi_ieee80211_wake_queue(struct ieee80211_hw *hw, int qnum)
 {
 
 	KASSERT(qnum < hw->queues, ("%s: qnum %d >= hw->queues %d, hw %p\n",
 	    __func__, qnum, hw->queues, hw));
 
+	wiphy_lock(hw->wiphy);
 	lkpi_ieee80211_wake_queues(hw, qnum);
+	wiphy_unlock(hw->wiphy);
 }
 
 /* This is just hardware queues. */

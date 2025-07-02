@@ -1,0 +1,321 @@
+	       Building & Running Kerberos 5 on Windows
+	       ----------------------------------------
+
+This file documents how to build MIT Kerberos for Windows.
+The MIT Kerberos for Windows distribution contains additional components
+not present in the Unix krb5 distribution, most notably the
+MIT Kerberos Ticket Manager application.
+
+To build Kerberos 5 on Windows, you will need the following:
+
+* A version of Visual Studio (at least 2013) which includes the
+  Microsoft Foundation Classes libraries.  These instructions will
+  work for Visual Studio 2017 Community or Professional, both of which
+  include the MFC libraries if the "Visual C++ MFC" checkbox is
+  selected after enabling the "Desktop development with C++" workload.
+  If you do not plan to build the graphical ticket manager
+  application, the MFC libraries are not required.
+
+* A version of Perl.
+
+* Some common Unix utilities such as sed/awk/cp/cat installed in the
+  command-line path.
+
+* To build an MSI installer, the Windows Installer XML (WiX) toolkit,
+  and to ensure that the HTML Help Compiler (hhc.exe) and the WiX
+  tools are in your command-line path.  WiX version 3.11.1 is verified
+  to work with this codebase.
+
+A simple way to get the necessary Unix utilities is to install Git
+BASH from https://gitforwindows.org and configure it to add the Unix
+utilities to the command-line path.  In some versions of Windows (not
+the most current versions), the Unix utilities can alternatively be
+obtained via the Utilities and SDK for UNIX-based Applications, which
+may be enabled as a Windows feature and then the components installed.
+Note that the Windows nmake will not find the SUA awk utility in the
+path unless it is named awk.exe; the permissions on the utility may
+need correcting if awk.exe is created as a copy of the original awk.
+
+Git BASH contains a version of Perl, which will work to build krb5 if
+the newlines in the source tree are not translated to native newlines.
+Strawberry Perl will work regardless of whether newlines are
+translated.  If both Git BASH and Strawberry Perl are installed, you
+may need to adjust the command line path to ensure that the preferred
+Perl appears first.
+
+The krb5 source tree may be obtained either directly on the Windows
+machine with a native git client cloning the krb5 public mirror at
+https://github.com/krb5/krb5.git or on a separate (Unix) machine and
+copied over, such as from a VM host onto a Windows VM.  If you are
+checking out the sources with git and are using the Git BASH Perl,
+make sure to set git's core.autocrlf variable to "input" or "false" to
+avoid translating newlines.
+
+After Visual Studio is installed, you should be able to invoke 32-bit
+and 64-bit command prompts via the start menu (Visual Studio 2017 ->
+x86 Native Tools Command Prompt and x64 Native Tools Command Prompt).
+At the current time, Kerberos 5 can only be built for the x64 target
+if the host platform is also 64-bit, because it compiles and runs
+programs during the build.
+
+IMPORTANT NOTE: By default, the sources are built with debug
+information and linked against the debug version of the Microsoft C
+Runtime library, which is not found on most Windows systems unless
+they have development tools, and requires a separate license to
+distribute.  To build a release version, you need to define NODEBUG
+either in the environment or the nmake command-line.  Debug
+information in the compiled binaries and libraries may be retained by
+defining DEBUG_SYMBOL in the environment or on the nmake command line.
+
+
+Building the code and installer:
+-------------------------------
+
+First, make sure you have sed, (g)awk, cat, and cp.
+You must also define KRB_INSTALL_DIR either in the environment or
+on the command line (for nmake install).  If you are proceeding to build
+the MSI installer, this directory should be a temporary staging area in or
+near your build tree.  The directory must exist before nmake install
+is run.  The 64-bit installer provides 32-bit libraries, so a 32-bit build
+and install must be performed before the 64-bit build.
+
+To skip building the graphical ticket manager, run "set NO_LEASH=1"
+before building, and do not build the installers.
+
+In a 32-bit command shell:
+
+ 1) set KRB_INSTALL_DIR=\path\to\dir    # Where bin/include/lib lives
+ 2) cd xxx\src                          # Go to where source lives
+ 3) nmake -f Makefile.in prep-windows   # Create Makefile for Windows
+ 4) nmake [NODEBUG=1]                   # Build the sources
+ 5) nmake install [NODEBUG=1]           # Copy headers, libs, executables
+ 6) cd windows\installer\wix            # Go to where the installer source is
+ 7) nmake [NODEBUG=1]                   # Build the installer
+ 8) rename kfw.msi kfw32.msi            # Save the 32-bit installer
+
+In a 64-bit command shell:
+
+ 9) set PATH=%PATH%;"%WindowsSdkVerBinPath%"\x86  # To get uicc.exe
+10) set KRB_INSTALL_DIR=\path\to\dir    # Where bin/include/lib lives
+11) cd xxx\src                          # Go to where source lives
+12) nmake clean                         # Clean up the 32-bit objects
+13) nmake [NODEBUG=1]                   # Build the sources for 64-bit
+14) nmake install [NODEBUG=1]           # Copy 64-bit lib/executables
+15) cd windows\installer\wix            # Back to the installer source
+16) nmake clean                         # Remove 32-bit leavings
+17) nmake [NODEBUG=1]                   # Build the 64-bit installer
+18) rename kfw.msi kfw64.msi            # And name it usefully
+
+Step 9 may be skipped if uicc is already in the command-line path (try
+running "uicc" to see if you get a usage message or a not-found
+error), or if you are not building the graphical ticket manager.
+
+Visual Studio 2013 and 2015 provide only a single command prompt.
+Within this prompt, use "vcvarsall.bat x86" and "vcvarsall.bat amd64"
+to switch to 32-bit and 64-bit mode.
+
+
+Running Kerberos 5 Apps:
+-----------------------
+
+Make sure you have a valid krb5.ini file.
+By default, an empty krb5.ini is installed in CSIDL_COMMON_APPDATA
+(that is, %SystemDrive%\ProgramData\MIT\Kerberos5\ on newer-than-XP).
+(ProgramData is a hidden folder.)  You may need to customize it with
+settings for your site, but since DNS lookups are enabled for locating
+KDCs, many sites will not need further customization.  The file format is
+identical to that of a Unix krb5.conf file.
+
+
+krb5.ini File:
+-------------
+
+WARNING: Despite its name, this is not a Windows .ini file.
+Therefore, do not try to use any .ini tools, including the Windows API
+or any installer tools to manipulate this file.  Its format is subtly
+different from Windows .ini files!
+
+
+Controlling the Kerberos 5 Run-Time Environment:
+-----------------------------------------------
+
+The Kerberos 5 configuration file and credentials cache can be
+controlled with environment variables and registry settings.  The
+environment variable for a particular setting always takes precedence.
+Next in precedence comes the setting in the registry under
+HKEY_CURRENT_USER\Software\MIT\Kerberos5.  Then comes the registry
+setting under HKEY_LOCAL_MACHINE\Software\MIT\Kerberos5.  If none of
+those are found, a default value is used.
+
+Configuration File:
+- Environment: KRB5_CONFIG
+- Registry Value: config
+- Default: looks in the user's AppData directory, the machine's ProgramData
+  directory, krb5_32.dll's dir and Windows directory
+
+Default Credentials Cache:
+- Environment: KRB5CCNAME
+- Registry Value: ccname
+- Default: API:
+
+
+Credentials Cache:
+-----------------
+
+In addition to standard FILE: (disk file) and MEMORY: (in-process
+non-shared memory) Windows supports the API: cache type, which is a
+shared memory cache.  Kerberos for Windows also has access to an
+MSLSA: cache type, which directly accesses the Microsoft Kerberos
+Logon Session credentials cache.  The MSLSA: cache is available when the
+user logon is performed using Kerberos either to an Active Directory Domain
+or a non-Microsoft KDC; the ms2mit and mit2ms utilities can also be used
+to interact with it, though there are some limitations.
+
+A user is able to logon to Windows using the Kerberos LSA if the machine
+is part of a Windows Active Directory domain or if the machine has been
+configured to authenticate to a non-Microsoft KDC such as MIT.
+The instructions for configuring a Windows 2000 XP workstation to
+authenticate to a non-Microsoft KDC are documented in TechNet somewhere.
+In brief:
+
+  1. Install the Windows support tools in order to obtain KSETUP.EXE
+     and KTPASS.EXE.
+  2. Install the Windows Resource Kit to obtain KERBTRAY.EXE and KLIST.EXE
+  3. Add Realms and associated KDCs with: *KSETUP /AddKdc <realm>
+     [<kdcname>]*.  If you leave off the <kdcname> DNS SRV records will
+     be used.
+  4. Specify the password change service host for the realm with:
+     *KSETUP /AddKpasswd <realm> <Kpwdhost>*
+  5. Assign the realm of the local machine with: *KSETUP /SetRealm
+     <realm>* where realm must be all upper case.
+  6. Assign the local machine's password with: *KSETUP
+     /SetComputerPassword <Password>
+     *
+  7. Specify the capabilities of the Realm KDC with: *KSETUP
+     /SetRealmFlags <realm> <flag> [<flag> ...]* where flags may be
+     *None, SendAddress, TcpSupported, Delegate, *and *NcSupported*,
+  8. Map principal names to local accounts with: *KSETUP /MapUser
+     <principal> <account>*
+
+On the MIT KDC, you must then create service principals using the "Password"
+assigned to the machine.  So far the minimum list of principals required appear
+to be for a machine named "mymachine" in the realm "EXAMPLE.COM" with a
+domain name of "example.com":
+
+   * host/mymachine@EXAMPLE.COM
+   * host/mymachine.example.com@EXAMPLE.COM
+   * cifs/mymachine@EXAMPLE.COM
+   * cifs/mymachine.example.com@EXAMPLE.COM
+
+There may very well be other services for which principals must be created depending
+on what services are being executed on the machine.
+
+It is very important to note that while you can successfully log into a Windows
+workstation by authenticating to the KDC without creating a host key; the logon
+session you receive will not be a Kerberos Logon Session.  There will be no Kerberos
+principal and no LSA cache to access.
+
+The result of a real KSETUP configuration looks like this:
+
+   [C:\4\4NT]ksetup
+   default realm = KRB5.COLUMBIA.EDU (external)
+   ATHENA.MIT.EDU:
+           kdc = kerberos.mit.edu
+           kdc = kerberos-1.mit.edu
+           kdc = kerberos-2.mit.edu
+           kdc = kerberos-3.mit.edu
+           Realm Flags = 0x0 none
+   CC.COLUMBIA.EDU:
+           kdc = kerberos.cc.columbia.edu
+           Realm Flags = 0x0 none
+   GRAND.CENTRAL.ORG:
+           kdc = penn.central.org
+           kdc = grand-opening.mit.edu
+           Realm Flags = 0x0 none
+   KRB5.COLUMBIA.EDU:
+           kdc = yclept.kermit.columbia.edu
+           Realm Flags = 0x0 none
+   OPENAFS.ORG:
+           kdc = virtue.openafs.org
+           Realm Flags = 0x0 none
+   Mapping jaltman@KRB5.COLUMBIA.EDU to jaltman.
+   Mapping jaltman@CC.COLUMBIA.EDU to jaltman.
+   Mapping jaltman@ATHENA.MIT.EDU to jaltman.
+   Mapping all users (*) to a local account by the same name (*).
+
+The MSLSA: credential cache relies on the ability to extract the entire
+Kerberos ticket including the session key from the Kerberos LSA.  In an
+attempt to increase security Microsoft has begun to implement a feature
+by which they no longer export the session keys for Ticket Getting Tickets.
+This has the side effect of making them useless to the MIT krb5 library
+when attempting to request additional service tickets.
+
+This new feature has been seen in Windows 2003 Server, Windows 2000 Server SP4,
+and Windows XP SP2.  We assume that it will be implemented in all future
+Microsoft operating systems supporting the Kerberos SSPI.  Microsoft does work
+closely with MIT and has provided a registry key to disable this new feature.
+On server platforms the key is specified as:
+
+  HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters
+    AllowTGTSessionKey = 0x01 (DWORD)
+
+On workstation platforms the key is specified as:
+
+  HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos
+    AllowTGTSessionKey = 0x01 (DWORD)
+
+The Kerberos for Windows installer automatically sets this key on installation
+and unsets it on uninstall, allowing the MSLSA: cache type to be used.
+
+It has been noted that the Microsoft Kerberos LSA does not provide enough
+information within its KERB_EXTERNAL_TICKET structure to properly construct
+the Client Principal simply by examining a single ticket. From the MSDN
+Library:
+
+  ClientName
+    KERB_EXTERNAL_NAME structure that contains the client name in the ticket.
+    This name is relative to the current domain.
+
+  DomainName
+    UNICODE_STRING that contains the name of the domain that corresponds to
+    the ServiceName member. This is the domain that issued the ticket.
+
+  TargetDomainName
+    UNICODE_STRING that contains the name of the domain in which the ticket is
+    valid. For an interdomain ticket, this is the destination domain.
+
+  AltTargetDomainName
+    UNICODE_STRING that contains a synonym for the destination domain. Every
+    domain has two names: a DNS name and a NetBIOS name. If the name returned
+    in the ticket is different from the name used to request the ticket (the
+    Kerberos Key Distribution Center (KDC) may do name mapping), this string
+    contains the original name.
+
+Unfortunately, there is no field here which contains the domain of the client.
+In order for the krb5_ccache to properly report the client principal name, the
+client principal name is constructed by utilizing the ClientName and DomainName
+fields of the Initial TGT associated with the Kerberos LSA credential cache.
+To disable the use of the TGT info and instead simply use the "DomainName" field
+of the current ticket define one of the following registry keys depending on
+whether the change should be system global or just for the current user.
+
+   HKLM\Software\MIT\Kerberos5\
+      PreserveInitialTicketIdentity = 0x0 (DWORD)
+
+   HKCU\Software\MIT\Kerberos5\
+      PreserveInitialTicketIdentity = 0x0 (DWORD)
+
+GSSAPI Sample Client:
+---------------------
+
+The GSS API Sample Client provided in this distribution is compatible with the
+gss-server application built on Unix/Linux systems.  This client is not compatible
+with the Platform SDK/Samples/Security/SSPI/GSS/ samples which Microsoft has been
+shipping as of January 2004.  Revised versions of these samples are available upon
+request to krbdev@mit.edu.
+
+More Information:
+----------------
+
+For more information, please read the Kerberos 5 documentation in
+the doc directory of the distribution.

@@ -1,0 +1,34 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-QUESTION-PKINIT-data:
+
+KRB5_RESPONDER_QUESTION_PKINIT
+==============================
+
+..
+.. data:: KRB5_RESPONDER_QUESTION_PKINIT
+..
+
+PKINIT responder question.
+
+The PKINIT responder question is asked when the client needs a password that's being used to protect key information, and is formatted as a JSON object. A specific identity's flags value, if not zero, is the bitwise-OR of one or more of the KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_* flags defined below, and possibly other flags to be added later. Any resemblance to similarly-named CKF_* values in the PKCS#11 API should not be depended on.
+::
+
+    {
+        identity <string> : flags <number>,
+        ...
+    }
+
+The answer to the question MUST be JSON formatted:
+::
+
+    {
+        identity <string> : password <string>,
+        ...
+    }
+
+  
+
+===================================== ======================
+``KRB5_RESPONDER_QUESTION_PKINIT``       ``"pkinit"``
+===================================== ======================

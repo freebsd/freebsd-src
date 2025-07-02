@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-SAM-SEND-ENCRYPTED-SAD-data:
+
+KRB5_SAM_SEND_ENCRYPTED_SAD
+===========================
+
+..
+.. data:: KRB5_SAM_SEND_ENCRYPTED_SAD
+..
+
+
+
+
+================================== ======================
+``KRB5_SAM_SEND_ENCRYPTED_SAD``       ``0x40000000``
+================================== ======================

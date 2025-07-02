@@ -1358,8 +1358,13 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 			    npc->data_len, ctrlr->max_xfer_size);
 			return (EIO);
 		}
-		/* We only support data out or data in commands, but not both at once. */
-		if ((npc->opcode & 0x3) == 0 || (npc->opcode & 0x3) == 3)
+		/*
+		 * We only support data out or data in commands, but not both at
+		 * once. However, there's some comands with lower bit cleared
+		 * that are really read commands, so we should filter & 3 == 0,
+		 * but don't.
+		 */
+		if ((npc->opcode & 0x3) == 3)
 			return (EINVAL);
 		if (is_user) {
 			buf = uma_zalloc(pbuf_zone, M_WAITOK);

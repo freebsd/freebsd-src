@@ -1,0 +1,17 @@
+# Test anonymous FAST.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth = force_first_pass no_ccache anon_fast
+
+[run]
+    authenticate = PAM_SUCCESS
+
+[output]
+    INFO user %u authenticated as %0

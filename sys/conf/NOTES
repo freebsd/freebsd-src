@@ -1249,6 +1249,7 @@ options 	MAC
 options 	MAC_BIBA
 options 	MAC_BSDEXTENDED
 options 	MAC_DDB
+options		MAC_DO
 options 	MAC_IFOFF
 options 	MAC_IPACL
 options 	MAC_LOMAC
@@ -2057,7 +2058,8 @@ device		rtwnfw
 # mismatch between the mbuf size assumed by the kernel and the mbuf size
 # assumed by a module.  The only driver that currently has the ability to
 # detect a mismatch is ti(4).
-options 	MCLSHIFT=11	# mbuf cluster shift in bits, 11 == 2KB
+options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4 kB
+				#   default is 11 == 2 kB
 options 	MSIZE=256	# mbuf size in bytes
 
 #
@@ -2867,3 +2869,6 @@ options 	STATS
 
 # File system monitoring
 device		filemon		# file monitoring for make(1) meta-mode
+
+# Options for the Intel QuickAssist (QAT) driver.
+options		QAT_DISABLE_SAFE_DC_MODE	# Disable QAT safe data compression mode (only for 4940 devices).

@@ -217,6 +217,13 @@ local function defaultframe()
 	return "double"
 end
 
+local function gfxenabled()
+	return (loader.getenv("loader_gfx") or "yes"):lower() ~= "no"
+end
+local function gfxcapable()
+	return core.isFramebufferConsole() and gfx.term_putimage
+end
+
 local function drawframe()
 	local x = menu_position.x - 3
 	local y = menu_position.y - 1
@@ -242,7 +249,7 @@ local function drawframe()
 	x = x + shift.x
 	y = y + shift.y
 
-	if core.isFramebufferConsole() and gfx.term_drawrect ~= nil then
+	if gfxenabled() and gfxcapable() then
 		gfx.term_drawrect(x, y, x + w, y + h)
 		return true
 	end
@@ -332,11 +339,9 @@ local function drawbrand()
 		y = y + branddef.shift.y
 	end
 
-	if core.isFramebufferConsole() and
-	    gfx.term_putimage ~= nil and
-	    branddef.image ~= nil then
-		if gfx.term_putimage(branddef.image, x, y, 0, 7, 0)
-		then
+	local gfx_requested = branddef.image and gfxenabled()
+	if gfx_requested and gfxcapable() then
+		if gfx.term_putimage(branddef.image, x, y, 0, 7, 0) then
 			return true
 		end
 	end
@@ -383,16 +388,11 @@ local function drawlogo()
 		y = y + logodef.shift.y
 	end
 
-	if core.isFramebufferConsole() and
-	    gfx.term_putimage ~= nil and
-	    logodef.image ~= nil then
-		local y1 = 15
+	local gfx_requested = logodef.image and gfxenabled()
+	if gfx_requested and gfxcapable() then
+		local y1 = logodef.image_rl or 15
 
-		if logodef.image_rl ~= nil then
-			y1 = logodef.image_rl
-		end
-		if gfx.term_putimage(logodef.image, x, y, 0, y + y1, 0)
-		then
+		if gfx.term_putimage(logodef.image, x, y, 0, y + y1, 0) then
 			return true
 		end
 	end

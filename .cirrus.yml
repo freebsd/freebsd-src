@@ -4,7 +4,7 @@ compute_engine_instance:
   # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
   platform: freebsd
   image_project: freebsd-org-cloud-dev
-  image: freebsd-13-4-release-amd64
+  image: freebsd-14-2-release-amd64-ufs
   cpu: 8
   memory: 8G
   disk: 40
@@ -14,7 +14,7 @@ env:
 
 task:
   matrix:
-  - name: amd64-llvm16 World and kernel build and boot smoke test
+  - name: amd64-llvm16 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
@@ -22,7 +22,7 @@ task:
       TARGET_ARCH: amd64
       TOOLCHAIN: llvm16
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
-  - name: amd64-llvm17 World and kernel build and boot smoke test
+  - name: amd64-llvm17 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
@@ -30,7 +30,7 @@ task:
       TARGET_ARCH: amd64
       TOOLCHAIN: llvm17
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
-  - name: amd64-llvm18 World and kernel build and boot smoke test
+  - name: amd64-llvm18 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
@@ -45,7 +45,7 @@ task:
       TARGET_ARCH: amd64
       TOOLCHAIN: llvm19
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
-  - name: arm64-llvm16 World and kernel build and boot smoke test
+  - name: arm64-llvm16 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
@@ -53,7 +53,7 @@ task:
       TARGET_ARCH: aarch64
       TOOLCHAIN: llvm16
       TOOLCHAIN_PKG: ${TOOLCHAIN}
-  - name: arm64-llvm17 World and kernel build and boot smoke test
+  - name: arm64-llvm17 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
@@ -61,7 +61,7 @@ task:
       TARGET_ARCH: aarch64
       TOOLCHAIN: llvm17
       TOOLCHAIN_PKG: ${TOOLCHAIN}
-  - name: arm64-llvm18 World and kernel build and boot smoke test
+  - name: arm64-llvm18 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
@@ -69,7 +69,7 @@ task:
       TARGET_ARCH: aarch64
       TOOLCHAIN: llvm18
       TOOLCHAIN_PKG: ${TOOLCHAIN}
-  - name: arm64-llvm19 World and kernel build and boot smoke test
+  - name: arm64-llvm19 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
@@ -189,3 +189,30 @@ task:
   post_script:
   - df -m
   - du -m -s /usr/obj
+
+precommit_task:
+  matrix:
+    - name: amd64 smoke test using internal ci systems
+      only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      env:
+        TARGET: amd64
+        TARGET_ARCH: amd64
+    - name: aarch64 smoke test using internal ci systems
+      only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      env:
+        TARGET: arm64
+        TARGET_ARCH: aarch64
+  timeout_in: 120m
+
+  setup_script:
+    - uname -a
+    - gpart show
+    - df -m
+    - pkg --version
+
+  ci_script:
+    - make -C tests/ci TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} CITYPE=smoke ci
+
+  post_script:
+    - df -m
+    - du -m -s /usr/obj

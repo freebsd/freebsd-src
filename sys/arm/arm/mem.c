@@ -114,8 +114,8 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			if (!address_valid)
 				return (EINVAL);
 			sx_xlock(&tmppt_lock);
-			pmap_kenter((vm_offset_t)_tmppt, v);
-			pmap_tlb_flush(kernel_pmap, (vm_offset_t)_tmppt);
+			pmap_kenter((vm_offset_t)_tmppt, PAGE_SIZE, v,
+			    VM_MEMATTR_DEFAULT);
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
 			c = min(c, (u_int)(PAGE_SIZE - o));

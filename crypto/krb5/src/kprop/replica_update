@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# Propagate if database (principal.db) has been modified since last dump
+# (dumpfile.dump_ok) or if database has been dumped since last successful
+# propagation (dumpfile.<replica machine>.last_prop)
+
+KDB_DIR=/usr/local/var/krb5kdc
+
+KDB_FILE=$KDB_DIR/principal.db
+DUMPFILE=$KDB_DIR/replica_datatrans
+KDB5_UTIL=/usr/local/sbin/kdb5_util
+KPROP=/usr/local/sbin/kprop
+
+REPLICA=$1
+if [ -z "${REPLICA}" ]
+then
+  echo "Usage $0 replica_server"
+fi
+
+if [ "`ls -t $DUMPFILE.dump_ok $KDB_FILE | sed -n 1p`"  = "$KDB_FILE" -o \
+     "`ls -t $DUMPFILE.${REPLICA}.last_prop $DUMPFILE.dump_ok | \
+		sed -n 1p`"  = "$DUMPFILE.dump_ok" ]
+then
+
+	date
+	$KDB5_UTIL dump $DUMPFILE > /dev/null
+
+	$KPROP -d -f $DUMPFILE ${REPLICA}
+	rm $DUMPFILE
+fi

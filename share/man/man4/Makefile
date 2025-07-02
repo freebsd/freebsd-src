@@ -151,6 +151,7 @@ MAN=	aac.4 \
 	eventtimers.4 \
 	exca.4 \
 	ext2fs.4 \
+	e6000sw.4 \
 	e6060sw.4 \
 	fd.4 \
 	fdc.4 \
@@ -243,6 +244,7 @@ MAN=	aac.4 \
 	${_io.4} \
 	${_ioat.4} \
 	ip.4 \
+	ip17x.4 \
 	ip6.4 \
 	ipfirewall.4 \
 	ipheth.4 \
@@ -265,6 +267,7 @@ MAN=	aac.4 \
 	iwnfw.4 \
 	iwlwifi.4 \
 	iwlwififw.4 \
+	${_iwx.4} \
 	ix.4 \
 	ixl.4 \
 	jedec_dimm.4 \
@@ -338,6 +341,7 @@ MAN=	aac.4 \
 	msdosfs.4 \
 	msk.4 \
 	mtio.4 \
+	mtkswitch.4 \
 	multicast.4 \
 	muge.4 \
 	mvs.4 \
@@ -895,6 +899,7 @@ _xnb.4=		xnb.4
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _ioat.4=	ioat.4
+_iwx.4=		iwx.4
 _nvdimm.4=	nvdimm.4
 _qlxge.4=	qlxge.4
 _qlxgb.4=	qlxgb.4
@@ -904,6 +909,7 @@ _sfxge.4=	sfxge.4
 _smartpqi.4=	smartpqi.4
 _sume.4=	sume.4
 
+MLINKS+=iwx.4 if_iwx.4
 MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4
 MLINKS+=qlxgbe.4 if_qlxgbe.4

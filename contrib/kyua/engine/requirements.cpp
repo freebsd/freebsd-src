@@ -41,6 +41,10 @@
 #include "utils/sanity.hpp"
 #include "utils/units.hpp"
 
+#ifdef __FreeBSD__
+#include <libutil.h>
+#endif
+
 namespace config = utils::config;
 namespace fs = utils::fs;
 namespace passwd = utils::passwd;
@@ -220,6 +224,26 @@ check_required_programs(const model::paths_set& required_programs)
 }
 
 
+#ifdef __FreeBSD__
+/// Checks if all required kmods are loaded.
+///
+/// \param required_programs Set of kmods.
+///
+/// \return Empty if the required kmods are all loaded or an error
+/// message otherwise.
+static std::string
+check_required_kmods(const model::strings_set& required_kmods)
+{
+    for (model::strings_set::const_iterator iter = required_kmods.begin();
+         iter != required_kmods.end(); iter++) {
+        if (!kld_isloaded((*iter).c_str()))
+            return F("Required kmod '%s' not loaded") % *iter;
+    }
+    return "";
+}
+#endif
+
+
 /// Checks if the current system has the specified amount of memory.
 ///
 /// \param required_memory Amount of required physical memory, or zero if not
@@ -311,6 +335,12 @@ engine::check_reqs(const model::metadata& md, const config::tree& cfg,
     reason = check_required_programs(md.required_programs());
     if (!reason.empty())
         return reason;
+
+#ifdef __FreeBSD__
+    reason = check_required_kmods(md.required_kmods());
+    if (!reason.empty())
+        return reason;
+#endif
 
     reason = check_required_memory(md.required_memory());
     if (!reason.empty())

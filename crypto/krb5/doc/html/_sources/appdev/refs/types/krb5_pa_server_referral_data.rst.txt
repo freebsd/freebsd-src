@@ -1,0 +1,49 @@
+.. highlight:: c
+
+.. _krb5-pa-server-referral-data-struct:
+
+krb5_pa_server_referral_data
+============================
+
+..
+.. c:type:: krb5_pa_server_referral_data
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_pa_server_referral_data krb5_pa_server_referral_data
+
+
+Members
+---------
+
+
+.. c:member:: krb5_data  *	krb5_pa_server_referral_data.referred_realm
+
+                                             
+                                             
+
+.. c:member:: krb5_principal	krb5_pa_server_referral_data.true_principal_name
+
+                                             
+                                             
+
+.. c:member:: krb5_principal	krb5_pa_server_referral_data.requested_principal_name
+
+                                             
+                                             
+
+.. c:member:: krb5_timestamp	krb5_pa_server_referral_data.referral_valid_until
+
+                                             
+                                             
+
+.. c:member:: krb5_checksum	krb5_pa_server_referral_data.rep_cksum
+
+                                             
+                                             
+

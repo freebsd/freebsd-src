@@ -1,0 +1,17 @@
+# Test use_first_pass with a long password and debug.  -*- conf -*-
+#
+# Copyright 2020 Russ Allbery <eagle@eyrie.org>
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth = use_first_pass debug
+
+[run]
+    authenticate = PAM_AUTH_ERR
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG /^\(user %u\) rejecting password longer than [0-9]+$/
+    NOTICE authentication failure; logname=%u uid=%i euid=%i tty= ruser= rhost=
+    DEBUG pam_sm_authenticate: exit (failure)

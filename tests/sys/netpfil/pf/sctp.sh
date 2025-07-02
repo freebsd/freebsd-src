@@ -818,10 +818,10 @@ related_icmp_body()
 
 	# Generate traffic that will be fragmented by rtr2, and will provoke an
 	# ICMP unreachable - need to frag (mtu 1300) message
-	dd if=/dev/random bs=1600 count=1 | nc --sctp -N -w 3 203.0.113.2 1234
+	dd if=/dev/random bs=10000 count=1 | nc --sctp -N -w 3 203.0.113.2 1234
 
 	# We'd expect to see an ICMP message
-	atf_check -s exit:0 -o match:".*destination unreachable: 1" \
+	atf_check -s exit:0 -o match:".*destination unreachable: [1-9]" \
 	    netstat -s -p icmp
 }
 

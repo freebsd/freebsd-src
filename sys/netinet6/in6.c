@@ -86,6 +86,7 @@
 #include <net/if_var.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
+#include <net/if_bridgevar.h>
 #include <net/route.h>
 #include <net/route/route_ctl.h>
 #include <net/route/nhop.h>
@@ -1234,6 +1235,13 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 	int carp_attached = 0;
 	int error;
 
+	/* Check if this interface is a bridge member */
+	if (ifp->if_bridge && bridge_member_ifaddrs_p &&
+	    !bridge_member_ifaddrs_p()) {
+		error = EINVAL;
+		goto out;
+	}
+
 	/*
 	 * first, make or update the interface address structure,
 	 * and link it to the list.
@@ -2102,31 +2110,6 @@ in6if_do_dad(struct ifnet *ifp)
 	    (ND6_IFF_IFDISABLED | ND6_IFF_NO_DAD)) != 0)
 		return (0);
 	return (1);
-}
-
-/*
- * Calculate max IPv6 MTU through all the interfaces and store it
- * to in6_maxmtu.
- */
-void
-in6_setmaxmtu(void)
-{
-	struct epoch_tracker et;
-	unsigned long maxmtu = 0;
-	struct ifnet *ifp;
-
-	NET_EPOCH_ENTER(et);
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		/* this function can be called during ifnet initialization */
-		if (!ifp->if_afdata[AF_INET6])
-			continue;
-		if ((ifp->if_flags & IFF_LOOPBACK) == 0 &&
-		    IN6_LINKMTU(ifp) > maxmtu)
-			maxmtu = IN6_LINKMTU(ifp);
-	}
-	NET_EPOCH_EXIT(et);
-	if (maxmtu)	/* update only when maxmtu is positive */
-		V_in6_maxmtu = maxmtu;
 }
 
 /*

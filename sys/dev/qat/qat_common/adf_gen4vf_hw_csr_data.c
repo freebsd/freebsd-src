@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_accel_devices.h"
 #include "adf_gen4vf_hw_csr_data.h"
 
 static u64
-build_csr_ring_base_addr(dma_addr_t addr, u32 size)
+build_csr_ring_base_addr(bus_addr_t addr, u32 size)
 {
 	return BUILD_RING_BASE_ADDR_GEN4(addr, size);
 }
@@ -54,7 +54,7 @@ write_csr_ring_config(struct resource *csr_base_addr,
 	WRITE_CSR_RING_CONFIG_GEN4VF(csr_base_addr, bank, ring, value);
 }
 
-static dma_addr_t
+static bus_addr_t
 read_csr_ring_base(struct resource *csr_base_addr, u32 bank, u32 ring)
 {
 	return READ_CSR_RING_BASE_GEN4VF(csr_base_addr, bank, ring);
@@ -64,7 +64,7 @@ static void
 write_csr_ring_base(struct resource *csr_base_addr,
 		    u32 bank,
 		    u32 ring,
-		    dma_addr_t addr)
+		    bus_addr_t addr)
 {
 	WRITE_CSR_RING_BASE_GEN4VF(csr_base_addr, bank, ring, addr);
 }

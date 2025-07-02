@@ -488,9 +488,9 @@ enum shutdown_how;
  */
 int	getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr,
 	    size_t len);
-int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
+int	getsock_cap(struct thread *td, int fd, const cap_rights_t *rightsp,
 	    struct file **fpp, struct filecaps *havecaps);
-int	getsock(struct thread *td, int fd, cap_rights_t *rightsp,
+int	getsock(struct thread *td, int fd, const cap_rights_t *rightsp,
 	    struct file **fpp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr *sa);
@@ -527,6 +527,7 @@ struct socket *
 struct socket *
 	sopeeloff(struct socket *);
 int	sopoll_generic(struct socket *so, int events, struct thread *td);
+int	sokqfilter_generic(struct socket *so, struct knote *kn);
 int	soaio_queue_generic(struct socket *so, struct kaiocb *job);
 int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);
@@ -554,6 +555,7 @@ int	sosend_dgram(struct socket *so, struct sockaddr *addr,
 int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
+int	sendfile_wait_generic(struct socket *so, off_t need, int *space);
 int	sosetfib(struct socket *so, int fibnum);
 int	soshutdown(struct socket *so, enum shutdown_how);
 void	soupcall_clear(struct socket *, sb_which);

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-AD-SIGNEDPATH-data:
+
+KRB5_KEYUSAGE_AD_SIGNEDPATH
+===========================
+
+..
+.. data:: KRB5_KEYUSAGE_AD_SIGNEDPATH
+..
+
+
+
+
+================================== ======================
+``KRB5_KEYUSAGE_AD_SIGNEDPATH``       ``-21``
+================================== ======================

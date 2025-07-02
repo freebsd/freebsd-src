@@ -1,0 +1,166 @@
+mydir=lib$(S)krb5$(S)ccache
+BUILDTOP=$(REL)..$(S)..$(S)..
+SUBDIRS = # ccapi
+WINSUBDIRS = ccapi
+##WIN32##DEFINES = -DUSE_CCAPI
+
+LOCALINCLUDES = -I$(srcdir)$(S)ccapi -I$(srcdir) -I.
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=ccache
+##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
+
+##WIN32##MSLSA_OBJ = $(OUTPRE)cc_mslsa.$(OBJEXT)
+##WIN32##MSLSA_SRC = $(srcdir)/cc_mslsa.c
+
+##WIN32##!if 0
+KCMRPC_DEPS-osx = kcmrpc.h kcmrpc_types.h
+KCMRPC_OBJ-osx = kcmrpc.o
+KCMRPC_DEPS-no = # empty
+KCMRPC_OBJ-no = # empty
+
+KCMRPC_DEPS = $(KCMRPC_DEPS-@OSX@)
+KCMRPC_OBJ = $(KCMRPC_OBJ-@OSX@)
+##WIN32##!endif
+
+
+STLIBOBJS= \
+	ccapi_util.o \
+	ccbase.o \
+	cccopy.o \
+	cccursor.o \
+	ccdefault.o \
+	ccdefops.o \
+	ccmarshal.o \
+	ccselect.o \
+	ccselect_hostname.o \
+	ccselect_k5identity.o \
+	ccselect_realm.o \
+	cc_api_macos.o \
+	cc_dir.o \
+	cc_retr.o \
+	cc_file.o \
+	cc_kcm.o \
+	cc_memory.o \
+	cc_keyring.o \
+	ccfns.o \
+	$(KCMRPC_OBJ)
+
+OBJS=	$(OUTPRE)ccapi_util.$(OBJEXT) \
+	$(OUTPRE)ccbase.$(OBJEXT) \
+	$(OUTPRE)cccopy.$(OBJEXT) \
+	$(OUTPRE)cccursor.$(OBJEXT) \
+	$(OUTPRE)ccdefault.$(OBJEXT) \
+	$(OUTPRE)ccdefops.$(OBJEXT) \
+	$(OUTPRE)ccmarshal.$(OBJEXT) \
+	$(OUTPRE)ccselect.$(OBJEXT) \
+	$(OUTPRE)ccselect_hostname.$(OBJEXT) \
+	$(OUTPRE)ccselect_k5identity.$(OBJEXT) \
+	$(OUTPRE)ccselect_realm.$(OBJEXT) \
+	$(OUTPRE)cc_api_macos.$(OBJEXT) \
+	$(OUTPRE)cc_dir.$(OBJEXT) \
+	$(OUTPRE)cc_retr.$(OBJEXT) \
+	$(OUTPRE)cc_file.$(OBJEXT) \
+	$(OUTPRE)cc_kcm.$(OBJEXT) \
+	$(OUTPRE)cc_memory.$(OBJEXT) \
+	$(OUTPRE)cc_keyring.$(OBJEXT) \
+	$(OUTPRE)ccfns.$(OBJEXT) \
+	$(MSLSA_OBJ)
+
+SRCS=	$(srcdir)/ccapi_util.c \
+	$(srcdir)/ccbase.c \
+	$(srcdir)/cccopy.c \
+	$(srcdir)/cccursor.c \
+	$(srcdir)/ccdefault.c \
+	$(srcdir)/ccdefops.c \
+	$(srcdir)/ccmarshal.c \
+	$(srcdir)/ccselect.c \
+	$(srcdir)/ccselect_hostname.c \
+	$(srcdir)/ccselect_k5identity.c \
+	$(srcdir)/ccselect_realm.c \
+	$(srcdir)/cc_api_macos.c \
+	$(srcdir)/cc_dir.c \
+	$(srcdir)/cc_retr.c \
+	$(srcdir)/cc_file.c \
+	$(srcdir)/cc_kcm.c \
+	$(srcdir)/cc_memory.c \
+	$(srcdir)/cc_keyring.c \
+	$(srcdir)/ccfns.c \
+	$(MSLSA_SRC)
+
+EXTRADEPSRCS= \
+	$(srcdir)/t_cc.c \
+	$(srcdir)/t_cccol.c \
+	$(srcdir)/t_cccursor.c \
+	$(srcdir)/t_marshal.c
+
+##DOS##OBJS=$(OBJS) $(OUTPRE)ccfns.$(OBJEXT)
+
+all-unix: all-libobjs
+
+all-windows: subdirs $(OBJFILE)
+
+##DOS##subdirs: ccapi\$(OUTPRE)file.lst
+
+##DOS##ccapi\$(OUTPRE)file.lst:
+##DOS##	cd ccapi
+##DOS##	@echo Making in krb5\ccache\ccapi
+##DOS##	$(MAKE) -$(MFLAGS)
+##DOS##	cd ..
+
+##DOS##$(OBJFILE): $(OBJS) ccapi\$(OUTPRE)file.lst
+##DOS##	$(RM) $(OBJFILE)
+##WIN32##	$(LIBECHO) -p $(PREFIXDIR)\ $(OUTPRE)*.obj \
+##WIN32##		ccapi\$(OUTPRE)*.obj > $(OBJFILE)
+
+kcmrpc.h kcmrpc.c: kcmrpc.defs
+	mig -header kcmrpc.h -user kcmrpc.c -sheader /dev/null \
+		-server /dev/null -I$(srcdir) $(srcdir)/kcmrpc.defs
+
+clean-unix:: clean-libobjs
+
+clean-windows::
+	cd ccapi
+	@echo Making clean in krb5\ccache\ccapi
+	$(MAKE) -$(MFLAGS) clean
+	cd ..
+	@echo Making clean in krb5\ccache
+	$(RM) $(OBJFILE)
+
+T_CC_OBJS=t_cc.o
+
+t_cc: $(T_CC_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_cc $(T_CC_OBJS) $(KRB5_BASE_LIBS)
+
+T_CCCOL_OBJS = t_cccol.o
+t_cccol: $(T_CCCOL_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ $(T_CCCOL_OBJS) $(KRB5_BASE_LIBS)
+
+T_CCCURSOR_OBJS = t_cccursor.o
+t_cccursor: $(T_CCCURSOR_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ $(T_CCCURSOR_OBJS) $(KRB5_BASE_LIBS)
+
+T_MARSHAL_OBJS = t_marshal.o
+t_marshal: $(T_MARSHAL_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ $(T_MARSHAL_OBJS) $(KRB5_BASE_LIBS)
+
+check-unix: t_cc t_marshal
+	$(RUN_TEST) ./t_cc
+	$(RUN_TEST) ./t_marshal testcache
+
+check-pytests: t_cccursor t_cccol
+	$(RUNPYTEST) $(srcdir)/t_cccol.py $(PYTESTFLAGS)
+
+clean-unix::
+	$(RM) t_cc t_cc.o t_cccursor t_cccursor.o t_cccol t_cccol.o
+	$(RM) t_marshal t_marshal.o testcache kcmrpc.c kcmrpc.h
+
+depend: $(KCMRPC_DEPS)
+
+##WIN32##$(OUTPRE)cc_mslsa.$(OBJEXT): cc_mslsa.c $(top_srcdir)/include/k5-int.h $(BUILDTOP)/include/krb5.h $(COM_ERR_DEPS)
+
+cc_kcm.so cc_kcm.o: $(KCMRPC_DEPS)
+kcmrpc.so kcmrpc.o: kcmrpc.h kcmrpc_types.h
+
+@libobj_frag@
+

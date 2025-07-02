@@ -110,7 +110,7 @@ vm_emulation_setup() {
 	if [ -n "${WITHOUT_QEMU}" ]; then
 		return 0
 	fi
-	if ! [ -z "${QEMUSTATIC}" ]; then
+	if [ -n "${QEMUSTATIC}" ]; then
 		export EMULATOR=/qemu
 		cp ${QEMUSTATIC} ${DESTDIR}/${EMULATOR}
 	fi
@@ -133,7 +133,7 @@ vm_extra_install_base() {
 }
 
 vm_extra_enable_services() {
-	if [ ! -z "${VM_RC_LIST}" ]; then
+	if [ -n "${VM_RC_LIST}" ]; then
 		for _rcvar in ${VM_RC_LIST}; do
 			echo ${_rcvar}_enable="YES" >> ${DESTDIR}/etc/rc.conf
 		done

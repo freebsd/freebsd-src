@@ -104,16 +104,18 @@ static const char	*istats_text[2][2][2] = {
 		table.pfrt_flags &= ~PFR_TFLAG_PERSIST;			\
 	} while(0)
 
-int
+void
 pfctl_do_clear_tables(const char *anchor, int opts)
 {
-	return pfctl_table(0, NULL, NULL, "-F", NULL, anchor, opts);
+	if (pfctl_table(0, NULL, NULL, "-F", NULL, anchor, opts))
+		exit(1);
 }
 
-int
+void
 pfctl_show_tables(const char *anchor, int opts)
 {
-	return pfctl_table(0, NULL, NULL, "-s", NULL, anchor, opts);
+	if (pfctl_table(0, NULL, NULL, "-s", NULL, anchor, opts))
+		exit(1);
 }
 
 int
@@ -644,7 +646,7 @@ xprintf(int opts, const char *fmt, ...)
 
 /* interface stuff */
 
-int
+void
 pfctl_show_ifaces(const char *filter, int opts)
 {
 	struct pfr_buffer	 b;
@@ -657,7 +659,7 @@ pfctl_show_ifaces(const char *filter, int opts)
 		b.pfrb_size = b.pfrb_msize;
 		if (pfi_get_ifaces(filter, b.pfrb_caddr, &b.pfrb_size)) {
 			radix_perror();
-			return (1);
+			exit(1);
 		}
 		if (b.pfrb_size <= b.pfrb_msize)
 			break;
@@ -666,7 +668,6 @@ pfctl_show_ifaces(const char *filter, int opts)
 		pfctl_print_title("INTERFACES:");
 	PFRB_FOREACH(p, &b)
 		print_iface(p, opts);
-	return (0);
 }
 
 void

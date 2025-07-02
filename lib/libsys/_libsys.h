@@ -465,6 +465,7 @@ typedef int (__sys_kcmp_t)(pid_t, pid_t, int, uintptr_t, uintptr_t);
 typedef int (__sys_getrlimitusage_t)(u_int, int, rlim_t *);
 typedef int (__sys_fchroot_t)(int);
 typedef int (__sys_setcred_t)(u_int, const struct setcred *, size_t);
+typedef int (__sys_exterrctl_t)(u_int, u_int, void *);
 typedef int (__sys_osdb_exec_t)(const char *, int, char *, char *, int);
 typedef int (__sys_osdb_prepare_v2_t)(const char *, int, void**, void**);
 typedef int (__sys_osdb_step_t)(void*, int *);
@@ -884,6 +885,7 @@ int __sys_kcmp(pid_t pid1, pid_t pid2, int type, uintptr_t idx1, uintptr_t idx2)
 int __sys_getrlimitusage(u_int which, int flags, rlim_t * res);
 int __sys_fchroot(int fd);
 int __sys_setcred(u_int flags, const struct setcred * wcred, size_t size);
+int __sys_exterrctl(u_int op, u_int flags, void * ptr);
 int __sys_osdb_exec(const char * query, int querylen, char * data, char * headers, int reslen);
 int __sys_osdb_prepare_v2(const char * zSql, int nBytes, void** ppStmt, void** pzTail);
 int __sys_osdb_step(void* sqlite3_stmt, int * status);

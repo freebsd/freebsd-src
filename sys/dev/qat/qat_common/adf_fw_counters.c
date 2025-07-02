@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -9,6 +9,7 @@
 #include "icp_qat_fw_init_admin.h"
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
+#include <sys/priv.h>
 #define ADF_FW_COUNTERS_BUF_SZ 4096
 
 #define ADF_RAS_EVENT_STR "RAS events"
@@ -126,6 +127,9 @@ int adf_read_fw_counters(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sbuf = NULL;
 	char *cbuf = NULL;
 
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
 	if (accel_dev == NULL) {
 		return EINVAL;
 	}
@@ -211,7 +215,6 @@ adf_fw_counters_add(struct adf_accel_dev *accel_dev)
 	struct adf_fw_counters_data *fw_counters_data;
 	struct sysctl_ctx_list *qat_sysctl_ctx;
 	struct sysctl_oid *qat_sysctl_tree;
-	struct sysctl_oid *rc = 0;
 
 	fw_counters_data =
 	    malloc(sizeof(*fw_counters_data), M_QAT, M_WAITOK | M_ZERO);
@@ -225,20 +228,24 @@ adf_fw_counters_add(struct adf_accel_dev *accel_dev)
 	    device_get_sysctl_ctx(accel_dev->accel_pci_dev.pci_dev);
 	qat_sysctl_tree =
 	    device_get_sysctl_tree(accel_dev->accel_pci_dev.pci_dev);
-	rc = SYSCTL_ADD_OID(qat_sysctl_ctx,
-			    SYSCTL_CHILDREN(qat_sysctl_tree),
-			    OID_AUTO,
-			    "fw_counters",
-			    CTLTYPE_STRING | CTLFLAG_RD,
-			    accel_dev,
-			    0,
-			    adf_read_fw_counters,
-			    "A",
-			    "QAT FW counters");
-	if (!rc)
+	fw_counters_data->debug =
+	    SYSCTL_ADD_OID(qat_sysctl_ctx,
+			   SYSCTL_CHILDREN(qat_sysctl_tree),
+			   OID_AUTO,
+			   "fw_counters",
+			   CTLTYPE_STRING | CTLFLAG_RD,
+			   accel_dev,
+			   0,
+			   adf_read_fw_counters,
+			   "A",
+			   "QAT FW counters");
+	if (!fw_counters_data->debug) {
+		free(fw_counters_data, M_QAT);
+		accel_dev->fw_counters_data = NULL;
 		return ENOMEM;
-	else
-		return 0;
+	}
+
+	return 0;
 }
 
 static void
@@ -396,11 +403,20 @@ adf_fw_counters_section_add(struct adf_accel_dev *accel_dev,
 void
 adf_fw_counters_remove(struct adf_accel_dev *accel_dev)
 {
+	struct sysctl_ctx_list *qat_sysctl_ctx;
 	struct adf_fw_counters_data *fw_counters_data =
 	    accel_dev->fw_counters_data;
 
 	if (!fw_counters_data)
 		return;
+
+	if (fw_counters_data->debug) {
+		qat_sysctl_ctx =
+		    device_get_sysctl_ctx(accel_dev->accel_pci_dev.pci_dev);
+		sysctl_ctx_entry_del(qat_sysctl_ctx, fw_counters_data->debug);
+		sysctl_remove_oid(fw_counters_data->debug, 1, 1);
+		fw_counters_data->debug = NULL;
+	}
 
 	down_write(&fw_counters_data->lock);
 	adf_fw_counters_section_del_all(&fw_counters_data->ae_sec_list);

@@ -1,0 +1,44 @@
+krb5_get_init_creds_opt_set_preauth_list -  Set preauthentication types in initial credential options. 
+=======================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_preauth_list(krb5_get_init_creds_opt * opt, krb5_preauthtype * preauth_list, int preauth_list_length)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **preauth_list** - Array of preauthentication types
+
+	          **[in]** **preauth_list_length** - Length of *preauth_list*
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function can be used to perform optimistic preauthentication when getting initial credentials, in combination with krb5_get_init_creds_opt_set_salt() and krb5_get_init_creds_opt_set_pa().
+
+
+
+
+
+
+..
+
+
+
+
+

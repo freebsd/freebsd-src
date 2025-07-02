@@ -55,10 +55,6 @@ OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
 .endif
 
-.if ${MK_ACPI} == no && ${MK_APM} == no
-OLD_FILES+=etc/rc.d/powerd
-.endif
-
 .if ${MK_APM} == no
 OLD_FILES+=etc/rc.d/apm
 OLD_FILES+=etc/rc.d/apmd
@@ -413,6 +409,8 @@ OLD_FILES+=usr/libexec/bsdinstall/distfetch
 OLD_FILES+=usr/libexec/bsdinstall/docsinstall
 OLD_FILES+=usr/libexec/bsdinstall/entropy
 OLD_FILES+=usr/libexec/bsdinstall/fetchmissingdists
+OLD_FILES+=usr/libexec/bsdinstall/finalconfig
+OLD_FILES+=usr/libexec/bsdinstall/firmware
 OLD_FILES+=usr/libexec/bsdinstall/hardening
 OLD_FILES+=usr/libexec/bsdinstall/hostname
 OLD_FILES+=usr/libexec/bsdinstall/jail
@@ -423,6 +421,7 @@ OLD_FILES+=usr/libexec/bsdinstall/netconfig
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv4
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv6
 OLD_FILES+=usr/libexec/bsdinstall/partedit
+OLD_FILES+=usr/libexec/bsdinstall/pkgbase
 OLD_FILES+=usr/libexec/bsdinstall/rootpass
 OLD_FILES+=usr/libexec/bsdinstall/runconsoles
 OLD_FILES+=usr/libexec/bsdinstall/script
@@ -2663,6 +2662,7 @@ OLD_FILES+=usr/share/man/man8/ippool.8.gz
 
 .if ${MK_IPFW} == no
 OLD_FILES+=etc/rc.d/ipfw
+OLD_FILES+=etc/rc.d/natd
 OLD_FILES+=etc/periodic/security/500.ipfwdenied
 OLD_FILES+=etc/periodic/security/550.ipfwlimit
 OLD_FILES+=sbin/ipfw
@@ -5576,6 +5576,7 @@ OLD_FILES+=usr/share/man/man1/genl.1.gz
 .endif
 
 .if ${MK_NIS} == no
+OLD_FILES+=etc/rc.d/nisdomain
 OLD_FILES+=etc/rc.d/ypbind
 OLD_FILES+=etc/rc.d/ypldap
 OLD_FILES+=etc/rc.d/yppasswdd
@@ -6655,6 +6656,9 @@ OLD_FILES+=etc/newsyslog.conf.d/pf.conf
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
 OLD_FILES+=etc/rc.d/ftp-proxy
+OLD_FILES+=etc/rc.d/pf
+OLD_FILES+=etc/rc.d/pflog
+OLD_FILES+=etc/rc.d/pfsync
 OLD_FILES+=sbin/pfctl
 OLD_FILES+=sbin/pflogd
 OLD_FILES+=usr/include/netpfil/pf/pf.h
@@ -6844,6 +6848,7 @@ OLD_FILES+=usr/share/man/man8/pmcstudy.8.gz
 .if ${MK_PPP} == no
 OLD_FILES+=etc/newsyslog.conf.d/ppp.conf
 OLD_FILES+=etc/ppp/ppp.conf
+OLD_FILES+=etc/rc.d/ppp
 OLD_FILES+=etc/syslog.d/ppp.conf
 OLD_DIRS+=etc/ppp
 OLD_FILES+=usr/sbin/ppp
@@ -8998,6 +9003,9 @@ OLD_FILES+=etc/rc.d/zfs
 OLD_FILES+=etc/rc.d/zfsbe
 OLD_FILES+=etc/rc.d/zfsd
 OLD_FILES+=etc/rc.d/zfskeys
+OLD_FILES+=etc/rc.d/zpool
+OLD_FILES+=etc/rc.d/zpoolreguid
+OLD_FILES+=etc/rc.d/zpoolupgrade
 OLD_FILES+=etc/rc.d/zvol
 OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs

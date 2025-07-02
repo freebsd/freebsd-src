@@ -1,0 +1,65 @@
+krb5_verify_init_creds -  Verify initial credentials against a keytab. 
+=======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_verify_init_creds(krb5_context context, krb5_creds * creds, krb5_principal server, krb5_keytab keytab, krb5_ccache * ccache, krb5_verify_init_creds_opt * options)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **creds** - Initial credentials to be verified
+
+	          **[in]** **server** - Server principal (or NULL)
+
+	          **[in]** **keytab** - Key table (NULL to use default keytab)
+
+	          **[in]** **ccache** - Credential cache for fetched creds (or NULL)
+
+	          **[in]** **options** - Verification options (NULL for default options)
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function attempts to verify that *creds* were obtained from a KDC with knowledge of a key in *keytab* , or the default keytab if *keytab* is NULL. If *server* is provided, the highest-kvno key entry for that principal name is used to verify the credentials; otherwise, all unique"host"service principals in the keytab are tried.
+
+
+
+If the specified keytab does not exist, or is empty, or cannot be read, or does not contain an entry for *server* , then credential verification may be skipped unless configuration demands that it succeed. The caller can control this behavior by providing a verification options structure; see krb5_verify_init_creds_opt_init() and krb5_verify_init_creds_opt_set_ap_req_nofail().
+
+
+
+If *ccache* is NULL, any additional credentials fetched during the verification process will be destroyed. If *ccache* points to NULL, a memory ccache will be created for the additional credentials and returned in *ccache* . If *ccache* points to a valid credential cache handle, the additional credentials will be stored in that cache.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,6 @@
+The first test  mirrors the first two tests in t_prf.in.
+
+The second test mirrors the following four tests in t_prf.in.
+
+The third and fourth tests are simple tests of the DES and 3DES PRF.
+The fifth test is the same simple test for RC4.

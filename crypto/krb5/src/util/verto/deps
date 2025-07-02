@@ -1,0 +1,10 @@
+#
+# Generated makefile dependencies follow.
+#
+verto.so verto.po $(OUTPRE)verto.$(OBJEXT): $(VERTO_DEPS) \
+  module.h verto-module.h verto.c
+module.so module.po $(OUTPRE)module.$(OBJEXT): module.c
+verto-k5ev.so verto-k5ev.po $(OUTPRE)verto-k5ev.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(VERTO_DEPS) ev.c ev.h \
+  ev_poll.c ev_select.c ev_vars.h ev_wrap.h rename.h \
+  verto-k5ev.c verto-module.h

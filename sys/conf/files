@@ -2538,7 +2538,7 @@ dev/nvme/nvme_qpair.c		optional nvme
 dev/nvme/nvme_sim.c		optional nvme scbus
 dev/nvme/nvme_sysctl.c		optional nvme
 dev/nvme/nvme_test.c		optional nvme
-dev/nvme/nvme_util.c		optional nvme
+dev/nvme/nvme_util.c		optional nvme | scbus
 dev/nvmem/nvmem.c		optional nvmem fdt
 dev/nvmem/nvmem_if.m		optional nvmem
 dev/nvmf/controller/ctl_frontend_nvmf.c		optional nvmft
@@ -2553,7 +2553,7 @@ dev/nvmf/host/nvmf_ns.c		optional nvmf
 dev/nvmf/host/nvmf_qpair.c	optional nvmf
 dev/nvmf/host/nvmf_sim.c	optional nvmf
 dev/nvmf/nvmf_tcp.c		optional nvmf_tcp
-dev/nvmf/nvmf_transport.c	optional nvmf | optional nvmft
+dev/nvmf/nvmf_transport.c	optional nvmf | nvmft
 dev/oce/oce_hw.c		optional oce pci
 dev/oce/oce_if.c		optional oce pci
 dev/oce/oce_mbox.c		optional oce pci
@@ -4596,6 +4596,8 @@ compat/linuxkpi/common/src/linux_domain.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_firmware.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_folio.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_hrtimer.c	optional compat_linuxkpi \
@@ -5202,10 +5204,11 @@ security/mac/mac_sysv_sem.c	optional mac
 security/mac/mac_sysv_shm.c	optional mac
 security/mac/mac_vfs.c		optional mac
 security/mac_biba/mac_biba.c	optional mac_biba
-security/mac_ddb/mac_ddb.c	optional mac_ddb
 security/mac_bsdextended/mac_bsdextended.c	optional mac_bsdextended
 security/mac_bsdextended/ugidfw_system.c	optional mac_bsdextended
 security/mac_bsdextended/ugidfw_vnode.c		optional mac_bsdextended
+security/mac_ddb/mac_ddb.c	optional mac_ddb
+security/mac_do/mac_do.c	optional mac_do
 security/mac_ifoff/mac_ifoff.c	optional mac_ifoff
 security/mac_ipacl/mac_ipacl.c	optional mac_ipacl
 security/mac_lomac/mac_lomac.c	optional mac_lomac

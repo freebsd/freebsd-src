@@ -26,6 +26,7 @@ makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 options 	SCHED_ULE		# ULE scheduler
 options 	NUMA			# Non-Uniform Memory Architecture support
 options 	PREEMPTION		# Enable kernel thread preemption
+options 	BLOAT_KERNEL_WITH_EXTERR
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols

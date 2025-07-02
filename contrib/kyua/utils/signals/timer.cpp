@@ -257,7 +257,7 @@ public:
             _timer_activation = timer->when();
             add_to_all_timers(timer);
         } catch (...) {
-            _sigalrm_programmer.reset(NULL);
+            _sigalrm_programmer.reset();
             throw;
         }
     }
@@ -276,7 +276,7 @@ public:
         }
 
         _sigalrm_programmer->unprogram();
-        _sigalrm_programmer.reset(NULL);
+        _sigalrm_programmer.reset();
     }
 
     /// Programs a new timer, possibly adjusting the global system timer.
@@ -530,7 +530,7 @@ signals::timer::unprogram(void)
     }
 
     if (!globals->unprogram(this)) {
-        globals.reset(NULL);
+        globals.reset();
     }
     _pimpl->programmed = false;
 

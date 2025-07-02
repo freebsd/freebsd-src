@@ -1,0 +1,57 @@
+krb5_enctype_to_name -  Convert an encryption type to a name or alias. 
+=======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_enctype_to_name(krb5_enctype enctype, krb5_boolean shortest, char * buffer, size_t buflen)
+
+..
+
+
+:param:
+
+	          **[in]** **enctype** - Encryption type
+
+	          **[in]** **shortest** - Flag
+
+	          **[out]** **buffer** - Buffer to hold encryption type string
+
+	          **[in]** **buflen** - Storage available in *buffer*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+If *shortest* is FALSE, this function returns the enctype's canonical name (like"aes128-cts-hmac-sha1-96"). If *shortest* is TRUE, it return the enctype's shortest alias (like"aes128-cts").
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.9
+ 
+

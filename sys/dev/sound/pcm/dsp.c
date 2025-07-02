@@ -52,7 +52,6 @@ struct dsp_cdevpriv {
 	struct snddev_info *sc;
 	struct pcm_channel *rdch;
 	struct pcm_channel *wrch;
-	struct pcm_channel *volch;
 };
 
 static int dsp_mmap_allow_prot_exec = 0;
@@ -290,19 +289,25 @@ dsp_close(void *data)
 			if (sg_ids != 0)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
+			/*
+			 * Go through the channel abort/flush path for both
+			 * primary and virtual channels to ensure that, in the
+			 * case of vchans, the stream is always properly
+			 * stopped, and the primary channels do not keep being
+			 * interrupted even if all vchans are gone.
+			 */
+			CHN_LOCK(rdch);
+			chn_abort(rdch); /* won't sleep */
+			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			chn_reset(rdch, 0, 0);
+			chn_release(rdch);
 			if (rdch->flags & CHN_F_VIRTUAL) {
 				parent = rdch->parentchannel;
 				CHN_LOCK(parent);
 				CHN_LOCK(rdch);
 				vchan_destroy(rdch);
 				CHN_UNLOCK(parent);
-			} else {
-				CHN_LOCK(rdch);
-				chn_abort(rdch); /* won't sleep */
-				rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
-				chn_reset(rdch, 0, 0);
-				chn_release(rdch);
 			}
 		}
 		if (wrch != NULL) {
@@ -315,19 +320,18 @@ dsp_close(void *data)
 			if (sg_ids != 0)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
+			CHN_LOCK(wrch);
+			chn_flush(wrch); /* may sleep */
+			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			chn_reset(wrch, 0, 0);
+			chn_release(wrch);
 			if (wrch->flags & CHN_F_VIRTUAL) {
 				parent = wrch->parentchannel;
 				CHN_LOCK(parent);
 				CHN_LOCK(wrch);
 				vchan_destroy(wrch);
 				CHN_UNLOCK(parent);
-			} else {
-				CHN_LOCK(wrch);
-				chn_flush(wrch); /* may sleep */
-				wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
-				chn_reset(wrch, 0, 0);
-				chn_release(wrch);
 			}
 		}
 		PCM_LOCK(d);
@@ -551,7 +555,7 @@ dsp_write(struct cdev *i_dev, struct uio *buf, int flag)
 }
 
 static int
-dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
+dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
     u_long cmd, caddr_t arg)
 {
 	struct snddev_info *d;
@@ -569,25 +573,19 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
 	rdch = priv->rdch;
 	wrch = priv->wrch;
 
-	/* No specific channel, look into cache */
-	if (volch == NULL)
-		volch = priv->volch;
-
-	/* Look harder */
-	if (volch == NULL) {
+	if (ch == NULL) {
 		if (j == SOUND_MIXER_RECLEV && rdch != NULL)
-			volch = rdch;
+			ch = rdch;
 		else if (j == SOUND_MIXER_PCM && wrch != NULL)
-			volch = wrch;
+			ch = wrch;
 	}
 
-	/* Final validation */
-	if (volch == NULL)
+	if (ch == NULL)
 		return (EINVAL);
 
-	CHN_LOCK(volch);
-	if (!(volch->feederflags & (1 << FEEDER_VOLUME))) {
-		CHN_UNLOCK(volch);
+	CHN_LOCK(ch);
+	if (!(ch->feederflags & (1 << FEEDER_VOLUME))) {
+		CHN_UNLOCK(ch);
 		return (EINVAL);
 	}
 
@@ -595,28 +593,28 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
 	case MIXER_WRITE(0):
 		switch (j) {
 		case SOUND_MIXER_MUTE:
-			if (volch->direction == PCMDIR_REC) {
-				chn_setmute_multi(volch, SND_VOL_C_PCM, (*(int *)arg & SOUND_MASK_RECLEV) != 0);
+			if (ch->direction == PCMDIR_REC) {
+				chn_setmute_multi(ch, SND_VOL_C_PCM, (*(int *)arg & SOUND_MASK_RECLEV) != 0);
 			} else {
-				chn_setmute_multi(volch, SND_VOL_C_PCM, (*(int *)arg & SOUND_MASK_PCM) != 0);
+				chn_setmute_multi(ch, SND_VOL_C_PCM, (*(int *)arg & SOUND_MASK_PCM) != 0);
 			}
 			break;
 		case SOUND_MIXER_PCM:
-			if (volch->direction != PCMDIR_PLAY)
+			if (ch->direction != PCMDIR_PLAY)
 				break;
 			left = *(int *)arg & 0x7f;
 			right = ((*(int *)arg) >> 8) & 0x7f;
 			center = (left + right) >> 1;
-			chn_setvolume_multi(volch, SND_VOL_C_PCM,
+			chn_setvolume_multi(ch, SND_VOL_C_PCM,
 			    left, right, center);
 			break;
 		case SOUND_MIXER_RECLEV:
-			if (volch->direction != PCMDIR_REC)
+			if (ch->direction != PCMDIR_REC)
 				break;
 			left = *(int *)arg & 0x7f;
 			right = ((*(int *)arg) >> 8) & 0x7f;
 			center = (left + right) >> 1;
-			chn_setvolume_multi(volch, SND_VOL_C_PCM,
+			chn_setvolume_multi(ch, SND_VOL_C_PCM,
 			    left, right, center);
 			break;
 		default:
@@ -628,34 +626,34 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
 	case MIXER_READ(0):
 		switch (j) {
 		case SOUND_MIXER_MUTE:
-			mute = CHN_GETMUTE(volch, SND_VOL_C_PCM, SND_CHN_T_FL) ||
-			    CHN_GETMUTE(volch, SND_VOL_C_PCM, SND_CHN_T_FR);
-			if (volch->direction == PCMDIR_REC) {
+			mute = CHN_GETMUTE(ch, SND_VOL_C_PCM, SND_CHN_T_FL) ||
+			    CHN_GETMUTE(ch, SND_VOL_C_PCM, SND_CHN_T_FR);
+			if (ch->direction == PCMDIR_REC) {
 				*(int *)arg = mute << SOUND_MIXER_RECLEV;
 			} else {
 				*(int *)arg = mute << SOUND_MIXER_PCM;
 			}
 			break;
 		case SOUND_MIXER_PCM:
-			if (volch->direction != PCMDIR_PLAY)
+			if (ch->direction != PCMDIR_PLAY)
 				break;
-			*(int *)arg = CHN_GETVOLUME(volch,
+			*(int *)arg = CHN_GETVOLUME(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FL);
-			*(int *)arg |= CHN_GETVOLUME(volch,
+			*(int *)arg |= CHN_GETVOLUME(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
 			break;
 		case SOUND_MIXER_RECLEV:
-			if (volch->direction != PCMDIR_REC)
+			if (ch->direction != PCMDIR_REC)
 				break;
-			*(int *)arg = CHN_GETVOLUME(volch,
+			*(int *)arg = CHN_GETVOLUME(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FL);
-			*(int *)arg |= CHN_GETVOLUME(volch,
+			*(int *)arg |= CHN_GETVOLUME(ch,
 			    SND_VOL_C_PCM, SND_CHN_T_FR) << 8;
 			break;
 		case SOUND_MIXER_DEVMASK:
 		case SOUND_MIXER_CAPS:
 		case SOUND_MIXER_STEREODEVS:
-			if (volch->direction == PCMDIR_REC)
+			if (ch->direction == PCMDIR_REC)
 				*(int *)arg = SOUND_MASK_RECLEV;
 			else
 				*(int *)arg = SOUND_MASK_PCM;
@@ -669,7 +667,7 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
 	default:
 		break;
 	}
-	CHN_UNLOCK(volch);
+	CHN_UNLOCK(ch);
 	return (0);
 }
 
@@ -703,7 +701,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			PCM_GIANT_EXIT(d);
 			return (0);
 		}
-		ret = dsp_ioctl_channel(priv, priv->volch, cmd, arg);
+		ret = dsp_ioctl_channel(priv, NULL, cmd, arg);
 		if (ret != -1) {
 			PCM_GIANT_EXIT(d);
 			return (ret);

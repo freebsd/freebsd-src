@@ -1,0 +1,49 @@
+krb5_auth_con_free -  Free a krb5_auth_context structure. 
+==========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_free(krb5_context context, krb5_auth_context auth_context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context to be freed
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+This function frees an auth context allocated by krb5_auth_con_init().
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

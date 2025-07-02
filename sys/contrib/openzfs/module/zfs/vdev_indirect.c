@@ -569,7 +569,7 @@ spa_condense_indirect_commit_entry(spa_t *spa,
 
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
 	dmu_tx_hold_space(tx, sizeof (*vimep) + sizeof (count));
-	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT));
+	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 	int txgoff = dmu_tx_get_txg(tx) & TXG_MASK;
 
 	/*
@@ -1867,7 +1867,8 @@ vdev_ops_t vdev_indirect_ops = {
 	.vdev_op_fini = NULL,
 	.vdev_op_open = vdev_indirect_open,
 	.vdev_op_close = vdev_indirect_close,
-	.vdev_op_asize = vdev_default_asize,
+	.vdev_op_psize_to_asize = vdev_default_asize,
+	.vdev_op_asize_to_psize = vdev_default_psize,
 	.vdev_op_min_asize = vdev_default_min_asize,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_indirect_io_start,

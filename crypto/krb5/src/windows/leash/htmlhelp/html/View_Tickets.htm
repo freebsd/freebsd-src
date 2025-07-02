@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>View Tickets</title></head>
+
+<body>
+<h1>View Tickets</h1>
+<p>
+ MIT Kerberos displays your tickets in the main window. The tickets (if any) are organized by the <a href="JavaScript:popup.TextPopup(popupPrincipal, popfont,9,9,-1,-1)">principal</a> who owns them.  To the right of the principal are columns with information about the tickets.
+</p><ul>
+<li>To show or hide information columns,  use the View Options panel in the Options tab. <a href="HTML/Options_Tab.htm#using-view-options">How to: Use View Options Panel </a> </li>
+<li>To make a column wider or narrower, click and drag the line separating two column headings. </li>
+<li>To see information for all of a principal's tickets, click the
+arrow next to the principal name. Otherwise the information displayed
+applies only to the initial Ticket Granting Ticket (TGT). </li>
+</ul>
+<p>
+ Use the table below to jump to a column description, or scroll down to view all available columns.</p>
+
+<table>
+<tbody><tr>
+<th id="th2">Learn about...</th>
+<td>
+<ul id="helpul">
+<li><a href="#principal"> Principal</a></li>
+<li><a href="#issued"> Issued</a></li>
+<li><a href="#renewable-until"> Renewable Until</a></li>
+<li><a href="#valid-until"> Valid Until</a></li>
+<li><a href="#encryption-type"> Encryption Type</a></li>
+<li><a href="#flags"> Flags (renewable and forwardable)</a></li>
+
+
+</ul>
+</td>
+</tr>
+</tbody></table>
+<a name="table"><p></p></a>
+ <table>
+<tbody><tr>
+<th>Column</th>
+<th>Description</th>
+</tr>
+ <tr>
+<th id="th2"> Principal   </th>
+
+<td> <a name="principal"> The identity that has obtained the ticket. </a>This is your user name (e.g.,  <tt>Jsmith</tt>) plus the Kerberos <a href="JavaScript:popup.TextPopup(popupRealm, popfont,9,9,-1,-1)"> realm</a> (or Windows domain) you belong to  (e.g.,<tt> @SERVER.MEGACORP.COM</tt>).  If like many users you have only one Kerberos name and belong to only one realm, you will have only one principal.
+<p></p>
+The principal that is currently the default principal appears in bold. <a href="HTML/Principals.htm#default-principal">About: Default Principals</a>
+<p></p>
+The information displayed in the columns to the right of the principal
+applies only to the principal's initial Ticket Granting Ticket (TGT).
+Click the arrow in front of the principal name to expand the view.
+The expanded view shows all of the tickets and session keys issued to
+the principal. The TGT is listed with a prefix of <em>krbtgt</em>. Any other tickets and session keys were automatically issued when you accessed a service through Kerberos. <br>
+<a href="HTML/Kerberos_Terminology.htm#ticket">About: Kerberos Terminology (Tickets)</a></td>
+</tr>
+
+ <tr>
+<th id="th2"> <a name="issued">Issued</a> </th>
+
+<td>The date and time the ticket was originally obtained.</td>
+</tr>
+ <tr>
+<th id="th2">  Renewable Until </th>
+
+<td> <a name="renewable-until">The date and time marking the end of each ticket's renewable lifetime.</a> If the column is <a href="JavaScript:popup.TextPopup(popupWideEnough, popfont,9,9,-1,-1)"> wide enough</a>
+you will also see the number of days and hours remaining in the
+ticket's renewable lifetime. After this time, you cannot renew the
+ticket and must instead get a new one. <p></p>
+If this column shows <em>Not Renewable</em>, the ticket was not flagged as renewable when you obtained it.
+<p></p>
+<b>Related Help:</b><ul id="helpul">
+<li> <a href="HTML/Tickets.htm#renewable"> About renewable tickets</a> </li>
+<li><a href="HTML/Renew_Tickets.htm"> Renew tickets</a></li>
+</ul>
+</td>
+</tr>
+ <tr>
+<th id="th2">  Valid Until </th>
+
+<td> <a name="valid-until"> The date and time the ticket will expire and can no longer be used or renewed.</a> If the column is <a href="JavaScript:popup.TextPopup(popupWideEnough, popfont,9,9,-1,-1)"> wide enough</a>
+you will also see the number of hours and minutes remaining before the
+ticket expires. Kerberos alerts you to expiring tickets with a warning
+in a pop up window. <p></p>
+To add an audible warning, open the Options tab and select <b>Expiration Alarm</b> in the Ticket Options panel. <br>
+<a href="HTML/Options_Tab.htm#using-ticket-options">How to: Use Ticket Options Panel</a>
+</td>
+</tr>
+ <tr>
+<th id="th2"> Encryption Type </th>
+
+<td><a name="encryption-type">Shows what type of  encryption was used to encode the session key and the ticket.</a>
+Kerberos supports multiple types of encryption. The type used for a
+particular ticket or session key is automatically negotiated when you
+request a ticket or a service.<br>
+<a href="HTML/Encryption_Types.htm#supported-types">About: Encryption Types</a> </td>
+</tr>
+<tr>
+<th id="th2">   Flags </th>
+<td><a name="flags">Shows how the tickets were flagged (renewable and/or fowardable) when you obtained them. </a> You cannot change how an existing flag is set. If you need a ticket with different flags, you must get a new ticket.
+<p></p>
+<em> Forwardable and Proxiable</em> tickets can be forwarded to the remote host when you connect via telnet, ssh, ftp, rlogin, or similar applications.
+<p></p>
+<em> Renewable</em> tickets can be renewed until the time and day shown
+in the Renewable Until column. Each time a ticket is renewed, its
+lifetime is extended by the length of the original ticket. </td>
+</tr>
+
+</tbody></table>
+<p>
+
+
+<script language="JavaScript">
+popfont="Arial,.725,"
+popupRealm="Kerberos realms are a way of logically grouping resources and identities that use Kerberos. Your realm is the home of your Kerberos identity and your point of entry to the network resources controlled by Kerberos. Windows calls realms 'domains.' "
+popupWideEnough="Click and drag the line to the right of the column heading to widen the column or make it narrower."
+popupPrincipal="Your principal is your Kerberos identity. It is your user name combined with the Kerberos realm you are using. For example: 'jdoe@SALES.WIDGET.COM' "
+</script>
+
+<object id="popup" type="application/x-oleobject" classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</object>
+</p></body></html>

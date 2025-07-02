@@ -1,0 +1,46 @@
+krb5_free_string -  Free a string allocated by a krb5 function. 
+================================================================
+
+..
+
+.. c:function:: void krb5_free_string(krb5_context context, char * val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - String to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.10
+ 
+

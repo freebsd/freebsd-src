@@ -35,9 +35,21 @@
 #include <machine/asm.h>
 #include <machine/psl.h>
 
-struct arch_switch	archsw;		/* MI/MD interface boundary */
+#ifdef CAS
+static int ppc64_autoload(void);
+#endif
 
-extern char end[];
+struct arch_switch	archsw = {		/* MI/MD interface boundary */
+	.arch_getdev = ofw_getdev,
+	.arch_copyin = ofw_copyin,
+	.arch_copyout = ofw_copyout,
+	.arch_readin = ofw_readin,
+#ifdef CAS
+	.arch_autoload = ppc64_autoload,
+#else
+	.arch_autoload = ofw_autoload,
+#endif
+};
 
 uint32_t	acells, scells;
 
@@ -165,15 +177,8 @@ main(int (*openfirm)(void *))
          */
 	cons_probe();
 
-	archsw.arch_getdev = ofw_getdev;
-	archsw.arch_copyin = ofw_copyin;
-	archsw.arch_copyout = ofw_copyout;
-	archsw.arch_readin = ofw_readin;
 #ifdef CAS
 	setenv("cas", "1", 0);
-	archsw.arch_autoload = ppc64_autoload;
-#else
-	archsw.arch_autoload = ofw_autoload;
 #endif
 
 	/* Set up currdev variable to have hooks in place. */

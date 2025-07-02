@@ -1,0 +1,59 @@
+krb5_425_conv_principal -  Convert a Kerberos V4 principal to a Kerberos V5 principal. 
+=======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_425_conv_principal(krb5_context context, const char * name, const char * instance, const char * realm, krb5_principal * princ)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **name** - V4 name
+
+	          **[in]** **instance** - V4 instance
+
+	          **[in]** **realm** - Realm
+
+	          **[out]** **princ** - V5 principal
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function builds a *princ* from V4 specification based on given input *name.instance@realm* .
+
+
+
+Use krb5_free_principal() to free *princ* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

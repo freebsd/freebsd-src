@@ -126,6 +126,10 @@ __fts_open(FTS *sp, char * const *argv)
 	if (ISSET(FTS_LOGICAL))
 		SET(FTS_NOCHDIR);
 
+	/* NOSTAT_TYPE implies NOSTAT */
+	if (ISSET(FTS_NOSTAT_TYPE))
+		SET(FTS_NOSTAT);
+
 	/*
 	 * Start out with 1K of path space, and enough, in any case,
 	 * to hold the user's paths.
@@ -149,7 +153,9 @@ __fts_open(FTS *sp, char * const *argv)
 		p->fts_level = FTS_ROOTLEVEL;
 		p->fts_parent = parent;
 		p->fts_accpath = p->fts_name;
-		p->fts_info = fts_stat(sp, p, ISSET(FTS_COMFOLLOW), -1);
+		p->fts_info = fts_stat(sp, p,
+		    ISSET(FTS_COMFOLLOWDIR) ? -1 : ISSET(FTS_COMFOLLOW),
+		    -1);
 
 		/* Command-line "." and ".." are real directories. */
 		if (p->fts_info == FTS_DOT)
@@ -352,7 +358,8 @@ fts_close(FTS *sp)
 #ifdef __BLOCKS__
 		Block_release(sp->fts_compar_b);
 #else
-		if (sp->fts_compar_b->isa != &_NSConcreteGlobalBlock)
+		if (((fts_block)(sp->fts_compar_b))->isa !=
+		    &_NSConcreteGlobalBlock)
 			_Block_release(sp->fts_compar_b);
 #endif /* __BLOCKS__ */
 	}
@@ -742,14 +749,10 @@ fts_build(FTS *sp, int type)
 	 * Open the directory for reading.  If this fails, we're done.
 	 * If being called from fts_read, set the fts_info field.
 	 */
-#ifdef FTS_WHITEOUT
 	if (ISSET(FTS_WHITEOUT))
 		oflag = DTF_NODUP;
 	else
 		oflag = DTF_HIDEW | DTF_NODUP;
-#else
-#define __opendir2(path, flag) opendir(path)
-#endif
 	if ((dirp = __opendir2(cur->fts_accpath, oflag)) == NULL) {
 		if (type == BREAD) {
 			cur->fts_info = FTS_DNR;
@@ -876,10 +879,8 @@ mem1:				saved_errno = errno;
 		p->fts_parent = sp->fts_cur;
 		p->fts_pathlen = len + dnamlen;
 
-#ifdef FTS_WHITEOUT
 		if (dp->d_type == DT_WHT)
 			p->fts_flags |= FTS_ISW;
-#endif
 
 		if (cderrno) {
 			if (nlinks) {
@@ -888,12 +889,8 @@ mem1:				saved_errno = errno;
 			} else
 				p->fts_info = FTS_NSOK;
 			p->fts_accpath = cur->fts_accpath;
-		} else if (nlinks == 0
-#ifdef DT_DIR
-		    || (nostat &&
-		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)
-#endif
-		    ) {
+		} else if (nlinks == 0 || (nostat &&
+		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)) {
 			p->fts_accpath =
 			    ISSET(FTS_NOCHDIR) ? p->fts_path : p->fts_name;
 			p->fts_info = FTS_NSOK;
@@ -912,6 +909,25 @@ mem1:				saved_errno = errno;
 			if (nlinks > 0 && (p->fts_info == FTS_D ||
 			    p->fts_info == FTS_DC || p->fts_info == FTS_DOT))
 				--nlinks;
+		}
+		if (p->fts_info == FTS_NSOK && ISSET(FTS_NOSTAT_TYPE)) {
+			switch (dp->d_type) {
+			case DT_FIFO:
+			case DT_CHR:
+			case DT_BLK:
+			case DT_SOCK:
+				p->fts_info = FTS_DEFAULT;
+				break;
+			case DT_REG:
+				p->fts_info = FTS_F;
+				break;
+			case DT_LNK:
+				p->fts_info = FTS_SL;
+				break;
+			case DT_WHT:
+				p->fts_info = FTS_W;
+				break;
+			}
 		}
 
 		/* We walk in directory order so "ls -f" doesn't get upset. */
@@ -989,7 +1005,7 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 	dev_t dev;
 	ino_t ino;
 	struct stat *sbp, sb;
-	int saved_errno;
+	int ret, saved_errno;
 	const char *path;
 
 	if (dfd == -1) {
@@ -1002,7 +1018,6 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 	/* If user needs stat info, stat buffer already allocated. */
 	sbp = ISSET(FTS_NOSTAT) ? &sb : p->fts_statp;
 
-#ifdef FTS_WHITEOUT
 	/* Check for whiteout. */
 	if (p->fts_flags & FTS_ISW) {
 		if (sbp != &sb) {
@@ -1011,22 +1026,27 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 		}
 		return (FTS_W);
 	}
-#endif
 
 	/*
-	 * If doing a logical walk, or application requested FTS_FOLLOW, do
-	 * a stat(2).  If that fails, check for a non-existent symlink.  If
-	 * fail, set the errno from the stat call.
+	 * If doing a logical walk, or caller requested FTS_COMFOLLOW, do
+	 * a full stat(2).  If that fails, do an lstat(2) to check for a
+	 * non-existent symlink.  If that fails, set the errno from the
+	 * stat(2) call.
+	 *
+	 * As a special case, if stat(2) succeeded but the target is not a
+	 * directory and follow is negative (indicating FTS_COMFOLLOWDIR
+	 * rather than FTS_COMFOLLOW), we also revert to lstat(2).
 	 */
 	if (ISSET(FTS_LOGICAL) || follow) {
-		if (fstatat(dfd, path, sbp, 0)) {
+		if ((ret = fstatat(dfd, path, sbp, 0)) != 0 ||
+		    (follow < 0 && !S_ISDIR(sbp->st_mode))) {
 			saved_errno = errno;
 			if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
 				p->fts_errno = saved_errno;
 				goto err;
 			}
 			errno = 0;
-			if (S_ISLNK(sbp->st_mode))
+			if (ret != 0 && S_ISLNK(sbp->st_mode))
 				return (FTS_SLNONE);
 		}
 	} else if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {

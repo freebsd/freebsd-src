@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2015 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2025 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -157,10 +157,11 @@ openpam_parse_chain(pam_handle_t *pamh,
 	openpam_style_t style)
 {
 	pam_chain_t *this, **next;
+	pam_module_t *module;
 	pam_facility_t fclt;
 	pam_control_t ctlf;
 	char *name, *servicename, *modulename;
-	int count, lineno, ret, serrno;
+	int count, lineno, nonfatal, ret, serrno;
 	char **wordv, *word;
 	int i, wordc;
 
@@ -186,10 +187,22 @@ openpam_parse_chain(pam_handle_t *pamh,
 		}
 
 		/* check facility name */
-		if ((word = wordv[i++]) == NULL ||
-		    (fclt = parse_facility_name(word)) == (pam_facility_t)-1) {
+		if ((word = wordv[i++]) == NULL) {
 			openpam_log(PAM_LOG_ERROR,
-			    "%s(%d): missing or invalid facility",
+			    "%s(%d): missing facility",
+			    filename, lineno);
+			errno = EINVAL;
+			goto fail;
+		}
+		if (*word == '-') {
+			nonfatal = 1;
+			word++;
+		} else {
+			nonfatal = 0;
+		}
+		if ((fclt = parse_facility_name(word)) == (pam_facility_t)-1) {
+			openpam_log(PAM_LOG_ERROR,
+			    "%s(%d): invalid facility",
 			    filename, lineno);
 			errno = EINVAL;
 			goto fail;
@@ -199,13 +212,25 @@ openpam_parse_chain(pam_handle_t *pamh,
 			continue;
 		}
 
-		/* check for "include" */
-		if ((word = wordv[i++]) != NULL &&
-		    strcmp(word, "include") == 0) {
-			if ((servicename = wordv[i++]) == NULL ||
-			    !valid_service_name(servicename)) {
+		/* control flag or "include" */
+		if ((word = wordv[i++]) == NULL) {
+			openpam_log(PAM_LOG_ERROR,
+			    "%s(%d): missing control flag",
+			    filename, lineno);
+			errno = EINVAL;
+			goto fail;
+		}
+		if (strcmp(word, "include") == 0) {
+			if ((servicename = wordv[i++]) == NULL) {
 				openpam_log(PAM_LOG_ERROR,
-				    "%s(%d): missing or invalid service name",
+				    "%s(%d): missing service name",
+				    filename, lineno);
+				errno = EINVAL;
+				goto fail;
+			}
+			if (!valid_service_name(servicename)) {
+				openpam_log(PAM_LOG_ERROR,
+				    "%s(%d): invalid service name",
 				    filename, lineno);
 				errno = EINVAL;
 				goto fail;
@@ -225,30 +250,48 @@ openpam_parse_chain(pam_handle_t *pamh,
 				 * outer loop does not just ignore the
 				 * error and keep searching.
 				 */
-				if (errno == ENOENT)
+				if (errno == ENOENT) {
+					if (nonfatal)
+						continue;
 					errno = EINVAL;
+				}
 				goto fail;
 			}
 			continue;
 		}
-
-		/* get control flag */
-		if (word == NULL || /* same word we compared to "include" */
-		    (ctlf = parse_control_flag(word)) == (pam_control_t)-1) {
+		if ((ctlf = parse_control_flag(word)) == (pam_control_t)-1) {
 			openpam_log(PAM_LOG_ERROR,
-			    "%s(%d): missing or invalid control flag",
+			    "%s(%d): invalid control flag",
 			    filename, lineno);
 			errno = EINVAL;
 			goto fail;
 		}
 
 		/* get module name */
-		if ((modulename = wordv[i++]) == NULL ||
-		    !valid_module_name(modulename)) {
+		if ((modulename = wordv[i++]) == NULL) {
 			openpam_log(PAM_LOG_ERROR,
-			    "%s(%d): missing or invalid module name",
+			    "%s(%d): missing module name",
 			    filename, lineno);
 			errno = EINVAL;
+			goto fail;
+		}
+		if (!valid_module_name(modulename)) {
+			openpam_log(PAM_LOG_ERROR,
+			    "%s(%d): invalid module name",
+			    filename, lineno);
+			errno = EINVAL;
+			goto fail;
+		}
+
+		/* load module */
+		if ((module = openpam_load_module(modulename)) == NULL) {
+			if (errno == ENOENT) {
+				if (nonfatal) {
+					FREEV(wordc, wordv);
+					continue;
+				}
+				errno = ENOEXEC;
+			}
 			goto fail;
 		}
 
@@ -256,13 +299,7 @@ openpam_parse_chain(pam_handle_t *pamh,
 		if ((this = calloc(1, sizeof *this)) == NULL)
 			goto syserr;
 		this->flag = ctlf;
-
-		/* load module */
-		if ((this->module = openpam_load_module(modulename)) == NULL) {
-			if (errno == ENOENT)
-				errno = ENOEXEC;
-			goto fail;
-		}
+		this->module = module;
 
 		/*
 		 * The remaining items in wordv are the module's

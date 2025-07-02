@@ -232,8 +232,8 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
 	 * type object.
 	 */
-	rv = vm_page_grab_valid_iter(&m, obj, &pages, idx,
-	    VM_ALLOC_NORMAL | VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY);
+	rv = vm_page_grab_valid_iter(&m, obj, idx,
+	    VM_ALLOC_NORMAL | VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY, &pages);
 	if (rv != VM_PAGER_OK) {
 		VM_OBJECT_WUNLOCK(obj);
 		if (bootverbose) {

@@ -97,14 +97,14 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	if (!pac_enable) {
 		if (boothowto & RB_VERBOSE)
 			printf("Pointer authentication is disabled\n");
-		return (false);
+		goto out;
 	}
 
 	if (!get_kernel_reg(ID_AA64ISAR1_EL1, &isar1))
-		return (false);
+		goto out;
 
 	if (ptrauth_disable())
-		return (false);
+		goto out;
 
 	/*
 	 * This assumes if there is pointer authentication on the boot CPU
@@ -113,6 +113,12 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	 */
 	return (ID_AA64ISAR1_APA_VAL(isar1) > 0 ||
 	    ID_AA64ISAR1_API_VAL(isar1) > 0);
+
+out:
+	update_special_reg(ID_AA64ISAR1_EL1, ID_AA64ISAR1_API_MASK |
+	    ID_AA64ISAR1_APA_MASK | ID_AA64ISAR1_GPA_MASK |
+	    ID_AA64ISAR1_GPI_MASK, 0);
+	return (false);
 }
 
 static void

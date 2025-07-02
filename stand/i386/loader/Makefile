@@ -16,7 +16,7 @@ LOADER?=	loader_${LOADER_INTERP}
 PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
-VERSION_FILE=	${.CURDIR}/../loader/version
+VERSION_FILE?=	${.CURDIR}/../loader/version
 #
 # There's 640k - 40k maximum space, less however much memory the BIOS uses.  A
 # non-random survey suggests that 20k-25k is a good value for 'most' machines.
@@ -90,7 +90,8 @@ ORG=		0x0
 
 CFLAGS+=	-Wall
 LDFLAGS+=	-static ${LDFLAGS_ORG} -Wl,--gc-sections
-.if ${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 130000
+.if (${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 130000) || \
+    (${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23700)
 # lld 13 and higher default to garbage collecting start/stop symbols,
 # completely ruining our linker sets. For now, work around it by
 # disabling this un-feature.

@@ -1,0 +1,51 @@
+krb5_auth_con_getrcache -  Retrieve the replay cache from an auth context. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_getrcache(krb5_context context, krb5_auth_context auth_context, krb5_rcache * rcache)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[out]** **rcache** - Replay cache handle
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+This function fetches the replay cache from *auth_context* . The caller should not close *rcache* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

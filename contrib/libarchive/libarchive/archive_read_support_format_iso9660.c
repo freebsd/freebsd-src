@@ -1429,7 +1429,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			 * information first, then store all file bodies. */
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Ignoring out-of-order file @%jx (%s) %jd < %jd",
-			    (intmax_t)file->number,
+			    (uintmax_t)file->number,
 			    iso9660->pathname.s,
 			    (intmax_t)file->offset,
 			    (intmax_t)iso9660->current_position);
@@ -2273,7 +2273,7 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 				if (version == 1) {
 					if (data_length >= 8)
 						file->mode
-						    = toi(data, 4);
+						    = (__LA_MODE_T)toi(data, 4);
 					if (data_length >= 16)
 						file->nlinks
 						    = toi(data + 8, 4);

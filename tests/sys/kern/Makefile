@@ -15,7 +15,10 @@ ATF_TESTS_C+=	kcov
 .endif
 ATF_TESTS_C+=	kern_copyin
 ATF_TESTS_C+=	kern_descrip_test
+# One test modifies the maxfiles limit, which can cause spurious test failures.
+TEST_METADATA.kern_descrip_test+= is_exclusive="true"
 ATF_TESTS_C+=	fdgrowtable_test
+ATF_TESTS_C+=	jail_lookup_root
 ATF_TESTS_C+=	kill_zombie
 .if ${MK_OPENSSL} != "no"
 ATF_TESTS_C+=	ktls_test
@@ -75,6 +78,7 @@ PROGS+=		coredump_phnum_helper
 PROGS+=		pdeathsig_helper
 PROGS+=		sendfile_helper
 
+LIBADD.jail_lookup_root+=		jail util
 CFLAGS.sys_getrandom+=			-I${SRCTOP}/sys/contrib/zstd/lib
 LIBADD.sys_getrandom+=			zstd
 LIBADD.sys_getrandom+=			c
@@ -92,6 +96,7 @@ LIBADD.sendfile_helper+=		pthread
 LIBADD.fdgrowtable_test+=		util pthread kvm procstat
 LIBADD.sigwait+=			rt
 LIBADD.ktrace_test+=			sysdecode
+LIBADD.unix_stream+=			pthread
 
 NETBSD_ATF_TESTS_C+=	lockf_test
 NETBSD_ATF_TESTS_C+=	mqueue_test

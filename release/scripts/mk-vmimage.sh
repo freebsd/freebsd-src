@@ -91,7 +91,7 @@ main() {
 
 	. "${VMBUILDCONF}"
 
-	if [ ! -z "${VMCONFIG}" ] && [ ! -c "${VMCONFIG}" ]; then
+	if [ -n "${VMCONFIG}" ] && [ ! -c "${VMCONFIG}" ]; then
 		. "${VMCONFIG}"
 	fi
 

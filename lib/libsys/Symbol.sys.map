@@ -378,6 +378,7 @@ FBSD_1.7 {
 };
 
 FBSD_1.8 {
+	exterrctl;
 	fchroot;
 	getrlimitusage;
 	kcmp;

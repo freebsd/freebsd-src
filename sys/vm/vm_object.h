@@ -98,7 +98,6 @@ struct vm_object {
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
-	struct pglist memq;		/* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 	struct domainset_ref domain;	/* NUMA policy. */

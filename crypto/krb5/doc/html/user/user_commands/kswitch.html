@@ -1,0 +1,189 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kswitch &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="kvno" href="kvno.html" />
+    <link rel="prev" title="ksu" href="ksu.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="ksu.html" title="ksu"
+            accesskey="P">previous</a> |
+        <a href="kvno.html" title="kvno"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kswitch">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kswitch">
+<span id="kswitch-1"></span><h1>kswitch<a class="headerlink" href="#kswitch" title="Permalink to this headline">¶</a></h1>
+<section id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>kswitch</strong>
+{<strong>-c</strong> <em>cachename</em>|<strong>-p</strong> <em>principal</em>}</p>
+</section>
+<section id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>kswitch makes the specified credential cache the primary cache for the
+collection, if a cache collection is available.</p>
+</section>
+<section id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><strong>-c</strong> <em>cachename</em></dt><dd><p>Directly specifies the credential cache to be made primary.</p>
+</dd>
+<dt><strong>-p</strong> <em>principal</em></dt><dd><p>Causes the cache collection to be searched for a cache containing
+credentials for <em>principal</em>.  If one is found, that collection is
+made primary.</p>
+</dd>
+</dl>
+</section>
+<section id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</section>
+<section id="files">
+<h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFCCNAME</span></a></dt><dd><p>Default location of Kerberos 5 credentials cache</p>
+</dd>
+</dl>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a>, <a class="reference internal" href="klist.html#klist-1"><span class="std std-ref">klist</span></a>,
+<a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kswitch</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#options">OPTIONS</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#files">FILES</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For users</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../pwd_mgmt.html">Password management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tkt_mgmt.html">Ticket management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_config/index.html">User config files</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">User commands</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kdestroy.html">kdestroy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kinit.html">kinit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="klist.html">klist</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpasswd.html">kpasswd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5-config.html">krb5-config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ksu.html">ksu</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kswitch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kvno.html">kvno</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sclient.html">sclient</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="ksu.html" title="ksu"
+            >previous</a> |
+        <a href="kvno.html" title="kvno"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kswitch">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

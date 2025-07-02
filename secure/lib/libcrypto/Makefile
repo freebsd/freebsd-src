@@ -11,7 +11,6 @@ LIB=		crypto
 SHLIB_MAJOR=	30
 VERSION_MAP=	${.CURDIR}/Version.map
 
-NO_LINT=
 PCFILES=	libcrypto.pc
 
 .include "Makefile.man"

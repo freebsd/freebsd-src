@@ -777,7 +777,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (error)
 		senderr(error);
 #endif
-	if (ifp->if_flags & IFF_MONITOR)
+	if (ieee80211_vap_ifp_check_is_monitor(vap))
 		senderr(ENETDOWN);
 	if (!IFNET_IS_UP_RUNNING(ifp))
 		senderr(ENETDOWN);
@@ -892,7 +892,6 @@ ieee80211_send_setup(
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_tx_ampdu *tap;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_seq seqno;
 
 	IEEE80211_TX_LOCK_ASSERT(ni->ni_ic);
 
@@ -975,25 +974,8 @@ ieee80211_send_setup(
 
 		/* NB: zero out i_seq field (for s/w encryption etc) */
 		*(uint16_t *)&wh->i_seq[0] = 0;
-	} else {
-		if (IEEE80211_HAS_SEQ(type & IEEE80211_FC0_TYPE_MASK,
-				      type & IEEE80211_FC0_SUBTYPE_MASK))
-			/*
-			 * 802.11-2012 9.3.2.10 - QoS multicast frames
-			 * come out of a different seqno space.
-			 */
-			if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-				seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
-			} else {
-				seqno = ni->ni_txseqs[tid]++;
-			}
-		else
-			seqno = 0;
-
-		*(uint16_t *)&wh->i_seq[0] =
-		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
-		M_SEQNO_SET(m, seqno);
-	}
+	} else
+		ieee80211_output_seqno_assign(ni, tid, m);
 
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		m->m_flags |= M_MCAST;
@@ -1483,7 +1465,6 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_key *key;
 	struct llc *llc;
 	int hdrsize, hdrspace, datalen, addqos, txfrag, is4addr, is_mcast;
-	ieee80211_seq seqno;
 	int meshhdrsize, meshae;
 	uint8_t *qos;
 	int is_amsdu = 0;
@@ -1829,22 +1810,8 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 * and we don't need the TX lock held.
 		 */
 		if ((m->m_flags & M_AMPDU_MPDU) == 0) {
-			/*
-			 * 802.11-2012 9.3.2.10 -
-			 *
-			 * If this is a multicast frame then we need
-			 * to ensure that the sequence number comes from
-			 * a separate seqno space and not the TID space.
-			 *
-			 * Otherwise multicast frames may actually cause
-			 * holes in the TX blockack window space and
-			 * upset various things.
-			 */
-			if (IEEE80211_IS_MULTICAST(wh->i_addr1))
-				seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
-			else
-				seqno = ni->ni_txseqs[tid]++;
-
+			ieee80211_output_seqno_assign(ni, tid, m);
+		} else {
 			/*
 			 * NB: don't assign a sequence # to potential
 			 * aggregates; we expect this happens at the
@@ -1857,30 +1824,18 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			 * capability; this may also change when we pull
 			 * aggregation up into net80211
 			 */
-			*(uint16_t *)wh->i_seq =
-			    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
-			M_SEQNO_SET(m, seqno);
-		} else {
 			/* NB: zero out i_seq field (for s/w encryption etc) */
 			*(uint16_t *)wh->i_seq = 0;
 		}
 	} else {
-		/*
-		 * XXX TODO TX lock is needed for atomic updates of sequence
-		 * numbers.  If the driver does it, then don't do it here;
-		 * and we don't need the TX lock held.
-		 */
-		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
-		*(uint16_t *)wh->i_seq =
-		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
-		M_SEQNO_SET(m, seqno);
-
+		ieee80211_output_seqno_assign(ni, IEEE80211_NONQOS_TID, m);
 		/*
 		 * XXX TODO: we shouldn't allow EAPOL, etc that would
 		 * be forced to be non-QoS traffic to be A-MSDU encapsulated.
 		 */
 		if (is_amsdu)
-			printf("%s: XXX ERROR: is_amsdu set; not QoS!\n",
+			net80211_vap_printf(vap,
+			    "%s: XXX ERROR: is_amsdu set; not QoS!\n",
 			    __func__);
 	}
 
@@ -1889,6 +1844,10 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 *
 	 * If the hardware does fragmentation offload, then don't bother
 	 * doing it here.
+	 *
+	 * Don't send AMPDU/FF/AMSDU through fragmentation.
+	 *
+	 * 802.11-2016 10.2.7 (Fragmentation/defragmentation overview)
 	 */
 	if (IEEE80211_CONF_FRAG_OFFLOAD(ic))
 		txfrag = 0;
@@ -1941,6 +1900,15 @@ bad:
 #undef MC01
 }
 
+/**
+ * @brief Free an 802.11 frame mbuf.
+ *
+ * Note that since a "frame" may consist of an mbuf packet
+ * list containing the 802.11 fragments that make up said
+ * frame, it will free everything in the mbuf packet list.
+ *
+ * @param m     mbuf packet list to free
+ */
 void
 ieee80211_free_mbuf(struct mbuf *m)
 {
@@ -1956,13 +1924,40 @@ ieee80211_free_mbuf(struct mbuf *m)
 	} while ((m = next) != NULL);
 }
 
-/*
- * Fragment the frame according to the specified mtu.
+/**
+ * @brief Fragment the frame according to the specified mtu.
+ *
+ * This implements the fragmentation part of 802.11-2016 10.2.7
+ * (Fragmentation/defragmentation overview.)
+ *
  * The size of the 802.11 header (w/o padding) is provided
  * so we don't need to recalculate it.  We create a new
  * mbuf for each fragment and chain it through m_nextpkt;
  * we might be able to optimize this by reusing the original
  * packet's mbufs but that is significantly more complicated.
+ *
+ * A node reference is NOT acquired for each fragment in
+ * the list - the caller is assumed to have taken a node
+ * reference for the whole list.  The fragment mbufs do not
+ * have a node pointer.
+ *
+ * Fragments will have the sequence number and fragment numbers
+ * assigned.  However, Fragments will NOT have a sequence number
+ * assigned via M_SEQNO_SET.
+ *
+ * This must be called after assigning sequence numbers; it
+ * modifies the i_seq field in the 802.11 header to include
+ * the fragment number.
+ *
+ * @param vap		ieee80211vap interface
+ * @param m0		pointer to mbuf list to fragment
+ * @param hdrsize	header size to reserver
+ * @param ciphdrsize	crypto cipher header size to reserve
+ * @param mtu		maximum fragment size
+ * @retval 1 if successful, with the mbuf pointed at by m0
+ *   turned into an mbuf list of fragments (with the original
+ *   mbuf being truncated.)
+ * @retval 0 if failure, the mbuf needs to be freed by the caller
  */
 static int
 ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
@@ -3665,7 +3660,6 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211_frame *wh;
 	struct mbuf *m;
 	int pktlen;
@@ -3767,7 +3761,8 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 	    IEEE80211_FC0_SUBTYPE_BEACON;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	*(uint16_t *)wh->i_dur = 0;
-	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
+	IEEE80211_ADDR_COPY(wh->i_addr1,
+	    ieee80211_vap_get_broadcast_address(vap));
 	IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
 	*(uint16_t *)wh->i_seq = 0;
@@ -3786,8 +3781,6 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 	struct ieee80211com *ic = ni->ni_ic;
 	int len_changed = 0;
 	uint16_t capinfo;
-	struct ieee80211_frame *wh;
-	ieee80211_seq seqno;
 
 	IEEE80211_LOCK(ic);
 	/*
@@ -3855,8 +3848,6 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 		return 1;		/* just assume length changed */
 	}
 
-	wh = mtod(m, struct ieee80211_frame *);
-
 	/*
 	 * XXX TODO Strictly speaking this should be incremented with the TX
 	 * lock held so as to serialise access to the non-qos TID sequence
@@ -3865,10 +3856,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 	 * If the driver identifies it does its own TX seqno management then
 	 * we can skip this (and still not do the TX seqno.)
 	 */
-	seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
-	*(uint16_t *)&wh->i_seq[0] =
-		htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
-	M_SEQNO_SET(m, seqno);
+	ieee80211_output_beacon_seqno_assign(ni, m);
 
 	/* XXX faster to recalculate entirely or just changes? */
 	capinfo = ieee80211_getcapinfo(vap, ni->ni_chan);
@@ -4199,4 +4187,97 @@ ieee80211_tx_complete(struct ieee80211_node *ni, struct mbuf *m, int status)
 		ieee80211_free_node(ni);
 	}
 	m_freem(m);
+}
+
+/**
+ * @brief Assign a sequence number to the given frame.
+ *
+ * Check the frame type and TID and assign a suitable sequence number
+ * from the correct sequence number space.
+ *
+ * It assumes the mbuf has been encapsulated, and has the TID assigned
+ * if it is a QoS frame.
+ *
+ * Note this also clears any existing fragment ID in the header, so it
+ * must be called first before assigning fragment IDs.
+ *
+ * For now this implements parts of 802.11-2012; it doesn't do all of
+ * the needed checks for full compliance (notably QoS-Data NULL frames).
+ *
+ * TODO: update to 802.11-2020 10.3.2.14.2 (Transmitter Requirements)
+ *
+ * @param ni	ieee80211_node this frame will be transmitted to
+ * @param arg_tid	A temporary check, existing callers may set
+ *    this to a TID variable they were using, and this routine
+ *    will verify it against what's in the frame and complain if
+ *    they don't match.  For new callers, use -1.
+ * @param m	mbuf to populate the sequence number into
+ */
+void
+ieee80211_output_seqno_assign(struct ieee80211_node *ni, int arg_tid,
+    struct mbuf *m)
+{
+	struct ieee80211_frame *wh;
+	ieee80211_seq seqno;
+	uint8_t tid, type, subtype;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	tid = ieee80211_gettid(wh);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+
+	/*
+	 * Find places where the passed in TID doesn't match gettid()
+	 * and log.  I'll have to then go and chase those down.
+	 *
+	 * If the caller knows its already setup the TID in the frame
+	 * correctly then it can pass in -1 and this check will be
+	 * skipped.
+	 */
+	if (arg_tid != -1 && tid != arg_tid)
+		ic_printf(ni->ni_vap->iv_ic,
+		    "%s: called; TID mismatch; tid=%u, arg_tid=%d\n",
+		    __func__, tid, arg_tid);
+
+	if (IEEE80211_HAS_SEQ(type, subtype)) {
+		/*
+		 * 802.11-2012 9.3.2.10 - QoS multicast frames
+		 * come out of a different seqno space.
+		 */
+		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+			seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+		else
+			seqno = ni->ni_txseqs[tid]++;
+	} else
+		seqno = 0;
+
+	/*
+	 * Assign the sequence number, clearing out any existing
+	 * sequence and fragment numbers.
+	 */
+	*(uint16_t *)&wh->i_seq[0] =
+	    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m, seqno);
+}
+
+/**
+ * @brief Assign a sequence number to the given beacon frame.
+ *
+ * TODO: update to 802.11-2020 10.3.2.14.2 (Transmitter Requirements)
+ *
+ * @param ni	ieee80211_node this frame will be transmitted to
+ * @param m		mbuf to populate the sequence number into
+ */
+void
+ieee80211_output_beacon_seqno_assign(struct ieee80211_node *ni, struct mbuf *m)
+{
+	struct ieee80211_frame *wh;
+	ieee80211_seq seqno;
+
+	wh = mtod(m, struct ieee80211_frame *);
+
+	seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+	*(uint16_t *)&wh->i_seq[0] =
+		htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m, seqno);
 }

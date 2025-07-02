@@ -1886,6 +1886,11 @@ struct setcred_args {
 	char wcred_l_[PADL_(const struct setcred *)]; const struct setcred * wcred; char wcred_r_[PADR_(const struct setcred *)];
 	char size_l_[PADL_(size_t)]; size_t size; char size_r_[PADR_(size_t)];
 };
+struct exterrctl_args {
+	char op_l_[PADL_(u_int)]; u_int op; char op_r_[PADR_(u_int)];
+	char flags_l_[PADL_(u_int)]; u_int flags; char flags_r_[PADR_(u_int)];
+	char ptr_l_[PADL_(void *)]; void * ptr; char ptr_r_[PADR_(void *)];
+};
 struct osdb_exec_args {
 	char query_l_[PADL_(const char *)]; const char * query; char query_r_[PADR_(const char *)];
 	char querylen_l_[PADL_(int)]; int querylen; char querylen_r_[PADR_(int)];
@@ -2378,6 +2383,7 @@ int	sys_kcmp(struct thread *, struct kcmp_args *);
 int	sys_getrlimitusage(struct thread *, struct getrlimitusage_args *);
 int	sys_fchroot(struct thread *, struct fchroot_args *);
 int	sys_setcred(struct thread *, struct setcred_args *);
+int	sys_exterrctl(struct thread *, struct exterrctl_args *);
 int	sys_osdb_exec(struct thread *, struct osdb_exec_args *);
 int	sys_osdb_prepare_v2(struct thread *, struct osdb_prepare_v2_args *);
 int	sys_osdb_step(struct thread *, struct osdb_step_args *);
@@ -3377,6 +3383,7 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_getrlimitusage	AUE_NULL
 #define	SYS_AUE_fchroot	AUE_NULL
 #define	SYS_AUE_setcred	AUE_SETCRED
+#define	SYS_AUE_exterrctl	AUE_NULL
 #define	SYS_AUE_osdb_exec	AUE_NULL
 #define	SYS_AUE_osdb_prepare_v2	AUE_NULL
 #define	SYS_AUE_osdb_step	AUE_NULL

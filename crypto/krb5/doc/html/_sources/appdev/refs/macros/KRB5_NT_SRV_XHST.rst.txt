@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-NT-SRV-XHST-data:
+
+KRB5_NT_SRV_XHST
+================
+
+..
+.. data:: KRB5_NT_SRV_XHST
+..
+
+Service with host as remaining components.
+
+
+
+======================= ======================
+``KRB5_NT_SRV_XHST``       ``4``
+======================= ======================

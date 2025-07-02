@@ -1,0 +1,50 @@
+krb5_responder_list_questions -  List the question names contained in the responder context. 
+=============================================================================================
+
+..
+
+.. c:function:: const char *const * krb5_responder_list_questions(krb5_context ctx, krb5_responder_context rctx)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **rctx** - Responder context
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Return a pointer to a null-terminated list of question names which are present in *rctx* . The pointer is an alias, valid only as long as the lifetime of *rctx* , and should not be modified or freed by the caller. A question's challenge can be retrieved using krb5_responder_get_challenge() and answered using krb5_responder_set_answer().
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

@@ -1,0 +1,79 @@
+krb5_mk_priv -  Format a KRB-PRIV message. 
+===========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_priv(krb5_context context, krb5_auth_context auth_context, const krb5_data * userdata, krb5_data * der_out, krb5_replay_data * rdata_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **userdata** - User data for **KRB-PRIV** message
+
+	          **[out]** **der_out** - Formatted **KRB-PRIV** message
+
+	          **[out]** **rdata_out** - Replay data (NULL if not needed)
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function is similar to krb5_mk_safe(), but the message is encrypted and integrity-protected, not just integrity-protected.
+
+
+
+The local address in *auth_context* must be set, and is used to form the sender address used in the KRB-PRIV message. The remote address is optional; if specified, it will be used to form the receiver address used in the message.
+
+
+
+If the #KRB5_AUTH_CONTEXT_DO_TIME flag is set in *auth_context* , a timestamp is included in the KRB-PRIV message, and an entry for the message is entered in an in-memory replay cache to detect if the message is reflected by an attacker. If #KRB5_AUTH_CONTEXT_DO_TIME is not set, no replay cache is used. If #KRB5_AUTH_CONTEXT_RET_TIME is set in *auth_context* , a timestamp is included in the KRB-PRIV message and is stored in *rdata_out* .
+
+
+
+If either #KRB5_AUTH_CONTEXT_DO_SEQUENCE or #KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the *auth_context* local sequence number is included in the KRB-PRIV message and then incremented. If #KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the sequence number used is stored in *rdata_out* .
+
+
+
+Use krb5_free_data_contents() to free *der_out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The *rdata_out* argument is required if the #KRB5_AUTH_CONTEXT_RET_TIME or #KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .
+ 
+
+
+

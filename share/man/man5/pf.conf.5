@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 27, 2025
+.Dd May 29, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -703,8 +703,9 @@ and
 .Ar pass
 packets based on attributes of their Ethernet (layer 2) header.
 .Pp
-For each packet processed by the packet filter, the filter rules are
-evaluated in sequential order, from first to last.
+Each time a packet processed by the packet filter comes in on or
+goes out through an interface, the filter rules are evaluated in
+sequential order, from first to last.
 The last matching rule decides what action is taken.
 If no rule matches the packet, the default action is to pass
 the packet without creating a state.
@@ -724,6 +725,9 @@ A packet always comes in on, or goes out through, one interface.
 Most parameters are optional.
 If a parameter is specified, the rule only applies to packets with
 matching attributes.
+The matching for some parameters can be inverted with the
+.Cm !\&
+operator.
 Certain parameters can be expressed as lists, in which case
 .Xr pfctl 8
 generates all needed rule combinations.
@@ -2144,20 +2148,21 @@ pass all tos 0x10
 pass all tos 16
 .Ed
 .It Ar allow-opts
-By default, IPv4 packets with IP options or IPv6 packets with routing
-extension headers are blocked.
+By default, packets with IPv4 options or IPv6 hop-by-hop or destination
+options header are blocked.
 When
 .Ar allow-opts
 is specified for a
 .Ar pass
 rule, packets that pass the filter based on that rule (last matching)
-do so even if they contain IP options or routing extension headers.
+do so even if they contain options.
 For packets that match state, the rule that initially created the
 state is used.
 The implicit
 .Ar pass
-rule that is used when a packet does not match any rules does not
-allow IP options.
+rule, that is used when a packet does not match
+any rules, does not allow IP options or option headers.
+Note that IPv6 packets with type 0 routing headers are always dropped.
 .It Ar label Aq Ar string
 Adds a label (name) to the rule, which can be used to identify the rule.
 For instance,
@@ -2230,16 +2235,17 @@ If the packet is transmitted on a
 .Xr vlan 4
 interface, the queueing priority will be written as the priority
 code point in the 802.1Q VLAN header.
-If two priorities are given, packets which have a TOS of
+If two priorities are given, TCP ACKs with no data payload and packets
+which have a TOS of
 .Cm lowdelay
-and TCP ACKs with no data payload will be assigned to the second one.
+will be assigned to the second one.
 .Pp
 For example:
 .Bd -literal -offset indent
 pass in proto tcp to port 25 set prio 2
 pass in proto tcp to port 22 set prio (2, 5)
 .Ed
-.It Ar received-on Aq Ar interface
+.It Oo Cm \&! Oc Ns Cm received-on Ar interface
 Only match packets which were received on the specified
 .Ar interface
 (or interface group).
@@ -2272,12 +2278,6 @@ Tags take the same macros as labels (see above).
 Used with filter, translation or scrub rules
 to specify that packets must already
 be tagged with the given tag in order to match the rule.
-Inverse tag matching can also be done
-by specifying the
-.Cm !\&
-operator before the
-.Ar tagged
-keyword.
 .It Ar rtable Aq Ar number
 Used to select an alternate routing table for the routing lookup.
 Only effective before the route lookup happened, i.e. when filtering inbound.
@@ -3064,12 +3064,13 @@ anchor, if any, before finally evaluating the
 .Ar pass
 rule.
 .Pp
-Filter rule
-.Ar anchors
-can also be loaded inline in the ruleset within a brace ('{' '}') delimited
-block.
+An
+.Ar anchor
+rule can also contain a filter ruleset in a brace-delimited block.
+In that case, no separate loading of rules into the anchor
+is required.
 Brace delimited blocks may contain rules or other brace-delimited blocks.
-When anchors are loaded this way the anchor name becomes optional.
+When an anchor is populated this way the anchor name becomes optional.
 .Bd -literal -offset indent
 anchor "external" on $ext_if {
 	block
@@ -3355,13 +3356,13 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
 
 ether-rule     = "ether" etheraction [ ( "in" | "out" ) ]
                  [ "quick" ] [ "on" ifspec ] [ "bridge-to" interface-name ]
-                 [ etherprotospec ] etherhosts [ "l3" hosts ]
+                 [ etherprotospec ] [ etherhosts ] [ "l3" hosts ]
                  [ etherfilteropt-list ]
 
 pf-rule        = action [ ( "in" | "out" ) ]
                  [ "log" [ "(" logopts ")"] ] [ "quick" ]
                  [ "on" ifspec ] [ route ] [ af ] [ protospec ]
-                 hosts [ filteropt-list ]
+                 [ hosts ] [ filteropt-list ]
 
 logopts        = logopt [ "," logopts ]
 logopt         = "all" | "matches" | "user" | "to" interface-name
@@ -3379,7 +3380,7 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "fragment" | "no-df" | "min-ttl" number | "set-tos" tos |
                  "max-mss" number | "random-id" | "reassemble tcp" |
                  fragmentation | "allow-opts" |
-                 "label" string | "tag" string | [ ! ] "tagged" string |
+                 "label" string | "tag" string | [ "!" ] "tagged" string |
                  "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |

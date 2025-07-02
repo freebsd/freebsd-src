@@ -1,0 +1,33 @@
+#
+# Profile library Macintosh export file
+#
+# $Header$
+
+_profile_init
+_profile_init_path
+_FSp_profile_init
+_FSp_profile_init_path
+_profile_flush
+_profile_abandon
+_profile_release
+_profile_get_values
+_profile_free_list
+_profile_get_string
+_profile_get_boolean
+_profile_get_integer
+_profile_get_relation_names
+_profile_get_subsection_names
+_profile_iterator_create
+_profile_iterator_free
+_profile_iterator
+_profile_release_string
+_profile_update_relation
+_profile_clear_relation
+_profile_rename_section
+_profile_add_relation
+
+### Temporary -- DO NOT USE
+
+_profile_ser_internalize
+_profile_ser_externalize
+_profile_ser_size

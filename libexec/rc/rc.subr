@@ -56,6 +56,9 @@ _svcj_generic_params="path=/ mount.nodevfs host=inherit"
 JID=0
 CPUSET="/bin/cpuset"
 
+# Cache the services that we loaded with load_rc_config.
+_loaded_services=""
+
 # rc_service provides the path to the service script that we are executing.
 # This is not being set here in an execution context, necessarily, so it's
 # really just a reasonable guess, and it will get overwritten later if
@@ -1211,27 +1214,43 @@ run_rc_command()
 		fi
 	fi
 
-	_svcj_ip="inherit"
 	_svcj_ip4_addrs=""
 	_svcj_ip6_addrs=""
-
-	for addr in $_svcj_ipaddrs; do
-		case $addr in
-			*:*) _svcj_ip6_addrs="$addr,${_svcj_ip6_addrs}" ;;
-			*) _svcj_ip4_addrs="$addr,${_svcj_ip4_addrs}" ;;
-		esac
-	done
-
 	_svcj_cmd_options=""
 
-	if [ -n "$_svcj_ip4_addrs" ]; then
-		_svcj_cmd_options="ip4.addr=${_svcj_ip4_addrs%*,} ${_svcj_cmd_options}"
+	if [ -n "$_svcj_ipaddrs" ]; then
 		_svcj_ip="new"
+
+		for addr in $_svcj_ipaddrs; do
+			case $addr in
+				*:*) _svcj_ip6_addrs="$addr,${_svcj_ip6_addrs}" ;;
+				*) _svcj_ip4_addrs="$addr,${_svcj_ip4_addrs}" ;;
+			esac
+		done
+	else
+		_svcj_ip="inherit"
 	fi
 
-	if [ -n "$_svcj_ip6_addrs" ]; then
-		_svcj_cmd_options="ip6.addr=${_svcj_ip6_addrs%*,} ${_svcj_cmd_options}"
-		_svcj_ip="new"
+	if check_kern_features inet; then
+		_svcj_ip4="ip4=${_svcj_ip}"
+		if [ -n "$_svcj_ip4_addrs" ]; then
+			_svcj_cmd_options="ip4.addr=${_svcj_ip4_addrs%*,} ${_svcj_cmd_options}"
+		fi
+	else
+		if [ -n "$_svcj_ip4_addrs" ]; then
+			warn "$rc_service: ${name}_svcj_ipaddrs contains at least one IPv4 address, but IPv4 is not enabled in the kernel; IPv4 addresses will be ignored."
+		fi
+	fi
+
+	if check_kern_features inet6; then
+		_svcj_ip6="ip6=${_svcj_ip}"
+		if [ -n "$_svcj_ip6_addrs" ]; then
+			_svcj_cmd_options="ip6.addr=${_svcj_ip6_addrs%*,} ${_svcj_cmd_options}"
+		fi
+	else
+		if [ -n "$_svcj_ip6_addrs" ]; then
+			warn "$rc_service: ${name}_svcj_ipaddrs contains at least one IPv6 address, but IPv6 is not enabled in the kernel; IPv6 addresses will be ignored."
+		fi
 	fi
 
 	if [ -n "$_svcj_options" ]; then	# translate service jail options
@@ -1242,22 +1261,25 @@ run_rc_command()
 					_svcj_cmd_options="allow.mlock ${_svcj_cmd_options}"
 					;;
 				netv4)
-					_svcj_cmd_options="ip4=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="${_svcj_ip4} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				netv6)
-					_svcj_cmd_options="ip6=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				net_basic)
-					_svcj_cmd_options="ip4=${_svcj_ip} ip6=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="${_svcj_ip4} ${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				net_raw)
 					_svcj_cmd_options="allow.raw_sockets ${_svcj_cmd_options}"
 					;;
 				net_all)
-					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ip4=${_svcj_ip} ip6=${_svcj_ip} ${_svcj_cmd_options}"
+					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ${_svcj_ip4} ${_svcj_ip6} ${_svcj_cmd_options}"
 					;;
 				nfsd)
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
+					;;
+				routing)
+					_svcj_cmd_options="allow.routing ${_svcj_cmd_options}"
 					;;
 				settime)
 					_svcj_cmd_options="allow.settime ${_svcj_cmd_options}"
@@ -1418,28 +1440,17 @@ run_rc_command()
 			;;
 
 		enable)
-			_out=$(/usr/sbin/sysrc -vs "$name" "$rcvar=YES") &&
-				echo "$name enabled in ${_out%%:*}"
+			_out=$(write_rcvar "$rcvar" "YES") &&
+				echo "$name enabled in $_out"
 			;;
 
 		disable)
-			_out=$(/usr/sbin/sysrc -vs "$name" "$rcvar=NO") &&
-				echo "$name disabled in ${_out%%:*}"
+			_out=$(write_rcvar "$rcvar" "NO") &&
+				echo "$name disabled in $_out"
 			;;
 
 		delete)
-			_files=
-			for _file in $(/usr/sbin/sysrc -lEs "$name"); do
-				_out=$(/usr/sbin/sysrc -Fif $_file "$rcvar") && _files="$_files $_file"
-			done
-			/usr/sbin/sysrc -x "$rcvar" && echo "$rcvar deleted in ${_files# }"
-				# delete file in rc.conf.d if desired and empty.
-			checkyesno service_delete_empty || _files=
-			for _file in $_files; do
-				[ "$_file" = "${_file#*/rc.conf.d/}" ] && continue
-				[ $(/usr/bin/stat -f%z $_file) -gt 0 ] && continue
-				/bin/rm "$_file" && echo "Empty file $_file removed"
-			done
+			delete_rcvar "$rcvar"
 			;;
 
 		status)
@@ -1979,6 +1990,7 @@ load_rc_config()
 	# If a service name was specified, attempt to load
 	# service-specific configuration
 	if [ -n "$_name" ] ; then
+		_loaded_services="${_loaded_services} ${_name}"
 		for _d in /etc ${local_startup}; do
 			_d=${_d%/rc.d}
 			if [ -f ${_d}/rc.conf.d/"$_name" ]; then
@@ -2730,6 +2742,83 @@ _echoonce()
 	1)	[ -n "$_var" ] && echo "$_msg" ;;
 	*)	[ -z "$_var" ] && echo -n "$_msg" && eval "$1=finished" ;;
 	esac
+}
+
+# _find_rcvar var
+#	Find the rc.conf file (other than /etc/defaults/rc.conf) that sets $var.
+_find_rcvar()
+{
+	local _var _dir _files
+
+	[ -n "$1" ] || return 1
+	_var="$1"; shift
+
+	_files="/etc/rc.conf"
+	for _dir in /etc ${local_startup}; do
+		for _name in $_loaded_services; do
+			_files="${_dir%/rc.d}/rc.conf.d/${_name} ${_files}"
+		done
+	done
+
+	/usr/bin/grep 2>/dev/null -rl "^${_var}=" $_files | /usr/bin/head -1
+}
+
+# write_rcvar var value
+#	Add or replace the rc var $var with the value $value.
+#	Look for a current setting of $var in /etc/rc.conf or /etc/rc.conf.d/$name,
+#	and if found, modify it there; otherwise, append to /etc/rc.conf.
+write_rcvar()
+{
+	local _var _value _file _dir
+
+	[ -n "$1" ] || return 1
+	_var="$1"; shift
+	[ -n "$1" ] || return 1
+	_value="$1"; shift
+
+	_file="$(_find_rcvar "$_var")"
+	if [ -n "$_file" ]; then
+		local _=$'\01'
+		/usr/bin/sed -i '' "s${_}^${_var}=.*${_}${_var}=\"$_value\"${_}" "$_file"
+		echo $_file
+		return
+	fi
+
+	for _dir in /etc ${local_startup}; do
+		_file="${_dir%/rc.d}/rc.conf.d/${name}"
+		if [ -f "$_file" ]; then
+			echo "${_var}=\"${_value}\"" >>"$_file"
+			echo "$_file"
+			return
+		fi
+	done
+
+	echo "${_var}=\"${_value}\"" >>/etc/rc.conf
+	echo "/etc/rc.conf"
+}
+
+# delete_rcvar var
+#	Remove the rc var $var.
+#	Look for a current setting of $var in /etc/rc.conf or /etc/rc.conf.d/$name,
+#	and if found, remove it.  If service_delete_empty is enabled, and the
+#	resulting file is empty, also delete the file.
+delete_rcvar()
+{
+	local _var _files
+
+	[ -n "$1" ] || return 1
+	_var="$1"; shift
+
+	_file="$(_find_rcvar "$_var")"
+	if [ -n "$_file" ]; then
+		/usr/bin/sed -i '' "/^${_var}=/d" "$_file"
+		echo "$_var deleted in $_file"
+
+		if checkyesno service_delete_empty && [ ! -s "$_file" ]; then
+			/bin/rm -f "$_file"
+			echo "Empty file $_file removed"
+		fi
+	fi
 }
 
 # If the loader env variable rc.debug is set, turn on debugging. rc.conf will

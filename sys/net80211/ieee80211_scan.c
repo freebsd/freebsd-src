@@ -43,7 +43,6 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
-#include <net/if_private.h>
 #include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
@@ -245,10 +244,10 @@ ieee80211_scan_update_locked(struct ieee80211vap *vap,
 		    "%s: current scanner is <%s:%s>, switch to <%s:%s>\n",
 		    __func__,
 		    ss->ss_vap != NULL ?
-			ss->ss_vap->iv_ifp->if_xname : "none",
+		        ieee80211_get_vap_ifname(ss->ss_vap) : "none",
 		    ss->ss_vap != NULL ?
 			ieee80211_opmode_name[ss->ss_vap->iv_opmode] : "none",
-		    vap->iv_ifp->if_xname,
+		    ieee80211_get_vap_ifname(vap),
 		    ieee80211_opmode_name[vap->iv_opmode]);
 	}
 #endif
@@ -288,7 +287,7 @@ ieee80211_scan_dump_channels(const struct ieee80211_scan_state *ss)
 	for (i = ss->ss_next; i < ss->ss_last; i++) {
 		const struct ieee80211_channel *c = ss->ss_chans[i];
 
-		printf("%s%u%c", sep, ieee80211_chan2ieee(ic, c),
+		net80211_printf("%s%u%c", sep, ieee80211_chan2ieee(ic, c),
 		    ieee80211_channel_type_char(c));
 		sep = ", ";
 	}
@@ -299,9 +298,9 @@ ieee80211_scan_dump(struct ieee80211_scan_state *ss)
 {
 	struct ieee80211vap *vap = ss->ss_vap;
 
-	if_printf(vap->iv_ifp, "scan set ");
+	net80211_vap_printf(vap, "scan set ");
 	ieee80211_scan_dump_channels(ss);
-	printf(" dwell min %ums max %ums\n",
+	net80211_vap_printf(vap, " dwell min %ums max %ums\n",
 	    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(ss->ss_maxdwell));
 }
 #endif /* IEEE80211_DEBUG */
@@ -428,6 +427,19 @@ ieee80211_bg_scan(struct ieee80211vap *vap, int flags)
 
 	// IEEE80211_UNLOCK_ASSERT(sc);
 
+	/*
+	 * If the driver has not announced BGSCAN capabilities
+	 * or BGSCAN is disabled do not attempt to start a bg_scan.
+	 * IEEE80211_F_BGSCAN only gets set if IEEE80211_C_BGSCAN
+	 * was set by the driver, so no need to check for both here.
+	 */
+	if ((vap->iv_flags & IEEE80211_F_BGSCAN) == 0) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: BGSCAN not enabled; not starting bg_scan\n",
+		    __func__);
+		return (0);
+	}
+
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
@@ -534,21 +546,21 @@ dump_country(const uint8_t *ie)
 	int i, nbands, schan, nchan;
 
 	if (cie->len < 3) {
-		printf(" <bogus country ie, len %d>", cie->len);
+		net80211_printf(" <bogus country ie, len %d>", cie->len);
 		return;
 	}
-	printf(" country [%c%c%c", cie->cc[0], cie->cc[1], cie->cc[2]);
+	net80211_printf(" country [%c%c%c", cie->cc[0], cie->cc[1], cie->cc[2]);
 	nbands = (cie->len - 3) / sizeof(cie->band[0]);
 	for (i = 0; i < nbands; i++) {
 		schan = cie->band[i].schan;
 		nchan = cie->band[i].nchan;
 		if (nchan != 1)
-			printf(" %u-%u,%u", schan, schan + nchan-1,
+			net80211_printf(" %u-%u,%u", schan, schan + nchan-1,
 			    cie->band[i].maxtxpwr);
 		else
-			printf(" %u,%u", schan, cie->band[i].maxtxpwr);
+			net80211_printf(" %u,%u", schan, cie->band[i].maxtxpwr);
 	}
-	printf("]");
+	net80211_printf("]");
 }
 
 void
@@ -557,18 +569,18 @@ ieee80211_scan_dump_probe_beacon(uint8_t subtype, int isnew,
 	const struct ieee80211_scanparams *sp, int rssi)
 {
 
-	printf("[%s] %s%s on chan %u (bss chan %u) ",
+	net80211_printf("[%s] %s%s on chan %u (bss chan %u) ",
 	    ether_sprintf(mac), isnew ? "new " : "",
 	    ieee80211_mgt_subtype_name(subtype), sp->chan, sp->bchan);
 	ieee80211_print_essid(sp->ssid + 2, sp->ssid[1]);
-	printf(" rssi %d\n", rssi);
+	net80211_printf(" rssi %d\n", rssi);
 
 	if (isnew) {
-		printf("[%s] caps 0x%x bintval %u erp 0x%x", 
+		net80211_printf("[%s] caps 0x%x bintval %u erp 0x%x", 
 			ether_sprintf(mac), sp->capinfo, sp->bintval, sp->erp);
 		if (sp->country != NULL)
 			dump_country(sp->country);
-		printf("\n");
+		net80211_printf("\n");
 	}
 }
 #endif /* IEEE80211_DEBUG */

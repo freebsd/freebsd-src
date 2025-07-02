@@ -1,0 +1,21 @@
+.. highlight:: c
+
+.. _krb5-error-code-struct:
+
+krb5_error_code
+===============
+
+..
+.. c:type:: krb5_error_code
+..
+
+Used to convey an operation status.
+
+The value 0 indicates success; any other values are com_err codes. Use krb5_get_error_message() to obtain a string describing the error.
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_error_code
+
+

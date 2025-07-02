@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_CFG_COMMON_H_
 #define ADF_CFG_COMMON_H_
 
@@ -62,7 +62,7 @@ struct adf_pci_address {
 	unsigned char bus;
 	unsigned char dev;
 	unsigned char func;
-} __packed;
+};
 
 #define ADF_CFG_SERV_RING_PAIR_0_SHIFT 0
 #define ADF_CFG_SERV_RING_PAIR_1_SHIFT 3
