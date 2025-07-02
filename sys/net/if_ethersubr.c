@@ -1486,7 +1486,7 @@ ether_gen_addr_byname(const char *nameunit, struct ether_addr *hwaddr)
 	char uuid[HOSTUUIDLEN + 1];
 	uint64_t addr;
 	int i, sz;
-	char digest[SHA1_RESULTLEN];
+	unsigned char digest[SHA1_RESULTLEN];
 	char jailname[MAXHOSTNAMELEN];
 
 	getcredhostuuid(curthread->td_ucred, uuid, sizeof(uuid));
