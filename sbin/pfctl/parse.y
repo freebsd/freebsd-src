@@ -958,6 +958,8 @@ pfa_anchor	: '{'
 			struct pfctl_ruleset *rs;
 
 			/* stepping into a brace anchor */
+			if (pf->asd >= PFCTL_ANCHOR_STACK_DEPTH)
+				errx(1, "pfa_anchor: anchors too deep");
 			pf->asd++;
 			pf->bn++;
 
@@ -1261,6 +1263,8 @@ etherpfa_anchor	: '{'
 			struct pfctl_eth_ruleset *rs;
 
 			/* steping into a brace anchor */
+			if (pf->asd >= PFCTL_ANCHOR_STACK_DEPTH)
+				errx(1, "pfa_anchor: anchors too deep");
 			pf->asd++;
 			pf->bn++;
 
