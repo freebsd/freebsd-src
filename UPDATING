@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250702:
+	14.3-RELEASE-p1	EN-25:10.zfs
+
+	Fix corruption in ZFS replication streams from encrypted datasets [EN-25:10.zfs]
+
 20250610:
 	14.3-RELEASE.
 
