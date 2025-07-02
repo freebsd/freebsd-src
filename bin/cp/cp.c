@@ -270,10 +270,9 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 	FTS *ftsp;
 	FTSENT *curr;
 	char *recpath = NULL, *sep;
-	int atflags, dne, badcp, len, rval;
+	int atflags, dne, badcp, len, level, rval;
 	mode_t mask, mode;
 	bool beneath = Rflag && type != FILE_TO_FILE;
-	bool skipdp = false;
 
 	/*
 	 * Keep an inverted copy of the umask, for use in correcting
@@ -305,6 +304,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		to.dir = -1;
 	}
 
+	level = FTS_ROOTLEVEL;
 	if ((ftsp = fts_open(argv, fts_options, NULL)) == NULL)
 		err(1, "fts_open");
 	for (badcp = rval = 0;
@@ -315,6 +315,20 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		case FTS_NS:
 		case FTS_DNR:
 		case FTS_ERR:
+			if (level > curr->fts_level) {
+				/* leaving a directory; remove its name from to.path */
+				if (type == DIR_TO_DNE &&
+				    curr->fts_level == FTS_ROOTLEVEL) {
+					/* this is actually our created root */
+				} else {
+					while (to.end > to.path && *to.end != '/')
+						to.end--;
+					assert(strcmp(to.end + (*to.end == '/'),
+					    curr->fts_name) == 0);
+					*to.end = '\0';
+				}
+				level--;
+			}
 			warnc(curr->fts_errno, "%s", curr->fts_path);
 			badcp = rval = 1;
 			continue;
@@ -335,14 +349,6 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				strlcpy(rootname, curr->fts_name,
 				    sizeof(rootname));
 			}
-			/*
-			 * If we FTS_SKIP while handling FTS_D, we will
-			 * immediately get FTS_DP for the same directory.
-			 * If this happens before we've appended the name
-			 * to to.path, we need to remember not to perform
-			 * the reverse operation.
-			 */
-			skipdp = true;
 			/* we must have a destination! */
 			if (type == DIR_TO_DNE &&
 			    curr->fts_level == FTS_ROOTLEVEL) {
@@ -410,7 +416,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				}
 				to.end += len;
 			}
-			skipdp = false;
+			level++;
 			/*
 			 * We're on the verge of recursing on ourselves.
 			 * Either we need to stop right here (we knowingly
@@ -477,18 +483,19 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 					rval = 1;
 				}
 			}
-			/* are we leaving a directory we failed to enter? */
-			if (skipdp)
-				continue;
-			/* leaving a directory; remove its name from to.path */
-			if (type == DIR_TO_DNE &&
-			    curr->fts_level == FTS_ROOTLEVEL) {
-				/* this is actually our created root */
-			} else {
-				while (to.end > to.path && *to.end != '/')
-					to.end--;
-				assert(strcmp(to.end + (*to.end == '/'), curr->fts_name) == 0);
-				*to.end = '\0';
+			if (level > curr->fts_level) {
+				/* leaving a directory; remove its name from to.path */
+				if (type == DIR_TO_DNE &&
+				    curr->fts_level == FTS_ROOTLEVEL) {
+					/* this is actually our created root */
+				} else {
+					while (to.end > to.path && *to.end != '/')
+						to.end--;
+					assert(strcmp(to.end + (*to.end == '/'),
+					    curr->fts_name) == 0);
+					*to.end = '\0';
+				}
+				level--;
 			}
 			continue;
 		default:
@@ -638,6 +645,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		if (vflag && !badcp)
 			(void)printf("%s -> %s%s\n", curr->fts_path, to.base, to.path);
 	}
+	assert(level == FTS_ROOTLEVEL);
 	if (errno)
 		err(1, "fts_read");
 	(void)fts_close(ftsp);
