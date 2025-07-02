@@ -922,6 +922,11 @@ varset		: STRING '=' varstring	{
 		;
 
 anchorname	: STRING			{
+			if ($1[0] == '\0') {
+				free($1);
+				yyerror("anchor name must not be empty");
+				YYERROR;
+			}
 			if (strlen(pf->anchor->path) + 1 +
 			    strlen($1) >= PATH_MAX) {
 				free($1);

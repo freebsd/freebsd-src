@@ -3129,6 +3129,8 @@ main(int argc, char *argv[])
 	if (anchoropt != NULL) {
 		int len = strlen(anchoropt);
 
+		if (anchoropt[0] == '\0')
+			errx(1, "anchor name must not be empty");
 		if (mode == O_RDONLY && showopt == NULL && tblcmdopt == NULL) {
 			warnx("anchors apply to -f, -F, -s, and -T only");
 			usage();
