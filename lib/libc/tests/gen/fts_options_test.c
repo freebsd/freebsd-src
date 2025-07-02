@@ -15,17 +15,7 @@
 
 #include <atf-c.h>
 
-struct fts_expect {
-	int fts_info;
-	const char *fts_name;
-	const char *fts_accpath;
-};
-
-struct fts_testcase {
-	char **paths;
-	int fts_options;
-	struct fts_expect *fts_expect;
-};
+#include "fts_test.h"
 
 static char *all_paths[] = {
 	"dir",
@@ -37,20 +27,12 @@ static char *all_paths[] = {
 	NULL
 };
 
-/* shorter name for dead links */
-#define FTS_DL FTS_SLNONE
-
-/* are we being debugged? */
-static bool debug;
-
 /*
  * Prepare the files and directories we will be inspecting.
  */
 static void
 fts_options_prepare(const struct atf_tc *tc)
 {
-	debug = !getenv("__RUNNING_INSIDE_ATF_RUN") &&
-	    isatty(STDERR_FILENO);
 	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
 	ATF_REQUIRE_EQ(0, close(creat("file", 0644)));
 	ATF_REQUIRE_EQ(0, close(creat("dir/file", 0644)));
@@ -58,49 +40,6 @@ fts_options_prepare(const struct atf_tc *tc)
 	ATF_REQUIRE_EQ(0, symlink("dir", "dirl"));
 	ATF_REQUIRE_EQ(0, symlink("file", "filel"));
 	ATF_REQUIRE_EQ(0, symlink("noent", "dead"));
-}
-
-/*
- * Lexical order for reproducability.
- */
-static int
-fts_options_compar(const FTSENT * const *a, const FTSENT * const *b)
-{
-	return (strcmp((*a)->fts_name, (*b)->fts_name));
-}
-
-/*
- * Run FTS with the specified paths and options and verify that it
- * produces the expected result in the correct order.
- */
-static void
-fts_options_test(const struct atf_tc *tc, const struct fts_testcase *fts_tc)
-{
-	FTS *fts;
-	FTSENT *ftse;
-	const struct fts_expect *expect = fts_tc->fts_expect;
-	long level = 0;
-
-	fts = fts_open(fts_tc->paths, fts_tc->fts_options, fts_options_compar);
-	ATF_REQUIRE_MSG(fts != NULL, "fts_open(): %m");
-	while ((ftse = fts_read(fts)) != NULL && expect->fts_name != NULL) {
-		if (expect->fts_info == FTS_DP)
-			level--;
-		if (debug) {
-			fprintf(stderr, "%2ld %2d %s\n", level,
-			    ftse->fts_info, ftse->fts_name);
-		}
-		ATF_CHECK_STREQ(expect->fts_name, ftse->fts_name);
-		ATF_CHECK_STREQ(expect->fts_accpath, ftse->fts_accpath);
-		ATF_CHECK_INTEQ(expect->fts_info, ftse->fts_info);
-		ATF_CHECK_INTEQ(level, ftse->fts_level);
-		if (expect->fts_info == FTS_D)
-			level++;
-		expect++;
-	}
-	ATF_CHECK_EQ(NULL, ftse);
-	ATF_CHECK_EQ(NULL, expect->fts_name);
-	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
 }
 
 ATF_TC(fts_options_logical);
@@ -111,7 +50,7 @@ ATF_TC_HEAD(fts_options_logical, tc)
 ATF_TC_BODY(fts_options_logical, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_LOGICAL,
 		    (struct fts_expect[]){
@@ -162,7 +101,7 @@ ATF_TC_BODY(fts_options_logical_nostat, tc)
 	 */
 	atf_tc_expect_fail("FTS_LOGICAL nullifies FTS_NOSTAT");
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_LOGICAL | FTS_NOSTAT,
 		    (struct fts_expect[]){
@@ -203,7 +142,7 @@ ATF_TC_HEAD(fts_options_logical_seedot, tc)
 ATF_TC_BODY(fts_options_logical_seedot, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_LOGICAL | FTS_SEEDOT,
 		    (struct fts_expect[]){
@@ -252,7 +191,7 @@ ATF_TC_HEAD(fts_options_physical, tc)
 ATF_TC_BODY(fts_options_physical, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_PHYSICAL,
 		    (struct fts_expect[]){
@@ -278,7 +217,7 @@ ATF_TC_HEAD(fts_options_physical_nochdir, tc)
 ATF_TC_BODY(fts_options_physical_nochdir, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_PHYSICAL | FTS_NOCHDIR,
 		    (struct fts_expect[]){
@@ -304,7 +243,7 @@ ATF_TC_HEAD(fts_options_physical_comfollow, tc)
 ATF_TC_BODY(fts_options_physical_comfollow, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_PHYSICAL | FTS_COMFOLLOW,
 		    (struct fts_expect[]){
@@ -333,7 +272,7 @@ ATF_TC_HEAD(fts_options_physical_comfollowdir, tc)
 ATF_TC_BODY(fts_options_physical_comfollowdir, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_PHYSICAL | FTS_COMFOLLOWDIR,
 		    (struct fts_expect[]){
@@ -362,7 +301,7 @@ ATF_TC_HEAD(fts_options_physical_nostat, tc)
 ATF_TC_BODY(fts_options_physical_nostat, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_PHYSICAL | FTS_NOSTAT,
 		    (struct fts_expect[]){
@@ -388,7 +327,7 @@ ATF_TC_HEAD(fts_options_physical_nostat_type, tc)
 ATF_TC_BODY(fts_options_physical_nostat_type, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_PHYSICAL | FTS_NOSTAT_TYPE,
 		    (struct fts_expect[]){
@@ -414,7 +353,7 @@ ATF_TC_HEAD(fts_options_physical_seedot, tc)
 ATF_TC_BODY(fts_options_physical_seedot, tc)
 {
 	fts_options_prepare(tc);
-	fts_options_test(tc, &(struct fts_testcase){
+	fts_test(tc, &(struct fts_testcase){
 		    all_paths,
 		    FTS_PHYSICAL | FTS_SEEDOT,
 		    (struct fts_expect[]){
@@ -440,6 +379,7 @@ ATF_TC_BODY(fts_options_physical_seedot, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
+	fts_check_debug();
 	ATF_TP_ADD_TC(tp, fts_options_logical);
 	ATF_TP_ADD_TC(tp, fts_options_logical_nostat);
 	ATF_TP_ADD_TC(tp, fts_options_logical_seedot);
