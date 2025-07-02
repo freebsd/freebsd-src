@@ -354,7 +354,7 @@ LENTRY(enter_kernel_el)
 	isb
 
 	/* Configure the Hypervisor */
-	ldr	x2, =(HCR_RW | HCR_APK | HCR_API | HCR_E2H)
+	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
 	msr	hcr_el2, x2
 
 	/* Stash value of HCR_EL2 for later */
@@ -380,7 +380,8 @@ LENTRY(enter_kernel_el)
 	 * The kernel will be running in EL2, route exceptions here rather
 	 * than EL1.
 	 */
-	orr	x4, x4, #(HCR_TGE)
+	orr	x4, x4, #HCR_E2H
+	orr	x4, x4, #HCR_TGE
 	msr	hcr_el2, x4
 	isb
 
