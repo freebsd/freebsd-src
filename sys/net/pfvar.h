@@ -2670,6 +2670,7 @@ int			 pf_ioctl_get_addrs(struct pf_nl_pooladdr *);
 int			 pf_ioctl_get_addr(struct pf_nl_pooladdr *);
 int			 pf_ioctl_get_rulesets(struct pfioc_ruleset *);
 int			 pf_ioctl_get_ruleset(struct pfioc_ruleset *);
+int			 pf_ioctl_natlook(struct pfioc_natlook *);
 
 void			 pf_krule_free(struct pf_krule *);
 void			 pf_krule_clear_counters(struct pf_krule *);
