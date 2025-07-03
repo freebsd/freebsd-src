@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #include <sys/ktrace.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <sys/inotify.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -115,6 +116,7 @@ void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
 void ktrcsw_old(struct ktr_csw_old *);
 void ktruser(int, void *);
+void ktrinotify(struct inotify_event *);
 void ktrcaprights(cap_rights_t *);
 void ktritimerval(struct itimerval *it);
 void ktrsockaddr(struct sockaddr *);
@@ -1862,6 +1864,14 @@ ktrtimeval(struct timeval *tv)
 }
 
 void
+ktrinotify(struct inotify_event *ev)
+{
+	printf(
+    "inotify { .wd = %d, .mask = %#x, .cookie = %u, .len = %u, .name = %s }\n",
+	    ev->wd, ev->mask, ev->cookie, ev->len, ev->name);
+}
+
+void
 ktritimerval(struct itimerval *it)
 {
 
@@ -2120,6 +2130,17 @@ ktrstruct(char *buf, size_t buflen)
 			goto invalid;
 		memcpy(&rights, data, datalen);
 		ktrcaprights(&rights);
+	} else if (strcmp(name, "inotify") == 0) {
+		struct inotify_event *ev;
+
+		if (datalen < sizeof(struct inotify_event) ||
+		    datalen > sizeof(struct inotify_event) + NAME_MAX + 1)
+			goto invalid;
+		ev = malloc(datalen);
+		if (ev == NULL)
+			err(1, "malloc");
+		memcpy(ev, data, datalen);
+		ktrinotify(ev);
 	} else if (strcmp(name, "itimerval") == 0) {
 		if (datalen != sizeof(struct itimerval))
 			goto invalid;
