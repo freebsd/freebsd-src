@@ -705,6 +705,7 @@ vop_vptocnp {
 
 
 %% allocate	vp	E E E
+%! allocate	post	vop_allocate_post
 
 vop_allocate {
 	IN struct vnode *vp;
@@ -789,6 +790,7 @@ vop_fdatasync {
 
 %% copy_file_range	invp	U U U
 %% copy_file_range	outvp	U U U
+%! copy_file_range	post	vop_copy_file_range_post
 
 vop_copy_file_range {
 	IN struct vnode *invp;
@@ -813,6 +815,7 @@ vop_vput_pair {
 
 
 %% deallocate	vp	L L L
+%! deallocate	post	vop_deallocate_post
 
 vop_deallocate {
 	IN struct vnode *vp;
