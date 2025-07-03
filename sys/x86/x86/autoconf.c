@@ -52,6 +52,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/cons.h>
+#include <sys/tslog.h>
 
 #include <sys/socket.h>
 #include <net/if.h>
@@ -85,9 +86,10 @@ SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 static void
 configure_first(void *dummy)
 {
-
+	TSENTER();
 	/* nexus0 is the top of the x86 device tree */
 	device_add_child(root_bus, "nexus", 0);
+	TSEXIT();
 }
 
 static void
@@ -95,7 +97,9 @@ configure(void *dummy)
 {
 
 	/* initialize new bus architecture */
+	TSENTER();
 	root_bus_configure();
+	TSEXIT();
 
 #ifdef DEV_ISA
 	/*
@@ -110,9 +114,9 @@ configure(void *dummy)
 static void
 configure_final(void *dummy)
 {
-
+	TSENTER();
 	cninit_finish(); 
-
+	TSENTER();
 	if (bootverbose)
 		printf("Device configuration finished.\n");
 

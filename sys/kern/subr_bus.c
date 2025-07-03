@@ -55,6 +55,7 @@
 #include <sys/taskqueue.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
+#include <sys/tslog.h>
 #ifdef INTRNG
 #include <sys/intr.h>
 #endif
@@ -410,8 +411,9 @@ DEFINE_CLASS(null, null_methods, 0);
 void
 bus_topo_assert(void)
 {
-
+	TSENTER();
 	GIANT_REQUIRED;	
+	TSEXIT();
 }
 
 struct mtx *
@@ -504,7 +506,9 @@ bus_set_pass(int pass)
 	struct driverlink *dl;
 
 	if (bus_current_pass > pass)
+		TSENTER();
 		panic("Attempt to lower bus pass level");
+		TSEXIT():
 
 	TAILQ_FOREACH(dl, &passes, passlink) {
 		/* Skip pass values below the current pass level. */
@@ -523,7 +527,9 @@ bus_set_pass(int pass)
 		 * the tree.
 		 */
 		bus_current_pass = dl->pass;
+		TSENTER();
 		BUS_NEW_PASS(root_bus);
+		TSEXIT();
 	}
 
 	/*
@@ -533,7 +539,10 @@ bus_set_pass(int pass)
 	 */
 	if (bus_current_pass < pass)
 		bus_current_pass = pass;
+	
+	TSENTER();
 	KASSERT(bus_current_pass == pass, ("Failed to update bus pass level"));
+	TSEXIT();
 }
 
 /*
@@ -563,6 +572,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 {
 	devclass_t dc;
 
+	TSENTER();
 	PDEBUG(("looking for %s", classname));
 	if (!classname)
 		return (NULL);
@@ -598,7 +608,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 		dc->parent = devclass_find_internal(parentname, NULL, TRUE);
 		dc->parent->flags |= DC_HAS_CHILDREN;
 	}
-
+	TSEXIT();
 	return (dc);
 }
 
@@ -680,9 +690,11 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
 static void
 device_handle_nomatch(device_t dev)
 {
+	TSENTER();
 	BUS_PROBE_NOMATCH(dev->parent, dev);
 	EVENTHANDLER_DIRECT_INVOKE(device_nomatch, dev);
 	dev->flags |= DF_DONENOMATCH;
+	TSEXIT();
 }
 
 /**
@@ -1365,7 +1377,7 @@ make_device(device_t parent, const char *name, int unit)
 {
 	device_t dev;
 	devclass_t dc;
-
+	TSENTER();
 	PDEBUG(("%s at %s as unit %d", name, DEVICENAME(parent), unit));
 
 	if (name) {
@@ -1406,12 +1418,13 @@ make_device(device_t parent, const char *name, int unit)
 	dev->ivars = NULL;
 	dev->softc = NULL;
 	LIST_INIT(&dev->props);
-
+	TSEXIT();
 	dev->state = DS_NOTPRESENT;
 
 	TAILQ_INSERT_TAIL(&bus_data_devices, dev, devlink);
+	TSENTER();
 	bus_data_generation_update();
-
+	TSEXIT();
 	return (dev);
 }
 
@@ -1485,7 +1498,9 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 	KASSERT(name != NULL || unit == DEVICE_UNIT_ANY,
 	    ("child device with wildcard name and specific unit number"));
 
+	TSENTER();
 	child = make_device(dev, name, unit);
+	TSEXIT();
 	if (child == NULL)
 		return (child);
 	child->order = order;
@@ -1509,7 +1524,9 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 		TAILQ_INSERT_TAIL(&dev->children, child, link);
 	}
 
+	TSENTER();
 	bus_data_generation_update();
+	TSEXIT();
 	return (child);
 }
 
@@ -1615,7 +1632,9 @@ device_find_child(device_t dev, const char *classname, int unit)
 	devclass_t dc;
 	device_t child;
 
+	TSENTER();
 	dc = devclass_find(classname);
+	TSEXIT();
 	if (!dc)
 		return (NULL);
 
@@ -1898,8 +1917,10 @@ device_get_devclass(device_t dev)
 const char *
 device_get_name(device_t dev)
 {
+	TSENTER();
 	if (dev != NULL && dev->devclass)
 		return (devclass_get_name(dev->devclass));
+	TSEXIT();
 	return (NULL);
 }
 
@@ -1961,7 +1982,9 @@ device_get_sysctl_tree(device_t dev)
 int
 device_print_prettyname(device_t dev)
 {
+	TSENTER();
 	const char *name = device_get_name(dev);
+	TSEXIT();
 
 	if (name == NULL)
 		return (printf("unknown: "));
@@ -5225,9 +5248,10 @@ void
 root_bus_configure(void)
 {
 	PDEBUG(("."));
-
+	TSENTER();
 	/* Eventually this will be split up, but this is sufficient for now. */
 	bus_set_pass(BUS_PASS_DEFAULT);
+	TSEXIT();
 }
 
 /**

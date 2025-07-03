@@ -793,7 +793,9 @@ device_add_child(device_t dev, const char *name, int unit)
 	if (unit != -1) {
 		device_printf(dev, "Unit is not -1\n");
 	}
+	TSENTER();
 	child = make_device(dev, name);
+	TSEXIT();
 	if (child == NULL) {
 		device_printf(dev, "Could not add child '%s'\n", name);
 		goto done;
