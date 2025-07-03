@@ -32,6 +32,7 @@
 #include <net/if.h>
 #include <net/pfvar.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 
@@ -893,6 +894,39 @@ ATF_TC_CLEANUP(rpool_mtx2, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(natlook);
+ATF_TC_HEAD(natlook, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(natlook, tc)
+{
+	struct pfioc_natlook nl = { 0 };
+
+	COMMON_HEAD();
+
+	nl.af = AF_INET;
+	nl.proto = IPPROTO_ICMP;
+	nl.saddr.v4.s_addr = 0x01020304;
+	nl.daddr.v4.s_addr = 0x05060708;
+
+	/* Invalid direction */
+	nl.direction = 42;
+
+	ATF_CHECK_ERRNO(EINVAL, ioctl(dev, DIOCNATLOOK, &nl) == -1);
+
+	/* Invalid af */
+	nl.direction = PF_IN;
+	nl.af = 99;
+
+	ATF_CHECK_ERRNO(EAFNOSUPPORT, ioctl(dev, DIOCNATLOOK, &nl) == -1);
+}
+
+ATF_TC_CLEANUP(natlook, tc)
+{
+	COMMON_CLEANUP();
+}
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -918,6 +952,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, tag);
 	ATF_TP_ADD_TC(tp, rpool_mtx);
 	ATF_TP_ADD_TC(tp, rpool_mtx2);
+	ATF_TP_ADD_TC(tp, natlook);
 
 	return (atf_no_error());
 }
