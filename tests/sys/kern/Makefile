@@ -22,6 +22,7 @@ ATF_TESTS_C+=	kern_descrip_test
 TEST_METADATA.kern_descrip_test+= is_exclusive="true"
 ATF_TESTS_C+=	fdgrowtable_test
 ATF_TESTS_C+=	jail_lookup_root
+ATF_TESTS_C+=	inotify_test
 ATF_TESTS_C+=	kill_zombie
 .if ${MK_OPENSSL} != "no"
 ATF_TESTS_C+=	ktls_test
