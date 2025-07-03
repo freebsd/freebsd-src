@@ -681,6 +681,7 @@ void	in_pcbref(struct inpcb *);
 bool	in_pcbrele(struct inpcb *, inp_lookup_t);
 bool	in_pcbrele_rlocked(struct inpcb *);
 bool	in_pcbrele_wlocked(struct inpcb *);
+bool	in_pcbrele_rlock(struct inpcb *inp);
 
 typedef bool inp_match_t(const struct inpcb *, void *);
 struct inpcb_iterator {
