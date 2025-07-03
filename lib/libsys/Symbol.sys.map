@@ -381,6 +381,8 @@ FBSD_1.8 {
 	exterrctl;
 	fchroot;
 	getrlimitusage;
+	inotify_add_watch_at;
+	inotify_rm_watch;
 	kcmp;
 	setcred;
 };
