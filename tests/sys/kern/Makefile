@@ -19,6 +19,7 @@ ATF_TESTS_C+=	kern_descrip_test
 TEST_METADATA.kern_descrip_test+= is_exclusive="true"
 ATF_TESTS_C+=	fdgrowtable_test
 ATF_TESTS_C+=	jail_lookup_root
+ATF_TESTS_C+=	inotify_test
 ATF_TESTS_C+=	kill_zombie
 .if ${MK_OPENSSL} != "no"
 ATF_TESTS_C+=	ktls_test
@@ -85,6 +86,7 @@ LIBADD.sys_getrandom+=			c
 LIBADD.sys_getrandom+=			pthread
 LIBADD.ptrace_test+=			pthread
 LIBADD.unix_seqpacket_test+=		pthread
+LIBADD.inotify_test+=			util
 LIBADD.kcov+=				pthread
 CFLAGS.ktls_test+=			-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD.ktls_test+=			crypto util
