@@ -59,7 +59,11 @@ fmod(double x, double y)
 	    if(hy==0) {
 		for (iy = -1043, i=ly; i>0; i<<=1) iy -=1;
 	    } else {
-		for (iy = -1022,i=(hy<<11); i>0; i<<=1) iy -=1;
+		for (iy = -1022,i=(hy<<11); i>0; i<<=1) {
+			iy -=1;
+			if(i&0x40000000)
+				break;
+		}
 	    }
 	} else iy = (hy>>20)-1023;
 
