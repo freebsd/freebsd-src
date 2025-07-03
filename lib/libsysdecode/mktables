@@ -98,6 +98,7 @@ gen_table "extattrns"       "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/
 gen_table "fadvisebehav"    "POSIX_FADV_[A-Z]+[[:space:]]+[0-9]+"          "sys/fcntl.h"
 gen_table "openflags"       "O_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"           "sys/fcntl.h"	"O_RDONLY|O_RDWR|O_WRONLY"
 gen_table "flockops"        "LOCK_[A-Z]+[[:space:]]+0x[0-9]+"              "sys/fcntl.h"
+gen_table "inotifyflags"    "IN_[A-Z_]+[[:space:]]+0x[0-9]+"               "sys/inotify.h"      "IN_CLOEXEC|IN_NONBLOCK"
 gen_table "kldsymcmd"       "KLDSYM_[A-Z]+[[:space:]]+[0-9]+"              "sys/linker.h"
 gen_table "kldunloadfflags" "LINKER_UNLOAD_[A-Z]+[[:space:]]+[0-9]+"       "sys/linker.h"
 gen_table "lio_listiomodes" "LIO_(NO)?WAIT[[:space:]]+[0-9]+"              "aio.h"

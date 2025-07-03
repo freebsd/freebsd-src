@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define L2CAP_SOCKET_CHECKED
 
 #include <sys/types.h>
@@ -31,6 +30,7 @@
 #include <sys/capsicum.h>
 #include <sys/event.h>
 #include <sys/extattr.h>
+#include <sys/inotify.h>
 #include <sys/linker.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -349,6 +349,13 @@ sysdecode_getrusage_who(int who)
 {
 
 	return (lookup_value(rusage, who));
+}
+
+bool
+sysdecode_inotifyflags(FILE *fp, int flag, int *rem)
+{
+
+	return (print_mask_int(fp, inotifyflags, flag, rem));
 }
 
 static struct name_table kevent_user_ffctrl[] = {
