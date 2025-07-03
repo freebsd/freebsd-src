@@ -2699,7 +2699,7 @@ pf_ioctl_get_addr(struct pf_nl_pooladdr *pp)
 
 	PF_RULES_RLOCK_TRACKER;
 
-	pp->anchor[sizeof(pp->anchor) - 1] = 0;
+	pp->anchor[sizeof(pp->anchor) - 1] = '\0';
 
 	PF_RULES_RLOCK();
 	pool = pf_get_kpool(pp->anchor, pp->ticket, pp->r_action,
@@ -2732,7 +2732,7 @@ pf_ioctl_get_rulesets(struct pfioc_ruleset *pr)
 
 	PF_RULES_RLOCK_TRACKER;
 
-	pr->path[sizeof(pr->path) - 1] = 0;
+	pr->path[sizeof(pr->path) - 1] = '\0';
 
 	PF_RULES_RLOCK();
 	if ((ruleset = pf_find_kruleset(pr->path)) == NULL) {
@@ -2771,7 +2771,7 @@ pf_ioctl_get_ruleset(struct pfioc_ruleset *pr)
 		return (ENOENT);
 	}
 
-	pr->name[0] = 0;
+	pr->name[0] = '\0';
 	if (ruleset == &pf_main_ruleset) {
 		/* XXX kludge for pf_main_ruleset */
 		RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors)
@@ -3502,7 +3502,7 @@ DIOCADDRULENV_error:
 			break;
 		}
 
-		pr->anchor[sizeof(pr->anchor) - 1] = 0;
+		pr->anchor[sizeof(pr->anchor) - 1] = '\0';
 
 		/* Frees rule on error */
 		error = pf_ioctl_addrule(rule, pr->ticket, pr->pool_ticket,
@@ -3514,7 +3514,7 @@ DIOCADDRULENV_error:
 	case DIOCGETRULES: {
 		struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
 
-		pr->anchor[sizeof(pr->anchor) - 1] = 0;
+		pr->anchor[sizeof(pr->anchor) - 1] = '\0';
 
 		error = pf_ioctl_getrules(pr);
 
@@ -3653,7 +3653,7 @@ DIOCGETRULENV_error:
 		u_int32_t		 nr = 0;
 		int			 rs_num;
 
-		pcr->anchor[sizeof(pcr->anchor) - 1] = 0;
+		pcr->anchor[sizeof(pcr->anchor) - 1] = '\0';
 
 		if (pcr->action < PF_CHANGE_ADD_HEAD ||
 		    pcr->action > PF_CHANGE_GET_TICKET) {
@@ -4498,7 +4498,7 @@ DIOCGETSTATESV2_full:
 		struct pf_kruleset	*ruleset;
 		struct pfi_kkif		*kif = NULL;
 
-		pca->anchor[sizeof(pca->anchor) - 1] = 0;
+		pca->anchor[sizeof(pca->anchor) - 1] = '\0';
 
 		if (pca->action < PF_CHANGE_ADD_HEAD ||
 		    pca->action > PF_CHANGE_REMOVE) {
@@ -4629,7 +4629,7 @@ DIOCCHANGEADDR_error:
 	case DIOCGETRULESETS: {
 		struct pfioc_ruleset	*pr = (struct pfioc_ruleset *)addr;
 
-		pr->path[sizeof(pr->path) - 1] = 0;
+		pr->path[sizeof(pr->path) - 1] = '\0';
 
 		error = pf_ioctl_get_rulesets(pr);
 		break;
@@ -4638,7 +4638,7 @@ DIOCCHANGEADDR_error:
 	case DIOCGETRULESET: {
 		struct pfioc_ruleset	*pr = (struct pfioc_ruleset *)addr;
 
-		pr->path[sizeof(pr->path) - 1] = 0;
+		pr->path[sizeof(pr->path) - 1] = '\0';
 
 		error = pf_ioctl_get_ruleset(pr);
 		break;
@@ -5362,7 +5362,7 @@ DIOCCHANGEADDR_error:
 		PF_RULES_WLOCK();
 		/* First makes sure everything will succeed. */
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			ioe->anchor[sizeof(ioe->anchor) - 1] = 0;
+			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
 			switch (ioe->rs_num) {
 			case PF_RULESET_ETH:
 				ers = pf_find_keth_ruleset(ioe->anchor);
