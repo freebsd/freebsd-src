@@ -2038,8 +2038,8 @@ pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
 			if ((pf->opts & PF_OPT_NOACTION) == 0 &&
 			    (error = pfctl_ruleset_trans(pf,
 			    path, rs->anchor, false))) {
-				printf("pfctl_load_rulesets: "
-				    "pfctl_ruleset_trans %d\n", error);
+				printf("%s: "
+				    "pfctl_ruleset_trans %d\n", __func__, error);
 				goto error;
 			}
 		} else if (pf->opts & PF_OPT_VERBOSE)
