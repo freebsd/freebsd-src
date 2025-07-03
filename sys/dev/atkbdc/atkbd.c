@@ -126,11 +126,13 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 		return ENXIO;
 
 	/* reset, initialize and enable the device */
+	TSENTER();
 	unit = device_get_unit(dev);
 	args[0] = device_get_unit(device_get_parent(dev));
 	args[1] = irq;
 	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
+	TSEXIT();
 	if (error)
 		return error;
 	error = (*sw->init)(unit, kbd, args, flags);
@@ -191,6 +193,8 @@ atkbd_timeout(void *arg)
 	 *
 	 * The keyboard apparently unwedges the irq in most cases.
 	 */
+
+	TSENTER();
 	s = spltty();
 	kbd = (keyboard_t *)arg;
 	if (kbdd_lock(kbd, TRUE)) {
@@ -209,6 +213,7 @@ atkbd_timeout(void *arg)
 		callout_reset_sbt(&state->ks_timer, SBT_1S / atkbdhz, 0,
 		    atkbd_timeout, arg, C_PREL(1));
 	}
+	TSEXIT();
 }
 
 /* LOW-LEVEL */

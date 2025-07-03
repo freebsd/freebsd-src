@@ -265,6 +265,7 @@ cnremove(struct consdev *cn)
 	int i;
 
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		TSENTER();
 		if (cnd->cnd_cn != cn)
 			continue;
 		if (STAILQ_FIRST(&cn_devlist) == cnd)
@@ -287,6 +288,7 @@ cnremove(struct consdev *cn)
 		if (cn->cn_term != NULL)
 			cn->cn_ops->cn_term(cn);
 #endif
+		TSEXIT();
 		return;
 	}
 }
@@ -297,6 +299,7 @@ cnselect(struct consdev *cn)
 	struct cn_device *cnd;
 
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		TSENTER();
 		if (cnd->cnd_cn != cn)
 			continue;
 		if (cnd == STAILQ_FIRST(&cn_devlist))
@@ -304,6 +307,7 @@ cnselect(struct consdev *cn)
 		STAILQ_REMOVE(&cn_devlist, cnd, cn_device, cnd_next);
 		STAILQ_INSERT_HEAD(&cn_devlist, cnd, cnd_next);
 		ttyconsdev_select(cnd->cnd_cn->cn_name);
+		TSEXIT();
 		return;
 	}
 }

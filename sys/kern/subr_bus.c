@@ -4937,8 +4937,10 @@ bus_get_resource_start(device_t dev, int type, int rid)
 	rman_res_t count;
 	int error;
 
+	TSENTER();
 	error = BUS_GET_RESOURCE(device_get_parent(dev), dev, type, rid,
 	    &start, &count);
+	TSEXIT();
 	if (error)
 		return (0);
 	return (start);
