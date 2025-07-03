@@ -36,6 +36,7 @@
 
 #include <sys/cdefs.h>
 #include "opt_hwpmc_hooks.h"
+#include "opt_hwt_hooks.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -61,6 +62,10 @@
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+#endif
+
+#ifdef HWT_HOOKS
+#include <dev/hwt/hwt_hook.h>
 #endif
 
 #ifdef KDTRACE_HOOKS
@@ -1075,6 +1080,11 @@ sched_switch(struct thread *td, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
+#ifdef HWT_HOOKS
+		HWT_CALL_HOOK(td, HWT_SWITCH_OUT, NULL);
+		HWT_CALL_HOOK(newtd, HWT_SWITCH_IN, NULL);
+#endif
+
 		SDT_PROBE2(sched, , , off__cpu, newtd, newtd->td_proc);
 
                 /* I feel sleepy */
@@ -1696,10 +1706,20 @@ sched_idletd(void *dummy)
 static void
 sched_throw_tail(struct thread *td)
 {
+	struct thread *newtd;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
-	cpu_throw(td, choosethread());	/* doesn't return */
+
+	newtd = choosethread();
+
+#ifdef HWT_HOOKS
+	if (td)
+		HWT_CALL_HOOK(td, HWT_SWITCH_OUT, NULL);
+	HWT_CALL_HOOK(newtd, HWT_SWITCH_IN, NULL);
+#endif
+
+	cpu_throw(td, newtd);	/* doesn't return */
 }
 
 /*
