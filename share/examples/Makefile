@@ -15,6 +15,7 @@ LDIRS=	BSD_daemon \
 	find_interface \
 	flua \
 	indent \
+	inotify \
 	ipfw \
 	jails \
 	kld \
@@ -96,6 +97,10 @@ SE_FLUA=	libjail.lua
 
 SE_DIRS+=	indent
 SE_INDENT=	indent.pro
+
+SE_DIRS+=	inotify
+SE_INOTIFY=	inotify.c \
+		Makefile
 
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=	ipfilter
