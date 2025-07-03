@@ -58,6 +58,7 @@
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <net/bpf.h>
@@ -96,6 +97,15 @@ static unsigned int next_index = 0;
 #define	EPAIR_LOCK_DESTROY()		mtx_destroy(&epair_n_index_mtx)
 #define	EPAIR_LOCK()			mtx_lock(&epair_n_index_mtx)
 #define	EPAIR_UNLOCK()			mtx_unlock(&epair_n_index_mtx)
+
+SYSCTL_DECL(_net_link);
+static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+	"Pair of virtual cross-over connected Ethernet-like interfaces");
+
+static bool use_ether_gen_addr = false;
+SYSCTL_BOOL(_net_link_epair, OID_AUTO, ether_gen_addr, CTLFLAG_RWTUN,
+	&use_ether_gen_addr, false,
+	"Generate MAC with FreeBSD OUI using ether_gen_addr(9)");
 
 struct epair_softc;
 struct epair_queue {
@@ -496,15 +506,29 @@ epair_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static void
+epair_generate_mac_byname(struct epair_softc *sc, uint8_t eaddr[])
+{
+	struct ether_addr gen_eaddr;
+	int i;
+
+	ether_gen_addr_byname(if_name(sc->ifp), &gen_eaddr);
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		eaddr[i] = gen_eaddr.octet[i];
+}
+
+static void
 epair_clone_add(struct if_clone *ifc, struct epair_softc *scb)
 {
 	struct ifnet *ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	ifp = scb->ifp;
-	/* Copy epairNa etheraddr and change the last byte. */
-	memcpy(eaddr, scb->oifp->if_hw_addr, ETHER_ADDR_LEN);
-	eaddr[5] = 0x0b;
+	if (!use_ether_gen_addr) {
+		/* Copy epairNa etheraddr and change the last byte. */
+		memcpy(eaddr, scb->oifp->if_hw_addr, ETHER_ADDR_LEN);
+		eaddr[5] = 0x0b;
+	} else
+		epair_generate_mac_byname(scb, eaddr);
 	ether_ifattach(ifp, eaddr);
 
 	if_clone_addif(ifc, ifp);
@@ -719,7 +743,10 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len,
 	/* Finish initialization of interface <n>a. */
 	ifp = sca->ifp;
 	epair_setup_ifp(sca, name, unit);
-	epair_generate_mac(sca, eaddr);
+	if (!use_ether_gen_addr)
+		epair_generate_mac(sca, eaddr);
+	else
+		epair_generate_mac_byname(sca, eaddr);
 
 	ether_ifattach(ifp, eaddr);
 
