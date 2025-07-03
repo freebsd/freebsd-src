@@ -288,6 +288,8 @@
             ..
             indent
             ..
+            inotify
+            ..
             ipfilter
             ..
             ipfw
