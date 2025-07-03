@@ -2796,6 +2796,56 @@ pf_ioctl_get_ruleset(struct pfioc_ruleset *pr)
 	return (error);
 }
 
+int
+pf_ioctl_natlook(struct pfioc_natlook *pnl)
+{
+	struct pf_state_key	*sk;
+	struct pf_kstate	*state;
+	struct pf_state_key_cmp	 key;
+	int			 m = 0, direction = pnl->direction;
+	int			 sidx, didx;
+
+	/* NATLOOK src and dst are reversed, so reverse sidx/didx */
+	sidx = (direction == PF_IN) ? 1 : 0;
+	didx = (direction == PF_IN) ? 0 : 1;
+
+	if (!pnl->proto ||
+	    PF_AZERO(&pnl->saddr, pnl->af) ||
+	    PF_AZERO(&pnl->daddr, pnl->af) ||
+	    ((pnl->proto == IPPROTO_TCP ||
+	    pnl->proto == IPPROTO_UDP) &&
+	    (!pnl->dport || !pnl->sport)))
+		return (EINVAL);
+
+	bzero(&key, sizeof(key));
+	key.af = pnl->af;
+	key.proto = pnl->proto;
+	pf_addrcpy(&key.addr[sidx], &pnl->saddr, pnl->af);
+	key.port[sidx] = pnl->sport;
+	pf_addrcpy(&key.addr[didx], &pnl->daddr, pnl->af);
+	key.port[didx] = pnl->dport;
+
+	state = pf_find_state_all(&key, direction, &m);
+	if (state == NULL)
+		return (ENOENT);
+
+	if (m > 1) {
+		PF_STATE_UNLOCK(state);
+		return (E2BIG);	/* more than one state */
+	}
+
+	sk = state->key[sidx];
+	pf_addrcpy(&pnl->rsaddr,
+	    &sk->addr[sidx], sk->af);
+	pnl->rsport = sk->port[sidx];
+	pf_addrcpy(&pnl->rdaddr,
+	    &sk->addr[didx], sk->af);
+	pnl->rdport = sk->port[didx];
+	PF_STATE_UNLOCK(state);
+
+	return (0);
+}
+
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
@@ -4133,51 +4183,8 @@ DIOCGETSTATESV2_full:
 
 	case DIOCNATLOOK: {
 		struct pfioc_natlook	*pnl = (struct pfioc_natlook *)addr;
-		struct pf_state_key	*sk;
-		struct pf_kstate	*state;
-		struct pf_state_key_cmp	 key;
-		int			 m = 0, direction = pnl->direction;
-		int			 sidx, didx;
 
-		/* NATLOOK src and dst are reversed, so reverse sidx/didx */
-		sidx = (direction == PF_IN) ? 1 : 0;
-		didx = (direction == PF_IN) ? 0 : 1;
-
-		if (!pnl->proto ||
-		    PF_AZERO(&pnl->saddr, pnl->af) ||
-		    PF_AZERO(&pnl->daddr, pnl->af) ||
-		    ((pnl->proto == IPPROTO_TCP ||
-		    pnl->proto == IPPROTO_UDP) &&
-		    (!pnl->dport || !pnl->sport)))
-			error = EINVAL;
-		else {
-			bzero(&key, sizeof(key));
-			key.af = pnl->af;
-			key.proto = pnl->proto;
-			pf_addrcpy(&key.addr[sidx], &pnl->saddr, pnl->af);
-			key.port[sidx] = pnl->sport;
-			pf_addrcpy(&key.addr[didx], &pnl->daddr, pnl->af);
-			key.port[didx] = pnl->dport;
-
-			state = pf_find_state_all(&key, direction, &m);
-			if (state == NULL) {
-				error = ENOENT;
-			} else {
-				if (m > 1) {
-					PF_STATE_UNLOCK(state);
-					error = E2BIG;	/* more than one state */
-				} else {
-					sk = state->key[sidx];
-					pf_addrcpy(&pnl->rsaddr,
-					    &sk->addr[sidx], sk->af);
-					pnl->rsport = sk->port[sidx];
-					pf_addrcpy(&pnl->rdaddr,
-					    &sk->addr[didx], sk->af);
-					pnl->rdport = sk->port[didx];
-					PF_STATE_UNLOCK(state);
-				}
-			}
-		}
+		error = pf_ioctl_natlook(pnl);
 		break;
 	}
 
