@@ -68,7 +68,7 @@
 
 void		 print_op (u_int8_t, const char *, const char *);
 void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *, int);
-void		 print_ugid (u_int8_t, unsigned, unsigned, const char *, unsigned);
+void		 print_ugid (u_int8_t, id_t, id_t, const char *);
 void		 print_flags (uint16_t);
 void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
 		    struct pf_rule_addr *, sa_family_t, u_int8_t, int, int);
@@ -364,14 +364,14 @@ print_port(u_int8_t op, u_int16_t p1, u_int16_t p2, const char *proto, int numer
 }
 
 void
-print_ugid(u_int8_t op, unsigned u1, unsigned u2, const char *t, unsigned umax)
+print_ugid(u_int8_t op, id_t i1, id_t i2, const char *t)
 {
 	char	a1[11], a2[11];
 
-	snprintf(a1, sizeof(a1), "%u", u1);
-	snprintf(a2, sizeof(a2), "%u", u2);
+	snprintf(a1, sizeof(a1), "%lu", i1);
+	snprintf(a2, sizeof(a2), "%lu", i2);
 	printf(" %s", t);
-	if (u1 == umax && (op == PF_OP_EQ || op == PF_OP_NE))
+	if (i1 == -1 && (op == PF_OP_EQ || op == PF_OP_NE))
 		print_op(op, "unknown", a2);
 	else
 		print_op(op, a1, a2);
@@ -977,11 +977,9 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		printf(" %sreceived-on %s", r->rcvifnot ? "!" : "",
 		    r->rcv_ifname);
 	if (r->uid.op)
-		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user",
-		    UID_MAX);
+		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user");
 	if (r->gid.op)
-		print_ugid(r->gid.op, r->gid.gid[0], r->gid.gid[1], "group",
-		    GID_MAX);
+		print_ugid(r->gid.op, r->gid.gid[0], r->gid.gid[1], "group");
 	if (r->flags || r->flagset) {
 		printf(" flags ");
 		print_flags(r->flags);
