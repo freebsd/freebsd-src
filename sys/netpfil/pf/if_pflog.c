@@ -289,7 +289,7 @@ pflog_packet(uint8_t action, u_int8_t reason,
 	if (pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
 	else
-		hdr.uid = UID_MAX;
+		hdr.uid = -1;
 	hdr.pid = NO_PID;
 	hdr.rule_uid = rm->cuid;
 	hdr.rule_pid = rm->cpid;

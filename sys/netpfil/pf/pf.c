@@ -4579,7 +4579,7 @@ pf_match_port(u_int8_t op, u_int16_t a1, u_int16_t a2, u_int16_t p)
 static int
 pf_match_uid(u_int8_t op, uid_t a1, uid_t a2, uid_t u)
 {
-	if (u == UID_MAX && op != PF_OP_EQ && op != PF_OP_NE)
+	if (u == -1 && op != PF_OP_EQ && op != PF_OP_NE)
 		return (0);
 	return (pf_match(op, a1, a2, u));
 }
@@ -4587,7 +4587,7 @@ pf_match_uid(u_int8_t op, uid_t a1, uid_t a2, uid_t u)
 static int
 pf_match_gid(u_int8_t op, gid_t a1, gid_t a2, gid_t g)
 {
-	if (g == GID_MAX && op != PF_OP_EQ && op != PF_OP_NE)
+	if (g == -1 && op != PF_OP_EQ && op != PF_OP_NE)
 		return (0);
 	return (pf_match(op, a1, a2, g));
 }
@@ -4914,8 +4914,8 @@ pf_socket_lookup(struct pf_pdesc *pd)
 	struct inpcbinfo	*pi;
 	struct inpcb		*inp;
 
-	pd->lookup.uid = UID_MAX;
-	pd->lookup.gid = GID_MAX;
+	pd->lookup.uid = -1;
+	pd->lookup.gid = -1;
 
 	switch (pd->proto) {
 	case IPPROTO_TCP:
