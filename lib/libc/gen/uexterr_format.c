@@ -23,9 +23,13 @@ __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz)
 		strlcpy(buf, "No error", bufsz);
 		return (0);
 	}
-	snprintf(buf, bufsz,
-	    "errno %d category %u (src line %u) p1 %#jx p2 %#jx %s",
-	    ue->error, ue->cat, ue->src_line,
-	    (uintmax_t)ue->p1, (uintmax_t)ue->p2, ue->msg);
+	if (ue->msg[0] == '\0') {
+		snprintf(buf, bufsz,
+		    "errno %d category %u (src line %u) p1 %#jx p2 %#jx",
+		    ue->error, ue->cat, ue->src_line,
+		    (uintmax_t)ue->p1, (uintmax_t)ue->p2);
+	} else {
+		strlcpy(buf, ue->msg, bufsz);
+	}
 	return (0);
 }
