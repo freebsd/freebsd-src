@@ -918,9 +918,12 @@ int	dead_read(struct vop_read_args *ap);
 int	dead_write(struct vop_write_args *ap);
 
 /* These are called from within the actual VOPS. */
+void	vop_allocate_post(void *a, int rc);
+void	vop_copy_file_range_post(void *ap, int rc);
 void	vop_close_post(void *a, int rc);
 void	vop_create_pre(void *a);
 void	vop_create_post(void *a, int rc);
+void	vop_deallocate_post(void *a, int rc);
 void	vop_whiteout_pre(void *a);
 void	vop_whiteout_post(void *a, int rc);
 void	vop_deleteextattr_pre(void *a);
@@ -1028,9 +1031,12 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define VOP_WRITE_POST(ap, ret)						\
 	noffset = (ap)->a_uio->uio_offset;				\
-	if (noffset > ooffset && !VN_KNLIST_EMPTY((ap)->a_vp)) {	\
-		VFS_KNOTE_LOCKED((ap)->a_vp, NOTE_WRITE			\
-		    | (noffset > osize ? NOTE_EXTEND : 0));		\
+	if (noffset > ooffset) {					\
+		if (VN_KNLIST_EMPTY((ap)->a_vp)) {			\
+			VFS_KNOTE_LOCKED((ap)->a_vp, NOTE_WRITE |	\
+			    (noffset > osize ? NOTE_EXTEND : 0));	\
+		}							\
+		INOTIFY((ap)->a_vp, IN_MODIFY);				\
 	}
 
 #define VOP_LOCK(vp, flags) VOP_LOCK1(vp, flags, __FILE__, __LINE__)
