@@ -1559,19 +1559,26 @@ mddestroy(struct md_s *sc, struct thread *td)
 	mtx_destroy(&sc->queue_mtx);
 	switch (sc->type) {
 	case MD_VNODE:
-		vn_lock(sc->s_vnode.vnode, LK_EXCLUSIVE | LK_RETRY);
-		sc->s_vnode.vnode->v_vflag &= ~VV_MD;
-		VOP_UNLOCK(sc->s_vnode.vnode);
-		(void)vn_close(sc->s_vnode.vnode, sc->flags & MD_READONLY ?
-		    FREAD : (FREAD|FWRITE), sc->cred, td);
-		kva_free(sc->s_vnode.kva, maxphys + PAGE_SIZE);
+		if (sc->s_vnode.vnode != NULL) {
+			vn_lock(sc->s_vnode.vnode, LK_EXCLUSIVE | LK_RETRY);
+			sc->s_vnode.vnode->v_vflag &= ~VV_MD;
+			VOP_UNLOCK(sc->s_vnode.vnode);
+			(void)vn_close(sc->s_vnode.vnode,
+			    sc->flags & MD_READONLY ?  FREAD : (FREAD|FWRITE),
+			    sc->cred, td);
+		}
+		if (sc->s_vnode.kva != 0)
+			kva_free(sc->s_vnode.kva, maxphys + PAGE_SIZE);
 		break;
 	case MD_SWAP:
-		vm_object_deallocate(sc->s_swap.object);
+		if (sc->s_swap.object != NULL)
+			vm_object_deallocate(sc->s_swap.object);
 		break;
 	case MD_MALLOC:
-		destroy_indir(sc, sc->s_malloc.indir);
-		uma_zdestroy(sc->s_malloc.uma);
+		if (sc->s_malloc.indir != NULL)
+			destroy_indir(sc, sc->s_malloc.indir);
+		if (sc->s_malloc.uma != NULL)
+			uma_zdestroy(sc->s_malloc.uma);
 		break;
 	case MD_PRELOAD:
 	case MD_NULL:
