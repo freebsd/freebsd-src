@@ -551,6 +551,9 @@ extern struct sx pf_end_lock;
 #endif /* PF_INET_INET6 */
 
 #ifdef _KERNEL
+
+void				 unhandled_af(int) __dead2;
+
 static void inline
 pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 {
@@ -565,6 +568,8 @@ pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 		memcpy(&dst->v6, &src->v6, sizeof(dst->v6));
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 }
 #endif
@@ -2300,7 +2305,6 @@ VNET_DECLARE(struct pf_krule *, pf_rulemarker);
 #define V_pf_rulemarker     VNET(pf_rulemarker)
 #endif
 
-void				 unhandled_af(int) __dead2;
 int				 pf_start(void);
 int				 pf_stop(void);
 void				 pf_initialize(void);
