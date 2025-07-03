@@ -1204,7 +1204,7 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 			len = snprintf(NULL, 0, "%d", s->fibnum);
 			cw->fib = MAX(cw->fib, len);
 		}
-		if (opt_w && opt_I) {
+		if (opt_I) {
 			if (s->splice_socket != 0) {
 				struct sock *sp;
 
@@ -1362,21 +1362,23 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				strlcpy(buf, "(not connected)", bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->local_addr, buf);
+			printf(" %-*.*s", cw->local_addr, cw->local_addr, buf);
 			if (format_unix_faddr(faddr, buf, bufsize) == 0)
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->foreign_addr, buf);
+			printf(" %-*.*s", cw->foreign_addr,
+				cw->foreign_addr, buf);
 		} else {
 			if (laddr != NULL)
 				formataddr(&laddr->address, buf, bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->local_addr, buf);
+			printf(" %-*.*s", cw->local_addr, cw->local_addr, buf);
 			if (faddr != NULL)
 				formataddr(&faddr->address, buf, bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->foreign_addr, buf);
+			printf(" %-*.*s", cw->foreign_addr,
+				cw->foreign_addr, buf);
 		}
 		if (opt_A)
 			printf(" %#*" PRIx64, cw->pcb_kva, s->pcb);
@@ -1500,7 +1502,7 @@ display(void)
 		.foreign_addr = opt_w ? strlen("FOREIGN ADDRESS") : 21,
 		.pcb_kva = 18,
 		.fib = strlen("FIB"),
-		.splice_address = opt_w ? strlen("SPLICE ADDRESS") : 21,
+		.splice_address = strlen("SPLICE ADDRESS"),
 		.inp_gencnt = strlen("ID"),
 		.encaps = strlen("ENCAPS"),
 		.path_state = strlen("PATH STATE"),
