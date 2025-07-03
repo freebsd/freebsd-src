@@ -212,9 +212,10 @@ random_kthread(void)
 	kproc_exit(0);
 	/* NOTREACHED */
 }
-/* This happens well after SI_SUB_RANDOM */
 SYSINIT(random_device_h_proc, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, kproc_start,
     &random_proc_kp);
+_Static_assert(SI_SUB_KICK_SCHEDULER > SI_SUB_RANDOM,
+    "random kthread starting before subsystem initialization");
 
 static void
 rs_epoch_init(void *dummy __unused)
