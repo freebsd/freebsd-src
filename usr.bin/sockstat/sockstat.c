@@ -951,7 +951,7 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	}
 	if (addrstr[0] == '\0') {
 		error = cap_getnameinfo(capnet, sstosa(ss), ss->ss_len,
-			addrstr, sizeof(addrstr), buf, bufsize, NI_NUMERICHOST);
+		    addrstr, sizeof(addrstr), NULL, 0, NI_NUMERICHOST);
 		if (error)
 			errx(1, "cap_getnameinfo()");
 	}
