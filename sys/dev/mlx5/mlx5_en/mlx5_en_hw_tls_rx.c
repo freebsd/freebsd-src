@@ -659,7 +659,8 @@ mlx5e_tls_rx_set_params(void *ctx, struct inpcb *inp, const struct tls_session_p
 		return (EINVAL);
 
 	MLX5_SET64(sw_tls_rx_cntx, ctx, param.initial_record_number, tls_sn_he);
-	MLX5_SET(sw_tls_rx_cntx, ctx, param.resync_tcp_sn, tcp_sn_he);
+	MLX5_SET(sw_tls_rx_cntx, ctx, param.resync_tcp_sn, 0);
+	MLX5_SET(sw_tls_rx_cntx, ctx, progress.next_record_tcp_sn, tcp_sn_he);
 
 	return (0);
 }
