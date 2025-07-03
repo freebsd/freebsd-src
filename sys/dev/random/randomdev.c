@@ -303,14 +303,14 @@ randomdev_accumulate(uint8_t *buf, u_int count)
 
 	/* Extra timing here is helpful to scrape scheduler jitter entropy */
 	randomdev_hash_init(&hash);
-	timestamp = (uint32_t)get_cyclecount();
+	timestamp = random_get_cyclecount();
 	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
 	randomdev_hash_iterate(&hash, buf, count);
-	timestamp = (uint32_t)get_cyclecount();
+	timestamp = random_get_cyclecount();
 	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
 	randomdev_hash_finish(&hash, entropy_data);
 	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
-		event.he_somecounter = (uint32_t)get_cyclecount();
+		event.he_somecounter = random_get_cyclecount();
 		event.he_size = sizeof(event.he_entropy);
 		event.he_source = RANDOM_CACHED;
 		event.he_destination = destination++; /* Harmless cheating */
