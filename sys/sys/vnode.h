@@ -86,11 +86,13 @@ enum vgetstate {
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
 
-struct namecache;
 struct cache_fpl;
+struct inotify_watch;
+struct namecache;
 
 struct vpollinfo {
 	struct	mtx vpi_lock;		/* lock to protect below */
+	TAILQ_HEAD(, inotify_watch) vpi_inotify; /* list of inotify watchers */
 	struct	selinfo vpi_selinfo;	/* identity of poller(s) */
 	short	vpi_events;		/* what they are looking for */
 	short	vpi_revents;		/* what has happened */
@@ -248,6 +250,9 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define	VIRF_CROSSMP	0x0010	/* Cross-mp vnode, no locking */
 #define	VIRF_NAMEDDIR	0x0020	/* Named attribute directory */
 #define	VIRF_NAMEDATTR	0x0040	/* Named attribute */
+#define	VIRF_INOTIFY	0x0080	/* This vnode is being watched */
+#define	VIRF_INOTIFY_PARENT 0x0100 /* A parent of this vnode may be being
+				      watched */
 
 #define	VI_UNUSED0	0x0001	/* unused */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
@@ -667,6 +672,7 @@ char	*cache_symlink_alloc(size_t size, int flags);
 void	cache_symlink_free(char *string, size_t size);
 int	cache_symlink_resolve(struct cache_fpl *fpl, const char *string,
 	    size_t len);
+void	cache_vop_inotify(struct vnode *vp, int event, uint32_t cookie);
 void	cache_vop_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
     struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
 void	cache_vop_rmdir(struct vnode *dvp, struct vnode *vp);
@@ -869,8 +875,10 @@ int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);
 int	vop_stdgetpages(struct vop_getpages_args *);
 int	vop_stdinactive(struct vop_inactive_args *);
-int	vop_stdioctl(struct vop_ioctl_args *);
 int	vop_stdneed_inactive(struct vop_need_inactive_args *);
+int	vop_stdinotify(struct vop_inotify_args *);
+int	vop_stdinotify_add_watch(struct vop_inotify_add_watch_args *);
+int	vop_stdioctl(struct vop_ioctl_args *);
 int	vop_stdkqfilter(struct vop_kqfilter_args *);
 int	vop_stdlock(struct vop_lock1_args *);
 int	vop_stdunlock(struct vop_unlock_args *);

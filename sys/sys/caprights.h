@@ -79,6 +79,8 @@ extern const cap_rights_t cap_futimes_rights;
 extern const cap_rights_t cap_getpeername_rights;
 extern const cap_rights_t cap_getsockopt_rights;
 extern const cap_rights_t cap_getsockname_rights;
+extern const cap_rights_t cap_inotify_add_rights;
+extern const cap_rights_t cap_inotify_rm_rights;
 extern const cap_rights_t cap_ioctl_rights;
 extern const cap_rights_t cap_linkat_source_rights;
 extern const cap_rights_t cap_linkat_target_rights;
