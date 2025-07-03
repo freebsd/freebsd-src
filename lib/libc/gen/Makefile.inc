@@ -95,6 +95,7 @@ SRCS+=	__getosreldate.c \
 	glob.c \
 	glob-compat11.c \
 	initgroups.c \
+	inotify.c \
 	isatty.c \
 	isinf.c \
 	isnan.c \
