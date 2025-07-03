@@ -3362,5 +3362,20 @@
 		    size_t size
 		);
 	}
+592	AUE_NULL	UNIMPL	exterrctl
+593	AUE_INOTIFY	STD|CAPENABLED {
+		int inotify_add_watch_at(
+		    int fd,
+		    int dfd,
+		    _In_z_ const char *path,
+		    uint32_t mask
+		);
+	}
+594	AUE_INOTIFY	STD|CAPENABLED {
+		int inotify_rm_watch(
+		    int fd,
+		    int wd
+		);
+	}
 
 ; vim: syntax=off

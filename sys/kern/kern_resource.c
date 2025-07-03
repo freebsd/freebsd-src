@@ -1642,6 +1642,12 @@ uifree(struct uidinfo *uip)
 	if (uip->ui_pipecnt != 0)
 		printf("freeing uidinfo: uid = %d, pipecnt = %ld\n",
 		    uip->ui_uid, uip->ui_pipecnt);
+	if (uip->ui_inotifycnt != 0)
+		printf("freeing uidinfo: uid = %d, inotifycnt = %ld\n",
+		    uip->ui_uid, uip->ui_inotifycnt);
+	if (uip->ui_inotifywatchcnt != 0)
+		printf("freeing uidinfo: uid = %d, inotifywatchcnt = %ld\n",
+		    uip->ui_uid, uip->ui_inotifywatchcnt);
 	free(uip, M_UIDINFO);
 }
 
@@ -1745,6 +1751,21 @@ chgpipecnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
 	return (chglimit(uip, &uip->ui_pipecnt, diff, max, "pipecnt"));
+}
+
+int
+chginotifycnt(struct uidinfo *uip, int diff, rlim_t max)
+{
+
+	return (chglimit(uip, &uip->ui_inotifycnt, diff, max, "inotifycnt"));
+}
+
+int
+chginotifywatchcnt(struct uidinfo *uip, int diff, rlim_t max)
+{
+
+	return (chglimit(uip, &uip->ui_inotifywatchcnt, diff, max,
+	    "inotifywatchcnt"));
 }
 
 static int
