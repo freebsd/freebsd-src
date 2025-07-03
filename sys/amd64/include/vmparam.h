@@ -163,6 +163,7 @@
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  *
+ * LA48:
  * 0x0000000000000000 - 0x00007fffffffffff   user map
  * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
@@ -172,6 +173,20 @@
  * 0xfffff60000000000 - 0xfffff7ffffffffff   2TB KMSAN origin map, optional
  * 0xfffff78000000000 - 0xfffff7bfffffffff   512GB KASAN shadow map, optional
  * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
+ * 0xfffffc0000000000 - 0xfffffdffffffffff   2TB KMSAN shadow map, optional
+ * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
+ *
+ * LA57:
+ * 0x0000000000000000 - 0x00ffffffffffffff   user map
+ * 0x0100000000000000 - 0xf0ffffffffffffff   does not exist (hole)
+ * 0xff00000000000000 - 0xff00ffffffffffff   recursive page table (2048TB slot)
+ * 0xff01000000000000 - 0xff20ffffffffffff   direct map (32 x 2048TB slots)
+ * 0xff21000000000000 - 0xffff807fffffffff   unused
+ * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
+ * 0xffff848000000000 - 0xfffff77fffffffff   unused (large map extends there)
+ * 0xfffff60000000000 - 0xfffff7ffffffffff   2TB KMSAN origin map, optional
+ * 0xfffff78000000000 - 0xfffff7bfffffffff   512GB KASAN shadow map, optional
+ * 0xfffff80000000000 - 0xfffffbffffffffff   4TB unused
  * 0xfffffc0000000000 - 0xfffffdffffffffff   2TB KMSAN shadow map, optional
  * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
  *
