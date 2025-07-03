@@ -39,6 +39,7 @@
 
 #include <sys/cdefs.h>
 #include "opt_hwpmc_hooks.h"
+#include "opt_hwt_hooks.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -67,6 +68,10 @@
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+#endif
+
+#ifdef HWT_HOOKS
+#include <dev/hwt/hwt_hook.h>
 #endif
 
 #ifdef KDTRACE_HOOKS
@@ -2432,6 +2437,12 @@ sched_switch(struct thread *td, int flags)
 		if (dtrace_vtime_active)
 			(*dtrace_vtime_switch_func)(newtd);
 #endif
+
+#ifdef HWT_HOOKS
+		HWT_CALL_HOOK(td, HWT_SWITCH_OUT, NULL);
+		HWT_CALL_HOOK(newtd, HWT_SWITCH_IN, NULL);
+#endif
+
 		td->td_oncpu = NOCPU;
 		cpu_switch(td, newtd, mtx);
 		cpuid = td->td_oncpu = PCPU_GET(cpuid);
@@ -3252,6 +3263,10 @@ sched_ap_entry(void)
 
 	newtd = sched_throw_grab(tdq);
 
+#ifdef HWT_HOOKS
+	HWT_CALL_HOOK(newtd, HWT_SWITCH_IN, NULL);
+#endif
+
 	/* doesn't return */
 	cpu_throw(NULL, newtd);
 }
@@ -3277,6 +3292,10 @@ sched_throw(struct thread *td)
 	thread_lock_block(td);
 
 	newtd = sched_throw_grab(tdq);
+
+#ifdef HWT_HOOKS
+	HWT_CALL_HOOK(newtd, HWT_SWITCH_IN, NULL);
+#endif
 
 	/* doesn't return */
 	cpu_switch(td, newtd, TDQ_LOCKPTR(tdq));

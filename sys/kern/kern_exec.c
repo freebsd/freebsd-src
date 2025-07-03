@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_hwpmc_hooks.h"
+#include "opt_hwt_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_vm.h"
 
@@ -88,6 +89,10 @@
 
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
+#endif
+
+#ifdef HWT_HOOKS
+#include <dev/hwt/hwt_hook.h>
 #endif
 
 #include <security/audit/audit.h>
@@ -932,6 +937,20 @@ interpret:
 		pe.pm_dynaddr = imgp->et_dyn_addr;
 
 		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
+		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
+	}
+#endif
+
+#ifdef HWT_HOOKS
+	if ((td->td_proc->p_flag2 & P2_HWT) != 0) {
+		struct hwt_record_entry ent;
+
+		VOP_UNLOCK(imgp->vp);
+		ent.fullpath = imgp->execpath;
+		ent.addr = imgp->et_dyn_addr;
+		ent.baseaddr = imgp->reloc_base;
+		ent.record_type = HWT_RECORD_EXECUTABLE;
+		HWT_CALL_HOOK(td, HWT_EXEC, &ent);
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	}
 #endif
