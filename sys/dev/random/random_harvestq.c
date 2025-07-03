@@ -161,6 +161,11 @@ static struct harvest_context {
 	} hc_entropy_fast_accumulator;
 } harvest_context;
 
+#define	RANDOM_HARVEST_INIT_LOCK()	mtx_init(&harvest_context.hc_mtx, \
+					    "entropy harvest mutex", NULL, MTX_SPIN)
+#define	RANDOM_HARVEST_LOCK()		mtx_lock_spin(&harvest_context.hc_mtx)
+#define	RANDOM_HARVEST_UNLOCK()		mtx_unlock_spin(&harvest_context.hc_mtx)
+
 static struct kproc_desc random_proc_kp = {
 	"rand_harvestq",
 	random_kthread,
