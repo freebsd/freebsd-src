@@ -52,6 +52,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
+#include <sys/inotify.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/limits.h>
@@ -485,6 +486,7 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if (vp->v_type != VFIFO && vp->v_type != VSOCK &&
 		    VOP_ACCESS(vp, VREAD, cred, td) == 0)
 			fp->f_flag |= FKQALLOWED;
+		INOTIFY(vp, IN_OPEN);
 		return (0);
 	}
 
@@ -1747,6 +1749,8 @@ vn_truncate_locked(struct vnode *vp, off_t length, bool sync,
 			vattr.va_vaflags |= VA_SYNC;
 		error = VOP_SETATTR(vp, &vattr, cred);
 		VOP_ADD_WRITECOUNT_CHECKED(vp, -1);
+		if (error == 0)
+			INOTIFY(vp, IN_MODIFY);
 	}
 	return (error);
 }
