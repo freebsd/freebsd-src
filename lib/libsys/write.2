@@ -195,6 +195,9 @@ is greater than
 if the sysctl
 .Va debug.iosize_max_clamp
 is non-zero).
+.It Bq Er EINVAL
+The file descriptor refers to a raw device, and the write
+offset or size is not a multiple of the device's block size.
 .It Bq Er EINTEGRITY
 The backing store for
 .Fa fd
