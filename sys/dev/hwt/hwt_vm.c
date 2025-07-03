@@ -213,9 +213,11 @@ hwt_vm_start_cpu_mode(struct hwt_context *ctx)
 	CPU_ZERO(&enable_cpus);
 
 	CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
+#ifdef SMP
 		/* Ensure CPU is not halted. */
 		if (CPU_ISSET(cpu_id, &hlt_cpus_mask))
 			continue;
+#endif
 
 		hwt_backend_configure(ctx, cpu_id, cpu_id);
 
