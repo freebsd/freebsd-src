@@ -16,6 +16,7 @@
 #define	EXTERR_KTRACE		3	/* To allow inclusion of this
 					   file into kern_ktrace.c */
 #define	EXTERR_CAT_FUSE		4
+#define	EXTERR_CAT_INOTIFY	5
 
 #endif
 

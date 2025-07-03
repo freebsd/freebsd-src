@@ -821,6 +821,27 @@ vop_deallocate {
 };
 
 
+%% inotify	vp	- - -
+
+vop_inotify {
+	IN struct vnode *vp;
+	IN struct vnode *dvp;
+	IN struct componentname *cnp;
+	IN int event;
+	IN uint32_t cookie;
+};
+
+
+%% inotify_add_watch vp	L L L
+
+vop_inotify_add_watch {
+	IN struct vnode *vp;
+	IN struct inotify_softc *sc;
+	IN uint32_t mask;
+	OUT uint32_t *wdp;
+	IN struct thread *td;
+};
+
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should
 # be added above these spares.  When merging a new VOP to a stable branch,

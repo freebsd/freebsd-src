@@ -190,6 +190,26 @@ SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
 	&null_bug_bypass, 0, "");
 
 /*
+ * Synchronize inotify flags with the lower vnode:
+ * - If the upper vnode has the flag set and the lower does not, then the lower
+ *   vnode is unwatched and the upper vnode does not need to go through
+ *   VOP_INOTIFY.
+ * - If the lower vnode is watched, then the upper vnode should go through
+ *   VOP_INOTIFY, so copy the flag up.
+ */
+static void
+null_copy_inotify(struct vnode *vp, struct vnode *lvp, short flag)
+{
+	if ((vn_irflag_read(vp) & flag) != 0) {
+		if (__predict_false((vn_irflag_read(lvp) & flag) == 0))
+			vn_irflag_unset(vp, flag);
+	} else if ((vn_irflag_read(lvp) & flag) != 0) {
+		if (__predict_false((vn_irflag_read(vp) & flag) == 0))
+			vn_irflag_set(vp, flag);
+	}
+}
+
+/*
  * This is the 10-Apr-92 bypass routine.
  *    This version has been optimized for speed, throwing away some
  * safety checks.  It should still always work, but it's not as
@@ -305,7 +325,10 @@ null_bypass(struct vop_generic_args *ap)
 			lvp = *(vps_p[i]);
 
 			/*
-			 * Get rid of the transient hold on lvp.
+			 * Get rid of the transient hold on lvp.  Copy inotify
+			 * flags up in case something is watching the lower
+			 * layer.
+			 *
 			 * If lowervp was unlocked during VOP
 			 * operation, nullfs upper vnode could have
 			 * been reclaimed, which changes its v_vnlock
@@ -314,6 +337,10 @@ null_bypass(struct vop_generic_args *ap)
 			 * upper (reclaimed) vnode.
 			 */
 			if (lvp != NULLVP) {
+				null_copy_inotify(old_vps[i], lvp,
+				    VIRF_INOTIFY);
+				null_copy_inotify(old_vps[i], lvp,
+				    VIRF_INOTIFY_PARENT);
 				if (VOP_ISLOCKED(lvp) == LK_EXCLUSIVE &&
 				    old_vps[i]->v_vnlock != lvp->v_vnlock) {
 					VOP_UNLOCK(lvp);

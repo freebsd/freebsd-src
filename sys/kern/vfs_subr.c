@@ -38,7 +38,6 @@
  * External virtual filesystem routines
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 #include "opt_watchdog.h"
 
@@ -5246,7 +5245,8 @@ destroy_vpollinfo_free(struct vpollinfo *vi)
 static void
 destroy_vpollinfo(struct vpollinfo *vi)
 {
-
+	KASSERT(TAILQ_EMPTY(&vi->vpi_inotify),
+	    ("%s: pollinfo %p has lingering watches", __func__, vi));
 	knlist_clear(&vi->vpi_selinfo.si_note, 1);
 	seldrain(&vi->vpi_selinfo);
 	destroy_vpollinfo_free(vi);
@@ -5260,12 +5260,13 @@ v_addpollinfo(struct vnode *vp)
 {
 	struct vpollinfo *vi;
 
-	if (vp->v_pollinfo != NULL)
+	if (atomic_load_ptr(&vp->v_pollinfo) != NULL)
 		return;
 	vi = malloc(sizeof(*vi), M_VNODEPOLL, M_WAITOK | M_ZERO);
 	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
 	    vfs_knlunlock, vfs_knl_assert_lock);
+	TAILQ_INIT(&vi->vpi_inotify);
 	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
 		VI_UNLOCK(vp);

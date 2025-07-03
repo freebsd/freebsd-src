@@ -245,6 +245,10 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 		vp->v_object = lowervp->v_object;
 		vn_irflag_set(vp, VIRF_PGREAD);
 	}
+	if ((vn_irflag_read(lowervp) & VIRF_INOTIFY) != 0)
+		vn_irflag_set(vp, VIRF_INOTIFY);
+	if ((vn_irflag_read(lowervp) & VIRF_INOTIFY_PARENT) != 0)
+		vn_irflag_set(vp, VIRF_INOTIFY_PARENT);
 	if (lowervp == MOUNTTONULLMOUNT(mp)->nullm_lowerrootvp)
 		vp->v_vflag |= VV_ROOT;
 

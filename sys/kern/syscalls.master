@@ -3356,4 +3356,19 @@
 		    _In_reads_bytes_(4) void *ptr
 		);
 	}
+593	AUE_INOTIFY	STD|CAPENABLED {
+		int inotify_add_watch_at(
+		    int fd,
+		    int dfd,
+		    _In_z_ const char *path,
+		    uint32_t mask
+		);
+	}
+594	AUE_INOTIFY	STD|CAPENABLED {
+		int inotify_rm_watch(
+		    int fd,
+		    int wd
+		);
+	}
+
 ; vim: syntax=off

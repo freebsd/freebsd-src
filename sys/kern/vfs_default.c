@@ -39,6 +39,7 @@
 #include <sys/conf.h>
 #include <sys/event.h>
 #include <sys/filio.h>
+#include <sys/inotify.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -119,6 +120,8 @@ struct vop_vector default_vnodeops = {
 	.vop_getwritemount =	vop_stdgetwritemount,
 	.vop_inactive =		VOP_NULL,
 	.vop_need_inactive =	vop_stdneed_inactive,
+	.vop_inotify =		vop_stdinotify,
+	.vop_inotify_add_watch = vop_stdinotify_add_watch,
 	.vop_ioctl =		vop_stdioctl,
 	.vop_kqfilter =		vop_stdkqfilter,
 	.vop_islocked =		vop_stdislocked,
@@ -1303,6 +1306,20 @@ vop_stdneed_inactive(struct vop_need_inactive_args *ap)
 {
 
 	return (1);
+}
+
+int
+vop_stdinotify(struct vop_inotify_args *ap)
+{
+	vn_inotify(ap->a_vp, ap->a_dvp, ap->a_cnp, ap->a_event, ap->a_cookie);
+	return (0);
+}
+
+int
+vop_stdinotify_add_watch(struct vop_inotify_add_watch_args *ap)
+{
+	return (vn_inotify_add_watch(ap->a_vp, ap->a_sc, ap->a_mask,
+	    ap->a_wdp, ap->a_td));
 }
 
 int

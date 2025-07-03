@@ -193,6 +193,7 @@ if (cfile) {
 	printc(common_head \
 	    "#include <sys/param.h>\n" \
 	    "#include <sys/event.h>\n" \
+	    "#include <sys/inotify.h>\n" \
 	    "#include <sys/kernel.h>\n" \
 	    "#include <sys/mount.h>\n" \
 	    "#include <sys/sdt.h>\n" \
