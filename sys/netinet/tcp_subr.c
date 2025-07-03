@@ -2869,21 +2869,28 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 
 	zfree(buf, M_TEMP);
 	return (error);
-
-again_reset:
-	req->oldidx = 0;
-	goto again;
 }
 
 static int
 tcp_ktlslist1(SYSCTL_HANDLER_ARGS, bool export_keys)
 {
-	int res;
+	int repeats, error;
 
-	sx_xlock(&ktlslist_lock);
-	res = tcp_ktlslist_locked(oidp, arg1, arg2, req, export_keys);
-	sx_xunlock(&ktlslist_lock);
-	return (res);
+	for (repeats = 0; repeats < 100; repeats++) {
+		if (sx_xlock_sig(&ktlslist_lock))
+			return (EINTR);
+		error = tcp_ktlslist_locked(oidp, arg1, arg2, req,
+		    export_keys);
+		sx_xunlock(&ktlslist_lock);
+		if (error != EDEADLK)
+			break;
+		if (sig_intr() != 0) {
+			error = EINTR;
+			break;
+		}
+		req->oldidx = 0;
+	}
+	return (error);
 }
 	
 static int
