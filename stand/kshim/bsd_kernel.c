@@ -24,6 +24,7 @@
  */
 
 #include <bsd_global.h>
+#include <sys/tslog.h>
 
 struct usb_process usb_process[USB_PROC_MAX];
 

@@ -505,10 +505,9 @@ bus_set_pass(int pass)
 {
 	struct driverlink *dl;
 
+	TSENTER();
 	if (bus_current_pass > pass)
-		TSENTER();
 		panic("Attempt to lower bus pass level");
-		TSEXIT():
 
 	TAILQ_FOREACH(dl, &passes, passlink) {
 		/* Skip pass values below the current pass level. */
@@ -527,9 +526,7 @@ bus_set_pass(int pass)
 		 * the tree.
 		 */
 		bus_current_pass = dl->pass;
-		TSENTER();
 		BUS_NEW_PASS(root_bus);
-		TSEXIT();
 	}
 
 	/*
@@ -539,8 +536,7 @@ bus_set_pass(int pass)
 	 */
 	if (bus_current_pass < pass)
 		bus_current_pass = pass;
-	
-	TSENTER();
+
 	KASSERT(bus_current_pass == pass, ("Failed to update bus pass level"));
 	TSEXIT();
 }
@@ -1404,6 +1400,7 @@ make_device(device_t parent, const char *name, int unit)
 	dev->devflags = 0;
 	dev->flags = DF_ENABLED;
 	dev->order = 0;
+	TSEXIT();
 	if (unit == DEVICE_UNIT_ANY)
 		dev->flags |= DF_WILDCARD;
 	if (name) {
@@ -1418,13 +1415,12 @@ make_device(device_t parent, const char *name, int unit)
 	dev->ivars = NULL;
 	dev->softc = NULL;
 	LIST_INIT(&dev->props);
-	TSEXIT();
+
 	dev->state = DS_NOTPRESENT;
 
 	TAILQ_INSERT_TAIL(&bus_data_devices, dev, devlink);
-	TSENTER();
+
 	bus_data_generation_update();
-	TSEXIT();
 	return (dev);
 }
 
@@ -1500,7 +1496,7 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 
 	TSENTER();
 	child = make_device(dev, name, unit);
-	TSEXIT();
+
 	if (child == NULL)
 		return (child);
 	child->order = order;
@@ -1524,7 +1520,6 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 		TAILQ_INSERT_TAIL(&dev->children, child, link);
 	}
 
-	TSENTER();
 	bus_data_generation_update();
 	TSEXIT();
 	return (child);
@@ -1917,10 +1912,8 @@ device_get_devclass(device_t dev)
 const char *
 device_get_name(device_t dev)
 {
-	TSENTER();
 	if (dev != NULL && dev->devclass)
 		return (devclass_get_name(dev->devclass));
-	TSEXIT();
 	return (NULL);
 }
 
