@@ -2817,6 +2817,28 @@ pf_ioctl_natlook(struct pfioc_natlook *pnl)
 	    (!pnl->dport || !pnl->sport)))
 		return (EINVAL);
 
+	switch (pnl->direction) {
+	case PF_IN:
+	case PF_OUT:
+	case PF_INOUT:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	switch (pnl->af) {
+#ifdef INET
+	case AF_INET:
+		break;
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		break;
+#endif /* INET6 */
+	default:
+		return (EAFNOSUPPORT);
+	}
+
 	bzero(&key, sizeof(key));
 	key.af = pnl->af;
 	key.proto = pnl->proto;
