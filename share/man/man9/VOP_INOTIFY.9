@@ -1,0 +1,60 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Klara, Inc.
+.\"
+.Dd May 27, 2025
+.Dt VOP_INOTIFY 9
+.Os
+.Sh NAME
+.Nm VOP_INOTIFY
+.Nd vnode inotify interface
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fo VOP_INOTIFY
+.Fa struct vnode *vp
+.Fa struct vnode *dvp
+.Fa struct componentname *cnp
+.Fa int event
+.Fa uint32_t cookie
+.Fc
+.Ft int
+.Fo VOP_INOTIFY_ADD_WATCH
+.Fa struct vnode *vp
+.Fa struct inotify_softc *sc
+.Fa uint32_t mask
+.Fa uint32_t *wdp
+.Fa struct thread *td
+.Fc
+.Sh DESCRIPTION
+The
+.Fn VOP_INOTIFY
+operation notifies the
+.Xr inotify 2
+subsystem of a file system event on a vnode.
+The
+.Fa dvp
+and
+.Fa cnp
+arguments are optional and are only used to obtain a file name for the event.
+If they are omitted, the inotify subsystem will use the file name cache to
+find a name for the vnode, but this is more expensive.
+.Pp
+The
+.Fn VOP_INOTIFY_ADD_WATCH
+operation is for internal use by the inotify subsystem to add a watch to a
+vnode.
+.Sh LOCKS
+The
+.Fn VOP_INOTIFY
+operation does not assume any particular vnode lock state.
+The
+.Fn VOP_INOTIFY_ADD_WATCH
+operation should be called with the vnode locked.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error code is returned.
+.Sh SEE ALSO
+.Xr inotify 2 ,
+.Xr vnode 9
