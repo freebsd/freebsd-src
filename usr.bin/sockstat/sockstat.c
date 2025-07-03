@@ -1178,13 +1178,10 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 	len = strlen(s->protoname);
 	if (s->vflag & (INP_IPV4 | INP_IPV6))
 		len += 1;
-	if (laddr != NULL && faddr != NULL && s->family == AF_UNIX &&
-		laddr->address.ss_len == 0 && faddr->conn == 0)
-		len += strlen(" (not connected)");
 	cw->proto = MAX(cw->proto, len);
 
 	while (laddr != NULL || faddr != NULL) {
-		if (s->family == AF_UNIX) {
+		if (opt_w && s->family == AF_UNIX) {
 			if ((laddr == NULL) || (faddr == NULL))
 				errx(1, "laddr = %p or faddr = %p is NULL",
 					(void *)laddr, (void *)faddr);
@@ -1193,7 +1190,7 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 			cw->local_addr = MAX(cw->local_addr, len);
 			len = format_unix_faddr(faddr, NULL, 0);
 			cw->foreign_addr = MAX(cw->foreign_addr, len);
-		} else {
+		} else if (opt_w) {
 			if (laddr != NULL) {
 				len = formataddr(&laddr->address, NULL, 0);
 				cw->local_addr = MAX(cw->local_addr, len);
@@ -1207,7 +1204,7 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 			len = snprintf(NULL, 0, "%d", s->fibnum);
 			cw->fib = MAX(cw->fib, len);
 		}
-		if (opt_I) {
+		if (opt_w && opt_I) {
 			if (s->splice_socket != 0) {
 				struct sock *sp;
 
@@ -1494,25 +1491,24 @@ display(void)
 	}
 
 	cw = (struct col_widths) {
-		.user = opt_w ? strlen("USER") : 8,
+		.user = strlen("USER"),
 		.command = 10,
-		.pid = opt_w ? strlen("PID") : 5,
-		.fd = opt_w ? strlen("FD") : 3,
-		.proto = opt_w ? strlen("PROTO") : 6,
+		.pid = strlen("PID"),
+		.fd = strlen("FD"),
+		.proto = strlen("PROTO"),
 		.local_addr = opt_w ? strlen("LOCAL ADDRESS") : 21,
 		.foreign_addr = opt_w ? strlen("FOREIGN ADDRESS") : 21,
 		.pcb_kva = 18,
-		.fib = opt_w ? strlen("FIB") : 6,
+		.fib = strlen("FIB"),
 		.splice_address = opt_w ? strlen("SPLICE ADDRESS") : 21,
-		.inp_gencnt = opt_w ? strlen("ID") : 8,
-		.encaps = opt_w ? strlen("ENCAPS") : 6,
-		.path_state = opt_w ? strlen("PATH STATE") : 12,
-		.conn_state = opt_w ? strlen("CONN STATE") : 12,
-		.stack = opt_w ? strlen("STACK") : TCP_FUNCTION_NAME_LEN_MAX,
-		.cc = opt_w ? strlen("CC") : TCP_CA_NAME_MAX,
+		.inp_gencnt = strlen("ID"),
+		.encaps = strlen("ENCAPS"),
+		.path_state = strlen("PATH STATE"),
+		.conn_state = strlen("CONN STATE"),
+		.stack = strlen("STACK"),
+		.cc = strlen("CC"),
 	};
-	if (opt_w)
-		calculate_column_widths(&cw);
+	calculate_column_widths(&cw);
 
 	if (!opt_q) {
 		printf("%-*s %-*s %*s %*s %-*s %-*s %-*s",
