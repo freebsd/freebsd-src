@@ -160,7 +160,7 @@ gpiopps_detach(device_t dev)
 	if (sc->ires != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irid, sc->ires);
 	if (sc->gpin != NULL)
-		gpiobus_release_pin(GPIO_GET_BUS(sc->gpin->dev), sc->gpin->pin);
+		gpio_pin_release(sc->gpin);
 	return (0);
 }
 
