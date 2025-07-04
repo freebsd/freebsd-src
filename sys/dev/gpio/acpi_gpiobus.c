@@ -36,6 +36,7 @@
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/acpi_gpiobusvar.h>
+#include <dev/gpio/gpiobus_internal.h>
 
 #include "gpiobus_if.h"
 
