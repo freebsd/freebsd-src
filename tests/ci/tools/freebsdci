@@ -34,6 +34,7 @@ rcvar=freebsdci_enable
 start_cmd="firstboot_ci_run"
 stop_cmd=":"
 os_arch=$(uname -p)
+parallelism=$(nproc)
 tardev=/dev/vtbd1
 metadir=/meta
 istar=$(file -s ${tardev} | grep "POSIX tar archive" | wc -l)
@@ -74,7 +75,7 @@ full_tests()
 		tar xvf ${tardev} -C ${metadir}
 		cd /usr/tests
 		set +e
-		kyua test
+		kyua -v parallelism=${parallelism} test
 		rc=$?
 		set -e
 		if [ ${rc} -ne 0 ] && [ ${rc} -ne 1 ]; then
