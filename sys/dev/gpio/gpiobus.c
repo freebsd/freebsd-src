@@ -39,6 +39,7 @@
 #include <sys/sbuf.h>
 
 #include <dev/gpio/gpiobusvar.h>
+#include <dev/gpio/gpiobus_internal.h>
 
 #include "gpiobus_if.h"
 
