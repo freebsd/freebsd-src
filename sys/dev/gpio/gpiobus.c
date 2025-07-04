@@ -213,6 +213,28 @@ gpio_pin_is_active(gpio_pin_t pin, bool *active)
 	return (0);
 }
 
+/*
+ * Note that this function should only
+ * be used in cases where a pre-existing
+ * gpiobus_pin structure exists. In most
+ * cases, the gpio_pin_get_by_* functions
+ * suffice.
+ */
+int
+gpio_pin_acquire(gpio_pin_t gpio)
+{
+	device_t busdev;
+
+	KASSERT(gpio != NULL, ("GPIO pin is NULL."));
+	KASSERT(gpio->dev != NULL, ("GPIO pin device is NULL."));
+
+	busdev = GPIO_GET_BUS(gpio->dev);
+	if (busdev == NULL)
+		return (ENXIO);
+
+	return (gpiobus_acquire_pin(busdev, gpio->pin));
+}
+
 void
 gpio_pin_release(gpio_pin_t gpio)
 {
