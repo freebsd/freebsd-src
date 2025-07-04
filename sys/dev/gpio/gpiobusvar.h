@@ -156,6 +156,8 @@ int gpio_pin_get_by_bus_pinnum(device_t _bus, uint32_t _pinnum, gpio_pin_t *_gp)
 /* Acquire a pin by child and index (used by direct children of gpiobus). */
 int gpio_pin_get_by_child_index(device_t _child, uint32_t _idx, gpio_pin_t *_gp);
 
+/* Acquire a pin from an existing gpio_pin_t. */
+int gpio_pin_acquire(gpio_pin_t gpio);
 /* Release a pin acquired via any gpio_pin_get_xxx() function. */
 void gpio_pin_release(gpio_pin_t gpio);
 
