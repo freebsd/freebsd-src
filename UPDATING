@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250704:
+	LinuxKPI device.h and acpi changes effecting drivers and drm-kmod.
+	Bump __FreeBSD_version 1500050 to be able to detect these changes.
+
 20250630:
 	Commits 171f66b0c2ca and 8e2a90ac8089 changed the internal
 	api between nfscommon.ko and the other nfs modules.
