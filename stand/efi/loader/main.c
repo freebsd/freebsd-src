@@ -1547,6 +1547,7 @@ command_seed_entropy(int argc, char *argv[])
 }
 
 COMMAND_SET(poweroff, "poweroff", "power off the system", command_poweroff);
+COMMAND_SET(halt, "halt", "power off the system", command_poweroff);
 
 static int
 command_poweroff(int argc __unused, char *argv[] __unused)
