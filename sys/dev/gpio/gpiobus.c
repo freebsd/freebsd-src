@@ -415,7 +415,7 @@ gpiobus_acquire_pin(device_t bus, uint32_t pin)
 }
 
 /* Release mapped pin */
-int
+void
 gpiobus_release_pin(device_t bus, uint32_t pin)
 {
 	struct gpiobus_softc *sc;
@@ -423,19 +423,15 @@ gpiobus_release_pin(device_t bus, uint32_t pin)
 	sc = device_get_softc(bus);
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
-		device_printf(bus,
-		    "invalid pin %d, max=%d\n",
-		    pin, sc->sc_npins - 1);
-		return (-1);
+		panic("%s: invalid pin %d, max: %d",
+		    device_get_nameunit(bus), pin, sc->sc_npins - 1);
 	}
 
-	if (!sc->sc_pins[pin].mapped) {
-		device_printf(bus, "pin %d is not mapped\n", pin);
-		return (-1);
-	}
+	if (!sc->sc_pins[pin].mapped)
+		panic("%s: pin %d is not mapped", device_get_nameunit(bus),
+		    pin);
+
 	sc->sc_pins[pin].mapped = 0;
-
-	return (0);
 }
 
 static int
@@ -450,8 +446,7 @@ gpiobus_acquire_child_pins(device_t dev, device_t child)
 			device_printf(child, "cannot acquire pin %d\n",
 			    devi->pins[i]);
 			while (--i >= 0) {
-				(void)gpiobus_release_pin(dev,
-				    devi->pins[i]);
+				gpiobus_release_pin(dev, devi->pins[i]);
 			}
 			gpiobus_free_ivars(devi);
 			return (EBUSY);
