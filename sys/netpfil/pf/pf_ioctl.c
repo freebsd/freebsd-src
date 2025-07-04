@@ -2155,51 +2155,51 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		rule->rcv_kif = NULL;
 
 	if (rule->rtableid > 0 && rule->rtableid >= rt_numfibs)
-		error = EBUSY;
+		ERROUT(EBUSY);
 #ifdef ALTQ
 	/* set queue IDs */
 	if (rule->qname[0] != 0) {
 		if ((rule->qid = pf_qname2qid(rule->qname)) == 0)
-			error = EBUSY;
+			ERROUT(EBUSY);
 		else if (rule->pqname[0] != 0) {
 			if ((rule->pqid =
 			    pf_qname2qid(rule->pqname)) == 0)
-				error = EBUSY;
+				ERROUT(EBUSY);
 		} else
 			rule->pqid = rule->qid;
 	}
 #endif
 	if (rule->tagname[0])
 		if ((rule->tag = pf_tagname2tag(rule->tagname)) == 0)
-			error = EBUSY;
+			ERROUT(EBUSY);
 	if (rule->match_tagname[0])
 		if ((rule->match_tag =
 		    pf_tagname2tag(rule->match_tagname)) == 0)
-			error = EBUSY;
+			ERROUT(EBUSY);
 	if (rule->rt && !rule->direction)
-		error = EINVAL;
+		ERROUT(EINVAL);
 	if (!rule->log)
 		rule->logif = 0;
 	if (! pf_init_threshold(&rule->pktrate, rule->pktrate.limit,
 	   rule->pktrate.seconds))
-		error = ENOMEM;
+		ERROUT(ENOMEM);
 	if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
-		error = ENOMEM;
+		ERROUT(ENOMEM);
 	if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))
-		error = ENOMEM;
+		ERROUT(ENOMEM);
 	if (pf_kanchor_setup(rule, ruleset, anchor_call))
-		error = EINVAL;
+		ERROUT(EINVAL);
 	if (rule->scrub_flags & PFSTATE_SETPRIO &&
 	    (rule->set_prio[0] > PF_PRIO_MAX ||
 	    rule->set_prio[1] > PF_PRIO_MAX))
-		error = EINVAL;
+		ERROUT(EINVAL);
 	for (int i = 0; i < 3; i++) {
 		TAILQ_FOREACH(pa, &V_pf_pabuf[i], entries)
 			if (pa->addr.type == PF_ADDR_TABLE) {
 				pa->addr.p.tbl = pfr_attach_table(ruleset,
 				    pa->addr.v.tblname);
 				if (pa->addr.p.tbl == NULL)
-					error = ENOMEM;
+					ERROUT(ENOMEM);
 			}
 	}
 
@@ -2207,7 +2207,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	if (rule->overload_tblname[0]) {
 		if ((rule->overload_tbl = pfr_attach_table(ruleset,
 		    rule->overload_tblname)) == NULL)
-			error = EINVAL;
+			ERROUT(EINVAL);
 		else
 			rule->overload_tbl->pfrkt_flags |=
 			    PFR_TFLAG_ACTIVE;
@@ -2230,23 +2230,19 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	if (((rule->action == PF_NAT) || (rule->action == PF_RDR) ||
 	    (rule->action == PF_BINAT))	&& rule->anchor == NULL &&
 	    TAILQ_FIRST(&rule->rdr.list) == NULL) {
-		error = EINVAL;
+		ERROUT(EINVAL);
 	}
 
 	if (rule->rt > PF_NOPFROUTE && (TAILQ_FIRST(&rule->route.list) == NULL)) {
-		error = EINVAL;
+		ERROUT(EINVAL);
 	}
 
 	if (rule->action == PF_PASS && (rule->rdr.opts & PF_POOL_STICKYADDR ||
 	    rule->nat.opts & PF_POOL_STICKYADDR) && !rule->keep_state) {
-		error = EINVAL;
+		ERROUT(EINVAL);
 	}
 
-	if (error) {
-		pf_free_rule(rule);
-		rule = NULL;
-		ERROUT(error);
-	}
+	MPASS(error == 0);
 
 	rule->nat.cur = TAILQ_FIRST(&rule->nat.list);
 	rule->rdr.cur = TAILQ_FIRST(&rule->rdr.list);
