@@ -1154,10 +1154,6 @@ aw_gpio_attach(device_t dev)
 	aw_gpio_register_isrcs(sc);
 	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
-	if (sc->sc_busdev == NULL)
-		goto fail;
-
 	/*
 	 * Register as a pinctrl device
 	 */
@@ -1165,6 +1161,10 @@ aw_gpio_attach(device_t dev)
 	fdt_pinctrl_configure_tree(dev);
 	fdt_pinctrl_register(dev, "allwinner,pins");
 	fdt_pinctrl_configure_tree(dev);
+
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		goto fail;
 
 	config_intrhook_oneshot(aw_gpio_enable_bank_supply, sc);
 
