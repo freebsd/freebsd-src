@@ -824,7 +824,7 @@ tegra_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
