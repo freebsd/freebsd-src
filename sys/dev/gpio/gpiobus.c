@@ -293,7 +293,7 @@ gpiobus_print_pins(struct gpiobus_ivar *devi, struct sbuf *sb)
 }
 
 device_t
-gpiobus_attach_bus(device_t dev)
+gpiobus_add_bus(device_t dev)
 {
 	device_t busdev;
 
@@ -307,8 +307,24 @@ gpiobus_attach_bus(device_t dev)
 #ifdef FDT
 	ofw_gpiobus_register_provider(dev);
 #endif
-	bus_attach_children(dev);
+	return (busdev);
+}
 
+/*
+ * Attach a gpiobus child.
+ * Note that the controller is expected
+ * to be fully initialized at this point.
+ */
+device_t
+gpiobus_attach_bus(device_t dev)
+{
+	device_t busdev;
+
+	busdev = gpiobus_add_bus(dev);
+	if (busdev == NULL)
+		return (NULL);
+
+	bus_attach_children(dev);
 	return (busdev);
 }
 
