@@ -218,15 +218,13 @@ gpio_pin_release(gpio_pin_t gpio)
 {
 	device_t busdev;
 
-	if (gpio == NULL)
-		return;
-
+	KASSERT(gpio != NULL, ("GPIO pin is NULL."));
 	KASSERT(gpio->dev != NULL, ("GPIO pin device is NULL."));
 
 	busdev = GPIO_GET_BUS(gpio->dev);
-	if (busdev != NULL)
-		gpiobus_release_pin(busdev, gpio->pin);
+	KASSERT(busdev != NULL, ("gpiobus dev is NULL."));
 
+	gpiobus_release_pin(busdev, gpio->pin);
 	free(gpio, M_DEVBUF);
 }
 
