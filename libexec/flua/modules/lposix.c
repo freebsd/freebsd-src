@@ -68,19 +68,24 @@ lua_chown(lua_State *L)
 {
 	int n;
 	const char *path;
-	uid_t owner = (uid_t) -1;
-	gid_t group = (gid_t) -1;
+	uid_t owner = (uid_t)-1;
+	gid_t group = (gid_t)-1;
+	int error;
 
 	n = lua_gettop(L);
 	luaL_argcheck(L, n > 1, n,
 	   "chown takes at least two arguments");
 	path = luaL_checkstring(L, 1);
 	if (lua_isinteger(L, 2))
-		owner = (uid_t) lua_tointeger(L, 2);
+		owner = (uid_t)lua_tointeger(L, 2);
 	else if (lua_isstring(L, 2)) {
-		struct passwd *p = getpwnam(lua_tostring(L, 2));
-		if (p != NULL)
-			owner = p->pw_uid;
+		char buf[4096];
+		struct passwd passwd, *pwd;
+
+		error = getpwnam_r(lua_tostring(L, 2), &passwd,
+		    buf, sizeof(buf), &pwd);
+		if (error == 0)
+			owner = pwd->pw_uid;
 		else
 			return (luaL_argerror(L, 2,
 			    lua_pushfstring(L, "unknown user %s",
@@ -93,11 +98,15 @@ lua_chown(lua_State *L)
 	}
 
 	if (lua_isinteger(L, 3))
-		group = (gid_t) lua_tointeger(L, 3);
+		group = (gid_t)lua_tointeger(L, 3);
 	else if (lua_isstring(L, 3)) {
-		struct group *g = getgrnam(lua_tostring(L, 3));
-		if (g != NULL)
-			group = g->gr_gid;
+		char buf[4096];
+		struct group gr, *grp;
+
+		error = getgrnam_r(lua_tostring(L, 3), &gr, buf, sizeof(buf),
+		    &grp);
+		if (error == 0)
+			group = grp->gr_gid;
 		else
 			return (luaL_argerror(L, 3,
 			    lua_pushfstring(L, "unknown group %s",
