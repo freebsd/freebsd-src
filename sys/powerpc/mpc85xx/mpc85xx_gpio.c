@@ -227,13 +227,13 @@ mpc85xx_gpio_attach(device_t dev)
 		return (ENOMEM);
 	}
 
+	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
+
 	sc->busdev = gpiobus_attach_bus(dev);
 	if (sc->busdev == NULL) {
 		mpc85xx_gpio_detach(dev);
 		return (ENOMEM);
 	}
-
-	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
 
 	return (0);
 }

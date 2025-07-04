@@ -262,13 +262,12 @@ tca64xx_attach(device_t dev)
 	sc->addr = iicbus_get_addr(dev);
 
 	mtx_init(&sc->mtx, "tca64xx gpio", "gpio", MTX_DEF);
+	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
 	sc->busdev = gpiobus_attach_bus(dev);
 	if (sc->busdev == NULL) {
 		device_printf(dev, "Could not create busdev child\n");
 		return (ENXIO);
 	}
-
-	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
 
 #ifdef DEBUG
 	switch (sc->chip) {

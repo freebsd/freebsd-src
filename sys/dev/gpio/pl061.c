@@ -485,13 +485,20 @@ pl061_attach(device_t dev)
 		}
 	}
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
-	if (sc->sc_busdev == NULL) {
-		device_printf(dev, "couldn't attach gpio bus\n");
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "pl061", MTX_SPIN);
+
+	if (sc->sc_xref != 0 && !intr_pic_register(dev, sc->sc_xref)) {
+		device_printf(dev, "couldn't register PIC\n");
+		PL061_LOCK_DESTROY(sc);
 		goto free_isrc;
 	}
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "pl061", MTX_SPIN);
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL) {
+		device_printf(dev, "couldn't attach gpio bus\n");
+		PL061_LOCK_DESTROY(sc);
+		goto free_isrc;
+	}
 
 	return (0);
 
@@ -501,6 +508,7 @@ free_isrc:
 	 * for (irq = 0; irq < PL061_NUM_GPIO; irq++)
 	 *	intr_isrc_deregister(PIC_INTR_ISRC(sc, irq));
 	*/
+	bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_hdlr);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
 	    sc->sc_irq_res);
 free_pic:
