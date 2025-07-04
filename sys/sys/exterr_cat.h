@@ -17,6 +17,7 @@
 					   file into kern_ktrace.c */
 #define	EXTERR_CAT_FUSE		4
 #define	EXTERR_CAT_INOTIFY	5
+#define	EXTERR_CAT_GENIO	6
 
 #endif
 
