@@ -264,7 +264,7 @@ void
 pfctl_clear_fingerprints(int dev, int opts)
 {
 	if (ioctl(dev, DIOCOSFPFLUSH))
-		err(1, "DIOCOSFPFLUSH");
+		pfctl_err(opts, 1, "DIOCOSFPFLUSH");
 }
 
 /* flush pfctl's view of the fingerprints */

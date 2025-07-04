@@ -79,7 +79,8 @@ static const char	*istats_text[2][2][2] = {
 		if ((!(opts & PF_OPT_NOACTION) ||	\
 		    (opts & PF_OPT_DUMMYACTION)) &&	\
 		    (fct)) {				\
-			radix_perror();			\
+		if ((opts & PF_OPT_RECURSE) == 0)	\
+				radix_perror();		\
 			goto _error;			\
 		}					\
 	} while (0)
@@ -103,11 +104,17 @@ static const char	*istats_text[2][2][2] = {
 		table.pfrt_flags &= ~PFR_TFLAG_PERSIST;			\
 	} while(0)
 
-void
+int
 pfctl_do_clear_tables(const char *anchor, int opts)
 {
-	if (pfctl_table(0, NULL, NULL, "-F", NULL, anchor, opts))
-		exit(1);
+	int	rv;
+
+	if ((rv = pfctl_table(0, NULL, NULL, "-F", NULL, anchor, opts)) == -1) {
+		if ((opts & PF_OPT_IGNFAIL) == 0)
+			exit(1);
+	}
+
+	return (rv);
 }
 
 void
