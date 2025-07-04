@@ -100,12 +100,8 @@ static struct gpio_entry *
 regnode_get_gpio_entry(struct gpiobus_pin *gpio_pin)
 {
 	struct gpio_entry *entry, *tmp;
-	device_t busdev;
 	int rv;
 
-	busdev = GPIO_GET_BUS(gpio_pin->dev);
-	if (busdev == NULL)
-		return (NULL);
 	entry = malloc(sizeof(struct gpio_entry), M_FIXEDREGULATOR,
 	    M_WAITOK | M_ZERO);
 
@@ -122,8 +118,8 @@ regnode_get_gpio_entry(struct gpiobus_pin *gpio_pin)
 	}
 
 	/* Reserve pin. */
-	/* XXX Can we call gpiobus_acquire_pin() with gpio_list_mtx held? */
-	rv = gpiobus_acquire_pin(busdev, gpio_pin->pin);
+	/* XXX Can we call gpio_pin_acquire() with gpio_list_mtx held? */
+	rv = gpio_pin_acquire(gpio_pin);
 	if (rv != 0) {
 		mtx_unlock(&gpio_list_mtx);
 		free(entry, M_FIXEDREGULATOR);
