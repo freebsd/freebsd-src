@@ -1199,27 +1199,6 @@ sdda_get_host_caps(struct cam_periph *periph, union ccb *ccb)
 	return (cts->host_caps);
 }
 
-static uint32_t
-sdda_get_max_data(struct cam_periph *periph, union ccb *ccb)
-{
-	struct ccb_trans_settings_mmc *cts;
-
-	cts = &ccb->cts.proto_specific.mmc;
-	memset(cts, 0, sizeof(struct ccb_trans_settings_mmc));
-
-	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	ccb->ccb_h.flags = CAM_DIR_NONE;
-	ccb->ccb_h.retry_count = 0;
-	ccb->ccb_h.timeout = 100;
-	ccb->ccb_h.cbfcnp = NULL;
-	xpt_action(ccb);
-
-	if (ccb->ccb_h.status != CAM_REQ_CMP)
-		panic("Cannot get host max data");
-	KASSERT(cts->host_max_data != 0, ("host_max_data == 0?!"));
-	return (cts->host_max_data);
-}
-
 static void
 sdda_start_init(void *context, union ccb *start_ccb)
 {
