@@ -112,7 +112,7 @@ static int	xics_probe(device_t);
 static int	xics_attach(device_t);
 
 static void	xive_bind(device_t, u_int, cpuset_t, void **);
-static void	xive_dispatch(device_t, struct trapframe *);
+static pic_dispatch_t	xive_dispatch;
 static void	xive_enable(device_t, u_int, u_int, void **);
 static void	xive_eoi(device_t, u_int, void *);
 static void	xive_ipi(device_t, u_int);
@@ -492,8 +492,8 @@ xive_read_eq(struct xive_queue *q)
 	return (i & 0x7fffffff);
 }
 
-static void
-xive_dispatch(device_t dev, struct trapframe *tf)
+static int
+xive_dispatch(device_t dev)
 {
 	struct xive_softc *sc;
 	struct xive_cpu *xive_cpud;
@@ -534,11 +534,13 @@ xive_dispatch(device_t dev, struct trapframe *tf)
 			if (vector == MAX_XIVE_IRQS)
 				vector = xive_ipi_vector;
 
-			powerpc_dispatch_intr(vector, tf);
+			powerpc_dispatch_intr(vector);
 		}
 	}
 end:
 	xive_write_1(sc, XIVE_TM_CPPR, 0xff);
+
+	return (0);
 }
 
 static void
