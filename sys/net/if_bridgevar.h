@@ -122,6 +122,7 @@
 #define	BRDGSPROTO		28	/* set protocol (ifbrparam) */
 #define	BRDGSTXHC		29	/* set tx hold count (ifbrparam) */
 #define	BRDGSIFAMAX		30	/* set max interface addrs (ifbreq) */
+#define	BRDGSIFUNTAGGED		31	/* set if untagged vlan */
 
 /*
  * Generic bridge control request.
@@ -139,6 +140,7 @@ struct ifbreq {
 	uint32_t	ifbr_addrcnt;		/* member if addr number */
 	uint32_t	ifbr_addrmax;		/* member if addr max */
 	uint32_t	ifbr_addrexceeded;	/* member if addr violations */
+	ether_vlanid_t	ifbr_untagged;		/* member if untagged vlan */
 	uint8_t		pad[32];
 };
 
@@ -155,10 +157,11 @@ struct ifbreq {
 #define	IFBIF_BSTP_ADMEDGE	0x0200	/* member stp admin edge enabled */
 #define	IFBIF_BSTP_ADMCOST	0x0400	/* member stp admin path cost */
 #define	IFBIF_PRIVATE		0x0800	/* if is a private segment */
+#define	IFBIF_VLANFILTER	0x1000	/* if does vlan filtering */
 
 #define	IFBIFBITS	"\020\001LEARNING\002DISCOVER\003STP\004SPAN" \
 			"\005STICKY\014PRIVATE\006EDGE\007AUTOEDGE\010PTP" \
-			"\011AUTOPTP"
+			"\011AUTOPTP\015VLANFILTER"
 #define	IFBIFMASK	~(IFBIF_BSTP_EDGE|IFBIF_BSTP_AUTOEDGE|IFBIF_BSTP_PTP| \
 			IFBIF_BSTP_AUTOPTP|IFBIF_BSTP_ADMEDGE| \
 			IFBIF_BSTP_ADMCOST)	/* not saved */

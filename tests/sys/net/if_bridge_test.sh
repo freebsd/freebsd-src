@@ -829,6 +829,129 @@ member_ifaddrs_vlan_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "vlan_pvid" "cleanup"
+vlan_pvid_head()
+{
+	atf_set descr 'bridge with two ports with pvid set'
+	atf_set require.user root
+}
+
+vlan_pvid_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+	eptwo=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+	vnet_mkjail two ${eptwo}b
+
+	jexec one ifconfig ${epone}b 192.0.2.1/24 up
+	jexec two ifconfig ${eptwo}b 192.0.2.2/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${eptwo}a up
+	ifconfig ${bridge} addm ${epone}a untagged ${epone}a 20
+	ifconfig ${bridge} addm ${eptwo}a untagged ${eptwo}a 20
+
+	# With VLAN filtering enabled, traffic should be passed.
+	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	# Removed the untagged VLAN on one port; traffic should not be passed.
+	ifconfig ${bridge} -untagged ${epone}a
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_pvid_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "vlan_pvid_filtered" "cleanup"
+vlan_pvid_filtered_head()
+{
+	atf_set descr 'bridge with two ports with different pvids'
+	atf_set require.user root
+}
+
+vlan_pvid_filtered_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+	eptwo=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+	vnet_mkjail two ${eptwo}b
+
+	jexec one ifconfig ${epone}b 192.0.2.1/24 up
+	jexec two ifconfig ${eptwo}b 192.0.2.2/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${eptwo}a up
+	ifconfig ${bridge} addm ${epone}a untagged ${epone}a 20
+	ifconfig ${bridge} addm ${eptwo}a untagged ${eptwo}a 30
+
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_pvid_filtered_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "vlan_pvid_tagged" "cleanup"
+vlan_pvid_tagged_head()
+{
+	atf_set descr 'bridge pvid with tagged frames for pvid'
+	atf_set require.user root
+}
+
+vlan_pvid_tagged_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+	eptwo=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+	vnet_mkjail two ${eptwo}b
+
+	# Create two tagged interfaces on the appropriate VLANs
+	jexec one ifconfig ${epone}b up
+	jexec one ifconfig ${epone}b.20 create 192.0.2.1/24 up
+	jexec two ifconfig ${eptwo}b up
+	jexec two ifconfig ${eptwo}b.20 create 192.0.2.2/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${eptwo}a up
+	ifconfig ${bridge} addm ${epone}a untagged ${epone}a 20
+	ifconfig ${bridge} addm ${eptwo}a untagged ${eptwo}a 20
+
+	# Tagged frames should not be passed.
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_pvid_tagged_cleanup()
+{
+	vnet_cleanup
+}
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -847,4 +970,7 @@ atf_init_test_cases()
 	atf_add_test_case "member_ifaddrs_enabled"
 	atf_add_test_case "member_ifaddrs_disabled"
 	atf_add_test_case "member_ifaddrs_vlan"
+	atf_add_test_case "vlan_pvid"
+	atf_add_test_case "vlan_pvid_filtered"
+	atf_add_test_case "vlan_pvid_tagged"
 }
