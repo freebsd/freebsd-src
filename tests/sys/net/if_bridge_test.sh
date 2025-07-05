@@ -1164,6 +1164,63 @@ vlan_svi_cleanup()
 	vnet_cleanup
 }
 
+#
+# Test QinQ (802.1ad).
+#
+atf_test_case "vlan_qinq" "cleanup"
+vlan_qinq_head()
+{
+	atf_set descr 'vlan filtering with QinQ traffic'
+	atf_set require.user root
+}
+
+vlan_qinq_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+	eptwo=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+	vnet_mkjail two ${eptwo}b
+
+	# Create a QinQ trunk between the two jails.  The outer (provider) tag
+	# is 5, and the inner tag is 10.
+
+	jexec one ifconfig ${epone}b up
+	jexec one ifconfig ${epone}b.5 create vlanproto 802.1ad up
+	jexec one ifconfig ${epone}b.5.10 create inet 192.0.2.1/24 up
+
+	jexec two ifconfig ${eptwo}b up
+	jexec two ifconfig ${eptwo}b.5 create vlanproto 802.1ad up
+	jexec two ifconfig ${eptwo}b.5.10 create inet 192.0.2.2/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${eptwo}a up
+	ifconfig ${bridge} addm ${epone}a vlanfilter ${epone}a
+	ifconfig ${bridge} addm ${eptwo}a vlanfilter ${eptwo}a
+
+	# Right now there are no VLANs on the access list, so everything
+	# should be blocked.
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	# Add the provider tag to the access list; now traffic should be passed.
+	ifconfig ${bridge} +tagged ${epone}a 5
+	ifconfig ${bridge} +tagged ${eptwo}a 5
+	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_qinq_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -1189,4 +1246,5 @@ atf_init_test_cases()
 	atf_add_test_case "vlan_filtering"
 	atf_add_test_case "vlan_ifconfig_tagged"
 	atf_add_test_case "vlan_svi"
+	atf_add_test_case "vlan_qinq"
 }
