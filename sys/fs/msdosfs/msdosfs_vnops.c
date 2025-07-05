@@ -1942,6 +1942,9 @@ msdosfs_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 0;
 		return (0);
+	case _PC_HAS_HIDDENSYSTEM:
+		*ap->a_retval = 1;
+		return (0);
 	default:
 		return (vop_stdpathconf(ap));
 	}

@@ -156,6 +156,7 @@
 #define	_PC_DEALLOC_PRESENT	65
 #define	_PC_NAMEDATTR_ENABLED	66
 #define	_PC_HAS_NAMEDATTR	67
+#define	_PC_HAS_HIDDENSYSTEM	68
 #endif
 
 /* From OpenSolaris, used by SEEK_DATA/SEEK_HOLE. */

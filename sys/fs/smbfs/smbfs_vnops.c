@@ -810,6 +810,9 @@ smbfs_pathconf(struct vop_pathconf_args *ap)
 	    case _PC_NO_TRUNC:
 		*retval = 1;
 		break;
+	    case _PC_HAS_HIDDENSYSTEM:
+		*retval = 1;
+		break;
 	    default:
 		error = vop_stdpathconf(ap);
 	}

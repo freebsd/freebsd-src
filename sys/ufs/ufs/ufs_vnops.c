@@ -2720,6 +2720,9 @@ ufs_pathconf(
 	case _PC_SYMLINK_MAX:
 		*ap->a_retval = MAXPATHLEN;
 		break;
+	case _PC_HAS_HIDDENSYSTEM:
+		*ap->a_retval = 1;
+		break;
 
 	default:
 		error = vop_stdpathconf(ap);
