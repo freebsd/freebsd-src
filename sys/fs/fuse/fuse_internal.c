@@ -1103,7 +1103,6 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * FUSE_SPLICE_WRITE, FUSE_SPLICE_MOVE, FUSE_SPLICE_READ: FreeBSD
 	 *	doesn't have splice(2).
 	 * FUSE_FLOCK_LOCKS: not yet implemented
-	 * FUSE_HAS_IOCTL_DIR: not yet implemented
 	 * FUSE_AUTO_INVAL_DATA: not yet implemented
 	 * FUSE_DO_READDIRPLUS: not yet implemented
 	 * FUSE_READDIRPLUS_AUTO: not yet implemented
@@ -1116,7 +1115,7 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * FUSE_MAX_PAGES: not yet implemented
 	 */
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
-		| FUSE_BIG_WRITES | FUSE_WRITEBACK_CACHE
+		| FUSE_BIG_WRITES | FUSE_HAS_IOCTL_DIR | FUSE_WRITEBACK_CACHE
 		| FUSE_NO_OPEN_SUPPORT | FUSE_NO_OPENDIR_SUPPORT
 		| FUSE_SETXATTR_EXT;
 
