@@ -332,16 +332,16 @@ static void	bridge_inject(struct ifnet *, struct mbuf *);
 static int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);
 static int	bridge_enqueue(struct bridge_softc *, struct ifnet *,
-		    struct mbuf *);
+		    struct mbuf *, struct bridge_iflist *);
 static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 static void	bridge_forward(struct bridge_softc *, struct bridge_iflist *,
-		    struct mbuf *m, ether_vlanid_t vlan);
+		    struct mbuf *m);
 static bool	bridge_member_ifaddrs(void);
 static void	bridge_timer(void *);
 
 static void	bridge_broadcast(struct bridge_softc *, struct ifnet *,
-		    struct mbuf *, int, ether_vlanid_t);
+		    struct mbuf *, int);
 static void	bridge_span(struct bridge_softc *, struct mbuf *);
 
 static int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
@@ -2175,11 +2175,24 @@ bridge_stop(struct ifnet *ifp, int disable)
  *
  */
 static int
-bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
+bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
+    struct bridge_iflist *bif)
 {
 	int len, err = 0;
 	short mflags;
 	struct mbuf *m0;
+
+	/*
+	 * Find the bridge member port this packet is being sent on, if the
+	 * caller didn't already provide it.
+	 */
+	if (bif == NULL)
+		bif = bridge_lookup_member_if(sc, dst_ifp);
+	if (bif == NULL) {
+		/* Perhaps the interface was removed from the bridge */
+		m_freem(m);
+		return (EINVAL);
+	}
 
 	/* We may be sending a fragment so traverse the mbuf */
 	for (; m; m = m0) {
@@ -2187,6 +2200,18 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 		m->m_nextpkt = NULL;
 		len = m->m_pkthdr.len;
 		mflags = m->m_flags;
+
+		/*
+		 * If VLAN filtering is enabled, and the native VLAN ID of the
+		 * outgoing interface matches the VLAN ID of the frame, remove
+		 * the VLAN header.
+		 */
+		if ((bif->bif_flags & IFBIF_VLANFILTER) &&
+		    bif->bif_untagged != DOT1Q_VID_NULL &&
+		    VLANTAGOF(m) == bif->bif_untagged) {
+			m->m_flags &= ~M_VLANTAG;
+			m->m_pkthdr.ether_vtag = 0;
+		}
 
 		/*
 		 * If underlying interface can not do VLAN tag insertion itself
@@ -2259,7 +2284,7 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 			return;
 	}
 
-	bridge_enqueue(sc, ifp, m);
+	bridge_enqueue(sc, ifp, m, NULL);
 }
 
 /*
@@ -2354,7 +2379,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 				}
 			}
 
-			bridge_enqueue(sc, dst_if, mc);
+			bridge_enqueue(sc, dst_if, mc, bif);
 		}
 		if (used == 0)
 			m_freem(m);
@@ -2372,7 +2397,7 @@ sendunicast:
 		return (0);
 	}
 
-	bridge_enqueue(sc, dst_if, m);
+	bridge_enqueue(sc, dst_if, m, NULL);
 	return (0);
 }
 
@@ -2399,9 +2424,9 @@ bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (((m->m_flags & (M_BCAST|M_MCAST)) == 0) &&
 	    (dst_if = bridge_rtlookup(sc, eh->ether_dhost, DOT1Q_VID_NULL)) !=
 	    NULL) {
-		error = bridge_enqueue(sc, dst_if, m);
+		error = bridge_enqueue(sc, dst_if, m, NULL);
 	} else
-		bridge_broadcast(sc, ifp, m, 0, DOT1Q_VID_NULL);
+		bridge_broadcast(sc, ifp, m, 0);
 
 	return (error);
 }
@@ -2455,18 +2480,20 @@ bridge_qflush(struct ifnet *ifp __unused)
  */
 static void
 bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
-    struct mbuf *m, ether_vlanid_t vlan)
+    struct mbuf *m)
 {
 	struct bridge_iflist *dbif;
 	struct ifnet *src_if, *dst_if, *ifp;
 	struct ether_header *eh;
 	uint8_t *dst;
 	int error;
+	ether_vlanid_t vlan;
 
 	NET_EPOCH_ASSERT();
 
 	src_if = m->m_pkthdr.rcvif;
 	ifp = sc->sc_ifp;
+	vlan = VLANTAGOF(m);
 
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
@@ -2558,7 +2585,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	}
 
 	if (dst_if == NULL) {
-		bridge_broadcast(sc, src_if, m, 1, vlan);
+		bridge_broadcast(sc, src_if, m, 1);
 		return;
 	}
 
@@ -2593,7 +2620,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 			return;
 	}
 
-	bridge_enqueue(sc, dst_if, m);
+	bridge_enqueue(sc, dst_if, m, dbif);
 	return;
 
 drop:
@@ -2682,6 +2709,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 		/* Otherwise, assign the untagged frame to the correct vlan. */
 		vlan = bif->bif_untagged;
+		m->m_pkthdr.ether_vtag = bif->bif_untagged;
+		m->m_flags |= M_VLANTAG;
 	}
 
 	bridge_span(sc, m);
@@ -2710,7 +2739,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		}
 
 		/* Perform the bridge forwarding function with the copy. */
-		bridge_forward(sc, bif, mc, vlan);
+		bridge_forward(sc, bif, mc);
 
 #ifdef DEV_NETMAP
 		/*
@@ -2849,7 +2878,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
-	bridge_forward(sc, bif, m, vlan);
+	bridge_forward(sc, bif, m);
 
 	return (NULL);
 }
@@ -2887,16 +2916,18 @@ bridge_inject(struct ifnet *ifp, struct mbuf *m)
  */
 static void
 bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
-    struct mbuf *m, int runfilt, ether_vlanid_t vlan)
+    struct mbuf *m, int runfilt)
 {
 	struct bridge_iflist *dbif, *sbif;
 	struct mbuf *mc;
 	struct ifnet *dst_if;
 	int used = 0, i;
+	ether_vlanid_t vlan;
 
 	NET_EPOCH_ASSERT();
 
 	sbif = bridge_lookup_member_if(sc, src_if);
+	vlan = VLANTAGOF(m);
 
 	/* Filter on the bridge interface before broadcasting */
 	if (runfilt && PFIL_HOOKED_OUT_46) {
@@ -2962,7 +2993,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 				continue;
 		}
 
-		bridge_enqueue(sc, dst_if, mc);
+		bridge_enqueue(sc, dst_if, mc, dbif);
 	}
 	if (used == 0)
 		m_freem(m);
@@ -2998,7 +3029,7 @@ bridge_span(struct bridge_softc *sc, struct mbuf *m)
 			continue;
 		}
 
-		bridge_enqueue(sc, dst_if, mc);
+		bridge_enqueue(sc, dst_if, mc, bif);
 	}
 }
 
@@ -3038,17 +3069,6 @@ bridge_vfilter_out(const struct bridge_iflist *dbif, const struct mbuf *m,
 	 * don't know what VLAN they're supposed to be in.
 	 */
 	if (vlan == DOT1Q_VID_NULL)
-		return (false);
-
-	/*
-	 * If the frame was received with a vlan tag then drop it,
-	 * since we only support untagged ports.
-	 *
-	 * If the egress port doesn't have an untagged vlan configured,
-	 * it doesn't want untagged frames, so drop it.
-	 */
-	if (VLANTAGOF(m) != DOT1Q_VID_NULL ||
-	    dbif->bif_untagged == DOT1Q_VID_NULL)
 		return (false);
 
 	/*

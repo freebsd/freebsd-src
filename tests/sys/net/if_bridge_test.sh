@@ -952,6 +952,51 @@ vlan_pvid_tagged_cleanup()
 {
 	vnet_cleanup
 }
+
+atf_test_case "vlan_pvid_1q" "cleanup"
+vlan_pvid_1q_head()
+{
+	atf_set descr '802.1q tag addition and removal'
+	atf_set require.user root
+}
+
+vlan_pvid_1q_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+	eptwo=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+	vnet_mkjail two ${eptwo}b
+
+	# Set up one jail with an access port, and the other with a trunk port.
+	# This forces the bridge to add and remove .1q tags to bridge the
+	# traffic.
+
+	jexec one ifconfig ${epone}b 192.0.2.1/24 up
+	jexec two ifconfig ${eptwo}b up
+	jexec two ifconfig ${eptwo}b.20 create 192.0.2.2/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} addm ${epone}a untagged ${epone}a 20
+	ifconfig ${bridge} addm ${eptwo}a
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${eptwo}a up
+
+	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_pvid_1q_cleanup()
+{
+       vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -971,6 +1016,7 @@ atf_init_test_cases()
 	atf_add_test_case "member_ifaddrs_disabled"
 	atf_add_test_case "member_ifaddrs_vlan"
 	atf_add_test_case "vlan_pvid"
+	atf_add_test_case "vlan_pvid_1q"
 	atf_add_test_case "vlan_pvid_filtered"
 	atf_add_test_case "vlan_pvid_tagged"
 }

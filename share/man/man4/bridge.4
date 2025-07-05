@@ -298,8 +298,11 @@ If an untagged VLAN ID is configured, incoming frames will be assigned
 to that VLAN, and the interface may receive outgoing untagged frames
 in that VLAN.
 .Pp
-There is no support for adding or removing 802.1Q tags from frames
-processed by the bridge.
+The bridge will automatically insert or remove 802.1q tags as needed,
+based on the interface configuration, when forwarding frames between
+interfaces.
+This tag processing is only done for interfaces with VLAN filtering
+enabled.
 .Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
