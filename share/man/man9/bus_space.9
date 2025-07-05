@@ -842,7 +842,7 @@ and fills in the bus space handle pointed to by
 with the handle
 that can be used to access the mapped region.
 If unsuccessful,
-it will return non-zero and leave the bus space handle pointed
+it will return nonzero and leave the bus space handle pointed
 to by
 .Fa handlep
 in an undefined state.
@@ -957,7 +957,7 @@ If successful,
 returns zero and fills in the bus
 space handle pointed to by
 .Fa nhandlep .
-If unsuccessful, it returns non-zero and leaves the bus space handle
+If unsuccessful, it returns nonzero and leaves the bus space handle
 pointed to by
 .Fa nhandlep
 in an
@@ -1010,7 +1010,7 @@ with the bus space address of the allocated region, and fills in
 the bus space handle pointed to by
 .Fa handlep
 with the handle that can be used to access that region.
-If unsuccessful, it returns non-zero and leaves the bus address pointed to by
+If unsuccessful, it returns nonzero and leaves the bus address pointed to by
 .Fa addrp
 and the bus space handle pointed to by
 .Fa handlep
@@ -1031,7 +1031,7 @@ constraint must be a power of two, and the allocated region will start at
 an address that is an even multiple of that power of two.
 The
 .Fa boundary
-constraint, if non-zero, ensures that the region is allocated so that
+constraint, if nonzero, ensures that the region is allocated so that
 .Fa "first address in region"
 /
 .Fa boundary
@@ -1218,7 +1218,7 @@ complete before returning.
 The return value indicates the outcome of the peek or poke operation.
 A return value of zero implies that a hardware device is
 responding to the operation at the specified offset in the bus space.
-A non-zero return value indicates that the kernel intercepted a
+A nonzero return value indicates that the kernel intercepted a
 hardware exception (e.g., bus error) when the peek or poke operation
 was attempted.
 Note that some busses are incapable of generating exceptions when
