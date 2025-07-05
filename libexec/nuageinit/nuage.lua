@@ -56,6 +56,21 @@ local function errmsg(str, prepend)
 	os.exit(1)
 end
 
+local function chmod(path, mode)
+	local mode = tonumber(mode, 8)
+	local _, err, msg = sys_stat.chmod(path, mode)
+	if err then
+		errmsg("chmod(" .. path .. ", " .. mode .. ") failed: " .. msg)
+	end
+end
+
+local function chown(path, owner, group)
+	local _, err, msg = unistd.chown(path, owner, group)
+	if err then
+		errmsg("chown(" .. path .. ", " .. owner .. ", " .. group .. ") failed: " .. msg)
+	end
+end
+
 local function dirname(oldpath)
 	if not oldpath then
 		return nil
@@ -252,12 +267,12 @@ local function addsshkey(homedir, key)
 	f:write(key .. "\n")
 	f:close()
 	if chownak then
-		sys_stat.chmod(ak_path, 384)
-		unistd.chown(ak_path, dirattrs.uid, dirattrs.gid)
+		chmod(ak_path, "0600")
+		chown(ak_path, dirattrs.uid, dirattrs.gid)
 	end
 	if chowndotssh then
-		sys_stat.chmod(dotssh_path, 448)
-		unistd.chown(dotssh_path, dirattrs.uid, dirattrs.gid)
+		chmod(dotssh_path, "0700")
+		chown(dotssh_path, dirattrs.uid, dirattrs.gid)
 	end
 end
 
@@ -296,10 +311,10 @@ local function addsudo(pwd)
 	end
 	f:close()
 	if chmodsudoers then
-		sys_stat.chmod(sudoers, 416)
+		chmod(sudoers, "0640")
 	end
 	if chmodsudoersd then
-		sys_stat.chmod(sudoers, 480)
+		chmod(sudoers, "0740")
 	end
 end
 
@@ -521,16 +536,14 @@ local function addfile(file, defer)
 	end
 	f:close()
 	if file.permissions then
-		-- convert from octal to decimal
-		local perm = tonumber(file.permissions, 8)
-		sys_stat.chmod(filepath, perm)
+		chmod(filepath, file.permissions)
 	end
 	if file.owner then
 		local owner, group = string.match(file.owner, "([^:]+):([^:]+)")
 		if not owner then
 			owner = file.owner
 		end
-		unistd.chown(filepath, owner, group)
+		chown(filepath, owner, group)
 	end
 	return true
 end
@@ -538,6 +551,8 @@ end
 local n = {
 	warn = warnmsg,
 	err = errmsg,
+	chmod = chmod,
+	chown = chown,
 	dirname = dirname,
 	mkdir_p = mkdir_p,
 	sethostname = sethostname,

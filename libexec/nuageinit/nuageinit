@@ -7,7 +7,6 @@
 local nuage = require("nuage")
 local ucl = require("ucl")
 local yaml = require("lyaml")
-local sys_stat = require("posix.sys.stat")
 
 if #arg ~= 2 then
 	nuage.err("Usage: " .. arg[0] .. " <cloud-init-directory> (<config-2> | <nocloud>)", false)
@@ -157,7 +156,7 @@ local function ssh_keys(obj)
 					sshkey:close()
 				end
 				if keytype == "private" then
-					sys_stat.chmod(path, 384)
+					nuage.chmod(path, "0600")
 				end
 			end
 		end
@@ -281,7 +280,7 @@ local function runcmd(obj)
 	end
 	if f ~= nil then
 		f:close()
-		sys_stat.chmod(root .. "/var/cache/nuageinit/runcmds", 493)
+		nuage.chmod(root .. "/var/cache/nuageinit/runcmds", "0755")
 	end
 end
 
@@ -503,5 +502,5 @@ if line == "#cloud-config" then
 	end
 elseif line:sub(1, 2) == "#!" then
 	-- delay for execution at rc.local time --
-	sys_stat.chmod(root .. "/var/cache/nuageinit/user_data", 493)
+	nuage.chmod(root .. "/var/cache/nuageinit/user_data", "0755")
 end
