@@ -4139,7 +4139,7 @@ coredump(struct thread *td)
 	struct flock lf;
 	struct vattr vattr;
 	size_t fullpathsize;
-	int error, error1, locked;
+	int error, error1, jid, locked, ppid, sig;
 	char *name;			/* name of corefile */
 	void *rl_cookie;
 	off_t limit;
@@ -4168,6 +4168,10 @@ coredump(struct thread *td)
 		PROC_UNLOCK(p);
 		return (EFBIG);
 	}
+
+	ppid = p->p_oppid;
+	sig = p->p_sig;
+	jid = p->p_ucred->cr_prison->pr_id;
 	PROC_UNLOCK(p);
 
 	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td,
@@ -4253,6 +4257,9 @@ coredump(struct thread *td)
 	}
 	devctl_safe_quote_sb(sb, name);
 	sbuf_putc(sb, '"');
+
+	sbuf_printf(sb, " jid=%d pid=%d ppid=%d signo=%d",
+	    jid, p->p_pid, ppid, sig);
 	if (sbuf_finish(sb) == 0)
 		devctl_notify("kernel", "signal", "coredump", sbuf_data(sb));
 out2:
