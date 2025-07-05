@@ -494,6 +494,10 @@
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
+    <band>
+      <freqband ref="A20_5745_5865"/>
+      <maxpower>13</maxpower>
+    </band>
   </netband>
   <netband mode="11ng">
     <band>
@@ -547,6 +551,14 @@
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
+    </band>
+    <band>
+      <freqband ref="NA20_5745_5865"/>
+      <maxpower>13</maxpower>
+    </band>
+    <band>
+      <freqband ref="NA40_5745_5845"/>
+      <maxpower>13</maxpower>
     </band>
   </netband>
   <netband mode="11ac">
@@ -645,7 +657,7 @@
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
-      <freqband ref="AC2_5745_5805_40"/>
+      <freqband ref="AC2_5745_5845_40"/>
       <maxpower>13</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_VHT40</flags>
@@ -656,13 +668,6 @@
       <maxpower>13</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_VHT80</flags>
-      <flags>IEEE80211_CHAN_DFS</flags>
-    </band>
-    <band>
-      <freqband ref="AC2_5745_5885_160"/>
-      <maxpower>13</maxpower>
-      <flags>IEEE80211_CHAN_HT40</flags>
-      <flags>IEEE80211_CHAN_VHT160</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
   </netband>
@@ -2303,6 +2308,29 @@
   <freqstart>5500</freqstart> <freqend>5700</freqend>
   <chanwidth>20</chanwidth> <chansep>20</chansep>
   <flags>IEEE80211_CHAN_A</flags>
+</freqband>
+<freqband id="A20_5745_5865">
+  <freqstart>5745</freqstart>
+  <freqend>5865</freqend>
+  <chanwidth>20</chanwidth>
+  <chansep>20</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+</freqband>
+<freqband id="NA20_5745_5865">
+  <freqstart>5745</freqstart>
+  <freqend>5865</freqend>
+  <chanwidth>20</chanwidth>
+  <chansep>20</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+  <flags>IEEE80211_CHAN_HT20</flags>
+</freqband>
+<freqband id="NA40_5745_5845">
+  <freqstart>5745</freqstart>
+  <freqend>5845</freqend>
+  <chanwidth>40</chanwidth>
+  <chansep>20</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+  <flags>IEEE80211_CHAN_HT40</flags>
 </freqband>
 <freqband id="F1_5660_5700">
   <freqstart>5660</freqstart> <freqend>5700</freqend>
