@@ -456,6 +456,7 @@ vop_stdpathconf(struct vop_pathconf_args *ap)
 		case _PC_MAC_PRESENT:
 		case _PC_NAMEDATTR_ENABLED:
 		case _PC_HAS_NAMEDATTR:
+		case _PC_HAS_HIDDENSYSTEM:
 			*ap->a_retval = 0;
 			return (0);
 		default:
