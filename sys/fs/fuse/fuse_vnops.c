@@ -91,6 +91,7 @@
 #include <sys/vmmeter.h>
 #define EXTERR_CATEGORY EXTERR_CAT_FUSE_VNOPS
 #include <sys/exterrvar.h>
+#include <sys/sysent.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -374,6 +375,84 @@ fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
 	return (0);
 }
 
+/* Send FUSE_IOCTL for this node */
+static int
+fuse_vnop_do_ioctl(struct vnode *vp, u_long cmd, void *arg, int fflag,
+	struct ucred *cred, struct thread *td)
+{
+	struct fuse_dispatcher fdi;
+	struct fuse_ioctl_in *fii;
+	struct fuse_ioctl_out *fio;
+	struct fuse_filehandle *fufh;
+	uint32_t flags = 0;
+	uint32_t insize = 0;
+	uint32_t outsize = 0;
+	int err;
+
+	err = fuse_filehandle_getrw(vp, fflag, &fufh, cred, td->td_proc->p_pid);
+	if (err != 0)
+		return (err);
+
+	if (vnode_isdir(vp)) {
+		struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
+
+		if (!fuse_libabi_geq(data, 7, 18))
+			return (ENOTTY);
+		flags |= FUSE_IOCTL_DIR;
+	}
+#ifdef __LP64__
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+		flags |= FUSE_IOCTL_32BIT;
+#endif
+#else /* !defined(__LP64__) */
+	flags |= FUSE_IOCTL_32BIT;
+#endif
+
+	if ((cmd & IOC_OUT) != 0)
+		outsize = IOCPARM_LEN(cmd);
+	/* _IOWINT() sets IOC_VOID */
+	if ((cmd & (IOC_VOID | IOC_IN)) != 0)
+		insize = IOCPARM_LEN(cmd);
+
+	fdisp_init(&fdi, sizeof(*fii) + insize);
+	fdisp_make_vp(&fdi, FUSE_IOCTL, vp, td, cred);
+	fii = fdi.indata;
+	fii->fh = fufh->fh_id;
+	fii->flags = flags;
+	fii->cmd = cmd;
+	fii->arg = (uintptr_t)arg;
+	fii->in_size = insize;
+	fii->out_size = outsize;
+	if (insize > 0)
+		memcpy((char *)fii + sizeof(*fii), arg, insize);
+
+	err = fdisp_wait_answ(&fdi);
+	if (err != 0) {
+		if (err == ENOSYS)
+			err = ENOTTY;
+		goto out;
+	}
+
+	fio = fdi.answ;
+	if (fdi.iosize > sizeof(*fio)) {
+		size_t realoutsize = fdi.iosize - sizeof(*fio);
+
+		if (realoutsize > outsize) {
+			err = EIO;
+			goto out;
+		}
+		memcpy(arg, (char *)fio + sizeof(*fio), realoutsize);
+	}
+	if (fio->result > 0)
+		td->td_retval[0] = fio->result;
+	else
+		err = -fio->result;
+
+out:
+	fdisp_destroy(&fdi);
+	return (err);
+}
 
 /* Send FUSE_LSEEK for this node */
 static int
@@ -1294,25 +1373,29 @@ fuse_vnop_ioctl(struct vop_ioctl_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct mount *mp = vnode_mount(vp);
 	struct ucred *cred = ap->a_cred;
-	off_t *offp;
-	pid_t pid = ap->a_td->td_proc->p_pid;
+	struct thread *td = ap->a_td;
 	int err;
+
+	if (fuse_isdeadfs(vp)) {
+		return (ENXIO);
+	}
 
 	switch (ap->a_command) {
 	case FIOSEEKDATA:
 	case FIOSEEKHOLE:
 		/* Call FUSE_LSEEK, if we can, or fall back to vop_stdioctl */
 		if (fsess_maybe_impl(mp, FUSE_LSEEK)) {
+			off_t *offp = ap->a_data;
+			pid_t pid = td->td_proc->p_pid;
 			int whence;
 
-			offp = ap->a_data;
 			if (ap->a_command == FIOSEEKDATA)
 				whence = SEEK_DATA;
 			else
 				whence = SEEK_HOLE;
 
 			vn_lock(vp, LK_SHARED | LK_RETRY);
-			err = fuse_vnop_do_lseek(vp, ap->a_td, cred, pid, offp,
+			err = fuse_vnop_do_lseek(vp, td, cred, pid, offp,
 			    whence);
 			VOP_UNLOCK(vp);
 		}
@@ -1320,8 +1403,8 @@ fuse_vnop_ioctl(struct vop_ioctl_args *ap)
 			err = vop_stdioctl(ap);
 		break;
 	default:
-		/* TODO: implement FUSE_IOCTL */
-		err = ENOTTY;
+		err = fuse_vnop_do_ioctl(vp, ap->a_command, ap->a_data,
+		    ap->a_fflag, cred, td);
 		break;
 	}
 	return (err);

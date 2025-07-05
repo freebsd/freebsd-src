@@ -241,6 +241,12 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 		case FUSE_INTERRUPT:
 			printf(" unique=%" PRIu64, in.body.interrupt.unique);
 			break;
+		case FUSE_IOCTL:
+			printf(" flags=%#x cmd=%#x in_size=%" PRIu32
+				" out_size=%" PRIu32,
+				in.body.ioctl.flags, in.body.ioctl.cmd,
+				in.body.ioctl.in_size, in.body.ioctl.out_size);
+			break;
 		case FUSE_LINK:
 			printf(" oldnodeid=%" PRIu64, in.body.link.oldnodeid);
 			break;
@@ -678,6 +684,12 @@ void MockFS::audit_request(const mockfs_buf_in &in, ssize_t buflen) {
 		EXPECT_EQ(inlen, fih + sizeof(in.body.init));
 		EXPECT_EQ((size_t)buflen, inlen);
 		break;
+	case FUSE_IOCTL:
+		EXPECT_GE(inlen, fih + sizeof(in.body.ioctl));
+		EXPECT_EQ(inlen,
+			fih + sizeof(in.body.ioctl) + in.body.ioctl.in_size);
+		EXPECT_EQ((size_t)buflen, inlen);
+		break;
 	case FUSE_OPENDIR:
 		EXPECT_EQ(inlen, fih + sizeof(in.body.opendir));
 		EXPECT_EQ((size_t)buflen, inlen);
@@ -733,7 +745,6 @@ void MockFS::audit_request(const mockfs_buf_in &in, ssize_t buflen) {
 		break;
 	case FUSE_NOTIFY_REPLY:
 	case FUSE_BATCH_FORGET:
-	case FUSE_IOCTL:
 	case FUSE_POLL:
 	case FUSE_READDIRPLUS:
 		FAIL() << "Unsupported opcode?";
