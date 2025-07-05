@@ -367,6 +367,7 @@ cap_dns_init(void)
 ATF_TC(dns_no_limits);
 ATF_TC_HEAD(dns_no_limits, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_no_limits, tc)
 {
@@ -386,6 +387,7 @@ ATF_TC_BODY(dns_no_limits, tc)
 ATF_TC(dns_all_limits);
 ATF_TC_HEAD(dns_all_limits, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_all_limits, tc)
 {
@@ -417,6 +419,7 @@ ATF_TC_BODY(dns_all_limits, tc)
 ATF_TC(dns_name_limit);
 ATF_TC_HEAD(dns_name_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_name_limit, tc)
 {
@@ -448,6 +451,7 @@ ATF_TC_BODY(dns_name_limit, tc)
 ATF_TC(dns_addr_limit);
 ATF_TC_HEAD(dns_addr_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_addr_limit, tc)
 {
@@ -478,6 +482,7 @@ ATF_TC_BODY(dns_addr_limit, tc)
 ATF_TC(dns_inet_limit);
 ATF_TC_HEAD(dns_inet_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_inet_limit, tc)
 {
@@ -509,6 +514,7 @@ ATF_TC_BODY(dns_inet_limit, tc)
 ATF_TC(dns_inet6_limit);
 ATF_TC_HEAD(dns_inet6_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_inet6_limit, tc)
 {
@@ -540,6 +546,7 @@ ATF_TC_BODY(dns_inet6_limit, tc)
 ATF_TC(dns_name_inet_limit);
 ATF_TC_HEAD(dns_name_inet_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_name_inet_limit, tc)
 {
@@ -581,6 +588,7 @@ ATF_TC_BODY(dns_name_inet_limit, tc)
 ATF_TC(dns_name_inet6_limit);
 ATF_TC_HEAD(dns_name_inet6_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_name_inet6_limit, tc)
 {
@@ -622,6 +630,7 @@ ATF_TC_BODY(dns_name_inet6_limit, tc)
 ATF_TC(dns_addr_inet_limit);
 ATF_TC_HEAD(dns_addr_inet_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_addr_inet_limit, tc)
 {
@@ -662,6 +671,7 @@ ATF_TC_BODY(dns_addr_inet_limit, tc)
 ATF_TC(dns_addr_inet6_limit);
 ATF_TC_HEAD(dns_addr_inet6_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_addr_inet6_limit, tc)
 {
