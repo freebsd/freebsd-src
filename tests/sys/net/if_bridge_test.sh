@@ -1124,6 +1124,46 @@ vlan_ifconfig_tagged_cleanup()
 	vnet_cleanup
 }
 
+#
+# Test a vlan(4) "SVI" interface on top of a bridge.
+#
+atf_test_case "vlan_svi" "cleanup"
+vlan_svi_head()
+{
+	atf_set descr 'vlan bridge with an SVI'
+	atf_set require.user root
+}
+
+vlan_svi_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+
+	jexec one ifconfig ${epone}b up
+	jexec one ifconfig ${epone}b.20 create 192.0.2.1/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${bridge} addm ${epone}a tagged ${epone}a 20
+
+	svi=$(vnet_mkvlan)
+	ifconfig ${svi} vlan 20 vlandev ${bridge}
+	ifconfig ${svi} inet 192.0.2.2/24 up
+
+	atf_check -s exit:0 -o ignore ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_svi_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -1148,4 +1188,5 @@ atf_init_test_cases()
 	atf_add_test_case "vlan_pvid_tagged"
 	atf_add_test_case "vlan_filtering"
 	atf_add_test_case "vlan_ifconfig_tagged"
+	atf_add_test_case "vlan_svi"
 }

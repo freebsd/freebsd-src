@@ -847,6 +847,7 @@ bridge_clone_create(struct if_clone *ifc, char *name, size_t len,
 	ifp->if_softc = sc;
 	if_initname(ifp, bridge_name, ifd->unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_capabilities = ifp->if_capenable = IFCAP_VLAN_HWTAGGING;
 	ifp->if_ioctl = bridge_ioctl;
 #ifdef ALTQ
 	ifp->if_start = bridge_altq_start;
@@ -2484,16 +2485,17 @@ bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct ether_header *eh;
 	struct ifnet *dst_if;
 	int error = 0;
+	ether_vlanid_t vlan;
 
 	sc = ifp->if_softc;
 
 	ETHER_BPF_MTAP(ifp, m);
 
 	eh = mtod(m, struct ether_header *);
+	vlan = VLANTAGOF(m);
 
 	if (((m->m_flags & (M_BCAST|M_MCAST)) == 0) &&
-	    (dst_if = bridge_rtlookup(sc, eh->ether_dhost, DOT1Q_VID_NULL)) !=
-	    NULL) {
+	    (dst_if = bridge_rtlookup(sc, eh->ether_dhost, vlan)) != NULL) {
 		error = bridge_enqueue(sc, dst_if, m, NULL);
 	} else
 		bridge_broadcast(sc, ifp, m, 0);
@@ -2894,6 +2896,15 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		}							\
 		if ((iface) != bifp)					\
 			ETHER_BPF_MTAP(iface, m);			\
+		/* Pass tagged packets to if_vlan, if it's loaded */	\
+		if (VLANTAGOF(m) != 0) {				\
+			if (bifp->if_vlantrunk == NULL) {		\
+				m_freem(m);				\
+				return (NULL);				\
+			}						\
+			(*vlan_input_p)(bifp, m);			\
+			return (NULL);					\
+		}							\
 		return (m);						\
 	}								\
 									\
@@ -2949,6 +2960,30 @@ static void
 bridge_inject(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc;
+
+	if (ifp->if_type == IFT_L2VLAN) {
+		/*
+		 * vlan(4) gives us the vlan ifnet, so we need to get the
+		 * bridge softc to get a pointer to ether_input to send the
+		 * packet to.
+		 */
+		struct ifnet *bifp = NULL;
+
+		if (vlan_trunkdev_p == NULL) {
+			m_freem(m);
+			return;
+		}
+
+		bifp = vlan_trunkdev_p(ifp);
+		if (bifp == NULL) {
+			m_freem(m);
+			return;
+		}
+
+		sc = if_getsoftc(bifp);
+		sc->sc_if_input(ifp, m);
+		return;
+	}
 
 	KASSERT((if_getcapenable(ifp) & IFCAP_NETMAP) != 0,
 	    ("%s: iface %s is not running in netmap mode",

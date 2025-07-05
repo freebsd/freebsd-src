@@ -281,6 +281,11 @@ multiple interfaces on different VLANs.
 Incoming frames with an 802.1Q tag will be assigned to the appropriate
 VLAN.
 .Pp
+Traffic sent to or from the host is not assigned to a VLAN by default.
+To allow the host to communicate on a VLAN, configure a
+.Xr vlan 4
+interface on the bridge and (if necessary) assign IP addresses there.
+.Pp
 By default no access control is enabled, so any interface may
 participate in any VLAN.
 .Pp
@@ -581,6 +586,7 @@ ifconfig bridge0 addm fxp0 addm gif0 up
 .Xr ipfw 4 ,
 .Xr netmap 4 ,
 .Xr pf 4 ,
+.Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
