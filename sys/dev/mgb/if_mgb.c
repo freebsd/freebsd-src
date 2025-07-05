@@ -1436,7 +1436,7 @@ mgb_hw_teardown(struct mgb_softc *sc)
 
 	/* Stop MAC */
 	CSR_CLEAR_REG(sc, MGB_MAC_RX, MGB_MAC_ENBL);
-	CSR_WRITE_REG(sc, MGB_MAC_TX, MGB_MAC_ENBL);
+	CSR_CLEAR_REG(sc, MGB_MAC_TX, MGB_MAC_ENBL);
 	if ((err = mgb_wait_for_bits(sc, MGB_MAC_RX, MGB_MAC_DSBL, 0)))
 		return (err);
 	if ((err = mgb_wait_for_bits(sc, MGB_MAC_TX, MGB_MAC_DSBL, 0)))
