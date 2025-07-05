@@ -211,6 +211,8 @@ bridge_status(if_ctx *ctx)
 			else
 				printf(" <unknown state %d>", state);
 		}
+		if (member->ifbr_untagged != 0)
+			printf(" untagged %u", (unsigned)member->ifbr_untagged);
 		printf("\n");
 	}
 
@@ -577,6 +579,45 @@ setbridge_ifpathcost(if_ctx *ctx, const char *ifn, const char *cost)
 }
 
 static void
+setbridge_untagged(if_ctx *ctx, const char *ifn, const char *vlanid)
+{
+	struct ifbreq req;
+	u_long val;
+
+	memset(&req, 0, sizeof(req));
+
+	if (get_val(vlanid, &val) < 0)
+		errx(1, "invalid VLAN identifier: %s", vlanid);
+
+	/*
+	 * Reject vlan 0, since it's not a valid vlan identifier and has a
+	 * special meaning in the kernel interface.
+	 */
+	if (val == 0)
+		errx(1, "invalid VLAN identifier: %lu", val);
+
+	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
+	req.ifbr_untagged = val;
+
+	if (do_cmd(ctx, BRDGSIFUNTAGGED, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFUNTAGGED %s", vlanid);
+}
+
+static void
+unsetbridge_untagged(if_ctx *ctx, const char *ifn, int dummy __unused)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+
+	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
+	req.ifbr_untagged = 0;
+
+	if (do_cmd(ctx, BRDGSIFUNTAGGED, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFUNTAGGED");
+}
+
+static void
 setbridge_ifmaxaddr(if_ctx *ctx, const char *ifn, const char *arg)
 {
 	struct ifbreq req;
@@ -612,15 +653,25 @@ setbridge_timeout(if_ctx *ctx, const char *arg, int dummy __unused)
 static void
 setbridge_private(if_ctx *ctx, const char *val, int dummy __unused)
 {
-
 	do_bridgeflag(ctx, val, IFBIF_PRIVATE, 1);
 }
 
 static void
 unsetbridge_private(if_ctx *ctx, const char *val, int dummy __unused)
 {
-
 	do_bridgeflag(ctx, val, IFBIF_PRIVATE, 0);
+}
+
+static void
+setbridge_vlanfilter(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	do_bridgeflag(ctx, val, IFBIF_VLANFILTER, 1);
+}
+
+static void
+unsetbridge_vlanfilter(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	do_bridgeflag(ctx, val, IFBIF_VLANFILTER, 0);
 }
 
 static struct cmd bridge_cmds[] = {
@@ -659,6 +710,10 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
 	DEF_CMD_ARG2("ifmaxaddr",	setbridge_ifmaxaddr),
+	DEF_CMD_ARG("vlanfilter",	setbridge_vlanfilter),
+	DEF_CMD_ARG("-vlanfilter",	unsetbridge_vlanfilter),
+	DEF_CMD_ARG2("untagged",	setbridge_untagged),
+	DEF_CMD_ARG("-untagged",	unsetbridge_untagged),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
 	DEF_CMD_ARG("private",		setbridge_private),
 	DEF_CMD_ARG("-private",		unsetbridge_private),

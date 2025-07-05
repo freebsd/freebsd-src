@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 24, 2025
+.Dd July 5, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2695,6 +2695,25 @@ Set the maximum number of hosts allowed from an interface, packets with unknown
 source addresses are dropped until an existing host cache entry expires or is
 removed.
 Set to 0 to disable.
+.El
+.Ss Bridge VLAN Filtering Parameters
+The behaviour of these options is described in the
+.Dq VLAN SUPPORT
+section of
+.Xr bridge 4 .
+.Bl -tag -width indent
+.It Cm vlanfilter Ar interface
+Enable VLAN filtering on an interface.
+.It Cm -vlanfilter Ar interface
+Disable VLAN filtering on an interface.
+.It Cm untagged Ar interface Ar vlan-id
+Set the untagged VLAN identifier for an interface.
+.Pp
+Setting
+.Cm untagged
+will automatically enable VLAN filtering on the interface.
+.It Cm -untagged Ar interface Ar vlan-id
+Clear the untagged VLAN identifier for an interface.
 .El
 .Ss Link Aggregation and Link Failover Parameters
 The following parameters are specific to lagg interfaces:

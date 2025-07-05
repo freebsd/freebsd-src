@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 28, 2025
+.Dd July 5, 2025
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -271,6 +271,35 @@ by setting the
 .Va net.link.bridge.log_stp
 node using
 .Xr sysctl 8 .
+.Sh VLAN SUPPORT
+The
+.Nm
+driver has limited support for virtual LANs (VLANs).
+The bridge implements independent VLAN learning, i.e. MAC addresses are
+learned on a per-VLAN basis, and the same MAC address may be learned on
+multiple interfaces on different VLANs.
+Incoming frames with an 802.1Q tag will be assigned to the appropriate
+VLAN.
+.Pp
+By default no access control is enabled, so any interface may
+participate in any VLAN.
+.Pp
+VLAN filtering may be enabled on an interface using the
+.Xr ifconfig 8
+.Cm vlanfilter
+option.
+When VLAN filtering is enabled, an interface may only send and receive
+untagged frames.
+The interface's untagged VLAN ID may be configured using the
+.Xr ifconfig 8
+.Cm untagged
+option.
+If an untagged VLAN ID is configured, incoming frames will be assigned
+to that VLAN, and the interface may receive outgoing untagged frames
+in that VLAN.
+.Pp
+There is no support for adding or removing 802.1Q tags from frames
+processed by the bridge.
 .Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
