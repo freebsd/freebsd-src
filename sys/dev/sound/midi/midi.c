@@ -140,31 +140,7 @@ struct snd_midi {
 
 TAILQ_HEAD(, snd_midi) midi_devs;
 
-/*
- * /dev/midistat variables and declarations, protected by midistat_lock
- */
-
 struct sx mstat_lock;
-
-static int      midistat_isopen = 0;
-static struct sbuf midistat_sbuf;
-static struct cdev *midistat_dev;
-
-/*
- * /dev/midistat	dev_t declarations
- */
-
-static d_open_t midistat_open;
-static d_close_t midistat_close;
-static d_read_t midistat_read;
-
-static struct cdevsw midistat_cdevsw = {
-	.d_version = D_VERSION,
-	.d_open = midistat_open,
-	.d_close = midistat_close,
-	.d_read = midistat_read,
-	.d_name = "midistat",
-};
 
 /*
  * /dev/rmidi dev_t declarations, struct variable access is protected by
@@ -194,7 +170,6 @@ static struct cdevsw midi_cdevsw = {
  */
 
 static int      midi_destroy(struct snd_midi *, int);
-static int      midistat_prepare(struct sbuf * s);
 static int      midi_load(void);
 static int      midi_unload(void);
 
@@ -203,8 +178,6 @@ static int      midi_unload(void);
  */
 SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Midi driver");
-static SYSCTL_NODE(_hw_midi, OID_AUTO, stat, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "Status device");
 
 int             midi_debug;
 /* XXX: should this be moved into debug.midi? */
@@ -215,10 +188,6 @@ SYSCTL_INT(_hw_midi, OID_AUTO, dumpraw, CTLFLAG_RW, &midi_dumpraw, 0, "");
 
 int             midi_instroff;
 SYSCTL_INT(_hw_midi, OID_AUTO, instroff, CTLFLAG_RW, &midi_instroff, 0, "");
-
-int             midistat_verbose;
-SYSCTL_INT(_hw_midi_stat, OID_AUTO, verbose, CTLFLAG_RW, 
-	&midistat_verbose, 0, "");
 
 #define MIDI_DEBUG(l,a)	if(midi_debug>=l) a
 /*
@@ -896,104 +865,6 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	return (revents);
 }
 
-/*
- * /dev/midistat device functions
- *
- */
-static int
-midistat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
-{
-	int error;
-
-	MIDI_DEBUG(1, printf("midistat_open\n"));
-
-	midistat_lock();
-	if (midistat_isopen) {
-		midistat_unlock();
-		return EBUSY;
-	}
-	midistat_isopen = 1;
-	sbuf_new(&midistat_sbuf, NULL, 4096, SBUF_AUTOEXTEND);
-	error = (midistat_prepare(&midistat_sbuf) > 0) ? 0 : ENOMEM;
-	if (error)
-		midistat_isopen = 0;
-	midistat_unlock();
-	return error;
-}
-
-static int
-midistat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
-{
-	MIDI_DEBUG(1, printf("midistat_close\n"));
-	midistat_lock();
-	if (!midistat_isopen) {
-		midistat_unlock();
-		return EBADF;
-	}
-	sbuf_delete(&midistat_sbuf);
-	midistat_isopen = 0;
-	midistat_unlock();
-	return 0;
-}
-
-static int
-midistat_read(struct cdev *i_dev, struct uio *uio, int flag)
-{
-	long l;
-	int err;
-
-	MIDI_DEBUG(4, printf("midistat_read\n"));
-	midistat_lock();
-	if (!midistat_isopen) {
-		midistat_unlock();
-		return EBADF;
-	}
-	if (uio->uio_offset < 0 || uio->uio_offset > sbuf_len(&midistat_sbuf)) {
-		midistat_unlock();
-		return EINVAL;
-	}
-	err = 0;
-	l = lmin(uio->uio_resid, sbuf_len(&midistat_sbuf) - uio->uio_offset);
-	if (l > 0) {
-		err = uiomove(sbuf_data(&midistat_sbuf) + uio->uio_offset, l,
-		    uio);
-	}
-	midistat_unlock();
-	return err;
-}
-
-/*
- * Module library functions
- */
-
-static int
-midistat_prepare(struct sbuf *s)
-{
-	struct snd_midi *m;
-
-	midistat_lockassert();
-
-	sbuf_printf(s, "FreeBSD Midi Driver (midi2)\n");
-	if (TAILQ_EMPTY(&midi_devs)) {
-		sbuf_printf(s, "No devices installed.\n");
-		sbuf_finish(s);
-		return sbuf_len(s);
-	}
-	sbuf_printf(s, "Installed devices:\n");
-
-	TAILQ_FOREACH(m, &midi_devs, link) {
-		mtx_lock(&m->lock);
-		sbuf_printf(s, "%s [%d/%d:%s]", m->name, m->unit, m->channel,
-		    MPU_PROVIDER(m, m->cookie));
-		sbuf_printf(s, "%s", MPU_DESCR(m, m->cookie, midistat_verbose));
-		sbuf_printf(s, "\n");
-		mtx_unlock(&m->lock);
-	}
-
-	sbuf_finish(s);
-	return sbuf_len(s);
-}
-
 #ifdef notdef
 /*
  * Convert IOCTL command to string for debugging
@@ -1056,18 +927,11 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 	return 0;
 }
 
-/*
- * Load and unload functions, creates the /dev/midistat device
- */
-
 static int
 midi_load(void)
 {
 	sx_init(&mstat_lock, "midistat lock");
 	TAILQ_INIT(&midi_devs);
-
-	midistat_dev = make_dev(&midistat_cdevsw, MIDI_DEV_MIDICTL, UID_ROOT,
-	    GID_WHEEL, 0666, "midistat");
 
 	return 0;
 }
@@ -1081,9 +945,6 @@ midi_unload(void)
 	MIDI_DEBUG(1, printf("midi_unload()\n"));
 	retval = EBUSY;
 	midistat_lock();
-	if (midistat_isopen)
-		goto exit0;
-
 	TAILQ_FOREACH_SAFE(m, &midi_devs, link, tmp) {
 		mtx_lock(&m->lock);
 		if (m->busy)
@@ -1091,10 +952,9 @@ midi_unload(void)
 		else
 			retval = midi_destroy(m, 1);
 		if (retval)
-			goto exit1;
+			goto exit;
 	}
 	midistat_unlock();
-	destroy_dev(midistat_dev);
 
 	/*
 	 * Made it here then unload is complete
@@ -1102,9 +962,8 @@ midi_unload(void)
 	sx_destroy(&mstat_lock);
 	return 0;
 
-exit1:
+exit:
 	mtx_unlock(&m->lock);
-exit0:
 	midistat_unlock();
 	if (retval)
 		MIDI_DEBUG(2, printf("midi_unload: failed\n"));
