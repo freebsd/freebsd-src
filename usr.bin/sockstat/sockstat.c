@@ -1392,6 +1392,8 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				if (sp != NULL)
 					formataddr(&sp->laddr->address,
 								buf, bufsize);
+				else
+					strlcpy(buf, "??", bufsize);
 			} else
 				strlcpy(buf, "??", bufsize);
 			printf(" %-*s", cw->splice_address, buf);
