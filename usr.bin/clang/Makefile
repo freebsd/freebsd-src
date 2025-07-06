@@ -5,6 +5,10 @@ SUBDIR+=	clang
 .endif
 
 .if !defined(TOOLS_PREFIX)
+.if ${MK_CLANG} != "no"
+SUBDIR+=	clang-scan-deps
+.endif
+
 # LLVM binutils are needed to support features such as LTO, so we build them
 # by default if clang is enabled. If MK_LLVM_BINUTILS is set, we also use them
 # as the default binutils (ar,nm,addr2line, etc.).
