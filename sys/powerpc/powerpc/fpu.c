@@ -65,8 +65,19 @@ save_fpu_int(struct thread *td)
 	 * Save the floating-point registers and FPSCR to the PCB
 	 */
 	if (pcb->pcb_flags & PCB_VSX) {
-	#define SFP(n)   __asm ("stxvw4x " #n ", 0,%0" \
+#if _BYTE_ORDER == _BIG_ENDIAN
+	#define SFP(n)   __asm("stxvw4x " #n ", 0,%0" \
 			:: "b"(&pcb->pcb_fpu.fpr[n]));
+#else
+	/*
+	 * stxvw2x will swap words within the FP double word on LE systems,
+	 * leading to corruption if VSX is used to store state and FP is
+	 * subsequently used to restore state.
+	 * Use stxvd2x instead.
+	 */
+	#define SFP(n)   __asm("stxvd2x " #n ", 0,%0" \
+			:: "b"(&pcb->pcb_fpu.fpr[n]));
+#endif
 		SFP(0);		SFP(1);		SFP(2);		SFP(3);
 		SFP(4);		SFP(5);		SFP(6);		SFP(7);
 		SFP(8);		SFP(9);		SFP(10);	SFP(11);
@@ -77,7 +88,7 @@ save_fpu_int(struct thread *td)
 		SFP(28);	SFP(29);	SFP(30);	SFP(31);
 	#undef SFP
 	} else {
-	#define SFP(n)   __asm ("stfd " #n ", 0(%0)" \
+	#define SFP(n)   __asm("stfd " #n ", 0(%0)" \
 			:: "b"(&pcb->pcb_fpu.fpr[n].fpr));
 		SFP(0);		SFP(1);		SFP(2);		SFP(3);
 		SFP(4);		SFP(5);		SFP(6);		SFP(7);
@@ -150,8 +161,19 @@ enable_fpu(struct thread *td)
 			  :: "b"(&pcb->pcb_fpu.fpscr));
 
 	if (pcb->pcb_flags & PCB_VSX) {
-	#define LFP(n)   __asm ("lxvw4x " #n ", 0,%0" \
+#if _BYTE_ORDER == _BIG_ENDIAN
+	#define LFP(n)   __asm("lxvw4x " #n ", 0,%0" \
 			:: "b"(&pcb->pcb_fpu.fpr[n]));
+#else
+	/*
+	 * lxvw4x will swap words within the FP double word on LE systems,
+	 * leading to corruption if FP is used to store state and VSX is
+	 * subsequently used to restore state.
+	 * Use lxvd2x instead.
+	 */
+	#define LFP(n)   __asm("lxvd2x " #n ", 0,%0" \
+			:: "b"(&pcb->pcb_fpu.fpr[n]));
+#endif
 		LFP(0);		LFP(1);		LFP(2);		LFP(3);
 		LFP(4);		LFP(5);		LFP(6);		LFP(7);
 		LFP(8);		LFP(9);		LFP(10);	LFP(11);
@@ -162,7 +184,7 @@ enable_fpu(struct thread *td)
 		LFP(28);	LFP(29);	LFP(30);	LFP(31);
 	#undef LFP
 	} else {
-	#define LFP(n)   __asm ("lfd " #n ", 0(%0)" \
+	#define LFP(n)   __asm("lfd " #n ", 0(%0)" \
 			:: "b"(&pcb->pcb_fpu.fpr[n].fpr));
 		LFP(0);		LFP(1);		LFP(2);		LFP(3);
 		LFP(4);		LFP(5);		LFP(6);		LFP(7);
