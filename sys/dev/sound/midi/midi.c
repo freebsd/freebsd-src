@@ -79,13 +79,6 @@ enum midi_states {
 };
 
 /*
- * The MPU interface current has init() uninit() inqsize() outqsize()
- * callback() : fiddle with the tx|rx status.
- */
-
-#include "mpu_if.h"
-
-/*
  * /dev/rmidi	Structure definitions
  */
 
