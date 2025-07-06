@@ -56,17 +56,6 @@ METHOD void callback {
 	int	_flags;
 };
 
-METHOD const char * provider {
-	struct snd_midi *_kobj;
-	void   *_cookie;
-};
-
-METHOD const char * descr {
-	struct snd_midi *_kobj;
-	void   *_cookie;
-	int	_verbosity;
-};
-
 METHOD int uninit {
 	struct snd_midi *_kobj;
 	void   *_cookie;

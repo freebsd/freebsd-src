@@ -88,8 +88,6 @@ static int mpu401_minqsize(struct snd_midi *, void *);
 static int mpu401_moutqsize(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
 static void mpu401_mcallbackp(struct snd_midi *, void *, int);
-static const char *mpu401_mdescr(struct snd_midi *, void *, int);
-static const char *mpu401_mprovider(struct snd_midi *, void *);
 
 static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_init, mpu401_minit),
@@ -98,8 +96,6 @@ static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_outqsize, mpu401_moutqsize),
 	KOBJMETHOD(mpu_callback, mpu401_mcallback),
 	KOBJMETHOD(mpu_callbackp, mpu401_mcallbackp),
-	KOBJMETHOD(mpu_descr, mpu401_mdescr),
-	KOBJMETHOD(mpu_provider, mpu401_mprovider),
 	KOBJMETHOD_END
 };
 
@@ -280,17 +276,4 @@ mpu401_mcallbackp(struct snd_midi *sm, void *arg, int flags)
 {
 /*	printf("mpu401_callbackp\n"); */
 	mpu401_mcallback(sm, arg, flags);
-}
-
-static const char *
-mpu401_mdescr(struct snd_midi *sm, void *arg, int verbosity)
-{
-
-	return "descr mpu401";
-}
-
-static const char *
-mpu401_mprovider(struct snd_midi *m, void *arg)
-{
-	return "provider mpu401";
 }
