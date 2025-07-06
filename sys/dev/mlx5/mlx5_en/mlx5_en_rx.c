@@ -467,7 +467,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 		break;
 	}
 
-	mlx5e_accel_ipsec_handle_rx(mb, cqe, mr);
+	mlx5e_accel_ipsec_handle_rx(ifp, mb, cqe, mr);
 }
 
 static inline void
