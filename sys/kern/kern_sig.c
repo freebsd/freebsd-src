@@ -1050,8 +1050,7 @@ osigaction(struct thread *td, struct osigaction_args *uap)
 int
 osigreturn(struct thread *td, struct osigreturn_args *uap)
 {
-
-	return (nosys(td, (struct nosys_args *)uap));
+	return (kern_nosys(td, 0));
 }
 #endif
 #endif /* COMPAT_43 */
@@ -4287,6 +4286,12 @@ struct nosys_args {
 /* ARGSUSED */
 int
 nosys(struct thread *td, struct nosys_args *args)
+{
+	return (kern_nosys(td, args->dummy));
+}
+
+int
+kern_nosys(struct thread *td, int dummy)
 {
 	struct proc *p;
 
