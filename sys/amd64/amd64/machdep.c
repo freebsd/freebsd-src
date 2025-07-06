@@ -758,6 +758,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		printf("%23s %12s %12s %8s %4s\n",
 		    "Type", "Physical", "Virtual", "#Pages", "Attr");
 
+	TUNABLE_INT_FETCH("machdep.efirt.regs", &efi_map_regs);
 	for (i = 0, p = map; i < ndesc; i++,
 	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		if (boothowto & RB_VERBOSE) {
@@ -795,10 +796,13 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		}
 
 		switch (p->md_type) {
-		case EFI_MD_TYPE_CODE:
-		case EFI_MD_TYPE_DATA:
 		case EFI_MD_TYPE_BS_CODE:
 		case EFI_MD_TYPE_BS_DATA:
+			if (EFI_MAP_BOOTTYPE_ALLOWED(p->md_type))
+				continue;
+			/* FALLTHROUGH */
+		case EFI_MD_TYPE_CODE:
+		case EFI_MD_TYPE_DATA:
 		case EFI_MD_TYPE_FREE:
 			/*
 			 * We're allowed to use any entry with these types.
