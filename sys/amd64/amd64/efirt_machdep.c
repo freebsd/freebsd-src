@@ -56,6 +56,15 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_radix.h>
 
+/* The EFI regions we're allowed to map. */
+#define EFI_ALLOWED_TYPES_MASK ( \
+    1u << EFI_MD_TYPE_BS_CODE | 1u << EFI_MD_TYPE_BS_DATA | \
+    1u << EFI_MD_TYPE_RT_CODE | 1u << EFI_MD_TYPE_RT_DATA | \
+    1u << EFI_MD_TYPE_FIRMWARE \
+)
+
+uint32_t efi_map_regs;
+
 static pml5_entry_t *efi_pml5;
 static pml4_entry_t *efi_pml4;
 static vm_object_t obj_1t1_pt;
@@ -198,9 +207,16 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		pmap_pinit_pml4(efi_pmltop_page);
 	}
 
+	if ((efi_map_regs & ~EFI_ALLOWED_TYPES_MASK) != 0) {
+		printf("Ignoring the following runtime EFI regions: %#x\n",
+		    efi_map_regs & ~EFI_ALLOWED_TYPES_MASK);
+		efi_map_regs &= EFI_ALLOWED_TYPES_MASK;
+	}
+
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
 	    descsz)) {
-		if ((p->md_attr & EFI_MD_ATTR_RT) == 0)
+		if ((p->md_attr & EFI_MD_ATTR_RT) == 0 &&
+		    !EFI_MAP_BOOTTYPE_ALLOWED(p->md_type))
 			continue;
 		if (p->md_virt != 0 && p->md_virt != p->md_phys) {
 			if (bootverbose)
