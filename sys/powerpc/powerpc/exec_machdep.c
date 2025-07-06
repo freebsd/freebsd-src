@@ -214,10 +214,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sfpsize = sizeof(sf);
 		#ifdef __powerpc64__
 		/*
-		 * 64-bit PPC defines a 288 byte scratch region
-		 * below the stack.
+		 * 64-bit PPC defines a 512 byte red zone below
+		 * the existing stack (ELF ABI v2 §2.2.2.4)
 		 */
-		rndfsize = 288 + roundup(sizeof(sf), 48);
+		rndfsize = 512 + roundup(sizeof(sf), 48);
 		#else
 		rndfsize = roundup(sizeof(sf), 16);
 		#endif
