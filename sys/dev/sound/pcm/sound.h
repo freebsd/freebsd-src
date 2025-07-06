@@ -150,7 +150,6 @@ struct snd_mixer;
 
 enum {
 	SND_DEV_CTL = 0,	/* Control port /dev/mixer */
-	SND_DEV_SEQ,		/* Sequencer /dev/sequencer */
 	SND_DEV_MIDIN,		/* Raw midi access */
 	SND_DEV_DSP,		/* Digitized voice /dev/dsp */
 	SND_DEV_STATUS,		/* /dev/sndstat */

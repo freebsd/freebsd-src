@@ -52,7 +52,6 @@
 
 #define	SS_TYPE_PCM		1
 #define	SS_TYPE_MIDI		2
-#define	SS_TYPE_SEQUENCER	3
 
 static d_open_t sndstat_open;
 static void sndstat_close(void *);
@@ -1165,8 +1164,6 @@ sndstat_register(device_t dev, char *str)
 		type = SS_TYPE_PCM;
 	else if (!strcmp(devtype, "midi"))
 		type = SS_TYPE_MIDI;
-	else if (!strcmp(devtype, "sequencer"))
-		type = SS_TYPE_SEQUENCER;
 	else
 		return (EINVAL);
 
