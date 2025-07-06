@@ -180,6 +180,9 @@ bool ipsec_accel_output(struct ifnet *ifp, struct mbuf *m,
     struct inpcb *inp, struct secpolicy *sp, struct secasvar *sav, int af,
     int mtu, int *hwassist);
 void ipsec_accel_forget_sav(struct secasvar *sav);
+struct xform_history;
+bool ipsec_accel_fill_xh(if_t ifp, uint32_t drv_spi,
+    struct xform_history *xh);
 #else
 #define	ipsec_accel_input(a, b, c) (ENXIO)
 #define	ipsec_accel_output(a, b, c, d, e, f, g, h) ({	\
@@ -187,6 +190,7 @@ void ipsec_accel_forget_sav(struct secasvar *sav);
 	false;						\
 })
 #define	ipsec_accel_forget_sav(a)
+#define	ipsec_accel_fill_xh(a, b, c)	(false)
 #endif
 
 struct ipsec_accel_in_tag *ipsec_accel_input_tag_lookup(const struct mbuf *);

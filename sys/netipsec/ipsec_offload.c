@@ -94,6 +94,7 @@ struct ifp_handle_sav {
 	size_t hdr_ext_size;
 	uint64_t cnt_octets;
 	uint64_t cnt_allocs;
+	struct xform_history xfh;
 };
 
 #define	IFP_HS_HANDLED	0x00000001
@@ -412,6 +413,10 @@ ipsec_accel_handle_sav(struct secasvar *sav, struct ifnet *ifp,
 	ihs->ifdata = priv;
 	ihs->flags = flags;
 	ihs->hdr_ext_size = esp_hdrsiz(sav);
+	memcpy(&ihs->xfh.dst, &sav->sah->saidx.dst, sizeof(ihs->xfh.dst));
+	ihs->xfh.spi = sav->spi;
+	ihs->xfh.proto = sav->sah->saidx.proto;
+	ihs->xfh.mode = sav->sah->saidx.mode;
 	mtx_lock(&ipsec_accel_sav_tmp);
 	CK_LIST_FOREACH(i, &sav->accel_ifps, sav_link) {
 		if (i->ifp == ifp) {
@@ -1160,6 +1165,22 @@ ipsec_accel_key_setaccelif_impl(struct secasvar *sav)
 	}
 	NET_EPOCH_EXIT(et);
 	return (m);
+}
+
+bool
+ipsec_accel_fill_xh(if_t ifp, uint32_t drv_spi, struct xform_history *xh)
+{
+	struct ifp_handle_sav *i;
+
+	if (drv_spi < IPSEC_ACCEL_DRV_SPI_MIN ||
+	    drv_spi > IPSEC_ACCEL_DRV_SPI_MAX)
+		return (false);
+
+	i = DRVSPI_SA_PCTRIE_LOOKUP(&drv_spi_pctrie, drv_spi);
+	if (i == NULL)
+		return (false);
+	memcpy(xh, &i->xfh, sizeof(*xh));
+	return (true);
 }
 
 #endif	/* IPSEC_OFFLOAD */
