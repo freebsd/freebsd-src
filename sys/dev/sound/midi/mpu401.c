@@ -118,24 +118,12 @@ mpu401_intr(struct mpu401 *m)
 	int i;
 	int s;
 
-/*
-	printf("mpu401_intr\n");
-*/
 #define RXRDY(m) ( (STATUS(m) & MPU_INPUTBUSY) == 0)
 #define TXRDY(m) ( (STATUS(m) & MPU_OUTPUTBUSY) == 0)
-#if 0
-#define D(x,l) printf("mpu401_intr %d %x %s %s\n",l, x, x&MPU_INPUTBUSY?"RX":"", x&MPU_OUTPUTBUSY?"TX":"")
-#else
-#define D(x,l)
-#endif
 	i = 0;
 	s = STATUS(m);
-	D(s, 1);
 	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
 		b[i] = READ(m);
-/*
-		printf("mpu401_intr in i %d d %d\n", i, b[i]);
-*/
 		i++;
 		s = STATUS(m);
 	}
@@ -144,15 +132,9 @@ mpu401_intr(struct mpu401 *m)
 	i = 0;
 	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
 		if (midi_out(m->mid, b, 1)) {
-/*
-			printf("mpu401_intr out i %d d %d\n", i, b[0]);
-*/
 
 			WRITE(m, *b);
 		} else {
-/*
-			printf("mpu401_intr write: no output\n");
-*/
 			return 0;
 		}
 		i++;
@@ -258,13 +240,7 @@ static void
 mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
 {
 	struct mpu401 *m = arg;
-#if 0
-	printf("mpu401_callback %s %s %s %s\n",
-	    flags & M_RX ? "M_RX" : "",
-	    flags & M_TX ? "M_TX" : "",
-	    flags & M_RXEN ? "M_RXEN" : "",
-	    flags & M_TXEN ? "M_TXEN" : "");
-#endif
+
 	if (flags & M_TXEN && m->si) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
@@ -274,6 +250,5 @@ mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
 static void
 mpu401_mcallbackp(struct snd_midi *sm, void *arg, int flags)
 {
-/*	printf("mpu401_callbackp\n"); */
 	mpu401_mcallback(sm, arg, flags);
 }
