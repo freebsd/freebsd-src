@@ -797,40 +797,6 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	return (revents);
 }
 
-#ifdef notdef
-static char *
-midi_cmdname(int cmd)
-{
-	static struct {
-		int	cmd;
-		char   *name;
-	}     *tab, cmdtab_midiioctl[] = {
-#define A(x)	{x, ## x}
-		/*
-	         * Once we have some real IOCTLs define, the following will
-	         * be relavant.
-	         *
-	         * A(SNDCTL_MIDI_PRETIME), A(SNDCTL_MIDI_MPUMODE),
-	         * A(SNDCTL_MIDI_MPUCMD), A(SNDCTL_SYNTH_INFO),
-	         * A(SNDCTL_MIDI_INFO), A(SNDCTL_SYNTH_MEMAVL),
-	         * A(SNDCTL_FM_LOAD_INSTR), A(SNDCTL_FM_4OP_ENABLE),
-	         * A(MIOSPASSTHRU), A(MIOGPASSTHRU), A(AIONWRITE),
-	         * A(AIOGSIZE), A(AIOSSIZE), A(AIOGFMT), A(AIOSFMT),
-	         * A(AIOGMIX), A(AIOSMIX), A(AIOSTOP), A(AIOSYNC),
-	         * A(AIOGCAP),
-	         */
-#undef A
-		{
-			-1, "unknown"
-		},
-	};
-
-	for (tab = cmdtab_midiioctl; tab->cmd != cmd && tab->cmd != -1; tab++);
-	return tab->name;
-}
-
-#endif					/* notdef */
-
 /*
  * Single point of midi destructions.
  */
