@@ -4158,6 +4158,13 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		if (!NFSISSET_ATTRBIT(&dnp->n_vattr.na_suppattr,
 		    NFSATTRBIT_TIMECREATE))
 			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMECREATE);
+		if (!NFSISSET_ATTRBIT(&dnp->n_vattr.na_suppattr,
+		    NFSATTRBIT_HIDDEN) ||
+		    !NFSISSET_ATTRBIT(&dnp->n_vattr.na_suppattr,
+		    NFSATTRBIT_SYSTEM)) {
+			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN);
+			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM);
+		}
 	}
 
 	/*

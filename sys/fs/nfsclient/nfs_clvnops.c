@@ -1074,15 +1074,23 @@ nfs_setattr(struct vop_setattr_args *ap)
 	int error = 0;
 	u_quad_t tsize;
 	struct timespec ts;
+	struct nfsmount *nmp;
 
 #ifndef nolint
 	tsize = (u_quad_t)0;
 #endif
 
 	/*
-	 * Setting of flags and marking of atimes are not supported.
+	 * Only setting of UF_HIDDEN and UF_SYSTEM are supported and
+	 * only for NFSv4 servers that support them.
 	 */
-	if (vap->va_flags != VNOVAL)
+	nmp = VFSTONFS(vp->v_mount);
+	if (vap->va_flags != VNOVAL && (!NFSHASNFSV4(nmp) ||
+	    (vap->va_flags & ~(UF_HIDDEN | UF_SYSTEM)) != 0 ||
+	    ((vap->va_flags & UF_HIDDEN) != 0 &&
+	     !NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr, NFSATTRBIT_HIDDEN)) ||
+	    ((vap->va_flags & UF_SYSTEM) != 0 &&
+	     !NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr, NFSATTRBIT_SYSTEM))))
 		return (EOPNOTSUPP);
 
 	/*
@@ -1092,7 +1100,8 @@ nfs_setattr(struct vop_setattr_args *ap)
 	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
 	    vap->va_mtime.tv_sec != VNOVAL ||
 	    vap->va_birthtime.tv_sec != VNOVAL ||
-	    vap->va_mode != (mode_t)VNOVAL) &&
+	    vap->va_mode != (mode_t)VNOVAL ||
+	    vap->va_flags != (u_long)VNOVAL) &&
 	    (vp->v_mount->mnt_flag & MNT_RDONLY))
 		return (EROFS);
 	if (vap->va_size != VNOVAL) {
@@ -4750,6 +4759,15 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		break;
 	case _PC_HAS_NAMEDATTR:
 		if (has_namedattr)
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+		break;
+	case _PC_HAS_HIDDENSYSTEM:
+		if (NFS_ISV4(vp) && NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+		    NFSATTRBIT_HIDDEN) &&
+		    NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+		    NFSATTRBIT_SYSTEM))
 			*ap->a_retval = 1;
 		else
 			*ap->a_retval = 0;

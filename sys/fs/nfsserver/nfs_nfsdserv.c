@@ -403,8 +403,10 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	if (error)
 		goto nfsmout;
 
-	/* For NFSv4, only va_uid is used from nva2. */
+	/* For NFSv4, only va_uid and va_flags is used from nva2. */
 	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_OWNER);
+	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_HIDDEN);
+	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_SYSTEM);
 	preat_ret = nfsvno_getattr(vp, &nva2, nd, p, 1, &retbits);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = preat_ret;
@@ -463,6 +465,9 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		    &nva, &attrbits, exp, p);
 
 	if (!nd->nd_repstat && (nd->nd_flag & ND_NFSV4)) {
+	    u_long oldflags;
+
+	    oldflags = nva2.na_flags;
 	    /*
 	     * For V4, try setting the attributes in sets, so that the
 	     * reply bitmap will be correct for an error case.
@@ -530,6 +535,32 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODE);
 		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODESETMASKED))
 			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODESETMASKED);
+		}
+	    }
+	    if (!nd->nd_repstat &&
+		(NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN) ||
+		 NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM))) {
+		if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN)) {
+		    if ((nva.na_flags & UF_HIDDEN) != 0)
+			oldflags |= UF_HIDDEN;
+		    else
+			oldflags &= ~UF_HIDDEN;
+		}
+		if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM)) {
+		    if ((nva.na_flags & UF_SYSTEM) != 0)
+			oldflags |= UF_SYSTEM;
+		    else
+			oldflags &= ~UF_SYSTEM;
+		}
+		NFSVNO_ATTRINIT(&nva2);
+		NFSVNO_SETATTRVAL(&nva2, flags, oldflags);
+		nd->nd_repstat = nfsvno_setattr(vp, &nva2, nd->nd_cred, p,
+		    exp);
+		if (!nd->nd_repstat) {
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_HIDDEN);
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_SYSTEM);
 		}
 	    }
 
