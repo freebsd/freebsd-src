@@ -9979,7 +9979,7 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 	pd_entry_t *pde;
 	vm_offset_t va;
 	vm_page_t m, mpte;
-	bool changed;
+	bool changed, rv __diagused;
 
 	if (len == 0)
 		return;
@@ -10009,8 +10009,8 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 		if ((*pdpe & X86_PG_V) == 0)
 			panic("pmap_demote_DMAP: invalid PDPE");
 		if ((*pdpe & PG_PS) != 0) {
-			if (!pmap_demote_pdpe(kernel_pmap, pdpe, va, m))
-				panic("pmap_demote_DMAP: PDPE failed");
+			rv = pmap_demote_pdpe(kernel_pmap, pdpe, va, m);
+			KASSERT(rv, ("pmap_demote_DMAP: PDPE failed"));
 			changed = true;
 			m = NULL;
 		}
@@ -10021,9 +10021,9 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 			if ((*pde & PG_PS) != 0) {
 				mpte->pindex = pmap_pde_pindex(va);
 				pmap_pt_page_count_adj(kernel_pmap, 1);
-				if (!pmap_demote_pde_mpte(kernel_pmap, pde, va,
-				    NULL, mpte))
-					panic("pmap_demote_DMAP: PDE failed");
+				rv = pmap_demote_pde_mpte(kernel_pmap, pde, va,
+				    NULL, mpte);
+				KASSERT(rv, ("pmap_demote_DMAP: PDE failed"));
 				changed = true;
 				mpte = NULL;
 			}
