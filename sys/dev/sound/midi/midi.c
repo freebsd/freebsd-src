@@ -1441,8 +1441,6 @@ exit0:
 	return retval;
 }
 
-extern int seq_modevent(module_t mod, int type, void *data);
-
 static int
 midi_modevent(module_t mod, int type, void *data)
 {
@@ -1453,14 +1451,10 @@ midi_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		retval = midi_load();
-		if (retval == 0)
-			retval = seq_modevent(mod, type, data);
 		break;
 
 	case MOD_UNLOAD:
 		retval = midi_unload();
-		if (retval == 0)
-			retval = seq_modevent(mod, type, data);
 		break;
 
 	default:
@@ -1468,14 +1462,6 @@ midi_modevent(module_t mod, int type, void *data)
 	}
 
 	return retval;
-}
-
-kobj_t
-midimapper_addseq(void *arg1, int *unit, void **cookie)
-{
-	unit = NULL;
-
-	return (kobj_t)arg1;
 }
 
 int

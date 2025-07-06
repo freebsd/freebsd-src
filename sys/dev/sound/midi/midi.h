@@ -51,7 +51,6 @@ int	midi_uninit(struct snd_midi *_m);
 int	midi_out(struct snd_midi *_m, uint8_t *_buf, int _size);
 int	midi_in(struct snd_midi *_m, uint8_t *_buf, int _size);
 
-kobj_t	midimapper_addseq(void *arg1, int *unit, void **cookie);
 int	midimapper_open_locked(void *arg1, void **cookie);
 int	midimapper_open(void *arg1, void **cookie);
 int	midimapper_close(void *arg1, void *cookie);
