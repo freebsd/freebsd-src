@@ -449,6 +449,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap,
 	}
 
 	nvap->na_bsdflags = 0;
+	nvap->na_flags = 0;
 	error = VOP_GETATTR(vp, &nvap->na_vattr, nd->nd_cred);
 	if (lockedit != 0)
 		NFSVOPUNLOCK(vp);
@@ -3127,6 +3128,9 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 		bitpos = NFSATTRBIT_MAX;
 	} else {
 		bitpos = 0;
+		if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_HIDDEN) ||
+		    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_SYSTEM))
+			nvap->na_flags = 0;
 	}
 	moderet = 0;
 	for (; bitpos < NFSATTRBIT_MAX; bitpos++) {
@@ -3163,9 +3167,11 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_HIDDEN:
-			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (!nd->nd_repstat)
-				nd->nd_repstat = NFSERR_ATTRNOTSUPP;
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (nd->nd_repstat == 0) {
+				if (*tl == newnfs_true)
+					nvap->na_flags |= UF_HIDDEN;
+			}
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_MIMETYPE:
@@ -3240,9 +3246,11 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			attrsum += (NFSX_UNSIGNED + NFSM_RNDUP(j));
 			break;
 		case NFSATTRBIT_SYSTEM:
-			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (!nd->nd_repstat)
-				nd->nd_repstat = NFSERR_ATTRNOTSUPP;
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (nd->nd_repstat == 0) {
+				if (*tl == newnfs_true)
+					nvap->na_flags |= UF_SYSTEM;
+			}
 			attrsum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_TIMEACCESSSET:
