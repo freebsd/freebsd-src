@@ -1904,7 +1904,7 @@ freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
 		return (sys_semsys(td, (struct semsys_args *)uap));
 	}
 #else
-	return (nosys(td, NULL));
+	return (kern_nosys(td, 0));
 #endif
 }
 

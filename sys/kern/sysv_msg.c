@@ -1724,7 +1724,7 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 		return (sys_msgsys(td, (struct msgsys_args *)uap));
 	}
 #else
-	return (nosys(td, NULL));
+	return (kern_nosys(td, 0));
 #endif
 }
 
