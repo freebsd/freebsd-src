@@ -30,12 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
- /*
-  * Parts of this file started out as NetBSD: midi.c 1.31
-  * They are mostly gone.  Still the most obvious will be the state
-  * machine midi_in
-  */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
@@ -78,10 +72,6 @@ enum midi_states {
 	MIDI_IN_START, MIDI_IN_SYSEX, MIDI_IN_DATA
 };
 
-/*
- * /dev/rmidi	Structure definitions
- */
-
 #define MIDI_NAMELEN   16
 struct snd_midi {
 	KOBJ_FIELDS;
@@ -110,35 +100,9 @@ struct snd_midi {
 	TAILQ_ENTRY(snd_midi) link;
 };
 
-/*
- * Module Exports & Interface
- *
- * struct midi_chan *midi_init(MPU_CLASS cls, int unit, int chan,
- *     void *cookie)
- * int midi_uninit(struct snd_midi *)
- *
- * 0 == no error
- * EBUSY or other error
- *
- * int midi_in(struct snd_midi *, char *buf, int count)
- * int midi_out(struct snd_midi *, char *buf, int count)
- *
- * midi_{in,out} return actual size transfered
- *
- */
-
-/*
- * midi_devs tailq, holder of all rmidi instances protected by midistat_lock
- */
-
 TAILQ_HEAD(, snd_midi) midi_devs;
 
 struct sx mstat_lock;
-
-/*
- * /dev/rmidi dev_t declarations, struct variable access is protected by
- * locks contained within the structure.
- */
 
 static d_open_t midi_open;
 static d_close_t midi_close;
@@ -158,17 +122,10 @@ static struct cdevsw midi_cdevsw = {
 	.d_name = "rmidi",
 };
 
-/*
- * Prototypes of library functions
- */
-
 static int      midi_destroy(struct snd_midi *, int);
 static int      midi_load(void);
 static int      midi_unload(void);
 
-/*
- * Misc declr.
- */
 SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Midi driver");
 
@@ -177,9 +134,6 @@ int             midi_debug;
 SYSCTL_INT(_hw_midi, OID_AUTO, debug, CTLFLAG_RW, &midi_debug, 0, "");
 
 #define MIDI_DEBUG(l,a)	if(midi_debug>=l) a
-/*
- * CODE START
- */
 
 void
 midistat_lock(void)
@@ -208,9 +162,6 @@ midistat_lockassert(void)
  * what unit number is used.
  *
  * It is an error to call midi_init with an already used unit/channel combo.
- *
- * Returns NULL on error
- *
  */
 struct snd_midi *
 midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
@@ -324,9 +275,7 @@ err0:
  * midi_uninit does not call MIDI_UNINIT, as since this is the implementors
  * entry point. midi_uninit if fact, does not send any methods. A call to
  * midi_uninit is a defacto promise that you won't manipulate ch anymore
- *
  */
-
 int
 midi_uninit(struct snd_midi *m)
 {
@@ -359,13 +308,6 @@ exit:
 	return err;
 }
 
-/*
- * midi_in: process all data until the queue is full, then discards the rest.
- * Since midi_in is a state machine, data discards can cause it to get out of
- * whack.  Process as much as possible.  It calls, wakeup, selnotify and
- * psignal at most once.
- */
-
 #ifdef notdef
 static int midi_lengths[] = {2, 2, 2, 2, 1, 1, 2, 0};
 
@@ -379,6 +321,12 @@ static int midi_lengths[] = {2, 2, 2, 2, 1, 1, 2, 0};
 #define MIDI_SYSEX_START	0xF0
 #define MIDI_SYSEX_END	    0xF7
 
+/*
+ * midi_in: process all data until the queue is full, then discards the rest.
+ * Since midi_in is a state machine, data discards can cause it to get out of
+ * whack.  Process as much as possible.  It calls, wakeup, selnotify and
+ * psignal at most once.
+ */
 int
 midi_in(struct snd_midi *m, uint8_t *buf, int size)
 {
@@ -546,9 +494,6 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 	return used;
 }
 
-/*
- * /dev/rmidi#.#	device access functions
- */
 int
 midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
@@ -853,10 +798,6 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 }
 
 #ifdef notdef
-/*
- * Convert IOCTL command to string for debugging
- */
-
 static char *
 midi_cmdname(int cmd)
 {
@@ -943,9 +884,6 @@ midi_unload(void)
 	}
 	midistat_unlock();
 
-	/*
-	 * Made it here then unload is complete
-	 */
 	sx_destroy(&mstat_lock);
 	return 0;
 
