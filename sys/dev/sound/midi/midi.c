@@ -183,12 +183,6 @@ int             midi_debug;
 /* XXX: should this be moved into debug.midi? */
 SYSCTL_INT(_hw_midi, OID_AUTO, debug, CTLFLAG_RW, &midi_debug, 0, "");
 
-int             midi_dumpraw;
-SYSCTL_INT(_hw_midi, OID_AUTO, dumpraw, CTLFLAG_RW, &midi_dumpraw, 0, "");
-
-int             midi_instroff;
-SYSCTL_INT(_hw_midi, OID_AUTO, instroff, CTLFLAG_RW, &midi_instroff, 0, "");
-
 #define MIDI_DEBUG(l,a)	if(midi_debug>=l) a
 /*
  * CODE START
