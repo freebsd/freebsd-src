@@ -36,6 +36,7 @@
 #include <sys/resourcevar.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -51,14 +52,14 @@ int
 lkmnosys(struct thread *td, struct nosys_args *args)
 {
 
-	return (nosys(td, args));
+	return (kern_nosys(td, 0));
 }
 
 int
 lkmressys(struct thread *td, struct nosys_args *args)
 {
 
-	return (nosys(td, args));
+	return (kern_nosys(td, 0));
 }
 
 struct sysent nosys_sysent = {
