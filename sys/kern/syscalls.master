@@ -3349,7 +3349,7 @@
 		    size_t size
 		);
 	}
-592	AUE_NULL	STD {
+592	AUE_NULL	STD|CAPENABLED {
 		int exterrctl(
 		    u_int op,
 		    u_int flags,
