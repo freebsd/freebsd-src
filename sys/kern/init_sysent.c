@@ -658,7 +658,7 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(getrlimitusage_args), .sy_call = (sy_call_t *)sys_getrlimitusage, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 589 = getrlimitusage */
 	{ .sy_narg = AS(fchroot_args), .sy_call = (sy_call_t *)sys_fchroot, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 590 = fchroot */
 	{ .sy_narg = AS(setcred_args), .sy_call = (sy_call_t *)sys_setcred, .sy_auevent = AUE_SETCRED, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 591 = setcred */
-	{ .sy_narg = AS(exterrctl_args), .sy_call = (sy_call_t *)sys_exterrctl, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 592 = exterrctl */
+	{ .sy_narg = AS(exterrctl_args), .sy_call = (sy_call_t *)sys_exterrctl, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 592 = exterrctl */
 	{ .sy_narg = AS(inotify_add_watch_at_args), .sy_call = (sy_call_t *)sys_inotify_add_watch_at, .sy_auevent = AUE_INOTIFY, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 593 = inotify_add_watch_at */
 	{ .sy_narg = AS(inotify_rm_watch_args), .sy_call = (sy_call_t *)sys_inotify_rm_watch, .sy_auevent = AUE_INOTIFY, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 594 = inotify_rm_watch */
 };
