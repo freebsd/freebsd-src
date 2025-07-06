@@ -1438,8 +1438,8 @@ static void
 sndstat_sysinit(void *p)
 {
 	sx_init(&sndstat_lock, "sndstat lock");
-	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS,
-	    UID_ROOT, GID_WHEEL, 0644, "sndstat");
+	sndstat_dev = make_dev(&sndstat_cdevsw, 0, UID_ROOT, GID_WHEEL, 0644,
+	    "sndstat");
 }
 SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);
 
