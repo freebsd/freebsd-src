@@ -1,0 +1,5 @@
+comment = "YACC library"
+desc = <<EOD
+liby provides default implementations of main() and yyerror() for use with
+applications which use yacc(1).
+EOD

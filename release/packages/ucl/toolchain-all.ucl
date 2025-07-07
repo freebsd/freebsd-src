@@ -1,0 +1,4 @@
+comment = "Utilities for program development"
+desc = <<EOD
+Utilities for program development.
+EOD

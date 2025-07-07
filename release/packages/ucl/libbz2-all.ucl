@@ -1,0 +1,5 @@
+comment = "bzip2 compression library"
+desc = <<EOD
+libbz2 allows applications to compress and decompress data using the bzip2
+compression algorithm.
+EOD

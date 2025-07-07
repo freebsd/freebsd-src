@@ -1,0 +1,6 @@
+comment = "iSCSI target, initiator, and management tools"
+desc = <<EOD
+iSCSI allows a block device to be exported from one system to another over a
+network.  This package provides the iSCSI target and initiator and associated
+management tools.
+EOD
