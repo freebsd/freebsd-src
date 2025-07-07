@@ -2041,6 +2041,19 @@ pf_ioctl_getrules(struct pfioc_rule *pr)
 	return (0);
 }
 
+static int
+pf_validate_range(uint8_t op, uint16_t port[2])
+{
+	uint16_t a = ntohs(port[0]);
+	uint16_t b = ntohs(port[1]);
+
+	if ((op == PF_OP_RRG && a > b) ||  /* 34:12,  i.e. none */
+	    (op == PF_OP_IRG && a >= b) || /* 34><12, i.e. none */
+	    (op == PF_OP_XRG && a > b))	   /* 34<>22, i.e. all */
+		return 1;
+	return 0;
+}
+
 int
 pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
     uint32_t pool_ticket, const char *anchor, const char *anchor_call,
@@ -2059,6 +2072,11 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	}
 
 #define	ERROUT(x)	ERROUT_FUNCTION(errout, x)
+
+	if (pf_validate_range(rule->src.port_op, rule->src.port))
+		ERROUT(EINVAL);
+	if (pf_validate_range(rule->dst.port_op, rule->dst.port))
+		ERROUT(EINVAL);
 
 	if (rule->ifname[0])
 		kif = pf_kkif_create(M_WAITOK);
