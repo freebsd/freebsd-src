@@ -61,7 +61,6 @@ static int	load_addr(struct pfr_buffer *, int, char *[], char *, int, int);
 static void	print_addrx(struct pfr_addr *, struct pfr_addr *, int);
 static int 	nonzero_astats(struct pfr_astats *);
 static void	print_astats(struct pfr_astats *, int);
-static void	radix_perror(void);
 static void	xprintf(int, const char *, ...);
 static void	print_iface(struct pfi_kif *, int);
 
@@ -75,14 +74,14 @@ static const char	*istats_text[2][2][2] = {
 	{ { "In6/Pass:", "In6/Block:" }, { "Out6/Pass:", "Out6/Block:" } }
 };
 
-#define RVTEST(fct) do {				\
-		if ((!(opts & PF_OPT_NOACTION) ||	\
-		    (opts & PF_OPT_DUMMYACTION)) &&	\
-		    (fct)) {				\
-		if ((opts & PF_OPT_RECURSE) == 0)	\
-				radix_perror();		\
-			goto _error;			\
-		}					\
+#define RVTEST(fct) do {						\
+		if ((!(opts & PF_OPT_NOACTION) ||			\
+		    (opts & PF_OPT_DUMMYACTION)) &&			\
+		    (fct)) {						\
+			if ((opts & PF_OPT_RECURSE) == 0)		\
+				warnx("%s", pfr_strerror(errno));	\
+			goto _error;					\
+		}							\
 	} while (0)
 
 #define CREATE_TABLE do {						\
@@ -93,7 +92,7 @@ static const char	*istats_text[2][2][2] = {
 		    (opts & PF_OPT_DUMMYACTION)) &&			\
 		    (pfr_add_table(&table, &nadd, flags)) &&		\
 		    (errno != EPERM)) {					\
-			radix_perror();					\
+			warnx("%s", pfr_strerror(errno));		\
 			goto _error;					\
 		}							\
 		if (nadd) {						\
@@ -559,13 +558,6 @@ print_astats(struct pfr_astats *as, int dns)
 			    (unsigned long long)as->pfras_bytes[dir][op]);
 }
 
-void
-radix_perror(void)
-{
-	extern char *__progname;
-	fprintf(stderr, "%s: %s.\n", __progname, pfr_strerror(errno));
-}
-
 int
 pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
     struct pfr_buffer *ab, u_int32_t ticket)
@@ -647,10 +639,8 @@ pfctl_show_ifaces(const char *filter, int opts)
 	for (;;) {
 		pfr_buf_grow(&b, b.pfrb_size);
 		b.pfrb_size = b.pfrb_msize;
-		if (pfi_get_ifaces(filter, b.pfrb_caddr, &b.pfrb_size)) {
-			radix_perror();
-			exit(1);
-		}
+		if (pfi_get_ifaces(filter, b.pfrb_caddr, &b.pfrb_size))
+			errx(1, "%s", pfr_strerror(errno));
 		if (b.pfrb_size <= b.pfrb_msize)
 			break;
 	}
