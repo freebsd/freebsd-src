@@ -1340,13 +1340,8 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		u_int32_t                mnr, nr;
 
 		memset(&prs, 0, sizeof(prs));
-		if ((ret = pfctl_get_rulesets(pfh, npath, &mnr)) != 0) {
-			if (ret == EINVAL)
-				fprintf(stderr, "Anchor '%s' "
-				    "not found.\n", anchorname);
-			else
-				errc(1, ret, "DIOCGETRULESETS");
-		}
+		if ((ret = pfctl_get_rulesets(pfh, npath, &mnr)) != 0)
+			errx(1, "%s", pf_strerror(ret));
 
 		for (nr = 0; nr < mnr; ++nr) {
 			if ((ret = pfctl_get_ruleset(pfh, npath, nr, &prs)) != 0)
@@ -2962,13 +2957,8 @@ pfctl_walk_anchors(int dev, int opts, const char *anchor,
 	int			 ret;
 
 	memset(&pr, 0, sizeof(pr));
-	if ((ret = pfctl_get_rulesets(pfh, anchor, &mnr)) != 0) {
-		if (ret == EINVAL)
-			fprintf(stderr, "Anchor '%s' not found.\n", anchor);
-		else
-			errc(1, ret, "DIOCGETRULESETS");
-		return (-1);
-	}
+	if ((ret = pfctl_get_rulesets(pfh, anchor, &mnr)) != 0)
+		errx(1, "%s", pf_strerror(ret));
 	for (nr = 0; nr < mnr; ++nr) {
 		char sub[MAXPATHLEN];
 
