@@ -545,6 +545,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 {
 	u_short			 reason = PFRES_MATCH;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
+	struct pfr_ktable	*kt;
 	uint64_t		 hashidx;
 	int			 cnt;
 
@@ -600,29 +601,25 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		pf_poolmask(naddr, raddr, rmask, saddr, af);
 		break;
 	case PF_POOL_RANDOM:
-		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
-			cnt = rpool->cur->addr.p.tbl->pfrkt_cnt;
-			if (cnt == 0)
-				rpool->tblidx = 0;
+		if (rpool->cur->addr.type == PF_ADDR_TABLE ||
+		    rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
+			if (rpool->cur->addr.type == PF_ADDR_TABLE)
+				kt = rpool->cur->addr.p.tbl;
 			else
-				rpool->tblidx = (int)arc4random_uniform(cnt);
-			memset(&rpool->counter, 0, sizeof(rpool->counter));
-			if (pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af, NULL)) {
+				kt = rpool->cur->addr.p.dyn->pfid_kt;
+			kt = pfr_ktable_select_active(kt);
+			if (kt == NULL) {
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
-			pf_addrcpy(naddr, &rpool->counter, af);
-		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
-			cnt = rpool->cur->addr.p.dyn->pfid_kt->pfrkt_cnt;
+			cnt = kt->pfrkt_cnt;
 			if (cnt == 0)
 				rpool->tblidx = 0;
 			else
 				rpool->tblidx = (int)arc4random_uniform(cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
-			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af,
-			    pf_islinklocal)) {
+			if (pfr_pool_get(kt, &rpool->tblidx, &rpool->counter,
+			    af, pf_islinklocal)) {
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
@@ -671,29 +668,25 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 
 		hashidx =
 		    pf_hash(saddr, (struct pf_addr *)&hash, &rpool->key, af);
-		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
-			cnt = rpool->cur->addr.p.tbl->pfrkt_cnt;
-			if (cnt == 0)
-				rpool->tblidx = 0;
+		if (rpool->cur->addr.type == PF_ADDR_TABLE ||
+		    rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
+			if (rpool->cur->addr.type == PF_ADDR_TABLE)
+				kt = rpool->cur->addr.p.tbl;
 			else
-				rpool->tblidx = (int)(hashidx % cnt);
-			memset(&rpool->counter, 0, sizeof(rpool->counter));
-			if (pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af, NULL)) {
+				kt = rpool->cur->addr.p.dyn->pfid_kt;
+			kt = pfr_ktable_select_active(kt);
+			if (kt == NULL) {
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
-			pf_addrcpy(naddr, &rpool->counter, af);
-		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
-			cnt = rpool->cur->addr.p.dyn->pfid_kt->pfrkt_cnt;
+			cnt = kt->pfrkt_cnt;
 			if (cnt == 0)
 				rpool->tblidx = 0;
 			else
 				rpool->tblidx = (int)(hashidx % cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
-			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af,
-			    pf_islinklocal)) {
+			if (pfr_pool_get(kt, &rpool->tblidx, &rpool->counter,
+			    af, pf_islinklocal)) {
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
