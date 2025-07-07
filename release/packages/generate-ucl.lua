@@ -6,13 +6,64 @@ generare-ucl.lua [<variablename> <variablevalue>]... <sourceucl> <destucl>
 Build a package's UCL configuration by loading the template UCL file
 <sourceucl>, replacing any $VARIABLES in the UCL based on the provided
 variables, then writing the result to <destucl>.
-
-If COMMENT_SUFFIX or DESC_SUFFIX are set, append these to the generated comment
-and desc fields.  We do this here because there's no way to do it in
-template.ucl.
 ]]--
 
 local ucl = require("ucl")
+
+-- Give subpackages a special comment and description suffix to indicate what
+-- they contain, so e.g. "foo-man" has " (manual pages)" appended to its
+-- comment.  This avoids having to create a separate ucl files for every
+-- subpackage just to set this.
+--
+-- Note that this is not a key table because the order of the pattern matches
+-- is important.
+pkg_suffixes = {
+	{
+		"%-dev%-lib32$", "(32-bit development files)",
+		"This package contains development files for compiling "..
+		"32-bit applications on a 64-bit host."
+	},
+	{
+		"%-dbg%-lib32$", "(32-bit debugging symbols)",
+		"This package contains 32-bit external debugging symbols "..
+		"for use with a source-level debugger.",
+	},
+	{
+		"%-man%-lib32$", "(32-bit manual pages)",
+		"This package contains the online manual pages for 32-bit "..
+		"components on a 64-bit host.",
+	},
+	{
+		"%-lib32$", "(32-bit libraries)",
+		"This package contains 32-bit libraries for running 32-bit "..
+		"applications on a 64-bit host.",
+	},
+	{
+		"%-dev$", "(development files)",
+		"This package contains development files for "..
+		"compiling applications."
+	},
+	{
+		"%-man$", "(manual pages)",
+		"This package contains the online manual pages."
+	},
+	{
+		"%-dbg$", "(debugging symbols)",
+		"This package contains external debugging symbols for use "..
+		"with a source-level debugger.",
+	},
+}
+
+function add_suffixes(obj)
+	local pkgname = obj["name"]
+	for _,pattern in pairs(pkg_suffixes) do
+		if pkgname:match(pattern[1]) ~= nil then
+			obj["comment"] = obj["comment"] .. " " .. pattern[2]
+			obj["desc"] = obj["desc"] .. "\n\n" .. pattern[3]
+			return
+		end
+	end
+end
 
 -- Hardcode a list of packages which don't get the automatic pkggenname
 -- dependency because the base package doesn't exist.  We should have a better
@@ -50,8 +101,6 @@ local pkgname = nil
 local pkggenname = nil
 local pkgprefix = nil
 local pkgversion = nil
-local comment_suffix = nil
-local desc_suffix = nil
 
 -- This parser is the output UCL we want to build.
 local parser = ucl.parser()
@@ -73,10 +122,6 @@ for i = 2, #arg - 2, 2 do
 		pkggenname = varvalue
 	elseif varname == "VERSION" and #varvalue > 0 then
 		pkgversion = varvalue
-	elseif varname == "COMMENT_SUFFIX" and #varvalue > 0 then
-		comment_suffix = varvalue
-	elseif varname == "DESC_SUFFIX" and #varvalue > 0 then
-		desc_suffix = varvalue
 	elseif varname == "PKG_NAME_PREFIX" and #varvalue > 0 then
 		pkgprefix = varvalue
 	end
@@ -118,12 +163,7 @@ if pkgprefix ~= nil and obj["deps"] ~= nil then
 end
 
 -- Add comment and desc suffix.
-if comment_suffix ~= nil then
-	obj["comment"] = obj["comment"] .. comment_suffix
-end
-if desc_suffix ~= nil then
-	obj["desc"] = obj["desc"] .. "\n\n" .. desc_suffix
-end
+add_suffixes(obj)
 
 -- Write the output file.
 local f,err = io.open(arg[#arg], "w")
