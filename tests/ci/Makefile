@@ -210,7 +210,11 @@ ci-extract-meta: .PHONY
 ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 .if ${MACHINE} == "amd64" && ( ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" ) && ( !defined(USE_QEMU) || empty(USE_QEMU) )
 	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy || true
-	/usr/sbin/bhyveload -c stdio -m ${VM_MEM_SIZE} -d ${CIDISK} ${TEST_VM_NAME}
+	expect -c "set timeout ${TIMEOUT_EXPECT}; \
+		spawn /usr/bin/timeout -k 5s 30s /usr/sbin/bhyveload \
+		-c stdio -m ${VM_MEM_SIZE} -d ${CIDISK} ${TEST_VM_NAME}; \
+		expect { eof }; \
+		exit [lindex [wait] 3]"
 	expect -c "set timeout ${TIMEOUT_EXPECT}; \
 		spawn /usr/bin/timeout -k 60 ${TIMEOUT_VM} /usr/sbin/bhyve \
 		-c ${PARALLEL_JOBS} -m ${VM_MEM_SIZE} -A -H -P \
