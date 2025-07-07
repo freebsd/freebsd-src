@@ -3639,10 +3639,10 @@ pf_strerror(int errnum)
 {
 	switch (errnum) {
 	case ESRCH:
-		return "Table does not exist";
+		return "Table does not exist.";
 	case EINVAL:
 	case ENOENT:
-		return "Anchor does not exist";
+		return "Anchor does not exist.";
 	default:
 		return strerror(errnum);
 	}
