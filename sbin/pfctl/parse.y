@@ -5324,6 +5324,10 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 		    "synproxy state or modulate state");
 		problems++;
 	}
+	if ((r->keep_state == PF_STATE_SYNPROXY) && (r->direction != PF_IN))
+		fprintf(stderr, "%s:%d: warning: "
+		    "synproxy used for inbound rules only, "
+		    "ignored for outbound\n", file->name, yylval.lineno);
 	if (r->rule_flag & PFRULE_AFTO && r->rt) {
 		if (r->rt != PF_ROUTETO && r->rt != PF_REPLYTO) {
 			yyerror("dup-to "
