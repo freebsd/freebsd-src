@@ -106,6 +106,7 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 
 		if ((flags & M_ZERO) != 0)
 			req |= VM_ALLOC_ZERO;
+
 		if (order == 0 && (flags & GFP_DMA32) == 0) {
 			page = vm_page_alloc_noobj(req);
 			if (page == NULL)
@@ -113,6 +114,10 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 		} else {
 			vm_paddr_t pmax = (flags & GFP_DMA32) ?
 			    BUS_SPACE_MAXADDR_32BIT : BUS_SPACE_MAXADDR;
+
+			if ((flags & __GFP_NORETRY) != 0)
+				req |= VM_ALLOC_NORECLAIM;
+
 		retry:
 			page = vm_page_alloc_noobj_contig(req, npages, 0, pmax,
 			    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
