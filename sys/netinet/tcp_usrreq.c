@@ -1520,7 +1520,8 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 	INP_WLOCK_ASSERT(inp);
 
 	if (__predict_false((so->so_state &
-	    (SS_ISCONNECTING | SS_ISCONNECTED)) != 0))
+	    (SS_ISCONNECTING | SS_ISCONNECTED | SS_ISDISCONNECTING |
+	    SS_ISDISCONNECTED)) != 0))
 		return (EISCONN);
 	if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
 		return (EOPNOTSUPP);
