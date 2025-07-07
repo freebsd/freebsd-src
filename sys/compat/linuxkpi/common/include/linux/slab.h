@@ -45,7 +45,7 @@
 
 MALLOC_DECLARE(M_KMALLOC);
 
-#define	kvzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
+#define	kvzalloc(size, flags)		kvmalloc(size, (flags) | __GFP_ZERO)
 #define	kvcalloc(n, size, flags)	kvmalloc_array(n, size, (flags) | __GFP_ZERO)
 #define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
 #define	kzalloc_node(size, flags, node)	kmalloc_node(size, (flags) | __GFP_ZERO, node)
