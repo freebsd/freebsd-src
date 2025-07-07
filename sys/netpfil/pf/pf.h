@@ -490,6 +490,7 @@ struct pf_osfp_ioctl {
 
 #define	PF_ANCHOR_NAME_SIZE	 64
 #define	PF_ANCHOR_MAXPATH	(MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 1)
+#define	PF_OPTIMIZER_TABLE_PFX	"__automatic_"
 
 struct pf_rule {
 	struct pf_rule_addr	 src;

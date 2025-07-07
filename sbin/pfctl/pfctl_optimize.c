@@ -1248,7 +1248,7 @@ add_opt_table(struct pfctl *pf, struct pf_opt_tbl **tbl, sa_family_t af,
 
 		/* This is just a temporary table name */
 		snprintf((*tbl)->pt_name, sizeof((*tbl)->pt_name), "%s%d",
-		    PF_OPT_TABLE_PREFIX, tablenum++);
+		    PF_OPTIMIZER_TABLE_PFX, tablenum++);
 		DEBUG("creating table <%s>", (*tbl)->pt_name);
 	}
 
@@ -1315,9 +1315,9 @@ pf_opt_create_table(struct pfctl *pf, struct pf_opt_tbl *tbl)
 	/* Now we have to pick a table name that isn't used */
 again:
 	DEBUG("translating temporary table <%s> to <%s%x_%d>", tbl->pt_name,
-	    PF_OPT_TABLE_PREFIX, table_identifier, tablenum);
+	    PF_OPTIMIZER_TABLE_PFX, table_identifier, tablenum);
 	snprintf(tbl->pt_name, sizeof(tbl->pt_name), "%s%x_%d",
-	    PF_OPT_TABLE_PREFIX, table_identifier, tablenum);
+	    PF_OPTIMIZER_TABLE_PFX, table_identifier, tablenum);
 	PFRB_FOREACH(t, &table_buffer) {
 		if (strcasecmp(t->pfrt_name, tbl->pt_name) == 0) {
 			/* Collision.  Try again */
