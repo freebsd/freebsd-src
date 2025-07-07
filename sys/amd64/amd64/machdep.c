@@ -1336,12 +1336,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pti = pti_get_default();
 	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
 	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
-	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
-		invpcid_works = (cpu_stdext_feature &
-		    CPUID_STDEXT_INVPCID) != 0;
-	} else {
+	if ((cpu_feature2 & CPUID2_PCID) == 0)
 		pmap_pcid_enabled = 0;
-	}
+	invpcid_works = (cpu_stdext_feature & CPUID_STDEXT_INVPCID) != 0;
 
 	/*
 	 * Now we can do small core initialization, after the PCID
