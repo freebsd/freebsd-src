@@ -4950,7 +4950,6 @@ OLD_FILES+=usr/lib/libhx509.so
 OLD_LIBS+=usr/lib/libhx509.so.11
 OLD_FILES+=usr/lib/libhx509_p.a
 OLD_FILES+=usr/lib/libkadm5clnt.a
-OLD_FILES+=usr/lib/libkadm5clnt.so
 OLD_LIBS+=usr/lib/libkadm5clnt.so.11
 OLD_FILES+=usr/lib/libkadm5clnt_p.a
 OLD_FILES+=usr/lib/libkadm5srv.a
