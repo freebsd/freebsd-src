@@ -30,6 +30,7 @@
 #include <sys/errno.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <netipsec/xform.h>
 
 struct secpolicy;
 struct secasvar;
@@ -42,6 +43,7 @@ struct ipsec_accel_out_tag {
 
 struct ipsec_accel_in_tag {
 	struct m_tag tag;
+	struct xform_history xh; /* Must be first to mimic IPSEC_IN_DONE */
 	uint16_t drv_spi;
 };
 
