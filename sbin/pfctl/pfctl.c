@@ -131,8 +131,8 @@ int	 pfctl_walk_get(int, struct pfioc_ruleset *, void *);
 int	 pfctl_walk_anchors(int, int, const char *,
 	    int(*)(int, struct pfioc_ruleset *, void *), void *);
 struct pfr_anchors *
-	 pfctl_get_anchors(int, char *, int);
-int	 pfctl_recurse(int, int, char *,
+	 pfctl_get_anchors(int, const char *, int);
+int	 pfctl_recurse(int, int, const char *,
 	    int(*)(int, int, struct pfr_anchoritem *));
 int	 pfctl_call_clearrules(int, int, struct pfr_anchoritem *);
 int	 pfctl_call_cleartables(int, int, struct pfr_anchoritem *);
@@ -2988,20 +2988,23 @@ pfctl_show_anchors(int dev, int opts, char *anchor)
 }
 
 struct pfr_anchors *
-pfctl_get_anchors(int dev, char *anchor, int opts)
+pfctl_get_anchors(int dev, const char *anchor, int opts)
 {
 	struct pfioc_ruleset pr;
 	static struct pfr_anchors anchors;
+	char anchorbuf[PATH_MAX];
 	char *n;
 
 	SLIST_INIT(&anchors);
 
 	memset(&pr, 0, sizeof(pr));
 	if (*anchor != '\0') {
-		n = dirname(anchor);
+		strlcpy(anchorbuf, anchor, sizeof(anchorbuf));
+		n = dirname(anchorbuf);
 		if (n[0] != '.' && n[1] != '\0')
 			strlcpy(pr.path, n, sizeof(pr.path));
-		n = basename(anchor);
+		strlcpy(anchorbuf, anchor, sizeof(anchorbuf));
+		n = basename(anchorbuf);
 		if (n != NULL)
 			strlcpy(pr.name, n, sizeof(pr.name));
 	}
@@ -3051,7 +3054,7 @@ pfctl_call_clearanchors(int dev, int opts, struct pfr_anchoritem *pfra)
 }
 
 int
-pfctl_recurse(int dev, int opts, char *anchorname,
+pfctl_recurse(int dev, int opts, const char *anchorname,
     int(*walkf)(int, int, struct pfr_anchoritem *))
 {
 	int			 rv = 0;
