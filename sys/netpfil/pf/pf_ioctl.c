@@ -1274,7 +1274,9 @@ pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 			PF_MD5_UPD(pfr, addr.iflags);
 			break;
 		case PF_ADDR_TABLE:
-			PF_MD5_UPD(pfr, addr.v.tblname);
+			if (strncmp(pfr->addr.v.tblname, PF_OPTIMIZER_TABLE_PFX,
+			    strlen(PF_OPTIMIZER_TABLE_PFX)))
+				PF_MD5_UPD(pfr, addr.v.tblname);
 			break;
 		case PF_ADDR_ADDRMASK:
 			/* XXX ignore af? */
