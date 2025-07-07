@@ -455,8 +455,15 @@ aio_init_aioinfo(struct proc *p)
 	error = 0;
 	while (num_aio_procs < MIN(target_aio_procs, max_aio_procs)) {
 		error = aio_newproc(NULL);
-		if (error != 0)
+		if (error != 0) {
+			/*
+			 * At least one worker is enough to have AIO
+			 * functional.  Clear error in that case.
+			 */
+			if (num_aio_procs > 0)
+				error = 0;
 			break;
+		}
 	}
 	return (error);
 }
