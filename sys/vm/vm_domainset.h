@@ -33,11 +33,15 @@ struct pctrie_iter;
 struct vm_domainset_iter {
 	struct domainset	*di_domain;
 	unsigned int		*di_iter;
+	/* Initialized from 'di_domain', initial value after reset. */
 	domainset_t		di_valid_mask;
+	/* Domains to browse in the current phase. */
+	domainset_t		di_remain_mask;
+	/* Domains skipped in phase 1 because under 'v_free_min'. */
+	domainset_t		di_min_mask;
 	vm_pindex_t		di_offset;
 	int			di_flags;
 	uint16_t		di_policy;
-	domainid_t		di_n;
 	bool			di_minskip;
 };
 

@@ -131,7 +131,8 @@ static void
 vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 {
 
-	KASSERT(di->di_n > 0, ("%s: Invalid n %d", __func__, di->di_n));
+	KASSERT(!DOMAINSET_EMPTY(&di->di_remain_mask),
+	    ("%s: Already iterated on all domains", __func__));
 	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		/*
@@ -161,37 +162,39 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		*domain = PCPU_GET(domain);
-		if (DOMAINSET_ISSET(*domain, &di->di_valid_mask)) {
-			/*
-			 * Add an extra iteration because we will visit the
-			 * current domain a second time in the rr iterator.
-			 */
-			di->di_n = di->di_domain->ds_cnt + 1;
+		if (DOMAINSET_ISSET(*domain, &di->di_valid_mask))
 			break;
-		}
 		/*
 		 * To prevent impossible allocations we convert an invalid
 		 * first-touch to round-robin.
 		 */
 		/* FALLTHROUGH */
 	case DOMAINSET_POLICY_ROUNDROBIN:
-		di->di_n = di->di_domain->ds_cnt;
 		vm_domainset_iter_rr(di, domain);
 		break;
 	case DOMAINSET_POLICY_PREFER:
 		*domain = di->di_domain->ds_prefer;
-		di->di_n = di->di_domain->ds_cnt;
 		break;
 	case DOMAINSET_POLICY_INTERLEAVE:
 		vm_domainset_iter_interleave(di, domain);
-		di->di_n = di->di_domain->ds_cnt;
 		break;
 	default:
 		panic("%s: Unknown policy %d", __func__, di->di_policy);
 	}
-	KASSERT(di->di_n > 0, ("%s: Invalid n %d", __func__, di->di_n));
 	KASSERT(*domain < vm_ndomains,
 	    ("%s: Invalid domain %d", __func__, *domain));
+
+	/* Initialize the mask of domains to visit. */
+	if (di->di_minskip) {
+		/* Phase 1: Skip domains under 'v_free_min'. */
+		DOMAINSET_COPY(&di->di_valid_mask, &di->di_remain_mask);
+		DOMAINSET_ZERO(&di->di_min_mask);
+	} else
+		/* Phase 2: Browse domains that were under 'v_free_min'. */
+		DOMAINSET_COPY(&di->di_min_mask, &di->di_remain_mask);
+
+	/* Mark first domain as seen. */
+	DOMAINSET_CLR(*domain, &di->di_remain_mask);
 }
 
 void
@@ -225,12 +228,15 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
 	if (__predict_false(DOMAINSET_EMPTY(&di->di_valid_mask)))
 		return (ENOMEM);
 
-	/* If there are more domains to visit we run the iterator. */
-	while (--di->di_n != 0) {
+	/* If there are more domains to visit in this phase, run the iterator. */
+	while (!DOMAINSET_EMPTY(&di->di_remain_mask)) {
 		vm_domainset_iter_next(di, domain);
-		if (DOMAINSET_ISSET(*domain, &di->di_valid_mask) &&
-		    (!di->di_minskip || !vm_page_count_min_domain(*domain)))
-			return (0);
+		if (DOMAINSET_ISSET(*domain, &di->di_remain_mask)) {
+			DOMAINSET_CLR(*domain, &di->di_remain_mask);
+			if (!di->di_minskip || !vm_page_count_min_domain(*domain))
+				return (0);
+			DOMAINSET_SET(*domain, &di->di_min_mask);
+		}
 	}
 
 	/* If we skipped domains below min restart the search. */
@@ -298,12 +304,15 @@ vm_domainset_iter_policy(struct vm_domainset_iter *di, int *domain)
 	if (DOMAINSET_EMPTY(&di->di_valid_mask))
 		return (ENOMEM);
 
-	/* If there are more domains to visit we run the iterator. */
-	while (--di->di_n != 0) {
+	/* If there are more domains to visit in this phase, run the iterator. */
+	while (!DOMAINSET_EMPTY(&di->di_remain_mask)) {
 		vm_domainset_iter_next(di, domain);
-		if (DOMAINSET_ISSET(*domain, &di->di_valid_mask) &&
-		    (!di->di_minskip || !vm_page_count_min_domain(*domain)))
-			return (0);
+		if (DOMAINSET_ISSET(*domain, &di->di_remain_mask)) {
+			DOMAINSET_CLR(*domain, &di->di_remain_mask);
+			if (!di->di_minskip || !vm_page_count_min_domain(*domain))
+				return (0);
+			DOMAINSET_SET(*domain, &di->di_min_mask);
+		}
 	}
 
 	/* If we skipped domains below min restart the search. */
