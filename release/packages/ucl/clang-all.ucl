@@ -1,1 +1,5 @@
+comment = "Clang Utilities"
+desc = <<EOD
+Clang Utilities
+EOD
 licenses = [ NCSA ]

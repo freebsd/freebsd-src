@@ -1,0 +1,4 @@
+comment = "Telnet client"
+desc = <<EOD
+Telnet client
+EOD

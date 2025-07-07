@@ -1,0 +1,4 @@
+comment = "Syscons Console"
+desc = <<EOD
+Syscons Console
+EOD

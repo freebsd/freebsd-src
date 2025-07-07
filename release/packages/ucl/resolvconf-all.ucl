@@ -1,0 +1,4 @@
+comment = "Resolvconf Utility and scripts"
+desc = <<EOD
+Resolvconf Utility and scripts
+EOD

@@ -1,0 +1,4 @@
+comment = "ACPI Utilities"
+desc = <<EOD
+ACPI Utilities
+EOD

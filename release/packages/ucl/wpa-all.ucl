@@ -1,0 +1,4 @@
+comment = "802.11 Supplicant"
+desc = <<EOD
+802.11 Supplicant
+EOD
