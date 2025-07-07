@@ -590,21 +590,21 @@ static const struct luaL_Reg unistdlib[] = {
 #undef REG_SIMPLE
 #undef REG_DEF
 
-int
+static int
 luaopen_posix_libgen(lua_State *L)
 {
 	luaL_newlib(L, libgenlib);
 	return (1);
 }
 
-int
+static int
 luaopen_posix_stdlib(lua_State *L)
 {
 	luaL_newlib(L, stdliblib);
 	return (1);
 }
 
-int
+static int
 luaopen_posix_fnmatch(lua_State *L)
 {
 	luaL_newlib(L, fnmatchlib);
@@ -622,14 +622,21 @@ luaopen_posix_fnmatch(lua_State *L)
 	return 1;
 }
 
-int
+static int
 luaopen_posix_sys_stat(lua_State *L)
 {
 	luaL_newlib(L, sys_statlib);
 	return (1);
 }
 
-int
+static int
+luaopen_posix_sys_utsname(lua_State *L)
+{
+	luaL_newlib(L, sys_utsnamelib);
+	return 1;
+}
+
+static int
 luaopen_posix_sys_wait(lua_State *L)
 {
 	luaL_newlib(L, sys_waitlib);
@@ -655,16 +662,38 @@ luaopen_posix_sys_wait(lua_State *L)
 	return (1);
 }
 
-int
-luaopen_posix_sys_utsname(lua_State *L)
-{
-	luaL_newlib(L, sys_utsnamelib);
-	return 1;
-}
-
-int
+static int
 luaopen_posix_unistd(lua_State *L)
 {
 	luaL_newlib(L, unistdlib);
+	return (1);
+}
+
+int
+luaopen_posix(lua_State *L)
+{
+	lua_newtable(L); /* posix */
+
+	luaL_requiref(L, "posix.fnmatch", luaopen_posix_fnmatch, 0);
+	lua_setfield(L, -2, "fnmatch");
+
+	luaL_requiref(L, "posix.libgen", luaopen_posix_libgen, 0);
+	lua_setfield(L, -2, "libgen");
+
+	luaL_requiref(L, "posix.stdlib", luaopen_posix_stdlib, 0);
+	lua_setfield(L, -2, "stdlib");
+
+	lua_newtable(L); /* posix.sys */
+	luaL_requiref(L, "posix.sys.stat", luaopen_posix_sys_stat, 0);
+	lua_setfield(L, -2, "stat");
+	luaL_requiref(L, "posix.sys.utsname", luaopen_posix_sys_utsname, 0);
+	lua_setfield(L, -2, "utsname");
+	luaL_requiref(L, "posix.sys.wait", luaopen_posix_sys_wait, 0);
+	lua_setfield(L, -2, "wait");
+	lua_setfield(L, -2, "sys");
+
+	luaL_requiref(L, "posix.unistd", luaopen_posix_unistd, 0);
+	lua_setfield(L, -2, "unistd");
+
 	return (1);
 }
