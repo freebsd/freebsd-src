@@ -1632,7 +1632,7 @@ pfctl_show_states(int dev, const char *iface, int opts)
 	struct pfctl_state_filter filter = {};
 
 	if (iface != NULL)
-		strncpy(filter.ifname, iface, IFNAMSIZ);
+		strlcpy(filter.ifname, iface, IFNAMSIZ);
 
 	arg.opts = opts;
 	arg.dotitle = opts & PF_OPT_SHOWALL;
