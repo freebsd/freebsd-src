@@ -1,0 +1,8 @@
+deps {
+	# The RPC daemons require rpcbind.
+	"utilities" {
+		version = "${VERSION}"
+		origin = "base"
+	}
+}
+

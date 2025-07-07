@@ -14,6 +14,42 @@ template.ucl.
 
 local ucl = require("ucl")
 
+-- Hardcode a list of packages which don't get the automatic pkggenname
+-- dependency because the base package doesn't exist.  We should have a better
+-- way to handle this.
+local no_gen_deps = {
+	["libcompat-dev"] = true,
+	["libcompat-dev-lib32"] = true,
+	["libcompat-man"] = true,
+	["libcompiler_rt-dev"] = true,
+	["libcompiler_rt-dev-lib32"] = true,
+	["liby-dev"] = true,
+	["liby-dev-lib32"] = true,
+}
+
+-- Return true if the package 'pkgname' should have a dependency on the package
+-- pkggenname.
+function add_gen_dep(pkgname, pkggenname)
+	if pkgname == pkggenname then
+		return false
+	end
+	if pkgname == nil or pkggenname == nil then
+		return false
+	end
+	if no_gen_deps[pkgname] ~= nil then
+		return false
+	end
+	if pkggenname == "kernel" then
+		return false
+	end
+
+	return true
+end
+
+local pkgname = nil
+local pkggenname = nil
+local pkgprefix = nil
+local pkgversion = nil
 local comment_suffix = nil
 local desc_suffix = nil
 
@@ -31,10 +67,18 @@ for i = 2, #arg - 2, 2 do
 	local varname = arg[i - 1]
 	local varvalue = arg[i]
 
-	if varname == "COMMENT_SUFFIX" and #varvalue > 0 then
+	if varname == "PKGNAME" and #varvalue > 0 then
+		pkgname = varvalue
+	elseif varname == "PKGGENNAME" and #varvalue > 0 then
+		pkggenname = varvalue
+	elseif varname == "VERSION" and #varvalue > 0 then
+		pkgversion = varvalue
+	elseif varname == "COMMENT_SUFFIX" and #varvalue > 0 then
 		comment_suffix = varvalue
 	elseif varname == "DESC_SUFFIX" and #varvalue > 0 then
 		desc_suffix = varvalue
+	elseif varname == "PKG_NAME_PREFIX" and #varvalue > 0 then
+		pkgprefix = varvalue
 	end
 
 	parser:register_variable(varname, varvalue)
@@ -48,6 +92,30 @@ if not res then
 end
 
 local obj = parser:get_object()
+
+-- If pkgname is different from pkggenname, add a dependency on pkggenname.
+-- This means that e.g. -dev packages depend on their respective base package.
+if add_gen_dep(pkgname, pkggenname) then
+	if obj["deps"] == nil then
+		obj["deps"] = {}
+	end
+	obj["deps"][pkggenname] = {
+		["version"] = pkgversion,
+		["origin"] = "base"
+	}
+end
+
+-- If PKG_NAME_PREFIX is provided, rewrite the names of dependency packages.
+-- We can't do this in UCL since variable substitution doesn't work in array
+-- keys.
+if pkgprefix ~= nil and obj["deps"] ~= nil then
+	newdeps = {}
+	for dep, opts in pairs(obj["deps"]) do
+		local newdep = pkgprefix .. "-" .. dep
+		newdeps[newdep] = opts
+	end
+	obj["deps"] = newdeps
+end
 
 -- Add comment and desc suffix.
 if comment_suffix ~= nil then
