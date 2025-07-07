@@ -6219,7 +6219,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	if (ctx->tag > 0)
 		s->tag = ctx->tag;
 	if (pd->proto == IPPROTO_TCP && (tcp_get_flags(th) & (TH_SYN|TH_ACK)) ==
-	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY) {
+	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY && pd->dir == PF_IN) {
 		pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
 		pf_undo_nat(ctx->nr, pd, bip_sum);
 		s->src.seqhi = arc4random();
