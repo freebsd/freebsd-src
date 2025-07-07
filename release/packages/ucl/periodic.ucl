@@ -1,0 +1,6 @@
+deps {
+	"cron" {
+		version = "${VERSION}"
+		origin = "base"
+	}
+}
