@@ -154,7 +154,7 @@ main(int argc, char **argv)
 			ev = ev2str(iev1->mask);
 			xo_open_instance("event");
 			xo_emit("{:wd/%3d} {:event/%16s} {:name/%s}\n",
-			    iev1->wd, ev, iev1->name);
+			    iev1->wd, ev, iev1->len > 0 ? iev1->name : "");
 			xo_close_instance("event");
 
 			n -= sizeof(*iev1) + iev1->len;
