@@ -188,7 +188,7 @@ vhd_timestamp(void)
 	time_t t;
 
 	if (!unit_testing) {
-		t = time(NULL);
+		t = timestamp != (time_t)-1 ? timestamp : time(NULL);
 		return (t - 0x386d4380);
 	}
 
