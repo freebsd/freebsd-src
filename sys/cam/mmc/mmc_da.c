@@ -1523,10 +1523,7 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 
 	bioq_init(&part->bio_queue);
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	/*
 	 * Register this media as a disk
