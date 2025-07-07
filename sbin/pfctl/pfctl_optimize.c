@@ -909,7 +909,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 	TAILQ_INIT(&prof_superblocks);
 
 	if ((ret = pfctl_get_rules_info_h(pf->h, &rules, PF_PASS, "")) != 0) {
-		warnx("%s", pfr_strerror(ret));
+		warnx("%s", pf_strerror(ret));
 		return (1);
 	}
 	mnr = rules.nr;
@@ -924,7 +924,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 
 		if (pfctl_get_rule_h(pf->h, nr, rules.ticket, "", PF_PASS,
 		    &rule, anchor_call)) {
-			warnx("%s", pfr_strerror(ret));
+			warnx("%s", pf_strerror(ret));
 			free(por);
 			return (1);
 		}

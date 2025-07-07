@@ -1350,7 +1350,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 		for (nr = 0; nr < mnr; ++nr) {
 			if ((ret = pfctl_get_ruleset(pfh, npath, nr, &prs)) != 0)
-				errx(1, "%s", pfr_strerror(ret));
+				errx(1, "%s", pf_strerror(ret));
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
 			printf("anchor \"%s\" all {\n", prs.name);
 			pfctl_show_rules(dev, npath, opts,
@@ -1365,14 +1365,14 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	if (opts & PF_OPT_SHOWALL) {
 		ret = pfctl_get_rules_info_h(pfh, &ri, PF_PASS, path);
 		if (ret != 0) {
-			warnx("%s", pfr_strerror(ret));
+			warnx("%s", pf_strerror(ret));
 			goto error;
 		}
 		header++;
 	}
 	ret = pfctl_get_rules_info_h(pfh, &ri, PF_SCRUB, path);
 	if (ret != 0) {
-		warnx("%s", pfr_strerror(ret));
+		warnx("%s", pf_strerror(ret));
 		goto error;
 	}
 	if (opts & PF_OPT_SHOWALL) {
@@ -1565,12 +1565,12 @@ pfctl_show_nat(int dev, const char *path, int opts, char *anchorname, int depth,
 				fprintf(stderr, "NAT anchor '%s' "
 				    "not found.\n", anchorname);
 			else
-				errx(1, "%s", pfr_strerror(ret));
+				errx(1, "%s", pf_strerror(ret));
 		}
 
 		for (nr = 0; nr < mnr; ++nr) {
 			if ((ret = pfctl_get_ruleset(pfh, npath, nr, &prs)) != 0)
-				errx(1, "%s", pfr_strerror(ret));
+				errx(1, "%s", pf_strerror(ret));
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
 			printf("nat-anchor \"%s\" all {\n", prs.name);
 			pfctl_show_nat(dev, npath, opts,
@@ -3645,7 +3645,7 @@ main(int argc, char *argv[])
 }
 
 char *
-pfr_strerror(int errnum)
+pf_strerror(int errnum)
 {
 	switch (errnum) {
 	case ESRCH:
