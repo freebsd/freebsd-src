@@ -461,16 +461,3 @@ pfr_next_token(char buf[BUF_SIZE], FILE *fp)
 	buf[i] = '\0';
 	return (1);
 }
-
-char *
-pfr_strerror(int errnum)
-{
-	switch (errnum) {
-	case ESRCH:
-		return "Table does not exist";
-	case ENOENT:
-		return "Anchor does not exist";
-	default:
-		return strerror(errnum);
-	}
-}
