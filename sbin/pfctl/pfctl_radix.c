@@ -469,7 +469,7 @@ pfr_strerror(int errnum)
 	case ESRCH:
 		return "Table does not exist";
 	case ENOENT:
-		return "Anchor or Ruleset does not exist";
+		return "Anchor does not exist";
 	default:
 		return strerror(errnum);
 	}
