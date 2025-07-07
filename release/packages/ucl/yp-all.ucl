@@ -1,0 +1,7 @@
+comment = "Yellow Pages (YP) / Network Information Service (NIS)"
+desc = <<EOD
+YP, also called NIS, is a network protocol for sharing name service
+information across machines on a network.  This packages contains the YP
+server, YP management utilities, the YP-LDAP gateway (ypldap), YP client
+utilities and a sample Makefile for building the YP database.
+EOD

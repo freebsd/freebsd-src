@@ -2,9 +2,35 @@
 #
 #
 
+mancx=" (manual pages)"
+mandx="This package contains the online manual pages."
+
+lib32cx=" (32-bit libraries)"
+lib32dx="This package contains 32-bit libraries for running 32-bit applications on
+a 64-bit host."
+
+devcx=" (development files)"
+devdx="This package contains development files for compiling applications."
+
+dev32cx=" (32-bit development files)"
+dev32dx="This package contains development files for compiling 32-bit applications
+on a 64-bit host."
+
+dbgcx=" (debugging symbols)"
+dbgdx="This package contains external debugging symbols for use with a source-level
+debugger."
+
+dbg32cx=" (32-bit debugging symbols)"
+dbg32dx="This package contains 32-bit external debugging symbols for use with a
+source-level debugger."
+
 main() {
+	outname=""
+	origname=""
 	desc=
+	desc_suffix=""
 	comment=
+	comment_suffix=""
 	debug=
 	uclsource=
 	while getopts "do:s:u:" arg; do
@@ -52,51 +78,53 @@ main() {
 		# as a dependency.
 		libcompat-dev|libcompiler_rt-dev|liby-dev)
 			outname=${outname%%-dev}
-			_descr="Development Files"
+			comment_suffix="$devcx"
+			desc_suffix="$devdx"
 			;;
-		libcompat-lib32_dev|libcompiler_rt-lib32_dev|liby-lib32_dev)
-			outname=${outname%%-lib32_dev}
-			_descr="32-bit Libraries, Development Files"
+		libcompat-dev-lib32|libcompiler_rt-dev-lib32|liby-dev-lib32)
+			outname=${outname%%-dev-lib32}
+			comment_suffix="$dev32cx"
+			desc_suffix="$dev32dx"
 			;;
 		libcompat-man|libelftc-man)
 			outname=${outname%%-man}
-			_descr="Manual Pages"
-			;;
-		utilities)
-			uclfile="${uclfile}"
-			;;
-		runtime)
-			outname="runtime"
-			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
-			;;
-		*-lib32_dev)
-			outname="${outname%%-lib32_dev}"
-			_descr="32-bit Libraries, Development Files"
-			pkgdeps="${outname}"
-			;;
-		*-lib32_dbg)
-			outname="${outname%%-lib32_dbg}"
-			_descr="32-bit Libraries, Debugging Symbols"
-			pkgdeps="${outname}"
-			;;
-		*-lib32)
-			outname="${outname%%-lib32}"
-			_descr="32-bit Libraries"
-			pkgdeps="${outname}"
+			comment_suffix="$mancx"
+			desc_suffix="$mandx"
 			;;
 		*-dev)
 			outname="${outname%%-dev}"
-			_descr="Development Files"
+			comment_suffix="$devcx"
+			desc_suffix="$devdx"
 			pkgdeps="${outname}"
 			;;
 		*-dbg)
 			outname="${outname%%-dbg}"
-			_descr="Debugging Symbols"
+			comment_suffix="$dbgcx"
+			desc_suffix="$dbgdx"
+			pkgdeps="${outname}"
+			;;
+		*-dev-lib32)
+			outname="${outname%%-dev-lib32}"
+			comment_suffix="$dev32cx"
+			desc_suffix="$dev32dx"
+			pkgdeps="${outname}"
+			;;
+		*-dbg-lib32)
+			outname="${outname%%-dbg-lib32}"
+			comment_suffix="$dbg32cx"
+			desc_suffix="$dbg32dx"
+			pkgdeps="${outname}"
+			;;
+		*-lib32)
+			outname="${outname%%-lib32}"
+			comment_suffix="$lib32cx"
+			desc_suffix="$lib32dx"
 			pkgdeps="${outname}"
 			;;
 		*-man)
 			outname="${outname%%-man}"
-			_descr="Manual Pages"
+			comment_suffix="$mancx"
+			desc_suffix="$mandx"
 			pkgdeps="${outname}"
 			;;
 		${origname})
@@ -116,13 +144,14 @@ main() {
 		echo ""
 		echo "==============================================================="
 		echo "DEBUG:"
-		echo "_descr=${_descr}"
 		echo "outname=${outname}"
 		echo "origname=${origname}"
 		echo "srctree=${srctree}"
 		echo "uclfile=${uclfile}"
 		echo "desc=${desc}"
+		echo "desc_suffix=${desc_suffix}"
 		echo "comment=${comment}"
+		echo "comment_suffix=${comment_suffix}"
 		echo "vital=${vital}"
 		echo "cp ${uclsource} -> ${uclfile}"
 		echo "==============================================================="
@@ -132,7 +161,6 @@ main() {
 	fi
 
 	[ -z "${comment}" ] && comment="${outname} package"
-	[ -n "${_descr}" ] && comment="${comment} (${_descr})"
 	[ -z "${desc}" ] && desc="${outname} package"
 
 	cp "${uclsource}" "${uclfile}"
@@ -155,11 +183,13 @@ EOF
 		PKGGENNAME "${outname}" \
 		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
 		COMMENT "${comment}" \
+		COMMENT_SUFFIX "${comment_suffix}" \
 		DESC "${desc}" \
+		DESC_SUFFIX "$desc_suffix" \
 		CAP_MKDB_ENDIAN "${cap_arg}" \
 		PKG_WWW "${PKG_WWW}" \
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
-		UCLFILES "${srctree}/release/packages/" \
+		UCLFILES "${srctree}/release/packages/ucl" \
 		${uclfile} ${uclfile}
 
 	return 0
