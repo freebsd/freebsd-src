@@ -1,0 +1,4 @@
+comment = "Newsyslog Utility"
+desc = <<EOD
+Newsyslog Utility
+EOD

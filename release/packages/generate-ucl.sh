@@ -27,9 +27,7 @@ source-level debugger."
 main() {
 	outname=""
 	origname=""
-	desc=
 	desc_suffix=""
-	comment=
 	comment_suffix=""
 	debug=
 	uclsource=
@@ -135,9 +133,6 @@ main() {
 			;;
 	esac
 
-	desc="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESC)"
-	comment="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_COMMENT)"
-
 	uclsource="${srctree}/release/packages/template.ucl"
 
 	if [ -n "${debug}" ]; then
@@ -148,9 +143,7 @@ main() {
 		echo "origname=${origname}"
 		echo "srctree=${srctree}"
 		echo "uclfile=${uclfile}"
-		echo "desc=${desc}"
 		echo "desc_suffix=${desc_suffix}"
-		echo "comment=${comment}"
 		echo "comment_suffix=${comment_suffix}"
 		echo "vital=${vital}"
 		echo "cp ${uclsource} -> ${uclfile}"
@@ -159,9 +152,6 @@ main() {
 		echo ""
 		echo ""
 	fi
-
-	[ -z "${comment}" ] && comment="${outname} package"
-	[ -z "${desc}" ] && desc="${outname} package"
 
 	cp "${uclsource}" "${uclfile}"
 	if [ -n "${pkgdeps}" ]; then
@@ -182,9 +172,7 @@ EOF
 		PKGNAME "${origname}" \
 		PKGGENNAME "${outname}" \
 		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
-		COMMENT "${comment}" \
 		COMMENT_SUFFIX "${comment_suffix}" \
-		DESC "${desc}" \
 		DESC_SUFFIX "$desc_suffix" \
 		CAP_MKDB_ENDIAN "${cap_arg}" \
 		PKG_WWW "${PKG_WWW}" \

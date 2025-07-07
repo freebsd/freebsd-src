@@ -1,0 +1,4 @@
+comment = "Sendmail Utilities"
+desc = <<EOD
+Sendmail Utilities
+EOD

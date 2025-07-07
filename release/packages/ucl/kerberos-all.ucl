@@ -1,0 +1,4 @@
+comment = "Kerberos Utilities"
+desc = <<EOD
+Kerberos Utilities
+EOD

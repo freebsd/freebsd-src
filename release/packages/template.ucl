@@ -4,7 +4,7 @@
 name = "${PKG_NAME_PREFIX}-${PKGNAME}"
 origin = "base"
 version = "${VERSION}"
-comment = "${COMMENT}"
+comment = "${PKGNAME} package"
 categories = [ base ]
 maintainer = "${PKG_MAINTAINER}"
 www = "${PKG_WWW}"
@@ -12,7 +12,7 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
-${DESC}
+${PKGNAME} package
 EOD
 .include(try=true,duplicate=rewrite) "${UCLFILES}/${PKGGENNAME}-all.ucl"
 .include(try=true,duplicate=rewrite) "${UCLFILES}/${PKGNAME}.ucl"

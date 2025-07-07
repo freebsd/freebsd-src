@@ -1,1 +1,5 @@
+comment = "Unbound DNS Resolver"
+desc = <<EOD
+Unbound DNS Resolver
+EOD
 licenses = [ BSD4CLAUSE ]
