@@ -79,7 +79,8 @@ close_inotify(int fd)
 }
 
 static uint32_t
-consume_event_cookie(int ifd, int wd, int event, int flags, const char *name)
+consume_event_cookie(int ifd, int wd, unsigned int event, unsigned int flags,
+    const char *name)
 {
 	struct inotify_event *ev;
 	size_t evsz, namelen;
@@ -118,7 +119,8 @@ consume_event_cookie(int ifd, int wd, int event, int flags, const char *name)
  * matches the expected values.
  */
 static void
-consume_event(int ifd, int wd, int event, int flags, const char *name)
+consume_event(int ifd, int wd, unsigned int event, unsigned int flags,
+    const char *name)
 {
 	(void)consume_event_cookie(ifd, wd, event, flags, name);
 }
