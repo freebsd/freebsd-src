@@ -57,9 +57,10 @@ osdep_uuidgen(mkimg_uuid_t *uuid)
 	u_int i;
 	uint16_t seq;
 
-	if (reproducible)
-		memset(&tv, 0, sizeof(tv));
-	else if (gettimeofday(&tv, NULL) == -1)
+	if (timestamp != (time_t)-1) {
+		tv.tv_sec = timestamp;
+		tv.tv_usec = 0;
+	} else if (gettimeofday(&tv, NULL) == -1)
 		abort();
 
 	time += (uint64_t)tv.tv_sec * 10000000LL;

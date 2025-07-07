@@ -41,7 +41,7 @@
 .Op Fl f Ar format
 .Op Fl o Ar outfile
 .Op Fl a Ar active
-.Op Fl R
+.Op Fl t Ar timestamp
 .Op Fl v
 .Op Fl y
 .Op Fl s Ar scheme Op Fl p Ar partition ...
@@ -139,9 +139,9 @@ option is a shorthand to specify the minimum and maximum capacity at the
 same time.
 .Pp
 The
-.Fl R
-option enables reproducible mode: any timestamps or random identifiers will
-be fixed so as to ensure consistent output.
+.Fl t
+option causes any timestamps embedded in the output file to be set to the
+given time, specified in seconds since the epoch.
 .Pp
 The
 .Fl v

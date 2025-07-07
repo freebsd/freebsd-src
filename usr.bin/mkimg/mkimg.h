@@ -29,9 +29,9 @@
 
 #include <sys/queue.h>
 #include <sys/types.h>
-#include <stdbool.h>
+#include <time.h>
 
-extern bool reproducible;	/* Generate reproducible output. */
+extern time_t timestamp;
 
 struct part {
 	TAILQ_ENTRY(part) link;
