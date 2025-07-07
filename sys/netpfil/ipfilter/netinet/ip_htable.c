@@ -343,6 +343,7 @@ ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 	iph->iph_ref = 1;
 	iph->iph_list = NULL;
 	iph->iph_tail = &iph->iph_list;
+	iph->iph_unit = unit;
 	iph->iph_next = softh->ipf_htables[unit + 1];
 	iph->iph_pnext = &softh->ipf_htables[unit + 1];
 	if (softh->ipf_htables[unit + 1] != NULL)
