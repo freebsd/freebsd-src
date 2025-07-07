@@ -1338,7 +1338,7 @@ static pdp_entry_t *pmap_pti_pdpe(vm_offset_t va);
 static pd_entry_t *pmap_pti_pde(vm_offset_t va);
 static void pmap_pti_wire_pte(void *pte);
 static int pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
-    bool remove_pt, struct spglist *free, struct rwlock **lockp);
+    bool demote_kpde, struct spglist *free, struct rwlock **lockp);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp);
 static vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
@@ -6162,8 +6162,7 @@ pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
  * pmap_remove_kernel_pde: Remove a kernel superpage mapping.
  */
 static void
-pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
-    bool remove_pt)
+pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde;
 	vm_paddr_t mptepa;
@@ -6171,12 +6170,8 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 
 	KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (remove_pt)
-		mpte = pmap_remove_pt_page(pmap, va);
-	else
-		mpte = vm_radix_lookup(&pmap->pm_root, pmap_pde_pindex(va));
-	if (mpte == NULL)
-		panic("pmap_remove_kernel_pde: Missing pt page.");
+	mpte = pmap_remove_pt_page(pmap, va);
+	KASSERT(mpte != NULL, ("pmap_remove_kernel_pde: missing pt page"));
 
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	newpde = mptepa | X86_PG_M | X86_PG_A | X86_PG_RW | X86_PG_V;
@@ -6206,7 +6201,7 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
  * pmap_remove_pde: do the things to unmap a superpage in a process
  */
 static int
-pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool remove_pt,
+pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool demote_kpde,
     struct spglist *free, struct rwlock **lockp)
 {
 	struct md_page *pvh;
@@ -6246,9 +6241,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool remove_pt,
 			pmap_delayed_invl_page(m);
 		}
 	}
-	if (pmap == kernel_pmap) {
-		pmap_remove_kernel_pde(pmap, pdq, sva, remove_pt);
-	} else {
+	if (pmap != kernel_pmap) {
 		mpte = pmap_remove_pt_page(pmap, sva);
 		if (mpte != NULL) {
 			KASSERT(vm_page_any_valid(mpte),
@@ -6258,6 +6251,14 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool remove_pt,
 			    ("pmap_remove_pde: pte page ref count error"));
 			mpte->ref_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
+		}
+	} else if (demote_kpde) {
+		pmap_remove_kernel_pde(pmap, pdq, sva);
+	} else {
+		mpte = vm_radix_lookup(&pmap->pm_root, pmap_pde_pindex(sva));
+		if (vm_page_any_valid(mpte)) {
+			mpte->valid = 0;
+			pmap_zero_page(mpte);
 		}
 	}
 	return (pmap_unuse_pt(pmap, sva, *pmap_pdpe(pmap, sva), free));
@@ -7563,8 +7564,8 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 			 * the mapping is not from kernel_pmap, then
 			 * a reserved PT page could be freed.
 			 */
-			(void)pmap_remove_pde(pmap, pde, va,
-			    pmap != kernel_pmap, &free, lockp);
+			(void)pmap_remove_pde(pmap, pde, va, false, &free,
+			    lockp);
 			if ((oldpde & PG_G) == 0)
 				pmap_invalidate_pde_page(pmap, va, oldpde);
 		} else {
@@ -7574,10 +7575,9 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 				 * before any changes to mappings are
 				 * made.  Abort on failure.
 				 */
-				mt = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
-				if (pmap_insert_pt_page(pmap, mt, false, false)) {
-					if (pdpg != NULL)
-						pdpg->ref_count--;
+				mt = PHYS_TO_VM_PAGE(oldpde & PG_FRAME);
+				if (pmap_insert_pt_page(pmap, mt, false,
+				    false)) {
 					CTR1(KTR_PMAP,
 			    "pmap_enter_pde: cannot ins kern ptp va %#lx",
 					    va);
