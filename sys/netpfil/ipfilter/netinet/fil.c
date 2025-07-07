@@ -7455,6 +7455,10 @@ ipf_token_find(ipf_main_softc_t *softc, int type, int uid, void *ptr)
 {
 	ipftoken_t *it, *new;
 
+	KMALLOC(new, ipftoken_t *);
+	if (new != NULL)
+		bzero((char *)new, sizeof(*new));
+
 	WRITE_ENTER(&softc->ipf_tokens);
 	for (it = softc->ipf_token_head; it != NULL; it = it->ipt_next) {
 		if ((ptr == it->ipt_ctx) && (type == it->ipt_type) &&
@@ -7463,10 +7467,6 @@ ipf_token_find(ipf_main_softc_t *softc, int type, int uid, void *ptr)
 	}
 
 	if (it == NULL) {
-		KMALLOC(new, ipftoken_t *);
-		if (new != NULL)
-			bzero((char *)new, sizeof(*new));
-
 		it = new;
 		new = NULL;
 		if (it == NULL) {
@@ -7478,6 +7478,11 @@ ipf_token_find(ipf_main_softc_t *softc, int type, int uid, void *ptr)
 		it->ipt_type = type;
 		it->ipt_ref = 1;
 	} else {
+		if (new != NULL) {
+			KFREE(new);
+			new = NULL;
+		}
+
 		if (it->ipt_complete > 0)
 			it = NULL;
 		else
