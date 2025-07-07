@@ -2034,9 +2034,9 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				printf(
 		"scsi_scan_bus: xpt_create_path failed with status %#x, bus scan halted\n",
 				    status);
+				xpt_free_ccb((union ccb *)scan_info->cpi);
 				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = status;
-				xpt_free_ccb(work_ccb);
 				xpt_done(request_ccb);
 				break;
 			}
