@@ -1945,10 +1945,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			xpt_done(request_ccb);
 			return;
 		}
-		xpt_setup_ccb(&work_ccb->ccb_h, request_ccb->ccb_h.path,
-			      request_ccb->ccb_h.pinfo.priority);
-		work_ccb->ccb_h.func_code = XPT_PATH_INQ;
-		xpt_action(work_ccb);
+		xpt_path_inq(&work_ccb->cpi, request_ccb->ccb_h.path);
 		if (work_ccb->ccb_h.status != CAM_REQ_CMP) {
 			request_ccb->ccb_h.status = work_ccb->ccb_h.status;
 			xpt_free_ccb(work_ccb);
@@ -2294,10 +2291,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("scsi_scan_lun\n"));
 
-	memset(&cpi, 0, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 
 	if (cpi.ccb_h.status != CAM_REQ_CMP) {
 		if (request_ccb != NULL) {
@@ -2421,10 +2415,7 @@ scsi_devise_transport(struct cam_path *path)
 	struct scsi_inquiry_data *inq_buf;
 
 	/* Get transport information from the SIM */
-	memset(&cpi, 0, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 
 	inq_buf = NULL;
 	if ((path->device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0)
@@ -2732,10 +2723,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path
 
 	inq_data = &device->inq_data;
 	scsi = &cts->proto_specific.scsi;
-	memset(&cpi, 0, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 
 	/* SCSI specific sanity checking */
 	if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0
@@ -3046,10 +3034,7 @@ _scsi_announce_periph(struct cam_periph *periph, u_int *speed, u_int *freq, stru
 		return;
 
 	/* Ask the SIM for its base transfer speed */
-	memset(&cpi, 0, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 
 	/* Report connection speed */
 	*speed = cpi.base_transfer_speed;
