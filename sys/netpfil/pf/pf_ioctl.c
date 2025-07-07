@@ -1359,7 +1359,7 @@ static int
 pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 {
 	struct pf_kruleset	*rs;
-	struct pf_krule		*rule, **old_array, *old_rule;
+	struct pf_krule		*rule, *old_rule;
 	struct pf_krulequeue	*old_rules;
 	struct pf_krule_global  *old_tree;
 	int			 error;
@@ -1384,13 +1384,10 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	/* Swap rules, keep the old. */
 	old_rules = rs->rules[rs_num].active.ptr;
 	old_rcount = rs->rules[rs_num].active.rcount;
-	old_array = rs->rules[rs_num].active.ptr_array;
 	old_tree = rs->rules[rs_num].active.tree;
 
 	rs->rules[rs_num].active.ptr =
 	    rs->rules[rs_num].inactive.ptr;
-	rs->rules[rs_num].active.ptr_array =
-	    rs->rules[rs_num].inactive.ptr_array;
 	rs->rules[rs_num].active.tree =
 	    rs->rules[rs_num].inactive.tree;
 	rs->rules[rs_num].active.rcount =
@@ -1420,7 +1417,6 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	}
 
 	rs->rules[rs_num].inactive.ptr = old_rules;
-	rs->rules[rs_num].inactive.ptr_array = old_array;
 	rs->rules[rs_num].inactive.tree = NULL; /* important for pf_ioctl_addrule */
 	rs->rules[rs_num].inactive.rcount = old_rcount;
 
@@ -1433,9 +1429,6 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	while ((rule = TAILQ_FIRST(old_rules)) != NULL)
 		pf_unlink_rule_locked(old_rules, rule);
 	PF_UNLNKDRULES_UNLOCK();
-	if (rs->rules[rs_num].inactive.ptr_array)
-		free(rs->rules[rs_num].inactive.ptr_array, M_TEMP);
-	rs->rules[rs_num].inactive.ptr_array = NULL;
 	rs->rules[rs_num].inactive.rcount = 0;
 	rs->rules[rs_num].inactive.open = 0;
 	pf_remove_if_empty_kruleset(rs);
@@ -1458,24 +1451,11 @@ pf_setup_pfsync_matching(struct pf_kruleset *rs)
 		if (rs_cnt == PF_RULESET_SCRUB)
 			continue;
 
-		if (rs->rules[rs_cnt].inactive.ptr_array)
-			free(rs->rules[rs_cnt].inactive.ptr_array, M_TEMP);
-		rs->rules[rs_cnt].inactive.ptr_array = NULL;
-
 		if (rs->rules[rs_cnt].inactive.rcount) {
-			rs->rules[rs_cnt].inactive.ptr_array =
-			    mallocarray(rs->rules[rs_cnt].inactive.rcount,
-			    sizeof(struct pf_rule **),
-			    M_TEMP, M_NOWAIT);
-
-			if (!rs->rules[rs_cnt].inactive.ptr_array)
-				return (ENOMEM);
-		}
-
-		TAILQ_FOREACH(rule, rs->rules[rs_cnt].inactive.ptr,
-		    entries) {
-			pf_hash_rule_rolling(&ctx, rule);
-			(rs->rules[rs_cnt].inactive.ptr_array)[rule->nr] = rule;
+			TAILQ_FOREACH(rule, rs->rules[rs_cnt].inactive.ptr,
+			    entries) {
+				pf_hash_rule_rolling(&ctx, rule);
+			}
 		}
 	}
 
