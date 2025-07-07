@@ -1915,6 +1915,15 @@ typedef struct {
 	int	lunindex[0];
 } scsi_scan_bus_info;
 
+static void
+free_scan_info(scsi_scan_bus_info *scan_info)
+{
+	KASSERT(scan_info->cpi != NULL,
+	    ("scan_info (%p) missing its ccb_pathinq CCB\n", scan_info));
+	xpt_free_ccb((union ccb *)scan_info->cpi);
+	free(scan_info, M_CAMXPT);
+}
+
 /*
  * To start a scan, request_ccb is an XPT_SCAN_BUS ccb.
  * As the scan progresses, scsi_scan_bus is used as the
@@ -2034,16 +2043,14 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				printf(
 		"scsi_scan_bus: xpt_create_path failed with status %#x, bus scan halted\n",
 				    status);
-				xpt_free_ccb((union ccb *)scan_info->cpi);
-				free(scan_info, M_CAMXPT);
+				free_scan_info(scan_info);
 				request_ccb->ccb_h.status = status;
 				xpt_done(request_ccb);
 				break;
 			}
 			work_ccb = xpt_alloc_ccb_nowait();
 			if (work_ccb == NULL) {
-				xpt_free_ccb((union ccb *)scan_info->cpi);
-				free(scan_info, M_CAMXPT);
+				free_scan_info(scan_info);
 				xpt_free_path(path);
 				request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 				xpt_done(request_ccb);
@@ -2205,12 +2212,11 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (done) {
 				mtx_unlock(mtx);
 				xpt_free_ccb(request_ccb);
-				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
 				CAM_DEBUG(request_ccb->ccb_h.path,
 				    CAM_DEBUG_TRACE,
 				   ("SCAN done for %p\n", scan_info));
-				free(scan_info, M_CAMXPT);
+				free_scan_info(scan_info);
 				request_ccb->ccb_h.status = CAM_REQ_CMP;
 				xpt_done(request_ccb);
 				break;
@@ -2230,9 +2236,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		"scsi_scan_bus: xpt_create_path failed with status %#x, bus scan halted\n",
 			       	    status);
 				xpt_free_ccb(request_ccb);
-				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
-				free(scan_info, M_CAMXPT);
+				free_scan_info(scan_info);
 				request_ccb->ccb_h.status = status;
 				xpt_done(request_ccb);
 				break;
