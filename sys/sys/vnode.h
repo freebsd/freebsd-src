@@ -1032,7 +1032,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 #define VOP_WRITE_POST(ap, ret)						\
 	noffset = (ap)->a_uio->uio_offset;				\
 	if (noffset > ooffset) {					\
-		if (VN_KNLIST_EMPTY((ap)->a_vp)) {			\
+		if (!VN_KNLIST_EMPTY((ap)->a_vp)) {			\
 			VFS_KNOTE_LOCKED((ap)->a_vp, NOTE_WRITE |	\
 			    (noffset > osize ? NOTE_EXTEND : 0));	\
 		}							\
