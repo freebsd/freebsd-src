@@ -2481,7 +2481,7 @@ OLD_FILES+=usr/share/man/man4/ng_uni.4.gz
 OLD_FILES+=usr/share/man/man4/ngatmbase.4.gz
 
 # 20230308: machine-id merged into hostid_save
-OLD_FILES+=etc/rc.d/machine-id
+OLD_FILES+=etc/rc.d/machine_id
 
 # 20230306: remove tzsetwall(3)
 OLD_FILES+=usr/share/man/man3/tzsetwall.3.gz
