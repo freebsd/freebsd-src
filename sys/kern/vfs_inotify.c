@@ -503,7 +503,7 @@ inotify_can_coalesce(struct inotify_softc *sc, struct inotify_event *evp)
 	return (prev != NULL && prev->ev.mask == evp->mask &&
 	    prev->ev.wd == evp->wd && prev->ev.cookie == evp->cookie &&
 	    prev->ev.len == evp->len &&
-	    (evp->len == 0 || strcmp(prev->ev.name, evp->name) == 0));
+	    memcmp(prev->ev.name, evp->name, evp->len) == 0);
 }
 
 static void
