@@ -2183,16 +2183,16 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		 * Check to see if we scan any further luns.
 		 */
 		if (next_target) {
-			int done;
+			bool done;
 
 			/*
 			 * Free the current request path- we're done with it.
 			 */
 			xpt_free_path(oldpath);
  hop_again:
-			done = 0;
+			done = false;
 			if (scan_info->request_ccb->ccb_h.func_code == XPT_SCAN_TGT) {
-				done = 1;
+				done = true;
 			} else if (scan_info->cpi->hba_misc & PIM_SEQSCAN) {
 				scan_info->counter++;
 				if (scan_info->counter ==
@@ -2201,12 +2201,12 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				}
 				if (scan_info->counter >=
 				    scan_info->cpi->max_target+1) {
-					done = 1;
+					done = true;
 				}
 			} else {
 				scan_info->counter--;
 				if (scan_info->counter == 0) {
-					done = 1;
+					done = true;
 				}
 			}
 			if (done) {
