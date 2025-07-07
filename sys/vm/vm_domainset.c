@@ -101,20 +101,9 @@ static void
 vm_domainset_iter_rr(struct vm_domainset_iter *di, int *domain)
 {
 
+	/* Grab the next domain in 'ds_order'. */
 	*domain = di->di_domain->ds_order[
 	    ++(*di->di_iter) % di->di_domain->ds_cnt];
-}
-
-static void
-vm_domainset_iter_prefer(struct vm_domainset_iter *di, int *domain)
-{
-	int d;
-
-	do {
-		d = di->di_domain->ds_order[
-		    ++(*di->di_iter) % di->di_domain->ds_cnt];
-	} while (d == di->di_domain->ds_prefer);
-	*domain = d;
 }
 
 static void
@@ -133,24 +122,7 @@ vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 
 	KASSERT(!DOMAINSET_EMPTY(&di->di_remain_mask),
 	    ("%s: Already iterated on all domains", __func__));
-	switch (di->di_policy) {
-	case DOMAINSET_POLICY_FIRSTTOUCH:
-		/*
-		 * To prevent impossible allocations we convert an invalid
-		 * first-touch to round-robin.
-		 */
-		/* FALLTHROUGH */
-	case DOMAINSET_POLICY_INTERLEAVE:
-		/* FALLTHROUGH */
-	case DOMAINSET_POLICY_ROUNDROBIN:
-		vm_domainset_iter_rr(di, domain);
-		break;
-	case DOMAINSET_POLICY_PREFER:
-		vm_domainset_iter_prefer(di, domain);
-		break;
-	default:
-		panic("%s: Unknown policy %d", __func__, di->di_policy);
-	}
+	vm_domainset_iter_rr(di, domain);
 	KASSERT(*domain < vm_ndomains,
 	    ("%s: Invalid domain %d", __func__, *domain));
 }
