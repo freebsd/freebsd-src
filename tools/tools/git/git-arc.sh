@@ -545,7 +545,7 @@ find_author()
     # don't know if the prior _ are _ or + or any number of other characters.
     # Since there's issues here, prompt
     a=$(printf "%s <%s>\n" "${name}" $(echo "$addr" | sed -e 's/\(.*\)_/\1@/'))
-    echo "Making best guess: Turning ${addr} to ${a}"
+    echo "Making best guess: Turning ${addr} to ${a}" >&2
     if ! prompt; then
         echo "ABORT"
         return
