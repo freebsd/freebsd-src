@@ -1,0 +1,5 @@
+comment = "RPC GSS-API authentication library"
+desc = <<EOD
+librpcsec_gss provides an API to allow applications to interact with the
+RPCSEC_GSS security mechanism.
+EOD

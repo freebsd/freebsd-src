@@ -1,0 +1,5 @@
+comment = "Bluetooth Service Discovery Protocol library"
+desc = <<EOD
+libsdp allows applications to interact with the Bluetooth Service Discovery
+Protocol.
+EOD

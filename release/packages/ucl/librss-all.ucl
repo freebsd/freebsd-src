@@ -1,0 +1,5 @@
+comment = "Receive-side scaling library"
+desc = <<EOD
+The librss library and the functions it provides are used for both fetching the
+system RSS configuration and interacting with RSS aware sockets.
+EOD

@@ -1,0 +1,6 @@
+comment = "Preloaded library to change standard streams initial buffering"
+desc = <<EOD
+The libstdbuf library is meant to be preloaded with the LD_PRELOAD environment
+variable to as to change the initial buffering of standard input, standard
+output and standard error streams.
+EOD

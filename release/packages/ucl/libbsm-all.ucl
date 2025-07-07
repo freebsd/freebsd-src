@@ -1,0 +1,6 @@
+comment = "Basic Security Module (BSM) audit library"
+desc = <<EOD
+The libbsm library routines provide an interface to BSM audit record streams,
+allowing both the parsing of existing audit streams, as well as the creation of
+new audit records and streams.
+EOD

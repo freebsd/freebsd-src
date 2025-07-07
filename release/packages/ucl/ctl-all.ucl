@@ -1,0 +1,4 @@
+comment = "CAM Target Layer"
+desc = <<EOD
+The CAM Target Layer allows CAM to export storage targets, e.g. via iSCSI.
+EOD

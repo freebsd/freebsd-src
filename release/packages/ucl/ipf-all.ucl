@@ -1,0 +1,4 @@
+comment = "IP Filter (ipf) packet filter management tools"
+desc = <<EOD
+IP Filter (ipf) is a stateful packet filter for IPv4 and IPv6 networks.
+EOD

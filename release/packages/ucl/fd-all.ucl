@@ -1,0 +1,4 @@
+comment = "Floppy disk support"
+desc = <<EOD
+Utilities for formatting and managing floppy disks supported by fdc(4).
+EOD

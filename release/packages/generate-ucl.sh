@@ -5,6 +5,10 @@
 mancx=" (manual pages)"
 mandx="This package contains the online manual pages."
 
+lib32mancx=" (32-bit manual pages)"
+lib32mandx="This package contains the online manual pages for 32-bit components
+on a 64-bit host."
+
 lib32cx=" (32-bit libraries)"
 lib32dx="This package contains 32-bit libraries for running 32-bit applications on
 a 64-bit host."
@@ -111,6 +115,12 @@ main() {
 			outname="${outname%%-dbg-lib32}"
 			comment_suffix="$dbg32cx"
 			desc_suffix="$dbg32dx"
+			pkgdeps="${outname}"
+			;;
+		*-man-lib32)
+			outname="${outname%%-man-lib32}"
+			comment_suffix="$lib32mancx"
+			desc_suffix="$lib32mandx"
 			pkgdeps="${outname}"
 			;;
 		*-lib32)

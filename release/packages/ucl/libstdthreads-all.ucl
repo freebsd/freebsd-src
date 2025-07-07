@@ -1,0 +1,4 @@
+comment = "C11 threading library"
+desc = <<EOD
+libstdthreads provides the thread-control interface defined in the C99 standard.
+EOD

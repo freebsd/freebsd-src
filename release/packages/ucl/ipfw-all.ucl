@@ -1,0 +1,4 @@
+comment = "ipfw (IP firewall) management utilities"
+desc = <<EOD
+ipfw provides stateful packet filtering, NAT and traffic shaping for IP traffic.
+EOD

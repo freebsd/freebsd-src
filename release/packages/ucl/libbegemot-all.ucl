@@ -1,0 +1,5 @@
+comment = "rpoll(3) interface for event-driven I/O"
+desc = <<EOD
+libbegemot provides rpoll(3), a simplified interface for handling event-driven
+I/O programming.
+EOD

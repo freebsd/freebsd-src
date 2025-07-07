@@ -1,0 +1,4 @@
+comment = "syscons(4) fonts and keymaps"
+desc = <<EOD
+Fonts and keymaps for use with the legacy syscons(4) video console driver.
+EOD

@@ -1,0 +1,5 @@
+comment = "Library for interacting with threaded processes"
+desc = <<EOD
+libthread_db is used by the debugger to examine and interact with a
+multithreaded process being debugger.
+EOD

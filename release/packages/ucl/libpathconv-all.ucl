@@ -1,0 +1,5 @@
+comment = "Library for handling relative and absolute pathnames"
+desc = <<EOD
+libpathconv provides the abs2rel() and rel2abs() functions to convert between
+absolute and relative pathnames.
+EOD

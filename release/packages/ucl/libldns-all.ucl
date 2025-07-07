@@ -1,0 +1,6 @@
+comment="NLnet Labs LDNS library"
+desc = <<EOD
+The goal of ldns is to simplify DNS programming in C. ldns supports all
+low-level DNS and DNSSEC operations. It also defines a higher level API which
+allows a programmer to for instance create or sign packets.
+EOD
