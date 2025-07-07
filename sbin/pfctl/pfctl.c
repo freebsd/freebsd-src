@@ -3077,8 +3077,8 @@ pfctl_recurse(int dev, int opts, char *anchorname,
 	printf("Removing:\n");
 	SLIST_FOREACH_SAFE(pfra, anchors, pfra_sle, pfra_save) {
 		printf("  %s\n",
-		    (*pfra->pfra_anchorname == '\0') ? "<root>" :
-						       pfra->pfra_anchorname);
+		    (*pfra->pfra_anchorname == '\0') ? "/" :
+		    pfra->pfra_anchorname);
 		rv |= walkf(dev, opts, pfra);
 		SLIST_REMOVE(anchors, pfra, pfr_anchoritem, pfra_sle);
 		free(pfra->pfra_anchorname);
