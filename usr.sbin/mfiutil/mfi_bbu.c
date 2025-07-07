@@ -71,8 +71,8 @@ mfi_next_learn_time(uint32_t next_learn_time, char *buf, size_t sz)
 	tm.tm_year = 100;
 	basetime = timegm(&tm);
 	basetime += (time_t)next_learn_time;
-	len = snprintf(buf, sz, "%s", ctime(&basetime));
-	if (len > 0)
+	len = strlcpy(buf, ctime(&basetime), sz);
+	if (len < sz)
 		/* Get rid of the newline added by ctime(3). */
 		buf[len - 1] = '\0';
 }
