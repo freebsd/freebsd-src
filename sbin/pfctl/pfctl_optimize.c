@@ -903,13 +903,13 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 	struct pf_opt_queue queue;
 	struct pfctl_rules_info rules;
 	struct pfctl_rule a, b, rule;
-	int nr, mnr;
+	int nr, mnr, ret;
 
 	TAILQ_INIT(&queue);
 	TAILQ_INIT(&prof_superblocks);
 
-	if (pfctl_get_rules_info_h(pf->h, &rules, PF_PASS, "")) {
-		warn("DIOCGETRULES");
+	if ((ret = pfctl_get_rules_info_h(pf->h, &rules, PF_PASS, "")) != 0) {
+		warnx("%s", pfr_strerror(ret));
 		return (1);
 	}
 	mnr = rules.nr;
@@ -924,7 +924,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 
 		if (pfctl_get_rule_h(pf->h, nr, rules.ticket, "", PF_PASS,
 		    &rule, anchor_call)) {
-			warn("DIOCGETRULENV");
+			warnx("%s", pfr_strerror(ret));
 			free(por);
 			return (1);
 		}
