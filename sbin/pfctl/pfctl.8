@@ -487,7 +487,10 @@ Show the contents of the source tracking table.
 Show filter information (statistics and counters).
 When used together with
 .Fl v ,
-source tracking statistics are also shown.
+source tracking statistics, the firewall's 32-bit hostid number and the
+main ruleset's MD5 checksum for use with
+.Xr pfsync 4
+are also shown.
 .It Fl s Cm Running
 Show the running status and provide a non-zero exit status when disabled.
 .It Fl s Cm labels
