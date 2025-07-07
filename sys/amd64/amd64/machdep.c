@@ -188,6 +188,12 @@ struct init_ops init_ops = {
  */
 vm_paddr_t efi_systbl_phys;
 
+/*
+ * Bitmap of extra EFI memory region types that should be preserved and mapped
+ * during runtime services calls.
+ */
+uint32_t efi_map_regs;
+
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30

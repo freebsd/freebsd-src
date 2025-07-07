@@ -63,8 +63,6 @@
     1u << EFI_MD_TYPE_FIRMWARE \
 )
 
-uint32_t efi_map_regs;
-
 static pml5_entry_t *efi_pml5;
 static pml4_entry_t *efi_pml4;
 static vm_object_t obj_1t1_pt;
