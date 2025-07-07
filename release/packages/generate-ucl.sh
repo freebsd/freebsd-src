@@ -89,8 +89,6 @@ main() {
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
 		UCLFILES "${srctree}/release/packages/ucl" \
 		${uclsource} ${uclfile}
-
-	return 0
 }
 
 main "${@}"
