@@ -5458,7 +5458,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 			    name);
 		else
 			yyerror("cannot define table %s: %s", name,
-			    pfr_strerror(errno));
+			    pf_strerror(errno));
 
 		goto _error;
 	}
