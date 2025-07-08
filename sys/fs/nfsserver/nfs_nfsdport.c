@@ -1652,10 +1652,11 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 	}
 	if (fvp == tvp) {
 		/*
-		 * If source and destination are the same, there is nothing to
-		 * do. Set error to -1 to indicate this.
+		 * If source and destination are the same, there is
+		 * nothing to do. Set error to EJUSTRETURN to indicate
+		 * this.
 		 */
-		error = -1;
+		error = EJUSTRETURN;
 		goto out;
 	}
 	if (nd->nd_flag & ND_NFSV4) {
@@ -1710,7 +1711,7 @@ out:
 			vput(tvp);
 		vrele(fromndp->ni_dvp);
 		vrele(fvp);
-		if (error == -1)
+		if (error == EJUSTRETURN)
 			error = 0;
 	}
 
