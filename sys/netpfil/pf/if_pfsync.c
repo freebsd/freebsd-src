@@ -763,6 +763,10 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			    __func__, msg_version);
 	}
 
+	if (! (st->act.rtableid == -1 ||
+	    (st->act.rtableid >= 0 && st->act.rtableid < rt_numfibs)))
+		goto cleanup;
+
 	st->id = sp->pfs_1301.id;
 	st->creatorid = sp->pfs_1301.creatorid;
 	pf_state_peer_ntoh(&sp->pfs_1301.src, &st->src);
