@@ -323,7 +323,9 @@ kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size, int flags,
 
 	start_segind = -1;
 
-	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+	if (vm_domainset_iter_policy_init(&di, ds, &domain, &flags) != 0)
+		return (NULL);
+
 	do {
 		addr = kmem_alloc_attr_domain(domain, size, flags, low, high,
 		    memattr);
@@ -417,7 +419,9 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
 
 	start_segind = -1;
 
-	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+	if (vm_domainset_iter_policy_init(&di, ds, &domain, &flags))
+		return (NULL);
+
 	do {
 		addr = kmem_alloc_contig_domain(domain, size, flags, low, high,
 		    alignment, boundary, memattr);
@@ -517,7 +521,9 @@ kmem_malloc_domainset(struct domainset *ds, vm_size_t size, int flags)
 	void *addr;
 	int domain;
 
-	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+	if (vm_domainset_iter_policy_init(&di, ds, &domain, &flags) != 0)
+		return (NULL);
+
 	do {
 		addr = kmem_malloc_domain(domain, size, flags);
 		if (addr != NULL)

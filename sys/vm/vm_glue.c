@@ -453,7 +453,7 @@ vm_thread_stack_create(struct domainset *ds, int pages)
 	obj = vm_thread_kstack_size_to_obj(pages);
 	if (vm_ndomains > 1)
 		obj->domain.dr_policy = ds;
-	vm_domainset_iter_page_init(&di, obj, 0, &domain, &req, NULL);
+	vm_domainset_iter_page_init(&di, obj, 0, &domain, &req);
 	do {
 		/*
 		 * Get a kernel virtual address for this thread's kstack.

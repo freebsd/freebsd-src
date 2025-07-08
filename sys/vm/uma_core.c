@@ -4017,8 +4017,9 @@ restart:
 	rr = rdomain == UMA_ANYDOMAIN;
 	if (rr) {
 		aflags = (flags & ~M_WAITOK) | M_NOWAIT;
-		vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
-		    &aflags);
+		if (vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
+		    &aflags) != 0)
+			return (NULL);
 	} else {
 		aflags = flags;
 		domain = rdomain;
@@ -5245,8 +5246,9 @@ uma_prealloc(uma_zone_t zone, int items)
 	slabs = howmany(items, keg->uk_ipers);
 	while (slabs-- > 0) {
 		aflags = M_NOWAIT;
-		vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
-		    &aflags);
+		if (vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
+		    &aflags) != 0)
+			panic("%s: Domainset is empty", __func__);
 		for (;;) {
 			slab = keg_alloc_slab(keg, zone, domain, M_WAITOK,
 			    aflags);
