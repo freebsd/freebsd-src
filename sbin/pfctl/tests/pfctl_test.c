@@ -65,24 +65,6 @@
  *         Copied from OpenBSD.
  */
 
-static bool
-check_pf_module_available(void)
-{
-	int modid;
-	struct module_stat stat;
-
-	if ((modid = modfind("pf")) < 0) {
-		warn("pf module not found");
-		return false;
-	}
-	stat.version = sizeof(struct module_stat);
-	if (modstat(modid, &stat) < 0) {
-		warn("can't stat pf module id %d", modid);
-		return false;
-	}
-	return (true);
-}
-
 extern char **environ;
 
 static struct sbuf *
@@ -184,9 +166,6 @@ run_pfctl_test(const char *input_path, const char *output_path,
 	char input_files_path[PATH_MAX];
 	struct sbuf *expected_output;
 	struct sbuf *real_output;
-
-	if (!check_pf_module_available())
-		atf_tc_skip("pf(4) is not loaded");
 
 	/* The test inputs need to be able to use relative includes. */
 	snprintf(input_files_path, sizeof(input_files_path), "%s/files",
@@ -292,6 +271,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 	ATF_TC_HEAD(pf##number, tc)				\
 	{							\
 		atf_tc_set_md_var(tc, "descr", descr);		\
+		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
 	}							\
 	ATF_TC_BODY(pf##number, tc)				\
 	{							\
@@ -301,6 +281,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 	ATF_TC_HEAD(selfpf##number, tc)				\
 	{							\
 		atf_tc_set_md_var(tc, "descr", "Self " descr);	\
+		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
 	}							\
 	ATF_TC_BODY(selfpf##number, tc)				\
 	{							\
@@ -312,6 +293,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 	ATF_TC_HEAD(pf##number, tc)				\
 	{							\
 		atf_tc_set_md_var(tc, "descr", descr);		\
+		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
 	}							\
 	ATF_TC_BODY(pf##number, tc)				\
 	{							\
@@ -325,6 +307,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 		atf_tc_set_md_var(tc, "descr", descr);		\
 		atf_tc_set_md_var(tc, "execenv", "jail");	\
 		atf_tc_set_md_var(tc, "execenv.jail.params", "vnet");	\
+		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
 	}							\
 	ATF_TC_BODY(pf##number, tc)				\
 	{							\
