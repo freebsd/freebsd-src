@@ -284,9 +284,9 @@ pflog_packet(uint8_t action, u_int8_t reason,
 	 * state lock, since this leads to unsafe LOR.
 	 * These conditions are very very rare, however.
 	 */
-	if (trigger->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
+	if (trigger->log & PF_LOG_USER && !pd->lookup.done && lookupsafe)
 		pd->lookup.done = pf_socket_lookup(pd);
-	if (pd->lookup.done > 0)
+	if (trigger->log & PF_LOG_USER && pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
 	else
 		hdr.uid = -1;
