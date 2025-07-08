@@ -1087,7 +1087,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			msg_version = PFSYNC_MSG_VERSION_1400;
 			break;
 		default:
-			V_pfsyncstats.pfsyncs_badact++;
+			V_pfsyncstats.pfsyncs_badver++;
 			return (-1);
 	}
 
