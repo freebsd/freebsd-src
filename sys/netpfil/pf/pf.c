@@ -9068,6 +9068,9 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 		goto bad;
 	}
 
+	if (r->rt == PF_DUPTO)
+		skip_test = true;
+
 	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET, PF_OUT, PFIL_FWD, ifp, &m0, inp,
 		    &pd->act) != PF_PASS) {
@@ -9369,6 +9372,9 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
 	}
+
+	if (r->rt == PF_DUPTO)
+		skip_test = true;
 
 	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD | PF_PFIL_NOREFRAGMENT,
