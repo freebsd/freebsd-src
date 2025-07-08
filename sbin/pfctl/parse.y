@@ -367,6 +367,7 @@ static struct node_fairq_opts	 fairq_opts;
 static struct node_state_opt	*keep_state_defaults = NULL;
 static struct pfctl_watermarks	 syncookie_opts;
 
+int		 validate_range(uint8_t, uint16_t, uint16_t);
 int		 disallow_table(struct node_host *, const char *);
 int		 disallow_urpf_failed(struct node_host *, const char *);
 int		 disallow_alias(struct node_host *, const char *);
@@ -3825,9 +3826,14 @@ port_item	: portrange			{
 				err(1, "port_item: calloc");
 			$$->port[0] = $1.a;
 			$$->port[1] = $1.b;
-			if ($1.t)
+			if ($1.t) {
 				$$->op = PF_OP_RRG;
-			else
+				if (validate_range($$->op, $$->port[0],
+				    $$->port[1])) {
+					yyerror("invalid port range");
+					YYERROR;
+				}
+			} else
 				$$->op = PF_OP_EQ;
 			$$->next = NULL;
 			$$->tail = $$;
@@ -3844,6 +3850,10 @@ port_item	: portrange			{
 			$$->port[0] = $2.a;
 			$$->port[1] = $2.b;
 			$$->op = $1;
+			if (validate_range($$->op, $$->port[0], $$->port[1])) {
+				yyerror("invalid port range");
+				YYERROR;
+			}
 			$$->next = NULL;
 			$$->tail = $$;
 		}
@@ -3859,6 +3869,10 @@ port_item	: portrange			{
 			$$->port[0] = $1.a;
 			$$->port[1] = $3.a;
 			$$->op = $2;
+			if (validate_range($$->op, $$->port[0], $$->port[1])) {
+				yyerror("invalid port range");
+				YYERROR;
+			}
 			$$->next = NULL;
 			$$->tail = $$;
 		}
@@ -5197,6 +5211,19 @@ yyerror(const char *fmt, ...)
 }
 
 int
+validate_range(uint8_t op, uint16_t p1, uint16_t p2)
+{
+	uint16_t a = ntohs(p1);
+	uint16_t b = ntohs(p2);
+
+	if ((op == PF_OP_RRG && a > b) ||  /* 34:12,  i.e. none */
+	    (op == PF_OP_IRG && a >= b) || /* 34><12, i.e. none */
+	    (op == PF_OP_XRG && a > b))    /* 34<>22, i.e. all */
+		return 1;
+	return 0;
+}
+
+int
 disallow_table(struct node_host *h, const char *fmt)
 {
 	for (; h != NULL; h = h->next)
@@ -6018,8 +6045,14 @@ apply_rdr_ports(struct pfctl_rule *r, struct pfctl_pool *rpool, struct redirspec
 	if (!rs->rport.b && rs->rport.t) {
 		rpool->proxy_port[1] = ntohs(rs->rport.a) +
 		    (ntohs(r->dst.port[1]) - ntohs(r->dst.port[0]));
-	} else
+	} else {
+		if (validate_range(rs->rport.t, rs->rport.a,
+		    rs->rport.b)) {
+			yyerror("invalid rdr-to port range");
+			return (1);
+		}
 		r->rdr.proxy_port[1] = ntohs(rs->rport.b);
+	}
 
 	if (rs->pool_opts.staticport) {
 		yyerror("the 'static-port' option is only valid with nat rules");
