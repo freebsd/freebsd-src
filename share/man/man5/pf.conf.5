@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 17, 2025
+.Dd July 2, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -361,8 +361,8 @@ For example:
 .Bd -literal -offset indent
 set timeout tcp.first 120
 set timeout tcp.established 86400
-set timeout { adaptive.start 6000, adaptive.end 12000 }
-set limit states 10000
+set timeout { adaptive.start 60000, adaptive.end 120000 }
+set limit states 100000
 .Ed
 .Pp
 With 9000 state table entries, the timeout values are scaled to 50%
@@ -542,6 +542,9 @@ an ICMP UNREACHABLE is returned for blocked UDP packets,
 and all other packets are silently dropped.
 .El
 .Pp
+The default value is
+.Cm drop .
+.Pp
 For example:
 .Bd -literal -offset indent
 set block-policy return
@@ -666,6 +669,8 @@ but can be overridden via this option.
 Setting this option may leave a small period of time where the fingerprints
 referenced by the currently active ruleset are inconsistent until the new
 ruleset finishes loading.
+The default location for fingerprints is
+.Pa /etc/pf.os .
 .Pp
 For example:
 .Pp
@@ -2227,6 +2232,9 @@ pass in proto icmp max-pkt-rate 100/10
 When the rate is exceeded, all ICMP is blocked until the rate falls below
 100 per 10 seconds again.
 .Pp
+.It Ar max-pkt-size Aq Ar number
+Limit each packet to be no more than the specified number of bytes.
+This includes the IP header, but not any layer 2 header.
 .It Xo Ar queue Aq Ar queue
 .No \*(Ba ( Aq Ar queue ,
 .Aq Ar queue )
@@ -3401,6 +3409,7 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "label" string | "tag" string | [ "!" ] "tagged" string |
                  "max-pkt-rate" number "/" seconds |
                  "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
+                 "max-pkt-size" number |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |
                  "dnpipe" ( number | "(" number "," number ")" ) |

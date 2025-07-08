@@ -1776,6 +1776,19 @@ dev/hwpmc/hwpmc_soft.c		optional hwpmc
 dev/hwreset/hwreset.c		optional hwreset
 dev/hwreset/hwreset_array.c	optional hwreset
 dev/hwreset/hwreset_if.m	optional hwreset
+dev/hwt/hwt.c			optional hwt
+dev/hwt/hwt_backend.c		optional hwt
+dev/hwt/hwt_config.c		optional hwt
+dev/hwt/hwt_context.c		optional hwt
+dev/hwt/hwt_contexthash.c	optional hwt
+dev/hwt/hwt_cpu.c		optional hwt
+dev/hwt/hwt_hook.c		optional hwt
+dev/hwt/hwt_ioctl.c		optional hwt
+dev/hwt/hwt_owner.c		optional hwt
+dev/hwt/hwt_ownerhash.c		optional hwt
+dev/hwt/hwt_record.c		optional hwt
+dev/hwt/hwt_thread.c		optional hwt
+dev/hwt/hwt_vm.c		optional hwt
 dev/ichiic/ig4_acpi.c		optional ig4 acpi iicbus
 dev/ichiic/ig4_iic.c		optional ig4 iicbus
 dev/ichiic/ig4_pci.c		optional ig4 pci iicbus
@@ -3160,8 +3173,6 @@ dev/sound/midi/midi.c		optional sound
 dev/sound/midi/mpu401.c		optional sound
 dev/sound/midi/mpu_if.m		optional sound
 dev/sound/midi/mpufoi_if.m	optional sound
-dev/sound/midi/sequencer.c	optional sound
-dev/sound/midi/synth_if.m	optional sound
 dev/spibus/acpi_spibus.c	optional acpi spibus
 dev/spibus/ofw_spibus.c		optional fdt spibus
 dev/spibus/spibus.c		optional spibus				\
@@ -3865,7 +3876,7 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
-kern/subr_acl_nfs4.c		optional ufs_acl | zfs
+kern/subr_acl_nfs4.c		optional ufs_acl | zfs | nfscl
 kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_asan.c		optional kasan \
 	compile-with "${NOSAN_C:N-fstack-protector*}"
@@ -3979,6 +3990,7 @@ kern/vfs_export.c		standard
 kern/vfs_extattr.c		standard
 kern/vfs_hash.c			standard
 kern/vfs_init.c			standard
+kern/vfs_inotify.c		standard
 kern/vfs_lookup.c		standard
 kern/vfs_mount.c		standard
 kern/vfs_mountroot.c		standard

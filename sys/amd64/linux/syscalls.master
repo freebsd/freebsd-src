@@ -1476,10 +1476,17 @@
 		int linux_inotify_init(void);
 	}
 254	AUE_NULL	STD {
-		int linux_inotify_add_watch(void);
+		int linux_inotify_add_watch(
+		    l_int fd,
+		    const char *pathname,
+		    uint32_t mask
+		);
 	}
 255	AUE_NULL	STD {
-		int linux_inotify_rm_watch(void);
+		int linux_inotify_rm_watch(
+		    l_int fd,
+		    uint32_t wd
+		);
 	}
 256	AUE_NULL	STD {
 		int linux_migrate_pages(void);

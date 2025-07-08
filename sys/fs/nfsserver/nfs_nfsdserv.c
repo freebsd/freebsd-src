@@ -64,6 +64,7 @@ extern u_long sb_max_adj;
 extern int nfsrv_pnfsatime;
 extern int nfsrv_maxpnfsmirror;
 extern uint32_t nfs_srvmaxio;
+extern int nfsrv_issuedelegs;
 
 static int	nfs_async = 0;
 SYSCTL_DECL(_vfs_nfsd);
@@ -402,8 +403,10 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	if (error)
 		goto nfsmout;
 
-	/* For NFSv4, only va_uid is used from nva2. */
+	/* For NFSv4, only va_uid and va_flags is used from nva2. */
 	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_OWNER);
+	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_HIDDEN);
+	NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_SYSTEM);
 	preat_ret = nfsvno_getattr(vp, &nva2, nd, p, 1, &retbits);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = preat_ret;
@@ -462,6 +465,9 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		    &nva, &attrbits, exp, p);
 
 	if (!nd->nd_repstat && (nd->nd_flag & ND_NFSV4)) {
+	    u_long oldflags;
+
+	    oldflags = nva2.na_flags;
 	    /*
 	     * For V4, try setting the attributes in sets, so that the
 	     * reply bitmap will be correct for an error case.
@@ -529,6 +535,32 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODE);
 		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODESETMASKED))
 			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODESETMASKED);
+		}
+	    }
+	    if (!nd->nd_repstat &&
+		(NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN) ||
+		 NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM))) {
+		if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN)) {
+		    if ((nva.na_flags & UF_HIDDEN) != 0)
+			oldflags |= UF_HIDDEN;
+		    else
+			oldflags &= ~UF_HIDDEN;
+		}
+		if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM)) {
+		    if ((nva.na_flags & UF_SYSTEM) != 0)
+			oldflags |= UF_SYSTEM;
+		    else
+			oldflags &= ~UF_SYSTEM;
+		}
+		NFSVNO_ATTRINIT(&nva2);
+		NFSVNO_SETATTRVAL(&nva2, flags, oldflags);
+		nd->nd_repstat = nfsvno_setattr(vp, &nva2, nd->nd_cred, p,
+		    exp);
+		if (!nd->nd_repstat) {
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_HIDDEN);
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_SYSTEM);
 		}
 	    }
 
@@ -2866,6 +2898,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSACL_T *aclp = NULL;
 	struct thread *p = curthread;
 	bool done_namei;
+	__enum_uint8_decl(wdelegace) { USENONE, USEMODE, USENFSV4ACL }
+	    delegace;
 
 #ifdef NFS4_ACL_EXTATTR_NAME
 	aclp = acl_alloc(M_WAITOK);
@@ -2873,6 +2907,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 #endif
 	NFSZERO_ATTRBIT(&attrbits);
 	done_namei = false;
+	delegace = USEMODE;
 	named.ni_cnd.cn_nameiop = 0;
 	NFSM_DISSECT(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *(tl + 5));
@@ -3214,6 +3249,25 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1, NULL);
+
+	if (nd->nd_repstat == 0 && aclp != NULL && nfsrv_issuedelegs != 0 &&
+	    (dp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0) {
+		if (aclp->acl_cnt == 0 && create == NFSV4OPEN_NOCREATE) {
+			int retacl;
+
+			/* We do not yet have an ACL, so try and get one. */
+			retacl = VOP_GETACL(vp, ACL_TYPE_NFS4, aclp,
+			    nd->nd_cred, p);
+			if (retacl != 0 && retacl != ENOATTR &&
+			    retacl != EOPNOTSUPP && retacl != EINVAL)
+				delegace = USENONE;
+			else if (retacl == 0 && aclp->acl_cnt > 0)
+				delegace = USENFSV4ACL;
+		} else if (aclp->acl_cnt > 0 && create == NFSV4OPEN_CREATE) {
+			delegace = USENFSV4ACL;
+		}
+	}
+
 	/*
 	 * Do the open locking/delegation stuff.
 	 */
@@ -3306,18 +3360,56 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 				*tl++ = txdr_unsigned(NFSV4OPEN_LIMITSIZE);
 				txdr_hyper(nva.na_size, tl);
 			}
-			NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-			*tl++ = txdr_unsigned(NFSV4ACE_ALLOWEDTYPE);
-			*tl++ = txdr_unsigned(0x0);
-			acemask = NFSV4ACE_ALLFILESMASK;
-			if (nva.na_mode & S_IRUSR)
-			    acemask |= NFSV4ACE_READMASK;
-			if (nva.na_mode & S_IWUSR)
-			    acemask |= NFSV4ACE_WRITEMASK;
-			if (nva.na_mode & S_IXUSR)
-			    acemask |= NFSV4ACE_EXECUTEMASK;
-			*tl = txdr_unsigned(acemask);
-			(void) nfsm_strtom(nd, "OWNER@", 6);
+
+			/* Set up the write delegation ACE. */
+			NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+			if (delegace == USENFSV4ACL) {
+				int j;
+
+				for (j = 0; j < aclp->acl_cnt; j++) {
+					if (aclp->acl_entry[j].ae_tag ==
+					    ACL_USER_OBJ ||
+					    aclp->acl_entry[j].ae_entry_type !=
+					    ACL_ENTRY_TYPE_ALLOW)
+						break;
+				}
+				if (j < aclp->acl_cnt &&
+				    aclp->acl_entry[j].ae_tag ==
+				    ACL_USER_OBJ &&
+				    aclp->acl_entry[j].ae_entry_type ==
+				    ACL_ENTRY_TYPE_ALLOW) {
+					/* Use this ACE. */
+					*tl++ = txdr_unsigned(
+					    NFSV4ACE_ALLOWEDTYPE);
+					*tl++ = txdr_unsigned(0x0);
+					*tl = txdr_unsigned(
+					    nfs_aceperm(
+					    aclp->acl_entry[j].ae_perm));
+					(void)nfsm_strtom(nd, "OWNER@", 6);
+				} else
+					delegace = USENONE;
+			}
+			if (delegace == USENONE) {
+				/* Don't allow anything. */
+				*tl++ = 0x0;
+				*tl++ = 0x0;
+				*tl = 0x0;
+				NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+				*tl = 0;
+			} else if (delegace == USEMODE) {
+				/* Build from mode. */
+				*tl++ = txdr_unsigned(NFSV4ACE_ALLOWEDTYPE);
+				*tl++ = txdr_unsigned(0x0);
+				acemask = NFSV4ACE_ALLFILESMASK;
+				if (nva.na_mode & S_IRUSR)
+					acemask |= NFSV4ACE_READMASK;
+				if (nva.na_mode & S_IWUSR)
+					acemask |= NFSV4ACE_WRITEMASK;
+				if (nva.na_mode & S_IXUSR)
+					acemask |= NFSV4ACE_EXECUTEMASK;
+				*tl = txdr_unsigned(acemask);
+				(void)nfsm_strtom(nd, "OWNER@", 6);
+			}
 		}
 		*vpp = vp;
 	} else if (vp) {

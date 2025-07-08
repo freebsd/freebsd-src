@@ -704,7 +704,7 @@ pfr_validate_addr(struct pfr_addr *ad)
 			return (-1);
 	if (ad->pfra_not && ad->pfra_not != 1)
 		return (-1);
-	if (ad->pfra_fback)
+	if (ad->pfra_fback != PFR_FB_NONE)
 		return (-1);
 	return (0);
 }
@@ -2340,16 +2340,16 @@ _next_block:
 
 	if (use_counter && !PF_AZERO(counter, af)) {
 		/* is supplied address within block? */
-		if (!PF_MATCHA(0, &cur, &mask, counter, af)) {
+		if (!pf_match_addr(0, &cur, &mask, counter, af)) {
 			/* no, go to next block in table */
 			idx++;
 			use_counter = 0;
 			goto _next_block;
 		}
-		PF_ACPY(addr, counter, af);
+		pf_addrcpy(addr, counter, af);
 	} else {
 		/* use first address of block */
-		PF_ACPY(addr, &cur, af);
+		pf_addrcpy(addr, &cur, af);
 	}
 
 	if (!KENTRY_NETWORK(ke)) {
@@ -2358,7 +2358,7 @@ _next_block:
 			idx++;
 			goto _next_block;
 		}
-		PF_ACPY(counter, addr, af);
+		pf_addrcpy(counter, addr, af);
 		*pidx = idx;
 		pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 		return (0);
@@ -2382,7 +2382,7 @@ _next_block:
 			/* lookup return the same block - perfect */
 			if (filter && filter(af, addr))
 				goto _next_entry;
-			PF_ACPY(counter, addr, af);
+			pf_addrcpy(counter, addr, af);
 			*pidx = idx;
 			pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 			return (0);
@@ -2392,9 +2392,9 @@ _next_entry:
 		/* we need to increase the counter past the nested block */
 		pfr_prepare_network(&umask, AF_INET, ke2->pfrke_net);
 		pfr_sockaddr_to_pf_addr(&umask, &umask_addr);
-		PF_POOLMASK(addr, addr, &umask_addr, &pfr_ffaddr, af);
-		PF_AINC(addr, af);
-		if (!PF_MATCHA(0, &cur, &mask, addr, af)) {
+		pf_poolmask(addr, addr, &umask_addr, &pfr_ffaddr, af);
+		pf_addr_inc(addr, af);
+		if (!pf_match_addr(0, &cur, &mask, addr, af)) {
 			/* ok, we reached the end of our main block */
 			/* go to next block in table */
 			idx++;

@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.h,v 1.51 2024/07/07 09:37:00 rillig Exp $	*/
+/*	$NetBSD: hash.h,v 1.52 2025/04/22 19:28:50 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -82,22 +82,22 @@ typedef struct HashEntry {
 	struct HashEntry *next;	/* Used to link together all the entries
 				 * associated with the same bucket. */
 	void *value;
-	unsigned int hash;	/* hash value of the key */
+	unsigned hash;		/* hash value of the key */
 	char key[1];		/* key string, variable length */
 } HashEntry;
 
 /* The hash table containing the entries. */
 typedef struct HashTable {
 	HashEntry **buckets;
-	unsigned int bucketsSize;
-	unsigned int numEntries;
-	unsigned int bucketsMask; /* Used to select the bucket for a hash. */
+	unsigned bucketsSize;
+	unsigned numEntries;
+	unsigned bucketsMask;	/* Used to select the bucket for a hash. */
 } HashTable;
 
 /* State of an iteration over all entries in a table. */
 typedef struct HashIter {
 	HashTable *table;	/* Table being searched. */
-	unsigned int nextBucket; /* Next bucket to check (after current). */
+	unsigned nextBucket;	/* Next bucket to check (after current). */
 	HashEntry *entry;	/* Next entry to check in current bucket. */
 } HashIter;
 
@@ -131,8 +131,8 @@ void HashTable_Init(HashTable *);
 void HashTable_Done(HashTable *);
 HashEntry *HashTable_FindEntry(HashTable *, const char *) MAKE_ATTR_USE;
 void *HashTable_FindValue(HashTable *, const char *) MAKE_ATTR_USE;
-unsigned int Hash_Substring(Substring) MAKE_ATTR_USE;
-void *HashTable_FindValueBySubstringHash(HashTable *, Substring, unsigned int)
+unsigned Hash_Substring(Substring) MAKE_ATTR_USE;
+void *HashTable_FindValueBySubstringHash(HashTable *, Substring, unsigned)
     MAKE_ATTR_USE;
 HashEntry *HashTable_CreateEntry(HashTable *, const char *, bool *);
 void HashTable_Set(HashTable *, const char *, void *);

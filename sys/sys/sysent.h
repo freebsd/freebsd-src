@@ -79,11 +79,10 @@ struct sysent {			/* system call table */
  */
 #define	SYF_CAPENABLED	0x00000001
 
-#define	SY_THR_FLAGMASK	0x7
-#define	SY_THR_STATIC	0x1
-#define	SY_THR_DRAINING	0x2
-#define	SY_THR_ABSENT	0x4
-#define	SY_THR_INCR	0x8
+#define	SY_THR_STATIC	0x01
+#define	SY_THR_DRAINING	0x02
+#define	SY_THR_ABSENT	0x04
+#define	SY_THR_INCR	0x08
 
 #ifdef KLD_MODULE
 #define	SY_THR_STATIC_KLD	0

@@ -1,6 +1,6 @@
 PACKAGE=	nuageinit
 SCRIPTS=	nuageinit
-FILES=		nuage.lua yaml.lua
+FILES=		nuage.lua
 FILESDIR=	${SHAREDIR}/flua
 MAN=		nuageinit.7
 

@@ -29,6 +29,9 @@
 
 #include <sys/queue.h>
 #include <sys/types.h>
+#include <time.h>
+
+extern time_t timestamp;
 
 struct part {
 	TAILQ_ENTRY(part) link;

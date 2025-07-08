@@ -87,11 +87,51 @@
 
 #include <security/mac/mac_framework.h>
 
-VNET_DEFINE_STATIC(bool, nolocaltimewait) = true;
+VNET_DEFINE_STATIC(bool, nolocaltimewait) = false;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
-SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, nolocaltimewait,
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nolocaltimewait), true,
+
+static int
+sysctl_net_inet_tcp_nolocaltimewait(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	bool new;
+
+	new = V_nolocaltimewait;
+	error = sysctl_handle_bool(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		V_nolocaltimewait = new;
+		gone_in(16, "net.inet.tcp.nolocaltimewait is obsolete."
+		    " Use net.inet.tcp.local_msl instead.\n");
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, nolocaltimewait,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLTYPE_U8,
+    &VNET_NAME(nolocaltimewait), 0, sysctl_net_inet_tcp_nolocaltimewait, "CU",
     "Do not create TCP TIME_WAIT state for local connections");
+
+static u_int
+tcp_eff_msl(struct tcpcb *tp)
+{
+	struct inpcb *inp = tptoinpcb(tp);
+#ifdef INET6
+	bool isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
+#endif
+
+	if (
+#ifdef INET6
+	    isipv6 ? in6_localip(&inp->in6p_faddr) :
+#endif
+#ifdef INET
+	    in_localip(inp->inp_faddr))
+#else
+	    false)
+#endif
+		return (V_tcp_msl_local);
+	else
+		return (V_tcp_msl);
+}
 
 /*
  * Move a TCP connection into TIME_WAIT state.
@@ -140,7 +180,7 @@ tcp_twstart(struct tcpcb *tp)
 		return;
 	}
 
-	tcp_timer_activate(tp, TT_2MSL, 2 * V_tcp_msl);
+	tcp_timer_activate(tp, TT_2MSL, 2 * tcp_eff_msl(tp));
 	INP_WUNLOCK(inp);
 }
 
@@ -283,7 +323,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	if (thflags & TH_FIN) {
 		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
 		if (seq + 1 == tp->rcv_nxt)
-			tcp_timer_activate(tp, TT_2MSL, 2 * V_tcp_msl);
+			tcp_timer_activate(tp, TT_2MSL, 2 * tcp_eff_msl(tp));
 	}
 
 	/*

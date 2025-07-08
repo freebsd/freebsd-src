@@ -1251,6 +1251,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN, r->max_src_conn);
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN_RATE_LIMIT, r->max_src_conn_rate.limit);
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN_RATE_SECS, r->max_src_conn_rate.seconds);
+	snl_add_msg_attr_u16(nw, PF_RT_MAX_PKT_SIZE, r->max_pkt_size);
 
 	snl_add_msg_attr_u16(nw, PF_RT_DNPIPE, r->dnpipe);
 	snl_add_msg_attr_u16(nw, PF_RT_DNRPIPE, r->dnrpipe);
@@ -1692,6 +1693,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_SRC_NODES_NAT, .off = _OUT(r.src_nodes_type[PF_SN_NAT]), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_SRC_NODES_ROUTE, .off = _OUT(r.src_nodes_type[PF_SN_ROUTE]), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_PKTRATE, .off = _OUT(r.pktrate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_RT_MAX_PKT_SIZE, .off =_OUT(r.max_pkt_size), .cb = snl_attr_get_uint16 },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, snl_f_p_empty, ap_getrule);

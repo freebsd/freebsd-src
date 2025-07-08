@@ -1032,10 +1032,6 @@ tcp_default_fb_init(struct tcpcb *tp, void **ptr)
 	/* We don't use the pointer */
 	*ptr = NULL;
 
-	KASSERT(tp->t_state < TCPS_TIME_WAIT,
-	    ("%s: connection %p in unexpected state %d", __func__, tp,
-	    tp->t_state));
-
 	/* Make sure we get no interesting mbuf queuing behavior */
 	/* All mbuf queue/ack compress flags should be off */
 	tcp_lro_features_off(tp);
@@ -1455,6 +1451,7 @@ tcp_vnet_init(void *arg __unused)
 	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
 
 	V_tcp_msl = TCPTV_MSL;
+	V_tcp_msl_local = TCPTV_MSL_LOCAL;
 	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 }
 VNET_SYSINIT(tcp_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
@@ -1474,11 +1471,7 @@ tcp_init(void *arg __unused)
 	tcp_keepintvl = TCPTV_KEEPINTVL;
 	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
 	tcp_rexmit_initial = TCPTV_RTOBASE;
-	if (tcp_rexmit_initial < 1)
-		tcp_rexmit_initial = 1;
 	tcp_rexmit_min = TCPTV_MIN;
-	if (tcp_rexmit_min < 1)
-		tcp_rexmit_min = 1;
 	tcp_rexmit_max = TCPTV_REXMTMAX;
 	tcp_persmin = TCPTV_PERSMIN;
 	tcp_persmax = TCPTV_PERSMAX;

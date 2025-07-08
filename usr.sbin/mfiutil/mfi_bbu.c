@@ -40,41 +40,23 @@
 
 /* The autolearn period is given in seconds. */
 void
-mfi_autolearn_period(uint32_t period, char *buf, size_t sz)
+mfi_autolearn_period(FILE *fp, uint32_t period)
 {
 	unsigned int d, h;
-	char *tmp;
 
 	d = period / (24 * 3600);
 	h = (period % (24 * 3600)) / 3600;
 
-	tmp = buf;
 	if (d != 0) {
-		int fmt_len;
-		fmt_len = snprintf(buf, sz, "%u day%s", d, d == 1 ? "" : "s");
-		if (fmt_len < 0) {
-			*buf = 0;
-			return;
-		}
-		if ((size_t)fmt_len >= sz) {
-			return;
-		}
-		tmp += fmt_len;
-		sz -= tmp - buf;
-		if (h != 0) {
-			fmt_len = snprintf(tmp, sz, ", ");
-			if (fmt_len < 0 || (size_t)fmt_len >= sz) {
-				return;
-			}
-			tmp += fmt_len;
-			sz -= 2;
-		}
+		fprintf(fp, "%u day%s", d, d == 1 ? "" : "s");
+		if (h != 0)
+			fprintf(fp, ", ");
 	}
 	if (h != 0)
-		snprintf(tmp, sz, "%u hour%s", h, h == 1 ? "" : "s");
+		fprintf(fp, "%u hour%s", h, h == 1 ? "" : "s");
 
 	if (d == 0 && h == 0)
-		snprintf(tmp, sz, "less than 1 hour");
+		fprintf(fp, "less than 1 hour");
 }
 
 /* The time to the next relearn is given in seconds since 1/1/2000. */
@@ -89,28 +71,28 @@ mfi_next_learn_time(uint32_t next_learn_time, char *buf, size_t sz)
 	tm.tm_year = 100;
 	basetime = timegm(&tm);
 	basetime += (time_t)next_learn_time;
-	len = snprintf(buf, sz, "%s", ctime(&basetime));
-	if (len > 0)
+	len = strlcpy(buf, ctime(&basetime), sz);
+	if (len < sz)
 		/* Get rid of the newline added by ctime(3). */
 		buf[len - 1] = '\0';
 }
 
 void
-mfi_autolearn_mode(uint8_t mode, char *buf, size_t sz)
+mfi_autolearn_mode(FILE *fp, uint8_t mode)
 {
 
 	switch (mode) {
 	case 0:
-		snprintf(buf, sz, "enabled");
+		fprintf(fp, "enabled");
 		break;
 	case 1:
-		snprintf(buf, sz, "disabled");
+		fprintf(fp, "disabled");
 		break;
 	case 2:
-		snprintf(buf, sz, "warn via event");
+		fprintf(fp, "warn via event");
 		break;
 	default:
-		snprintf(buf, sz, "mode 0x%02x", mode);
+		fprintf(fp, "mode 0x%02x", mode);
 		break;
 	}
 }

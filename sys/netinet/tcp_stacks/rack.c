@@ -3489,7 +3489,7 @@ rack_free(struct tcp_rack *rack, struct rack_sendmap *rsm)
 		rack->r_ctl.rc_num_split_allocs--;
 	}
 	if (rsm == rack->r_ctl.rc_first_appl) {
-		rack->r_ctl.cleared_app_ack_seq = rsm->r_start + (rsm->r_end - rsm->r_start);
+		rack->r_ctl.cleared_app_ack_seq = rsm->r_end;
 		rack->r_ctl.cleared_app_ack = 1;
 		if (rack->r_ctl.rc_app_limited_cnt == 0)
 			rack->r_ctl.rc_first_appl = NULL;

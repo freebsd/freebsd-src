@@ -84,6 +84,7 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_fileflags.3 \
 	sysdecode_mask.3 sysdecode_filemode.3 \
 	sysdecode_mask.3 sysdecode_flock_operation.3 \
+	sysdecode_mask.3 sysdecode_inotifyflags.3 \
 	sysdecode_mask.3 sysdecode_mlockall_flags.3 \
 	sysdecode_mask.3 sysdecode_mmap_flags.3 \
 	sysdecode_mask.3 sysdecode_mmap_prot.3 \

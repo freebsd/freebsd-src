@@ -56,6 +56,13 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_radix.h>
 
+/* The EFI regions we're allowed to map. */
+#define EFI_ALLOWED_TYPES_MASK ( \
+    1u << EFI_MD_TYPE_BS_CODE | 1u << EFI_MD_TYPE_BS_DATA | \
+    1u << EFI_MD_TYPE_RT_CODE | 1u << EFI_MD_TYPE_RT_DATA | \
+    1u << EFI_MD_TYPE_FIRMWARE \
+)
+
 static pml5_entry_t *efi_pml5;
 static pml4_entry_t *efi_pml4;
 static vm_object_t obj_1t1_pt;
@@ -181,6 +188,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	vm_offset_t va;
 	uint64_t idx;
 	int bits, i, mode;
+	bool map_pz = true;
 
 	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, ptoa(1 +
 	    NPML4EPG + NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG),
@@ -198,9 +206,16 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		pmap_pinit_pml4(efi_pmltop_page);
 	}
 
+	if ((efi_map_regs & ~EFI_ALLOWED_TYPES_MASK) != 0) {
+		printf("Ignoring the following runtime EFI regions: %#x\n",
+		    efi_map_regs & ~EFI_ALLOWED_TYPES_MASK);
+		efi_map_regs &= EFI_ALLOWED_TYPES_MASK;
+	}
+
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
 	    descsz)) {
-		if ((p->md_attr & EFI_MD_ATTR_RT) == 0)
+		if ((p->md_attr & EFI_MD_ATTR_RT) == 0 &&
+		    !EFI_MAP_BOOTTYPE_ALLOWED(p->md_type))
 			continue;
 		if (p->md_virt != 0 && p->md_virt != p->md_phys) {
 			if (bootverbose)
@@ -255,6 +270,22 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 				pmap_page_set_memattr_noflush(m, mode);
 			}
 		}
+		VM_OBJECT_WUNLOCK(obj_1t1_pt);
+		if (p->md_phys == 0)
+			map_pz = false;
+	}
+
+	/*
+	 * Some BIOSes tend to access phys 0 during efirt calls,
+	 * so map it if we haven't yet.
+	 */
+	if (map_pz) {
+		VM_OBJECT_WLOCK(obj_1t1_pt);
+		pte = efi_1t1_pte(0);
+		/* Assume Write-Back */
+		bits = pmap_cache_bits(kernel_pmap, VM_MEMATTR_WRITE_BACK,
+		    false) | X86_PG_RW | X86_PG_V;
+		pte_store(pte, bits);
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	}
 

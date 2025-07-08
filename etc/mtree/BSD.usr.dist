@@ -30,6 +30,8 @@
             ..
             ucl
             ..
+            yaml
+            ..
             zstd
             ..
         ..
@@ -301,6 +303,8 @@
             hostapd
             ..
             indent
+            ..
+            inotify
             ..
             ipfilter
             ..

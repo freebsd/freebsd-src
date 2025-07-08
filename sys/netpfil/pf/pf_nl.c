@@ -761,6 +761,7 @@ static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_RPOOL_RT, .off = _OUT(route), .arg = &pool_parser, .cb = nlattr_get_nested },
 	{ .type = PF_RT_RCV_IFNOT, .off = _OUT(rcvifnot), .cb = nlattr_get_bool },
 	{ .type = PF_RT_PKTRATE, .off = _OUT(pktrate), .arg = &threshold_parser, .cb = nlattr_get_nested },
+	{ .type = PF_RT_MAX_PKT_SIZE, .off = _OUT(max_pkt_size), .cb = nlattr_get_uint16 },
 };
 NL_DECLARE_ATTR_PARSER(rule_parser, nla_p_rule);
 #undef _OUT
@@ -945,6 +946,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u32(nw, PF_RT_MAX_SRC_CONN, rule->max_src_conn);
 	nlattr_add_u32(nw, PF_RT_MAX_SRC_CONN_RATE_LIMIT, rule->max_src_conn_rate.limit);
 	nlattr_add_u32(nw, PF_RT_MAX_SRC_CONN_RATE_SECS, rule->max_src_conn_rate.seconds);
+	nlattr_add_u16(nw, PF_RT_MAX_PKT_SIZE, rule->max_pkt_size);
 
 	nlattr_add_u16(nw, PF_RT_DNPIPE, rule->dnpipe);
 	nlattr_add_u16(nw, PF_RT_DNRPIPE, rule->dnrpipe);
@@ -1306,9 +1308,9 @@ pf_handle_natlook(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	key.af = attrs.af;
 	key.proto = attrs.proto;
-	PF_ACPY(&key.addr[sidx], &attrs.src, attrs.af);
+	pf_addrcpy(&key.addr[sidx], &attrs.src, attrs.af);
 	key.port[sidx] = attrs.sport;
-	PF_ACPY(&key.addr[didx], &attrs.dst, attrs.af);
+	pf_addrcpy(&key.addr[didx], &attrs.dst, attrs.af);
 	key.port[didx] = attrs.dport;
 
 	state = pf_find_state_all(&key, attrs.direction, &m);

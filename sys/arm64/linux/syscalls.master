@@ -170,10 +170,17 @@
 		);
 	}
 27	AUE_NULL	STD	{
-		int linux_inotify_add_watch(void);
+		int linux_inotify_add_watch(
+		    l_int fd,
+		    const char *pathname,
+		    uint32_t mask
+		);
 	}
 28	AUE_NULL	STD	{
-		int linux_inotify_rm_watch(void);
+		int linux_inotify_rm_watch(
+		    l_int fd,
+		    uint32_t wd
+		);
 	}
 29	AUE_IOCTL	STD	{
 		int linux_ioctl(

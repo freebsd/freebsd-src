@@ -106,6 +106,7 @@ int	logging;
 int	restricted_data_ports = 1;
 int	paranoid = 1;	  /* be extra careful about security */
 int	anon_only = 0;    /* Only anonymous ftp allowed */
+int	noanon = 0;       /* disable anonymous ftp */
 int	assumeutf8 = 0;   /* Assume that server file names are in UTF-8 */
 int	guest;
 int	dochroot;
@@ -269,7 +270,7 @@ main(int argc, char *argv[], char **envp)
 	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	while ((ch = getopt(argc, argv,
-	                    "468a:ABdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
+	                    "468a:ABdDEhlmMnoOp:P:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
 			family = (family == AF_INET6) ? AF_UNSPEC : AF_INET;
@@ -325,6 +326,10 @@ main(int argc, char *argv[], char **envp)
 
 		case 'M':
 			noguestmkd = 1;
+			break;
+
+		case 'n':
+			noanon = 1;
 			break;
 
 		case 'o':
@@ -394,6 +399,11 @@ main(int argc, char *argv[], char **envp)
 			syslog(LOG_WARNING, "unknown flag -%c ignored", optopt);
 			break;
 		}
+	}
+
+	if (noanon && anon_only) {
+		syslog(LOG_ERR, "-n and -A are mutually exclusive");
+		exit(1);
 	}
 
 	/* handle filesize limit gracefully */
@@ -995,7 +1005,8 @@ user(char *name)
 #else
 	pw = sgetpwnam("ftp");
 #endif
-	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
+	if (!noanon &&
+	    (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0)) {
 		if (checkuser(_PATH_FTPUSERS, "ftp", 0, NULL, &ecode) ||
 		    (ecode != 0 && ecode != ENOENT))
 			reply(530, "User %s access denied.", name);

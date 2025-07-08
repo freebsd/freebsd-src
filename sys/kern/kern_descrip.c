@@ -38,9 +38,11 @@
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 
+#define EXTERR_CATEGORY	EXTERR_CAT_FILEDESC
 #include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/conf.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -492,6 +494,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	int error, flg, kif_sz, seals, tmp, got_set, got_cleared;
 	uint64_t bsize;
 	off_t foffset;
+	int flags;
 
 	error = 0;
 	flg = F_POSIX;
@@ -511,6 +514,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		error = kern_dup(td, FDDUP_FCNTL, FDDUP_FLAG_CLOEXEC, fd, tmp);
 		break;
 
+	case F_DUPFD_CLOFORK:
+		tmp = arg;
+		error = kern_dup(td, FDDUP_FCNTL, FDDUP_FLAG_CLOFORK, fd, tmp);
+		break;
+
 	case F_DUP2FD:
 		tmp = arg;
 		error = kern_dup(td, FDDUP_FIXED, 0, fd, tmp);
@@ -528,6 +536,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		if (fde != NULL) {
 			td->td_retval[0] =
 			    ((fde->fde_flags & UF_EXCLOSE) ? FD_CLOEXEC : 0) |
+			    ((fde->fde_flags & UF_FOCLOSE) ? FD_CLOFORK : 0) |
 			    ((fde->fde_flags & UF_RESOLVE_BENEATH) ?
 			    FD_RESOLVE_BENEATH : 0);
 			error = 0;
@@ -545,6 +554,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			 */
 			fde->fde_flags = (fde->fde_flags & ~UF_EXCLOSE) |
 			    ((arg & FD_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+			    ((arg & FD_CLOFORK) != 0 ? UF_FOCLOSE : 0) |
 			    ((arg & FD_RESOLVE_BENEATH) != 0 ?
 			    UF_RESOLVE_BENEATH : 0);
 			error = 0;
@@ -916,7 +926,17 @@ revert_f_setfl:
 		break;
 
 	default:
-		error = EINVAL;
+		if ((cmd & ((1u << F_DUP3FD_SHIFT) - 1)) != F_DUP3FD)
+			return (EXTERROR(EINVAL, "invalid fcntl cmd"));
+		/* Handle F_DUP3FD */
+		flags = (cmd >> F_DUP3FD_SHIFT);
+		if ((flags & ~(FD_CLOEXEC | FD_CLOFORK)) != 0)
+			return (EXTERROR(EINVAL, "invalid flags for F_DUP3FD"));
+		tmp = arg;
+		error = kern_dup(td, FDDUP_FIXED,
+		    ((flags & FD_CLOEXEC) != 0 ? FDDUP_FLAG_CLOEXEC : 0) |
+		    ((flags & FD_CLOFORK) != 0 ? FDDUP_FLAG_CLOFORK : 0),
+		    fd, tmp);
 		break;
 	}
 	return (error);
@@ -946,7 +966,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	fdp = p->p_fd;
 	oioctls = NULL;
 
-	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC)) == 0);
+	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC | FDDUP_FLAG_CLOFORK)) == 0);
 	MPASS(mode < FDDUP_LASTMODE);
 
 	AUDIT_ARG_FD(old);
@@ -971,8 +991,10 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 		goto unlock;
 	if (mode == FDDUP_FIXED && old == new) {
 		td->td_retval[0] = new;
-		if (flags & FDDUP_FLAG_CLOEXEC)
+		if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
+		if ((flags & FDDUP_FLAG_CLOFORK) != 0)
+			fdp->fd_ofiles[new].fde_flags |= UF_FOCLOSE;
 		error = 0;
 		goto unlock;
 	}
@@ -1047,10 +1069,9 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	fde_copy(oldfde, newfde);
 	filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
 	    nioctls);
-	if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
-		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
-	else
-		newfde->fde_flags = oldfde->fde_flags & ~UF_EXCLOSE;
+	newfde->fde_flags = (oldfde->fde_flags & ~(UF_EXCLOSE | UF_FOCLOSE)) |
+	    ((flags & FDDUP_FLAG_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+	    ((flags & FDDUP_FLAG_CLOFORK) != 0 ? UF_FOCLOSE : 0);
 #ifdef CAPABILITIES
 	seqc_write_end(&newfde->fde_seqc);
 #endif
@@ -1416,13 +1437,15 @@ kern_close(struct thread *td, int fd)
 }
 
 static int
-close_range_cloexec(struct thread *td, u_int lowfd, u_int highfd)
+close_range_flags(struct thread *td, u_int lowfd, u_int highfd, int flags)
 {
 	struct filedesc *fdp;
 	struct fdescenttbl *fdt;
 	struct filedescent *fde;
-	int fd;
+	int fd, fde_flags;
 
+	fde_flags = ((flags & CLOSE_RANGE_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+	    ((flags & CLOSE_RANGE_CLOFORK) != 0 ? UF_FOCLOSE : 0);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_XLOCK(fdp);
 	fdt = atomic_load_ptr(&fdp->fd_files);
@@ -1434,7 +1457,7 @@ close_range_cloexec(struct thread *td, u_int lowfd, u_int highfd)
 	for (; fd <= highfd; fd++) {
 		fde = &fdt->fdt_ofiles[fd];
 		if (fde->fde_file != NULL)
-			fde->fde_flags |= UF_EXCLOSE;
+			fde->fde_flags |= fde_flags;
 	}
 out_locked:
 	FILEDESC_XUNLOCK(fdp);
@@ -1492,8 +1515,8 @@ kern_close_range(struct thread *td, int flags, u_int lowfd, u_int highfd)
 		return (EINVAL);
 	}
 
-	if ((flags & CLOSE_RANGE_CLOEXEC) != 0)
-		return (close_range_cloexec(td, lowfd, highfd));
+	if ((flags & (CLOSE_RANGE_CLOEXEC | CLOSE_RANGE_CLOFORK)) != 0)
+		return (close_range_flags(td, lowfd, highfd, flags));
 
 	return (close_range_impl(td, lowfd, highfd));
 }
@@ -1513,7 +1536,7 @@ sys_close_range(struct thread *td, struct close_range_args *uap)
 	AUDIT_ARG_CMD(uap->highfd);
 	AUDIT_ARG_FFLAGS(uap->flags);
 
-	if ((uap->flags & ~(CLOSE_RANGE_CLOEXEC)) != 0)
+	if ((uap->flags & ~(CLOSE_RANGE_CLOEXEC | CLOSE_RANGE_CLOFORK)) != 0)
 		return (EINVAL);
 	return (kern_close_range(td, uap->flags, uap->lowfd, uap->highfd));
 }
@@ -2172,6 +2195,7 @@ _finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 #endif
 	fde->fde_file = fp;
 	fde->fde_flags = ((flags & O_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+	    ((flags & O_CLOFORK) != 0 ? UF_FOCLOSE : 0) |
 	    ((flags & O_RESOLVE_BENEATH) != 0 ? UF_RESOLVE_BENEATH : 0);
 	if (fcaps != NULL)
 		filecaps_move(fcaps, &fde->fde_caps);
@@ -2432,6 +2456,7 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = fdp->fd_freefile;
 	FILEDESC_FOREACH_FDE(fdp, i, ofde) {
 		if ((ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0 ||
+		    (ofde->fde_flags & UF_FOCLOSE) != 0 ||
 		    !fhold(ofde->fde_file)) {
 			if (newfdp->fd_freefile == fdp->fd_freefile)
 				newfdp->fd_freefile = i;
@@ -2729,6 +2754,12 @@ fdcloseexec(struct thread *td)
 			fdfree(fdp, i);
 			(void) closefp(fdp, i, fp, td, false, false);
 			FILEDESC_UNLOCK_ASSERT(fdp);
+		} else if (fde->fde_flags & UF_FOCLOSE) {
+			/*
+			 * https://austingroupbugs.net/view.php?id=1851
+			 * FD_CLOFORK should not be preserved across exec
+			 */
+			fde->fde_flags &= ~UF_FOCLOSE;
 		}
 	}
 }
@@ -2964,7 +2995,7 @@ fget_cap(struct thread *td, int fd, const cap_rights_t *needrightsp,
     uint8_t *flagsp, struct file **fpp, struct filecaps *havecapsp)
 {
 	int error;
-	error = fget_unlocked(td, fd, needrightsp, flagsp, fpp);
+	error = fget_unlocked_flags(td, fd, needrightsp, flagsp, fpp);
 	if (havecapsp != NULL && error == 0)
 		filecaps_fill(havecapsp);
 
@@ -3141,7 +3172,6 @@ fgetvp_lookup_smr(struct nameidata *ndp, struct vnode **vpp, int *flagsp)
 	flags = fp->f_flag & FSEARCH;
 	flags |= (fde->fde_flags & UF_RESOLVE_BENEATH) != 0 ?
 	    O_RESOLVE_BENEATH : 0;
-	*fsearch = ((fp->f_flag & FSEARCH) != 0);
 	vp = fp->f_vnode;
 	if (__predict_false(vp == NULL || vp->v_type != VDIR)) {
 		return (EAGAIN);

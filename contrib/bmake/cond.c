@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.372 2025/04/10 21:41:35 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.373 2025/04/22 19:28:50 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -91,7 +91,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.372 2025/04/10 21:41:35 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.373 2025/04/22 19:28:50 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -166,7 +166,7 @@ typedef struct CondParser {
 
 static CondResult CondParser_Or(CondParser *, bool);
 
-unsigned int cond_depth = 0;	/* current .if nesting level */
+unsigned cond_depth = 0;	/* current .if nesting level */
 
 /* Names for ComparisonOp. */
 static const char opname[][3] = { "<", "<=", ">", ">=", "==", "!=" };
@@ -1028,7 +1028,7 @@ Cond_EvalLine(const char *line)
 	} IfState;
 
 	static enum IfState *cond_states = NULL;
-	static unsigned int cond_states_cap = 128;
+	static unsigned cond_states_cap = 128;
 
 	bool plain;
 	bool (*evalBare)(const char *);
@@ -1221,7 +1221,7 @@ found_variable:
 void
 Cond_EndFile(void)
 {
-	unsigned int open_conds = cond_depth - CurFile_CondMinDepth();
+	unsigned open_conds = cond_depth - CurFile_CondMinDepth();
 
 	if (open_conds != 0) {
 		Parse_Error(PARSE_FATAL, "%u open conditional%s",

@@ -2071,12 +2071,19 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_inotify_add_watch */
 	case 292: {
-		*n_args = 0;
+		struct linux_inotify_add_watch_args *p = params;
+		iarg[a++] = p->fd; /* l_int */
+		uarg[a++] = (intptr_t)p->pathname; /* const char * */
+		uarg[a++] = p->mask; /* uint32_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_inotify_rm_watch */
 	case 293: {
-		*n_args = 0;
+		struct linux_inotify_rm_watch_args *p = params;
+		iarg[a++] = p->fd; /* l_int */
+		uarg[a++] = p->wd; /* uint32_t */
+		*n_args = 2;
 		break;
 	}
 	/* linux_migrate_pages */
@@ -2410,7 +2417,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_inotify_init1 */
 	case 332: {
-		*n_args = 0;
+		struct linux_inotify_init1_args *p = params;
+		iarg[a++] = p->flags; /* l_int */
+		*n_args = 1;
 		break;
 	}
 	/* linux_preadv */
@@ -6604,9 +6613,32 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_inotify_add_watch */
 	case 292:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_inotify_rm_watch */
 	case 293:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_migrate_pages */
 	case 294:
@@ -7172,6 +7204,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_inotify_init1 */
 	case 332:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_preadv */
 	case 333:
@@ -9889,8 +9928,14 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 291:
 	/* linux_inotify_add_watch */
 	case 292:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_inotify_rm_watch */
 	case 293:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_migrate_pages */
 	case 294:
 	/* linux_openat */
@@ -10062,6 +10107,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_inotify_init1 */
 	case 332:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_preadv */
 	case 333:
 		if (ndx == 0 || ndx == 1)

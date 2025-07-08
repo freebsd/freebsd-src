@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 16, 2025
+.Dd June 27, 2025
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -780,21 +780,34 @@ Minimum TCP Maximum Segment Size; used to prevent a denial of service attack
 from an unreasonably low MSS.
 .It Va msl
 The Maximum Segment Lifetime, in milliseconds, for a packet.
+.It Va msl_local
+The Maximum Segment Lifetime, in milliseconds, for a packet when both endpoints
+are local.
+.Va msl_local
+is only used if
+.Va nolocaltimewait ,
+which is deprecated, is zero.
 .It Va mssdflt
 The default value used for the TCP Maximum Segment Size
 .Pq Dq MSS
 for IPv4 when no advice to the contrary is received from MSS negotiation.
-.It Va newcwd
+.It Va newcwv
 Enable the New Congestion Window Validation mechanism as described in RFC 7661.
 This gently reduces the congestion window during periods, where TCP is
 application limited and the network bandwidth is not utilized completely.
 That prevents self-inflicted packet losses once the application starts to
 transmit data at a higher speed.
 .It Va nolocaltimewait
-Suppress creation of TCP
+Suppress the creation of TCP
 .Dv TIME_WAIT
 states for connections in
 which both endpoints are local.
+The default is 0.
+.Va nolocaltimewait
+is deprecated and will be removed in
+.Fx 16 .
+.Va msl_local
+can be used instead.
 .It Va path_mtu_discovery
 Enable Path MTU Discovery.
 .It Va pcbcount

@@ -52,6 +52,7 @@ ${PACKAGE}FILES+=		cd8.0
 ${PACKAGE}FILES+=		cd9.0 cd9.0.stdout
 ${PACKAGE}FILES+=		cd10.0
 ${PACKAGE}FILES+=		cd11.0
+${PACKAGE}FILES+=		cd12.0 cd12.0.stderr
 ${PACKAGE}FILES+=		command1.0
 ${PACKAGE}FILES+=		command2.0
 ${PACKAGE}FILES+=		command3.0

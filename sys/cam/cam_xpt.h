@@ -145,15 +145,15 @@ uint32_t		xpt_poll_setup(union ccb *start_ccb);
 void			xpt_sim_poll(struct cam_sim *sim);
 
 /*
- * Perform a path inquiry at the request priority. The bzero may be
- * unnecessary.
+ * Perform a path inquiry at the request priority. bzero may be redundant for
+ * allocated CCBs, but for the on-stack CCBs it's required.
  */
 static inline void
 xpt_path_inq(struct ccb_pathinq *cpi, struct cam_path *path)
 {
 
 	bzero(cpi, sizeof(*cpi));
-	xpt_setup_ccb(&cpi->ccb_h, path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cpi->ccb_h, path, CAM_PRIORITY_NONE);
 	cpi->ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)cpi);
 }

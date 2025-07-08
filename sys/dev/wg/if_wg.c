@@ -312,7 +312,10 @@ static void wg_timers_run_send_keepalive(void *);
 static void wg_timers_run_new_handshake(void *);
 static void wg_timers_run_zero_key_material(void *);
 static void wg_timers_run_persistent_keepalive(void *);
-static int wg_aip_add(struct wg_softc *, struct wg_peer *, sa_family_t, const void *, uint8_t);
+static int wg_aip_add(struct wg_softc *, struct wg_peer *, sa_family_t,
+    const void *, uint8_t);
+static int wg_aip_del(struct wg_softc *, struct wg_peer *, sa_family_t,
+    const void *, uint8_t);
 static struct wg_peer *wg_aip_lookup(struct wg_softc *, sa_family_t, void *);
 static void wg_aip_remove_all(struct wg_softc *, struct wg_peer *);
 static struct wg_peer *wg_peer_create(struct wg_softc *,
@@ -526,11 +529,48 @@ wg_peer_get_endpoint(struct wg_peer *peer, struct wg_endpoint *e)
 	rw_runlock(&peer->p_endpoint_lock);
 }
 
+static int
+wg_aip_addrinfo(struct wg_aip *aip, const void *baddr, uint8_t cidr)
+{
+#if defined(INET) || defined(INET6)
+	struct aip_addr *addr, *mask;
+
+	addr = &aip->a_addr;
+	mask = &aip->a_mask;
+#endif
+	switch (aip->a_af) {
+#ifdef INET
+	case AF_INET:
+		if (cidr > 32) cidr = 32;
+		addr->in = *(const struct in_addr *)baddr;
+		mask->ip = htonl(~((1LL << (32 - cidr)) - 1) & 0xffffffff);
+		addr->ip &= mask->ip;
+		addr->length = mask->length = offsetof(struct aip_addr, in) + sizeof(struct in_addr);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (cidr > 128) cidr = 128;
+		addr->in6 = *(const struct in6_addr *)baddr;
+		in6_prefixlen2mask(&mask->in6, cidr);
+		for (int i = 0; i < 4; i++)
+			addr->ip6[i] &= mask->ip6[i];
+		addr->length = mask->length = offsetof(struct aip_addr, in6) + sizeof(struct in6_addr);
+		break;
+#endif
+	default:
+		return (EAFNOSUPPORT);
+	}
+
+	return (0);
+}
+
 /* Allowed IP */
 static int
-wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af, const void *addr, uint8_t cidr)
+wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af,
+    const void *baddr, uint8_t cidr)
 {
-	struct radix_node_head	*root;
+	struct radix_node_head	*root = NULL;
 	struct radix_node	*node;
 	struct wg_aip		*aip;
 	int			 ret = 0;
@@ -539,33 +579,14 @@ wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af, const void
 	aip->a_peer = peer;
 	aip->a_af = af;
 
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		if (cidr > 32) cidr = 32;
-		root = sc->sc_aip4;
-		aip->a_addr.in = *(const struct in_addr *)addr;
-		aip->a_mask.ip = htonl(~((1LL << (32 - cidr)) - 1) & 0xffffffff);
-		aip->a_addr.ip &= aip->a_mask.ip;
-		aip->a_addr.length = aip->a_mask.length = offsetof(struct aip_addr, in) + sizeof(struct in_addr);
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		if (cidr > 128) cidr = 128;
-		root = sc->sc_aip6;
-		aip->a_addr.in6 = *(const struct in6_addr *)addr;
-		in6_prefixlen2mask(&aip->a_mask.in6, cidr);
-		for (int i = 0; i < 4; i++)
-			aip->a_addr.ip6[i] &= aip->a_mask.ip6[i];
-		aip->a_addr.length = aip->a_mask.length = offsetof(struct aip_addr, in6) + sizeof(struct in6_addr);
-		break;
-#endif
-	default:
+	ret = wg_aip_addrinfo(aip, baddr, cidr);
+	if (ret != 0) {
 		free(aip, M_WG);
-		return (EAFNOSUPPORT);
+		return (ret);
 	}
 
+	root = af == AF_INET ? sc->sc_aip4 : sc->sc_aip6;
+	MPASS(root != NULL);
 	RADIX_NODE_HEAD_LOCK(root);
 	node = root->rnh_addaddr(&aip->a_addr, &aip->a_mask, &root->rh, aip->a_nodes);
 	if (node == aip->a_nodes) {
@@ -589,6 +610,58 @@ wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af, const void
 	}
 	RADIX_NODE_HEAD_UNLOCK(root);
 	return (ret);
+}
+
+static int
+wg_aip_del(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af,
+    const void *baddr, uint8_t cidr)
+{
+	struct radix_node_head	*root = NULL;
+	struct radix_node	*dnode __diagused, *node;
+	struct wg_aip		 *aip, addr;
+	int			 ret = 0;
+
+	/*
+	 * We need to be sure that all padding is cleared, as it is above when
+	 * new AllowedIPs are added, since we want to do a direct comparison.
+	 */
+	memset(&addr, 0, sizeof(addr));
+	addr.a_af = af;
+
+	ret = wg_aip_addrinfo(&addr, baddr, cidr);
+	if (ret != 0)
+		return (ret);
+
+	root = af == AF_INET ? sc->sc_aip4 : sc->sc_aip6;
+
+	MPASS(root != NULL);
+	RADIX_NODE_HEAD_LOCK(root);
+
+	node = root->rnh_lookup(&addr.a_addr, &addr.a_mask, &root->rh);
+	if (node == NULL) {
+		RADIX_NODE_HEAD_UNLOCK(root);
+		return (0);
+	}
+
+	aip = (struct wg_aip *)node;
+	if (aip->a_peer != peer) {
+		/*
+		 * They could have specified an allowed-ip that belonged to a
+		 * different peer, in which case our job is done because the
+		 * AllowedIP has been removed.
+		 */
+		RADIX_NODE_HEAD_UNLOCK(root);
+		return (0);
+	}
+
+	dnode = root->rnh_deladdr(&aip->a_addr, &aip->a_mask, &root->rh);
+	MPASS(dnode == node);
+	RADIX_NODE_HEAD_UNLOCK(root);
+
+	LIST_REMOVE(aip, a_entry);
+	peer->p_aips_num--;
+	free(aip, M_WG);
+	return (0);
 }
 
 static struct wg_peer *
@@ -2461,8 +2534,20 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 
 		aipl = nvlist_get_nvlist_array(nvl, "allowed-ips", &allowedip_count);
 		for (size_t idx = 0; idx < allowedip_count; idx++) {
+			sa_family_t ipaf;
+			int ipflags;
+
 			if (!nvlist_exists_number(aipl[idx], "cidr"))
 				continue;
+
+			ipaf = AF_UNSPEC;
+			ipflags = 0;
+			if (nvlist_exists_number(aipl[idx], "flags"))
+				ipflags = nvlist_get_number(aipl[idx], "flags");
+			if ((ipflags & ~WGALLOWEDIP_VALID_FLAGS) != 0) {
+				err = EOPNOTSUPP;
+				goto out;
+			}
 			cidr = nvlist_get_number(aipl[idx], "cidr");
 			if (nvlist_exists_binary(aipl[idx], "ipv4")) {
 				addr = nvlist_get_binary(aipl[idx], "ipv4", &size);
@@ -2470,19 +2555,29 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 					err = EINVAL;
 					goto out;
 				}
-				if ((err = wg_aip_add(sc, peer, AF_INET, addr, cidr)) != 0)
-					goto out;
+
+				ipaf = AF_INET;
 			} else if (nvlist_exists_binary(aipl[idx], "ipv6")) {
 				addr = nvlist_get_binary(aipl[idx], "ipv6", &size);
 				if (addr == NULL || cidr > 128 || size != sizeof(struct in6_addr)) {
 					err = EINVAL;
 					goto out;
 				}
-				if ((err = wg_aip_add(sc, peer, AF_INET6, addr, cidr)) != 0)
-					goto out;
+
+				ipaf = AF_INET6;
 			} else {
 				continue;
 			}
+
+			MPASS(ipaf != AF_UNSPEC);
+			if ((ipflags & WGALLOWEDIP_REMOVE_ME) != 0) {
+				err = wg_aip_del(sc, peer, ipaf, addr, cidr);
+			} else {
+				err = wg_aip_add(sc, peer, ipaf, addr, cidr);
+			}
+
+			if (err != 0)
+				goto out;
 		}
 	}
 	if (remote != NULL)

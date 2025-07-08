@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 30, 2022
+.Dd May 17, 2025
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -164,6 +164,7 @@ one or more of the values:
 .It Dv MSG_WAITALL Ta wait for full request or error
 .It Dv MSG_DONTWAIT Ta do not block
 .It Dv MSG_CMSG_CLOEXEC Ta set received fds close-on-exec
+.It Dv MSG_CMSG_CLOFORK Ta set received fds close-on-fork
 .It Dv MSG_WAITFORONE Ta do not block after receiving the first message
 (only for
 .Fn recvmmsg

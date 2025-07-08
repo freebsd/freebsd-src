@@ -27,6 +27,9 @@
 #ifndef SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
 #define	SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
 
+#include <sys/types.h>
+#include <machine/cpu.h>
+
 #define	HARVESTSIZE	2	/* Max length in words of each harvested entropy unit */
 
 /* These are used to queue harvested packets of entropy. The entropy
@@ -40,8 +43,10 @@ struct harvest_event {
 	uint8_t		he_source;		/* origin of the entropy */
 };
 
-#define	RANDOM_HARVEST_INIT_LOCK(x)	mtx_init(&harvest_context.hc_mtx, "entropy harvest mutex", NULL, MTX_SPIN)
-#define	RANDOM_HARVEST_LOCK(x)		mtx_lock_spin(&harvest_context.hc_mtx)
-#define	RANDOM_HARVEST_UNLOCK(x)	mtx_unlock_spin(&harvest_context.hc_mtx)
+static inline uint32_t
+random_get_cyclecount(void)
+{
+	return ((uint32_t)get_cyclecount());
+}
 
 #endif /* SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED */

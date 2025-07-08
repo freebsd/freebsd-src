@@ -61,6 +61,9 @@ static struct option longopts[] = {
 static uint64_t min_capacity = 0;
 static uint64_t max_capacity = 0;
 
+/* Fixed timestamp for reproducible builds. */
+time_t timestamp = (time_t)-1;
+
 struct partlisthead partlist = TAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
@@ -561,7 +564,7 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt_long(argc, argv, "a:b:c:C:f:o:p:s:vyH:P:S:T:",
+	while ((c = getopt_long(argc, argv, "a:b:c:C:f:o:p:s:t:vyH:P:S:T:",
 	    longopts, NULL)) != -1) {
 		switch (c) {
 		case 'a':	/* ACTIVE PARTITION, if supported */
@@ -613,6 +616,19 @@ main(int argc, char *argv[])
 			if (error)
 				errc(EX_DATAERR, error, "scheme");
 			break;
+		case 't': {
+			char *ep;
+			long long val;
+
+			errno = 0;
+			val = strtoll(optarg, &ep, 0);
+			if (ep == optarg || *ep != '\0')
+				errno = EINVAL;
+			if (errno != 0)
+				errc(EX_DATAERR, errno, "timestamp");
+			timestamp = (time_t)val;
+			break;
+		}
 		case 'y':
 			unit_testing++;
 			break;

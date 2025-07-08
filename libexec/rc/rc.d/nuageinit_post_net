@@ -16,8 +16,8 @@ rcvar="nuageinit_enable"
 
 execute_post_net()
 {
-	test -f /var/cache/nuageinit/post_network_config || return
-	/usr/libexec/nuageinit /var/cache/nuageinit/post_network_config | tee -a /var/log/nuageinit.log
+	test -f /var/cache/nuageinit/user_data -o -f /var/cache/nuageinit/user-data || return
+	/usr/libexec/nuageinit /var/cache/nuageinit/ postnet | tee -a /var/log/nuageinit.log
 }
 
 # Share the same config as nuageinit

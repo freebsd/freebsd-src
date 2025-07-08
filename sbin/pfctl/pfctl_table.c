@@ -55,8 +55,6 @@
 #include "pfctl.h"
 
 extern void	usage(void);
-static int	pfctl_table(int, char *[], char *, const char *, char *,
-		    const char *, int);
 static void	print_table(const struct pfr_table *, int, int);
 static int	print_tstats(const struct pfr_tstats *, int);
 static int	load_addr(struct pfr_buffer *, int, char *[], char *, int, int);
@@ -87,6 +85,8 @@ static const char	*istats_text[2][2][2] = {
 	} while (0)
 
 #define CREATE_TABLE do {						\
+		warn_duplicate_tables(table.pfrt_name,			\
+		    table.pfrt_anchor);					\
 		table.pfrt_flags |= PFR_TFLAG_PERSIST;			\
 		if ((!(opts & PF_OPT_NOACTION) ||			\
 		    (opts & PF_OPT_DUMMYACTION)) &&			\
@@ -96,7 +96,6 @@ static const char	*istats_text[2][2][2] = {
 			goto _error;					\
 		}							\
 		if (nadd) {						\
-			warn_namespace_collision(table.pfrt_name);	\
 			xprintf(opts, "%d table created", nadd);	\
 			if (opts & PF_OPT_NOACTION)			\
 				return (0);				\
@@ -116,15 +115,6 @@ pfctl_show_tables(const char *anchor, int opts)
 {
 	if (pfctl_table(0, NULL, NULL, "-s", NULL, anchor, opts))
 		exit(1);
-}
-
-int
-pfctl_command_tables(int argc, char *argv[], char *tname,
-    const char *command, char *file, const char *anchor, int opts)
-{
-	if (tname == NULL || command == NULL)
-		usage();
-	return pfctl_table(argc, argv, tname, command, file, anchor, opts);
 }
 
 int
@@ -214,7 +204,8 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		xprintf(opts, "%d/%d addresses added", nadd, b.pfrb_size);
 		if (opts & PF_OPT_VERBOSE)
 			PFRB_FOREACH(a, &b)
-				if ((opts & PF_OPT_VERBOSE2) || a->pfra_fback)
+				if ((opts & PF_OPT_VERBOSE2) ||
+				    a->pfra_fback != PFR_FB_NONE)
 					print_addrx(a, NULL,
 					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "delete")) {
@@ -228,7 +219,8 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		xprintf(opts, "%d/%d addresses deleted", ndel, b.pfrb_size);
 		if (opts & PF_OPT_VERBOSE)
 			PFRB_FOREACH(a, &b)
-				if ((opts & PF_OPT_VERBOSE2) || a->pfra_fback)
+				if ((opts & PF_OPT_VERBOSE2) ||
+				    a->pfra_fback != PFR_FB_NONE)
 					print_addrx(a, NULL,
 					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "replace")) {
@@ -259,7 +251,8 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 			xprintf(opts, "no changes");
 		if (opts & PF_OPT_VERBOSE)
 			PFRB_FOREACH(a, &b)
-				if ((opts & PF_OPT_VERBOSE2) || a->pfra_fback)
+				if ((opts & PF_OPT_VERBOSE2) ||
+				    a->pfra_fback != PFR_FB_NONE)
 					print_addrx(a, NULL,
 					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "expire")) {
@@ -282,7 +275,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 				break;
 		}
 		PFRB_FOREACH(p, &b) {
-			((struct pfr_astats *)p)->pfras_a.pfra_fback = 0;
+			((struct pfr_astats *)p)->pfras_a.pfra_fback = PFR_FB_NONE;
 			if (time(NULL) - ((struct pfr_astats *)p)->pfras_tzero >
 			    lifetime)
 				if (pfr_buf_add(&b2,
@@ -297,7 +290,8 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		xprintf(opts, "%d/%d addresses expired", ndel, b2.pfrb_size);
 		if (opts & PF_OPT_VERBOSE)
 			PFRB_FOREACH(a, &b2)
-				if ((opts & PF_OPT_VERBOSE2) || a->pfra_fback)
+				if ((opts & PF_OPT_VERBOSE2) ||
+				    a->pfra_fback != PFR_FB_NONE)
 					print_addrx(a, NULL,
 					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "reset")) {
@@ -583,12 +577,10 @@ pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
 }
 
 void
-warn_namespace_collision(const char *filter)
+warn_duplicate_tables(const char *tablename, const char *anchorname)
 {
 	struct pfr_buffer b;
 	struct pfr_table *t;
-	const char *name = NULL, *lastcoll;
-	int coll = 0;
 
 	bzero(&b, sizeof(b));
 	b.pfrb_type = PFRB_TABLES;
@@ -604,22 +596,13 @@ warn_namespace_collision(const char *filter)
 	PFRB_FOREACH(t, &b) {
 		if (!(t->pfrt_flags & PFR_TFLAG_ACTIVE))
 			continue;
-		if (filter != NULL && strcmp(filter, t->pfrt_name))
+		if (!strcmp(anchorname, t->pfrt_anchor))
 			continue;
-		if (!t->pfrt_anchor[0])
-			name = t->pfrt_name;
-		else if (name != NULL && !strcmp(name, t->pfrt_name)) {
-			coll++;
-			lastcoll = name;
-			name = NULL;
-		}
+		if (!strcmp(tablename, t->pfrt_name))
+			warnx("warning: table <%s> already defined"
+			    " in anchor \"%s\"", tablename,
+			    t->pfrt_anchor[0] ? t->pfrt_anchor : "/");
 	}
-	if (coll == 1)
-		warnx("warning: namespace collision with <%s> global table.",
-		    lastcoll);
-	else if (coll > 1)
-		warnx("warning: namespace collisions with %d global tables.",
-		    coll);
 	pfr_buf_clear(&b);
 }
 

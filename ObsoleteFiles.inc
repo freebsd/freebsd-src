@@ -51,6 +51,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250626: For 11 days 15.0-CURRENT installed libtpool to the wrong location
+MOVED_LIBS+=usr/lib/libtpool.so.2
+
+# 20250626: replace yaml.lua with lyaml
+OLD_FILES+=usr/share/flua/yaml.lua
+
 # 20250623: fscandir() renamed to fdscandir()
 OLD_FILES+=usr/share/man/man3/fscandir.3.gz
 OLD_FILES+=usr/share/man/man3/fscandir_b.3.gz
@@ -2475,7 +2481,7 @@ OLD_FILES+=usr/share/man/man4/ng_uni.4.gz
 OLD_FILES+=usr/share/man/man4/ngatmbase.4.gz
 
 # 20230308: machine-id merged into hostid_save
-OLD_FILES+=etc/rc.d/machine-id
+OLD_FILES+=etc/rc.d/machine_id
 
 # 20230306: remove tzsetwall(3)
 OLD_FILES+=usr/share/man/man3/tzsetwall.3.gz

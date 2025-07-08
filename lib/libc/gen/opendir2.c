@@ -243,20 +243,18 @@ _filldir(DIR *dirp, bool use_current_pos)
 	return (true);
 }
 
+/*
+ * Return true if the file descriptor is associated with a file from a
+ * union file system or from a file system mounted with the union flag.
+ */
 static bool
 is_unionstack(int fd)
 {
-	int unionstack;
-
-	unionstack = _fcntl(fd, F_ISUNIONSTACK, 0);
-	if (unionstack != -1)
-		return (unionstack);
-
 	/*
-	 * Should not happen unless running on a kernel without the op,
-	 * but no use rendering the system useless in such a case.
+	 * This call shouldn't fail, but if it does, just assume that the
+	 * answer is no.
 	 */
-	return (0);
+	return (_fcntl(fd, F_ISUNIONSTACK, 0) > 0);
 }
 
 /*

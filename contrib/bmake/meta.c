@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.211 2025/04/11 17:33:47 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.215 2025/06/13 06:13:19 rillig Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -52,6 +52,7 @@ char * dirname(char *);
 #include "make.h"
 #include "dir.h"
 #include "job.h"
+#include "meta.h"
 
 #ifdef USE_FILEMON
 #include "filemon/filemon.h"
@@ -646,7 +647,7 @@ MAKE_INLINE BuildMon *
 BM(Job *job)
 {
 
-	return ((job != NULL) ? &job->bm : &Mybm);
+	return job != NULL ? Job_BuildMon(job) : &Mybm;
 }
 
 /*
@@ -748,7 +749,7 @@ meta_job_error(Job *job, GNode *gn, bool ignerr, int status)
 
     pbm = BM(job);
     if (job != NULL && gn == NULL)
-	    gn = job->node;
+	    gn = Job_Node(job);
     if (pbm->mfp != NULL) {
 	fprintf(pbm->mfp, "\n*** Error code %d%s\n",
 		status, ignerr ? "(ignored)" : "");
@@ -756,7 +757,7 @@ meta_job_error(Job *job, GNode *gn, bool ignerr, int status)
     if (gn != NULL)
 	Global_Set(".ERROR_TARGET", GNode_Path(gn));
     if (getcwd(cwd, sizeof cwd) == NULL)
-	Punt("Cannot get cwd: %s", strerror(errno));
+	Punt("getcwd: %s", strerror(errno));
 
     Global_Set(".ERROR_CWD", cwd);
     if (pbm->meta_fname[0] != '\0') {
@@ -766,7 +767,7 @@ meta_job_error(Job *job, GNode *gn, bool ignerr, int status)
 }
 
 void
-meta_job_output(Job *job, char *cp, const char *nl)
+meta_job_output(Job *job, const char *cp)
 {
     BuildMon *pbm;
 
@@ -777,15 +778,10 @@ meta_job_output(Job *job, char *cp, const char *nl)
 	    static size_t meta_prefix_len;
 
 	    if (meta_prefix == NULL) {
-		char *cp2;
-
 		meta_prefix = Var_Subst("${" MAKE_META_PREFIX "}",
 					SCOPE_GLOBAL, VARE_EVAL);
 		/* TODO: handle errors */
-		if ((cp2 = strchr(meta_prefix, '$')) != NULL)
-		    meta_prefix_len = (size_t)(cp2 - meta_prefix);
-		else
-		    meta_prefix_len = strlen(meta_prefix);
+		meta_prefix_len = strcspn(meta_prefix, "$");
 	    }
 	    if (strncmp(cp, meta_prefix, meta_prefix_len) == 0) {
 		cp = strchr(cp + 1, '\n');
@@ -794,7 +790,7 @@ meta_job_output(Job *job, char *cp, const char *nl)
 		cp++;
 	    }
 	}
-	fprintf(pbm->mfp, "%s%s", cp, nl);
+	fprintf(pbm->mfp, "%s", cp);
     }
 }
 
@@ -1643,7 +1639,7 @@ meta_compat_start(void)
     }
 #endif
     if (pipe(childPipe) < 0)
-	Punt("Cannot create pipe: %s", strerror(errno));
+	Punt("pipe: %s", strerror(errno));
     /* Set close-on-exec flag for both */
     (void)fcntl(childPipe[0], F_SETFD, FD_CLOEXEC);
     (void)fcntl(childPipe[1], F_SETFD, FD_CLOEXEC);
@@ -1707,7 +1703,7 @@ meta_compat_parent(pid_t child)
 	    fwrite(buf, 1, (size_t)nread, stdout);
 	    fflush(stdout);
 	    buf[nread] = '\0';
-	    meta_job_output(NULL, buf, "");
+	    meta_job_output(NULL, buf);
 	} while (false);
 	if (metafd != -1 && FD_ISSET(metafd, &readfds) != 0) {
 	    if (meta_job_event(NULL) <= 0)

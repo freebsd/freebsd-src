@@ -144,10 +144,10 @@ portinstall-pkg: .PHONY
 .endif
 
 portinstall-qemu: portinstall-pkg .PHONY
-.if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
+.if !exists(/usr/local/bin/qemu-${QEMU_ARCH}-static)
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu-user-static
 .endif
-.if !exists(/usr/local/bin/qemu-system-${QEMU_ARCH})
+.if !exists(${QEMUBIN})
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu@nox11
 .endif
 
@@ -173,15 +173,15 @@ ci-buildworld: .PHONY
 
 
 ci-buildkernel: ci-buildworld-${TARGET_ARCH:tl} .PHONY
-	@echo "Building kernel for ${TARGET_ARCH"}"
+	@echo "Building kernel for ${TARGET_ARCH}"
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
-		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF}
+		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
 		${EXTRA_MAKE_FLAGS} KERNCONF=${KERNCONF} \
 		buildkernel > ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
 		(echo "${.TARGET} failed, check _.${TARGET_ARCH}.${.TARGET} for details" ; false)
 
 ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
-	@echo "Building ci image for ${TARGET_ARCH"}"
+	@echo "Building ci image for ${TARGET_ARCH}"
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} CITYPE=${CITYPE} \

@@ -319,12 +319,14 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 
 		bzero(&udp_source, sizeof(udp_source));
 		udp_source.af = pd->af;
-		PF_ACPY(&udp_source.addr, &pd->nsaddr, pd->af);
+		pf_addrcpy(&udp_source.addr, &pd->nsaddr, pd->af);
 		udp_source.port = pd->nsport;
 		if (udp_mapping) {
 			*udp_mapping = pf_udp_mapping_find(&udp_source);
 			if (*udp_mapping) {
-				PF_ACPY(naddr, &(*udp_mapping)->endpoints[1].addr, pd->af);
+				pf_addrcpy(naddr,
+				    &(*udp_mapping)->endpoints[1].addr,
+				    pd->af);
 				*nport = (*udp_mapping)->endpoints[1].port;
 				/* Try to find a src_node as per pf_map_addr(). */
 				if (*sn == NULL && rpool->opts & PF_POOL_STICKYADDR &&
@@ -348,7 +350,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 		goto failed;
 
 	if (pd->proto == IPPROTO_ICMP) {
-		if (*nport == htons(ICMP_ECHO)) {
+		if (pd->ndport == htons(ICMP_ECHO)) {
 			low = 1;
 			high = 65535;
 		} else
@@ -356,7 +358,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 	}
 #ifdef INET6
 	if (pd->proto == IPPROTO_ICMPV6) {
-		if (*nport == htons(ICMP6_ECHO_REQUEST)) {
+		if (pd->ndport == htons(ICMP6_ECHO_REQUEST)) {
 			low = 1;
 			high = 65535;
 		} else
@@ -369,12 +371,13 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 	key.proto = pd->proto;
 
 	do {
-		PF_ACPY(&key.addr[didx], &pd->ndaddr, key.af);
-		PF_ACPY(&key.addr[sidx], naddr, key.af);
+		pf_addrcpy(&key.addr[didx], &pd->ndaddr, key.af);
+		pf_addrcpy(&key.addr[sidx], naddr, key.af);
 		key.port[didx] = pd->ndport;
 
 		if (udp_mapping && *udp_mapping)
-			PF_ACPY(&(*udp_mapping)->endpoints[1].addr, naddr, pd->af);
+			pf_addrcpy(&(*udp_mapping)->endpoints[1].addr, naddr,
+			    pd->af);
 
 		/*
 		 * port search; start random, step;
@@ -591,10 +594,10 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 
 	switch (rpool->opts & PF_POOL_TYPEMASK) {
 	case PF_POOL_NONE:
-		PF_ACPY(naddr, raddr, af);
+		pf_addrcpy(naddr, raddr, af);
 		break;
 	case PF_POOL_BITMASK:
-		PF_POOLMASK(naddr, raddr, rmask, saddr, af);
+		pf_poolmask(naddr, raddr, rmask, saddr, af);
 		break;
 	case PF_POOL_RANDOM:
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
@@ -609,7 +612,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
-			PF_ACPY(naddr, &rpool->counter, af);
+			pf_addrcpy(naddr, &rpool->counter, af);
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			cnt = rpool->cur->addr.p.dyn->pfid_kt->pfrkt_cnt;
 			if (cnt == 0)
@@ -623,7 +626,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
-			PF_ACPY(naddr, &rpool->counter, af);
+			pf_addrcpy(naddr, &rpool->counter, af);
 		} else if (init_addr != NULL && PF_AZERO(init_addr, af)) {
 			switch (af) {
 #ifdef INET
@@ -654,12 +657,12 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				break;
 #endif /* INET6 */
 			}
-			PF_POOLMASK(naddr, raddr, rmask, &rpool->counter, af);
-			PF_ACPY(init_addr, naddr, af);
+			pf_poolmask(naddr, raddr, rmask, &rpool->counter, af);
+			pf_addrcpy(init_addr, naddr, af);
 
 		} else {
-			PF_AINC(&rpool->counter, af);
-			PF_POOLMASK(naddr, raddr, rmask, &rpool->counter, af);
+			pf_addr_inc(&rpool->counter, af);
+			pf_poolmask(naddr, raddr, rmask, &rpool->counter, af);
 		}
 		break;
 	case PF_POOL_SRCHASH:
@@ -680,7 +683,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
-			PF_ACPY(naddr, &rpool->counter, af);
+			pf_addrcpy(naddr, &rpool->counter, af);
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			cnt = rpool->cur->addr.p.dyn->pfid_kt->pfrkt_cnt;
 			if (cnt == 0)
@@ -694,9 +697,9 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
-			PF_ACPY(naddr, &rpool->counter, af);
+			pf_addrcpy(naddr, &rpool->counter, af);
 		} else {
-			PF_POOLMASK(naddr, raddr, rmask,
+			pf_poolmask(naddr, raddr, rmask,
 			    (struct pf_addr *)&hash, af);
 		}
 		break;
@@ -743,14 +746,14 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		} else {
 			raddr = &rpool->cur->addr.v.a.addr;
 			rmask = &rpool->cur->addr.v.a.mask;
-			PF_ACPY(&rpool->counter, raddr, af);
+			pf_addrcpy(&rpool->counter, raddr, af);
 		}
 
 	get_addr:
-		PF_ACPY(naddr, &rpool->counter, af);
+		pf_addrcpy(naddr, &rpool->counter, af);
 		if (init_addr != NULL && PF_AZERO(init_addr, af))
-			PF_ACPY(init_addr, naddr, af);
-		PF_AINC(&rpool->counter, af);
+			pf_addrcpy(init_addr, naddr, af);
+		pf_addr_inc(&rpool->counter, af);
 		break;
 	    }
 	}
@@ -798,7 +801,7 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			goto done;
 		}
 
-		PF_ACPY(naddr, &(*sn)->raddr, af);
+		pf_addrcpy(naddr, &(*sn)->raddr, af);
 		if (nkif)
 			*nkif = (*sn)->rkif;
 		if (V_pf_status.debug >= PF_DEBUG_NOISY) {
@@ -948,7 +951,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 						reason = PFRES_MAPFAILED;
 						goto notrans;
 					}
-					PF_POOLMASK(naddr,
+					pf_poolmask(naddr,
 					    &rpool->cur->addr.p.dyn->pfid_addr4,
 					    &rpool->cur->addr.p.dyn->pfid_mask4,
 					    &pd->nsaddr, AF_INET);
@@ -961,7 +964,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 						reason = PFRES_MAPFAILED;
 						goto notrans;
 					}
-					PF_POOLMASK(naddr,
+					pf_poolmask(naddr,
 					    &rpool->cur->addr.p.dyn->pfid_addr6,
 					    &rpool->cur->addr.p.dyn->pfid_mask6,
 					    &pd->nsaddr, AF_INET6);
@@ -969,7 +972,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 #endif /* INET6 */
 				}
 			} else
-				PF_POOLMASK(naddr,
+				pf_poolmask(naddr,
 				    &rpool->cur->addr.v.a.addr,
 				    &rpool->cur->addr.v.a.mask, &pd->nsaddr,
 				    pd->af);
@@ -983,7 +986,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 						reason = PFRES_MAPFAILED;
 						goto notrans;
 					}
-					PF_POOLMASK(naddr,
+					pf_poolmask(naddr,
 					    &r->src.addr.p.dyn->pfid_addr4,
 					    &r->src.addr.p.dyn->pfid_mask4,
 					    &pd->ndaddr, AF_INET);
@@ -995,7 +998,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 						reason = PFRES_MAPFAILED;
 						goto notrans;
 					}
-					PF_POOLMASK(naddr,
+					pf_poolmask(naddr,
 					    &r->src.addr.p.dyn->pfid_addr6,
 					    &r->src.addr.p.dyn->pfid_mask6,
 					    &pd->ndaddr, AF_INET6);
@@ -1003,7 +1006,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 #endif /* INET6 */
 				}
 			} else
-				PF_POOLMASK(naddr, &r->src.addr.v.a.addr,
+				pf_poolmask(naddr, &r->src.addr.v.a.addr,
 				    &r->src.addr.v.a.mask, &pd->ndaddr, pd->af);
 			break;
 		}
@@ -1018,7 +1021,7 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 		if (reason != 0)
 			goto notrans;
 		if ((rpool->opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)
-			PF_POOLMASK(naddr, naddr, &rpool->cur->addr.v.a.mask,
+			pf_poolmask(naddr, naddr, &rpool->cur->addr.v.a.mask,
 			    &pd->ndaddr, pd->af);
 
 		/* Do not change SCTP ports. */
@@ -1056,9 +1059,9 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 		key.af = pd->af;
 		key.proto = pd->proto;
 		key.port[0] = pd->nsport;
-		PF_ACPY(&key.addr[0], &pd->nsaddr, key.af);
+		pf_addrcpy(&key.addr[0], &pd->nsaddr, key.af);
 		key.port[1] = nport;
-		PF_ACPY(&key.addr[1], naddr, key.af);
+		pf_addrcpy(&key.addr[1], naddr, key.af);
 
 		if (!pf_find_state_all_exists(&key, PF_OUT))
 			break;
@@ -1220,8 +1223,8 @@ pf_get_transaddr_af(struct pf_krule *r, struct pf_pdesc *pd)
 		}
 	}
 
-	PF_ACPY(&pd->nsaddr, &nsaddr, pd->naf);
-	PF_ACPY(&pd->ndaddr, &ndaddr, pd->naf);
+	pf_addrcpy(&pd->nsaddr, &nsaddr, pd->naf);
+	pf_addrcpy(&pd->ndaddr, &ndaddr, pd->naf);
 
 	if (V_pf_status.debug >= PF_DEBUG_MISC) {
 		printf("pf: af-to %s done, prefixlen %d, ",

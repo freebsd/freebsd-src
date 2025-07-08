@@ -1198,27 +1198,6 @@ sdda_get_host_caps(struct cam_periph *periph, union ccb *ccb)
 	return (cts->host_caps);
 }
 
-static uint32_t
-sdda_get_max_data(struct cam_periph *periph, union ccb *ccb)
-{
-	struct ccb_trans_settings_mmc *cts;
-
-	cts = &ccb->cts.proto_specific.mmc;
-	memset(cts, 0, sizeof(struct ccb_trans_settings_mmc));
-
-	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	ccb->ccb_h.flags = CAM_DIR_NONE;
-	ccb->ccb_h.retry_count = 0;
-	ccb->ccb_h.timeout = 100;
-	ccb->ccb_h.cbfcnp = NULL;
-	xpt_action(ccb);
-
-	if (ccb->ccb_h.status != CAM_REQ_CMP)
-		panic("Cannot get host max data");
-	KASSERT(cts->host_max_data != 0, ("host_max_data == 0?!"));
-	return (cts->host_max_data);
-}
-
 static void
 sdda_start_init(void *context, union ccb *start_ccb)
 {
@@ -1544,10 +1523,7 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 
 	bioq_init(&part->bio_queue);
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	/*
 	 * Register this media as a disk
@@ -1572,9 +1548,7 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_gone = sddadiskgonecb;
 	part->disk->d_name = part->name;
 	part->disk->d_drv1 = part;
-	part->disk->d_maxsize =
-	    MIN(maxphys, sdda_get_max_data(periph,
-		    (union ccb *)&cpi) * mmc_get_sector_size(periph));
+	part->disk->d_maxsize = MIN(maxphys, cpi.maxio);
 	part->disk->d_unit = cnt;
 	part->disk->d_flags = 0;
 	strlcpy(part->disk->d_descr, sc->card_id_string,

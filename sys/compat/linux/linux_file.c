@@ -32,11 +32,13 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/inotify.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/selinfo.h>
 #include <sys/pipe.h>
 #include <sys/proc.h>
+#include <sys/specialfd.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
@@ -1876,4 +1878,123 @@ linux_writev(struct thread *td, struct linux_writev_args *args)
 	error = kern_writev(td, args->fd, auio);
 	freeuio(auio);
 	return (linux_enobufs2eagain(td, args->fd, error));
+}
+
+static int
+linux_inotify_init_flags(int l_flags)
+{
+	int bsd_flags;
+
+	if ((l_flags & ~(LINUX_IN_CLOEXEC | LINUX_IN_NONBLOCK)) != 0)
+		linux_msg(NULL, "inotify_init1 unsupported flags 0x%x",
+		    l_flags);
+
+	bsd_flags = 0;
+	if ((l_flags & LINUX_IN_CLOEXEC) != 0)
+		bsd_flags |= O_CLOEXEC;
+	if ((l_flags & LINUX_IN_NONBLOCK) != 0)
+		bsd_flags |= O_NONBLOCK;
+	return (bsd_flags);
+}
+
+static int
+inotify_init_common(struct thread *td, int flags)
+{
+	struct specialfd_inotify si;
+
+	si.flags = linux_inotify_init_flags(flags);
+	return (kern_specialfd(td, SPECIALFD_INOTIFY, &si));
+}
+
+#if defined(__i386__) || defined(__amd64__)
+int
+linux_inotify_init(struct thread *td, struct linux_inotify_init_args *args)
+{
+	return (inotify_init_common(td, 0));
+}
+#endif
+
+int
+linux_inotify_init1(struct thread *td, struct linux_inotify_init1_args *args)
+{
+	return (inotify_init_common(td, args->flags));
+}
+
+/*
+ * The native implementation uses the same values for inotify events as
+ * libinotify, which gives us binary compatibility with Linux.  This simplifies
+ * the shim implementation a lot, as otherwise we would have to handle read(2)
+ * calls on inotify descriptors and translate events to Linux's ABI.
+ */
+_Static_assert(LINUX_IN_ACCESS == IN_ACCESS,
+    "IN_ACCESS mismatch");
+_Static_assert(LINUX_IN_MODIFY == IN_MODIFY,
+    "IN_MODIFY mismatch");
+_Static_assert(LINUX_IN_ATTRIB == IN_ATTRIB,
+    "IN_ATTRIB mismatch");
+_Static_assert(LINUX_IN_CLOSE_WRITE == IN_CLOSE_WRITE,
+    "IN_CLOSE_WRITE mismatch");
+_Static_assert(LINUX_IN_CLOSE_NOWRITE == IN_CLOSE_NOWRITE,
+    "IN_CLOSE_NOWRITE mismatch");
+_Static_assert(LINUX_IN_OPEN == IN_OPEN,
+    "IN_OPEN mismatch");
+_Static_assert(LINUX_IN_MOVED_FROM == IN_MOVED_FROM,
+    "IN_MOVED_FROM mismatch");
+_Static_assert(LINUX_IN_MOVED_TO == IN_MOVED_TO,
+    "IN_MOVED_TO mismatch");
+_Static_assert(LINUX_IN_CREATE == IN_CREATE,
+    "IN_CREATE mismatch");
+_Static_assert(LINUX_IN_DELETE == IN_DELETE,
+    "IN_DELETE mismatch");
+_Static_assert(LINUX_IN_DELETE_SELF == IN_DELETE_SELF,
+    "IN_DELETE_SELF mismatch");
+_Static_assert(LINUX_IN_MOVE_SELF == IN_MOVE_SELF,
+    "IN_MOVE_SELF mismatch");
+
+_Static_assert(LINUX_IN_UNMOUNT == IN_UNMOUNT,
+    "IN_UNMOUNT mismatch");
+_Static_assert(LINUX_IN_Q_OVERFLOW == IN_Q_OVERFLOW,
+    "IN_Q_OVERFLOW mismatch");
+_Static_assert(LINUX_IN_IGNORED == IN_IGNORED,
+    "IN_IGNORED mismatch");
+
+_Static_assert(LINUX_IN_ISDIR == IN_ISDIR,
+    "IN_ISDIR mismatch");
+_Static_assert(LINUX_IN_ONLYDIR == IN_ONLYDIR,
+    "IN_ONLYDIR mismatch");
+_Static_assert(LINUX_IN_DONT_FOLLOW == IN_DONT_FOLLOW,
+    "IN_DONT_FOLLOW mismatch");
+_Static_assert(LINUX_IN_MASK_CREATE == IN_MASK_CREATE,
+    "IN_MASK_CREATE mismatch");
+_Static_assert(LINUX_IN_MASK_ADD == IN_MASK_ADD,
+    "IN_MASK_ADD mismatch");
+_Static_assert(LINUX_IN_ONESHOT == IN_ONESHOT,
+    "IN_ONESHOT mismatch");
+_Static_assert(LINUX_IN_EXCL_UNLINK == IN_EXCL_UNLINK,
+    "IN_EXCL_UNLINK mismatch");
+
+static int
+linux_inotify_watch_flags(int l_flags)
+{
+	if ((l_flags & ~(LINUX_IN_ALL_EVENTS | LINUX_IN_ALL_FLAGS)) != 0) {
+		linux_msg(NULL, "inotify_add_watch unsupported flags 0x%x",
+		    l_flags);
+	}
+
+	return (l_flags);
+}
+
+int
+linux_inotify_add_watch(struct thread *td,
+    struct linux_inotify_add_watch_args *args)
+{
+	return (kern_inotify_add_watch(args->fd, AT_FDCWD, args->pathname,
+	    linux_inotify_watch_flags(args->mask), td));
+}
+
+int
+linux_inotify_rm_watch(struct thread *td,
+    struct linux_inotify_rm_watch_args *args)
+{
+	return (kern_inotify_rm_watch(args->fd, args->wd, td));
 }

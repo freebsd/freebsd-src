@@ -306,8 +306,8 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_ioprio_set_args), .sy_call = (sy_call_t *)linux_ioprio_set, .sy_auevent = AUE_SETPRIORITY, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 289 = linux_ioprio_set */
 	{ .sy_narg = AS(linux_ioprio_get_args), .sy_call = (sy_call_t *)linux_ioprio_get, .sy_auevent = AUE_GETPRIORITY, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 290 = linux_ioprio_get */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_inotify_init, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 291 = linux_inotify_init */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_inotify_add_watch, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 292 = linux_inotify_add_watch */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_inotify_rm_watch, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 293 = linux_inotify_rm_watch */
+	{ .sy_narg = AS(linux_inotify_add_watch_args), .sy_call = (sy_call_t *)linux_inotify_add_watch, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 292 = linux_inotify_add_watch */
+	{ .sy_narg = AS(linux_inotify_rm_watch_args), .sy_call = (sy_call_t *)linux_inotify_rm_watch, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 293 = linux_inotify_rm_watch */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_migrate_pages, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 294 = linux_migrate_pages */
 	{ .sy_narg = AS(linux_openat_args), .sy_call = (sy_call_t *)linux_openat, .sy_auevent = AUE_OPEN_RWTC, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 295 = linux_openat */
 	{ .sy_narg = AS(linux_mkdirat_args), .sy_call = (sy_call_t *)linux_mkdirat, .sy_auevent = AUE_MKDIRAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 296 = linux_mkdirat */
@@ -346,7 +346,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_epoll_create1_args), .sy_call = (sy_call_t *)linux_epoll_create1, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 329 = linux_epoll_create1 */
 	{ .sy_narg = AS(linux_dup3_args), .sy_call = (sy_call_t *)linux_dup3, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 330 = linux_dup3 */
 	{ .sy_narg = AS(linux_pipe2_args), .sy_call = (sy_call_t *)linux_pipe2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 331 = linux_pipe2 */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_inotify_init1, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 332 = linux_inotify_init1 */
+	{ .sy_narg = AS(linux_inotify_init1_args), .sy_call = (sy_call_t *)linux_inotify_init1, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 332 = linux_inotify_init1 */
 	{ .sy_narg = AS(linux_preadv_args), .sy_call = (sy_call_t *)linux_preadv, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 333 = linux_preadv */
 	{ .sy_narg = AS(linux_pwritev_args), .sy_call = (sy_call_t *)linux_pwritev, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 334 = linux_pwritev */
 	{ .sy_narg = AS(linux_rt_tgsigqueueinfo_args), .sy_call = (sy_call_t *)linux_rt_tgsigqueueinfo, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 335 = linux_rt_tgsigqueueinfo */

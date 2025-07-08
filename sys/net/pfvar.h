@@ -508,18 +508,6 @@ extern struct sx pf_end_lock;
 	(c == AF_INET6 && !(a)->addr32[0] && !(a)->addr32[1] && \
 	!(a)->addr32[2] && !(a)->addr32[3] )) \
 
-#define PF_MATCHA(n, a, m, b, f) \
-	pf_match_addr(n, a, m, b, f)
-
-#define PF_ACPY(a, b, f) \
-	pf_addrcpy(a, b, f)
-
-#define PF_AINC(a, f) \
-	pf_addr_inc(a, f)
-
-#define PF_POOLMASK(a, b, c, d, f) \
-	pf_poolmask(a, b, c, d, f)
-
 #else
 
 /* Just IPv6 */
@@ -544,18 +532,6 @@ extern struct sx pf_end_lock;
 	!(a)->addr32[2] && \
 	!(a)->addr32[3] ) \
 
-#define PF_MATCHA(n, a, m, b, f) \
-	pf_match_addr(n, a, m, b, f)
-
-#define PF_ACPY(a, b, f) \
-	pf_addrcpy(a, b, f)
-
-#define PF_AINC(a, f) \
-	pf_addr_inc(a, f)
-
-#define PF_POOLMASK(a, b, c, d, f) \
-	pf_poolmask(a, b, c, d, f)
-
 #else
 
 /* Just IPv4 */
@@ -570,29 +546,11 @@ extern struct sx pf_end_lock;
 #define PF_AZERO(a, c) \
 	(!(a)->addr32[0])
 
-#define PF_MATCHA(n, a, m, b, f) \
-	pf_match_addr(n, a, m, b, f)
-
-#define PF_ACPY(a, b, f) \
-	(a)->v4.s_addr = (b)->v4.s_addr
-
-#define PF_AINC(a, f) \
-	do { \
-		(a)->addr32[0] = htonl(ntohl((a)->addr32[0]) + 1); \
-	} while (0)
-
-#define PF_POOLMASK(a, b, c, d, f) \
-	do { \
-		(a)->addr32[0] = ((b)->addr32[0] & (c)->addr32[0]) | \
-		(((c)->addr32[0] ^ 0xffffffff ) & (d)->addr32[0]); \
-	} while (0)
-
 #endif /* PF_INET_ONLY */
 #endif /* PF_INET6_ONLY */
 #endif /* PF_INET_INET6 */
 
 #ifdef _KERNEL
-#ifdef INET6
 static void inline
 pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 {
@@ -602,12 +560,13 @@ pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 		memcpy(&dst->v4, &src->v4, sizeof(dst->v4));
 		break;
 #endif /* INET */
+#ifdef INET6
 	case AF_INET6:
 		memcpy(&dst->v6, &src->v6, sizeof(dst->v6));
 		break;
+#endif /* INET6 */
 	}
 }
-#endif /* INET6 */
 #endif
 
 /*
@@ -629,7 +588,7 @@ pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 		    &(aw)->v.a.mask, (x), (af))) ||			\
 		((aw)->type == PF_ADDR_ADDRMASK &&			\
 		    !PF_AZERO(&(aw)->v.a.mask, (af)) &&			\
-		    !PF_MATCHA(0, &(aw)->v.a.addr,			\
+		    !pf_match_addr(0, &(aw)->v.a.addr,			\
 		    &(aw)->v.a.mask, (x), (af))))) !=			\
 		(neg)							\
 	)
@@ -690,6 +649,7 @@ struct pf_rule_actions {
 	uint8_t		 set_prio[2];
 	uint8_t		 rt;
 	uint8_t		 allow_opts;
+	uint16_t	 max_pkt_size;
 };
 
 union pf_keth_rule_ptr {
@@ -845,6 +805,7 @@ struct pf_krule {
 		u_int32_t		limit;
 		u_int32_t		seconds;
 	}			 max_src_conn_rate;
+	uint16_t		 max_pkt_size;
 	u_int16_t		 qid;
 	u_int16_t		 pqid;
 	u_int16_t		 dnpipe;
@@ -2475,11 +2436,11 @@ int	pf_test(sa_family_t, int, int, struct ifnet *, struct mbuf **, struct inpcb 
 int	pf_normalize_ip(u_short *, struct pf_pdesc *);
 #endif /* INET */
 
-#ifdef INET6
-int	pf_normalize_ip6(int, u_short *, struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, sa_family_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
+#ifdef INET6
+int	pf_normalize_ip6(int, u_short *, struct pf_pdesc *);
 int	pf_max_frag_size(struct mbuf *);
 int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *,
 	    struct ifnet *, bool);
@@ -2599,6 +2560,8 @@ int		 pf_tag_packet(struct pf_pdesc *, int);
 int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
 		    sa_family_t);
 
+uint8_t*	 pf_find_tcpopt(u_int8_t *, u_int8_t *, size_t,
+		    u_int8_t, u_int8_t);
 u_int16_t	 pf_get_mss(struct pf_pdesc *);
 u_int8_t	 pf_get_wscale(struct pf_pdesc *);
 struct mbuf 	*pf_build_tcp(const struct pf_krule *, sa_family_t,
@@ -2670,11 +2633,10 @@ int			 pf_kanchor_copyout(const struct pf_kruleset *,
 			    const struct pf_krule *, char *, size_t);
 int			 pf_kanchor_nvcopyout(const struct pf_kruleset *,
 			    const struct pf_krule *, nvlist_t *);
-void			 pf_kanchor_remove(struct pf_krule *);
+void			 pf_remove_kanchor(struct pf_krule *);
 void			 pf_remove_if_empty_kruleset(struct pf_kruleset *);
 struct pf_kruleset	*pf_find_kruleset(const char *);
 struct pf_kruleset	*pf_get_leaf_kruleset(char *, char **);
-struct pf_kanchor	*pf_create_kanchor(struct pf_kanchor *, const char *);
 struct pf_kruleset	*pf_find_or_create_kruleset(const char *);
 void			 pf_rs_initialize(void);
 

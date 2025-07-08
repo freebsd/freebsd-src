@@ -545,7 +545,7 @@ find_author()
     # don't know if the prior _ are _ or + or any number of other characters.
     # Since there's issues here, prompt
     a=$(printf "%s <%s>\n" "${name}" $(echo "$addr" | sed -e 's/\(.*\)_/\1@/'))
-    echo "Making best guess: Turning ${addr} to ${a}"
+    echo "Making best guess: Turning ${addr} to ${a}" >&2
     if ! prompt; then
         echo "ABORT"
         return
@@ -582,17 +582,10 @@ patch_commit()
     echo '{"revisionIDs": [ '"${diff#D}"' ]}' | \
         arc_call_conduit -- differential.querydiffs |
         jq -r '.response | flatten | .[]' > "$diff_data"
-    author_addr=$(jq -r ".authorEmail?" "$diff_data" | sort -u)
-    author_name=$(jq -r ".authorName?" "$diff_data" | sort -u)
-
-    # JSON will return "null" when a field is not populated.
-    # Turn this string into an empty one.
-    if [ "$author_addr" = "null" ]; then
-        author_addr=""
-    fi
-    if [ "$author_name" = "null" ]; then
-        author_name=""
-    fi
+    # If the differential revision has multiple revisions, just take the first
+    # non-null value we get.
+    author_addr=$(jq -r ".authorEmail?" "$diff_data" | grep -v '^null$' | head -n 1)
+    author_name=$(jq -r ".authorName?" "$diff_data" | grep -v '^null$' | head -n 1)
 
     author=$(find_author "$user_addr" "$user_name" "$author_addr" "$author_name")
 

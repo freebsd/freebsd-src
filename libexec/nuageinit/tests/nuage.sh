@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
+# Copyright (c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -11,6 +11,7 @@ atf_test_case addsshkey
 atf_test_case adduser
 atf_test_case adduser_passwd
 atf_test_case addgroup
+atf_test_case addfile
 
 sethostname_body()
 {
@@ -73,6 +74,12 @@ addgroup_body()
 	atf_check -o inline:"impossible_groupname:*:1001:\n" grep impossible_groupname etc/group
 }
 
+addfile_body()
+{
+	mkdir tmp
+	atf_check /usr/libexec/flua $(atf_get_srcdir)/addfile.lua
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case sethostname
@@ -80,4 +87,5 @@ atf_init_test_cases()
 	atf_add_test_case adduser
 	atf_add_test_case adduser_passwd
 	atf_add_test_case addgroup
+	atf_add_test_case addfile
 }

@@ -118,7 +118,6 @@ struct msdosfsmount {
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
 	struct lock pm_fatlock;	/* lockmgr protecting allocations */
-	struct lock pm_checkpath_lock; /* protects doscheckpath result */
 	struct task pm_rw2ro_task; /* context for emergency remount ro */
 };
 

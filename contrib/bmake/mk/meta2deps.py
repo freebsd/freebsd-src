@@ -39,9 +39,9 @@ We only pay attention to a subset of the information in the
 SPDX-License-Identifier: BSD-2-Clause
 
 RCSid:
-	$Id: meta2deps.py,v 1.50 2024/09/27 00:08:36 sjg Exp $
+	$Id: meta2deps.py,v 1.51 2025/05/16 20:03:43 sjg Exp $
 
-	Copyright (c) 2011-2020, Simon J. Gerraty
+	Copyright (c) 2011-2025, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
 	All rights reserved.
 
@@ -543,8 +543,8 @@ class MetaFile:
             if w[0] in 'ML':
                 # these are special, tread src as read and
                 # target as write
-                self.parse_path(w[2].strip("'"), cwd, 'R', w)
                 self.parse_path(w[3].strip("'"), cwd, 'W', w)
+                self.parse_path(w[2].strip("'"), cwd, 'R', w)
                 continue
             elif w[0] in 'ERWS':
                 path = w[2]
@@ -611,9 +611,19 @@ class MetaFile:
                 return
         # we don't want to resolve the last component if it is
         # a symlink
-        path = resolve(path, cwd, self.last_dir, self.debug, self.debug_out)
-        if not path:
-            return
+        npath = resolve(path, cwd, self.last_dir, self.debug, self.debug_out)
+        if not npath:
+            if len(w) > 3 and w[0] in 'ML' and op == 'R' and path.startswith('../'):
+                # we already resolved the target of the M/L
+                # so it makes sense to try and resolve relative to that dir.
+                if os.path.isdir(self.last_path):
+                    dir = self.last_path
+                else:
+                    dir,junk = os.path.split(self.last_path)
+                npath = resolve(path, cwd, dir, self.debug, self.debug_out)
+            if not npath:
+                return
+        path = npath
         dir,base = os.path.split(path)
         if dir in self.seen:
             if self.debug > 2:
@@ -631,6 +641,7 @@ class MetaFile:
             rdir = None
         # now put path back together
         path = '/'.join([dir,base])
+        self.last_path = path
         if self.debug > 1:
             print("raw=%s rdir=%s dir=%s path=%s" % (w[2], rdir, dir, path), file=self.debug_out)
         if op in 'RWS':

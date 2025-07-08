@@ -945,7 +945,7 @@ msdosfs_rename(struct vop_rename_args *ap)
 	struct denode *fdip, *fip, *tdip, *tip, *nip;
 	u_char toname[12], oldname[11];
 	u_long to_diroffset;
-	bool checkpath_locked, doingdirectory, newparent;
+	bool doingdirectory, newparent;
 	int error;
 	u_long cn, pcl, blkoff;
 	daddr_t bn, wait_scn, scn;
@@ -985,8 +985,6 @@ msdosfs_rename(struct vop_rename_args *ap)
 	VOP_UNLOCK(tdvp);
 	if (tvp != NULL && tvp != tdvp)
 		VOP_UNLOCK(tvp);
-
-	checkpath_locked = false;
 
 relock:
 	doingdirectory = newparent = false;
@@ -1108,12 +1106,8 @@ relock:
 	if (doingdirectory && newparent) {
 		if (error != 0)	/* write access check above */
 			goto unlock;
-		lockmgr(&pmp->pm_checkpath_lock, LK_EXCLUSIVE, NULL);
-		checkpath_locked = true;
 		error = doscheckpath(fip, tdip, &wait_scn);
 		if (wait_scn != 0) {
-			lockmgr(&pmp->pm_checkpath_lock, LK_RELEASE, NULL);
-			checkpath_locked = false;
 			VOP_UNLOCK(fdvp);
 			VOP_UNLOCK(tdvp);
 			VOP_UNLOCK(fvp);
@@ -1276,8 +1270,6 @@ relock:
 	cache_purge(fvp);
 
 unlock:
-	if (checkpath_locked)
-		lockmgr(&pmp->pm_checkpath_lock, LK_RELEASE, NULL);
 	vput(fdvp);
 	vput(fvp);
 	if (tvp != NULL) {
@@ -1289,7 +1281,6 @@ unlock:
 	vput(tdvp);
 	return (error);
 releout:
-	MPASS(!checkpath_locked);
 	vrele(tdvp);
 	if (tvp != NULL)
 		vrele(tvp);
@@ -1950,6 +1941,9 @@ msdosfs_pathconf(struct vop_pathconf_args *ap)
 		return (0);
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 0;
+		return (0);
+	case _PC_HAS_HIDDENSYSTEM:
+		*ap->a_retval = 1;
 		return (0);
 	default:
 		return (vop_stdpathconf(ap));

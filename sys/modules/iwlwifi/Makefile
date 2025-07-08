@@ -4,6 +4,7 @@ DEVIWLWIFIDIR=	${SRCTOP}/sys/contrib/dev/iwlwifi
 
 WITH_CONFIG_PM=	0
 WITH_DEBUGFS=	1
+WITH_CONFIG_ACPI=	1
 
 KMOD=	if_iwlwifi
 
@@ -40,6 +41,12 @@ CFLAGS+=	-DCONFIG_PM
 CFLAGS+=	-DCONFIG_PM_SLEEP
 .endif
 
+.if defined(WITH_CONFIG_ACPI) && ${WITH_CONFIG_ACPI} > 0
+SRCS+=	fw/acpi.c
+CFLAGS+=	-DCONFIG_ACPI
+CFLAGS+=	-DLINUXKPI_WANT_LINUX_ACPI
+.endif
+
 SRCS+=	iwl-devtrace.c
 
 # Other
@@ -56,7 +63,6 @@ CFLAGS+=	-DCONFIG_IWLMVM=1
 # Helpful after fresh imports.
 #CFLAGS+=	-ferror-limit=0
 
-#CFLAGS+=	-DCONFIG_ACPI=1
 #CFLAGS+=	-DCONFIG_INET=1		# Need LKPI TSO implementation.
 #CFLAGS+=	-DCONFIG_IPV6=1
 CFLAGS+=	-DCONFIG_IWLWIFI_DEBUG=1

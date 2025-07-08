@@ -63,7 +63,7 @@ Target "next-main" depends on "suff-main-several.{2,3,4}"
 # suff-main-several.{2,3,4}, unmade, type none, flags none
 Parsing suff-main-several.mk:42: .MAKEFLAGS: -d0 -dg1
 ParseDependency(.MAKEFLAGS: -d0 -dg1)
-#*** Input graph:
+#*** Begin input graph for pass 1 in <curdir>:
 # .1.2, unmade, type OP_TRANSFORM, flags none
 # .1.3, unmade, type OP_TRANSFORM, flags none
 # .1.4, unmade, type OP_TRANSFORM, flags none
@@ -131,6 +131,7 @@ MFLAGS           =   -r -k -d mps -d 0 -d g1
 #	From: 
 #	Search Path: 
 #*** Transformations:
+#*** End input graph for pass 1 in <curdir>:
 make: don't know how to make suff-main-several.2 (continuing)
 make: don't know how to make suff-main-several.3 (continuing)
 make: don't know how to make suff-main-several.4 (continuing)

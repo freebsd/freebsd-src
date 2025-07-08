@@ -158,13 +158,15 @@ bectl_cmd_activate(int argc, char *argv[])
 	/* activate logic goes here */
 	if ((err = be_activate(be, argv[0], temp)) != 0)
 		/* XXX TODO: more specific error msg based on err */
-		printf("Did not successfully activate boot environment %s\n",
+		printf("Did not successfully activate boot environment %s",
 		    argv[0]);
 	else
-		printf("Successfully activated boot environment %s\n", argv[0]);
+		printf("Successfully activated boot environment %s", argv[0]);
 
 	if (temp)
-		printf("for next boot\n");
+		printf(" for next boot");
+
+	printf("\n");
 
 	return (err);
 }

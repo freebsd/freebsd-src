@@ -1605,10 +1605,17 @@
 		int linux_inotify_init(void);
 	}
 292	AUE_NULL	STD {
-		int linux_inotify_add_watch(void);
+		int linux_inotify_add_watch(
+		    l_int fd,
+		    const char *pathname,
+		    uint32_t mask
+		);
 	}
 293	AUE_NULL	STD {
-		int linux_inotify_rm_watch(void);
+		int linux_inotify_rm_watch(
+		    l_int fd,
+		    uint32_t wd
+		);
 	}
 ; Linux 2.6.16:
 294	AUE_NULL	STD {
@@ -1872,7 +1879,9 @@
 		);
 	}
 332	AUE_NULL	STD {
-		int linux_inotify_init1(void);
+		int linux_inotify_init1(
+		    l_int flags
+		);
 	}
 ; Linux 2.6.30:
 333	AUE_NULL	STD {

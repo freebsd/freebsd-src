@@ -141,6 +141,11 @@ typedef	__pid_t		pid_t;
 #if __BSD_VISIBLE
 #define	O_EMPTY_PATH	0x02000000
 #define	O_NAMEDATTR	0x04000000	/* NFSv4 named attributes */
+#define	O_XATTR		O_NAMEDATTR	/* Solaris compatibility */
+#endif
+
+#if __POSIX_VISIBLE >= 202405
+#define	O_CLOFORK	0x08000000
 #endif
 
 /*
@@ -279,6 +284,16 @@ typedef	__pid_t		pid_t;
 #define	F_GET_SEALS	20
 #define	F_ISUNIONSTACK	21		/* Kludge for libc, don't use it. */
 #define	F_KINFO		22		/* Return kinfo_file for this fd */
+#endif	/* __BSD_VISIBLE */
+
+#if __POSIX_VISIBLE >= 202405
+#define	F_DUPFD_CLOFORK	23		/* Like F_DUPFD, but FD_CLOFORK is set */
+#endif
+
+#if __BSD_VISIBLE
+#define F_DUP3FD	24		/* Used with dup3() */
+
+#define F_DUP3FD_SHIFT	16		/* Shift used for F_DUP3FD */
 
 /* Seals (F_ADD_SEALS, F_GET_SEALS). */
 #define	F_SEAL_SEAL	0x0001		/* Prevent adding sealings */
@@ -291,6 +306,9 @@ typedef	__pid_t		pid_t;
 #define	FD_CLOEXEC	1		/* close-on-exec flag */
 #define	FD_RESOLVE_BENEATH 2		/* all lookups relative to fd have
 					   O_RESOLVE_BENEATH semantics */
+#if __POSIX_VISIBLE >= 202405
+#define	FD_CLOFORK	4		/* close-on-fork flag */
+#endif
 
 /* record locking flags (F_GETLK, F_SETLK, F_SETLKW) */
 #define	F_RDLCK		1		/* shared or read lock */

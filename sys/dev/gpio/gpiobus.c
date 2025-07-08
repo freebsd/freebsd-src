@@ -39,6 +39,7 @@
 #include <sys/sbuf.h>
 
 #include <dev/gpio/gpiobusvar.h>
+#include <dev/gpio/gpiobus_internal.h>
 
 #include "gpiobus_if.h"
 
@@ -213,20 +214,40 @@ gpio_pin_is_active(gpio_pin_t pin, bool *active)
 	return (0);
 }
 
+/*
+ * Note that this function should only
+ * be used in cases where a pre-existing
+ * gpiobus_pin structure exists. In most
+ * cases, the gpio_pin_get_by_* functions
+ * suffice.
+ */
+int
+gpio_pin_acquire(gpio_pin_t gpio)
+{
+	device_t busdev;
+
+	KASSERT(gpio != NULL, ("GPIO pin is NULL."));
+	KASSERT(gpio->dev != NULL, ("GPIO pin device is NULL."));
+
+	busdev = GPIO_GET_BUS(gpio->dev);
+	if (busdev == NULL)
+		return (ENXIO);
+
+	return (gpiobus_acquire_pin(busdev, gpio->pin));
+}
+
 void
 gpio_pin_release(gpio_pin_t gpio)
 {
 	device_t busdev;
 
-	if (gpio == NULL)
-		return;
-
+	KASSERT(gpio != NULL, ("GPIO pin is NULL."));
 	KASSERT(gpio->dev != NULL, ("GPIO pin device is NULL."));
 
 	busdev = GPIO_GET_BUS(gpio->dev);
-	if (busdev != NULL)
-		gpiobus_release_pin(busdev, gpio->pin);
+	KASSERT(busdev != NULL, ("gpiobus dev is NULL."));
 
+	gpiobus_release_pin(busdev, gpio->pin);
 	free(gpio, M_DEVBUF);
 }
 
@@ -293,7 +314,7 @@ gpiobus_print_pins(struct gpiobus_ivar *devi, struct sbuf *sb)
 }
 
 device_t
-gpiobus_attach_bus(device_t dev)
+gpiobus_add_bus(device_t dev)
 {
 	device_t busdev;
 
@@ -307,8 +328,24 @@ gpiobus_attach_bus(device_t dev)
 #ifdef FDT
 	ofw_gpiobus_register_provider(dev);
 #endif
-	bus_attach_children(dev);
+	return (busdev);
+}
 
+/*
+ * Attach a gpiobus child.
+ * Note that the controller is expected
+ * to be fully initialized at this point.
+ */
+device_t
+gpiobus_attach_bus(device_t dev)
+{
+	device_t busdev;
+
+	busdev = gpiobus_add_bus(dev);
+	if (busdev == NULL)
+		return (NULL);
+
+	bus_attach_children(dev);
 	return (busdev);
 }
 
@@ -385,14 +422,13 @@ gpiobus_acquire_pin(device_t bus, uint32_t pin)
 	sc = device_get_softc(bus);
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
-		device_printf(bus,
-		    "invalid pin %d, max: %d\n", pin, sc->sc_npins - 1);
-		return (-1);
+		panic("%s: invalid pin %d, max: %d",
+		    device_get_nameunit(bus), pin, sc->sc_npins - 1);
 	}
 	/* Mark pin as mapped and give warning if it's already mapped. */
 	if (sc->sc_pins[pin].mapped) {
 		device_printf(bus, "warning: pin %d is already mapped\n", pin);
-		return (-1);
+		return (EBUSY);
 	}
 	sc->sc_pins[pin].mapped = 1;
 
@@ -400,7 +436,7 @@ gpiobus_acquire_pin(device_t bus, uint32_t pin)
 }
 
 /* Release mapped pin */
-int
+void
 gpiobus_release_pin(device_t bus, uint32_t pin)
 {
 	struct gpiobus_softc *sc;
@@ -408,19 +444,15 @@ gpiobus_release_pin(device_t bus, uint32_t pin)
 	sc = device_get_softc(bus);
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
-		device_printf(bus,
-		    "invalid pin %d, max=%d\n",
-		    pin, sc->sc_npins - 1);
-		return (-1);
+		panic("%s: invalid pin %d, max: %d",
+		    device_get_nameunit(bus), pin, sc->sc_npins - 1);
 	}
 
-	if (!sc->sc_pins[pin].mapped) {
-		device_printf(bus, "pin %d is not mapped\n", pin);
-		return (-1);
-	}
+	if (!sc->sc_pins[pin].mapped)
+		panic("%s: pin %d is not mapped", device_get_nameunit(bus),
+		    pin);
+
 	sc->sc_pins[pin].mapped = 0;
-
-	return (0);
 }
 
 static int
@@ -435,8 +467,7 @@ gpiobus_acquire_child_pins(device_t dev, device_t child)
 			device_printf(child, "cannot acquire pin %d\n",
 			    devi->pins[i]);
 			while (--i >= 0) {
-				(void)gpiobus_release_pin(dev,
-				    devi->pins[i]);
+				gpiobus_release_pin(dev, devi->pins[i]);
 			}
 			gpiobus_free_ivars(devi);
 			return (EBUSY);

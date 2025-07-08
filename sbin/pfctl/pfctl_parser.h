@@ -276,6 +276,8 @@ struct pf_opt_rule {
 
 TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 
+void	copy_satopfaddr(struct pf_addr *, struct sockaddr *);
+
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
@@ -361,9 +363,9 @@ struct pf_timeout {
 
 extern const struct pf_timeout pf_timeouts[];
 
-void			 set_ipmask(struct node_host *, u_int8_t);
+void			 set_ipmask(struct node_host *, int);
 int			 check_netmask(struct node_host *, sa_family_t);
-int			 unmask(struct pf_addr *, sa_family_t);
+int			 unmask(struct pf_addr *);
 struct node_host	*gen_dynnode(struct node_host *, sa_family_t);
 void			 ifa_load(void);
 unsigned int		 ifa_nametoindex(const char *);

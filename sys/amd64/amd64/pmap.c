@@ -1301,8 +1301,10 @@ static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
 static bool	pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static bool	pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde,
     vm_offset_t va, struct rwlock **lockp);
+static bool	pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde,
+    vm_offset_t va, struct rwlock **lockp, vm_page_t mpte);
 static bool	pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe,
-    vm_offset_t va);
+    vm_offset_t va, vm_page_t m);
 static int	pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    vm_prot_t prot, struct rwlock **lockp);
 static int	pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde,
@@ -1334,7 +1336,7 @@ static pdp_entry_t *pmap_pti_pdpe(vm_offset_t va);
 static pd_entry_t *pmap_pti_pde(vm_offset_t va);
 static void pmap_pti_wire_pte(void *pte);
 static int pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
-    struct spglist *free, struct rwlock **lockp);
+    bool remove_pt, struct spglist *free, struct rwlock **lockp);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp);
 static vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
@@ -1684,12 +1686,44 @@ bootaddr_rwx(vm_paddr_t pa)
 	return (pg_nx);
 }
 
+extern const char la57_trampoline[];
+
+static void
+pmap_bootstrap_la57(vm_paddr_t *firstaddr)
+{
+	void (*la57_tramp)(uint64_t pml5);
+	pml5_entry_t *pt;
+
+	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
+		return;
+	la57 = 1;
+	TUNABLE_INT_FETCH("vm.pmap.la57", &la57);
+	if (!la57)
+		return;
+
+	KPML5phys = allocpages(firstaddr, 1);
+	KPML4phys = rcr3() & 0xfffff000; /* pml4 from loader must be < 4G */
+
+	pt = (pml5_entry_t *)KPML5phys;
+	pt[0] = KPML4phys | X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
+	pt[NPML4EPG - 1] = KPML4phys | X86_PG_V | X86_PG_RW | X86_PG_A |
+	    X86_PG_M;
+
+	la57_tramp = (void (*)(uint64_t))((uintptr_t)la57_trampoline -
+	    KERNSTART + amd64_loadaddr());
+	printf("Calling la57 trampoline at %p, KPML5phys %#lx ...",
+	    la57_tramp, KPML5phys);
+	la57_tramp(KPML5phys);
+	printf(" alive in la57 mode\n");
+}
+
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
 	pd_entry_t *pd_p;
 	pdp_entry_t *pdp_p;
 	pml4_entry_t *p4_p;
+	pml5_entry_t *p5_p;
 	uint64_t DMPDkernphys;
 	vm_paddr_t pax;
 #ifdef KASAN
@@ -1917,6 +1951,27 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 
 	kernel_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
+
+	if (la57) {
+		/* XXXKIB bootstrap KPML5phys page is lost */
+		KPML5phys = allocpages(firstaddr, 1);
+		for (i = 0, p5_p = (pml5_entry_t *)KPML5phys; i < NPML5EPG;
+		    i++) {
+			if (i == PML5PML5I) {
+				/*
+				 * Recursively map PML5 to itself in
+				 * order to get PTmap and PDmap.
+				 */
+				p5_p[i] = KPML5phys | X86_PG_RW | X86_PG_A |
+				    X86_PG_M | X86_PG_V | pg_nx;
+			} else if (i == pmap_pml5e_index(UPT_MAX_ADDRESS)) {
+				p5_p[i] = KPML4phys | X86_PG_RW | X86_PG_A |
+				    X86_PG_M | X86_PG_V;
+			} else {
+				p5_p[i] = 0;
+			}
+		}
+	}
 	TSEXIT();
 }
 
@@ -1950,6 +2005,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/*
 	 * Create an initial set of page tables to run the kernel in.
 	 */
+	pmap_bootstrap_la57(firstaddr);
 	create_pagetables(firstaddr);
 
 	pcpu0_phys = allocpages(firstaddr, 1);
@@ -1979,7 +2035,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	cr4 = rcr4();
 	cr4 |= CR4_PGE;
 	load_cr4(cr4);
-	load_cr3(KPML4phys);
+	load_cr3(la57 ? KPML5phys : KPML4phys);
 	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
 		cr4 |= CR4_SMEP;
 	if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
@@ -1992,8 +2048,20 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * later unmapped (using pmap_remove()) and freed.
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
-	kernel_pmap->pm_pmltop = kernel_pml4;
-	kernel_pmap->pm_cr3 = KPML4phys;
+	if (la57) {
+		vtoptem = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +
+		    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
+		PTmap = (vm_offset_t)P5Tmap;
+		vtopdem = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
+		    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
+		PDmap = (vm_offset_t)P5Dmap;
+		kernel_pmap->pm_pmltop = (void *)PHYS_TO_DMAP(KPML5phys);
+		kernel_pmap->pm_cr3 = KPML5phys;
+		pmap_pt_page_count_adj(kernel_pmap, 1);	/* top-level page */
+	} else {
+		kernel_pmap->pm_pmltop = kernel_pml4;
+		kernel_pmap->pm_cr3 = KPML4phys;
+	}
 	kernel_pmap->pm_ucr3 = PMAP_NO_CR3;
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	kernel_pmap->pm_stats.resident_count = res;
@@ -2048,6 +2116,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/*
 	 * Re-initialize PCPU area for BSP after switching.
 	 * Make hardware use gdt and common_tss from the new PCPU.
+	 * Also clears the usage of temporary gdt during switch to
+	 * LA57 paging.
 	 */
 	STAILQ_INIT(&cpuhead);
 	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
@@ -2176,141 +2246,6 @@ pmap_page_alloc_below_4g(bool zeroed)
 	return (vm_page_alloc_noobj_contig((zeroed ? VM_ALLOC_ZERO : 0),
 	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT));
 }
-
-extern const char la57_trampoline[], la57_trampoline_gdt_desc[],
-    la57_trampoline_gdt[], la57_trampoline_end[];
-
-static void
-pmap_bootstrap_la57(void *arg __unused)
-{
-	char *v_code;
-	pml5_entry_t *v_pml5;
-	pml4_entry_t *v_pml4;
-	pdp_entry_t *v_pdp;
-	pd_entry_t *v_pd;
-	pt_entry_t *v_pt;
-	vm_page_t m_code, m_pml4, m_pdp, m_pd, m_pt, m_pml5;
-	void (*la57_tramp)(uint64_t pml5);
-	struct region_descriptor r_gdt;
-
-	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
-		return;
-	la57 = 1;
-	TUNABLE_INT_FETCH("vm.pmap.la57", &la57);
-	if (!la57)
-		return;
-
-	r_gdt.rd_limit = NGDT * sizeof(struct user_segment_descriptor) - 1;
-	r_gdt.rd_base = (long)__pcpu[0].pc_gdt;
-
-	m_code = pmap_page_alloc_below_4g(true);
-	v_code = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_code));
-	m_pml5 = pmap_page_alloc_below_4g(true);
-	KPML5phys = VM_PAGE_TO_PHYS(m_pml5);
-	v_pml5 = (pml5_entry_t *)PHYS_TO_DMAP(KPML5phys);
-	m_pml4 = pmap_page_alloc_below_4g(true);
-	v_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pml4));
-	m_pdp = pmap_page_alloc_below_4g(true);
-	v_pdp = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pdp));
-	m_pd = pmap_page_alloc_below_4g(true);
-	v_pd = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd));
-	m_pt = pmap_page_alloc_below_4g(true);
-	v_pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pt));
-
-	/*
-	 * Map m_code 1:1, it appears below 4G in KVA due to physical
-	 * address being below 4G.  Since kernel KVA is in upper half,
-	 * the pml4e should be zero and free for temporary use.
-	 */
-	kernel_pmap->pm_pmltop[pmap_pml4e_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pdp) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pdp[pmap_pdpe_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pd) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pd[pmap_pde_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pt) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pt[pmap_pte_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_code) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-
-	/*
-	 * Add pml5 entry at top of KVA pointing to existing pml4 table,
-	 * entering all existing kernel mappings into level 5 table.
-	 */
-	v_pml5[pmap_pml5e_index(UPT_MAX_ADDRESS)] = KPML4phys | X86_PG_V |
-	    X86_PG_RW | X86_PG_A | X86_PG_M;
-
-	/*
-	 * Add pml5 entry for 1:1 trampoline mapping after LA57 is turned on.
-	 */
-	v_pml5[pmap_pml5e_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pml4) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-	v_pml4[pmap_pml4e_index(VM_PAGE_TO_PHYS(m_code))] =
-	    VM_PAGE_TO_PHYS(m_pdp) | X86_PG_V | X86_PG_RW | X86_PG_A |
-	    X86_PG_M;
-
-	/*
-	 * Copy and call the 48->57 trampoline, hope we return there, alive.
-	 */
-	bcopy(la57_trampoline, v_code, la57_trampoline_end - la57_trampoline);
-	*(u_long *)(v_code + 2 + (la57_trampoline_gdt_desc - la57_trampoline)) =
-	    la57_trampoline_gdt - la57_trampoline + VM_PAGE_TO_PHYS(m_code);
-	la57_tramp = (void (*)(uint64_t))VM_PAGE_TO_PHYS(m_code);
-	pmap_invalidate_all(kernel_pmap);
-	if (bootverbose) {
-		printf("entering LA57 trampoline at %#lx\n",
-		    (vm_offset_t)la57_tramp);
-	}
-	la57_tramp(KPML5phys);
-
-	/*
-	 * gdt was necessary reset, switch back to our gdt.
-	 */
-	lgdt(&r_gdt);
-	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_ufssel);
-	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
-	ltr(GSEL(GPROC0_SEL, SEL_KPL));
-	lidt(&r_idt);
-
-	if (bootverbose)
-		printf("LA57 trampoline returned, CR4 %#lx\n", rcr4());
-
-	/*
-	 * Now unmap the trampoline, and free the pages.
-	 * Clear pml5 entry used for 1:1 trampoline mapping.
-	 */
-	pte_clear(&v_pml5[pmap_pml5e_index(VM_PAGE_TO_PHYS(m_code))]);
-	invlpg((vm_offset_t)v_code);
-	vm_page_free(m_code);
-	vm_page_free(m_pdp);
-	vm_page_free(m_pd);
-	vm_page_free(m_pt);
-
-	/*
-	 * Recursively map PML5 to itself in order to get PTmap and
-	 * PDmap.
-	 */
-	v_pml5[PML5PML5I] = KPML5phys | X86_PG_RW | X86_PG_V | pg_nx;
-
-	vtoptem = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +
-	    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
-	PTmap = (vm_offset_t)P5Tmap;
-	vtopdem = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
-	    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1) << 3;
-	PDmap = (vm_offset_t)P5Dmap;
-
-	kernel_pmap->pm_cr3 = KPML5phys;
-	kernel_pmap->pm_pmltop = v_pml5;
-	pmap_pt_page_count_adj(kernel_pmap, 1);
-}
-SYSINIT(la57, SI_SUB_KMEM, SI_ORDER_ANY, pmap_bootstrap_la57, NULL);
 
 /*
  *	Initialize a vm_page's machine-dependent fields.
@@ -6066,7 +6001,7 @@ pmap_demote_pde_abort(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
 
 	SLIST_INIT(&free);
 	sva = trunc_2mpage(va);
-	pmap_remove_pde(pmap, pde, sva, &free, lockp);
+	pmap_remove_pde(pmap, pde, sva, true, &free, lockp);
 	if ((oldpde & pmap_global_bit(pmap)) == 0)
 		pmap_invalidate_pde_page(pmap, sva, oldpde);
 	vm_page_free_pages_toq(&free, true);
@@ -6078,11 +6013,17 @@ static bool
 pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     struct rwlock **lockp)
 {
+	return (pmap_demote_pde_mpte(pmap, pde, va, lockp, NULL));
+}
+
+static bool
+pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
+    struct rwlock **lockp, vm_page_t mpte)
+{
 	pd_entry_t newpde, oldpde;
 	pt_entry_t *firstpte, newpte;
 	pt_entry_t PG_A, PG_G, PG_M, PG_PKU_MASK, PG_RW, PG_V;
 	vm_paddr_t mptepa;
-	vm_page_t mpte;
 	int PG_PTE_CACHE;
 	bool in_kernel;
 
@@ -6095,61 +6036,65 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	PG_PKU_MASK = pmap_pku_mask_bit(pmap);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	in_kernel = va >= VM_MAXUSER_ADDRESS;
 	oldpde = *pde;
 	KASSERT((oldpde & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pde: oldpde is missing PG_PS and/or PG_V"));
-
-	/*
-	 * Invalidate the 2MB page mapping and return "failure" if the
-	 * mapping was never accessed.
-	 */
-	if ((oldpde & PG_A) == 0) {
-		KASSERT((oldpde & PG_W) == 0,
-		    ("pmap_demote_pde: a wired mapping is missing PG_A"));
-		pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
-		return (false);
-	}
-
-	mpte = pmap_remove_pt_page(pmap, va);
+	KASSERT((oldpde & PG_MANAGED) == 0 || lockp != NULL,
+	    ("pmap_demote_pde: lockp for a managed mapping is NULL"));
+	in_kernel = va >= VM_MAXUSER_ADDRESS;
 	if (mpte == NULL) {
-		KASSERT((oldpde & PG_W) == 0,
-		    ("pmap_demote_pde: page table page for a wired mapping"
-		    " is missing"));
-
 		/*
-		 * If the page table page is missing and the mapping
-		 * is for a kernel address, the mapping must belong to
-		 * the direct map.  Page table pages are preallocated
-		 * for every other part of the kernel address space,
-		 * so the direct map region is the only part of the
-		 * kernel address space that must be handled here.
+		 * Invalidate the 2MB page mapping and return "failure" if the
+		 * mapping was never accessed.
 		 */
-		KASSERT(!in_kernel || (va >= DMAP_MIN_ADDRESS &&
-		    va < DMAP_MAX_ADDRESS),
-		    ("pmap_demote_pde: No saved mpte for va %#lx", va));
-
-		/*
-		 * If the 2MB page mapping belongs to the direct map
-		 * region of the kernel's address space, then the page
-		 * allocation request specifies the highest possible
-		 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the
-		 * priority is normal.
-		 */
-		mpte = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
-		    (in_kernel ? VM_ALLOC_INTERRUPT : 0) | VM_ALLOC_WIRED);
-
-		/*
-		 * If the allocation of the new page table page fails,
-		 * invalidate the 2MB page mapping and return "failure".
-		 */
-		if (mpte == NULL) {
+		if ((oldpde & PG_A) == 0) {
+			KASSERT((oldpde & PG_W) == 0,
+		    ("pmap_demote_pde: a wired mapping is missing PG_A"));
 			pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
 			return (false);
 		}
 
-		if (!in_kernel)
-			mpte->ref_count = NPTEPG;
+		mpte = pmap_remove_pt_page(pmap, va);
+		if (mpte == NULL) {
+			KASSERT((oldpde & PG_W) == 0,
+    ("pmap_demote_pde: page table page for a wired mapping is missing"));
+
+			/*
+			 * If the page table page is missing and the mapping
+			 * is for a kernel address, the mapping must belong to
+			 * the direct map.  Page table pages are preallocated
+			 * for every other part of the kernel address space,
+			 * so the direct map region is the only part of the
+			 * kernel address space that must be handled here.
+			 */
+			KASSERT(!in_kernel || (va >= DMAP_MIN_ADDRESS &&
+			    va < DMAP_MAX_ADDRESS),
+			    ("pmap_demote_pde: No saved mpte for va %#lx", va));
+
+			/*
+			 * If the 2MB page mapping belongs to the direct map
+			 * region of the kernel's address space, then the page
+			 * allocation request specifies the highest possible
+			 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the
+			 * priority is normal.
+			 */
+			mpte = pmap_alloc_pt_page(pmap, pmap_pde_pindex(va),
+			    (in_kernel ? VM_ALLOC_INTERRUPT : 0) |
+			    VM_ALLOC_WIRED);
+
+			/*
+			 * If the allocation of the new page table page fails,
+			 * invalidate the 2MB page mapping and return "failure".
+			 */
+			if (mpte == NULL) {
+				pmap_demote_pde_abort(pmap, va, pde, oldpde,
+				    lockp);
+				return (false);
+			}
+
+			if (!in_kernel)
+				mpte->ref_count = NPTEPG;
+		}
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
@@ -6220,7 +6165,8 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
  * pmap_remove_kernel_pde: Remove a kernel superpage mapping.
  */
 static void
-pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
+pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
+    bool remove_pt)
 {
 	pd_entry_t newpde;
 	vm_paddr_t mptepa;
@@ -6228,7 +6174,10 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 
 	KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	mpte = pmap_remove_pt_page(pmap, va);
+	if (remove_pt)
+		mpte = pmap_remove_pt_page(pmap, va);
+	else
+		mpte = vm_radix_lookup(&pmap->pm_root, pmap_pde_pindex(va));
 	if (mpte == NULL)
 		panic("pmap_remove_kernel_pde: Missing pt page.");
 
@@ -6260,7 +6209,7 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
  * pmap_remove_pde: do the things to unmap a superpage in a process
  */
 static int
-pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
+pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool remove_pt,
     struct spglist *free, struct rwlock **lockp)
 {
 	struct md_page *pvh;
@@ -6301,7 +6250,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		}
 	}
 	if (pmap == kernel_pmap) {
-		pmap_remove_kernel_pde(pmap, pdq, sva);
+		pmap_remove_kernel_pde(pmap, pdq, sva, remove_pt);
 	} else {
 		mpte = pmap_remove_pt_page(pmap, sva);
 		if (mpte != NULL) {
@@ -6543,7 +6492,8 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 				 */
 				if ((ptpaddr & PG_G) == 0)
 					anyvalid = 1;
-				pmap_remove_pde(pmap, pde, sva, &free, &lock);
+				pmap_remove_pde(pmap, pde, sva, true, &free,
+				    &lock);
 				continue;
 			} else if (!pmap_demote_pde_locked(pmap, pde, sva,
 			    &lock)) {
@@ -7619,13 +7569,36 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 			/*
 			 * The reference to the PD page that was acquired by
 			 * pmap_alloc_pde() ensures that it won't be freed.
-			 * However, if the PDE resulted from a promotion, then
+			 * However, if the PDE resulted from a promotion, and
+			 * the mapping is not from kernel_pmap, then
 			 * a reserved PT page could be freed.
 			 */
-			(void)pmap_remove_pde(pmap, pde, va, &free, lockp);
+			(void)pmap_remove_pde(pmap, pde, va,
+			    pmap != kernel_pmap, &free, lockp);
 			if ((oldpde & PG_G) == 0)
 				pmap_invalidate_pde_page(pmap, va, oldpde);
 		} else {
+			if (va >= VM_MAXUSER_ADDRESS) {
+				/*
+				 * Try to save the ptp in the trie
+				 * before any changes to mappings are
+				 * made.  Abort on failure.
+				 */
+				mt = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
+				if (pmap_insert_pt_page(pmap, mt, false, false)) {
+					if (pdpg != NULL)
+						pdpg->ref_count--;
+					CTR1(KTR_PMAP,
+			    "pmap_enter_pde: cannot ins kern ptp va %#lx",
+					    va);
+					return (KERN_RESOURCE_SHORTAGE);
+				}
+				/*
+				 * Both pmap_remove_pde() and
+				 * pmap_remove_ptes() will zero-fill
+				 * the kernel page table page.
+				 */
+			}
 			pmap_delayed_invl_start();
 			if (pmap_remove_ptes(pmap, va, va + NBPDR, pde, &free,
 			    lockp))
@@ -7639,14 +7612,6 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		} else {
 			KASSERT(SLIST_EMPTY(&free),
 			    ("pmap_enter_pde: freed kernel page table page"));
-
-			/*
-			 * Both pmap_remove_pde() and pmap_remove_ptes() will
-			 * leave the kernel page table page zero filled.
-			 */
-			mt = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
-			if (pmap_insert_pt_page(pmap, mt, false, false))
-				panic("pmap_enter_pde: trie insert failed");
 		}
 	}
 
@@ -9614,7 +9579,7 @@ pmap_unmapdev(void *p, vm_size_t size)
  * Tries to demote a 1GB page mapping.
  */
 static bool
-pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
+pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va, vm_page_t m)
 {
 	pdp_entry_t newpdpe, oldpdpe;
 	pd_entry_t *firstpde, newpde, *pde;
@@ -9631,12 +9596,19 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 	oldpdpe = *pdpe;
 	KASSERT((oldpdpe & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pdpe: oldpdpe is missing PG_PS and/or PG_V"));
-	pdpg = pmap_alloc_pt_page(pmap, va >> PDPSHIFT,
-	    VM_ALLOC_WIRED | VM_ALLOC_INTERRUPT);
-	if (pdpg  == NULL) {
-		CTR2(KTR_PMAP, "pmap_demote_pdpe: failure for va %#lx"
-		    " in pmap %p", va, pmap);
-		return (false);
+	if (m == NULL) {
+		pdpg = pmap_alloc_pt_page(pmap, va >> PDPSHIFT,
+		    VM_ALLOC_WIRED);
+		if (pdpg  == NULL) {
+			CTR2(KTR_PMAP,
+			    "pmap_demote_pdpe: failure for va %#lx in pmap %p",
+			    va, pmap);
+			return (false);
+		}
+	} else {
+		pdpg = m;
+		pdpg->pindex = va >> PDPSHIFT;
+		pmap_pt_page_count_adj(pmap, 1);
 	}
 	pdpgpa = VM_PAGE_TO_PHYS(pdpg);
 	firstpde = (pd_entry_t *)PHYS_TO_DMAP(pdpgpa);
@@ -9846,7 +9818,7 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 				tmpva += NBPDP;
 				continue;
 			}
-			if (!pmap_demote_pdpe(kernel_pmap, pdpe, tmpva))
+			if (!pmap_demote_pdpe(kernel_pmap, pdpe, tmpva, NULL))
 				return (ENOMEM);
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
@@ -10004,11 +9976,13 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 }
 
 /*
- * Demotes any mapping within the direct map region that covers more than the
- * specified range of physical addresses.  This range's size must be a power
- * of two and its starting address must be a multiple of its size.  Since the
- * demotion does not change any attributes of the mapping, a TLB invalidation
- * is not mandatory.  The caller may, however, request a TLB invalidation.
+ * Demotes any mapping within the direct map region that covers more
+ * than the specified range of physical addresses.  This range's size
+ * must be a power of two and its starting address must be a multiple
+ * of its size, which means that any pdp from the mapping is fully
+ * covered by the range if len > NBPDP.  Since the demotion does not
+ * change any attributes of the mapping, a TLB invalidation is not
+ * mandatory.  The caller may, however, request a TLB invalidation.
  */
 void
 pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, bool invalidate)
@@ -10016,38 +9990,67 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, bool invalidate)
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	vm_offset_t va;
-	bool changed;
+	vm_page_t m, mpte;
+	bool changed, rv __diagused;
 
 	if (len == 0)
 		return;
 	KASSERT(powerof2(len), ("pmap_demote_DMAP: len is not a power of 2"));
 	KASSERT((base & (len - 1)) == 0,
 	    ("pmap_demote_DMAP: base is not a multiple of len"));
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "pmap_demote_DMAP");
+
 	if (len < NBPDP && base < dmaplimit) {
 		va = PHYS_TO_DMAP(base);
 		changed = false;
+
+		/*
+		 * Assume that it is fine to sleep there.
+		 * The only existing caller of pmap_demote_DMAP() is the
+		 * x86_mr_split_dmap() function.
+		 */
+		m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
+		if (len < NBPDR) {
+			mpte = vm_page_alloc_noobj(VM_ALLOC_WIRED |
+			    VM_ALLOC_WAITOK);
+		} else
+			mpte = NULL;
+
 		PMAP_LOCK(kernel_pmap);
 		pdpe = pmap_pdpe(kernel_pmap, va);
 		if ((*pdpe & X86_PG_V) == 0)
 			panic("pmap_demote_DMAP: invalid PDPE");
 		if ((*pdpe & PG_PS) != 0) {
-			if (!pmap_demote_pdpe(kernel_pmap, pdpe, va))
-				panic("pmap_demote_DMAP: PDPE failed");
+			rv = pmap_demote_pdpe(kernel_pmap, pdpe, va, m);
+			KASSERT(rv, ("pmap_demote_DMAP: PDPE failed"));
 			changed = true;
+			m = NULL;
 		}
 		if (len < NBPDR) {
 			pde = pmap_pdpe_to_pde(pdpe, va);
 			if ((*pde & X86_PG_V) == 0)
 				panic("pmap_demote_DMAP: invalid PDE");
 			if ((*pde & PG_PS) != 0) {
-				if (!pmap_demote_pde(kernel_pmap, pde, va))
-					panic("pmap_demote_DMAP: PDE failed");
+				mpte->pindex = pmap_pde_pindex(va);
+				pmap_pt_page_count_adj(kernel_pmap, 1);
+				rv = pmap_demote_pde_mpte(kernel_pmap, pde, va,
+				    NULL, mpte);
+				KASSERT(rv, ("pmap_demote_DMAP: PDE failed"));
 				changed = true;
+				mpte = NULL;
 			}
 		}
 		if (changed && invalidate)
 			pmap_invalidate_page(kernel_pmap, va);
 		PMAP_UNLOCK(kernel_pmap);
+		if (m != NULL) {
+			vm_page_unwire_noq(m);
+			vm_page_free(m);
+		}
+		if (mpte != NULL) {
+			vm_page_unwire_noq(mpte);
+			vm_page_free(mpte);
+		}
 	}
 }
 
@@ -12227,7 +12230,7 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 
 	if (pmap_is_la57(pmap)) {
 		pml5 = pmap_pml5e(pmap, va);
-		db_printf(" pml5e 0x%016lx", *pml5);
+		db_printf(" pml5e@0x%016lx 0x%016lx", (uint64_t)pml5, *pml5);
 		if ((*pml5 & PG_V) == 0) {
 			db_printf("\n");
 			return;
@@ -12236,25 +12239,25 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	} else {
 		pml4 = pmap_pml4e(pmap, va);
 	}
-	db_printf(" pml4e 0x%016lx", *pml4);
+	db_printf(" pml4e@0x%016lx 0x%016lx", (uint64_t)pml4, *pml4);
 	if ((*pml4 & PG_V) == 0) {
 		db_printf("\n");
 		return;
 	}
 	pdp = pmap_pml4e_to_pdpe(pml4, va);
-	db_printf(" pdpe 0x%016lx", *pdp);
+	db_printf(" pdpe@0x%016lx 0x%016lx", (uint64_t)pdp, *pdp);
 	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pde = pmap_pdpe_to_pde(pdp, va);
-	db_printf(" pde 0x%016lx", *pde);
+	db_printf(" pde@0x%016lx 0x%016lx", (uint64_t)pde, *pde);
 	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
 		db_printf("\n");
 		return;
 	}
 	pte = pmap_pde_to_pte(pde, va);
-	db_printf(" pte 0x%016lx\n", *pte);
+	db_printf(" pte@0x%016lx 0x%016lx\n", (uint64_t)pte, *pte);
 }
 
 DB_SHOW_COMMAND(phys2dmap, pmap_phys2dmap)

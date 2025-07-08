@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.352 2025/03/30 21:24:57 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.360 2025/06/13 18:31:08 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -517,7 +517,7 @@ typedef struct GNode {
 	struct GNode *centurion;
 
 	/* Last time (sequence number) we tried to make this node */
-	unsigned int checked_seqno;
+	unsigned checked_seqno;
 
 	/*
 	 * The "local" variables that are specific to this target and this
@@ -840,7 +840,7 @@ void Compat_MakeAll(GNodeList *);
 void Compat_Make(GNode *, GNode *);
 
 /* cond.c */
-extern unsigned int cond_depth;
+extern unsigned cond_depth;
 CondResult Cond_EvalCondition(const char *) MAKE_ATTR_USE;
 CondResult Cond_EvalLine(const char *) MAKE_ATTR_USE;
 Guard *Cond_ExtractGuard(const char *) MAKE_ATTR_USE;
@@ -886,6 +886,7 @@ void JobReapChild(pid_t, int, bool);
 void Main_ParseArgLine(const char *);
 int Cmd_Argv(const char *, size_t, const char **, size_t, char *, size_t, bool, bool);
 char *Cmd_Exec(const char *, char **) MAKE_ATTR_USE;
+void Var_ExportStackTrace(const char *, const char *);
 void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 void Fatal(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
 void Punt(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
@@ -905,6 +906,8 @@ void Parse_End(void);
 #endif
 
 void PrintLocation(FILE *, bool, const GNode *);
+const char *GetParentStackTrace(void);
+char *GetStackTrace(bool);
 void PrintStackTrace(bool);
 void Parse_Error(ParseErrorLevel, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 bool Parse_VarAssign(const char *, bool, GNode *) MAKE_ATTR_USE;
@@ -912,7 +915,7 @@ void Parse_File(const char *, int);
 void Parse_PushInput(const char *, unsigned, unsigned, Buffer,
 		     struct ForLoop *);
 void Parse_MainName(GNodeList *);
-unsigned int CurFile_CondMinDepth(void) MAKE_ATTR_USE;
+unsigned CurFile_CondMinDepth(void) MAKE_ATTR_USE;
 void Parse_GuardElse(void);
 void Parse_GuardEndif(void);
 
@@ -1079,7 +1082,9 @@ void Global_Append(const char *, const char *);
 void Global_Delete(const char *);
 void Global_Set_ReadOnly(const char *, const char *);
 
-bool EvalStack_PrintDetails(void) MAKE_ATTR_USE;
+void EvalStack_PushMakeflags(const char *);
+void EvalStack_Pop(void);
+bool EvalStack_Details(Buffer *buf) MAKE_ATTR_USE;
 
 /* util.c */
 typedef void (*SignalProc)(int);
@@ -1093,7 +1098,7 @@ time_t Make_Recheck(GNode *) MAKE_ATTR_USE;
 void Make_HandleUse(GNode *, GNode *);
 void Make_Update(GNode *);
 void GNode_SetLocalVars(GNode *);
-bool Make_Run(GNodeList *);
+bool Make_MakeParallel(GNodeList *);
 bool shouldDieQuietly(GNode *, int) MAKE_ATTR_USE;
 void PrintOnError(GNode *, const char *);
 void Main_ExportMAKEFLAGS(bool);
@@ -1102,6 +1107,7 @@ int mkTempFile(const char *, char *, size_t) MAKE_ATTR_USE;
 void AppendWords(StringList *, char *);
 void GNode_FprintDetails(FILE *, const char *, const GNode *, const char *);
 bool GNode_ShouldExecute(GNode *gn) MAKE_ATTR_USE;
+char *GNodeType_ToString(GNodeType);
 
 #ifndef HAVE_STRLCPY
 size_t strlcpy(char *, const char *, size_t);
@@ -1207,6 +1213,8 @@ MAKE_INLINE bool MAKE_ATTR_USE
 ch_isdigit(char ch) { return isdigit((unsigned char)ch) != 0; }
 MAKE_INLINE bool MAKE_ATTR_USE
 ch_islower(char ch) { return islower((unsigned char)ch) != 0; }
+MAKE_INLINE bool MAKE_ATTR_USE
+ch_isprint(char ch) { return isprint((unsigned char)ch) != 0; }
 MAKE_INLINE bool MAKE_ATTR_USE
 ch_isspace(char ch) { return isspace((unsigned char)ch) != 0; }
 MAKE_INLINE bool MAKE_ATTR_USE

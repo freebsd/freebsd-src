@@ -914,10 +914,13 @@ struct linux_inotify_init_args {
 	syscallarg_t dummy;
 };
 struct linux_inotify_add_watch_args {
-	syscallarg_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char pathname_l_[PADL_(const char *)]; const char * pathname; char pathname_r_[PADR_(const char *)];
+	char mask_l_[PADL_(uint32_t)]; uint32_t mask; char mask_r_[PADR_(uint32_t)];
 };
 struct linux_inotify_rm_watch_args {
-	syscallarg_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char wd_l_[PADL_(uint32_t)]; uint32_t wd; char wd_r_[PADR_(uint32_t)];
 };
 struct linux_migrate_pages_args {
 	syscallarg_t dummy;
