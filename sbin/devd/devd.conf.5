@@ -322,7 +322,7 @@ mechanism.
 .\" for each of the tables so that things line up in columns nicely.
 .\" Please do not omit the type column for notifiers that omit it.
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li ACPI Ta Ta Ta
 Events related to the ACPI Subsystem.
@@ -346,13 +346,13 @@ Suspend notification.
 Thermal zone events.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li AEON Ta Li power Ta Li press Ta
 The power button on an Amiga has been pressed.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li CAM Ta Ta Ta
 Events related to the
@@ -366,7 +366,7 @@ Generic errors.
 Command timeouts.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li CARP Ta Ta Ta
 Events related to the
@@ -383,7 +383,7 @@ Node become the master for a virtual host.
 Node become the backup for a virtual host.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "CORETEMP" "SUBSYSTEM" "TEMPERATURE" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li coretemp Ta Ta Ta
 Events related to the
@@ -395,7 +395,7 @@ Notification that the CPU core has reached critical temperature.
 String containing the temperature of the core that has become too hot.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li DEVFS
 .It Li DEVFS Ta Li CDEV Ta Li CREATE Ta
@@ -408,7 +408,7 @@ The
 node is destroyed.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li ETHERNET Ta Ar inet Ta IFATTACH Ta
 Notification when the default VNET instance of the
@@ -416,7 +416,7 @@ Notification when the default VNET instance of the
 interface is attached.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "GEOM::ROTATION_RATE" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li GEOM Ta Ta Ta
 Events related to the
@@ -447,7 +447,7 @@ A
 provider size has changed.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "LINK_DOWN" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li IFNET
 .It Li IFNET Ta Em inet Ta Ta
@@ -471,7 +471,7 @@ The network interface address added.
 The network interface address removed.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li kernel Ta Li signal Ta Li coredump Ta
 Notification that a process has crashed and dumped core.
@@ -479,7 +479,7 @@ Notification that a process has crashed and dumped core.
 Notification that the system has woken from the suspended state.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "SMART_ERROR" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li nvme Ta Li controller Ta Li SMART_ERROR Ta
 A SMART Critical Warning State change has happened.
@@ -507,7 +507,7 @@ controller reset, and a timeout while waiting for the controller to reset
 respectively.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "SHUTDOWN-THRESHOLD" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li PMU Ta Ta Ta
 Notification of events from various types of Power Management Units.
@@ -580,7 +580,7 @@ An under-voltage condition on the power lines for the USB power pins.
 A device has been unplugged into a USB device.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li RCTL Ta Ta Ta
 Events related to the
@@ -590,7 +590,7 @@ framework.
 A rule with action specified as "devctl" was triggered.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li USB Ta Ta Ta
 Events related to the USB subsystem.
@@ -604,7 +604,7 @@ USB interface is attached to a device.
 USB interface is detached from a device.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li VFS Ta Ta Ta
 Events from the vfs system.
@@ -618,7 +618,7 @@ Notification of a filesystem is remounted (whether or not the options actually c
 Notification of a filesystem being unmounted.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li VT Ta Li BELL Ta Li RING Ta
 Notification that the console bell has rung.
@@ -627,7 +627,7 @@ See
 for details.
 .El
 .Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
+.Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li ZFS Ta Li ZFS Ta Ta
 Events about the ZFS subsystem.
