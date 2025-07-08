@@ -481,11 +481,16 @@ Notification that the system has woken from the suspended state.
 .Pp
 .Bl -column "SYSTEM" "SUBSYSTEM" "SMART_ERROR" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li nvme Ta Li controller Ta Ta
+Controller events provide the controller name
+.Pq for example, Li nvme0
+in $name.
 .It Li nvme Ta Li controller Ta Li SMART_ERROR Ta
 A SMART Critical Warning State change has happened.
 $state has a hex bitmask of the bits that changed, as defined
 in the NVMe Standard for Critical Warning field of log page 2
 .Dq SMART / Health Information Log :
+.Pp
 .Bl -column "Bit Value" "Meaning" -compact
 .Sy "Bit Value" Ta Sy "Meaning"
 .It 0x1 Ta Spare capacity below threshold
@@ -503,7 +508,7 @@ $event is one of
 and
 .Dq timed_out
 representing the start of a controller reset, the successful completion of a
-controller reset, and a timeout while waiting for the controller to reset
+controller reset, or a timeout while waiting for the controller to reset,
 respectively.
 .El
 .Pp
@@ -577,7 +582,7 @@ A device has been plugged into a USB device.
 .It Li PMU Ta Li USB Ta Li undervoltage Ta
 An under-voltage condition on the power lines for the USB power pins.
 .It Li PMU Ta Li USB Ta Li unplugged Ta
-A device has been unplugged into a USB device.
+A device has been unplugged from a USB device.
 .El
 .Pp
 .Bl -column "SYSTEM" "SUBSYSTEM" "12345678" -compact
