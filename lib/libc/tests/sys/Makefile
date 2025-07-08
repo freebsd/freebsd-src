@@ -8,11 +8,11 @@ ATF_TESTS_C+=			brk_test
 .endif
 ATF_TESTS_C+=			cpuset_test
 ATF_TESTS_C+=			errno_test
+ATF_TESTS_C+=			swapcontext_test
 ATF_TESTS_C+=			queue_test
 ATF_TESTS_C+=			sendfile_test
 
-# TODO: clone, lwp_create, lwp_ctl, posix_fadvise, recvmmsg,
-# swapcontext
+# TODO: clone, lwp_create, lwp_ctl, posix_fadvise, recvmmsg
 NETBSD_ATF_TESTS_C+=		access_test
 NETBSD_ATF_TESTS_C+=		bind_test
 NETBSD_ATF_TESTS_C+=		chroot_test
