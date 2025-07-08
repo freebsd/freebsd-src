@@ -1114,9 +1114,8 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			continue;
 		}
 
-		if (pfsync_state_import(sp, flags, msg_version) == ENOMEM)
-			/* Drop out, but process the rest of the actions. */
-			break;
+		if (pfsync_state_import(sp, flags, msg_version) != 0)
+			V_pfsyncstats.pfsyncs_badact++;
 	}
 
 	return (total_len);
