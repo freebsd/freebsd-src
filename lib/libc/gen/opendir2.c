@@ -30,11 +30,12 @@
  */
 
 #include "namespace.h"
-#include <sys/param.h>
+#include <sys/types.h>
 
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -52,8 +53,7 @@ __opendir2(const char *name, int flags)
 
 	if ((flags & (__DTF_READALL | __DTF_SKIPREAD)) != 0)
 		return (NULL);
-	if ((fd = _open(name,
-	    O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC)) == -1)
+	if ((fd = _open(name, O_DIRECTORY | O_RDONLY | O_CLOEXEC)) == -1)
 		return (NULL);
 
 	dir = __opendir_common(fd, flags, false);
