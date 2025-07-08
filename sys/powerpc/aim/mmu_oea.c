@@ -1465,6 +1465,9 @@ moea_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	pmap_t	pmap;
 	u_int	lo;
 
+	if (m->md.mdpg_cache_attrs == ma)
+		return;
+
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		m->md.mdpg_cache_attrs = ma;
 		return;

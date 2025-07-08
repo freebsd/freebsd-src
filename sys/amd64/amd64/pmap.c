@@ -9620,6 +9620,8 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va, vm_page_t m)
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
+	if (m->md.pat_mode == ma)
+		return;
 
 	m->md.pat_mode = ma;
 
@@ -9638,6 +9640,9 @@ void
 pmap_page_set_memattr_noflush(vm_page_t m, vm_memattr_t ma)
 {
 	int error;
+
+	if (m->md.pat_mode == ma)
+		return;
 
 	m->md.pat_mode = ma;
 
