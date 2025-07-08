@@ -44,6 +44,7 @@
 #include <sys/stdarg.h>
 #include <sys/ucred.h>
 #include <sys/taskqueue.h>
+#include <sys/tslog.h>
 
 #include <fs/devfs/devfs_int.h>
 #include <vm/vm.h>
@@ -874,12 +875,15 @@ make_dev(struct cdevsw *devsw, int unit, uid_t uid, gid_t gid, int mode,
 	va_list ap;
 	int res __unused;
 
+	TSENTER();
 	va_start(ap, fmt);
 	res = make_dev_credv(0, &dev, devsw, unit, NULL, uid, gid, mode, fmt,
 		      ap);
 	va_end(ap);
 	KASSERT(res == 0 && dev != NULL,
 	    ("make_dev: failed make_dev_credv (error=%d)", res));
+	
+	TSEXIT();
 	return (dev);
 }
 
@@ -962,6 +966,7 @@ make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
 	struct cdev *dev;
 	int error;
 
+	TSENTER();
 	KASSERT(pdev != NULL, ("make_dev_alias_v: pdev is NULL"));
 	KASSERT((flags & MAKEDEV_WAITOK) == 0 || (flags & MAKEDEV_NOWAIT) == 0,
 	    ("make_dev_alias_v: both WAITOK and NOWAIT specified"));
@@ -971,7 +976,10 @@ make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
 
 	dev = devfs_alloc(flags);
 	if (dev == NULL)
+	{
+		TSEXIT();
 		return (ENOMEM);
+	}
 	dev_lock();
 	dev->si_flags |= SI_ALIAS;
 	error = prep_devname(dev, fmt, ap);
@@ -982,6 +990,7 @@ make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
 		}
 		dev_unlock();
 		devfs_free(dev);
+		TSEXIT();
 		return (error);
 	}
 	dev->si_flags |= SI_NAMED;
@@ -993,6 +1002,7 @@ make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
 	notify_create(dev, flags);
 	*cdev = dev;
 
+	TSEXIT();
 	return (0);
 }
 

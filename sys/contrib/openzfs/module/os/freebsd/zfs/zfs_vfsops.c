@@ -67,6 +67,7 @@
 #include <sys/osd.h>
 #include <ufs/ufs/quota.h>
 #include <sys/zfs_quota.h>
+#include <sys/tslog.h>
 
 #include "zfs_comutil.h"
 
@@ -2126,7 +2127,7 @@ zfs_prune_task(uint64_t nr_to_scan, void *arg __unused)
 void
 zfs_init(void)
 {
-
+	TSENTER();
 	printf("ZFS filesystem version: " ZPL_VERSION_STRING "\n");
 
 	/*
@@ -2153,6 +2154,7 @@ zfs_init(void)
 	zfs_vnlru_marker = vnlru_alloc_marker();
 	sx_init(&zfs_vnlru_lock, "zfs vnlru lock");
 	zfs_prune = arc_add_prune_callback(zfs_prune_task, NULL);
+	TSEXIT();
 }
 
 void

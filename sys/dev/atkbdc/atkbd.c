@@ -121,30 +121,40 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 	int error;
 	int unit;
 
+	TSENTER();
 	sw = kbd_get_switch(ATKBD_DRIVER_NAME);
 	if (sw == NULL)
+	{
+		TSEXIT();
 		return ENXIO;
+	}
 
 	/* reset, initialize and enable the device */
-	TSENTER();
 	unit = device_get_unit(dev);
 	args[0] = device_get_unit(device_get_parent(dev));
 	args[1] = irq;
 	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
-	TSEXIT();
 	if (error)
+	{
+		TSEXIT();
 		return error;
+	}
 	error = (*sw->init)(unit, kbd, args, flags);
-	if (error)
+	if (error){
+		TSEXIT();
 		return error;
+	}
 	(*sw->enable)(*kbd);
 
 #ifdef KBD_INSTALL_CDEV
 	/* attach a virtual keyboard cdev */
 	error = kbd_attach(*kbd);
 	if (error)
+	{
+		TSEXIT();
 		return error;
+	}
 #endif
 
 	/*
@@ -157,7 +167,7 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 
 	if (bootverbose)
 		(*sw->diag)(*kbd, bootverbose);
-
+	TSEXIT();
 	return 0;
 }
 

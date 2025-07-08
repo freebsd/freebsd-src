@@ -84,6 +84,7 @@
 
 #include <sys/limits.h>
 #include <sys/mouse.h>
+#include <sys/tslog.h>
 #include <machine/resource.h>
 
 #ifdef DEV_ISA
@@ -7580,6 +7581,7 @@ psmcpnp_probe(device_t dev)
 	u_long irq;
 	int rid;
 
+	TSENTER();
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, forcepad_ids) == 0)
 		sc->type = PSMCPNP_FORCEPAD;
 	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, topbtpad_ids) == 0)
@@ -7587,7 +7589,10 @@ psmcpnp_probe(device_t dev)
 	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids) == 0)
 		sc->type = PSMCPNP_GENERIC;
 	else
+	{
+		TSEXIT();
 		return (ENXIO);
+	}
 
 	/*
 	 * The PnP BIOS and ACPI are supposed to assign an IRQ (12)
@@ -7613,6 +7618,7 @@ psmcpnp_probe(device_t dev)
 	if (!bootverbose)
 		device_quiet(dev);
 
+	TSEXIT();
 	return ((res == NULL) ? ENXIO : 0);
 }
 
@@ -7621,12 +7627,14 @@ psmcpnp_attach(device_t dev)
 {
 	device_t atkbdc;
 
+	TSENTER();
 	/* find the keyboard controller, which may be on acpi* or isa* bus */
 	atkbdc = devclass_get_device(devclass_find(ATKBDC_DRIVER_NAME),
 	    device_get_unit(dev));
 	if ((atkbdc != NULL) && (device_get_state(atkbdc) == DS_ATTACHED))
 		create_a_copy(atkbdc, dev);
 
+	TSEXIT();
 	return (0);
 }
 

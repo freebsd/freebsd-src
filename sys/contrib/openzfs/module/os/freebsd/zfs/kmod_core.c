@@ -84,6 +84,7 @@
 #include <sys/zio_checksum.h>
 #include <sys/zone.h>
 #include <sys/zvol.h>
+#include <sys/tslog.h>
 
 #include "zfs_comutil.h"
 #include "zfs_deleg.h"
@@ -230,6 +231,7 @@ zfsdev_attach(void)
 {
 	struct make_dev_args args;
 
+	TSENTER();
 	make_dev_args_init(&args);
 	args.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
 	args.mda_devsw = &zfs_cdevsw;
@@ -237,6 +239,7 @@ zfsdev_attach(void)
 	args.mda_uid = UID_ROOT;
 	args.mda_gid = GID_OPERATOR;
 	args.mda_mode = 0666;
+	TSEXIT();
 	return (make_dev_s(&args, &zfsdev, ZFS_DRIVER));
 }
 
@@ -252,6 +255,7 @@ zfs__init(void)
 {
 	int error;
 
+	TSENTER();
 #if KSTACK_PAGES < ZFS_MIN_KSTACK_PAGES
 	printf("ZFS NOTICE: KSTACK_PAGES is %d which could result in stack "
 	    "overflow panic!\nPlease consider adding "
@@ -263,6 +267,7 @@ zfs__init(void)
 		printf("ZFS: Failed to Load ZFS Filesystem"
 		    ", rc = %d\n", error);
 		root_mount_rel(zfs_root_token);
+		TSEXIT();
 		return (error);
 	}
 
@@ -273,6 +278,7 @@ zfs__init(void)
 	    SPA_VERSION_STRING ")\n");
 	root_mount_rel(zfs_root_token);
 	ddi_sysevent_init();
+	TSEXIT();
 	return (0);
 }
 
@@ -304,6 +310,7 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 {
 	int err;
 
+	TSENTER();
 	switch (type) {
 	case MOD_LOAD:
 		err = zfs__init();
@@ -315,6 +322,7 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 			    mountroot, spa_boot_init, NULL,
 			    SI_ORDER_ANY);
 		}
+		TSEXIT();
 		return (err);
 	case MOD_UNLOAD:
 		err = zfs__fini();
@@ -326,12 +334,15 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 				EVENTHANDLER_DEREGISTER(mountroot,
 				    zfs_mountroot_event_tag);
 		}
+		TSEXIT();
 		return (err);
 	case MOD_SHUTDOWN:
+		TSEXIT();
 		return (0);
 	default:
 		break;
 	}
+	TSEXIT();
 	return (EOPNOTSUPP);
 }
 

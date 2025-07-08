@@ -44,6 +44,7 @@
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/tslog.h>
 
 #include <sys/kbio.h>
 
@@ -270,11 +271,16 @@ keyboard_switch_t *
 kbd_get_switch(char *driver)
 {
 	const keyboard_driver_t *p;
-
+	
+	TSENTER();
 	SLIST_FOREACH(p, &keyboard_drivers, link) {
 		if (strcmp(p->name, driver) == 0)
+		{
+			TSEXIT();
 			return (p->kbdsw);
+		}
 	}
+	TSEXIT();
 
 	return (NULL);
 }
@@ -452,11 +458,17 @@ static struct cdevsw kbd_cdevsw = {
 int
 kbd_attach(keyboard_t *kbd)
 {
-
+	TSENTER();
 	if (kbd->kb_index >= keyboards)
+	{
+		TSEXIT();
 		return (EINVAL);
+	}
 	if (keyboard[kbd->kb_index] != kbd)
+	{
+		TSEXIT();
 		return (EINVAL);
+	}
 
 	kbd->kb_dev = make_dev(&kbd_cdevsw, kbd->kb_index, UID_ROOT, GID_WHEEL,
 	    0600, "%s%r", kbd->kb_name, kbd->kb_unit);
@@ -464,6 +476,7 @@ kbd_attach(keyboard_t *kbd)
 	kbd->kb_dev->si_drv1 = malloc(sizeof(genkbd_softc_t), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 	printf("kbd%d at %s%d\n", kbd->kb_index, kbd->kb_name, kbd->kb_unit);
+	TSEXIT();
 	return (0);
 }
 

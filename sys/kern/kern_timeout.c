@@ -60,6 +60,7 @@
 #include <sys/sysctl.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
+#include <sys/tslog.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -1332,6 +1333,7 @@ again:
 void
 callout_init(struct callout *c, int mpsafe)
 {
+	TSENTER();
 	bzero(c, sizeof *c);
 	if (mpsafe) {
 		c->c_lock = NULL;
@@ -1341,6 +1343,7 @@ callout_init(struct callout *c, int mpsafe)
 		c->c_iflags = 0;
 	}
 	c->c_cpu = cc_default_cpu;
+	TSEXIT();
 }
 
 void

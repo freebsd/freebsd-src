@@ -63,6 +63,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+#include <sys/tslog.h>
 
 #include <geom/geom.h>
 
@@ -171,6 +172,7 @@ root_mount_hold(const char *identifier)
 {
 	struct root_hold_token *h;
 
+	TSENTER();
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->flags = RH_ALLOC;
 	h->who = identifier;
@@ -178,6 +180,7 @@ root_mount_hold(const char *identifier)
 	TSHOLD("root mount");
 	TAILQ_INSERT_TAIL(&root_holds, h, list);
 	mtx_unlock(&root_holds_mtx);
+	TSEXIT();
 	return (h);
 }
 
@@ -208,6 +211,7 @@ void
 root_mount_rel(struct root_hold_token *h)
 {
 
+	TSENTER();
 	if (h == NULL || h->flags == RH_FREE)
 		return;
 
@@ -220,6 +224,8 @@ root_mount_rel(struct root_hold_token *h)
 		free(h, M_DEVBUF);
 	} else
 		h->flags = RH_FREE;
+
+	TSEXIT();
 }
 
 int

@@ -212,6 +212,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/vdev_initialize.h>
 #include <sys/vdev_trim.h>
+#include <sys/tslog.h>
 
 #include "zfs_namecheck.h"
 #include "zfs_prop.h"
@@ -7425,6 +7426,7 @@ zfs_ioctl_register_dataset_modify(zfs_ioc_t ioc, zfs_ioc_legacy_func_t *func,
 static void
 zfs_ioctl_init(void)
 {
+	TSENTER();
 	zfs_ioctl_register("snapshot", ZFS_IOC_SNAPSHOT,
 	    zfs_ioc_snapshot, zfs_secpolicy_snapshot, POOL_NAME,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_TRUE, B_TRUE,
@@ -7758,6 +7760,7 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_config, NO_NAME, B_FALSE, POOL_CHECK_NONE);
 
 	zfs_ioctl_init_os();
+	TSEXIT();
 }
 
 /*
@@ -8222,8 +8225,12 @@ zfs_kmod_init(void)
 {
 	int error;
 
+	TSENTER();
 	if ((error = zvol_init()) != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	spa_init(SPA_MODE_READ | SPA_MODE_WRITE);
 	zfs_init();
@@ -8239,12 +8246,14 @@ zfs_kmod_init(void)
 	tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
 	tsd_create(&zfs_allow_log_key, zfs_allow_log_destroy);
 
+	TSEXIT();
 	return (0);
 out:
 	zfs_fini();
 	spa_fini();
 	zvol_fini();
 
+	TSEXIT();
 	return (error);
 }
 

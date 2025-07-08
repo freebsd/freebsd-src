@@ -123,23 +123,30 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, unsigned int flags)
 	struct resource *res;
 	int ret = EINVAL;
 
+	TSENTER();
 	res = malloc(sizeof(*res), XXX, XXX);
-	if (res == NULL)
+	if (res == NULL){
+		TSEXIT();
 		return (NULL);
-
+	}
 	res->__r_i = malloc(sizeof(struct resource_i), XXX, XXX);
 	if (res->__r_i == NULL) {
 		free(res, XXX);
+		TSEXIT();
 		return (NULL);
 	}
 
 	if (bus_alloc_resource_any_cb != NULL)
 		ret = (*bus_alloc_resource_any_cb)(res, dev, type, rid, flags);
 	if (ret == 0)
+	{
+		TSEXIT();
 		return (res);
+	}
 
 	free(res->__r_i, XXX);
 	free(res, XXX);
+	TSEXIT();
 	return (NULL);
 }
 
@@ -1014,8 +1021,13 @@ device_set_softc(device_t dev, void *softc)
 void   *
 device_get_softc(device_t dev)
 {
+	TSENTER();
 	if (dev == NULL)
+	{
+		TSEXIT();
 		return (NULL);
+	}
+	TSEXIT();
 
 	return (dev->dev_sc);
 }

@@ -41,6 +41,7 @@
 #include <sys/fm/protocol.h>
 #include <sys/fm/util.h>
 #include <sys/bus.h>
+#include <sys/tslog.h>
 
 static int
 log_sysevent(nvlist_t *event)
@@ -265,6 +266,8 @@ sysevent_worker(void *arg __unused)
 void
 ddi_sysevent_init(void)
 {
+	TSENTER();
 	kproc_kthread_add(sysevent_worker, NULL, &system_proc, NULL, 0, 0,
 	    "zfskern", "sysevent");
+	TSEXIT();
 }

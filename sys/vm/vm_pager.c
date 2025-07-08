@@ -503,7 +503,10 @@ pbuf_init(void *mem, int size, int flags)
 
 	bp->b_kvabase = (void *)kva_alloc(ptoa(PBUF_PAGES));
 	if (bp->b_kvabase == NULL)
+	{
+		TSEXIT();
 		return (ENOMEM);
+	}
 	bp->b_kvasize = ptoa(PBUF_PAGES);
 	BUF_LOCKINIT(bp, pbuf_wmesg);
 	LIST_INIT(&bp->b_dep);
