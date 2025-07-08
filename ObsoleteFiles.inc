@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250708: For 34 days 15.0-CURRENT installed libkadm5clnt symlink without .so
+OLD_FILES+=usr/lib/libkadm5clnt
+
 # 20250626: For 11 days 15.0-CURRENT installed libtpool to the wrong location
 MOVED_LIBS+=usr/lib/libtpool.so.2
 
