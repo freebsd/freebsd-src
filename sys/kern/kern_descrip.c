@@ -632,8 +632,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			/*
 			 * UF_RESOLVE_BENEATH is sticky and cannot be cleared.
 			 */
-			fde->fde_flags = (fde->fde_flags & ~UF_EXCLOSE) |
-			    fd_to_fde_flags(arg);
+			fde->fde_flags = (fde->fde_flags &
+			    ~(UF_EXCLOSE | UF_FOCLOSE)) | fd_to_fde_flags(arg);
 			error = 0;
 		}
 		FILEDESC_XUNLOCK(fdp);
