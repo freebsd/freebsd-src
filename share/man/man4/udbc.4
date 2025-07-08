@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Tom Jones <thj@freebsd.org> under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\"
+.Dd September 3, 2025
+.Dt UDBC 4
+.Os
+.Sh NAME
+.Nm udbc
+.Nd USB Debug Class device driver
+.Sh SYNOPSIS
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device udbc"
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="udbc"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Debug Class devices whose
+interface class is Diagnostic Class and the subclass is DbC.GP.
+.Pp
+The USB Debug Class is defined in the USB 3.1 Device Class
+Specification for Debug Devices.
+This is designed to provide a general-purpose communication channel
+for debugging.
+It has also been widely implemented in USB xHCs
+.Pq USB eXtensible Host Controllers ,
+which can be found on many commodity computers,
+as an optional feature.
+Once this feature is enabled on a USB xHC, one of the USB ports will
+behave as a USB Debug Class device,
+not a host port,
+when a USB debug cable is connected.
+The supported class in USB xHCs is typically DbC.GP,
+while the specification defines several types of Debug Class devices.
+The DbC.GP uses IN and OUT endpoint pairs and realizes a single
+bidirectional serial communication channel.
+On most systems,
+including
+.Fx ,
+the DbC.GP is seen as a simple serial device.
+.Pp
+Most systems with USB xHC can be configured to provide DbC.GP access.
+The
+.Nm
+is a driver that connects to DbC.GP-supported devices,
+offering
+.Xr tty 4
+devices to connect to them via the
+.Xr ucom 4
+device driver.
+.Sh HARDWARE CONFIGURATION
+A native DbC.GP device can be attached using the
+.Nm
+driver in a straightforward way.
+.Pp
+A USB xHC DbC.GP device on a target system needs a special hardware
+configuration because all of the ports are supposed to be a USB Host.
+There is one method to expose DbC.GP is to use a USB 3.1 A-to-A cable
+.Pq section 5.5.2 in USB 3.1 Legacy Cable and Connector Specification .
+When this cable is connected to a USB 3.1 port on the target system,
+the DbC-enabled USB xHC automatically switches the port as a USB Device.
+The
+.Nm
+driver can find a DbC.GP device on that port.
+.Pp
+Note that a USB xHC with USB 3.2 support
+.Pq USB Type-C connectors
+is not compatible with the USB 3.1 A-to-A cable.
+Connecting a USB 3.2 C-to-C cable or A-to-C cable does not automatically work,
+either,
+because it needs role configuration of the port, which is not supported on
+.Fx
+yet.
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.*.init" -compact
+.It Pa /dev/ttyU*.*
+for callin ports
+.It Pa /dev/ttyU*.*.init
+.It Pa /dev/ttyU*.*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*.*
+for callout ports
+.It Pa /dev/cuaU*.*.init
+.It Pa /dev/cuaU*.*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4 ,
+.Xr xhci 4
+.Sh STANDARDS
+.Rs
+.%T eXtensible Host Controller Interface for Universal Serial Bus (XHCI)
+.%U https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf
+.Re
+.Rs
+.%T USB 3.1 Device Class Specification for Debug Devices
+.%U https://www.usb.org/sites/default/files/documents/usb_debug_class_rev_1_0_final_0.pdf
+.Re
+.Rs
+.%T USB 3.1 Legacy Cable and Connector Specification
+.%U https://www.usb.org/document-library/usb-31-legacy-cable-and-connector-revision-10
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared
+.Fx
+15.0.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Hiroki Sato Aq Mt hrs@FreeBSD.org .
+.Sh BUGS
+According to the XHCI specification the host side of USB Debug should work with
+any USB 3.0 port,
+whether connected directly to a controller or with a hub in between.
+Testing on some controllers has encountered issues when using a hub rather than
+a directly connected port on the controller.
