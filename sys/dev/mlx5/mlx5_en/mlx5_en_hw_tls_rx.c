@@ -42,11 +42,28 @@
 
 static if_snd_tag_free_t mlx5e_tls_rx_snd_tag_free;
 static if_snd_tag_modify_t mlx5e_tls_rx_snd_tag_modify;
+static if_snd_tag_status_str_t mlx5e_tls_rx_snd_tag_status_str;
 
 static const struct if_snd_tag_sw mlx5e_tls_rx_snd_tag_sw = {
 	.snd_tag_modify = mlx5e_tls_rx_snd_tag_modify,
 	.snd_tag_free = mlx5e_tls_rx_snd_tag_free,
+	.snd_tag_status_str = mlx5e_tls_rx_snd_tag_status_str,
 	.type = IF_SND_TAG_TYPE_TLS_RX
+};
+
+static const char *mlx5e_tls_rx_progress_params_auth_state_str[] = {
+	[MLX5E_TLS_RX_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD] = "no_offload",
+	[MLX5E_TLS_RX_PROGRESS_PARAMS_AUTH_STATE_OFFLOAD] = "offload",
+	[MLX5E_TLS_RX_PROGRESS_PARAMS_AUTH_STATE_AUTHENTICATION] =
+	    "authentication",
+};
+
+static const char *mlx5e_tls_rx_progress_params_record_tracker_state_str[] = {
+	[MLX5E_TLS_RX_PROGRESS_PARAMS_RECORD_TRACKER_STATE_START] = "start",
+	[MLX5E_TLS_RX_PROGRESS_PARAMS_RECORD_TRACKER_STATE_TRACKING] =
+	    "tracking",
+	[MLX5E_TLS_RX_PROGRESS_PARAMS_RECORD_TRACKER_STATE_SEARCHING] =
+	    "searching",
 };
 
 MALLOC_DEFINE(M_MLX5E_TLS_RX, "MLX5E_TLS_RX", "MLX5 ethernet HW TLS RX");
@@ -332,7 +349,8 @@ done:
  * Zero is returned upon success, else some error happened.
  */
 static int
-mlx5e_tls_rx_receive_progress_parameters(struct mlx5e_iq *iq, struct mlx5e_tls_rx_tag *ptag)
+mlx5e_tls_rx_receive_progress_parameters(struct mlx5e_iq *iq,
+    struct mlx5e_tls_rx_tag *ptag, mlx5e_iq_callback_t *cb)
 {
 	struct mlx5e_get_tls_progress_params_wqe *wqe;
 	const u32 ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
@@ -368,7 +386,7 @@ mlx5e_tls_rx_receive_progress_parameters(struct mlx5e_iq *iq, struct mlx5e_tls_r
 	memcpy(iq->doorbell.d32, &wqe->ctrl, sizeof(iq->doorbell.d32));
 
 	iq->data[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
-	iq->data[pi].callback = &mlx5e_tls_rx_receive_progress_parameters_cb;
+	iq->data[pi].callback = cb;
 	iq->data[pi].arg = ptag;
 
 	m_snd_tag_ref(&ptag->tag);
@@ -820,6 +838,7 @@ mlx5e_tls_rx_snd_tag_alloc(if_t ifp,
 	}
 
 	ptag->flow_rule = flow_rule;
+	init_completion(&ptag->progress_complete);
 
 	return (0);
 
@@ -969,7 +988,8 @@ mlx5e_tls_rx_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_param
 	    params->tls_rx.tls_rec_length,
 	    params->tls_rx.tls_seq_number) &&
 	    ptag->tcp_resync_pending == 0) {
-		err = mlx5e_tls_rx_receive_progress_parameters(iq, ptag);
+		err = mlx5e_tls_rx_receive_progress_parameters(iq, ptag,
+		    &mlx5e_tls_rx_receive_progress_parameters_cb);
 		if (err != 0) {
 			MLX5E_TLS_RX_STAT_INC(ptag, rx_resync_err, 1);
 		} else {
@@ -1000,6 +1020,74 @@ mlx5e_tls_rx_snd_tag_free(struct m_snd_tag *pmt)
 
 	priv = if_getsoftc(ptag->tag.ifp);
 	queue_work(priv->tls_rx.wq, &ptag->work);
+}
+
+static void
+mlx5e_tls_rx_str_status_cb(void *arg)
+{
+	struct mlx5e_tls_rx_tag *ptag;
+
+	ptag = (struct mlx5e_tls_rx_tag *)arg;
+	complete_all(&ptag->progress_complete);
+	m_snd_tag_rele(&ptag->tag);
+}
+
+static int
+mlx5e_tls_rx_snd_tag_status_str(struct m_snd_tag *pmt, char *buf, size_t *sz)
+{
+	int err, out_size;
+	struct mlx5e_iq *iq;
+	void *buffer;
+	uint32_t tracker_state_val;
+	uint32_t auth_state_val;
+	struct mlx5e_priv *priv;
+	struct mlx5e_tls_rx_tag *ptag = 
+	    container_of(pmt, struct mlx5e_tls_rx_tag, tag);
+
+	if (buf == NULL)
+		return (0);
+
+	MLX5E_TLS_RX_TAG_LOCK(ptag);
+	priv = container_of(ptag->tls_rx, struct mlx5e_priv, tls_rx);
+	iq = mlx5e_tls_rx_get_iq(priv, ptag->flowid, ptag->flowtype);
+	reinit_completion(&ptag->progress_complete);
+	err = mlx5e_tls_rx_receive_progress_parameters(iq, ptag,
+	    &mlx5e_tls_rx_str_status_cb);
+	MLX5E_TLS_RX_TAG_UNLOCK(ptag);
+	if (err != 0)
+		return (err);
+
+	for (;;) {
+		if (wait_for_completion_timeout(&ptag->progress_complete,
+		    msecs_to_jiffies(1000)) != 0)
+			break;
+		if (priv->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
+		    pci_channel_offline(priv->mdev->pdev) != 0)
+			return (ENXIO);
+	}
+	buffer = mlx5e_tls_rx_get_progress_buffer(ptag);
+	tracker_state_val = MLX5_GET(tls_progress_params, buffer,
+	    record_tracker_state);
+	auth_state_val = MLX5_GET(tls_progress_params, buffer, auth_state);
+
+	/* Validate tracker state value is in range */
+	if (tracker_state_val >
+	    MLX5E_TLS_RX_PROGRESS_PARAMS_RECORD_TRACKER_STATE_SEARCHING)
+		return (EINVAL);
+
+	/* Validate auth state value is in range */
+	if (auth_state_val >
+	    MLX5E_TLS_RX_PROGRESS_PARAMS_AUTH_STATE_AUTHENTICATION)
+		return (EINVAL);
+
+	out_size = snprintf(buf, *sz, "tracker_state: %s, auth_state: %s",
+	    mlx5e_tls_rx_progress_params_record_tracker_state_str[
+		tracker_state_val],
+	    mlx5e_tls_rx_progress_params_auth_state_str[auth_state_val]);
+
+	if (out_size <= *sz)
+		*sz = out_size;
+	return (0);
 }
 
 #else
