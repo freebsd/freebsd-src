@@ -20,7 +20,7 @@ __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz)
 	if (bufsz > UEXTERROR_MAXLEN)
 		bufsz = UEXTERROR_MAXLEN;
 	if (ue->error == 0) {
-		strlcpy(buf, "No error", bufsz);
+		strlcpy(buf, "", bufsz);
 		return (0);
 	}
 	if (ue->msg[0] == '\0') {
