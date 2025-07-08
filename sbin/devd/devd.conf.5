@@ -38,7 +38,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd April 29, 2025
+.Dd July 8, 2025
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -372,14 +372,14 @@ Command timeouts.
 Events related to the
 .Xr carp 4
 protocol.
-.It CARP Ta Ar vhid@inet Ta Ta
+.It Li CARP Ta Ar vhid@inet Ta Ta
 The
 .Dq subsystem
 contains the actual CARP vhid and the name of the network interface
 on which the event took place.
-.It CARP Ta Ar vhid@inet Ta MASTER Ta
+.It Li CARP Ta Ar vhid@inet Ta Li MASTER Ta
 Node become the master for a virtual host.
-.It CARP Ta Ar vhid@inet Ta BACKUP Ta
+.It Li CARP Ta Ar vhid@inet Ta Li BACKUP Ta
 Node become the backup for a virtual host.
 .El
 .Pp
@@ -520,25 +520,25 @@ Power has been applied to the AC power line.
 .It Li PMU Ta Li "AC" Ta Li unplugged Ta
 Power has been removed from the AC power line.
 .It Li PMU Ta Li Battery Ta Ta
-.It Li PMU Ta Li Battery Ta absent Ta
+.It Li PMU Ta Li Battery Ta Li absent Ta
 Battery is no longer absent.
-.It Li PMU Ta Li Battery Ta charged Ta
+.It Li PMU Ta Li Battery Ta Li charged Ta
 The battery has become charged.
-.It Li PMU Ta Li Battery Ta charging Ta
+.It Li PMU Ta Li Battery Ta Li charging Ta
 The battery has started charging.
-.It Li PMU Ta Li Battery Ta disconnected Ta
+.It Li PMU Ta Li Battery Ta Li disconnected Ta
 The battery has been disconnected.
-.It Li PMU Ta Li Battery Ta high-temp Ta
+.It Li PMU Ta Li Battery Ta Li high-temp Ta
 The battery reported a temperature over the limit.
-.It Li PMU Ta Li Battery Ta low-temp Ta
+.It Li PMU Ta Li Battery Ta Li low-temp Ta
 The battery reported a temperature under the limit.
-.It Li PMU Ta Li Battery Ta plugged Ta
+.It Li PMU Ta Li Battery Ta Li plugged Ta
 The battery has become plugged (eg connected).
-.It Li PMU Ta Li Battery Ta shutdown-threshold Ta
+.It Li PMU Ta Li Battery Ta Li shutdown-threshold Ta
 The power in the battery has fallen below the shutdown threshold.
-.It Li PMU Ta Li Battery Ta warning-threshold Ta
+.It Li PMU Ta Li Battery Ta Li warning-threshold Ta
 The power in the battery has fallen below the warn the user threshold.
-.It Li PMU Ta Li Button Ta pressed Ta
+.It Li PMU Ta Li Button Ta Li pressed Ta
 A button on a
 .Xr adb 4
 or
@@ -548,35 +548,35 @@ has been pressed.
 One of the keys on the
 .Xr adb 4
 keyboard has been pressed.
-.It Li PMU Ta Li keys Ta brightness Ta
+.It Li PMU Ta Li keys Ta Li brightness Ta
 A brightness level change has been requested.
 Direction is in the $notify variable.
-.It Li PMU Ta Li keys Ta mute Ta
+.It Li PMU Ta Li keys Ta Li mute Ta
 The mute key
-.It Li PMU Ta Li keys Ta volume Ta
+.It Li PMU Ta Li keys Ta Li volume Ta
 A volume level change has been requested.
 Direction is in the $notify variable.
-.It Li PMU Ta Li keys Ta eject Ta
+.It Li PMU Ta Li keys Ta Li eject Ta
 An ejection has been requested.
-.It Li PMU Ta Li lid Ta close Ta
+.It Li PMU Ta Li lid Ta Li close Ta
 The
 .Xr pmc 4
 device has detected the lid closing.
-.It Li PMU Ta Li lid Ta open Ta
+.It Li PMU Ta Li lid Ta Li open Ta
 The
 .Xr pmc 4
 device has detected the lid openinging.
-.It Li PMU Ta Li POWER Ta ACLINE Ta
+.It Li PMU Ta Li POWER Ta Li ACLINE Ta
 The
 .Xr pmc 4
 device has detected an AC line state ($notify=0x00 is offline, 0x01 is online).
-.It Li PMU Ta Li USB Ta overvoltage Ta
+.It Li PMU Ta Li USB Ta Li overvoltage Ta
 An over-voltage condition on the power lines for the USB power pins.
-.It Li PMU Ta Li USB Ta plugged Ta
+.It Li PMU Ta Li USB Ta Li plugged Ta
 A device has been plugged into a USB device.
-.It Li PMU Ta Li USB Ta undervoltage Ta
+.It Li PMU Ta Li USB Ta Li undervoltage Ta
 An under-voltage condition on the power lines for the USB power pins.
-.It Li PMU Ta Li USB Ta unplugged Ta
+.It Li PMU Ta Li USB Ta Li unplugged Ta
 A device has been unplugged into a USB device.
 .El
 .Pp
@@ -620,7 +620,7 @@ Notification of a filesystem being unmounted.
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
-.It Li VT Ta BELL Ta RING Ta
+.It Li VT Ta Li BELL Ta Li RING Ta
 Notification that the console bell has rung.
 See
 .Xr vt 4
@@ -629,7 +629,7 @@ for details.
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
-.It Li ZFS Ta ZFS Ta Ta
+.It Li ZFS Ta Li ZFS Ta Ta
 Events about the ZFS subsystem.
 See
 .Xr zfsd 8
