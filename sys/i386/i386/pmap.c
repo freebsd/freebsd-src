@@ -5617,6 +5617,8 @@ __CONCAT(PMTYPE, unmapdev)(void *p, vm_size_t size)
 static void
 __CONCAT(PMTYPE, page_set_memattr)(vm_page_t m, vm_memattr_t ma)
 {
+	if (m->md.pat_mode == ma)
+		return;
 
 	m->md.pat_mode = ma;
 	if ((m->flags & PG_FICTITIOUS) != 0)
