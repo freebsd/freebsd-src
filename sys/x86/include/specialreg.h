@@ -418,6 +418,7 @@
 #define	AMDPM_HW_PSTATE		0x00000080
 #define	AMDPM_TSC_INVARIANT	0x00000100
 #define	AMDPM_CPB		0x00000200
+#define	AMDPM_PWR_REPORT	0x00001000
 
 /*
  * AMD extended function 8000_0008h ebx info (amd_extended_feature_extensions)
