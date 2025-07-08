@@ -3232,8 +3232,7 @@ logopts		: logopt			{ $$ = $1; }
 
 logopt		: ALL		{ $$.log = PF_LOG_ALL; $$.logif = 0; }
 		| MATCHES		{ $$.log = PF_LOG_MATCHES; $$.logif = 0; }
-		| USER		{ $$.log = PF_LOG_SOCKET_LOOKUP; $$.logif = 0; }
-		| GROUP		{ $$.log = PF_LOG_SOCKET_LOOKUP; $$.logif = 0; }
+		| USER		{ $$.log = PF_LOG_USER; $$.logif = 0; }
 		| TO string	{
 			const char	*errstr;
 			u_int		 i;
