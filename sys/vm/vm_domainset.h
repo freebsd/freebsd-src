@@ -47,13 +47,12 @@ struct vm_domainset_iter {
 
 int	vm_domainset_iter_page(struct vm_domainset_iter *, struct vm_object *,
 	    int *, struct pctrie_iter *);
-void	vm_domainset_iter_page_init(struct vm_domainset_iter *,
-	    struct vm_object *, vm_pindex_t, int *, int *,
-	     struct pctrie_iter *);
+int	vm_domainset_iter_page_init(struct vm_domainset_iter *,
+	    struct vm_object *, vm_pindex_t, int *, int *);
 int	vm_domainset_iter_policy(struct vm_domainset_iter *, int *);
-void	vm_domainset_iter_policy_init(struct vm_domainset_iter *,
+int	vm_domainset_iter_policy_init(struct vm_domainset_iter *,
 	    struct domainset *, int *, int *);
-void	vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *,
+int	vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *,
 	    struct domainset_ref *, int *, int *);
 void	vm_domainset_iter_ignore(struct vm_domainset_iter *, int);
 
