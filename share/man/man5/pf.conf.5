@@ -1387,7 +1387,7 @@ part of the new destination address according to the specified subnet.
 It is possible to embed a complete IPv4 address into an IPv6 address
 using a network prefix of /96 or smaller.
 .Pp
-When a destination address is not specified it is assumed that the host
+When a destination address is not specified, it is assumed that the host
 part is 32-bit long.
 For IPv6 to IPv4 translation this would mean using only the lower 32
 bits of the original IPv6 destination address.
@@ -3112,7 +3112,7 @@ rule can also contain a filter ruleset in a brace-delimited block.
 In that case, no separate loading of rules into the anchor
 is required.
 Brace delimited blocks may contain rules or other brace-delimited blocks.
-When an anchor is populated this way the anchor name becomes optional.
+When an anchor is populated this way, the anchor name becomes optional.
 .Bd -literal -offset indent
 anchor "external" on $ext_if {
 	block
