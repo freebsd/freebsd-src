@@ -1012,10 +1012,13 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 
 		if (rpool->proxy_port[1]) {
 			uint32_t	tmp_nport;
+			uint16_t	div;
 
-			tmp_nport = ((ntohs(pd->ndport) - ntohs(r->dst.port[0])) %
-			    (rpool->proxy_port[1] - rpool->proxy_port[0] +
-			    1)) + rpool->proxy_port[0];
+			div = r->rdr.proxy_port[1] - r->rdr.proxy_port[0] + 1;
+			div = (div == 0) ? 1 : div;
+
+			tmp_nport = ((ntohs(pd->ndport) - ntohs(r->dst.port[0])) % div) +
+			    rpool->proxy_port[0];
 
 			/* Wrap around if necessary. */
 			if (tmp_nport > 65535)
