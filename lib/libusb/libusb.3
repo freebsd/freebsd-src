@@ -781,6 +781,11 @@ This function unregisters a hotplug filter.
 This function releases the memory storage in
 .Fa pollfds ,
 and is safe to call when the argument is NULL.
+.Pp void *
+.Fn libusb_hotplug_get_user_data "struct libusb_context *ctx" "libusb_hotplug_callback_handle callback_handle"
+This function returns the user data from the opaque
+.Fa callback_handle ,
+or returns NULL if no matching handle is found.
 .Sh LIBUSB VERSION 0.1 COMPATIBILITY
 The library is also compliant with LibUSB version 0.1.12.
 .Pp
