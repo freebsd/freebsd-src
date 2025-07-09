@@ -781,6 +781,19 @@ libusb_fill_interrupt_transfer(struct libusb_transfer *transfer,
 }
 
 void
+libusb_fill_bulk_stream_transfer(struct libusb_transfer *transfer,
+    libusb_device_handle *dev_handle, unsigned char endpoint,
+    uint32_t stream_id, unsigned char *buffer, int length,
+    libusb_transfer_cb_fn callback, void *user_data, unsigned int timeout)
+{
+	libusb_fill_bulk_transfer(transfer, dev_handle, endpoint, buffer,
+	    length, callback, user_data, timeout);
+	transfer->type = LIBUSB_TRANSFER_TYPE_BULK_STREAM;
+
+	libusb_transfer_set_stream_id(transfer, stream_id);
+}
+
+void
 libusb_fill_iso_transfer(struct libusb_transfer *transfer, 
     libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf,
     int length, int npacket, libusb_transfer_cb_fn callback,

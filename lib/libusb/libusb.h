@@ -122,6 +122,7 @@ enum libusb_transfer_type {
 	LIBUSB_TRANSFER_TYPE_ISOCHRONOUS = 1,
 	LIBUSB_TRANSFER_TYPE_BULK = 2,
 	LIBUSB_TRANSFER_TYPE_INTERRUPT = 3,
+	LIBUSB_TRANSFER_TYPE_BULK_STREAM = 4,
 };
 
 enum libusb_standard_request {
