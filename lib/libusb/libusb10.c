@@ -208,6 +208,10 @@ libusb_init_context(libusb_context **context,
 	ctx->devd_pipe = -1;
 
 	debug = getenv("LIBUSB_DEBUG");
+	ctx->log_cb = NULL;
+	ctx->no_discovery = false;
+	ctx->debug = LIBUSB_LOG_LEVEL_NONE;
+
 	if (debug != NULL) {
 		/*
 		 * If LIBUSB_DEBUG is set, we'll honor that first and
@@ -227,23 +231,28 @@ libusb_init_context(libusb_context **context,
 			 */
 			ctx->debug = 0;
 		}
-	} else {
-		/*
-		 * If the LIBUSB_OPTION_LOG_LEVEL is set, honor that.
-		 */
-		for (int i = 0; i != num_options; i++) {
-			if (option[i].option != LIBUSB_OPTION_LOG_LEVEL)
-				continue;
-
-			ctx->debug = (int)option[i].value.ival;
-			if ((int64_t)ctx->debug == option[i].value.ival) {
-				ctx->debug_fixed = 1;
-			} else {
-				free(ctx);
-				return (LIBUSB_ERROR_INVALID_PARAM);
-			}
-		}
 	}
+
+	/*
+	 * Set the default from default context then override by options
+	 */
+	if (usbi_default_context) {
+		CTX_LOCK(usbi_default_context);
+		if (usbi_default_context->no_discovery)
+			libusb_set_option(ctx,
+			    LIBUSB_OPTION_NO_DEVICE_DISCOVERY);
+		/* libusb_set_option will check if debug is fixed by the
+		   environment variable. If it is fixed, the override will not
+		   take effect */
+		libusb_set_option(ctx, LIBUSB_OPTION_LOG_LEVEL,
+		    usbi_default_context->debug);
+		libusb_set_option(ctx, LIBUSB_OPTION_LOG_CB,
+		    usbi_default_context->log_cb);
+		CTX_UNLOCK(usbi_default_context);
+	}
+
+	for (int i = 0; i < num_options; i++)
+		libusb_set_option(ctx, option[i].option, option[i].value);
 
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
@@ -294,8 +303,6 @@ libusb_init_context(libusb_context **context,
 	}
 
 	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->event, POLLIN);
-	ctx->log_cb = NULL;
-	ctx->no_discovery = false;
 
 	pthread_mutex_lock(&default_context_lock);
 	if (usbi_default_context == NULL) {
