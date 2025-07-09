@@ -536,26 +536,17 @@ libusb_get_device_speed(libusb_device *dev)
 	return (LIBUSB_SPEED_UNKNOWN);
 }
 
-int
-libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
+static const libusb_endpoint_descriptor *
+libusb_get_endpoint_from_config(libusb_config_descriptor *pdconf,
+    uint8_t endpoint)
 {
-	struct libusb_config_descriptor *pdconf;
 	struct libusb_interface *pinf;
 	struct libusb_interface_descriptor *pdinf;
-	struct libusb_endpoint_descriptor *pdend;
+	const struct libusb_endpoint_descriptor *pdend;
 	int i;
 	int j;
 	int k;
-	int ret;
 
-	if (dev == NULL)
-		return (LIBUSB_ERROR_NO_DEVICE);
-
-	ret = libusb_get_active_config_descriptor(dev, &pdconf);
-	if (ret < 0)
-		return (ret);
-
-	ret = LIBUSB_ERROR_NOT_FOUND;
 	for (i = 0; i < pdconf->bNumInterfaces; i++) {
 		pinf = &pdconf->interface[i];
 		for (j = 0; j < pinf->num_altsetting; j++) {
@@ -563,39 +554,151 @@ libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
 			for (k = 0; k < pdinf->bNumEndpoints; k++) {
 				pdend = &pdinf->endpoint[k];
 				if (pdend->bEndpointAddress == endpoint) {
-					ret = pdend->wMaxPacketSize;
-					goto out;
+					return (pdend);
 				}
 			}
 		}
 	}
 
-out:
+	return (NULL);
+}
+
+int
+libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
+{
+	struct libusb_config_descriptor *pdconf;
+	const struct libusb_endpoint_descriptor *pdend;
+	int ret;
+
+	if (dev == NULL)
+		return (LIBUSB_ERROR_OTHER);
+
+	ret = libusb_get_active_config_descriptor(dev, &pdconf);
+	if (ret < 0)
+		return (ret);
+
+	ret = LIBUSB_ERROR_NOT_FOUND;
+	if ((pdend = libusb_get_endpoint_from_config(pdconf, endpoint)) != NULL)
+		ret = pdend->wMaxPacketSize;
+
 	libusb_free_config_descriptor(pdconf);
+	return (ret);
+}
+
+static int
+libusb_calculate_ep_size(libusb_device *dev,
+    const libusb_endpoint_descriptor *ep)
+{
+	struct libusb_ss_endpoint_companion_descriptor *ss_ep;
+	int multiplier;
+	int speed;
+	int ret = LIBUSB_ERROR_NOT_SUPPORTED;
+	enum libusb_endpoint_transfer_type type;
+
+	speed = libusb_get_device_speed(dev);
+	if (speed >= LIBUSB_SPEED_SUPER) {
+		ret = libusb_get_ss_endpoint_companion_descriptor(dev->ctx, ep,
+		    &ss_ep);
+		if (ret == LIBUSB_SUCCESS) {
+			ret = ss_ep->wBytesPerInterval;
+			libusb_free_ss_endpoint_companion_descriptor(ss_ep);
+		}
+	}
+
+	/*
+	 * reference:
+	 * https://www.keil.com/pack/doc/mw/usb/html/_u_s_b__endpoint__descriptor.html
+	 */
+	if (ret < 0) {
+		ret = ep->wMaxPacketSize;
+		switch (speed) {
+		case LIBUSB_SPEED_LOW:
+		case LIBUSB_SPEED_FULL:
+			break;
+		default:
+			type = ep->bmAttributes & 0x3;
+			if (type == LIBUSB_ENDPOINT_TRANSFER_TYPE_ISOCHRONOUS ||
+			    type == LIBUSB_ENDPOINT_TRANSFER_TYPE_INTERRUPT) {
+				multiplier = (1 + ((ret >> 11) & 3));
+				if (multiplier > 3)
+					multiplier = 3;
+				ret = (ret & 0x7FF) * multiplier;
+			}
+			break;
+		}
+	}
+
 	return (ret);
 }
 
 int
 libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint)
 {
-	int multiplier;
+	struct libusb_config_descriptor *pdconf;
+	const struct libusb_endpoint_descriptor *pdend;
 	int ret;
 
-	ret = libusb_get_max_packet_size(dev, endpoint);
+	if (dev == NULL)
+		return (LIBUSB_ERROR_OTHER);
 
-	switch (libusb20_dev_get_speed(dev->os_priv)) {
-	case LIBUSB20_SPEED_LOW:
-	case LIBUSB20_SPEED_FULL:
-		break;
-	default:
-		if (ret > -1) {
-			multiplier = (1 + ((ret >> 11) & 3));
-			if (multiplier > 3)
-				multiplier = 3;
-			ret = (ret & 0x7FF) * multiplier;
-		}
-		break;
+	ret = libusb_get_active_config_descriptor(dev, &pdconf);
+	if (ret < 0)
+		return (LIBUSB_ERROR_OTHER);
+
+	pdend = libusb_get_endpoint_from_config(pdconf, endpoint);
+	if (pdend == NULL) {
+		libusb_free_config_descriptor(pdconf);
+		return (LIBUSB_ERROR_NOT_FOUND);
 	}
+
+	ret = libusb_calculate_ep_size(dev, pdend);
+	libusb_free_config_descriptor(pdconf);
+	return (ret);
+}
+
+int
+libusb_get_max_alt_packet_size(libusb_device *dev, int interface_number,
+    int alternate_setting, unsigned char endpoint)
+{
+	struct libusb_config_descriptor *pdconf;
+	struct libusb_interface *pinf;
+	struct libusb_interface_descriptor *pdinf;
+	const struct libusb_endpoint_descriptor *pdend = NULL;
+	const struct libusb_endpoint_descriptor *pdend_tmp;
+	int ret, i;
+
+	if (dev == NULL)
+		return (LIBUSB_ERROR_OTHER);
+
+	ret = libusb_get_active_config_descriptor(dev, &pdconf);
+	if (ret < 0)
+		return (LIBUSB_ERROR_OTHER);
+
+	if (pdconf->bNumInterfaces <= interface_number) {
+		libusb_free_config_descriptor(pdconf);
+		return (LIBUSB_ERROR_NOT_FOUND);
+	}
+	pinf = &pdconf->interface[interface_number];
+
+	if (pinf->num_altsetting <= alternate_setting) {
+		libusb_free_config_descriptor(pdconf);
+		return (LIBUSB_ERROR_NOT_FOUND);
+	}
+	pdinf = &pinf->altsetting[alternate_setting];
+
+	for (i = 0; i < pdinf->bNumEndpoints; ++i) {
+		pdend_tmp = &pdinf->endpoint[i];
+		if (pdend_tmp->bEndpointAddress == endpoint) {
+			pdend = pdend_tmp;
+			break;
+		}
+	}
+	if (pdend != NULL)
+		ret = libusb_calculate_ep_size(dev, pdend);
+	else
+		ret = LIBUSB_ERROR_NOT_FOUND;
+	libusb_free_config_descriptor(pdconf);
+
 	return (ret);
 }
 
