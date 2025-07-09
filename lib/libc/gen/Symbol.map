@@ -458,8 +458,6 @@ FBSD_1.8 {
 	aio_read2;
 	aio_write2;
 	execvpe;
-	fscandir;
-	fscandir_b;
 	fdscandir;
 	fdscandir_b;
 	fts_open_b;
