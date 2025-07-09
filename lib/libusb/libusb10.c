@@ -1530,6 +1530,7 @@ found:
 		libusb20_tr_set_callback(pxfer0, libusb10_isoc_proxy);
 		break;
 	case LIBUSB_TRANSFER_TYPE_BULK:
+	case LIBUSB_TRANSFER_TYPE_BULK_STREAM:
 	case LIBUSB_TRANSFER_TYPE_INTERRUPT:
 		libusb20_tr_set_callback(pxfer0, libusb10_bulk_intr_proxy);
 		break;
