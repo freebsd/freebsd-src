@@ -91,10 +91,10 @@ class TestICMP(VnetTestTemplate):
     def test_inner_match(self):
         vnet = self.vnet_map["vnet1"]
         dst_vnet = self.vnet_map["vnet3"]
-        sendif = vnet.iface_alias_map["if1"].name
+        sendif = vnet.iface_alias_map["if1"]
 
-        our_mac = ToolsHelper.get_output("/sbin/ifconfig %s ether | awk '/ether/ { print $2; }'" % sendif)
-        dst_mac = re.sub("0a$", "0b", our_mac)
+        our_mac = sendif.ether
+        dst_mac = sendif.epairb.ether
 
         # Import in the correct vnet, so at to not confuse Scapy
         import scapy.all as sp
@@ -111,7 +111,7 @@ class TestICMP(VnetTestTemplate):
             / sp.IP(src="192.0.2.2", dst="198.51.100.2") \
             / sp.ICMP(type='echo-request') \
             / "PAYLOAD"
-        sp.sendp(pkt, sendif, verbose=False)
+        sp.sendp(pkt, sendif.name, verbose=False)
 
         # Now try to pass an ICMP error message piggy-backing on that state, but
         # use a different source address
@@ -120,7 +120,7 @@ class TestICMP(VnetTestTemplate):
             / sp.ICMP(type='dest-unreach') \
             / sp.IP(src="198.51.100.2", dst="192.0.2.2") \
             / sp.ICMP(type='echo-reply')
-        sp.sendp(pkt, sendif, verbose=False)
+        sp.sendp(pkt, sendif.name, verbose=False)
 
         try:
             rcvd = self.wait_object(dst_vnet.pipe, timeout=1)
