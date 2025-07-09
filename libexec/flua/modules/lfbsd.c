@@ -88,13 +88,22 @@ lua_exec(lua_State *L)
 	argv = luaL_checkarraystrings(L, 1);
 	if (0 != (r = posix_spawnp(&pid, argv[0], &action, NULL,
 		(char*const*)argv, environ))) {
+		close(stdin_pipe[0]);
+		close(stdin_pipe[1]);
+		posix_spawn_file_actions_destroy(&action);
+
 		lua_pushnil(L);
 		lua_pushstring(L, strerror(r));
 		lua_pushinteger(L, r);
 		return (3);
 	}
+
+	close(stdin_pipe[0]);
+	posix_spawn_file_actions_destroy(&action);
+
 	while (waitpid(pid, &pstat, 0) == -1) {
 		if (errno != EINTR) {
+			close(stdin_pipe[1]);
 			lua_pushnil(L);
 			lua_pushstring(L, strerror(r));
 			lua_pushinteger(L, r);
@@ -109,12 +118,7 @@ lua_exec(lua_State *L)
 		return (3);
 	}
 
-	posix_spawn_file_actions_destroy(&action);
-
-	if (stdin_pipe[0] != -1)
-		close(stdin_pipe[0]);
-	if (stdin_pipe[1] != -1)
-		close(stdin_pipe[1]);
+	close(stdin_pipe[1]);
 	lua_pushinteger(L, pid);
 	return 1;
 }
