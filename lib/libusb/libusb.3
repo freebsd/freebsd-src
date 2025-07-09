@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 13, 2025
+.Dd July 9, 2025
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -366,6 +366,23 @@ argument is non-zero the feature is enabled.
 Else disabled.
 Returns 0 on success and a LIBUSB_ERROR code on
 failure.
+.Pp
+.Ft unsigned char *
+.Fn libusb_dev_mem_alloc "libusb_device_handle *devh"
+This function attempts to allocate a DMA memory block from the given
+.Fa devh
+so that we can enjoy the zero-copy transfer from kernel.
+This function is provided for compatibility and is currently unimplemented and always returns NULL.
+.Pp
+.Ft int
+.Fn libusb_dev_mem_free "libusb_device_handle *devh" "unsigned char *buffer" "size_t size"
+This function frees the DMA memory in
+.Fa devh
+from the given
+.Fa buffer
+with
+.Fa size .
+This function is unimplemented and always returns LIBUSB_ERROR_NOT_SUPPORTED.
 .Sh USB DESCRIPTORS
 .Ft int
 .Fn libusb_get_device_descriptor "libusb_device *dev" "libusb_device_descriptor *desc"

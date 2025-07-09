@@ -1904,3 +1904,16 @@ libusb_setlocale(const char *locale)
 
 	return (LIBUSB_ERROR_INVALID_PARAM);
 }
+
+unsigned char *
+libusb_dev_mem_alloc(libusb_device_handle *devh)
+{
+	return (NULL);
+}
+
+int
+libusb_dev_mem_free(libusb_device_handle *devh, unsigned char *buffer,
+    size_t size)
+{
+	return (LIBUSB_ERROR_NOT_SUPPORTED);
+}
