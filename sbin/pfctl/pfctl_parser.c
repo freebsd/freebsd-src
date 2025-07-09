@@ -368,8 +368,8 @@ print_ugid(u_int8_t op, id_t i1, id_t i2, const char *t)
 {
 	char	a1[11], a2[11];
 
-	snprintf(a1, sizeof(a1), "%lu", i1);
-	snprintf(a2, sizeof(a2), "%lu", i2);
+	snprintf(a1, sizeof(a1), "%ju", (uintmax_t)i1);
+	snprintf(a2, sizeof(a2), "%ju", (uintmax_t)i2);
 	printf(" %s", t);
 	if (i1 == -1 && (op == PF_OP_EQ || op == PF_OP_NE))
 		print_op(op, "unknown", a2);
