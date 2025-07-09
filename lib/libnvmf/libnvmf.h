@@ -342,7 +342,8 @@ int	nvmf_host_request_queues(struct nvmf_qpair *qp, u_int requested,
  */
 int	nvmf_handoff_host(const struct nvme_discovery_log_entry *dle,
     const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
-    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata);
+    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata,
+    uint32_t reconnect_delay, uint32_t controller_loss_timeout);
 
 /*
  * Disconnect an active host association previously handed off to the
@@ -370,7 +371,8 @@ int	nvmf_reconnect_params(int fd, nvlist_t **nvlp);
  */
 int	nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
     const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
-    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata);
+    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata,
+    uint32_t reconnect_delay, uint32_t controller_loss_timeout);
 
 /*
  * Fetch connection status from an existing kernel host.
