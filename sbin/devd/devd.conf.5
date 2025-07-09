@@ -38,7 +38,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd July 8, 2025
+.Dd July 9, 2025
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -517,6 +517,8 @@ and
 representing the start of a controller reset, the successful completion of a
 controller reset, or a timeout while waiting for the controller to reset,
 respectively.
+.It Li nvme Ta Li controller Ta Li RECONNECT Ta
+An NVMe over Fabrics host has disconnected and is requesting a reconnect.
 .El
 .Pp
 .Bl -column "SYSTEM" "SUBSYSTEM" "SHUTDOWN-THRESHOLD" -compact

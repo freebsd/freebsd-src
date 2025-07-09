@@ -75,9 +75,15 @@ struct nvmf_softc {
 	struct callout ka_rx_timer;
 	sbintime_t ka_rx_sbt;
 
+	struct timeout_task request_reconnect_task;
+	struct timeout_task controller_loss_task;
+	uint32_t reconnect_delay;
+	uint32_t controller_loss_timeout;
+
 	struct sx connection_lock;
 	struct task disconnect_task;
 	bool detaching;
+	bool controller_timedout;
 
 	u_int num_aer;
 	struct nvmf_aer *aer;

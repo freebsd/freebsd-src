@@ -27,6 +27,7 @@
 #include <dev/nvmf/host/nvmf_var.h>
 
 static struct cdevsw nvmf_cdevsw;
+static struct taskqueue *nvmf_tq;
 
 bool nvmf_fail_disconnect = false;
 SYSCTL_BOOL(_kern_nvmf, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
@@ -34,7 +35,10 @@ SYSCTL_BOOL(_kern_nvmf, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
 
 MALLOC_DEFINE(M_NVMF, "nvmf", "NVMe over Fabrics host");
 
+static void	nvmf_controller_loss_task(void *arg, int pending);
 static void	nvmf_disconnect_task(void *arg, int pending);
+static void	nvmf_request_reconnect(struct nvmf_softc *sc);
+static void	nvmf_request_reconnect_task(void *arg, int pending);
 static void	nvmf_shutdown_pre_sync(void *arg, int howto);
 static void	nvmf_shutdown_post_sync(void *arg, int howto);
 
@@ -294,6 +298,9 @@ nvmf_establish_connection(struct nvmf_softc *sc, nvlist_t *nvl)
 	admin = nvlist_get_nvlist(nvl, "admin");
 	io = nvlist_get_nvlist_array(nvl, "io", &num_io_queues);
 	kato = dnvlist_get_number(nvl, "kato", 0);
+	sc->reconnect_delay = dnvlist_get_number(nvl, "reconnect_delay", 0);
+	sc->controller_loss_timeout = dnvlist_get_number(nvl,
+	    "controller_loss_timeout", 0);
 
 	/* Setup the admin queue. */
 	sc->admin = nvmf_init_qp(sc, trtype, admin, "admin queue", 0);
@@ -504,6 +511,10 @@ nvmf_attach(device_t dev)
 	callout_init(&sc->ka_tx_timer, 1);
 	sx_init(&sc->connection_lock, "nvmf connection");
 	TASK_INIT(&sc->disconnect_task, 0, nvmf_disconnect_task, sc);
+	TIMEOUT_TASK_INIT(nvmf_tq, &sc->controller_loss_task, 0,
+	    nvmf_controller_loss_task, sc);
+	TIMEOUT_TASK_INIT(nvmf_tq, &sc->request_reconnect_task, 0,
+	    nvmf_request_reconnect_task, sc);
 
 	oid = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "ioq",
@@ -603,7 +614,9 @@ out:
 
 	nvmf_destroy_aer(sc);
 
-	taskqueue_drain(taskqueue_thread, &sc->disconnect_task);
+	taskqueue_drain_timeout(nvmf_tq, &sc->request_reconnect_task);
+	taskqueue_drain_timeout(nvmf_tq, &sc->controller_loss_task);
+	taskqueue_drain(nvmf_tq, &sc->disconnect_task);
 	sx_destroy(&sc->connection_lock);
 	nvlist_destroy(sc->rparams);
 	free(sc->cdata, M_NVMF);
@@ -613,7 +626,7 @@ out:
 void
 nvmf_disconnect(struct nvmf_softc *sc)
 {
-	taskqueue_enqueue(taskqueue_thread, &sc->disconnect_task);
+	taskqueue_enqueue(nvmf_tq, &sc->disconnect_task);
 }
 
 static void
@@ -676,6 +689,74 @@ nvmf_disconnect_task(void *arg, int pending __unused)
 	nvmf_destroy_qp(sc->admin);
 	sc->admin = NULL;
 
+	if (sc->reconnect_delay != 0)
+		nvmf_request_reconnect(sc);
+	if (sc->controller_loss_timeout != 0)
+		taskqueue_enqueue_timeout(nvmf_tq,
+		    &sc->controller_loss_task, sc->controller_loss_timeout *
+		    hz);
+
+	sx_xunlock(&sc->connection_lock);
+}
+
+static void
+nvmf_controller_loss_task(void *arg, int pending)
+{
+	struct nvmf_softc *sc = arg;
+	device_t dev;
+	int error;
+
+	bus_topo_lock();
+	sx_xlock(&sc->connection_lock);
+	if (sc->admin != NULL || sc->detaching) {
+		/* Reconnected or already detaching. */
+		sx_xunlock(&sc->connection_lock);
+		bus_topo_unlock();
+		return;
+	}
+
+	sc->controller_timedout = true;
+	sx_xunlock(&sc->connection_lock);
+
+	/*
+	 * XXX: Doing this from here is a bit ugly.  We don't have an
+	 * extra reference on `dev` but bus_topo_lock should block any
+	 * concurrent device_delete_child invocations.
+	 */
+	dev = sc->dev;
+	error = device_delete_child(root_bus, dev);
+	if (error != 0)
+		device_printf(dev,
+		    "failed to detach after controller loss: %d\n", error);
+	bus_topo_unlock();
+}
+
+static void
+nvmf_request_reconnect(struct nvmf_softc *sc)
+{
+	char buf[64];
+
+	sx_assert(&sc->connection_lock, SX_LOCKED);
+
+	snprintf(buf, sizeof(buf), "name=\"%s\"", device_get_nameunit(sc->dev));
+	devctl_notify("nvme", "controller", "RECONNECT", buf);
+	taskqueue_enqueue_timeout(nvmf_tq, &sc->request_reconnect_task,
+	    sc->reconnect_delay * hz);
+}
+
+static void
+nvmf_request_reconnect_task(void *arg, int pending)
+{
+	struct nvmf_softc *sc = arg;
+
+	sx_xlock(&sc->connection_lock);
+	if (sc->admin != NULL || sc->detaching || sc->controller_timedout) {
+		/* Reconnected or already detaching. */
+		sx_xunlock(&sc->connection_lock);
+		return;
+	}
+
+	nvmf_request_reconnect(sc);
 	sx_xunlock(&sc->connection_lock);
 }
 
@@ -699,7 +780,7 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
 	}
 
 	sx_xlock(&sc->connection_lock);
-	if (sc->admin != NULL || sc->detaching) {
+	if (sc->admin != NULL || sc->detaching || sc->controller_timedout) {
 		error = EBUSY;
 		goto out;
 	}
@@ -745,6 +826,9 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
 	nvmf_reconnect_sim(sc);
 
 	nvmf_rescan_all_ns(sc);
+
+	taskqueue_cancel_timeout(nvmf_tq, &sc->request_reconnect_task, NULL);
+	taskqueue_cancel_timeout(nvmf_tq, &sc->controller_loss_task, NULL);
 out:
 	sx_xunlock(&sc->connection_lock);
 	nvlist_destroy(nvl);
@@ -852,7 +936,21 @@ nvmf_detach(device_t dev)
 	}
 	free(sc->io, M_NVMF);
 
-	taskqueue_drain(taskqueue_thread, &sc->disconnect_task);
+	taskqueue_drain(nvmf_tq, &sc->disconnect_task);
+	if (taskqueue_cancel_timeout(nvmf_tq, &sc->request_reconnect_task,
+	    NULL) != 0)
+		taskqueue_drain_timeout(nvmf_tq, &sc->request_reconnect_task);
+
+	/*
+	 * Don't cancel/drain the controller loss task if that task
+	 * has fired and is triggering the detach.
+	 */
+	if (!sc->controller_timedout) {
+		if (taskqueue_cancel_timeout(nvmf_tq, &sc->controller_loss_task,
+		    NULL) != 0)
+			taskqueue_drain_timeout(nvmf_tq,
+			    &sc->controller_loss_task);
+	}
 
 	if (sc->admin != NULL)
 		nvmf_destroy_qp(sc->admin);
@@ -1154,14 +1252,25 @@ static struct cdevsw nvmf_cdevsw = {
 static int
 nvmf_modevent(module_t mod, int what, void *arg)
 {
+	int error;
+
 	switch (what) {
 	case MOD_LOAD:
-		return (nvmf_ctl_load());
+		error = nvmf_ctl_load();
+		if (error != 0)
+			return (error);
+
+		nvmf_tq = taskqueue_create("nvmf", M_WAITOK | M_ZERO,
+		    taskqueue_thread_enqueue, &nvmf_tq);
+		taskqueue_start_threads(&nvmf_tq, 1, PWAIT, "nvmf taskq");
+		return (0);
 	case MOD_QUIESCE:
 		return (0);
 	case MOD_UNLOAD:
 		nvmf_ctl_unload();
 		destroy_dev_drain(&nvmf_cdevsw);
+		if (nvmf_tq != NULL)
+			taskqueue_free(nvmf_tq);
 		return (0);
 	default:
 		return (EOPNOTSUPP);
