@@ -250,7 +250,8 @@ mlx5e_tls_rx_send_progress_parameters_sync(struct mlx5e_iq *iq,
 	mtx_unlock(&iq->lock);
 
 	while (1) {
-		if (wait_for_completion_timeout(&ptag->progress_complete, hz) != 0)
+		if (wait_for_completion_timeout(&ptag->progress_complete,
+		    msecs_to_jiffies(1000)) != 0)
 			break;
 		priv = container_of(iq, struct mlx5e_channel, iq)->priv;
 		if (priv->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
