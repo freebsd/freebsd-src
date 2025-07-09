@@ -664,6 +664,19 @@ ATF_TEST_CASE_BODY(rm_r__files_and_directories)
 }
 
 
+ATF_TEST_CASE_WITHOUT_HEAD(rm_r__bad_perms);
+ATF_TEST_CASE_BODY(rm_r__bad_perms)
+{
+    fs::mkdir(fs::path("root"), 0755);
+    fs::mkdir(fs::path("root/dir"), 0755);
+    atf::utils::create_file("root/dir/file", "");
+    ::chmod(fs::path("root/dir").c_str(), 0000);
+    ATF_REQUIRE(lookup(".", "root", S_IFDIR));
+    fs::rm_r(fs::path("root"));
+    ATF_REQUIRE(!lookup(".", "root", S_IFDIR));
+}
+
+
 ATF_TEST_CASE_WITHOUT_HEAD(rmdir__ok)
 ATF_TEST_CASE_BODY(rmdir__ok)
 {
@@ -811,6 +824,7 @@ ATF_INIT_TEST_CASES(tcs)
 
     ATF_ADD_TEST_CASE(tcs, rm_r__empty);
     ATF_ADD_TEST_CASE(tcs, rm_r__files_and_directories);
+    ATF_ADD_TEST_CASE(tcs, rm_r__bad_perms);
 
     ATF_ADD_TEST_CASE(tcs, rmdir__ok);
     ATF_ADD_TEST_CASE(tcs, rmdir__fail);
