@@ -213,6 +213,7 @@ MAN=	aac.4 \
 	${_hv_vmbus.4} \
 	${_hv_vss.4} \
 	hwpmc.4 \
+	${_hwt.4} \
 	${_hwpstate_intel.4} \
 	i2ctinyusb.4 \
 	iavf.4 \
@@ -923,6 +924,17 @@ MLINKS+=sume.4 if_sume.4
 .if ${MK_BHYVE} != "no"
 _bhyve.4=	bhyve.4
 _vmm.4=		vmm.4
+.endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
+_hwt.4=		hwt.4
+.if ${MACHINE_CPUARCH} == "amd64"
+MLINKS+=hwt.4	intel_pt.4
+.endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+MLINKS+=hwt.4	coresight.4
+MLINKS+=hwt.4	spe.4
 .endif
 .endif
 
