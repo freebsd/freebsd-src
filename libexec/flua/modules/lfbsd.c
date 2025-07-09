@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <spawn.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -44,6 +45,7 @@
 struct fbsd_process {
 	int	pid;
 	int	stdin_fileno;
+	int	stdout_fileno;
 };
 
 extern char **environ;
@@ -70,6 +72,16 @@ luaL_checkarraystrings(lua_State *L, int arg)
 	return ret;
 }
 
+static void
+close_pipes(int pipes[2])
+{
+
+	if (pipes[0] != -1)
+		close(pipes[0]);
+	if (pipes[1] != -1)
+		close(pipes[1]);
+}
+
 static int
 lua_exec(lua_State *L)
 {
@@ -77,13 +89,23 @@ lua_exec(lua_State *L)
 	int r;
 	posix_spawn_file_actions_t action;
 	int stdin_pipe[2] = {-1, -1};
+	int stdout_pipe[2] = {-1, -1};
 	pid_t pid;
 	const char **argv;
 	int n = lua_gettop(L);
-	luaL_argcheck(L, n == 1, n > 1 ? 2 : n,
-	    "fbsd.exec takes exactly one argument");
+	bool capture_stdout;
+	luaL_argcheck(L, n > 0 && n <= 2, n >= 2 ? 2 : n,
+	    "fbsd.exec takes exactly one or two arguments");
 
+	capture_stdout = lua_toboolean(L, 2);
 	if (pipe(stdin_pipe) < 0) {
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		lua_pushinteger(L, errno);
+		return (3);
+	}
+	if (capture_stdout && pipe(stdout_pipe) < 0) {
+		close_pipes(stdin_pipe);
 		lua_pushnil(L);
 		lua_pushstring(L, strerror(errno));
 		lua_pushinteger(L, errno);
@@ -92,16 +114,32 @@ lua_exec(lua_State *L)
 
 	proc = lua_newuserdata(L, sizeof(*proc));
 	proc->stdin_fileno = stdin_pipe[1];
-
+	proc->stdout_fileno = stdout_pipe[1];
 	posix_spawn_file_actions_init(&action);
 	posix_spawn_file_actions_adddup2(&action, stdin_pipe[0], STDIN_FILENO);
 	posix_spawn_file_actions_addclose(&action, stdin_pipe[1]);
+	if (stdin_pipe[0] != STDIN_FILENO)
+		posix_spawn_file_actions_addclose(&action, stdin_pipe[0]);
+
+	/*
+	 * Setup stdout to be captured if requested.  Otherwise, we just let it
+	 * go to our own stdout.
+	 */
+	if (stdout_pipe[0] != -1) {
+		posix_spawn_file_actions_adddup2(&action, stdout_pipe[0],
+		    STDOUT_FILENO);
+		posix_spawn_file_actions_addclose(&action, stdout_pipe[1]);
+		if (stdout_pipe[0] != STDOUT_FILENO) {
+			posix_spawn_file_actions_addclose(&action,
+			    stdout_pipe[0]);
+		}
+	}
 
 	argv = luaL_checkarraystrings(L, 1);
 	if (0 != (r = posix_spawnp(&pid, argv[0], &action, NULL,
 		(char*const*)argv, environ))) {
-		close(stdin_pipe[0]);
-		close(stdin_pipe[1]);
+		close_pipes(stdin_pipe);
+		close_pipes(stdout_pipe);
 		posix_spawn_file_actions_destroy(&action);
 		lua_pop(L, 2);	/* Pop off the process handle and args. */
 
@@ -114,12 +152,14 @@ lua_exec(lua_State *L)
 	lua_pop(L, 1);
 
 	close(stdin_pipe[0]);
+	if (stdout_pipe[0] != -1)
+		close(stdout_pipe[0]);
 	posix_spawn_file_actions_destroy(&action);
 
 	proc->pid = pid;
 	luaL_setmetatable(L, FBSD_PROCESSHANDLE);
 
-	return 1;
+	return (1);
 }
 
 static int
@@ -144,24 +184,34 @@ lua_process_close(lua_State *L)
 		return (2);
 	}
 
-	if (proc->stdin_fileno >= 0)
+	if (proc->stdin_fileno >= 0) {
 		close(proc->stdin_fileno);
-	proc->stdin_fileno = -1;
+		proc->stdin_fileno = -1;
+	}
+
+	if (proc->stdout_fileno >= 0) {
+		close(proc->stdout_fileno);
+		proc->stdout_fileno = -1;
+	}
 
 	lua_pushboolean(L, 1);
-	return 1;
+	return (1);
 }
 
 static int
-lua_process_stdin(lua_State *L)
+lua_process_makestdio(lua_State *L, int fd, const char *mode)
 {
-	struct fbsd_process *proc;
 	luaL_Stream *p;
 	FILE *fp;
 	int r;
 
-	proc = luaL_checkudata(L, 1, FBSD_PROCESSHANDLE);
-	fp = fdopen(proc->stdin_fileno, "w");
+	if (fd == -1) {
+		lua_pushnil(L);
+		lua_pushstring(L, "Stream not captured");
+		return (2);
+	}
+
+	fp = fdopen(fd, mode);
 	if (fp == NULL) {
 		r = errno;
 
@@ -178,10 +228,29 @@ lua_process_stdin(lua_State *L)
 	return (1);
 }
 
+static int
+lua_process_stdin(lua_State *L)
+{
+	struct fbsd_process *proc;
+
+	proc = luaL_checkudata(L, 1, FBSD_PROCESSHANDLE);
+	return (lua_process_makestdio(L, proc->stdin_fileno, "w"));
+}
+
+static int
+lua_process_stdout(lua_State *L)
+{
+	struct fbsd_process *proc;
+
+	proc = luaL_checkudata(L, 1, FBSD_PROCESSHANDLE);
+	return (lua_process_makestdio(L, proc->stdout_fileno, "r"));
+}
+
 #define PROCESS_SIMPLE(n)	{ #n, lua_process_ ## n }
 static const struct luaL_Reg fbsd_process[] = {
 	PROCESS_SIMPLE(close),
 	PROCESS_SIMPLE(stdin),
+	PROCESS_SIMPLE(stdout),
 	{ NULL, NULL },
 };
 
