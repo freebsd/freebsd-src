@@ -2042,6 +2042,34 @@ pf_ioctl_getrules(struct pfioc_rule *pr)
 }
 
 static int
+pf_rule_checkaf(struct pf_krule *r)
+{
+	switch (r->af) {
+	case 0:
+		if (r->rule_flag & PFRULE_AFTO)
+			return (EPFNOSUPPORT);
+		break;
+	case AF_INET:
+		if ((r->rule_flag & PFRULE_AFTO) && r->naf != AF_INET6)
+			return (EPFNOSUPPORT);
+		break;
+#ifdef INET6
+	case AF_INET6:
+		if ((r->rule_flag & PFRULE_AFTO) && r->naf != AF_INET)
+			return (EPFNOSUPPORT);
+		break;
+#endif /* INET6 */
+	default:
+		return (EPFNOSUPPORT);
+	}
+
+	if ((r->rule_flag & PFRULE_AFTO) == 0 && r->naf != 0)
+		return (EPFNOSUPPORT);
+
+	return (0);
+}
+
+static int
 pf_validate_range(uint8_t op, uint16_t port[2])
 {
 	uint16_t a = ntohs(port[0]);
@@ -2073,6 +2101,8 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 #define	ERROUT(x)	ERROUT_FUNCTION(errout, x)
 
+	if ((error = pf_rule_checkaf(rule)))
+		ERROUT(error);
 	if (pf_validate_range(rule->src.port_op, rule->src.port))
 		ERROUT(EINVAL);
 	if (pf_validate_range(rule->dst.port_op, rule->dst.port))
@@ -3741,6 +3771,10 @@ DIOCGETRULENV_error:
 				break;
 			}
 
+			if ((error = pf_rule_checkaf(newrule))) {
+				pf_krule_free(newrule);
+				break;
+			}
 			if (newrule->ifname[0])
 				kif = pf_kkif_create(M_WAITOK);
 			pf_counter_u64_init(&newrule->evaluations, M_WAITOK);
