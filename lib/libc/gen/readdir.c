@@ -48,8 +48,8 @@ struct dirent *
 _readdir_unlocked(DIR *dirp, int flags)
 {
 	struct dirent *dp;
-	long initial_seek;
-	long initial_loc = 0;
+	off_t initial_seek;
+	size_t initial_loc = 0;
 
 	for (;;) {
 		if (dirp->dd_loc >= dirp->dd_size) {

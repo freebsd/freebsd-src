@@ -46,9 +46,9 @@
  */
 struct ddloc_mem {
 	LIST_ENTRY(ddloc_mem) loc_lqe; /* entry in list */
-	long	loc_index;	/* key associated with structure */
+	size_t	loc_index;	/* key associated with structure */
 	off_t	loc_seek;	/* magic cookie returned by getdirentries */
-	long	loc_loc;	/* offset of entry in buffer */
+	size_t	loc_loc;	/* offset of entry in buffer */
 };
 
 #ifdef __LP64__
@@ -102,7 +102,7 @@ bool		_filldir(DIR *, bool);
 struct dirent	*_readdir_unlocked(DIR *, int);
 void 		_reclaim_telldir(DIR *);
 void 		_seekdir(DIR *, long);
-void		_fixtelldir(DIR *dirp, long oldseek, long oldloc);
+void		_fixtelldir(DIR *dirp, off_t oldseek, size_t oldloc);
 DIR		*__opendir_common(int, int, bool);
 
 #define	RDU_SKIP	0x0001
