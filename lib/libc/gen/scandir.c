@@ -252,9 +252,3 @@ scandir_thunk_cmp(const void *p1, const void *p2, void *thunk)
 	return (dc((const struct dirent **)p1, (const struct dirent **)p2));
 }
 #endif
-
-#ifdef I_AM_SCANDIR_B
-__weak_reference(fdscandir_b, fscandir_b);
-#else
-__weak_reference(fdscandir, fscandir);
-#endif
