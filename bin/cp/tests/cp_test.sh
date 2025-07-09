@@ -657,7 +657,7 @@ unrdir_body()
 	atf_check \
 	    -s exit:1 \
 	    -e match:"^cp: src/b: Permission denied" \
-	    cp -R src dst
+	    cp -R --sort src dst
 	atf_check test -d dst/a
 	atf_check cmp src/a/f dst/a/f
 	atf_check test -d dst/b
@@ -681,7 +681,7 @@ unrfile_body()
 	atf_check \
 	    -s exit:1 \
 	    -e match:"^cp: src/b: Permission denied" \
-	    cp -R src dst
+	    cp -R --sort src dst
 	atf_check test -d dst
 	atf_check cmp src/a dst/a
 	atf_check test ! -e dst/b

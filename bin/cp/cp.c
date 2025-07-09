@@ -71,7 +71,7 @@ static char dot[] = ".";
 #define END(buf) (buf + sizeof(buf))
 PATH_T to = { .dir = -1, .end = to.path };
 bool Nflag, fflag, iflag, lflag, nflag, pflag, sflag, vflag;
-static bool Hflag, Lflag, Pflag, Rflag, rflag;
+static bool Hflag, Lflag, Pflag, Rflag, rflag, Sflag;
 volatile sig_atomic_t info;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
@@ -96,6 +96,7 @@ static const struct option long_opts[] =
 	{ "symbolic-link",	no_argument,		NULL,	's' },
 	{ "verbose",		no_argument,		NULL,	'v' },
 	{ "one-file-system",	no_argument,		NULL,	'x' },
+	{ "sort",		no_argument,		NULL,	SORT_OPT },
 	{ 0 }
 };
 
@@ -166,6 +167,9 @@ main(int argc, char *argv[])
 			break;
 		case 'x':
 			fts_options |= FTS_XDEV;
+			break;
+		case SORT_OPT:
+			Sflag = true;
 			break;
 		default:
 			usage();
@@ -285,6 +289,12 @@ main(int argc, char *argv[])
 }
 
 static int
+ftscmp(const FTSENT * const *a, const FTSENT * const *b)
+{
+	return (strcmp((*a)->fts_name, (*b)->fts_name));
+}
+
+static int
 copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 {
 	char rootname[NAME_MAX];
@@ -327,7 +337,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 	}
 
 	level = FTS_ROOTLEVEL;
-	if ((ftsp = fts_open(argv, fts_options, NULL)) == NULL)
+	if ((ftsp = fts_open(argv, fts_options, Sflag ? ftscmp : NULL)) == NULL)
 		err(1, "fts_open");
 	for (badcp = rval = 0;
 	     (curr = fts_read(ftsp)) != NULL;
