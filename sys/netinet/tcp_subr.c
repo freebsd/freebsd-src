@@ -2722,11 +2722,13 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 					sz = SND_TAG_STATUS_MAXLEN;
 					in_pcbref(inp);
 					INP_RUNLOCK(inp);
-					ksr->snd_tag->sw->snd_tag_status_str(
+					error = ksr->snd_tag->sw->
+					    snd_tag_status_str(
 					    ksr->snd_tag, NULL, &sz);
 					if (in_pcbrele_rlock(inp))
 						return (EDEADLK);
-					len += sz;
+					if (error == 0)
+						len += sz;
 				}
 			}
 			kss = so->so_snd.sb_tls_info;
@@ -2745,11 +2747,13 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 					sz = SND_TAG_STATUS_MAXLEN;
 					in_pcbref(inp);
 					INP_RUNLOCK(inp);
-					kss->snd_tag->sw->snd_tag_status_str(
+					error = kss->snd_tag->sw->
+					    snd_tag_status_str(
 					    kss->snd_tag, NULL, &sz);
 					if (in_pcbrele_rlock(inp))
 						return (EDEADLK);
-					len += sz;
+					if (error == 0)
+						len += sz;
 				}
 			}
 			if (p) {
@@ -2821,11 +2825,14 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 				sz = SND_TAG_STATUS_MAXLEN;
 				in_pcbref(inp);
 				INP_RUNLOCK(inp);
-				ksr->snd_tag->sw->snd_tag_status_str(
+				error = ksr->snd_tag->sw->snd_tag_status_str(
 				    ksr->snd_tag, buf + len, &sz);
 				if (in_pcbrele_rlock(inp))
 					return (EDEADLK);
-				len += sz;
+				if (error == 0) {
+					xktls->rcv.drv_st_len = sz;
+					len += sz;
+				}
 			}
 		}
 		if (kss != NULL && kss->gen == xig.xig_gen) {
@@ -2842,11 +2849,14 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 				sz = SND_TAG_STATUS_MAXLEN;
 				in_pcbref(inp);
 				INP_RUNLOCK(inp);
-				kss->snd_tag->sw->snd_tag_status_str(
+				error = kss->snd_tag->sw->snd_tag_status_str(
 				    kss->snd_tag, buf + len, &sz);
 				if (in_pcbrele_rlock(inp))
 					return (EDEADLK);
-				len += sz;
+				if (error == 0) {
+					xktls->snd.drv_st_len = sz;
+					len += sz;
+				}
 			}
 		}
 		len = roundup2(len, __alignof(*xktls));
