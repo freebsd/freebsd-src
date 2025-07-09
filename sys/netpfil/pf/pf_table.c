@@ -819,10 +819,10 @@ pfr_create_kentry(struct pfr_addr *ad, bool counters)
 static void
 pfr_destroy_kentries(struct pfr_kentryworkq *workq)
 {
-	struct pfr_kentry	*p, *q;
+	struct pfr_kentry	*p;
 
-	for (p = SLIST_FIRST(workq); p != NULL; p = q) {
-		q = SLIST_NEXT(p, pfrke_workq);
+	while ((p = SLIST_FIRST(workq)) != NULL) {
+		SLIST_REMOVE_HEAD(workq, pfrke_workq);
 		pfr_destroy_kentry(p);
 	}
 }
@@ -1680,8 +1680,7 @@ pfr_ina_commit(struct pfr_table *trs, u_int32_t ticket, int *nadd,
 	}
 
 	if (!(flags & PFR_FLAG_DUMMY)) {
-		for (p = SLIST_FIRST(&workq); p != NULL; p = q) {
-			q = SLIST_NEXT(p, pfrkt_workq);
+		SLIST_FOREACH_SAFE(p, &workq, pfrkt_workq, q) {
 			pfr_commit_ktable(p, tzero);
 		}
 		rs->topen = 0;
@@ -1710,7 +1709,7 @@ pfr_commit_ktable(struct pfr_ktable *kt, time_t tzero)
 	} else if (kt->pfrkt_flags & PFR_TFLAG_ACTIVE) {
 		/* kt might contain addresses */
 		struct pfr_kentryworkq	 addrq, addq, changeq, delq, garbageq;
-		struct pfr_kentry	*p, *q, *next;
+		struct pfr_kentry	*p, *q;
 		struct pfr_addr		 ad;
 
 		pfr_enqueue_addrs(shadow, &addrq, NULL, 0);
@@ -1720,7 +1719,8 @@ pfr_commit_ktable(struct pfr_ktable *kt, time_t tzero)
 		SLIST_INIT(&delq);
 		SLIST_INIT(&garbageq);
 		pfr_clean_node_mask(shadow, &addrq);
-		SLIST_FOREACH_SAFE(p, &addrq, pfrke_workq, next) {
+		while ((p = SLIST_FIRST(&addrq)) != NULL) {
+			SLIST_REMOVE_HEAD(&addrq, pfrke_workq);
 			pfr_copyout_addr(&ad, p);
 			q = pfr_lookup_addr(kt, &ad, 1);
 			if (q != NULL) {
@@ -1864,8 +1864,7 @@ pfr_setflags_ktables(struct pfr_ktableworkq *workq)
 {
 	struct pfr_ktable	*p, *q;
 
-	for (p = SLIST_FIRST(workq); p; p = q) {
-		q = SLIST_NEXT(p, pfrkt_workq);
+	SLIST_FOREACH_SAFE(p, workq, pfrkt_workq, q) {
 		pfr_setflags_ktable(p, p->pfrkt_nflags);
 	}
 }
@@ -2015,10 +2014,10 @@ pfr_create_ktable(struct pfr_table *tbl, time_t tzero, int attachruleset)
 static void
 pfr_destroy_ktables(struct pfr_ktableworkq *workq, int flushaddr)
 {
-	struct pfr_ktable	*p, *q;
+	struct pfr_ktable	*p;
 
-	for (p = SLIST_FIRST(workq); p; p = q) {
-		q = SLIST_NEXT(p, pfrkt_workq);
+	while ((p = SLIST_FIRST(workq)) != NULL) {
+		SLIST_REMOVE_HEAD(workq, pfrkt_workq);
 		pfr_destroy_ktable(p, flushaddr);
 	}
 }
