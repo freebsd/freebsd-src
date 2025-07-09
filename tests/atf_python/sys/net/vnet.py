@@ -61,6 +61,7 @@ class VnetInterface(object):
             self.iftype = self.IFT_LOOP
         else:
             self.iftype = self.IFT_ETHER
+            self.ether = ToolsHelper.get_output("/sbin/ifconfig %s ether | awk '/ether/ { print $2; }'" % iface_name).rstrip()
 
     @property
     def ifindex(self):
@@ -99,9 +100,12 @@ class VnetInterface(object):
         name = run_cmd("/sbin/ifconfig {} create".format(iface_name)).rstrip()
         if not name:
             raise Exception("Unable to create iface {}".format(iface_name))
-        ret = [cls(alias_name, name)]
+        if1 = cls(alias_name, name)
+        ret = [if1]
         if name.startswith("epair"):
-            ret.append(cls(alias_name, name[:-1] + "b"))
+            if2 = cls(alias_name, name[:-1] + "b")
+            if1.epairb = if2
+            ret.append(if2);
         return ret
 
     def setup_addr(self, _addr: str):

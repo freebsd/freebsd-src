@@ -53,10 +53,9 @@ class TestHeader(VnetTestTemplate):
     def test_too_many(self):
         "Verify that we drop packets with silly numbers of headers."
 
-        sendif = self.vnet.iface_alias_map["if1"].name
+        sendif = self.vnet.iface_alias_map["if1"]
         recvif = self.vnet.iface_alias_map["if2"].name
-        gw_mac = ToolsHelper.get_output("/sbin/ifconfig %s ether | awk '/ether/ { print $2; }'" % sendif)
-        gw_mac = re.sub("0a$", "0b", gw_mac)
+        gw_mac = sendif.epairb.ether
 
         ToolsHelper.print_output("/sbin/route add default 192.0.2.1")
 
@@ -67,7 +66,7 @@ class TestHeader(VnetTestTemplate):
         pkt = sp.Ether(dst=gw_mac) \
             / sp.IP(dst="198.51.100.3") \
             / sp.ICMP(type='echo-request')
-        s = DelayedSend(pkt, sendif)
+        s = DelayedSend(pkt, sendif.name)
         reply = sp.sniff(iface=recvif, timeout=3)
         print(reply)
 
@@ -89,7 +88,7 @@ class TestHeader(VnetTestTemplate):
             pkt = pkt / sp.AH(nh=51, payloadlen=1)
         pkt = pkt / sp.AH(nh=1, payloadlen=1) / sp.ICMP(type='echo-request')
 
-        s = DelayedSend(pkt, sendif)
+        s = DelayedSend(pkt, sendif.name)
         reply = sp.sniff(iface=recvif, timeout=3)
         print(reply)
         found = False
@@ -109,7 +108,7 @@ class TestHeader(VnetTestTemplate):
             pkt = pkt / sp.AH(nh=51, payloadlen=1)
         pkt = pkt / sp.AH(nh=1, payloadlen=1) / sp.ICMP(type='echo-request')
 
-        s = DelayedSend(pkt, sendif)
+        s = DelayedSend(pkt, sendif.name)
         reply = sp.sniff(iface=recvif, timeout=3)
         print(reply)
 
@@ -148,10 +147,10 @@ class TestHeader6(VnetTestTemplate):
         "Verify that we drop packets with silly numbers of headers."
         ToolsHelper.print_output("/sbin/ifconfig")
 
-        sendif = self.vnet.iface_alias_map["if1"].name
+        sendif = self.vnet.iface_alias_map["if1"]
         recvif = self.vnet.iface_alias_map["if2"].name
-        our_mac = ToolsHelper.get_output("/sbin/ifconfig %s ether | awk '/ether/ { print $2; }'" % sendif)
-        gw_mac = re.sub("0a$", "0b", our_mac)
+        our_mac = sendif.ether
+        gw_mac = sendif.epairb.ether
 
         ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
 
@@ -162,7 +161,7 @@ class TestHeader6(VnetTestTemplate):
         pkt = sp.Ether(src=our_mac, dst=gw_mac) \
             / sp.IPv6(src="2001:db8::2", dst="2001:db8:1::3") \
             / sp.ICMPv6EchoRequest()
-        s = DelayedSend(pkt, sendif)
+        s = DelayedSend(pkt, sendif.name)
         reply = sp.sniff(iface=recvif, timeout=3)
         print(reply)
 
@@ -182,7 +181,7 @@ class TestHeader6(VnetTestTemplate):
         for i in range(0, 18):
             pkt = pkt / sp.AH(nh=51, payloadlen=1)
         pkt = pkt / sp.AH(nh=58, payloadlen=1) / sp.ICMPv6EchoRequest()
-        s = DelayedSend(pkt, sendif)
+        s = DelayedSend(pkt, sendif.name)
         reply = sp.sniff(iface=recvif, timeout=3)
         print(reply)
 
@@ -202,7 +201,7 @@ class TestHeader6(VnetTestTemplate):
         for i in range(0, 19):
             pkt = pkt / sp.AH(nh=51, payloadlen=1)
         pkt = pkt / sp.AH(nh=58, payloadlen=1) / sp.ICMPv6EchoRequest()
-        s = DelayedSend(pkt, sendif)
+        s = DelayedSend(pkt, sendif.name)
         reply = sp.sniff(iface=recvif, timeout=3)
         print(reply)
 
