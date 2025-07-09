@@ -184,6 +184,18 @@ If the source file has both its set-user-ID and set-group-ID bits on,
 and either the user ID or group ID cannot be preserved, neither
 the set-user-ID nor set-group-ID bits are preserved in the copy's
 permissions.
+.It Fl -sort
+Visit and traverse sources in (non-localized) lexicographical order.
+Normally,
+.Nm
+visits the sources in the order they were listed on the command line,
+and if recursing, traverses their contents in whichever order they
+were returned in by the kernel, which may be the order in which they
+were created, lexicographical order, or something else entirely.
+With
+.Fl -sort ,
+the sources are both visited and traversed in lexicographical order.
+This is mostly useful for testing.
 .It Fl s , Fl -symbolic-link
 Create symbolic links to regular files in a hierarchy instead of copying.
 .It Fl v , Fl -verbose
