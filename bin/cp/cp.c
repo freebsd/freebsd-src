@@ -55,6 +55,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <getopt.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -69,14 +70,34 @@ static char dot[] = ".";
 
 #define END(buf) (buf + sizeof(buf))
 PATH_T to = { .dir = -1, .end = to.path };
-int Nflag, fflag, iflag, lflag, nflag, pflag, sflag, vflag;
-static int Hflag, Lflag, Pflag, Rflag, rflag;
+bool Nflag, fflag, iflag, lflag, nflag, pflag, sflag, vflag;
+static bool Hflag, Lflag, Pflag, Rflag, rflag;
 volatile sig_atomic_t info;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
 static int copy(char *[], enum op, int, struct stat *);
 static void siginfo(int __unused);
+
+enum {
+	SORT_OPT = CHAR_MAX,
+};
+
+static const struct option long_opts[] =
+{
+	{ "archive",		no_argument,		NULL,	'a' },
+	{ "force",		no_argument,		NULL,	'f' },
+	{ "interactive",	no_argument,		NULL,	'i' },
+	{ "dereference",	no_argument,		NULL,	'L' },
+	{ "link",		no_argument,		NULL,	'l' },
+	{ "no-clobber",		no_argument,		NULL,	'n' },
+	{ "no-dereference",	no_argument,		NULL,	'P' },
+	{ "recursive",		no_argument,		NULL,	'R' },
+	{ "symbolic-link",	no_argument,		NULL,	's' },
+	{ "verbose",		no_argument,		NULL,	'v' },
+	{ "one-file-system",	no_argument,		NULL,	'x' },
+	{ 0 }
+};
 
 int
 main(int argc, char *argv[])
@@ -88,59 +109,60 @@ main(int argc, char *argv[])
 	bool have_trailing_slash = false;
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPRafilNnprsvx")) != -1)
+	while ((ch = getopt_long(argc, argv, "+HLPRafilNnprsvx", long_opts,
+	    NULL)) != -1)
 		switch (ch) {
 		case 'H':
-			Hflag = 1;
-			Lflag = Pflag = 0;
+			Hflag = true;
+			Lflag = Pflag = false;
 			break;
 		case 'L':
-			Lflag = 1;
-			Hflag = Pflag = 0;
+			Lflag = true;
+			Hflag = Pflag = false;
 			break;
 		case 'P':
-			Pflag = 1;
-			Hflag = Lflag = 0;
+			Pflag = true;
+			Hflag = Lflag = false;
 			break;
 		case 'R':
-			Rflag = 1;
+			Rflag = true;
 			break;
 		case 'a':
-			pflag = 1;
-			Rflag = 1;
-			Pflag = 1;
-			Hflag = Lflag = 0;
+			pflag = true;
+			Rflag = true;
+			Pflag = true;
+			Hflag = Lflag = false;
 			break;
 		case 'f':
-			fflag = 1;
-			iflag = nflag = 0;
+			fflag = true;
+			iflag = nflag = false;
 			break;
 		case 'i':
-			iflag = 1;
-			fflag = nflag = 0;
+			iflag = true;
+			fflag = nflag = false;
 			break;
 		case 'l':
-			lflag = 1;
+			lflag = true;
 			break;
 		case 'N':
-			Nflag = 1;
+			Nflag = true;
 			break;
 		case 'n':
-			nflag = 1;
-			fflag = iflag = 0;
+			nflag = true;
+			fflag = iflag = false;
 			break;
 		case 'p':
-			pflag = 1;
+			pflag = true;
 			break;
 		case 'r':
-			rflag = Lflag = 1;
-			Hflag = Pflag = 0;
+			rflag = Lflag = true;
+			Hflag = Pflag = false;
 			break;
 		case 's':
-			sflag = 1;
+			sflag = true;
 			break;
 		case 'v':
-			vflag = 1;
+			vflag = true;
 			break;
 		case 'x':
 			fts_options |= FTS_XDEV;
@@ -159,7 +181,7 @@ main(int argc, char *argv[])
 	if (lflag && sflag)
 		errx(1, "the -l and -s options may not be specified together");
 	if (rflag)
-		Rflag = 1;
+		Rflag = true;
 	if (Rflag) {
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;

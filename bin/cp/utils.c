@@ -105,7 +105,7 @@ copy_file(const FTSENT *entp, bool dne, bool beneath)
 	ssize_t wcount;
 	off_t wtotal;
 	int ch, checkch, from_fd, rval, to_fd;
-	int use_copy_file_range = 1;
+	bool use_copy_file_range = true;
 
 	fs = entp->fts_statp;
 	from_fd = to_fd = -1;
@@ -210,7 +210,7 @@ copy_file(const FTSENT *entp, bool dne, bool beneath)
 			    to_fd, NULL, SSIZE_MAX, 0);
 			if (wcount < 0 && errno == EINVAL) {
 				/* probably a non-seekable descriptor */
-				use_copy_file_range = 0;
+				use_copy_file_range = false;
 			}
 		}
 		if (!use_copy_file_range) {

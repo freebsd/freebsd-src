@@ -688,6 +688,21 @@ unrfile_body()
 	atf_check cmp src/c dst/c
 }
 
+atf_test_case nopermute
+nopermute_head()
+{
+	atf_set descr "Check that getopt_long does not permute options"
+}
+nopermute_body()
+{
+	mkdir src dst
+	atf_check \
+	    -s exit:1 \
+	    -e match:'cp: -p: No such file' \
+	    cp -R src -p dst
+	atf_check test -d dst/src
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -729,4 +744,5 @@ atf_init_test_cases()
 	atf_add_test_case dirloop
 	atf_add_test_case unrdir
 	atf_add_test_case unrfile
+	atf_add_test_case nopermute
 }
