@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 7, 2025
+.Dd July 9, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2122,10 +2122,10 @@ options, or scrubbed with
 will also not be recoverable from intermediate packets.
 Such connections will stall and time out.
 .It Xo Ar icmp-type Aq Ar type
-.Ar code Aq Ar code
+.Ar Op code Aq Ar code
 .Xc
 .It Xo Ar icmp6-type Aq Ar type
-.Ar code Aq Ar code
+.Ar Op code Aq Ar code
 .Xc
 This rule only applies to ICMP or ICMPv6 packets with the specified type
 and code.
