@@ -315,11 +315,8 @@ __opendir_common(int fd, int flags, bool use_current_pos)
 			 */
 			dirp->dd_size = _getdirentries(dirp->dd_fd,
 			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
-			if (dirp->dd_size < 0) {
-				if (errno == EINVAL)
-					errno = ENOTDIR;
+			if (dirp->dd_size < 0)
 				goto fail;
-			}
 			dirp->dd_flags |= __DTF_SKIPREAD;
 		} else {
 			dirp->dd_size = 0;

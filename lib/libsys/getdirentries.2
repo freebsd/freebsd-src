@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 5, 2023
+.Dd July 8, 2025
 .Dt GETDIRENTRIES 2
 .Os
 .Sh NAME
@@ -178,9 +178,7 @@ or non-NULL
 .Fa basep
 point outside the allocated address space.
 .It Bq Er EINVAL
-The file referenced by
-.Fa fd
-is not a directory, or
+The value of
 .Fa nbytes
 is too small for returning a directory entry or block of entries,
 or the current position pointer is invalid.
@@ -192,6 +190,10 @@ error occurred while reading from or writing to the file system.
 Corrupted data was detected while reading from the file system.
 .It Bq Er ENOENT
 Directory unlinked but still open.
+.It Bq Er ENOTDIR
+The file referenced by
+.Fa fd
+is not a directory.
 .El
 .Sh SEE ALSO
 .Xr lseek 2 ,
