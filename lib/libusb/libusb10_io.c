@@ -842,3 +842,12 @@ libusb_transfer_get_stream_id(struct libusb_transfer *transfer)
 	/* get stream ID */
 	return (sxfer->stream_id);
 }
+
+void
+libusb_free_pollfds(const struct libusb_pollfd **pollfds)
+{
+	if (pollfds == NULL)
+		return;
+
+	free(pollfds);
+}

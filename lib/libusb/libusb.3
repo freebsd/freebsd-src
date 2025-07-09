@@ -775,6 +775,12 @@ argument can be either of LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED or LIBUSB_HOTPLUG_
 .Ft void
 .Fn libusb_hotplug_deregister_callback "libusb_context *ctx" "libusb_hotplug_callback_handle handle"
 This function unregisters a hotplug filter.
+.Pp
+.Ft void
+.Fn libusb_free_pollfds "const struct libusb_pollfd **pollfds"
+This function releases the memory storage in
+.Fa pollfds ,
+and is safe to call when the argument is NULL.
 .Sh LIBUSB VERSION 0.1 COMPATIBILITY
 The library is also compliant with LibUSB version 0.1.12.
 .Pp
