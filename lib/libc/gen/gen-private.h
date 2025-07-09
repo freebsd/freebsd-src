@@ -43,8 +43,8 @@ struct pthread_mutex;
  */
 struct _dirdesc {
 	int	dd_fd;		/* file descriptor associated with directory */
-	long	dd_loc;		/* offset in current buffer */
-	long	dd_size;	/* amount of data returned by getdirentries */
+	size_t	dd_loc;		/* offset in current buffer */
+	size_t	dd_size;	/* amount of data returned by getdirentries */
 	char	*dd_buf;	/* data buffer */
 	int	dd_len;		/* size of data buffer */
 	off_t	dd_seek;	/* magic cookie returned by getdirentries */
