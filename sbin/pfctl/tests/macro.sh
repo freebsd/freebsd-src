@@ -3,6 +3,7 @@ atf_test_case "space" cleanup
 space_head()
 {
 	atf_set descr "Test macros with spaces"
+	atf_set require.kmods "pf"
 }
 
 space_body()
