@@ -1240,13 +1240,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 						 /*getcount_only*/0);
 
 				status = done_ccb->ccb_h.status;
-
-				bzero(&cgd, sizeof(cgd));
-				xpt_setup_ccb(&cgd.ccb_h,
-					      done_ccb->ccb_h.path,
-					      CAM_PRIORITY_NORMAL);
-				cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-				xpt_action((union ccb *)&cgd);
+				xpt_gdev_type(&cgd, done_ccb->ccb_h.path);
 
 				if (scsi_extract_sense_ccb(done_ccb,
 				    &error_code, &sense_key, &asc, &ascq))
