@@ -60,6 +60,12 @@ OLD_FILES+=usr/share/man/man3/quota_statfs.3.gz
 # 20250805: Test case renamed
 OLD_FILES+=usr/tests/usr.bin/xargs/regress.n2147483647.out
 
+# 20250710: share: Delete bitrotted make_*_driver.sh scripts
+OLD_FILES+=usr/share/examples/drivers/README
+OLD_FILES+=usr/share/examples/drivers/make_device_driver.sh
+OLD_FILES+=usr/share/examples/drivers/make_pseudo_driver.sh
+OLD_DIRS+=usr/share/examples/drivers
+
 # 20250524: don't install zoneinfo version
 OLD_FILES+=usr/share/zoneinfo/version
 
