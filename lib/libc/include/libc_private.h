@@ -249,7 +249,7 @@ enum {
 	INTERPOS_map_stacks_exec,
 	INTERPOS_fdatasync,
 	INTERPOS_clock_nanosleep,
-	INTERPOS_distribute_static_tls,
+	INTERPOS__reserved0, /* was distribute_static_tls */
 	INTERPOS_pdfork,
 	INTERPOS_uexterr_gettext,
 	INTERPOS_MAX
@@ -361,8 +361,6 @@ struct dl_phdr_info;
 int __elf_phdr_match_addr(struct dl_phdr_info *, void *);
 void __init_elf_aux_vector(void);
 void __libc_map_stacks_exec(void);
-void __libc_distribute_static_tls(__size_t, void *, __size_t, __size_t);
-__uintptr_t __libc_static_tls_base(__size_t);
 
 void	_pthread_cancel_enter(int);
 void	_pthread_cancel_leave(int);
