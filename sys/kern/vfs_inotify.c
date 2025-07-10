@@ -760,9 +760,11 @@ vn_inotify_add_watch(struct vnode *vp, struct inotify_softc *sc, uint32_t mask,
 			 * directory if it's specified as a vnode.
 			 */
 			vrefact(vp);
+			VOP_UNLOCK(vp);
 			NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
 			    dp->d_name, vp);
 			error = namei(&nd);
+			vn_lock(vp, LK_SHARED | LK_RETRY);
 			if (error != 0)
 				break;
 			vn_irflag_set_cond(nd.ni_vp, VIRF_INOTIFY_PARENT);
