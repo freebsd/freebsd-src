@@ -187,6 +187,11 @@ struct lkpi_vif {
 				    enum ieee80211_state, int);
 	struct ieee80211_node *	(*iv_update_bss)(struct ieee80211vap *,
 				    struct ieee80211_node *);
+	void			(*iv_recv_mgmt)(struct ieee80211_node *,
+				    struct mbuf *, int,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
+
 	struct list_head	lsta_list;
 
 	struct lkpi_sta		*lvif_bss;
@@ -194,6 +199,7 @@ struct lkpi_vif {
 	struct ieee80211_node	*key_update_iv_bss;
 	int			ic_unlocked;			/* Count of ic unlocks pending (*mo_set_key) */
 	int			nt_unlocked;			/* Count of nt unlocks pending (*mo_set_key) */
+	int			beacons;			/* # of beacons since assoc */
 	bool			lvif_bss_synched;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
 

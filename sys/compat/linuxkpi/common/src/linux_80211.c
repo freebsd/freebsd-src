@@ -1926,6 +1926,7 @@ lkpi_disassoc(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
     struct lkpi_hw *lhw)
 {
 	enum ieee80211_bss_changed changed;
+	struct lkpi_vif *lvif;
 
 	changed = 0;
 	sta->aid = 0;
@@ -1949,6 +1950,9 @@ lkpi_disassoc(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
 		 * bss_info_changed() update.
 		 * See lkpi_sta_run_to_init() for more detailed comment.
 		 */
+
+		lvif = VIF_TO_LVIF(vif);
+		lvif->beacons = 0;
 	}
 
 	return (changed);
@@ -2219,6 +2223,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* vif->bss_conf.basic_rates ? Where exactly? */
 
+	lvif->beacons = 0;
 	/* Should almost assert it is this. */
 	vif->cfg.assoc = false;
 	vif->cfg.aid = 0;
@@ -2408,6 +2413,7 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	struct lkpi_sta *lsta;
 	struct ieee80211_sta *sta;
 	struct ieee80211_prep_tx_info prep_tx_info;
+	enum ieee80211_bss_changed bss_changed;
 	int error;
 
 	lhw = vap->iv_ic->ic_softc;
@@ -2478,6 +2484,11 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 #if 0
 	lsta->added_to_drv = false;	/* mo manages. */
 #endif
+
+	bss_changed = 0;
+	vif->bss_conf.dtim_period = 0; /* go back to 0. */
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -2807,6 +2818,8 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	vif->cfg.ssid_len = 0;
 	memset(vif->cfg.ssid, '\0', sizeof(vif->cfg.ssid));
 	bss_changed |= BSS_CHANGED_BSSID;
+	vif->bss_conf.dtim_period = 0; /* go back to 0. */
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	LKPI_80211_LVIF_LOCK(lvif);
@@ -2939,6 +2952,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= lkpi_wme_update(lhw, vap, true);
 #endif
 	if (!vif->cfg.assoc || vif->cfg.aid != IEEE80211_NODE_AID(ni)) {
+		lvif->beacons = 0;
 		vif->cfg.assoc = true;
 		vif->cfg.aid = IEEE80211_NODE_AID(ni);
 		bss_changed |= BSS_CHANGED_ASSOC;
@@ -3408,6 +3422,8 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	vif->bss_conf.use_short_preamble = false;
 	vif->bss_conf.qos = false;
 	/* XXX BSS_CHANGED_???? */
+	vif->bss_conf.dtim_period = 0; /* go back to 0. */
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	LKPI_80211_LVIF_LOCK(lvif);
@@ -3710,6 +3726,42 @@ lkpi_ic_wme_update(struct ieee80211com *ic)
 	return (0);	/* unused */
 }
 
+static void
+lkpi_iv_sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
+    int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	enum ieee80211_bss_changed bss_changed;
+
+	lvif = VAP_TO_LVIF(ni->ni_vap);
+
+	lvif->iv_recv_mgmt(ni, m0, subtype, rxs, rssi, nf);
+
+	switch (subtype) {
+	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
+		break;
+	case IEEE80211_FC0_SUBTYPE_BEACON:
+		lvif->beacons++;
+		break;
+	default:
+		return;
+	}
+
+	vif = LVIF_TO_VIF(lvif);
+	lhw = ni->ni_ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+
+	/*
+	 * If this direct call to mo_bss_info_changed will not work due to
+	 * locking, see if queue_work() is fast enough.
+	 */
+	bss_changed = lkpi_update_dtim_tsf(vif, ni, ni->ni_vap, __func__, __LINE__);
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
+}
+
 /*
  * Change link-layer address on the vif (if the vap is not started/"UP").
  * This can happen if a user changes 'ether' using ifconfig.
@@ -3905,6 +3957,8 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vap->iv_newstate = lkpi_iv_newstate;
 	lvif->iv_update_bss = vap->iv_update_bss;
 	vap->iv_update_bss = lkpi_iv_update_bss;
+	lvif->iv_recv_mgmt = vap->iv_recv_mgmt;
+	vap->iv_recv_mgmt = lkpi_iv_sta_recv_mgmt;
 
 #ifdef LKPI_80211_HW_CRYPTO
 	/* Key management. */
@@ -7865,8 +7919,11 @@ linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *vif)
 	nstate = IEEE80211_S_INIT;
 	arg = 0;	/* Not a valid reason. */
 
-	ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s\n", __func__,
-	    vif, vap, ieee80211_state_name[vap->iv_state]);
+	ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s (synched %d, assoc %d "
+	    "beacons %d dtim_period %d)\n", __func__, vif, vap,
+	    ieee80211_state_name[vap->iv_state],
+	    lvif->lvif_bss_synched, vif->cfg.assoc, lvif->beacons,
+	    vif->bss_conf.dtim_period);
 	ieee80211_new_state(vap, nstate, arg);
 }
 
@@ -7879,8 +7936,11 @@ linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *vif)
 	lvif = VIF_TO_LVIF(vif);
 	vap = LVIF_TO_VAP(lvif);
 
-	ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s\n", __func__,
-	    vif, vap, ieee80211_state_name[vap->iv_state]);
+	ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s (synched %d, assoc %d "
+	    "beacons %d dtim_period %d)\n", __func__, vif, vap,
+	    ieee80211_state_name[vap->iv_state],
+	    lvif->lvif_bss_synched, vif->cfg.assoc, lvif->beacons,
+	    vif->bss_conf.dtim_period);
 	ieee80211_beacon_miss(vap->iv_ic);
 }
 
