@@ -449,12 +449,12 @@ typedef struct {
 #define	SHT_HIOS		0x6fffffff	/* Last of OS specific semantics */
 #define	SHT_LOPROC		0x70000000	/* reserved range for processor */
 #define	SHT_X86_64_UNWIND	0x70000001	/* unwind information */
-#define	SHT_AMD64_UNWIND	SHT_X86_64_UNWIND 
+#define	SHT_AMD64_UNWIND	SHT_X86_64_UNWIND
 
 #define	SHT_ARM_EXIDX		0x70000001	/* Exception index table. */
-#define	SHT_ARM_PREEMPTMAP	0x70000002	/* BPABI DLL dynamic linking 
+#define	SHT_ARM_PREEMPTMAP	0x70000002	/* BPABI DLL dynamic linking
 						   pre-emption map. */
-#define	SHT_ARM_ATTRIBUTES	0x70000003	/* Object file compatibility 
+#define	SHT_ARM_ATTRIBUTES	0x70000003	/* Object file compatibility
 						   attributes. */
 #define	SHT_ARM_DEBUGOVERLAY	0x70000004	/* See DBGOVL for details. */
 #define	SHT_ARM_OVERLAYSECTION	0x70000005	/* See DBGOVL for details. */
@@ -769,7 +769,7 @@ typedef struct {
 #define	DF_1_GLOBAL	0x00000002	/* Set the RTLD_GLOBAL for object */
 #define	DF_1_NODELETE	0x00000008	/* Set the RTLD_NODELETE for object */
 #define	DF_1_LOADFLTR	0x00000010	/* Immediate loading of filtees */
-#define	DF_1_NOOPEN     0x00000040	/* Do not allow loading on dlopen() */
+#define	DF_1_NOOPEN	0x00000040	/* Do not allow loading on dlopen() */
 #define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
 #define	DF_1_INTERPOSE	0x00000400	/* Interpose all objects but main */
 #define	DF_1_NODEFLIB	0x00000800	/* Do not search default paths */
@@ -882,7 +882,7 @@ typedef struct {
 #define	STV_ELIMINATE	0x6
 
 /* Architecture specific data - st_other */
-#define	STO_AARCH64_VARIANT_PCS 0x80
+#define	STO_AARCH64_VARIANT_PCS	0x80
 
 /* Special symbol table indexes. */
 #define	STN_UNDEF	0	/* Undefined symbol index. */
@@ -1055,11 +1055,11 @@ typedef struct {
 #define	R_AARCH64_COPY		1024	/* Copy data from shared object */
 #define	R_AARCH64_GLOB_DAT	1025	/* Set GOT entry to data address */
 #define	R_AARCH64_JUMP_SLOT	1026	/* Set GOT entry to code address */
-#define	R_AARCH64_RELATIVE 	1027	/* Add load address of shared object */
+#define	R_AARCH64_RELATIVE	1027	/* Add load address of shared object */
 #define	R_AARCH64_TLS_DTPREL64	1028
 #define	R_AARCH64_TLS_DTPMOD64	1029
-#define	R_AARCH64_TLS_TPREL64 	1030
-#define	R_AARCH64_TLSDESC 	1031	/* Identify the TLS descriptor */
+#define	R_AARCH64_TLS_TPREL64	1030
+#define	R_AARCH64_TLSDESC	1031	/* Identify the TLS descriptor */
 #define	R_AARCH64_IRELATIVE	1032
 
 #define	R_ARM_NONE		0	/* No relocation. */
@@ -1202,8 +1202,8 @@ typedef struct {
 #define	R_MIPS_GOT_HI16	22	/* GOT HI 16 bit */
 #define	R_MIPS_GOT_LO16	23	/* GOT LO 16 bit */
 #define	R_MIPS_SUB	24
-#define	R_MIPS_CALLHI16 30	/* upper 16 bit GOT entry for function */
-#define	R_MIPS_CALLLO16 31	/* lower 16 bit GOT entry for function */
+#define	R_MIPS_CALLHI16	30	/* upper 16 bit GOT entry for function */
+#define	R_MIPS_CALLLO16	31	/* lower 16 bit GOT entry for function */
 #define	R_MIPS_JALR	37
 #define	R_MIPS_TLS_GD	42
 #define	R_MIPS_COPY	126
