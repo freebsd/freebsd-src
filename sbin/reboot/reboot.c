@@ -40,6 +40,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <spawn.h>
@@ -222,6 +223,7 @@ main(int argc, char *argv[])
 {
 	struct utmpx utx;
 	const struct passwd *pw;
+	struct stat st;
 	int ch, howto = 0, i, sverrno;
 	bool Dflag, fflag, lflag, Nflag, nflag, qflag;
 	uint64_t pageins;
@@ -293,6 +295,11 @@ main(int argc, char *argv[])
 	argv += optind;
 	if (argc != 0)
 		usage();
+
+	if (!donextboot && !fflag && stat(_PATH_NOSHUTDOWN, &st) == 0) {
+		errx(1, "Reboot cannot be done, " _PATH_NOSHUTDOWN
+		    " is present");
+	}
 
 	if (Dflag && ((howto & ~RB_HALT) != 0  || kernel != NULL))
 		errx(1, "cannot delete existing nextboot config and do anything else");

@@ -110,6 +110,15 @@ Care should be taken if
 .Va value
 contains any characters that are special to the shell or loader's configuration
 parsing code.
+.It Fl f
+Force reboot.
+Normally,
+.Nm
+checks for the presence of the next kernel,
+and absence of the
+.Pa /var/run/noshutdown
+file.
+Without this flag, reboot is denied if one of the conditions failed.
 .It Fl k Ar kname
 Boot the specified kernel
 .Ar kname
