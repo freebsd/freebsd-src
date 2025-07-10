@@ -11,7 +11,6 @@ LDIRS=	BSD_daemon \
 	IPv6 \
 	bootforth \
 	csh \
-	drivers \
 	etc \
 	find_interface \
 	flua \
@@ -73,12 +72,6 @@ SE_BOOTFORTH= \
 
 SE_DIRS+=	csh
 SE_CSH=	dot.cshrc
-
-SE_DIRS+=	drivers
-SE_DRIVERS= \
-	README \
-	make_device_driver.sh \
-	make_pseudo_driver.sh
 
 SE_DIRS+=	etc
 SE_ETC= \

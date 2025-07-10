@@ -69,6 +69,12 @@ OLD_FILES+=usr/include/machine/runq.h
 # 20250716: Remove an old manual page, vn(4) was removed in FreeBSD 5.0
 OLD_FILES+=usr/share/man/man4/vn.4.gz
 
+# 20250710: share: Delete bitrotted make_*_driver.sh scripts
+OLD_FILES+=usr/share/examples/drivers/README
+OLD_FILES+=usr/share/examples/drivers/make_device_driver.sh
+OLD_FILES+=usr/share/examples/drivers/make_pseudo_driver.sh
+OLD_DIRS+=usr/share/examples/drivers
+
 # 20250708: replace yaml.lua with lyaml
 OLD_FILES+=usr/share/flua/yaml.lua
 
