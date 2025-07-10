@@ -5698,32 +5698,22 @@ allocate_module_tls(struct tcb *tcb, int index)
 	return (p);
 }
 
-bool
-allocate_tls_offset(Obj_Entry *obj)
+static bool
+allocate_tls_offset_common(size_t *offp, size_t tlssize, size_t tlsalign,
+    size_t tlspoffset __unused)
 {
 	size_t off;
 
-	if (obj->tls_dynamic)
-		return (false);
-
-	if (obj->tls_static)
-		return (true);
-
-	if (obj->tlssize == 0) {
-		obj->tls_static = true;
-		return (true);
-	}
-
 	if (tls_last_offset == 0)
-		off = calculate_first_tls_offset(obj->tlssize, obj->tlsalign,
-		    obj->tlspoffset);
+		off = calculate_first_tls_offset(tlssize, tlsalign,
+		    tlspoffset);
 	else
 		off = calculate_tls_offset(tls_last_offset, tls_last_size,
-		    obj->tlssize, obj->tlsalign, obj->tlspoffset);
+		    tlssize, tlsalign, tlspoffset);
 
-	obj->tlsoffset = off;
+	*offp = off;
 #ifdef TLS_VARIANT_I
-	off += obj->tlssize;
+	off += tlssize;
 #endif
 
 	/*
@@ -5735,12 +5725,34 @@ allocate_tls_offset(Obj_Entry *obj)
 	if (tls_static_space != 0) {
 		if (off > tls_static_space)
 			return (false);
-	} else if (obj->tlsalign > tls_static_max_align) {
-		tls_static_max_align = obj->tlsalign;
+	} else if (tlsalign > tls_static_max_align) {
+		tls_static_max_align = tlsalign;
 	}
 
 	tls_last_offset = off;
-	tls_last_size = obj->tlssize;
+	tls_last_size = tlssize;
+
+	return (true);
+}
+
+bool
+allocate_tls_offset(Obj_Entry *obj)
+{
+	if (obj->tls_dynamic)
+		return (false);
+
+	if (obj->tls_static)
+		return (true);
+
+	if (obj->tlssize == 0) {
+		obj->tls_static = true;
+		return (true);
+	}
+
+	if (!allocate_tls_offset_common(&obj->tlsoffset, obj->tlssize,
+	    obj->tlsalign, obj->tlspoffset))
+		return (false);
+
 	obj->tls_static = true;
 
 	return (true);
