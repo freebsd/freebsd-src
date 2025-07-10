@@ -1555,7 +1555,7 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 			continue;
 
 		flags = atomic_swap_long(&event_flags[f], 0);
-		chid_base = f << VMBUS_EVTFLAG_SHIFT;
+		chid_base = f * VMBUS_EVTFLAG_LEN;
 
 		while ((chid_ofs = ffsl(flags)) != 0) {
 			struct vmbus_channel *chan;
@@ -1599,7 +1599,7 @@ vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
 	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
 	if (atomic_testandclear_long(&eventf->evt_flags[0], 0)) {
 		vmbus_event_flags_proc(sc, sc->vmbus_rx_evtflags,
-		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
+		    VMBUS_CHAN_MAX_COMPAT / VMBUS_EVTFLAG_LEN);
 	}
 }
 
@@ -1903,7 +1903,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 	 * Setup event flag.
 	 */
 	chan->ch_evtflag =
-	    &sc->vmbus_tx_evtflags[chan->ch_id >> VMBUS_EVTFLAG_SHIFT];
+	    &sc->vmbus_tx_evtflags[chan->ch_id / VMBUS_EVTFLAG_LEN];
 	chan->ch_evtflag_mask = 1UL << (chan->ch_id & VMBUS_EVTFLAG_MASK);
 
 	/*
