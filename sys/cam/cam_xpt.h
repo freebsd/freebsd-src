@@ -145,8 +145,8 @@ uint32_t		xpt_poll_setup(union ccb *start_ccb);
 void			xpt_sim_poll(struct cam_sim *sim);
 
 /*
- * Perform a path inquiry at the request priority. bzero may be redundant for
- * allocated CCBs, but for the on-stack CCBs it's required.
+ * Perform a path inquiry. bzero may be redundant for allocated CCBs, but for
+ * the on-stack CCBs it's required.
  */
 static inline void
 xpt_path_inq(struct ccb_pathinq *cpi, struct cam_path *path)
@@ -156,6 +156,20 @@ xpt_path_inq(struct ccb_pathinq *cpi, struct cam_path *path)
 	xpt_setup_ccb(&cpi->ccb_h, path, CAM_PRIORITY_NONE);
 	cpi->ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)cpi);
+}
+
+/*
+ * Perform get device type. bzero may be redundant for allocated CCBs, but for
+ * the on-stack CCBs it's required.
+ */
+static inline void
+xpt_gdev_type(struct ccb_getdev *cgd, struct cam_path *path)
+{
+
+	bzero(cgd, sizeof(*cgd));
+	xpt_setup_ccb(&cgd->ccb_h, path, CAM_PRIORITY_NONE);
+	cgd->ccb_h.func_code = XPT_GDEV_TYPE;
+	xpt_action((union ccb *)cgd);
 }
 
 #endif /* _KERNEL */

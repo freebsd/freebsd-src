@@ -1705,11 +1705,7 @@ chscsiversion(struct cam_periph *periph)
 	/*
 	 * Get the device information.
 	 */
-	xpt_setup_ccb(&cgd->ccb_h,
-		      periph->path,
-		      CAM_PRIORITY_NORMAL);
-	cgd->ccb_h.func_code = XPT_GDEV_TYPE;
-	xpt_action((union ccb *)cgd);
+	xpt_gdev_type(cgd, periph->path);
 
 	if (cgd->ccb_h.status != CAM_REQ_CMP) {
 		xpt_free_ccb((union ccb *)cgd);

@@ -4731,12 +4731,7 @@ saextget(struct cdev *dev, struct cam_periph *periph, struct sbuf *sb,
 	SASBADDVARSTR(sb, indent, periph->periph_name, %s, periph_name,
 	    strlen(periph->periph_name) + 1);
 	SASBADDUINT(sb, indent, periph->unit_number, %u, unit_number);
-	memset(&cgd, 0, sizeof(cgd));
-	xpt_setup_ccb(&cgd.ccb_h,
-		      periph->path,
-		      CAM_PRIORITY_NORMAL);
-	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-	xpt_action((union ccb *)&cgd);
+	xpt_gdev_type(&cgd, periph->path);
 	if ((cgd.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		g->status = MT_EXT_GET_ERROR;
 		snprintf(g->error_str, sizeof(g->error_str),
