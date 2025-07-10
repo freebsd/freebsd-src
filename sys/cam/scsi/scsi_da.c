@@ -5073,6 +5073,18 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 			 * behind a SATL translation that's fallen into a
 			 * terminally fatal state.
 			 *
+			 * 4/2 happens on some HGST drives that are quite
+			 * ill. We've already sent the start unit command (for
+			 * which we ignore a 44/0 asc/ascq, which I'm hesitant
+			 * to change since it's so basic and there's other error
+			 * conditions to the START UNIT we should ignore). So to
+			 * require initialization at this point when it should
+			 * be fine implies to me, at least, that we should
+			 * invalidate. Since we do read capacity in geom tasting
+			 * a lot, and since this timeout is long, this leads to
+			 * up to a 10 minute delay in booting.
+			 *
+			 * 4/2: LOGICAL UNIT NOT READY, INITIALIZING COMMAND REQUIRED
 			 * 25/0: LOGICAL UNIT NOT SUPPORTED
 			 * 44/0: INTERNAL TARGET FAILURE
 			 * 44/1: PERSISTENT RESERVATION INFORMATION LOST
@@ -5080,6 +5092,7 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			if ((have_sense)
 			 && (asc != 0x25) && (asc != 0x44)
+			 && (asc != 0x04 && ascq != 0x02)
 			 && (error_code == SSD_CURRENT_ERROR
 			  || error_code == SSD_DESC_CURRENT_ERROR)) {
 				const char *sense_key_desc;
