@@ -256,6 +256,7 @@ efi_env_net_params(struct iodesc *desc)
 	rootip.s_addr = rootaddr;
 
 #ifdef EFINET_DEBUG
+	printf("%s: proto=%d\n", __func__, netproto);
 	printf("%s: ip=%s\n", __func__, inet_ntoa(myip));
 	printf("%s: mask=%s\n", __func__, intoa(netmask));
 	printf("%s: gateway=%s\n", __func__, inet_ntoa(gateip));
@@ -427,6 +428,7 @@ efinet_dev_init(void)
 		dif->dif_private = handles2[i];
 	}
 
+	efinet_dev.dv_cleanup = netdev.dv_cleanup;
 	efinet_dev.dv_open = netdev.dv_open;
 	efinet_dev.dv_close = netdev.dv_close;
 	efinet_dev.dv_strategy = netdev.dv_strategy;

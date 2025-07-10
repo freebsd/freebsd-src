@@ -74,15 +74,16 @@ __elfN(arm_exec)(struct preloaded_file *fp)
 	printf("Kernel entry at %p...\n", entry);
 	printf("Kernel args: %s\n", fp->f_args);
 
+	/*
+	 * we have to cleanup here because net_cleanup() doesn't work after
+	 * we call ExitBootServices
+	 */
+	dev_cleanup();
+	
 	if ((error = bi_load(fp->f_args, &modulep, &kernend, true)) != 0) {
 		efi_time_init();
 		return (error);
 	}
-
-	/* At this point we've called ExitBootServices, so we can't call
-	 * printf or any other function that uses Boot Services */
-
-	dev_cleanup();
 
 	(*entry)((void *)modulep);
 	panic("exec returned");
