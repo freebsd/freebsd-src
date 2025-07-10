@@ -969,6 +969,7 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl, int running)
 #endif
 		fputs(separator, fp);
 		print_param(fp, j->intparams[IP_COMMAND], ' ', 0);
+		putc('\n', fp);
 	} else {
 		printsep = 0;
 		if (running) {
@@ -978,13 +979,18 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl, int running)
 		TAILQ_FOREACH(p, &j->params, tq)
 			if (strcmp(p->name, "jid")) {
 				if (printsep)
-					fputs(separator, fp);
+					*separator ? fputs(separator, fp) : putc(0, fp);
 				else
 					printsep = 1;
 				print_param(fp, p, ',', 1);
 			}
+		if (*separator)
+			putc('\n', fp);
+		else {
+			putc(0, fp);
+			putc(0, fp);
+		}
 	}
-	putc('\n', fp);
 }
 
 /*
@@ -1029,7 +1035,8 @@ quoted_print(FILE *fp, char *str)
 	int c, qc;
 	char *p = str;
 
-	qc = !*p ? '"'
+	qc = !*separator ? 0
+	    : !*p ? '"'
 	    : strchr(p, '\'') ? '"'
 	    : strchr(p, '"') ? '\''
 	    : strchr(p, ' ') || strchr(p, '\t') ? '"'
