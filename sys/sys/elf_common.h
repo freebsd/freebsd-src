@@ -1341,6 +1341,7 @@ typedef struct {
 #define	R_RISCV_TLS_DTPREL64	9
 #define	R_RISCV_TLS_TPREL32	10
 #define	R_RISCV_TLS_TPREL64	11
+#define	R_RISCV_TLSDESC		12
 #define	R_RISCV_BRANCH		16
 #define	R_RISCV_JAL		17
 #define	R_RISCV_CALL		18
@@ -1366,10 +1367,10 @@ typedef struct {
 #define	R_RISCV_SUB16		38
 #define	R_RISCV_SUB32		39
 #define	R_RISCV_SUB64		40
+#define	R_RISCV_GOT32_PCREL	41
 #define	R_RISCV_ALIGN		43
 #define	R_RISCV_RVC_BRANCH	44
 #define	R_RISCV_RVC_JUMP	45
-#define	R_RISCV_RVC_LUI		46
 #define	R_RISCV_RELAX		51
 #define	R_RISCV_SUB6		52
 #define	R_RISCV_SET6		53
@@ -1378,6 +1379,14 @@ typedef struct {
 #define	R_RISCV_SET32		56
 #define	R_RISCV_32_PCREL	57
 #define	R_RISCV_IRELATIVE	58
+#define	R_RISCV_PLT32		59
+#define	R_RISCV_SET_ULEB128	60
+#define	R_RISCV_SUB_ULEB128	61
+#define	R_RISCV_TLSDESC_HI20	62
+#define	R_RISCV_TLSDESC_LOAD_LO12 63
+#define	R_RISCV_TLSDESC_ADD_LO12 64
+#define	R_RISCV_TLSDESC_CALL	65
+#define	R_RISCV_VENDOR		191
 
 #define	R_SPARC_NONE		0
 #define	R_SPARC_8		1
