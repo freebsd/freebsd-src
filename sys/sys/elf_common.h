@@ -1323,7 +1323,6 @@ typedef struct {
  * RISC-V relocation types.
  */
 
-/* Relocation types used by the dynamic linker. */
 #define	R_RISCV_NONE		0
 #define	R_RISCV_32		1
 #define	R_RISCV_64		2
@@ -1336,8 +1335,6 @@ typedef struct {
 #define	R_RISCV_TLS_DTPREL64	9
 #define	R_RISCV_TLS_TPREL32	10
 #define	R_RISCV_TLS_TPREL64	11
-
-/* Relocation types not used by the dynamic linker. */
 #define	R_RISCV_BRANCH		16
 #define	R_RISCV_JAL		17
 #define	R_RISCV_CALL		18
