@@ -1986,6 +1986,76 @@ lkpi_hex_dump(int(*_fpf)(void *, const char *, ...), void *arg1,
 	}
 }
 
+struct hdtb_context {
+	char	*linebuf;
+	size_t	 linebuflen;
+	int	 written;
+};
+
+static int
+hdtb_cb(void *arg, const char *format, ...)
+{
+	struct hdtb_context *context;
+	int written;
+	va_list args;
+
+	context = arg;
+
+	va_start(args, format);
+	written = vsnprintf(
+	    context->linebuf, context->linebuflen, format, args);
+	va_end(args);
+
+	if (written < 0)
+		return (written);
+
+	/*
+	 * Linux' hex_dump_to_buffer() function has the same behaviour as
+	 * snprintf() basically. Therefore, it returns the number of bytes it
+	 * would have written if the destination buffer was large enough.
+	 *
+	 * If the destination buffer was exhausted, lkpi_hex_dump() will
+	 * continue to call this callback but it will only compute the bytes it
+	 * would have written but write nothing to that buffer.
+	 */
+	context->written += written;
+
+	if (written < context->linebuflen) {
+		context->linebuf += written;
+		context->linebuflen -= written;
+	} else {
+		context->linebuf += context->linebuflen;
+		context->linebuflen = 0;
+	}
+
+	return (written);
+}
+
+int
+lkpi_hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
+    int groupsize, char *linebuf, size_t linebuflen, bool ascii)
+{
+	int written;
+	struct hdtb_context context;
+
+	context.linebuf = linebuf;
+	context.linebuflen = linebuflen;
+	context.written = 0;
+
+	if (rowsize != 16 && rowsize != 32)
+		rowsize = 16;
+
+	len = min(len, rowsize);
+
+	lkpi_hex_dump(
+	    hdtb_cb, &context, NULL, NULL, DUMP_PREFIX_NONE,
+	    rowsize, groupsize, buf, len, ascii, false);
+
+	written = context.written;
+
+	return (written);
+}
+
 static void
 linux_timer_callback_wrapper(void *context)
 {
