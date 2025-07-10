@@ -767,27 +767,31 @@ camperiphfree(struct cam_periph *periph)
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
-		union ccb ccb;
-		void *arg;
-
-		memset(&ccb, 0, sizeof(ccb));
 		switch (periph->deferred_ac) {
-		case AC_FOUND_DEVICE:
-			ccb.ccb_h.func_code = XPT_GDEV_TYPE;
-			xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-			xpt_action(&ccb);
-			arg = &ccb;
-			break;
-		case AC_PATH_REGISTERED:
-			xpt_path_inq(&ccb.cpi, periph->path);
-			arg = &ccb;
-			break;
-		default:
-			arg = NULL;
+		case AC_FOUND_DEVICE: {
+			struct ccb_getdev cgd;
+
+			memset(&cgd, 0, sizeof(cgd));
+			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+			xpt_setup_ccb(&cgd.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+			xpt_action((union ccb *)&cgd);
+			periph->deferred_callback(NULL, periph->deferred_ac,
+			    periph->path, &cgd);
 			break;
 		}
-		periph->deferred_callback(NULL, periph->deferred_ac,
-					  periph->path, arg);
+		case AC_PATH_REGISTERED: {
+			struct ccb_pathinq cpi;
+
+			xpt_path_inq(&cpi, periph->path);
+			periph->deferred_callback(NULL, periph->deferred_ac,
+			    periph->path, &cpi);
+			break;
+		}
+		default:
+			periph->deferred_callback(NULL, periph->deferred_ac,
+			    periph->path, NULL);
+			break;
+		}
 	}
 	xpt_free_path(periph->path);
 	free(periph, M_CAMPERIPH);
