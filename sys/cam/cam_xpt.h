@@ -151,7 +151,6 @@ void			xpt_sim_poll(struct cam_sim *sim);
 static inline void
 xpt_path_inq(struct ccb_pathinq *cpi, struct cam_path *path)
 {
-
 	bzero(cpi, sizeof(*cpi));
 	xpt_setup_ccb(&cpi->ccb_h, path, CAM_PRIORITY_NONE);
 	cpi->ccb_h.func_code = XPT_PATH_INQ;
@@ -165,7 +164,6 @@ xpt_path_inq(struct ccb_pathinq *cpi, struct cam_path *path)
 static inline void
 xpt_gdev_type(struct ccb_getdev *cgd, struct cam_path *path)
 {
-
 	bzero(cgd, sizeof(*cgd));
 	xpt_setup_ccb(&cgd->ccb_h, path, CAM_PRIORITY_NONE);
 	cgd->ccb_h.func_code = XPT_GDEV_TYPE;
