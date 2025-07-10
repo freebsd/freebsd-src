@@ -33,7 +33,7 @@ MAN=		kyua-about.1 \
 
 CFLAGS+=	-I${KYUA_SRCDIR} -I${.CURDIR}
 CFLAGS+=	-I${SRCTOP}/contrib/lutok/include
-CFLAGS+=	-I${SRCTOP}/contrib/sqlite3
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/sqlite3
 # kyua uses auto_ptr
 CFLAGS+=	-Wno-deprecated-declarations
 CXXSTD=		c++11
