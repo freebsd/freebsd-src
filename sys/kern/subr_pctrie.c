@@ -691,21 +691,23 @@ _pctrie_lookup_ge(struct pctrie *ptree, struct pctrie_node *node,
 	 */
 	if (node == PCTRIE_NULL || *pctrie_toval(node) < index) {
 		/* Climb the path to find a node with a descendant > index. */
-		for (node = parent; node != NULL; node = pctrie_parent(node)) {
-			slot = pctrie_slot(node, index) + 1;
-			if ((node->pn_popmap >> slot) != 0)
+		node = NULL;
+		while (parent != NULL) {
+			slot = pctrie_slot(parent, index) + 1;
+			if ((parent->pn_popmap >> slot) != 0)
 				break;
+			node = parent;
+			parent = pctrie_parent(node);
 		}
-		if (node == NULL) {
+		if (parent == NULL) {
 			if (parent_out != NULL)
-				*parent_out = NULL;
+				*parent_out = node;
 			return (NULL);
 		}
 
 		/* Step to the least child with a descendant > index. */
-		slot += ffs(node->pn_popmap >> slot) - 1;
-		parent = node;
-		node = pctrie_node_load(&node->pn_child[slot], NULL,
+		slot += ffs(parent->pn_popmap >> slot) - 1;
+		node = pctrie_node_load(&parent->pn_child[slot], NULL,
 		    PCTRIE_LOCKED);
 	}
 	/* Descend to the least leaf of the subtrie. */
@@ -785,21 +787,23 @@ _pctrie_lookup_le(struct pctrie *ptree, struct pctrie_node *node,
 	 */
 	if (node == PCTRIE_NULL || *pctrie_toval(node) > index) {
 		/* Climb the path to find a node with a descendant < index. */
-		for (node = parent; node != NULL; node = pctrie_parent(node)) {
-			slot = pctrie_slot(node, index);
-			if ((node->pn_popmap & ((1 << slot) - 1)) != 0)
+		node = NULL;
+		while (parent != NULL) {
+			slot = pctrie_slot(parent, index);
+			if ((parent->pn_popmap & ((1 << slot) - 1)) != 0)
 				break;
+			node = parent;
+			parent = pctrie_parent(node);
 		}
-		if (node == NULL) {
+		if (parent == NULL) {
 			if (parent_out != NULL)
-				*parent_out = NULL;
+				*parent_out = node;
 			return (NULL);
 		}
 
 		/* Step to the greatest child with a descendant < index. */
-		slot = ilog2(node->pn_popmap & ((1 << slot) - 1));
-		parent = node;
-		node = pctrie_node_load(&node->pn_child[slot], NULL,
+		slot = ilog2(parent->pn_popmap & ((1 << slot) - 1));
+		node = pctrie_node_load(&parent->pn_child[slot], NULL,
 		    PCTRIE_LOCKED);
 	}
 	/* Descend to the greatest leaf of the subtrie. */
