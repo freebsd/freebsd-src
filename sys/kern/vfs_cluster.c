@@ -260,8 +260,10 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 	 */
 	while (lblkno < (origblkno + maxra)) {
 		error = VOP_BMAP(vp, lblkno, NULL, &blkno, &ncontig, NULL);
-		if (error)
+		if (error) {
+			error = 0;
 			break;
+		}
 
 		if (blkno == -1)
 			break;
