@@ -1,7 +1,5 @@
 .\"-
-.\" SPDX-License-Identifier: BSD-2-Clause
-.\"
-.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\" Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,55 +23,80 @@
 .\" SUCH DAMAGE.
 .\"
 .Dd October 8, 2024
-.Dt AW_SID 4 arm
+.Dt AW_GPIO 4
 .Os
 .Sh NAME
-.Nm aw_sid
-.Nd driver for the SID controller in Allwinner SoC
+.Nm aw_gpio
+.Nd driver for the GPIO and pin muxing functionalities on Allwinner SoC
+.Sh SYNOPSIS
+.Cd "device gpio"
+.Cd "options SOC_ALLWINNER_A10"
+.Cd "options SOC_ALLWINNER_A13"
+.Cd "options SOC_ALLWINNER_A20"
+.Cd "options SOC_ALLWINNER_A31"
+.Cd "options SOC_ALLWINNER_A31S"
+.Cd "options SOC_ALLWINNER_A33"
+.Cd "options SOC_ALLWINNER_A83T"
+.Cd "options SOC_ALLWINNER_H2PLUS"
+.Cd "options SOC_ALLWINNER_H3"
+.Cd "options SOC_ALLWINNER_A64"
+.Cd "options SOC_ALLWINNER_H5"
+.Cd "options SOC_ALLWINNER_D1"
 .Sh DESCRIPTION
 The
 .Nm
-device driver provides support for the Allwinner SID (Security ID) controller.
-This controller provides root security keys that may be used as either a device
-unique ID or to generate a MAC address.
+device driver provides support for the Allwinner pin muxing and GPIO on
+Allwinner SoCs.
 .Sh HARDWARE
-The
+The current version of the
 .Nm
-driver supports the SID controller with one of the following compatible
-strings:
+driver supports the GPIO/pinmuxing controller with one of the following
+compatible strings :
 .Pp
 .Bl -bullet -compact
 .It
-allwinner,sun4i-a10-sid
+allwinner,sun4i-a10-pinctrl
 .It
-allwinner,sun7i-a20-sid
+allwinner,sun5i-a13-pinctrl
 .It
-allwinner,sun50i-a64-sid
+allwinner,sun7i-a20-pinctrl
 .It
-allwinner,sun8i-a83t-sid
+allwinner,sun6i-a31-pinctrl
 .It
-allwinner,sun8i-h3-sid
+allwinner,sun6i-a31s-pinctrl
 .It
-allwinner,sun50i-h5-sid
+allwinner,sun6i-a31-r-pinctrl
 .It
-allwinner,sun20i-d1-sid
+allwinner,sun6i-a33-pinctrl
+.It
+allwinner,sun8i-a83t-pinctrl
+.It
+allwinner,sun8i-a83t-r-pinctrl
+.It
+allwinner,sun8i-h3-pinctrl
+.It
+allwinner,sun50i-h5-pinctrl
+.It
+allwinner,sun8i-h3-r-pinctrl
+.It
+allwinner,sun50i-a64-pinctrl
+.It
+allwinner,sun50i-a64-r-pinctrl
+.It
+allwinner,sun20i-d1-pinctrl
 .El
-.Sh SYSCTL VARIABLES
-The following read-only variables are available via
-.Xr sysctl 8 :
-.Bl -tag -width indent
-.It Va dev.aw_sid.rootkey
-Root security key for this device.
-.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr gpio 4
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 11.0 .
+.Fx 10.0 .
 .Sh AUTHORS
 The
 .Nm
-device driver was written by
-.An Jared McNeill Aq Mt jmcneill@invisible.ca .
+device driver was originally written by
+.An Ganbold Tsagaankhuu Aq Mt ganbold@freebsd.org .
 This manual page was written by
-.An Kyle Evans Aq Mt kevans@FreeBSD.org .
+.An Emmanuel Vadot Aq Mt manu@freebsd.org .
