@@ -3541,8 +3541,10 @@ zfs_spa_init(spa_t *spa)
 		return (EIO);
 	}
 	rc = load_nvlist(spa, config_object, &nvlist);
-	if (rc != 0)
+	if (rc != 0) {
+		printf("ZFS: failed to load pool %s nvlist\n", spa->spa_name);
 		return (rc);
+	}
 
 	rc = zap_lookup(spa, &dir, DMU_POOL_ZPOOL_CHECKPOINT,
 	    sizeof(uint64_t), sizeof(checkpoint) / sizeof(uint64_t),
