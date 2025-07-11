@@ -23,9 +23,6 @@ SRCS+=	md4_prov.c wp_prov.c ripemd_prov.c
 # kdfs
 SRCS+=	pbkdf1.c
 
-# ssl
-SRCS+=	record/tls_pad.c
-
 .include <bsd.lib.mk>
 
 .PATH:	${LCRYPTO_SRC}/providers/implementations/ciphers \
