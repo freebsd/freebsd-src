@@ -1511,6 +1511,16 @@ static int provider_activate_fallbacks(struct provider_store_st *store)
     return ret;
 }
 
+int ossl_provider_activate_fallbacks(OSSL_LIB_CTX *ctx)
+{
+    struct provider_store_st *store = get_provider_store(ctx);
+
+    if (store == NULL)
+        return 0;
+
+    return provider_activate_fallbacks(store);
+}
+
 int ossl_provider_doall_activated(OSSL_LIB_CTX *ctx,
                                   int (*cb)(OSSL_PROVIDER *provider,
                                             void *cbdata),
@@ -1948,12 +1958,12 @@ const OSSL_ALGORITHM *ossl_provider_query_operation(const OSSL_PROVIDER *prov,
                 BIO_printf(trc_out,
                            "(provider %s) names %s, prop_def %s, desc %s\n",
                            prov->name,
-                           res->algorithm_names == NULL ? "none" :
-                           res->algorithm_names,
-                           res->property_definition == NULL ? "none" :
-                           res->property_definition,
-                           res->algorithm_description == NULL ? "none" :
-                           res->algorithm_description);
+                           idx->algorithm_names == NULL ? "none" :
+                           idx->algorithm_names,
+                           idx->property_definition == NULL ? "none" :
+                           idx->property_definition,
+                           idx->algorithm_description == NULL ? "none" :
+                           idx->algorithm_description);
             }
         } else {
             BIO_printf(trc_out, "(provider %s) query_operation failed\n", prov->name);

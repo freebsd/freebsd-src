@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -569,6 +569,12 @@ int dtls_get_more_records(OSSL_RECORD_LAYER *rl)
     if (rl->funcs->post_process_record && !rl->funcs->post_process_record(rl, rr)) {
         /* RLAYERfatal already called */
         return OSSL_RECORD_RETURN_FATAL;
+    }
+
+    if (rr->length == 0) {
+        /* No payload data in this record. Dump it */
+        rl->packet_length = 0;
+        goto again;
     }
 
     rl->num_recs = 1;

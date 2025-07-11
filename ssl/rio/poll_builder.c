@@ -16,7 +16,9 @@ OSSL_SAFE_MATH_UNSIGNED(size_t, size_t)
 
 int ossl_rio_poll_builder_init(RIO_POLL_BUILDER *rpb)
 {
-#if RIO_POLL_METHOD == RIO_POLL_METHOD_SELECT
+#if RIO_POLL_METHOD == RIO_POLL_METHOD_NONE
+    return 0;
+#elif RIO_POLL_METHOD == RIO_POLL_METHOD_SELECT
     FD_ZERO(&rpb->rfd);
     FD_ZERO(&rpb->wfd);
     FD_ZERO(&rpb->efd);
@@ -113,8 +115,11 @@ int ossl_rio_poll_builder_add_fd(RIO_POLL_BUILDER *rpb, int fd,
     if (i >= rpb->pfd_alloc) {
         if (!rpb_ensure_alloc(rpb, rpb->pfd_alloc * 2))
             return 0;
+        pfds = rpb->pfd_heap;
     }
 
+    assert((rpb->pfd_heap != NULL && rpb->pfd_heap == pfds) ||
+           (rpb->pfd_heap == NULL && rpb->pfds == pfds));
     assert(i <= rpb->pfd_num && rpb->pfd_num <= rpb->pfd_alloc);
     pfds[i].fd      = fd;
     pfds[i].events  = 0;

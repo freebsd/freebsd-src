@@ -505,9 +505,11 @@ static void *ecx_gen_init(void *provctx, int selection,
         if (algdesc != NULL
                 && !ossl_FIPS_IND_callback(libctx, algdesc, "KeyGen Init")) {
             OPENSSL_free(gctx);
-            return 0;
+            return NULL;
         }
 #endif
+    } else {
+        return NULL;
     }
     if (!ecx_gen_set_params(gctx, params)) {
         ecx_gen_cleanup(gctx);
@@ -842,6 +844,9 @@ static void *ed448_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
 static void ecx_gen_cleanup(void *genctx)
 {
     struct ecx_gen_ctx *gctx = genctx;
+
+    if (gctx == NULL)
+        return;
 
     OPENSSL_clear_free(gctx->dhkem_ikm, gctx->dhkem_ikmlen);
     OPENSSL_free(gctx->propq);

@@ -177,6 +177,8 @@ quic_new_record_layer(OSSL_LIB_CTX *libctx, const char *propq, int vers,
         if (!ossl_assert("Should not happen" == NULL))
             goto err;
 #endif
+    } else {
+        kdfdigest = NULL;
     }
 
     if (!rl->qtls->args.yield_secret_cb(level, qdir, suite_id,
@@ -855,6 +857,13 @@ int ossl_quic_tls_tick(QUIC_TLS *qtls)
     return 1;
 }
 #endif
+
+void ossl_quic_tls_clear(QUIC_TLS *qtls)
+{
+    if (qtls == NULL)
+        return;
+    qtls->local_transport_params_consumed = 0;
+}
 
 int ossl_quic_tls_set_transport_params(QUIC_TLS *qtls,
                                        const unsigned char *transport_params,

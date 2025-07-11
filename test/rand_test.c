@@ -15,6 +15,8 @@
 #include "crypto/rand.h"
 #include "testutil.h"
 
+static char *configfile;
+
 static int test_rand(void)
 {
     EVP_RAND_CTX *privctx;
@@ -23,6 +25,7 @@ static int test_rand(void)
     OSSL_PARAM params[2], *p = params;
     unsigned char entropy1[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
     unsigned char entropy2[] = { 0xff, 0xfe, 0xfd };
+    unsigned char nonce[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
     unsigned char outbuf[3];
 
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_RAND_PARAM_TEST_ENTROPY,
@@ -44,6 +47,13 @@ static int test_rand(void)
     if (!TEST_true(EVP_RAND_CTX_set_params(privctx, params))
             || !TEST_int_gt(RAND_priv_bytes(outbuf, sizeof(outbuf)), 0)
             || !TEST_mem_eq(outbuf, sizeof(outbuf), entropy2, sizeof(outbuf)))
+        return 0;
+
+    *params = OSSL_PARAM_construct_octet_string(OSSL_RAND_PARAM_TEST_NONCE,
+                                                nonce, sizeof(nonce));
+    if (!TEST_true(EVP_RAND_CTX_set_params(privctx, params))
+            || !TEST_true(EVP_RAND_nonce(privctx, outbuf, sizeof(outbuf)))
+            || !TEST_mem_eq(outbuf, sizeof(outbuf), nonce, sizeof(outbuf)))
         return 0;
 
     if (fips_provider_version_lt(NULL, 3, 4, 0)) {
@@ -244,9 +254,33 @@ static int test_rand_random_provider(void)
     return res;
 }
 
+static int test_rand_get0_primary(void)
+{
+    OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new();
+    int res = 0;
+
+    if (!TEST_ptr(ctx))
+        return 0;
+
+    if (!TEST_true(OSSL_LIB_CTX_load_config(ctx, configfile)))
+        goto err;
+
+    /* We simply test that we get a valid primary */
+    if (!TEST_ptr(RAND_get0_primary(ctx)))
+        goto err;
+
+    res = 1;
+ err:
+    OSSL_LIB_CTX_free(ctx);
+    return res;
+}
+
 int setup_tests(void)
 {
-    char *configfile;
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
 
     if (!TEST_ptr(configfile = test_get_argument(0))
             || !TEST_true(RAND_set_DRBG_type(NULL, "TEST-RAND", "fips=no",
@@ -263,5 +297,9 @@ int setup_tests(void)
         ADD_TEST(fips_health_tests);
 
     ADD_TEST(test_rand_random_provider);
+
+    if (!OSSL_PROVIDER_available(NULL, "fips")
+            || fips_provider_version_ge(NULL, 3, 5, 1))
+        ADD_TEST(test_rand_get0_primary);
     return 1;
 }

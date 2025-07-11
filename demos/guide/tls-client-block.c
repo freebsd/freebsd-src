@@ -1,5 +1,5 @@
 /*
- *  Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ *  Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  *  Licensed under the Apache License 2.0 (the "License").  You may not use
  *  this file except in compliance with the License.  You can obtain a copy
@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
      */
     bio = create_socket_bio(hostname, port, ipv6 ? AF_INET6 : AF_INET);
     if (bio == NULL) {
-        printf("Failed to crete the BIO\n");
+        printf("Failed to create the BIO\n");
         goto end;
     }
     SSL_set_bio(ssl, bio, bio);

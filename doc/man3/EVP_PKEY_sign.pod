@@ -40,7 +40,7 @@ signing a pre-computed message digest using the algorithm given by I<algo> and
 the key given through L<EVP_PKEY_CTX_new(3)> or L<EVP_PKEY_CTX_new_from_pkey(3)>.
 A context I<ctx> without a pre-loaded key cannot be used with this function.
 This function provides almost the same functionality as EVP_PKEY_sign_init_ex(),
-but is uniquely intended to be used with a pre-computed messsage digest, and
+but is uniquely intended to be used with a pre-computed message digest, and
 allows pre-determining the exact conditions for that message digest, if a
 composite signature algorithm (such as RSA-SHA256) was fetched.
 Following a call to this function, setting parameters that modifies the digest
@@ -358,7 +358,7 @@ where added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
