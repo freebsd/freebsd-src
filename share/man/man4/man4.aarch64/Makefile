@@ -14,12 +14,6 @@ MAN=	\
 # for all architectures, otherwise arm takes care of installing them.
 .if !empty(MAN_ARCH) && ${MAN_ARCH} != "all"
 MAN+=	\
-	aw_gpio.4 \
-	aw_mmc.4 \
-	aw_rtc.4 \
-	aw_sid.4 \
-	aw_spi.4 \
-	aw_syscon.4 \
 	bcm283x_pwm.4 \
 
 .endif

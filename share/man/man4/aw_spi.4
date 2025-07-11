@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
+.\" Copyright (c) 2018 Emmanuel Vadot <manu@freebsd.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,81 +22,34 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 8, 2024
-.Dt AW_GPIO 4 arm
+.Dd May 17, 2018
+.Dt AW_SPI 4
 .Os
 .Sh NAME
-.Nm aw_gpio
-.Nd driver for the GPIO and pin muxing functionalities on Allwinner SoC
+.Nm aw_spi
+.Nd driver for the SPI controller in Allwinner SoC
 .Sh SYNOPSIS
-.Cd "device gpio"
-.Cd "options SOC_ALLWINNER_A10"
-.Cd "options SOC_ALLWINNER_A13"
-.Cd "options SOC_ALLWINNER_A20"
-.Cd "options SOC_ALLWINNER_A31"
-.Cd "options SOC_ALLWINNER_A31S"
-.Cd "options SOC_ALLWINNER_A33"
-.Cd "options SOC_ALLWINNER_A83T"
-.Cd "options SOC_ALLWINNER_H2PLUS"
-.Cd "options SOC_ALLWINNER_H3"
-.Cd "options SOC_ALLWINNER_A64"
-.Cd "options SOC_ALLWINNER_H5"
-.Cd "options SOC_ALLWINNER_D1"
+.Cd "device aw_spi"
 .Sh DESCRIPTION
 The
 .Nm
-device driver provides support for the Allwinner pin muxing and GPIO on
-Allwinner SoCs.
+device driver provides support for the Allwinner SPI host controller.
 .Sh HARDWARE
 The current version of the
 .Nm
-driver supports the GPIO/pinmuxing controller with one of the following
-compatible strings :
+driver supports the SPI controller with one of the following compatible strings:
 .Pp
 .Bl -bullet -compact
 .It
-allwinner,sun4i-a10-pinctrl
-.It
-allwinner,sun5i-a13-pinctrl
-.It
-allwinner,sun7i-a20-pinctrl
-.It
-allwinner,sun6i-a31-pinctrl
-.It
-allwinner,sun6i-a31s-pinctrl
-.It
-allwinner,sun6i-a31-r-pinctrl
-.It
-allwinner,sun6i-a33-pinctrl
-.It
-allwinner,sun8i-a83t-pinctrl
-.It
-allwinner,sun8i-a83t-r-pinctrl
-.It
-allwinner,sun8i-h3-pinctrl
-.It
-allwinner,sun50i-h5-pinctrl
-.It
-allwinner,sun8i-h3-r-pinctrl
-.It
-allwinner,sun50i-a64-pinctrl
-.It
-allwinner,sun50i-a64-r-pinctrl
-.It
-allwinner,sun20i-d1-pinctrl
+allwinner,sun8i-h3-spi
 .El
-.Sh SEE ALSO
-.Xr fdt 4 ,
-.Xr gpio 4
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 10.0 .
+.Fx 12.0 .
 .Sh AUTHORS
 The
 .Nm
-device driver was originally written by
-.An Ganbold Tsagaankhuu Aq Mt ganbold@freebsd.org .
-This manual page was written by
+device driver was written by
 .An Emmanuel Vadot Aq Mt manu@freebsd.org .

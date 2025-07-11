@@ -69,6 +69,12 @@ MAN=	aac.4 \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
+	${_aw_gpio.4} \
+	${_aw_mmc.4} \
+	${_aw_rtc.4} \
+	${_aw_sid.4} \
+	${_aw_spi.4} \
+	${_aw_syscon.4} \
 	axe.4 \
 	axge.4 \
 	axp.4 \
@@ -962,6 +968,12 @@ _vmx.4=		vmx.4
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64" || \
 	 ${MACHINE_CPUARCH} == "riscv"
+_aw_gpio.4=	aw_gpio.4
+_aw_mmc.4=	aw_mmc.4
+_aw_rtc.4=	aw_rtc.4
+_aw_sid.4=	aw_sid.4
+_aw_spi.4=	aw_spi.4
+_aw_syscon.4=	aw_syscon.4
 _cgem.4=	cgem.4
 MLINKS+=cgem.4 if_cgem.4
 .endif
