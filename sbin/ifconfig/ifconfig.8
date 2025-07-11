@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 6, 2024
+.Dd July 11, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2828,16 +2828,6 @@ interfaces previously configured with
 Another name for the
 .Fl tunnel
 parameter.
-.It Cm accept_rev_ethip_ver
-Set a flag to accept both correct EtherIP packets and ones
-with reversed version field.
-Enabled by default.
-This is for backward compatibility with
-.Fx 6.1 ,
-6.2, 6.3, 7.0, and 7.1.
-.It Cm -accept_rev_ethip_ver
-Clear a flag
-.Cm accept_rev_ethip_ver .
 .It Cm ignore_source
 Set a flag to accept encapsulated packets destined to this host
 independently from source address.
@@ -2846,16 +2836,6 @@ from the load balancers.
 .It Cm -ignore_source
 Clear a flag
 .Cm ignore_source .
-.It Cm send_rev_ethip_ver
-Set a flag to send EtherIP packets with reversed version
-field intentionally.
-Disabled by default.
-This is for backward compatibility with
-.Fx 6.1 ,
-6.2, 6.3, 7.0, and 7.1.
-.It Cm -send_rev_ethip_ver
-Clear a flag
-.Cm send_rev_ethip_ver .
 .El
 .Ss GRE Tunnel Parameters
 The following parameters apply to GRE tunnel interfaces,
