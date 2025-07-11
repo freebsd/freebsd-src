@@ -157,7 +157,7 @@ ATF_TC_BODY(scandir_error, tc)
 {
 	char path[16];
 	struct dirent **namelist = NULL;
-	int fd, i, ret;
+	int fd, i;
 
 	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
 	for (i = 0; i < 1024; i++) {
@@ -170,9 +170,8 @@ ATF_TC_BODY(scandir_error, tc)
 	scandir_error_count = 0;
 	scandir_error_fd = fd;
 	scandir_error_select_return = 0;
-	ret = fdscandir(fd, &namelist, scandir_error_select, NULL);
-	ATF_CHECK_EQ(-1, ret);
-	ATF_CHECK_ERRNO(EBADF, ret < 0);
+	ATF_CHECK_ERRNO(EBADF,
+	    fdscandir(fd, &namelist, scandir_error_select, NULL) < 0);
 	ATF_CHECK_EQ(NULL, namelist);
 
 	/* second pass, select everything */
@@ -180,9 +179,8 @@ ATF_TC_BODY(scandir_error, tc)
 	scandir_error_count = 0;
 	scandir_error_fd = fd;
 	scandir_error_select_return = 1;
-	ret = fdscandir(fd, &namelist, scandir_error_select, NULL);
-	ATF_CHECK_EQ(-1, ret);
-	ATF_CHECK_ERRNO(EBADF, ret < 0);
+	ATF_CHECK_ERRNO(EBADF,
+	    fdscandir(fd, &namelist, scandir_error_select, NULL) < 0);
 	ATF_CHECK_EQ(NULL, namelist);
 }
 
