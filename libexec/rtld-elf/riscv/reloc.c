@@ -41,13 +41,6 @@
 #include "rtld.h"
 #include "rtld_printf.h"
 
-/*
- * It is possible for the compiler to emit relocations for unaligned data.
- * We handle this situation with these inlines.
- */
-#define	RELOC_ALIGNED_P(x) \
-	(((uintptr_t)(x) & (sizeof(void *) - 1)) == 0)
-
 uint64_t
 set_gp(Obj_Entry *obj)
 {
