@@ -557,8 +557,10 @@ open_to_fde_flags(int open_flags, bool sticky_orb)
 		{ .f = O_CLOFORK,		.t = UF_FOCLOSE },
 		{ .f = O_RESOLVE_BENEATH,	.t = UF_RESOLVE_BENEATH },
 	};
+#ifdef __clang__
 	_Static_assert(open_to_fde_flags_s[nitems(open_to_fde_flags_s) - 1].f ==
 	    O_RESOLVE_BENEATH, "O_RESOLVE_BENEATH must be last, for sticky_orb");
+#endif
 
 	return (flags_trans(open_to_fde_flags_s, nitems(open_to_fde_flags_s) -
 	    (sticky_orb ? 0 : 1), open_flags));
