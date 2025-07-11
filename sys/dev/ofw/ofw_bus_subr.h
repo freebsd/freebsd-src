@@ -33,7 +33,7 @@
 
 #include <sys/bus.h>
 #ifdef INTRNG
-#include <sys/intr.h>
+#include <machine/interrupt.h>
 #endif
 #include <dev/ofw/openfirm.h>
 
