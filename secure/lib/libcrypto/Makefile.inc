@@ -1,8 +1,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	3.0.16
-OPENSSL_DATE=	2025-02-11
+OPENSSL_VER=	3.5.0
+OPENSSL_DATE=	2025-07-01
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
@@ -10,6 +10,7 @@ LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
 CFLAGS+=	-I${LCRYPTO_SRC}
 CFLAGS+=	-I${LCRYPTO_SRC}/include
 CFLAGS+=	-I${LCRYPTO_SRC}/providers/common/include
+CFLAGS+=	-I${LCRYPTO_SRC}/providers/fips/include
 CFLAGS+=	-I${LCRYPTO_SRC}/providers/implementations/include
 
 .include "Makefile.common"

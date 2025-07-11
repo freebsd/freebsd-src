@@ -202,7 +202,7 @@ ossl_md5_block_asm_data_order:
 	leal	-165796510(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	24(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -213,7 +213,7 @@ ossl_md5_block_asm_data_order:
 	leal	-1069501632(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	44(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -224,7 +224,7 @@ ossl_md5_block_asm_data_order:
 	leal	643717713(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	0(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -235,7 +235,7 @@ ossl_md5_block_asm_data_order:
 	leal	-373897302(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	20(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
@@ -246,7 +246,7 @@ ossl_md5_block_asm_data_order:
 	leal	-701558691(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	40(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -257,7 +257,7 @@ ossl_md5_block_asm_data_order:
 	leal	38016083(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	60(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -268,7 +268,7 @@ ossl_md5_block_asm_data_order:
 	leal	-660478335(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	16(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -279,7 +279,7 @@ ossl_md5_block_asm_data_order:
 	leal	-405537848(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	36(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
@@ -290,7 +290,7 @@ ossl_md5_block_asm_data_order:
 	leal	568446438(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	56(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -301,7 +301,7 @@ ossl_md5_block_asm_data_order:
 	leal	-1019803690(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	12(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -312,7 +312,7 @@ ossl_md5_block_asm_data_order:
 	leal	-187363961(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	32(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -323,7 +323,7 @@ ossl_md5_block_asm_data_order:
 	leal	1163531501(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	52(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
@@ -334,7 +334,7 @@ ossl_md5_block_asm_data_order:
 	leal	-1444681467(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	8(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -345,7 +345,7 @@ ossl_md5_block_asm_data_order:
 	leal	-51403784(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	28(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -356,7 +356,7 @@ ossl_md5_block_asm_data_order:
 	leal	1735328473(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	48(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -367,7 +367,7 @@ ossl_md5_block_asm_data_order:
 	leal	-1926607734(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	20(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
