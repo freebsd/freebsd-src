@@ -6,6 +6,7 @@ MAN=	arch.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
 	c.7 \
+	d.7 \
 	clocks.7 \
 	crypto.7 \
 	development.7 \
