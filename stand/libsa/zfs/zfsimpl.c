@@ -2006,7 +2006,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	vdev_t *vdev;
 	nvlist_t *nvl;
 	uint64_t val;
-	uint64_t guid, vdev_children;
+	uint64_t guid;
 	uint64_t pool_txg, pool_guid;
 	const char *pool_name;
 	int rc, namelen;
@@ -2083,8 +2083,6 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	if (spa == NULL) {
 		char *name;
 
-		nvlist_find(nvl, ZPOOL_CONFIG_VDEV_CHILDREN,
-		    DATA_TYPE_UINT64, NULL, &vdev_children, NULL);
 		name = malloc(namelen + 1);
 		if (name == NULL) {
 			nvlist_destroy(nvl);
@@ -2098,7 +2096,6 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 			nvlist_destroy(nvl);
 			return (ENOMEM);
 		}
-		spa->spa_root_vdev->v_nchildren = vdev_children;
 	}
 	if (pool_txg > spa->spa_txg)
 		spa->spa_txg = pool_txg;
