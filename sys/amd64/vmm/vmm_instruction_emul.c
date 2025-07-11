@@ -65,30 +65,6 @@
 #include <x86/psl.h>
 #include <x86/specialreg.h>
 
-/* struct vie_op.op_type */
-enum {
-	VIE_OP_TYPE_NONE = 0,
-	VIE_OP_TYPE_MOV,
-	VIE_OP_TYPE_MOVSX,
-	VIE_OP_TYPE_MOVZX,
-	VIE_OP_TYPE_AND,
-	VIE_OP_TYPE_OR,
-	VIE_OP_TYPE_SUB,
-	VIE_OP_TYPE_TWO_BYTE,
-	VIE_OP_TYPE_PUSH,
-	VIE_OP_TYPE_CMP,
-	VIE_OP_TYPE_POP,
-	VIE_OP_TYPE_MOVS,
-	VIE_OP_TYPE_GROUP1,
-	VIE_OP_TYPE_STOS,
-	VIE_OP_TYPE_BITTEST,
-	VIE_OP_TYPE_TWOB_GRP15,
-	VIE_OP_TYPE_ADD,
-	VIE_OP_TYPE_TEST,
-	VIE_OP_TYPE_BEXTR,
-	VIE_OP_TYPE_LAST
-};
-
 /* struct vie_op.op_flags */
 #define	VIE_OP_F_IMM		(1 << 0)  /* 16/32-bit immediate operand */
 #define	VIE_OP_F_IMM8		(1 << 1)  /* 8-bit immediate operand */
@@ -151,6 +127,16 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x3B] = {
 		.op_byte = 0x3B,
 		.op_type = VIE_OP_TYPE_CMP,
+	},
+	[0x6E] = {
+		.op_byte = 0x6E,
+		.op_type = VIE_OP_TYPE_OUTS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION,
+	},
+	[0x6F] = {
+		.op_byte = 0x6F,
+		.op_type = VIE_OP_TYPE_OUTS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION,
 	},
 	[0x88] = {
 		.op_byte = 0x88,

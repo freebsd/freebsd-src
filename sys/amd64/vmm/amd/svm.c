@@ -317,6 +317,33 @@ svm_set_tsc_offset(struct svm_vcpu *vcpu, uint64_t offset)
 #define MSR_AMD7TH_START 	0xC0010000UL
 #define MSR_AMD7TH_END 		0xC0011FFFUL
 
+static void
+svm_get_cs_info(struct vmcb *vmcb, struct vm_guest_paging *paging, int *cs_d,
+    uint64_t *base)
+{
+	struct vmcb_segment seg;
+	int error __diagused;
+
+	error = vmcb_seg(vmcb, VM_REG_GUEST_CS, &seg);
+	KASSERT(error == 0, ("%s: vmcb_seg error %d", __func__, error));
+
+	switch (paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		*base = seg.base;
+		*cs_d = 0;
+		break;
+	case CPU_MODE_PROTECTED:
+	case CPU_MODE_COMPATIBILITY:
+		*cs_d = !!(seg.attrib & VMCB_CS_ATTRIB_D);
+		*base = seg.base;
+		break;
+	default:
+		*base = 0;
+		*cs_d = 0;
+		break;
+	}
+}
+
 /*
  * Get the index and bit position for a MSR in permission bitmap.
  * Two bits are used for each MSR: lower bit for read and higher bit for write.
@@ -735,10 +762,29 @@ svm_inout_str_seginfo(struct svm_vcpu *vcpu, int64_t info1, int in,
 
 	if (in) {
 		vis->seg_name = VM_REG_GUEST_ES;
-	} else {
-		/* The segment field has standard encoding */
+	} else if (decode_assist()) {
+		/*
+		 * The effective segment number in EXITINFO1[12:10] is populated
+		 * only if the processor has the DecodeAssist capability.
+		 *
+		 * XXX this is not specified explicitly in APMv2 but can be
+		 * verified empirically.
+		 */
 		s = (info1 >> 10) & 0x7;
+
+		/* The segment field has standard encoding */
 		vis->seg_name = vm_segment_name(s);
+	} else {
+		/*
+		 * The segment register need to be manually decoded by fetching
+		 * the instructions near ip. However, we are unable to fetch it
+		 * while the interrupts are disabled. Therefore, we leave the
+		 * value unset until the generic ins/outs handler runs.
+		 */
+		vis->seg_name = VM_REG_LAST;
+		svm_get_cs_info(vcpu->vmcb, &vis->paging, &vis->cs_d,
+		    &vis->cs_base);
+		return;
 	}
 
 	error = svm_getdesc(vcpu, vis->seg_name, &vis->seg_desc);
@@ -798,16 +844,6 @@ svm_handle_io(struct svm_vcpu *vcpu, struct vm_exit *vmexit)
 	info1 = ctrl->exitinfo1;
 	inout_string = info1 & BIT(2) ? 1 : 0;
 
-	/*
-	 * The effective segment number in EXITINFO1[12:10] is populated
-	 * only if the processor has the DecodeAssist capability.
-	 *
-	 * XXX this is not specified explicitly in APMv2 but can be verified
-	 * empirically.
-	 */
-	if (inout_string && !decode_assist())
-		return (UNHANDLED);
-
 	vmexit->exitcode 	= VM_EXITCODE_INOUT;
 	vmexit->u.inout.in 	= (info1 & BIT(0)) ? 1 : 0;
 	vmexit->u.inout.string 	= inout_string;
@@ -825,6 +861,8 @@ svm_handle_io(struct svm_vcpu *vcpu, struct vm_exit *vmexit)
 		vis->index = svm_inout_str_index(regs, vmexit->u.inout.in);
 		vis->count = svm_inout_str_count(regs, vmexit->u.inout.rep);
 		vis->addrsize = svm_inout_str_addrsize(info1);
+		vis->cs_d = 0;
+		vis->cs_base = 0;
 		svm_inout_str_seginfo(vcpu, info1, vmexit->u.inout.in, vis);
 	}
 
@@ -866,10 +904,9 @@ static void
 svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 {
 	struct vm_guest_paging *paging;
-	struct vmcb_segment seg;
 	struct vmcb_ctrl *ctrl;
 	char *inst_bytes;
-	int error __diagused, inst_len;
+	int inst_len;
 
 	ctrl = &vmcb->ctrl;
 	paging = &vmexit->u.inst_emul.paging;
@@ -879,29 +916,8 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
 	svm_paging_info(vmcb, paging);
 
-	error = vmcb_seg(vmcb, VM_REG_GUEST_CS, &seg);
-	KASSERT(error == 0, ("%s: vmcb_seg(CS) error %d", __func__, error));
-
-	switch(paging->cpu_mode) {
-	case CPU_MODE_REAL:
-		vmexit->u.inst_emul.cs_base = seg.base;
-		vmexit->u.inst_emul.cs_d = 0;
-		break;
-	case CPU_MODE_PROTECTED:
-	case CPU_MODE_COMPATIBILITY:
-		vmexit->u.inst_emul.cs_base = seg.base;
-
-		/*
-		 * Section 4.8.1 of APM2, Default Operand Size or D bit.
-		 */
-		vmexit->u.inst_emul.cs_d = (seg.attrib & VMCB_CS_ATTRIB_D) ?
-		    1 : 0;
-		break;
-	default:
-		vmexit->u.inst_emul.cs_base = 0;
-		vmexit->u.inst_emul.cs_d = 0;
-		break;
-	}
+	svm_get_cs_info(vmcb, paging, &vmexit->u.inst_emul.cs_d,
+	    &vmexit->u.inst_emul.cs_base);
 
 	/*
 	 * Copy the instruction bytes into 'vie' if available.

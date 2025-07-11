@@ -2659,6 +2659,8 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 			vis->index = inout_str_index(vcpu, in);
 			vis->count = inout_str_count(vcpu, vis->inout.rep);
 			vis->addrsize = inout_str_addrsize(inst_info);
+			vis->cs_d = 0;
+			vis->cs_base = 0;
 			inout_str_seginfo(vcpu, inst_info, in, vis);
 		}
 		SDT_PROBE3(vmm, vmx, exit, inout, vmx, vcpuid, vmexit);

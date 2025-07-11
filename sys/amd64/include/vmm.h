@@ -649,6 +649,8 @@ struct vm_inout_str {
 	int		addrsize;
 	enum vm_reg_name seg_name;
 	struct seg_desc seg_desc;
+	int		cs_d;
+	uint64_t	cs_base;
 };
 
 enum task_switch_reason {
