@@ -5008,15 +5008,15 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 #ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
+	u_int ix = 0;
 #endif
 	struct ath_buf *bf;
-	u_int ix;
 
 	/*
 	 * NB: this assumes output has been stopped and
 	 *     we do not need to block ath_tx_proc
 	 */
-	for (ix = 0;; ix++) {
+	while (1) {
 		ATH_TXQ_LOCK(txq);
 		bf = ath_tx_draintxq_get_one(sc, txq);
 		if (bf == NULL) {
@@ -5041,7 +5041,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 				    bf->bf_lastds,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			}
-			ath_printtxbuf(sc, bf, txq->axq_qnum, ix, status);
+			ath_printtxbuf(sc, bf, txq->axq_qnum, ix++, status);
 			ieee80211_dump_pkt(ic, mtod(bf->bf_m, const uint8_t *),
 			    bf->bf_m->m_len, 0, -1);
 		}
