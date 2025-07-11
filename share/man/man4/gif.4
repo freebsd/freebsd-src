@@ -1,6 +1,7 @@
 .\"	$KAME: gif.4,v 1.28 2001/05/18 13:15:56 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" Copyright (C) 2024 Hiroki Sato <hrs@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 21, 2018
+.Dd July 14, 2025
 .Dt GIF 4
 .Os
 .Sh NAME
@@ -67,8 +68,8 @@ variable in
 .Pp
 To use
 .Nm ,
-the administrator needs to configure the protocol and addresses used for the outer
-header.
+the administrator needs to configure the protocol and addresses used for
+the outer header.
 This can be done by using
 .Xr ifconfig 8
 .Cm tunnel ,
@@ -79,8 +80,7 @@ The administrator also needs to configure the protocol and addresses for the
 inner header, with
 .Xr ifconfig 8 .
 Note that IPv6 link-local addresses
-(those that start with
-.Li fe80:: )
+.Pq those that start with Li fe80\&:\&:
 will be automatically configured whenever possible.
 You may need to remove IPv6 link-local addresses manually using
 .Xr ifconfig 8 ,
@@ -89,12 +89,139 @@ if you want to disable the use of IPv6 as the inner header
 Finally, you must modify the routing table to route the packets through the
 .Nm
 interface.
-.Pp
+.Ss MTU Configuration and Path MTU Discovery
 The
 .Nm
-device can be configured to be ECN friendly.
-This can be configured by
-.Dv IFF_LINK1 .
+interface uses the fixed length,
+.Li 1280 ,
+to determine whether the outgoing IPv6 packets are split.
+This means the MTU value configured on the interface will be ignored
+when the outer protocol is IPv6.
+When the
+.Dv NOCLAMP
+interface flag is set,
+.Nm
+uses the same configured value as IPv4 communications.
+This behavior prevents potential issues when the path MTU is
+smaller than the interface MTU.
+This section describes the reason why the default behavior is different.
+The
+.Dv NOCLAMP
+interface flag can be set using the following command:
+.Pp
+.Dl ifconfig Ar gif0 Cm noclamp
+.Pp
+and clear the flag using the following:
+.Pp
+.Dl ifconfig Ar gif0 Cm -noclamp
+.Pp
+where
+.Ar gif0
+is the actual interface name.
+.Pp
+A tunnel interface always has an implicit smaller MTU for the inner protocol
+than the outer protocol because of the additional header.
+Note that the interface MTU on a
+.Nm
+interface,
+the default value is
+.Li 1280 ,
+is used as MTU for the outer protocol.
+This means that the MTU for the inner protocol varies depending on the
+outer protocol header length.
+If an outgoing packet bigger than the inner protocol MTU arrives at a
+.Nm
+interface for encapsulation,
+it will be split into fragments.
+Specifically,
+if IPv4 is used as the outer protocol,
+the inner is 20 octets smaller than the interface MTU.
+In the case of the default interface MTU,
+.Li 1280 ,
+inner packets bigger than
+.Li 1260
+will be fragmented.
+In the case of IPv6,
+the inner is 40 octets smaller than the outer.
+.Pp
+This fragmentation is not harmful though it can degrade the
+performance.
+Note that while an increased MTU on
+.Nm
+interface helps to mitigate this reduced performance issue,
+it can also cause packet losses on the intermediate narrowest path
+between the two communication endpoints in IPv6.
+IPv6 allows fragmentation only on the sender,
+not on the routers in the communication path.
+A big outgoing packet will be dropped on a router with a smaller MTU.
+.Pp
+In normal IPv6 communication,
+an ICMPv6 Packet Too Big error will be sent back to the sender,
+who can adjust the packet length and re-send it.
+This process is performed in the upper protocols than L3,
+such as TCP,
+and makes the packet length shorter so that packets go through
+the path without fragmentation.
+This behavior is known as path MTU discovery.
+.Pp
+When using a
+.Nm
+interface,
+the Packet Too Big message is generated for the outer protocol.
+Since the
+.Nm
+interface does not translate this error to the inner protocol,
+the inner protocol sees it just as a packet loss with no useful
+information to adjust the length of the next packets.
+In this situation,
+path MTU discovery does not work,
+and communications of the inner protocol
+become stalled.
+.Pp
+In order to avoid this,
+a
+.Nm
+interface silently splits a packet of over 1240 octets into fragments to make
+the outer protocol packets equal or shorter than 1280 octets,
+even when the interface MTU is configured as larger than 1280.
+Note that this occurs only when the outer protocol is IPv6.
+.Li 1280
+is the smallest MTU in IPv6 and guarantees no packet loss occurs
+on intermediate routers.
+.Pp
+As mentioned earlier,
+the performance is sub-optimal if the actual path MTU is larger than
+.Li 1280 .
+A typical confusing scenario is as follows.
+The
+.Nm
+interface can have Ethernet,
+whose MTU is usually 1500,
+as the inner protocol.
+It is called an EtherIP tunnel,
+and can be configured by adding the
+.Nm
+interface as a member of
+.Xr if_bridge 4
+interface.
+The
+.Xr if_bridge 4
+interface forcibly changes the MTU of the
+.Nm
+interface with those for the other member interfaces,
+which are likely 1500.
+In this case,
+a situation in which the MTU of the
+.Nm
+interface is 1500 but fragmentation in 1280 octets always occurs.
+.Pp
+The default behavior is most conservative to prevent confusing packet loss.
+Depending on the network configuration,
+enabling the
+.Dv NOCLAMP
+interface flag might be helpful for better performance.
+It is crucial to ensure that the path MTU is equal to or larger than
+the interface MTU when enabling this flag.
 .Ss ECN friendly behavior
 The
 .Nm
@@ -169,6 +296,7 @@ variable
 to the desired level of nesting.
 .Sh SEE ALSO
 .Xr gre 4 ,
+.Xr if_bridge 4 ,
 .Xr inet 4 ,
 .Xr inet6 4 ,
 .Xr ifconfig 8
@@ -199,7 +327,8 @@ There are many tunnelling protocol specifications, all
 defined differently from each other.
 The
 .Nm
-device may not interoperate with peers which are based on different specifications,
+device may not interoperate with peers which are based on different
+specifications,
 and are picky about outer header fields.
 For example, you cannot usually use
 .Nm
@@ -219,11 +348,14 @@ to 1240 or smaller, when the outer header is IPv6 and the inner header is IPv4.
 .Pp
 The
 .Nm
-device does not translate ICMP messages for the outer header into the inner header.
+device does not translate ICMP messages for the outer header into the inner
+header.
 .Pp
 In the past,
 .Nm
 had a multi-destination behavior, configurable via
-.Dv IFF_LINK0
+.Dv NOCLAMP
 flag.
 The behavior is obsolete and is no longer supported.
+This flag is now used to determine whether performing fragmentation when
+the outer protocol is IPv6.
