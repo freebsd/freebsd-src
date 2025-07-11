@@ -7315,18 +7315,6 @@ static int test_ssl_clear(int idx)
         } else {
             SSL_set_accept_state(serverssl);
         }
-        /*
-         * A peculiarity of SSL_clear() is that it does not clear the session.
-         * This is intended behaviour so that a client can create a new
-         * connection and reuse the session. But this doesn't make much sense
-         * on the server side - and causes incorrect behaviour due to the
-         * handshake failing (even though the documentation does say SSL_clear()
-         * is supposed to work on the server side). We clear the session
-         * explicitly - although note that the documentation for
-         * SSL_set_session() says that its only useful for clients!
-         */
-        if (!TEST_true(SSL_set_session(serverssl, NULL)))
-            goto end;
         SSL_free(clientssl);
         clientssl = NULL;
     } else {
@@ -12599,6 +12587,7 @@ struct quic_tls_test_data {
     int alert;
     int err;
     int forcefail;
+    int sm_count;
 };
 
 static int clientquicdata = 0xff, serverquicdata = 0xfe;
@@ -12686,6 +12675,94 @@ static int crypto_release_rcd_cb(SSL *s, size_t bytes_read, void *arg)
     return 1;
 }
 
+struct secret_yield_entry {
+    uint8_t recorded;
+    int prot_level;
+    int direction;
+    int sm_generation;
+    SSL *ssl;
+};
+
+static struct secret_yield_entry secret_history[16];
+static int secret_history_idx = 0;
+/*
+ * Note, this enum needs to match the direction values passed
+ * to yield_secret_cb
+ */
+typedef enum {
+    LAST_DIR_READ = 0,
+    LAST_DIR_WRITE = 1,
+    LAST_DIR_UNSET = 2
+} last_dir_history_state;
+
+static int check_secret_history(SSL *s)
+{
+    int i;
+    int ret = 0;
+    last_dir_history_state last_state = LAST_DIR_UNSET;
+    int last_prot_level = 0;
+    int last_generation = 0;
+
+    TEST_info("Checking history for %p\n", (void *)s);
+    for (i = 0; secret_history[i].recorded == 1; i++) {
+        if (secret_history[i].ssl != s)
+            continue;
+        TEST_info("Got %s(%d) secret for level %d, last level %d, last state %d, gen %d\n",
+                  secret_history[i].direction == 1 ? "Write" : "Read", secret_history[i].direction,
+                  secret_history[i].prot_level, last_prot_level, last_state,
+                  secret_history[i].sm_generation);
+
+        if (last_state == LAST_DIR_UNSET) {
+            last_prot_level = secret_history[i].prot_level;
+            last_state = secret_history[i].direction;
+            last_generation = secret_history[i].sm_generation;
+            continue;
+        }
+
+        switch(secret_history[i].direction) {
+        case 1:
+            /*
+             * write case
+             * NOTE: There is an odd corner case here.  It may occur that
+             * in a single iteration of the state machine, the read key is yielded
+             * prior to the write key for the same level.  This is undesireable
+             * for quic, but it is ok, as the general implementation of every 3rd
+             * party quic stack while prefering write keys before read, allows
+             * for read before write if both keys are yielded in the same call
+             * to SSL_do_handshake, as the tls adaptation code for that quic stack
+             * can then cache keys until both are available, so we allow read before
+             * write here iff they occur in the same iteration of SSL_do_handshake
+             * as represented by the recorded sm_generation value.
+             */
+            if (last_prot_level == secret_history[i].prot_level
+                && last_state == LAST_DIR_READ) {
+                if (last_generation == secret_history[i].sm_generation) {
+                    TEST_info("Read before write key in same SSL state machine iteration is ok");
+                } else {
+                    TEST_error("Got read key before write key");
+                    goto end;
+                }
+            }
+            /* FALLTHROUGH */
+        case 0:
+            /*
+             * Read case
+             */
+            break;
+        default:
+            TEST_error("Unknown direction");
+            goto end;
+        }
+        last_prot_level = secret_history[i].prot_level;
+        last_state = secret_history[i].direction;
+        last_generation = secret_history[i].sm_generation;
+    }
+
+    ret = 1;
+end:
+    return ret;
+}
+
 static int yield_secret_cb(SSL *s, uint32_t prot_level, int direction,
                            const unsigned char *secret, size_t secret_len,
                            void *arg)
@@ -12720,9 +12797,31 @@ static int yield_secret_cb(SSL *s, uint32_t prot_level, int direction,
         goto err;
     }
 
+    secret_history[secret_history_idx].direction = direction;
+    secret_history[secret_history_idx].prot_level = (int)prot_level;
+    secret_history[secret_history_idx].recorded = 1;
+    secret_history[secret_history_idx].ssl = s;
+    secret_history[secret_history_idx].sm_generation = data->sm_count;
+    secret_history_idx++;
     return 1;
  err:
     data->err = 1;
+    return 0;
+}
+
+static int yield_secret_cb_fail(SSL *s, uint32_t prot_level, int direction,
+                                const unsigned char *secret, size_t secret_len,
+                                void *arg)
+{
+    (void)s;
+    (void)prot_level;
+    (void)direction;
+    (void)secret;
+    (void)secret_len;
+    (void)arg;
+    /*
+     * This callback is to test double free in quic tls
+     */
     return 0;
 }
 
@@ -12766,13 +12865,15 @@ static int alert_cb(SSL *s, unsigned char alert_code, void *arg)
  * Test 0: Normal run
  * Test 1: Force a failure
  * Test 3: Use a CCM based ciphersuite
+ * Test 4: fail yield_secret_cb to see double free
+ * Test 5: Normal run with SNI
  */
 static int test_quic_tls(int idx)
 {
-    SSL_CTX *sctx = NULL, *cctx = NULL;
+    SSL_CTX *sctx = NULL, *sctx2 = NULL, *cctx = NULL;
     SSL *serverssl = NULL, *clientssl = NULL;
     int testresult = 0;
-    const OSSL_DISPATCH qtdis[] = {
+    OSSL_DISPATCH qtdis[] = {
         {OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_SEND, (void (*)(void))crypto_send_cb},
         {OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RECV_RCD,
          (void (*)(void))crypto_recv_rcd_cb},
@@ -12794,6 +12895,12 @@ static int test_quic_tls(int idx)
     };
     int i;
 
+    if (idx == 4)
+        qtdis[3].function = (void (*)(void))yield_secret_cb_fail;
+
+    snicb = 0;
+    memset(secret_history, 0, sizeof(secret_history));
+    secret_history_idx = 0;
     memset(&sdata, 0, sizeof(sdata));
     memset(&cdata, 0, sizeof(cdata));
     sdata.peer = &cdata;
@@ -12805,6 +12912,18 @@ static int test_quic_tls(int idx)
                                        TLS_client_method(), TLS1_3_VERSION, 0,
                                        &sctx, &cctx, cert, privkey)))
         goto end;
+
+    if (idx == 5) {
+        if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(), NULL,
+                                           TLS1_3_VERSION, 0,
+                                           &sctx2, NULL, cert, privkey)))
+            goto end;
+
+        /* Set up SNI */
+        if (!TEST_true(SSL_CTX_set_tlsext_servername_callback(sctx, sni_cb))
+                || !TEST_true(SSL_CTX_set_tlsext_servername_arg(sctx, sctx2)))
+            goto end;
+    }
 
     if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl, NULL,
                                       NULL)))
@@ -12832,16 +12951,24 @@ static int test_quic_tls(int idx)
                                                             sizeof(sparams))))
         goto end;
 
-    if (idx != 1) {
-        if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+    if (idx != 1 && idx != 4) {
+        if (!TEST_true(create_ssl_connection_ex(serverssl, clientssl, SSL_ERROR_NONE,
+                                                &cdata.sm_count, &sdata.sm_count)))
             goto end;
     } else {
         /* We expect this connection to fail */
-        if (!TEST_false(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+        if (!TEST_false(create_ssl_connection_ex(serverssl, clientssl, SSL_ERROR_NONE,
+                                                 &cdata.sm_count, &sdata.sm_count)))
             goto end;
         testresult = 1;
         sdata.err = 0;
         goto end;
+    }
+
+    /* We should have had the SNI callback called exactly once */
+    if (idx == 5) {
+        if (!TEST_int_eq(snicb, 1))
+            goto end;
     }
 
     /* Check no problems during the handshake */
@@ -12860,6 +12987,14 @@ static int test_quic_tls(int idx)
             goto end;
     }
 
+    /*
+     * Check that our secret history yields write secrets before read secrets
+     */
+    if (!TEST_int_eq(check_secret_history(serverssl), 1))
+        goto end;
+    if (!TEST_int_eq(check_secret_history(clientssl), 1))
+        goto end;
+
     /* Check the transport params */
     if (!TEST_mem_eq(sdata.params, sdata.params_len, cparams, sizeof(cparams))
             || !TEST_mem_eq(cdata.params, cdata.params_len, sparams,
@@ -12877,6 +13012,7 @@ static int test_quic_tls(int idx)
  end:
     SSL_free(serverssl);
     SSL_free(clientssl);
+    SSL_CTX_free(sctx2);
     SSL_CTX_free(sctx);
     SSL_CTX_free(cctx);
 
@@ -12924,6 +13060,8 @@ static int test_quic_tls_early_data(void)
     };
     int i;
 
+    memset(secret_history, 0, sizeof(secret_history));
+    secret_history_idx = 0;
     memset(&sdata, 0, sizeof(sdata));
     memset(&cdata, 0, sizeof(cdata));
     sdata.peer = &cdata;
@@ -12973,6 +13111,12 @@ static int test_quic_tls_early_data(void)
                                                             sizeof(sparams))))
         goto end;
 
+    /*
+     * Reset our secret history so we get the record of the second connection
+     */
+    memset(secret_history, 0, sizeof(secret_history));
+    secret_history_idx = 0;
+
     SSL_set_quic_tls_early_data_enabled(serverssl, 1);
     SSL_set_quic_tls_early_data_enabled(clientssl, 1);
 
@@ -12993,7 +13137,10 @@ static int test_quic_tls_early_data(void)
             || !TEST_true(cdata.wenc_level == OSSL_RECORD_PROTECTION_LEVEL_EARLY))
         goto end;
 
-    if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+    sdata.sm_count = 0;
+    cdata.sm_count = 0;
+    if (!TEST_true(create_ssl_connection_ex(serverssl, clientssl, SSL_ERROR_NONE,
+                                            &cdata.sm_count, &sdata.sm_count)))
         goto end;
 
     /* Check no problems during the handshake */
@@ -13011,6 +13158,11 @@ static int test_quic_tls_early_data(void)
                          cdata.rsecret[i], cdata.rsecret_len[i]))
             goto end;
     }
+
+    if (!TEST_int_eq(check_secret_history(serverssl), 1))
+        goto end;
+    if (!TEST_int_eq(check_secret_history(clientssl), 1))
+        goto end;
 
     /* Check the transport params */
     if (!TEST_mem_eq(sdata.params, sdata.params_len, cparams, sizeof(cparams))
@@ -13043,6 +13195,79 @@ static int test_quic_tls_early_data(void)
     return testresult;
 }
 #endif /* !defined(OSSL_NO_USABLE_TLS1_3) */
+
+static int test_no_renegotiation(int idx)
+{
+    SSL_CTX *sctx = NULL, *cctx = NULL;
+    SSL *serverssl = NULL, *clientssl = NULL;
+    int testresult = 0, ret;
+    int max_proto;
+    const SSL_METHOD *sm, *cm;
+    unsigned char buf[5];
+
+    if (idx == 0) {
+#ifndef OPENSSL_NO_TLS1_2
+        max_proto = TLS1_2_VERSION;
+        sm = TLS_server_method();
+        cm = TLS_client_method();
+#else
+        return TEST_skip("TLSv1.2 is disabled in this build");
+#endif
+    } else {
+#ifndef OPENSSL_NO_DTLS1_2
+        max_proto = DTLS1_2_VERSION;
+        sm = DTLS_server_method();
+        cm = DTLS_client_method();
+#else
+        return TEST_skip("DTLSv1.2 is disabled in this build");
+#endif
+    }
+    if (!TEST_true(create_ssl_ctx_pair(libctx, sm, cm, 0, max_proto,
+                                       &sctx, &cctx, cert, privkey)))
+        goto end;
+
+    SSL_CTX_set_options(sctx, SSL_OP_NO_RENEGOTIATION);
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl, NULL,
+                                      NULL)))
+        goto end;
+
+    if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+        goto end;
+
+    if (!TEST_true(SSL_renegotiate(clientssl))
+            || !TEST_int_le(ret = SSL_connect(clientssl), 0)
+            || !TEST_int_eq(SSL_get_error(clientssl, ret), SSL_ERROR_WANT_READ))
+        goto end;
+
+    /*
+     * We've not sent any application data, so we expect this to fail. It should
+     * also read the renegotiation attempt, and send back a no_renegotiation
+     * warning alert because we have renegotiation disabled.
+     */
+    if (!TEST_int_le(ret = SSL_read(serverssl, buf, sizeof(buf)), 0))
+        goto end;
+    if (!TEST_int_eq(SSL_get_error(serverssl, ret), SSL_ERROR_WANT_READ))
+        goto end;
+
+    /*
+     * The client should now see the no_renegotiation warning and fail the
+     * connection
+     */
+    if (!TEST_int_le(ret = SSL_connect(clientssl), 0)
+            || !TEST_int_eq(SSL_get_error(clientssl, ret), SSL_ERROR_SSL)
+            || !TEST_int_eq(ERR_GET_REASON(ERR_get_error()), SSL_R_NO_RENEGOTIATION))
+        goto end;
+
+    testresult = 1;
+ end:
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+
+    return testresult;
+}
 
 OPT_TEST_DECLARE_USAGE("certfile privkeyfile srpvfile tmpfile provider config dhfile\n")
 
@@ -13369,9 +13594,10 @@ int setup_tests(void)
 #endif
     ADD_ALL_TESTS(test_alpn, 4);
 #if !defined(OSSL_NO_USABLE_TLS1_3)
-    ADD_ALL_TESTS(test_quic_tls, 3);
+    ADD_ALL_TESTS(test_quic_tls, 6);
     ADD_TEST(test_quic_tls_early_data);
 #endif
+    ADD_ALL_TESTS(test_no_renegotiation, 2);
     return 1;
 
  err:

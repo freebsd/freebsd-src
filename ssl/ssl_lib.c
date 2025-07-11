@@ -33,6 +33,11 @@
 #include "internal/ssl_unwrap.h"
 #include "quic/quic_local.h"
 
+#ifndef OPENSSL_NO_SSLKEYLOG
+# include <sys/stat.h>
+# include <fcntl.h>
+#endif
+
 static int ssl_undefined_function_3(SSL_CONNECTION *sc, unsigned char *r,
                                     unsigned char *s, size_t t, size_t *u)
 {
@@ -652,6 +657,8 @@ int ossl_ssl_connection_reset(SSL *s)
             return 0;
     }
 
+    ossl_quic_tls_clear(sc->qtls);
+
     if (!RECORD_LAYER_reset(&sc->rlayer))
         return 0;
 
@@ -1135,52 +1142,55 @@ int SSL_set_trust(SSL *s, int trust)
     return X509_VERIFY_PARAM_set_trust(sc->param, trust);
 }
 
-int SSL_set1_host(SSL *s, const char *hostname)
+int SSL_set1_host(SSL *s, const char *host)
 {
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
 
     if (sc == NULL)
         return 0;
 
-    /* If a hostname is provided and parses as an IP address,
-     * treat it as such. */
-    if (hostname != NULL
-        && X509_VERIFY_PARAM_set1_ip_asc(sc->param, hostname) == 1)
+    /* clear hostname(s) and IP address in any case, also if host parses as an IP address */
+    (void)X509_VERIFY_PARAM_set1_host(sc->param, NULL, 0);
+    (void)X509_VERIFY_PARAM_set1_ip(sc->param, NULL, 0);
+    if (host == NULL)
         return 1;
 
-    return X509_VERIFY_PARAM_set1_host(sc->param, hostname, 0);
+    /* If a host is provided and parses as an IP address, treat it as such. */
+    return X509_VERIFY_PARAM_set1_ip_asc(sc->param, host)
+        || X509_VERIFY_PARAM_set1_host(sc->param, host, 0);
 }
 
-int SSL_add1_host(SSL *s, const char *hostname)
+int SSL_add1_host(SSL *s, const char *host)
 {
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
 
     if (sc == NULL)
         return 0;
 
-    /* If a hostname is provided and parses as an IP address,
-     * treat it as such. */
-    if (hostname) {
+    /* If a host is provided and parses as an IP address, treat it as such. */
+    if (host != NULL) {
         ASN1_OCTET_STRING *ip;
         char *old_ip;
 
-        ip = a2i_IPADDRESS(hostname);
-        if (ip) {
+        ip = a2i_IPADDRESS(host);
+        if (ip != NULL) {
             /* We didn't want it; only to check if it *is* an IP address */
             ASN1_OCTET_STRING_free(ip);
 
             old_ip = X509_VERIFY_PARAM_get1_ip_asc(sc->param);
-            if (old_ip) {
+            if (old_ip != NULL) {
                 OPENSSL_free(old_ip);
                 /* There can be only one IP address */
+                ERR_raise_data(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT,
+                               "IP address was already set");
                 return 0;
             }
 
-            return X509_VERIFY_PARAM_set1_ip_asc(sc->param, hostname);
+            return X509_VERIFY_PARAM_set1_ip_asc(sc->param, host);
         }
     }
 
-    return X509_VERIFY_PARAM_add1_host(sc->param, hostname, 0);
+    return X509_VERIFY_PARAM_add1_host(sc->param, host, 0);
 }
 
 void SSL_set_hostflags(SSL *s, unsigned int flags)
@@ -3978,6 +3988,33 @@ static void do_sslkeylogfile(const SSL *ssl, const char *line)
  * via ssl.h.
  */
 
+#ifndef OPENSSL_NO_SSLKEYLOG
+static BIO *get_sslkeylog_bio(const char *keylogfile)
+{
+# ifdef _POSIX_C_SOURCE
+    BIO *b;
+    int fdno = -1;
+    FILE *fp = NULL;
+
+    fdno = open(keylogfile, O_WRONLY | O_CREAT | O_APPEND,  0600);
+    if (fdno < 0)
+        return NULL;
+
+    fp = fdopen(fdno, "a");
+    if (fp == NULL) {
+        close(fdno);
+        return NULL;
+    }
+
+    if ((b = BIO_new_fp(fp, BIO_CLOSE)) == NULL)
+        fclose(fp);
+    return b;
+# else
+    return BIO_new_file(keylogfile, "a");
+# endif
+}
+#endif
+
 SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
                         const SSL_METHOD *meth)
 {
@@ -4290,7 +4327,7 @@ SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
              * if its already there.
              */
             if (keylog_bio == NULL) {
-                keylog_bio = BIO_new_file(keylogfile, "a");
+                keylog_bio = get_sslkeylog_bio(keylogfile);
                 if (keylog_bio == NULL) {
                     OSSL_TRACE(TLS, "Unable to create keylog bio\n");
                     goto out;
@@ -4945,6 +4982,9 @@ int SSL_do_handshake(SSL *s)
         return ossl_quic_do_handshake(s);
 #endif
 
+    if (sc == NULL)
+        return -1;
+
     if (sc->handshake_func == NULL) {
         ERR_raise(ERR_LIB_SSL, SSL_R_CONNECTION_TYPE_NOT_SET);
         return -1;
@@ -4977,7 +5017,8 @@ void SSL_set_accept_state(SSL *s)
 
 #ifndef OPENSSL_NO_QUIC
     if (IS_QUIC(s)) {
-        ossl_quic_set_accept_state(s);
+        /* We suppress errors because this is a void function */
+        (void)ossl_quic_set_accept_state(s, 0 /* suppress errors */);
         return;
     }
 #endif
@@ -4996,7 +5037,8 @@ void SSL_set_connect_state(SSL *s)
 
 #ifndef OPENSSL_NO_QUIC
     if (IS_QUIC(s)) {
-        ossl_quic_set_connect_state(s);
+        /* We suppress errors because this is a void function */
+        (void)ossl_quic_set_connect_state(s, 0 /* suppress errors */);
         return;
     }
 #endif
@@ -5465,6 +5507,8 @@ SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx)
         ctx = sc->session_ctx;
     new_cert = ssl_cert_dup(ctx->cert);
     if (new_cert == NULL)
+        goto err;
+    if (!custom_exts_copy_conn(&new_cert->custext, &sc->cert->custext))
         goto err;
     if (!custom_exts_copy_flags(&new_cert->custext, &sc->cert->custext))
         goto err;

@@ -6,7 +6,7 @@
 # https://www.openssl.org/source/license.html
 
 # ACVP test data for SLH-DSA sigGen generated from
-# https://github.com/usnistgov/ACVP-Server/blob/master/gen-val/json-files/SLH-DSA-sigGen-FIPS204/internalProjection.json
+# https://github.com/usnistgov/ACVP-Server/blob/master/gen-val/json-files/SLH-DSA-sigGen-FIPS205/internalProjection.json
 # [version 53]
 
 PrivateKeyRaw = SLH_DSA_SHA2_128f_1:SLH-DSA-SHA2-128f:D5213BA4BB6470F1B9EDA88CBC94E6277A58A951EF7F2B81461DBAC41B5A6B83FA495FB834DEFEA7CC96A81309479135A67029E90668C5A58B96E60111491F3D

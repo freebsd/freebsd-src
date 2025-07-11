@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,7 @@
 #include "hmac_local.h"
 #include "openssl/obj_mac.h"
 #include "openssl/evp.h"
+#include "openssl/err.h"
 #if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
 # include <openssl/engine.h>
 #endif
@@ -189,6 +190,11 @@ int s390x_HMAC_update(HMAC_CTX *ctx, const unsigned char *data, size_t len)
 {
     size_t remain, num;
 
+    if (ctx->plat.s390x.iimp != 1) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_UPDATE_ERROR);
+        return 0;
+    }
+
     if (len == 0)
         return 1;
 
@@ -249,6 +255,11 @@ int s390x_HMAC_final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
 {
     void *result;
     unsigned int res_len;
+
+    if (ctx->plat.s390x.iimp != 1) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_FINAL_ERROR);
+        return 0;
+    }
 
     ctx->plat.s390x.iimp = 0; /* last block */
     s390x_call_kmac(ctx, ctx->plat.s390x.buf, ctx->plat.s390x.num);

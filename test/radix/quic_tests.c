@@ -7,6 +7,16 @@
  * https://www.openssl.org/source/license.html
  */
 
+#if defined(_AIX)
+/*
+ * Some versions of AIX define macros for events and revents for use when
+ * accessing pollfd structures (see Github issue #24236). That interferes
+ * with our use of these names here. We simply undef them.
+ */
+# undef revents
+# undef events
+#endif
+
 /*
  * Test Scripts
  * ============================================================================
@@ -232,6 +242,58 @@ DEF_SCRIPT(ssl_poll,
     }
 }
 
+DEF_FUNC(check_writeable)
+{
+    int ok = 0;
+    SSL *ssl;
+    SSL_POLL_ITEM item;
+    size_t result_count = 0;
+    uint64_t expect;
+    const struct timeval z_timeout = {0}, *p_timeout = &z_timeout;
+
+    F_POP(expect);
+    REQUIRE_SSL(ssl);
+
+    item.desc      = SSL_as_poll_descriptor(ssl);
+    item.events    = SSL_POLL_EVENT_W;
+    item.revents   = 0;
+
+    /* Zero-timeout call. */
+    result_count = SIZE_MAX;
+    if (!TEST_true(SSL_poll(&item, 1, sizeof(SSL_POLL_ITEM),
+                            p_timeout, 0, &result_count)))
+        goto err;
+
+    ok = (!!(item.revents & SSL_POLL_EVENT_W) == expect);
+
+ err:
+    return ok;
+}
+
+DEF_SCRIPT(check_cwm, "check stream obeys cwm")
+{
+    OP_SIMPLE_PAIR_CONN();
+
+    /* Create the initial stream by writing some data */
+    OP_WRITE_RAND(C, 1024);
+
+    /* We should be writeable at the start */
+    OP_PUSH_U64(1);
+    OP_SELECT_SSL(0, C);
+    OP_FUNC(check_writeable);
+
+    /* Default stream cwm is 512k (we already sent 1k). Consume all the rest */
+    OP_WRITE_RAND(C, 511 * 1024);
+
+    /* Confirm we are no longer writeable */
+    OP_PUSH_U64(0);
+    OP_SELECT_SSL(0, C);
+    OP_FUNC(check_writeable);
+
+    /* We now expect writes to fail */
+    OP_WRITE_FAIL(C);
+}
+
 /*
  * List of Test Scripts
  * ============================================================================
@@ -240,4 +302,5 @@ static SCRIPT_INFO *const scripts[] = {
     USE(simple_conn)
     USE(simple_thread)
     USE(ssl_poll)
+    USE(check_cwm)
 };

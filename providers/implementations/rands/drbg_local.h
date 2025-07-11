@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,16 +30,6 @@
 /* Default reseed intervals */
 # define RESEED_INTERVAL                         (1 << 8)
 # define TIME_INTERVAL                           (60*60)   /* 1 hour */
-
-/*
- * The number of bytes that constitutes an atomic lump of entropy with respect
- * to the FIPS 140-2 section 4.9.2 Conditional Tests.  The size is somewhat
- * arbitrary, the smaller the value, the less entropy is consumed on first
- * read but the higher the probability of the test failing by accident.
- *
- * The value is in bytes.
- */
-#define CRNGT_BUFSIZ    16
 
 /*
  * Maximum input size for the DRBG (entropy, nonce, personalization string)
@@ -246,14 +236,6 @@ int ossl_drbg_set_ctx_params(PROV_DRBG *drbg, const OSSL_PARAM params[]);
     OSSL_PARAM_time_t(OSSL_DRBG_PARAM_RESEED_TIME, NULL),               \
     OSSL_PARAM_uint(OSSL_DRBG_PARAM_RESEED_REQUESTS, NULL),             \
     OSSL_PARAM_uint64(OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL, NULL)
-
-/* Continuous test "entropy" calls */
-size_t ossl_crngt_get_entropy(PROV_DRBG *drbg,
-                              unsigned char **pout,
-                              int entropy, size_t min_len, size_t max_len,
-                              int prediction_resistance);
-void ossl_crngt_cleanup_entropy(PROV_DRBG *drbg,
-                                unsigned char *out, size_t outlen);
 
 /* Confirm digest is allowed to be used with a DRBG */
 int ossl_drbg_verify_digest(PROV_DRBG *drbg, OSSL_LIB_CTX *libctx, const EVP_MD *md);

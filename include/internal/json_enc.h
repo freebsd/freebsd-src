@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -201,9 +201,6 @@ void ossl_json_u64(OSSL_JSON_ENC *json, uint64_t value);
 
 /* Encode a JSON integer from an int64_t. */
 void ossl_json_i64(OSSL_JSON_ENC *json, int64_t value);
-
-/* Encode a JSON number from a 64-bit floating point value. */
-void ossl_json_f64(OSSL_JSON_ENC *json, double value);
 
 /*
  * Encode a JSON UTF-8 string from a zero-terminated string. The string passed

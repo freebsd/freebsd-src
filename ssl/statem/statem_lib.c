@@ -626,6 +626,7 @@ CON_FUNC_RETURN tls_construct_finished(SSL_CONNECTION *s, WPACKET *pkt)
      */
     if (SSL_CONNECTION_IS_TLS13(s)
             && !s->server
+            && !SSL_IS_QUIC_HANDSHAKE(s)
             && (s->early_data_state != SSL_EARLY_DATA_NONE
                 || (s->options & SSL_OP_ENABLE_MIDDLEBOX_COMPAT) != 0)
             && s->s3.tmp.cert_req == 0
@@ -933,8 +934,22 @@ MSG_PROCESS_RETURN tls_process_finished(SSL_CONNECTION *s, PACKET *pkt)
                 /* SSLfatal() already called */
                 return MSG_PROCESS_ERROR;
             }
-            if (!ssl->method->ssl3_enc->change_cipher_state(s,
-                    SSL3_CC_APPLICATION | SSL3_CHANGE_CIPHER_CLIENT_READ)) {
+            if (!tls13_store_server_finished_hash(s)) {
+                /* SSLfatal() already called */
+                return MSG_PROCESS_ERROR;
+            }
+
+            /*
+             * For non-QUIC we set up the client's app data read keys now, so
+             * that we can go straight into reading 0.5RTT data from the server.
+             * For QUIC we don't do that, and instead defer setting up the keys
+             * until after we have set up the write keys in order to ensure that
+             * write keys are always set up before read keys (so that if we read
+             * a message we have the correct keys in place to ack it)
+             */
+            if (!SSL_IS_QUIC_HANDSHAKE(s)
+                    && !ssl->method->ssl3_enc->change_cipher_state(s,
+                        SSL3_CC_APPLICATION | SSL3_CHANGE_CIPHER_CLIENT_READ)) {
                 /* SSLfatal() already called */
                 return MSG_PROCESS_ERROR;
             }
@@ -2365,23 +2380,24 @@ int ssl_choose_client_version(SSL_CONNECTION *s, int version,
         real_max = ver_max;
 
     /* Check for downgrades */
-    if (s->version == TLS1_2_VERSION && real_max > s->version) {
-        if (memcmp(tls12downgrade,
+    /* TODO(DTLSv1.3): Update this code for DTLSv1.3 */
+    if (!SSL_CONNECTION_IS_DTLS(s) && real_max > s->version) {
+        /* Signal applies to all versions */
+        if (memcmp(tls11downgrade,
                    s->s3.server_random + SSL3_RANDOM_SIZE
-                                        - sizeof(tls12downgrade),
-                   sizeof(tls12downgrade)) == 0) {
+                   - sizeof(tls11downgrade),
+                   sizeof(tls11downgrade)) == 0) {
             s->version = origv;
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER,
                      SSL_R_INAPPROPRIATE_FALLBACK);
             return 0;
         }
-    } else if (!SSL_CONNECTION_IS_DTLS(s)
-               && s->version < TLS1_2_VERSION
-               && real_max > s->version) {
-        if (memcmp(tls11downgrade,
-                   s->s3.server_random + SSL3_RANDOM_SIZE
-                                        - sizeof(tls11downgrade),
-                   sizeof(tls11downgrade)) == 0) {
+        /* Only when accepting TLS1.3 */
+        if (real_max == TLS1_3_VERSION
+            && memcmp(tls12downgrade,
+                      s->s3.server_random + SSL3_RANDOM_SIZE
+                      - sizeof(tls12downgrade),
+                      sizeof(tls12downgrade)) == 0) {
             s->version = origv;
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER,
                      SSL_R_INAPPROPRIATE_FALLBACK);

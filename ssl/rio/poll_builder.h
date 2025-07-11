@@ -23,7 +23,9 @@
  * FDs.
  */
 typedef struct rio_poll_builder_st {
-# if RIO_POLL_METHOD == RIO_POLL_METHOD_SELECT
+# if RIO_POLL_METHOD == RIO_POLL_METHOD_NONE
+    int             unused_dummy; /* make microsoft compiler happy */
+# elif RIO_POLL_METHOD == RIO_POLL_METHOD_SELECT
     fd_set          rfd, wfd, efd;
     int             hwm_fd;
 # elif RIO_POLL_METHOD == RIO_POLL_METHOD_POLL

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -386,6 +386,9 @@ err:
 static void template_gen_cleanup(void *genctx)
 {
     struct template_gen_ctx *gctx = genctx;
+
+    if (gctx == NULL)
+        return;
 
     debug_print("gen cleanup for %p\n", gctx);
     OPENSSL_free(gctx);
