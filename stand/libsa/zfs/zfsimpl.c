@@ -1379,7 +1379,7 @@ spa_create(uint64_t guid, const char *name)
 		free(spa);
 		return (NULL);
 	}
-	spa->spa_root_vdev->v_name = strdup("root");
+	spa->spa_root_vdev->v_name = spa->spa_name;
 	STAILQ_INSERT_TAIL(&zfs_pools, spa, spa_link);
 
 	return (spa);
