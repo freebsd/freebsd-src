@@ -107,6 +107,7 @@ enum libusb_device_capability_type {
 #define	LIBUSB_BT_USB_2_0_EXTENSION_SIZE	7
 #define	LIBUSB_BT_SS_USB_DEVICE_CAPABILITY_SIZE	10
 #define	LIBUSB_BT_CONTAINER_ID_SIZE		20
+#define	LIBUSB_BT_PLATFORM_DESCRIPTOR_MIN_SIZE	20
 
 #define	LIBUSB_ENDPOINT_ADDRESS_MASK	0x0f
 #define	LIBUSB_ENDPOINT_DIR_MASK	0x80
@@ -189,6 +190,7 @@ enum libusb_bos_type {
 	LIBUSB_BT_USB_2_0_EXTENSION = 2,
 	LIBUSB_BT_SS_USB_DEVICE_CAPABILITY = 3,
 	LIBUSB_BT_CONTAINER_ID = 4,
+	LIBUSB_BT_PLATFORM_DESCRIPTOR = 5,
 };
 
 enum libusb_capability {
@@ -446,6 +448,15 @@ typedef struct libusb_container_id_descriptor {
 	uint8_t ContainerID[16];
 }	libusb_container_id_descriptor __aligned(sizeof(void *));
 
+typedef struct libusb_platform_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bDevCapabilityType;
+	uint8_t bReserved;
+	uint8_t PlatformCapabilityUUID[16];
+	uint8_t CapabilityData[];
+}	libusb_platform_descriptor __aligned(sizeof(void *));
+
 typedef struct libusb_control_setup {
 	uint8_t	bmRequestType;
 	uint8_t	bRequest;
@@ -554,6 +565,8 @@ int	libusb_get_ss_usb_device_capability_descriptor(struct libusb_context *ctx, s
 void	libusb_free_ss_usb_device_capability_descriptor(struct libusb_ss_usb_device_capability_descriptor *ss_usb_device_capability);
 int	libusb_get_container_id_descriptor(struct libusb_context *ctx, struct libusb_bos_dev_capability_descriptor *dev_cap, struct libusb_container_id_descriptor **container_id);
 void	libusb_free_container_id_descriptor(struct libusb_container_id_descriptor *container_id);
+int	libusb_get_platform_descriptor(libusb_context *ctx, struct libusb_bos_dev_capability_descriptor *dev_cap, struct libusb_platform_descriptor **platform_descriptor);
+void	libusb_free_platform_descriptor(struct libusb_platform_descriptor *platform_descriptor);
 
 /* Asynchronous device I/O */
 

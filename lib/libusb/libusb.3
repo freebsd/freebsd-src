@@ -544,6 +544,21 @@ libusb_free_container_id_descriptor function.
 .Fn libusb_free_container_id_descriptor "struct libusb_container_id_descriptor *container_id"
 This function is NULL safe and frees a parsed container ID descriptor given by
 .Fa container_id .
+.Pp
+.Ft int
+.Fn libusb_get_platform_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_platform_descriptor **platform_descriptor"
+This function parses the platform descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa platform_descriptor .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed platform descriptor must be freed using the
+libusb_free_platform_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_platform_descriptor "struct libusb_platform_descriptor *platform_descriptor"
+This function is NULL safe and frees a parsed platform descriptor given by
+.Fa platform_descriptor .
 .Sh USB ASYNCHRONOUS I/O
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"
