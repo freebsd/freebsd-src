@@ -46,6 +46,7 @@ opendir_check(const struct atf_tc *tc, DIR *dirp)
 	ATF_CHECK_STREQ("subdir", ent->d_name);
 	ATF_CHECK_EQ(DT_DIR, ent->d_type);
 	ATF_CHECK(readdir(dirp) == NULL);
+	ATF_CHECK(readdir(dirp) == NULL);
 }
 
 ATF_TC(opendir_ok);
