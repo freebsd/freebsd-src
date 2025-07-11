@@ -73,7 +73,7 @@ request it accepts is
 This request allocates kernel tracing context (CTX) based on requested mode of
 operation, set of CPUs and/or pid.
 .Pp
-Upon successfull CTX allocation, the ioctl returns a CTX identification
+Upon successful CTX allocation, the ioctl returns a CTX identification
 number (ident).
 .Pp
 Each CTX is then managed using its own dedicated character device found at
@@ -104,7 +104,8 @@ operation:
 Enable kernel hooks.
 .El
 .Sh IOCTL INTERFACE
-Once a CTX is allocated, it's management character device accepts several IOC
+Once a CTX is allocated, its management character device accepts several
+.Xr ioctl 2
 requests:
 .Bl -tag -width "HWT_IOC_RECORD_GET"
 .It Dv HWT_IOC_START
@@ -122,11 +123,11 @@ with this CTX to userspace.
 .It Dv HWT_IOC_BUFPTR_GET
 Get current pointer in buffer that is filled by tracing units in real-time.
 .It Dv HWT_IOC_SET_CONFIG
-Set achitecture-specific config (optional).
+Set architecture-specific config (optional).
 .It Dv HWT_IOC_WAKEUP
 Wake up a thread that has been put to sleep by HWT framework hooks.
 .It Dv HWT_IOC_SVC_BUF
-For SPE-only, the kernel is waiting for userspace to notify that it's copied
+For SPE-only, the kernel is waiting for userspace to notify that it has copied
 out a buffer to avoid data loss/overwriting buffers.
 .El
 .Sh SEE ALSO
