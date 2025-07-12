@@ -78,7 +78,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	 */
 	stackargs = (argc > 8) ? argc - 8 : 0;
 	sp = (char *) ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size
-		- sizeof(uintptr_t)*(stackargs + 2);
+		- sizeof(uintptr_t)*(stackargs + 6);
 	sp = (char *)((uintptr_t)sp & ~0x1f);
 
 	mc = &ucp->uc_mcontext;
@@ -119,6 +119,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	mc->mc_srr0 = *(uintptr_t *)_ctx_start;
 #else
 	mc->mc_srr0 = (uintptr_t) _ctx_start;
+	mc->mc_gpr[12] = (uintptr_t) _ctx_start;/* required for prologue */
 #endif
 	mc->mc_gpr[1] = (uintptr_t) sp;		/* new stack pointer */
 	mc->mc_gpr[14] = (uintptr_t) start;	/* r14 <- start */
