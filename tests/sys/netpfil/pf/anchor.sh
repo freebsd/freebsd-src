@@ -350,9 +350,9 @@ nat_body()
 	jexec alcatraz pfctl -sn -a "foo/bar"
 	jexec alcatraz pfctl -sn -a "foo/baz"
 
-	atf_check -s exit:0 -o match:"nat log on epair0a inet from 192.0.2.0/24 to any port = domain -> 192.0.2.1" \
+	atf_check -s exit:0 -o match:"nat log on ${epair}a inet from 192.0.2.0/24 to any port = domain -> 192.0.2.1" \
 	    jexec alcatraz pfctl -sn -a "*"
-	atf_check -s exit:0 -o match:"rdr on epair0a inet proto tcp from any to any port = echo -> 127.0.0.1 port 7" \
+	atf_check -s exit:0 -o match:"rdr on ${epair}a inet proto tcp from any to any port = echo -> 127.0.0.1 port 7" \
 	    jexec alcatraz pfctl -sn -a "*"
 }
 
