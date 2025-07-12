@@ -2154,7 +2154,7 @@ check_required_after()
 }
 
 # check_jail mib
-#	Return true if security.jail.$mib exists and set to 1.
+#	Return true if security.jail.$mib exists and is set to 1.
 
 check_jail()
 {
