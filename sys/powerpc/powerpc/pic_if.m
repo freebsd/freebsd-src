@@ -65,9 +65,8 @@ METHOD void config {
 	enum intr_polarity pol;
 };
 
-METHOD void dispatch {
+METHOD int dispatch {
 	device_t	dev;
-	struct trapframe *tf;
 };
 
 METHOD void enable {
