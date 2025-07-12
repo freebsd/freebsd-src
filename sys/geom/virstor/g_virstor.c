@@ -589,7 +589,7 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 		    M_GVIRSTOR, M_WAITOK | M_ZERO);
 		bcopy(sc->components, newcomp, found * sizeof(*sc->components));
 		bcopy(&sc->components[found + 1], newcomp + found,
-		    found * sizeof(*sc->components));
+		    (sc->n_components - (found + 1)) * sizeof(*sc->components));
 		if ((sc->components[j].flags & VIRSTOR_PROVIDER_ALLOCATED) != 0) {
 			LOG_MSG(LVL_ERROR, "Allocated provider %s cannot be "
 			    "removed from %s",
