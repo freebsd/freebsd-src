@@ -3,7 +3,7 @@
 .\"
 .\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
-.Dd June 19, 2025
+.Dd July 12, 2025
 .Dt TRACING 7
 .Os
 .Sh NAME
@@ -34,7 +34,6 @@ for more details.
 is a user-friendly wrapper for DTrace.
 It simplifies common DTrace usage patterns and requires less expert knowledge
 to operate.
-.Pp
 .Ss Userland Tracing
 .Xr truss 1
 traces system calls.
@@ -55,7 +54,8 @@ it asynchronously logs entries to a trace file configured with
 .Xr ktrace 2
 (typically
 .Pa ktrace.out ) ,
-and it can log other types of kernel events, such as page faults and name lookups
+and it can log other types of kernel events, such as page faults
+and name lookups
 .Po refer to
 .Fl t
 in
@@ -74,10 +74,9 @@ It lets kernel programmers log events to a global ring buffer,
 which can later be dumped using
 .Xr ktrdump 8 .
 .Ss Hardware Counters
-.Pp
 .Xr pmcstat 8 ,
 and its kernel counterpart,
-.Xr hwmpc 4 ,
+.Xr hwpmc 4 ,
 is the
 .Fx
 facility for conducting performance measurements with hardware counters.
