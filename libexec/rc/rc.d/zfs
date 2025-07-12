@@ -18,7 +18,7 @@ required_modules="zfs"
 
 zfs_start_jail()
 {
-	if [ `$SYSCTL_N security.jail.mount_allowed` -eq 1 ]; then
+	if check_jail mount_allowed; then
 		zfs mount -a
 	fi
 }
@@ -34,7 +34,7 @@ zfs_start_main()
 
 zfs_start()
 {
-	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+	if check_jail jailed; then
 		zfs_start_jail
 	else
 		zfs_start_main
@@ -54,7 +54,7 @@ zfs_poststart()
 
 zfs_stop_jail()
 {
-	if [ `$SYSCTL_N security.jail.mount_allowed` -eq 1 ]; then
+	if check_jail mount_allowed; then
 		zfs unmount -a
 	fi
 }
@@ -67,7 +67,7 @@ zfs_stop_main()
 
 zfs_stop()
 {
-	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+	if check_jail jailed; then
 		zfs_stop_jail
 	else
 		zfs_stop_main
