@@ -41,6 +41,7 @@ typedef struct __mcontext {
 	int		mc_flags;
 #define _MC_FP_VALID	0x01
 #define _MC_AV_VALID	0x02
+#define _MC_VS_VALID	0x04
 	int		mc_onstack;	  	/* saved onstack flag */
 	int		mc_len;			/* sizeof(__mcontext) */
 	__uint64_t	mc_avec[32*2];		/* vector register file */
@@ -56,6 +57,7 @@ typedef struct __mcontext32 {
 	int		mc_flags;
 #define _MC_FP_VALID	0x01
 #define _MC_AV_VALID	0x02
+#define _MC_VS_VALID	0x04
 	int		mc_onstack;	  	/* saved onstack flag */
 	int		mc_len;			/* sizeof(__mcontext) */
 	uint64_t	mc_avec[32*2];		/* vector register file */
