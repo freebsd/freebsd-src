@@ -78,9 +78,9 @@ load_rc_config
 trap "_rc_conf_loaded=false; load_rc_config" ALRM
 
 skip="-s nostart"
-if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
+if check_jail jailed; then
 	skip="$skip -s nojail"
-	if [ `/sbin/sysctl -n security.jail.vnet` -ne 1 ]; then
+	if ! check_jail vnet; then
 		skip="$skip -s nojailvnet"
 	fi
 fi

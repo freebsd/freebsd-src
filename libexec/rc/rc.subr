@@ -1314,7 +1314,7 @@ $_cpusetcmd $command $rc_flags $command_args"
 		start)
 			# We cannot use protect(1) inside jails.
 			if [ -n "$_oomprotect" ] && [ -f "${PROTECT}" ] &&
-			    [ "$(sysctl -n security.jail.jailed)" -eq 0 ]; then
+			    ! check_jail jailed; then
 				[ -z "${rc_pid}" ] && eval $_pidcmd
 				case $_oomprotect in
 				[Aa][Ll][Ll])
