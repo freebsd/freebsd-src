@@ -842,6 +842,18 @@ zfs_create_diskpart()
 	case "$ZFSBOOT_PARTITION_SCHEME" in
 	""|GPT*) f_dprintf "$funcname: Creating GPT layout..."
 		#
+		# 0. Check for potential GPT label conflicts with disks not
+		# managed by us and adjust $index accordingly
+		#
+		while [ -e /dev/gpt/efiboot$index ] ||
+			[ -e /dev/gpt/gptboot$index ] ||
+			[ -e /dev/gpt/boot$index ] ||
+			[ -e /dev/gpt/swap$index ] ||
+			[ -e /dev/gpt/zfs$index ]; do
+			index=$(( $index + 1 ))
+		done
+
+		#
 		# 1. Create GPT layout using labels
 		#
 		f_eval_catch $funcname gpart "$GPART_CREATE" gpt $disk ||
