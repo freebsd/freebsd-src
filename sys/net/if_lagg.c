@@ -718,6 +718,7 @@ lagg_capabilities(struct lagg_softc *sc)
 		sc->sc_ifp->if_capenable = ena;
 		sc->sc_ifp->if_capenable2 = ena2;
 		sc->sc_ifp->if_hwassist = hwa;
+		(void)if_hw_tsomax_update(sc->sc_ifp, &hw_tsomax);
 		getmicrotime(&sc->sc_ifp->if_lastchange);
 
 		if (sc->sc_ifflags & IFF_DEBUG)
