@@ -35,7 +35,7 @@ pf_fallback()
 		$pf_program -f "$pf_fallback_rules_file" $pf_flags
 	else
 		warn "Loading fallback rules: $pf_fallback_rules"
-		echo $pf_fallback_rules | $pf_program -f - $pf_flags
+		echo "$pf_fallback_rules" | $pf_program -f - $pf_flags
 	fi
 }
 
