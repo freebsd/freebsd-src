@@ -37,6 +37,7 @@ int image_copyin(lba_t blk, int fd, uint64_t *sizep);
 int image_copyout(int fd);
 int image_copyout_done(int fd);
 int image_copyout_region(int fd, lba_t blk, lba_t size);
+int image_buffer_region(char *buffer, lba_t blk, lba_t size);
 int image_copyout_zeroes(int fd, size_t count);
 int image_data(lba_t blk, lba_t size);
 lba_t image_get_size(void);
