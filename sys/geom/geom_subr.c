@@ -381,8 +381,8 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
 	sbuf_finish(sb);
-	gp = g_malloc(sizeof *gp, M_WAITOK | M_ZERO);
-	gp->name = g_malloc(sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+	gp = g_malloc(sizeof *gp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+	gp->name = (char *)(gp + 1);
 	gp->class = mp;
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
@@ -420,7 +420,6 @@ g_destroy_geom(struct g_geom *gp)
 	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
-	g_free(gp->name);
 	g_free(gp);
 }
 
