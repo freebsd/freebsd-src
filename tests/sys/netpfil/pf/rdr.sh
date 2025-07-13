@@ -142,7 +142,7 @@ tcp_v6_pass_body()
 {
 	tcp_v6_setup # Sets ${epair_…} variables
 	tcp_v6_common \
-		"rdr on ${epair_one}a proto tcp from any to any port 80 -> 2001:db8:b::2 port 8000"
+		"pass in on ${epair_one}a proto tcp from any to any port 80 rdr-to 2001:db8:b::2 port 8000"
 }
 
 tcp_v6_pass_cleanup()
