@@ -1521,6 +1521,9 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 	    ap->a_vp, uio, ap->a_cred, ap->a_eofflag);
 #endif
 
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = 0;
+
 	/*
 	 * msdosfs_readdir() won't operate properly on regular files since
 	 * it does i/o only with the filesystem vnode, and hence can
@@ -1614,8 +1617,11 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 		on = (offset - bias) & pmp->pm_crbomask;
 		n = min(pmp->pm_bpcluster - on, uio->uio_resid);
 		diff = dep->de_FileSize - (offset - bias);
-		if (diff <= 0)
-			break;
+		if (diff <= 0) {
+			if (ap->a_eofflag != NULL)
+				*ap->a_eofflag = 1;
+			goto out;
+		}
 		n = min(n, diff);
 		error = pcbmap(dep, lbn, &bn, &cn, &blsize);
 		if (error)
@@ -1646,6 +1652,8 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 			 */
 			if (dentp->deName[0] == SLOT_EMPTY) {
 				brelse(bp);
+				if (ap->a_eofflag != NULL)
+					*ap->a_eofflag = 1;
 				goto out;
 			}
 			/*
@@ -1743,15 +1751,6 @@ out:
 
 	uio->uio_offset = off;
 
-	/*
-	 * Set the eofflag (NFS uses it)
-	 */
-	if (ap->a_eofflag) {
-		if (dep->de_FileSize - (offset - bias) <= 0)
-			*ap->a_eofflag = 1;
-		else
-			*ap->a_eofflag = 0;
-	}
 	return (error);
 }
 
