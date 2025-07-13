@@ -416,7 +416,8 @@ When used with
 or
 .Fl 6 ,
 limit the output to IPv4 or IPv6 routes respectively.
-This option provides details about individual nexthop addresses used in routing decisions.
+This option provides details about individual nexthop addresses
+used in routing decisions.
 .It Xo
 .Bk -words
 .Nm netstat
@@ -430,7 +431,8 @@ When used with
 or
 .Fl 6 ,
 restrict the output to IPv4 or IPv6 nexthop groups respectively.
-This option shows grouped nexthop entries for multipath or load-balanced routing setups.
+This option shows grouped nexthop entries for multipath or
+load-balanced routing setups.
 .It Xo
 .Bk -words
 .Nm
@@ -926,25 +928,25 @@ binary is not available in the
 .Sh EXAMPLES
 Show packet traffic information (packets, bytes, errors, packet drops, etc) for
 interface re0 updated every 2 seconds and exit after 5 outputs:
-.Bd -literal -offset indent
-$ netstat -w 2 -q 5 -I re0
-.Ed
+.Pp
+.Dl netstat -w 2 -q 5 -I re0
 .Pp
 Show statistics for ICMP on any interface:
-.Bd -literal -offset indent
-$ netstat -s -p icmp
-.Ed
+.Pp
+.Dl netstat -s -p icmp
 .Pp
 Show routing tables:
-.Bd -literal -offset indent
-$ netstat -r
-.Ed
+.Pp
+.Dl netstat -r
 .Pp
 Same as above, but without resolving numeric addresses and port numbers to
 names:
-.Bd -literal -offset indent
-$ netstat -rn
-.Ed
+.Pp
+.Dl netstat -rn
+.Pp
+Show IPv4 listening sockets:
+.Pp
+.Dl netstat -4l
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr nfsstat 1 ,
