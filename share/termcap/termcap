@@ -3551,8 +3551,7 @@ ti931|ti 931:\
 # using \EPC\\ and \EPD\\, but I don't think there is a
 # capability for that.
 ti703|ti707|Texas Instruments Silent 703/707, 80 cols:\
-	:am:hc:os:xn:\
-	:co#80:it#8:\
+	:am:hc:os:xn:co#80:\
 	:do=\n:le=\b:cr=\r:nd= :bl=^G:ta=\t:is=\EPC\\:
 ti703-w|ti707-w|Texas Instruments Silent 703/707, 132 cols:\
 	:co#132:is=\EPD\\:tc=ti703:
