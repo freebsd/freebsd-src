@@ -41,6 +41,7 @@
 #include <sys/dsl_scan.h>
 #include <sys/abd.h>
 #include <sys/zfeature.h>
+#include <sys/tslog.h>
 
 /*
  * # DDT: Deduplication tables
@@ -954,6 +955,7 @@ ddt_exit(ddt_t *ddt)
 void
 ddt_init(void)
 {
+	TSENTER();
 	ddt_cache = kmem_cache_create("ddt_cache",
 	    sizeof (ddt_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
 	ddt_entry_flat_cache = kmem_cache_create("ddt_entry_flat_cache",
@@ -962,6 +964,7 @@ ddt_init(void)
 	    DDT_ENTRY_TRAD_SIZE, 0, NULL, NULL, NULL, NULL, NULL, 0);
 
 	ddt_log_init();
+	TSEXIT();
 }
 
 void

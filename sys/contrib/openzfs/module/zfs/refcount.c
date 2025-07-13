@@ -26,6 +26,7 @@
 
 #include <sys/zfs_context.h>
 #include <sys/zfs_refcount.h>
+#include <sys/tslog.h>
 
 #ifdef	ZFS_DEBUG
 /*
@@ -41,8 +42,10 @@ static kmem_cache_t *reference_cache;
 void
 zfs_refcount_init(void)
 {
+	TSENTER();
 	reference_cache = kmem_cache_create("reference_cache",
 	    sizeof (reference_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
+	TSEXIT();
 }
 
 void

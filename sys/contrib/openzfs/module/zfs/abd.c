@@ -102,6 +102,7 @@
 #include <sys/zio.h>
 #include <sys/zfs_context.h>
 #include <sys/zfs_znode.h>
+#include <sys/tslog.h>
 
 /* see block comment above for description */
 int zfs_abd_scatter_enabled = B_TRUE;
@@ -187,8 +188,12 @@ abd_free_struct(abd_t *abd)
 abd_t *
 abd_alloc(size_t size, boolean_t is_metadata)
 {
+	TSENTER();
 	if (abd_size_alloc_linear(size))
+	{
+		TSEXIT();
 		return (abd_alloc_linear(size, is_metadata));
+	}
 
 	VERIFY3U(size, <=, SPA_MAXBLOCKSIZE);
 
@@ -204,6 +209,7 @@ abd_alloc(size_t size, boolean_t is_metadata)
 
 	abd_update_scatter_stats(abd, ABDSTAT_INCR);
 
+	TSEXIT();
 	return (abd);
 }
 
@@ -215,6 +221,7 @@ abd_alloc(size_t size, boolean_t is_metadata)
 abd_t *
 abd_alloc_linear(size_t size, boolean_t is_metadata)
 {
+	TSENTER();
 	abd_t *abd = abd_alloc_struct(0);
 
 	VERIFY3U(size, <=, SPA_MAXBLOCKSIZE);
@@ -233,6 +240,7 @@ abd_alloc_linear(size_t size, boolean_t is_metadata)
 
 	abd_update_linear_stats(abd, ABDSTAT_INCR);
 
+	TSEXIT();
 	return (abd);
 }
 
@@ -297,8 +305,12 @@ abd_free_scatter(abd_t *abd)
 void
 abd_free(abd_t *abd)
 {
+	TSENTER();
 	if (abd == NULL)
+	{
+		TSEXIT();
 		return;
+	}
 
 	abd_verify(abd);
 #ifdef ZFS_DEBUG
@@ -325,6 +337,8 @@ abd_free(abd_t *abd)
 	abd_fini_struct(abd);
 	if (abd->abd_flags & ABD_FLAG_ALLOCD)
 		abd_free_struct_impl(abd);
+
+	TSEXIT();
 }
 
 /*

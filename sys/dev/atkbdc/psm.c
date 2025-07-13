@@ -807,6 +807,7 @@ get_mouse_status(KBDC kbdc, int *status, int flag, int len)
 	int res;
 	int i;
 
+	TSENTER();
 	switch (flag) {
 	case 0:
 	default:
@@ -821,7 +822,10 @@ get_mouse_status(KBDC kbdc, int *status, int flag, int len)
 	VLOG(2, (LOG_DEBUG, "psm: SEND_AUX_DEV_%s return code:%04x\n",
 	    (flag == 1) ? "DATA" : "STATUS", res));
 	if (res != PSM_ACK)
+	{
+		TSEXIT();
 		return (0);
+	}
 
 	for (i = 0; i < len; ++i) {
 		status[i] = read_aux_data(kbdc);
@@ -835,6 +839,7 @@ get_mouse_status(KBDC kbdc, int *status, int flag, int len)
 		    (flag == 1) ? "data" : "status", status[0], status[1], status[2]));
 	}
 
+	TSEXIT();
 	return (i);
 }
 
@@ -844,11 +849,15 @@ get_aux_id(KBDC kbdc)
 	int res;
 	int id;
 
+	TSENTER();
 	empty_aux_buffer(kbdc, 5);
 	res = send_aux_command(kbdc, PSMC_SEND_DEV_ID);
 	VLOG(2, (LOG_DEBUG, "psm: SEND_DEV_ID return code:%04x\n", res));
 	if (res != PSM_ACK)
+	{
+		TSEXIT();
 		return (-1);
+	}
 
 	/* 10ms delay */
 	DELAY(10000);
@@ -856,6 +865,7 @@ get_aux_id(KBDC kbdc)
 	id = read_aux_data(kbdc);
 	VLOG(2, (LOG_DEBUG, "psm: device ID: %04x\n", id));
 
+	TSENTER();
 	return (id);
 }
 
@@ -864,9 +874,11 @@ set_mouse_sampling_rate(KBDC kbdc, int rate)
 {
 	int res;
 
+	TSENTER();
 	res = send_aux_command_and_data(kbdc, PSMC_SET_SAMPLING_RATE, rate);
 	VLOG(2, (LOG_DEBUG, "psm: SET_SAMPLING_RATE (%d) %04x\n", rate, res));
 
+	TSEXIT();
 	return ((res == PSM_ACK) ? rate : -1);
 }
 
@@ -875,6 +887,7 @@ set_mouse_scaling(KBDC kbdc, int scale)
 {
 	int res;
 
+	TSENTER();
 	switch (scale) {
 	case 1:
 	default:
@@ -888,6 +901,7 @@ set_mouse_scaling(KBDC kbdc, int scale)
 	VLOG(2, (LOG_DEBUG, "psm: SET_SCALING%s return code:%04x\n",
 	    (scale == PSMC_SET_SCALING21) ? "21" : "11", res));
 
+	TSEXIT();
 	return (res == PSM_ACK);
 }
 
@@ -897,9 +911,11 @@ set_mouse_resolution(KBDC kbdc, int val)
 {
 	int res;
 
+	TSENTER();
 	res = send_aux_command_and_data(kbdc, PSMC_SET_RESOLUTION, val);
 	VLOG(2, (LOG_DEBUG, "psm: SET_RESOLUTION (%d) %04x\n", val, res));
 
+	TSEXIT();
 	return ((res == PSM_ACK) ? val : -1);
 }
 
@@ -924,6 +940,7 @@ get_mouse_buttons(KBDC kbdc)
 	int c = 2;		/* assume two buttons by default */
 	int status[3];
 
+	TSENTER();
 	/*
 	 * NOTE: a special sequence to obtain Logitech Mouse specific
 	 * information: set resolution to 25 ppi, set scaling to 1:1, set
@@ -932,11 +949,18 @@ get_mouse_buttons(KBDC kbdc)
 	 * Some manufactures also support this sequence.
 	 */
 	if (set_mouse_resolution(kbdc, PSMD_RES_LOW) != PSMD_RES_LOW)
+	{
+		TSEXIT();
 		return (c);
+	}
 	if (set_mouse_scaling(kbdc, 1) && set_mouse_scaling(kbdc, 1) &&
 	    set_mouse_scaling(kbdc, 1) &&
 	    get_mouse_status(kbdc, status, 0, 3) >= 3 && status[1] != 0)
+	{
+		TSEXIT();
 		return (status[1]);
+	}
+	TSEXIT();
 	return (c);
 }
 
@@ -948,6 +972,7 @@ get_mouse_buttons(KBDC kbdc)
 static int
 is_a_mouse(int id)
 {
+	TSENTER();
 #if 0
 	static int valid_ids[] = {
 		PSM_MOUSE_ID,		/* mouse */
@@ -959,10 +984,14 @@ is_a_mouse(int id)
 	int i;
 
 	for (i = 0; valid_ids[i] >= 0; ++i)
-	if (valid_ids[i] == id)
+	if (valid_ids[i] == id){
+		TSEXIT();
 		return (TRUE);
+	}
+	TSEXIT();
 	return (FALSE);
 #else
+	TSEXIT();
 	return (TRUE);
 #endif
 }
@@ -1001,6 +1030,7 @@ model_name(int model)
 static void
 recover_from_error(KBDC kbdc)
 {
+	TSENTER();
 	/* discard anything left in the output buffer */
 	empty_both_buffers(kbdc, 10);
 
@@ -1021,20 +1051,24 @@ recover_from_error(KBDC kbdc)
 	if (test_kbd_port(kbdc) != 0)
 		VLOG(1, (LOG_ERR, "psm: keyboard port failed.\n"));
 #endif
+	TSEXIT();
 }
 
 static int
 restore_controller(KBDC kbdc, int command_byte)
 {
+	TSENTER();
 	empty_both_buffers(kbdc, 10);
 
 	if (!set_controller_command_byte(kbdc, 0xff, command_byte)) {
 		log(LOG_ERR, "psm: failed to restore the keyboard controller "
 		    "command byte.\n");
 		empty_both_buffers(kbdc, 10);
+		TSEXIT();
 		return (FALSE);
 	} else {
 		empty_both_buffers(kbdc, 10);
+		TSEXIT();
 		return (TRUE);
 	}
 }
@@ -1384,13 +1418,14 @@ psmprobe(device_t dev)
 #if 0
 	kbdc_debug(TRUE);
 #endif
-
+	TSENTER();
 	/* see if IRQ is available */
 	rid = KBDC_RID_AUX;
 	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intr == NULL) {
 		if (bootverbose)
 			device_printf(dev, "unable to allocate IRQ\n");
+		TSEXIT();
 		return (ENXIO);
 	}
 	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
@@ -1398,7 +1433,10 @@ psmprobe(device_t dev)
 	sc->dev = dev;
 	sc->kbdc = atkbdc_open(device_get_unit(device_get_parent(dev)));
 	if (sc->kbdc == NULL)
+	{
+		TSEXIT();
 		return (ENXIO);
+	}
 	sc->config = device_get_flags(dev) & PSM_CONFIG_FLAGS;
 	/* XXX: for backward compatibility */
 #if defined(PSM_HOOKRESUME) || defined(PSM_HOOKAPM)
@@ -1420,6 +1458,7 @@ psmprobe(device_t dev)
 		device_printf(dev, "unable to lock the controller.\n");
 		if (bootverbose)
 			--verbose;
+		TSEXIT();
 		return (ENXIO);
 	}
 
@@ -1681,6 +1720,7 @@ psmprobe(device_t dev)
 	/* done */
 	kbdc_set_device_mask(sc->kbdc, mask | KBD_AUX_CONTROL_BITS);
 	kbdc_lock(sc->kbdc, FALSE);
+	TSEXIT();
 	return (0);
 }
 
@@ -7602,13 +7642,20 @@ create_a_copy(device_t atkbdc, device_t me)
 	device_t psm;
 	u_long irq;
 
+	TSENTER();
 	/* find the PS/2 mouse device instance under the keyboard controller */
 	psm = device_find_child(atkbdc, PSM_DRIVER_NAME,
 	    device_get_unit(atkbdc));
 	if (psm == NULL)
+	{
+		TSEXIT();
 		return (ENXIO);
+	}
 	if (device_get_state(psm) != DS_NOTPRESENT)
+	{
+		TSEXIT();
 		return (0);
+	}
 
 	/* move our resource to the found device */
 	irq = bus_get_resource_start(me, SYS_RES_IRQ, 0);
@@ -7616,6 +7663,7 @@ create_a_copy(device_t atkbdc, device_t me)
 	bus_set_resource(psm, SYS_RES_IRQ, KBDC_RID_AUX, irq, 1);
 
 	/* ...then probe and attach it */
+	TSEXIT();
 	return (device_probe_and_attach(psm));
 }
 

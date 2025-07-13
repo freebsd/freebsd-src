@@ -47,6 +47,7 @@
 #include <sys/zfs_vfsops.h>
 #include <sys/zstd/zstd.h>
 #include <sys/zvol.h>
+#include <sys/tslog.h>
 #include <zfs_fletcher.h>
 #include <zlib.h>
 
@@ -156,8 +157,10 @@ kstat_t *
 kstat_create(const char *module, int instance, const char *name,
     const char *class, uchar_t type, ulong_t ndata, uchar_t ks_flag)
 {
+	TSENTER();
 	(void) module, (void) instance, (void) name, (void) class, (void) type,
 	    (void) ndata, (void) ks_flag;
+	TSEXIT();
 	return (NULL);
 }
 

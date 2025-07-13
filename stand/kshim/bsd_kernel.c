@@ -939,8 +939,12 @@ device_probe_and_attach(device_t dev)
 	const char *bus_name_parent;
 	devclass_t dc;
 
+	TSENTER();
 	if (dev->dev_attached)
+	{
+		TSEXIT();
 		return (0);		/* fail-safe */
+	}
 
 	/*
          * Find a module for our device, if any
@@ -972,6 +976,7 @@ device_probe_and_attach(device_t dev)
 				if (DEVICE_ATTACH(dev) == 0) {
 					/* success */
 					dev->dev_attached = 1;
+					TSEXIT();
 					return (0);
 				}
 			}
@@ -980,7 +985,7 @@ device_probe_and_attach(device_t dev)
 
 		device_detach(dev);
 	}
-
+	TSEXIT();
 	return (ENODEV);
 }
 
@@ -1085,10 +1090,15 @@ devclass_find(const char *classname)
 {
 	devclass_t dc;
 
+	TSENTER();
 	TAILQ_FOREACH(dc, &devclasses, link) {
 		if (strcmp(dc->name, classname) == 0)
+		{
+			TSEXIT();
 			return (dc);
+		}
 	}
+	TSEXIT();
 	return (NULL);
 }
 

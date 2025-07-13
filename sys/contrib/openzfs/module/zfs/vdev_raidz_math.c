@@ -31,6 +31,7 @@
 #include <sys/zfs_debug.h>
 #include <sys/vdev_raidz.h>
 #include <sys/vdev_raidz_impl.h>
+#include <sys/tslog.h>
 
 /* Opaque implementation with NULL methods to represent original methods */
 static const raidz_impl_ops_t vdev_raidz_original_impl = {
@@ -522,6 +523,7 @@ benchmark_raidz(void)
 void
 vdev_raidz_math_init(void)
 {
+	TSENTER();
 	/* Determine the fastest available implementation. */
 	benchmark_raidz();
 
@@ -543,6 +545,7 @@ vdev_raidz_math_init(void)
 	/* Finish initialization */
 	atomic_swap_32(&zfs_vdev_raidz_impl, user_sel_impl);
 	raidz_math_initialized = B_TRUE;
+	TSEXIT();
 }
 
 void

@@ -39,6 +39,7 @@
 #include <sys/zio_checksum.h>
 #include <sys/abd.h>
 #include <sys/fs/zfs.h>
+#include <sys/tslog.h>
 
 /*
  * Vdev mirror kstats
@@ -81,6 +82,7 @@ static mirror_stats_t mirror_stats = {
 void
 vdev_mirror_stat_init(void)
 {
+	TSENTER();
 	mirror_ksp = kstat_create("zfs", 0, "vdev_mirror_stats",
 	    "misc", KSTAT_TYPE_NAMED,
 	    sizeof (mirror_stats) / sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
@@ -88,6 +90,7 @@ vdev_mirror_stat_init(void)
 		mirror_ksp->ks_data = &mirror_stats;
 		kstat_install(mirror_ksp);
 	}
+	TSEXIT();
 }
 
 void

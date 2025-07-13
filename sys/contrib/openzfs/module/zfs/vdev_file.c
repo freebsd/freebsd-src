@@ -34,6 +34,7 @@
 #include <sys/fm/fs/zfs.h>
 #include <sys/abd.h>
 #include <sys/stat.h>
+#include <sys/tslog.h>
 
 /*
  * Virtual device vector for files.
@@ -55,10 +56,12 @@ static uint_t vdev_file_physical_ashift = SPA_MINBLOCKSHIFT;
 void
 vdev_file_init(void)
 {
+	TSENTER();
 	vdev_file_taskq = taskq_create("z_vdev_file", MAX(boot_ncpus, 16),
 	    minclsyspri, boot_ncpus, INT_MAX, TASKQ_DYNAMIC);
 
 	VERIFY(vdev_file_taskq);
+	TSEXIT();
 }
 
 void

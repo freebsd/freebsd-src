@@ -312,6 +312,7 @@
 #include <sys/vdev_trim.h>
 #include <sys/zfs_racct.h>
 #include <sys/zstd/zstd.h>
+#include <sys/tslog.h>
 
 #ifndef _KERNEL
 /* set with ZFS_DEBUG=watch, to enable watchpoints on frozen buffers */
@@ -10198,11 +10199,13 @@ l2arc_fini(void)
 void
 l2arc_start(void)
 {
+	TSENTER();
 	if (!(spa_mode_global & SPA_MODE_WRITE))
 		return;
 
 	(void) thread_create(NULL, 0, l2arc_feed_thread, NULL, 0, &p0,
 	    TS_RUN, defclsyspri);
+	TSEXIT();
 }
 
 void

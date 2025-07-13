@@ -41,6 +41,7 @@
 #include <sys/zfeature.h>
 #include <sys/zfs_file.h>
 #include <sys/zfs_context.h>
+#include <sys/tslog.h>
 #ifdef _KERNEL
 #include <sys/zone.h>
 #endif
@@ -89,6 +90,7 @@ spa_config_load(void)
 	zfs_file_attr_t zfa;
 	uint64_t fsize;
 	int err;
+	TSENTER();
 
 #ifdef _KERNEL
 	if (zfs_autoimport_disable)
@@ -156,6 +158,7 @@ out:
 		kmem_free(buf, fsize);
 
 	zfs_file_close(fp);
+	TSEXIT();
 }
 
 static int

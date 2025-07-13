@@ -29,6 +29,7 @@
 #include <sys/zfs_context.h>
 #include <sys/avl.h>
 #include <sys/unique.h>
+#include <sys/tslog.h>
 
 static avl_tree_t unique_avl;
 static kmutex_t unique_mtx;
@@ -52,9 +53,11 @@ unique_compare(const void *a, const void *b)
 void
 unique_init(void)
 {
+	TSENTER();
 	avl_create(&unique_avl, unique_compare,
 	    sizeof (unique_t), offsetof(unique_t, un_link));
 	mutex_init(&unique_mtx, NULL, MUTEX_DEFAULT, NULL);
+	TSEXIT();
 }
 
 void

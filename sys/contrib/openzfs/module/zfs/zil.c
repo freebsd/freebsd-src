@@ -46,6 +46,7 @@
 #include <sys/abd.h>
 #include <sys/brt.h>
 #include <sys/wmsum.h>
+#include <sys/tslog.h>
 
 /*
  * The ZFS Intent Log (ZIL) saves "transaction records" (itxs) of system
@@ -3813,6 +3814,7 @@ zil_lwb_dest(void *vbuf, void *unused)
 void
 zil_init(void)
 {
+	TSENTER();
 	zil_lwb_cache = kmem_cache_create("zil_lwb_cache",
 	    sizeof (lwb_t), 0, zil_lwb_cons, zil_lwb_dest, NULL, NULL, NULL, 0);
 
@@ -3830,6 +3832,7 @@ zil_init(void)
 		zil_kstats_global->ks_private = NULL;
 		kstat_install(zil_kstats_global);
 	}
+	TSEXIT();
 }
 
 void

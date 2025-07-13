@@ -56,6 +56,7 @@
 #include <sys/abd.h>
 #include <sys/range_tree.h>
 #include <sys/dbuf.h>
+#include <sys/tslog.h>
 #ifdef _KERNEL
 #include <sys/zfs_vfsops.h>
 #endif
@@ -393,6 +394,7 @@ sio_alloc(unsigned short nr_dvas)
 void
 scan_init(void)
 {
+	TSENTER();
 	/*
 	 * This is used in ext_size_compare() to weight segments
 	 * based on how sparse they are. This cannot be changed
@@ -411,6 +413,7 @@ scan_init(void)
 		    (sizeof (scan_io_t) + ((i + 1) * sizeof (dva_t))),
 		    0, NULL, NULL, NULL, NULL, NULL, 0);
 	}
+	TSEXIT();
 }
 
 void

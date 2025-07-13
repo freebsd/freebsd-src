@@ -28,6 +28,7 @@
 #include <sys/zfs_context.h>
 #include <sys/zfs_impl.h>
 #include <sys/blake3.h>
+#include <sys/tslog.h>
 
 #include "blake3_impl.h"
 
@@ -296,11 +297,13 @@ blake3_per_cpu_ctx_init(void)
 	/*
 	 * Create "The Godfather" ptr to hold all blake3 ctx
 	 */
+	TSENTER();
 	blake3_per_cpu_ctx = kmem_alloc(max_ncpus * sizeof (void *), KM_SLEEP);
 	for (int i = 0; i < max_ncpus; i++) {
 		blake3_per_cpu_ctx[i] = kmem_alloc(sizeof (BLAKE3_CTX),
 		    KM_SLEEP);
 	}
+	TSEXIT();
 }
 
 void

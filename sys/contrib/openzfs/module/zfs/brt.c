@@ -40,6 +40,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/kstat.h>
 #include <sys/wmsum.h>
+#include <sys/tslog.h>
 
 /*
  * Block Cloning design.
@@ -1016,10 +1017,12 @@ brt_stat_fini(void)
 void
 brt_init(void)
 {
+	TSENTER();
 	brt_entry_cache = kmem_cache_create("brt_entry_cache",
 	    sizeof (brt_entry_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
 
 	brt_stat_init();
+	TSEXIT();
 }
 
 void

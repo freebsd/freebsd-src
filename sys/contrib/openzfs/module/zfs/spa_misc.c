@@ -67,6 +67,7 @@
 #include <sys/zfeature.h>
 #include <sys/qat.h>
 #include <sys/zstd/zstd.h>
+#include <sys/tslog.h>
 
 /*
  * SPA locking
@@ -2309,6 +2310,7 @@ spa_import_progress_truncate(spa_history_list_t *shl, unsigned int size)
 static void
 spa_import_progress_init(void)
 {
+	TSENTER();
 	spa_import_progress_list = kmem_zalloc(sizeof (spa_history_list_t),
 	    KM_SLEEP);
 
@@ -2326,6 +2328,7 @@ spa_import_progress_init(void)
 	    spa_import_progress_show_header,
 	    NULL,
 	    offsetof(spa_import_progress_t, smh_node));
+	TSEXIT();
 }
 
 static void
@@ -2547,6 +2550,7 @@ spa_boot_init(void *unused)
 void
 spa_init(spa_mode_t mode)
 {
+	TSENTER();
 	mutex_init(&spa_namespace_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa_spare_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa_l2cache_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -2604,6 +2608,7 @@ spa_init(spa_mode_t mode)
 	qat_init();
 	spa_import_progress_init();
 	zap_init();
+	TSEXIT();
 }
 
 void

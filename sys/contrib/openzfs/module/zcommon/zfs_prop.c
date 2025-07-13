@@ -43,6 +43,7 @@
 #include <sys/zfs_znode.h>
 #include <sys/dsl_crypt.h>
 #include <sys/simd.h>
+#include <sys/tslog.h>
 
 #include "zfs_prop.h"
 #include "zfs_deleg.h"
@@ -81,6 +82,7 @@ zfs_prop_get_table(void)
 void
 zfs_prop_init(void)
 {
+	TSENTER();
 	static const zprop_index_t checksum_table[] = {
 		{ "on",		ZIO_CHECKSUM_ON },
 		{ "off",	ZIO_CHECKSUM_OFF },
@@ -802,6 +804,7 @@ zfs_prop_init(void)
 	    sfeatures);
 
 	zfs_mod_list_supported_free(sfeatures);
+	TSEXIT();
 }
 
 boolean_t

@@ -32,6 +32,8 @@
 #include <sys/zfs_acl.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/fs/zfs.h>
+#include <sys/tslog.h>
+#include <sys/tslog.h>
 
 #include "zfs_prop.h"
 
@@ -53,6 +55,7 @@ zpool_prop_get_table(void)
 void
 zpool_prop_init(void)
 {
+	TSENTER();
 	static const zprop_index_t boolean_table[] = {
 		{ "off",	0},
 		{ "on",		1},
@@ -192,6 +195,7 @@ zpool_prop_init(void)
 	    ZFS_TYPE_POOL, "DEDUPCACHED", B_FALSE, sfeatures);
 
 	zfs_mod_list_supported_free(sfeatures);
+	TSEXIT();
 }
 
 /*
@@ -314,6 +318,7 @@ vdev_prop_get_table(void)
 void
 vdev_prop_init(void)
 {
+	TSENTER();
 	static const zprop_index_t boolean_table[] = {
 		{ "off",	0},
 		{ "on",		1},
@@ -481,6 +486,7 @@ vdev_prop_init(void)
 	    PROP_READONLY, ZFS_TYPE_VDEV, "NAME", B_TRUE, sfeatures);
 
 	zfs_mod_list_supported_free(sfeatures);
+	TSEXIT();
 }
 
 /*

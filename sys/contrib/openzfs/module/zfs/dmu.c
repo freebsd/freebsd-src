@@ -58,6 +58,7 @@
 #include <sys/trace_zfs.h>
 #include <sys/zfs_racct.h>
 #include <sys/zfs_rlock.h>
+#include <sys/tslog.h>
 #ifdef _KERNEL
 #include <sys/vmsystm.h>
 #include <sys/zfs_znode.h>
@@ -2903,6 +2904,7 @@ byteswap_uint8_array(void *vbuf, size_t size)
 void
 dmu_init(void)
 {
+	TSENTER();
 	abd_init();
 	zfs_dbgmsg_init();
 	sa_cache_init();
@@ -2913,6 +2915,7 @@ dmu_init(void)
 	l2arc_init();
 	arc_init();
 	dbuf_init();
+	TSEXIT();
 }
 
 void

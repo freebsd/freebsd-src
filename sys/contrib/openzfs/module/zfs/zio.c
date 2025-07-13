@@ -53,6 +53,7 @@
 #include <sys/trace_zfs.h>
 #include <sys/abd.h>
 #include <sys/dsl_crypt.h>
+#include <sys/tslog.h>
 #include <cityhash.h>
 
 /*
@@ -196,6 +197,7 @@ zio_kstats_update(kstat_t *ksp, int rw)
 void
 zio_init(void)
 {
+	TSENTER();
 	size_t c;
 
 	zio_cache = kmem_cache_create("zio_cache",
@@ -292,6 +294,7 @@ zio_init(void)
 	zio_inject_init();
 
 	lz4_init();
+	TSEXIT();
 }
 
 void

@@ -31,6 +31,7 @@
 
 #include <sys/blake3.h>
 #include <sys/sha2.h>
+#include <sys/tslog.h>
 
 /* limit benchmarking to max 256KiB, when EdonR is slower then this: */
 #define	LIMIT_PERF_MBS	300
@@ -146,6 +147,7 @@ chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
 	uint32_t l, loops = 0;
 	zio_cksum_t zcp;
 
+	TSENTER();
 	switch (round) {
 	case 1: /* 1k */
 		size = 1<<10; loops = 128; break;
@@ -178,6 +180,7 @@ chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
 	run_bw = size * run_count * NANOSEC;
 	run_bw /= run_time_ns;	/* B/s */
 	*result = run_bw/1024/1024; /* MiB/s */
+	TSEXIT();
 }
 
 #define	LIMIT_INIT	0
@@ -192,6 +195,7 @@ chksum_benchit(chksum_stat_t *cs)
 	void *salt = &cs->salt.zcs_bytes;
 	static int chksum_stat_limit = LIMIT_INIT;
 
+	TSENTER();
 	memset(salt, 0, sizeof (cs->salt.zcs_bytes));
 	if (cs->init)
 		ctx = cs->init(&cs->salt);
@@ -224,6 +228,7 @@ chksum_benchit(chksum_stat_t *cs)
 	abd = abd_alloc(1<<24, B_FALSE);
 	chksum_run(cs, abd, ctx, 7, &cs->bs4m);
 	chksum_run(cs, abd, ctx, 8, &cs->bs16m);
+	TSEXIT();
 
 abort:
 	abd_free(abd);
@@ -231,6 +236,7 @@ abort:
 	/* free up temp memory */
 	if (cs->free)
 		cs->free(ctx);
+	TSEXIT();
 }
 
 /*
@@ -239,8 +245,10 @@ abort:
 static void
 chksum_benchmark(void)
 {
+	TSENTER();
 #ifndef _KERNEL
 	/* we need the benchmark only for the kernel module */
+	TSEXIT();
 	return;
 #endif
 
@@ -332,11 +340,13 @@ chksum_benchmark(void)
 		}
 	}
 	blake3->setid(id_save);
+	TSEXIT();
 }
 
 void
 chksum_init(void)
 {
+	TSENTER();
 #ifdef _KERNEL
 	blake3_per_cpu_ctx_init();
 #endif
@@ -357,6 +367,7 @@ chksum_init(void)
 		    chksum_kstat_addr);
 		kstat_install(chksum_kstat);
 	}
+	TSEXIT();
 }
 
 void

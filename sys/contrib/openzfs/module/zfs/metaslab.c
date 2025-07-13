@@ -41,6 +41,7 @@
 #include <sys/vdev_indirect_mapping.h>
 #include <sys/zap.h>
 #include <sys/btree.h>
+#include <sys/tslog.h>
 
 #define	GANG_ALLOCATION(flags) \
 	((flags) & (METASLAB_GANG_CHILD | METASLAB_GANG_HEADER))
@@ -381,6 +382,7 @@ static kstat_t *metaslab_ksp;
 void
 metaslab_stat_init(void)
 {
+	TSENTER();
 	ASSERT(metaslab_alloc_trace_cache == NULL);
 	metaslab_alloc_trace_cache = kmem_cache_create(
 	    "metaslab_alloc_trace_cache", sizeof (metaslab_alloc_trace_t),
@@ -392,6 +394,7 @@ metaslab_stat_init(void)
 		metaslab_ksp->ks_data = &metaslab_stats;
 		kstat_install(metaslab_ksp);
 	}
+	TSEXIT();
 }
 
 void

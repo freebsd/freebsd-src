@@ -39,6 +39,7 @@
 #include <sys/arc.h>
 #include <sys/dmu_objset.h>
 #include <sys/spa_impl.h>
+#include <sys/tslog.h>
 
 #ifdef _KERNEL
 #include <sys/sunddi.h>
@@ -224,6 +225,7 @@ static kmem_cache_t *zap_attr_long_cache;
 void
 zap_init(void)
 {
+	TSENTER();
 	zap_name_cache = kmem_cache_create("zap_name",
 	    sizeof (zap_name_t) + ZAP_MAXNAMELEN, 0, NULL, NULL,
 	    NULL, NULL, NULL, 0);
@@ -239,6 +241,7 @@ zap_init(void)
 	zap_attr_long_cache = kmem_cache_create("zap_attr_long_cache",
 	    sizeof (zap_attribute_t) + ZAP_MAXNAMELEN_NEW,  0, NULL,
 	    NULL, NULL, NULL, NULL, 0);
+	TSEXIT();
 }
 
 void

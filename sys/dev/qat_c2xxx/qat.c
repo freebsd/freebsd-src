@@ -75,6 +75,7 @@ __KERNEL_RCSID(0, "$NetBSD: qat.c,v 1.6 2020/06/14 23:23:12 riastradh Exp $");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/rman.h>
+#include <sys/tslog.h>
 
 #include <machine/bus.h>
 
@@ -421,12 +422,14 @@ qat_init(device_t dev)
 	struct qat_softc *sc = device_get_softc(dev);
 	int error;
 
+	TSENTER();
 	qat_etr_init(sc);
 
 	if (sc->sc_hw.qhw_init_admin_comms != NULL &&
 	    (error = sc->sc_hw.qhw_init_admin_comms(sc)) != 0) {
 		device_printf(sc->sc_dev,
 		    "Could not initialize admin comms: %d\n", error);
+		TSEXIT();
 		return error;
 	}
 
@@ -434,6 +437,7 @@ qat_init(device_t dev)
 	    (error = sc->sc_hw.qhw_init_arb(sc)) != 0) {
 		device_printf(sc->sc_dev,
 		    "Could not initialize hw arbiter: %d\n", error);
+		TSEXIT();
 		return error;
 	}
 
@@ -441,6 +445,7 @@ qat_init(device_t dev)
 	if (error) {
 		device_printf(sc->sc_dev,
 		    "Could not initialize Acceleration Engine: %d\n", error);
+		TSEXIT();
 		return error;
 	}
 
@@ -448,6 +453,7 @@ qat_init(device_t dev)
 	if (error) {
 		device_printf(sc->sc_dev,
 		    "Could not load firmware: %d\n", error);
+		TSEXIT();
 		return error;
 	}
 
@@ -455,6 +461,7 @@ qat_init(device_t dev)
 	if (error) {
 		device_printf(sc->sc_dev,
 		    "Could not setup interrupts: %d\n", error);
+		TSEXIT();
 		return error;
 	}
 
@@ -464,6 +471,7 @@ qat_init(device_t dev)
 	if (error) {
 		device_printf(sc->sc_dev,
 		    "Could not initialize service: %d\n", error);
+		TSEXIT();
 		return error;
 	}
 
@@ -474,6 +482,7 @@ qat_init(device_t dev)
 	    (error = sc->sc_hw.qhw_set_ssm_wdtimer(sc)) != 0) {
 		device_printf(sc->sc_dev,
 		    "Could not initialize watchdog timer: %d\n", error);
+		TSEXIT();
 		return error;
 	}
 
@@ -481,8 +490,11 @@ qat_init(device_t dev)
 	if (error) {
 		device_printf(sc->sc_dev,
 		    "Could not start: %d\n", error);
+		TSEXIT();
 		return error;
 	}
+
+	TSEXIT();
 
 	return 0;
 }

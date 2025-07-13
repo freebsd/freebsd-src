@@ -20,6 +20,7 @@
 #include	<sys/btree.h>
 #include	<sys/bitops.h>
 #include	<sys/zfs_context.h>
+#include	<sys/tslog.h>
 
 kmem_cache_t *zfs_btree_leaf_cache;
 
@@ -164,8 +165,10 @@ zfs_btree_verify_poison_at(zfs_btree_t *tree, zfs_btree_hdr_t *hdr,
 void
 zfs_btree_init(void)
 {
+	TSENTER();
 	zfs_btree_leaf_cache = kmem_cache_create("zfs_btree_leaf_cache",
 	    BTREE_LEAF_SIZE, 0, NULL, NULL, NULL, NULL, NULL, 0);
+	TSEXIT();
 }
 
 void

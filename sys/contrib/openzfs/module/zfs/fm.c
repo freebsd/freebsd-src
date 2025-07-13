@@ -68,6 +68,7 @@
 #include <sys/atomic.h>
 #include <sys/condvar.h>
 #include <sys/zfs_ioctl.h>
+#include <sys/tslog.h>
 
 static uint_t zfs_zevent_len_max = 512;
 
@@ -1319,6 +1320,7 @@ fm_init(void)
 	zevent_len_cur = 0;
 	zevent_flags = 0;
 
+	TSENTER();
 	/* Initialize zevent allocation and generation kstats */
 	fm_ksp = kstat_create("zfs", 0, "fm", "misc", KSTAT_TYPE_NAMED,
 	    sizeof (struct erpt_kstat) / sizeof (kstat_named_t),
@@ -1337,6 +1339,7 @@ fm_init(void)
 	cv_init(&zevent_cv, NULL, CV_DEFAULT, NULL);
 
 	zfs_ereport_init();
+	TSEXIT();
 }
 
 void

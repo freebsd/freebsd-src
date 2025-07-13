@@ -87,6 +87,7 @@
 #include <sys/spa_impl.h>
 #include <sys/zvol.h>
 #include <sys/zvol_impl.h>
+#include <sys/tslog.h>
 
 unsigned int zvol_inhibit_dev = 0;
 unsigned int zvol_prefetch_bytes = (128 * 1024);
@@ -2051,6 +2052,7 @@ zvol_init_impl(void)
 	 */
 	static unsigned int zvol_actual_threads;
 
+	TSENTER();
 	if (zvol_threads == 0) {
 		/*
 		 * See dde9380a1 for why 32 was chosen here.  This should
@@ -2108,6 +2110,7 @@ zvol_init_impl(void)
 			kmem_free(ztqs->tqs_taskq, ztqs->tqs_cnt *
 			    sizeof (taskq_t *));
 			ztqs->tqs_taskq = NULL;
+			TSEXIT();
 			return (SET_ERROR(ENOMEM));
 		}
 	}
@@ -2121,6 +2124,7 @@ zvol_init_impl(void)
 	for (i = 0; i < ZVOL_HT_SIZE; i++)
 		INIT_HLIST_HEAD(&zvol_htable[i]);
 
+	TSEXIT();
 	return (0);
 }
 

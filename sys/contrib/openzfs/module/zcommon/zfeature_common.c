@@ -43,6 +43,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/zfs_sysfs.h>
+#include <sys/tslog.h>
 #include "zfeature_common.h"
 
 /*
@@ -368,6 +369,7 @@ zfeature_register(spa_feature_t fid, const char *guid, const char *name,
 void
 zpool_feature_init(void)
 {
+	TSENTER();
 	struct zfs_mod_supported_features *sfeatures =
 	    zfs_mod_list_supported(ZFS_SYSFS_POOL_FEATURES);
 
@@ -787,6 +789,7 @@ zpool_feature_init(void)
 	}
 
 	zfs_mod_list_supported_free(sfeatures);
+	TSEXIT();
 }
 
 #if defined(_KERNEL)

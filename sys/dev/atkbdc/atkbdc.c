@@ -320,14 +320,14 @@ atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
 KBDC 
 atkbdc_open(int unit)
 {
-    if (unit <= 0)
-	unit = 0;
-    if (unit >= MAXKBDC)
-	return NULL;
-    if ((atkbdc_softc[unit]->port0 != NULL)
-	|| (atkbdc_softc[unit]->ioh0 != 0))		/* XXX */
-	return atkbdc_softc[unit];
-    return NULL;
+	if (unit <= 0)
+		unit = 0;
+	if (unit >= MAXKBDC)
+		return NULL;
+	if ((atkbdc_softc[unit]->port0 != NULL)
+		|| (atkbdc_softc[unit]->ioh0 != 0))		/* XXX */
+		return atkbdc_softc[unit];
+    	return NULL;
 }
 
 /*
@@ -921,48 +921,56 @@ empty_aux_buffer(KBDC p, int wait)
 void
 empty_both_buffers(KBDC p, int wait)
 {
-    int t;
-    int f;
-    int waited = 0;
+	int t;
+	int f;
+	int waited = 0;
 #if KBDIO_DEBUG >= 2
-    int c1 = 0;
-    int c2 = 0;
+	int c1 = 0;
+	int c2 = 0;
 #endif
-    int delta = 2;
+	int delta = 2;
 
-    for (t = wait; t > 0; ) { 
-        if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) {
-	    DELAY(KBDD_DELAYTIME);
-            (void)read_data(p);
+	TSENTER();
+	for (t = wait; t > 0; ) 
+	{ 
+		if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) 
+		{
+			DELAY(KBDD_DELAYTIME);
+			(void)read_data(p);
 #if KBDIO_DEBUG >= 2
-	    if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL)
-		++c1;
-            else
-		++c2;
+			if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL)
+				++c1;
+			else
+				++c2;
 #endif
-	    t = wait;
-	} else {
-	    t -= delta;
+			t = wait;
+		} else
+		{
+			t -= delta;
+		}
+
+		/*
+		* Some systems (Intel/IBM blades) do not have keyboard devices and
+		* will thus hang in this procedure. Time out after delta seconds to
+		* avoid this hang -- the keyboard attach will fail later on.
+		*/
+		waited += (delta * 1000);
+		if (waited == (delta * 1000000))
+		{
+			TSEXIT();
+			return;
+		}
+
+		DELAY(delta*1000);
 	}
-
-	/*
-	 * Some systems (Intel/IBM blades) do not have keyboard devices and
-	 * will thus hang in this procedure. Time out after delta seconds to
-	 * avoid this hang -- the keyboard attach will fail later on.
-	 */
-        waited += (delta * 1000);
-        if (waited == (delta * 1000000))
-	    return;
-
-	DELAY(delta*1000);
-    }
 #if KBDIO_DEBUG >= 2
-    if ((c1 > 0) || (c2 > 0))
-        log(LOG_DEBUG, "kbdc: %d:%d char read (empty_both_buffers)\n", c1, c2);
+	if ((c1 > 0) || (c2 > 0))
+		log(LOG_DEBUG, "kbdc: %d:%d char read (empty_both_buffers)\n", c1, c2);
 #endif
 
-    emptyq(&p->kbd);
-    emptyq(&p->aux);
+	emptyq(&p->kbd);
+	emptyq(&p->aux);
+	TSEXIT();
 }
 
 /* keyboard and mouse device control */
@@ -1117,13 +1125,17 @@ test_aux_port(KBDC p)
     int again = KBD_MAXWAIT;
     int c = -1;
 
+    TSENTER();
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
         if (write_controller_command(p, KBDC_TEST_AUX_PORT))
     	    break;
     }
     if (retry < 0)
+    {
+	TSEXIT();
         return FALSE;
+    }
 
     emptyq(&p->kbd);
     while (again-- > 0) {
@@ -1133,6 +1145,8 @@ test_aux_port(KBDC p)
     }
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: TEST_AUX_PORT status:%04x\n", c);
+
+    TSEXIT();
     return c;
 }
 
@@ -1153,13 +1167,21 @@ kbdc_set_device_mask(KBDC p, int mask)
 int
 get_controller_command_byte(KBDC p)
 {
-    if (p->command_byte != -1)
+	TSENTER();
+	if (p->command_byte != -1)
+	{
+		TSEXIT();
+		return p->command_byte;
+	}
+	if (!write_controller_command(p, KBDC_GET_COMMAND_BYTE))
+	{
+		TSEXIT();
+		return -1;
+	}
+	emptyq(&p->kbd);
+	p->command_byte = read_controller_data(p);
+	TSEXIT();
 	return p->command_byte;
-    if (!write_controller_command(p, KBDC_GET_COMMAND_BYTE))
-	return -1;
-    emptyq(&p->kbd);
-    p->command_byte = read_controller_data(p);
-    return p->command_byte;
 }
 
 int
