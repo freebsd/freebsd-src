@@ -52,7 +52,7 @@ oomprotect_all_body()
 	_rc_arg="$4"
 	setvar "${name}_oomprotect" all
 	command="/usr/sbin/daemon"
-	command_args="-P $pidfile -p $_childpidfile -- /bin/sleep 5"
+	command_args="-P $pidfile -p $_childpidfile -- /bin/sleep 60"
 	run_rc_command "$_rc_arg"
 	LITERAL
 
@@ -92,7 +92,7 @@ oomprotect_yes_body()
 	setvar "${name}_oomprotect" yes
 	procname="/bin/sleep"
 	command="/usr/sbin/daemon"
-	command_args="-p $pidfile -- $procname 5"
+	command_args="-p $pidfile -- $procname 60"
 	run_rc_command "$_rc_arg"
 	LITERAL
 
