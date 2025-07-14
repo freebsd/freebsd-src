@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2025
+.Dd July 14, 2025
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -617,6 +617,52 @@ Same as the
 flag.
 .It Sy dynvarsize Ns = Ns Ar size
 Size of the dynamic variable space.
+.Sm off
+.It Sy evaltime = Cm exec | preinit | postinit | main
+.Sm on
+Process create mode.
+When using
+.Fl c Ar cmd
+to start a command,
+.Nm
+will first stop the newly started
+.Ar cmd ,
+evaluate the
+.Xr d 7
+program,
+and then resume the
+.Ar cmd .
+The
+.Cm evaltime
+option controls the exact moment when this happens.
+.Pp
+The following table describes supported modes.
+.Bl -column -offset indent "postinit" "D Program Evaluation Time"
+.It Sy Mode Ta Sy D Program Evaluation Time
+.It Cm exec Ta
+Right at the first instruction of the command
+.Ar cmd
+execution.
+.It Cm preinit Ta
+Before
+.Xr elf 5 Ap s
+.Dq .init
+sections.
+.It Cm postinit Ta
+After
+.Xr elf 5 Ap s
+.Dq .init
+sections.
+Default on
+.Fx .
+.It Cm main Ta
+Before the first instruction of the
+.Fn main
+function.
+.El
+.Pp
+Usually, there is no reason to change the default mode,
+but it might be handy in situations such as shared library tracing.
 .It Sy flowindent
 Turn on flow indentation.
 Same as the
