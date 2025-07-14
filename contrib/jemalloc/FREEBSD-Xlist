@@ -11,6 +11,7 @@ configure*
 doc/*.in
 doc/*.xml
 doc/*.xsl
+doc_internal/
 include/jemalloc/internal/atomic_msvc.h
 include/jemalloc/internal/jemalloc_internal_defs.h.in
 include/jemalloc/internal/jemalloc_preamble.h.in
@@ -45,5 +46,6 @@ msvc/
 run_tests.sh
 scripts/
 src/jemalloc_cpp.cpp
+src/ticker.py
 src/zone.c
 test/
