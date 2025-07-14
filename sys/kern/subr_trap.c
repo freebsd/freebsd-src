@@ -340,8 +340,9 @@ ast_handler(struct thread *td, struct trapframe *framep, bool dtor)
 		td->td_ast = 0;
 	}
 
-	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, td->td_proc->p_pid,
-            td->td_proc->p_comm);
+	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td,
+	     td->td_proc == NULL ? -1 : td->td_proc->p_pid,
+	     td->td_proc == NULL ? "" : td->td_proc->p_comm);
 	KASSERT(framep == NULL || TRAPF_USERMODE(framep),
 	    ("ast in kernel mode"));
 
