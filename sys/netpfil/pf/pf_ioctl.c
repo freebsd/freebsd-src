@@ -4973,6 +4973,7 @@ DIOCCHANGEADDR_error:
 			goto fail;
 		}
 		PF_RULES_WLOCK();
+		io->pfrio_nadd = 0;
 		error = pfr_add_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nadd, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);

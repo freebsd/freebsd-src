@@ -294,7 +294,7 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	else
 		pfr_destroy_kentries(&workq);
 	if (nadd != NULL)
-		*nadd = xadd;
+		*nadd += xadd;
 	pfr_destroy_ktable(tmpkt, 0);
 	return (0);
 _bad:
