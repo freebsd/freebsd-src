@@ -92,7 +92,7 @@ dialog_country_select()
 		sub(/.*domains:/, ""), /[^[:alnum:][[:space:]]/ {
 			n = split($0, domains)
 			for (i = 1; i <= n; i++)
-				printf "'\''%s'\'' '\'\''", domains[i]
+				printf "'\''%s'\'' '\'\''\n", domains[i]
 		}
 	' | sort )
 	countries=$( echo "$input" | awk '
