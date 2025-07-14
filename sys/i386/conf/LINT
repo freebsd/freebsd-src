@@ -1,3 +1,4 @@
+#NO_UNIVERSE
 
 include "../../conf/NOTES"
 include "../../x86/conf/NOTES"

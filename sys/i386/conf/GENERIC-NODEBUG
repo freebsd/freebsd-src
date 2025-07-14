@@ -25,6 +25,8 @@
 # in NOTES.
 #
 
+#NO_UNIVERSE
+
 include GENERIC
 include "std.nodebug"
 
