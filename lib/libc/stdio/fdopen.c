@@ -49,7 +49,7 @@ FILE *
 fdopen(int fd, const char *mode)
 {
 	FILE *fp;
-	int flags, oflags, fdflags, tmp;
+	int flags, oflags, fdflags, rc, tmp;
 
 	/*
 	 * File descriptors are a full int, but _file is only a short.
@@ -79,9 +79,19 @@ fdopen(int fd, const char *mode)
 	if ((fp = __sfp()) == NULL)
 		return (NULL);
 
-	if ((oflags & O_CLOEXEC) && _fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
-		fp->_flags = 0;
-		return (NULL);
+	if ((oflags & O_CLOEXEC) != 0) {
+		tmp = _fcntl(fd, F_GETFD, 0);
+		if (tmp == -1) {
+			fp->_flags = 0;
+			return (NULL);
+		}
+		if ((tmp & FD_CLOEXEC) == 0) {
+			rc = _fcntl(fd, F_SETFD, tmp | FD_CLOEXEC);
+			if (rc == -1) {
+				fp->_flags = 0;
+				return (NULL);
+			}
+		}
 	}
 
 	fp->_flags = flags;

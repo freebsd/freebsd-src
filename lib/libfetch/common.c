@@ -278,13 +278,16 @@ conn_t *
 fetch_reopen(int sd)
 {
 	conn_t *conn;
+	int flags;
 	int opt = 1;
 
 	/* allocate and fill connection structure */
 	if ((conn = calloc(1, sizeof(*conn))) == NULL)
 		return (NULL);
-	fcntl(sd, F_SETFD, FD_CLOEXEC);
-	setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof opt);
+	flags = fcntl(sd, F_GETFD);
+	if (flags != -1 && (flags & FD_CLOEXEC) == 0)
+		(void)fcntl(sd, F_SETFD, flags | FD_CLOEXEC);
+	(void)setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 	conn->sd = sd;
 	++conn->ref;
 	return (conn);
