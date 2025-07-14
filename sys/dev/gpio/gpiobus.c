@@ -110,10 +110,9 @@ gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
 	res = bus_alloc_resource(consumer_dev, SYS_RES_IRQ, rid, irq, irq, 1,
 	    alloc_flags);
 	if (res == NULL) {
-		intr_free_intr_map_data((struct intr_map_data *)gpio_data);
+		intr_unmap_irq(irq);
 		return (NULL);
 	}
-	rman_set_virtual(res, gpio_data);
 	return (res);
 }
 #else
@@ -866,6 +865,25 @@ gpiobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    end, count, flags));
 }
 
+static int
+gpiobus_release_resource(device_t dev, device_t child, struct resource *r)
+{
+	int err;
+#ifdef INTRNG
+	u_int irq;
+
+	irq = rman_get_start(r);
+	MPASS(irq == rman_get_end(r));
+#endif
+	err = bus_generic_rman_release_resource(dev, child, r);
+	if (err != 0)
+		return (err);
+#ifdef INTRNG
+	intr_unmap_irq(irq);
+#endif
+	return (0);
+}
+
 static struct resource_list *
 gpiobus_get_resource_list(device_t bus __unused, device_t child)
 {
@@ -1060,7 +1078,7 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_alloc_resource,	gpiobus_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_rman_release_resource),
+	DEVMETHOD(bus_release_resource,	gpiobus_release_resource),
 	DEVMETHOD(bus_activate_resource,	bus_generic_rman_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_rman_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
