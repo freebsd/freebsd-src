@@ -610,6 +610,47 @@ flush_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "large" "cleanup"
+large_head()
+{
+	atf_set descr 'Test loading a large list of addresses'
+	atf_set require.user root
+}
+
+large_body()
+{
+	pft_init
+	pwd=$(pwd)
+
+	vnet_mkjail alcatraz
+
+	for i in `seq 1 255`; do
+		for j in `seq 1 255`; do
+			echo "1.2.${i}.${j}" >> ${pwd}/foo.lst
+		done
+	done
+	expected=$(wc -l foo.lst | awk '{ print $1; }')
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"table <foo>" \
+		"pass in from <foo>" \
+		"pass"
+
+	atf_check -s exit:0 \
+	    -e match:"${expected}/${expected} addresses added." \
+	    jexec alcatraz pfctl -t foo -T add -f ${pwd}/foo.lst
+	actual=$(jexec alcatraz pfctl -t foo -T show | wc -l | awk '{ print $1; }')
+	if [[ $actual -ne $expected ]]; then
+		atf_fail "Unexpected number of table entries $expected $acual"
+	fi
+}
+
+large_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -625,4 +666,5 @@ atf_init_test_cases()
 	atf_add_test_case "precreate"
 	atf_add_test_case "anchor"
 	atf_add_test_case "flush"
+	atf_add_test_case "large"
 }

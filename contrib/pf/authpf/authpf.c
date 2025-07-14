@@ -863,7 +863,7 @@ change_table(int add, const char *ip_src)
 	}
 
 	if (add)
-		ret = pfctl_table_add_addrs(pfctl_fd(pfh), &tbl, &addr, 1, NULL, 0);
+		ret = pfctl_table_add_addrs_h(pfh, &tbl, &addr, 1, NULL, 0);
 	else
 		ret = pfctl_table_del_addrs(pfctl_fd(pfh), &tbl, &addr, 1, NULL, 0);
 

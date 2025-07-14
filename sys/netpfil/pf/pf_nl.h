@@ -67,6 +67,7 @@ enum {
 	PFNL_CMD_GET_TSTATS = 29,
 	PFNL_CMD_CLR_TSTATS = 30,
 	PFNL_CMD_CLR_ADDRS = 31,
+	PFNL_CMD_TABLE_ADD_ADDR = 32,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -459,6 +460,22 @@ enum pf_tstats_t {
 	PF_TS_CNT		= 7, /* u64 */
 	PF_TS_REFCNT		= 8, /* u64 array */
 	PF_TS_NZERO		= 9, /* u64 */
+};
+
+enum pfr_addr_t {
+	PFR_A_UNSPEC,
+	PFR_A_AF		= 1, /* uint8_t */
+	PFR_A_NET		= 2, /* uint8_t */
+	PFR_A_NOT		= 3, /* bool */
+	PFR_A_ADDR		= 4, /* in6_addr */
+};
+
+enum pf_table_addrs_t {
+	PF_TA_UNSPEC,
+	PF_TA_TABLE		= 1, /* nested, pf_table_t */
+	PF_TA_ADDR		= 2, /* nested, pfr_addr_t */
+	PF_TA_FLAGS		= 3, /* u32 */
+	PF_TA_NBR_ADDED		= 4, /* u32 */
 };
 
 #ifdef _KERNEL
