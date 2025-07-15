@@ -765,8 +765,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	if (ifa != NULL &&
 	    ((struct in6_ifaddr *)ifa)->ia6_flags &
-	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
-	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
+	    (IN6_IFF_NOTREADY|IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
 		NET_EPOCH_EXIT(et);
 		return (EADDRNOTAVAIL);
 	}
