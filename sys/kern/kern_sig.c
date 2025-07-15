@@ -49,6 +49,7 @@
 #include <sys/condvar.h>
 #include <sys/devctl.h>
 #include <sys/event.h>
+#include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/jail.h>
@@ -2665,6 +2666,8 @@ static void
 ptrace_coredumpreq(struct thread *td, struct proc *p,
     struct thr_coredump_req *tcq)
 {
+	struct coredump_vnode_ctx wctx;
+	struct coredump_writer cdw;
 	void *rl_cookie;
 
 	if (p->p_sysent->sv_coredump == NULL) {
@@ -2672,8 +2675,15 @@ ptrace_coredumpreq(struct thread *td, struct proc *p,
 		return;
 	}
 
+	wctx.vp = tcq->tc_vp;
+	wctx.fcred = NOCRED;
+
+	cdw.ctx = &wctx;
+	cdw.write_fn = core_vn_write;
+	cdw.extend_fn = core_vn_extend;
+
 	rl_cookie = vn_rangelock_wlock(tcq->tc_vp, 0, OFF_MAX);
-	tcq->tc_error = p->p_sysent->sv_coredump(td, tcq->tc_vp,
+	tcq->tc_error = p->p_sysent->sv_coredump(td, &cdw,
 	    tcq->tc_limit, tcq->tc_flags);
 	vn_rangelock_unlock(tcq->tc_vp, rl_cookie);
 }
@@ -4135,6 +4145,8 @@ coredump(struct thread *td)
 	struct proc *p = td->td_proc;
 	struct ucred *cred = td->td_ucred;
 	struct vnode *vp;
+	struct coredump_vnode_ctx wctx;
+	struct coredump_writer cdw;
 	struct flock lf;
 	struct vattr vattr;
 	size_t fullpathsize;
@@ -4212,8 +4224,15 @@ coredump(struct thread *td)
 	p->p_acflag |= ACORE;
 	PROC_UNLOCK(p);
 
+	wctx.vp = vp;
+	wctx.fcred = NOCRED;
+
+	cdw.ctx = &wctx;
+	cdw.write_fn = core_vn_write;
+	cdw.extend_fn = core_vn_extend;
+
 	if (p->p_sysent->sv_coredump != NULL) {
-		error = p->p_sysent->sv_coredump(td, vp, limit, 0);
+		error = p->p_sysent->sv_coredump(td, &cdw, limit, 0);
 	} else {
 		error = ENOSYS;
 	}

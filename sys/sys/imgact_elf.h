@@ -45,6 +45,7 @@
     {(pos)->a_type = (id); (pos)->a_un.a_ptr = (ptr); (pos)++;}
 #endif
 
+struct coredump_writer;
 struct image_params;
 struct thread;
 struct vnode;
@@ -114,7 +115,7 @@ bool	__elfN(brand_inuse)(Elf_Brandinfo *entry);
 int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(freebsd_fixup)(uintptr_t *, struct image_params *);
-int	__elfN(coredump)(struct thread *, struct vnode *, off_t, int);
+int	__elfN(coredump)(struct thread *, struct coredump_writer *, off_t, int);
 size_t	__elfN(populate_note)(int, void *, void *, size_t, void **);
 int	__elfN(freebsd_copyout_auxargs)(struct image_params *, uintptr_t);
 void	__elfN(puthdr)(struct thread *, void *, size_t, int, size_t, int);

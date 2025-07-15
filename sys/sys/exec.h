@@ -37,6 +37,8 @@
 #ifndef _SYS_EXEC_H_
 #define _SYS_EXEC_H_
 
+#include <sys/_uio.h>
+
 /*
  * Before ps_args existed, the following structure, found at the top of
  * the user stack of each user process, was used by ps(1) to locate
@@ -58,12 +60,38 @@ struct ps_strings {
 };
 
 /* Coredump output parameters. */
+struct coredump_params;
+struct coredump_writer;
+struct thread;
+struct ucred;
+
+typedef int coredump_init_fn(const struct coredump_writer *,
+    const struct coredump_params *);
+typedef int coredump_write_fn(const struct coredump_writer *, const void *, size_t,
+    off_t, enum uio_seg, struct ucred *, size_t *, struct thread *);
+typedef int coredump_extend_fn(const struct coredump_writer *, off_t,
+    struct ucred *);
+
+struct coredump_vnode_ctx {
+	struct vnode	*vp;
+	struct ucred	*fcred;
+};
+
+coredump_write_fn core_vn_write;
+coredump_extend_fn core_vn_extend;
+
+struct coredump_writer {
+	void			*ctx;
+	coredump_init_fn	*init_fn;
+	coredump_write_fn	*write_fn;
+	coredump_extend_fn	*extend_fn;
+};
+
 struct coredump_params {
 	off_t		offset;
 	struct ucred	*active_cred;
-	struct ucred	*file_cred;
 	struct thread	*td;
-	struct vnode	*vp;
+	const struct coredump_writer	*cdw;
 	struct compressor *comp;
 };
 
