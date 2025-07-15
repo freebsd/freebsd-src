@@ -549,6 +549,8 @@ fdesc_readdir(struct vop_readdir_args *ap)
 	fmp = VFSTOFDESC(ap->a_vp->v_mount);
 	if (ap->a_ncookies != NULL)
 		*ap->a_ncookies = 0;
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = 0;
 
 	off = (int)uio->uio_offset;
 	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||
@@ -561,7 +563,12 @@ fdesc_readdir(struct vop_readdir_args *ap)
 	fcnt = i - 2;		/* The first two nodes are `.' and `..' */
 
 	FILEDESC_SLOCK(fdp);
-	while (i < fdp->fd_nfiles + 2 && uio->uio_resid >= UIO_MX) {
+	while (uio->uio_resid >= UIO_MX) {
+		if (i >= fdp->fd_nfiles + 2) {
+			if (ap->a_eofflag != NULL)
+				*ap->a_eofflag = 1;
+			break;
+		}
 		bzero((caddr_t)dp, UIO_MX);
 		switch (i) {
 		case 0:	/* `.' */
