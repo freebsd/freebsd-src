@@ -39,6 +39,7 @@
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/tslog.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -393,6 +394,7 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	ACPI_STATUS status;
 	int error;
 
+	TSENTER();
 	dev = context;
 
 	switch (notify) {
@@ -406,6 +408,7 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 		if (child == NULL) {
 			device_printf(dev, "no device to eject for %s\n",
 			    acpi_name(h));
+			TSEXIT();
 			return;
 		}
 		bus_topo_lock();
@@ -414,6 +417,7 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			bus_topo_unlock();
 			device_printf(dev, "failed to detach %s: %d\n",
 			    device_get_nameunit(child), error);
+			TSEXIT();
 			return;
 		}
 		if ((acpi_quirks & ACPI_Q_CLEAR_PME_ON_DETACH) &&
@@ -424,6 +428,7 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			bus_topo_unlock();
 			device_printf(dev, "failed to eject %s: %s\n",
 			    acpi_name(h), AcpiFormatException(status));
+			TSEXIT();
 			return;
 		}
 		if (acpi_quirks & ACPI_Q_DELAY_BEFORE_EJECT_RESCAN)
@@ -436,6 +441,7 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 		    acpi_name(h));
 		break;
 	}
+	TSEXIT();
 }
 
 static ACPI_STATUS

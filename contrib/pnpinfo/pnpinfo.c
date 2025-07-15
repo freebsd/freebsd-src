@@ -25,6 +25,7 @@
  */
 
 #include <sys/time.h>
+#include <sys/tslog.h>
 
 #include <err.h>
 #include <stdio.h>
@@ -133,6 +134,7 @@ get_serial(u_char *data)
 {
     int i, bit, valid = 0, sum = 0x6a;
 
+    TSENTER();
     bzero(data, sizeof(char) * 9);
 
     for (i = 0; i < 72; i++) {
@@ -154,6 +156,7 @@ get_serial(u_char *data)
 
     valid = valid && (data[8] == sum);
 
+    TSEXIT();
     return valid;
 }
 
@@ -557,6 +560,7 @@ isolation_protocol(void)
     int csn;
     u_char data[9];
 
+    TSENTER();
     send_Initiation_LFSR();
 
     /* Reset CSN for All Cards */
@@ -575,6 +579,8 @@ isolation_protocol(void)
 	else
 	    break;
     }
+
+    TSEXIT();
     return csn - 1;
 }
 

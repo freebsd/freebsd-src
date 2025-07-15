@@ -36,6 +36,7 @@
 #include <sys/rman.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/tslog.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -449,6 +450,7 @@ amdvi_cmp_wait(struct amdvi_softc *softc)
 	int i;
 	bool status;
 
+	TSENTER();
 	read = &softc->cmp_data;
 	*read = 0;
 	amdvi_cmd_cmp(softc, VERIFY);
@@ -464,6 +466,7 @@ amdvi_cmp_wait(struct amdvi_softc *softc)
 			      "Head:0x%x, loop:%d.\n", ctrl->cmd_tail,
 			      ctrl->cmd_head, loop);
 #endif
+	TSEXIT();
 	return (status);
 }
 

@@ -865,7 +865,7 @@ get_aux_id(KBDC kbdc)
 	id = read_aux_data(kbdc);
 	VLOG(2, (LOG_DEBUG, "psm: device ID: %04x\n", id));
 
-	TSENTER();
+	TSEXIT();
 	return (id);
 }
 

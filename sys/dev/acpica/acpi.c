@@ -51,6 +51,7 @@
 #include <sys/smp.h>
 #include <sys/timetc.h>
 #include <sys/uuid.h>
+#include <sys/tslog.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/clock.h>
@@ -3352,6 +3353,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     enum acpi_sleep_state slp_state;
     int sleep_result;
 
+    TSENTER();
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
     if (state < ACPI_STATE_S1 || state > ACPI_S_STATES_MAX)
@@ -3359,6 +3361,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (!acpi_sleep_states[state]) {
 	device_printf(sc->acpi_dev, "Sleep state S%d not supported by BIOS\n",
 	    state);
+	TSEXIT();
 	return (AE_SUPPORT);
     }
 
@@ -3367,6 +3370,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (ACPI_FAILURE(status)) {
 	device_printf(sc->acpi_dev,
 	    "suspend request ignored (not ready yet)\n");
+	TSEXIT();
 	return (status);
     }
 
@@ -3376,6 +3380,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	 * shutdown handlers.
 	 */
 	shutdown_nice(RB_POWEROFF);
+	TSEXIT();
 	return_ACPI_STATUS (AE_OK);
     }
 
@@ -3552,6 +3557,7 @@ backout:
     if (devctl_process_running())
 	acpi_UserNotify("Resume", ACPI_ROOT_OBJECT, state);
 
+    TSEXIT();
     return_ACPI_STATUS (status);
 }
 

@@ -38,6 +38,7 @@
 #include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
+#include <sys/tslog.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -112,6 +113,7 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 	int		apic_id = cpu_apic_ids[cpu];
 	int		ms;
 
+	TSENTER();
 	pcb = &susppcbs[cpu]->sp_pcb;
 	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
 	WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
@@ -125,6 +127,7 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 			return (1);	/* return SUCCESS */
 		DELAY(1000);
 	}
+	TSEXIT();
 	return (0);		/* return FAILURE */
 }
 

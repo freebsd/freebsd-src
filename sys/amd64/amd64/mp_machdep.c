@@ -51,6 +51,7 @@
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/tslog.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -478,6 +479,7 @@ start_ap(int apic_id, vm_paddr_t boot_address)
 	int vector, ms;
 	int cpus;
 
+	TSENTER();
 	/* calculate the vector */
 	vector = (boot_address >> 12) & 0xff;
 
@@ -489,9 +491,13 @@ start_ap(int apic_id, vm_paddr_t boot_address)
 	/* Wait up to 5 seconds for it to start. */
 	for (ms = 0; ms < 5000; ms++) {
 		if (mp_naps > cpus)
+		{
+			TSEXIT();
 			return 1;	/* return SUCCESS */
+		}
 		DELAY(1000);
 	}
+	TSEXIT();
 	return 0;		/* return FAILURE */
 }
 
