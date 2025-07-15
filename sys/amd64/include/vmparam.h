@@ -249,7 +249,7 @@
  */
 #define	PHYS_IN_DMAP(pa)	(dmaplimit == 0 || (pa) < dmaplimit)
 #define	VIRT_IN_DMAP(va)	\
-    ((va) >= kva_layout.dmap_low && (va) < kva_layout.dmap_high)
+    ((va) >= kva_layout.dmap_low && (va) < kva_layout.dmap_low + dmaplimit)
 
 #define	PMAP_HAS_DMAP	1
 #define	PHYS_TO_DMAP(x)	__extension__ ({				\
