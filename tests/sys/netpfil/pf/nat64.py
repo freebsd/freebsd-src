@@ -272,3 +272,18 @@ class TestNAT64(VnetTestTemplate):
         reply = self.common_test_source_addr(packet)
         icmp = reply.getlayer(sp.ICMPv6EchoRequest)
         assert icmp
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_bad_len(self):
+        """
+            PR 288224: we can panic if the IPv6 plen is longer than the packet length.
+        """
+        ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
+        import scapy.all as sp
+
+        packet = sp.IPv6(dst="64:ff9b::198.51.100.2", hlim=2, plen=512) \
+            / sp.ICMPv6EchoRequest() / sp.Raw("foo")
+        reply = sp.sr1(packet, timeout=3)
+        # We don't expect a reply to a corrupted packet
+        assert not reply
