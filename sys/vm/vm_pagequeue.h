@@ -260,9 +260,9 @@ struct vm_domain {
 	u_int vmd_inactive_shortage;		/* Per-thread shortage. */
 	blockcount_t vmd_inactive_running;	/* Number of inactive threads. */
 	blockcount_t vmd_inactive_starting;	/* Number of threads started. */
-	volatile u_int vmd_addl_shortage;	/* Shortage accumulator. */
-	volatile u_int vmd_inactive_freed;	/* Successful inactive frees. */
-	volatile u_int vmd_inactive_us;		/* Microseconds for above. */
+	u_int vmd_addl_shortage;	/* (a) Shortage accumulator. */
+	u_int vmd_inactive_freed;	/* (a) Successful inactive frees. */
+	u_int vmd_inactive_us;		/* (a) Microseconds for above. */
 	u_int vmd_inactive_pps;		/* Exponential decay frees/second. */
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
