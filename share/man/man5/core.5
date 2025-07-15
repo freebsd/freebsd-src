@@ -48,26 +48,6 @@ a system crash.
 (In this event, the decision to save the core file is arbitrary, see
 .Xr savecore 8 . )
 .Pp
-The maximum size of a core file is limited by the
-.Dv RLIMIT_CORE
-.Xr setrlimit 2
-limit.
-Files which would be larger than the limit are not created.
-.Pp
-With a large limit, a process that had mapped a very large,
-and perhaps sparsely populated, virtual memory region, could take
-a very long time to create core dumps.
-The system ignores all signals sent to a process writing a core file, except
-.Dv SIGKILL
-which terminates the writing and causes immediate exit of the process.
-The behavior of
-.Dv SIGKILL
-can be disabled by setting tunable
-.Xr sysctl 8
-variable
-.Va kern.core_dump_can_intr
-to zero.
-.Pp
 The name of the file is controlled via the
 .Xr sysctl 8
 variable
@@ -106,6 +86,26 @@ The name defaults to
 yielding the traditional
 .Fx
 behaviour.
+.Pp
+The maximum size of a core file is limited by the
+.Dv RLIMIT_CORE
+.Xr setrlimit 2
+limit.
+Files which would be larger than the limit are not created.
+.Pp
+With a large limit, a process that had mapped a very large,
+and perhaps sparsely populated, virtual memory region, could take
+a very long time to create core dumps.
+The system ignores all signals sent to a process writing a core file, except
+.Dv SIGKILL
+which terminates the writing and causes immediate exit of the process.
+The behavior of
+.Dv SIGKILL
+can be disabled by setting tunable
+.Xr sysctl 8
+variable
+.Va kern.core_dump_can_intr
+to zero.
 .Pp
 By default, a process that changes user or group credentials whether
 real or effective will not create a corefile.

@@ -38,12 +38,14 @@
 #include <sys/acct.h>
 #include <sys/compressor.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/ucoredump.h>
@@ -52,6 +54,11 @@
 static int coredump(struct thread *td);
 
 int compress_user_cores = 0;
+
+static SLIST_HEAD(, coredumper)	coredumpers =
+    SLIST_HEAD_INITIALIZER(coredumpers);
+static struct rmlock	coredump_rmlock;
+RM_SYSINIT(coredump_lock, &coredump_rmlock, "coredump_lock");
 
 static int kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
@@ -91,6 +98,30 @@ int compress_user_cores_level = 6;
 SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_level, CTLFLAG_RWTUN,
     &compress_user_cores_level, 0,
     "Corefile compression level");
+
+void
+coredumper_register(struct coredumper *cd)
+{
+
+	blockcount_init(&cd->cd_refcount);
+	rm_wlock(&coredump_rmlock);
+	SLIST_INSERT_HEAD(&coredumpers, cd, cd_entry);
+	rm_wunlock(&coredump_rmlock);
+}
+
+void
+coredumper_unregister(struct coredumper *cd)
+{
+
+	rm_wlock(&coredump_rmlock);
+	SLIST_REMOVE(&coredumpers, cd, coredumper, cd_entry);
+	rm_wunlock(&coredump_rmlock);
+
+	/*
+	 * Wait for any in-process coredumps to finish before returning.
+	 */
+	blockcount_wait(&cd->cd_refcount, NULL, "dumpwait", 0);
+}
 
 /*
  * Force the current process to exit with the specified signal, dumping core
@@ -178,9 +209,11 @@ sigexit(struct thread *td, int sig)
 static int
 coredump(struct thread *td)
 {
+	struct coredumper *iter, *chosen;
 	struct proc *p = td->td_proc;
+	struct rm_priotracker tracker;
 	off_t limit;
-	int error;
+	int error, priority;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
@@ -205,8 +238,51 @@ coredump(struct thread *td)
 		return (EFBIG);
 	}
 
-	error = coredump_vnode(td, limit);
+	rm_rlock(&coredump_rmlock, &tracker);
+	priority = -1;
+	chosen = NULL;
+	SLIST_FOREACH(iter, &coredumpers, cd_entry) {
+		if (iter->cd_probe == NULL) {
+			/*
+			 * If we haven't found anything of a higher priority
+			 * yet, we'll call this a GENERIC.  Ideally, we want
+			 * coredumper modules to include a probe function.
+			 */
+			if (priority < 0) {
+				priority = COREDUMPER_GENERIC;
+				chosen = iter;
+			}
+
+			continue;
+		}
+
+		error = (*iter->cd_probe)(td);
+		if (error < 0)
+			continue;
+
+		/*
+		 * Higher priority than previous options.
+		 */
+		if (error > priority) {
+			priority = error;
+			chosen = iter;
+		}
+	}
+
+	/*
+	 * Acquire our refcount before we drop the lock so that
+	 * coredumper_unregister() can safely assume that the refcount will only
+	 * go down once it's dropped the rmlock.
+	 */
+	blockcount_acquire(&chosen->cd_refcount, 1);
+	rm_runlock(&coredump_rmlock, &tracker);
+
+	/* Currently, we always have the vnode dumper built in. */
+	MPASS(chosen != NULL);
+	error = ((*chosen->cd_handle)(td, limit));
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
+
+	blockcount_release(&chosen->cd_refcount, 1);
 
 	return (error);
 }
