@@ -10090,6 +10090,13 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 
+		h = mtod(pd->m, struct ip *);
+		if (pd->m->m_pkthdr.len < ntohs(h->ip_len)) {
+			*action = PF_DROP;
+			REASON_SET(reason, PFRES_SHORT);
+			return (-1);
+		}
+
 		if (pf_normalize_ip(reason, pd) != PF_PASS) {
 			/* We do IP header normalization and packet reassembly here */
 			*m0 = pd->m;
@@ -10097,13 +10104,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 		*m0 = pd->m;
-
 		h = mtod(pd->m, struct ip *);
-		if (pd->m->m_pkthdr.len < ntohs(h->ip_len)) {
-			*action = PF_DROP;
-			REASON_SET(reason, PFRES_SHORT);
-			return (-1);
-		}
 
 		if (pf_walk_header(pd, h, reason) != PF_PASS) {
 			*action = PF_DROP;
