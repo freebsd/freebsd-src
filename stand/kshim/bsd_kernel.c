@@ -1046,7 +1046,9 @@ device_is_attached(device_t dev)
 void
 device_set_desc(device_t dev, const char *desc)
 {
+	TSENTER();
 	snprintf(dev->dev_desc, sizeof(dev->dev_desc), "%s", desc);
+	TSEXIT();
 }
 
 void

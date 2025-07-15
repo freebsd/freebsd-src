@@ -783,9 +783,11 @@ enable_aux_dev(KBDC kbdc)
 {
 	int res;
 
+	TSENTER();
 	res = send_aux_command(kbdc, PSMC_ENABLE_DEV);
 	VLOG(2, (LOG_DEBUG, "psm: ENABLE_DEV return code:%04x\n", res));
 
+	TSEXIT();
 	return (res == PSM_ACK);
 }
 
@@ -794,9 +796,11 @@ disable_aux_dev(KBDC kbdc)
 {
 	int res;
 
+	TSENTER();
 	res = send_aux_command(kbdc, PSMC_DISABLE_DEV);
 	VLOG(2, (LOG_DEBUG, "psm: DISABLE_DEV return code:%04x\n", res));
 
+	TSEXIT();
 	return (res == PSM_ACK);
 }
 
@@ -1087,6 +1091,7 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 	int stat[3];
 	int i;
 
+	TSENTER();
 	switch((i = test_aux_port(kbdc))) {
 	case 1:	/* ignore these errors */
 	case 2:
@@ -1105,6 +1110,7 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 			break;
 		device_log(sc->dev, LOG_ERR,
 		    "the aux port is not functioning (%d).\n", i);
+		TSEXIT();
 		return (FALSE);
 	}
 
@@ -1122,6 +1128,7 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 			recover_from_error(kbdc);
 			device_log(sc->dev, LOG_ERR,
 			    "failed to reset the aux device.\n");
+			TSEXIT();
 			return (FALSE);
 		}
 	}
@@ -1133,6 +1140,7 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 	if (!enable_aux_dev(kbdc) || !disable_aux_dev(kbdc)) {
 		device_log(sc->dev, LOG_ERR,
 		    "failed to enable the aux device.\n");
+		TSEXIT();
 		return (FALSE);
 	}
 	empty_both_buffers(kbdc, 10);	/* remove stray data if any */
@@ -1161,6 +1169,7 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 		device_log(sc->dev, LOG_DEBUG,
 		    "failed to get status (doinitialize).\n");
 
+	TSEXIT();
 	return (TRUE);
 }
 
@@ -1720,6 +1729,7 @@ psmprobe(device_t dev)
 	/* done */
 	kbdc_set_device_mask(sc->kbdc, mask | KBD_AUX_CONTROL_BITS);
 	kbdc_lock(sc->kbdc, FALSE);
+
 	TSEXIT();
 	return (0);
 }
@@ -6367,15 +6377,22 @@ enable_synaptics_mux(struct psm_softc *sc, enum probearg arg)
 	int active_ports_count = 0;
 	int active_ports_mask = 0;
 
+	TSENTER();
 	sc->muxsinglesyna = FALSE;
 
 	if (mux_disabled == 1 || (mux_disabled == -1 &&
 	    (kbdc->quirks & KBDC_QUIRK_DISABLE_MUX_PROBE) != 0))
+	{
+		TSEXIT();
 		return (FALSE);
+	}
 
 	version = enable_aux_mux(kbdc);
 	if (version == -1)
+	{
+		TSEXIT();
 		return (FALSE);
+	}
 
 	for (port = 0; port < KBDC_AUX_MUX_NUM_PORTS; port++) {
 		VLOG(3, (LOG_DEBUG, "aux_mux: ping port %d\n", port));
@@ -6426,6 +6443,8 @@ enable_synaptics_mux(struct psm_softc *sc, enum probearg arg)
 	/* Don't disable syncbit checks if Synaptics is only device on MUX */
 	if (active_ports_count == 1)
 		sc->muxsinglesyna = probe;
+
+	TSEXIT();
 	return (active_ports_count != 1 ? probe : FALSE);
 }
 

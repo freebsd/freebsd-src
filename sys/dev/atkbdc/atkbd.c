@@ -324,6 +324,7 @@ atkbd_configure(int flags)
 	int arg[2];
 	int i;
 
+	TSENTER();
 	/*
 	 * Probe the keyboard controller, if not present or if the driver
 	 * is disabled, unregister the keyboard if any.
@@ -336,6 +337,7 @@ atkbd_configure(int flags)
 			kbd_unregister(kbd);
 			kbd->kb_flags &= ~KB_REGISTERED;
 		}
+		TSEXIT();
 		return 0;
 	}
 
@@ -348,10 +350,17 @@ atkbd_configure(int flags)
 	arg[1] = -1;
 	kbd = NULL;
 	if (atkbd_probe(ATKBD_DEFAULT, arg, flags))
+	{
+		TSEXIT();
 		return 0;
+	}
 	if (atkbd_init(ATKBD_DEFAULT, &kbd, arg, flags))
+	{
+		TSEXIT();
 		return 0;
+	}
 
+	TSEXIT();
 	/* return the number of found keyboards */
 	return 1;
 }
@@ -399,11 +408,15 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	char phys_loc[8];
 #endif
 
+	TSENTER();
 	/* XXX */
 	if (unit == ATKBD_DEFAULT) {
 		*kbdp = kbd = &default_kbd;
 		if (KBD_IS_INITIALIZED(kbd) && KBD_IS_CONFIGURED(kbd))
+		{
+			TSEXIT();
 			return 0;
+		}
 		state = &default_kbd_state;
 		keymap = &default_keymap;
 		accmap = &default_accentmap;
@@ -425,6 +438,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 			goto bad;
 		}
 	} else if (KBD_IS_INITIALIZED(*kbdp) && KBD_IS_CONFIGURED(*kbdp)) {
+		TSEXIT();
 		return 0;
 	} else {
 		kbd = *kbdp;
@@ -520,6 +534,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		KBD_CONFIG_DONE(kbd);
 	}
 
+	TSEXIT();
 	return 0;
 bad:
 	if (needfree) {
@@ -536,6 +551,8 @@ bad:
 			*kbdp = NULL;	/* insure ref doesn't leak to caller */
 		}
 	}
+
+	TSEXIT();
 	return error;
 }
 
@@ -558,6 +575,7 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 	int delay[2];
 	int c;
 
+	TSENTER();
 	if (!KBD_HAS_DEVICE(kbd)) {
 		/*
 		 * The keyboard was not detected before;
@@ -573,7 +591,10 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 	}
 
 	if (state->ks_polling)
+	{
+		TSEXIT();
 		return 0;
+	}
 
 	if (KBD_IS_ACTIVE(kbd) && KBD_IS_BUSY(kbd)) {
 		/* let the callback function to process the input */
@@ -585,6 +606,8 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 			c = atkbd_read_char(kbd, FALSE);
 		} while (c != NOKEY);
 	}
+
+	TSEXIT();
 	return 0;
 }
 
@@ -595,6 +618,7 @@ atkbd_test_if(keyboard_t *kbd)
 	int error;
 	int s;
 
+	TSENTER();
 	error = 0;
 	empty_both_buffers(((atkbd_state_t *)kbd->kb_data)->kbdc, 10);
 	s = spltty();
@@ -604,6 +628,7 @@ atkbd_test_if(keyboard_t *kbd)
 		error = EIO;
 	splx(s);
 
+	TSEXIT();
 	return error;
 }
 
@@ -963,6 +988,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	int ival;
 #endif
 
+	TSENTER();
 	s = spltty();
 	switch (cmd) {
 	case KDGKBMODE:		/* get keyboard mode */
@@ -993,6 +1019,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			break;
 		default:
 			splx(s);
+			TSEXIT();
 			return EINVAL;
 		}
 		break;
@@ -1011,6 +1038,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		/* NOTE: lock key state in ks_state won't be changed */
 		if (*(int *)arg & ~LOCK_MASK) {
 			splx(s);
+			TSEXIT();
 			return EINVAL;
 		}
 		i = *(int *)arg;
@@ -1027,6 +1055,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 					  ledmap[i & LED_MASK]);
 			if (error) {
 				splx(s);
+				TSEXIT();
 				return error;
 			}
 		}
@@ -1052,18 +1081,24 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDSKBSTATE:	/* set lock key state */
 		if (*(int *)arg & ~LOCK_MASK) {
 			splx(s);
+			TSEXIT();
 			return EINVAL;
 		}
 		state->ks_state &= ~LOCK_MASK;
 		state->ks_state |= *(int *)arg;
 		splx(s);
+
+		TSEXIT();
 		/* set LEDs and quit */
 		return atkbd_ioctl(kbd, KDSETLED, arg);
 
 	case KDSETREPEAT:	/* set keyboard repeat rate (new interface) */
 		splx(s);
 		if (!KBD_HAS_DEVICE(kbd))
+		{
+			TSEXIT();
 			return 0;
+		}
 		i = typematic(((int *)arg)[0], ((int *)arg)[1]);
 		error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, i);
 		if (error == 0) {
@@ -1075,6 +1110,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 				evdev_push_repeats(state->ks_evdev, kbd);
 #endif
 		}
+		TSEXIT();
 		return error;
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
@@ -1087,7 +1123,10 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDSETRAD:		/* set keyboard repeat rate (old interface) */
 		splx(s);
 		if (!KBD_HAS_DEVICE(kbd))
+		{
+			TSEXIT();
 			return 0;
+		}
 		error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, *(int *)arg);
 		if (error == 0) {
 			kbd->kb_delay1 = typematic_delay(*(int *)arg);
@@ -1098,6 +1137,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 				evdev_push_repeats(state->ks_evdev, kbd);
 #endif
 		}
+		TSEXIT();
 		return error;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
@@ -1111,10 +1151,12 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		/* FALLTHROUGH */
 	default:
 		splx(s);
+		TSEXIT();
 		return genkbd_commonioctl(kbd, cmd, arg);
 	}
 
 	splx(s);
+	TSEXIT();
 	return 0;
 }
 
@@ -1186,6 +1228,7 @@ atkbd_poll(keyboard_t *kbd, int on)
 static int
 atkbd_reset(KBDC kbdc, int flags, int c)
 {
+	TSENTER();
 	/* reset keyboard hardware */
 	if (!(flags & KB_CONF_NO_RESET) && !reset_kbd(kbdc)) {
 		/*
@@ -1211,8 +1254,11 @@ atkbd_reset(KBDC kbdc, int flags, int c)
 		    ALLOW_DISABLE_KBD(kbdc) ? 0xff : KBD_KBD_CONTROL_BITS, c);
 		if (bootverbose)
 			printf("atkbd: failed to reset the keyboard.\n");
+
+		TSEXIT();
 		return (EIO);
 	}
+	TSEXIT();
 	return (0);
 }
 
@@ -1265,10 +1311,15 @@ static int
 get_kbd_echo(KBDC kbdc)
 {
 	int data;
+
+	TSENTER();
 	/* enable the keyboard port, but disable the keyboard intr. */
 	if (setup_kbd_port(kbdc, TRUE, FALSE))
+	{
 		/* CONTROLLER ERROR: there is very little we can do... */
+		TSEXIT();
 		return ENXIO;
+	}
 
 	/* see if something is present */
 	write_kbd_command(kbdc, KBDC_ECHO);
@@ -1287,6 +1338,7 @@ get_kbd_echo(KBDC kbdc)
 		empty_both_buffers(kbdc, 10);
 		test_controller(kbdc);
 		test_kbd_port(kbdc);
+		TSEXIT();
 		return ENXIO;
 	}
 
@@ -1296,9 +1348,11 @@ get_kbd_echo(KBDC kbdc)
 		 * CONTROLLER ERROR 
 		 * This is serious; the keyboard intr is left disabled! 
 		 */
+		TSEXIT();
 		return ENXIO;
 	}
 
+	TSEXIT();
 	return 0;
 }
 
@@ -1313,8 +1367,10 @@ probe_keyboard(KBDC kbdc, int flags)
 	int c;
 	int m;
 
+	TSENTER();
 	if (!kbdc_lock(kbdc, TRUE)) {
 		/* driver error? */
+		TSEXIT();
 		return ENXIO;
 	}
 
@@ -1331,6 +1387,7 @@ probe_keyboard(KBDC kbdc, int flags)
 		/* CONTROLLER ERROR */
 		kbdc_set_device_mask(kbdc, m);
 		kbdc_lock(kbdc, FALSE);
+		TSEXIT();
 		return ENXIO;
 	}
 
@@ -1368,6 +1425,8 @@ probe_keyboard(KBDC kbdc, int flags)
 #endif
 
 	kbdc_lock(kbdc, FALSE);
+
+	TSEXIT();
 	return (HAS_QUIRK(kbdc, KBDC_QUIRK_IGNORE_PROBE_RESULT) ? 0 : err);
 }
 
@@ -1378,8 +1437,10 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	int id;
 	int c;
 
+	TSENTER();
 	if (!kbdc_lock(kbdc, TRUE)) {
 		/* driver error? */
+		TSEXIT();
 		return EIO;
 	}
 
@@ -1393,6 +1454,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		/* CONTROLLER ERROR */
 		kbdc_lock(kbdc, FALSE);
 		printf("atkbd: unable to get the current command byte value.\n");
+		TSEXIT();
 		return EIO;
 	}
 	if (bootverbose)
@@ -1408,12 +1470,14 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		/* CONTROLLER ERROR: there is very little we can do... */
 		printf("atkbd: unable to set the command byte.\n");
 		kbdc_lock(kbdc, FALSE);
+		TSEXIT();
 		return EIO;
 	}
 
 	if (HAS_QUIRK(kbdc, KBDC_QUIRK_RESET_AFTER_PROBE) &&
 	    atkbd_reset(kbdc, flags, c)) {
 		kbdc_lock(kbdc, FALSE);
+		TSEXIT();
 		return EIO;
 	}
 
@@ -1464,6 +1528,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	if (!HAS_QUIRK(kbdc, KBDC_QUIRK_RESET_AFTER_PROBE) &&
 	    atkbd_reset(kbdc, flags, c)) {
 		kbdc_lock(kbdc, FALSE);
+		TSEXIT();
 		return EIO;
 	}
 
@@ -1487,6 +1552,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 			    ? 0xff : KBD_KBD_CONTROL_BITS, c);
 			kbdc_lock(kbdc, FALSE);
 			printf("atkbd: unable to set the XT keyboard mode.\n");
+			TSEXIT();
 			return EIO;
 		}
 	}
@@ -1517,10 +1583,12 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 			KBD_OVERRIDE_KBD_LOCK), c);
 		kbdc_lock(kbdc, FALSE);
 		printf("atkbd: unable to enable the keyboard port and intr.\n");
+		TSEXIT();
 		return EIO;
 	}
 
 	kbdc_lock(kbdc, FALSE);
+	TSEXIT();
 	return 0;
 }
 
@@ -1577,10 +1645,14 @@ get_kbd_id(KBDC kbdc)
 {
 	int id1, id2;
 
+	TSENTER();
 	empty_both_buffers(kbdc, 10);
 	id1 = id2 = -1;
 	if (send_kbd_command(kbdc, KBDC_SEND_DEV_ID) != KBD_ACK)
+	{
+		TSEXIT();
 		return -1;
+	}
 
 	DELAY(10000); 	/* 10 msec delay */
 	id1 = read_kbd_data(kbdc);
@@ -1591,8 +1663,11 @@ get_kbd_id(KBDC kbdc)
 		empty_both_buffers(kbdc, 10);
 		test_controller(kbdc);
 		test_kbd_port(kbdc);
+		TSEXIT();
 		return -1;
 	}
+
+	TSEXIT();
 	return ((id2 << 8) | id1);
 }
 

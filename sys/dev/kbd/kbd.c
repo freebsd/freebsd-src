@@ -200,6 +200,7 @@ kbd_register(keyboard_t *kbd)
 	keyboard_info_t ki;
 	int index;
 
+	TSENTER();
 	mux = kbd_get_keyboard(kbd_find_keyboard("kbdmux", -1));
 
 	for (index = 0; index < keyboards; ++index) {
@@ -208,7 +209,10 @@ kbd_register(keyboard_t *kbd)
 	}
 	if (index >= keyboards) {
 		if (kbd_realloc_array())
+		{
+			TSEXIT();
 			return (-1);
+		}
 	}
 
 	kbd->kb_index = index;
@@ -232,10 +236,12 @@ kbd_register(keyboard_t *kbd)
 				(void)kbdd_ioctl(mux, KBADDKBD, (caddr_t) &ki);
 			}
 
+			TSEXIT();
 			return (index);
 		}
 	}
 
+	TSEXIT();
 	return (-1);
 }
 
