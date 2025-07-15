@@ -1999,13 +1999,47 @@ compress_chunk(struct coredump_params *cp, char *base, char *buf, size_t len)
 }
 
 int
+core_vn_write(const struct coredump_writer *cdw, const void *base, size_t len,
+    off_t offset, enum uio_seg seg, struct ucred *cred, size_t *resid,
+    struct thread *td)
+{
+	struct coredump_vnode_ctx *ctx = cdw->ctx;
+
+	return (vn_rdwr_inchunks(UIO_WRITE, ctx->vp, __DECONST(void *, base),
+	    len, offset, seg, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
+	    cred, ctx->fcred, resid, td));
+}
+
+int
 core_write(struct coredump_params *cp, const void *base, size_t len,
     off_t offset, enum uio_seg seg, size_t *resid)
 {
+	return ((*cp->cdw->write_fn)(cp->cdw, base, len, offset, seg,
+	    cp->active_cred, resid, cp->td));
+}
 
-	return (vn_rdwr_inchunks(UIO_WRITE, cp->vp, __DECONST(void *, base),
-	    len, offset, seg, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
-	    cp->active_cred, cp->file_cred, resid, cp->td));
+int
+core_vn_extend(const struct coredump_writer *cdw, off_t newsz,
+    struct ucred *cred)
+{
+	struct coredump_vnode_ctx *ctx = cdw->ctx;
+	struct mount *mp;
+	int error;
+
+	error = vn_start_write(ctx->vp, &mp, V_WAIT);
+	if (error != 0)
+		return (error);
+	vn_lock(ctx->vp, LK_EXCLUSIVE | LK_RETRY);
+	error = vn_truncate_locked(ctx->vp, newsz, false, cred);
+	VOP_UNLOCK(ctx->vp);
+	vn_finished_write(mp);
+	return (error);
+}
+
+static int
+core_extend(struct coredump_params *cp, off_t newsz)
+{
+	return ((*cp->cdw->extend_fn)(cp->cdw, newsz, cp->td->td_ucred));
 }
 
 int
@@ -2013,7 +2047,6 @@ core_output(char *base, size_t len, off_t offset, struct coredump_params *cp,
     void *tmpbuf)
 {
 	vm_map_t map;
-	struct mount *mp;
 	size_t resid, runlen;
 	int error;
 	bool success;
@@ -2068,14 +2101,7 @@ core_output(char *base, size_t len, off_t offset, struct coredump_params *cp,
 			}
 		}
 		if (!success) {
-			error = vn_start_write(cp->vp, &mp, V_WAIT);
-			if (error != 0)
-				break;
-			vn_lock(cp->vp, LK_EXCLUSIVE | LK_RETRY);
-			error = vn_truncate_locked(cp->vp, offset + runlen,
-			    false, cp->td->td_ucred);
-			VOP_UNLOCK(cp->vp);
-			vn_finished_write(mp);
+			error = core_extend(cp, offset + runlen);
 			if (error != 0)
 				break;
 		}
