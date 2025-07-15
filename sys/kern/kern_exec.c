@@ -2010,7 +2010,7 @@ core_write(struct coredump_params *cp, const void *base, size_t len,
 static int
 core_extend(struct coredump_params *cp, off_t newsz)
 {
-	return ((*cp->cdw->extend_fn)(cp->cdw, newsz, cp->td->td_ucred));
+	return ((*cp->cdw->extend_fn)(cp->cdw, newsz, cp->active_cred));
 }
 
 int

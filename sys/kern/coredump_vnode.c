@@ -89,6 +89,15 @@
 #define	NUM_CORE_FILES 5
 #endif
 
+static coredumper_handle_fn	coredump_vnode;
+static struct coredumper vnode_coredumper = {
+	.cd_name = "vnode_coredumper",
+	.cd_handle = coredump_vnode,
+};
+
+SYSINIT(vnode_coredumper_register, SI_SUB_EXEC, SI_ORDER_ANY,
+    coredumper_register, &vnode_coredumper);
+
 _Static_assert(NUM_CORE_FILES >= 0 && NUM_CORE_FILES <= MAX_NUM_CORE_FILES,
     "NUM_CORE_FILES is out of range (0 to " __STRING(MAX_NUM_CORE_FILES) ")");
 static int num_cores = NUM_CORE_FILES;
@@ -420,7 +429,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
  * one.  If there _is not_ one, it returns ENOSYS; otherwise it returns the
  * error from the process-specific routine.
  */
-int
+static int
 coredump_vnode(struct thread *td, off_t limit)
 {
 	struct proc *p = td->td_proc;

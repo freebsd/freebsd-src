@@ -13,6 +13,8 @@
 #ifdef _KERNEL
 
 #include <sys/_uio.h>
+#include <sys/blockcount.h>
+#include <sys/queue.h>
 
 /* Coredump output parameters. */
 struct coredump_params;
@@ -34,7 +36,6 @@ struct coredump_vnode_ctx {
 
 coredump_write_fn core_vn_write;
 coredump_extend_fn core_vn_extend;
-int coredump_vnode(struct thread *, off_t);
 
 struct coredump_writer {
 	void			*ctx;
@@ -63,6 +64,36 @@ extern int coredump_pack_vmmapinfo;
 
 extern int compress_user_cores;
 extern int compress_user_cores_level;
+
+typedef int coredumper_probe_fn(struct thread *);
+
+/*
+ * Some arbitrary values for coredumper probes to return.  The highest priority
+ * we can find wins.  It's somewhat expected that a coredumper may want to bid
+ * differently based on the process in question.  Note that probe functions will
+ * be called with the proc lock held, so they must not sleep.
+ */
+#define	COREDUMPER_NOMATCH		(-1)	/* Decline to touch it */
+#define	COREDUMPER_GENERIC		(0)	/* I handle coredumps */
+#define	COREDUMPER_SPECIAL		(50)	/* Special handler */
+#define	COREDUMPER_HIGH_PRIORITY	(100)	/* High-priority handler */
+
+/*
+ * The handle functions will be called with the proc lock held, and should
+ * return with the proc lock dropped.
+ */
+typedef int coredumper_handle_fn(struct thread *, off_t);
+
+struct coredumper {
+	SLIST_ENTRY(coredumper)	 cd_entry;
+	const char		*cd_name;
+	coredumper_probe_fn	*cd_probe;
+	coredumper_handle_fn	*cd_handle;
+	blockcount_t		 cd_refcount;
+};
+
+void coredumper_register(struct coredumper *);
+void coredumper_unregister(struct coredumper *);
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_UCOREDUMP_H_ */
