@@ -384,8 +384,8 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 #endif
 }
 
-static int swap_pager_full = 2;	/* swap space exhaustion (task killing) */
-static int swap_pager_almost_full = 1; /* swap space exhaustion (w/hysteresis)*/
+static bool swap_pager_full = true; /* swap space exhaustion (task killing) */
+static bool swap_pager_almost_full = true; /* swap space exhaustion (w/hysteresis) */
 static struct mtx swbuf_mtx;	/* to sync nsw_wcount_async */
 static int nsw_wcount_async;	/* limit async write buffers */
 static int nsw_wcount_async_max;/* assigned maximum			*/
@@ -642,14 +642,14 @@ swp_sizecheck(void)
 {
 
 	if (swap_pager_avail < nswap_lowat) {
-		if (swap_pager_almost_full == 0) {
+		if (!swap_pager_almost_full) {
 			printf("swap_pager: out of swap space\n");
-			swap_pager_almost_full = 1;
+			swap_pager_almost_full = true;
 		}
 	} else {
-		swap_pager_full = 0;
+		swap_pager_full = false;
 		if (swap_pager_avail > nswap_hiwat)
-			swap_pager_almost_full = 0;
+			swap_pager_almost_full = false;
 	}
 }
 
@@ -958,11 +958,10 @@ swp_pager_getswapspace(int *io_npages)
 		swp_sizecheck();
 		swdevhd = TAILQ_NEXT(sp, sw_list);
 	} else {
-		if (swap_pager_full != 2) {
+		if (!swap_pager_full) {
 			printf("swp_pager_getswapspace(%d): failed\n",
 			    *io_npages);
-			swap_pager_full = 2;
-			swap_pager_almost_full = 1;
+			swap_pager_full = swap_pager_almost_full = true;
 		}
 		swdevhd = NULL;
 	}
@@ -2863,10 +2862,8 @@ swapoff_one(struct swdevt *sp, struct ucred *cred, u_int flags)
 	sp->sw_id = NULL;
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
 	nswapdev--;
-	if (nswapdev == 0) {
-		swap_pager_full = 2;
-		swap_pager_almost_full = 1;
-	}
+	if (nswapdev == 0)
+		swap_pager_full = swap_pager_almost_full = true;
 	if (swdevhd == sp)
 		swdevhd = NULL;
 	mtx_unlock(&sw_dev_mtx);
