@@ -10,7 +10,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    notice, this list of conditions and the disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
@@ -97,12 +97,13 @@ main(int argc, char *argv[])
 			if ((pwd = getpwnam(*argv)) != NULL)
 				who = pwd->pw_uid;
 			else if (getnum("uid", *argv, &who)) {
-				errs++;
-				continue;
+				warnx("invalid user name or uid: %s", *argv);
+				errno = EINVAL;
+				err("invalid user name or uid: %s", *argv);
 			} else if (who < 0) {
-				warnx("%s: bad value", *argv);
-				errs++;
-				continue;
+				warnx("invalid uid: %s", *argv);
+				errno = EINVAL;
+				err("invalid uid: %s", *argv);
 			}
 		} else {
 			if (getnum("pid", *argv, &who)) {
@@ -126,24 +127,72 @@ static int
 donice(int which, int who, int prio, bool incr)
 {
 	int oldprio;
+	const char *who_type;
+	char who_str[20];
 
+	/* Determine the type of identifier we're working with */
+	switch (which) {
+	case PRIO_PROCESS:
+		who_type = "process";
+		break;
+	case PRIO_PGRP:
+		who_type = "process group";
+		break;
+	case PRIO_USER:
+		who_type = "user";
+		break;
+	default:
+		who_type = "unknown";
+		break;
+	}
+
+	/* Get current priority */
 	errno = 0;
 	oldprio = getpriority(which, who);
-	if (oldprio == -1 && errno) {
-		warn("%d: getpriority", who);
-		return (1);
+	if (oldprio == -1) {
+		if (errno == EPERM) {
+			fprintf(stderr, "Permission denied: cannot get priority for %s %d\n",
+				who_type, who);
+			return (1);
+		} else if (errno == ESRCH) {
+			fprintf(stderr, "%s %d not found\n", who_type, who);
+			return (1);
+		} else {
+			warn("%s %d: getpriority", who_type, who);
+			return (1);
+		}
 	}
+
+	/* Validate and adjust priority */
 	if (incr)
 		prio = oldprio + prio;
-	if (prio > PRIO_MAX)
+
+	/* Validate priority range */
+	if (prio > PRIO_MAX) {
+		fprintf(stderr, "Warning: Priority %d exceeds maximum (%d), using %d\n",
+			    prio, PRIO_MAX, PRIO_MAX);
 		prio = PRIO_MAX;
-	if (prio < PRIO_MIN)
+	} else if (prio < PRIO_MIN) {
+		fprintf(stderr, "Warning: Priority %d below minimum (%d), using %d\n",
+			    prio, PRIO_MIN, PRIO_MIN);
 		prio = PRIO_MIN;
-	if (setpriority(which, who, prio) < 0) {
-		warn("%d: setpriority", who);
-		return (1);
 	}
-	fprintf(stderr, "%d: old priority %d, new priority %d\n", who,
+
+	/* Set new priority */
+	if (setpriority(which, who, prio) < 0) {
+		if (errno == EPERM) {
+			fprintf(stderr, "Permission denied: cannot set priority for %s %d\n",
+				who_type, who);
+			return (1);
+		} else {
+			warn("%s %d: setpriority", who_type, who);
+			return (1);
+		}
+	}
+
+	/* Format output */
+	snprintf(who_str, sizeof(who_str), "%s %d", who_type, who);
+	fprintf(stderr, "%s: old priority %d, new priority %d\n", who_str,
 	    oldprio, prio);
 	return (0);
 }
