@@ -1784,6 +1784,9 @@ p9fs_readdir(struct vop_readdir_args *ap)
 		return (EBADF);
 	}
 
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = 0;
+
 	io_buffer = uma_zalloc(p9fs_io_buffer_zone, M_WAITOK);
 
 	/* We haven't reached the end yet. read more. */
@@ -1801,8 +1804,11 @@ p9fs_readdir(struct vop_readdir_args *ap)
 		count = p9_client_readdir(vofid, (char *)io_buffer,
 		    diroffset, count);
 
-		if (count == 0)
+		if (count == 0) {
+			if (ap->a_eofflag != NULL)
+				*ap->a_eofflag = 1;
 			break;
+		}
 
 		if (count < 0) {
 			error = EIO;
