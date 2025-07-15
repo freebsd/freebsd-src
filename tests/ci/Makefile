@@ -139,6 +139,12 @@ KLDFILEMONISLOADED!=kldload -q -n filemon 2>/dev/null && echo "1" || echo "0"
 METAMODE?=-DWITH_META_MODE
 .endif
 
+PKGBASE_REPO?=	${.OBJDIR}/pkgbase-repo
+PKGBASE_REPO_DIR?= ${.OBJDIR}/pkgbase-repo-dir
+WSTAGEDIR!=	${IMAKE} -f Makefile.inc1 -C ${WORLDDIR} -V WSTAGEDIR
+PKG_ABI_FILE?=	${WSTAGEDIR}/usr/bin/uname
+PKG_ABI?=	$$(${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI)
+
 CLEANFILES+=	${CIDISK} ${.OBJDIR}/ci.img ${META_TAR}
 IMAGEDIR=	${.OBJDIR}/ci-buildimage
 CLEANDIRS+=	${IMAGEDIR}
@@ -184,11 +190,24 @@ ci-buildkernel: ci-buildworld-${TARGET_ARCH:tl} .PHONY
 		${EXTRA_MAKE_FLAGS} KERNCONF=${KERNCONF} \
 		buildkernel ${LOG_TARGET}
 
-ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
+ci-buildpkgbase: ci-buildkernel-${TARGET_ARCH:tl} .PHONY
+	@echo "Building pkgbase for ${TARGET_ARCH}"
+	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
+		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
+		${EXTRA_MAKE_FLAGS} KERNCONF=${KERNCONF} REPODIR=${PKGBASE_REPO} \
+		update-packages ${LOG_TARGET}
+	mkdir -p ${PKGBASE_REPO_DIR}
+	@printf "FreeBSD-base: { url: "file://%s", enabled: yes }" \
+		${PKGBASE_REPO}/${PKG_ABI}/latest \
+		> ${PKGBASE_REPO_DIR}/FreeBSD-base.conf
+
+ci-buildimage: ${QEMUTGT} ci-buildpkgbase .PHONY
 	@echo "Building ci image for ${TARGET_ARCH}"
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} CITYPE=${CITYPE} \
+		PKG_ABI=${PKG_ABI} \
+		PKGBASE_REPO_DIR=${PKGBASE_REPO_DIR} \
 		${RELEASEDIR}/scripts/mk-vmimage.sh \
 		-C ${RELEASEDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${VMFS} \
 		-i ${.OBJDIR}/ci.img -s ${VMSIZE} -f ${FORMAT} \
