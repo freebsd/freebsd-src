@@ -1,15 +1,5 @@
 #!/bin/sh
 
-sysctl security.mac.portacl >/dev/null 2>&1
-if [ $? -ne 0 ]; then
-	echo "1..0 # SKIP MAC_PORTACL is unavailable."
-	exit 0
-fi
-if [ $(id -u) -ne 0 ]; then
-	echo "1..0 # SKIP testcases must be run as root"
-	exit 0
-fi
-
 ntest=1
 
 check_bind() {
@@ -95,6 +85,7 @@ bind_test() {
 	sysctl security.mac.portacl.rules= >/dev/null
 }
 
+portacl_enabled=$(sysctl -n security.mac.portacl.enabled)
 reserved_high=$(sysctl -n net.inet.ip.portrange.reservedhigh)
 suser_exempt=$(sysctl -n security.mac.portacl.suser_exempt)
 port_high=$(sysctl -n security.mac.portacl.port_high)
@@ -103,4 +94,5 @@ restore_settings() {
 	sysctl -n net.inet.ip.portrange.reservedhigh=${reserved_high} >/dev/null
 	sysctl -n security.mac.portacl.suser_exempt=${suser_exempt} >/dev/null
 	sysctl -n security.mac.portacl.port_high=${port_high} >/dev/null
+	sysctl -n security.mac.portacl.enabled=${portacl_enabled} >/dev/null
 }
