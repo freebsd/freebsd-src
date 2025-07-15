@@ -89,6 +89,7 @@ jobs:
               /* Loop for each key in "checklist". */
               for (const c in checklist)
                 msg += "- " + c + "<sup>" + checklist[c].join(", ") + "</sup>\n";
+              msg += "\nPlease review CONTRIBUTING.md, then update and push your branch again.\n"
 
               comment_func({
                 owner: context.repo.owner,
