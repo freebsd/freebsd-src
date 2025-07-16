@@ -25,9 +25,6 @@
 
 . /etc/rc.subr
 
-: ${freebsdci_enable:="NO"}
-: ${freebsdci_type:="full"}
-
 name="freebsdci"
 desc="Run FreeBSD CI"
 rcvar=freebsdci_enable
@@ -38,6 +35,11 @@ parallelism=$(nproc)
 tardev=/dev/vtbd1
 metadir=/meta
 istar=$(file -s ${tardev} | grep "POSIX tar archive" | wc -l)
+
+load_rc_config $name
+: ${freebsdci_enable:="NO"}
+: ${freebsdci_type:="full"}
+PATH="${PATH}:/usr/local/sbin:/usr/local/bin"
 
 auto_shutdown()
 {
@@ -105,5 +107,4 @@ firstboot_ci_run()
 	auto_shutdown
 }
 
-load_rc_config $name
 run_rc_command "$1"
