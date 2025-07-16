@@ -37,8 +37,6 @@
 #ifndef _SYS_EXEC_H_
 #define _SYS_EXEC_H_
 
-#include <sys/_uio.h>
-
 /*
  * Before ps_args existed, the following structure, found at the top of
  * the user stack of each user process, was used by ps(1) to locate
@@ -57,42 +55,6 @@ struct ps_strings {
 	unsigned int ps_nargvstr; /* the number of argument strings */
 	char	**ps_envstr;	/* first of 0 or more environment strings */
 	unsigned int ps_nenvstr; /* the number of environment strings */
-};
-
-/* Coredump output parameters. */
-struct coredump_params;
-struct coredump_writer;
-struct thread;
-struct ucred;
-
-typedef int coredump_init_fn(const struct coredump_writer *,
-    const struct coredump_params *);
-typedef int coredump_write_fn(const struct coredump_writer *, const void *, size_t,
-    off_t, enum uio_seg, struct ucred *, size_t *, struct thread *);
-typedef int coredump_extend_fn(const struct coredump_writer *, off_t,
-    struct ucred *);
-
-struct coredump_vnode_ctx {
-	struct vnode	*vp;
-	struct ucred	*fcred;
-};
-
-coredump_write_fn core_vn_write;
-coredump_extend_fn core_vn_extend;
-
-struct coredump_writer {
-	void			*ctx;
-	coredump_init_fn	*init_fn;
-	coredump_write_fn	*write_fn;
-	coredump_extend_fn	*extend_fn;
-};
-
-struct coredump_params {
-	off_t		offset;
-	struct ucred	*active_cred;
-	struct thread	*td;
-	const struct coredump_writer	*cdw;
-	struct compressor *comp;
 };
 
 struct image_params;
@@ -132,16 +94,6 @@ int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);
 
 enum uio_seg;
-
-#define   CORE_BUF_SIZE   (16 * 1024)
-
-int core_write(struct coredump_params *, const void *, size_t, off_t,
-    enum uio_seg, size_t *);
-int core_output(char *, size_t, off_t, struct coredump_params *, void *);
-int sbuf_drain_core_output(void *, const char *, int);
-
-extern int coredump_pack_fileinfo;
-extern int coredump_pack_vmmapinfo;
 
 /*
  * note: name##_mod cannot be const storage because the
