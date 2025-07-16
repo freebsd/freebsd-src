@@ -497,8 +497,8 @@ struct kva_layout_s	kva_layout_la57 = {
 	.kva_min =	KV5ADDR(NPML5EPG / 2, 0, 0, 0, 0),	/* == rec_pt */
 	.dmap_low =	KV5ADDR(DMPML5I, 0, 0, 0, 0),
 	.dmap_high =	KV5ADDR(DMPML5I + NDMPML5E, 0, 0, 0, 0),
-	.lm_low =	KV4ADDR(LMSPML4I, 0, 0, 0),
-	.lm_high =	KV4ADDR(LMEPML4I + 1, 0, 0, 0),
+	.lm_low =	KV5ADDR(LMSPML5I, 0, 0, 0, 0),
+	.lm_high =	KV5ADDR(LMEPML5I + 1, 0, 0, 0, 0),
 	.km_low =	KV4ADDR(KPML4BASE, 0, 0, 0),
 	.km_high =	KV4ADDR(KPML4BASE + NKPML4E - 1, NPDPEPG - 1,
 			    NPDEPG - 1, NPTEPG - 1),
@@ -2625,6 +2625,15 @@ pmap_init(void)
 		if (large_vmem == NULL) {
 			printf("pmap: cannot create large map\n");
 			lm_ents = 0;
+		}
+		if (la57) {
+			for (i = 0; i < howmany((vm_offset_t)NBPML4 *
+			    lm_ents, NBPML5); i++) {
+				m = pmap_large_map_getptp_unlocked();
+				kernel_pmap->pm_pmltop[LMSPML5I + i] = X86_PG_V |
+				    X86_PG_RW | X86_PG_A | X86_PG_M |
+				    pg_nx | VM_PAGE_TO_PHYS(m);
+			}
 		}
 		for (i = 0; i < lm_ents; i++) {
 			m = pmap_large_map_getptp_unlocked();
@@ -10768,19 +10777,28 @@ pmap_large_map_getptp(void)
 static pdp_entry_t *
 pmap_large_map_pdpe(vm_offset_t va)
 {
+	pml4_entry_t *pm4;
 	vm_pindex_t pml4_idx;
 	vm_paddr_t mphys;
 
-	pml4_idx = pmap_pml4e_index(va);
-	KASSERT(LMSPML4I <= pml4_idx && pml4_idx < LMSPML4I + lm_ents,
-	    ("pmap_large_map_pdpe: va %#jx out of range idx %#jx LMSPML4I "
-	    "%#jx lm_ents %d",
-	    (uintmax_t)va, (uintmax_t)pml4_idx, LMSPML4I, lm_ents));
-	KASSERT((kernel_pml4[pml4_idx] & X86_PG_V) != 0,
-	    ("pmap_large_map_pdpe: invalid pml4 for va %#jx idx %#jx "
-	    "LMSPML4I %#jx lm_ents %d",
-	    (uintmax_t)va, (uintmax_t)pml4_idx, LMSPML4I, lm_ents));
-	mphys = kernel_pml4[pml4_idx] & PG_FRAME;
+	KASSERT(va >= kva_layout.lm_low && va < kva_layout.lm_low +
+	    (vm_offset_t)NBPML4 * lm_ents, ("va %#lx not in large map", va));
+	if (la57) {
+		pm4 = pmap_pml4e(kernel_pmap, va);
+		mphys = *pm4 & PG_FRAME;
+	} else {
+		pml4_idx = pmap_pml4e_index(va);
+
+		KASSERT(LMSPML4I <= pml4_idx && pml4_idx < LMSPML4I + lm_ents,
+		    ("pmap_large_map_pdpe: va %#jx out of range idx %#jx "
+		    "LMSPML4I %#jx lm_ents %d",
+		    (uintmax_t)va, (uintmax_t)pml4_idx, LMSPML4I, lm_ents));
+		KASSERT((kernel_pml4[pml4_idx] & X86_PG_V) != 0,
+		    ("pmap_large_map_pdpe: invalid pml4 for va %#jx idx %#jx "
+		    "LMSPML4I %#jx lm_ents %d",
+		    (uintmax_t)va, (uintmax_t)pml4_idx, LMSPML4I, lm_ents));
+		mphys = kernel_pml4[pml4_idx] & PG_FRAME;
+	}
 	return ((pdp_entry_t *)PHYS_TO_DMAP(mphys) + pmap_pdpe_index(va));
 }
 

@@ -202,9 +202,14 @@
 #define	KMSANSHADPML4I	(KPML4BASE - NKMSANSHADPML4E)
 #define	KMSANORIGPML4I	(DMPML4I - NKMSANORIGPML4E)
 
-/* Large map: index of the first and max last pml4 entry */
+/*
+ * Large map: index of the first and max last pml4/la48 and pml5/la57
+ * entry.
+ */
 #define	LMSPML4I	(PML4PML4I + 1)
 #define	LMEPML4I	(KASANPML4I - 1)
+#define	LMSPML5I	(DMPML5I + NDMPML5E)
+#define	LMEPML5I	(LMSPML5I + 32 - 1)	/* 32 slots for large map */
 
 /*
  * XXX doesn't really belong here I guess...
