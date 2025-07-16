@@ -149,6 +149,8 @@ struct ufshci_hw_queue {
 	bus_dmamap_t queuemem_map;
 	bus_addr_t req_queue_addr;
 
+	bus_addr_t *ucd_bus_addr;
+
 	uint32_t num_entries;
 	uint32_t num_trackers;
 
@@ -198,8 +200,6 @@ struct ufshci_req_queue {
 	bus_dma_tag_t dma_tag_payload;
 
 	bus_dmamap_t ucdmem_map;
-
-	bus_addr_t ucd_addr;
 };
 
 struct ufshci_device {

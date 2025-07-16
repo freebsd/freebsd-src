@@ -48,6 +48,29 @@ ufshci_req_sdb_cmd_desc_destroy(struct ufshci_req_queue *req_queue)
 	}
 }
 
+static void
+ufshci_ucd_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
+{
+	struct ufshci_hw_queue *hwq = arg;
+	int i;
+
+	if (error != 0) {
+		printf("ufshci: Failed to map UCD, error = %d\n", error);
+		return;
+	}
+
+	if (hwq->num_trackers != nseg) {
+		printf(
+		    "ufshci: Failed to map UCD, num_trackers = %d, nseg = %d\n",
+		    hwq->num_trackers, nseg);
+		return;
+	}
+
+	for (i = 0; i < nseg; i++) {
+		hwq->ucd_bus_addr[i] = seg[i].ds_addr;
+	}
+}
+
 static int
 ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
     uint32_t num_entries, struct ufshci_controller *ctrlr)
@@ -55,7 +78,6 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
 	struct ufshci_tracker *tr;
 	size_t ucd_allocsz, payload_allocsz;
-	uint64_t ucdmem_phys;
 	uint8_t *ucdmem;
 	int i, error;
 
@@ -71,10 +93,11 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	 * Allocate physical memory for UTP Command Descriptor (UCD)
 	 * Note: UFSHCI UCD format is restricted to 128-byte alignment.
 	 */
-	error = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev), 128,
-	    ctrlr->page_size, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-	    ucd_allocsz, howmany(ucd_allocsz, ctrlr->page_size),
-	    ctrlr->page_size, 0, NULL, NULL, &req_queue->dma_tag_ucd);
+	error = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev), 128, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, ucd_allocsz,
+	    howmany(ucd_allocsz, sizeof(struct ufshci_utp_cmd_desc)),
+	    sizeof(struct ufshci_utp_cmd_desc), 0, NULL, NULL,
+	    &req_queue->dma_tag_ucd);
 	if (error != 0) {
 		ufshci_printf(ctrlr, "request cmd desc tag create failed %d\n",
 		    error);
@@ -88,7 +111,7 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	}
 
 	if (bus_dmamap_load(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
-		ucdmem, ucd_allocsz, ufshci_single_map, &ucdmem_phys, 0) != 0) {
+		ucdmem, ucd_allocsz, ufshci_ucd_map, hwq, 0) != 0) {
 		ufshci_printf(ctrlr, "failed to load cmd desc memory\n");
 		bus_dmamem_free(req_queue->dma_tag_ucd, req_queue->ucd,
 		    req_queue->ucdmem_map);
@@ -96,7 +119,6 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	}
 
 	req_queue->ucd = (struct ufshci_utp_cmd_desc *)ucdmem;
-	req_queue->ucd_addr = ucdmem_phys;
 
 	/*
 	 * Allocate physical memory for PRDT
@@ -128,10 +150,9 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 		tr->slot_state = UFSHCI_SLOT_STATE_FREE;
 
 		tr->ucd = (struct ufshci_utp_cmd_desc *)ucdmem;
-		tr->ucd_bus_addr = ucdmem_phys;
+		tr->ucd_bus_addr = hwq->ucd_bus_addr[i];
 
 		ucdmem += sizeof(struct ufshci_utp_cmd_desc);
-		ucdmem_phys += sizeof(struct ufshci_utp_cmd_desc);
 
 		hwq->act_tr[i] = tr;
 	}
@@ -175,6 +196,11 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	req_queue->hwq = malloc(sizeof(struct ufshci_hw_queue), M_UFSHCI,
 	    M_ZERO | M_NOWAIT);
 	hwq = &req_queue->hwq[UFSHCI_SDB_Q];
+	hwq->num_entries = req_queue->num_entries;
+	hwq->num_trackers = req_queue->num_trackers;
+	req_queue->hwq->ucd_bus_addr = malloc(sizeof(bus_addr_t) *
+		req_queue->num_trackers,
+	    M_UFSHCI, M_ZERO | M_NOWAIT);
 
 	mtx_init(&hwq->qlock, "ufshci req_queue lock", NULL, MTX_DEF);
 
@@ -277,6 +303,7 @@ ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
 	if (mtx_initialized(&hwq->qlock))
 		mtx_destroy(&hwq->qlock);
 
+	free(req_queue->hwq->ucd_bus_addr, M_UFSHCI);
 	free(req_queue->hwq, M_UFSHCI);
 }
 
