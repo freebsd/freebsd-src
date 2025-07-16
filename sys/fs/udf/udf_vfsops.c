@@ -81,6 +81,7 @@
 #include <sys/fcntl.h>
 #include <sys/iconv.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -739,7 +740,7 @@ udf_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 	struct ifid *ifhp;
 	struct vnode *nvp;
 	struct udf_node *np;
-	off_t fsize;
+	uint64_t fsize;
 	int error;
 
 	ifhp = (struct ifid *)fhp;
@@ -751,6 +752,10 @@ udf_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 
 	np = VTON(nvp);
 	fsize = le64toh(np->fentry->inf_len);
+	if (fsize > OFF_MAX) {
+		*vpp = NULLVP;
+		return (EIO);
+	}
 
 	*vpp = nvp;
 	vnode_create_vobject(*vpp, fsize, curthread);
