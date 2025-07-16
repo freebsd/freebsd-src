@@ -3227,6 +3227,19 @@ dev/uart/uart_if.m		optional uart
 dev/uart/uart_subr.c		optional uart
 dev/uart/uart_tty.c		optional uart
 #
+# Universal Flash Storage Host Controller Interface drivers
+#
+dev/ufshci/ufshci.c		optional ufshci
+dev/ufshci/ufshci_ctrlr.c	optional ufshci
+dev/ufshci/ufshci_ctrlr_cmd.c	optional ufshci
+dev/ufshci/ufshci_dev.c		optional ufshci
+dev/ufshci/ufshci_pci.c		optional ufshci
+dev/ufshci/ufshci_req_queue.c	optional ufshci
+dev/ufshci/ufshci_req_sdb.c	optional ufshci
+dev/ufshci/ufshci_sim.c		optional ufshci
+dev/ufshci/ufshci_sysctl.c	optional ufshci
+dev/ufshci/ufshci_uic_cmd.c	optional ufshci
+#
 # USB controller drivers
 #
 dev/usb/controller/musb_otg.c		optional musb
