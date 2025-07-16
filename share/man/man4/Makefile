@@ -594,6 +594,7 @@ MAN=	aac.4 \
 	tws.4 \
 	udp.4 \
 	udplite.4 \
+	${_ufshci.4} \
 	unionfs.4 \
 	ure.4 \
 	vale.4 \
@@ -935,6 +936,10 @@ MLINKS+=hwt.4	intel_pt.4
 MLINKS+=hwt.4	coresight.4
 MLINKS+=hwt.4	spe.4
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
+_ufshci.4=	ufshci.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
