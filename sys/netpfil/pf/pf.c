@@ -327,7 +327,7 @@ int			 pf_change_icmp_af(struct mbuf *, int,
 			    sa_family_t);
 int			 pf_translate_icmp_af(int, void *);
 static void		 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
-			    int, sa_family_t, int);
+			    int, sa_family_t, struct pf_krule *, int);
 static void		 pf_detach_state(struct pf_kstate *);
 static int		 pf_state_key_attach(struct pf_state_key *,
 			    struct pf_state_key *, struct pf_kstate *);
@@ -4349,11 +4349,11 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 	} else if (pd->proto != IPPROTO_ICMP && pd->af == AF_INET &&
 		r->return_icmp)
 		pf_send_icmp(pd->m, r->return_icmp >> 8,
-			r->return_icmp & 255, 0, pd->af, rtableid);
+			r->return_icmp & 255, 0, pd->af, r, rtableid);
 	else if (pd->proto != IPPROTO_ICMPV6 && pd->af == AF_INET6 &&
 		r->return_icmp6)
 		pf_send_icmp(pd->m, r->return_icmp6 >> 8,
-			r->return_icmp6 & 255, 0, pd->af, rtableid);
+			r->return_icmp6 & 255, 0, pd->af, r, rtableid);
 }
 
 static int
@@ -4411,7 +4411,7 @@ pf_send_challenge_ack(struct pf_pdesc *pd, struct pf_kstate *s,
 
 static void
 pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, int mtu,
-    sa_family_t af, int rtableid)
+    sa_family_t af, struct pf_krule *r, int rtableid)
 {
 	struct pf_send_entry *pfse;
 	struct mbuf *m0;
@@ -9016,7 +9016,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 		if (ip->ip_ttl <= IPTTLDEC) {
 			if (r->rt != PF_DUPTO)
 				pf_send_icmp(m0, ICMP_TIMXCEED,
-				    ICMP_TIMXCEED_INTRANS, 0, pd->af,
+				    ICMP_TIMXCEED_INTRANS, 0, pd->af, r,
 				    pd->act.rtableid);
 			goto bad_locked;
 		}
@@ -9162,7 +9162,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 			}
 
 			pf_send_icmp(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
-			   ifp->if_mtu, pd->af, pd->act.rtableid);
+			   ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 		goto bad;
@@ -9313,7 +9313,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 		if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
 			if (r->rt != PF_DUPTO)
 				pf_send_icmp(m0, ICMP6_TIME_EXCEEDED,
-				    ICMP6_TIME_EXCEED_TRANSIT, 0, pd->af,
+				    ICMP6_TIME_EXCEED_TRANSIT, 0, pd->af, r,
 				    pd->act.rtableid);
 			goto bad_locked;
 		}
@@ -9462,7 +9462,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 
 			if (r->rt != PF_DUPTO)
 				pf_send_icmp(m0, ICMP6_PACKET_TOO_BIG, 0,
-				    ifp->if_mtu, pd->af, pd->act.rtableid);
+				    ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
