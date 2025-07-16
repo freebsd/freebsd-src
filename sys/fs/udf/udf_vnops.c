@@ -39,6 +39,7 @@
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/iconv.h>
+#include <sys/limits.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/dirent.h>
@@ -182,11 +183,14 @@ udf_access(struct vop_access_args *a)
 }
 
 static int
-udf_open(struct vop_open_args *ap) {
+udf_open(struct vop_open_args *ap)
+{
 	struct udf_node *np = VTON(ap->a_vp);
-	off_t fsize;
+	uint64_t fsize;
 
 	fsize = le64toh(np->fentry->inf_len);
+	if (fsize > OFF_MAX)
+		return (EIO);
 	vnode_create_vobject(ap->a_vp, fsize, ap->a_td);
 	return 0;
 }
@@ -314,12 +318,13 @@ udf_getattr(struct vop_getattr_args *a)
 		 * that directories consume at least one logical block,
 		 * make it appear so.
 		 */
-		if (fentry->logblks_rec != 0) {
-			vap->va_size =
-			    le64toh(fentry->logblks_rec) * node->udfmp->bsize;
-		} else {
+		vap->va_size = le64toh(fentry->logblks_rec);
+		if (vap->va_size == 0)
 			vap->va_size = node->udfmp->bsize;
-		}
+		else if (vap->va_size > UINT64_MAX / node->udfmp->bsize)
+			vap->va_size = UINT64_MAX;
+		else
+			vap->va_size *= node->udfmp->bsize;
 	} else {
 		vap->va_size = le64toh(fentry->inf_len);
 	}
@@ -446,6 +451,7 @@ udf_read(struct vop_read_args *ap)
 	struct buf *bp;
 	uint8_t *data;
 	daddr_t lbn, rablock;
+	uint64_t len;
 	off_t diff, fsize;
 	ssize_t n;
 	int error = 0;
@@ -471,7 +477,12 @@ udf_read(struct vop_read_args *ap)
 		return (error);
 	}
 
-	fsize = le64toh(node->fentry->inf_len);
+	len = le64toh(node->fentry->inf_len);
+	if (len > OFF_MAX) {
+		/* too big, just cap to the requested length */
+		len = uio->uio_resid;
+	}
+	fsize = len;
 	udfmp = node->udfmp;
 	do {
 		lbn = lblkno(udfmp, uio->uio_offset);
@@ -783,6 +794,7 @@ udf_readdir(struct vop_readdir_args *a)
 	struct udf_uiodir uiodir;
 	struct udf_dirstream *ds;
 	uint64_t *cookies = NULL;
+	uint64_t len;
 	int ncookies;
 	int error = 0;
 
@@ -811,8 +823,12 @@ udf_readdir(struct vop_readdir_args *a)
 	 * Iterate through the file id descriptors.  Give the parent dir
 	 * entry special attention.
 	 */
-	ds = udf_opendir(node, uio->uio_offset, le64toh(node->fentry->inf_len),
-	    node->udfmp);
+	len = le64toh(node->fentry->inf_len);
+	if (len > INT_MAX) {
+		/* too big, just cap to INT_MAX */
+		len = INT_MAX;
+	}
+	ds = udf_opendir(node, uio->uio_offset, len, node->udfmp);
 
 	while ((fid = udf_getfid(ds)) != NULL) {
 		/* XXX Should we return an error on a bad fid? */
@@ -904,7 +920,8 @@ udf_readlink(struct vop_readlink_args *ap)
 	struct udf_node *node;
 	void *buf;
 	char *cp;
-	int error, len, root;
+	uint64_t len;
+	int error, root;
 
 	/*
 	 * A symbolic link in UDF is a list of variable-length path
@@ -914,6 +931,8 @@ udf_readlink(struct vop_readlink_args *ap)
 	vp = ap->a_vp;
 	node = VTON(vp);
 	len = le64toh(node->fentry->inf_len);
+	if (len > MAXPATHLEN)
+		return (EIO);
 	buf = malloc(len, M_DEVBUF, M_WAITOK);
 	iov[0].iov_len = len;
 	iov[0].iov_base = buf;
@@ -1116,13 +1135,14 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	struct udf_mnt *udfmp;
 	struct fileid_desc *fid = NULL;
 	struct udf_dirstream *ds;
+	uint64_t fsize;
 	u_long nameiop;
 	u_long flags;
 	char *nameptr;
 	long namelen;
 	ino_t id = 0;
 	int offset, error = 0;
-	int fsize, lkflags, ltype, numdirpasses;
+	int lkflags, ltype, numdirpasses;
 
 	dvp = a->a_dvp;
 	node = VTON(dvp);
@@ -1133,6 +1153,10 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	nameptr = a->a_cnp->cn_nameptr;
 	namelen = a->a_cnp->cn_namelen;
 	fsize = le64toh(node->fentry->inf_len);
+	if (fsize > INT_MAX) {
+		/* too big, just cap to INT_MAX */
+		fsize = INT_MAX;
+	}
 
 	/*
 	 * If this is a LOOKUP and we've already partially searched through
