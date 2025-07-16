@@ -35,7 +35,7 @@ usage()
 Usage: $(basename "$0") [options] [subsystem]
 
 Supported subsystems
-  pci
+  pci, usb
 
 Options:
   -n		-- Do not install packages, only print the results
@@ -100,9 +100,9 @@ done
 shift $(($OPTIND - 1))
 subsystems="$@"
 
-# Default searching PCI subsystem
+# Default searching PCI and USB subsystem
 if [ -z "${subsystems}" ]; then
-	subsystems="pci"
+	subsystems="pci usb"
 fi
 
 # Fail early on unsupported subsystem
