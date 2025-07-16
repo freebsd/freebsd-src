@@ -4,7 +4,7 @@
 # Copyright (c) 2025 The FreeBSD Foundation
 #
 # This software was developed by Klara, Inc.
-# under sponsorship from the FreeBSD Foundation and the Sovereign Tech Agency.
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
