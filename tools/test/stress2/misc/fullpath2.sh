@@ -123,7 +123,7 @@ static volatile u_int *share;
 #define NB 1024
 #define RUNTIME 300
 
-/* dtrace -w -n 'fbt::*vn_fullpath:entry {@rw[execname,probefunc] = count(); }' */
+/* dtrace -n 'fbt::vn_fullpath:entry {@rw[execname,probefunc] = count(); }' */
 
 static void
 getfiles(pid_t pid)
