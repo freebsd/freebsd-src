@@ -124,30 +124,50 @@
 	 exit(errs != 0);
  }
  
- static int
- donice(int which, int who, int prio, bool incr)
- {
-	 int oldprio;
- 
-	 errno = 0;
-	 oldprio = getpriority(which, who);
-	 if (oldprio == -1 && errno) {
-		 warn("%d: getpriority", who);
-		 return (1);
-	 }
-	 if (incr)
-		 prio = oldprio + prio;
-	 if (prio > PRIO_MAX)
-		 prio = PRIO_MAX;
-	 if (prio < PRIO_MIN)
-		 prio = PRIO_MIN;
-	 if (setpriority(which, who, prio) < 0) {
-		 warn("%d: setpriority", who);
-		 return (1);
-	 }
-	 fprintf(stderr, "%s %d: old priority %d, new priority %d\n", who_type, who, oldprio, prio);
-	 return (0);
- }
+static int
+donice(int which, int who, int prio, bool incr)
+{
+    int oldprio;
+    const char *who_type;
+
+    switch (which) {
+    case PRIO_PROCESS:
+        who_type = "process";
+        break;
+    case PRIO_PGRP:
+        who_type = "process group";
+        break;
+    case PRIO_USER:
+        who_type = "user";
+        break;
+    default:
+        who_type = "unknown";
+        break;
+    }
+
+    errno = 0;
+    oldprio = getpriority(which, who);
+    if (oldprio == -1 && errno) {
+        warnx("%s %d: getpriority failed", who_type, who);
+        return (1);
+    }
+    if (incr)
+        prio = oldprio + prio;
+    if (prio > PRIO_MAX)
+        prio = PRIO_MAX;
+    if (prio < PRIO_MIN)
+        prio = PRIO_MIN;
+    if (setpriority(which, who, prio) < 0) {
+        if (errno == EPERM) {
+            warnx("Permission denied: cannot set priority for %s %d", who_type, who);
+            return (1);
+        }
+        warnx("%s %d: setpriority failed", who_type, who);
+        return (1);
+    }
+    fprintf(stderr, "%s %d: old priority %d, new priority %d\n", who_type, who, oldprio, prio);
+    return (0);
+}
  
  static int
  getnum(const char *com, const char *str, int *val)
