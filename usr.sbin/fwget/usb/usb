@@ -1,0 +1,43 @@
+#
+#  Copyright 2023 Beckhoff Automation GmbH & Co. KG
+#  Copyright 2023 Bjoern A. Zeeb
+#  Copyright 2025 Jesper Schmitz Mouridsen
+
+#  SPDX-License-Identifier: BSD-2-Clause
+
+
+usb_get_vendor()
+{
+	local hexvendor=$(echo $1 | sed 's/.*idVendor=\(0x[0-9a-z]*\).*/\1/')
+	case "${hexvendor}" in
+		0x148f)	echo "ralink" ;;
+	esac
+}
+
+usb_get_device()
+{
+	local hexdevice=$(echo $1 | sed 's/.*idProduct=\(0x[0-9a-z]*\).*/\1/')
+	echo "${hexdevice}"
+
+}
+
+usb_search_packages()
+{
+	local IFS
+
+	oldifs=$IFS
+	IFS=$'\n'
+	for fulldevice in $(usbconfig -l dump_device_desc); do
+		vendor=$(usb_get_vendor "${fulldevice}")
+		if [ -z "${vendor}" ]; then
+			continue
+		fi
+		device=$(usb_get_device "${fulldevice}")
+		log_verbose "Trying to match device ${device} and vendor ${vendor} with usb_${vendor}"
+		if [ -f  ${LIBEXEC_PATH}/usb_${vendor} ]; then
+			. ${LIBEXEC_PATH}/usb_${vendor}
+			usb_${vendor} ${device}
+		fi
+	done
+	IFS=${oldifs}
+}
