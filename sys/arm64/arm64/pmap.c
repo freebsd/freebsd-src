@@ -5709,6 +5709,9 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(ADDR_IS_CANONICAL(va),
 	    ("%s: Address not in canonical form: %lx", __func__, va));
+	KASSERT((flags & (PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM)) !=
+	    PMAP_ENTER_NORECLAIM,
+	    ("pmap_enter_l2: flags is missing PMAP_ENTER_NOREPLACE"));
 
 	if ((l2 = pmap_alloc_l2(pmap, va, &l2pg, (flags &
 	    PMAP_ENTER_NOSLEEP) != 0 ? NULL : lockp)) == NULL) {
@@ -5828,6 +5831,15 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		if (!pmap_pv_insert_l2(pmap, va, new_l2, flags, lockp)) {
 			if (l2pg != NULL)
 				pmap_abort_ptp(pmap, va, l2pg);
+			else {
+				KASSERT(ADDR_IS_KERNEL(va) &&
+				    (pmap_load(l2) & ATTR_DESCR_MASK) ==
+				    L2_TABLE,
+				    ("pmap_enter_l2: invalid kernel L2E"));
+				mt = pmap_remove_pt_page(pmap, va);
+				KASSERT(mt != NULL,
+				    ("pmap_enter_l2: missing kernel PTP"));
+			}
 			if (uwptpg != NULL) {
 				mt = pmap_remove_pt_page(pmap, va);
 				KASSERT(mt == uwptpg,

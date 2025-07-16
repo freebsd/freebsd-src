@@ -7561,6 +7561,9 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	PG_RW = pmap_rw_bit(pmap);
 	KASSERT((newpde & (pmap_modified_bit(pmap) | PG_RW)) != PG_RW,
 	    ("pmap_enter_pde: newpde is missing PG_M"));
+	KASSERT((flags & (PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM)) !=
+	    PMAP_ENTER_NORECLAIM,
+	    ("pmap_enter_pde: flags is missing PMAP_ENTER_NOREPLACE"));
 	PG_V = pmap_valid_bit(pmap);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
@@ -7689,6 +7692,14 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		if (!pmap_pv_insert_pde(pmap, va, newpde, flags, lockp)) {
 			if (pdpg != NULL)
 				pmap_abort_ptp(pmap, va, pdpg);
+			else {
+				KASSERT(va >= VM_MAXUSER_ADDRESS &&
+				    (*pde & (PG_PS | PG_V)) == PG_V,
+				    ("pmap_enter_pde: invalid kernel PDE"));
+				mt = pmap_remove_pt_page(pmap, va);
+				KASSERT(mt != NULL,
+				    ("pmap_enter_pde: missing kernel PTP"));
+			}
 			if (uwptpg != NULL) {
 				mt = pmap_remove_pt_page(pmap, va);
 				KASSERT(mt == uwptpg,
