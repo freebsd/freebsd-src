@@ -2475,6 +2475,7 @@ pmap_init(void)
 	struct pmap_preinit_mapping *ppim;
 	vm_page_t m, mpte;
 	pml4_entry_t *pml4e;
+	unsigned long lm_max;
 	int error, i, ret, skz63;
 
 	/* L1TF, reserve page @0 unconditionally */
@@ -2600,10 +2601,15 @@ pmap_init(void)
 
 	lm_ents = 8;
 	TUNABLE_INT_FETCH("vm.pmap.large_map_pml4_entries", &lm_ents);
-	if (lm_ents > LMEPML4I - LMSPML4I + 1)
-		lm_ents = LMEPML4I - LMSPML4I + 1;
+	lm_max = (kva_layout.lm_high - kva_layout.lm_low) / NBPML4;
+	if (lm_ents > lm_max) {
+		printf(
+	    "pmap: shrinking large map from requested %d slots to %ld slots\n",
+		    lm_ents, lm_max);
+		lm_ents = lm_max;
+	}
 #ifdef KMSAN
-	if (lm_ents > KMSANORIGPML4I - LMSPML4I) {
+	if (!la57 && lm_ents > KMSANORIGPML4I - LMSPML4I) {
 		printf(
 	    "pmap: shrinking large map for KMSAN (%d slots to %ld slots)\n",
 		    lm_ents, KMSANORIGPML4I - LMSPML4I);
@@ -2615,8 +2621,7 @@ pmap_init(void)
 		    lm_ents, (u_long)lm_ents * (NBPML4 / 1024 / 1024 / 1024));
 	if (lm_ents != 0) {
 		large_vmem = vmem_create("large", kva_layout.lm_low,
-		    (vmem_size_t)kva_layout.lm_high - kva_layout.lm_low,
-		    PAGE_SIZE, 0, M_WAITOK);
+		    (vmem_size_t)lm_ents * NBPML4, PAGE_SIZE, 0, M_WAITOK);
 		if (large_vmem == NULL) {
 			printf("pmap: cannot create large map\n");
 			lm_ents = 0;
