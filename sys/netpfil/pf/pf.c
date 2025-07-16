@@ -10149,6 +10149,15 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 
+		/*
+		 * we do not support jumbogram.  if we keep going, zero ip6_plen
+		 * will do something bad, so drop the packet for now.
+		 */
+		if (htons(h->ip6_plen) == 0) {
+			*action = PF_DROP;
+			return (-1);
+		}
+
 		if (pf_walk_header6(pd, h, reason) != PF_PASS) {
 			*action = PF_DROP;
 			return (-1);
@@ -10167,15 +10176,6 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 
 		pd->virtual_proto = (pd->fragoff != 0) ?
 		    PF_VPROTO_FRAGMENT : pd->proto;
-
-		/*
-		 * we do not support jumbogram.  if we keep going, zero ip6_plen
-		 * will do something bad, so drop the packet for now.
-		 */
-		if (htons(h->ip6_plen) == 0) {
-			*action = PF_DROP;
-			return (-1);
-		}
 
 		/* We do IP header normalization and packet reassembly here */
 		if (pf_normalize_ip6(pd->fragoff, reason, pd) !=
