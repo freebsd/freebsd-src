@@ -9872,8 +9872,16 @@ pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
 	pd->off += hlen;
 	pd->proto = h->ip_p;
 	/* IGMP packets have router alert options, allow them */
-	if (pd->proto == IPPROTO_IGMP)
+	if (pd->proto == IPPROTO_IGMP) {
+		/* According to RFC 1112 ttl must be set to 1. */
+		if ((h->ip_ttl != 1) ||
+		    !IN_MULTICAST(ntohl(h->ip_dst.s_addr))) {
+			DPFPRINTF(PF_DEBUG_MISC, ("Invalid IGMP\n"));
+			REASON_SET(reason, PFRES_IPOPTIONS);
+			return (PF_DROP);
+		}
 		pd->badopts &= ~PF_OPT_ROUTER_ALERT;
+	}
 	/* stop walking over non initial fragments */
 	if ((h->ip_off & htons(IP_OFFMASK)) != 0)
 		return (PF_PASS);
@@ -10113,6 +10121,19 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 			case MLD_LISTENER_REPORT:
 			case MLD_LISTENER_DONE:
 			case MLDV2_LISTENER_REPORT:
+				/*
+				 * According to RFC 2710 all MLD messages are
+				 * sent with hop-limit (ttl) set to 1, and link
+				 * local source address.  If either one is
+				 * missing then MLD message is invalid and
+				 * should be discarded.
+				 */
+				if ((h->ip6_hlim != 1) ||
+				    !IN6_IS_ADDR_LINKLOCAL(&h->ip6_src)) {
+					DPFPRINTF(PF_DEBUG_MISC, ("Invalid MLD\n"));
+					REASON_SET(reason, PFRES_IPOPTIONS);
+					return (PF_DROP);
+				}
 				pd->badopts &= ~PF_OPT_ROUTER_ALERT;
 				break;
 			}
