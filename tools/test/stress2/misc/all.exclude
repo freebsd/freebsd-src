@@ -16,8 +16,6 @@ fsck12.sh		Waiting for fix							20230319
 fsync.sh		panic: Journal overflow						20190208
 fuse.sh			https://people.freebsd.org/~pho/stress/log/log0546.txt		20240828
 fuse2.sh		https://people.freebsd.org/~pho/stress/log/log0547.txt		20240828
-getrandom.sh		Known DoS issue							20201107
-getrandom2.sh		Known DoS issue							20200302
 gjournal.sh		panic: Journal overflow						20190626
 gjournal2.sh		panic: Journal overflow						20180125
 gjournal3.sh		panic: Bio not on queue						20171225
@@ -34,6 +32,7 @@ maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
 memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
 memguard2.sh		Waiting for fix commit
 memguard3.sh		Waiting for fix commit
+mount7.sh		https://people.freebsd.org/~pho/stress/log/log0549.txt		20240912
 mlockall2.sh		Unrecoverable OOM killing seen					20190203
 mlockall6.sh		https://people.freebsd.org/~pho/stress/log/log0430.txt		20230403
 mlockall7.sh		Needs further investigation					20210123
@@ -46,6 +45,7 @@ nfs16.sh		panic: Failed to register NFS lock locally - error=11		20160608
 nullfs28.sh		Hang in "mount drain" seen					20220111
 oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
+pmc4.sh			https://people.freebsd.org/~pho/stress/log/log0548.txt		20240904
 pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
 rename14.sh		https://people.freebsd.org/~pho/stress/log/log0433.txt		20230409
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
@@ -71,8 +71,12 @@ syzkaller59.sh		Page fault							20220625
 syzkaller65.sh		panic: in_pcblookup_hash_locked: invalid local address		20230318
 syzkaller66.sh		panic: in_pcbconnect: inp is already connected			20230621
 syzkaller67.sh		panic: ASan: Invalid access, 8-byte read at ...			20230621
+syzkaller80.sh		panic								20250711
+syzkaller81.sh		panic								20250711
 quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
 truss3.sh		WiP								20200915
+zfs18.sh		https://people.freebsd.org/~pho/stress/log/log0560.txt		20241118
+zfs9.sh			panic: sacked_bytes < 0						20250711
 
 # Test not to run for other reasons:
 
