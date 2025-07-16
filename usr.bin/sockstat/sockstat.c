@@ -55,7 +55,6 @@
 
 #include <capsicum_helpers.h>
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <jail.h>
@@ -67,6 +66,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libxo/xo.h>
 
 #include <libcasper.h>
 #include <casper/cap_net.h>
@@ -74,6 +74,7 @@
 #include <casper/cap_pwd.h>
 #include <casper/cap_sysctl.h>
 
+#define SOCKSTAT_XO_VERSION "1"
 #define	sstosin(ss)	((struct sockaddr_in *)(ss))
 #define	sstosin6(ss)	((struct sockaddr_in6 *)(ss))
 #define	sstosun(ss)	((struct sockaddr_un *)(ss))
@@ -197,7 +198,7 @@ static bool
 _check_ksize(size_t received_size, size_t expected_size, const char *struct_name)
 {
 	if (received_size != expected_size) {
-		warnx("%s size mismatch: expected %zd, received %zd",
+		xo_warnx("%s size mismatch: expected %zd, received %zd",
 		    struct_name, expected_size, received_size);
 		return false;
 	}
@@ -209,7 +210,7 @@ static void
 _enforce_ksize(size_t received_size, size_t expected_size, const char *struct_name)
 {
 	if (received_size != expected_size) {
-		errx(1, "fatal: struct %s size mismatch: expected %zd, received %zd",
+		xo_errx(1, "fatal: struct %s size mismatch: expected %zd, received %zd",
 		    struct_name, expected_size, received_size);
 	}
 }
@@ -227,7 +228,7 @@ get_proto_type(const char *proto)
 	else
 		pent = getprotobyname(proto);
 	if (pent == NULL) {
-		warn("cap_getprotobyname");
+		xo_warn("cap_getprotobyname");
 		return (-1);
 	}
 	return (pent->p_proto);
@@ -248,7 +249,7 @@ init_protos(int num)
 	}
 
 	if ((protos = malloc(sizeof(int) * proto_count)) == NULL)
-		err(1, "malloc");
+		xo_err(1, "malloc");
 	numprotos = proto_count;
 }
 
@@ -282,17 +283,17 @@ parse_ports(const char *portspec)
 
 	if (ports == NULL)
 		if ((ports = calloc(65536 / INT_BIT, sizeof(int))) == NULL)
-			err(1, "calloc()");
+			xo_err(1, "calloc()");
 	p = portspec;
 	while (*p != '\0') {
 		if (!isdigit(*p))
-			errx(1, "syntax error in port range");
+			xo_errx(1, "syntax error in port range");
 		for (q = p; *q != '\0' && isdigit(*q); ++q)
 			/* nothing */ ;
 		for (port = 0; p < q; ++p)
 			port = port * 10 + digittoint(*p);
 		if (port < 0 || port > 65535)
-			errx(1, "invalid port number");
+			xo_errx(1, "invalid port number");
 		SET_PORT(port);
 		switch (*p) {
 		case '-':
@@ -310,7 +311,7 @@ parse_ports(const char *portspec)
 		for (end = 0; p < q; ++p)
 			end = end * 10 + digittoint(*p);
 		if (end < port || end > 65535)
-			errx(1, "invalid port number");
+			xo_errx(1, "invalid port number");
 		while (port++ < end)
 			SET_PORT(port);
 		if (*p == ',')
@@ -395,15 +396,15 @@ gather_sctp(void)
 	varname = "net.inet.sctp.assoclist";
 	if (cap_sysctlbyname(capsysctl, varname, 0, &len, 0, 0) < 0) {
 		if (errno != ENOENT)
-			err(1, "cap_sysctlbyname()");
+			xo_err(1, "cap_sysctlbyname()");
 		return;
 	}
 	if ((buf = (char *)malloc(len)) == NULL) {
-		err(1, "malloc()");
+		xo_err(1, "malloc()");
 		return;
 	}
 	if (cap_sysctlbyname(capsysctl, varname, buf, &len, 0, 0) < 0) {
-		err(1, "cap_sysctlbyname()");
+		xo_err(1, "cap_sysctlbyname()");
 		free(buf);
 		return;
 	}
@@ -411,7 +412,7 @@ gather_sctp(void)
 	offset = sizeof(struct xsctp_inpcb);
 	while ((offset < len) && (xinpcb->last == 0)) {
 		if ((sock = calloc(1, sizeof *sock)) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		sock->socket = xinpcb->socket;
 		sock->proto = IPPROTO_SCTP;
 		sock->protoname = "sctp";
@@ -439,7 +440,7 @@ gather_sctp(void)
 			if (xladdr->last == 1)
 				break;
 			if ((laddr = calloc(1, sizeof(struct addr))) == NULL)
-				err(1, "malloc()");
+				xo_err(1, "malloc()");
 			switch (xladdr->address.sa.sa_family) {
 			case AF_INET:
 #define	__IN_IS_ADDR_LOOPBACK(pina) \
@@ -461,7 +462,7 @@ gather_sctp(void)
 				    htons(xinpcb->local_port));
 				break;
 			default:
-				errx(1, "address family %d not supported",
+				xo_errx(1, "address family %d not supported",
 				    xladdr->address.sa.sa_family);
 			}
 			laddr->next = NULL;
@@ -474,7 +475,7 @@ gather_sctp(void)
 		if (sock->laddr == NULL) {
 			if ((sock->laddr =
 			    calloc(1, sizeof(struct addr))) == NULL)
-				err(1, "malloc()");
+				xo_err(1, "malloc()");
 			sock->laddr->address.ss_family = sock->family;
 			if (sock->family == AF_INET)
 				sock->laddr->address.ss_len =
@@ -485,7 +486,7 @@ gather_sctp(void)
 			local_all_loopback = 0;
 		}
 		if ((sock->faddr = calloc(1, sizeof(struct addr))) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		sock->faddr->address.ss_family = sock->family;
 		if (sock->family == AF_INET)
 			sock->faddr->address.ss_len =
@@ -512,7 +513,7 @@ gather_sctp(void)
 			no_stcb = 0;
 			if (opt_c) {
 				if ((sock = calloc(1, sizeof *sock)) == NULL)
-					err(1, "malloc()");
+					xo_err(1, "malloc()");
 				sock->socket = xinpcb->socket;
 				sock->proto = IPPROTO_SCTP;
 				sock->protoname = "sctp";
@@ -542,7 +543,7 @@ gather_sctp(void)
 					continue;
 				laddr = calloc(1, sizeof(struct addr));
 				if (laddr == NULL)
-					err(1, "malloc()");
+					xo_err(1, "malloc()");
 				switch (xladdr->address.sa.sa_family) {
 				case AF_INET:
 #define	__IN_IS_ADDR_LOOPBACK(pina) \
@@ -564,7 +565,7 @@ gather_sctp(void)
 					    htons(xstcb->local_port));
 					break;
 				default:
-					errx(1,
+					xo_errx(1,
 					    "address family %d not supported",
 					    xladdr->address.sa.sa_family);
 				}
@@ -587,7 +588,7 @@ gather_sctp(void)
 					continue;
 				faddr = calloc(1, sizeof(struct addr));
 				if (faddr == NULL)
-					err(1, "malloc()");
+					xo_err(1, "malloc()");
 				switch (xraddr->address.sa.sa_family) {
 				case AF_INET:
 #define	__IN_IS_ADDR_LOOPBACK(pina) \
@@ -609,7 +610,7 @@ gather_sctp(void)
 					    htons(xstcb->remote_port));
 					break;
 				default:
-					errx(1,
+					xo_errx(1,
 					    "address family %d not supported",
 					    xraddr->address.sa.sa_family);
 				}
@@ -673,7 +674,7 @@ gather_inet(int proto)
 		protoname = "div";
 		break;
 	default:
-		errx(1, "protocol %d not supported", proto);
+		xo_errx(1, "protocol %d not supported", proto);
 	}
 
 	buf = NULL;
@@ -682,7 +683,7 @@ gather_inet(int proto)
 	do {
 		for (;;) {
 			if ((buf = realloc(buf, bufsize)) == NULL)
-				err(1, "realloc()");
+				xo_err(1, "realloc()");
 			len = bufsize;
 			if (cap_sysctlbyname(capsysctl, varname, buf, &len,
 			    NULL, 0) == 0)
@@ -690,7 +691,7 @@ gather_inet(int proto)
 			if (errno == ENOENT)
 				goto out;
 			if (errno != ENOMEM || len != bufsize)
-				err(1, "cap_sysctlbyname()");
+				xo_err(1, "cap_sysctlbyname()");
 			bufsize *= 2;
 		}
 		xig = (struct xinpgen *)buf;
@@ -701,7 +702,7 @@ gather_inet(int proto)
 	} while (xig->xig_gen != exig->xig_gen && retry--);
 
 	if (xig->xig_gen != exig->xig_gen && opt_v)
-		warnx("warning: data may be inconsistent");
+		xo_warnx("warning: data may be inconsistent");
 
 	for (;;) {
 		xig = (struct xinpgen *)(void *)((char *)xig + xig->xig_len);
@@ -722,7 +723,7 @@ gather_inet(int proto)
 				goto out;
 			break;
 		default:
-			errx(1, "protocol %d not supported", proto);
+			xo_errx(1, "protocol %d not supported", proto);
 		}
 		so = &xip->xi_socket;
 		if ((xip->inp_vflag & vflag) == 0)
@@ -748,15 +749,15 @@ gather_inet(int proto)
 				continue;
 		} else {
 			if (opt_v)
-				warnx("invalid vflag 0x%x", xip->inp_vflag);
+				xo_warnx("invalid vflag 0x%x", xip->inp_vflag);
 			continue;
 		}
 		if ((sock = calloc(1, sizeof(*sock))) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		if ((laddr = calloc(1, sizeof *laddr)) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		if ((faddr = calloc(1, sizeof *faddr)) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		sock->socket = so->xso_so;
 		sock->pcb = so->so_pcb;
 		sock->splice_socket = so->so_splice_so;
@@ -833,13 +834,13 @@ gather_unix(int proto)
 	do {
 		for (;;) {
 			if ((buf = realloc(buf, bufsize)) == NULL)
-				err(1, "realloc()");
+				xo_err(1, "realloc()");
 			len = bufsize;
 			if (cap_sysctlbyname(capsysctl, varname, buf, &len,
 			    NULL, 0) == 0)
 				break;
 			if (errno != ENOMEM || len != bufsize)
-				err(1, "cap_sysctlbyname()");
+				xo_err(1, "cap_sysctlbyname()");
 			bufsize *= 2;
 		}
 		xug = (struct xunpgen *)buf;
@@ -851,7 +852,7 @@ gather_unix(int proto)
 	} while (xug->xug_gen != exug->xug_gen && retry--);
 
 	if (xug->xug_gen != exug->xug_gen && opt_v)
-		warnx("warning: data may be inconsistent");
+		xo_warnx("warning: data may be inconsistent");
 
 	for (;;) {
 		xug = (struct xunpgen *)(void *)((char *)xug + xug->xug_len);
@@ -864,11 +865,11 @@ gather_unix(int proto)
 		    (xup->unp_conn != 0 && !opt_c))
 			continue;
 		if ((sock = calloc(1, sizeof(*sock))) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		if ((laddr = calloc(1, sizeof *laddr)) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		if ((faddr = calloc(1, sizeof *faddr)) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		sock->socket = xup->xu_socket.xso_so;
 		sock->pcb = xup->xu_unpp;
 		sock->proto = proto;
@@ -899,21 +900,21 @@ getfiles(void)
 
 	olen = len = sizeof(*xfiles);
 	if ((xfiles = malloc(len)) == NULL)
-		err(1, "malloc()");
+		xo_err(1, "malloc()");
 	while (cap_sysctlbyname(capsysctl, "kern.file", xfiles, &len, 0, 0)
 	    == -1) {
 		if (errno != ENOMEM || len != olen)
-			err(1, "cap_sysctlbyname()");
+			xo_err(1, "cap_sysctlbyname()");
 		olen = len *= 2;
 		if ((xfiles = realloc(xfiles, len)) == NULL)
-			err(1, "realloc()");
+			xo_err(1, "realloc()");
 	}
 	if (len > 0)
 		enforce_ksize(xfiles->xf_size, struct xfile);
 	nfiles = len / sizeof(*xfiles);
 
 	if ((files = malloc(nfiles * sizeof(struct file))) == NULL)
-		err(1, "malloc()");
+		xo_err(1, "malloc()");
 
 	for (int i = 0; i < nfiles; i++) {
 		files[i].xf_data = xfiles[i].xf_data;
@@ -954,7 +955,7 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 		error = cap_getnameinfo(capnet, sstosa(ss), ss->ss_len,
 		    addrstr, sizeof(addrstr), NULL, 0, NI_NUMERICHOST);
 		if (error)
-			errx(1, "cap_getnameinfo()");
+			xo_errx(1, "cap_getnameinfo()");
 	}
 	if (port == 0)
 		return snprintf(buf, bufsize, "%s:*", addrstr);
@@ -977,7 +978,7 @@ getprocname(pid_t pid)
 	    == -1) {
 		/* Do not warn if the process exits before we get its name. */
 		if (errno != ESRCH)
-			warn("cap_sysctl()");
+			xo_warn("cap_sysctl()");
 		return ("??");
 	}
 	return (proc.ki_comm);
@@ -999,7 +1000,7 @@ getprocjid(pid_t pid)
 	    == -1) {
 		/* Do not warn if the process exits before we get its jid. */
 		if (errno != ESRCH)
-			warn("cap_sysctl()");
+			xo_warn("cap_sysctl()");
 		return (-1);
 	}
 	return (proc.ki_jid);
@@ -1183,7 +1184,7 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 	while (laddr != NULL || faddr != NULL) {
 		if (opt_w && s->family == AF_UNIX) {
 			if ((laddr == NULL) || (faddr == NULL))
-				errx(1, "laddr = %p or faddr = %p is NULL",
+				xo_errx(1, "laddr = %p or faddr = %p is NULL",
 					(void *)laddr, (void *)faddr);
 			if (laddr->address.ss_len > 0)
 				len = formataddr(&laddr->address, NULL, 0);
@@ -1350,11 +1351,11 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 		s->protoname,
 		s->vflag & INP_IPV4 ? "4" : "",
 		s->vflag & INP_IPV6 ? "6" : "");
-	printf(" %-*s", cw->proto, buf);
+	xo_emit(" {:proto/%-*s}", cw->proto, buf);
 	while (laddr != NULL || faddr != NULL) {
 		if (s->family == AF_UNIX) {
 			if ((laddr == NULL) || (faddr == NULL))
-				errx(1, "laddr = %p or faddr = %p is NULL",
+				xo_errx(1, "laddr = %p or faddr = %p is NULL",
 					(void *)laddr, (void *)faddr);
 			if (laddr->address.ss_len > 0)
 				formataddr(&laddr->address, buf, bufsize);
@@ -1362,28 +1363,45 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				strlcpy(buf, "(not connected)", bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*.*s", cw->local_addr, cw->local_addr, buf);
+			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				xo_emit(" {:local-address/%-*.*s}",
+				cw->local_addr, cw->local_addr, buf);
+			else
+				xo_emit("{:local-address/%s}", buf);
 			if (format_unix_faddr(faddr, buf, bufsize) == 0)
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*.*s", cw->foreign_addr,
-				cw->foreign_addr, buf);
+			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				xo_emit(" {:foreign-address/%-*.*s}",
+				cw->foreign_addr, cw->foreign_addr, buf);
+			else
+				xo_emit("{:foreign-address/%s}", buf);
 		} else {
 			if (laddr != NULL)
 				formataddr(&laddr->address, buf, bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*.*s", cw->local_addr, cw->local_addr, buf);
+			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				xo_emit(" {:local-address/%-*.*s}",
+				cw->local_addr, cw->local_addr, buf);
+			else
+				xo_emit("{:local-address/%s}", buf);
 			if (faddr != NULL)
 				formataddr(&faddr->address, buf, bufsize);
 			else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*.*s", cw->foreign_addr,
-				cw->foreign_addr, buf);
+			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				xo_emit(" {:foreign-address/%-*.*s}",
+				cw->foreign_addr, cw->foreign_addr, buf);
+			else
+				xo_emit("{:foreign-address/%s}", buf);
 		}
-		if (opt_A)
-			printf(" %#*" PRIx64, cw->pcb_kva, s->pcb);
+		if (opt_A) {
+			snprintf(buf, bufsize, "%#*" PRIx64,
+				cw->pcb_kva, s->pcb);
+			xo_emit(" {:pcb-kva/%s}", buf);
+		}
 		if (opt_f)
-			printf(" %*d", cw->fib, s->fibnum);
+			xo_emit(" {:fib/%*d}", cw->fib, s->fibnum);
 		if (opt_I) {
 			if (s->splice_socket != 0) {
 				struct sock *sp;
@@ -1396,14 +1414,16 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					strlcpy(buf, "??", bufsize);
 			} else
 				strlcpy(buf, "??", bufsize);
-			printf(" %-*s", cw->splice_address, buf);
+			xo_emit(" {:splice-address/%-*s}",
+				cw->splice_address, buf);
 		}
 		if (opt_i) {
 			if (s->proto == IPPROTO_TCP || s->proto == IPPROTO_UDP)
-				printf(" %*" PRIu64, cw->inp_gencnt,
+				snprintf(buf, bufsize, "%" PRIu64,
 					s->inp_gencnt);
 			else
-				printf(" %*s", cw->inp_gencnt, "??");
+				strlcpy(buf, "??", bufsize);
+			xo_emit(" {:id/%*s}", cw->inp_gencnt, buf);
 		}
 		if (opt_U) {
 			if (faddr != NULL &&
@@ -1414,10 +1434,10 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					(s->proto == IPPROTO_TCP &&
 					s->state != TCPS_CLOSED &&
 					s->state != TCPS_LISTEN))) {
-				printf(" %*u", cw->encaps,
+				xo_emit(" {:encaps/%*u}", cw->encaps,
 					ntohs(faddr->encaps_port));
 			} else
-				printf(" %*s", cw->encaps, "??");
+				xo_emit(" {:encaps/%*s}", cw->encaps, "??");
 		}
 		if (opt_s) {
 			if (faddr != NULL &&
@@ -1425,10 +1445,11 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				s->state != SCTP_CLOSED &&
 				s->state != SCTP_BOUND &&
 				s->state != SCTP_LISTEN) {
-				printf(" %-*s", cw->path_state,
+				xo_emit(" {:path-state/%-*s}", cw->path_state,
 					sctp_path_state(faddr->state));
 			} else
-				printf(" %-*s", cw->path_state, "??");
+				xo_emit(" {:path-state/%-*s}",
+					cw->path_state, "??");
 		}
 		if (first) {
 			if (opt_s) {
@@ -1436,34 +1457,39 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				    s->proto == IPPROTO_TCP) {
 					switch (s->proto) {
 					case IPPROTO_SCTP:
-						printf(" %-*s", cw->conn_state,
-						    sctp_conn_state(s->state));
+						xo_emit(" {:path-state/%-*s}",
+							cw->path_state,
+							sctp_path_state(
+								faddr->state));
 						break;
 					case IPPROTO_TCP:
 						if (s->state >= 0 &&
 							s->state < TCP_NSTATES)
-							printf(" %-*s",
+						    xo_emit(" {:conn-state/%-*s}",
 							cw->conn_state,
 							tcpstates[s->state]);
 						else
-							printf(" %-*s",
+						    xo_emit(" {:conn-state/%-*s}",
 							cw->conn_state, "??");
 						break;
 					}
 				} else
-					printf(" %-*s", cw->conn_state, "??");
+					xo_emit(" {:conn-state/%-*s}",
+						cw->conn_state, "??");
 			}
 			if (opt_S) {
 				if (s->proto == IPPROTO_TCP)
-					printf(" %-*s", cw->stack, s->stack);
+					xo_emit(" {:stack/%-*s}",
+						cw->stack, s->stack);
 				else
-					printf(" %-*s", cw->stack, "??");
+					xo_emit(" {:stack/%-*s}",
+						cw->stack, "??");
 			}
 			if (opt_C) {
 				if (s->proto == IPPROTO_TCP)
-					printf(" %-*s", cw->cc, s->cc);
+					xo_emit(" {:cc/%-*s}", cw->cc, s->cc);
 				else
-					printf(" %-*s", cw->cc, "??");
+					xo_emit(" {:cc/%-*s}", cw->cc, "??");
 			}
 		}
 		if (laddr != NULL)
@@ -1471,12 +1497,12 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 		if (faddr != NULL)
 			faddr = faddr->next;
 		if (laddr != NULL || faddr != NULL)
-			printf("%-*s %-*s %-*s %-*s %-*s", cw->user, "",
-				cw->command, "", cw->pid, "", cw->fd, "",
-				cw->proto, "");
+			xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} "
+			"{:fd/%*s}", cw->user, "??", cw->command, "??",
+			cw->pid, "??", cw->fd, "??");
 		first = false;
 	}
-	printf("\n");
+	xo_emit("\n");
 }
 
 static void
@@ -1490,56 +1516,62 @@ display(void)
 	const size_t bufsize = 512;
 	void *buf;
 	if ((buf = (char *)malloc(bufsize)) == NULL) {
-		err(1, "malloc()");
+		xo_err(1, "malloc()");
 		return;
 	}
 
-	cw = (struct col_widths) {
-		.user = strlen("USER"),
-		.command = 10,
-		.pid = strlen("PID"),
-		.fd = strlen("FD"),
-		.proto = strlen("PROTO"),
-		.local_addr = opt_w ? strlen("LOCAL ADDRESS") : 21,
-		.foreign_addr = opt_w ? strlen("FOREIGN ADDRESS") : 21,
-		.pcb_kva = 18,
-		.fib = strlen("FIB"),
-		.splice_address = strlen("SPLICE ADDRESS"),
-		.inp_gencnt = strlen("ID"),
-		.encaps = strlen("ENCAPS"),
-		.path_state = strlen("PATH STATE"),
-		.conn_state = strlen("CONN STATE"),
-		.stack = strlen("STACK"),
-		.cc = strlen("CC"),
-	};
-	calculate_column_widths(&cw);
+	if (xo_get_style(NULL) == XO_STYLE_TEXT) {
+		cw = (struct col_widths) {
+			.user = strlen("USER"),
+			.command = 10,
+			.pid = strlen("PID"),
+			.fd = strlen("FD"),
+			.proto = strlen("PROTO"),
+			.local_addr = opt_w ? strlen("LOCAL ADDRESS") : 21,
+			.foreign_addr = opt_w ? strlen("FOREIGN ADDRESS") : 21,
+			.pcb_kva = 18,
+			.fib = strlen("FIB"),
+			.splice_address = strlen("SPLICE ADDRESS"),
+			.inp_gencnt = strlen("ID"),
+			.encaps = strlen("ENCAPS"),
+			.path_state = strlen("PATH STATE"),
+			.conn_state = strlen("CONN STATE"),
+			.stack = strlen("STACK"),
+			.cc = strlen("CC"),
+		};
+		calculate_column_widths(&cw);
+	} else
+		memset(&cw, 0, sizeof(cw));
 
+	xo_open_container("sockstat");
+	xo_open_list("socket");
 	if (!opt_q) {
-		printf("%-*s %-*s %*s %*s %-*s %-*s %-*s",
-				cw.user, "USER", cw.command, "COMMAND",
-				cw.pid, "PID", cw.fd, "FD", cw.proto, "PROTO",
-				cw.local_addr, "LOCAL ADDRESS",
-				cw.foreign_addr,"FOREIGN ADDRESS");
+		xo_emit("{T:/%-*s} {T:/%-*s} {T:/%*s} {T:/%*s} {T:/%-*s} "
+			"{T:/%-*s} {T:/%-*s}", cw.user, "USER", cw.command,
+			"COMMAND", cw.pid, "PID", cw.fd, "FD", cw.proto,
+			"PROTO", cw.local_addr, "LOCAL ADDRESS",
+			cw.foreign_addr, "FOREIGN ADDRESS");
 		if (opt_A)
-			printf(" %-*s", cw.pcb_kva, "PCB KVA");
+			xo_emit(" {T:/%-*s}", cw.pcb_kva, "PCB KVA");
 		if (opt_f)
 			/* RT_MAXFIBS is 65535. */
-			printf(" %*s", cw.fib, "FIB");
+			xo_emit(" {T:/%*s}", cw.fib, "FIB");
 		if (opt_I)
-			printf(" %-*s", cw.splice_address, "SPLICE ADDRESS");
+			xo_emit(" {T:/%-*s}", cw.splice_address,
+				"SPLICE ADDRESS");
 		if (opt_i)
-			printf(" %*s", cw.inp_gencnt, "ID");
+			xo_emit(" {T:/%*s}", cw.inp_gencnt, "ID");
 		if (opt_U)
-			printf(" %*s", cw.encaps, "ENCAPS");
+			xo_emit(" {T:/%*s}", cw.encaps, "ENCAPS");
 		if (opt_s) {
-			printf(" %-*s", cw.path_state, "PATH STATE");
-			printf(" %-*s", cw.conn_state, "CONN STATE");
+			xo_emit(" {T:/%-*s}", cw.path_state, "PATH STATE");
+			xo_emit(" {T:/%-*s}", cw.conn_state, "CONN STATE");
 		}
 		if (opt_S)
-			printf(" %-*s", cw.stack, "STACK");
+			xo_emit(" {T:/%-*s}", cw.stack, "STACK");
 		if (opt_C)
-			printf(" %-*s", cw.cc, "CC");
-		printf("\n");
+			xo_emit(" {T:/%-*s}", cw.cc, "CC");
+		xo_emit("\n");
 	}
 	cap_setpassent(cappwd, 1);
 	for (xf = files, n = 0; n < nfiles; ++n, ++xf) {
@@ -1550,17 +1582,20 @@ display(void)
 		s = RB_FIND(socks_t, &socks,
 			&(struct sock){ .socket = xf->xf_data});
 		if (s != NULL && check_ports(s)) {
+			xo_open_instance("socket");
 			s->shown = 1;
 			if (opt_n ||
 			    (pwd = cap_getpwuid(cappwd, xf->xf_uid)) == NULL)
-				printf("%-*lu", cw.user, (u_long)xf->xf_uid);
+				xo_emit("{:uid/%-*lu}", cw.user,
+					(u_long)xf->xf_uid);
 			else
-				printf("%-*s", cw.user, pwd->pw_name);
-			printf(" %-*.*s", cw.command, cw.command,
+				xo_emit("{:uid/%-*s}", cw.user, pwd->pw_name);
+			xo_emit(" {:command/%-*.10s}", cw.command,
 				getprocname(xf->xf_pid));
-			printf(" %*lu", cw.pid, (u_long)xf->xf_pid);
-			printf(" %*d", cw.fd, xf->xf_fd);
+			xo_emit(" {:pid/%*lu}", cw.pid, (u_long)xf->xf_pid);
+			xo_emit(" {:fd/%*d}", cw.fd, xf->xf_fd);
 			display_sock(s, &cw, buf, bufsize);
+			xo_close_instance("socket");
 		}
 	}
 	if (opt_j >= 0)
@@ -1568,19 +1603,29 @@ display(void)
 	SLIST_FOREACH(s, &nosocks, socket_list) {
 		if (!check_ports(s))
 			continue;
-		printf("%-*s %-*s %*s %*s", cw.user, "??", cw.command, "??",
-			cw.pid, "??", cw.fd, "??");
+		xo_open_instance("socket");
+		xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} {:fd/%*s}",
+			cw.user, "??", cw.command, "??", cw.pid, "??",
+			cw.fd, "??");
 		display_sock(s, &cw, buf, bufsize);
+		xo_close_instance("socket");
 	}
 	RB_FOREACH(s, socks_t, &socks) {
 		if (s->shown)
 			continue;
 		if (!check_ports(s))
 			continue;
-		printf("%-*s %-*s %*s %*s", cw.user, "??", cw.command, "??",
-			cw.pid, "??", cw.fd, "??");
+		xo_open_instance("socket");
+		xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} {:fd/%*s}",
+			cw.user, "??", cw.command, "??", cw.pid, "??",
+			cw.fd, "??");
 		display_sock(s, &cw, buf, bufsize);
+		xo_close_instance("socket");
 	}
+	xo_close_list("socket");
+	xo_close_container("sockstat");
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 	free(buf);
 }
 
@@ -1597,7 +1642,7 @@ set_default_protos(void)
 		pname = default_protos[pindex];
 		prot = cap_getprotobyname(capnetdb, pname);
 		if (prot == NULL)
-			err(1, "cap_getprotobyname: %s", pname);
+			xo_err(1, "cap_getprotobyname: %s", pname);
 		protos[pindex] = prot->p_proto;
 	}
 	numprotos = pindex;
@@ -1643,8 +1688,10 @@ jail_getvnet(int jid)
 static void
 usage(void)
 {
-	errx(1,
-    "usage: sockstat [-46ACcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
+	xo_error(
+"usage: sockstat [--libxo] [-46ACcfIiLlnqSsUuvw] [-j jid] [-p ports]\n"
+"                [-P protocols]\n");
+	exit(1);
 }
 
 int
@@ -1657,6 +1704,10 @@ main(int argc, char *argv[])
 	int protos_defined = -1;
 	int o, i;
 
+	xo_set_version(SOCKSTAT_XO_VERSION);
+	argc = xo_parse_args(argc, argv);
+	if (argc < 0)
+		exit(1);
 	opt_j = -1;
 	while ((o = getopt(argc, argv, "46ACcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
@@ -1687,7 +1738,7 @@ main(int argc, char *argv[])
 		case 'j':
 			opt_j = jail_getid(optarg);
 			if (opt_j < 0)
-				errx(1, "jail_getid: %s", jail_errmsg);
+				xo_errx(1, "jail_getid: %s", jail_errmsg);
 			break;
 		case 'L':
 			opt_L = true;
@@ -1738,10 +1789,10 @@ main(int argc, char *argv[])
 	if (opt_j > 0) {
 		switch (jail_getvnet(opt_j)) {
 		case -1:
-			errx(2, "jail_getvnet: %s", jail_errmsg);
+			xo_errx(2, "jail_getvnet: %s", jail_errmsg);
 		case JAIL_SYS_NEW:
 			if (jail_attach(opt_j) < 0)
-				err(3, "jail_attach()");
+				xo_err(3, "jail_attach()");
 			/* Set back to -1 for normal output in vnet jail. */
 			opt_j = -1;
 			break;
@@ -1752,31 +1803,31 @@ main(int argc, char *argv[])
 
 	capcas = cap_init();
 	if (capcas == NULL)
-		err(1, "Unable to contact Casper");
+		xo_err(1, "Unable to contact Casper");
 	if (caph_enter_casper() < 0)
-		err(1, "Unable to enter capability mode");
+		xo_err(1, "Unable to enter capability mode");
 	capnet = cap_service_open(capcas, "system.net");
 	if (capnet == NULL)
-		err(1, "Unable to open system.net service");
+		xo_err(1, "Unable to open system.net service");
 	capnetdb = cap_service_open(capcas, "system.netdb");
 	if (capnetdb == NULL)
-		err(1, "Unable to open system.netdb service");
+		xo_err(1, "Unable to open system.netdb service");
 	capsysctl = cap_service_open(capcas, "system.sysctl");
 	if (capsysctl == NULL)
-		err(1, "Unable to open system.sysctl service");
+		xo_err(1, "Unable to open system.sysctl service");
 	cappwd = cap_service_open(capcas, "system.pwd");
 	if (cappwd == NULL)
-		err(1, "Unable to open system.pwd service");
+		xo_err(1, "Unable to open system.pwd service");
 	cap_close(capcas);
 	limit = cap_net_limit_init(capnet, CAPNET_ADDR2NAME);
 	if (limit == NULL)
-		err(1, "Unable to init cap_net limits");
+		xo_err(1, "Unable to init cap_net limits");
 	if (cap_net_limit(limit) < 0)
-		err(1, "Unable to apply limits");
+		xo_err(1, "Unable to apply limits");
 	if (cap_pwd_limit_cmds(cappwd, pwdcmds, nitems(pwdcmds)) < 0)
-		err(1, "Unable to apply pwd commands limits");
+		xo_err(1, "Unable to apply pwd commands limits");
 	if (cap_pwd_limit_fields(cappwd, pwdfields, nitems(pwdfields)) < 0)
-		err(1, "Unable to apply pwd commands limits");
+		xo_err(1, "Unable to apply pwd commands limits");
 
 	if ((!opt_4 && !opt_6) && protos_defined != -1)
 		opt_4 = opt_6 = true;
