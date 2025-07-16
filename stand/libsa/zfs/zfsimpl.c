@@ -1106,7 +1106,8 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 }
 
 static int
-vdev_from_nvlist(spa_t *spa, uint64_t top_guid, const nvlist_t *nvlist)
+vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
+    const nvlist_t *nvlist)
 {
 	vdev_t *top_vdev, *vdev;
 	nvlist_t **kids = NULL;
@@ -1120,6 +1121,7 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, const nvlist_t *nvlist)
 			return (rc);
 		top_vdev->v_spa = spa;
 		top_vdev->v_top = top_vdev;
+		top_vdev->v_txg = txg;
 		vdev_insert(spa->spa_root_vdev, top_vdev);
 	}
 
@@ -1163,7 +1165,7 @@ done:
 static int
 vdev_init_from_label(spa_t *spa, const nvlist_t *nvlist)
 {
-	uint64_t pool_guid, top_guid;
+	uint64_t pool_guid, top_guid, txg;
 	nvlist_t *vdevs;
 	int rc;
 
@@ -1171,13 +1173,15 @@ vdev_init_from_label(spa_t *spa, const nvlist_t *nvlist)
 	    NULL, &pool_guid, NULL) ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
 	    NULL, &top_guid, NULL) ||
+	    nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
+	    NULL, &txg, NULL) != 0 ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
 	    NULL, &vdevs, NULL)) {
 		printf("ZFS: can't find vdev details\n");
 		return (ENOENT);
 	}
 
-	rc = vdev_from_nvlist(spa, top_guid, vdevs);
+	rc = vdev_from_nvlist(spa, top_guid, txg, vdevs);
 	nvlist_destroy(vdevs);
 	return (rc);
 }
@@ -1267,6 +1271,21 @@ vdev_update_from_nvlist(uint64_t top_guid, const nvlist_t *nvlist)
 	return (rc);
 }
 
+/*
+ * Shall not be called on root vdev, that is not linked into zfs_vdevs.
+ * See comment in vdev_create().
+ */
+static void
+vdev_free(struct vdev *vdev)
+{
+	struct vdev *kid, *safe;
+
+	STAILQ_FOREACH_SAFE(kid, &vdev->v_children, v_childlink, safe)
+		vdev_free(kid);
+	STAILQ_REMOVE(&zfs_vdevs, vdev, vdev, v_alllink);
+	free(vdev);
+}
+
 static int
 vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 {
@@ -1313,9 +1332,10 @@ vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 		vdev = vdev_find(guid);
 		/*
 		 * Top level vdev is missing, create it.
+		 * XXXGL: how can this happen?
 		 */
 		if (vdev == NULL)
-			rc = vdev_from_nvlist(spa, guid, kids[i]);
+			rc = vdev_from_nvlist(spa, guid, 0, kids[i]);
 		else
 			rc = vdev_update_from_nvlist(guid, kids[i]);
 		if (rc != 0)
@@ -2006,8 +2026,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	vdev_t *vdev;
 	nvlist_t *nvl;
 	uint64_t val;
-	uint64_t guid;
-	uint64_t pool_txg, pool_guid;
+	uint64_t guid, pool_guid, top_guid, txg;
 	const char *pool_name;
 	int rc, namelen;
 
@@ -2063,7 +2082,9 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	}
 
 	if (nvlist_find(nvl, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
-	    NULL, &pool_txg, NULL) != 0 ||
+	    NULL, &txg, NULL) != 0 ||
+	    nvlist_find(nvl, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
+	    NULL, &top_guid, NULL) != 0 ||
 	    nvlist_find(nvl, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
 	    NULL, &pool_guid, NULL) != 0 ||
 	    nvlist_find(nvl, ZPOOL_CONFIG_POOL_NAME, DATA_TYPE_STRING,
@@ -2098,9 +2119,22 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 			nvlist_destroy(nvl);
 			return (ENOMEM);
 		}
+	} else {
+		struct vdev *kid;
+
+		STAILQ_FOREACH(kid, &spa->spa_root_vdev->v_children,
+		    v_childlink)
+			if (kid->v_guid == top_guid && kid->v_txg < txg) {
+				printf("ZFS: pool %s vdev %s ignoring stale "
+				    "label from txg 0x%jx, using 0x%jx@0x%jx\n",
+				    spa->spa_name, kid->v_name,
+				    kid->v_txg, guid, txg);
+				STAILQ_REMOVE(&spa->spa_root_vdev->v_children,
+				    kid, vdev, v_childlink);
+				vdev_free(kid);
+				break;
+			}
 	}
-	if (pool_txg > spa->spa_txg)
-		spa->spa_txg = pool_txg;
 
 	/*
 	 * Get the vdev tree and create our in-core copy of it.
