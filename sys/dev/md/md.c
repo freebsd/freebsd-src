@@ -11,9 +11,9 @@
  */
 
 /*-
- * The following functions are based on the vn(4) driver: mdstart_swap(),
- * mdstart_vnode(), mdcreate_swap(), mdcreate_vnode() and mddestroy(),
- * and as such under the following copyright:
+ * The following functions are based on the historical vn(4) driver:
+ * mdstart_swap(), mdstart_vnode(), mdcreate_swap(), mdcreate_vnode()
+ * and mddestroy(), and as such under the following copyright:
  *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1990, 1993
