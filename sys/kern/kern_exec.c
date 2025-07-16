@@ -70,6 +70,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timers.h>
+#include <sys/ucoredump.h>
 #include <sys/umtxvar.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
@@ -1999,41 +2000,11 @@ compress_chunk(struct coredump_params *cp, char *base, char *buf, size_t len)
 }
 
 int
-core_vn_write(const struct coredump_writer *cdw, const void *base, size_t len,
-    off_t offset, enum uio_seg seg, struct ucred *cred, size_t *resid,
-    struct thread *td)
-{
-	struct coredump_vnode_ctx *ctx = cdw->ctx;
-
-	return (vn_rdwr_inchunks(UIO_WRITE, ctx->vp, __DECONST(void *, base),
-	    len, offset, seg, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
-	    cred, ctx->fcred, resid, td));
-}
-
-int
 core_write(struct coredump_params *cp, const void *base, size_t len,
     off_t offset, enum uio_seg seg, size_t *resid)
 {
 	return ((*cp->cdw->write_fn)(cp->cdw, base, len, offset, seg,
 	    cp->active_cred, resid, cp->td));
-}
-
-int
-core_vn_extend(const struct coredump_writer *cdw, off_t newsz,
-    struct ucred *cred)
-{
-	struct coredump_vnode_ctx *ctx = cdw->ctx;
-	struct mount *mp;
-	int error;
-
-	error = vn_start_write(ctx->vp, &mp, V_WAIT);
-	if (error != 0)
-		return (error);
-	vn_lock(ctx->vp, LK_EXCLUSIVE | LK_RETRY);
-	error = vn_truncate_locked(ctx->vp, newsz, false, cred);
-	VOP_UNLOCK(ctx->vp);
-	vn_finished_write(mp);
-	return (error);
 }
 
 static int

@@ -403,6 +403,7 @@ int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
 void	sigfastblock_clear(struct thread *td);
 void	sigfastblock_fetch(struct thread *td);
 int	sig_intr(void);
+bool	sig_do_core(int);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
 void	sigqueue_delete(struct sigqueue *queue, int sig);

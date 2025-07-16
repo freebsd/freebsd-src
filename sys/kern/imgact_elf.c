@@ -64,6 +64,7 @@
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/ucoredump.h>
 #include <sys/vnode.h>
 #include <sys/syslog.h>
 #include <sys/eventhandler.h>
@@ -1561,9 +1562,6 @@ struct note_info {
 };
 
 TAILQ_HEAD(note_info_list, note_info);
-
-extern int compress_user_cores;
-extern int compress_user_cores_level;
 
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
