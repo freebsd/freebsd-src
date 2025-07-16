@@ -136,8 +136,7 @@ class TestICMP(VnetTestTemplate):
             / sp.ICMP(type='echo-request') \
             / sp.raw(bytes.fromhex('f0') * payload_size)
 
-        p = sp.sr1(packet, iface=self.vnet.iface_alias_map["if1"].name,
-            timeout=3)
+        p = sp.sr1(packet, timeout=3)
         p.show()
 
         ip = p.getlayer(sp.IP)
