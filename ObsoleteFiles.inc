@@ -66,6 +66,9 @@ OLD_FILES+=usr/tests/usr.bin/xargs/regress.n2147483647.out
 # 20250728: Machine versions of 'runq.h' do not exist anymore
 OLD_FILES+=usr/include/machine/runq.h
 
+# 20250716: Remove an old manual page, vn(4) was removed in FreeBSD 5.0
+OLD_FILES+=usr/share/man/man4/vn.4.gz
+
 # 20250708: replace yaml.lua with lyaml
 OLD_FILES+=usr/share/flua/yaml.lua
 
