@@ -2,7 +2,7 @@
 # BANANAPI-R64 -- BANANAPI-R64 kernel configuration file for FreeBSD/arm64
 #
 
-cpu		ARM64
+cpu             ARM64
 ident		BANANAPI-R64
 
 include		"std.arm64"
