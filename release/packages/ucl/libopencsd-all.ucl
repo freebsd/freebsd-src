@@ -1,0 +1,5 @@
+comment = "ARM CoreSight Trace Decode Library"
+desc = <<EOD
+This library provides an API suitable for the decode of ARM CoreSight
+trace streams.
+EOD
