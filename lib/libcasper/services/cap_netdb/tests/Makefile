@@ -1,0 +1,12 @@
+.include <src.opts.mk>
+
+ATF_TESTS_C=	netdb_test
+
+.if ${MK_CASPER} != "no"
+LIBADD+=	casper
+LIBADD+=	cap_netdb
+CFLAGS+=-DWITH_CASPER
+.endif
+LIBADD+=	nv
+
+.include <bsd.test.mk>

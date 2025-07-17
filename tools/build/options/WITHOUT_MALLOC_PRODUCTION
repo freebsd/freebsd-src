@@ -1,0 +1,8 @@
+Enable assertions and statistics gathering in
+.Xr malloc 3 .
+The run-time options
+.Dv opt.abort ,
+.Dv opt.abort_conf ,
+and
+.Dv opt.junk
+also default to true.

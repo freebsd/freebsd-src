@@ -1,0 +1,25 @@
+FBSD_1.0 {
+	__chk_fail;
+	__stack_chk_fail;
+	__stack_chk_guard;
+};
+
+FBSD_1.8 {
+	__fgets_chk;
+	__memcpy_chk;
+	__memmove_chk;
+	__mempcpy_chk;
+	__memset_chk;
+	__snprintf_chk;
+	__sprintf_chk;
+	__stpcpy_chk;
+	__stpncpy_chk;
+	__strcat_chk;
+	__strcpy_chk;
+	__strlcat_chk;
+	__strncat_chk;
+	__strlcpy_chk;
+	__strncpy_chk;
+	__vsnprintf_chk;
+	__vsprintf_chk;
+};

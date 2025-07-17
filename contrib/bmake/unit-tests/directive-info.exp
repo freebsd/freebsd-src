@@ -1,0 +1,15 @@
+make: directive-info.mk:12: begin .info tests
+make: directive-info.mk:14: Unknown directive "inf"
+make: directive-info.mk:16: Missing argument for ".info"
+make: directive-info.mk:18: message
+make: directive-info.mk:20: indented message
+make: directive-info.mk:22: Unknown directive "information"
+make: directive-info.mk:24: Unknown directive "information"
+make: directive-info.mk:30: Missing argument for ".info"
+make: directive-info.mk:32: Missing argument for ".info"
+make: directive-info.mk:36: Unknown directive "info-message"
+make: directive-info.mk:38: no-target: no-source
+make: directive-info.mk:47: expect line 35 for multi-line message
+make: Fatal errors encountered -- cannot continue
+make: stopped making ".info.man" in unit-tests
+exit status 1

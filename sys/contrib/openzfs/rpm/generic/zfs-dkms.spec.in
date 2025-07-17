@@ -1,0 +1,168 @@
+%{?!packager: %define packager Brian Behlendorf <behlendorf1@llnl.gov>}
+
+%if ! 0%{?rhel}%{?fedora}%{?mageia}%{?suse_version}%{?openEuler}
+%define not_rpm 1
+%endif
+
+# Exclude input files from mangling
+%global __brp_mangle_shebangs_exclude_from ^/usr/src/.*$
+
+%define module  @PACKAGE@
+%define mkconf  scripts/dkms.mkconf
+
+Name:           %{module}-dkms
+
+Version:        @VERSION@
+Release:        @RELEASE@%{?dist}
+Summary:        Kernel module(s) (dkms)
+
+Group:          System Environment/Kernel
+License:        @ZFS_META_LICENSE@
+URL:            https://github.com/openzfs/zfs
+Source0:        %{module}-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildArch:      noarch
+
+Requires:       dkms >= 2.2.0.3
+Requires(pre):  dkms >= 2.2.0.3
+Requires(post): dkms >= 2.2.0.3
+Requires(preun): dkms >= 2.2.0.3
+Requires:       gcc, make, perl, diffutils
+Requires(post): gcc, make, perl, diffutils
+
+# Hold back kernel upgrades if kernel is not supported by ZFS
+%if 0%{?rhel}%{?fedora}%{?mageia}%{?suse_version}%{?openEuler}
+Requires:       kernel-devel >= @ZFS_META_KVER_MIN@, kernel-devel <= @ZFS_META_KVER_MAX@.999
+Requires(post): kernel-devel >= @ZFS_META_KVER_MIN@, kernel-devel <= @ZFS_META_KVER_MAX@.999
+Conflicts:      kernel-devel < @ZFS_META_KVER_MIN@, kernel-devel > @ZFS_META_KVER_MAX@.999
+Requires:       kernel-uname-r >= @ZFS_META_KVER_MIN@, kernel-uname-r <= @ZFS_META_KVER_MAX@.999
+Requires(post): kernel-uname-r >= @ZFS_META_KVER_MIN@, kernel-uname-r <= @ZFS_META_KVER_MAX@.999
+Conflicts:      kernel-uname-r < @ZFS_META_KVER_MIN@, kernel-uname-r > @ZFS_META_KVER_MAX@.999
+
+Obsoletes:      spl-dkms <= %{version}
+%endif
+Provides:       %{module}-kmod = %{version}
+AutoReqProv:    no
+
+%if (0%{?fedora}%{?suse_version}%{?openEuler}) || (0%{?rhel} && 0%{?rhel} < 9)
+# We don't directly use it, but if this isn't installed, rpmbuild as root can
+# crash+corrupt rpmdb
+# See issue #12071
+BuildRequires:  ncompress
+%endif
+
+%description
+This package contains the dkms ZFS kernel modules.
+
+%prep
+%setup -q -n %{module}-%{version}
+
+%build
+%{mkconf} -n %{module} -v %{version} -f dkms.conf
+
+%install
+if [ "$RPM_BUILD_ROOT" != "/" ]; then
+    rm -rf $RPM_BUILD_ROOT
+fi
+mkdir -p $RPM_BUILD_ROOT/usr/src/
+cp -rf ${RPM_BUILD_DIR}/%{module}-%{version} $RPM_BUILD_ROOT/usr/src/
+
+%clean
+if [ "$RPM_BUILD_ROOT" != "/" ]; then
+    rm -rf $RPM_BUILD_ROOT
+fi
+
+%files
+%defattr(-,root,root)
+/usr/src/%{module}-%{version}
+
+%pre
+echo "Running pre installation script: $0. Parameters: $*"
+# We don't want any other versions lingering around in dkms.
+# Tests with 'dnf' showed that in case of reinstall, or upgrade
+#  the preun scriptlet removed the version we are trying to install.
+# Because of this, find all zfs dkms sources in /var/lib/dkms and
+#  remove them, if we find a matching version in dkms.
+
+dkms_root=/var/lib/dkms
+if [ -d ${dkms_root}/%{module} ]; then
+    cd ${dkms_root}/%{module}
+    for x in [[:digit:]]*; do
+        [ -d "$x" ] || continue
+        otherver="$x"
+        opath="${dkms_root}/%{module}/${otherver}"
+        if [ "$otherver" != %{version} ]; then
+            # This is a workaround for a broken 'dkms status', we caused in a previous version.
+            # One day it might be not needed anymore, but it does not hurt to keep it.
+            if dkms status -m %{module} -v "$otherver" 2>&1 | grep "${opath}/source/dkms.conf does not exist"
+            then
+                echo "ERROR: dkms status is broken!" >&2
+                if [ -L "${opath}/source" -a ! -d "${opath}/source" ]
+                then
+                    echo "Trying to fix it by removing the symlink: ${opath}/source" >&2
+                    echo "You should manually remove ${opath}" >&2
+                    rm -f "${opath}/source" || echo "Removal failed!" >&2
+                fi
+            fi
+            if [ `dkms status -m %{module} -v "$otherver" | grep -c %{module}` -gt 0 ]; then
+                echo "Removing old %{module} dkms modules version $otherver from all kernels."
+                dkms remove -m %{module} -v "$otherver" --all ||:
+            fi
+        fi
+    done
+    cd ${dkms_root}
+fi
+
+# Uninstall this version of zfs dkms modules before installation of the package.
+if [ `dkms status -m %{module} -v %{version} | grep -c %{module}` -gt 0 ]; then
+    echo "Removing %{module} dkms modules version %{version} from all kernels."
+    dkms remove -m %{module} -v %{version} --all ||:
+fi
+
+%post
+echo "Running post installation script: $0. Parameters: $*"
+# Add the module to dkms, as reccommended in the dkms man page.
+# This is generally rpm specfic.
+# But this also may help, if we have a broken 'dkms status'.
+# Because, if the sources are available and only the symlink pointing
+#  to them is missing, this will resolve the situation
+echo "Adding %{module} dkms modules version %{version} to dkms."
+dkms add -m %{module} -v %{version} %{!?not_rpm:--rpm_safe_upgrade} ||:
+
+# After installing the package, dkms install this zfs version for the current kernel.
+# Force the overwriting of old modules to avoid diff warnings in dkms status.
+# Or in case of a downgrade to overwrite newer versions.
+# Or if some other backed up versions have been restored before.
+echo "Installing %{module} dkms modules version %{version} for the current kernel."
+dkms install --force -m %{module} -v %{version} ||:
+
+%preun
+dkms_root="/var/lib/dkms/%{module}/%{version}"
+echo "Running pre uninstall script: $0. Parameters: $*"
+# In case of upgrade we do nothing. See above comment in pre hook.
+if [ "$1" = "1" -o "$1" = "upgrade" ] ; then
+    echo "This is an upgrade. Skipping pre uninstall action."
+    exit 0
+fi
+
+# Check if we uninstall the package. In that case remove the dkms modules.
+# '0' is the value for the first parameter for rpm packages.
+# 'remove' or 'purge' are the possible names for deb packages.
+if [ "$1" = "0" -o "$1" = "remove" -o "$1" = "purge" ] ; then
+    if [ `dkms status -m %{module} -v %{version} | grep -c %{module}` -gt 0 ]; then
+        echo "Removing %{module} dkms modules version %{version} from all kernels."
+        dkms remove -m %{module} -v %{version} --all %{!?not_rpm:--rpm_safe_upgrade} && exit 0
+    fi
+    # If removing the modules failed, it might be because of the broken 'dkms status'.
+    if dkms status -m %{module} -v %{version} 2>&1 | grep "${dkms_root}/source/dkms.conf does not exist"
+    then
+        echo "ERROR: dkms status is broken!" >&2
+        echo "You should manually remove ${dkms_root}" >&2
+        echo "WARNING: installed modules in /lib/modules/`uname -r`/extra could not be removed automatically!" >&2
+    fi
+else
+    echo "Script parameter $1 did not match any removal condition."
+fi
+
+exit 0
+

@@ -1,0 +1,13 @@
+#
+# Generated makefile dependencies follow.
+#
+error_message.so error_message.po $(OUTPRE)error_message.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h com_err.h error_message.c \
+  error_table.h
+et_name.so et_name.po $(OUTPRE)et_name.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-thread.h com_err.h error_table.h \
+  et_name.c
+com_err.so com_err.po $(OUTPRE)com_err.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-thread.h com_err.c com_err.h \
+  error_table.h

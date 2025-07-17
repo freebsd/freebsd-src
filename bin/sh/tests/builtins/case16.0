@@ -1,0 +1,6 @@
+
+f() { return 42; }
+f
+case x in
+x) [ $? = 42 ] ;;
+esac

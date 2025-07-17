@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: lpd
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="lpd"
+desc="Line printer spooler daemon"
+rcvar="lpd_enable"
+command="/usr/sbin/${name}"
+required_files="/etc/printcap"
+start_precmd="chkprintcap"
+
+: ${lpd_svcj_options:="net_basic"}
+
+chkprintcap()
+{
+	if checkyesno chkprintcap_enable ; then
+		/usr/sbin/chkprintcap ${chkprintcap_flags}
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

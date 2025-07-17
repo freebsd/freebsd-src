@@ -1,0 +1,213 @@
+/*
+ * *****************************************************************************
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The dc help text.
+ *
+ */
+
+usage: %s [options] [file...]
+
+dc is a reverse-polish notation command-line calculator which supports unlimited
+precision arithmetic. For details, use `man %s` or see the online documentation
+at https://git.gavinhoward.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
+
+This dc is (mostly) compatible with the OpenBSD dc and the GNU dc. See the
+OpenBSD man page (http://man.openbsd.org/OpenBSD-current/man1/dc.1) and the GNU
+dc manual (https://www.gnu.org/software/bc/manual/dc-1.05/html_mono/dc.html)
+for details.
+
+This dc has a few differences from the two above:
+
+  1) When printing a byte stream (command "P"), this bc follows what the FreeBSD
+     dc does.
+  2) This dc implements the GNU extensions for divmod ("~") and modular
+     exponentiation ("|").
+  3) This dc implements all FreeBSD extensions, except for "J" and "M".
+  4) This dc does not implement the run command ("!"), for security reasons.
+  5) Like the FreeBSD dc, this dc supports extended registers. However, they are
+     implemented differently. When it encounters whitespace where a register
+     should be, it skips the whitespace. If the character following is not
+     a lowercase letter, an error is issued. Otherwise, the register name is
+     parsed by the following regex:
+
+       [a-z][a-z0-9_]*
+
+     This generally means that register names will be surrounded by whitespace.
+
+     Examples:
+
+       l idx s temp L index S temp2 < do_thing
+
+     Also note that, unlike the FreeBSD dc, extended registers are not even
+     parsed unless the "-x" option is given. Instead, the space after a command
+     that requires a register name is taken as the register name.
+
+Options:
+
+  -C  --no-digit-clamp
+
+      Disables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that the value added to a number from a digit is always that
+      digit's value multiplied by the value of ibase raised to the power of the
+      digit's position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -c option are given, the last is used.
+
+  -c  --digit-clamp
+
+      Enables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that digits that the value added to a number from a digit that
+      is greater than or equal to the ibase is the value of ibase minus 1 all
+      multiplied by the value of ibase raised to the power of the digit's
+      position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -C option are given, the last is used.
+{{ A H N HN }}
+
+  -E  seed  --seed=seed
+
+      Sets the builtin variable seed to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+{{ end }}
+
+  -e  expr  --expression=expr
+
+      Run "expr" and quit. If multiple expressions or files (see below) are
+      given, they are all run. After running, dc will exit.
+
+  -f  file  --file=file
+
+      Run the dc code in "file" and exit. See above.
+
+  -h  --help
+
+      Print this usage message and exit.
+
+  -I  ibase  --ibase=ibase
+
+      Sets the builtin variable ibase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
+  -i  --interactive
+
+      Put dc into interactive mode. See the man page for more details.
+
+  -L  --no-line-length
+
+      Disable line length checking.
+
+  -O  obase  --obase=obase
+
+      Sets the builtin variable obase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
+  -P  --no-prompt
+
+      Disable the prompts in interactive mode.
+
+  -R  --no-read-prompt
+
+      Disable the read prompt in interactive mode.
+
+  -S  scale  --scale=scale
+
+      Sets the builtin variable scale to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
+  -V  --version
+
+      Print version and copyright and exit.
+
+  -x  --extended-register
+
+      Enable extended register mode.
+
+  -z  --leading-zeroes
+
+      Enable leading zeroes on numbers greater than -1 and less than 1.
+
+Environment variables:
+
+  DC_ENV_ARGS
+
+      Command-line arguments to use on every run.
+
+  DC_LINE_LENGTH
+
+      If an integer, the number of characters to print on a line before
+      wrapping. Using 0 will disable line length checking.
+
+  DC_SIGINT_RESET
+
+      If an integer and non-zero, reset on SIGINT, rather than exit, when in
+      interactive mode.
+
+      If zero, do not reset on SIGINT in all cases, but exit instead.
+
+      Overrides the default, which is %s.
+
+  DC_TTY_MODE
+
+      If an integer and non-zero, enable TTY mode when it is available.
+
+      If zero, disable TTY mode in all cases.
+
+      Overrides the default, which is TTY mode %s.
+
+  DC_PROMPT
+
+      If an integer and non-zero, enable prompt when TTY mode is possible.
+
+      If zero, disable prompt in all cases.
+
+      Overrides the default, which is prompt %s.
+
+  DC_EXPR_EXIT
+
+      If an integer and non-zero, exit when expressions or expression files are
+      given on the command-line, and does not exit when an integer and zero.
+
+      Overrides the default, which is %s.
+
+  DC_DIGIT_CLAMP
+
+      If an integer and non-zero, clamp digits larger than or equal to the
+      current ibase when parsing numbers.
+
+      Overrides the default, which is %s.

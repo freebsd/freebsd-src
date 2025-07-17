@@ -1,0 +1,22 @@
+New test script
+
+o Assumes univerese has run.
+o Will create a test tree somewhere outside of the source tree
+  o trees has the different trees we use to create images
+    o trees/${ARCH}/$PART have each architecture's tree images
+      for the different partitions we need.
+  o bios has cached BIOSes needed for tests
+  o images has the images to test
+  o tests has the test scripts
+  o linux has cached copies off kernels for the kboot tests
+o Assumes qemu port installed
+  o will use firmware from there
+o Will use 3 linux kernels, amd64 and aarch64 built with CONFIG_EFI_STUB
+o Will test
+  o armv7 UEFI+uboot booting on MBR and GPT
+  o aarch64 Will test UEFI+ACPI on MBR/GPT, UEFI+ACPI+kboot, DTB+kboot
+  o amd64 <big matrix here>
+  o i386 legacy + {gpt,mbr} and cdrom boot (also the isoboot unified?)
+  o powerpc <who knows> but kboot+dtb
+  o riscv UEFI+ACPI with GPT and serial console
+

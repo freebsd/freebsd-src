@@ -1,0 +1,6 @@
+make: opt-debug-hash.mk:13: Missing argument for ".error"
+make: Fatal errors encountered -- cannot continue
+HashTable "targets": size=16 entries=0 maxchain=0
+HashTable "Global variables": size=16 entries=<entries> maxchain=4
+make: stopped in unit-tests
+exit status 1

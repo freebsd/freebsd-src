@@ -1,0 +1,423 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * BSD 3-Clause New License (https://spdx.org/licenses/BSD-3-Clause.html)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from this
+ * software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Copyright (c) 2020, Sebastian Gottschall
+ */
+
+/*
+ * This wrapper fixes a problem, in case the ZFS filesystem driver, is compiled
+ * statically into the kernel.
+ * This will cause a symbol collision with the older in-kernel zstd library.
+ *
+ * On update, truncate this file at the scissor line, rebuild the module,
+ * and make gen-zstd-symbols.
+ */
+
+#define	MEM_MODULE
+#define	XXH_NAMESPACE ZSTD_
+#define	XXH_PRIVATE_API
+#define	XXH_INLINE_ALL
+#define	ZSTD_LEGACY_SUPPORT 0
+#define	ZSTD_LIB_DICTBUILDER 0
+#define	ZSTD_LIB_DEPRECATED 0
+#define	ZSTD_NOBENCH
+#define	DEBUGLEVEL 0
+#ifdef _KERNEL
+#define	ZSTD_DEPS_ASSERT
+#endif
+
+
+/* -- >8 -- */
+
+/* lib/common/entropy_common.o: */
+#define	FSE_getErrorName zfs_FSE_getErrorName
+#define	FSE_isError zfs_FSE_isError
+#define	FSE_readNCount zfs_FSE_readNCount
+#define	FSE_versionNumber zfs_FSE_versionNumber
+#define	HUF_getErrorName zfs_HUF_getErrorName
+#define	HUF_isError zfs_HUF_isError
+#define	HUF_readStats zfs_HUF_readStats
+
+/* lib/common/error_private.o: */
+#define	ERR_getErrorString zfs_ERR_getErrorString
+
+/* lib/common/fse_decompress.o: */
+#define	FSE_buildDTable_raw zfs_FSE_buildDTable_raw
+#define	FSE_buildDTable_rle zfs_FSE_buildDTable_rle
+#define	FSE_buildDTable zfs_FSE_buildDTable
+#define	FSE_decompress_usingDTable zfs_FSE_decompress_usingDTable
+#define	FSE_decompress_wksp zfs_FSE_decompress_wksp
+#define	FSE_decompress zfs_FSE_decompress
+
+/* lib/common/pool.o: */
+#define	POOL_add zfs_POOL_add
+#define	POOL_create_advanced zfs_POOL_create_advanced
+#define	POOL_create zfs_POOL_create
+#define	POOL_free zfs_POOL_free
+#define	POOL_resize zfs_POOL_resize
+#define	POOL_sizeof zfs_POOL_sizeof
+#define	POOL_tryAdd zfs_POOL_tryAdd
+
+/* lib/common/zstd_common.o: */
+#define	ZSTD_calloc zfs_ZSTD_calloc
+#define	ZSTD_free zfs_ZSTD_free
+#define	ZSTD_getErrorCode zfs_ZSTD_getErrorCode
+#define	ZSTD_getErrorName zfs_ZSTD_getErrorName
+#define	ZSTD_getErrorString zfs_ZSTD_getErrorString
+#define	ZSTD_isError zfs_ZSTD_isError
+#define	ZSTD_malloc zfs_ZSTD_malloc
+#define	ZSTD_versionNumber zfs_ZSTD_versionNumber
+#define	ZSTD_versionString zfs_ZSTD_versionString
+
+/* lib/compress/fse_compress.o: */
+#define	FSE_buildCTable_raw zfs_FSE_buildCTable_raw
+#define	FSE_buildCTable_rle zfs_FSE_buildCTable_rle
+#define	FSE_buildCTable_wksp zfs_FSE_buildCTable_wksp
+#define	FSE_buildCTable zfs_FSE_buildCTable
+#define	FSE_compress2 zfs_FSE_compress2
+#define	FSE_compressBound zfs_FSE_compressBound
+#define	FSE_compress_usingCTable zfs_FSE_compress_usingCTable
+#define	FSE_compress_wksp zfs_FSE_compress_wksp
+#define	FSE_compress zfs_FSE_compress
+#define	FSE_createCTable zfs_FSE_createCTable
+#define	FSE_freeCTable zfs_FSE_freeCTable
+#define	FSE_NCountWriteBound zfs_FSE_NCountWriteBound
+#define	FSE_normalizeCount zfs_FSE_normalizeCount
+#define	FSE_optimalTableLog_internal zfs_FSE_optimalTableLog_internal
+#define	FSE_optimalTableLog zfs_FSE_optimalTableLog
+#define	FSE_writeNCount zfs_FSE_writeNCount
+
+/* lib/compress/hist.o: */
+#define	HIST_countFast_wksp zfs_HIST_countFast_wksp
+#define	HIST_countFast zfs_HIST_countFast
+#define	HIST_count_simple zfs_HIST_count_simple
+#define	HIST_count_wksp zfs_HIST_count_wksp
+#define	HIST_count zfs_HIST_count
+#define	HIST_isError zfs_HIST_isError
+
+/* lib/compress/huf_compress.o: */
+#define	HUF_buildCTable_wksp zfs_HUF_buildCTable_wksp
+#define	HUF_buildCTable zfs_HUF_buildCTable
+#define	HUF_compress1X_repeat zfs_HUF_compress1X_repeat
+#define	HUF_compress1X_usingCTable zfs_HUF_compress1X_usingCTable
+#define	HUF_compress1X_wksp zfs_HUF_compress1X_wksp
+#define	HUF_compress1X zfs_HUF_compress1X
+#define	HUF_compress2 zfs_HUF_compress2
+#define	HUF_compress4X_repeat zfs_HUF_compress4X_repeat
+#define	HUF_compress4X_usingCTable zfs_HUF_compress4X_usingCTable
+#define	HUF_compress4X_wksp zfs_HUF_compress4X_wksp
+#define	HUF_compressBound zfs_HUF_compressBound
+#define	HUF_compress zfs_HUF_compress
+#define	HUF_estimateCompressedSize zfs_HUF_estimateCompressedSize
+#define	HUF_getNbBits zfs_HUF_getNbBits
+#define	HUF_optimalTableLog zfs_HUF_optimalTableLog
+#define	HUF_readCTable zfs_HUF_readCTable
+#define	HUF_validateCTable zfs_HUF_validateCTable
+#define	HUF_writeCTable zfs_HUF_writeCTable
+
+/* lib/compress/zstd_compress_literals.o: */
+#define	ZSTD_compressLiterals zfs_ZSTD_compressLiterals
+#define	ZSTD_compressRleLiteralsBlock zfs_ZSTD_compressRleLiteralsBlock
+#define	ZSTD_noCompressLiterals zfs_ZSTD_noCompressLiterals
+
+/* lib/compress/zstd_compress_sequences.o: */
+#define	ZSTD_buildCTable zfs_ZSTD_buildCTable
+#define	ZSTD_crossEntropyCost zfs_ZSTD_crossEntropyCost
+#define	ZSTD_encodeSequences zfs_ZSTD_encodeSequences
+#define	ZSTD_fseBitCost zfs_ZSTD_fseBitCost
+#define	ZSTD_selectEncodingType zfs_ZSTD_selectEncodingType
+
+/* lib/compress/zstd_compress_superblock.o: */
+#define	ZSTD_compressSuperBlock zfs_ZSTD_compressSuperBlock
+
+/* lib/compress/zstd_compress.o: */
+#define	ZSTD_adjustCParams zfs_ZSTD_adjustCParams
+#define	ZSTD_CCtx_getParameter zfs_ZSTD_CCtx_getParameter
+#define	ZSTD_CCtx_loadDictionary_advanced zfs_ZSTD_CCtx_loadDictionary_advanced
+#define	ZSTD_CCtx_loadDictionary_byReference zfs_ZSTD_CCtx_loadDictionary_byReference
+#define	ZSTD_CCtx_loadDictionary zfs_ZSTD_CCtx_loadDictionary
+#define	ZSTD_CCtxParams_getParameter zfs_ZSTD_CCtxParams_getParameter
+#define	ZSTD_CCtxParams_init_advanced zfs_ZSTD_CCtxParams_init_advanced
+#define	ZSTD_CCtxParams_init zfs_ZSTD_CCtxParams_init
+#define	ZSTD_CCtxParams_reset zfs_ZSTD_CCtxParams_reset
+#define	ZSTD_CCtxParams_setParameter zfs_ZSTD_CCtxParams_setParameter
+#define	ZSTD_CCtx_refCDict zfs_ZSTD_CCtx_refCDict
+#define	ZSTD_CCtx_refPrefix_advanced zfs_ZSTD_CCtx_refPrefix_advanced
+#define	ZSTD_CCtx_refPrefix zfs_ZSTD_CCtx_refPrefix
+#define	ZSTD_CCtx_reset zfs_ZSTD_CCtx_reset
+#define	ZSTD_CCtx_setParametersUsingCCtxParams zfs_ZSTD_CCtx_setParametersUsingCCtxParams
+#define	ZSTD_CCtx_setParameter zfs_ZSTD_CCtx_setParameter
+#define	ZSTD_CCtx_setPledgedSrcSize zfs_ZSTD_CCtx_setPledgedSrcSize
+#define	ZSTD_checkCParams zfs_ZSTD_checkCParams
+#define	ZSTD_compress2 zfs_ZSTD_compress2
+#define	ZSTD_compress_advanced_internal zfs_ZSTD_compress_advanced_internal
+#define	ZSTD_compress_advanced zfs_ZSTD_compress_advanced
+#define	ZSTD_compressBegin_advanced_internal zfs_ZSTD_compressBegin_advanced_internal
+#define	ZSTD_compressBegin_advanced zfs_ZSTD_compressBegin_advanced
+#define	ZSTD_compressBegin_usingCDict_advanced zfs_ZSTD_compressBegin_usingCDict_advanced
+#define	ZSTD_compressBegin_usingCDict zfs_ZSTD_compressBegin_usingCDict
+#define	ZSTD_compressBegin_usingDict zfs_ZSTD_compressBegin_usingDict
+#define	ZSTD_compressBegin zfs_ZSTD_compressBegin
+#define	ZSTD_compressBlock zfs_ZSTD_compressBlock
+#define	ZSTD_compressBound zfs_ZSTD_compressBound
+#define	ZSTD_compressCCtx zfs_ZSTD_compressCCtx
+#define	ZSTD_compressContinue zfs_ZSTD_compressContinue
+#define	ZSTD_compressEnd zfs_ZSTD_compressEnd
+#define	ZSTD_compressStream2_simpleArgs zfs_ZSTD_compressStream2_simpleArgs
+#define	ZSTD_compressStream2 zfs_ZSTD_compressStream2
+#define	ZSTD_compressStream zfs_ZSTD_compressStream
+#define	ZSTD_compress_usingCDict_advanced zfs_ZSTD_compress_usingCDict_advanced
+#define	ZSTD_compress_usingCDict zfs_ZSTD_compress_usingCDict
+#define	ZSTD_compress_usingDict zfs_ZSTD_compress_usingDict
+#define	ZSTD_compress zfs_ZSTD_compress
+#define	ZSTD_copyCCtx zfs_ZSTD_copyCCtx
+#define	ZSTD_cParam_getBounds zfs_ZSTD_cParam_getBounds
+#define	ZSTD_createCCtx_advanced zfs_ZSTD_createCCtx_advanced
+#define	ZSTD_createCCtxParams zfs_ZSTD_createCCtxParams
+#define	ZSTD_createCCtx zfs_ZSTD_createCCtx
+#define	ZSTD_createCDict_advanced zfs_ZSTD_createCDict_advanced
+#define	ZSTD_createCDict_byReference zfs_ZSTD_createCDict_byReference
+#define	ZSTD_createCDict zfs_ZSTD_createCDict
+#define	ZSTD_createCStream_advanced zfs_ZSTD_createCStream_advanced
+#define	ZSTD_createCStream zfs_ZSTD_createCStream
+#define	ZSTD_CStreamInSize zfs_ZSTD_CStreamInSize
+#define	ZSTD_CStreamOutSize zfs_ZSTD_CStreamOutSize
+#define	ZSTD_cycleLog zfs_ZSTD_cycleLog
+#define	ZSTD_endStream zfs_ZSTD_endStream
+#define	ZSTD_estimateCCtxSize_usingCCtxParams zfs_ZSTD_estimateCCtxSize_usingCCtxParams
+#define	ZSTD_estimateCCtxSize_usingCParams zfs_ZSTD_estimateCCtxSize_usingCParams
+#define	ZSTD_estimateCCtxSize zfs_ZSTD_estimateCCtxSize
+#define	ZSTD_estimateCDictSize_advanced zfs_ZSTD_estimateCDictSize_advanced
+#define	ZSTD_estimateCDictSize zfs_ZSTD_estimateCDictSize
+#define	ZSTD_estimateCStreamSize_usingCCtxParams zfs_ZSTD_estimateCStreamSize_usingCCtxParams
+#define	ZSTD_estimateCStreamSize_usingCParams zfs_ZSTD_estimateCStreamSize_usingCParams
+#define	ZSTD_estimateCStreamSize zfs_ZSTD_estimateCStreamSize
+#define	ZSTD_flushStream zfs_ZSTD_flushStream
+#define	ZSTD_freeCCtxParams zfs_ZSTD_freeCCtxParams
+#define	ZSTD_freeCCtx zfs_ZSTD_freeCCtx
+#define	ZSTD_freeCDict zfs_ZSTD_freeCDict
+#define	ZSTD_freeCStream zfs_ZSTD_freeCStream
+#define	ZSTD_getBlockSize zfs_ZSTD_getBlockSize
+#define	ZSTD_getCParamsFromCCtxParams zfs_ZSTD_getCParamsFromCCtxParams
+#define	ZSTD_getCParamsFromCDict zfs_ZSTD_getCParamsFromCDict
+#define	ZSTD_getCParams zfs_ZSTD_getCParams
+#define	ZSTD_getFrameProgression zfs_ZSTD_getFrameProgression
+#define	ZSTD_getParams zfs_ZSTD_getParams
+#define	ZSTD_getSeqStore zfs_ZSTD_getSeqStore
+#define	ZSTD_getSequences zfs_ZSTD_getSequences
+#define	ZSTD_initCStream_advanced zfs_ZSTD_initCStream_advanced
+#define	ZSTD_initCStream_internal zfs_ZSTD_initCStream_internal
+#define	ZSTD_initCStream_srcSize zfs_ZSTD_initCStream_srcSize
+#define	ZSTD_initCStream_usingCDict_advanced zfs_ZSTD_initCStream_usingCDict_advanced
+#define	ZSTD_initCStream_usingCDict zfs_ZSTD_initCStream_usingCDict
+#define	ZSTD_initCStream_usingDict zfs_ZSTD_initCStream_usingDict
+#define	ZSTD_initCStream zfs_ZSTD_initCStream
+#define	ZSTD_initStaticCCtx zfs_ZSTD_initStaticCCtx
+#define	ZSTD_initStaticCDict zfs_ZSTD_initStaticCDict
+#define	ZSTD_initStaticCStream zfs_ZSTD_initStaticCStream
+#define	ZSTD_invalidateRepCodes zfs_ZSTD_invalidateRepCodes
+#define	ZSTD_loadCEntropy zfs_ZSTD_loadCEntropy
+#define	ZSTD_maxCLevel zfs_ZSTD_maxCLevel
+#define	ZSTD_minCLevel zfs_ZSTD_minCLevel
+#define	ZSTD_referenceExternalSequences zfs_ZSTD_referenceExternalSequences
+#define	ZSTD_reset_compressedBlockState zfs_ZSTD_reset_compressedBlockState
+#define	ZSTD_resetCStream zfs_ZSTD_resetCStream
+#define	ZSTD_resetSeqStore zfs_ZSTD_resetSeqStore
+#define	ZSTD_selectBlockCompressor zfs_ZSTD_selectBlockCompressor
+#define	ZSTD_seqToCodes zfs_ZSTD_seqToCodes
+#define	ZSTD_sizeof_CCtx zfs_ZSTD_sizeof_CCtx
+#define	ZSTD_sizeof_CDict zfs_ZSTD_sizeof_CDict
+#define	ZSTD_sizeof_CStream zfs_ZSTD_sizeof_CStream
+#define	ZSTD_toFlushNow zfs_ZSTD_toFlushNow
+#define	ZSTD_writeLastEmptyBlock zfs_ZSTD_writeLastEmptyBlock
+
+/* lib/compress/zstd_double_fast.o: */
+#define	ZSTD_compressBlock_doubleFast_dictMatchState zfs_ZSTD_compressBlock_doubleFast_dictMatchState
+#define	ZSTD_compressBlock_doubleFast_extDict zfs_ZSTD_compressBlock_doubleFast_extDict
+#define	ZSTD_compressBlock_doubleFast zfs_ZSTD_compressBlock_doubleFast
+#define	ZSTD_fillDoubleHashTable zfs_ZSTD_fillDoubleHashTable
+
+/* lib/compress/zstd_fast.o: */
+#define	ZSTD_compressBlock_fast_dictMatchState zfs_ZSTD_compressBlock_fast_dictMatchState
+#define	ZSTD_compressBlock_fast_extDict zfs_ZSTD_compressBlock_fast_extDict
+#define	ZSTD_compressBlock_fast zfs_ZSTD_compressBlock_fast
+#define	ZSTD_fillHashTable zfs_ZSTD_fillHashTable
+
+/* lib/compress/zstd_lazy.o: */
+#define	ZSTD_compressBlock_btlazy2_dictMatchState zfs_ZSTD_compressBlock_btlazy2_dictMatchState
+#define	ZSTD_compressBlock_btlazy2_extDict zfs_ZSTD_compressBlock_btlazy2_extDict
+#define	ZSTD_compressBlock_btlazy2 zfs_ZSTD_compressBlock_btlazy2
+#define	ZSTD_compressBlock_greedy_dictMatchState zfs_ZSTD_compressBlock_greedy_dictMatchState
+#define	ZSTD_compressBlock_greedy_extDict zfs_ZSTD_compressBlock_greedy_extDict
+#define	ZSTD_compressBlock_greedy zfs_ZSTD_compressBlock_greedy
+#define	ZSTD_compressBlock_lazy2_dictMatchState zfs_ZSTD_compressBlock_lazy2_dictMatchState
+#define	ZSTD_compressBlock_lazy2_extDict zfs_ZSTD_compressBlock_lazy2_extDict
+#define	ZSTD_compressBlock_lazy2 zfs_ZSTD_compressBlock_lazy2
+#define	ZSTD_compressBlock_lazy_dictMatchState zfs_ZSTD_compressBlock_lazy_dictMatchState
+#define	ZSTD_compressBlock_lazy_extDict zfs_ZSTD_compressBlock_lazy_extDict
+#define	ZSTD_compressBlock_lazy zfs_ZSTD_compressBlock_lazy
+#define	ZSTD_insertAndFindFirstIndex zfs_ZSTD_insertAndFindFirstIndex
+
+/* lib/compress/zstd_ldm.o: */
+#define	ZSTD_ldm_adjustParameters zfs_ZSTD_ldm_adjustParameters
+#define	ZSTD_ldm_blockCompress zfs_ZSTD_ldm_blockCompress
+#define	ZSTD_ldm_fillHashTable zfs_ZSTD_ldm_fillHashTable
+#define	ZSTD_ldm_generateSequences zfs_ZSTD_ldm_generateSequences
+#define	ZSTD_ldm_getMaxNbSeq zfs_ZSTD_ldm_getMaxNbSeq
+#define	ZSTD_ldm_getTableSize zfs_ZSTD_ldm_getTableSize
+#define	ZSTD_ldm_skipSequences zfs_ZSTD_ldm_skipSequences
+
+/* lib/compress/zstd_opt.o: */
+#define	ZSTD_compressBlock_btopt_dictMatchState zfs_ZSTD_compressBlock_btopt_dictMatchState
+#define	ZSTD_compressBlock_btopt_extDict zfs_ZSTD_compressBlock_btopt_extDict
+#define	ZSTD_compressBlock_btopt zfs_ZSTD_compressBlock_btopt
+#define	ZSTD_compressBlock_btultra2 zfs_ZSTD_compressBlock_btultra2
+#define	ZSTD_compressBlock_btultra_dictMatchState zfs_ZSTD_compressBlock_btultra_dictMatchState
+#define	ZSTD_compressBlock_btultra_extDict zfs_ZSTD_compressBlock_btultra_extDict
+#define	ZSTD_compressBlock_btultra zfs_ZSTD_compressBlock_btultra
+#define	ZSTD_updateTree zfs_ZSTD_updateTree
+
+/* lib/decompress/huf_decompress.o: */
+#define	HUF_decompress1X1_DCtx_wksp_bmi2 zfs_HUF_decompress1X1_DCtx_wksp_bmi2
+#define	HUF_decompress1X1_DCtx_wksp zfs_HUF_decompress1X1_DCtx_wksp
+#define	HUF_decompress1X1_DCtx zfs_HUF_decompress1X1_DCtx
+#define	HUF_decompress1X1_usingDTable zfs_HUF_decompress1X1_usingDTable
+#define	HUF_decompress1X1 zfs_HUF_decompress1X1
+#define	HUF_decompress1X2_DCtx_wksp zfs_HUF_decompress1X2_DCtx_wksp
+#define	HUF_decompress1X2_DCtx zfs_HUF_decompress1X2_DCtx
+#define	HUF_decompress1X2_usingDTable zfs_HUF_decompress1X2_usingDTable
+#define	HUF_decompress1X2 zfs_HUF_decompress1X2
+#define	HUF_decompress1X_DCtx_wksp zfs_HUF_decompress1X_DCtx_wksp
+#define	HUF_decompress1X_DCtx zfs_HUF_decompress1X_DCtx
+#define	HUF_decompress1X_usingDTable_bmi2 zfs_HUF_decompress1X_usingDTable_bmi2
+#define	HUF_decompress1X_usingDTable zfs_HUF_decompress1X_usingDTable
+#define	HUF_decompress4X1_DCtx_wksp zfs_HUF_decompress4X1_DCtx_wksp
+#define	HUF_decompress4X1_DCtx zfs_HUF_decompress4X1_DCtx
+#define	HUF_decompress4X1_usingDTable zfs_HUF_decompress4X1_usingDTable
+#define	HUF_decompress4X1 zfs_HUF_decompress4X1
+#define	HUF_decompress4X2_DCtx_wksp zfs_HUF_decompress4X2_DCtx_wksp
+#define	HUF_decompress4X2_DCtx zfs_HUF_decompress4X2_DCtx
+#define	HUF_decompress4X2_usingDTable zfs_HUF_decompress4X2_usingDTable
+#define	HUF_decompress4X2 zfs_HUF_decompress4X2
+#define	HUF_decompress4X_DCtx zfs_HUF_decompress4X_DCtx
+#define	HUF_decompress4X_hufOnly_wksp_bmi2 zfs_HUF_decompress4X_hufOnly_wksp_bmi2
+#define	HUF_decompress4X_hufOnly_wksp zfs_HUF_decompress4X_hufOnly_wksp
+#define	HUF_decompress4X_hufOnly zfs_HUF_decompress4X_hufOnly
+#define	HUF_decompress4X_usingDTable_bmi2 zfs_HUF_decompress4X_usingDTable_bmi2
+#define	HUF_decompress4X_usingDTable zfs_HUF_decompress4X_usingDTable
+#define	HUF_decompress zfs_HUF_decompress
+#define	HUF_readDTableX1_wksp zfs_HUF_readDTableX1_wksp
+#define	HUF_readDTableX1 zfs_HUF_readDTableX1
+#define	HUF_readDTableX2_wksp zfs_HUF_readDTableX2_wksp
+#define	HUF_readDTableX2 zfs_HUF_readDTableX2
+#define	HUF_selectDecoder zfs_HUF_selectDecoder
+
+/* lib/decompress/zstd_ddict.o: */
+#define	ZSTD_copyDDictParameters zfs_ZSTD_copyDDictParameters
+#define	ZSTD_createDDict_advanced zfs_ZSTD_createDDict_advanced
+#define	ZSTD_createDDict_byReference zfs_ZSTD_createDDict_byReference
+#define	ZSTD_createDDict zfs_ZSTD_createDDict
+#define	ZSTD_DDict_dictContent zfs_ZSTD_DDict_dictContent
+#define	ZSTD_DDict_dictSize zfs_ZSTD_DDict_dictSize
+#define	ZSTD_estimateDDictSize zfs_ZSTD_estimateDDictSize
+#define	ZSTD_freeDDict zfs_ZSTD_freeDDict
+#define	ZSTD_getDictID_fromDDict zfs_ZSTD_getDictID_fromDDict
+#define	ZSTD_initStaticDDict zfs_ZSTD_initStaticDDict
+#define	ZSTD_sizeof_DDict zfs_ZSTD_sizeof_DDict
+
+/* lib/decompress/zstd_decompress.o: */
+#define	ZSTD_copyDCtx zfs_ZSTD_copyDCtx
+#define	ZSTD_createDCtx_advanced zfs_ZSTD_createDCtx_advanced
+#define	ZSTD_createDCtx zfs_ZSTD_createDCtx
+#define	ZSTD_createDStream_advanced zfs_ZSTD_createDStream_advanced
+#define	ZSTD_createDStream zfs_ZSTD_createDStream
+#define	ZSTD_DCtx_loadDictionary_advanced zfs_ZSTD_DCtx_loadDictionary_advanced
+#define	ZSTD_DCtx_loadDictionary_byReference zfs_ZSTD_DCtx_loadDictionary_byReference
+#define	ZSTD_DCtx_loadDictionary zfs_ZSTD_DCtx_loadDictionary
+#define	ZSTD_DCtx_refDDict zfs_ZSTD_DCtx_refDDict
+#define	ZSTD_DCtx_refPrefix_advanced zfs_ZSTD_DCtx_refPrefix_advanced
+#define	ZSTD_DCtx_refPrefix zfs_ZSTD_DCtx_refPrefix
+#define	ZSTD_DCtx_reset zfs_ZSTD_DCtx_reset
+#define	ZSTD_DCtx_setFormat zfs_ZSTD_DCtx_setFormat
+#define	ZSTD_DCtx_setMaxWindowSize zfs_ZSTD_DCtx_setMaxWindowSize
+#define	ZSTD_DCtx_setParameter zfs_ZSTD_DCtx_setParameter
+#define	ZSTD_decodingBufferSize_min zfs_ZSTD_decodingBufferSize_min
+#define	ZSTD_decompressBegin_usingDDict zfs_ZSTD_decompressBegin_usingDDict
+#define	ZSTD_decompressBegin_usingDict zfs_ZSTD_decompressBegin_usingDict
+#define	ZSTD_decompressBegin zfs_ZSTD_decompressBegin
+#define	ZSTD_decompressBound zfs_ZSTD_decompressBound
+#define	ZSTD_decompressContinue zfs_ZSTD_decompressContinue
+#define	ZSTD_decompressDCtx zfs_ZSTD_decompressDCtx
+#define	ZSTD_decompressStream_simpleArgs zfs_ZSTD_decompressStream_simpleArgs
+#define	ZSTD_decompressStream zfs_ZSTD_decompressStream
+#define	ZSTD_decompress_usingDDict zfs_ZSTD_decompress_usingDDict
+#define	ZSTD_decompress_usingDict zfs_ZSTD_decompress_usingDict
+#define	ZSTD_decompress zfs_ZSTD_decompress
+#define	ZSTD_dParam_getBounds zfs_ZSTD_dParam_getBounds
+#define	ZSTD_DStreamInSize zfs_ZSTD_DStreamInSize
+#define	ZSTD_DStreamOutSize zfs_ZSTD_DStreamOutSize
+#define	ZSTD_estimateDCtxSize zfs_ZSTD_estimateDCtxSize
+#define	ZSTD_estimateDStreamSize_fromFrame zfs_ZSTD_estimateDStreamSize_fromFrame
+#define	ZSTD_estimateDStreamSize zfs_ZSTD_estimateDStreamSize
+#define	ZSTD_findDecompressedSize zfs_ZSTD_findDecompressedSize
+#define	ZSTD_findFrameCompressedSize zfs_ZSTD_findFrameCompressedSize
+#define	ZSTD_frameHeaderSize zfs_ZSTD_frameHeaderSize
+#define	ZSTD_freeDCtx zfs_ZSTD_freeDCtx
+#define	ZSTD_freeDStream zfs_ZSTD_freeDStream
+#define	ZSTD_getDecompressedSize zfs_ZSTD_getDecompressedSize
+#define	ZSTD_getDictID_fromDict zfs_ZSTD_getDictID_fromDict
+#define	ZSTD_getDictID_fromFrame zfs_ZSTD_getDictID_fromFrame
+#define	ZSTD_getFrameContentSize zfs_ZSTD_getFrameContentSize
+#define	ZSTD_getFrameHeader_advanced zfs_ZSTD_getFrameHeader_advanced
+#define	ZSTD_getFrameHeader zfs_ZSTD_getFrameHeader
+#define	ZSTD_initDStream_usingDDict zfs_ZSTD_initDStream_usingDDict
+#define	ZSTD_initDStream_usingDict zfs_ZSTD_initDStream_usingDict
+#define	ZSTD_initDStream zfs_ZSTD_initDStream
+#define	ZSTD_initStaticDCtx zfs_ZSTD_initStaticDCtx
+#define	ZSTD_initStaticDStream zfs_ZSTD_initStaticDStream
+#define	ZSTD_insertBlock zfs_ZSTD_insertBlock
+#define	ZSTD_isFrame zfs_ZSTD_isFrame
+#define	ZSTD_loadDEntropy zfs_ZSTD_loadDEntropy
+#define	ZSTD_nextInputType zfs_ZSTD_nextInputType
+#define	ZSTD_nextSrcSizeToDecompress zfs_ZSTD_nextSrcSizeToDecompress
+#define	ZSTD_resetDStream zfs_ZSTD_resetDStream
+#define	ZSTD_sizeof_DCtx zfs_ZSTD_sizeof_DCtx
+#define	ZSTD_sizeof_DStream zfs_ZSTD_sizeof_DStream
+
+/* lib/decompress/zstd_decompress_block.o: */
+#define	ZSTD_buildFSETable zfs_ZSTD_buildFSETable
+#define	ZSTD_checkContinuity zfs_ZSTD_checkContinuity
+#define	ZSTD_decodeLiteralsBlock zfs_ZSTD_decodeLiteralsBlock
+#define	ZSTD_decodeSeqHeaders zfs_ZSTD_decodeSeqHeaders
+#define	ZSTD_decompressBlock_internal zfs_ZSTD_decompressBlock_internal
+#define	ZSTD_decompressBlock zfs_ZSTD_decompressBlock
+#define	ZSTD_getcBlockSize zfs_ZSTD_getcBlockSize

@@ -1,0 +1,9 @@
+
+set -e
+cd -P /bin
+d=$PWD
+CDPATH=/:
+cd -P .
+[ "$d" = "$PWD" ]
+cd -P ./
+[ "$d" = "$PWD" ]

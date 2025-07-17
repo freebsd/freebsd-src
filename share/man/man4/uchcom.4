@@ -1,0 +1,127 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" $NetBSD: uchcom.4,v 1.2 2008/04/30 13:10:54 martin Exp $
+.\"
+.\" Copyright (c) 2007 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Takuya SHIOZAKI (tshiozak@netbsd.org).
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 25, 2025
+.Dt UCHCOM 4
+.Os
+.Sh NAME
+.Nm uchcom
+.Nd WinChipHead CH9102/CH343/CH341/CH340 USB to serial UART driver
+.Sh SYNOPSIS
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device uchcom"
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="uchcom"
+.Pp
+In
+.Xr sysctl.conf 5 :
+.Cd hw.usb.uchcom.debug=1
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the WinChipHead USB to serial UART adapters.
+If the appropriate hardware is detected,
+the driver will be loaded automatically by
+.Xr devmatch 8 .
+To load the driver manually, add it to the
+.Ic kld_list
+in
+.Xr rc.conf 5 ,
+or use
+.Xr kldload 8
+at runtime.
+The device is accessed through the
+.Xr ucom 4
+driver, which makes it behave like a
+.Xr tty 4 .
+.Pp
+Call out through this interface with applications like
+.Xr cu 1
+or
+.Xr tip 1 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following USB to serial UART controllers:
+.Pp
+.Bl -bullet -compact
+.It
+WinChipHead CH9102 (max 6Mbps)
+.It
+WinChipHead CH343 (max 6Mbps)
+.It
+WinChipHead CH341 (max 2Mbps)
+.It
+WinChipHead CH340 (max 2Mbps)
+.El
+.Sh SYSCTL VARIABLES
+These settings can be entered in the
+.Xr loader 8
+prompt, set in
+.Xr loader.conf 5 ,
+.Xr sysctl.conf 5 ,
+or changed at runtime with
+.Xr sysctl 8 :
+.Bl -tag -width "hw.usb.uchcom.debug"
+.It Va hw.usb.uchcom.debug
+Enable debugging messages, default
+.Ql 0
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr cu 1 ,
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 8.0
+from
+.Nx 5.0 .

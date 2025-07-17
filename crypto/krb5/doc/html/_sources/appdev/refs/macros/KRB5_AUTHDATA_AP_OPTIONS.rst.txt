@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-AUTHDATA-AP-OPTIONS-data:
+
+KRB5_AUTHDATA_AP_OPTIONS
+========================
+
+..
+.. data:: KRB5_AUTHDATA_AP_OPTIONS
+..
+
+
+
+
+=============================== ======================
+``KRB5_AUTHDATA_AP_OPTIONS``       ``143``
+=============================== ======================

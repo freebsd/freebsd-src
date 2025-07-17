@@ -1,0 +1,143 @@
+.\"
+.\" Copyright (c) 2010 AnyWi Technologies
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd September 16, 2020
+.Dt HIDQUIRK 4
+.Os
+.Sh NAME
+.Nm hidquirk
+.Nd HID quirks module
+.Sh SYNOPSIS
+To compile this module into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device hid"
+.Ed
+.Pp
+Alternatively, to load the module at boot
+time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hidquirk_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+module provides support for adding quirks for HID devices
+.Bl -tag -width Ds
+.It HQ_HID_IGNORE
+device should be ignored by hid class
+.It HQ_KBD_BOOTPROTO
+device should set the boot protocol
+.It HQ_MS_BOOTPROTO
+device should set the boot protocol
+.It HQ_MS_BAD_CLASS
+doesn't identify properly
+.It HQ_MS_LEADING_BYTE
+mouse sends an unknown leading byte
+.It HQ_MS_REVZ
+mouse has Z-axis reversed
+.It HQ_MS_VENDOR_BTN
+mouse has buttons in vendor usage page
+.It HQ_SPUR_BUT_UP
+spurious mouse button up events
+.It HQ_MT_TIMESTAMP
+Multitouch device exports HW timestamps
+.Dv 0x1b5a01
+.El
+.Pp
+See
+.Pa /sys/dev/hid/hidquirk.h
+for the complete list of supported quirks.
+.Sh LOADER TUNABLE
+The following tunable can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.hid.quirk.%d
+The value is a string whose format is:
+.Bd -literal -offset indent
+.Qo BusId VendorId ProductId LowRevision HighRevision HQ_QUIRK,... Qc
+.Ed
+.Pp
+Installs the quirks
+.Ic HQ_QUIRK,...
+for all HID devices matching
+.Ic BusId
+and
+.Ic VendorId
+and
+.Ic ProductId
+which have a hardware revision between and including
+.Ic LowRevision
+and
+.Ic HighRevision .
+.Pp
+.Ic BusId ,
+.Ic VendorId ,
+.Ic ProductId ,
+.Ic LowRevision
+and
+.Ic HighRevision
+are all 16 bits numbers which can be decimal or hexadecimal based.
+.Pp
+A maximum of 100 variables
+.Ic hw.hid.quirk.0, .1, ..., .99
+can be defined.
+.Pp
+If a matching entry is found in the kernel's internal quirks table, it
+is replaced by the new definition.
+.Pp
+Else a new entry is created given that the quirk table is not full.
+.Pp
+The kernel iterates over the
+.Ic hw.hid.quirk.N
+variables starting at
+.Ic N = 0
+and stops at
+.Ic N = 99
+or the first non-existing one.
+.El
+.Sh EXAMPLES
+To install a quirk at boot time, place one or several lines like the
+following in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.hid.quirk.0="0x18 0x6cb 0x1941 0 0xffff HQ_MT_TIMESTAMP"
+.Ed
+.Sh HISTORY
+The
+.Nm
+module appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org
+for
+.Xr usb 4
+subsystem and adopted to
+.Xr hid 4
+by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+This manual page is based on
+.Xr usb_quirk 4
+manual page written by
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .

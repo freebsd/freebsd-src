@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: pcjr,v 1.1 2021/01/09 15:09:58 christos Exp $
+# pcjr:  file(1) magic for PCjr Cartridge image file format
+# From: Francis Laniel <laniel_francis@privacyrequired.com>
+0	string	PCjr
+>0x80	beshort	0x55aa	PCjr Cartridge image
+>0x200	beshort	0x55aa	PCjr Cartridge image

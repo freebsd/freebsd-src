@@ -1,0 +1,291 @@
+.\" Copyright (c) 2001-2015	Mark R V Murray.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 19, 2019
+.Dt RANDOM 4
+.Os
+.Sh NAME
+.Nm random
+.Nd the entropy device
+.Sh SYNOPSIS
+.Cd "options RANDOM_LOADABLE"
+.Cd "options RANDOM_ENABLE_ETHER"
+.Cd "options RANDOM_ENABLE_UMA"
+.Sh DESCRIPTION
+The
+.Nm
+device returns an endless supply of random bytes when read.
+.Pp
+The generator will start in an
+.Em unseeded
+state, and will block reads until it is seeded for the first time.
+.Pp
+To provide prompt access to the random device at boot time,
+.Fx
+automatically saves some entropy data in
+.Pa /boot/entropy
+for the
+.Xr loader 8
+to provide to the kernel.
+Additional entropy is regularly saved in
+.Pa /var/db/entropy .
+This saved entropy is sufficient to unblock the random device on devices with
+writeable media.
+.Pp
+Embedded applications without writable media must determine their own scheme
+for re-seeding the random device on boot, or accept that the device
+will remain unseeded and block reads indefinitely.
+See
+.Sx SECURITY CONSIDERATIONS
+for more detail.
+.Pp
+In addition to
+.Xr read 2 ,
+the direct output of the abstract kernel entropy device can be read with
+.Xr getrandom 2 ,
+.Xr getentropy 3 ,
+or the
+.Xr sysctl 8
+pseudo-variable
+.Va kern.arandom .
+.Pp
+To see the current settings of the software
+.Nm
+device, use the command line:
+.Pp
+.Dl "sysctl kern.random"
+.Pp
+which results in something like:
+.Bd -literal -offset indent
+kern.random.block_seeded_status: 0
+kern.random.fortuna.minpoolsize: 64
+kern.random.harvest.mask_symbolic: ENABLEDSOURCE,[DISABLEDSOURCE],...,CACHED
+kern.random.harvest.mask_bin: 00000010000000111011111
+kern.random.harvest.mask: 66015
+kern.random.use_chacha20_cipher: 0
+kern.random.random_sources: 'Intel Secure Key RNG'
+kern.random.initial_seeding.bypass_before_seeding: 1
+kern.random.initial_seeding.read_random_bypassed_before_seeding: 0
+kern.random.initial_seeding.arc4random_bypassed_before_seeding: 0
+kern.random.initial_seeding.disable_bypass_warnings: 0
+.Ed
+.Pp
+Other than
+.Va kern.random.block_seeded_status ,
+.Va kern.random.fortuna.minpoolsize ,
+and
+.Va kern.random.harvest.mask ,
+all settings are read-only via
+.Xr sysctl 8 .
+.Pp
+The
+.Pa kern.random.fortuna.minpoolsize
+sysctl is used
+to set the seed threshold.
+A smaller number gives a faster seed,
+but a less secure one.
+In practice,
+values between 64 and 256
+are acceptable.
+.Pp
+The
+.Va kern.random.harvest.mask
+bitmask is used to select
+the possible entropy sources.
+A 0 (zero) value means
+the corresponding source
+is not considered
+as an entropy source.
+Set the bit to 1 (one)
+if you wish to use
+that source.
+The
+.Va kern.random.harvest.mask_bin
+and
+.Va kern.random.harvest.mask_symbolic
+sysctls
+can be used to confirm
+settings in a human readable form.
+Disabled items
+in the latter
+are listed in square brackets.
+See
+.Xr random_harvest 9
+for more on the harvesting of entropy.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/urandom"
+.It Pa /dev/random
+.It Pa /dev/urandom
+.El
+.Sh DIAGNOSTICS
+The following tunables are related to initial seeding of the
+.Nm
+device:
+.Bl -tag -width 4
+.It Va kern.random.initial_seeding.bypass_before_seeding
+Defaults to 1 (on).
+When set, the system will bypass the
+.Nm
+device prior to initial seeding.
+On is
+.Em unsafe ,
+but provides availability on many systems that lack early sources
+of entropy, or cannot load
+.Pa /boot/entropy
+sufficiently early in boot for
+.Nm
+consumers.
+When unset (0), the system will block
+.Xr read_random 9
+and
+.Xr arc4random 9
+requests if and until the
+.Nm
+device is initially seeded.
+.It Va kern.random.initial_seeding.disable_bypass_warnings
+Defaults to 0 (off).
+When set non-zero, disables warnings in dmesg when the
+.Nm
+device is bypassed.
+.El
+.Pp
+The following read-only
+.Xr sysctl 8
+variables allow programmatic diagnostic of whether
+.Nm
+device bypass occurred during boot.
+If they are set (non-zero), the specific functional unit bypassed the strong
+.Nm
+device output and either produced no output
+.Xr ( read_random 9 )
+or seeded itself with minimal, non-cryptographic entropy
+.Xr ( arc4random 9 ) .
+.Bl -bullet
+.It
+.Va kern.random.initial_seeding.read_random_bypassed_before_seeding
+.It
+.Va kern.random.initial_seeding.arc4random_bypassed_before_seeding
+.El
+.Sh SEE ALSO
+.Xr getrandom 2 ,
+.Xr arc4random 3 ,
+.Xr getentropy 3 ,
+.Xr random 3 ,
+.Xr sysctl 8 ,
+.Xr random 9
+.Rs
+.%A Ferguson
+.%A Schneier
+.%A Kohno
+.%B Cryptography Engineering
+.%I Wiley
+.%O ISBN 978-0-470-47424-2
+.Re
+.Sh HISTORY
+A
+.Nm
+device appeared in
+.Fx 2.2 .
+The implementation was changed to the
+.Em Yarrow algorithm in
+.Fx 5.0 .
+In
+.Fx 11.0 ,
+the Fortuna algorithm was introduced as the default.
+In
+.Fx 12.0 ,
+Yarrow was removed entirely.
+.Sh AUTHORS
+.An -nosplit
+The current
+.Nm
+code was authored by
+.An Mark R V Murray ,
+with significant contributions from many people.
+.Pp
+The
+.Em Fortuna
+algorithm was designed by
+.An Niels Ferguson ,
+.An Bruce Schneier ,
+and
+.An Tadayoshi Kohno .
+.Sh CAVEATS
+When
+.Cd "options RANDOM_LOADABLE"
+is enabled,
+the
+.Pa /dev/random
+device is not created
+until an "algorithm module"
+is loaded.
+The only module built by default is
+.Em random_fortuna .
+Loadable random modules
+are less efficient
+than their compiled-in equivalents.
+This is because some functions
+must be locked against
+load and unload events,
+and also must be indirect calls
+to allow for removal.
+.Pp
+When
+.Cd "options RANDOM_ENABLE_UMA"
+is enabled,
+the
+.Pa /dev/random
+device will obtain entropy
+from the zone allocator.
+This is a very high rate source with significant performance impact.
+Therefore, it is disabled by default.
+.Pp
+When
+.Cd "options RANDOM_ENABLE_ETHER"
+is enabled, the
+.Nm
+device will obtain entropy from
+.Vt mbuf
+structures passing through the network stack.
+This source is both extremely expensive and a poor source of entropy, so it is
+disabled by default.
+.Sh SECURITY CONSIDERATIONS
+The initial seeding
+of random number generators
+is a bootstrapping problem
+that needs very careful attention.
+When writable media is available, the
+.Em Fortuna
+paper describes a robust system for rapidly reseeding the device.
+.Pp
+In some embedded cases, it may be difficult to find enough randomness to seed a
+random number generator until a system is fully operational.
+In these cases, is the responsibility of the system architect to ensure that
+blocking is acceptable, or that the random device is seeded.
+(This advice does not apply to typical consumer systems.)
+.Pp
+To emulate embedded systems, developers may set the
+.Va kern.random.block_seeded_status
+tunable to 1 to verify boot does not require early availability of the
+.Nm
+device.

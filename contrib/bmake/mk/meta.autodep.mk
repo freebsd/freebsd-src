@@ -1,0 +1,369 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: meta.autodep.mk,v 1.70 2025/05/28 20:03:00 sjg Exp $
+
+#
+#	@(#) Copyright (c) 2010-2025, Simon J. Gerraty
+#
+#	This file is provided in the hope that it will
+#	be of use.  There is absolutely NO WARRANTY.
+#	Permission to copy, redistribute or otherwise
+#	use this file is hereby granted provided that
+#	the above copyright notice and this notice are
+#	left intact.
+#
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
+#
+
+_this ?= ${.PARSEFILE}
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
+
+.-include <local.autodep.mk>
+
+.if ${DEBUG_AUTODEP:Uno:@m@${RELDIR:M$m}@} != ""
+_debug.autodep = 1
+.else
+_debug.autodep = 0
+.endif
+
+PICO?= .pico
+
+.if defined(SRCS)
+.if ${MAKE_VERSION:U0} >= 20211212
+OBJ_SUFFIXES += ${.SUFFIXES:M*o}
+.else
+# it would be nice to be able to query .SUFFIXES
+OBJ_SUFFIXES += .o .po .lo ${PICO}
+.endif
+
+# explicit dependencies help short-circuit .SUFFIX searches
+SRCS_DEP_FILTER+= N*.[hly]
+.for s in ${SRCS:${SRCS_DEP_FILTER:O:u:ts:}}
+.for e in ${OBJ_SUFFIXES:O:u}
+.if !target(${s:T:R}$e)
+${s:T:R}$e: $s
+.endif
+.endfor
+.endfor
+.endif
+
+.if make(gendirdeps)
+# you are supposed to know what you are doing!
+UPDATE_DEPENDFILE = yes
+.elif !empty(.TARGETS) && !make(all)
+# do not update the *depend* files
+# unless we are building the entire directory or the default target.
+# NO means don't update .depend - or Makefile.depend*
+# no means update .depend but not Makefile.depend*
+UPDATE_DEPENDFILE = NO
+.elif ${.MAKEFLAGS:M-k} != ""
+# it is a bad idea to update anything
+UPDATE_DEPENDFILE = NO
+.endif
+
+_CURDIR ?= ${.CURDIR}
+_OBJDIR ?= ${.OBJDIR}
+_OBJTOP ?= ${OBJTOP}
+_OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
+_DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
+
+.if ${.MAKE.LEVEL} > 0
+# do not allow auto update if we ever built this dir without filemon
+NO_FILEMON_COOKIE = .nofilemon
+CLEANFILES += ${NO_FILEMON_COOKIE}
+.if ${.MAKE.MODE:Uno:Mnofilemon} != ""
+UPDATE_DEPENDFILE = NO
+all: ${NO_FILEMON_COOKIE}
+${NO_FILEMON_COOKIE}: .NOMETA
+	@echo UPDATE_DEPENDFILE=NO > ${.TARGET}
+.elif exists(${NO_FILEMON_COOKIE})
+UPDATE_DEPENDFILE = NO
+.warning ${RELDIR} built with nofilemon; UPDATE_DEPENDFILE=NO
+.endif
+.endif
+
+.if ${.MAKE.LEVEL} == 0
+UPDATE_DEPENDFILE = NO
+.endif
+.if !exists(${_DEPENDFILE})
+_bootstrap_dirdeps = yes
+.endif
+_bootstrap_dirdeps ?= no
+UPDATE_DEPENDFILE ?= ${MK_UPDATE_DEPENDFILE:Uyes}
+
+.if ${_debug.autodep}
+.info ${_DEPENDFILE:S,${SRCTOP}/,,} update=${UPDATE_DEPENDFILE}
+.endif
+
+.if !empty(XMAKE_META_FILE)
+.if exists(${.OBJDIR}/${XMAKE_META_FILE})
+# we cannot get accurate dependencies from an update build
+UPDATE_DEPENDFILE = NO
+.else
+META_XTRAS += ${XMAKE_META_FILE}
+.endif
+.endif
+
+.if ${_bootstrap_dirdeps} == "yes" || exists(${_DEPENDFILE})
+# if it isn't supposed to be touched by us the Makefile should have
+# UPDATE_DEPENDFILE = no
+WANT_UPDATE_DEPENDFILE ?= yes
+.endif
+
+.if ${WANT_UPDATE_DEPENDFILE:Uno:tl} != "no"
+.if ${.MAKE.MODE:Uno:Mmeta*} == "" || ${.MAKE.MODE:Uno:M*read*} != ""
+UPDATE_DEPENDFILE = no
+.endif
+
+.if ${_debug.autodep}
+.info ${_DEPENDFILE:S,${SRCTOP}/,,} update=${UPDATE_DEPENDFILE}
+.endif
+
+.if ${UPDATE_DEPENDFILE:tl} == "yes"
+# sometimes we want .meta files generated to aid debugging/error detection
+# but do not want to consider them for dependencies
+# for example the result of running configure
+# just make sure this is not empty
+META_FILE_FILTER ?= N.meta
+# never consider these
+META_FILE_FILTER += Ndirdeps.cache*
+
+.if !empty(DPADD)
+# if we have any non-libs in DPADD,
+# they probably need to be paid attention to
+.if !empty(DPLIBS)
+FORCE_DPADD = ${DPADD:${DPLIBS:${M_ListToSkip}}:${DPADD_LAST:${M_ListToSkip}}}
+.else
+_nonlibs := ${DPADD:T:Nlib*:N*include}
+.if !empty(_nonlibs)
+FORCE_DPADD += ${_nonlibs:@x@${DPADD:M*/$x}@}
+.endif
+.endif
+.endif
+
+.if !make(gendirdeps)
+.END:	gendirdeps
+.endif
+
+.if ${LOCAL_DEPENDS_GUARD:U} == "no"
+.depend:
+.endif
+
+# if we don't have OBJS, then .depend isn't useful
+.if !target(.depend) && (!empty(OBJS) || ${.ALLTARGETS:M*.o} != "")
+# some makefiles and/or targets contain
+# circular dependencies if you dig too deep
+# (as meta mode is apt to do)
+# so we provide a means of suppressing them.
+# the input to the loop below is target: dependency
+# with just one dependency per line.
+# Also some targets are not really local, or use random names.
+# Use local.autodep.mk to provide local additions!
+SUPPRESS_DEPEND += \
+	${SB:S,/,_,g}* \
+	*:y.tab.c \
+	*.c:*.c \
+	*.h:*.h
+
+.NOPATH:	.depend
+# we use ${.MAKE.META.CREATED} to trigger an update but
+# we process using ${.MAKE.META.FILES}
+# the double $$ defers initial evaluation
+# if necessary, we fake .po dependencies, just so the result
+# in Makefile.depend* is stable
+# The current objdir may be referred to in various ways
+OBJDIR_REFS += ${.OBJDIR} ${.OBJDIR:tA} ${_OBJDIR} ${RELOBJTOP}/${RELDIR}
+_depend = .depend
+# it would be nice to be able to get .SUFFIXES as ${.SUFFIXES}
+# we actually only care about the .SUFFIXES of files that might be
+# generated by tools like yacc.
+.if ${MAKE_VERSION:U0} >= 20211212
+DEPEND_SUFFIXES += ${.SUFFIXES:N.sh:N*[0-9aFfglopmnrSsty]}
+.else
+DEPEND_SUFFIXES += .c .h .cpp .hpp .cxx .hxx .cc .hh
+.endif
+.depend: .NOMETA $${.MAKE.META.CREATED} ${_this}
+	@echo "Updating $@: ${.OODATE:T:[1..8]}"
+	@${EGREP:Uegrep} -i '^R .*\.(${DEPEND_SUFFIXES:tl:O:u:S,^.,,:ts|})$$' /dev/null ${.MAKE.META.FILES:T:O:u:${META_FILE_FILTER:ts:}:M*o.meta} | \
+	sed -e 's, \./, ,${OBJDIR_REFS:O:u:@d@;s, $d/, ,@};/\//d' \
+		-e 's,^\([^/][^/]*\).meta...[0-9]* ,\1: ,' | \
+	sort -u | \
+	while read t d; do \
+		case "$$d:" in $$t) continue;; esac; \
+		case "$$t$$d" in ${SUPPRESS_DEPEND:U.:O:u:ts|}) continue;; esac; \
+		echo $$t $$d; \
+	done > $@.${.MAKE.PID}
+	@case "${.MAKE.META.FILES:T:M*.po.*}" in \
+	*.po.*) mv $@.${.MAKE.PID} $@;; \
+	*) { cat $@.${.MAKE.PID}; \
+	sed ${OBJ_SUFFIXES:N.o:N.po:@o@-e 's,\$o:,.o:,'@} \
+		-e 's,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
+	rm -f $@.${.MAKE.PID};; \
+	esac
+.else
+# make sure this exists
+.depend:
+# do _not_ assume that .depend is in any fit state for us to use
+CAT_DEPEND = /dev/null
+.if ${.MAKE.LEVEL} > 0
+.export CAT_DEPEND
+.endif
+_depend =
+.endif
+
+.if ${_debug.autodep}
+.info ${_DEPENDFILE:S,${SRCTOP}/,,} _depend=${_depend}
+.endif
+
+.if ${UPDATE_DEPENDFILE} == "yes"
+gendirdeps:	beforegendirdeps .WAIT ${_DEPENDFILE}
+beforegendirdeps:
+.endif
+
+.if !target(${_DEPENDFILE})
+.if ${_bootstrap_dirdeps} == "yes"
+# We are boot-strapping a new directory
+# Use DPADD to seed DIRDEPS
+.if !empty(DPADD)
+# anything which matches ${_OBJROOT}* but not ${_OBJTOP}*
+# needs to be qualified in DIRDEPS
+# The pseudo machine "host" is used for HOST_TARGET
+DIRDEPS += \
+	${DPADD:M${_OBJTOP}*:H:C,${_OBJTOP}[^/]*/,,:N.:O:u} \
+	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:N${STAGE_ROOT:U${_OBJTOP}}/*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
+
+.endif
+.endif
+
+_gendirdeps_mutex =
+.if defined(NEED_GENDIRDEPS_MUTEX)
+# If a src dir gets built with multiple object dirs,
+# we need a mutex.  Obviously, this is best avoided.
+# Note if .MAKE.DEPENDFILE is common for all ${MACHINE}
+# you either need to mutex, or ensure only one machine builds at a time!
+# lockf is an example of a suitable tool
+LOCKF ?= /usr/bin/lockf
+.if exists(${LOCKF})
+GENDIRDEPS_MUTEXER ?= ${LOCKF} -k
+.endif
+.if empty(GENDIRDEPS_MUTEXER)
+.error NEED_GENDIRDEPS_MUTEX defined, but GENDIRDEPS_MUTEXER not set
+.else
+_gendirdeps_mutex = ${GENDIRDEPS_MUTEXER} ${GENDIRDEPS_MUTEX:U${_CURDIR}/Makefile}
+.endif
+.endif
+
+# If we have META_XTRAS we most likely did not create them
+# but we need to behave as if we did.
+# Avoid adding glob patterns to .MAKE.META.CREATED though.
+.MAKE.META.CREATED += ${META_XTRAS:N*\**:O:u}
+OPTIMIZE_OBJECT_META_FILES ?= no
+
+.if ${OPTIMIZE_OBJECT_META_FILES} == "yes"
+# If we have lots of .o.meta, ${PICO}.meta etc we need only look at one set.
+# If META_FILE_OBJ_FILTER is not already set, we default it to a
+# .SUFFIX which matches the first *o.meta.
+# There is no guarantee it will be just .o or .So etc,
+META_FILE_OBJ_FILTER ?= \
+	${.SUFFIXES:M*o:@o@${"${.MAKE.META.FILES:T:M*$o.meta:[1]}":?M*$o.meta:}@:[1]}
+.endif
+
+# parent may have set META_FILE_OBJ_FILTER
+.if ${OPTIMIZE_OBJECT_META_FILES} == "yes" || !empty(META_FILE_OBJ_FILTER)
+META_FILES = \
+	${.MAKE.META.FILES:N.depend*:N*o.meta} \
+	${.MAKE.META.FILES:${META_FILE_OBJ_FILTER}}
+.else
+META_FILES = ${.MAKE.META.FILES:N.depend*}
+.endif
+# ensure this is not empty (this will sort after any M and N
+# we use S,${_OBJDIR}/,, rather than :T since some makefiles have
+# objects in subdirs
+META_FILE_FILTER += S,${_OBJDIR}/,,:O:u
+# we have to defer evaluation until the target script runs
+GENDIRDEPS_ENV += META_FILES="${META_FILES:${META_FILE_FILTER:O:u:ts:}}}"
+
+.if ${_debug.autodep}
+.info ${_DEPENDFILE:S,${SRCTOP}/,,}: ${_depend} ${.PARSEDIR}/gendirdeps.mk ${META2DEPS} xtras=${META_XTRAS}
+.endif
+
+.if ${.MAKE.LEVEL} > 0
+.if ${UPDATE_DEPENDFILE} == "yes"
+.-include <${.CURDIR}/${.MAKE.DEPENDFILE_PREFIX}.options>
+.endif
+.if !empty(GENDIRDEPS_FILTER)
+.export GENDIRDEPS_FILTER
+.endif
+.endif
+
+_this_dir := ${_PARSEDIR}
+.if ${MAKE_VERSION} < 20230123
+# we might have .../ in MAKESYSPATH
+_makesyspath := ${MAKESYSPATH:U${_this_dir}}
+.if ${.MAKEFLAGS:M-m} != ""
+_makesyspath := ${.MAKEFLAGS:S,-m ,-m,gW:M-m*:S,-m, ,:ts:}:${_makesyspath}
+.endif
+_makesyspath := ${_makesyspath:C,\.\.\./[^:]*,${_this_dir},}
+GENDIRDEPS_ENV += MAKESYSPATH=${_makesyspath}
+.else
+# add this if not already there
+.SYSPATH: ${_this_dir}
+GENDIRDEPS_ENV += MAKESYSPATH=${.SYSPATH:ts:}
+.endif
+
+${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.META.CREATED}
+	@echo Checking $@: ${.OODATE:T:[1..8]}
+	@(cd . && ${GENDIRDEPS_ENV} \
+	SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS:O:u}' \
+	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
+	${.MAKE} -B -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE})
+	@test -s $@ && touch $@; :
+.endif
+
+.endif
+.endif
+
+.if ${_bootstrap_dirdeps} == "yes"
+DIRDEPS+= ${RELDIR}.${TARGET_SPEC:U${MACHINE}}
+# make sure this is included at least once
+.include <dirdeps.mk>
+.else
+${_DEPENDFILE}: .PRECIOUS
+.endif
+
+CLEANFILES += *.meta filemon.* *.db
+
+# these make it easy to gather some stats
+now_utc ?= ${%s:L:localtime}
+.if !defined(start_utc)
+start_utc := ${now_utc}
+.endif
+
+meta_stats= meta=${empty(.MAKE.META.FILES):?0:${.MAKE.META.FILES:[#]}} \
+	created=${empty(.MAKE.META.CREATED):?0:${.MAKE.META.CREATED:[#]}}
+
+.if !target(_reldir_finish)
+#.END: _reldir_finish
+.if target(gendirdeps)
+_reldir_finish: gendirdeps
+.endif
+_reldir_finish: .NOMETA
+	@echo "${TIME_STAMP} Finished ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+.endif
+
+.if !target(_reldir_failed)
+#.ERROR: _reldir_failed
+_reldir_failed: .NOMETA
+	@echo "${TIME_STAMP} Failed ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+.endif
+
+.if !defined(WITHOUT_META_STATS) && ${.MAKE.LEVEL} > 0
+.END: _reldir_finish
+.ERROR: _reldir_failed
+.endif
+
+.-include <ccm.dep.mk>
+
+.endif

@@ -1,0 +1,132 @@
+# VNET/jail utility functions
+##
+
+list_interface()
+{
+	echo $1 >> created_interfaces.lst
+}
+
+unlist_interface()
+{
+	sed -i "" /^$1\$/d created_interfaces.lst
+}
+
+_vnet_check_req()
+{
+	type=$1
+
+	if kldstat -q -n if_${type}.ko; then
+		return
+	fi
+
+	if ! kldload -n -q if_${type}; then
+		atf_skip "if_${type}.ko is required to run this test."
+		return
+	fi
+}
+
+vnet_init()
+{
+	if [ "`sysctl -i -n kern.features.vimage`" != 1 ]; then
+		atf_skip "This test requires VIMAGE"
+	fi
+
+	# Check if we can create if_epair or if_bridge interfaces.
+	# We may be running in a jail already, unable to load modules.
+	# If so, skip this test because it very likely (but not certainly)
+	# wants at least one of those
+	_vnet_check_req epair
+	_vnet_check_req bridge
+}
+
+vnet_mkepair()
+{
+	ifname=$(ifconfig epair create)
+	list_interface $ifname
+	list_interface ${ifname%a}b
+	echo ${ifname%a}
+}
+
+vnet_init_bridge()
+{
+	if ! kldstat -q -m if_bridge; then
+		atf_skip "This test requires if_bridge"
+	fi
+}
+
+vnet_mkbridge()
+{
+	ifname=$(ifconfig bridge create)
+	list_interface $ifname
+	echo ${ifname}
+}
+
+vnet_mkvlan()
+{
+	ifname=$(ifconfig vlan create)
+	list_interface $ifname
+	echo ${ifname}
+}
+
+vnet_mkloopback()
+{
+	ifname=$(ifconfig lo create)
+	list_interface $ifname
+	echo ${ifname}
+}
+
+vnet_mkjail()
+{
+	jailname=$1
+	shift
+
+	vnet_interfaces=
+	for ifname in $@
+	do
+		vnet_interfaces="${vnet_interfaces} vnet.interface=${ifname}"
+		unlist_interface $ifname
+	done
+	jail -c name=${jailname} persist vnet ${vnet_interfaces}
+
+	echo $jailname $@ >> created_jails.lst
+}
+
+vnet_ifmove()
+{
+	ifname=$1
+	jailname=$2
+
+	ifconfig ${ifname} vnet ${jailname}
+	unlist_interface $ifname
+	sed -i "" "/^${jailname}/s/\$/ ${ifname}/" created_jails.lst
+}
+
+vnet_ifrename_jail()
+{
+	jailname=$1
+	ifname=$2
+	ifnewname=$3
+
+	ifconfig -j ${jailname} $ifname name $ifnewname
+	sed -i "" "/^${jailname}/s/${ifname}/${ifnewname}/" created_jails.lst
+}
+
+vnet_cleanup()
+{
+	if [ -f created_jails.lst ]; then
+		while read jailname ifnames; do
+			for ifname in ${ifnames}; do
+				ifconfig -j ${jailname} ${ifname} destroy
+			done
+			jail -r ${jailname}
+		done < created_jails.lst
+		rm created_jails.lst
+	fi
+
+	if [ -f created_interfaces.lst ]; then
+		while read ifname; do
+			ifconfig ${ifname} destroy
+		done < created_interfaces.lst
+		rm created_interfaces.lst
+	fi
+}

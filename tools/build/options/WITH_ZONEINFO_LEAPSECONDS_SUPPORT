@@ -1,0 +1,6 @@
+Build leapsecond information in to the timezone database.
+This option violates
+.St -p1003.1
+and all other applicable standards, and is known to cause unexpected
+issues with date/time handling in many applications and programming
+languages.

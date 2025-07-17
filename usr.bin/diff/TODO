@@ -1,0 +1,9 @@
+to be implemented:
+--horizon-lines
+--ignore-tab-expansion
+--line-format
+
+Will probably be not implemented:
+--GTYPE-group-format (partially implement - minimal)
+--LTYPE-line-format
+--help (We have a manpage already)

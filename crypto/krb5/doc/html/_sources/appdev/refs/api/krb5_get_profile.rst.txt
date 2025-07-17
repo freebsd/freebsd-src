@@ -1,0 +1,56 @@
+krb5_get_profile -  Retrieve configuration profile from the context. 
+=====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_profile(krb5_context context, struct _profile_t ** profile)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **profile** - Pointer to data read from a configuration file
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function creates a new *profile* object that reflects profile in the supplied *context* .
+
+
+
+The *profile* object may be freed with profile_release() function. See profile.h and profile API for more details.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

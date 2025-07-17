@@ -1,0 +1,277 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020, Ryan Moeller <freqlabs@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 24, 2020
+.Dt JAIL 3lua
+.Os
+.Sh NAME
+.Nm attach ,
+.Nm getid ,
+.Nm getname ,
+.Nm list ,
+.Nm allparams ,
+.Nm getparams ,
+.Nm remove ,
+.Nm setparams ,
+.Nm CREATE ,
+.Nm UPDATE ,
+.Nm ATTACH ,
+.Nm DYING
+.Nd Lua binding to
+.Xr jail 3
+.Sh SYNOPSIS
+.Bd -literal
+local jail = require('jail')
+.Ed
+.Pp
+.Bl -tag -width XXXX -compact
+.It Dv ok, err = jail.attach(jid|name)
+.It Dv jid, err = jail.getid(name)
+.It Dv name, err = jail.getname(jid)
+.It Dv params, err = jail.allparams()
+.It Dv iter, jail_obj = jail.list([params])
+.It Dv jid, res = jail.getparams(jid|name, params [, flags ] )
+.It Dv ok, err = jail.remove(jid|name)
+.It Dv jid, err = jail.setparams(jid|name, params, flags )
+.It Dv jail.CREATE
+.It Dv jail.UPDATE
+.It Dv jail.ATTACH
+.It Dv jail.DYING
+.El
+.Sh DESCRIPTION
+The
+.Nm jail
+module is a binding to the
+.Xr jail 3
+library.
+It provides a string-oriented interface for the
+.Xr jail_get 2
+and
+.Xr jail_set 2
+system calls.
+.Bl -tag -width XXXX
+.It Dv ok, err = jail.attach(jid|name)
+Attach to the given jail, identified by an integer
+.Fa jid
+or the
+.Fa name .
+.It Dv jid, err = jail.getid(name)
+Get the jail identifier
+.Pq jid
+as an integer.
+.Fa name
+is the name of a jail or a jid in the form of a string.
+.It Dv name, err = jail.getname(jid)
+Get the name of a jail as a string for the given
+.Fa jid
+.Pq an integer .
+.It Dv iter, jail_obj = jail.list([params])
+Returns an iterator over running jails on the system.
+.Dv params
+is a list of parameters to fetch for each jail as we iterate.
+.Dv jid
+and
+.Dv name
+will always be returned, and may be omitted from
+.Dv params .
+Additionally,
+.Dv params
+may be omitted or an empty table, but not nil.
+.Pp
+See
+.Sx EXAMPLES .
+.It Dv params, err = jail.allparams()
+Get a list of all supported parameter names
+.Pq as strings .
+See
+.Xr jail 8
+for descriptions of the core jail parameters.
+.It Dv jid, res = jail.getparams(jid|name, params [, flags ] )
+Get a table of the requested parameters for the given jail.
+.Nm jid|name
+can either be the jid as an integer or the jid or name as a string.
+.Nm params
+is a list of parameter names.
+.Nm flags
+is an optional integer representing the flag bits to apply for the operation.
+See the list of flags below.
+Only the
+.Dv DYING
+flag is valid to set.
+.It Dv ok, err = jail.remove(jid|name)
+Remove the given jail, identified by an integer
+.Fa jid
+or the
+.Fa name .
+.It Dv jid, err = jail.setparams(jid|name, params [, flags ] )
+Set parameters for a given jail.
+This is used to create, update, attach to, or destroy a jail.
+.Nm jid|name
+can either be the jid as an integer or the jid or name as a string.
+.Nm params
+is a table of parameters to apply to the jail, where each key in the table
+is a parameter name as a string and each value is a string that will be
+converted to the internal value type by
+.Xr jailparam_import 3 .
+.Nm flags
+is an optional integer representing the flag bits to apply for the operation.
+See the list of flags below.
+.El
+.Pp
+The
+.Nm flags
+arguments are an integer bitwise-or combination of one or more of the following
+flags:
+.Bl -tag -width XXXX
+.It Dv jail.CREATE
+Used with
+.Fn setparams
+to create a new jail.
+The jail must not already exist, unless combined with
+.Dv UPDATE .
+.It Dv jail.UPDATE
+Used with
+.Fn setparams
+to modify an existing jail.
+The jail must already exist, unless combined with
+.Dv CREATE .
+.It Dv jail.ATTACH
+Used with
+.Fn setparams
+in combination with
+.Dv CREATE
+or
+.Dv UPDATE
+to attach the current process to a jail.
+.It Dv jail.DYING
+Allow operating on a jail that is in the process of being removed.
+.El
+.Sh RETURN VALUES
+The
+.Fn getid
+and
+.Fn setparams
+functions return a jail identifier integer on success, or
+.Dv nil
+and an error message string if an error occurred.
+.Pp
+The
+.Fn getname
+function returns a jail name string on success, or
+.Dv nil
+and an error message string if an error occurred.
+.Pp
+The
+.Fn allparams
+function returns a list of parameter name strings on success, or
+.Dv nil
+and an error message string if an error occurred.
+.Pp
+The
+.Fn getparams
+function returns a jail identifier integer and a table of jail parameters
+with parameter name strings as keys and strings for values on success, or
+.Dv nil
+and an error message string if an error occurred.
+.Pp
+The
+.Fn list
+function returns an iterator over the list of running jails.
+.Pp
+The
+.Fn attach
+and
+.Fn remove
+functions return true on success, or
+.Dv nil
+and an error message string if an error occurred.
+.Sh EXAMPLES
+Set the hostname of jail
+.Dq foo
+to
+.Dq foo.bar :
+.Bd -literal -offset indent
+local jail = require('jail')
+
+jid, err = jail.setparams("foo", {["host.hostname"]="foo.bar"},
+    jail.UPDATE)
+if not jid then
+    error(err)
+end
+.Ed
+.Pp
+Retrieve the hostname of jail
+.Dq foo :
+.Bd -literal -offset indent
+local jail = require('jail')
+
+jid, res = jail.getparams("foo", {"host.hostname"})
+if not jid then
+    error(res)
+end
+print(res["host.hostname"])
+.Ed
+.Pp
+Iterate over jails on the system:
+.Bd -literal -offset indent
+local jail = require('jail')
+
+-- Recommended: just loop over it
+for jparams in jail.list() do
+    print(jparams["jid"] .. " = " .. jparams["name"])
+end
+
+-- Request path and hostname, too
+for jparams in jail.list({"path", "host.hostname"}) do
+    print(jparams["host.hostname"] .. " mounted at " .. jparams["path"])
+end
+
+-- Raw iteration protocol
+local iter, jail_obj = jail.list()
+
+-- Request the first params
+local jparams = jail_obj:next()
+while jparams do
+    print(jparams["jid"] .. " = " .. jparams["name"])
+    -- Subsequent calls may return nil
+    jparams = jail_obj:next()
+end
+.Ed
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr jail 3 ,
+.Xr jail 8
+.Sh HISTORY
+The
+.Nm jail
+Lua module for flua first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An Ryan Moeller ,
+with inspiration from
+.Nx
+gpio(3lua), by
+.An Mark Balmer .

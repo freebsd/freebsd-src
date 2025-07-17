@@ -1,0 +1,18 @@
+Install LLVM's binutils (without an llvm- prefix),
+instead of ELF Tool Chain's tools.
+This includes
+.Xr addr2line 1 ,
+.Xr ar 1 ,
+.Xr nm 1 ,
+.Xr objcopy 1 ,
+.Xr ranlib 1 ,
+.Xr readelf 1 ,
+.Xr size 1 ,
+and
+.Xr strip 1 .
+Regardless of this setting, LLVM tools are used for
+.Xr c++filt 1
+and
+.Xr objdump 1 .
+.Xr strings 1
+is always provided by ELF Tool Chain.

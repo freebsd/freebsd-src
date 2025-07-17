@@ -1,0 +1,249 @@
+#
+# Generated makefile dependencies follow.
+#
+ccapi_util.so ccapi_util.po $(OUTPRE)ccapi_util.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h ccapi_util.c ccapi_util.h
+ccbase.so ccbase.po $(OUTPRE)ccbase.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h ccbase.c \
+  fcc.h
+cccopy.so cccopy.po $(OUTPRE)cccopy.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cccopy.c
+cccursor.so cccursor.po $(OUTPRE)cccursor.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(srcdir)/../krb/int-proto.h $(srcdir)/../os/os-proto.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/locate_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h cccursor.c
+ccdefault.so ccdefault.po $(OUTPRE)ccdefault.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  ccdefault.c
+ccdefops.so ccdefops.po $(OUTPRE)ccdefops.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  ccdefops.c fcc.h
+ccmarshal.so ccmarshal.po $(OUTPRE)ccmarshal.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-input.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h ccmarshal.c
+ccselect.so ccselect.po $(OUTPRE)ccselect.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(srcdir)/../krb/int-proto.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/ccselect_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h ccselect.c
+ccselect_hostname.so ccselect_hostname.po $(OUTPRE)ccselect_hostname.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/ccselect_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h ccselect_hostname.c
+ccselect_k5identity.so ccselect_k5identity.po $(OUTPRE)ccselect_k5identity.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/ccselect_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h ccselect_k5identity.c
+ccselect_realm.so ccselect_realm.po $(OUTPRE)ccselect_realm.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/ccselect_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h ccselect_realm.c
+cc_api_macos.so cc_api_macos.po $(OUTPRE)cc_api_macos.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h cc_api_macos.c ccapi_util.h
+cc_dir.so cc_dir.po $(OUTPRE)cc_dir.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h cc_dir.c
+cc_retr.so cc_retr.po $(OUTPRE)cc_retr.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(srcdir)/../krb/int-proto.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h cc_retr.c
+cc_file.so cc_file.po $(OUTPRE)cc_file.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h cc_file.c
+cc_kcm.so cc_kcm.po $(OUTPRE)cc_kcm.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(srcdir)/../os/os-proto.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-input.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kcm.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/locate_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h cc_kcm.c
+cc_memory.so cc_memory.po $(OUTPRE)cc_memory.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(srcdir)/../krb/int-proto.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-hashtab.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h cc_memory.c
+cc_keyring.so cc_keyring.po $(OUTPRE)cc_keyring.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h cc_keyring.c
+ccfns.so ccfns.po $(OUTPRE)ccfns.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(srcdir)/../krb/int-proto.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h ccfns.c
+t_cc.so t_cc.po $(OUTPRE)t_cc.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cc-int.h t_cc.c
+t_cccol.so t_cccol.po $(OUTPRE)t_cccol.$(OBJEXT): $(BUILDTOP)/include/krb5/krb5.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/krb5.h t_cccol.c
+t_cccursor.so t_cccursor.po $(OUTPRE)t_cccursor.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  t_cccursor.c
+t_marshal.so t_marshal.po $(OUTPRE)t_marshal.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cc-int.h t_marshal.c

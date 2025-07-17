@@ -1,0 +1,405 @@
+.\" Copyright 2011 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd May 12, 2015
+.Dt KYUA 1
+.Os
+.Sh NAME
+.Nm kyua
+.Nd Testing framework for infrastructure software
+.Sh SYNOPSIS
+.Nm
+.Op Fl -config Ar file
+.Op Fl -logfile Ar file
+.Op Fl -loglevel Ar level
+.Op Fl -variable Ar name=value
+.Ar command
+.Op Ar command_options
+.Op Ar command_arguments
+.Sh DESCRIPTION
+.Em If you are here looking for details on how to run the test suite in
+.Pa /usr/tests
+.Em ( or
+.Pa __TESTSDIR__ ) ,
+.Em please start by reading the
+.Xr tests 7
+.Em manual page that should be supplied by your system .
+.Pp
+Kyua is a testing framework for infrastructure software, originally
+designed to equip BSD-based operating systems with a test suite.
+This means that Kyua is lightweight and simple, and that Kyua integrates well
+with various build systems and continuous integration frameworks.
+.Pp
+Kyua features an expressive test suite definition language, a safe
+runtime engine for test suites and a powerful report generation engine.
+.Pp
+Kyua is for both developers and users, from the developer applying a
+simple fix to a library to the system administrator deploying a new
+release on a production machine.
+.Pp
+Kyua is able to execute test programs written with a plethora of testing
+libraries and languages.
+The test program library of choice is ATF, which
+.Nm Ns 's
+design originated from.
+However, framework-less test programs and TAP-compliant test programs can also
+be executed through
+.Nm
+.Ss Overview
+As can be observed in the synopsis, the interface of
+.Nm
+implements a common subcommand-based interface.
+The arguments to the tool specify, in this order: a set of common options
+that all the commands accept, a required
+.Ar command
+name that specifies what
+.Nm
+should do, and
+a set of possibly-optional
+.Ar command_options
+and
+.Ar command_arguments
+that are specific to the chosen command.
+.Pp
+The following options are recognized by all the commands.
+Keep in mind that these must always be specified before the command name.
+.Bl -tag -width XX
+.It Fl -config Ar path , Fl c Ar path
+Specifies the configuration file to process, which must be in the format
+described in
+.Xr kyua.conf 5 .
+The special value
+.Sq none
+explicitly disables the loading of any configuration file.
+.Pp
+Defaults to
+.Pa ~/.kyua/kyua.conf
+if it exists, otherwise to
+.Pa __CONFDIR__/kyua.conf
+if it exists,
+or else to
+.Sq none .
+.It Fl -logfile Ar path
+Specifies the location of the file to which
+.Nm
+will log run time events useful for postmortem debugging.
+.Pp
+The default depends on different environment variables as described in
+.Sx Logging ,
+but typically the file will be stored within the user's home directory.
+.It Fl -loglevel Ar level
+Specifies the maximum logging level to record in the log file.
+See
+.Sx Logging
+for more details.
+.Pp
+The default is
+.Sq info .
+.It Fl -variable Ar name=value , Fl v Ar name=value
+Sets the
+.Ar name
+configuration variable to
+.Ar value .
+The values set through this option have preference over the values set in the
+configuration file.
+.Pp
+The specified variable can either be a builtin variable or a test-suite
+specific variable.
+See
+.Xr kyua.conf 5
+for more details.
+.El
+.Pp
+The following commands are generic and do not have any relation to the execution
+of tests or the inspection of their results:
+.Bl -tag -width reportXjunitXX -offset indent
+.It Ar about
+Shows general program information.
+See
+.Xr kyua-about 1 .
+.It Ar config
+Inspects the values of the configuration variables.
+See
+.Xr kyua-config 1 .
+.It Ar db-exec
+Executes an arbitrary SQL statement on a results file and prints the
+resulting table.
+See
+.Xr kyua-db-exec 1 .
+.It Ar help
+Shows usage information.
+See
+.Xr kyua-help 1 .
+.El
+.Pp
+The following commands are used to generate reports based on the data previously
+recorded in a results file:
+.Bl -tag -width reportXjunitXX -offset indent
+.It Ar report
+Generates a plaintext report.
+Combined with its
+.Fl -verbose
+flag and the ability to only display specific test cases, this command can also
+be used to debug test failures post-facto on the console.
+See
+.Xr kyua-report 1 .
+.It Ar report-html
+Generates an HTML report.
+See
+.Xr kyua-report-html 1 .
+.It Ar report-junit
+Generates a JUnit report.
+See
+.Xr kyua-report-junit 1 .
+.El
+.Pp
+The following commands are used to interact with a test suite:
+.Bl -tag -width reportXjunitXX -offset indent
+.It Ar debug
+Executes a single test case in a controlled environment for debugging purposes.
+See
+.Xr kyua-debug 1 .
+.It Ar list
+Lists test cases defined in a test suite by a
+.Xr kyuafile 5
+and, optionally, displays their metadata.
+See
+.Xr kyua-list 1 .
+.It Ar test
+Runs tests defined in a test suite by a
+.Xr kyuafile 5 .
+See
+.Xr kyua-test 1 .
+.El
+.Ss Logging
+.Nm
+has a logging facility that collects all kinds of events at run time.
+These events are always logged to a file so that the log is available when
+it is most needed: right after a non-reproducible problem happens.
+The only way to disable logging is by sending the log to
+.Pa /dev/null .
+.Pp
+The location of the log file can be manually specified with the
+.Fl -logfile
+option, which applies to all commands.
+If no file is explicitly specified, the location of the log files is chosen in
+this order:
+.Bl -enum -offset indent
+.It
+.Pa ${HOME}/.kyua/logs/
+if
+.Va HOME
+is defined.
+.It
+.Pa ${TMPDIR}/
+if
+.Va TMPDIR
+is defined.
+.It
+.Pa /tmp/ .
+.El
+.Pp
+And the default naming scheme of the log files is:
+.Sq <progname>.<timestamp>.log .
+.Pp
+The messages stored in the log file have a level (or severity) attached to
+them.
+These are:
+.Bl -tag -width warningXX -offset indent
+.It error
+Fatal error messages.
+The program generally terminates after these, either in a clean manner or by
+crashing.
+.It warning
+Non-fatal error messages.
+These generally report a condition that must be addressed but the application
+can continue to run.
+.It info
+Informational messages.
+These tell the user what the program was doing at a general level of
+operation.
+.It debug
+Detailed informational messages.
+These are often useful when debugging problems in the application, as they
+contain lots of internal details.
+.El
+.Pp
+The default log level is
+.Sq info
+unless explicitly overridden with
+.Fl -loglevel .
+.Pp
+The log file is a plain text file containing one line per log record.
+The format of each line is as follows:
+.Bd -literal -offset indent
+timestamp entry_type pid file:line: message
+.Ed
+.Pp
+.Ar entry_type
+can be one of:
+.Sq E
+for an error,
+.Sq W
+for a warning,
+.Sq I
+for an informational message and
+.Sq D
+for a debug message.
+.Ss Bug reporting
+If you think you have encountered a bug in
+.Nm ,
+please take the time to let the developers know about it.
+This will ensure that the bug is addressed and potentially fixed in the next
+Kyua release.
+.Pp
+The first step in reporting a bug is to check if there already is a similar
+bug in the database.
+You can check what issues are currently in the database by going to:
+.Bd -literal -offset indent
+https://github.com/jmmv/kyua/issues/
+.Ed
+.Pp
+If there is no existing issue that describes an issue similar to the
+one you are experiencing, you can open a new one by visiting:
+.Bd -literal -offset indent
+https://github.com/jmmv/kyua/issues/new/
+.Ed
+.Pp
+When doing so, please include as much detail as possible.
+Among other things, explain what operating system and platform you are running
+.Nm
+on, what were you trying to do, what exact messages you saw on the screen,
+how did you expect the program to behave, and any other details that you
+may find relevant.
+.Pp
+Also, please include a copy of the log file corresponding to the problem
+you are experiencing.
+Unless you have changed the location of the log files, you can most likely
+find them in
+.Pa ~/.kyua/logs/ .
+If the problem is reproducible, it is good idea to regenerate the log file
+with an increased log level so as to provide more information.
+For example:
+.Bd -literal -offset indent
+$ kyua --logfile=problem.log --loglevel=debug \\
+    [rest of the command line]
+.Ed
+.Sh ENVIRONMENT
+The following variables are recognized and can be freely tuned by the end user:
+.Bl -tag -width COLUMNSXX
+.It Va COLUMNS
+The width of the screen, in number of characters.
+.Nm
+uses this to wrap long lines.
+If not present, the width of the screen is determined from the terminal
+stdout is connected to, and, if the guessing fails, this defaults to infinity.
+.It Va HOME
+Path to the user's home directory.
+.Nm
+uses this location to determine paths to configuration files and default log
+files.
+.It Va TMPDIR
+Path to the system-wide temporary directory.
+.Nm
+uses this location to place the work directory of test cases, among other
+things.
+.Pp
+The default value of this variable depends on the operating system.
+In general, it is
+.Pa /tmp .
+.El
+.Pp
+The following variables are also recognized, but you should not need to set them
+during normal operation.
+They are only provided to override the value of built-in values, which is useful
+when testing
+.Nm
+itself:
+.Bl -tag -width KYUAXCONFDIRXX
+.It Va KYUA_CONFDIR
+Path to the system-wide configuration files for
+.Nm .
+.Pp
+Defaults to
+.Pa __CONFDIR__ .
+.It Va KYUA_DOCDIR
+Path to the location of installed documentation.
+.Pp
+Defaults to
+.Pa __DOCDIR__ .
+.It Va KYUA_MISCDIR
+Path to the location of the installed miscellaneous scripts and data
+files provided by
+.Nm .
+.Pp
+Defaults to
+.Pa __MISCDIR__ .
+.It Va KYUA_STOREDIR
+Path to the location of the installed store support files; e.g., the
+directory containing the SQL database schema.
+.Pp
+Defaults to
+.Pa __STOREDIR__ .
+.El
+.Sh FILES
+.Bl -tag -width XXXX
+.It Pa ~/.kyua/store/
+Default location for the results files.
+.It Pa ~/.kyua/kyua.conf
+User-specific configuration file.
+.It Pa ~/.kyua/logs/
+Default location for the collected log files.
+.It Pa __CONFDIR__/kyua.conf
+System-wide configuration file.
+.El
+.Sh EXIT STATUS
+.Nm
+returns 0 on success, 1 on a controlled error condition in the given
+subcommand, 2 on a general unexpected error and 3 on a usage error.
+.Pp
+The documentation of the subcommands in the corresponding manual pages only
+details the difference between a successful exit (0) and the detection of a
+controlled error (1).
+Even though when those manual pages do not describe any other exit statuses,
+codes above 1 can be returned.
+.Sh SEE ALSO
+.Xr kyua.conf 5 ,
+.Xr kyuafile 5 ,
+.Xr atf 7 ,
+.Xr tests 7
+.Sh AUTHORS
+The original author of
+.Nm
+was
+.An Julio Merino .
+.Pp
+For more details on the people that made
+.Nm
+possible and the license terms, run:
+.Bd -literal -offset indent
+$ kyua about
+.Ed

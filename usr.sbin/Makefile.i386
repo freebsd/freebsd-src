@@ -1,0 +1,17 @@
+.if ${MK_ACPI} != "no"
+SUBDIR+=	acpi
+.endif
+.if ${MK_APM} != "no"
+SUBDIR+=	apm
+SUBDIR+=	apmd
+.endif
+SUBDIR+=	boot0cfg
+.if ${MK_TOOLCHAIN} != "no"
+SUBDIR+=	btxld
+.endif
+SUBDIR+=	cpucontrol
+SUBDIR+=	lptcontrol
+SUBDIR+=	mptable
+SUBDIR+=	pnpinfo
+SUBDIR+=	spkrtest
+SUBDIR+=	zzz

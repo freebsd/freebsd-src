@@ -1,0 +1,140 @@
+
+#------------------------------------------------------------------------------
+# $File: frame,v 1.19 2024/03/04 00:34:31 christos Exp $
+# frame:  file(1) magic for FrameMaker files
+#
+# This stuff came on a FrameMaker demo tape, most of which is
+# copyright, but this file is "published" as witness the following:
+#
+# URL:		https://en.wikipedia.org/wiki/Adobe_FrameMaker
+#
+# Update:	Joerg Jenderek 2024 Mar
+# URL:		http://fileformats.archiveteam.org/wiki/FrameMaker
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fm.trid.xml
+# Note:		called "FrameMaker document" by TrID and "Adobe FrameMaker document" by shared MIME-info database
+# skip "text" DROID samples like: fmt-190-signature-id-840.fm fmt-533-signature-id-837.fm fmt-534-signature-id-838.fm fmt-535-signature-id-839.fm fmt-536-signature-id-841.fm
+# fmt-537-signature-id-842.fm fmt-538-signature-id-843.fm fmt-539-signature-id-844.fm x-fmt-302-signature-id-395.fm
+0	string/b	\<MakerFile	FrameMaker document
+#!:mime	application/octet-stream
+# https://www.iana.org/assignments/media-types/application/vnd.framemaker
+!:mime	application/vnd.framemaker
+# version string like 1.0 2.0 3.0 4.0 5.0 5.5 6.0 7.0 8.0 9.0 10.0
+>11	string		x		(%0.3s
+# before closing directive ">" is appended version letter like: F H J K Q Y
+>>14	ubyte		>0x40		%c
+# or last digit of 4 character version string
+>>14	ubyte		<0x41		\b%c
+# test again so that next default clause works
+>14	ubyte		x
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/h/hlp-fm.trid.xml
+# Note:		called "FrameMaker Help" by TrID
+# look for reference to FrameMaker help name suffix like in: index1.hlp
+>>18	search/9688/s	.hlp:		 \b) help
+# the internal FrameMaker help are just FrameMaker document with hlp suffix; XREF.HLP is same as Xref-hlp.fm
+!:ext	hlp
+# For control reason show link name like:
+# "Overview" "lastpage "firstpage "Add File" "Conditional Text" "Table Format" "Creating a reference frame" "firstpageCov" "Spot Colors" "Selecting text" "proceduresbl" "lastpageu" "Introducing HelpHe" "Menu of Syntax Descriptions" "Main FrameMaker window"
+#>>>&5	string		x		 LINK_NAME "%s"
+>>>&5	string		x
+# look for gotolink or openlink keyword before help file name
+>>>&-18	search/18/s	link\040
+# link construct with help name like: "gotolink xref.hlp:Overview" "openlink syntax1.hlp:firstpage"
+>>>>&-4	regex/s		=^\[A-Za-z0-9.:\040]{1,}	with "%s"
+# if not FrameMaker Help assume it is "normal" FrameMaker document
+# shown with closing parenthesis to get look like in frame,v 1.18
+>>18	default			x	\b)
+# sometimes without suffix like: CHAPTER HARVARD LETTER MEMO1 NEWSLTR REPORT3
+# no samples found with .bk or .book extension
+# allchaps.ix (Framemaker Index) and others like:
+# title.fm4 wp.filt textre1.htr pmscript.ind change.nbh books.prd executiv.sum Hyper.Template
+!:ext	/fm/doc/toc/ix
+# URL:		http://fileformats.archiveteam.org/wiki/Maker_Interchange_Format
+# Reference:	https://help.adobe.com/en_US/framemaker/mifreference/mifref.pdf
+# Update:	Joerg Jenderek 2019 Nov
+0	string		\<MIFFile	FrameMaker MIF (ASCII) file
+# https://www.iana.org/assignments/media-types/application/vnd.mif
+!:mime	application/vnd.mif
+# mif most but also find bookTOC.framemif
+!:ext	mif/framemif
+# followed by space~20h
+#>8	ubyte		0x20		\b, space before version
+# 3 characters of version number of the MIF language like 1.0, 2.0 ... 2015 ...
+>9	string		x		(%.3s
+# if not greater sign then display 4th character of version
+>12	ubyte		=0x3e		\b)
+>12	ubyte		!0x3e		\b%c)
+# comment starting with # shows the name+version number of generating program
+>13	search/3	#
+>>&0	string		x		"%s"
+# Update:	Joerg Jenderek
+# Note:		called "Adobe FrameMaker document" by shared MIME-info database from freedesktop.org
+0	search/1	\<MakerDictionary	FrameMaker Dictionary text
+#!:mime	text/plain
+#!:mime	application/x-mif
+!:mime	application/vnd.framemaker
+# like site.dict but often extension is a 3 letters country code like in: hyphens.brt hyphens.eng
+!:ext	dict/eng/brt
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fm-hyph-dict-30.trid.xml
+# Note:		called "FrameMaker hyphens dictionary (v3.0)" by TrID
+>17	string		3.0		 (3.0)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fm-hyph-dict-20.trid.xml
+# Note:		called "FrameMaker hyphens dictionary (v2.0)" by TrID
+>17	string		2.0		 (2.0)
+>17	string		1.0		 (1.x)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bfont.trid.xml
+# Update:	Joerg Jenderek 2023
+# Note:		called "XFrameMaker Bitmapped screen Font" by TrID and
+#		"Adobe FrameMaker font" by shared MIME-info database from freedesktop.org
+0	string		\<MakerScreenFont	FrameMaker Font file
+#!:mime	application/octet-stream
+#!:mime	application/x-mif
+!:mime	application/x-font-framemaker
+!:ext	bfont
+# Note:		maybe also other version like: 1.x
+>17	string		!1.01
+>>17	string		x		 (%-0.4s)
+>17	string		1.01		 (%s)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mml-fm.trid.xml
+# Update:	Joerg Jenderek 2023 Nov
+# Note:		called "FrameMaker Maker Markup Language" by TrID and
+#		"Adobe FrameMaker document" by shared MIME-info database from freedesktop.org
+0	string		\<MML		FrameMaker MML file
+#!:mime	text/plain
+#!:mime	application/x-mif
+!:mime	application/vnd.framemaker
+!:ext	mml
+# Note:		sometimes followed by space and version like 1.00 (formats.mml sample.mml) and more text
+>5	string		>0		 (%-0.4s)
+# URL:		http://fileformats.archiveteam.org/wiki/FrameMaker
+# Reference:	http://mark0.net/download/triddefs_xml.7z
+# 		defs/b/book-fm.trid.xml
+# 		defs/b/bk-fm.trid.xml
+# Update:	Joerg Jenderek 2023 Dez
+# Note:		called "FrameMaker book (binary)" by TrID and
+#		"Adobe FrameMaker document" by shared MIME-info database from freedesktop.org
+# look for BookFile, Bookfile (capitalized) or BOOKFILE (upcased) directive
+0	string/c	\<Bookfile	FrameMaker Book file
+#!:mime	application/octet-stream
+#!:mime	application/x-mif
+!:mime	application/vnd.framemaker
+# http://extension.nirsoft.net/book
+!:ext	bk/book
+# version like: 1.0 2.0 3.0 4.0 5.0 5.5 6.0 7.0 8.0 10.0
+# 3 characters of version number string
+>10	string		x		(%-0.3s
+# if greater sign then exact 3 byte version string
+>13	ubyte		=0x3e		\b)
+# if digit then 4 byte version string
+>13	ubyte		<0x3A		\b%c)
+# if letter then this is appended sub level after 3 byte version string
+>13	ubyte		>0x3A		%c)
+# first directive typically is followed by one space character
+>9	ubyte		!0x20		\b, no space before version
+# XXX - this book entry should be verified, if you find one, uncomment this
+#0	string		\<Book\040 	FrameMaker Book (ASCII) file
+#!:mime	application/x-mif
+#>6	string		3.0		 (3.0)
+#>6	string		2.0		 (2.0)
+#>6	string		1.0		 (1.0)
+0	string		\<Maker\040Intermediate\040Print\040File	FrameMaker IPL file
+!:mime	application/x-mif

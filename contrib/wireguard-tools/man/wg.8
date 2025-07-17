@@ -1,0 +1,262 @@
+.TH WG 8 "2015 August 13" ZX2C4 "WireGuard"
+
+.SH NAME
+wg - set and retrieve configuration of WireGuard interfaces
+
+.SH SYNOPSIS
+.B wg
+[
+.I COMMAND
+] [
+.I OPTIONS
+]... [
+.I ARGS
+]...
+
+.SH DESCRIPTION
+
+.B wg
+is the configuration utility for getting and setting the configuration of
+WireGuard tunnel interfaces. The interfaces themselves can be added and removed
+using
+.BR ip-link (8)
+and their IP addresses and routing tables can be set using
+.BR ip-address (8)
+and
+.BR ip-route (8).
+The
+.B wg
+utility provides a series of sub-commands for changing WireGuard-specific
+aspects of WireGuard interfaces.
+
+If no COMMAND is specified, COMMAND defaults to
+.BR show .
+Sub-commands that take an INTERFACE must be passed a WireGuard interface.
+
+.SH COMMANDS
+
+.TP
+\fBshow\fP { \fI<interface>\fP | \fIall\fP | \fIinterfaces\fP } [\fIpublic-key\fP | \fIprivate-key\fP | \fIlisten-port\fP | \fIfwmark\fP | \fIpeers\fP | \fIpreshared-keys\fP | \fIendpoints\fP | \fIallowed-ips\fP | \fIlatest-handshakes\fP | \fIpersistent-keepalive\fP | \fItransfer\fP | \fIdump\fP]
+Shows current WireGuard configuration and runtime information of specified \fI<interface>\fP.
+If no \fI<interface>\fP is specified, \fI<interface>\fP defaults to \fIall\fP.
+If \fIinterfaces\fP is specified, prints a list of all WireGuard interfaces,
+one per line, and quits. If no options are given after the interface
+specification, then prints a list of all attributes in a visually pleasing way
+meant for the terminal. Otherwise, prints specified information grouped by
+newlines and tabs, meant to be used in scripts. For this script-friendly display,
+if \fIall\fP is specified, then the first field for all categories of information
+is the interface name. If \fPdump\fP is specified, then several lines are printed;
+the first contains in order separated by tab: private-key, public-key, listen-port,
+fwmark. Subsequent lines are printed for each peer and contain in order separated
+by tab: public-key, preshared-key, endpoint, allowed-ips, latest-handshake,
+transfer-rx, transfer-tx, persistent-keepalive.
+.TP
+\fBshowconf\fP \fI<interface>\fP
+Shows the current configuration of \fI<interface>\fP in the format described
+by \fICONFIGURATION FILE FORMAT\fP below.
+.TP
+\fBset\fP \fI<interface>\fP [\fIlisten-port\fP \fI<port>\fP] [\fIfwmark\fP \fI<fwmark>\fP] [\fIprivate-key\fP \fI<file-path>\fP] [\fIpeer\fP \fI<base64-public-key>\fP [\fIremove\fP] [\fIpreshared-key\fP \fI<file-path>\fP] [\fIendpoint\fP \fI<ip>:<port>\fP] [\fIpersistent-keepalive\fP \fI<interval seconds>\fP] [\fIallowed-ips\fP \fI[+|-]<ip1>/<cidr1>\fP[,\fI[+|-]<ip2>/<cidr2>\fP]...] ]...
+Sets configuration values for the specified \fI<interface>\fP. Multiple
+\fIpeer\fPs may be specified, and if the \fIremove\fP argument is given
+for a peer, that peer is removed, not configured. If \fIlisten-port\fP
+is not specified, or set to 0, the port will be chosen randomly when the
+interface comes up. Both \fIprivate-key\fP and \fIpreshared-key\fP must
+be files, because command line arguments are not considered private on
+most systems but if you are using
+.BR bash (1),
+you may safely pass in a string by specifying as \fIprivate-key\fP or
+\fIpreshared-key\fP the expression: <(echo PRIVATEKEYSTRING). If
+\fI/dev/null\fP or another empty file is specified as the filename for
+either \fIprivate-key\fP or \fIpreshared-key\fP, the key is removed from
+the device. The use of \fIpreshared-key\fP is optional, and may be omitted;
+it adds an additional layer of symmetric-key cryptography to be mixed into
+the already existing public-key cryptography, for post-quantum resistance.
+If \fIallowed-ips\fP is specified, but the value is the empty string, all
+allowed ips are removed from the peer. By default, \fIallowed-ips\fP replaces
+a peer's allowed ips. If + or - is prepended to any of the ips then
+the update is incremental; ips prefixed with '+' or '' are added to the peer's
+allowed ips if not present while ips prefixed with '-' are removed if present.
+The use of \fIpersistent-keepalive\fP
+is optional and is by default off; setting it to 0 or "off" disables it.
+Otherwise it represents, in seconds, between 1 and 65535 inclusive, how often
+to send an authenticated empty packet to the peer, for the purpose of keeping
+a stateful firewall or NAT mapping valid persistently. For example, if the
+interface very rarely sends traffic, but it might at anytime receive traffic
+from a peer, and it is behind NAT, the interface might benefit from having a
+persistent keepalive interval of 25 seconds; however, most users will not need
+this. The use of \fIfwmark\fP is optional and is by default off; setting it to
+0 or "off" disables it. Otherwise it is a 32-bit fwmark for outgoing packets
+and may be specified in hexadecimal by prepending "0x".
+.TP
+\fBsetconf\fP \fI<interface>\fP \fI<configuration-filename>\fP
+Sets the current configuration of \fI<interface>\fP to the contents of
+\fI<configuration-filename>\fP, which must be in the format described
+by \fICONFIGURATION FILE FORMAT\fP below.
+.TP
+\fBaddconf\fP \fI<interface>\fP \fI<configuration-filename>\fP
+Appends the contents of \fI<configuration-filename>\fP, which must
+be in the format described by \fICONFIGURATION FILE FORMAT\fP below,
+to the current configuration of \fI<interface>\fP.
+.TP
+\fBsyncconf\fP \fI<interface>\fP \fI<configuration-filename>\fP
+Like \fBsetconf\fP, but reads back the existing configuration first
+and only makes changes that are explicitly different between the configuration
+file and the interface. This is much less efficient than \fBsetconf\fP,
+but has the benefit of not disrupting current peer sessions. The contents of
+\fI<configuration-filename>\fP must be in the format described by
+\fICONFIGURATION FILE FORMAT\fP below.
+.TP
+\fBgenkey\fP
+Generates a random \fIprivate\fP key in base64 and prints it to
+standard output.
+.TP
+\fBgenpsk\fP
+Generates a random \fIpreshared\fP key in base64 and prints it to
+standard output.
+.TP
+\fBpubkey\fP
+Calculates a \fIpublic\fP key and prints it in base64 to standard
+output from a corresponding \fIprivate\fP key (generated with
+\fIgenkey\fP) given in base64 on standard input.
+
+A private key and a corresponding public key may be generated at once by calling:
+.br
+    $ umask 077
+.br
+    $ wg genkey | tee private.key | wg pubkey > public.key
+.TP
+\fBhelp\fP
+Shows usage message.
+
+.SH CONFIGURATION FILE FORMAT
+The configuration file format is based on \fIINI\fP. There are two top level sections
+-- \fIInterface\fP and \fIPeer\fP. Multiple \fIPeer\fP sections may be specified, but
+only one \fIInterface\fP section may be specified.
+
+.P
+The \fIInterface\fP section may contain the following fields:
+.IP \(bu
+PrivateKey \(em a base64 private key generated by \fIwg genkey\fP. Required.
+.IP \(bu
+ListenPort \(em a 16-bit port for listening. Optional; if not specified, chosen
+randomly.
+.IP \(bu
+FwMark \(em a 32-bit fwmark for outgoing packets. If set to 0 or "off", this
+option is disabled. May be specified in hexadecimal by prepending "0x". Optional.
+.P
+The \fIPeer\fP sections may contain the following fields:
+.IP \(bu
+PublicKey \(em a base64 public key calculated by \fIwg pubkey\fP from a
+private key, and usually transmitted out of band to the author of the
+configuration file. Required.
+.IP \(bu
+PresharedKey \(em a base64 preshared key generated by \fIwg genpsk\fP. Optional,
+and may be omitted. This option adds an additional layer of symmetric-key
+cryptography to be mixed into the already existing public-key cryptography,
+for post-quantum resistance.
+.IP \(bu
+AllowedIPs \(em a comma-separated list of IP (v4 or v6) addresses with
+CIDR masks from which incoming traffic for this peer is allowed and to
+which outgoing traffic for this peer is directed. The catch-all
+\fI0.0.0.0/0\fP may be specified for matching all IPv4 addresses, and
+\fI::/0\fP may be specified for matching all IPv6 addresses. May be specified
+multiple times.
+.IP \(bu
+Endpoint \(em an endpoint IP or hostname, followed by a colon, and then a
+port number. This endpoint will be updated automatically to the most recent
+source IP address and port of correctly authenticated packets from the peer.
+Optional.
+.IP \(bu
+PersistentKeepalive \(em a seconds interval, between 1 and 65535 inclusive, of
+how often to send an authenticated empty packet to the peer for the purpose of keeping a
+stateful firewall or NAT mapping valid persistently. For example, if the interface
+very rarely sends traffic, but it might at anytime receive traffic from a peer,
+and it is behind NAT, the interface might benefit from having a persistent keepalive
+interval of 25 seconds. If set to 0 or "off", this option is disabled. By default or
+when unspecified, this option is off. Most users will not need this. Optional.
+
+.SH CONFIGURATION FILE FORMAT EXAMPLE
+This example may be used as a model for writing configuration files, following an
+INI-like syntax. Characters after and including a '#' are considered comments and
+are thus ignored.
+
+    [Interface]
+.br
+    PrivateKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=
+.br
+    ListenPort = 51820
+.br
+    
+.br
+    [Peer]
+.br
+    PublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=
+.br
+    Endpoint = 192.95.5.67:1234
+.br
+    AllowedIPs = 10.192.122.3/32, 10.192.124.1/24
+.br
+    
+.br
+    [Peer]
+.br
+    PublicKey = TrMvSoP4jYQlY6RIzBgbssQqY3vxI2Pi+y71lOWWXX0=
+.br
+    Endpoint = [2607:5300:60:6b0::c05f:543]:2468
+.br
+    AllowedIPs = 10.192.122.4/32, 192.168.0.0/16
+.br
+    
+.br
+    [Peer]
+.br
+    PublicKey = gN65BkIKy1eCE9pP1wdc8ROUtkHLF2PfAqYdyYBz6EA=
+.br
+    Endpoint = test.wireguard.com:18981
+.br
+    AllowedIPs = 10.10.10.230/32
+
+.SH DEBUGGING INFORMATION
+Sometimes it is useful to have information on the current runtime state of a tunnel. When using the Linux kernel module on a kernel that supports dynamic debugging, debugging information can be written into
+.BR dmesg (1)
+by running as root:
+
+\fB    # modprobe wireguard && echo module wireguard +p > /sys/kernel/debug/dynamic_debug/control\fP
+
+On OpenBSD and FreeBSD, debugging information can be written into
+.BR dmesg (1)
+on a per-interface basis by using
+.BR ifconfig (1):
+
+\fB    # ifconfig wg0 debug
+
+On userspace implementations, it is customary to set the \fILOG_LEVEL\fP environment variable to \fIverbose\fP.
+
+.SH ENVIRONMENT VARIABLES
+.TP
+.I WG_COLOR_MODE
+If set to \fIalways\fP, always print ANSI colorized output. If set to \fInever\fP, never print ANSI colorized output. If set to \fIauto\fP, something invalid, or unset, then print ANSI colorized output only when writing to a TTY.
+.TP
+.I WG_HIDE_KEYS
+If set to \fInever\fP, then the pretty-printing \fBshow\fP sub-command will show private and preshared keys in the output. If set to \fIalways\fP, something invalid, or unset, then private and preshared keys will be printed as "(hidden)".
+.TP
+.I WG_ENDPOINT_RESOLUTION_RETRIES
+If set to an integer or to \fIinfinity\fP, DNS resolution for each peer's endpoint will be retried that many times for non-permanent errors, with an increasing delay between retries. If unset, the default is 15 retries.
+
+.SH SEE ALSO
+.BR wg-quick (8),
+.BR ip (8),
+.BR ip-link (8),
+.BR ip-address (8),
+.BR ip-route (8).
+
+.SH AUTHOR
+.B wg
+was written by
+.MT Jason@zx2c4.com
+Jason A. Donenfeld
+.ME .
+For updates and more information, a project page is available on the
+.UR https://\:www.wireguard.com/
+World Wide Web
+.UE .

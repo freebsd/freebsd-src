@@ -1,0 +1,12 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "rockchip,rk3328";
+};
+
+&{/i2c@ff150000} {
+	status = "okay";
+};
+
+/* vim: set ft=dts: */

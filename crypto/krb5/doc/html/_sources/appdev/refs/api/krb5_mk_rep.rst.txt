@@ -1,0 +1,59 @@
+krb5_mk_rep -  Format and encrypt a KRB_AP_REP message. 
+========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_rep(krb5_context context, krb5_auth_context auth_context, krb5_data * outbuf)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[out]** **outbuf** - **AP-REP** message
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function fills in *outbuf* with an AP-REP message using information from *auth_context* .
+
+
+
+If the flags in *auth_context* indicate that a sequence number should be used (either #KRB5_AUTH_CONTEXT_DO_SEQUENCE or #KRB5_AUTH_CONTEXT_RET_SEQUENCE) and the local sequence number in *auth_context* is 0, a new number will be generated with krb5_generate_seq_number().
+
+
+
+Use krb5_free_data_contents() to free *outbuf* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,51 @@
+krb5_copy_keyblock_contents -  Copy the contents of a keyblock. 
+================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_keyblock_contents(krb5_context context, const krb5_keyblock * from, krb5_keyblock * to)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **from** - Key to be copied
+
+	          **[out]** **to** - Output key
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function copies the contents of *from* to *to* . Use krb5_free_keyblock_contents() to free *to* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,125 @@
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
+.TH tzselect 8 "" "Time Zone Database"
+.SH NAME
+tzselect \- select a timezone
+.SH SYNOPSIS
+.ie \n(.g .ds - \f(CR-\fP
+.el .ds - \-
+.ds d " degrees
+.ds m " minutes
+.ds s " seconds
+.ds _ " \&
+.if t \{\
+. if \n(.g .if c \(de .if c \(fm .if c \(sd \{\
+.  ds d \(de
+.  ds m \(fm
+.  ds s \(sd
+.  ds _ \|
+. \}
+.\}
+.B tzselect
+[
+.B \*-c
+.I coord
+] [
+.B \*-n
+.I limit
+] [
+.B \*-\*-help
+] [
+.B \*-\*-version
+]
+.SH DESCRIPTION
+The
+.B tzselect
+program asks the user for information about the current location,
+and outputs the resulting timezone to standard output.
+The output is suitable as a value for the TZ environment variable.
+.PP
+All interaction with the user is done via standard input and standard error.
+.SH OPTIONS
+.TP
+.BI "\*-c " coord
+Instead of asking for continent and then country and then city,
+ask for selection from time zones whose largest cities
+are closest to the location with geographical coordinates
+.I coord.
+Use ISO 6709 notation for
+.I coord,
+that is, a latitude immediately followed by a longitude.  The latitude
+and longitude should be signed integers followed by an optional
+decimal point and fraction: positive numbers represent north and east,
+negative south and west.  Latitudes with two and longitudes with three
+integer digits are treated as degrees; latitudes with four or six and
+longitudes with five or seven integer digits are treated as
+.I "DDMM, DDDMM, DDMMSS,"
+or
+.I DDDMMSS
+representing
+.I DD
+or
+.I DDD
+degrees,
+.I MM
+minutes,
+and zero or
+.I SS
+seconds, with any trailing fractions represent fractional minutes or
+(if
+.I SS
+is present) seconds.  The decimal point is that of the current locale.
+For example, in the (default) C locale,
+.B "\*-c\ +40.689\*-074.045"
+specifies 40.689\*d\*_N, 74.045\*d\*_W,
+.B "\*-c\ +4041.4\*-07402.7"
+specifies 40\*d\*_41.4\*m\*_N, 74\*d\*_2.7\*m\*_W, and
+.B "\*-c\ +404121\*-0740240"
+specifies 40\*d\*_41\*m\*_21\*s\*_N, 74\*d\*_2\*m\*_40\*s\*_W.
+If
+.I coord
+is not one of the documented forms, the resulting behavior is unspecified.
+.TP
+.BI "\*-n " limit
+When
+.B \*-c
+is used, display the closest
+.I limit
+locations (default 10).
+.TP
+.B "\*-\*-help"
+Output help information and exit.
+.TP
+.B "\*-\*-version"
+Output version information and exit.
+.SH "ENVIRONMENT VARIABLES"
+.TP
+\f3AWK\fP
+Name of a POSIX-compliant
+.B awk
+program (default:
+.BR awk ).
+.TP
+\f3TZDIR\fP
+Name of the directory containing timezone data files (default:
+.BR /usr/share/zoneinfo ).
+.SH FILES
+.TP
+\f2TZDIR\fP\f3/iso3166.tab\fP
+Table of ISO 3166 2-letter country codes and country names.
+.TP
+\f2TZDIR\fP\f3/zone1970.tab\fP
+Table of country codes, latitude and longitude, timezones, and
+descriptive comments.
+.TP
+\f2TZDIR\fP\f3/\fP\f2TZ\fP
+Timezone data file for timezone \f2TZ\fP.
+.SH "EXIT STATUS"
+The exit status is zero if a timezone was successfully obtained from the user,
+nonzero otherwise.
+.SH "SEE ALSO"
+newctime(3), tzfile(5), zdump(8), zic(8)
+.SH NOTES
+Applications should not assume that
+.BR tzselect 's
+output matches the user's political preferences.

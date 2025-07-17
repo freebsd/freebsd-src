@@ -1,0 +1,95 @@
+.\"-
+.\" Copyright (c) 2021 Gleb Popov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 20, 2021
+.Dt ACL_EQUIV_MODE_NP 3
+.Os
+.Sh NAME
+.Nm acl_equiv_mode_np
+.Nd check if ACL can be represented as UNIX permissions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft int
+.Fn acl_equiv_mode_np "acl_t acl" "mode_t* mode_p"
+.Sh DESCRIPTION
+The
+.Fn acl_equiv_mode_np
+function is a non-portable call which checks that entries contained in the
+.Va acl
+argument use only the ACL_USER_OBJ, ACL_GROUP_OBJ, and ACL_OTHER tag types, and that
+permissions contained in these entries consist only of ACL_READ, ACL_WRITE and
+ACL_EXECUTE.
+If the check succeeds, the ACL can be represented as traditional UNIX
+file permissions bits set.
+.Pp
+If
+.Va mode_p
+is not NULL and the check succeeds, the function fills the argument with a mode
+value corresponding to permissions contained in the ACL.
+.Sh RETURN VALUES
+Upon successful completion, the function returns 0 if the ACL can be represented
+as UNIX permissions and 1 if it is not possible.
+Otherwise, a value
+of
+.Va -1
+is returned, and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+If any of the following conditions occur, the
+.Fn acl_equiv_mode_np
+function returns a value of
+.Va -1
+and set
+.Va errno
+to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa acl
+does not point to a valid ACL.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_from_mode_np 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion
+of the draft continues on the cross-platform POSIX.1e implementation
+mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation
+page for more information.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
+.Sh AUTHORS
+.An Gleb Popov

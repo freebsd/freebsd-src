@@ -1,0 +1,83 @@
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/a/b/c/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/a/b/c/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/a/b/c/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/a/b/c/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/a/b/c/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/a/b/c/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/d/e/f/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/d/e/f/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/a/b/c/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/a/b/c/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/a/b/c/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/a/b/c/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">test</div>
+</div>
+<div class="line">
+  <div class="text">Answer:</div>
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state" data-xpath="/state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city" data-xpath="/city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">First </div>
+  <div class="data" data-tag="tag" data-xpath="/tag">value1</div>
+  <div class="text"> </div>
+  <div class="text">and then </div>
+  <div class="data" data-tag="tag" data-xpath="/tag">value2</div>
+</div>
+<div class="line">
+  <div class="text">Machine </div>
+  <div class="data" data-tag="name" data-xpath="/name">red</div>
+  <div class="text"> has </div>
+  <div class="data" data-tag="memory" data-xpath="/memory">55</div>
+</div>
+<div class="line">
+  <div class="text">Machine </div>
+  <div class="data" data-tag="name" data-xpath="/name">green</div>
+  <div class="text"> has </div>
+  <div class="data" data-tag="memory" data-xpath="/memory">55</div>
+</div>
+<div class="line">
+  <div class="text">Machine </div>
+  <div class="data" data-tag="name" data-xpath="/name">blue</div>
+  <div class="text"> has </div>
+  <div class="data" data-tag="memory" data-xpath="/memory">55</div>
+</div>

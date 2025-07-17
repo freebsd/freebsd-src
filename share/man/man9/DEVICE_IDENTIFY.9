@@ -1,0 +1,91 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2001 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd February 5, 2025
+.Dt DEVICE_IDENTIFY 9
+.Os
+.Sh NAME
+.Nm DEVICE_IDENTIFY
+.Nd identify new child devices and register them
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft void
+.Fn DEVICE_IDENTIFY "driver_t *driver" "device_t parent"
+.Sh DESCRIPTION
+The identify method of a device driver is used to add devices that cannot be
+enumerated by the standard method on a bus device.
+Devices can be enumerated in various ways including accessing non-ambiguous
+device registers and parsing firmware tables.
+Software-only pseudo devices are also often enumerated via identify methods.
+.Pp
+For each newly identified device,
+a new device instance should be created by invoking the
+.Xr BUS_ADD_CHILD 9
+method.
+If the identify method is able to discover other properties about the new
+device, those should also be set.
+For example, device resources should be added to the device by calling
+.Xr bus_set_resource 9
+for each resource.
+.Pp
+An identify method might be invoked multiple times.
+If a device driver is unloaded and loaded,
+the identify method will be called a second time after being reloaded.
+As a result, the identify method should avoid duplicate devices.
+Devices added by identify methods typically use a fixed device name
+in which case
+.Xr device_find_child 9
+can be used to detect existing devices.
+.Sh EXAMPLES
+The following pseudo-code shows an example of a function that
+probes for a piece of hardware and registers it and its resource
+(an I/O port) with the parent bus device.
+.Bd -literal
+void
+foo_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+
+	retrieve_device_information;
+	if (devices matches one of your supported devices &&
+	    device_get_child(parent, "foo", DEVICE_UNIT_ANY) == NULL) {
+		child = BUS_ADD_CHILD(parent, 0, "foo", DEVICE_UNIT_ANY);
+		bus_set_resource(child, SYS_RES_IOPORT, 0, FOO_IOADDR, 1);
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr BUS_ADD_CHILD 9 ,
+.Xr bus_identify_children 9 ,
+.Xr bus_set_resource 9 ,
+.Xr device 9 ,
+.Xr device_find_child 9
+.Sh AUTHORS
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

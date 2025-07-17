@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# PROVIDE: zpoolupgrade
+# REQUIRE: zpool
+# BEFORE: mountcritlocal
+# KEYWORD: firstboot nojail
+
+. /etc/rc.subr
+
+name="zpoolupgrade"
+desc="Upgrade zpool version"
+rcvar="zfs_enable"
+start_cmd="zpoolupgrade_start"
+
+zpoolupgrade_start()
+{
+	local pool
+
+	for pool in ${zpool_upgrade}; do
+		zpool upgrade $pool
+	done
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+zpoolupgrade_svcj="NO"
+
+run_rc_command "$1"

@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_set_forwardable -  Set or unset the forwardable flag in initial credential options. 
+============================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_forwardable(krb5_get_init_creds_opt * opt, int forwardable)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **forwardable** - Whether credentials should be forwardable
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

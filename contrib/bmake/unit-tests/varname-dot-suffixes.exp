@@ -1,0 +1,39 @@
+Global: ignoring delete '.SUFFIXES' as it is not found
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+Global: ignoring '.SUFFIXES = set' as it is read-only
+Global: ignoring '.SUFFIXES = append' as it is read-only
+Global: _ = # (empty)
+Var_Parse: ${.SUFFIXES::=assign} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${.SUFFIXES::...} on value ".c .o .1 .err .tar.gz" (eval-keep-dollar-and-undefined, regular)
+Modifier part: "assign"
+Global: ignoring '.SUFFIXES = assign' as it is read-only
+Result of ${.SUFFIXES::=assign} is "" (eval-keep-dollar-and-undefined, regular)
+Global: _ = # (empty)
+Var_Parse: ${preserve:L:_=.SUFFIXES} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${preserve:L} on value "" (eval-keep-dollar-and-undefined, undefined)
+Result of ${preserve:L} is "preserve" (eval-keep-dollar-and-undefined, defined)
+Evaluating modifier ${preserve:_...} on value "preserve" (eval-keep-dollar-and-undefined, defined)
+Global: ignoring '.SUFFIXES = preserve' as it is read-only
+Result of ${preserve:_=.SUFFIXES} is "preserve" (eval-keep-dollar-and-undefined, defined)
+Global: _ = preserve
+Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0
+Var_Parse: ${1 2:L:@.SUFFIXES@${.SUFFIXES}@} != ".c .o .1 .err .tar.gz .c .o .1 .err .tar.gz" (eval-defined-loud)
+Evaluating modifier ${1 2:L} on value "" (eval, undefined)
+Result of ${1 2:L} is "1 2" (eval, defined)
+Evaluating modifier ${1 2:@...} on value "1 2" (eval, defined)
+Modifier part: ".SUFFIXES"
+Modifier part: "${.SUFFIXES}"
+ModifyWords: split "1 2" into 2 words
+Command: ignoring '.SUFFIXES = 1' as it is read-only
+Var_Parse: ${.SUFFIXES} (eval)
+ModifyWord_Loop: expand "${.SUFFIXES}" to ".c .o .1 .err .tar.gz"
+Command: ignoring '.SUFFIXES = 2' as it is read-only
+Var_Parse: ${.SUFFIXES} (eval)
+ModifyWord_Loop: expand "${.SUFFIXES}" to ".c .o .1 .err .tar.gz"
+Command: ignoring delete '.SUFFIXES' as it is not found
+Result of ${1 2:@.SUFFIXES@${.SUFFIXES}@} is ".c .o .1 .err .tar.gz .c .o .1 .err .tar.gz" (eval, defined)
+Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0 -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0 -d v -d 0
+exit status 0

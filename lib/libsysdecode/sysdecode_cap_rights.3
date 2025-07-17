@@ -1,0 +1,66 @@
+.\"
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 11, 2022
+.Dt sysdecode_cap_rights 3
+.Os
+.Sh NAME
+.Nm sysdecode_cap_rights
+.Nd output list of capability rights
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sysdecode.h
+.Ft void
+.Fn sysdecode_cap_rights "FILE *fp" "cap_rights_t *rightsp"
+.Sh DESCRIPTION
+The
+.Fn sysdecode_cap_rights
+function outputs a comma-separated list of capability rights at
+.Fa rightsp
+to the stream
+.Fa fp .
+.Pp
+Note that some capability rights are supersets of others; for example,
+.Dv CAP_PREAD
+is the union of
+.Dv CAP_READ
+and
+.Dv CAP_SEEK .
+.Fn sysdecode_cap_rights
+emits a minimal list of rights whose union is equal to
+.Fa *rightsp .
+For example, if both
+.Dv CAP_READ
+and
+.Dv CAP_SEEK
+are set in
+.Fa *rightsp ,
+then
+.Fn sysdecode_cap_rights
+will include only
+.Dv CAP_PREAD
+in the output list.
+.Sh SEE ALSO
+.Xr sysdecode 3

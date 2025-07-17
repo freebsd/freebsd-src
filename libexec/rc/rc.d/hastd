@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: hastd
+# REQUIRE: NETWORKING syslogd
+# BEFORE:  DAEMON
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="hastd"
+desc="Highly Available Storage daemon"
+rcvar="hastd_enable"
+pidfile="/var/run/${name}.pid"
+command="/sbin/${name}"
+hastctl="/sbin/hastctl"
+required_files="/etc/hast.conf"
+stop_precmd="hastd_stop_precmd"
+required_modules="geom_gate:g_gate"
+extra_commands="reload"
+
+hastd_stop_precmd()
+{
+	${hastctl} role init all
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: nojail keyword
+hastd_svcj="NO"
+
+run_rc_command "$1"

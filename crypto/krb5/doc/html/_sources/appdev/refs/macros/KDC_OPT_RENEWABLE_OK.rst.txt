@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-OPT-RENEWABLE-OK-data:
+
+KDC_OPT_RENEWABLE_OK
+====================
+
+..
+.. data:: KDC_OPT_RENEWABLE_OK
+..
+
+
+
+
+=========================== ======================
+``KDC_OPT_RENEWABLE_OK``       ``0x00000010``
+=========================== ======================

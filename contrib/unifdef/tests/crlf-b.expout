@@ -1,0 +1,14 @@
+#if F1
+int f1() { return 0; }
+#else
+int f2() { return 0; }
+#endif
+\/
+/\
+comment
+/\
+*\
+comment
+*\
+/\
+eof

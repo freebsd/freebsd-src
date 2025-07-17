@@ -1,0 +1,32 @@
+#! /bin/sh
+
+if [ ! -f ../a.out ]
+then
+	echo Making executable
+	(cd .. ; make) || exit 0
+fi
+
+for i in *.awk
+do
+	echo === $i
+	OUT=${i%.awk}.OUT
+	OK=${i%.awk}.ok
+	OK2=${i%.awk}.ok2
+	IN=${i%.awk}.in
+	input=
+	if [ -f $IN ]
+	then
+		input=$IN
+	fi
+
+	../a.out -f $i $input > $OUT 2>&1
+	if cmp -s $OK $OUT
+	then
+		rm -f $OUT
+	elif [ -f $OK2 ] && cmp -s $OK2 $OUT
+	then
+		rm -f $OUT
+	else
+		echo "+++ $i failed!"
+	fi
+done

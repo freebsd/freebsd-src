@@ -1,0 +1,106 @@
+
+#------------------------------------------------------------------------------
+# $File: uf2,v 1.6 2024/09/04 19:08:08 christos Exp $
+# uf2:  file(1) magic for UF2 firmware image files
+#
+# https://github.com/microsoft/uf2
+#
+# Created by Blake Ramsdell <blaker@gmail.com>
+
+0	string	UF2\n		UF2 firmware image
+!:ext uf2
+# This is for checking the other magic numbers, do we want to do that?
+#>4	lelong	0x9E5D5157	howdy
+#>>508	lelong	0x0AB16F30	doody
+>8	lelong	&0x0001		\b, not main flash
+>8	lelong	&0x1000		\b, file container
+>8	lelong	&0x2000		\b, family
+
+# To update the UF2 family data, use this fine command
+#
+# families=`curl \
+# https://raw.githubusercontent.com/microsoft/uf2/master/utils/uf2families.json \
+# | jq -r '.[] | ">>28\tlelong\t\(.id)\t\(.description)"' | sort -n -k 3` && \
+# perl -0777 -i -pe \
+# "s/(### BEGIN UF2 FAMILIES\\n).*(\\n### END UF2 FAMILIES)/\$1$families\$2/s" \
+# uf2
+
+### BEGIN UF2 FAMILIES
+>>28	lelong	0x00ff6919	ST STM32L4xx
+>>28	lelong	0x04240bdf	ST STM32L5xx
+>>28	lelong	0x06d1097b	ST STM32F411xC
+>>28	lelong	0x11de784a	M0SENSE BL702
+>>28	lelong	0x16573617	Microchip (Atmel) ATmega32
+>>28	lelong	0x1851780a	Microchip (Atmel) SAML21
+>>28	lelong	0x1b57745f	Nordic NRF52
+>>28	lelong	0x1c5f21b0	ESP32
+>>28	lelong	0x1e1f432d	ST STM32L1xx
+>>28	lelong	0x202e3a91	ST STM32L0xx
+>>28	lelong	0x21460ff0	ST STM32WLxx
+>>28	lelong	0x22e0d6fc	Realtek AmebaZ RTL8710B
+>>28	lelong	0x2abc77ec	NXP LPC55xx
+>>28	lelong	0x2b88d29c	ESP32-C2
+>>28	lelong	0x2dc309c5	ST STM32F411xE
+>>28	lelong	0x300f5633	ST STM32G0xx
+>>28	lelong	0x31d228c6	GD32F350
+>>28	lelong	0x332726f6	ESP32-H2
+>>28	lelong	0x3379CFE2	Realtek AmebaD RTL8720D
+>>28	lelong	0x3d308e94	ESP32-P4
+>>28	lelong	0x4b684d71	Sipeed MaixPlay-U4 (BL618)
+>>28	lelong	0x4c71240a	ST STM32G4xx
+>>28	lelong	0x4f6ace52	LISTENAI CSK300x/400x
+>>28	lelong	0x4fb2d5bd	NXP i.MX RT10XX
+>>28	lelong	0x51e903a8	Xradiotech 809
+>>28	lelong	0x53b80f00	ST STM32F7xx
+>>28	lelong	0x540ddf62	ESP32-C6
+>>28	lelong	0x55114460	Microchip (Atmel) SAMD51
+>>28	lelong	0x57755a57	ST STM32F4xx
+>>28	lelong	0x5a18069b	Cypress FX2
+>>28	lelong	0x5d1a0a2e	ST STM32F2xx
+>>28	lelong	0x5ee21072	ST STM32F103
+>>28	lelong	0x621e937a	Nordic NRF52833
+>>28	lelong	0x647824b6	ST STM32F0xx
+>>28	lelong	0x675a40b0	Beken 7231U/7231T
+>>28	lelong	0x68ed2b88	Microchip (Atmel) SAMD21
+>>28	lelong	0x699b62ec	WCH CH32V2xx and CH32V3xx
+>>28	lelong	0x6a82cc42	Beken 7251/7252
+>>28	lelong	0x6b846188	ST STM32F3xx
+>>28	lelong	0x6d0922fa	ST STM32F407
+>>28	lelong	0x6db66082	ST STM32H7xx
+>>28	lelong	0x6e7348a8	LISTENAI CSK60xx
+>>28	lelong	0x6f752678	Nordic NRF52832xxAB
+>>28	lelong	0x70d16653	ST STM32WBxx
+>>28	lelong	0x72721d4e	Nordic NRF52832xxAA
+>>28	lelong	0x77d850c4	ESP32-C61
+>>28	lelong	0x7b3ef230	Beken 7231N
+>>28	lelong	0x7be8976d	Renesas RA4M1
+>>28	lelong	0x7eab61ed	ESP8266
+>>28	lelong	0x7f83e793	NXP KL32L2x
+>>28	lelong	0x8fb060fe	ST STM32F407VG
+>>28	lelong	0x9517422f	Renesas RZ/A1LU (R7S7210xx)
+>>28	lelong	0x9af03e33	GigaDevice GD32VF103
+>>28	lelong	0x9fffd543	Realtek Ameba1 RTL8710A
+>>28	lelong	0xa0c97b8e	ArteryTek AT32F415
+>>28	lelong	0xada52840	Nordic NRF52840
+>>28	lelong	0xbfdd4eee	ESP32-S2
+>>28	lelong	0xc47e5767	ESP32-S3
+>>28	lelong	0xd42ba06c	ESP32-C3
+>>28	lelong	0xde1270b7	Boufallo 602
+>>28	lelong	0xe08f7564	Realtek AmebaZ2 RTL8720C
+>>28	lelong	0xe48bff56	Raspberry Pi RP2040
+>>28	lelong	0xe48bff57	Raspberry Pi MC: Absolute (unpartitioned) download
+>>28	lelong	0xe48bff58	Raspberry Pi MC: Data partition download
+>>28	lelong	0xe48bff59	Raspberry Pi RP2350, Secure Arm image
+>>28	lelong	0xe48bff5a	Raspberry Pi RP2350, RISC-V image
+>>28	lelong	0xe48bff5b	Raspberry Pi RP2350, Non-secure Arm image
+>>28	lelong	0xf71c0343	ESP32-C5
+### END UF2 FAMILIES
+
+>>28	default	x
+>>>28	lelong	x		%#08x
+>8	lelong&0x2000	0	\b, file size
+>>28	lelong	x		%#08x
+>8	lelong	&0x4000		\b, MD5 checksum present
+>8	lelong	&0x8000		\b, extension tags present
+>12	lelong	x 		\b, base address %#08x
+>24	lelong	x		\b, %u total blocks

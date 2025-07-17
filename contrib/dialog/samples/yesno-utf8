@@ -1,0 +1,14 @@
+#! /bin/sh
+# $Id: yesno-utf8,v 1.8 2020/11/26 00:05:52 tom Exp $
+
+. ./setup-vars
+
+. ./setup-utf8
+
+DIALOG_ERROR=254
+export DIALOG_ERROR
+
+$DIALOG "$@" --yesno "Are you a ＤＯＧ?" 0 0
+returncode=$?
+
+. ./report-yesno

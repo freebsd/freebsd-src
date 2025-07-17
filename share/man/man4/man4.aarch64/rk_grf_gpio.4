@@ -1,0 +1,42 @@
+.\"
+.\" Copyright (c) 2025 Stephen Hurd <shurd@freebsd.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd March 18, 2025
+.Dt RK_GRF_GPIO 4
+.Os
+.Sh NAME
+.Nm rk_grf_gpio
+.Nd RockChip GPIO_MUTE pin driver
+.Sh SYNOPSIS
+.Cd "options SOC_ROCKCHIP_rk3328"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a single-pin, output-only
+.Xr gpio 3
+unit whose single pin is named GPIO_MUTE.
+This controls the output of the GPIO_MUTE pin on the SoC.
+.Pp
+This gpio is usually used to control another device on the board,
+so is not usually available for user software.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following GRF GPIO controller:
+.Pp
+.Bl -bullet -compact
+.It
+rockchip,rk3328-grf-gpio
+.El
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+driver and manual were written by
+.An Stephen Hurd Aq Mt shurd@freebsd.org .

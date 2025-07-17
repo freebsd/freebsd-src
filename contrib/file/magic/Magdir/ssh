@@ -1,0 +1,87 @@
+# Type:	OpenSSH key files
+# From:	Nicolas Collignon <tsointsoin@gmail.com>
+# Update:	Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Secure_Shell_Protocol
+
+0	string	SSH\040PRIVATE\040KEY	OpenSSH RSA1 private key,
+>28	string	>\0			version %s
+0	string	-----BEGIN\040OPENSSH\040PRIVATE\040KEY-----	OpenSSH private key
+!:mime	application/x-pem-file
+# https://www.rfc-editor.org/rfc/rfc5958
+0	string	-----BEGIN\040PRIVATE\040KEY-----	OpenSSH private key (no password)
+#!:mime		text/plain
+!:mime		text/x-ssh-private-key
+!:ext		key
+0	string	-----BEGIN\040ENCRYPTED\040PRIVATE\040KEY-----	OpenSSH private key (with password)
+# https://download.qemu.org/qemu-9.0.0.tar.xz
+# qemu-9.0.0/roms/skiboot/libstb/crypto/mbedtls/tests/data_files/format_gen.pub
+0	string	-----BEGIN\040PUBLIC\040KEY-----		OpenSSH public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pub-ssh-dss.trid.xml
+# Note:		called "SSH-DSS Public key" by TrID
+0	string	ssh-dss\040		OpenSSH DSA public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pub-ssh-rsa.trid.xml
+# Note:		called "SSH-RSA Public key" by TrID
+0	string	ssh-rsa\040		OpenSSH RSA public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+0	string	ecdsa-sha2-nistp256	OpenSSH ECDSA public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+# https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.u2f?annotate=HEAD
+0	string	sk-ecdsa-sha2-nistp256@openssh.com	OpenSSH U2F ECDSA public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+0	string	ecdsa-sha2-nistp384	OpenSSH ECDSA public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+0	string	ecdsa-sha2-nistp521	OpenSSH ECDSA public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+0	string	ssh-ed25519		OpenSSH ED25519 public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+0	string	sk-ssh-ed25519@openssh.com	OpenSSH U2F ED25519 public key
+#!:mime		text/plain
+!:mime		text/x-ssh-public-key
+!:ext		pub
+
+
+
+0	string	SSHKRL\n\0
+>8	ubelong	1		OpenSSH key/certificate revocation list, format %u
+>>12	ubequad	x		\b, version %llx
+>>>20	beqdate	x		\b, generated %s
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/PuTTY
+# Reference:	https://the.earth.li/~sgtatham/putty/latest/putty-0.73.tar.gz
+#		/sshpubk.c
+0	string		PuTTY-User-Key-File-	PuTTY Private Key File
+#!:mime	text/plain
+# https://github.com/github/putty/blob/master/windows/installer.wxs
+!:mime	application/x-putty-private-key
+!:ext	ppk
+# version 1 or 2
+>20	string		x			\b, version %.1s
+# name of the algorithm like: ssh-dss ssh-rsa ecdsa-sha2-nistp256 ssh-ed25519
+>23	string		x			\b, algorithm %s
+# next line says "Encryption: " plus an encryption type like aes256-cbc or none
+>32	search/13	Encryption:\040		\b, Encryption
+>>&0	string		x			%s
+# next line says "Comment: " plus the comment string
+>>>&0	search/3	Comment:\040
+>>>>&0	string		x			"%s"
+

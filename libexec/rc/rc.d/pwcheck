@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: pwcheck
+# REQUIRE: mountcritremote syslogd
+# BEFORE:  DAEMON
+
+. /etc/rc.subr
+
+name="pwcheck"
+desc="Check password file correctness"
+start_cmd="pwcheck_start"
+stop_cmd=":"
+
+pwcheck_start()
+{
+	#	check the password temp/lock file
+	#
+	if [ -f /etc/ptmp ]; then
+		logger -s -p auth.err \
+		    "password file may be incorrect -- /etc/ptmp exists"
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+pwcheck_svcj="NO"
+
+run_rc_command "$1"

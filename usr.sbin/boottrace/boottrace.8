@@ -1,0 +1,85 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2022 NetApp, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 18, 2022
+.Dt BOOTTRACE 8
+.Os
+.Sh NAME
+.Nm boottrace
+.Nd trace command execution with
+.Xr boottrace 4
+.Sh SYNOPSIS
+.Nm
+.Ar utility Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+executes the specified
+.Ar utility ,
+creating two
+.Xr boottrace 4
+trace entries before and after its execution.
+.Sh ENVIRONMENT
+The
+.Ev PATH
+environment variable is used to locate the requested
+.Ar utility
+if the name contains no
+.Ql /
+characters.
+.Sh EXIT STATUS
+If
+.Ar utility
+was executed successfully, its exit status is returned.
+.Pp
+If
+.Ar utility
+was found but could not be executed, an exit status of 126 is returned.
+If
+.Ar utility
+could not be found, an exit status of 127 is returned.
+.Sh EXAMPLES
+Execute the
+.Xr dumpon 8
+utility, logging the trace entries:
+.Bd -literal -offset indent
+$ boottrace dumpon -z /dev/gpt/swap0
+.Ed
+.Pp
+This will appear in the output of the
+.Va kern.boottrace.log
+.Xr sysctl 8
+node:
+.Bd -literal
+CPU      msecs    delta process     event                PID CPUtime IBlks OBlks
+  0   63918567        0 kernel      sysinit 0x2100001      0    0.00     0     0
+[...]
+  0   64076940   120605 boottrace   dumpon start        1602    0.00     0     0
+  0   64076942        2 boottrace   dumpon done         1602    0.00     0     0
+.Ed
+.Sh SEE ALSO
+.Xr boottrace 4 ,
+.Xr rc.subr 8

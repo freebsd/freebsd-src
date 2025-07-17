@@ -1,0 +1,46 @@
+krb5_process_key
+================
+
+..
+
+.. c:function:: krb5_error_code krb5_process_key(krb5_context context, krb5_encrypt_block * eblock, const krb5_keyblock * key)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **eblock**
+
+	          **key**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_c_* API family. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

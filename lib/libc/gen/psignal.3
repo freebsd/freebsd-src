@@ -1,0 +1,178 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 10, 2025
+.Dt PSIGNAL 3
+.Os
+.Sh NAME
+.Nm psignal ,
+.Nm psiginfo ,
+.Nm strsignal ,
+.Nm sys_siglist ,
+.Nm sys_signame ,
+.Nm sig2str ,
+.Nm str2sig
+.Nd system signal messages
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft void
+.Fn psignal "int sig" "const char *s"
+.Ft void
+.Fn psiginfo "const siginfo_t *si" "const char *s"
+.Vt extern const char * const sys_siglist[] ;
+.Vt extern const char * const sys_signame[] ;
+.In string.h
+.Ft "char *"
+.Fn strsignal "int sig"
+.Ft int
+.Fn sig2str "int signum" "char *str"
+.Ft int
+.Fn str2sig "char *str" "int *pnum"
+.Sh DESCRIPTION
+The
+.Fn psignal
+and
+.Fn strsignal
+functions locate the descriptive message
+string for a signal number.
+.Pp
+The
+.Fn strsignal
+function accepts a signal number argument
+.Fa sig
+and returns a pointer to the corresponding message string.
+.Pp
+The
+.Fn psignal
+function accepts a signal number argument
+.Fa sig
+and writes it to the standard error.
+If the argument
+.Fa s
+is
+.Pf non- Dv NULL
+and does not point to the null character,
+.Fa s
+is written to the standard error file descriptor
+prior to the message string,
+immediately followed by a colon and a space.
+If the signal number is not recognized
+.Pq Xr sigaction 2 ,
+the string
+.Dq "Unknown signal"
+is produced.
+.Pp
+The
+.Fn psiginfo
+function is similar to
+.Fn psignal ,
+except that the signal number information is taken from the
+.Fa si
+argument which is a
+.Vt siginfo_t
+structure.
+.Pp
+The message strings can be accessed directly
+through the external array
+.Va sys_siglist ,
+indexed by recognized signal numbers.
+The external array
+.Va sys_signame
+is used similarly and
+contains short, upper-case abbreviations for signals
+which are useful for recognizing signal names
+in user input.
+The defined variable
+.Dv NSIG
+contains a count of the strings in
+.Va sys_siglist
+and
+.Va sys_signame .
+.Pp
+The
+.Fn sig2str
+function translates the signal number
+.Fa signum
+to the signal name, without the
+.Dq SIG
+prefix, and stores it at the location specified by
+.Fa str ,
+which should be large enough to hold the name and the terminating
+.Dv NUL
+byte.
+The symbol
+.Dv SIG2STR_MAX
+gives the maximum size in bytes required.
+.Pp
+The
+.Fn str2sig
+function translates the signal name
+.Fa str
+to a signal number and stores it in the location referenced by
+.Fa pnum .
+The name in
+.Fa str
+can be either the name of the signal, with or without the
+.Dq SIG
+prefix, or a decimal number.
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr perror 3 ,
+.Xr strerror 3
+.Sh STANDARDS
+The
+.Fn psignal
+and
+.Fn psiginfo
+functions are defined by
+.St -p1003.1-2008
+, while the
+.Fn sig2str
+and
+.Fn str2sig
+functions are defined by
+.St -p1003.1-2024 .
+.Sh HISTORY
+The
+.Fn psignal
+function appeared in
+.Bx 4.2 .
+The
+.Fn psiginfo
+function appeared in
+.Fx 14.3 ,
+.Nx 6.0 ,
+and
+.Dx 4.1 .
+The
+.Fn sig2str
+and
+.Fn str2sig
+functions appeared in
+.Fx 15.0 .

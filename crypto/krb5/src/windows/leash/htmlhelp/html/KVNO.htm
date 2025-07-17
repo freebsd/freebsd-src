@@ -1,0 +1,104 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>KVNO</Title>
+</HEAD>
+<BODY>
+<H1>KVNO Command</H1>
+
+<table>
+<tr><th id="th2"> The following information reproduces the information from UNIX man page for the KVNO command.</th>
+</tr>
+</table>
+<H2>SYNOPSIS</H2>
+<table>
+<tr>
+<th id="th2">kvno </th>
+<td>
+<span class="command">[<strong>-c</strong> <em>ccache</em>]</span>
+<span class="command">[<strong>-e</strong> <em>etype</em>]</span>
+<span class="command">[<strong>-q</strong>]</span>
+<span class="command">[<strong>-h</strong>]</span>
+<span class="command">[<strong>-P</strong>]</span>
+<span class="command">[<strong>-S</strong> <em>sname</em>]</span>
+<span class="command">[<strong>-U</strong> <em>for_user</em>]</span>
+<span class="command"><em>service1 service2</em> ..</span>
+</td>
+</tr>
+</table>
+
+<H2>DESCRIPTION</H2>
+<p>
+       <span class="command">  <em>kvno </em></span>  acquires a service ticket for the specified Kerberos principals and prints out the key version numbers of each.</p>
+
+
+<H2>OPTIONS</H2>
+
+
+<table>
+<tr>
+<th id="th2"><span class="command"><strong>-c</strong> <em>ccache</em></span></th>
+<td> Specifies the name of a credentials cache to use (if not the default).
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-e</strong> <em>etype</em></span></th>
+<td> Specifies the enctype which will be requested for the session key of all the services named on the command line. This is useful in certain backward compatibility situations.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-q</strong></span></th>
+<td> Suppress printing output when successful. If a service ticket cannot be obtained, an error message will still be printed and kvno will exit with nonzero status.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-h</strong></span></th>
+<td> Prints a usage statement and exits.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-P</strong></span></th>
+<td> Specifies that the <em>service1 service2</em> ... arguments are to be treated as services for which credentials should be acquired using constrained delegation. This option is only valid when used in conjunction with protocol transition.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-S</strong> <em>sname</em></span></th>
+<td> Specifies that the <em>service1 service2</em> ... arguments are interpreted as hostnames, and the service principals are to be constructed from those hostnames and the service name <em>sname</em>. The service hostnames will be canonicalized according to the usual rules for constructing service principals.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-U</strong> <em>for_user</em></span></th>
+<td> Specifies that protocol transition (S4U2Self) is to be used to acquire a ticket on behalf of <em>for_user.</em>  If constrained delegation is not requested, the service name must match the credentials cache client principal.
+</td>
+</tr>
+
+      </table>
+
+
+<H2>ENVIRONMENT</H2>
+<p>     <B>Kvno</B> uses the following environment variables:</p>
+<table>
+<tr>
+<th id="th2"> KRB5CCNAME</th>
+<td>      Location of the credentials (ticket) cache. </td>
+</tr>
+</table>
+
+<H2>FILES</H2>
+<table>
+<tr>
+  <th id="th2">     <span class="command">   /tmp/krb5cc_[uid] </span></th>
+<td>       default  location  of  Kerberos  5 credentials cache ([uid] is the decimal UID of the user). </td></tr>
+
+</table>
+
+<H2>SEE ALSO</H2>
+<ul id="helpul">
+<li><a href="HTML/KINIT.htm"><B>kinit</B></a> </li>
+<li><a href="HTML/KDESTROY.htm"><B>kdestroy</B></a></li>
+</ul>
+
+</BODY>
+</HTML>

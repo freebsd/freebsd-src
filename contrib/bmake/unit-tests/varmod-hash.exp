@@ -1,0 +1,15 @@
+make: Unknown modifier ":has"
+	while evaluating variable "12345" with value "12345"
+	in command "@echo ${12345:L:has}			# modifier name too short"
+	in target "step-1"
+26bb0f5f
+12345
+make: Unknown modifier ":hasX"
+	while evaluating variable "12345" with value "12345"
+	in command "@echo ${12345:L:hasX}			# misspelled"
+	in target "step-4"
+make: Unknown modifier ":hashed"
+	while evaluating variable "12345" with value "12345"
+	in command "@echo ${12345:L:hashed}			# modifier name too long"
+	in target "step-5"
+exit status 2

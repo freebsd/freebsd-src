@@ -1,0 +1,83 @@
+mydir=plugins$(S)kdb$(S)db2
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_DB_MODULE_DIR)
+
+SUBDIRS= $(SUBDIRS-@DB_VERSION@)
+SUBDIRS-sys=
+SUBDIRS-redirect=
+SUBDIRS-k5= libdb2
+
+LOCALINCLUDES = -I../../../lib/kdb -I$(srcdir)/../../../lib/kdb
+DEFINES = -DPLUGIN
+
+DB_VERSION	= @DB_VERSION@
+DB_DEPS		= $(DB_DEPS-@DB_HEADER_VERSION@)
+DB_DEPS-sys	=
+DB_DEPS-k5	= $(BUILDTOP)/include/db.h $(BUILDTOP)/include/db-config.h
+DB_DEPS-redirect = $(BUILDTOP)/include/db.h
+DB_LIB		= @DB_LIB@
+KDB5_DB_LIB	= @KDB5_DB_LIB@
+DB_DEPLIB	= $(DB_DEPLIB-@DB_VERSION@)
+DB_DEPLIB-k5	= $(TOPLIBD)/libdb$(DEPLIBEXT) $(KADMSRV_DEPLIBS)
+DB_DEPLIB-sys	=
+
+LIBBASE=db2
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/kdb/db2
+# Depends on libk5crypto and libkrb5
+# Also on gssrpc, for xdr stuff.
+SHLIB_EXPDEPS = \
+	$(GSSRPC_DEPLIBS) \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT)
+SHLIB_EXPLIBS= $(GSSRPC_LIBS) -lkrb5 $(COM_ERR_LIB) -lk5crypto $(KDB5_DB_LIB) $(KADMSRV_LIBS) $(SUPPORT_LIB) $(LIBS) @DB_EXTRA_LIBS@
+
+DBDIR = libdb2
+DBOBJLISTS = $(DBOBJLISTS-@DB_VERSION@)
+DBOBJLISTS-sys =
+DBOBJLISTS-k5 = $(DBDIR)/hash/OBJS.ST $(DBDIR)/btree/OBJS.ST \
+	$(DBDIR)/db/OBJS.ST $(DBDIR)/mpool/OBJS.ST $(DBDIR)/recno/OBJS.ST
+DBSHOBJLISTS = $(DBOBJLISTS:.ST=.SH)
+
+SRCS= \
+	$(srcdir)/kdb_xdr.c \
+	$(srcdir)/adb_openclose.c \
+	$(srcdir)/adb_policy.c \
+	$(srcdir)/kdb_db2.c \
+	$(srcdir)/pol_xdr.c \
+	$(srcdir)/db2_exp.c \
+	$(srcdir)/lockout.c
+
+STOBJLISTS=OBJS.ST $(DBOBJLISTS)
+STLIBOBJS= \
+	kdb_xdr.o \
+	adb_openclose.o \
+	adb_policy.o \
+	kdb_db2.o \
+	pol_xdr.o \
+	db2_exp.o \
+	lockout.o
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+$(DB_DEPS) $(DBOBJLISTS-k5) $(DBSHOBJLISTS): all-recurse
+
+clean:
+	$(RM) .depend-verify-db
+
+@libnover_frag@
+@libobj_frag@
+
+.depend-verify-db: depend-verify-db-$(DB_VERSION)
+depend-verify-db-k5:
+	@if test -r .depend-verify-db; then :; \
+		else (set -x; touch .depend-verify-db); fi
+depend-verify-db-sys:
+	@echo 1>&2 error: cannot build dependencies using system db package
+	@exit 1
+
+.d: .depend-verify-db
+

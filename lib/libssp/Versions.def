@@ -1,0 +1,8 @@
+
+# This version was first added to 13.0-current.
+LIBSSP_1.0 {
+};
+
+# This version was first added to 15.0-current.
+LIBSSP_1.1 {
+} LIBSSP_1.0;

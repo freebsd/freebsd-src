@@ -1,0 +1,308 @@
+Spleen 2.1.0 (2024-03-22)
+
+- Document how wsfont header files (for OpenBSD and NetBSD) are generated
+- Add base cyrillic (basic alphabet + most used extended) characters (Thanks
+  Slava Voronzoff!)
+- Fix latin small letter 'u' smoothing in the 32x64 version
+- Fix smoothing on more variants of 'u' in the 32x64 version
+
+
+
+Spleen 2.0.2 (2023-12-25)
+
+- Fix MALE and FEMALE character ordering in the 16x32 and 32x64
+  versions (Thanks Mike Cui)
+- Update README to add a link to the Alpine Linux package
+
+
+
+Spleen 2.0.1 (2023-11-17)
+
+- Add a 'com' target to generate SPLEEN.COM, the DOS version of Spleen
+- Also add 'com' in the 'all' target
+- Update README to add a link to the Guix package
+- In the Spleen loader for DOS, put 4C00h in ax and not 4Ch
+- README.md: add Gentoo package link
+- Switch to using Oxipng as it compresses even more than OptiPNG
+- Add a new FAQ file answering frequently asked questions about Spleen
+- Remove C0 control characters range in the 8x16, 16x32, and 32x64 versions
+
+
+
+Spleen 2.0.0 (2023-05-28)
+
+- Add full support for CP437 (IBM PC) in the 8x16, 16x32, and 32x64 versions
+- Add a cp437 directory with BDF files using the IBM Code page 437 encoding
+- Add a DOS version, as a COM file (SPLEEN.COM) setting the font to Spleen
+- Add various arrows and triangle-headed arrows in the 8x16, 16x32, and
+  32x64 versions
+- Shift bullet character at correct position (U+2022) in the 32x64 version
+- Add union symbol in the 8x16, 16x32, and 32x64 versions
+- Do not remove specimen.png in the clean target
+
+
+
+Spleen 1.9.3 (2023-04-07)
+
+- Add a 'fon' target to generate FON files for all sizes using FontForge
+- Mention the FON version in the README, in notes for Windows users
+
+
+
+Spleen 1.9.2 (2023-02-15)
+
+- Add Spleen ASCii logo header (Thanks H7!)
+- Add SPDX short license identifier in sources and fonts
+- Fix link to the Spleen package in AUR
+- Use printf instead of echo for *BSD and Linux cross-compatibility
+- Generate a specimen file for Spleen and include it in the repository
+- Adjust trivias: the Haiku kernel debugger doesn't use Spleen anymore
+- Update README to add a link to the MacPorts package
+- Point the OpenBSD package link to openports.pl
+
+
+
+Spleen 1.9.1 (2021-06-13)
+
+- Tweak wsfont export program to account for the new block in the 6x12 version
+- Mention that Haiku now uses Spleen 12x24 in the trivia section
+- Fix paths to wsfont generators
+- Add an 'otb' target to generate OTB files for all sizes using fonttosfnt
+- Also remove generated .otb files in the 'clean' target
+- Generate .dfont files again in release tarballs
+- Generate OTB versions in release tarballs
+- Also remove generated .dfont files in the 'clean' target
+
+
+
+Spleen 1.9.0 (2021-03-12)
+
+- Set WEIGHT_NAME property to "Medium" for all sizes
+- Increment STARTPROPERTIES to account for WEIGHT_NAME addition
+- Enlarge vertical line for consistency with other small sizes (5x8 version)
+- Add full support for the Latin-1 Supplement Unicode block (6x12 version)
+
+
+
+Spleen 1.8.2 (2020-07-31)
+
+- Fix size of the lower case 'ae' character in the 16x32 and 32x64 versions
+- Fix size of the lower case 'oe' character in the 16x32 and 32x64 versions
+- Add 'AE' and 'ae' characters with acute accent
+- Add 'AE' and 'ae' characters with macron
+- Add 'A', 'a', 'E', 'e', 'I', 'i', 'O', 'o', 'R', 'r', 'U', 'u' with
+  inverted breve
+- Add 'A', 'a', 'O', 'o' characters with dot above
+- Add 'O' and 'o' characters with ogonek
+- Add 'O' and 'o' characters with ogonek and macron
+- Shorten parentheses, square brackets, braces, slash, backslash in the
+  8x16 version, fixing alignment issues
+- Shift vertical line and double vertical line characters one pixel
+  up (8x16 version)
+
+
+
+Spleen 1.8.1 (2020-07-16)
+
+- Center tilde vertically for all sizes, as modern fonts do
+- Add black triangles in the 25E2-25E5 range
+- Add single angle quotation mark characters
+- Add white and black circle characters
+- Add inverse bullet and inverse white circle characters
+- Add 'A', 'a', 'O', 'o', 'U', 'u' characters with caron
+- Add 'I', 'i', 'G', 'g', 'j' characters with caron
+- Add 'H', 'h', 'K', 'k', characters with caron
+- Add 'E' and 'e' characters with cedilla
+- Add 'A', 'a', 'E', 'e', 'I', 'i', 'O', 'o', 'R', 'r', 'U', 'u' with
+  double grave
+- Add "almost equal to" character
+- Add 'G' and 'g' characters with acute accent
+- Add 'O' and 'o' characters with stroke and acute
+- Add double vertical bar and double exclamation mark characters
+- Add stand alone breve, dot above, ogonek, small tilde, and double
+  acute accent
+
+
+
+Spleen 1.8.0 (2020-06-29)
+
+- Add Initial 6x12 version, containing printable ASCII characters, the
+  Braille Patterns Unicode block, and light Box Drawing characters
+- Improve ampersand character, making it more consistent with other
+  sizes (5x8 version)
+- Add instructions on how to use Spleen in the NetBSD console
+
+
+
+Spleen 1.7.1 (2020-06-21)
+
+- Add some Powerline characters (arrows symbols and padlock) (5x8 version)
+- Fix duplicate character names for Powerline symbols
+- Uppercase ISO in the FONT property so fonts can be processed through
+  ucs2any(1)
+- Add "Black Diamond" and "Lozenge" characters for all sizes
+- Add "Black Heart Suit" and "Black Diamond Suit" characters for all sizes
+- Remove strain pixel on the '5' digit (5x8 version)
+- Improve the Esszet character (8x16, 12x24, 16x32, and 32x64 versions)
+
+
+
+Spleen 1.7.0 (2020-02-13)
+
+- Improve generated PSF files so that box-drawing characters are correctly
+  displayed
+- Add the FONT_VERSION XFLD property for all BDF sizes
+- Generate OpenType (OTF) versions for the 8x16, 12x24, 16x32 and 32x64 sizes
+- Stop generating .dfont files, OTF versions should be used instead
+- Add links to Debian and Ubuntu packages.
+
+
+
+Spleen 1.6.0 (2019-12-02)
+
+- Make it clear that .dfont files are provided in release tarballs
+- Initial SFD version converted from the 8x16 BDF file
+- Add a 'otf' target in the Makefile to generate an OTF version
+- Mention the OTF version in the README, in notes for Windows users
+
+
+
+Spleen 1.5.0 (2019-10-01)
+
+- Shift the middle bar of the digit '3' one pixel up, for better
+  alignment (12x24 version)
+- Tweak the digit '7' for consistency with other sizes (5x8 version)
+- Make the 'Z', 'z' and derived characters more balanced, as is the
+  case with other sizes  (12x24 version)
+- Tweak the digit '2' for consistency with other sizes (12x24 version)
+- Make the slash inside the digit '0' one pixel thiner (32x64 version)
+- Add light box drawings characters in the 5x8 version
+- Add full support for the Braille Patterns Unicode block in the 5x8 version
+- Add branch, LN, and padlock icons for Powerline users
+- Also provide a fonts.alias file, along with fonts.alias-spleen
+
+
+
+Spleen 1.4.0 (2019-09-24)
+
+- Add left and right single quotation mark characters, both identical to
+  an apostrophe
+- Add left and right double quotation mark characters, both identical to
+  ASCII quotation mark
+- Add bullet and horizontal ellipsis characters
+- Add the eight trigrams
+- Add full support for the Block Elements Unicode block
+
+
+
+Spleen 1.3.0 (2019-09-12)
+
+- Add full support for the Box Drawing Unicode block
+- Add arrows symbols for Powerline users
+
+
+
+Spleen 1.2.0 (2019-09-06)
+
+- Add link to instructions on how to enable bitmap fonts support on Ubuntu
+- Add a Makefile target to generate a specimen file
+- Add full support for the Braille Patterns Unicode block
+- Add light box drawings characters for the 16x32 and 32x64 versions
+
+
+
+Spleen 1.1.0 (2019-08-29)
+
+- Added instructions on how to use Spleen in the FreeBSD console
+- Optimize generated screenshots with OptiPNG
+- Remove the dfont target in Makefile, generated files do not work on
+  modern macOS versions
+- Add full support for the Latin Extended-A Unicode block
+- Add euro symbol
+- Character at position CB is 'E' with diaeresis, not with tilde (12x24 version)
+- Character at position D6 is 'O' with diaeresis, not with tilde (12x24 version)
+- Character at position DC is 'U' with diaeresis, not with tilde (12x24 version)
+- Fix tilde alignment in the 'o' with tilde character (32x64 version)
+- Fix middle bar thickness in the upper case 'eth' character (12x24 version)
+- Fix ring alignment for the 'A' and 'a' characters (16x32 and 32x64 versions)
+- Remove strain pixel on the '3' and 'k' characters (32x64 version)
+- Remove fillers for characters other than ISO 8859-1 ones (5x8 version)
+
+
+
+Spleen 1.0.5 (2019-06-01)
+
+- Initial support for the Latin Extended-A Unicode block, all sizes but
+  5x8 now have all Polish characters available
+- Shift the middle bar of the upper case 'G' one pixel down (12x24 version)
+- Shift lower case 'k' character right, for better alignment (12x24, 16x32,
+  and 32x64 versions)
+- Make upper case 'X' thicker (16x32 and 32x64 versions)
+- Make upper case 'V' thicker (32x64 version)
+- Make lower case 'g' character smoother (16x32 and 32x64 versions)
+- Add some artefacts on each side of the lower case 'i'
+- Also add artefacts on each side of accented lower case 'i' characters
+
+
+
+Spleen 1.0.4 (2019-02-07)
+
+- Remove quotation marks around XLFD font names
+- Remove strain pixels on the inner upper part of parentheses (16x32 version)
+- Harmonize the 'v' and 'V' characters across all sizes
+- Remove artefacts from the 'c' in the copyright sign (8x16, 12x24, 16x32, and
+  32x64 versions)
+- Make the upper left corner of the 'R' sharp in the registered sign (16x32,
+  and 32x64 versions)
+- Add initial Makefile, allowing to easily generate formats other than BDF
+- Remove all .dfont files from the repository, formats other than BDF are now
+  only distributed in release tarballs
+- Provide generated fonts in PCF, PSF, and .dfont formats
+
+
+
+Spleen 1.0.3 (2018-12-01)
+
+- Remove extra pixel from the '@' character (12x24 version)
+- Harmonize '@' character spacing with other sizes (16x32 and 32x64 versions)
+- Revert change to the upper case 'K' character (5x8 version)
+
+
+
+Spleen 1.0.2 (2018-11-26)
+
+- Tweak 'f' and 't' characters to make them more consistent (8x16 version)
+- Make the upper case 'K' middle bar shorter, helps differentiating it from
+  upper case 'H' (5x8, 12x24, 16x32)
+- Fix alignment of parentheses with square brackets and braces (32x64 version)
+- Fix SIZE, MIN_SPACE, and SWIDTH properties for all fonts
+- Make the at sign higher (8x16, 12x24, 16x32, and 32x64 versions)
+- Harmonize angle quotes (8x16, 12x24, 16x32, and 32x64 versions)
+- Flip lower case 'n' with tilde horizontally, to match the normal 'n'
+  character (8x16, 12x24, 16x32, and 32x64 versions)
+- Remove artefacts from 'C', 'c' and 'F' characters for all fonts
+- Remove artefact from the upper case 'G' character (8x16, 12x24, 16x32,
+  and 32x64 versions)
+- Remove artefacts from 'C' and 'c' derived characters (8x16, 12x24,
+  16x32, and 32x64 versions)
+- Set DEFAULT_CHAR to 32, as we don't have a 0 char
+
+
+
+Spleen 1.0.1 (2018-09-28)
+
+- Documentation updates: add XLFD font names and operating system packages
+  section
+- Improve ampersand character, make superscript digits thicker, shift
+  percent sign, asterisk, plus, minus, and equal signs one pixel up, for
+  alignment (8x16 version)
+- Shift asterisk character up by one pixel, to align it with minus and plus
+  signs (12x24 version)
+- Improve percent sign alignment and make it more consistent with other
+  sizes (16x32 and 32x64 versions)
+
+
+
+Spleen 1.0.0 (2018-09-18)
+
+- Initial release

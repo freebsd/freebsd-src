@@ -1,0 +1,5 @@
+3.0:	Lua scripts API stability
+2.1:	SMBIOS 3 support
+2.0:	Secure boot support
+1.1:	Keep in sync with i386 version.
+0.1:	Initial i386 version. Derived from ia64.

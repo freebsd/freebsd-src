@@ -1,0 +1,369 @@
+#!/bin/sh
+#
+# usage: configs vmname test_config (or '' for default)
+#
+# Sets the following variables:
+# CONFIGFLAGS           options to ./configure
+# SSHD_CONFOPTS         sshd_config options
+# TEST_TARGET           make target used when testing.  defaults to "tests".
+# LTESTS
+
+config=$1
+if [ "$config" = "" ]; then
+	config="default"
+fi
+
+unset CC CFLAGS CPPFLAGS LDFLAGS LTESTS SUDO
+
+TEST_TARGET="tests compat-tests"
+LTESTS=""
+SKIP_LTESTS=""
+SUDO=sudo	# run with sudo by default
+TEST_SSH_UNSAFE_PERMISSIONS=1
+# Stop on first test failure to minimize logs
+TEST_SSH_FAIL_FATAL=yes
+
+CONFIGFLAGS=""
+LIBCRYPTOFLAGS=""
+
+case "$config" in
+    default|sol64)
+	;;
+    c89)
+	# If we don't have LLONG_MAX, configure will figure out that it can
+	# get it by setting -std=gnu99, at which point we won't be testing
+	# C89 any more.  To avoid this, feed it in via CFLAGS.
+	llong_max=`gcc -E -dM - </dev/null | \
+	    awk '$2=="__LONG_LONG_MAX__"{print $3}'`
+	CPPFLAGS="-DLLONG_MAX=${llong_max}"
+
+	CC="gcc"
+	CFLAGS="-Wall -std=c89 -pedantic -Werror=vla"
+	CONFIGFLAGS="--without-zlib"
+	LIBCRYPTOFLAGS="--without-openssl"
+	TEST_TARGET=t-exec
+	;;
+    cygwin-release)
+	# See https://cygwin.com/git/?p=git/cygwin-packages/openssh.git;a=blob;f=openssh.cygport;hb=HEAD
+	CONFIGFLAGS="--with-xauth=/usr/bin/xauth --with-security-key-builtin"
+	CONFIGFLAGS="$CONFIGFLAGS --with-kerberos5=/usr --with-libedit --disable-strip"
+	;;
+   clang-12-Werror)
+	CC="clang-12"
+	# clang's implicit-fallthrough requires that the code be annotated with
+	# __attribute__((fallthrough)) and does not understand /* FALLTHROUGH */
+	CFLAGS="-Wall -Wextra -O2 -Wno-error=implicit-fallthrough -Wno-error=unused-parameter"
+	CONFIGFLAGS="--with-pam --with-Werror"
+	;;
+    *-sanitize-*)
+	case "$config" in
+	gcc-*)
+		CC=gcc
+		;;
+	clang-*)
+		# Find the newest available version of clang
+		for i in `seq 10 99`; do
+		    clang="`which clang-$i 2>/dev/null`"
+		    [ -x "$clang" ] && CC="$clang"
+		done
+		;;
+	esac
+	# Put Sanitizer logs in regress dir.
+	SANLOGS=`pwd`/regress
+	# - We replace chroot with chdir so that the sanitizer in the preauth
+	#   privsep process can read /proc.
+	# - clang does not recognizes explicit_bzero so we use bzero
+	#   (see https://github.com/google/sanitizers/issues/1507
+	# - openssl and zlib trip ASAN.
+	# - sp_pwdp returned by getspnam trips ASAN, hence disabling shadow.
+	case "$config" in
+	*-sanitize-address)
+	    CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
+	    LDFLAGS="-fsanitize=address"
+	    CPPFLAGS='-Dchroot=chdir -Dexplicit_bzero=bzero -D_FORTIFY_SOURCE=0 -DASAN_OPTIONS=\"detect_leaks=0:log_path='$SANLOGS'/asan.log\"'
+	    CONFIGFLAGS=""
+	    TEST_TARGET="t-exec"
+	    ;;
+	clang-sanitize-memory)
+	    CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
+	    LDFLAGS="-fsanitize=memory"
+	    CPPFLAGS='-Dchroot=chdir -Dexplicit_bzero=bzero -DMSAN_OPTIONS=\"log_path='$SANLOGS'/msan.log\"'
+	    CONFIGFLAGS="--without-zlib --without-shadow"
+	    LIBCRYPTOFLAGS="--without-openssl"
+	    TEST_TARGET="t-exec"
+	    ;;
+	*-sanitize-undefined)
+	    CFLAGS="-fsanitize=undefined"
+	    LDFLAGS="-fsanitize=undefined"
+	    ;;
+	*)
+	     echo unknown sanitize option;
+	     exit 1;;
+	esac
+	features="--disable-security-key --disable-pkcs11"
+	hardening="--without-sandbox --without-hardening --without-stackprotect"
+	privsep="--with-privsep-user=root"
+	CONFIGFLAGS="$CONFIGFLAGS $features $hardening $privsep"
+	# Because we hobble chroot we can't test it.
+	SKIP_LTESTS=sftp-chroot
+	;;
+    gcc-11-Werror)
+	CC="gcc-11"
+	# -Wnoformat-truncation in gcc 7.3.1 20180130 fails on fmt_scaled
+	# -Wunused-result ignores (void) so is not useful.  See
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+	CFLAGS="-O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter -Wno-unused-result"
+	CONFIGFLAGS="--with-pam --with-Werror"
+	;;
+    gcc-12-Werror)
+	CC="gcc-12"
+	# -Wnoformat-truncation in gcc 7.3.1 20180130 fails on fmt_scaled
+	# -Wunused-result ignores (void) so is not useful.  See
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+	CFLAGS="-O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter -Wno-unused-result"
+	CONFIGFLAGS="--with-pam --with-Werror"
+	;;
+    clang*|gcc*)
+	CC="$config"
+	;;
+    kitchensink)
+	CONFIGFLAGS="--with-kerberos5 --with-libedit --with-pam"
+	CONFIGFLAGS="${CONFIGFLAGS} --with-security-key-builtin --with-selinux"
+	CFLAGS="-DSK_DEBUG -DSANDBOX_SECCOMP_FILTER_DEBUG"
+	;;
+    hardenedmalloc)
+	CONFIGFLAGS="--with-ldflags=-lhardened_malloc"
+	;;
+    tcmalloc)
+	CONFIGFLAGS="--with-ldflags=-ltcmalloc"
+	;;
+    krb5|heimdal)
+	CONFIGFLAGS="--with-kerberos5"
+	;;
+    libedit)
+	CONFIGFLAGS="--with-libedit"
+	;;
+    musl)
+	CC="musl-gcc"
+	CONFIGFLAGS="--without-zlib"
+	LIBCRYPTOFLAGS="--without-openssl"
+	TEST_TARGET="t-exec"
+	;;
+    pam-krb5)
+	CONFIGFLAGS="--with-pam --with-kerberos5"
+	SSHD_CONFOPTS="UsePam yes"
+	;;
+    *pam)
+	CONFIGFLAGS="--with-pam"
+	SSHD_CONFOPTS="UsePam yes"
+	;;
+    boringssl)
+	CONFIGFLAGS="--disable-pkcs11"
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/boringssl --with-rpath=-Wl,-rpath,"
+	;;
+    libressl-*)
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl --with-rpath=-Wl,-rpath,"
+	;;
+    putty-*)
+	CONFIGFLAGS="--with-plink=/usr/local/bin/plink --with-puttygen=/usr/local/bin/puttygen"
+	# We don't need to rerun the regular tests, just the interop ones.
+	TEST_TARGET=interop-tests
+	;;
+    openssl-*)
+	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/openssl --with-rpath=-Wl,-rpath,"
+	# OpenSSL 1.1.1 specifically has a bug in its RNG that breaks reexec
+	# fallback.  See https://bugzilla.mindrot.org/show_bug.cgi?id=3483
+	if [ "$config" = "openssl-1.1.1" ]; then
+		SKIP_LTESTS="reexec"
+	fi
+	;;
+    selinux)
+	CONFIGFLAGS="--with-selinux"
+	;;
+    sk)
+	CONFIGFLAGS="--with-security-key-builtin"
+        ;;
+    without-openssl)
+	LIBCRYPTOFLAGS="--without-openssl"
+	TEST_TARGET=t-exec
+	;;
+    valgrind-[1-4]|valgrind-unit)
+	# rlimit sandbox and FORTIFY_SOURCE confuse Valgrind.
+	CONFIGFLAGS="--without-sandbox --without-hardening"
+	CONFIGFLAGS="$CONFIGFLAGS --with-cppflags=-D_FORTIFY_SOURCE=0"
+	TEST_TARGET="t-exec USE_VALGRIND=1"
+	TEST_SSH_ELAPSED_TIMES=1
+	export TEST_SSH_ELAPSED_TIMES
+	# Valgrind slows things down enough that the agent timeout test
+	# won't reliably pass, and the unit tests run longer than allowed
+	# by github so split into separate tests.
+	tests2="integrity try-ciphers rekey"
+	tests3="krl forward-control sshsig agent-restrict kextype sftp"
+	tests4="cert-userkey cert-hostkey kextype sftp-perm keygen-comment percent"
+	case "$config" in
+	    valgrind-1)
+		# All tests except agent-timeout (which is flaky under valgrind),
+		# connection-timeout (which doesn't work since it's so slow)
+		# and hostbased (since valgrind won't let ssh exec keysign).
+		# Slow ones are run separately to increase parallelism.
+		SKIP_LTESTS="agent-timeout connection-timeout hostbased"
+		SKIP_LTESTS="$SKIP_LTESTS penalty-expire"
+		SKIP_LTESTS="$SKIP_LTESTS ${tests2} ${tests3} ${tests4} ${tests5}"
+		;;
+	    valgrind-2)
+		LTESTS="${tests2}"
+		;;
+	    valgrind-3)
+		LTESTS="${tests3}"
+		;;
+	    valgrind-4)
+		LTESTS="${tests4}"
+		;;
+	    valgrind-unit)
+		TEST_TARGET="unit USE_VALGRIND=1"
+		;;
+	esac
+	;;
+    zlib-develop)
+	INSTALL_ZLIB=develop
+	CONFIGFLAGS="--with-zlib=/opt/zlib --with-rpath=-Wl,-rpath,"
+	;;
+    *)
+	echo "Unknown configuration $config"
+	exit 1
+	;;
+esac
+
+# The Solaris 64bit targets are special since they need a non-flag arg.
+case "$config" in
+    sol64*)
+	CONFIGFLAGS="--target=x86_64 --with-cflags=-m64 --with-ldflags=-m64 ${CONFIGFLAGS}"
+	LIBCRYPTOFLAGS="--with-ssl-dir=/usr/local/ssl64 --with-rpath=-Wl,-rpath,"
+	;;
+esac
+
+case "${TARGET_HOST}" in
+    aix*)
+	CONFIGFLAGS="--disable-security-key"
+	LIBCRYPTOFLAGS="--without-openssl"
+	# These are slow real or virtual machines so skip the slowest tests
+	# (which tend to be thw ones that transfer lots of data) so that the
+	# test run does not time out.
+	# The agent-restrict test fails due to some quoting issue when run
+	# with sh or ksh so specify bash for now.
+	TEST_TARGET="t-exec unit TEST_SHELL=bash"
+	SKIP_LTESTS="rekey sftp"
+	;;
+    debian-riscv64)
+	# This machine is fairly slow, so skip the unit tests.
+	TEST_TARGET="t-exec"
+	;;
+    dfly58*|dfly60*)
+	# scp 3-way connection hangs on these so skip until sorted.
+	SKIP_LTESTS=scp3
+	;;
+    fbsd6)
+	# Native linker is not great with PIC so OpenSSL is built w/out.
+	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
+	;;
+    hurd)
+	SKIP_LTESTS="forwarding multiplex proxy-connect hostkey-agent agent-ptrace"
+	;;
+    minix3)
+	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
+	# Unix domain sockets don't work quite like we expect, so also
+	# disable FD passing (and thus multiplexing).
+	CONFIGFLAGS="${CONFIGFLAGS} --disable-fd-passing"
+	LIBCRYPTOFLAGS="--without-openssl"
+
+	# Minix does not have a loopback interface so we have to skip any
+	# test that relies on one.
+	# Also, Minix seems to be very limited in the number of select()
+	# calls that can be operating concurrently, so prune additional tests for that.
+	T="addrmatch agent-restrict brokenkeys cfgmatch cfgmatchlisten cfgparse
+	    connect connect-uri dynamic-forward exit-status forwarding
+	    forward-control
+	    hostkey-agent key-options keyscan knownhosts-command login-timeout
+	    reconfigure reexec rekey scp scp-uri scp3 sftp sftp-badcmds
+	    sftp-batch sftp-cmds sftp-glob sftp-perm sftp-uri stderr-data
+	    transfer penalty penalty-expire"
+	SKIP_LTESTS="$(echo $T)"
+	TEST_TARGET=t-exec
+	SUDO=""
+	;;
+    nbsd4)
+	# System compiler will ICE on some files with fstack-protector
+	# SHA256 functions in sha2.h conflict with OpenSSL's breaking sk-dummy
+	CONFIGFLAGS="${CONFIGFLAGS} --without-hardening --disable-security-key"
+	;;
+    openwrt-*)
+	CONFIGFLAGS="${CONFIGFLAGS} --without-zlib"
+	LIBCRYPTOFLAGS="--without-openssl"
+	TEST_TARGET="t-exec"
+	;;
+    sol10|sol11)
+	# sol10 VM is 32bit and the unit tests are slow.
+	# sol11 has 4 test configs so skip unit tests to speed up.
+	TEST_TARGET="tests SKIP_UNIT=1"
+	;;
+    win10)
+	# No sudo on Windows.
+	SUDO=""
+	;;
+esac
+
+host=`./config.guess`
+case "$host" in
+*cygwin)
+	SUDO=""
+	# Don't run compat tests on cygwin as they don't currently compile.
+	TEST_TARGET="tests"
+	;;
+*-darwin*)
+	# Unless specified otherwise, build without OpenSSL on Mac OS since
+	# modern versions don't ship with libcrypto.
+	LIBCRYPTOFLAGS="--without-openssl"
+	TEST_TARGET=t-exec
+
+	# On some OS X runners we can't write to /var/empty.
+	CONFIGFLAGS="${CONFIGFLAGS} --with-privsep-path=/usr/local/empty"
+
+	case "$host" in
+	*-darwin22.*)
+		# sudo -S nobody doesn't work on macos 13 for some reason.
+		SKIP_LTESTS="agent-getpeereid" ;;
+	esac
+	;;
+esac
+
+# Unless specifically configured, search for a suitable version of OpenSSL,
+# otherwise build without it.
+if [ -z "${LIBCRYPTOFLAGS}" ]; then
+	LIBCRYPTOFLAGS="--without-openssl"
+	# last-match
+	for i in /usr /usr/local /usr/local/ssl /usr/local/opt/openssl; do
+		ver="none"
+		if [ -x ${i}/bin/openssl ]; then
+			ver="$(${i}/bin/openssl version)"
+		fi
+		case "$ver" in
+			none) ;;
+			"OpenSSL 0."*|"OpenSSL 1.0."*|"OpenSSL 1.1.0"*) ;;
+			"LibreSSL 2."*|"LibreSSL 3.0."*) ;;
+			*) LIBCRYPTOFLAGS="--with-ssl-dir=${i}" ;;
+		esac
+	done
+	if [ "${LIBCRYPTOFLAGS}" = "--without-openssl" ]; then
+		TEST_TARGET="t-exec"
+	fi
+fi
+
+CONFIGFLAGS="${CONFIGFLAGS} ${LIBCRYPTOFLAGS}"
+
+if [ -x "$(which plink 2>/dev/null)" ]; then
+	REGRESS_INTEROP_PUTTY=yes
+	export REGRESS_INTEROP_PUTTY
+fi
+
+export CC CFLAGS CPPFLAGS LDFLAGS LTESTS SUDO
+export TEST_TARGET TEST_SSH_UNSAFE_PERMISSIONS TEST_SSH_FAIL_FATAL

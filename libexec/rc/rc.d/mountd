@@ -1,0 +1,77 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: mountd
+# REQUIRE: NETWORKING rpcbind quota mountlate
+# KEYWORD: nojailvnet shutdown
+
+. /etc/rc.subr
+
+name="mountd"
+desc="Service remote NFS mount requests"
+rcvar="mountd_enable"
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/exports"
+start_precmd="mountd_precmd"
+extra_commands="reload"
+
+: ${mountd_svcj_options:="net_basic nfsd"}
+
+mountd_precmd()
+{
+
+	# Load the modules now, so that the vfs.nfsd sysctl
+	# oids are available.
+	load_kld nfsd || return 1
+
+	# Do not force rpcbind to be running for an NFSv4 only server.
+	#
+	if checkyesno nfsv4_server_only; then
+		echo 'NFSv4 only server'
+		sysctl vfs.nfsd.server_min_nfsvers=4 > /dev/null
+		sysctl vfs.nfsd.server_max_nfsvers=4 > /dev/null
+		rc_flags="${rc_flags} -R"
+	else
+		force_depend rpcbind || return 1
+		if checkyesno nfsv4_server_enable; then
+			sysctl vfs.nfsd.server_max_nfsvers=4 > /dev/null
+		else
+			sysctl vfs.nfsd.server_max_nfsvers=3 > /dev/null
+		fi
+	fi
+
+	# mountd flags will differ depending on rc.conf settings
+	#
+	if checkyesno nfs_server_enable || checkyesno nfsv4_server_only; then
+		if checkyesno weak_mountd_authentication; then
+			if checkyesno nfsv4_server_only; then
+				echo -n 'weak_mountd_authentication '
+				echo -n 'incompatible with nfsv4_server_only, '
+				echo 'ignored'
+			else
+				rc_flags="${rc_flags} -n"
+			fi
+		fi
+	else
+		if checkyesno mountd_enable; then
+			checkyesno weak_mountd_authentication && rc_flags="-n"
+		fi
+	fi
+
+	if checkyesno zfs_enable; then
+		rc_flags="${rc_flags} /etc/exports /etc/zfs/exports"
+	fi
+
+	rm -f /var/db/mountdtab
+	( umask 022 ; > /var/db/mountdtab ) ||
+	    err 1 'Cannot create /var/db/mountdtab'
+}
+
+load_rc_config $name
+
+# precmd is not compatible with svcj
+mountd_svcj="NO"
+
+run_rc_command "$1"

@@ -1,0 +1,266 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021 Daniel Ebdrup Jensen
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd Janurary 15, 2025
+.Dt GIT-ARC 1
+.Os
+.Sh NAME
+.Nm "git arc"
+.Nd a wrapper to improve integration between git and arcanist
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl l
+.Op Fl r Ar reviewer1 Ns Op Cm \&, Ns Ar reviewer2 ...
+.Op Fl s Ar subscriber1 Ns Op Cm \&, Ns Ar subscriber2 ...
+.Op Fl p Ar parent
+.Op Ar commit ... Ns | Ns Ar commit-range
+.Nm
+.Cm list Ar commit ... Ns | Ns Ar commit-range
+.Nm
+.Cm patch
+.Op Fl c
+.Ar diff1 Ns Op Cm \&, Ns Ar diff2
+.Nm
+.Cm stage
+.Op Fl b Ar branch
+.Op Ar commit ... Ns | Ns Ar commit-range
+.Nm
+.Cm update
+.Op Fl l
+.Op Fl m Ar message
+.Op Ar commit ... Ns | Ns Ar commit-range
+.Sh DESCRIPTION
+The
+.Nm
+utility creates and manages
+.Fx
+Phabricator reviews based on git commits.
+It requires the
+.Pa devel/arcanist
+port or package.
+.Pp
+.Nm
+assumes a one-to-one relationship between git commits and
+Differential Revisions, and the Differential Revision title must match
+the summary line of the corresponding commit.
+In particular, the commit summaries must be unique across all open
+Differential Revisions authored by the submitter.
+.Pp
+The first parameter must be a verb.
+The available verbs are:
+.Bl -tag -width "create"
+.It Cm create
+Create new Differential Revisions from the specified commits.
+Accepts options:
+.Bl -tag -width "-s subscriber"
+.It Fl l
+Before processing commit(s) display list of commits to be processed
+and wait for confirmation.
+.It Fl r Ar reviewer
+Add one or more reviewers, separated by commas, to revision(s) being created.
+Each argument must be an existing Phabricator user or group.
+Note that group reviewers must be specified using their
+hashtag (e.g. #jails for the "Jails" group).
+.It Fl s Ar subscriber
+Add one or more subscribers, separated by commas, to revision(s) being created.
+Each argument must be an existing Phabricator user or group.
+.It Fl p Ar parent
+Specify the parent of the first commit in the list.
+This is useful when adding more commits on top of an already existing
+stack in Phabricator.
+.El
+.It Cm list
+Print the associated Differential Revisions for the specified commits.
+.It Cm patch
+Try to apply a patch from a Differential Revision to the currently
+checked out tree.
+.It Cm stage
+Prepare a series of commits to be pushed to the upstream
+.Fx
+repository.
+The commits are cherry-picked to a branch (by default the
+.Dq main
+branch), review tags are added to the commit log message, and
+the log message is opened in an editor for any last-minute
+updates.
+The commits need not have associated Differential
+Revisions.
+.It Cm update
+Synchronize the Differential Revisions associated with the
+specified commits.
+Currently only the diff is updated; the review description and other
+metadata are not synchronized.
+If a message is specified with
+.Fl m ,
+that message is added as a note to the Differential Revision.
+If no message is supplied,
+the user's editor will be opened to provide an update message for
+each revision.
+If an empty message is supplied via
+.Fl m ,
+then no notes will be added when updating Differential Revisions.
+.Pp
+If
+.Fl l
+is used, display list of commits to be updated and wait for confirmation
+of the list rather than prompting for each commit.
+.El
+.Sh CONFIGURATION
+These are manipulated by
+.Nm git-config :
+.Bl -tag -width "arc.assume_yes"
+.It Va arc.assume_yes
+Assume a
+.Dq yes
+answer to all prompts instead of
+prompting the user.
+Equivalent to the
+.Fl y
+flag.
+Defaults to false.
+.It Va arc.browse
+Try to open newly created reviews in a browser tab.
+Defaults to false.
+.It Va arc.list
+Always use
+.Dq list mode
+.Pq Fl l
+with create and update.
+In this mode, the list of git revisions to use
+is listed with a single prompt before creating or updating reviews.
+The diffs for individual commits are not shown.
+Defaults to false.
+.It Va arc.verbose
+Always use verbose output.
+Equivalent to the
+.Fl v
+flag.
+Defaults to false.
+.El
+.Sh EXAMPLES
+The typical end-to-end usage looks something like this.
+.Pp
+Commit changes with a message and create a Differential Review:
+.Bd -literal -offset indent
+$ git commit -m "kern: Rewrite in Rust"
+$ git arc create HEAD
+.Ed
+.Pp
+Make changes to the diff based on review feedback, then amend the
+changes to the existing commit and update the Differential Review:
+.Bd -literal -offset indent
+$ git commit --amend
+$ git arc update HEAD
+.Ed
+.Pp
+Now that all reviewers are happy, it is time to stage the commit and
+push it:
+.Bd -literal -offset indent
+$ git arc stage HEAD
+$ git push freebsd HEAD:main
+.Ed
+.Pp
+Create a Phabricator review using the contents of the most recent
+commit in your git checkout:
+.Bd -literal -offset indent
+$ git arc create -r markj,#jails HEAD
+.Ed
+.Pp
+The commit title is used as the review title, the commit log
+message is used as the review description, and
+.Aq Mt markj@FreeBSD.org
+is added as a reviewer.
+Also, the
+.Dq Jails
+reviewer group is added using its hashtag.
+.Pp
+Create a series of Phabricator reviews for each of HEAD~2, HEAD~ and
+HEAD:
+.Bd -literal -offset indent
+$ git arc create HEAD~3..HEAD
+.Ed
+.Pp
+Pairs of consecutive commits are linked into a patch stack.
+Note that the first commit in the specified range is excluded.
+.Pp
+Create a series of separate reviews for each of the following commits:
+.Bd -literal -offset indent
+$ git arc create b409afcfedcdda ca03ed1345aff0
+.Ed
+.Pp
+Update the review corresponding to commit b409afcfedcdda:
+.Bd -literal -offset indent
+$ git arc update b409afcfedcdda
+.Ed
+.Pp
+The title of the commit must be the same as it was when the review
+was created.
+Note that the review description is not automatically updated.
+.Pp
+Apply the patch in review D12345 to the currently checked-out tree,
+and stage it:
+.Bd -literal -offset indent
+$ git arc patch D12345
+.Ed
+.Pp
+Apply the patch in review D23456 to the currently checked-out tree,
+and commit it to the tree with the commit message in the review and
+make the best guess for what to use for author.
+If the guess is considered unreliable, the user is prompted to see
+if they wish to use it (or abort).
+.Bd -literal -offset indent
+$ git arc patch -c D23456
+.Ed
+.Pp
+List the status of reviews for all the commits in the branch
+.Dq feature :
+.Bd -literal -offset indent
+$ git arc list main..feature
+.Ed
+.Pp
+Update reviews for all commits in the branch
+.Dq feature
+after rebasing:
+.Bd -literal -offset indent
+$ git arc update -lm "Rebase" main..feature
+.Ed
+.Sh SEE ALSO
+.Xr build 7 ,
+.Xr development 7
+.Sh HISTORY
+The
+.Nm
+utility appeared in the src tools collection in
+.Fx 14.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An -nosplit
+.An Mark Johnston Aq Mt markj@FreeBSD.org
+and the manual page was written by
+.An Daniel Ebdrup Jensen Aq Mt debdrup@FreeBSD.org .

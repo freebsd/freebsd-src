@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>Multiple Principals</Title>
+</HEAD>
+<BODY>
+<H1> Manage Multiple Principals </H1>
+<p>
+If you have multiple principals, several features in MIT Kerberos will help you manage them. </p>
+<ul>
+<li>You can save principals when you enter them in the Get Ticket window. Kerberos will then auto-complete your principal as you start to enter it  to get tickets or to change your password.</li>
+<li>The Make Default button lets you easily and quickly change the default principal.</li>
+</ul>
+
+
+<p>
+All of your principals with tickets are listed in the main window. The default principal is in bold font.
+</p>
+
+<table>
+<tr>
+<th>On this page</th> <th>On other pages</th></tr>
+
+<tr>
+<td >
+<b>How to....</b>
+<ul id="helpul">
+<li><a href=#manage-multiple> Manage multiple principals</a></li>
+</ul>
+
+</td>
+<td>
+<b>How to...</b>
+<ul id="helpul">
+<li><a href="HTML/View_Tickets.htm"> View  tickets for all principals</a></li>
+<li><a href=HTML/Make_Default.htm> Set the default principal</a></li>
+</ul>
+</td>
+</tr>
+</table>
+
+
+
+<H2><a name="manage-multiple">Manage Multiple Principals</a></H2>
+<table>
+<tr>
+<th id="th2">Enter and save principals</th>
+<td>
+When you get tickets for a principal for the first time, enter the principal in the Principal field of the Get Ticket window. Select the "Remember this principal" checkbox to save it. The next time you get tickets or change your password, Kerberos will auto-complete your principal as you enter it.  </td></tr>
+
+<tr>
+<th id="th2">Select principal before using buttons</th>
+<td>
+Select a principal in the main window by clicking it. The selected principal will now be affected by the buttons in the Home tab (e.g., Change Password). Note that you can select multiple principals before you click the Renew Tickets button.
+
+</td></tr>
+<tr>
+<th id="th2">Renew tickets </th>
+<td>
+If the Automatic Ticket Renewal option is selected, all renewable tickets for all principals are renewed automatically. To renew tickets just for some principals, click the principal(s) with tickets you want to renew in the main window, then click the Renew Ticket button.
+</td></tr>
+<tr>
+<th id="th2">Choose default principal</th>
+<td>
+To choose which principal's tickets are used by default when you access a Kerberized service, select a principal in the main window by clicking it and then click the Make Default button. <br> <a href="HTML/Make_Default.htm">How to: Make Default Principal</a></td>
+</tr>
+<th id="th2">Clear saved principals</th>
+<td>
+If you have saved a principal that you will no longer use, and you do not want that principal to auto-complete in the Get Ticket and Change Password windows, you can clear your principal history by clicking the Clear History button in the  Get Ticket window.  Note that MIT Kerberos will immediately clear <em>all</em> of your saved principals.  <br>
+<a href="HTML/Forget_Principals.htm">How to: Clear Principal History</a></td></tr>
+</table>
+
+
+
+
+<SCRIPT Language=JavaScript>
+popfont="Arial,.725,,plain "
+popupRealm="The Kerberos realm is the group of network resources that you gain access to when you log on with a Kerberos username and password. Often it is named after the DNS domain it corrosponds to. In Windows, realms are called 'domains.' "
+</SCRIPT>
+
+<OBJECT id=popup type="application/x-oleobject"
+classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</OBJECT>
+</BODY>
+</HTML>

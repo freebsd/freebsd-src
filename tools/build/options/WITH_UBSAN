@@ -1,0 +1,4 @@
+Build the base system with Undefined Behavior Sanitizer (UBSan) to detect
+various kinds of undefined behavior at runtime.
+Requires that Clang be used as the base system compiler
+and that the runtime support library is available

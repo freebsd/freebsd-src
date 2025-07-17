@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: pppoed
+# REQUIRE: NETWORKING
+# BEFORE: DAEMON
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="pppoed"
+desc="Handle incoming PPP over Ethernet connections"
+rcvar="pppoed_enable"
+start_cmd="pppoed_start"
+# XXX stop_cmd will not be straightforward
+stop_cmd=":"
+
+pppoed_start()
+{
+	local _opts
+
+	if [ -n "${pppoed_provider}" ]; then
+			pppoed_flags="${pppoed_flags} -p ${pppoed_provider}"
+	fi
+	startmsg 'Starting pppoed'
+	_opts=$-; set -f
+	/usr/libexec/pppoed ${pppoed_flags} ${pppoed_interface}
+	set +f; set -${_opts}
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: nojail keyword
+pppoed_svcj="NO"
+
+run_rc_command "$1"

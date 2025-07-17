@@ -1,0 +1,22 @@
+first first
+hidden hidden
+<not found: ...>
+*** Error code <nonzero> (ignored)
+hidden delayed hidden
+repeated repeated
+commented commented
+...	# Run the below commands later
+<not found: ...>
+*** Error code <nonzero> (ignored)
+commented delayed commented
+indirect regular
+indirect-space regular
+... 
+<not found: ...>
+*** Error code <nonzero> (ignored)
+indirect-space deferred
+first delayed first
+repeated delayed repeated
+repeated delayed twice repeated
+indirect deferred
+exit status 0

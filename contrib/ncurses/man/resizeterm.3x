@@ -1,0 +1,180 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey 1996-on
+.\"
+.\" $Id: resizeterm.3x,v 1.56 2024/03/16 15:35:01 tom Exp $
+.TH resizeterm 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%is_term_resized\fP,
+\fB\%resize_term\fP,
+\fB\%resizeterm\fP \-
+manage the terminal dimensions understood by \fIcurses\fR
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBbool is_term_resized(int \fIlines\fP, int \fIcolumns\fP);
+\fBint resize_term(int \fIlines\fP, int \fIcolumns\fP);
+\fBint resizeterm(int \fIlines\fP, int \fIcolumns\fP);
+.fi
+.SH DESCRIPTION
+This is an extension to the \fIcurses\fP library.
+It provides callers with a hook into the \fI\%ncurses\fP data to resize
+windows,
+primarily for use by programs running in an X Window terminal (e.g., xterm)
+when the terminal's screen size is changed by the user:
+.bP
+\fIcurses\fP windows cannot extend outside the screen.
+If the terminal is shrunk, \fIcurses\fP windows must be shrunk to fit.
+.bP
+If the terminal is stretched,
+rows and/or columns can be added to existing windows.
+The added cells should match the current attributes of the windows.
+.PP
+If the calling program has not set up a handler for \fB\%SIGWINCH\fP
+when it initializes \fI\%ncurses\fP
+(e.g., using \fB\%initscr\fP(3X) or \fB\%newterm\fP(3X)),
+then \fI\%ncurses\fP sets a handler for \fB\%SIGWINCH\fP which notifies
+the library when a window-size event has occurred.
+The library checks for this notification
+.bP
+when reading input data,
+.bP
+when implicitly resuming program mode
+(e.g., between \fB\%endwin\fP(3X) and \fB\%wrefresh\fP(3X)),
+and
+.bP
+when explicitly resuming program mode in \fB\%restartterm\fP(3X).
+.PP
+When the library has found that the terminal's window-size has
+changed, it calls \fB\%resizeterm\fP to update its data structures.
+.PP
+An application which establishes its own \fB\%SIGWINCH\fP handler
+can call \fB\%resizeterm\fP, but in that case, the library will not
+see \fB\%SIGWINCH\fP, and proper layout will rely upon the application.
+.SH FUNCTIONS
+.SS resizeterm
+The function \fB\%resizeterm\fP resizes the standard and current windows
+(i.e., \fB\%stdscr\fP and \fB\%curscr\fP)
+to the specified dimensions, and adjusts other bookkeeping data used by
+the \fI\%ncurses\fP library that record the window dimensions
+such as the \fB\%LINES\fP and \fB\%COLS\fP variables.
+.SS resize_term
+Most of the work for \fB\%resizeterm\fP is
+done by the inner function \fB\%resize_term\fP.
+The outer function \fB\%resizeterm\fP adds bookkeeping
+for the \fB\%SIGWINCH\fP handler,
+as well as repainting the soft-key area (see \fB\%slk_touch\fP(3X)).
+.PP
+The \fB\%resize_term\fP function attempts to resize all windows.
+This helps with simple applications.
+However:
+.bP
+It is not possible to automatically resize pads.
+.bP
+Applications which have complicated layouts should check for
+\fB\%KEY_RESIZE\fP returned from \fB\%wgetch\fP,
+and adjust their layout, e.g., using \fB\%wresize\fP and \fB\%mvwin\fP,
+or by recreating the windows.
+.PP
+When resizing windows, \fB\%resize_term\fP recursively adjusts subwindows,
+keeping them within the updated parent window's limits.
+If a top-level window happens to extend to the screen's limits,
+then on resizing the window, \fB\%resize_term\fP will keep the window
+extending to the corresponding limit, regardless of whether the
+screen has shrunk or grown.
+.SS is_term_resized
+A support function \fB\%is_term_resized\fP is provided so that applications
+can check if the \fB\%resize_term\fP function would modify
+the window structures.
+It returns \fBTRUE\fP if the windows would be modified,
+and \fBFALSE\fP otherwise.
+.SH RETURN VALUE
+Except as noted, these functions return
+the integer \fBERR\fP upon failure and \fBOK\fP on success.
+They will fail if either of the dimensions are less than or equal to zero,
+or if an error occurs while (re)allocating memory for the windows.
+.SH NOTES
+While these functions are intended to be used to support a signal handler
+(i.e., for \fB\%SIGWINCH\fP), care should be taken to avoid invoking them in a
+context where \fB\%malloc\fP or \fB\%realloc\fP may have been interrupted,
+since it uses those functions.
+.PP
+If \fI\%ncurses\fP is configured to supply its own \fB\%SIGWINCH\fP
+handler,
+.bP
+on receipt of a \fB\%SIGWINCH\fP, the handler sets a flag
+.bP
+which is tested in
+\fB\%wgetch\fP(3X),
+\fB\%doupdate\fP(3X) and
+\fB\%restartterm\fP(3X),
+.bP
+in turn, calling the \fB\%resizeterm\fP function,
+.bP
+which \fB\%ungetch\fP's a \fB\%KEY_RESIZE\fP which
+will be read on the next call to \fB\%wgetch\fP.
+.IP
+The \fB\%KEY_RESIZE\fP alerts an application that the screen size has changed,
+and that it should repaint special features such as pads that cannot
+be done automatically.
+.IP
+Calling \fB\%resizeterm\fP or \fB\%resize_term\fP
+directly from a signal handler is unsafe.
+This indirect method is used to provide a safe way to resize the
+\fI\%ncurses\fP data structures.
+.PP
+If the environment variables \fILINES\fP or \fI\%COLUMNS\fP are set,
+this overrides the library's use of the window size obtained from
+the operating system.
+Thus, even if a \fB\%SIGWINCH\fP is received,
+no screen size change may be recorded.
+.SH PORTABILITY
+It is possible to resize the screen with SVr4 \fIcurses\fP,
+by
+.bP
+exiting \fIcurses\fP with \fB\%endwin\fP(3X) and
+.bP
+resuming using \fB\%refresh\fP(3X).
+.PP
+Doing that clears the screen and is visually distracting.
+.PP
+This extension of \fI\%ncurses\fP was introduced in mid-1995.
+It was adopted in NetBSD \fIcurses\fP (2001) and PDCurses (2003).
+.SH AUTHORS
+Thomas Dickey (from an equivalent function written in 1988 for BSD \fIcurses\fP)
+.SH SEE ALSO
+\fB\%curs_getch\fP(3X),
+\fB\%curs_variables\fP(3X),
+\fB\%wresize\fP(3X)

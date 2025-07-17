@@ -1,0 +1,378 @@
+.\"
+.\" Copyright (c) 2019 Takanori Watanabe
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 16, 2020
+.Dt ACPI_BATTERY 4
+.Os
+.Sh NAME
+.Nm acpi_battery
+.Nd ACPI battery management subsystem
+.Sh SYNOPSIS
+.Cd "device acpi"
+.Sh DESCRIPTION
+The
+.Nm
+is a driver for battery management features of the ACPI module.
+.Pp
+An ACPI-compatible battery device supports either a Control
+Method Battery interface or a Smart Battery subsystem interface.
+The former is accessed by the AML
+.Pq ACPI Machine Language
+code control methods,
+and the latter is controlled directly through the ACPI EC
+.Pq Embedded Controller
+typically via an SMBus interface.
+.Pp
+This driver supports the
+.Xr sysctl 8
+and
+.Xr ioctl 2
+interfaces as well as the
+.Xr devd 8
+event notification interface.
+.Sh IOCTLS
+Every ioctl for the
+.Nm
+driver takes a single integer value for the battery unit
+number as an argument,
+and returns a specific structure for each request.
+A special unit number
+.Dv ACPI_BATTERY_ALL_UNITS
+specifies all of the attached units
+and reports accumulated information.
+.Bl -tag -width indent
+.It Dv ACPIIO_BATT_GET_UNITS Vt int
+Returns the number of battery units in the system.
+The unit number argument will be ignored.
+.It Dv ACPIIO_BATT_GET_BATTINFO Vt struct acpi_battinfo
+Returns the following:
+.Bl -tag -width indent
+.It Va cap
+Battery capacity in percent,
+.It Va min
+Remaining battery life in minutes,
+.It Va state
+Current status of the battery encoded in the following:
+.Bl -tag -width indent
+.It Dv ACPI_BATT_STAT_DISCHARG Pq 0x0001
+Battery is discharging,
+.It Dv ACPI_BATT_STAT_CHARGING Pq 0x0002
+Battery is being charged, or
+.It Dv ACPI_BATT_STAT_CRITICAL Pq 0x0004
+Remaining battery life is critically low.
+.El
+.Pp
+Note that the status bits of each battery will be
+consolidated when
+.Dv ACPI_BATTERY_ALL_UNITS
+is specified.
+.It Va rate
+Current battery discharging rate in mW.
+.Li -1
+means not discharging right now.
+.El
+.It Dv ACPIIO_BATT_GET_BIX Vt struct acpi_bix
+Returns battery information given by the ACPI
+.Li _BIX Pq Battery Information
+object,
+which is the static portion of the Control Method
+Battery information.
+In the case of a Smart Battery attached to
+SMBus or a Control Method Battery with a
+.Li _BIF
+object,
+this ioctl will build a
+.Vt struct acpi_bix
+structure based on the obtained information
+and return it.
+.Bl -tag -width indent
+.It Va rev
+Revision number of the object.
+There are the following well-known values:
+.Bl -tag -width indent
+.It Dv ACPI_BIX_REV_0 Pq 0x0000
+A
+.Li _BIX
+object in ACPI 4.0.
+.It Dv ACPI_BIX_REV_1 Pq 0x0001
+A
+.Li _BIX
+object in ACPI 6.0.
+.It Dv ACPI_BIX_REV_BIF Pq 0xffff
+A
+.Li _BIX
+object built from the
+.Li _BIF
+object found on the system.
+.El
+.Pp
+Note that this field should be checked by using
+.Fn ACPI_BIX_REV_MIN_CHECK var rev
+macro when checking the minimum revision number.
+.It Va units
+Indicates the units used by the battery to report its
+capacity and charge rate encoded in the following:
+.Bl -tag -width indent
+.It ACPI_BIX_UNITS_MW Pq 0x00000000
+in mW
+.Pq power
+.It ACPI_BIX_UNITS_MA Pq 0x00000001
+in mA
+.Pq current
+.El
+.Pp
+Note that capacity is expressed in mWh or mAh,
+and rate is expressed in mW or mA,
+respectively.
+.It Va dcap
+The Battery's design capacity,
+which is the nominal capacity of a new battery.
+This is expressed as power or current depending on
+the value of
+.Va units .
+.It Va lfcap
+Predicted battery capacity when fully charged.
+Typically this will decrease every charging cycle.
+.It btech
+Battery technology:
+.Bl -tag -width indent
+.It 0x00000000 Primary cell Pq non-rechargable
+.It 0x00000001 Secondary cell Pq rechargable
+.El
+.It Va dvol
+Design voltage in mV,
+which is the nominal voltage of a new battery.
+.It Va wcap
+Design capacity of warning.
+When a discharging battery device reaches this capacity,
+notification is sent to the system.
+.It Va lcap
+Design capacity of low.
+.It Va cycles
+.Pq rev 0 or newer
+The number of cycles the battery has experienced.
+A cycle means an amount of discharge occurred which was
+approximately equal to the value of Design Capacity.
+.It Va accuracy
+.Pq rev 0 or newer
+The accuracy of the battery capacity measurement,
+in thousandth of a percent.
+.It Va stmax
+.Pq rev 0 or newer
+The Maximum Sampling Time of the battery in
+milliseconds.
+This is the maximum duration between two consecutive
+measurements of the battery's capacities specified in
+.Li _BST .
+If two succeeding readings of
+.Li _BST
+beyond this duration occur,
+two different results can be returned.
+.It Va stmin
+.Pq rev 0 or newer
+The Minimum Sampling Time of the battery in
+milliseconds.
+.It Va aimax
+.Pq rev 0 or newer
+The Maximum Average Interval of the battery in
+milliseconds.
+This is the length of time within which the battery
+averages the capacity measurements specified in
+.Li _BST .
+The Sampling Time specifies the frequency of measurements,
+and the Average Interval specifies the width of the time
+window of every measurement.
+.It Va aimin
+.Pq rev 0 or newer
+The Minimum Average Interval of the battery in
+milliseconds.
+.It Va gra1
+Battery capacity granularity between
+.Va low
+and
+.Va warning .
+This is expressed as power or current depending on
+the value of
+.Va units .
+.It Va gra2
+Battery capacity granularity between
+.Va warning
+and
+.Va full .
+This is expressed as power or current depending on
+the value of
+.Va units .
+.It Va model
+Model number of the battery as a string.
+.It Va serial
+Serial number of the battery as a string.
+.It Va type
+Type identifier of the battery as a string.
+.It Va oeminfo
+OEM-specific information of the battery as a string.
+.It Va scap
+.Pq rev 1 or newer
+Battery swapping capability encoded in the following:
+.Bl -tag -width indent
+.It ACPI_BIX_SCAP_NO Pq 0x00000000
+Non-swappable
+.It ACPI_BIX_SCAP_COLD Pq 0x00000001
+Cold-swappable
+.It ACPI_BIX_SCAP_HOT Pq 0x00000010
+Hot-swappable
+.El
+.El
+.It Dv ACPIIO_BATT_GET_BIF Vt struct acpi_bif
+.Pq deprecated
+Returns battery information given by the ACPI
+.Li _BIF Pq Battery Information
+object,
+which was deprecated in ACPI 4.0 specification.
+The data structure is a subset of
+.Vt struct acpi_bix .
+.Pp
+Note that this ioctl will built a
+.Vt struct acpi_bif
+structure based on the obtained information
+even if this object is not available and a
+.Li _BIX
+object is found.
+.It ACPIIO_BATT_GET_BST Vt struct acpi_bst
+Returns battery information given by the ACPI
+.Li _BST Pq Battery Status
+object,
+which is the present battery status.
+In the case of a Smart Battery attached to SMBus,
+this ioctl will build a
+.Vt struct acpi_bst
+structure based on the obtained information
+and return it.
+.Bl -tag -width indent
+.It Va state
+Battery state.
+The value is encoded in the same way as
+.Va state
+of
+.Vt struct acpi_battinfo .
+.It Va rate
+Battery present rate of charging or discharging.
+The unit of the value depends on
+.Va unit
+of
+.Vt struct acpi_bif .
+.It Va cap
+Battery remaining capacity.
+The unit of this value depends on
+.Va unit
+of
+.Vt struct acpi_bif .
+.It Va volt
+Battery present voltage.
+.El
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables export battery status.
+Note that they are accumulated status of all of the
+connected batteries:
+.Bl -tag -width indent
+.It Va hw.acpi.battery.info_expire
+Information cache expiration time in seconds.
+The battery information obtained by
+.Li _BIX
+or
+.Li _BIF
+object will be stored and reused for successive
+read access to this MIB within the specified period.
+.It Va hw.acpi.battery.units
+Number of battery units in the system.
+.It Va hw.acpi.battery.state
+Current battery charging status.
+This is same as
+.Va state
+of
+.Vt struct acpi_battinfo .
+.It Va hw.acpi.battery.rate
+Current battery discharging rate in mW.
+.It Va hw.acpi.battery.time
+Remaining battery life in minutes.
+If the battery is not discharging,
+the value shows
+.Li -1 .
+.It Va hw.acpi.battery.life
+Battery capacity in percent.
+.El
+.Sh EVENT NOTIFICATIONS
+Battery-related event notifications are sent
+to the userland via the
+.Xr devd 8
+interface.
+See
+.Pa /etc/devd.conf
+and
+.Xr devd.conf 5
+for more details.
+Note that notifications are supported only by
+the Control Method Battery.
+.Pp
+The
+.Nm
+driver sends events with the following attributes:
+.Pp
+.Bl -tag -width "subsystem" -compact
+.It system
+.Li ACPI
+.It subsystem
+.Li CMBAT
+.It type
+The fully qualified battery object path as in the ASL.
+.It notify
+An integer designating the event:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0x80
+Battery status was changed.
+.It Li 0x81
+Battery information was changed.
+.El
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpiconf 8
+.Sh AUTHORS
+.An -nosplit
+.An Nate Lawson Aq Mt njl@FreeBSD.org ,
+.An Munehiro Matsuda ,
+.An Takanori Watanabe Aq Mt takawata@FreeBSD.org ,
+.An Mitsuru IWASAKI Aq Mt iwasaki@FreeBSD.org ,
+.An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org ,
+and
+.An Hiroki Sato Aq Mt hrs@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Takanori Watanabe Aq Mt takawata@FreeBSD.org
+and
+.An Hiroki Sato Aq Mt hrs@FreeBSD.org .

@@ -1,0 +1,183 @@
+.\" SPDX-License-Identifier: MIT
+.\"
+.\" Copyright 2018 Antonio Russo <antonio.e.russo@gmail.com>
+.\" Copyright 2019 Kjeld Schouten-Lebbing <kjeld@schouten-lebbing.nl>
+.\" Copyright 2020 InsanePrawn <insane.prawny@gmail.com>
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining
+.\" a copy of this software and associated documentation files (the
+.\" "Software"), to deal in the Software without restriction, including
+.\" without limitation the rights to use, copy, modify, merge, publish,
+.\" distribute, sublicense, and/or sell copies of the Software, and to
+.\" permit persons to whom the Software is furnished to do so, subject to
+.\" the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be
+.\" included in all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+.\" EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+.\" NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+.\" LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+.\" OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+.\" WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+.\"
+.Dd May 31, 2021
+.Dt ZFS-MOUNT-GENERATOR 8
+.Os
+.
+.Sh NAME
+.Nm zfs-mount-generator
+.Nd generate systemd mount units for ZFS filesystems
+.Sh SYNOPSIS
+.Pa @systemdgeneratordir@/zfs-mount-generator
+.
+.Sh DESCRIPTION
+.Nm
+is a
+.Xr systemd.generator 7
+that generates native
+.Xr systemd.mount 5
+units for configured ZFS datasets.
+.
+.Ss Properties
+.Bl -tag -compact -width "org.openzfs.systemd:required-by=unit[ unit]…"
+.It Sy mountpoint Ns =
+.No Skipped if Sy legacy No or Sy none .
+.
+.It Sy canmount Ns =
+.No Skipped if Sy off .
+.No Skipped if only Sy noauto
+datasets exist for a given mountpoint and there's more than one.
+.No Datasets with Sy yes No take precedence over ones with Sy noauto No for the same mountpoint .
+.No Sets logical Em noauto No flag if Sy noauto .
+Encryption roots always generate
+.Sy zfs-load-key@ Ns Ar root Ns Sy .service ,
+even if
+.Sy off .
+.
+.It Sy atime Ns = , Sy relatime Ns = , Sy devices Ns = , Sy exec Ns = , Sy readonly Ns = , Sy setuid Ns = , Sy nbmand Ns =
+Used to generate mount options equivalent to
+.Nm zfs Cm mount .
+.
+.It Sy encroot Ns = , Sy keylocation Ns =
+If the dataset is an encryption root, its mount unit will bind to
+.Sy zfs-load-key@ Ns Ar root Ns Sy .service ,
+with additional dependencies as follows:
+.Bl -tag -compact -offset Ds -width "keylocation=https://URL (et al.)"
+.It Sy keylocation Ns = Ns Sy prompt
+None, uses
+.Xr systemd-ask-password 1
+.It Sy keylocation Ns = Ns Sy https:// Ns Ar URL Pq et al.\&
+.Sy Wants Ns = , Sy After Ns = : Pa network-online.target
+.It Sy keylocation Ns = Ns Sy file:// Ns < Ns Ar path Ns >
+.Sy RequiresMountsFor Ns = Ns Ar path
+.El
+.
+The service also uses the same
+.Sy Wants Ns = ,
+.Sy After Ns = ,
+.Sy Requires Ns = , No and
+.Sy RequiresMountsFor Ns = ,
+as the mount unit.
+.
+.It Sy org.openzfs.systemd:requires Ns = Ns Pa path Ns Oo " " Ns Pa path Oc Ns …
+.No Sets Sy Requires Ns = for the mount- and key-loading unit.
+.
+.It Sy org.openzfs.systemd:requires-mounts-for Ns = Ns Pa path Ns Oo " " Ns Pa path Oc Ns …
+.No Sets Sy RequiresMountsFor Ns = for the mount- and key-loading unit.
+.
+.It Sy org.openzfs.systemd:before Ns = Ns Pa unit Ns Oo " " Ns Pa unit Oc Ns …
+.No Sets Sy Before Ns = for the mount unit.
+.
+.It Sy org.openzfs.systemd:after Ns = Ns Pa unit Ns Oo " " Ns Pa unit Oc Ns …
+.No Sets Sy After Ns = for the mount unit.
+.
+.It Sy org.openzfs.systemd:wanted-by Ns = Ns Pa unit Ns Oo " " Ns Pa unit Oc Ns …
+.No Sets logical Em noauto No flag (see below) .
+.No If not Sy none , No sets Sy WantedBy Ns = for the mount unit.
+.It Sy org.openzfs.systemd:required-by Ns = Ns Pa unit Ns Oo " " Ns Pa unit Oc Ns …
+.No Sets logical Em noauto No flag (see below) .
+.No If not Sy none , No sets Sy RequiredBy Ns = for the mount unit.
+.
+.It Sy org.openzfs.systemd:nofail Ns = Ns (unset) Ns | Ns Sy on Ns | Ns Sy off
+Waxes or wanes strength of default reverse dependencies of the mount unit, see
+below.
+.
+.It Sy org.openzfs.systemd:ignore Ns = Ns Sy on Ns | Ns Sy off
+.No Skip if Sy on .
+.No Defaults to Sy off .
+.El
+.
+.Ss Unit Ordering And Dependencies
+Additionally, unless the pool the dataset resides on
+is imported at generation time, both units gain
+.Sy Wants Ns = Ns Pa zfs-import.target
+and
+.Sy After Ns = Ns Pa zfs-import.target .
+.Pp
+Additionally, unless the logical
+.Em noauto
+flag is set, the mount unit gains a reverse-dependency for
+.Pa local-fs.target
+of strength
+.Bl -tag -compact -offset Ds -width "(unset)"
+.It (unset)
+.Sy WantedBy Ns = No + Sy Before Ns =
+.It Sy on
+.Sy WantedBy Ns =
+.It Sy off
+.Sy RequiredBy Ns = No + Sy Before Ns =
+.El
+.
+.Ss Cache File
+Because ZFS pools may not be available very early in the boot process,
+information on ZFS mountpoints must be stored separately.
+The output of
+.Dl Nm zfs Cm list Fl Ho Ar name , Ns Aq every property above in order
+for datasets that should be mounted by systemd should be kept at
+.Pa @sysconfdir@/zfs/zfs-list.cache/ Ns Ar poolname ,
+and, if writeable, will be kept synchronized for the entire pool by the
+.Pa history_event-zfs-list-cacher.sh
+ZEDLET, if enabled
+.Pq see Xr zed 8 .
+.
+.Sh ENVIRONMENT
+If the
+.Sy ZFS_DEBUG
+environment variable is nonzero
+.Pq or unset and Pa /proc/cmdline No contains Qq Sy debug ,
+print summary accounting information at the end.
+.
+.Sh EXAMPLES
+To begin, enable tracking for the pool:
+.Dl # Nm touch Pa @sysconfdir@/zfs/zfs-list.cache/ Ns Ar poolname
+Then enable the tracking ZEDLET:
+.Dl # Nm ln Fl s Pa @zfsexecdir@/zed.d/history_event-zfs-list-cacher.sh @sysconfdir@/zfs/zed.d
+.Dl # Nm systemctl Cm enable Pa zfs-zed.service
+.Dl # Nm systemctl Cm restart Pa zfs-zed.service
+.Pp
+If no history event is in the queue,
+inject one to ensure the ZEDLET runs to refresh the cache file
+by setting a monitored property somewhere on the pool:
+.Dl # Nm zfs Cm set Sy relatime Ns = Ns Sy off Ar poolname/dset
+.Dl # Nm zfs Cm inherit Sy relatime Ar poolname/dset
+.Pp
+To test the generator output:
+.Dl $ Nm mkdir Pa /tmp/zfs-mount-generator
+.Dl $ Nm @systemdgeneratordir@/zfs-mount-generator Pa /tmp/zfs-mount-generator
+.
+If the generated units are satisfactory, instruct
+.Nm systemd
+to re-run all generators:
+.Dl # Nm systemctl daemon-reload
+.
+.Sh SEE ALSO
+.Xr systemd.mount 5 ,
+.Xr systemd.target 5 ,
+.Xr zfs 5 ,
+.Xr systemd.generator 7 ,
+.Xr systemd.special 7 ,
+.Xr zed 8 ,
+.Xr zpool-events 8

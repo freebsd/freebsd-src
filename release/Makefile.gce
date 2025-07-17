@@ -1,0 +1,84 @@
+#
+# Makefile for uploading Google Compute Engine disk images.
+#
+
+GCE_UPLOAD_TGTS=	gce-check-depends \
+			gce-do-package \
+			gce-do-upload
+# I do not yet have a better way to deal with the "must be run interactively"
+# thing, so this is a fail-safe "do not do anything."
+.if !defined(GCE_LOGIN_SKIP) || empty(GCE_LOGIN_SKIP)
+GCE_UPLOAD_TGTS=	gce-do-login
+.endif
+CLEANFILES+=		${GCE_UPLOAD_TGTS}
+
+GCE_BUCKET?=
+GCE_LICENSE?=
+
+.if !defined(GCE_FAMILY) || empty(GCE_FAMILY)
+GCE_FAMILY=		${TYPE:tl}-${REVISION:S,.,-,}
+.endif
+
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
+SNAPSHOT_DATE=		-v${BUILDDATE}
+GCE_FAMILY_SUFX=	-snap
+.endif
+
+gce-upload:		${GCE_UPLOAD_TGTS}
+
+gce-check-depends:
+.for VAR in _BUCKET
+. if !defined(GCE${VAR}) || empty(GCE${VAR})
+	@echo "Variable GCE${VAR} cannot be empty."
+	@false
+. endif
+.endfor
+.if !exists(/usr/local/bin/gcloud)
+. if !exists(${PORTSDIR}/net/google-cloud-sdk/Makefile)
+.  if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
+.  endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y net/google-cloud-sdk \
+		lang/python
+. else
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/net/google-cloud-sdk \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/lang/python \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
+. endif
+.endif
+
+gce-do-login:
+	@echo "This requires human interaction, which is not yet supported."
+	@true
+
+.for _FS in ${GCE_FSLIST}
+GCE_IMG_${_FS}=		${.OBJDIR}/gce.${_FS}.raw
+# Really?  Uppercase characters are not allowed?  Sigh...
+# And don't even get me started on the '.'.
+GCE_TARGET_${_FS}=	${OSRELEASE:S,.raw,,:tl:S,.,-,g}-${_FS}${SNAPSHOT_DATE}
+
+gce-do-package-${_FS}:
+	@# Yes, really...  Sigh.
+	cd ${.OBJDIR} && mv ${GCE_IMG_${_FS}} disk.raw
+	cd ${.OBJDIR} && tar --format=gnutar -zcf \
+		${GCE_TARGET_${_FS}:S,${.OBJDIR}/,,}.tar.gz disk.raw
+	cd ${.OBJDIR} && mv disk.raw ${GCE_IMG_${_FS}}
+	touch ${.OBJDIR}/${.TARGET}
+
+gce-do-upload-${_FS}:
+	@# Fallthrough in case the bucket already exists.
+	/usr/local/bin/gsutil mb gs://${GCE_BUCKET} || true
+	/usr/local/bin/gsutil cp ${.OBJDIR}/${GCE_TARGET_${_FS}}.tar.gz \
+		gs://${GCE_BUCKET}/
+	/usr/local/bin/gcloud compute images create ${GCE_TARGET_${_FS}} \
+		--family=${GCE_FAMILY}${GCE_FAMILY_SUFX} ${GCE_LICENSE} \
+		--guest-os-features=GVNIC,UEFI_COMPATIBLE \
+		--source-uri gs://${GCE_BUCKET}/${GCE_TARGET_${_FS}}.tar.gz
+	touch ${.OBJDIR}/${.TARGET}
+.endfor
+
+gce-do-package: gce-do-package-${VMFS}
+gce-do-upload: gce-do-upload-${VMFS}

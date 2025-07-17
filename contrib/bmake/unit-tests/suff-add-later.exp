@@ -1,0 +1,21 @@
+Adding suffix ".c"
+Adding suffix ".d"
+defining transformation from `.c' to `.d'
+inserting ".c" (1) at end of list
+inserting ".d" (2) at end of list
+Adding suffix ".e"
+defining transformation from `.d' to `.e'
+inserting ".d" (2) at end of list
+inserting ".e" (3) at end of list
+: 'Making issue5a.c out of nothing.'
+make: don't know how to make issue5a.d (continuing)
+make: don't know how to make issue5b.c (continuing)
+make: don't know how to make issue5c (continuing)
+: 'Making issue5d.d out of nothing.'
+make: don't know how to make issue5d.e (continuing)
+make: don't know how to make issue5e.d (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1

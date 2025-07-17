@@ -1,0 +1,284 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 8, 2025
+.Dt BINTRANS 1
+.Os
+.Sh NAME
+.Nm bintrans ,
+.Nm uuencode ,
+.Nm uudecode ,
+.Nm b64encode ,
+.Nm b64decode ,
+.Nm base64
+.Nd encode / decode a binary file
+.Sh SYNOPSIS
+.Nm
+.Op algorithm
+.Op ...
+.Nm uuencode
+.Op Fl m
+.Op Fl r
+.Op Fl o Ar output_file
+.Op Ar file
+.Ar name
+.Nm uudecode
+.Op Fl cimprs
+.Op Ar
+.Nm uudecode
+.Op Fl i
+.Fl o Ar output_file
+.Nm b64encode
+.Op Fl r
+.Op Fl w Ar column
+.Op Fl o Ar output_file
+.Op Ar file
+.Ar name
+.Nm b64decode
+.Op Fl cimprs
+.Op Ar
+.Nm b64decode
+.Op Fl i
+.Fl o Ar output_file
+.Op Ar file
+.Nm base64
+.Op Fl d
+.Op Fl w Ar column
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm uuencode
+and
+.Nm uudecode
+utilities are used to transmit binary files over transmission mediums
+that do not support other than simple
+.Tn ASCII
+data.
+The
+.Nm b64encode
+utility is synonymous with
+.Nm uuencode
+with the
+.Fl m
+flag specified.
+The
+.Nm b64decode
+utility is synonymous with
+.Nm uudecode
+with the
+.Fl m
+flag specified.
+.Pp
+The
+.Nm base64
+utility acts as a base64 decoder when passed the
+.Fl -decode
+.Po or
+.Fl d
+.Pc
+flag and as a base64 encoder otherwise.
+As a decoder it only accepts raw base64 input
+and as an encoder it does not produce the framing lines.
+.Nm base64
+reads standard input or
+.Ar file
+if it is provided and writes to standard output.
+Options
+.Fl -wrap
+.Po or
+.Fl w
+.Pc
+and
+.Fl -ignore-garbage
+.Po or
+.Fl i
+.Pc
+are accepted for compatibility with GNU base64,
+but the latter is unimplemented and silently ignored.
+.Pp
+The
+.Nm uuencode
+utility reads
+.Ar file
+(or by default the standard input) and writes an encoded version
+to the standard output, or
+.Ar output_file
+if one has been specified.
+The encoding uses only printing
+.Tn ASCII
+characters and includes the
+mode of the file and the operand
+.Ar name
+for use by
+.Nm uudecode .
+.Pp
+The
+.Nm uudecode
+utility transforms
+.Em uuencoded
+files (or by default, the standard input) into the original form.
+The resulting file is named either
+.Ar name
+or (depending on options passed to
+.Nm uudecode )
+.Ar output_file
+and will have the mode of the original file except that setuid
+and execute bits are not retained.
+The
+.Nm uudecode
+utility ignores any leading and trailing lines.
+.Pp
+The following options are available for
+.Nm uuencode :
+.Bl -tag -width indent
+.It Fl m
+Use the Base64 method of encoding, rather than the traditional
+.Nm uuencode
+algorithm.
+.It Fl r
+Produce raw output by excluding the initial and final framing lines.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of standard output.
+.El
+.Pp
+The following options are available for
+.Nm uudecode :
+.Bl -tag -width indent
+.It Fl c
+Decode more than one uuencoded file from
+.Ar file
+if possible.
+.It Fl i
+Do not overwrite files.
+.It Fl m
+When used with the
+.Fl r
+flag, decode Base64 input instead of traditional
+.Nm uuencode
+input.
+Without
+.Fl r
+it has no effect.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of any pathname contained in the input data.
+.It Fl p
+Decode
+.Ar file
+and write output to standard output.
+.It Fl r
+Decode raw (or broken) input, which is missing the initial and
+possibly the final framing lines.
+The input is assumed to be in the traditional
+.Nm uuencode
+encoding, but if the
+.Fl m
+flag is used, or if the utility is invoked as
+.Nm b64decode ,
+then the input is assumed to be in Base64 format.
+.It Fl s
+Do not strip output pathname to base filename.
+By default
+.Nm uudecode
+deletes any prefix ending with the last slash '/' for security
+reasons.
+.El
+.Pp
+Additionally,
+.Nm b64encode
+accepts the following option:
+.Bl -tag -width indent
+.It Fl w Ar column
+Wrap encoded output after
+.Ar column .
+.El
+.Pp
+.Nm
+is a generic utility that can run
+any of the aforementioned encoders and decoders.
+It can also run algorithms that are not available
+through a dedicated program:
+.Pp
+.Nm qp
+is a quoted-printable converter
+and accepts the following options:
+.Bl -tag -width indent
+.It Fl d
+Decode.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of standard output.
+.It Fl r
+Encode/Decode in RFC2047 specific variant.
+.El
+.Sh EXAMPLES
+The following example packages up a source tree, compresses it,
+uuencodes it and mails it to a user on another system.
+When
+.Nm uudecode
+is run on the target system, the file ``src_tree.tar.Z'' will be
+created which may then be uncompressed and extracted into the original
+tree.
+.Pp
+.Bd -literal -offset indent -compact
+tar cf \- src_tree \&| compress \&|
+uuencode src_tree.tar.Z \&| mail user@example.com
+.Ed
+.Pp
+The following example unpacks all uuencoded
+files from your mailbox into your current working directory.
+.Pp
+.Bd -literal -offset indent -compact
+uudecode -c < $MAIL
+.Ed
+.Pp
+The following example extracts a compressed tar
+archive from your mailbox
+.Pp
+.Bd -literal -offset indent -compact
+uudecode -o /dev/stdout < $MAIL | zcat | tar xfv -
+.Ed
+.Sh SEE ALSO
+.Xr basename 1 ,
+.Xr compress 1 ,
+.Xr mail 1 ,
+.Xr uucp 1 Pq Pa ports/net/freebsd-uucp ,
+.Xr uuencode 5
+.Sh HISTORY
+The
+.Nm uudecode
+and
+.Nm uuencode
+utilities appeared in
+.Bx 4.0 .
+.Sh BUGS
+Files encoded using the traditional algorithm are expanded by 35% (3
+bytes become 4 plus control information).

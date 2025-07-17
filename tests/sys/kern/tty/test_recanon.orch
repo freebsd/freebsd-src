@@ -1,0 +1,90 @@
+#!/usr/bin/env -S porch -f
+--
+-- Copyright (c) 2024 Kyle Evans <kevans@FreeBSD.org>
+--
+-- SPDX-License-Identifier: BSD-2-Clause
+--
+
+timeout(3)
+
+local TTYINQ_DATASIZE = 128
+local scream = string.rep("A", TTYINQ_DATASIZE - 1)
+
+local function ncanon()
+	stty("lflag", nil, tty.lflag.ICANON)
+end
+
+local function canon()
+	stty("lflag", tty.lflag.ICANON)
+end
+
+spawn("readsz", "-e")
+ncanon()
+
+-- Fill up a whole block with screaming + VEOF; when it gets recanonicalized,
+-- the next line should be pointing to the beginning of the next block.
+write(scream .. "^D")
+
+canon()
+match(scream .. "$")
+
+-- The same as above, but spilling VEOF over to the next block.
+spawn("readsz", "-e")
+ncanon()
+
+write(scream .. "A^D")
+
+canon()
+match(scream .. "A$")
+
+-- We'll do it again, except with one character spilled over to the next block
+-- before we recanonicalize.  We should then have the scream, followed by a
+-- partial line containing the spill over.
+spawn("cat")
+ncanon()
+
+write(scream .. "^DZ")
+
+canon()
+match(scream .. "$")
+
+-- Sending "B^D" should give us "ZB" to make sure that we didn't lose anything
+-- at the beginning of the next block.
+
+write("B^D")
+match("^ZB$")
+
+-- Next we'll VEOF at the beginning.
+spawn("readsz", "-e")
+ncanon()
+
+write("^D")
+match("^$")
+
+-- Finally, we'll trigger recanonicalization with an empty buffer.  This one is
+-- just about avoiding a panic.
+spawn("true")
+
+ncanon()
+canon()
+release()
+eof()
+
+spawn("readsz", "-c", "1")
+
+write("Test^Dfoo")
+ncanon()
+
+match("^Test\x04foo$")
+
+-- Finally, swap VEOF out with ^F; before recent changes, we would remain
+-- canonicalized at Test^D and the kernel would block on it unless a short
+-- buffer was used since VEOF would not appear within the canonicalized bit.
+spawn("readsz", "-c", 1)
+
+write("Test^DLine^F")
+stty("cc", {
+	VEOF = "^F"
+})
+
+match("^Test\x04Line$")

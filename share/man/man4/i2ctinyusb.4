@@ -1,0 +1,85 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Denis Bodor <dbodor@rollmops.ninja>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 18, 2024
+.Dt I2CTINYUSB 4
+.Os
+.Sh NAME
+.Nm i2ctinyusb
+.Nd driver for a USB / I2C bridge device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device i2ctinyusb"
+.Cd "device usb"
+.Cd "device iicbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+i2ctinyusb_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the device designed by Till Harbaum known
+as i2c-tiny-usb. This is initially a very simple circuit built with
+an Atmel AVR ATtiny45, but a Raspberry Pi Pico (RP2040) implementation
+also exists.
+.Pp
+The
+.Nm
+driver creates a
+.Xr iicbus 4
+child bus to expose the iic functions, enabling I2C sensors, converters
+and displays to be connected to any computer with a USB port.
+.Pp
+More information about this device can be found at:
+.Bd -literal -offset indent
+https://github.com/harbaum/I2C-Tiny-USB
+.Ed
+.Pp
+and (for the Raspberry Pi Pico version):
+.Bd -literal -offset indent
+https://github.com/Nicolai-Electronics/rp2040-i2c-interface
+.Ed
+.Pp
+The I2C controller supports read and write transactions with up to 1024
+bytes of data, and a write followed by the repeated start followed by a
+read transactions up to 1024 bytes.
+Zero length transfers are not supported.
+.Sh SEE ALSO
+.Xr iicbus 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver and this manual page was written by
+.An Denis Bodor Aq Mt dbodor@rollmops.ninja .

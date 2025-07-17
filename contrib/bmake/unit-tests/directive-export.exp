@@ -1,0 +1,5 @@
+make: directive-export.mk:36: warning: .export requires an argument.
+make: directive-export.mk:60: 00:00:00
+make: directive-export.mk:65: 00:00:00
+make: directive-export.mk:68: 16:00:00
+exit status 0

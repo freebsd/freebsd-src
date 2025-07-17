@@ -1,0 +1,178 @@
+
+#------------------------------------------------------------------------------
+# $File: xenix,v 1.17 2024/02/29 03:42:40 christos Exp $
+# xenix:  file(1) magic for Microsoft Xenix
+#
+# "Middle model" stuff, and "Xenix 8086 relocatable or i286 small
+# model" lifted from "magic.xenix", with comment "derived empirically;
+# treat as folklore until proven"
+#
+# "small model", "large model", "huge model" stuff lifted from XXX
+#
+# XXX - "x.out" collides with PDP-11 archives
+#
+0	string		core		core file (Xenix)
+# URL: http://www.polarhome.com/service/man/?qf=86rel&tf=2&of=Xenix
+#      http://fileformats.archiveteam.org/wiki/OMF
+# Reference: http://www.azillionmonkeys.com/qed/Omfg.pdf
+# Update: Joerg Jenderek
+# recordtype~TranslatorHEADerRecord
+0	byte		0x80
+# GRR: line above is too general as it catches also Extensible storage engine DataBase,
+# all lif files like forth.lif hpcc88.lif lex90b.lif ( See ./lif)
+# and all compressed DEGAS low-res bitmaps like: MUNCHIE.PC1 PIDER1.PC1
+# skip examples like GENA.SND Switch.Snd by looking for record length maximal 1024-3
+>1	uleshort	<1022
+# skip examples like GAME.PICTURE Strange.Pic by looking for positive record length
+>>1	uleshort	>0
+# skip examples like Xtable.Data FRACTAL.GEN SHR.VIEW by looking for positive string length
+>>>3	ubyte		>0
+# skip examples like OMBRE.6 with "UUUUUU" name by looking for valid high second record type
+>>>>(1.s+3)	ubyte	>0x6D
+# skip few Atari DEGAS bitmap TPDEMO.PC2 RECIPE.PC2 with invalid "high" second record type FEh FFh
+>>>>>(1.s+3)	ubyte	<0xF2	8086 relocatable (Microsoft)
+#!:mime	application/octet-stream
+!:mime	application/x-object
+!:ext	obj/o/a
+# T-module name often source name like "hello.c" or "jmppm32.asm" in JMPPM32.OBJ or
+# "kbhit" in KBHITS.OBJ or "CAUSEWAY_KERNAL" in CWAPI.OBJ
+>>>>>>3	pstring		x		\b, "%s"
+# data length probably lower 256 according to TrID obj_omf.trid.xml
+>>>>>>1	uleshort	x		\b, 1st record data length %u
+# checksum
+#>>>>>>(3.b+4)	ubyte	x		\b, checksum %#2.2x
+# second recordtype: 96h~LNAMES 88h~COMENT 8CH~EXTDEF
+# highest F1h~Library End Record
+>>>>>>(1.s+3)	ubyte	x		\b, 2nd record type %#x
+>>>>>>(1.s+4)	uleshort x		\b, 2nd record data length %u
+
+# Microsoft Xenix archive header
+0	leshort		0xff65		Microsoft x.out
+>2	string		__.SYMDEF	 randomized
+>0	byte		x		archive
+
+# Microsoft Xenix x.out header
+# Used by Xenix and also by Windows/386 2.x for WIN386.386 file
+# URL: http://www.polarhome.com/service/man/?qf=a.out&tf=2&of=Xenix
+#      http://lock.cmpxchg8b.com/files/a.out.h
+#      https://www.geoffchappell.com/notes/windows/retro/win386.htm
+# Big-endian examples:
+#  - static executables for Xenix V2.x from Motorola 6800 files in IMD tar archive:
+#    https://github.com/pski/model2archive/blob/master/Software/Xenix/Xenix_Games/GAMES1.IMD
+# Little-endian examples:
+#  - static executables from Windows/386 2.x: WIN386.386, CGA.386, EGA.386, CTVGA.386, HERCULES.386, 8514.386
+#  - static executables from SCO Xenix 2.1.3 for 8086: /bin/vi, /bin/file, ...
+#  - standalone kernel executables from SCO Xenix 2.1.3 for 8086: /boot, /dos, /xenix
+0	leshort		0x206
+>0x1c	byte&0xc0	=0x40		Microsoft x.out little-endian
+>>0	use	microsoft-x.out
+0	beshort		0x206
+>0x1c	byte&0xc0	=0x00		Microsoft x.out PDP-11-endian
+# PDP-11-endian is not supported by magic "use" keyword yet but because
+# we do not use long and quad types, we can parse it as big-endian
+>>0	use	\^microsoft-x.out
+>0x1c	byte&0xc0	=0x80		Microsoft x.out big-endian
+>>0	use	\^microsoft-x.out
+0	name	microsoft-x.out
+# Parse type mask
+>0x1e	leshort		&0x10		overlay
+>0x1e	leshort		&0x2		separate
+>0x1e	leshort		&0x4		pure
+>0x1e	leshort		&0x800		segmented
+>0x1e	clear		x
+>0x1e	leshort&0x501	=0x001		static executable
+>0x1e	leshort&0x501	=0x100		shared library module
+>0x1e	leshort&0x501	=0x101		dynamic executable
+>0x1e	leshort&0x501	=0x401		standalone kernel executable
+>0x1e	leshort&0x501	=0x500		virtual kernel module
+>0x1e	default		x		unknown binary type
+# Parse OS type and OS version mask
+>0x1e	leshort&0xc000	=0x0000		for pre-SysV
+>0x1e	leshort&0xc000	=0x4000		for Xenix V2.x
+>0x1e	leshort&0xc000	=0x8000		for Xenix V3.x
+>0x1e	leshort&0xc000	=0xc000
+>>0x1e	leshort		^0x800		for Xenix V5.x
+>>0x1e	leshort		&0x800
+>>>2	leshort		=0x2c
+>>>>0x46	ubyte	1
+>>>>>0x47	ubyte		0	for Xenix V2.x
+>>>>>0x47	ubyte		1	for Xenix V3.x
+>>>>>0x47	ubyte		2	for Xenix V5.x
+# little-endian segmented static executable for Intel i386 with OS type 1 and
+# OS version 2 is used also by Windows/386 2.x for *.386 files (e.g. WIN386.386)
+>>>>>>0x1c	ulequad&0x3fff00ff	=0x0801004a	or Windows/386 2.x
+>>>>0x46	ubyte	2		for iRMX
+>>>>0x46	ubyte	3		for Concurrent CP/M
+# Parse CPU mask
+>0x1c	byte&0x3f	=0x01		\b, PDP-11
+>0x1c	byte&0x3f	=0x02		\b, PDP-11/23
+>0x1c	byte&0x3f	=0x03		\b, Zilog Z8000
+>0x1c	byte&0x3f	=0x04		\b, Intel 8086
+>0x1c	byte&0x3f	=0x05		\b, Motorola 6800
+>0x1c	byte&0x3f	=0x06		\b, Zilog Z80
+>0x1c	byte&0x3f	=0x07		\b, VAX 780/750
+>0x1c	byte&0x3f	=0x08		\b, NS16032
+>0x1c	byte&0x3f	=0x09		\b, Intel i286
+>0x1c	byte&0x3f	=0x0a		\b, Intel i386
+>0x1c	byte&0x3f	=0x0b		\b, Intel i186
+>0x1c	byte&0x3f	=0x29		\b, Intel i286
+# Parse other flags
+# /bin/file from SCO Xenix 2.1.3 for 8086 reports bit 0x40 as Middle model
+# even that in a.out.h is this defined as large model text, so do same
+>0x1e	leshort		&0x40		\b, Middle model
+# following long check works in any endianity (including PDP-11)
+>0x10	lelong		!0		\b, not stripped
+# Flags for debugging
+#>0x1c	byte		&0x40		\b, words swapped (differs from PDP-11)
+#>0x1c	byte		&0x80		\b, bytes swapped (differs from PDP-11)
+#>0x1e	leshort		&0x1		\b, executable
+#>0x1e	leshort		&0x2		\b, separate I&D
+#>0x1e	leshort		&0x4		\b, pure text
+#>0x1e	leshort		&0x8		\b, fixed stack
+#>0x1e	leshort		&0x10		\b, text overlay
+#>0x1e	leshort		&0x20		\b, large model data
+#>0x1e	leshort		&0x40		\b, large model text
+#>0x1e	leshort		&0x80		\b, FPU required
+#>0x1e	leshort		&0x100		\b, virtual module / huge model data
+#>0x1e	leshort		&0x200		\b, iterated text/data present
+#>0x1e	leshort		&0x400		\b, absolute memory image
+#>0x1e	leshort		&0x800		\b, segment table present
+#>0x1e	leshort		&0x1000		\b, advisory locking
+#>0x1e	leshort		&0x2000		\b, needs 5.3 functionality
+
+# Microsoft Xenix a.out header
+# URL: http://www.polarhome.com/service/man/?qf=a.out&tf=2&of=Xenix
+#      http://lock.cmpxchg8b.com/files/a.out.h
+# FIXME: Below magic definition is probably wrong, it does not match struct aexec from a.out.h
+0	leshort		0x140		old Microsoft 8086 x.out
+>0x3	byte		&0x4		separate
+>0x3	byte		&0x2		pure
+>0	byte		&0x1		executable
+>0	byte		^0x1		relocatable
+>0x14	lelong		>0		not stripped
+
+# Microsoft Xenix b.out header
+# URL: http://www.polarhome.com/service/man/?qf=a.out&tf=2&of=Xenix
+#      http://lock.cmpxchg8b.com/files/a.out.h
+# FIXME: Below magic definition is probably wrong, it does not match struct bexec from a.out.h
+0	lelong		0x206		b.out
+>0x1e	leshort		&0x10		overlay
+>0x1e	leshort		&0x2		separate
+>0x1e	leshort		&0x4		pure
+>0x1e	leshort		&0x800		segmented
+>0x1e	leshort		&0x400		standalone
+>0x1e	leshort		&0x1		executable
+>0x1e	leshort		^0x1		object file
+>0x1e	leshort		&0x4000		V2.3
+>0x1e	leshort		&0x8000		V3.0
+>0x1c	byte		&0x4		8086
+>0x1c	byte		&0xb		i186
+>0x1c	byte		&0x9		i286
+>0x1c	byte		&0x29		i286
+>0x1c	byte		&0xa		i386
+>0x1e	leshort		&0x4		Large Text
+>0x1e	leshort		&0x2		Large Data
+>0x1e	leshort		&0x102		Huge Objects Enabled
+
+0	leshort		0x580		XENIX 8086 relocatable or i286 small model
+# GRR: line above is too general as it catches also all 8086 relocatable (Microsoft) with 1st record data length 5 C0M.OBJ C0T.OBJ C0S.OBJ

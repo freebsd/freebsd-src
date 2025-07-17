@@ -1,0 +1,87 @@
+Arm Optimized Routines
+----------------------
+
+This repository contains implementations of library functions
+provided by Arm. The outbound license is available under a dual
+license, at the user’s election, as reflected in the LICENSE file.
+Contributions to this project are accepted, but Contributors have
+to sign an Assignment Agreement, please follow the instructions in
+contributor-agreement.pdf. This is needed so upstreaming code
+to projects that require copyright assignment is possible. Further
+contribution requirements are documented in README.contributors of
+the appropriate subdirectory.
+
+Regular quarterly releases are tagged as vYY.MM, the latest
+release is v25.01.
+
+Source code layout:
+
+build/          - build directory (created by make).
+math/           - math subproject sources for generic scalar
+                  subroutines and sources shared with
+                  subdirectories of math/.
+                  All math routines should meet the quality
+                  requirements stated in math/README.contributors,
+                  routines that fail to do so are located in an
+                  experimental/ directory.
+math/aarch64/   - math subproject AArch64-specific sources
+                  and sources shared with subdirectories.
+math/aarch64/advsimd      - AdvSIMD-specific math sources.
+math/aarch64/experimental - Experimental math sources do not
+                            meet quality requirements stated in
+                            math/README.contributors.
+math/aarch64/sve          - SVE-specific math sources.
+math/include/   - math library public headers.
+math/test/      - math test and benchmark related sources.
+math/tools/     - tools used for designing the algorithms.
+networking/     - networking subproject sources.
+networking/include/ - networking library public headers.
+networking/test/ - networking test and benchmark related sources.
+string/         - string routines subproject sources.
+                  All string routines should meet the quality
+                  requirements stated in string/README.contributors,
+                  routines that fail to do so are located in an
+                  experimental/ directory.
+string/<arch>   - <arch>-specific string routines sources for
+                  <arch>=aarch64, and arm.
+string/aarch64/experimental - Experimental string routines which
+                              may not be fully optimized yet.
+string/include/ - string library public headers.
+string/test/    - string test and benchmark related sources.
+
+The steps to build the target libraries and run the tests:
+
+cp config.mk.dist config.mk
+# edit config.mk if necessary ...
+make
+make check
+
+Or building outside of the source directory:
+
+ln -s path/to/src/Makefile Makefile
+cp path/to/src/config.mk.dist config.mk
+echo 'srcdir = path/to/src' >> config.mk
+# further edits to config.mk
+make
+make check
+
+Or building and testing the math subproject only:
+
+make all-math
+make check-math
+
+Note on compiler compability/requirement:
+
+SVE routines are always built by default - this means that on AArch64
+GCC >= 10 or LLVM >= 5 are always required for SVE ACLE compatibility.
+There is no explicit check for compatible compiler, therefore the SVE
+routines will fail to build if CC is too old.
+
+The test system requires libmpfr and libmpc.
+For example on debian linux they can be installed as:
+
+sudo apt-get install libmpfr-dev libmpc-dev
+
+For cross build, CROSS_COMPILE should be set in config.mk and EMULATOR
+should be set for cross testing (e.g. using qemu-user or remote access
+to a target machine), see the examples in config.mk.dist.

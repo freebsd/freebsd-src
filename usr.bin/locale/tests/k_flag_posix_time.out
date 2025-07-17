@@ -1,0 +1,14 @@
+abday="Sun;Mon;Tue;Wed;Thu;Fri;Sat"
+day="Sunday;Monday;Tuesday;Wednesday;Thursday;Friday;Saturday"
+abmon="Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec"
+mon="January;February;March;April;May;June;July;August;September;October;November;December"
+d_t_fmt="%a %b %e %H:%M:%S %Y"
+d_fmt="%m/%d/%y"
+t_fmt="%H:%M:%S"
+am_pm="AM;PM"
+t_fmt_ampm="%I:%M:%S %p"
+era=
+era_d_fmt=""
+era_t_fmt=""
+era_d_t_fmt=""
+alt_digits=

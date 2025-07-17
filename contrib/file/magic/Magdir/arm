@@ -1,0 +1,59 @@
+#------------------------------------------------------------------------------
+# $File: arm,v 1.4 2024/02/18 14:15:22 christos Exp $
+# arm: file(1) magic for ARM COFF
+#
+# https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
+
+# Aarch64
+0	leshort		0xaa64
+# test for unused flag bits in f_flags
+>18	uleshort&0x8E80	0
+# use little endian variant of subroutine to
+# display name+variables+flags for common object formatted files
+>>0	use				display-coff
+!:strength -10
+
+# ARM
+0	leshort		0x01c0
+# test for unused flag bits in f_flags
+>18	uleshort&0x8E80	0
+# use little endian variant of subroutine to
+# display name+variables+flags for common object formatted files
+>>0	use				display-coff
+!:strength -10
+
+# ARM Thumb
+0	leshort		0x01c2
+# test for unused flag bits in f_flags
+>18	uleshort&0x8E80	0
+# use little endian variant of subroutine to
+# display name+variables+flags for common object formatted files
+>>0	use				display-coff
+!:strength -10
+
+# ARMv7 Thumb
+0	leshort		0x01c4
+# test for unused flag bits in f_flags
+>18	uleshort&0x8E80	0
+# use little endian variant of subroutine to
+# display name+variables+flags for common object formatted files
+>>0	use				display-coff
+!:strength -10
+
+# ARM64 Compiled Hybrid PE X86
+0	leshort		0x3a64
+# test for unused flag bits in f_flags
+>18	uleshort&0x8E80	0
+# use little endian variant of subroutine to
+# display name+variables+flags for common object formatted files
+>>0	use				display-coff
+!:strength -10
+
+# ARM64EC
+0	leshort		0xa641
+# test for unused flag bits in f_flags
+>18	uleshort&0x8E80	0
+# use little endian variant of subroutine to
+# display name+variables+flags for common object formatted files
+>>0	use				display-coff
+!:strength -10

@@ -1,0 +1,118 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Jesper Schmitz Mouridsen <jsm@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 3, 2025
+.Dt MTW 4
+.Os
+.Sh NAME
+.Nm mtw
+.Nd MediaTek MT7601U USB IEEE 802.11n wireless network driver
+.Sh SYNOPSIS
+.Cd device usb
+.Cd device mtw
+.Cd device wlan
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="if_mtw"
+.Sh DESCRIPTION
+This module provides support for
+MediaTek MT7601U USB wireless network adapters.
+If the appropriate hardware is detected,
+the driver will be automatically loaded with
+.Xr devmatch 8 .
+If driver autoloading is explicitly disabled, enable the module in
+.Xr rc.conf 5 .
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or at boot with
+.Xr rc.conf 5 .
+.Sh HARDWARE
+The
+.Nm
+driver supports MediaTek MT7601U based USB wireless network adapters
+including (but not all of them tested):
+.Pp
+.Bl -bullet -compact
+.It
+ASUS USB-N10 v2
+.It
+D-Link DWA-127 rev B1
+.It
+Edimax EW-7711UAn v2
+.It
+Foxconn WFU03
+.It
+Tenda U2
+.It
+Tenda W311MI v2
+.It
+TP-LINK TL-WN727N v4 (tested working)
+.It
+Yealink WF40
+.El
+.Sh FILES
+The
+.Nm
+driver requires firmware from
+.Pa ports/net/wifi-firmware-mt7601u-kmod .
+This firmware package will be installed automatically with
+.Xr fwget 8
+if the appropriate hardware is detected at installation or runtime.
+.Sh SEE ALSO
+.Xr usb 4 ,
+.Xr wlan 4 ,
+.Xr networking 7 ,
+.Xr fwget 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 7.1
+and
+.Fx 15.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An James Hastings Aq Mt hastings@openbsd.org
+and ported to
+.Fx
+by
+.An Jesper Schmitz Mouridsen Aq Mt jsm@FreeBSD.org .
+.Sh BUGS
+.Nm
+only works in
+.Cm station
+mode and
+.Cm monitor
+mode.
+The firmware does not always reinitialize when reloading the module,
+or when rebooting, without first unplugging the device.

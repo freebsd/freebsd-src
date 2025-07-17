@@ -1,0 +1,74 @@
+krb5_sname_to_principal -  Generate a full principal name from a service name. 
+===============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_sname_to_principal(krb5_context context, const char * hostname, const char * sname, krb5_int32 type, krb5_principal * ret_princ)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **hostname** - Host name, or NULL to use local host
+
+	          **[in]** **sname** - Service name, or NULL to use **"host"**
+
+	          **[in]** **type** - Principal type
+
+	          **[out]** **ret_princ** - Generated principal
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function converts a *hostname* and *sname* into *krb5_principal* structure *ret_princ* . The returned principal will be of the form *sname\/hostname@REALM* where REALM is determined by krb5_get_host_realm(). In some cases this may be the referral (empty) realm.
+
+
+
+The *type* can be one of the following:
+
+
+
+ 
+ 
+	 - #KRB5_NT_SRV_HST canonicalizes the host name before looking up the realm and generating the principal.
+ 
+ 
+ 
+	 - #KRB5_NT_UNKNOWN accepts the hostname as given, and does not canonicalize it.
+ 
+ Use krb5_free_principal to free *ret_princ* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

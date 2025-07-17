@@ -1,0 +1,97 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1999-2010,2016 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: infotocap.1m,v 1.41 2024/03/16 15:35:01 tom Exp $
+.TH @INFOTOCAP@ 1M 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.ds d @TERMINFO@
+.SH NAME
+\fB\%@INFOTOCAP@\fP \-
+convert a \fI\%terminfo\fR description into a \fI\%termcap\fR description
+.SH SYNOPSIS
+.B @INFOTOCAP@
+.RI [ tic-option ]
+.I file
+\&.\|.\|.
+.P
+.B "@INFOTOCAP@ \-V"
+.SH DESCRIPTION
+\fB\%@INFOTOCAP@\fP translates terminal descriptions.
+It looks in each given text \fIfile\fP for \fI\%terminfo\fP entries and,
+For each one found,
+it writes an analogous \fI\%termcap\fP description to the standard
+output stream.
+\fI\%terminfo\fP \*(``\fBuse\fP\*('' capabilities translate to
+\fI\%termcap\fP \fBtc\fP capabilities.
+Because \fI\%termcap\fP is a less expressive format than
+\fI\%terminfo\fP,
+some capabilities cannot be translated.
+.PP
+This utility is implemented as a link to \fB\%@TIC@\fP(1M),
+with the latter's
+.B \-C
+option implied.
+You can use other \fB\%@TIC@\fP options such as
+.BR \-1 ,
+.BR \-f ,
+.BR \-v ,
+.BR \-w ,
+and
+.BR \-x .
+The \fB\-V\fP option reports the version of \fI\%ncurses\fP associated
+with this program and exits with a successful status.
+.SH FILES
+.TP
+.I \*d
+compiled terminal description database
+.SH PORTABILITY
+None of X/Open Curses,
+Issue 7 (2009),
+SVr4,
+or NetBSD document this application.
+.SH AUTHORS
+Eric S. Raymond <esr@snark.thyrsus.com>
+and
+.br
+Thomas E. Dickey <dickey@invisible\-island.net>
+.SH SEE ALSO
+\fB\%@INFOCMP@\fP(1M),
+\fB\%@TIC@\fP(1M),
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

@@ -1,0 +1,187 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Andriy Gapon <avg@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 11, 2019
+.Dt SUPERIO 9
+.Os
+.Sh NAME
+.Nm superio ,
+.Nm superio_devid ,
+.Nm superio_dev_disable ,
+.Nm superio_dev_enable ,
+.Nm superio_dev_enabled ,
+.Nm superio_find_dev ,
+.Nm superio_get_dma ,
+.Nm superio_get_iobase ,
+.Nm superio_get_irq ,
+.Nm superio_get_ldn ,
+.Nm superio_get_type ,
+.Nm superio_read ,
+.Nm superio_revid ,
+.Nm superio_vendor ,
+.Nm superio_write
+.Nd Super I/O bus interface
+.Sh SYNOPSIS
+.In sys/bus.h
+.In dev/superio/superio.h
+.Ft uint16_t
+.Fn superio_devid "device_t dev"
+.Ft void
+.Fn superio_dev_disable "device_t dev" "uint8_t mask"
+.Ft void
+.Fn superio_dev_enable "device_t dev" "uint8_t mask"
+.Ft bool
+.Fn superio_dev_enabled "device_t dev" "uint8_t mask"
+.Ft device_t
+.Fn superio_find_dev "device_t dev" "superio_dev_type_t type" "int ldn"
+.Ft uint8_t
+.Fn superio_get_dma "device_t dev"
+.Ft uint16_t
+.Fn superio_get_iobase "device_t dev"
+.Ft uint8_t
+.Fn superio_get_irq "device_t dev"
+.Ft uint8_t
+.Fn superio_get_ldn "device_t dev"
+.Ft superio_dev_type_t
+.Fn superio_get_type "device_t dev"
+.Ft uint8_t
+.Fn superio_read "device_t dev" "uint8_t reg"
+.Ft uint8_t
+.Fn superio_revid "device_t dev"
+.Ft superio_vendor_t
+.Fn superio_vendor "device_t dev"
+.Ft void
+.Fn superio_write "device_t dev" "uint8_t reg" "uint8_t val"
+.Sh DESCRIPTION
+The
+.Nm
+set of functions are used for managing Super I/O devices.
+The functions provide support for
+raw configuration access,
+locating devices,
+device information,
+and
+device configuration.
+.Ss The controller interface
+The
+.Fn superio_vendor
+function is used to get a vendor of the Super I/O controller
+.Fa dev .
+Possible return values are
+.Dv SUPERIO_VENDOR_ITE
+and
+.Dv SUPERIO_VENDOR_NUVOTON .
+.Pp
+The
+.Fn superio_devid
+function is used to get a device ID of the Super I/O controller
+.Fa dev .
+.Pp
+The
+.Fn superio_revid
+function is used to get a revision ID of the Super I/O controller
+.Fa dev .
+.Pp
+The
+.Fn superio_find_dev
+function is used to find a device on the
+.Xr superio 4
+bus, specified by
+.Fa dev ,
+that has the requested type and logical device number.
+Either of those, but not both, can be a wildcard.
+Supported types are
+.Dv SUPERIO_DEV_GPIO ,
+.Dv SUPERIO_DEV_HWM ,
+and
+.Dv SUPERIO_DEV_WDT .
+The wildcard value for
+.Fa type
+is
+.Dv SUPERIO_DEV_NONE .
+The wildcard value for
+.Fa ldn
+is -1.
+.Ss The device interface
+The
+.Fn superio_read
+function is used to read data from the Super I/O configuration register
+of the device
+.Fa dev .
+.Pp
+The
+.Fn superio_write
+function is used to write data to the Super I/O configuration register
+of the device
+.Fa dev .
+.Pp
+The
+.Fn superio_dev_enable ,
+.Fn superio_dev_disable ,
+and
+.Fn superio_dev_enabled
+functions are used to enable, disable, or check status of the device
+.Fa dev .
+The
+.Fa mask
+parameter selects sub-functions of a device that supports them.
+For devices that do not have sub-functions,
+.Fa mask
+should be set to 1.
+.Ss The accessor interface
+The
+.Fn superio_get_dma
+is used to get a DMA channel number configured for the device
+.Fa dev .
+.Pp
+The
+.Fn superio_get_iobase
+is used to get a base I/O port configured for the device
+.Fa dev .
+The device may expose additional or alternative configuration access via
+the I/O ports.
+.Pp
+The
+.Fn superio_get_irq
+is used to get an interrupt number configured for the device
+.Fa dev .
+.Pp
+The
+.Fn superio_get_ldn
+is used to get a Logical Device Number of the device
+.Fa dev .
+.Pp
+The
+.Fn superio_get_type
+is used to get a type of the device
+.Fa dev .
+.Sh SEE ALSO
+.Xr superio 4 ,
+.Xr device 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Mt avg@FreeBSD.org

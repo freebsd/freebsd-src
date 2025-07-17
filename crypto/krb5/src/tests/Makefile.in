@@ -1,0 +1,201 @@
+mydir=tests
+BUILDTOP=$(REL)..
+SUBDIRS = asn.1 create hammer verify gssapi shlib gss-threads misc threads \
+	softpkcs11
+
+RUN_DB_TEST = $(RUN_SETUP) KRB5_KDC_PROFILE=kdc.conf KRB5_CONFIG=krb5.conf \
+	GSS_MECH_CONFIG=mech.conf LC_ALL=C $(VALGRIND)
+
+OBJS= adata.o conccache.o etinfo.o forward.o gcred.o hist.o hooks.o hrealm.o \
+	icinterleave.o icred.o kdbtest.o localauth.o plugorder.o rdreq.o \
+	replay.o responder.o s2p.o s4u2self.o s4u2proxy.o t_inetd.o \
+	unlockiter.o
+EXTRADEPSRCS= adata.c conccache.c etinfo.c forward.c gcred.c hist.c hooks.c \
+	hrealm.c icinterleave.c icred.c kdbtest.c localauth.c plugorder.c \
+	rdreq.c replay.c responder.c s2p.c s4u2self.c s4u2proxy.c t_inetd.c \
+	unlockiter.c
+
+TEST_DB = ./testdb
+TEST_REALM = FOO.TEST.REALM
+TEST_MKEY = footes
+TEST_NUM = 65
+TEST_DEPTH = 5
+TEST_PREFIX = "foo bar"
+
+KADMIN_OPTS= -d $(TEST_DB) -r $(TEST_REALM) -P $(TEST_MKEY)
+KTEST_OPTS= $(KADMIN_OPTS) -p $(TEST_PREFIX) -n $(TEST_NUM) -D $(TEST_DEPTH)
+
+adata: adata.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ adata.o $(KRB5_BASE_LIBS)
+
+conccache: conccache.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ conccache.o $(KRB5_BASE_LIBS)
+
+etinfo: etinfo.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ etinfo.o $(KRB5_BASE_LIBS)
+
+forward: forward.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ forward.o $(KRB5_BASE_LIBS)
+
+gcred: gcred.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ gcred.o $(KRB5_BASE_LIBS)
+
+hist: hist.o $(KDB5_DEPLIBS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ hist.o $(KDB5_LIBS) $(KADMSRV_LIBS) $(KRB5_BASE_LIBS)
+
+hooks: hooks.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ hooks.o $(KRB5_BASE_LIBS)
+
+hrealm: hrealm.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ hrealm.o $(KRB5_BASE_LIBS)
+
+icinterleave: icinterleave.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ icinterleave.o $(KRB5_BASE_LIBS)
+
+icred: icred.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ icred.o $(KRB5_BASE_LIBS)
+
+kdbtest: kdbtest.o $(KDB5_DEPLIBS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ kdbtest.o $(KDB5_LIBS) $(KADMSRV_LIBS) \
+		$(KRB5_BASE_LIBS)
+
+localauth: localauth.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ localauth.o $(KRB5_BASE_LIBS)
+
+plugorder: plugorder.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ plugorder.o $(KRB5_BASE_LIBS)
+
+rdreq: rdreq.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ rdreq.o $(KRB5_BASE_LIBS)
+
+replay: replay.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ replay.o $(KRB5_BASE_LIBS)
+
+responder: responder.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ responder.o $(KRB5_BASE_LIBS)
+
+s2p: s2p.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ s2p.o $(KRB5_BASE_LIBS)
+
+s4u2self: s4u2self.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ s4u2self.o $(KRB5_BASE_LIBS)
+
+s4u2proxy: s4u2proxy.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ s4u2proxy.o $(KRB5_BASE_LIBS)
+
+t_inetd: t_inetd.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_inetd.o $(LIBS) $(KRB5_BASE_LIBS)
+
+unlockiter: unlockiter.o $(KDB5_DEPLIBS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ unlockiter.o $(KDB5_LIBS) $(KADMSRV_LIBS) \
+		$(KRB5_BASE_LIBS)
+
+all-unix: t_inetd
+
+check-unix: kdb_check
+
+kdc.conf: Makefile
+	rm -rf kdc.conf
+	@echo "[realms]" > kdc.conf
+	@echo "$(TEST_REALM) = {" >> kdc.conf
+	@echo "  key_stash_file = `pwd`/stash_file" >> kdc.conf
+	@echo "}" >> kdc.conf
+
+krb5.conf: Makefile
+	cat $(top_srcdir)/config-files/krb5.conf > krb5.new
+	echo "[dbmodules]" >> krb5.new
+	echo " db_module_dir = `pwd`/../plugins/kdb" >> krb5.new
+	mv krb5.new krb5.conf
+
+kdb_check: kdc.conf krb5.conf
+	$(RM) $(TEST_DB)*
+	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) create -W
+	$(RUN_DB_TEST) ../tests/create/kdb5_mkdums $(KTEST_OPTS)
+	$(RUN_DB_TEST) ../tests/verify/kdb5_verify $(KTEST_OPTS)
+	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) dump $(TEST_DB).dump
+	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) destroy -f
+	@echo "====> NOTE!"
+	@echo "The following 'create' command is needed due to a change"
+	@echo "in functionality caused by DAL integration.  See ticket 3973."
+	@echo ====
+	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) create -W
+	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) load $(TEST_DB).dump
+	$(RUN_DB_TEST) ../tests/verify/kdb5_verify $(KTEST_OPTS)
+	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) dump $(TEST_DB).dump2
+	sort $(TEST_DB).dump > $(TEST_DB).sort
+	sort $(TEST_DB).dump2 > $(TEST_DB).sort2
+	cmp $(TEST_DB).sort $(TEST_DB).sort2
+	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) destroy -f
+	$(RM) $(TEST_DB)* stash_file
+
+check-pytests: adata conccache etinfo forward gcred hist hooks hrealm
+check-pytests: icinterleave icred kdbtest localauth plugorder rdreq replay
+check-pytests: responder s2p s4u2proxy unlockiter s4u2self
+	$(RUNPYTEST) $(srcdir)/t_general.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_hooks.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_dump.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_iprop.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kprop.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_policy.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_changepw.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_pkinit.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_otp.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_spake.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_localauth.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kadm5_hook.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kadm5_auth.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_pwqual.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_hostrealm.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kdb_locking.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_keyrollover.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_renew.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_renprinc.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_ccache.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_stringattr.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_sesskeynego.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_crossrealm.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_referral.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_skew.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_keytab.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kadmin.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kadmin_acl.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kadmin_parsing.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kdb.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_keydata.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_mkey.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_rdreq.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_sn2princ.py $(PYTESTFLAGS) $(OFFLINE)
+	$(RUNPYTEST) $(srcdir)/t_cve-2012-1014.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_cve-2012-1015.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_cve-2013-1416.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_cve-2013-1417.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_cve-2021-36222.py $(PYTESTFLAGS)
+	$(RM) au.log
+	$(RUNPYTEST) $(srcdir)/t_audit.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/jsonwalker.py -d $(srcdir)/au_dict.json \
+			-i au.log
+	$(RUNPYTEST) $(srcdir)/t_salt.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_etype_info.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_bogus_kdc_req.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kdc_log.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_proxy.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_unlockiter.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_errmsg.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_authdata.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_preauth.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_princflags.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_tabdump.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_certauth.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_y2038.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kdcpolicy.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_u2u.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kdcoptions.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_replay.py $(PYTESTFLAGS)
+
+clean:
+	$(RM) adata conccache etinfo forward gcred hist hooks hrealm
+	$(RM) icinterleave icred kdbtest localauth plugorder rdreq replay
+	$(RM) responder s2p s4u2proxy s4u2self t_inetd unlockiter
+	$(RM) krb5.conf kdc.conf
+	$(RM) -rf kdc_realm/sandbox ldap
+	$(RM) au.log

@@ -1,0 +1,150 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020 Andriy Gapon <avg@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 5, 2020
+.Dt GPIOKEYS 4
+.Os
+.Sh NAME
+.Nm gpiokeys
+.Nd GPIO keys device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options FDT"
+.Cd "device gpio"
+.Cd "device gpiokeys"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+gpiokeys_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a way to represent a set of general purpose inputs as a
+.Xr keyboard 4
+device.
+At the moment the driver supports only
+.Xr FDT 4
+based systems.
+The DTS determines what pins are mapped to buttons and what key codes are
+generated for each virtual button.
+The
+.Xr keyboard 4
+device can be used from userland to monitor for input changes.
+.Pp
+On an
+.Xr FDT 4
+based system
+the DTS part for a
+.Nm
+device usually looks like:
+.Bd -literal
+/ {
+
+	...
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		btn1 {
+			label = "button1";
+			linux,code = <KEY_1>;
+			gpios = <&gpio 0 3 GPIO_ACTIVE_LOW>
+		};
+
+		btn2 {
+			label = "button2";
+			linux,code = <KEY_2>;
+			gpios = <&gpio 0 4 GPIO_ACTIVE_LOW>
+		};
+	};
+};
+.Ed
+.Pp
+For more details about the
+.Va gpios
+property, please consult
+.Pa /usr/src/sys/dts/bindings-gpio.txt .
+.Pp
+The
+.Nm
+driver supports two properties for specifying a key code.
+.Pp
+The property
+.Va freebsd,code
+specifies a
+.Fx
+native scancode compatible with
+.Xr kbdmap 5
+keyboard maps.
+.Pp
+The property
+.Va linux,code
+specifies an evdev scancode.
+That scancode is internally translated to a native scancode.
+Note that not all evdev scancodes have corresponding native scancodes.
+If a scancode cannot be translated, then a diagnostic message is printed
+and the input is ignored.
+.Pp
+The property
+.Va label
+is a descriptive name of a button.
+It is used for diagnostic messages only.
+This property is optional.
+If not set, the node name is used in its place.
+.Pp
+The property
+.Va autorepeat
+determines whether autorepeat is enabled for a button.
+.Pp
+The property
+.Va debounce-interval
+defines debouncing interval time in milliseconds.
+If not specified the interval defaults to 5.
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr gpio 4 ,
+.Xr keyboard 4 ,
+.Xr kbdmap 5
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 12.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Oleksandr Tymoshenko Aq Mt gonzo@FreeBSD.org .
+This
+manual page was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .

@@ -1,0 +1,21 @@
+# GPL-2.0, not used on FreeBSD:
+Makefile
+completion
+fuzz/
+ipc-uapi-windows.h
+ipc-windows.h
+netlink.h
+uapi/
+wg-quick/
+wincompat/
+
+# License OK, but not needed for FreeBSD
+ipc-linux.h
+ipc-openbsd.h
+man/wg-quick.8
+systemd/
+
+# Build artifacts
+wg
+*.d
+*.o

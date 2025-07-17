@@ -1,0 +1,72 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey 1996
+.\"
+.\" $Id: wresize.3x,v 1.36 2024/03/16 15:35:01 tom Exp $
+.TH wresize 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.SH NAME
+\fB\%wresize\fP \-
+resize a \fIcurses\fR window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint wresize(WINDOW *\fIwin\fP, int \fIlines\fP, int \fIcolumns\fP);
+.fi
+.SH DESCRIPTION
+This \fI\%ncurses\fP extension to standard \fIcurses\fP reallocates
+storage for a \fIcurses\fP window to adjust its dimensions to the
+specified values.
+If either dimension is larger than its current value,
+the expanded part of the window is filled with blanks merged with
+current background rendition
+(as set by \fB\%wbkgdset\fP(3X)).
+.SH RETURN VALUE
+\fB\%wresize\fP returns \fBERR\fP upon failure and \fBOK\fP on success.
+It will fail if either of the dimensions is less than or equal to zero,
+or if an error occurs while (re)allocating memory for the window.
+.SH NOTES
+The only restriction placed on the dimensions is that they be greater
+than zero.
+They are \fInot\fP compared to the \fIcurses\fP screen dimensions;
+this keeps the logic of \fB\%resizeterm\fP(3X) simple.
+The caller must ensure that the window's dimensions fit within the
+actual screen dimensions.
+.SH PORTABILITY
+It is not possible to resize windows with SVr4 \fIcurses\fP.
+.PP
+\fI\%ncurses\fP introduced this extension in mid-1995.
+NetBSD \fIcurses\fP adopted it in 2001,
+and \fI\%PDCurses\fP in 2003.
+.SH AUTHORS
+Thomas Dickey
+(from an equivalent function written in 1988 for BSD \fIcurses\fP).
+.SH SEE ALSO
+\fB\%resizeterm\fP(3X)

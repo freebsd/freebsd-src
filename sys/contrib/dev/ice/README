@@ -1,0 +1,201 @@
+OS Default Dynamic Device Personalization (DDP) Package
+*******************************************************
+
+August 09, 2024
+
+
+Contents
+^^^^^^^^
+
+* OS Default Dynamic Device Personalization (DDP) Package
+
+  * Overview
+
+  * Supported Operating Systems
+
+  * Contents of This Package
+
+  * Related Documentation
+
+  * Notes
+
+  * Installation
+
+  * Troubleshooting
+
+  * Legal / Disclaimers
+
+
+Overview
+========
+
+Devices based on the Intel(R) Ethernet 800 Series require a Dynamic
+Device Personalization (DDP) package file to enable advanced features
+(such as dynamic tunneling, Intel(R) Ethernet Flow Director, RSS, and
+ADQ).
+
+DDP allows you to change the packet processing pipeline of a device by
+applying a profile package to the device at runtime. Profiles can be
+used to, for example, add support for new protocols, change existing
+protocols, or change default settings. DDP profiles can also be rolled
+back without rebooting the system.
+
+The DDP package loads during device initialization or driver runtime,
+depending on the operating system. The driver checks to see if the DDP
+package is present and compatible. If this file exists, the driver
+will load it into the device. If the DDP package file is missing or
+incompatible with the driver, the driver will go into Safe Mode where
+it will use the configuration contained in the device's NVM.
+
+Safe Mode disables advanced and performance features, and supports
+only basic traffic and minimal functionality, such as updating the NVM
+or downloading a new driver or DDP package.
+
+Refer to the Intel(R) Ethernet Adapters and Devices User Guide for
+more details on DDP and Safe Mode.
+
+A general-purpose, default DDP package is automatically installed with
+all supported Intel Ethernet 800 Series drivers on supported operating
+systems. Additional DDP packages are available to address needs for
+specific market segments or targeted solutions.
+
+The default DDP package supports the following:
+
+* MAC
+
+* EtherType
+
+* VLAN
+
+* IPv4
+
+* IPv6
+
+* TCP
+
+* ARP
+
+* UDP
+
+* SCTP
+
+* ICMP
+
+* ICMPv6
+
+* CTRL
+
+* LLDP
+
+* VXLAN-GPE
+
+* VXLAN (non-GPE)
+
+* Geneve
+
+* GRE
+
+* NVGRE
+
+* RoCEv2
+
+* MPLS (up to 5 consecutive MPLS labels in the outermost Layer 2
+  header group)
+
+
+Supported Operating Systems
+===========================
+
+This DDP package is supported on the following operating systems:
+
+* Microsoft* Windows Server*
+
+* Linux*
+
+* FreeBSD*
+
+* VMware* ESXi*
+
+Refer to the Intel(R) Ethernet Adapters and Devices User Guide for
+currently supported versions of these operating systems.
+
+
+Related Documentation
+=====================
+
+See the "Intel(R) Ethernet Adapters and Devices User Guide" for
+additional information on features:
+
+* https://cdrdv2.intel.com/v1/dl/getContent/705831/
+
+Additionally, a detailed technology guide is available for this DDP
+package:
+
+* https://cdrdv2.intel.com/v1/dl/getContent/617015
+
+
+Notes
+=====
+
+* In Linux, FreeBSD, and Windows, you cannot update the DDP package if
+  any PF drivers are already loaded. To overwrite a package, unload
+  all PFs and then reload the driver with the new package.
+
+* In FreeBSD and Windows, you can only use one DDP package per driver,
+  even if you have more than one device installed that uses the
+  driver.
+
+* In Linux, FreeBSD, and Windows, only the first loaded PF per device
+  can download a package for that device. In ESXi, you can load
+  different DDP packages for different PFs associated with a device.
+
+* If you are using DPDK, see the DPDK documentation at
+  https://www.dpdk.org/ for installation instructions and more
+  information.
+
+
+Troubleshooting
+===============
+
+
+FreeBSD
+-------
+
+If you encounter issues with the DDP package file, you may need to
+download an updated driver or ice_ddp module. See the log messages for
+more information.
+
+
+Legal / Disclaimers
+===================
+
+Copyright (c) 2019 - 2024, Intel Corporation.
+
+Intel technologies may require enabled hardware, software or service
+activation.
+
+No product or component can be absolutely secure.
+
+Your costs and results may vary.
+
+Intel, the Intel logo, and other Intel marks are trademarks of Intel
+Corporation or its subsidiaries.  Other names and brands may be
+claimed as the property of others.
+
+Performance varies by use, configuration, and other factors. Learn
+more at https://www.Intel.com/PerformanceIndex.
+
+The products described may contain design defects or errors known as
+errata which may cause the product to deviate from published
+specifications. Current characterized errata are available on request.
+
+This software and the related documents are Intel copyrighted
+materials, and your use of them is governed by the express license
+under which they were provided to you ("License"). Unless the License
+provides otherwise, you may not use, modify, copy, publish,
+distribute, disclose or transmit this software or the related
+documents without Intel's prior written permission.
+
+This software and the related documents are provided as is, with no
+express or implied warranties, other than those that are expressly
+stated in the License.

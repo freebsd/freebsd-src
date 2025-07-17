@@ -1,0 +1,74 @@
+#
+# $Header$
+#
+# Copyright 1998-2006 Massachusetts Institute of Technology.
+# All Rights Reserved.
+#
+# Export of this software from the United States of America may
+# require a specific license from the United States Government.
+# It is the responsibility of any person or organization contemplating
+# export to obtain such a license before exporting.
+#
+# WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+# distribute this software and its documentation for any purpose and
+# without fee is hereby granted, provided that the above copyright
+# notice appear in all copies and that both that copyright notice and
+# this permission notice appear in supporting documentation, and that
+# the name of M.I.T. not be used in advertising or publicity pertaining
+# to distribution of the software without specific, written prior
+# permission.  Furthermore if you modify this software you must label
+# your software as modified software and not distribute it in such a
+# fashion that it might be confused with the original M.I.T. software.
+# M.I.T. makes no representations about the suitability of
+# this software for any purpose.  It is provided "as is" without express
+# or implied warranty.
+#
+
+error_table_base 201
+error_table_manager "Credentials Cache"
+error_table CAPI
+
+# 201
+error_code ccIteratorEnd,                       "Reached end of iterator"
+error_code ccErrBadParam,                       "Invalid argument"
+error_code ccErrNoMem,                          "Out of memory"
+error_code ccErrInvalidContext,                 "Invalid credentials cache context"
+error_code ccErrInvalidCCache,                  "Invalid credentials cache"
+
+# 206
+index 5
+error_code ccErrInvalidString,                  "Invalid credentials cache string"
+error_code ccErrInvalidCredentials,             "Invalid credentials"
+error_code ccErrInvalidCCacheIterator,          "Invalid credentials cache iterator"
+error_code ccErrInvalidCredentialsIterator,     "Invalid credentials iterator"
+error_code ccErrInvalidLock,                    "Invalid iterator"
+
+# 211
+index 10
+error_code ccErrBadName,                        "Invalid credentials cache name"
+error_code ccErrBadCredentialsVersion,          "Invalid credentials cache version (not 4 or 5)"
+error_code ccErrBadAPIVersion,                  "Invalid CCAPI version"
+error_code ccErrContextLocked,                  "Credentials cache context is already locked"
+error_code ccErrContextUnlocked,                "Credentials cache context is already unlocked"
+
+# 216
+index 15
+error_code ccErrCCacheLocked,                   "Credentials cache is already locked"
+error_code ccErrCCacheUnlocked,                 "Credentials cache is already unlocked"
+error_code ccErrBadLockType,                    "Invalid credentials cache lock type"
+error_code ccErrNeverDefault,                   "Credentials cache has never been the default cache"
+error_code ccErrCredentialsNotFound,            "Credentials not found"
+
+# 221
+index 20
+error_code ccErrCCacheNotFound,                 "Credentials cache not found"
+error_code ccErrContextNotFound,                "Credentials cache context not found"
+error_code ccErrServerUnavailable,              "Credentials cache server unavailable"
+error_code ccErrServerInsecure,                 "Credentials cache server in this bootstrap is owned by another user"
+error_code ccErrServerCantBecomeUID,            "Credentials cache server failed to change effective uids"
+
+# 226
+index 25
+error_code ccErrTimeOffsetNotSet,               "Credentials cache time offset not set"
+
+end

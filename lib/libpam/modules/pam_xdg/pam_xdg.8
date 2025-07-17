@@ -1,0 +1,65 @@
+.\" * SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Beckhoff Automation GmbH & Co. KG
+.\"
+.\" * Redistribution and use in source and binary forms, with or without
+.\" * modification, are permitted provided that the following conditions
+.\" * are met:
+.\" * 1. Redistributions of source code must retain the above copyright
+.\" *    notice, this list of conditions and the following disclaimer.
+.\" * 2. Redistributions in binary form must reproduce the above copyright
+.\" *    notice, this list of conditions and the following disclaimer in the
+.\" *    documentation and/or other materials provided with the distribution.
+.\" *
+.\" * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" * SUCH DAMAGE.
+.Dd May 20, 2025
+.Dt PAM_XDG 8
+.Os
+.Sh NAME
+.Nm pam_xdg
+.Nd XDG PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_xdg
+.Op Ar arguments
+.Sh DESCRIPTION
+The xdg service module for PAM creates the runtime files base directory
+according to the Cross Desktop Group Base Directory Specification.
+.Pp
+By default the directory is created under
+.Pa /var/run/xdg/ Ns $ Ns Ev USER .
+.Pp
+The following option may be passed to the authentication module:
+.Bl -tag -width "runtime_dir_prefix=directory"
+.It Cm runtime_dir_prefix Ns = Ns Ar directory
+Use an alternate base directory
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Ev XDG_RUNTIME_DIR
+The location of the runtime files base directory created by this module.
+Note that the module does not set this environment variable.
+.El
+.Sh STANDARDS
+The directory created by this module conforms to the
+.Lk https://specifications.freedesktop.org/basedir-spec XDG Base Directory Specification .
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam.conf 5
+.Sh AUTHORS
+The
+.Nm
+module and this manual page were written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

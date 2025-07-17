@@ -1,0 +1,165 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1998 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd February 5, 2025
+.Dt DEVICE_PROBE_AND_ATTACH 9
+.Os
+.Sh NAME
+.Nm device_attach ,
+.Nm device_detach ,
+.Nm device_probe ,
+.Nm device_probe_and_attach
+.Nd manage device's connection to a device driver
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft int
+.Fn device_attach "device_t dev"
+.Ft int
+.Fn device_detach "device_t dev"
+.Ft int
+.Fn device_probe "device_t dev"
+.Ft int
+.Fn device_probe_and_attach "device_t dev"
+.Sh DESCRIPTION
+These functions manage the relationship between a device and device drivers.
+.Pp
+.Fn device_probe
+invokes the
+.Xr DEVICE_PROBE 9
+method of each suitable driver and to find the driver with the best match for
+.Fa dev .
+If a matching driver is found,
+.Fa dev
+is set to the
+.Dv DS_ALIVE
+state and zero is returned.
+If
+.Fa dev
+is already attached to a device driver or has been disabled via
+.Xr device_disable 9 ,
+then it will not be probed and -1 is returned.
+.Pp
+.Fn device_attach
+fully attaches a device driver to
+.Fa dev .
+This function prints a description of the device and invokes the
+.Xr DEVICE_ATTACH 9
+method.
+If the
+.Xr DEVICE_ATTACH 9
+method succeeds,
+.Fa dev
+is set to the
+.Dv DS_ATTACHED
+state and zero is returned.
+If the
+.Xr DEVICE_ATTACH 9
+method fails,
+.Xr BUS_CHILD_DETACHED 9
+is called and an error value is returned.
+.Pp
+If the device name and unit are disabled by a hint,
+.Fn device_attach
+disables the device, demotes it to the
+.Dv DS_NOTPRESENT
+state,
+and returns
+.Dv ENXIO .
+The device retains its device name and unit and can be re-enabled via
+.Xr devctl 8 .
+.Pp
+.Fn device_probe_and_attach
+is a wrapper function around
+.Fn device_probe
+and
+.Fn device_attach
+that fully initialises a device.
+If
+.Fa dev
+is already attached or disabled,
+.Fn device_probe_and_attach
+leaves the device unchanged and returns zero.
+Otherwise,
+.Fn device_probe
+is used to identify a device driver for
+.Fa dev
+and
+.Fn device_attach
+finalizes attaching the driver to
+.Fa dev .
+Device drivers should generally use this function to initialize a device
+rather than direct calls to
+.Fn device_probe
+and
+.Fn device_attach .
+.Pp
+.Fn device_detach
+detaches the device driver from
+.Fa dev .
+This function invokes the
+.Xr DEVICE_DETACH 9
+method to tear down device driver state for
+.Fa dev .
+If the method fails,
+its error value is returned and
+.Fa dev
+remains attached.
+If the method succeeds,
+otherwise,
+.Xr BUS_CHILD_DETACHED 9
+is called,
+the device is set to the
+.Dv DS_NOTPRESENT
+state,
+and zero is returned.
+If a device is busy,
+.Fn device_detach
+fails with
+.Dv EBUSY
+and leaving
+.Fa dev
+unchanged.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an appropriate error is returned.
+In addition,
+.Fn device_probe
+returns -1 if
+.Fa dev
+is disabled or already attached.
+.Sh SEE ALSO
+.Xr devctl 8 ,
+.Xr BUS_CHILD_DETACHED 9 ,
+.Xr device 9 ,
+.Xr DEVICE_ATTACH 9 ,
+.Xr DEVICE_DETACH 9 ,
+.Xr DEVICE_PROBE 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

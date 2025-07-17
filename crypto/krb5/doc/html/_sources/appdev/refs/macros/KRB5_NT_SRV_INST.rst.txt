@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-NT-SRV-INST-data:
+
+KRB5_NT_SRV_INST
+================
+
+..
+.. data:: KRB5_NT_SRV_INST
+..
+
+Service and other unique instance (krbtgt)
+
+
+
+======================= ======================
+``KRB5_NT_SRV_INST``       ``2``
+======================= ======================

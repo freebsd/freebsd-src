@@ -1,0 +1,21 @@
+make: directive-elif.mk:48: Unknown directive "elsif"
+make: directive-elif.mk:54: This branch is taken.
+make: directive-elif.mk:62: Unknown directive "elsif"
+make: directive-elif.mk:66: This branch is taken.
+make: directive-elif.mk:73: This branch is taken.
+make: directive-elif.mk:94: Unknown directive "elsif"
+make: directive-elif.mk:96: This misspelling is detected.
+make: directive-elif.mk:98: This branch is taken because of the .else.
+make: directive-elif.mk:117: What happens on misspelling in a skipped branch?
+make: directive-elif.mk:128: else
+make: directive-elif.mk:132: What happens on misspelling in a taken branch?
+make: directive-elif.mk:135: 1-then
+make: directive-elif.mk:137: Unknown directive "elsif"
+make: directive-elif.mk:139: 1-elsif
+make: directive-elif.mk:141: Unknown directive "elsif"
+make: directive-elif.mk:143: 2-elsif
+make: directive-elif.mk:149: if-less elif
+make: directive-elif.mk:154: warning: extra elif
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

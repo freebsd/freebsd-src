@@ -1,0 +1,2 @@
+
+{ (echo bad) >/dev/null; } </dev/null

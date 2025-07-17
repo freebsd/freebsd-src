@@ -1,0 +1,372 @@
+.\" SPDX-License-Identifier: CDDL-1.0
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright (c) 2007, Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright (c) 2012, 2018 by Delphix. All rights reserved.
+.\" Copyright (c) 2012 Cyril Plisko. All Rights Reserved.
+.\" Copyright (c) 2017 Datto Inc.
+.\" Copyright (c) 2018 George Melikov. All Rights Reserved.
+.\" Copyright 2017 Nexenta Systems, Inc.
+.\" Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
+.\"
+.Dd February 14, 2024
+.Dt ZPOOL-STATUS 8
+.Os
+.
+.Sh NAME
+.Nm zpool-status
+.Nd show detailed health status for ZFS storage pools
+.Sh SYNOPSIS
+.Nm zpool
+.Cm status
+.Op Fl DdegiLPpstvx
+.Op Fl c Ar script1 Ns Oo , Ns Ar script2 Ns ,… Oc
+.Oo Fl j|--json
+.Oo Ns Fl -json-flat-vdevs Oc
+.Oo Ns Fl -json-int Oc
+.Oo Ns Fl -json-pool-key-guid Oc
+.Oc
+.Op Fl T Ar d|u
+.Op Fl -power
+.Op Ar pool
+.Op Ar interval Op Ar count
+.
+.Sh DESCRIPTION
+Displays the detailed health status for the given pools.
+If no
+.Ar pool
+is specified, then the status of each pool in the system is displayed.
+For more information on pool and device health, see the
+.Sx Device Failure and Recovery
+section of
+.Xr zpoolconcepts 7 .
+.Pp
+If a scrub or resilver is in progress, this command reports the percentage done
+and the estimated time to completion.
+Both of these are only approximate, because the amount of data in the pool and
+the other workloads on the system can change.
+.Bl -tag -width Ds
+.It Fl c Ar script1 Ns Oo , Ns Ar script2 Ns ,… Oc
+Run a script (or scripts) on each vdev and include the output as a new column
+in the
+.Nm zpool Cm status
+output.
+See the
+.Fl c
+option of
+.Nm zpool Cm iostat
+for complete details.
+.It Fl D
+Display a histogram of deduplication statistics, showing the allocated
+.Pq physically present on disk
+and referenced
+.Pq logically referenced in the pool
+block counts and sizes by reference count.
+If repeated, (-DD), also shows statistics on how much of the DDT is resident
+in the ARC.
+.It Fl d
+Display the number of Direct I/O read/write checksum verify errors that have
+occurred on a top-level VDEV.
+See
+.Sx zfs_vdev_direct_write_verify
+in
+.Xr zfs 4
+for details about the conditions that can cause Direct I/O write checksum
+verify failures to occur.
+Direct I/O reads checksum verify errors can also occur if the contents of the
+buffer are being manipulated after the I/O has been issued and is in flight.
+In the case of Direct I/O read checksum verify errors, the I/O will be reissued
+through the ARC.
+.It Fl e
+Only show unhealthy vdevs (not-ONLINE or with errors).
+.It Fl g
+Display vdev GUIDs instead of the normal device names
+These GUIDs can be used in place of device names for the zpool
+detach/offline/remove/replace commands.
+.It Fl i
+Display vdev initialization status.
+.It Fl j , -json Oo Ns Fl -json-flat-vdevs Oc Oo Ns Fl -json-int Oc \
+Oo Ns Fl -json-pool-key-guid Oc
+Display the status for ZFS pools in JSON format.
+Specify
+.Sy --json-flat-vdevs
+to display vdevs in flat hierarchy instead of nested vdev objects.
+Specify
+.Sy --json-int
+to display numbers in integer format instead of strings.
+Specify
+.Sy --json-pool-key-guid
+to set pool GUID as key for pool objects instead of pool names.
+.It Fl L
+Display real paths for vdevs resolving all symbolic links.
+This can be used to look up the current block device name regardless of the
+.Pa /dev/disk/
+path used to open it.
+.It Fl P
+Display full paths for vdevs instead of only the last component of
+the path.
+This can be used in conjunction with the
+.Fl L
+flag.
+.It Fl p
+Display numbers in parsable (exact) values.
+.It Fl -power
+Display vdev enclosure slot power status (on or off).
+.It Fl s
+Display the number of leaf vdev slow I/O operations.
+This is the number of I/O operations that didn't complete in
+.Sy zio_slow_io_ms
+milliseconds
+.Pq Sy 30000 No by default .
+This does not necessarily mean the I/O operations failed to complete, just took
+an
+unreasonably long amount of time.
+This may indicate a problem with the underlying storage.
+.It Fl T Sy d Ns | Ns Sy u
+Display a time stamp.
+Specify
+.Sy d
+for standard date format.
+See
+.Xr date 1 .
+Specify
+.Sy u
+for a printed representation of the internal representation of time.
+See
+.Xr time 1 .
+.It Fl t
+Display vdev TRIM status.
+.It Fl v
+Displays verbose data error information, printing out a complete list of all
+data errors since the last complete pool scrub.
+If the head_errlog feature is enabled and files containing errors have been
+removed then the respective filenames will not be reported in subsequent runs
+of this command.
+.It Fl x
+Only display status for pools that are exhibiting errors or are otherwise
+unavailable.
+Warnings about pools not using the latest on-disk format will not be included.
+.El
+.
+.Sh EXAMPLES
+.\" These are, respectively, examples 16 from zpool.8
+.\" Make sure to update them bidirectionally
+.Ss Example 1 : No Adding output columns
+Additional columns can be added to the
+.Nm zpool Cm status No and Nm zpool Cm iostat No output with Fl c .
+.Bd -literal -compact -offset Ds
+.No # Nm zpool Cm status Fl c Pa vendor , Ns Pa model , Ns Pa size
+   NAME     STATE  READ WRITE CKSUM vendor  model        size
+   tank     ONLINE 0    0     0
+   mirror-0 ONLINE 0    0     0
+   U1       ONLINE 0    0     0     SEAGATE ST8000NM0075 7.3T
+   U10      ONLINE 0    0     0     SEAGATE ST8000NM0075 7.3T
+   U11      ONLINE 0    0     0     SEAGATE ST8000NM0075 7.3T
+   U12      ONLINE 0    0     0     SEAGATE ST8000NM0075 7.3T
+   U13      ONLINE 0    0     0     SEAGATE ST8000NM0075 7.3T
+   U14      ONLINE 0    0     0     SEAGATE ST8000NM0075 7.3T
+
+.No # Nm zpool Cm iostat Fl vc Pa size
+              capacity     operations     bandwidth
+pool        alloc   free   read  write   read  write  size
+----------  -----  -----  -----  -----  -----  -----  ----
+rpool       14.6G  54.9G      4     55   250K  2.69M
+  sda1      14.6G  54.9G      4     55   250K  2.69M   70G
+----------  -----  -----  -----  -----  -----  -----  ----
+.Ed
+.
+.Ss Example 2 : No Display the status output in JSON format
+.Nm zpool Cm status No can output in JSON format if
+.Fl j
+is specified.
+.Fl c
+can be used to run a script on each VDEV.
+.Bd -literal -compact -offset Ds
+.No # Nm zpool Cm status Fl j Fl c Pa vendor , Ns Pa model , Ns Pa size | Nm jq
+{
+  "output_version": {
+    "command": "zpool status",
+    "vers_major": 0,
+    "vers_minor": 1
+  },
+  "pools": {
+    "tank": {
+      "name": "tank",
+      "state": "ONLINE",
+      "guid": "3920273586464696295",
+      "txg": "16597",
+      "spa_version": "5000",
+      "zpl_version": "5",
+      "status": "OK",
+      "vdevs": {
+        "tank": {
+          "name": "tank",
+          "alloc_space": "62.6G",
+          "total_space": "15.0T",
+          "def_space": "11.3T",
+          "read_errors": "0",
+          "write_errors": "0",
+          "checksum_errors": "0",
+          "vdevs": {
+            "raidz1-0": {
+              "name": "raidz1-0",
+              "vdev_type": "raidz",
+              "guid": "763132626387621737",
+              "state": "HEALTHY",
+              "alloc_space": "62.5G",
+              "total_space": "10.9T",
+              "def_space": "7.26T",
+              "rep_dev_size": "10.9T",
+              "read_errors": "0",
+              "write_errors": "0",
+              "checksum_errors": "0",
+              "vdevs": {
+                "ca1eb824-c371-491d-ac13-37637e35c683": {
+                  "name": "ca1eb824-c371-491d-ac13-37637e35c683",
+                  "vdev_type": "disk",
+                  "guid": "12841765308123764671",
+                  "path": "/dev/disk/by-partuuid/ca1eb824-c371-491d-ac13-37637e35c683",
+                  "state": "HEALTHY",
+                  "rep_dev_size": "3.64T",
+                  "phys_space": "3.64T",
+                  "read_errors": "0",
+                  "write_errors": "0",
+                  "checksum_errors": "0",
+                  "vendor": "ATA",
+                  "model": "WDC WD40EFZX-68AWUN0",
+                  "size": "3.6T"
+                },
+                "97cd98fb-8fb8-4ac4-bc84-bd8950a7ace7": {
+                  "name": "97cd98fb-8fb8-4ac4-bc84-bd8950a7ace7",
+                  "vdev_type": "disk",
+                  "guid": "1527839927278881561",
+                  "path": "/dev/disk/by-partuuid/97cd98fb-8fb8-4ac4-bc84-bd8950a7ace7",
+                  "state": "HEALTHY",
+                  "rep_dev_size": "3.64T",
+                  "phys_space": "3.64T",
+                  "read_errors": "0",
+                  "write_errors": "0",
+                  "checksum_errors": "0",
+                  "vendor": "ATA",
+                  "model": "WDC WD40EFZX-68AWUN0",
+                  "size": "3.6T"
+                },
+                "e9ddba5f-f948-4734-a472-cb8aa5f0ff65": {
+                  "name": "e9ddba5f-f948-4734-a472-cb8aa5f0ff65",
+                  "vdev_type": "disk",
+                  "guid": "6982750226085199860",
+                  "path": "/dev/disk/by-partuuid/e9ddba5f-f948-4734-a472-cb8aa5f0ff65",
+                  "state": "HEALTHY",
+                  "rep_dev_size": "3.64T",
+                  "phys_space": "3.64T",
+                  "read_errors": "0",
+                  "write_errors": "0",
+                  "checksum_errors": "0",
+                  "vendor": "ATA",
+                  "model": "WDC WD40EFZX-68AWUN0",
+                  "size": "3.6T"
+                }
+              }
+            }
+          }
+        }
+      },
+      "dedup": {
+        "mirror-2": {
+          "name": "mirror-2",
+          "vdev_type": "mirror",
+          "guid": "2227766268377771003",
+          "state": "HEALTHY",
+          "alloc_space": "89.1M",
+          "total_space": "3.62T",
+          "def_space": "3.62T",
+          "rep_dev_size": "3.62T",
+          "read_errors": "0",
+          "write_errors": "0",
+          "checksum_errors": "0",
+          "vdevs": {
+            "db017360-d8e9-4163-961b-144ca75293a3": {
+              "name": "db017360-d8e9-4163-961b-144ca75293a3",
+              "vdev_type": "disk",
+              "guid": "17880913061695450307",
+              "path": "/dev/disk/by-partuuid/db017360-d8e9-4163-961b-144ca75293a3",
+              "state": "HEALTHY",
+              "rep_dev_size": "3.63T",
+              "phys_space": "3.64T",
+              "read_errors": "0",
+              "write_errors": "0",
+              "checksum_errors": "0",
+              "vendor": "ATA",
+              "model": "WDC WD40EFZX-68AWUN0",
+              "size": "3.6T"
+            },
+            "952c3baf-b08a-4a8c-b7fa-33a07af5fe6f": {
+              "name": "952c3baf-b08a-4a8c-b7fa-33a07af5fe6f",
+              "vdev_type": "disk",
+              "guid": "10276374011610020557",
+              "path": "/dev/disk/by-partuuid/952c3baf-b08a-4a8c-b7fa-33a07af5fe6f",
+              "state": "HEALTHY",
+              "rep_dev_size": "3.63T",
+              "phys_space": "3.64T",
+              "read_errors": "0",
+              "write_errors": "0",
+              "checksum_errors": "0",
+              "vendor": "ATA",
+              "model": "WDC WD40EFZX-68AWUN0",
+              "size": "3.6T"
+            }
+          }
+        }
+      },
+      "special": {
+        "25d418f8-92bd-4327-b59f-7ef5d5f50d81": {
+          "name": "25d418f8-92bd-4327-b59f-7ef5d5f50d81",
+          "vdev_type": "disk",
+          "guid": "3935742873387713123",
+          "path": "/dev/disk/by-partuuid/25d418f8-92bd-4327-b59f-7ef5d5f50d81",
+          "state": "HEALTHY",
+          "alloc_space": "37.4M",
+          "total_space": "444G",
+          "def_space": "444G",
+          "rep_dev_size": "444G",
+          "phys_space": "447G",
+          "read_errors": "0",
+          "write_errors": "0",
+          "checksum_errors": "0",
+          "vendor": "ATA",
+          "model": "Micron_5300_MTFDDAK480TDS",
+          "size": "447.1G"
+        }
+      },
+      "error_count": "0"
+    }
+  }
+}
+.Ed
+.
+.Sh SEE ALSO
+.Xr zpool-events 8 ,
+.Xr zpool-history 8 ,
+.Xr zpool-iostat 8 ,
+.Xr zpool-list 8 ,
+.Xr zpool-resilver 8 ,
+.Xr zpool-scrub 8 ,
+.Xr zpool-wait 8

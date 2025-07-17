@@ -1,0 +1,8 @@
+Enable building
+.Xr loader 8
+with support for verification similar to Verified Exec.
+.Pp
+Depends on
+.Va WITH_BEARSSL .
+May require a larger
+.Va LOADERSIZE .

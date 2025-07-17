@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-ENCPADATA-REQ-ENC-PA-REP-data:
+
+KRB5_ENCPADATA_REQ_ENC_PA_REP
+=============================
+
+..
+.. data:: KRB5_ENCPADATA_REQ_ENC_PA_REP
+..
+
+RFC 6806.
+
+
+
+==================================== ======================
+``KRB5_ENCPADATA_REQ_ENC_PA_REP``       ``149``
+==================================== ======================

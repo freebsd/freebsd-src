@@ -1,0 +1,20 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/arm64
+#
+
+machine		arm64 aarch64
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
+
+# Default partitioning schemes
+options 	GEOM_PART_BSD
+options 	GEOM_PART_MBR
+options 	GEOM_PART_GPT
+
+# Default congestion control algorithm
+options 	CC_CUBIC		# include CUBIC congestion control
+
+options 	INTRNG
+
+options 	NETLINK			# netlink(4) support

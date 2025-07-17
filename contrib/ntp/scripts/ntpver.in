@@ -1,0 +1,8 @@
+#!@CONFIG_SHELL@
+# @configure_input@
+# print version string of NTP daemon
+# Copyright (c) 1997 by Ulrich Windl
+# Modified 970318: Harlan Stenn: rewritten...
+# usage: ntpver hostname
+
+ntpq -c "rv 0 version" $* | @AWK@ '/version/ { print $2 }'

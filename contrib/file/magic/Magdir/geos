@@ -1,0 +1,29 @@
+
+#------------------------------------------------------------------------------
+# $File: geos,v 1.5 2024/04/07 17:56:40 christos Exp $
+# GEOS files (Vidar Madsen, vidar@gimp.org)
+# semi-commonly used in embedded and handheld systems.
+0	belong	0xc745c153	GEOS
+>40	byte	1	executable
+>40	byte	2	VMFile
+>40	byte	3	binary
+>40	byte	4	directory label
+>40	byte	<1	unknown
+>40	byte	>4	unknown
+>4	string	>\0	\b, name "%s"
+#>44	short	x	\b, version %d
+#>46	short	x	\b.%d
+#>48	short	x	\b, rev %d
+#>50	short	x	\b.%d
+#>52	short	x	\b, proto %d
+#>54	short	x	\br%d
+#>168	string	>\0	\b, copyright "%s"
+
+30	string	PRG\ formatted\ GEOS\ file	Formatted GEOS file
+>22	byte	6	\b, APPLICATION
+>22	byte	14	\b, AUTO_EXEC
+>22	byte	5	\b, DESK_ACC
+>22	byte	2	\b, ASSEMBLY
+>22	byte	11	\b, DISK_DEVICE
+>22	byte	9	\b, PRINTER
+>22	byte	4	\b, SYSTEM

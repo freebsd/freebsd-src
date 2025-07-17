@@ -1,0 +1,2 @@
+Do not build the base system with the retpoline speculative execution
+vulnerability mitigation.

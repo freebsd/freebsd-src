@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: motd
+# REQUIRE: mountcritremote FILESYSTEMS
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+name="motd"
+desc="Update /var/run/motd"
+rcvar="update_motd"
+start_cmd="motd_start"
+stop_cmd=":"
+
+COMPAT_MOTD="/etc/motd"
+TARGET="/var/run/motd"
+TEMPLATE="/etc/motd.template"
+PERMS="644"
+
+motd_start()
+{
+	#	Update kernel info in /var/run/motd
+	#	Must be done *before* interactive logins are possible
+	#	to prevent possible race conditions.
+	#
+	startmsg -n 'Updating motd:'
+	if [ ! -f "${TEMPLATE}" ]; then
+		# Create missing template from existing regular motd file, if
+		# one exists.
+		if [ -f "${COMPAT_MOTD}" ]; then
+			sed '1{/^FreeBSD.*/{d;};};' "${COMPAT_MOTD}" > "${TEMPLATE}"
+			chmod $PERMS "${TEMPLATE}"
+			rm -f "${COMPAT_MOTD}"
+		else
+			# Otherwise, create an empty template file.
+			install -c -o root -g wheel -m ${PERMS} /dev/null "${TEMPLATE}"
+		fi
+	fi
+	# Provide compatibility symlink:
+	if [ ! -h "${COMPAT_MOTD}" ]; then
+		ln -sF "${TARGET}" "${COMPAT_MOTD}"
+	fi
+
+	T=`mktemp -t motd`
+	uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\)$,\1 (\3) #\2,' \
+	    -e 's,^\([^ ]*\) \([^ ]*\) \([^ ]*\) \([^ ]*\)$,\1 \2 (\4) \3,' > ${T}
+	cat "${TEMPLATE}" >> ${T}
+
+	install -C -o root -g wheel -m "${PERMS}" "$T" "${TARGET}"
+	rm -f "$T"
+
+	startmsg '.'
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+motd_svcj="NO"
+
+run_rc_command "$1"

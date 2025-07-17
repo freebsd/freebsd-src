@@ -1,0 +1,185 @@
+	    FreeBSD maintainer's guide to OpenSSH-portable
+	    ==============================================
+
+    These instructions assume you have a clone of the FreeBSD git repo
+    main branch in src/freebsd/main, and will store vendor trees under
+    src/freebsd/vendor/.  In addition, this assumes there is a "freebsd"
+    origin pointing to git(repo).freebsd.org/src.git.
+
+01) Make sure your mail spool has plenty of free space.  It'll fill up
+    pretty fast once you're done with this checklist.
+
+02) Download the latest OpenSSH-portable tarball and signature from
+    OpenBSD (https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/).
+
+03) Verify the signature:
+
+    $ gpg --verify openssh-X.YpZ.tar.gz.asc
+
+04) Unpack the tarball in a suitable directory:
+
+    $ tar xf openssh-X.YpZ.tar.gz
+
+05) Copy to a vendor branch:
+
+    $ cd src/freebsd/main
+    $ git worktree add ../vendor/openssh freebsd/vendor/openssh
+    $ cd ../vendor/openssh
+    $ rsync --archive --delete --exclude=.git /path/to/openssh-X.YpZ/ ./
+
+06) Take care of added / deleted files:
+
+    $ git add -A
+
+07) Commit:
+
+    $ git commit -m "Vendor import of OpenSSH X.YpZ"
+
+08) Tag:
+
+    $ git tag -a -m "Tag OpenSSH X.YpZ" vendor/openssh/X.YpZ
+
+    At this point the vendor branch can be pushed to the FreeBSD repo via:
+
+    $ git push freebsd vendor/openssh
+    $ git push freebsd vendor/openssh/X.YpZ
+
+    Note the second "git push" command is used to push the tag, which is
+    not pushed by default.
+
+    It is also possible to push the branch and tag together, but use
+    --dry-run first to ensure that no undesired tags will be pushed:
+
+    $ git push --dry-run --follow-tags freebsd vendor/openssh
+    $ git push --follow-tags freebsd vendor/openssh
+
+    The update and tag could instead be pushed later, along with the merge
+    to main, but pushing now allows others to collaborate.
+
+09) Merge from the vendor branch:
+
+    $ git subtree merge -P crypto/openssh vendor/openssh
+
+    A number of files have been deleted from FreeBSD's copy of ssh,
+    including rendered man pages (which have a .0 extension).  When
+    git prompts for these deleted files during the merge, choose 'd'
+    (leaving them deleted).
+
+10) Resolve conflicts.  Remember to bump the version addendum in
+    version.h, and update the default value in sshd_config and
+    sshd_config.5.
+
+11) Diff against the vendor branch:
+
+    $ git diff --diff-filter=M vendor/openssh/X.YpZ HEAD:crypto/openssh
+
+    Review the diff for any unexpected changes.
+
+12) Run the configure script:
+
+    $ cd crypto/openssh
+    $ sh freebsd-configure.sh
+
+13) Review changes to config.h very carefully.
+
+    Note that libwrap should not be defined in config.h; as of
+    r311585 (233932cc2a60) it is conditional on MK_TCP_WRAPPERS.
+
+14) If source files have been added or removed, update the appropriate
+    makefiles to reflect changes in the vendor's Makefile.in.
+
+15) Update ssh_namespace.h:
+
+    $ cd crypto/openssh
+    $ sh freebsd-namespace.sh
+
+16) Build and install world, reboot, test.  Pay particular attention
+    to pam_ssh(8), which gropes inside libssh and will break if
+    something significant changes or if ssh_namespace.h is out of
+    whack.
+
+17) Check for references to obsolete configuration options
+    (e.g., ChallengeResponseAuthentication in sshd_config) which
+    may exist in release/ scripts.
+
+18) Commit, and hunker down for the inevitable storm of complaints.
+
+
+
+	  An overview of FreeBSD changes to OpenSSH-portable
+	  ==================================================
+
+1) Modified server-side defaults
+
+   We've modified some configuration defaults in sshd:
+
+      - UsePAM defaults to "yes".
+      - PermitRootLogin defaults to "no".
+      - PasswordAuthentication defaults to "no".
+      - VersionAddendum defaults to "FreeBSD-YYYYMMDD".
+      - UseDNS defaults to "yes".
+
+2) Modified client-side defaults
+
+   We defaulted CheckHostIP to "no" in 2000 (a95c1225217b).  Upstream has
+   now made the same change, and we no longer have any modified client-side
+   defaults.
+
+3) Canonic host names
+
+   We've added code to ssh.c to canonicize the target host name after
+   reading options but before trying to connect.  This eliminates the
+   usual problem with duplicate known_hosts entries.
+
+   We added this support in 2002 (r99054 / bf2e2524a2ce).  In 2014
+   upstream introduced CanonicalDomains and related options to serve a
+   similar purpose but they require environment-specific configuration.
+
+4) setusercontext() environment
+
+   Our setusercontext(3) can set environment variables, which we must
+   take care to transfer to the child's environment.
+
+5) TCP wrappers
+
+   Support for TCP wrappers was removed in upstream 6.7p1.  We've
+   added it back by porting the 6.6p1 code forward.
+
+   TCP wrappers support in sshd will be disabled in HEAD and will
+   be removed from FreeBSD in the future.
+
+6) Agent client reference counting
+
+   We've added code to ssh-agent.c to implement client reference
+   counting; the agent will automatically exit when the last client
+   disconnects.
+
+7) Blocklist integration
+
+   We include blocklist (https://github.com/zoulasc/blocklist) in FreeBSD,
+   and ssh is patched to report login failures to it.
+
+8) Paths
+
+   A number of paths are changed to match FreeBSD's configuration (e.g.,
+   using /usr/local/ instead of /uxr/X11R6/).
+
+9) Retired patches
+
+   We no longer have client-side VersionAddendum.
+
+10) PrintLastLog bugfix
+
+   Upstream's autoconf sets DISABLE_LASTLOG if the system does not have
+   lastlog.ll_line, but uses it to disable the PrintLastLog configuration
+   option altogether.  There is a hacky SKIP_DISABLE_LASTLOG_DEFINE=yes to
+   skip setting DISABLE_LASTLOG which we've applied for FreeBSD, but the
+   autoconf machinery really ought to be reworked.  Reported upstream at
+   https://lists.mindrot.org/pipermail/openssh-unix-dev/2022-May/040242.html
+
+
+This port was brought to you by (in no particular order) DARPA, NAI
+Labs, ThinkSec, Nescafé, the Aberlour Glenlivet Distillery Co.,
+Suzanne Vega, and a Sanford's #69 Deluxe Marker.
+
+					-- des@FreeBSD.org

@@ -1,0 +1,146 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 1, 2020
+.Dt RAND 3
+.Os
+.Sh NAME
+.Nm rand ,
+.Nm srand ,
+.Nm rand_r
+.Nd bad random number generator
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void
+.Fn srand "unsigned seed"
+.Ft int
+.Fn rand void
+.Ft int
+.Fn rand_r "unsigned *ctx"
+.Sh DESCRIPTION
+.Bf -symbolic
+The functions described in this manual page are not cryptographically
+secure.
+Applications which require unpredictable random numbers should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
+The
+.Fn rand
+function computes a sequence of pseudo-random integers in the range
+of 0 to
+.Dv RAND_MAX ,
+inclusive.
+.Pp
+The
+.Fn srand
+function seeds the algorithm with the
+.Fa seed
+parameter.
+Repeatable sequences of
+.Fn rand
+output may be obtained by calling
+.Fn srand
+with the same
+.Fa seed .
+.Fn rand
+is implicitly initialized as if
+.Fn srand "1"
+had been invoked explicitly.
+.Pp
+In
+.Fx 13 ,
+.Fn rand
+is implemented using the same 128-byte state LFSR generator algorithm as
+.Xr random 3 .
+However, the legacy
+.Fn rand_r
+function is not (and can not be, because of its limited
+.Fa *ctx
+size).
+.Fn rand_r
+implements the historical, poor-quality Park-Miller 32-bit LCG and should not
+be used in new designs.
+.Sh IMPLEMENTATION NOTES
+Since
+.Fx 13 ,
+.Fn rand
+is implemented with the same generator as
+.Xr random 3 ,
+so the low-order bits should no longer be significantly worse than the
+high-order bits.
+.Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr random 3 ,
+.Xr random 4
+.Sh STANDARDS
+The
+.Fn rand
+and
+.Fn srand
+functions
+conform to
+.St -isoC .
+.Pp
+The
+.Fn rand_r
+function is not part of
+.St -isoC
+and is marked obsolescent in
+.St -p1003.1-2008 .
+It may be removed in a future revision of POSIX.
+.Sh CAVEATS
+Prior to
+.Fx 13 ,
+.Fn rand
+used the historical Park-Miller generator with 32 bits of state and produced
+poor quality output, especially in the lower bits.
+.Fn rand
+in earlier versions of
+.Fx ,
+as well as other standards-conforming implementations, may continue to produce
+poor quality output.
+.Pp
+.Em These functions should not be used in portable applications that want a
+.Em high quality or high performance pseudorandom number generator .
+One possible replacement,
+.Xr random 3 ,
+is portable to Linux — but it is not especially fast, nor standardized.
+.Pp
+If broader portability or better performance is desired, any of the widely
+available and permissively licensed SFC64/32, JSF64/32, PCG64/32, or SplitMix64
+algorithm implementations may be embedded in your application.
+These algorithms have the benefit of requiring less space than
+.Xr random 3
+and being quite fast (in header inline implementations).

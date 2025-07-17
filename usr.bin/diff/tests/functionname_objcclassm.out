@@ -1,0 +1,11 @@
+--- functionname.in
++++ functionname_objcclassm.in
+@@ -25,5 +25,7 @@ + (BOOL) isEdible:(NSString *)mushroom
+ 
+ + (BOOL) isEdible:(NSString *)mushroom
+ {
+-	return TRUE;
++	/* With a solid guide book (such as Phillips 2006) assume we can't eat
++	 * the fungus */
++	return FALSE;
+ }

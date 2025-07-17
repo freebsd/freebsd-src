@@ -1,0 +1,987 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 10, 2024
+.Dt HIER 7
+.Os
+.Sh NAME
+.Nm hier
+.Nd index of
+.Fx
+file system hierarchy
+.Sh DESCRIPTION
+.Bl -tag -width "/libexec/"
+.It Pa /
+root directory of the file system
+.It Pa /COPYRIGHT
+.Fx
+copyright information
+.It Pa /bin/
+fundamental
+.Bx
+user utilities; see
+.Xr intro 1
+.It Pa /boot/
+programs and configurations used during
+.Fx
+.Xr boot 8
+.Pp
+.Bl -tag -width "loader.conf.d/" -compact
+.It Pa defaults/
+default boot configuration files; see
+.Xr loader.conf 5
+.It Pa device.hints
+kernel variables for controlling drivers; see
+.Xr device.hints 5
+.It Pa dtb/
+compiled flattened device tree (FDT) files; see
+.Xr fdt 4
+and
+.Xr dtc 1
+.Pp
+.Bl -tag -width "overlays/" -compact
+.It Pa overlays/
+compiled
+.Xr fdt 4
+overlays; see
+.Va fdt_overlays
+in
+.Xr loader.conf 5
+.El
+.Pp
+.It Pa efi/
+the
+.Xr uefi 8
+EFI System Partition (ESP) mount point
+.It Pa firmware/
+loadable binary firmware kernel modules
+.It Pa fonts/
+binary bitmap console fonts; see
+.Xr loader.conf 5
+and
+.Xr vtfontcvt 8
+.It Pa images/
+beastie boot menu images; see
+.Xr loader_lua 8
+.It Pa kernel/
+.Fx
+kernel and modules; see
+.Xr kldstat 8
+.It Pa kernel.old/
+alternative kernel and modules
+.It Pa loader.conf
+boot loader configuration; see
+.Xr loader.conf 5
+.It Pa loader.conf.d/
+.Xr loader.conf 5
+configuration files
+.It Pa lua/
+scripts for the Lua boot loader; see
+.Xr loader_lua 8
+.It Pa modules/
+third-party loadable kernel modules, such as those installed with
+.Xr pkg 8
+or from
+.Xr ports 7
+.It Pa zfs/
+ZFS
+.Xr zpool 8
+cache files
+.El
+.It Pa /compat/
+files supporting binary compatibility with other operating systems
+.Pp
+.Bl -tag -width "loader.conf.d" -compact
+.It Pa linux/
+default location for
+.Xr linux 4
+compatibility run-time
+.El
+.It Pa /dev/
+device nodes and special files; see
+.Xr intro 4
+and
+.Xr devfs 4
+.Pp
+.Bl -tag -width "loader.conf.d" -compact
+.It Pa ada0
+first ATA storage device
+.It Pa ada0p1
+first partition on ada0
+.It Pa cd0
+first optical drive
+.It Pa cuaU0
+first USB serial port; see
+.Xr cu 1
+.It Pa da0
+first SCSI storage device
+.It Pa da0s1
+first partition on da0
+.It Pa dri/
+GPU character device nodes; see
+.Xr drm 7
+.It Pa drm/
+GPU
+.Xr drm 7
+special files
+.It Pa fd/
+file descriptor files; see
+.Xr fd 4
+.It Pa fd0
+first floppy drive
+.It Pa gpt/
+storage partitions by GPT label
+.It Pa mmcsd0
+first SD storage device
+.It Pa mmcsd0s1
+first partition on mmcsd0
+.It Pa nda0
+first NVMe storage device attached via
+.Xr cam 3
+.It Pa null
+infinite loop that accepts anything and contains nothing
+.It Pa nvd0
+first NVMe storage device using NVMe namespaces
+.It Pa pts/
+pseudo-terminals; see
+.Xr pts 4
+.It Pa random
+source of weak randomness; see
+.Xr random 4
+.It Pa sa0
+first tape drive
+.It Pa usb/
+USB busses
+.It Pa vmm/
+active
+.Xr bhyve 8
+virtual machines
+.It Pa zvol/
+.Xr zfs 8
+volumes
+.El
+.It Pa /entropy
+provides initial state to RNG; see
+.Xr save-entropy 8
+.It Pa /etc/
+base system configuration files and scripts; see
+.Xr intro 5
+.Pp
+.Bl -tag -width "freebsd-update.conf" -compact
+.It Pa auto_master
+autofs
+.Xr automount 8
+configuration
+.It Pa bluetooth/
+bluetooth configuration files
+.It Pa cron.d/
+tables for driving scheduled tasks; see
+.Xr crontab 5
+.It Pa crontab
+root's cron table
+.It Pa defaults/
+default system configuration files; see
+.Xr rc 8
+.It Pa devd/
+configuration for
+.Xr devd 8 ,
+the device state change daemon
+.It Pa devfs.conf
+boot time device configuration
+.It Pa dma/
+configuration for
+.Xr dma 8
+.It Pa freebsd-update.conf
+configuration for the base system updater; see
+.Xr freebsd-update 8
+.It Pa fstab
+static filesystem configuration; see
+.Xr fstab 5
+.It Pa hosts
+database of local hosts if no network name server is running
+.It Pa inetd.conf
+configuration for
+.Bx
+heritage internet servers; see
+.Xr inetd 8
+.It Pa localtime
+local timezone information; see
+.Xr ctime 3
+.It Pa jail.conf.d/
+.Xr jail 8
+startup scripts
+.It Pa login.conf
+login class capability database; see
+.Xr login.conf 5
+.It Pa machine-id
+defines the UUID for the local system, required for dbus
+.It Pa mail/
+.Xr sendmail 8
+control files
+.Pp
+.Bl -tag -width "mailer.conf" -compact
+.It Pa aliases
+addresses to deliver system mail
+.It Pa mailer.conf
+.Xr mailwrapper 8
+configuration
+.El
+.Pp
+.It Pa motd.template
+message displayed upon tty login; see
+.Xr motd 5
+.It Pa mtree/
+system mapper specification; see
+.Xr mtree 8
+.It Pa newsyslog.conf.d/
+log rotation configuration files.
+.It Pa ntp/
+stored time for the Network Time Protocol
+.It Pa ntp.conf
+configuration for the NTP client,
+.Xr ntpd 8
+.It Pa pam.d/
+configuration files for the Pluggable Authentication Modules (PAM) library;
+see
+.Xr pam 3
+.It Pa periodic/
+scripts that are run daily, weekly, or monthly by
+.Xr cron 8 ;
+see
+.Xr periodic 8
+.It Pa pf.conf
+configuration for the Packet Filter firewall; see
+.Xr pf 4
+.It Pa pkg/
+default configuration for the package manager,
+.Xr pkg 8
+.It Pa ppp/
+PPP configuration files; see
+.Xr ppp 8
+.It Pa rc.conf
+system and daemon configuration; see
+.Xr rc.conf 5
+.It Pa rc.d/
+system and daemon startup/control scripts; see
+.Xr rc 8
+.It Pa resolv.conf
+DNS configuration; see
+.Xr resolv.conf 5
+.It Pa resolvconf.conf
+DNS configuration manager configuration, often generated by
+local-unbound; see
+.Xr local-unbound 8
+or
+.Xr resolvconf 8
+.It Pa security/
+OpenBSM audit configuration files; see
+.Xr audit 8
+.It Pa ssh/
+OpenSSH configuration files; see
+.Xr ssh 1
+.It Pa ssl/
+OpenSSL configuration files
+.It Pa sysctl.conf
+kernel state defaults; see
+.Xr sysctl.conf 5
+.It Pa syslog.conf
+system log configuration
+.It Pa ttys
+tty creation configuration; see
+.Xr getty 8
+.It Pa wpa_supplicant.conf
+client wifi configuration; see
+.Xr wpa_supplicant.conf 5
+.El
+.It Pa /home/
+home directories for users; the typical home for an interactive user
+.Va beastie
+would be
+.Pa /home/beastie/
+.It Pa /lib/
+system libraries critical to binaries in
+.Pa /bin
+and
+.Pa /sbin
+.Pp
+.Bl -tag -width "nvmecontrol/" -compact
+.It Pa geom/
+class-specific libraries for the
+.Xr geom 8
+utility
+.It Pa nvmecontrol/
+vendor-specific libraries to extend the
+.Xr nvmecontrol 8
+utility
+.El
+.It Pa /libexec/
+system utilities critical to binaries in
+.Pa /bin
+and
+.Pa /sbin
+.It Pa /media/
+mount points for removable storage media such as CDs, DVDs,
+and USB drives; see
+.Xr automount 8 ,
+or
+.Xr bsdisks 8
+if a using a desktop environment from
+.Xr ports 7
+.It Pa /mnt/
+empty directory commonly used by
+system administrators as a temporary mount point
+.It Pa /net/
+automounted NFS shares; see
+.Xr auto_master 5
+.It Pa /nonexistent/
+a non-existent directory;
+by convention, it serves as a home directory for user accounts
+that need no home directory; see also
+.Pa /var/empty/
+.It Pa /proc/
+process file system; see
+.Xr procfs 4
+.It Pa /rescue/
+statically linked programs for emergency recovery; see
+.Xr rescue 8
+.It Pa /root/
+home directory of the root user
+.It Pa /sbin/
+fundamental
+.Bx
+system administration utilities; see
+.Xr intro 8
+.It Pa /tmp/
+temporary files commonly removed between system reboots;
+see
+.Va clear_tmp_enable
+in
+.Xr rc.conf 5
+.It Pa /usr/
+contains the majority of user utilities and applications
+.Pp
+.Bl -tag -width "freebsd-dist/" -compact
+.It Pa bin/
+common utilities, programming tools, and applications; see
+.Xr intro 1
+.It Pa freebsd-dist/
+distribution files
+.Pq like base.txz ;
+see
+.Xr release 7
+and
+.Xr bsdinstall 8
+.It Pa include/
+standard C include header files
+.It Pa lib/
+shared and
+.Xr ar 1 Ns -type
+libraries; see
+.Xr intro 3
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa clang/
+shared libraries for the system compiler,
+.Xr clang 1
+.It Pa compat/
+shared libraries for compatibility
+.It Pa debug/
+standalone debug data for the kernel and base system libraries and binaries
+.It Pa dtrace/
+.Xr dtrace 1
+library scripts
+.It Pa engines/
+OpenSSL
+.Pq Cryptography/SSL toolkit
+dynamically loadable engines
+.It Pa flua/
+.Fx
+Lua shared libraries
+.It Pa i18n/
+shared libraries for internationalization
+.El
+.Pp
+.It Pa lib32/
+32-bit compatibility libraries
+.It Pa libdata/
+miscellaneous utility data files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa ldscripts/
+linker scripts; see
+.Xr ld 1
+.It Pa pkgconfig/
+collections of compiler and linker flags for the
+.Xr pkgconf 1
+development tool
+.El
+.Pp
+.It Pa libexec/
+system daemons and utilities executed by programs
+.Pp
+.Bl -tag -width "bsdinstall/" -compact
+.It Pa bsdconfig/
+utilities called by the ncurses
+.Fx
+configuration wizard
+.It Pa bsdinstall/
+utilities for
+.Xr bsdinstall 8
+.It Pa dwatch/
+profiles for
+.Xr dwatch 1
+.It Pa fwget/
+utilities called by
+.Xr fwget 8
+.It Pa hyperv/
+scripts for communicating with the Hyper-V hypervisor
+.It Pa lpr/
+utilities and filters for the line printer system; see
+.Xr lpr 1
+.It Pa sendmail/
+the
+.Xr sendmail 8
+binary; see
+.Xr mailwrapper 8
+.It Pa sm.bin/
+restricted shell for
+.Xr sendmail 8 ;
+see
+.Xr smrsh 8
+.It Pa zfs/
+Z file system utilities
+.El
+.Pp
+.It Pa local/
+local executables, libraries, etc, installed by
+.Xr pkg 7
+or
+.Xr ports 7
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa bin/
+local user utilities, see
+.Xr intro 1
+.It Pa etc/
+local program configurations
+.It Pa include/
+local library headers
+.It Pa lib/
+local libraries
+.It Pa lib32/
+local 32-bit compatability libraries
+.It Pa libdata/
+local utility data files
+.It Pa libexec/
+utilities executed by local utilities
+.It Pa sbin/
+local administration utilities
+.It Pa share/
+local architecture-independent files
+.It Pa share/doc/
+local documentation
+.It Pa share/doc/freebsd/
+articles, books, FAQ, and handbooks available from the
+.Fx
+project
+.It Pa share/man/
+local manual pages; see
+.Xr man 1
+.El
+.Pp
+.It Pa obj/
+architecture-specific target tree produced by building
+.Fx
+from source; see
+.Xr build 7
+.It Pa ports/
+.Fx
+ports collection; see
+.Xr ports 7
+.It Pa sbin/
+system daemons and utilities meant for user execution; see
+.Xr intro 8
+.It Pa share/
+architecture-independent files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa atf/
+scripts for the Automated Testing Framework; see
+.Xr ATF 7
+.It Pa bhyve/
+.Xr bhyve 8
+keyboard mappings
+.It Pa calendar/
+system-wide calendar files; see
+.Xr calendar 1
+.It Pa certs/
+TLS certificates for
+.Xr openssl 1
+.It Pa dict/
+word lists; see
+.Xr look 1
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa freebsd
+.Fx Ns -specific
+terms, proper names, and jargon
+.It Pa web2
+words from Webster's Second International
+.El
+.Pp
+.It Pa doc/
+miscellaneous documentation
+.It Pa dtrace/
+scripts for the Dynamic Tracing Compiler; see
+.Xr dtrace 1
+.It Pa examples/
+various examples for users and programmers
+.It Pa firmware/
+firmware images loaded by userland programs
+.It Pa games/
+ASCII text files used by
+.Bx
+heritage games, see
+.Xr intro 6
+.It Pa keys/
+known trusted and revoked keys
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa pkg/
+fingerprints for
+.Xr pkg 7
+and
+.Xr pkg 8
+.El
+.Pp
+.It Pa locale/
+localization files; see
+.Xr setlocale 3
+.It Pa man/
+system manual pages; see
+.Xr man 1
+.It Pa misc/
+miscellaneous system-wide files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa ascii
+chart of the ASCII codepoints
+.It Pa flowers
+the meanings of flowers
+.It Pa magic
+magic numbers used by
+.Xr file 1
+.It Pa termcap
+terminal characteristics database; see
+.Xr termcap 5
+.El
+.Pp
+.It Pa mk/
+templates for make; see
+.Xr make 1
+.It Pa nls/
+national language support files
+.It Pa security/
+data files for security policies such as
+.Xr mac_lomac 4
+.It Pa sendmail/
+.Xr sendmail 8
+configuration files
+.It Pa skel/
+example
+.Pa .\&
+(dot) files for new accounts
+.It Pa snmp/
+MIBs, example files and tree definitions for the SNMP daemon
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa defs/
+tree definition files for use with
+.Xr gensnmptree 1
+.It Pa mibs/
+management Information Base
+.Pq MIB
+files
+.El
+.Pp
+.It Pa syscons/
+.Xr syscons 4
+files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa fonts/
+console fonts; see
+.Xr vidcontrol 1
+and
+.Xr vidfont 1
+.It Pa keymaps/
+console keyboard maps; see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.It Pa scrnmaps/
+console screen maps
+.El
+.Pp
+.It Pa sysroot/
+files necessary for the -sysroot compiler/linker argument to build non-native
+binaries
+.Pp
+.Bl -tag -width "VERSION/" -compact
+.It Pa VERSION/
+files for
+.Fx
+release VERSION;
+by convention,
+.Dq VERSION
+matches
+.Xr uname 1
+.Fl r
+.It Pa VERSION/MACHINE.MACHINE_ARCH/
+represent the binary ABI for these files;
+.Dq MACHINE
+matches
+.Xr uname 1
+.Fl m ;
+.Dq MACHINE_ARCH
+matches
+.Xr uname 1
+.Fl p
+.El
+.Pp
+.It Pa tabset/
+tab description files for a variety of terminals; used in
+the termcap file; see
+.Xr termcap 5
+.It Pa vi/
+localization support and utilities for the
+.Xr vi 1
+editor
+.It Pa vt/
+files used by the system console; see
+.Xr vt 4
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa fonts/
+console fonts; see
+.Xr vidcontrol 1 ,
+.Xr vidfont 1 ,
+and
+.Xr vtfontcvt 8
+.It Pa keymaps/
+console keyboard maps; see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.El
+.Pp
+.It Pa zoneinfo/
+timezone configuration information; see
+.Xr tzfile 5
+.El
+.Pp
+.It Pa src/
+.Fx
+source code; see
+.Xr development 7 ;
+the layout of the source tree is described by the top-level
+.Pa README.md
+file
+.Pp
+.It Pa tests/
+the
+.Fx
+test suite; see
+.Xr tests 7
+.El
+.It Pa /var/
+log, temporary, transient, and spool files
+.Pp
+.Bl -tag -width "preserve/" -compact
+.It Pa account/
+system accounting files
+.Pp
+.Bl -tag -width Ds -compact
+.It Pa acct
+execution accounting file; see
+.Xr acct 5
+.El
+.Pp
+.It Pa at/
+timed command scheduling files; see
+.Xr at 1
+.Pp
+.Bl -tag -width Ds -compact
+.It Pa jobs/
+job files
+.It Pa spool/
+output spool files
+.El
+.Pp
+.It Pa audit/
+security event audit trail files; see
+.Xr audit 8
+.It Pa authpf/
+user shell sessions for authenticating gateways; see
+.Xr authpf 8
+.It Pa backups/
+critical system configuration backups
+.It Pa cache/
+miscellaneous cache files
+.Pp
+.Bl -tag -width Ds -compact
+.It Pa pkg/
+cached packages for
+.Xr pkg 8
+.It Pa cups/
+cached printers for the Common Unix Prinitng system; see
+.Xr cups 1
+.El
+.Pp
+.It Pa crash/
+default directory to store kernel crash dumps; see
+.Xr crash 8
+and
+.Xr savecore 8
+.It Pa cron/
+files used by cron; see
+.Xr cron 8
+.Pp
+.Bl -tag -width Ds -compact
+.It Pa tabs/
+crontab files; see
+.Xr crontab 5
+.El
+.Pp
+.It Pa db/
+autogenerated system-specific database files
+.Pp
+.Bl -tag -width "freebsd-update/" -compact
+.It Pa etcupdate/
+temporary files and log for
+.Xr etcupdate 8
+.It Pa freebsd-update/
+downloads and temporary files for
+.Xr freebsd-update 8
+.It Pa pkg/
+package database
+.El
+.Pp
+.It Pa empty/
+for use by programs that require an empty directory,
+used for instance by
+.Xr sshd 8
+for privilege separation
+.It Pa games/
+status and score files for
+.Bx
+heritage games
+.It Pa heimdal/
+Kerberos server databases; see
+.Xr kdc 8
+.It Pa lib/
+state information for ported Linux applications
+.It Pa log/
+system log files
+.Pp
+.Bl -tag -width "bsdinstall_log" -compact
+.It Pa Xorg.0.log
+.Xr Xserver 1
+log, if
+.Xr X 7
+is installed rotates to
+.Pa Xorg.0.log.old
+.It Pa aculog
+serial line access log; see
+.Xr cu 1
+.It Pa auth.log
+system authentication log
+.It Pa bsdinstall_log
+system installation log
+.It Pa cron
+scheduled task log; see
+.Xr cron 8
+.It Pa cups/
+logs for
+.Xr cups 1
+.It Pa daemon.log
+default log for system daemons
+.It Pa devd.log
+default log for device state change daemon
+.It Pa dmesg.today
+system message buffer log, rotates to
+.Pa dmesg.yesterday
+.It Pa debug.log
+undiscarded debug syslog messages
+.It Pa lpd-errs
+logs for the line printer spooler daemon; see
+.Xr lpd 8
+.It Pa maillog
+.Xr sendmail 8
+log, rotates and compresses to maillog.0.bz2
+.It Pa messages
+general system log; see
+.Xr syslogd 8
+.It Pa mount.today
+currently loaded
+.Xr fstab 5 ,
+rotates to
+.Pa mount.yesterday
+.It Pa pf.today
+packet filter firewall log; see
+.Xr pf 4
+.It Pa pflog
+saved packets caught by
+.Xr pflogd 8
+.It Pa ppp.log
+see
+.Xr ppp 8
+.It Pa security
+transcript of events marked with the security flag
+.It Pa setuid.today
+listing of executable files which run with elevated permissions, rotates
+to
+.Pa setuid.yesterday
+.It Pa userlog
+logs changes in users or groups
+.It Pa utx.lastlogin
+last login log; see
+.Xr getutxent 3
+.It Pa utx.log
+login/logout log; see
+.Xr getutxent 3
+.It Pa xferlog
+default log for
+.Xr ftpd 8
+.El
+.Pp
+.It Pa mail/
+user mailbox files
+.It Pa msgs/
+system messages database; see
+.Xr msgs 1
+.It Pa preserve/
+unused, present for historical reasons
+.It Pa quotas/
+UFS quota information files
+.It Pa run/
+files containing information about the operating system since it was booted
+.Pp
+.Bl -tag -width "wpa_supplicant/" -compact
+.It Pa bhyve/
+.Xr bhyve 8
+virtual machine
+.Xr unix 4 Ns -domain sockets
+.It Pa ppp/
+writable by the
+.Dq network
+group for command connection sockets; see
+.Xr ppp 8
+.It Pa utx.active
+database of current users; see
+.Xr getutxent 3
+.It Pa wpa_supplicant/
+IEEE Std. 802.11 wifi run time files
+.El
+.Pp
+.It Pa rwho/
+information about other systems on the local network; see
+.Xr rwhod 8 ,
+.Xr rwho 1 ,
+and
+.Xr ruptime 1
+.It Pa spool/
+printer and mail system spooling directories
+.Pp
+.Bl -tag -width "clientmqueue/" -compact
+.It Pa clientmqueue/
+undelivered submission mail queue; see
+.Xr sendmail 8
+.It Pa cups/
+print jobs and temporary files for
+.Xr cups 1
+.It Pa dma/
+undelivered mail queue for
+.Dx
+Mail Agent; see
+.Xr dma 8
+.It Pa lock/
+serial device locks; see
+.Xr uucplock 3
+.It Pa lpd/
+line printer spooler daemon spool
+.It Pa ftp/
+ftp root directory; see
+.Xr ftpd 8
+.It Pa mqueue/
+undelivered mail queue for
+.Xr sendmail 8
+.It Pa output/
+line printer spooling directories
+.El
+.Pp
+.It Pa tmp/
+temporary files not removed between system reboots
+.Pp
+.Bl -tag -width "vi.recover/" -compact
+.It Pa vi.recover/
+recovery files for the
+.Xr vi 1
+editor
+.El
+.Pp
+.It Pa unbound/
+files and configuration for
+.Xr unbound 8
+.It Pa yp/
+the NIS maps; see
+.Xr yp 8
+.El
+.El
+.Sh NOTES
+This manual page documents the default
+.Fx
+file system layout.
+The actual hierarchy on a given system is defined at the system
+administrator's discretion.
+A well-maintained installation will include a customized version of
+this document.
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr find 1 ,
+.Xr grep 1 ,
+.Xr ls 1 ,
+.Xr whereis 1 ,
+.Xr which 1
+.Sh HISTORY
+A
+.Nm
+manual page first appeared in 1979 with
+.At v7 .

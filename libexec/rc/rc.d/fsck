@@ -1,0 +1,98 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: fsck
+# REQUIRE: swap
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="fsck"
+desc="Run file system checks"
+start_cmd="fsck_start"
+stop_cmd=":"
+
+fsck_start()
+{
+	if [ "$autoboot" = no ]; then
+		echo "Fast boot: skipping disk checks."
+	elif [ ! -r /etc/fstab ]; then
+		echo "Warning! No /etc/fstab: skipping disk checks."
+	elif [ "$autoboot" = yes ]; then
+		# During fsck ignore SIGQUIT
+		trap : 3
+
+		startmsg "Starting file system checks:"
+		# Background fsck can only be run with -p
+		if checkyesno background_fsck; then
+			fsck -F -p
+		else
+			fsck ${fsck_flags}
+		fi
+
+		err=$?
+		if [ ${err} -eq 3 ]; then
+			echo "Warning! Some of the devices might not be" \
+			    "available; retrying"
+			root_hold_wait
+			startmsg "Restarting file system checks:"
+			# Background fsck can only be run with -p
+			if checkyesno background_fsck; then
+				fsck -F -p
+			else
+				fsck ${fsck_flags}
+			fi
+			err=$?
+		fi
+
+		case ${err} in
+		0)
+			;;
+		2)
+			stop_boot
+			;;
+		4)
+			echo "Rebooting..."
+			reboot
+			echo "Reboot failed; help!"
+			stop_boot
+			;;
+		8|16)
+			if checkyesno fsck_y_enable; then
+				echo "File system preen failed, trying fsck -y ${fsck_y_flags}"
+				fsck -y ${fsck_y_flags}
+				case $? in
+				0)
+					;;
+				*)
+				echo "Automatic file system check failed; help!"
+					stop_boot
+					;;
+				esac
+			else
+				echo "Automatic file system check failed; help!"
+				stop_boot
+			fi
+			;;
+		12)
+			echo "Boot interrupted."
+			stop_boot
+			;;
+		130)
+			stop_boot
+			;;
+		*)
+			echo "Unknown error ${err}; help!"
+			stop_boot
+			;;
+		esac
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj
+fsck_svcj="NO"
+
+run_rc_command "$1"

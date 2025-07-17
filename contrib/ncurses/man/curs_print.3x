@@ -1,0 +1,89 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_print.3x,v 1.38 2024/03/16 15:35:01 tom Exp $
+.TH curs_print 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.SH NAME
+\fB\%mcprint\fP \-
+write binary data to printer using \fIterminfo\fR capabilities
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint mcprint(char *\fIdata\fP, int \fIlen\fP);
+.fi
+.SH DESCRIPTION
+This function uses the \fBmc5p\fP or \fBmc4\fP and \fBmc5\fP capabilities,
+if they are present, to ship given data to a printer attached to the terminal.
+.PP
+Note that the \fB\%mcprint\fP code has no way
+to do flow control with the printer
+or to know how much buffering it has.
+Your application is responsible for
+keeping the rate of writes to the printer below its continuous throughput rate
+(typically about half of its nominal cps rating).
+Dot-matrix printers and
+6-page-per-minute lasers can typically handle 80cps, so a good conservative
+rule of thumb is to sleep for a second after shipping each 80-character line.
+.
+.SH RETURN VALUE
+The \fB\%mcprint\fP function returns \fBERR\fP if the write operation aborted
+for some reason.
+In this case, \fB\%errno\fP will contain either an error associated
+with \fBwrite\fP(2) or one of the following:
+.TP 5
+\fBENODEV\fP
+Capabilities for printer redirection do not exist.
+.TP 5
+\fBENOMEM\fP
+Couldn't allocate sufficient memory to buffer the printer write.
+.PP
+When \fB\%mcprint\fP succeeds, it returns the number of characters actually
+sent to the printer.
+.SH EXTENSIONS
+\fB\%mcprint\fP was designed for
+\fB\%ncurses\fP(3X),
+and was not found in SVr4
+.IR curses ,
+4.4BSD
+.IR curses ,
+or any other previous curses implementation.
+.SH PORTABILITY
+Applications employing this
+.I \%ncurses
+extension should condition its use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.SH BUGS
+Padding in the
+\fBmc5p\fP,
+\fBmc4\fP, and
+\fBmc5\fP capabilities is not interpreted.
+.SH SEE ALSO
+\fB\%curses\fP(3X)

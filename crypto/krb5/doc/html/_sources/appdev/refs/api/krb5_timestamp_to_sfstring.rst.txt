@@ -1,0 +1,53 @@
+krb5_timestamp_to_sfstring -  Convert a timestamp to a string, with optional output padding. 
+=============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_timestamp_to_sfstring(krb5_timestamp timestamp, char * buffer, size_t buflen, char * pad)
+
+..
+
+
+:param:
+
+	          **[in]** **timestamp** - Timestamp to convert
+
+	          **[out]** **buffer** - Buffer to hold the converted timestamp
+
+	          **[in]** **buflen** - Length of buffer
+
+	          **[in]** **pad** - Optional value to pad *buffer* if converted timestamp does not fill it
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+If *pad* is not NULL, *buffer* is padded out to *buflen* - 1 characters with the value of * *pad* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

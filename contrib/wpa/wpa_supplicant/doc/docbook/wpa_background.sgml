@@ -1,0 +1,105 @@
+<!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+
+<refentry>
+  <refentryinfo>
+    <date>07 August 2019</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle>wpa_background</refentrytitle>
+    <manvolnum>8</manvolnum>
+  </refmeta>
+  <refnamediv>
+    <refname>wpa_background</refname>
+    <refpurpose>Background information on Wi-Fi Protected Access and IEEE 802.11i</refpurpose>
+  </refnamediv>
+  <refsect1>
+    <title>WPA</title>
+
+    <para>The original security mechanism of IEEE 802.11 standard was
+    not designed to be strong and has proven to be insufficient for
+    most networks that require some kind of security. Task group I
+    (Security) of IEEE 802.11 working group
+    (http://www.ieee802.org/11/) has worked to address the flaws of
+    the base standard and has in practice completed its work in May
+    2004. The IEEE 802.11i amendment to the IEEE 802.11 standard was
+    approved in June 2004 and published in July 2004.</para>
+
+    <para>Wi-Fi Alliance (http://www.wi-fi.org/) used a draft version
+    of the IEEE 802.11i work (draft 3.0) to define a subset of the
+    security enhancements that can be implemented with existing wlan
+    hardware. This is called Wi-Fi Protected Access&lt;TM&gt; (WPA). This
+    has now become a mandatory component of interoperability testing
+    and certification done by Wi-Fi Alliance. Wi-Fi provides
+    information about WPA at its web site
+    (http://www.wi-fi.org/OpenSection/protected_access.asp).</para>
+
+    <para>IEEE 802.11 standard defined wired equivalent privacy (WEP)
+    algorithm for protecting wireless networks. WEP uses RC4 with
+    40-bit keys, 24-bit initialization vector (IV), and CRC32 to
+    protect against packet forgery. All these choices have proven to
+    be insufficient: key space is too small against current attacks,
+    RC4 key scheduling is insufficient (beginning of the pseudorandom
+    stream should be skipped), IV space is too small and IV reuse
+    makes attacks easier, there is no replay protection, and non-keyed
+    authentication does not protect against bit flipping packet
+    data.</para>
+
+    <para>WPA is an intermediate solution for the security issues. It
+    uses Temporal Key Integrity Protocol (TKIP) to replace WEP. TKIP
+    is a compromise on strong security and possibility to use existing
+    hardware. It still uses RC4 for the encryption like WEP, but with
+    per-packet RC4 keys. In addition, it implements replay protection,
+    keyed packet authentication mechanism (Michael MIC).</para>
+
+    <para>Keys can be managed using two different mechanisms. WPA can
+    either use an external authentication server (e.g., RADIUS) and
+    EAP just like IEEE 802.1X is using or pre-shared keys without need
+    for additional servers. Wi-Fi calls these "WPA-Enterprise" and
+    "WPA-Personal", respectively. Both mechanisms will generate a
+    master session key for the Authenticator (AP) and Supplicant
+    (client station).</para>
+
+    <para>WPA implements a new key handshake (4-Way Handshake and
+    Group Key Handshake) for generating and exchanging data encryption
+    keys between the Authenticator and Supplicant. This handshake is
+    also used to verify that both Authenticator and Supplicant know
+    the master session key. These handshakes are identical regardless
+    of the selected key management mechanism (only the method for
+    generating master session key changes).</para>
+  </refsect1>
+
+  <refsect1>
+    <title>IEEE 802.11i / WPA2</title>
+
+    <para>The design for parts of IEEE 802.11i that were not included
+    in WPA has finished (May 2004) and this amendment to IEEE 802.11
+    was approved in June 2004. Wi-Fi Alliance is using the final IEEE
+    802.11i as a new version of WPA called WPA2. This includes, e.g.,
+    support for more robust encryption algorithm (CCMP: AES in Counter
+    mode with CBC-MAC) to replace TKIP and optimizations for handoff
+    (reduced number of messages in initial key handshake,
+    pre-authentication, and PMKSA caching).</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See Also</title>
+    <para>
+      <citerefentry>
+	<refentrytitle>wpa_supplicant</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>Legal</title>
+    <para>wpa_supplicant is copyright (c) 2003-2022,
+    Jouni Malinen <email>j@w1.fi</email> and
+    contributors.
+    All Rights Reserved.</para>
+
+    <para>This program is licensed under the BSD license (the one with
+    advertisement clause removed).</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: os-release
+# REQUIRE: mountcritremote FILESYSTEMS
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+: ${osrelease_file:=/var/run/os-release}
+: ${osrelease_perms:=444}
+name="osrelease"
+desc="Update ${osrelease_file}"
+rcvar="osrelease_enable"
+start_cmd="osrelease_start"
+stop_cmd=":"
+
+osrelease_start()
+{
+	local _version _version_id
+
+	startmsg -n "Updating ${osrelease_file} "
+	_version=$(freebsd-version -u)
+	_version_id=${_version%%[^0-9.]*}
+	t=$(mktemp -t os-release)
+	cat > "$t" <<-__EOF__
+		NAME=FreeBSD
+		VERSION="$_version"
+		VERSION_ID="$_version_id"
+		ID=freebsd
+		ANSI_COLOR="0;31"
+		PRETTY_NAME="FreeBSD $_version"
+		CPE_NAME="cpe:/o:freebsd:freebsd:$_version_id"
+		HOME_URL="https://FreeBSD.org/"
+		BUG_REPORT_URL="https://bugs.FreeBSD.org/"
+__EOF__
+	install -C -o root -g wheel -m ${osrelease_perms} "$t" "${osrelease_file}"
+	rm -f "$t"
+	startmsg 'done.'
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+osrelease_svcj="NO"
+
+run_rc_command "$1"

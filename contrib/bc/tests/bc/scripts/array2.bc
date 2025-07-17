@@ -1,0 +1,20 @@
+#! /usr/bin/bc -q
+
+define z(x, a[]) {
+	return x + a[1]
+}
+
+define y(x, *b[]) {
+	return x + b[1]
+}
+
+a[0] = 5
+a[1] = 6
+
+b[0] = 8
+b[1] = 7
+
+z(a[0], b[])
+y(b[0], a[])
+
+halt

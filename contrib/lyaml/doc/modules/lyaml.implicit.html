@@ -1,0 +1,533 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>lyaml 6.2.8 Reference</title>
+    <link rel="stylesheet" href="../ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>lyaml 6.2.8</h1>
+
+<ul>
+  <li><a href="../index.html">Index</a></li>
+</ul>
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Functions">Functions</a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="nowrap">
+  <li><a href="../modules/lyaml.html">lyaml</a></li>
+  <li><a href="../modules/lyaml.explicit.html">lyaml.explicit</a></li>
+  <li><a href="../modules/lyaml.functional.html">lyaml.functional</a></li>
+  <li><strong>lyaml.implicit</strong></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>lyaml.implicit</code></h1>
+<p>
+
+</p>
+<p>
+
+</p>
+
+
+<h2><a href="#Functions">Functions</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#null">null (value)</a></td>
+	<td class="summary">Parse a null token to a null value.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#bool">bool (value)</a></td>
+	<td class="summary">Parse a boolean token to the equivalent value.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#binary">binary (value)</a></td>
+	<td class="summary">Parse a binary token, such as '0b1010_0111_0100_1010_1110'.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#octal">octal (value)</a></td>
+	<td class="summary">Parse an octal token, such as '012345'.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#decimal">decimal (value)</a></td>
+	<td class="summary">Parse a decimal token, such as '0' or '12345'.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#hexadecimal">hexadecimal (value)</a></td>
+	<td class="summary">Parse a hexadecimal token, such as '0xdeadbeef'.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#sexagesimal">sexagesimal (value)</a></td>
+	<td class="summary">Parse a sexagesimal token, such as '190:20:30'.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#nan">nan (value)</a></td>
+	<td class="summary">Parse a <code>nan</code> token.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#inf">inf (value)</a></td>
+	<td class="summary">Parse a signed <code>inf</code> token.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#float">float (value)</a></td>
+	<td class="summary">Parse a floating point number token, such as '1e-3' or '-0.12'.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#sexfloat">sexfloat (value)</a></td>
+	<td class="summary">Parse a sexagesimal float, such as '190:20:30.15'.</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header "><a name="Functions"></a>Functions</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "null"></a>
+    <strong>null (value)</strong>
+    </dt>
+    <dd>
+    Parse a null token to a null value.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        lyaml.null, for an empty string or literal ~
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+        nil otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_null = implicit.null(token)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "bool"></a>
+    <strong>bool (value)</strong>
+    </dt>
+    <dd>
+    Parse a boolean token to the equivalent value.
+ Treats capilalized, lower and upper-cased variants of true/false,
+ yes/no or on/off tokens as boolean <code>true</code> and <code>false</code> values.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/lyaml.implicit.html#bool">bool</a></span>
+        if a valid boolean token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_bool = implicit.bool(token)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "binary"></a>
+    <strong>binary (value)</strong>
+    </dt>
+    <dd>
+    Parse a binary token, such as '0b1010_0111_0100_1010_1110'.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        integer equivalent, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_int = implicit.binary(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "octal"></a>
+    <strong>octal (value)</strong>
+    </dt>
+    <dd>
+    Parse an octal token, such as '012345'.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        integer equivalent, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_int = implicit.octal(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "decimal"></a>
+    <strong>decimal (value)</strong>
+    </dt>
+    <dd>
+    Parse a decimal token, such as '0' or '12345'.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        integer equivalent, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_int = implicit.decimal(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "hexadecimal"></a>
+    <strong>hexadecimal (value)</strong>
+    </dt>
+    <dd>
+    Parse a hexadecimal token, such as '0xdeadbeef'.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        integer equivalent, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_int = implicit.hexadecimal(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "sexagesimal"></a>
+    <strong>sexagesimal (value)</strong>
+    </dt>
+    <dd>
+    Parse a sexagesimal token, such as '190:20:30'.
+ Useful for times and angles.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        integer equivalent, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_int = implicit.sexagesimal(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "nan"></a>
+    <strong>nan (value)</strong>
+    </dt>
+    <dd>
+    Parse a <code>nan</code> token.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/lyaml.implicit.html#nan">nan</a></span>
+        not-a-number, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_nan = implicit.nan(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "inf"></a>
+    <strong>inf (value)</strong>
+    </dt>
+    <dd>
+    Parse a signed <code>inf</code> token.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">number</span></span>
+        plus/minus-infinity, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_inf = implicit.inf(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "float"></a>
+    <strong>float (value)</strong>
+    </dt>
+    <dd>
+    Parse a floating point number token, such as '1e-3' or '-0.12'.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">number</span></span>
+        float equivalent, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_float = implicit.float(value)</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "sexfloat"></a>
+    <strong>sexfloat (value)</strong>
+    </dt>
+    <dd>
+    Parse a sexagesimal float, such as '190:20:30.15'.
+ Useful for times and angles.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">value</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         token
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">number</span></span>
+        float equivalent, if a valid token was recognized
+    </ol>
+     <h3>Or</h3>
+    <ol>
+
+           <span class="types"><span class="type">nil</span></span>
+        otherwise, nil
+    </ol>
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">maybe_float = implicit.sexfloat(value)</pre>
+    </ul>
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
+<i style="float:right;">Last updated 2022-10-22 17:12:03 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>

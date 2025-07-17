@@ -1,0 +1,470 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 2, 2024
+.Dt SCTP_RECVMSG 3
+.Os
+.Sh NAME
+.Nm sctp_recvmsg ,
+.Nm sctp_recvv
+.Nd receive a message from an SCTP socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/sctp.h
+.Ft ssize_t
+.Fo sctp_recvmsg
+.Fa "int s" "void *msg" "size_t len" "struct sockaddr *from"
+.Fa "socklen_t *fromlen" "struct sctp_sndrcvinfo *sinfo" "int *flags"
+.Fc
+.Ft ssize_t
+.Fo sctp_recvv
+.Fa "int s" "const struct iovec *iov" "int iovlen" "struct sockaddr *from"
+.Fa "socklen_t *fromlen" "void *info" "socklen_t *infolen"
+.Fa "unsigned int *infotype" "int *flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn sctp_recvmsg
+and
+.Fn sctp_recvv
+functions are used to receive a message from another SCTP endpoint.
+They are used by one-to-one (SOCK_STREAM) type sockets after a successful
+.Fn connect
+call or after the application has performed a
+.Fn listen
+followed by a successful
+.Fn accept .
+For a one-to-many (SOCK_SEQPACKET) type socket, an endpoint may call
+.Fn sctp_recvmsg
+or
+.Fn sctp_recvv
+after having implicitly started an association via one
+of the send calls including
+.Fn sctp_sendmsg ,
+.Fn sendto
+and
+.Fn sendmsg .
+Or, an application may also receive a message after having
+called
+.Fn listen
+with a positive backlog to enable the reception of new associations.
+.Pp
+The address of the sender is held in the
+.Fa from
+argument with
+.Fa fromlen
+specifying its size.
+At the completion of a successful
+.Fn sctp_recvmsg
+call
+.Fa from
+will hold the address of the peer and
+.Fa fromlen
+will hold the length of that address.
+Note that
+the address is bounded by the initial value of
+.Fa fromlen
+which is used as an in/out variable.
+.Pp
+The length of the message
+.Fa msg
+to be received is bounded by
+.Fa len .
+If the message is too long to fit in the users
+receive buffer, then the
+.Fa flags
+argument will
+.Em not
+have the
+.Dv MSG_EOR
+flag applied.
+If the message is a complete message then
+the
+.Fa flags
+argument will have
+.Dv MSG_EOR
+set.
+Locally detected errors are
+indicated by a return value of -1 with
+.Va errno
+set accordingly.
+The
+.Fa flags
+argument may also hold the value
+.Dv MSG_NOTIFICATION .
+When this
+occurs it indicates that the message received is
+.Em not
+from
+the peer endpoint, but instead is a notification from the
+SCTP stack (see
+.Xr sctp 4
+for more details).
+Note that no notifications are ever
+given unless the user subscribes to such notifications using
+the
+.Dv SCTP_EVENTS
+socket option.
+.Pp
+If no messages are available at the socket then
+.Fn sctp_recvmsg
+normally blocks on the reception of a message or NOTIFICATION, unless the
+socket has been placed in non-blocking I/O mode.
+The
+.Xr select 2
+system call may be used to determine when it is possible to
+receive a message.
+.Pp
+The
+.Fa sinfo
+argument is defined as follows.
+.Bd -literal
+struct sctp_sndrcvinfo {
+	uint16_t sinfo_stream;  /* Stream arriving on */
+	uint16_t sinfo_ssn;     /* Stream Sequence Number */
+	uint16_t sinfo_flags;   /* Flags on the incoming message */
+	uint32_t sinfo_ppid;    /* The ppid field */
+	uint32_t sinfo_context; /* context field */
+	uint32_t sinfo_timetolive; /* not used by sctp_recvmsg */
+	uint32_t sinfo_tsn;        /* The transport sequence number */
+	uint32_t sinfo_cumtsn;     /* The cumulative acknowledgment point  */
+	sctp_assoc_t sinfo_assoc_id; /* The association id of the peer */
+};
+.Ed
+.Pp
+The
+.Fa sinfo->sinfo_ppid
+field is an opaque 32 bit value that is passed transparently
+through the stack from the peer endpoint.
+Note that the stack passes this value without regard to byte
+order.
+.Pp
+The
+.Fa sinfo->sinfo_flags
+field may include the following:
+.Bd -literal
+#define SCTP_UNORDERED 	  0x0400	/* Message is un-ordered */
+.Ed
+.Pp
+The
+.Dv SCTP_UNORDERED
+flag is used to specify that the message arrived with no
+specific order and was delivered to the peer application
+as soon as possible.
+When this flag is absent the message
+was delivered in order within the stream it was received.
+.Pp
+The
+.Fa sinfo->sinfo_stream
+field is the SCTP stream that the message was received on.
+Streams in SCTP are reliable (or partially reliable) flows of ordered
+messages.
+.Pp
+The
+.Fa sinfo->sinfo_context
+field is used only if the local application set an association level
+context with the
+.Dv SCTP_CONTEXT
+socket option.
+Optionally a user process can use this value to index some application
+specific data structure for all data coming from a specific
+association.
+.Pp
+The
+.Fa sinfo->sinfo_ssn
+field will hold the stream sequence number assigned
+by the peer endpoint if the message is
+.Em not
+unordered.
+For unordered messages this field holds an undefined value.
+.Pp
+The
+.Fa sinfo->sinfo_tsn
+field holds a transport sequence number (TSN) that was assigned
+to this message by the peer endpoint.
+For messages that fit in or less
+than the path MTU this will be the only TSN assigned.
+Note that for messages that span multiple TSNs this
+value will be one of the TSNs that was used on the
+message.
+.Pp
+The
+.Fa sinfo->sinfo_cumtsn
+field holds the current cumulative acknowledgment point of
+the transport association.
+Note that this may be larger
+or smaller than the TSN assigned to the message itself.
+.Pp
+The
+.Fa sinfo->sinfo_assoc_id
+is the unique association identification that was assigned
+to the association.
+For one-to-many (SOCK_SEQPACKET) type
+sockets this value can be used to send data to the peer without
+the use of an address field.
+It is also quite useful in
+setting various socket options on the specific association
+(see
+.Xr sctp 4 ) .
+.Pp
+The
+.Fa sinfo->info_timetolive
+field is not used by
+.Fn sctp_recvmsg .
+.Pp
+The
+.Fn sctp_recvv
+function works as
+.Fn sctp_recvmsg
+with two differences.
+Firstly, the receive buffer is passed as an array containing
+.Vt iocnt
+objects of type
+.Vt struct iovec ,
+where the received data will be scattered in the same manner as
+.Xr readv 2 .
+Secondly, the
+.Fa sinfo
+argument is replaced by the tuple
+.Fa info ,
+.Fa infolen ,
+and
+.Fa infotype ,
+which allow different information to be received based on the socket options.
+.Pp
+To receive an
+.Vt sctp_rcvinfo
+structure, set the
+.Va SCTP_RECVRCVINFO
+socket option, and pass a pointer to a
+.Vt struct sctp_rcvinfo
+structure in
+.Fa info .
+The
+.Vt sctp_rcvinfo
+structure has the following format:
+.Bd -literal
+struct sctp_rcvinfo {
+	uint16_t rcv_sid;		/* Stream arriving on */
+	uint16_t rcv_ssn;		/* Stream Sequence Number */
+	uint16_t rcv_flags;		/* Flags on the incoming message */
+	uint32_t rcv_ppid;		/* The ppid field */
+	uint32_t rcv_tsn;		/* The transport sequence number */
+	uint32_t rcv_cumtsn;		/* The cumulative TSN */
+	uint32_t rcv_context;		/* Opaque context field */
+	sctp_assoc_t rcv_assoc_id;	/* Peer association id */
+};
+.Ed
+.Pp
+These fields have the same meaning as the equivalent fields in
+.Vt struct sctp_sndrcvinfo ,
+defined above.
+.Pp
+To receive an
+.Vt sctp_nxtinfo
+structure, set the
+.Va SCTP_RECVNXTINFO
+socket option, and pass a pointer to a
+.Vt struct sctp_nxtinfo
+structure in
+.Fa info .
+The
+.Vt struct sctp_nxtinfo
+structure has the following format:
+.Bd -literal
+struct sctp_nxtinfo {
+	uint16_t nxt_sid;		/* Next message's stream number */
+	uint16_t nxt_flags;		/* Flags (see below) */
+	uint32_t nxt_ppid;		/* The ppid field */
+	uint32_t nxt_length;		/* Length of next message */
+	sctp_assoc_t nxt_assoc_id;	/* Peer association id */
+};
+.Ed
+.Pp
+The fields
+.Va nxt_sid ,
+.Va nxt_ppid ,
+and
+.Va nxt_assoc_id
+have the same meaning as in
+.Vt struct sctp_rcvinfo ,
+except they refer to the next message rather than the message that was
+received.
+The field
+.Va nxt_length
+contains the length of the part of the next message currently available in
+the socket buffer.
+This may not represent the length of the entire message unless the
+.Va SCTP_COMPLETE
+flag is set in
+.Va nxt_flags .
+.Pp
+The
+.Va nxt_flags
+field is a bitmask which may contain any of the following values:
+.Bl -bullet
+.It
+.Va SCTP_UNORDERED :
+The next message was sent unordered.
+.It
+.Va SCTP_COMPLETE :
+The entirety of the next message has been received in the socket buffer.
+In this case, the
+.Va nxt_length
+field contains the length of the entire message.
+.It
+.Va SCTP_NOTIFICATION :
+The next message is a notification, not a user message.
+.El
+.Pp
+If both the
+.Va SCTP_RECVRCVINFO
+and
+.Va SCTP_RECVNXTINFO
+socket options are set, then pass a pointer to a
+.Vt struct sctp_recvv_rn
+structure in
+.Fa info .
+This struct has the following format:
+.Bd -literal
+struct sctp_recvv_rn {
+	struct sctp_rcvinfo recvv_rcvinfo;
+	struct sctp_nxtinfo recvv_nxtinfo;
+};
+.Ed
+.Pp
+The value pointed to by
+.Fa infolen
+should initially contain the length of the structure to which
+.Fa info
+points.
+When the function returns, it will be set to the length of the
+returned structure.
+Additionally,
+.Fa *infotype
+will be set to one of the following values depending on what type of info
+was returned:
+.Bl -bullet
+.It
+.Va SCTP_RECVV_NOINFO :
+no information was returned.
+.It
+.Va SCTP_RECVV_RCVINFO :
+.Fa *info
+contains an object of type
+.Vt struct sctp_rcvinfo .
+.It
+.Va SCTP_RECVV_NXTINFO :
+.Fa *info
+contains an object of type
+.Vt struct sctp_nxtinfo .
+.It
+.Va SCTP_RECVV_RN :
+.Fa *info
+contains an object of type
+.Vt struct sctp_recvv_rn .
+.El
+.Sh RETURN VALUES
+The call returns the number of bytes received, or -1
+if an error occurred.
+.Sh ERRORS
+The
+.Fn sctp_recvmsg
+system call
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+An invalid descriptor was specified.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is not a socket.
+.It Bq Er EFAULT
+An invalid user space address was specified for an argument.
+.It Bq Er EMSGSIZE
+The socket requires that message be sent atomically,
+and the size of the message to be sent made this impossible.
+.It Bq Er EAGAIN
+The socket is marked non-blocking and the requested operation
+would block.
+.It Bq Er ENOBUFS
+The system was unable to allocate an internal buffer.
+The operation may succeed when buffers become available.
+.It Bq Er ENOBUFS
+The output queue for a network interface was full.
+This generally indicates that the interface has stopped sending,
+but may be caused by transient congestion.
+.It Bq Er EHOSTUNREACH
+The remote host was unreachable.
+.It Bq Er ENOTCONN
+On a one-to-one style socket no association exists.
+.It Bq Er ECONNRESET
+An abort was received by the stack while the user was
+attempting to send data to the peer.
+.It Bq Er ENOENT
+On a one to many style socket no address is specified
+so that the association cannot be located or the
+SCTP_ABORT flag was specified on a non-existing association.
+.It Bq Er EPIPE
+The socket is unable to send anymore data
+.Dv ( SBS_CANTSENDMORE
+has been set on the socket).
+This typically means that the socket
+is not connected and is a one-to-one style socket.
+.El
+.Sh NOTES
+The
+.Fn sctp_recvmsg
+function is deprecated.
+New applications should use
+.Fn sctp_recvv .
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr select 2 ,
+.Xr sendmsg 2 ,
+.Xr setsockopt 2 ,
+.Xr socket 2 ,
+.Xr write 2 ,
+.Xr sctp_send 3 ,
+.Xr sctp_sendmsg 3 ,
+.Xr sctp 4
+.Rs
+.%A R. Stewart
+.%A M. Tuexen
+.%A K. Poon
+.%A P. Lei
+.%A V. Yasevich
+.%T Sockets API Extensions for the Stream Control Transmission Protocol (SCTP)
+.%R RFC 6458
+.%D December 2011
+.Re
+.Sh STANDARDS
+The functions described in this document conform to RFC 6458.

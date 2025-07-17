@@ -1,0 +1,7 @@
+mydir=clients
+BUILDTOP=$(REL)..
+
+SUBDIRS= klist kinit kdestroy kpasswd ksu kvno kcpytkt kdeltkt kswitch
+WINSUBDIRS= klist kinit kdestroy kpasswd kvno kcpytkt kdeltkt kswitch
+
+NO_OUTPRE=1

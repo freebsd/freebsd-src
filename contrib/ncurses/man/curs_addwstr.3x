@@ -1,0 +1,146 @@
+.\"***************************************************************************
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_addwstr.3x,v 1.37 2024/04/20 19:18:18 tom Exp $
+.TH curs_addwstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%addwstr\fP,
+\fB\%addnwstr\fP,
+\fB\%waddwstr\fP,
+\fB\%waddnwstr\fP,
+\fB\%mvaddwstr\fP,
+\fB\%mvaddnwstr\fP,
+\fB\%mvwaddwstr\fP,
+\fB\%mvwaddnwstr\fP \-
+add a wide-character string to a \fIcurses\fR window and advance the cursor
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint addwstr(const wchar_t *\fIwstr\fP);
+\fBint mvaddwstr(int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP);
+\fBint mvwaddwstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP);
+\fBint waddwstr(WINDOW *\fIwin\fP, const wchar_t *\fIwstr\fP);
+.PP
+\fBint addnwstr(const wchar_t *\fIwstr\fP, int \fIn\fP);
+\fBint mvaddnwstr(int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP, int \fIn\fP);
+\fBint mvwaddnwstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP, int \fIn\fP);
+\fBint waddnwstr(WINDOW *\fIwin\fP, const wchar_t *\fIwstr\fP, int \fIn\fP);
+.fi
+.SH DESCRIPTION
+.B waddwstr
+writes the characters of the (wide-null-terminated) wide-character
+string
+.I wstr
+to the window
+.IR win .
+Its process is similar to constructing a
+.I cchar_t
+for each
+.I wchar_t
+in
+.IR wstr ,
+then calling \fB\%wadd_wch\fP(3X) with the resulting
+.IR cchar_t .
+.bP
+Spacing and non-spacing characters in the string
+are processed one at a time,
+and
+.bP
+control characters are processed as in \fB\%wadd_wch\fP(3X).
+.PP
+.B waddnwstr
+writes at most
+.I n
+wide characters,
+or until a terminating wide null character occurs in
+.IR wstr .
+If
+.I n
+is \-1,
+.B
+.B waddnwstr
+writes the entire wide string.
+.PP
+\fB\%ncurses\fP(3X) describes the variants of these functions.
+.SH RETURN VALUE
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+X/Open Curses does not specify any error conditions.
+.I \%ncurses
+returns an error
+.bP
+if the window pointer is
+.BR NULL ,
+.bP
+if the string pointer is
+.BR NULL ,
+or
+.bP
+if an internal \fB\%wadd_wch\fP(3X) call returns an error.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+All of these functions except
+.B waddnwstr
+may be implemented as macros.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+.SH SEE ALSO
+\fB\%curs_addstr\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its non-wide-character configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_add_wch\fP(3X),
+\fB\%curs_add_wchstr\fP(3X)

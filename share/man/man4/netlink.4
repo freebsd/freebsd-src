@@ -1,0 +1,357 @@
+.\"
+.\" Copyright (C) 2022 Alexander Chernikov <melifaro@FreeBSD.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 30, 2022
+.Dt NETLINK 4
+.Os
+.Sh NAME
+.Nm Netlink
+.Nd Kernel network configuration protocol
+.Sh SYNOPSIS
+.In netlink/netlink.h
+.In netlink/netlink_route.h
+.Ft int
+.Fn socket AF_NETLINK SOCK_RAW "int family"
+.Sh DESCRIPTION
+Netlink is a user-kernel message-based communication protocol primarily used
+for network stack configuration.
+Netlink is easily extendable and supports large dumps and event
+notifications, all via a single socket.
+The protocol is fully asynchronous, allowing one to issue and track multiple
+requests at once.
+Netlink consists of multiple families, which commonly group the commands
+belonging to the particular kernel subsystem.
+Currently, the supported families are:
+.Pp
+.Bd -literal -offset indent -compact
+NETLINK_ROUTE	network configuration,
+NETLINK_GENERIC	"container" family
+.Ed
+.Pp
+The
+.Dv NETLINK_ROUTE
+family handles all interfaces, addresses, neighbors, routes, and VNETs
+configuration.
+More details can be found in
+.Xr rtnetlink 4 .
+The
+.Dv NETLINK_GENERIC
+family serves as a
+.Do container Dc ,
+allowing registering other families under the
+.Dv NETLINK_GENERIC
+umbrella.
+This approach allows using a single netlink socket to interact with
+multiple netlink families at once.
+More details can be found in
+.Xr genetlink 4 .
+.Pp
+Netlink has its own sockaddr structure:
+.Bd -literal
+struct sockaddr_nl {
+	uint8_t		nl_len;		/* sizeof(sockaddr_nl) */
+	sa_family_t	nl_family;	/* netlink family */
+	uint16_t	nl_pad;		/* reserved, set to 0 */
+	uint32_t	nl_pid;		/* automatically selected, set to 0 */
+	uint32_t	nl_groups;	/* multicast groups mask to bind to */
+};
+.Ed
+.Pp
+Typically, filling this structure is not required for socket operations.
+It is presented here for completeness.
+.Sh PROTOCOL DESCRIPTION
+The protocol is message-based.
+Each message starts with the mandatory
+.Va nlmsghdr
+header, followed by the family-specific header and the list of
+type-length-value pairs (TLVs).
+TLVs can be nested.
+All headers and TLVS are padded to 4-byte boundaries.
+Each
+.Xr send 2 or
+.Xr recv 2
+system call may contain multiple messages.
+.Ss BASE HEADER
+.Bd -literal
+struct nlmsghdr {
+	uint32_t nlmsg_len;   /* Length of message including header */
+	uint16_t nlmsg_type;  /* Message type identifier */
+	uint16_t nlmsg_flags; /* Flags (NLM_F_) */
+	uint32_t nlmsg_seq;   /* Sequence number */
+	uint32_t nlmsg_pid;   /* Sending process port ID */
+};
+.Ed
+.Pp
+The
+.Va nlmsg_len
+field stores the whole message length, in bytes, including the header.
+This length has to be rounded up to the nearest 4-byte boundary when
+iterating over messages.
+The
+.Va nlmsg_type
+field represents the command/request type.
+This value is family-specific.
+The list of supported commands can be found in the relevant family
+header file.
+.Va nlmsg_seq
+is a user-provided request identifier.
+An application can track the operation result using the
+.Dv NLMSG_ERROR
+messages and matching the
+.Va nlmsg_seq
+.
+The
+.Va nlmsg_pid
+field is the message sender id.
+This field is optional for userland.
+The kernel sender id is zero.
+The
+.Va nlmsg_flags
+field contains the message-specific flags.
+The following generic flags are defined:
+.Pp
+.Bd -literal -offset indent -compact
+NLM_F_REQUEST	Indicates that the message is an actual request to the kernel
+NLM_F_ACK	Request an explicit ACK message with an operation result
+.Ed
+.Pp
+The following generic flags are defined for the "GET" request types:
+.Pp
+.Bd -literal -offset indent -compact
+NLM_F_ROOT	Return the whole dataset
+NLM_F_MATCH	Return all entries matching the criteria
+.Ed
+These two flags are typically used together, aliased to
+.Dv NLM_F_DUMP
+.Pp
+The following generic flags are defined for the "NEW" request types:
+.Pp
+.Bd -literal -offset indent -compact
+NLM_F_CREATE	Create an object if none exists
+NLM_F_EXCL	Don't replace an object if it exists
+NLM_F_REPLACE	Replace an existing matching object
+NLM_F_APPEND	Append to an existing object
+.Ed
+.Pp
+The following generic flags are defined for the replies:
+.Pp
+.Bd -literal -offset indent -compact
+NLM_F_MULTI	Indicates that the message is part of the message group
+NLM_F_DUMP_INTR	Indicates that the state dump was not completed
+NLM_F_DUMP_FILTERED	Indicates that the dump was filtered per request
+NLM_F_CAPPED	Indicates the original message was capped to its header
+NLM_F_ACK_TLVS	Indicates that extended ACK TLVs were included
+.Ed
+.Ss TLVs
+Most messages encode their attributes as type-length-value pairs (TLVs).
+The base TLV header:
+.Bd -literal
+struct nlattr {
+	uint16_t nla_len;	/* Total attribute length */
+	uint16_t nla_type;	/* Attribute type */
+};
+.Ed
+The TLV type
+.Pq Va nla_type
+scope is typically the message type or group within a family.
+For example, the
+.Dv RTN_MULTICAST
+type value is only valid for
+.Dv RTM_NEWROUTE
+,
+.Dv RTM_DELROUTE
+and
+.Dv RTM_GETROUTE
+messages.
+TLVs can be nested; in that case internal TLVs may have their own sub-types.
+All TLVs are packed with 4-byte padding.
+.Ss CONTROL MESSAGES
+A number of generic control messages are reserved in each family.
+.Pp
+.Dv NLMSG_ERROR
+reports the operation result if requested, optionally followed by
+the metadata TLVs.
+The value of
+.Va nlmsg_seq
+is set to its value in the original messages, while
+.Va nlmsg_pid
+is set to the socket pid of the original socket.
+The operation result is reported via
+.Vt "struct nlmsgerr":
+.Bd -literal
+struct nlmsgerr {
+	int	error;		/* Standard errno */
+	struct	nlmsghdr msg;	/* Original message header */
+};
+.Ed
+If the
+.Dv NETLINK_CAP_ACK
+socket option is not set, the remainder of the original message will follow.
+If the
+.Dv NETLINK_EXT_ACK
+socket option is set, the kernel may add a
+.Dv NLMSGERR_ATTR_MSG
+string TLV with the textual error description, optionally followed by the
+.Dv NLMSGERR_ATTR_OFFS
+TLV, indicating the offset from the message start that triggered an error.
+Some operations may return additional metadata encapsulated in the
+.Dv NLMSGERR_ATTR_COOKIE
+TLV.
+The metadata format is specific to the operation.
+If the operation reply is a multipart message, then no
+.Dv NLMSG_ERROR
+reply is generated, only a
+.Dv NLMSG_DONE
+message, closing multipart sequence.
+.Pp
+.Dv NLMSG_DONE
+indicates the end of the message group: typically, the end of the dump.
+It contains a single
+.Vt int
+field, describing the dump result as a standard errno value.
+.Sh SOCKET OPTIONS
+Netlink supports a number of custom socket options, which can be set with
+.Xr setsockopt 2
+with the
+.Dv SOL_NETLINK
+.Fa level :
+.Bl -tag -width indent
+.It Dv NETLINK_ADD_MEMBERSHIP
+Subscribes to the notifications for the specific group (int).
+.It Dv NETLINK_DROP_MEMBERSHIP
+Unsubscribes from the notifications for the specific group (int).
+.It Dv NETLINK_LIST_MEMBERSHIPS
+Lists the memberships as a bitmask.
+.It Dv NETLINK_CAP_ACK
+Instructs the kernel to send the original message header in the reply
+without the message body.
+.It Dv NETLINK_EXT_ACK
+Acknowledges ability to receive additional TLVs in the ACK message.
+.El
+.Pp
+Additionally, netlink overrides the following socket options from the
+.Dv SOL_SOCKET
+.Fa level :
+.Bl -tag -width indent
+.It Dv SO_RCVBUF
+Sets the maximum size of the socket receive buffer.
+If the caller has
+.Dv PRIV_NET_ROUTE
+permission, the value can exceed the currently-set
+.Va kern.ipc.maxsockbuf
+value.
+.El
+.Sh SYSCTL VARIABLES
+A set of
+.Xr sysctl 8
+variables is available to tweak run-time parameters:
+.Bl -tag -width indent
+.It Va net.netlink.sendspace
+Default send buffer for the netlink socket.
+Note that the socket sendspace has to be at least as long as the longest
+message that can be transmitted via this socket.
+.El
+.Bl -tag -width indent
+.It Va net.netlink.recvspace
+Default receive buffer for the netlink socket.
+Note that the socket recvspace has to be least as long as the longest
+message that can be received from this socket.
+.El
+.Bl -tag -width indent
+.It Va net.netlink.nl_maxsockbuf
+Maximum receive buffer for the netlink socket that can be set via
+.Dv SO_RCVBUF
+socket option.
+.El
+.Sh DEBUGGING
+Netlink implements per-functional-unit debugging, with different severities
+controllable via the
+.Va net.netlink.debug
+branch.
+These messages are logged in the kernel message buffer and can be seen in
+.Xr dmesg 8
+.
+The following severity levels are defined:
+.Bl -tag -width indent
+.It Dv LOG_DEBUG(7)
+Rare events or per-socket errors are reported here.
+This is the default level, not impacting production performance.
+.It Dv LOG_DEBUG2(8)
+Socket events such as groups memberships, privilege checks, commands and dumps
+are logged.
+This level does not incur significant performance overhead.
+.It Dv LOG_DEBUG3(9)
+All socket events, each dumped or modified entities are logged.
+Turning it on may result in significant performance overhead.
+.El
+.Sh ERRORS
+Netlink reports operation results, including errors and error metadata, by
+sending a
+.Dv NLMSG_ERROR
+message for each request message.
+The following errors can be returned:
+.Bl -tag -width Er
+.It Bq Er EPERM
+when the current privileges are insufficient to perform the required operation;
+.It Bo Er ENOBUFS Bc or Bo Er ENOMEM Bc
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er ENOTSUP
+when the requested command is not supported by the family or
+the family is not supported;
+.It Bq Er EINVAL
+when some necessary TLVs are missing or invalid, detailed info
+may be provided in NLMSGERR_ATTR_MSG and NLMSGERR_ATTR_OFFS TLVs;
+.It Bq Er ENOENT
+when trying to delete a non-existent object.
+.Pp
+Additionally, a socket operation itself may fail with one of the errors
+specified in
+.Xr socket 2
+,
+.Xr recv 2
+or
+.Xr send 2
+.
+.El
+.Sh SEE ALSO
+.Xr genetlink 4 ,
+.Xr rtnetlink 4
+.Rs
+.%A "J. Salim"
+.%A "H. Khosravi"
+.%A "A. Kleen"
+.%A "A. Kuznetsov"
+.%T "Linux Netlink as an IP Services Protocol"
+.%O "RFC 3549"
+.Re
+.Sh HISTORY
+The netlink protocol appeared in
+.Fx 13.2 .
+.Sh AUTHORS
+The netlink was implemented by
+.An -nosplit
+.An Alexander Chernikov Aq Mt melifaro@FreeBSD.org .
+It was derived from the Google Summer of Code 2021 project by
+.An Ng Peng Nam Sean .

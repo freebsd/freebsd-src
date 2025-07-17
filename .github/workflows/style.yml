@@ -1,0 +1,36 @@
+name: Style Checker
+
+# Runs my simple style(9) checker on pull requests.
+
+on:
+  pull_request: # maybe pull_request_target
+    branches: [ main ]
+    types: [ opened, reopened, edited, synchronize ]
+    paths: [ '**.S', '**.c', '**.cc', '**.cpp', '**.h', '**.hh', '**.hpp' ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Style Checker
+    runs-on: ubuntu-latest
+    steps:
+      # Unfortunately there doesn't seem to be a way to
+      # do this without an extra step.
+      - name: Get depth
+        run: |
+          echo "DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ env.DEPTH }}
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install packages
+        run: |
+          sudo apt-get update --quiet || true
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install perl
+      - name: Run checker
+        run: |
+          sha=$(git rev-parse HEAD~${{ github.event.pull_request.commits }})
+          tools/build/checkstyle9.pl --github ${sha}..${{ github.event.pull_request.head.sha }}

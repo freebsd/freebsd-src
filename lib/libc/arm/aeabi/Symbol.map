@@ -1,0 +1,31 @@
+/*
+ * This only needs to contain AEABI symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
+FBSDprivate_1.0 {
+	__aeabi_atexit;
+
+	__aeabi_memclr;
+	__aeabi_memclr4;
+	__aeabi_memclr8;
+	__aeabi_memcmp;
+	__aeabi_memcmp4;
+	__aeabi_memcmp8;
+	__aeabi_memcpy;
+	__aeabi_memcpy4;
+	__aeabi_memcpy8;
+	__aeabi_memmove;
+	__aeabi_memmove4;
+	__aeabi_memmove8;
+	__aeabi_memset;
+	__aeabi_memset4;
+	__aeabi_memset8;
+
+	/*
+	 * A workaround for DEFINE_AEABI_FUNCTION_ALIAS() bug.
+	 * - see aeabi_int_div.S
+	 */
+	__aeabi_idiv;
+	__aeabi_uidiv;
+};

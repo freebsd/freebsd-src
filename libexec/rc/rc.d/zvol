@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: zvol
+# REQUIRE: zpool
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="zvol"
+desc="Activate swap on ZVOLs"
+rcvar="zfs_enable"
+start_cmd="zvol_start"
+stop_cmd="zvol_stop"
+required_modules="zfs"
+
+zvol_start()
+{
+	# Enable swap on ZVOLs with property org.freebsd:swap=on.
+	zfs list -H -o org.freebsd:swap,name -t volume |
+	while read state name; do
+		case "${state}" in
+		([oO][nN])
+			swapon /dev/zvol/${name}
+			;;
+		esac
+	done
+}
+
+zvol_stop()
+{
+	# Disable swap on ZVOLs with property org.freebsd:swap=on.
+	zfs list -H -o org.freebsd:swap,name -t volume |
+	while read state name; do
+		case "${state}" in
+		([oO][nN])
+			swapoff /dev/zvol/${name}
+			;;
+		esac
+	done
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+zvol_svcj="NO"
+
+run_rc_command "$1"

@@ -1,0 +1,275 @@
+.\"
+.\" Copyright (c) 2025 Rick Macklem
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 3, 2025
+.Dt NAMED_ATTRIBUTE 7
+.Os
+.Sh NAME
+.Nm named_attribute
+.Nd Solaris-like extended attribute system interface
+.Sh DESCRIPTION
+Description of the system interface for named attributes
+(the NFS Version 4 terminology).
+.Ss Introduction
+This document describes an alternate system interface for extended
+attributes as compared to
+.Xr extattr 2 .
+It is based on the interface provided by Solaris and NFS Version 4.
+.Pp
+This interface associates a directory, known as a named attribute directory,
+to a file system object.
+This directory is read in the same manner as a normal directory via the
+.Xr getdents 2
+or
+.Xr getdirentries 2
+system calls.
+The
+.Pa .\&
+and
+.Pa ..\&
+entries refer to the directory itself and to the associated file object,
+respectively.
+The other entries in this directory
+are the names of the extended attributes for the associated file object
+and are referred to as named attributes.
+These named attributes are regular files used to store the attribute's
+value.
+.Pp
+A named attribute directory does not live in the file system's name space.
+It is accessed via an
+.Xr open 2
+or
+.Xr openat 2
+system call done on a file to query the named attributes for the file,
+with the
+.Dv O_NAMEDATTR
+flag specified and a
+.Fa path
+argument of
+.Pa .\& .
+This file descriptor can be used as the
+.Fa fd
+argument for a variety of system calls, such as:
+.Xr fchdir 2 ,
+.Xr unlinkat 2
+and
+.Xr renameat 2 .
+.Xr renameat 2
+is only permitted to rename a named attribute within the same named
+attribute directory.
+.Pp
+When a file descriptor for a file object in the file system's namespace
+is used as the
+.Fa fd
+argument of an
+.Xr openat 2
+along with the
+.Fa flag
+.Dv O_NAMEDATTR
+and a
+.Fa path
+argument that is the name of a named attribute (not
+.Pa .\&
+or
+.Pa ..\&
+), a file descriptor for the named attribute is returned.
+If the
+.Fa flag
+.Dv O_CREAT
+is specified, the named attribute will be created if it does not exist.
+The
+.Fa path
+argument must be a single component name, with no embedded
+.Dq /
+in it.
+I/O on these named attribute file descriptors may be performed by
+standard I/O system calls
+such as:
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr lseek 2
+and
+.Xr ftruncate 2 .
+.Pp
+The
+.Dv _PC_NAMEDATTR_ENABLED
+.Fa name
+argument to
+.Xr pathconf 2
+will return 1 if the file system supports named attributes.
+The
+.Dv _PC_HAS_NAMEDATTR
+.Fa name
+argument to
+.Xr pathconf 2
+will return 1 if there are one or more named attributes for the file.
+If an application does a
+.Xr openat 2
+of
+.Dq .\&
+to open a named attribute directory when no named attribute directory exists,
+an empty named attribute directory will be created.
+Testing
+.Dv _PC_HAS_NAMEDATTR
+can be done to avoid creating these named attribute directories unnecessarily.
+.Pp
+The named attribute interface is a different mechanism/system call interface for
+manipulating extended attributes compared with
+.Xr extattr 2 .
+Although the named attribute machanism might require different internal
+implementation
+of extended attributes within a file system, both ZFS and NFSv4 provide
+both mechanisms, which can be used interchangeably to manipulate
+extended attributes, but with a couple of limitations.
+.Bl -bullet
+.It
+The
+.Xr extattr 2
+interface requires that an extended attribute's value be set or acquired
+via a single system call using a single buffer.
+This limits the size of the attribute's value.
+.It
+The named attribute interface does not support system namespace
+extended attributes and,
+as such, system namespace extended attributes must be manipulated via
+.Xr extattr 2 .
+.El
+.Pp
+The named attribute mechanism/system call interface provides certain
+advantages over
+.Xr extattr 2 .
+Since the attribute's value is updated via
+.Xr read 2
+and
+.Xr write 2
+system calls, the attribute's data may be as large as any regular file
+and may be partially updated.
+(Note that this interface does not provide the atomicity guarantee that
+.Xr extattr 2
+does.)
+The permission to access a named attribute directory is determined from
+the access control information for the associated file object.
+However, access control information can be set on each individual attribute
+in a manner similar to a regular file.
+This provides
+.Dq per attribute
+granular control over attribute permissions via
+.Xr fchown 2 .
+.Pp
+At this time, the only local file system which supports this interface
+is ZFS and only if the
+.Dv xattr
+property is set to
+.Dq dir .
+(Note that, even when
+.Dq zfs get xattr <file-system>
+shows
+.Dq on
+the command
+.Dq zfs set xattr=dir <file-system>
+must be done, followed by a remount to make the setting take effect.)
+A NFSv4 mount will also support this interface, but only if the NFSv4
+server file system supports named attributes (the openattr operation).
+The
+.Fx
+NFSv4 server supports named attributes only
+for ZFS exported file systems where the
+.Dq xattr
+property is set to
+.Dq dir
+for the file system.
+.Sh EXAMPLES
+.Bd -literal
+#include <stdio.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+\&...
+
+/* For a file called "myfile". Failure checks removed for brevity. */
+int file_fd, nameddir_fd, namedattr_fd;
+ssize_t siz;
+char buf[DIRBLKSIZ], *cp;
+struct dirent *dp;
+long named_enabled, has_named_attrs;
+
+\&...
+/* Check to see if named attributes are supported. */
+named_enabled = pathconf("myfile", _PC_NAMEDATTR_ENABLED);
+if (named_enabled <= 0)
+	err(1, "Named attributes not enabled");
+/* Test to see if named attribute(s) exist for the file. */
+has_named_attrs = pathconf("myfile", _PC_HAS_NAMEDATTR);
+if (has_named_attrs == 1)
+	printf("myfile has named attribute(s)\\n");
+else
+	printf("myfile does not have any named attributes\\n");
+/* Open a named attribute directory. */
+file_fd = open("myfile", O_RDONLY, 0);
+nameddir_fd = openat(file_fd, ".", O_NAMEDATTR, 0);
+\&...
+/* and read it, assuming it all fits in DIRBLKSIZ for simplicity. */
+siz = getdents(fd, buf, sizeof(buf));
+cp = buf;
+while (cp < &buf[siz]) {
+	dp = (struct dirent *)cp;
+	printf("name=%s\\n", dp->d_name);
+	cp += dp->d_reclen;
+}
+\&...
+/* Open/create a named attribute called "foo". */
+namedattr_fd = openat(file_fd, "foo", O_CREAT | O_RDWR |
+    O_TRUNC | O_NAMEDATTR, 0600);
+\&...
+/* Write foo's attribute value. */
+write(namedattr_fd, "xxxyyy", 6);
+\&...
+/* Read foo's attribute value. */
+lseek(namedattr_fd, 0, SEEK_SET);
+siz = read(namedattr_fd, buf, sizeof(buf));
+\&...
+/* And close "foo". */
+close(namedattr_fd);
+\&...
+/* Rename "foo" to "oldfoo". */
+renameat(nameddir_fd, "foo", nameddir_fd, "oldfoo");
+/* and delete "oldfoo". */
+unlinkat(nameddir_fd, "oldfoo", AT_RESOLVE_BENEATH);
+.Ed
+.Pp
+The
+.Xr runat 1
+command may be used to perform shell commands on named attributes.
+For example:
+.Bd -literal
+$ runat myfile cp /etc/hosts attrhosts	# creates attrhosts
+$ runat myfile cat attrhosts		# displays contents of attrhosts
+$ runat myfile ls -l			# lists the attributes for myfile
+.Ed
+.Pp
+If using the
+.Xr bash 1
+shell, the command
+.Dq cd -@ foo
+enters the named attribute directory for the file object
+.Dq foo .
+.Sh SEE ALSO
+.Xr bash 1 ,
+.Xr runat 1 ,
+.Xr chdir 2 ,
+.Xr extattr 2 ,
+.Xr lseek 2 ,
+.Xr open 2 ,
+.Xr pathconf 2 ,
+.Xr read 2 ,
+.Xr rename 2 ,
+.Xr truncate 2 ,
+.Xr unlinkat 2 ,
+.Xr write 2 ,
+.Xr zfsprops 7
+.Sh HISTORY
+This interface first appeared in
+.Fx 15.0 .

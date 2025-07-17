@@ -1,0 +1,82 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: zfs
+# REQUIRE: zfsbe
+# BEFORE: FILESYSTEMS var
+
+. /etc/rc.subr
+
+name="zfs"
+desc="Mount and share ZFS datasets"
+rcvar="zfs_enable"
+start_cmd="zfs_start"
+start_postcmd="zfs_poststart"
+stop_cmd="zfs_stop"
+required_modules="zfs"
+
+zfs_start_jail()
+{
+	if check_jail mount_allowed; then
+		zfs mount -a
+	fi
+}
+
+zfs_start_main()
+{
+	zfs mount -va
+	zfs share -a
+	if [ ! -r /etc/zfs/exports ]; then
+		touch /etc/zfs/exports
+	fi
+}
+
+zfs_start()
+{
+	if check_jail jailed; then
+		zfs_start_jail
+	else
+		zfs_start_main
+	fi
+}
+
+zfs_poststart()
+{
+	# Some of the keys to decrypt datasets are potentially stored on ZFS
+	# datasets that just got mounted. Let's try to load those keys and
+	# mount the datasets.
+	if checkyesno zfskeys_enable; then
+		/etc/rc.d/zfskeys start
+		zfs_start
+	fi
+}
+
+zfs_stop_jail()
+{
+	if check_jail mount_allowed; then
+		zfs unmount -a
+	fi
+}
+
+zfs_stop_main()
+{
+	zfs unshare -a
+	zfs unmount -a
+}
+
+zfs_stop()
+{
+	if check_jail jailed; then
+		zfs_stop_jail
+	else
+		zfs_stop_main
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: mounting / config setting
+zfs_svcj="NO"
+
+run_rc_command "$1"

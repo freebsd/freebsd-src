@@ -1,0 +1,2 @@
+table <tabl1> file "./pf1020.include"
+block drop from <tabl1> to any

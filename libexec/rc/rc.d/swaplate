@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: swaplate
+# REQUIRE: mountlate
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="swaplate"
+desc="Setup late swap space"
+start_cmd='/sbin/swapon -aLq'
+stop_cmd='/sbin/swapoff -aLq'
+
+load_rc_config swap
+
+# doesn't make sense to run in a svcj: privileged operations
+swaplate_svcj="NO"
+
+run_rc_command "$1"

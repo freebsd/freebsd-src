@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: hostid_save
+# REQUIRE: hostid root
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="hostid_save"
+desc="Save unique host ID to disk"
+start_cmd="hostid_save"
+stop_cmd=":"
+rcvar="hostid_enable"
+
+hostid_machine_id()
+{
+	local IFS
+
+	IFS=-
+	set -- ${current_hostid}
+	IFS=
+	current_machine_id=$*
+}
+
+hostid_save()
+{
+	current_hostid=`$SYSCTL_N kern.hostuuid`
+
+	read saved_hostid 2>/dev/null < ${hostid_file}
+	if [ "${saved_hostid}" != "${current_hostid}" ]; then
+		echo "${current_hostid}" > ${hostid_file} ||
+			warn "could not store hostuuid in ${hostid_file}."
+	fi
+
+	hostid_machine_id
+
+	read saved_machine_id 2>/dev/null < ${machine_id_file}
+	if [ "${saved_machine_id}" != "${current_machine_id}" ]; then
+		echo "${current_machine_id}" > ${machine_id_file} ||
+			warn "could not store hostuuid in ${machine_id_file}."
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+hostid_save_svcj="NO"
+
+run_rc_command "$1"

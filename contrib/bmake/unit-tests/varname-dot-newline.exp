@@ -1,0 +1,13 @@
+make: varname-dot-newline.mk:28: Cannot overwrite ".newline" as it is read-only
+	in make[1] in directory "<curdir>"
+make: varname-dot-newline.mk:30: Cannot append to ".newline" as it is read-only
+	in make[1] in directory "<curdir>"
+make: varname-dot-newline.mk:32: Cannot delete ".newline" as it is read-only
+	in make[1] in directory "<curdir>"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "try-to-modify" in unit-tests
+first
+second
+backslash newline: <\
+>
+exit status 0

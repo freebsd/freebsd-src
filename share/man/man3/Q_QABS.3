@@ -1,0 +1,99 @@
+.\"
+.\" Copyright (c) 2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 8, 2018
+.Dt Q_QABS 3
+.Os
+.Sh NAME
+.Nm Q_QABS ,
+.Nm Q_Q2S ,
+.Nm Q_Q2F
+.Nd fixed-point math functions which operate on a single Q number
+.Sh SYNOPSIS
+.In sys/qmath.h
+.Ft QTYPE
+.Fn Q_QABS "QTYPE q"
+.Ft double
+.Fn Q_Q2D "QTYPE q"
+.Ft float
+.Fn Q_Q2F "QTYPE q"
+.Sh DESCRIPTION
+The
+.Fn Q_QABS
+function returns an absolute value representation of
+.Fa q .
+.Pp
+The
+.Fn Q_Q2D
+and
+.Fn Q_Q2F
+functions return the double and float representations of
+.Fa q
+respectively.
+.Pp
+All of those functions operate on
+the following data types:
+.Vt s8q_t ,
+.Vt u8q_t ,
+.Vt s16q_t ,
+.Vt u16q_t ,
+.Vt s32q_t ,
+.Vt u32q_t ,
+.Vt s64q_t ,
+and
+.Vt u64q_t ,
+which are referred to generically as
+.Fa QTYPE .
+.Pp
+For more details, see
+.Xr qmath 3 .
+.Sh RETURN VALUES
+.Fn Q_QABS
+function returns a QTYPE that is identical to that of
+.Fa q .
+.Pp
+The
+.Fn Q_Q2D
+and
+.Fn Q_Q2F
+functions return the double and float representations of
+.Fa q
+respectively.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr qmath 3 ,
+.Xr stdint 7
+.Sh HISTORY
+The
+.Xr qmath 3
+functions first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr qmath 3
+functions and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.

@@ -1,0 +1,5 @@
+comment = "NetBSD stack backtrace library"
+desc = <<EOD
+libexecinfo provides the backtrace(3) interface to allow an application to
+examine its current call stack.
+EOD

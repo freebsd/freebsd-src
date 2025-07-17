@@ -1,0 +1,14 @@
+make: varmod-assign-shell.mk:21: warning: Command "echo output; (exit 13)" exited with status 13
+Global: _ = # (empty)
+Var_Parse: ${ASSIGNED::!=echo output; ${:U(exit 13)}} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${ASSIGNED::...} on value "previous" (eval-keep-dollar-and-undefined, regular)
+Modifier part: "echo output; (exit 13)"
+Capturing the output of command "echo output; (exit 13)"
+make: varmod-assign-shell.mk:26: warning: Command "echo output; (exit 13)" exited with status 13
+Result of ${ASSIGNED::!=echo output; ${:U(exit 13)}} is "" (eval-keep-dollar-and-undefined, regular)
+Global: _ = # (empty)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+DIRECT=output
+ASSIGNED=previous
+exit status 0

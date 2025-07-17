@@ -1,0 +1,48 @@
+
+arm/allwinner/a10_ahci.c		optional	ahci
+arm/allwinner/a10_codec.c		optional	sound
+arm/allwinner/a10_dmac.c		optional	a10_dmac
+arm/allwinner/a31_dmac.c		optional	a31_dmac
+arm/allwinner/a10_sramc.c		optional	SOC_ALLWINNER_A10
+arm/allwinner/aw_gpio.c			optional	gpio
+arm/allwinner/aw_machdep.c		standard
+arm/allwinner/aw_mmc.c			optional	mmc | mmccam
+arm/allwinner/aw_mp.c			optional	smp
+arm/allwinner/aw_nmi.c			standard
+arm/allwinner/aw_r_intc.c		optional	aw_r_intc
+arm/allwinner/aw_rsb.c			optional	rsb | p2wi
+arm/allwinner/aw_rtc.c			optional	aw_rtc
+arm/allwinner/aw_syscon.c		optional	syscon
+arm/allwinner/aw_ts.c			optional	aw_thermal
+arm/allwinner/aw_usbphy.c		optional	ehci | ohci
+arm/allwinner/aw_wdog.c			optional	aw_wdog
+arm/allwinner/axp209.c			optional	axp209
+arm/allwinner/axp81x.c			optional	axp81x
+arm/allwinner/if_awg.c			optional	awg syscon
+arm/allwinner/if_emac.c			optional	emac
+arm/allwinner/sunxi_dma_if.m		optional	a10_dmac | a31_dmac
+dev/dwc/if_dwc_aw.c			optional	dwc
+dev/iicbus/controller/twsi/a10_twsi.c	optional	twsi
+dev/usb/controller/generic_ohci.c	optional	ohci
+dev/usb/controller/generic_usb_if.m	optional	ohci
+dev/usb/controller/generic_ehci.c	optional	ehci
+dev/usb/controller/generic_ehci_fdt.c	optional	ehci
+dev/usb/controller/musb_otg_allwinner.c	optional	musb
+arm/allwinner/aw_sid.c			optional	aw_sid
+arm/allwinner/aw_thermal.c		optional	aw_thermal
+arm/allwinner/aw_cir.c			optional	aw_cir evdev
+
+arm/allwinner/aw_reset.c		standard
+dev/clk/allwinner/aw_ccu.c		standard
+arm/allwinner/aw_gmacclk.c		standard
+
+dev/clk/allwinner/aw_ccung.c		standard
+dev/clk/allwinner/aw_clk_frac.c		standard
+dev/clk/allwinner/aw_clk_m.c		standard
+dev/clk/allwinner/aw_clk_mipi.c		standard
+dev/clk/allwinner/aw_clk_nkmp.c		standard
+dev/clk/allwinner/aw_clk_nm.c		standard
+dev/clk/allwinner/aw_clk_np.c		standard
+dev/clk/allwinner/aw_clk_nmm.c		standard
+dev/clk/allwinner/aw_clk_prediv_mux.c	standard
+dev/clk/allwinner/ccu_de2.c		standard

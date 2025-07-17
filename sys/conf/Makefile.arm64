@@ -1,0 +1,96 @@
+# Makefile.arm64 -- with config changes.
+# Copyright 1990 W. Jolitz
+#	from FreeBSD: src/sys/conf/Makefile.i386,v 1.255 2002/02/20 23:35:49
+#
+# Makefile for FreeBSD
+#
+# This makefile is constructed from a machine description:
+#	config machineid
+# Most changes should be made in the machine description
+#	/sys/arm64/conf/``machineid''
+# after which you should do
+#	 config machineid
+# Generic makefile changes should be made in
+#	/sys/conf/Makefile.arm64
+# after which config should be rerun for all machines.
+#
+
+# Which version of config(8) is required.
+%VERSREQ=	600012
+
+.if !defined(S)
+S=	../../..
+.endif
+.include "$S/conf/kern.pre.mk"
+
+INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include
+
+LINUX_DTS_VERSION!=	awk '/freebsd,dts-version/ { sub(/;$$/,"", $$NF); print $$NF }' $S/dts/freebsd-compatible.dts
+CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
+
+PERTHREAD_SSP_ENABLED!=	grep PERTHREAD_SSP opt_global.h || true ; echo
+.if !empty(PERTHREAD_SSP_ENABLED)
+. if (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 130000) || \
+  ${COMPILER_TYPE} == "gcc"
+ARM64_SSP_CFLAGS = -mstack-protector-guard=sysreg
+ARM64_SSP_CFLAGS += -mstack-protector-guard-reg=sp_el0
+ARM64_SSP_CFLAGS += -mstack-protector-guard-offset=0
+. else
+ARM64_SSP_CFLAGS += -DPERTHREAD_SSP_WARNING
+.  warning "Compiler is too old to support PERTHREAD_SSP"
+. endif
+CFLAGS += ${ARM64_SSP_CFLAGS}
+ARCH_FLAGS += ${ARM64_SSP_CFLAGS}
+.endif
+
+# Use a custom SYSTEM_LD command to generate the elf kernel, so we can
+# set the text segment start address, and also strip the "arm mapping
+# symbols" which have names like $a.0 and $d.2; see the document
+# "ELF for the ARM architecture" for more info on the mapping symbols.
+SYSTEM_LD= \
+	${SYSTEM_LD_BASECMD} \
+	    --defsym='text_start=kernbase + SIZEOF_HEADERS' \
+	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o; \
+	$(OBJCOPY) \
+	    --wildcard \
+	    --strip-symbol='$$[adtx]*' \
+	    ${.TARGET}
+
+.if !empty(DDB_ENABLED) || !empty(DTRACE_ENABLED) || !empty(HWPMC_ENABLED)
+CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+.endif
+
+%BEFORE_DEPEND
+
+%OBJS
+
+%FILES.c
+
+%FILES.s
+
+%FILES.m
+
+%CLEAN
+
+%RULES
+
+.include "$S/conf/kern.post.mk"
+
+# Create a kernel.bin file...
+# Copy the kernel to u-boot's booti image format (the elf headers are
+# stripped and a custom binary head blob is prepended), saving the
+# output in a temp file.  We also strip arm "marker" symbols which are
+# used only by elf toolchains.  Read the symbols from kernel.full and pass
+# them to arm_kernel_boothdr.awk, which generates a binary header blob
+# that goes on the front of the stripped kernel.  Cat the header blob
+# and the temp file together to make the kernel.bin file.
+${KERNEL_KO}.bin: ${FULLKERNEL}
+	@${OBJCOPY} --wildcard --strip-symbol='$$[adtx]*' \
+	    --output-target=binary ${FULLKERNEL} ${.TARGET}.temp
+	@{ ${NM} ${FULLKERNEL} | \
+	    LC_ALL=C \
+	    ${AWK} -f $S/tools/arm_kernel_boothdr.awk -v hdrtype=v8booti && \
+	    cat ${.TARGET}.temp; \
+	 } > ${.TARGET}
+	@rm ${.TARGET}.temp
+	@echo "created ${.TARGET} from ${.ALLSRC}"

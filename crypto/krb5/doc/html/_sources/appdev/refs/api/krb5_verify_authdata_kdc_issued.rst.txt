@@ -1,0 +1,48 @@
+krb5_verify_authdata_kdc_issued -  Unwrap and verify AD-KDCIssued authorization data. 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_verify_authdata_kdc_issued(krb5_context context, const krb5_keyblock * key, const krb5_authdata * ad_kdcissued, krb5_principal * issuer, krb5_authdata *** authdata)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Session key
+
+	          **[in]** **ad_kdcissued** - AD-KDCIssued authorization data to be unwrapped
+
+	          **[out]** **issuer** - Name of issuing principal (or NULL)
+
+	          **[out]** **authdata** - Unwrapped list of authorization data
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function unwraps an AD-KDCIssued authdatum (see RFC 4120 section 5.2.6.2) and verifies its signature against *key* . The issuer field of the authdatum element is returned in *issuer* , and the unwrapped list of authdata is returned in *authdata* .
+
+
+
+
+
+
+..
+
+
+
+
+

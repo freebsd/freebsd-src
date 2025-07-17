@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PRINCIPAL-PARSE-NO-REALM-data:
+
+KRB5_PRINCIPAL_PARSE_NO_REALM
+=============================
+
+..
+.. data:: KRB5_PRINCIPAL_PARSE_NO_REALM
+..
+
+Error if realm is present.
+
+
+
+==================================== ======================
+``KRB5_PRINCIPAL_PARSE_NO_REALM``       ``0x1``
+==================================== ======================

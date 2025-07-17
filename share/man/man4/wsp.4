@@ -1,0 +1,219 @@
+.\" Copyright (c) 2014 Hans Petter Selasky <hselasky at freebsd dot org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 9, 2021
+.Dt WSP 4
+.Os
+.Sh NAME
+.Nm wsp
+.Nd Wellspring touchpad driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device wsp"
+.Cd "device hid"
+.Cd "device usb"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+wsp_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Apple Internal Trackpad
+device found in many Apple laptops.
+.Pp
+The driver simulates a three-button mouse using multi-finger press/tap
+detection.
+A single-finger press generates a left button click.
+A two-finger press maps to the right button; whereas a three-finger
+press gets treated as a middle button click.
+.Pp
+The trackpad functions with presses and taps.
+A press is a full-forced
+press which causes a physical lowering of the trackpad.
+A tap is a
+touch of the trackpad which does not depress the physical trackpad.
+.Pp
+The
+.Nm
+driver supports receiving evdev input device data if enabled.
+This data
+is used for extended usage of the touchpad like multi-finger support,
+pressure detection, tap support, and gestures.
+At least the second bit of the
+.Xr sysctl 8
+tunable
+.Va kern.evdev.rcpt_mask
+must be set.
+This can be enabled with
+.Va kern.evdev.rcpt_mask=3 .
+.Pp
+Vertical scrolling (z-axis) is enabled by default with a two-finger
+tap and the movement of a finger up and down.
+Horizontal scrolling (t-axis) is not natively supported by the sysmouse
+protocol, therefore must be enabled with evdev data.
+This can be enabled with the
+.Xr sysctl 8
+tunable
+.Va kern.evdev.sysmouse_t_axis=3 .
+Horizontal scrolling can be used with a two-finger tap and the movement
+of a finger from side to side.
+The
+.Xr sysctl 8
+tunable
+.Va hw.usb.wsp.t_factor
+must be greater than 0 for horizontal scrolling to be enabled, too.
+.Pp
+Horizontal swiping with a three-finger tap is registered as mouse buttons
+8 and 9, depending on the direction.
+These buttons default to backwards and forwards keyboard events.
+.Sh SYSCTL VARIABLES
+The following variables are available as
+.Xr sysctl 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.wsp.scale_factor
+Controls the pointer sensitivity.
+Default is 12.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.enable_single_tap_clicks
+Enables single-tap to register as a left-click.
+Default is 1 (enabled).
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.enable_single_tap_movement
+Enables movement on the trackpad follow a partially-released left-click.
+Default is 1 (enabled).
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.max_finger_diameter
+Specifies the maximum finger diameter on the trackpad that is registered as a
+finger (a lower value is used for palm detection). Default is 1900.
+.El
+.Bl -tag -width indent
+.It Va max_scroll_finger_distance
+Specifies the maximum distance between two fingers where z-axis
+and t-axis movements are registered.
+Z-axis and T-axis movements
+are vertical and horizontal movements with more than one finger
+tapped (not clicked), respectively.
+Default is 8192.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.max_double_tap_distance
+Specifies the maximum distance between two fingers that a two-finger
+click will be registered as a right-click.
+Default is 2500.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.scr_threshold
+Specifies the minimum horizontal or vertical distance required to
+register as a scrolling gesture.
+Default is 20.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.z_factor
+Z-axis sensitivity.
+Default is 5.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.z_invert
+Z-axis inversion.
+Default is 0 (disabled).
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.t_factor
+T-axis sensitivity.
+Default is 0 (disabled).
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.t_invert
+T-axis inversion.
+Default is 0 (disabled).
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.scroll_finger_count
+Specifies the number of tapped fingers which registers as a scrolling
+movement.
+Default is 2.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.horizontal_swipe_finger_count
+Speifies the number of tapped fingers which registers as a swipe
+gesture.
+Default is 3.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.pressure_touch_threshold
+Specifies the threshold for a finger to be registered as a click.
+Default is 50.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.pressure_untouch_threshold
+Specifies the threshold for a finger to be registered as an unclick.
+Default is 10.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.pressure_tap_threshold
+Specifies the threadhold for a finger to be registered as a tap.
+Default is 120.
+.El
+.Bl -tag -width indent
+.It Va hw.usb.wsp.debug
+Specifies the
+.Nm
+driver debugging level (0-3).
+Default is 1.
+.El
+.Sh FILES
+.Nm
+creates a blocking pseudo-device file,
+.Pa /dev/wsp0 ,
+which presents the mouse as a
+.Em sysmouse
+or
+.Em mousesystems
+type device--see
+.Xr moused 8
+for an explanation of these mouse types.
+.Sh SEE ALSO
+.Xr sysmouse 4 ,
+.Xr usb 4 ,
+.Xr loader.conf 5 ,
+.Xr xorg.conf 5 Pq Pa ports/x11/xorg ,
+.Xr moused 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Huang Wen Hui Aq Mt huanghwh@gmail.com .

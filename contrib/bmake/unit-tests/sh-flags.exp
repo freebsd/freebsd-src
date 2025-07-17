@@ -1,0 +1,4253 @@
+
+opt-______-tgt-___-cmd-___
+echo running
+running
+
+opt-______-tgt-___-cmd-__s
+running
+
+opt-______-tgt-___-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-___-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-___-cmd-a__
+echo running
+running
+
+opt-______-tgt-___-cmd-a_s
+running
+
+opt-______-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-___-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-__s-cmd-___
+running
+
+opt-______-tgt-__s-cmd-__s
+running
+
+opt-______-tgt-__s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-__s-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-__s-cmd-a__
+running
+
+opt-______-tgt-__s-cmd-a_s
+running
+
+opt-______-tgt-__s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-__s-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_i_-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-_is-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a__-cmd-___
+echo running
+running
+
+opt-______-tgt-a__-cmd-__s
+running
+
+opt-______-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a__-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a__-cmd-a__
+echo running
+running
+
+opt-______-tgt-a__-cmd-a_s
+running
+
+opt-______-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a__-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a_s-cmd-___
+running
+
+opt-______-tgt-a_s-cmd-__s
+running
+
+opt-______-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a_s-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a_s-cmd-a__
+running
+
+opt-______-tgt-a_s-cmd-a_s
+running
+
+opt-______-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-a_s-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ai_-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-______-tgt-ais-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-___-cmd-___
+echo running
+
+opt-___n__-tgt-___-cmd-__s
+echo running
+
+opt-___n__-tgt-___-cmd-_i_
+echo running; false
+
+opt-___n__-tgt-___-cmd-_is
+echo running; false
+
+opt-___n__-tgt-___-cmd-a__
+echo running
+running
+
+opt-___n__-tgt-___-cmd-a_s
+echo running
+running
+
+opt-___n__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-__s-cmd-___
+echo running
+
+opt-___n__-tgt-__s-cmd-__s
+echo running
+
+opt-___n__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-___n__-tgt-__s-cmd-_is
+echo running; false
+
+opt-___n__-tgt-__s-cmd-a__
+echo running
+running
+
+opt-___n__-tgt-__s-cmd-a_s
+echo running
+running
+
+opt-___n__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_i_-cmd-___
+echo running; false
+
+opt-___n__-tgt-_i_-cmd-__s
+echo running; false
+
+opt-___n__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-___n__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-___n__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_is-cmd-___
+echo running; false
+
+opt-___n__-tgt-_is-cmd-__s
+echo running; false
+
+opt-___n__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-___n__-tgt-_is-cmd-_is
+echo running; false
+
+opt-___n__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a__-cmd-___
+echo running
+running
+
+opt-___n__-tgt-a__-cmd-__s
+running
+
+opt-___n__-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a__-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a__-cmd-a__
+echo running
+running
+
+opt-___n__-tgt-a__-cmd-a_s
+running
+
+opt-___n__-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a__-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a_s-cmd-___
+running
+
+opt-___n__-tgt-a_s-cmd-__s
+running
+
+opt-___n__-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a_s-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a_s-cmd-a__
+running
+
+opt-___n__-tgt-a_s-cmd-a_s
+running
+
+opt-___n__-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-a_s-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ai_-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-___n__-tgt-ais-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-___-cmd-___
+echo running
+running
+
+opt-__l___-tgt-___-cmd-__s
+echo running
+running
+
+opt-__l___-tgt-___-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-___-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-___-cmd-a__
+echo running
+running
+
+opt-__l___-tgt-___-cmd-a_s
+echo running
+running
+
+opt-__l___-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-__s-cmd-___
+running
+
+opt-__l___-tgt-__s-cmd-__s
+echo running
+running
+
+opt-__l___-tgt-__s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-__s-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-__s-cmd-a__
+running
+
+opt-__l___-tgt-__s-cmd-a_s
+echo running
+running
+
+opt-__l___-tgt-__s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a__-cmd-___
+echo running
+running
+
+opt-__l___-tgt-a__-cmd-__s
+echo running
+running
+
+opt-__l___-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a__-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a__-cmd-a__
+echo running
+running
+
+opt-__l___-tgt-a__-cmd-a_s
+echo running
+running
+
+opt-__l___-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a__-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a_s-cmd-___
+running
+
+opt-__l___-tgt-a_s-cmd-__s
+echo running
+running
+
+opt-__l___-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a_s-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a_s-cmd-a__
+running
+
+opt-__l___-tgt-a_s-cmd-a_s
+echo running
+running
+
+opt-__l___-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-a_s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ai_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-__l___-tgt-ais-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-___-cmd-___
+echo running
+
+opt-__ln__-tgt-___-cmd-__s
+echo running
+
+opt-__ln__-tgt-___-cmd-_i_
+echo running; false
+
+opt-__ln__-tgt-___-cmd-_is
+echo running; false
+
+opt-__ln__-tgt-___-cmd-a__
+echo running
+running
+
+opt-__ln__-tgt-___-cmd-a_s
+echo running
+running
+
+opt-__ln__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-__s-cmd-___
+echo running
+
+opt-__ln__-tgt-__s-cmd-__s
+echo running
+
+opt-__ln__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-__ln__-tgt-__s-cmd-_is
+echo running; false
+
+opt-__ln__-tgt-__s-cmd-a__
+echo running
+running
+
+opt-__ln__-tgt-__s-cmd-a_s
+echo running
+running
+
+opt-__ln__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_i_-cmd-___
+echo running; false
+
+opt-__ln__-tgt-_i_-cmd-__s
+echo running; false
+
+opt-__ln__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-__ln__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-__ln__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_is-cmd-___
+echo running; false
+
+opt-__ln__-tgt-_is-cmd-__s
+echo running; false
+
+opt-__ln__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-__ln__-tgt-_is-cmd-_is
+echo running; false
+
+opt-__ln__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a__-cmd-___
+echo running
+running
+
+opt-__ln__-tgt-a__-cmd-__s
+echo running
+running
+
+opt-__ln__-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a__-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a__-cmd-a__
+echo running
+running
+
+opt-__ln__-tgt-a__-cmd-a_s
+echo running
+running
+
+opt-__ln__-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a__-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a_s-cmd-___
+running
+
+opt-__ln__-tgt-a_s-cmd-__s
+echo running
+running
+
+opt-__ln__-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a_s-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a_s-cmd-a__
+running
+
+opt-__ln__-tgt-a_s-cmd-a_s
+echo running
+running
+
+opt-__ln__-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-a_s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ai_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-__ln__-tgt-ais-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j____-tgt-___-cmd-___
+echo running
+running
+
+opt-_j____-tgt-___-cmd-__s
+running
+
+opt-_j____-tgt-___-cmd-_i_
+echo running; false
+running
+*** [opt-_j____-tgt-___-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-___-cmd-_is
+running
+*** [opt-_j____-tgt-___-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-___-cmd-a__
+echo running
+running
+
+opt-_j____-tgt-___-cmd-a_s
+running
+
+opt-_j____-tgt-___-cmd-ai_
+echo running; false
+running
+*** [opt-_j____-tgt-___-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-___-cmd-ais
+running
+*** [opt-_j____-tgt-___-cmd-ais] Error code 1 (ignored)
+
+opt-_j____-tgt-__s-cmd-___
+running
+
+opt-_j____-tgt-__s-cmd-__s
+running
+
+opt-_j____-tgt-__s-cmd-_i_
+running
+*** [opt-_j____-tgt-__s-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-__s-cmd-_is
+running
+*** [opt-_j____-tgt-__s-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-__s-cmd-a__
+running
+
+opt-_j____-tgt-__s-cmd-a_s
+running
+
+opt-_j____-tgt-__s-cmd-ai_
+running
+*** [opt-_j____-tgt-__s-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-__s-cmd-ais
+running
+*** [opt-_j____-tgt-__s-cmd-ais] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-___
+echo running; false
+running
+*** [opt-_j____-tgt-_i_-cmd-___] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-__s
+running
+*** [opt-_j____-tgt-_i_-cmd-__s] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** [opt-_j____-tgt-_i_-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-_is
+running
+*** [opt-_j____-tgt-_i_-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-a__
+echo running; false
+running
+*** [opt-_j____-tgt-_i_-cmd-a__] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-a_s
+running
+*** [opt-_j____-tgt-_i_-cmd-a_s] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** [opt-_j____-tgt-_i_-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-_i_-cmd-ais
+running
+*** [opt-_j____-tgt-_i_-cmd-ais] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-___
+running
+*** [opt-_j____-tgt-_is-cmd-___] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-__s
+running
+*** [opt-_j____-tgt-_is-cmd-__s] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-_i_
+running
+*** [opt-_j____-tgt-_is-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-_is
+running
+*** [opt-_j____-tgt-_is-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-a__
+running
+*** [opt-_j____-tgt-_is-cmd-a__] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-a_s
+running
+*** [opt-_j____-tgt-_is-cmd-a_s] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-ai_
+running
+*** [opt-_j____-tgt-_is-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-_is-cmd-ais
+running
+*** [opt-_j____-tgt-_is-cmd-ais] Error code 1 (ignored)
+
+opt-_j____-tgt-a__-cmd-___
+echo running
+running
+
+opt-_j____-tgt-a__-cmd-__s
+running
+
+opt-_j____-tgt-a__-cmd-_i_
+echo running; false
+running
+*** [opt-_j____-tgt-a__-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-a__-cmd-_is
+running
+*** [opt-_j____-tgt-a__-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-a__-cmd-a__
+echo running
+running
+
+opt-_j____-tgt-a__-cmd-a_s
+running
+
+opt-_j____-tgt-a__-cmd-ai_
+echo running; false
+running
+*** [opt-_j____-tgt-a__-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-a__-cmd-ais
+running
+*** [opt-_j____-tgt-a__-cmd-ais] Error code 1 (ignored)
+
+opt-_j____-tgt-a_s-cmd-___
+running
+
+opt-_j____-tgt-a_s-cmd-__s
+running
+
+opt-_j____-tgt-a_s-cmd-_i_
+running
+*** [opt-_j____-tgt-a_s-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-a_s-cmd-_is
+running
+*** [opt-_j____-tgt-a_s-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-a_s-cmd-a__
+running
+
+opt-_j____-tgt-a_s-cmd-a_s
+running
+
+opt-_j____-tgt-a_s-cmd-ai_
+running
+*** [opt-_j____-tgt-a_s-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-a_s-cmd-ais
+running
+*** [opt-_j____-tgt-a_s-cmd-ais] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-___
+echo running; false
+running
+*** [opt-_j____-tgt-ai_-cmd-___] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-__s
+running
+*** [opt-_j____-tgt-ai_-cmd-__s] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** [opt-_j____-tgt-ai_-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-_is
+running
+*** [opt-_j____-tgt-ai_-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-a__
+echo running; false
+running
+*** [opt-_j____-tgt-ai_-cmd-a__] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-a_s
+running
+*** [opt-_j____-tgt-ai_-cmd-a_s] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** [opt-_j____-tgt-ai_-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-ai_-cmd-ais
+running
+*** [opt-_j____-tgt-ai_-cmd-ais] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-___
+running
+*** [opt-_j____-tgt-ais-cmd-___] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-__s
+running
+*** [opt-_j____-tgt-ais-cmd-__s] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-_i_
+running
+*** [opt-_j____-tgt-ais-cmd-_i_] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-_is
+running
+*** [opt-_j____-tgt-ais-cmd-_is] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-a__
+running
+*** [opt-_j____-tgt-ais-cmd-a__] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-a_s
+running
+*** [opt-_j____-tgt-ais-cmd-a_s] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-ai_
+running
+*** [opt-_j____-tgt-ais-cmd-ai_] Error code 1 (ignored)
+
+opt-_j____-tgt-ais-cmd-ais
+running
+*** [opt-_j____-tgt-ais-cmd-ais] Error code 1 (ignored)
+
+opt-_j_n__-tgt-___-cmd-___
+echo "echo running"
+{ echo running 
+} || exit $?
+
+opt-_j_n__-tgt-___-cmd-__s
+{ echo running 
+} || exit $?
+
+opt-_j_n__-tgt-___-cmd-_i_
+echo running; false
+
+opt-_j_n__-tgt-___-cmd-_is
+echo running; false
+
+opt-_j_n__-tgt-___-cmd-a__
+echo running
+running
+
+opt-_j_n__-tgt-___-cmd-a_s
+echo running
+running
+
+opt-_j_n__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-__s-cmd-___
+{ echo running 
+} || exit $?
+
+opt-_j_n__-tgt-__s-cmd-__s
+{ echo running 
+} || exit $?
+
+opt-_j_n__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-_j_n__-tgt-__s-cmd-_is
+echo running; false
+
+opt-_j_n__-tgt-__s-cmd-a__
+echo running
+running
+
+opt-_j_n__-tgt-__s-cmd-a_s
+echo running
+running
+
+opt-_j_n__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_i_-cmd-___
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-_j_n__-tgt-_i_-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-_j_n__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-_j_n__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-_j_n__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_is-cmd-___
+{ echo running; false 
+} || exit $?
+
+opt-_j_n__-tgt-_is-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-_j_n__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-_j_n__-tgt-_is-cmd-_is
+echo running; false
+
+opt-_j_n__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_j_n__-tgt-a__-cmd-___
+echo running
+running
+
+opt-_j_n__-tgt-a__-cmd-__s
+running
+
+opt-_j_n__-tgt-a__-cmd-_i_
+echo running; false
+running
+
+opt-_j_n__-tgt-a__-cmd-_is
+running
+
+opt-_j_n__-tgt-a__-cmd-a__
+echo running
+running
+
+opt-_j_n__-tgt-a__-cmd-a_s
+running
+
+opt-_j_n__-tgt-a__-cmd-ai_
+echo running; false
+running
+
+opt-_j_n__-tgt-a__-cmd-ais
+running
+
+opt-_j_n__-tgt-a_s-cmd-___
+running
+
+opt-_j_n__-tgt-a_s-cmd-__s
+running
+
+opt-_j_n__-tgt-a_s-cmd-_i_
+running
+
+opt-_j_n__-tgt-a_s-cmd-_is
+running
+
+opt-_j_n__-tgt-a_s-cmd-a__
+running
+
+opt-_j_n__-tgt-a_s-cmd-a_s
+running
+
+opt-_j_n__-tgt-a_s-cmd-ai_
+running
+
+opt-_j_n__-tgt-a_s-cmd-ais
+running
+
+opt-_j_n__-tgt-ai_-cmd-___
+echo running; false
+running
+
+opt-_j_n__-tgt-ai_-cmd-__s
+running
+
+opt-_j_n__-tgt-ai_-cmd-_i_
+echo running; false
+running
+
+opt-_j_n__-tgt-ai_-cmd-_is
+running
+
+opt-_j_n__-tgt-ai_-cmd-a__
+echo running; false
+running
+
+opt-_j_n__-tgt-ai_-cmd-a_s
+running
+
+opt-_j_n__-tgt-ai_-cmd-ai_
+echo running; false
+running
+
+opt-_j_n__-tgt-ai_-cmd-ais
+running
+
+opt-_j_n__-tgt-ais-cmd-___
+running
+
+opt-_j_n__-tgt-ais-cmd-__s
+running
+
+opt-_j_n__-tgt-ais-cmd-_i_
+running
+
+opt-_j_n__-tgt-ais-cmd-_is
+running
+
+opt-_j_n__-tgt-ais-cmd-a__
+running
+
+opt-_j_n__-tgt-ais-cmd-a_s
+running
+
+opt-_j_n__-tgt-ais-cmd-ai_
+running
+
+opt-_j_n__-tgt-ais-cmd-ais
+running
+
+opt-_jl___-tgt-___-cmd-___
+echo running
+running
+
+opt-_jl___-tgt-___-cmd-__s
+echo running
+running
+
+opt-_jl___-tgt-___-cmd-_i_
+echo running; false
+running
+*** [opt-_jl___-tgt-___-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-___-cmd-_is
+echo running; false
+running
+*** [opt-_jl___-tgt-___-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-___-cmd-a__
+echo running
+running
+
+opt-_jl___-tgt-___-cmd-a_s
+echo running
+running
+
+opt-_jl___-tgt-___-cmd-ai_
+echo running; false
+running
+*** [opt-_jl___-tgt-___-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-___-cmd-ais
+echo running; false
+running
+*** [opt-_jl___-tgt-___-cmd-ais] Error code 1 (ignored)
+
+opt-_jl___-tgt-__s-cmd-___
+running
+
+opt-_jl___-tgt-__s-cmd-__s
+running
+
+opt-_jl___-tgt-__s-cmd-_i_
+running
+*** [opt-_jl___-tgt-__s-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-__s-cmd-_is
+running
+*** [opt-_jl___-tgt-__s-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-__s-cmd-a__
+running
+
+opt-_jl___-tgt-__s-cmd-a_s
+running
+
+opt-_jl___-tgt-__s-cmd-ai_
+running
+*** [opt-_jl___-tgt-__s-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-__s-cmd-ais
+running
+*** [opt-_jl___-tgt-__s-cmd-ais] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-___
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-___] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-__s
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-__s] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-_is
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-a__
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-a__] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-a_s] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-_i_-cmd-ais
+echo running; false
+running
+*** [opt-_jl___-tgt-_i_-cmd-ais] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-___
+running
+*** [opt-_jl___-tgt-_is-cmd-___] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-__s
+running
+*** [opt-_jl___-tgt-_is-cmd-__s] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-_i_
+running
+*** [opt-_jl___-tgt-_is-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-_is
+running
+*** [opt-_jl___-tgt-_is-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-a__
+running
+*** [opt-_jl___-tgt-_is-cmd-a__] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-a_s
+running
+*** [opt-_jl___-tgt-_is-cmd-a_s] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-ai_
+running
+*** [opt-_jl___-tgt-_is-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-_is-cmd-ais
+running
+*** [opt-_jl___-tgt-_is-cmd-ais] Error code 1 (ignored)
+
+opt-_jl___-tgt-a__-cmd-___
+echo running
+running
+
+opt-_jl___-tgt-a__-cmd-__s
+echo running
+running
+
+opt-_jl___-tgt-a__-cmd-_i_
+echo running; false
+running
+*** [opt-_jl___-tgt-a__-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-a__-cmd-_is
+echo running; false
+running
+*** [opt-_jl___-tgt-a__-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-a__-cmd-a__
+echo running
+running
+
+opt-_jl___-tgt-a__-cmd-a_s
+echo running
+running
+
+opt-_jl___-tgt-a__-cmd-ai_
+echo running; false
+running
+*** [opt-_jl___-tgt-a__-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-a__-cmd-ais
+echo running; false
+running
+*** [opt-_jl___-tgt-a__-cmd-ais] Error code 1 (ignored)
+
+opt-_jl___-tgt-a_s-cmd-___
+running
+
+opt-_jl___-tgt-a_s-cmd-__s
+running
+
+opt-_jl___-tgt-a_s-cmd-_i_
+running
+*** [opt-_jl___-tgt-a_s-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-a_s-cmd-_is
+running
+*** [opt-_jl___-tgt-a_s-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-a_s-cmd-a__
+running
+
+opt-_jl___-tgt-a_s-cmd-a_s
+running
+
+opt-_jl___-tgt-a_s-cmd-ai_
+running
+*** [opt-_jl___-tgt-a_s-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-a_s-cmd-ais
+running
+*** [opt-_jl___-tgt-a_s-cmd-ais] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-___
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-___] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-__s
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-__s] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-_is
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-a__
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-a__] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-a_s
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-a_s] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-ai_-cmd-ais
+echo running; false
+running
+*** [opt-_jl___-tgt-ai_-cmd-ais] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-___
+running
+*** [opt-_jl___-tgt-ais-cmd-___] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-__s
+running
+*** [opt-_jl___-tgt-ais-cmd-__s] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-_i_
+running
+*** [opt-_jl___-tgt-ais-cmd-_i_] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-_is
+running
+*** [opt-_jl___-tgt-ais-cmd-_is] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-a__
+running
+*** [opt-_jl___-tgt-ais-cmd-a__] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-a_s
+running
+*** [opt-_jl___-tgt-ais-cmd-a_s] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-ai_
+running
+*** [opt-_jl___-tgt-ais-cmd-ai_] Error code 1 (ignored)
+
+opt-_jl___-tgt-ais-cmd-ais
+running
+*** [opt-_jl___-tgt-ais-cmd-ais] Error code 1 (ignored)
+
+opt-_jln__-tgt-___-cmd-___
+echo "echo running"
+{ echo running 
+} || exit $?
+
+opt-_jln__-tgt-___-cmd-__s
+echo "echo running"
+{ echo running 
+} || exit $?
+
+opt-_jln__-tgt-___-cmd-_i_
+echo running; false
+
+opt-_jln__-tgt-___-cmd-_is
+echo running; false
+
+opt-_jln__-tgt-___-cmd-a__
+echo running
+running
+
+opt-_jln__-tgt-___-cmd-a_s
+echo running
+running
+
+opt-_jln__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-__s-cmd-___
+{ echo running 
+} || exit $?
+
+opt-_jln__-tgt-__s-cmd-__s
+{ echo running 
+} || exit $?
+
+opt-_jln__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-_jln__-tgt-__s-cmd-_is
+echo running; false
+
+opt-_jln__-tgt-__s-cmd-a__
+echo running
+running
+
+opt-_jln__-tgt-__s-cmd-a_s
+echo running
+running
+
+opt-_jln__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_i_-cmd-___
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-_jln__-tgt-_i_-cmd-__s
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-_jln__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-_jln__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-_jln__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_is-cmd-___
+{ echo running; false 
+} || exit $?
+
+opt-_jln__-tgt-_is-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-_jln__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-_jln__-tgt-_is-cmd-_is
+echo running; false
+
+opt-_jln__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-_jln__-tgt-a__-cmd-___
+echo running
+running
+
+opt-_jln__-tgt-a__-cmd-__s
+echo running
+running
+
+opt-_jln__-tgt-a__-cmd-_i_
+echo running; false
+running
+
+opt-_jln__-tgt-a__-cmd-_is
+echo running; false
+running
+
+opt-_jln__-tgt-a__-cmd-a__
+echo running
+running
+
+opt-_jln__-tgt-a__-cmd-a_s
+echo running
+running
+
+opt-_jln__-tgt-a__-cmd-ai_
+echo running; false
+running
+
+opt-_jln__-tgt-a__-cmd-ais
+echo running; false
+running
+
+opt-_jln__-tgt-a_s-cmd-___
+running
+
+opt-_jln__-tgt-a_s-cmd-__s
+running
+
+opt-_jln__-tgt-a_s-cmd-_i_
+running
+
+opt-_jln__-tgt-a_s-cmd-_is
+running
+
+opt-_jln__-tgt-a_s-cmd-a__
+running
+
+opt-_jln__-tgt-a_s-cmd-a_s
+running
+
+opt-_jln__-tgt-a_s-cmd-ai_
+running
+
+opt-_jln__-tgt-a_s-cmd-ais
+running
+
+opt-_jln__-tgt-ai_-cmd-___
+echo running; false
+running
+
+opt-_jln__-tgt-ai_-cmd-__s
+echo running; false
+running
+
+opt-_jln__-tgt-ai_-cmd-_i_
+echo running; false
+running
+
+opt-_jln__-tgt-ai_-cmd-_is
+echo running; false
+running
+
+opt-_jln__-tgt-ai_-cmd-a__
+echo running; false
+running
+
+opt-_jln__-tgt-ai_-cmd-a_s
+echo running; false
+running
+
+opt-_jln__-tgt-ai_-cmd-ai_
+echo running; false
+running
+
+opt-_jln__-tgt-ai_-cmd-ais
+echo running; false
+running
+
+opt-_jln__-tgt-ais-cmd-___
+running
+
+opt-_jln__-tgt-ais-cmd-__s
+running
+
+opt-_jln__-tgt-ais-cmd-_i_
+running
+
+opt-_jln__-tgt-ais-cmd-_is
+running
+
+opt-_jln__-tgt-ais-cmd-a__
+running
+
+opt-_jln__-tgt-ais-cmd-a_s
+running
+
+opt-_jln__-tgt-ais-cmd-ai_
+running
+
+opt-_jln__-tgt-ais-cmd-ais
+running
+
+opt-i_____-tgt-___-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-___-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-___-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-___-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-___-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-___-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-___-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-__s-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_i_-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-_is-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a__-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-a_s-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ai_-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_____-tgt-ais-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-___-cmd-___
+echo running; false
+
+opt-i__n__-tgt-___-cmd-__s
+echo running; false
+
+opt-i__n__-tgt-___-cmd-_i_
+echo running; false
+
+opt-i__n__-tgt-___-cmd-_is
+echo running; false
+
+opt-i__n__-tgt-___-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-___-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-__s-cmd-___
+echo running; false
+
+opt-i__n__-tgt-__s-cmd-__s
+echo running; false
+
+opt-i__n__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-i__n__-tgt-__s-cmd-_is
+echo running; false
+
+opt-i__n__-tgt-__s-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-__s-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_i_-cmd-___
+echo running; false
+
+opt-i__n__-tgt-_i_-cmd-__s
+echo running; false
+
+opt-i__n__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-i__n__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-i__n__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_is-cmd-___
+echo running; false
+
+opt-i__n__-tgt-_is-cmd-__s
+echo running; false
+
+opt-i__n__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-i__n__-tgt-_is-cmd-_is
+echo running; false
+
+opt-i__n__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a__-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-a_s-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ai_-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-__s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-_is
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-a_s
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i__n__-tgt-ais-cmd-ais
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a__-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-a_s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ai_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_l___-tgt-ais-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-___-cmd-___
+echo running; false
+
+opt-i_ln__-tgt-___-cmd-__s
+echo running; false
+
+opt-i_ln__-tgt-___-cmd-_i_
+echo running; false
+
+opt-i_ln__-tgt-___-cmd-_is
+echo running; false
+
+opt-i_ln__-tgt-___-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-___-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-__s-cmd-___
+echo running; false
+
+opt-i_ln__-tgt-__s-cmd-__s
+echo running; false
+
+opt-i_ln__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-i_ln__-tgt-__s-cmd-_is
+echo running; false
+
+opt-i_ln__-tgt-__s-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-__s-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_i_-cmd-___
+echo running; false
+
+opt-i_ln__-tgt-_i_-cmd-__s
+echo running; false
+
+opt-i_ln__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-i_ln__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-i_ln__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_is-cmd-___
+echo running; false
+
+opt-i_ln__-tgt-_is-cmd-__s
+echo running; false
+
+opt-i_ln__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-i_ln__-tgt-_is-cmd-_is
+echo running; false
+
+opt-i_ln__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a__-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-a_s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-___
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ai_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-___
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-__s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-_i_
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-_is
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-a__
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-ai_
+running
+*** Error code 1 (ignored)
+
+opt-i_ln__-tgt-ais-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-___
+echo running; false
+running
+*** [opt-ij____-tgt-___-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-__s
+running
+*** [opt-ij____-tgt-___-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-_i_
+echo running; false
+running
+*** [opt-ij____-tgt-___-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-_is
+running
+*** [opt-ij____-tgt-___-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-a__
+echo running; false
+running
+*** [opt-ij____-tgt-___-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-a_s
+running
+*** [opt-ij____-tgt-___-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-ai_
+echo running; false
+running
+*** [opt-ij____-tgt-___-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-___-cmd-ais
+running
+*** [opt-ij____-tgt-___-cmd-ais] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-___
+running
+*** [opt-ij____-tgt-__s-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-__s
+running
+*** [opt-ij____-tgt-__s-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-_i_
+running
+*** [opt-ij____-tgt-__s-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-_is
+running
+*** [opt-ij____-tgt-__s-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-a__
+running
+*** [opt-ij____-tgt-__s-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-a_s
+running
+*** [opt-ij____-tgt-__s-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-ai_
+running
+*** [opt-ij____-tgt-__s-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-__s-cmd-ais
+running
+*** [opt-ij____-tgt-__s-cmd-ais] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-___
+echo running; false
+running
+*** [opt-ij____-tgt-_i_-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-__s
+running
+*** [opt-ij____-tgt-_i_-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** [opt-ij____-tgt-_i_-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-_is
+running
+*** [opt-ij____-tgt-_i_-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-a__
+echo running; false
+running
+*** [opt-ij____-tgt-_i_-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-a_s
+running
+*** [opt-ij____-tgt-_i_-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** [opt-ij____-tgt-_i_-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-_i_-cmd-ais
+running
+*** [opt-ij____-tgt-_i_-cmd-ais] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-___
+running
+*** [opt-ij____-tgt-_is-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-__s
+running
+*** [opt-ij____-tgt-_is-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-_i_
+running
+*** [opt-ij____-tgt-_is-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-_is
+running
+*** [opt-ij____-tgt-_is-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-a__
+running
+*** [opt-ij____-tgt-_is-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-a_s
+running
+*** [opt-ij____-tgt-_is-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-ai_
+running
+*** [opt-ij____-tgt-_is-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-_is-cmd-ais
+running
+*** [opt-ij____-tgt-_is-cmd-ais] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-___
+echo running; false
+running
+*** [opt-ij____-tgt-a__-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-__s
+running
+*** [opt-ij____-tgt-a__-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-_i_
+echo running; false
+running
+*** [opt-ij____-tgt-a__-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-_is
+running
+*** [opt-ij____-tgt-a__-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-a__
+echo running; false
+running
+*** [opt-ij____-tgt-a__-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-a_s
+running
+*** [opt-ij____-tgt-a__-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-ai_
+echo running; false
+running
+*** [opt-ij____-tgt-a__-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-a__-cmd-ais
+running
+*** [opt-ij____-tgt-a__-cmd-ais] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-___
+running
+*** [opt-ij____-tgt-a_s-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-__s
+running
+*** [opt-ij____-tgt-a_s-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-_i_
+running
+*** [opt-ij____-tgt-a_s-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-_is
+running
+*** [opt-ij____-tgt-a_s-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-a__
+running
+*** [opt-ij____-tgt-a_s-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-a_s
+running
+*** [opt-ij____-tgt-a_s-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-ai_
+running
+*** [opt-ij____-tgt-a_s-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-a_s-cmd-ais
+running
+*** [opt-ij____-tgt-a_s-cmd-ais] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-___
+echo running; false
+running
+*** [opt-ij____-tgt-ai_-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-__s
+running
+*** [opt-ij____-tgt-ai_-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** [opt-ij____-tgt-ai_-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-_is
+running
+*** [opt-ij____-tgt-ai_-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-a__
+echo running; false
+running
+*** [opt-ij____-tgt-ai_-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-a_s
+running
+*** [opt-ij____-tgt-ai_-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** [opt-ij____-tgt-ai_-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-ai_-cmd-ais
+running
+*** [opt-ij____-tgt-ai_-cmd-ais] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-___
+running
+*** [opt-ij____-tgt-ais-cmd-___] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-__s
+running
+*** [opt-ij____-tgt-ais-cmd-__s] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-_i_
+running
+*** [opt-ij____-tgt-ais-cmd-_i_] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-_is
+running
+*** [opt-ij____-tgt-ais-cmd-_is] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-a__
+running
+*** [opt-ij____-tgt-ais-cmd-a__] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-a_s
+running
+*** [opt-ij____-tgt-ais-cmd-a_s] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-ai_
+running
+*** [opt-ij____-tgt-ais-cmd-ai_] Error code 1 (ignored)
+
+opt-ij____-tgt-ais-cmd-ais
+running
+*** [opt-ij____-tgt-ais-cmd-ais] Error code 1 (ignored)
+
+opt-ij_n__-tgt-___-cmd-___
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-___-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-___-cmd-_i_
+echo running; false
+
+opt-ij_n__-tgt-___-cmd-_is
+echo running; false
+
+opt-ij_n__-tgt-___-cmd-a__
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ij_n__-tgt-___-cmd-a_s
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ij_n__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-__s-cmd-___
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-__s-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-ij_n__-tgt-__s-cmd-_is
+echo running; false
+
+opt-ij_n__-tgt-__s-cmd-a__
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ij_n__-tgt-__s-cmd-a_s
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ij_n__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_i_-cmd-___
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-_i_-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-ij_n__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-ij_n__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_is-cmd-___
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-_is-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-ij_n__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-ij_n__-tgt-_is-cmd-_is
+echo running; false
+
+opt-ij_n__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ij_n__-tgt-a__-cmd-___
+echo running; false
+running
+
+opt-ij_n__-tgt-a__-cmd-__s
+running
+
+opt-ij_n__-tgt-a__-cmd-_i_
+echo running; false
+running
+
+opt-ij_n__-tgt-a__-cmd-_is
+running
+
+opt-ij_n__-tgt-a__-cmd-a__
+echo running; false
+running
+
+opt-ij_n__-tgt-a__-cmd-a_s
+running
+
+opt-ij_n__-tgt-a__-cmd-ai_
+echo running; false
+running
+
+opt-ij_n__-tgt-a__-cmd-ais
+running
+
+opt-ij_n__-tgt-a_s-cmd-___
+running
+
+opt-ij_n__-tgt-a_s-cmd-__s
+running
+
+opt-ij_n__-tgt-a_s-cmd-_i_
+running
+
+opt-ij_n__-tgt-a_s-cmd-_is
+running
+
+opt-ij_n__-tgt-a_s-cmd-a__
+running
+
+opt-ij_n__-tgt-a_s-cmd-a_s
+running
+
+opt-ij_n__-tgt-a_s-cmd-ai_
+running
+
+opt-ij_n__-tgt-a_s-cmd-ais
+running
+
+opt-ij_n__-tgt-ai_-cmd-___
+echo running; false
+running
+
+opt-ij_n__-tgt-ai_-cmd-__s
+running
+
+opt-ij_n__-tgt-ai_-cmd-_i_
+echo running; false
+running
+
+opt-ij_n__-tgt-ai_-cmd-_is
+running
+
+opt-ij_n__-tgt-ai_-cmd-a__
+echo running; false
+running
+
+opt-ij_n__-tgt-ai_-cmd-a_s
+running
+
+opt-ij_n__-tgt-ai_-cmd-ai_
+echo running; false
+running
+
+opt-ij_n__-tgt-ai_-cmd-ais
+running
+
+opt-ij_n__-tgt-ais-cmd-___
+running
+
+opt-ij_n__-tgt-ais-cmd-__s
+running
+
+opt-ij_n__-tgt-ais-cmd-_i_
+running
+
+opt-ij_n__-tgt-ais-cmd-_is
+running
+
+opt-ij_n__-tgt-ais-cmd-a__
+running
+
+opt-ij_n__-tgt-ais-cmd-a_s
+running
+
+opt-ij_n__-tgt-ais-cmd-ai_
+running
+
+opt-ij_n__-tgt-ais-cmd-ais
+running
+
+opt-ijl___-tgt-___-cmd-___
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-___-cmd-__s
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-___-cmd-_i_
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-___-cmd-_is
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-___-cmd-a__
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-___-cmd-a_s
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-___-cmd-ai_
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-___-cmd-ais
+echo running; false
+running
+*** [opt-ijl___-tgt-___-cmd-ais] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-___
+running
+*** [opt-ijl___-tgt-__s-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-__s
+running
+*** [opt-ijl___-tgt-__s-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-_i_
+running
+*** [opt-ijl___-tgt-__s-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-_is
+running
+*** [opt-ijl___-tgt-__s-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-a__
+running
+*** [opt-ijl___-tgt-__s-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-a_s
+running
+*** [opt-ijl___-tgt-__s-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-ai_
+running
+*** [opt-ijl___-tgt-__s-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-__s-cmd-ais
+running
+*** [opt-ijl___-tgt-__s-cmd-ais] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-___
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-__s
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-_i_
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-_is
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-a__
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-_i_-cmd-ais
+echo running; false
+running
+*** [opt-ijl___-tgt-_i_-cmd-ais] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-___
+running
+*** [opt-ijl___-tgt-_is-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-__s
+running
+*** [opt-ijl___-tgt-_is-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-_i_
+running
+*** [opt-ijl___-tgt-_is-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-_is
+running
+*** [opt-ijl___-tgt-_is-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-a__
+running
+*** [opt-ijl___-tgt-_is-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-a_s
+running
+*** [opt-ijl___-tgt-_is-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-ai_
+running
+*** [opt-ijl___-tgt-_is-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-_is-cmd-ais
+running
+*** [opt-ijl___-tgt-_is-cmd-ais] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-___
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-__s
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-_i_
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-_is
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-a__
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-a_s
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-ai_
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-a__-cmd-ais
+echo running; false
+running
+*** [opt-ijl___-tgt-a__-cmd-ais] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-___
+running
+*** [opt-ijl___-tgt-a_s-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-__s
+running
+*** [opt-ijl___-tgt-a_s-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-_i_
+running
+*** [opt-ijl___-tgt-a_s-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-_is
+running
+*** [opt-ijl___-tgt-a_s-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-a__
+running
+*** [opt-ijl___-tgt-a_s-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-a_s
+running
+*** [opt-ijl___-tgt-a_s-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-ai_
+running
+*** [opt-ijl___-tgt-a_s-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-a_s-cmd-ais
+running
+*** [opt-ijl___-tgt-a_s-cmd-ais] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-___
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-__s
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-_i_
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-_is
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-a__
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-a_s
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-ai_
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-ai_-cmd-ais
+echo running; false
+running
+*** [opt-ijl___-tgt-ai_-cmd-ais] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-___
+running
+*** [opt-ijl___-tgt-ais-cmd-___] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-__s
+running
+*** [opt-ijl___-tgt-ais-cmd-__s] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-_i_
+running
+*** [opt-ijl___-tgt-ais-cmd-_i_] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-_is
+running
+*** [opt-ijl___-tgt-ais-cmd-_is] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-a__
+running
+*** [opt-ijl___-tgt-ais-cmd-a__] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-a_s
+running
+*** [opt-ijl___-tgt-ais-cmd-a_s] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-ai_
+running
+*** [opt-ijl___-tgt-ais-cmd-ai_] Error code 1 (ignored)
+
+opt-ijl___-tgt-ais-cmd-ais
+running
+*** [opt-ijl___-tgt-ais-cmd-ais] Error code 1 (ignored)
+
+opt-ijln__-tgt-___-cmd-___
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-___-cmd-__s
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-___-cmd-_i_
+echo running; false
+
+opt-ijln__-tgt-___-cmd-_is
+echo running; false
+
+opt-ijln__-tgt-___-cmd-a__
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ijln__-tgt-___-cmd-a_s
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ijln__-tgt-___-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-___-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-__s-cmd-___
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-__s-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-__s-cmd-_i_
+echo running; false
+
+opt-ijln__-tgt-__s-cmd-_is
+echo running; false
+
+opt-ijln__-tgt-__s-cmd-a__
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ijln__-tgt-__s-cmd-a_s
+echo running; false
+running
+*** Error code 1 (continuing)
+
+opt-ijln__-tgt-__s-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-__s-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_i_-cmd-___
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-_i_-cmd-__s
+echo "echo running; false"
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-_i_-cmd-_i_
+echo running; false
+
+opt-ijln__-tgt-_i_-cmd-_is
+echo running; false
+
+opt-ijln__-tgt-_i_-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_i_-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_i_-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_i_-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_is-cmd-___
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-_is-cmd-__s
+{ echo running; false 
+} || exit $?
+
+opt-ijln__-tgt-_is-cmd-_i_
+echo running; false
+
+opt-ijln__-tgt-_is-cmd-_is
+echo running; false
+
+opt-ijln__-tgt-_is-cmd-a__
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_is-cmd-a_s
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_is-cmd-ai_
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-_is-cmd-ais
+echo running; false
+running
+*** Error code 1 (ignored)
+
+opt-ijln__-tgt-a__-cmd-___
+echo running; false
+running
+
+opt-ijln__-tgt-a__-cmd-__s
+echo running; false
+running
+
+opt-ijln__-tgt-a__-cmd-_i_
+echo running; false
+running
+
+opt-ijln__-tgt-a__-cmd-_is
+echo running; false
+running
+
+opt-ijln__-tgt-a__-cmd-a__
+echo running; false
+running
+
+opt-ijln__-tgt-a__-cmd-a_s
+echo running; false
+running
+
+opt-ijln__-tgt-a__-cmd-ai_
+echo running; false
+running
+
+opt-ijln__-tgt-a__-cmd-ais
+echo running; false
+running
+
+opt-ijln__-tgt-a_s-cmd-___
+running
+
+opt-ijln__-tgt-a_s-cmd-__s
+running
+
+opt-ijln__-tgt-a_s-cmd-_i_
+running
+
+opt-ijln__-tgt-a_s-cmd-_is
+running
+
+opt-ijln__-tgt-a_s-cmd-a__
+running
+
+opt-ijln__-tgt-a_s-cmd-a_s
+running
+
+opt-ijln__-tgt-a_s-cmd-ai_
+running
+
+opt-ijln__-tgt-a_s-cmd-ais
+running
+
+opt-ijln__-tgt-ai_-cmd-___
+echo running; false
+running
+
+opt-ijln__-tgt-ai_-cmd-__s
+echo running; false
+running
+
+opt-ijln__-tgt-ai_-cmd-_i_
+echo running; false
+running
+
+opt-ijln__-tgt-ai_-cmd-_is
+echo running; false
+running
+
+opt-ijln__-tgt-ai_-cmd-a__
+echo running; false
+running
+
+opt-ijln__-tgt-ai_-cmd-a_s
+echo running; false
+running
+
+opt-ijln__-tgt-ai_-cmd-ai_
+echo running; false
+running
+
+opt-ijln__-tgt-ai_-cmd-ais
+echo running; false
+running
+
+opt-ijln__-tgt-ais-cmd-___
+running
+
+opt-ijln__-tgt-ais-cmd-__s
+running
+
+opt-ijln__-tgt-ais-cmd-_i_
+running
+
+opt-ijln__-tgt-ais-cmd-_is
+running
+
+opt-ijln__-tgt-ais-cmd-a__
+running
+
+opt-ijln__-tgt-ais-cmd-a_s
+running
+
+opt-ijln__-tgt-ais-cmd-ai_
+running
+
+opt-ijln__-tgt-ais-cmd-ais
+running
+exit status 0

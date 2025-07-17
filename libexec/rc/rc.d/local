@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: local
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="local"
+desc="Run /etc/rc.local and /etc/rc.shutdown.local"
+start_cmd="local_start"
+stop_cmd="local_stop"
+
+local_start()
+{
+	if [ -f /etc/rc.local ]; then
+		startmsg -n 'Starting local daemons:'
+		. /etc/rc.local
+		startmsg '.'
+	fi
+}
+
+local_stop()
+{
+	if [ -f /etc/rc.shutdown.local ]; then
+		echo -n 'Shutting down local daemons:'
+		. /etc/rc.shutdown.local
+		echo '.'
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: it may contain everything
+local_svcj="NO"
+
+run_rc_command "$1"

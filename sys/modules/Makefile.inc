@@ -1,0 +1,1 @@
+SUBDIR_PARALLEL=	yes

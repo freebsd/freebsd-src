@@ -1,0 +1,15 @@
+mydir=tests$(S)hammer
+BUILDTOP=$(REL)..$(S)..
+
+SRCS=$(srcdir)/kdc5_hammer.c
+
+all: kdc5_hammer
+
+kdc5_hammer: kdc5_hammer.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o kdc5_hammer kdc5_hammer.o $(KRB5_BASE_LIBS)
+
+install:
+
+clean:
+	$(RM) kdc5_hammer.o kdc5_hammer
+

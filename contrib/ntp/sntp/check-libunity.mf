@@ -1,0 +1,14 @@
+## check-libunity.mf - automake fragment
+##
+## ../check-libunity.mf
+## The above file has a version of this for the non-sntp
+## part of the ntp tree.
+
+BUILT_SOURCES	+= check-libunity
+CLEANFILES	+= check-libunity
+
+check-libunity: $(top_builddir)/unity/libunity.a
+	@echo stamp > $@
+
+$(top_builddir)/unity/libunity.a:
+	cd $(top_builddir)/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a

@@ -1,0 +1,106 @@
+Parse_PushInput: variable-ifndef.tmp:1
+Skipping 'variable-ifndef.tmp' because 'VARIABLE_IFNDEF' is defined
+Parse_PushInput: variable-ifndef-reuse.tmp:1
+Skipping 'variable-ifndef-reuse.tmp' because 'VARIABLE_IFNDEF' is defined
+Parse_PushInput: variable-ifndef-zero.tmp:1
+Parse_PushInput: variable-ifndef-zero.tmp:1
+Parse_PushInput: variable-ifndef-one.tmp:1
+Parse_PushInput: variable-ifndef-one.tmp:1
+Parse_PushInput: comments.tmp:1
+Skipping 'comments.tmp' because 'COMMENTS' is defined
+Parse_PushInput: variable-if.tmp:1
+Skipping 'variable-if.tmp' because 'VARIABLE_IF' is defined
+Parse_PushInput: variable-if-reuse.tmp:1
+Skipping 'variable-if-reuse.tmp' because 'VARIABLE_IF' is defined
+Parse_PushInput: variable-if-triple-negation.tmp:1
+Parse_PushInput: variable-if-triple-negation.tmp:1
+Parse_PushInput: variable-if-spaced.tmp:1
+Parse_PushInput: variable-if-spaced.tmp:1
+Parse_PushInput: variable-if-parenthesized.tmp:1
+Parse_PushInput: variable-if-parenthesized.tmp:1
+Parse_PushInput: variable-ifdef-negated.tmp:1
+Parse_PushInput: variable-ifdef-negated.tmp:1
+Parse_PushInput: variable-name-mismatch.tmp:1
+Parse_PushInput: variable-name-mismatch.tmp:1
+Parse_PushInput: variable-ifndef-parenthesized.tmp:1
+Parse_PushInput: variable-ifndef-parenthesized.tmp:1
+Parse_PushInput: variable-name-exclamation.tmp:1
+Parse_PushInput: variable-name-exclamation.tmp:1
+Parse_PushInput: variable-name-exclamation-middle.tmp:1
+Parse_PushInput: variable-name-exclamation-middle.tmp:1
+Parse_PushInput: variable-name-parentheses.tmp:1
+Parse_PushInput: variable-name-parentheses.tmp:1
+Parse_PushInput: variable-ifndef-plus.tmp:1
+Parse_PushInput: variable-ifndef-plus.tmp:1
+Parse_PushInput: variable-if-plus.tmp:1
+Parse_PushInput: variable-if-plus.tmp:1
+Parse_PushInput: variable-ifndef-indirect.tmp:1
+Parse_PushInput: variable-ifndef-indirect.tmp:1
+Parse_PushInput: variable-if-indirect.tmp:1
+Parse_PushInput: variable-if-indirect.tmp:1
+Parse_PushInput: variable-assign-indirect.tmp:1
+Skipping 'variable-assign-indirect.tmp' because 'VARIABLE_ASSIGN_INDIRECT' is defined
+Parse_PushInput: variable-assign-late.tmp:1
+Skipping 'variable-assign-late.tmp' because 'VARIABLE_ASSIGN_LATE' is defined
+Parse_PushInput: variable-assign-nested.tmp:1
+Parse_PushInput: .for loop in variable-assign-nested.tmp:3
+Skipping 'variable-assign-nested.tmp' because 'VARIABLE_ASSIGN_NESTED' is defined
+Parse_PushInput: variable-already-defined.tmp:1
+Skipping 'variable-already-defined.tmp' because 'VARIABLE_ALREADY_DEFINED' is defined
+Parse_PushInput: variable-defined-then-undefined.tmp:1
+Parse_PushInput: variable-defined-then-undefined.tmp:1
+Parse_PushInput: variable-two-times.tmp:1
+Parse_PushInput: variable-two-times.tmp:1
+Parse_PushInput: variable-clash.tmp:1
+Skipping 'variable-clash.tmp' because 'VARIABLE_IF' is defined
+Parse_PushInput: variable-swapped.tmp:1
+Parse_PushInput: variable-swapped.tmp:1
+Parse_PushInput: variable-undef-between.tmp:1
+Parse_PushInput: variable-undef-between.tmp:1
+Parse_PushInput: variable-undef-inside.tmp:1
+Parse_PushInput: variable-undef-inside.tmp:1
+Parse_PushInput: variable-not-defined.tmp:1
+Parse_PushInput: variable-not-defined.tmp:1
+Parse_PushInput: elif.tmp:1
+Parse_PushInput: elif.tmp:1
+Parse_PushInput: elif-reuse.tmp:1
+Parse_PushInput: elif-reuse.tmp:1
+Parse_PushInput: else.tmp:1
+Parse_PushInput: else.tmp:1
+Parse_PushInput: else-reuse.tmp:1
+Parse_PushInput: else-reuse.tmp:1
+Parse_PushInput: inner-if-elif-else.tmp:1
+Skipping 'inner-if-elif-else.tmp' because 'INNER_IF_ELIF_ELSE' is defined
+Parse_PushInput: target.tmp:1
+Skipping 'target.tmp' because '__target.tmp__' is defined
+Parse_PushInput: target-sys.tmp:1
+Skipping 'target-sys.tmp' because '__<target-sys.tmp>__' is defined
+Parse_PushInput: target-indirect.tmp:1
+Skipping 'target-indirect.tmp' because 'target-indirect.tmp' is defined
+Parse_PushInput: target-indirect-PARSEFILE.tmp:1
+Skipping 'target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
+Parse_PushInput: target-indirect-PARSEFILE2.tmp:1
+Skipping 'target-indirect-PARSEFILE2.tmp' because '__target-indirect-PARSEFILE2.tmp__' is defined
+Parse_PushInput: subdir/target-indirect-PARSEFILE.tmp:1
+Skipping 'subdir/target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
+Parse_PushInput: target-indirect-PARSEDIR-PARSEFILE.tmp:1
+Skipping 'target-indirect-PARSEDIR-PARSEFILE.tmp' because '__target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
+Parse_PushInput: subdir/target-indirect-PARSEDIR-PARSEFILE.tmp:1
+Skipping 'subdir/target-indirect-PARSEDIR-PARSEFILE.tmp' because '__subdir/target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
+Parse_PushInput: target-unguarded.tmp:1
+Parse_PushInput: target-unguarded.tmp:1
+Parse_PushInput: target-plus.tmp:1
+Parse_PushInput: target-plus.tmp:1
+Parse_PushInput: target-already-defined.tmp:1
+Skipping 'target-already-defined.tmp' because 'target-already-defined' is defined
+Parse_PushInput: target-name-exclamation.tmp:1
+Parse_PushInput: target-name-exclamation.tmp:1
+Parse_PushInput: target-name-leading-space.tmp:1
+Parse_PushInput: target-name-leading-space.tmp:1
+Parse_PushInput: target-name-trailing-space.tmp:1
+Parse_PushInput: target-name-trailing-space.tmp:1
+Parse_PushInput: target-call-parenthesized.tmp:1
+Parse_PushInput: target-call-parenthesized.tmp:1
+Parse_PushInput: multiline.tmp:1
+Skipping 'multiline.tmp' because 'MULTILINE' is defined
+exit status 0

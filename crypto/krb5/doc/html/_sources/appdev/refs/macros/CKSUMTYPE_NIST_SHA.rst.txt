@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _CKSUMTYPE-NIST-SHA-data:
+
+CKSUMTYPE_NIST_SHA
+==================
+
+..
+.. data:: CKSUMTYPE_NIST_SHA
+..
+
+
+
+
+========================= ======================
+``CKSUMTYPE_NIST_SHA``       ``0x0009``
+========================= ======================

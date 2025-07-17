@@ -1,0 +1,638 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2021-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2008-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_threads.3x,v 1.56 2024/03/16 15:35:01 tom Exp $
+.TH curs_threads 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fI\%NCURSES_WINDOW_CB\fP,
+\fI\%NCURSES_SCREEN_CB\fP,
+\fB\%get_escdelay\fP,
+\fB\%set_escdelay\fP,
+\fB\%set_tabsize\fP,
+\fB\%use_screen\fP,
+\fB\%use_window\fP \-
+\fIcurses\fR support for multi-threaded applications
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fI/* data types */
+\fBtypedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);
+\fBtypedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);
+.PP
+\fBint get_escdelay(void);
+\fBint set_escdelay(int \fIms\fP);
+\fBint set_tabsize(int \fIcols\fP);
+.PP
+\fBint use_screen(SCREEN *\fIscr\fP, NCURSES_SCREEN_CB \fIfunc\fP, void *\fIdata\fP);
+\fBint use_window(WINDOW *\fIwin\fP, NCURSES_WINDOW_CB \fIfunc\fP, void *\fIdata\fP);
+.fi
+.SH DESCRIPTION
+The \fI\%ncurses\fP library can be configured to support multi-threaded
+applications in a rudimentary way.
+Such configuration produces a different set of libraries,
+named \fIlibncursest\fP,
+for example,
+since doing so alters \fI\%ncurses\fP's application binary interface
+(ABI).
+.PP
+Instead of modifying the programming interface (API) to make
+\fI\%ncurses\fP functions expect an additional argument specifying a
+thread,
+the library adds functions,
+usable in any configuration,
+that hide the \fImutexes\fP
+(mutual exclusion locks)
+needed to prevent concurrent access to variables shared by multiple
+threads of execution.
+.PP
+\fI\%ncurses\fP threading support requires the use of functions to
+access members of the \fI\%WINDOW\fP structure (see
+\fBcurs_opaque\fP(3X)).
+It further makes functions of the common global variables
+\fB\%COLORS\fP,
+\fB\%COLOR_PAIRS\fP,
+\fB\%COLS\fP,
+\fB\%ESCDELAY\fP,
+\fB\%LINES\fP,
+\fB\%TABSIZE\fP,
+\fB\%curscr\fP,
+\fB\%newscr\fP,
+and
+\fB\%ttytype\fP,
+maintaining them as as read-only values in the \fISCREEN\fP structure.
+.PP
+Even this is not enough to make an application using \fIcurses\fP
+thread-safe.
+We would expect a multi-threaded application to have threads updating
+separate windows (on the same device),
+and separate screens (on different devices).
+Further,
+applications expect a few of the global variables to be writable.
+The functions described here address these special situations.
+.PP
+The \fB\%ESCDELAY\fP and \fB\%TABSIZE\fP global variables are modified
+by some applications.
+To modify them in any configuration,
+use the \fB\%set_escdelay\fP or \fB\%set_tabsize\fP functions.
+Other global variables are not modifiable.
+\fBget_escdelay\fP retrieves \fB\%ESCDELAY\fP's value.
+.PP
+The \fBuse_window\fP and \fBuse_screen\fP functions provide
+coarse-grained mutexes for their respective \fI\%WINDOW\fP and
+\fISCREEN\fP parameters;
+they call a user-supplied function,
+pass it a \fIdata\fP parameter,
+and return the value from the user-supplied function to the application.
+.\" ***************************************************************************
+.SS Usage
+All \fI\%ncurses\fP library functions assume that the locale is not
+altered during operation.
+In addition,
+they use data that is maintained within a hierarchy of scopes.
+.bP
+global data used in the low-level \fIterminfo\fP or \fItermcap\fP
+interfaces
+.bP
+terminal data associated with a call to \fBset_curterm\fP(3X)
+.IP
+Terminal data are initialized when screens are created.
+.bP
+screen data associated with a call to \fBnewterm\fP(3X) or
+\fBinitscr\fP(3X)
+.bP
+window data associated with a call to \fBnewwin\fP(3X) or
+\fBsubwin\fP(3X)
+.IP
+Windows are associated with screens.
+Pads are not necessarily associated with any particular screen.
+.IP
+Most \fIcurses\fP applications operate on one or more windows within a
+single screen.
+.bP
+reentrant data associated with \*(``pure\*('' functions that alter no
+shared variables
+.PP
+The following table lists the scope of each symbol in the
+\fI\%ncurses\fP library when configured to support multi-threaded
+applications.
+.PP
+.TS
+center;
+Lb2 Lb
+Lb2 Lx.
+Symbol	Scope
+_
+BC	global
+COLORS	screen (read-only)
+COLOR_PAIR	reentrant
+COLOR_PAIRS	screen (read-only)
+COLS	screen (read-only)
+ESCDELAY	screen (read-only; see \fBset_escdelay\fP)
+LINES	screen (read-only)
+PAIR_NUMBER	reentrant
+PC	global
+SP	global
+TABSIZE	screen (read-only; see \fBset_tabsize\fP)
+UP	global
+acs_map	screen (read-only)
+add_wch	window (\fBstdscr\fP)
+add_wchnstr	window (\fBstdscr\fP)
+add_wchstr	window (\fBstdscr\fP)
+addch	window (\fBstdscr\fP)
+addchnstr	window (\fBstdscr\fP)
+addchstr	window (\fBstdscr\fP)
+addnstr	window (\fBstdscr\fP)
+addnwstr	window (\fBstdscr\fP)
+addstr	window (\fBstdscr\fP)
+addwstr	window (\fBstdscr\fP)
+assume_default_colors	screen
+attr_get	window (\fBstdscr\fP)
+attr_off	window (\fBstdscr\fP)
+attr_on	window (\fBstdscr\fP)
+attr_set	window (\fBstdscr\fP)
+attroff	window (\fBstdscr\fP)
+attron	window (\fBstdscr\fP)
+attrset	window (\fBstdscr\fP)
+baudrate	screen
+beep	screen
+bkgd	window (\fBstdscr\fP)
+bkgdset	window (\fBstdscr\fP)
+bkgrnd	window (\fBstdscr\fP)
+bkgrndset	window (\fBstdscr\fP)
+boolcodes	global (read-only)
+boolfnames	global (read-only)
+boolnames	global (read-only)
+border	window (\fBstdscr\fP)
+border_set	window (\fBstdscr\fP)
+box	window (\fBstdscr\fP)
+box_set	window (\fBstdscr\fP)
+can_change_color	terminal
+cbreak	screen
+chgat	window (\fBstdscr\fP)
+clear	window (\fBstdscr\fP)
+clearok	window
+clrtobot	window (\fBstdscr\fP)
+clrtoeol	window (\fBstdscr\fP)
+color_content	screen
+color_set	window (\fBstdscr\fP)
+copywin	window (locks source, target)
+cur_term	terminal
+curs_set	screen
+curscr	screen (read-only)
+curses_version	global (read-only)
+def_prog_mode	terminal
+def_shell_mode	terminal
+define_key	screen
+del_curterm	screen
+delay_output	screen
+delch	window (\fBstdscr\fP)
+deleteln	window (\fBstdscr\fP)
+delscreen	global (locks screen list, screen)
+delwin	global (locks window list)
+derwin	screen
+doupdate	screen
+dupwin	screen (locks window)
+echo	screen
+echo_wchar	window (\fBstdscr\fP)
+echochar	window (\fBstdscr\fP)
+endwin	screen
+erase	window (\fBstdscr\fP)
+erasechar	window (\fBstdscr\fP)
+erasewchar	window (\fBstdscr\fP)
+filter	global
+flash	terminal
+flushinp	screen
+get_wch	screen (input operation)
+get_wstr	screen (input operation)
+getattrs	window
+getbegx	window
+getbegy	window
+getbkgd	window
+getbkgrnd	window
+getcchar	reentrant
+getch	screen (input operation)
+getcurx	window
+getcury	window
+getmaxx	window
+getmaxy	window
+getmouse	screen (input operation)
+getn_wstr	screen (input operation)
+getnstr	screen (input operation)
+getparx	window
+getpary	window
+getstr	screen (input operation)
+getwin	screen (input operation)
+halfdelay	screen
+has_colors	terminal
+has_ic	terminal
+has_il	terminal
+has_key	screen
+hline	window (\fBstdscr\fP)
+hline_set	window (\fBstdscr\fP)
+idcok	window
+idlok	window
+immedok	window
+in_wch	window (\fBstdscr\fP)
+in_wchnstr	window (\fBstdscr\fP)
+in_wchstr	window (\fBstdscr\fP)
+inch	window (\fBstdscr\fP)
+inchnstr	window (\fBstdscr\fP)
+inchstr	window (\fBstdscr\fP)
+init_color	screen
+init_pair	screen
+initscr	global (locks screen list)
+innstr	window (\fBstdscr\fP)
+innwstr	window (\fBstdscr\fP)
+ins_nwstr	window (\fBstdscr\fP)
+ins_wch	window (\fBstdscr\fP)
+ins_wstr	window (\fBstdscr\fP)
+insch	window (\fBstdscr\fP)
+insdelln	window (\fBstdscr\fP)
+insertln	window (\fBstdscr\fP)
+insnstr	window (\fBstdscr\fP)
+insstr	window (\fBstdscr\fP)
+instr	window (\fBstdscr\fP)
+intrflush	terminal
+inwstr	window (\fBstdscr\fP)
+is_cleared	window
+is_idcok	window
+is_idlok	window
+is_immedok	window
+is_keypad	window
+is_leaveok	window
+is_linetouched	window
+is_nodelay	window
+is_notimeout	window
+is_scrollok	window
+is_syncok	window
+is_term_resized	terminal
+is_wintouched	window
+isendwin	screen
+key_defined	screen
+key_name	global (static data)
+keybound	screen
+keyname	global (static data)
+keyok	screen
+keypad	window
+killchar	terminal
+killwchar	terminal
+leaveok	window
+longname	screen
+mcprint	terminal
+meta	screen
+mouse_trafo	window (\fBstdscr\fP)
+mouseinterval	screen
+mousemask	screen
+move	window (\fBstdscr\fP)
+mvadd_wch	window (\fBstdscr\fP)
+mvadd_wchnstr	window (\fBstdscr\fP)
+mvadd_wchstr	window (\fBstdscr\fP)
+mvaddch	window (\fBstdscr\fP)
+mvaddchnstr	window (\fBstdscr\fP)
+mvaddchstr	window (\fBstdscr\fP)
+mvaddnstr	window (\fBstdscr\fP)
+mvaddnwstr	window (\fBstdscr\fP)
+mvaddstr	window (\fBstdscr\fP)
+mvaddwstr	window (\fBstdscr\fP)
+mvchgat	window (\fBstdscr\fP)
+mvcur	screen
+mvdelch	window (\fBstdscr\fP)
+mvderwin	window (\fBstdscr\fP)
+mvget_wch	screen (input operation)
+mvget_wstr	screen (input operation)
+mvgetch	screen (input operation)
+mvgetn_wstr	screen (input operation)
+mvgetnstr	screen (input operation)
+mvgetstr	screen (input operation)
+mvhline	window (\fBstdscr\fP)
+mvhline_set	window (\fBstdscr\fP)
+mvin_wch	window (\fBstdscr\fP)
+mvin_wchnstr	window (\fBstdscr\fP)
+mvin_wchstr	window (\fBstdscr\fP)
+mvinch	window (\fBstdscr\fP)
+mvinchnstr	window (\fBstdscr\fP)
+mvinchstr	window (\fBstdscr\fP)
+mvinnstr	window (\fBstdscr\fP)
+mvinnwstr	window (\fBstdscr\fP)
+mvins_nwstr	window (\fBstdscr\fP)
+mvins_wch	window (\fBstdscr\fP)
+mvins_wstr	window (\fBstdscr\fP)
+mvinsch	window (\fBstdscr\fP)
+mvinsnstr	window (\fBstdscr\fP)
+mvinsstr	window (\fBstdscr\fP)
+mvinstr	window (\fBstdscr\fP)
+mvinwstr	window (\fBstdscr\fP)
+mvprintw	window (\fBstdscr\fP)
+mvscanw	screen
+mvvline	window (\fBstdscr\fP)
+mvvline_set	window (\fBstdscr\fP)
+mvwadd_wch	window
+mvwadd_wchnstr	window
+mvwadd_wchstr	window
+mvwaddch	window
+mvwaddchnstr	window
+mvwaddchstr	window
+mvwaddnstr	window
+mvwaddnwstr	window
+mvwaddstr	window
+mvwaddwstr	window
+mvwchgat	window
+mvwdelch	window
+mvwget_wch	screen (input operation)
+mvwget_wstr	screen (input operation)
+mvwgetch	screen (input operation)
+mvwgetn_wstr	screen (input operation)
+mvwgetnstr	screen (input operation)
+mvwgetstr	screen (input operation)
+mvwhline	window
+mvwhline_set	window
+mvwin	window
+mvwin_wch	window
+mvwin_wchnstr	window
+mvwin_wchstr	window
+mvwinch	window
+mvwinchnstr	window
+mvwinchstr	window
+mvwinnstr	window
+mvwinnwstr	window
+mvwins_nwstr	window
+mvwins_wch	window
+mvwins_wstr	window
+mvwinsch	window
+mvwinsnstr	window
+mvwinsstr	window
+mvwinstr	window
+mvwinwstr	window
+mvwprintw	window
+mvwscanw	screen
+mvwvline	window
+mvwvline_set	window
+napms	reentrant
+newpad	global (locks window list)
+newscr	screen (read-only)
+newterm	global (locks screen list)
+newwin	global (locks window list)
+nl	screen
+nocbreak	screen
+nodelay	window
+noecho	screen
+nofilter	global
+nonl	screen
+noqiflush	terminal
+noraw	screen
+notimeout	window
+numcodes	global (read-only)
+numfnames	global (read-only)
+numnames	global (read-only)
+ospeed	global
+overlay	window (locks source, target)
+overwrite	window (locks source, target)
+pair_content	screen
+pecho_wchar	screen
+pechochar	screen
+pnoutrefresh	screen
+prefresh	screen
+printw	window
+putp	global
+putwin	window
+qiflush	terminal
+raw	screen
+redrawwin	window
+refresh	screen
+reset_prog_mode	screen
+reset_shell_mode	screen
+resetty	terminal
+resize_term	screen (locks window list)
+resizeterm	screen
+restartterm	screen
+ripoffline	global (static data)
+savetty	terminal
+scanw	screen
+scr_dump	screen
+scr_init	screen
+scr_restore	screen
+scr_set	screen
+scrl	window (\fBstdscr\fP)
+scroll	window
+scrollok	window
+set_curterm	screen
+set_escdelay	screen
+set_tabsize	screen
+set_term	global (locks screen list, screen)
+setcchar	reentrant
+setscrreg	window (\fBstdscr\fP)
+setupterm	global
+slk_attr	screen
+slk_attr_off	screen
+slk_attr_on	screen
+slk_attr_set	screen
+slk_attroff	screen
+slk_attron	screen
+slk_attrset	screen
+slk_clear	screen
+slk_color	screen
+slk_init	screen
+slk_label	screen
+slk_noutrefresh	screen
+slk_refresh	screen
+slk_restore	screen
+slk_set	screen
+slk_touch	screen
+slk_wset	screen
+standend	window
+standout	window
+start_color	screen
+\fBstdscr\fP	screen (read-only)
+strcodes	global (read-only)
+strfnames	global (read-only)
+strnames	global (read-only)
+subpad	window
+subwin	window
+syncok	window
+term_attrs	screen
+termattrs	screen
+termname	terminal
+tgetent	global
+tgetflag	global
+tgetnum	global
+tgetstr	global
+tgoto	global
+tigetflag	terminal
+tigetnum	terminal
+tigetstr	terminal
+timeout	window (\fBstdscr\fP)
+touchline	window
+touchwin	window
+tparm	global (static data)
+tputs	screen
+trace	global (static data)
+ttytype	screen (read-only)
+typeahead	screen
+unctrl	screen
+unget_wch	screen (input operation)
+ungetch	screen (input operation)
+ungetmouse	screen (input operation)
+untouchwin	window
+use_default_colors	screen
+use_env	global (static data)
+use_extended_names	global (static data)
+use_legacy_coding	screen
+use_screen	global (locks screen list, screen)
+use_window	global (locks window list, window)
+vid_attr	screen
+vid_puts	screen
+vidattr	screen
+vidputs	screen
+vline	window (\fBstdscr\fP)
+vline_set	window (\fBstdscr\fP)
+vw_printw	window
+vw_scanw	screen
+vwprintw	window
+vwscanw	screen
+wadd_wch	window
+wadd_wchnstr	window
+wadd_wchstr	window
+waddch	window
+waddchnstr	window
+waddchstr	window
+waddnstr	window
+waddnwstr	window
+waddstr	window
+waddwstr	window
+wattr_get	window
+wattr_off	window
+wattr_on	window
+wattr_set	window
+wattroff	window
+wattron	window
+wattrset	window
+wbkgd	window
+wbkgdset	window
+wbkgrnd	window
+wbkgrndset	window
+wborder	window
+wborder_set	window
+wchgat	window
+wclear	window
+wclrtobot	window
+wclrtoeol	window
+wcolor_set	window
+wcursyncup	screen (affects window plus parents)
+wdelch	window
+wdeleteln	window
+wecho_wchar	window
+wechochar	window
+wenclose	window
+werase	window
+wget_wch	screen (input operation)
+wget_wstr	screen (input operation)
+wgetbkgrnd	window
+wgetch	screen (input operation)
+wgetdelay	window
+wgetn_wstr	screen (input operation)
+wgetnstr	screen (input operation)
+wgetparent	window
+wgetscrreg	window
+wgetstr	screen (input operation)
+whline	window
+whline_set	window
+win_wch	window
+win_wchnstr	window
+win_wchstr	window
+winch	window
+winchnstr	window
+winchstr	window
+winnstr	window
+winnwstr	window
+wins_nwstr	window
+wins_wch	window
+wins_wstr	window
+winsch	window
+winsdelln	window
+winsertln	window
+winsnstr	window
+winsstr	window
+winstr	window
+winwstr	window
+wmouse_trafo	window
+wmove	window
+wnoutrefresh	screen
+wprintw	window
+wredrawln	window
+wrefresh	screen
+wresize	window (locks window list)
+wscanw	screen
+wscrl	window
+wsetscrreg	window
+wstandend	window
+wstandout	window
+wsyncdown	screen (affects window plus parents)
+wsyncup	screen (affects window plus parents)
+wtimeout	window
+wtouchln	window
+wunctrl	global (static data)
+wvline	window
+wvline_set	window
+.TE
+.\" ***************************************************************************
+.SH RETURN VALUE
+\fB\%get_escdelay\fP returns the value of \fB\%ESCDELAY\fP.
+\fB\%set_escdelay\fP and \fB\%set_tabsize\fP return \fBERR\fP upon
+failure and \fBOK\fP upon successful completion.
+\fB\%use_screen\fP and \fB\%use_window\fP return the \fIint\fP returned
+by the user-supplied function they are called with.
+.SH NOTES
+\fI\%ncurses\fP provides both a C function and a preprocessor macro for
+each function documented in this page.
+.SH PORTABILITY
+These routines are specific to \fI\%ncurses\fP.
+They were not supported on Version 7, BSD or System V implementations.
+It is recommended that any code depending on \fI\%ncurses\fP extensions
+be conditioned using \fB\%NCURSES_VERSION\fP.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_opaque\fP(3X),
+\fB\%curs_variables\fP(3X)

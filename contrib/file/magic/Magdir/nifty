@@ -1,0 +1,202 @@
+
+#------------------------------------------------------------------------------
+# $File: nifty,v 1.1 2022/02/14 16:51:15 christos Exp $
+# file(1) magic for the NIfTI file format
+
+# Type: NIfTI, Neuroimaging file format
+# URL:  https://nifti.nimh.nih.gov/
+# From: Yann Leprince <yann.leprince@cea.fr>, 2022
+
+344	string		n+1\0		NIfTI-1 neuroimaging data,
+!:mime	image/x.nifti
+!:ext	nii
+>0	use		nifti1
+344	string		ni1\0		NIfTI-1 neuroimaging data header,
+!:mime	image/x.nifti
+!:ext	hdr
+>0	use		nifti1
+
+4	string		n+2\0\r\n\032\n	NIfTI-2 neuroimaging data,
+!:mime	image/x.nifti
+!:ext	nii
+>0	use		nifti2
+4	string		ni2\0\r\n\032\n	NIfTI-2 neuroimaging data header,
+!:mime	image/x.nifti
+!:ext	hdr
+>0	use		nifti2
+
+# Main subroutine for NIfTI-1
+0	name		nifti1
+>0	clear		x
+>0	lelong		=348		little endian
+>>70	use		nifti-datatype-le
+>>112	lefloat	!0		with scaling
+>>0	use		nifti1-dim-le
+>>252	leshort	>0		\b, with qform
+>>>252	use		xform-code-nifti1-le
+>>254	leshort	>0		\b, with sform
+>>>254	use		xform-code-nifti1-le
+>>136	string		>\0		\b, description: %s
+>0	belong		=348		big endian
+>>70	use		\^nifti-datatype-le
+>>112	befloat	!0		with scaling
+>>0	use		\^nifti1-dim-le
+>>252	beshort	>0		\b, with qform
+>>>252	use		\^xform-code-nifti1-le
+>>254	beshort	>0		\b, with sform
+>>>254	use		\^xform-code-nifti1-le
+>>136	string		>\0		\b, description: %s
+>0	default	x
+>>0	long		x		invalid sizeof_hdr=%d
+
+# Main subroutine for NIfTI-2
+0	name		nifti2
+>0	clear		x
+>0	lelong		=540		little endian
+>>12	use		nifti-datatype-le
+>>176	lefloat	!0		with scaling
+>>0	use		nifti2-dim-le
+>>344	lelong		>0		\b, with qform
+>>>344	use		xform-code-nifti2-le
+>>348	lelong		>0		\b, with sform
+>>>348	use		xform-code-nifti2-le
+>>240	string		>\0		\b, description: %s
+>0	belong		=540		big endian
+>>12	use		\^nifti-datatype-le
+>>176	befloat	!0		with scaling
+>>0	use		\^nifti2-dim-le
+>>344	lelong		>0		\b, with qform
+>>>344	use		\^xform-code-nifti2-le
+>>348	lelong		>0		\b, with sform
+>>>348	use		\^xform-code-nifti2-le
+>>240	string		>\0		\b, description: %s
+>0	default	x
+>>0	long		x		invalid sizeof_hdr=%d
+
+
+# Other subroutines for details of NIfTI files
+
+0	name		nifti-datatype-le
+>0	clear		x
+>0	leshort	=1		\b, binary datatype
+>0	leshort	=2		\b, uint8 datatype
+>0	leshort	=4		\b, int16 datatype
+>0	leshort	=8		\b, int32 datatype
+>0	leshort	=16		\b, float32 datatype
+>0	leshort	=32		\b, complex64 datatype
+>0	leshort	=64		\b, float64 datatype
+>0	leshort	=128		\b, RGB24 datatype
+>0	leshort	=256		\b, int8 datatype
+>0	leshort	=512		\b, uint16 datatype
+>0	leshort	=768		\b, uint32 datatype
+>0	leshort	=1024		\b, int64 datatype
+>0	leshort	=1280		\b, uint64 datatype
+>0	leshort	=1536		\b, float128 datatype
+>0	leshort	=1792		\b, complex128 datatype
+>0	leshort	=2048		\b, complex256 datatype
+>0	leshort	=2304		\b, RGBA32 datatype
+>0	default	x
+>>0	leshort	x		\b, unknown datatype 0x%x
+>>2	leshort	x		(%d bits/pixel)
+
+0	name		nifti1-dim-le
+>0	clear		x
+>40	leshort	<0		\b, INVALID dim[0]=%d
+>40	leshort	>7		\b, INVALID dim[0]=%d
+>0	default	x
+>>40	leshort	x		\b, %d-dimensional (size
+>>42	leshort	x		%d
+>>40	leshort	>1
+>>>44	leshort	x		\bx%d
+>>40	leshort	>2
+>>>46	leshort	x		\bx%d
+>>40	leshort	>3
+>>>48	leshort	x		\bx%d
+>>40	leshort	>4
+>>>50	leshort	x		\bx%d
+>>40	leshort	>5
+>>>52	leshort	x		\bx%d
+>>40	leshort	>6
+>>>54	leshort	x		\bx%d
+>>80	lefloat	x		\b, voxel size %f
+>>40	leshort	>1
+>>>84	lefloat	x		x %f
+>>40	leshort	>2
+>>>88	lefloat	x		x %f
+>>123	use		nifti1-xyz-unit
+>>40	leshort	>3
+>>>92	lefloat	x		x %f
+>>>123	use		nifti1-t-unit
+>>40	leshort	x		\b)
+
+0	name		nifti2-dim-le
+>0	clear		x
+>16	lequad		<0		\b, INVALID dim[0]=%lld
+>16	lequad		>7		\b, INVALID dim[0]=%lld
+>0	default	x
+>>16	lequad		x		\b, %lld-dimensional (size
+>>24	lequad		x		%lld
+>>16	lequad		>1
+>>>32	lequad		x		\bx%lld
+>>16	lequad		>2
+>>>40	lequad		x		\bx%lld
+>>16	lequad		>3
+>>>48	lequad		x		\bx%lld
+>>16	lequad		>4
+>>>56	lequad		x		\bx%lld
+>>16	lequad		>5
+>>>64	lequad		x		\bx%lld
+>>16	lequad		>6
+>>>72	lequad		x		\bx%lld,
+>>112	ledouble	x		\b, voxel size %f
+>>16	lequad		>1
+>>>120	ledouble	x		x %f
+>>16	lequad		>2
+>>>128	ledouble	x		x %f
+>>500	use		nifti2-xyz-unit
+>>16	lequad		>3
+>>>136	ledouble	x		x %f
+>>>500	use		nifti2-t-unit
+>>16	lequad		x		\b)
+
+0	name		xform-code-nifti1-le
+>0	leshort	=1		to scanner-based coordinates
+>0	leshort	=2		to aligned coordinates
+>0	leshort	=3		to Talairach coordinates
+>0	leshort	=4		to MNI152 coordinates
+>0	leshort	=5		to template coordinates
+
+0	name		xform-code-nifti2-le
+>0	lelong		=1		to scanner-based coordinates
+>0	lelong		=2		to aligned coordinates
+>0	lelong		=3		to Talairach coordinates
+>0	lelong		=4		to MNI152 coordinates
+>0	lelong		=5		to template coordinates
+
+0	name		nifti1-xyz-unit
+>0	byte		&0x01
+>>0	byte		^0x02		m
+>>0	byte		&0x02		micron
+>0	byte		^0x01
+>>0	byte		&0x02		mm
+
+0	name		nifti1-t-unit
+>0	byte		&0x08
+>>0	byte		^0x10		s
+>>0	byte		&0x10		ms
+>0	byte		^0x08
+>>0	byte		&0x10		microsecond
+
+0	name		nifti2-xyz-unit
+>0	lelong		&0x01
+>>0	lelong		^0x02		m
+>>0	lelong		&0x02		micron
+>0	lelong		^0x01
+>>0	lelong		&0x02		mm
+
+0	name		nifti2-t-unit
+>0	lelong		&0x08
+>>0	lelong		^0x10		s
+>>0	lelong		&0x10		ms
+>0	lelong		^0x08
+>>0	lelong		&0x10		microsecond

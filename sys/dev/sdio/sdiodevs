@@ -1,0 +1,103 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2019 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+/*
+ * Take SDIO CIS, CISTPL_MANFID, TPLMID_MANF and TPLMID_CARD information and
+ * present them as vendor and device IDs (a terminology we understand for
+ * other parts) and run them through the usbdevs2h.awk script to generate
+ * a header file with #defines for them in sdiodevs.h and sdiodevs_data.h
+ * which provides a structure with a description as well.
+ * The format of this file is modelled after sys/dev/usb/usbdevs.
+ * For more details see there.
+ */
+
+/*
+ * --------------------------------------------------------------------------
+ * List of TPLMID_MANF "vendor ID"s.
+ * Please sort by vendor ID ascending.
+ */
+vendor	REALTEK			0x024c	Realtek
+vendor	ATHEROS 		0x0271	Atheros
+vendor	BROADCOM		0x02d0	Broadcom
+vendor	CYPRESS			0x02d0	Cypress/Broadcom
+vendor	MEDIATEK		0x037a	MediaTek
+
+/*
+ * --------------------------------------------------------------------------
+ * List of TPLMID_CARD "product ID"s.
+ * Please group by vendor in same order as above.
+ */
+
+/* Realtek products */
+/* PR 251063 */
+product	REALTEK	RTW8723BS	0xb723	802.11bgn SDIO WLAN with Bluetooth 4.0 Single-Chip Controller
+/* rtw88 */
+product	REALTEK	RTW8821BS	0xb821
+product	REALTEK	RTW8822BS	0xb822	802.11ac/abgn SDIO WLAN with Bluetooth 4.1 Single-Chip Controller
+product	REALTEK	RTW8821CS	0xc821	802.11ac/abgn SDIO WLAN with Bluetooth 4.2 Single-Chip Controller
+product	REALTEK	RTW8822CS	0xc822	802.11ac/abgn SDIO WLAN with Bluetooth x.x Single-Chip Controller
+product	REALTEK	RTW8723DS_1ANT	0xd724	802.11bgn SDIO WLAN with Bluetooth 4.2 Single-Chip Controller
+product	REALTEK	RTW8723DS_2ANT	0xd723	802.11bgn SDIO WLAN with Bluetooth 4.2 Single-Chip Controller
+
+/* Atheros/QCA products */
+product	ATHEROS	AR6005		0x050a	Qualcomm Atheros 802.11ac WLAN SDIO
+product	ATHEROS	QCA9377		0x0701	Qualcomm Atheros 802.11ac WLAN SDIO
+
+/* Broadcom products */
+product BROADCOM 43241		0x4324	BCM43241 fullmac SDIO WiFi
+product BROADCOM 4329		0x4329	BCM4329 fullmac SDIO WiFi
+product BROADCOM 4330		0x4330	BCM4330 fullmac SDIO WiFi
+product BROADCOM 4334		0x4334	BCM4334 fullmac SDIO WiFi
+product BROADCOM 4335_4339	0x4335	BCM4335_4339 fullmac SDIO WiFi
+product BROADCOM 4339		0x4339	BCM4339 fullmac SDIO WiFi
+product BROADCOM 4345		0x4345	BCM4345 fullmac SDIO WiFi
+product BROADCOM 4354		0x4354	BCM4354 fullmac SDIO WiFi
+product BROADCOM 4356		0x4356	BCM4356 fullmac SDIO WiFi
+product BROADCOM 4359		0x4359	BCM4359 fullmac SDIO WiFi
+product BROADCOM 43143		0xa887	BCM43143 fullmac SDIO WiFi
+product BROADCOM 43340		0xa94c	BCM43340 fullmac SDIO WiFi
+product BROADCOM 43341		0xa94d	BCM43341 fullmac SDIO WiFi
+product BROADCOM 43362		0xa962	BCM43362 fullmac SDIO WiFi
+product BROADCOM 43364		0xa9a4	BCM43364 fullmac SDIO WiFi
+product BROADCOM 43430		0xa9a6	BCM43430 fullmac SDIO WiFi
+product BROADCOM 43439		0xa9af	BCM43439 fullmac SDIO WiFi
+product BROADCOM 43455		0xa9bf	BCM43455 fullmac SDIO WiFi
+product BROADCOM CYPRESS_4373	0x4373	BCMCY4373 fullmac SDIO WiFi
+product	BROADCOM CYPRESS_43012	0xa804	BCMCY43012 fullmac SDIO WiFi
+product	BROADCOM CYPRESS_43752	0xaae8	BCMCY43752 fullmac SDIO WiFi
+product	BROADCOM CYPRESS_89359	0x4355	BCMCY89359 fullmac SDIO WiFi
+
+product	CYPRESS 43439		0xbd3d	CY43439 fullmac SDIO WiFi
+palias	BROADCOM_CYPRESS_43439	CYPRESS_43439
+
+/* MediaTek products */
+product	MEDIATEK	MT7663S	0x7603	MediaTek MT7663S SDIO WiFi
+product	MEDIATEK	MT7921S	0x7901	MediaTek MT7921S SDIO WiFi
+
+/* end */

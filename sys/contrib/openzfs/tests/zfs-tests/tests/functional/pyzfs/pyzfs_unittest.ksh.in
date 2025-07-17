@@ -1,0 +1,45 @@
+#!/bin/ksh -p
+# SPDX-License-Identifier: CDDL-1.0
+#
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
+#
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# http://www.illumos.org/license/CDDL.
+#
+
+#
+# Copyright 2018, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
+#
+
+. $STF_SUITE/include/libtest.shlib
+
+if [ -n "$ASAN_OPTIONS" ]; then
+	export LD_PRELOAD=$(ldd "$(command -v zfs)" | awk '/libasan\.so/ {print $3}')
+	# ASan reports leaks in CPython 3.10
+	ASAN_OPTIONS="$ASAN_OPTIONS:detect_leaks=false"
+fi
+
+#
+# DESCRIPTION:
+#	Verify the libzfs_core Python test suite can be run successfully
+#
+# STRATEGY:
+#	1. Run the nvlist and libzfs_core Python unittest
+#	2. Verify the exit code is 0 (no errors)
+#
+
+verify_runnable "global"
+log_assert "Verify the nvlist and libzfs_core Python unittest run successfully"
+
+# log_must buffers stderr, which interacts badly with
+# no-output timeouts on CI runners
+@PYTHON@ -m unittest --verbose \
+	libzfs_core.test.test_nvlist.TestNVList \
+	libzfs_core.test.test_libzfs_core.ZFSTest ||
+	log_fail "Python unittest completed with errors"
+
+log_pass "Python unittest completed without errors"

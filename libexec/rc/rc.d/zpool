@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: zpool
+# REQUIRE: hostid disks mountcritlocal
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="zpool"
+desc="Import ZPOOLs"
+rcvar="zfs_enable"
+start_cmd="zpool_start"
+required_modules="zfs"
+
+zpool_start()
+{
+	local cachefile
+
+	for cachefile in /etc/zfs/zpool.cache /boot/zfs/zpool.cache; do
+		if [ -r $cachefile ]; then
+			zpool import -c $cachefile -a -N
+			if [ $? -ne 0 ]; then
+				echo "Import of zpool cache ${cachefile} failed," \
+				    "will retry after root mount hold release"
+				root_hold_wait
+				zpool import -c $cachefile -a -N
+			fi
+			break
+		fi
+	done
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj
+zpool_svcj="NO"
+
+run_rc_command "$1"

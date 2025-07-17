@@ -1,0 +1,199 @@
+# Basic .clang-format
+---
+BasedOnStyle: WebKit
+AlignAfterOpenBracket: DontAlign
+AlignConsecutiveMacros: AcrossEmptyLines
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: Left
+AlignOperands: false
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: TopLevelDefinitions
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: MultiLine
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: WebKit
+BreakBeforeTernaryOperators: false
+# TODO: BreakStringLiterals can cause very strange formatting so turn it off?
+BreakStringLiterals: false
+# Prefer:
+# some_var = function(arg1,
+#    arg2)
+# over:
+# some_var =
+#     function(arg1, arg2)
+PenaltyBreakAssignment: 100
+# Prefer:
+# some_long_function(arg1, arg2
+#     arg3)
+# over:
+# some_long_function(
+#     arg1, arg2, arg3)
+PenaltyBreakBeforeFirstCallParameter: 100
+CompactNamespaces: true
+DerivePointerAlignment: false
+DisableFormat: false
+ForEachMacros:
+  - ARB_ARRFOREACH
+  - ARB_ARRFOREACH_REVWCOND
+  - ARB_ARRFOREACH_REVERSE
+  - ARB_FOREACH
+  - ARB_FOREACH_FROM
+  - ARB_FOREACH_SAFE
+  - ARB_FOREACH_REVERSE
+  - ARB_FOREACH_REVERSE_FROM
+  - ARB_FOREACH_REVERSE_SAFE
+  - BIT_FOREACH_ISCLR
+  - BIT_FOREACH_ISSET
+  - CPU_FOREACH
+  - CPU_FOREACH_ISCLR
+  - CPU_FOREACH_ISSET
+  - FOREACH_THREAD_IN_PROC
+  - FOREACH_PROC_IN_SYSTEM
+  - FOREACH_PRISON_CHILD
+  - FOREACH_PRISON_DESCENDANT
+  - FOREACH_PRISON_DESCENDANT_LOCKED
+  - FOREACH_PRISON_DESCENDANT_LOCKED_LEVEL
+  - MNT_VNODE_FOREACH_ALL
+  - MNT_VNODE_FOREACH_ACTIVE
+  - RB_FOREACH
+  - RB_FOREACH_FROM
+  - RB_FOREACH_SAFE
+  - RB_FOREACH_REVERSE
+  - RB_FOREACH_REVERSE_FROM
+  - RB_FOREACH_REVERSE_SAFE
+  - SLIST_FOREACH
+  - SLIST_FOREACH_FROM
+  - SLIST_FOREACH_FROM_SAFE
+  - SLIST_FOREACH_SAFE
+  - SLIST_FOREACH_PREVPTR
+  - SPLAY_FOREACH
+  - LIST_FOREACH
+  - LIST_FOREACH_FROM
+  - LIST_FOREACH_FROM_SAFE
+  - LIST_FOREACH_SAFE
+  - STAILQ_FOREACH
+  - STAILQ_FOREACH_FROM
+  - STAILQ_FOREACH_FROM_SAFE
+  - STAILQ_FOREACH_SAFE
+  - TAILQ_FOREACH
+  - TAILQ_FOREACH_FROM
+  - TAILQ_FOREACH_FROM_SAFE
+  - TAILQ_FOREACH_REVERSE
+  - TAILQ_FOREACH_REVERSE_FROM
+  - TAILQ_FOREACH_REVERSE_FROM_SAFE
+  - TAILQ_FOREACH_REVERSE_SAFE
+  - TAILQ_FOREACH_SAFE
+  - VM_MAP_ENTRY_FOREACH
+  - VM_PAGE_DUMP_FOREACH
+SpaceBeforeParens: ControlStatementsExceptForEachMacros
+IndentCaseLabels: false
+IndentPPDirectives: None
+Language: Cpp
+NamespaceIndentation: None
+PointerAlignment: Right
+ContinuationIndentWidth: 4
+IndentWidth: 8
+TabWidth: 8
+ColumnLimit: 80
+UseTab: Always
+SpaceAfterCStyleCast: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^\"opt_.*\.h\"'
+    Priority: 1
+    SortPriority: 10
+  - Regex: '^<sys/cdefs\.h>'
+    Priority: 2
+    SortPriority: 20
+  - Regex: '^<sys/types\.h>'
+    Priority: 2
+    SortPriority: 21
+  - Regex: '^<sys/param\.h>'
+    Priority: 2
+    SortPriority: 22
+  - Regex: '^<sys/systm\.h>'
+    Priority: 2
+    SortPriority: 23
+  - Regex: '^<sys.*/'
+    Priority: 2
+    SortPriority: 24
+  - Regex: '^<vm/vm\.h>'
+    Priority: 3
+    SortPriority: 30
+  - Regex: '^<vm/'
+    Priority: 3
+    SortPriority: 31
+  - Regex: '^<machine/'
+    Priority: 4
+    SortPriority: 40
+  - Regex: '^<(x86|amd64|i386|xen)/'
+    Priority: 5
+    SortPriority: 50
+  - Regex: '^<dev/'
+    Priority: 6
+    SortPriority: 60
+  - Regex: '^<net.*/'
+    Priority: 7
+    SortPriority: 70
+  - Regex: '^<protocols/'
+    Priority: 7
+    SortPriority: 71
+  - Regex: '^<(fs|nfs(|client|server)|ufs)/'
+    Priority: 8
+    SortPriority: 80
+  - Regex: '^<[^/].*\.h'
+    Priority: 9
+    SortPriority: 90
+  - Regex: '^\".*\.h\"'
+    Priority: 10
+    SortPriority: 100
+# LLVM's header include ordering style is almost the exact opposite of ours.
+# Unfortunately, they have hard-coded their preferences into clang-format.
+# Clobbering this regular expression to avoid matching prevents non-system
+# headers from being forcibly moved to the top of the include list.
+# http://llvm.org/docs/CodingStandards.html#include-style
+IncludeIsMainRegex: 'BLAH_DONT_MATCH_ANYTHING'
+SortIncludes: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+TypenameMacros:
+  - ARB_ELMTYPE
+  - ARB_HEAD
+  - ARB8_HEAD
+  - ARB16_HEAD
+  - ARB32_HEAD
+  - ARB_ENTRY
+  - ARB8_ENTRY
+  - ARB16_ENTRY
+  - ARB32_ENTRY
+  - LIST_CLASS_ENTRY
+  - LIST_CLASS_HEAD
+  - LIST_ENTRY
+  - LIST_HEAD
+  - QUEUE_TYPEOF
+  - RB_ENTRY
+  - RB_HEAD
+  - SLIST_CLASS_HEAD
+  - SLIST_CLASS_ENTRY
+  - SLIST_HEAD
+  - SLIST_ENTRY
+  - SMR_POINTER
+  - SPLAY_ENTRY
+  - SPLAY_HEAD
+  - STAILQ_CLASS_ENTRY
+  - STAILQ_CLASS_HEAD
+  - STAILQ_ENTRY
+  - STAILQ_HEAD
+  - TAILQ_CLASS_ENTRY
+  - TAILQ_CLASS_HEAD
+  - TAILQ_ENTRY
+  - TAILQ_HEAD

@@ -1,0 +1,6 @@
+$(top_srcdir)/sntp/scm-rev: FRC.scm-rev
+	$(AM_V_GEN)cd $(top_builddir)/sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
+
+.PHONY: FRC.scm-rev
+FRC.scm-rev:
+	@: FRC.scm-rev is always out of date, triggering the check every make invocation.

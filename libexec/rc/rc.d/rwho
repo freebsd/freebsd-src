@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: rwho
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="rwhod"
+desc="System status server"
+rcvar="rwhod_enable"
+command="/usr/sbin/${name}"
+
+: ${rwhod_svcj_options:="net_basic"}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,84 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 2, 2021
+.Dt ZERO_REGION 9
+.Os
+.Sh NAME
+.Nm zero_region
+.Nd Read-only region prefilled with zeroes
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In vm/vm_param.h
+.Vt extern const void *zero_region ;
+.Sh DESCRIPTION
+The global variable
+.Va zero_region
+points to a read-only region prefilled with zeroes.
+The size of the region is specified by the
+.Dv ZERO_REGION_SIZE
+macro.
+.Sh IMPLEMENTATION NOTES
+The region
+.Va zero_region
+points to is mapped to the same page multiple times.
+.Sh EXAMPLES
+.Bd -literal
+/*
+ * This function writes zeroes to the vnode at offset 0
+ * with ZERO_REGION_SIZE length.
+ */
+static int
+write_example(struct vnode *vp)
+{
+	struct thread *td;
+	struct iovec aiov;
+	struct uio auio;
+	int error;
+
+	td = curthread;
+
+	aiov.iov_base = __DECONST(void *, zero_region);
+	aiov.iov_len = ZERO_REGION_SIZE;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = 0;
+	auio.uio_resid = ZERO_REGION_SIZE;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_td = td;
+
+	error = VOP_WRITE(vp, &auio, 0, td->td_ucred);
+	return (error);
+}
+.Ed
+.Sh SEE ALSO
+.Xr pmap 9 ,
+.Xr vm_map 9
+.Sh AUTHORS
+This manual page was written by
+.An Ka Ho Ng Aq Mt khng@FreeBSDFoundation.org
+under sponsorship from the FreeBSD Foundation.

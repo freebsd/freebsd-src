@@ -1,0 +1,4 @@
+Build world with stack smashing protection.
+See
+.Xr mitigations 7
+for more information.

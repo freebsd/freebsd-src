@@ -1,0 +1,26 @@
+This is a collection of diff algorithms, to test various combinations.
+
+The initial aim was to provide a faster diff implementation for got
+(gameoftrees.org) with a BSD license, at the u2k20 OpenBSD hackathon.
+A side effect could be improving OpenBSD's /usr/bin/diff utility.
+
+At the time of writing, this is little more than a playground / benchmark basis
+/ diff algorithm analysis platform. What could be done:
+- add profiling and test series to rate diff algorithm combinations.
+- interface with / merge into got.
+
+The Myers and Patience Diff algorithm implementations found here are based on
+the explanations found in these blog post series:
+  https://blog.jcoglan.com/2017/02/12/the-myers-diff-algorithm-part-1/ ff.
+and
+  https://blog.jcoglan.com/2017/09/19/the-patience-diff-algorithm/ ff.
+-- possibly the single most comprehensive explanations of these algorithms.
+Many thanks for this valuable door opener!
+The source code itself is not based on the code found in those blogs, but
+written from scratch with the knowledge gained.
+
+Compile:
+  make -C diff
+
+Test:
+  make -C test/

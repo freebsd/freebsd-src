@@ -1,0 +1,96 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020 Denis Salopek
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 30, 2020
+.Dt SUME 4
+.Os
+.Sh NAME
+.Nm sume
+.Nd "NetFPGA SUME 4x10Gb Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sume"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place
+the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_sume_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for NetFPGA SUME Virtex-7 FPGA Development Board
+with the reference NIC bitstream loaded onto it.
+The HDL design for the reference NIC project uses the RIFFA based DMA
+engine to communicate with the host machine over PCIe.
+Every packet is transmitted to / from the board via a single DMA
+transaction, taking up to two or three interrupts per one transaction
+which yields low performance.
+.Pp
+There is no support for Jumbo frames as the hardware is capable of
+dealing only with frames with maximum size of 1514 bytes.
+The hardware does not support multicast filtering, provides no checksums,
+and offers no other offloading.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netgraph 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+The Linux
+.Nm
+driver was originally written by
+.An -nosplit
+.An Bjoern A. Zeeb .
+The
+.Fx version and this manual page were written by
+.An Denis Salopek
+as a GSoC project.
+More information about the project can be found here:
+.Pa https://wiki.freebsd.org/SummerOfCode2020Projects/NetFPGA_SUME_Driver
+.Sh BUGS
+The reference NIC hardware design provides no mechanism for quiescing
+inbound traffic from interfaces configured as DOWN.
+All packets from administratively disabled interfaces are transferred to
+main memory, leaving the driver with the task of dropping such packets,
+thus consuming PCI bandwidth, interrupts and CPU cycles in vain.
+.Pp
+Pre-built FPGA bitstream from the NetFPGA project may not work correctly.
+At higher RX packet rates, the newly incoming packets can overwrite the
+ones in an internal FIFO so the packets would arrive in main memory
+corrupted, until a physical reset of the board.
+.Pp
+Occasionally, the driver can get stuck in a non-IDLE TX state due to
+a missed interrupt.
+The driver includes a watchdog function which monitors for such a
+condition and resets the board automatically.
+For more details, visit the NetFPGA SUME project site.

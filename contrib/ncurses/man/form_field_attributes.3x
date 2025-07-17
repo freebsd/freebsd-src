@@ -1,0 +1,97 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2006,2010 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_field_attributes.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH form_field_attributes 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fBform_field_attributes\fP \-
+color and attribute control for form fields
+.SH SYNOPSIS
+.nf
+\fB#include <form.h>
+.PP
+\fBint set_field_fore(FIELD *\fIfield\fP, chtype \fIattr\fP);
+\fBchtype field_fore(const FIELD *\fIfield\fP);
+.PP
+\fBint set_field_back(FIELD *\fIfield\fP, chtype \fIattr\fP);
+\fBchtype field_back(const FIELD *\fIfield\fP);
+.PP
+\fBint set_field_pad(FIELD *\fIfield\fP, int \fIpad\fP);
+\fBint field_pad(const FIELD *\fIfield\fP);
+.fi
+.SH DESCRIPTION
+The function \fBset_field_fore\fP sets the foreground attribute of
+\fIfield\fP. This is the highlight used to display the field contents.  The
+function \fBfield_fore\fP returns the foreground attribute.
+The default is
+\fBA_STANDOUT\fP.
+.PP
+The function \fBset_field_back\fP sets the background attribute of
+\fIform\fP. This is the highlight used to display the extent fields in the
+form.
+The function \fBfield_back\fP returns the background attribute.
+The
+default is \fBA_NORMAL\fP.
+.PP
+The function \fBset_field_pad\fP sets the character used to fill the field.
+The function \fBfield_pad\fP returns the given form's pad character.
+The
+default is a blank.
+.SH RETURN VALUE
+These routines return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fP(3)).
+.SH PORTABILITY
+These routines emulate the System V forms library.
+They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.
+Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X) and related pages whose names begin \*(``form_\*(''
+for detailed descriptions of the entry points.

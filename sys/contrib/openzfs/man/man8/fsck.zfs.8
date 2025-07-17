@@ -1,0 +1,79 @@
+.\" SPDX-License-Identifier: CDDL-1.0
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright 2013 Darik Horn <dajhorn@vanadac.com>. All rights reserved.
+.\"
+.Dd May 26, 2021
+.Dt FSCK.ZFS 8
+.Os
+.
+.Sh NAME
+.Nm fsck.zfs
+.Nd dummy ZFS filesystem checker
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Ar dataset Ns No …
+.
+.Sh DESCRIPTION
+.Nm
+is a thin shell wrapper that at most checks the status of a dataset's container
+pool.
+It is installed by OpenZFS because some Linux
+distributions expect a fsck helper for all filesystems.
+.Pp
+If more than one
+.Ar dataset
+is specified, each is checked in turn and the results binary-ored.
+.
+.Sh OPTIONS
+Ignored.
+.
+.Sh NOTES
+ZFS datasets are checked by running
+.Nm zpool Cm scrub
+on the containing pool.
+An individual ZFS dataset is never checked independently of its pool,
+which is unlike a regular filesystem.
+.Pp
+However, the
+.Xr fsck 8
+interface still allows it to communicate some errors: if the
+.Ar dataset
+is in a degraded pool, then
+.Nm
+will return exit code
+.Sy 4
+to indicate an uncorrected filesystem error.
+.Pp
+Similarly, if the
+.Ar dataset
+is in a faulted pool and has a legacy
+.Pa /etc/fstab
+record, then
+.Nm
+will return exit code
+.Sy 8
+to indicate a fatal operational error.
+.Sh SEE ALSO
+.Xr fstab 5 ,
+.Xr fsck 8 ,
+.Xr zpool-scrub 8

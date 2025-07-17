@@ -1,0 +1,133 @@
+# $Id: manhtml.aliases,v 1.35 2024/04/14 00:36:21 tom Exp $
+#***************************************************************************
+# Copyright 2019-2023,2024 Thomas E. Dickey                                *
+# Copyright 2013,2017 Free Software Foundation, Inc.                       *
+#                                                                          *
+# Permission is hereby granted, free of charge, to any person obtaining a  *
+# copy of this software and associated documentation files (the            *
+# "Software"), to deal in the Software without restriction, including      *
+# without limitation the rights to use, copy, modify, merge, publish,      *
+# distribute, distribute with modifications, sublicense, and/or sell       *
+# copies of the Software, and to permit persons to whom the Software is    *
+# furnished to do so, subject to the following conditions:                 *
+#                                                                          *
+# The above copyright notice and this permission notice shall be included  *
+# in all copies or substantial portions of the Software.                   *
+#                                                                          *
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+# IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+#                                                                          *
+# Except as contained in this notice, the name(s) of the above copyright   *
+# holders shall not be used in advertising or otherwise to promote the     *
+# sale, use or other dealings in this Software without prior written       *
+# authorization.                                                           *
+#***************************************************************************
+# Items in this list will be linked to the corresponding manpages by man2html
+add_wch(3X)		curs_add_wch(3X)
+addch(3X)		curs_addch(3X)
+assume_default_colors(3X)	default_colors(3X)
+attr_get(3X)		curs_attr(3X)
+attr_on(3X)		curs_attr(3X)
+attron(3X)		curs_attr(3X)
+baudrate(3X)		curs_termattrs(3X)
+bkgd(3X)		curs_bkgd(3X)
+bkgrnd(3X)		curs_bkgrnd(3X)
+cbreak(3X)		curs_inopts(3X)
+clearok(3X)		curs_outopts(3X)
+clrtoeol(3X)		curs_clear(3X)
+curs_set(3X)		curs_kernel(3X)
+curscr(3X)		curs_variables(3X)
+curses_trace(3X)	curs_trace(3X)
+def_prog_mode(3X)	curs_kernel(3X)
+def_shell_mode(3X)	curs_kernel(3X)
+del_curterm(3X)		curs_terminfo(3X)
+delay_output(3X)	curs_util(3X)
+delscreen(3X)		curs_initscr(3X)
+doupdate(3X)		curs_refresh(3X)
+echo(3X)		curs_inopts(3X)
+endwin(3X)		curs_initscr(3X)
+extended_slk_color(3X)	curs_slk(3X)
+filter(3X)		curs_util(3X)
+flushinp(3X)		curs_util(3X)
+get_wch(3X)		curs_get_wch(3X)
+getcchar(3X)		curs_getcchar(3X)
+getch(3X)		curs_getch(3X)
+getwin(3X)		curs_util(3X)
+halfdelay(3X)		curs_inopts(3X)
+has_key(3X)		curs_getch(3X)
+immedok(3X)		curs_outopts(3X)
+in_wch(3X)		curs_in_wch(3X)
+inch(3X)		curs_inch(3X)
+infocmp(1)		infocmp(1M)
+initscr(3X)		curs_initscr(3X)
+is_scrollok(3X)		curs_opaque(3X)
+keyname(3X)		curs_util(3X)
+keypad(3X)		curs_inopts(3X)
+longname(3X)		curs_termattrs(3X)
+meta(3X)		curs_inopts(3X)
+move(3X)		curs_move(3X)
+mvcur(3X)		curs_terminfo(3X)
+mvwin(3X)		curs_window(3X)
+newterm(3X)		curs_initscr(3X)
+newwin(3X)		curs_window(3X)
+nl(3X)			curs_inopts(3X)
+nocbreak(3X)		curs_inopts(3X)
+nonl(3X)		curs_inopts(3X)
+pnoutrefresh(3X)	curs_pad(3X)
+prefresh(3X)		curs_pad(3X)
+printw(3X)		curs_printw(3X)
+putp(3X)		curs_terminfo(3X)
+putwin(3X)		curs_util(3X)
+raw(3X)			curs_inopts(3X)
+refresh(3X)		curs_refresh(3X)
+reset_shell_mode(3X)	curs_kernel(3X)
+restartterm(3X)		curs_terminfo(3X)
+ripoffline(3X)		curs_kernel(3X)
+set_curterm(3X)		curs_terminfo(3X)
+set_term(3X)		curs_initscr(3X)
+setcchar(3X)		curs_getcchar(3X)
+setupterm(3X)		curs_terminfo(3X)
+slk_attr(3X)		curs_slk(3X)
+slk_color(3X)		curs_slk(3X)
+slk_init(3X)		curs_slk(3X)
+slk_touch(3X)		curs_slk(3X)
+start_color(3X)		curs_color(3X)
+terminfo(3X)		curs_terminfo(3X)
+tic(1)			tic(1M)
+tigetstr(3X)		curs_terminfo(3X)
+touchline(3X)		curs_touch(3X)
+touchwin(3X)		curs_touch(3X)
+tparm(3X)		curs_terminfo(3X)
+tputs(3X)		curs_terminfo(3X)
+use_default_colors(3X)	default_colors(3X)
+use_env(3X)		curs_util(3X)
+use_extended_names(3X)	curs_extend(3X)
+use_legacy_coding(3X)	legacy_coding(3X)
+use_tioctl(3X)		curs_util(3X)
+vidputs(3X)		curs_terminfo(3X)
+wadd_wch(3X)		curs_add_wch(3X)
+waddch(3X)		curs_addch(3X)
+waddstr(3X)		curs_addstr(3X)
+waddwstr(3X)		curs_addwstr(3X)
+wattr_set(3X)		curs_attr(3X)
+wattrset(3X)		curs_attr(3X)
+wbkgdset(3X)		curs_bkgd(3X)
+wbkgrndset(3X)		curs_bkgrnd(3X)
+wdelch(3X)		curs_delch(3X)
+wecho_wchar(3X)		curs_add_wch(3X)
+wechochar(3X)		curs_addch(3X)
+wget_wch(3X)		curs_get_wch(3X)
+wgetch(3X)		curs_getch(3X)
+wgetstr(3X)		curs_getstr(3X)
+winch(3X)		curs_inch(3X)
+wins_wch(3X)		curs_ins_wch(3X)
+winsch(3X)		curs_insch(3X)
+wmove(3X)		curs_move(3X)
+wnoutrefresh(3X)	curs_refresh(3X)
+wrefresh(3X)		curs_refresh(3X)
+wsetscrreg(3X)		curs_outopts(3X)

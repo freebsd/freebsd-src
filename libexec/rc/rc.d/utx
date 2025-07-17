@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: utx
+# REQUIRE: DAEMON FILESYSTEMS
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="utx"
+desc="Manage the user accounting database"
+rcvar="utx_enable"
+start_cmd="utx boot"
+stop_cmd="utx shutdown"
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+utx_svcj="NO"
+
+run_rc_command "$1"

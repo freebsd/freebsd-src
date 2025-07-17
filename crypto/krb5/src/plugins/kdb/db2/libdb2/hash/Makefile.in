@@ -1,0 +1,14 @@
+mydir=plugins$(S)kdb$(S)db2$(S)libdb2$(S)hash
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..$(S)..
+STLIBOBJS=	hash.o hash_bigkey.o hash_debug.o hash_func.o hash_log2.o \
+		hash_page.o hsearch.o dbm.o
+
+LOCALINCLUDES=	-I. -I$(srcdir)/../include -I../include -I$(srcdir)/../mpool \
+		-I$(srcdir)/../db
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+@libobj_frag@
+
+SRCS= $(STLIBOBJS:.o=.c)
+

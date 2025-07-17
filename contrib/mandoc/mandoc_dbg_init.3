@@ -1,0 +1,280 @@
+.\" $Id: mandoc_dbg_init.3,v 1.1 2022/04/14 16:43:44 schwarze Exp $
+.\"
+.\" Copyright (c) 2021, 2022 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 14 2022 $
+.Dt MANDOC_DBG_INIT 3
+.Os
+.Sh NAME
+.Nm mandoc_dbg_init ,
+.Nm mandoc_dbg_name ,
+.Nm mandoc_dbg_finish
+.Nd search for memory leaks in mandoc
+.Sh SYNOPSIS
+.Ft void
+.Fn mandoc_dbg_init "int argc" "char *argv[]"
+.Ft void
+.Fn mandoc_dbg_name "const char *"
+.Ft void
+.Fn mandoc_dbg_finish void
+.Sh DESCRIPTION
+If the mandoc package is built with the line
+.Ql DEBUG_MEMORY=1
+in the file
+.Pa configure.local ,
+the functions documented in
+.Xr mandoc_malloc 3
+and the function
+.Xr free 3
+are instrumented to record every memory allocation in a dedicated
+hash table and to check that every allocation is freed again.
+This compile time option is only intended for binaries that are
+used exclusively for debugging.
+It is not intended for production binaries because it significantly
+increases run time and memory usage and makes the programs more
+fragile and more error-prone.
+.Pp
+The function
+.Fn mandoc_dbg_init
+initializes the memory debugging subsystem.
+It is called from the top of the
+.Fn main
+programs, passing through the arguments that
+.Fn main
+received.
+The
+.Sx ENVIRONMENT
+section of the present manual page explains how the
+.Ev DEBUG_MEMORY
+environment variable controls the amount and destination of reporting.
+.Pp
+The function
+.Fn mandoc_dbg_name
+is called from the
+.Xr mdoc 7
+and
+.Xr man 7
+parsers whenever a
+.Ic \&Dt
+or
+.Ic \&TH
+macro is parsed, passing the complete macro line as the argument.
+.Pp
+The function
+.Fn mandoc_dbg_finish
+performs cleanup and optionally final reporting.
+It is called from the end of the
+.Fn main
+programs, just before normal termination.
+.Pp
+Getting the
+.Sy #include
+directives right for these functions is slightly tricky.
+If a file already includes
+.Qq Pa mandoc_aux.h ,
+no additional directive is needed because
+.Qq Pa mandoc_aux.h
+already includes
+.Qq Pa mandoc_dgb.h
+if
+.Ql DEBUG_MEMORY=1
+is set in
+.Pa configure.local .
+.Pp
+If a file does not need
+.Qq Pa mandoc_aux.h
+but calls a function documented in the present manual page and also calls
+.Xr free 3
+directly, it needs this code before the other
+.Xr mandoc_headers 3 :
+.Bd -literal -offset indent
+#if DEBUG_MEMORY
+#include "mandoc_dbg.h"
+#endif
+.Ed
+.Pp
+If a file calls a function documented in the present manual page
+but does not directly call
+.Xr free 3 ,
+it can use this less intrusive idiom:
+.Bd -literal -offset indent
+#if DEBUG_MEMORY
+#define DEBUG_NODEF
+#include "mandoc_dbg.h"
+#endif
+.Ed
+.Sh ENVIRONMENT
+The environment variable
+.Ev DEBUG_MEMORY
+controls the amount and destination of reporting.
+.Pp
+If it is unset, diagnostic output is directed to standard error output
+and only fatal errors are reported.
+Even though full memory accounting is always performed
+by any binary that was compiled with
+.Ql DEBUG_MEMORY=1 ,
+resulting in a significant increase in both run time and memory usage,
+memory leaks are
+.Em not
+reported when
+.Ev DEBUG_MEMORY
+is not set at run time.
+.Pp
+If
+.Ev DEBUG_MEMORY
+is set, it is interpreted as a string of flags.
+The flags are as follows:
+.Bl -tag -width 1n
+.It Cm A
+Log every allocation.
+This produces huge amounts of output and is usually not needed
+to find memory leaks.
+Its main purpose is debugging the memory debugging subsystem itself.
+.Pp
+When enabled, allocations are logged in this format:
+.Pp
+.D1 Cm A Ar file Ns .c: Ns Ar line function Ns Po Fa nmemb , size Pc\
+ No = Ar address
+.Pp
+The meaning of the fields is the same as for the
+.Cm L
+option.
+.It Cm F
+Log every
+.Xr free 3
+and every reallocation where the memory to be released or reallocated
+was allocated with one of the functions documented in
+.Xr mandoc_malloc 3 .
+Again, this produces huge amounts of output and is usually not
+needed to find memory leaks, and its main purpose is debugging the
+memory debugging subsystem itself.
+.Pp
+The logging format is:
+.Pp
+.D1 Cm F Ar file Ns .c: Ns Ar line function Ns Pq address
+.Pp
+It provides the name of the
+.Ar file
+and the number of the
+.Ar line
+in that file which called the
+.Xr free 3
+or reallocation
+.Ar function ,
+and the
+.Fa address
+that was given as an argument.
+.Pp
+If both the
+.Cm A
+and the
+.Cm F
+flags are enabled, calls to reallocation functions often log two lines,
+first an
+.Cm F
+line reporting the address passed in as an argument, then an
+.Cm A
+line reporting the adress returned as the function return value.
+.It Cm L
+Log every memory leak.
+For every allocation made after
+.Fn mandoc_dbg_init
+using functions documented in
+.Xr mandoc_malloc 3
+that was not freed before
+.Fn mandoc_dbg_finish ,
+print a line in this format:
+.Pp
+.D1 Cm L Ar file Ns .c: Ns Ar line function Ns Po Fa nmemb , size Pc\
+ No = Ar address
+.Pp
+It provides the name of the
+.Ar file
+and the number of the
+.Ar line
+in that file which called the allocation
+.Ar function
+with the arguments
+.Fa nmemb
+and
+.Fa size
+documented for
+.Xr calloc 3 .
+If the
+.Ar function
+does not take an
+.Fa nmemb
+argument,
+.Fa nmemb
+is reported as 1.
+At the end of the line, the virtual
+.Ar address
+of the memory returned from the allocation function is reported.
+.It Cm N
+Log the names of manual pages processed in the following formats:
+.Bd -unfilled -offset indent
+.Cm N Pf . Ic \&Dt Ar name section Op Ar architecture
+.Cm N Pf . Ic \&TH Ar name section Op Ar additional arguments
+.Ed
+.Pp
+This is particularly useful if a program crashes, runs out of memory,
+or enters an infinite loop.
+The last
+.Cm N
+line logged often indicates the input file triggering the problem.
+.It Cm /
+Interpret the rest of
+.Ev DEBUG_MEMORY
+as an absolute path and redirect debugging output to that file,
+appending to the file if it already exists or creating it otherwise.
+.El
+.Pp
+If
+.Ev DEBUG_MEMORY
+is set, even if it is empty,
+.Fn mandoc_dbg_init
+always writes the line
+.Pp
+.D1 Cm P Ar pid Sy \&[ Ns Ar progname Ns Sy \&]\
+ Sy \&[ Ns Ar argument Ns Sy \&] Ar ...
+.Pp
+enclosing each element of
+.Fa argv
+in square brackets, to avoid that arguments containing whitespace
+appear in the same way as multiple arguments, and
+.Fn mandoc_dbg_finish
+always writes the line:
+.Pp
+.D1 Cm S Ar number No memory leaks found
+.Sh EXAMPLES
+The following is a typical sequence of commands for finding memory
+leaks in the parsers, in the HTML formatter, and in the regression suite:
+.Bd -literal -offset indent
+make distclean
+echo BUILD_CATMAN=1 >> configure.local
+echo DEBUG_MEMORY=1 >> configure.local
+\&./configure
+make
+export DEBUG_MEMORY=NL/tmp/mandoc.debug.txt
+mkdir Out
+export PATH=$PATH:$(pwd)
+\&./catman -T html /usr/share/man Out
+make regress-clean
+make regress
+less /tmp/mandoc.debug.txt
+.Ed
+.Sh SEE ALSO
+.Xr mandoc_malloc 3 ,
+.Xr catman 8

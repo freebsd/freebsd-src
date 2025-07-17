@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-NT-ENTERPRISE-PRINCIPAL-data:
+
+KRB5_NT_ENTERPRISE_PRINCIPAL
+============================
+
+..
+.. data:: KRB5_NT_ENTERPRISE_PRINCIPAL
+..
+
+Windows 2000 UPN.
+
+
+
+=================================== ======================
+``KRB5_NT_ENTERPRISE_PRINCIPAL``       ``10``
+=================================== ======================

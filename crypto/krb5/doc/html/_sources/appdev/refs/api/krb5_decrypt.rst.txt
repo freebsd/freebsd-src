@@ -1,0 +1,52 @@
+krb5_decrypt
+============
+
+..
+
+.. c:function:: krb5_error_code krb5_decrypt(krb5_context context, krb5_const_pointer inptr, krb5_pointer outptr, size_t size, krb5_encrypt_block * eblock, krb5_pointer ivec)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **inptr**
+
+	          **outptr**
+
+	          **size**
+
+	          **eblock**
+
+	          **ivec**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_c_* API family. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

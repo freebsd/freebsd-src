@@ -1,0 +1,24 @@
+# things set by configure
+
+_MAKE_VERSION?=@_MAKE_VERSION@
+
+prefix?= @prefix@
+srcdir= @srcdir@
+CC= @CC@
+@force_make_os@MAKE_OS?= @make_os@
+@force_machine@MACHINE?= @machine@
+@force_machine_arch@MACHINE_ARCH?= @machine_arch@
+DEFAULT_SYS_PATH?= @default_sys_path@
+
+EGREP = @egrep@
+CPPFLAGS+= @CPPFLAGS@
+CFLAGS+= ${CPPFLAGS} @DEFS@
+LDFLAGS+= @LDFLAGS@
+LIBOBJS+= @LIBOBJS@
+LDADD+= @LIBS@
+USE_META?= @use_meta@
+USE_FILEMON?= @use_filemon@
+FILEMON_H?= @filemon_h@
+BMAKE_PATH_MAX?= @bmake_path_max@
+# used if MAXPATHLEN not defined
+CPPFLAGS+= -DBMAKE_PATH_MAX=${BMAKE_PATH_MAX}

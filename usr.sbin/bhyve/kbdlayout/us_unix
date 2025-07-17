@@ -1,0 +1,13 @@
+# bhyve ps2kbd keyboard layout file
+#   (us_unix : United States of America Traditional Unix Workstation)
+#
+# Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
+#
+
+'`',0x76;	`  (0x60)
+'~',0x76;	~  (0x7e)
+0xff08,0x71;	Back space
+0xff1b,0x0e;	Escape
+0xffe3,0x58;	Left control
+0xffff,0x66;	Del
+

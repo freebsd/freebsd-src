@@ -1,0 +1,242 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: toe.1m,v 1.68 2024/04/20 18:59:26 tom Exp $
+.TH @TOE@ 1M 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.ie n .ds CW R
+.el   \{
+.ie \n(.g .ds CW CR
+.el       .ds CW CW
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.ds d @TERMINFO@
+.SH NAME
+\fB\%@TOE@\fP \-
+list table of entries of \fIterminfo\fR terminal types
+.SH SYNOPSIS
+.B @TOE@
+.RB [ \-ahs ]
+.RB [ \-v\ \c
+.RI [ n ]]
+.RI [ directory
+\&.\|.\|.]
+.PP
+.B @TOE@
+.RB [ \-u | \-U ]
+.I file
+.PP
+.B "@TOE@ \-V"
+.SH DESCRIPTION
+\fB\%@TOE@\fP reports to the standard output stream the (primary) names
+and descriptions of the terminal types available to the \fIterminfo\fP
+library.
+Each \fIdirectory\fP is scanned;
+if none are given,
+\fB\%@TOE@\fP scans the default \fIterminfo\fP directory.
+.SH OPTIONS
+The \fB\-h\fP option can be helpful to observe where \fB\%@TOE@\fP is
+looking for terminal descriptions.
+Other options support maintainers of \fIterminfo\fP terminal
+descriptions.
+.TP 9 \" "-u file" + 2n
+.B \-a
+lists entries from all terminal database directories that \fIterminfo\fP
+would search,
+instead of only the first that it finds.
+.IP
+If
+.B \-s
+is also given,
+\fB\%@TOE@\fP
+additionally reports,
+like \fI\%conflict\fP(1),
+which entries correspond to a given terminal database.
+An \*(``*\*('' marks entries that differ,
+and \*(``+\*('' marks equivalent entries.
+.IP
+Without the \fB\-s\fP option,
+\fB\%@TOE@\fP does not attempt to merge duplicates in its report.
+.TP
+.B \-h
+writes a heading naming each each directory as it is accessed.
+.TP
+.B \-s
+sorts the output by the entry names.
+.TP
+.BI \-u\  file
+lists terminal type dependencies in \fIfile\fP,
+a \fIterminfo\fP entry source or \fItermcap\fP database file.
+The report summarizes the \*(``\fBuse\fP\*('' (\fIterminfo\fP) and
+\fBtc\fP (\fItermcap\fP) relations:
+each line comprises the primary name of a terminal type employing
+\fBuse\fP/\fBtc\fP capabilities,
+a colon,
+a space- and tab-separated list of primary names of terminal types thus
+named,
+and a newline.
+.TP
+.BI \-U\  file
+lists terminal type reverse dependencies in \fIfile\fP,
+a \fIterminfo\fP entry source or \fItermcap\fP database file.
+The report summarizes the \*(``\fBuse\fP\*('' (\fIterminfo\fP) and
+\fBtc\fP (\fItermcap\fP) reverse relations:
+each line comprises the primary name of a terminal type occurring in
+\fBuse\fP/\fBtc\fP capabilities,
+a colon,
+a space- and tab-separated list of primary names of terminal types
+naming them thus,
+and a newline.
+.TP
+.BR \-v\  [\c
+.IR n ]
+reports verbose status information to the standard error stream,
+showing \fB\%@TOE@\fP's progress.
+.IP
+The optional parameter \fIn\fP is an integer between 1 and 10 inclusive,
+interpreted as for \fB\%@TIC@\fP(1M).
+If \fI\%ncurses\fP is built without tracing support,
+\fIn\fP is ignored.
+.TP
+\fB\-V\fP
+reports the version of \fI\%ncurses\fP associated
+with this program and exits with a successful status.
+.SH FILES
+.TP
+.I \*d
+compiled terminal description database
+.SH PORTABILITY
+\fB\%@TOE@\fP is not provided by other implementations.
+There is no applicable X/Open or POSIX standard for it.
+.SH HISTORY
+\fB\%@TOE@\fP replaces a \fB\-T\fP option that was briefly supported by
+the \fI\%ncurses\fP \fB\%infocmp\fP utility in 1995.
+.PP
+The \fB\-a\fP and \fB\-s\fP options were added in 2006 and 2011,
+respectively.
+.PP
+The program's name originates with a developer's pun:
+.bP
+\fBtic\fP,
+.bP
+\fBtac\fP (now \fBtack\fP),
+.bP
+\fBtoe\fP.
+.SH EXAMPLES
+When not sorting with the \fB\-s\fP option,
+the \fB\-a\fP option reports all of the names found in all of the
+terminal database directories named in the \fI\%TERMINFO\fP and
+\fI\%TERMINFO_DIRS\fP environment variables.
+.RS 4
+.PP
+.\" toe -a | grep -E '^(xterm|vt)'
+.ft \*(CW
+.TS
+L2 Lx.
+xterm\-color	generic color xterm
+xterm\-xfree86	xterm terminal emulator (XFree86)
+xterm\-vt220	xterm emulating vt220
+xterm\-256color	xterm with 256 colors
+xterm\-r6	xterm X11R6 version
+xterm\-r5	xterm R5 version
+xterm\-mono	monochrome xterm
+xterm	T{
+.ad l
+xterm terminal emulator (X Window System)
+T}
+vt220	dec vt220
+vt102	dec vt102
+vt100	dec vt100 (w/advanced video)
+vt52	dec vt52
+.T&
+L.
+\&.\|.\|.
+.TE
+.ft
+.RE
+.PP
+Use the \fB\-a\fP and \fB\-s\fP options together to show where each
+terminal description was found.
+.RS 4
+.PP
+.\" toe -as | grep -E '(^-+>|:.(xterm|vt))'
+.ft \*(CW
+.TS
+Lx.
+\-\-> /etc/terminfo
+\-\-\-\-> /lib/terminfo
+\-\-\-\-\-\-> /usr/share/terminfo
+.TE
+.TS
+L1 L2 Lx.
+\-\-*\-\-\-:	vt100	dec vt100 (w/advanced video)
+\-\-*\-\-\-:	vt102	dec vt102
+\-\-*\-\-\-:	vt220	dec vt220
+\-\-*\-\-\-:	vt52	dec vt52
+\-\-*\-\-\-:	xterm	T{
+.ad l
+xterm terminal emulator (X Window System)
+T}
+\-\-*\-\-\-:	xterm\-256color	xterm with 256 colors
+\-\-*\-\-\-:	xterm\-color	generic color xterm
+\-\-*\-\-\-:	xterm\-mono	monochrome xterm
+\-\-*\-\-\-:	xterm\-r5	xterm R5 version
+\-\-*\-\-\-:	xterm\-r6	xterm X11R6 version
+\-\-*\-\-\-:	xterm\-vt220	xterm emulating vt220
+\-\-*\-\-\-:	xterm\-xfree86	T{
+.ad l
+xterm terminal emulator (XFree86)
+T}
+.T&
+L.
+\&.\|.\|.
+.TE
+.ft
+.RE
+.SH SEE ALSO
+\fB\%@CAPTOINFO@\fP(1M),
+\fB\%@INFOCMP@\fP(1M),
+\fB\%@INFOTOCAP@\fP(1M),
+\fB\%@TIC@\fP(1M),
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

@@ -1,0 +1,84 @@
+#
+# Generated makefile dependencies follow.
+#
+clnt_policy.so clnt_policy.po $(OUTPRE)clnt_policy.$(OBJEXT): \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/admin_internal.h \
+  $(BUILDTOP)/include/kadm5/chpass_util_strings.h $(BUILDTOP)/include/kadm5/kadm_err.h \
+  $(BUILDTOP)/include/kadm5/kadm_rpc.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/gssrpc/auth.h \
+  $(top_srcdir)/include/gssrpc/auth_gss.h $(top_srcdir)/include/gssrpc/auth_unix.h \
+  $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
+  $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/kdb.h \
+  $(top_srcdir)/include/krb5.h client_internal.h clnt_policy.c
+client_rpc.so client_rpc.po $(OUTPRE)client_rpc.$(OBJEXT): \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/chpass_util_strings.h \
+  $(BUILDTOP)/include/kadm5/kadm_err.h $(BUILDTOP)/include/kadm5/kadm_rpc.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/gssrpc/auth.h \
+  $(top_srcdir)/include/gssrpc/auth_gss.h $(top_srcdir)/include/gssrpc/auth_unix.h \
+  $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
+  $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/kdb.h \
+  $(top_srcdir)/include/krb5.h client_rpc.c
+client_principal.so client_principal.po $(OUTPRE)client_principal.$(OBJEXT): \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/admin_internal.h \
+  $(BUILDTOP)/include/kadm5/chpass_util_strings.h $(BUILDTOP)/include/kadm5/kadm_err.h \
+  $(BUILDTOP)/include/kadm5/kadm_rpc.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/gssrpc/auth.h \
+  $(top_srcdir)/include/gssrpc/auth_gss.h $(top_srcdir)/include/gssrpc/auth_unix.h \
+  $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
+  $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/kdb.h \
+  $(top_srcdir)/include/krb5.h client_internal.h client_principal.c
+client_init.so client_init.po $(OUTPRE)client_init.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/gssapi/gssapi.h \
+  $(BUILDTOP)/include/gssapi/gssapi_ext.h $(BUILDTOP)/include/gssapi/gssapi_krb5.h \
+  $(BUILDTOP)/include/gssrpc/types.h $(BUILDTOP)/include/kadm5/admin.h \
+  $(BUILDTOP)/include/kadm5/admin_internal.h $(BUILDTOP)/include/kadm5/chpass_util_strings.h \
+  $(BUILDTOP)/include/kadm5/kadm_err.h $(BUILDTOP)/include/kadm5/kadm_rpc.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/fake-addrinfo.h \
+  $(top_srcdir)/include/gssrpc/auth.h $(top_srcdir)/include/gssrpc/auth_gss.h \
+  $(top_srcdir)/include/gssrpc/auth_gssapi.h $(top_srcdir)/include/gssrpc/auth_unix.h \
+  $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
+  $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/iprop.h \
+  $(top_srcdir)/include/iprop_hdr.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  client_init.c client_internal.h
+clnt_privs.so clnt_privs.po $(OUTPRE)clnt_privs.$(OBJEXT): \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/admin_internal.h \
+  $(BUILDTOP)/include/kadm5/chpass_util_strings.h $(BUILDTOP)/include/kadm5/kadm_err.h \
+  $(BUILDTOP)/include/kadm5/kadm_rpc.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/gssrpc/auth.h \
+  $(top_srcdir)/include/gssrpc/auth_gss.h $(top_srcdir)/include/gssrpc/auth_unix.h \
+  $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
+  $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/kdb.h \
+  $(top_srcdir)/include/krb5.h client_internal.h clnt_privs.c
+clnt_chpass_util.so clnt_chpass_util.po $(OUTPRE)clnt_chpass_util.$(OBJEXT): \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/admin_internal.h \
+  $(BUILDTOP)/include/kadm5/chpass_util_strings.h $(BUILDTOP)/include/kadm5/kadm_err.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/gssrpc/auth.h \
+  $(top_srcdir)/include/gssrpc/auth_gss.h $(top_srcdir)/include/gssrpc/auth_unix.h \
+  $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
+  $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/kdb.h \
+  $(top_srcdir)/include/krb5.h client_internal.h clnt_chpass_util.c

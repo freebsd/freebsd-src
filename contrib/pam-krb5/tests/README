@@ -1,0 +1,252 @@
+                            Writing TAP Tests
+
+Introduction
+
+    This is a guide for users of the C TAP Harness package or similar
+    TAP-based test harnesses explaining how to write tests.  If your
+    package uses C TAP Harness as the test suite driver, you may want to
+    copy this document to an appropriate file name in your test suite as
+    documentation for contributors.
+
+About TAP
+
+    TAP is the Test Anything Protocol, a protocol for communication
+    between test cases and a test harness.  This is the protocol used by
+    Perl for its internal test suite and for nearly all Perl modules,
+    since it's the format used by the build tools for Perl modules to run
+    tests and report their results.
+
+    A TAP-based test suite works with a somewhat different set of
+    assumptions than an xUnit test suite.  In TAP, each test case is a
+    separate program.  That program, when run, must produce output in the
+    following format:
+
+        1..4
+        ok 1 - the first test
+        ok 2
+        # a diagnostic, ignored by the harness
+        not ok 3 - a failing test
+        ok 4 # skip a skipped test
+
+    The output should all go to standard output.  The first line specifies
+    the number of tests to be run, and then each test produces output that
+    looks like either "ok <n>" or "not ok <n>" depending on whether the
+    test succeeded or failed.  Additional information about the test can
+    be provided after the "ok <n>" or "not ok <n>", but is optional.
+    Additional diagnostics and information can be provided in lines
+    beginning with a "#".
+
+    Processing directives are supported after the "ok <n>" or "not ok <n>"
+    and start with a "#".  The main one of interest is "# skip" which says
+    that the test was skipped rather than successful and optionally gives
+    the reason.  Also supported is "# todo", which normally annotates a
+    failing test and indicates that test is expected to fail, optionally
+    providing a reason for why.
+
+    There are three more special cases.  First, the initial line stating
+    the number of tests to run, called the plan, may appear at the end of
+    the output instead of the beginning.  This can be useful if the number
+    of tests to run is not known in advance.  Second, a plan in the form:
+
+        1..0 # skip entire test case skipped
+
+    can be given instead, which indicates that this entire test case has
+    been skipped (generally because it depends on facilities or optional
+    configuration which is not present).  Finally, if the test case
+    encounters a fatal error, it should print the text:
+
+        Bail out!
+
+    on standard output, optionally followed by an error message, and then
+    exit.  This tells the harness that the test aborted unexpectedly.
+
+    The exit status of a successful test case should always be 0.  The
+    harness will report the test as "dubious" if all the tests appeared to
+    succeed but it exited with a non-zero status.
+
+Writing TAP Tests
+
+  Environment
+
+    One of the special features of C TAP Harness is the environment that
+    it sets up for your test cases.  If your test program is called under
+    the runtests driver, the environment variables C_TAP_SOURCE and
+    C_TAP_BUILD will be set to the top of the test directory in the source
+    tree and the top of the build tree, respectively.  You can use those
+    environment variables to locate additional test data, programs and
+    libraries built as part of your software build, and other supporting
+    information needed by tests.
+
+    The C and shell TAP libraries support a test_file_path() function,
+    which looks for a file under the build tree and then under the source
+    tree, using the C_TAP_BUILD and C_TAP_SOURCE environment variables,
+    and return the full path to the file.  This can be used to locate
+    supporting data files.  They also support a test_tmpdir() function
+    that returns a directory that can be used for temporary files during
+    tests.
+
+  Perl
+
+    Since TAP is the native test framework for Perl, writing TAP tests in
+    Perl is very easy and extremely well-supported.  If you've never
+    written tests in Perl before, start by reading the documentation for
+    Test::Tutorial and Test::Simple, which walks you through the basics,
+    including the TAP output syntax.  Then, the best Perl module to use
+    for serious testing is Test::More, which provides a lot of additional
+    functions over Test::Simple including support for skipping tests,
+    bailing out, and not planning tests in advance.  See the documentation
+    of Test::More for all the details and lots of examples.
+
+    C TAP Harness can run Perl test scripts directly and interpret the
+    results correctly, and similarly the Perl Test::Harness module and
+    prove command can run TAP tests written in other languages using, for
+    example, the TAP library that comes with C TAP Harness.  You can, if
+    you wish, use the library that comes with C TAP Harness but use prove
+    instead of runtests for running the test suite.
+
+  C
+
+    C TAP Harness provides a basic TAP library that takes away most of the
+    pain of writing TAP test cases in C.  A C test case should start with
+    a call to plan(), passing in the number of tests to run.  Then, each
+    test should use is_int(), is_string(), is_double(), or is_hex() as
+    appropriate to compare expected and seen values, or ok() to do a
+    simpler boolean test.  The is_*() functions take expected and seen
+    values and then a printf-style format string explaining the test
+    (which may be NULL).  ok() takes a boolean and then the printf-style
+    string.
+
+    Here's a complete example test program that uses the C TAP library:
+
+        #include <stddef.h>
+        #include <tap/basic.h>
+
+        int
+        main(void)
+        {
+            plan(4);
+
+            ok(1, "the first test");
+            is_int(42, 42, NULL);
+            diag("a diagnostic, ignored by the harness");
+            ok(0, "a failing test");
+            skip("a skipped test");
+
+            return 0;
+        }
+
+    This test program produces the output shown above in the section on
+    TAP and demonstrates most of the functions.  The other functions of
+    interest are sysdiag() (like diag() but adds strerror() results),
+    bail() and sysbail() for fatal errors, skip_block() to skip a whole
+    block of tests, and skip_all() which is called instead of plan() to
+    skip an entire test case.
+
+    The C TAP library also provides plan_lazy(), which can be called
+    instead of plan().  If plan_lazy() is called, the library will keep
+    track of how many test results are reported and will print out the
+    plan at the end of execution of the program.  This should normally be
+    avoided since the test may appear to be successful even if it exits
+    prematurely, but it can make writing tests easier in some
+    circumstances.
+
+    Complete API documentation for the basic C TAP library that comes with
+    C TAP Harness is available at:
+
+        <https://www.eyrie.org/~eagle/software/c-tap-harness/>
+
+    It's common to need additional test functions and utility functions
+    for your C tests, particularly if you have to set up and tear down a
+    test environment for your test programs, and it's useful to have them
+    all in the libtap library so that you only have to link your test
+    programs with one library.  Rather than editing tap/basic.c and
+    tap/basic.h to add those additional functions, add additional *.c and
+    *.h files into the tap directory with the function implementations and
+    prototypes, and then add those additional objects to the library.
+    That way, you can update tap/basic.c and tap/basic.h from subsequent
+    releases of C TAP Harness without having to merge changes with your
+    own code.
+
+    Libraries of additional useful TAP test functions are available in
+    rra-c-util at:
+
+        <https://www.eyrie.org/~eagle/software/rra-c-util/>
+
+    Some of the code there is particularly useful when testing programs
+    that require Kerberos keys.
+
+    If you implement new test functions that compare an expected and seen
+    value, it's best to name them is_<something> and take the expected
+    value, the seen value, and then a printf-style format string and
+    possible arguments to match the calling convention of the functions
+    provided by C TAP Harness.
+
+  Shell
+
+    C TAP Harness provides a library of shell functions to make it easier
+    to write TAP tests in shell.  That library includes much of the same
+    functionality as the C TAP library, but takes its parameters in a
+    somewhat different order to make better use of shell features.
+
+    The libtap.sh file should be installed in a directory named tap in
+    your test suite area.  It can then be loaded by tests written in shell
+    using the environment set up by runtests with:
+
+        . "$C_TAP_SOURCE"/tap/libtap.sh
+
+    Here is a complete test case written in shell which produces the same
+    output as the TAP sample above:
+
+        #!/bin/sh
+
+        . "$C_TAP_SOURCE"/tap/libtap.sh
+        cd "$C_TAP_BUILD"
+
+        plan 4
+        ok 'the first test' true
+        ok '' [ 42 -eq 42 ]
+        diag a diagnostic, ignored by the harness
+        ok '' false
+        skip 'a skipped test'
+
+    The shell framework doesn't provide the is_* functions, so you'll use
+    the ok function more.  It takes a string describing the text and then
+    treats all of its remaining arguments as a condition, evaluated the
+    same way as the arguments to the "if" statement.  If that condition
+    evaluates to true, the test passes; otherwise, the test fails.
+
+    The plan, plan_lazy, diag, and bail functions work the same as with
+    the C library.  skip takes a string and skips the next test with that
+    explanation.  skip_block takes a count and a string and skips that
+    many tests with that explanation.  skip_all takes an optional reason
+    and skips the entire test case.
+
+    Since it's common for shell programs to want to test the output of
+    commands, there's an additional function ok_program provided by the
+    shell test library.  It takes the test description string, the
+    expected exit status, the expected program output, and then treats the
+    rest of its arguments as the program to run.  That program is run with
+    standard error and standard output combined, and then its exit status
+    and output are tested against the provided values.
+
+    A utility function, strip_colon_error, is provided that runs the
+    command given as its arguments and strips text following a colon and a
+    space from the output (unless there is no whitespace on the line
+    before the colon and the space, normally indicating a prefix of the
+    program name).  This function can be used to wrap commands that are
+    expected to fail with output that has a system- or locale-specific
+    error message appended, such as the output of strerror().
+
+License
+
+    This file is part of the documentation of C TAP Harness, which can be
+    found at <https://www.eyrie.org/~eagle/software/c-tap-harness/>.
+
+    Copyright 2010, 2016 Russ Allbery <eagle@eyrie.org>
+
+    Copying and distribution of this file, with or without modification,
+    are permitted in any medium without royalty provided the copyright
+    notice and this notice are preserved.  This file is offered as-is,
+    without any warranty.
+
+    SPDX-License-Identifier: FSFAP

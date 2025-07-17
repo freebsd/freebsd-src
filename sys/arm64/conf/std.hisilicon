@@ -1,0 +1,19 @@
+#
+# HiSilicon SoC support
+#
+
+# SoC support
+options 	SOC_HISI_HI6220
+
+# GPIO / PINCTRL
+device		dwgpio			# Synopsys DesignWare APB GPIO Controller
+
+# Serial (COM) ports
+device		uart_snps
+
+# MMC/SD/SDIO Card slot support
+device		dwmmc
+device		dwmmc_hisi
+
+options 	FDT
+device		acpi

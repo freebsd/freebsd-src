@@ -1,0 +1,63 @@
+#
+# Rockchip SoC support
+#
+
+# SoC support
+options 	SOC_ROCKCHIP
+options 	SOC_ROCKCHIP_RK3328
+options 	SOC_ROCKCHIP_RK3399
+options 	SOC_ROCKCHIP_RK3568
+
+# GPIO / PINCTRL
+device		dwgpio			# Synopsys DesignWare APB GPIO Controller
+device		rk_gpio			# RockChip GPIO Controller
+device		rk_pinctrl		# RockChip Pinmux Controller
+
+# Combo PHY support
+device		rk_combphy		# Naneng Combo PHY
+
+# I2C
+device		rk_i2c			# RockChip I2C controller
+device		fan53555		# Fairchild Semi FAN53555/SYR82x Regulator
+
+# Power management controllers
+device		rk8xx			# RockChip RK8XX base support
+device		rk805			# RockChip RK805 PMIC
+device		rk808			# RockChip RK808 PMIC
+device		rk817			# RockChip RK817 PMIC
+device		syr827			# Silergy SYR827 PMIC
+device		tcs4525			# TCS 4525 PMIC
+
+# SPI
+device		rk_spi			# RockChip SPI controller
+
+# PWM
+device		rk_pwm
+
+# Serial (COM) ports
+device		uart_snps
+
+# Ethernet NICs
+device		dwc			# Synopsys DesignWare GMAC controller
+device		dwc_rk			# Rockchip Designware
+device		eqos			# Synopsys Designware Ethernet QoS controller
+
+# IO Domains
+device		rk_iodomain
+
+# USB support
+device		rk_usb2phy		# Rockchip USB2PHY
+device		rk_typec_phy		# Rockchip TypeC PHY
+device		dwc3			# Synopsys DWC controller
+device		rk_dwc3			# Rockchip DWC3 controller
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+device		dwmmc
+device		rk_dwmmc
+device		rk_emmcphy
+
+options 	FDT
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/rockchip"

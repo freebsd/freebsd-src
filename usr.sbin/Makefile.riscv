@@ -1,0 +1,4 @@
+.if ${MK_BHYVE} != "no"
+SUBDIR+=	bhyve
+SUBDIR+=	bhyvectl
+.endif

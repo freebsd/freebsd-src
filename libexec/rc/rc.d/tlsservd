@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: tlsservd
+# REQUIRE: NETWORKING root mountcritlocal sysctl
+# BEFORE: nfsd
+# KEYWORD: nojailvnet shutdown
+
+. /etc/rc.subr
+
+name="tlsservd"
+desc="NFS over TLS server side daemon"
+rcvar="tlsservd_enable"
+command="/usr/sbin/rpc.${name}"
+
+: ${tlsservd_svcj_options:="net_basic nfsd"}
+
+pidfile="/var/run/rpc.${name}.pid"
+required_files="/etc/rpc.tlsservd/cert.pem /etc/rpc.tlsservd/certkey.pem"
+extra_commands="reload"
+
+
+load_rc_config $name
+
+run_rc_command "$1"

@@ -1,0 +1,399 @@
+From wiggans@aipl.arsusda.gov Mon Sep 12 11:05:58 1994
+Received: from vangogh.CS.Berkeley.EDU by python.bostic.com (8.6.9.Beta4/2.6)
+	id OAA16853; Mon, 12 Sep 1994 14:05:42 -0400
+From: wiggans@aipl.arsusda.gov
+Received: from hofmann.CS.Berkeley.EDU (hofmann.CS.Berkeley.EDU [128.32.34.35]) by vangogh.CS.Berkeley.EDU (8.7.Alpha.1/8.6.9.Beta0) with ESMTP id LAA15825 for <bostic@vangogh.CS.Berkeley.EDU>; Mon, 12 Sep 1994 11:05:20 -0700 (PDT)
+Received: from uu7.psi.com (uu7.psi.com [38.145.204.6]) by hofmann.CS.Berkeley.EDU (8.6.9/8.6.6.Beta11) with SMTP id LAA25681 for <bostic@cs.berkeley.edu>; Mon, 12 Sep 1994 11:05:44 -0700
+Received: from AIPL.ARSUSDA.GOV by uu7.psi.com (5.65b/4.0.071791-PSI/PSINet) via SMTP;
+        id AA00699 for bostic@cs.berkeley.edu; Mon, 12 Sep 94 14:06:15 -0400
+Received: by aipl.arsusda.gov (AIX 3.2/UCB 5.64/4.03)
+          id AA14802; Mon, 12 Sep 1994 14:05:48 -0400
+Message-Id: <9409121805.AA14802@aipl.arsusda.gov>
+Subject: db 1.85 problem
+To: bostic@cs.berkeley.edu (Keith Bostic)
+Date: Mon, 12 Sep 1994 14:05:47 -0400 (EDT)
+X-Mailer: ELM [version 2.4 PL22]
+Content-Type: text
+Content-Length: 2553      
+Status: RO
+
+In using the btree option to sequentially read and then write a file, we
+are having a problem with 1.85.  When compiled with 1.73 there is no
+problem.  The problem is that the seq call keeps reading the same record. 
+The code follows:
+
+/* chkseq.c  Check sequential read and write */
+
+#include <stdio.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>    /* O_CREAT,  O_RDWR */
+#include <errno.h>    /* Error numbers */
+#include <db.h>
+ 
+extern int errno;
+extern char *sys_errlist[];
+ 
+typedef struct idst {
+  char id1[7];
+} id;
+
+void cvtid(char *, char *);
+ 
+void main() {
+  char anim10[11], datastor[212],keystor[10], *pc;
+  int i;
+  long in = 0L;
+  DB *dbp, *dbpo;
+  DBT key, data, keyo, datao;
+
+  if ((dbp = dbopen("bullxrf.db", O_RDWR, 0664
+       , DB_BTREE, NULL )) == NULL) {
+    printf("\n Error on dbopen %d %s\n",errno,strerror(errno));
+    exit(61);
+  }
+  key.size = 7;
+  keyo.size = 7;
+
+  while (dbp->seq(dbp, &key, &data,R_NEXT) == 0) {
+    in++;
+     if (in > 20) break; 
+/*      pc = (char *) key.data; 
+for (i=0;i<key.size;i++) printf("%02x",pc[i]); printf("\n"); */
+      cvtid(anim10,key.data); printf("%s\n",anim10); 
+    memcpy(keystor,key.data,key.size);
+/* for (i=0;i<key.size;i++) printf("%02x",keystor[i]); printf("\n"); */
+    memcpy(datastor,data.data,data.size);
+/* for (i=0;i<8;i++) printf("%02x",datastor[i]); printf("\n"); */
+    keyo.data = keystor;
+    datao.data = datastor;
+    datao.size = data.size;
+/*
+    if (in % 1000 == 1) {
+        cvtid(anim10,key.data); printf("%5d %s\n",in,anim10);  */
+      if (dbp->put(dbp, &keyo, &datao,0) != 0) {
+        printf("Write failed at %d\n",in);
+        exit(85);
+      }
+/*  }
+ */
+  }  
+  printf("%d Records copied\n",in);
+  dbp->close(dbp);
+}
+
+I am running on an RS/6000 AIX 3.2.5.  The section of the make file
+follows:
+
+# Make file
+all: chkseq
+
+chkseq: chkseq.c 
+	cc -gO3 -lm -o chkseq\
+  -L /data6/hash/include/sys/lib -l db  -I /data6/hash/include \
+  chkseq.c cvtid.o ascii.o
+#  -L /data12/db.1.85 -l db  -I /data12/db.1.85/include \
+
+We would appreciate your help.
+Thanks,
+
+-- 
+George Wiggans           I================================================I
+                         |Animal Improvement Programs Laboratory          |
+Phone:   301-504-8407    |Bldg 263 Beltsville Agricultural Research Center|
+FAX:     301-504-8092    |Beltsville, MD 20705-2350  USA                  |
+wiggans@aipl.arsusda.gov |                                                |
+=========================I================================================I
+
+From wiggans@aipl.arsusda.gov Fri Sep 16 20:27:22 1994
+Received: from vangogh.CS.Berkeley.EDU by python.bostic.com (8.6.9.Beta4/2.6)
+	id XAA09260; Fri, 16 Sep 1994 23:27:09 -0400
+From: wiggans@aipl.arsusda.gov
+Received: from hofmann.CS.Berkeley.EDU (hofmann.CS.Berkeley.EDU [128.32.34.35]) by vangogh.CS.Berkeley.EDU (8.7.Alpha.1/8.6.9.Beta0) with ESMTP id UAA25674 for <bostic@vangogh.CS.Berkeley.EDU>; Fri, 16 Sep 1994 20:27:03 -0700 (PDT)
+Received: from uu7.psi.com (uu7.psi.com [38.145.204.6]) by hofmann.CS.Berkeley.EDU (8.6.9/8.6.6.Beta11) with SMTP id UAA15043 for <bostic@cs.berkeley.edu>; Fri, 16 Sep 1994 20:27:16 -0700
+Received: from AIPL.ARSUSDA.GOV by uu7.psi.com (5.65b/4.0.071791-PSI/PSINet) via SMTP;
+        id AA18737 for bostic@cs.berkeley.edu; Fri, 16 Sep 94 23:27:14 -0400
+Received: by aipl.arsusda.gov (AIX 3.2/UCB 5.64/4.03)
+          id AA10907; Fri, 16 Sep 1994 23:26:18 -0400
+Message-Id: <9409170326.AA10907@aipl.arsusda.gov>
+Subject: Test case
+To: bostic@cs.berkeley.edu (Keith Bostic)
+Date: Fri, 16 Sep 1994 23:26:16 -0400 (EDT)
+X-Mailer: ELM [version 2.4 PL22]
+Content-Type: text
+Content-Length: 3713      
+Status: RO
+
+The following program loads 2 10 character animal ID which are used to
+change an animal's ID.  After loading, it closes, then opens and
+sequentially reads and rewrites the file changing the first character of
+the 2nd ID to U.  Failure is observed when the update part gets stuck on
+the first record, rereading it.  The last step displays the updated file.
+The name of the data file is a command line argument.
+
+The data:
+A000027875A000135891
+A000059165A000130168
+A000060256A000133490
+A040025906A000136770
+A040027881A000135829
+A040028611A000137873
+A040032413A000056974
+A040050163A000126233
+A040050329A000126177
+A040050411A000119017
+A040050995A000116767
+A040051022A000126669
+A040051276A000127444
+A040051514A000120563
+A040051597A000127287
+A040051627A000127284
+A040051700A000126914
+A040051810A000127286
+A040051964A000118834
+A040052164A000135104
+A040052165A000127688
+A040052186A000126926
+A040052530A000126287
+A040052560A000119160
+A040052892A000125334
+A040053004A000127684
+A040053359A000128628
+A040053378A000137680
+A040053416A000128825
+A040053589A000120369
+A040053620A000128460
+A040053751A000123525
+A040053754A000126736
+A040054191A000126286
+A040054251A000121745
+A040054253A000127848
+A040054596A000130931
+A040054981A000128731
+A040055000A000127689
+
+The program:
+/* chkseq.c  Check sequential read and write */
+
+#include <stdio.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>    /* O_CREAT,  O_RDWR */
+#include <errno.h>    /* Error numbers */
+#include <db.h>
+ 
+extern int errno;
+extern char *sys_errlist[];
+ 
+ 
+void main(int argc, char *argv[]) {
+  char id1[] = {"          "}, id2[] = {"          "};
+  int i;
+  long in = 0L, out = 0L;
+  DB *dbp, *dbpo;
+  DBT key, data, keyo, datao;
+  FILE *fopen(), *fin;
+
+  if ((fin = fopen(argv[1],"r")) == NULL) {
+    printf("Unable to open %s\n",argv[1]);
+    exit(25);
+  }
+  if ((dbp = dbopen("test.db",O_RDWR | O_CREAT, 0664
+       , DB_BTREE, NULL )) == NULL) {
+    printf("\n Open error on test.db %d %s\n",errno,strerror(errno));
+    exit(25);
+  }
+   
+  while (fscanf(fin," %10s%10s",id1,id2) > 0) {
+    key.size = 11;
+    data.size = 11;
+    key.data = id1;
+    data.data = id2;
+    printf("%10s %10s\n",key.data,data.data); 
+    if (dbp->put(dbp, &key, &data,R_NOOVERWRITE) != 0) {
+      printf("Error writing output\n");
+    }
+    out++;
+  }
+  printf("%d Records in\n",out);
+  dbp->close(dbp);
+  
+  if ((dbp = dbopen("test.db", O_RDWR, 0664
+       , DB_BTREE, NULL )) == NULL) {
+    printf("\n Error on dbopen %d %s\n",errno,strerror(errno));
+    exit(61);
+  }
+
+  while (dbp->seq(dbp, &key, &data,R_NEXT) == 0) {
+    strcpy(id1,key.data);
+    keyo.size = 11;
+    datao.size = 11;
+    keyo.data = id1;
+    strcpy(id2,data.data);
+    id2[0] = 'U';
+    datao.data=id2;
+    printf("%10s %10s\n",key.data,data.data); 
+    in++;
+    if (in > 50) break;
+    if (dbp->put(dbp, &keyo, &datao,0) != 0) {
+        printf("Write failed at %d\n",in);
+        exit(85);
+    }
+  }
+  printf("%d Records copied\n",in);
+  in = 0;
+    dbp->seq(dbp, &key, &data,R_FIRST);
+    printf("%10s %10s\n",key.data,data.data); 
+    in++;
+  while (dbp->seq(dbp, &key, &data,R_NEXT) == 0) {
+    in++;
+    printf("%10s %10s\n",key.data,data.data); 
+  }
+  printf("%d Records read\n",in);
+  dbp->close(dbp);
+}
+
+
+-- 
+George Wiggans           I================================================I
+                         |Animal Improvement Programs Laboratory          |
+Phone:   301-504-8407    |Bldg 263 Beltsville Agricultural Research Center|
+FAX:     301-504-8092    |Beltsville, MD 20705-2350  USA                  |
+wiggans@aipl.arsusda.gov |                                                |
+=========================I================================================I
+
+From bostic Fri Sep 23 08:44:56 1994
+To: wiggans@aipl.arsusda.gov /usr/src/local/db/test/SEQ_TEST/mbox
+Subject: Re: Test case
+
+
+OK, I've attached a tentative patch for the bug, that appears
+to fix it on my local system.  Please let me know if you have
+any further problems with this.
+
+There are a couple of issues here.  The first, is that to some
+extent, the btree code is correct.  You aren't replacing the
+cursor in your test program, you're adding a new key, which
+just happens to be where the cursor was.  So, the btree code
+is doing you a favor by returning the new key as part of the
+cursor walk, and it's not its fault.  ;-}
+
+However, because a put to the cursor record is done using a
+delete/add pair, doing it the "right" way will result in the
+exact same behavior as you saw doing it "wrong".
+
+Thinking about this further, there's another bug that's going to
+hit eventually -- if you have duplicate records, the current
+scheme of doing delete/add to replace the cursor record can result
+in a record being returned twice, which is tacky at best, if not
+actually wrong.
+
+I think I may have to revisit how duplicate records are stored.
+Which does not make me happy. ;-{
+
+--keith
+
+*** db/btree/bt_seq.c.orig	Fri Sep 23 08:35:06 1994
+--- db/btree/bt_seq.c	Fri Sep 23 08:34:58 1994
+***************
+*** 35,41 ****
+   */
+  
+  #if defined(LIBC_SCCS) && !defined(lint)
+! static char sccsid[] = "@(#)bt_seq.c	8.7 (Berkeley) 7/20/94";
+  #endif /* LIBC_SCCS and not lint */
+  
+  #include <sys/types.h>
+--- 35,41 ----
+   */
+  
+  #if defined(LIBC_SCCS) && !defined(lint)
+! static char sccsid[] = "@(#)bt_seq.c	8.8 (Berkeley) 9/23/94";
+  #endif /* LIBC_SCCS and not lint */
+  
+  #include <sys/types.h>
+***************
+*** 246,252 ****
+  	PAGE *h;
+  	indx_t index;
+  	pgno_t pg;
+! 	int exact;
+  
+  	/*
+  	 * There are a couple of states that we can be in.  The cursor has
+--- 246,252 ----
+  	PAGE *h;
+  	indx_t index;
+  	pgno_t pg;
+! 	int exact, rval;
+  
+  	/*
+  	 * There are a couple of states that we can be in.  The cursor has
+***************
+*** 255,269 ****
+  	c = &t->bt_cursor;
+  
+  	/*
+! 	 * The cursor was deleted where there weren't any duplicate records,
+! 	 * so the key was saved.  Find out where that key would go in the
+! 	 * current tree.  It doesn't matter if the returned key is an exact
+! 	 * match or not -- if it's an exact match, the record was added after
+! 	 * the delete so we can just return it.  If not, as long as there's
+! 	 * a record there, return it.
+  	 */
+! 	if (F_ISSET(c, CURS_ACQUIRE))
+! 		return (__bt_first(t, &c->key, ep, &exact));
+  
+  	/* Get the page referenced by the cursor. */
+  	if ((h = mpool_get(t->bt_mp, c->pg.pgno, 0)) == NULL)
+--- 255,299 ----
+  	c = &t->bt_cursor;
+  
+  	/*
+! 	 * The cursor was deleted and there weren't any duplicate records,
+! 	 * so the cursor's key was saved.  Find out where that key would
+! 	 * be in the current tree.  If the returned key is an exact match,
+! 	 * it means that a key/data pair was inserted into the tree after
+! 	 * the delete.  We could reasonably return the key, but the problem
+! 	 * is that this is the access pattern we'll see if the user is
+! 	 * doing seq(..., R_NEXT)/put(..., 0) pairs, i.e. the put deletes
+! 	 * the cursor record and then replaces it, so the cursor was saved,
+! 	 * and we'll simply return the same "new" record until the user
+! 	 * notices and doesn't do a put() of it.  Since the key is an exact
+! 	 * match, we could as easily put the new record before the cursor,
+! 	 * and we've made no guarantee to return it.  So, move forward or
+! 	 * back a record if it's an exact match.
+! 	 *
+! 	 * XXX
+! 	 * In the current implementation, put's to the cursor are done with
+! 	 * delete/add pairs.  This has two consequences.  First, it means
+! 	 * that seq(..., R_NEXT)/put(..., R_CURSOR) pairs are going to exhibit
+! 	 * the same behavior as above.  Second, you can return the same key
+! 	 * twice if you have duplicate records.  The scenario is that the
+! 	 * cursor record is deleted, moving the cursor forward or backward
+! 	 * to a duplicate.  The add then inserts the new record at a location
+! 	 * ahead of the cursor because duplicates aren't sorted in any way,
+! 	 * and the new record is later returned.  This has to be fixed at some
+! 	 * point.
+  	 */
+! 	if (F_ISSET(c, CURS_ACQUIRE)) {
+! 		if (rval = __bt_first(t, &c->key, ep, &exact))
+! 			return (RET_ERROR);
+! 		if (!exact)
+! 			return (rval);
+! 		/*
+! 		 * XXX
+! 		 * Kluge -- get, release, get the page.
+! 		 */
+! 		c->pg.pgno = ep->page->pgno;
+! 		c->pg.index = ep->index;
+! 		mpool_put(t->bt_mp, ep->page, 0);
+! 	}
+  
+  	/* Get the page referenced by the cursor. */
+  	if ((h = mpool_get(t->bt_mp, c->pg.pgno, 0)) == NULL)
+
+
+

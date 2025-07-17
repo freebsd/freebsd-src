@@ -1,0 +1,40 @@
+
+#------------------------------------------------------------------------------
+# $File: sosi,v 1.2 2021/02/23 00:51:10 christos Exp $
+# SOSI
+# Summary: Systematic Organization of Spatial Information
+# Long description: Norwegian text based map format
+# File extension: .sos
+# Full name:    Petter Reinholdtsen (pere@hungry.com)
+# Reference: https://en.wikipedia.org/wiki/SOSI
+#
+# Example SOSI files available from
+# https://trac.osgeo.org/gdal/ticket/3638
+# https://nedlasting.geonorge.no/geonorge/Basisdata/N50Kartdata/SOSI/
+# https://nedlasting.geonorge.no/geonorge/Samferdsel/Elveg/SOSI/
+#
+# Start with optional comments (from "!" to the next line end)
+# followed by ".HODE" and end with "\n.SLUTT" followed by an optional
+# separator (any number of " ", "\t", "\n" or "\r"), might have BOM at
+# the start and following ".HODE" near the start there is "..OMR=C3=85DE"
+# (either UTF-8, ISO-8859-1 or some 7 bit Norwegian charset based on
+# ASCII) , "..TRANSPAR", "..TEGNSETT " followed by the charset and a
+# separator, as well as "..SOSI-VERSJON " followed by the format
+# version and a separator.
+#
+# FIXME figure out how to accept any of [space], [tab], [newline] and
+# [carriage return] as separators, not only line end.
+
+# Not searching for full "OMR=C3=85DE" to match also for non-UTF-8
+# character sets
+0	search	..OMR
+>0	search	..TRANSPAR
+>>0       search  .HODE           SOSI map data
+>>>&0      search  ..SOSI-VERSJON
+>>>>&1	string	x		\b, version %s
+# FIXME could not figure out way to make a match for .SLUTT at the end required
+#>-7      string  \n.SLUTT	slutt
+#>-8      string  \n.SLUTT\n	slutt-nl
+#>-9      string  \n.SLUTT\r\n	slutt-crnl2
+!:mime text/vnd.sosi
+!:ext sos

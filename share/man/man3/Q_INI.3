@@ -1,0 +1,259 @@
+.\"
+.\" Copyright (c) 2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 8, 2018
+.Dt Q_INI 3
+.Os
+.Sh NAME
+.Nm Q_INI ,
+.Nm Q_NCBITS ,
+.Nm Q_BT ,
+.Nm Q_TC ,
+.Nm Q_NTBITS ,
+.Nm Q_NFCBITS ,
+.Nm Q_MAXNFBITS ,
+.Nm Q_NFBITS ,
+.Nm Q_NIBITS ,
+.Nm Q_RPSHFT ,
+.Nm Q_ABS ,
+.Nm Q_MAXSTRLEN ,
+.Nm Q_TOSTR ,
+.Nm Q_SHL ,
+.Nm Q_SHR ,
+.Nm Q_DEBUG
+.Nd fixed-point math miscellaneous functions/variables
+.Sh SYNOPSIS
+.In sys/qmath.h
+.Ft QTYPE
+.Fn Q_INI "QTYPE *q" "ITYPE iv" "ITYPE dfv" "int rpshft"
+.Fd Q_NCBITS
+.Ft __typeof(q)
+.Fn Q_BT "QTYPE q"
+.Ft ITYPE
+.Fn Q_TC "QTYPE q" "ITYPE v"
+.Ft uint32_t
+.Fn Q_NTBITS "QTYPE q"
+.Ft uint32_t
+.Fn Q_NFCBITS "QTYPE q"
+.Ft uint32_t
+.Fn Q_MAXNFBITS "QTYPE q"
+.Ft uint32_t
+.Fn Q_NFBITS "QTYPE q"
+.Ft uint32_t
+.Fn Q_NIBITS "QTYPE q"
+.Ft uint32_t
+.Fn Q_RPSHFT "QTYPE q"
+.Ft NTYPE
+.Fn Q_ABS "NTYPE n"
+.Ft uint32_t
+.Fn Q_MAXSTRLEN "QTYPE q" "int base"
+.Ft char *
+.Fn Q_TOSTR "QTYPE q" "int prec" "int base" "char *s" "int slen"
+.Ft ITYPE
+.Fn Q_SHL "QTYPE q" "ITYPE iv"
+.Ft ITYPE
+.Fn Q_SHR "QTYPE q" "ITYPE iv"
+.Ft char *, ...
+.Fn Q_DEBUG "QTYPE q" "char *prefmt" "char *postfmt" "incfmt"
+.Ft ITYPE
+.Fn Q_DFV2BFV "ITYPE dfv" "int nfbits"
+.Sh DESCRIPTION
+.Fn Q_INI
+initialises a Q number with the supplied integral value
+.Fa iv
+and decimal fractional value
+.Fa dfv ,
+with appropriate control bits based on the requested radix shift point
+.Fa rpshft .
+.Fa dfv
+must be passed as a preprocessor literal to preserve leading zeroes.
+.Pp
+The
+.Dv Q_NCBITS
+defined constant specifies the number of reserved control bits, currently 3.
+.Pp
+.Fn Q_NTBITS ,
+.Fn Q_NFCBITS ,
+.Fn Q_MAXNFBITS ,
+.Fn Q_NFBITS
+and
+.Fn Q_NIBITS
+return the
+.Fa q Ns -specific
+count of total, control-encoded fractional, maximum fractional, effective
+fractional, and integer bits applicable to
+.Fa q
+respectively.
+.Pp
+.Fn Q_BT
+returns the C data type of
+.Fa q ,
+while
+.Fn Q_TC
+returns
+.Fa v
+type casted to the C data type of
+.Fa q .
+.Pp
+.Fn Q_RPSHFT
+returns the bit position of
+.Fa q Ap s
+binary radix point relative to bit zero.
+.Pp
+.Fn Q_ABS
+returns the absolute value of any standard numeric type
+.Pq that uses the MSB as a sign bit, but not Q numbers
+passed in as
+.Fa n .
+The function is signed/unsigned type safe.
+.Pp
+.Fn Q_SHL
+and
+.Fn Q_SHR
+return the integral value
+.Fa v
+left or right shifted by the appropriate amount for
+.Fa q .
+.Pp
+.Fn Q_MAXSTRLEN
+calculates the maximum number of characters that may be required to render the
+C-string representation of
+.Fa q
+with numeric base
+.Fa base .
+.Pp
+.Fn Q_TOSTR
+renders the C-string representation of
+.Fa q
+with numeric base
+.Fa base
+and fractional precision
+.Fa prec
+into
+.Fa s
+which has an available capacity of
+.Fa slen
+characters.
+.Fa base
+must be in range
+.Bq 2,16 .
+Specifying
+.Fa prec
+as -1 renders the number's fractional component with maximum precision.
+If
+.Fa slen
+is greater than zero but insufficient to hold the complete C-string, the '\\0'
+C-string terminator will be written to
+.Fa *s ,
+thereby returning a zero length C-string.
+.Pp
+.Fn Q_DEBUG
+returns a format string and associated data suitable for printf-like rendering
+of debugging information pertaining to
+.Fa q .
+If either
+.Fa prefmt
+and/or
+.Fa postfmt
+are specified, they are prepended and appended to the resulting format string
+respectively.
+The
+.Fa incfmt
+boolean specifies whether to include
+.Pq Vt true
+or exclude
+.Pq Vt false
+the raw format string itself in the debugging output.
+.Pp
+.Fn Q_DFV2BFV
+converts decimal fractional value
+.Fa dfv
+to its binary-encoded representation with
+.Fa nfbits
+of binary precision.
+.Fa dfv
+must be passed as a preprocessor literal to preserve leading zeroes.
+The returned value can be used to set a Q number's fractional bits, for example
+using
+.Fn Q_SFVAL .
+.Pp
+All of those functions operate on
+the following data types:
+.Vt s8q_t ,
+.Vt u8q_t ,
+.Vt s16q_t ,
+.Vt u16q_t ,
+.Vt s32q_t ,
+.Vt u32q_t ,
+.Vt s64q_t ,
+and
+.Vt u64q_t ,
+which are referred to generically as
+.Fa QTYPE .
+The
+.Fa ITYPE
+refers to the
+.Xr stdint 7
+integer types.
+.Fa NTYPE
+is used to refer to any numeric type and is therefore a superset of
+.Fa QTYPE
+and
+.Fa ITYPE .
+.Pp
+For more details, see
+.Xr qmath 3 .
+.Sh RETURN VALUES
+.Fn Q_INI
+returns the initialised Q number which can be used to chain initialise
+additional Q numbers.
+.Pp
+.Fn Q_TOSTR
+returns a pointer to the '\\0' C-string terminator appended to
+.Fa s
+after the rendered numeric data, or NULL on buffer overflow.
+.Pp
+.Fn Q_DFV2BFV
+returns the binary-encoded representation of decimal fractional value
+.Fa dfv
+with
+.Fa nfbits
+of binary precision.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr qmath 3 ,
+.Xr stdint 7
+.Sh HISTORY
+The
+.Xr qmath 3
+functions first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr qmath 3
+functions and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.

@@ -1,0 +1,12 @@
+Making dependency1 from <nothing>.
+Making dependency2 from <nothing>.
+Making trace from dependency1 dependency2.
+<timestamp> 0 BEG <make-pid> <curdir>
+<timestamp> 1 JOB <make-pid> <curdir> dependency1 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 DON <make-pid> <curdir> dependency1 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 JOB <make-pid> <curdir> dependency2 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 DON <make-pid> <curdir> dependency2 <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK
+<timestamp> 1 JOB <make-pid> <curdir> trace <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND
+<timestamp> 1 DON <make-pid> <curdir> trace <job-pid> --- OP_DEPENDS|OP_PHONY|OP_HAS_COMMANDS|OP_DEPS_FOUND
+<timestamp> 0 END <make-pid> <curdir>
+exit status 0

@@ -1,0 +1,337 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kadm5.acl &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="Realm configuration decisions" href="../realm_config.html" />
+    <link rel="prev" title="kdc.conf" href="kdc_conf.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kdc_conf.html" title="kdc.conf"
+            accesskey="P">previous</a> |
+        <a href="../realm_config.html" title="Realm configuration decisions"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kadm5.acl">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kadm5-acl">
+<span id="kadm5-acl-5"></span><h1>kadm5.acl<a class="headerlink" href="#kadm5-acl" title="Permalink to this headline">¶</a></h1>
+<section id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The Kerberos <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemon uses an Access Control List
+(ACL) file to manage access rights to the Kerberos database.
+For operations that affect principals, the ACL file also controls
+which principals can operate on which other principals.</p>
+<p>The default location of the Kerberos ACL file is
+<a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/kadm5.acl</span></code>  unless this is overridden by the <em>acl_file</em>
+variable in <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</section>
+<section id="syntax">
+<h2>SYNTAX<a class="headerlink" href="#syntax" title="Permalink to this headline">¶</a></h2>
+<p>Empty lines and lines starting with the sharp sign (<code class="docutils literal notranslate"><span class="pre">#</span></code>) are
+ignored.  Lines containing ACL entries have the format:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">principal</span>  <span class="n">permissions</span>  <span class="p">[</span><span class="n">target_principal</span>  <span class="p">[</span><span class="n">restrictions</span><span class="p">]</span> <span class="p">]</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Line order in the ACL file is important.  The first matching entry
+will control access for an actor principal on a target principal.</p>
+</div>
+<dl>
+<dt><em>principal</em></dt><dd><p>(Partially or fully qualified Kerberos principal name.) Specifies
+the principal whose permissions are to be set.</p>
+<p>Each component of the name may be wildcarded using the <code class="docutils literal notranslate"><span class="pre">*</span></code>
+character.</p>
+</dd>
+<dt><em>permissions</em></dt><dd><p>Specifies what operations may or may not be performed by a
+<em>principal</em> matching a particular entry.  This is a string of one or
+more of the following list of characters or their upper-case
+counterparts.  If the character is <em>upper-case</em>, then the operation
+is disallowed.  If the character is <em>lower-case</em>, then the operation
+is permitted.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 2%" />
+<col style="width: 98%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>a</p></td>
+<td><p>[Dis]allows the addition of principals or policies</p></td>
+</tr>
+<tr class="row-even"><td><p>c</p></td>
+<td><p>[Dis]allows the changing of passwords for principals</p></td>
+</tr>
+<tr class="row-odd"><td><p>d</p></td>
+<td><p>[Dis]allows the deletion of principals or policies</p></td>
+</tr>
+<tr class="row-even"><td><p>e</p></td>
+<td><p>[Dis]allows the extraction of principal keys</p></td>
+</tr>
+<tr class="row-odd"><td><p>i</p></td>
+<td><p>[Dis]allows inquiries about principals or policies</p></td>
+</tr>
+<tr class="row-even"><td><p>l</p></td>
+<td><p>[Dis]allows the listing of all principals or policies</p></td>
+</tr>
+<tr class="row-odd"><td><p>m</p></td>
+<td><p>[Dis]allows the modification of principals or policies</p></td>
+</tr>
+<tr class="row-even"><td><p>p</p></td>
+<td><p>[Dis]allows the propagation of the principal database (used in <a class="reference internal" href="../database.html#incr-db-prop"><span class="std std-ref">Incremental database propagation</span></a>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>s</p></td>
+<td><p>[Dis]allows the explicit setting of the key for a principal</p></td>
+</tr>
+<tr class="row-even"><td><p>x</p></td>
+<td><p>Short for admcilsp. All privileges (except <code class="docutils literal notranslate"><span class="pre">e</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>*</p></td>
+<td><p>Same as x.</p></td>
+</tr>
+</tbody>
+</table>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">extract</span></code> privilege is not included in the wildcard
+privilege; it must be explicitly assigned.  This privilege
+allows the user to extract keys from the database, and must be
+handled with great care to avoid disclosure of important keys
+like those of the kadmin/* or krbtgt/* principals.  The
+<strong>lockdown_keys</strong> principal attribute can be used to prevent
+key extraction from specific principals regardless of the
+granted privilege.</p>
+</div>
+<dl>
+<dt><em>target_principal</em></dt><dd><p>(Optional. Partially or fully qualified Kerberos principal name.)
+Specifies the principal on which <em>permissions</em> may be applied.
+Each component of the name may be wildcarded using the <code class="docutils literal notranslate"><span class="pre">*</span></code>
+character.</p>
+<p><em>target_principal</em> can also include back-references to <em>principal</em>,
+in which <code class="docutils literal notranslate"><span class="pre">*number</span></code> matches the corresponding wildcard in
+<em>principal</em>.</p>
+</dd>
+<dt><em>restrictions</em></dt><dd><p>(Optional) A string of flags. Allowed restrictions are:</p>
+<blockquote>
+<div><dl class="simple">
+<dt>{+|-}<em>flagname</em></dt><dd><p>flag is forced to the indicated value.  The permissible flags
+are the same as those for the <strong>default_principal_flags</strong>
+variable in <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</dd>
+<dt><em>-clearpolicy</em></dt><dd><p>policy is forced to be empty.</p>
+</dd>
+<dt><em>-policy pol</em></dt><dd><p>policy is forced to be <em>pol</em>.</p>
+</dd>
+<dt>-{<em>expire, pwexpire, maxlife, maxrenewlife</em>} <em>time</em></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#getdate"><span class="std std-ref">getdate time</span></a> string) associated value will be forced to
+MIN(<em>time</em>, requested value).</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>The above flags act as restrictions on any add or modify operation
+which is allowed due to that ACL line.</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If the kadmind ACL file is modified, the kadmind daemon needs to be
+restarted for changes to take effect.</p>
+</div>
+</section>
+<section id="example">
+<h2>EXAMPLE<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<p>Here is an example of a kadm5.acl file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">*/</span><span class="n">admin</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>    <span class="o">*</span>                               <span class="c1"># line 1</span>
+<span class="n">joeadmin</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>   <span class="n">ADMCIL</span>                          <span class="c1"># line 2</span>
+<span class="n">joeadmin</span><span class="o">/*</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="n">i</span>   <span class="o">*/</span><span class="n">root</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>       <span class="c1"># line 3</span>
+<span class="o">*/</span><span class="n">root</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>     <span class="n">ci</span>  <span class="o">*</span><span class="mi">1</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>           <span class="c1"># line 4</span>
+<span class="o">*/</span><span class="n">root</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>     <span class="n">l</span>   <span class="o">*</span>                           <span class="c1"># line 5</span>
+<span class="n">sms</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>        <span class="n">x</span>   <span class="o">*</span> <span class="o">-</span><span class="n">maxlife</span> <span class="mi">9</span><span class="n">h</span> <span class="o">-</span><span class="n">postdateable</span> <span class="c1"># line 6</span>
+</pre></div>
+</div>
+<p>(line 1) Any principal in the <code class="docutils literal notranslate"><span class="pre">ATHENA.MIT.EDU</span></code> realm with an
+<code class="docutils literal notranslate"><span class="pre">admin</span></code> instance has all administrative privileges except extracting
+keys.</p>
+<p>(lines 1-3) The user <code class="docutils literal notranslate"><span class="pre">joeadmin</span></code> has all permissions except
+extracting keys with his <code class="docutils literal notranslate"><span class="pre">admin</span></code> instance,
+<code class="docutils literal notranslate"><span class="pre">joeadmin/admin&#64;ATHENA.MIT.EDU</span></code> (matches line 1).  He has no
+permissions at all with his null instance, <code class="docutils literal notranslate"><span class="pre">joeadmin&#64;ATHENA.MIT.EDU</span></code>
+(matches line 2).  His <code class="docutils literal notranslate"><span class="pre">root</span></code> and other non-<code class="docutils literal notranslate"><span class="pre">admin</span></code>, non-null
+instances (e.g., <code class="docutils literal notranslate"><span class="pre">extra</span></code> or <code class="docutils literal notranslate"><span class="pre">dbadmin</span></code>) have inquire permissions
+with any principal that has the instance <code class="docutils literal notranslate"><span class="pre">root</span></code> (matches line 3).</p>
+<p>(line 4) Any <code class="docutils literal notranslate"><span class="pre">root</span></code> principal in <code class="docutils literal notranslate"><span class="pre">ATHENA.MIT.EDU</span></code> can inquire
+or change the password of their null instance, but not any other
+null instance.  (Here, <code class="docutils literal notranslate"><span class="pre">*1</span></code> denotes a back-reference to the
+component matching the first wildcard in the actor principal.)</p>
+<p>(line 5) Any <code class="docutils literal notranslate"><span class="pre">root</span></code> principal in <code class="docutils literal notranslate"><span class="pre">ATHENA.MIT.EDU</span></code> can generate
+the list of principals in the database, and the list of policies
+in the database.  This line is separate from line 4, because list
+permission can only be granted globally, not to specific target
+principals.</p>
+<p>(line 6) Finally, the Service Management System principal
+<code class="docutils literal notranslate"><span class="pre">sms&#64;ATHENA.MIT.EDU</span></code> has all permissions except extracting keys, but
+any principal that it creates or modifies will not be able to get
+postdateable tickets or tickets with a life of longer than 9 hours.</p>
+</section>
+<section id="module-behavior">
+<h2>MODULE BEHAVIOR<a class="headerlink" href="#module-behavior" title="Permalink to this headline">¶</a></h2>
+<p>The ACL file can coexist with other authorization modules in release
+1.16 and later, as configured in the <a class="reference internal" href="krb5_conf.html#kadm5-auth"><span class="std std-ref">kadm5_auth interface</span></a> section of
+<a class="reference internal" href="krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  The ACL file will positively authorize
+operations according to the rules above, but will never
+authoritatively deny an operation, so other modules can authorize
+operations in addition to those authorized by the ACL file.</p>
+<p>To operate without an ACL file, set the <em>acl_file</em> variable in
+<a class="reference internal" href="kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> to the empty string with <code class="docutils literal notranslate"><span class="pre">acl_file</span> <span class="pre">=</span> <span class="pre">&quot;&quot;</span></code>.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>, <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kadm5.acl</a><ul>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#syntax">SYNTAX</a></li>
+<li><a class="reference internal" href="#example">EXAMPLE</a></li>
+<li><a class="reference internal" href="#module-behavior">MODULE BEHAVIOR</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Configuration Files</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="krb5_conf.html">krb5.conf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdc_conf.html">kdc.conf</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kadm5.acl</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kdc_conf.html" title="kdc.conf"
+            >previous</a> |
+        <a href="../realm_config.html" title="Realm configuration decisions"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kadm5.acl">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

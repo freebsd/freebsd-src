@@ -1,0 +1,150 @@
+.\" Copyright 2012-2024 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd March 22, 2024
+.Dt KYUA.CONF 5
+.Os
+.Sh NAME
+.Nm kyua.conf
+.Nd Configuration file for the kyua tool
+.Sh SYNOPSIS
+.Fn syntax "int version"
+.Pp
+Variables:
+.Va architecture ,
+.Va execenvs ,
+.Va platform ,
+.Va test_suites ,
+.Va unprivileged_user .
+.Sh DESCRIPTION
+The configuration of Kyua is a simple collection of key/value pairs called
+configuration variables.
+There are configuration variables that have a special meaning to the runtime
+engine implemented by
+.Xr kyua 1 ,
+and there are variables that only have meaning in the context of particular
+test suites.
+.Pp
+Configuration files are Lua scripts.
+In their most basic form, their whole purpose is to assign values to
+variables, but the user has the freedom to implement any logic he desires
+to compute such values.
+.Ss File versioning
+Every
+.Nm
+file starts with a call to
+.Fn syntax "int version" .
+This call determines the specific schema used by the file so that future
+backwards-incompatible modifications to the file can be introduced.
+.Pp
+Any new
+.Nm
+file should set
+.Fa version
+to
+.Sq 2 .
+.Ss Runtime configuration variables
+The following variables are internally recognized by
+.Xr kyua 1 :
+.Bl -tag -width XX -offset indent
+.It Va architecture
+Name of the system architecture (aka processor type).
+.It Va execenvs
+Whitespace-separated list of execution environment names.
+.Pp
+Only tests which require one of the given execution environments will be run.
+.Pp
+See
+.Xr kyuafile 5
+for the list of possible execution environments.
+.It Va parallelism
+Maximum number of test cases to execute concurrently.
+.It Va platform
+Name of the system platform (aka machine type).
+.It Va unprivileged_user
+Name or UID of the unprivileged user.
+.Pp
+If set, the given user must exist in the system and his privileges will be
+used to run test cases that need regular privileges when
+.Xr kyua 1
+is executed as root.
+.El
+.Ss Test-suite configuration variables
+Each test suite is able to recognize arbitrary configuration variables, and
+their type and meaning is specific to the test suite.
+Because the existence and naming of these variables depends on every test
+suite, this manual page cannot detail them; please refer to the documentation
+of the test suite you are working with for more details on this topic.
+.Pp
+Test-suite specific configuration variables are defined inside the
+.Va test_suites
+dictionary.
+The general syntax is:
+.Bd -literal -offset indent
+test_suites.<test_suite_name>.<variable_name> = <value>
+.Ed
+.Pp
+where
+.Va test_suite_name
+is the name of the test suite,
+.Va variable_name
+is the name of the variable to set, and
+.Va value
+is a value.
+The value can be a string, an integer or a boolean.
+.Sh FILES
+.Bl -tag -width XX
+.It __EGDIR__/kyua.conf
+Sample configuration file.
+.El
+.Sh EXAMPLES
+The following
+.Nm
+shows a simple configuration file that overrides a bunch of the built-in
+.Xr kyua 1
+configuration variables:
+.Bd -literal -offset indent
+syntax(2)
+
+architecture = 'x86_64'
+platform = 'amd64'
+.Ed
+.Pp
+The following is a more complex example that introduces the definition of
+per-test suite configuration variables:
+.Bd -literal -offset indent
+syntax(2)
+
+-- Assign built-in variables.
+unprivileged_user = '_tests'
+
+-- Assign test-suite variables.  All of these must be strings.
+test_suites.NetBSD.file_systems = 'ffs ext2fs'
+test_suites.X11.graphics_driver = 'vesa'
+.Ed
+.Sh SEE ALSO
+.Xr kyua 1

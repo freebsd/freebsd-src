@@ -1,0 +1,300 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 29, 2025
+.Dt MENU.LUA 8
+.Os
+.Sh NAME
+.Nm menu.lua
+.Nd bootloader dynamic menu module
+.Sh DESCRIPTION
+.Nm
+contains the main functionality required to build a dynamic menu system.
+It also contains definitions for the built-in menus, some of which are
+influenced by
+.Xr loader 8
+environment variables.
+.Pp
+Before hooking into the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local menu = require("menu")
+.Ss MENU DEFINITIONS
+Menus are represented in
+.Nm
+as a table.
+That table
+.Sy must
+contain an
+.Va entries
+key.
+.Pp
+If the value of the
+.Va entries
+key is itself a table, then each value in this table defines a single entry in
+this menu.
+See
+.Sx MENU ITEM DEFINITIONS
+for the structure of each entry.
+.Pp
+.Va entries
+may also be a function.
+This function must return a table, each value of which defines a single entry
+in this menu.
+See
+.Sx MENU ITEM DEFINITIONS .
+.Ss MENU ITEM DEFINITIONS
+The following keys may be defined for a menu item:
+.Bl -tag -width disable-module_module -offset indent
+.It Ic entry_type
+The type of this menu entry.
+See
+.Sx MENU ITEM TYPES .
+.It Ic carousel_id
+A unique string id for this carousel.
+A carousel is a menu entry that rotates through a selection of items.
+Used for storage of the carousel's current setting.
+.It Ic visible
+A lambda that returns
+.Dv true
+if this menu item should be visible and
+.Dv false
+if it should not be visible.
+.It Ic items
+A table (or a lambda that returns a table) of the possible choices for this
+carousel.
+.It Ic name
+A string (or a lambda that returns a string) containing the current name of this
+item.
+.It Ic func
+The function executed when this entry is selected.
+Every type except for
+.Ic core.MENU_SEPARATOR
+may have a
+.Ic func .
+.It Ic submenu
+The submenu menu definition to draw when this entry is selected.
+.It Ic alias
+A table of case-sensitive aliases for this menu entry.
+All menu entries that can be selected may have any number of
+.Ic alias
+entries.
+.El
+.Pp
+.Ic entry_type
+is the only required key for every entry type.
+.Ic name
+is required for all entry types except for
+.Ic core.MENU_SEPARATOR .
+.Ss MENU ITEM TYPES
+The menu item type constants are defined in
+.Xr core.lua 8 .
+The following types are available:
+.Bl -tag -width core.MENU_CAROUSEL_ENTRY -offset indent
+.It Ic core.MENU_RETURN
+Return to the parent menu.
+If the current menu is the default menu,
+.Nm
+will exit the menu and begin the autoboot sequence (if applicable).
+This type of menu entry may execute
+.Ic func ,
+when selected, and has a
+.Ic name .
+.It Ic core.MENU_ENTRY
+A normal menu entry that executes
+.Ic func
+when selected, and has a
+.Ic name .
+.It Ic core.MENU_SEPARATOR
+A menu entry that serves as a separator.
+It may have a
+.Ic name .
+.It Ic core.MENU_SUBMENU
+A menu entry that opens
+.Ic submenu
+when selected.
+It may have a
+.Ic name .
+.It Ic core.MENU_CAROUSEL_ENTRY
+A menu entry that rotates through
+.Ic items
+like a carousel.
+.Ic func
+is executed when selected, and the callback is passed the choice index, name of
+the current choice, and the table of choices.
+.El
+.Ss EXPORTED MENUS
+The following menus are exported by
+.Nm :
+.Bl -tag -width menu.boot_environments -offset indent
+.It Ic menu.default
+The default menu to draw.
+Set to
+.Ic menu.welcome
+by default.
+.It Ic menu.welcome
+The welcome menu.
+Contains single and multi user boot options, as well as entries to access other
+menus.
+.It Ic menu.boot_options
+The "Boot Options" menu.
+.It Ic menu.boot_environments
+The "Boot Environments" menu.
+This menu is only visible if the system is booted on a ZFS partition and more
+than one boot environment was detected at boot.
+.El
+.Sh EXAMPLES
+To replace the default boot menu with a simple boot menu:
+.Pp
+.Bd -literal -offset indent -compact
+local core = require("core")
+local menu = require("menu")
+
+menu.default = {
+	entries = {
+		{
+			entry_type = core.MENU_ENTRY,
+			name = "Boot",
+			func = core.boot,
+		},
+		{
+			entry_type = core.MENU_CAROUSEL_ENTRY,
+			carousel_id = "unique_boot_entry_name",
+			items = {"NO", "YES"},
+			name = function(_, choice, _)
+				return "Option: " .. choice
+			end,
+			func = function(_, _, _)
+				loader.setenv("some_envvar", "some_value")
+			end,
+		},
+	},
+}
+.Ed
+.Pp
+To add another option to the welcome menu:
+.Pp
+.Bd -literal -offset indent -compact
+local core = require("core")
+local menu = require("menu")
+
+local my_entry = {
+	entry_type = core.MENU_ENTRY,
+	name = "Fancy Boot",
+	func = core.boot,
+},
+
+local stock_entries = menu.welcome.entries
+function menu.welcome.entries()
+	local ents = stock_entries()
+	ents[#ents + 1] = my_entry
+	return ents
+end
+.Ed
+.Pp
+To create a vendor submenu or other vendor menu option,
+override
+.Ic menu.welcome.all_entires.vendor
+like so:
+.Pp
+.Bd -literal -offset indent -compact
+local core = require("core")
+local menu = require("menu")
+
+-- Fill in with vendor specific entries
+local vendor_options = {
+	entries = {
+	...
+	},
+}
+
+local welcome_entries = menu.welcome.all_entries
+welcome_entries.vendor = {
+        entry_type = core.MENU_SUBMENU,
+        name = color.highlight("V") .. "endor Options",
+        submenu = vendor_options,
+        alias = {"v", "V"},
+	visible = function()
+		return true
+	end,
+}
+.Ed
+In the above example,
+.Ic vendor_options
+is a local variable that defines the vendor submenu.
+.Pp
+To add an additional option, change the
+.Ic menu.boot_options.entries
+array.
+The following illustrates this concept:
+.Pp
+.Bd -literal -offset indent -compact
+-- This is a silly example that rotates local_option through the values
+-- 0 to 4.  local_option would still need to be used elsewhere.
+local local_option = 0
+
+-- The `entries` of a menu may either be a table or a function.  In this
+-- example we're augmenting a menu that just has a static table, but if we
+-- wanted to be more robust then we would need to instead check the type
+-- of `stock_options` here to determine our next move.
+--
+-- If `entries` is a table, then the stock menu system won't be changing it
+-- so we can just add our menu option as we do below.
+--
+-- If `entries` is a function, then we would need to provide a new function to
+-- replace `entries` that does a core.deepCopyTable() of the result and adds
+-- the below item to it.  The deep copy is necessary to avoid duplicating our
+-- new menu item and allowing the menu to alter its behavior however it pleases.
+local stock_options = menu.boot_options.entries
+stock_options[#stock_options + 1] = {
+	entry_type = core.MENU_ENTRY,
+	name = function()
+		return color.highlight('L') ..
+		    "ocal Option     : " .. local_option
+	end,
+	func = function()
+		local_option = (local_option + 1) % 5
+	end,
+	alias= {"l", "L"}
+}
+.Ed
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr core.lua 8 ,
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+file first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Pedro Souza Aq Mt pedrosouza@FreeBSD.org .
+Later work and this manual page was done by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

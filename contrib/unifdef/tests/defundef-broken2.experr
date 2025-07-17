@@ -1,0 +1,2 @@
+unifdef: broken2.h: 1: Missing macro name in #define
+unifdef: Output may be truncated

@@ -1,0 +1,130 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ MAIN
+
+: ${BSDDIALOG_OK=0}
+: ${BSDDIALOG_CANCEL=1}
+
+INTERFACE=$1
+IFCONFIG_PREFIX="$2"
+AUTO="${3:-}"
+test -z "$IFCONFIG_PREFIX" || IFCONFIG_PREFIX="$2 "
+case "${INTERFACE}" in
+"")	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
+	    --msgbox 'No interface specified for IPv4 configuration.' 0 0
+	exit 1
+	;;
+esac
+case "$AUTO" in
+""|auto)
+	;;
+*)
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
+	    --msgbox "Bad auto option '$AUTO'." 0 0
+	exit 1
+	;;
+esac
+
+if [ -n "$AUTO" ]; then
+	DHCP=1
+else
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' --yesno 'Would you like to use DHCP to configure this interface?' 0 0
+	if [ $? -eq $BSDDIALOG_OK ]; then
+		DHCP=1
+	else
+		DHCP=0
+	fi
+fi
+if [ $DHCP -eq 1 ]; then
+	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+		# XXX: get interface down otherwise after installation restart
+		# dhclient does not build a new resolv.conf (see PR262262).
+		ifconfig $INTERFACE down
+		ifconfig $INTERFACE up
+		bsddialog --backtitle "$OSNAME Installer" --infobox "Acquiring DHCP lease..." 0 0
+		err=$( pkill -F /var/run/dhclient/dhclient.${INTERFACE}.pid; dhclient $INTERFACE 2>&1 )
+		if [ $? -ne 0 ]; then
+			f_dprintf "%s" "$err"
+			if [ -n "$AUTO" ]; then
+				exit 1
+			fi
+			bsddialog --backtitle "$OSNAME Installer" --msgbox "DHCP lease acquisition failed." 0 0
+			exec $0 ${INTERFACE} "${IFCONFIG_PREFIX}"
+		fi
+	fi
+	sysrc -f $BSDINSTALL_TMPETC/._rc.conf.net ifconfig_$INTERFACE="${IFCONFIG_PREFIX}DHCP"
+	exit 0
+fi
+
+IP_ADDRESS=`ifconfig $INTERFACE inet | awk '/inet/ {printf("%s\n", $2); }'`
+NETMASK=`ifconfig $INTERFACE inet | awk '/inet/ {printf("%s\n", $4); }'`
+ROUTER=`netstat -rn -f inet | awk '/default/ {printf("%s\n", $2);}'`
+
+exec 5>&1
+IF_CONFIG=$(bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' --form 'Static Network Interface Configuration' 0 0 0 \
+	'IP Address' 1 1 "$IP_ADDRESS" 1 20 16 0 \
+	'Subnet Mask' 2 1 "$NETMASK" 2 20 16 0 \
+	'Default Router' 3 1 "$ROUTER" 3 20 16 0 \
+2>&1 1>&5)
+if [ $? -eq $BSDDIALOG_CANCEL ]; then exit 1; fi
+exec 5>&-
+
+echo $INTERFACE $IF_CONFIG |
+    awk -v prefix="$IFCONFIG_PREFIX" '{
+	printf("ifconfig_%s=\"%s\inet %s netmask %s\"\n", $1, prefix, $2, $3);
+	printf("defaultrouter=\"%s\"\n", $4);
+    }' >> $BSDINSTALL_TMPETC/._rc.conf.net
+retval=$?
+
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+	. $BSDINSTALL_TMPETC/._rc.conf.net
+	if [ -n "$2" ]; then
+		ifconfig $INTERFACE `eval echo \\\$ifconfig_$INTERFACE | sed "s|$2||"`
+	else
+		ifconfig $INTERFACE `eval echo \\\$ifconfig_$INTERFACE`
+	fi
+	if [ "$defaultrouter" ]; then
+		route delete -inet default
+		route add -inet default $defaultrouter
+		retval=$?
+	fi
+fi
+
+exit $retval
+
+################################################################################
+# END
+################################################################################

@@ -1,0 +1,44 @@
+krb5_cc_dup -  Duplicate ccache handle. 
+========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_dup(krb5_context context, krb5_ccache in, krb5_ccache * out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **in** - Credential cache handle to be duplicated
+
+	          **[out]** **out** - Credential cache handle
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Create a new handle referring to the same cache as *in* . The new handle and *in* can be closed independently.
+
+
+
+
+
+
+..
+
+
+
+
+

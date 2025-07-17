@@ -1,0 +1,329 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2010-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_variables.3x,v 1.47 2024/04/13 22:37:35 tom Exp $
+.TH curs_variables 3X 2024-04-13 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.ie \n(.g .ds : \:
+.el       .ds : \" empty
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.
+.SH NAME
+\fI\%bool\fP,
+\fI\%chtype\fP,
+\fI\%cchar_t\fP,
+\fI\%attr_t\fP,
+\fI\%SCREEN\fP,
+\fI\%WINDOW\fP,
+\fB\%TRUE\fP,
+\fB\%FALSE\fP,
+\fB\%ERR\fP,
+\fB\%OK\fP,
+\fB\%curscr\fP,
+\fB\%newscr\fP,
+\fB\%stdscr\fP,
+\fB\%COLORS\fP,
+\fB\%COLOR_PAIRS\fP,
+\fB\%COLS\fP,
+\fB\%LINES\fP,
+\fB\%ESCDELAY\fP,
+\fB\%TABSIZE\fP \-
+\fIcurses\fR data types, constants, and global variables
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fI/* data types */
+\fBtypedef \fI/*\fP .\|.\|. \fI*/\fP bool;
+\fBtypedef \fI/*\fP .\|.\|. \fI*/\fP chtype;
+\fBtypedef \fI/*\fP .\|.\|. \fI*/\fP cchar_t;
+\fBtypedef \fI/*\fP .\|.\|. \fI*/\fP attr_t;
+\fBtypedef \fI/*\fP .\|.\|. \fI*/\fP SCREEN;
+\fBtypedef \fI/*\fP .\|.\|. \fI*/\fP WINDOW;
+.PP
+\fI/* constants */
+\fBconst bool TRUE;
+\fBconst bool FALSE;
+.PP
+\fBconst \fI/*\fP .\|.\|. \fI*/\fP ERR;
+\fBconst \fI/*\fP .\|.\|. \fI*/\fP OK;
+.PP
+\fI/* variables */
+\fBint COLORS;
+\fBint COLOR_PAIRS;
+\fBint COLS;
+\fBint LINES;
+\fBWINDOW * curscr;
+\fBWINDOW * stdscr;
+.PP
+\fI/* extensions */
+\fBint ESCDELAY;
+\fBint TABSIZE;
+\fBWINDOW * newscr;
+.fi
+.SH DESCRIPTION
+This page summarizes data types,
+constants,
+and variables provided by the \fIcurses\fP library.
+Locate further discussion in \fB\%curses\fP(3X).
+.PP
+Depending on \fI\%ncurses\fP's build-time configuration,
+the variables may instead be
+macros (see \fB\%curs_threads\fP(3X) and \fB\%curs_opaque\fP(3X))
+that provide read-only access to the library's state.
+In either case,
+applications should treat them as read-only to avoid
+confusing the library.
+.SH "CONSTANTS"
+.SS "TRUE, FALSE"
+The \fIcurses\fP library defines \fBTRUE\fP and \fBFALSE\fP
+to represent the values of the Boolean data type.
+.SS "ERR, OK"
+\fIcurses\fP and \fIterminfo\fP routines frequently return these
+constant integral values indicating failure and success,
+respectively.
+.SH "PREDEFINED TYPES"
+.SS "\fIbool\fP"
+X/Open Issue 4 \fIcurses\fP (1996) preceded the ISO C99 and ISO C++98
+standards,
+each of which also defined a Boolean data type.
+The \fIcurses\fP library requires an integral type \fIbool\fP.
+.PP
+\fB\%ncurses\fP' configure script attempts to discover the
+data type used by the system's C and C++ compilers,
+to reuse for the \fIcurses\fP \fIbool\fP.
+.SS "\fIchtype\fP"
+The \fI\%chtype\fP integral type combines a
+(\*(``narrow\*('',
+8-bit)
+character with attributes encoding the character's \fIrendition\fP,
+such as the styling of its typeface and/or foreground and background
+colors.
+See,
+for example,
+\fB\%addch\fP(3X),
+\fB\%attron\fP(3X),
+and
+\fB\%inch\fP(3X).
+.SS "\fIcchar_t\fP, \fIattr_t\fP"
+\fI\%chtype\fP is too small for the standard C library's wide-character
+type,
+\fIwchar_t\fP.
+\fI\%cchar_t\fP is a type that can accommodate an \fI\%attr_t\fP and
+enough wide characters to store what Unicode terms a \fIgrapheme cluster\fP
+(a \*(``user-perceived character\*('' [UAX #29],
+which may nevertheless require several character encoding units to
+represent).
+\fI\%attr_t\fP is an integral type storing \*(``wide\*('' attributes that
+apply to \fI\%cchar_t\fPs.
+See,
+for example,
+\fB\%add_wch\fP(3X),
+\fB\%attr_on\fP(3X),
+and
+\fB\%in_wch\fP(3X).
+.SS "\fISCREEN\fP"
+.I curses
+manages a terminal device with this structure type;
+see \fB\%initscr\fP(3X).
+.SS "\fIWINDOW\fP"
+.I curses
+represents rectangular portions of the terminal screen with the
+.I \%WINDOW
+structure type;
+see subsection \*(``Overview\*('' of \fB\%ncurses\fP(3X).
+.SH "VARIABLES"
+.SS "curscr, stdscr, newscr"
+The library records updates to the terminal screen in a window named
+\fB\%curscr\fP.
+This object is referred to as the \*(``physical screen\*('' in
+\fB\%curs_refresh\fP(3X) and
+\fB\%curs_outopts\fP(3X).
+.PP
+\fI\%ncurses\fP collects pending updates to the terminal screen in a
+window named \fB\%newscr\fP.
+This object is referred to as the \*(``virtual screen\*('' in the
+\fB\%curs_kernel\fP(3X),
+\fB\%curs_refresh\fP(3X),
+and
+\fB\%curs_outopts\fP(3X).
+When the screen is refreshed,
+\fIcurses\fP determines a minimal set of updates using the terminal's
+capabilities to make \fB\%curscr\fP look like \fB\%newscr\fP.
+.PP
+Once \fIcurses\fP is initialized,
+it creates a window named \fB\%stdscr\fP.
+It is the same size as the terminal screen and is the default window
+used by routines that do not take a parameter identifying one.
+Many \fIcurses\fP functions use this window.
+.SS COLORS
+Once \fIcurses\fP is initialized,
+\fB\%COLORS\fP
+contains the number of colors supported by the terminal;
+see \fB\%curs_color\fP(3X).
+.SS COLOR_PAIRS
+Once \fIcurses\fP is initialized,
+\fB\%COLOR_PAIRS\fP
+contains the number of color pairs supported by the terminal;
+see \fB\%curs_color\fP(3X).
+.SS "COLS, LINES"
+Once \fIcurses\fP is initialized,
+.B \%COLS
+and
+.B LINES
+contain the screen's width and height in character cells,
+respectively;
+that is,
+the number of columns and lines.
+.SS ESCDELAY
+For
+.I curses
+to distinguish the ESC character resulting from a user's press of the
+\*(``Escape\*('' key on the input device from one beginning an
+.I "escape sequence"
+(as commonly produced by function keys),
+it waits after the escape character to see if further characters are
+available on the input stream within a short interval.
+.B \%ESCDELAY
+stores this interval in milliseconds.
+.PP
+If \fB\%keypad\fP(3X) is disabled for the
+.I curses
+window receiving input,
+a program must disambiguate escape sequences itself.
+.SS TABSIZE
+The \fIcurses\fP library converts a tab character to this number of
+spaces as it adds a tab to a window;
+see \fB\%curs_addch\fP(3X).
+.SH NOTES
+Either \fB\%initscr\fP(3X) or \fB\%newterm\fP(3X) initializes
+\fIcurses\fP.
+.PP
+If
+.I \%ncurses
+is configured to provide separate
+.I curses
+and
+.I \%tinfo
+libraries,
+most of these variables reside in the former.
+.SH PORTABILITY
+The X/Open Curses standard documents all of the foregoing types and
+symbols except for \fB\%newscr\fP,
+\fB\%TABSIZE\fP,
+and \fB\%ESCDELAY\fP.
+.PP
+X/Open Curses describes \fB\%curscr\fP only as \*(``an internal data
+structure\*('';
+SVr4 gave more details,
+noting its use \*(``for certain low-level operations like clearing and
+redrawing a screen containing garbage\*(''.
+.\" SVID 4, Volume 3, p. 408
+Neither specified its interaction with the rest of the interface beyond
+use as an argument to \fB\%clearok\fP(3X) and \fB\%wrefresh\fP(3X).
+.PP
+\fB\%newscr\fP is a feature of SVr4 \fIcurses\fP.
+When refreshing the screen,
+it is used as a working area for combining the standard window
+\fB\%stdscr\fP with any others the application may have created with
+\fB\%newwin\fP(3X).
+When the update of \fB\%newscr\fP is complete,
+\fIcurses\fP modifies \fB\%curscr\fP to match \fB\%newscr\fP.
+.PP
+\fB\%TABSIZE\fP is a feature of SVr4 \fIcurses\fP.
+.bP
+SVr4 initially sets \fB\%TABSIZE\fP from the terminal description's
+\fB\%init_tabs\fP capability.
+After that,
+it can be altered by applications using SVr4 \fIcurses\fP.
+.bP
+SVr4 \fIcurses\fP uses the value of \fB\%TABSIZE\fP to compute the
+position of tab stops when updating both
+the virtual screen with \fB\%addch\fP(3X) and
+the physical screen with \fB\%mvcur\fP(3X).
+.bP
+\fI\%ncurses\fP uses the value of \fB\%TABSIZE\fP only to update the
+virtual screen.
+It uses the terminal description's \*(``\fBit\fP\*(''
+(\fB\%init_tabs\fP) capability for computing hardware tabs
+(that is,
+tab stops on the physical screen).
+.bP
+Other implementations differ.
+For instance,
+NetBSD \fIcurses\fP allows \fB\%TABSIZE\fP to be set through an
+environment variable.
+\fI\%ncurses\fP does not.
+.IP
+NetBSD \fIcurses\fP does not support hardware tabs;
+it uses the \fB\%init_tabs\fP capability and the \fB\%TABSIZE\fP
+variable only for updating the virtual screen.
+.PP
+\fB\%ESCDELAY\fP is a feature of AIX \fIcurses\fP.
+.bP
+In AIX,
+the units for \fB\%ESCDELAY\fP are \fIfifths\fP of milliseconds.
+.bP
+The default value for AIX's \fB\%ESCDELAY\fP equals 0.1 seconds.
+.bP
+AIX also enforces a limit of 10,000 seconds for \fB\%ESCDELAY\fP;
+\fI\%ncurses\fP does not enforce any upper limit.
+.PP
+\fI\%ncurses\fP has long used \fB\%ESCDELAY\fP with units of
+milliseconds,
+making it impossible to be completely compatible with AIX.
+Consequently,
+most users have decided either to override the value,
+or to rely upon its default.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_color\fP(3X),
+\fB\%curs_opaque\fP(3X),
+\fB\%curs_terminfo\fP(3X),
+\fB\%curs_threads\fP(3X),
+\fB\%term_variables\fP(3X),
+\fB\%terminfo\fP(5)
+.PP
+[UAX #29] \*(``Unicode Standard Annex #29: Unicode Text
+Segmentation\*('';
+\%<https://\*:unicode\*:.org/\*:reports/\*:tr29/>

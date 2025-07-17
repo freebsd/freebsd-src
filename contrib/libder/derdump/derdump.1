@@ -1,0 +1,51 @@
+.\"
+.\" SPDX-Copyright-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (C) 2024 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.Dd March 4, 2024
+.Dt DERDUMP 1
+.Os
+.Sh NAME
+.Nm derdump
+.Nd dumping contents of DER encoded files
+.Sh SYNOPSIS
+.Nm
+.Ar file1
+.Oo Ar fileN ... Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility dumps the contents of one or more DER encoded
+Ar file
+in a more human readable format.
+This is similar to the
+.Xr asn1parse 1
+utility distributed with OpenSSL when used with the
+.Fl inform
+.Ar DER
+option.
+.Pp
+A representation of the object will be output to
+.Em stdout ,
+with indentation to denote objects that are encoded within other constructed
+objects.
+Note that
+.Nm
+does not make much attempt to interpret the contents of any particular object.
+If an object uses one of the universal types, then a friendly name will be
+displayed for that object.
+If an object uses any other type, then
+.Nm
+will display the raw hex value of the type used.
+Values of primitive objects are output as raw hex, and no effort is made to
+try and print a friendly representation.
+.Sh SEE ALSO
+.Xr asn1parse 1 ,
+.Xr libder 3
+.Sh BUGS
+.Nm
+does not currently make any attempt to render a type that uses the long encoded
+format.
+Instead, it will render as
+.Dq { ... } .

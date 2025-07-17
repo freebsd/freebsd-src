@@ -1,0 +1,85 @@
+{
+   glibc.getifaddrs.sendto.uninit
+   Memcheck:Param
+   socketcall.sendto(msg)
+   fun:sendto
+   fun:getifaddrs
+   fun:krb5int_foreach_localaddr
+}
+{
+   glibc.getnameinfo.gifname.uninit
+   Memcheck:Param
+   ioctl(SIOCGIFNAME)
+   fun:ioctl
+   fun:getnameinfo
+   fun:krb5int_getnameinfo
+}
+{
+   glibc.x86_64.dlopen.name
+   Memcheck:Addr8
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/libc-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   fun:_dl_open
+}
+{
+   glibc.x86_64.dlopen.cond
+   Memcheck:Cond
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/libc-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   fun:_dl_open
+}
+{
+   glibc.x86_64.dlopen.cond2
+   Memcheck:Cond
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/libc-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   fun:_dl_open
+}
+{
+   glibc.x86_64.dlsym.cond
+   Memcheck:Cond
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/libc-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   fun:__libc_dlsym
+}
+{
+   glibc.x86_64.dlsym.read8
+   Memcheck:Addr8
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/libc-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   fun:__libc_dlsym
+}
+{
+   glibc.x86_64.dlopen.read8a
+   Memcheck:Addr8
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/libc-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   fun:_dl_open
+}
+{
+   glibc.x86_64.dlsym.cond2
+   Memcheck:Cond
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   obj:/lib/libc-2.3.6.so
+   obj:/lib/ld-2.3.6.so
+   fun:__libc_dlsym
+}

@@ -1,0 +1,68 @@
+krb5_k_make_checksum_iov -  Fill in a checksum element in IOV array (operates on opaque key) 
+=============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_k_make_checksum_iov(krb5_context context, krb5_cksumtype cksumtype, krb5_key key, krb5_keyusage usage, krb5_crypto_iov * data, size_t num_data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cksumtype** - Checksum type (0 for mandatory type)
+
+	          **[in]** **key** - Encryption key for a keyed checksum
+
+	          **[in]** **usage** - Key usage (see KRB5_KEYUSAGE macros)
+
+	          **[inout]** **data** - IOV array
+
+	          **[in]** **num_data** - Size of *data*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Create a checksum in the #KRB5_CRYPTO_TYPE_CHECKSUM element over #KRB5_CRYPTO_TYPE_DATA and #KRB5_CRYPTO_TYPE_SIGN_ONLY chunks in *data* . Only the #KRB5_CRYPTO_TYPE_CHECKSUM region is modified.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         krb5_k_verify_checksum_iov()
+ 
+
+
+
+
+
+.. note::
+
+	 This function is similar to krb5_c_make_checksum_iov(), but operates on opaque *key* .
+ 
+
+
+

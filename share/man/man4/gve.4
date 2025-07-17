@@ -1,0 +1,310 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
+.\" Copyright (c) 2023-2024 Google LLC
+.\"
+.\" Redistribution and use in source and binary forms, with or without modification,
+.\" are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice, this
+.\"    list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright notice,
+.\"    this list of conditions and the following disclaimer in the documentation
+.\"    and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the copyright holder nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software without
+.\"    specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+.\" ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd May 20, 2025
+.Dt GVE 4
+.Os
+.Sh NAME
+.Nm gve
+.Nd "Ethernet driver for Google Virtual NIC (gVNIC)"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device gve"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_gve_load="YES"
+.Ed
+.Sh DESCRIPTION
+gVNIC is a virtual network interface designed specifically for Google Compute Engine (GCE).
+It is required to support per-VM Tier-1 networking performance, and for using certain VM shapes on GCE.
+.Pp
+.Nm
+is the driver for gVNIC.
+It supports the following features:
+.Pp
+.Bl -bullet -compact
+.It
+RX checksum offload
+.It
+TX chesksum offload
+.It
+TCP Segmentation Offload (TSO)
+.It
+Large Receive Offload (LRO) in software
+.It
+Jumbo frames
+.It
+Receive Side Scaling (RSS)
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+.Nm
+binds to a single PCI device ID presented by gVNIC:
+.Pp
+.Bl -bullet -compact
+.It
+0x1AE0:0x0042
+.El
+.Sh EXAMPLES
+.Pp
+Change the TX queue count to 4 for the gve0 interface:
+.D1 sysctl dev.gve.0.num_tx_queues=4
+.Pp
+Change the RX queue count to 4 for the gve0 interface:
+.D1 sysctl dev.gve.0.num_rx_queues=4
+.Pp
+Change the TX ring size to 512 for the gve0 interface:
+.D1 sysctl dev.gve.0.tx_ring_size=512
+.Pp
+Change the RX ring size to 512 for the gve0 interface:
+.D1 sysctl dev.gve.0.rx_ring_size=512
+.Sh DIAGNOSTICS
+The following messages are recorded during driver initialization:
+.Bl -diag
+.It "Enabled MSIX with %d vectors"
+.It "Configured device resources"
+.It "Successfully attached %s"
+.It "Deconfigured device resources"
+.El
+.Pp
+These messages are seen if driver initialization fails.
+Global (across-queues) allocation failures:
+.Bl -diag
+.It "Failed to configure device resources: err=%d"
+.It "No compatible queue formats"
+.It "Failed to allocate ifnet struct"
+.It "Failed to allocate admin queue mem"
+.It "Failed to alloc DMA mem for DescribeDevice"
+.It "Failed to allocate QPL page"
+.El
+.Pp
+irq and BAR allocation failures:
+.Bl -diag
+.It "Failed to acquire any msix vectors"
+.It "Tried to acquire %d msix vectors, got only %d"
+.It "Failed to setup irq %d for Tx queue %d "
+.It "Failed to setup irq %d for Rx queue %d "
+.It "Failed to allocate irq %d for mgmnt queue"
+.It "Failed to setup irq %d for mgmnt queue, err: %d"
+.It "Failed to allocate BAR0"
+.It "Failed to allocate BAR2"
+.It "Failed to allocate msix table"
+.El
+.Pp
+Rx queue-specific allocation failures:
+.Bl -diag
+.It "No QPL left for rx ring %d"
+.It "Failed to alloc queue resources for rx ring %d"
+.It "Failed to alloc desc ring for rx ring %d"
+.It "Failed to alloc data ring for rx ring %d"
+.El
+.Pp
+Tx queue-specific allocation failures:
+.Bl -diag
+.It "No QPL left for tx ring %d"
+.It "Failed to alloc queue resources for tx ring %d"
+.It "Failed to alloc desc ring for tx ring %d"
+.It "Failed to vmap fifo, qpl_id = %d"
+.El
+.Pp
+The following messages are recorded when the interface detach fails:
+.Bl -diag
+.It "Failed to deconfigure device resources: err=%d"
+.El
+.Pp
+If bootverbose is on, the following messages are recorded when the interface is being brought up:
+.Bl -diag
+.It "Created %d rx queues"
+.It "Created %d tx queues"
+.It "MTU set to %d"
+.El
+.Pp
+The following messages are recorded when the interface is being brought down:
+.Bl -diag
+.It "Destroyed %d rx queues"
+.It "Destroyed %d tx queues"
+.El
+.Pp
+These messages are seen if errors are encountered when bringing the interface up or down:
+.Bl -diag
+.It "Failed to destroy rxq %d, err: %d"
+.It "Failed to destroy txq %d, err: %d"
+.It "Failed to create rxq %d, err: %d"
+.It "Failed to create txq %d, err: %d"
+.It "Failed to set MTU to %d"
+.It "Invalid new MTU setting. new mtu: %d max mtu: %d min mtu: %d"
+.It "Cannot bring the iface up when detached"
+.It "Reached max number of registered pages %lu > %lu"
+.It "Failed to init lro for rx ring %d"
+.El
+.Pp
+These messages are seen if any admin queue command fails:
+.Bl -diag
+.It "AQ command(%u): failed with status %d"
+.It "AQ command(%u): unknown status code %d"
+.It "AQ commands timed out, need to reset AQ"
+.It "Unknown AQ command opcode %d"
+.El
+.Pp
+These messages appear if a TX timeout is detected:
+.Bl -diag
+.It "Found %d timed out packet(s) on txq%d, kicking it for completions"
+.It "Found %d timed out packet(s) on txq%d with its last kick %ld sec ago which is less than the cooldown period %d. Resetting device"
+.El
+.Pp
+These messages are recorded when the device is being reset due to an error:
+.Bl -diag
+.It "Scheduling reset task!"
+.It "Waiting until admin queue is released."
+.It "Admin queue released"
+.El
+.Pp
+If it was the NIC that requested the reset, this message is recorded:
+.Bl -diag
+.It "Device requested reset"
+.El
+.Pp
+If the reset fails during the reinitialization phase, this message is recorded:
+.Bl -diag
+.It "Restore failed!"
+.El
+.Pp
+These two messages correspond to the NIC alerting the driver to link state changes:
+.Bl -diag
+.It "Device link is up."
+.It "Device link is down."
+.El
+.Pp
+Apart from these messages, the driver exposes per-queue packet and error counters as sysctl nodes.
+Global (across queues) counters can be read using
+.Xr netstat 1 .
+.Sh SYSCTL VARIABLES
+.Nm
+exposes the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width indent
+.It Va hw.gve.driver_version
+The driver version.
+This is read-only.
+.It Va hw.gve.queue_format
+The queue format in use.
+This is read-only.
+.It Va hw.gve.disable_hw_lro
+Setting this boot-time tunable to 1 disables Large Receive Offload (LRO) in the NIC.
+The default value is 0, which means hardware LRO is enabled by default.
+The software LRO stack in the kernel is always used.
+This sysctl variable needs to be set before loading the driver, using
+.Xr loader.conf 5 .
+.It Va hw.gve.allow_4k_rx_buffers
+Setting this boot-time tunable to 1 enables support for 4K RX Buffers.
+The default value is 0, which means 2K RX Buffers will be used.
+4K RX Buffers are only supported on DQO_RDA and DQO_QPL queue formats.
+When enabled, 4K RX Buffers will be used either when HW LRO is enabled
+or mtu is greated than 2048.
+This sysctl variable needs to be set before loading the driver, using
+.Xr loader.conf 5 .
+.It Va dev.gve.X.num_rx_queues and dev.gve.X.num_tx_queues
+Run-time tunables that represent the number of currently used RX/TX queues.
+The default value is the max number of RX/TX queues the device can support.
+.Pp
+This call turns down the interface while setting up the new queues,
+which may potentially cause any new packets to be dropped.
+This call can fail if the system is not able to provide the driver with enough resources.
+In that situation, the driver will revert to the previous number of RX/TX queues.
+If this also fails, a device reset will be triggered.
+.Pp
+Note: sysctl nodes for queue stats remain available even if a queue is removed.
+.Pp
+.It Va dev.gve.X.rx_ring_size and dev.gve.X.tx_ring_size
+Run-time tunables that represent the current ring size for RX/TX queues.
+The default value is set to device defaults for ring size.
+.Pp
+This call turns down the interface while setting up the queues with the new ring size,
+which may potentially cause any new packets to be dropped.
+This call can fail if the system is not able to provide the driver with enough resources.
+In that situation, the driver will try to revert to the previous ring size for RX/TX queues.
+If this also fails, the device will be in an unhealthy state and will need to be reloaded.
+This value must be a power of 2 and within the defined range.
+.Pp
+.El
+.Sh LIMITATIONS
+.Nm
+does not support the transmission of VLAN-tagged packets.
+All VLAN-tagged traffic is dropped.
+.Sh QUEUE FORMATS
+.Nm
+features different datapath modes called queue formats:
+.Pp
+.Bl -bullet -compact
+.It
+GQI_QPL: "QPL" stands for "Queue Page List" and refers to the fact that
+hardware expects a fixed bounce buffer and cannot access arbitrary memory.
+GQI is the older descriptor format.
+The G in "GQI" refers to an older generation of hardware, and the "QI"
+stands for "Queue In-order" referring to the fact that the NIC sends
+Tx and Rx completions in the same order as the one in which the corresponding
+descriptors were posted by the driver.
+.It
+DQO_RDA: DQO is the descriptor format required to take full advantage of
+next generation VM shapes.
+"RDA" stands for "Raw DMA Addressing" and refers to the fact that hardware
+can work with DMA-ed packets and does not expect them to be copied into or
+out of a fixed bounce buffer.
+The D in "DQO" refers to a newer generation of hardware, and the "QO"
+stands for "Queue Out-of-order" referring to the fact that the NIC might
+send Tx and Rx completions in an order different from the one in which
+the corresponding descriptors were posted by the driver.
+.It
+DQO_QPL: The next generation descriptor format in the "QPL" mode.
+.El
+.Sh SUPPORT
+Please email gvnic-drivers@google.com with the specifics of the issue encountered.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr loader.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 13.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by Google.

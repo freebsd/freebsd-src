@@ -1,0 +1,43 @@
+krb5_c_valid_enctype -  Verify that a specified encryption type is a valid Kerberos encryption type. 
+=====================================================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_c_valid_enctype(krb5_enctype ktype)
+
+..
+
+
+:param:
+
+	          **[in]** **ktype** - Encryption type
+
+
+..
+
+
+
+:return:
+         -  TRUE if ktype is valid, FALSE if not 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

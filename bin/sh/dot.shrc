@@ -1,0 +1,56 @@
+#
+# .shrc - bourne shell startup file 
+#
+# This file will be used if the shell is invoked for interactive use and
+# the environment variable ENV is set to this file.
+#
+# see also sh(1), environ(7).
+#
+
+
+# file permissions: rwxr-xr-x
+#
+# umask	022
+
+# Uncomment this to enable the builtin vi(1) command line editor in sh(1),
+# e.g. ESC to go into visual mode.
+# set -o vi
+
+
+# # some useful aliases
+# alias h='fc -l'
+# alias j=jobs
+# alias m="$PAGER"
+# alias ll='ls -laFo'
+# alias l='ls -l'
+# alias g='egrep -i'
+ 
+# # be paranoid
+# alias cp='cp -ip'
+# alias mv='mv -i'
+# alias rm='rm -i'
+
+# # csh like history on arrow up and down
+bind ^[[A ed-search-prev-history
+bind ^[[B ed-search-next-history
+
+# # Ctrl+right arrow: go to the next word
+# # Ctrl+left arrow: go to the previous word
+bind "\\e[1;5C" em-next-word
+bind "\\e[1;5D" ed-prev-word
+
+alias history='fc -l'
+
+# Fix home/del for mobaxterm
+bind ^[[5~ ed-move-to-beg
+bind ^[[6~ ed-move-to-end
+
+# read(2) of directories may not be desirable by default, as this will provoke
+# EISDIR errors from each directory encountered.
+# alias grep='grep -d skip'
+
+# set prompt: ``username@hostname:directory $ '' 
+PS1="\u@\h:\w \\$ "
+
+# search path for cd(1)
+# CDPATH=:$HOME

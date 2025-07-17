@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+#
+# Start up for the Audit daemon.
+#
+
+# PROVIDE: auditd
+# REQUIRE: syslogd
+# BEFORE:  DAEMON
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="auditd"
+desc="Audit daemon"
+stop_cmd="auditd_stop"
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+rcvar="auditd_enable"
+command_args="${auditd_flags}"
+required_files="/etc/security/audit_class /etc/security/audit_control
+		/etc/security/audit_event /etc/security/audit_user
+		/etc/security/audit_warn"
+
+auditd_stop()
+{
+
+	/usr/sbin/audit -t
+	if [ -n "$rc_pid" ]; then
+		wait_for_pids $rc_pid
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: nojail keyword
+auditd_svcj="NO"
+
+run_rc_command "$1"

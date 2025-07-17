@@ -1,0 +1,242 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2007 Roman Divacky
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#ifndef _LINUX_FILE_H_
+#define	_LINUX_FILE_H_
+
+#define	LINUX_AT_FDCWD			-100
+#define	LINUX_AT_SYMLINK_NOFOLLOW	0x100
+#define	LINUX_AT_EACCESS		0x200
+#define	LINUX_AT_REMOVEDIR		0x200
+#define	LINUX_AT_SYMLINK_FOLLOW		0x400
+#define	LINUX_AT_NO_AUTOMOUNT		0x800
+		/*
+		 * Specific to Linux AT_NO_AUTOMOUNT flag tells the kernel to
+		 * not automount the terminal component of pathname if it is a
+		 * directory that is an automount point. As FreeBSD does not
+		 * have such facility (automount), we can simply ignore this flag.
+		 */
+#define	LINUX_AT_EMPTY_PATH		0x1000
+
+/*
+ * posix_fadvise advice
+ */
+#define	LINUX_POSIX_FADV_NORMAL		0
+#define	LINUX_POSIX_FADV_RANDOM		1
+#define	LINUX_POSIX_FADV_SEQUENTIAL	2
+#define	LINUX_POSIX_FADV_WILLNEED	3
+#define	LINUX_POSIX_FADV_DONTNEED	4
+#define	LINUX_POSIX_FADV_NOREUSE	5
+
+/*
+ * mount flags
+ */
+#define	LINUX_MS_RDONLY		0x0001
+#define	LINUX_MS_NOSUID		0x0002
+#define	LINUX_MS_NODEV		0x0004
+#define	LINUX_MS_NOEXEC		0x0008
+#define	LINUX_MS_REMOUNT	0x0020
+
+/*
+ * umount2 flags
+ */
+#define	LINUX_MNT_FORCE		0x0001
+
+/*
+ * common open/fcntl flags
+ */
+#define	LINUX_O_RDONLY		000000000
+#define	LINUX_O_WRONLY		000000001
+#define	LINUX_O_RDWR		000000002
+#define	LINUX_O_ACCMODE		000000003
+#define	LINUX_O_CREAT		000000100
+#define	LINUX_O_EXCL		000000200
+#define	LINUX_O_NOCTTY		000000400
+#define	LINUX_O_TRUNC		000001000
+#define	LINUX_O_APPEND		000002000
+#define	LINUX_O_NONBLOCK	000004000
+#define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
+#define	LINUX_O_SYNC		000010000
+#define	LINUX_O_ASYNC		000020000
+#ifndef LINUX_O_DIRECT
+#define	LINUX_O_DIRECT		000040000	/* Direct disk access hint */
+#endif
+#ifndef LINUX_O_LARGEFILE
+#define	LINUX_O_LARGEFILE	000100000
+#endif
+#ifndef LINUX_O_DIRECTORY
+#define	LINUX_O_DIRECTORY	000200000	/* Must be a directory */
+#endif
+#ifndef LINUX_O_NOFOLLOW
+#define	LINUX_O_NOFOLLOW	000400000	/* Do not follow links */
+#endif
+#define	LINUX_O_NOATIME		001000000
+#define	LINUX_O_CLOEXEC		002000000
+#define	LINUX_O_PATH		010000000
+
+#define	LINUX_F_DUPFD		0
+#define	LINUX_F_GETFD		1
+#define	LINUX_F_SETFD		2
+#define	LINUX_F_GETFL		3
+#define	LINUX_F_SETFL		4
+#ifndef LINUX_F_GETLK
+#define	LINUX_F_GETLK		5
+#define	LINUX_F_SETLK		6
+#define	LINUX_F_SETLKW		7
+#endif
+#ifndef LINUX_F_SETOWN
+#define	LINUX_F_SETOWN		8
+#define	LINUX_F_GETOWN		9
+#endif
+#ifndef LINUX_F_SETSIG
+#define	LINUX_F_SETSIG		10
+#define	LINUX_F_GETSIG		11
+#endif
+#ifndef LINUX_F_SETOWN_EX
+#define	LINUX_F_SETOWN_EX	15
+#define	LINUX_F_GETOWN_EX	16
+#define	LINUX_F_GETOWNER_UIDS	17
+#endif
+
+#define	LINUX_F_SPECIFIC_BASE	1024
+
+#define	LINUX_F_SETLEASE	(LINUX_F_SPECIFIC_BASE + 0)
+#define	LINUX_F_GETLEASE	(LINUX_F_SPECIFIC_BASE + 1)
+#define	LINUX_F_CANCELLK	(LINUX_F_SPECIFIC_BASE + 5)
+#define	LINUX_F_DUPFD_CLOEXEC	(LINUX_F_SPECIFIC_BASE + 6)
+#define	LINUX_F_NOTIFY		(LINUX_F_SPECIFIC_BASE + 2)
+#define	LINUX_F_SETPIPE_SZ	(LINUX_F_SPECIFIC_BASE + 7)
+#define	LINUX_F_GETPIPE_SZ	(LINUX_F_SPECIFIC_BASE + 8)
+
+#define	LINUX_F_ADD_SEALS	(LINUX_F_SPECIFIC_BASE + 9)
+#define	LINUX_F_GET_SEALS	(LINUX_F_SPECIFIC_BASE + 10)
+
+#define	LINUX_F_GETLKP		36
+#define	LINUX_F_SETLKP		37
+#define	LINUX_F_SETLKPW		38
+
+#define	LINUX_F_OWNER_TID	0
+#define	LINUX_F_OWNER_PID	1
+#define	LINUX_F_OWNER_PGRP	2
+
+#ifndef LINUX_F_RDLCK
+#define	LINUX_F_RDLCK		0
+#define	LINUX_F_WRLCK		1
+#define	LINUX_F_UNLCK		2
+#endif
+
+/*
+ * renameat2 flags
+ */
+#define	LINUX_RENAME_NOREPLACE	0x00000001
+#define	LINUX_RENAME_EXCHANGE	0x00000002
+#define	LINUX_RENAME_WHITEOUT	0x00000004
+
+/*
+ * sync_file_range flags
+ */
+#define	LINUX_SYNC_FILE_RANGE_WAIT_BEFORE	1
+#define	LINUX_SYNC_FILE_RANGE_WRITE		2
+#define	LINUX_SYNC_FILE_RANGE_WAIT_AFTER	4
+
+#define	LINUX_F_SEAL_SEAL	0x0001
+#define	LINUX_F_SEAL_SHRINK	0x0002
+#define	LINUX_F_SEAL_GROW	0x0004
+#define	LINUX_F_SEAL_WRITE	0x0008
+
+#define	LINUX_MFD_CLOEXEC	0x0001
+#define	LINUX_MFD_ALLOW_SEALING	0x0002
+#define	LINUX_MFD_HUGETLB	0x0004
+
+#define	LINUX_HUGETLB_FLAG_ENCODE_SHIFT	26
+#define	LINUX_HUGETLB_FLAG_ENCODE_MASK	0x3f
+
+#define LINUX_HUGETLB_FLAG_ENCODE_64KB	(16 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_512KB	(19 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_1MB	(20 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_2MB	(21 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_8MB	(23 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_16MB	(24 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_32MB	(25 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_256MB	(28 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_512MB	(29 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_1GB	(30 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_2GB	(31 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+#define LINUX_HUGETLB_FLAG_ENCODE_16GB	(34U << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+
+/* inotify flags */
+#define	LINUX_IN_ACCESS		0x00000001
+#define	LINUX_IN_MODIFY		0x00000002
+#define	LINUX_IN_ATTRIB		0x00000004
+#define	LINUX_IN_CLOSE_WRITE	0x00000008
+#define	LINUX_IN_CLOSE_NOWRITE	0x00000010
+#define	LINUX_IN_OPEN		0x00000020
+#define	LINUX_IN_MOVED_FROM	0x00000040
+#define	LINUX_IN_MOVED_TO	0x00000080
+#define	LINUX_IN_CREATE		0x00000100
+#define	LINUX_IN_DELETE		0x00000200
+#define	LINUX_IN_DELETE_SELF	0x00000400
+#define	LINUX_IN_MOVE_SELF	0x00000800
+
+#define	LINUX_IN_UNMOUNT	0x00002000
+#define	LINUX_IN_Q_OVERFLOW	0x00004000
+#define	LINUX_IN_IGNORED	0x00008000
+
+#define	LINUX_IN_ONLYDIR	0x01000000
+#define	LINUX_IN_DONT_FOLLOW	0x02000000
+#define	LINUX_IN_EXCL_UNLINK	0x04000000
+#define	LINUX_IN_MASK_CREATE	0x10000000
+#define	LINUX_IN_MASK_ADD	0x20000000
+#define	LINUX_IN_ISDIR		0x40000000
+#define	LINUX_IN_ONESHOT	0x80000000
+
+#define	LINUX_IN_ALL_EVENTS	0x00000fff
+#define	LINUX_IN_ALL_FLAGS	0xf700e000
+
+#define	LINUX_IN_NONBLOCK	0x00000800
+#define	LINUX_IN_CLOEXEC	0x00080000
+
+#if defined(_KERNEL)
+struct l_file_handle {
+	l_uint handle_bytes;
+	l_int handle_type;
+	unsigned char f_handle[0];
+};
+
+int	linux_enobufs2eagain(struct thread *, int, int);
+int	linux_common_openflags(int);
+#endif
+
+/*
+ * Look at linux_close_range() for an explanation.
+ *
+ * #define	LINUX_CLOSE_RANGE_UNSHARE	(1U << 1)
+ */
+#define	LINUX_CLOSE_RANGE_CLOEXEC	(1U << 2)
+
+#endif	/* !_LINUX_FILE_H_ */

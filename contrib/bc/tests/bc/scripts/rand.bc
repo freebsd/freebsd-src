@@ -1,0 +1,97 @@
+#! /usr/bin/bc
+
+define x(x) {
+	seed = x
+	seed@20
+	return seed
+}
+
+define y(x) {
+	auto s
+	seed@20
+	s = x(x)
+	seed@20
+	return s
+}
+
+define void u(x) {
+	seed = x
+	seed@20
+}
+
+define void v(x) {
+	u(x)
+	seed@20
+}
+
+define g(x) {
+	auto s
+	s = irand(x)
+	s < x
+	return seed
+}
+
+define h(x) {
+	auto s
+	s = g(x)
+	s == seed
+	return s
+}
+
+define j(x) {
+	auto s, r
+	seed@20
+	s = seed
+	r = rand()
+	seed = x
+	s != seed
+	return rand()
+}
+
+define k(x) {
+	auto s, r
+	s = seed
+	seed@20
+	r = j(x)
+	s != seed
+	seed = x
+	rand() == r
+	return r
+}
+
+define m(*a[]) {
+	auto i
+	seed = seed
+	for (i = 0; i < 100; ++i) {
+		a[i] = rand()
+	}
+	return seed
+}
+
+v(50.5)
+seed@20
+
+s = y(75.25)
+s@20
+seed@20
+
+r = rand()
+i = irand(r)
+
+i < r
+
+s = h(maxrand() ^ 4)
+s == seed
+
+seed = 2398.0625
+r = k(38.45)
+seed = 38.45
+r == rand()
+
+s = m(a[])
+
+for (i = 0; i < 100; ++i) {
+	rand() == a[i]
+}
+
+s == seed

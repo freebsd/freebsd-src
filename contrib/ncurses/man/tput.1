@@ -1,0 +1,1004 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: tput.1,v 1.113 2024/04/20 19:58:50 tom Exp $
+.TH @TPUT@ 1 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.ds d @TERMINFO@
+.SH NAME
+\fB\%@TPUT@\fP \-
+initialize a terminal, exercise its capabilities, or query \fI\%term\%info\fP database
+.SH SYNOPSIS
+\fB@TPUT@\fP [\fB\-T\fP \fIterminal-type\fP]
+{\fIcap-code\fP [\fIparameter\fP .\|.\|.\&]} .\|.\|.
+.PP
+\fB@TPUT@\fP [\fB\-T\fP \fIterminal-type\fP] [\fB\-x\fP] \fBclear\fP
+.PP
+\fB@TPUT@\fP [\fB\-T\fP \fIterminal-type\fP] \fBinit\fP
+.PP
+\fB@TPUT@\fP [\fB\-T\fP \fIterminal-type\fP] \fB\%reset\fP
+.PP
+\fB@TPUT@\fP [\fB\-T\fP \fIterminal-type\fP] \fB\%longname\fP
+.PP
+\fB@TPUT@ \-S\fP
+.PP
+\fB@TPUT@ \-V\fP
+.SH DESCRIPTION
+\fB\%@TPUT@\fP uses the
+.I \%term\%info
+library and database to make terminal-specific capabilities and
+information available to the shell,
+to initialize or reset the terminal,
+or
+to report a description of the current
+(or specified)
+terminal type.
+Terminal capabilities are accessed by
+.IR cap-code .
+.PP
+\fB\%terminfo\fP(5) discusses terminal capabilities at length
+and presents a complete list of
+.IR cap-codes .
+.PP
+When retrieving capability values,
+the result depends upon the capability's type.
+.TP 9 \" "Boolean" + 2n
+Boolean
+\fB\%@TPUT@\fP sets its exit status to
+.B 0
+if the terminal possesses
+.IR cap-code ,
+and
+.B 1
+if it does not.
+.TP
+numeric
+\fB\%@TPUT@\fP writes
+.IR cap-code 's
+decimal value to the standard output stream if defined
+.RB ( \-1
+if it is not)
+followed by a newline.
+.TP
+string
+\fB\%@TPUT@\fP writes
+.IR cap-code 's
+value to the standard output stream if defined,
+without a trailing newline.
+.PP
+Before using a value returned on the standard output,
+the application should test \fB\%@TPUT@\fP's exit status
+to be sure it is 0;
+see section \*(``EXIT STATUS\*('' below.
+.SS Operands
+Generally,
+an operand is a
+.IR cap-code ,
+a capability code from the terminal database,
+or a parameter thereto.
+Three others are specially recognized by \fB\%@TPUT@\fP:
+.BR init ,
+.BR \%reset ,
+and
+.BR \%longname .
+Although these resemble capability codes,
+they in fact receive special handling;
+we term them \*(``pseudo-capabilities\*(''.
+.TP 11n \" "longname" + 2n + adjustment for PDF
+.I cap-code
+indicates a capability from the terminal database.
+.IP
+If
+.I cap-code
+is of string type and takes parameters,
+\fB\%@TPUT@\fP interprets arguments following
+.I cap-code
+as the parameters,
+up to the (fixed) quantity the capability requires.
+.IP
+Most parameters are numeric.
+Only a few terminal capabilities require string parameters;
+\fB\%@TPUT@\fP uses a table to decide which to pass as strings.
+Normally \fB\%@TPUT@\fP uses \fB\%tparm\fP(3X) to perform the
+substitution.
+If no parameters are given for the capability,
+\fB\%@TPUT@\fP writes the string without performing the substitution.
+.TP
+.B init
+initializes the terminal.
+If the terminal database is present
+and an entry for the user's terminal type exists,
+the following occur.
+.RS
+.TP 5
+(1)
+\fB\%@TPUT@\fP retrieves the terminal's mode settings.
+It successively tests the file descriptors corresponding to
+.RS
+.bP
+the standard error stream,
+.bP
+the standard output stream,
+.bP
+the standard input stream,
+and
+.bP
+.I \%/dev/tty
+.RE
+.IP
+to obtain terminal settings.
+Having retrieved them,
+\fB\%@TPUT@\fP remembers which descriptor to use for further updates.
+.TP
+(2)
+If the terminal dimensions cannot be obtained from the operating system,
+but the environment or terminal type database entry describes them,
+\fB\%@TPUT@\fP updates the operating system's notion of them.
+.TP
+(3)
+\fB\%@TPUT@\fP updates the terminal modes.
+.RS
+.bP
+Any delays specified in the entry
+(for example,
+when a newline is sent)
+are set in the terminal driver.
+.bP
+Tab expansion is turned on or off per the specification in the entry,
+and
+.bP
+if tabs are not expanded,
+standard tabs
+(every 8 spaces)
+are set.
+.RE
+.TP
+(4)
+If initialization capabilities,
+detailed in subsection \*(``Tabs and Initialization\*('' of
+\fB\%terminfo\fP(5),
+are present,
+\fB\%@TPUT@\fP writes them to the standard output stream.
+.TP
+(5)
+\fB\%@TPUT@\fP flushes the standard output stream.
+.RE
+.IP
+If an entry lacks the information needed for an activity above,
+that activity is silently skipped.
+.TP
+.B reset
+re-initializes the terminal.
+A reset differs from initialization in two ways.
+.RS
+.TP 5
+(1)
+\fB\%@TPUT@\fP sets the the terminal modes to a \*(``sane\*('' state,
+.RS
+.bP
+enabling cooked and echo modes,
+.bP
+disabling cbreak and raw modes,
+.bP
+enabling newline translation,
+and
+.bP
+setting any unset special characters to their default values.
+.RE
+.TP 5
+(2)
+If any reset capabilities are defined for the terminal type,
+\fB\%@TPUT@\fP writes them to the output stream.
+Otherwise,
+\fB\%@TPUT@\fP uses any defined initialization capabilities.
+Reset capabilities are detailed in subsection
+\*(``Tabs and Initialization\*('' of \fB\%terminfo\fP(5).
+.RE
+.TP
+.B longname
+A
+.I \%term\%info
+entry begins with one or more names by which an application
+can refer to the entry,
+before the list of terminal capabilities.
+The names are separated by \*(``|\*('' characters.
+X/Open Curses terms the last name the \*(``long name\*('',
+and indicates that it may include blanks.
+.IP
+\fB\%@TIC@\fP warns if the last name does not include blanks,
+to accommodate old
+.I \%term\%info
+entries that treated the long name as an optional feature.
+The long name is often referred to as the description field.
+.IP
+If the terminal database is present and an entry for the user's terminal
+type exists,
+\fB\%@TPUT@\fP reports its description to the standard output stream,
+without a trailing newline.
+See \fB\%terminfo\fP(5).
+.PP
+.I Note:
+Redirecting the output of
+.RB \%\*(`` "@TPUT@ init" \*(''
+or
+.RB \%\*(`` "@TPUT@ reset" \*(''
+to a file will capture only part of their actions.
+Changes to the terminal modes are not affected by file descriptor
+redirection,
+since the terminal modes are altered via \fB\%ioctl\fP(2).
+.SS Aliases
+If \fB\%@TPUT@\fP is invoked via link with any of the names
+.BR clear ,
+.BR init ,
+or
+.BR \%reset ,
+it operates as if run with the corresponding (pseudo-)capability
+operand.
+For example,
+executing a link named
+.B \%reset
+that points to \fB\%@TPUT@\fP has the same effect as
+.RB \%\*(`` "@TPUT@ \%reset" \*(''.
+.PP
+This feature was introduced by
+.I \%ncurses
+5.2 in 2000.
+It is rarely used:
+.TP
+.B \%clear
+is a separate program,
+which is both smaller and more frequently executed.
+.TP
+.B init
+has the same name as another program in widespread use.
+.TP
+.B \%reset
+is provided
+by the \fB\%@TSET@\fP(1) utility (also via a link named
+.BR \%reset ")."
+.SS "Terminal Size"
+Besides the pseudo-capabilities
+(such as
+.BR init ),
+\fB\%@TPUT@\fP treats the
+.B lines
+and
+.B cols
+.I cap-codes
+specially:
+it may call \fB\%setupterm\fP(3X) to obtain the terminal size.
+.bP
+First,
+\fB\%@TPUT@\fP attempts to obtain these capabilities from the terminal
+database.
+This generally fails for terminal emulators,
+which lack a fixed window size and thus omit the capabilities.
+.bP
+It then asks the operating system for the terminal's size,
+which generally works,
+unless the connection is via a serial line that
+does not support \*(``NAWS\*('': negotiations about window size.
+.bP
+Finally,
+it inspects the environment variables
+.I LINES
+and
+.IR \%COLUMNS ,
+which may override the terminal size.
+.PP
+If the
+.B \-T
+option is given,
+\fB\%@TPUT@\fP ignores the environment variables by calling
+.BR \%use_tioctl(TRUE) ,
+relying upon the operating system
+(or,
+ultimately,
+the terminal database).
+.SH OPTIONS
+.TP 9n \" "-T type" + 2n
+.B \-S
+retrieves more than one capability per invocation of \fB\%@TPUT@\fP.
+The capabilities must be passed to \fB\%@TPUT@\fP from the standard
+input stream instead of from the command line
+(see section \*(``EXAMPLES\*('' below).
+Only one
+.I cap-code
+is allowed per line.
+The
+.B \-S
+option changes the meanings of the
+.B 0
+and
+.B 1
+exit statuses
+(see section \*(``EXIT STATUS\*('' below).
+.IP
+Some capabilities use string parameters rather than numeric ones.
+\fB\%@TPUT@\fP employs a built-in table and the presence of parameters
+in its input to decide how to interpret them,
+and whether to use \fB\%tparm\fP(3X).
+.TP
+.BI \-T\  type
+indicates the terminal's
+.IR type .
+Normally this option is unnecessary,
+because a default is taken from the
+.I TERM
+environment variable.
+If specified,
+the environment variables
+.I LINES
+and
+.I \%COLUMNS
+are also ignored.
+.TP
+.B \-V
+reports the version of
+.I \%ncurses
+associated with \fB\%@TPUT@\fP,
+and exits with a successful status.
+.TP
+.B \-x
+prevents
+.RB \%\*(`` "@TPUT@ clear" \*(''
+from attempting to clear the scrollback buffer.
+.SH EXIT STATUS
+Normally,
+one should interpret \fB\%@TPUT@\fP's exit statuses as follows.
+.PP
+.if n .ne 3
+.if t .ne 2
+.TS
+Lb Lb
+Lb Lx.
+Status	Meaning When \-S Not Specified
+_
+0	Boolean or string capability present
+1	Boolean or numeric capability absent
+2	usage error or no terminal type specified
+3	unrecognized terminal type
+4	unrecognized capability code
+>4	system error (4 + \fBerrno\fP)
+.TE
+.PP
+When the
+.B \-S
+option is used,
+some statuses change meanings.
+.PP
+.if n .ne 4
+.if t .ne 3
+.TS
+Lb Lb
+Lb Lx.
+Status	Meaning When \-S Specified
+_
+0	all operands interpreted
+1	unused
+4	some operands not interpreted
+.TE
+.SH ENVIRONMENT
+\fB@TPUT@\fP reads one environment variable.
+.TP 8n \" "TERM" + 2n + adjustment for PDF
+.I TERM
+denotes the terminal type.
+Each terminal type is distinct,
+though many are similar.
+The
+.B \-T
+option overrides its value.
+.SH FILES
+.TP
+.I @DATADIR@/tabset
+tab stop initialization database
+.TP
+.I \*d
+compiled terminal description database
+.SH PORTABILITY
+Over time
+.I \%ncurses
+\fB\%@TPUT@\fP
+has differed from that of System\ V in two important respects,
+one now mostly historical.
+.bP
+\%\*(``\fB@TPUT@\fP
+.IR cap-code \*(''
+writes to the standard output,
+which need not be a terminal device.
+However,
+the operands that manipulate terminal modes might not use the standard
+output.
+.IP
+System\ V
+.BR tput 's
+.B init
+and
+.B \%reset
+operands use logic from 4.1cBSD
+.BR tset ,
+manipulating terminal modes.
+It checks the same file descriptors
+(and
+.IR \%/dev/tty )
+for association with a terminal device as
+.I \%ncurses
+now does,
+and if none are,
+finally assumes a 1200 baud terminal.
+When updating terminal modes,
+it ignores errors.
+.IP
+Until
+.I \%ncurses
+6.1
+(see section \*(``HISTORY\*('' below),
+\fB\%@TPUT@\fP did not modify terminal modes.
+It now employs a scheme similar to System\ V,
+using functions shared with \fB\%@TSET@\fP
+(and ultimately based on 4.4BSD
+.BR tset ).
+If it is not able to open a terminal
+(for instance,
+when run by \fIcron\fP(1)),
+\fB\%@TPUT@\fP exits with an error status.
+.bP
+System\ V
+.B tput
+assumes that the type of a
+.I cap-code
+operand is numeric if all the characters of its value are decimal
+numbers;
+if they are not,
+it treats
+.I cap-code
+as a string capability.
+.IP
+Most implementations that provide support for
+.I cap-code
+operands use the \fB\%tparm\fP(3X) function to expand its parameters.
+That function expects a mixture of numeric and string parameters,
+requiring \fB\%@TPUT@\fP to know which type to use.
+.IP
+.I \%ncurses
+\fB\%@TPUT@\fP
+uses a table to determine the parameter types for
+the standard
+.I cap-code
+operands,
+and an internal function to analyze nonstandard
+.I cap-code
+operands.
+.IP
+While more reliable than System\ V's utility,
+a portability problem is introduced by this analysis.
+An OpenBSD developer adapted the internal library function from
+.I \%ncurses
+to port NetBSD's
+.IR termcap -based
+.B tput
+to
+.IR \%term\%info ,
+and modified it to interpret multiple
+.I cap-codes
+(and parameters)
+on the command line.
+Portable applications should not rely upon this feature;
+.I \%ncurses
+offers it to support applications written specifically for OpenBSD.
+.PP
+This implementation,
+unlike others,
+accepts both
+.I termcap
+and
+.I \%term\%info
+.I cap-codes
+if
+.I termcap
+support is compiled in.
+In that case,
+however,
+the predefined
+.I termcap
+and
+.I \%term\%info
+codes have two
+ambiguities;
+.I \%ncurses
+assumes the
+.I \%term\%info
+code.
+.bP
+The
+.I cap-code
+.B dl
+means
+.B \%delete_line
+to
+.I termcap
+but
+.B \%parm_delete_line
+to
+.IR \%term\%info .
+.I termcap
+uses the code
+.B DL
+for
+.BR \%parm_delete_line .
+.I \%term\%info
+uses the code
+.B dl1
+for
+.BR \%delete_line .
+.bP
+The
+.I cap-code
+.B ed
+means
+.B \%exit_delete_mode
+to
+.I termcap
+but
+.B \%clr_eos
+to
+.IR \%term\%info .
+.I termcap
+uses the code
+.B cd
+for
+.BR \%clr_eos .
+.I \%term\%info
+uses the code
+.B rmdc
+for
+.BR \%exit_delete_mode .
+.PP
+The
+.B \%longname
+operand,
+.B \-S
+option,
+and the parameter-substitution features used in the
+.B cup
+example below,
+were not supported in
+AT&T/USL
+.I curses
+before SVr4 (1989).
+Later,
+4.3BSD-Reno (1990) added support for
+.BR \%longname ,
+.\" longname was added in October 1989.
+and in 1994,
+NetBSD added support for the parameter-substitution features.
+.PP
+IEEE Std 1003.1/The Open Group Base Specifications Issue 7
+(POSIX.1-2008)
+documents only the
+.BR clear ,
+.BR init ,
+and
+.B \%reset
+operands.
+A few observations of interest arise from that selection.
+.bP
+.I \%ncurses
+supports
+.B clear
+as it does any other standard
+.IR cap-code .
+The others
+.RB ( init
+and
+.BR \%longname )
+do not correspond to terminal capabilities.
+.bP
+The
+.B tput
+on SVr4-based systems such as Solaris,
+IRIX64,
+and HP-UX,
+as well as others such as AIX and Tru64,
+also support standard
+.I cap-code
+operands.
+.bP
+A few platforms such as FreeBSD recognize
+.I termcap
+codes rather than
+.I \%term\%info
+capability codes in their respective
+.B tput
+commands.
+Since 2010,
+NetBSD's
+.B tput
+uses
+.I \%term\%info
+codes.
+Before that,
+it
+(like FreeBSD)
+recognized
+.I termcap
+codes.
+.IP
+Beginning in 2021,
+FreeBSD uses
+.I \%ncurses
+.BR tput ,
+configured for both
+.I \%term\%info
+(tested first)
+and
+.I termcap
+(as a fallback).
+.PP
+Because (apparently) all
+.I certified
+Unix systems support the full set of capability codes,
+the reason for documenting only a few may not be apparent.
+.bP
+X/Open Curses Issue 7 documents
+.B tput
+differently,
+with
+.I cap-code
+and the other features used in this implementation.
+.bP
+That is,
+there are two standards for
+.BR tput :
+POSIX (a subset) and X/Open Curses (the full implementation).
+POSIX documents a subset to avoid the complication of including
+X/Open Curses and the terminal capability database.
+.bP
+While it is certainly possible to write a
+.B tput
+program without using
+.IR curses ,
+no system with a
+.I curses
+implementation provides a
+.B tput
+utility that does not also support standard
+.IR cap-codes .
+.PP
+X/Open Curses Issue 7 (2009) is the first version to document utilities.
+However that part of X/Open Curses does not follow existing practice
+(that is,
+System\ V
+.I curses
+behavior).
+.bP
+It assigns exit status 4 to \*(``invalid operand\*('',
+which may have the same meaning as \*(``unknown capability\*(''.
+For instance,
+the source code for
+Solaris
+.I xcurses
+uses the term \*(``invalid\*('' in this case.
+.bP
+It assigns exit status 255 to a numeric variable that is not specified
+in the
+.I \%term\%info
+database.
+That likely is a documentation error,
+mistaking the \*(``\-1\*('' written to the standard output to indicate
+an absent or cancelled numeric capability for an (unsigned) exit status.
+.PP
+The various System\ V implementations
+(AIX,
+HP-UX,
+Solaris)
+use the same exit statuses as
+.IR \%ncurses .
+.PP
+NetBSD
+.I curses
+documents exit statuses that correspond to neither
+.I \%ncurses
+nor X/Open Curses.
+.SH HISTORY
+Bill Joy wrote a
+.B tput
+command during development of 4BSD in October 1980.
+This initial version only cleared the screen,
+and did not ship with official distributions.
+.\" It also exited with backwards exit status (1 on success, 0 on
+.\" failure), and was characterized by Bostic in 1988 as "pretty
+.\" unreasonable".
+.\" See Spinellis's "unix-history-repo" on GitHub.
+.PP
+System\ V developed a different
+.B tput
+command.
+.bP
+SVr2 (1984) provided a rudimentary
+.B tput
+that checked the parameter against each
+predefined capability and returned the corresponding value.
+This version of
+.B tput
+did not use \fB\%tparm\fP(3X) for parameterized capabilities.
+.bP
+SVr3 (1987) replaced that
+.\" SVr3 released in 1987, not 1985.
+.\" https://unix.org/what_is_unix/history_timeline.html
+with a more extensive program
+whose support for
+.B init
+and
+.B \%reset
+operands
+(more than half the program)
+incorporated the
+.B \%reset
+feature of BSD
+.B tset
+written by Eric Allman.
+.bP
+SVr4 (1989) added color initialization by using the
+.B \%orig_colors
+.RB ( oc )
+and
+.B \%orig_pair
+.RB ( op )
+capabilities in its
+.B init
+logic.
+.PP
+Keith Bostic refactored BSD
+.B tput
+for shipment in 4.3BSD-Tahoe (1988),
+then replaced it the next year with a new implementation based on
+System\ V
+.BR tput .
+Bostic's version similarly accepted some parameters named for
+.I \%term\%info
+(pseudo-)capabilities:
+.BR clear ,
+.BR init ,
+.BR \%longname ,
+and
+.BR \%reset .
+However,
+because he had only
+.I termcap
+available,
+it accepted
+.I termcap
+codes for other capabilities.
+Also,
+Bostic's BSD
+.B tput
+did not modify the terminal modes as the earlier BSD
+.B tset
+had done.
+.PP
+At the same time,
+Bostic added a shell script named \*(``clear\*('' that used
+.B tput
+to clear the screen.
+Both of these appeared in 4.4BSD,
+becoming the \*(``modern\*('' BSD implementation of
+.BR tput .
+.PP
+The origin of
+.I \%ncurses
+\fB\%@TPUT@\fP lies outside both System\ V and BSD,
+in Ross Ridge's
+.I \%mytinfo
+package,
+published on
+.I comp.sources.unix
+in December 1992.
+Ridge's program made more sophisticated use of the terminal capabilities
+than the BSD program.
+Eric Raymond used that
+.B tput
+program
+(and other parts of
+.IR \%mytinfo )
+in
+.I \%ncurses
+in June 1995.
+Incorporating the portions dealing with terminal capabilities
+almost without change,
+Raymond made improvements to the way command-line parameters
+were handled.
+.PP
+Before
+.I \%ncurses
+6.1 (2018),
+its \fB\%@TSET@\fP and \fB\%@TPUT@\fP utilities differed.
+.bP
+\fB\%@TSET@\fP was more effective,
+resetting the terminal modes and special characters.
+.bP
+On the other hand,
+\fB\%@TSET@\fP's repertoire of terminal capabilities for resetting the
+terminal was more limited;
+it had only equivalents of
+.B \%reset_1string
+.RB ( rs1 ),
+.B \%reset_2string
+.RB ( rs2 ),
+and
+.B \%reset_file
+.RB ( rf ),
+and not the tab stop and margin update features of \fB\%@TPUT@\fP.
+.PP
+The
+.B \%reset
+program is traditionally an alias for \fB\%@TSET@\fP due to its ability
+to reset terminal modes and special characters.
+.PP
+As of
+.I \%ncurses
+6.1,
+the \*(``reset\*('' features of the two programs are (mostly) the same.
+Two minor differences remain.
+.bP
+The \fB\%@TSET@\fP program waits one second when resetting,
+in case the terminal happens to be a hardware device.
+.bP
+The two programs write the terminal initialization strings
+to different streams;
+that is,
+standard error for \fB\%@TSET@\fP and
+standard output for \fB\%@TPUT@\fP.
+.SH EXAMPLES
+.TP
+.B "@TPUT@ init"
+Initialize the terminal according to the type of
+terminal in the
+.I TERM
+environment variable.
+If the system does not reliably initialize the terminal upon login,
+this command can be included in
+.I \%$HOME/.profile
+after exporting the
+.I TERM
+environment variable.
+.TP
+.B "@TPUT@ \-T5620 reset"
+Reset an AT&T 5620 terminal,
+overriding the terminal type in the
+.I TERM
+environment variable.
+.TP
+.B "@TPUT@ cnorm"
+Set cursor to normal visibility.
+.TP
+.B "@TPUT@ home"
+Move the cursor to row 0,
+column 0:
+the upper left corner of the screen,
+usually known as the \*(``home\*('' cursor position.
+.TP
+.B "@TPUT@ clear"
+Clear the screen:
+write the
+.B \%clear_screen
+capability's value to the standard output stream.
+.TP
+.B "@TPUT@ cols"
+Report the number of columns used by the current terminal type.
+.TP
+.B "@TPUT@ \-Tadm3a cols"
+Report the number of columns used by an ADM-3A terminal.
+.TP
+.B "strong=\(ga@TPUT@ smso\(ga normal=\(ga@TPUT@ rmso\(ga"
+Set shell variables to capability values:
+.B strong
+and
+.BR normal ,
+to begin and end,
+respectively,
+stand-out mode for the terminal.
+One might use these to present a prompt.
+.IP
+.EX
+.RS 14
+printf "${strong}Username:${normal} "
+.RE
+.EE
+.TP
+.B "@TPUT@ hc"
+Indicate via exit status whether the terminal is a hard copy device.
+.TP
+.B "@TPUT@ cup 23 4"
+Move the cursor to row 23,
+column 4.
+.TP
+.B "@TPUT@ cup"
+Report the value of the
+.B \%cursor_address
+.RB ( cup )
+capability
+(used for cursor movement),
+with no parameters substituted.
+.TP
+.B "@TPUT@ longname"
+Report the
+.I \%term\%info
+database's description of the terminal type specified in the
+.I TERM
+environment variable.
+.TP
+.B "@TPUT@ \-S"
+Process multiple capabilities.
+The
+.B \-S
+option can be profitably used with a shell \*(``here document\*(''.
+.IP
+.EX
+.RB $\  "@TPUT@ \-S <<!"
+.RB >\  clear
+.RB >\  "cup 10 10"
+.RB >\  bold
+.RB >\  !
+.EE
+.IP
+The foregoing
+clears the screen,
+moves the cursor to position
+(10, 10)
+and turns on bold
+(extra bright)
+mode.
+.TP
+.B "@TPUT@ clear cup 10 10 bold"
+Perform the same actions as the foregoing
+.RB \%\*(`` "@TPUT@ \-S" \*(''
+example.
+.SH SEE ALSO
+\fB\%@CLEAR@\fP(1),
+\fB\%stty\fP(1),
+\fB\%@TABS@\fP(1),
+\fB\%@TSET@\fP(1),
+\fB\%curs_termcap\fP(3X),
+\fB\%terminfo\fP(5)

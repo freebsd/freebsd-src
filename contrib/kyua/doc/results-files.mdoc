@@ -1,0 +1,68 @@
+.\" Copyright 2014 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Results files contain, as their name implies, the results of the execution of a
+test suite.
+Each test suite executed by
+.Xr kyua-test 1
+generates a new results file, and such results files can be loaded later on by
+inspection commands such as
+.Xr kyua-report 1
+to analyze their contents.
+.Pp
+Results files support identifier-based lookups and also path name lookups.
+The differences between the two are described below.
+.Pp
+The default naming scheme for the results files provides simple support for
+identifier-based lookups and historical recording of test suite runs.
+Each results file is given an identifier derived from the test suite that
+generated it and the time the test suite was run.
+Kyua can later look up results files by these fields.
+.Pp
+The identifier follows this pattern:
+.Bd -literal -offset indent
+\*(Lttest_suite\*(Gt.\*(LtYYYYMMDD\*(Gt-\*(LtHHMMSS\*(Gt-\*(Ltuuuuuu\*(Gt
+.Ed
+.Pp
+where
+.Sq test_suite
+is the path to the root of the test suite that was run with all slashes replaced
+by underscores and
+.Sq YYYYMMDD-HHMMSS-uuuuuu
+is a timestamp with microsecond resolution.
+.Pp
+When using the default naming scheme, results files are stored in the
+.Pa ~/.kyua/store/
+subdirectory and each file holds a name of the form:
+.Bd -literal -offset indent
+~/.kyua/store/results.\*(Ltidentifier\*(Gt.db
+.Ed
+.Pp
+Results files are simple SQLite databases with the schema described in the
+.Pa __STOREDIR__/schema_v?.sql
+files.
+For details on the schema, please refer to the heavily commented SQL file.

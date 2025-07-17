@@ -1,0 +1,256 @@
+/*
+ * *****************************************************************************
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The bc help text.
+ *
+ */
+
+usage: %s [options] [file...]
+
+bc is a command-line, arbitrary-precision calculator with a Turing-complete
+language. For details, use `man %s` or see the online documentation at
+https://git.gavinhoward.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
+
+This bc is compatible with both the GNU bc and the POSIX bc spec. See the GNU bc
+manual (https://www.gnu.org/software/bc/manual/bc.html) and bc spec
+(http://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+for details.
+
+This bc has three differences to the GNU bc:
+
+  1) Arrays can be passed to the builtin "length" function to get the number of
+     elements currently in the array. The following example prints "1":
+
+       a[0] = 0
+       length(a[])
+
+  2) The precedence of the boolean "not" operator (!) is equal to that of the
+     unary minus (-), or negation, operator. This still allows POSIX-compliant
+     scripts to work while somewhat preserving expected behavior (versus C) and
+     making parsing easier.
+  3) This bc has many more extensions than the GNU bc does. For details, see the
+     man page or online documentation.
+
+This bc also implements the dot (.) extension of the BSD bc.
+
+Options:
+
+  -C  --no-digit-clamp
+
+      Disables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that the value added to a number from a digit is always that
+      digit's value multiplied by the value of ibase raised to the power of the
+      digit's position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -c option are given, the last is used.
+
+  -c  --digit-clamp
+
+      Enables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that digits that the value added to a number from a digit that
+      is greater than or equal to the ibase is the value of ibase minus 1 all
+      multiplied by the value of ibase raised to the power of the digit's
+      position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -C option are given, the last is used.
+{{ A H N HN }}
+
+  -E  seed  --seed=seed
+
+      Sets the builtin variable seed to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+{{ end }}
+
+  -e  expr  --expression=expr
+
+      Run "expr" and quit. If multiple expressions or files (see below) are
+      given, they are all run before executing from stdin.
+
+  -f  file  --file=file
+
+      Run the bc code in "file" and exit. See above as well.
+
+  -g  --global-stacks
+
+      Turn scale, ibase, and obase into stacks. This makes the value of each be
+      be restored on returning from functions. See the man page or online
+      documentation for more details.
+
+  -h  --help
+
+      Print this usage message and exit.
+
+  -I  ibase  --ibase=ibase
+
+      Sets the builtin variable ibase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
+  -i  --interactive
+
+      Force interactive mode.
+
+  -L  --no-line-length
+
+      Disable line length checking.
+
+  -l  --mathlib
+
+      Use predefined math routines:
+
+          s(expr)  =  sine of expr in radians
+          c(expr)  =  cosine of expr in radians
+          a(expr)  =  arctangent of expr, returning radians
+          l(expr)  =  natural log of expr
+          e(expr)  =  raises e to the power of expr
+          j(n, x)  =  Bessel function of integer order n of x
+
+      This bc may load more functions with these options. See the manpage or
+      online documentation for details.
+
+  -O  obase  --obase=obase
+
+      Sets the builtin variable obase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
+  -P  --no-prompt
+
+      Disable the prompts in interactive mode.
+
+  -R  --no-read-prompt
+
+      Disable the read prompt in interactive mode.
+
+  -r  keyword  --redefine=keyword
+
+      Redefines "keyword" and allows it to be used as a function, variable, and
+      array name. This is useful when this bc gives parse errors on scripts
+      meant for other bc implementations.
+
+      Only keywords that are not in the POSIX bc spec may be redefined.
+
+      It is a fatal error to attempt to redefine a keyword that cannot be
+      redefined or does not exist.
+
+  -q  --quiet
+
+      Don't print version and copyright.
+
+  -S  scale  --scale=scale
+
+      Sets the builtin variable scale to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
+  -s  --standard
+
+      Error if any non-POSIX extensions are used.
+
+  -w  --warn
+
+      Warn if any non-POSIX extensions are used.
+
+  -v  --version
+
+      Print version information and copyright and exit.
+
+  -z  --leading-zeroes
+
+      Enable leading zeroes on numbers greater than -1 and less than 1.
+
+Environment variables:
+
+  POSIXLY_CORRECT
+
+      Error if any non-POSIX extensions are used.
+
+  BC_ENV_ARGS
+
+      Command-line arguments to use on every run.
+
+  BC_LINE_LENGTH
+
+      If an integer, the number of characters to print on a line before
+      wrapping. Using 0 will disable line length checking.
+
+  BC_BANNER
+
+      If an integer and non-zero, display the copyright banner in interactive
+      mode.
+
+      If zero, disable the banner.
+
+      Overrides the default, which is %s print the banner.
+
+  BC_SIGINT_RESET
+
+      If an integer and non-zero, reset on SIGINT, rather than exit, when in
+      interactive mode.
+
+      If zero, do not reset on SIGINT in all cases, but exit instead.
+
+      Overrides the default, which is %s.
+
+  BC_TTY_MODE
+
+      If an integer and non-zero, enable TTY mode when it is available.
+
+      If zero, disable TTY mode in all cases.
+
+      Overrides the default, which is TTY mode %s.
+
+  BC_PROMPT
+
+      If an integer and non-zero, enable prompt when TTY mode is possible.
+
+      If zero, disable prompt in all cases.
+
+      Overrides the default, which is prompt %s.
+
+  BC_EXPR_EXIT
+
+      If an integer and non-zero, exit when expressions or expression files are
+      given on the command-line, and does not exit when an integer and zero.
+
+      Overrides the default, which is %s.
+
+  BC_DIGIT_CLAMP
+
+      If an integer and non-zero, clamp digits larger than or equal to the
+      current ibase when parsing numbers.
+
+      Overrides the default, which is %s.

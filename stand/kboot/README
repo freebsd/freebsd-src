@@ -1,0 +1,48 @@
+So to make a Linux initrd:
+
+(1) mkdir .../initrd
+(2) mkdir -p .../initrd/boot/defaults
+(3) cd src/stand; make install DESTDIR=.../initrd
+(4) Copy kernel to .../initrd/boot/kernel
+(5) cd .../initrd
+(6) cp boot/loader.kboot init
+(7) find . | sort | cpio -o -H newc | gzip > /tmp/initrd.cpio
+(8) download or build your linux kernel
+(9) qemu-system-x86_64 -kernel ~/vmlinuz-5.19.0-051900-generic \
+	-initrd /tmp/initrd.cpio \
+	-m 256m -nographic \
+	-monitor telnet::4444,server,nowait -serial stdio \
+	-append "console=ttyS0"
+    (though you may need more than 256M of ram to actually boot FreeBSD and do
+     anything interesting with it and the serial console to stdio bit hasn't
+     been the most stable recipe lately).
+
+Notes:
+For #6 you might need to strip loader.kboot if you copy it directly and don't
+	use make install.
+For #7 the sort is important, and you may need LC_ALL=C for its invocation
+For #7 gzip is but one of many methods, but it's the simplest to do.
+For #9, this means we can automate it using methods from
+	src/tools/boot/rootgen.sh when the time comes.
+#9 also likely generalizes to other architectures
+For #8, see https://kernel.ubuntu.com/~kernel-ppa/mainline/ to download
+	a kernel suitable for testing... For arm, I've been using the
+	non 64k page kernels and 5.19 seems to not suck.
+
+aarch64:
+qemu-system-aarch64 -m 1024 -cpu cortex-a57 -M virt \
+	-kernel ~/linuxboot/arm64/kernel/boot/vmlinuz-5.19.0-051900-generic \
+	-initrd ~/linuxboot/arm64/initrd.img -m 256m -nographic \
+	-monitor telnet::4444,server,nowait -serial stdio \
+	-append "console=ttyAMA0"
+
+General
+
+Add -g -G to have gdb stop and wait for the debugger. This is useful for
+debugging the trampoline (hbreak will set a hardware break that's durable across
+code changes).  If you set the breakpoint for the trampoline and it never hits,
+then there's likely no RAM there and you got the PA to load to wrong. When
+debugging the trampiline and up to that, use gdb /boot/loader. When debugging
+the kernel, use kernel.full to get all the debugging. hbreak panic() is useful
+on the latter since you'll see the original panic, not the panic you get from
+there not being an early console.

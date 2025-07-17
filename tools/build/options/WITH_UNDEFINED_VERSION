@@ -1,0 +1,4 @@
+Link libraries with --undefined-version which permits version maps to
+contain symbols that are not present in the library.
+If this is necessary to build a particular configuration, a bug is
+present and the configuration should be reported.

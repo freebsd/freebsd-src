@@ -1,0 +1,44 @@
+
+ARM64				opt_global.h		# for cpu ARM64 to work
+INTRNG				opt_global.h
+SOCDEV_PA			opt_global.h
+THUNDERX_PASS_1_1_ERRATA	opt_global.h
+VFP				opt_global.h
+LINUX_BOOT_ABI			opt_global.h
+LSE_ATOMICS			opt_global.h
+
+# Per-thread stack smashing protection support
+# Needs clang >= 13
+PERTHREAD_SSP			opt_global.h
+
+# Binary compatibility
+COMPAT_FREEBSD32		opt_global.h
+# Emulate SWP/SWPB for COMPAT_FREEBSD32
+EMUL_SWP			opt_global.h
+
+# EFI Runtime services support
+EFIRT				opt_efirt.h
+
+# Bhyve
+VMM				opt_global.h
+
+# SoC Support
+SOC_ALLWINNER_A64		opt_soc.h
+SOC_ALLWINNER_H5		opt_soc.h
+SOC_ALLWINNER_H6		opt_soc.h
+SOC_APPLE_T8103			opt_soc.h
+SOC_BRCM_BCM2837		opt_soc.h
+SOC_BRCM_BCM2838		opt_soc.h
+SOC_BRCM_NS2			opt_soc.h
+SOC_CAVM_THUNDERX		opt_soc.h
+SOC_FREESCALE_IMX8		opt_soc.h
+SOC_HISI_HI6220			opt_soc.h
+SOC_INTEL_STRATIX10		opt_soc.h
+SOC_MARVELL_8K			opt_soc.h
+SOC_NVIDIA_TEGRA210		opt_soc.h
+SOC_NXP_LS			opt_soc.h
+SOC_ROCKCHIP			opt_soc.h
+SOC_ROCKCHIP_RK3328		opt_soc.h	# Depends on SOC_ROCKCHIP
+SOC_ROCKCHIP_RK3399		opt_soc.h	# Depends on SOC_ROCKCHIP
+SOC_ROCKCHIP_RK3568		opt_soc.h	# Depends on SOC_ROCKCHIP
+SOC_XILINX_ZYNQ			opt_soc.h

@@ -1,0 +1,9 @@
+1+1
+
+define a (x) {
+	print "a(", x, ")\n"
+}
+
+a(10)
+
+quit

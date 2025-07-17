@@ -1,0 +1,227 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: terminfo.head,v 1.65 2024/04/20 21:14:00 tom Exp $
+.TH terminfo 5 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.ds '  \(aq
+.ds ^  \(ha
+.ds ~  \(ti
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.ds       '  '
+.ds       ^  ^
+.ds       ~  ~
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.
+.ds d @TERMINFO@
+.SH NAME
+\fB\%terminfo\fP \-
+terminal capability database
+.SH SYNOPSIS
+\*d/*/*
+.SH DESCRIPTION
+.I Terminfo
+is a database describing terminals,
+used by screen-oriented programs such as
+\fBnvi\fP(1),
+\fBlynx\fP(1),
+\fBmutt\fP(1),
+and other curses applications,
+using high-level calls to libraries such as \fBcurses\fP(3X).
+It is also used via low-level calls by non-curses applications
+which may be screen-oriented (such as \fB@CLEAR@\fP(1))
+or non-screen (such as \fB@TABS@\fP(1)).
+.PP
+.I Terminfo
+describes terminals by giving a set of capabilities which they
+have, by specifying how to perform screen operations, and by
+specifying padding requirements and initialization sequences.
+.PP
+This document describes
+.I \%ncurses
+version @NCURSES_MAJOR@.@NCURSES_MINOR@
+(patch @NCURSES_PATCH@).
+.SS "\fIterminfo\fP Entry Syntax"
+Entries in
+.I terminfo
+consist of a sequence of fields:
+.bP
+Each field ends with a comma \*(``,\*(''
+(embedded commas may be
+escaped with a backslash or written as \*(``\e054\*('').
+.bP
+White space between fields is ignored.
+.bP
+The first field in a \fIterminfo\fP entry begins in the first column.
+.bP
+Newlines and leading whitespace (spaces or tabs)
+may be used for formatting entries for readability.
+These are removed from parsed entries.
+.IP
+The \fB@INFOCMP@\fP \fB\-f\fP and \fB\-W\fP options rely on this to
+format if-then-else expressions,
+or to enforce maximum line-width.
+The resulting formatted terminal description can be read by \fB@TIC@\fP.
+.bP
+The first field for each terminal gives the names which are known for the
+terminal, separated by \*(``|\*('' characters.
+.IP
+The first name given is the most common abbreviation for the terminal
+(its primary name),
+the last name given should be a long name fully identifying the terminal
+(see \fBlongname\fP(3X)),
+and all others are treated as synonyms (aliases) for the primary terminal name.
+.IP
+X/Open Curses advises that all names but the last should be in lower case
+and contain no blanks;
+the last name may well contain upper case and blanks for readability.
+.IP
+This implementation is not so strict;
+it allows mixed case in the primary name and aliases.
+If the last name has no embedded blanks,
+it allows that to be both an alias and a verbose name
+(but will warn about this ambiguity).
+.bP
+Lines beginning with a \*(``#\*('' in the first column are treated as comments.
+.IP
+While comment lines are valid at any point, the output of \fB@CAPTOINFO@\fP
+and \fB@INFOTOCAP@\fP (aliases for \fB@TIC@\fP)
+will move comments so they occur only between entries.
+.PP
+Terminal names (except for the last, verbose entry) should
+be chosen using the following conventions.
+The particular piece of hardware making up the terminal should
+have a root name, thus \*(``hp2621\*(''.
+This name should not contain hyphens.
+Modes that the hardware can be in, or user preferences, should
+be indicated by appending a hyphen and a mode suffix.
+Thus, a vt100 in 132-column mode would be vt100\-w.
+The following suffixes should be used where possible:
+.PP
+.TS
+center;
+Lb Lb Lb
+L  L  Lx.
+Suffix	Example	Meaning
+_
+\-\fInn\fP	aaa\-60	Number of lines on the screen
+\-\fIn\fPp	c100\-4p	Number of pages of memory
+\-am	vt100\-am	With automargins (usually the default)
+\-m	ansi\-m	Mono mode; suppress color
+\-mc	wy30\-mc	Magic cookie; spaces when highlighting
+\-na	c100\-na	No arrow keys (leave them in local)
+\-nam	vt100\-nam	Without automatic margins
+\-nl	hp2621\-nl	No status line
+\-ns	hp2626\-ns	No status line
+\-rv	c100\-rv	Reverse video
+\-s	vt100\-s	Enable status line
+\-vb	wy370\-vb	Use visible bell instead of beep
+\-w	vt100\-w	Wide mode (> 80 columns, usually 132)
+.TE
+.PP
+For more on terminal naming conventions, see the \fBterm\fP(7) manual page.
+.SS "\fIterminfo\fP Capabilities Syntax"
+The terminfo entry consists of several \fIcapabilities\fP,
+i.e., features that the terminal has,
+or methods for exercising the terminal's features.
+.PP
+After the first field (giving the name(s) of the terminal entry),
+there should be one or more \fIcapability\fP fields.
+These are Boolean, numeric or string names with corresponding values:
+.bP
+Boolean capabilities are true when present, false when absent.
+There is no explicit value for Boolean capabilities.
+.bP
+Numeric capabilities have a \*(``#\*('' following the name,
+then an unsigned decimal integer value.
+.bP
+String capabilities have a \*(``=\*('' following the name,
+then an string of characters making up the capability value.
+.IP
+String capabilities can be split into multiple lines,
+just as the fields comprising a terminal entry can be
+split into multiple lines.
+While blanks between fields are ignored,
+blanks embedded within a string value are retained,
+except for leading blanks on a line.
+.PP
+Any capability can be \fIcanceled\fP,
+i.e., suppressed from the terminal entry,
+by following its name with \*(``@\*(''
+rather than a capability value.
+.SS "Similar Terminals"
+If there are two very similar terminals, one (the variant) can be defined as
+being just like the other (the base) with certain exceptions.
+In the
+definition of the variant, the string capability \fBuse\fP can be given with
+the name of the base terminal:
+.bP
+The capabilities given before
+.B use
+override those in the base type named by
+.BR use .
+.bP
+If there are multiple \fBuse\fP capabilities, they are merged in reverse order.
+That is, the rightmost \fBuse\fP reference is processed first, then the one to
+its left, and so forth.
+.bP
+Capabilities given explicitly in the entry override
+those brought in by \fBuse\fP references.
+.PP
+A capability can be canceled by placing \fBxx@\fP to the left of the
+use reference that imports it, where \fIxx\fP is the capability.
+For example, the entry
+.RS
+.PP
+2621\-nl, smkx@, rmkx@, use=2621,
+.RE
+.PP
+defines a 2621\-nl that does not have the \fBsmkx\fP or \fBrmkx\fP capabilities,
+and hence does not turn on the function key labels when in visual mode.
+This is useful for different modes for a terminal, or for different
+user preferences.
+.PP
+An entry included via \fBuse\fP can contain canceled capabilities,
+which have the same effect as if those cancels were inline in the
+using terminal entry.
+.SS "Predefined Capabilities"
+.\" Head of terminfo man page ends here
+.ps -1

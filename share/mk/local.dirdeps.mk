@@ -1,0 +1,308 @@
+.if !target(_DIRDEP_USE)
+# we are the 1st makefile
+
+.if !defined(MK_CLANG)
+.include "${SRCTOP}/share/mk/src.opts.mk"
+.endif
+
+# Machine-specific MK settings needed for Makefile.dirdeps.options usage
+MK_FDT.i386 = no
+MK_FDT.amd64 = no
+
+# making universe is special
+.if defined(UNIVERSE_GUARD)
+# these should be done by now
+DIRDEPS_FILTER+= N*.host
+.endif
+
+# pseudo machines get no qualification
+.for m in ${PSEUDO_MACHINE_LIST:Nhost*}
+M_dep_qual_fixes += C;($m),[^/.,]*$$;\1;
+.endfor
+#.info M_dep_qual_fixes=${M_dep_qual_fixes}
+
+# Some things we never want to build for host
+DIRDEPS_FILTER.host = \
+	Ninclude* \
+	Nlib/csu* \
+	Nlib/libc \
+	Nlib/libcompiler_rt \
+	Nlib/[mn]* \
+	Nlib/lib[t]* \
+	Ngnu/lib/lib[a-r]* \
+	Nsecure/lib* \
+	Nusr.bin/xinstall* \
+
+.if ${.MAKE.OS} == "FreeBSD"
+# Host libraries should mostly be excluded from the build so the
+# host version in /usr/lib is used.
+# Internal libraries need to be allowed to be built though
+# since they are never installed.
+
+# Cheat for including src.libnames.mk
+__<bsd.init.mk>__:	.NOTMAIN
+# Pull in _INTERNALLIBS
+.include <src.libnames.mk>
+
+_need_host_libs=
+.for lib in ${_INTERNALLIBS}
+_need_host_libs+= ${LIB${lib:tu}DIR:S,^${OBJTOP}/,,}
+.endfor
+.if ${MK_host_egacy} == "yes"
+_need_host_libs+= lib/libmd
+.endif
+
+N_host_libs:= ${cd ${SRCTOP} && echo lib/lib*:L:sh:${_need_host_libs:${M_ListToSkip}}:${M_ListToSkip}}
+DIRDEPS_FILTER.host+= ${N_host_libs}
+.endif
+
+DIRDEPS_FILTER.host32 = ${DIRDEPS_FILTER.host}
+
+DIRDEPS_FILTER+= \
+	Nbin/cat.host \
+	${DIRDEPS_FILTER.xtras:U}
+
+# Cleanup a buildworld's WORLDTMP so that any files generated from it
+# or using it will rebuild with the DIRDEPS SYSROOT.  Otherwise existing
+# object .meta files may still reference those directories and not be
+# rebuilt and lead to incorrect Makefile.depend files due to lack of
+# .dirdep files.
+.if !defined(NO_CLEANUP_WORLDTMP) && exists(${OBJTOP}/tmp/_worldtmp)
+cleanup_worldtmp: .PHONY .NOMETA
+	@echo "Cleaning leftover WORLDTMP from buildworld."
+	-rm -rf ${OBJTOP}/tmp/*
+	-chflags -R 0 ${OBJTOP}/tmp/*
+	rm -rf ${OBJTOP}/tmp
+beforedirdeps: cleanup_worldtmp
+.endif
+
+# pseudo option for building host tools on old or non-FreeBSD host
+# allows us to leverage Makefile.depend.options with
+# DIRDEPS_OPTIONS = host_egacy
+# dirdeps-options.mk will qualify with ${DEP_MACHINE} (and others)
+# before looking at the bare option.
+MK_host_egacy.host= ${MK_host_egacy}
+
+.endif				# !target(_DIRDEP_USE)
+
+# reset this each time
+DIRDEPS_FILTER.xtras=
+.if ${DEP_MACHINE:Npkgs*} != ""
+DIRDEPS_FILTER.xtras+= Nusr.bin/clang/clang.host
+.endif
+
+.if ${DEP_MACHINE:Nhost*} == ""
+.if ${MK_host_egacy} == "yes" && ${DEP_RELDIR:Ntools/build:Ntargets/*:N*/stage} != ""
+DIRDEPS += tools/build
+.endif
+.else
+MK_host_egacy.${DEP_MACHINE}= no
+
+# this is how we can handle optional dependencies
+.if ${DEP_RELDIR} == "lib/libc"
+DIRDEPS += lib/libc_nonshared
+.if ${MK_SSP:Uno} != "no" 
+DIRDEPS += lib/libssp_nonshared
+.endif
+.else
+DIRDEPS_FILTER.xtras+= Nlib/libc_nonshared
+.endif
+
+# some optional things
+.if ${MK_CTF} == "yes" && ${DEP_RELDIR:Mcddl/usr.bin/ctf*} == ""
+DIRDEPS += \
+	cddl/usr.bin/ctfconvert.host \
+	cddl/usr.bin/ctfmerge.host
+.endif
+
+.if ${DEP_MACHINE:Nhost*} != ""
+# Add in proper libgcc (gnu or LLVM) if not building libcc and libc is needed.
+# Add both gcc_s and gcc_eh as dependencies as the decision to build
+# -static or not is not known here.
+.if ${DEP_RELDIR:M*libgcc*} == "" && ${DIRDEPS:U:Mlib/libc} != ""
+DIRDEPS+= \
+	lib/libgcc_eh \
+	lib/libgcc_s
+.endif
+.endif
+
+# Bootstrap support.  Give hints to DIRDEPS if there is no Makefile.depend*
+# generated yet.  This can be based on things such as SRC files and LIBADD.
+# These hints will not factor into the final Makefile.depend as only what is
+# used will be added in and handled via [local.]gendirdeps.mk.  This is not
+# done for MACHINE=host builds.
+# XXX: Include this in local.autodep.mk as well for gendirdeps without filemon.
+# Only do this for main build target
+.if ${RELDIR} == ${DEP_RELDIR} && !defined(_RECURSING_PROGS)
+.for _depfile in ${.MAKE.DEPENDFILE_PREFERENCE:T}
+.if !defined(_have_depfile) && exists(${.CURDIR}/${_depfile})
+_have_depfile=
+.endif
+.endfor
+.if !defined(_have_depfile)
+# KMOD does not use any stdlibs.
+.if !defined(KMOD)
+# Gather PROGS dependencies first
+.if !empty(PROGS)
+_PROGS_LIBADD=
+_PROGS_DPADD=
+_PROGS_SRCS=
+.for _prog in ${PROGS}
+.for s in . _
+.if !empty(LIBADD${s}${_prog})
+_PROGS_LIBADD+=	${LIBADD${s}${_prog}}
+.endif
+.if !empty(DPADD${s}${_prog})
+_PROGS_DPADD+=	${DPADD${s}${_prog}}
+.endif
+.if !empty(SRCS${s}${_prog})
+_PROGS_SRCS+=	${SRCS${s}${_prog}}
+.endif
+.endfor	# .for s in . _
+# Add in assumed source (bsd.prog.mk)
+.if !target(${_prog})
+.if defined(PROG_CXX)
+_PROGS_SRCS+=	${_prog}.cc
+.else
+_PROGS_SRCS+=	${_prog}.c
+.endif
+.endif	# !target(${_prog})
+.endfor	# .for _prog in ${PROGS}
+.endif	# !empty(PROGS)
+_SRCS= ${SRCS} ${_PROGS_SRCS}
+
+# Has C files. The C_DIRDEPS are shared with C++ files as well.
+C_DIRDEPS= \
+	include \
+	include/arpa \
+	include/protocols \
+	include/rpc  \
+	include/rpcsvc \
+	include/xlocale \
+	lib/${CSU_DIR} \
+	lib/libc \
+	lib/libcompiler_rt \
+
+# libgcc is needed as well but is added later.
+
+.if ${MK_GSSAPI} != "no"
+C_DIRDEPS+=  include/gssapi
+.endif
+
+.if !empty(_SRCS:M*.c)
+DIRDEPS+= ${C_DIRDEPS}
+.endif
+# Has C++ files
+.if !empty(_SRCS:M*.cc) || !empty(_SRCS:M*.C) || !empty(_SRCS:M*.cpp) || \
+    !empty(_SRCS:M*.cxx)
+DIRDEPS+= ${C_DIRDEPS}
+.if ${MK_CLANG} == "yes"
+DIRDEPS+= lib/libc++ lib/libcxxrt
+.endif
+# XXX: Clang and GCC always adds -lm currently, even when not needed.
+DIRDEPS+= lib/msun
+.endif	# CXX
+.endif	# !defined(KMOD)
+# Has yacc files.
+.if !empty(_SRCS:M*.y)
+DIRDEPS+=	usr.bin/yacc.host
+.endif
+_DPADD= ${DPADD} ${_PROGS_DPADD}
+.if !empty(_DPADD)
+# This only works for DPADD with full OBJ/SRC paths, which is mostly just
+# _INTERNALLIBS.
+_DP_DIRDEPS= \
+	${_DPADD:O:u:M${OBJTOP}*:H:N.:tA:C,${OBJTOP}[^/]*/,,:N.:O:u} \
+	${_DPADD:O:u:M${OBJROOT}*:N${OBJTOP}*:N${STAGE_ROOT}/*:H:S,${OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
+# Resolve the paths to RELDIRs
+.if !empty(_DP_DIRDEPS)
+DIRDEPS+= ${_DP_DIRDEPS:C,^,${SRCTOP}/,:tA:C,^${SRCTOP}/,,}
+.endif
+.endif	# !empty(DPADD)
+_ALL_LIBADD= ${LIBADD} ${_PROGS_LIBADD}
+.if !empty(_ALL_LIBADD)
+# Also handle LIBADD for non-internal libraries.
+.for _lib in ${_ALL_LIBADD:O:u}
+_lib${_lib}reldir= ${LIB${_lib:tu}DIR:C,${OBJTOP}/,,}
+.if defined(LIB${_lib:tu}DIR) && ${DIRDEPS:M${_lib${_lib}reldir}} == "" && \
+    exists(${SRCTOP}/${_lib${_lib}reldir})
+DIRDEPS+= ${_lib${_lib}reldir}
+.endif
+.endfor
+.endif	# !empty(LIBADD)
+.endif	# no Makefile.depend*
+.endif	# ${RELDIR} == ${DEP_RELDIR}
+
+.endif	# ${DEP_MACHINE} != "host"
+
+.if ${MK_STAGING} == "yes"
+# we need targets/pseudo/stage to prep the stage tree
+.if ${DEP_RELDIR:N.:N${SRCTOP}:N*pseudo/stage} != ""
+DIRDEPS += targets/pseudo/stage
+.endif
+.endif
+
+DEP_MACHINE_ARCH = ${MACHINE_ARCH.${DEP_MACHINE}}
+DEP_MACHINE_CPUARCH = ${DEP_MACHINE_ARCH:${__TO_CPUARCH}}
+CSU_DIR.${DEP_MACHINE_ARCH} ?= csu/${DEP_MACHINE_ARCH}
+CSU_DIR := ${CSU_DIR.${DEP_MACHINE_ARCH}}
+BOOT_MACHINE_DIR:= ${BOOT_MACHINE_DIR.${DEP_MACHINE}}
+KERNEL_NAME:= ${KERNEL_NAME.${DEP_MACHINE}}
+
+.-include <site.dirdeps.mk>
+
+.if ${MK_RUN_TESTS} == "yes"
+# some the tests below will not run correctly on the host
+# as they require support files not present in .CURDIR
+BROKEN_HOST_TESTS += \
+	${BROKEN_HOST_DEP_TESTS} \
+	bin/cp/tests \
+	lib/atf/libatf-c++/tests \
+	lib/atf/libatf-c/tests \
+	lib/libarchive/tests \
+	lib/libnv/tests \
+	libexec/rtld-elf/tests \
+	sbin/devd/tests \
+	usr.bin/comm/tests \
+	usr.bin/du/tests \
+	usr.bin/procstat/tests \
+	usr.bin/sed/tests \
+	usr.bin/tar/tests \
+	usr.bin/tr/tests \
+	usr.bin/xargs/tests \
+	usr.bin/yacc/tests \
+	usr.sbin/makefs/tests \
+	usr.sbin/rpcbind/tests \
+
+# these all have broken dependencies which we choose not to fix for host
+BROKEN_HOST_DEP_TESTS += \
+	lib/msun/tests \
+	usr.bin/cut/tests \
+	usr.bin/diff/tests \
+	usr.bin/grep/tests \
+	usr.bin/gzip/tests \
+	usr.bin/printf/tests \
+
+
+TESTS_DIR_LIST += tests
+# most of the tree only has Makefile.depend
+# by default we only want to run host tests for Makefile.depend.host
+TESTS_DEPENDFILE_PREFERENCE ?= Makefile.depend.host
+EXCLUDE_TESTS_FILTER += . \
+	lib/libcasper/services/cap_* \
+
+.for t in ${TESTS_DIR_LIST:O:u}
+.if !target(${DEP_RELDIR}/$t.test)
+.if ${BROKEN_HOST_TESTS:U:M${DEP_RELDIR}/$t} == "" && \
+	${RUN_TESTS_FILTER:U*:@m@${DEP_RELDIR:M$m}@} != "" && \
+	${DEP_RELDIR:${EXCLUDE_TESTS_FILTER:Uno:${M_ListToSkip}}} != "" && \
+	${TESTS_DEPENDFILE_PREFERENCE:@m@${exists(${SRCTOP}/${DEP_RELDIR}/$t/$m):?$m:}@} != ""
+# build but not via DIRDEPS to avoid circular dependencies
+_build_xtra_dirs += ${SRCTOP}/${DEP_RELDIR}/$t.host
+# mark it done
+${DEP_RELDIR}/$t.test:
+.endif
+.endif
+.endfor
+.endif
+

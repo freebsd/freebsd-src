@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: opensm
+# BEFORE: netif
+# REQUIRE: FILESYSTEMS
+
+. /etc/rc.subr
+
+name="opensm"
+start_cmd="opensm_start"
+rcvar="opensm_enable"
+
+: ${opensm_svcj_options:="net_basic"}
+
+command=/usr/bin/opensm
+command_args="-B"
+
+opensm_start()
+{
+	for guid in `ibstat | grep "Port GUID" | cut -d ':' -f2`; do
+		[ -z "${rc_quiet}" ] && echo "Starting ${guid} opensm."
+		${command} ${command_args} -g ${guid} >> /dev/null
+	done
+}
+
+load_rc_config $name
+run_rc_command $*

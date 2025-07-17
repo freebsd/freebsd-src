@@ -1,0 +1,309 @@
+.\"
+.\" Copyright (C) 2022 Alexander Chernikov <melifaro@FreeBSD.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.Dd December 16, 2022
+.Dt SNL 3
+.Os
+.Sh NAME
+.Nm snl_init ,
+.Nm snl_free ,
+.Nm snl_read_message ,
+.Nm snl_send ,
+.Nm snl_get_seq ,
+.Nm snl_allocz ,
+.Nm snl_clear_lb ,
+.Nm snl_parse_nlmsg ,
+.Nm snl_parse_header ,
+.Nm snl_parse_attrs ,
+.Nm snl_parse_attrs_raw ,
+.Nm snl_attr_get_flag ,
+.Nm snl_attr_get_ip ,
+.Nm snl_attr_get_uint16 ,
+.Nm snl_attr_get_uint32 ,
+.Nm snl_attr_get_string ,
+.Nm snl_attr_get_stringn ,
+.Nm snl_attr_get_nla ,
+.Nm snl_field_get_uint8 ,
+.Nm snl_field_get_uint16 ,
+.Nm snl_field_get_uint32
+.Nd "simple netlink library"
+.Sh SYNOPSIS
+.In netlink/netlink_snl.h
+.In netlink/netlink_snl_route.h
+.Ft "bool"
+.Fn snl_init "struct snl_state *ss" "int netlink_family"
+.Fn snl_free "struct snl_state *ss"
+.Ft "struct nlmsghdr *"
+.Fn snl_read_message "struct snl_state *ss"
+.Ft "bool"
+.Fn snl_send "struct snl_state *ss" "void *data" "int sz"
+.Ft "uint32_t"
+.Fn snl_get_seq "struct snl_state *ss"
+.Ft "void *"
+.Fn snl_allocz "struct snl_state *ss" "int len"
+.Fn snl_clear_lb "struct snl_state *ss"
+.Ft "bool"
+.Fn snl_parse_nlmsg "struct snl_state *ss" "struct nlmsghdr *hdr" "const struct snl_hdr_parser *ps" "void *target"
+.Ft "bool"
+.Fn snl_parse_header "struct snl_state *ss" "void *hdr" "int len" "const struct snl_hdr_parser *ps" "int pslen" "void *target"
+.Ft "bool"
+.Fn snl_parse_attrs "struct snl_state *ss" "struct nlmsghdr *hdr" "int hdrlen" "const struct snl_attr_parser *ps" "int pslen" "void *target"
+.Ft "bool"
+.Fn snl_parse_attrs_raw "struct snl_state *ss" "struct nlattr *nla_head" "int len" "const struct snl_attr_parser *ps" "int pslen" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_flag "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_uint8 "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_uint16 "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_uint32 "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_uint64 "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_string "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_stringn "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_nla "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_ip "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_ipvia "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Sh DESCRIPTION
+The
+.Xr snl 3
+library provides an easy way of sending and receiving Netlink messages,
+taking care of serialisation and deserialisation.
+.Ss INITIALISATION
+Call
+.Fn snl_init
+with a pointer to the
+.Dv struct snl_state
+and the desired Netlink family to initialise the library instance.
+To free the library instance, call
+.Fn snl_free .
+.Pp
+The library functions are NOT multithread-safe.
+If multithreading is desired, consider initializing an instance
+per thread.
+.Ss MEMORY ALLOCATION
+The library uses pre-allocated extendable memory buffers to handle message parsing.
+The typical usage pattern is to allocate the necessary data structures during the
+message parsing or writing process via
+.Fn snl_allocz
+and free all allocated data at once using
+.Fn snl_clear_lb
+after handling the message.
+.Ss COMPOSING AND SENDING MESSAGES
+The library does not currently offer any wrappers for writing netlink messages.
+Simple request messages can be composed by filling in all needed fields directly.
+Example for constructing an interface dump request:
+.Bd -literal
+	struct {
+		struct nlmsghdr hdr;
+		struct ifinfomsg ifmsg;
+	} msg = {
+		.hdr.nlmsg_type = RTM_GETLINK,
+		.hdr.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.hdr.nlmsg_seq = snl_get_seq(ss),
+	};
+	msg.hdr.nlmsg_len = sizeof(msg);
+.Ed
+.Fn snl_get_seq
+can be used to generate a unique message number.
+To send the resulting message,
+.Fn snl_send
+can be used.
+.Ss RECEIVING AND PARSING MESSAGES
+To receive a message, use
+.Fn snl_read_message .
+Currently, this call is blocking.
+.Pp
+The library provides an easy way to convert the message to the pre-defined C
+structure.
+For each message type, one needs to define rules, converting the protocol header
+fields and the desired attributes to the specified structure.
+It can be accomplished by using message parsers.
+Each message parser consists of an array of attribute getters and an array of
+header field getters.
+The former array needs to be sorted by the attribute type.
+There is a
+.Fn SNL_VERIFY_PARSERS
+macro to check if the order is correct.
+.Fn SNL_DECLARE_PARSER "parser_name" "family header type" "struct snl_field_parser[]" "struct snl_attr_parser[]"
+can be used to create a new parser.
+.Fn SNL_DECLARE_ATTR_PARSER "parser_name" "struct snl_field_parser[]"
+can be used to create an attribute-only message parser.
+.Pp
+Each attribute getter needs to be embedded in the following structure:
+.Bd -literal
+typedef bool snl_parse_attr_f(struct snl_state *ss, struct nlattr *attr, const void *arg, void *target);
+struct snl_attr_parser {
+	uint16_t		type;	/* Attribute type */
+	uint16_t		off;	/* field offset in the target structure */
+	snl_parse_attr_f	*cb;	/* getter function to call */
+	const void		*arg;	/* getter function custom argument */
+};
+.Ed
+The generic attribute getter has the following signature:
+.Ft "bool"
+.Fn snl_attr_get_<type> "struct snl_state *ss" "struct nlattr *nla" "const void *arg" "void *target" .
+nla contains the pointer of the attribute to use as the datasource.
+The target field is the pointer to the field in the target structure.
+It is up to the getter to know the type of the target field.
+The getter must check the input attribute and return
+false if the attribute is not formed correctly.
+Otherwise, the getter fetches the attribute value and stores it in the target,
+then returns true.
+It is possible to use
+.Fn snl_allocz
+to create the desired data structure .
+A number of predefined getters for the common data types exist.
+.Fn snl_attr_get_flag
+converts a flag-type attribute to an uint8_t value of 1 or 0, depending on the
+attribute presence.
+.Fn snl_attr_get_uint8
+stores a uint8_t type attribute into the uint8_t target field.
+.Fn snl_attr_get_uint16
+stores a uint16_t type attribute into the uint16_t target field.
+.Fn snl_attr_get_uint32
+stores a uint32_t type attribute into the uint32_t target field.
+.Fn snl_attr_get_uint64
+stores a uint64_t type attribute into the uint64_t target field.
+.Fn snl_attr_get_ip
+and
+.Fn snl_attr_get_ipvia
+stores a pointer to the sockaddr structure with the IPv4/IPv6 address contained
+in the attribute.
+Sockaddr is allocated using
+.Fn snl_allocz .
+.Fn snl_attr_get_string
+stores a pointer to the NULL-terminated string.
+The string itself is allocated using
+.Fn snl_allocz .
+.Fn snl_attr_get_nla
+stores a pointer to the specified attribute.
+.Fn snl_attr_get_stringn
+stores a pointer to the non-NULL-terminated string.
+.Pp
+Similarly, each family header getter needs to be embedded in the following structure:
+.Bd -literal
+typedef void snl_parse_field_f(struct snl_state *ss, void *hdr, void *target);
+struct snl_field_parser {
+	uint16_t		off_in;	/* field offset in the input structure */
+	uint16_t                off_out;/* field offset in the target structure */
+	snl_parse_field_f       *cb;	/* getter function to call */
+};
+.Ed
+The generic field getter has the following signature:
+.Ft "void"
+snl_field_get_<type> "struct snl_state *ss" "void *src" "void *target" .
+A number of pre-defined getters for the common data types exist.
+.Fn "snl_field_get_uint8"
+fetches an uint8_t value and stores it in the target.
+.Fn "snl_field_get_uint16"
+fetches an uint8_t value and stores it in the target.
+.Fn "snl_field_get_uint32"
+fetches an uint32_t value and stores it in the target.
+.Sh EXAMPLES
+The following example demonstrates how to list all system interfaces
+using netlink.
+.Bd -literal
+#include <stdio.h>
+
+#include <netlink/netlink.h>
+#include <netlink/netlink_route.h>
+#include "netlink/netlink_snl.h"
+#include "netlink/netlink_snl_route.h"
+
+struct nl_parsed_link {
+	uint32_t		ifi_index;
+	uint32_t		ifla_mtu;
+	char			*ifla_ifname;
+};
+
+#define	_IN(_field)	offsetof(struct ifinfomsg, _field)
+#define	_OUT(_field)	offsetof(struct nl_parsed_link, _field)
+static const struct snl_attr_parser ap_link[] = {
+	{ .type = IFLA_IFNAME, .off = _OUT(ifla_ifname), .cb = snl_attr_get_string },
+	{ .type = IFLA_MTU, .off = _OUT(ifla_mtu), .cb = snl_attr_get_uint32 },
+};
+static const struct snl_field_parser fp_link[] = {
+	{.off_in = _IN(ifi_index), .off_out = _OUT(ifi_index), .cb = snl_field_get_uint32 },
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(link_parser, struct ifinfomsg, fp_link, ap_link);
+
+
+int
+main(int ac, char *argv[])
+{
+	struct snl_state ss;
+
+	if (!snl_init(&ss, NETLINK_ROUTE))
+		return (1);
+
+	struct {
+		struct nlmsghdr hdr;
+		struct ifinfomsg ifmsg;
+	} msg = {
+		.hdr.nlmsg_type = RTM_GETLINK,
+		.hdr.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.hdr.nlmsg_seq = snl_get_seq(&ss),
+	};
+	msg.hdr.nlmsg_len = sizeof(msg);
+
+	if (!snl_send(&ss, &msg, sizeof(msg))) {
+		snl_free(&ss);
+		return (1);
+	}
+
+	struct nlmsghdr *hdr;
+	while ((hdr = snl_read_message(&ss)) != NULL && hdr->nlmsg_type != NLMSG_DONE) {
+		if (hdr->nlmsg_seq != msg.hdr.nlmsg_seq)
+			break;
+
+		struct nl_parsed_link link = {};
+		if (!snl_parse_nlmsg(&ss, hdr, &link_parser, &link))
+			continue;
+		printf("Link#%u %s mtu %u\n", link.ifi_index, link.ifla_ifname, link.ifla_mtu);
+	}
+
+	return (0);
+}
+.Ed
+.Sh SEE ALSO
+.Xr genetlink 4 ,
+.Xr netlink 4 ,
+and
+.Xr rtnetlink 4
+.Sh HISTORY
+The
+.Dv SNL
+library appeared in
+.Fx 13.2 .
+.Sh AUTHORS
+This library was implemented by
+.An Alexander Chernikov Aq Mt melifaro@FreeBSD.org .

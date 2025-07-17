@@ -1,0 +1,103 @@
+.\" Copyright 2012 The Kyua Authors.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of Google Inc. nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd October 13, 2014
+.Dt KYUA-REPORT-HTML 1
+.Os
+.Sh NAME
+.Nm "kyua report-html"
+.Nd Generates an HTML report with the results of a test suite run
+.Sh SYNOPSIS
+.Nm
+.Op Fl -force
+.Op Fl -output Ar path
+.Op Fl -results-file Ar file
+.Op Fl -results-filter Ar types
+.Sh DESCRIPTION
+The
+.Nm
+command provides a simple mechanism to generate HTML reports of the
+execution of a test suite.
+The command processes a results file and then populates a directory with
+multiple HTML and supporting files to describe the results recorded in that
+results file.
+.Pp
+The HTML output is static and self-contained, so it can easily be served by
+any simple web server.
+The command expects the target directory to not exist, because it would
+overwrite any contents if not careful.
+.Pp
+The following subcommand options are recognized:
+.Bl -tag -width XX
+.It Fl -force
+Forces the deletion of the output directory if it exists.
+Use care, as this effectively means a
+.Sq rm -rf .
+.It Fl -output Ar directory
+Specifies the target directory into which to generate the HTML files.
+The directory must not exist unless the
+.Fl -force
+option is provided.
+The default is
+.Pa ./html .
+.It Fl -results-file Ar path , Fl s Ar path
+__include__ results-file-flag-read.mdoc
+.It Fl -results-filter Ar types
+Comma-separated list of the test result types to include in the report.
+The ordering of the values is respected so that you can determine how you
+want the list of tests to be shown.
+.Pp
+The valid values are:
+.Sq broken ,
+.Sq failed ,
+.Sq passed ,
+.Sq skipped
+and
+.Sq xfail .
+If the parameter supplied to the option is empty, filtering is suppressed
+and all result types are shown in the report.
+.Pp
+The default value for this flag includes all the test results except the
+passed tests.
+Showing the passed tests by default clutters the report with too much
+information, so only abnormal conditions are included.
+.El
+.Ss Results files
+__include__ results-files.mdoc
+.Sh EXIT STATUS
+The
+.Nm
+command always returns 0.
+.Pp
+Additional exit codes may be returned as described in
+.Xr kyua 1 .
+.Sh EXAMPLES
+__include__ results-files-report-example.mdoc REPORT_COMMAND=report-html
+.Sh SEE ALSO
+.Xr kyua 1 ,
+.Xr kyua-report 1 ,
+.Xr kyua-report-junit 1

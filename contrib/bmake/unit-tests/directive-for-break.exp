@@ -1,0 +1,6 @@
+make: directive-for-break.mk:45: break outside of for loop
+make: directive-for-break.mk:65: The .break directive does not take arguments
+	in .for loop from directive-for-break.mk:63 with i = 1
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

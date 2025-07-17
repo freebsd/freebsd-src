@@ -1,0 +1,618 @@
+/*
+ * *****************************************************************************
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The second bc math library.
+ *
+ */
+
+define p(x,y){
+	auto a,i,s,z
+	if(y==0)return 1@scale
+	if(x==0){
+		if(y>0)return 0
+		return 1/0
+	}
+	a=y$
+	if(y==a)return(x^a)@scale
+	z=0
+	if(x<1){
+		y=-y
+		a=-a
+		z=x
+		x=1/x
+	}
+	if(y<0){
+		return e(y*l(x))
+	}
+	i=x^a
+	s=scale
+	scale+=length(i)+5
+	if(z){
+		x=1/z
+		i=x^a
+	}
+	i*=e((y-a)*l(x))
+	scale=s
+	return i@scale
+}
+define r(x,p){
+	auto t,n
+	if(x==0)return x
+	p=abs(p)$
+	n=(x<0)
+	x=abs(x)
+	t=x@p
+	if(p<scale(x)&&x-t>=5>>p+1)t+=1>>p
+	if(n)t=-t
+	return t
+}
+define ceil(x,p){
+	auto t,n
+	if(x==0)return x
+	p=abs(p)$
+	n=(x<0)
+	x=abs(x)
+	t=(x+((x@p<x)>>p))@p
+	if(n)t=-t
+	return t
+}
+define f(n){
+	auto r
+	n=abs(n)$
+	for(r=1;n>1;--n)r*=n
+	return r
+}
+define max(a,b){
+	if(a>b)return a
+	return b
+}
+define min(a,b){
+	if(a<b)return a
+	return b
+}
+define perm(n,k){
+	auto f,g,s
+	if(k>n)return 0
+	n=abs(n)$
+	k=abs(k)$
+	f=f(n)
+	g=f(n-k)
+	s=scale
+	scale=0
+	f/=g
+	scale=s
+	return f
+}
+define comb(n,r){
+	auto s,f,g,h
+	if(r>n)return 0
+	n=abs(n)$
+	r=abs(r)$
+	s=scale
+	scale=0
+	f=f(n)
+	h=f(r)
+	g=f(n-r)
+	f/=h*g
+	scale=s
+	return f
+}
+define fib(n){
+	auto i,t,p,r
+	if(!n)return 0
+	n=abs(n)$
+	t=1
+	for (i=1;i<n;++i){
+		r=p
+		p=t
+		t+=r
+	}
+	return t
+}
+define log(x,b){
+	auto p,s
+	s=scale
+	if(scale<K)scale=K
+	if(scale(x)>scale)scale=scale(x)
+	scale*=2
+	p=l(x)/l(b)
+	scale=s
+	return p@s
+}
+define l2(x){return log(x,2)}
+define l10(x){return log(x,A)}
+define root(x,n){
+	auto s,t,m,r,q,p
+	if(n<0)sqrt(n)
+	n=n$
+	if(n==0)x/n
+	if(x==0||n==1)return x
+	if(n==2)return sqrt(x)
+	s=scale
+	scale=0
+	if(x<0&&n%2==0){
+		scale=s
+		sqrt(x)
+	}
+	scale=s+scale(x)+5
+	t=s+5
+	m=(x<0)
+	x=abs(x)
+	p=n-1
+	q=A^ceil((length(x$)/n)$,0)
+	while(r@t!=q@t){
+		r=q
+		q=(p*r+x/r^p)/n
+	}
+	if(m)r=-r
+	scale=s
+	return r@s
+}
+define cbrt(x){return root(x,3)}
+define gcd(a,b){
+	auto g,s
+	if(!b)return a
+	s=scale
+	scale=0
+	a=abs(a)$
+	b=abs(b)$
+	if(a<b){
+		g=a
+		a=b
+		b=g
+	}
+	while(b){
+		g=a%b
+		a=b
+		b=g
+	}
+	scale=s
+	return a
+}
+define lcm(a,b){
+	auto r,s
+	if(!a&&!b)return 0
+	s=scale
+	scale=0
+	a=abs(a)$
+	b=abs(b)$
+	r=a*b/gcd(a,b)
+	scale=s
+	return r
+}
+define pi(s){
+	auto t,v
+	if(s==0)return 3
+	s=abs(s)$
+	t=scale
+	scale=s+1
+	v=4*a(1)
+	scale=t
+	return v@s
+}
+define t(x){
+	auto s,c
+	l=scale
+	scale+=2
+	s=s(x)
+	c=c(x)
+	scale-=2
+	return s/c
+}
+define a2(y,x){
+	auto a,p
+	if(!x&&!y)y/x
+	if(x<=0){
+		p=pi(scale+2)
+		if(y<0)p=-p
+	}
+	if(x==0)a=p/2
+	else{
+		scale+=2
+		a=a(y/x)+p
+		scale-=2
+	}
+	return a@scale
+}
+define sin(x){return s(x)}
+define cos(x){return c(x)}
+define atan(x){return a(x)}
+define tan(x){return t(x)}
+define atan2(y,x){return a2(y,x)}
+define r2d(x){
+	auto r,i,s
+	s=scale
+	scale+=5
+	i=ibase
+	ibase=A
+	r=x*180/pi(scale)
+	ibase=i
+	scale=s
+	return r@s
+}
+define d2r(x){
+	auto r,i,s
+	s=scale
+	scale+=5
+	i=ibase
+	ibase=A
+	r=x*pi(scale)/180
+	ibase=i
+	scale=s
+	return r@s
+}
+define frand(p){
+	p=abs(p)$
+	return irand(A^p)>>p
+}
+define ifrand(i,p){return irand(abs(i)$)+frand(p)}
+define i2rand(a,b){
+	auto n,x
+	a=a$
+	b=b$
+	if(a==b)return a
+	n=min(a,b)
+	x=max(a,b)
+	return irand(x-n+1)+n
+}
+define srand(x){
+	if(irand(2))return -x
+	return x
+}
+define brand(){return irand(2)}
+define void output(x,b){
+	auto c
+	c=obase
+	obase=b
+	x
+	obase=c
+}
+define void hex(x){output(x,G)}
+define void binary(x){output(x,2)}
+define ubytes(x){
+	auto p,i
+	x=abs(x)$
+	i=2^8
+	for(p=1;i-1<x;p*=2){i*=i}
+	return p
+}
+define sbytes(x){
+	auto p,n,z
+	z=(x<0)
+	x=abs(x)$
+	n=ubytes(x)
+	p=2^(n*8-1)
+	if(x>p||(!z&&x==p))n*=2
+	return n
+}
+define s2un(x,n){
+	auto t,u,s
+	x=x$
+	if(x<0){
+		x=abs(x)
+		s=scale
+		scale=0
+		t=n*8
+		u=2^(t-1)
+		if(x==u)return x
+		else if(x>u)x%=u
+		scale=s
+		return 2^(t)-x
+	}
+	return x
+}
+define s2u(x){return s2un(x,sbytes(x))}
+define void plz(x){
+	if(leading_zero())print x
+	else{
+		if(x>-1&&x<1&&x!=0){
+			if(x<0)print"-"
+			print 0,abs(x)
+		}
+		else print x
+	}
+}
+define void plznl(x){
+	plz(x)
+	print"\n"
+}
+define void pnlz(x){
+	auto s,i
+	if(leading_zero()){
+		if(x>-1&&x<1&&x!=0){
+			s=scale(x)
+			if(x<0)print"-"
+			print"."
+			x=abs(x)
+			for(i=0;i<s;++i){
+				x<<=1
+				print x$
+				x-=x$
+			}
+			return
+		}
+	}
+	print x
+}
+define void pnlznl(x){
+	pnlz(x)
+	print"\n"
+}
+define void output_byte(x,i){
+	auto j,p,y,b,s
+	s=scale
+	scale=0
+	x=abs(x)$
+	b=x/(2^(i*8))
+	j=2^8
+	b%=j
+	y=log(j,obase)
+	if(b>1)p=log(b,obase)+1
+	else p=b
+	for(i=y-p;i>0;--i)print 0
+	if(b)print b
+	scale=s
+}
+define void output_uint(x,n){
+	auto i
+	for(i=n-1;i>=0;--i){
+		output_byte(x,i)
+		if(i)print" "
+		else print"\n"
+	}
+}
+define void hex_uint(x,n){
+	auto o
+	o=obase
+	obase=G
+	output_uint(x,n)
+	obase=o
+}
+define void binary_uint(x,n){
+	auto o
+	o=obase
+	obase=2
+	output_uint(x,n)
+	obase=o
+}
+define void uintn(x,n){
+	if(scale(x)){
+		print"Error: ",x," is not an integer.\n"
+		return
+	}
+	if(x<0){
+		print"Error: ",x," is negative.\n"
+		return
+	}
+	if(x>=2^(n*8)){
+		print"Error: ",x," cannot fit into ",n," unsigned byte(s).\n"
+		return
+	}
+	binary_uint(x,n)
+	hex_uint(x,n)
+}
+define void intn(x,n){
+	auto t
+	if(scale(x)){
+		print"Error: ",x," is not an integer.\n"
+		return
+	}
+	t=2^(n*8-1)
+	if(abs(x)>=t&&(x>0||x!=-t)){
+		print "Error: ",x," cannot fit into ",n," signed byte(s).\n"
+		return
+	}
+	x=s2un(x,n)
+	binary_uint(x,n)
+	hex_uint(x,n)
+}
+define void uint8(x){uintn(x,1)}
+define void int8(x){intn(x,1)}
+define void uint16(x){uintn(x,2)}
+define void int16(x){intn(x,2)}
+define void uint32(x){uintn(x,4)}
+define void int32(x){intn(x,4)}
+define void uint64(x){uintn(x,8)}
+define void int64(x){intn(x,8)}
+define void uint(x){uintn(x,ubytes(x))}
+define void int(x){intn(x,sbytes(x))}
+define bunrev(t){
+	auto a,s,m[]
+	s=scale
+	scale=0
+	t=abs(t)$
+	while(t!=1){
+		t=divmod(t,2,m[])
+		a*=2
+		a+=m[0]
+	}
+	scale=s
+	return a
+}
+define band(a,b){
+	auto s,t,m[],n[]
+	a=abs(a)$
+	b=abs(b)$
+	if(b>a){
+		t=b
+		b=a
+		a=t
+	}
+	s=scale
+	scale=0
+	t=1
+	while(b){
+		a=divmod(a,2,m[])
+		b=divmod(b,2,n[])
+		t*=2
+		t+=(m[0]&&n[0])
+	}
+	scale=s
+	return bunrev(t)
+}
+define bor(a,b){
+	auto s,t,m[],n[]
+	a=abs(a)$
+	b=abs(b)$
+	if(b>a){
+		t=b
+		b=a
+		a=t
+	}
+	s=scale
+	scale=0
+	t=1
+	while(b){
+		a=divmod(a,2,m[])
+		b=divmod(b,2,n[])
+		t*=2
+		t+=(m[0]||n[0])
+	}
+	while(a){
+		a=divmod(a,2,m[])
+		t*=2
+		t+=m[0]
+	}
+	scale=s
+	return bunrev(t)
+}
+define bxor(a,b){
+	auto s,t,m[],n[]
+	a=abs(a)$
+	b=abs(b)$
+	if(b>a){
+		t=b
+		b=a
+		a=t
+	}
+	s=scale
+	scale=0
+	t=1
+	while(b){
+		a=divmod(a,2,m[])
+		b=divmod(b,2,n[])
+		t*=2
+		t+=(m[0]+n[0]==1)
+	}
+	while(a){
+		a=divmod(a,2,m[])
+		t*=2
+		t+=m[0]
+	}
+	scale=s
+	return bunrev(t)
+}
+define bshl(a,b){return abs(a)$*2^abs(b)$}
+define bshr(a,b){return(abs(a)$/2^abs(b)$)$}
+define bnotn(x,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	t=2^(abs(n)$*8)
+	x=abs(x)$%t+t
+	t=1
+	while(x!=1){
+		x=divmod(x,2,m[])
+		t*=2
+		t+=!m[0]
+	}
+	scale=s
+	return bunrev(t)
+}
+define bnot8(x){return bnotn(x,1)}
+define bnot16(x){return bnotn(x,2)}
+define bnot32(x){return bnotn(x,4)}
+define bnot64(x){return bnotn(x,8)}
+define bnot(x){return bnotn(x,ubytes(x))}
+define brevn(x,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	t=2^(abs(n)$*8)
+	x=abs(x)$%t+t
+	scale=s
+	return bunrev(x)
+}
+define brev8(x){return brevn(x,1)}
+define brev16(x){return brevn(x,2)}
+define brev32(x){return brevn(x,4)}
+define brev64(x){return brevn(x,8)}
+define brev(x){return brevn(x,ubytes(x))}
+define broln(x,p,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	n=abs(n)$*8
+	p=abs(p)$%n
+	t=2^n
+	x=abs(x)$%t
+	if(!p)return x
+	x=divmod(x,2^(n-p),m[])
+	x+=m[0]*2^p%t
+	scale=s
+	return x
+}
+define brol8(x,p){return broln(x,p,1)}
+define brol16(x,p){return broln(x,p,2)}
+define brol32(x,p){return broln(x,p,4)}
+define brol64(x,p){return broln(x,p,8)}
+define brol(x,p){return broln(x,p,ubytes(x))}
+define brorn(x,p,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	n=abs(n)$*8
+	p=abs(p)$%n
+	t=2^n
+	x=abs(x)$%t
+	if(!p)return x
+	x=divmod(x,2^p,m[])
+	x+=m[0]*2^(n-p)%t
+	scale=s
+	return x
+}
+define bror8(x,p){return brorn(x,p,1)}
+define bror16(x,p){return brorn(x,p,2)}
+define bror32(x,p){return brorn(x,p,4)}
+define bror64(x,p){return brorn(x,p,8)}
+define brol(x,p){return brorn(x,p,ubytes(x))}
+define bmodn(x,n){
+	auto s
+	s=scale
+	scale=0
+	x=abs(x)$%2^(abs(n)$*8)
+	scale=s
+	return x
+}
+define bmod8(x){return bmodn(x,1)}
+define bmod16(x){return bmodn(x,2)}
+define bmod32(x){return bmodn(x,4)}
+define bmod64(x){return bmodn(x,8)}

@@ -1,0 +1,27 @@
+mydir=plugins$(S)preauth$(S)securid_sam2
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_PA_MODULE_DIR)
+DEFINES=-DARL_SECURID_PREAUTH
+
+LIBBASE=securid_sam2
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/preauth/securid_sam2
+# Depends on libk5crypto and libkrb5
+SHLIB_EXPDEPS = \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT) $(KADMSRV_DEPLIBS)
+ACELIB= -laceclnt
+SHLIB_EXPLIBS= -lkrb5 $(COM_ERR_LIB) -lk5crypto $(SUPPORT_LIB) \
+	$(KADMSRV_LIBS) $(LIBS) $(ACELIB)
+
+STLIBOBJS=securid_sam2_main.o securid2.o grail.o
+
+SRCS= $(srcdir)/securid_sam2_main.c $(srcdir)/securid2.c $(srcdir)/grail.c
+
+all-unix: all-libs
+install-unix: install-libs
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

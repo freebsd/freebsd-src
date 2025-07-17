@@ -1,0 +1,122 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020 Daniel Ebdrup Jensen
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 22, 2021
+.Dt STATS 7
+.Os
+.Sh NAME
+.Nm stats
+.Nd information about various and sundry statistics utilities
+.Sh DESCRIPTION
+The
+.Fx
+userland in part contains a series of utilities which can be used
+to ascertain system state at runtime and optionally from core files.
+.Sh COMMANDS
+The following commands
+.Pq sorted alphabetically
+are currently included in the base system, with more appearing periodically.
+.Bl -tag -width "zpool iostat"
+.It Nm btsockstat
+Show Bluetooth socket information
+.It Nm ctlstat
+CAM Target Layer statistics utility
+.It Nm dwatch
+Watch processes as they trigger a particular DTrace probe
+.It Nm fstat
+Identify active files
+.It Nm gstat
+Print statistics about GEOM disks
+.It Nm ibstat
+Display information from the InfiniBand driver
+.It Nm ifmcstat
+Dump multicast group management statistics per interface
+.It Nm iostat
+Report kernel subsystem I/O statistics
+.It Nm ipfstat
+Display IPF packet filter statistics and filter list
+.It Nm kldstat
+Display status of dynamic kernel linker
+.It Nm lockstat
+Report kernel lock and profiling statistics
+.It Nm mailstats
+Display mail statistics
+.It Nm netstat
+Show network status and statistics
+.It Nm nfsstat
+Display NFS statistics
+.It Nm plockstat
+Trace pthread lock statistics using DTrace
+.It Nm pmcstat
+Performance measurement with performance monitoring hardware
+.It Nm procstat
+Get detailed process information
+.It Nm pstat
+Display system data structures
+.It Nm sockstat
+List open sockets
+.It Nm stat
+Display file status
+.It Nm systat
+Display system statistics
+.It Nm vmstat
+Report virtual memory statistics
+.It Nm zpool iostat
+Report ZFS I/O statistics
+.El
+.Sh SEE ALSO
+.Xr btsockstat 1 ,
+.Xr dwatch 1 ,
+.Xr fstat 1 ,
+.Xr intro 1 ,
+.Xr lockstat 1 ,
+.Xr netstat 1 ,
+.Xr plockstat 1 ,
+.Xr procstat 1 ,
+.Xr sockstat 1 ,
+.Xr stat 1 ,
+.Xr systat 1 ,
+.Xr intro 7 ,
+.Xr ctlstat 8 ,
+.Xr gstat 8 ,
+.Xr ibstat 8 ,
+.Xr ifmcstat 8 ,
+.Xr intro 8 ,
+.Xr iostat 8 ,
+.Xr ipfstat 8 ,
+.Xr kldstat 8 ,
+.Xr mailstats 8 ,
+.Xr pmcstat 8 ,
+.Xr pstat 8 ,
+.Xr vmstat 8 ,
+.Xr zpool 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An Daniel Ebdrup Jensen Aq Mt debdrup@FreeBSD.org

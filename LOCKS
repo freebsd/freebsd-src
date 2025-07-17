@@ -1,0 +1,11 @@
+
+This file documents formal review/approval requirements that have been
+approved by core.
+
+subsystem       login   expires  notes
+--------------------------------------
+
+Special cases:
+releng/* branches				Requires Security Officer approval.
+/sys/dev/random			Requires Security Officer approval.
+/sys/libkern/arc4random.c		Requires Security Officer approval.

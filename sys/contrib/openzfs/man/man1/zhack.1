@@ -1,0 +1,168 @@
+.\" SPDX-License-Identifier: CDDL-1.0
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright 2013 Darik Horn <dajhorn@vanadac.com>. All rights reserved.
+.\"
+.\" lint-ok: WARNING: sections out of conventional order: Sh SYNOPSIS
+.\"
+.Dd May 26, 2021
+.Dt ZHACK 1
+.Os
+.
+.Sh NAME
+.Nm zhack
+.Nd libzpool debugging tool
+.Sh DESCRIPTION
+This utility pokes configuration changes directly into a ZFS pool,
+which is dangerous and can cause data corruption.
+.Sh SYNOPSIS
+.Bl -tag -width Ds
+.It Xo
+.Nm zhack
+.Cm feature stat
+.Ar pool
+.Xc
+List feature flags.
+.
+.It Xo
+.Nm zhack
+.Cm feature enable
+.Op Fl d Ar description
+.Op Fl r
+.Ar pool
+.Ar guid
+.Xc
+Add a new feature to
+.Ar pool
+that is uniquely identified by
+.Ar guid ,
+which is specified in the same form as a
+.Xr zfs 8
+user property.
+.Pp
+The
+.Ar description
+is a short human readable explanation of the new feature.
+.Pp
+The
+.Fl r
+flag indicates that
+.Ar pool
+can be safely opened in read-only mode by a system that does not understand the
+.Ar guid
+feature.
+.
+.It Xo
+.Nm zhack
+.Cm feature ref
+.Op Fl d Ns | Ns Fl m
+.Ar pool
+.Ar guid
+.Xc
+Increment the reference count of the
+.Ar guid
+feature in
+.Ar pool .
+.Pp
+The
+.Fl d
+flag decrements the reference count of the
+.Ar guid
+feature in
+.Ar pool
+instead.
+.Pp
+The
+.Fl m
+flag indicates that the
+.Ar guid
+feature is now required to read the pool MOS.
+.
+.It Xo
+.Nm zhack
+.Cm label repair
+.Op Fl cu
+.Ar device
+.Xc
+Repair labels of a specified
+.Ar device
+according to options.
+.Pp
+Flags may be combined to do their functions simultaneously.
+.
+.Pp
+The
+.Fl c
+flag repairs corrupted label checksums
+.
+.Pp
+The
+.Fl u
+flag restores the label on a detached device
+.Pp
+Example:
+.Nm zhack Cm label repair Fl cu Ar device
+  Fix checksums and undetach a device
+.
+.El
+.
+.Sh GLOBAL OPTIONS
+The following can be passed to all
+.Nm
+invocations before any subcommand:
+.Bl -tag -width "-d dir"
+.It Fl c Ar cachefile
+Read
+.Ar pool
+configuration from the
+.Ar cachefile ,
+which is
+.Pa /etc/zfs/zpool.cache
+by default.
+.It Fl d Ar dir
+Search for
+.Ar pool
+members in
+.Ar dir .
+Can be specified more than once.
+.El
+.
+.Sh EXAMPLES
+.Bd -literal
+.No # Nm zhack Cm feature stat Ar tank
+for_read_obj:
+	org.illumos:lz4_compress = 0
+for_write_obj:
+	com.delphix:async_destroy = 0
+	com.delphix:empty_bpobj = 0
+descriptions_obj:
+	com.delphix:async_destroy = Destroy filesystems asynchronously.
+	com.delphix:empty_bpobj = Snapshots use less space.
+	org.illumos:lz4_compress = LZ4 compression algorithm support.
+
+.No # Nm zhack Cm feature enable Fl d No 'Predict future disk failures.' Ar tank com.example:clairvoyance
+.No # Nm zhack Cm feature ref Ar tank com.example:clairvoyance
+.Ed
+.
+.Sh SEE ALSO
+.Xr ztest 1 ,
+.Xr zpool-features 7 ,
+.Xr zfs 8

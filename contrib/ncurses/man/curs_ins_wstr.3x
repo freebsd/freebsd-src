@@ -1,0 +1,128 @@
+.\"***************************************************************************
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2002-2012,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_ins_wstr.3x,v 1.38 2024/04/20 21:23:08 tom Exp $
+.TH curs_ins_wstr 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%ins_wstr\fP,
+\fB\%ins_nwstr\fP,
+\fB\%wins_wstr\fP,
+\fB\%wins_nwstr\fP,
+\fB\%mvins_wstr\fP,
+\fB\%mvins_nwstr\fP,
+\fB\%mvwins_wstr\fP,
+\fB\%mvwins_nwstr\fP \-
+insert a wide-character string in a \fIcurses\fR window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint ins_wstr(const wchar_t *\fIwstr\fP);
+\fBint ins_nwstr(const wchar_t *\fIwstr\fP, int \fIn\fP);
+\fBint wins_wstr(WINDOW *\fIwin\fP, const wchar_t *\fIwstr\fP);
+\fBint wins_nwstr(WINDOW *\fIwin\fP, const wchar_t *\fIwstr\fP, int \fIn\fP);
+.PP
+\fBint mvins_wstr(int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP);
+\fBint mvins_nwstr(int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP, int \fIn\fP);
+\fBint mvwins_wstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP);
+\fBint mvwins_nwstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const wchar_t *\fIwstr\fP, int \fIn\fP);
+.fi
+.SH DESCRIPTION
+These routines insert a \fBwchar_t\fP character string
+(as many characters as will fit on the line)
+before the character under the cursor,
+as if calling \fBwins_wch\fP(3X).
+All characters to the right of the cursor are shifted right,
+with the possibility of the rightmost characters on the line being lost.
+No wrapping is performed.
+.PP
+The cursor position does not change
+(after moving to \fIy\fP, \fIx\fP, if specified).
+.PP
+The functions with \fIn\fP as the last argument
+insert a leading substring of at most \fIn\fP \fBwchar_t\fP characters.
+If \fIn\fP is less than zero, the entire string is inserted
+(stopping on a L'\e0' character).
+.PP
+Special characters are handled as in \fBwadd_wch\fP(3X).
+.SH RETURN VALUE
+All functions return the integer \fBERR\fP upon failure and \fBOK\fP on success.
+.PP
+X/Open Curses does not specify any error conditions.
+This implementation returns an error
+.bP
+if the \fIwin\fP parameter is null or
+.bP
+if the \fIwstr\fP parameter is null or
+.bP
+if the \fBwins_wch\fP function returns an error.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+All but \fBwins_nwstr\fP may be macros.
+.PP
+If the first character in the string is a non-spacing character, these
+functions will fail.
+X/Open Curses does not define what will happen
+if a non-spacing character follows a control character.
+.SH PORTABILITY
+These functions are described in X/Open Curses, Issue 4,
+which adds \fI\%const\fP qualifiers to the arguments.
+.PP
+X/Open states that the entire string is inserted if \fIn\fP is less than 1.
+This is probably an error,
+because it is inconsistent with other functions,
+and differs from the X/Open implementation on Solaris.
+.SH SEE ALSO
+\fB\%curs_insstr\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its non-wide-character configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_ins_wch\fP(3X),
+\fB\%curs_in_wch\fP(3X)

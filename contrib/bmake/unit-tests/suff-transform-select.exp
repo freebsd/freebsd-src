@@ -1,0 +1,47 @@
+Adding suffix ".c"
+Adding suffix ".d"
+defining transformation from `.c' to `.d'
+inserting ".c" (1) at end of list
+inserting ".d" (2) at end of list
+Adding suffix ".e"
+defining transformation from `.d' to `.e'
+inserting ".d" (2) at end of list
+inserting ".e" (3) at end of list
+Adding suffix ".f"
+Adding suffix ".g"
+defining transformation from `.e' to `'
+inserting ".e" (3) at end of list
+inserting "" (0) at end of list
+defining transformation from `.e' to `.f'
+inserting ".e" (3) at end of list
+inserting ".f" (4) at end of list
+defining transformation from `.f' to `.e'
+inserting ".f" (4) at end of list
+inserting ".e" (3) at end of list
+transformation .e complete
+transformation .e.f complete
+transformation .f.e complete
+Wildcard expanding "all"...
+SuffFindDeps "all"
+	No known suffix on all. Using .NULL suffix
+adding suffix rules
+	trying all.e...not there
+	trying all.d...not there
+	trying all.f...not there
+	trying all.c...not there
+	trying all.e...not there
+FindThem: skipping duplicate "all.e"
+Wildcard expanding "issue10.e"...suffix is ".e"...
+SuffFindDeps "issue10.e"
+	trying issue10.d...got it
+suffix is ".d"...
+SuffFindDeps "issue10.d"
+	trying issue10.c...not there
+suffix is ".d"...
+: 'Making issue10.d out of nothing.'
+make: don't know how to make issue10.e (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1

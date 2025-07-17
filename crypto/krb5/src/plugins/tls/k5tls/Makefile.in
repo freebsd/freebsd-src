@@ -1,0 +1,22 @@
+mydir=plugins$(S)tls$(S)k5tls
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_TLS_MODULE_DIR)
+LOCALINCLUDES= $(TLS_IMPL_CFLAGS)
+
+LIBBASE=k5tls
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/tls/k5tls
+SHLIB_EXPDEPS= $(KRB5_DEPLIB) $(SUPPORT_DEPLIB)
+SHLIB_EXPLIBS= $(KRB5_LIB) $(SUPPORT_LIB) $(TLS_IMPL_LIBS)
+
+STLIBOBJS=openssl.o notls.o
+
+SRCS=$(srcdir)/openssl.c $(srcdir)/notls.c
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

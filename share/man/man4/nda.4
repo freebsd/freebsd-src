@@ -1,0 +1,205 @@
+.\"
+.\" Copyright (c) 2017 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd June 6, 2020
+.Dt NDA 4
+.Os
+.Sh NAME
+.Nm nda
+.Nd NVMe Direct Access device driver
+.Sh SYNOPSIS
+.Cd device nvme
+.Cd device scbus
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for direct access devices, implementing the
+.Tn NVMe
+command protocol, that are attached to the system through a host adapter
+supported by the CAM subsystem.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width 12
+.It Va hw.nvme.use_nvd
+The
+.Xr nvme 4
+driver will create
+.Nm
+device nodes for block storage when set to 0.
+Create
+.Xr nvd 4
+device nodes for block storage when set to 1.
+See
+.Xr nvd 4
+when set to 1.
+.It Va kern.cam.nda.nvd_compat
+When set to 1,
+.Xr nvd 4
+aliases will be created for all
+.Nm
+devices, including partitions and other
+.Xr geom 4
+providers that take their names from the disk's name.
+.Xr nvd 4
+devices will not, however, be reported in the
+.Va kern.disks
+.Xr sysctl 8 .
+.It Va kern.cam.nda.sort_io_queue
+This variable determines whether the software queued entries are
+sorted in LBA order or not.
+Sorting is almost always a waste of time.
+The default is to not sort.
+.It Va kern.cam.nda.enable_biospeedup
+This variable determines if the
+.Nm
+devices participate in the speedup protocol.
+When the device participates in the speedup, then when the upper layers
+send a
+.Va BIO_SPEEDUP ,
+all current
+.Va BIO_DELETE
+requests not yet sent to the hardware are completed successfully immediate
+without sending them to the hardware.
+Used in low disk space scenarios when the filesystem encounters
+a critical shortage and needs blocks immediately.
+Since trims have maximum benefit when the LBA is unused for a long time,
+skipping the trim when space is needed for immediate writes results in little to
+no excess wear.
+When participation is disabled,
+.Va BIO_SPEEDUP
+requests are ignored.
+.It Va kern.cam.nda.max_trim
+The maximum number of LBA ranges to be collected together for each DSM trims
+send to the hardware.
+Defaults to 256, which is the maximum number of ranges the protocol supports.
+Sometimes poor trim performance can be mitigated by limiting the number of
+ranges sent to the device.
+This value must be between 1 and 256 inclusive.
+.El
+.Pp
+The following report per-device settings, and are read-only unless
+otherwise indicated.
+Replace
+.Va N
+with the device unit number.
+.Bl -tag -width 12
+.It Va kern.cam.nda.N.rotating
+This variable reports whether the storage volume is spinning or
+flash.
+Its value is hard coded to 0 indicating flash.
+.It Va kern.cam.nda.N.unmapped_io
+This variable reports whether the
+.Nm
+driver accepts unmapped I/O for this unit.
+.It Va kern.cam.nda.N.flags
+This variable reports the current flags.
+.Bl -tag -width 12
+.It Va OPEN
+The device is open.
+.It Va DIRTY
+Set when a write to the drive is scheduled.
+Cleared after flush commands.
+.It Va SCTX_INIT
+Internal flag set after
+.Xr sysctl 8
+nodes have been created.
+.El
+.It Va kern.cam.nda.N.sort_io_queue
+Same as the
+.Va kern.cam.nda.sort_io_queue
+tunable.
+.It Va kern.cam.nda.N.trim_ticks
+Writable.
+When greater than zero, hold trims for up to this many ticks before sending
+to the drive.
+Sometimes waiting a little bit to collect more trims to send at one time
+improves trim performance.
+When 0, no delaying of trims are done.
+.It Va kern.cam.nda.N.trim_goal
+Writable.
+When delaying a bit to collect multiple trims, send the accumulated DSM TRIM to
+the drive.
+.It Va kern.cam.nda.N.trim_lbas
+Total number of LBAs that have been trimmed.
+.It Va kern.cam.nda.N.trim_ranges
+Total number of LBA ranges that have been trimmed.
+.It Va kern.cam.nda.N.trim_count
+Total number of trims sent to the hardware.
+.It Va kern.cam.nda.N.deletes
+Total number of
+.Va BIO_DELETE
+requests queued to the device.
+.El
+.Sh NAMESPACE MAPPING
+Each
+.Xr nvme 4
+drive has one or more namespaces associated with it.
+One instance of the
+.Nm
+driver will be created for each of the namespaces on
+the drive.
+All the
+.Nm
+nodes for a
+.Xr nvme 4
+device are at target 0.
+However, the namespace ID maps to the CAM lun, as reported
+in kernel messages and in the
+.Va devlist
+sub command of
+.Xr camcontrol 8 .
+.Pp
+Namespaces are managed with the
+.Va ns
+sub command of
+.Xr nvmecontrol 8 .
+Not all drives support namespace management,
+but all drives support at least one namespace.
+Device nodes for
+.Nm
+will be created and destroyed dynamically as
+namespaces are activated or detached.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/nda*" -compact
+.It Pa /dev/nda*
+NVMe storage device nodes
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr geom 4 ,
+.Xr nvd 4 ,
+.Xr nvme 4 ,
+.Xr gpart 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An Warner Losh Aq Mt imp@FreeBSD.org

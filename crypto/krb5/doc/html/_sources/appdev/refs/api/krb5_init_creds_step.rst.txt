@@ -1,0 +1,69 @@
+krb5_init_creds_step -  Get the next KDC request for acquiring initial credentials. 
+====================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_creds_step(krb5_context context, krb5_init_creds_context ctx, krb5_data * in, krb5_data * out, krb5_data * realm, unsigned int * flags)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - Initial credentials context
+
+	          **[in]** **in** - KDC response (empty on the first call)
+
+	          **[out]** **out** - Next KDC request
+
+	          **[out]** **realm** - Realm for next KDC request
+
+	          **[out]** **flags** - Output flags
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function constructs the next KDC request in an initial credential exchange, allowing the caller to control the transport of KDC requests and replies. On the first call, *in* should be set to an empty buffer; on subsequent calls, it should be set to the KDC's reply to the previous request.
+
+
+
+If more requests are needed, *flags* will be set to #KRB5_INIT_CREDS_STEP_FLAG_CONTINUE and the next request will be placed in *out* . If no more requests are needed, *flags* will not contain #KRB5_INIT_CREDS_STEP_FLAG_CONTINUE and *out* will be empty.
+
+
+
+If this function returns **KRB5KRB_ERR_RESPONSE_TOO_BIG** , the caller should transmit the next request using TCP rather than UDP. If this function returns any other error, the initial credential exchange has failed.
+
+
+
+ *context* must be the same as the one passed to krb5_init_creds_init() for this initial credentials context.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

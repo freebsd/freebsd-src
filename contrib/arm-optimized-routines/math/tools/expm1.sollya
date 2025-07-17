@@ -1,0 +1,21 @@
+// polynomial for approximating exp(x)-1 in double precision
+//
+// Copyright (c) 2022-2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+deg = 12;
+
+a = -log(2)/2;
+b = log(2)/2;
+
+f = proc(y) {
+  return exp(y)-1;
+};
+
+poly = fpminimax(f(x), deg, [|double ...|], [a;b]);
+
+display = hexadecimal;
+print("rel error:", accurateinfnorm(1-poly(x)/f(x), [a;b], 30));
+print("in [",a,b,"]");
+print("coeffs:");
+for i from 2 to deg do round(coeff(poly,i), D, RN);

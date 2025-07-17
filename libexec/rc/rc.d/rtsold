@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: rtsold
+# REQUIRE: netif
+# BEFORE: NETWORKING
+# KEYWORD: nojailvnet shutdown
+
+. /etc/rc.subr
+
+name="rtsold"
+desc="Router solicitation daemon"
+rcvar="rtsold_enable"
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+start_postcmd="rtsold_poststart"
+
+: ${rtsold_svcj_options:="net_basic"}
+
+rtsold_poststart()
+{
+	# wait for DAD
+	sleep $(($(${SYSCTL_N} net.inet6.ip6.dad_count) + 1))
+}
+
+load_rc_config $name
+run_rc_command "$1"

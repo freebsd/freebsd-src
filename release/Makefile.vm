@@ -1,0 +1,302 @@
+#
+# Makefile for building virtual machine and cloud provider disk images.
+#
+
+VMTARGETS=	vm-image
+VMFORMATS?=	vhd vmdk qcow2 raw
+.if ${TARGET_ARCH} == riscv64
+VMSIZE?=	6144m
+.else
+VMSIZE?=	5120m
+.endif
+VMFS?=		ufs
+VMFSLIST?=	ufs zfs
+SWAPSIZE?=	1g
+VMBASE?=	vm
+
+VHD_DESC=	Azure, VirtualPC, Hyper-V, Xen disk image
+VMDK_DESC=	VMWare, VirtualBox disk image
+QCOW2_DESC=	Qemu, KVM disk image
+RAW_DESC=	Unformatted raw disk image
+
+.if defined(WITHOUT_QEMU)
+CLOUDWARE_TYPES?= \
+		BASIC-CI
+.else
+CLOUDWARE_TYPES?= AZURE \
+		BASIC-CI \
+		BASIC-CLOUDINIT \
+		EC2 \
+		GCE \
+		ORACLE \
+		VAGRANT
+.endif
+AZURE_FORMAT=	vhdf
+AZURE_FSLIST?=	ufs zfs
+AZURE_DESC=	Microsoft Azure platform image
+BASIC-CI_FORMAT=	raw
+BASIC-CI_FSLIST?=	ufs
+BASIC-CI_DESC=		Image for CI
+BASIC-CLOUDINIT_FORMAT=	raw qcow2
+BASIC-CLOUDINIT_FSLIST?=	ufs zfs
+BASIC-CLOUDINIT_DESC?=	Images for VM with cloudinit disk config support
+EC2_FORMAT=	raw
+EC2_FSLIST?=	ufs zfs
+EC2_FLAVOURS?=	BASE BUILDER CLOUD-INIT SMALL
+EC2-BASE_DESC=	Amazon EC2 image
+EC2-BUILDER_DESC=	Amazon EC2 AMI Builder image
+EC2-CLOUD-INIT_DESC=	Amazon EC2 Cloud-Init image
+EC2-SMALL_DESC=	Amazon EC2 small image
+GCE_FORMAT=	raw
+GCE_FSLIST?=	ufs zfs
+GCE_DESC=	Google Compute Engine image
+ORACLE_FORMAT=	raw
+ORACLE_FSLIST?=	ufs zfs
+ORACLE_DESC=	Oracle Cloud Infrastructure image
+OPENSTACK_FORMAT=qcow2
+OPENSTACK_FSLIST?=	ufs
+OPENSTACK_DESC=	OpenStack platform image
+VAGRANT_FORMAT=	vmdk
+VAGRANT_FSLIST?=	ufs
+VAGRANT_FLAVOURS?=	VIRTUALBOX VMWARE
+VAGRANT-VIRTUALBOX_DESC=	Vagrant Image for VirtualBox
+VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
+
+.for _CWT in ${CLOUDWARE_TYPES}
+. if defined(${_CWT}_FLAVOURS)
+.  for _CWF in ${${_CWT}_FLAVOURS}
+CLOUDWARE_GEN+=	${_CWT}-${_CWF}
+${_CWT}-${_CWF}_FORMAT?=	${${_CWT}_FORMAT}
+${_CWT}-${_CWF}_FSLIST?=	${${_CWT}_FSLIST}
+${_CWT}-${_CWF}_DESC?=	${${_CWT}_DESC}
+.  endfor
+. else
+CLOUDWARE_GEN+=	${_CWT}
+. endif
+.endfor
+CLOUDWARE?=	${CLOUDWARE_GEN}
+
+.for _V in TYPE BRANCH REVISION
+. if !defined(${_V}) || empty(${_V})
+${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo $$${_V}
+. endif
+.endfor
+
+emulator-portinstall:
+.if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
+.if exists(${PORTSDIR}/emulators/qemu-user-static/Makefile)
+	env - UNAME_r=${UNAME_r} PATH=$$PATH \
+	    make -C ${PORTSDIR}/emulators/qemu-user-static \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
+.else
+.if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -y
+.endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y emulators/qemu-user-static
+.endif
+.endif
+	touch ${.TARGET}
+
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} && !defined(WITHOUT_QEMU)
+.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
+QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
+QEMUTGT=emulator-portinstall
+.endif
+.endif
+QEMUTGT?=
+
+.if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
+  (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
+.error WITHOUT_QEMU requires NO_ROOT (and vice versa)
+.endif
+
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+.  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
+${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
+.  endif
+.  for _FS in ${${_CW:tu}_FSLIST}
+.   for _FMT in ${${_CW:tu}_FORMAT}
+CLOUDTARGETS+=	cw-${_CW:tl}-${_FS}-${_FMT}
+CLEANDIRS+=	cw-${_CW:tl}-${_FS}-${_FMT}
+CLEANFILES+=	${_CW:tl}.${_FS}.${_FMT}.img \
+		${_CW:tl}.${_FS}.${_FMT} \
+		${_CW:tl}.${_FS}.${_FMT}.raw
+${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FS}.${_FMT}
+
+# Special handling: EC2 "AMI Builder" images need a copy of the "base" disk
+# built first.
+.if ${_CW} == EC2-BUILDER
+cw-${_CW:tl}-${_FS}-${_FMT}: cw-ec2-base-${_FS}-${_FMT}
+.endif
+
+cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
+	mkdir -p ${.OBJDIR}/${.TARGET}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
+		QEMUSTATIC=${QEMUSTATIC} \
+		EC2BASEIMG=${.OBJDIR}/${EC2-BASE${_FS:tu}${_FMT:tu}IMAGE} \
+		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
+		${NO_ROOT:DNO_ROOT=true} \
+		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
+		${.CURDIR}/scripts/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-F ${"${_CW:MEC2-BUILDER}" != "":?ufs:${_FS}} \
+		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE} -c ${${_CW:tu}CONF} || true
+	touch ${.TARGET}
+.   endfor
+.  endfor
+
+# Hardlinks from "foo.${FMT}" to "foo-${VMFS}.${FMT}".  These can go away once
+# all of the cloudware code knows how to handle multiple filesystem images (or
+# at least knows the name of the UFS image).
+.  for _FMT in ${${_CW:tu}_FORMAT}
+CLOUDTARGETS+=	cw-${_CW:tl}-${_FMT}
+CLEANFILES+=	${_CW:tl}.${_FMT}
+${_CW:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FMT}
+cw-${_CW:tl}-${_FMT}: cw-${_CW:tl}-${VMFS}-${_FMT}
+	ln -f ${${_CW:tu}${VMFS:tu}${_FMT:tu}IMAGE} ${${_CW:tu}${_FMT:tu}IMAGE} || true
+.  endfor
+
+# Targets without a disk format listed are the first disk format on the list
+.  for _FS in ${${_CW:tu}_FSLIST}
+${_CW:tu}${_FS:tu}IMAGE=	${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT:[1]}
+cw-${_CW:tl}-${_FS}: cw-${_CW:tl}-${_FS}-${${_CW:tu}_FORMAT:[1]}
+.  endfor
+${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT:[1]}
+cw-${_CW:tl}:	cw-${_CW:tl}-${${_CW:tu}_FORMAT:[1]}
+. endfor
+.endif
+
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANFILES+=	vm-image
+. for FORMAT in ${VMFORMATS}
+.  for FS in ${VMFSLIST}
+CLEANDIRS+=	vm-image-${FORMAT}-${FS}
+CLEANFILES+=	${FORMAT}.${FS}.img
+CLEANFILES+=	${VMBASE}.${FS}.${FORMAT}
+.  endfor
+. endfor
+.endif
+
+vm-base:	vm-image
+
+vm-image:	${QEMUTGT}
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. for FORMAT in ${VMFORMATS}
+.  for FS in ${VMFSLIST}
+	mkdir -p ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
+		QEMUSTATIC=${QEMUSTATIC} \
+		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
+		${NO_ROOT:DNO_ROOT=true} \
+		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
+		${.CURDIR}/scripts/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr \
+		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
+		-i ${.OBJDIR}/${FORMAT}.${FS}.img -s ${VMSIZE} -f ${FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT} || true
+.  endfor
+. endfor
+.endif
+	touch ${.TARGET}
+
+vm-cloudware:	${CLOUDTARGETS}
+
+list-vmtargets:	list-cloudware
+	@${ECHO}
+	@${ECHO} "Supported virtual machine disk image formats:"
+.for FORMAT in ${VMFORMATS:tu}
+	@${ECHO} "  ${FORMAT:tl}: ${${FORMAT}_DESC}"
+.endfor
+
+list-cloudware:
+.if !empty(CLOUDWARE)
+	@${ECHO}
+	@${ECHO} "Supported cloud hosting provider images:"
+. for _CW in ${CLOUDWARE}
+	@${ECHO} "  ${_CW:tu}: ${${_CW:tu}_DESC}"
+. endfor
+.endif
+
+vm-install:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	mkdir -p ${DESTDIR}/vmimages
+. for FORMAT in ${VMFORMATS}
+.  for FS in ${VMFSLIST}
+	cp -p ${VMBASE}.${FS}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
+.  endfor
+. endfor
+. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
+.  for FORMAT in ${VMFORMATS}
+.   for FS in ${VMFSLIST}
+	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
+	${XZ_CMD} -f ${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
+.   endfor
+.  endfor
+. endif
+	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA512
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+.endif
+
+cloud-install-BASIC-CI:
+	mkdir -p ${DESTDIR}/ciimages
+.for _FS in ${BASIC-CI_FSLIST}
+. for _FMT in ${BASIC-CI_FORMAT}
+	cp -p ${.OBJDIR}/${BASIC-CI${_FS:tu}${_FMT:tu}IMAGE} \
+		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
+	${XZ_CMD} -f ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
+. endfor
+.endfor
+	cd ${DESTDIR}/ciimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/ciimages/CHECKSUM.SHA512
+	cd ${DESTDIR}/ciimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/ciimages/CHECKSUM.SHA256
+
+cloud-install-BASIC-CLOUDINIT:
+	mkdir -p ${DESTDIR}/vmimages
+.for _FS in ${BASIC-CLOUDINIT_FSLIST}
+. for _FMT in ${BASIC-CLOUDINIT_FORMAT}
+	cp -p ${.OBJDIR}/${BASIC-CLOUDINIT${_FS:tu}${_FMT:tu}IMAGE} \
+		${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
+	${XZ_CMD} -f ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
+. endfor
+.endfor
+	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA512
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+
+CLOUD_INSTALL_TGTS=
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+.  if target(cloud-install-${_CW})
+CLOUD_INSTALL_TGTS+=	cloud-install-${_CW}
+.  endif
+. endfor
+.endif
+cloud-install:	${CLOUD_INSTALL_TGTS}
+
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+vm-release:	${VMTARGETS}
+.else
+vm-release:
+.endif
+
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+cloudware-release:	${CLOUDTARGETS}
+.else
+cloudware-release:
+.endif
+
+.include "${.CURDIR}/Makefile.azure"
+.include "${.CURDIR}/Makefile.ec2"
+.include "${.CURDIR}/Makefile.firecracker"
+.include "${.CURDIR}/Makefile.gce"
+.include "${.CURDIR}/Makefile.oracle"
+.include "${.CURDIR}/Makefile.vagrant"
+.include "${.CURDIR}/Makefile.inc1"

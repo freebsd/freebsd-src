@@ -1,0 +1,152 @@
+mydir=man
+BUILDTOP=$(REL)..
+
+SPHINX_BUILD=sphinx-build
+GROFF=@GROFF@
+GROFF_MAN=$(GROFF) -mtty-char -Tascii -mandoc -c
+sysconfdir=@sysconfdir@
+DEFCCNAME=@DEFCCNAME@
+DEFKTNAME=@DEFKTNAME@
+DEFCKTNAME=@DEFCKTNAME@
+PKCS11_MODNAME=@PKCS11_MODNAME@
+
+MANSUBS=k5identity.sub k5login.sub k5srvutil.sub kadm5.acl.sub kadmin.sub \
+	kadmind.sub kdb5_ldap_util.sub kdb5_util.sub kdc.conf.sub \
+	kdestroy.sub kinit.sub klist.sub kpasswd.sub kprop.sub kpropd.sub \
+	kproplog.sub krb5.conf.sub krb5-config.sub krb5kdc.sub ksu.sub \
+	kswitch.sub ktutil.sub kvno.sub sclient.sub sserver.sub kerberos.sub
+
+docsrc=$(top_srcdir)/../doc
+
+# Update checked-in man pages from RST sources in the top-level doc
+# directory.  This can be done from an unconfigured tree with:
+#     make -f Makefile.in top_srcdir=.. srcdir=. man
+#     make -f Makefile.in clean
+# The sed command deletes some trailing whitespace that the docutils
+# manpage writer outputs near the end of its output files.
+man: $(docsrc)/version.py
+	rm -rf rst_man
+	$(SPHINX_BUILD) -q -t mansubs -b man $(docsrc) rst_man
+	for f in rst_man/*.[0-9]; do \
+		name=`echo $$f | sed -e 's|^.*/\(.*\)\.[0-9]$$|\1|'`; \
+		sed -e '/^\.\\" $$/d' \
+		-e '/^\.\\"/s/reStructeredText/reStructuredText/' \
+		$$f > $(srcdir)/$$name.man; \
+	done
+
+$(docsrc)/version.py: $(top_srcdir)/patchlevel.h
+	(cd $(BUILDTOP)/doc && make version.py)
+
+.SUFFIXES: .man .sub
+
+.man.sub:
+	sed -e 's|@BINDIR@|$(CLIENT_BINDIR)|g' \
+	    -e 's|@SBINDIR@|$(SERVER_BINDIR)|g' \
+	    -e 's|@LIBDIR@|$(KRB5_LIBDIR)|g' \
+	    -e 's|@LOCALSTATEDIR@|$(localstatedir)|g' \
+	    -e 's|@RUNSTATEDIR@|$(runstatedir)|g' \
+	    -e 's|@SYSCONFDIR@|$(sysconfdir)|g' \
+	    -e 's|@CCNAME@|$(DEFCCNAME)|g' \
+	    -e 's|@KTNAME@|$(DEFKTNAME)|g' \
+	    -e 's|@CKTNAME@|$(DEFCKTNAME)|g' \
+	    -e 's|@PKCS11MOD@|$(PKCS11_MODNAME)|g' $? > $@
+
+all: $(MANSUBS)
+
+clean:
+	rm -rf $(MANSUBS) rst_man
+
+install: install-clientman install-fileman install-adminman \
+	install-overviewman install-serverman
+
+install-catman: install-clientcat install-filecat install-admincat \
+	install-overviewcat install-servercat
+
+install-clientman:
+	$(INSTALL_DATA) k5srvutil.sub $(DESTDIR)$(CLIENT_MANDIR)/k5srvutil.1
+	$(INSTALL_DATA) kadmin.sub $(DESTDIR)$(CLIENT_MANDIR)/kadmin.1
+	$(INSTALL_DATA) kdestroy.sub $(DESTDIR)$(CLIENT_MANDIR)/kdestroy.1
+	$(INSTALL_DATA) kinit.sub $(DESTDIR)$(CLIENT_MANDIR)/kinit.1
+	$(INSTALL_DATA) klist.sub $(DESTDIR)$(CLIENT_MANDIR)/klist.1
+	$(INSTALL_DATA) kpasswd.sub $(DESTDIR)$(CLIENT_MANDIR)/kpasswd.1
+	$(INSTALL_DATA) krb5-config.sub $(DESTDIR)$(CLIENT_MANDIR)/krb5-config.1
+	$(INSTALL_DATA) ksu.sub $(DESTDIR)$(CLIENT_MANDIR)/ksu.1
+	$(INSTALL_DATA) kswitch.sub $(DESTDIR)$(CLIENT_MANDIR)/kswitch.1
+	$(INSTALL_DATA) ktutil.sub $(DESTDIR)$(CLIENT_MANDIR)/ktutil.1
+	$(INSTALL_DATA) kvno.sub $(DESTDIR)$(CLIENT_MANDIR)/kvno.1
+	$(INSTALL_DATA) sclient.sub $(DESTDIR)$(CLIENT_MANDIR)/sclient.1
+
+install-fileman:
+	$(INSTALL_DATA) $(srcdir)/dot.k5identity.5 \
+		$(DESTDIR)$(FILE_MANDIR)/.k5identity.5
+	$(INSTALL_DATA) k5identity.sub $(DESTDIR)$(FILE_MANDIR)/k5identity.5
+	$(INSTALL_DATA) $(srcdir)/dot.k5login.5 \
+		$(DESTDIR)$(FILE_MANDIR)/.k5login.5
+	$(INSTALL_DATA) k5login.sub $(DESTDIR)$(FILE_MANDIR)/k5login.5
+	$(INSTALL_DATA) kadm5.acl.sub $(DESTDIR)$(FILE_MANDIR)/kadm5.acl.5
+	$(INSTALL_DATA) kdc.conf.sub $(DESTDIR)$(FILE_MANDIR)/kdc.conf.5
+	$(INSTALL_DATA) krb5.conf.sub $(DESTDIR)$(FILE_MANDIR)/krb5.conf.5
+
+install-overviewman:
+	$(INSTALL_DATA) kerberos.sub $(DESTDIR)$(OVERVIEW_MANDIR)/kerberos.7
+
+install-adminman:
+	$(INSTALL_DATA) $(srcdir)/kadmin.local.8 \
+		$(DESTDIR)$(ADMIN_MANDIR)/kadmin.local.8
+	$(INSTALL_DATA) kdb5_ldap_util.sub \
+		$(DESTDIR)$(ADMIN_MANDIR)/kdb5_ldap_util.8
+	$(INSTALL_DATA) kdb5_util.sub $(DESTDIR)$(ADMIN_MANDIR)/kdb5_util.8
+	$(INSTALL_DATA) kprop.sub $(DESTDIR)$(ADMIN_MANDIR)/kprop.8
+	$(INSTALL_DATA) kproplog.sub $(DESTDIR)$(ADMIN_MANDIR)/kproplog.8
+
+install-serverman:
+	$(INSTALL_DATA) kadmind.sub $(DESTDIR)$(SERVER_MANDIR)/kadmind.8
+	$(INSTALL_DATA) kpropd.sub $(DESTDIR)$(SERVER_MANDIR)/kpropd.8
+	$(INSTALL_DATA) krb5kdc.sub $(DESTDIR)$(SERVER_MANDIR)/krb5kdc.8
+	$(INSTALL_DATA) sserver.sub $(DESTDIR)$(SERVER_MANDIR)/sserver.8
+
+install-clientcat:
+	$(GROFF_MAN) k5srvutil.sub > $(DESTDIR)$(CLIENT_CATDIR)/k5srvutil.1
+	$(GROFF_MAN) kadmin.sub > $(DESTDIR)$(CLIENT_CATDIR)/kadmin.1
+	$(GROFF_MAN) kdestroy.sub > $(DESTDIR)$(CLIENT_CATDIR)/kdestroy.1
+	$(GROFF_MAN) kinit.sub > $(DESTDIR)$(CLIENT_CATDIR)/kinit.1
+	$(GROFF_MAN) klist.sub > $(DESTDIR)$(CLIENT_CATDIR)/klist.1
+	$(GROFF_MAN) kpasswd.sub > $(DESTDIR)$(CLIENT_CATDIR)/kpasswd.1
+	$(GROFF_MAN) krb5-config.sub > $(DESTDIR)$(CLIENT_CATDIR)/krb5-config.1
+	$(GROFF_MAN) ksu.sub > $(DESTDIR)$(CLIENT_CATDIR)/ksu.1
+	$(GROFF_MAN) kswitch.sub > $(DESTDIR)$(CLIENT_CATDIR)/kswitch.1
+	$(GROFF_MAN) ktutil.sub > $(DESTDIR)$(CLIENT_CATDIR)/ktutil.1
+	$(GROFF_MAN) kvno.sub > $(DESTDIR)$(CLIENT_CATDIR)/kvno.1
+	$(GROFF_MAN) sclient.sub > $(DESTDIR)$(CLIENT_CATDIR)/sclient.1
+
+install-filecat:
+	$(GROFF_MAN) k5identity.sub > $(DESTDIR)$(FILE_CATDIR)/k5identity.5
+	($(RM) $(DESTDIR)$(FILE_CATDIR)/.k5identity.5; \
+		$(LN_S) $(FILE_CATDIR)/k5identity.5 \
+		$(DESTDIR)$(FILE_CATDIR)/.k5identity.5)
+	$(GROFF_MAN) k5login.sub > $(DESTDIR)$(FILE_CATDIR)/k5login.5
+	($(RM) $(DESTDIR)$(FILE_CATDIR)/.k5login.5; \
+		$(LN_S) $(FILE_CATDIR)/k5login.5 \
+		$(DESTDIR)$(FILE_CATDIR)/.k5login.5)
+	$(GROFF_MAN) kadm5.acl.sub > $(DESTDIR)$(FILE_CATDIR)/kadm5.acl.5
+	$(GROFF_MAN) kdc.conf.sub > $(DESTDIR)$(FILE_CATDIR)/kdc.conf.5
+	$(GROFF_MAN) krb5.conf.sub > $(DESTDIR)$(FILE_CATDIR)/krb5.conf.5
+
+install-overviewcat:
+	$(GROFF_MAN) kerberos.sub > $(DESTDIR)$(OVERVIEW_CATDIR)/kerberos.7
+
+install-admincat:
+	($(RM) $(DESTDIR)$(ADMIN_CATDIR)/kadmin.local.8; \
+		$(LN_S) $(CLIENT_CATDIR)/kadmin.1 \
+		$(DESTDIR)$(ADMIN_CATDIR)/kadmin.local.8)
+	$(GROFF_MAN) kdb5_ldap_util.sub > \
+		$(DESTDIR)$(ADMIN_CATDIR)/kdb5_ldap_util.8
+	$(GROFF_MAN) kdb5_util.sub > $(DESTDIR)$(ADMIN_CATDIR)/kdb5_util.8
+	$(GROFF_MAN) kprop.sub > $(DESTDIR)$(ADMIN_CATDIR)/kprop.8
+	$(GROFF_MAN) kproplog.sub > $(DESTDIR)$(ADMIN_CATDIR)/kproplog.8
+
+install-servercat:
+	$(GROFF_MAN) kadmind.sub > $(DESTDIR)$(SERVER_CATDIR)/kadmind.8
+	$(GROFF_MAN) kpropd.sub > $(DESTDIR)$(SERVER_CATDIR)/kpropd.8
+	$(GROFF_MAN) krb5kdc.sub > $(DESTDIR)$(SERVER_CATDIR)/krb5kdc.8
+	$(GROFF_MAN) sserver.sub > $(DESTDIR)$(SERVER_CATDIR)/sserver.8

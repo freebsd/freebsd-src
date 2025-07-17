@@ -1,0 +1,6 @@
+: LEN4=undef_
+: XY=undef_
+: AF=undef_
+: %D=undef_ %F=undef_
+: @D=global-value_ @F=all_
+exit status 0

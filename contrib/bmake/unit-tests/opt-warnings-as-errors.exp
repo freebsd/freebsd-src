@@ -1,0 +1,7 @@
+make: opt-warnings-as-errors.mk:13: warning: message 1
+make: parsing warnings being treated as errors
+make: opt-warnings-as-errors.mk:15: warning: message 2
+parsing continues
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

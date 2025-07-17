@@ -1,0 +1,11 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: LibUCL
+Description: Universal configuration library
+Version: 0.9.0
+Libs: -L${libdir} -lucl
+Libs.private:  
+Cflags: -I${includedir}/

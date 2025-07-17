@@ -1,0 +1,697 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_getch.3x,v 1.87 2024/04/20 19:18:18 tom Exp $
+.TH curs_getch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.ds ^  \(ha
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.ds       ^  ^
+.\}
+.
+.ie \n(.g .ds : \:
+.el       .ds : \" empty
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%getch\fP,
+\fB\%wgetch\fP,
+\fB\%mvgetch\fP,
+\fB\%mvwgetch\fP,
+\fB\%ungetch\fP,
+\fB\%has_key\fP \-
+get (or push back) characters from \fIcurses\fR terminal keyboard
+.SH SYNOPSIS
+.nf
+.B #include <curses.h>
+.PP
+.B int getch(void);
+.B int wgetch(WINDOW *\fIwin\fP);
+.B int mvgetch(int \fIy\fP, int \fIx\fP);
+.B int mvwgetch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP);
+.PP
+.B int ungetch(int \fIc\fP);
+.PP
+.\" XXX: Move has_key into its own page like define_key and key_defined?
+\fI/* extension */\fP
+.B int has_key(int \fIc\fP);
+.fi
+.SH DESCRIPTION
+.SS "Reading Characters"
+.B \%wgetch
+gathers a key stroke from the terminal keyboard associated with a
+.I curses
+window
+.IR win .
+\fB\%ncurses\fP(3X) describes the variants of this function.
+.PP
+When input is pending,
+.B \%wgetch
+returns an integer identifying the key stroke;
+for alphanumeric and punctuation keys,
+this value corresponds to the character encoding used by the terminal.
+Use of the control key as a modifier often results in a distinct code.
+The behavior of other keys depends on whether
+.I win
+is in keypad mode;
+see subsection \*(``Keypad Mode\*('' below.
+.PP
+If no input is pending,
+then if the no-delay flag is set in the window
+(see \fB\%nodelay\fP(3X)),
+the function returns
+.BR ERR ;
+otherwise,
+.I curses
+waits until the terminal has input.
+If \fB\%cbreak\fP(3X)
+has been called,
+this happens after one character is read.
+If \fB\%nocbreak\fP(3X)
+has been called,
+it occurs when the next newline is read.
+If \fB\%halfdelay\fP(3X)
+has been called,
+.I curses
+waits until a character is typed or the specified delay elapses.
+.PP
+If \fB\%echo\fP(3X) has been called,
+and the window is not a pad,
+.I curses
+writes the returned character
+.I c
+to the window
+(at the cursor position)
+per the following rules.
+.bP
+If
+.I c
+matches the terminal's erase character,
+the cursor moves leftward one position
+and the new position is erased
+as if \fB\%wmove\fP(3X) and then \fB\%wdelch\fP(3X) were called.
+When the window's keypad mode is enabled
+(see below),
+.B \%KEY_LEFT
+and
+.B \%KEY_BACKSPACE
+are handled the same way.
+.bP
+.I curses
+writes any other
+.I c
+to the window,
+as with \fB\%wechochar\fP(3X).
+.bP
+If the window has been moved or modified since the last call to
+\fB\%wrefresh\fP(3X),
+.I curses
+calls
+.BR \%wrefresh .
+.PP
+If
+.I c
+is a carriage return and \fBnl\fP(3X) has been called,
+.B \%wgetch
+returns the character code for line feed instead.
+.SS "Keypad Mode"
+To
+.IR curses ,
+key strokes not from the alphabetic section of the keyboard
+(those corresponding to the ECMA-6 character set\(emsee
+\fIascii\fP(7)\(emoptionally modified by either the control or shift
+keys)
+are treated as
+.I function
+keys.
+(In
+.IR curses ,
+the term \*(``function key\*('' includes but is not limited to keycaps
+engraved with \*(``F1\*('',
+\*(``PF1\*('',
+and so on.)
+If the window is in keypad mode,
+these produce a numeric code corresponding to the
+.B KEY_
+symbols listed in subsection \*(``Predefined Key Codes\*('' below;
+otherwise,
+they transmit a sequence of codes typically starting with the escape
+character,
+and which must be collected with multiple
+.B \%wgetch
+calls.
+.bP
+The
+.I \%curses.h
+header file declares many
+.I "predefined function keys"
+whose names begin with
+.BR KEY_ ;
+these object-like macros have values outside the range of eight-bit
+character codes.
+.bP
+In
+.IR \%ncurses ,
+.I "user-defined function keys"
+are configured with \fB\%define_key\fP(3X);
+they have no names,
+but are also expected to have values outside the range of eight-bit
+codes.
+.PP
+A variable intended to hold a function key code must thus be of type
+.I short
+or larger.
+.PP
+Most terminals one encounters follow the ECMA-48 standard insofar as
+their function keys produce character sequences prefixed with the
+escape character ESC.
+This fact implies that
+.I curses
+cannot know whether the terminal has sent an ESC key stroke or the
+beginning of a function key's character sequence without waiting to see
+if,
+and how soon,
+further input arrives.
+When
+.I curses
+reads such an ambiguous character,
+it sets a timer.
+If the remainder of the sequence does not arrive within the designated
+time,
+.B \%wgetch
+returns the prefix character;
+otherwise,
+it returns the function key code corresponding to the unique sequence
+defined by the terminal.
+Consequently,
+a user of a
+.I curses
+application may experience a delay after pressing ESC while
+.I curses
+disambiguates the input;
+see section \*(``EXTENSIONS\*('' below.
+If the window is in \*(``no time-out\*('' mode,
+the timer does not expire;
+it is an infinite
+(or very large)
+value.
+See \fB\%notimeout\fP(3X).
+Because function key sequences usually begin with an escape character,
+the terminal may appear to hang in no time-out mode after the user has
+pressed ESC.
+Generally,
+further typing \*(``awakens\*(''
+.IR curses .
+.SS "Ungetting Characters"
+.B \%ungetch
+places
+.I c
+into the input queue to be returned by the next call to
+.BR \%wgetch .
+A single input queue serves all windows.
+.SS "Predefined Key Codes"
+The header file
+.I \%curses.h
+defines the following function key codes.
+.bP
+Except for the special case of
+.BR \%KEY_RESIZE ,
+a window's keypad mode must be enabled for
+.B \%wgetch
+to read these codes from it.
+.bP
+Not all of these are necessarily supported on any particular terminal.
+.bP
+The naming convention may seem obscure,
+with some apparent misspellings
+(such as \*(``RSUME\*('' for \*(``resume\*('');
+the names correspond to the
+.I \%term\%info
+capability names for the keys,
+and were standardized before the IBM PC/AT keyboard layout achieved a
+dominant position in industry.
+.PP
+.RS
+.\" XXX: Move this list into ncurses(3X), rather than duplicating it in
+.\" get_wch(3X) or having that page cross reference this one?
+.TS
+Lb Lb
+Lb Lx.
+Symbol	Key name
+=
+KEY_BREAK	Break key
+KEY_DOWN	Arrow keys
+KEY_UP	\^
+KEY_LEFT	\^
+KEY_RIGHT	\^
+KEY_HOME	Home key (upward+left arrow)
+KEY_BACKSPACE	Backspace
+KEY_F0	T{
+Function keys; space for 64 keys is reserved
+T}
+KEY_F(\fIn\fP)	T{
+Function key \fIn\fP where 0 \(<= \fIn\fP \(<= 63
+T}
+KEY_DL	Delete line
+KEY_IL	Insert line
+KEY_DC	Delete character
+KEY_IC	Insert character/Enter insert mode
+KEY_EIC	Exit insert character mode
+KEY_CLEAR	Clear screen
+KEY_EOS	Clear to end of screen
+KEY_EOL	Clear to end of line
+KEY_SF	Scroll one line forward
+KEY_SR	Scroll one line backward (reverse)
+KEY_NPAGE	Next page/Page up
+KEY_PPAGE	Previous page/Page down
+KEY_STAB	Set tab
+KEY_CTAB	Clear tab
+KEY_CATAB	Clear all tabs
+KEY_ENTER	Enter/Send
+KEY_SRESET	Soft (partial) reset
+KEY_RESET	(Hard) reset
+KEY_PRINT	Print/Copy
+KEY_LL	Home down/Bottom (lower left)
+KEY_A1	Upper left of keypad
+KEY_A3	Upper right of keypad
+KEY_B2	Center of keypad
+KEY_C1	Lower left of keypad
+KEY_C3	Lower right of keypad
+KEY_BTAB	Back tab key
+KEY_BEG	Beg(inning) key
+KEY_CANCEL	Cancel key
+KEY_CLOSE	Close key
+KEY_COMMAND	Cmd (command) key
+KEY_COPY	Copy key
+KEY_CREATE	Create key
+KEY_END	End key
+KEY_EXIT	Exit key
+KEY_FIND	Find key
+KEY_HELP	Help key
+KEY_MARK	Mark key
+KEY_MESSAGE	Message key
+KEY_MOUSE	Mouse event occurred
+KEY_MOVE	Move key
+KEY_NEXT	Next object key
+KEY_OPEN	Open key
+KEY_OPTIONS	Options key
+KEY_PREVIOUS	Previous object key
+KEY_REDO	Redo key
+KEY_REFERENCE	Ref(erence) key
+KEY_REFRESH	Refresh key
+KEY_REPLACE	Replace key
+KEY_RESIZE	Screen resized
+KEY_RESTART	Restart key
+KEY_RESUME	Resume key
+KEY_SAVE	Save key
+KEY_SELECT	Select key
+KEY_SUSPEND	Suspend key
+KEY_UNDO	Undo key
+_
+KEY_SBEG	Shifted beginning key
+KEY_SCANCEL	Shifted cancel key
+KEY_SCOMMAND	Shifted command key
+KEY_SCOPY	Shifted copy key
+KEY_SCREATE	Shifted create key
+KEY_SDC	Shifted delete character key
+KEY_SDL	Shifted delete line key
+KEY_SEND	Shifted end key
+KEY_SEOL	Shifted clear line key
+KEY_SEXIT	Shifted exit key
+KEY_SFIND	Shifted find key
+KEY_SHELP	Shifted help key
+KEY_SHOME	Shifted home key
+KEY_SIC	Shifted insert key
+KEY_SLEFT	Shifted left arrow key
+KEY_SMESSAGE	Shifted message key
+KEY_SMOVE	Shifted move key
+KEY_SNEXT	Shifted next object key
+KEY_SOPTIONS	Shifted options key
+KEY_SPREVIOUS	Shifted previous object key
+KEY_SPRINT	Shifted print key
+KEY_SREDO	Shifted redo key
+KEY_SREPLACE	Shifted replace key
+KEY_SRIGHT	Shifted right arrow key
+KEY_SRSUME	Shifted resume key
+KEY_SSAVE	Shifted save key
+KEY_SSUSPEND	Shifted suspend key
+KEY_SUNDO	Shifted undo key
+.TE
+.RE
+.PP
+Many keyboards feature a nine-key directional pad.
+.PP
+.RS
+.TS
+allbox center;
+C C C.
+A1	up	A3
+left	B2	right
+C1	down	C3
+.TE
+.RE
+.sp
+Two of the symbols in the list above do
+.I not
+correspond to a physical key.
+.bP
+.B \%wgetch
+returns
+.BR \%KEY_RESIZE ,
+even if the window's keypad mode is disabled,
+when
+.I \%ncurses
+handles a
+.B \%SIGWINCH
+signal;
+see \fB\%initscr\fP(3X) and \fB\%resizeterm\fP(3X).
+.bP
+.B \%wgetch
+returns
+.B \%KEY_MOUSE
+to indicate that a mouse event is pending collection;
+see \fB\%curs_mouse\fP(3X).
+Receipt of this code requires a window's keypad mode to be enabled,
+because to interpret mouse input
+(as with with \fI\%xterm\fP(1)'s mouse prototocol),
+.I \%ncurses
+must read an escape sequence,
+as with a function key.
+.SS "Testing Key Codes"
+In
+.IR \%ncurses ,
+.B \%has_key
+returns a Boolean value indicating whether the terminal type recognizes
+its parameter as a key code value.
+See also
+\fB\%define_key\fP(3X) and \fB\%key_defined\fP(3X).
+.SH RETURN VALUE
+Except for
+.BR \%has_key ,
+these functions return
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+Functions taking a
+.I \%WINDOW
+pointer argument fail if the pointer is
+.BR NULL .
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.PP
+.B \%wgetch
+also fails if
+.bP
+its timeout expires without any data arriving,
+or
+.bP
+execution was interrupted by a signal,
+in which case
+.B \%errno
+is set to
+.BR \%EINTR .
+.PP
+.B \%ungetch
+fails if there is no more room in the input queue.
+.PP
+.B \%has_key
+returns
+.B TRUE
+or
+.BR FALSE .
+.SH NOTES
+.I curses
+discourages assignment of the ESC key to a discrete function by the
+programmer because the library requires a delay while it awaits the
+potential remainder of a terminal escape sequence.
+.PP
+Some key strokes are indistinguishable from control characters;
+for example,
+.B \%KEY_ENTER
+may be the same as
+.BR \*^M ,
+.\" as with att630 or pccon+keys
+and
+.B \%KEY_BACKSPACE
+may be the same as
+.B \*^H
+.\" as with att505 or vt52-basic
+or
+.BR \*^? .
+.\" as with pccon+keys or vt320
+Consult the terminal's
+.I \%term\%info
+entry to determine whether this is the case;
+see \fB\%infocmp\fP(1).
+Some
+.I curses
+implementations,
+including
+.IR \%ncurses ,
+honor the
+.I \%term\%info
+key definitions;
+others treat such control characters specially.
+.PP
+.I curses
+distinguishes the Enter keys in the alphabetic and numeric keypad
+sections of a keyboard because (most) terminals do.
+.B \%KEY_ENTER
+refers to the key on the numeric keypad and,
+like other function keys,
+and is reliably recognized only if the window's keypad mode is enabled.
+.bP
+The
+.I \%term\%info
+.B \%key_enter
+.RB ( kent )
+capability describes the character (sequence) sent by the Enter key of
+a terminal's numeric
+(or similar)
+keypad.
+.bP
+\*(``Enter or send\*('' is X/Open Curses's description of this key.
+.PP
+.I curses
+treats the Enter or Return key in the
+.I alphabetic
+section of the keyboard differently.
+.bP
+It usually produces a control code for carriage return
+.RB ( \*^M )
+or line feed
+.RB ( \*^J ).
+.bP
+Depending on the terminal mode
+(raw,
+cbreak,
+or
+\*(``cooked\*(''),
+and whether \fB\%nl\fP(3X) or \fB\%nonl\fP(3X) has been called,
+.B \%wgetch
+may return either a carriage return or line feed upon an Enter or Return
+key stroke.
+.PP
+Use of
+.B \%wgetch
+with \fB\%echo\fP(3X) and neither \fB\%cbreak\fP(3X) nor \fB\%raw\fP(3X)
+is not well-defined.
+.PP
+Historically,
+the list of key code macros above was influenced by the
+function-key-rich keyboard of the AT&T 7300
+(also known variously as the \*(``3B1\*('', \*(``Safari 4\*('', and
+\*(``UNIX PC\*(''),
+a 1985 machine.
+Today's computer keyboards are based that of the IBM PC/AT and tend to
+have fewer.
+A
+.I curses
+application can expect such a keyboard to transmit key codes
+.BR \%KEY_UP ,
+.BR \%KEY_DOWN ,
+.BR \%KEY_LEFT ,
+.BR \%KEY_RIGHT ,
+.BR \%KEY_HOME ,
+.BR \%KEY_END ,
+.B \%KEY_PPAGE
+(Page Up),
+.B \%KEY_NPAGE
+(Page Down),
+.B \%KEY_IC
+(Insert),
+.B \%KEY_DC
+(Delete),
+and
+.BI \%KEY_F( n )
+for 1 \(<=
+.I n
+\(<= 12.
+.PP
+.BR \%getch ,
+.BR \%mvgetch ,
+and
+.B \%mvwgetch
+may be implemented as macros.
+.SH EXTENSIONS
+In
+.IR \%ncurses ,
+when a window's \*(``no time-out\*('' mode is
+.I not
+set,
+the
+.B \%ESCDELAY
+variable configures the duration of the timer used to disambiguate a
+function key character sequence from a series of key strokes beginning
+with ESC typed by the user;
+see
+\fB\%curs_variables\fP(3X).
+.PP
+\fB\%has_key\fP was designed for \fB\%ncurses\fP(3X),
+and is not found in SVr4
+.IR curses ,
+4.4BSD
+.IR curses ,
+or any other previous curses implementation.
+.SH PORTABILITY
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+X/Open Curses,
+Issue 4 describes
+\fB\%getch\fP,
+\fB\%wgetch\fP,
+\fB\%mvgetch\fP,
+\fB\%mvwgetch\fP,
+and
+\fB\%ungetch\fP.
+It specifies no error conditions for them.
+.PP
+.B \%wgetch
+reads only single-byte characters.
+.PP
+The echo behavior of these functions on input of
+.B KEY_
+or backspace characters was not specified in the SVr4 documentation.
+This description is adapted from X/Open Curses.
+.PP
+The behavior of
+.B \%wgetch
+in the presence of signal handlers is unspecified in the SVr4
+documentation and X/Open Curses.
+In historical
+.I curses
+implementations,
+it varied depending on whether the operating system's dispatch of a
+signal to a handler interrupting a \fIread\fP(2) call in progress,
+and also
+(in some implementations)
+whether an input timeout or non-blocking mode has been set.
+Programmers concerned about portability should be prepared for either of
+two cases:
+(a) signal receipt does not interrupt
+.BR \%wgetch ;
+or
+(b) signal receipt interrupts
+.B \%wgetch
+and causes it to return
+.B ERR
+with
+.B \%errno
+set to
+.BR \%EINTR .
+.PP
+.B \%KEY_MOUSE
+is mentioned in X/Open Curses,
+along with a few related
+.I \%term\%info
+capabilities,
+but no higher-level functions use the feature.
+The implementation in
+.I \%ncurses
+is an extension.
+.PP
+.B \%KEY_RESIZE
+and
+.B \%has_key
+are extensions first implemented for
+.IR \%ncurses .
+By 2022,
+.I \%PDCurses
+.\" https://web.archive.org/web/20220117232009/https://pdcurses.org/docs/MANUAL.html
+and
+NetBSD
+.I curses
+.\" https://web.archive.org/web/20200923185647/https://man.netbsd.org/curses_input.3
+had added them along with
+.BR \%KEY_MOUSE .
+.SH SEE ALSO
+\fB\%curs_get_wch\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its wide-character configuration
+.RI ( \%ncursesw ).
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_addch\fP(3X),
+\fB\%curs_inopts\fP(3X),
+\fB\%curs_mouse\fP(3X),
+\fB\%curs_move\fP(3X),
+\fB\%curs_outopts\fP(3X),
+\fB\%curs_refresh\fP(3X),
+\fB\%curs_variables\fP(3X),
+\fB\%resizeterm\fP(3X),
+\fB\%ascii\fP(7)
+.PP
+ECMA-6 \*(``7-bit coded Character Set\*(''
+\%<https://\*:ecma\-international\*:.org/\
+\*:publications\-and\-standards/\*:standards/\*:ecma\-6/>
+.PP
+ECMA-48 \*(``Control Functions for Coded Character Sets\*(''
+\%<https://\*:ecma\-international\*:.org/\
+\*:publications\-and\-standards/\*:standards/\*:ecma\-48/>

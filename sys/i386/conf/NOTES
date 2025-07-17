@@ -1,0 +1,349 @@
+#
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.  For notes shared
+# with amd64, look in /sys/x86/conf/NOTES.
+#
+#
+
+
+#####################################################################
+# SMP OPTIONS:
+#
+# The apic device enables the use of the I/O APIC for interrupt delivery.
+# The apic device can be used in both UP and SMP kernels, but is required
+# for SMP kernels.  Thus, the apic device is not strictly an SMP option,
+# but it is a prerequisite for SMP.
+#
+# Notes:
+#
+# HTT CPUs should only be used if they are enabled in the BIOS.  For
+# the ACPI case, ACPI only correctly tells us about any HTT CPUs if
+# they are enabled.  However, most HTT systems do not list HTT CPUs
+# in the MP Table if they are enabled, thus we guess at the HTT CPUs
+# for the MP Table case.  However, we shouldn't try to guess and use
+# these CPUs if HTT is disabled.  Thus, HTT guessing is only enabled
+# for the MP Table if the user explicitly asks for it via the
+# MPTABLE_FORCE_HTT option.  Do NOT use this option if you have HTT
+# disabled in your BIOS.
+#
+# IPI_PREEMPTION instructs the kernel to preempt threads running on other
+# CPUS if needed.  Relies on the PREEMPTION option
+
+# Mandatory:
+device		apic			# I/O apic
+
+# Optional:
+options 	MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.
+#
+cpu		I486_CPU
+cpu		I586_CPU		# aka Pentium(tm)
+cpu		I686_CPU		# aka Pentium Pro(tm)
+
+#
+# Options for CPU features.
+#
+# CPU_ATHLON_SSE_HACK tries to enable SSE instructions when the BIOS has
+# forgotten to enable them.
+#
+# CPU_BLUELIGHTNING_3X enables triple-clock mode on IBM Blue Lightning
+# CPU if CPU supports it.  The default is double-clock mode on
+# BlueLightning CPU box.
+#
+# CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
+# BlueLightning CPU.  It works only with Cyrix FPU, and this option
+# should not be used with Intel FPU.
+#
+# CPU_BTB_EN enables branch target buffer on Cyrix 5x86 (NOTE 1).
+#
+# CPU_CYRIX_NO_LOCK enables weak locking for the entire address space
+# of Cyrix 6x86 and 6x86MX CPUs by setting the NO_LOCK bit of CCR1.
+# Otherwise, the NO_LOCK bit of CCR1 is cleared.  (NOTE 3)
+#
+# CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
+# mapped mode.  Default is 2-way set associative mode.
+#
+# CPU_DISABLE_5X86_LSSER disables load store serialize (i.e., enables
+# reorder).  This option should not be used if you use memory mapped
+# I/O device(s).
+#
+# CPU_ELAN enables support for AMDs ElanSC520 CPU.
+#    CPU_ELAN_PPS enables precision timestamp code.
+#    CPU_ELAN_XTAL sets the clock crystal frequency in Hz.
+#
+# CPU_ENABLE_LONGRUN enables support for Transmeta Crusoe LongRun
+# technology which allows to restrict power consumption of the CPU by
+# using group of hw.crusoe.* sysctls.
+#
+# CPU_FASTER_5X86_FPU enables faster FPU exception handler.
+#
+# CPU_GEODE is for the SC1100 Geode embedded processor.  This option
+# is necessary because the i8254 timecounter is toast.
+#
+# CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
+# for i386 machines.
+#
+# CPU_IORT defines I/O clock delay time (NOTE 1).  Default values of
+# I/O clock delay time on Cyrix 5x86 and 6x86 are 0 and 7,respectively
+# (no clock delay).
+#
+# CPU_L2_LATENCY specifies the L2 cache latency value.  This option is used
+# only when CPU_PPRO2CELERON is defined and Mendocino Celeron is detected.
+# The default value is 5.
+#
+# CPU_LOOP_EN prevents flushing the prefetch buffer if the destination
+# of a jump is already present in the prefetch buffer on Cyrix 5x86(NOTE
+# 1).
+#
+# CPU_PPRO2CELERON enables L2 cache of Mendocino Celeron CPUs.  This option
+# is useful when you use Socket 8 to Socket 370 converter, because most Pentium
+# Pro BIOSs do not enable L2 cache of Mendocino Celeron CPUs.
+#
+# CPU_RSTK_EN enables return stack on Cyrix 5x86 (NOTE 1).
+#
+# CPU_SOEKRIS enables support www.soekris.com hardware.
+#
+# CPU_SUSP_HLT enables suspend on HALT.  If this option is set, CPU
+# enters suspend mode following execution of HALT instruction.
+#
+# CPU_UPGRADE_HW_CACHE eliminates unneeded cache flush instruction(s).
+#
+# CPU_WT_ALLOC enables write allocation on Cyrix 6x86/6x86MX and AMD
+# K5/K6/K6-2 CPUs.
+#
+# CYRIX_CACHE_WORKS enables CPU cache on Cyrix 486 CPUs with cache
+# flush at hold state.
+#
+# CYRIX_CACHE_REALLY_WORKS enables (1) CPU cache on Cyrix 486 CPUs
+# without cache flush at hold state, and (2) write-back CPU cache on
+# Cyrix 6x86 whose revision < 2.7 (NOTE 2).
+#
+# NO_F00F_HACK disables the hack that prevents Pentiums (and ONLY
+# Pentiums) from locking up when a LOCK CMPXCHG8B instruction is
+# executed.  This option is only needed if I586_CPU is also defined,
+# and should be included for any non-Pentium CPU that defines it.
+#
+# NO_MEMORY_HOLE is an optimisation for systems with AMD K6 processors
+# which indicates that the 15-16MB range is *definitely* not being
+# occupied by an ISA memory hole.
+#
+# NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
+# CPU_LOOP_EN and CPU_RSTK_EN should not be used because of CPU bugs.
+# These options may crash your system.
+#
+# NOTE 2: If CYRIX_CACHE_REALLY_WORKS is not set, CPU cache is enabled
+# in write-through mode when revision < 2.7.  If revision of Cyrix
+# 6x86 >= 2.7, CPU cache is always enabled in write-back mode.
+#
+# NOTE 3: This option may cause failures for software that requires
+# locked cycles in order to operate correctly.
+#
+options 	CPU_ATHLON_SSE_HACK
+options 	CPU_BLUELIGHTNING_3X
+options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
+options 	CPU_BTB_EN
+options 	CPU_DIRECT_MAPPED_CACHE
+options 	CPU_DISABLE_5X86_LSSER
+options 	CPU_ELAN
+options 	CPU_ELAN_PPS
+options 	CPU_ELAN_XTAL=32768000
+options 	CPU_ENABLE_LONGRUN
+options 	CPU_FASTER_5X86_FPU
+options 	CPU_GEODE
+options 	CPU_I486_ON_386
+options 	CPU_IORT
+options 	CPU_L2_LATENCY=5
+options 	CPU_LOOP_EN
+options 	CPU_PPRO2CELERON
+options 	CPU_RSTK_EN
+options 	CPU_SOEKRIS
+options 	CPU_SUSP_HLT
+options 	CPU_UPGRADE_HW_CACHE
+options 	CPU_WT_ALLOC
+options 	CYRIX_CACHE_WORKS
+options 	CYRIX_CACHE_REALLY_WORKS
+#options 	NO_F00F_HACK
+
+# Debug options
+options 	NPX_DEBUG	# enable npx debugging
+
+#
+# PERFMON causes the driver for Pentium/Pentium Pro performance counters
+# to be compiled.  See perfmon(4) for more information.
+#
+options 	PERFMON
+
+#
+# Hints for the non-optional Numeric Processing eXtension driver.
+envvar		hint.npx.0.flags="0x0"
+envvar		hint.npx.0.irq="13"
+
+#
+# `flags' for npx0:
+#	0x01	don't use the npx registers to optimize bcopy.
+#	0x02	don't use the npx registers to optimize bzero.
+#	0x04	don't use the npx registers to optimize copyin or copyout.
+# The npx registers are normally used to optimize copying and zeroing when
+# all of the following conditions are satisfied:
+#	I586_CPU is an option
+#	the cpu is an i586 (perhaps not a Pentium)
+#	the probe for npx0 succeeds
+#	INT 16 exception handling works.
+# Then copying and zeroing using the npx registers is normally 30-100% faster.
+# The flags can be used to control cases where it doesn't work or is slower.
+# Setting them at boot time using hints works right (the optimizations
+# are not used until later in the bootstrap when npx0 is attached).
+# Flag 0x08 automatically disables the i586 optimized routines.
+#
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+#
+# Optional devices:
+#
+
+# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
+# the /dev/3dfx0 device to work with glide implementations.  This should get
+# linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
+# the tdfx DRI module from XFree86 and is completely unrelated.
+#
+# To enable Linuxulator support, one must also load linux.ko and tdfx_linux.ko.
+
+device		tdfx			# Enable 3Dfx Voodoo support
+
+#
+# RAID adapters
+#
+device		pst
+
+#
+# Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
+device		aacraid		# Container interface, CAM required
+
+#
+# Network interfaces:
+#
+
+# sbni: Granch SBNI12-xx ISA and PCI adapters
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
+# wpi:	Intel 3945ABG Wireless LAN controller
+#	Requires the wpi firmware module
+
+# Order for ISA/EISA devices is important here
+
+envvar		hint.cs.0.at="isa"
+envvar		hint.cs.0.port="0x300"
+envvar		hint.ed.0.at="isa"
+envvar		hint.ed.0.port="0x280"
+envvar		hint.ed.0.irq="5"
+envvar		hint.ed.0.maddr="0xd8000"
+# Hint for the i386-only ISA front-end of le(4).
+envvar		hint.le.0.at="isa"
+envvar		hint.le.0.port="0x280"
+envvar		hint.le.0.irq="10"
+envvar		hint.le.0.drq="0"
+device		sbni
+envvar		hint.sbni.0.at="isa"
+envvar		hint.sbni.0.port="0x210"
+envvar		hint.sbni.0.irq="0xefdead"
+envvar		hint.sbni.0.flags="0"
+
+#####################################################################
+
+#
+# Miscellaneous hardware:
+#
+# smapi: System Management Application Program Interface driver
+
+device		smapi
+
+#
+# Laptop/Notebook options:
+#
+# See also:
+#  apm under `Miscellaneous hardware'
+# above.
+
+# For older notebooks that signal a powerfail condition (external
+# power supply dropped, or battery state low) by issuing an NMI:
+
+options 	POWERFAIL_NMI	# make it beep instead of panicing
+
+#
+# I2C Bus
+#
+# Requires 'device iicbus'.
+#
+# Supported interfaces:
+# glxiic: AMD Geode LX CS5536 System Management Bus
+# pcf:	Philips PCF8584 ISA-bus controller
+#
+device		glxiic		# AMD Geode LX CS5536 System Management Bus
+device		pcf
+envvar		hint.pcf.0.at="isa"
+envvar		hint.pcf.0.port="0x320"
+envvar		hint.pcf.0.irq="5"
+
+#
+# glxsb is a driver for the Security Block in AMD Geode LX processors.
+# Requires 'device crypto'.
+#
+device		glxsb		# AMD Geode LX Security Block
+
+#####################################################################
+# ABI Emulation
+
+# Enable (32-bit) a.out binary support
+options 	COMPAT_AOUT
+
+#####################################################################
+# VM OPTIONS
+
+#
+# Set the number of PV entries per process.  Increasing this can
+# stop panics related to heavy use of shared memory.  However, that can
+# (combined with large amounts of physical memory) cause panics at
+# boot time due the kernel running out of VM space.
+#
+# If you're tweaking this, you might also want to increase the sysctls
+# "vm.v_free_min", "vm.v_free_reserved", and "vm.v_free_target".
+#
+# The value below is the one more than the default.
+#
+options 	PMAP_SHPGPERPROC=201
+
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel, any
+# modules or other data loaded with the kernel by the loader, and data
+# structures allocated before the VM system is initialized such as the
+# vm_page_t array.  Each page table page maps 4MB (2MB with PAE).
+#
+options 	NKPT=31
+
+# KSTACK_PAGES is the number of memory pages to assign to the kernel
+# stack of each thread.
+
+options 	KSTACK_PAGES=5
+
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
+
+#####################################################################
+# Items broken on i386 that are generally available elsewhere
+
+# Device uses bus_read_8 and friends, so can't work. Remove it from lint.
+nodevice	bnxt

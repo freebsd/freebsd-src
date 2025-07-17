@@ -1,0 +1,63 @@
+mydir=lib$(S)krb5$(S)error_tables
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=error_tables
+##DOS##OBJFILE=..\$(OUTPRE)err_tbls.lst
+
+THDRDIR=$(BUILDTOP)$(S)include
+EHDRDIR=$(BUILDTOP)$(S)include
+ETDIR=$(top_srcdir)$(S)util$(S)et
+
+STLIBOBJS= asn1_err.o kdb5_err.o krb5_err.o k5e1_err.o \
+      kv5m_err.o krb524_err.o
+
+HDRS= asn1_err.h kdb5_err.h krb5_err.h k5e1_err.h kv5m_err.h krb524_err.h
+OBJS= $(OUTPRE)asn1_err.$(OBJEXT) $(OUTPRE)kdb5_err.$(OBJEXT) \
+      $(OUTPRE)krb5_err.$(OBJEXT) $(OUTPRE)k5e1_err.$(OBJEXT) \
+      $(OUTPRE)kv5m_err.$(OBJEXT) $(OUTPRE)krb524_err.$(OBJEXT)
+ETSRCS= asn1_err.c kdb5_err.c krb5_err.c k5e1_err.c kv5m_err.c krb524_err.c
+SRCS= asn1_err.c kdb5_err.c krb5_err.c k5e1_err.c kv5m_err.c krb524_err.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+all-libobjs: $(HDRS)
+
+includes: $(HDRS)
+
+awk-windows:
+	$(AWK) -f $(ETDIR)/et_h.awk outfile=asn1_err.h asn1_err.et
+	$(AWK) -f $(ETDIR)/et_h.awk outfile=kdb5_err.h kdb5_err.et
+	$(AWK) -f $(ETDIR)/et_h.awk outfile=krb5_err.h krb5_err.et
+	$(AWK) -f $(ETDIR)/et_h.awk outfile=k5e1_err.h k5e1_err.et
+	$(AWK) -f $(ETDIR)/et_h.awk outfile=kv5m_err.h kv5m_err.et
+	$(AWK) -f $(ETDIR)/et_h.awk outfile=krb524_err.h krb524_err.et
+	$(AWK) -f $(ETDIR)/et_c.awk outfile=asn1_err.c asn1_err.et
+	$(AWK) -f $(ETDIR)/et_c.awk outfile=kdb5_err.c kdb5_err.et
+	$(AWK) -f $(ETDIR)/et_c.awk outfile=krb5_err.c krb5_err.et
+	$(AWK) -f $(ETDIR)/et_c.awk outfile=k5e1_err.c k5e1_err.et
+	$(AWK) -f $(ETDIR)/et_c.awk outfile=kv5m_err.c kv5m_err.et
+	$(AWK) -f $(ETDIR)/et_c.awk outfile=krb524_err.c krb524_err.et
+	if exist asn1_err.h copy asn1_err.h "$(EHDRDIR)"
+	if exist kdb5_err.h copy kdb5_err.h "$(EHDRDIR)"
+	if exist krb5_err.h copy krb5_err.h "$(EHDRDIR)"
+	if exist k5e1_err.h copy k5e1_err.h "$(EHDRDIR)"
+	if exist kv5m_err.h copy kv5m_err.h "$(EHDRDIR)"
+	if exist krb524_err.h copy krb524_err.h "$(EHDRDIR)"
+
+#
+# dependencies for traditional makes
+#
+$(OUTPRE)asn1_err.$(OBJEXT): asn1_err.c
+$(OUTPRE)kdb5_err.$(OBJEXT): kdb5_err.c
+$(OUTPRE)krb5_err.$(OBJEXT): krb5_err.c
+$(OUTPRE)k5e1_err.$(OBJEXT): k5e1_err.c
+$(OUTPRE)kv5m_err.$(OBJEXT): kv5m_err.c
+$(OUTPRE)krb524_err.$(OBJEXT): krb524_err.c
+
+clean-unix:: clean-libobjs
+	$(RM) $(HDRS) $(ETSRCS)
+
+@libobj_frag@
+

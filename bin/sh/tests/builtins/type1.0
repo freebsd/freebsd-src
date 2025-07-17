@@ -1,0 +1,7 @@
+command -v not-here && exit 1
+command -v /not-here && exit 1
+command -V not-here && exit 1
+command -V /not-here && exit 1
+type not-here && exit 1
+type /not-here && exit 1
+exit 0

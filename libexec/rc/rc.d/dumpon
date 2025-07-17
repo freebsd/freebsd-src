@@ -1,0 +1,104 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: dumpon
+# BEFORE: disks
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="dumpon"
+desc="Dump kernel corefiles from swap to disk"
+start_cmd="dumpon_start"
+stop_cmd="dumpon_stop"
+
+dumpon_try()
+{
+	local flags
+
+	flags=${dumpon_flags}
+	if [ -n "${dumppubkey}" ]; then
+		warn "The dumppubkey variable is deprecated.  Use dumpon_flags."
+		flags="${flags} -k ${dumppubkey}"
+	fi
+	/sbin/dumpon ${flags} "${1}"
+	if [ $? -eq 0 ]; then
+		# Make a symlink in devfs for savecore
+		ln -fs "${1}" /dev/dumpdev
+		return 0
+	fi
+	warn "unable to specify $1 as a dump device"
+	return 1
+}
+
+dumpon_warn_unencrypted()
+{
+	if [ -n "${dumppubkey}" ]; then
+		return
+	fi
+	for flag in ${dumpon_flags}; do
+		if [ $flag = -k ]; then
+			return
+		fi
+	done
+	warn "Kernel dumps will be written to the swap partition without encryption."
+}
+
+dumpon_start()
+{
+	# Enable dumpdev so that savecore can see it. Enable it
+	# early so a crash early in the boot process can be caught.
+	#
+	case ${dumpdev} in
+	[Nn][Oo])
+		;;
+	[Aa][Uu][Tt][Oo] | '')
+		root_hold_wait
+		dev=$(/bin/kenv -q dumpdev)
+		if [ -n "${dev}" ] ; then
+			dumpon_try "${dev}"
+			return $?
+		fi
+		if [ -z ${dumpdev} ] ; then
+			return
+		fi
+		while read dev mp type more ; do
+			[ "${type}" = "swap" ] || continue
+			case ${dev} in
+			*.bde|*.eli)
+				dumpon_warn_unencrypted
+				dev=${dev%.*}
+				;;
+			esac
+			[ -c "${dev}" ] || continue
+			dumpon_try "${dev}" 2>/dev/null && return 0
+		done </etc/fstab
+		echo "No suitable dump device was found." 1>&2
+		return 1
+		;;
+	*)
+		root_hold_wait
+		dumpon_try "${dumpdev}"
+		;;
+	esac
+}
+
+dumpon_stop()
+{
+	case ${dumpdev} in
+	[Nn][Oo])
+		;;
+	*)
+		rm -f /dev/dumpdev
+		/sbin/dumpon -v off
+		;;
+	esac
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+dumpon_svcj="NO"
+
+run_rc_command "$1"

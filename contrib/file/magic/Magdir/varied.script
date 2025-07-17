@@ -1,0 +1,24 @@
+#------------------------------------------------------------------------------
+# $File: varied.script,v 1.16 2024/02/04 19:26:02 christos Exp $
+# varied.script:  file(1) magic for various interpreter scripts
+
+0	string		#![	Rust Source file
+!:ext rs
+
+0	string/wt	#!\ 	a
+>&-1	string/T	x	%s script text executable
+!:strength / 3
+
+0	string/wb	#!\ 	a
+>&-1	string/T	x	%s script executable (binary data)
+!:strength / 3
+
+
+# using env
+0	string/wt	#!\ /usr/bin/env		a
+>15	string/T	>\0			%s script text executable
+!:strength / 6
+
+0	string/wb	#!\ /usr/bin/env		a
+>15	string/T	>\0			%s script executable (binary data)
+!:strength / 6

@@ -1,0 +1,9 @@
+$ sh.c
+$set 11
+1 Warnung: kein Zugriff auf Tty (%s).\n
+2 Daher keine Job Control in dieser Shell.\n
+3 Sie haben %d Mails.\n
+4 Sie haben %d Mails in %s.\n
+5 Sie haben %sMail.\n
+6 neue\040
+7 Sie haben %sMail in %s.\n

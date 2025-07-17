@@ -1,0 +1,54 @@
+krb5_free_authdata -  Free the storage assigned to array of authentication data. 
+=================================================================================
+
+..
+
+.. c:function:: void krb5_free_authdata(krb5_context context, krb5_authdata ** val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Array of authentication data to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees the contents of *val* and the array itself.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The last entry in the array must be a NULL pointer.
+ 
+
+
+

@@ -1,0 +1,41 @@
+name: Build libder
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04, macos-latest]
+        include:
+          - os: ubuntu-20.04
+          - os: ubuntu-22.04
+          - os: macos-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: install system packages (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update --quiet || true
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install cmake
+      - name: install system packages (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update --quiet || true
+          brew install cmake coreutils
+      - name: configure
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: build libder
+        run: make -C build
+      - name: Run self-tests
+        run: make -C build check

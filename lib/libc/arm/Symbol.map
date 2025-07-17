@@ -1,0 +1,37 @@
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
+FBSD_1.0 {
+	__mcount;
+	alloca;
+	brk;
+	sbrk;
+};
+
+FBSD_1.3 {
+	__flt_rounds;
+};
+
+FBSD_1.4 {
+	__gnu_Unwind_Find_exidx;
+	dl_unwind_find_exidx;
+};
+
+FBSD_1.6 {
+	arm_drain_writebuf;
+	arm_sync_icache;
+};
+
+FBSDprivate_1.0 {
+	_brk;
+	__aeabi_read_tp;
+	___longjmp;
+	__longjmp;
+	signalcontext;
+	__signalcontext;
+	__siglongjmp;
+
+	_libc_arm_fpu_present;
+};

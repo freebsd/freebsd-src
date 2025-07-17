@@ -1,0 +1,14 @@
+## check-libntp.mf - automake fragment
+##
+## sntp/check-libntp.mf
+## The above file has a version of this for the sntp tree.
+
+.PHONY: check-libntp
+
+if LIBNTP_SUBMAKES
+BUILT_SOURCES	+= check-libntp
+
+check-libntp:
+	cd $(top_builddir)/libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+
+endif

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-SAM-RESPONSE-2-data:
+
+KRB5_PADATA_SAM_RESPONSE_2
+==========================
+
+..
+.. data:: KRB5_PADATA_SAM_RESPONSE_2
+..
+
+draft challenge system, updated
+
+
+
+================================= ======================
+``KRB5_PADATA_SAM_RESPONSE_2``       ``31``
+================================= ======================

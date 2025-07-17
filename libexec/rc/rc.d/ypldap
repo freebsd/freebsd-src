@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: ypldap
+# REQUIRE: ypserv
+# BEFORE: DAEMON
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ypldap"
+rcvar="nis_ypldap_enable"
+
+: ${ypldap_svcj_options:="net_basic"}
+
+load_rc_config $name
+
+command="/usr/sbin/${name}"
+command_args="${nis_ypldap_flags}"
+
+start_precmd="ypldap_precmd"
+
+ypldap_precmd()
+{
+	force_depend ypserv nis_server || return 1
+}
+run_rc_command "$1"

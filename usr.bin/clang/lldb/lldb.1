@@ -1,0 +1,429 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLDB" "1" "2021-06-07" "12" "LLDB"
+.SH NAME
+lldb \- LLDB Documentation
+.SH SYNOPSIS
+.nf
+\fBlldb\fP [\fIoptions\fP] \fIexecutable\fP
+.fi
+.sp
+.SH DESCRIPTION
+.sp
+\fBlldb\fP is a next generation, high\-performance debugger. It is built as
+a set of reusable components which highly leverage existing libraries in the
+larger LLVM Project, such as the Clang expression parser and LLVM disassembler.
+.sp
+\fBlldb\fP is the default debugger in Xcode on macOS and supports
+debugging C, Objective\-C and C++ on the desktop and iOS devices and simulator.
+.sp
+All of the code in the LLDB project is available under the Apache 2.0 License
+with LLVM exceptions.
+.SH ATTACHING
+.INDENT 0.0
+.TP
+.B \-\-attach\-name <name>
+Tells the debugger to attach to a process with the given name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-attach\-pid <pid>
+Tells the debugger to attach to a process with the given pid.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-n <value>
+Alias for \-\-attach\-name
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-p <value>
+Alias for \-\-attach\-pid
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-wait\-for
+Tells the debugger to wait for a process with the given pid or name to launch before attaching.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-w
+Alias for \-\-wait\-for
+.UNINDENT
+.SH COMMANDS
+.INDENT 0.0
+.TP
+.B \-\-batch
+Tells the debugger to run the commands from \-s, \-S, \-o & \-O, and then quit.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-b
+Alias for \-\-batch
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-K <value>
+Alias for \-\-source\-on\-crash
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-k <value>
+Alias for \-\-one\-line\-on\-crash
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-local\-lldbinit
+Allow the debugger to parse the .lldbinit files in the current working directory, unless \-\-no\-lldbinit is passed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-lldbinit
+Do not automatically parse any \(aq.lldbinit\(aq files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-one\-line\-before\-file <command>
+Tells the debugger to execute this one\-line lldb command before any file provided on the command line has been loaded.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-one\-line\-on\-crash <command>
+When in batch mode, tells the debugger to run this one\-line lldb command if the target crashes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-one\-line <command>
+Tells the debugger to execute this one\-line lldb command after any file provided on the command line has been loaded.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-O <value>
+Alias for \-\-one\-line\-before\-file
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-o <value>
+Alias for \-\-one\-line
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Q
+Alias for \-\-source\-quietly
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-source\-before\-file <file>
+Tells the debugger to read in and execute the lldb commands in the given file, before any file has been loaded.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-source\-on\-crash <file>
+When in batch mode, tells the debugger to source this file of lldb commands if the target crashes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-source\-quietly
+Tells the debugger to execute this one\-line lldb command before any file has been loaded.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-source <file>
+Tells the debugger to read in and execute the lldb commands in the given file, after any file has been loaded.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-S <value>
+Alias for \-\-source\-before\-file
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-s <value>
+Alias for \-\-source
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-x
+Alias for \-\-no\-lldbinit
+.UNINDENT
+.SH OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-arch <architecture>
+Tells the debugger to use the specified architecture when starting and running the program.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-a <value>
+Alias for \-\-arch
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-capture\-path <filename>
+Tells the debugger to use the given filename for the reproducer.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-capture
+Tells the debugger to capture a reproducer.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-core <filename>
+Tells the debugger to use the full path to <filename> as the core file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-c <value>
+Alias for \-\-core
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug
+Tells the debugger to print out extra information for debugging itself.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-d
+Alias for \-\-debug
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-editor
+Tells the debugger to open source files using the host\(aqs "external editor" mechanism.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-e
+Alias for \-\-editor
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-file <filename>
+Tells the debugger to use the file <filename> as the program to be debugged.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f <value>
+Alias for \-\-file
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help
+Prints out the usage information for the LLDB debugger.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-h
+Alias for \-\-help
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-use\-colors
+Do not use colors.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-replay <filename>
+Tells the debugger to replay a reproducer from <filename>.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Prints out the current version number of the LLDB debugger.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v
+Alias for \-\-version
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-X
+Alias for \-\-no\-use\-color
+.UNINDENT
+.SH REPL
+.INDENT 0.0
+.TP
+.B \-r=<flags>
+Alias for \-\-repl=<flags>
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-repl\-language <language>
+Chooses the language for the REPL.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-repl=<flags>
+Runs lldb in REPL mode with a stub process with the given flags.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-R <value>
+Alias for \-\-repl\-language
+.UNINDENT
+.SH SCRIPTING
+.INDENT 0.0
+.TP
+.B \-l <value>
+Alias for \-\-script\-language
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-python\-path
+Prints out the path to the lldb.py file for this version of lldb.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-P
+Alias for \-\-python\-path
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-script\-language <language>
+Tells the debugger to use the specified scripting language for user\-defined scripts.
+.UNINDENT
+.SH EXAMPLES
+.sp
+The debugger can be started in several modes.
+.sp
+Passing an executable as a positional argument prepares lldb to debug the given
+executable. To disambiguate between arguments passed to lldb and arguments
+passed to the debugged executable, arguments starting with a \- must be passed
+after \-\-.
+.INDENT 0.0
+.INDENT 3.5
+lldb \-\-arch x86_64 /path/to/program program argument \-\- \-\-arch arvm7
+.UNINDENT
+.UNINDENT
+.sp
+For convenience, passing the executable after \-\- is also supported.
+.INDENT 0.0
+.INDENT 3.5
+lldb \-\-arch x86_64 \-\- /path/to/program program argument \-\-arch arvm7
+.UNINDENT
+.UNINDENT
+.sp
+Passing one of the attach options causes \fBlldb\fP to immediately attach
+to the given process.
+.INDENT 0.0
+.INDENT 3.5
+lldb \-p <pid>
+lldb \-n <process\-name>
+.UNINDENT
+.UNINDENT
+.sp
+Passing \-\-repl starts \fBlldb\fP in REPL mode.
+.INDENT 0.0
+.INDENT 3.5
+lldb \-r
+.UNINDENT
+.UNINDENT
+.sp
+Passing \-\-core causes \fBlldb\fP to debug the core file.
+.INDENT 0.0
+.INDENT 3.5
+lldb \-c /path/to/core
+.UNINDENT
+.UNINDENT
+.sp
+Command options can be combined with these modes and cause \fBlldb\fP to
+run the specified commands before or after events, like loading the file or
+crashing, in the order provided on the command line.
+.INDENT 0.0
+.INDENT 3.5
+lldb \-O \(aqsettings set stop\-disassembly\-count 20\(aq \-o \(aqrun\(aq \-o \(aqbt\(aq
+lldb \-S /source/before/file \-s /source/after/file
+lldb \-K /source/before/crash \-k /source/after/crash
+.UNINDENT
+.UNINDENT
+.sp
+Note: In REPL mode no file is loaded, so commands specified to run after
+loading the file (via \-o or \-s) will be ignored.
+.SH USING LLDB
+.sp
+In \fBlldb\fP there is a help command which can be used to find
+descriptions and examples of all \fBlldb\fP commands.  To get help on
+"breakpoint set" you would type "help breakpoint set".
+.sp
+There is also an apropos command which will search the help text of all
+commands for a given term ‐‐ this is useful for locating a command by topic.
+For instance, "apropos breakpoint" will list any command that has the word
+"breakpoint" in its help text.
+.SH CONFIGURATION FILES
+.sp
+\fBlldb\fP reads things like settings, aliases and commands from the
+\&.lldbinit file.
+.sp
+First, \fBlldb\fP will try to read the application specific init file
+whose name is ~/.lldbinit followed by a "\-" and the name of the current
+program. This would be ~/.lldbinit\-lldb for the command line \fBlldb\fP
+and ~/.lldbinit\-Xcode for Xcode. If there is no application specific init
+file, \fBlldb\fP will look for an init file in the home directory.
+If launched with a \fI\%REPL\fP option, it will first look for a REPL configuration
+file, specific to the REPL language. The init file should be named as follow:
+\fB\&.lldbinit\-<language>\-repl\fP (i.e. \fB\&.lldbinit\-swift\-repl\fP). If this file doesn\(aqt
+exist, or \fBlldb\fP wasn\(aqt launch with \fI\%REPL\fP, meaning there is neither
+a REPL init file nor an application specific init file, \fBlldb\fP will fallback to
+the global ~/.lldbinit.
+.sp
+Secondly, it will look for an .lldbinit file in the current working directory.
+For security reasons, \fBlldb\fP will print a warning and not source this
+file by default. This behavior can be changed by changing the
+target.load\-cwd\-lldbinit setting.
+.sp
+To always load the .lldbinit file in the current working directory, add the
+following command to ~/.lldbinit:
+.INDENT 0.0
+.INDENT 3.5
+settings set target.load\-cwd\-lldbinit true
+.UNINDENT
+.UNINDENT
+.sp
+To never load the .lldbinit file in the current working directory and silence
+the warning, add the following command to ~/.lldbinit:
+.INDENT 0.0
+.INDENT 3.5
+settings set target.load\-cwd\-lldbinit false
+.UNINDENT
+.UNINDENT
+.SH SEE ALSO
+.sp
+The LLDB project page \fI\%https://lldb.llvm.org\fP has many different resources
+for \fBlldb\fP users ‐‐ the gdb/lldb command equivalence page
+\fI\%https://lldb.llvm.org/use/map.html\fP can be especially helpful for users
+coming from gdb.
+.SH AUTHOR
+LLVM project
+.SH COPYRIGHT
+2007-2021, The LLDB Team
+.\" Generated by docutils manpage writer.
+.

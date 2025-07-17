@@ -1,0 +1,228 @@
+#!/bin/sh
+
+# NAME:
+#	install.sh - portable version of install(1)
+#
+# SYNOPSIS:
+#	install [-CNcs] [-f flags] [-i errs] [-o owner] [-g group] [-m mode] file1 file2 ...
+#	install -d  [-i errs] [-o owner] [-g group] [-m mode] directory ...
+#
+# DESCRIPTION:
+#	Compatible with BSD install(1).  Except that '-c' is always
+#	true and we always move an already installed target aside as
+#	this is important on many systems.  Recent BSD install(1)
+#	versions have a '-b' option for this.
+#	
+#
+# OPTIONS:
+#	-b	move previous target file aside (always true).
+#
+#	-B "suffix"
+#		use "suffix" instead of .old for saving existing target.
+#	
+#	-c	copy rather than move the file into place (always true).
+#
+#	-C	compare.  Only install if target is missing or
+#		different.
+#
+#	-N	newer. Only install if target is missing or older.
+#	
+#	-s	strip target
+#
+#	-o "owner"
+#		make target owned by "owner"
+#
+#	-g "group"
+#		make target group owned by "group"
+#
+#	-m "mode"
+#		set permissions to "mode"
+#
+#	-f "flags"
+#		Pass "flags" onto chflags(1)
+#		
+#	-i "errs"
+#		Ignore errors from steps indicated by "errs" (``s,o,g,m'').
+#
+# BUGS:
+#	The '-i' option is to save your sanity when 'bsd.prog.mk'
+#	insists on haveing a '-o' "owner" option which is doomed to
+#	fail on many systems.  We ignore '-b' and '-c' options.
+#	
+# AUTHOR:
+#	Simon J. Gerraty <sjg@crufty.net>
+#
+
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# RCSid:
+#	$Id: install-sh,v 1.26 2024/02/17 17:26:57 sjg Exp $
+#
+#	@(#) Copyright (c) 1993-2023 Simon J. Gerraty
+#
+#	This file is provided in the hope that it will
+#	be of use.  There is absolutely NO WARRANTY.
+#	Permission to copy, redistribute or otherwise
+#	use this file is hereby granted provided that 
+#	the above copyright notice and this notice are
+#	left intact. 
+#      
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
+#
+
+set -- `getopt B:bpxCNcsdo:g:m:i:f: $*`
+
+Mydir=`dirname $0`
+[ -s $Mydir/.installrc ] && . $Mydir/.installrc
+
+OLD_EXT=.old
+owner=:
+group=:
+mode=:
+MODE=0
+strip=:
+mkdirs=
+compare=:
+newer=:
+chflags=:
+LS_1=
+CP_p=
+
+while :
+do
+	case "$1" in
+	--)	shift; break;;
+	-[bc])	;; # ignore
+	-p)	CP_p=-p;;
+	-x)	set -x;;
+	-B)	OLD_EXT=$2; shift;;
+	-C)	compare=Different;;
+	-N)	newer=Newer;
+		# check if /bin/ls supports -1
+		'ls' -1 $0 > /dev/null 2>&1 && LS_1=1
+		;;
+	-o)	owner="${CHOWN:-chown} $2 "; shift;;
+	-g)	group="${CHGRP:-chgrp} $2 "; shift;;
+	-m)	MODE=$2 mode="${CHMOD:-chmod} $2 "; shift;;
+	-s)	strip=${STRIP:-strip};;
+	-d)	mkdirs="mkdir -p";;
+	-i)	ignore_err="$ignore_err$2"; shift;;
+	-f)	chflags="${CHFLAGS:-chflags} $2 "; shift;;
+	*)	break;;
+	esac
+	shift
+done
+
+Newer() {
+	n=`'ls' -t$LS_1 $* 2> /dev/null | head -1`
+	[ $1 = $n ]
+}
+
+Different() {
+	cmp -s $*
+	[ $? != 0 ]
+}
+
+Err() {
+	case "$ignore_err" in
+	*$1*)	;;
+	*)	exit 1;;
+	esac
+}
+
+Setem() {
+	# the order is important
+	if [ ! -d $1 ]; then
+		$strip $1 || Err s
+	fi
+	$group $1 || Err g
+	$owner $1 || Err o
+	$mode  $1 || Err m
+	$chflags $1 || Err f
+	return 0
+}
+
+# a bug in HP-UX's /bin/sh, means we need to re-set $*
+# after any calls to add_path()
+args="$*"
+
+add_path () {
+	test -d $1 || return
+	case ":$PATH:" in
+	*:$1:*) return;;
+	esac
+	PATH=$PATH:$1
+}
+
+add_path /sbin
+add_path /usr/sbin
+
+case "$owner" in
+:)	;;
+*)	# some systems put chown in odd places
+	add_path /etc
+	add_path /usr/etc
+	;;
+esac
+
+# restore saved $*
+set -- $args
+
+# make directories if needed
+# and ensure mode etc are as desired
+if [ "$mkdirs" ]; then
+	case "$MODE" in
+	[1-7]*)
+		# make sure umask is compatible
+		case "$MODE" in
+		????*) MODE=`echo $MODE | sed 's,.*\(...\)$,\1,'`;;
+		esac
+		umask `expr 0777 - 0$MODE |
+		sed 's,^,000,;s,^.*\(...\)$,\1,'`;;
+	esac
+	for d in $*
+	do
+		[ ! -d $d ] && $mkdirs $d
+		Setem $d
+	done
+	exit 0			# that's all we do
+fi
+
+# install files
+if [ $# -eq 1 ]; then
+	echo "what should I do with $*?" >&2
+	exit 1
+fi
+
+# get list of files
+files=
+while [ $# -gt 1 ]
+do
+	test "x$files" = x || dest_dir=yes
+	files="$files $1"
+	shift
+done
+# last one is dest
+dest=$1
+shift
+
+if [ "$dest_dir" = yes -a  ! -d $dest ]; then
+	echo "no directory $dest" >&2
+	exit 1
+fi
+
+for f in $files
+do
+	b=`basename $f`
+	if [ -d $dest ]; then
+		t=$dest/$b
+	else
+		t=$dest
+	fi
+	$newer $f $t || continue
+	$compare $f $t || continue
+	[ -f $t ] && { mv -f $t $t$OLD_EXT || exit 1; }
+	{ cp $CP_p $f $t && Setem $t; } || exit 1
+done
+exit 0

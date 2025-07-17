@@ -1,0 +1,6 @@
+make: varmod-loop-delete.mk:20: Cannot delete variable "VAR" while it is used
+	while evaluating "${:U:@VAR@@} rest of the value" with value ""
+	while evaluating variable "VAR" with value "${:U:@VAR@@} rest of the value"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

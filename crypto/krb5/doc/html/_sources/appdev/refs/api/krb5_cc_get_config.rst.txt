@@ -1,0 +1,58 @@
+krb5_cc_get_config -  Get a configuration value from a credential cache. 
+=========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_get_config(krb5_context context, krb5_ccache id, krb5_const_principal principal, const char * key, krb5_data * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **id** - Credential cache handle
+
+	          **[in]** **principal** - Configuration for this principal; if NULL, global for the whole cache
+
+	          **[in]** **key** - Name of config variable
+
+	          **[out]** **data** - Data to be fetched
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Use krb5_free_data_contents() to free *data* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

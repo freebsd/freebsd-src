@@ -1,0 +1,3 @@
+Build the ZFS file system kernel module, libraries, and user commands.
+Also enable ZFS support in utilities and libraries which implement
+ZFS-specific functionality.

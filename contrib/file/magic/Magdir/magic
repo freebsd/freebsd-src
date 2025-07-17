@@ -1,0 +1,98 @@
+
+#------------------------------------------------------------------------------
+# $File: magic,v 1.12 2024/06/10 23:09:52 christos Exp $
+# magic:  file(1) magic for magic files
+#
+# Update:	Joerg Jenderek
+# skip Magicsee_R1.cfg found on retropie starting with # Magicsee R1 one-handed controller
+0	string/t		#\ Magic\ 	magic text file for file(1) cmd
+#!:mime	text/plain
+!:mime	text/x-file
+# no suffix in ../Header
+!:ext	/
+# 
+# some (34/339) samples start with a comment line
+0	ubyte		=0x23
+# some (28/339) samples start with separator line (about 78 minus characters) like:
+# archive arm assembler beetle c-lang clojure compress der filesystems firmware gentoo lammps
+# m4 mail.news make marc21 music parrot pascal pc88 pc98 perl ringdove tcl varied.script webassembly x68000 zfs
+>4	string		--------
+# skip scripts fse.sed stage1.sed constants.pxi gotmail.awk from fetchmail package by
+# searching for reference to man page file(1) {lammps v 1.1} or file (1) {muscic v 1.1}
+>>12	search/180	(1)
+>>>0	use		magic-fragment
+# few (6/339) samples with 1st comment line and without separator comment line
+# like: blcr bsi selinux sisu ssh svf
+>4	default		x
+# few sample with 1st comment line and without seperator comment line and regular expression like: sisu
+>>1	search/112	regex\x09
+>>>0	use		magic-fragment
+>>1	default		x
+# few samples with 1st comment line and without seperator comment line and string value like:
+# blcr bsi selinux ssh (file 3.34) digital gnu wordperfect
+>>>1	search/471	string\x09
+>>>>0	use		magic-fragment
+>>>1	default		x
+# few samples with 1st comment line and without seperator comment line and short value like:
+# (file 3.34) os9 osf1
+>>>>1	search/1716	short\x09
+>>>>>0	use		magic-fragment
+# but many samples start with an empty first line
+0	ubyte		=0x0A
+# many samples start with separator comment line
+>4	string		--------
+# skip some MS-DOS C source text {EMSINIT.INC MEM.C RESTPARS.C RTDO.C RTDO1.C RTFILE.C RTFILE1.C RTNEW.C RTNEW1.C RTOLD.C RTOLD1.C RTT1.C RTT3.C}
+# and match many fragments by looking for Revision Control System keyword near the beginning
+>>1	search/128	$File
+>>>0	use		magic-fragment
+# few samples {ctf (2022-03-26) msx (2021-06-30) nasa (2021-02-23) symbos (2021-02-23) weak (2021-02-23)}
+# with 1st empty line, separator comment line and without Revision Control System keyword but with reference to man page file(1)
+>>1	default		x
+>>>1	search/180	file(1)
+>>>>0	use		magic-fragment
+>>>1	default		x
+# sample aria (2021-12-24) with 1st empty line, separator comment line and without Revision Control System keyword and without reference to man page file(1) 
+>>>>1	search/1024	\041:mime
+>>>>>0	use		magic-fragment
+# few samples with 1st empty line and without separator comment line like: biosig (2021-02-23) espressif (v 1.3)
+>4	default		x
+>>1	search/581	\041:mime
+>>>0	use		magic-fragment
+#	display information (lines) about magic text fragment
+0	name		magic-fragment
+>0	string		x		magic text fragment for file(1) cmd
+!:mime	text/x-file
+# most without suffix but mail.news varied.out varied.script
+!:ext	/news/out/script
+# next lines are mainly for control reasons
+# some (34/339) samples start with comment line
+>0	ubyte		!0x0A
+>>0	string		x		\b, 1st line "%s"
+>>>&1	string		x		\b, 2nd line "%s"
+# show more information to see difference between fragments and misidentfied scripts
+>>>>&1	string		x		\b, 3rd line "%s"
+>>>>>&1	string		x		\b, 4th line "%s"
+>>>>>>&1 string		x		\b, 5th line "%s"
+# but most (305/339) samples start with an empty first line
+>0	ubyte		=0x0A
+>>1	string		x		\b, 2nd line "%s"
+>>>&1	string		x		\b, 3rd line "%s"
+# show more information to see difference between fragments and misidentfied scripts
+>>>>&1	string		x		\b, 4th line "%s"
+>>>>>&1	string		x		\b, 5th line "%s"
+#
+# URL:		http://en.wikipedia.org/wiki/File_(command)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mgc.trid.xml
+# Note:		called "magic compiled data (LE)" by TrID
+0	lelong		0xF11E041C	magic binary file for file(1) cmd
+#!:mime	application/octet-stream
+!:mime application/x-file
+!:ext	mgc
+>4	lelong		x		(version %d) (little endian)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mgc-be.trid.xml
+# Note:		called "magic compiled data (BE)" by TrID
+0	belong		0xF11E041C	magic binary file for file(1) cmd
+#!:mime	application/octet-stream
+!:mime application/x-file
+!:ext	mgc
+>4	belong		x		(version %d) (big endian)

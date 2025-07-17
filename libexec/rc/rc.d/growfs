@@ -1,0 +1,313 @@
+#!/bin/sh
+#
+# Copyright 2022 Michael J. Karels
+# Copyright 2014 John-Mark Gurney
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+
+# PROVIDE: growfs
+# REQUIRE: fsck
+# BEFORE: root
+# KEYWORD: firstboot
+
+# Grow root partition to fill available space, optionally adding a swap
+# partition at the end.  This allows us to distribute an image and
+# have it work on essentially any size drive.
+
+# Note that this uses awk(1), and thus will not work if /usr is on a separate
+# filesystem.  We need to run early, because there might be not enough free
+# space on rootfs for the boot to succeed, and on images we ship - which are
+# the primary purpose of this script - there is no separate /usr anyway.
+
+. /etc/rc.subr
+
+name="growfs"
+desc="Grow root partition to fill device"
+start_cmd="growfs_start"
+stop_cmd=":"
+rcvar="growfs_enable"
+
+growfs_get_diskdev()
+{
+	local _search=${1}
+	sysctl -b kern.geom.conftxt |
+	while read x1 _type _dev line
+	do
+		if [ "${_type}" = "DISK" -a -n "$(echo ${_search} | grep ${_dev})" ]; then
+			echo -n ${_dev}
+			break
+		fi
+	done
+}
+
+# Compute upper bound on swap partition size (if added), based on physmem
+# and vm.swap_maxpages / 2 (the limit that elicits a warning).
+# Rule for swap size based on memory size:
+#	up to 4 GB	twice memory size
+#	4 GB - 8 GB	8 GB
+#	over 8 GB	memory size
+growfs_swap_max()
+{
+	memsize=$(sysctl -n hw.physmem)
+	memsizeMB=$(($memsize / (1024 * 1024)))
+
+	if  [ $memsizeMB -lt 4096 ]
+	then
+		swapmax=$(($memsize * 2))
+	elif  [ $memsizeMB -lt 8192 ]
+	then
+		swapmax=$((8192 * 1024 * 1024))
+	else
+		swapmax=$memsize
+	fi
+
+	pagesize=$(sysctl -n hw.pagesize)
+	vm_swap_max=$(($(sysctl -n vm.swap_maxpages) / 2 * $pagesize))
+
+	if [ $swapmax -gt $vm_swap_max ]
+	then
+		swapmax=$vm_swap_max
+	fi
+	echo -n "$swapmax"
+}
+
+# Find newly-added swap partition on parent device ($1).
+growfs_last_swap()
+{
+	swapdev=$(gpart list $1 | awk '
+		$2 == "Name:" { dev = $3 }
+		$1 == "type:" && $2 == "freebsd-swap" { swapdev = dev }
+		END { print swapdev }
+	    ')
+	echo -n $swapdev
+}
+
+growfs_start()
+{
+	verbose=0
+	echo "Growing root partition to fill device"
+	FSTYPE=$(mount -p | awk '{ if ( $2 == "/") { print $3 }}')
+	FSDEV=$(mount -p | awk '{ if ( $2 == "/") { print $1 }}')
+	case "$FSTYPE" in
+	ufs)
+		rootdev=${FSDEV#/dev/}
+		;;
+	zfs)
+		pool=${FSDEV%%/*}
+		rootdev=$(zpool list -v $pool | awk 'END { print $1 }')
+		;;
+	*)
+		echo "Don't know how to grow root filesystem type: $FSTYPE"
+		return
+	esac
+	if [ x"$rootdev" = x"${rootdev%/*}" ]; then
+		# raw device
+		rawdev="$rootdev"
+	else
+		rawdev=$(glabel status | awk -v rootdev=$rootdev 'index(rootdev, $1) { print $3; }')
+		if [ x"$rawdev" = x"" ]; then
+			echo "Can't figure out device for: $rootdev"
+			return
+		fi
+	fi
+
+	if [ x"diskid" = x"${rootdev%/*}" ]; then
+		search=$rootdev
+	else
+		search=$rawdev
+	fi
+
+	diskdev=$(growfs_get_diskdev ${search})
+	if [ -z "${diskdev}" ]; then
+		diskdev=${rootdev}
+	fi
+
+	# Check kenv for growfs_swap_size; if not present,
+	# check $growfs_swap_size from /etc/rc.conf.
+	# A value of 0 suppresses swap addition,
+	# "" (or unset) specifies the default;
+	# other values indicate the size in bytes.
+	# If default, check whether swap is already in fstab;
+	# if so, don't add another.
+	addswap=1
+	swapsize="$(kenv -q growfs_swap_size 2>/dev/null)"
+	case "$swapsize" in
+	"0")	addswap=0
+		;;
+	"")	case "$growfs_swap_size" in
+		"0")	addswap=0
+			;;
+		"")
+			if ! awk '
+				/^#/ { next }
+				$3 == "swap" { exit 1 }
+			    ' < /etc/fstab
+			then
+				addswap=0
+			fi
+			;;
+		*)	swapsize="$growfs_swap_size"
+			;;
+		esac
+		;;
+	*)	;;
+	esac
+
+	swaplim=$(growfs_swap_max)
+
+	[ $verbose -eq 1 ] && {
+		echo "diskdev is $diskdev"
+		echo "search is $search"
+		echo "swapsize is $swapsize"
+		echo "swaplim is $swaplim"
+	}
+
+	sysctl -b kern.geom.conftxt | awk '
+{
+	verbose = 0
+	lvl=$1
+	device[lvl] = $3
+	type[lvl] = $2
+	idx[lvl] = $7
+	offset[lvl] = $9
+	parttype[lvl] = $13
+	size[lvl] = $4
+	if (verbose) print lvl, type[lvl], $3
+	if (type[lvl] == "DISK") {
+		disksize = size[lvl]
+		if (verbose)
+			print "disksize ", disksize
+		# Do not add swap on disks under 15 GB (decimal) by default.
+		if (addswap == 1 && (size[lvl] > 15000000000 || swapsize > 0))
+			doing_swap = 1
+		else
+			doing_swap = 0
+	} else if (type[lvl] == "PART" && $11 == "freebsd-swap" && \
+	    int(swapsize) == 0) {
+		# This finds swap only if it precedes root, e.g. preceding disk.
+		addswap = 0
+		doing_swap = 0
+		print "swap device exists, not adding swap"
+	}
+	if (dev == $3) {
+		for (i = 1; i <= lvl; i++) {
+			# resize
+			if (type[i] == "PART") {
+				pdev = device[i - 1]
+				if (verbose)
+					print i, pdev, addswap, disksize, \
+					    doing_swap
+				swapcmd = ""
+				# Allow swap if current root is < 40% of disk.
+				if (parttype[i] != "MBR" && doing_swap == 1 && \
+				    (size[i] / disksize < 0.4 || \
+				    swapsize > 0)) {
+					print "Adding swap partition"
+					if (int(swapsize) == 0) {
+						swapsize = int(disksize / 10)
+						if (swapsize > swaplim)
+							swapsize = swaplim
+					}
+					sector = $5
+					swapsize /= sector
+					if (verbose)
+						print "swapsize sectors",
+						    swapsize
+					align = 4 * 1024 * 1024 / sector
+
+					# Estimate offset for swap; let
+					# gpart compute actual start and size.
+					# Assume expansion all goes into this
+					# partition for MBR case.
+					if (parttype[i - 1] == "MBR") {
+					    if (verbose)
+						print "sz ", size[i - 1], \
+						    " off ", offset[i - 1]
+					    expand = size[0] - \
+						(size[i - 1] + offset[i - 1])
+					} else {
+					    if (verbose)
+						print "sz ", size[i], \
+						    " off ", offset[i]
+					    expand = size[0] - \
+						(size[i] + offset[i])
+					}
+					if (verbose)
+					    print "expand ", expand, \
+						" sz ", size[i]
+					swapbase = (expand + size[i]) / sector
+					swapbase -= swapsize + align
+					swapcmd = "gpart add -t freebsd-swap -a " align " -b " int(swapbase) " " pdev " && kenv growfs_swap_pdev=" pdev " >/dev/null; "
+					if (verbose)
+						swapcmd = "set -x; gpart show; " swapcmd
+				}
+				cmd[i] = swapcmd "gpart resize -i " idx[i] " " pdev
+				if (parttype[i] == "GPT")
+					cmd[i] = "gpart recover " pdev " ; " cmd[i]
+			} else if (type[i] == "LABEL") {
+				continue
+			} else {
+				print "unhandled type: " type[i]
+				exit 1
+			}
+		}
+		for (i = 1; i <= lvl; i++) {
+			if (cmd[i])
+				system(cmd[i])
+		}
+		exit 0
+	}
+}' dev="$search" addswap="$addswap" swapsize="$swapsize" swaplim="$swaplim"
+	gpart commit "$diskdev" 2> /dev/null
+	case "$FSTYPE" in
+	ufs)
+		growfs -y /dev/"$rootdev"
+		;;
+	zfs)
+		zpool online -e $pool $rootdev
+		;;
+	esac
+
+	# Get parent device of swap partition if one was added;
+	# if so, find swap device and label it.
+	pdev=$(kenv -q growfs_swap_pdev)
+	if [ -n "$pdev" ]
+	then
+		dev=$(growfs_last_swap "$pdev")
+		if [ -z "$dev" ]
+		then
+			echo "Swap partition not found on $pdev"
+			exit 0
+		fi
+		glabel label -v growfs_swap $dev
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+growfs_svcj="NO"
+
+run_rc_command "$1"

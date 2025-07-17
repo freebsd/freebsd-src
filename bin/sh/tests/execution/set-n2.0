@@ -1,0 +1,4 @@
+
+$SH -n <<'EOF'
+echo bad
+EOF

@@ -1,0 +1,10 @@
+make: directive-for-lines.mk:27: expect 23
+make: directive-for-lines.mk:27: expect 23
+make: directive-for-lines.mk:36: expect 30
+make: directive-for-lines.mk:27: expect 23
+make: directive-for-lines.mk:27: expect 23
+make: directive-for-lines.mk:36: expect 30
+make: no target to make.
+
+make: stopped in unit-tests
+exit status 2

@@ -1,0 +1,477 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_addch.3x,v 1.85 2024/04/20 19:03:47 tom Exp $
+.TH curs_addch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.ds '  \(aq
+.ds ^  \(ha
+.ds ~  \(ti
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.ds       '  '
+.ds       ^  ^
+.ds       ~  ~
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%addch\fP,
+\fB\%waddch\fP,
+\fB\%mvaddch\fP,
+\fB\%mvwaddch\fP,
+\fB\%echochar\fP,
+\fB\%wechochar\fP \-
+add a \fIcurses\fP character to a window and advance the cursor
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint addch(const chtype \fIch\fP);
+\fBint waddch(WINDOW *\fIwin\fP, const chtype \fIch\fP);
+\fBint mvaddch(int \fIy\fP, int \fIx\fP, const chtype \fIch\fP);
+\fBint mvwaddch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const chtype \fIch\fP);
+.PP
+\fBint echochar(const chtype \fIch\fP);
+\fBint wechochar(WINDOW *\fIwin\fP, const chtype \fIch\fP);
+.fi
+.SH DESCRIPTION
+.SS "Adding Characters"
+.B \%waddch
+puts the character
+.I ch
+at the cursor position of window
+.IR win ,
+then advances the cursor position,
+analogously to the standard C library's \fI\%putchar\fP(3).
+\fB\%ncurses\fP(3X) describes the variants of this function.
+.PP
+If advancement occurs at the right margin,
+.bP
+the cursor automatically wraps to the beginning of the next line;
+and
+.bP
+at the bottom of the current scrolling region,
+and if \fB\%scrollok\fP(3X) is enabled for
+.IR win ,
+the scrolling region scrolls up one line.
+.PP
+If
+.I ch
+is a
+backspace,
+carriage return,
+line feed,
+or
+tab,
+the cursor moves appropriately within the window.
+.bP
+Backspace moves the cursor one character left;
+at the left margin of a window,
+it does nothing.
+.bP
+Carriage return moves the cursor to the left margin on the current line
+of the window.
+.bP
+Line feed does a \fB\%clrtoeol\fP(3X),
+then moves the cursor to the left margin on the next line of the window,
+and if \fB\%scrollok\fP(3X) is enabled for
+.IR win ,
+scrolls the window if the cursor was already on the last line.
+.bP
+Tab advances the cursor to the next tab stop
+(possibly on the next line);
+these are placed at every eighth column by default.
+Alter the tab interval with the
+.B \%TABSIZE
+extension;
+see \fB\%curs_variables\fP(3X).
+.PP
+If
+.I ch
+is any other nonprintable character,
+it is drawn in printable form,
+using the same convention as \fB\%unctrl\fP(3X).
+.PP
+Calling \fB\%winch\fP(3X) on the location of a nonprintable character
+does not return the character itself,
+but its \fB\%unctrl\fP(3X) representation.
+.PP
+.I ch
+may contain rendering and/or color attributes,
+and others can be combined with the parameter
+by logically \*(``or\*(''ing with it.
+(A character with its attributes can be copied from place to place
+using \fB\%winch\fP(3X) and
+.BR \%waddch .)
+See \fB\%curs_attr\fP(3X) for values of predefined video attribute
+constants that can be usefully \*(``or\*(''ed with characters.
+.SS "Echoing Characters"
+.B \%echochar
+and
+.B \%wechochar
+are equivalent to calling
+.RB \%( w ) addch
+followed by
+.RB \%( w ) refresh .
+.I curses
+interprets these functions as a hint that only a single character is
+being output;
+for non-control characters,
+a considerable performance gain may be enjoyed by employing them.
+.\" TODO: Combine the following with the "Line Drawing" subsection of
+.\" terminfo(5) and replace this with a cross reference there.
+.SS "Forms-Drawing Characters"
+.I curses
+defines macros starting with
+.B \%ACS_
+that can be used with
+.B \%waddch
+to write line-drawing and other special characters to the screen.
+.I \%ncurses
+terms these
+.I "forms-drawing characters."
+The ACS default listed below is used if the
+.B \%acs_chars
+.RB ( \%acsc )
+.I \%term\%info
+capability does not define a terminal-specific replacement for it,
+or if the terminal and locale configuration requires Unicode to access
+these characters but the library is unable to use Unicode.
+The \*(``acsc char\*('' column corresponds to how the characters are
+specified in the
+.B \%acs_chars
+string capability,
+and the characters in it may appear on the screen if the terminal's
+database entry incorrectly advertises ACS support.
+The name \*(``ACS\*('' originates in the Alternate Character Set feature
+of the DEC VT100 terminal.
+.PP
+.TS
+Lb Lb Lb Lb
+Lb Lb Lb Lb
+Lb L  L  Lx.
+\&	ACS	acsc	\&
+Symbol	Default	char	Glyph Name
+_
+ACS_BLOCK	#	0	solid square block
+ACS_BOARD	#	h	board of squares
+ACS_BTEE	+	v	bottom tee
+ACS_BULLET	o	\*~	bullet
+ACS_CKBOARD	:	a	checker board (stipple)
+ACS_DARROW	v	.	arrow pointing down
+ACS_DEGREE	\*'	f	degree symbol
+ACS_DIAMOND	+	\(ga	diamond
+ACS_GEQUAL	>	>	greater-than-or-equal-to
+ACS_HLINE	\-	q	horizontal line
+ACS_LANTERN	#	i	lantern symbol
+ACS_LARROW	<	,	arrow pointing left
+ACS_LEQUAL	<	y	less-than-or-equal-to
+ACS_LLCORNER	+	m	lower left-hand corner
+ACS_LRCORNER	+	j	lower right-hand corner
+ACS_LTEE	+	t	left tee
+ACS_NEQUAL	!	|	not-equal
+ACS_PI	*	{	greek pi
+ACS_PLMINUS	#	g	plus/minus
+ACS_PLUS	+	n	plus
+ACS_RARROW	>	+	arrow pointing right
+ACS_RTEE	+	u	right tee
+ACS_S1	\-	o	scan line 1
+ACS_S3	\-	p	scan line 3
+ACS_S7	\-	r	scan line 7
+ACS_S9	\&_	s	scan line 9
+ACS_STERLING	f	}	pound-sterling symbol
+ACS_TTEE	+	w	top tee
+ACS_UARROW	\*^	\-	arrow pointing up
+ACS_ULCORNER	+	l	upper left-hand corner
+ACS_URCORNER	+	k	upper right-hand corner
+ACS_VLINE	|	x	vertical line
+.TE
+.SH RETURN VALUE
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+In
+.IR \%ncurses ,
+.B \%waddch
+returns
+.B ERR
+if it is not possible to add a complete character at the cursor
+position,
+as when conversion of a multibyte character to a byte sequence fails,
+or at least one of the resulting bytes cannot be added to the window.
+See section \*(``PORTABILITY\*('' below regarding the use of
+.B \%waddch
+with multibyte characters.
+.PP
+.B \%waddch
+can successfully write a character at the bottom right location of the
+window.
+However,
+.I \%ncurses
+returns
+.B ERR
+if \fB\%scrollok\fP(3X) is not enabled in that event,
+because it is not possible to wrap to a new line.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+.BR \%addch ,
+.BR \%mvaddch ,
+.BR \%mvwaddch ,
+and
+.B \%echochar
+may be implemented as macros.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+SVr4
+.I curses
+describes a successful return value only as
+\*(``an integer value other than
+.BR ERR \*(''.
+.PP
+The defaults specified for forms-drawing characters apply in the POSIX
+locale.
+.SS "ACS Symbols"
+X/Open Curses states that the
+.B \%ACS_
+definitions are
+.I char
+constants.
+.PP
+Some implementations are problematic.
+.bP
+Solaris
+.IR curses ,
+for example,
+define the ACS symbols as constants;
+others define them as elements of an array.
+.IP
+This implementation uses an array,
+.BR \%acs_map ,
+as did SVr4
+.IR curses .
+NetBSD also uses an array,
+actually named
+.BR \%_acs_char ,
+with a
+.B \%#define
+for compatibility.
+.bP
+HP-UX
+.I curses
+equates some of the
+.B \%ACS_
+symbols to the analogous
+.B \%WACS_
+symbols as if the
+.B \%ACS_
+symbols were wide characters
+(see \fB\%curs_add_wch\fP(3X)).
+The misdefined symbols are the arrows and others that are not used for
+line drawing.
+.bP
+X/Open Curses
+(Issues 2 through 7)
+has a typographical error
+for the
+.B \%ACS_LANTERN
+symbol, equating its \*(``VT100+ Character\*('' to \*(``I\*(''
+(capital I),
+while the header files for SVr4
+.I curses
+and other implementations use \*(``i\*(''
+(small i).
+.IP
+None of the terminal descriptions on Unix platforms use uppercase I,
+except for Solaris
+(in its
+.I \%term\%info
+entry for \fI\%screen\fP(1),
+apparently based on the X/Open documentation around 1995).
+On the other hand,
+its
+.B \%gs6300
+(AT&T PC6300 with EMOTS Terminal Emulator)
+description uses lowercase i.
+.PP
+Some ACS symbols
+.RB ( \%ACS_S3 ,
+.BR \%ACS_S7 ,
+.BR \%ACS_LEQUAL ,
+.BR \%ACS_GEQUAL ,
+.BR \%ACS_PI ,
+.BR \%ACS_NEQUAL ,
+and
+.BR \%ACS_STERLING )
+were not documented in any publicly released System\ V.
+However,
+many publicly available
+.I \%term\%info
+entries include
+.B \%acsc
+strings in which their key characters
+.BR ( pryz{|} )
+are embedded,
+and a second-hand list of their character descriptions has come to
+light.
+The
+.I \%ncurses
+developers invented ACS-prefixed names for them.
+.PP
+The
+.I displayed
+values of
+.B \%ACS_
+constants depend on
+.bP
+the
+.I \%ncurses
+ABI\(emfor example,
+wide-character versus non-wide-character configurations
+(the former is capable of displaying Unicode while the latter is not),
+and
+.bP
+whether the locale uses UTF-8 encoding.
+.PP
+In certain cases,
+the terminal is unable to display forms-drawing characters
+.I except
+by using UTF-8;
+see the discussion of the
+.I \%NCURSES_NO_UTF8_ACS
+environment variable in \fB\%ncurses\fP(3X)).
+.SS "Character Set"
+X/Open Curses assumes that the parameter passed to
+.B \%waddch
+contains a single character.
+As discussed in \fB\%curs_attr\fP(3X),
+that character may have been more than eight bits wide in an SVr3 or
+SVr4 implementation,
+but in the X/Open Curses model,
+the details are not given.
+The important distinction between SVr4
+.I curses
+and X/Open Curses is that the latter separates non-character information
+(attributes and color)
+from the character code,
+which SVr4 packs into a
+.I \%chtype
+for passage to
+.BR \%waddch .
+.PP
+In
+.IR \%ncurses ,
+.I \%chtype
+holds an eight-bit character.
+But the library allows a multibyte character to be passed in a
+succession of calls to
+.BR \%waddch .
+Other implementations do not;
+a
+.B \%waddch
+call transmits exactly one character,
+which may be rendered in one or more screen locations depending on
+whether it is printable.
+.PP
+Depending on the locale settings,
+.I \%ncurses
+inspects the byte passed in each
+.B \%waddch
+call,
+and checks whether the latest call continues a multibyte sequence.
+When a character is
+.IR complete ,
+.I \%ncurses
+displays the character and advances the cursor.
+.PP
+If the calling application interrupts the succession of bytes in
+a multibyte character sequence by changing the current location\(emfor
+example,
+with \fB\%wmove\fP(3X)\(em\c
+.I \%ncurses
+discards the incomplete character.
+.PP
+For portability to other implementations,
+do not rely upon this behavior.
+Check whether a character can be represented as a single byte in the
+current locale.
+.bP
+If it can,
+call either
+.B \%waddch
+or \fB\%wadd_wch\fP(3X).
+.bP
+If it cannot,
+use only
+\fB\%wadd_wch\fP(3X).
+.SS TABSIZE
+SVr4 and other versions of
+.I curses
+implement the
+.B \%TABSIZE
+variable,
+but X/Open Curses does not specify it
+(see \fB\%curs_variables\fP(3X)).
+.SH SEE ALSO
+\fB\%curs_add_wch\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its wide-character configuration
+.RI ( \%ncursesw ).
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_addchstr\fP(3X),
+\fB\%curs_addstr\fP(3X),
+\fB\%curs_attr\fP(3X),
+\fB\%curs_clear\fP(3X),
+\fB\%curs_inch\fP(3X),
+\fB\%curs_outopts\fP(3X),
+\fB\%curs_refresh\fP(3X),
+\fB\%curs_variables\fP(3X),
+\fB\%putchar\fP(3)

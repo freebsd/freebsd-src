@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-CANONICALIZE-data:
+
+KRB5_GET_INIT_CREDS_OPT_CANONICALIZE
+====================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_CANONICALIZE
+..
+
+
+
+
+=========================================== ======================
+``KRB5_GET_INIT_CREDS_OPT_CANONICALIZE``       ``0x0200``
+=========================================== ======================

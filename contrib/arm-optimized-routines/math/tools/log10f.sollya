@@ -1,0 +1,37 @@
+// polynomial for approximating log10f(1+x)
+//
+// Copyright (c) 2019-2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+// Computation of log10f(1+x) will be carried out in double precision
+
+deg = 4; // poly degree
+// [OFF; 2*OFF] is divided in 2^4 intervals with OFF~0.7
+a = -0.04375;
+b = 0.04375;
+
+// find log(1+x)/x polynomial with minimal relative error
+// (minimal relative error polynomial for log(1+x) is the same * x)
+deg = deg-1; // because of /x
+
+// f = log(1+x)/x; using taylor series
+f = 0;
+for i from 0 to 60 do { f = f + (-x)^i/(i+1); };
+
+// return p that minimizes |f(x) - poly(x) - x^d*p(x)|/|f(x)|
+approx = proc(poly,d) {
+  return remez(1 - poly(x)/f(x), deg-d, [a;b], x^d/f(x), 1e-10);
+};
+
+// first coeff is fixed, iteratively find optimal double prec coeffs
+poly = 1;
+for i from 1 to deg do {
+  p = roundcoefficients(approx(poly,i), [|D ...|]);
+  poly = poly + x^i*coeff(p,0);
+};
+
+display = hexadecimal;
+print("rel error:", accurateinfnorm(1-poly(x)/f(x), [a;b], 30));
+print("in [",a,b,"]");
+print("coeffs:");
+for i from 0 to deg do double(coeff(poly,i));

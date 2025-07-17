@@ -1,0 +1,355 @@
+.\"-
+.\" Copyright (c) 2021 Christos Margiolis <christos@FreeBSD.org>
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining a copy
+.\" of this software and associated documentation files (the "Software"), to deal
+.\" in the Software without restriction, including without limitation the rights
+.\" to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+.\" copies of the Software, and to permit persons to whom the Software is
+.\" furnished to do so, subject to the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be included in
+.\" all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+.\" AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+.\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+.\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+.\" THE SOFTWARE.
+.\"
+.Dd August 14, 2024
+.Dt MIXER 8
+.Os
+.Sh NAME
+.Nm mixer
+.Nd manipulate soundcard mixer controls
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar device
+.Op Fl d Ar pcmN | N Op Fl V Ar voss_device:mode
+.Op Fl os
+.Op Ar dev Ns Op Cm \&. Ns Ar control Ns Op Cm \&= Ns Ar value
+.Ar ...
+.Nm
+.Op Fl os
+.Fl a
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to set and display soundcard mixer device controls.
+.Pp
+The options are as follows:
+.Bl -tag -width "-V voss_device:mode"
+.It Fl a
+Print the values for all mixer devices available in the system
+.Pq see Sx FILES .
+.It Fl d Ar pcmN | N
+Change the default audio card to
+.Ar pcmN ,
+where N is the unit number (e.g for pcm0, the unit number is 0).
+See
+.Sx EXAMPLES
+on how to list all available audio devices in the system.
+.Pp
+There is also the possibility of hot-swapping to the new default device if
+.Xr virtual_oss 8
+exists in the system and is running, in which case the
+.Fl V
+option needs to be specified as well.
+.Pp
+Hot-swapping generally cannot happen with plain
+.Xr sound 4 ,
+so the user has to restart the track in order to get sound coming out of the
+new default device.
+This is because applications usually open a device at the start of the track
+and do not check for default device changes, in order to open the new device
+mid-track.
+.Xr virtual_oss 8 ,
+on the other hand, can do hot-swapping, because it creates a virtual device for
+applications to open, and then does all the necessary routing and conversions
+to the appropriate device(s).
+.Pp
+Note that hot-swapping will work only for applications that are using
+.Xr virtual_oss 8
+devices, and not plain
+.Xr sound 4
+ones.
+.It Fl f Ar device
+Open
+.Ar device
+as the mixer device
+.Pq see Sx FILES .
+.It Fl h
+Print a help message.
+.It Fl o
+Print mixer values in a format suitable for use inside scripts.
+The mixer's header (name, audio card name, ...) will not be printed.
+.It Fl s
+Print only the recording source(s) of the mixer device.
+.It Fl V Ar voss_device:mode
+Specify a
+.Xr virtual_oss 8
+control device, as well as a mode (see below), in order to hot-swap devices.
+This option is meant to only be used in combination with the
+.Fl d
+option.
+.Pp
+The available modes are as follows:
+.Bl -column play
+.It Sy Mode Ta Sy Action
+.It all Ta Playback and recording
+.It play Ta Playback
+.It rec Ta Recording
+.El
+.Pp
+The
+.Pa mode
+part is needed, so that
+.Nm
+will not accidentally hot-swap both the recording and playback device in
+.Xr virtual_oss 8 ,
+if only one direction is to be hot-swapped.
+.Pp
+See
+.Sx EXAMPLES
+on how to use this option.
+.El
+.Pp
+The list of mixer devices that may be modified are:
+.Bd -ragged -offset indent
+.Cm vol , bass , treble , synth , pcm , speaker , line , mic , cd , mix ,
+.Cm pcm2 , rec ,
+.Cm igain , ogain ,
+.Cm line1 , line2 , line3 ,
+.Cm dig1 , dig2 , dig3 ,
+.Cm phin , phout , video , radio ,
+and
+.Cm monitor .
+.Ed
+.Pp
+Not all mixer devices are available.
+.Pp
+Without any arguments,
+.Nm
+displays all information for each one of the mixer's supported devices to
+.Ar stdout .
+If the
+.Ar dev
+argument is specified,
+.Nm
+displays only the values for
+.Ar dev .
+More than one device may be specified.
+.Pp
+Commands use the following format:
+.Bl -column xxxxxxxxxxxxxxxxxxxxxxxx -offset indent
+.It Sy Name Ta Sy Action
+.It Ar dev Ta Display all controls
+.It Ar dev Ns Cm \&. Ns Ar control Ta Display only the specified control
+.It Ar dev Ns Cm \&. Ns Ar control Ns Cm \&= Ns Ar value Ta Set control value
+.El
+.Pp
+The available controls are as follows (replace
+.Ar dev
+with one of the available devices):
+.Sm off
+.Bl -column xxxxxxxxxxxxxxxxxxxxxxxx -offset indent
+.It Sy Name Ta Sy Value
+.It Ar dev Cm .volume Ta Xo
+.Ar vol |
+.Oo Cm \&+ | Cm \&- Oc Ar lvol Oo % Oc
+.Oo Cm \&: Oo Cm \&+ | Cm \&- Oc Ar rvol Oo % Oc Oc
+.Xc
+.It Ar dev Cm .mute Ta Cm 0 | 1 | ^
+.It Ar dev Cm .mute Ta Cm off | on | toggle
+.It Ar dev Cm .recsrc Ta Cm ^ | + | - | =
+.It Ar dev Cm .recsrc Ta Cm toggle | add | remove | set
+.El
+.Sm on
+.Pp
+The
+.Ar dev Ns Cm .volume
+control modifies a device's volume.
+The optional
+.Ar lvol
+and/or
+.Ar rvol
+values have to be specified.
+The values should typically be decimal numbers between 0 and 1 with at most 2
+digits after the decimal point.
+A trailing percent sign indicates that the value should be treated as a
+percentage of 1.0, rather than an absolute value.
+Thus, 70% means the same as 0.7.
+If the left or right volume values are prefixed with
+.Cm +
+or
+.Cm - ,
+the value following will be used as a relative adjustment, modifying the
+current settings by the amount specified.
+Note that relative percentages are still relative to 1.0, not to the current
+value.
+If the volume is currently 0.40 and an adjustment of +20% is specified, then
+thet final volume will be set to 0.60.
+.Pp
+Volume can also be set using the shorthand
+.Ar dev Ns Cm =value .
+This syntax does not apply to other controls.
+.Pp
+The
+.Ar dev Ns Cm .mute
+control (un)mutes a device.
+The following values are available:
+.Bl -tag -width "xxxxxxxxxx" -offset indent
+.It Cm 0 | off
+unmutes
+.Ar dev
+.It Cm 1 | on
+mutes
+.Ar dev
+.It Cm ^ | toggle
+toggles the mute of
+.Ar dev
+.El
+.Pp
+The
+.Ar dev Ns Cm .recsrc
+control modifies the recording sources of a mixer.
+.Nm
+marks devices which can be used as a recording source with
+.Sy rec .
+Recording sources are marked with
+.Sy src .
+To modify the recording source you can use one of the following modifiers
+on a
+.Sy rec
+device:
+.Bl -tag -width "xxxxxxxxxx" -offset indent
+.It Cm ^ | toggle
+toggles
+.Ar dev
+of possible recording devices
+.It Cm + | add
+adds
+.Ar dev
+to possible recording devices
+.It Cm - | remove
+removes
+.Ar dev
+from possible recording devices
+.It Cm = | set
+makes
+.Ar dev
+the only recording device.
+.El
+.Sh FILES
+.Bl -tag -width /dev/mixerN -compact
+.It Pa /dev/mixerN
+The mixer device, where
+.Ar N
+is the number of that device, for example
+.Ar /dev/mixer0 .
+PCM cards and mixers have a 1:1 relationship, which means that
+.Pa /dev/mixer0
+is the mixer for
+.Pa /dev/pcm0
+and so on.
+By default,
+.Nm
+prints both the audio card's number and the mixer associated with it
+in the form of
+.Ar pcmN:mixer .
+The
+.Pa /dev/mixer
+file, although it does not exist in the filesystem, points to the default
+mixer device and is the file
+.Nm
+opens when the
+.Fl f Ar device
+option has not been specified.
+.El
+.Sh EXAMPLES
+List all available audio devices in the system:
+.Bd -literal -offset indent
+$ mixer -a | grep ^pcm
+.Ed
+.Pp
+Increase the
+.Cm vol
+device's volume by 5%:
+.Bd -literal -offset indent
+$ mixer vol=+5%
+.Ed
+.Pp
+Change the volume for the
+.Cm vol
+device of the
+.Pa /dev/mixer0
+mixer device to 0.65:
+.Bd -literal -offset indent
+$ mixer -f /dev/mixer0 vol.volume=0.65
+.Ed
+.Pp
+Increase the
+.Cm mic
+device's left volume by 0.10 and decrease the right
+volume by 0.05:
+.Bd -literal -offset indent
+$ mixer mic.volume=+0.10:-0.05
+.Ed
+.Pp
+Toggle the mute for
+.Cm vol :
+.Bd -literal -offset indent
+$ mixer vol.mute=toggle
+.Ed
+.Pp
+Add
+.Cm mic
+and remove
+.Cm line
+from the recording devices:
+.Bd -literal -offset indent
+$ mixer mic.recsrc=add line.recsrc=remove
+.Ed
+.Pp
+Dump
+.Pa /dev/mixer0
+information to a file and retrieve back later:
+.Bd -literal -offset indent
+$ mixer -f /dev/mixer0 -o > info
+\&...
+$ mixer -f /dev/mixer0 `cat info`
+.Ed
+.Pp
+Suppose
+.Xr virtual_oss 8
+is running with
+.Pa /dev/vdsp.ctl
+as its control device, and
+.Pa pcm0
+as the playback device.
+Change the default device to
+.Pa pcm1 ,
+and hot-swap to it for both recording and playback in
+.Xr virtual_oss 8 :
+.Bd -literal -offset indent
+$ mixer -d pcm1 -V /dev/vdsp.ctl:all
+.Ed
+.Sh SEE ALSO
+.Xr mixer 3 ,
+.Xr sound 4 ,
+.Xr sysctl 8 ,
+.Xr virtual_oss 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.0.5
+and was rewritten completely in
+.Fx 14.0 .
+.Sh AUTHORS
+.An Christos Margiolis Aq Mt christos@FreeBSD.org

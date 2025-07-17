@@ -1,0 +1,26 @@
+#include <sys/param.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+
+0	AUE_NULL		UNIMPL	unimpl_syscall0
+
+; Scenario #1: Vendor uses a reserved slot on just a single platform
+#ifdef PLATFORM_FOO
+1	AUE_NULL		STD {
+		int syscall1(
+		    int arg1
+		);
+	}
+#else
+1	AUE_NULL		RESERVED
+#endif
+
+; Scenario #2: The other way around; vendor obsoletes a syscall on newer
+; platforms
+#ifdef PLATFORM_FOO
+2	AUE_NULL		OBSOL	syscall2
+#else
+2	AUE_NULL		STD {
+		int syscall2(void);
+	}
+#endif

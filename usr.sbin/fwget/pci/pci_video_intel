@@ -1,0 +1,78 @@
+#-
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright 2023 Beckhoff Automation GmbH & Co. KG
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted providing that the following conditions 
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+pci_video_intel()
+{
+	case "$1" in
+		# Skylake
+		0x19*)
+			addpkg "gpu-firmware-intel-kmod-skylake"
+			;;
+		# Broxton
+		0x0a*|0x1a*|0x5a84|0x5a85)
+			addpkg "gpu-firmware-intel-kmod-broxton"
+			;;
+		# Geminilake
+		0x318*)
+			addpkg "gpu-firmware-intel-kmod-geminilake"
+			;;
+		# Kabylake, Coffeelake and Cometlake
+		0x59*|0x87*|0x9b*|0x3e*)
+			addpkg "gpu-firmware-intel-kmod-kabylake"
+			;;
+		# Cannonlake
+		0x5a*)
+			addpkg "gpu-firmware-intel-kmod-cannonlake"
+			;;
+		# Icelake
+		0x8a*)
+			addpkg "gpu-firmware-intel-kmod-icelake"
+			;;
+		# Elkhartlake/Jasperlake
+		0x45*|0x4e*)
+			addpkg "gpu-firmware-intel-kmod-elkhartlake"
+			;;
+		# Tigerlake
+		0x9a*)
+			addpkg "gpu-firmware-intel-kmod-tigerlake"
+			;;
+		# Rocketlake (Uses tigerlake GuC/HuC firmware)
+		0x4c*)
+			addpkg "gpu-firmware-intel-kmod-rocketlake gpu-firmware-intel-kmod-tigerlake"
+			;;
+		# DG1
+		0x49*)
+			addpkg "gpu-firmware-intel-kmod-dg1"
+			;;
+		# Alderlake (Uses tigerlake GuC/HuC firmware)
+		0x46*)
+			addpkg "gpu-firmware-intel-kmod-alderlake gpu-firmware-intel-kmod-tigerlake"
+			;;
+		*)
+			log_verbose "No package found for device $1"
+			;;
+	esac
+}

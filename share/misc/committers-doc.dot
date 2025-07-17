@@ -1,0 +1,237 @@
+
+# This file is meant to list all FreeBSD doc+www committers and describe the
+# mentor-mentee relationships between them.
+# The graphical output can be generated from this file with the following
+# command:
+# $ dot -T png -o file.png committers-doc.dot
+#
+# The dot binary is part of the graphics/graphviz port.
+
+digraph doc {
+
+# Node definitions follow this example:
+#
+#   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
+#
+# ????/??/?? is the date when the commit bit was obtained, usually the one you
+# can find in git logs for the access file in the internal/admin branch.
+# Use YYYY/MM/DD format.
+#
+# For returned commit bits, the node definition will follow this example:
+#
+#   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
+#
+# The first date is the same as for an active committer, the second date is
+# the date when the commit bit has been returned. Again, check git logs.
+
+node [color=grey62, style=filled, bgcolor=black];
+
+# Alumni go here. Try to keep things sorted.
+
+ache [label="Andrey Chernov\nache@FreeBSD.org\n1997/06/13\n2010/12/11"]
+bhd [label="Björn Heidotting\nbhd@FreeBSD.org\n2014/10/14\n2022/09/16"]
+bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/22\n2009/09/13"]
+bvs [label="Vitaly Bogdanov\nbvs@FreeBSD.org\n2005/10/03\n2010/12/11"]
+chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20\n2014/03/02"]
+crees [label="Chris Rees\ncrees@FreeBSD.org\n2013/05/27\n2022/11/08"]
+den [label="Denis Peplin\nden@FreeBSD.org\n2003/09/13\n2009/07/09"]
+dexter [label="Michael Dexter\ndexter@FreeBSD.org\n2016/11/15\n2019/04/02"]
+dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22\n2020/05/05"]
+eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/10/15\n2022/09/15"]
+gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02\n2021/09/21"]
+garys [label="Gary W. Swearingen\ngarys@FreeBSD.org\n2005/08/21\n2008/03/02"]
+gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2011/07/18\n2021/10/24"]
+grahamperrin [label="Graham Perrin\ngrahamperrin@FreeBSD.org\n2022/06/01\n2023/08/24"]
+issyl0 [label="Isabell Long\nissyl0@FreeBSD.org\n2012/04/25\n2017/08/25"]
+jcamou [label="Jesus R. Camou\njcamou@FreeBSD.org\n2005/03/02\n2008/12/20"]
+jesusr [label="Jesus Rodriguez Cuesta\njesusr@FreeBSD.org\n1998/12/10\n2010/12/11"]
+jim [label="Jim Mock\njim@FreeBSD.org\n1999/08/11\n2003/12/15"]
+jkois [label="Johann Kois\njkois@FreeBSD.org\n2004/11/11\n2021/01/16"]
+josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/01/15\n2008/03/29"]
+keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
+linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31\n2022/03/31"]
+manolis [label="Manolis Kiagias\nmanolis@FreeBSD.org\n2008/05/24\n2019/05/09"]
+marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03\n2012/04/25"]
+mheinen [label="Martin Heinen\nmheinen@FreeBSD.org\n2002/10/04\n2006/04/26"]
+miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26\n2019/05/09"]
+murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05\n2012/04/25"]
+nik [label="Nik Clayton\nnik@FreeBSD.org\n1998/02/26\n2008/12/20"]
+pauamma [label="Pau Amma\npauamma@FreeBSD.org\n2022/06/03\n2023/03/15"]
+pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12\n2013/12/20"]
+pgj [label="Gabor Pali\npgj@FreeBSD.org\n2008/04/21\n2010/12/01"]
+remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16\n2019/10/07"]
+roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14\n2012/02/29"]
+sevan [label="Sevan Janiyan\nsevan@FreeBSD.org\n2016/09/16\n2021/09/18"]
+sg [label="Stephen Gregoratto\nsg@FreeBSD.org\n2019/09/10\n2019/12/10"]
+simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20\n2019/05/09"]
+skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2014/01/15\n2019/05/09"]
+taras [label="Taras Korenko\ntaras@FreeBSD.org\n2010/06/25\n2019/05/09"]
+wblock [label="Warren Block\nwblock@FreeBSD.org\n2011/09/12\n2021/09/29"]
+zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03\n2022/11/08"]
+
+node [color=lightblue2, style=filled, bgcolor=black];
+
+# Current doc committers go here. Try to keep things sorted.
+
+"0mp" [label="Mateusz Piotrowski\n0mp@FreeBSD.org\n2019/09/29"]
+ale [label="Alex Dupre\nale@FreeBSD.org\n2003/12/22"]
+allanjude [label="Allan Jude\nallanjude@FreeBSD.org\n2014/05/17"]
+bcr [label="Benedict Reuschling\nbcr@FreeBSD.org\n2009/12/24"]
+blackend [label="Marc Fonvieille\nblackend@FreeBSD.org\n2002/06/16"]
+brd [label="Brad Davis\nbrd@FreeBSD.org\n2005/06/01"]
+brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2003/01/13"]
+carlavilla [label="Sergio Carlavilla\ncarlavilla@FreeBSD.org\n2019/05/16"]
+ceri [label="Ceri Davies\nceri@FreeBSD.org\n2002/03/17"]
+danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
+dbaio [label="Danilo G. Baio\ndbaio@FreeBSD.org\n2021/05/13"]
+debdrup [label="Daniel Ebdrup Jensen\ndebdrup@FreeBSD.org\n2020/07/26"]
+delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
+ebrandi [label="Edson Brandi\nebrandi@FreeBSD.org\n2012/09/13"]
+emaste [label="Ed Maste\nemaste@FreeBSD.org\n2021/08/18"]
+fernape [label="Fernando Apesteguia\nfernape@FreeBSD.org\n2021/02/07"]
+ganbold [label="Ganbold Tsagaankhuu\nganbold@FreeBSD.org\n2008/02/26"]
+gbe [label="Gordon Bergling\ngbe@FreeBSD.org\n2020/06/08"]
+gjb [label="Glen Barber\ngjb@FreeBSD.org\n2010/09/01"]
+hrs [label="Hiroki Sato\nhrs@FreeBSD.org\n2000/07/06"]
+jgh [label="Jason Helfman\njgh@FreeBSD.org\n2014/01/20"]
+joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
+loader [label="Fukang Chen\nloader@FreeBSD.org\n2007/07/30"]
+lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2021/08/01"]
+marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
+maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
+mhorne [label="Mitchell Horne\nmhorne@FreeBSD.org\n2024/07/12"]
+philip [label="Philip Paeps\nphilip@FreeBSD.org\n2021/07/13"]
+pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
+rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
+ryusuke [label="Ryusuke Suzuki\nryusuke@FreeBSD.org\n2009/12/21"]
+salvadore [label="Lorenzo Salvadore\nsalvadore@FreeBSD.org\n2023/03/20"]
+trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
+ygy [label="Guangyuan Yang\nygy@FreeBSD.org\n2017/09/18"]
+ziaee [label="Alexander Ziaee\nziaee@FreeBSD.org\n2024/12/30"]
+
+# Here are the mentor/mentee relationships.
+# Group together all the mentees for a particular mentor.
+# Keep the list sorted by mentor login.
+
+"0mp" -> debdrup
+"0mp" -> fernape
+"0mp" -> mhorne
+
+allanjude -> debdrup
+
+bcr -> gavin
+bcr -> wblock
+bcr -> eadler
+bcr -> dru
+bcr -> crees
+bcr -> jgh
+bcr -> allanjude
+bcr -> bhd
+bcr -> sevan
+bcr -> dexter
+bcr -> sg
+bcr -> carlavilla
+bcr -> "0mp"
+bcr -> gbe
+bcr -> debdrup
+
+blackend -> ale
+blackend -> ceri
+
+brueffer -> joel
+
+carlavilla -> emaste
+carlavilla -> grahamperrin
+carlavilla -> lwhsu
+carlavilla -> pauamma
+carlavilla -> salvadore
+carlavilla -> ziaee
+
+ceri -> brd
+ceri -> brueffer
+ceri -> linimon
+ceri -> roam
+ceri -> simon
+
+dbaio -> salvadore
+
+den -> marck
+
+delphij -> chinsan
+delphij -> loader
+
+eadler -> allanjude
+
+gabor -> pgj
+gabor -> manolis
+gabor -> taras
+gabor -> issyl0
+gabor -> ebrandi
+gabor -> carlavilla
+
+gbe -> fernape
+
+gjb -> wblock
+gjb -> rene
+gjb -> dru
+gjb -> crees
+gjb -> grahamperrin
+gjb -> philip
+gjb -> pauamma
+
+hrs -> ryusuke
+hrs -> dru
+hrs -> skreuzer
+
+jesusr -> jcamou
+
+jim -> trhodes
+
+jkois -> miwi
+jkois -> bcr
+jkois -> gavin
+jkois -> gjb
+jkois -> eadler
+
+joel -> zeising
+
+keramida -> blackend
+keramida -> danger
+keramida -> gabor
+keramida -> ganbold
+keramida -> garys
+keramida -> gjb
+keramida -> pav
+
+marck -> bvs
+marck -> pluknet
+marck -> taras
+
+maxim -> taras
+
+mheinen -> jkois
+
+mhorne -> ziaee
+
+murray -> ceri
+murray -> delphij
+
+nik -> bmah
+nik -> keramida
+
+remko -> jkois
+remko -> rene
+remko -> jgh
+
+simon -> josef
+simon -> remko
+
+trhodes -> danger
+trhodes -> jcamou
+
+wblock -> jgh
+wblock -> allanjude
+
+ygy -> emaste
+ygy -> lwhsu
+}

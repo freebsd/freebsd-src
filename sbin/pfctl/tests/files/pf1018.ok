@@ -1,0 +1,2 @@
+pass inet from 192.0.2.1 to (pppoe0) flags S/SA keep state
+pass inet6 from 2001:db8::1 to (pppoe0) flags S/SA keep state

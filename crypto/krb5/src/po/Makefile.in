@@ -1,0 +1,52 @@
+mydir=po
+BUILDTOP=$(REL)..
+VER=@PACKAGE_VERSION@
+
+DOMAIN=mit-krb5
+POTFILE=$(srcdir)/$(DOMAIN).pot
+XGETTEXT=xgettext --foreign-user --package-name=mit-krb5 \
+	--package-version=$(VER) --copyright-holder=MIT
+ETSRCS=	$(BUILDTOP)/lib/gssapi/generic/gssapi_err_generic.c \
+	$(BUILDTOP)/lib/gssapi/krb5/gssapi_err_krb5.c \
+	$(BUILDTOP)/lib/kadm5/chpass_util_strings.c \
+	$(BUILDTOP)/lib/kadm5/kadm_err.c \
+	$(BUILDTOP)/lib/kdb/adb_err.c \
+	$(BUILDTOP)/lib/krb5/error_tables/k5e1_err.c \
+	$(BUILDTOP)/lib/krb5/error_tables/krb5_err.c \
+	$(BUILDTOP)/lib/krb5/error_tables/kdb5_err.c \
+	$(BUILDTOP)/lib/krb5/error_tables/asn1_err.c \
+	$(BUILDTOP)/lib/krb5/error_tables/kv5m_err.c \
+	$(BUILDTOP)/lib/krb5/error_tables/krb524_err.c
+CATALOGS=en_US.mo de.mo ka.mo
+
+.SUFFIXES: .po .mo
+.po.mo:
+	msgfmt -o $@ $<
+
+all: $(CATALOGS)
+
+update-po: csrcs check_et_@COM_ERR_VERSION@
+	$(XGETTEXT) -k_ -kN_ -o $(POTFILE) -f csrcs
+	$(XGETTEXT) -kN_ -j -o $(POTFILE) $(ETSRCS)
+
+csrcs: always
+	find $(top_srcdir) -name "*.c" -print | LC_ALL=C sort > $@
+
+check_et_k5 check_et_intlsys:
+check_et_sys:
+	@echo 1>&2 error: cannot update po file with this version of compile_et
+	@exit 1
+
+always:
+
+install:
+	for c in $(CATALOGS); do \
+	  lang=`basename $$c .mo`; \
+	  $(top_srcdir)/config/mkinstalldirs \
+	    $(DESTDIR)$(KRB5_LOCALEDIR)/$$lang/LC_MESSAGES; \
+	  $(INSTALL_DATA) $$c \
+	    $(DESTDIR)$(KRB5_LOCALEDIR)/$$lang/LC_MESSAGES/$(DOMAIN).mo; \
+	done
+
+clean:
+	$(RM) $(CATALOGS)

@@ -1,0 +1,106 @@
+.\" Copyright (c) 2024 The FreeBSD Foundation
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 31, 2024
+.Dt RTLD_GET_VAR 3
+.Os
+.Sh NAME
+.Nm rtld_get_var ,
+.Nm rtld_set_var
+.Nd query or change run-time linker parameters after image activation
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/errno.h
+.In link.h
+.Ft const char *
+.Fn rtld_get_var "const char *name"
+.Ft int
+.Fn rtld_set_var "const char *name" "const char *value"
+.Sh DESCRIPTION
+The dynamic linker
+.Xr rtld 1
+can be configured by setting some environment variables for the process,
+before image activation.
+Sometimes it is desirable to query the current effective settings or
+change them afterward.
+.Pp
+Since the process environment variables are maintained by higher-level
+libraries, the run-time linker cannot access them after the image
+activation.
+The described functions make it possible to operate on rtld settings.
+.Pp
+The
+.Fn rtld_get_var
+function returns the current value of the named parameter.
+.Pp
+The
+.Fn rtld_set_var
+functions changes the value of the parameter to the new
+.Fa value
+value, if possible.
+The
+.Fa name
+argument to both functions is the name of the parameter, which
+is same as the corresponding environment variable
+.Pq see Xr rtld 1
+but without the
+.Ev LD_
+(or
+.Ev LD_32_
+or any other ABI-specific) prefix.
+.Sh RETURN VALUES
+The
+.Fn rtld_get_var
+returns the current value of the named parameter, or
+.Dv NULL
+if the name is invalid.
+.Pp
+The
+.Fn rtld_set_var
+returns 0 on success, or an integer indicating the error condition
+which prevented the operation.
+.Sh ERRORS
+Possible errors returned from
+.Fn rtld_set_var :
+.Bl -tag -width Er
+.It Bq Er EPERM
+The requested change cannot be made at runtime, either because the
+runtime linker can only take this parameter at initialization time,
+or because the current process is executing with elevated privileges.
+.It Bq ENOENT
+The supplied parameter
+.Fa name
+is unknown.
+.El
+.Sh SEE ALSO
+.Xr rtld 1
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 14.3 .

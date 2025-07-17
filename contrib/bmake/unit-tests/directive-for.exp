@@ -1,0 +1,40 @@
+make: directive-for.mk:117: outer
+make: directive-for.mk:138: a:\ a:\file.txt
+make: directive-for.mk:138: d:\\
+make: directive-for.mk:138: d:\\file.txt
+make: directive-for.mk:158: ( ( (
+make: directive-for.mk:158: [ [ [
+make: directive-for.mk:158: { { {
+make: directive-for.mk:158: ) ) )
+make: directive-for.mk:158: ] ] ]
+make: directive-for.mk:158: } } }
+make: directive-for.mk:158: (()) (()) (())
+make: directive-for.mk:158: [[]] [[]] [[]]
+make: directive-for.mk:158: {{}} {{}} {{}}
+make: directive-for.mk:158: )( )( )(
+make: directive-for.mk:158: ][ ][ ][
+make: directive-for.mk:158: }{ }{ }{
+make: directive-for.mk:166: invalid character ':' in .for loop variable name
+make: directive-for.mk:173: invalid character '$' in .for loop variable name
+make: directive-for.mk:185: invalid character '$' in .for loop variable name
+make: directive-for.mk:207: no iteration variables in for
+make: directive-for.mk:233: 1 open conditional
+	in .for loop from directive-for.mk:231 with var = value
+make: directive-for.mk:249: for-less endfor
+make: directive-for.mk:250: if-less endif
+make: directive-for.mk:258: if-less endif
+	in .for loop from directive-for.mk:257 with var = value
+For: new loop 2
+For: end for 2
+For: end for 1
+For: loop body with outer = o:
+.\
+   for inner in i
+.\
+   endfor
+For: end for 1
+For: loop body with inner = i:
+make: directive-for.mk:307: newline-item=(a)
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

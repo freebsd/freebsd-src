@@ -1,0 +1,114 @@
+#!/bin/sh
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${BSDDIALOG_OK=0}
+: ${BSDDIALOG_CANCEL=1}
+: ${BSDDIALOG_HELP=2}
+: ${BSDDIALOG_EXTRA=3}
+: ${BSDDIALOG_ESC=5}
+: ${BSDDIALOG_ERROR=255}
+
+kbdcontrol -d >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	# Syscons: use xterm, start interesting things on other VTYs
+	TERM=xterm
+
+	# Don't send ESC on function-key 62/63 (left/right command key)
+	kbdcontrol -f 62 '' > /dev/null 2>&1
+	kbdcontrol -f 63 '' > /dev/null 2>&1
+
+	if [ -z "$EXTERNAL_VTY_STARTED" ]; then
+		# Init will clean these processes up if/when the system
+		# goes multiuser
+		touch /tmp/bsdinstall_log
+		tail -f /tmp/bsdinstall_log > /dev/ttyv2 &
+		/usr/libexec/getty autologin ttyv3 &
+		EXTERNAL_VTY_STARTED=1
+	fi
+else
+	# Serial or other console
+	echo
+	echo "Welcome to ${OSNAME}!"
+	echo
+	echo "Please choose the appropriate terminal type for your system."
+	echo "Common console types are:"
+	echo "   ansi     Standard ANSI terminal"
+	echo "   vt100    VT100 or compatible terminal"
+	echo "   xterm    xterm terminal emulator (or compatible)"
+	echo
+	echo -n "Console type [vt100]: "
+	read TERM
+	TERM=${TERM:-vt100}
+fi
+export TERM
+
+# Query terminal size; useful for serial lines.
+resizewin -z
+
+if [ -f /etc/installerconfig ]; then
+	if [ "$1" != "primary" ]; then
+		bsddialog --backtitle "${OSNAME} Installer" --title "Installing" --msgbox "${OSNAME} is being installed from a script; please use the primary console." 0 0
+		. "$0"
+	elif bsdinstall script /etc/installerconfig; then
+		bsddialog --backtitle "${OSNAME} Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of ${OSNAME} complete! Rebooting in 10 seconds" 10 30 10
+		reboot
+	else
+		bsddialog --backtitle "${OSNAME} Installer" --title "Error" --textbox /tmp/bsdinstall_log 0 0
+	fi
+	exit 
+fi
+
+bsddialog --backtitle "${OSNAME} Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live System" --yesno "Welcome to ${OSNAME}! Would you like to begin an installation or use the live system?" 0 0
+
+case $? in
+$BSDDIALOG_OK)	# Install
+	# If not netbooting, have the installer configure the network
+	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+	if [ ${dlv:=0} -eq 0 -a ! -f /etc/diskless ]; then
+		BSDINSTALL_CONFIGCURRENT=yes; export BSDINSTALL_CONFIGCURRENT
+	fi
+
+	trap true SIGINT	# Ignore cntrl-C here
+	bsdinstall
+	if [ $? -eq 0 ]; then
+		bsddialog --backtitle "${OSNAME} Installer" --title "Complete" --ok-label "Reboot" --extra-button --extra-label "Shutdown" --cancel-label "Live System" --yesno "Installation of ${OSNAME} complete! Would you like to reboot into the installed system now?" 0 0
+
+		case $? in
+		$BSDDIALOG_OK)		# Reboot
+			reboot
+			;;
+		$BSDDIALOG_EXTRA)	# Shutdown
+			shutdown -p now
+			# shutdown(8) daemonizes, with the actual signal to
+			# init(8) happening in the child, but if we exit the
+			# script then runconsoles will clean up its children
+			# thinking we're trying to go multiuser (and if the
+			# user has disabled multiple console support we'll
+			# still start trying to go multi-user, which gives
+			# confusing output on the console if the daemon is slow
+			# to run). Thus we spin while the daemon runs.
+			while true; do
+				sleep 1
+			done
+			;;
+		$BSDDIALOG_CANCEL)	# Live System
+			exit 0
+			;;
+		esac
+	else
+		. "$0"
+	fi
+	;;
+$BSDDIALOG_CANCEL)	# Live System
+	exit 0
+	;;
+$BSDDIALOG_EXTRA)	# Shell
+	clear
+	echo "When finished, type 'exit' to return to the installer."
+	/bin/sh
+	. "$0"
+	;;
+esac
+

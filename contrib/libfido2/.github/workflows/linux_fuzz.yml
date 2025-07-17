@@ -1,0 +1,41 @@
+# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: fuzzer
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+    - '*-ci'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04 ]
+        cc: [ clang-16 ]
+        sanitizer: [ asan, msan ]
+    steps:
+    - uses: actions/checkout@v4
+    - name: dependencies
+      run: |
+        sudo apt -q update
+        sudo apt install -q -y libudev-dev libpcsclite-dev
+    - name: compiler
+      env:
+        CC: ${{ matrix.cc }}
+      run: |
+        sudo ./.actions/setup_clang "${CC}"
+    - name: fuzz
+      env:
+        CC: ${{ matrix.cc }}
+        SANITIZER: ${{ matrix.sanitizer }}
+      run: ./.actions/fuzz-linux "${SANITIZER}"

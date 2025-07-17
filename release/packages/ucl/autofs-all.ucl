@@ -1,0 +1,4 @@
+comment = "Autofs Utilities"
+desc = <<EOD
+Autofs Utilities
+EOD

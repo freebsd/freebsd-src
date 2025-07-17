@@ -1,0 +1,5 @@
+syntax(2)
+
+test_suite("kyua")
+
+plain_test_program{name="testsuite"}

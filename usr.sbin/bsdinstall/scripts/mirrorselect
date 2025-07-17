@@ -1,0 +1,127 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${BSDDIALOG_OK=0}
+: ${BSDDIALOG_CANCEL=1}
+: ${BSDDIALOG_HELP=2}
+: ${BSDDIALOG_EXTRA=3}
+: ${BSDDIALOG_ESC=5}
+: ${BSDDIALOG_ERROR=255}
+
+exec 5>&1
+MIRROR=`bsddialog --backtitle "$OSNAME Installer" \
+    --title "Mirror Selection" --extra-button --extra-label "Other" \
+    --menu "Please select the best suitable site for you or \"other\" if you want to specify a different choice. The \"Main Site\" directs users to the nearest project managed mirror via GeoDNS (they carry the full range of possible distributions and support both IPv4 and IPv6). All other sites are known as \"Community Mirrors\"; not every site listed here carries more than the base distribution kits. Select a site!" \
+    0 0 16 \
+	http://ftp.freebsd.org		"Main Site (GeoDNS, HTTP)"\
+	ftp://ftp.freebsd.org		"Main Site (GeoDNS, FTP)"\
+	http://ftp.au.freebsd.org 	"Australia - IPv6"\
+	ftp://ftp3.au.freebsd.org 	"Australia #3"\
+	ftp://ftp.at.freebsd.org 	"Austria - IPv6"\
+	ftp://ftp2.br.freebsd.org 	"Brazil #2"\
+	ftp://ftp3.br.freebsd.org 	"Brazil #3"\
+	ftp://ftp.bg.freebsd.org 	"Bulgaria - IPv6"\
+	ftp://ftp.cz.freebsd.org 	"Czech Republic - IPv6"\
+	ftp://ftp.dk.freebsd.org 	"Denmark - IPv6"\
+	ftp://ftp.fi.freebsd.org 	"Finland"\
+	ftp://ftp.fr.freebsd.org 	"France - IPv6"\
+	ftp://ftp3.fr.freebsd.org 	"France #3"\
+	ftp://ftp6.fr.freebsd.org 	"France #6"\
+	ftp://ftp.de.freebsd.org 	"Germany - IPv6"\
+	ftp://ftp1.de.freebsd.org 	"Germany #1 - IPv6"\
+	ftp://ftp2.de.freebsd.org 	"Germany #2 - IPv6"\
+	ftp://ftp5.de.freebsd.org 	"Germany #5 - IPv6"\
+	ftp://ftp7.de.freebsd.org 	"Germany #7 - IPv6"\
+	ftp://ftp.gr.freebsd.org 	"Greece - IPv6"\
+	ftp://ftp2.gr.freebsd.org 	"Greece #2 - IPv6"\
+	ftp://ftp.jp.freebsd.org 	"Japan - IPv6"\
+	ftp://ftp2.jp.freebsd.org 	"Japan #2"\
+	ftp://ftp3.jp.freebsd.org 	"Japan #3"\
+	ftp://ftp4.jp.freebsd.org 	"Japan #4"\
+	ftp://ftp6.jp.freebsd.org 	"Japan #6 - IPv6"\
+	ftp://ftp.kr.freebsd.org 	"Korea"\
+	ftp://ftp2.kr.freebsd.org 	"Korea #2"\
+	ftp://ftp.lv.freebsd.org 	"Latvia"\
+	ftp://ftp.nl.freebsd.org 	"Netherlands - IPv6"\
+	ftp://ftp2.nl.freebsd.org 	"Netherlands #2"\
+	ftp://ftp.nz.freebsd.org 	"New Zealand"\
+	ftp://ftp.no.freebsd.org 	"Norway - IPv6"\
+	ftp://ftp.pl.freebsd.org 	"Poland - IPv6"\
+	ftp://ftp.ru.freebsd.org 	"Russia - IPv6"\
+	ftp://ftp2.ru.freebsd.org 	"Russia #2"\
+	ftp://ftp.si.freebsd.org 	"Slovenia - IPv6"\
+	ftp://ftp.za.freebsd.org 	"South Africa - IPv6"\
+	ftp://ftp2.za.freebsd.org 	"South Africa #2 - IPv6"\
+	ftp://ftp4.za.freebsd.org 	"South Africa #4"\
+	ftp://ftp.se.freebsd.org 	"Sweden - IPv6"\
+	ftp://ftp4.tw.freebsd.org 	"Taiwan #4"\
+	ftp://ftp5.tw.freebsd.org 	"Taiwan #5"\
+	ftp://ftp.uk.freebsd.org 	"UK - IPv6"\
+	ftp://ftp2.uk.freebsd.org 	"UK #2 - IPv6"\
+	ftp://ftp.ua.FreeBSD.org 	"Ukraine - IPv6"\
+	ftp://ftp5.us.freebsd.org 	"USA #5 - IPv6"\
+    2>&1 1>&5`
+MIRROR_BUTTON=$?
+exec 5>&-
+
+_UNAME_R=`uname -r`
+_UNAME_R=${_UNAME_R%-p*}
+
+case ${_UNAME_R} in
+	*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
+		RELDIR="snapshots"
+		;;
+	*)
+		RELDIR="releases"
+		;;
+esac
+
+BSDINSTALL_DISTSITE="$MIRROR/pub/FreeBSD/${RELDIR}/`uname -m`/`uname -p`/${_UNAME_R}"
+
+case $MIRROR_BUTTON in
+$BSDDIALOG_ERROR | $BSDDIALOG_CANCEL | $BSDDIALOG_ESC)
+	exit 1
+	;;
+$BSDDIALOG_OK)
+	;;
+$BSDDIALOG_EXTRA)
+	exec 5>&1
+	BSDINSTALL_DISTSITE=`bsddialog --backtitle "$OSNAME Installer" \
+	    --title "Mirror Selection" \
+	    --inputbox "Please enter the URL to an alternate $OSNAME mirror:" \
+	    0 74 "$BSDINSTALL_DISTSITE" 2>&1 1>&5`
+	MIRROR_BUTTON=$?
+	exec 5>&-
+	test $MIRROR_BUTTON -eq $BSDDIALOG_OK || exec $0 $@
+	;;
+esac
+
+export BSDINSTALL_DISTSITE
+echo $BSDINSTALL_DISTSITE >&2

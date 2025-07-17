@@ -1,0 +1,70 @@
+                     Contributing to MIT Kerberos
+
+DESIGN
+======
+
+If you are planning to contribute a substantial amount of work, please
+ensure that you have a discussion about the design on the
+krbdev@mit.edu list.  Some changes may require coordination with
+standards groups.  For example, interface changes and extensions for
+the GSS-API should be discussed in the IETF KITTEN Working Group.
+
+STYLE
+=====
+
+Please follow the guidelines in doc/coding-style for new code.  For
+existing code, please preserve its existing indentation and brace
+conventions.  These existing conventions usually resemble the
+guidelines in doc/coding-style.  Exceptions to the style in
+doc/coding-style are usually large past contributions or imports from
+other parties.  These include (not an exhaustive list):
+
+    src/appl/bsd
+    src/appl/gssftp
+    src/appl/telnet
+    src/kadmin
+    src/lib/kadm5
+    src/lib/gssapi/mechglue
+    src/lib/rpc
+
+PATCHES
+=======
+
+We prefer patches in either unified or context diff format (diff -u or
+diff -c).  As is usual practice, please specify the original file
+before the modified file on the diff command line.  It's also useful
+to perform the diff from the top level of the tree, e.g.,
+
+    diff -ur src.orig src
+
+It's even more useful if you use our anonymous Subversion repository
+at
+
+    svn://anonsvn.mit.edu/krb5
+
+and use "svn diff" (or "svk diff" if you prefer to use SVK) to
+generate your patches.
+
+It is much easier for us to integrate patches which are generated
+against current code on the trunk.  Please ensure that your source
+tree is up-to-date before generating your patch.
+
+COPYRIGHT
+=========
+
+If you are submitting substantial quantities of new code, or are
+substantially modifying existing code, please be clear about the
+copyright status of your contributions.  Note that if your
+contribution was created in the course of your employment, your
+employer may own copyright in your contribution.
+
+We prefer that MIT receives the ownership of the contributions, but
+will generally accept contributed code with copyright owned by other
+parties provided that the license conditions are substantially
+identical to the existing license on the MIT krb5 code.
+
+Appropriate copyright notices and license terms should be added to new
+or changed files, unless the contributed code is being assigned to the
+already-listed copyright holder in the file, or the contribution is
+being released to the public domain.  Please make sure that the
+year in the copyright statement is kept up-to-date.

@@ -1,0 +1,2261 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: ncurses.3x,v 1.214 2024/04/27 17:55:43 tom Exp $
+.TH ncurses 3X 2024-04-27 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.
+.\" Add supplementary paragraph tag on its own line after TP.
+.\" Adapted from TQ (which would produce mandoc warnings).
+.de tQ
+.  br
+.  ns
+.  TP
+..
+.
+.ds d @TERMINFO@
+.SH NAME
+\fB\%ncurses\fP \-
+character-cell terminal interface with optimized output
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.fi
+.SH DESCRIPTION
+The \*(``new curses\*('' library offers the programmer a
+terminal-independent means of reading keyboard and mouse input and
+updating character-cell terminals with output optimized to minimize
+screen updates.
+.I \%ncurses
+replaces the
+.I curses
+libraries from
+System V Release 4 Unix (\*(``SVr4\*('')
+and
+4.4BSD Unix,
+the development of which ceased in the 1990s.
+This document describes
+.I \%ncurses
+version @NCURSES_MAJOR@.@NCURSES_MINOR@
+(patch @NCURSES_PATCH@).
+.PP
+.I \%ncurses
+permits control of the terminal screen's contents;
+abstraction and subdivision thereof with
+.I windows
+and
+.IR pads ;
+the reading of terminal input;
+control of terminal input and output options;
+environment query routines;
+color manipulation;
+the definition and use of
+.I "soft label"
+keys;
+.I \%term\%info
+capability access;
+a
+.I termcap
+compatibility interface;
+and an abstraction of the system's API for manipulating the terminal
+(such as \fI\%termios\fP(3)).
+.PP
+.I \%ncurses
+implements the standard interface described by
+X/Open Curses Issue\ 7.
+In many behavioral details not standardized by X/Open,
+.I \%ncurses
+emulates the
+.I curses
+library of SVr4 and provides numerous useful extensions.
+.PP
+.I \%ncurses
+man pages employ several sections to clarify matters of usage and
+interoperability with other
+.I curses
+implementations.
+.bP
+\*(``NOTES\*('' describes issues and caveats of which any user of the
+.I \%ncurses
+API should be aware,
+such as limitations on the size of an underlying integral type or the
+availability of a preprocessor macro exclusive of a function definition
+(which prevents its address from being taken).
+This section also describes implementation details that will be
+significant to the programmer but which are not standardized.
+.bP
+\*(``EXTENSIONS\*('' presents
+.I \%ncurses
+innovations beyond the X/Open Curses standard and/or the SVr4
+.I curses
+implementation.
+They are termed
+.I extensions
+to indicate that they cannot be implemented solely by using the library
+API,
+but require access to the library's internal state.
+.bP
+\*(``PORTABILITY\*('' discusses matters
+(beyond the exercise of extensions)
+that should be considered when writing to a
+.I curses
+standard,
+or for multiple implementations.
+.bP
+\*(``HISTORY\*('' examines points of detail in
+.I \%ncurses
+and other
+.I curses
+implementations over the decades of their development,
+particularly where precedent or inertia have frustrated better design
+(and,
+in a few cases,
+where such inertia has been overcome).
+.PP
+A
+.I curses
+application must be linked with the library;
+use the
+.B \-lncurses
+option to your compiler or linker.
+A debugging version of the library may be available;
+if so,
+link with it using
+.BR \-lncurses_g .
+(Your system integrator may have installed these libraries such that you
+can use the options
+.B \-lcurses
+and
+.BR \-lcurses_g ,
+respectively.)
+The
+.I \%ncurses_g
+library generates trace logs
+(in a file called
+.I \%trace
+in the current directory)
+that describe
+.I \%ncurses
+actions.
+See section \*(``ALTERNATE CONFIGURATIONS\*('' below.
+.SS "Application Structure"
+A
+.I curses
+application uses information from the system locale;
+\fI\%setlocale\fP(3) prepares it for
+.I curses
+library calls.
+.PP
+.RS 4
+.EX
+setlocale(LC_ALL, "");
+.EE
+.RE
+.PP
+If the locale is not thus initialized,
+the library assumes that characters are printable as in ISO\ 8859-1,
+to work with certain legacy programs.
+You should initialize the locale;
+do not expect consistent behavior from the library when the locale has
+not been set up.
+.PP
+\fB\%initscr\fP(3X) or \fB\%newterm\fP(3X)
+must be called to initialize
+.I curses
+before use of any functions that deal with windows and screens.
+.PP
+To get character-at-a-time input without echoing\(emmost interactive,
+screen-oriented programs want this\(emuse the following sequence.
+.PP
+.RS 4
+.EX
+initscr(); cbreak(); noecho();
+.EE
+.RE
+.PP
+Most applications perform further setup as follows.
+.PP
+.RS 4
+.EX
+intrflush(stdscr, FALSE);
+keypad(stdscr, TRUE);
+.EE
+.RE
+.PP
+A
+.I curses
+program then often enters an event loop of some sort.
+Call \fB\%endwin\fP(3X) before exiting.
+.SS Overview
+A
+.I curses
+library abstracts the terminal screen by representing all or part of it
+as a
+.I \%WINDOW
+data structure.
+A
+.I window
+is a rectangular grid of character cells,
+addressed by row and column coordinates
+.RI ( y ,
+.IR x ),
+with the upper left corner as (0, 0).
+A window called
+.BR \%stdscr ,
+the same size as the terminal screen,
+is always available.
+Create others with \fB\%newwin\fP(3X).
+.PP
+A
+.I curses
+library does not manage overlapping windows
+(but see below).
+You can either use
+.B \%stdscr
+to manage one screen-filling window,
+or tile the screen into non-overlapping windows and not use
+.B \%stdscr
+at all.
+Mixing the two approaches will result in unpredictable and undesired
+effects.
+.PP
+Functions permit manipulation of a window and the
+.I cursor
+identifying the cell within it at which the next output operation will
+occur.
+Among those,
+the most basic are \fB\%move\fP(3X) and \fB\%addch\fP(3X):
+these place the cursor and write a character to
+.BR \%stdscr ,
+respectively.
+.PP
+Frequent changes to the terminal screen can cause unpleasant flicker or
+inefficient use of the communication channel to the device,
+so the library does not generally update it automatically.
+Therefore,
+after using
+.I curses
+functions to accumulate a set of desired updates that make sense to
+present together,
+call \fB\%refresh\fP(3X) to tell the library to make the user's screen
+look like \fBstdscr\fP.
+The library
+.\" X/Open Curses Issue 7 assumes some optimization will be done, but
+.\" does not mandate it in any way.
+.I optimizes
+its output by computing a minimal number of operations to mutate the
+screen from its state at the previous refresh to the new one.
+Effective optimization demands accurate information about the terminal
+device:
+the management of such information is the province of the
+\fB\%terminfo\fP(3X) API,
+a feature of every standard
+.I curses
+implementation.
+.PP
+Special windows called
+.I pads
+may also be manipulated.
+These are windows that are not constrained to the size of the terminal
+screen and whose contents need not be completely displayed.
+See \fB\%curs_pad\fP(3X).
+.PP
+In addition to drawing characters on the screen,
+rendering attributes and colors may be supported,
+causing the characters to show up in such modes as underlined,
+in reverse video,
+or in color on terminals that support such display enhancements.
+See \fB\%curs_attr\fP(3X).
+.PP
+.I curses
+predefines constants for a small set of forms-drawing graphics
+corresponding to the DEC Alternate Character Set (ACS),
+a feature of VT100 and other terminals.
+See \fB\%waddch\fP(3X).
+.PP
+.I curses
+is implemented using the operating system's terminal driver;
+keystroke events are received not as scan codes but as byte sequences.
+Graphical keycaps
+(alphanumeric and punctuation keys,
+and the space)
+appear as-is.
+Everything else,
+including the tab,
+enter/return,
+keypad,
+arrow,
+and function keys,
+appears as a control character or a multibyte
+.I "escape sequence."
+.I curses
+translates these into unique
+.I "key codes."
+See \fB\%getch\fP(3X).
+.PP
+.I \%ncurses
+provides reimplementations of the SVr4 \fBpanel\fP(3X), \fBform\fP(3X),
+and \fBmenu\fP(3X) libraries to ease construction of user interfaces
+with
+.IR curses .
+.SS "Initialization"
+The selection of an appropriate value of
+.I TERM
+in the process environment is essential to correct
+.I curses
+and
+.I \%term\%info
+library operation.
+A well-configured system selects a correct
+.I TERM
+value automatically;
+\fB\%tset\fP(1) may assist with troubleshooting exotic situations.
+.PP
+If you change the terminal type,
+export the
+.I TERM
+environment variable in the shell,
+then run \fB\%tset\fP(1) or the
+.RB \*(`` "@TPUT@ init" \*(''
+command.
+See subsection \*(``Tabs and Initialization\*('' of \fB\%terminfo\fP(5).
+.PP
+If the environment variables
+.I \%LINES
+and
+.I \%COLUMNS
+are set,
+or if the
+.I curses
+program is executing in a graphical windowing environment,
+the information obtained thence overrides that obtained by
+.IR \%term\%info .
+An
+.I \%ncurses
+extension supports resizable terminals;
+see \fB\%wresize\fP(3X).
+.PP
+If the environment variable
+.I \%TERMINFO
+is defined,
+a
+.I curses
+program checks first for a terminal type description in the location it
+identifies.
+.I \%TERMINFO
+is useful for developing experimental type descriptions or when write
+permission to
+.I \%\*d
+is not available.
+.PP
+See section \*(``ENVIRONMENT\*('' below.
+.SS "Naming Conventions"
+.I curses
+offers many functions in variant forms using a regular set of
+alternatives to the name of an elemental one.
+Those prefixed with \*(``w\*('' require a
+.I \%WINDOW
+pointer argument;
+those with a \*(``mv\*('' prefix first perform cursor movement using
+\fB\%wmove\fP(3X);
+a \*(``mvw\*('' prefix indicates both.
+The \*(``w\*('' function is typically the elemental one;
+the removal of this prefix usually indicates operation on
+.BR \%stdscr .
+.PP
+Four functions prefixed with \*(``p\*('' require a pad argument.
+.PP
+In function synopses,
+.I \%ncurses
+man pages apply the following names to parameters.
+.PP
+.TS
+center;
+Li L.
+bf	\fIbool\fP (\fBTRUE\fP or \fBFALSE\fP)
+c	a \fIchar\fP or \fIint\fP
+ch	a \fIchtype\fP
+wc	a \fIwchar_t\fP or \fIwint_t\fP
+wch	a \fIcchar_t\fP
+win	pointer to a \fIWINDOW\fP
+pad	pointer to a \fIWINDOW\fP that is a pad
+.TE
+.SS "Wide and Non-wide Character Configurations"
+This manual page describes functions that appear in any configuration
+of the library.
+There are two common configurations;
+see section \*(``ALTERNATE CONFIGURATIONS\*('' below.
+.TP 10 \" "ncursesw" + 2n
+.I \%ncurses
+is the library in its \*(``non-wide\*('' configuration,
+handling only eight-bit characters.
+It stores a character combined with attributes in a
+.I \%chtype
+datum,
+which is often an alias of
+.IR int .
+.IP
+Attributes alone
+(with no corresponding character)
+can be stored in variables of
+.I \%chtype
+or
+.I \%attr_t
+type.
+In either case,
+they are represented as an integral bit mask.
+.IP
+Each cell of a
+.I \%WINDOW
+is stored as a
+.IR \%chtype .
+.TP 10
+.I \%ncursesw
+is the library in its \*(``wide\*('' configuration,
+which handles character encodings requiring a larger data type than
+.I \%char
+(a byte-sized type)
+can represent.
+It adds about one third more calls using additional data types that
+can store such
+.I multibyte
+characters.
+.RS 10 \" same as foregoing tag width
+.TP 9 \" "cchar_t" + 2n
+.I \%cchar_t
+corresponds to the non-wide configuration's
+.IR \%chtype .
+It always a structure type,
+because it stores more data than fit into a standard scalar type.
+A character code may not be representable as a
+.IR \%char ,
+and moreover more than one character may occupy a cell
+(as with accent marks and other diacritics).
+Each character is of type
+.IR \%wchar_t ;
+a complex character contains one spacing character and zero or more
+non-spacing characters
+(see below).
+Attributes and color data are stored in separate fields of the
+structure,
+not combined as in
+.IR \%chtype .
+.PP
+Each cell of a
+.I \%WINDOW
+is stored as a
+.IR \%cchar_t .
+.PP
+\fB\%setcchar\fP(3X) and \fB\%getcchar\fP(3X)
+store and retrieve
+.I \%cchar_t
+data.
+The wide library API of
+.I \%ncurses
+depends on two data types standardized by ISO C95.
+.TP 9
+.I \%wchar_t
+stores a wide character.
+Like
+.IR \%chtype ,
+it may be an alias of
+.IR int .
+Depending on the character encoding,
+a wide character may be
+.IR spacing ,
+meaning that it occupies a character cell by itself and typically
+accompanies cursor advancement,
+or
+.IR non-spacing ,
+meaning that it occupies the same cell as a spacing character,
+is often regarded as a \*(``modifier\*('' of the base glyph with which
+it combines,
+and typically does not advance the cursor.
+.TP 9
+.I \%wint_t
+can store a
+.I \%wchar_t
+or the constant
+.BR \%WEOF ,
+analogously to the
+.IR int -sized
+character manipulation functions of ISO C and its constant
+.BR \%EOF .
+.RE
+.IP
+The wide library provides additional functions that complement those in
+the non-wide library where the size of the underlying character type is
+significant.
+A somewhat regular naming convention relates many of the wide variants
+to their non-wide counterparts;
+where a non-wide function name contains \*(``ch\*('' or \*(``str\*('',
+prefix it with \*(``_w\*('' to obtain the wide counterpart.
+For example,
+\fB\%waddch\fP becomes \fB\%wadd_wch\fP.
+(Exceptions that add only \*(``w\*('' comprise
+.BR \%addwstr ,
+.BR \%inwstr ,
+and their variants.)
+.IP
+This convention is inapplicable to some non-wide function names,
+so other transformations are used for the wide configuration:
+the window background management function \*(``bkgd\*('' becomes
+\*(``bkgrnd\*('';
+the window border-drawing and -clearing functions are suffixed with
+\*(``_set\*('';
+and character attribute manipulation functions like
+\*(``attron\*('' become \*(``attr_on\*(''.
+.\"
+.SS "Function Name Index"
+The following table lists the
+.I curses
+functions provided in the non-wide and wide APIs and the corresponding
+man pages that describe them.
+Those flagged with \*(``*\*(''
+are
+.IR \%ncurses "-specific,"
+neither described by X/Open Curses nor present in SVr4.
+.PP
+.TS
+center tab(/);
+l l .
+\f(BIcurses\fP Function Name/Man Page
+_
+COLOR_PAIR/\fBcurs_color\fP(3X)
+PAIR_NUMBER/\fBcurs_color\fP(3X)
+add_wch/\fBcurs_add_wch\fP(3X)
+add_wchnstr/\fBcurs_add_wchstr\fP(3X)
+add_wchstr/\fBcurs_add_wchstr\fP(3X)
+addch/\fBcurs_addch\fP(3X)
+addchnstr/\fBcurs_addchstr\fP(3X)
+addchstr/\fBcurs_addchstr\fP(3X)
+addnstr/\fBcurs_addstr\fP(3X)
+addnwstr/\fBcurs_addwstr\fP(3X)
+addstr/\fBcurs_addstr\fP(3X)
+addwstr/\fBcurs_addwstr\fP(3X)
+alloc_pair/\fBnew_pair\fP(3X)*
+assume_default_colors/\fBdefault_colors\fP(3X)*
+attr_get/\fBcurs_attr\fP(3X)
+attr_off/\fBcurs_attr\fP(3X)
+attr_on/\fBcurs_attr\fP(3X)
+attr_set/\fBcurs_attr\fP(3X)
+attroff/\fBcurs_attr\fP(3X)
+attron/\fBcurs_attr\fP(3X)
+attrset/\fBcurs_attr\fP(3X)
+baudrate/\fBcurs_termattrs\fP(3X)
+beep/\fBcurs_beep\fP(3X)
+bkgd/\fBcurs_bkgd\fP(3X)
+bkgdset/\fBcurs_bkgd\fP(3X)
+bkgrnd/\fBcurs_bkgrnd\fP(3X)
+bkgrndset/\fBcurs_bkgrnd\fP(3X)
+border/\fBcurs_border\fP(3X)
+border_set/\fBcurs_border_set\fP(3X)
+box/\fBcurs_border\fP(3X)
+box_set/\fBcurs_border_set\fP(3X)
+can_change_color/\fBcurs_color\fP(3X)
+cbreak/\fBcurs_inopts\fP(3X)
+chgat/\fBcurs_attr\fP(3X)
+clear/\fBcurs_clear\fP(3X)
+clearok/\fBcurs_outopts\fP(3X)
+clrtobot/\fBcurs_clear\fP(3X)
+clrtoeol/\fBcurs_clear\fP(3X)
+color_content/\fBcurs_color\fP(3X)
+color_set/\fBcurs_attr\fP(3X)
+copywin/\fBcurs_overlay\fP(3X)
+curs_set/\fBcurs_kernel\fP(3X)
+curses_trace/\fBcurs_trace\fP(3X)*
+curses_version/\fBcurs_extend\fP(3X)*
+def_prog_mode/\fBcurs_kernel\fP(3X)
+def_shell_mode/\fBcurs_kernel\fP(3X)
+define_key/\fBdefine_key\fP(3X)*
+del_curterm/\fBcurs_terminfo\fP(3X)
+delay_output/\fBcurs_util\fP(3X)
+delch/\fBcurs_delch\fP(3X)
+deleteln/\fBcurs_deleteln\fP(3X)
+delscreen/\fBcurs_initscr\fP(3X)
+delwin/\fBcurs_window\fP(3X)
+derwin/\fBcurs_window\fP(3X)
+doupdate/\fBcurs_refresh\fP(3X)
+dupwin/\fBcurs_window\fP(3X)
+echo/\fBcurs_inopts\fP(3X)
+echo_wchar/\fBcurs_add_wch\fP(3X)
+echochar/\fBcurs_addch\fP(3X)
+endwin/\fBcurs_initscr\fP(3X)
+erase/\fBcurs_clear\fP(3X)
+erasechar/\fBcurs_termattrs\fP(3X)
+erasewchar/\fBcurs_termattrs\fP(3X)
+exit_curses/\fBcurs_memleaks\fP(3X)*
+exit_terminfo/\fBcurs_memleaks\fP(3X)*
+extended_color_content/\fBcurs_color\fP(3X)*
+extended_pair_content/\fBcurs_color\fP(3X)*
+extended_slk_color/\fBcurs_slk\fP(3X)*
+filter/\fBcurs_util\fP(3X)
+find_pair/\fBnew_pair\fP(3X)*
+flash/\fBcurs_beep\fP(3X)
+flushinp/\fBcurs_util\fP(3X)
+free_pair/\fBnew_pair\fP(3X)*
+get_escdelay/\fBcurs_threads\fP(3X)*
+get_wch/\fBcurs_get_wch\fP(3X)
+get_wstr/\fBcurs_get_wstr\fP(3X)
+getattrs/\fBcurs_attr\fP(3X)
+getbegx/\fBcurs_legacy\fP(3X)*
+getbegy/\fBcurs_legacy\fP(3X)*
+getbegyx/\fBcurs_getyx\fP(3X)
+getbkgd/\fBcurs_bkgd\fP(3X)
+getbkgrnd/\fBcurs_bkgrnd\fP(3X)
+getcchar/\fBcurs_getcchar\fP(3X)
+getch/\fBcurs_getch\fP(3X)
+getcurx/\fBcurs_legacy\fP(3X)*
+getcury/\fBcurs_legacy\fP(3X)*
+getmaxx/\fBcurs_legacy\fP(3X)*
+getmaxy/\fBcurs_legacy\fP(3X)*
+getmaxyx/\fBcurs_getyx\fP(3X)
+getmouse/\fBcurs_mouse\fP(3X)*
+getn_wstr/\fBcurs_get_wstr\fP(3X)
+getnstr/\fBcurs_getstr\fP(3X)
+getparx/\fBcurs_legacy\fP(3X)*
+getpary/\fBcurs_legacy\fP(3X)*
+getparyx/\fBcurs_getyx\fP(3X)
+getstr/\fBcurs_getstr\fP(3X)
+getsyx/\fBcurs_kernel\fP(3X)
+getwin/\fBcurs_util\fP(3X)
+getyx/\fBcurs_getyx\fP(3X)
+halfdelay/\fBcurs_inopts\fP(3X)
+has_colors/\fBcurs_color\fP(3X)
+has_ic/\fBcurs_termattrs\fP(3X)
+has_il/\fBcurs_termattrs\fP(3X)
+has_key/\fBcurs_getch\fP(3X)*
+has_mouse/\fBcurs_mouse\fP(3X)*
+hline/\fBcurs_border\fP(3X)
+hline_set/\fBcurs_border_set\fP(3X)
+idcok/\fBcurs_outopts\fP(3X)
+idlok/\fBcurs_outopts\fP(3X)
+immedok/\fBcurs_outopts\fP(3X)
+in_wch/\fBcurs_in_wch\fP(3X)
+in_wchnstr/\fBcurs_in_wchstr\fP(3X)
+in_wchstr/\fBcurs_in_wchstr\fP(3X)
+inch/\fBcurs_inch\fP(3X)
+inchnstr/\fBcurs_inchstr\fP(3X)
+inchstr/\fBcurs_inchstr\fP(3X)
+init_color/\fBcurs_color\fP(3X)
+init_extended_color/\fBcurs_color\fP(3X)*
+init_extended_pair/\fBcurs_color\fP(3X)*
+init_pair/\fBcurs_color\fP(3X)
+initscr/\fBcurs_initscr\fP(3X)
+innstr/\fBcurs_instr\fP(3X)
+innwstr/\fBcurs_inwstr\fP(3X)
+ins_nwstr/\fBcurs_ins_wstr\fP(3X)
+ins_wch/\fBcurs_ins_wch\fP(3X)
+ins_wstr/\fBcurs_ins_wstr\fP(3X)
+insch/\fBcurs_insch\fP(3X)
+insdelln/\fBcurs_deleteln\fP(3X)
+insertln/\fBcurs_deleteln\fP(3X)
+insnstr/\fBcurs_insstr\fP(3X)
+insstr/\fBcurs_insstr\fP(3X)
+instr/\fBcurs_instr\fP(3X)
+intrflush/\fBcurs_inopts\fP(3X)
+inwstr/\fBcurs_inwstr\fP(3X)
+is_cbreak/\fBcurs_inopts\fP(3X)*
+is_cleared/\fBcurs_opaque\fP(3X)*
+is_echo/\fBcurs_inopts\fP(3X)*
+is_idcok/\fBcurs_opaque\fP(3X)*
+is_idlok/\fBcurs_opaque\fP(3X)*
+is_immedok/\fBcurs_opaque\fP(3X)*
+is_keypad/\fBcurs_opaque\fP(3X)*
+is_leaveok/\fBcurs_opaque\fP(3X)*
+is_linetouched/\fBcurs_touch\fP(3X)
+is_nl/\fBcurs_inopts\fP(3X)*
+is_nodelay/\fBcurs_opaque\fP(3X)*
+is_notimeout/\fBcurs_opaque\fP(3X)*
+is_pad/\fBcurs_opaque\fP(3X)*
+is_raw/\fBcurs_inopts\fP(3X)*
+is_scrollok/\fBcurs_opaque\fP(3X)*
+is_subwin/\fBcurs_opaque\fP(3X)*
+is_syncok/\fBcurs_opaque\fP(3X)*
+is_term_resized/\fBresizeterm\fP(3X)*
+is_wintouched/\fBcurs_touch\fP(3X)
+isendwin/\fBcurs_initscr\fP(3X)
+key_defined/\fBkey_defined\fP(3X)*
+key_name/\fBcurs_util\fP(3X)
+keybound/\fBkeybound\fP(3X)*
+keyname/\fBcurs_util\fP(3X)
+keyok/\fBkeyok\fP(3X)*
+keypad/\fBcurs_inopts\fP(3X)
+killchar/\fBcurs_termattrs\fP(3X)
+killwchar/\fBcurs_termattrs\fP(3X)
+leaveok/\fBcurs_outopts\fP(3X)
+longname/\fBcurs_termattrs\fP(3X)
+mcprint/\fBcurs_print\fP(3X)*
+meta/\fBcurs_inopts\fP(3X)
+mouse_trafo/\fBcurs_mouse\fP(3X)*
+mouseinterval/\fBcurs_mouse\fP(3X)*
+mousemask/\fBcurs_mouse\fP(3X)*
+move/\fBcurs_move\fP(3X)
+mvadd_wch/\fBcurs_add_wch\fP(3X)
+mvadd_wchnstr/\fBcurs_add_wchstr\fP(3X)
+mvadd_wchstr/\fBcurs_add_wchstr\fP(3X)
+mvaddch/\fBcurs_addch\fP(3X)
+mvaddchnstr/\fBcurs_addchstr\fP(3X)
+mvaddchstr/\fBcurs_addchstr\fP(3X)
+mvaddnstr/\fBcurs_addstr\fP(3X)
+mvaddnwstr/\fBcurs_addwstr\fP(3X)
+mvaddstr/\fBcurs_addstr\fP(3X)
+mvaddwstr/\fBcurs_addwstr\fP(3X)
+mvchgat/\fBcurs_attr\fP(3X)
+mvcur/\fBcurs_terminfo\fP(3X)
+mvdelch/\fBcurs_delch\fP(3X)
+mvderwin/\fBcurs_window\fP(3X)
+mvget_wch/\fBcurs_get_wch\fP(3X)
+mvget_wstr/\fBcurs_get_wstr\fP(3X)
+mvgetch/\fBcurs_getch\fP(3X)
+mvgetn_wstr/\fBcurs_get_wstr\fP(3X)
+mvgetnstr/\fBcurs_getstr\fP(3X)
+mvgetstr/\fBcurs_getstr\fP(3X)
+mvhline/\fBcurs_border\fP(3X)
+mvhline_set/\fBcurs_border_set\fP(3X)
+mvin_wch/\fBcurs_in_wch\fP(3X)
+mvin_wchnstr/\fBcurs_in_wchstr\fP(3X)
+mvin_wchstr/\fBcurs_in_wchstr\fP(3X)
+mvinch/\fBcurs_inch\fP(3X)
+mvinchnstr/\fBcurs_inchstr\fP(3X)
+mvinchstr/\fBcurs_inchstr\fP(3X)
+mvinnstr/\fBcurs_instr\fP(3X)
+mvinnwstr/\fBcurs_inwstr\fP(3X)
+mvins_nwstr/\fBcurs_ins_wstr\fP(3X)
+mvins_wch/\fBcurs_ins_wch\fP(3X)
+mvins_wstr/\fBcurs_ins_wstr\fP(3X)
+mvinsch/\fBcurs_insch\fP(3X)
+mvinsnstr/\fBcurs_insstr\fP(3X)
+mvinsstr/\fBcurs_insstr\fP(3X)
+mvinstr/\fBcurs_instr\fP(3X)
+mvinwstr/\fBcurs_inwstr\fP(3X)
+mvprintw/\fBcurs_printw\fP(3X)
+mvscanw/\fBcurs_scanw\fP(3X)
+mvvline/\fBcurs_border\fP(3X)
+mvvline_set/\fBcurs_border_set\fP(3X)
+mvwadd_wch/\fBcurs_add_wch\fP(3X)
+mvwadd_wchnstr/\fBcurs_add_wchstr\fP(3X)
+mvwadd_wchstr/\fBcurs_add_wchstr\fP(3X)
+mvwaddch/\fBcurs_addch\fP(3X)
+mvwaddchnstr/\fBcurs_addchstr\fP(3X)
+mvwaddchstr/\fBcurs_addchstr\fP(3X)
+mvwaddnstr/\fBcurs_addstr\fP(3X)
+mvwaddnwstr/\fBcurs_addwstr\fP(3X)
+mvwaddstr/\fBcurs_addstr\fP(3X)
+mvwaddwstr/\fBcurs_addwstr\fP(3X)
+mvwchgat/\fBcurs_attr\fP(3X)
+mvwdelch/\fBcurs_delch\fP(3X)
+mvwget_wch/\fBcurs_get_wch\fP(3X)
+mvwget_wstr/\fBcurs_get_wstr\fP(3X)
+mvwgetch/\fBcurs_getch\fP(3X)
+mvwgetn_wstr/\fBcurs_get_wstr\fP(3X)
+mvwgetnstr/\fBcurs_getstr\fP(3X)
+mvwgetstr/\fBcurs_getstr\fP(3X)
+mvwhline/\fBcurs_border\fP(3X)
+mvwhline_set/\fBcurs_border_set\fP(3X)
+mvwin/\fBcurs_window\fP(3X)
+mvwin_wch/\fBcurs_in_wch\fP(3X)
+mvwin_wchnstr/\fBcurs_in_wchstr\fP(3X)
+mvwin_wchstr/\fBcurs_in_wchstr\fP(3X)
+mvwinch/\fBcurs_inch\fP(3X)
+mvwinchnstr/\fBcurs_inchstr\fP(3X)
+mvwinchstr/\fBcurs_inchstr\fP(3X)
+mvwinnstr/\fBcurs_instr\fP(3X)
+mvwinnwstr/\fBcurs_inwstr\fP(3X)
+mvwins_nwstr/\fBcurs_ins_wstr\fP(3X)
+mvwins_wch/\fBcurs_ins_wch\fP(3X)
+mvwins_wstr/\fBcurs_ins_wstr\fP(3X)
+mvwinsch/\fBcurs_insch\fP(3X)
+mvwinsnstr/\fBcurs_insstr\fP(3X)
+mvwinsstr/\fBcurs_insstr\fP(3X)
+mvwinstr/\fBcurs_instr\fP(3X)
+mvwinwstr/\fBcurs_inwstr\fP(3X)
+mvwprintw/\fBcurs_printw\fP(3X)
+mvwscanw/\fBcurs_scanw\fP(3X)
+mvwvline/\fBcurs_border\fP(3X)
+mvwvline_set/\fBcurs_border_set\fP(3X)
+napms/\fBcurs_kernel\fP(3X)
+newpad/\fBcurs_pad\fP(3X)
+newterm/\fBcurs_initscr\fP(3X)
+newwin/\fBcurs_window\fP(3X)
+nl/\fBcurs_inopts\fP(3X)
+nocbreak/\fBcurs_inopts\fP(3X)
+nodelay/\fBcurs_inopts\fP(3X)
+noecho/\fBcurs_inopts\fP(3X)
+nofilter/\fBcurs_util\fP(3X)*
+nonl/\fBcurs_inopts\fP(3X)
+noqiflush/\fBcurs_inopts\fP(3X)
+noraw/\fBcurs_inopts\fP(3X)
+notimeout/\fBcurs_inopts\fP(3X)
+overlay/\fBcurs_overlay\fP(3X)
+overwrite/\fBcurs_overlay\fP(3X)
+pair_content/\fBcurs_color\fP(3X)
+pecho_wchar/\fBcurs_pad\fP(3X)
+pechochar/\fBcurs_pad\fP(3X)
+pnoutrefresh/\fBcurs_pad\fP(3X)
+prefresh/\fBcurs_pad\fP(3X)
+printw/\fBcurs_printw\fP(3X)
+putp/\fBcurs_terminfo\fP(3X)
+putwin/\fBcurs_util\fP(3X)
+qiflush/\fBcurs_inopts\fP(3X)
+raw/\fBcurs_inopts\fP(3X)
+redrawwin/\fBcurs_refresh\fP(3X)
+refresh/\fBcurs_refresh\fP(3X)
+reset_color_pairs/\fBcurs_color\fP(3X)*
+reset_prog_mode/\fBcurs_kernel\fP(3X)
+reset_shell_mode/\fBcurs_kernel\fP(3X)
+resetty/\fBcurs_kernel\fP(3X)
+resize_term/\fBresizeterm\fP(3X)*
+resizeterm/\fBresizeterm\fP(3X)*
+restartterm/\fBcurs_terminfo\fP(3X)
+ripoffline/\fBcurs_kernel\fP(3X)
+savetty/\fBcurs_kernel\fP(3X)
+scanw/\fBcurs_scanw\fP(3X)
+scr_dump/\fBcurs_scr_dump\fP(3X)
+scr_init/\fBcurs_scr_dump\fP(3X)
+scr_restore/\fBcurs_scr_dump\fP(3X)
+scr_set/\fBcurs_scr_dump\fP(3X)
+scrl/\fBcurs_scroll\fP(3X)
+scroll/\fBcurs_scroll\fP(3X)
+scrollok/\fBcurs_outopts\fP(3X)
+set_curterm/\fBcurs_terminfo\fP(3X)
+set_escdelay/\fBcurs_threads\fP(3X)*
+set_tabsize/\fBcurs_threads\fP(3X)*
+set_term/\fBcurs_initscr\fP(3X)
+setcchar/\fBcurs_getcchar\fP(3X)
+setscrreg/\fBcurs_outopts\fP(3X)
+setsyx/\fBcurs_kernel\fP(3X)
+setupterm/\fBcurs_terminfo\fP(3X)
+slk_attr/\fBcurs_slk\fP(3X)*
+slk_attr_off/\fBcurs_slk\fP(3X)
+slk_attr_on/\fBcurs_slk\fP(3X)
+slk_attr_set/\fBcurs_slk\fP(3X)
+slk_attroff/\fBcurs_slk\fP(3X)
+slk_attron/\fBcurs_slk\fP(3X)
+slk_attrset/\fBcurs_slk\fP(3X)
+slk_clear/\fBcurs_slk\fP(3X)
+slk_color/\fBcurs_slk\fP(3X)
+slk_init/\fBcurs_slk\fP(3X)
+slk_label/\fBcurs_slk\fP(3X)
+slk_noutrefresh/\fBcurs_slk\fP(3X)
+slk_refresh/\fBcurs_slk\fP(3X)
+slk_restore/\fBcurs_slk\fP(3X)
+slk_set/\fBcurs_slk\fP(3X)
+slk_touch/\fBcurs_slk\fP(3X)
+slk_wset/\fBcurs_slk\fP(3X)
+standend/\fBcurs_attr\fP(3X)
+standout/\fBcurs_attr\fP(3X)
+start_color/\fBcurs_color\fP(3X)
+subpad/\fBcurs_pad\fP(3X)
+subwin/\fBcurs_window\fP(3X)
+syncok/\fBcurs_window\fP(3X)
+term_attrs/\fBcurs_termattrs\fP(3X)
+termattrs/\fBcurs_termattrs\fP(3X)
+termname/\fBcurs_termattrs\fP(3X)
+tgetent/\fBcurs_termcap\fP(3X)
+tgetflag/\fBcurs_termcap\fP(3X)
+tgetnum/\fBcurs_termcap\fP(3X)
+tgetstr/\fBcurs_termcap\fP(3X)
+tgoto/\fBcurs_termcap\fP(3X)
+tigetflag/\fBcurs_terminfo\fP(3X)
+tigetnum/\fBcurs_terminfo\fP(3X)
+tigetstr/\fBcurs_terminfo\fP(3X)
+timeout/\fBcurs_inopts\fP(3X)
+tiparm/\fBcurs_terminfo\fP(3X)
+tiparm_s/\fBcurs_terminfo\fP(3X)*
+tiscan_s/\fBcurs_terminfo\fP(3X)*
+touchline/\fBcurs_touch\fP(3X)
+touchwin/\fBcurs_touch\fP(3X)
+tparm/\fBcurs_terminfo\fP(3X)
+tputs/\fBcurs_termcap\fP(3X)
+tputs/\fBcurs_terminfo\fP(3X)
+trace/\fBcurs_trace\fP(3X)*
+typeahead/\fBcurs_inopts\fP(3X)
+unctrl/\fBcurs_util\fP(3X)
+unget_wch/\fBcurs_get_wch\fP(3X)
+ungetch/\fBcurs_getch\fP(3X)
+ungetmouse/\fBcurs_mouse\fP(3X)*
+untouchwin/\fBcurs_touch\fP(3X)
+use_default_colors/\fBdefault_colors\fP(3X)*
+use_env/\fBcurs_util\fP(3X)
+use_extended_names/\fBcurs_extend\fP(3X)*
+use_legacy_coding/\fBlegacy_coding\fP(3X)*
+use_screen/\fBcurs_threads\fP(3X)*
+use_tioctl/\fBcurs_util\fP(3X)*
+use_window/\fBcurs_threads\fP(3X)*
+vid_attr/\fBcurs_terminfo\fP(3X)
+vid_puts/\fBcurs_terminfo\fP(3X)
+vidattr/\fBcurs_terminfo\fP(3X)
+vidputs/\fBcurs_terminfo\fP(3X)
+vline/\fBcurs_border\fP(3X)
+vline_set/\fBcurs_border_set\fP(3X)
+vw_printw/\fBcurs_printw\fP(3X)
+vw_scanw/\fBcurs_scanw\fP(3X)
+vwprintw/\fBcurs_printw\fP(3X)
+vwscanw/\fBcurs_scanw\fP(3X)
+wadd_wch/\fBcurs_add_wch\fP(3X)
+wadd_wchnstr/\fBcurs_add_wchstr\fP(3X)
+wadd_wchstr/\fBcurs_add_wchstr\fP(3X)
+waddch/\fBcurs_addch\fP(3X)
+waddchnstr/\fBcurs_addchstr\fP(3X)
+waddchstr/\fBcurs_addchstr\fP(3X)
+waddnstr/\fBcurs_addstr\fP(3X)
+waddnwstr/\fBcurs_addwstr\fP(3X)
+waddstr/\fBcurs_addstr\fP(3X)
+waddwstr/\fBcurs_addwstr\fP(3X)
+wattr_get/\fBcurs_attr\fP(3X)
+wattr_off/\fBcurs_attr\fP(3X)
+wattr_on/\fBcurs_attr\fP(3X)
+wattr_set/\fBcurs_attr\fP(3X)
+wattroff/\fBcurs_attr\fP(3X)
+wattron/\fBcurs_attr\fP(3X)
+wattrset/\fBcurs_attr\fP(3X)
+wbkgd/\fBcurs_bkgd\fP(3X)
+wbkgdset/\fBcurs_bkgd\fP(3X)
+wbkgrnd/\fBcurs_bkgrnd\fP(3X)
+wbkgrndset/\fBcurs_bkgrnd\fP(3X)
+wborder/\fBcurs_border\fP(3X)
+wborder_set/\fBcurs_border_set\fP(3X)
+wchgat/\fBcurs_attr\fP(3X)
+wclear/\fBcurs_clear\fP(3X)
+wclrtobot/\fBcurs_clear\fP(3X)
+wclrtoeol/\fBcurs_clear\fP(3X)
+wcolor_set/\fBcurs_attr\fP(3X)
+wcursyncup/\fBcurs_window\fP(3X)
+wdelch/\fBcurs_delch\fP(3X)
+wdeleteln/\fBcurs_deleteln\fP(3X)
+wecho_wchar/\fBcurs_add_wch\fP(3X)
+wechochar/\fBcurs_addch\fP(3X)
+wenclose/\fBcurs_mouse\fP(3X)*
+werase/\fBcurs_clear\fP(3X)
+wget_wch/\fBcurs_get_wch\fP(3X)
+wget_wstr/\fBcurs_get_wstr\fP(3X)
+wgetbkgrnd/\fBcurs_bkgrnd\fP(3X)
+wgetch/\fBcurs_getch\fP(3X)
+wgetdelay/\fBcurs_opaque\fP(3X)*
+wgetn_wstr/\fBcurs_get_wstr\fP(3X)
+wgetnstr/\fBcurs_getstr\fP(3X)
+wgetparent/\fBcurs_opaque\fP(3X)*
+wgetscrreg/\fBcurs_opaque\fP(3X)*
+wgetstr/\fBcurs_getstr\fP(3X)
+whline/\fBcurs_border\fP(3X)
+whline_set/\fBcurs_border_set\fP(3X)
+win_wch/\fBcurs_in_wch\fP(3X)
+win_wchnstr/\fBcurs_in_wchstr\fP(3X)
+win_wchstr/\fBcurs_in_wchstr\fP(3X)
+winch/\fBcurs_inch\fP(3X)
+winchnstr/\fBcurs_inchstr\fP(3X)
+winchstr/\fBcurs_inchstr\fP(3X)
+winnstr/\fBcurs_instr\fP(3X)
+winnwstr/\fBcurs_inwstr\fP(3X)
+wins_nwstr/\fBcurs_ins_wstr\fP(3X)
+wins_wch/\fBcurs_ins_wch\fP(3X)
+wins_wstr/\fBcurs_ins_wstr\fP(3X)
+winsch/\fBcurs_insch\fP(3X)
+winsdelln/\fBcurs_deleteln\fP(3X)
+winsertln/\fBcurs_deleteln\fP(3X)
+winsnstr/\fBcurs_insstr\fP(3X)
+winsstr/\fBcurs_insstr\fP(3X)
+winstr/\fBcurs_instr\fP(3X)
+winwstr/\fBcurs_inwstr\fP(3X)
+wmouse_trafo/\fBcurs_mouse\fP(3X)*
+wmove/\fBcurs_move\fP(3X)
+wnoutrefresh/\fBcurs_refresh\fP(3X)
+wprintw/\fBcurs_printw\fP(3X)
+wredrawln/\fBcurs_refresh\fP(3X)
+wrefresh/\fBcurs_refresh\fP(3X)
+wresize/\fBwresize\fP(3X)*
+wscanw/\fBcurs_scanw\fP(3X)
+wscrl/\fBcurs_scroll\fP(3X)
+wsetscrreg/\fBcurs_outopts\fP(3X)
+wstandend/\fBcurs_attr\fP(3X)
+wstandout/\fBcurs_attr\fP(3X)
+wsyncdown/\fBcurs_window\fP(3X)
+wsyncup/\fBcurs_window\fP(3X)
+wtimeout/\fBcurs_inopts\fP(3X)
+wtouchln/\fBcurs_touch\fP(3X)
+wunctrl/\fBcurs_util\fP(3X)
+wvline/\fBcurs_border\fP(3X)
+wvline_set/\fBcurs_border_set\fP(3X)
+.TE
+.PP
+.IR \%ncurses 's
+.I "screen-pointer extension"
+adds additional functions corresponding to many of the above,
+each with an \*(``_sp\*('' suffix;
+see \fBcurs_sp_funcs\fP(3X).
+.PP
+The availability of some extensions is configurable when
+.I \%ncurses
+is compiled;
+see sections \*(``ALTERNATE CONFIGURATIONS\*('' and \*(``EXTENSIONS\*(''
+below.
+.SH RETURN VALUE
+Unless otherwise noted,
+functions that return an integer return
+.B OK
+on success and
+.B ERR
+on failure.
+Functions that return pointers return
+.B NULL
+on failure.
+Typically,
+.I \%ncurses
+treats a null pointer passed as a function parameter as a failure.
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH ENVIRONMENT
+The following symbols from the process environment customize the
+runtime behavior of
+.I \%ncurses
+applications.
+The library may be configured to disregard the variables
+.IR \%TERMINFO ,
+.IR \%TERMINFO_DIRS ,
+.IR \%TERMPATH ,
+and
+.IR HOME ,
+if the user is the superuser (root),
+or the application uses \fI\%setuid\fP(2) or \fI\%setgid\fP(2).
+.SS "\fIBAUDRATE\fP"
+The debugging library checks this variable when the application has
+redirected output to a file.
+Its integral value is used for the baud rate.
+If that value is absent or invalid,
+.I \%ncurses
+uses 9600.
+This feature allows testers to construct repeatable test cases
+that take into account optimization decisions that depend on baud rate.
+.SS "\fICC\fP (command character)"
+When set,
+the
+.B \%command_character
+.RB ( \%cmdch )
+capability value of loaded
+.I \%term\%info
+entries changes to the value of this variable.
+Very few
+.I \%term\%info
+entries provide this feature.
+.PP
+Because this name is also used in development environments to represent
+the C compiler's name,
+.I \%ncurses
+ignores its value if it is not one character in length.
+.SS "\fICOLUMNS\fP"
+This variable specifies the width of the screen in characters.
+Applications running in a windowing environment usually are able to
+obtain the width of the window in which they are executing.
+If
+.I \%COLUMNS
+is not defined and the terminal's screen size is not available from the
+terminal driver,
+.I \%ncurses
+uses the size specified by the
+.B \%columns
+.RB ( \%cols )
+capability of the terminal type's entry in the
+.I \%term\%info
+database,
+if any.
+.PP
+It is important that your application use the correct screen size.
+Automatic detection thereof is not always possible because an
+application may be running on a host that does not honor NAWS
+(Negotiations About Window Size)
+or as a different user ID than the owner of the terminal device file.
+Setting
+.I \%COLUMNS
+and/or
+.I \%LINES
+overrides the library's use of the screen size obtained from the
+operating system.
+.PP
+The
+.I \%COLUMNS
+and
+.I \%LINES
+variables may be specified independently.
+This property is useful to circumvent misfeatures of legacy terminal
+type descriptions;
+\fI\%xterm\fP(1) descriptions specifying 65 lines were once notorious.
+For best results,
+avoid specifying
+.B cols
+and
+.B lines
+capability codes in
+.I \%term\%info
+descriptions of terminal emulators.
+.PP
+\fBuse_env\fP(3X) can disable use of the process environment
+in determining the screen size.
+\fBuse_tioctl\fP(3X) can update
+.I \%COLUMNS
+and
+.I \%LINES
+to match the screen size obtained from system calls or the terminal
+database.
+.SS "\fIESCDELAY\fP"
+For
+.I curses
+to distinguish the ESC character resulting from a user's press of the
+\*(``Escape\*('' key on the input device from one beginning an
+.I "escape sequence"
+(as commonly produced by function keys),
+it waits after receiving the escape character to see if further
+characters are available on the input stream within a short interval.
+A global variable
+.B \%ESCDELAY
+stores this interval in milliseconds.
+The default value of 1000
+(one second)
+is adequate for most uses.
+This environment variable overrides it.
+.PP
+The most common instance where you may wish to change this value
+is to work with a remote host over a slow communication channel.
+If the host running a
+.I curses
+application does not receive the characters of an escape sequence in a
+timely manner,
+the library can interpret them as multiple key stroke events.
+.PP
+\fI\%xterm\fP(1) mouse events are a form of escape sequence;
+therefore,
+if your application makes heavy use of multiple-clicking,
+you may wish to lengthen the default value because the delay applies
+to the composite multi-click event as well as the individual clicks.
+.PP
+Portable applications should not rely upon the presence of
+.B \%ESCDELAY
+in either form,
+but setting the environment variable rather than the global variable
+does not create problems when compiling an application.
+.PP
+If \fB\%keypad\fP(3X) is disabled for the
+.I curses
+window receiving input,
+a program must disambiguate escape sequences itself.
+.SS "\fIHOME\fP"
+.I \%ncurses
+may read and write auxiliary terminal descriptions in
+.I \%.termcap
+and
+.I \%.terminfo
+files in the user's home directory.
+.SS "\fILINES\fP"
+This counterpart to
+.I \%COLUMNS
+specifies the height of the screen in characters.
+The corresponding
+.I \%term\%info
+capability and code is
+.BR \%lines .
+See the description of the
+.I \%COLUMNS
+variable above.
+.SS "\fIMOUSE_BUTTONS_123\fP"
+(OS/2 EMX port only)
+OS/2 numbers a three-button mouse inconsistently with other platforms,
+such that 1 is the left button,
+2 the right,
+and 3 the middle.
+This variable customizes the mouse button numbering.
+Its value must be three digits 1\-3 in any order.
+By default,
+.I \%ncurses
+assumes a numbering of \*(``132\*(''.
+.SS "\fINCURSES_ASSUMED_COLORS\fP"
+If set,
+this variable overrides the
+.I \%ncurses
+library's compiled-in assumption that the terminal's default colors are
+white on black;
+see \fB\%default_colors\fP(3X).
+Set the foreground and background color values with this environment
+variable by assigning it two integer values separated by a comma,
+indicating foregound and background color numbers,
+respectively.
+.PP
+For example,
+to tell
+.I \%ncurses
+not to assume anything about the colors,
+use a value of \*(``\-1,\-1\*(''.
+To make the default color scheme green on black,
+use \*(``2,0\*(''.
+.I \%ncurses
+accepts integral values from \-1 up to the value of the
+.I \%term\%info
+.B \%max_colors
+.RB ( colors )
+capability.
+.SS "\fINCURSES_CONSOLE2\fP"
+(MinGW port only)
+The
+.I \%Console2
+.\" https://www.hanselman.com/blog/console2-a-better-windows-command-prompt
+program defectively handles the Microsoft Console API call
+.IR \%Create\%Console\%Screen\%Buffer .
+Applications that use it will hang.
+However,
+it is possible to simulate the action of this call by mapping
+coordinates,
+explicitly saving and restoring the original screen contents.
+Setting the environment variable
+.I \%NCGDB
+has the same effect.
+.SS "\fINCURSES_GPM_TERMS\fP"
+(Linux only)
+When
+.I \%ncurses
+is configured to use the GPM interface,
+this variable may list one or more terminal names
+against which the
+.I TERM
+variable
+(see below)
+is matched.
+An empty value disables the GPM interface,
+using
+.IR \%ncurses 's
+built-in support for \fIxterm\fP(1) mouse protocols instead.
+If the variable is absent,
+.I \%ncurses
+attempts to open GPM if
+.I TERM
+contains \*(``linux\*(''.
+.SS "\fINCURSES_NO_HARD_TABS\fP"
+.I \%ncurses
+may use tab characters in cursor movement optimization.
+In some cases,
+your terminal driver may not handle them properly.
+Set this environment variable to any value to disable the feature.
+You can also adjust your \fI\%stty\fP(1) settings to avoid the problem.
+.SS "\fINCURSES_NO_MAGIC_COOKIE\fP"
+Many terminals store video attributes as a property of a character cell,
+as
+.I curses
+does.
+Historically,
+some recorded changes in video attributes as data that logically
+.I occupies
+character cells on the display,
+switching attributes on or off,
+similarly to tags in a markup language;
+these are termed \*(``magic cookies\*('',
+and must be subsequently overprinted.
+If the
+.I \%term\%info
+entry for your terminal type does not adequately describe its handling
+of magic cookies,
+set this variable to any value to instruct
+.I \%ncurses
+to disable attributes entirely.
+.SS "\fINCURSES_NO_PADDING\fP"
+Most terminal type descriptions in the
+.I \%term\%info
+database detail hardware devices.
+Many people use
+.IR curses -based
+applications in terminal emulator programs that run in a windowing
+environment.
+These programs can duplicate all of the important features of a hardware
+terminal,
+but often lack their limitations.
+Chief among these absent drawbacks is the problem of data flow
+management;
+that is,
+limiting the speed of communication to what the hardware could handle.
+Unless a hardware terminal is interfaced into a terminal concentrator
+(which does flow control),
+an application must manage flow control itself to prevent overruns and
+data loss.
+.PP
+A solution that comes at no hardware cost is for an application to pause
+after directing a terminal to execute an operation that it performs
+slowly,
+such as clearing the display.
+Many terminal type descriptions,
+including that for the VT100,
+embed delay specifications in capabilities.
+You may wish to use these terminal descriptions without paying the
+performance penalty.
+Set
+.I \%NCURSES_NO_PADDING
+to any value to disable all but mandatory padding.
+Mandatory padding is used by such terminal capabilities as
+.B \%flash_screen
+.RB ( flash ).
+.SS "\fINCURSES_NO_SETBUF\fP"
+(Obsolete)
+Prior to internal changes developed in
+.I \%ncurses
+5.9
+(patches 20120825 through 20130126),
+the library used \fI\%setbuf\fP(3) to enable fully buffered output when
+initializing the terminal.
+This was done,
+as in SVr4
+.IR curses ,
+to increase performance.
+For testing purposes,
+both of
+.I \%ncurses
+and of certain applications,
+this feature was made optional.
+Setting this variable disabled output buffering,
+leaving the output stream in the original
+(usually line-buffered)
+mode.
+.PP
+Nowadays,
+.I \%ncurses
+performs its own buffering and does not require this workaround;
+it does not modify the buffering of the standard output stream.
+This approach makes signal handling,
+as for interrupts,
+more robust.
+A drawback is that certain unconventional programs mixed
+\fI\%stdio\fP(3) calls with
+.I \%ncurses
+calls and (usually)
+got the behavior they expected.
+This is no longer the case;
+.I \%ncurses
+does not write to the standard output file descriptor through a
+.IR stdio -buffered
+stream.
+.PP
+As a special case,
+low-level API calls such as \fB\%putp\fP(3X) still use the
+standard output stream.
+High-level
+.I curses
+calls such as \fB\%printw\fP(3X) do not.
+.SS "\fINCURSES_NO_UTF8_ACS\fP"
+At initialization,
+.I \%ncurses
+inspects the
+.I TERM
+environment variable for special cases where VT100 forms-drawing
+characters
+(and the corresponding alternate character set
+.I \%term\%info
+capabilities)
+are known to be unsupported by terminal types that otherwise claim VT100
+compatibility.
+Specifically,
+when running in a UTF-8 locale,
+the Linux virtual console device and the GNU \fI\%screen\fP(1)
+program ignore them.
+Set this variable to a nonzero value to instruct
+.I \%ncurses
+that the terminal's ACS support is broken;
+the library then outputs Unicode code points that correspond to the
+forms-drawing
+characters.
+Set it to zero
+(or a non-integer)
+to disable the special check for terminal type names matching
+\*(``linux\*('' or \*(``screen\*('',
+directing
+.I \%ncurses
+to assume that the ACS feature works if the terminal type description
+advertises it.
+.PP
+As an alternative to use of this variable,
+.I \%ncurses
+checks for an extended
+.I \%term\%info
+numeric capability \fBU8\fP
+that can be compiled using
+.RB \*(`` "@TIC@ \-x" \*(''.
+Examples follow.
+.PP
+.RS 3
+.EX
+# linux console, if patched to provide working
+# VT100 shift\-in/shift\-out, with corresponding font.
+linux\-vt100|linux console with VT100 line\-graphics,
+        U8#0, use=linux,
+\&
+# uxterm with vt100Graphics resource set to false
+xterm\-utf8|xterm relying on UTF\-8 line\-graphics,
+        U8#1, use=xterm,
+.EE
+.RE
+.PP
+The two-character name \*(``U8\*('' was chosen to permit its use via
+.IR \%ncurses 's
+.I termcap
+interface.
+.SS "\fINCURSES_TRACE\fP"
+At initialization,
+.I \%ncurses
+(in its debugging configuration)
+checks for this variable's presence.
+If defined with an integral value,
+the library calls \fB\%curses_trace\fP(3X) with that value as the
+argument.
+.SS "\fITERM\fP"
+The
+.I TERM
+variable denotes the terminal type.
+Each is distinct,
+though many are similar.
+It is commonly set by terminal emulators to help applications find a
+workable terminal description.
+Some choose a popular approximation such as \*(``ansi\*('',
+\*(``vt100\*('', or \*(``xterm\*('' rather than an exact fit to their
+capabilities.
+Not infrequently,
+an application will have problems with that approach;
+for example,
+a key stroke may not operate correctly,
+or produce no effect but seeming garbage characters on the screen.
+.PP
+Setting
+.I TERM
+has no effect on hardware operation;
+it affects the way applications communicate with the terminal.
+Likewise,
+as a general rule
+(\fIxterm\fP(1) being a rare exception),
+terminal emulators that allow you to specify
+.I TERM
+as a parameter or configuration value do not change their behavior to
+match that setting.
+.SS "\fITERMCAP\fP"
+If
+.I \%ncurses
+is configured with
+.I termcap
+support,
+it checks for a terminal type description in
+.I termcap
+format if one in
+.I \%term\%info
+format is not available.
+Setting this variable directs
+.I \%ncurses
+to ignore the usual
+.I termcap
+database location,
+.IR \%/etc/termcap ;
+see
+.I \%TERMPATH
+below.
+.I \%TERMCAP
+should contain either a terminal description
+(with newlines stripped out),
+or a file name indicating where the information required by the
+.I TERM
+environment variable is stored.
+.SS "\fITERMINFO\fP"
+.I \%ncurses
+can be configured to read terminal type description databases in various
+locations using different formats.
+This variable overrides the default location.
+.bP
+Descriptions in
+.I \%term\%info
+format are normally stored in a directory tree using subdirectories
+named by the common first letters of the terminal types named therein.
+This is the scheme used in System\ V.
+.bP
+If
+.I \%ncurses
+is configured to use hashed databases,
+then
+.I \%TERM\%INFO
+may name its location,
+such as
+.IR \%/usr/share/terminfo.db ,
+rather than
+.IR \%/usr/share/terminfo/ .
+.PP
+The hashed database uses less disk space and is a little faster than the
+directory tree.
+However,
+some applications assume the existence of the directory tree,
+and read it directly
+rather than using the
+.I \%term\%info
+API.
+.bP
+If
+.I \%ncurses
+is configured with
+.I termcap
+support,
+this variable may contain the location of a
+.I \%termcap
+file.
+.bP
+If the value of
+.I \%TERM\%INFO
+begins with \*(``hex:\*('' or \*(``b64:\*('',
+.I \%ncurses
+uses the remainder of the value as a compiled
+.I \%term\%info
+description.
+You might produce the base64 format using \fB\%infocmp\fP(1M).
+.RS 4
+.IP
+.EX
+TERMINFO=$(infocmp \-0 \-Q2 \-q)
+export TERMINFO
+.EE
+.RE
+.IP
+The compiled description is used only if it corresponds to the terminal
+type identified by
+.IR TERM .
+.PP
+Setting
+.I \%TERM\%INFO
+is the simplest,
+but not the only,
+way to direct
+.I \%ncurses
+to a terminal database.
+The search path is as follows.
+.bP
+the last terminal database to which the running
+.I \%ncurses
+application wrote,
+if any
+.bP
+the location specified by the
+.I \%TERM\%INFO
+environment variable
+.bP
+.I $HOME/.terminfo
+.bP
+locations listed in the
+.I \%TERMINFO_DIRS
+environment variable
+.ds td \" empty
+.if !'@TERMINFO_DIRS@'no default value' .as td @TERMINFO_DIRS@
+.if !'@TERMINFO@\*(td'' \{\
+.bP
+location(s) configured and compiled into
+.I \%ncurses
+.RS 3
+.if !'\*(td'' \{\
+.bP
+.I \%@TERMINFO_DIRS@
+.\}
+.if !'@TERMINFO'' .if !'\*(td'@TERMINFO@' \{\
+.bP
+.I \%@TERMINFO@
+.\}
+.\}
+.RE
+.SS "\fITERMINFO_DIRS\fP"
+This variable specifies a list of locations,
+akin to
+.IR PATH ,
+in which
+.I \%ncurses
+searches for the terminal type descriptions described by
+.I \%TERMINFO
+above.
+The list items are separated by colons on Unix
+and semicolons on OS/2 EMX.
+System\ V
+.I \%term\%info
+lacks a corresponding feature;
+.I \%TERMINFO_DIRS
+is an
+.I \%ncurses
+extension.
+.SS "\fITERMPATH\fP"
+If
+.I \%TERMCAP
+does not hold a terminal type description or file name,
+then
+.I \%ncurses
+checks the contents of
+.IR \%TERMPATH ,
+a list of locations,
+akin to
+.IR PATH ,
+in which it searches for
+.I termcap
+terminal type descriptions.
+The list items are separated by colons on Unix
+and semicolons on OS/2 EMX.
+.PP
+If both
+.I \%TERMCAP
+and
+.I \%TERMPATH
+are unset or invalid,
+.I \%ncurses
+searches for the files
+.IR \%/etc/termcap ,
+.IR \%/usr/share/misc/termcap ,
+and
+.IR \%$HOME/.termcap ,
+in that order.
+.SH "ALTERNATE CONFIGURATIONS"
+Many different
+.I \%ncurses
+configurations are possible,
+determined by the options given to the
+.I \%configure
+script when building the library.
+Run the script with the
+.B \-\-help
+option to peruse them all.
+A few are of particular significance to the application developer
+employing
+.IR \%ncurses .
+.TP 5
+.B \-\-disable\-overwrite
+The standard include for \fI\%ncurses\fP is as noted in \fBSYNOPSIS\fP:
+.RS 5
+.PP
+.RS 4
+.EX
+\fB#include <curses.h>\fP
+.EE
+.RE
+.PP
+This option is used to avoid filename conflicts when \fI\%ncurses\fP
+is not the main implementation of curses of the computer.
+If \fI\%ncurses\fP is installed disabling overwrite,
+it puts its headers in a subdirectory,
+e.g.,
+.PP
+.RS 4
+.EX
+\fB#include <ncurses/curses.h>\fP
+.EE
+.RE
+.PP
+It also omits a symbolic link which would allow you to use \fB\-lcurses\fP
+to build executables.
+.RE
+.TP 5
+.B \-\-enable\-widec
+The configure script renames the library and
+(if the \fB\-\-disable\-overwrite\fP option is used)
+puts the header files in a different subdirectory.
+All of the library names have a \*(``w\*('' appended to them,
+i.e., instead of
+.RS 5
+.PP
+.RS 4
+.EX
+\fB\-lncurses\fP
+.EE
+.RE
+.PP
+you link with
+.PP
+.RS 4
+.EX
+\fB\-lncursesw\fP
+.EE
+.RE
+.PP
+You must also enable the wide-character features in the header file
+when compiling for the wide-character library
+to use the extended (wide-character) functions.
+The symbol which enables these features has changed
+since X/Open Curses, Issue 4:
+.bP
+Originally, the wide-character feature required the symbol
+\fB_XOPEN_SOURCE_EXTENDED\fP
+but that was only valid for XPG4 (1996).
+.bP
+Later, that was deemed conflicting with \fB_XOPEN_SOURCE\fP defined to 500.
+.bP
+As of mid-2018,
+none of the features in this implementation require a \fB_XOPEN_SOURCE\fP
+feature greater than 600.
+However, X/Open Curses, Issue 7 (2009) recommends defining it to 700.
+.bP
+Alternatively, you can enable the feature by defining \fBNCURSES_WIDECHAR\fP
+with the caveat that some other header file than \fBcurses.h\fP
+may require a specific value for \fB_XOPEN_SOURCE\fP
+(or a system-specific symbol).
+.PP
+The \fI\%curses.h\fP header file installed for the wide-character
+library is designed to be compatible with the non-wide library's header.
+Only the size of the \fI\%WINDOW\fP structure differs;
+few applications require more than pointers to \fI\%WINDOW\fPs.
+.PP
+If the headers are installed allowing overwrite,
+the wide-character library's headers should be installed last,
+to allow applications to be built using either library
+from the same set of headers.
+.RE
+.TP 5
+.B \-\-with\-pthread
+The configure script renames the library.
+All of the library names have a \*(``t\*('' appended to them
+(before any \*(``w\*('' added by \fB\-\-enable\-widec\fP).
+.IP
+The global variables such as \fBLINES\fP are replaced by macros to
+allow read-only access.
+At the same time, setter-functions are provided to set these values.
+Some applications (very few) may require changes to work with this convention.
+.TP 5
+.B \-\-with\-shared
+.tQ
+.B \-\-with\-normal
+.tQ
+.B \-\-with\-debug
+.tQ
+.B \-\-with\-profile
+The shared and normal (static) library names differ by their suffixes,
+e.g., \fBlibncurses.so\fP and \fBlibncurses.a\fP.
+The debug and profiling libraries add a \*(``_g\*(''
+and a \*(``_p\*('' to the root names respectively,
+e.g., \fBlibncurses_g.a\fP and \fBlibncurses_p.a\fP.
+.TP 5
+.B \-\-with\-termlib
+Low-level functions which do not depend upon whether the library
+supports wide-characters, are provided in the tinfo library.
+.IP
+By doing this, it is possible to share the tinfo library between
+wide/normal configurations as well as reduce the size of the library
+when only low-level functions are needed.
+.IP
+Those functions are described in these pages:
+.RS
+.bP
+\fB\%curs_extend\fP(3X) \- miscellaneous \fIcurses\fP extensions
+.bP
+\fB\%curs_inopts\fP(3X) \- \fIcurses\fP input options
+.bP
+\fB\%curs_kernel\fP(3X) \- low-level \fIcurses\fP routines
+.bP
+\fB\%curs_termattrs\fP(3X) \- \fIcurses\fP environment query routines
+.bP
+\fB\%curs_termcap\fP(3X) \- \fIcurses\fP emulation of \fItermcap\fP
+.bP
+\fB\%curs_terminfo\fP(3X) \- \fIcurses\fP interface to \fIterminfo\fP
+database
+.bP
+\fB\%curs_util\fP(3X) \- miscellaneous \fIcurses\fP utility routines
+.RE
+.TP 5
+.B \-\-with\-trace
+The \fBtrace\fP function normally resides in the debug library,
+but it is sometimes useful to configure this in the shared library.
+Configure scripts should check for the function's existence rather
+than assuming it is always in the debug library.
+.SH FILES
+.TP
+.I @DATADIR@/tabset
+tab stop initialization database
+.TP
+.I \*d
+compiled terminal capability database
+.SH NOTES
+X/Open Curses permits most functions it specifies to be made available
+as macros as well.
+.\" See X/Open Curses Issue 4, Version 2, pp. 227-234.
+.\" See X/Open Curses Issue 7, pp. 311-318.
+\fI\%ncurses\fP does so
+.bP
+for functions that return values via their parameters,
+.bP
+to support obsolete features,
+.bP
+to reuse functions
+(for example,
+those that move the cursor before another operation),
+and
+.bP
+a few special cases.
+.PP
+If the standard output file descriptor of an
+.I \%ncurses
+program is redirected to something that is not a terminal device,
+the library writes screen updates to the standard error file descriptor.
+This was an undocumented feature of SVr3
+.IR curses .
+.PP
+See subsection \*(``Header Files\*('' below regarding symbols exposed by
+inclusion of \fI\%curses.h\fP.
+.SH EXTENSIONS
+.I \%ncurses
+enables an application to capture mouse events on certain terminals,
+including \fI\%xterm\fP(1);
+see \fB\%curs_mouse\fP(3X).
+.PP
+.I \%ncurses
+provides a means of responding to window resizing events,
+as when running in a GUI terminal emulator application such as
+.IR \%xterm ;
+see \fB\%resizeterm\fP(3X) and \fB\%wresize\fP(3X).
+.PP
+.I \%ncurses
+allows an application to query the terminal for the presence of a wide
+variety of special keys;
+see \fB\%has_key\fP(3X).
+.PP
+.I \%ncurses
+extends the fixed set of function key capabilities specified by X/Open
+Curses by allowing the application programmer to define additional key
+events at runtime;
+see
+\fB\%define_key\fP(3X),
+\fB\%key_defined\fP(3X),
+\fB\%keybound\fP(3X),
+and
+\fB\%keyok\fP(3X).
+.PP
+.I \%ncurses
+can exploit the capabilities of terminals implementing ISO\ 6429/ECMA-48
+SGR\ 39 and SGR\ 49 sequences,
+which allow an application to reset the terminal to its original
+foreground and background colors.
+From a user's perspective,
+the application is able to draw colored text on a background whose color
+is set independently,
+providing better control over color contrasts.
+See \fB\%default_colors\fP(3X).
+.PP
+An
+.I \%ncurses
+application can eschew knowledge of
+.I \%WINDOW
+structure internals,
+instead using accessor functions such as
+\fB\%is_scrollok\fP(3X).
+.PP
+.I \%ncurses
+enables an application to direct application output to a printer
+attached to the terminal device;
+see \fB\%curs_print\fP(3X).
+.PP
+.I \%ncurses
+offers \fB\%slk_attr\fP(3X) as a counterpart of \fB\%attr_get\fP(3X) for
+soft-label key lines,
+and \fB\%extended_slk_color\fP(3X) as a form of \fB\%slk_color\fP(3X)
+that can gather color information from them when many colors are
+supported.
+.PP
+Some extensions are available only if
+.I \%ncurses
+permits modification of \fB\%unctrl\fP(3X)'s behavior;
+see \fB\%use_legacy_coding\fP(3X).
+.I \%ncurses
+is compiled to support them;
+section \*(``ALTERNATE CONFIGURATIONS\*('' describes how.
+.bP
+Rudimentary support for multi-threaded applications may be available;
+see \fBcurs_threads\fP(3X).
+.bP
+Functions that ease the management of multiple screens can be exposed;
+see \fBcurs_sp_funcs\fP(3X).
+.bP
+To aid applications to debug their memory usage,
+.I ncurses
+optionally offers functions to more aggressively free memory it
+dynamically allocates itself;
+see \fBcurs_memleaks\fP(3X).
+.bP
+The library facilitates auditing and troubleshooting of its behavior;
+see \fBcurs_trace\fP(3X).
+.bP
+The compiler option
+.B \%\-DUSE_GETCAP
+causes the library to fall back to reading
+.I \%/etc/termcap
+if the terminal setup code cannot find a
+.I \%term\%info
+entry corresponding to
+.IR TERM .
+Use of this feature is not recommended,
+as it essentially includes an entire
+.I termcap
+compiler in the
+.I \%ncurses
+startup code,
+at a cost in memory usage and application launch latency.
+.PP
+.I \%PDCurses
+and NetBSD
+.I curses
+incorporate some
+.I \%ncurses
+extensions.
+Individual man pages indicate where this is the case.
+.SH PORTABILITY
+X/Open Curses defines two levels of conformance,
+\*(``base\*('' and \*(``enhanced\*(''.
+The latter includes several additional features,
+such as wide-character and color support.
+.I \%ncurses
+intends base-level conformance with X/Open Curses,
+and supports all features of its enhanced level
+except the \fB\%untic\fP utility.
+.PP
+Differences between X/Open Curses and
+.I \%ncurses
+are documented in the \*(``PORTABILITY\*('' sections of applicable man
+pages.
+.SS "Error Checking"
+In many cases, X/Open Curses is vague about error conditions,
+omitting some of the SVr4 documentation.
+.PP
+Unlike other implementations,
+.I \%ncurses
+checks pointer parameters,
+such as those to
+.I \%WINDOW
+structures,
+to ensure that they are not null.
+This is done primarily to guard against programmer error.
+The standard interface does not provide a way for the library
+to tell an application which of several possible errors occurred.
+Relying on this
+(or some other)
+extension adversely affects the portability of
+.I curses
+applications.
+.SS "Padding Differences"
+In historical
+.I curses
+implementations,
+delays embedded in the
+.I \%term\%info
+capabilities
+.B \%carriage_return
+.RB ( cr ),
+.B \%scroll_forward
+.RB ( ind ),
+.B \%cursor_left
+.RB ( cub1 ),
+.B \%form_feed
+.RB ( ff ),
+and
+.B \%tab
+.RB ( ht )
+activated corresponding delay bits in the Unix terminal driver.
+.I \%ncurses
+performs all padding by sending NUL bytes to the device.
+This method is slightly more expensive,
+but narrows the interface to the Unix kernel significantly and
+correspondingly increases the package's portability.
+.SS "Header Files"
+The header file
+.I \%curses.h
+itself includes the header files
+.I \%stdio.h
+and
+.IR \%unctrl.h .
+.PP
+X/Open Curses has more to say,
+.RS 4
+.PP
+The inclusion of
+.I \%curses.h
+may make visible all symbols from the headers
+.IR \%stdio.h ,
+.IR \%term.h ,
+.IR \%termios.h ,
+and
+.IR \%wchar.h .
+.RE
+.PP
+but does not finish the story.
+A more complete account follows.
+.bP
+Starting with 4BSD
+.I curses
+(1980)
+all implementations have provided a
+.I \%curses.h
+file.
+.IP
+BSD
+.I curses
+code included
+.I \%curses.h
+and
+.I \%unctrl.h
+from an internal header file
+.IR \%curses.ext ,
+where
+\*(``ext\*('' abbreviated \*(``externs\*(''.
+.IP
+The implementations of
+.I \%printw
+and
+.I \%scanw
+used undocumented internal functions of the standard I/O library
+.RI ( _doprnt
+and
+.IR _doscan ),
+but nothing in
+.I \%curses.h
+itself relied upon
+.IR \%stdio.h .
+.bP
+SVr2
+.I curses
+added
+.IR \%newterm ,
+which relies upon
+.I \%stdio.h
+because its function prototype employs the
+.I FILE
+type.
+.IP
+SVr4
+.I curses
+added
+.I \%putwin
+and
+.IR \%getwin ,
+which also use
+.IR \%stdio.h .
+.IP
+X/Open Curses specifies all three of these functions.
+.IP
+SVr4
+.I curses
+and X/Open Curses do not require the developer to include
+.I \%stdio.h
+before
+.IR \%curses.h .
+Both document use of
+.I curses
+as requiring only
+.IR \%curses.h .
+.IP
+As a result,
+standard
+.I \%curses.h
+always includes
+.IR \%stdio.h .
+.bP
+X/Open Curses and SVr4
+.I curses
+are inconsistent with respect to
+.IR \%unctrl.h .
+.IP
+As noted in \fBcurs_util\fP(3X),
+.I \%ncurses
+includes
+.I \%unctrl.h
+from
+.I \%curses.h
+(as SVr4 does).
+.bP
+X/Open Curses's comments about
+.I \%term.h
+and
+.I \%termios.h
+may refer to HP-UX and AIX.
+.IP
+HP-UX
+.I curses
+includes
+.I \%term.h
+from
+.I \%curses.h
+to declare
+.I \%setupterm
+in
+.IR \%curses.h ,
+but
+.I \%ncurses
+and Solaris
+.I curses
+do not.
+.IP
+AIX
+.I curses
+includes
+.I \%term.h
+and
+.IR \% termios.h .
+Again,
+.I \%ncurses
+and Solaris
+.I curses
+do not.
+.bP
+X/Open Curses says that
+.I \%curses.h
+.B may
+include
+.IR \%term.h ,
+but does not require it to do so.
+.IP
+Some programs use functions declared in both
+.I \%curses.h
+and
+.IR \%term.h ,
+and must include both header files in the same module.
+Very old versions of AIX
+.I curses
+required inclusion of
+.I \%curses.h
+before
+.IR \%term.h .
+.IP
+The header files supplied by
+.I \%ncurses
+include the standard library headers required for its declarations,
+so
+.IR \%ncurses 's
+own header files can be included in any order.
+But for portability,
+you should include
+.I \%curses.h
+before
+.IR \%term.h .
+.bP
+X/Open Curses says \*(``may make visible\*('' because including a header
+file does not necessarily make visible all of the symbols in it
+(consider
+.B \%#ifdef
+and similar).
+.IP
+For instance,
+.IR \%ncurses 's
+.I \%curses.h
+.B may \" bold to contrast with preceding italic
+include
+.I \%wchar.h
+if the proper symbol is defined,
+and if
+.I \%ncurses
+is configured for wide-character support.
+If
+.I \%wchar.h
+is included,
+its symbols
+.B may \" bold for consistency in this paragraph
+be made visible depending on the value of the
+.B _XOPEN_SOURCE
+feature test macro.
+.bP
+X/Open Curses mandates an application's inclusion of one standard C
+library header in a special case:
+.I \%stdarg.h
+before
+.I \%curses.h
+to prototype the functions
+.I \%vw_printw
+and
+.I \%vw_scanw
+(as well as the obsolete
+.I \%vwprintw
+and
+.IR \%vwscanw ).
+Each of these takes a variadic argument list,
+a
+.I \%va_list
+parameter,
+like that of \fI\%printf\fP(3).
+.IP
+SVr3
+.I curses
+introduced
+the two obsolete functions,
+and X/Open Curses the others.
+In between,
+SVr4
+.I curses
+provided for the possibility that an application might include either
+.I \%varargs.h
+or
+.IR \%stdarg.h .
+These represented contrasting approaches to handling variadic
+argument lists.
+The older interface,
+.IR \%varargs.h ,
+used a pointer to
+.I char \" V7, 32V, System III, 3BSD
+for variadic functions'
+.I \%va_list
+parameter.
+Later,
+the list acquired its own standard data type,
+.IR \%va_list ,
+defined in
+.IR \%stdarg.h ,
+empowering the compiler to check the types of a function call's actual
+parameters against the formal ones declared in its prototype.
+.IP
+No conforming implementations of X/Open Curses require an application
+to include
+.I \%stdarg.h
+before
+.I \%curses.h
+because they either have allowed for a special type,
+or,
+like
+.IR \%ncurses ,
+they include
+.I \%stdarg.h
+themselves to provide a portable interface.
+.SH AUTHORS
+Zeyd M. Ben-Halim,
+Eric S. Raymond,
+Thomas E. Dickey.
+Based on
+.I \%pcurses
+by Pavel Curtis.
+.SH SEE ALSO
+\fB\%curs_variables\fP(3X),
+\fB\%terminfo\fP(5),
+\fB\%user_caps\fP(5)

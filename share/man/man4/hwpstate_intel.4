@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2019 Intel Corporation
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 21, 2020
+.Dt HWPSTATE_INTEL 4
+.Os
+.Sh NAME
+.Nm hwpstate_intel
+.Nd Intel Speed Shift Technology driver
+.Sh SYNOPSIS
+To compile this driver into your kernel
+place the following line in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device cpufreq"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for hardware-controlled performance states on Intel
+platforms, also known as Intel Speed Shift Technology.
+.Sh LOADER TUNABLES
+.Bl -tag -width indent
+.It Va hint.hwpstate_intel.0.disabled
+Can be used to disable
+.Nm ,
+allowing other compatible drivers to manage performance states, like
+.Xr est 4 .
+Defaults to
+.Dv Qq 0
+(enabled).
+.It Va machdep.hwpstate_pkg_ctrl
+Selects between package-level control (the default) and per-core control.
+.Dv Qq 1
+selects package-level control and
+.Dv Qq 0
+selects core-level control.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+values are available
+.Bl -tag -width indent
+.It Va dev.hwpstate_intel.%d.%desc
+Describes the attached driver
+.It dev.hwpstate_intel.0.%desc: Intel Speed Shift
+.It Va dev.hwpstate_intel.%d.%driver
+Driver in use, always hwpstate_intel.
+.It dev.hwpstate_intel.0.%driver: hwpstate_intel
+.It Va dev.hwpstate_intel.%d.%parent
+The CPU that is exposing these frequencies.
+For example
+.Va cpu0 .
+.It dev.hwpstate_intel.0.%parent: cpu0
+.It Va dev.hwpstate_intel.%d.epp
+Energy/Performance Preference.
+Valid values range from 0 to 100.
+Setting this field conveys a hint to the hardware regarding a preference towards
+performance (at value 0), energy efficiency (at value 100), or somewhere in
+between.
+.It dev.hwpstate_intel.0.epp: 0
+.El
+.Sh COMPATIBILITY
+.Nm
+is only found on supported Intel CPUs.
+.Sh SEE ALSO
+.Xr cpufreq 4
+.Rs
+.%T "Intel 64 and IA-32 Architectures Software Developer Manuals"
+.%U "http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html"
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An D Scott Phillips Aq Mt scottph@FreeBSD.org .

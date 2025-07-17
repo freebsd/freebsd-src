@@ -1,0 +1,13 @@
+#
+# PAM configuration for the "ftp" service.  This is not used by the FreeBSD
+# ftpd(8), but is provided for compatibility with FTP servers from ports.
+#
+
+# auth
+auth		include		ftpd
+
+# account
+account		include		ftpd
+
+# session
+session		include		ftpd

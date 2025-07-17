@@ -1,0 +1,7 @@
+#!/bin/csh -f
+
+set file=$1
+shift
+( echo ".ds Se $file" ; cat Troff.mac ; sed -f Troff.sed $file ) | \
+	$* -me >& $file.tr
+echo troff output in $file.tr

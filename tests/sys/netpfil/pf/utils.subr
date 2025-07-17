@@ -1,0 +1,414 @@
+# Utility functions
+##
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2017 Kristof Provost <kp@FreeBSD.org>
+# Copyright (c) 2023 Kajetan Staszkiewicz <vegeta@tuxpowered.net>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+. $(atf_get_srcdir)/../../common/vnet.subr
+common_dir=$(atf_get_srcdir)/../common
+
+pft_onerror()
+{
+	status=$?
+
+	echo "Debug log."
+	echo "=========="
+	echo "Test exit status: $?"
+	echo
+
+	if [ -f created_jails.lst ]; then
+		for jailname in `cat created_jails.lst`
+		do
+			echo "Jail ${jailname}"
+			echo "----------------"
+			jexec ${jailname} ifconfig
+			jexec ${jailname} netstat -rn
+			jexec ${jailname} pfctl -sa -v
+		done
+	fi
+
+	echo "Created interfaces:"
+	echo "-------------------"
+	cat created_interfaces.lst
+
+	echo "Host interfaces:"
+	echo "----------------"
+	ifconfig
+}
+
+pft_init()
+{
+	if [ "$1" == "debug" ]
+	then
+		trap pft_onerror EXIT
+	fi
+
+	vnet_init
+
+	if [ ! -c /dev/pf ]; then
+		atf_skip "This test requires pf"
+	fi
+}
+
+pfsynct_init()
+{
+	pft_init
+
+	if ! kldstat -q -m pfsync; then
+		atf_skip "This test requires pfsync"
+	fi
+}
+
+pflog_init()
+{
+	pft_init
+
+	if ! kldstat -q -m pflog; then
+		atf_skip "This test requires pflog"
+	fi
+}
+
+pflow_init()
+{
+	pft_init
+
+	if ! kldstat -q -m pflow; then
+		atf_skip "This test requires pflow"
+	fi
+}
+
+dummynet_init()
+{
+	pft_init
+
+	if ! kldstat -q -m dummynet; then
+		atf_skip "This test requires dummynet"
+	fi
+}
+
+pft_set_rules()
+{
+	jname=$1
+	shift
+
+	if [ $jname == "noflush" ];
+	then
+		jname=$1
+		shift
+	else
+		# Flush all states, rules, fragments, ...
+		jexec ${jname} pfctl -F all
+	fi
+
+	while [ $# -gt 0 ]; do
+		printf "$1\n"
+		shift
+	done | jexec ${jname} pfctl -f -
+	if [ $? -ne 0 ];
+	then
+		atf_fail "Failed to set PF rules in ${jname}"
+	fi
+}
+
+pft_cleanup()
+{
+	vnet_cleanup
+}
+
+pfsynct_cleanup()
+{
+	pft_cleanup
+}
+
+is_altq_supported()
+{
+	sysctl -q kern.features.altq >/dev/null || \
+	    atf_skip "Test requires ALTQ"
+
+	while [ -n "$1" ]
+	do
+		sysctl -q kern.features.altq.${1} >/dev/null || \
+		    atf_skip "Test required ALTQ_${1}"
+		shift
+	done
+}
+
+altq_init()
+{
+	pft_init
+	is_altq_supported
+}
+
+altq_cleanup()
+{
+	pft_cleanup
+}
+
+# Create a bare router jail.
+# This function lacks target configuration.
+setup_router_ipv4()
+{
+	pft_init
+
+	epair_tester=$(vnet_mkepair)
+	epair_server=$(vnet_mkepair)
+
+	net_tester=192.0.2.0/24
+	net_tester_mask=24
+	net_tester_host_router=192.0.2.1
+	net_tester_host_tester=192.0.2.2
+
+	net_server=198.51.100.0/24
+	net_server_mask=24
+	net_server_host_router=198.51.100.1
+	net_server_host_server=198.51.100.2
+
+	vnet_mkjail router ${epair_tester}b ${epair_server}a
+
+	ifconfig ${epair_tester}a ${net_tester_host_tester}/${net_tester_mask} up
+	route add -net ${net_server} ${net_tester_host_router}
+
+	jexec router ifconfig ${epair_tester}b ${net_tester_host_router}/${net_tester_mask} up
+	jexec router sysctl net.inet.ip.forwarding=1
+	jexec router ifconfig ${epair_server}a ${net_server_host_router}/${net_server_mask} up
+
+	jexec router pfctl -e
+}
+
+# Create a router jail.
+# The target for tests does not exist but a static ARP entry does
+# so packets to it can be properly routed.
+setup_router_dummy_ipv4()
+{
+	setup_router_ipv4
+	jexec router arp -s ${net_server_host_server} 00:01:02:03:04:05
+	ifconfig ${epair_server}b up
+}
+
+# Create a router and a server jail.
+# The server is capable of responding to pings from the tester.
+setup_router_server_ipv4()
+{
+	setup_router_ipv4
+	vnet_mkjail server ${epair_server}b
+	jexec server ifconfig ${epair_server}b ${net_server_host_server}/${net_server_mask} up
+	jexec server route add -net ${net_tester} ${net_server_host_router}
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp nowait root internal" > $inetd_conf
+	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
+}
+
+# Create a bare router jail.
+# This function lacks target configuration.
+setup_router_ipv6()
+{
+	pft_init
+
+	epair_tester=$(vnet_mkepair)
+	epair_server=$(vnet_mkepair)
+
+	net_tester=2001:db8:42::/64
+	net_tester_mask=64
+	net_tester_host_router=2001:db8:42::1
+	net_tester_host_tester=2001:db8:42::2
+
+	net_server=2001:db8:43::/64
+	net_server_mask=64
+	net_server_host_router=2001:db8:43::1
+	net_server_host_server=2001:db8:43::2
+
+	vnet_mkjail router ${epair_tester}b ${epair_server}a
+
+	ifconfig ${epair_tester}a inet6 ${net_tester_host_tester}/${net_tester_mask}up no_dad
+	route add -6 ${net_server} ${net_tester_host_router}
+
+	jexec router ifconfig ${epair_tester}b inet6 ${net_tester_host_router}/${net_tester_mask} up no_dad
+	jexec router sysctl net.inet6.ip6.forwarding=1
+	jexec router ifconfig ${epair_server}a inet6 ${net_server_host_router}/${net_server_mask} up no_dad
+
+	jexec router pfctl -e
+}
+
+# Create a router jail.
+# The target for tests does not exist but a static NDP entry does
+# so packets to it can be properly routed.
+setup_router_dummy_ipv6()
+{
+	setup_router_ipv6
+	jexec router ndp -s ${net_server_host_server} 00:01:02:03:04:05
+	ifconfig ${epair_server}b up
+}
+
+# Create a router and a server jail.
+# The server is capable of responding to pings from tester.
+setup_router_server_ipv6()
+{
+	setup_router_ipv6
+	vnet_mkjail server ${epair_server}b
+	jexec server ifconfig ${epair_server}b inet6 ${net_server_host_server}/${net_server_mask} up no_dad
+	jexec server route add -6 ${net_tester} ${net_server_host_router}
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp6 nowait root internal" > $inetd_conf
+	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
+}
+
+# Create a router and 2 server jails for nat64 and rfc5549 test cases.
+# The router is connected to servers, both are dual-stack, and to the
+# tester jail. All links are dual stack.
+setup_router_server_nat64()
+{
+	pft_init
+
+	epair_tester=$(vnet_mkepair)
+	epair_server1=$(vnet_mkepair)
+	epair_server2=$(vnet_mkepair)
+
+	# Funny how IPv4 address space is to small to even assign nice /24
+	# prefixes on all needed networks. On IPv6 we have a separate /64 for
+	# each link, loopback server, and client/SNAT pool. On IPv4 we must
+	# use small /28 prefixes, so even though we define all networks
+	# as variables we can't easily use them in tests if additional addresses
+	# are needed.
+
+	# IP addresses which can be used by the tester jail.
+	# Can be used as SNAT or as source with pft_ping.py. It is up to
+	# the test code to make them accessible from router.
+	net_clients_4=203.0.113
+	net_clients_4_mask=24
+	net_clients_6=2001:db8:44
+	net_clients_6_mask=64
+
+	# IP addresses on loopback interfaces of both servers. They can be
+	# accessed using the route-to targtet.
+	host_server_4=192.0.2.100
+	host_server_6=2001:db8:4203::100
+
+	net_tester_4=198.51.100
+	net_tester_4_mask=28
+	net_tester_4_host_router=198.51.100.1
+	net_tester_4_host_tester=198.51.100.2
+
+	net_tester_6=2001:db8:4200
+	net_tester_6_mask=64
+	net_tester_6_host_router=2001:db8:4200::1
+	net_tester_6_host_tester=2001:db8:4200::2
+
+	net_server1_4=198.51.100
+	net_server1_4_mask=28
+	net_server1_4_host_router=198.51.100.17
+	net_server1_4_host_server=198.51.100.18
+
+	net_server1_6=2001:db8:4201
+	net_server1_6_mask=64
+	net_server1_6_host_router=2001:db8:4201::1
+	net_server1_6_host_server=2001:db8:4201::2
+
+	net_server2_4=198.51.100
+	net_server2_4_mask=28
+	net_server2_4_host_router=198.51.100.33
+	net_server2_4_host_server=198.51.100.34
+
+	net_server2_6=2001:db8:4202
+	net_server2_6_mask=64
+	net_server2_6_host_router=2001:db8:4202::1
+	net_server2_6_host_server=2001:db8:4202::2
+
+	vnet_mkjail router ${epair_tester}b ${epair_server1}a ${epair_server2}a
+	jexec router ifconfig ${epair_tester}b inet  ${net_tester_4_host_router}/${net_tester_4_mask} up
+	jexec router ifconfig ${epair_tester}b inet6 ${net_tester_6_host_router}/${net_tester_6_mask} up no_dad
+	jexec router ifconfig ${epair_server1}a inet  ${net_server1_4_host_router}/${net_server1_4_mask} up
+	jexec router ifconfig ${epair_server1}a inet6 ${net_server1_6_host_router}/${net_server1_6_mask} up no_dad
+	jexec router ifconfig ${epair_server2}a inet  ${net_server2_4_host_router}/${net_server2_4_mask} up
+	jexec router ifconfig ${epair_server2}a inet6 ${net_server2_6_host_router}/${net_server2_6_mask} up no_dad
+	jexec router sysctl net.inet.ip.forwarding=1
+	jexec router sysctl net.inet6.ip6.forwarding=1
+	jexec router pfctl -e
+
+	ifconfig ${epair_tester}a inet  ${net_tester_4_host_tester}/${net_tester_4_mask} up
+	ifconfig ${epair_tester}a inet6 ${net_tester_6_host_tester}/${net_tester_6_mask} up no_dad
+	route add    0.0.0.0/0 ${net_tester_4_host_router}
+	route add -6 ::/0      ${net_tester_6_host_router}
+
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp46 nowait root internal" >> $inetd_conf
+
+	vnet_mkjail server1 ${epair_server1}b
+	jexec server1 /etc/rc.d/netif start lo0
+	jexec server1 ifconfig ${epair_server1}b inet  ${net_server1_4_host_server}/${net_server1_4_mask} up
+	jexec server1 ifconfig ${epair_server1}b inet6 ${net_server1_6_host_server}/${net_server1_6_mask} up no_dad
+	jexec server1 ifconfig lo0                     ${host_server_4}/32  alias
+	jexec server1 ifconfig lo0               inet6 ${host_server_6}/128 alias
+	jexec server1 inetd -p ${PWD}/inetd_1.pid $inetd_conf
+	jexec server1 route add    0.0.0.0/0 ${net_server1_4_host_router}
+
+	jexec server1 route add -6 ::/0      ${net_server1_6_host_router}
+	vnet_mkjail server2 ${epair_server2}b
+	jexec server2 /etc/rc.d/netif start lo0
+	jexec server2 ifconfig ${epair_server2}b inet  ${net_server2_4_host_server}/${net_server2_4_mask} up
+	jexec server2 ifconfig ${epair_server2}b inet6 ${net_server2_6_host_server}/${net_server2_6_mask} up no_dad
+	jexec server2 ifconfig lo0                     ${host_server_4}/32  alias
+	jexec server2 ifconfig lo0               inet6 ${host_server_6}/128 alias
+	jexec server2 inetd -p ${PWD}/inetd_2.pid $inetd_conf
+	jexec server2 route add    0.0.0.0/0 ${net_server2_4_host_router}
+	jexec server2 route add -6 ::/0      ${net_server2_6_host_router}
+}
+
+# Ping the dummy static NDP target.
+# Check for pings being forwarded through the router towards the target.
+ping_dummy_check_request()
+{
+	exit_condition=$1
+	shift
+	params=$@
+	atf_check -s ${exit_condition} ${common_dir}/pft_ping.py \
+	    --sendif ${epair_tester}a \
+	    --to ${net_server_host_server} \
+	    --recvif ${epair_server}b \
+	$params
+}
+
+# Ping the server jail.
+# Check for responses coming back throught the router back to the tester.
+ping_server_check_reply()
+{
+	exit_condition=$1
+	shift
+	params=$@
+	atf_check -s ${exit_condition} ${common_dir}/pft_ping.py \
+	    --sendif ${epair_tester}a \
+	    --to ${net_server_host_server} \
+	    --replyif ${epair_tester}a \
+	$params
+}
+
+normalize_pfctl_s()
+{
+	# `pfctl -s[rsS]` output is divided into sections. Each rule, state or
+	# source node starts with the beginning of a line and next lines with leading
+	# spaces are various parameters of said rule, state or source node.
+	# Convert it into a single line per entry, and remove multiple spaces,
+	# so that regular expressions for matching them in tests can be simpler.
+	awk '{ if ($0 ~ /^[^ ]/ && NR > 1) print(""); gsub(/ +/, " ", $0); printf("%s", $0); } END {print("");}'
+}

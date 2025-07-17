@@ -1,0 +1,39 @@
+#------------------------------------------------------------------------------
+# $File: pascal,v 1.4 2022/07/30 16:53:06 christos Exp $
+# pascal:  file(1) magic for Pascal source
+#
+0	search/8192	(input,		Pascal source text
+!:mime	text/x-pascal
+#0	regex		\^program	Pascal source text
+#!:mime	text/x-pascal
+#0	regex           	\^record		Pascal source text
+#!:mime	text/x-pascal
+
+# Free Pascal
+0	string	PPU	Pascal unit
+>3	string	x	\b, version %s
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Dan_Bricklin
+0	string/b	Type
+# URL:		https://dl.winworldpc.com/Dan%20Bricklins%20Demo%20II%20Version%202%20Manual.7z
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dbd-v2.trid.xml
+>4	string		D2		Dan Bricklin's Demo 2 demo
+#!:mime	application/octet-stream
+!:ext	dbd
+# URL:		https://muhaz.org/turbo-pascal-download-details.html
+# From:		Joerg Jenderek
+# Note:		used by Turbo Pascal 5.5 TOUR.EXE
+>4	string		T2		Turbo Pascal TOUR data
+#!:mime	application/octet-stream
+!:mime	application/x-borland-cbt
+!:ext	cbt
+# WHAT iS THAT?
+#>4	string		\040P		Dan Bricklin's Demo 2 foo
+#!:mime	application/octet-stream
+# _PPRINT.SG2 _PASCII.SG2
+#!:ext	sg2
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dbd-gen.trid.xml
+>4	default		x		Dan Bricklin's Demo demo (generic)
+#!:mime	application/octet-stream
+!:ext	dbd

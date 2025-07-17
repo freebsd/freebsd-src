@@ -1,0 +1,2 @@
+
+$SH -nc 'echo bad'

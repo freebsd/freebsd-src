@@ -1,0 +1,8 @@
+Enable building
+.Xr veriexec 8
+which loads the contents of verified manifests into the kernel
+for use by
+.Xr mac_veriexec 4
+.Pp
+Depends on
+.Va WITH_BEARSSL .

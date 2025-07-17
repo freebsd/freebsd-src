@@ -1,0 +1,4 @@
+Build the basesystem with code to zero caller-used register contents
+on function return.
+This prevents leaking temporary values for side channel attacks.
+Additionally this reduces the number of usable ROP gadgets for attackers.

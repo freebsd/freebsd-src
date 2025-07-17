@@ -1,0 +1,121 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2021, 2022 Soren Schmidt <sos@deepcore.dk>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ */
+
+
+#ifndef _RK817REG_H_
+#define	_RK817REG_H_
+
+#define	RK817_RTC_SECONDS	0x00
+#define	 RK817_RTC_SECONDS_MASK	0x7f
+#define	RK817_RTC_MINUTES	0x01
+#define	 RK817_RTC_MINUTES_MASK	0x7f
+#define	RK817_RTC_HOURS		0x02
+#define	 RK817_RTC_HOURS_MASK	0x3f
+#define	RK817_RTC_DAYS		0x03
+#define	 RK817_RTC_DAYS_MASK	0x3f
+#define	RK817_RTC_MONTHS	0x04
+#define	 RK817_RTC_MONTHS_MASK	0x1f
+#define	RK817_RTC_YEARS		0x05
+#define	RK817_RTC_WEEKS		0x06
+#define	 RK817_RTC_WEEKS_MASK	0x07
+#define	RK817_ALARM_SECONDS	0x7
+#define	RK817_ALARM_MINUTES	0x8
+#define	RK817_ALARM_HOURS	0x9
+#define	RK817_ALARM_DAYS	0xA
+#define	RK817_ALARM_MONTHS	0xB
+#define	RK817_ALARM_YEARS	0xC
+#define	RK817_RTC_CTRL		0x0d
+#define	 RK817_RTC_CTRL_STOP	(1 << 0)
+#define	 RK817_RTC_AMPM_MODE	(1 << 3)
+#define	 RK817_RTC_GET_TIME	(1 << 6)
+#define	 RK817_RTC_READSEL	(1 << 7)
+#define	RK817_RTC_STATUS	0x0e
+#define	RK817_RTC_INT		0x0f
+#define	RK817_RTC_COMP_LSB	0x10
+#define	RK817_RTC_COMP_MSB	0x11
+
+#define	RK817_DCDC_EN		0xb1
+#define	RK817_LDO_EN1		0xb2
+#define	RK817_LDO_EN2		0xb3
+#define	RK817_LDO_EN3		0xb4
+#define	RK817_DCDC1_ON_VSEL	0xbb
+#define	RK817_DCDC2_ON_VSEL	0xbe
+#define	RK817_DCDC3_ON_VSEL	0xc1
+#define	RK817_DCDC4_ON_VSEL	0xc4
+#define	RK817_LDO1_ON_VSEL	0xcc
+#define	RK817_LDO2_ON_VSEL	0xce
+#define	RK817_LDO3_ON_VSEL	0xd0
+#define	RK817_LDO4_ON_VSEL	0xd2
+#define	RK817_LDO5_ON_VSEL	0xd4
+#define	RK817_LDO6_ON_VSEL	0xd6
+#define	RK817_LDO7_ON_VSEL	0xd8
+#define	RK817_LDO8_ON_VSEL	0xda
+#define	RK817_LDO9_ON_VSEL	0xdc
+#define	RK817_BOOST_ON_VSEL	0xde
+#define	RK817_SYS_CFG3		0xf4
+#define	 RK817_SYS_CFG3_OFF	(1 << 0)
+#define	 RK817_SYS_CFG3_SLP	(1 << 1)
+#define	 RK817_SYS_CFG3_RST	(1 << 2)
+
+enum rk809_regulator {
+	RK809_DCDC1 = 0,
+	RK809_DCDC2,
+	RK809_DCDC3,
+	RK809_DCDC4,
+	RK809_DCDC5,
+	RK809_LDO1,
+	RK809_LDO2,
+	RK809_LDO3,
+	RK809_LDO4,
+	RK809_LDO5,
+	RK809_LDO6,
+	RK809_LDO7,
+	RK809_LDO8,
+	RK809_LDO9,
+	RK809_SWITCH1,
+	RK809_SWITCH2,
+};
+
+enum rk817_regulator {
+	RK817_DCDC1 = 0,
+	RK817_DCDC2,
+	RK817_DCDC3,
+	RK817_DCDC4,
+	RK817_LDO1,
+	RK817_LDO2,
+	RK817_LDO3,
+	RK817_LDO4,
+	RK817_LDO5,
+	RK817_LDO6,
+	RK817_LDO7,
+	RK817_LDO8,
+	RK817_LDO9,
+	RK817_BOOST,
+	RK817_OTG_SWITCH,
+};
+#endif /* _RK817REG_H_ */

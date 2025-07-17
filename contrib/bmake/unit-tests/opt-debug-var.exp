@@ -1,0 +1,13 @@
+Global: ASSIGNED = value
+Global: SUBST = # (empty)
+Global: SUBST = value
+Var_Parse: y(ASSIGNED) (eval)
+Var_Parse: $U (eval-defined-loud)
+make: opt-debug-var.mk:34: Variable "U" is undefined
+Var_Parse: $< (eval-defined-loud)
+make: opt-debug-var.mk:40: Variable "<" is undefined
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

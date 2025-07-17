@@ -1,0 +1,115 @@
+.\"***************************************************************************
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2002-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_ins_wch.3x,v 1.30 2024/04/20 19:18:18 tom Exp $
+.TH curs_ins_wch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fB\%ins_wch\fP,
+\fB\%mvins_wch\fP,
+\fB\%mvwins_wch\fP,
+\fB\%wins_wch\fP \-
+insert a \fIcurses\fR complex character in a window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fP
+.PP
+\fBint ins_wch(const cchar_t *\fIwch\fP);
+\fBint wins_wch(WINDOW *\fIwin\fP, const cchar_t *\fIwch\fP);
+\fBint mvins_wch(int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fP);
+\fBint mvwins_wch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fP);
+.fi
+.SH DESCRIPTION
+These functions insert the
+.I curses
+complex character
+.I wch
+at the cursor in the specified window
+.I win
+(or
+.BR \%stdscr ).
+The character previously at the cursor and any to its right move one
+cell to the right;
+the rightmost character on the line is discarded.
+The cursor does not advance.
+.SH "RETURN VALUE"
+These functions return \fBOK\fP on success and \fBERR\fP on failure.
+.PP
+Functions taking a
+.I \%WINDOW
+pointer argument fail if the pointer is
+.BR NULL .
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+A terminal's
+.B \%insert_character
+.RB ( ich1 )
+capability
+is not necessarily employed.
+.PP
+\fB\%ins_wch\fP,
+\fB\%mvins_wch\fP,
+and
+\fB\%mvwins_wch\fP
+may be implemented as macros.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+.PP
+SVr4 describes successful return values only as
+\*(``an integer value other than \fBERR\fP\*(''.
+.SH HISTORY
+SVr4 (1989) implemented these functions under the names
+.BR inswch ,
+.BR winswch ,
+.BR mvinswch ,
+and
+.BR mvwinswch .
+.SH "SEE ALSO"
+\fB\%curs_insch\fP(3X) describes comparable functions in the
+non-wide-character
+.I curses
+configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

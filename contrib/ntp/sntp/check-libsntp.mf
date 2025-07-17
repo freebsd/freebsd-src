@@ -1,0 +1,9 @@
+##
+## check-libsntp.mf - automake fragment
+##
+
+BUILT_SOURCES	+= check-libsntp
+
+.PHONY: check-libsntp
+check-libsntp:
+	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) libsntp.a

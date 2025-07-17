@@ -1,0 +1,590 @@
+.\" Copyright (c) 2021 ARM Ltd.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 19, 2021
+.Dt PMC.CMN-600 3
+.Os
+.Sh NAME
+.Nm pmc.cmn-600
+.Nd Library for accessing the Arm CoreLink CMN-600 Coherent Mesh Network
+Controller performance counter events
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+CMN-600 PMU counters may be configured to count any one of a defined set of
+hardware events.
+Unlike other performance counters, counters for the CMN-600 require the
+node ID to set up.
+.Pp
+Node ID information currently can be obtained one of two ways.
+Using bootverbose, for example set sysctl debug.bootverbose=1 and then load the
+.Xr hwpmc 4
+KLD module.
+The cmn600 module will be loaded automatically as a dependency:
+.Dl $ sysctl debug.bootverbose=1
+.Dl $ kldload hwpmc
+Another way is to use sysctl to trigger
+dump of nodes tree to system console:
+.Dl $ sysctl dev.cmn600.0.dump_nodes=1
+.Pp
+Some BIOS versions of dual-socket machines have no NUMA domain information in
+ACPI.
+In such cases, to get more accurate events statistics, set the kernel
+environment variable hint.cmn600.{unit}.domain={value}.
+Where {unit} is a cmn600 device unit number and {value} is the NUMA domain of
+the CPU package containing that CMN-600 controller.
+Example:
+.Dl $ kenv hint.cmn600.0.domain=0
+.Dl $ kenv hint.cmn600.1.domain=1
+.Dl $ kldunload hwpmc cmn600
+.Dl $ kldload hwpmc
+.Pp
+Arm CoreLink CMN-600 Coherent Mesh Network Controller performance counters are
+documented in
+.Rs
+.%B "Arm CoreLink CMN-600 Coherent Mesh Network Technical Reference Manual"
+.%T "Revision: r3p2"
+.%D 2020
+.%Q "ARM Limited"
+.Re
+.Ss PMC Capabilities
+CMN-600 PMU counters support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Sy Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta \&No
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta \&No
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta \&No
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for these PMCs support the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li nodeid= Ns Ar nodeid
+Request counting for specific event at node
+.Ar nodeid .
+.It Li occupancy= Ns Ar value
+Filtering by occupancy type.
+.It Li xpport= Ns Ar port
+Count only events matched by
+.Ar port .
+(East, West, North, South, devport0, devport1 or numeric 0 to 5)
+.It Li xpchannel= Ns Ar channel
+Filter events by XP node channel.
+(REQ, RSP, SNP, DAT or 0, 1, 2, 3)
+.El
+.Ss Class Name Prefix
+These PMCs are named using a class name prefix of
+.Dq Li CMN600_PMU_ .
+.Ss Event Specifiers
+The following list of PMC events are available:
+.Ss DVM node events
+.Bl -tag -width indent
+.It Sy dn_rxreq_dvmop
+Number of DVMOP requests received.
+This includes all the sub-types include TLB invalidate, Branch predictor
+invalidate, instruction cache (physical and virtual) invalidate.
+.It Sy dn_rxreq_dvmsync
+Number of DVM Sync requests received.
+.It Sy dn_rxreq_dvmop_vmid_filtered
+Number of incoming DVMOP requests that are subject to VMID based filtering.
+This is a measure of the effectiveness of VMID based filtering and potential
+reduction in DVM snoops.
+.It Sy dn_rxreq_retried
+Number of incoming requests that are retried.
+This is a measure of the retry rate.
+.It Sy dn_rxreq_trk_occupancy
+Counts the tracker occupancy in DN. "occupancy": All, dvmop, dvmsync
+.It Sy dn_rxreq_tlbi_dvmop
+Number of DVMOP TLB invalidate requests received.
+.It Sy dn_rxreq_bpi_dvmop
+Number of DVMOP Branch predictor invalidate requests received.
+.It Sy dn_rxreq_pici_dvmop
+Number of DVMOP physical instruction cache invalidate requests received.
+.It Sy dn_rxreq_vivi_dvmop
+Number of DVMOP virtual instruction cache invalidate requests received.
+.It Sy dn_rxreq_dvmop_other_filtered
+Number of DVM op requests to RNDs, BPI or PICI/VICI, that were filtered
+.It Sy dn_rxreq_snp_sent
+Number of SNPs sent to RNs
+.It Sy dn_rxreq_snp_stalled
+Number of SNPs stalled to RNs due to lack of Crds
+.It Sy dn_rxreq_trk_full
+DVM tracker full counter
+.El
+.Ss HN-F node events
+.Bl -tag -width indent
+.It Sy hnf_cache_miss
+Counts total cache misses in first lookup result (high priority)
+.It Sy hnf_slc_sf_cache_access
+Counts number of cache accesses in first access (high priority)
+.It Sy hnf_cache_fill
+Counts total allocations in HN SLC (all cache line allocations to SLC)
+.It Sy hnf_pocq_retry
+Counts number of retried requests
+.It Sy hnf_pocq_reqs_recvd
+Counts number of requests received by HN
+.It Sy hnf_sf_hit
+Counts number of SF hits
+.It Sy hnf_sf_evictions
+Counts number of SF eviction cache invalidations initiated
+.It Sy hnf_dir_snoops_sent
+Counts number of directed snoops sent (not including SF back invalidation)
+.It Sy hnf_brd_snoops_sent
+Counts number of multicast snoops sent (not including SF back invalidation)
+.It Sy hnf_slc_eviction
+Counts number of SLC evictions (dirty only)
+.It Sy hnf_slc_fill_invalid_way
+Counts number of SLC fills to an invalid way
+.It Sy hnf_mc_retries
+Counts number of retried transactions by the MC
+.It Sy hnf_mc_reqs
+Counts number of requests sent to MC
+.It Sy hnf_qos_hh_retry
+Counts number of times a HighHigh priority request is protocol-retried at the
+HN-F
+.It Sy hnf_qos_pocq
+Counts the POCQ occupancy in HN-F.
+Support argument "occupancy". Accept: All, Read, Write, Atomic, Stash.
+Default: All.
+.It Sy hnf_pocq_addrhaz
+Counts number of POCQ address hazards upon allocation
+.It Sy hnf_pocq_atomic_addrhaz
+Counts number of POCQ address hazards upon allocation for atomic operations
+.It Sy hnf_ld_st_swp_adq_full
+Counts number of times ADQ is full for Ld/St/SWP type atomic operations while
+POCQ has pending operations
+.It Sy hnf_cmp_adq_full
+Counts number of times ADQ is full for CMP type atomic operations while POCQ
+has pending operations
+.It Sy hnf_txdat_stall
+Counts number of times HN-F has a pending TXDAT flit but no credits to upload
+.It Sy hnf_txrsp_stall
+Counts number of times HN-F has a pending TXRSP flit but no credits to upload
+.It Sy hnf_seq_full
+Counts number of times requests are replayed in SLC pipe due to SEQ being full
+.It Sy hnf_seq_hit
+Counts number of times a request in SLC hit a pending SF eviction in SEQ
+.It Sy hnf_snp_sent
+Counts number of snoops sent including directed, multicast, and SF back
+invalidation
+.It Sy hnf_sfbi_dir_snp_sent
+Counts number of times directed snoops were sent due to SF back invalidation
+.It Sy hnf_sfbi_brd_snp_sent
+Counts number of times multicast snoops were sent due to SF back invalidation
+.It Sy hnf_snp_sent_untrk
+Counts number of times snooped were sent due to untracked RNF's
+.It Sy hnf_intv_dirty
+Counts number of times SF back invalidation resulted in dirty line intervention
+from the RN
+.It Sy hnf_stash_snp_sent
+Counts number of times stash snoops were sent
+.It Sy hnf_stash_data_pull
+Counts number of times stash snoops resulted in data pull from the RN
+.It Sy hnf_snp_fwded
+Counts number of times data forward snoops were sent
+.El
+.Ss HN-I node events
+.Bl -tag -width indent
+.It Sy hni_rrt_rd_occ_cnt_ovfl
+RRT read occupancy count overflow
+.It Sy hni_rrt_wr_occ_cnt_ovfl
+RRT write occupancy count overflow
+.It Sy hni_rdt_rd_occ_cnt_ovfl
+RDT read occupancy count overflow
+.It Sy hni_rdt_wr_occ_cnt_ovfl
+RDT write occupancy count overflow
+.It Sy hni_wdb_occ_cnt_ovfl
+WDB occupancy count overflow
+.It Sy hni_rrt_rd_alloc
+RRT read allocation
+.It Sy hni_rrt_wr_alloc
+RRT write allocation
+.It Sy hni_rdt_rd_alloc
+RDT read allocation
+.It Sy hni_rdt_wr_alloc
+RDT write allocation
+.It Sy hni_wdb_alloc
+WDB allocation
+.It Sy hni_txrsp_retryack
+RETRYACK TXRSP flit sent
+.It Sy hni_arvalid_no_arready
+ARVALID set without ARREADY event
+.It Sy hni_arready_no_arvalid
+ARREADY set without ARVALID event
+.It Sy hni_awvalid_no_awready
+AWVALID set without AWREADY event
+.It Sy hni_awready_no_awvalid
+AWREADY set without AWVALID event
+.It Sy hni_wvalid_no_wready
+WVALID set without WREADY event
+.It Sy hni_txdat_stall
+TXDAT stall (TXDAT valid but no link credit available)
+.It Sy hni_nonpcie_serialization
+Non-PCIe serialization event
+.It Sy hni_pcie_serialization
+PCIe serialization event
+.El
+.Ss XP node events
+.Bl -tag -width indent
+.It Sy xp_txflit_valid
+Number of flits transmitted on a specified port and CHI channel.
+This is a measure of the flit transfer bandwidth from an XP.
+Note: On device ports, this event also includes link flit transfers.
+.It Sy xp_txflit_stall
+Number of cycles when a flit is stalled at an XP waiting for link credits at a
+specified port and CHI channel.
+This is a measure of the flit traffic congestion on the mesh and at the flit
+download ports.
+.It Sy xp_partial_dat_flit
+Number of times when a partial DAT flit is uploaded onto the mesh from a
+RN-F_CHIA port.
+Partial DAT flit transmission occurs when XP is not able to combine two 128b
+DAT flits and send them over the 256b DAT channel.
+This can happen under 2 circumstances:
+1. Only one 128b DAT flit is received within a transmission time window.
+2. Two 128b DAT flits are received but they are not two halves of a
+   single 256b word.
+.El
+.Ss SBSX node events
+.Bl -tag -width indent
+.It Sy sbsx_rd_req
+Read request
+.It Sy sbsx_wr_req
+Write request
+.It Sy sbsx_cmo_req
+CMO request
+.It Sy sbsx_txrsp_retryack
+RETRYACK TXRSP flit sent
+.It Sy sbsx_txdat_flitv
+TXDAT flit seen
+.It Sy sbsx_txrsp_flitv
+TXRSP flit seen
+.It Sy sbsx_rd_req_trkr_occ_cnt_ovfl
+Read request tracker occupancy count overflow
+.It Sy sbsx_wr_req_trkr_occ_cnt_ovfl
+Write request tracker occupancy count overflow
+.It Sy sbsx_cmo_req_trkr_occ_cnt_ovfl
+CMO request tracker occupancy count overflow
+.It Sy sbsx_wdb_occ_cnt_ovfl
+WDB occupancy count overflow
+.It Sy sbsx_rd_axi_trkr_occ_cnt_ovfl
+Read AXI pending tracker occupancy count overflow
+.It Sy sbsx_cmo_axi_trkr_occ_cnt_ovfl
+CMO AXI pending tracker occupancy count overflow
+.It Sy sbsx_arvalid_no_arready
+ARVALID set without ARREADY
+.It Sy sbsx_awvalid_no_awready
+AWVALID set without AWREADY
+.It Sy sbsx_wvalid_no_wready
+WVALID set without WREADY
+.It Sy sbsx_txdat_stall
+TXDAT stall (TXDAT valid but no link credit available)
+.It Sy sbsx_txrsp_stall
+TXRSP stall (TXRSP valid but no link credit available)
+.El
+.Ss RN-D node events
+.Bl -tag -width indent
+.It Sy rnd_s0_rdata_beats
+Number of RData beats, RVALID and RREADY, dispatched on port 0.
+This is a measure of the read bandwidth, including CMO responses.
+.It Sy rnd_s1_rdata_beats
+Number of RData beats, RVALID and RREADY, dispatched on port 1.
+This is a measure of the read bandwidth, including CMO responses.
+.It Sy rnd_s2_rdata_beats
+Number of RData beats, RVALID and RREADY, dispatched on port 2.
+This is a measure of the read bandwidth, including CMO responses.
+.It Sy rnd_rxdat_flits
+Number of RXDAT flits received.
+This is a measure of the true read data bandwidth, excluding CMOs.
+.It Sy rnd_txdat_flits
+Number of TXDAT flits dispatched.
+This is a measure of the write bandwidth.
+.It Sy rnd_txreq_flits_total
+Number of TXREQ flits dispatched.
+This is a measure of the total request
+bandwidth.
+.It Sy rnd_txreq_flits_retried
+Number of retried TXREQ flits dispatched.
+This is a measure of the retry rate.
+.It Sy rnd_rrt_occ_ovfl
+All entries in the read request tracker are occupied.
+This is a measure of oversubscription in the read request tracker.
+.It Sy rnd_wrt_occ_ovfl
+All entries in the write request tracker are occupied.
+This is a measure of oversubscription in the write request tracker.
+.It Sy rnd_txreq_flits_replayed
+Number of replayed TXREQ flits.
+This is the measure of replay rate.
+.It Sy rnd_wrcancel_sent
+Number of write data cancels sent.
+This is the measure of write cancel rate.
+.It Sy rnd_s0_wdata_beats
+Number of WData beats, WVALID and WREADY, dispatched on port 0.
+This is a measure of write bandwidth on AXI port 0.
+.It Sy rnd_s1_wdata_beats
+Number of WData beats, WVALID and WREADY, dispatched on port 1.
+This is a measure of write bandwidth on AXI port 1.
+.It Sy rnd_s2_wdata_beats
+Number of WData beats, WVALID and WREADY, dispatched on port 2.
+This is a measure of write bandwidth on AXI port 2.
+.It Sy rnd_rrt_alloc
+Number of allocations in the read request tracker.
+This is a measure of read transaction count.
+.It Sy rnd_wrt_alloc
+Number of allocations in the write request tracker.
+This is a measure of write transaction count.
+.It Sy rnd_rdb_unord
+Number of cycles for which Read Data Buffer state machine is in Unordered Mode.
+.It Sy rnd_rdb_replay
+Number of cycles for which Read Data Buffer state machine is in Replay mode
+.It Sy rnd_rdb_hybrid
+Number of cycles for which Read Data Buffer state machine is in hybrid mode.
+Hybrid mode is where there is mix of ordered/unordered traffic.
+.It Sy rnd_rdb_ord
+Number of cycles for which Read Data Buffer state machine is in ordered Mode.
+.El
+.Ss RN-I node events
+.Bl -tag -width indent
+.It Sy rni_s0_rdata_beats
+Number of RData beats, RVALID and RREADY, dispatched on port 0.
+This is a measure of the read bandwidth, including CMO responses.
+.It Sy rni_s1_rdata_beats
+Number of RData beats, RVALID and RREADY, dispatched on port 1.
+This is a measure of the read bandwidth, including CMO responses.
+.It Sy rni_s2_rdata_beats
+Number of RData beats, RVALID and RREADY, dispatched on port 2.
+This is a measure of the read bandwidth, including CMO responses.
+.It Sy rni_rxdat_flits
+Number of RXDAT flits received.
+This is a measure of the true read data bandwidth, excluding CMOs.
+.It Sy rni_txdat_flits
+Number of TXDAT flits dispatched.
+This is a measure of the write bandwidth.
+.It Sy rni_txreq_flits_total
+Number of TXREQ flits dispatched.
+This is a measure of the total request bandwidth.
+.It Sy rni_txreq_flits_retried
+Number of retried TXREQ flits dispatched.
+This is a measure of the retry rate.
+.It Sy rni_rrt_occ_ovfl
+All entries in the read request tracker are occupied.
+This is a measure of oversubscription in the read request tracker.
+.It Sy rni_wrt_occ_ovfl
+All entries in the write request tracker are occupied.
+This is a measure of oversubscription in the write request tracker.
+.It Sy rni_txreq_flits_replayed
+Number of replayed TXREQ flits.
+This is the measure of replay rate.
+.It Sy rni_wrcancel_sent
+Number of write data cancels sent.
+This is the measure of write cancel rate
+.It Sy rni_s0_wdata_beats
+Number of WData beats, WVALID and WREADY, dispatched on port 0.
+This is a measure of write bandwidth on AXI port 0.
+.It Sy rni_s1_wdata_beats
+Number of WData beats, WVALID and WREADY, dispatched on port 1.
+This is a measure of write bandwidth on AXI port 1.
+.It Sy rni_s2_wdata_beats
+Number of WData beats, WVALID and WREADY, dispatched on port 2.
+This is a measure of write bandwidth on AXI port 2.
+.It Sy rni_rrt_alloc
+Number of allocations in the read request tracker.
+This is a measure of read transaction count.
+.It Sy rni_wrt_alloc
+Number of allocations in the write request tracker.
+This is a measure of write transaction count
+.It Sy rni_rdb_unord
+Number of cycles for which Read Data Buffer state machine is in Unordered Mode.
+.It Sy rni_rdb_replay
+Number of cycles for which Read Data Buffer state machine is in Replay mode
+.It Sy rni_rdb_hybrid
+Number of cycles for which Read Data Buffer state machine is in hybrid mode.
+Hybrid mode is where there is mix of ordered/unordered traffic.
+.It Sy rni_rdb_ord
+Number of cycles for which Read Data Buffer state machine is in ordered Mode.
+.El
+.Ss CXHA node events
+.Pq Note: CXHA events descriptions are guessed
+.Bl -tag -width indent
+.It Sy cxha_rddatbyp
+Number of Read DAT Bypass
+.It Sy cxha_chirsp_up_stall
+Number of CHI RSP up Stall
+.It Sy cxha_chidat_up_stall
+Number of CHI DAT up Stall
+.It Sy cxha_snppcrd_lnk0_stall
+Number of Snoop Pcrd Stall on Link 0
+.It Sy cxha_snppcrd_lnk1_stall
+Number of Snoop Pcrd Stall on Link 1
+.It Sy cxha_snppcrd_lnk2_stall
+Number of Snoop Pcrd Stall on Link 2
+.It Sy cxha_reqtrk_occ
+Request Tracker Occupancy
+.It Sy cxha_rdb_occ
+Read Data Buffer Occupancy
+.It Sy cxha_rdbbyp_occ
+Read Data Buffer Bypass Occupancy
+.It Sy cxha_wdb_occ
+Write Data Buffer Occupancy
+.It Sy cxha_snptrk_occ
+Snoop Tracker Occupancy
+.It Sy cxha_sdb_occ
+SDB Occupancy
+.It Sy cxha_snphaz_occ
+Snoop Hazard Occupancy
+.El
+.Ss CXRA node events
+.Bl -tag -width indent
+.It Sy cxra_req_trk_occ
+Request tracker occupancy
+.It Sy cxra_snp_trk_occ
+Snoop tracker occupancy
+.It Sy cxra_rd_dat_buf_occ
+Read data buffer occupancy
+.It Sy cxra_wr_dat_buf_occ
+Write data buffer occupancy
+.It Sy cxra_snp_sink_buf_occ
+Snoop sink buffer occupancy
+.It Sy cxra_snp_bcasts
+Snoop broadcasts
+.It Sy cxra_req_chains
+Number of request chains formed larger than one
+.It Sy cxra_req_chain_avg_len
+Average size of request chains, only for chain sizes larger than one
+.It Sy cxra_chi_rsp_upload_stalls
+Local RA upload stalls to CHI because of contention with HA
+.It Sy cxra_chi_dat_upload_stalls
+Local RA upload stalls to CHI because of contention with HA
+.It Sy cxra_dat_pcrd_stalls_lnk0
+Memory Data Request available, but no DAT Pcrd to send over CCIX per LinkEnd 0
+.It Sy cxra_dat_pcrd_stalls_lnk1
+Memory Data Request available, but no DAT Pcrd to send over CCIX per LinkEnd 1
+.It Sy cxra_dat_pcrd_stalls_lnk2
+Memory Data Request available, but no DAT Pcrd to send over CCIX per LinkEnd 2
+.It Sy cxra_req_pcrd_stalls_lnk0
+Memory Data Request available but no Req Pcrd to send over CCIX per LinkEnd 0
+.It Sy cxra_req_pcrd_stalls_lnk1
+Memory Data Request available but no Req Pcrd to send over CCIX per LinkEnd 1
+.It Sy cxra_req_pcrd_stalls_lnk2
+Memory Data Request available but no Req Pcrd to send over CCIX per LinkEnd 2
+.It Sy cxra_ext_rsp_stall
+CHI external RSP stall
+.It Sy cxra_ext_dat_stall
+CHI external DAT stall
+.El
+.Ss CXLA node events
+.Bl -tag -width indent
+.It Sy cxla_rx_tlp_link0
+RX TLP for Link 0
+.It Sy cxla_rx_tlp_link1
+RX TLP for Link 1
+.It Sy cxla_rx_tlp_link2
+RX TLP for Link 2
+.It Sy cxla_tx_tlp_link0
+TX TLP for Link 0
+.It Sy cxla_tx_tlp_link1
+TX TLP for Link 1
+.It Sy cxla_tx_tlp_link2
+TX TLP for Link 2
+.It Sy cxla_rx_cxs_link0
+RX CXS for Link 0
+.It Sy cxla_rx_cxs_link1
+RX CXS for Link 1
+.It Sy cxla_rx_cxs_link2
+RX CXS for Link 2
+.It Sy cxla_tx_cxs_link0
+TX CXS for Link 0
+.It Sy cxla_tx_cxs_link1
+TX CXS for Link 1
+.It Sy cxla_tx_cxs_link2
+TX CXS for Link 2
+.It Sy cxla_avg_rx_tlp_sz_dws
+Average RX TLP size in DWs
+.It Sy cxla_avg_tx_tlp_sz_dws
+Average TX TLP size in DWs
+.It Sy cxla_avg_rx_tlp_sz_ccix_msg
+Average RX TLP size in CCIX messages
+.It Sy cxla_avg_tx_tlp_sz_ccix_msg
+Average TX TLP size in CCIX messages
+.It Sy cxla_avg_sz_rx_cxs_dw_beat
+Average size of RX CXS in DWs within a beat
+.It Sy cxla_avg_sz_tx_cxs_dw_beat
+Average size of TX CXS in DWs within a beat
+.It Sy cxla_tx_cxs_link_credit_backpressure
+TX CXS link credit backpressure
+.It Sy cxla_rx_tlp_buffer_full
+RX TLP buffer full and backpressured
+.It Sy cxla_tx_tlp_buffer_full
+TX TLP buffer full and backpressured
+.It Sy cxla_avg_latency_process_rx_tlp
+Average latency to process an RX TLP
+.It Sy cxla_avg_latency_form_tx_tlp
+Average latency to form a TX TLP
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.amd 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.corei7 3 ,
+.Xr pmc.corei7uc 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc.westmere 3 ,
+.Xr pmc.westmereuc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.br
+The
+.Nm pmc.cmn-600
+driver was added in
+.Fx 14.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org ,
+.An Oleksandr Rybalko Aq Mt ray@FreeBSD.org .
+.br
+The CMN-600 PMU driver was sponsored by ARM Ltd.
+This manual page was written by
+.An Oleksandr Rybalko Aq Mt ray@FreeBSD.org .

@@ -1,0 +1,9 @@
+FROM gcc:latest
+WORKDIR /usr/src/unbound
+# install semantic parser & lexical analyzer
+# install packages used in tests
+RUN apt-get update && apt-get install -y bison flex ldnsutils dnsutils xxd splint doxygen netcat-openbsd
+# accept short rsa keys, which are used in tests
+RUN sed -i 's/SECLEVEL=2/SECLEVEL=1/g' /usr/lib/ssl/openssl.cnf
+
+CMD ["/bin/bash"]

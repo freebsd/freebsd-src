@@ -1,0 +1,9 @@
+dependency 1
+*** Error code 1 (continuing)
+other 1
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1

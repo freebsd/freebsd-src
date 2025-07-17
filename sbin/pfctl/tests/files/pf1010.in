@@ -1,0 +1,2 @@
+pass inet proto icmp icmp-type {unreach}
+pass in route-to (if0 127.0.0.1/8) sticky-address inet

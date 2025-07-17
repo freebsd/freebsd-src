@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: ypset
+# REQUIRE: ypbind
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ypset"
+desc="tell ypbind(8) which YP server process to use"
+rcvar="nis_ypset_enable"
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+ypset_svcj="NO"
+
+command="/usr/sbin/${name}"
+command_args="${nis_ypset_flags}"
+
+start_precmd="ypset_precmd"
+
+ypset_precmd()
+{
+	local _domain
+
+	force_depend rpcbind || return 1
+	force_depend ypbind nis_client || return 1
+
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

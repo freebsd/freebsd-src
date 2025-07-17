@@ -1,0 +1,129 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_termattrs.3x,v 1.41 2024/04/20 21:20:07 tom Exp $
+.TH curs_termattrs 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.SH NAME
+\fB\%baudrate\fP,
+\fB\%erasechar\fP,
+\fB\%erasewchar\fP,
+\fB\%has_ic\fP,
+\fB\%has_il\fP,
+\fB\%killchar\fP,
+\fB\%killwchar\fP,
+\fB\%longname\fP,
+\fB\%term_attrs\fP,
+\fB\%termattrs\fP,
+\fB\%termname\fP \-
+\fIcurses\fR environment query routines
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint baudrate(void);
+\fBchar erasechar(void);
+\fBint erasewchar(wchar_t *\fIwc\fP);
+\fBbool has_ic(void);
+\fBbool has_il(void);
+\fBchar killchar(void);
+\fBint killwchar(wchar_t *\fIwc\fP);
+\fBchar *longname(void);
+\fBattr_t term_attrs(void);
+\fBchtype termattrs(void);
+\fBchar *termname(void);
+.fi
+.SH DESCRIPTION
+.SS baudrate
+The \fBbaudrate\fP routine returns the output speed of the terminal.
+The
+number returned is in bits per second, for example \fB9600\fP, and is an
+integer.
+.SS "erasechar, erasewchar"
+The \fBerasechar\fP routine returns the user's current erase character.
+.PP
+The \fBerasewchar\fP routine stores the current erase character
+in the location referenced by \fIwc\fP.
+If no erase character has been defined, the routine fails
+and the location referenced by \fIwc\fP is not changed.
+.SS "has_ic, has_il"
+The \fBhas_ic\fP routine is true if the terminal has insert- and delete-
+character capabilities.
+.PP
+The \fBhas_il\fP routine is true if the terminal has insert- and delete-line
+capabilities, or can simulate them using scrolling regions.
+This might
+be used to determine if it would be appropriate to turn on physical
+scrolling using \fBscrollok\fP(3X).
+.SS "killchar, killwchar"
+The \fBkillchar\fP routine returns the user's current line kill character.
+.PP
+The \fBkillwchar\fP routine stores the current line-kill character
+in the location referenced by \fIwc\fP.
+If no line-kill character has been defined,
+the routine fails and the location referenced by \fIwc\fP is not changed.
+.SS longname
+The \fBlongname\fP routine returns a pointer to a static area
+containing a verbose description of the current terminal.
+The maximum
+length of a verbose description is 128 characters.
+It is defined only
+after the call to \fBinitscr\fP or \fBnewterm\fP.  The area is
+overwritten by each call to \fBnewterm\fP and is not restored by
+\fBset_term\fP, so the value should be saved between calls to
+\fBnewterm\fP if \fBlongname\fP is going to be used with multiple
+terminals.
+.SS "termattrs, term_attrs"
+If a given terminal does not support a video attribute that an
+application program is trying to use, \fBcurses\fP may substitute a
+different video attribute for it.
+The \fBtermattrs\fP and \fBterm_attrs\fP functions
+return a logical \fBOR\fP of all video attributes supported by the
+terminal using \fBA_\fP and \fBWA_\fP constants respectively.
+This information is useful when a \fBcurses\fP program
+needs complete control over the appearance of the screen.
+.SS termname
+The \fBtermname\fP routine returns the terminal name used by \fBsetupterm\fP.
+.SH RETURN VALUE
+\fBlongname\fP and \fBtermname\fP return \fBNULL\fP on error.
+.PP
+Routines that return an integer return \fBERR\fP upon failure and \fBOK\fP
+(SVr4 only specifies "an integer value other than \fBERR\fP") upon successful
+completion.
+.SH NOTES
+Note that \fBtermattrs\fP may be a macro.
+.SH PORTABILITY
+X/Open Curses, Issue 4 describes these functions.
+It changes the
+return type of \fBtermattrs\fP to the new type \fBattr_t\fP.
+Most versions of curses truncate the result returned by \fBtermname\fP to
+14 characters.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_initscr\fP(3X),
+\fB\%curs_outopts\fP(3X)

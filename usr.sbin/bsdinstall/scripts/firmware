@@ -1,0 +1,137 @@
+#!/bin/sh
+#-
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2024 The FreeBSD Foundation
+#
+# This software was developed by Björn Zeeb
+# under sponsorship from the FreeBSD Foundation.
+#
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/packages/packages.subr
+
+msg_freebsd_firmware_installation="$OSNAME Firmware Installation"
+msg_freebsd_installer="$OSNAME Installer"
+msg_firmware_menu_text="This menu allows you to install firmware packages for your system"
+hline_arrows_space_tab_enter="Use arrows, SPACE, TAB or ENTER"
+hline_ok="Press OK to continue"
+
+dialog_menu_main()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_firmware_menu_text"
+	local hline
+	local check_list=	# Empty; filled below
+	local fwlist _fw
+
+	fwlist=`chroot $BSDINSTALL_CHROOT fwget -q -n`
+	case "${fwlist}" in
+	"")	# No firmware to install
+		# Print a dialog with OK and a 3 line timeout bar.
+		local height width rows msg
+
+		msg="No firmware to install, continuing..."
+		hline="$hline_ok"
+
+		eval f_dialog_checklist_size height width rows \
+			\"\$title\"  \
+			\"\$btitle\" \
+			\"\$msg\" \
+			\"-\"  \
+			\"n\"  \
+			\"-\" \
+			\"\$hline\"
+
+		${DIALOG} --title "${title}" --backtitle "${btitle}" \
+		    --hline "${hline}" \
+		    --nocancel --pause "${msg}" $height $width 5
+		f_dialog_menutag_store -s ""
+		return $DIALOG_OK
+		;;
+	*)
+		local desc status height width rows selected retval
+		hline="$hline_arrows_space_tab_enter"
+
+		for _fw in ${fwlist}; do
+			desc="${_fw}"
+			f_shell_escape "$desc" desc
+			# install each firmware package by default.
+			check_list="$check_list
+				'$_fw' '$desc' 'on'
+			"
+		done
+
+		eval f_dialog_checklist_size height width rows \
+			\"\$title\"  \
+			\"\$btitle\" \
+			\"\$prompt\" \
+			\"\$hline\"  \
+			$check_list
+
+		selected=$( eval $DIALOG		\
+			--title \"\$title\"		\
+			--backtitle \"\$btitle\"	\
+			--separate-output		\
+			--hline \"\$hline\"		\
+			--ok-label \"\$msg_ok\"		\
+			--cancel-label \"\$msg_cancel\"	\
+			--checklist \"\$prompt\"	\
+			$height $width $rows		\
+			$check_list			\
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		retval=$?
+		f_dialog_menutag_store -s "$selected"
+		return $retval
+		;;
+	esac
+}
+
+# Initialize
+f_dialog_title "$msg_freebsd_firmware_installation"
+f_dialog_backtitle "$msg_freebsd_installer"
+
+# Gather the firmware files and present them to the user
+dialog_menu_main || f_die
+f_dialog_menutag_fetch selected
+
+# Nothing to install?
+if [ "${selected}" == "" ]; then
+	exit 0
+fi
+
+f_mustberoot_init
+
+# pkg(8) needs name servers (unless we could use a local repo in the future).
+f_quietly cp -f $BSDINSTALL_TMPETC/resolv.conf $BSDINSTALL_CHROOT/etc/
+
+${DIALOG} --title "$DIALOG_TITLE" --backtitle "$DIALOG_BACKTITLE" \
+	--infobox "Installing firmware. This may take a moment." 0 0
+
+pkg_install_fail=
+# Install each of the selected firmware packages
+for fw in ${selected}; do
+	# We install one at a time in case one is not avail.
+	# pkg-install.8 needs an option to skip unavail.
+	ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -qy ${fw}
+	if [ $? -ne 0 ]; then
+		pkg_install_fail="$pkg_install_fail $fw"
+	fi
+done
+if [ -n "$pkg_install_fail" ]; then
+	# Error(s) were likely spammed to the console; give the user a moment
+	# to read them.
+	sleep 5
+	bsddialog --backtitle "$OSNAME Installer" --title "Error" \
+	    --msgbox "Error fetching firmware file(s)$pkg_install_fail" 0 0
+		exit 1
+fi
+
+# end

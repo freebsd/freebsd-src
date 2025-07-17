@@ -1,0 +1,187 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024-2025 The FreeBSD Foundation
+.\"
+.\" Portions of this software were developed by Christos Margiolis
+.\" <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 5, 2025
+.Dt SNDCTL 8
+.Os
+.Sh NAME
+.Nm sndctl
+.Nd list and modify soundcard properties
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar device
+.Op Fl hov
+.Op Ar control Ns Oo = Ns Ar value Oc Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to set and display sound card properties, using a
+control-driven interface, in order to filter and/or set specific properties.
+.Pp
+The options are as follows:
+.Bl -tag -width "-f device"
+.It Fl f Ar device
+Choose a specific audio device
+.Pq see Sx FILES .
+Userland devices (e.g those registered by
+.Xr virtual_oss 8
+can also be selected.
+.It Fl h
+Print a help message.
+.It Fl o
+Print values in a format suitable for use inside scripts.
+.It Fl v
+Run in verbose mode.
+This option will print all of the device's channel properties.
+.El
+.Pp
+The device controls are as follows:
+.Bl -column xxxxxxxxxxxxxxx xxxxx xxxxxxxx xxxxxxxxxxxxxxxxxxx -offset indent
+.It Sy Name Ta Sy Type Ta Sy Read/Write Ta Sy Action
+.It name Ta String Ta Read Ta Device name
+.It desc Ta String Ta Read Ta Device description
+.It status Ta String Ta Read Ta Device status
+.It devnode Ta String Ta Read Ta Device node
+.It from_user Ta Boolean Ta Read Ta Userland device
+.It unit Ta Number Ta Read Ta Device unit
+.It caps Ta String Ta Read Ta Device OSS capabitilies
+.It bitperfect Ta Boolean Ta Read/Write Ta Bit-perfect mode enabled
+.It autoconv Ta Boolean Ta Read/Write Ta Auto-conversions enabled
+.It realtime Ta Boolean Ta Read/Write Ta Real-time mode enabled
+.It play Ta Group Ta Read Ta Playback properties
+.It play.format Ta String Ta Read/Write Ta Playback format
+.It play.rate Ta Number Ta Read/Write Ta Playback sample rate
+.It play.vchans Ta Boolean Ta Read/Write Ta Playback VCHANs (virtual channels) enabled
+.It play.min_rate Ta Number Ta Read Ta Minimum playback sample rate
+.It play.max_rate Ta Number Ta Read Ta Maximum playback sample rate
+.It play.min_chans Ta Number Ta Read Ta Natively supported minimum playback sample channels
+.It play.max_chans Ta Number Ta Read Ta Natively supported maximum playback sample channels
+.It play.formats Ta String Ta Read Ta Natively supported playback formats
+.It rec Ta Group Ta Read Ta Recording properties
+.It rec.format Ta String Ta Read/Write Ta Recording format
+.It rec.rate Ta Number Ta Read/Write Ta Recording sample rate
+.It rec.vchans Ta Boolean Ta Read/Write Ta Recording VCHANs (virtual channels) enabled
+.It rec.min_rate Ta Number Ta Read Ta Minimum recording sample rate
+.It rec.max_rate Ta Number Ta Read Ta Maximum recording sample rate
+.It rec.min_chans Ta Number Ta Read Ta Natively supported minimum recording sample channels
+.It rec.max_chans Ta Number Ta Read Ta Natively supported maximum recording sample channels
+.It rec.formats Ta String Ta Read Ta Natively supported recording formats
+.El
+.Pp
+The
+.Pa play.format ,
+.Pa play.rate ,
+.Pa rec.format and
+.Pa rec.rate
+controls will be read-only if VCHANs are disabled.
+.Pp
+The device channel controls are as follows:
+.Bl -column xxxxxxxxxxxxxxx xxxxx xxxxxxxx xxxxxxxxxxxxxxxxxxx -offset indent
+.It Sy Name Ta Sy Type Ta Sy Read/Write Ta Sy Action
+.It name Ta String Ta Read Ta Channel name
+.It parentchan Ta String Ta Read Ta Parent (primary) channel name
+.It unit Ta Number Ta Read Ta Channel unit
+.It caps Ta String Ta Read Ta Channel OSS capabilities
+.It latency Ta Number Ta Read Ta Channel latency
+.It format Ta String Ta Read Ta Channel format
+.It rate Ta Number Ta Read Ta Channel sample rate
+.It pid Ta Number Ta Read Ta PID of process consuming channel
+.It proc Ta String Ta Read Ta Name of process consuming channel
+.It interrupts Ta Number Ta Read Ta Number of interrupts since channel was opened
+.It xruns Ta Number Ta Read Ta Number of playback underruns/recoring overruns
+.It feedcount Ta Number Ta Read Ta Number of bytes fed to channel
+.It volume Ta Volume Ta Read Ta Channel left-right volume in normalized form (0.00 to 1.00).
+.It hwbuf Ta Group Ta Read Ta Hardware buffer properties
+.It hwbuf.format Ta String Ta Read Ta Hardware buffer format
+.It hwbuf.rate Ta String Ta Read Ta Hardware buffer sample rate
+.It hwbuf.size_bytes Ta Number Ta Read Ta Hardware buffer size in bytes
+.It hwbuf.size_frames Ta Number Ta Read Ta Hardware buffer size in frames
+.It hwbuf.blksz Ta Number Ta Read Ta Hardware buffer block size
+.It hwbuf.blkcnt Ta Number Ta Read Ta Hardware buffer block count
+.It hwbuf.free Ta Number Ta Read Ta Hardware buffer free space in bytes
+.It hwbuf.ready Ta Number Ta Read Ta Hardware buffer ready space in bytes
+.It swbuf Ta Group Ta Read Ta Software buffer properties
+.It swbuf.format Ta String Ta Read Ta Software buffer format
+.It swbuf.rate Ta String Ta Read Ta Software buffer sample rate
+.It swbuf.size_bytes Ta Number Ta Read Ta Software buffer size in bytes
+.It swbuf.size_frames Ta Number Ta Read Ta Software buffer size in frames
+.It swbuf.blksz Ta Number Ta Read Ta Software buffer block size
+.It swbuf.blkcnt Ta Number Ta Read Ta Software buffer block count
+.It swbuf.free Ta Number Ta Read Ta Software buffer free space in bytes
+.It swbuf.ready Ta Number Ta Read Ta Software buffer ready space in bytes
+.It feederchain Ta String Ta Read Ta Channel feeder chain
+.El
+.Sh FILES
+.Bl -tag -width /dev/dspX -compact
+.It Pa /dev/dsp
+The default audio device.
+.It Pa /dev/dspX
+The audio device file, where X is the unit of the device, for example
+.Ar /dev/dsp0 .
+.El
+.Sh EXAMPLES
+Disable auto-conversions and enable realtime mode to get as low latencies as
+possible:
+.Bd -literal -offset indent
+$ sndctl autoconv=0 realtime=1
+.Ed
+.Pp
+Set the playback sample format to 2-channel signed 24-bit low endian, and sample
+rate to 48000 Hz:
+.Bd -literal -offset indent
+$ sndctl play.format=s24le:2.0 play.rate=48000
+.Ed
+.Pp
+List the PIDs and process names of all channels for
+.Pa /dev/dsp1 :
+.Bd -literal -offset indent
+$ sndctl -f /dev/dsp1 pid proc
+.Ed
+.Pp
+Dump
+.Pa /dev/dsp0
+information to a file and retrieve back later:
+.Bd -literal -offset indent
+$ sndctl -f /dev/dsp0 -o > info
+\&...
+$ sndctl -f /dev/dsp0 `cat info`
+.Ed
+.Sh SEE ALSO
+.Xr sndstat 4 ,
+.Xr sound 4 ,
+.Xr mixer 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+The
+.Nm
+utility was implemented by
+.An Christos Margiolis Aq Mt christos@FreeBSD.org
+under sponsorship from the
+.Fx
+Foundation.

@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2024 The FreeBSD Foundation
+#
+# This software was developed by Cybermancer Infosec <bofh@FreeBSD.org>
+# under sponsorship from the FreeBSD Foundation.
+#
+# CI Makefile for armv7.
+#
+QEMU_ARCH=arm
+QEMU_DEVICES=-device virtio-blk,drive=hd0 -device ahci,id=ahci
+QEMU_EXTRA_PARAM=-bios /usr/local/share/u-boot/u-boot-qemu-arm/u-boot.bin
+QEMU_MAX_CPU_COUNT=1
+QEMU_MAX_MEM_SIZE=3
+
+portinstall-armv7: portinstall-pkg .PHONY
+.if !exists(/usr/local/share/u-boot/u-boot-qemu-arm/u-boot.bin)
+	env ASSUME_ALWAYS_YES=yes pkg install sysutils/u-boot-qemu-arm
+.endif
+
+# NOTE: Nothing should be changed below this line unless explicitly required.
+
+ci-buildworld-armv7: ci-buildworld .PHONY
+
+ci-buildkernel-armv7: ci-buildkernel .PHONY
+
+ci-buildimage-armv7: ci-buildimage .PHONY
+
+ci-runtest-armv7: ci-runtest .PHONY

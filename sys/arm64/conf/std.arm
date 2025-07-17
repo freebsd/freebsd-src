@@ -1,0 +1,23 @@
+#
+# ARM SoC support
+#
+
+# Bus drivers
+device		pci_n1sdp		# ARM Neoverse N1 SDP PCI
+
+# GPIO / PINCTRL
+device		pl061			# Arm PL061 GPIO controller
+
+# RTC
+device		pl031			# Arm PL031 RTC
+
+# Serial (COM) ports
+device		pl011
+
+# Firmware
+device		scmi			# System Control Management Interface
+
+device		arm_doorbell		# ARM Message Handling Unit (MHU)
+
+options 	FDT
+device		acpi

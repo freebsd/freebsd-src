@@ -1,0 +1,259 @@
+mydir=lib$(S)gssapi$(S)krb5
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = -I. -I$(srcdir) -I$(srcdir)/.. -I../generic -I$(srcdir)/../generic -I../mechglue -I$(srcdir)/../mechglue
+DEFINES=-D_GSS_STATIC_LINK=1
+
+#MODULE_INSTALL_DIR = $(GSS_MODULE_DIR)
+#LIBBASE=mech_krb5
+#LIBMAJOR=0
+#LIBMINOR=0
+#LIBINITFUNC=gss_krb5int_init
+#LIBFINIFUNC=gss_krb5int_fini
+#STOBJLISTS=../generic/OBJS.ST OBJS.ST
+#SUBDIROBJLISTS=../generic/OBJS.ST
+#SHLIB_EXPDEPS=$(KRB5_DEPLIB) $(CRYPTO_DEPLIB) $(SUPPORT_DEPLIB) $(COM_ERR_DEPLIB)
+#SHLIB_EXPLIBS=-lkrb5 -lk5crypto $(COM_ERR_LIB) $(SUPPORT_LIB) $(DL_LIB) $(LIBS)
+#RELDIR=gssapi/krb5
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=krb5
+##DOS##OBJFILE = ..\$(OUTPRE)krb5.lst
+
+##DOS##DLL_EXP_TYPE=GSS
+
+ETSRCS= gssapi_err_krb5.c
+ETOBJS= $(OUTPRE)gssapi_err_krb5.$(OBJEXT)
+ETHDRS= gssapi_err_krb5.h
+
+$(OUTPRE)gssapi_err_krb5.$(OBJEXT): gssapi_err_krb5.c
+gssapi_err_krb5.h: gssapi_err_krb5.et
+gssapi_err_krb5.c: gssapi_err_krb5.et
+
+SRCS = \
+	$(srcdir)/accept_sec_context.c \
+	$(srcdir)/acquire_cred.c \
+	$(srcdir)/canon_name.c \
+	$(srcdir)/compare_name.c \
+	$(srcdir)/context_time.c \
+	$(srcdir)/copy_ccache.c \
+	$(srcdir)/cred_store.c \
+	$(srcdir)/delete_sec_context.c \
+	$(srcdir)/disp_name.c \
+	$(srcdir)/disp_status.c \
+	$(srcdir)/duplicate_name.c \
+	$(srcdir)/export_cred.c \
+	$(srcdir)/export_name.c \
+	$(srcdir)/export_sec_context.c \
+	$(srcdir)/get_tkt_flags.c \
+	$(srcdir)/gssapi_krb5.c \
+	$(srcdir)/iakerb.c \
+	$(srcdir)/import_cred.c \
+	$(srcdir)/import_name.c \
+	$(srcdir)/import_sec_context.c \
+	$(srcdir)/indicate_mechs.c \
+	$(srcdir)/init_sec_context.c \
+	$(srcdir)/inq_context.c \
+	$(srcdir)/inq_cred.c \
+	$(srcdir)/inq_names.c \
+	$(srcdir)/k5seal.c \
+	$(srcdir)/k5sealiov.c \
+	$(srcdir)/k5sealv3.c \
+	$(srcdir)/k5sealv3iov.c \
+	$(srcdir)/k5unseal.c \
+	$(srcdir)/k5unsealiov.c \
+	$(srcdir)/krb5_gss_glue.c \
+	$(srcdir)/lucid_context.c \
+	$(srcdir)/naming_exts.c \
+	$(srcdir)/prf.c \
+	$(srcdir)/process_context_token.c \
+	$(srcdir)/rel_cred.c \
+	$(srcdir)/rel_oid.c \
+	$(srcdir)/rel_name.c \
+	$(srcdir)/s4u_gss_glue.c \
+	$(srcdir)/set_allowable_enctypes.c \
+	$(srcdir)/ser_sctx.c \
+	$(srcdir)/set_ccache.c \
+	$(srcdir)/store_cred.c \
+	$(srcdir)/util_cksum.c \
+	$(srcdir)/util_crypt.c \
+	$(srcdir)/util_seed.c \
+	$(srcdir)/util_seqnum.c \
+	$(srcdir)/val_cred.c \
+	$(srcdir)/wrap_size_limit.c 
+
+
+OBJS = \
+	$(OUTPRE)accept_sec_context.$(OBJEXT) \
+	$(OUTPRE)acquire_cred.$(OBJEXT) \
+	$(OUTPRE)canon_name.$(OBJEXT) \
+	$(OUTPRE)compare_name.$(OBJEXT) \
+	$(OUTPRE)context_time.$(OBJEXT) \
+	$(OUTPRE)copy_ccache.$(OBJEXT) \
+	$(OUTPRE)cred_store.$(OBJEXT) \
+	$(OUTPRE)delete_sec_context.$(OBJEXT) \
+	$(OUTPRE)disp_name.$(OBJEXT) \
+	$(OUTPRE)disp_status.$(OBJEXT) \
+	$(OUTPRE)duplicate_name.$(OBJEXT) \
+	$(OUTPRE)export_cred.$(OBJEXT) \
+	$(OUTPRE)export_name.$(OBJEXT) \
+	$(OUTPRE)export_sec_context.$(OBJEXT) \
+	$(OUTPRE)get_tkt_flags.$(OBJEXT) \
+	$(OUTPRE)gssapi_krb5.$(OBJEXT) \
+	$(OUTPRE)iakerb.$(OBJEXT) \
+	$(OUTPRE)import_cred.$(OBJEXT) \
+	$(OUTPRE)import_name.$(OBJEXT) \
+	$(OUTPRE)import_sec_context.$(OBJEXT) \
+	$(OUTPRE)indicate_mechs.$(OBJEXT) \
+	$(OUTPRE)init_sec_context.$(OBJEXT) \
+	$(OUTPRE)inq_context.$(OBJEXT) \
+	$(OUTPRE)inq_cred.$(OBJEXT) \
+	$(OUTPRE)inq_names.$(OBJEXT) \
+	$(OUTPRE)k5seal.$(OBJEXT) \
+	$(OUTPRE)k5sealiov.$(OBJEXT) \
+	$(OUTPRE)k5sealv3.$(OBJEXT) \
+	$(OUTPRE)k5sealv3iov.$(OBJEXT) \
+	$(OUTPRE)k5unseal.$(OBJEXT) \
+	$(OUTPRE)k5unsealiov.$(OBJEXT) \
+	$(OUTPRE)krb5_gss_glue.$(OBJEXT) \
+	$(OUTPRE)lucid_context.$(OBJEXT) \
+	$(OUTPRE)naming_exts.$(OBJEXT) \
+	$(OUTPRE)prf.$(OBJEXT) \
+	$(OUTPRE)process_context_token.$(OBJEXT) \
+	$(OUTPRE)rel_cred.$(OBJEXT) \
+	$(OUTPRE)rel_oid.$(OBJEXT) \
+	$(OUTPRE)rel_name.$(OBJEXT) \
+	$(OUTPRE)s4u_gss_glue.$(OBJEXT) \
+	$(OUTPRE)set_allowable_enctypes.$(OBJEXT) \
+	$(OUTPRE)ser_sctx.$(OBJEXT) \
+	$(OUTPRE)set_ccache.$(OBJEXT) \
+	$(OUTPRE)store_cred.$(OBJEXT) \
+	$(OUTPRE)util_cksum.$(OBJEXT) \
+	$(OUTPRE)util_crypt.$(OBJEXT) \
+	$(OUTPRE)util_seed.$(OBJEXT) \
+	$(OUTPRE)util_seqnum.$(OBJEXT) \
+	$(OUTPRE)val_cred.$(OBJEXT) \
+	$(OUTPRE)wrap_size_limit.$(OBJEXT) \
+	$(OUTPRE)gssapi_err_krb5.$(OBJEXT)
+
+#	k5mech.$(OBJEXT) \
+#	pname_to_uid.$(OBJEXT)
+
+STLIBOBJS = \
+	accept_sec_context.o \
+	acquire_cred.o \
+	canon_name.o \
+	compare_name.o \
+	context_time.o \
+	copy_ccache.o \
+	cred_store.o \
+	delete_sec_context.o \
+	disp_name.o \
+	disp_status.o \
+	duplicate_name.o \
+	export_cred.o \
+	export_name.o \
+	export_sec_context.o \
+	get_tkt_flags.o \
+	gssapi_krb5.o \
+	iakerb.o \
+	import_cred.o \
+	import_name.o \
+	import_sec_context.o \
+	indicate_mechs.o \
+	init_sec_context.o \
+	inq_context.o \
+	inq_cred.o \
+	inq_names.o \
+	k5seal.o \
+	k5sealiov.o \
+	k5sealv3.o \
+	k5sealv3iov.o \
+	k5unseal.o \
+	k5unsealiov.o \
+	krb5_gss_glue.o \
+	lucid_context.o \
+	naming_exts.o \
+	prf.o \
+	process_context_token.o \
+	rel_cred.o \
+	rel_oid.o \
+	rel_name.o \
+	s4u_gss_glue.o \
+	set_allowable_enctypes.o \
+	ser_sctx.o \
+	set_ccache.o \
+	store_cred.o \
+	util_cksum.o \
+	util_crypt.o \
+	util_seed.o \
+	util_seqnum.o \
+	val_cred.o \
+	wrap_size_limit.o \
+	gssapi_err_krb5.o
+
+#	k5mech.o \
+#	pname_to_uid.o
+
+HDRS= $(ETHDRS)
+
+EHDRDIR=$(BUILDTOP)$(S)include$(S)gssapi
+EXPORTED_HEADERS= gssapi_krb5.h
+
+##DOS##LIBOBJS = $(OBJS)
+
+GSSAPI_KRB5_HDR=$(EHDRDIR)$(S)gssapi_krb5.h
+
+all-windows: $(EHDRDIR) $(GSSAPI_KRB5_HDR) $(SRCS) $(HDRS)
+
+##DOS##$(EHDRDIR):
+##DOS##	mkdir $(EHDRDIR)
+
+MK_EHDRDIR=if test -d $(EHDRDIR); then :; else (set -x; mkdir $(EHDRDIR)); fi
+##DOS##MK_EHDRDIR=rem
+
+$(GSSAPI_KRB5_HDR): $(srcdir)$(S)gssapi_krb5.h
+	@$(MK_EHDRDIR)
+	$(CP) $(srcdir)$(S)gssapi_krb5.h "$@"
+
+all-unix: $(SRCS) $(HDRS) $(GSSAPI_KRB5_HDR)
+all-unix: all-libobjs
+
+error_map.h: $(top_srcdir)/util/gen-map.pl \
+		$(top_srcdir)/util/ktemplate.pm Makefile
+	$(PERL) -I$(top_srcdir)/util $(top_srcdir)/util/gen-map.pl \
+		-oerror_map.new \
+		NAME=gsserrmap \
+		KEY=OM_uint32 \
+		VALUE="char *" \
+		COMPARE=compare_OM_uint32 \
+		FREEVALUE=free_string
+	$(RM) $@
+	$(MV) error_map.new $@
+
+clean-unix::
+	$(RM) $(BUILDTOP)/include/gssapi/gssapi_krb5.h
+	-$(RM) error_map.h
+
+clean-unix:: clean-libobjs
+	$(RM) $(ETHDRS) $(ETSRCS)
+
+clean-windows::
+	$(RM) $(EHDRDIR)\gssapi_krb5.h
+	$(RM) error_map.h
+	-if exist $(EHDRDIR)\nul rmdir $(EHDRDIR)
+
+
+generate-files-mac: error_map.h
+
+install-headers-unix install:
+	@set -x; for f in $(EXPORTED_HEADERS) ; \
+	do $(INSTALL_DATA) $(srcdir)/$$f	\
+		$(DESTDIR)$(KRB5_INCDIR)/gssapi/$$f ; \
+	done
+
+depend: $(ETSRCS) $(ETHDRS) $(GSSAPI_KRB5_HDR) error_map.h
+
+install:
+
+@libobj_frag@
+

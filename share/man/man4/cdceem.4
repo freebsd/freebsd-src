@@ -1,0 +1,117 @@
+.\" Copyright (c) 2019 Edward Tomasz Napierala <trasz@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.Dd November 7, 2019
+.Dt CDCEEM 4
+.Os
+.Sh NAME
+.Nm cdceem
+.Nd "USB Communication Device Class Ethernet Emulation Model (CDC EEM) driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device cdceem"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cdceem_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB devices based on the USB Communication
+Device Class Ethernet Emulation Model (CDC EEM) specification.
+.Pp
+The driver works on both host, and device-side; see
+.Xr usb_template 4
+for details.
+.Pp
+The USB device appears as a regular network interface on both sides,
+transporting Ethernet frames.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver does not support different media types or options.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.cdceem.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
+.It Va hw.usb.cdceem.send_echoes
+If set to 1, the driver will send an Echo EEM packet when the
+interface is brought up.
+While responding to Echo is mandatory, some devices cannot handle it.
+Only use for debugging.
+Defaults to 0.
+.It Va hw.usb.cdceem.send_fake_crc
+If set to 1, the driver will use 0xdeadbeef as the CRC value
+for outgoing Data EEM packets.
+Only use for debugging.
+Defaults to 0.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cdce 4 ,
+.Xr intro 4 ,
+.Xr ipheth 4 ,
+.Xr netintro 4 ,
+.Xr urndis 4 ,
+.Xr usb 4 ,
+.Xr usb_template 4 ,
+.Xr ifconfig 8
+.Rs
+.%T "Universal Serial Bus Communications Class Subclass Specification for Ethernet Emulation Model Devices"
+.%U https://usb.org/sites/default/files/CDC_EEM10.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 12.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from Hewlett Packard Enterprise.

@@ -1,0 +1,11 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=@libdir@
+sharedlibdir=@sharedlibdir@
+includedir=@includedir@
+
+Name: libusb-1.0
+Description: Library that abstracts ways to access USB devices (v1.0)
+Version: 1.0.16
+Libs: -L${libdir} -lusb
+Cflags: -I${includedir}

@@ -1,0 +1,84 @@
+/*===- lldb/source/Plugin/Plugins.def ---------------------------*- C++ -*-===*\
+|*                                                                            *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
+|*                                                                            *|
+|*===----------------------------------------------------------------------===*|
+|*                                                                            *|
+|* This file enumerates all of the plugins supported by this build of LLDB.   *|
+|* Clients of this file should define the LLDB_PLUGIN macro to be a           *|
+|* function-like macro with a single parameter (the name of the plugin)       *|
+|* including this file will then enumerate all of the plugins. Script         *|
+|* interpreter plugins can be enumerated separately by defining               *|
+|* LLDB_SCRIPT_PLUGIN in which case they are not part of LLDB_PLUGIN.         *|
+|*                                                                            *|
+|*                                                                            *|
+|* The set of plugins supported by LLDB is generated at configuration         *|
+|* time, at which point this header is generated. Do not modify this          *|
+|* header directly.                                                           *|
+|*                                                                            *|
+\*===----------------------------------------------------------------------===*/
+
+#ifndef LLDB_PLUGIN
+#  error Please define the macro LLDB_PLUGIN(PluginName)
+#endif
+
+#ifndef LLDB_SCRIPT_PLUGIN
+#define LLDB_SCRIPT_PLUGIN(p) LLDB_PLUGIN(p)
+#endif
+
+LLDB_PLUGIN(ABIAArch64)
+LLDB_PLUGIN(ABIARM)
+LLDB_PLUGIN(ABIMips)
+LLDB_PLUGIN(ABIPowerPC)
+LLDB_PLUGIN(ABIRISCV)
+LLDB_PLUGIN(ABIX86)
+LLDB_PLUGIN(ArchitectureArm)
+LLDB_PLUGIN(ArchitectureMips)
+LLDB_PLUGIN(ArchitecturePPC64)
+LLDB_PLUGIN(ArchitectureAArch64)
+LLDB_PLUGIN(DisassemblerLLVMC)
+LLDB_PLUGIN(DynamicLoaderFreeBSDKernel)
+LLDB_PLUGIN(DynamicLoaderPosixDYLD)
+LLDB_PLUGIN(DynamicLoaderStatic)
+LLDB_PLUGIN(InstructionARM)
+LLDB_PLUGIN(InstructionARM64)
+LLDB_PLUGIN(InstructionMIPS)
+LLDB_PLUGIN(InstructionMIPS64)
+LLDB_PLUGIN(InstructionPPC64)
+LLDB_PLUGIN(InstructionRISCV)
+LLDB_PLUGIN(InstrumentationRuntimeASan)
+LLDB_PLUGIN(InstrumentationRuntimeASanLibsanitizers)
+LLDB_PLUGIN(InstrumentationRuntimeMainThreadChecker)
+LLDB_PLUGIN(InstrumentationRuntimeTSan)
+LLDB_PLUGIN(InstrumentationRuntimeUBSan)
+LLDB_PLUGIN(JITLoaderGDB)
+LLDB_PLUGIN(CPlusPlusLanguage)
+LLDB_PLUGIN(CXXItaniumABI)
+LLDB_PLUGIN(MemoryHistoryASan)
+LLDB_PLUGIN(ObjectContainerBSDArchive)
+LLDB_PLUGIN(ObjectFileBreakpad)
+LLDB_PLUGIN(ObjectFileELF)
+LLDB_PLUGIN(PlatformFreeBSD)
+LLDB_PLUGIN(PlatformGDB)
+LLDB_PLUGIN(PlatformQemuUser)
+LLDB_PLUGIN(ScriptedProcess)
+LLDB_PLUGIN(ProcessElfCore)
+LLDB_PLUGIN(ProcessFreeBSDKernel)
+LLDB_SCRIPT_PLUGIN(ScriptInterpreterNone)
+LLDB_SCRIPT_PLUGIN(ScriptInterpreterLua)
+LLDB_PLUGIN(SymbolFileBreakpad)
+LLDB_PLUGIN(SymbolFileDWARF)
+LLDB_PLUGIN(SymbolFileSymtab)
+LLDB_PLUGIN(SymbolLocatorDefault)
+LLDB_PLUGIN(SymbolLocatorDebuginfod)
+LLDB_PLUGIN(SymbolVendorELF)
+LLDB_PLUGIN(TypeSystemClang)
+LLDB_PLUGIN(UnwindAssemblyInstEmulation)
+LLDB_PLUGIN(UnwindAssemblyX86)
+LLDB_PLUGIN(ProcessGDBRemote)
+
+#undef LLDB_PLUGIN
+#undef LLDB_SCRIPT_PLUGIN

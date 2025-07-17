@@ -1,0 +1,36 @@
+# Test try_first_pass with a bad initial AUTHTOK and debug.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = try_first_pass no_ccache debug
+    account = no_ccache debug
+    session = no_ccache debug
+
+[run]
+    authenticate  = PAM_SUCCESS
+    acct_mgmt     = PAM_SUCCESS
+    open_session  = PAM_SUCCESS
+    close_session = PAM_SUCCESS
+
+[prompts]
+    echo_off = Password: |%p
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) attempting authentication as %u
+    DEBUG /^\(user %u\) krb5_get_init_creds_password: /
+    DEBUG (user %u) attempting authentication as %u
+    INFO user %u authenticated as %u
+    DEBUG pam_sm_authenticate: exit (success)
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG pam_sm_acct_mgmt: exit (success)
+    DEBUG pam_sm_open_session: entry
+    DEBUG pam_sm_open_session: exit (success)
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

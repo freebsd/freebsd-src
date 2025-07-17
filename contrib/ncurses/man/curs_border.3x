@@ -1,0 +1,162 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_border.3x,v 1.49 2024/04/20 21:20:07 tom Exp $
+.TH curs_border 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fB\%border\fP,
+\fB\%wborder\fP,
+\fB\%box\fP,
+\fB\%hline\fP,
+\fB\%whline\fP,
+\fB\%vline\fP,
+\fB\%wvline\fP,
+\fB\%mvhline\fP,
+\fB\%mvwhline\fP,
+\fB\%mvvline\fP,
+\fB\%mvwvline\fP \-
+draw borders and lines in a \fIcurses\fR window of characters
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint border(chtype \fIls\fP, chtype \fIrs\fP, chtype \fIts\fP, chtype \fIbs\fP,
+           \fBchtype \fItl\fB, chtype \fItr\fB, chtype \fIbl\fB, chtype \fIbr\fB);\fR
+\fBint wborder(WINDOW *\fIwin\fB, chtype \fIls\fB, chtype \fIrs\fB,\fR
+            \fBchtype \fIts\fB, chtype \fIbs\fB, chtype \fItl\fB, chtype \fItr\fB,\fR
+            \fBchtype \fIbl\fB, chtype \fIbr\fB);\fR
+.PP
+\fBint box(WINDOW *\fIwin\fB, chtype \fIverch\fB, chtype \fIhorch\fB);\fR
+.PP
+\fBint hline(chtype \fIch\fB, int \fIn\fB);\fR
+\fBint whline(WINDOW *\fIwin\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint vline(chtype \fIch\fB, int \fIn\fB);\fR
+\fBint wvline(WINDOW *\fIwin\fB, chtype \fIch\fB, int \fIn\fB);\fR
+.PP
+\fBint mvhline(int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint mvwhline(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint mvvline(int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+\fBint mvwvline(WINDOW *\fIwin\fB, int \fIy\fB, int \fIx\fB, chtype \fIch\fB, int \fIn\fB);\fR
+.fi
+.SH DESCRIPTION
+The \fBborder\fP, \fBwborder\fP and \fBbox\fP routines
+draw a box around the edges of a window.
+Other than the window, each argument is a character with attributes:
+.sp
+.RS
+\fIls\fP \- left side,
+.br
+\fIrs\fP \- right side,
+.br
+\fIts\fP \- top side,
+.br
+\fIbs\fP \- bottom side,
+.br
+\fItl\fP \- top left-hand corner,
+.br
+\fItr\fP \- top right-hand corner,
+.br
+\fIbl\fP \- bottom left-hand corner, and
+.br
+\fIbr\fP \- bottom right-hand corner.
+.RE
+.PP
+If any of these arguments is zero, then the corresponding
+default values (defined in \fBcurses.h\fP) are used instead:
+.sp
+.RS
+\fBACS_VLINE\fP,
+.br
+\fBACS_VLINE\fP,
+.br
+\fBACS_HLINE\fP,
+.br
+\fBACS_HLINE\fP,
+.br
+\fBACS_ULCORNER\fP,
+.br
+\fBACS_URCORNER\fP,
+.br
+\fBACS_LLCORNER\fP,
+.br
+\fBACS_LRCORNER\fP.
+.RE
+.PP
+\fBbox(\fIwin\fB, \fIverch\fB, \fIhorch\fB)\fR is a shorthand
+for the following call: \fBwborder(\fIwin\fB,\fR \fIverch\fB,\fR
+\fIverch\fB,\fR \fIhorch\fB,\fR \fIhorch\fB, 0, 0, 0, 0)\fR.
+.PP
+The \fBhline\fP and \fBwhline\fP functions draw a horizontal (left to right)
+line using \fIch\fP starting at the current cursor position in the window.
+The
+current cursor position is not changed.
+The line is at most \fIn\fP characters
+long, or as many as fit into the window.
+.PP
+The \fBvline\fP and \fBwvline\fP functions draw a vertical (top to bottom) line
+using \fIch\fP starting at the current cursor position in the window.
+The
+current cursor position is not changed.
+The line is at most \fIn\fP characters
+long, or as many as fit into the window.
+.SH RETURN VALUE
+All routines return the integer \fBOK\fP.
+The SVr4.0 manual says
+\*(``or a non-negative integer if \fB\%immedok\fP is set\*('',
+but this appears to be an error.
+.PP
+X/Open Curses does not specify any error conditions.
+This implementation returns an error
+if the window pointer is null.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+The borders generated by these functions are \fIinside\fP borders (this
+is also true of SVr4 curses, though the fact is not documented).
+.PP
+Note that \fBborder\fP and \fBbox\fP may be macros.
+.SH PORTABILITY
+These functions are described in X/Open Curses, Issue 4.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_outopts\fP(3X)

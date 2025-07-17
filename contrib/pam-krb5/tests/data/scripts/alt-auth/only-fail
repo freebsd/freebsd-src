@@ -1,0 +1,22 @@
+# Test failure of required alternative authentication.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = alt_auth_map=bogus only_alt_auth no_ccache
+    account = alt_auth_map=bogus no_ccache
+
+[run]
+    authenticate  = PAM_USER_UNKNOWN
+    acct_mgmt     = PAM_IGNORE
+
+[prompts]
+    echo_off = Password: |%p
+
+[output]
+    NOTICE authentication failure; logname=%u uid=%i euid=%i tty= ruser= rhost=

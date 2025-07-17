@@ -1,0 +1,5 @@
+make: varname-dot-parsedir.mk:37: At this point, .PARSEDIR is undefined.
+make: <normalized>:43: The location can be faked in some cases.
+make: varname-dot-parsedir.mk:48: The location is no longer fake.
+At run time, .PARSEDIR is undefined.
+exit status 0

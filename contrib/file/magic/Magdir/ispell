@@ -1,0 +1,249 @@
+
+#------------------------------------------------------------------------------
+# $File: ispell,v 1.10 2023/10/23 19:49:58 christos Exp $
+# ispell:  file(1) magic for ispell, MySpell, Hunspell and aspell
+#
+# Ispell 3.0 has a magic of 0x9601 and ispell 3.1 has 0x9602.  This magic
+# will match 0x9600 through 0x9603 in *both* little endian and big endian.
+# (No other current magic entries collide.)
+#
+# Updated by Daniel Quinlan (quinlan@yggdrasil.com)
+#
+0	leshort&0xFFFC	0x9600		little endian ispell
+>0	byte		0		hash file (?),
+>0	byte		1		3.0 hash file,
+>0	byte		2		3.1 hash file,
+>0	byte		3		hash file (?),
+>2	leshort		0x00		8-bit, no capitalization, 26 flags
+>2	leshort		0x01		7-bit, no capitalization, 26 flags
+>2	leshort		0x02		8-bit, capitalization, 26 flags
+>2	leshort		0x03		7-bit, capitalization, 26 flags
+>2	leshort		0x04		8-bit, no capitalization, 52 flags
+>2	leshort		0x05		7-bit, no capitalization, 52 flags
+>2	leshort		0x06		8-bit, capitalization, 52 flags
+>2	leshort		0x07		7-bit, capitalization, 52 flags
+>2	leshort		0x08		8-bit, no capitalization, 128 flags
+>2	leshort		0x09		7-bit, no capitalization, 128 flags
+>2	leshort		0x0A		8-bit, capitalization, 128 flags
+>2	leshort		0x0B		7-bit, capitalization, 128 flags
+>2	leshort		0x0C		8-bit, no capitalization, 256 flags
+>2	leshort		0x0D		7-bit, no capitalization, 256 flags
+>2	leshort		0x0E		8-bit, capitalization, 256 flags
+>2	leshort		0x0F		7-bit, capitalization, 256 flags
+>4	leshort		>0		and %d string characters
+0	beshort&0xFFFC	0x9600		big endian ispell
+>1	byte		0		hash file (?),
+>1	byte		1		3.0 hash file,
+>1	byte		2		3.1 hash file,
+>1	byte		3		hash file (?),
+>2	beshort		0x00		8-bit, no capitalization, 26 flags
+>2	beshort		0x01		7-bit, no capitalization, 26 flags
+>2	beshort		0x02		8-bit, capitalization, 26 flags
+>2	beshort		0x03		7-bit, capitalization, 26 flags
+>2	beshort		0x04		8-bit, no capitalization, 52 flags
+>2	beshort		0x05		7-bit, no capitalization, 52 flags
+>2	beshort		0x06		8-bit, capitalization, 52 flags
+>2	beshort		0x07		7-bit, capitalization, 52 flags
+>2	beshort		0x08		8-bit, no capitalization, 128 flags
+>2	beshort		0x09		7-bit, no capitalization, 128 flags
+>2	beshort		0x0A		8-bit, capitalization, 128 flags
+>2	beshort		0x0B		7-bit, capitalization, 128 flags
+>2	beshort		0x0C		8-bit, no capitalization, 256 flags
+>2	beshort		0x0D		7-bit, no capitalization, 256 flags
+>2	beshort		0x0E		8-bit, capitalization, 256 flags
+>2	beshort		0x0F		7-bit, capitalization, 256 flags
+>4	beshort		>0		and %d string characters
+# ispell 4.0 hash files  kromJx <kromJx@crosswinds.net>
+# Ispell 4.0
+0       string          ISPL            ispell
+>4      long            x               hash file version %d,
+>8      long            x               lexletters %d,
+>12     long            x               lexsize %d,
+>16     long            x               hashsize %d,
+>20     long            x               stblsize %d
+
+# Summary:	affixes defition text files for Ispell/MySpell/Hunspell
+# From:		Joerg Jenderek
+# URL:		https://www.openoffice.org/lingucomponent/affix.readme
+#		https://man.archlinux.org/man/hunspell.5.en
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/affix.trid.xml
+# Note:		called "Affix file" by TrID
+# variant starting with comment character
+0		ubyte		0x23
+# look for SET character command followed by whitespace (seems to be often 1 space character) like in:
+# /usr/share/calibre/dictionaries/en-GB/en-GB.aff
+>0		search/60459	SET\040
+# skip scripts like /bin/affixcompress /bin/setupcon /bin/imdbpy2sql.py by checking for valid character SET argument
+# character SET argument like: UTF-8
+>>&0		string		UTF-8
+>>>0		use					spell-aff
+# character SET argument like: ISO8859-1 - ISO8859-10 ISO8859-13 - ISO8859-15
+>>&0		string		ISO8859-
+>>>0		use				spell-aff
+# character SET argument for Russian with Cyrillic alphabet like: KOI8-R KOI8-U
+# no russian support until war against ukraine
+>>&0		string		KOI8-
+#>>>0		use				spell-aff
+# character SET argument for languages with Cyrillic alphabet like: cp1251
+# no cyrillic support until russia war against ukraine
+>>&0		string		cp1251
+#>>>0		use				spell-aff
+# character SET argument for Indian Script Code for Information Interchange (ISCII) like: ISCII-DEVANAGARI
+>>&0		string		ISCII-
+# no example found
+>>>0		use				spell-aff
+# not "real" affix rule files but found as tests unit inside thunderbird sources like:
+# 1463589.aff 1695964.aff 2970240.aff
+>0		default		x
+# look for suffix SFX command followed by whitespace like in:
+# 1695964.aff
+>>0		search/164	SFX\040
+>>>0		use				spell-aff
+# if not real Hunspell/MySpell affix look for ispell variant
+>>0		default		x
+# URL:		https://manpages.debian.org/testing/ispell/ispell.5.en.html
+# look for ispell declaration like in: /usr/lib/ispell/espanol.aff
+>>>0		search/8251	defstringtype
+# defstringtype declaration start with unique name (like "list" "lat" "utf8" "iso" "nroff" often like formatter name)
+# followed by formatter name (like "nroff" "tex")
+# followed by suffix list (like ".mm" ".ms" ".me" ".man" ".NeXT" ".txt" ".list")
+#>>>>&1		string		x		DECLARATION=%s
+>>>>0		use				spell-aff
+# ispell variant without declaration like in: /usr/lib/ispell/bulgarian.aff /usr/lib/ispell/russian.aff
+>>>0		default		x
+# skip /etc/nilfs_cleanerd.conf by looking for ispell suffix section
+>>>>0		search/3233	suffixes\n
+>>>>>0		use				spell-aff
+# variant starting with empty line and comment character at the beginning of 2nd line like in: /usr/lib/ispell/polish.aff
+0		ubeshort	0x0a23
+# skip /etc/discover-modprobe.conf by looking for ispell declaration
+>2		search/3118	defstringtype
+>>0		use				spell-aff
+# starting with UTF-8 Byte Order Mark (BOM) https://en.wikipedia.org/wiki/Byte_order_mark
+0		string		\xEF\xBB\xBF
+# starting with UTF-8 Byte Order Mark (BOM) followed by comment starting character
+>3		string		\x23
+# starting with UTF-8 BOM and with SET character command followed by whitespace
+# like in: /opt/Wolfram/WolframEngine/13.1/SystemFiles/Components/SpellingData/SpellingDictionaries/lt.aff
+# look for character SET command used in MySpell and Hunspell
+>3		search/9883	SET\040
+>>0		use				spell-aff
+# look for FLAG type command used in MySpell and Hunspell
+0		string		FLAG
+# followed by space character like in
+# /opt/Wolfram/WolframEngine/13.1/SystemFiles/Components/SpellingData/SpellingDictionaries/en_US.aff
+>4		ubyte		0x20
+>>0		use				spell-aff
+# or followed by tabulator character like in
+# /opt/Wolfram/WolframEngine/13.1/SystemFiles/Components/SpellingData/SpellingDictionaries/ar.aff
+>4		ubyte		0x09
+>>0		use				spell-aff
+# starting with character SET command used in MySpell and Hunspell like in: org/languagetool/resource/sv/hunspell/sv_SE.aff
+0		string		SET\040
+>0		use				spell-aff
+# starting with language code LANG used in MySpell and Hunspell like in: /usr/share/hunspell/tr_TR.aff
+0		string		LANG\040
+>0		use				spell-aff
+# starting with affix flag command AF used in MySpell and Hunspell like in: /usr/lib/thunderbird/extensions/langpack-hu@thunderbird.mozilla.org/dictionaries/hu.aff
+0		string		AF\040
+# look for number of flag vector aliases
+>3		regex		[0-9]{1,4}
+>>0		use				spell-aff
+#	display information (encoding,language,...) about affixes rules text for Ispell/MySpell/Hunspell
+0		name				spell-aff
+>1		ubeshort	x		affix definition
+#!:mime		text/plain
+!:mime		text/x-affix
+!:ext		aff
+# GRR: need extra test so that default clause works
+>0		ubyte		x
+# look for ispell declaration
+>>0		search/8251	defstringtype	for Ispell
+# ispell variant without declaration
+>>0		default		x
+# look for ispell suffixes command
+>>>0		search/3233	suffixes
+# skip "suffixes used to create first part of a compound" by checking for flag argument like in: languagetool\resource\sv\hunspell\sv_SE.aff
+>>>>&0		search/2	flag		for Ispell
+>>>>&0		default		x		for MySpell/Hunspell
+# without suffixes keyword
+>>>0		default		x		for MySpell/Hunspell
+# look for language code command used in MySpell and Hunspell
+# like in: /usr/share/hunspell/de_AT.aff /usr/share/hunspell/it_IT.aff /usr/share/hunspell/tr_TR.aff /usr/lib/firefox/browser/extensions/langpack-hu@firefox.mozilla.org/dictionaries/hu.aff
+>>0		search/1117643	LANG\040	\b, language
+# language code argument like: de_DE hu_HU it_IT mn_MN tr_TR
+>>>&0		string		x		%s
+# look for character SET command used in MySpell and Hunspell
+>>0		search/1117729	SET
+# skip SETTINGS like in /usr/lib/ispell/ngerman.aff
+# SET command followed often by space character (0x20) or tabulator (0x09) like in
+# /opt/Wolfram/WolframEngine/13.1/SystemFiles/Components/SpellingData/SpellingDictionaries/ar.aff
+>>>&0	ubyte&0xD6	=0x00
+# skip SSET	#     schosS in /usr/lib/ispell/ogerman.aff
+>>>>&0		ubyte		>0x48		\b,
+# character SET argument like: cp1251 ISCII-DEVANAGAR ISO8859-1 - ISO8859-10 ISO8859-13 - ISO8859-15 KOI8-R KOI8-U UTF-8
+>>>>>&-1	string	x			"%s" encoded
+# for control reasons show first non empty lines for ASCII or ISO-8859 text variant
+>1		ubeshort	!0xBBBF
+# 1st line starting with 0x0A like in /usr/src/dicts/sjp-ispell-pl-20140213/polish.aff
+>>0		ubyte		=0x0A
+>>>1		ubyte		!0x0A		\b, 2nd line
+>>>>&-1		string		x		"%s"
+# 3rd line starting with 0x0A like in polish.aff
+>>>>>&1		ubyte		=0x0A
+>>>>>>&0	string		x		\b, 4th line "%s"
+# 1st line starting with ASCII text like: 
+# this is the affix file of the de_DE Hunspell dictionary
+>>0		ubyte		!0x0A
+>>>0		string		x		\b, 1st line "%s"
+>>>>&1		ubyte		>0x1F		\b, 2nd line
+>>>>>&-1	string		x		"%s"
+# 2nd line starting with 0x0A like in /usr/lib/ispell/bulgarian.aff
+>>>>&1		ubyte		=0x0A		\b, 3rd line
+>>>>>&0		string		x		"%s"
+# for control reasons show first lines for variant starting with ByteOrderMark (BOM=\xEF\xBB\xBF)
+>1		ubeshort	=0xBBBF	   	\b, with BOM
+>>3		string		x		\b, 1st line "%s"
+>>>&1		ubyte		>0x1F		\b, 2nd line
+>>>>&-1		string		x		"%s"
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/GNU_Aspell
+#		https://manpages.ubuntu.com/manpages/trusty/en/man8/aspell-autobuildhash.8.html
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/r/rws-aspell.trid.xml
+#		https://ftp.gnu.org/gnu/aspell/aspell-0.60.8.tar.gz
+#		aspell-0.60.8/modules/speller/default/data.cpp
+#		aspell-0.60.8/modules/speller/default/readonly_ws.cpp
+# Note:		called "aspell dictionary" by TrID
+0	string	aspell\040default\040speller\040rowl	aspell dictionary
+#!:mime	application/octet-stream
+!:mime	application/x-aspell-dictionary
+!:ext	rws
+# version like: 1.10 1.4
+>28	string	x					\b, version %s
+# u32int endian_check; 12345678=00BC614Eh
+#>64	ulelong	x					\b, endian_check=%u
+>>64	ulelong	12345678				\b, little endian
+# not tested
+>>64	ubelong	12345678				\b, big endian
+# older aspell version not like 0.60.8
+>>64	default	x					\b, old
+# URL:		https://en.wikipedia.org/wiki/GNU_Aspell
+# Reference	http://aspell.net/man-html/Format-of-the-Personal-and-Replacement-Dictionaries.html
+# personal_ws-1.1 lang num [encoding]
+0	string	personal_				aspell personal
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pws-aspell.trid.xml
+# Note:		called "aspell Personal dictionary" by TrID
+>9	string	ws-					dictionary
+#!:mime	text/plain
+!:mime	text/x-aspell-dictionary
+# like: ~/.aspell.en.pws ~/.aspell.de_DE.pws ~/.aspell.it.pws
+!:ext	pws
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/prepl-aspell.trid.xml
+# Note:		called "aspell Personal Replacement dictionary" by TrID
+# personal_repl-1.1 lang num [encoding]
+>9	string	repl-					replacement dictionary
+#!:mime	text/plain
+!:mime	text/x-aspell-dictionary
+# like: ~/.aspell.en.prepl ~/.aspell.de_DE.prepl ~/.aspell.it.prepl
+!:ext	prepl

@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: keyman,v 1.2 2024/10/17 19:23:07 christos Exp $
+# 
+# Keyman support for .kmx and .kmp files (kmp support is in archive)
+#
+# https://help.keyman.com/developer/current-version/reference/file-types/kmx
+# https://help.keyman.com/developer/current-version/reference/file-types/kmp
+
+0	string/b 	KXTS    Keyman Compiled Keyboard File
+!:ext kmx
+!:mime	application/vnd.keyman.kmx
+>4	lelong     	x	version 0x%x
+>>48	lelong 		&32	KMX+ Data

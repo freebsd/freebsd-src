@@ -1,0 +1,13 @@
+#
+# R64 -- Generic kernel configuration file with modifications for rescue.
+#
+
+include GENERIC
+
+ident	R64
+
+nooptions	INVARIANTS
+nooptions	INVARIANT_SUPPORT
+nooptions	WITNESS
+nooptions	WITNESS_SKIPSPIN
+nooptions	MALLOC_DEBUG_MAXZONES

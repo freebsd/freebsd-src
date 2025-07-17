@@ -1,0 +1,102 @@
+
+#------------------------------------------------------------------------------
+# $File: mips,v 1.15 2024/09/01 13:49:15 christos Exp $
+# mips:  file(1) magic for MIPS ECOFF and Ucode, as used in SGI IRIX
+# and DEC Ultrix
+#
+0	name			display-mips-ecoff
+>20	leshort	0407		(impure)
+>20	leshort	0410		(swapped)
+>20	leshort	0413		(paged)
+>8	lelong	!0		not stripped
+>8	lelong	0		stripped
+>22	byte	x		- version %d
+>23	byte	x		\b.%d
+#
+# MIPS 1
+#
+0	beshort	0x0160
+>16	beshort	56		MIPSEB ECOFF executable
+>>0	use			\^display-mips-ecoff
+>16	leshort	0
+>>0	use			display-coff
+#
+0	beshort	0x0162
+>16	beshort	56		MIPSEL-BE ECOFF executable
+>>0	use			\^display-mips-ecoff
+#
+0	leshort	0x0160
+>16	leshort	56		MIPSEB-LE ECOFF executable
+>>0	use			display-mips-ecoff
+>16	leshort	0
+>>0	use			display-coff
+#
+0	leshort	0x0162
+>16	leshort	56		MIPSEL ECOFF executable
+>>0	use			display-mips-ecoff
+#
+# MIPS 2 additions
+#
+0	beshort	0x0163
+>16	beshort	56		MIPSEB MIPS-II ECOFF executable
+>>0	use			\^display-mips-ecoff
+#
+0	beshort	0x0166
+>16	beshort	56		MIPSEL-BE MIPS-II ECOFF executable
+>>0	use			\^display-mips-ecoff
+>16	leshort	0
+>>0	use			display-coff
+#
+0	leshort	0x0163
+>16	leshort	56		MIPSEB-LE MIPS-II ECOFF executable
+>>0	use			display-mips-ecoff
+#
+0	leshort	0x0166
+>16	leshort	56		MIPSEL MIPS-II ECOFF executable
+>>0	use			display-mips-ecoff
+#
+# MIPS 3 additions
+#
+0	beshort	0x0140
+>16	beshort	56		MIPSEB MIPS-III ECOFF executable
+>>0	use			\^display-mips-ecoff
+#
+0	beshort	0x0142
+>16	beshort	56		MIPSEL-BE MIPS-III ECOFF executable
+>>0	use			\^display-mips-ecoff
+#
+0	leshort	0x0140
+>16	leshort	56		MIPSEB-LE MIPS-III ECOFF executable
+>>0	use			display-mips-ecoff
+#
+0	leshort	0x0142
+>16	leshort	56		MIPSEL MIPS-III ECOFF executable
+>>0	use			display-mips-ecoff
+#
+# MIPS Ucode additions
+#
+0	beshort	0x180		MIPSEB Ucode
+0	beshort	0x182		MIPSEL-BE Ucode
+#
+# MIPS COFF object file (have zero length optional header)
+#
+0	leshort			0x0168
+>16	leshort			0
+>>0	use			display-coff
+# can be created by LINK.EXE /MACHINE:MIPSR10 /ROM
+>16	leshort			!0
+>>18	leshort			&0x0002
+>>>20	leshort			0x0107
+>>>>0	use			display-coff
+0	leshort	0x0169
+>16	leshort	0
+>>0	use			display-coff
+0	leshort	0x0266
+>16	leshort	0
+>>0	use			display-coff
+0	leshort	0x0366
+>16	leshort	0
+>>0	use			display-coff
+0	leshort	0x0466
+>16	leshort	0
+>>0	use			display-coff

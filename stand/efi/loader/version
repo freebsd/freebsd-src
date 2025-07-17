@@ -1,0 +1,3 @@
+3.0:	Lua scripts API stability
+1.1:	Keep in sync with i386 version.
+0.1:	Initial i386 version. Derived from ia64.

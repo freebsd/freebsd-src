@@ -1,0 +1,106 @@
+.\"
+.\" Copyright (c) 2024 Netflix, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd March 29, 2025
+.Dt GFX.LUA 8
+.Os
+.Sh NAME
+.Nm gfx.lua
+.Nd bootloader graphics module
+.Sh DESCRIPTION
+The built-in graphics related Lua bindings for the
+.Fx
+boot loaders using the Lua interpreter are available via the
+.Ic gfx
+table.
+.Ss Exported Functions
+The following functions are exported in the
+.Nm loader
+table.
+.Bl -tag -width term_putimage
+.It Fn fb_bezier x0 y0 x1 y1 x2 y2 width
+Draw a bezier curve through the points
+.Pq Va x0 , Va y0 ,
+.Pq Va x1 , Va y1 ,
+and
+.Pq Va x2 , Va y2
+of width
+.Va width .
+The units are in pixels and have an origin of
+.Pq 0 , 0 .
+.It Fn fb_drawrect x0 y0 x1 y1 fill
+Fill in a rectangle with the pixel
+.Va fill
+with the corners
+.Pq Va x0 , Va y0
+and
+.Pq Va x1 , Va y1 .
+The units are in pixels and have an origin of
+.Pq 0 , 0 .
+.It Fn fb_line x0 y0 x1 y1 width
+Draw a line from
+.Pq Va x0 , Va y0
+to
+.Pq Va x1 , Va y1
+with a width of
+.Va width .
+The units are in pixels and have an origin of
+.Pq 0 , 0 .
+.It Fn fb_putimage name x0 y0 x1 y1 f
+Load the PNG file
+.Va name
+and place it in the rectangle
+with the corners
+.Pq Va x0 , Va y0
+and
+.Pq Va x1 , Va y1
+and fill with pixel
+.Va f .
+The units are in pixels and have an origin of
+.Pq 0 , 0 .
+.It Fn fb_set_pixel x y
+Sets the pixel at
+.Pq Va x , Va y .
+The units are in pixels and have an origin of
+.Pq 0 , 0 .
+.It Fn term_drawrect x0 y0 x1 y1
+Draw the outline of a rectangle with the text coordinate corners of
+.Pq Va x0 , Va y0
+and
+.Pq Va x1 , Va y1 .
+The units are in character cells and have an origin of
+.Pq 1 , 1 .
+.It Fn term_putimage name x0 y0 x1 y1 f
+Load the PNG file
+.Va name
+and place it in the rectangle
+with the text coordinate corners
+.Pq Va x0 , Va y0
+and
+.Pq Va x1 , Va y1
+and fill with pixel
+.Va f .
+The units are in character cells and have an origin of
+.Pq 1 , 1 .
+.El
+.Pp
+This table is optional and should only be used if it is non-nil and if
+.Fn core.isFramebufferConsole
+is true.
+.Ss Compatibility
+All the interfaces described above are also available via the
+.Ic loader
+table through at last FreeBSD 15.0.
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr core.lua 8 ,
+.Xr loader 8 ,
+.Xr loader.lua 8
+.Sh AUTHORS
+The
+.Nm
+man page was written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .
+

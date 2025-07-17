@@ -1,0 +1,20 @@
+BUILDTOP=..\..\..
+
+TARGETTYPE=NONE
+
+HHCOUT=MITKerberosHelp.chm
+TARGET=..\$(OUTPRE)"MIT Kerberos.chm"
+HHP=MITKerberosHelp.hhp
+ERR=leash.log
+
+all: $(HHCOUT)
+
+clean:
+	@if exist $(HHCOUT) del $(HHCOUT)
+	@if exist $(TARGET) del $(TARGET)
+	@if exist $(ERR) del $(ERR)
+
+$(HHCOUT): $(HHP)
+   - hhc $(HHP)
+   @if exist $(TARGET) del $(TARGET)
+   @copy $(HHCOUT) $(TARGET)

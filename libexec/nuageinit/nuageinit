@@ -1,0 +1,506 @@
+#!/usr/libexec/flua
+---
+-- SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+--
+-- Copyright(c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
+
+local nuage = require("nuage")
+local ucl = require("ucl")
+local yaml = require("lyaml")
+
+if #arg ~= 2 then
+	nuage.err("Usage: " .. arg[0] .. " <cloud-init-directory> (<config-2> | <nocloud>)", false)
+end
+local ni_path = arg[1]
+local citype = arg[2]
+
+local default_user = {
+	name = "freebsd",
+	homedir = "/home/freebsd",
+	groups = "wheel",
+	gecos = "FreeBSD User",
+	shell = "/bin/sh",
+	plain_text_passwd = "freebsd"
+}
+
+local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+if not root then
+	root = ""
+end
+
+local function openat(dir, name)
+	local path_dir = root .. dir
+	local path_name = path_dir .. "/" .. name
+	nuage.mkdir_p(path_dir)
+	local f, err = io.open(path_name, "w")
+	if not f then
+		nuage.err("unable to open " .. path_name .. ": " .. err)
+	end
+	return f, path_name
+end
+local function open_ssh_key(name)
+	return openat("/etc/ssh", name)
+end
+
+local function open_config(name)
+	return openat("/etc/rc.conf.d", name)
+end
+
+local function get_ifaces()
+	local parser = ucl.parser()
+	-- grab ifaces
+	local ns = io.popen("netstat -i --libxo json")
+	local netres = ns:read("*a")
+	ns:close()
+	local res, err = parser:parse_string(netres)
+	if not res then
+		nuage.warn("Error parsing netstat -i --libxo json outout: " .. err)
+		return nil
+	end
+	local ifaces = parser:get_object()
+	local myifaces = {}
+	for _, iface in pairs(ifaces["statistics"]["interface"]) do
+		if iface["network"]:match("<Link#%d>") then
+			local s = iface["address"]
+			myifaces[s:lower()] = iface["name"]
+		end
+	end
+	return myifaces
+end
+
+local function sethostname(obj)
+	-- always prefer fqdn if specified over hostname
+	if obj.fqdn then
+		nuage.sethostname(obj.fqdn)
+	elseif obj.hostname then
+		nuage.sethostname(obj.hostname)
+	end
+end
+
+local function groups(obj)
+	if obj.groups == nil then return end
+
+	for n, g in pairs(obj.groups) do
+		if (type(g) == "string") then
+			local r = nuage.addgroup({name = g})
+			if not r then
+				nuage.warn("failed to add group: " .. g)
+			end
+		elseif type(g) == "table" then
+			for k, v in pairs(g) do
+				nuage.addgroup({name = k, members = v})
+			end
+		else
+			nuage.warn("invalid type: " .. type(g) .. " for users entry number " .. n)
+		end
+	end
+end
+
+local function create_default_user(obj)
+	if not obj.users then
+	-- default user if none are defined
+		nuage.adduser(default_user)
+	end
+end
+
+local function users(obj)
+	if obj.users == nil then return end
+
+	for n, u in pairs(obj.users) do
+		if type(u) == "string" then
+			if u == "default" then
+				nuage.adduser(default_user)
+			else
+				nuage.adduser({name = u})
+			end
+		elseif type(u) == "table" then
+			-- ignore users without a username
+			if u.name == nil then
+				goto unext
+			end
+			local homedir = nuage.adduser(u)
+			if u.ssh_authorized_keys then
+				for _, v in ipairs(u.ssh_authorized_keys) do
+					nuage.addsshkey(homedir, v)
+				end
+			end
+			if u.sudo then
+				nuage.addsudo(u)
+			end
+		else
+			nuage.warn("invalid type : " .. type(u) .. " for users entry number " .. n)
+		end
+		::unext::
+	end
+end
+
+local function ssh_keys(obj)
+	if obj.ssh_keys == nil then return end
+	if type(obj.ssh_keys) ~= "table" then
+		nuage.warn("Invalid type for ssh_keys")
+		return
+	end
+
+	for key, val in pairs(obj.ssh_keys) do
+		for keyname, keytype in key:gmatch("(%w+)_(%w+)") do
+			local sshkn = nil
+			if keytype == "public" then
+				sshkn =  "ssh_host_" .. keyname .. "_key.pub"
+			elseif keytype == "private" then
+				sshkn = "ssh_host_" .. keyname .. "_key"
+			end
+			if sshkn then
+				local sshkey, path = open_ssh_key(sshkn)
+				if sshkey then
+					sshkey:write(val .. "\n")
+					sshkey:close()
+				end
+				if keytype == "private" then
+					nuage.chmod(path, "0600")
+				end
+			end
+		end
+	end
+end
+
+local function ssh_authorized_keys(obj)
+	if obj.ssh_authorized_keys == nil then return end
+	local homedir = nuage.adduser(default_user)
+	for _, k in ipairs(obj.ssh_authorized_keys) do
+		nuage.addsshkey(homedir, k)
+	end
+end
+
+local function install_packages(packages)
+	if not nuage.pkg_bootstrap() then
+		nuage.warn("Failed to bootstrap pkg, skip installing packages")
+		return
+	end
+	for n, p in pairs(packages) do
+		if type(p) == "string" then
+			if not nuage.install_package(p) then
+				nuage.warn("Failed to install : " .. p)
+			end
+		else
+			nuage.warn("Invalid type: " .. type(p) .. " for packages entry number " .. n)
+		end
+	end
+end
+
+local function write_files(files, defer)
+	if not files then
+		return
+	end
+	for n, file in pairs(files) do
+		local r, errstr = nuage.addfile(file, defer)
+		if not r then
+			nuage.warn("Skipping write_files entry number " .. n .. ": " .. errstr)
+		end
+	end
+end
+
+local function write_files_not_defered(obj)
+	write_files(obj.write_files, false)
+end
+
+local function write_files_defered(obj)
+	write_files(obj.write_files, true)
+end
+-- Set network configuration from user_data
+local function network_config(obj)
+	if obj.network == nil then return end
+
+	local ifaces = get_ifaces()
+	local network = open_config("network")
+	local routing = open_config("routing")
+	local ipv6 = {}
+	for _, v in pairs(obj.network.ethernets) do
+		if not v.match then
+			goto next
+		end
+		if not v.match.macaddress then
+			goto next
+		end
+		if not ifaces[v.match.macaddress] then
+			nuage.warn("not interface matching: " .. v.match.macaddress)
+			goto next
+		end
+		local interface = ifaces[v.match.macaddress]
+		if v.dhcp4 then
+			network:write("ifconfig_" .. interface .. '="DHCP"\n')
+		elseif v.addresses then
+			for _, a in pairs(v.addresses) do
+				if a:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)") then
+					network:write("ifconfig_" .. interface .. '="inet ' .. a .. '"\n')
+				else
+					network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. a .. '"\n')
+					ipv6[#ipv6 + 1] = interface
+				end
+			end
+		end
+		if v.gateway4 then
+			routing:write('defaultrouter="' .. v.gateway4 .. '"\n')
+		end
+		if v.gateway6 then
+			routing:write('ipv6_defaultrouter="' .. v.gateway6 .. '"\n')
+			routing:write("ipv6_route_" .. interface .. '="' .. v.gateway6)
+			routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+		end
+		::next::
+	end
+	if #ipv6 > 0 then
+		network:write('ipv6_network_interfaces="')
+		network:write(table.concat(ipv6, " ") .. '"\n')
+		network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
+	end
+	network:close()
+	routing:close()
+end
+
+local function ssh_pwauth(obj)
+	if obj.ssh_pwauth == nil then return end
+
+	local value = "no"
+	if obj.ssh_pwauth then
+		value = "yes"
+	end
+	nuage.update_sshd_config("PasswordAuthentication", value)
+end
+
+local function runcmd(obj)
+	if obj.runcmd == nil then return end
+	local f = nil
+	for _, c in ipairs(obj.runcmd) do
+		if f == nil then
+			nuage.mkdir_p(root .. "/var/cache/nuageinit")
+			f = assert(io.open(root .. "/var/cache/nuageinit/runcmds", "w"))
+			f:write("#!/bin/sh\n")
+		end
+		f:write(c .. "\n")
+	end
+	if f ~= nil then
+		f:close()
+		nuage.chmod(root .. "/var/cache/nuageinit/runcmds", "0755")
+	end
+end
+
+local function packages(obj)
+	if obj.package_update then
+		nuage.update_packages()
+	end
+	if obj.package_upgrade then
+		nuage.upgrade_packages()
+	end
+	if obj.packages then
+		install_packages(obj.packages)
+	end
+end
+
+local function chpasswd(obj)
+	if obj.chpasswd == nil then return end
+	nuage.chpasswd(obj.chpasswd)
+end
+
+local function config2_network(p)
+	local parser = ucl.parser()
+	local f = io.open(p .. "/network_data.json")
+	if not f then
+		-- silently return no network configuration is provided
+		return
+	end
+	f:close()
+	local res, err = parser:parse_file(p .. "/network_data.json")
+	if not res then
+		nuage.warn("error parsing network_data.json: " .. err)
+		return
+	end
+	local obj = parser:get_object()
+
+	local ifaces = get_ifaces()
+	if not ifaces then
+		nuage.warn("no network interfaces found")
+		return
+	end
+	local mylinks = {}
+	for _, v in pairs(obj["links"]) do
+		local s = v["ethernet_mac_address"]:lower()
+		mylinks[v["id"]] = ifaces[s]
+	end
+
+	local network = open_config("network")
+	local routing = open_config("routing")
+	local ipv6 = {}
+	local ipv6_routes = {}
+	local ipv4 = {}
+	for _, v in pairs(obj["networks"]) do
+		local interface = mylinks[v["link"]]
+		if v["type"] == "ipv4_dhcp" then
+			network:write("ifconfig_" .. interface .. '="DHCP"\n')
+		end
+		if v["type"] == "ipv4" then
+			network:write(
+				"ifconfig_" .. interface .. '="inet ' .. v["ip_address"] .. " netmask " .. v["netmask"] .. '"\n'
+			)
+			if v["gateway"] then
+				routing:write('defaultrouter="' .. v["gateway"] .. '"\n')
+			end
+			if v["routes"] then
+				for i, r in ipairs(v["routes"]) do
+					local rname = "cloudinit" .. i .. "_" .. interface
+					if v["gateway"] and v["gateway"] == r["gateway"] then
+						goto next
+					end
+					if r["network"] == "0.0.0.0" then
+						routing:write('defaultrouter="' .. r["gateway"] .. '"\n')
+						goto next
+					end
+					routing:write("route_" .. rname .. '="-net ' .. r["network"] .. " ")
+					routing:write(r["gateway"] .. " " .. r["netmask"] .. '"\n')
+					ipv4[#ipv4 + 1] = rname
+					::next::
+				end
+			end
+		end
+		if v["type"] == "ipv6" then
+			ipv6[#ipv6 + 1] = interface
+			ipv6_routes[#ipv6_routes + 1] = interface
+			network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. v["ip_address"] .. '"\n')
+			if v["gateway"] then
+				routing:write('ipv6_defaultrouter="' .. v["gateway"] .. '"\n')
+				routing:write("ipv6_route_" .. interface .. '="' .. v["gateway"])
+				routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+			end
+			-- TODO compute the prefixlen for the routes
+			--if v["routes"] then
+			--	for i, r in ipairs(v["routes"]) do
+			--	local rname = "cloudinit" .. i .. "_" .. mylinks[v["link"]]
+			--		-- skip all the routes which are already covered by the default gateway, some provider
+			--		-- still list plenty of them.
+			--		if v["gateway"] == r["gateway"] then
+			--			goto next
+			--		end
+			--		routing:write("ipv6_route_" .. rname .. '"\n')
+			--		ipv6_routes[#ipv6_routes + 1] = rname
+			--		::next::
+			--	end
+			--end
+		end
+	end
+	if #ipv4 > 0 then
+		routing:write('static_routes="')
+		routing:write(table.concat(ipv4, " ") .. '"\n')
+	end
+	if #ipv6 > 0 then
+		network:write('ipv6_network_interfaces="')
+		network:write(table.concat(ipv6, " ") .. '"\n')
+		network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
+	end
+	if #ipv6_routes > 0 then
+		routing:write('ipv6_static_routes="')
+		routing:write(table.concat(ipv6, " ") .. '"\n')
+	end
+	network:close()
+	routing:close()
+end
+
+if citype == "config-2" then
+	local parser = ucl.parser()
+	local res, err = parser:parse_file(ni_path .. "/meta_data.json")
+
+	if not res then
+		nuage.err("error parsing config-2 meta_data.json: " .. err)
+	end
+	local obj = parser:get_object()
+	if obj.public_keys then
+		local homedir = nuage.adduser(default_user)
+		for _,v in pairs(obj.public_keys) do
+			nuage.addsshkey(homedir, v)
+		end
+	end
+	nuage.sethostname(obj["hostname"])
+
+	-- network
+	config2_network(ni_path)
+elseif citype == "nocloud" then
+	local f, err = io.open(ni_path .. "/meta-data")
+	if err then
+		nuage.err("error parsing nocloud meta-data: " .. err)
+	end
+	local obj = yaml.load(f:read("*a"))
+	f:close()
+	if not obj then
+		nuage.err("error parsing nocloud meta-data")
+	end
+	local hostname = obj["local-hostname"]
+	if not hostname then
+		hostname = obj["hostname"]
+	end
+	if hostname then
+		nuage.sethostname(hostname)
+	end
+elseif citype ~= "postnet" then
+	nuage.err("Unknown cloud init type: " .. citype)
+end
+
+-- deal with user-data
+local ud = nil
+local f = nil
+local userdatas = {"user-data", "user_data"}
+for _, v in pairs(userdatas) do
+	f = io.open(ni_path .. "/" .. v, "r")
+	if f then
+		ud = v
+		break
+	end
+end
+if not f then
+	os.exit(0)
+end
+local line = f:read("*l")
+if citype ~= "postnet" then
+	local content = f:read("*a")
+	nuage.mkdir_p(root .. "/var/cache/nuageinit")
+	local tof = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
+	tof:write(line .. "\n" .. content)
+	tof:close()
+end
+f:close()
+if line == "#cloud-config" then
+	local pre_network_calls = {
+		sethostname,
+		groups,
+		create_default_user,
+		ssh_keys,
+		ssh_authorized_keys,
+		network_config,
+		ssh_pwauth,
+		runcmd,
+		write_files_not_defered,
+	}
+
+	local post_network_calls = {
+		packages,
+		users,
+		chpasswd,
+		write_files_defered,
+	}
+
+	f = io.open(ni_path .. "/" .. ud)
+	local obj = yaml.load(f:read("*a"))
+	f:close()
+	if not obj then
+		nuage.err("error parsing cloud-config file: " .. ud)
+	end
+
+	local calls_table = pre_network_calls
+	if citype == "postnet" then
+		calls_table = post_network_calls
+	end
+
+	for i = 1, #calls_table do
+		calls_table[i](obj)
+	end
+elseif line:sub(1, 2) == "#!" then
+	-- delay for execution at rc.local time --
+	nuage.chmod(root .. "/var/cache/nuageinit/user_data", "0755")
+end

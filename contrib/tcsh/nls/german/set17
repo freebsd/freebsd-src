@@ -1,0 +1,16 @@
+$ sh.proc.c
+$set 17
+1 FEHLER: Warte auf Hintergrund-Job!\n
+2 Exitcode %d\n
+3 FEHLER: Prozeß "flushed" zum zweitenmal
+4 Läuft
+5 Signal 
+6 Exitcode %-25d
+7 Fertig
+8 FEHLER: Status=%-9o
+9 \040(core dumped)
+10 \040(Verz:\040
+11 (Verz jetzt:
+12 %S: Bereits angehalten\n
+13 %S: Bereits angehalten\n
+14 %S: Badly formed number\n

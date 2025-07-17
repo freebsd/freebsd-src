@@ -1,0 +1,69 @@
+krb5_pac_verify -  Verify a PAC. 
+=================================
+
+..
+
+.. c:function:: krb5_error_code krb5_pac_verify(krb5_context context, const krb5_pac pac, krb5_timestamp authtime, krb5_const_principal principal, const krb5_keyblock * server, const krb5_keyblock * privsvr)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **pac** - PAC handle
+
+	          **[in]** **authtime** - Expected timestamp
+
+	          **[in]** **principal** - Expected principal name (or NULL)
+
+	          **[in]** **server** - Key to validate server checksum (or NULL)
+
+	          **[in]** **privsvr** - Key to validate KDC checksum (or NULL)
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function validates *pac* against the supplied *server* , *privsvr* , *principal* and *authtime* . If *principal* is NULL, the principal and authtime are not verified. If *server* or *privsvr* is NULL, the corresponding checksum is not verified.
+
+
+
+If successful, *pac* is marked as verified.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 A checksum mismatch can occur if the PAC was copied from a cross-realm TGT by an ignorant KDC; also macOS Server Open Directory (as of 10.6) generates PACs with no server checksum at all. One should consider not failing the whole authentication because of this reason, but, instead, treating the ticket as if it did not contain a PAC or marking the PAC information as non-verified.
+ 
+
+
+

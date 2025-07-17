@@ -1,0 +1,157 @@
+
+#------------------------------------------------------------------------------
+# $File: sgml,v 1.53 2024/11/10 14:48:55 christos Exp $
+# Type:	SVG Vectorial Graphics
+# From:	Noel Torres <tecnico@ejerciciosresueltos.com>
+0	string/bt	\<?xml\ version=
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
+>>19	search/4096	\<svg			SVG Scalable Vector Graphics image
+!:strength +50
+!:mime	image/svg+xml
+!:ext   svg
+>>19	search/4096	\<gnc-v2		GnuCash file
+!:mime	application/x-gnucash
+0	string/bt	\<svg			SVG Scalable Vector Graphics image
+!:mime	image/svg+xml
+!:ext   svg
+
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
+# Sitemap file
+>>19	search/4096	\<urlset		XML Sitemap document text
+!:mime	application/xml-sitemap
+
+# XML-based format representing braille pages in a digital format.
+#
+# Specification:
+# http://files.pef-format.org/specifications/pef-2008-1/pef-specification.html
+#
+# Simon Aittamaa <simon.aittamaa@gmail.com>
+>>19    search/4096	\<pef           Portable Embosser Format
+!:mime  application/x-pef+xml
+
+# OpenStreetMap XML (.osm)
+# https://wiki.openstreetmap.org/wiki/OSM_XML
+# From: Markus Heidelberg <markus.heidelberg@web.de>
+>>19	search/4096	\<osm			OpenStreetMap XML data
+
+# xhtml
+>19	search/4096/cWbt	\<!doctype\ html	XHTML document text
+>>15	string		>\0	(version %.3s)
+!:strength + 15
+!:mime	application/xhtml+xml
+
+>19	search/4096/cWbt	\<html\ xmlns=		XHTML document text
+>>15	string		>\0	(version %.3s)
+!:mime	application/xhtml+xml
+
+
+#------------------------------------------------------------------------------
+# sgml:  file(1) magic for Standard Generalized Markup Language
+# HyperText Markup Language (HTML) is an SGML document type,
+# from Daniel Quinlan (quinlan@yggdrasil.com)
+# adapted to string extensions by Anthon van der Neut <anthon@mnt.org)
+0	search/4096/cWt	\<!doctype\ html	HTML document text
+!:mime	text/html
+!:strength + 5
+
+# avoid misdetection as JavaScript
+0	string/cWt	\<!doctype\ html	HTML document text
+!:mime	text/html
+!:strength + 30
+0	string/ct	\<html>	HTML document text
+!:mime	text/html
+!:strength + 30
+0	string/ct	\<!--
+>&0	search/4096/cWt	\<!doctype\ html	HTML document text
+!:mime	text/html
+!:strength + 30
+>&0	search/4096/ct	\<html>	HTML document text
+!:mime	text/html
+
+# SVG document
+# https://www.w3.org/TR/SVG/single-page.html
+0	search/4096/cWbt	\<!doctype\ svg	SVG XML document
+!:mime  image/svg+xml
+!:strength + 30
+
+0	search/4096/cwt	\<head\>		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cWt	\<head\ 		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cwt	\<title\>		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cWt	\<title\ 		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cwt	\<html\>		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cWt	\<html\ 		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cwt	\<script\> 		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cWt	\<script\ 		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cwt	\<style\> 		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cWt	\<style\  		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cwt	\<table\>		HTML document text
+!:mime	text/html
+!:strength + 30
+0	search/4096/cWt	\<table\ 		HTML document text
+!:mime	text/html
+!:strength + 30
+
+0	search/4096/cwt	\<a\ href=		HTML document text
+!:mime	text/html
+!:strength + 30
+
+# Microsoft HTML Application (HTA)
+# https://learn.microsoft.com/en-us/previous-versions//ms536496(v=vs.85)
+0	search/4096/cWt	\<hta:application\ 	Microsoft HTML Application (HTA)
+!:mime	application/hta
+!:ext	hta
+!:strength + 50
+
+# Extensible markup language (XML), a subset of SGML
+# from Marc Prud'hommeaux (marc@apocalypse.org)
+0	search/1/cwt	\<?xml			XML document text
+!:mime	text/xml
+!:strength + 30
+0	string/t		\<?xml\ version="	XML
+!:mime	text/xml
+!:strength + 30
+>15	string/t	>\0			%.3s document text
+>>23	search/1	\<xsl:stylesheet	(XSL stylesheet)
+>>24	search/1	\<xsl:stylesheet	(XSL stylesheet)
+
+0	search/1/wt	\<?XML			broken XML document text
+!:mime	text/xml
+!:strength - 10
+
+
+# SGML, mostly from rph@sq
+0	search/4096/cwt	\<!doctype		exported SGML document text
+0	search/4096/cwt	\<!subdoc		exported SGML subdocument text
+0	search/4096/cwt	\<!--			exported SGML document text
+!:strength - 10
+
+# Web browser cookie files
+# (Mozilla, Galeon, Netscape 4, Konqueror..)
+# Ulf Harnhammar <ulfh@update.uu.se>
+0	search/1	#\ HTTP\ Cookie\ File	Web browser cookie text
+0	search/1	#\ Netscape\ HTTP\ Cookie\ File	Netscape cookie text
+0	search/1	#\ KDE\ Cookie\ File	Konqueror cookie text
+
+
+# https://www.qgis.org/en/site/
+0	string		\<!DOCTYPE\040qgis	QGIS XML document

@@ -1,0 +1,51 @@
+krb5_init_creds_set_service -  Specify a service principal for acquiring initial credentials. 
+==============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_creds_set_service(krb5_context context, krb5_init_creds_context ctx, const char * service)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - Initial credentials context
+
+	          **[in]** **service** - Service principal string
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function supplies a service principal string to acquire initial credentials for instead of the default krbtgt service. *service* is parsed as a principal name; any realm part is ignored.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

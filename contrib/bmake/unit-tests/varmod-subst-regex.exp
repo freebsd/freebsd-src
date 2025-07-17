@@ -1,0 +1,86 @@
+make: Regex compilation error: (details omitted)
+	while evaluating "${:Uword1 word2:C,****,____,g:C,word,____,:Q}." with value "word1 word2"
+	in command "@echo $@: ${:Uword1 word2:C,****,____,g:C,word,____,:Q}."
+	in target "mod-regex-compile-error"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in command "@echo $@:11-missing:${:U1 23 456:C,..,\1\1,:Q}"
+	in target "mod-regex-limits-1"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in command "@echo $@:11-missing:${:U1 23 456:C,..,\1\1,:Q}"
+	in target "mod-regex-limits-1"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in command "@echo $@:11-missing:${:U1 23 456:C,..,\1\1,:Q}"
+	in target "mod-regex-limits-1"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in command "@echo $@:11-missing:${:U1 23 456:C,..,\1\1,:Q}"
+	in target "mod-regex-limits-1"
+mod-regex-limits-2:11-ok:1 22 446
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,..,\2\2,:Q}"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,..,\2\2,:Q}"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,..,\2\2,:Q}"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,..,\2\2,:Q}"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,(.).,\2\2,:Q}"
+	in target "mod-regex-limits-4"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,(.).,\2\2,:Q}"
+	in target "mod-regex-limits-4"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,(.).,\2\2,:Q}"
+	in target "mod-regex-limits-4"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in command "@echo $@:22-missing:${:U1 23 456:C,(.).,\2\2,:Q}"
+	in target "mod-regex-limits-4"
+mod-regex-limits-5:22-ok:1 33 556
+mod-regex-limits-6:capture:ihgfedcbaabcdefghijABCDEFGHIJa0a1a2rest
+make: Regex compilation error: (details omitted)
+	while evaluating variable "UNDEF" with value "value"
+	in command "@echo $@: ${UNDEF:Uvalue:C,[,,}"
+	in target "mod-regex-errors-1"
+make: Unknown modifier ":Z"
+	while evaluating "${:U:Z}y,W}" with value ""
+	while evaluating variable "word" with value "word"
+	in command "@echo $@: ${word:L:C,.*,x${:U:Z}y,W}"
+	in target "mod-regex-errors-2"
+unmatched-subexpression.ok: one one 2 3 5 8 one3 2one 34
+make: No match for subexpression \2
+unmatched-subexpression.1: ()()
+make: No match for subexpression \2
+unmatched-subexpression.1: ()()
+make: No match for subexpression \1
+unmatched-subexpression.2: ()()
+unmatched-subexpression.3: 3
+unmatched-subexpression.5: 5
+unmatched-subexpression.8: 8
+make: No match for subexpression \2
+unmatched-subexpression.13: (3)()
+make: No match for subexpression \1
+unmatched-subexpression.21: ()(1)
+unmatched-subexpression.34: 34
+make: No match for subexpression \2
+make: No match for subexpression \2
+make: No match for subexpression \1
+make: No match for subexpression \2
+make: No match for subexpression \1
+unmatched-subexpression.all: ()() ()() ()() 3 5 8 (3)() ()(1) 34
+exit status 2

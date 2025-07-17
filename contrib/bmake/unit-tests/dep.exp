@@ -1,0 +1,5 @@
+make: dep.mk:11: Inconsistent operator for only-colon
+make: dep.mk:13: Inconsistent operator for only-colon
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

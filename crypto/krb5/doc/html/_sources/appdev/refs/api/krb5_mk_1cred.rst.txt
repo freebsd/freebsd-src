@@ -1,0 +1,60 @@
+krb5_mk_1cred -  Format a KRB-CRED message for a single set of credentials. 
+============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_1cred(krb5_context context, krb5_auth_context auth_context, krb5_creds * creds, krb5_data ** der_out, krb5_replay_data * rdata_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **creds** - Pointer to credentials
+
+	          **[out]** **der_out** - Encoded credentials
+
+	          **[out]** **rdata_out** - Replay cache data (NULL if not needed)
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   ENOMEM   Insufficient memory
+         -   KRB5_RC_REQUIRED   Message replay detection requires rcache parameter
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This is a convenience function that calls krb5_mk_ncred() with a single set of credentials.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

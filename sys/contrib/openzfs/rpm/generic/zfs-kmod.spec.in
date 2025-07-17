@@ -1,0 +1,215 @@
+%define module  @PACKAGE@
+
+%if !%{defined ksrc}
+%if 0%{?rhel}%{?fedora}%{?openEuler}
+%define ksrc    ${kernel_version##*___}
+%else
+%define ksrc    "$( \
+        if [ -e "/usr/src/linux-${kernel_version%%___*}" ]; then \
+            echo "/usr/src/linux-${kernel_version%%___*}"; \
+        elif [ -e "/lib/modules/${kernel_version%%___*}/source" ]; then \
+            echo "/lib/modules/${kernel_version%%___*}/source"; \
+        else \
+            echo "/lib/modules/${kernel_version%%___*}/build"; \
+        fi)"
+%endif
+%endif
+
+%if !%{defined kobj}
+%if 0%{?rhel}%{?fedora}%{?openEuler}
+%define kobj    ${kernel_version##*___}
+%else
+%define kobj    "$( \
+        if [ -e "/usr/src/linux-${kernel_version%%___*}" ]; then \
+            echo "/usr/src/linux-${kernel_version%%___*}"; \
+        else \
+            echo "/lib/modules/${kernel_version%%___*}/build"; \
+        fi)"
+%endif
+%endif
+
+#define repo    rpmfusion
+#define repo    chaos
+
+# (un)define the next line to either build for the newest or all current kernels
+%define buildforkernels newest
+#define buildforkernels current
+#define buildforkernels akmod
+
+%bcond_with     debug
+%bcond_with     debuginfo
+
+
+Name:           %{module}-kmod
+
+Version:        @VERSION@
+Release:        @RELEASE@%{?dist}
+Summary:        Kernel module(s)
+
+Group:          System Environment/Kernel
+License:        @ZFS_META_LICENSE@
+URL:            https://github.com/openzfs/zfs
+Source0:        %{module}-%{version}.tar.gz
+Source10:       kmodtool
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id} -u -n)
+%if 0%{?rhel}%{?fedora}%{?openEuler}
+BuildRequires:  gcc, make
+BuildRequires:  elfutils-libelf-devel
+%endif
+
+%if (0%{?fedora}%{?suse_version}%{?openEuler}) || (0%{?rhel} && 0%{?rhel} < 9)
+# We don't directly use it, but if this isn't installed, rpmbuild as root can
+# crash+corrupt rpmdb
+# See issue #12071
+BuildRequires:  ncompress
+%endif
+
+# The developments headers will conflict with the dkms packages.
+Conflicts:      %{module}-dkms
+
+%if %{defined repo}
+
+# Building for a repository use the proper build-sysbuild package
+# to determine which kernel-devel packages should be installed.
+BuildRequires:  %{_bindir}/kmodtool
+%{!?kernels:BuildRequires: buildsys-build-%{repo}-kerneldevpkgs-%{?buildforkernels:%{buildforkernels}}%{!?buildforkernels:current}-%{_target_cpu}}
+
+%else
+
+# Building local packages attempt to to use the installed kernel.
+%{?rhel:BuildRequires: kernel-devel}
+%{?fedora:BuildRequires: kernel-devel}
+%{?openEuler:BuildRequires: kernel-devel}
+%{?suse_version:BuildRequires: kernel-source}
+
+%if !%{defined kernels} && !%{defined build_src_rpm}
+    %if 0%{?rhel}%{?fedora}%{?suse_version}%{?openEuler}
+        %define kernels %(ls -1 /usr/src/kernels)
+    %else
+        %define kernels %(ls -1 /lib/modules)
+    %endif
+%endif
+%endif
+
+# LDFLAGS are not sanitized by arch/*/Makefile for these architectures.
+%ifarch ppc ppc64 ppc64le aarch64
+%global __global_ldflags %{nil}
+%endif
+
+# Kmodtool does its magic here.  A patched version of kmodtool is shipped
+# with the source rpm until kmod development packages are supported upstream.
+# https://bugzilla.rpmfusion.org/show_bug.cgi?id=2714
+%{expand:%(bash %{SOURCE10} --target %{_target_cpu} %{?repo:--repo %{?repo}} --kmodname %{name} %{?buildforkernels:--%{buildforkernels}} --devel %{?prefix:--prefix "%{?prefix}"} %{?kernels:--for-kernels "%{?kernels}"} %{?kernelbuildroot:--buildroot "%{?kernelbuildroot}"} 2>/dev/null) }
+
+
+%description
+This package contains the ZFS kernel modules.
+
+%prep
+# Error out if there was something wrong with kmodtool.
+%{?kmodtool_check}
+
+# Print kmodtool output for debugging purposes:
+bash %{SOURCE10}  --target %{_target_cpu} %{?repo:--repo %{?repo}} --kmodname %{name} %{?buildforkernels:--%{buildforkernels}} --devel %{?prefix:--prefix "%{?prefix}"} %{?kernels:--for-kernels "%{?kernels}"} %{?kernelbuildroot:--buildroot "%{?kernelbuildroot}"} 2>/dev/null
+
+%if %{with debug}
+    %define debug --enable-debug
+%else
+    %define debug --disable-debug
+%endif
+
+%if %{with debuginfo}
+    %define debuginfo --enable-debuginfo
+%else
+    %define debuginfo --disable-debuginfo
+%endif
+
+# Leverage VPATH from configure to avoid making multiple copies.
+%define _configure ../%{module}-%{version}/configure
+
+%setup -q -c -T -a 0
+
+for kernel_version in %{?kernel_versions}; do
+    %{__mkdir} _kmod_build_${kernel_version%%___*}
+done
+
+%build
+for kernel_version in %{?kernel_versions}; do
+    cd _kmod_build_${kernel_version%%___*}
+    %configure \
+        --with-config=kernel \
+        --with-linux=%{ksrc} \
+        --with-linux-obj=%{kobj} \
+        %{debug} \
+        %{debuginfo} \
+        %{?kernel_cc} \
+        %{?kernel_ld} \
+        %{?kernel_llvm} \
+        %{?kernel_cross_compile} \
+        %{?kernel_arch}
+
+    # Pre-6.10 kernel builds didn't need to copy over the source files to the
+    # build directory.  However we do need to do it though post-6.10 due to
+    # these commits:
+    #
+    # b1992c3772e6 kbuild: use $(src) instead of $(srctree)/$(src) for source
+    #                      directory
+    #
+    # 9a0ebe5011f4 kbuild: use $(obj)/ instead of $(src)/ for common pattern
+    #                      rules
+    #
+    # Note that kmodtool actually copies over the source into the build
+    # directory, so what we're doing here is normal.  For efficiency reasons
+    # though we just use hardlinks instead of copying.
+    #
+    # See https://github.com/openzfs/zfs/issues/16439 for more info.
+    cp -lR ../%{module}-%{version}/module/* module/
+
+    make %{?_smp_mflags}
+    cd ..
+done
+
+
+# Module signing (modsign)
+#
+# This must be run _after_ find-debuginfo.sh runs, otherwise that will strip
+# the signature off of the modules.
+# (Based on Fedora's kernel.spec workaround)
+%define __modsign_install_post \
+    sign_pem="%{ksrc}/certs/signing_key.pem"; \
+    sign_x509="%{ksrc}/certs/signing_key.x509"; \
+    if [ -f "${sign_x509}" ]\
+    then \
+        echo "Signing kernel modules ..."; \
+        for kmod in $(find ${RPM_BUILD_ROOT}%{kmodinstdir_prefix}/*/extra/ -name \*.ko); do \
+            %{ksrc}/scripts/sign-file sha256 ${sign_pem} ${sign_x509} ${kmod}; \
+        done \
+    fi \
+%{nil}
+
+# hack to ensure signing happens after find-debuginfo.sh runs
+%define __spec_install_post \
+    %{?__debug_package:%{__debug_install_post}}\
+    %{__arch_install_post}\
+    %{__os_install_post}\
+    %{__modsign_install_post}
+
+%install
+rm -rf ${RPM_BUILD_ROOT}
+
+# Relies on the kernel 'modules_install' make target.
+for kernel_version in %{?kernel_versions}; do
+    cd _kmod_build_${kernel_version%%___*}
+    make install \
+        DESTDIR=${RPM_BUILD_ROOT} \
+        %{?prefix:INSTALL_MOD_PATH=%{?prefix}} \
+        INSTALL_MOD_DIR=%{kmodinstdir_postfix}
+    cd ..
+done
+# find-debuginfo.sh only considers executables
+chmod u+x ${RPM_BUILD_ROOT}%{kmodinstdir_prefix}/*/extra/*/*
+%{?akmod_install}
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT

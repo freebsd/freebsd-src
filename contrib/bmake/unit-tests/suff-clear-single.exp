@@ -1,0 +1,6 @@
+make: don't know how to make issue3 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1

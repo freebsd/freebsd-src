@@ -1,0 +1,72 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2023 Baptiste Daroussin <bapt@nours.eu>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd Oct 5, 2024
+.Dt GENL 1
+.Os
+.Sh NAME
+.Nm genl
+.Nd "generic netlink"
+.Sh SYNOPSIS
+.Nm
+.Pp
+.Nm Cm list
+.Pp
+.Nm Cm monitor Ao family Ac
+.Op multicast group
+.Sh DESCRIPTION
+The
+.Nm
+utility provides user access to generic netlink protocols.
+.Pp
+The following commands are available:
+.Bl -tag -width indent
+.It Cm list Po default Pc
+Lists all available generic netlink protocols, and presents its details:
+.Bl -tag -width "multicast groups"
+.It operations
+Id of the operation if any and associated capabilities
+.It multicast groups
+Id of the available multicast group if any and it associated name
+.El
+.It Cm monitor Ao family Ac Oo multicast group Oc
+Connect to the
+.Ar family
+protocol and subscribe to the
+.Ar multicast group
+then print the received messages in a readable format if the protocol is known.
+So far only
+.Qq nlctrl
+and
+.Qq nlsysevent
+are known.
+If no
+.Ar multicast group
+are provided then all the groups are subscribed to.
+.El
+.Sh SEE ALSO
+.Xr genetlink 4 ,
+.Xr netlink 4

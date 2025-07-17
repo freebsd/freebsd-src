@@ -1,0 +1,52 @@
+krb5_set_default_realm -  Override the default realm for the specified context. 
+================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_set_default_realm(krb5_context context, const char * lrealm)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **lrealm** - Realm name for the default realm
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+If *lrealm* is NULL, clear the default realm setting.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

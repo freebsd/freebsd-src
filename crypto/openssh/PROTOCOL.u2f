@@ -1,0 +1,309 @@
+This document describes OpenSSH's support for U2F/FIDO security keys.
+
+Background
+----------
+
+U2F is an open standard for two-factor authentication hardware, widely
+used for user authentication to websites. U2F tokens are ubiquitous,
+available from a number of manufacturers and are currently by far the
+cheapest way for users to achieve hardware-backed credential storage.
+
+The U2F protocol however cannot be trivially used as an SSH protocol key
+type as both the inputs to the signature operation and the resultant
+signature differ from those specified for SSH. For similar reasons,
+integration of U2F devices cannot be achieved via the PKCS#11 API.
+
+U2F also offers a number of features that are attractive in the context
+of SSH authentication. They can be configured to require indication
+of "user presence" for each signature operation (typically achieved
+by requiring the user touch the key). They also offer an attestation
+mechanism at key enrollment time that can be used to prove that a
+given key is backed by hardware. Finally the signature format includes
+a monotonic signature counter that can be used (at scale) to detect
+concurrent use of a private key, should it be extracted from hardware.
+
+U2F private keys are generated through an enrollment operation,
+which takes an application ID - a URL-like string, typically "ssh:"
+in this case, but a HTTP origin for the case of web authentication,
+and a challenge string (typically randomly generated). The enrollment
+operation returns a public key, a key handle that must be used to invoke
+the hardware-backed private key, some flags and signed attestation
+information that may be used to verify that a private key is hosted on a
+particular hardware instance.
+
+It is common for U2F hardware to derive private keys from the key handle
+in conjunction with a small per-device secret that is unique to the
+hardware, thus requiring little on-device storage for an effectively
+unlimited number of supported keys. This drives the requirement that
+the key handle be supplied for each signature operation. U2F tokens
+primarily use ECDSA signatures in the NIST-P256 field, though the FIDO2
+standard specifies additional key types, including one based on Ed25519.
+
+Use of U2F security keys does not automatically imply multi-factor
+authentication. From sshd's perspective, a security key constitutes a
+single factor of authentication, even if protected by a PIN or biometric
+authentication.  To enable multi-factor authentication in ssh, please
+refer to the AuthenticationMethods option in sshd_config(5).
+
+
+SSH U2F Key formats
+-------------------
+
+OpenSSH integrates U2F as new key and corresponding certificate types:
+
+	sk-ecdsa-sha2-nistp256@openssh.com
+	sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
+	sk-ssh-ed25519@openssh.com
+	sk-ssh-ed25519-cert-v01@openssh.com
+
+While each uses ecdsa-sha256-nistp256 as the underlying signature primitive,
+keys require extra information in the public and private keys, and in
+the signature object itself. As such they cannot be made compatible with
+the existing ecdsa-sha2-nistp* key types.
+
+The format of a sk-ecdsa-sha2-nistp256@openssh.com public key is:
+
+	string		"sk-ecdsa-sha2-nistp256@openssh.com"
+	string		curve name
+	ec_point	Q
+	string		application (user-specified, but typically "ssh:")
+
+The corresponding private key contains:
+
+	string		"sk-ecdsa-sha2-nistp256@openssh.com"
+	string		curve name
+	ec_point	Q
+	string		application (user-specified, but typically "ssh:")
+	uint8		flags
+	string		key_handle
+	string		reserved
+
+The format of a sk-ssh-ed25519@openssh.com public key is:
+
+	string		"sk-ssh-ed25519@openssh.com"
+	string		public key
+	string		application (user-specified, but typically "ssh:")
+
+With a private half consisting of:
+
+	string		"sk-ssh-ed25519@openssh.com"
+	string		public key
+	string		application (user-specified, but typically "ssh:")
+	uint8		flags
+	string		key_handle
+	string		reserved
+
+The certificate form for SSH U2F keys appends the usual certificate
+information to the public key:
+
+	string		"sk-ecdsa-sha2-nistp256-cert-v01@openssh.com"
+	string		nonce
+	string		curve name
+	ec_point	Q
+	string		application
+	uint64		serial
+	uint32		type
+	string		key id
+	string		valid principals
+	uint64		valid after
+	uint64		valid before
+	string		critical options
+	string		extensions
+	string		reserved
+	string		signature key
+	string		signature
+
+and for security key ed25519 certificates:
+
+	string		"sk-ssh-ed25519-cert-v01@openssh.com"
+	string		nonce
+	string		public key
+	string		application
+	uint64		serial
+	uint32		type
+	string		key id
+	string		valid principals
+	uint64		valid after
+	uint64		valid before
+	string		critical options
+	string		extensions
+	string		reserved
+	string		signature key
+	string		signature
+
+Both security key certificates use the following encoding for private keys:
+
+	string		type (e.g. "sk-ssh-ed25519-cert-v01@openssh.com")
+	string		pubkey (the above key/cert structure)
+	string		application
+	uint8		flags
+	string		key_handle
+	string		reserved
+
+During key generation, the hardware also returns attestation information
+that may be used to cryptographically prove that a given key is
+hardware-backed. Unfortunately, the protocol required for this proof is
+not privacy-preserving and may be used to identify U2F tokens with at
+least manufacturer and batch number granularity. For this reason, we
+choose not to include this information in the public key or save it by
+default.
+
+Attestation information is useful for out-of-band key and certificate
+registration workflows, e.g. proving to a CA that a key is backed
+by trusted hardware before it will issue a certificate. To support this
+case, OpenSSH optionally allows retaining the attestation information
+at the time of key generation. It will take the following format:
+
+	string		"ssh-sk-attest-v01"
+	string		attestation certificate
+	string		enrollment signature
+	string		authenticator data (CBOR encoded)
+	uint32		reserved flags
+	string		reserved string
+
+A previous version of this format, emitted prior to OpenSSH 8.4 omitted
+the authenticator data.
+
+	string		"ssh-sk-attest-v00"
+	string		attestation certificate
+	string		enrollment signature
+	uint32		reserved flags
+	string		reserved string
+
+OpenSSH treats the attestation certificate and enrollment signatures as
+opaque objects and does no interpretation of them itself.
+
+SSH U2F signatures
+------------------
+
+In addition to the message to be signed, the U2F signature operation
+requires the key handle and a few additional parameters. The signature
+is signed over a blob that consists of:
+
+	byte[32]	SHA256(application)
+	byte		flags (including "user present", extensions present)
+	uint32		counter
+	byte[]		extensions
+	byte[32]	SHA256(message)
+
+No extensions are yet defined for SSH use. If any are defined in the future,
+it will be possible to infer their presence from the contents of the "flags"
+value.
+
+The signature returned from U2F hardware takes the following format:
+
+	byte		flags (including "user present")
+	uint32		counter
+	byte[]		ecdsa_signature (in X9.62 format).
+
+For use in the SSH protocol, we wish to avoid server-side parsing of ASN.1
+format data in the pre-authentication attack surface. Therefore, the
+signature format used on the wire in SSH2_USERAUTH_REQUEST packets will
+be reformatted to better match the existing signature encoding:
+
+	string		"sk-ecdsa-sha2-nistp256@openssh.com"
+	string		ecdsa_signature
+	byte		flags
+	uint32		counter
+
+Where the "ecdsa_signature" field follows the RFC5656 ECDSA signature
+encoding:
+
+	mpint		r
+	mpint		s
+
+For Ed25519 keys the signature is encoded as:
+
+	string		"sk-ssh-ed25519@openssh.com"
+	string		signature
+	byte		flags
+	uint32		counter
+
+webauthn signatures
+-------------------
+
+The W3C/FIDO webauthn[1] standard defines a mechanism for a web browser to
+interact with FIDO authentication tokens. This standard builds upon the
+FIDO standards, but requires different signature contents to raw FIDO
+messages. OpenSSH supports ECDSA/p256 webauthn signatures through the
+"webauthn-sk-ecdsa-sha2-nistp256@openssh.com" signature algorithm.
+
+The wire encoding for a webauthn-sk-ecdsa-sha2-nistp256@openssh.com
+signature is similar to the sk-ecdsa-sha2-nistp256@openssh.com format:
+
+	string		"webauthn-sk-ecdsa-sha2-nistp256@openssh.com"
+	string		ecdsa_signature
+	byte		flags
+	uint32		counter
+	string		origin
+	string		clientData
+	string		extensions
+
+Where "origin" is the HTTP origin making the signature, "clientData" is
+the JSON-like structure signed by the browser and "extensions" are any
+extensions used in making the signature.
+
+[1] https://www.w3.org/TR/webauthn-2/
+
+ssh-agent protocol extensions
+-----------------------------
+
+ssh-agent requires a protocol extension to support U2F keys. At
+present the closest analogue to Security Keys in ssh-agent are PKCS#11
+tokens, insofar as they require a middleware library to communicate with
+the device that holds the keys. Unfortunately, the protocol message used
+to add PKCS#11 keys to ssh-agent does not include any way to send the
+key handle to the agent as U2F keys require.
+
+To avoid this, without having to add wholly new messages to the agent
+protocol, we will use the existing SSH2_AGENTC_ADD_ID_CONSTRAINED message
+with a new key constraint extension to encode a path to the middleware
+library for the key. The format of this constraint extension would be:
+
+	byte		SSH_AGENT_CONSTRAIN_EXTENSION
+	string		sk-provider@openssh.com
+	string		middleware path
+
+This constraint-based approach does not present any compatibility
+problems.
+
+OpenSSH integration
+-------------------
+
+U2F tokens may be attached via a number of means, including USB and NFC.
+The USB interface is standardised around a HID protocol, but we want to
+be able to support other transports as well as dummy implementations for
+regress testing. For this reason, OpenSSH shall support a dynamically-
+loaded middleware libraries to communicate with security keys, but offer
+support for the common case of USB HID security keys internally.
+
+The middleware library need only expose a handful of functions and
+numbers listed in sk-api.h. Included in the defined numbers is a
+SSH_SK_VERSION_MAJOR that should be incremented for each incompatible
+API change.
+
+miscellaneous options may be passed to the middleware as a NULL-
+terminated array of pointers to struct sk_option. The middleware may
+ignore unsupported or unknown options unless the "required" flag is set,
+in which case it should return failure if an unsupported option is
+requested.
+
+At present the following options names are supported:
+
+	"device"
+
+	Specifies a specific FIDO device on which to perform the
+	operation. The value in this field is interpreted by the
+	middleware but it would be typical to specify a path to
+	a /dev node for the device in question.
+
+	"user"
+
+	Specifies the FIDO2 username used when enrolling a key,
+	overriding OpenSSH's default of using an all-zero username.
+
+In OpenSSH, the middleware will be invoked by using a similar mechanism to
+ssh-pkcs11-helper to provide address-space containment of the
+middleware from ssh-agent.
+
+$OpenBSD: PROTOCOL.u2f,v 1.26 2020/09/09 03:08:01 djm Exp $

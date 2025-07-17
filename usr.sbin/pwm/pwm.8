@@ -1,0 +1,123 @@
+.\" Copyright (c) 2018 Emmanuel Vadot <manu@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 17, 2019
+.Dt PWM 8
+.Os
+.Sh NAME
+.Nm pwm
+.Nd configure PWM (Pulse Width Modulation) hardware
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar device
+.Fl C
+.Nm
+.Op Fl f Ar device
+.Op Fl D | Fl E
+.Op Fl I
+.Op Fl p Ar period
+.Op Fl d Ar duty
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to configure pwm hardware.
+.Nm
+uses a
+.Xr pwmc 4
+device to communicate with the hardware.
+Some PWM hardware supports multiple output channels within a single
+controller block; each
+.Xr pwmc 4
+instance controls a single PWM channel.
+.Pp
+.Xr pwmc 4
+devices are named
+.Pa /dev/pwm/pwmcX.Y ,
+where
+.Va X
+is the controller unit number and
+.Va Y
+is the channel number within that unit.
+.Pp
+The options are as follows:
+.Bl -tag -width "-f device"
+.It Fl f Ar device
+Device to operate on.
+If not specified,
+.Pa /dev/pwm/pwmc0.0
+is used.
+If an unqualified name is provided,
+.Pa /dev/pwm
+is automatically prepended.
+.It Fl C
+Show the configuration of the PWM channel.
+.It Fl D
+Disable the PWM channel.
+.It Fl d Ar duty
+Configure the duty cycle (in nanoseconds or percentage) of the PWM channel.
+Duty is the portion of the
+.Ar period
+during which the signal is asserted.
+.It Fl E
+Enable the PWM channel.
+.It Fl p Ar period
+Configure the period (in nanoseconds) of the PWM channel.
+.It Fl I
+Invert PWM signal polarity
+.El
+.Sh EXAMPLES
+.Bl -bullet
+.It
+Show the configuration of the PWM channel:
+.Bd -literal
+pwm -f /dev/pwm/pwmc0.1 -C
+.Ed
+.It
+Configure a 50000 ns period and a 25000 ns duty cycle
+and enable the channel:
+.Bd -literal
+pwm -f pwmc1.1 -E -p 50000 -d 25000
+.Ed
+.It
+Configure a 50% duty cycle on the device and channel which
+were configured in
+.Xr pwmc 4
+to have the label
+.Pa backlight :
+.Bd -literal
+pwm -f backlight -d 50%
+.Ed
+.El
+.Sh SEE ALSO
+.Xr pwm 9 ,
+.Xr pwmbus 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility and this manual page were written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

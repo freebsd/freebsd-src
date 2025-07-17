@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _VALID-INT-BITS-data:
+
+VALID_INT_BITS
+==============
+
+..
+.. data:: VALID_INT_BITS
+..
+
+
+
+
+===================== ======================
+``VALID_INT_BITS``       ``INT_MAX``
+===================== ======================

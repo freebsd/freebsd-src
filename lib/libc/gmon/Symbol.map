@@ -1,0 +1,9 @@
+FBSD_1.0 {
+	_mcleanup;
+	monstartup;
+	moncontrol;
+};
+
+FBSDprivate_1.0 {
+	_gmonparam;
+};

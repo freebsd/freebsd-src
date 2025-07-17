@@ -1,0 +1,132 @@
+
+#------------------------------------------------------------------------------
+# $File: asf,v 1.5 2024/09/04 19:06:12 christos Exp $
+# asf:  file(1) magic for Microsoft Advanced Systems Format (ASF) files
+# http://www.staroceans.org/e-book/ASF_Specification.pdf
+
+0	name	asf-name
+# ASF_Data_Object
+#>0	guid	75B22636-668E-11CF-A6D9-00AA0062CE6C
+#>16	lequad	>0
+#>>(16.q)	use	asf-object
+# ASF_Simple_Index_Object
+#>0	guid	33000890-E5B1-11CF-89F4-00A0C90349CB
+>0	guid	D6E229D3-35DA-11D1-9034-00A0C90349BE ASF_Index_Object
+>0	guid	FEB103F8-12AD-4C64-840F-2A1D2F7AD48C ASF_Media_Object_Index_Object
+>0	guid	3CB73FD0-0C4A-4803-953D-EDF7B6228F0C ASF_Timecode_Index_Object
+
+# ASF_File_Properties_Object
+#>0	guid	8CABDCA1-A947-11CF-8EE4-00C00C205365 
+
+# ASF_Stream_Properties_Object
+>0	guid	B7DC0791-A9B7-11CF-8EE6-00C00C205365
+#>>56	lequad	x		Time Offset %lld
+#>>64	lelong	x		Type-Specific Data Length %d
+#>>68	lelong	x		Error Correction Data Length %d
+#>>72	leshort	x		Flags %#x
+#>>74	lelong	x		Reserved %x
+# ASF_Audio_Media
+>>24	guid	F8699E40-5B4D-11CF-A8FD-00805F5C442B \b, Audio Media (
+>>>78	leshort	x	\bCodec Id %d
+>>>80	leshort	x	\b, Number of channels %d
+>>>82	lelong	x	\b, Samples Per Second %d
+>>>86	lelong	x	\b, Average Number of Bytes Per Second %d
+>>>90	lelong	x	\b, Block Alignment %d
+>>>94	leshort	x	\b, Bits Per Sample %d
+# ASF_Video_Media
+>>24	guid	BC19EFC0-5B4D-11CF-A8FD-00805F5C442B \b, Video Media (
+>>>78	lelong	x	\bEncoded Image Width %d
+>>>82	lelong	x	\b, Encoded Image Height %d
+#>>>85	leshort	x	\b, Format Data Size %x
+>>>93	lelong	x	\b, Image Width %d
+>>>97	lelong	x	\b, Image Height %d
+#>>>101	leshort	x	\b, Reserved %#x
+>>>103	leshort	x	\b, Bits Per Pixel Count %d
+#>>>105	lelong	x 	\b, Compression ID %d
+#>>>109	lelong	x	\b, Image Size %d
+#>>>113	lelong	x	\b, Horizontal Pixels Per Meter %d
+#>>>117	lelong	x	\b, Vertical Pixels Per Meter %d
+#>>>121	lelong	x	\b, Colors Used Count %d
+#>>>125	lelong	x	\b, Important Colors Count %d
+>>0	lelong	x	\b, Error correction type
+>>40	use	asf-name 
+>>0	lelong	x	\b)
+#ASF_Header_Extension_Object
+#>0	guid	5FBF03B5-A92E-11CF-8EE3-00C00C205365
+# ASF_Codec_List_Object
+#>0	guid	86D15240-311D-11D0-A3A4-00A0C90348F6
+>0	guid	1EFB1A30-0B62-11D0-A39B-00A0C90348F6 ASF_Script_Command_Object
+>0	guid	F487CD01-A951-11CF-8EE6-00C00C205365 ASF_Marker_Object
+>0	guid	D6E229DC-35DA-11D1-9034-00A0C90349BE ASF_Bitrate_Mutual_Exclusion_Object
+>0	guid	75B22635-668E-11CF-A6D9-00AA0062CE6C ASF_Error_Correction_Object
+# ASF_Content_Description_Object
+#>0	guid	75B22633-668E-11CF-A6D9-00AA0062CE6C
+#>>24	leshort	title length %d
+#>>26	leshort	author length %d
+#>>28	leshort	copyright length %d
+#>>30	leshort	descriptor length %d
+#>>32	leshort	rating length %d
+>0	guid	D2D0A440-E307-11D2-97F0-00A0C95EA850 ASF_Extended_Content_Description_Object
+>0	guid	2211B3FA-BD23-11D2-B4B7-00A0C955FC6E ASF_Content_Branding_Object
+>0	guid	7BF875CE-468D-11D1-8D82-006097C9A2B2 ASF_Stream_Bitrate_Properties_Object
+>0	guid	2211B3FB-BD23-11D2-B4B7-00A0C955FC6E ASF_Content_Encryption_Object
+>0	guid	298AE614-2622-4C17-B935-DAE07EE9289C ASF_Extended_Content_Encryption_Object
+>0	guid	2211B3FC-BD23-11D2-B4B7-00A0C955FC6E ASF_Digital_Signature_Object
+# ASF_Padding_Object
+#>0	guid	1806D474-CADF-4509-A4BA-9AABCB96AAE8
+>0	guid	14E6A5CB-C672-4332-8399-A96952065B5A ASF_Extended_Stream_Properties_Object
+>0	guid	A08649CF-4775-4670-8A16-6E35357566CD ASF_Advanced_Mutual_Exclusion_Object
+>0	guid	D1465A40-5A79-4338-B71B-E36B8FD6C249 ASF_Group_Mutual_Exclusion_Object
+>0	guid	D4FED15B-88D3-454F-81F0-ED5C45999E24 ASF_Stream_Prioritization_Object
+>0	guid	A69609E6-517B-11D2-B6AF-00C04FD908E9 ASF_Bandwidth_Sharing_Object
+>0	guid	7C4346A9-EFE0-4BFC-B229-393EDE415C85 ASF_Language_List_Object
+>0	guid	C5F8CBEA-5BAF-4877-8467-AA8C44FA4CCA ASF_Metadata_Object
+>0	guid	44231C94-9498-49D1-A141-1D134E457054 ASF_Metadata_Library_Object
+>0	guid	D6E229DF-35DA-11D1-9034-00A0C90349BE ASF_Index_Parameters_Object
+>0	guid	6B203BAD-3F11-48E4-ACA8-D7613DE2CFA7 ASF_Media_Object_Index_Parameters_Object
+>0	guid	F55E496D-9797-4B5D-8C8B-604DFE9BFB24 ASF_Timecode_Index_Parameters_Object
+>0	guid	26F18B5D-4584-47EC-9F5F-0E651F0452C9 ASF_Compatibility_Object
+>0	guid	43058533-6981-49E6-9B74-AD12CB86D58C ASF_Advanced_Content_Encryption_Object
+>0	guid	59DACFC0-59E6-11D0-A3AC-00A0C90348F6 ASF_Command_Media
+>0	guid	B61BE100-5B4E-11CF-A8FD-00805F5C442B ASF_JFIF_Media
+>0	guid	35907DE0-E415-11CF-A917-00805F5C442B ASF_Degradable_JPEG_Media
+>0	guid	91BD222C-F21C-497A-8B6D-5AA86BFC0185 ASF_File_Transfer_Media
+>0	guid	3AFB65E2-47EF-40F2-AC2C-70A90D71D343 ASF_Binary_Media
+>0	guid	776257D4-C627-41CB-8F81-7AC7FF1C40CC ASF_Web_Stream_Media_Subtype
+>0	guid	DA1E6B13-8359-4050-B398-388E965BF00C ASF_Web_Stream_Format
+>0	guid	20FB5700-5B55-11CF-A8FD-00805F5C442B ASF_No_Error_Correction
+>0	guid	BFC3CD50-618F-11CF-8BB2-00AA00B4E220 ASF_Audio_Spread
+>0	guid	ABD3D211-A9BA-11cf-8EE6-00C00C205365 ASF_Reserved_1
+>0	guid	7A079BB6-DAA4-4e12-A5CA-91D38DC11A8D ASF_Content_Encryption_System_Windows_Media_DRM
+# _Network_Devices
+>0	guid	86D15241-311D-11D0-A3A4-00A0C90348F6 ASF_Reserved_2
+>0	guid	4B1ACBE3-100B-11D0-A39B-00A0C90348F6 ASF_Reserved_3
+>0	guid	4CFEDB20-75F6-11CF-9C0F-00A0C90349CB ASF_Reserved_4
+>0	guid	D6E22A00-35DA-11D1-9034-00A0C90349BE ASF_Mutex_Language
+>0	guid	D6E22A01-35DA-11D1-9034-00A0C90349BE ASF_Mutex_Bitrate
+>0	guid	D6E22A02-35DA-11D1-9034-00A0C90349BE ASF_Mutex_Unknown
+>0	guid	AF6060AA-5197-11D2-B6AF-00C04FD908E9 ASF_Bandwidth_Sharing_Exclusive
+>0	guid	AF6060AB-5197-11D2-B6AF-00C04FD908E9 ASF_Bandwidth_Sharing_Partial
+>0	guid	399595EC-8667-4E2D-8FDB-98814CE76C1E ASF_Payload_Extension_System_Timecode
+>0	guid	E165EC0E-19ED-45D7-B4A7-25CBD1E28E9B ASF_Payload_Extension_System_File_Name
+>0	guid	D590DC20-07BC-436C-9CF7-F3BBFBF1A4DC ASF_Payload_Extension_System_Content_Type
+>0	guid	1B1EE554-F9EA-4BC8-821A-376B74E4C4B8 ASF_Payload_Extension_System_Pixel_Aspect_Ratio
+>0	guid	C6BD9450-867F-4907-83A3-C77921B733AD ASF_Payload_Extension_System_Sample_Duration
+>0	guid	6698B84E-0AFA-4330-AEB2-1C0A98D7A44D ASF_Payload_Extension_System_Encryption_Sample_ID
+>0	guid	00E1AF06-7BEC-11D1-A582-00C04FC29CFB ASF_Payload_Extension_System_Degradable_JPEG
+
+0	name	asf-object
+>0	use	asf-name
+#>>16	lequad	>0					(size %lld) [
+>>16	lequad	>0
+>>>(16.q)	use	asf-object
+#>>16	lequad	0	]
+
+# Microsoft Advanced Streaming Format (ASF) <mpruett@sgi.com>
+0	guid	75B22630-668E-11CF-A6D9-00AA0062CE6C	Microsoft ASF
+!:mime  video/x-ms-asf 
+#>16	lequad	>0					(size %lld
+#>>24	lelong	x					\b, %d header objects)
+>16	lequad	>0
+>>30	use	asf-object
+>>(16.q)	use	asf-object

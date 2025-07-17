@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: nfsuserd
+# REQUIRE: NETWORKING
+# KEYWORD: nojailvnet shutdown
+
+. /etc/rc.subr
+
+name="nfsuserd"
+desc="Load user and group information into the kernel for NFSv4 services and support manage-gids for all NFS versions"
+rcvar="nfsuserd_enable"
+command="/usr/sbin/${name}"
+sig_stop="USR1"
+
+: ${nfsuserd_svcj_options:="net_basic nfsd"}
+
+load_rc_config $name
+# precmd is not compatible with svcj
+nfsuserd_svcj="NO"
+start_precmd="nfsuserd_precmd"
+
+nfsuserd_precmd()
+{
+	if checkyesno nfs_server_managegids; then
+		rc_flags="-manage-gids ${nfsuserd_flags}"
+	fi
+	return 0
+}
+
+run_rc_command "$1"

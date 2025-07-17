@@ -1,0 +1,101 @@
+.\" Copyright (c) 2001,2002 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 20, 2023
+.Dt CRITICAL_ENTER 9
+.Os
+.Sh NAME
+.Nm critical_enter ,
+.Nm critical_exit
+.Nd enter and exit a critical region
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.Ft void
+.Fn critical_enter "void"
+.Ft void
+.Fn critical_exit "void"
+.Fn CRITICAL_ASSERT "struct thread *td"
+.Sh DESCRIPTION
+These functions are used to prevent preemption in a critical region of code.
+All that is guaranteed is that the thread currently executing on a CPU will
+not be preempted.
+Specifically, a thread in a critical region will not migrate to another CPU
+while it is in a critical region, nor will the current CPU switch to a
+different thread.
+The current CPU may still trigger faults and exceptions during a critical
+section; however, these faults are usually fatal.
+.Pp
+The CPU might also receive and handle interrupts within a critical section.
+When this occurs the interrupt exit will not result in a context switch, and
+execution will continue in the critical section.
+Thus, the net effect of a critical section on the current thread's execution is
+similar to running with interrupts disabled, except that timer interrupts and
+filtered interrupt handlers do not incur a latency penalty.
+.Pp
+The
+.Fn critical_enter
+and
+.Fn critical_exit
+functions manage a per-thread counter to handle nested critical sections.
+If a thread is made runnable that would normally preempt the current thread
+while the current thread is in a critical section,
+then the preemption will be deferred until the current thread exits the
+outermost critical section.
+.Pp
+Note that these functions do not provide any inter-CPU synchronization, data
+protection, or memory ordering guarantees, and thus should
+.Em not
+be used to protect shared data structures.
+.Pp
+These functions should be used with care as an unbound or infinite loop within
+a critical region will deadlock the CPU.
+Also, they should not be interlocked with operations on mutexes, sx locks,
+semaphores, or other synchronization primitives, as these primitives may
+require a context switch to operate.
+One exception to this is that spin mutexes include a critical section,
+so in certain cases critical sections may be interlocked with spin mutexes.
+.Pp
+Critical regions should be only as wide as necessary.
+That is, code which does not require the critical section to operate correctly
+should be excluded from its bounds whenever possible.
+Abuse of critical sections has an effect on overall system latency and timer
+precision, since disabling preemption will delay the execution of threaded
+interrupt handlers and
+.Xr callout 9
+events on the current CPU.
+.Pp
+The
+.Fn CRITICAL_ASSERT
+macro verifies that the provided thread
+.Fa td
+is currently executing in a critical section.
+It is a wrapper around
+.Xr KASSERT 9 .
+.Sh SEE ALSO
+.Xr callout 9 ,
+.Xr KASSERT 9 ,
+.Xr locking 9
+.Sh HISTORY
+These functions were introduced in
+.Fx 5.0 .

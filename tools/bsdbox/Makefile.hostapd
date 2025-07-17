@@ -1,0 +1,35 @@
+#
+# Build hostap/wpa_supplicant and supporting utilities.
+#
+#
+.include <src.opts.mk>
+
+WPASRC?=	${SRCTOP}/usr.sbin/wpa
+
+CRUNCH_PROGS_usr.sbin+=	hostapd hostapd_cli
+CRUNCH_SRCDIR_hostapd=	${WPASRC}/hostapd
+CRUNCH_SRCDIR_hostapd_cli=	${WPASRC}/hostapd_cli
+
+CRUNCH_KEEP_hostapd+=	wpa_driver_bsd_ops
+
+CRUNCH_PROGS_usr.sbin+=	wpa_supplicant wpa_cli
+CRUNCH_SRCDIR_wpa_supplicant=	${WPASRC}/wpa_supplicant
+CRUNCH_SRCDIR_wpa_cli=	${WPASRC}/wpa_cli
+
+.if ${MK_OFED} != "no"
+# libpcap dependencies if OFED is enabled
+CRUNCH_LIBS+=	-lmlx5 -libverbs
+.endif
+CRUNCH_LIBS+=	-lpcap
+
+# hostapd
+wpalibs=	drivers ap l2_packet eap_server
+wpalibs+=	eapol_auth eap_common
+wpalibs+=	radius tls wps common crypto utils
+
+# wpa_supplicant
+wpalibs+=	eapol_supp eap_peer rsn_supp
+
+.for wpalib in ${wpalibs}
+CRUNCH_LIBS+=	${LIBWPA${wpalib:tu}}
+.endfor

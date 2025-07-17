@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-FORWARDABLE-data:
+
+KRB5_GET_INIT_CREDS_OPT_FORWARDABLE
+===================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_FORWARDABLE
+..
+
+
+
+
+========================================== ======================
+``KRB5_GET_INIT_CREDS_OPT_FORWARDABLE``       ``0x0004``
+========================================== ======================

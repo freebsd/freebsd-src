@@ -1,0 +1,191 @@
+.\"	$OpenBSD: mailwrapper.8,v 1.12 2014/03/27 22:34:42 jmc Exp $
+.\"	$NetBSD: mailwrapper.8,v 1.16 2014/09/19 16:05:55 wiz Exp $
+.\"
+.\" Copyright (c) 1998
+.\" 	Perry E. Metzger.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Perry E. Metzger.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 29, 2014
+.Dt MAILWRAPPER 8
+.Os
+.Sh NAME
+.Nm mailwrapper
+.Nd invoke appropriate
+.Tn MTA
+software based on configuration file
+.Sh SYNOPSIS
+Special.
+See below.
+.Sh DESCRIPTION
+Once upon time, the only Mail Transfer Agent
+.Pq Tn MTA
+software easily available was
+.Dq sendmail .
+This famous
+.Tn MTA
+was written by
+.An Eric Allman
+and first appeared in
+.Bx 4.1 .
+The legacy of this
+.Tn MTA
+affected most Mail User Agents
+.Pq Tn MUAs
+such as
+.Xr mail 1 ;
+the path and calling conventions expected by
+.Dq sendmail
+were compiled in.
+.Pp
+But times changed.
+On a modern
+.Fx
+system, the administrator may wish to use one of several available
+.Tn MTAs .
+.Pp
+It would be difficult to modify all
+.Tn MUA
+software typically available on a system,
+so most of the authors of alternative
+.Tn MTAs
+have written their front end message submission programs
+that may appear in the place of
+.Pa /usr/sbin/sendmail ,
+but still follow the same calling conventions as
+.Dq sendmail .
+.Pp
+The
+.Dq sendmail
+.Tn MTA
+also typically has aliases named
+.Xr mailq 1
+and
+.Xr newaliases 1
+linked to it.
+The program knows to behave differently when its
+.Va argv[0]
+is
+.Dq mailq
+or
+.Dq newaliases
+and behaves appropriately.
+Typically, replacement
+.Tn MTAs
+provide similar functionality, either through a program that also
+switches behavior based on calling name, or through a set of programs
+that provide similar functionality.
+.Pp
+Although having replacement programs that plug replace
+.Dq sendmail
+helps in installing alternative
+.Tn MTAs ,
+it essentially makes the configuration of the system depend
+on hand installing new programs in
+.Pa /usr .
+This leads to configuration problems for many administrators, since
+they may wish to install a new
+.Tn MTA
+without altering the system provided
+.Pa /usr .
+(This may be, for example, to avoid having upgrade problems when a new
+version of the system is installed over the old.)
+They may also have a shared
+.Pa /usr
+among several machines, and may wish to avoid placing
+implicit configuration information in a read-only
+.Pa /usr .
+.Pp
+The
+.Nm
+program is designed to replace
+.Pa /usr/sbin/sendmail
+and to invoke an appropriate
+.Tn MTA
+based on configuration information placed in
+.Pa ${LOCALBASE}/etc/mail/mailer.conf
+falling back on
+.Pa /etc/mail/mailer.conf .
+This permits the administrator to configure which
+.Tn MTA
+is to be invoked on
+the system at run time.
+.Pp
+Other configuration files may need to be altered when replacing
+.Xr sendmail 8 .
+For example, if the replacement
+.Tn MTA
+does not support the
+.Fl A
+option with
+.Xr mailq 1 ,
+.Va daily_status_include_submit_mailq
+should be turned off in
+.Pa /etc/periodic.conf .
+.Sh FILES
+Configuration for
+.Nm
+is kept in
+.Pa ${LOCALBASE}/etc/mail/mailer.conf
+or
+.Pa /etc/mail/mailer.conf .
+.Pa /usr/sbin/sendmail
+is typically set up as a symbolic link to
+.Nm
+which is not usually invoked on its own.
+.Sh EXIT STATUS
+.Ex -std
+.Sh DIAGNOSTICS
+The
+.Nm
+will print a diagnostic if its configuration file is missing or malformed,
+or does not contain a mapping for the name under which it was invoked.
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr mailq 1 ,
+.Xr newaliases 1 ,
+.Xr mailer.conf 5 ,
+.Xr periodic.conf 5 ,
+.Xr dma 8 ,
+.Xr sendmail 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Nx 1.4
+and then
+.Fx 4.0 .
+.Sh AUTHORS
+.An Perry E. Metzger Aq Mt perry@piermont.com
+.Sh BUGS
+The entire reason this program exists is a crock.
+Instead, a command
+for how to submit mail should be standardized, and all the
+.Dq behave differently if invoked with a different name
+behavior of things like
+.Xr mailq 1
+should go away.

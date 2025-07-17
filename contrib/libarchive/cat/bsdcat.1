@@ -1,0 +1,41 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2011-2014, Mike Kazantsev
+.\" All rights reserved.
+.\"
+.Dd March 1, 2014
+.Dt BSDCAT 1
+.Os
+.Sh NAME
+.Nm bsdcat
+.Nd expand files to standard output
+.Sh SYNOPSIS
+.Nm
+.Op options
+.Op files
+.Sh DESCRIPTION
+.Nm
+expands files to standard output.
+.Sh OPTIONS
+.Nm
+typically takes a filename as an argument or reads standard input when used in a
+pipe.
+In both cases decompressed data is written to standard output.
+.Sh EXAMPLES
+To decompress a file:
+.Pp
+.Dl bsdcat example.txt.gz > example.txt
+.Pp
+To decompress standard input in a pipe:
+.Pp
+.Dl cat example.txt.gz | bsdcat > example.txt
+.Pp
+Both examples achieve the same results - a decompressed file by redirecting
+output.
+.Sh SEE ALSO
+.Xr bzcat 1 ,
+.Xr uncompress 1 ,
+.Xr xzcat 1 ,
+.Xr zcat 1 ,
+.Xr libarchive-formats 5

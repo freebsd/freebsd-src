@@ -1,0 +1,164 @@
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
+.TH date 1 "" "Time Zone Database"
+.SH NAME
+date \- show and set date and time
+.SH SYNOPSIS
+.if n .nh
+.if n .na
+.ie \n(.g .ds - \f(CR-\fP
+.el .ds - \-
+.B date
+[
+.B \*-u
+] [
+.B \*-c
+] [
+.B \*-r
+.I seconds
+] [
+.BI + format
+] [
+\fR[\fIyyyy\fR]\fImmddhhmm\fR[\fIyy\fR][\fB.\fIss\fR]
+]
+.SH DESCRIPTION
+.ie '\(lq'' .ds lq \&"\"
+.el .ds lq \(lq\"
+.ie '\(rq'' .ds rq \&"\"
+.el .ds rq \(rq\"
+.de q
+\\$3\*(lq\\$1\*(rq\\$2
+..
+The
+.B date
+command
+without arguments writes the date and time to the standard output in
+the form
+.ce 1
+Wed Mar  8 14:54:40 EST 1989
+.br
+with
+.B EST
+replaced by the local time zone's abbreviation
+(or by the abbreviation for the time zone specified in the
+.B TZ
+environment variable if set).
+The exact output format depends on the locale.
+.PP
+If a command-line argument starts with a plus sign (\c
+.q "\fB+\fP" ),
+the rest of the argument is used as a
+.I format
+that controls what appears in the output.
+In the format, when a percent sign (\c
+.q "\fB%\fP"
+appears,
+it and the character after it are not output,
+but rather identify part of the date or time
+to be output in a particular way
+(or identify a special character to output):
+.nf
+.sp
+.if t .in +.5i
+.if n .in +2
+.ta \w'%M\0\0'u +\w'Wed Mar  8 14:54:40 EST 1989\0\0'u
+	Sample output	Explanation
+%a	Wed	Abbreviated weekday name*
+%A	Wednesday	Full weekday name*
+%b	Mar	Abbreviated month name*
+%B	March	Full month name*
+%c	Wed Mar 08 14:54:40 1989	Date and time*
+%C	19	Century
+%d	08	Day of month (always two digits)
+%D	03/08/89	Month/day/year (eight characters)
+%e	 8	Day of month (leading zero blanked)
+%h	Mar	Abbreviated month name*
+%H	14	24-hour-clock hour (two digits)
+%I	02	12-hour-clock hour (two digits)
+%j	067	Julian day number (three digits)
+%k	 2	12-hour-clock hour (leading zero blanked)
+%l	14	24-hour-clock hour (leading zero blanked)
+%m	03	Month number (two digits)
+%M	54	Minute (two digits)
+%n	\\n	newline character
+%p	PM	AM/PM designation
+%r	02:54:40 PM	Hour:minute:second AM/PM designation
+%R	14:54	Hour:minute
+%S	40	Second (two digits)
+%t	\\t	tab character
+%T	14:54:40	Hour:minute:second
+%U	10	Sunday-based week number (two digits)
+%w	3	Day number (one digit, Sunday is 0)
+%W	10	Monday-based week number (two digits)
+%x	03/08/89	Date*
+%X	14:54:40	Time*
+%y	89	Last two digits of year
+%Y	1989	Year in full
+%z	-0500	Numeric time zone
+%Z	EST	Time zone abbreviation
+%+	Wed Mar  8 14:54:40 EST 1989	Default output format*
+.if t .in -.5i
+.if n .in -2
+* The exact output depends on the locale.
+.sp
+.fi
+If a character other than one of those shown above appears after
+a percent sign in the format,
+that following character is output.
+All other characters in the format are copied unchanged to the output;
+a newline character is always added at the end of the output.
+.PP
+In Sunday-based week numbering,
+the first Sunday of the year begins week 1;
+days preceding it are part of
+.q "week 0" .
+In Monday-based week numbering,
+the first Monday of the year begins week 1.
+.PP
+To set the date, use a command line argument with one of the following forms:
+.nf
+.if t .in +.5i
+.if n .in +2
+.ta \w'198903081454\0'u
+1454	24-hour-clock hours (first two digits) and minutes
+081454	Month day (first two digits), hours, and minutes
+03081454	Month (two digits, January is 01), month day, hours, minutes
+8903081454	Year, month, month day, hours, minutes
+0308145489	Month, month day, hours, minutes, year
+	(on System V-compatible systems)
+030814541989	Month, month day, hours, minutes, four-digit year
+198903081454	Four-digit year, month, month day, hours, minutes
+.if t .in -.5i
+.if n .in -2
+.fi
+If the century, year, month, or month day is not given,
+the current value is used.
+Any of the above forms may be followed by a period and two digits that give
+the seconds part of the new time; if no seconds are given, zero is assumed.
+.PP
+These options are available:
+.TP
+.BR \*-u " or " \*-c
+Use Universal Time when setting and showing the date and time.
+.TP
+.BI "\*-r " seconds
+Output the date that corresponds to
+.I seconds
+past the epoch of 1970-01-01 00:00:00 UTC, where
+.I seconds
+should be an integer, either decimal, octal (leading 0), or
+hexadecimal (leading 0x), preceded by an optional sign.
+.SH FILES
+.ta \w'/usr/share/zoneinfo/posixrules\0\0'u
+/etc/localtime	local timezone file
+.br
+/usr/lib/locale/\f2L\fP/LC_TIME	description of time locale \f2L\fP
+.br
+/usr/share/zoneinfo	timezone directory
+.br
+/usr/share/zoneinfo/posixrules	default DST rules (obsolete)
+.br
+/usr/share/zoneinfo/GMT	for UTC leap seconds
+.PP
+If /usr/share/zoneinfo/GMT is absent,
+UTC leap seconds are loaded from /usr/share/zoneinfo/GMT0 if present.

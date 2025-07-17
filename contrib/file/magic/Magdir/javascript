@@ -1,0 +1,168 @@
+
+#------------------------------------------------------------------------------
+# $File: javascript,v 1.7 2024/11/10 14:48:55 christos Exp $
+# javascript:  magic for javascript and node.js scripts.
+#
+0	string/tw	#!/bin/node		Node.js script executable
+!:mime application/javascript
+0	string/tw	#!/usr/bin/node		Node.js script executable
+!:mime application/javascript
+0	string/tw	#!/bin/nodejs		Node.js script executable
+!:mime application/javascript
+0	string/tw	#!/usr/bin/nodejs	Node.js script executable
+!:mime application/javascript
+0	string/t		#!/usr/bin/env\ node	Node.js script executable
+!:mime application/javascript
+0	string/t		#!/usr/bin/env\ nodejs	Node.js script executable
+!:mime application/javascript
+
+# JavaScript
+# The strength is increased to beat the C++ but lose to HTML rules,
+# because javascript is embedded in hmtl files typically
+0	search	"use\x20strict"	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	search	'use\x20strict'	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	regex	module(\\.|\\[["'])exports.*=	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	regex	\^(const|var|let).*=.*require\\(	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	regex	\^export\x20(function|class|default|const|var|let|async)\x20	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	regex	\\((async\x20)?function[(\x20]	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	regex	\^(import|export).*\x20from\x20	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	regex	\^(import|export)\x20["']\\./	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+0	regex	typeof.*[!=]==	JavaScript source
+!:strength +20
+!:mime	application/javascript
+!:ext 	js
+
+# React Native minified JavaScript
+0	search/128	__BUNDLE_START_TIME__=	React Native minified JavaScript
+!:strength +20
+!:mime	application/javascript
+!:ext	bundle/jsbundle
+
+# Hermes by Facebook https://hermesengine.dev/
+# https://github.com/facebook/hermes/blob/master/include/hermes/\
+# BCGen/HBC/BytecodeFileFormat.h#L24
+0	lequad		0x1F1903C103BC1FC6	Hermes JavaScript bytecode
+>8	lelong		x			\b, version %d
+
+# v8 JavaScript engine bytecode
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL:	https://v8.dev/docs/ignition
+# Note: used in bytenode and NW.js protected source code
+# V8 bytecode extraction was added in NodeJS v5.7.0 (V8 4.6.85.31).
+# Version information is provided for some v8 versions found in NodeJS releases.
+2	uleshort		=0xC0DE
+>0	ulelong^0xC0DE0000	>0
+# Reservation table starts at 40
+>>40	ulelong&0xFFFFFF00	=0x80000000
+# Stub keys present
+>>>24	ulelong			>0
+>>>>0	ulelong^0xC0DE0000	x		v8 bytecode, external reference table size: %u bytes,
+>>>>4	ulelong			=0xEE4BF478	version 5.1.281.111,
+>>>>4	ulelong			=0xC4A0100C	version 5.5.372.43,
+>>>>8	ulelong			x		source size: %u bytes,
+>>>>12	ulelong			x		cpu features: %#08X,
+>>>>16	ulelong			x		flag hash: %#08X,
+>>>>20	ulelong			x		%u reservations,
+>>>>28	ulelong			x		payload size: %u bytes,
+>>>>32	ulelong			x		checksum1: %#08X,
+>>>>36	ulelong			x		checksum2: %#08X
+# No stub keys
+>>>24	ulelong			=0
+>>>>0	ulelong^0xC0DE0000	x		v8 bytecode, external reference table size: %u bytes,
+>>>>4	ulelong			=0x54F0AD81	version 6.2.414.46,
+>>>>4	ulelong			=0X7D1BF182	version 6.2.414.54,
+>>>>4	ulelong			=0x35BA122E	version 6.2.414.77,
+>>>>4	ulelong			=0X9319F9C2	version 6.2.414.78,
+>>>>4	ulelong			=0xB1240060	version 6.6.346.32,
+>>>>4	ulelong			=0x2B757060	version 6.7.288.46,
+>>>>4	ulelong			=0x09D147AA	version 6.7.288.49,
+>>>>4	ulelong			=0xF4D4F48A	version 6.8.275.32,
+>>>>4	ulelong			=0xD3961326	version 7.0.276.38,
+>>>>8	ulelong			x		source size: %u bytes,
+>>>>12	ulelong			x		cpu features: %#08X,
+>>>>16	ulelong			x		flag hash: %#08X,
+>>>>20	ulelong			x		%u reservations,
+>>>>28	ulelong			x		payload size: %u bytes,
+>>>>32	ulelong			x		checksum1: %#08X,
+>>>>36	ulelong			x		checksum2: %#08X
+# Reservation table starts at 32
+>>32	ulelong&0xFFFFFF00	=0x80000000
+# Second checksum present
+>>>28	ulelong			>0
+>>>>0	ulelong^0xC0DE0000	x		v8 bytecode, external reference table size: %u bytes,
+>>>>4	ulelong			=0x21DDF627	version 7.4.288.21,
+>>>>4	ulelong			=0x1FC9FE84	version 7.4.288.27,
+>>>>4	ulelong			=0x60A99E8B	version 7.5.288.22,
+>>>>4	ulelong			=0x4F665E90	version 7.6.303.29,
+>>>>4	ulelong			=0xC7ACFCDE	version 7.7.299.11,
+>>>>4	ulelong			=0x7F641D8F	version 7.7.299.13,
+>>>>4	ulelong			=0xFD9A4F2E	version 7.8.279.17,
+>>>>4	ulelong			=0x3A845324	version 7.8.279.23,
+>>>>4	ulelong			=0xFF52FEAF	version 7.9.317.25,
+>>>>8	ulelong			x		source size: %u bytes,
+>>>>12	ulelong			x		flag hash: %#08X,
+>>>>16	ulelong			x		%u reservations,
+>>>>20	ulelong			x		payload size: %u bytes,
+>>>>24	ulelong			x		checksum1: %#08X,
+>>>>28	ulelong			x		checksum2: %#08X
+# No second checksum
+>>>28	ulelong			=0
+>>>>0	ulelong^0xC0DE0000	x		v8 bytecode, external reference table size: %u bytes,
+>>>>4	ulelong			=0x8725E0F8	version 8.1.307.30,
+>>>>4	ulelong			=0x09ED1289	version 8.1.307.31,
+>>>>4	ulelong			=0xA5728C87	version 8.3.110.9,
+>>>>4	ulelong			=0xB45C5D30	version 8.4.371.23,
+>>>>4	ulelong			=0xED9C278B	version 8.4.371.19,
+>>>>4	ulelong			=0xD27BFF42	version 8.6.395.16,
+>>>>8	ulelong			x		source size: %u bytes,
+>>>>12	ulelong			x		flag hash: %#08X,
+>>>>16	ulelong			x		%u reservations,
+>>>>20	ulelong			x		payload size: %u bytes,
+>>>>24	ulelong			x		payload checksum: %#08X
+# No reservation table and code starts at 24
+>>32	ulelong		=0
+>>>0	ulelong^0xC0DE0000	x		v8 bytecode, external reference table size: %u bytes,
+>>>4	ulelong			=0x9A6F0B0F	version 9.0.257.17,
+>>>4	ulelong			=0x271D5D1E	version 9.0.257.24,
+>>>4	ulelong			=0x4EEA75DF	version 9.0.257.25,
+>>>4	ulelong			=0x80809479	version 9.1.269.36,
+>>>4	ulelong			=0x55C46F65	version 9.1.269.38,
+>>>4	ulelong			=0x8A9C758A	version 9.2.230.21,
+>>>4	ulelong			=0x9712F0E1	version 9.3.345.16,
+>>>4	ulelong			=0x29593715	version 9.4.146.19,
+>>>4	ulelong			=0xCD991825	version 9.4.146.24,
+>>>4	ulelong			=0xACDD64EE	version 9.4.146.26,
+>>>4	ulelong			=0xC96B4CD5	version 9.5.172.21,
+>>>4	ulelong			=0xBCCE4578	version 9.5.172.25,
+>>>4	ulelong			=0xA2EEA077	version 9.6.180.15,
+>>>4	ulelong			=0xFD350011	version 10.1.124.8,
+>>>4	ulelong			=0xBEF4028F	version 10.2.154.13,
+>>>4	ulelong			=0xAF632352	version 10.2.154.4,
+>>>8	ulelong			x		source size: %u bytes,
+>>>12	ulelong			x		flag hash: %#08X,
+>>>16	ulelong			x		payload size: %u bytes,
+>>>20	ulelong			x		payload checksum: %#08X

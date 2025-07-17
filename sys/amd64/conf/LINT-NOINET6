@@ -1,0 +1,4 @@
+
+include LINT
+ident LINT-NOINET6
+nooptions INET6

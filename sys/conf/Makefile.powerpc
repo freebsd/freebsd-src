@@ -1,0 +1,78 @@
+# Makefile.powerpc -- with config changes.
+# Copyright 1990 W. Jolitz
+# Makefile for FreeBSD
+#
+# This makefile is constructed from a machine description:
+#	config machineid
+# Most changes should be made in the machine description
+#	/sys/powerpc/conf/``machineid''
+# after which you should do
+#	 config machineid
+# Generic makefile changes should be made in
+#	/sys/conf/Makefile.powerpc
+# after which config should be rerun for all machines.
+#
+
+# Which version of config(8) is required.
+%VERSREQ=	600012
+
+STD8X16FONT?=	iso
+
+.if !defined(S)
+.if exists(./@/.)
+S=	./@
+.else
+S=	../../..
+.endif
+.endif
+
+LDSCRIPT_NAME?= ldscript.${MACHINE_ARCH}
+
+.include "$S/conf/kern.pre.mk"
+
+INCLUDES+= -I$S/contrib/libfdt
+
+.if "${MACHINE_ARCH}" == "powerpcspe"
+# Force __SPE__, since the builtin will be removed later with -mno-spe
+CFLAGS.gcc+= -mabi=spe -D__SPE__
+CFLAGS.clang+= -mspe -D__SPE__ -m32
+.endif
+CFLAGS+= -msoft-float
+CFLAGS.gcc+= -Wa,-many
+
+# Apply compiler-specific DPAA exceptions.
+.if "${COMPILER_TYPE}" == "clang"
+DPAAWARNFLAGS += \
+        -Wno-error=parentheses-equality \
+        -Wno-error=self-assign \
+        -Wno-error=incompatible-pointer-types-discards-qualifiers \
+        -Wno-error=non-literal-null-conversion \
+        -Wno-error=enum-conversion
+.elif "${COMPILER_TYPE}" == "gcc"
+DPAAWARNFLAGS += \
+	-Wno-error=int-in-bool-context
+.endif
+
+# Build position-independent kernel
+CFLAGS+= -fPIC
+LDFLAGS+= -pie
+
+.if !empty(DDB_ENABLED)
+CFLAGS+=	-fno-omit-frame-pointer
+.endif
+
+%BEFORE_DEPEND
+
+%OBJS
+
+%FILES.c
+
+%FILES.s
+
+%FILES.m
+
+%CLEAN
+
+%RULES
+
+.include "$S/conf/kern.post.mk"

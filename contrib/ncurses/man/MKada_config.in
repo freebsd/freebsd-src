@@ -1,0 +1,149 @@
+.\"***************************************************************************
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2010-2014,2016 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: MKada_config.in,v 1.35 2024/04/20 21:13:27 tom Exp $
+.TH adacurses@USE_CFG_SUFFIX@\-config 1 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.ds C adacurses@USE_CFG_SUFFIX@\-config
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.ds '  \(aq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.ie t .ds '  \(aq
+.el   .ds '  '
+.\}
+.
+.\" Fix broken EX/EE macros on DWB troff.
+.\" Detect it: only DWB sets up a `)Y` register.
+.if !\n(.g .if \n()Y \{\
+.\" Revert the undesired changes to indentation.
+.am EX
+.in -5n
+..
+.am EE
+.in +5n
+..
+.\}
+.
+.SH NAME
+\fB\%adacurses@USE_CFG_SUFFIX@\-config\fP \-
+configuration helper for \fI@ADA_LIBNAME@\fP libraries
+.SH SYNOPSIS
+.B \*C
+.RB [ \-\-cflags ]
+.RB [ \-\-libs ]
+.PP
+.B \*C \-\-version
+.PP
+.B \*C \-\-help
+.SH DESCRIPTION
+This program development aid simplifies the process of configuring
+applications to use the \fI@ADA_LIBNAME@\fP library binding to
+\fI\%ncurses\fP.
+.SH OPTIONS
+.TP 11 \" "--version" + 2n
+\fB\-\-cflags\fP
+reports the GNAT (Ada compiler) flags needed to compile with
+\fI@ADA_LIBNAME@\fP.
+.TP
+\fB\-\-libs\fP
+reports the GNAT libraries needed to link with \fI@ADA_LIBNAME@\fP.
+.TP
+\fB\-\-version\fP
+reports the release and patch date information of the \fI\%ncurses\fP
+libraries used to configure and build \fI@ADA_LIBNAME@\fP and exits
+successfully.
+.TP
+\fB\-\-help\fP
+issues a usage message and exits successfully.
+.PP
+Omitting options implies \*(``\fB\-\-cflags \-\-libs\fP\*(''.
+.SH EXAMPLES
+Consider a program using \fI@ADA_LIBNAME@\fP to write the message
+\*(``Hello, world!\*('' in the center of the screen and wait for the
+user to press the \*(``q\*('' key before exiting.
+Populate a file \fIhello.adb\fP with the following.
+.PP
+.if \n(LL>67n .RS 4
+.EX
+with Terminal_Interface.Curses; use Terminal_Interface.Curses;
+
+procedure Hello is
+   Visibility : Cursor_Visibility := Invisible;
+   Message : constant String := "Hello, World!";
+   done : Boolean := False;
+   c : Key_Code;
+begin
+   Init_Screen;
+   Set_Echo_Mode (False);
+   Set_Cursor_Visibility (Visibility);
+   Set_Timeout_Mode (Standard_Window, Non_Blocking, 0);
+
+   Move_Cursor (Line => Lines / 2,
+                Column => (Columns \- Message\*'Length) / 2);
+   Add (Str => Message);
+
+   while not done loop
+      c := Get_Keystroke (Standard_Window);
+
+      case c is
+          when Character\*'Pos (\*'q\*') => done := True;
+          when others => null;
+      end case;
+
+      Nap_Milli_Seconds (50);
+   end loop;
+
+   End_Windows;
+end Hello;
+.EE
+.if \n(LL>67n .RE
+.ne 2
+.PP
+Then, using
+.RS 4
+.EX
+gnatmake \(gaadacurses@USE_CFG_SUFFIX@\-config \-\-cflags\(ga hello \e
+    \-largs \(gaadacurses@USE_CFG_SUFFIX@\-config \-\-libs\(ga
+.EE
+.RE
+or, more simply,
+.RS 4
+.EX
+gnatmake hello \(gaadacurses@USE_CFG_SUFFIX@\-config\(ga
+.EE
+.RE
+you can compile and link the program.
+.SH "SEE ALSO"
+\fB\%curses\fP(3X)

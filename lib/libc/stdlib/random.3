@@ -1,0 +1,175 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 1, 2020
+.Dt RANDOM 3
+.Os
+.Sh NAME
+.Nm random ,
+.Nm srandom ,
+.Nm srandomdev ,
+.Nm initstate ,
+.Nm setstate
+.Nd non-cryptographic pseudorandom number generator; routines for changing generators
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft long
+.Fn random void
+.Ft void
+.Fn srandom "unsigned int seed"
+.Ft void
+.Fn srandomdev void
+.Ft char *
+.Fn initstate "unsigned int seed" "char *state" "size_t n"
+.Ft char *
+.Fn setstate "char *state"
+.Sh DESCRIPTION
+.Bf -symbolic
+The functions described in this manual page are not secure.
+Applications which require unpredictable random numbers should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
+Unless initialized with less than 32 bytes of state, the
+.Fn random
+function
+uses a non-linear additive feedback random number generator employing a
+default table of size 31 long integers to return successive pseudo-random
+numbers in the range from 0 to
+.if t 2\u\s731\s10\d\(mi1.
+.if n (2**31)\(mi1.
+The period of this random number generator is very large, approximately
+.if t 16\(mu(2\u\s731\s10\d\(mi1).
+.if n 16*((2**31)\(mi1).
+.Pp
+If initialized with less than 32 bytes of state,
+.Fn random
+uses the poor-quality 32-bit Park-Miller LCG.
+.Pp
+The
+.Fn random
+and
+.Fn srandom
+functions are analagous to
+.Xr rand 3
+and
+.Xr srand 3 .
+.Pp
+Like
+.Xr rand 3 ,
+.Fn random
+is implicitly initialized as if
+.Fn srandom "1"
+had been invoked explicitly.
+.Pp
+The
+.Fn srandomdev
+routine initializes the state array using random numbers obtained from the
+kernel.
+This can generate states which are impossible to reproduce by calling
+.Fn srandom ,
+because the succeeding terms in the state buffer are no longer derived from the
+Park-Miller LCG algorithm applied to a fixed seed.
+.Pp
+The
+.Fn initstate
+routine initializes the provided state array of
+.Vt uint32_t
+values and uses it in future
+.Fn random
+invocations.
+(Despite the
+.Vt char *
+type of
+.Fa state ,
+the underlying object must be a naturally aligned array of 32-bit values.)
+The size of the state array (in bytes) is used by
+.Fn initstate
+to decide how sophisticated a random number generator it should use \(em the
+more state, the better the random numbers will be.
+(Current "optimal" values for the amount of state information are
+8, 32, 64, 128, and 256 bytes; other amounts will be rounded down to
+the nearest known amount.
+Using less than 8 bytes will cause an error.)
+The
+.Fa seed
+is used as in
+.Fn srandom .
+The
+.Fn initstate
+function
+returns a pointer to the previous state information array.
+.Pp
+The
+.Fn setstate
+routine switches
+.Fn random
+to using the provided state.
+It returns a pointer to the previous state.
+.Pp
+Once a state array has been initialized, it may be restarted at a
+different point either by calling
+.Fn initstate
+(with the desired seed, the state array, and its size) or by calling
+both
+.Fn setstate
+(with the state array) and
+.Fn srandom
+(with the desired seed).
+The advantage of calling both
+.Fn setstate
+and
+.Fn srandom
+is that the size of the state array does not have to be remembered after
+it is initialized.
+.Pp
+With 256 bytes of state information, the period of the random number
+generator is greater than
+.if t 2\u\s769\s10\d,
+.if n 2**69
+which should be sufficient for most purposes.
+.Sh DIAGNOSTICS
+If
+.Fn initstate
+is called with less than 8 bytes of state information, or if
+.Fn setstate
+detects that the state information has been garbled,
+NULL is returned.
+.Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr lrand48 3 ,
+.Xr rand 3 ,
+.Xr random 4
+.Sh HISTORY
+These
+functions appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+.An Earl T. Cohen

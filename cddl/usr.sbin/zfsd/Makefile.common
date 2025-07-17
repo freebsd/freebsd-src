@@ -1,0 +1,33 @@
+SRCS=		callout.cc		\
+		case_file.cc		\
+		zfsd_event.cc		\
+		vdev.cc			\
+		vdev_iterator.cc	\
+		zfsd.cc			\
+		zfsd_exception.cc	\
+		zpool_list.cc		\
+		zfsd_main.cc
+
+WARNS?=		2
+
+# Ignore warnings about Solaris specific pragmas.
+IGNORE_PRAGMA=  YES
+
+CFLAGS+= -DIN_BASE
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
+CFLAGS+= -I${SRCTOP}/sys
+CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -I${SRCTOP}/cddl/usr.sbin
+
+CFLAGS+= -DHAVE_ISSETUGID
+CFLAGS+= -DHAVE_EXECVPE
+
+LIBADD+=	devdctl zfs util geom bsdxml sbuf nvpair avl uutil zutil
+
+cscope:
+	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \
+	     > ${.CURDIR}/cscope.files
+	cd ${.CURDIR} && cscope -buq ${INCFLAGS}

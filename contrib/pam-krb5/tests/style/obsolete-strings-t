@@ -1,0 +1,104 @@
+#!/usr/bin/perl
+#
+# Check for obsolete strings in source files.
+#
+# Examine all source files in a distribution for obsolete strings and report
+# on files that fail this check.  This catches various transitions I want to
+# do globally in all my packages, like changing my personal URLs to https.
+#
+# The canonical version of this file is maintained in the rra-c-util package,
+# which can be found at <https://www.eyrie.org/~eagle/software/rra-c-util/>.
+#
+# Copyright 2016, 2018-2020 Russ Allbery <eagle@eyrie.org>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+use 5.010;
+use strict;
+use warnings;
+
+use lib "$ENV{C_TAP_SOURCE}/tap/perl";
+
+use Test::RRA qw(skip_unless_author);
+use Test::RRA::Automake qw(all_files automake_setup);
+
+use File::Basename qw(basename);
+use Test::More;
+
+# Bad patterns to search for.
+my @BAD_REGEXES = (qr{ http:// \S+ [.]eyrie[.]org }xms);
+my @BAD_STRINGS = qw(rra@stanford.edu RRA_MAINTAINER_TESTS);
+
+# File names to exclude from this check.
+my %EXCLUDE
+  = map { $_ => 1 } qw(NEWS changelog obsolete-strings.t obsolete-strings-t);
+
+# Only run this test for the package author, since it doesn't indicate any
+# user-noticable flaw in the package itself.
+skip_unless_author('Obsolete strings tests');
+
+# Set up Automake testing.
+automake_setup();
+
+# Check a single file for one of the bad patterns.
+#
+# $path - Path to the file
+#
+# Returns: undef
+sub check_file {
+    my ($path) = @_;
+    my $filename = basename($path);
+
+    # Ignore excluded and binary files.
+    return if $EXCLUDE{$filename};
+    return if !-T $path;
+
+    # Scan the file.
+    open(my $fh, '<', $path) or BAIL_OUT("Cannot open $path");
+    while (defined(my $line = <$fh>)) {
+        for my $regex (@BAD_REGEXES) {
+            if ($line =~ $regex) {
+                ok(0, "$path contains $regex");
+                close($fh) or BAIL_OUT("Cannot close $path");
+                return;
+            }
+        }
+        for my $string (@BAD_STRINGS) {
+            if (index($line, $string) != -1) {
+                ok(0, "$path contains $string");
+                close($fh) or BAIL_OUT("Cannot close $path");
+                return;
+            }
+        }
+    }
+    close($fh) or BAIL_OUT("Cannot close $path");
+    ok(1, $path);
+    return;
+}
+
+# Scan every file for any of the bad patterns or strings.  We don't declare a
+# plan since we skip a lot of files and don't want to precalculate the file
+# list.
+my @paths = all_files();
+for my $path (@paths) {
+    check_file($path);
+}
+done_testing();

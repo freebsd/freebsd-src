@@ -1,0 +1,322 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.Dd June 26, 2025
+.Dt NUAGEINIT 7
+.Os
+.Sh NAME
+.Nm nuageinit
+.Nd initialize a cloud-init environment
+.Sh DESCRIPTION
+The
+.Nm
+program is used to initialize instances in a cloud environment.
+.Nm
+runs at the first boot after the system installation.
+It is composed of three
+.Xr rc 8
+scripts:
+.Bl -tag -width "nuageinit"
+.It Cm nuageinit
+This script detects the type of cloud environment and gathers
+the configuration data accordingly.
+The following cloud environments are supported right now:
+.Bl -tag -width "OpenStack"
+.It ondisk
+A cloud agnostic environment where the disk is provided to the system
+with the configuration data on it.
+The disk must be formatted using one of the following filesystems:
+.Xr cd9660 4
+or
+.Xr msdosfs 4
+and be labelled (via filesystem label) either
+.Ar config-2
+or
+.Ar cidata .
+.It OpenStack
+The system is running in an
+.Lk https://www.openstack.org/ OpenStack environment .
+It is detected via the
+.Ar smbios.system.product
+.Xr smbios 4
+description available in
+.Xr kenv 2 .
+.El
+.Pp
+Depending on the cloud environment above,
+.Nm
+will attempt to configure the instance.
+This script executes early
+after all the local filesystem are mounted but before
+the network is configured.
+.It Cm nuageinit_post_net
+This script is responsible for processing the configurations that are network
+dependent:
+.Bl -bullet
+.It
+dealing with packages
+.It
+dealing with users (which can depend on shell provided by packages)
+.El
+.It Cm nuageinit_user_data_script
+This script is responsible for executing everything which would have
+been passed via the configuration to be executed, via the configuration
+or because the user_data provided is a script.
+.El
+.Pp
+The default user for nuageinit is a user named
+.Va freebsd
+with a password set to
+.Va freebsd
+and a login shell set to
+.Va /bin/sh .
+.Sh CONFIGURATION
+The configuration of
+.Nm
+is typically provided as metadata by the cloud provider.
+The metadata is presented to nuageinit in different forms depending on
+the provider:
+.Bl -tag -width "config-2"
+.It nocloud
+If the data is provided via a disk labelled
+.Va cidata ,
+then the metadata is provided in the form of a file named
+.Pa meta-data
+in YAML format.
+.Nm
+will configure the hostname of the instance according to the value of the
+following variables
+.Va local-hostname
+or
+.Va hostname .
+.It config-2
+If the data is provided via a disk labelled
+.Va config-2
+or if it is fetched from OpenStack,
+the metadata is expected in two json files:
+.Pp
+The
+.Pa meta_data.json
+file supports the following keys:
+.Bl -tag -width "public_keys"
+.It Ic hostname
+Set the hostname of the instance.
+.It Ic public_keys
+Append each entry of the array to
+.Nm
+default user which will be created.
+.El
+.Pp
+The
+.Pa network_data.json
+file supports the following keys:
+.Bl -tag -width "public_keys"
+.It Ic links
+Array of network interfaces to be configured.
+.It Ic networks
+Array of network configurations to be set.
+.El
+.El
+.Pp
+Along with the metadata, a user data file is provided, either named
+.Pa user_data
+or
+.Pa user-data .
+If this file starts with a
+.Qq #! ,
+it will be executed at the end of the boot via
+.Cm nuageinit_user_data_script .
+If this file starts with
+.Qq #!cloud-config ,
+it will be parsed as a YAML configuration file.
+All other cases will be ignored.
+.Pp
+The
+.Qq #!cloud-config
+configuration entries supported by
+.Nm :
+.Bl -tag -width "config-2"
+.It Ic fqdn
+Specify a fully qualified domain name for the instance.
+.It Ic hostname
+Specify the hostname of the instance if
+.Qq Ic fqdn
+is not set.
+.It Ic groups
+An array of strings or objects to be created:
+.Bl -bullet
+.It
+If the entry is a string,
+a group using this string as a name will be created.
+.It
+if the entry is an object, the
+.Qq Ar key
+will be used as the name of the group, the
+.Qq Ar value
+is expected to be a list of members (array), specified by name.
+.El
+.It Ic ssh_keys
+An object of multiple key/values,
+.Qq Cm keys
+being in the form
+.Ar algo_private
+or
+.Ar algo_public ,
+.Qq Cm values
+being the actual content of the files in
+.Pa /etc/ssh .
+.It Ic ssh_authorized_keys
+Append each entry of the array to
+.Nm
+default user which will be created.
+.It Ic ssh_pwauth
+boolean which determines the value of the
+.Qq Ic PasswordAuthentication
+configuration in
+.Pa /etc/ssh/sshd_config
+.It Ic network
+.It Ic runcmd
+An array of commands to be run at the end of the boot process
+.It Ic packages
+List of packages to be installed.
+.It Ic package_update
+Update the remote package metadata.
+.It Ic package_upgrade
+Upgrade the packages installed to their latest version.
+.It Ic users
+Specify a list of users to be created:
+.Bl -tag -width "plain_text_passwd"
+.It Ic name
+Name of the user.
+.It Ic gecos
+GECOS for the user.
+.It Ic homedir
+The path of the home directory for the user.
+.It Ic primary_group
+The main group the user should belong to.
+.It Ic groups
+The list of other groups the user should belong to.
+.It Ic no_create_home
+A boolean which determines if the home directory should be created or not.
+.It Ic shell
+The shell that should be used for the user.
+.It Ic passwd
+The encrypted password for the user.
+.It Ic plain_text_passwd
+The password in plain text for the user.
+Ignored if an encrypted password is already provided.
+.It Ic groups
+The list of other groups the user should belong to.
+.It Ic locked
+Boolean to determine if the user account should be locked.
+.It Ic sudo
+A string or an array of strings which which should be appended to
+.Pa /usr/local/etc/sudoers.d/90-nuageinit-users
+.El
+.Pp
+A special case exist: if the entry is a simple string with the value
+.Qq default ,
+then the default user is created.
+.It Ic chpasswd
+Change the passwords for users, it accepts the following keys:
+.Bl -tag -width "expire"
+.It Ic expire
+Boolean to force the user to change their password on first login.
+.It Ic users
+An array of objects:
+.Bl -tag -width "password"
+.It Ic user
+Specify the user whose password will be changed.
+.It Ic password
+Specify a text line with the new password or
+specify the user whose password will be changed.
+.Qq Cm RANDOM
+to assign the password randomly.
+If the textline starts with
+.Qq Cm $x$
+where x is a number, then the password is considered encrypted,
+otherwise the password is considered plaintext.
+.El
+.El
+.It Ic write_files
+An array of objects representing files to be created at first boot.
+The files are being created before the installation of any packages
+and the creation of the users.
+The only mandatory field is:
+.Ic path .
+It accepts the following keys for each objects:
+.Bl -tag -width "permissions"
+.It Ic content
+The content to be written to the file.
+If this key is not existing then an empty file will be created.
+.It Ic encoding
+Specifiy the encoding used for content.
+If not specified, then plain text is considered.
+Only
+.Ar b64
+and
+.Ar base64
+are supported for now.
+.It Ic path
+The path of the file to be created.
+.Pq Note intermerdiary directories will not be created .
+.It Ic permissions
+A string representing the permission of the file in octal.
+.It Ic owner
+A string representing the owner, two forms are possible:
+.Ar user
+or
+.Ar user:group .
+.It Ic append
+A boolean to specify the content should be appended to the file if the file
+exists.
+.It Ic defer
+A boolean to specify that the files should be created after the packages are
+installed and the users are created.
+.El
+.El
+.Sh EXAMPLES
+Here is an example of a YAML configuration for
+.Nm :
+.Bd -literal
+#cloud-config
+fqdn: myhost.mynetwork.tld
+users:
+  - default
+  - name: user
+    gecos: Foo B. Bar
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr...
+packages:
+  - neovim
+  - git-lite
+package_update: true
+package_upgrade: true
+runcmd:
+  - logger -t nuageinit "boot finished"
+ssh_keys:
+  ed25519_private: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    blabla
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+  ed25519_public: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK+MH4E8KO32N5CXRvXVqvyZVl0+6ue4DobdhU0FqFd+
+.Ed
+.Sh SEE ALSO
+.Xr kenv 2 ,
+.Xr cd9660 4 ,
+.Xr msdosfs 4 ,
+.Xr smbios 4 ,
+.Xr ssh_config 5 ,
+.Xr rc 8
+.Sh STANDARDS
+.Nm
+is believed to conform to the
+.Lk https://cloud-init.io/ Cloud Init
+specification.
+.Sh HISTORY
+.Nm
+appeared in
+.Fx 14.1

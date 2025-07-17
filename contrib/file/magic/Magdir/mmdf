@@ -1,0 +1,25 @@
+
+#------------------------------------------------------------------------------
+# $File: mmdf,v 1.7 2024/02/29 03:40:37 christos Exp $
+# mmdf:  file(1) magic for MMDF mail files
+# Update:	Joerg Jenderek Feb 2024
+# URL:		https://en.wikipedia.org/wiki/MMDF
+# Reference:	https://docs.oracle.com/cd/E88353_01/html/E37852/mmdf-5.html
+# Note:		Multi-channel Memorandum Distribution Facility (MMDF) mailbox format is a legacy variant of mbox format
+#		(handled by ./mail.news); each message is surrounded by lines containing 4 control-A
+#
+0	string	\001\001\001\001
+# GRR: MMDF mailbox (strength=70=70+0 ./mmdf) after D64 Image (strength=70=70+0 ./c64) Targa image data (strength=70=110-40 ./images)
+# and before "PDP-11 UNIX/RT ldp" (strength=50=50+0 ./pdp)
+#!:strength +0
+# skip few Commodore disc Image where first content are initialized with ^A like "The Great Gianna Sisters.d64"
+# by looking for following valid line terminator (10=0Ah~LineFeed or 13=0Dh~CarriageReturn)
+#>4		ubyte&0xF8	=0x08	MMDF mailbox
+# or by looking for MBOX Mailbox (/mail.news) characteristic like:
+# https://github.com/dfandrich/oldmailconvert/blob/master/testdata/uupc.input.1
+>5	search/610/b		From\ 	MMDF mailbox
+#!:mime	application/octet-stream
+!:mime	message/x-mmdf
+# https://github.com/dfandrich/oldmailconvert/blob/master/testdata/maillog.expected.2
+# but default mailbox name is like /usr/spool/mail/username
+!:ext	/mmdf

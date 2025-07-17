@@ -1,0 +1,640 @@
+#
+
+# Common NOTES between i386 and amd64
+
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+#options 	KDTRACE_HOOKS
+
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall
+
+
+#####################################################################
+# SMP OPTIONS:
+#
+# Notes:
+#
+# IPI_PREEMPTION instructs the kernel to preempt threads running on other
+# CPUS if needed.  Relies on the PREEMPTION option
+
+# Optional:
+options 	IPI_PREEMPTION
+
+# Debugging options.
+#
+options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
+options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
+
+
+#####################################################################
+# COMPATIBILITY OPTIONS
+
+# Implement system calls compatible with 4.3BSD and FreeBSD 1.x,
+# and 2.x a.out binaries. Not needed for ELF binaries, or newer
+# a.out binaries.
+options 	COMPAT_43
+
+
+#####################################################################
+# NETWORKING OPTIONS
+
+#
+# DEVICE_POLLING adds support for mixed interrupt-polling handling
+# of network device drivers, which has significant benefits in terms
+# of robustness to overloads and responsivity, as well as permitting
+# accurate scheduling of the CPU time between kernel network processing
+# and other activities.  The drawback is a moderate (up to 1/HZ seconds)
+# potential increase in response times.
+# It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
+# to achieve smoother behaviour.
+# Additionally, you can enable/disable polling at runtime with help of
+# the ifconfig(8) utility, and select the CPU fraction reserved to
+# userland with the sysctl variable kern.polling.user_frac
+# (default 50, range 0..100).
+#
+# Not all device drivers support this mode of operation at the time of
+# this writing.  See polling(4) for more details.
+
+options 	DEVICE_POLLING
+
+# BPF_JITTER adds support for BPF just-in-time compiler.
+
+options 	BPF_JITTER
+
+
+#####################################################################
+# CLOCK OPTIONS
+
+# Provide read/write access to the memory in the clock chip.
+device		nvram		# Access to rtc cmos via /dev/nvram
+
+
+#####################################################################
+# MISCELLANEOUS DEVICES AND OPTIONS
+
+device		speaker		#Play IBM BASIC-style noises out your speaker
+envvar		hint.speaker.0.at="isa"
+envvar		hint.speaker.0.port="0x61"
+
+
+#####################################################################
+# HARDWARE BUS CONFIGURATION
+
+options 	IOMMU			# Enable IOMMU support
+
+#
+# ISA bus
+#
+device		isa
+
+#
+# Options for `isa':
+#
+# AUTO_EOI_1 enables the `automatic EOI' feature for the master 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# This option breaks suspend/resume on some portables.
+#
+# AUTO_EOI_2 enables the `automatic EOI' feature for the slave 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# Automatic EOI is documented not to work for the slave with the
+# original i8259A, but it works for some clones and some integrated
+# versions.
+#
+# MAXMEM specifies the amount of RAM on the machine; if this is not
+# specified, FreeBSD will first read the amount of memory from the CMOS
+# RAM, so the amount of memory will initially be limited to 64MB or 16MB
+# depending on the BIOS.  If the BIOS reports 64MB, a memory probe will
+# then attempt to detect the installed amount of RAM.  If this probe
+# fails to detect >64MB RAM you will have to use the MAXMEM option.
+# The amount is in kilobytes, so for a machine with 128MB of RAM, it would
+# be 131072 (128 * 1024).
+#
+# BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
+# reset the CPU for reboot.  This is needed on some systems with broken
+# keyboard controllers.
+
+options 	AUTO_EOI_1
+#options 	AUTO_EOI_2
+
+options 	MAXMEM=(128*1024)
+#options 	BROKEN_KEYBOARD_RESET
+
+#
+# AGP GART support
+device		agp
+
+# AGP debugging.
+options 	AGP_DEBUG
+
+#
+# ACPI support using the Intel ACPI Component Architecture reference
+# implementation.
+#
+# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
+# kernel environment variables to select initial debugging levels for the
+# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
+# defined when it is built).
+
+device		acpi
+options 	ACPI_DEBUG
+
+# ACPI WMI Mapping driver
+device		acpi_wmi
+
+# ACPI Asus Extras (LCD backlight/brightness, video output, etc.)
+device		acpi_asus
+
+# ACPI Fujitsu Extras (Buttons)
+device		acpi_fujitsu
+
+# ACPI extras driver for HP laptops
+device		acpi_hp
+
+# ACPI extras driver for IBM laptops
+device		acpi_ibm
+
+# ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
+device		acpi_panasonic
+
+# ACPI SBL Firmware Update
+device		acpi_sbl_wmi
+
+# ACPI Sony extra (LCD brightness)
+device		acpi_sony
+
+# ACPI Toshiba Extras (LCD backlight/brightness, video output, etc.)
+device		acpi_toshiba
+
+# ACPI Video Extensions (LCD backlight/brightness, video output, etc.)
+device		acpi_video
+
+# ACPI Docking Station
+device		acpi_dock
+
+# ACPI ASOC ATK0110 ASUSTeK AI Booster (voltage, temperature and fan sensors)
+device		aibs
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+#
+# Optional devices:
+#
+
+# The syscons console driver (SCO color console compatible).
+device		sc
+envvar		hint.sc.0.at="isa"
+options 	MAXCONS=16		# number of virtual consoles
+options 	SC_ALT_MOUSE_IMAGE	# simplified mouse cursor in text mode
+options 	SC_DFLT_FONT		# compile font in
+makeoptions	SC_DFLT_FONT=cp850
+options 	SC_DFLT_TERM=\"sc\"	# default terminal emulator
+options 	SC_DISABLE_KDBKEY	# disable `debug' key
+options 	SC_DISABLE_REBOOT	# disable reboot key sequence
+options 	SC_HISTORY_SIZE=200	# number of history buffer lines
+options 	SC_MOUSE_CHAR=0x3	# char code for text mode mouse cursor
+options 	SC_PIXEL_MODE		# add support for the raster text mode
+
+# The following options will let you change the default colors of syscons.
+options 	SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
+options 	SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
+options 	SC_KERNEL_CONS_ATTR=(FG_RED|BG_BLACK)
+options 	SC_KERNEL_CONS_ATTRS=\"\x0c\x0d\x0e\x0f\x02\x09\x0a\x0b\"
+options 	SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
+
+# The following options will let you change the default behavior of
+# cut-n-paste feature
+options 	SC_CUT_SPACES2TABS	# convert leading spaces into tabs
+options 	SC_CUT_SEPCHARS=\"x09\"	# set of characters that delimit words
+					# (default is single space - \"x20\")
+
+# If you have a two button mouse, you may want to add the following option
+# to use the right button of the mouse to paste text.
+options 	SC_TWOBUTTON_MOUSE
+
+# You can selectively disable features in syscons.
+options 	SC_NO_CUTPASTE
+options 	SC_NO_FONT_LOADING
+options 	SC_NO_HISTORY
+options 	SC_NO_MODE_CHANGE
+options 	SC_NO_SYSMOUSE
+options 	SC_NO_SUSPEND_VTYSWITCH
+#!options 	SC_NO_TERM_DUMB
+#!options 	SC_NO_TERM_SC
+#!options 	SC_NO_TERM_SCTEKEN
+
+# `flags' for sc
+#	0x80	Put the video card in the VESA 800x600 dots, 16 color mode
+#	0x100	Probe for a keyboard device periodically if one is not present
+
+# Splash screen and screen saver support
+device		splash
+
+# Various screen savers.
+device		blank_saver
+device		daemon_saver
+device		dragon_saver
+device		fade_saver
+device		fire_saver
+device		green_saver
+device		logo_saver
+device		rain_saver
+device		snake_saver
+device		star_saver
+device		warp_saver
+
+# To include support for VGA VESA video modes
+options 	VESA
+
+# Turn on extra debugging checks and output for VESA support.
+options 	VESA_DEBUG
+
+device		dpms		# DPMS suspend & resume via VESA BIOS
+
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+options 	X86BIOS
+
+# PS/2 mouse
+device		psm
+envvar		hint.psm.0.at="atkbdc"
+envvar		hint.psm.0.irq="12"
+
+# Options for psm:
+options 	PSM_HOOKRESUME		#hook the system resume event, useful
+					#for some laptops
+options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
+
+# The keyboard controller; it controls the keyboard and the PS/2 mouse.
+device		atkbdc
+envvar		hint.atkbdc.0.at="isa"
+envvar		hint.atkbdc.0.port="0x060"
+
+# The AT keyboard
+device		atkbd
+envvar		hint.atkbd.0.at="atkbdc"
+envvar		hint.atkbd.0.irq="1"
+
+# Options for atkbd:
+options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
+
+# `flags' for atkbd:
+#       0x01    Force detection of keyboard, else we always assume a keyboard
+#       0x02    Don't reset keyboard, useful for some newer ThinkPads
+#	0x03	Force detection and avoid reset, might help with certain
+#		dockingstations
+#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
+
+# Video card driver for VGA adapters.
+device		vga
+envvar		hint.vga.0.at="isa"
+
+# Options for vga:
+# Try the following option if the mouse pointer is not drawn correctly
+# or font does not seem to be loaded properly.  May cause flicker on
+# some systems.
+options 	VGA_ALT_SEQACCESS
+
+# If you can dispense with some vga driver features, you may want to
+# use the following options to save some memory.
+#options 	VGA_NO_FONT_LOADING	# don't save/load font
+#options 	VGA_NO_MODE_CHANGE	# don't change video modes
+
+# Older video cards may require this option for proper operation.
+options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
+
+# The following option probably won't work with the LCD displays.
+options 	VGA_WIDTH90		# support 90 column modes
+
+# Debugging.
+options 	VGA_DEBUG
+
+# vt(4) drivers.
+device		vt_vga		# VGA
+device		vt_vbefb	# VBE framebuffer
+
+# Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
+device		s3pci
+
+#
+# RAID adapters
+#
+
+#
+# Areca 11xx and 12xx series of SATA II RAID controllers.
+# CAM is required.
+#
+device		arcmsr		# Areca SATA II RAID
+
+#
+# Adaptec FSA RAID controllers, including integrated DELL controllers,
+# the Dell PERC 2/QC and the HP NetRAID-4M
+device		aac
+device		aacp	# SCSI Passthrough interface (optional, CAM required)
+
+#
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
+# Highpoint RocketRAID 182x.
+device		hptmv
+
+#
+# Highpoint DC7280 and R750.
+device		hptnr
+
+#
+# Highpoint RocketRAID.  Supports RR172x, RR222x, RR2240, RR232x, RR2340,
+# RR2210, RR174x, RR2522, RR231x, RR230x.
+device		hptrr
+
+#
+# Highpoint RocketRaid 3xxx series SATA RAID
+device		hptiop
+
+#
+# IBM (now Adaptec) ServeRAID controllers
+device		ips
+
+#
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options 	ISCI_LOGGING	# enable debugging in isci HAL
+
+#
+# Intel Volume Management Device (VMD) support
+device		vmd
+
+#
+# PMC-Sierra SAS/SATA controller
+device		pmspcv
+
+#
+# Standard floppy disk controllers and floppy tapes, supports
+# the Y-E DATA External FDD (PC Card)
+#
+device		fdc
+envvar		hint.fdc.0.at="isa"
+envvar		hint.fdc.0.port="0x3F0"
+envvar		hint.fdc.0.irq="6"
+envvar		hint.fdc.0.drq="2"
+#
+# FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
+# gotta turn it actually on by setting the variable fd_debug with DDB,
+# however.
+options 	FDC_DEBUG
+#
+# Activate this line if you happen to have an Insight floppy tape.
+# Probing them proved to be dangerous for people with floppy disks only,
+# so it's "hidden" behind a flag:
+#hint.fdc.0.flags="1"
+
+# Specify floppy devices
+envvar		hint.fd.0.at="fdc0"
+envvar		hint.fd.0.drive="0"
+envvar		hint.fd.1.at="fdc0"
+envvar		hint.fd.1.drive="1"
+
+# The cpufreq(4) driver provides support for non-ACPI CPU frequency control
+device		cpufreq
+
+#
+# Network interfaces:
+#
+
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
+# gve:	Google Virtual NIC (gVNIC)
+# igc:	Intel I225 2.5Gb Ethernet adapter
+# ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
+#	Requires the ipw firmware module
+# iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
+#	Requires the iwi firmware module
+# iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
+#	802.11 network adapters
+#	Requires the iwn firmware module
+# mthca: Mellanox HCA InfiniBand
+# mlx4ib: Mellanox ConnectX HCA InfiniBand
+# mlx4en: Mellanox ConnectX HCA Ethernet
+# nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
+# wpi:	Intel 3945ABG Wireless LAN controller
+#	Requires the wpi firmware module
+
+device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
+device		gve		# Google Virtual NIC (gVNIC)
+device		igc		# Intel I225 2.5G Ethernet
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device  	mthca		# Mellanox HCA InfiniBand
+device  	mlx4		# Shared code module between IB and Ethernet
+device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
+device  	mlx4en		# Mellanox ConnectX HCA Ethernet
+device		nfe		# nVidia nForce MCP on-board Ethernet
+device		vmx		# VMware VMXNET3 Ethernet
+device		wpi		# Intel 3945ABG wireless NICs.
+
+# IEEE 802.11 adapter firmware modules
+
+# Intel PRO/Wireless 2100 firmware:
+#   ipwfw:		BSS/IBSS/monitor mode firmware
+#   ipwbssfw:		BSS mode firmware
+#   ipwibssfw:		IBSS mode firmware
+#   ipwmonitorfw:	Monitor mode firmware
+# Intel PRO/Wireless 2200BG/2225BG/2915ABG firmware:
+#   iwifw:		BSS/IBSS/monitor mode firmware
+#   iwibssfw:		BSS mode firmware
+#   iwiibssfw:		IBSS mode firmware
+#   iwimonitorfw:	Monitor mode firmware
+# Intel Wireless WiFi Link 4965/1000/5000/6000 series firmware:
+#   iwnfw:		Single module to support all devices
+#   iwn1000fw:		Specific module for the 1000 only
+#   iwn105fw:		Specific module for the 105 only
+#   iwn135fw:		Specific module for the 135 only
+#   iwn2000fw:		Specific module for the 2000 only
+#   iwn2030fw:		Specific module for the 2030 only
+#   iwn4965fw:		Specific module for the 4965 only
+#   iwn5000fw:		Specific module for the 5000 only
+#   iwn5150fw:		Specific module for the 5150 only
+#   iwn6000fw:		Specific module for the 6000 only
+#   iwn6000g2afw:	Specific module for the 6000g2a only
+#   iwn6000g2bfw:	Specific module for the 6000g2b only
+#   iwn6050fw:		Specific module for the 6050 only
+# wpifw:	Intel 3945ABG Wireless LAN Controller firmware
+
+device		iwifw
+device		iwibssfw
+device		iwiibssfw
+device		iwimonitorfw
+device		ipwfw
+device		ipwbssfw
+device		ipwibssfw
+device		ipwmonitorfw
+device		iwnfw
+device		iwn1000fw
+device		iwn105fw
+device		iwn135fw
+device		iwn2000fw
+device		iwn2030fw
+device		iwn4965fw
+device		iwn5000fw
+device		iwn5150fw
+device		iwn6000fw
+device		iwn6000g2afw
+device		iwn6000g2bfw
+device		iwn6050fw
+device		wpifw
+
+#
+# Non-Transparent Bridge (NTB) drivers
+#
+device		if_ntb		# Virtual NTB network interface
+device		ntb_transport	# NTB packet transport driver
+device		ntb		# NTB hardware interface
+device		ntb_hw_amd	# AMD NTB hardware driver
+device		ntb_hw_intel	# Intel NTB hardware driver
+device		ntb_hw_plx	# PLX NTB hardware driver
+
+#####################################################################
+
+#
+# Miscellaneous hardware:
+#
+# ipmi: Intelligent Platform Management Interface
+# pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
+# smbios: DMI/SMBIOS entry point (requires EFIRT option)
+# vpd: Vital Product Data kernel interface
+# asmc: Apple System Management Controller
+# si: Specialix International SI/XIO or SX intelligent serial card
+# tpm: Trusted Platform Module
+
+# Notes on the Specialix SI/XIO driver:
+#  The host card is memory, not IO mapped.
+#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
+#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
+#  The cards can use an IRQ of 11, 12 or 15.
+
+device		ipmi
+device		pbio
+envvar		hint.pbio.0.at="isa"
+envvar		hint.pbio.0.port="0x360"
+device		smbios
+device		vpd
+device		asmc
+device		tpm
+device		padlock_rng	# VIA Padlock RNG
+device		rdrand_rng	# Intel Bull Mountain RNG
+device		aesni		# AES-NI OpenCrypto module
+device		ossl		# OpenSSL OpenCrypto module
+
+# Linux KVM paravirtualization support
+device		kvm_clock	# KVM paravirtual clock driver
+
+# Microsoft Hyper-V enhancement support
+device 		hyperv		# HyperV drivers
+device		hvhid		# HyperV HID device
+
+# VMware hypervisor support
+device		pvscsi		# Paravirtual SCSI driver
+device		vmci		# Virtual Machine Communication Interface (VMCI)
+device		vmware_guestrpc	# GuestRPC interface
+
+#
+# Laptop/Notebook options:
+#
+
+device backlight
+
+#
+# System Management Bus (SMB)
+#
+# Supported SMB interfaces:
+# imcsmb	integrated Memory Controller (iMC) SMBus controller
+#		Sandybridge-Xeon, Ivybridge-Xeon, Haswell-Xeon, Broadwell-Xeon
+#
+
+device		imcsmb
+
+#
+# HID-over-I2C support
+#
+device		iichid		# HID-over-I2C support
+options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
+options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
+
+#
+# AMD System Management Network (SMN)
+#
+device		amdsmn
+
+#
+# Hardware watchdog timers:
+#
+# ichwd: Intel ICH watchdog timer
+# amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
+# wbwd: Winbond watchdog timer
+# itwd: ITE Super I/O watchdog timer
+#
+device		ichwd
+device		amdsbwd
+device		viawd
+device		wbwd
+device		itwd
+
+#
+# Temperature sensors:
+#
+# coretemp: on-die sensor on Intel Core and newer CPUs
+# amdtemp: on-die sensor on AMD K8/K10/K11 CPUs
+#
+device		coretemp
+device		amdtemp
+
+#
+# CPU control pseudo-device. Provides access to MSRs, CPUID info and
+# microcode update feature.
+#
+device		cpuctl
+
+#
+# SuperIO driver.
+#
+device		superio
+
+#####################################################################
+
+# More undocumented options for linting.
+# Note that documenting these are not considered an affront.
+
+options 	KBDIO_DEBUG=2
+options 	KBD_MAXRETRY=4
+options 	KBD_MAXWAIT=6
+options 	KBD_RESETDELAY=201
+
+options 	PSM_DEBUG=1
+
+options 	TIMER_FREQ=((14318182+6)/12)
+
+options 	VM_KMEM_SIZE
+options 	VM_KMEM_SIZE_MAX
+options 	VM_KMEM_SIZE_SCALE

@@ -1,0 +1,118 @@
+The SSH agent protocol is described in
+https://tools.ietf.org/html/draft-miller-ssh-agent
+
+This file documents OpenSSH's extensions to the agent protocol.
+
+1. session-bind@openssh.com extension
+
+This extension allows a ssh client to bind an agent connection to a
+particular SSH session identifier as derived from the initial key
+exchange (as per RFC4253 section 7.2) and the host key used for that
+exchange. This binding is verifiable at the agent by including the
+initial KEX signature made by the host key.
+
+The message format is:
+
+	byte		SSH_AGENTC_EXTENSION (0x1b)
+	string		session-bind@openssh.com
+	string		hostkey
+	string		session identifier
+	string		signature
+	bool		is_forwarding
+
+Where 'hostkey' is the encoded server host public key, 'session
+identifier' is the exchange hash derived from the initial key
+exchange, 'signature' is the server's signature of the session
+identifier using the private hostkey, as sent in the final
+SSH2_MSG_KEXDH_REPLY/SSH2_MSG_KEXECDH_REPLY message of the initial key
+exchange. 'is_forwarding' is a flag indicating whether this connection
+should be bound for user authentication or forwarding.
+
+When an agent received this message, it will verify the signature and
+check the consistency of its contents, including refusing to accept
+a duplicate session identifier, or any attempt to bind a connection
+previously bound for authentication. It will then record the
+binding for the life of the connection for use later in testing per-key
+destination constraints.
+
+2. restrict-destination-v00@openssh.com key constraint extension
+
+The key constraint extension supports destination- and forwarding path-
+restricted keys. It may be attached as a constraint when keys or
+smartcard keys are added to an agent.
+
+	byte		SSH_AGENT_CONSTRAIN_EXTENSION (0xff)
+	string		restrict-destination-v00@openssh.com
+	constraint[]	constraints
+
+Where a constraint consists of:
+
+	string		from_username (must be empty)
+	string		from_hostname
+	string		reserved
+	keyspec[]	from_hostkeys
+	string		to_username
+	string		to_hostname
+	string		reserved
+	keyspec[]	to_hostkeys
+	string		reserved
+
+And a keyspec consists of:
+
+	string		keyblob
+	bool		is_ca
+
+When receiving this message, the agent will ensure that the
+'from_username' field is empty, and that 'to_hostname' and 'to_hostkeys'
+have been supplied (empty 'from_hostname' and 'from_hostkeys' are valid
+and signify the initial hop from the host running ssh-agent). The agent
+will then record the constraint against the key.
+
+Subsequent operations on this key including add/remove/request
+identities and, in particular, signature requests will check the key
+constraints against the session-bind@openssh.com bindings recorded for
+the agent connection over which they were received.
+
+3. SSH_AGENT_CONSTRAIN_MAXSIGN key constraint
+
+This key constraint allows communication to an agent of the maximum
+number of signatures that may be made with an XMSS key. The format of
+the constraint is:
+
+	byte		SSH_AGENT_CONSTRAIN_MAXSIGN (0x03)
+	uint32		max_signatures
+
+This option is only valid for XMSS keys.
+
+3. associated-certs-v00@openssh.com key constraint extension
+
+The key constraint extension allows certificates to be associated
+with private keys as they are loaded from a PKCS#11 token.
+
+	byte		SSH_AGENT_CONSTRAIN_EXTENSION (0xff)
+	string		associated-certs-v00@openssh.com
+	bool		certs_only
+	string		certsblob
+
+Where "certsblob" consists of one or more certificates encoded as public
+key blobs:
+
+	string[]	certificates
+
+This extension is only valid for SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED
+requests. When an agent receives this extension, it will attempt to match
+each certificate in the request with a corresponding private key loaded
+from the requested PKCS#11 token. When a matching key is found, the
+agent will graft the certificate contents to the token-hosted private key
+and store the result for subsequent use by regular agent operations.
+
+If the "certs_only" flag is set, then this extension will cause ONLY
+the resultant certificates to be loaded to the agent. The default
+behaviour is to load the PKCS#11-hosted private key as well as the
+resultant certificate.
+
+A SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED will return SSH_AGENT_SUCCESS
+if any key (plain private or certificate) was successfully loaded, or
+SSH_AGENT_FAILURE if no key was loaded.
+
+$OpenBSD: PROTOCOL.agent,v 1.23 2024/04/30 05:45:56 djm Exp $

@@ -1,0 +1,104 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2007,2010 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_deleteln.3x,v 1.38 2024/04/20 21:20:07 tom Exp $
+.TH curs_deleteln 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.SH NAME
+\fB\%deleteln\fP,
+\fB\%wdeleteln\fP,
+\fB\%insdelln\fP,
+\fB\%winsdelln\fP,
+\fB\%insertln\fP,
+\fB\%winsertln\fP \-
+delete or insert lines in a \fIcurses\fR window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint deleteln(void);
+\fBint wdeleteln(WINDOW *\fIwin\fP);
+.PP
+\fBint insdelln(int \fIn\fP);
+\fBint winsdelln(WINDOW *\fIwin\fP, int \fIn\fP);
+.PP
+\fBint insertln(void);
+\fBint winsertln(WINDOW *\fIwin\fP);
+.fi
+.SH DESCRIPTION
+The \fBdeleteln\fP and \fBwdeleteln\fP routines delete the line under the
+cursor in the window; all lines below the current line are moved up one line.
+The bottom line of the window is cleared.
+The cursor position does not change.
+.PP
+The \fBinsdelln\fP and \fBwinsdelln\fP routines, for positive \fIn\fP, insert
+\fIn\fP lines into the specified window above the current line.
+The \fIn\fP
+bottom lines are lost.
+For negative \fIn\fP, delete \fIn\fP lines (starting
+with the one under the cursor), and move the remaining lines up.
+The bottom
+\fIn\fP lines are cleared.
+The current cursor position remains the same.
+.PP
+The \fBinsertln\fP and \fBwinsertln\fP routines insert a blank line above the
+current line and the bottom line is lost.
+.SH RETURN VALUE
+These routines return the integer \fBERR\fP upon failure and an \fBOK\fP
+(SVr4 specifies only
+\*(``an integer value other than \fBERR\fP\*('')
+upon successful completion.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+if the window parameter is null, an error is returned.
+.SH NOTES
+Note that all but \fBwinsdelln\fP may be macros.
+.PP
+These routines do not require a hardware line delete or insert feature in the
+terminal.
+In fact, they will not use hardware line delete/insert unless
+\fBidlok(..., TRUE)\fP has been set on the current window.
+.SH PORTABILITY
+These functions are described in X/Open Curses, Issue 4.
+The
+standard specifies that they return \fBERR\fP on failure, but specifies no
+error conditions.
+.SH SEE ALSO
+\fB\%curses\fP(3X)

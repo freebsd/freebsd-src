@@ -1,0 +1,81 @@
+#
+# QCA SoC support (32 bit)
+#
+
+machine 	arm     armv7
+cpu 		CPU_CORTEXA
+makeoptions 	CONF_CFLAGS="-march=armv7a"
+
+files 		"../qualcomm/std.ipq4018"
+
+# Serial (COM) ports
+device 		uart
+device 		uart_msm	# Qualcomm MSM UART driver
+
+# pseudo devices
+device 		clk
+device 		phy
+device 		hwreset
+device 		nvmem
+device 		regulator
+device 		syscon
+
+# Random
+device 		qcom_rnd
+
+# SPI
+device 		spibus
+device 		qcom_qup_spi
+device 		mx25l
+
+# interrupt controller
+device 		gic
+
+# cpu frequency
+device 		cpufreq
+
+# MMC/SD/SDIO Card slot support
+device 		mmc
+device 		sdhci
+
+# Timers
+device 		generic_timer
+device 		mpcore_timer
+
+# PSCI - SMC calls, needed for qualcomm SCM
+device 		psci
+
+# Clock/Reset provider
+device 		qcom_gcc
+
+# TLMM (gpio/pinmux)
+device 		gpio
+device 		qcom_tlmm_ipq4018
+device 		fdt_pinctrl
+
+# TCSR (core top control and status registers)
+device 		qcom_tcsr
+
+options 	FDT
+
+# Disable CP14 work in DDB as TZ won't let us by default
+options 	ARM_FORCE_DBG_MONITOR_DISABLE
+
+# USB PHY support
+device 		qcom_ipq4018_hs_usbphy
+device 		qcom_ipq4018_ss_usbphy
+
+# USB support
+device 		usb
+device 		xhci
+device 		dwc3
+device 		qcom_dwc3
+options 	USB_HOST_ALIGN=64
+
+# Ethernet support
+device 		mdio
+device 		mii
+device 		miibus
+device 		qcom_mdio_ipq4018
+device 		etherswitch
+device 		ar40xx_switch

@@ -1,0 +1,57 @@
+krb5_auth_con_init -  Create and initialize an authentication context. 
+=======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_init(krb5_context context, krb5_auth_context * auth_context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **auth_context** - Authentication context
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates an authentication context to hold configuration and state relevant to krb5 functions for authenticating principals and protecting messages once authentication has occurred.
+
+
+
+By default, flags for the context are set to enable the use of the replay cache (#KRB5_AUTH_CONTEXT_DO_TIME), but not sequence numbers. Use krb5_auth_con_setflags() to change the flags.
+
+
+
+The allocated *auth_context* must be freed with krb5_auth_con_free() when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

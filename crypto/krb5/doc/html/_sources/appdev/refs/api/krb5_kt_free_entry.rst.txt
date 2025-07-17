@@ -1,0 +1,44 @@
+krb5_kt_free_entry
+==================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_free_entry(krb5_context context, krb5_keytab_entry * entry)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **entry**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Use krb5_free_keytab_entry_contents instead. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,24 @@
+#
+# IMX SoC support
+#
+
+# SoC support
+options 	SOC_FREESCALE_IMX8
+
+# I2C
+device		vf_i2c			# Freescale Vybrid I2C controller
+device		fsliic			# Freescale iMX I2C controller
+
+# Serial (COM) ports
+device		uart_imx		# iMX8 UART
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+
+# Ethernet
+device		ffec
+
+options 	FDT
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/imx8"

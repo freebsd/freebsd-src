@@ -1,0 +1,240 @@
+WHAT=windows
+
+all: setup-msg outpre-dir
+
+all: all-$(WHAT)
+clean: clean-$(WHAT)
+install: install-$(WHAT)
+check: check-$(WHAT)
+
+all-windows:
+clean-windows::
+install-windows:
+check-windows:
+
+all-windows: Makefile
+clean-windows:: Makefile
+
+#
+# Figure out the CPU
+#
+!if !defined(CPU) || "$(CPU)" == ""
+CPU=$(PROCESSOR_ARCHITECTURE)
+!endif # CPU
+
+!if "$(CPU)" == ""
+CPU=i386
+!endif
+
+# Change x86 or X86 to i386
+!if ( "$(CPU)" == "X86" ) || ( "$(CPU)" == "x86" )
+CPU=i386
+!endif # CPU == X86
+
+!if ( "$(CPU)" != "i386" ) && ( "$(CPU)" != "ALPHA" ) && ( "$(CPU)" != "ALPHA64" ) && ( "$(CPU)" != "IA64" ) && ( "$(CPU)" != "AMD64" )
+!error Must specify CPU environment variable ( CPU=i386, CPU=ALPHA, CPU=ALPHA64,CPU=IA64, CPU=AMD64)
+!endif
+
+!if  ("$(CPU)" == "IA64" ) || ("$(CPU)" == "AMD64" ) || ("$(CPU)" == "ALPHA64" )
+BITS=64
+!else
+BITS=32
+!endif
+
+#
+# End of figuring out CPU
+#
+
+!if "$(OS)" == "Windows_NT"
+DIRNUL=
+!else 
+DIRNUL=\nul
+!endif
+
+# NOTE: ^ is an escape char for NMAKE.
+!ifdef NODEBUG
+OUTPRE_DBG=rel
+!else
+OUTPRE_DBG=dbg
+!endif
+OUTPRE1=obj
+OUTPRE2=$(OUTPRE1)\$(CPU)
+OUTPRE3=$(OUTPRE2)\$(OUTPRE_DBG)
+OUTPRE=$(OUTPRE3)^\
+
+$(OUTPRE3)$(DIRNUL):
+	-@if not exist $(OUTPRE1)$(DIRNUL) mkdir $(OUTPRE1)
+	-@if not exist $(OUTPRE2)$(DIRNUL) mkdir $(OUTPRE2)
+	-@if not exist $(OUTPRE3)$(DIRNUL) mkdir $(OUTPRE3)
+	@if exist $(OUTPRE3)$(DIRNUL) echo Output going into $(OUTPRE3)
+	@if not exist $(OUTPRE1)$(DIRNUL) echo The directory $(OUTPRE1) could not be created.
+	@if exist $(OUTPRE1)$(DIRNUL) if not exist $(OUTPRE2)$(DIRNUL) echo The directory $(OUTPRE2) could not be created.
+	@if exist $(OUTPRE2)$(DIRNUL) if not exist $(OUTPRE3)$(DIRNUL) echo The directory $(OUTPRE3) could not be created.
+
+
+clean-windows-dir:
+	-@if exist $(OUTPRE3)$(DIRNUL) rmdir $(OUTPRE3)
+	-@if exist $(OUTPRE2)$(DIRNUL) rmdir $(OUTPRE2)
+	-@if exist $(OUTPRE1)$(DIRNUL) rmdir $(OUTPRE1)
+	@if exist $(OUTPRE2)$(DIRNUL) echo The directory $(OUTPRE2) is not empty.
+	@if not exist $(OUTPRE2)$(DIRNUL) if exist $(OUTPRE1)$(DIRNUL) echo The directory $(OUTPRE1) is not empty.
+
+# Directory syntax:
+#
+# begin absolute path
+ABS=^\
+# begin relative path
+REL=
+# up-directory
+U=..
+# path separator
+S=^\
+# this is magic... should only be used for preceding a program invocation
+C=.^\
+
+srcdir = .
+top_srcdir = $(srcdir)\$(BUILDTOP)
+
+DNSLIBS=dnsapi.lib
+DNSFLAGS=-DKRB5_DNS_LOOKUP=1
+!if defined(KRB5_USE_DNS_REALMS)
+DNSFLAGS=$(DNSFLAGS) -DKRB5_DNS_LOOKUP_REALM=1
+!endif
+
+!if ("$(CPU)" == "i386")
+TIME_T_FLAGS=-D_USE_32BIT_TIME_T
+!endif
+
+!if defined (NODEBUG)
+KFWFLAGS=-DUSE_LEASH=1
+!else
+KFWFLAGS=-DUSE_LEASH=1 -DDEBUG -D_CRTDBG_MAP_ALLOC
+!endif
+
+#
+# The name of the C compiler for the target
+#
+CC=cl
+
+PDB_OPTS=-Fd$(OUTPRE)\ -FD
+CPPFLAGS=-I$(top_srcdir)\include -I$(top_srcdir)\include\krb5 $(DNSFLAGS) -DWIN32_LEAN_AND_MEAN -DKRB5_DEPRECATED=1 -DKRB5_PRIVATE -D_CRT_SECURE_NO_DEPRECATE $(KFWFLAGS) $(TIME_T_FLAGS)
+# Treat the following warnings as errors:
+#  4020: too many actual parameters
+#  4024: different types for formal and actual parameter
+#  4047: different levels of indirection
+CCOPTS=-nologo /EHsc /W3 /we4020 /we4024 /we4047 $(PDB_OPTS) $(DLL_FILE_DEF)
+LOPTS=-nologo -incremental:no -manifest
+
+!if  ("$(BITS)" == "64" )
+ENTRYPOINT=_DllMainCRTStartup
+!else
+ENTRYPOINT=_DllMainCRTStartup@12
+!endif
+CCLINKOPTION=
+DEBUGOPT=/guard:cf /Zi
+
+#if the compiler is vstudio 8, generate manifest
+!if exists("$(VCINSTALLDIR)\..\..\MICROSOFT VISUAL STUDIO 8")
+CCLINKOPTION = $(CCLINKOPTION) /MANIFEST
+_VC_MANIFEST_EMBED_EXE = if exist $*.exe.manifest mt.exe -manifest $*.exe.manifest -outputresource:$*.exe;1
+_VC_MANIFEST_EMBED_DLL = if exist $*.dll.manifest mt.exe -manifest $*.dll.manifest -outputresource:$*.dll;2
+!endif 
+
+# /ZI gives better debug info in each object file (MSVC 6.0 or higher).
+# /Zi gives debug info in each object file.
+# /Gs Avoid stack probes (they don't seem to work anyway)
+# /Os optimize for space.  FIXME:  Do not use /Ox; it miscompiles the DES lib!
+# /Od disable optimization (for debugging)
+# /MD (Win32) thread safe, ML would be single threaded, don't build with ML
+
+#
+# CCOPTS  was for DLL compiles
+# CCOPTS2 was for non-DLL compiles (EXEs, for example)
+#
+!ifdef NODEBUG
+!ifdef DEBUG_SYMBOL
+CCOPTS=$(DEBUGOPT) $(CCOPTS)
+LOPTS=$(LOPTS) -debug
+!endif
+CCOPTS=/Os /MD $(CCOPTS)
+LOPTS=$(LOPTS)
+!ifdef DEBUG_SYMBOL
+INSTALLDBGSYMS=copy
+!else
+INSTALLDBGSYMS=rem
+!endif
+!else
+CCOPTS=/Od $(DEBUGOPT) /MDd $(CCOPTS)
+LOPTS=$(LOPTS) -debug
+INSTALLDBGSYMS=copy
+!endif
+
+# XXX - NOTE: We should probably use DllMainCRTStartup
+DLL_LINKOPTS=$(LOPTS) -dll -entry:DllMain
+EXE_LINKOPTS=$(LOPTS)
+
+RM=$(BUILDTOP)\config\rm.bat
+LIBECHO=$(BUILDTOP)\util\windows\$(OUTPRE)libecho
+CP=copy/b nul:+
+MV=ren
+LN=copy
+LIBCMD=lib
+AWK=rem
+RC = rc
+CVTRES = cvtres
+PERL=perl
+
+WCONFIG_EXE=$(BUILDTOP)\$(OUTPRE)wconfig.exe
+WCONFIG=$(WCONFIG_EXE:.exe=) $(WCONFIG_FLAGS)
+
+CLIB=$(BUILDTOP)\lib\$(OUTPRE)comerr$(BITS).lib
+PLIB=$(BUILDTOP)\lib\$(OUTPRE)xpprof$(BITS).lib
+KLIB=$(BUILDTOP)\lib\$(OUTPRE)krb5_$(BITS).lib
+SLIB=$(BUILDTOP)\lib\$(OUTPRE)k5sprt$(BITS).lib
+GLIB=$(BUILDTOP)\lib\$(OUTPRE)gssapi$(BITS).lib
+CCLIB=krbcc$(BITS)
+SPAKELIB=spake$(BITS)
+
+KRB4_INCLUDES=-I$(BUILDTOP)/include/kerberosIV
+
+COM_ERR_DEPS	= $(BUILDTOP)/include/com_err.h
+
+RANLIB=rem
+
+OBJEXT=obj
+EXEEXT=.exe
+
+MFLAGS=$(MAKEFLAGS)
+!ifdef MIGNORE
+MAKE=-$(MAKE)
+!endif
+
+CFLAGS = $(CCOPTS)
+ALL_CFLAGS = $(DEFS) $(DEFINES) $(LOCALINCLUDES) $(CPPFLAGS) $(CFLAGS)
+
+C_RULE_STUFF=$(CC) $(ALL_CFLAGS) -Fo$(OUTPRE)\ -c
+C_RULE_PRINT=$(C_RULE_STUFF)
+C_RULE=$(C_RULE_STUFF) $<
+
+{}.rc{$(OUTPRE)}.res:
+	$(RC) $(RCFLAGS) -fo $@ -r $<
+
+{}.c{$(OUTPRE)}.obj:
+	@if "%DO_C_RULE_PRINT%"=="1" echo %C_RULE_PRINT% ...
+	@set DO_C_RULE_PRINT=
+	@$(C_RULE)
+
+{}.cxx{$(OUTPRE)}.obj:
+	@if "%DO_C_RULE_PRINT%"=="1" echo %C_RULE_PRINT% ...
+	@set DO_C_RULE_PRINT=
+	@$(C_RULE)
+
+{}.cpp{$(OUTPRE)}.obj:
+	@if "%DO_C_RULE_PRINT%"=="1" echo %C_RULE_PRINT% ...
+	@set DO_C_RULE_PRINT=
+	@$(C_RULE)
+
+#
+# End of Win32 pre-config lines (config/win-pre.in)
+#
+

@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: msgs
+# REQUIRE: LOGIN
+
+. /etc/rc.subr
+
+name="msgs"
+desc="Make a bounds file for msgs(1)"
+start_cmd="msgs_start"
+stop_cmd=":"
+
+msgs_start()
+{
+	# Make a bounds file for msgs(1) if there isn't one already
+	#
+	if [ -d /var/msgs -a ! -f /var/msgs/bounds -a ! -L /var/msgs/bounds ]; then
+		echo 0 > /var/msgs/bounds
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+msgs_svcj="NO"
+
+run_rc_command "$1"

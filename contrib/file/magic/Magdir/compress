@@ -1,0 +1,458 @@
+#------------------------------------------------------------------------------
+# $File: compress,v 1.96 2024/11/09 23:47:04 christos Exp $
+# compress:  file(1) magic for pure-compression formats (no archives)
+#
+# compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
+#
+# Formats for various forms of compressed data
+# Formats for "compress" proper have been moved into "compress.c",
+# because it tries to uncompress it to figure out what's inside.
+
+# standard unix compress
+0	string		\037\235	compress'd data
+!:mime	application/x-compress
+!:apple	LZIVZIVU
+!:ext	Z
+>2	byte&0x80	>0		block compressed
+>2	byte&0x1f	x		%d bits
+
+# gzip (GNU zip, not to be confused with Info-ZIP or PKWARE zip archiver)
+# URL: https://en.wikipedia.org/wiki/Gzip
+# Reference: https://tools.ietf.org/html/rfc1952
+# Update: Joerg Jenderek, Apr 2019, Dec 2022
+#   Edited by Chris Chittleborough <cchittleborough@yahoo.com.au>, March 2002
+#	* Original filename is only at offset 10 if "extra field" absent
+#	* Produce shorter output - notably, only report compression methods
+#         other than 8 ("deflate", the only method defined in RFC 1952).
+# Note: find defs -iname '*.trid.xml' -exec grep -q '<Bytes>1F8B08' {} \; -ls
+# TODO:
+# FBR	Blueberry FlashBack screen Record	https://www.flashbackrecorder.com/
+# KPR	KOffice/Calligra KPresenter		application/x-kpresenter
+# KPT	KOffice/Calligra KPresenter template?	application/x-kpresenter
+# SAV	Diggles Saved Game File			http://www.innonics.com
+# SAV	FarCry (demo) saved game		http://www.farcry-thegame.com
+# DAT	ZOAGZIP game data format		http://en.wikipedia.org/wiki/SD_Gundam_Capsule_Fighter
+0       string          \037\213
+# to display gzip compressed (strength=100=2*50) before other (strength=50)?
+#!:strength * 2
+# no FNAME and FCOMMENT bit implies no file name/comment. That means only binary
+>3	byte&0x18	=0
+# For binary gzipped no ASCII text should occur
+#	mcd-monu-cad.trid.xml
+>>10	string		MCD			Monu-Cad Drawing, Component or Font
+#>>36	string		Created\ with\ MONU-CAD	
+#!:mime	application/octet-stream
+# http://fileformats.archiveteam.org/wiki/Monu-CAD
+#	http://www.monucad.com/downloads/FullDemo-2005.EXE
+#	/HANDS96.MCC	Component
+#	/DEMO_DD01.MCD	Drawing
+#	/MCALF020.FNT	Font
+!:ext	mcc/mcd/fnt
+# http://www.generalcadd.com
+>>10	string		GXD			General CADD, Drawing or Component
+#!:mime	application/octet-stream
+#	/gxc/BUILDINGEDGE.gxc			Component
+#	/gxd/HOCKETT-STPAUL-WRHSE.gxd		Drawing
+#	/gxd/POWERLAND-MILL-ADD-11.gxd		Drawing		v9.1.06
+!:ext	gxc/gxd
+#>>>13	ubyte		0			\b, version 0
+>>>13	string		09			\b, version 9
+# other gzipped binary like gzipped tar, VirtualBox extension package,...
+>>10	default		x		gzip compressed data
+!:mime	application/gzip
+>>>0	use	gzip-info
+# size of the original (uncompressed) input data modulo 2^32
+# TODO: check for GXD MCD cad the reported size
+>>>-4	ulelong		x		\b, original size modulo 2^32 %u
+# gzipped TAR or VirtualBox extension package
+#!:mime	application/x-compressed-tar
+#!:mime	application/x-virtualbox-vbox-extpack
+# https://www.w3.org/TR/SVG/mimereg.html
+#!:mime	image/svg+xml-compressed
+#	zlib.3.gz
+#	microcode-20180312.tgz
+#	tpz same as tgz
+#	lua-md5_1.2-1_i386_i486.ipk	https://en.wikipedia.org/wiki/Opkg
+#	Oracle_VM_VirtualBox_Extension_Pack-5.0.12-104815.vbox-extpack
+#	trees.blend			http://fileformats.archiveteam.org/wiki/BLEND
+#	2020-07-19-Note-16-24.xoj	https://xournal.sourceforge.net/manual.html
+#	MYgnucash-gz.gnucash		https://wiki.gnucash.org/wiki/GnuCash_XML_format
+#	text-rotate.dia			https://en.wikipedia.org/wiki/Dia_(software)
+#	MYrdata.RData			https://en.wikipedia.org/wiki/R_(programming_language)
+!:ext	gz/tgz/tpz/ipk/vbox-extpack/svgz/blend/dia/gnucash/rdata/xoj
+# FNAME/FCOMMENT bit implies file name/comment as iso-8859-1 text
+>3	byte&0x18	>0		gzip compressed data
+!:mime	application/gzip
+# gzipped tar, gzipped Abiword document
+#!:mime	application/x-compressed-tar
+#!:mime	application/x-abiword-compressed
+#!:mime	image/image/svg+xml-compressed
+#	kleopatra_splashscreen.svgz	gzipped .svg
+#	RSI-Mega-Demo_Disk1.adz		gzipped .adf	http://fileformats.archiveteam.org/wiki/ADF_(Amiga)
+#	PostbankTest.kmy		gzipped XML	https://docs.kde.org/stable5/en/kmymoney/kmymoney/details.formats.compressed.html
+#	Logo.xcfgz			gzipped .xcf	http://fileformats.archiveteam.org/wiki/XCF
+!:ext	gz/tgz/tpz/zabw/svgz/adz/kmy/xcfgz
+>>0	use	gzip-info
+# size of the original (uncompressed) input data modulo 2^32
+>>-4	ulelong		x		\b, original size modulo 2^32 %u
+#	display information of gzip compressed files
+0	name				gzip-info
+#>2	byte		x		THIS iS GZIP
+>2	byte		<8		\b, reserved method
+>2	byte		>8		\b, unknown method
+>3	byte		&0x01		\b, ASCII
+>3	byte		&0x02		\b, has CRC
+>3	byte		&0x04		\b, extra field
+>3	byte&0xC	=0x08
+>>10	string		x		\b, was "%s"
+>3	byte		&0x10		\b, has comment
+>3	byte		&0x20		\b, encrypted
+>4	ledate		>0		\b, last modified: %s
+>8	byte		2		\b, max compression
+>8	byte		4		\b, max speed
+>9	byte		=0x00		\b, from FAT filesystem (MS-DOS, OS/2, NT)
+>9	byte		=0x01		\b, from Amiga
+>9	byte		=0x02		\b, from VMS
+>9	byte		=0x03		\b, from Unix
+>9	byte		=0x04		\b, from VM/CMS
+>9	byte		=0x05		\b, from Atari
+>9	byte		=0x06		\b, from HPFS filesystem (OS/2, NT)
+>9	byte		=0x07		\b, from MacOS
+>9	byte		=0x08		\b, from Z-System
+>9	byte		=0x09		\b, from CP/M
+>9	byte		=0x0A		\b, from TOPS/20
+>9	byte		=0x0B		\b, from NTFS filesystem (NT)
+>9	byte		=0x0C		\b, from QDOS
+>9	byte		=0x0D		\b, from Acorn RISCOS
+# size of the original (uncompressed) input data modulo 2^32
+#>-4	ulelong		x		\b, original size modulo 2^32 %u
+#ERROR: line 114: non zero offset 1048572 at level 1
+
+# packed data, Huffman (minimum redundancy) codes on a byte-by-byte basis
+0	string		\037\036	packed data
+!:mime	application/octet-stream
+!:ext	z
+>2	belong		>1		\b, %d characters originally
+>2	belong		=1		\b, %d character originally
+#
+# This magic number is byte-order-independent.
+0	short		0x1f1f		old packed data
+!:mime	application/octet-stream
+
+# XXX - why *two* entries for "compacted data", one of which is
+# byte-order independent, and one of which is byte-order dependent?
+#
+0	short		0x1fff		compacted data
+!:mime	application/octet-stream
+# This string is valid for SunOS (BE) and a matching "short" is listed
+# in the Ultrix (LE) magic file.
+0	string		\377\037	compacted data
+!:mime	application/octet-stream
+0	short		0145405		huf output
+!:mime	application/octet-stream
+
+# bzip2
+0	string		BZh		bzip2 compressed data
+!:mime	application/x-bzip2
+!:ext	bz2
+>3	byte		>47		\b, block size = %c00k
+
+# bzip	a block-sorting file compressor
+#	by Julian Seward <sewardj@cs.man.ac.uk> and others
+0	string		BZ0		bzip compressed data
+!:mime	application/x-bzip
+>3	byte		>47		\b, block size = %c00k
+
+# lzip
+0	string		LZIP		lzip compressed data
+!:mime application/x-lzip
+!:ext lz
+>4	byte		x		\b, version: %d
+
+# squeeze and crunch
+# Michael Haardt <michael@cantor.informatik.rwth-aachen.de>
+0	beshort		0x76FF		squeezed data,
+>4	string		x		original name %s
+0	beshort		0x76FE		crunched data,
+>2	string		x		original name %s
+0	beshort		0x76FD		LZH compressed data,
+>2	string		x		original name %s
+
+# Freeze
+0	string		\037\237	frozen file 2.1
+0	string		\037\236	frozen file 1.0 (or gzip 0.5)
+
+# SCO compress -H (LZH)
+0	string		\037\240	SCO compress -H (LZH) data
+
+# European GSM 06.10 is a provisional standard for full-rate speech
+# transcoding, prI-ETS 300 036, which uses RPE/LTP (residual pulse
+# excitation/long term prediction) coding at 13 kbit/s.
+#
+# There's only a magic nibble (4 bits); that nibble repeats every 33
+# bytes.  This isn't suited for use, but maybe we can use it someday.
+#
+# This will cause very short GSM files to be declared as data and
+# mismatches to be declared as data too!
+#0	byte&0xF0	0xd0		data
+#>33	byte&0xF0	0xd0
+#>66	byte&0xF0	0xd0
+#>99	byte&0xF0	0xd0
+#>132	byte&0xF0	0xd0		GSM 06.10 compressed audio
+
+# lzop from <markus.oberhumer@jk.uni-linz.ac.at>
+0	string		\x89\x4c\x5a\x4f\x00\x0d\x0a\x1a\x0a	lzop compressed data
+!:ext	lzo
+!:mime	application/x-lzop
+>9	beshort		<0x0940
+>>9	byte&0xf0	=0x00		- version 0.
+>>9	beshort&0x0fff	x		\b%03x,
+>>13	byte		1		LZO1X-1,
+>>13	byte		2		LZO1X-1(15),
+>>13	byte		3		LZO1X-999,
+## >>22	bedate		>0		last modified: %s,
+>>14	byte		=0x00		os: MS-DOS
+>>14	byte		=0x01		os: Amiga
+>>14	byte		=0x02		os: VMS
+>>14	byte		=0x03		os: Unix
+>>14	byte		=0x05		os: Atari
+>>14	byte		=0x06		os: OS/2
+>>14	byte		=0x07		os: MacOS
+>>14	byte		=0x0A		os: Tops/20
+>>14	byte		=0x0B		os: WinNT
+>>14	byte		=0x0E		os: Win32
+>9	beshort		>0x0939
+>>9	byte&0xf0	=0x00		- version 0.
+>>9	byte&0xf0	=0x10		- version 1.
+>>9	byte&0xf0	=0x20		- version 2.
+>>9	beshort&0x0fff	x		\b%03x,
+>>15	byte		1		LZO1X-1,
+>>15	byte		2		LZO1X-1(15),
+>>15	byte		3		LZO1X-999,
+## >>25	bedate		>0		last modified: %s,
+>>17	byte		=0x00		os: MS-DOS
+>>17	byte		=0x01		os: Amiga
+>>17	byte		=0x02		os: VMS
+>>17	byte		=0x03		os: Unix
+>>17	byte		=0x05		os: Atari
+>>17	byte		=0x06		os: OS/2
+>>17	byte		=0x07		os: MacOS
+>>17	byte		=0x0A		os: Tops/20
+>>17	byte		=0x0B		os: WinNT
+>>17	byte		=0x0E		os: Win32
+
+# 4.3BSD-Quasijarus Strong Compression
+# https://minnie.tuhs.org/Quasijarus/compress.html
+0	string		\037\241	Quasijarus strong compressed data
+
+# From: Cory Dikkers <cdikkers@swbell.net>
+0	string		XPKF		Amiga xpkf.library compressed data
+0	string		PP11		Power Packer 1.1 compressed data
+0	string		PP20		Power Packer 2.0 compressed data,
+>4	belong		0x09090909	fast compression
+>4	belong		0x090A0A0A	mediocre compression
+>4	belong		0x090A0B0B	good compression
+>4	belong		0x090A0C0C	very good compression
+>4	belong		0x090A0C0D	best compression
+
+# 7-zip archiver, from Thomas Klausner (wiz@danbala.tuwien.ac.at)
+# https://www.7-zip.org or DOC/7zFormat.txt
+#
+0	string		7z\274\257\047\034	7-zip archive data,
+>6	byte		x			version %d
+>7	byte		x			\b.%d
+!:mime	application/x-7z-compressed
+!:ext 7z/cb7
+
+0	name		lzma			LZMA compressed data,
+!:mime	application/x-lzma
+!:ext	lzma
+>5	lequad		=0xffffffffffffffff	streamed
+>5	lequad		!0xffffffffffffffff	non-streamed, size %lld
+
+# Type: LZMA
+0	lelong&0xffffff	=0x5d
+>12	leshort		0xff
+>>0	use		lzma
+>12	leshort		0
+>>0	use		lzma
+
+# http://tukaani.org/xz/xz-file-format.txt
+0	ustring		\xFD7zXZ\x00		XZ compressed data, checksum
+!:strength * 2
+!:mime	application/x-xz
+!:ext	xz
+>7	byte&0xf	0x0			NONE
+>7	byte&0xf	0x1			CRC32
+>7	byte&0xf	0x4			CRC64
+>7	byte&0xf	0xa			SHA-256
+
+# https://github.com/ckolivas/lrzip/blob/master/doc/magic.header.txt
+0	string		LRZI			LRZIP compressed data
+!:mime  application/x-lrzip
+>4	byte		x			- version %d
+>5	byte		x			\b.%d
+>22	byte		1			\b, encrypted
+
+# https://fastcompression.blogspot.fi/2013/04/lz4-streaming-format-final.html
+0	lelong		0x184d2204	LZ4 compressed data (v1.4+)
+!:mime	application/x-lz4
+!:ext	lz4
+# Added by osm0sis@xda-developers.com
+0 	lelong		0x184c2103	LZ4 compressed data (v1.0-v1.3)
+!:mime	application/x-lz4
+0	lelong		0x184c2102	LZ4 compressed data (v0.1-v0.9)
+!:mime	application/x-lz4
+
+# Zstandard/LZ4 skippable frames
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0         lelong&0xFFFFFFF0  0x184D2A50
+>(4.l+8)  indirect	x
+
+# Zstandard Dictionary ID subroutine
+0     name        zstd-dictionary-id
+# Single Segment = True
+>0    byte        &0x20   \b, Dictionary ID:
+>>0   byte&0x03   0       None
+>>0   byte&0x03   1
+>>>1  byte        x       %u
+>>0   byte&0x03   2
+>>>1  leshort     x       %u
+>>0   byte&0x03   3
+>>>1  lelong      x       %u
+# Single Segment = False
+>0    byte        ^0x20   \b, Dictionary ID:
+>>0   byte&0x03   0       None
+>>0   byte&0x03   1
+>>>2  byte        x       %u
+>>0   byte&0x03   2
+>>>2  leshort     x       %u
+>>0   byte&0x03   3
+>>>2  lelong      x       %u
+
+# Zstandard compressed data
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0     lelong       0xFD2FB522  Zstandard compressed data (v0.2)
+!:mime  application/zstd
+!:ext zst
+0     lelong       0xFD2FB523  Zstandard compressed data (v0.3)
+!:mime  application/zstd
+!:ext zst
+0     lelong       0xFD2FB524  Zstandard compressed data (v0.4)
+!:mime  application/zstd
+!:ext zst
+0     lelong       0xFD2FB525  Zstandard compressed data (v0.5)
+!:mime  application/zstd
+!:ext zst
+0     lelong       0xFD2FB526  Zstandard compressed data (v0.6)
+!:mime  application/zstd
+!:ext zst
+0     lelong       0xFD2FB527  Zstandard compressed data (v0.7)
+!:mime  application/zstd
+!:ext zst
+>4    use          zstd-dictionary-id
+0     lelong       0xFD2FB528  Zstandard compressed data (v0.8+)
+!:mime  application/zstd
+!:ext zst
+>4    use          zstd-dictionary-id
+
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0  lelong    0xEC30A437  Zstandard dictionary
+!:mime  application/x-std-dictionary
+>4 lelong    x           (ID %u)
+
+# AFX compressed files (Wolfram Kleff)
+2	string		-afx-		AFX compressed file data
+
+# Supplementary magic data for the file(1) command to support
+# rzip(1).  The format is described in magic(5).
+#
+# Copyright (C) 2003 by Andrew Tridgell.  You may do whatever you want with
+# this file.
+#
+0	string		RZIP		rzip compressed data
+>4	byte		x		- version %d
+>5	byte		x		\b.%d
+>6	belong		x		(%d bytes)
+
+0	string		ArC\x01		FreeArc archive <http://freearc.org>
+
+# Valve Pack (VPK) files
+# https://developer.valvesoftware.com/wiki/VPK_(file_format)#File_Format
+0	lelong	0x55aa1234	Valve Pak file
+>0x4	lelong	x		\b, version %u
+>0x8	lelong	x		\b, tree size %u 
+>0x12	lelong	x		\b, file data size %u 
+>0x16	lelong	x		\b, archive MD5 size %u 
+>0x20	lelong	x		\b, other MD5 size %u 
+>0x24	lelong	x		\b, signature size %u 
+
+# Snappy framing format
+# https://code.google.com/p/snappy/source/browse/trunk/framing_format.txt
+0	string	\377\006\0\0sNaPpY	snappy framed data
+!:mime	application/x-snappy-framed
+
+# qpress, https://www.quicklz.com/
+0	string	qpress10	qpress compressed data
+!:mime	application/x-qpress
+
+# Zlib https://www.ietf.org/rfc/rfc6713.txt
+0	string/b	x
+>0	beshort%31	=0
+>>0	byte&0xf	=8
+>>>0	byte&0x80 	=0	zlib compressed data
+!:mime	application/zlib
+
+# BWC compression
+0	string		BWC
+>3	byte		0	BWC compressed data
+
+# UCL compression
+0	bequad		0x00e955434cff011a	UCL compressed data
+
+# Softlib archive
+0	string		SLIB	Softlib archive
+>4	leshort		x	\b, version %d
+>6	leshort		x	(contains %d files)
+
+# URL:  https://github.com/lzfse/lzfse/blob/master/src/lzfse_internal.h#L276
+# From: Eric Hall <eric.hall@darkart.com>
+0	string	bvx-	lzfse encoded, no compression
+0	string	bvx1	lzfse compressed, uncompressed tables
+0	string	bvx2	lzfse compressed, compressed tables
+0	string	bvxn	lzfse encoded, lzvn compressed
+
+# https://support-docs.illumina.com/SW/ORA_Format_Specification/Content/SW/ORA/ORAFormatSpecification.htm
+0	uleshort	0x7c49	
+>2	lelong		0x80	ORA FASTQ compressed file
+>>6	ulelong		x	\b, DNA size %u
+>>10	ulelong		x	\b, read names size %u
+>>14	ulelong		x	\b, quality buffer 1 size %u
+>>18	ulelong		x	\b, quality buffer 2 size %u
+>>22	ulelong		x	\b, sequence buffer size %u
+>>26	ulelong		x	\b, N-position buffer size %u
+>>30	ulelong		x	\b, crypto buffer size %u
+>>34	ulelong		x	\b, misc  buffer 1 size %u
+>>38	ulelong		x	\b, misc  buffer 2 size %u
+>>42	ulelong		x	\b, flags %#x
+>>46	lelong		x	\b, read size %d
+>>50	lelong		x	\b, number of reads %d
+>>54	leshort		x	\b, version %d
+
+# https://github.com/kspalaiologos/bzip3/blob/master/doc/file_format.md
+0	string/b	BZ3v1	bzip3 compressed data
+>5	ulelong		x	\b, blocksize %u
+
+
+# https://support-docs.illumina.com/SW/ORA_Format_Specification/Content/\
+# SW/ORA/ORAFormatSpecification.htm
+# From Guillaume Rizk
+0	short	=0x7C49 DRAGEN ORA file,
+>-261	short	=0x7C49 with metadata:
+>-125	u8	x	NB reads: %llu,
+>-109	u8	x	NB bases: %llu.
+>-219	u4&0x02	2	File contains interleaved paired reads
+
+# https://github.com/xamarin/xamarin-android/pull/4686
+0	string	XALZ	Xamarin LZ4-compressed assembly
+>8	ulelong	x	\b, uncompressed size %u

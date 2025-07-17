@@ -1,0 +1,176 @@
+#
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.  For notes shared
+# with i386, look in /sys/x86/conf/NOTES.
+#
+#
+
+# GCOV (code coverage) support
+
+options 	LINDEBUGFS
+options 	GCOV
+
+
+#####################################################################
+# SMP OPTIONS:
+
+# Optional:
+device		atpic			# Optional legacy pic support
+device		mptable			# Optional MPSPEC mptable support
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.
+#
+cpu		HAMMER			# aka K8, aka Opteron & Athlon64
+
+#
+# Options for CPU features.
+#
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+#
+# Optional devices:
+#
+
+# vt(4) drivers.
+device		vt_efifb	# EFI framebuffer
+
+# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
+# the /dev/3dfx0 device to work with glide implementations.  This should get
+# linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
+# the tdfx DRI module from XFree86 and is completely unrelated.
+#
+
+device		tdfx			# Enable 3Dfx Voodoo support
+
+#
+# RAID adapters
+#
+
+#XXX this stores pointers in a 32bit field that is defined by the hardware
+#device	pst
+
+#
+# Microsemi smartpqi controllers.
+# These controllers have a SCSI-like interface, and require the
+# CAM infrastructure.
+#
+device		smartpqi
+
+# Broadcom MPT Fusion, version 4, is 64-bit only
+device		mpi3mr			# LSI-Logic MPT-Fusion 4
+
+#
+# Network interfaces:
+#
+
+# axp: AMD EPYC integrated NIC
+#	Requires the miibus module
+# ice:	Intel 800 Series Physical Function
+#	Requires the ice_ddp module for full functionality
+# irdma: Intel 800 Series RDMA driver
+#        Requires the ice module
+# qlxgb: QLogic 3200 and 8200 series 10 Gigabit Ethernet & CNA Adapter
+# qlxgbe: QLogic 8300 series 10 Gigabit Ethernet & CNA Adapter
+# qlxge: QLogic 8100 series 10 Gigabit Ethernet & CNA Adapter
+# qlnxe: Cavium QLogic 41000/45000 series 10/25/40/100 Gigabit Ethernet & CNA Adapter
+# sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
+
+device		axp		# AMD EPYC integrated NIC
+device		ixl		# Intel 700 Series Physical Function
+device		iavf		# Intel Adaptive Virtual Function
+device		ice		# Intel 800 Series Physical Function
+device		ice_ddp		# Intel 800 Series DDP Package
+device		irdma		# Intel 800 Series RDMA driver
+device		qlxgb		# QLogic 3200/8200 Ethernet
+device		qlxgbe		# QLogic 8300 Ethernet
+device		qlxge		# QLogic 8100 Ethernet
+device		qlnxe		# QLogic 41000/45000 Ethernet
+device		sfxge		# Solarflare SFC9000 10Gb Ethernet
+
+#####################################################################
+
+#
+# Miscellaneous hardware:
+#
+
+device		ioat		# Intel I/OAT DMA engine
+
+# EFI Runtime Services support
+options 	EFIRT
+
+# EFI pseudo-device
+device		efidev
+
+# EFI RTC
+device		efirtc
+
+#
+# Intel QuickAssist driver with OpenCrypto support
+#
+# Only for legacy Atom C2XXX chipsets.
+device		qat_c2xxx
+
+# Xen HVM Guest Optimizations
+options 	XENHVM		# Xen HVM kernel infrastructure
+device		xenefi		# Xen EFI timer device
+device 		xenpci		# Xen HVM Hypervisor services driver
+device		xentimer	# Xen x86 PV timer device
+
+#####################################################################
+# ABI Emulation
+
+# Enable 32-bit runtime support for FreeBSD/i386 binaries.
+options 	COMPAT_FREEBSD32
+
+# Enable (32-bit) a.out binary support
+options 	COMPAT_AOUT
+
+#####################################################################
+# ZFS support
+
+# NB: This depends on crypto, cryptodev and ZSTDIO
+options 	ZFS
+
+#####################################################################
+# VM OPTIONS
+
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel and any
+# modules or other data loaded with the kernel by the loader.  Each
+# page table page maps 2MB.
+#
+options 	NKPT=31
+
+# KSTACK_PAGES is the number of memory pages to assign to the kernel
+# stack of each thread.
+
+options 	KSTACK_PAGES=5
+
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
+
+#####################################################################
+# Kernel sanitizers
+
+#options	COVERAGE		# Generic kernel coverage. Used by KCOV
+#options	KCOV			# Kernel Coverage Sanitizer
+# Warning: KUBSAN can result in a kernel too large for loader to load
+#options	KUBSAN			# Kernel Undefined Behavior Sanitizer
+#options	KCSAN			# Kernel Concurrency Sanitizer
+#options	KASAN			# Kernel Address Sanitizer
+#options	KCSAN			# Kernel Concurrency Sanitizer
+#options	KMSAN			# Kernel Memory Sanitizer

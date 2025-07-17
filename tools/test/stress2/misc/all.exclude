@@ -1,0 +1,94 @@
+# List of tests not to run, unless the '-a' option is used with all.sh
+# Exclude names must start in column 1
+
+backingstore.sh		g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111220
+backingstore2.sh	panic: 43 vncache entries remaining				20111220
+backingstore3.sh	g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111230
+dd.sh			CAM stuck in vmwait						20200116
+force13.sh		https://people.freebsd.org/~pho/stress/log/log0376.txt		20221113
+force14.sh		Waiting for fix							20230319
+force15.sh		Waiting for fix							20230319
+force4.sh		https://people.freebsd.org/~pho/stress/log/log0082.txt		20210328
+force7.sh		https://people.freebsd.org/~pho/stress/log/log0266.txt		20220207
+fsck10.sh		Waiting for fix							20230319
+fsck11.sh		Waiting for fix							20230319
+fsck12.sh		Waiting for fix							20230319
+fsync.sh		panic: Journal overflow						20190208
+fuse.sh			https://people.freebsd.org/~pho/stress/log/log0546.txt		20240828
+fuse2.sh		https://people.freebsd.org/~pho/stress/log/log0547.txt		20240828
+gjournal.sh		panic: Journal overflow						20190626
+gjournal2.sh		panic: Journal overflow						20180125
+gjournal3.sh		panic: Bio not on queue						20171225
+gjournal4.sh		CAM stuck in vmwait						20180517
+gnop10.sh		Waiting for fix							20230319
+gnop13.sh		https://people.freebsd.org/~pho/stress/log/log0386.txt		20221113
+gnop7.sh		Waiting for patch commit					20190820
+gnop8.sh		Waiting for patch commit					20201214
+gnop9.sh		Waiting for patch commit					20201214
+graid1_8.sh		Known issue							20170909
+graid1_9.sh		panic: Bad effnlink						20180212
+lockf5.sh		Spinning threads seen						20160718
+maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
+memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
+memguard2.sh		Waiting for fix commit
+memguard3.sh		Waiting for fix commit
+mount7.sh		https://people.freebsd.org/~pho/stress/log/log0549.txt		20240912
+mlockall2.sh		Unrecoverable OOM killing seen					20190203
+mlockall6.sh		https://people.freebsd.org/~pho/stress/log/log0430.txt		20230403
+mlockall7.sh		Needs further investigation					20210123
+msetdomain.sh		May change policy for random threads to domainset_fixed		20210104
+newfs4.sh		watchdog fired. newbuf (still seen 20240729)			20190225
+nfs10.sh		Double fault							20151013
+nfs13.sh		mount_nfs hangs in mntref					20191007
+nfs15lockd.sh		panic: Assertion td->td_realucred == td->td_ucred failed ...	20210211
+nfs16.sh		panic: Failed to register NFS lock locally - error=11		20160608
+nullfs28.sh		Hang in "mount drain" seen					20220111
+oom2.sh			Hang in pfault							20180324
+overcommit2.sh		CAM stuck in vmwait seen					20200112
+pmc4.sh			https://people.freebsd.org/~pho/stress/log/log0548.txt		20240904
+pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
+rename14.sh		https://people.freebsd.org/~pho/stress/log/log0433.txt		20230409
+sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
+sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
+signal.sh		Timing issues. Needs fixing					20171116
+snap8.sh		https://people.freebsd.org/~pho/stress/log/log0123.txt		20211008
+suj12.sh		Waiting for fix							20230319
+suj19.sh		https://people.freebsd.org/~pho/stress/log/log0378.txt		20221113
+suj27.sh		https://people.freebsd.org/~pho/stress/log/log0387.txt		20221113
+suj36.sh		https://people.freebsd.org/~pho/stress/log/log0392.txt		20221114
+swap3.sh		https://people.freebsd.org/~pho/stress/log/log0543.txt		20240719
+swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
+swapoff3.sh		Excessive OOM killing						20220403
+swapoff5.sh		log0005.txt, known issue					20210111
+swapoff6.sh		https://people.freebsd.org/~pho/stress/log/log0540.txt		20240716
+systrace.sh		WiP								20200227
+systrace2.sh		WiP								20200227
+syzkaller16.sh		zonelimit issue							20210722
+syzkaller28.sh		panic: About to free ctl:0x... so:0x... and its in 1		20201120
+syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe01a0899430->tqh_last) != NULL	20220420
+syzkaller55.sh		https://people.freebsd.org/~pho/stress/log/log0533.txt		20240702
+syzkaller59.sh		Page fault							20220625
+syzkaller65.sh		panic: in_pcblookup_hash_locked: invalid local address		20230318
+syzkaller66.sh		panic: in_pcbconnect: inp is already connected			20230621
+syzkaller67.sh		panic: ASan: Invalid access, 8-byte read at ...			20230621
+syzkaller80.sh		panic								20250711
+syzkaller81.sh		panic								20250711
+quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
+truss3.sh		WiP								20200915
+zfs18.sh		https://people.freebsd.org/~pho/stress/log/log0560.txt		20241118
+zfs9.sh			panic: sacked_bytes < 0						20250711
+
+# Test not to run for other reasons:
+
+marcus3.sh		OK, but runs for a long time
+statfs.sh		Not very interesting
+vunref.sh		No problems ever seen
+vunref2.sh		No problems ever seen
+
+# Exclude NFS loopback tests
+nfs2.sh			panic: wrong diroffset						20140219
+nfs5.sh
+nfs6.sh
+nfs11.sh		vmwait deadlock							20151004
+nullfs8.sh
+tmpfs18.sh		mntref hang seen						20191019

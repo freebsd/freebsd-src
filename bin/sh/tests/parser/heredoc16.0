@@ -1,0 +1,8 @@
+#
+read x <<EOF; case $x
+value
+EOF
+in
+	value) x=$x.extended
+esac
+[ "$x" = value.extended ]

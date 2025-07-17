@@ -1,0 +1,75 @@
+Global: param = twice
+Global: VARNAME = VAR.$${param}
+Var_Parse: ${VARNAME} (eval)
+Global: VAR.${param} = initial-value
+Var_Parse: ${${VARNAME}::=assigned-value} (eval-defined-loud)
+Var_Parse: ${VARNAME}::=assigned-value} (eval)
+Evaluating modifier ${VAR.${param}::...} on value "initial-value"
+Modifier part: "assigned-value"
+Global: VAR.${param} = assigned-value
+Result of ${VAR.${param}::=assigned-value} is ""
+Var_Parse: ${${VARNAME}} != "assigned-value" (eval-defined-loud)
+Var_Parse: ${VARNAME}} != "assigned-value" (eval)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+Var_Parse: ${CMD_CMD_VAR::=new-value}  || ${CMD_GLOBAL_VAR::=new-value}  || ${CMD_ENV_VAR::=new-value}  || "${CMD_NEW_VAR::=new-value}" (eval-defined-loud)
+Evaluating modifier ${CMD_CMD_VAR::...} on value "cmd-value"
+Modifier part: "new-value"
+Command: CMD_CMD_VAR = new-value
+Global: .MAKEOVERRIDES =  FIRST LAST LAST LAST APPENDED RAN RAN RAN IT1 THEN1 IE2 ELSE2 CMD_CMD_VAR CMD_CMD_VAR
+Result of ${CMD_CMD_VAR::=new-value} is ""
+Var_Parse: ${CMD_GLOBAL_VAR::=new-value}  || ${CMD_ENV_VAR::=new-value}  || "${CMD_NEW_VAR::=new-value}" (eval-defined-loud)
+Evaluating modifier ${CMD_GLOBAL_VAR::...} on value "global-value"
+Modifier part: "new-value"
+Global: CMD_GLOBAL_VAR = new-value
+Result of ${CMD_GLOBAL_VAR::=new-value} is ""
+Var_Parse: ${CMD_ENV_VAR::=new-value}  || "${CMD_NEW_VAR::=new-value}" (eval-defined-loud)
+Evaluating modifier ${CMD_ENV_VAR::...} on value "env-value"
+Modifier part: "new-value"
+Global: CMD_ENV_VAR = new-value
+Result of ${CMD_ENV_VAR::=new-value} is ""
+Var_Parse: ${CMD_NEW_VAR::=new-value}" (eval)
+Evaluating modifier ${CMD_NEW_VAR::...} on value "" (eval, undefined)
+Modifier part: "new-value"
+Global: ignoring delete 'CMD_NEW_VAR' as it is not found
+Command: CMD_NEW_VAR = new-value
+Global: .MAKEOVERRIDES =  FIRST LAST LAST LAST APPENDED RAN RAN RAN IT1 THEN1 IE2 ELSE2 CMD_CMD_VAR CMD_CMD_VAR CMD_NEW_VAR
+Result of ${CMD_NEW_VAR::=new-value} is "" (eval, undefined)
+Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0
+make: Invalid attempt to assign "value" to variable "" via modifier "::="
+	while evaluating "${::=value}" with value ""
+	in command "@echo $@: ${::=value}"
+	in target "mod-assign-empty-1"
+make: Invalid attempt to assign "overwritten" to variable "" via modifier "::="
+	while evaluating "${:Uvalue::=overwritten}" with value "value"
+	in command "@echo $@: ${:Uvalue::=overwritten}"
+	in target "mod-assign-empty-2"
+make: Invalid attempt to assign "appended" to variable "" via modifier "::+="
+	while evaluating "${:Uvalue::+=appended}" with value "value"
+	in command "@echo $@: ${:Uvalue::+=appended}"
+	in target "mod-assign-empty-3"
+mod-assign-empty-4: VAR=overwritten
+make: Unknown modifier "::x"
+	while evaluating variable "ASSIGN" with value ""
+	in command "@echo ${ASSIGN::x}"
+	in target "mod-assign-parse-1"
+sysv:y
+make: Unfinished modifier after "value	# missing closing brace", expecting "}"
+	while evaluating variable "ASSIGN" with value ""
+	in command "@echo ${ASSIGN::=value	# missing closing brace"
+	in target "mod-assign-parse-3"
+ok=word
+make: warning: Command " echo word; (exit 13) " exited with status 13
+	while evaluating variable "SH_ERR" with value "previous"
+	in command "@${SH_ERR::!= echo word; (exit 13) } echo err=${SH_ERR}"
+	in target "mod-assign-shell-error"
+err=previous
+Command: TARGET_CMD_VAR = cmd-value
+Global: TARGET_GLOBAL_VAR = global-value
+target: TARGET_TARGET_VAR = target-value
+target: TARGET_TARGET_VAR = new-value
+Global: TARGET_GLOBAL_VAR = new-value
+Global: TARGET_ENV_VAR = new-value
+target: TARGET_NEW_VAR = new-value
+exit status 2

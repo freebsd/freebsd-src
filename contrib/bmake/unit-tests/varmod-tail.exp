@@ -1,0 +1,11 @@
+tail (basename) of 'a/b/c' is 'c'
+tail (basename) of 'def' is 'def'
+tail (basename) of 'a.b.c' is 'a.b.c'
+tail (basename) of 'a.b/c' is 'c'
+tail (basename) of 'a' is 'a'
+tail (basename) of 'a.a' is 'a.a'
+tail (basename) of '.gitignore' is '.gitignore'
+tail (basename) of 'a' is 'a'
+tail (basename) of 'a.a' is 'a.a'
+tail (basename) of 'trailing/' is ''
+exit status 0

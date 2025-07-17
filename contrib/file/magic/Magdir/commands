@@ -1,0 +1,213 @@
+
+#------------------------------------------------------------------------------
+# $File: commands,v 1.77 2024/11/10 16:55:15 christos Exp $
+# commands:  file(1) magic for various shells and interpreters
+#
+#0	string/w	:			shell archive or script for antique kernel text
+0	string/fwt	#!\ /bin/sh		POSIX shell script text executable
+!:mime	text/x-shellscript
+0	string/fwb	#!\ /bin/sh		POSIX shell script executable (binary data)
+!:mime	text/x-shellscript
+>10	string	#\040This\040script\040was\040generated\040using\040Makeself	\b, self-executable archive
+>>53	string	x	\b, Makeself %s
+
+0	string/fwt	#!\ /bin/csh		C shell script text executable
+!:mime	text/x-shellscript
+
+# korn shell magic, sent by George Wu, gwu@clyde.att.com
+0	string/fwt	#!\ /bin/ksh		Korn shell script text executable
+!:mime	text/x-shellscript
+0	string/fwb	#!\ /bin/ksh		Korn shell script executable (binary data)
+!:mime	text/x-shellscript
+
+0	string/fwt 	#!\ /bin/tcsh		Tenex C shell script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/tcsh	Tenex C shell script text executable
+!:mime	text/x-shellscript
+0	string/fwt 	#!\ /usr/local/tcsh	Tenex C shell script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/local/bin/tcsh	Tenex C shell script text executable
+!:mime	text/x-shellscript
+
+#
+# zsh/ash/ae/nawk/gawk magic from cameron@cs.unsw.oz.au (Cameron Simpson)
+0	string/fwt	#!\ /bin/zsh		Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/zsh	Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/local/bin/zsh	Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/env\ zsh	Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+
+0	string/fwt	#!\ /bin/ash		Neil Brown's ash script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/ash	Neil Brown's ash script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/local/bin/ash	Neil Brown's ash script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/local/bin/ae	Neil Brown's ae script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /bin/nawk		new awk script text executable
+!:mime	text/x-nawk
+0	string/fwt	#!\ /usr/bin/nawk	new awk script text executable
+!:mime	text/x-nawk
+0	string/fwt	#!\ /usr/local/bin/nawk	new awk script text executable
+!:mime	text/x-nawk
+0	string/fwt	#!\ /bin/gawk		GNU awk script text executable
+!:mime	text/x-gawk
+0	string/wt	#!\ /usr/bin/gawk	GNU awk script text executable
+!:mime	text/x-gawk
+0	string/fwt	#!\ /usr/local/bin/gawk	GNU awk script text executable
+!:mime	text/x-gawk
+#
+0	string/fwt	#!\ /bin/awk		awk script text executable
+!:mime	text/x-awk
+0	string/fwt	#!\ /usr/bin/awk	awk script text executable
+!:mime	text/x-awk
+0	regex/4096	=^[\040\t\f\r\n]{0,100}BEGIN[\040\t\f\r\n]{0,100}[{]	awk or perl script text
+
+# AT&T Bell Labs' Plan 9 shell
+0	string/fwt	#!\ /bin/rc	Plan 9 rc shell script text executable
+
+# bash shell magic, from Peter Tobias (tobias@server.et-inf.fho-emden.de)
+0	string/fwt	#!\ /bin/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/fwb	#!\ /bin/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/fwb	#!\ /usr/bin/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/local/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/fwb	#!\ /usr/local/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/local/bin/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/fwb	#!\ /usr/local/bin/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/env\ bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /bin/env\ bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+
+0	string/fwt	#!\ /bin/dash	Dash shell script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/dash	Dash shell script text executable
+!:mime	text/x-shellscript
+
+# Fish shell magic
+# From: Benjamin Lowry <ben@ben.gmbh>
+0	string/fwt	#!\ /usr/local/bin/fish		fish shell script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/fish		fish shell script text executable
+!:mime	text/x-shellscript
+0	string/fwt	#!\ /usr/bin/env\ fish		fish shell script text executable
+!:mime	text/x-shellscript
+
+0	search/1/fwt	#!\ /usr/bin/tclsh	Tcl/Tk script text executable
+!:mime  text/x-tcl
+
+0	search/1/fwt	#!\ /usr/bin/texlua	LuaTex script text executable
+!:mime	text/x-luatex
+
+0	search/1/fwt	#!\ /usr/bin/luatex	LuaTex script text executable
+!:mime	text/x-luatex
+
+0	search/1/fwt	#!\ /usr/bin/stap	Systemtap script text executable
+!:mime  text/x-systemtap
+0	search/1/fwt	#!\ /sbin/openrc-run	OpenRC script text executable
+!:mime  text/x-shellscript
+
+# From: Kylie McClain <kylie@somas.is>
+# Type: execline scripts
+# URL:  https://skarnet.org/software/execline/
+0	string/fwt	#!\ /command/execlineb		execline script text executable
+!:mime	text/x-execline
+0	string/fwt	#!\ /bin/execlineb		execline script text executable
+!:mime	text/x-execline
+0	string/fwt	#!\ /usr/bin/execlineb		execline script text executable
+!:mime	text/x-execline
+0	string/fwt	#!\ /usr/bin/env\ execlineb		execline script text executable
+!:mime	text/x-execline
+
+0	string	#!
+>0	regex	\^#!.*/bin/execlineb([[:space:]].*)*$	execline script text executable
+!:mime	text/x-execline
+
+0	string	#!/nix/store/
+>&-11	string/T	x			a %s script text executable
+
+# PHP scripts
+# Ulf Harnhammar <ulfh@update.uu.se>
+0	search/1/c	=<?php			PHP script text
+!:strength + 30
+!:mime	text/x-php
+0	search/1	=<?\n			PHP script text
+!:mime	text/x-php
+0	search/1	=<?\r			PHP script text
+!:mime	text/x-php
+0	search/1/w	#!\ /usr/local/bin/php	PHP script text executable
+!:strength + 10
+!:mime	text/x-php
+0	search/1/w	#!\ /usr/bin/php	PHP script text executable
+!:strength + 10
+!:mime	text/x-php
+# Smarty compiled template, https://www.smarty.net/
+# Elan Ruusamae <glen@delfi.ee>
+0	string	=<?php
+>5	regex	[\ \n]
+>>6	string	/*\ Smarty\ version		Smarty compiled template
+>>>24	regex	[0-9.]+				\b, version %s
+!:mime	text/x-php
+
+0	string		Zend\x00		PHP script Zend Optimizer data
+
+# From: Anatol Belski <ab@php.net>
+0	string		OPCACHE
+>7	ubyte		0			PHP opcache filecache data
+
+0	search/64	--TEST--
+>16	search/64	--FILE--
+>24	search/8192	--EXPECT		PHP core test
+!:ext	phpt
+
+# https://www.php.net/manual/en/phar.fileformat.signature.php
+-4	string		GBMB			PHP phar archive
+>-8	ubyte		0x1			with MD5 signature
+!:ext	phar
+>-8	ubyte		0x2			with SHA1 signature
+!:ext	phar
+>-8	ubyte		0x3			with SHA256 signature
+!:ext	phar
+>-8	ubyte		0x4			with SHA512 signature
+!:ext	phar
+>-8	ubyte		0x10			with OpenSSL signature
+!:ext	phar
+>-8	ubyte		0x11			with OpenSSL SHA256 signature
+!:ext	phar
+>-8	ubyte		0x12			with OpenSSL SHA512 signature
+!:ext	phar
+
+0	string/t	$!			DCL command file
+
+# Type: Pdmenu
+# URL:  https://packages.debian.org/pdmenu
+# From: Edward Betts <edward@debian.org>
+0	string		#!/usr/bin/pdmenu	Pdmenu configuration file text
+
+# From Danny Weldon
+0	string	\x0b\x13\x08\x00
+>0x04   uleshort	<4      ksh byte-code version %d
+
+# From: arno <arenevier@fdn.fr>
+# mozilla xpconnect typelib
+# see https://www.mozilla.org/scriptable/typelib_file.html
+0	string 		XPCOM\nTypeLib\r\n\032		XPConnect Typelib
+>0x10  byte        x       version %d
+>>0x11 byte        x      \b.%d
+
+0	string/fwt	#!\ /usr/bin/env\ runghc	GHC script executable
+0	string/fwt	#!\ /usr/bin/env\ runhaskell	Haskell script executable
+0	string/fwt	#!\ /usr/bin/env\ julia	Julia script executable

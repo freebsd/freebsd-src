@@ -1,0 +1,379 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Klara, Inc.
+.\"
+.Dd May 19, 2025
+.Dt INOTIFY 2
+.Os
+.Sh NAME
+.Nm inotify_init ,
+.Nm inotify_init1 ,
+.Nm inotify_add_watch ,
+.Nm inotify_add_watch_at ,
+.Nm inotify_rm_watch
+.Nd monitor file system events
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/inotify.h
+.Ft int
+.Fo inotify_init
+.Fc
+.Ft int
+.Fo inotify_init1
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo inotify_add_watch
+.Fa "int fd"
+.Fa "const char *pathname"
+.Fa "uint32_t mask"
+.Fc
+.Ft int
+.Fo inotify_add_watch_at
+.Fa "int fd"
+.Fa "int dfd"
+.Fa "const char *pathname"
+.Fa "uint32_t mask"
+.Fc
+.Ft int
+.Fo inotify_rm_watch
+.Fa "int fd"
+.Fa "uint32_t wd"
+.Fc
+.Bd -literal
+struct inotify_event {
+	int wd;			/* Watch descriptor */
+	uint32_t mask;		/* Event and flags */
+	uint32_t cookie;	/* Unique ID which links rename events */
+	uint32_t len;		/* Name field size, including nul bytes */
+	char name[0];		/* Filename (nul-terminated) */
+};
+.Ed
+.Sh DESCRIPTION
+The inotify system calls provide an interface to monitor file system events.
+They aim to be compatible with the Linux inotify interface.
+The provided functionality is similar to the
+.Dv EVFILT_VNODE
+filter of the
+.Xr kevent 2
+system call, but further allows monitoring of a directory without needing to
+open each object in that directory.
+This avoids races and reduces the number of file descriptors needed to monitor
+a large file hierarchy.
+.Pp
+inotify allows one or more file system objects, generally files or directories,
+to be watched for events, such as file open or close.
+Watched objects are associated with a file descriptor returned
+by
+.Fn inotify_init
+or
+.Fn inotify_init1 .
+When an event occurs, a record describing the event becomes available for
+reading from the inotify file descriptor.
+Each inotify descriptor thus refers to a queue of events waiting to be read.
+inotify descriptors are inherited across
+.Xr fork 2
+calls and may be passed to other processes via
+.Xr unix 4
+sockets.
+.Pp
+The
+.Fn inotify_init1
+system call accepts two flags.
+The
+.Dv IN_NONBLOCK
+flag causes the inotify descriptor to be opened in non-blocking mode, such that
+.Xr read 2
+calls will not block if no records are available to consume, and will instead
+return
+.Er EWOULDBLOCK .
+The
+.Dv IN_CLOEXEC
+flag causes the inotify descriptor to be closed automatically when
+.Xr execve 2
+is called.
+.Pp
+To watch a file or directory, the
+.Fn inotify_add_watch
+or
+.Fn inotify_add_watch_at
+system calls must be used.
+They take a path and a mask of events to watch for, and return a
+.Dq watch descriptor ,
+a non-negative integer which uniquely identifies the watched object within the
+inotify descriptor.
+.Pp
+The
+.Fn inotify_rm_watch
+system call removes a watch from an inotify descriptor.
+.Pp
+When watching a directory, objects within the directory are monitored for events
+as well as the directory itself.
+A record describing an inotify event consists of a
+.Dq struct inotify_event
+followed by the name of the object in the directory being watched.
+If the watched object itself generates an event, no name is present.
+Extra nul bytes may follow the file name in order to provide alignment for a
+subsequent record.
+.Pp
+The following events are defined:
+.Bl -tag -width IN_CLOSE_NOWRITE
+.It Dv IN_ACCESS
+A file's contents were accessed, e.g., by
+.Xr read 2
+.Xr copy_file_range 2 ,
+.Xr sendfile 2 ,
+or
+.Xr getdirentries 2 .
+.It Dv IN_ATTRIB
+A file's metadata was changed, e.g., by
+.Xr chmod 2
+or
+.Xr unlink 2 .
+.It Dv IN_CLOSE_WRITE
+A file that was previously opened for writing was closed.
+.It Dv IN_CLOSE_NOWRITE
+A file that was previously opened read-only was closed.
+.It Dv IN_CREATE
+A file within a watched directory was created, e.g., by
+.Xr open 2 ,
+.Xr mkdir 2 ,
+.Xr symlink 2 ,
+.Xr mknod 2 ,
+or
+.Xr bind 2 .
+.It Dv IN_DELETE
+A file or directory within a watched directory was removed.
+.It Dv IN_DELETE_SELF
+The watched file or directory itself was deleted.
+This event is generated only when the link count of the file drops
+to zero.
+.It Dv IN_MODIFY
+A file's contents were modified, e.g., by
+.Xr write 2
+or
+.Xr copy_file_range 2 .
+.It Dv IN_MOVE_SELF
+The watched file or directory itself was renamed.
+.It Dv IN_MOVED_FROM
+A file or directory was moved from a watched directory.
+.It Dv IN_MOVED_TO
+A file or directory was moved into a watched directory.
+A
+.Xr rename 2
+call thus may generate two events, one for the old name and one for the new
+name.
+These are linked together by the
+.Ar cookie
+field in the inotify record, which can be compared to link the two records
+to the same event.
+.It Dv IN_OPEN
+A file was opened.
+.El
+.Pp
+Some additional flags may be set in inotify event records:
+.Bl -tag -width IN_Q_OVERFLOW
+.It Dv IN_IGNORED
+When a watch is removed from a file, for example because it was created with the
+.Dv IN_ONESHOT
+flag, the file was deleted, or the watch was explicitly removed with
+.Xr inotify_rm_watch 2 ,
+an event with this mask is generated to indicate that the watch will not
+generate any more events.
+Once this event is generated, the watch is automatically removed, and in
+particular should not be removed manually with
+.Xr inotify_rm_watch 2 .
+.It Dv IN_ISDIR
+When the subject of an event is a directory, this flag is set in the
+.Ar mask
+.It Dv IN_Q_OVERFLOW
+One or more events were dropped, for example because of a kernel memory allocation
+failure or because the event queue size hit a limit.
+.It Dv IN_UNMOUNT
+The filesystem containing the watched object was unmounted.
+.El
+.Pp
+A number of flags may also be specified in the
+.Ar mask
+given to
+.Fn inotify_add_watch
+and
+.Fn inotify_add_watch_at :
+.Bl -tag -width IN_DONT_FOLLOW
+.It Dv IN_DONT_FOLLOW
+If
+.Ar pathname
+is a symbolic link, do not follow it.
+.It Dv IN_EXCL_UNLINK
+This currently has no effect, see the
+.Sx BUGS
+section.
+.In Dv IN_MASK_ADD
+When adding a watch to an object, and that object is already watched by the
+same inotify descriptor, by default the mask of the existing watch is
+overwritten.
+When
+.Dv IN_MASK_ADD
+is specified, the mask of the existing watch is instead logically ORed with
+the new mask.
+.In Dv IN_MASK_CREATE
+When
+.Fn inotify_add watch
+is used to add a watch to an object,
+.Dv IN_MASK_CREATE
+is specified, and that object is already watched by the same inotify descriptor,
+return an error instead of updating the existing watch.
+.In Dv IN_ONESHOT
+Monitor the object for a single event, after which the watch is automatically
+removed.
+As part of removal, a
+.Dv IN_IGNORED
+event is generated.
+.In Dv IN_ONLYDIR
+When creating a watch, fail with
+.Er ENOTDIR
+if the path does not refer to a directory.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width 15
+.It Va vfs.inotify.max_events
+The maximum number of inotify records that can be queued for a single
+inotify descriptor.
+Records in excess of this limit are discarded, and a single event with
+mask equal to
+.Dv IN_Q_OVERFLOW
+will be present in the queue.
+.It Va vfs.inotify.max_user_instances
+The maximum number of inotify descriptors that can be created by a single
+user.
+.It Va vfs.inotify.max_user_watches
+The maximum number of inotify watches per user.
+.El
+.Sh EXAMPLES
+See the example program in
+.Pa /usr/share/examples/inotify/inotify.c .
+.Sh ERRORS
+The
+.Fn inotify_init
+and
+.Fn inotify_init1
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er ENFILE
+The system limit on the total number of open files has been reached.
+.It Bq Er EMFILE
+A per-process limit on the number of open files has been reached.
+.It Bq Er EMFILE
+The system limit on the number of inotify descriptors has been reached.
+.It Bq Er EINVAL
+An unrecognized flag was passed to
+.Fn inotify_init1 .
+.El
+.Pp
+The
+.Fn inotify_add_watch
+and
+.Fn inotify_add_watch_at
+system calls will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Ar fd
+parameter is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Ar fd
+parameter is not an inotify descriptor.
+.It Bq Er EINVAL
+The
+.Ar mask
+parameter does not specify an event, or
+the
+.Dv IN_MASK_CREATE
+and
+.Dv IN_MASK_ADD
+flags are both set, or an unrecognized flag was passed.
+.It Bq Er ENOTDIR
+The
+.Ar pathname
+parameter refers to a file that is not a directory, and the
+.Dv IN_ONLYDIR
+flag was specified.
+.It Bq Er ENOSPC
+The per-user limit on the total number of inotify watches has been reached.
+.It Bq Er ECAPMODE
+The process is in capability mode and
+.Fn inotify_add_watch
+was called, or
+.Fn inotify_add_watch_at
+was called with
+.Dv AT_FDCWD
+as the directory file descriptor
+.Ar dfd .
+.It Bq Er ENOTCAPABLE
+The process is in capability mode and
+.Ar pathname
+contains a
+.Dq ..
+component leading to a directory outside the directory hierarchy specified
+by
+.Ar dfd .
+.El
+.Pp
+The
+.Fn inotify_rm_watch
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Ar fd
+parameter is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Ar fd
+parameter is not an inotify descriptor.
+.It Bq Er EINVAL
+The
+.Ar wd
+parameter is not a valid watch descriptor.
+.El
+.Sh SEE ALSO
+.Xr kevent 2 ,
+.Xr capsicum 4
+.Sh STANDARDS
+The
+.Nm
+interface originates from Linux and is non-standard.
+This implementation aims to be compatible with that of Linux and is based
+on the documentation available at
+.Pa https://man7.org/linux/man-pages/man7/inotify.7.html .
+.Sh HISTORY
+The inotify system calls first appeared in
+.Fx 15.0 .
+.Sh BUGS
+If a file in a watched directory has multiple hard links,
+an access via any hard link for that file will generate an event, even
+if the accessed link belongs to an unwatched directory.
+This is not the case for the Linux implementation, where only accesses
+via the hard link in the watched directory will generate an event.
+.Pp
+If a watched directory contains multiple hard links of a file, an event
+on one of the hard links will generate an inotify record for each link
+in the directory.
+.Pp
+When a file is unlinked, no more events will be generated for that file,
+even if it continues to be accessed.
+By default, the Linux implementation will continue to generate events in
+this case.
+Thus, the
+.Fx
+implementation behaves as though
+.Dv IN_EXCL_UNLINK
+is always set.

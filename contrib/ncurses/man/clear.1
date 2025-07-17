@@ -1,0 +1,186 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: clear.1,v 1.48 2024/03/16 15:35:01 tom Exp $
+.TH @CLEAR@ 1 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.ds '  \(aq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.ie t .ds '  \(aq
+.el   .ds '  '
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.
+.SH NAME
+\fB\%@CLEAR@\fP \-
+clear the terminal screen
+.SH SYNOPSIS
+.B @CLEAR@
+.RB [ \-x ]
+.RB [ \-T\ \c
+.IR terminal-type ]
+.PP
+.B "@CLEAR@ \-V"
+.SH DESCRIPTION
+\fB\%@CLEAR@\fP clears your terminal's screen and its scrollback buffer,
+if any.
+\fB\%@CLEAR@\fP retrieves the terminal type from the environment
+variable \fITERM\fP,
+then consults the \fIterminfo\fP terminal capability database entry for
+that type to determine how to perform these actions.
+.PP
+The capabilities to clear the screen and scrollback buffer are named
+\*(``clear\*('' and \*(``E3\*('', respectively.
+The latter is a \fIuser-defined capability\fP,
+applying an extension mechanism introduced in \fI\%ncurses\fP 5.0
+(1999).
+.SH OPTIONS
+\fB\%@CLEAR@\fP recognizes the following options.
+.TP 9 \" "-T type" + 2n
+.B \-T \fItype\fP
+produces instructions suitable for the terminal \fItype\fP.
+Normally,
+this option is unnecessary,
+because the terminal type is inferred from the environment variable
+\fITERM\fP.
+If this option is specified,
+\fB\%@CLEAR@\fP ignores the environment variables \fILINES\fP and
+\fI\%COLUMNS\fP as well.
+.TP
+.B \-V
+reports the version of \fI\%ncurses\fP associated with this program and
+exits with a successful status.
+.TP
+.B \-x
+prevents \fB\%@CLEAR@\fP from attempting to clear the scrollback buffer.
+.SH PORTABILITY
+Neither IEEE Std 1003.1/The Open Group Base Specifications Issue 7
+(POSIX.1-2008) nor X/Open Curses Issue 7 documents \fB\%@CLEAR@\fP.
+.PP
+The latter documents \fBtput\fP,
+which could be used to replace this utility either via a shell script or
+by an alias
+(such as a symbolic link)
+to run \fB\%@TPUT@\fP as \fB\%@CLEAR@\fP.
+.SH HISTORY
+A \fBclear\fP command using the \fItermcap\fP database and library
+appeared in 2BSD (1979).
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=2BSD/src/clear.c
+Eighth Edition Unix (1985) later included it.
+.PP
+The commercial Unix arm of AT&T adapted a different BSD program
+(\fBtset\fP) to make a new command,
+\fBtput\fP,
+and replaced the \fBclear\fP program with a shell script that called
+\*(``\fBtput clear\fP\*(''.
+.PP
+.RS 4
+.EX
+/usr/bin/tput ${1:+\-T$1} clear 2> /dev/null
+exit
+.EE
+.RE
+.PP
+In 1989, when Keith Bostic revised the BSD \fBtput\fP command
+to make it similar to AT&T's \fBtput\fP,
+he added a \fBclear\fP shell script as well.
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=Net2/usr/src/usr.bin/\
+.\"   tput/clear.sh
+.PP
+.RS 4
+.EX
+exec tput clear
+.EE
+.RE
+.PP
+The remainder of the script in each case is a copyright notice.
+.PP
+In 1995,
+\fI\%ncurses\fP's \fBclear\fP began by adapting BSD's original
+\fBclear\fP command to use \fIterminfo\fP.
+The \fBE3\fP extension came later.
+.bP
+In June 1999, \fIxterm\fP provided an extension to the standard control
+sequence for clearing the screen.
+Rather than clearing just the visible part of the screen using
+.RS 8
+.PP
+.EX
+printf \*'\e033[2J\*'
+.EE
+.RE
+.IP
+one could clear the scrollback buffer as well by using
+.RS 8
+.PP
+.EX
+printf \*'\e033[\fB3\fPJ\*'
+.EE
+.RE
+.IP
+instead.
+\*(``XTerm Control Sequences\fP\*('' documents this feature as
+originating with \fIxterm\fP.
+.bP
+A few other terminal emulators adopted it,
+such as PuTTY in 2006.
+.bP
+In April 2011, a Red Hat developer submitted a patch to the Linux
+kernel, modifying its console driver to do the same thing.
+Documentation of this change,
+appearing in Linux 3.0,
+did not mention \fIxterm\fP,
+although that program was cited in the Red Hat bug report (#683733)
+motivating the feature.
+.bP
+Subsequently,
+more terminal developers adopted the feature.
+The next relevant step was to change the \fI\%ncurses\fP \fBclear\fP
+program in 2013 to incorporate this extension.
+.bP
+In 2013,
+the \fBE3\fP capability was not exercised by
+\*(``\fB\%@TPUT@ clear\fP\*(''.
+That oversight was addressed in 2016 by reorganizing \fB\%@TPUT@\fP to
+share its logic with \fB\%@CLEAR@\fP and \fB\%@TSET@\fP.
+.SH SEE ALSO
+\fB\%@TPUT@\fP(1),
+\fB\%xterm\fP(1),
+\fB\%terminfo\fP(5)

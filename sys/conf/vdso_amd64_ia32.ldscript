@@ -1,0 +1,101 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ * Linker script for ia32 (32bit) vdso on amd64.
+ */
+
+/*
+ * The OUTPUT_ARCH and TARGET lines are for ld.bfd, which cannot determine
+ * the output format based on the first input file.
+ * lld doesn't do much with them, the only thing it does is produce ELF
+ * or binary based on TARGET.
+ */
+OUTPUT_ARCH(i386)
+TARGET(elf32-i386-freebsd)
+
+PHDRS
+{
+	text		PT_LOAD		FILEHDR PHDRS FLAGS(5); /* PF_R|PF_X */
+	dynamic		PT_DYNAMIC	FLAGS(5);
+	eh_frame_hdr	PT_GNU_EH_FRAME FLAGS(5);
+}
+
+SECTIONS
+{
+	. = . + SIZEOF_HEADERS;
+
+	.hash		: { *(.hash) }			:text
+	.gnu.hash	: { *(.gnu.hash) }		:text
+	.dynsym		: { *(.dynsym) }		:text
+	.dynstr		: { *(.dynstr) }		:text
+	.gnu.version	: { *(.gnu.version) }		:text
+	.gnu.version_d	: { *(.gnu.version_d) }		:text
+	.gnu.version_r	: { *(.gnu.version_r) }		:text
+	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
+	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
+	.dynamic	: { *(.dynamic) }		:text	:dynamic
+	.rodata		: { *(.rodata*) }		:text
+	.data : {
+	      *(.got.plt) *(.got)
+	} :text
+	/DISCARD/ /* .data */: {
+	      *(.data*)
+	      *(.sdata*)
+	      *(.gnu.linkonce.d.*)
+	      *(.bss*)
+	      *(.dynbss*)
+	      *(.gnu.linkonce.b.*)
+	      *(.ctors)
+	      *(.dtors)
+	      *(.jcr)
+	      *(.init_array)
+	      *(.init)
+	      *(.fini)
+	      *(.debug*)
+	      *(.comment)
+	}
+
+	. = ALIGN(0x10);
+	.text		: { *(.text .text*) }		:text	=0x90909090
+}
+
+VERSION
+{
+	FBSD_1.7 {
+		global:
+			__vdso_ia32_sigcode;
+			__vdso_freebsd4_ia32_sigcode;
+			__vdso_ia32_osigcode;
+			__vdso_lcall_tramp;
+		local:
+			*;
+	};
+}

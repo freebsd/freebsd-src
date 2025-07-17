@@ -1,0 +1,45 @@
+.\"-
+.\" Copyright (c) 2024 Dag-Erling Smørgrav
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 8, 2024
+.Dt NFSLOCKD 4
+.Os
+.Sh NAME
+.Nm nfslockd
+.Nd NFS advisory locking
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options NFSLOCKD"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nfslockd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides kernel support for NFSv3 advisory locking.
+It works in tandem with
+.Xr rpc.lockd 8 ,
+which will normally load it on startup if it is not already loaded or
+compiled-in.
+.Sh SEE ALSO
+.Xr rpc.lockd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

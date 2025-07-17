@@ -1,0 +1,71 @@
+.\" $OpenBSD: ssh-sk-helper.8,v 1.4 2022/04/29 03:24:30 djm Exp $
+.\"
+.\" Copyright (c) 2010 Markus Friedl.  All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: April 29 2022 $
+.Dt SSH-SK-HELPER 8
+.Os
+.Sh NAME
+.Nm ssh-sk-helper
+.Nd OpenSSH helper for FIDO authenticator support
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Sh DESCRIPTION
+.Nm
+is used by
+.Xr ssh 1 ,
+.Xr ssh-agent 1 ,
+and
+.Xr ssh-keygen 1
+to access keys provided by a FIDO authenticator.
+.Pp
+.Nm
+is not intended to be invoked directly by the user.
+.Pp
+A single option is supported:
+.Bl -tag -width Ds
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+This is helpful in debugging problems.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 3.
+.Pp
+Note that
+.Xr ssh 1 ,
+.Xr ssh-agent 1 ,
+and
+.Xr ssh-keygen 1
+will automatically pass the
+.Fl v
+flag to
+.Nm
+when they have themselves been placed in debug mode.
+.El
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-agent 1 ,
+.Xr ssh-keygen 1
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 6.7 .
+.Sh AUTHORS
+.An Damien Miller Aq Mt djm@openbsd.org

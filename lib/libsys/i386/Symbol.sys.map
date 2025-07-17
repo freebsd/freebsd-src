@@ -1,0 +1,25 @@
+FBSD_1.0 {
+	i386_clr_watch;
+	i386_get_fsbase;
+	i386_get_gsbase;
+	i386_get_ioperm;
+	i386_get_ldt;
+	i386_set_fsbase;
+	i386_set_gsbase;
+	i386_set_ioperm;
+	i386_set_ldt;
+	i386_set_watch;
+	i386_vm86;
+	rfork_thread;
+};
+
+FBSD_1.6 {
+	 x86_pkru_get_perm;
+	 x86_pkru_protect_range;
+	 x86_pkru_set_perm;
+	 x86_pkru_unprotect_range;
+};
+
+FBSDprivate_1.0 {
+	_vfork;
+};

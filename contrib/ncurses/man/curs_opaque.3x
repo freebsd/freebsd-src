@@ -1,0 +1,161 @@
+.\"***************************************************************************
+.\" Copyright 2020-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2007-2014,2015 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_opaque.3x,v 1.43 2024/03/16 15:35:01 tom Exp $
+.TH curs_opaque 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fB\%is_cleared\fP,
+\fB\%is_idlok\fP,
+\fB\%is_idcok\fP,
+\fB\%is_immedok\fP,
+\fB\%is_keypad\fP,
+\fB\%is_leaveok\fP,
+\fB\%is_nodelay\fP,
+\fB\%is_notimeout\fP,
+\fB\%is_pad\fP,
+\fB\%is_scrollok\fP,
+\fB\%is_subwin\fP,
+\fB\%is_syncok\fP,
+\fB\%wgetdelay\fP,
+\fB\%wgetparent\fP,
+\fB\%wgetscrreg\fP \-
+obtain \fIcurses\fR window properties
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBbool is_cleared(const WINDOW *\fIwin\fP);
+\fBbool is_idcok(const WINDOW *\fIwin\fP);
+\fBbool is_idlok(const WINDOW *\fIwin\fP);
+\fBbool is_immedok(const WINDOW *\fIwin\fP);
+\fBbool is_keypad(const WINDOW *\fIwin\fP);
+\fBbool is_leaveok(const WINDOW *\fIwin\fP);
+\fBbool is_nodelay(const WINDOW *\fIwin\fP);
+\fBbool is_notimeout(const WINDOW *\fIwin\fP);
+\fBbool is_pad(const WINDOW *\fIwin\fP);
+\fBbool is_scrollok(const WINDOW *\fIwin\fP);
+\fBbool is_subwin(const WINDOW *\fIwin\fP);
+\fBbool is_syncok(const WINDOW *\fIwin\fP);
+.PP
+\fBWINDOW * wgetparent(const WINDOW *\fIwin\fP);
+\fBint wgetdelay(const WINDOW *\fIwin\fP);
+\fBint wgetscrreg(const WINDOW *\fIwin\fP, int *\fItop\fP, int *\fIbottom\fP);
+.fi
+.SH DESCRIPTION
+\fI\%ncurses\fP provides functions returning properties of a
+\fI\%WINDOW\fP structure,
+allowing it to be \*(``opaque\*('' if
+the application defines the \fB\%NCURSES_OPAQUE\fP preprocessor symbol.
+\fIOpacity\fP in this sense means that the members of \fIstruct\fP data
+types are not directly accessible
+(for instance,
+through \*(``.\*('' or \*(``\->\*('' operators),
+but instead must be queried and/or set via library functions.
+Advantages of opacity include greater abstraction and improved
+management of concurrent accesses to data structures,
+keeping object states coherent.
+.TP
+\fBis_cleared\fP
+returns the value set by \fB\%clearok\fP(3X).
+.TP
+\fBis_idcok\fP
+returns the value set by \fB\%idcok\fP(3X).
+.TP
+\fBis_idlok\fP
+returns the value set by \fB\%idlok\fP(3X).
+.TP
+\fBis_immedok\fP
+returns the value set by \fB\%immedok\fP(3X).
+.TP
+\fBis_keypad\fP
+returns the value set by \fB\%keypad\fP(3X).
+.TP
+\fBis_leaveok\fP
+returns the value set by \fB\%leaveok\fP(3X).
+.TP
+\fBis_nodelay\fP
+returns the value set by \fB\%nodelay\fP(3X).
+.TP
+\fBis_notimeout\fP
+returns the value set by \fB\%notimeout\fP(3X).
+.TP
+\fBis_pad\fP
+returns \fBTRUE\fP if the window is a pad;
+that is,
+it was created by \fB\%newpad\fP(3X).
+.TP
+\fBis_scrollok\fP
+returns the value set by \fB\%scrollok\fP(3X).
+.TP
+\fBis_subwin\fP
+returns \fBTRUE\fP if the window is a subwindow,
+that is,
+it was created by \fB\%subwin\fP(3X) or \fB\%derwin\fP(3X).
+.TP
+\fBis_syncok\fP
+returns the value set by \fB\%syncok\fP(3X).
+.TP
+\fBwgetdelay\fP
+returns the delay timeout set by \fB\%wtimeout\fP(3X).
+.TP
+\fBwgetparent\fP
+returns the parent \fI\%WINDOW\fP pointer for subwindows,
+or \fBNULL\fP for windows having no parent.
+.TP
+\fBwgetscrreg\fP
+stores the the top and bottom rows for the scrolling margin set by
+\fB\%wsetscrreg\fP(3X) in the corresponding arguments,
+returning \fBERR\fP upon failure and \fBOK\fP upon successful
+completion.
+.SH RETURN VALUE
+These functions return \fBTRUE\fP or \fBFALSE\fP except as noted.
+.SH NOTES
+\fI\%ncurses\fP provides both a C function and a preprocessor macro for
+each function documented in this page.
+.SH PORTABILITY
+These routines are specific to \fI\%ncurses\fP.
+They were not supported on Version 7, BSD or System V implementations.
+It is recommended that any code depending on \fI\%ncurses\fP extensions
+be conditioned using \fB\%NCURSES_VERSION\fP.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_inopts\fP(3X),
+\fB\%curs_outopts\fP(3X),
+\fB\%curs_threads\fP(3X),
+\fB\%curs_window\fP(3X)

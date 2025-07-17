@@ -1,0 +1,32 @@
+# Test force_first_pass without an authtok.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = force_first_pass no_ccache debug
+    account = no_ccache debug
+    session = no_ccache debug
+
+[run]
+    authenticate  = PAM_AUTH_ERR
+    acct_mgmt     = PAM_IGNORE
+    open_session  = PAM_SUCCESS
+    close_session = PAM_SUCCESS
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) no stored password
+    NOTICE authentication failure; logname=%u uid=%i euid=%i tty= ruser= rhost=
+    DEBUG pam_sm_authenticate: exit (failure)
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG skipping non-Kerberos login
+    DEBUG pam_sm_acct_mgmt: exit (ignore)
+    DEBUG pam_sm_open_session: entry
+    DEBUG pam_sm_open_session: exit (success)
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

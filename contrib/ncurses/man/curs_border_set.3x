@@ -1,0 +1,203 @@
+.\"***************************************************************************
+.\" Copyright 2019-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2002-2011,2012 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_border_set.3x,v 1.36 2024/04/20 21:20:07 tom Exp $
+.TH curs_border_set 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fB\%border_set\fP,
+\fB\%wborder_set\fP,
+\fB\%box_set\fP,
+\fB\%hline_set\fP,
+\fB\%whline_set\fP,
+\fB\%mvhline_set\fP,
+\fB\%mvwhline_set\fP,
+\fB\%vline_set\fP,
+\fB\%wvline_set\fP,
+\fB\%mvvline_set\fP,
+\fB\%mvwvline_set\fP \-
+draw borders and lines in a \fIcurses\fR window of wide characters
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint border_set(
+   \fBconst cchar_t *\fIls\fB, const cchar_t *\fIrs\fP,
+   \fBconst cchar_t *\fIts\fB, const cchar_t *\fIbs\fP,
+   \fBconst cchar_t *\fItl\fB, const cchar_t *\fItr\fP,
+   \fBconst cchar_t *\fIbl\fB, const cchar_t *\fIbr\fB);\fR
+.br
+\fBint wborder_set(\fP
+   \fBWINDOW *\fIwin\fP,
+   \fBconst cchar_t *\fIls\fB, const cchar_t *\fIrs\fP,
+   \fBconst cchar_t *\fIts\fB, const cchar_t *\fIbs\fP,
+   \fBconst cchar_t *\fItl\fB, const cchar_t *\fItr\fP,
+   \fBconst cchar_t *\fIbl\fB, const cchar_t *\fIbr\fB);\fR
+\fBint box_set(\fP
+   \fBWINDOW *\fIwin\fP,
+   \fBconst cchar_t *\fIverch\fP,
+   \fBconst cchar_t *\fIhorch\fB);\fR
+\fBint hline_set(\fP
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint whline_set(\fP
+   \fBWINDOW *\fIwin\fP,
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint mvhline_set(\fP
+   \fBint \fIy\fB, int \fIx\fP,
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint mvwhline_set(\fP
+   \fBWINDOW *\fIwin\fP,
+   \fBint \fIy\fB, int \fIx\fP,
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint vline_set(\fP
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint wvline_set(\fP
+   \fBWINDOW *\fIwin\fP,
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint mvvline_set(\fP
+   \fBint \fIy\fB, int \fIx\fP,
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+\fBint mvwvline_set(\fP
+   \fBWINDOW *\fIwin\fP,
+   \fBint \fIy\fB, int \fIx\fP,
+   \fBconst cchar_t *\fIwch\fB, int \fIn\fB);\fR
+.fi
+.SH DESCRIPTION
+The
+\fBborder_set\fP
+and
+\fBwborder_set\fP
+functions draw a border around the edges of the current or specified window.
+These functions do not change the cursor position, and do not wrap.
+.PP
+Other than the window, each argument is a complex character with attributes:
+.RS
+\fIls\fP \- left side,
+.br
+\fIrs\fP \- right side,
+.br
+\fIts\fP \- top side,
+.br
+\fIbs\fP \- bottom side,
+.br
+\fItl\fP \- top left-hand corner,
+.br
+\fItr\fP \- top right-hand corner,
+.br
+\fIbl\fP \- bottom left-hand corner, and
+.br
+\fIbr\fP \- bottom right-hand corner.
+.RE
+.PP
+If any of these arguments is zero, then the corresponding
+default values (defined in \fBcurses.h\fP) are used instead:
+.RS
+\fBWACS_VLINE\fP,
+.br
+\fBWACS_VLINE\fP,
+.br
+\fBWACS_HLINE\fP,
+.br
+\fBWACS_HLINE\fP,
+.br
+\fBWACS_ULCORNER\fP,
+.br
+\fBWACS_URCORNER\fP,
+.br
+\fBWACS_LLCORNER\fP, and
+.br
+\fBWACS_LRCORNER\fP.
+.RE
+.PP
+\fBbox_set(\fIwin\fR, \fIverch\fB, \fIhorch\fB);\fR
+is a shorthand for the following call:
+.PP
+\fBwborder_set(\fIwin\fB, \fIverch\fB, \fIverch\fB,\fR
+    \fIhorch\fB, \fIhorch\fB, NULL, NULL, NULL, NULL);\fR
+.PP
+The
+\fB*line_set\fP
+functions use
+\fIwch\fP
+to draw a line starting at the current cursor position in the window.
+The line is at most \fIn\fP characters long or as many as fit into the window.
+The current cursor position is not changed.
+.PP
+The
+\fBhline_set\fP,
+\fBmvhline_set\fP,
+\fBmvwhline_set\fP, and
+\fBwhline_set\fP
+functions draw a line proceeding toward the last column of the same line.
+.PP
+The
+\fBvline_set\fP,
+\fBmvvline_set\fP,
+\fBmvwvline_set\fP, and
+\fBwvline_set\fP
+functions draw a line proceeding toward the last line of the window.
+.SH RETURN VALUE
+Upon successful completion, these functions return
+\fBOK\fP.
+Otherwise, they return
+\fBERR\fP.
+.PP
+Functions using a window parameter return an error if it is null.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+Note that
+\fBborder_set\fP,
+\fBhline_set\fP,
+\fBmvhline_set\fP,
+\fBmvvline_set\fP,
+\fBmvwhline_set\fP,
+\fBmvwvline_set\fP, and
+\fBvline_set\fP
+may be macros.
+.SH PORTABILITY
+These functions are described in X/Open Curses, Issue 4.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_add_wch\fP(3X),
+\fB\%curs_border\fP(3X),
+\fB\%curs_outopts\fP(3X)

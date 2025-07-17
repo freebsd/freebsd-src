@@ -1,0 +1,10 @@
+# bhyve ps2kbd keyboard layout file
+#   (cz : Czech (QWERTZ, accent keys))
+#
+# Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
+#
+
+')',0x9b;	)  (0x29)
+'*',0xb7;	*  (0x2a)
+'+',0x82;	+  (0x2b)
+

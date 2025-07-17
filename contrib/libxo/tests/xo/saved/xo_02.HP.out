@@ -1,0 +1,83 @@
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">test</div>
+</div>
+<div class="line">
+  <div class="text">Answer:</div>
+  <div class="text">The capital of </div>
+  <div class="data" data-tag="state">North Carolina</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="city">Raleigh</div>
+</div>
+<div class="line">
+  <div class="text">First </div>
+  <div class="data" data-tag="tag">value1</div>
+  <div class="text"> </div>
+  <div class="text">and then </div>
+  <div class="data" data-tag="tag">value2</div>
+</div>
+<div class="line">
+  <div class="text">Machine </div>
+  <div class="data" data-tag="name">red</div>
+  <div class="text"> has </div>
+  <div class="data" data-tag="memory">55</div>
+</div>
+<div class="line">
+  <div class="text">Machine </div>
+  <div class="data" data-tag="name">green</div>
+  <div class="text"> has </div>
+  <div class="data" data-tag="memory">55</div>
+</div>
+<div class="line">
+  <div class="text">Machine </div>
+  <div class="data" data-tag="name">blue</div>
+  <div class="text"> has </div>
+  <div class="data" data-tag="memory">55</div>
+</div>

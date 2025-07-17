@@ -1,0 +1,32 @@
+Here are some very skeletal instructions for using
+the client test code.
+
+on server (assumes BSD style LD_LIBRARY_PATH):
+
+mkdir /tmp/foo
+cd lib9p
+env LD_LIBRARY_PATH=. LIB9P_LOGGING=stderr example/server -h localhost -p 12345 /tmp/foo
+
+(this can be run as a non-root user for now, but some things
+only work when run as root)
+
+on client (same machine as server, but can always be run as
+non-root user):
+
+cd lib9p/pytest
+ONE TIME ONLY: copy testconf.ini.sample to testconf.ini, adjust to taste
+./client.py
+
+TODO: rework ./client so it can locate the .ini file better
+
+########
+
+IF USING diod (http://github.com/chaos/diod) AS THE SERVER ON
+A LINUX MACHINE:
+
+ - The instructions for running the server are (or were):
+     sudo ./diod -f -d 1 -n -e /tmp/9
+ - You must mkdir the exported 9pfs file system (e.g., mkdir /tmp/9).
+ - While uname is not really used, aname (the attach name) IS used
+   and must match the exported file system, e.g., testconf.ini
+   must have "aname = /tmp/9".

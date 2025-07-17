@@ -1,0 +1,123 @@
+.\" $OpenBSD: pflow.4,v 1.19 2014/03/29 11:26:03 florian Exp $
+.\"
+.\" Copyright (c) 2008 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2008 Joerg Goltermann <jg@osn.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 08 2024 $
+.Dt PFLOW 4
+.Os
+.Sh NAME
+.Nm pflow
+.Nd kernel interface for pflow data export
+.Sh SYNOPSIS
+.Cd "pseudo-device pflow"
+.Sh DESCRIPTION
+The
+.Nm
+subsystem exports
+.Nm
+accounting data from the kernel using
+.Xr udp 4
+packets.
+.Nm
+is compatible with netflow version 5 and IPFIX (10).
+The data is extracted from the
+.Xr pf 4
+state table.
+.Pp
+Multiple
+.Nm
+interfaces can be created at runtime using the
+.Ic pflowctl Ns Ar N Ic -c
+command.
+Each interface must be configured with a flow receiver IP address
+and a flow receiver port number.
+.Pp
+Only states created by a rule marked with the
+.Ar pflow
+keyword are exported by
+.Nm .
+.Pp
+.Nm
+will attempt to export multiple
+.Nm
+records in one
+UDP packet, but will not hold a record for longer than 30 seconds.
+.Pp
+Each packet seen on this interface has one header and a variable number of
+flows.
+The header indicates the version of the protocol, number of
+flows in the packet, a unique sequence number, system time, and an engine
+ID and type.
+Header and flow structs are defined in
+.In net/pflow.h .
+.Pp
+The
+.Nm
+source and destination addresses are controlled by
+.Xr pflowctl 8 .
+.Cm src
+is the sender IP address of the UDP packet which can be used
+to identify the source of the data on the
+.Nm
+collector.
+.Cm dst
+defines the collector IP address and the port.
+The
+.Cm dst
+IP address and port must be defined to enable the export of flows.
+.Pp
+For example, the following command sets 10.0.0.1 as the source
+and 10.0.0.2:1234 as destination:
+.Bd -literal -offset indent
+# pflowctl -s pflow0 src 10.0.0.1 dst 10.0.0.2:1234
+.Ed
+.Pp
+The protocol is set to IPFIX with the following command:
+.Bd -literal -offset indent
+# pflowctl -s pflow0 proto 10
+.Ed
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr pf 4 ,
+.Xr udp 4 ,
+.Xr pf.conf 5 ,
+.Xr pflowctl 8 ,
+.Xr tcpdump 8
+.Sh STANDARDS
+.Rs
+.%A B. Claise
+.%D January 2008
+.%R RFC 5101
+.%T "Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of IP Traffic Flow Information"
+.Re
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Ox 4.5
+and was imported into
+FreeBSD 15.0 .
+.Sh BUGS
+A state created by
+.Xr pfsync 4
+can have a creation or expiration time before the machine came up.
+In this case,
+.Nm
+pretends such flows were created or expired when the machine came up.
+.Pp
+The IPFIX implementation is incomplete:
+The required transport protocol SCTP is not supported.
+Transport over TCP and DTLS protected flow export is also not supported.

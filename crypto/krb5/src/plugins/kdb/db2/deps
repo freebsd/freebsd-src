@@ -1,0 +1,105 @@
+#
+# Generated makefile dependencies follow.
+#
+kdb_xdr.so kdb_xdr.po $(OUTPRE)kdb_xdr.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  kdb_xdr.c kdb_xdr.h
+adb_openclose.so adb_openclose.po $(OUTPRE)adb_openclose.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(BUILDTOP)/lib/kdb/adb_err.h \
+  $(COM_ERR_DEPS) $(DB_DEPS) $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  adb_openclose.c policy_db.h
+adb_policy.so adb_policy.po $(OUTPRE)adb_policy.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(BUILDTOP)/include/osconf.h \
+  $(BUILDTOP)/include/profile.h $(BUILDTOP)/lib/kdb/adb_err.h \
+  $(COM_ERR_DEPS) $(DB_DEPS) $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  adb_policy.c policy_db.h
+kdb_db2.so kdb_db2.po $(OUTPRE)kdb_db2.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/gssrpc/types.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(BUILDTOP)/lib/kdb/adb_err.h $(COM_ERR_DEPS) $(DB_DEPS) \
+  $(srcdir)/../../../lib/kdb/kdb5.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  kdb_db2.c kdb_db2.h kdb_xdr.h policy_db.h
+pol_xdr.so pol_xdr.po $(OUTPRE)pol_xdr.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/admin_internal.h \
+  $(BUILDTOP)/include/kadm5/admin_xdr.h $(BUILDTOP)/include/kadm5/chpass_util_strings.h \
+  $(BUILDTOP)/include/kadm5/kadm_err.h $(BUILDTOP)/include/kadm5/kadm_rpc.h \
+  $(BUILDTOP)/include/kadm5/server_internal.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/lib/kdb/adb_err.h $(COM_ERR_DEPS) $(DB_DEPS) \
+  $(top_srcdir)/include/gssrpc/auth.h $(top_srcdir)/include/gssrpc/auth_gss.h \
+  $(top_srcdir)/include/gssrpc/auth_unix.h $(top_srcdir)/include/gssrpc/clnt.h \
+  $(top_srcdir)/include/gssrpc/rename.h $(top_srcdir)/include/gssrpc/rpc.h \
+  $(top_srcdir)/include/gssrpc/rpc_msg.h $(top_srcdir)/include/gssrpc/svc.h \
+  $(top_srcdir)/include/gssrpc/svc_auth.h $(top_srcdir)/include/gssrpc/xdr.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/plugin.h pol_xdr.c policy_db.h
+db2_exp.so db2_exp.po $(OUTPRE)db2_exp.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/gssrpc/types.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(BUILDTOP)/lib/kdb/adb_err.h $(COM_ERR_DEPS) $(DB_DEPS) \
+  $(srcdir)/../../../lib/kdb/kdb5.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  db2_exp.c kdb_db2.h kdb_xdr.h policy_db.h
+lockout.so lockout.po $(OUTPRE)lockout.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
+  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/admin_internal.h \
+  $(BUILDTOP)/include/kadm5/chpass_util_strings.h $(BUILDTOP)/include/kadm5/kadm_err.h \
+  $(BUILDTOP)/include/kadm5/server_internal.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(BUILDTOP)/include/osconf.h $(BUILDTOP)/include/profile.h \
+  $(BUILDTOP)/lib/kdb/adb_err.h $(COM_ERR_DEPS) $(DB_DEPS) \
+  $(srcdir)/../../../lib/kdb/kdb5.h $(top_srcdir)/include/gssrpc/auth.h \
+  $(top_srcdir)/include/gssrpc/auth_gss.h $(top_srcdir)/include/gssrpc/auth_unix.h \
+  $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
+  $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
+  $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
+  $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/kdb.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  kdb_db2.h lockout.c policy_db.h

@@ -1,0 +1,6 @@
+1 trailing
+2a trailing
+2b trailing
+2c trailing
+3a without   newline, 3b without   newline.
+exit status 0

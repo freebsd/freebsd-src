@@ -1,0 +1,30 @@
+#------------------------------------------------------------------------------
+# file:  file(1) magic for Clojure
+# URL:  https://clojure.org/
+# From: Jason Felice <jason.m.felice@gmail.com>
+
+0	string/w	#!\ /usr/bin/clj	Clojure script text executable
+!:mime	text/x-clojure
+0	string/w	#!\ /usr/local/bin/clj	Clojure script text executable
+!:mime	text/x-clojure
+0	string/w	#!\ /usr/bin/clojure	Clojure script text executable
+!:mime	text/x-clojure
+0	string/w	#!\ /usr/local/bin/clojure	Clojure script text executable
+!:mime	text/x-clojure
+0	string/W	#!/usr/bin/env\ clj	Clojure script text executable
+!:mime	text/x-clojure
+0	string/W	#!/usr/bin/env\ clojure	Clojure script text executable
+!:mime	text/x-clojure
+0	string/W	#!\ /usr/bin/env\ clj	Clojure script text executable
+!:mime	text/x-clojure
+0	string/W	#!\ /usr/bin/env\ clojure	Clojure script text executable
+!:mime	text/x-clojure
+
+0	regex	\^\\\(ns[[:space:]]+[a-z]	Clojure module source text
+!:mime	text/x-clojure
+
+0	regex	\^\\\(ns[[:space:]]+\\\^\\{:	Clojure module source text
+!:mime	text/x-clojure
+
+0	regex	\^\\\(defn-?[[:space:]]	Clojure module source text
+!:mime	text/x-clojure

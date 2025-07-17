@@ -1,0 +1,2 @@
+pass inet proto icmp all icmp-type unreach keep state
+pass in route-to (if0 127.0.0.0/8) sticky-address inet all flags S/SA keep state

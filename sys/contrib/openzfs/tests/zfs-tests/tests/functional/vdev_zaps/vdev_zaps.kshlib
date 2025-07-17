@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: CDDL-1.0
+#
+# CDDL HEADER START
+#
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
+#
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# http://www.illumos.org/license/CDDL.
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright (c) 2015, 2016 by Delphix. All rights reserved.
+#
+
+function get_conf_section # regex conf
+{
+        typeset regex="$1"
+        typeset conf="$2"
+
+        awk -v r="$1" '$0 ~ r, 0 {if($0 ~ r) next; if(/children\[/) exit; print}' "$conf"
+}
+
+function get_leaf_vd_zap # dsk conf
+{
+        get_conf_section "$1" "$2" | awk '/com.delphix:vdev_zap_leaf: [0-9]+/ {print $2}'
+}
+
+function get_top_vd_zap # dsk conf
+{
+        get_conf_section "$1" "$2" | awk '/com.delphix:vdev_zap_top: [0-9]+/ {print $2}'
+}
+function get_root_vd_zap # conf
+{
+        awk '/com.klarasystems:vdev_zap_root: [0-9]+/ {print $2}' "$1"
+}
+
+function assert_has_sentinel # conf
+{
+        log_must grep -q "com.delphix:has_per_vdev_zaps" "$1"
+}
+
+function assert_zap_common # pool vd lvl zapobj
+{
+        typeset pool=$1
+        typeset vd="$2"
+        typeset lvl=$3
+        typeset zapobj=$4
+
+        if [ -z "$zapobj" ]; then
+                log_fail "$vd on $pool has no $lvl ZAP in config"
+        elif ! zdb -d $pool $zapobj | grep -q 'zap'; then
+                log_fail "$vd on $pool has no $lvl ZAP in MOS"
+        fi
+}
+
+function assert_root_zap # pool conf
+{
+        typeset pool=$1
+        typeset conf=$2
+
+        root_zap=$(get_root_vd_zap $conf)
+        assert_zap_common $pool "root vdev" "root" $root_zap
+}
+
+function assert_top_zap # pool vd conf
+{
+        typeset pool=$1
+        typeset vd="$2"
+        typeset conf=$3
+
+        top_zap=$(get_top_vd_zap "$vd" $conf)
+        assert_zap_common $pool "$vd" "top" $top_zap
+}
+
+function assert_leaf_zap # pool vd conf
+{
+        typeset pool=$1
+        typeset vd="$2"
+        typeset conf=$3
+
+        leaf_zap=$(get_leaf_vd_zap "$vd" $conf)
+        assert_zap_common $pool "$vd" "leaf" $leaf_zap
+}
+
+#
+# Code common to setup/teardown for each test.
+#
+
+function cleanup
+{
+        datasetexists $TESTPOOL && log_must zpool destroy -f $TESTPOOL
+        [ -e $conf ] && log_must rm -f "$conf"
+        poolexists $POOL2 && log_must zpool destroy -f $POOL2
+}
+
+log_onexit cleanup

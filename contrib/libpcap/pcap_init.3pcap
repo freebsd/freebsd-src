@@ -1,0 +1,102 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_INIT 3PCAP "30 November 2023"
+.SH NAME
+pcap_init \- initialize the library
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.nf
+.ft B
+char errbuf[PCAP_ERRBUF_SIZE];
+.ft
+.LP
+.ft B
+int pcap_init(unsigned int opts, char *errbuf);
+.ft
+.fi
+.SH DESCRIPTION
+.BR pcap_init ()
+is used to initialize the Packet Capture library.
+.I opts
+specifies options for the library;
+.I errbuf
+is a buffer large enough to hold at least
+.B PCAP_ERRBUF_SIZE
+chars.
+.PP
+Currently, the options that can be specified in
+.I opts
+are:
+.TP
+.B PCAP_CHAR_ENC_LOCAL
+Treat all strings supplied as arguments, and return all strings to the
+caller, as being in the local character encoding.
+.TP
+.B PCAP_CHAR_ENC_UTF_8
+Treat all strings supplied as arguments, and return all strings to the
+caller, as being in UTF-8.
+.PP
+On UNIX-like systems, the local character encoding is assumed to be
+UTF-8, so no character encoding transformations are done.
+.PP
+On Windows, the local character encoding is the local ANSI code page.
+.PP
+If
+.BR pcap_init ()
+is not called, strings are treated as being in the local ANSI code page
+on Windows,
+.BR pcap_lookupdev (3PCAP)
+will succeed if there is a device on which to capture, and
+.BR pcap_create (3PCAP)
+makes an attempt to check whether the string passed as an argument is a
+UTF-16LE string - note that this attempt is unsafe, as it may run past
+the end of the string - to handle
+.BR pcap_lookupdev ()
+returning a UTF-16LE string. Programs that don't call
+.BR pcap_init ()
+should, on Windows, call
+.BR pcap_wsockinit ()
+to initialize Winsock; this is not necessary if
+.BR pcap_init ()
+is called, as
+.BR pcap_init ()
+will initialize Winsock itself on Windows.
+.SH RETURN VALUE
+.BR pcap_init ()
+returns
+.B 0
+on success and
+.B PCAP_ERROR
+on failure.
+If
+.B PCAP_ERROR
+is returned,
+.I errbuf
+is filled in with an appropriate error message.
+.SH BACKWARD COMPATIBILITY
+This function became available in libpcap release 1.9.0.  In previous
+releases, on Windows, all strings supplied as arguments, and all strings
+returned to the caller, are in the local character encoding.
+.SH SEE ALSO
+.BR pcap (3PCAP)

@@ -1,0 +1,48 @@
+Making remove-archive
+rm -f libprog.a
+
+Making libprog.a out-of-date archive.mk modmisc.mk varmisc.mk
+ar cru libprog.a archive.mk modmisc.mk varmisc.mk
+ranlib libprog.a
+
+Making create-archive out-of-date libprog.a
+
+Making list-archive out-of-date libprog.a
+ar t libprog.a
+archive.mk
+modmisc.mk
+varmisc.mk
+
+Making list-archive-wildcard out-of-date archive-suffix.mk archive.mk ternary.mk
+list-archive-wildcard: archive-suffix.mk
+list-archive-wildcard: archive.mk
+list-archive-wildcard: ternary.mk
+
+make: archive.mk:61: Error in source archive spec "libprog.a${UNDEF}(archive.mk) pre post"
+	in make[1] in directory "<curdir>"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "list-archive-undef-archive" in unit-tests
+exit 1
+
+make: archive.mk:68: Error in source archive spec "libprog.a"
+	in make[1] in directory "<curdir>"
+make: Fatal errors encountered -- cannot continue
+make: stopped making "list-archive-undef-member" in unit-tests
+exit 1
+
+Making depend-on-existing-member out-of-date archive.mk
+depend-on-existing-member
+
+`depend-on-nonexistent-member' is up to date.
+Making remove-archive
+rm -f libprog.a
+
+begin library
+Examining libbad.a...up-to-date.
+Examining -lbad...up-to-date.
+Examining libgood.a...library...up-to-date.
+Examining -lgood...library...up-to-date.
+Examining library...nonexistent....PHONY node...out-of-date.
+Examining .END...nonexistent...nonexistent and no sources...out-of-date.
+end library
+exit status 0

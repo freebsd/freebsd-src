@@ -1,0 +1,487 @@
+.\"-
+.\" Copyright (c) 2024 M. Warner Losh <imp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 9, 2025
+.Dt CDEFS 9
+.Os
+.Sh NAME
+.Nm cdefs
+.Nd compiler portability macro definitions
+.Sh DESCRIPTION
+.In sys/cdefs.h
+defines macros for compiler, C language standard portability, POSIX standards
+compliance and symbol visibility.
+It defines programming interfaces for the system header files to adopt to the
+many environments
+.Fx
+supports compilation for.
+It defines convenience macros for the
+.Fx
+sources, tailored to the base
+system's needs.
+.Pp
+Most of these macros are for use inside the
+.Fx
+sources only.
+They are not intended as a general portability layer.
+.Sh Supported Compilers
+.Bl -tag -offset 2n -width 0
+.It Compilers supported for building programs on Fx :
+.Bl -column -offset 0n indent-two
+.It Sy Compiler Ta Sy Versions
+.It gcc Ta 9, 10, 11, 12, 13, 14
+.It clang Ta 10, 11, 12, 13, 14, 15, 16, 17, 18
+.It TinyC (tcc) Ta 0.9
+.It pcc Ta 1.1
+.El
+.Pp
+Due to testing constraints, tcc and pcc may not always work.
+.It Compilers supported for building Fx itself:
+.Bl -column -offset 0n indent-two
+.It Sy Compiler Ta Sy Major Versions Supported
+.It gcc Ta 12, 13, 14
+.It clang Ta 16, 17, 18
+.El
+.Pp
+Please note: Not every single minor versions of these compilers
+will work or are supported.
+.El
+.Sh Macros and Magic for Programming Environment
+.Nm
+defines (or refrains from defining) a number of macros to increase portability
+of compiled programs.
+These are to allow more advanced language features to appear in header files.
+The header files assume a compiler that accepts C prototype function
+declarations.
+They also assume that the compiler accepts ANSI C89 keywords for all language
+dialects.
+.Ss General Macros
+General macros that facilitate multiple language environments and language
+dialects.
+.Bl -column "---------------"
+.It Sy Macro Ta Sy Description
+.It Dv __volatile Ta expands to volatile in C++ and C89 and newer environments,
+__volatile in pre-ANSI environments that support this extension or nothing
+otherwise.
+.It Dv __inline Ta expands to inline in C++ and C89 and newer environments,
+__inline in pre-ANSI environments that support this extension or nothing
+otherwise.
+.It Dv __restrict Ta expands to restrict in C99 and newer environments, or
+__restrict otherwise.
+.It Dv __CONCAT Ta used to paste two pre-processor tokens.
+.It Dv __STRING Ta used to convert the argument to a string.
+.It Dv __BEGIN_DECLS Ta Start a group of functions.
+.It Dv __END_DECLS Ta End a group of functions.
+In a C environment, these are defined as nothing.
+In a C++ environment, these declare the functions to have
+.Dq C
+linkage.
+.El
+.Ss Function, Structure and Variable Modifiers
+.Bl -column "---------------"
+.It Sy Macro Ta Sy Description
+.It Sy __weak_symbol Ta Declare the symbol to be a weak symbol
+.It Sy __dead2 Ta Function will not return
+.It Sy __pure2 Ta Function has no side effects
+.It Sy __unused Ta To Variable may be unused (usually arguments), so do not
+warn about it
+.It Sy __used Ta Function really is used, so emit it even if it appears unused.
+.It Sy __deprecated Ta Function interface has been deprecated, and clients
+should migrate to a new interface.
+A warning will be issued for clients of this interface.
+.It Sy __deprecated1(msg) Ta Function interface has been deprecated, and clients
+should migrate to a new interface.
+The string
+.Fa msg
+will be included in a warning issued for clients of this interface.
+.It Sy __packed Ta \&Do not have space between structure elements for natural alignment.
+Used when communicating with external protocols.
+.It Sy __aligned(x) Ta Specify in bytes the minimum alignment for the specified field, structure or variable
+.It Sy __section(x) Ta Place function or variable in section Fa x
+.It Sy __writeonly Ta Hint that the variable is only assigned to, but do not warn about it.
+Useful for macros and other places the eventual use of the result is unknown.
+.It Sy __alloc_size(x) Ta The function always returns at least the number of
+bytes determined by argument number Fa x
+.It Sy __alloc_size2(x,n) Ta  The function always returns an array, whose size
+is at least the number of bytes determined by argument number Fa x times the
+number of elements specified by argument number Fa n
+.It Sy __alloc_align(x) Ta Function either returns a pointer aligned to Fa x bytes
+or Dv NULL.
+.It Sy __min_size Ta Declare the array to have a certain, minimum size
+.It Sy __malloc_like Ta Function behaves like the
+.Dq malloc
+family of functions.
+.It Sy __pure Ta Function has no side effects
+.It Sy __always_inline Ta Always inline this function when called
+.It Sy __fastcall Ta Use the
+.Dq fastcall
+ABI to call and name mangle this function.
+.It Sy __result_use_check Ta Warn if function caller does not use its return value
+.It Sy __nodiscard Ta Equivalent to the standard
+.Dq [[nodiscard]]
+attribute.
+If applied to a function, warn if function caller does not use its
+return value.
+The warning may be silenced using a cast to
+.Vt void ,
+or in C++, using an assignment to
+.Va std::ignore .
+If applied to a struct, C++ class or enum, this applies to all functions
+returning values of that type.
+If applied to a C++ constructor, this applies to creating instances of
+the class using that constructor.
+.It Sy __returns_twice Ta Returns multiple times, like
+.Xr fork 2
+.It Sy __unreachable Ta This code is not reachable at runtime
+.It Sy __predict_true(x) Ta Hint to the compiler that
+.Fa x
+is true most of the time.
+Should only be used when performance is improved for a frequently called bit of code.
+.It Sy __predict_false(x) Ta Hint to the compiler that
+.Fa x
+is false most of the time.
+Should only be used when performance is improved for a frequently called bit of code.
+.It Sy __null_sentinel Ta The varadic function contains a parameter that is
+a NULL sentinel to mark the end of its arguments.
+.It Sy __exported Ta
+.It Sy __hidden Ta
+.It Sy __printflike(fmtarg,firstvararg) Ta Function is similar to
+.Fn printf
+which specifies the format argument with
+.Fa fmtarg
+and where the arguments formatted by that format start with the
+.Fa firstvararg ,
+with 0 meaning that
+.Dv va_arg
+is used and cannot be checked.
+.It Sy __scanflike(fmtarg,firstvararg) Ta Function is similar to
+.Fn scanf
+which specifies the format argument with
+.Fa fmtarg
+and where the arguments formatted by that format start with the
+.Fa firstvararg ,
+with 0 meaning that
+.Dv va_arg
+is used and cannot be checked.
+.It Sy __format_arg(f) Ta Specifies that arg
+.Fa f
+contains a string that will be passed to a function like
+.Fn printf
+or
+.Fa scanf
+after being translated in some way.
+.It Sy __strfmonlike(fmtarg,firstvararg) Ta Function is similar to
+.Fn scanf
+which specifies the format argument with
+.Fa fmtarg
+and where the arguments formatted by that format start with the
+.Fa firstvararg ,
+with 0 meaning that
+.Dv va_arg
+is used and cannot be checked.
+.It Sy __strtimelike(fmtarg,firstvararg) Ta Function is similar to
+.Fn scanf
+which specifies the format argument with
+.Fa fmtarg
+and where the arguments formatted by that format start with the
+.Fa firstvararg ,
+with 0 meaning that
+.Dv va_arg
+is used and cannot be checked.
+.It Sy __printf0like(fmtarg,firstvararg) Ta Exactly the same
+as
+.Sy __printflike
+except
+.Fa fmtarg
+may be
+.Dv NULL.
+.It Sy __strong_reference(sym,aliassym) Ta
+.It Sy __weak_reference(sym,alias) Ta
+.It Sy __warn_references(sym,msg) Ta
+.It Sy __sym_compat(sym,impl,verid) Ta
+.It Sy __sym_default(sym,impl,verid) Ta
+.It Sy __GLOBAL(sym) Ta
+.It Sy __WEAK(sym) Ta
+.It Sy __DECONST(type,var) Ta
+.It Sy __DEVOLATILE(type,var) Ta
+.It Sy __DEQUALIFY(type,var) Ta
+.It Sy __RENAME(x) Ta
+.It Sy __arg_type_tag Ta
+.It Sy __datatype_type_tag Ta
+.It Sy __align_up(x,y) Ta
+.It Sy __align_down(x,y) Ta
+.It Sy __is_aligned(x,y) Ta
+.El
+.Ss Locking and Debugging Macros
+Macros for lock annotation and debugging, as well as some general debugging
+macros for address sanitizers.
+.Bl -column "---------------"
+.It Sy __lock_annotate(x) Ta
+.It Sy __lockable Ta
+.It Sy __locks_exclusive Ta
+.It Sy __locks_shared Ta
+.It Sy __trylocks_exclusive Ta
+.It Sy __trylocks_shared Ta
+.It Sy __unlocks Ta
+.It Sy __asserts_exclusive Ta
+.It Sy __asserts_shared Ta
+.It Sy __requires_exclusive Ta
+.It Sy __requires_shared Ta
+.It Sy __requires_unlocked Ta
+.It Sy __no_lock_analysis Ta
+.It Sy __nosanitizeaddress Ta
+.It Sy __nosanitizememory Ta
+.It Sy __nosanitizethread Ta
+.It Sy __nostackprotector Ta
+.It Sy __guarded_by(x) Ta
+.It Sy __pt_guarded_by(x) Ta
+.El
+.Ss Emulated Keywords
+As C evolves, many of the old macros we once used have been incorporated into
+the standard language.
+As this happens, we add support for these keywords as macros for older
+compilation environments.
+Sometimes this results in a nop in the older environment.
+.Bl -column "---------------"
+.It Sy Keyword Ta Sy Description
+.It Sy _Alignas(x) Ta
+.It Sy _Alignof(x) Ta
+.It Sy _Noreturn Ta Expands to
+.Dq [[noreturn]]
+in C++-11 and newer compilation environments, otherwise
+.Dq __dead2
+.It Sy _Static_assert(x, y) Ta Compile time assertion that
+.Fa x
+is true, otherwise emit
+.Fa y
+as the error message.
+.It Sy _Thread_local Ta Designate variable as thread local storage
+.It Sy __generic Ta implement _Generic-like features which aren't entirely possible to emulate the _Generic keyword
+.It Sy __noexcept Ta to emulate the C++11 argument-less noexcept form
+.It Sy __noexcept_if Ta to emulate the C++11 conditional noexcept form
+.It Sy _Nonnull Ta
+.It Sy _Nullable Ta
+.It Sy _Null_unspecified Ta
+.El
+.Ss Support Macros
+The following macros are defined, or have specific values, to denote certain
+things about the build environment.
+.Bl -column "---------------"
+.It Sy Macro Ta Sy Description
+.It Sy __LONG_LONG_SUPPORTED Ta Variables may be declared
+.Dq long long .
+This is defined for C99 or newer and C++ environments.
+.It Sy __STDC_LIMIT_MACROS Ta
+.It Sy __STDC_CONSTANT_MACROS Ta
+.El
+.Ss Convenience Macros
+These macros make it easier to do a number of things, even though strictly
+speaking the standard places their normal form in another header.
+.Bl -column "---------------"
+.It Sy Macro Ta Sy Description
+.It Sy __offsetof(type,field) Ta
+.It Sy __rangeof(type,start,end) Ta
+.It Sy __containerof(x,s,m) Ta
+.El
+.Ss ID Strings
+This section is deprecated, but is kept around because too much contrib software
+still uses these.
+.Bl -column "---------------"
+.It Sy Macro Ta Sy Description
+.It Sy __IDSTRING(name,string) Ta
+.It Sy __FBSDID(s) Ta
+.It Sy __RCSID(s) Ta
+.It Sy __RCSID_SOURCE(s) Ta
+.It Sy __SCCSID(s) Ta
+.It Sy __COPYRIGHT(s) Ta
+.El
+.Sh Supported C Environments
+.Fx
+supports a number C standard environments.
+Selection of the language dialect is a compiler-dependent command line option,
+though it is usually
+.Fl std=XX
+where XX is the standard to set for compiling, such as c89 or c23.
+.Fx
+provides a number of selection macros to control visibility of symbols.
+Please see the section on Selection Macros for the specifics.
+.Pp
+.Bl -tag
+.It K \*(Am R
+Pre-ANSI Kernighan and Ritchie C.
+Sometimes called
+.Dq knr
+or
+.Dq C78
+to distinguish it from newer standards.
+Support for this compilation environment is dependent on compilers supporting
+this configuration.
+Most of the old forms of C have been deprecated or removed in
+.St -isoC-2023 .
+Compilers make compiling in this mode increasingly difficult and support for it
+may ultimately be removed from the tree.
+.It St -ansiC
+.Dv __STDC__
+is defined, however
+.Dv __STDC_VERSION__
+is not.
+.Pp
+Strict environment selected with
+.Dv _ANSI_SOURCE .
+.It St -isoC-99
+.Dv __STDC_VERSION__ = 199901L
+.Pp
+Strict environment selected with
+.Dv _C99_SOURCE .
+.It St -isoC-2011
+.Dv __STDC_VERSION__ = 201112L
+.Pp
+Strict environment selected with
+.Dv _C11_SOURCE .
+.It ISO/IEC 9899:2018 (“ISO C17”)
+.Dv __STDC_VERSION__ = 201710L
+.Pp
+Strict environment selected with
+.Dv _C11_SOURCE
+since there are no new C17 only symbols or macros.
+.Pp
+This version of the standard did not introduce any new features, only made
+minor, technical corrections.
+.It St -isoC-2023
+.Dv __STDC_VERSION__ = 202311L
+Strict environment selected with
+.Dv _C23_SOURCE
+though ISO C23 support is only partially implemented.
+.El
+.Pp
+For more information on C standards, see
+.Xr c 7 .
+.Ss Programming Environment Selection Macros
+Defining the macros outlined below requests that the system header files provide
+only the functions, structures and macros (symbols) defined by the appropriate
+standard, while suppressing all extensions.
+However, system headers not defined by that standard may define extensions.
+You may only define one of the following for any compilation unit.
+.Bl -column "---------------"
+.It Sy Macro Ta Sy Environment
+.It Dv _POSIX_SOURCE Ta St -p1003.1-88 including St -ansiC
+.It Dv _POSIX_C_SOURCE = 1 Ta St -p1003.1-88 including St -ansiC
+.It Dv _POSIX_C_SOURCE = 2 Ta St -p1003.1-90 including St -ansiC
+.It Dv _POSIX_C_SOURCE = 199309 Ta St -p1003.1b-93 including St -ansiC
+.It Dv _POSIX_C_SOURCE = 199506 Ta St -p1003.1c-95 including St -ansiC
+.It Dv _POSIX_C_SOURCE = 200112 Ta St -p1003.1-2001 including St -isoC-99
+.It Dv _POSIX_C_SOURCE = 200809 Ta St -p1003.1-2008 including St -isoC-99
+.It Dv _POSIX_C_SOURCE = 202405 Ta St -p1003.1-2024 including ISO/IEC 9899:2018 ("ISO C17"),
+.It Dv _XOPEN_SOURCE defined Ta St -p1003.1-90 with XPG Extensions to St -susv1 including St -ansiC .
+However,
+.Fx
+implements this as a NOP because too much software breaks with the correct strict environment.
+.It Dv _XOPEN_SOURCE = 500 Ta St -p1003.1c-95 and XPG extensions to St -susv2 including St -ansiC
+.It Dv _XOPEN_SOURCE = 600 Ta St -p1003.1-2001 and XPG extensions to St -susv3 including St -isoC-99
+.It Dv _XOPEN_SOURCE = 700 Ta St -p1003.1-2008 and XPG extensions to St -susv4 including St -isoC-99
+.It Dv _XOPEN_SOURCE = 800 Ta St -p1003.1-2024 and XPG extensions to Version 5 of the Single UNIX Specification (“SUSv5”) including ISO/IEC 9899:2018 (“ISO C17”)
+.It Dv _ANSI_SOURCE Ta St -ansiC
+.It Dv _C99_SOURCE Ta St -isoC-99
+.It Dv _C11_SOURCE Ta St -isoC-2011
+.It Dv _C23_SOURCE Ta St -isoC-2023
+.It Dv _BSD_SOURCE Ta Everything, including Fx extensions
+.El
+.Pp
+Note:
+.St -p1003.1-2024
+and XPG extensions to Version 5 of the Single UNIX Specification ("SUSv5")
+support is incomplete.
+.Pp
+When both POSIX and C environments are selected, the POSIX environment selects
+which C environment is used.
+However, when C11 dialect is selected with
+.St -p1003.1-2008 ,
+definitions for
+.St -isoC-2011
+are also included.
+Likewise, when C23 dialog is selected with
+.St -p1003.1-2008
+or
+.St -p1003.1-2024 ,
+definitions for
+.St -isoC-2023
+are also included.
+.Ss Header Visibility Macros
+These macros are set by
+.Nm
+to control the visibility of different standards.
+Users must not define these, and doing so will produced undefined results.
+They are documented here for developers working on system's header files.
+.Bl -column "---------------"
+.It Dv __XSI_VISIBLE Ta Restricts the visibility of XOPEN Single Unix Standard version.
+Possible values are 500, 600, 700 or 800, corresponding to Issue 5, 6, 7, or 8
+of the Single Unix Standard.
+These are extra functions in addition to the normal POSIX ones.
+.It Dv __POSIX_VISIBLE Ta Make symbols associated with certain standards versions visible.
+Set to the value assigned to
+.Dv _POSIX_C_SOURCE
+by convention with 199009 for
+.St -p1003.1-88
+and 199209
+.St -p1003.1-90 .
+.It Dv __ISO_C_VISIBLE Ta The C level that's visible.
+Possible values include 1990, 1999, 2011, 2017 and 2023 for
+.St -isoC-90 ,
+.St -isoC-99 ,
+.St -isoC-2011 ,
+ISO/IEC 9899:2018 ("ISO C17"), and
+.St -isoC-2023 ,
+respectively.
+.It Dv __BSD_VISIBLE Ta 1 if the
+.Fx
+extensions are visible, 0 otherwise.
+.It Dv __EXT1_VISIBLE Ta 1 if the
+.St -isoC-2011
+Appendix K 3.7.4.1
+extensions are visible, 0 otherwise.
+.El
+.Sh Supported C++ Environments
+.Fx
+supports C++11 and newer standards fully.
+.Bl -tag
+.It ISO/IEC 14882:1998 ("C++98")
+.Dv __cplusplus = 199711
+.Pp
+The first standardized version of C++.
+Unlike K \*(Am R support in C, compilers dropped support for versions of
+the language prior to C++98.
+.It ISO/IEC 14882:2003 ("C++03")
+.Dv __cplusplus = 199711
+.Pp
+Note, this is the same value as C++98.
+C++03 did not define a new value for
+.Dv __cplusplus .
+There is no way, at compile time, to detect the difference.
+The standard resolved a number of defect reports and slightly
+expanded value initialization.
+Most compilers support it the same as C++98.
+.It ISO/IEC 14882:2011 ("C++11")
+.Dv __cplusplus = 201103
+.It ISO/IEC 14882:2014 ("C++14")
+.Dv __cplusplus = 201402
+.It ISO/IEC 14882:2017 ("C++17")
+.Dv __cplusplus = 201703
+.It ISO/IEC 14882:2020 ("C++20")
+.Dv __cplusplus = 202002
+.It ISO/IEC 14882:2023 ("C++23")
+.Dv __cplusplus = 202302
+.El
+.Pp
+.Fx
+uses llvm project's libc++.
+However, they are removing support for C++ prior to C++11.
+While programs can still build with earlier environments for now, these changes
+mean that
+.Fl pedantic-errors
+cannot be reliably enabled for standards older than C++11.
+.Sh HISTORY
+.In sys/cdefs.h
+first appeared in
+.Bx 4.3 NET/2 .

@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# PROVIDE: zpoolreguid
+# REQUIRE: zpool
+# BEFORE: mountcritlocal
+# KEYWORD: firstboot nojail
+
+. /etc/rc.subr
+
+name="zpoolreguid"
+desc="Generate a new zpool GUID"
+rcvar="zfs_enable"
+start_cmd="zpoolreguid_start"
+
+zpoolreguid_start()
+{
+	local pool
+
+	for pool in ${zpool_reguid}; do
+		zpool reguid $pool
+	done
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+zpoolreguid_svcj="NO"
+
+run_rc_command "$1"

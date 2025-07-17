@@ -1,0 +1,806 @@
+
+#------------------------------------------------------------------------------
+# $File: ole2compounddocs,v 1.29 2024/06/18 17:07:48 christos Exp $
+# Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
+# storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
+# Additional tests for OLE 2 Compound Documents should be under this recipe.
+# reference:	https://www.openoffice.org/sc/compdocfileformat.pdf
+
+0   string  \320\317\021\340\241\261\032\341
+# https://digital-preservation.github.io/droid/
+# skip droid skeleton like fmt-39-signature-id-128.doc by valid version
+>0x1A	ushort		!0xABAB		OLE 2 Compound Document
+#>0x1C	uleshort		x			\b, endnian %#4.4x
+# big endian not tested
+>>0x1C	ubeshort		=0xfffe			\b, big-endian
+>>>546	string	jbjb			: Microsoft Word Document
+!:mime	application/msword
+!:apple	MSWDWDBN
+!:ext	doc
+# Byte Order 0xFFFE means little-endian found in real world applications
+#>>0x1C	uleshort		=0xfffe			\b, little-endian
+>>0x1C	uleshort		=0xfffe
+# From:		Joerg Jenderek
+# Major Version 3 or 4
+>>>0x1A	uleshort		x			\b, v%u
+# Minor Version 32h=50 3Bh=59 3Eh=62
+>>>0x18	uleshort		x			\b.%u
+# SecID of first sector of the directory stream is often 1 but high like 3144h
+>>>48	ulelong			x			\b, SecID %#x
+# Sector Shift Exponent in short-stream container stream: 6~64 bytes
+>>>32	uleshort		!6			\b, exponent of short stream %u
+# total number of sectors used for the FAT
+>>>44	ulelong			>1			\b, %u FAT sectors
+# SecID of first sector of the short-sector allocation table (Mini FAT)
+# or -2 (End Of ChainSecID) if not extant
+>>>60	ulelong			!0xffFFffFE		\b, Mini FAT start sector %#x
+# total number of sectors used for the short-sector allocation table
+>>>64	ulelong			!1			\b, %u Mini FAT sector
+# plural s
+>>>>64	ulelong			>1			\bs
+# SecID of first sector of the master sector allocation table (DIFAT)
+# or -2 (End Of Chain SecID) if no additional sectors used
+>>>68	ulelong			!0xffFFffFE		\b, DIFAT start sector %#x
+# total number of sectors used for the master sector allocation table (DIFAT)
+>>>72	ulelong			>0			\b, %u DIFAT sectors
+# First part of the master sector allocation table (DIFAT) containing 109 SecIDs
+#>>>76 	ubequad			x			\b, DIFAT=%#16.16llx
+#>>>84 	ubequad			x			\b%16.16llx...
+# pointer to root entry only works with standard configuration for SecID ~< 800h
+# Red-Carpet-presentation-1.0-1.sdd sg10.sdv 2000_GA_Annual_Review_Data.xls
+# "ORLEN Factbook 2017.xls" XnView_metadata.doc
+# "Barham, Lisa - Die Shopping-Prinzessinnen.doc" then not recognized
+>>>48	ulelong			>0x800			too big for FILE_BYTES_MAX = 1 MiB
+# Sector Shift Exponent 9~512 for major version 3 or C~4096 for major version 4
+>>>0x1E	uleshort		0xc			\b, blocksize 4096
+# jump to one block (4096 bytes per block) before root storage block
+>>>>(48.l*4096)	ubyte	x
+>>>>>&4095 	use		ole2-directory
+#>>>0x1E	uleshort		9			\b, blocksize 512
+>>>0x1E	uleshort		9
+# jump to one block (512 bytes per block) before root storage block
+# in 5.37 only true for offset ~< FILE_BYTES_MAX=7 MiB defined in ../../src/file.h 
+>>>>(48.l*512)	ubyte		x
+>>>>>&511 	use		ole2-directory
+# check directory entry structure and display types by GUID
+0	name			ole2-directory
+# directory entry name like "Root Entry"
+#>0 	lestring16	x 			\b, 1st %.10s
+# type of the entry; 5~Root storage
+#>66 	ubyte		x			\b, type %x
+# node colour of the entry: 00H ~ Red 01H ~ Black
+#>67 	ubyte		x			\b, color %x
+# the DirIDs of the child nodes. Should both be -1 in the root storage entry
+#>68 	bequad		!0xffffffffffffffff	\b, DirIDs %llx
+# NEXT lines for DEBUGGING
+# second directory entry name like VisioDocument Control000 
+#>128	lestring16	x \b, 2nd %.20s
+# third directory entry like WordDocument
+#>256	lestring16	x \b, 3rd %.20s
+# forth
+#>384	lestring16	x \b, 4th %.10s
+# 5th
+#>512	lestring16	x \b, 5th %.10s
+# 6th
+#>640	lestring16	x \b, 6th %.10s
+# 7th
+#>768	lestring16	x \b, 7th %.10s
+#	https://wikileaks.org/ciav7p1/cms/page_13762814.html
+#	https://m.blog.naver.com/superman4u/40047693679
+#	https://misc.daniel-marschall.de/projects/guid_analysis/guid.txt
+#	https://toolslick.com/conversion/data/guid
+#>80 	ubequad		!0			\b, clsid %#16.16llx
+#>>88 	ubequad		x			\b%16.16llx
+# test for "Root Entry" inside directory by type 5 value
+>66 	ubyte		5
+# look for CLSID GUID 0
+>>88 	ubequad		0x0
+>>>80 	ubequad		0x0
+# - Microstation V8 DGN files (www.bentley.com)
+# URL:	https://en.wikipedia.org/wiki/MicroStation
+#   Last update on 10/23/2006 by Lester Hightower
+#   07/24/2019 by Joerg Jenderek
+# Second directory entry name like Dgn~H Dgn~S 
+>>>>128 	lestring16	Dgn~			: Microstation V8 CAD
+#!:mime	application/x-ole-storage
+!:mime	application/x-bentley-dgn
+# http://www.q-cad.com/files/samples_cad_files/1344468165.dgn
+!:ext	dgn
+#
+# URL:	http://fileformats.archiveteam.org/wiki/WordPerfect
+# Second directory entry name PerfectOffice_
+>>>>128 	lestring16	PerfectOffice_		: WordPerfect 7-X3 presentations Master, Document or Graphic
+!:mime	application/vnd.wordperfect
+# https://www.macdisk.com/macsigen.php "WPC2" for Wordperfect 2 *.wpd
+!:apple	????WPC7
+!:ext	mst/wpd/wpg
+#
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Word_Processor
+# Second directory entry name MatOST_
+>>>>128 	lestring16	MatOST			: Microsoft Works 3.0 document
+!:mime	application/vnd.ms-works
+!:apple	????AWWP
+!:ext	wps
+#
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Spreadsheet
+# 3rd directory entry name WksSSWorkBook
+>>>>256 	lestring16	WksSSWorkBook		: Microsoft Works 6-9 spreadsheet
+!:mime	application/vnd.ms-works
+!:apple	????AWSS
+!:ext	xlr
+#
+# URL:	http://fileformats.archiveteam.org/wiki/XLS
+# what is the difference to {00020820-0000-0000-c000-000000000046} ?
+# Second directory entry name Workbook
+>>>>128 	lestring16	Workbook
+>>>>>256 	lestring16	!WksSSWorkBook		: Microsoft Excel 97-2003 worksheet 0 clsid
+!:mime	application/vnd.ms-excel
+# https://www.macdisk.com/macsigen.php	XLS5 for Excel 5
+!:apple	????XLS9
+!:ext	xls
+#
+# URL:	http://fileformats.archiveteam.org/wiki/PPT
+# Second directory entry name Object1 Object12 Object35
+>>>>128 	lestring16	Object			: Microsoft PowerPoint 4 presentation
+!:mime	application/vnd.ms-powerpoint
+# https://www.macdisk.com/macsigen.php
+!:apple	????PPT3
+!:ext	ppt
+#
+# URL:	https://www.msoutlook.info/question/164
+# Second directory entry name __CollDataStm
+>>>>128 	lestring16	__CollDataStm		: Microsoft Outlook Send Receive Settings
+#!:mime	application/vnd.ms-outlook
+!:mime	application/x-ms-srs
+# %APPDATA%\Microsoft\Outlook\Outlook.srs
+!:ext	srs
+#
+# URL:	https://www.file-extensions.org/cag-file-extension
+# Second directory entry name Category
+>>>>128 	lestring16	Category		: Microsoft Clip Art Gallery
+#!:mime	application/x-ole-storage
+!:mime	application/x-ms-cag
+!:apple	MScgCGdb
+!:ext	cag/
+#
+# URL:	https://www.filesuffix.com/de/extension/rra
+# 3rd directory entry name StrIndex_StringTable
+>>>>256 	lestring16	StrIndex_StringTable	: Windows temporarily installer
+#!:mime	application/x-ole-storage
+!:mime	application/x-ms-rra
+!:ext	rra
+#
+# URL:	https://www.forensicswiki.org/wiki/Jump_Lists
+# 3rd directory entry name DestList	
+>>>>256 	lestring16	DestList		: Windows jump list
+#!:mime	application/x-ole-storage
+!:mime	application/x-ms-jumplist
+# %APPDATA%\Microsoft\Windows\Recent\AutomaticDestinations\*.automaticDestinations-ms
+!:ext	automaticDestinations-ms
+#
+# URL:	https://en.wikipedia.org/wiki/Windows_thumbnail_cache
+# Second directory entry name 256_
+>>>>128 	lestring16	256_			: Windows thumbnail database 256
+#!:mime	application/x-ole-storage
+!:mime	application/x-ms-thumbnail
+# Thumbs.db
+!:ext	db
+>>>>128 	lestring16	96_			: Windows thumbnail database 96
+!:mime	application/x-ms-thumbnail
+!:ext	db
+# 3rd directory entry name Catalog_
+>>>>256 	lestring16	Catalog			: Windows thumbnail database
+!:mime	application/x-ms-thumbnail
+!:ext	db
+#
+# URL:	https://support.microsoft.com/en-us/help/300887/how-to-use-system-information-msinfo32-command-line-tool-switches
+# Note:	older Microsoft Systeminfo (MSInfo Configuration File of msinfo32); newer use xml based
+# Second directory entry name Control000
+>>>>128 	lestring16	Control000		: Microsoft old Systeminfo
+#!:mime	application/x-ole-storage
+!:mime	application/x-ms-info
+!:ext	nfo
+#
+# From:		Joerg Jenderek
+# URL:		https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/arn-autoruns-v14.trid.xml
+# Note:		older versions til 13 about middle 2021 handled by ./windows
+#		called "Sysinternals Autoruns data (v14)" by TrID
+# second, third and fourth directory entry name like Header Items 0
+>>>>128 	lestring16	Header		: Microsoft sysinternals AutoRuns data, version 14
+#!:mime	application/x-ole-storage
+!:mime		application/x-ms-arn
+# like: MyHOSTNAME.arn
+!:ext		arn
+#
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Access
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mdz.trid.xml
+#		http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		only version foo tested and called "Microsoft Access Wizard template" by TrID
+# Fourth directory entry name TemplateID
+>>>>384 	lestring16	TemplateID		: Microsoft Access wizard template
+# Second directory entry name like \005SummaryInformation and 3rd name like \005DocumentSummaryInformation
+#!:mime	application/x-ole-storage
+#!:mime	application/vnd.ms-office
+#!:mime	application/vnd.ms-access
+#!:mime	application/msaccess
+!:mime	application/x-ms-mdz
+# http://extension.nirsoft.net/mdz
+!:ext	mdz
+#
+# URL:	http://fileformats.archiveteam.org/wiki/Corel_Print_House
+# Second directory entry name Thumbnail
+>>>>128 	lestring16	Thumbnail		: Corel PrintHouse image
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-cph
+!:ext	cph
+# 3rd directory entry name Thumbnail
+>>>>256 	lestring16	Thumbnail		: Corel PrintHouse image
+!:mime	application/x-corel-cph
+!:ext	cph
+# URL:	http://fileformats.archiveteam.org/wiki/Corel_Gallery
+# Note:	format since Gallery 2; sometimes called Corel Multimedia Manager Album
+# third directory entry name _INFO_
+>>>>256 	lestring16	_INFO_			: Corel Gallery
+# second directory entry name _ITEM_ or _DATA_
+# later directory entry names: _ALBUM_ _THUMBNAIL_
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-gal
+!:ext	gal
+#
+# From:		Joerg Jenderek
+# URL:		https://archive.org/details/iPhoto-Plus-4
+#		https://filext.com/file-extension/TPL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/t/tpl-ulead.trid.xml
+# Note:		found in Template sub directory in program directory of software iPhoto Plus version 4
+# second, third and fourth directory entry name like TplHeader TplMainImage TplPreview
+>>>>128 	lestring16	TplHeader		: Ulead iPhoto Template
+#!:mime	application/x-ole-storage
+!:mime	image/x-ulead-tpl
+# https://www.file-extensions.org/tpl-file-extension-ulead-photo-express-template
+!:ext	tpl
+#
+# URL:	https://en.wikipedia.org/wiki/Hangul_(word_processor)
+#       https://www.hancom.com/etc/hwpDownload.do
+# Note:	"HWP Document File" signature found in FileHeader
+# Hangul Word Processor WORDIAN, 2002 and later is using HWP 5.0 format.
+# Second directory entry name FileHeader hint for Thinkfree Office document
+>>>>128 	lestring16	FileHeader		: Hancom HWP (Hangul Word Processor) file, version 5.0
+#!:mime	application/haansofthwp
+!:mime	application/x-hwp
+# https://example-files.online-convert.com/document/hwp/example.hwp
+!:ext	hwp
+#
+# URL:	https://ask.libreoffice.org/en/question/26303/creating-new-themes-for-the-gallery-not-functioning/
+# Second directory entry name like dd2000 dd2001 dd2036 dd2060 dd2083
+>>>>128 	lestring16	dd2			: StarOffice Gallery view
+#!:mime	application/x-ole-storage
+!:mime	application/x-star-sdv
+!:ext	sdv
+# URL:	https://en.wikipedia.org/wiki/SoftMaker_Office
+# second directory entry name Current User
+>>>>128 	lestring16	Current\ User		: SoftMaker
+# third directory entry name SMNativeObjData
+>>>>>256	lestring16	SMNativeObjData		
+# 5th directory entry name PowerPoint
+>>>>>>512	lestring16	PowerPoint		PowerPoint presentation or template
+!:mime	application/vnd.ms-powerpoint
+!:ext	ppt/pps/pot
+# 4th directory entry name PowerPoint
+>>>>>384	lestring16	PowerPoint		Presentations or template
+# http://extension.nirsoft.net/prv
+!:mime	application/vnd.softmaker.presentations
+!:ext	prd/prv
+# third directory entry name like Current User
+>>>>256 	lestring16	Current\ User		: SoftMaker
+# 5th directory entry name PowerPoint
+>>>>>512	lestring16	PowerPoint		Presentations or template
+# http://extension.nirsoft.net/prd
+!:mime	application/vnd.softmaker.presentations
+!:ext	prd/prv
+# 2nd directory entry name Pictures
+>>>>>>128 	lestring16	Pictures		with pictures
+#
+# URL:		http://fileformats.archiveteam.org/wiki/PageMaker
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p
+#		pagemaker-generic.trid.xml
+#		pagemaker-pm6.trid.xml
+#		pagemaker-pm65.trid.xml
+#		pmd-pm7.trid.xml
+# From:		Joerg Jenderek
+# Note:		since version 6 embedd as stream with PageMaker name the "old" format handled by ./wordprocessors
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe brochus.pt6`
+# Second directory entry name PageMaker
+>>>>128 	lestring16	PageMaker		:
+# look for magic of "old" PageMaker like in 02TEMPLT.T65
+>>>>>0	search/0xa900/s	\0\0\0\0\0\0\xff\x99
+# GRR: jump to PageMaker stream and inspect it by sub routine PageMaker of ./wordprocessors failed with wrong version!
+#>>>>>>&0	use		PageMaker
+# THIS WORKS PARTLY!
+>>>>>>&0	indirect	x
+#
+# URL:		http://fileformats.archiveteam.org/wiki/Easy_CD_Creator
+# From:		Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cl4.trid.xml
+# Note:		called "Easy CD Creator Layout" by TrID
+#		"newer" version 4 contain a clsid
+# Second directory entry name Contents
+>>>>128 	lestring16	Contents		: Easy CD Creator 2 Layout
+# contains also 3 strings SesnDescriptor CD_PLUS 0090
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-cl2
+!:ext	cl2
+#	remaining null clsid
+>>>>128 	default		x
+>>>>>0 	use		ole2-unknown
+# look for CLSID where "second" part is 0
+>>>80 	ubequad		!0x0
+#
+# Summary:	Family Tree Maker
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Family_Tree_Maker
+#		https://en.wikipedia.org/wiki/Family_Tree_Maker
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/ftw.trid.xml
+# Note		called "Family Tree Maker Family Tree" by TrID and
+#		"FamilyTree Maker Database" with version "1-4" by DROID via PUID fmt/1352
+#		tested only with version 2.0
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe my.ftw`
+#		newer versions are SQLite based and handled by ./sql
+# directory names like: IND.DB AUX.DB GENERAL.DB NAME.NDX BIRTH.NDX EXTRA.DB
+>>>>80 	ubequad		0x5702000000000000	: Family Tree Maker Windows database, version 1-4
+# look for "File Format (C) Copyright 1993 Banner Blue Software Inc. - All Rights Reserved" in GENERAL.DB
+#>>>>>0	search/0x5460c/s	F\0i\0l\0e\0\040\0F\0o\0r\0m\0a\0t\0\040\0(\0C\0)\0	\b, VERSION
+# GRR: jump to version value like 2 does not work!
+#>>>>>>&-8	ubyte		x							%u
+#!:mime	application/x-ole-storage
+!:mime	application/x-fmt
+# FBK is used for backup of FTW
+!:ext	ftw/fbk
+#
+>>>>80 	default		x
+>>>>>0 	use		ole2-unknown
+#	look for known clsid GUID
+# - Visio documents
+# URL:	http://fileformats.archiveteam.org/wiki/Visio
+#   Last update on 10/23/2006 by Lester Hightower, 07/20/2019 by Joerg Jenderek
+>>88 	ubequad		0xc000000000000046
+>>>80 	ubequad		0x131a020000000000	: Microsoft Visio 2000-2002 Document, stencil or template
+!:mime	application/vnd.visio
+# VSD~Drawing VSS~Stencil VST~Template 
+!:ext	vsd/vss/vst
+>>>80 	ubequad		0x141a020000000000	: Microsoft Visio 2003-2010 Document, stencil or template
+!:mime	application/vnd.visio
+!:ext	vsd/vss/vst
+#
+# URL:	http://fileformats.archiveteam.org/wiki/Windows_Installer
+#	https://en.wikipedia.org/wiki/Windows_Installer#ICE_validation
+# Update: Joerg Jenderek
+# Windows Installer Package *.MSI or validation module *.CUB
+>>>80 	ubequad		0x84100c0000000000	: Microsoft Windows Installer Package or validation module
+!:mime	application/x-msi
+#!:mime	application/x-ms-win-installer
+#	https://learn.microsoft.com/en-us/windows/win32/msi/internal-consistency-evaluators-ices
+# cub is used for validation module like: Vstalogo.cub XPlogo.cub darice.cub logo.cub mergemod.cub
+#!:mime	application/x-ms-cub
+!:ext	msi/cub
+# From:		Joerg Jenderek
+# URL:		http://en.wikipedia.org/wiki/Windows_Installer
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mst.trid.xml
+#		called "Windows SDK Setup Transform script" by TrID
+>>>80 	ubequad		0x82100c0000000000	: Microsoft Windows Installer transform script
+#!:mime	application/x-ole-storage
+!:mime	application/x-ms-mst
+!:ext	mst
+>>>80 	ubequad		0x86100c0000000000	: Microsoft Windows Installer Patch
+# ??
+!:mime	application/x-wine-extension-msp
+#!:mime	application/x-ms-msp
+!:ext	msp
+#
+# URL:	http://fileformats.archiveteam.org/wiki/DOC
+>>>80 	ubequad		0x0009020000000000	: Microsoft Word 6-95 document or template
+!:mime	application/msword
+# for template MSWDW8TN
+!:apple	MSWDWDBN
+!:ext	doc/dot
+>>>80 	ubequad		0x0609020000000000	: Microsoft Word 97-2003 document or template
+!:mime	application/msword
+!:apple	MSWDWDBN
+# dot for template; no extension on Macintosh
+!:ext	doc/dot/
+#
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Word_Processor
+>>>80 	ubequad		0x0213020000000000	: Microsoft Works 3-4 document or template
+!:mime	application/vnd.ms-works
+!:apple	????AWWP
+# ps for template	https://filext.com/file-extension/PS	bps for backup
+!:ext	wps/ps/bps
+#
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Database
+>>>80 	ubequad		0x0313020000000000	: Microsoft Works 3-4 database or template
+!:mime	application/vnd.ms-works-db
+# https://www.macdisk.com/macsigen.php
+!:apple	????AWDB
+# db for template www.file-extensions.org/db-file-extension-microsoft-works-data bdb for backup
+!:ext	wdb/db/bdb
+#
+# URL:	https://en.wikipedia.org/wiki/Microsoft_Excel
+>>>80 	ubequad		0x1008020000000000	: Microsoft Excel 5-95 worksheet, addin or template
+!:mime	application/vnd.ms-excel
+# https://www.macdisk.com/macsigen.php
+!:apple	????XLS5
+# worksheet/addin/template/no extension on Macintosh
+!:ext	xls/xla/xlt/
+#
+>>>80 	ubequad		0x2008020000000000	: Microsoft Excel 97-2003
+!:mime	application/vnd.ms-excel
+# https://www.macdisk.com/macsigen.php	XLS5 for Excel 5
+!:apple	????XLS9
+# 3rd directory entry name
+>>>>256 	lestring16	_VBA_PROJECT_CUR	addin
+!:ext	xla/
+# 4th directory entry name
+>>>>384 	lestring16	_VBA_PROJECT_CUR	addin
+!:ext	xla
+#!:ext	xla/
+>>>>256 	default		x			worksheet or template
+!:ext	xls/xlt
+#!:ext	xls/xlt/
+#
+# URL:	http://fileformats.archiveteam.org/wiki/OLE2
+>>>80 	ubequad		0x0b0d020000000000	: Microsoft Outlook 97-2003 item
+#>>>80 	ubequad		0x0b0d020000000000	: Microsoft Outlook 97-2003 Message
+#!:mime	application/vnd.ms-outlook
+!:mime	application/x-ms-msg
+!:ext	msg
+# URL:	https://wiki.fileformat.com/email/oft/
+>>>80 	ubequad		0x46f0060000000000	: Microsoft Outlook 97-2003 item template
+#!:mime	application/vnd.ms-outlook
+!:mime	application/x-ms-oft
+!:ext	oft
+#
+# URL:	http://fileformats.archiveteam.org/wiki/PPT
+>>>80 	ubequad		0x5148040000000000	: Microsoft PowerPoint 4.0 presentation
+!:mime	application/vnd.ms-powerpoint
+# https://www.macdisk.com/macsigen.php
+!:apple	????PPT3
+!:ext	ppt
+# Summary:	"newer" Greenstreet Art drawing
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/GST_ART
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/art-gst-docfile.trid.xml
+# Note:		called like "Greenstreet Art drawing" by TrID
+# Note:		CONTENT stream contains binary part of older versions with phrase GST:ART at offset 16
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe BCARD2.ART`
+>>>80 	ubequad		0x602c020000000000	: Greenstreet Art drawing
+#!:mime	application/x-ole-storage
+!:mime	image/x-greenstreet-art
+!:ext	art
+>>>80 	default		x
+>>>>0 	use		ole2-unknown
+#??
+# URL:	http://www.checkfilename.com/view-details/Microsoft-Works/RespageIndex/0/sTab/2/
+>>88 	ubequad		0xa29a00aa004a1a72	: Microsoft
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Word_Processor
+>>>80 	ubequad		0xc2dbcd28e20ace11	Works 4 document
+!:mime	application/vnd.ms-works
+!:apple	????AWWP
+!:ext	wps
+#
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Database
+>>>80 	ubequad		0xc3dbcd28e20ace11	Works 4 database
+!:mime	application/vnd.ms-works-db
+!:apple	????AWDB
+!:ext	wdb/bdb
+#??
+>>88 	ubequad		0xa40700c04fb932ba	: Microsoft
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Word_Processor
+>>>80 	ubequad		0xb25aa40e0a9ed111	Works 5-6 document
+!:mime	application/vnd.ms-works
+!:apple	????AWWP
+!:ext	wps
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Works
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		probably version 6 and 7
+# organize pictures like JPFG images in streams __cf1 with names like
+# 001.JPG, 002.JPG ... in streams __fname
+>>88 	ubequad		0xa1c800c04f612452	: Microsoft
+>>>80 	ubequad		0xc0c7266eb98cd311	Works portfolio
+# 2nd directory entry name PfOrder, 3rd __LastID and 4th __SizeUsed
+#!:mime	application/x-ole-storage
+# https://www.iana.org/assignments/media-types/application/vnd.ms-works
+!:mime	application/vnd.ms-works
+# https://extension.nirsoft.net/wsb
+# like: wsbsamp.wsb WORKS2003_CD:\MSWorks\Common\Sammlung.wsb
+!:ext	wsb
+#
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Microsoft_Publisher
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pub.trid.xml
+# Note:		called like "Microsoft Publisher document" by TrID
+#		"version" string MSPublisher.2 inside CompObj stream
+>>88 	ubequad		0x00c0000000000046	: Microsoft
+>>>80 	ubequad		0x0012020000000000	Publisher 95 (2.0)
+!:mime	application/vnd.ms-publisher
+!:ext	pub
+>>>80 	ubequad		0x0112020000000000	Publisher 97-2013 (3.0-11.0)
+!:mime	application/vnd.ms-publisher
+!:ext	pub
+#
+# URL:	http://fileformats.archiveteam.org/wiki/PPT
+#??
+>>88 	ubequad		0xa90300aa00510ea3	: Microsoft
+>>>80 	ubequad		0x70ae7bea3bfbcd11	PowerPoint 95 presentation
+!:mime	application/vnd.ms-powerpoint
+# https://www.macdisk.com/macsigen.php
+!:apple	????PPT3
+!:ext	ppt/pot
+#??
+>>88 	ubequad		0x86ea00aa00b929e8	: Microsoft
+>>>80 	ubequad		0x108d81649b4fcf11	PowerPoint 97-2003 presentation or template
+!:mime	application/vnd.ms-powerpoint
+!:apple	????PPT3
+# /autostart/template
+!:ext	ppt/pps/pot
+# From:		Joerg Jenderek
+# URL:		https://www.file-extensions.org/ppa-file-extension
+#		https://en.wikipedia.org/wiki/Microsoft_PowerPoint#cite_note-231
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+>>88 	ubequad		0x871800aa0060263b	: Microsoft
+# only version 8 (97) tested; PowerPoint 4.0 to 11.0 (2004) (Wikipedia); 97 to 2003 (file-extensions.org)
+>>>80 	ubequad		0xf04672810a72cf11	PowerPoint Addin or Wizard
+# second, third and fourth directory entry name like VBA PROJECT PROJECTwm
+# http://extension.nirsoft.net/pwz
+!:mime	application/vnd.ms-powerpoint
+# like: BSHPPT97.PPA "AutoContent Wizard.pwz"
+!:ext	ppa/pwz
+#
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/AWD_(At_Work_Document)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/awd-fax.trid.xml
+# Note:		called "Microsoft At Work Fax document" by TrID
+>>88 	ubequad		0xb29400dd010f2bf9	: Microsoft
+>>>80 	ubequad		0x801cb0023de01a10	At Work fax Document
+#!:mime	application/x-ole-storage
+!:mime	image/x-ms-awd
+!:ext	awd
+#
+# URL:	https://en.wikipedia.org/wiki/Microsoft_Project
+#??
+>>88 	ubequad		0xbe1100c04fb6faf1	: Microsoft
+>>>80 	ubequad		0x3a8fb774c8c8d111	Project
+!:mime	application/vnd.ms-project
+!:ext	mpp
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Office_shared_tools#Binder
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/o/obd.trid.xml
+#		http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		only version 8 tested and called "Office Binder Document" by TrID and
+#		"Microsoft Office Binder File for Windows" version 97-2000 by DROID fmt/240
+>>88 	ubequad		0xb21c00aa004ba90b	: Microsoft
+>>>80 	ubequad		0x0004855964661b10	Office Binder Document, Template or wizard
+# second directory entry name like Binder
+# https://www.file-extensions.org/obd-file-extension
+#!:mime	application/vnd.ms-binder
+!:mime	application/x-msbinder
+# obt for template; obz for Microsoft Office Binder wizard
+!:ext	obd/obt/obz
+#
+# URL:		http://fileformats.archiveteam.org/wiki/WordPerfect
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+#		https://github.com/OneWingedShark/WordPerfect/
+#		blob/master/doc/SDK_Help/FileFormats/WPFF_DocumentStructure.htm
+# From:		Joerg Jenderek
+# Note:		internal version x.2 or 2.2 like in embedded ole6-PerfectOffice_MAIN.wpd
+# 3rd directory entry name PerfectOffice_OBJECT and 2nd PerfectOffice_MAIN,
+# which contains WordPerfect document \xffWPC signature handled by ./wordprocessors
+>>88 	ubequad		0x19370000929679cd	: WordPerfect 7
+>>>80 	ubequad		0xff739851ad2d2002	Document
+!:mime	application/vnd.wordperfect
+#!:apple	????WPC?
+# https://fossies.org/linux/wp2latex/test/ole6.wpd
+!:ext	wpd
+#>>>>0	search/0xc01/s	\xffWPC			\b, WPC SIGNATURE
+# inspect embedded WordPerfect document by ./wordprocessors with 1 space at end
+#>>>>>&0	indirect	x	\b; contains 
+# GRR: the above expression does not work correctly 
+#
+# URL:	http://fileformats.archiveteam.org/wiki/SHW_(Corel)
+#???
+>>88 	ubequad		0x99ae04021c007002	: WordPerfect
+>>>80 	ubequad		0x62fe2e4099191b10	7-X3 presentation
+!:mime	application/x-corelpresentations
+#!:mime	application/x-shw-viewer
+#!:mime	image/x-presentations
+!:ext	shw
+#
+# URL:	http://www.checkfilename.com/view-details/WordPerfect-Office-X3/RespageIndex/0/sTab/2/
+>>>80 	ubequad		0x60fe2e4099191b10	9 Graphic
+#!:mime	application/x-wpg
+#!:mime	image/x-wordperfect-graphics
+!:mime	image/x-wpg
+# https://www.macdisk.com/macsigen.php "WPC2" for Wordperfect 2 *.wpd
+!:apple	????WPC9
+!:ext	wpg
+#
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/CorelCAD
+#		https://en.wikipedia.org/wiki/CorelCAD
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/ccd-corelcad.trid.xml
+# Note:		called "CorelCAD Drawing" by TrID and CorelCAD
+# directory entry names like Contents ViewInfo CustomViewDescriptions LayerInfo
+>>88 	ubequad		0xbe26db67235e2689	: Corel
+>>>80 	ubequad		0x20f414de1cacce11	\bCAD Drawing or Template
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-cad
+# CCT for CorelCAD Template 
+!:ext	ccd/cct
+#
+# URL:	http://fileformats.archiveteam.org/wiki/StarOffice_binary_formats
+>>88 	ubequad		0x996104021c007002	: StarOffice
+>>>80 	ubequad		0x407e5cdc5cb31b10	StarWriter 3.0 document or template
+# https://www.openoffice.org/framework/documentation/mimetypes/mimetypes.html
+!:mime	application/x-starwriter
+!:ext	sdw/vor
+#
+>>>80 	ubequad		0xa03f543fa6b61b10	StarCalc 3.0 spreadsheet or template
+!:mime	application/x-starcalc
+!:ext	sdc/vor
+#
+>>>80 	ubequad		0xe0aa10af6db31b10	StarDraw 3.0 drawing or template
+!:mime	application/x-starimpress
+#!:mime	application/x-stardraw
+# sda ??
+!:ext	sdd/sda/vor
+#??
+>>88 	ubequad		0x89cb008029e4b0b1	: StarOffice
+>>>80 	ubequad		0x41d461633542d011	StarCalc 4.0 spreadsheet or template
+!:mime	application/x-starcalc
+!:ext	sdc/vor
+#
+>>>80 	ubequad		0x61b8a5c6d685d111	StarCalc 5.0 spreadsheet or template
+!:mime	application/vnd.stardivision.cal
+!:ext	sdc/vor
+#
+>>>80 	ubequad		0xc03c2d011642d011	StarImpress 4.0 presentation or template
+!:mime	application/x-starimpress
+!:ext	sdd/vor
+#??
+>>88 	ubequad		0xb12a04021c007002	: StarOffice
+>>>80 	ubequad		0x600459d4fd351c10	StarMath 3.0
+!:mime	application/x-starmath
+!:ext	smf
+#??
+>>88 	ubequad		0x8e2c00001b4cc711	: StarOffice
+>>>80 	ubequad		0xe0999cfb6d2c1c10	StarChart 3.0
+!:mime	application/x-starchart
+!:ext	sds
+#??
+>>88 	ubequad		0xa45e00a0249d57b1	: StarOffice
+>>>80 	ubequad		0xb0e9048b0e42d011	StarWriter 4.0 document or template
+!:mime	application/x-starwriter
+!:ext	sdw/vor
+#??
+>>88 	ubequad		0x89ca008029e4b0b1	: StarOffice
+>>>80 	ubequad		0xe1b7b3022542d011	StarMath 4.0
+!:mime	application/x-starmath
+!:ext	smf
+#
+>>>80 	ubequad		0xe0b7b3022542d011	StarChart 4.0
+!:mime	application/x-starchart
+!:ext	sds
+#??
+>>88 	ubequad		0xa53f00a0249d57b1	: StarOffice
+>>>80 	ubequad		0x70c90a340de3d011	Master 4.0 document
+!:mime	application/x-starwriter-global
+!:ext	sgl
+#??
+>>88 	ubequad		0x89d0008029e4b0b1	: StarOffice
+>>>80 	ubequad		0x40e6b5ffde85d111	StarMath 5.0
+!:mime	application/vnd.stardivision.math
+!:ext	smf
+#
+>>>80 	ubequad		0xa005892ebd85d111	StarDraw 5.0 drawing or template
+!:mime	application/vnd.stardivision.draw
+!:ext	sda/vor
+#
+>>>80 	ubequad		0x21725c56bc85d111	StarImpress 5.0 presentation or template
+!:mime	application/vnd.stardivision.impress
+# sda is used for what?
+!:ext	sdd/vor/sda
+#
+>>>80 	ubequad		0x214388bfdd85d111	StarChart 5.0
+!:mime	application/vnd.stardivision.chart
+!:ext	sds
+# ??
+>>88 	ubequad		0xaab4006097da561a	: StarOffice
+>>>80 	ubequad		0xd1f90cc2ae85d111	StarWriter 5.0 document or template
+!:mime	application/vnd.stardivision.writer
+!:ext	sdw/vor
+#
+>>>80 	ubequad		0xd3f90cc2ae85d111	Master 5.0 document
+!:mime	application/vnd.stardivision.writer-global
+!:ext	sgl
+#??
+# URL:	http://fileformats.archiveteam.org/wiki/FlashPix
+>>88 	ubequad		0x855300aa00a1f95b	: Kodak
+>>>80 	ubequad		0x0067615654c1ce11	FlashPIX Image
+!:mime	image/vnd.fpx
+!:apple	????FPix
+!:ext	fpx
+# URL:	https://en.wikipedia.org/wiki/SoftMaker_Office
+>>88 	ubequad		0x95f600a0cc3cca14	: PlanMaker
+>>>80 	ubequad		0x9174088a6452d411	document or template
+!:mime	application/vnd.softmaker.planmaker
+# pmv for template	https://www.file-extensions.org/pmv-file-extension
+!:ext	pmd/pmv
+# URL:		http://fileformats.archiveteam.org/wiki/MAX_(3ds_Max)
+#		https://en.wikipedia.org/wiki/Autodesk_3ds_Max
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		called "3D Studio Max Scene" by TrID and "3DS Max" by DROID and
+#		"3DSMax thumbnail" by XnView and verfied by `nconvert -info A380.max`
+#		applies only to "newer" versions (about 2008-2020)
+>>88 	ubequad		0x9fed04143144cc1e	: Autodesk
+>>>80 	ubequad		0x7b8cdd1cc081a045	3ds Max
+#!:mime	application/x-ole-storage
+!:mime	model/x-autodesk-max
+# like: https://static.free3d.com/models/dropbox/dropbox/sq/A380.7z/A380.max 
+!:ext	max
+# also chr for character file according to DROID https://www.nationalarchives.gov.uk/PRONOM/fmt/978
+#!:ext	max/chr
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/IPT
+#		https://en.wikipedia.org/wiki/Autodesk_Inventor
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/ipt.trid.xml
+# Note:		called "Autodesk Inventor Part" by TrID
+# second, third, fifth and seventh directory entry name like RSeStorage RSeEmbeddings RefdFiles RSeDb
+>>88 	ubequad		0x93c37e0706000000	: Autodesk
+>>>80 	ubequad		0x90b4294db249d011	Inventor Part
+#!:mime	application/x-ole-storage
+!:mime	model/x-autodesk-ipt
+!:ext	ipt
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Easy_CD_Creator
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cl4.trid.xml
+# Note:		called "Easy CD Creator Layout" by TrID,
+#		"Easy CD Creator 4" by CREATR32.exe and "Easy CD Creator Document" on Windows
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe MY_CD3.cl4`
+#		verified partly by libolecf-utils `olecfinfo -v MY_CD4.cl4`
+#		created by Adaptec Easy CD Creator 4.02b
+#		"older" version 2 contain no clsid
+>>88 	ubequad		0x893f00802964b632	: Easy
+>>>80 	ubequad		0x0293c3a90a77d111	CD Creator 4 Layout
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-cl4
+!:ext	cl4
+# maybe also suffix cl3
+#!:ext	cl3/cl4
+# remaining non null clsid
+>>88 	default		x
+>>>0 	use		ole2-unknown
+# display information about directory for not detected CDF files
+0	name			ole2-unknown
+>80 	ubequad		x			: UNKNOWN
+# https://reposcope.com/mimetype/application/x-ole-storage
+!:mime	application/x-ole-storage
+# according to file version 5.41 with -e soft option
+#!:mime	application/CDFV2
+#!:ext	???
+>80 	ubequad		!0			\b, clsid %#16.16llx
+>>88 ubequad		x			\b%16.16llx
+# converted hexadecimal format to standard GUUID notation
+>>80	guid		x			{%s}
+# second directory entry name like VisioDocument Control000
+>128	lestring16	x with names %.20s
+# third directory entry like WordDocument Preview.dib
+>256	lestring16	x %.20s
+# forth like \005SummaryInformation
+>384	lestring16	x %.25s
+# 5th
+>512	lestring16	x %.10s
+# 6th
+>640	lestring16	x %.10s
+# 7th
+>768	lestring16	x %.10s

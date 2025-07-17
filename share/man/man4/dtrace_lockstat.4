@@ -1,0 +1,292 @@
+.\" Copyright (c) 2017 George V. Neville-Neil <gnn@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 20, 2019
+.Dt DTRACE_LOCKSTAT 4
+.Os
+.Sh NAME
+.Nm dtrace_lockstat
+.Nd a DTrace provider for tracing CPU scheduling events
+.Sh SYNOPSIS
+.Fn lockstat:::adaptive-acquire "struct mtx *"
+.Fn lockstat:::adaptive-release "struct mtx *"
+.Fn lockstat:::adaptive-spin "struct mtx *" "uint64_t"
+.Fn lockstat:::adaptive-block "struct mtx *" "uint64_t"
+.Fn lockstat:::spin-acquire "struct mtx *"
+.Fn lockstat:::spin-release "struct mtx *"
+.Fn lockstat:::spin-spin "struct mtx *" "uint64_t"
+.Fn lockstat:::rw-acquire "struct rwlock *" "int"
+.Fn lockstat:::rw-release "struct rwlock *" "int"
+.Fn lockstat:::rw-block "struct rwlock *" "uint64_t" "int" "int" "int"
+.Fn lockstat:::rw-spin "struct rwlock *" "uint64_t"
+.Fn lockstat:::rw-upgrade "struct rwlock *"
+.Fn lockstat:::rw-downgrade "struct rwlock *"
+.Fn lockstat:::sx-acquire "struct sx *" "int"
+.Fn lockstat:::sx-release "struct sx *" "int"
+.Fn lockstat:::sx-block "struct sx *" "uint64_t" "int" "int" "int"
+.Fn lockstat:::sx-spin "struct sx *" "uint64_t"
+.Fn lockstat:::sx-upgrade "struct sx *"
+.Fn lockstat:::sx-downgrade "struct sx *"
+.Fn lockstat:::lockmgr-acquire "struct lock *" "int"
+.Fn lockstat:::lockmgr-release "struct lock *" "int"
+.Fn lockstat:::lockmgr-disown "struct lock *" "int"
+.Fn lockstat:::lockmgr-block "struct lock *" "uint64_t" "int" "int" "int"
+.Fn lockstat:::lockmgr-upgrade "struct lock *"
+.Fn lockstat:::lockmgr-downgrade "struct lock *"
+.Fn lockstat:::thread-spin "struct mtx *" "uint64"
+.Sh DESCRIPTION
+The DTrace
+.Nm lockstat
+provider allows the tracing of events related to locking on
+.Fx .
+.Pp
+The
+.Nm
+provider contains DTrace probes for inspecting kernel lock
+state transitions.
+Probes exist for the
+.Xr lockmgr 9 ,
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+and
+.Xr sx 9
+lock types.
+The
+.Xr lockstat 1
+utility can be used to collect and display data collected from the
+.Nm
+provider.
+Each type of lock has
+.Fn acquire
+and
+.Fn release
+probes which expose the lock structure being operated upon,
+as well as probes which fire when a thread contends with other threads
+for ownership of a lock.
+.Pp
+The
+.Fn lockstat:::adaptive-acquire
+and
+.Fn lockstat:::adaptive-release
+probes fire when an
+.Dv MTX_DEF
+.Xr mutex 9
+is acquired and released, respectively.
+The only argument is a pointer to the lock structure which describes
+the lock being acquired or released.
+.Pp
+The
+.Fn lockstat:::adaptive-spin
+probe fires when a thread spins while waiting for a
+.Dv MTX_DEF
+.Xr mutex 9
+to be released by another thread.
+The first argument is a pointer to the lock structure that describes
+the lock and the second argument is the amount of time,
+in nanoseconds, that the mutex spent spinning.
+The
+.Fn lockstat:::adaptive-block
+probe fires when a thread takes itself off the CPU while trying to acquire an
+.Dv MTX_DEF
+.Xr mutex 9
+that is owned by another thread.
+The first argument is a pointer to the lock structure that describes
+the lock and the second argument is the length of time,
+in nanoseconds, that the waiting thread was blocked.
+The
+.Fn lockstat:::adaptive-block
+and
+.Fn lockstat:::adaptive-spin
+probes fire only after the lock has been successfully acquired,
+and in particular, after the
+.Fn lockstat:::adaptive-acquire
+probe fires.
+.Pp
+The
+.Fn lockstat:::spin-acquire
+and
+.Fn lockstat:::spin-release
+probes fire when a
+.Dv MTX_SPIN
+.Xr mutex 9
+is acquired or released, respectively.
+The only argument is a pointer to the lock structure which describes
+the lock being acquired or released.
+.Pp
+The
+.Fn lockstat:::spin-spin
+probe fires when a thread spins while waiting for a
+.Dv MTX_SPIN
+.Xr mutex 9
+to be released by another thread.
+The first argument is a pointer to the lock structure that describes
+the lock and the second argument is the length of the time
+spent spinning, in nanoseconds.
+The
+.Fn lockstat:::spin-spin
+probe fires only after the lock has been successfully acquired,
+and in particular, after the
+.Fn lockstat:::spin-acquire
+probe fires.
+.Pp
+The
+.Fn lockstat:::rw-acquire
+and
+.Fn lockstat:::rw-release
+probes fire when a
+.Xr rwlock 9
+is acquired or released, respectively.
+The first argument is a pointer to the structure which describes
+the lock being acquired.
+The second argument is
+.Dv 0
+if the lock is being acquired or released as a writer, and
+.Dv 1
+if it is being acquired or released as a reader.
+The
+.Fn lockstat:::sx-acquire
+and
+.Fn lockstat:::sx-release ,
+and
+.Fn lockstat:::lockmgr-acquire
+and
+.Fn lockstat:::lockmgr-release
+probes fire upon the corresponding events for
+.Xr sx 9
+and
+.Xr lockmgr 9
+locks, respectively.
+The
+.Fn lockstat:::lockmgr-disown
+probe fires when a
+.Xr lockmgr 9
+exclusive lock is disowned.
+In this state, the lock remains exclusively held, but may be
+released by a different thread.
+The
+.Fn lockstat:::lockmgr-release
+probe does not fire when releasing a disowned lock.
+The first argument is a pointer to the structure which describes
+the lock being disowned.
+The second argument is
+.Dv 0 ,
+for compatibility with
+.Fn lockstat:::lockmgr-release .
+.Pp
+The
+.Fn lockstat:::rw-block ,
+.Fn lockstat:::sx-block ,
+and
+.Fn lockstat:::lockmgr-block
+probes fire when a thread removes itself from the CPU while
+waiting to acquire a lock of the corresponding type.
+The
+.Fn lockstat:::rw-spin
+and
+.Fn lockstat:::sx-spin
+probes fire when a thread spins while waiting to acquire a lock
+of the corresponding type.
+All probes take the same set of arguments.
+The first argument is a pointer to the lock structure that describes
+the lock.
+The second argument is the length of time, in nanoseconds,
+that the waiting thread was off the CPU or spinning for the lock.
+The third argument is
+.Dv 0
+if the thread is attempting to acquire the lock as a writer, and
+.Dv 1
+if the thread is attempting to acquire the lock as a reader.
+The fourth argument is
+.Dv 0
+if the thread is waiting for a reader to release the lock, and
+.Dv 1
+if the thread is waiting for a writer to release the lock.
+The fifth argument is the number of readers that held the lock when
+the thread first attempted to acquire the lock.
+This argument will be
+.Dv 0
+if the fourth argument is
+.Dv 1 .
+.Pp
+The
+.Fn lockstat:::lockmgr-upgrade ,
+.Fn lockstat:::rw-upgrade ,
+and
+.Fn lockstat:::sx-upgrade
+probes fire when a thread successfully upgrades a held
+.Xr lockmgr 9 ,
+.Xr rwlock 9 ,
+or
+.Xr sx 9
+shared/reader lock to an exclusive/writer lock.
+The only argument is a pointer to the structure which describes
+the lock being acquired.
+The
+.Fn lockstat:::lockmgr-downgrade ,
+.Fn lockstat:::rw-downgrade ,
+and
+.Fn lockstat:::sx-downgrade
+probes fire when a thread downgrades a held
+.Xr lockmgr 9 ,
+.Xr rwlock 9 ,
+or
+.Xr sx 9
+exclusive/writer lock to a shared/reader lock.
+.Pp
+The
+.Fn lockstat:::thread-spin
+probe fires when a thread spins on a thread lock, which is a specialized
+.Dv MTX_SPIN
+.Xr mutex 9 .
+The first argument is a pointer to the structure that describes
+the lock and the second argument is the length of time,
+in nanoseconds, that the thread was spinning.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr lockstat 1 ,
+.Xr locking 9 ,
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr SDT 9 ,
+.Xr sx 9
+.Sh HISTORY
+The
+.Nm
+provider first appeared in Solaris.
+The
+.Fx
+implementation of the
+.Nm
+provider first appeared in
+.Fx 9 .
+.Sh AUTHORS
+This manual page was written by
+.An George V. Neville-Neil Aq Mt gnn@FreeBSD.org
+and
+.An -nosplit
+.An Mark Johnston Aq Mt markj@FreeBSD.org .
+.Sh BUGS
+Probes for
+.Xr rmlock 9
+locks have not yet been added.

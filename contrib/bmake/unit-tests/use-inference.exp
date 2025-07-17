@@ -1,0 +1,7 @@
+Building use-inference.from from nothing
+make: don't know how to make use-inference.to (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped making "all" in unit-tests
+exit status 1

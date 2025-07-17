@@ -1,0 +1,8 @@
+set -e
+f() {
+	while true; do
+		false
+		break
+	done
+}
+f || true

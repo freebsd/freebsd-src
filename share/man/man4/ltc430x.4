@@ -1,0 +1,143 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 2, 2020
+.Dt LTC430X 4
+.Os
+.Sh NAME
+.Nm ltc430x
+.Nd driver for LTC4305 and LTC4306 I2C mux chips
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ltc430x"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ltc430x_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the LTC4305 and LTC4306 I2C bus multiplexer (mux) chips.
+It automatically connects an upstream I2C bus to one of several downstream
+buses as needed when slave devices on the downstream buses initiate I/O.
+More information on the automatic switching behavior is available in
+.Xr iicmux 4 .
+.Sh FDT CONFIGURATION
+On an
+.Xr fdt 4
+based system, an
+.Nm
+device node is defined as a child node of its upstream i2c bus.
+The children of the
+.Nm
+node are additional i2c buses, which will have their own i2c slave
+devices described in their child nodes.
+.Pp
+The
+.Nm
+driver conforms to the standard
+.Bk -words
+.Li i2c/i2c-mux-ltc4306.txt
+.Ek
+bindings document, except that the following optional properties
+are not currently supported and will be ignored if present:
+.Bl -bullet -compact -inset -offset indent
+.It
+enable-gpios
+.It
+gpio-controller
+.It
+#gpio-cells
+.It
+ltc,downstream-accelerators-enable
+.It
+ltc,upstream-accelerators-enable
+.El
+.Pp
+In addition, the following additional property is supported:
+.Bl -tag -offset indent -width indent
+.It Va freebsd,ctlreg2
+A value to store into the chip's control register 2 during initialization.
+Consult the chip datasheet for the meaning of the various bits in
+the register.
+.El
+.Sh HINTS CONFIGURATION
+On a
+.Xr device.hints 5
+based system, the following hints are required:
+.Bl -tag -offset indent -width indent
+.It Va hint.ltc430x.<unit>.at
+The upstream
+.Xr iicbus 4
+the
+.Nm
+instance is attached to.
+.It Va hint.ltc430x.<unit>.addr
+The slave address of the
+.Nm
+instance on the upstream bus.
+.It Va hint.ltc430x.<unit>.chip_type
+The type of chip the driver is controlling.
+Valid values are
+.Dq ltc4305
+and
+.Dq ltc4306 .
+.El
+.Pp
+The following hints are optional:
+.Bl -tag -offset indent -width indent
+.It Va hint.ltc430x.<unit>.ctlreg2
+A value to store into the chip's control register 2 during initialization.
+Consult the chip datasheet for the meaning of the various bits in
+the register.
+This hint is optional; when missing, the driver does not update control
+register 2.
+.It Va hint.ltc430x.<unit>.idle_disconnect
+Whether to disconnect all downstream busses from the upstream bus when idle.
+If set to zero, the most recently used downstream bus is left connected to
+the upstream bus after IO completes.
+Any non-zero value causes all downstream busses to be disconnected when idle.
+This hint is optional; when missing, the driver behaves as if it were zero.
+.El
+.Pp
+When configured via hints, the driver automatically adds an iicbus
+instance for every downstream bus supported by the chip.
+There is currently no way to indicate used versus unused downstream channels.
+.Sh SEE ALSO
+.Xr iicbus 4 ,
+.Xr iicmux 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0 .

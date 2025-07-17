@@ -1,0 +1,49 @@
+language: cpp
+sudo: required
+
+before_install:
+    - ./admin/travis-install-deps.sh
+
+matrix:
+    include:
+        - os: linux
+          dist: xenial
+          compiler: clang
+          env: ARCH=amd64 DO=distcheck AS_ROOT=no
+        - os: linux
+          dist: xenial
+          compiler: gcc
+          env: ARCH=amd64 DO=distcheck AS_ROOT=no
+        - os: linux
+          dist: xenial
+          compiler: clang
+          env: ARCH=amd64 DO=apidocs
+        - os: linux
+          dist: xenial
+          compiler: clang
+          env: ARCH=amd64 DO=style
+        - os: linux
+          dist: xenial
+          compiler: clang
+          env: ARCH=amd64 DO=distcheck AS_ROOT=yes UNPRIVILEGED_USER=no
+        - os: linux
+          dist: xenial
+          compiler: clang
+          env: ARCH=amd64 DO=distcheck AS_ROOT=yes UNPRIVILEGED_USER=yes
+        # TODO(ngie): reenable i386; the libraries were not available in the
+        #             Ubuntu Xenial x86_64 docker image.
+        #- os: linux
+        #  dist: xenial
+        #  compiler: clang
+        #  env: ARCH=i386 DO=distcheck AS_ROOT=no
+        #- os: linux
+        #  dist: xenial
+        #  compiler: gcc
+        #  env: ARCH=i386 DO=distcheck AS_ROOT=no
+
+script:
+    - ./admin/travis-build.sh
+
+notifications:
+    email:
+        - kyua-log@googlegroups.com

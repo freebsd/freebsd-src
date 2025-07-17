@@ -1,0 +1,4 @@
+unifdef: can't open mifmissing.c: No such file or directory
+diff: mifmissing.c~: No such file or directory
+diff: mifmissing.c: No such file or directory
+diff: mif2.c~: No such file or directory

@@ -1,0 +1,58 @@
+
+#------------------------------------------------------------------------------
+# $File: efi,v 1.7 2024/02/18 14:15:22 christos Exp $
+# efi:  file(1) magic for Universal EFI binaries
+
+0	lelong	0x0ef1fab9
+>4	lelong	1		Universal EFI binary with 1 architecture
+>>&0	lelong	7		\b, i386
+>>&0	lelong	0x01000007	\b, x86_64
+>4	lelong	2		Universal EFI binary with 2 architectures
+>>&0	lelong	7		\b, i386
+>>&0	lelong	0x01000007	\b, x86_64
+>>&20	lelong	7		\b, i386
+>>&20	lelong	0x01000007	\b, x86_64
+>4	lelong	>2		Universal EFI binary with %d architectures
+
+# EFI Signature List
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://git.kernel.org/pub/scm/linux/kernel/git/jejb/efitools.git
+0	name	efi_sig_list
+>0	guid	D719B2CB-3D3A-4596-A3BC-DAD00E67656F	EFI Signature List, SIG DB
+>0	guid	4AAFD29D-68DF-49EE-8AA9-347D375665A7	EFI Signature List, PKCS7
+>0	guid	3C5766E8-269C-4E34-AA14-ED776E85B3B6	EFI Signature List, RSA2048
+>0	guid	E2B36190-879B-4A3D-AD8D-F2E7BBA32784	EFI Signature List, RSA2048 SHA256
+>0	guid	67F8444F-8743-48F1-A328-1EAAB8736080	EFI Signature List, RSA2048 SHA1
+>0	guid	A7717414-C616-4977-9420-844712A735BF	EFI Signature List, RSA2048 SHA256 type
+>0	guid	826CA512-CF10-4AC9-B187-BE01496631BD	EFI Signature List, SHA1
+>0	guid	0B6E5233-A65C-44C9-9407-D9AB83BFC8BD	EFI Signature List, SHA224
+>0	guid	C1C41626-504C-4092-ACA9-41F936934328	EFI Signature List, SHA256
+>0	guid	FF3E5307-9FD0-48C9-85F1-8AD56C701E01	EFI Signature List, SHA384
+>0	guid	093E0FAE-A6C4-4F50-9F1B-D41E2B89C19A	EFI Signature List, SHA512
+>0	guid	A5C059A1-94E4-4AA7-87B5-AB155C2BF072	EFI Signature List, X509
+>0	guid	3BD2A492-96C0-4079-B420-FCF98EF103ED	EFI Signature List, X509 SHA256
+>0	guid	7076876E-80C2-4EE6-AAD2-28B349A6865B	EFI Signature List, X509 SHA384
+>0	guid	446DBF63-2502-4CDA-BCFA-2465D2B0FE9D	EFI Signature List, X509 SHA512
+>0	guid	605DAB50-E046-4300-ABB6-3DD810DD8B23	EFI Signature List, MOK_OWNER
+>0	guid	A46423E3-4617-49F1-B9FF-D1BFA9115839	EFI Signature List, SECURITY PROTOCOL
+>0	guid	94AB2F58-1438-4EF1-9152-18941A3A0E68	EFI Signature List, SECURITY2 PROTOCOL
+>0	guid	AAF32C78-947B-439A-A180-2E144EC37792	EFI Signature List, SECURE VARIABLE
+# Hypothesis: EFI Signature List are smaller than 16MiB
+19	byte	=0
+>23	byte	=0
+>>27	byte	=0
+>>>0	use	efi_sig_list
+>>>>16	ulelong	x					\b, total size: %d bytes
+# Variant: EFI Signature List as an EFI variable
+# See https://docs.kernel.org/filesystems/efivarfs.html
+23	byte	=0
+>27	byte	=0
+>>31	byte	=0
+>>>4	use	efi_sig_list
+>>>>0	ulelong	x					\b, EFI variable %d
+>>>>20	ulelong	x					\b, total size: %d bytes
+
+# EFI byte code COFF object file
+0	leshort		0x0ebc
+>16	leshort		0
+>>0	use		display-coff

@@ -1,0 +1,143 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+#
+
+# common files stuff between i386 and amd64
+include 	"conf/files.x86"
+
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
+cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+crypto/aesni/aeskeys_i386.S	optional aesni
+crypto/des/arch/i386/des_enc.S	optional netsmb
+crypto/openssl/i386/aesni-x86.S	optional ossl
+crypto/openssl/i386/chacha-x86.S	optional ossl
+crypto/openssl/i386/poly1305-x86.S	optional ossl
+crypto/openssl/i386/sha1-586.S	optional ossl
+crypto/openssl/i386/sha256-586.S	optional ossl
+crypto/openssl/i386/sha512-586.S	optional ossl
+dev/agp/agp_ali.c		optional agp
+dev/agp/agp_amd.c		optional agp
+dev/agp/agp_ati.c		optional agp
+dev/agp/agp_intel.c		optional agp
+dev/agp/agp_nvidia.c		optional agp
+dev/agp/agp_sis.c		optional agp
+dev/glxiic/glxiic.c		optional glxiic
+dev/glxsb/glxsb.c		optional glxsb
+dev/glxsb/glxsb_hash.c		optional glxsb
+dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
+dev/le/if_le_isa.c		optional le isa
+dev/ofw/ofw_pcib.c		optional fdt pci
+dev/pcf/pcf_isa.c		optional pcf
+dev/sbni/if_sbni.c		optional sbni
+dev/sbni/if_sbni_isa.c		optional sbni isa
+dev/sbni/if_sbni_pci.c		optional sbni pci
+i386/acpica/acpi_machdep.c	optional acpi
+i386/acpica/acpi_wakeup.c	optional acpi
+acpi_wakecode.o			optional acpi				\
+	dependency	"$S/i386/acpica/acpi_wakecode.S assym.inc"	\
+	compile-with	"${NORMAL_S}"					\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakecode.o"
+acpi_wakecode.bin		optional acpi				\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	"${OBJCOPY} -S -O binary acpi_wakecode.o ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.bin"
+acpi_wakecode.h			optional acpi				\
+	dependency	"acpi_wakecode.bin"				\
+	compile-with	"file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.h"
+acpi_wakedata.h			optional acpi				\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	'${NM} -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakedata.h"
+#
+i386/bios/smapi.c		optional smapi
+i386/bios/smapi_bios.S		optional smapi
+#i386/i386/apic_vector.S		optional apic
+i386/i386/bios.c		standard
+i386/i386/bioscall.S		standard
+i386/i386/bpf_jit_machdep.c	optional bpf_jitter
+i386/i386/copyout.c		standard
+i386/i386/db_disasm.c		optional ddb
+i386/i386/db_interface.c	optional ddb
+i386/i386/db_trace.c		optional ddb
+i386/i386/exec_machdep.c	standard
+i386/i386/elan-mmcr.c		optional cpu_elan | cpu_soekris
+i386/i386/elf_machdep.c		standard
+i386/i386/exception.S		standard
+i386/i386/gdb_machdep.c		optional gdb
+i386/i386/geode.c		optional cpu_geode
+i386/i386/in_cksum_machdep.c	optional inet | inet6
+i386/i386/initcpu.c		standard
+i386/i386/io.c			optional io
+i386/i386/k6_mem.c		optional mem
+i386/i386/locore.S		standard	no-obj
+i386/i386/longrun.c		optional cpu_enable_longrun
+i386/i386/machdep.c		standard
+i386/i386/mem.c			optional mem
+i386/i386/minidump_machdep.c	standard
+i386/i386/minidump_machdep_pae.c	standard
+i386/i386/minidump_machdep_nopae.c	standard
+i386/i386/mp_clock.c		optional smp
+i386/i386/mp_machdep.c		optional smp
+i386/i386/mpboot.S		optional smp
+i386/i386/npx.c			standard
+i386/i386/perfmon.c		optional perfmon
+i386/i386/pmap_base.c		standard
+i386/i386/pmap_nopae.c		standard
+i386/i386/pmap_pae.c		standard
+i386/i386/ptrace_machdep.c	standard
+i386/i386/sigtramp.S		standard
+i386/i386/support.S		standard
+i386/i386/swtch.S		standard
+i386/i386/sys_machdep.c		standard
+i386/i386/trap.c		standard
+i386/i386/uio_machdep.c		standard
+i386/i386/vm86.c		standard
+i386/i386/vm_machdep.c		standard
+i386/pci/pci_cfgreg.c		optional pci
+i386/pci/pci_pir.c		optional pci
+kern/subr_sfbuf.c		standard
+libkern/divdi3.c		standard
+libkern/divmoddi4.c		standard
+libkern/memcmp.c		standard
+libkern/memset.c		standard
+libkern/moddi3.c		standard
+libkern/qdivrem.c		standard
+libkern/strlen.c		standard
+libkern/ucmpdi2.c		standard
+libkern/udivdi3.c		standard
+libkern/udivmoddi4.c		standard
+libkern/umoddi3.c		standard
+#
+# x86 real mode BIOS support, required by dpms/pci/vesa
+#
+compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
+# Common files where we currently configure the system differently, but perhaps shouldn't
+# config(8) doesn't have a way to force standard options, so we've been inconsistent
+# about marking non-optional things 'standard'.
+x86/acpica/madt.c		optional acpi apic
+x86/cpufreq/smist.c		optional cpufreq
+x86/isa/atpic.c			optional atpic
+x86/isa/elcr.c			optional atpic | apic
+x86/isa/isa.c			optional isa
+x86/isa/isa_dma.c		optional isa
+x86/x86/io_apic.c		optional apic
+x86/x86/local_apic.c		optional apic
+x86/x86/mptable.c		optional apic
+x86/x86/mptable_pci.c		optional apic pci
+x86/x86/msi.c			optional apic pci
+# Clock calibration subroutine; uses floating-point arithmetic
+subr_clockcalib.o		standard				\
+	dependency	"$S/kern/subr_clockcalib.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -m80387 ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"subr_clockcalib.o"

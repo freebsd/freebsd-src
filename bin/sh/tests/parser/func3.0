@@ -1,0 +1,5 @@
+
+name=/var/empty/nosuch
+f() { true; } <$name
+name=/dev/null
+f

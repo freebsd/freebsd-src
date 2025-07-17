@@ -1,0 +1,45 @@
+make: varmod-indirect.mk:19: Unknown modifier ":${"
+	while evaluating variable "value" with value "value"
+make: varmod-indirect.mk:52: Unknown modifier ":${"
+	while evaluating variable "value" with value "value"
+make: varmod-indirect.mk:140: before
+make: varmod-indirect.mk:140: after
+make: varmod-indirect.mk:148: before
+make: varmod-indirect.mk:148: after
+make: varmod-indirect.mk:156: before
+make: varmod-indirect.mk:156: after
+make: varmod-indirect.mk:161: Unknown modifier ":Z"
+	while evaluating indirect modifiers "Z"
+	while evaluating variable "UNDEF" with value ""
+Parsing varmod-indirect.mk:171: _:=	before ${UNDEF} after
+Global: _ = # (empty)
+Var_Parse: ${UNDEF} after (eval-keep-dollar-and-undefined)
+Global: _ = before ${UNDEF} after
+Parsing varmod-indirect.mk:174: _:=	before ${UNDEF:${:US,a,a,}} after
+Var_Parse: ${UNDEF:${:US,a,a,}} after (eval-keep-dollar-and-undefined)
+Indirect modifier "S,a,a," from "${:US,a,a,}"
+Evaluating modifier ${UNDEF:S...} on value "" (eval-keep-dollar-and-undefined, undefined)
+Modifier part: "a"
+Modifier part: "a"
+ModifyWords: split "" into 1 word
+Result of ${UNDEF:S,a,a,} is "" (eval-keep-dollar-and-undefined, undefined)
+Global: _ = before ${UNDEF:S,a,a,} after
+Parsing varmod-indirect.mk:184: _:=	before ${UNDEF:${:U}} after
+Var_Parse: ${UNDEF:${:U}} after (eval-keep-dollar-and-undefined)
+Indirect modifier "" from "${:U}"
+Global: _ = before ${UNDEF:} after
+Parsing varmod-indirect.mk:190: _:=	before ${UNDEF:${:UZ}} after
+Var_Parse: ${UNDEF:${:UZ}} after (eval-keep-dollar-and-undefined)
+Indirect modifier "Z" from "${:UZ}"
+Evaluating modifier ${UNDEF:Z} on value "" (eval-keep-dollar-and-undefined, undefined)
+make: varmod-indirect.mk:190: Unknown modifier ":Z"
+	while evaluating indirect modifiers "Z"
+	while evaluating variable "UNDEF" with value ""
+Global: _ = before ${UNDEF:Z} after
+Parsing varmod-indirect.mk:192: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Global: .MAKEFLAGS =  -r -k -d 0 -d pv -d
+Global: .MAKEFLAGS =  -r -k -d 0 -d pv -d 0
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

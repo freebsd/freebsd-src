@@ -1,0 +1,31 @@
+make: var-eval-short.mk:45: In the :@ modifier, the variable name "${FAIL}" must not contain a dollar
+	while parsing "${:Uword:@${FAIL}@expr@}"
+Parsing var-eval-short.mk:158: .if 0 && ${0:?${FAIL}then:${FAIL}else}
+CondParser_Eval: 0 && ${0:?${FAIL}then:${FAIL}else}
+Var_Parse: ${0:?${FAIL}then:${FAIL}else} (parse)
+Parsing modifier ${0:?...}
+Var_Parse: ${FAIL}then:${FAIL}else} (parse)
+Modifier part: "${FAIL}then"
+Var_Parse: ${FAIL}else} (parse)
+Modifier part: "${FAIL}else"
+Result of ${0:?${FAIL}then:${FAIL}else} is "" (parse, defined)
+Parsing var-eval-short.mk:166: DEFINED=	defined
+Global: DEFINED = defined
+Parsing var-eval-short.mk:167: .if 0 && ${DEFINED:L:?${FAIL}then:${FAIL}else}
+CondParser_Eval: 0 && ${DEFINED:L:?${FAIL}then:${FAIL}else}
+Var_Parse: ${DEFINED:L:?${FAIL}then:${FAIL}else} (parse)
+Parsing modifier ${DEFINED:L}
+Result of ${DEFINED:L} is "defined" (parse, regular)
+Parsing modifier ${DEFINED:?...}
+Var_Parse: ${FAIL}then:${FAIL}else} (parse)
+Modifier part: "${FAIL}then"
+Var_Parse: ${FAIL}else} (parse)
+Modifier part: "${FAIL}else"
+Result of ${DEFINED:?${FAIL}then:${FAIL}else} is "defined" (parse, regular)
+Parsing var-eval-short.mk:169: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+Global: .MAKEFLAGS =  -r -k -d cpv -d
+Global: .MAKEFLAGS =  -r -k -d cpv -d 0
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

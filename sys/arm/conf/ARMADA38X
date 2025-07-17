@@ -1,0 +1,109 @@
+#
+# Kernel configuration for Marvell Armada38x
+#
+#
+
+include 	"../mv/armada38x/std.armada38x"
+include 	"std.armv7"
+
+ident 	ARMADA38X
+
+options 	SOC_MV_ARMADA38X
+
+makeoptions 	MODULES_EXTRA="dtb/mv"
+
+#options 	MD_ROOT
+#makeoptions 	MFS_IMAGE=/path/to/miniroot
+#options 	ROOTDEVNAME=\"ufs:md0\"
+options 	ROOTDEVNAME=\"/dev/da0s1a\"
+
+options 	SCHED_ULE		# ULE scheduler
+options 	SMP
+
+options 	VM_KMEM_SIZE_MAX=0x9CCD000
+
+# pseudo devices
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
+# Pseudo devices
+device		pty
+device		loop
+device		md
+
+# Serial ports
+device		uart
+device		uart_snps
+
+# Network
+device		ether
+device		vlan
+device		mii
+device		bpf
+device		mdio
+device		etherswitch
+device		e6000sw
+device		neta
+
+# PCI
+device		pci
+
+# Interrupt controllers
+device		gic
+
+# Timers
+device		mpcore_timer
+
+# USB
+device		usb
+device		ehci
+device		xhci
+device		umass
+device		scbus
+device		pass
+device		da
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
+
+# SATA
+device		ahci
+
+# I2C
+device		iic
+device		iicbus
+device		twsi
+
+# SPI
+device		spibus
+device		spigen
+device		mv_spi
+
+# Wireless NIC cards
+device		wlan		# 802.11 support
+device		ath		# Atheros CardBus/PCI NICs
+device		ath_hal
+device		ath_rate_sample
+
+# CESA
+device		cesa
+device		crypto
+device		cryptodev
+
+# L2 Cache
+device		pl310
+
+options 	PLATFORM
+
+# FDT
+options 	FDT
+
+# GPIO
+device gpio
+device gpioled

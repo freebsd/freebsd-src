@@ -1,0 +1,100 @@
+# Copyright 1994 by the Massachusetts Institute of Technology.
+# All Rights Reserved.
+# 
+# Export of this software from the United States of America may
+#   require a specific license from the United States Government.
+#   It is the responsibility of any person or organization contemplating
+#   export to obtain such a license before exporting.
+# 
+# WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+# distribute this software and its documentation for any purpose and
+# without fee is hereby granted, provided that the above copyright
+# notice appear in all copies and that both that copyright notice and
+# this permission notice appear in supporting documentation, and that
+# the name of M.I.T. not be used in advertising or publicity pertaining
+# to distribution of the software without specific, written prior
+# permission.  Furthermore if you modify this software you must label
+# your software as modified software and not distribute it in such a
+# fashion that it might be confused with the original M.I.T. software.
+# M.I.T. makes no representations about the suitability of
+# this software for any purpose.  It is provided "as is" without express
+# or implied warranty.
+# 
+# 
+# Command table for kadmin CLI for OVSecure
+#
+
+command_table kadmin_cmds;
+
+request kadmin_addprinc, "Add principal",
+	add_principal, addprinc, ank;
+
+request kadmin_delprinc, "Delete principal",
+	delete_principal, delprinc;
+
+request kadmin_modprinc, "Modify principal",
+	modify_principal, modprinc;
+
+request kadmin_renameprinc, "Rename principal",
+	rename_principal, renprinc;
+
+request kadmin_cpw, "Change password",
+	change_password, cpw;
+
+request kadmin_getprinc, "Get principal",
+	get_principal, getprinc;
+
+request kadmin_getprincs, "List principals",
+	list_principals, listprincs, get_principals, getprincs;
+
+request kadmin_addpol, "Add policy",
+	add_policy, addpol;
+
+request kadmin_modpol, "Modify policy",
+	modify_policy, modpol;
+
+request kadmin_delpol, "Delete policy",
+	delete_policy, delpol;
+
+request kadmin_getpol, "Get policy",
+	get_policy, getpol;
+
+request kadmin_getpols, "List policies",
+	list_policies, listpols, get_policies, getpols;
+
+request kadmin_getprivs, "Get privileges",
+	get_privs, getprivs;
+
+request kadmin_keytab_add, "Add entry(s) to a keytab",
+	ktadd, xst;
+
+request kadmin_keytab_remove, "Remove entry(s) from a keytab",
+	ktremove, ktrem;
+
+request kadmin_lock, "Lock database exclusively (use with extreme caution!)",
+	lock;
+
+request kadmin_unlock, "Release exclusive database lock",
+	unlock;
+
+request kadmin_purgekeys, "Purge previously retained old keys from a principal",
+	purgekeys;
+
+request kadmin_getstrings, "Show string attributes on a principal",
+	get_strings, getstrs;
+
+request kadmin_setstring, "Set a string attribute on a principal",
+	set_string, setstr;
+
+request kadmin_delstring, "Delete a string attribute on a principal",
+	del_string, delstr;
+
+# list_requests is generic -- unrelated to Kerberos
+request	ss_list_requests, "List available requests.",
+	list_requests, lr, "?";
+
+request	ss_quit, "Exit program.",
+	quit, exit, q;
+
+end;
+

@@ -1,0 +1,102 @@
+#!/usr/bin/env -S porch -f
+--
+-- Copyright (c) 2024 Kyle Evans <kevans@FreeBSD.org>
+--
+-- SPDX-License-Identifier: BSD-2-Clause
+--
+
+timeout(3)
+
+spawn("cat")
+
+write "Complete\r"
+match "Complete\r"
+
+write "Basic\rIncomplete"
+match "Basic\r"
+
+-- We shouldn't see any of the "Incomplete" line
+fail(function()
+end)
+
+match "Incomp" {
+	callback = function()
+		exit(1)
+	end
+}
+
+fail(nil)
+
+-- Pushing a ^D along should force a flush of the tty, cat(1) will write the
+-- result without a trailing newline.
+write " line^D"
+match "Incomplete line$"
+
+-- Erase!
+write "Dog^H^D"
+match "Do$"
+
+-- More erase!
+write "Cat Dog^W^D"
+match "Cat $"
+
+write "^D"
+eof()
+
+local function fionread_test(str, expected)
+	spawn("fionread")
+
+	write(str)
+	match(expected)
+end
+
+-- Incomplete line
+fionread_test("Hello", "0")
+-- VEOF does not count
+fionread_test("Hello^D", "5")
+-- VEOF still doesn't count, even if the next line is an extra VEOF later
+fionread_test("Hello^D^D", "5")
+-- read(2) definitely won't return the second incomplete line
+fionread_test("Hello^Dther", "5")
+-- read(2) also won't return a second complete line at once
+fionread_test("Hello^Dthere^D", "5")
+-- Finally, send a VEOF to terminate a blank line and signal EOF in read(2)
+fionread_test("^D", "0")
+
+-- \r will instead show up in the input stream to the application, so we must
+-- make sure those are counted where VEOF generally wouldn't be.
+fionread_test("Hello\r", "6")
+fionread_test("Hello\rther", "6")
+fionread_test("Hello\rthere\r", "6")
+fionread_test("\r", "1")
+
+local function readsz_test(str, arg, expected)
+	spawn("readsz", table.unpack(arg))
+
+	if type(str) == "table" then
+		assert(#str == 2)
+		write(str[1])
+		release()
+
+		-- Give readsz a chance to consume the partial input before we send more
+		-- along.
+		sleep(1)
+		write(str[2])
+	else
+		write(str)
+	end
+	match(expected)
+end
+
+readsz_test("partial", {"-b", 3}, "^$")
+readsz_test("partial^D", {"-b", 3}, "^par$")
+readsz_test("partial^D", {"-c", 1}, "^partial$")
+for s = 1, #"partial" do
+		readsz_test("partial^D", {"-s", s}, "^partial$")
+end
+-- Send part of the line, release and pause, then finish it.
+readsz_test({"par", "tial^D"}, {"-c", 1}, "^partial$")
+-- line is incomplete, so we'll just see the "partial" even if we want two
+readsz_test("partial^Dline", {"-c", 2}, "^partial$")
+readsz_test("partial^Dline^D", {"-c", 1}, "^partial$")
+readsz_test("partial^Dline^D", {"-c", 2}, "^partialline$")

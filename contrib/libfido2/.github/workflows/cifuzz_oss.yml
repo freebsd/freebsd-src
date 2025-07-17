@@ -1,0 +1,46 @@
+# Copyright (c) 2022 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+name: cifuzz
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+    - '*-ci'
+
+jobs:
+  fuzzing:
+    if: github.repository == 'Yubico/libfido2'
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined, memory]
+    steps:
+    - name: build fuzzers (${{ matrix.sanitizer }})
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
+      with:
+        oss-fuzz-project-name: 'libfido2'
+        language: c
+        sanitizer: ${{ matrix.sanitizer }}
+        dry-run: false
+    - name: run fuzzers (${{ matrix.sanitizer }})
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+      with:
+        oss-fuzz-project-name: 'libfido2'
+        language: c
+        sanitizer: ${{ matrix.sanitizer }}
+        fuzz-seconds: 600
+        dry-run: false
+    - name: upload crash
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: ${{ matrix.sanitizer }}-artifacts
+        path: ./out/artifacts

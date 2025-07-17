@@ -1,0 +1,255 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_scanw.3x,v 1.53 2024/04/20 19:18:18 tom Exp $
+.TH curs_scanw 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%scanw\fP,
+\fB\%wscanw\fP,
+\fB\%mvscanw\fP,
+\fB\%mvwscanw\fP,
+\fB\%vwscanw\fP,
+\fB\%vw_scanw\fP \-
+read formatted input from a \fIcurses\fR window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint scanw(const char *\fIfmt\fP, ...);
+\fBint wscanw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, ...);
+\fBint mvscanw(int \fIy\fP, int \fIx\fP, const char *\fIfmt\fP, ...);
+\fBint mvwscanw(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const char *\fIfmt\fP, ...);
+.PP
+\fBint vw_scanw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, va_list \fIvarglist\fP);
+.PP
+\fI/* obsolete */\fP
+\fBint vwscanw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, va_list \fIvarglist\fP);
+.fi
+.SH DESCRIPTION
+\fB\%scanw\fP,
+\fB\%wscanw\fP,
+\fB\%mvscanw\fP,
+and
+\fB\%mvwscanw\fP
+are analogous to \fI\%scanf\fP(3).
+In effect,
+they call \fB\%wgetstr\fP(3X) with
+.I win
+(or
+.BR \%stdscr )
+as its first argument,
+then attempt conversion of the resulting string with \fI\%vsscanf\fP(3).
+Fields in the string that do not map to a variable in the \fIfmt\fP
+parameter are discarded.
+.PP
+\fB\%vwscanw\fP
+and
+\fB\%vw_scanw\fP are analogous to \fI\%vscanf\fP(3),
+and perform a \fB\%wscanw\fP using a variable argument list.
+The third argument is a \fI\%va_list\fP,
+a pointer to a list of arguments,
+as defined in \fI\%stdarg.h\fP.
+.SH RETURN VALUE
+These functions return
+.B ERR
+upon failure and otherwise a count of successful conversions;
+this quantity may be zero.
+.PP
+In
+.IR \%ncurses ,
+failure occurs if \fI\%vsscanf\fP(3) returns
+\fBEOF\fP,
+or if the window pointer
+.I win
+is null.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+No wide character counterpart functions are defined by the
+\*(``wide\*(''
+.I \%ncurses
+configuration nor by any standard.
+They are unnecessary:
+to retrieve and convert a wide-character string from a
+.I curses
+terminal keyboard,
+use these functions with the \fI\%scanf\fP(3) conversions \*(``%lc\*(''
+and \*(``%ls\*('' for wide characters and strings,
+respectively.
+.PP
+.I \%ncurses
+implements \fI\%vsscanf\fP(3) internally if it is unavailable when the
+library is configured.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+.I \%ncurses
+defines \fB\%vw_scanw\fP and \fB\%vwscanw\fP identically to support
+legacy applications.
+However,
+the latter is obsolete.
+.bP
+X/Open Curses,
+Issue 4 Version 2 (1996),
+marked \fB\%vwscanw\fP as requiring \fI\%varargs.h\fP and
+\*(``TO BE WITHDRAWN\*('',
+and specified \fB\%vw_scanw\fP using the \fI\%stdarg.h\fP interface.
+.bP
+X/Open Curses,
+Issue 5,
+Draft 2 (December 2007) marked \fB\%vwscanw\fP (along with
+\fB\%vwscanw\fP and the \fItermcap\fP interface) as withdrawn.
+After incorporating review comments,
+this became
+X/Open Curses, Issue 7 (2009).
+.bP
+.I \%ncurses
+provides \fB\%vwscanw\fP,
+but marks it as deprecated.
+.PP
+X/Open Curses Issues 4 and 7 both state that these functions return
+\fBERR\fP or \fBOK\fP.
+This is likely an erratum.
+.bP
+Since the underlying \fI\%scanf\fP(3) returns the number of successful
+conversions,
+and SVr4
+.I curses
+was documented to use this feature,
+this may have been an editorial solecism introduced by X/Open,
+rather than an intentional change.
+.bP
+This implementation retains compatibility with SVr4
+.IR curses .
+As of 2018,
+NetBSD
+.I curses
+also returns the number of successful conversions.
+Both
+.I \%ncurses\fP
+and NetBSD
+.I curses
+call \fI\%vsscanf\fP(3) to scan the string,
+which returns \fBEOF\fP on error.
+.bP
+Portable applications should test only if the return value is \fBERR\fP,
+and not compare it to \fBOK\fP,
+since that value (zero) might be misleading.
+.IP
+One portable way to get useful results would be to use a \*(``%n\*(''
+conversion at the end of the format string,
+and check the value of the corresponding variable to determine how many
+conversions succeeded.
+.SH HISTORY
+\fB\%scanw\fP was implemented in 4BSD
+(November 1980);
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4BSD/usr/src/lib/\
+.\"  libcurses/scanw.c
+that early version of
+.I curses
+preceded the ANSI C standard of 1989.
+The function was unused in Berkeley distributions for over ten years,
+until 4.4BSD,
+which employed it in a game.
+The 4BSD \fB\%scanw\fP did not use \fI\%varargs.h\fP,
+though that had been available since Seventh Edition Unix (1979).
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=V7/usr/include/\
+.\"  varargs.h
+In 1991
+(a couple of years after SVr4 was generally available,
+and after the C standard was published),
+other developers updated the library,
+using \fI\%stdarg.h\fP internally in 4.4BSD
+.IR curses .
+Even with this improvement,
+BSD
+.I curses
+did not use function prototypes
+(nor even declare functions)
+in \fI\%curses.h\fP until 1992.
+.PP
+SVr2 (1984) documented \fB\%scanw\fP and \fB\%wscanw\fP tersely as
+\*(``scanf through \fB\%stdscr\fP\*('' and
+\*(``scanf through \fIwin\fP\*('',
+respectively.
+.PP
+SVr3 (1987) added
+\fB\%mvscanw\fP, and
+\fB\%mvwscanw\fP, stating
+.RS
+.PP
+\*(``[t]hese routines correspond to \fIscanf\fP(3S),
+as do their arguments and return values.
+\fB\%wgetstr\fP() is called on the window,
+and the resulting line is used as input for the scan.\*(''
+.RE
+.PP
+SVr3 also implemented \fB\%vwscanw\fP,
+describing its third parameter as a \fI\%va_list\fP,
+defined in \fI\%varargs.h\fP,
+and referred the reader to the manual pages for \fI\%varargs\fP and
+\fI\%vprintf\fP for detailed descriptions.
+(Because the SVr3 documentation does not mention \fI\%vscanf\fP,
+the reference to \fI\%vprintf\fP might not be an error).
+.PP
+SVr4 (1989) introduced no new variations of \fI\%scanw\fP,
+but provided for using either \fI\%varargs.h\fP or \fI\%stdarg.h\fP to
+define the \fI\%va_list\fP type.
+.\" either header declares "va_list", but only one can be used
+.PP
+X/Open Curses, Issue 4 (1995),
+defined \fI\%vw_scanw\fP to replace \fI\%vwscanw\fP,
+stating that its \fI\%va_list\fP type is defined in \fI\%stdarg.h\fP.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_getstr\fP(3X),
+\fB\%curs_printw\fP(3X),
+\fB\%scanf\fP(3),
+\fB\%vscanf\fP(3)

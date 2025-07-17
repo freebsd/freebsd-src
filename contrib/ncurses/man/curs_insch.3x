@@ -1,0 +1,115 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_insch.3x,v 1.40 2024/04/20 19:03:47 tom Exp $
+.TH curs_insch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fB\%insch\fP,
+\fB\%winsch\fP,
+\fB\%mvinsch\fP,
+\fB\%mvwinsch\fP \-
+insert a \fIcurses\fP character in a window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fP
+.PP
+\fBint insch(chtype \fIch\fP);
+\fBint winsch(WINDOW *\fIwin\fP, chtype \fIch\fP);
+\fBint mvinsch(int \fIy\fP, int \fIx\fP, chtype \fIch\fP);
+\fBint mvwinsch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, chtype \fIch\fP);
+.fi
+.SH DESCRIPTION
+These functions insert the
+.I curses
+character
+.I ch
+at the cursor in the specified window
+.I win
+(or
+.BR \%stdscr ).
+The character previously at the cursor and any to its right move one
+cell to the right;
+the rightmost character on the line is discarded.
+The cursor does not advance.
+.SH "RETURN VALUE"
+These functions return
+.B OK
+on success and
+.B ERR
+on failure.
+.PP
+Functions taking a
+.I \%WINDOW
+pointer argument fail if the pointer is
+.BR NULL .
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+.BR \%insch ,
+.BR \%mvinsch ,
+and
+.B \%mvwinsch
+may be implemented as macros.
+.PP
+A terminal's
+.B \%insert_character
+.RB ( ich1 )
+capability
+is not necessarily employed.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+.PP
+SVr4
+.I curses
+describes a successful return value only as
+\*(``an integer value other than
+.BR ERR \*(''.
+.SH "SEE ALSO"
+\fB\%curs_ins_wch\fP(3X) describes comparable functions in the
+wide-character
+.I curses
+configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

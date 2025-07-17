@@ -1,0 +1,369 @@
+
+#------------------------------------------------------------------------------
+# $File: sql,v 1.27 2023/08/19 15:33:04 christos Exp $
+# sql:  file(1) magic for SQL files
+#
+# From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
+# Recognize some MySQL files.
+# Elan Ruusamae <glen@delfi.ee>, added MariaDB signatures
+# from https://bazaar.launchpad.net/~maria-captains/maria/5.5/view/head:/support-files/magic
+#
+0	beshort			0xfe01		MySQL table definition file
+>2	byte			x		Version %d
+>3	byte			0		\b, type UNKNOWN
+>3	byte			1		\b, type DIAM_ISAM
+>3	byte			2		\b, type HASH
+>3	byte			3		\b, type MISAM
+>3	byte			4		\b, type PISAM
+>3	byte			5		\b, type RMS_ISAM
+>3	byte			6		\b, type HEAP
+>3	byte			7		\b, type ISAM
+>3	byte			8		\b, type MRG_ISAM
+>3	byte			9		\b, type MYISAM
+>3	byte			10		\b, type MRG_MYISAM
+>3	byte			11		\b, type BERKELEY_DB
+>3	byte			12		\b, type INNODB
+>3	byte			13		\b, type GEMINI
+>3	byte			14		\b, type NDBCLUSTER
+>3	byte			15		\b, type EXAMPLE_DB
+>3	byte			16		\b, type CSV_DB
+>3	byte			17		\b, type FEDERATED_DB
+>3	byte			18		\b, type BLACKHOLE_DB
+>3	byte			19		\b, type PARTITION_DB
+>3	byte			20		\b, type BINLOG
+>3	byte			21		\b, type SOLID
+>3	byte			22		\b, type PBXT
+>3	byte			23		\b, type TABLE_FUNCTION
+>3	byte			24		\b, type MEMCACHE
+>3	byte			25		\b, type FALCON
+>3	byte			26		\b, type MARIA
+>3	byte			27		\b, type PERFORMANCE_SCHEMA
+>3	byte			127		\b, type DEFAULT
+>0x0033	ulong			x		\b, MySQL version %d
+0	belong&0xffffff00	0xfefe0500	MySQL ISAM index file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0600	MySQL ISAM compressed data file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0700	MySQL MyISAM index file
+>3	byte			x		Version %d
+>14	beshort			x		\b, %d key parts
+>16	beshort			x		\b, %d unique key parts
+>18	byte			x		\b, %d keys
+>28	bequad			x		\b, %lld records
+>36	bequad			x		\b, %lld deleted records
+0	belong&0xffffff00	0xfefe0800	MySQL MyISAM compressed data file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0900	MySQL Maria index file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0a00	MySQL Maria compressed data file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0c00
+>4	string			MACF		MySQL Maria control file
+>>3	byte			x		Version %d
+0	string			\376bin	MySQL replication log,
+>9	long			x		server id %d
+>8	byte			1
+>>13	long			69		\b, MySQL V3.2.3
+>>>19	string			x		\b, server version %s
+>>13	long			75		\b, MySQL V4.0.2-V4.1
+>>>25	string			x		\b, server version %s
+>8	byte			15		MySQL V5+,
+>>25	string			x		server version %s
+>4	string			MARIALOG	MySQL Maria transaction log file
+>>3	byte			x		Version %d
+
+#------------------------------------------------------------------------------
+# iRiver H Series database file
+# From Ken Guest <ken@linux.ie>
+# As observed from iRivNavi.iDB and unencoded firmware
+#
+0   string		iRivDB	iRiver Database file
+>11  string	>\0	Version %s
+>39  string		iHP-100	[H Series]
+
+#------------------------------------------------------------------------------
+# SQLite database files
+# Ken Guest <ken@linux.ie>, Ty Sarna, Zack Weinberg
+#
+# Version 1 used GDBM internally; its files cannot be distinguished
+# from other GDBM files.
+#
+# Update:	Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/sqlite-2x.trid.xml
+# Note:		called "SQLite 2.x database" by TrID and "SQLite Database File Format" version 2 by DROID via PUID fmt/1135
+# Version 2 used this format:
+0	string	**\ This\ file\ contains\ an\ SQLite  SQLite 2.x database
+!:mime	application/x-sqlite2
+# FileAttributesStore.db test.sqlite2
+!:ext	sqlite/sqlite2/db
+
+# URL:		https://en.wikipedia.org/wiki/SQLite
+# Reference:	https://www.sqlite.org/fileformat.html
+# Update:	Joerg Jenderek
+# TODO:		missing extensions for Bentley Systems and Esri Spatially-Enabled Database
+# Version 3 of SQLite allows applications to embed their own "user version"
+# number in the database at offset 60.  Later, SQLite added an "application id"
+# at offset 68 that is preferred over "user version" for indicating the
+# associated application.
+#
+0   string  SQLite\ format\ 3
+# skip DROID fmt-729-signature-id-1053.sqlite by checking for valid page size
+>16 ubeshort >0                 SQLite 3.x
+# deprecated
+#!:mime	application/x-sqlite3
+# seldom found extension sqlite3 like in SyncData.sqlite3
+# db
+# db3 like: AddrBook.db3 cgipcrvp.db3
+# https://www.maplesoft.com/support/help/Maple/view.aspx?path=worksheet%2freference%2fhelpdatabase
+# help is used for newer Maple help database
+# SQLite database weewx.sdb used by weather software weewx
+# https://www.weewx.com/docs/usersguide.htm
+# Avira Antivir use extension "dbe" like in avevtdb.dbe, avguard_tchk.dbe
+# ide is used in storage.ide
+# localstorage like in Enigma2 http_itv.ard.de_0.localstorage
+# xowa like in home-html.user.xowa		http://fileformats.archiveteam.org/wiki/XOWA
+# sqlar like in sqlar-src-4824e73896.sqlar	http://fileformats.archiveteam.org/wiki/SQLite_Archive
+# sketch					http://fileformats.archiveteam.org/wiki/Sketch
+# ftb						http://fileformats.archiveteam.org/wiki/MyHeritage_Family_Tree_Builder
+# lrcat						http://fileformats.archiveteam.org/wiki/Lightroom_catalog
+# without suffix like in "Diagnostic Data"
+# Unfortunately extension sqlite also used for other databases starting with string
+# "TTCONTAINER" like in tracks.sqlite contentconsumer.sqlite contentproducerrepository.sqlite
+# and with string "ZV-zlib" in like extra.sqlite
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/maple-sqlite.trid.xml
+>>68 belong =0x5CDE09EF  database
+# maple is used for Maple Workbook
+!:ext maple
+# From:		Joerg Jenderek
+# URL: 		https://en.wikipedia.org/wiki/Audacity_(audio_editor)
+#		http://fileformats.archiveteam.org/wiki/Audacity_Project_Format
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/aup3.trid.xml
+# Note:		called "Audacity 3 Project" by TrID and "Audacity Project File" version 3.x by DROID via PUID fmt/1826
+#		with user version 03000000h whereas older versions *.AUP are not SQLite based
+>>68 belong =0x41554459  database
+!:mime	application/x-audacity-project+sqlite3
+!:ext	aup3
+# From:		Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/TeXnicard
+# Reference:	http://fileformats.archiveteam.org/wiki/TeXnicard_card_database
+# Note:		no examples found
+>>68 belong =0x6A035744  database
+!:mime	application/vnd.sqlite3
+!:ext	db
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/Fossil_repository_database
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fossil.trid.xml 
+# Note:		called "Fossil repository data base" by TrID
+>>68 belong =0x0F055111  database
+!:mime	application/vnd.sqlite3
+!:ext	fossil/fsl
+# URL: 		http://fileformats.archiveteam.org/wiki/Fossil_checkout_database
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fossil-checkout.trid.xml
+# Note:		called "Fossil checkout data base" by TrID
+>>68 belong =0x0F055112  database
+!:mime	application/vnd.sqlite3
+# name _FOSSIL_ on Windows or .fslckout else
+!:ext	/fslckout
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/Fossil_configuration_database
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fossil-config.trid.xml
+# Note:		called "Fossil configuration data base" by TrID
+>>68 belong =0x0F055113  database
+!:mime	application/vnd.sqlite3
+# %LOCALAPPDATA%\_fossil on Windows and ~/.fossil or fossil.db else
+!:ext	/fossil/db
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/GeoPackage
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/g/gpkg-v1.trid.xml
+# Note:		called "GeoPackage (v1)" by TrID and "OGC GeoPackage" version 1.0-1.31 by DROID via PUID fmt/1700
+#		with GP10 application id
+>>68 belong =0x47503130  database
+# https://www.iana.org/assignments/media-types/application/geopackage+sqlite3
+!:mime	application/geopackage+sqlite3
+# https://github.com/opengeospatial/ets-gpkg12/blob/master/src/test/resources/gpkg/bluemarble.gpkg
+!:ext	gpkg
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/g/gpkg-v12.trid.xml
+# Note:		called "GeoPackage (v1.2)" by TrID and "OGC GeoPackage" version 1.0-1.31 by DROID via PUID fmt/1700
+#		with GPKG application id
+>>68 belong =0x47504B47  database
+!:mime	application/geopackage+sqlite3
+!:ext	gpkg
+# Update:	Joerg Jenderek
+# URL: 		https://github.com/mapbox/mbtiles-spec/tree/master
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mbtiles-MPBX.trid.xml
+# Note:		called "MBTiles tileset (MPBX)" by TrID and many samples without application id MPBX like
+# https://ftp.gwdg.de/pub/misc/openstreetmap/openseamap/charts/mbtiles/OSM-OpenCPN2-MagellanStrait.mbtiles
+>>68 belong =0x4D504258  database
+!:mime	application/vnd.sqlite3
+!:ext	mbtiles
+>>68 default x           database
+!:mime	application/vnd.sqlite3
+# no examples found with s3db sl3 suffix
+!:ext	/sqlite/sqlite3/db/db3/dbe/sdb/help/ide/localstorage/sqlar/xowa/mbtiles
+# GRR: the line above only works if in ../../src/file.h FILE_MAGICSIZE ext[] are raised or you get
+>>60 belong =0x5f4d544e  (Monotone source repository)
+# if no known user version then check for Application IDs with default clause
+>>60 belong !0x5f4d544e
+# The "Application ID" set by PRAGMA application_id
+>>>68 belong =0x0f055112 (Fossil checkout)
+>>>68 belong =0x0f055113 (Fossil global configuration)
+>>>68 belong =0x0f055111 (Fossil repository)
+>>>68 belong =0x42654462 (Bentley Systems BeSQLite Database)
+>>>68 belong =0x42654c6e (Bentley Systems Localization File)
+>>>68 belong =0x47504b47 (OGC GeoPackage file)
+#	https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
+>>>68 belong =0x47503130 (OGC GeoPackage version 1.0 file)
+>>>68 belong =0x45737269 (Esri Spatially-Enabled Database)
+>>>68 belong =0x4d504258 (MBTiles tileset)
+#	https://www.maplesoft.com/support/help/errors/view.aspx?path=Formats/Maple
+>>>68 belong =0x5CDE09EF (Maple Workbook)
+# AUDY	Audacity Project File
+>>>68 belong =0x41554459 (Audacity Project)
+>>>68 belong =0x6A035744 (TeXnicard card database)
+# unknown application ID
+>>>68 default x
+>>>>68 belong !0         \b, application id %u
+# The "user version" as read and set by the user_version pragma like:
+# 1 2 4 5 7 9 10 25 36 43 53 400 416 131073 131074 131075 50331648
+>>60 belong !0          \b, user version %d
+# expressed as hexadecimal because some people mention version number in hexadecimal with marking that item
+>>>60 belong	x	(%#x)
+# SQLITE_VERSION_NUMBER like: 0 3007014 3008011 3016002 3017000 3022000 3028000 3031001 3032003 3035005
+>>96 belong  x           \b, last written using SQLite version %d
+# database page size in bytes; a power of two between 512 and 32768, or 1 for 65536
+# like: 512 1024 often 4096 32768
+>>16 ubeshort !4096      \b, page size
+>>>16	ubeshort !1      %u
+>>>16	ubeshort =1      65536
+# File format write version. 1 for legacy; 2 for WAL; 0 for corruptDB.sqlite
+>>18 ubyte   !1          \b, writer version %u
+# File format read version. 1 for legacy; 2 for WAL; 4 for corruptDB.sqlite
+>>19 ubyte   !1          \b, read version %u
+# Bytes of unused "reserved" space at the end of each page. Usually 0
+>>20 ubyte   !0          \b, unused bytes %u
+# maximum embedded payload fraction. Must be 64; 1 for corruptDB.sqlite
+>>21 ubyte   !64         \b, maximum payload %u
+# Minimum embedded payload fraction. Must be 32; 1 for corruptDB.sqlite
+>>22 ubyte   !32         \b, minimum payload %u
+# Leaf payload fraction. Must be 32; 0 for corruptDB.sqlite
+>>23 ubyte   !32         \b, leaf payload %u
+# file change counter
+>>24 ubelong x           \b, file counter %u
+# Size of the database file in pages
+>>28 ubelong x           \b, database pages %u
+# page number of the first freelist trunk page like: 0 2 3 4 5 9
+# 10 13 14 15 16 17 18 19 23 36 39 46 50 136 190 217 307 505 516 561 883 1659
+>>32 ubelong !0          \b, 1st free page %u
+# total number of freelist pages
+>>36 ubelong !0          \b, free pages %u
+# The schema cookie like: 2 3 4 6 7 9 A D E F 13 14 1C 25 2A 2F 33 44 4B 53 5A 5F 62 86 87 8F 91 A8
+>>40 ubelong x           \b, cookie %#x
+# the schema format number. Supported formats are 1 2 3 and often 4
+# 3328 for corruptDB.sqlite and 0 for 512 byte storage.sqlite (TorBrowser Firefox Thunderbird)
+>>44 ubelong x           \b, schema %u
+# Suggested cache size  like: 0 2000
+>>48 ubelong !0          \b, cache page size %u
+# The page number of the largest root b-tree page when in auto-vacuum or incremental-vacuum modes, or zero otherwise. 
+>>52 ubelong !0          \b, largest root page %u
+# The database text encoding; a value of 1 means UTF-8; 2 means UTF-16le; 3 means UTF-16be
+#>>56 ubelong x           \b, encoding %u
+>>56 ubelong x
+>>>56 ubelong =1         \b, UTF-8
+>>>56 ubelong =2         \b, UTF-16 little endian
+>>>56 ubelong =3         \b, UTF-16 big endian
+# 0 for corruptDB.sqlite and for storage.sqlite with database pages 1 (TorBrowser Firefox Thunderbird)
+# https://mozilla.github.io/firefox-browser-architecture/text/0010-firefox-data-stores.html
+>>>56 default x
+>>>>56 ubelong x         \b, unknown %#x encoding
+# True (non-zero) for incremental-vacuum mode; false (zero) otherwiseqy
+>>64 ubelong !0           \b, vacuum mode %u
+# Reserved for expansion. Must be zero
+>>72 uquad !0             \b, reserved %#llx
+# The version-valid-for number like:
+# 1 2 3 4 C F 68h 95h 266h A99h 3DCDh B7CEh
+>>92 ubelong x            \b, version-valid-for %u
+
+# SQLite Write-Ahead Log from SQLite version >= 3.7.0
+# https://www.sqlite.org/fileformat.html#walformat
+0	belong&0xfffffffe	0x377f0682	SQLite Write-Ahead Log,
+!:ext sqlite-wal/db-wal
+>4	belong	x	version %d
+# Summary:	SQLite Write-Ahead-Log index (shared memory)
+# From: 	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/SQLite
+# Reference:	http://www.sqlite.org/draft/walformat.html#walidxfmt
+# iVersion; WAL-index format version number; always 3007000=2DE218h
+0	ulelong		0x002DE218
+>0	use	shm-le
+# big endian variant not tested
+0	ubelong		0x002DE218
+>0	use	\^shm-le
+# show information about SQLite Write-Ahead-Log shared memory
+0	name	shm-le
+>0	ulelong		x		SQLite Write-Ahead Log shared memory
+#!:mime	application/octet-stream
+!:mime	application/vnd.sqlite3
+# db3-shm	Acronis	BackupAndRecovery			F4CEEE47-042C-4828-95A0-DE44EC267A28.db3-shm
+# dbx-shm	probably Dropbox				filecache.dbx-shm
+# aup3-shm	Audacity project				tada.aup3-shm
+# srd-shm	Microsoft Windows StateRepository service	StateRepository-Deployment.srd-shm StateRepository-Machine.srd-shm:
+!:ext	sqlite-shm/db-shm/db3-shm/dbx-shm/aup3-shm/srd-shm 
+# unused padding space; must be zero
+>4	ulelong		!0		\b, unused %x
+# iChange; unsigned integer counter, incremented with each transaction
+>8	ulelong		x		\b, counter %u
+# isInit; the "isInit" flag; 1 when the shm file has been initialized
+>12	ubyte		!1		\b, not initialized %u
+# bigEndCksum; true if the WAL file uses big-ending checksums; 0 if the WAL uses little-endian checksums
+>13	ubyte		!0		\b, checksum type %u
+# szPage; database page size in bytes, or 1 if the page size is 65536
+>14	uleshort	!1		\b, page size %u
+>14	uleshort	=1		\b, page size 65536
+# mxFrame; number of valid and committed frames in the WAL file
+>16	ulelong		x		\b, %u frames
+# nPage; size of the database file in pages
+>20	ulelong		x		\b, %u pages
+# aFrameCksum; checksum of the last frame in the WAL file
+>24	ulelong		x		\b, frame checksum %#x
+# aSalt; two salt value copied from the WAL file header in the byte-order of the WAL file; might be different from machine byte-order
+>32	ulequad		x		\b, salt %#llx
+# aCksum; checksum over bytes 0 through 39 of this header
+>40	ulelong		x		\b, header checksum %#x
+# a copy of bytes 0 through 47 of header
+>48	ulelong		!3007000	\b, iversion %u
+# nBackfill; number of WAL frames that have already been backfilled into the database by prior checkpoints
+>96	ulelong		!0		\b, %u backfilled
+# nBackfillAttempted; number of WAL frames that have attempted to be backfilled
+>>128	ulelong		x		(%u attempts)
+# read-mark[0..4]; five "read marks"; each read mark is a 32-bit unsigned integer
+>100	ulelong		!0		\b, read-mark[0] %#x
+>104	ulelong		x		\b, read-mark[1] %#x
+>108	ulelong		!0xffffffff	\b, read-mark[2] %#x
+>112	ulelong		!0xffffffff	\b, read-mark[3] %#x
+>116	ulelong		!0xffffffff	\b, read-mark[4] %#x
+# unused space set aside for 8 file locks
+>120	ulequad		!0		\b, space %#llx
+# unused space reserved for further expansion
+>132	ulelong		!0		\b, reserved %#x
+
+# SQLite Rollback Journal
+# https://www.sqlite.org/fileformat.html#rollbackjournal
+0	string	\xd9\xd5\x05\xf9\x20\xa1\x63\xd7	SQLite Rollback Journal
+
+# Panasonic channel list database svl.bin or svl.db added by Joerg Jenderek
+# https://github.com/PredatH0r/ChanSort
+0	string		PSDB\0			Panasonic channel list DataBase
+!:ext db/bin
+#!:mime	application/x-db-svl-panasonic
+>126	string		SQLite\ format\ 3
+#!:mime	application/x-panasonic-sqlite3
+>>&-15	indirect	x			\b; contains
+
+# H2 Database from https://www.h2database.com/
+0	string		--\ H2\ 0.5/B\ --\ \n	H2 Database file
+
+# DuckDB database file from https://duckdb.org
+8	string	DUCK    DuckDB database file
+>12	lequad	x	\b, version %lld
+#>20	lequad	x	\b, flags %#llx
+#>28	lequad	x	\b, flags %#llx

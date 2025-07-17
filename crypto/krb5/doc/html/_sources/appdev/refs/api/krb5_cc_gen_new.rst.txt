@@ -1,0 +1,39 @@
+krb5_cc_gen_new
+===============
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_gen_new(krb5_context context, krb5_ccache * cache)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **cache**
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,24 @@
+.. highlight:: c
+
+.. _krb5-pre-send-fn-struct:
+
+krb5_pre_send_fn
+================
+
+..
+.. c:type:: krb5_pre_send_fn
+..
+
+Hook function for inspecting or modifying messages sent to KDCs.
+
+If the hook function sets *new_reply_out* , *message* will not be sent to the KDC, and the given reply will used instead.
+If the hook function sets *new_message_out* , the given message will be sent to the KDC in place of *message* .
+If the hook function returns successfully without setting either output, *message* will be sent to the KDC normally.
+The hook function should use krb5_copy_data() to construct the value for *new_message_out* or *reply_out* , to ensure that it can be freed correctly by the library.
+
+Declaration
+------------
+
+typedef krb5_error_code( \* krb5_pre_send_fn) (krb5_context context, void \*data, const krb5_data \*realm, const krb5_data \*message, krb5_data \*\*new_message_out, krb5_data \*\*new_reply_out)
+
+

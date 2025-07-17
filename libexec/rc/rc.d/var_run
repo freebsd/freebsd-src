@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# PROVIDE: var_run
+# REQUIRE: mountcritlocal
+# BEFORE: cleanvar
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=var_run
+rcvar=var_run_enable
+extra_commands="load save"
+start_cmd="_var_run_start"
+load_cmd="_var_run_load"
+save_cmd="_var_run_save"
+stop_cmd="_var_run_stop"
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+var_run_svcj="NO"
+
+_var_run_load() {
+	if [ -f "${var_run_mtree}" ] ; then
+		mtree -U -i -q -f "${var_run_mtree}" -p /var/run > /dev/null
+	fi
+}
+
+_var_run_save() {
+	if ! [ -d "${var_run_mtree%/*}" ]; then
+		mkdir -p "${var_run_mtree%/*}"
+	fi
+	mtree -dcbj -p /var/run > "${var_run_mtree}"
+}
+
+_var_run_start() {
+	if df -ttmpfs /var/run > /dev/null 2>&1; then
+		_var_run_load
+	fi
+}
+
+_var_run_stop() {
+	if checkyesno var_run_autosave; then
+		if df -ttmpfs /var/run > /dev/null 2>&1; then
+			_var_run_save
+		fi
+	fi
+}
+
+run_rc_command "$1"

@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-enctype-struct:
+
+krb5_enctype
+============
+
+..
+.. c:type:: krb5_enctype
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_enctype
+
+

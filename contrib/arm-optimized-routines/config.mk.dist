@@ -1,0 +1,149 @@
+# Example config.mk
+#
+# Copyright (c) 2018-2024, Arm Limited.
+# SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+# Subprojects to build
+SUBS = math string networking
+
+# Target architecture: aarch64, arm or x86_64
+ARCH = aarch64
+
+# Use for cross compilation with gcc.
+#CROSS_COMPILE = aarch64-none-linux-gnu-
+
+# Compiler for the target
+CC = $(CROSS_COMPILE)gcc
+CFLAGS = -std=c99 -pipe -O3
+CFLAGS += -Wall -Wno-missing-braces
+CFLAGS += -Werror=implicit-function-declaration
+
+# Used for test case generator that is executed on the host
+HOST_CC = gcc
+HOST_CFLAGS = -std=c99 -O2
+HOST_CFLAGS += -Wall -Wno-unused-function
+
+# Enable debug info.
+HOST_CFLAGS += -g
+CFLAGS += -g
+
+ifeq ($(OS),Msys)
+  # llvm is the only available/valid native compiler
+  CC = clang
+  AR = llvm-ar
+  RANLIB = llvm-ranlib
+  HOST_CC = clang
+  SYSROOT = /c/wenv/msys2/msys64/clangarm64
+  # Common windows flags
+  COMMON_WIN_CFLAGS = -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE
+  COMMON_WIN_CFLAGS += -Wno-deprecated-declarations -Wno-unused-variable
+  # For mathtest
+  HOST_CFLAGS += -I$(SYSROOT)/include
+  HOST_CFLAGS += $(COMMON_WIN_CFLAGS) -Wno-ignored-attributes
+  # Clear the default flag -fPIC, as not supported on Windows
+  CFLAGS_SHARED =
+  # For ulp.h with MPFR
+  CFLAGS += -I$(SYSROOT)/include
+  # For clang on Windows
+  CFLAGS += $(COMMON_WIN_CFLAGS)
+endif
+
+# Optimize the shared libraries on aarch64 assuming they fit in 1M.
+#CFLAGS_SHARED = -fPIC -mcmodel=tiny
+
+# Enable MTE support.
+#CFLAGS += -march=armv8.5-a+memtag -DWANT_MTE_TEST=1
+
+# Use with cross testing.
+#EMULATOR = qemu-aarch64-static
+#EMULATOR = sh -c 'scp $$1 user@host:/dir && ssh user@host /dir/"$$@"' --
+
+# Additional flags for subprojects.
+math-cflags =
+math-ldlibs =
+math-ulpflags =
+math-testflags =
+string-cflags = -falign-functions=64
+networking-cflags =
+
+ifeq ($(OS),Msys)
+  # Libraries can be installed with pacman
+  libm-libs = -lmsvcrt -lvcruntime -lucrt
+  libc-libs =
+  # Linker will look for .lib but some systems only have .dll.a,
+  # therefore we have to give absolute path to libraries.
+  # This is system dependent and might need adjusting.
+  mpfr-libs = $(SYSROOT)/lib/libmpfr.dll.a
+  gmp-libs = $(SYSROOT)/lib/libgmp.dll.a
+  mpc-libs = $(SYSROOT)/lib/libmpc.dll.a
+endif
+
+# Use if mpfr is available on the target for ulp error checking. If
+# enabling this, it is advised to disable fenv checks by uncommenting
+# the two lines at the bottom of this block.
+USE_MPFR=0
+math-cflags += -DUSE_MPFR=$(USE_MPFR)
+ifeq ($(USE_MPFR), 1)
+  math-ldlibs += $(mpfr-libs) $(gmp-libs)
+  math-ulpflags += -m
+endif
+# Disable fenv checks
+#math-ulpflags = -q -f
+#math-testflags = -nostatus
+
+# Use with gcc.
+math-cflags += -frounding-math -fexcess-precision=standard -fno-stack-protector
+math-cflags += -ffp-contract=fast -fno-math-errno
+
+# Use with clang.
+#math-cflags += -ffp-contract=fast
+
+# If defined to 1, set errno in math functions according to ISO C.  Many math
+# libraries do not set errno, so this is 0 by default.  It may need to be
+# set to 1 if math.h has (math_errhandling & MATH_ERRNO) != 0.
+WANT_ERRNO = 0
+math-cflags += -DWANT_ERRNO=$(WANT_ERRNO)
+
+# Disable/enable SVE vector math tests/tools.
+ifeq ($(ARCH),aarch64)
+  WANT_SVE_TESTS = 1
+else
+  WANT_SVE_TESTS = 0
+endif
+math-cflags += -DWANT_SVE_TESTS=$(WANT_SVE_TESTS)
+
+# If set to 1, set fenv in vector math routines.
+WANT_SIMD_EXCEPT = 0
+math-cflags += -DWANT_SIMD_EXCEPT=$(WANT_SIMD_EXCEPT)
+
+# If set to 1, enable tests for exp10.
+WANT_EXP10_TESTS = 1
+math-cflags += -DWANT_EXP10_TESTS=$(WANT_EXP10_TESTS)
+
+# If set to 1, enable tests for sinpi and cospi. These functions are
+# only supported on aarch64
+ifeq ($(ARCH),aarch64)
+  WANT_TRIGPI_TESTS = 1
+else
+  WANT_TRIGPI_TESTS = 0
+endif
+math-cflags += -DWANT_TRIGPI_TESTS=$(WANT_TRIGPI_TESTS)
+
+# Remove GNU Property Notes from asm files.
+#string-cflags += -DWANT_GNU_PROPERTY=0
+
+# Enable assertion checks.
+#networking-cflags += -DWANT_ASSERT
+
+# Avoid auto-vectorization of scalar code and unroll loops
+networking-cflags += -O2 -fno-tree-vectorize -funroll-loops
+
+# Provide *_finite symbols and some of the glibc hidden symbols
+# so libmathlib can be used with binaries compiled against glibc
+# to interpose math functions with both static and dynamic linking
+USE_GLIBC_ABI = 1
+math-cflags += -DUSE_GLIBC_ABI=$(USE_GLIBC_ABI)
+
+# Enable experimental math routines - non-C23 vector math and low-accuracy scalar
+WANT_EXPERIMENTAL_MATH = 0
+math-cflags += -DWANT_EXPERIMENTAL_MATH=$(WANT_EXPERIMENTAL_MATH)

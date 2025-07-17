@@ -1,0 +1,666 @@
+
+#------------------------------------------------------------------------------
+# $File: games,v 1.35 2024/11/09 23:04:46 christos Exp $
+# games:  file(1) for games
+
+# Fabio Bonelli <fabiobonelli@libero.it>
+# Quake II - III data files
+0       string  IDP2        	Quake II 3D Model file,
+>20     long    x               %u skin(s),
+>8      long    x               (%u x
+>12     long    x 		%u),
+>40     long    x               %u frame(s),
+>16     long    x               Frame size %u bytes,
+>24     long  	x               %u vertices/frame,
+>28     long    x            	%u texture coordinates,
+>32     long    x               %u triangles/frame
+
+0       string  IBSP            Quake
+>4      long    0x26            II Map file (BSP)
+>4      long    0x2E      	III Map file (BSP)
+
+0       string  IDS2            Quake II SP2 sprite file
+
+#---------------------------------------------------------------------------
+# Doom and Quake
+# submitted by Nicolas Patrois
+
+0       string  \xcb\x1dBoom\xe6\xff\x03\x01    Boom or linuxdoom demo
+# some doom lmp files don't match, I've got one beginning with \x6d\x02\x01\x01
+
+24      string  LxD\ 203        Linuxdoom save
+>0      string  x       , name=%s
+>44     string  x       , world=%s
+
+# The levels
+
+# Quake 1
+
+0	string	5\x0aIntroduction             Quake I save: start Introduction
+0	string	5\x0athe_Slipgate_Complex     Quake I save: e1m1 The slipgate complex
+0	string	5\x0aCastle_of_the_Damned     Quake I save: e1m2 Castle of the damned
+0	string	5\x0athe_Necropolis           Quake I save: e1m3 The necropolis
+0	string	5\x0athe_Grisly_Grotto        Quake I save: e1m4 The grisly grotto
+0	string	5\x0aZiggurat_Vertigo         Quake I save: e1m8 Ziggurat vertigo (secret)
+0	string	5\x0aGloom_Keep               Quake I save: e1m5 Gloom keep
+0	string	5\x0aThe_Door_To_Chthon       Quake I save: e1m6 The door to Chthon
+0	string	5\x0aThe_House_of_Chthon      Quake I save: e1m7 The house of Chthon
+0	string	5\x0athe_Installation         Quake I save: e2m1 The installation
+0	string	5\x0athe_Ogre_Citadel         Quake I save: e2m2 The ogre citadel
+0	string	5\x0athe_Crypt_of_Decay       Quake I save: e2m3 The crypt of decay (dopefish lives!)
+0	string	5\x0aUnderearth               Quake I save: e2m7 Underearth (secret)
+0	string	5\x0athe_Ebon_Fortress        Quake I save: e2m4 The ebon fortress
+0	string	5\x0athe_Wizard's_Manse       Quake I save: e2m5 The wizard's manse
+0	string	5\x0athe_Dismal_Oubliette     Quake I save: e2m6 The dismal oubliette
+0	string	5\x0aTermination_Central      Quake I save: e3m1 Termination central
+0	string	5\x0aVaults_of_Zin            Quake I save: e3m2 Vaults of Zin
+0	string	5\x0athe_Tomb_of_Terror       Quake I save: e3m3 The tomb of terror
+0	string	5\x0aSatan's_Dark_Delight     Quake I save: e3m4 Satan's dark delight
+0	string	5\x0athe_Haunted_Halls        Quake I save: e3m7 The haunted halls (secret)
+0	string	5\x0aWind_Tunnels             Quake I save: e3m5 Wind tunnels
+0	string	5\x0aChambers_of_Torment      Quake I save: e3m6 Chambers of torment
+0	string	5\x0athe_Sewage_System        Quake I save: e4m1 The sewage system
+0	string	5\x0aThe_Tower_of_Despair     Quake I save: e4m2 The tower of despair
+0	string	5\x0aThe_Elder_God_Shrine     Quake I save: e4m3 The elder god shrine
+0	string	5\x0athe_Palace_of_Hate       Quake I save: e4m4 The palace of hate
+0	string	5\x0aHell's_Atrium            Quake I save: e4m5 Hell's atrium
+0	string	5\x0athe_Nameless_City        Quake I save: e4m8 The nameless city (secret)
+0	string	5\x0aThe_Pain_Maze            Quake I save: e4m6 The pain maze
+0	string	5\x0aAzure_Agony              Quake I save: e4m7 Azure agony
+0	string	5\x0aShub-Niggurath's_Pit     Quake I save: end Shub-Niggurath's pit
+
+# Quake DeathMatch levels
+
+0	string	5\x0aPlace_of_Two_Deaths	 Quake I save: dm1 Place of two deaths
+0	string	5\x0aClaustrophobopolis		 Quake I save: dm2 Claustrophobopolis
+0	string	5\x0aThe_Abandoned_Base		 Quake I save: dm3 The abandoned base
+0	string	5\x0aThe_Bad_Place		 Quake I save: dm4 The bad place
+0	string	5\x0aThe_Cistern		 Quake I save: dm5 The cistern
+0	string	5\x0aThe_Dark_Zone		 Quake I save: dm6 The dark zone
+
+# Scourge of Armagon
+
+0	string	5\x0aCommand_HQ               Quake I save: start Command HQ
+0	string	5\x0aThe_Pumping_Station      Quake I save: hip1m1 The pumping station
+0	string	5\x0aStorage_Facility         Quake I save: hip1m2 Storage facility
+0	string	5\x0aMilitary_Complex         Quake I save: hip1m5 Military complex (secret)
+0	string	5\x0athe_Lost_Mine            Quake I save: hip1m3 The lost mine
+0	string	5\x0aResearch_Facility        Quake I save: hip1m4 Research facility
+0	string	5\x0aAncient_Realms           Quake I save: hip2m1 Ancient realms
+0	string	5\x0aThe_Gremlin's_Domain     Quake I save: hip2m6 The gremlin's domain (secret)
+0	string	5\x0aThe_Black_Cathedral      Quake I save: hip2m2 The black cathedral
+0	string	5\x0aThe_Catacombs            Quake I save: hip2m3 The catacombs
+0	string	5\x0athe_Crypt__              Quake I save: hip2m4 The crypt
+0	string	5\x0aMortum's_Keep            Quake I save: hip2m5 Mortum's keep
+0	string	5\x0aTur_Torment              Quake I save: hip3m1 Tur torment
+0	string	5\x0aPandemonium              Quake I save: hip3m2 Pandemonium
+0	string	5\x0aLimbo                    Quake I save: hip3m3 Limbo
+0	string	5\x0athe_Edge_of_Oblivion     Quake I save: hipdm1 The edge of oblivion (secret)
+0	string	5\x0aThe_Gauntlet             Quake I save: hip3m4 The gauntlet
+0	string	5\x0aArmagon's_Lair           Quake I save: hipend Armagon's lair
+
+# Malice
+
+0	string	5\x0aThe_Academy      Quake I save: start The academy
+0	string	5\x0aThe_Lab          Quake I save: d1 The lab
+0	string	5\x0aArea_33          Quake I save: d1b Area 33
+0	string	5\x0aSECRET_MISSIONS  Quake I save: d3b Secret missions
+0	string	5\x0aThe_Hospital     Quake I save: d10 The hospital (secret)
+0	string	5\x0aThe_Genetics_Lab Quake I save: d11 The genetics lab (secret)
+0	string	5\x0aBACK_2_MALICE    Quake I save: d4b Back to Malice
+0	string	5\x0aArea44           Quake I save: d1c Area 44
+0	string	5\x0aTakahiro_Towers  Quake I save: d2 Takahiro towers
+0	string	5\x0aA_Rat's_Life     Quake I save: d3 A rat's life
+0	string	5\x0aInto_The_Flood   Quake I save: d4 Into the flood
+0	string	5\x0aThe_Flood        Quake I save: d5 The flood
+0	string	5\x0aNuclear_Plant    Quake I save: d6 Nuclear plant
+0	string	5\x0aThe_Incinerator_Plant    Quake I save: d7 The incinerator plant
+0	string	5\x0aThe_Foundry              Quake I save: d7b The foundry
+0	string	5\x0aThe_Underwater_Base      Quake I save: d8 The underwater base
+0	string	5\x0aTakahiro_Base            Quake I save: d9 Takahiro base
+0	string	5\x0aTakahiro_Laboratories    Quake I save: d12 Takahiro laboratories
+0	string	5\x0aStayin'_Alive    Quake I save: d13 Stayin' alive
+0	string	5\x0aB.O.S.S._HQ      Quake I save: d14 B.O.S.S. HQ
+0	string	5\x0aSHOWDOWN!        Quake I save: d15 Showdown!
+
+# Malice DeathMatch levels
+
+0	string	5\x0aThe_Seventh_Precinct	 Quake I save: ddm1 The seventh precinct
+0	string	5\x0aSub_Station		 Quake I save: ddm2 Sub station
+0	string	5\x0aCrazy_Eights!		 Quake I save: ddm3 Crazy eights!
+0	string	5\x0aEast_Side_Invertationa	 Quake I save: ddm4 East side invertationa
+0	string	5\x0aSlaughterhouse		 Quake I save: ddm5 Slaughterhouse
+0	string	5\x0aDOMINO			 Quake I save: ddm6 Domino
+0	string	5\x0aSANDRA'S_LADDER		 Quake I save: ddm7 Sandra's ladder
+
+
+0	string	MComprHD	MAME CHD compressed hard disk image,
+>12	belong	x		version %u
+
+# MAME input recordings
+
+0	string		MAMEINP\0		MAME input recording
+>8	leqdate		x			at %s,
+>16	leshort		x			format version %d.
+>18	leshort		x			\b%d,
+>20	string/12	x			%s driver,
+>32	string/32	x			%s
+
+# doom - submitted by Jon Dowland
+
+0	string	=IWAD		doom main IWAD data
+>4	lelong	x		containing %d lumps
+0	string	=PWAD		doom patch PWAD data
+>4	lelong	x		containing %d lumps
+
+# Build engine group files (Duke Nukem, Shadow Warrior, ...)
+# Extension: .grp
+# Created by: "Ganael Laplanche" <ganael.laplanche@martymac.org>
+0	string	KenSilverman	Build engine group file
+>12	lelong	x		containing %d files
+
+# Summary: Warcraft 3 save
+# Extension: .w3g
+# Created by: "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string		Warcraft\ III\ recorded\ game	%s
+
+
+# Summary: Warcraft 3 map
+# Extension: .w3m
+# Created by: "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string		HM3W		Warcraft III map file
+
+
+# Summary: SGF Smart Game Format
+# Extension: .sgf
+# Reference: https://www.red-bean.com/sgf/
+# Created by: Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
+# Modified by (1): Abel Cheung (regex, more game format)
+# FIXME: Some games don't have GM (game type)
+0	regex		\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
+>2	search/0x200/b	GM[
+>>&0	string		1]	(Go)
+>>&0	string		2]	(Othello)
+>>&0	string		3]	(chess)
+>>&0	string		4]	(Gomoku+Renju)
+>>&0	string		5]	(Nine Men's Morris)
+>>&0	string		6]	(Backgammon)
+>>&0	string		7]	(Chinese chess)
+>>&0	string		8]	(Shogi)
+>>&0	string		9]	(Lines of Action)
+>>&0	string		10]	(Ataxx)
+>>&0	string		11]	(Hex)
+>>&0	string		12]	(Jungle)
+>>&0	string		13]	(Neutron)
+>>&0	string		14]	(Philosopher's Football)
+>>&0	string		15]	(Quadrature)
+>>&0	string		16]	(Trax)
+>>&0	string		17]	(Tantrix)
+>>&0	string		18]	(Amazons)
+>>&0	string		19]	(Octi)
+>>&0	string		20]	(Gess)
+>>&0	string		21]	(Twixt)
+>>&0	string		22]	(Zertz)
+>>&0	string		23]	(Plateau)
+>>&0	string		24]	(Yinsh)
+>>&0	string		25]	(Punct)
+>>&0	string		26]	(Gobblet)
+>>&0	string		27]	(hive)
+>>&0	string		28]	(Exxit)
+>>&0	string		29]	(Hnefatal)
+>>&0	string		30]	(Kuba)
+>>&0	string		31]	(Tripples)
+>>&0	string		32]	(Chase)
+>>&0	string		33]	(Tumbling Down)
+>>&0	string		34]	(Sahara)
+>>&0	string		35]	(Byte)
+>>&0	string		36]	(Focus)
+>>&0	string		37]	(Dvonn)
+>>&0	string		38]	(Tamsk)
+>>&0	string		39]	(Gipf)
+>>&0	string		40]	(Kropki)
+
+##############################################
+# NetImmerse/Gamebryo game engine entries
+
+# Summary: Gamebryo game engine file
+# Extension: .nif, .kf
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		Gamebryo\ File\ Format,\ Version\ 	Gamebryo game engine file
+>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Summary: Gamebryo game engine file
+# Extension: .kfm
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		;Gamebryo\ KFM\ File\ Version\ 		Gamebryo game engine animation File
+>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Summary: NetImmerse game engine file
+# Extension .nif
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		NetImmerse\ File\ Format,\ Version
+>&0		string		n\ 					NetImmerse game engine file
+>>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Type:	SGF Smart Game Format
+# URL:	https://www.red-bean.com/sgf/
+# From:	Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
+2	regex/c	\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
+>2	regex/c	GM\\[1\\]			- Go Game
+>2	regex/c	GM\\[6\\]			- BackGammon Game
+>2	regex/c	GM\\[11\\]			- Hex Game
+>2	regex/c	GM\\[18\\]			- Amazons Game
+>2	regex/c	GM\\[19\\]			- Octi Game
+>2	regex/c	GM\\[20\\]			- Gess Game
+>2	regex/c	GM\\[21\\]			- twix Game
+
+# Epic Games/Unreal Engine Package
+# URL: https://docs.unrealengine.com/udk/Three/ContentCooking.html
+#      https://eliotvu.com/page/unreal-package-file-format
+# Little-endian version (such as x86 PC)
+0		lelong		0x9E2A83C1	Unreal Engine package (little-endian)
+!:ext		xxx/tfc/upk/me1/u
+>4		uleshort	!0		\b, version %u
+>>6		uleshort	!0		\b/%03u
+>>0		use		upk_header
+# Big-endian version (such as PS3)
+0		belong		0x9E2A83C1	Unreal Engine package (big-endian)
+!:ext		xxx/tfc
+>6		ubeshort	!0		\b, version %u
+>>4		ubeshort	!0		\b/%03u
+>>0		use		\^upk_header
+
+0		name		upk_header
+# Identify game from version and licensee
+>4		ulelong		0x000002b2	(Alice Madness Returns)
+>4		ulelong		0x002f0313	(Aliens: Colonial Marines)
+>4		ulelong		0x005b021b	(Alpha Protocol)
+>4		ulelong		0x0000032c	(AntiChamber)
+>4		ulelong		0x00200223	(APB: All Points Bulletin)
+>4		ulelong		0x004b02d7	(Bioshock Infinite)
+>4		ulelong		0x00380340	(Borderlands 2)
+>4		ulelong		0x001d02e6	(Bulletstorm)
+>4		ulelong		0x00050240	(CrimeCraft)
+>4		ulelong		0x00000356	(Deadlight)
+>4		ulelong		0x001e0321	(Dishonored)
+>4		ulelong		0x000202a6	(Dungeon Defenders)
+>4		ulelong		0x000901ea	(Gears of War)
+>4		ulelong		0x0000023f	(Gears of War 2)
+>4		ulelong		0x0000033c	(Gears of War 3)
+>4		ulelong		0x0000034e	(Gears of War: Judgement)
+>4		ulelong		0x0004035c	(Hawken)
+>4		ulelong		0x0001034a	(Infinity Blade 2)
+>4		ulelong		0x00000350	(InMomentum)
+>4		ulelong		0x0015037D	(Life Is Strange)
+>4		ulelong		0x000b01a5	(Medal of Honor: Airborne)
+>4		ulelong		0x002b0218	(Mirrors Edge)
+>4		ulelong		0x0000027e	(Monday Night Combat)
+>4		ulelong		0x0000024b	(MoonBase Alpha)
+>4		ulelong		0x002e01d8	(Mortal Kombat Komplete Edition 2605)
+>4		ulelong		0x0000035c	(Painkiller HD)
+>4		ulelong		0x0000034d	(Q.U.B.E)
+>4		ulelong		0x80660340	(Quantum Conundrum)
+>4		ulelong		0x0000035b	(Ravaged)
+>4		ulelong		0x00150340	(Remember Me)
+>4		ulelong		0x00060171	(Roboblitz)
+>4		ulelong		0x00000325	(Rock of Ages)
+>4		ulelong		0x0000032a	(Sanctum)
+>4		ulelong		0x00030248	(Saw)
+>4		ulelong		0x007e0248	(Singularity)
+>4		ulelong		0x00090388	(Soldier Front 2)
+>4		ulelong		0x000701e6	(Stargate Worlds)
+>4		ulelong		0x00000334	(Super Monday Night Combat)
+>4		ulelong		0x000002c2	(The Ball)
+>4		ulelong		0x000e0262	(The Exiled Realm of Arborea or TERA)
+>4		ulelong		0x0000035b	(The Five Cores)
+>4		ulelong		0x00000349	(The Haunted: Hells Reach)
+>4		ulelong		0x00000354	(Unmechanical)
+>4		ulelong		0x035c0298	(Unreal Development Kit)
+>4		ulelong		0x00000200	(Unreal Tournament 3)
+>4		ulelong		0x0000032d	(Waves)
+>4		ulelong		0x003b034d	(XCOM: Enemy Unknown)
+# Newer versions insert more headers
+>4		ulelong&0xFFFF	<249
+>>12		lelong		!0		\b, names: %d
+>>28		lelong		!0		\b, imports: %d
+>>20		lelong		!0		\b, exports: %d
+>4		ulelong&0xFFFF	>248
+>>12		belong&0xFF	!0
+>>>12		string		x		\b, folder "%s"
+>>>>&5		lelong		!0		\b, names: %d
+>>>>&21		lelong		!0		\b, imports: %d
+>>>>&13		lelong		!0		\b, exports: %d
+>>12		belong&0xFF	0
+>>>16		belong&0xFF	!0
+>>>>16		string		x		\b, folder "%s"
+>>>>>&5		lelong		!0		\b, names: %d
+>>>>>&21	lelong		!0		\b, imports: %d
+>>>>>&13	lelong		!0		\b, exports: %d
+>>>16		belong&0xFF	0
+>>>>20		string		x		\b, folder "%s"
+>>>>>&5		lelong		!0		\b, names: %d
+>>>>>&21	lelong		!0		\b, imports: %d
+>>>>>&13	lelong		!0		\b, exports: %d
+
+0	string		ESVG
+>4	lelong		0x00160000
+>10	string		TOC\020		Empire Deluxe for DOS saved game
+
+# Sid Meier's Civilization V/VI
+# From: Benjamin Lowry <ben@ben.gmbh>
+0	string	CIV5
+>4	byte	0x08		Sid Meier's Civilization V saved game,
+>>12	regex	[0-9a-z.]+	saved by game version %s
+>4	byte	0x01		Sid Meier's Civilization V replay data,
+>>12	regex	[0-9a-z.]+	saved by game version %s
+
+0	string	CIV6		Sid Meier's Civilization VI saved game
+
+# https://syzygy-tables.info/
+# From Michel Van den Bergh
+0	string	\327f\f\245	Syzygy DTZ tablebase
+!:mime	application/syzygy
+0	string	q\350#]		Syzygy WDL tablebase
+!:mime	application/syzygy
+
+##############################################################################
+# Grand Theft Auto (GTA) file formats.
+#
+# Summary:
+# Includes GTA-specific formats used in all games from 1997 to present. Games
+# and formats were created by Rockstar North, formerly DMA Design. Magic tests
+# were written based on a combination of official and community documentation.
+#
+# Created by: Oliver Galvin <odg@riseup.net>
+#
+# References:
+# * Classic GTA documentation and research:
+#    <https://gitlab.com/classic-gta/gta-data>
+# * Official RenderWare documentation available from EA:
+#    <https://github.com/electronicarts/RenderWare3Docs>
+# * Lots of community research in the GTAMods wiki:
+#    <https://gtamods.com/wiki>
+
+# GTA 2D-Era data - 'Classic' top down games (1/L/2)
+
+## GTA text
+
+0	string	\xbf\xf8\xbd\x49\x62\xbe	GTA1 in-game text (FXT),
+0	string	GBL	GTA2 in-game text (GXT),
+>3	string  	E	English,
+>>4	uleshort	x	version %d
+>3	string  	F	French,
+>>4	uleshort	x	version %d
+>3	string  	G	German,
+>>4	uleshort	x	version %d
+>3	string  	I	Italian,
+>>4	uleshort	x	version %d
+>3	string  	S	Spanish,
+>>4	uleshort	x	version %d
+>3	string  	J	Japanese,
+>>4	uleshort	x	version %d
+
+## GTA maps
+
+0	ulelong 	331	GTA1 map layout (CMP),
+>4	byte    	1	Level 1
+>4	byte    	2	Level 2
+>4	byte    	3	Level 3
+0	string  	GBMP	GTA2/GBH map layout (GMP),
+>4	uleshort	x	version %d
+0	string/t	[MapFiles]	GTA2 multiplayer map metadata (MMP)
+0	string/t	MainOrBonus\ =\ MAIN	GTA2 single player map listing (test1.seq)
+
+## GTA 2D sprites and textures
+
+0	ulelong 	290	GTA1 style data (GRX), 8 bit editor graphics
+0	ulelong 	325	GTA1 style data (GRY), 8 bit in-game graphics
+0	ulelong 	336	GTA1 style data (G24), 24 bit in-game graphics
+0	string  	GBST	GTA2/GBH style data (STY), in-game graphics,
+>4	uleshort	x	version %d
+
+## GTA audio index
+
+0	ulelong	0
+>4	ulelong	<0x40000
+>>8	ulelong	>4500
+>>>8	ulelong	<45000	GTA audio index data (SDT)
+
+## GTA scripts
+
+0	ulelong 	0x00080000
+>4	uleshort	0x0024    	GTA2 binary main script (SCR)
+
+0	uleshort	0x063c    	GTA2 binary mission script (SCR), Residential area (ste)
+0	uleshort	0x055b    	GTA2 binary mission script (SCR), Downtown area (wil)
+0	uleshort	0x0469    	GTA2 binary mission script (SCR), Industrial area (bil)
+
+0	string   	v9.6\0\0 	GTA2 replay file (REP),
+>8	regex/30c	[a-z0-9:\ ]+\0\0	created on %s
+
+# GTA 3D-Era (III/VC/SA/LCS/VCS) - used by the RenderWare engine by Criterion Games
+
+## GTA 3D models and textures - RenderWare binary streams
+
+8	ulelong	0x00000310	RenderWare data, v3.1.0.0, used in GTA III on PS2,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0401ffff	RenderWare data, v3.1.0.1, used in GTA III on PC/PS2,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0800ffff	RenderWare data, v3.2.0.0, used in GTA III on PC,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0c00ffff	RenderWare data, v3.3.0.0,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0c02ffff	RenderWare data, v3.3.0.2, used in GTA III PC and GTA VC PS2,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1000ffff	RenderWare data, v3.4.0.0,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1003ffff	RenderWare data, v3.4.0.3, used in GTA VC PC,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1005ffff	RenderWare data, v3.4.0.5, used in GTA III/VC on Android,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1400ffff	RenderWare data, v3.5.0.0, used in GTA III/VC on Xbox,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1803ffff	RenderWare data, v3.6.0.3, used in GTA SA,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+
+0	string	COL	RenderWare collision data (COL),
+>3	string	L	version 1, used in GTA III/VC/SA
+>3	string	2	version 2, used in GTA SA
+>3	string	3	version 3, used in GTA SA
+>3	string	4	version 4, used in GTA SA
+
+## GTA items and animations
+
+0	string/c	#\ ipl\ generated\ from\ max\ file	GTA Item Placement data (IPL), used in GTA III/VC
+0	string/b	bnry	GTA Item Placement data (IPL), used in GTA SA/IV,
+>4	ulelong 	x	%d items
+
+0	string	ANP	GTA animation data (IFP),
+>3	string	K	version 1, used in GTA III/VC
+>3	string	3	version 2, used in GTA SA
+
+0	string	GtaSA29	GTA Replay data (REP), used in GTA SA
+
+## GTA text
+
+0	string	TKEY	GTA in-game text (GXT), version 2, used in GTA III
+0	string	TABL	GTA in-game text (GXT), version 3, used in GTA VC/LS/VCS
+
+## GTA scripts
+
+0	string	\x02\x00\x01	GTA script (SCM), used in GTA III/VC/SA
+
+## GTA archives
+
+0	string	VER2	GTA archive (IMG), version 2, used in GTA SA,
+>4	ulelong	x	%d items
+
+# GTA HD-Era (IV/V) - used by the Rockstar Advanced Game Engine (RAGE)
+
+## GTA models and textures - RAGE resources
+# Note: GTA IV formats not yet documented - WAD, WBD, WBN, WHM, WPL
+
+0	ulelong	0x00695254	GTA Drawable data (WDR), model and weapon data, used in GTA IV
+0	ulelong	0x00695238	GTA Windows Frag Type (WFT), vehicle models, used in GTA IV
+0	ulelong	0x006953A4	GTA Ped and LOD models (WDD), used in GTA IV
+0	ulelong	0x00695384	GTA Windows Texture Dictionary (WTD), used in GTA IV
+
+## GTA text
+
+4	string  	TABL	GTA in-game text (GXT),
+>0	uleshort	x	version %d, used in GTA SA/IV
+0	string  	2GXT	GTA in-game text (GXT2), used in GTA V
+
+## GTA scripts
+
+0	ulelong	0x0d524353	GTA script (SCO), unencrypted, used in GTA IV,
+>4	ulelong	x         	%d code bytes,
+>>8	ulelong	x         	%d static variables,
+>>>12	ulelong	x         	%d global variables
+0	ulelong	0x0e726373	GTA script (SCO), encrypted, used in GTA IV
+>4	ulelong	x         	%d code bytes,
+>>8	ulelong	x         	%d static variables,
+>>>12	ulelong	x         	%d global variables
+
+## GTA archives
+
+0	ulelong	0xa94e2a52	GTA archive (IMG),
+>4	ulelong	x        	version %d, used in GTA IV,
+>>8	ulelong	x        	%d items
+
+# RPF[0-8]
+0	ulelong&0xfffffff0 =0x52504630
+>0	ulelong&0xf	<9	RAGE Package Format (RPF), version %d, used in
+>>0	ulelong&0xf	=0	Rockstar Table Tennis,
+>>0	ulelong&0xf	=1	*unknown*
+>>0	ulelong&0xf	=2	GTA IV,
+>>0	ulelong&0xf	=3	GTA IV Audio & Midnight Club: LA,
+>>0	ulelong&0xf	=4	Max Payne 3,
+>>0	ulelong&0xf	=5	*unknown*
+>>0	ulelong&0xf	=6	RDR,
+>>0	ulelong&0xf	=7	GTA V,
+>>0	ulelong&0xf	=8	RDR 2,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
+
+# Blitz3D Model File Format
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/minetest/B3DExport/blob/master/B3DExport.py
+0	string		BB3D
+>4	lelong		>0
+>>8	lelong		>0	Blitz3D Model
+!:ext	b3d
+>>>8	lelong		x	\b, version %d
+
+# Minetest Schematic File Format
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/minetest/minetest/blob/5.6.1/src/mapgen/mg_schematic.h
+0	string		MTSM	Minetest Schematic
+!:ext	mts
+>4	ubeshort	x	\b, version %d
+>6	ubeshort	x	\b, size [%d
+>8	ubeshort	x	\b, %d
+>10	ubeshort	x	\b, %d]
+
+# MagicaVoxel File Format
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/ephtracy/voxel-model/blob/ee2216c28a78ebb68691dc6cfa9c4ba429117ea2/MagicaVoxel-file-format-vox.txt
+# Note: This format is used in Veloren voxel RPG.
+0	string		VOX\x20
+>4	lelong		>0	MagicaVoxel model
+!:ext	vox
+>>4	lelong		x	\b, version %d
+
+# Wwise SoundBank
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://wiki.xentax.com/index.php/Wwise_SoundBank_(*.bnk)
+0	string	BKHD
+# Little-endian version (such as x86 PC)
+>4	ulelong	<0x100		Wwise SoundBank (little-endian)
+!:ext	bnk
+>>0	use	wwise_bkhd
+# Big-endian version (such as PS3)
+>4	ubelong	<0x100		Wwise SoundBank (big-endian)
+!:ext	bnk
+>>0	use	\^wwise_bkhd
+
+0	name	wwise_bkhd
+>8	ulelong	x		\b, version %d
+>12	ulelong	x		\b, id %08X
+>16	ulelong	=0x00		\b, SFX
+>16	ulelong	=0x01		\b, arabic
+>16	ulelong	=0x02		\b, bulgarian
+>16	ulelong	=0x03		\b, chinese (HK)
+>16	ulelong	=0x04		\b, chinese (PRC)
+>16	ulelong	=0x05		\b, chinese (Taiwan)
+>16	ulelong	=0x06		\b, czech
+>16	ulelong	=0x07		\b, danish
+>16	ulelong	=0x08		\b, dutch
+>16	ulelong	=0x09		\b, english (Australia)
+>16	ulelong	=0x0A		\b, english (India)
+>16	ulelong	=0x0B		\b, english (UK)
+>16	ulelong	=0x0C		\b, english (US)
+>16	ulelong	=0x0D		\b, finnish
+>16	ulelong	=0x0E		\b, french (Canada)
+>16	ulelong	=0x0F		\b, french (France)
+>16	ulelong	=0x10		\b, german
+>16	ulelong	=0x11		\b, greek
+>16	ulelong	=0x12		\b, hebrew
+>16	ulelong	=0x13		\b, hungarian
+>16	ulelong	=0x14		\b, indonesian
+>16	ulelong	=0x15		\b, italian
+>16	ulelong	=0x16		\b, japanese
+>16	ulelong	=0x17		\b, korean
+>16	ulelong	=0x18		\b, latin
+>16	ulelong	=0x19		\b, norwegian
+>16	ulelong	=0x1A		\b, polish
+>16	ulelong	=0x1B		\b, portuguese (Brazil)
+>16	ulelong	=0x1C		\b, portuguese (Portugal)
+>16	ulelong	=0x1D		\b, romanian
+>16	ulelong	=0x1E		\b, russian
+>16	ulelong	=0x1F		\b, slovenian
+>16	ulelong	=0x20		\b, spanish (Mexico)
+>16	ulelong	=0x21		\b, spanish (Spain)
+>16	ulelong	=0x22		\b, spanish (US)
+>16	ulelong	=0x23		\b, swedish
+>16	ulelong	=0x24		\b, turkish
+>16	ulelong	=0x25		\b, ukrainian
+>16	ulelong	=0x26		\b, vietnamese
+
+# Wwise Audio Package
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://wiki.xentax.com/index.php/Wwise_Audio_PCK
+0	string	AKPK
+# Little-endian version (such as x86 PC)
+>8	ulelong	<0x100	Wwise Audio Package (little-endian)
+!:ext	pck
+# Big-endian version (such as PS3)
+>8	ubelong	<0x100	Wwise Audio Package (big-endian)
+!:ext	pck
+
+# RPG Maker MV/MZ encrypted assets. Version was only ever known to be 00030100.
+0	string	RPGMV\0\0\0
+>12	string	\0\0\0\0
+>>8	belong	x		RPG Maker MV encrypted asset, version %08x
+!:ext	png_/ogg_/m4a_/rpgmvp/rpgmvo/rpgmvm
+
+# https://arthran2.itch.io/encrypterator-3000
+0	string	ART\0ENCRYPTER100FREE\0VERSION\0\0\0\0	RPG Maker MV encrypted asset, Encrypterator 3000 variant.
+!:ext	png_/ogg_/m4a_/rpgmvp/rpgmvo/rpgmvm
+
+
+# http://www.shikadi.net/moddingwiki/PCX_Library
+0	string/b	pcxLib\0
+>122	ubyte		0x01	pcxLib archive
+>>144	uleshort	0	\b, uncompressed
+>>144	uleshort	!0	\b, compressed

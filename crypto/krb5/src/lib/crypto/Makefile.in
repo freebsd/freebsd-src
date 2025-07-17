@@ -1,0 +1,48 @@
+mydir=lib$(S)crypto
+BUILDTOP=$(REL)..$(S)..
+SUBDIRS= krb builtin openssl crypto_tests
+WINSUBDIRS= krb builtin crypto_tests
+LOCALINCLUDES=$(CRYPTO_IMPL_CFLAGS)
+
+LIBBASE=k5crypto
+LIBMAJOR=3
+LIBMINOR=1
+RELDIR=crypto
+
+STOBJLISTS=krb/OBJS.ST						\
+	builtin/OBJS.ST builtin/des/OBJS.ST			\
+	builtin/aes/OBJS.ST builtin/camellia/OBJS.ST		\
+	builtin/md4/OBJS.ST builtin/md5/OBJS.ST			\
+	builtin/sha1/OBJS.ST builtin/sha2/OBJS.ST		\
+	builtin/enc_provider/OBJS.ST builtin/hash_provider/OBJS.ST \
+	openssl/OBJS.ST openssl/des/OBJS.ST			\
+	openssl/enc_provider/OBJS.ST openssl/hash_provider/OBJS.ST
+
+SUBDIROBJLISTS=$(STOBJLISTS)
+
+# No dependencies.  Record places to find this shared object if the target
+# link editor and loader support it.
+DEPLIBS=
+SHLIB_EXPLIBS= $(SUPPORT_LIB) $(CRYPTO_IMPL_LIBS) $(LIBS)
+SHLIB_EXPDEPLIBS= $(SUPPORT_DEPLIB)
+SHLIB_LDFLAGS= $(LDFLAGS) @SHLIB_RPATH_DIRS@
+
+##DOS##LIBNAME=$(OUTPRE)crypto.lib
+##DOS##OBJFILEDEP=$(OUTPRE)krb.lst $(OUTPRE)aes.lst $(OUTPRE)enc_provider.lst $(OUTPRE)des.lst $(OUTPRE)md5.lst $(OUTPRE)camellia.lst $(OUTPRE)md4.lst $(OUTPRE)hash_provider.lst $(OUTPRE)sha2.lst $(OUTPRE)sha1.lst $(OUTPRE)builtin.lst
+##DOS##OBJFILELIST=@$(OUTPRE)krb.lst @$(OUTPRE)aes.lst @$(OUTPRE)enc_provider.lst @$(OUTPRE)des.lst @$(OUTPRE)md5.lst @$(OUTPRE)camellia.lst @$(OUTPRE)md4.lst @$(OUTPRE)hash_provider.lst @$(OUTPRE)sha2.lst @$(OUTPRE)sha1.lst @$(OUTPRE)builtin.lst
+
+all-unix: all-liblinks
+install-unix: install-libs
+
+
+# all-unix:
+# install-unix:
+
+libcrypto.lib:
+	libdir crypto.lib
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+@lib_frag@
+@libobj_frag@
+

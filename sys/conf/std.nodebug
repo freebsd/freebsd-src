@@ -1,0 +1,29 @@
+#
+# std.nodebug -- Disable the debug options found in the GENERIC kernel config.
+#
+
+nooptions	INVARIANTS
+nooptions	INVARIANT_SUPPORT
+nooptions	DIAGNOSTIC
+nooptions	WITNESS
+nooptions	WITNESS_SKIPSPIN
+nooptions	DEBUG_VFS_LOCKS
+nooptions	BUF_TRACKING
+nooptions	FULL_BUF_TRACKING
+nooptions	DEADLKRES
+nooptions	COVERAGE
+nooptions	KCOV
+nooptions	MALLOC_DEBUG_MAXZONES
+nooptions	QUEUE_MACRO_DEBUG_TRASH
+nooptions	KDTRACE_MIB_SDT
+
+# Net80211 debugging
+nooptions	IEEE80211_DEBUG
+
+# USB debugging
+nooptions	USB_DEBUG
+nooptions	HID_DEBUG
+
+# CAM debugging
+nooptions	CAMDEBUG
+nooptions	CAM_DEBUG_FLAGS

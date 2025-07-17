@@ -1,0 +1,5 @@
+comment = "Casper library"
+desc = <<EOD
+The libcasper library provides for the control of application capabilities
+through the casper process.
+EOD

@@ -1,0 +1,75 @@
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    debug
+        bin
+        ..
+        boot
+            kernel
+            ..
+            modules
+            ..
+        ..
+        lib
+            geom
+            ..
+            nvmecontrol
+            ..
+        ..
+        libexec
+        ..
+        sbin
+        ..
+        usr
+            bin
+            ..
+            lib
+                clang
+                    19
+                        lib
+                            freebsd
+                            ..
+                        ..
+                    ..
+                ..
+                engines-3
+                ..
+                flua
+                    freebsd
+                        sys
+                        ..
+                    ..
+                ..
+                i18n
+                ..
+                libxo
+                    encoder
+                    ..
+                ..
+                ossl-modules
+                ..
+            ..
+            libexec
+                bsdinstall
+                ..
+                lpr
+                    ru
+                    ..
+                ..
+                sendmail
+                ..
+                sm.bin
+                ..
+                zfs
+                ..
+            ..
+            sbin
+            ..
+            tests
+            ..
+        ..
+    ..
+..

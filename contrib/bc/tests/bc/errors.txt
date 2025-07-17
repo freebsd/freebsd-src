@@ -1,0 +1,304 @@
+4 != 0 &^ 34 == 5
+4 & 5
+4 != 0 |% 34 == 5
+4 | 5
+3 $ 7
+4 @^ 5
+'
+1.892389ep
+"ontsjahoesu
+/* oerchaoegu
+\(<267)11111111111111111111111111111
+j(1,)
+a(3,3
+()
+(((((((((((((((((((()))))))))))))))
+3 +
+3 - -
+233*+ 32
+233*+ 32 869356734856
+293 * += 38297
+293 * += 38297 2839
+293 - %= 38297
+a * += 38297 2839
+a += * 38297
+a += * 38297 2839
+a %= % 38297
+a %= / 38297 2839
+"s" + 3
+3 - "o"
+"e" * "j"
+"3" / "2"
+!"3"
+--"4"
+"4"++
++ 4
+* 3
++ 4 + 3
+* 3 + 2
+c++ +
+c + ++
+(e * a)++
+++(e ^ a)
+(e + a)--
+--(e - a)
+++e++
+++e--
+--e++
+--e--
+++(e)
+(e)--
+++++e
+e----
+++-e
+---e
+++x += 4
+x++ += 4
+(i += 1) += 1
+-i+=1
+e a
+c!
+e! + a
+a + e!
+(0||!)
+(238497*(29348+238)
+a[234
+a238]
+a[(0] + 1)
+(1 + a[0)]
+283947 2983745289
+a 4
+a g
+define r(e,) {}
+p(,e)
+p(e,)
+! + 1l(2)
+l957)
+l(
+g[si+= j []a[s]>=]
+j[s
+!>5d
+a(1..)
+a(1;)
+1..
+1..0
+99""""""""""""""""""""""""""""""""99.9999999 + 0.0000000000001
+pll[zx<zb]--(<.+)1
+a(g2[] -3)
+.--1)-1)
+.--1)
+-1)
+(.2==)--d_ -8234+68. -d_ ---d_ -d_ ---d_ -d2 + 5
+break
+continue
+auto a,u
+define i(e) { auto p,; return(p); }
+define i(e) { auto e; return(e); }
+define i(e) { auto q; auto n; return(e); }
+define i(e) { auto q; e+=q; auto n; return(e); }
+define i(e, e) { auto p; return(p*e); }
+define i(e, g, e) { auto p; return(p*e*g); }
+define x(e) { define q(f) { return (0); } return q(e); }
+define x(3) { return q(e); }
+define x([]e) { return q(e); }
+define x([]) { return q(e); }
+define x(e,[]) { return q(e); }
+define x(a[]) { return a[]; }
+define x(*a) { return a; }
+define x(a) return a;
+while e!=0 { i+=1 }
+while (e!=0) { i+=1 } if (x) x
+for i=0;i<2;++i { c+=i; }
+for (i=0;i<2,++i) { c+=i; }
+for (i=0,i<2;++i) { c+=i; }
+for (i<2;++i) { c+=i; }
+for (i=0;++i) { c+=i; }
+return (0)
+sqrt(3,4)
+length(3,4)
+scale(3,4)
+3=4
+3+=4
+4-=3
+4*=3
+4/=3
+4%=3
+4^=3
+3++
+--3
+a[] = 4
+1 + $
+a[18446744073709552000] = 0
+j(1,2,3)
+j(1,a[])
+x(2)
+read(3)
+scale = 18446744073709552000
+ibase = 18446744073709552000
+obase = 18446744073709552000
+scale = -1
+sqrt(-1)
+0 ^ -251
+1/0
+1%0
+0/0
+0%0
+0/0.000000
+0.000000%0.00000000
+root(-15, 4)
+root(5, 0)
+root(13, -5)
+root(1548, 0)
+irand(-4)
+irand(3289.10827340)
+scale = 10000000000000000000000000000000000
+obase += 999999999999999999999999999999999999999999999999999999999999999999999999
+ibase *= 9999999999999999999999999999999999999999999999999999999999999.9
+obase += 9999999999999999999999999999999
+ibase *= 99999999999999999999999999999.9
+scale = 18446744073709551616
+1<<18446744073709551616
+1>>18446744073709551616
+1<<18446744073709551614
+1>>18446744073709551614
+i /= 0
+4^2903482.29304823
+2^340282366920938463463374607431768211456)
+4 @ 2389.21982
+1 @ -38
+3 @ 81906237540187263501872350127351023651023517239512635109283651203985123581235
+9 << 182397.283906123
+8 << -19
+4 << 1298376540182376510982365108263510823651082365120983561239851623590812365192830
+5 >> 21892073.28901672
+2 >> -29
+7 >> 10289374108237541829374123894571028345718923751908237518927809127350891723908
+"string"$
+-"str2"
+a[] + a
+a - a[]
+a[] * a[]
+a[] / a
+a % a[]
+a[] ^ a[]
+c(a[])
+j(a[], a)
+j(a, a[])
+j(a[], a[])
+c(;
+c(0;
+c[0;
+++c(0)
+--c(1)
+++scale(34.4)
+print "3", a[], "3"
+print a[]
+print a[], "e"
+print;
+print 1,2 print 45
+print "s" "4"
+}
+if x x
+if (x
+while (x
+for (i = 0
+for (i = 0; i < 10
+for (i = 0; i < 10; ++i
+define %(x) { return x; }
+define x x) { return x; }
+for (i=0; i; ++i) if (i) print "stuff"; else i; if (!i) i + 1; else i; }
+for (i=0; i; ++i) }
+if (i == 0) break; else i;
+while (x != 0) { break 4; }
+while (x != 0) { continue 4; }
+while (x != 0) 4 else 5
+else 1
+define t(a[) { return a[0]; }
+define u() { auto a[; return a[0]; }
+define v() { auto a, 4; return a; }
+define w() { auto a 4; return a; }
+define r() { auto a[], 4; return a[0]; }
+define s() { auto a[ 4; return a[0]; }
+define void y() { return (1); }
+print uint(0)
+for (i = 0; i < 10; ++i) { print 4, 5 define
+4 + uint(4)
+s(uint(5))
+4 + 4 scale
+4 + 4 scale(s)
+4 * 4 read()
+5 abs(-5)
+2 sqrt(4)
+5 + 3 length(4)
+x$if(x) x else x
+bytes(1) + 4
+3 / 0.00000000000000
+4e4.4
+4e-4.2
+a[2^63] = 1
+ibase = 100
+length(l[] + i[])
+abs("string")
+abs(a[])
+scale("string")
+v = "s"; scale(v)
+v += "string"
+scale(b[])
+sqrt("string")
+sqrt(c[])
+sqrt
+length
+abs
+sqrt(1
+length(1
+abs(1
+divmod 24
+modexp 23
+divmod(if
+modexp(if
+divmod(24)
+modexp(24)
+divmod(24 24)
+modexp(24 24)
+divmod(24,)
+modexp(24,)
+divmod(24,
+modexp(24,
+divmod(24,5
+modexp(24,5
+divmod(24,5)
+modexp(24,5)
+divmod(24,5,)
+modexp(24,5,)
+divmod(24,5,
+modexp(24,5,
+divmod(24,5,4
+modexp(24,5,4
+divmod(24,5,a
+modexp(24,5,a
+divmod(24,5,a[]
+divmod(24,5,a[
+divmod(24,5,a[2
+divmod(24,5,a[2]
+divmod(24,5,a[];
+modexp(24,5,a;
+divmod(24,5,a[];)
+modexp(24,5,a;)
+divmod(24,5,4)
+scale(4.5) modexp(25,5,5)
+scale(.2093
+a2(0,0)
+v = "stuff" + "other"
+v = "stuff"; v + v
+v = "stuff"; v * 3
+v = "stuff"; v - 3
+v = "stuff"; v / 3
+v = "stuff"; divmod(v, 3, a[])
+v = "stuff"; modexp(v, 3, 2)
+define f(x) { x * x }; f("stuff")
+define f(x) { x * x }; v = "stuff"; f(v)
+read
+read(
+read()
+read()
+read()

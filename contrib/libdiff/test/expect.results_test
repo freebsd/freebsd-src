@@ -1,0 +1,14 @@
+==== run-regress-results_test ====
+
+--- test_minus_after_plus()
+[0] same lines L2 R2 @L 0 @R 0
+[1] minus lines L3 R0 @L 2 @R 2
+[2] plus lines L0 R3 @L 5 @R 2
+[3] same lines L2 R2 @L 5 @R 5
+
+--- test_plus_after_plus()
+[0] same lines L2 R2 @L 0 @R 0
+[1] minus lines L3 R0 @L 2 @R 2
+[2] plus lines L0 R3 @L 5 @R 2
+[3] same lines L2 R2 @L 5 @R 5
+

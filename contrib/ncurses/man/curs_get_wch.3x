@@ -1,0 +1,259 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_get_wch.3x,v 1.40 2024/04/20 19:23:03 tom Exp $
+.TH curs_get_wch 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%get_wch\fP,
+\fB\%wget_wch\fP,
+\fB\%mvget_wch\fP,
+\fB\%mvwget_wch\fP,
+\fB\%unget_wch\fP \-
+get (or push back) a wide character from \fIcurses\fR terminal keyboard
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint get_wch(wint_t *\fIwch\fP);
+\fBint wget_wch(WINDOW *\fIwin\fP, wint_t *\fIwch\fP);
+\fBint mvget_wch(int \fIy\fP, int \fIx\fP, wint_t *\fIwch\fP);
+\fBint mvwget_wch(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, wint_t *\fIwch\fP);
+.PP
+\fBint unget_wch(const wchar_t \fIwc\fP);
+.fi
+.SH DESCRIPTION
+.SS "Reading Characters"
+.B \%wget_wch
+gathers a key stroke
+.I wch
+from the terminal keyboard associated with a
+.I curses
+window
+.IR win ,
+returning
+.B OK
+if a wide character is read,
+.B \%KEY_CODE_YES
+if a function key is read,
+and
+.B ERR
+if no key event is available.
+\fB\%ncurses\fP(3X) describes the variants of this function.
+.PP
+When input is pending,
+.B \%wget_wch
+stores an integer
+identifying the key stroke in
+.IR wch ;
+for alphanumeric and punctuation keys,
+this value corresponds to the character encoding used by the terminal.
+Use of the control key as a modifier often results in a distinct code.
+The behavior of other keys depends on whether
+.I win
+is in keypad mode;
+see subsections \*(``Keypad Mode\*('' and \*(``Predefined Key Codes\*(''
+in \fB\%getch\fP(3X).
+.PP
+If no input is pending,
+then if the no-delay flag is set in the window
+(see \fB\%nodelay\fP(3X)),
+the function returns
+.BR ERR ;
+otherwise,
+.I curses
+waits until the terminal has input.
+If \fB\%cbreak\fP(3X)
+has been called,
+this happens after one character is read.
+If \fB\%nocbreak\fP(3X)
+has been called,
+it occurs when the next newline is read.
+If \fB\%halfdelay\fP(3X)
+has been called,
+.I curses
+waits until a character is typed or the specified delay elapses.
+.PP
+If \fB\%echo\fP(3X) has been called,
+and the window is not a pad,
+.I curses
+writes
+.I wch
+to the window
+(at the cursor position)
+per the following rules.
+.bP
+If
+.I wch
+matches the terminal's erase character,
+the cursor moves leftward one position
+and the new position is erased
+as if \fB\%wmove\fP(3X) and then \fB\%wdelch\fP(3X) were called.
+When the window's keypad mode is enabled
+(see below),
+.B \%KEY_LEFT
+and
+.B \%KEY_BACKSPACE
+are handled the same way.
+.bP
+.I curses
+writes any other
+.I wch
+to the window,
+as with \fB\%wecho_wchar\fP(3X).
+.bP
+If the window has been moved or modified since the last call to
+\fB\%wrefresh\fP(3X),
+.I curses
+calls
+.BR \%wrefresh .
+.PP
+If
+.I wch
+is a carriage return and \fBnl\fP(3X) has been called,
+.B \%wgetch
+stores the the character code for newline
+(line feed)
+in
+.I wch
+instead.
+.SS "Ungetting Characters"
+.B \%unget_wch
+places
+.I wch
+into the input queue to be returned by the next call to
+.BR \%wget_wch .
+A single input queue serves all windows.
+.SH RETURN VALUE
+.B \%wget_wch
+returns
+.B OK
+when it reads a wide character and
+.B \%KEY_CODE_YES
+when it reads a function key code.
+It returns
+.B ERR
+if
+.bP
+the
+.I \%WINDOW
+pointer is
+.BR NULL ,
+or
+.bP
+its timeout expires without any data arriving,
+or
+.bP
+execution was interrupted by a signal,
+in which case
+.B \%errno
+is set to
+.BR \%EINTR .
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.PP
+.B \%unget_wch
+returns
+.B OK
+on success and
+.B ERR
+if there is no more room in the input queue.
+.SH NOTES
+See the \*(``NOTES\*('' section of \fB\%wgetch\fP(3X).
+.PP
+All of these functions except
+.B \%wget_wch
+and
+.B \%unget_wch
+may be implemented as macros.
+.PP
+Unlike \fB\%wgetch\fP(3X),
+.B \%wget_wch
+and its variants store the value of the input character in an additional
+.I wch
+parameter instead of the return value.
+.PP
+Unlike
+.BR \%ungetch ,
+.B \%unget_wch
+cannot distinguish function key codes
+.B \%wget_wch
+from conventional character codes.
+An application can overcome this limitation by pushing function key
+codes with
+.B \%ungetch
+and subsequently checking the return value of
+.B \%wget_wch
+for a match with
+.BR \%KEY_CODE_YES .
+.SH EXTENSIONS
+See the \*(``EXTENSIONS\*('' section of \fB\%wgetch\fP(3X).
+.SH PORTABILITY
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+X/Open Curses,
+Issue 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+See the \*(``PORTABILITY\*('' section of \fB\%wgetch\fP(3X) regarding
+the interaction of
+.B \%wget_wch
+with signal handlers.
+.SH SEE ALSO
+\fB\%curs_getch\fP(3X) describes comparable functions of the
+.I \%ncurses
+library in its non-wide-character configuration.
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_add_wch\fP(3X),
+\fB\%curs_inopts\fP(3X),
+\fB\%curs_move\fP(3X),
+\fB\%curs_refresh\fP(3X)

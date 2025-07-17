@@ -1,0 +1,7 @@
+make: directive-undef.mk:30: The .undef directive requires an argument
+make: directive-undef.mk:88: Unknown modifier ":Z"
+	while evaluating variable "VARNAMES" with value "VARNAMES"
+make: directive-undef.mk:105: warning: UT_EXPORTED is still listed in .MAKE.EXPORTED even though spaceit is not exported anymore.
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

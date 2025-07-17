@@ -1,0 +1,1198 @@
+.\"
+.\" Copyright (c) 2021-2024 Alfonso Sabato Siciliano
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 16, 2024
+.Dt BSDDIALOG 3
+.Os
+.Sh NAME
+.Nm bsddialog_backtitle ,
+.Nm bsddialog_calendar ,
+.Nm bsddialog_clear ,
+.Nm bsddialog_color ,
+.Nm bsddialog_color_attrs ,
+.Nm bsddialog_checklist ,
+.Nm bsddialog_datebox ,
+.Nm bsddialog_end ,
+.Nm bsddialog_form ,
+.Nm bsddialog_gauge ,
+.Nm bsddialog_geterror ,
+.Nm bsddialog_get_theme ,
+.Nm bsddialog_hascolors ,
+.Nm bsddialog_infobox ,
+.Nm bsddialog_init ,
+.Nm bsddialog_init_notheme ,
+.Nm bsddialog_initconf ,
+.Nm bsddialog_inmode ,
+.Nm bsddialog_menu ,
+.Nm bsddialog_mixedgauge ,
+.Nm bsddialog_mixedlist ,
+.Nm bsddialog_msgbox ,
+.Nm bsddialog_pause ,
+.Nm bsddialog_radiolist ,
+.Nm bsddialog_rangebox ,
+.Nm bsddialog_refresh ,
+.Nm bsddialog_set_theme ,
+.Nm bsddialog_set_default_theme ,
+.Nm bsddialog_textbox ,
+.Nm bsddialog_timebox ,
+.Nm bsddialog_yesno
+.Nd TUI dialogs
+.Sh LIBRARY
+.Lb libbsddialog
+.Sh SYNOPSIS
+.In bsddialog.h
+.Ft int
+.Fn bsddialog_backtitle "struct bsddialog_conf *conf" "const char *backtitle"
+.Ft int
+.Fo bsddialog_calendar
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int *year"
+.Fa "unsigned int *month"
+.Fa "unsigned int *day"
+.Fc
+.Ft int
+.Fo bsddialog_checklist
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "unsigned int nitems"
+.Fa "struct bsddialog_menuitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft void
+.Fn bsddialog_clear "unsigned int y"
+.Ft int
+.Fo bsddialog_datebox
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int *year"
+.Fa "unsigned int *month"
+.Fa "unsigned int *day"
+.Fc
+.Ft int
+.Fn bsddialog_end "void"
+.Ft int
+.Fo bsddialog_form
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int formrows"
+.Fa "unsigned int nitems"
+.Fa "struct bsddialog_formitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_gauge
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int perc"
+.Fa "int fd"
+.Fa "const char *sep"
+.Fa "const char *end"
+.Fc
+.Ft const char *
+.Fn bsddialog_geterror "void"
+.Ft int
+.Fo bsddialog_infobox
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+.Ft int
+.Fn bsddialog_init "void"
+.Ft int
+.Fn bsddialog_init_notheme "void"
+.Ft bool
+.Fn bsddialog_inmode "void"
+.Ft int
+.Fn bsddialog_initconf "struct bsddialog_conf *conf"
+.Ft int
+.Fo bsddialog_menu
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "unsigned int nitems"
+.Fa "struct bsddialog_menuitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_mixedgauge
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int mainperc"
+.Fa "unsigned int nminibars"
+.Fa "char **minilabels"
+.Fa "int *minipercs"
+.Fc
+.Ft int
+.Fo bsddialog_mixedlist
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "unsigned int ngroups"
+.Fa "struct bsddialog_menugroup *groups"
+.Fa "int *focuslist"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_msgbox
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+.Ft int
+.Fo bsddialog_pause
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int *seconds"
+.Fc
+.Ft int
+.Fo bsddialog_radiolist
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int menurows"
+.Fa "unsigned int nitems"
+.Fa "struct bsddialog_menuitem *items"
+.Fa "int *focusitem"
+.Fc
+.Ft int
+.Fo bsddialog_rangebox
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "int min"
+.Fa "int max"
+.Fa "int *value"
+.Fc
+.Ft void
+.Fn bsddialog_refresh "void"
+.Ft int
+.Fo bsddialog_textbox
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *file"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+.Ft int
+.Fo bsddialog_timebox
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int *hh"
+.Fa "unsigned int *mm"
+.Fa "unsigned int *ss"
+.Fc
+.Ft int
+.Fo bsddialog_yesno
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fc
+.In bsddialog_theme.h
+.Ft int
+.Fo bsddialog_color
+.Fa "enum bsddialog_color foreground"
+.Fa "enum bsddialog_color background"
+.Fa "unsigned int flags"
+.Fc
+.Ft int
+.Fo bsddialog_color_attrs
+.Fa "int color"
+.Fa "enum bsddialog_color *foreground"
+.Fa "enum bsddialog_color *background"
+.Fa "unsigned int *flags"
+.Fc
+.Ft int
+.Fn bsddialog_get_theme "struct bsddialog_theme *theme"
+.Ft bool
+.Fn bsddialog_hascolors "void"
+.Ft int
+.Fn bsddialog_set_default_theme "enum bsddialog_default_theme theme"
+.Ft int
+.Fn bsddialog_set_theme "struct bsddialog_theme *theme"
+.Sh DESCRIPTION
+The
+.Nm bsddialog
+library provides an API to build Text User Interface dialogs and widgets.
+.Pp
+.Fn bsddialog_init
+initializes the library, the only functions that can be called before is
+.Fn bsddialog_initconf
+described later.
+After the initialization the input and output should be handled via the library
+API.
+.Pp
+.Fn bsddialog_init_notheme
+is equivalent to
+.Fn bsddialog_init
+except it does not set the default graphical theme; see
+.Sx Theme
+subsection to set a theme explicitly.
+.Pp
+.Fn bsddialog_end
+restores the screen like before
+.Fn bsddialog_init .
+After the call is not possible to use the library functions.
+.Pp
+.Fn bsddialog_inmode
+returns
+.Dv true
+after
+.Fn bsddialog_init
+or
+.Fn bsddialog_init_notheme
+and before
+.Fn bsddialog_end ,
+.Dv false
+otherwise.
+.Pp
+.Fn bsddialog_backtitle
+prints
+.Fa backtitle
+on the top of the screen.
+The function handles
+.Fa conf.ascii_lines
+and
+.Fa conf.no_lines
+described later.
+.Pp
+.Fn bsddialog_error
+returns a string to describe the last error.
+The function should be called after a
+.Dv BSDDIALOG_ERROR
+returned value.
+.Pp
+.Fn bsddialog_clear
+clears the screen from
+.Fa y .
+.Pp
+.Fn bsddialog_refresh
+useful to refresh the screen after a terminal mode change, see
+.Xr terminfo 5 .
+.Ss Dialogs
+The dialogs have common arguments.
+.Fa text
+is a string printed inside the dialog.
+Each
+.Fa char*
+parameter can be a multibyte character string depending on current locale, see
+.Xr setlocale 3 .
+.Fa rows
+and
+.Fa cols
+are height and width, their value can be a fixed size,
+.Dv BSDDIALOG_AUTOSIZE
+or
+.Dv BSDDIALOG_FULLSCREEN .
+.Fa conf
+is a struct to customize the current dialog, it does not set global properties
+to the library.
+.Pp
+.Bd -literal -offset indent -compact
+struct bsddialog_conf {
+	bool ascii_lines;
+	unsigned int auto_minheight;
+	unsigned int auto_minwidth;
+	unsigned int auto_topmargin;
+	unsigned int auto_downmargin;
+	const char *bottomtitle;
+	bool clear;
+	int *get_height;
+	int *get_width;
+	bool no_lines;
+	bool shadow;
+	unsigned int sleep;
+	const char *title;
+	int y;
+	int x;
+	struct {
+		bool enable_esc;
+		const char *f1_file;
+		const char *f1_message;
+	} key;
+	struct {
+		unsigned int cols_per_row;
+		bool escape;
+		unsigned int tablen;
+	} text;
+	struct {
+		bool align_left;
+		bool no_desc;
+		bool no_name;
+		bool shortcut_buttons;
+	} menu;
+	struct {
+		char securech;
+		char *securembch;
+		bool value_wchar;
+	} form;
+	struct {
+		const char *format;
+	} date;
+	struct {
+		bool always_active;
+		const char *left1_label;
+		const char *left2_label;
+		const char *left3_label;
+		bool without_ok;
+		const char *ok_label;
+		bool with_extra;
+		const char *extra_label;
+		bool without_cancel;
+		const char *cancel_label;
+		bool default_cancel;
+		bool with_help;
+		const char *help_label;
+		const char *right1_label;
+		const char *right2_label;
+		const char *right3_label;
+		const char *default_label;
+	} button;
+};
+.Ed
+.Pp
+.Bl -column -compact
+.It Fa conf.ascii_lines
+ascii characters to draw lines, default wide characters.
+.It Fa conf.auto_minheight
+minimum height if
+.Fa rows
+is
+.Dv BSDDIALOG_AUTOSIZE .
+.It Fa conf.auto_minwidth
+minimum width if
+.Fa cols
+is
+.Dv BSDDIALOG_AUTOSIZE .
+.It Fa conf.auto_topmargin
+top margin if
+.Fa rows
+is
+.Dv BSDDIALOG_AUTOSIZE
+or
+.Dv BSDDIALOG_FULLSCREEN ,
+.Fa conf.y
+has to be
+.Dv BSDDIALOG_CENTER .
+.It Fa conf.auto_downmargin
+down margin if
+.Fa rows
+is
+.Dv BSDDIALOG_AUTOSIZE
+or
+.Dv BSDDIALOG_FULLSCREEN .
+.It Fa conf.bottomtitle
+dialog subtitle.
+.It Fa conf.clear
+hide the dialog at exit.
+.It Fa conf.get_height
+if not
+.Dv NULL
+is set like the dialog height.
+.It Fa conf.get_width
+if not
+.Dv NULL
+is set like the dialog width.
+.It Fa conf.no_lines
+not draw lines.
+.It Fa conf.shadow
+draw shadow.
+.It Fa conf.sleep
+wait before to return, the value is in seconds.
+.It Fa conf.title
+dialog title.
+.It Fa conf.y
+dialog vertical position, 0 is top screen, can be
+.Dv BSDDIALOG_CENTER .
+.It Fa conf.x
+dialog horizontal position, 0 is left screen, can be
+.Dv BSDDIALOG_CENTER .
+.El
+.Pp
+.Bl -column -compact
+.It Fa conf.key.enable_esc
+enable
+.Dv ESC
+key to close the dialog.
+.It Fa conf.key.f1_file
+open a file in a textbox if F1 is pressed.
+.It Fa conf.key.f1_message
+build a msgbox with message if F1 is pressed.
+.El
+.Pp
+.Bl -column -compact
+.It Fa conf.text.cols_per_row
+Try to set the number of columns for a row of
+.Fa text
+with autosizing, default
+.Dv 10 .
+.It Fa conf.text.escape
+enable escapes in
+.Fa text :
+.It Dq \eZ0
+black.
+.It Dq \eZ1
+red.
+.It Dq \eZ2
+green.
+.It Dq \eZ3
+yellow.
+.It Dq \eZ4
+blue.
+.It Dq \eZ5
+magenta.
+.It Dq \eZ6
+cyan.
+.It Dq \eZ7
+white.
+.It Dq \eZb
+bold.
+.It Dq \eZB
+disable bold.
+.It Dq \eZd
+Half bright.
+.It Dq \eZD
+disable half bright.
+.It Dq \eZk
+Blink.
+.It Dq \eZK
+disable blinking.
+.It Dq \eZr
+reverse foreground and background.
+.It Dq \eZR
+disable reverse.
+.It Dq \eZs
+Highlight.
+.It Dq \eZS
+disable highlighting.
+.It Dq \eZu
+underline.
+.It Dq \eZU
+disable underline.
+.It Dq \eZn
+disable each customization.
+.It Fa conf.text.tablen
+tab length for
+.Fa text
+argument and
+.Fn bsddialog_textbox
+function.
+.El
+.Pp
+.Bl -column -compact
+.It Fa conf.button.always_active
+buttons always active, avoiding focus switch between buttons and input fields or
+input boxes in
+.Fn bsddialog_form ,
+.Fn bsddialog_datebox ,
+.Fn bsddialog_calendar
+and
+.Fn bsddialog_timebox .
+.It Fa conf.button.left1_label
+add a button with the specified label.
+.It Fa conf.button.left2_label
+add a button with the specified label.
+.It Fa conf.button.left3_label
+add a button with the specified label.
+.It Fa conf.button.without_ok
+disable OK button.
+.It Fa conf.button.ok_label
+set label for OK button.
+.It Fa conf.button.with_extra
+add Extra button.
+.It Fa conf.button.extra_label
+set a label for Extra button.
+.It Fa conf.button.without_cancel
+disable Cancel button.
+.It Fa conf.button.cancel_label
+sets a label for Cancel button.
+.It Fa conf.button.default_cancel
+on startup focus on the Cancel button.
+.It Fa conf.button.with_help
+add Help button.
+.It Fa conf.button.help_label
+set a label for Help button.
+.It Fa conf.button.right1_label
+add a button with the specified label.
+.It Fa conf.button.right2_label
+add a button with the specified label.
+.It Fa conf.button.right3_label
+add a button with the specified label.
+.It Fa conf.button.default_label
+focus on the button with the specified label.
+.El
+.Pp
+.Fn bsddialog_initconf
+initializes
+.Fa conf
+disabling each property, except
+.Fa conf.shadow
+to true,
+.Fa conf.y
+and
+.Fa conf.x
+to
+.Dv BSDDIALOG_CENTER ,
+.Fa conf.text.cols_per_row
+to
+.Dv 10 .
+.Pp
+.Fn bsddialog_calendar
+builds a dialog to select a date.
+.Fa year ,
+.Fa month ,
+and
+.Fa day
+are default values on startup, selected date at exit.
+.Pp
+.Fn bsddialog_checklist
+builds dialogs to select some item from a list via the SPACE key, can be
+customized by
+.Fa conf.menu.* .
+See
+.Fn bsddialog_menu .
+.Pp
+.Fn bsddialog_datebox
+builds a dialog to select a date.
+.Fa year ,
+.Fa month ,
+and
+.Fa day
+are default values on startup, selected date at exit.
+The function can be customized by:
+.Bl -column -compact
+.It Fa conf.date.format
+date format user interface, possible values:
+.Dq d/m/y ,
+.Dq m/d/y ,
+.Dq y/m/d .
+.El
+.Pp
+.Fn bsddialog_form
+builds a dialog to display an array of
+.Fa items
+of
+.Fa nitems
+elements to get input strings.
+.Fa formrows
+is the graphical height for the items inside the dialog,
+.Dv 0
+for autosizing.
+If not
+.Dv NULL
+.Fa focusitem
+is the default item index on startup and the last focused item at exit, a
+negative value if no item is focused.
+An item is defined like:
+.Pp
+.Bd -literal -offset indent -compact
+struct bsddialog_formitem {
+	const char *label;
+	unsigned int ylabel;
+	unsigned int xlabel;
+
+	const char *init;
+	unsigned int yfield;
+	unsigned int xfield;
+	unsigned int fieldlen;
+	unsigned int maxvaluelen;
+	char *value;
+
+	unsigned int flags;
+
+	const char *bottomdesc;
+};
+.Ed
+.Pp
+.Fa label
+is a string to describe the request at the position
+.Fa ylabel
+and
+.Fa xlabel .
+The field for the input is at the position
+.Fa yfield
+and
+.Fa xfield ,
+.Fa fieldlen
+is its graphical width, while
+.Fa maxvalelen
+is the maximum number of characters of the input string.
+.Fa init
+is the default field value.
+If no error occurs
+.Fa value
+is the allocated memory with the current field string at exit, its size depends
+on the current locale.
+.Fa flags
+is an OR value to set the field:
+.Dv BSDDIALOG_FIELDHIDDEN ,
+.Dv BSDDIALOG_FIELDREADONLY ,
+.Dv BSDDIALOG_FIELDNOCOLOR ,
+.Dv BSDDIALOG_FIELDCURSOREND ,
+.Dv BSDDIALOG_FIELDEXTEND ,
+.Dv BSDDIALOG_FIELDSINGLEBYTE .
+.Fa bottomdesc
+is printed at bottom screen if the item is focused.
+.Pp
+.Fn bsddialog_form
+can be customized by:
+.Bl -column -compact
+.It Fa conf.form.securech
+charachter to hide the input with
+.Dv BSDDIALOG_FIELDHIDDEN .
+.It Fa conf.form.securembch
+multibyte charachter to hide the input with
+.Dv BSDDIALOG_FIELDHIDDEN ,
+.Fa conf.form.securech
+is ignored.
+.It Fa conf.form.value_wchar
+the allocated
+.Fa value
+is a
+.Em wchar_t*
+string.
+.El
+.Pp
+.Fn bsddialog_gauge
+builds a dialog with a bar to show
+.Fa perc .
+If the file descriptor
+.Fa fd
+is greater or equal to 0 the dialog waits to read
+.Fa sep
+from it, then the first string replaces
+.Fa perc
+and the following strings replace
+.Fa text
+until the next
+.Fa sep ,
+the loop ends reading
+.Fa end .
+.Pp
+.Fn bsddialog_infobox
+builds a dialog without buttons and returns instantly.
+.Pp
+.Fn bsddialog_menu
+builds a dialog to select an item from a list via SPACE and ENTER.
+An item is defined like:
+.Pp
+.Bd -literal -offset indent -compact
+struct bsddialog_menuitem {
+	const char *prefix;
+	bool on;
+	unsigned int depth;
+	const char *name;
+	const char *desc;
+	const char *bottomdesc;
+};
+.Ed
+.Pp
+.Fa prefix ,
+.Fa name
+and
+.Fa desc
+are printed at the item row.
+.Fa bottomdesc
+is printed at bottom screen if the item is focused.
+.Fa depth
+is a margin between
+.Fa prefix
+and
+.Fa name .
+At exit
+.Fa on
+is set to
+.Dv true
+if the item is selected,
+.Dv false
+otherwise.
+.Fa items
+is an array of items of
+.Fa nitem
+elements.
+.Fa menurows
+is the graphical height of the list inside the dialog, if
+.Fa cols
+is
+.Dv BSDDIALOG_AUTOSIZE
+.Fa menurows
+specifies a maximum value.
+if not
+.Dv NULL
+.Fa focusitem
+is the default item index on startup and the last focused item at exit, a
+negative value if no item is focused.
+.Pp
+.Fn bsddialog_checklist ,
+.Fn bsddialog_menu ,
+.Fn bsddialog_mixedlist
+and
+.Fn bsddialog_radiolist
+can be customized by:
+.Bl -column -compact
+.It Fa conf.menu.align_left
+align items to left, default center.
+.It Fa conf.menu.no_desc
+hide items description.
+.It Fa conf.menu.no_name
+hide items name, mutually exclusive with
+.Fa conf.menu.no_desc .
+.It Fa conf.menu.shortcut_buttons
+enable shortcut keys on buttons, default on items.
+.El
+.Pp
+.Fn bsddialog_mixedgauge
+builds a dialog with a main bar with the
+.Fa mainperc
+percentage and
+.Fa nminibars
+each one with a
+.Fa minilabel
+and a
+.Fa miniperc .
+.Fa miniperc
+can be: a positive value to print a bar with a percentace, a negative constant
+.Dv BSDDIALOG_MG_SUCCEEDED ,
+.Dv BSDDIALOG_MG_FAILED ,
+.Dv BSDDIALOG_MG_PASSED ,
+.Dv BSDDIALOG_MG_COMPLETED ,
+.Dv BSDDIALOG_MG_CHECKED ,
+.Dv BSDDIALOG_MG_DONE ,
+.Dv BSDDIALOG_MG_SKIPPED ,
+.Dv BSDDIALOG_MG_INPROGRESS ,
+.Dv BSDDIALOG_MG_BLANK
+to hide
+.Fa miniperc ,
+.Dv BSDDIALOG_MG_NA ,
+.Dv BSDDIALOG_MG_PENDING
+to print a descriptive string, otherwise
+.Dq "UNKNOWN"
+is printed.
+.Pp
+.Fn bsddialog_mixedlist
+builds a dialog with collections of checklists, radiolists and separators.
+A collection is a set defined like:
+.Pp
+.Bd -literal -offset indent -compact
+enum bsddialog_menutype {
+	BSDDIALOG_CHECKLIST,
+	BSDDIALOG_RADIOLIST,
+	BSDDIALOG_SEPARATOR,
+};
+
+struct bsddialog_menugroup {
+	enum bsddialog_menutype type;
+	unsigned int nitems;
+	struct bsddialog_menuitem *items;
+	unsigned int min_on; /* unused for now */
+};
+.Ed
+.Pp
+.Fa groups
+is an array of sets of
+.Fa ngroups
+elements.
+.Fa menurows
+is the graphical height size for the list.
+If not
+.Dv NULL ,
+.Fa focuslist
+and
+.Fa focusitem
+specify the default item on startup and the last focused item at exit, could be
+a negative value if no item is focused.
+The dialog can be customized by
+.Fa conf.menu.* ,
+see
+.Fn bsddialog_menu .
+.Pp
+.Fn bsddialog_msgbox
+builds a dialog with OK button.
+.Pp
+.Fn bsddialog_pause
+builds a dialog waiting until the timeout in
+.Fa seconds
+expires or a button is pressed.
+At exit
+.Fa seconds
+is set like remaining time.
+.Pp
+.Fn bsddialog_radiolist
+builds dialogs to select at most an item from a list via the SPACE key, can be
+customized by
+.Fa conf.menu.* .
+See
+.Fn bsddialog_menu .
+.Pp
+.Fn bsddialog_rangebox
+to select a value between
+.Fa min
+and
+.Fa max .
+.Fa value
+is the default value on startup and the selected value at exit.
+The current value is printed inside a bar.
+.Pp
+.Fn bsddialog_textbox
+opens and prints
+.Fa file .
+TAB key changes button.
+Extra keys 0, h, l, k, j are available to navigate the text.
+.Dq OK
+button is renamed
+.Dq EXIT .
+.Pp
+.Fn bsddialog_timebox
+builds a dialog to choose a time.
+.Fa hh ,
+.Fa mm ,
+and
+.Fa ss
+are default values on startup, selected time at exit.
+.Pp
+.Fn bsddialog_yesno
+provides a dialog for a
+.Dq Yes-No Question ,
+the labels on buttons are
+.Dq Yes
+and
+.Dq No .
+.Ss Keys
+.Bl -tag -width Ds
+.It Ctrl-l
+Redraw the dialog.
+.It F1
+Refer to
+.Fa conf.key.f1_file
+and
+.Fa conf.key.f1_message .
+.It SPACE
+Select menu item.
+.It UP DOWN LEFT RIGHT - + HOME END PAGEUP PAGEDOWN Ctrl-p Ctrl-n TAB
+Navigate elements and set value, depending on the dialog.
+.El
+.Ss Theme
+The graphical properties are global to the library.
+They are represented by
+.Fa struct bsddialog_theme
+and can be customized at runtime via the
+.In bsddialog_theme.h
+API.
+.Pp
+.Bd -literal -offset indent -compact
+struct bsddialog_theme {
+	struct {
+		int color;
+	} screen;
+	struct {
+		int color;
+		unsigned int y;
+		unsigned int x;
+	} shadow;
+	struct {
+		int  color;
+		bool delimtitle;
+		int  titlecolor;
+		int  lineraisecolor;
+		int  linelowercolor;
+		int  bottomtitlecolor;
+		int  arrowcolor;
+	} dialog;
+	struct {
+		int f_prefixcolor;
+		int prefixcolor;
+		int f_selectorcolor;
+		int selectorcolor;
+		int f_namecolor;
+		int namecolor;
+		int f_desccolor;
+		int desccolor;
+		int f_shortcutcolor;
+		int shortcutcolor;
+		int bottomdesccolor;
+		int sepnamecolor;
+		int sepdesccolor;
+	} menu;
+	struct {
+		int f_fieldcolor;
+		int fieldcolor;
+		int readonlycolor;
+		int bottomdesccolor;
+	} form;
+	struct {
+		int f_color;
+		int color;
+	} bar;
+	struct {
+		unsigned int minmargin;
+		unsigned int maxmargin;
+		char leftdelim;
+		char rightdelim;
+		int f_delimcolor;
+		int delimcolor;
+		int f_color;
+		int color;
+		int f_shortcutcolor;
+		int shortcutcolor;
+	} button;
+};
+.Ed
+.Pp
+A member with the
+.Dq f_
+refers to focus when an element can be in selected or not selected state.
+.Pp
+.Fn bsddialog_color
+generates and returns a color to set a
+.Fa struct bsddialog_theme
+color member.
+An
+.Fa enum bsddialog_color
+can be:
+.Dv BSDDIALOG_BLACK ,
+.Dv BSDDIALOG_RED ,
+.Dv BSDDIALOG_GREEN ,
+.Dv BSDDIALOG_YELLOW ,
+.Dv BSDDIALOG_BLUE ,
+.Dv BSDDIALOG_MAGENTA ,
+.Dv BSDDIALOG_CYAN ,
+.Dv BSDDIALOG_WHITE .
+.Fa flags
+is an OR value:
+.Dv BSDDIALOG_BLINK ,
+.Dv BSDDIALOG_BOLD ,
+.Dv BSDDIALOG_HALFBRIGHT ,
+.Dv BSDDIALOG_HIGHLIGHT ,
+.Dv BSDDIALOG_REVERSE ,
+.Dv BSDDIALOG_UNDERLINE .
+.Pp
+.Fn bsddialog_color_attrs
+sets, if not NULL,
+.Fa foreground ,
+.Fa background ,
+.Fa flags ,
+like the properties of
+.Fa color ,
+see
+.Fn bsddialog_color .
+.Pp
+.Fn bsddialog_get_theme
+sets
+.Fa theme
+like the current runtime theme.
+.Pp
+.Fn bsddialog_hascolors
+returns
+.Dv true
+if the terminal provides colors,
+.Dv false
+otherwise.
+.Pp
+.Fn bsddialog_set_theme
+sets
+.Fa theme
+like current runtime theme.
+Changes take effect only for dialogs built after
+the call.
+.Pp
+.Fn bsddialog_set_default_theme
+sets a library default theme like current theme, possible values:
+.Dv BSDDIALOG_THEME_BLACKWHITE ,
+.Dv BSDDIALOG_THEME_FLAT ,
+.Dv BSDDIALOG_THEME_3D .
+Changes take effect only for dialogs built after the call.
+.Sh RETURN VALUES
+The functions return the value
+.Dv BSDDIALOG_ERROR
+if unsuccessful;
+otherwise, depending on the pressed button, the following values can be
+returned:
+.Dv BSDDIALOG_OK ,
+.Dv BSDDIALOG_CANCEL ,
+.Dv BSDDIALOG_HELP ,
+.Dv BSDDIALOG_EXTRA ,
+.Dv BSDDIALOG_LEFT1 ,
+.Dv BSDDIALOG_LEFT2 ,
+.Dv BSDDIALOG_LEFT3 ,
+.Dv BSDDIALOG_RIGHT1 ,
+.Dv BSDDIALOG_RIGHT2 ,
+.Dv BSDDIALOG_RIGHT3 .
+.Dv BSDDIALOG_YES
+and
+.Dv BSDDIALOG_NO
+are aliases for
+.Dv BSDDIALOG_OK
+and
+.Dv BSDDIALOG_CANCEL ,
+respectively.
+.Pp
+The functions return
+.Dv BSDDIALOG_ESC
+if
+.Fa conf.key.enable_esc
+is enabled and the ESC key is pressed.
+.Pp
+.Fn bsddialog_pause
+returns
+.Dv BSDDIALOG_TIMEOUT
+if the timeout expires.
+.Sh EXAMPLES
+.Dq Yes-No Question
+Example:
+.Pp
+.Bd -literal -offset indent -compact
+int output;
+struct bsddialog_conf conf;
+
+if (bsddialog_init() == BSDDIALOG_ERROR)
+	return (1);
+
+bsddialog_initconf(&conf);
+conf.title = "yesno";
+output = bsddialog_yesno(&conf, "Example", 7, 25);
+
+bsddialog_end();
+
+switch (output) {
+case BSDDIALOG_YES:
+	printf("Yes\\n");
+	break;
+case BSDDIALOG_NO
+	printf("No\\n");
+	break;
+case BSDDIALOG_ERROR:
+	printf("Error: %s\\n", bsddialog_geterror());
+	break;
+}
+.Ed
+.Pp
+Theme Example:
+.Pp
+.Bd -literal -offset indent -compact
+struct bsddialog_conf conf;
+struct bsddialog_theme theme;
+
+bsddialog_init();
+
+bsddialog_initconf(&conf);
+bsddialog_msgbox(&conf, "Default theme", 7, 25);
+
+bsddialog_get_theme(&theme);
+theme.screen.color = bsddialog_color(BSDDIALOG_RED, BSDDIALOG_GREEN,
+    BSDDIALOG_BOLD);
+bsddialog_set_theme(&theme);
+bsddialog_backtitle(&conf, "Red foreground and Green background");
+bsddialog_msgbox(&conf, "Change screen color", 7, 25);
+
+bsddialog_set_default_theme(BSDDIALOG_THEME_BLACKWHITE);
+bsddialog_msgbox(&conf, "Black and White theme", 7, 25);
+
+bsddialog_end();
+.Ed
+.Pp
+Mixedlist Example:
+.Pp
+.Bd -literal -offset indent -compact
+unsigned int i, j;
+struct bsddialog_conf conf;
+struct bsddialog_menuitem item;
+struct bsddialog_menuitem check[2] = {
+    { "1", true,  0, "Name 1", "Desc 1", "Check Bottom Desc 1" },
+    { "2", false, 0, "Name 2", "Desc 2", "Check Bottom Desc 2" }
+};
+struct bsddialog_menuitem sep[1] = {
+    { "3", true, 0, "Radiolist", "(desc)", "" }
+};
+struct bsddialog_menuitem radio[2] = {
+    { "4", true,  0, "Name 1", "Desc 1", "Radio Bottom Desc 1" },
+    { "5", false, 0, "Name 2", "Desc 2", "Radio Bottom Desc 2" }
+};
+struct bsddialog_menugroup group[3] = {
+    { BSDDIALOG_CHECKLIST, 2, check },
+    { BSDDIALOG_SEPARATOR, 1, sep   },
+    { BSDDIALOG_RADIOLIST, 2, radio }
+};
+
+bsddialog_init();
+bsddialog_initconf(&conf);
+bsddialog_mixedlist(&conf, "Example", 20, 30, 11, 3, group, NULL,
+    NULL);
+bsddialog_end();
+
+for (i = 0; i < 3; i++) {
+	for (j = 0; j < group[i].nitems; j++) {
+		item = group[i].items[j];
+		switch (item.type) {
+		case BSDDIALOG_SEPARATOR:
+			printf("---- %s ----\\n", item.name);
+			break;
+		case BSDDIALOG_RADIOLIST:
+			printf(" (%c) %s\\n",
+			    item.on ? '*' : ' ', item.name);
+			break;
+		case BSDDIALOG_CHECKLIST:
+			printf(" [%c] %s\\n",
+			    item.on ? 'X' : ' ', item.name);
+			break;
+		}
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr bsddialog 1 ,
+.Xr curses 3
+.Sh HISTORY
+The
+.Nm bsddialog
+library first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+.Nm bsddialog
+was written by
+.An Alfonso Sabato Siciliano Aq Mt asiciliano@FreeBSD.org .

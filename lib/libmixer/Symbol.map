@@ -1,0 +1,25 @@
+/*
+ */
+
+FBSD_1.7 {
+	mixer_open;
+	mixer_close;
+	mixer_get_dev;
+	mixer_get_dev_byname;
+	mixer_add_ctl;
+	mixer_add_ctl_s;
+	mixer_remove_ctl;
+	mixer_get_ctl;
+	mixer_get_ctl_byname;
+	mixer_set_vol;
+	mixer_set_mute;
+	mixer_mod_recsrc;
+	mixer_get_dunit;
+	mixer_set_dunit;
+	mixer_get_mode;
+	mixer_get_nmixers;
+};
+
+FBSD_1.8 {
+	mixer_get_path;
+};

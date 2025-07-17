@@ -1,0 +1,7 @@
+syntax(2)
+
+test_suite("kyua")
+
+atf_test_program{name="containers_test"}
+atf_test_program{name="exceptions_test"}
+atf_test_program{name="formatter_test"}

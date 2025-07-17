@@ -1,0 +1,103 @@
+.\"***************************************************************************
+.\" Copyright 2020-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey
+.\"
+.\" $Id: legacy_coding.3x,v 1.28 2024/04/20 19:13:50 tom Exp $
+.TH legacy_coding 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.SH NAME
+\fB\%use_legacy_coding\fP \-
+override \fIcurses\fR locale encoding checks
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint use_legacy_coding(int \fIlevel\fP);
+.fi
+.SH DESCRIPTION
+.B \%use_legacy_coding
+is an extension to the
+.I curses
+library.
+It allows the caller to change the result of \fB\%unctrl\fP(3X),
+suppressing \fI\%isprint\fP(3)-based checks within the library that
+would normally cause nonprinting characters to be rendered in visible
+form.
+The alteration affects only eight-bit characters.
+.PP
+The
+.I level
+parameter controls the result.
+.RS
+.TP 5
+.B 0
+The library functions normally,
+rendering nonprinting characters as described in \fB\%unctrl\fP(3X),
+.TP
+.B 1
+the library ignores
+.I \%isprint
+for codes in the range 160-255.
+.TP
+.B 2
+the library ignores
+.I \%isprint
+for codes in the range 128-255.
+It also modifies the output of \fB\%unctrl\fP(3X),
+showing codes in the range 128-159 as is.
+.RE
+.SH RETURN VALUE
+If the screen has not been initialized,
+or the
+.I level
+parameter is out of range,
+.B \%use_legacy_coding
+returns
+.BR ERR .
+Otherwise,
+it returns the previous level:
+.BR 0 ,
+.BR 1 ,
+or
+.BR 2 .
+.SH PORTABILITY
+.B \%use_legacy_coding
+is specific to
+.IR \%ncurses .
+It was not supported on Version 7, BSD or System V implementations.
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.SH AUTHORS
+Thomas Dickey
+(to support \fI\%lynx\fP(1)'s font-switching feature).
+.SH SEE ALSO
+\fB\%unctrl\fP(3X)

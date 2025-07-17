@@ -1,0 +1,104 @@
+.\"***************************************************************************
+.\" Copyright 2020-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 2010 Free Software Foundation, Inc.                            *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: MKncu_config.in,v 1.24 2024/04/20 21:13:38 tom Exp $
+.TH @LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config 1 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.SH NAME
+\fB\%@LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config\fP \-
+configuration helper for \fI\%ncurses\fP libraries
+.SH SYNOPSIS
+.B @LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config
+.I option
+\&.\|.\|.
+.PP
+.B "@LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config \-\-version"
+.PP
+.B "@LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config \-\-help"
+.SH DESCRIPTION
+This program development aid simplifies the process of configuring
+applications against a particular set of \fI\%ncurses\fP libraries.
+.SH OPTIONS
+.TP 18 \" "--mouse-version" + 2n + adjustment for PDF
+\fB\-\-prefix\fP
+reports the package prefix of \fI\%ncurses\fP.
+.TP
+\fB\-\-exec\-prefix\fP
+reports the executable prefix of \fI\%ncurses\fP.
+.TP
+\fB\-\-cflags\fP
+reports the C compiler flags needed to compile with \fI\%ncurses\fP.
+.TP
+\fB\-\-libs\fP
+reports the libraries needed to link with \fI\%ncurses\fP.
+.TP
+\fB\-\-abi\-version\fP
+reports the ABI version of \fI\%ncurses\fP.
+.TP
+\fB\-\-mouse\-version\fP
+reports the mouse\-interface version of \fI\%ncurses\fP.
+.TP
+\fB\-\-bindir\fP
+reports the directory containing \fI\%ncurses\fP programs.
+.TP
+\fB\-\-datadir\fP
+reports the directory containing \fI\%ncurses\fP data.
+.TP
+\fB\-\-includedir\fP
+reports the directory containing \fI\%ncurses\fP header files.
+.TP
+\fB\-\-libdir\fP
+reports the directory containing \fI\%ncurses\fP libraries.
+.TP
+\fB\-\-mandir\fP
+reports the directory containing \fI\%ncurses\fP man pages.
+.TP
+\fB\-\-terminfo\fP
+reports the \fI\%TERMINFO\fP \fIterminfo\fP database path,
+for example \fI\%@TERMINFO@\fP.
+.TP
+\fB\-\-terminfo\-dirs\fP
+reports the \fI\%TERMINFO_DIRS\fP supplemental search path for the
+\fIterminfo\fP database,
+for example \fI\%@TERMINFO_DIRS@\fP.
+.TP
+\fB\-\-termpath\fP
+reports the \fI\%TERMPATH\fP supplemental search path for the
+\fItermcap\fP database,
+if support for \fItermcap\fP is configured.
+.PP
+The following options cause all others to be ignored.
+.TP 11 .\" "--version" + 2n
+\fB\-\-help\fP
+issues a usage message and exits successfully.
+.TP
+\fB\-\-version\fP
+issues the release and patch date information of \fI\%ncurses\fP and
+exits successfully.
+.SH "SEE ALSO"
+\fB\%curses\fP(3X)

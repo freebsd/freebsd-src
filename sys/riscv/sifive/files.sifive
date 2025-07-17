@@ -1,0 +1,7 @@
+
+riscv/sifive/fe310_aon.c		optional	fe310aon
+riscv/sifive/fu740_pci_dw.c		optional	fu740_pci_dw pci fdt
+riscv/sifive/sifive_gpio.c		optional	sifive_gpio gpio
+riscv/sifive/sifive_prci.c		standard
+riscv/sifive/sifive_spi.c		optional	sifive_spi spibus
+riscv/sifive/sifive_uart.c		standard

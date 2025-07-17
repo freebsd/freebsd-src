@@ -1,0 +1,34 @@
+#! /bin/sh
+
+#
+# checkHtmlFileDates
+#
+# This script is invoked in html directory when any html/*.html file
+# is newer than html/.datecheck to update the last modified time
+# within the HTML.  Each file is compared against the checked-in
+# version is compared to any uncommitted edits and if there are
+# any, scripts/build/updateBEDate is used to update the embedded
+# timestamp.  html/.datecheck is not distributed in releases so
+# this will be invoked once building a newly-extracted tarball.
+# 'bk diff' is used to check for modifications so if bk is not
+# on the path there's no need to invoke this repeatedly.
+# Therefore touch .datecheck unconditionally right away.
+#
+touch .datecheck
+
+# Do nothing if the directory is not a BK repo,
+# or if BK is not even installed.
+bk status > /dev/null 2>&1 || exit 0
+
+for i in `echo *.html`
+do
+    # echo $i
+    set `bk diff --normal $i | wc -l`
+    lines=$1
+    case "$lines" in
+     0) ;;
+     *) echo "Processing <$i>"
+        ../scripts/build/updateBEDate $i
+	;;
+    esac
+done

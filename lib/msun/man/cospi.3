@@ -1,0 +1,103 @@
+.\" Copyright (c) 2017 Steven G. Kargl <kargl@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 1, 2017
+.Dt COSPI 3
+.Os
+.Sh NAME
+.Nm cospi ,
+.Nm cospif ,
+.Nm cospil
+.Nd half\(encycle cosine functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn cospi "double x"
+.Ft float
+.Fn cospif "float x"
+.Ft long double
+.Fn cospil "long double x"
+.Sh DESCRIPTION
+The
+.Fn cospi ,
+.Fn cospif ,
+and
+.Fn cospil
+functions compute the cosine of
+.Fa "\(*p \(mu x" .
+and measure angles in half-cycles.
+.Sh RETURN VALUES
+The
+.Fn cospi ,
+.Fn cospif ,
+and
+.Fn cospil
+functions returns
+.Fn cos "\(*p \(mu x" .
+If \*(Bax\*(Ba \*(Ge 2^(p - 1)
+where p is the floating\(enpoint precision of
+.Ar x ,
+then the returned value is 1 and it has no significance.
+.Sh SPECIAL VALUES
+.Bl -tag -width "cospi(+n/2)"
+.It Fn cospi \*(Pm0
+returns 1.
+.It Fn cospi \*(Pmn/2
+returns 0 for positive integers
+.Ar n .
+.It Fn cospi n
+returns 1 for even integers
+.Ar n .
+.It Fn cospi n
+returns \-1 for odd integers
+.Ar n .
+.It Fn cospi \*(Pm\(if
+return an \*(Na and raises an FE_INVALID exception.
+.It Fn cospi \*(Na
+return an \*(Na and raises an FE_INVALID exception.
+.El
+.Sh SEE ALSO
+.Xr cos 3 ,
+.Xr fenv 3 ,
+.Xr math 3 ,
+.Xr sin 3 ,
+.Xr sinpi 3 ,
+.Xr tan 3 ,
+.Xr tanpi 3
+.Sh AUTHORS
+The half\(encycle trignometric functions were written by
+.An Steven G. Kargl Aq Mt kargl@FreeBSD.org .
+.Sh STANDARDS
+These functions conform to
+IEEE Std 754\(tm\(en2008 ,
+\(dqIEEE Standard for Floating-Point Arithmetic\(dq
+and to
+ISO/IEC TS 18661-4 ,
+\(dqInformation technology \(em Programming languages, their environments,
+and system software interfaces \(em Floating\(enpoint extensions for
+C\(dq \(em Part 4: Supplementary functions.
+
+

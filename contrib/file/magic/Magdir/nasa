@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: nasa,v 1.3 2024/06/10 23:09:52 christos Exp $
+# nasa:	file(1) magic for NASA SPICE file
+
+# From: Barry Carter <carter.barry@gmail.com>
+0	string	DAF/SPK				NASA SPICE file (binary format)
+0	string	DAFETF\ NAIF\ DAF\ ENCODED	NASA SPICE file (transfer format)

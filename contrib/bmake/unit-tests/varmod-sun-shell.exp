@@ -1,0 +1,13 @@
+make: varmod-sun-shell.mk:17: warning: Command "echo word; (exit 13)" exited with status 13
+Global: _ = # (empty)
+Var_Parse: ${echo word; ${:U(exit 13)}:L:sh} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${echo word; (exit 13):L} on value "" (eval-keep-dollar-and-undefined, undefined)
+Result of ${echo word; (exit 13):L} is "echo word; (exit 13)" (eval-keep-dollar-and-undefined, defined)
+Evaluating modifier ${echo word; (exit 13):s...} on value "echo word; (exit 13)" (eval-keep-dollar-and-undefined, defined)
+Capturing the output of command "echo word; (exit 13)"
+make: varmod-sun-shell.mk:24: warning: Command "echo word; (exit 13)" exited with status 13
+Result of ${echo word; (exit 13):sh} is "word" (eval-keep-dollar-and-undefined, defined)
+Global: _ = word
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+exit status 0

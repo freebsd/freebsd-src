@@ -1,0 +1,241 @@
+.\"	$OpenBSD: clock_gettime.2,v 1.4 1997/05/08 20:21:16 kstailey Exp $
+.\"
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 10, 2024
+.Dt CLOCK_GETTIME 2
+.Os
+.Sh NAME
+.Nm clock_gettime ,
+.Nm clock_settime ,
+.Nm clock_getres
+.Nd get/set/calibrate date and time
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn clock_gettime "clockid_t clock_id" "struct timespec *tp"
+.Ft int
+.Fn clock_settime "clockid_t clock_id" "const struct timespec *tp"
+.Ft int
+.Fn clock_getres "clockid_t clock_id" "struct timespec *tp"
+.Sh DESCRIPTION
+The
+.Fn clock_gettime
+and
+.Fn clock_settime
+system calls allow the calling process to retrieve or set the value
+used by a clock which is specified by
+.Fa clock_id .
+.Pp
+The
+.Fa clock_id
+argument can be a value obtained from
+.Xr clock_getcpuclockid 3
+or
+.Xr pthread_getcpuclockid 3
+as well as the following values:
+.Pp
+.Bl -tag -width indent -compact
+.It Dv CLOCK_REALTIME
+.It Dv CLOCK_REALTIME_PRECISE
+.It Dv CLOCK_REALTIME_FAST
+.It Dv CLOCK_REALTIME_COARSE
+Increments in SI seconds like a wall clock.
+It uses a 1970 epoch and implements the UTC timescale.
+The count of physical SI seconds since 1970, adjusted by subtracting the number
+of positive leap seconds and adding the number of negative leap seconds.
+Behavior during a leap second is not defined by and POSIX standard.
+.It Dv CLOCK_MONOTONIC
+.It Dv CLOCK_MONOTONIC_PRECISE
+.It Dv CLOCK_MONOTONIC_FAST
+.It Dv CLOCK_MONOTONIC_COARSE
+.It Dv CLOCK_BOOTTIME
+Increments in SI seconds, even while the system is suspended.
+Its epoch is unspecified.
+The count is not adjusted by leap seconds.
+.Fx implements
+.It Dv CLOCK_UPTIME
+.It Dv CLOCK_UPTIME_PRECISE
+.It Dv CLOCK_UPTIME_FAST
+Increments monotonically in SI seconds while the machine is running.
+The count is not adjusted by leap seconds.
+The epoch is unspecified.
+.It Dv CLOCK_VIRTUAL
+Increments only when
+the CPU is running in user mode on behalf of the calling process.
+.It Dv CLOCK_PROF
+Increments when the CPU is running in user or kernel mode.
+.It Dv CLOCK_SECOND
+Returns the current second without performing a full time counter
+query, using an in-kernel cached value of the current second.
+.It Dv CLOCK_PROCESS_CPUTIME_ID
+Returns the execution time of the calling process.
+.It Dv CLOCK_THREAD_CPUTIME_ID
+Returns the execution time of the calling thread.
+.It Dv CLOCK_TAI
+Increments in SI seconds like a wall clock.
+It uses a 1970 epoch and implements the TAI timescale.
+Similar to
+.Dv CLOCK_REALTIME ,
+but without leap seconds.
+It will increase monotonically during a leap second.
+Will return
+.Er EINVAL
+if the current offset between TAI and UTC is not known,
+which may be the case early in boot before NTP or other time daemon has
+synchronized.
+.El
+.Pp
+The clock IDs
+.Dv CLOCK_BOOTTIME ,
+.Dv CLOCK_REALTIME ,
+.Dv CLOCK_TAI ,
+.Dv CLOCK_MONOTONIC ,
+and
+.Dv CLOCK_UPTIME
+perform a full time counter query.
+The clock IDs with the _FAST suffix, i.e.,
+.Dv CLOCK_REALTIME_FAST ,
+.Dv CLOCK_MONOTONIC_FAST ,
+and
+.Dv CLOCK_UPTIME_FAST ,
+do not perform
+a full time counter query, so their accuracy is one timer tick.
+Similarly,
+.Dv CLOCK_REALTIME_PRECISE ,
+.Dv CLOCK_MONOTONIC_PRECISE ,
+and
+.Dv CLOCK_UPTIME_PRECISE
+are used to get the most exact value as possible, at the expense of
+execution time.
+The clock IDs
+.Dv CLOCK_REALTIME_COARSE
+and
+.Dv CLOCK_MONOTONIC_COARSE
+are aliases of corresponding IDs with _FAST suffix for compatibility with other
+systems.
+Finally,
+.Dv CLOCK_BOOTTIME
+is an alias for
+.Dv CLOCK_MONOTONIC
+for compatibility with other systems and is unrelated to the
+.Fa kern.boottime
+.Xr sysctl 8 .
+.Pp
+The structure pointed to by
+.Fa tp
+is defined in
+.In sys/timespec.h
+as:
+.Bd -literal
+struct timespec {
+	time_t	tv_sec;		/* seconds */
+	long	tv_nsec;	/* and nanoseconds */
+};
+.Ed
+.Pp
+Only the super-user may set the time of day, using only
+.Dv CLOCK_REALTIME .
+If the system
+.Xr securelevel 7
+is greater than 1 (see
+.Xr init 8 ) ,
+the time may only be advanced.
+This limitation is imposed to prevent a malicious super-user
+from setting arbitrary time stamps on files.
+The system time can still be adjusted backwards using the
+.Xr adjtime 2
+system call even when the system is secure.
+.Pp
+The resolution (granularity) of a clock is returned by the
+.Fn clock_getres
+system call.
+This value is placed in a (non-NULL)
+.Fa *tp .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The following error codes may be set in
+.Va errno :
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa clock_id
+or
+.Fa timespec
+argument
+was not a valid value.
+.It Bq Er EPERM
+A user other than the super-user attempted to set the time.
+.El
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr adjtime 2 ,
+.Xr clock_getcpuclockid 3 ,
+.Xr ctime 3 ,
+.Xr pthread_getcpuclockid 3
+.Sh STANDARDS
+The
+.Fn clock_gettime ,
+.Fn clock_settime ,
+and
+.Fn clock_getres
+system calls conform to
+.St -p1003.1-2008 .
+The clock IDs
+.Dv CLOCK_BOOTTIME ,
+.Dv CLOCK_MONOTONIC_FAST ,
+.Dv CLOCK_MONOTONIC_PRECISE ,
+.Dv CLOCK_REALTIME_FAST ,
+.Dv CLOCK_REALTIME_PRECISE ,
+.Dv CLOCK_SECOND ,
+.Dv CLOCK_TAI ,
+.Dv CLOCK_UPTIME ,
+.Dv CLOCK_UPTIME_FAST ,
+and
+.Dv CLOCK_UPTIME_PRECISE
+are
+.Fx
+extensions to the POSIX interface.
+.Pp
+UTC is defined by ITU-R TF.460-6, Standard-frequency and time-signal emissions.
+However, the
+.Vt time_t
+type is a simple count that does not provide a unique encoding for leap seconds,
+nor a specification for what values should be used to encode a leap second.
+.Pp
+.Sh HISTORY
+The
+.Fn clock_gettime ,
+.Fn clock_settime ,
+and
+.Fn clock_getres
+system calls first appeared in
+.Fx 3.0 .

@@ -1,0 +1,124 @@
+# Bus drivers
+device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
+options 	PCI_IOV			# PCI SR-IOV support
+
+# CPU frequency control
+device		cpufreq
+
+# Block devices
+device		ahci
+device		scbus
+device		da
+
+# ATA/SCSI peripherals
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
+# NVM Express (NVMe) support
+device		nvme			# base NVMe driver
+options 	NVME_USE_NVD=0		# prefer the cam(4) based nda(4) driver
+device		nvd			# expose NVMe namespaces as disks, depends on nvme
+
+# GPIO / PINCTRL
+device		gpio
+device		gpioled
+device		fdt_pinctrl
+device		gpioregulator
+
+# I2C
+device		iicbus
+device		iicmux
+device		iic
+device		icee			# Generic IIC eeprom
+
+# Crypto accelerators
+device		armv8crypto		# ARMv8 OpenCrypto module
+
+# SPI
+device		spibus
+
+# PWM
+device		pwm
+
+# Serial (COM) ports
+device		uart			# Generic UART driver
+
+# Console
+device		vt
+device		kbdmux
+
+device		vt_efifb
+device		vt_simplefb
+
+# Pseudo devices.
+device		crypto			# core crypto support
+device		armv8_rng		# Armv8.5 rndr RNG
+device		loop			# Network loopback
+device		ether			# Ethernet support
+device		vlan			# 802.1Q VLAN support
+device		tuntap			# Packet tunnel.
+device		md			# Memory "disks"
+device		gif			# IPv6 and IPv4 tunneling
+device		firmware		# firmware assist module
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
+# EVDEV support
+device		evdev			# input event device support
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
+device		uinput			# install /dev/uinput cdev
+
+# PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
+device		iflib
+device		em			# Intel PRO/1000 Gigabit Ethernet Family
+device		ix			# Intel 10Gb Ethernet Family
+
+# Ethernet NICs
+device		mdio
+device		mii
+device		miibus			# MII bus support
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter
+
+# Netmap provides direct access to TX/RX rings on supported NICs
+device		netmap			# netmap(4) support
+
+# USB support
+options 	USB_DEBUG		# enable debug msgs
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		ohci			# OHCI USB interface
+device		uhci			# UHCI USB interface
+device		ehci			# EHCI USB interface (USB 2.0)
+device		xhci			# XHCI USB interface (USB 3.0)
+device		usb			# USB Bus (required)
+device		usbhid			# USB HID Transport
+device		hkbd			# HID Keyboard
+device		ukbd			# USB Keyboard
+device		umass			# Disks/Mass storage - Requires scbus and da
+
+# Sound support
+device		sound
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+
+# HID support
+options 	HID_DEBUG		# enable debug msgs
+device		hid			# Generic HID support
+device		hidbus			# Generic HID Bus
+
+# Firmware
+device		mmio_sram		# Generic on-chip SRAM
+
+# Wireless options
+options 	IEEE80211_DEBUG		# enable debug msgs
+options 	IEEE80211_SUPPORT_MESH	# enable 802.11s draft support

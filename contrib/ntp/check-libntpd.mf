@@ -1,0 +1,10 @@
+##
+## check-libntpd.mf - automake fragment
+##
+
+BUILT_SOURCES	+= check-libntpd
+
+.PHONY: check-libntpd
+check-libntpd:
+	cd $(top_builddir)/ntpd && $(MAKE) $(AM_MAKEFLAGS) libntpd.a
+

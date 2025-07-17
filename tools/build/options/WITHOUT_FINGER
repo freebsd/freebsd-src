@@ -1,0 +1,4 @@
+Do not build or install
+.Xr finger 1
+and
+.Xr fingerd 8 .

@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+
+# PROVIDE: nuageinit_post_net
+# REQUIRE: NETWORKING devfs
+# BEFORE: SERVERS
+# KEYWORD: firstboot
+
+. /etc/rc.subr
+
+name="nuageinit_post_net"
+desc="Post Network Cloud Init configuration"
+start_cmd="execute_post_net"
+stop_cmd=":"
+rcvar="nuageinit_enable"
+
+execute_post_net()
+{
+	test -f /var/cache/nuageinit/user_data -o -f /var/cache/nuageinit/user-data || return
+	/usr/libexec/nuageinit /var/cache/nuageinit/ postnet | tee -a /var/log/nuageinit.log
+}
+
+# Share the same config as nuageinit
+load_rc_config nuageinit
+run_rc_command "$1"

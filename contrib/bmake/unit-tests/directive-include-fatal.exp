@@ -1,0 +1,4 @@
+make: directive-include-fatal.mk:14: Variable "UNDEF" is undefined
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

@@ -1,0 +1,29 @@
+#! /usr/bin/bc -lq
+
+for (i = 0; i < 10; ++i)
+{
+	if (brand()) {
+		a = srand(ifrand(101, scale))
+	}
+	else {
+		a = srand(irand(101))
+	}
+
+	if (brand()) {
+		b = srand(ifrand(101, scale))
+	}
+	else {
+		b = srand(irand(101))
+	}
+
+	min = min(a$, b$)
+	max = max(a$, b$)
+
+	for (j = 0; j < 100; ++j)
+	{
+		r = i2rand(a, b)
+		r >= min && r <= max
+	}
+}
+
+halt

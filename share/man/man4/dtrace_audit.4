@@ -1,0 +1,174 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Robert N. M. Watson
+.\"
+.\" This software was developed by BAE Systems, the University of Cambridge
+.\" Computer Laboratory, and Memorial University under DARPA/AFRL contract
+.\" FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent Computing
+.\" (TC) research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 28, 2019
+.Dt DTRACE_AUDIT 4
+.Os
+.Sh NAME
+.Nm dtrace_audit
+.Nd A DTrace provider for tracing
+.Xr audit 4
+events
+.Sh SYNOPSIS
+.Fn audit:event:aue_*:commit "char *eventname" "struct audit_record *ar"
+.Fn audit:event:aue_*:bsm "char *eventname" "struct audit_record *ar" "const void *" "size_t"
+.Pp
+To compile this module into the kernel, place the following in your kernel
+configuration file:
+.Bd -literal -offset indent
+.Cd "options DTAUDIT"
+.Ed
+.Pp
+Alternatively, to load the module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dtaudit_load="YES"
+.Ed
+.Sh DESCRIPTION
+The DTrace
+.Nm dtaudit
+provider allows users to trace events in the kernel security auditing
+subsystem,
+.Xr audit 4 .
+.Xr audit 4
+provides detailed logging of a configurable set of security-relevant system
+calls, including key arguments (such as file paths) and return values that are
+copied race-free as the system call proceeds.
+The
+.Nm dtaudit
+provider allows DTrace scripts to selectively enable in-kernel audit-record
+capture for system calls, and then access those records in either the
+in-kernel format or BSM format (\c
+.Xr audit.log 5 )
+when the system call completes.
+While the in-kernel audit record data structure is subject to change as the
+kernel changes over time, it is a much more friendly interface for use in D
+scripts than either those available via the DTrace system-call provider or the
+BSM trail itself.
+.Ss Configuration
+The
+.Nm dtaudit
+provider relies on
+.Xr audit 4
+being compiled into the kernel.
+.Nm dtaudit
+probes become available only once there is an event-to-name mapping installed
+in the kernel, normally done by
+.Xr auditd 8
+during the boot process, if audit is enabled in
+.Xr rc.conf 5 :
+.Bd -literal -offset indent
+auditd_enable="YES"
+.Ed
+.Pp
+If
+.Nm dtaudit
+probes are required earlier in boot -- for example, in single-user mode -- or
+without enabling
+.Xr audit 4 ,
+they can be preloaded in the boot loader by adding this line to
+.Xr loader.conf 5 .
+.Bd -literal -offset indent
+audit_event_load="YES"
+.Ed
+.Ss Probes
+The
+.Fn audit:event:aue_*:commit
+probes fire synchronously during system-call return, giving access to two
+arguments: a
+.Vt char *
+audit event name, and
+the
+.Vt struct audit_record *
+in-kernel audit record.
+Because the probe fires in system-call return, the user thread has not yet
+regained control, and additional information from the thread and process
+remains available for capture by the script.
+.Pp
+The
+.Fn audit:event:aue_*:bsm
+probes fire asynchronously from system-call return, following BSM conversion
+and just prior to being written to disk, giving access to four arguments: a
+.Vt char *
+audit event name, the
+.Vt struct audit_record *
+in-kernel audit record, a
+.Vt const void *
+pointer to the converted BSM record, and a
+.Vt size_t
+for the length of the BSM record.
+.Sh IMPLEMENTATION NOTES
+When a set of
+.Nm dtaudit
+probes are registered, corresponding in-kernel audit records will be captured
+and their probes will fire regardless of whether the
+.Xr audit 4
+subsystem itself would have captured the record for the purposes of writing it
+to the audit trail, or for delivery to a
+.Xr auditpipe 4 .
+In-kernel audit records allocated only because of enabled
+.Xr dtaudit 4
+probes will not be unnecessarily written to the audit trail or enabled pipes.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr audit 4 ,
+.Xr audit.log 5 ,
+.Xr loader.conf 5 ,
+.Xr rc.conf 5 ,
+.Xr auditd 8
+.Sh HISTORY
+The
+.Nm dtaudit
+provider first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+This software and this manual page were developed by BAE Systems, the
+University of Cambridge Computer Laboratory, and Memorial University under
+DARPA/AFRL contract
+.Pq FA8650-15-C-7558
+.Pq Do CADETS Dc ,
+as part of the DARPA Transparent Computing (TC) research program.
+The
+.Nm dtaudit
+provider and this manual page were written by
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .
+.Sh BUGS
+Because
+.Xr audit 4
+maintains its primary event-to-name mapping database in userspace, that
+database must be loaded into the kernel before
+.Nm dtaudit
+probes become available.
+.Pp
+.Nm dtaudit
+is only able to provide access to system-call audit events, not the full
+scope of userspace events, such as those relating to login, password change,
+and so on.

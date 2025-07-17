@@ -1,0 +1,200 @@
+; Test DNS Error Reporting.
+
+server:
+	module-config: "validator iterator"
+	trust-anchor-signaling: no
+	target-fetch-policy: "0 0 0 0 0"
+	verbosity: 4
+	qname-minimisation: no
+	minimal-responses: no
+	rrset-roundrobin: no
+	trust-anchor: "a.domain DS 50602 8 2 FA8EE175C47325F4BD46D8A4083C3EBEB11C977D689069F2B41F1A29B22446B1"
+	ede: no  # It is not needed for dns-error-reporting; only for clients to receive EDEs
+	dns-error-reporting: yes
+	do-ip6: no
+
+stub-zone:
+	name: domain
+	stub-addr: 0.0.0.0
+stub-zone:
+	name: an.agent
+	stub-addr: 0.0.0.2
+CONFIG_END
+
+SCENARIO_BEGIN Test DNS Error Reporting
+
+; domain
+RANGE_BEGIN 0 100
+	ADDRESS 0.0.0.0
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			a.domain. IN A
+		SECTION AUTHORITY
+			a.domain. IN NS ns.a.domain.
+		SECTION ADDITIONAL
+			ns.a.domain. IN A 0.0.0.1
+			HEX_EDNSDATA_BEGIN
+				00 12				; opt-code (Report-Channel)
+				00 0A				; opt-len
+				02 61 6E 05 61 67 65 6E 74 00	; an.agent.
+			HEX_EDNSDATA_END
+	ENTRY_END
+RANGE_END
+
+; a.domain
+RANGE_BEGIN 0 9
+	ADDRESS 0.0.0.1
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			a.domain. IN DNSKEY
+	ENTRY_END
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			a.domain. IN A
+		SECTION ANSWER
+			a.domain. 5 IN A   0.0.0.0
+			; No RRSIG to trigger validation error (and EDE)
+		SECTION ADDITIONAL
+			; No Report-Channel here
+	ENTRY_END
+RANGE_END
+
+; a.domain
+RANGE_BEGIN 10 100
+	ADDRESS 0.0.0.1
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			a.domain. IN DNSKEY
+	ENTRY_END
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			a.domain. IN A
+		SECTION ANSWER
+			a.domain. 5 IN A   0.0.0.0
+			; No RRSIG to trigger validator error and EDE
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				00 12				; opt-code (Report-Channel)
+				00 0A				; opt-len
+				02 61 6E 05 61 67 65 6E 74 00	; an.agent.
+			HEX_EDNSDATA_END
+	ENTRY_END
+RANGE_END
+
+; an.agent
+RANGE_BEGIN 10 20
+	ADDRESS 0.0.0.2
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			_er.1.a.domain.9._er.an.agent. IN TXT
+		SECTION ANSWER
+			_er.1.a.domain.9._er.an.agent. IN TXT "OK"
+	ENTRY_END
+RANGE_END
+
+; Query
+STEP 0 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.domain. IN A
+ENTRY_END
+
+; Check that validation failed (no DNS error reporting at this state;
+; 'domain' did give an error reporting agent, but the latest upstream
+; 'a.domain' did not)
+STEP 1 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+a.domain.	IN A
+ENTRY_END
+
+; Wait for the a.domain query to expire (TTL 5)
+STEP 3 TIME_PASSES ELAPSE 6
+
+; Query again
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.domain. IN A
+ENTRY_END
+
+; Check that validation failed
+; (a DNS Error Report query should have been generated)
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+a.domain.	IN A
+ENTRY_END
+
+; Check explicitly that the DNS Error Report query is cached.
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+_er.1.a.domain.9._er.an.agent. IN TXT
+ENTRY_END
+
+; At this range there are no configured agents to answer this.
+; If the DNS Error Report query is not answered from the cache the test will
+; fail with pending messages.
+STEP 21 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY RD QR RA NOERROR
+SECTION QUESTION
+_er.1.a.domain.9._er.an.agent. IN TXT
+SECTION ANSWER
+_er.1.a.domain.9._er.an.agent. IN TXT "OK"
+ENTRY_END
+
+; Wait for the a.domain query to expire (5 TTL).
+; The DNS Error Report query should still be cached (SOA negative).
+STEP 30 TIME_PASSES ELAPSE 6
+
+; Force a DNS Error Report query generation again.
+STEP 31 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.domain. IN A
+ENTRY_END
+
+; Check that validation failed
+STEP 32 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+a.domain.	IN A
+ENTRY_END
+
+; The same DNS Error Report query will be generated as above.
+; No agent is configured at this range to answer the DNS Error Report query.
+; If the DNS Error Report query is not used from the cache the test will fail
+; with pending messages.
+
+SCENARIO_END

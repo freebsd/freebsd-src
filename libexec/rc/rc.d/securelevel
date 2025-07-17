@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: securelevel
+# REQUIRE: adjkerntz ipfw pf sysctl_lastload
+
+. /etc/rc.subr
+
+name="securelevel"
+desc="Securelevel configuration"
+rcvar='kern_securelevel_enable'
+start_cmd="securelevel_start"
+stop_cmd=":"
+
+securelevel_start()
+{
+	if [ ${kern_securelevel} -ge 0 ]; then
+		echo 'Raising kernel security level: '
+		${SYSCTL} kern.securelevel=${kern_securelevel}
+	fi
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+securelevel_svcj="NO"
+
+run_rc_command "$1"

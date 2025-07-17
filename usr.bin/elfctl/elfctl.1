@@ -1,0 +1,123 @@
+.\" Copyright 2019 The FreeBSD Foundation.
+.\"
+.\" This software was developed by Bora Ozarslan under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 5, 2023
+.Dt ELFCTL 1
+.Os
+.Sh NAME
+.Nm elfctl
+.Nd change an ELF binary's feature control note
+.Sh SYNOPSIS
+.Nm
+.Op Fl h | Fl -help
+.Op Fl i
+.Op Fl l
+.Op Fl e Ar featurelist
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility modifies feature flags in the feature control note in an ELF binary.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl h | Fl -help
+Print a usage message and exit.
+.It Fl i
+Ignore unknown feature flags in
+.Ar featurelist .
+.It Fl l
+List known ELF feature flags.
+.It Fl e Ar featurelist
+Edit features from the given comma separated list
+.Ar featurelist .
+.Ar featurelist
+starts with one of the three operations:
+.Dq Li +
+to turn on the features,
+.Dq Li -
+to turn off the features,
+.Dq Li =
+to only turn on the given features.
+A comma separated list of feature names or numeric values follows the
+operation.
+.El
+.Pp
+If
+.Fl e
+is not specified
+.Nm
+displays the status of each feature in the ELF note in each
+.Ar .
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command
+fails if a file does not exist, is too short,
+or fails to find or edit features note.
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Bd -literal -offset indent
+elfctl file
+elfctl -e +noaslr file
+.Ed
+.Pp
+Features may be specified as numerical values:
+.Bd -literal -offset indent
+elfctl -e =0x0001,0x0004 file
+.Ed
+.Pp
+Features may also be specified as a single combined value:
+.Bd -literal -offset indent
+elfctl -e =0x5 file
+.Ed
+.Sh NOTES
+On amd64, on a machine with LA57 (5-level paging) mode supported and
+enabled, if both
+.Va la57
+and
+.Va la48
+feature flags are specified, the
+.Va la57
+feature has priority over
+.Va la48 .
+The
+.Va vm.pmap.prefer_uva_la48
+sysctl MIB defines the default user address space size for binaries
+which do not set either of these flags.
+.Sh SEE ALSO
+.Xr mitigations 7
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 12.2 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Bora Ozarslan Mt borako.ozarslan@gmail.com
+under sponsorship from the
+.Fx Foundation.

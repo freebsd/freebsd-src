@@ -1,0 +1,7 @@
+#!/bin/sh
+#
+#
+
+TARGET="riscv"
+TARGET_ARCH="riscv64"
+KERNEL="GENERIC"

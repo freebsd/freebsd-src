@@ -1,0 +1,53 @@
+unifdef - selectively remove C preprocessor conditionals
+
+Written by Tony Finch <dot@dotat.at> - http://dotat.at/prog/unifdef/
+
+The unifdef utility selectively processes conditional C preprocessor
+#if and #ifdef directives. It removes from a file both the directives
+and the additional text that they delimit, while otherwise leaving the
+file alone.
+
+Please see the INSTALL file for installation instructions.
+
+Pre-formatted documentation can be found in unifdef.txt
+
+You can download the latest release tar and zip files from:
+	http://dotat.at/prog/unifdef
+
+You can clone the development repository using:
+	git clone http://dotat.at/git/unifdef.git
+
+I also maintain a copy at http://github.com/fanf2/unifdef
+(Warning: GitHub's zip download is incomplete and unusable.)
+
+Please send bug reports and patches to me via email to the
+address above. Unless you state otherwise, I will assume that
+any contributions are under the two-clause BSD licence. See
+the COPYING file for details.
+
+Thanks to the following people for their contributions:
+
+Bob Proulx <bob@proulx.com>
+ - test suite
+
+Jonathan Nieder <jrnieder@gmail.com>
+ - bug fixes, improved unifdefall
+
+Anders H Kaseorg <andersk@mit.edu>
+ - bug fixes and other improvements
+
+Ruediger Meier <ruediger.meier@ga-group.nl>
+ - build and portability cleanups
+
+Ben Hutchings at Solarflare Communications
+ - lenient evaluation of && and ||
+
+Steve Underwood <steveu@coppice.org>
+ - read #define and #undef directives from a file
+
+Brian Ginsbach <ginsbach@netbsd.org>
+ - improved expression evaluator
+
+Other contributions are listed in the Changelog.
+
+- end -

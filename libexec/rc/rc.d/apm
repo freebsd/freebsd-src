@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: apm
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="apm"
+desc="Advanced power management"
+rcvar="apm_enable"
+start_precmd="apm_precmd"
+command="/usr/sbin/${name}"
+start_cmd="${command} -e enable"
+stop_cmd="${command} -e disable"
+status_cmd="apm_status"
+
+apm_precmd()
+{
+	case `${SYSCTL_N} hw.machine_arch` in
+	i386)
+		return 0
+		;;
+	esac
+	return 1
+}
+
+apm_status()
+{
+	case `${command} -s` in
+	1)
+		echo "APM is enabled."
+		return 0
+		;;
+	0)
+		echo "APM is disabled"
+		;;
+	esac
+	return 1
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: nojail keyword
+apm_svcj="NO"
+
+run_rc_command "$1"

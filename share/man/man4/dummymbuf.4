@@ -1,0 +1,211 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Igor Ostapenko <pm@igoro.pro>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd January 6, 2025
+.Dt DUMMYMBUF 4
+.Os
+.Sh NAME
+.Nm dummymbuf
+.Nd "mbuf alteration pfil hooks"
+.Sh SYNOPSIS
+To compile the driver into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device dummymbuf"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dummymbuf_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module is intended to test networking code in the face of unusual mbuf
+layouts.
+The special
+.Xr pfil 9
+hooks are provided for mbuf alteration and can be listed with
+.Xr pfilctl 8
+as follows:
+.Bd -literal -offset indent
+            Hook                      Type
+       dummymbuf:ethernet         Ethernet
+       dummymbuf:inet6                IPv6
+       dummymbuf:inet                 IPv4
+.Ed
+.Pp
+To activate a hook it must be linked to the respective
+.Xr pfil 9
+head.
+.Xr pfilctl 8
+can be used for the linking.
+.Pp
+Each time a hook is invoked it reads a single shared set of
+.Sx RULES
+from
+.Va net.dummymbuf.rules
+sysctl.
+The rules are evaluated sequentially and each matching rule performs the
+specified operation over the mbuf.
+.Pp
+After every successfully applied operation the
+.Va net.dummymbuf.hits
+sysctl counter is increased.
+.Pp
+A hook returns an altered mbuf for further processing, but it drops a packet
+if rules parsing or an operation fails.
+Also, the first mbuf of the original chain may be changed.
+.Pp
+The module is
+.Xr VNET 9
+based, hence every
+.Xr jail 2
+provides its own set of hooks and sysctl variables.
+.Sh RULES
+The set of rules is a semicolon separated list.
+An empty string is treated as a parsing failure.
+A rule conceptually has two parts, filter and operation, with the following
+syntax:
+.Bd -literal -offset indent
+{inet | inet6 | ethernet} {in | out} <ifname> <opname>[ <opargs>];
+.Ed
+.Ss Filter
+The first word of a rule matches
+.Xr pfil 9
+type.
+The second matches packet's direction, and the third matches the network
+interface a packet is coming from.
+.Ss Operation
+An operation may have arguments separated from its name by space.
+The available operations are:
+.Bl -tag -width indent
+.It pull-head <number-of-bytes>
+Unconditionally creates a brand new cluster-based mbuf and links it to be the
+first mbuf of the original mbuf chain, with respective packet header moving.
+After, the given number of bytes are pulled from the original mbuf chain.
+.Pp
+If it is asked to pull 0 bytes then the first mbuf of the resulting chain will
+be left empty.
+Asking to pull more than
+.Dv MCLBYTES
+is treated as an operation failure.
+If a mbuf chain has less data than asked then the entire packet is pulled with
+tail mbuf(s) left empty.
+.Pp
+As a result, only the layout of a mbuf chain is altered, its content logically
+is left intact.
+.It enlarge <number-of-bytes>
+Unconditionally replace the mbuf with an mbuf of the specified size.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available:
+.Bl -tag -width indent
+.It Va net.dummymbuf.rules
+A string representing a single set of
+.Sx RULES
+shared among all
+.Nm
+hooks.
+.It Va net.dummymbuf.hits
+Number of times a rule has been applied.
+It is reset to zero upon writing.
+.El
+.Sh EXAMPLES
+As it was intended,
+.Nm
+can be found useful for firewall testing.
+A mbuf chain could be altered before it hits a firewall to test that the latter
+can handle a case respectively.
+Thus, it is important to have correct sequence of hooks.
+A test case should prepare and enable a firewall first to get its hooks linked.
+After, the
+.Xr pfilctl 8
+should be used to link
+.Nm
+hook(s) to put them in front of a firewall.
+.Pp
+The following links
+.Va dummymbuf:inet6
+hook for inbound and puts it in front of other hooks:
+.Bd -literal -offset indent
+pfilctl link -i dummymbuf:inet6 inet6
+.Ed
+.Pp
+And this does the same for outbound:
+.Bd -literal -offset indent
+pfilctl link -o -a dummymbuf:inet6 inet6
+.Ed
+.Pp
+For instance, we want to test a scenario in which the very first mbuf in a
+chain has zero m_len, to verify that a firewall can correctly read the
+packet data despite that.
+The following set of rules does it for inbound and outbound:
+.Bd -literal -offset indent
+sysctl net.dummymbuf.rules="inet6 in em0 pull-head 0; inet6 out em0 pull-head 0;"
+.Ed
+.Pp
+It is encouraged to verify
+.Va net.dummymbuf.hits
+sysctl counter along with other test assertions to make sure that
+.Nm
+really does its work and there is no false positive due to misconfiguration.
+It is a good idea to reset it before the action:
+.Bd -literal -offset indent
+sysctl net.dummymbuf.hits=0
+.Ed
+.Pp
+It is equally important to cleanup the things after the test case:
+.Bd -literal -offset indent
+pfilctl unlink -i dummymbuf:inet6 inet6
+pfilctl unlink -o dummymbuf:inet6 inet6
+sysctl net.dummymbuf.rules=""
+.Ed
+.Pp
+If a test case operates within a temporary vnet then explicit cleanup can be
+omitted, the
+.Nm
+facilities will vanish along with its vnet instance.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "dummymbuf: <filter match>: rule parsing failed: <the rule in question>"
+If everything looks fine then extra spaces removal may help due to the parser
+is kept very simple.
+.It "dummymbuf: <filter match>: mbuf operation failed: <the rule in question>"
+Incorrect operation argument has been found, mbuf allocation has failed, etc.
+.El
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr pfilctl 8 ,
+.Xr mbuf 9 ,
+.Xr pfil 9 ,
+.Xr VNET 9
+.Sh AUTHORS
+The module and this manual page were written by
+.An Igor Ostapenko Aq Mt pm@igoro.pro .

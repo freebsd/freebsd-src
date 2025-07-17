@@ -1,0 +1,53 @@
+krb5_auth_con_set_checksum_func -  Set a checksum callback in an auth context. 
+===============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_set_checksum_func(krb5_context context, krb5_auth_context auth_context, krb5_mk_req_checksum_func func, void * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **func** - Checksum callback
+
+	          **[in]** **data** - Callback argument
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+Set a callback to obtain checksum data in krb5_mk_req(). The callback will be invoked after the subkey and local sequence number are stored in *auth_context* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

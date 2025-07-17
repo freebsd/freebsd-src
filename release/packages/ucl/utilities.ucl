@@ -1,0 +1,5 @@
+scripts: {
+       post-install = <<EOD
+       cap_mkdb ${CAP_MKDB_ENDIAN} ${PKG_ROOTDIR}/etc/login.conf
+EOD
+}

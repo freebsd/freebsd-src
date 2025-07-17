@@ -1,0 +1,24 @@
+Parsing varmod-loop.mk:89: USE_8_DOLLARS=	${:U1:@var@${8_DOLLARS}@} ${8_DOLLARS} $$$$$$$$
+Parsing varmod-loop.mk:90: .if ${USE_8_DOLLARS} != "\$\$\$\$ \$\$\$\$ \$\$\$\$"
+CondParser_Eval: ${USE_8_DOLLARS} != "\$\$\$\$ \$\$\$\$ \$\$\$\$"
+Comparing "$$$$ $$$$ $$$$" != "$$$$ $$$$ $$$$"
+Parsing varmod-loop.mk:94: SUBST_CONTAINING_LOOP:= ${USE_8_DOLLARS}
+Parsing varmod-loop.mk:116: .if ${SUBST_CONTAINING_LOOP} != "\$\$ \$\$\$\$ \$\$\$\$"
+CondParser_Eval: ${SUBST_CONTAINING_LOOP} != "\$\$ \$\$\$\$ \$\$\$\$"
+Comparing "$$ $$$$ $$$$" != "$$ $$$$ $$$$"
+Parsing varmod-loop.mk:119: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
+:varname-overwriting-target: :x1y x2y x3y: ::
+mod-loop-dollar:1:
+mod-loop-dollar:${word}$:
+mod-loop-dollar:$3$:
+mod-loop-dollar:$${word}$$:
+mod-loop-dollar:$$5$$:
+mod-loop-dollar:$$${word}$$$:
+:  t=$(( ${t:-0} + 1 ))
+:  dollar=end
+:  backslash=\ end
+:  dollar=$ at=@ backslash=\ end
+:  dollar=$$ at=@@ backslash=\\ end
+:  dollar=$$ at=@@ backslash=\\ end
+exit status 0

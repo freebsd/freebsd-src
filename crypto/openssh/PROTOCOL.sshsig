@@ -1,0 +1,100 @@
+This document describes a lightweight SSH Signature format
+that is compatible with SSH keys and wire formats.
+
+At present, only detached and armored signatures are supported.
+
+1. Armored format
+
+The Armored SSH signatures consist of a header, a base64
+encoded blob, and a footer.
+
+The header is the string "-----BEGIN SSH SIGNATURE-----"
+followed by a newline. The footer is the string
+"-----END SSH SIGNATURE-----" immediately after a newline.
+
+The header MUST be present at the start of every signature.
+Files containing the signature MUST start with the header.
+Likewise, the footer MUST be present at the end of every
+signature.
+
+The base64 encoded blob SHOULD be broken up by newlines
+every 76 characters.
+
+Example:
+
+-----BEGIN SSH SIGNATURE-----
+U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgJKxoLBJBivUPNTUJUSslQTt2hD
+jozKvHarKeN8uYFqgAAAADZm9vAAAAAAAAAFMAAAALc3NoLWVkMjU1MTkAAABAKNC4IEbt
+Tq0Fb56xhtuE1/lK9H9RZJfON4o6hE9R4ZGFX98gy0+fFJ/1d2/RxnZky0Y7GojwrZkrHT
+FgCqVWAQ==
+-----END SSH SIGNATURE-----
+
+2. Blob format
+
+#define MAGIC_PREAMBLE "SSHSIG"
+#define SIG_VERSION    0x01
+
+        byte[6]   MAGIC_PREAMBLE
+        uint32    SIG_VERSION
+        string    publickey
+        string    namespace
+        string    reserved
+        string    hash_algorithm
+        string    signature
+
+The publickey field MUST contain the serialisation of the
+public key used to make the signature using the usual SSH
+encoding rules, i.e RFC4253, RFC5656,
+draft-ietf-curdle-ssh-ed25519-ed448, etc.
+
+Verifiers MUST reject signatures with versions greater than those
+they support.
+
+The purpose of the namespace value is to specify a unambiguous
+interpretation domain for the signature, e.g. file signing.
+This prevents cross-protocol attacks caused by signatures
+intended for one intended domain being accepted in another.
+The namespace value MUST NOT be the empty string.
+
+The reserved value is present to encode future information
+(e.g. tags) into the signature. Implementations should ignore
+the reserved field if it is not empty.
+
+Data to be signed is first hashed with the specified hash_algorithm.
+This is done to limit the amount of data presented to the signature
+operation, which may be of concern if the signing key is held in limited
+or slow hardware or on a remote ssh-agent. The supported hash algorithms
+are "sha256" and "sha512".
+
+The signature itself is made using the SSH signature algorithm and
+encoding rules for the chosen key type. For RSA signatures, the
+signature algorithm must be "rsa-sha2-512" or "rsa-sha2-256" (i.e.
+not the legacy RSA-SHA1 "ssh-rsa").
+
+This blob is encoded as a string using the RFC4253 encoding
+rules and base64 encoded to form the middle part of the
+armored signature.
+
+
+3. Signed Data, of which the signature goes into the blob above
+
+#define MAGIC_PREAMBLE "SSHSIG"
+
+        byte[6]   MAGIC_PREAMBLE
+        string    namespace
+        string    reserved
+        string    hash_algorithm
+        string    H(message)
+
+The preamble is the six-byte sequence "SSHSIG". It is included to
+ensure that manual signatures can never be confused with any message
+signed during SSH user or host authentication.
+
+The reserved value is present to encode future information
+(e.g. tags) into the signature. Implementations should ignore
+the reserved field if it is not empty.
+
+The data is concatenated and passed to the SSH signing
+function.
+
+$OpenBSD: PROTOCOL.sshsig,v 1.4 2020/08/31 00:17:41 djm Exp $

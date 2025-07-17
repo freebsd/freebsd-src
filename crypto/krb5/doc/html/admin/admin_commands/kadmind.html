@@ -1,0 +1,277 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kadmind &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="kdb5_util" href="kdb5_util.html" />
+    <link rel="prev" title="kadmin" href="kadmin_local.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kadmin_local.html" title="kadmin"
+            accesskey="P">previous</a> |
+        <a href="kdb5_util.html" title="kdb5_util"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kadmind">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kadmind">
+<span id="kadmind-8"></span><h1>kadmind<a class="headerlink" href="#kadmind" title="Permalink to this headline">¶</a></h1>
+<section id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>kadmind</strong>
+[<strong>-x</strong> <em>db_args</em>]
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-m</strong>]
+[<strong>-nofork</strong>]
+[<strong>-proponly</strong>]
+[<strong>-port</strong> <em>port-number</em>]
+[<strong>-P</strong> <em>pid_file</em>]
+[<strong>-p</strong> <em>kdb5_util_path</em>]
+[<strong>-K</strong> <em>kprop_path</em>]
+[<strong>-k</strong> <em>kprop_port</em>]
+[<strong>-F</strong> <em>dump_file</em>]</p>
+</section>
+<section id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>kadmind starts the Kerberos administration server.  kadmind typically
+runs on the primary Kerberos server, which stores the KDC database.
+If the KDC database uses the LDAP module, the administration server
+and the KDC server need not run on the same machine.  kadmind accepts
+remote requests from programs such as <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> and
+<a class="reference internal" href="../../user/user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a> to administer the information in these database.</p>
+<p>kadmind requires a number of configuration files to be set up in order
+for it to work:</p>
+<dl class="simple">
+<dt><a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a></dt><dd><p>The KDC configuration file contains configuration information for
+the KDC and admin servers.  kadmind uses settings in this file to
+locate the Kerberos database, and is also affected by the
+<strong>acl_file</strong>, <strong>dict_file</strong>, <strong>kadmind_port</strong>, and iprop-related
+settings.</p>
+</dd>
+<dt><a class="reference internal" href="../conf_files/kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a></dt><dd><p>kadmind’s ACL (access control list) tells it which principals are
+allowed to perform administration actions.  The pathname to the
+ACL file can be specified with the <strong>acl_file</strong> <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>
+variable; by default, it is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/kadm5.acl</span></code>.</p>
+</dd>
+</dl>
+<p>After the server begins running, it puts itself in the background and
+disassociates itself from its controlling terminal.</p>
+<p>kadmind can be configured for incremental database propagation.
+Incremental propagation allows replica KDC servers to receive
+principal and policy updates incrementally instead of receiving full
+dumps of the database.  This facility can be enabled in the
+<a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> file with the <strong>iprop_enable</strong> option.  Incremental
+propagation requires the principal <code class="docutils literal notranslate"><span class="pre">kiprop/PRIMARY\&#64;REALM</span></code> (where
+PRIMARY is the primary KDC’s canonical host name, and REALM the realm
+name).  In release 1.13, this principal is automatically created and
+registered into the datebase.</p>
+</section>
+<section id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><strong>-r</strong> <em>realm</em></dt><dd><p>specifies the realm that kadmind will serve; if it is not
+specified, the default realm of the host is used.</p>
+</dd>
+<dt><strong>-m</strong></dt><dd><p>causes the master database password to be fetched from the
+keyboard (before the server puts itself in the background, if not
+invoked with the <strong>-nofork</strong> option) rather than from a file on
+disk.</p>
+</dd>
+<dt><strong>-nofork</strong></dt><dd><p>causes the server to remain in the foreground and remain
+associated to the terminal.</p>
+</dd>
+<dt><strong>-proponly</strong></dt><dd><p>causes the server to only listen and respond to Kerberos replica
+incremental propagation polling requests.  This option can be used
+to set up a hierarchical propagation topology where a replica KDC
+provides incremental updates to other Kerberos replicas.</p>
+</dd>
+<dt><strong>-port</strong> <em>port-number</em></dt><dd><p>specifies the port on which the administration server listens for
+connections.  The default port is determined by the
+<strong>kadmind_port</strong> configuration variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
+</dd>
+<dt><strong>-P</strong> <em>pid_file</em></dt><dd><p>specifies the file to which the PID of kadmind process should be
+written after it starts up.  This file can be used to identify
+whether kadmind is still running and to allow init scripts to stop
+the correct process.</p>
+</dd>
+<dt><strong>-p</strong> <em>kdb5_util_path</em></dt><dd><p>specifies the path to the kdb5_util command to use when dumping the
+KDB in response to full resync requests when iprop is enabled.</p>
+</dd>
+<dt><strong>-K</strong> <em>kprop_path</em></dt><dd><p>specifies the path to the kprop command to use to send full dumps
+to replicas in response to full resync requests.</p>
+</dd>
+<dt><strong>-k</strong> <em>kprop_port</em></dt><dd><p>specifies the port by which the kprop process that is spawned by
+kadmind connects to the replica kpropd, in order to transfer the
+dump file during an iprop full resync request.</p>
+</dd>
+<dt><strong>-F</strong> <em>dump_file</em></dt><dd><p>specifies the file path to be used for dumping the KDB in response
+to full resync requests when iprop is enabled.</p>
+</dd>
+<dt><strong>-x</strong> <em>db_args</em></dt><dd><p>specifies database-specific arguments.  See <a class="reference internal" href="kadmin_local.html#dboptions"><span class="std std-ref">Database Options</span></a> in <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> for supported arguments.</p>
+</dd>
+</dl>
+</section>
+<section id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="../../user/user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a>, <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>,
+<a class="reference internal" href="kdb5_ldap_util.html#kdb5-ldap-util-8"><span class="std std-ref">kdb5_ldap_util</span></a>, <a class="reference internal" href="../conf_files/kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kadmind</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#options">OPTIONS</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Administration  programs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kadmin_local.html">kadmin</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kadmind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sserver.html">sserver</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kadmin_local.html" title="kadmin"
+            >previous</a> |
+        <a href="kdb5_util.html" title="kdb5_util"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kadmind">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

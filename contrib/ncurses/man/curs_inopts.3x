@@ -1,0 +1,554 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_inopts.3x,v 1.66 2024/04/13 22:20:29 tom Exp $
+.TH curs_inopts 3X 2024-04-13 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fB\%cbreak\fP,
+\fB\%echo\fP,
+\fB\%halfdelay\fP,
+\fB\%intrflush\fP,
+\fB\%is_cbreak\fP,
+\fB\%is_echo\fP,
+\fB\%is_nl\fP,
+\fB\%is_raw\fP,
+\fB\%keypad\fP,
+\fB\%meta\fP,
+\fB\%nl\fP,
+\fB\%nocbreak\fP,
+\fB\%nodelay\fP,
+\fB\%noecho\fP,
+\fB\%nonl\fP,
+\fB\%noqiflush\fP,
+\fB\%noraw\fP,
+\fB\%notimeout\fP,
+\fB\%qiflush\fP,
+\fB\%raw\fP,
+\fB\%timeout\fP,
+\fB\%wtimeout\fP,
+\fB\%typeahead\fP \-
+get and set \fIcurses\fR terminal input options
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint cbreak(void);
+\fBint nocbreak(void);
+.PP
+\fBint echo(void);
+\fBint noecho(void);
+.PP
+\fBint intrflush(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint keypad(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint meta(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint nodelay(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint notimeout(WINDOW *\fIwin\fP, bool \fIbf\fP);
+.PP
+\fBint nl(void);
+\fBint nonl(void);
+.PP
+\fBint raw(void);
+\fBint noraw(void);
+.PP
+\fBvoid qiflush(void);
+\fBvoid noqiflush(void);
+.PP
+\fBint halfdelay(int \fItenths\fP);
+\fBvoid timeout(int \fIdelay\fP);
+\fBvoid wtimeout(WINDOW *\fIwin\fP, int \fIdelay\fP);
+.PP
+\fBint typeahead(int \fIfd\fP);
+.PP
+\fI/* extensions */
+\fBint is_cbreak(void);
+\fBint is_echo(void);
+\fBint is_nl(void);
+\fBint is_raw(void);
+.fi
+.SH DESCRIPTION
+.I \%ncurses
+provides several functions that let an application change the way input
+from the terminal is handled.
+Some are global,
+applying to all windows.
+Others apply only to a specific window.
+Window-specific settings are not automatically applied to new or derived
+windows.
+An application must apply these to each window if the same behavior is
+desired.
+.\"
+.SS "cbreak, nocbreak"
+Normally,
+the terminal driver buffers typed characters until a newline or carriage
+return is typed.
+The \fB\%cbreak\fP routine disables line buffering and
+erase/kill character-processing
+(interrupt and flow control characters are unaffected),
+making characters typed by the user immediately available to the
+program.
+The \fB\%nocbreak\fP routine returns the terminal to normal (cooked)
+mode.
+.PP
+Initially the terminal may or may not be in \fB\%cbreak\fP mode,
+as the mode is inherited;
+therefore,
+a program should call \fB\%cbreak\fP or \fB\%nocbreak\fP explicitly.
+Most interactive programs using
+.I curses
+set the \fB\%cbreak\fP mode.
+Note that \fB\%cbreak\fP overrides \fBraw\fP.
+[See \fB\%curs_getch\fP(3X) for a discussion of how these routines
+interact with \fBecho\fP and \fB\%noecho\fP.]
+.\"
+.SS "echo, noecho"
+The \fBecho\fP and \fB\%noecho\fP routines control whether characters
+typed by the user are echoed by \fB\%getch\fP(3X) as they are typed.
+Echoing by the terminal driver is always disabled,
+but initially \fB\%getch\fP is in echo mode,
+so characters typed are echoed.
+Authors of most interactive programs prefer to do
+their own echoing in a controlled area of the screen,
+or not to echo at all,
+so they disable echoing by calling \fB\%noecho\fP.
+[See \fB\%curs_getch\fP(3X) for a
+discussion of how these routines interact with \fB\%cbreak\fP and
+\fB\%nocbreak\fP.]
+.\"
+.SS halfdelay
+The \fB\%halfdelay\fP routine is used for half-delay mode,
+which is similar to \fB\%cbreak\fP mode in that characters typed by the
+user are immediately available to the program.
+However,
+after blocking for \fItenths\fP tenths of seconds,
+\fBERR\fP is returned if nothing has been typed.
+The value of \fItenths\fP must be a number between 1 and 255.
+Use \fB\%nocbreak\fP to leave half-delay mode.
+.\"
+.SS intrflush
+If the \fB\%intrflush\fP option is enabled
+.RI ( bf
+is
+.BR TRUE ),
+and an interrupt key is pressed on the keyboard
+(interrupt,
+break,
+quit),
+all output in the terminal driver queue is flushed,
+giving the effect of faster response to the interrupt,
+but causing
+.I curses
+to have the wrong idea of what is on the screen.
+Disabling the option
+.RI ( bf
+is
+.BR FALSE ),
+prevents the flush.
+The default for the option is inherited from the terminal driver
+settings.
+The
+.I win
+argument is ignored.
+.\"
+.SS keypad
+The \fB\%keypad\fP option enables the keypad of the user's terminal.
+If
+enabled
+.RI ( bf
+is
+.BR TRUE ),
+the user can press a function key
+(such as an arrow key)
+and \fB\%wgetch\fP(3X) returns a single value representing the function
+key,
+as in \fB\%KEY_LEFT\fP.
+If disabled
+(\fIbf\fP is \fBFALSE\fP),
+.I curses
+does not treat function keys specially and the program has to interpret
+the escape sequences itself.
+If the keypad in the terminal can be turned on
+(made to transmit)
+and off
+(made to work locally),
+turning on this option causes the terminal keypad to be turned on when
+\fB\%wgetch\fP(3X) is called.
+The default value for keypad is \fBFALSE\fP.
+.\"
+.SS meta
+Initially,
+whether the terminal returns 7 or 8 significant bits on input depends on
+the control mode of the terminal driver [see \fI\%termios\fP(3)].
+To force 8 bits to be returned,
+invoke
+\fBmeta\fP(\fIwin\fP, \fBTRUE\fP);
+this is equivalent,
+under POSIX,
+to setting the CS8 flag on the terminal.
+To force 7 bits to be returned,
+invoke
+\fBmeta\fP(\fIwin\fP, \fBFALSE\fP);
+this is equivalent,
+under POSIX,
+to setting the CS7 flag on the terminal.
+The window argument,
+.IR win ,
+is always ignored.
+If the terminfo capabilities
+\fBsmm\fP (meta_on) and
+\fBrmm\fP (meta_off) are defined for the terminal,
+\fBsmm\fP is sent to the terminal when
+\fBmeta\fP(\fIwin\fP, \fBTRUE\fP)
+is called and \fBrmm\fP is sent when
+\fBmeta\fP(\fIwin\fP, \fBFALSE\fP) is called.
+.\"
+.SS "nl, nonl"
+The \fBnl\fP and \fBnonl\fP routines control whether the underlying
+display device translates the return key into newline on input.
+.\"
+.SS nodelay
+The \fB\%nodelay\fP option causes \fB\%getch\fP to be a non-blocking
+call.
+If no input is ready,
+\fB\%getch\fP returns \fBERR\fP.
+If disabled
+.RI ( bf
+is
+.BR FALSE ),
+\fB\%getch\fP waits until a key is pressed.
+.SS notimeout
+When interpreting an escape sequence,
+\fB\%wgetch\fP(3X) sets a timer
+while waiting for the next character.
+If
+\fB\%notimeout(\fIwin\fR, \fBTRUE\fP)
+is called,
+then \fB\%wgetch\fP does not set a timer.
+The purpose of the timeout is to distinguish sequences produced by a
+function key from those typed by a user.
+.\"
+.SS "raw, noraw"
+The \fBraw\fP and \fB\%noraw\fP routines place the terminal into or out
+of raw mode.
+Raw mode is similar to \fB\%cbreak\fP mode,
+in that characters typed are immediately passed through to the user
+program.
+The differences are that in raw mode,
+the interrupt,
+quit,
+suspend,
+and flow control characters are all
+passed through uninterpreted,
+instead of generating a signal.
+The behavior of the BREAK key depends on other bits in the terminal
+driver that are not set by
+.IR curses .
+.\"
+.SS "qiflush, nqiflush"
+When the \fB\%noqiflush\fP routine is used,
+normal flush of input and output queues associated with the \fBINTR\fP,
+\fBQUIT\fP and \fBSUSP\fP characters will not be done
+[see \fB\%termios\fP(3)].
+When
+\fB\%qiflush\fP is called,
+the queues will be flushed when these control characters are read.
+You may want to call \fB\%noqiflush\fP in a signal handler if you want
+output to continue as though the interrupt had not occurred,
+after the handler exits.
+.\"
+.SS "timeout, wtimeout"
+The \fB\%timeout\fP and \fB\%wtimeout\fP routines set blocking or
+non-blocking read for a given window.
+If \fIdelay\fP is negative,
+a blocking read is used
+(i.e.,
+waits indefinitely for input).
+If \fIdelay\fP is zero,
+then a non-blocking read is used
+(i.e.,
+.I read
+returns \fBERR\fP if no input is waiting).
+If
+\fIdelay\fP is positive,
+then
+.I read
+blocks for \fIdelay\fP milliseconds,
+and returns \fBERR\fP if there is still no input.
+Hence,
+these routines provide the same functionality as \fB\%nodelay\fP,
+plus the additional capability of being able to block for only
+\fIdelay\fP milliseconds
+(where \fIdelay\fP is positive).
+.\"
+.SS typeahead
+.I curses
+does \*(``line-breakout optimization\*('' by looking for typeahead
+periodically while updating the screen.
+If input is found,
+and it is coming from a terminal,
+the current update is postponed until
+\fB\%refresh\fP(3X) or \fB\%doupdate\fP is called again.
+This allows faster response to commands typed in advance.
+Normally,
+the input
+.I FILE
+pointer passed to \fB\%newterm\fP,
+or \fBstdin\fP in the case that \fB\%initscr\fP was used,
+will be used to do this typeahead checking.
+The \fB\%typeahead\fP routine specifies that the file descriptor
+\fIfd\fP is to be used to check for typeahead instead.
+If \fIfd\fP is
+\-1,
+then no typeahead checking is done.
+.\"
+.SH RETURN VALUE
+All routines that return an integer return \fBERR\fP upon failure and
+\fBOK\fP
+(SVr4 specifies only \*(``an integer value other than \fBERR\fP\*('')
+upon successful completion,
+unless otherwise noted in the preceding routine descriptions.
+.PP
+X/Open Curses does not specify any error conditions.
+In this implementation,
+functions with a window parameter will return an error if it is null.
+Any function will also return an error if the terminal was not
+initialized.
+Also,
+.RS 3
+.TP 5
+\fB\%halfdelay\fP
+returns an error
+if its parameter is outside the range 1..255.
+.RE
+.SH NOTES
+\fBecho\fP,
+\fB\%noecho\fP,
+\fB\%halfdelay\fP,
+\fB\%intrflush\fP,
+\fBmeta\fP,
+\fBnl\fP,
+\fBnonl\fP,
+\fB\%nodelay\fP,
+\fB\%notimeout\fP,
+\fB\%noqiflush\fP,
+\fB\%qiflush\fP,
+\fB\%timeout\fP,
+and
+\fB\%wtimeout\fP
+may be implemented as macros.
+.PP
+\fB\%noraw\fP and \fB\%nocbreak\fP follow historical practice in that
+they attempt to restore normal (\*(``cooked\*('') mode
+from raw and cbreak modes respectively.
+Mixing \fBraw\fP/\fB\%noraw\fP and \fB\%cbreak\fP/\fB\%nocbreak\fP calls
+leads to terminal driver control states that are hard to predict or
+understand;
+doing so is not recommended.
+.SH EXTENSIONS
+.I \%ncurses
+provides four \*(``is_\*('' functions that may be used to detect if the
+corresponding flags were set or reset.
+.PP
+.TS
+center;
+Lb Lb Lb
+L  L  L .
+Query	Set	Reset
+_
+is_cbreak	cbreak	nocbreak
+is_echo	echo	noecho
+is_nl	nl	nonl
+is_raw	raw	noraw
+.TE
+.PP
+In each case,
+the function returns
+.TP 4 \" "-1" + 2n
+1
+if the flag is set,
+.TP
+0
+if the flag is reset,
+or
+.TP
+\-1
+if the library is not initialized.
+.PP
+They were designed for
+\fB\%ncurses\fP(3X),
+and are not found in SVr4
+.IR curses ,
+4.4BSD
+.IR curses ,
+or any other previous
+.I curses
+implementation.
+.SH PORTABILITY
+Applications employing
+.I \%ncurses
+extensions should condition their use on the visibility of the
+.B \%NCURSES_VERSION
+preprocessor macro.
+.PP
+Except as noted in section \*(``EXTENSIONS\*('' above,
+X/Open Curses, Issue 4, Version 2 describes these functions.
+.PP
+.I \%ncurses
+follows X/Open Curses
+and the historical practice of AT&T
+.I curses
+implementations,
+in that the echo bit is cleared when
+.I curses
+initializes the terminal state.
+BSD
+.I curses
+differed from this slightly;
+it left the echo bit on at initialization,
+but the BSD \fBraw\fP call turned it off as a side effect.
+For best portability,
+set \fBecho\fP or \fB\%noecho\fP explicitly just after initialization,
+even if your program remains in cooked mode.
+.PP
+X/Open Curses is ambiguous regarding whether \fBraw\fP should disable
+the CR/LF translations controlled by \fBnl\fP and \fBnonl\fP.
+BSD
+.I curses
+did turn off these translations;
+AT&T
+.I curses
+(at least as late as SVr1)
+did not.
+.I \%ncurses
+does so,
+on the assumption that a programmer requesting raw input wants a clean
+(ideally,
+8-bit clean)
+connection that the operating system will not alter.
+.PP
+When \fB\%keypad\fP is first enabled,
+.I \%ncurses
+loads the key definitions for the current terminal description.
+If the terminal description includes extended string capabilities,
+e.g.,
+from using the
+.B \-x
+option of \fB\%@TIC@\fP,
+then
+.I \%ncurses
+also defines keys for the capabilities whose names begin with
+\*(``k\*(''.
+The corresponding keycodes are generated and
+(depending on previous loads of terminal descriptions)
+may differ from one execution of a program to the next.
+The generated keycodes are recognized by the \fB\%keyname\fP(3X)
+function
+(which will then return a name beginning with \*(``k\*('' denoting the
+terminfo capability name rather than \*(``K\*('',
+used for
+.I curses
+key names).
+On the other hand,
+an application can use \fB\%define_key\fP(3X) to establish
+a specific keycode for a given string.
+This makes it possible for an application to check for an extended
+capability's presence with \fB\%tigetstr\fP,
+and reassign the keycode to match its own needs.
+.PP
+Low-level applications can use \fB\%tigetstr\fP to obtain the definition
+of any particular string capability.
+Higher-level applications which use the
+.I curses
+\fB\%wgetch\fP and similar functions to return keycodes rely upon the
+order in which the strings are loaded.
+If more than one key definition has the same string value,
+then \fB\%wgetch\fP can return only one keycode.
+Most
+.I curses
+implementations
+(including
+.IR \%ncurses )
+load key definitions in the order
+defined by the array of string capability names.
+The last key to be loaded determines the keycode which will be returned.
+In
+.IR \%ncurses ,
+you may also have extended capabilities interpreted as key definitions.
+These are loaded after the predefined keys,
+and if a capability's value is the same as a previously-loaded
+key definition,
+the later definition is the one used.
+.SH HISTORY
+Formerly,
+.I \%ncurses
+used
+.B \%nl
+and
+.B \%nonl
+to control the conversion of newlines to carriage return/line feed
+on output as well as input.
+X/Open Curses documents the use of these functions only for input.
+This difference arose from converting the
+.I \%pcurses
+source (1986),
+which used
+\fI\%ioctl\fP(2) calls and the
+.I \%sgttyb
+structure,
+to
+.I \%termios
+(the POSIX terminal API).
+In the former,
+both input and output were controlled via a single option
+.BR \%CRMOD ,
+while the latter separates these features.
+Because that conversion interferes with output optimization,
+.I \%ncurses
+6.2 (2020) amended
+.B \%nl
+and
+.B \%nonl
+to eliminate their effect on output.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_getch\fP(3X),
+\fB\%curs_initscr\fP(3X),
+\fB\%curs_util\fP(3X),
+\fB\%define_key\fP(3X),
+\fB\%termios\fP(3)

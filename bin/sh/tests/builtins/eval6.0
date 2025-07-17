@@ -1,0 +1,4 @@
+
+# eval should preserve $? from command substitutions when starting
+# the parsed command.
+[ $(false; eval 'echo $?' $(:)) = 0 ]

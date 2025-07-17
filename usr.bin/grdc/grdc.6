@@ -1,0 +1,61 @@
+.Dd January 15, 2023
+.Dt GRDC 6
+.Os
+.Sh NAME
+.Nm grdc
+.Nd grand digital clock (curses)
+.Sh SYNOPSIS
+.Nm
+.Op Fl st
+.Op Ar n
+.Nm
+.Fl c
+.Ar n
+.Sh DESCRIPTION
+.Nm
+runs a digital clock made of reverse-video blanks on a curses
+compatible VDU screen.
+With an optional numeric argument
+.Ar n
+it stops after
+.Ar n
+seconds (default never).
+The clock can act as a countdown timer with the
+.Fl c
+flag,
+.Ar n
+specifies the number of seconds to time for.
+The optional
+.Fl s
+flag makes digits scroll as they change.
+The optional
+.Fl t
+flag tells grdc to output the time in a 12-hour format.
+In this curses mode implementation,
+the scrolling option has trouble keeping up.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TZ
+The time zone to use for displaying the time.
+It is normally specified as a pathname relative to
+.Pa /usr/share/zoneinfo ,
+though see
+.Xr tzset 3
+for more information.
+If this variable is not set, the time zone is determined based on
+.Pa /etc/localtime .
+.El
+.Sh NOTES
+In countdown timer mode, the specifying of
+.Fl n
+> 360000 seconds (100 hours) will lead to the counter displaying
+incorrect remaining time, however it will time correctly, and
+display correctly when the remaining time becomes less than
+100 hours.
+.Sh AUTHORS
+.An -nosplit
+.An Amos Shapir ,
+modified for curses by
+.An John Lupien .
+Countdown timer mode by
+.An Gavin Atkinson .

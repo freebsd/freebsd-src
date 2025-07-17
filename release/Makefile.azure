@@ -1,0 +1,69 @@
+#
+# Makefile for uploading Microsoft Azure disk images.
+#
+
+AZURE_UPLOAD_TGTS=	azure-check-depends \
+			azure-do-upload
+CLEANFILES+=		${AZURE_UPLOAD_TGTS}
+
+.if defined(AZURE_UPLOAD_CONF) && !empty(AZURE_UPLOAD_CONF)
+. for VAR in _STORAGE _ACCOUNT _KEY
+AZURE${VAR}!=	grep -E '^AZURE${VAR}' ${AZURE_UPLOAD_CONF} | awk -F '	' '{print $$2}'
+. endfor
+.endif
+
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
+SNAPSHOT_DATE!=		date +-${BUILDDATE}
+.endif
+
+azure-upload:		${AZURE_UPLOAD_TGTS}
+
+azure-check-depends:
+.for VAR in _STORAGE _ACCOUNT _KEY
+. if !defined(AZURE${VAR}) || empty(AZURE${VAR})
+	@echo "Variable AZURE${VAR} cannot be empty."
+	@false
+. endif
+.endfor
+.if !exists(/usr/local/bin/az)
+. if !exists(${PORTSDIR}/sysutils/py-azure-cli/Makefile)
+.  if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
+.  endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y sysutils/py-azure-cli
+. else
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/sysutils/py-azure-cli \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
+. endif
+.endif
+
+.for _FS in ${AZURE_FSLIST}
+AZURE_IMG_${_FS}=	${.OBJDIR}/azure.${_FS}.vhdf
+AZURE_TARGET_${_FS}=	${OSRELEASE}-${_FS}${SNAPSHOT_DATE}
+
+azure-do-upload-${_FS}:
+	/usr/local/bin/az storage blob upload \
+		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
+		--container-name ${AZURE_STORAGE} --type page \
+		--file ${AZURE_IMG_${_FS}} --name ${AZURE_TARGET_${_FS}}.vhd
+	@echo "The disk has been uploaded to Storage Account, use following information"
+	@echo "to create an image in Compute Gallery:"
+	@echo
+	@echo "Storage Account name: ${AZURE_ACCOUNT}"
+	@echo "Container name:       ${AZURE_STORAGE}"
+	@echo "Blob name:            ${AZURE_TARGET_${_FS}}.vhd"
+	@echo
+	@echo "Please go to Microsoft Partner Center to create a new offer and publish it:"
+	@echo
+	@echo "https://partner.microsoft.com/dashboard/marketplace-offers/overview"
+	@echo
+	@echo "After the new offer status is live, you can delete the disk file with:"
+	@echo
+	@echo /usr/local/bin/az storage blob delete \
+		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
+		--container-name ${AZURE_STORAGE} --name ${AZURE_TARGET_${_FS}}.vhd
+	@echo
+.endfor
+
+azure-do-upload: azure-do-upload-${VMFS}

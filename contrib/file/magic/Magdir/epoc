@@ -1,0 +1,89 @@
+
+#------------------------------------------------------------------------------
+# $File: epoc,v 1.10 2024/02/14 23:51:54 rrt Exp $
+# EPOC : file(1) magic for EPOC documents [Psion Series 5/Osaris/Geofox 1]
+# Stefan Praszalowicz <hpicollo@worldnet.fr> and Peter Breitenlohner <peb@mppmu.mpg.de>
+# Useful information for improving this file can be found at:
+# http://software.frodo.looijaard.name/psiconv/formats/Index.html
+#------------------------------------------------------------------------------
+0	lelong		0x10000037	Psion Series 5
+>4	lelong		0x10000039	font file
+!:mime application/x-epoc-font
+>4	lelong		0x1000003A	printer driver
+!:mime application/x-epoc-pdriver
+>4	lelong		0x1000003B	clipboard
+!:mime application/x-epoc-clipboard
+>4	lelong		0x10000042	multi-bitmap image
+!:mime image/x-epoc-mbm
+>4	lelong		0x1000006A	application information file
+>4	lelong		0x1000006D      Record file
+!:mime image/x-epoc-record
+>>8	lelong		0x1000007D	Sketch image
+!:mime image/x-epoc-sketch
+>>8	lelong		0x1000007E	voice note
+!:mime application/x-epoc-voice
+>>8	lelong		0x1000007F	Word file
+!:mime application/x-epoc-word
+>>8	lelong		0x10000085	OPL program (TextEd)
+!:mime application/x-epoc-opl
+>>8	lelong		0x10000086	Data file
+!:mime application/x-epoc-data
+>>8	lelong		0x10000087	Comms settings
+>>8	lelong		0x10000088	Sheet file
+!:mime application/x-epoc-sheet
+>>8	lelong		0x100001C4	EasyFax initialisation file
+!:mime application/x-epoc-eini
+>4	lelong		0x10000073	OPO module
+!:mime application/x-epoc-opo
+>4	lelong		0x10000074	OPL application
+!:mime application/x-epoc-app
+>4	lelong		0x1000008A	exported multi-bitmap image
+!:mime image/x-epoc-xmbm
+>4	lelong		0x1000016D
+>>8	lelong		0x10000087	Comms names
+
+0	lelong		0x10000041	Psion Series 5 ROM multi-bitmap image
+!:mime image/x-epoc-mbm
+
+0	lelong		0x10000050	Psion Series 5
+>4	lelong		0x1000006D	database
+>>8	lelong		0x10000084	Agenda file
+!:mime application/x-epoc-agenda
+>>8	lelong		0x10000086	Address book
+!:mime application/x-epoc-addressbook
+>>8	lelong		0x10000CEA	Jotter file
+!:mime application/x-epoc-jotter
+>4	lelong		0x100000E4	ini file
+!:mime application/x-epoc-ini
+>4      lelong          0x10000075      Backlite file
+!:mime application/x-epoc-backlite
+
+0	lelong		0x10000079	Psion Series 5 binary:
+>4	lelong		0x00000000	DLL
+!:mime application/x-epoc-dll
+>4	lelong		0x10000049	comms hardware library
+!:mime application/x-epoc-chlib
+>4	lelong		0x1000004A	comms protocol library
+!:mime application/x-epoc-cplib
+>4	lelong		0x1000005D	OPX
+!:mime application/x-epoc-opx
+>4	lelong		0x1000006C	application
+!:mime application/x-epoc-app
+>4	lelong		0x1000008D	DLL
+!:mime application/x-epoc-dll
+>4	lelong		0x100000AC	logical device driver
+!:mime application/x-epoc-ldd
+>4	lelong		0x100000AD	physical device driver
+!:mime application/x-epoc-pdd
+>4	lelong		0x100000E5	file transfer protocol
+!:mime application/x-epoc-ftp
+>4	lelong		0x10000140	printer definition
+!:mime application/x-epoc-ppd
+>4	lelong		0x10000141	printer definition
+!:mime application/x-epoc-ppd
+
+0	lelong		0x1000007A	Psion Series 5 executable
+
+4       lelong          0x1000006d
+>8      lelong          0x10000419      Psion Series 5 Application Installer
+!:mime application/x-epoc-sis

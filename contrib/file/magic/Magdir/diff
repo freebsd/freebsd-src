@@ -1,0 +1,150 @@
+
+#------------------------------------------------------------------------------
+# $File: diff,v 1.21 2024/07/13 14:47:09 christos Exp $
+# diff:  file(1) magic for diff(1) output
+#
+# Update:	Joerg Jenderek
+# URL: 		https://en.wikipedia.org/wiki/Diff
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/diff.trid.xml
+# Note:		called "diff output text" by TrID and
+#		"Differences between files" by shared MIME-info database from freedesktop.org
+#		According to shared MIME-info database also tabulator character instead of space character and
+#		by TrID minus character after space character
+0	search/1	diff\040	diff output text
+# diff output text (strength=40=40+0) after unified diff output (strength=131=38+93)
+#!:strength +0
+!:mime	text/x-diff
+#!:mime	text/x-patch
+!:ext	diff/patch
+# no short named pch dif examples found
+#!:ext	diff/patch/dif/pch
+# URL:		https://en.wikipedia.org/wiki/Diff_utility#Context_format
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/diff-context.trid.xml
+# Note:		called "context diff output" by TrID
+#		and "Differences between files" by shared MIME-info database from freedesktop.org
+0	search/1	***\040
+# context diff output text (strength=42=38+4) before
+# C source (strength=41,39,37)				exported SGML document (strength=39,28)
+!:strength +4
+>&0	search/1024	\n---\040	context diff output text
+!:mime	text/x-diff
+#!:mime	text/x-patch
+!:ext	diff/patch
+# no short named pch dif examples found
+#!:ext	diff/patch/dif/pch
+0	search/1	Only\040in\040 	diff output text
+# diff output text output text (strength=38=38+0) after unified diff output (strength=131=38+93)
+#!:strength +0
+!:mime	text/x-diff
+#!:mime	text/x-patch
+!:ext	diff
+0	search/1	Common\040subdirectories:\040 	diff output text
+!:mime	text/x-diff
+
+# URL: 		https://en.wikipedia.org/wiki/Diff#Extensions
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/diff-rcs.trid.xml
+# Note:		called "RCS/CVS diff output" by TrID
+#		and "Differences between files" by shared MIME-info database from freedesktop.org
+0	search/1	Index:		RCS/CVS diff output text
+# RCS/CVS diff output text (strength=36=36+0) after unified diff output (strength=131=38+93)
+#!:strength +0
+!:mime	text/x-diff
+#!:mime	text/x-patch
+!:ext	diff/patch
+
+# bsdiff:  file(1) magic for bsdiff(1) output
+# Update:	Joerg Jenderek
+# URL: 		http://www.daemonology.net/bsdiff/
+# Reference:	https://github.com/cperciva/bsdiff/blob/master/bsdiff-ra/FORMAT
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bsdiff.trid.xml
+# Note:		called "bsdiff patch" by TrID and and "BSDIFF" version 4.0 by DROID via PUID fmt/439 and
+#		"Binary differences between files" by shared MIME-info database from freedesktop.org
+0	string/b	BSDIFF40
+# skip DROID fmt-439-signature-id-672.bsdiff with invalid new file segment length 0
+>16	long		!0		bsdiff(1) patch file
+#!:mime	application/octet-stream
+!:mime	application/x-bsdiff
+!:ext	bsdiff
+# new file length
+#>>8	lequad		x		\b, new length %lld
+# new file segment length
+#>>16	lelong		x		\b, new segment length %d
+# compressed header block length
+#>>20	lelong		!0		\b, compressed header length %d
+# patch data block length
+#>>24	lequad		x		\b, data length %lld
+# look for bzip data by ./compress after message with 1 space at end
+>>0x20	indirect	x		\b, at 0x20 
+
+# From:		Joerg Jenderek
+# URL:		https://www.chromium.org/developers/design-documents/software-updates-courgette/
+# Reference:	https://github.com/adobe/chromium/blob/master/courgette/third_party/bsdiff.h
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bsdiff-chrome.trid.xml
+# Note:		called "Courgette Binary Diff output" by TrID
+#		the Courgette bsdiff tool use a total different file format compared with BSD variant from Colin Percival
+0	string/b	GBSDIF42	Courgette binary diff output
+#!:mime	application/octet-stream
+!:mime	application/x-patch
+!:ext	patch/bsdiff
+# slen; length of the file to be patched
+#>8	ubelong		x		\b, source length %u
+# scrc32; CRC32 of the file to be patched
+>12	ubelong		x		\b, crc %#8.8x
+# dlen; length of the result file
+#>16	ubelong		x		\b, result length %u
+# cblen; length of the control block
+#>20	ubelong		x		\b, control length %u
+# difflen; length of the diff block
+#>24	ubelong		x		\b, patch length %u
+# extralen; length of the extra block
+#>28	ubelong		x		\b, extra length %u
+
+# unified diff
+# URL:		http://fileformats.archiveteam.org/wiki/Unified_diff
+#		https://en.wikipedia.org/wiki/Diff_utility#Unified_format
+# Reference:	https://www.artima.com/weblogs/viewpost.jsp?thread=164293
+#		http://mark0.net/download/triddefs_xml.7z/defs/d/diff-unified.trid.xml
+# Note:		called "unified diff output" by TrID and
+#		"Differences between files" by shared MIME-info database from freedesktop.org
+# use b flag to forces the test to be done for binary files (non ASCII text like with Ctrl-D Ctrl-V Ctrl-Z)
+0	search/4096/b	---\040
+!:strength + 93
+>0	use		diff-unified
+# most samples are just pure ASCII text like: ShellR64.patch
+0	search/11054	---\040
+# unified diff (strength=131=38+93) before
+# HTML document text (strength=170,90,71,53,52,51,49)	POSIX shell script (fix-qt5.6-build.patch strength=130 ./commands)
+# JavaScript source (strength=112,84,81,80,79,78,72,69)	C++ source (strength=71,70,69,68,67,54),
+# Python script (strength=69,67,63,60,58,57,56,54,52,37)LaTeX document text (strength=62,56,55,51,43)
+# TeX document (strength=51,38)				C source (strength=41,39,37)
+# exported SGML document (strength=39,28)		diff output text (strength=38=38+0)
+# Pascal source (strength=37)				RCS/CVS diff (strength=36=36+0),
+# Algol 68 source (strength=?)				CSV ASCII text (strength=?)
+!:strength + 93
+>0	use		diff-unified
+#	check for 3 characteristic lines of unified diff
+0	name			diff-unified
+>0	search/11084 	+++\040
+>>&0	search/1024 	\n
+# at signs line sometimes other (with 2 space chars before) like: indent-header.patch
+>>>&0	search/2	@@\040-	unified diff output text
+!:mime	text/x-diff
+#!:mime	text/x-patch
+# https://file-extension.net/seeker/file_extension_dif file_extension_pch file_extension_rej
+!:ext	diff/patch/dif/pch/rej
+# GRR: mainly for debugging purpose for variants with text before real diff output
+>>>>0	string	!---\040
+>>>>>0	string		x	\b, 1st line "%s"
+>>>>>>&1 string		x	\b, 2nd line "%s"
+>>>>>>>&1 string	x	\b, 3rd line "%s"
+
+# librsync -- the library for network deltas
+#
+# Copyright (C) 2001 by Martin Pool.  You may do whatever you want with
+# this file.
+#
+0	belong		0x72730236	rdiff network-delta data
+
+0	belong		0x72730136	rdiff network-delta signature data
+>4	belong		x		(block length=%d,
+>8	belong		x		signature strength=%d)

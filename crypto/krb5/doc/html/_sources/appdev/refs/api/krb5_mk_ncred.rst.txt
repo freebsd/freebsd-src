@@ -1,0 +1,88 @@
+krb5_mk_ncred -  Format a KRB-CRED message for an array of credentials. 
+========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_ncred(krb5_context context, krb5_auth_context auth_context, krb5_creds ** creds, krb5_data ** der_out, krb5_replay_data * rdata_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **creds** - Null-terminated array of credentials
+
+	          **[out]** **der_out** - Encoded credentials
+
+	          **[out]** **rdata_out** - Replay cache information (NULL if not needed)
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   ENOMEM   Insufficient memory
+         -   KRB5_RC_REQUIRED   Message replay detection requires rcache parameter
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function takes an array of credentials *creds* and formats a **KRB-CRED** message *der_out* to pass to krb5_rd_cred().
+
+
+
+The local and remote addresses in *auth_context* are optional; if either is specified, they are used to form the sender and receiver addresses in the KRB-CRED message.
+
+
+
+If the #KRB5_AUTH_CONTEXT_DO_TIME flag is set in *auth_context* , an entry for the message is entered in an in-memory replay cache to detect if the message is reflected by an attacker. If #KRB5_AUTH_CONTEXT_DO_TIME is not set, no replay cache is used. If #KRB5_AUTH_CONTEXT_RET_TIME is set in *auth_context* , the timestamp used for the KRB-CRED message is stored in *rdata_out* .
+
+
+
+If either #KRB5_AUTH_CONTEXT_DO_SEQUENCE or #KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the *auth_context* local sequence number is included in the KRB-CRED message and then incremented. If #KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the sequence number used is stored in *rdata_out* .
+
+
+
+Use krb5_free_data_contents() to free *der_out* when it is no longer needed.
+
+
+
+The message will be encrypted using the send subkey of *auth_context* if it is present, or the session key otherwise. If neither key is present, the credentials will not be encrypted, and the message should only be sent over a secure channel. No replay cache entry is used in this case.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The *rdata_out* argument is required if the #KRB5_AUTH_CONTEXT_RET_TIME or #KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .
+ 
+
+
+

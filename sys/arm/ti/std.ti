@@ -1,0 +1,5 @@
+
+machine 	arm	armv7
+makeoptions	CONF_CFLAGS="-march=armv7a"
+
+files		"../ti/files.ti"

@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2023 The FreeBSD Foundation
+#
+# This documentation was written by Björn Zeeb under sponsorship from
+# the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+This is a simple program to drive net80211::ieee80211_sta_join1() calls from
+user space.
+
+The program optionally accepts an interface name (e.g., wlan42), or an
+interface name, an SSID and a BSSID.
+
+In the former case of no SSID/BSSID passed it will query the scan results and
+then try to join each entry from the scan with a short delay.
+
+In the lastter case giving the SSID/BSSID one can trigger the "canreassoc" case
+in ieee80211_sta_join1() or not depending on whether one passes the currently
+associated SSID/BSSID or not.
+
+The tool is useful to trigger net80211::newstate() changes while other
+newstate() changes are pending or being executed.
+
+I was specifically developed to show a problem with the LinuxKPI 802.11 compat
+code.  The reason is that ieee80211_sta_join1() also calls in (*iv_update_bss)()
+swapping nodes before initiating the state changes and in LinuxKPI state is on
+the sta and not the vif causing all kinds of troubles, especially if we lose
+a state transition before the taskq is run or if the iv_bss node gets swapped
+before a task is executed.

@@ -1,0 +1,29 @@
+Build the BearSSL library.
+.Pp
+BearSSL is a tiny SSL library suitable for embedded environments.
+For details see
+.Lk https://www.BearSSL.org/
+.Pp
+This library is currently only used to perform
+signature verification and related operations
+for Verified Exec and
+.Xr loader 8 .
+.Pp
+Due to size constraints in the BIOS environment on x86, one may need to set
+.Va LOADERSIZE
+larger than the
+default 500000, although often loader is under the 500k limit even with
+this option.
+Setting
+.Va LOADERSIZE
+larger than 500000 may cause
+.Xr pxeboot 8
+to be too large to work.
+Careful testing of the loader in the target environment when built with a larger
+limit to establish safe limits is critical because different BIOS environments
+reserve differing amounts of the low 640k space, making a precise limit for
+everybody impossible.
+.Pp
+See also
+.Va WITH_LOADER_PXEBOOT
+for other considerations.

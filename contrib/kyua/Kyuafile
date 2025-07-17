@@ -1,0 +1,18 @@
+syntax(2)
+
+test_suite("kyua")
+
+include("bootstrap/Kyuafile")
+include("cli/Kyuafile")
+if fs.exists("doc/Kyuafile") then
+    -- The tests for the docs are not installed because they only cover the
+    -- build-time process of the manual pages.
+    include("doc/Kyuafile")
+end
+include("drivers/Kyuafile")
+include("engine/Kyuafile")
+include("examples/Kyuafile")
+include("integration/Kyuafile")
+include("model/Kyuafile")
+include("store/Kyuafile")
+include("utils/Kyuafile")

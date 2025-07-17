@@ -1,0 +1,67 @@
+name: Cross-build Kernel
+
+on:
+  push:
+    branches: [ main, 'stable/14', 'stable/13' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.target_arch }} ${{ matrix.os }} (${{ matrix.compiler }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target_arch: [ amd64, aarch64 ]
+        os: [ ubuntu-22.04, ubuntu-24.04, macos-latest ]
+        include:
+          # TODO: both Ubuntu and macOS have bmake packages, we should try them instead of bootstrapping our own copy.
+          - os: ubuntu-22.04
+            compiler: clang-14
+            cross-bindir: /usr/lib/llvm-14/bin
+            pkgs: bmake libarchive-dev clang-14 lld-14
+          - os: ubuntu-24.04
+            compiler: clang-18
+            cross-bindir: /usr/lib/llvm-18/bin
+            pkgs: bmake libarchive-dev clang-18 lld-18
+          - os: macos-latest
+            compiler: clang-18
+            cross-bindir: /opt/homebrew/opt/llvm@18/bin
+            pkgs: bmake libarchive llvm@18
+          - target_arch: amd64
+            target: amd64
+          - target_arch: aarch64
+            target: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - name: install packages (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update --quiet || true
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install ${{ matrix.pkgs }}
+      - name: install packages (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update --quiet || true
+          brew install ${{ matrix.pkgs }} || true
+      - name: create environment
+        run: |
+          echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
+          if [ -n "${{ matrix.cross-bindir }}" ]; then
+            echo "EXTRA_BUILD_ARGS=--cross-bindir=${{ matrix.cross-bindir }}" >> $GITHUB_ENV
+          fi
+          mkdir -p ../build
+          echo "MAKEOBJDIRPREFIX=${PWD%/*}/build" >> $GITHUB_ENV
+          # heh, works on Linux/BSD/macOS ...
+          echo "NPROC=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 1`" >> $GITHUB_ENV
+      - name: bootstrap bmake
+        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} -n
+      - name: make kernel-toolchain
+        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} kernel-toolchain -s -j$NPROC -DWITH_DISK_IMAGE_TOOLS_BOOTSTRAP
+      - name: make buildkernel
+        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} KERNCONF=GENERIC NO_MODULES=yes buildkernel -s -j$NPROC $EXTRA_MAKE_ARGS

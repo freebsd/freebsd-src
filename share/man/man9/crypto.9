@@ -1,0 +1,148 @@
+.\"	$OpenBSD: crypto.9,v 1.19 2002/07/16 06:31:57 angelos Exp $
+.\"
+.\" The author of this manual page is Angelos D. Keromytis (angelos@cis.upenn.edu)
+.\"
+.\" Copyright (c) 2000, 2001 Angelos D. Keromytis
+.\"
+.\" Permission to use, copy, and modify this software with or without fee
+.\" is hereby granted, provided that this entire notice is included in
+.\" all source code copies of any software which is or includes a copy or
+.\" modification of this software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTY. IN PARTICULAR, NONE OF THE AUTHORS MAKES ANY
+.\" REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
+.\" MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
+.\" PURPOSE.
+.\"
+.Dd April 12, 2021
+.Dt CRYPTO 9
+.Os
+.Sh NAME
+.Nm crypto
+.Nd API for cryptographic services in the kernel
+.Sh SYNOPSIS
+.In opencrypto/cryptodev.h
+.Sh DESCRIPTION
+.Nm
+is a framework for in-kernel cryptography.
+It permits in-kernel consumers to encrypt and decrypt data
+and also enables userland applications to use cryptographic hardware
+through the
+.Pa /dev/crypto
+device.
+.Pp
+.Nm
+supports encryption and decryption operations
+using block and stream ciphers as well as computation and verification
+of message authentication codes (MACs).
+Consumers allocate sessions to describe a transform as discussed in
+.Xr crypto_session 9 .
+Consumers then allocate request objects to describe each transformation
+such as encrypting a network packet or decrypting a disk sector.
+Requests are described in
+.Xr crypto_request 9 .
+.Pp
+Device drivers are responsible for processing requests submitted by
+consumers.
+.Xr crypto_driver 9
+describes the interfaces drivers use to register with the framework,
+helper routines the framework provides to facilitate request processing,
+and the interfaces drivers are required to provide.
+.Ss Callbacks
+Since the consumers may not be associated with a process, drivers may
+not
+.Xr sleep 9 .
+The same holds for the framework.
+Thus, a callback mechanism is used
+to notify a consumer that a request has been completed (the
+callback is specified by the consumer on a per-request basis).
+The callback is invoked by the framework whether the request was
+successfully completed or not.
+Errors are reported to the callback function.
+.Pp
+Session initialization does not use callbacks and returns errors
+synchronously.
+.Ss Session Migration
+Operations may fail with a specific error code,
+.Er EAGAIN ,
+to indicate that a session handle has changed and that the
+request may be re-submitted immediately with the new session.
+The consumer should update its saved copy of the session handle
+to the value of
+.Fa crp_session
+so that future requests use the new session.
+.Ss Supported Algorithms
+More details on some algorithms may be found in
+.Xr crypto 7 .
+.Pp
+The following authentication algorithms are supported:
+.Pp
+.Bl -tag -offset indent -width CRYPTO_AES_CCM_CBC_MAC -compact
+.It Dv CRYPTO_AES_CCM_CBC_MAC
+.It Dv CRYPTO_AES_NIST_GMAC
+.It Dv CRYPTO_BLAKE2B
+.It Dv CRYPTO_BLAKE2S
+.It Dv CRYPTO_NULL_HMAC
+.It Dv CRYPTO_POLY1305
+.It Dv CRYPTO_RIPEMD160
+.It Dv CRYPTO_RIPEMD160_HMAC
+.It Dv CRYPTO_SHA1
+.It Dv CRYPTO_SHA1_HMAC
+.It Dv CRYPTO_SHA2_224
+.It Dv CRYPTO_SHA2_224_HMAC
+.It Dv CRYPTO_SHA2_256
+.It Dv CRYPTO_SHA2_256_HMAC
+.It Dv CRYPTO_SHA2_384
+.It Dv CRYPTO_SHA2_384_HMAC
+.It Dv CRYPTO_SHA2_512
+.It Dv CRYPTO_SHA2_512_HMAC
+.El
+.Pp
+The following encryption algorithms are supported:
+.Pp
+.Bl -tag -offset indent -width CRYPTO_CAMELLIA_CBC -compact
+.It Dv CRYPTO_AES_CBC
+.It Dv CRYPTO_AES_ICM
+.It Dv CRYPTO_AES_XTS
+.It Dv CRYPTO_CAMELLIA_CBC
+.It Dv CRYPTO_CHACHA20
+.It Dv CRYPTO_NULL_CBC
+.El
+.Pp
+The following authenticated encryption with additional data (AEAD)
+algorithms are supported:
+.Pp
+.Bl -tag -offset indent -width CRYPTO_CHACHA20_POLY1305 -compact
+.It Dv CRYPTO_AES_CCM_16
+.It Dv CRYPTO_AES_NIST_GCM_16
+.It Dv CRYPTO_CHACHA20_POLY1305
+.El
+.Pp
+The following compression algorithms are supported:
+.Pp
+.Bl -tag -offset indent -width CRYPTO_DEFLATE_COMP -compact
+.It Dv CRYPTO_DEFLATE_COMP
+.El
+.Sh FILES
+.Bl -tag -width ".Pa sys/opencrypto/crypto.c"
+.It Pa sys/opencrypto/crypto.c
+most of the framework code
+.El
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr ipsec 4 ,
+.Xr crypto 7 ,
+.Xr crypto_driver 9 ,
+.Xr crypto_request 9 ,
+.Xr crypto_session 9 ,
+.Xr sleep 9
+.Sh HISTORY
+The cryptographic framework first appeared in
+.Ox 2.7
+and was written by
+.An Angelos D. Keromytis Aq Mt angelos@openbsd.org .
+.Sh BUGS
+The framework needs a mechanism for determining which driver is
+best for a specific set of algorithms associated with a session.
+Some type of benchmarking is in order here.

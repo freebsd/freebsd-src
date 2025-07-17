@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: hostapd
+# REQUIRE: mountcritremote
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="hostapd"
+desc="Authenticator for IEEE 802.11 networks"
+command=${hostapd_program}
+start_postcmd="hostapd_poststart"
+
+hostapd_poststart() {
+	if [ -n "$ifn" ]; then
+		ifconfig ${ifn} down
+		sleep 2
+		ifconfig ${ifn} up
+	fi
+}
+
+ifn="$2"
+if [ -z "$ifn" ]; then
+	rcvar="hostapd_enable"
+	conf_file="/etc/${name}.conf"
+	pidfile="/var/run/${name}.pid"
+else
+	rcvar=
+	conf_file="/etc/${name}-${ifn}.conf"
+	pidfile="/var/run/${name}-${ifn}.pid"
+fi
+
+command_args="-P ${pidfile} -B ${conf_file}"
+required_files="${conf_file}"
+required_modules="wlan_xauth wlan_wep wlan_tkip wlan_ccmp wlan_gcmp"
+extra_commands="reload"
+
+load_rc_config ${name}
+
+# doesn't make sense to run in a svcj: nojail keyword
+hostapd_svcj="NO"
+
+run_rc_command "$1"

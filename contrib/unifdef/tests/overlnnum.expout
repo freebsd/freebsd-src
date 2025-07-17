@@ -1,0 +1,20 @@
+/* Copyright 2004 Bob Proulx <bob@proulx.com>
+Distributed under the two-clause BSD licence;
+see the COPYING file for details. */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#line 9 "overwrite.c"
+int foo() { return 0; }
+#line 13 "overwrite.c"
+
+#line 17 "overwrite.c"
+int bar() { return 0; }
+#line 21 "overwrite.c"
+
+int main()
+{
+  foo();
+  bar();
+}

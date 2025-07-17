@@ -1,0 +1,5 @@
+Do not build GNU
+.Xr diff3 1 ;
+build BSD
+.Xr diff3 1
+instead.

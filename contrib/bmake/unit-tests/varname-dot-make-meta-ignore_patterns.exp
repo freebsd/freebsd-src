@@ -1,0 +1,11 @@
+Initialize check-ignore.meta
+Building <tmpdir>/obj/check-ignore
+Skipping meta for .END: .SPECIAL
+Use .MAKE.META.IGNORE_PATTERNS - check-ignore is up to date
+`check-ignore' is up to date.
+Skipping meta for .END: .SPECIAL
+Skip .MAKE.META.IGNORE_PATTERNS - check-ignore is out of date
+<tmpdir>/obj/check-ignore.meta:<line>: file '<tmpdir>/ignore/check' is newer than the target...
+Building <tmpdir>/obj/check-ignore
+Skipping meta for .END: .SPECIAL
+exit status 0

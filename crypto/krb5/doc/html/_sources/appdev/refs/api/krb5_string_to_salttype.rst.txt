@@ -1,0 +1,45 @@
+krb5_string_to_salttype -  Convert a string to a salt type. 
+============================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_string_to_salttype(char * string, krb5_int32 * salttypep)
+
+..
+
+
+:param:
+
+	          **[in]** **string** - String to convert to an encryption type
+
+	          **[out]** **salttypep** - Salt type to be filled in
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - EINVAL
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

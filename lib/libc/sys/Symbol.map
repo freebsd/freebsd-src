@@ -1,0 +1,73 @@
+FBSD_1.0 {
+	accept;
+	aio_suspend;
+	close;
+	connect;
+	fcntl;
+	fork;
+	fsync;
+	msync;
+	nanosleep;
+	open;
+	pipe;
+	poll;
+	pselect;
+	ptrace;
+	read;
+	readv;
+	recvfrom;
+	recvmsg;
+	select;
+	sendmsg;
+	sendto;
+	shm_open;
+	sigaction;
+	sigprocmask;
+	sigsuspend;
+	sigtimedwait;
+	sigwait;
+	sigwaitinfo;
+	vadvise;
+	wait4;
+	write;
+	writev;
+};
+
+FBSD_1.1 {
+	closefrom;
+};
+
+FBSD_1.2 {
+	pdfork;
+};
+
+FBSD_1.3 {
+	accept4;
+	wait6;
+};
+
+FBSD_1.4 {
+	ppoll;
+	numa_setaffinity;
+	numa_getaffinity;
+	sendmmsg;
+	recvmmsg;
+};
+
+FBSD_1.5 {
+	clock_nanosleep;
+	fdatasync;
+	getdents;
+	kevent;
+	lstat;
+	mknod;
+	stat;
+};
+
+FBSD_1.6 {
+	shm_create_largepage;
+};
+
+FBSD_1.7 {
+	_Fork;
+};

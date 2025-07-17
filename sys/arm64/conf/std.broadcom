@@ -1,0 +1,37 @@
+#
+# Broadcom SoC support
+#
+
+# SoC support
+options 	SOC_BRCM_BCM2837
+options 	SOC_BRCM_BCM2838
+options 	SOC_BRCM_NS2
+
+# I2C
+device		bcm2835_bsc		# Broadcom BCM283x I2C bus
+
+# SPI
+device		bcm2835_spi		# Broadcom BCM283x SPI bus
+
+# Serial (COM) ports
+device		uart_mu			# RPI3 aux port
+device		pl011
+
+# Ethernet NICs
+device		genet			# Broadcom on RPi4
+
+# USB support
+device		dwcotg
+
+# USB ethernet support
+device		muge
+device		smsc
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+
+options 	FDT
+device		acpi
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/rpi"

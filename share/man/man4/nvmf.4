@@ -1,0 +1,106 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Chelsio Communications, Inc.
+.\"
+.Dd May 7, 2025
+.Dt NVMF 4
+.Os
+.Sh NAME
+.Nm nvmf
+.Nd "NVM Express over Fabrics host driver"
+.Sh SYNOPSIS
+To compile the driver into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device nvmf"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvmf_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides the kernel component of an NVM Express over Fabrics
+host.
+The NVMeoF host is the client which provides local access to
+namespaces exported by a remote controller.
+.Pp
+Associations between the local host and remote controllers are managed
+using
+.Xr nvmecontrol 8 .
+New associations are created via the
+.Cm connect
+command and destroyed via the
+.Cm disconnect
+command.
+If an association's connection is interrupted,
+the
+.Cm reconnect
+command creates a new association to replace the interrupted association.
+.Pp
+Similar to
+.Xr nvme 4 ,
+.Nm
+creates controller device nodes using the format
+.Pa /dev/nvmeX
+and namespace device nodes using the format
+.Pa /dev/nvmeXnsY .
+.Nm
+also exports remote namespaces via the CAM
+.Xr nda 4
+peripheral driver.
+Unlike
+.Xr nvme 4 ,
+.Nm
+does not support the
+.Xr nvd 4
+disk driver.
+.Pp
+Associations require a supported transport such as
+.Xr nvmf_tcp 4
+for associations using TCP/IP.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.nvmf.fail_on_disconnection
+Determines the behavior when an association's connection is interrupted.
+By default, input/output operations are suspended while a host is disconnected.
+This includes operations pending at the time the association's connection was
+interrupted as well as new requests submitted while the host is disconnected.
+Once a new association is established, suspended I/O requests are retried.
+When set to 1, input/output operations fail with
+.Er EIO
+while a host is disconnected and
+.Xr nda 4
+peripherals are destroyed after the first failed I/O request.
+Note that any destroyed
+.Xr nda 4
+peripherals will be recreated after a new association is established.
+.El
+.Sh SEE ALSO
+.Xr nda 4 ,
+.Xr nvme 4 ,
+.Xr nvmf_tcp 4 ,
+.Xr nvmft 4 ,
+.Xr nvmecontrol 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was developed by
+.An John Baldwin Aq Mt jhb@FreeBSD.org
+under sponsorship from Chelsio Communications, Inc.

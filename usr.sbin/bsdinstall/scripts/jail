@@ -1,0 +1,231 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+############################################################ GLOBALS
+
+#
+# List of environment variables that may be defined by the user, but modified
+# during the installation process. They are then restored when restarting this
+# script.
+#
+user_env_vars="BSDINSTALL_DISTSITE DISTRIBUTIONS"
+
+############################################################ FUNCTIONS
+
+# error [$msg]
+#
+# Display generic error message when a script fails. An optional message
+# argument can preceed the generic message. User is given the choice of
+# restarting the installer or exiting.
+#
+error() {
+	local msg
+	if [ -n "$1" ]; then
+		msg="$1\n\n"
+	fi
+	bsddialog --backtitle "$OSNAME Installer" --title "Abort" \
+	    --no-label "Exit" --yes-label "Restart" --yesno \
+	    "${msg}An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
+	if [ $? -ne $BSDDIALOG_OK ]; then
+		exit
+	else
+		environment_restore
+		exec $0 $BSDINSTALL_CHROOT
+	fi
+}
+
+distbase() {
+	test ! -d $BSDINSTALL_DISTDIR && mkdir -p $BSDINSTALL_DISTDIR
+
+	if [ ! -f $BSDINSTALL_DISTDIR/MANIFEST -a -z "$BSDINSTALL_DISTSITE" ]; then
+		exec 5>&1
+		BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&5)
+		MIRROR_BUTTON=$?
+		exec 5>&-
+		test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
+		export BSDINSTALL_DISTSITE
+		fetch -o $BSDINSTALL_DISTDIR/MANIFEST $BSDINSTALL_DISTSITE/MANIFEST || error "Could not download $BSDINSTALL_DISTSITE/MANIFEST"
+	fi
+
+	: ${DISTRIBUTIONS="base.txz"}; export DISTRIBUTIONS
+	if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
+		DISTMENU=`cut -f 4,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base`
+
+		if [ ! "$nonInteractive" == "YES" ]
+		then
+			exec 5>&1
+			EXTRA_DISTS=$(echo $DISTMENU | xargs -o bsddialog \
+			    --backtitle "$OSNAME Installer" \
+			    --title "Distribution Select" --no-cancel \
+			    --separate-output \
+			    --checklist "Choose optional system components to install:" \
+			    0 0 0 \
+			    2>&1 1>&5)
+			for dist in $EXTRA_DISTS; do
+				export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
+			done
+		fi
+	fi
+
+	FETCH_DISTRIBUTIONS=""
+	for dist in $DISTRIBUTIONS; do
+		if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
+			FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+		fi
+	done
+	FETCH_DISTRIBUTIONS=`echo $FETCH_DISTRIBUTIONS`	# Trim white space
+
+	if [ -n "$FETCH_DISTRIBUTIONS" -a -z "$BSDINSTALL_DISTSITE" ]; then
+		exec 5>&1
+		BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&5)
+		MIRROR_BUTTON=$?
+		exec 5>&-
+		test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
+		export BSDINSTALL_DISTSITE
+	fi
+
+	if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
+		bsdinstall distfetch || error "Failed to fetch distribution"
+	fi
+
+	bsdinstall checksum || error "Distribution checksum failed"
+	bsdinstall distextract || error "Distribution extract failed"
+}
+
+# environment_restore
+#
+# Restore a list of environment variables when this script is restarted.
+#
+environment_restore()
+{
+	for var in $user_env_vars; do
+		eval "if [ -n \"\${ORIG_$var}\" -o -z \"\${ORIG_$var-z}\" ]; then $var=\${ORIG_$var}; else unset $var; fi"
+	done
+}
+
+# environment_save
+#
+# Save any user-defined environment variable that may be modified during the
+# installation process. They are then restored when restarting this script.
+#
+environment_save()
+{
+	for var in $user_env_vars; do
+		eval "if [ -n \"\${$var}\" -o -z \"\${$var-z}\" ]; then ORIG_$var=\${$var}; else unset ORIG_$var; fi"
+	done
+}
+
+############################################################ MAIN
+
+: ${BSDDIALOG_OK=0}
+
+f_dprintf "Began Installation at %s" "$( date )"
+
+if [ -z "$1" ]; then
+	error "Directory can not be empty\n\nUsage:\nbsdinstall jail directory"
+fi
+export BSDINSTALL_CHROOT=$1
+
+environment_save
+
+rm -rf $BSDINSTALL_TMPETC
+mkdir $BSDINSTALL_TMPETC
+mkdir -p $1 || error "mkdir failed for $1"
+rm -f $TMPDIR/bsdinstall-installscript-setup
+
+if [ -n "$SCRIPT" ]; then
+	# split script into preamble and setup script at first shebang
+	awk 'BEGIN {pathb=ARGV[2]; ARGV[2]=""} /^#!/{b=1} {
+	    if (b) print >pathb; else print}' \
+	    "$SCRIPT" $TMPDIR/bsdinstall-installscript-setup \
+	    >$TMPDIR/bsdinstall-installscript-preamble
+
+	. $TMPDIR/bsdinstall-installscript-preamble
+fi
+
+if [ ! "$nonInteractive" == "YES" ]; then
+	bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
+	    --yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
+	    "Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
+	if [ $? -eq 1 ]; then
+		PKGBASE=yes
+	fi
+fi
+
+if [ "$PKGBASE" == yes ]; then
+	bsdinstall pkgbase --no-kernel || error "Installation of base system packages failed"
+else
+	distbase
+fi
+
+if [ ! "$nonInteractive" == "YES" ]
+then
+    bsdinstall rootpass || error "Could not set root password"
+fi
+
+trap true SIGINT	# This section is optional
+
+if [ ! "$nonInteractive" == "YES" ]
+then
+bsdinstall services
+
+    bsddialog --backtitle "$OSNAME Installer" --title "Add User Accounts" --yesno \
+        "Would you like to add users to the installed system now?" 0 0 && \
+        bsdinstall adduser
+fi
+
+trap error SIGINT	# SIGINT is bad again
+bsdinstall config  || error "Failed to save config"
+cp /etc/resolv.conf $1/etc
+cp /etc/localtime $1/etc
+cp /var/db/zoneinfo $1/var/db
+
+# Run post-install script
+if [ -f $TMPDIR/bsdinstall-installscript-setup ]; then
+	cp $TMPDIR/bsdinstall-installscript-setup \
+	    $BSDINSTALL_CHROOT/tmp/installscript
+	chmod a+x $BSDINSTALL_CHROOT/tmp/installscript
+	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
+	chroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1
+	umount "$BSDINSTALL_CHROOT/dev"
+	rm $BSDINSTALL_CHROOT/tmp/installscript
+fi
+
+bsdinstall entropy
+
+f_dprintf "Installation Completed at %s" "$(date)"
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

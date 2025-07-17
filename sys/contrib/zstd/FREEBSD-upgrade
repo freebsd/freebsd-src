@@ -1,0 +1,12 @@
+zstd
+
+To import new vendor sources, prune unwanted files with:
+
+	tar -X FREEBSD-Xlist -xf zstd-x.y.z.tar.zst
+
+When importing a new version, be sure to check if there are any new bits that
+we don't want.
+
+Please find instructions for importing new releases and merging to HEAD here:
+
+https://docs.freebsd.org/en/articles/committers-guide/#vendor-import-git

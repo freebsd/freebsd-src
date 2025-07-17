@@ -1,0 +1,227 @@
+/*
+ *  Copyright (C) 2017 - This file is part of libecc project
+ *
+ *  Authors:
+ *      Ryad BENADJILA <ryadbenadjila@gmail.com>
+ *      Arnaud EBALARD <arnaud.ebalard@ssi.gouv.fr>
+ *      Jean-Pierre FLORI <jean-pierre.flori@ssi.gouv.fr>
+ *
+ *  Contributors:
+ *      Nicolas VIVET <nicolas.vivet@ssi.gouv.fr>
+ *      Karim KHALFALLAH <karim.khalfallah@ssi.gouv.fr>
+ *
+ *  This software is licensed under a dual BSD and GPL v2 license.
+ *  See LICENSE file at the root folder of the project.
+ */
+#include <libecc/lib_ecc_config.h>
+#ifdef WITH_CURVE_SECP256R1
+
+#ifndef __EC_PARAMS_SECP256R1_H__
+#define __EC_PARAMS_SECP256R1_H__
+#include "ec_params_external.h"
+
+static const u8 secp256r1_p[] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+};
+
+TO_EC_STR_PARAM(secp256r1_p);
+
+#define CURVE_SECP256R1_P_BITLEN 256
+static const u8 secp256r1_p_bitlen[] = { 0x01, 0x00 };
+
+TO_EC_STR_PARAM(secp256r1_p_bitlen);
+
+static const u8 secp256r1_r[] = {
+	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xfe,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+};
+
+TO_EC_STR_PARAM(secp256r1_r);
+
+static const u8 secp256r1_r_square[] = {
+	0x00, 0x00, 0x00, 0x04, 0xff, 0xff, 0xff, 0xfd,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+	0xff, 0xff, 0xff, 0xfb, 0xff, 0xff, 0xff, 0xff,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03
+};
+
+TO_EC_STR_PARAM(secp256r1_r_square);
+
+static const u8 secp256r1_mpinv[] = { 0x00, 0x00, 0x00, 0x01 };
+
+TO_EC_STR_PARAM(secp256r1_mpinv);
+
+static const u8 secp256r1_p_shift[] = {
+	0x00
+};
+
+TO_EC_STR_PARAM(secp256r1_p_shift);
+
+#if (WORD_BYTES == 8)		/* 64-bit words */
+static const u8 secp256r1_p_reciprocal[] = {
+	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+};
+#elif (WORD_BYTES == 4) || (WORD_BYTES == 2)	/* 32 and 16-bit words */
+static const u8 secp256r1_p_reciprocal[] = {
+	0x00
+};
+#else /* unknown word size */
+#error "Unsupported word size"
+#endif
+TO_EC_STR_PARAM(secp256r1_p_reciprocal);
+
+static const u8 secp256r1_a[] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC
+};
+
+TO_EC_STR_PARAM(secp256r1_a);
+
+static const u8 secp256r1_b[] = {
+	0x5A, 0xC6, 0x35, 0xD8, 0xAA, 0x3A, 0x93, 0xE7,
+	0xB3, 0xEB, 0xBD, 0x55, 0x76, 0x98, 0x86, 0xBC,
+	0x65, 0x1D, 0x06, 0xB0, 0xCC, 0x53, 0xB0, 0xF6,
+	0x3B, 0xCE, 0x3C, 0x3E, 0x27, 0xD2, 0x60, 0x4B
+};
+
+TO_EC_STR_PARAM(secp256r1_b);
+
+#define CURVE_SECP256R1_CURVE_ORDER_BITLEN 256
+static const u8 secp256r1_curve_order[] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
+	0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51
+};
+
+TO_EC_STR_PARAM(secp256r1_curve_order);
+
+static const u8 secp256r1_gx[] = {
+	0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47,
+	0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2,
+	0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0,
+	0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96
+};
+
+TO_EC_STR_PARAM(secp256r1_gx);
+
+static const u8 secp256r1_gy[] = {
+	0x4F, 0xE3, 0x42, 0xE2, 0xFE, 0x1A, 0x7F, 0x9B,
+	0x8E, 0xE7, 0xEB, 0x4A, 0x7C, 0x0F, 0x9E, 0x16,
+	0x2B, 0xCE, 0x33, 0x57, 0x6B, 0x31, 0x5E, 0xCE,
+	0xCB, 0xB6, 0x40, 0x68, 0x37, 0xBF, 0x51, 0xF5
+};
+
+TO_EC_STR_PARAM(secp256r1_gy);
+
+static const u8 secp256r1_gz[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+};
+
+TO_EC_STR_PARAM(secp256r1_gz);
+
+static const u8 secp256r1_gen_order[] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
+	0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51
+};
+
+TO_EC_STR_PARAM(secp256r1_gen_order);
+
+#define CURVE_SECP256R1_Q_BITLEN 256
+static const u8 secp256r1_gen_order_bitlen[] = { 0x01, 0x00 };
+
+TO_EC_STR_PARAM(secp256r1_gen_order_bitlen);
+
+static const u8 secp256r1_cofactor[] = { 0x01 };
+
+TO_EC_STR_PARAM(secp256r1_cofactor);
+
+static const u8 secp256r1_alpha_montgomery[] = {
+	0x00,
+};
+
+TO_EC_STR_PARAM_FIXED_SIZE(secp256r1_alpha_montgomery, 0);
+
+static const u8 secp256r1_gamma_montgomery[] = {
+	0x00,
+};
+
+TO_EC_STR_PARAM_FIXED_SIZE(secp256r1_gamma_montgomery, 0);
+
+static const u8 secp256r1_alpha_edwards[] = {
+	0x00,
+};
+
+TO_EC_STR_PARAM_FIXED_SIZE(secp256r1_alpha_edwards, 0);
+
+static const u8 secp256r1_oid[] = "1.2.840.10045.3.1.7";
+TO_EC_STR_PARAM(secp256r1_oid);
+
+static const u8 secp256r1_name[] = "SECP256R1";
+TO_EC_STR_PARAM(secp256r1_name);
+
+static const ec_str_params secp256r1_str_params = {
+	.p = &secp256r1_p_str_param,
+	.p_bitlen = &secp256r1_p_bitlen_str_param,
+	.r = &secp256r1_r_str_param,
+	.r_square = &secp256r1_r_square_str_param,
+	.mpinv = &secp256r1_mpinv_str_param,
+	.p_shift = &secp256r1_p_shift_str_param,
+	.p_normalized = &secp256r1_p_str_param,
+	.p_reciprocal = &secp256r1_p_reciprocal_str_param,
+	.a = &secp256r1_a_str_param,
+	.b = &secp256r1_b_str_param,
+	.curve_order = &secp256r1_curve_order_str_param,
+	.gx = &secp256r1_gx_str_param,
+	.gy = &secp256r1_gy_str_param,
+	.gz = &secp256r1_gz_str_param,
+	.gen_order = &secp256r1_gen_order_str_param,
+	.gen_order_bitlen = &secp256r1_gen_order_bitlen_str_param,
+	.cofactor = &secp256r1_cofactor_str_param,
+        .alpha_montgomery = &secp256r1_alpha_montgomery_str_param,
+        .gamma_montgomery = &secp256r1_gamma_montgomery_str_param,
+        .alpha_edwards = &secp256r1_alpha_edwards_str_param,
+	.oid = &secp256r1_oid_str_param,
+	.name = &secp256r1_name_str_param,
+};
+
+/*
+ * Compute max bit length of all curves for p and q
+ */
+#ifndef CURVES_MAX_P_BIT_LEN
+#define CURVES_MAX_P_BIT_LEN    0
+#endif
+#if (CURVES_MAX_P_BIT_LEN < CURVE_SECP256R1_P_BITLEN)
+#undef CURVES_MAX_P_BIT_LEN
+#define CURVES_MAX_P_BIT_LEN CURVE_SECP256R1_P_BITLEN
+#endif
+#ifndef CURVES_MAX_Q_BIT_LEN
+#define CURVES_MAX_Q_BIT_LEN    0
+#endif
+#if (CURVES_MAX_Q_BIT_LEN < CURVE_SECP256R1_Q_BITLEN)
+#undef CURVES_MAX_Q_BIT_LEN
+#define CURVES_MAX_Q_BIT_LEN CURVE_SECP256R1_Q_BITLEN
+#endif
+#ifndef CURVES_MAX_CURVE_ORDER_BIT_LEN
+#define CURVES_MAX_CURVE_ORDER_BIT_LEN    0
+#endif
+#if (CURVES_MAX_CURVE_ORDER_BIT_LEN < CURVE_SECP256R1_CURVE_ORDER_BITLEN)
+#undef CURVES_MAX_CURVE_ORDER_BIT_LEN
+#define CURVES_MAX_CURVE_ORDER_BIT_LEN CURVE_SECP256R1_CURVE_ORDER_BITLEN
+#endif
+
+#endif /* __EC_PARAMS_SECP256R1_H__ */
+
+#endif /* WITH_CURVE_SECP256R1 */

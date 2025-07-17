@@ -1,0 +1,267 @@
+
+#------------------------------------------------------------------------------
+# $File: jpeg,v 1.40 2024/11/10 00:26:35 christos Exp $
+# JPEG images
+# SunOS 5.5.1 had
+#
+#	0	string		\377\330\377\340	JPEG file
+#	0	string		\377\330\377\356	JPG file
+#
+# both of which turn into "JPEG image data" here.
+#
+0	belong			0xffd8fff7	JPEG-LS image data
+!:mime	image/jls
+!:ext jls
+>0	use			jpeg
+
+0	belong&0xffffff00	0xffd8ff00	JPEG image data
+!:mime	image/jpeg
+!:apple	8BIMJPEG
+!:strength *3
+!:ext jpeg/jpg/jpe/jfif
+>0	use			jpeg
+
+0	name		jpeg
+>6	string		JFIF		\b, JFIF standard
+# The following added by Erik Rossen <rossen@freesurf.ch> 1999-09-06
+# in a vain attempt to add image size reporting for JFIF.  Note that these
+# tests are not fool-proof since some perfectly valid JPEGs are currently
+# impossible to specify in magic(4) format.
+# First, a little JFIF version info:
+>>11	byte		x		\b %d.
+>>12	byte		x		\b%02d
+# Next, the resolution or aspect ratio of the image:
+>>13	byte		0		\b, aspect ratio
+>>13	byte		1		\b, resolution (DPI)
+>>13	byte		2		\b, resolution (DPCM)
+>>14	ubeshort	x		\b, density %ux
+>>16	ubeshort	x		\b%u
+>>4	ubeshort	x		\b, segment length %u
+# Next, show thumbnail info, if it exists:
+>>18	byte		!0		\b, thumbnail %ux
+>>>19	byte		x		\b%u
+>6	string		Exif		\b, Exif standard: [
+>>12	indirect/r	x
+>>12	string		x		\b]
+
+# Jump to the first segment
+>(4.S+4)	use		jpeg_segment
+
+# This uses recursion...
+0		name		jpeg_segment
+>0	beshort		0xFFFE
+# Recursion handled by FFE0
+#>>(2.S+2)	use			jpeg_segment
+>>2	pstring/HJ	x		\b, comment: "%s"
+
+>0	beshort		0xFFC0
+>>(2.S+2)	use			jpeg_segment
+>>4	byte		x		\b, baseline, precision %d
+>>7	ubeshort	x		\b, %ux
+>>5	ubeshort	x		\b%u
+>>9	byte		x		\b, components %d
+
+>0	beshort		0xFFC1
+>>(2.S+2)	use			jpeg_segment
+>>4	byte		x		\b, extended sequential, precision %d
+>>7	ubeshort	x		\b, %ux
+>>5	ubeshort	x		\b%u
+>>9	byte		x		\b, components %d
+
+>0	beshort		0xFFC2
+>>(2.S+2)	use			jpeg_segment
+>>4	byte		x		\b, progressive, precision %d
+>>7	ubeshort	x		\b, %ux
+>>5	ubeshort	x		\b%u
+>>9	byte		x		\b, components %d
+
+# Define Huffman Tables
+>0	beshort		0xFFC4
+>>(2.S+2)	use			jpeg_segment
+
+>0	beshort		0xFFE1
+# Recursion handled by FFE0
+#>>(2.S+2)	use			jpeg_segment
+>>4	string		Exif		\b, Exif Standard: [
+>>>10	indirect/r	x
+>>>10	string		x		\b]
+
+# Application specific markers
+>0	beshort&0xFFE0	=0xFFE0
+>>(2.S+2)	use			jpeg_segment
+
+# DB: Define Quantization tables
+# DD: Define Restart interval [XXX: wrong here, it is 4 bytes]
+# D8: Start of image
+# D9: End of image
+# Dn: Restart
+>0	beshort&0xFFD0	=0xFFD0
+>>0	beshort&0xFFE0	!0xFFE0
+>>>(2.S+2)	use			jpeg_segment
+
+#>0	beshort		x		unknown %#x
+#>>(2.S+2)	use			jpeg_segment
+
+# HSI is Handmade Software's proprietary JPEG encoding scheme
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/HSI_JPEG
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-hsi1.trid.xml
+# Note:         called by TrID "HSI JPEG bitmap"
+0	string		hsi1		JPEG image data, HSI proprietary
+#!:mime	application/octet-stream
+!:mime	image/x-hsi
+!:ext	hsi/jpg
+
+# From: David Santinoli <david@santinoli.com>
+0	string		\x00\x00\x00\x0C\x6A\x50\x20\x20\x0D\x0A\x87\x0A	JPEG 2000
+# delete from ./animation (version 1.87) with jP (=6A50h) magic at offset 4
+# From: Johan van der Knijff <johan.vanderknijff@kb.nl>
+# Added sub-entries for JP2, JPX, JPM and MJ2 formats; added mimetypes
+# https://github.com/bitsgalore/jp2kMagic
+#
+# Now read value of 'Brand' field, which yields a few possibilities:
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JP2
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpeg2k.trid.xml
+# Note:         called by TrID "JPEG 2000 bitmap"
+>20	string		\x6a\x70\x32\x20	Part 1 (JP2)
+# aliases	image/jpeg2000, image/jpeg2000-image, image/x-jpeg2000-image
+!:mime	image/jp2
+!:ext	jp2
+# URL:		http://fileformats.archiveteam.org/wiki/JPX
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpx.trid.xml
+# Note:         called by TrID "JPEG 2000 eXtended bitmap"
+>20	string		\x6a\x70\x78\x20	Part 2 (JPX)
+!:mime	image/jpx
+!:ext	jpf/jpx
+# URL:		http://fileformats.archiveteam.org/wiki/JPM
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpm.trid.xml
+# Note:         called by TrID "JPEG 2000 eXtended bitmap"
+>20	string		\x6a\x70\x6d\x20	Part 6 (JPM)
+!:mime	image/jpm
+!:ext	jpm
+# URL:		http://fileformats.archiveteam.org/wiki/MJ2
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/v/video-mj2.trid.xml
+# Note:         called by TrID "Motion JPEG 2000 video"
+>20	string		\x6d\x6a\x70\x32	Part 3 (MJ2)
+!:mime	video/mj2
+!:ext	mj2/mjp2
+
+# Type: JPEG 2000 codesream
+# From: Mathieu Malaterre <mathieu.malaterre@gmail.com>
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_2000_codestream
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpc.trid.xml
+# Note:         called by TrID "JPEG-2000 Code Stream bitmap"
+0	belong		0xff4fff51						JPEG 2000 codestream
+# value like: 0701h FF50h
+#>45	ubeshort	x	\b, at 45 %#4.4x
+#!:mime	application/octet-stream
+# https://reposcope.com/mimetype/image/x-jp2-codestream
+!:mime	image/x-jp2-codestream
+!:ext	jpc/j2c/j2k
+# MAYBE also JHC like in byte_causal.jhc ?
+# WHAT IS THAT? DEAD ENTRY?
+#45	beshort		0xff52
+
+# JPEG extended range
+# Update:	Joerg Jenderek 2023
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_XR
+# Reference:	https://www.itu.int/rec/T-REC-T.832
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-wmp.trid.xml
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxr.trid.xml
+# Note:         called by TrID "JPEG XR bitmap" and "JPEG XR bitmap (WMPHOTO)"
+#		verified as "JPEG XR" by XnView `nconvert -fullinfo *.jxr *.wdp`
+#		partly by ImageMagick command `identify -verbose *.wdp`
+#		and libjxr-tools `JxrDecApp -v -i example.wdp -o example.tif`
+0	string		\x49\x49\xbc
+# FILE_VERSION_ID; shall be equal to 1; other values are reserved for future use and are unlike to appear
+>3	byte		1
+# FIRST_IFD_OFFSET; shall be an integer multiple of 2; so skip DROID fmt-590-signature-id-931.wdp
+>>4	lelong%2	0	JPEG-XR Image
+#!:mime	image/vnd.ms-photo
+!:mime	image/jxr
+# NO example for HDP !
+!:ext	jxr/wdp/hdp
+# MAYBE also WMP ?
+#!:ext	jxr/wdp/hdp/wmp
+# moved from ./images (version 1.243 ) and merged
+# example:
+# http://shikino.co.jp/solution/upfile/FLOWER.wdp.zip
+# often GDI_SIGNATURE "WMPHOTO\0" at offset 90 like: FLOWER.wdp abydos.jxr SMALLTOMATO.wdp
+>90	bequad		0x574D50484F544F00
+>>0	use	jxr-info
+# seldom no GDI_SIGNATURE WMPHOTO\0 at offset 90 like: example.wdp MARKET-3361-ipm-bg-DE-treat[1].wdp
+>90	bequad		!0x574D50484F544F00
+# look for GDI_SIGNATURE WMPHOTO\0 at other offset
+>>4	search/3267/sb	WMPHOTO\0
+>>>&-90	use	jxr-info
+#
+0	name	jxr-info
+# check for GDI_SIGNATURE that corresponds to "WMPHOTO\0"
+>90	bequad		0x574D50484F544F00
+>>98	byte&0x08	=0x08			\b, hard tiling
+>>99	byte&0x80	=0x80			\b, tiling present
+>>99	byte&0x40	=0x40			\b, codestream present
+>>99	byte&0x38	x			\b, spatial xform=
+>>99	byte&0x38	0x00			\bTL
+>>99	byte&0x38	0x08			\bBL
+>>99	byte&0x38	0x10			\bTR
+>>99	byte&0x38	0x18			\bBR
+>>99	byte&0x38	0x20			\bBT
+>>99	byte&0x38	0x28			\bRB
+>>99	byte&0x38	0x30			\bLT
+>>99	byte&0x38	0x38			\bLB
+>>100	byte&0x80	=0x80			\b, short header
+>>>102	beshort+1	x			\b, %u
+>>>104	beshort+1	x			\bx%u
+>>100	byte&0x80	=0x00			\b, long header
+>>>102	belong+1	x			\b, %x
+>>>106	belong+1	x			\bx%x
+>>101	beshort&0xf	x			\b, bitdepth=
+>>>101	beshort&0xf	0x0			\b1-WHITE=1
+>>>101	beshort&0xf	0x1			\b8
+>>>101	beshort&0xf	0x2			\b16
+>>>101	beshort&0xf	0x3			\b16-SIGNED
+>>>101	beshort&0xf	0x4			\b16-FLOAT
+>>>101	beshort&0xf	0x5			\b(reserved 5)
+>>>101	beshort&0xf	0x6			\b32-SIGNED
+>>>101	beshort&0xf	0x7			\b32-FLOAT
+>>>101	beshort&0xf	0x8			\b5
+>>>101	beshort&0xf	0x9			\b10
+>>>101	beshort&0xf	0xa			\b5-6-5
+>>>101	beshort&0xf	0xb			\b(reserved %d)
+>>>101	beshort&0xf	0xc			\b(reserved %d)
+>>>101	beshort&0xf	0xd			\b(reserved %d)
+>>>101	beshort&0xf	0xe			\b(reserved %d)
+>>>101	beshort&0xf	0xf			\b1-BLACK=1
+>>101	beshort&0xf0	x			\b, colorfmt=
+>>>101	beshort&0xf0	0x00			\bYONLY
+>>>101	beshort&0xf0	0x10			\bYUV240
+>>>101	beshort&0xf0	0x20			\bYWV422
+>>>101	beshort&0xf0	0x30			\bYWV444
+>>>101	beshort&0xf0	0x40			\bCMYK
+>>>101	beshort&0xf0	0x50			\bCMYKDIRECT
+>>>101	beshort&0xf0	0x60			\bNCOMPONENT
+>>>101	beshort&0xf0	0x70			\bRGB
+>>>101	beshort&0xf0	0x80			\bRGBE
+>>>101	beshort&0xf0	>0x80			\b(reserved %#x)
+
+# JPEG XL
+# From: Ian Tester
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_XL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxl.trid.xml
+# Note:         called by TrID "JPEG XL bitmap"
+0	string	\xff\x0a				JPEG XL codestream
+!:mime	image/jxl
+!:ext jxl
+
+# JPEG XL (transcoded JPEG file)
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_XL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxl-iso.trid.xml 
+# Note:         called by TrID "JPEG XL bitmap (ISOBMFF)"
+0	string	\x00\x00\x00\x0cJXL\x20\x0d\x0a\x87\x0a	JPEG XL container
+!:mime	image/jxl
+!:ext jxl

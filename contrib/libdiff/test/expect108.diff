@@ -1,0 +1,9 @@
+--- test108.left-P.txt
++++ test108.right-P.txt
+@@ -1 +1,6 @@
+ x
++a
++b
++c
++d
++x

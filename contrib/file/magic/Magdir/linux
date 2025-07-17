@@ -1,0 +1,970 @@
+
+#------------------------------------------------------------------------------
+# $File: linux,v 1.91 2024/11/09 21:15:48 christos Exp $
+# linux:  file(1) magic for Linux files
+#
+# Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
+# The following basic Linux magic is useful for reference, but using
+# "long" magic is a better practice in order to avoid collisions.
+#
+# 2	leshort		100		Linux/i386
+# >0	leshort		0407		impure executable (OMAGIC)
+# >0	leshort		0410		pure executable (NMAGIC)
+# >0	leshort		0413		demand-paged executable (ZMAGIC)
+# >0	leshort		0314		demand-paged executable (QMAGIC)
+#
+0	lelong		0x00640107	Linux/i386 impure executable (OMAGIC)
+>16	lelong		0		\b, stripped
+0	lelong		0x00640108	Linux/i386 pure executable (NMAGIC)
+>16	lelong		0		\b, stripped
+0	lelong		0x0064010b	Linux/i386 demand-paged executable (ZMAGIC)
+>16	lelong		0		\b, stripped
+0	lelong		0x006400cc	Linux/i386 demand-paged executable (QMAGIC)
+>16	lelong		0		\b, stripped
+#
+0	string		\007\001\000	Linux/i386 object file
+>20	lelong		>0x1020		\b, DLL library
+# Linux-8086 stuff:
+0	string		\01\03\020\04	Linux-8086 impure executable
+>28	long		!0		not stripped
+0	string		\01\03\040\04	Linux-8086 executable
+>28	long		!0		not stripped
+#
+0	string		\243\206\001\0	Linux-8086 object file
+#
+0	string		\01\03\020\20	Minix-386 impure executable
+>28	long		!0		not stripped
+0	string		\01\03\040\20	Minix-386 executable
+>28	long		!0		not stripped
+0	string		\01\03\04\20	Minix-386 NSYM/GNU executable
+>28	long		!0		not stripped
+# core dump file, from Bill Reynolds <bill@goshawk.lanl.gov>
+216	lelong		0421		Linux/i386 core file
+!:strength / 2
+>220	string		>\0		of '%s'
+>200	lelong		>0		(signal %d)
+#
+# LILO boot/chain loaders, from Daniel Quinlan <quinlan@yggdrasil.com>
+# this can be overridden by the DOS executable (COM) entry
+2	string		LILO		Linux/i386 LILO boot/chain loader
+#
+# Linux make config build file, from Ole Aamot <oka@oka.no>
+# Updated by Ken Sharp
+28	string		make\ config		Linux make config build file (old)
+49	search/70	Kernel\ Configuration	Linux make config build file
+
+#
+# PSF fonts, from H. Peter Anvin <hpa@yggdrasil.com>
+# Updated by Adam Buchbinder <adam.buchbinder@gmail.com>
+# See: https://www.win.tue.nl/~aeb/linux/kbd/font-formats-1.html
+0	leshort		0x0436		Linux/i386 PC Screen Font v1 data,
+>2	byte&0x01	0		256 characters,
+>2	byte&0x01	!0		512 characters,
+>2	byte&0x02	0		no directory,
+>2	byte&0x02	!0		Unicode directory,
+>3	byte		>0		8x%d
+0	string		\x72\xb5\x4a\x86\x00\x00 Linux/i386 PC Screen Font v2 data,
+>16	lelong		x		%d characters,
+>12	lelong&0x01	0		no directory,
+>12	lelong&0x01	!0		Unicode directory,
+>28	lelong		x		%d
+>24	lelong		x		\bx%d
+
+# Linux swap and hibernate files
+# Linux kernel: include/linux/swap.h
+# util-linux: libblkid/src/superblocks/swap.c
+
+# format v0, unsupported since 2002
+0xff6	string		SWAP-SPACE	Linux old swap file, 4k page size
+0x1ff6	string		SWAP-SPACE	Linux old swap file, 8k page size
+0x3ff6	string		SWAP-SPACE	Linux old swap file, 16k page size
+0x7ff6	string		SWAP-SPACE	Linux old swap file, 32k page size
+0xfff6	string		SWAP-SPACE	Linux old swap file, 64k page size
+
+# format v1, supported since 1998
+0		name	linux-swap
+>0x400	lelong		1	little endian, version %u,
+>>0x404	lelong		x	size %u pages,
+>>0x408	lelong		x	%u bad pages,
+>0x400	belong		1	big endian, version %u,
+>>0x404	belong		x	size %u pages,
+>>0x408	belong		x	%u bad pages,
+>0x41c	string		\0	no label,
+>0x41c	string		>\0	LABEL=%s,
+>0x40c	ubelong		x	UUID=%08x
+>0x410	ubeshort	x	\b-%04x
+>0x412	ubeshort	x	\b-%04x
+>0x414	ubeshort	x	\b-%04x
+>0x416	ubelong		x	\b-%08x
+>0x41a	ubeshort	x	\b%04x
+
+0xff6	string		SWAPSPACE2	Linux swap file, 4k page size,
+>0		use			linux-swap
+0x1ff6	string		SWAPSPACE2	Linux swap file, 8k page size,
+>0		use			linux-swap
+0x3ff6	string		SWAPSPACE2	Linux swap file, 16k page size,
+>0		use			linux-swap
+0x7ff6	string		SWAPSPACE2	Linux swap file, 32k page size,
+>0		use			linux-swap
+0xfff6	string		SWAPSPACE2	Linux swap file, 64k page size,
+>0		use			linux-swap
+
+0	name	linux-hibernate
+>0	string	S1SUSPEND	\b, with SWSUSP1 image
+>0	string	S2SUSPEND	\b, with SWSUSP2 image
+>0	string	ULSUSPEND	\b, with uswsusp image
+>0	string	LINHIB0001	\b, with compressed hibernate image
+>0	string	\xed\xc3\x02\xe9\x98\x56\xe5\x0c	\b, with tuxonice image
+>0	default	x			\b, with unknown hibernate image
+
+0xfec	string		SWAPSPACE2	Linux swap file, 4k page size,
+>0		use			linux-swap
+>0xff6	use			linux-hibernate
+0x1fec	string		SWAPSPACE2	Linux swap file, 8k page size,
+>0		use			linux-swap
+>0x1ff6	use			linux-hibernate
+0x3fec	string		SWAPSPACE2	Linux swap file, 16k page size,
+>0		use			linux-swap
+>0x3ff6	use			linux-hibernate
+0x7fec	string		SWAPSPACE2	Linux swap file, 32k page size,
+>0		use			linux-swap
+>0x7ff6	use			linux-hibernate
+0xffec	string		SWAPSPACE2	Linux swap file, 64k page size,
+>0		use			linux-swap
+>0xfff6	use			linux-hibernate
+
+#
+# Linux kernel boot images, from Albert Cahalan <acahalan@cs.uml.edu>
+# and others such as Axel Kohlmeyer <akohlmey@rincewind.chemie.uni-ulm.de>
+# and Nicolas Lichtmaier <nick@debian.org>
+# and Joerg Jenderek [unifying + more kernel info]
+# many start with: b8 c0 07 8e d8 b8 00 90 8e c0 b9 00 01 29 f6 29
+# by assembler instructions like: movw $0x07c0,%ax; movw %ax,%ds; movw $0x9000,%ax; movw %ax,%es; movw $0x0001,%cx; subw %si,%si; subw
+# Linux kernel boot images (i386 arch) (Wolfram Kleff)
+# URL: https://www.kernel.org/doc/Documentation/x86/boot.txt
+514	string		HdrS		Linux kernel
+# to display Linux kernel (strength=125=70+55) after VBR boot sector (130=70+60) but before DOS/MBR IPL (115=50+65), MBR boot sector (105=40+65) via ./filesystem
+# before MZ PE32 executable (EFI application) (strength=50) and before DOS executable (COM) (strength=40) with start instruction 0xe9 via ./msdos
+!:strength + 55
+# often no extension like in linux, vmlinuz, bzimage or memdisk but sometimes
+# Acronis Recovery kernel64.dat and Plop Boot Manager plpbtrom.bin
+# DamnSmallLinux 1.5 damnsmll.lnx 
+#!:mime	application/octet-stream
+!:mime	application/x-linux-kernel
+!:ext	/dat/bin/lnx
+# GRR: does there exist here samples without 55AA boot signature? I believe NO (Joerg Jenderek)
+>510	leshort		0xAA55		x86 boot executable
+>>0		use	kernel-info
+# show information about Linux kernel (root, swap device, vga modus, boot protocol, setup size, init_size, EFI entry point)
+0		name	kernel-info
+# like: plpbtrom.bin
+# After 16 bit jump instruction Hi, are you searching something? This is the Plop Boot Manager written by Elmar Hanlhofer http?://www.plop.at
+>48	string		Plop\040Boot\040Manager		from PLOP Boot Manager
+# dummy test below 512 limit (for LILO 24.2 bootsect.b) to get same magic indention level like in v 1.85
+# and display comma before zImage/bzImage or version
+>498	leshort		x		\b,
+# boot protocol option flags valid since boot protocol >= 2.00
+>>518	leshort		>0x1ff
+# loadflags bit 0 (read); LOADED_HIGH; if 0, the protected-mode code is loaded at 0x10000
+>>>529	ubyte&0x01	0		zImage,
+# loadflags bit 0 (read); LOADED_HIGH; if 1, the protected-mode code is loaded at 0x100000; that implies is_bzImage
+>>>529	ubyte&0x01	1		bzImage,
+# kernel_version; since protocol 2.00 if not zero 2 byte pointer to kernel version string -200h; should be < 200h*setup_sects
+# 0h (ldntldr.bin plpbtrom.bin) 260h (memtest32.bin memtest64.bin) 3b0h (memdisk16.bin) 890h (damnsmll.lnx) 3400h (linux64) 3640h (linux)
+#>>>526	uleshort	x		kernel_version=%#4.4x
+>>>526	uleshort	>0
+# GRR: \353fHdrS\003\002 wrong shown if kernel_version=0 like in ldntldr.bin (GRUB for DOS)
+>>>>(526.s+0x200) string	>\0	version %s,
+# 498 MasterBootRecord 4th partition entry partition type (0~empty 1~FAT12) done by ./filesystems
+# 499 MasterBootRecord 4th partition entry end heads done by ./filesystems
+# root_flags; if set (=1), the root is mounted readonly; deprecated, use the "ro" or "rw" option on the command line instead	
+#>>498	uleshort	>1		root_flags=%u
+>>498	leshort		1		RO-rootFS,
+>>498	leshort		0		RW-rootFS,
+# root_dev; default root device number like 0 301h (/dev/hda1 damnsmll.lnx) 380h (/dev/hd?? linux-elks); deprecated and replaced by command line option root=
+>>508	leshort		>0		root_dev %#X,
+# since protocol 2.04 the 2 upper bytes of long syssize and not swap_dev any more
+>>518	uleshort	<0x204
+# 502-505 MasterBootRecord 4th partition entry 1st LBA sector done by ./filesystems
+>>>502	leshort		>0		swap_dev %#X,
+>>504	leshort		>0		RAMdisksize %u KB,
+# 506-509 MasterBootRecord 4th partition entry sectors in partition done by ./filesystems
+>>506	leshort		0xFFFF		Normal VGA
+>>506	leshort		0xFFFE		Extended VGA
+>>506	leshort		0xFFFD		Prompt for Videomode
+>>506	leshort		>0		Video mode %d
+# more kernel information added by Joerg Jenderek 2023
+# if needed display comma after video mode and before setup_sects
+>>506	leshort		>-4
+>>>506	leshort		!0		\b,
+# setup_sects; if field contains 0, the real value is 4; size of the setup in sectors like:
+# 0 (memdisk16.bin) 1 (ldntldr.bin) 2 (memtest32.bin memtest64.bin) 4 (plpbtrom.bin linux-elks) 8 (bootsect.b) 10 (damnsmll.lnx) 25 27 (linux64) 29 30 31 33 (linux)
+# MasterBootRecord 4th partition entry start cylinder bits 0-7 done by ./filesystems
+>>497	ubyte		!0		setup size 512*%u
+>>497	ubyte		=0		setup size 512*4 (not 0)
+# 500 MasterBootRecord 4th partition entry end sectors+cylinder bits 8-9 done by ./filesystems
+# 501 MasterBootRecord 4th partition entry end cylinder bits 0-7 done by ./filesystems
+# syssize; 32-bit code size in 16-byte paragraphs; since protocol 2.04 long before unreliable short
+>>518	uleshort	<0x204		\b,
+# 0 (ldntldr.bin) 0 (memdisk16.bin) f180h (damnsmll.lnx)
+>>>500	uleshort	x		syssize %#x
+>>518	uleshort	>0x203		\b,
+# 0 (plpbtrom.bin) 1270h (linux-elks) 217eh (memtest32.bin) 22deh (memtest64.bin) 2c01h (memtest86+.bin) 459c6h (linux misinterpreted as swap_dev 0X4) 70c32h (linux64 misinterpreted as swap_dev 0X7)
+>>>500	ulelong		x		syssize %#x
+# jump; jump instruction relative to byte 0x202
+>>512	ubyte		=0xEB		\b, jump
+# jump adress like: 0x230 (damnsmll.lnx) 0x240 (memdisk16.bin) 0x268 (memtest32.bin memtest64.bin ldntldr.bin linux AFTER handover offset) 0x26c (linux64)
+>>>513	byte+2		x		0x2%2.2x
+# next instruction like:
+# b800088ec00fb60e	mov ax,0x0800; mov es,ax; movzx cx,byte []					memdisk16.bin
+# 8cc88ed88ec0e88b00	movw %cs,%ax; movw %ax,%ds; movw %ax,%es; call get_mem_info			memtest32.bin
+# 8cc88ed88ec0e88b00	movw %cs,%ax; movw %ax,%ds; movw %ax,%es; call get_mem_info			memtest64.bin
+>>>(513.b+514)		ubequad		x	%#16.16llx instruction
+# without jump instruction like: 0 (bootsect-lilo-24.2.b EOF!) 0xb8 (mov linux-elks) 0xfa (cli memtest86+.bin)
+>>512	ubyte		!0xEB		\b, at 0x200 %#x instruction
+# boot protocol version field valid since version >= 2.00 which is indicated by HdrS magic
+# so skip memtest86+.bin with misinterpreted protocol 144.0 (0x9000)
+>>514	string		HdrS		\b,
+# Boot protocol version; 2.3 (ldntldr.bin damnsmll.lnx) 2.6 (plpbtrom.bin) 2.10 2.11 (linux) 2.12 (memtest32.bin) 2.13 2.15 (linux64)
+>>>519	ubyte		x		protocol %u
+>>>518	ubyte		x		\b.%u
+# boot protocol in hexadecimal needed for addtional tests
+#>>>518	uleshort	x		(%#4.4x)
+# type_of_loader; Boot loader identifier; filled out by the bootloader
+>>>528		ubyte		>0	\b, loader %#x
+# loadflags; boot protocol option flags
+#>>>529	ubyte		x		loadflags=%#x
+# loadflags bit 1 (kernel internal); KASLR_FLAG KASLR status to kernel
+>>>529	ubyte&0x02	!0		\b, KASLR enabled
+# loadflags bit 5 (write); QUIET_FLAG
+>>>529	ubyte&0x20	!0		\b, quiet
+# loadflags bit 6 (write) since boot protocal version >= 2.07; KEEP_SEGMENTS
+>>>518	uleshort	>0x206
+>>>>529	ubyte&0x40	!0		\b, keep segments
+# loadflags bit 7 (write); CAN_USE_HEAP
+>>>529	ubyte&0x80	!0		\b, can use heap
+# payload_offset; since boot protocol 2.08 if non-zero contains offset of the protected-mode code to the payload like: cdh (linux) 40dh (linux64)
+>>>518	uleshort	>0x207
+>>>>584	ulelong		>0		\b, from protected-mode code at offset %#x
+# payload_length; since boot protocol 2.08 the length of the payload like: 452c41h (linux) 6fb644h (linux64)
+>>>>>588 ulelong	x		%#x bytes
+# jump setup size sectors a 512 bytes from kernel beginning
+>>>>>(497.b*512)	ubequad	x
+#>>>>>(497.b*512)	ubequad	x	512BYTES_BEFORE_PROTECTED-MODE_CODE=%#16.16llx
+# jump payload_offset bytes + 512 bytes (for boot sector) - 8 (ubequad length) to payload start
+#>>>>>>&(584.l+504) ubeshort	x	PAYLOAD=%#4.4x
+# supported compression formats are gzip (magic numbers 1F8B or 1F9E linux) bzip2 (425A), LZMA (5D00 linux64), XZ (FD37) LZ4 (0221) ZST v0.8+ (28B5)
+>>>>>>&(584.l+504) ubeshort	=0x1F8B	gzip compressed
+>>>>>>&(584.l+504) ubeshort	=0x1F9E	gzip compressed
+>>>>>>&(584.l+504) ubeshort	=0x425A	bzip2 compressed
+>>>>>>&(584.l+504) ubeshort	=0x5D00	LZMA compressed
+>>>>>>&(584.l+504) ubeshort	=0xFD37	XZ compressed
+>>>>>>&(584.l+504) ubeshort	=0x0221	LZ4 compressed
+>>>>>>&(584.l+504) ubeshort	=0x28B5	ZST compressed
+# TODO: handle compressed data by ./compress; difficulties with leading space and duplicate gzip compressed
+#>>>>>>&(584.l+504) indirect	x	COMPRESS_NOT_WORKING
+# setup_move_size; for protocol 2.00-2.01; bytes starting with the beginning of the boot sector
+# like: 0 (ldntldr.bin memdisk16.bin memtest32.bin memtest64.bin plpbtrom.bin) 8000h (damnsmll.lnx linux linux64)
+>>>518	uleshort	<0x202
+>>>>518	uleshort	>0x1FF
+>>>>530	uleshort	x		\b, setup_move_size %#4.4x
+# code32_start; address to jump to in protected mode like: 100000h (linux linux64 memtest32.bin memtest64.bin)
+#>>>>532	ulelong		>0		\b, code32_start %#x
+# kernel_alignment; since boot protocol 2.05 alignment unit required by the kernel (if relocatable_kernel is true) like: 0 (plptrom.bin) 1000h (memtest32.bin memtest64.bin) 200000h (linux) 1000000h (linux64)
+#>>>518	uleshort	>0x204
+#>>>>560	ulelong		x		\b, kernel_alignment %#x
+# relocatable_kernel; since boot protocol 2.05 the protected-mode part of the kernel can be loaded at any address if this field is nonzero
+>>>518	uleshort	>0x204
+>>>>564	ubyte		=1		\b, relocatable
+#>>>>564	ubyte		x		\b, relocatable_kernel=%u
+# min_alignment; since boot protocol 2.10 if nonzero, indicates as a power of two the minimum alignment required like: 12 (4 KB memtest32.bin memtest64.bin) 13 (8 KB linux) 21 (2 MB linux64)
+#>>>518	uleshort	>0x209
+#>>>>565	ubyte		>0		\b, min_alignment %u
+# xloadflags; since boot protocol 2.12 like: 3fh (linux64 unexpected value) 4h(memtest32.bin) 9h(memtest64.bin)
+>>>518	uleshort	>0x20B
+#>>>>566	uleshort	x		\b, xloadflags=%#4.4x
+# handover_offset; offset from beginning of kernel image to EFI handover protocol entry point like:
+# 0 (damnsmll.lnx ldntldr.bin) 10h (memtest32.bin memtest64.bin) 30h (linux) 190h (linux64) 8e9000b8h (plpbtrom.bin INVALID!)
+# this value makes only sense when 32 or 64-bit EFI handoff entry point
+>>>>566	uleshort&0x000C	!0		\b, handover offset
+>>>>>612 ulelong	x		%#x
+# Bit 0 XLF_KERNEL_64; if 1, this kernel has the legacy 64-bit entry point at 0x200
+>>>>566	uleshort&0x0001	!0		\b, legacy 64-bit entry point
+# Bit 1 XLF_CAN_BE_LOADED_ABOVE_4G; if 1, kernel/boot_params/cmdline/ramdisk can be above 4G
+>>>>566	uleshort&0x0002	!0		\b, can be above 4G
+# Bit 2 XLF_EFI_HANDOVER_32; if 1, the kernel supports the 32-bit EFI handoff entry point
+>>>>566	uleshort&0x0004	!0		\b, 32-bit EFI handoff entry point
+# Bit 3 XLF_EFI_HANDOVER_64; if 1, the kernel supports the 64-bit EFI handoff entry point
+>>>>566	uleshort&0x0008	!0		\b, 64-bit EFI handoff entry point
+# Bit 4 EFI_KEXEC; if 1, the kernel supports kexec EFI boot with EFI runtime support
+>>>>566	uleshort&0x0010	!0		\b, EFI kexec boot support
+# GRR: What does bit 5 mean?
+>>>>566	uleshort&0x0020	!0		\b, xloadflags bit 5
+# cmdline_size; since boot protocol 2.06 maximum size of the kernel command line like: 255 (memtest32.bin memtest64.bin) 2047 (linux linux64 plpbtrom); version <= 2.06 maximum was 255
+>>>518	uleshort	>0x205
+>>>>568	ulelong		x		\b, max cmdline size %u
+# hardware_subarch; since boot protocol 2.07 hardware subarchtecture like: 0~default x86 1~lguest 2~Xen 3~Moorestown 4~CE4100 TV
+>>>518	uleshort	>0x206
+>>>>572	ulelong		>0		\b, hardware_subarch %u
+# hardware_subarch_data; since boot protocol 2.07 pointer to data specific for hardware subarch; unused for default x86
+>>>>>576 ulequad	>0		\b, hardware_subarch_data %#llx
+# setup_data; since boot protocol 2.09 64-bit physical pointer to NULL terminated single linked list of struct setup_data
+>>>518	uleshort	>0x208
+>>>>592	ulequad		>0		\b, setup_data %16.16llx
+# pref_address; since boot protocol 2.10 if nonzero preferred load address for kernel like: 100000h (memtest32.bin memtest64.bin) 200000h (linux) 1000000h (linux64)
+#>>>518	uleshort	>0x209
+#>>>>600	ulequad		>0		\b, pref_address %#llx
+# init_size; since boot protocol 2.10 indicates amount of contiguous memory kernel needs before it is capable of examining its memory map
+# like: 0h (damnsmll.lnx) 687f8h (memtest32.bin) 6acf8h (memtest64.bin) aa3000h (linux) 2514000h (linux64) 67ea0000h (memdisk16.bin INVALID) a4f3f2ffh (plpbtrom.bin INVALID) ffffff80h (ldntldr.bin INVALID)
+>>>518	uleshort	>0x209
+>>>>608	ulelong		x		\b, init_size %#x
+# This also matches new kernels, which were caught above by "HdrS".
+# but also few samples without "HdrS" magic like: bootsect-lilo-24.2.b linux-elks memtest86+.bin
+# URL:		https://tldp.org/HOWTO/Linux-i386-Boot-Code-HOWTO/bootsect.html
+#0		belong	0xb8c0078e	Linux kernel
+0		belong	0xb8c0078e
+# to display Linux x86 kernel or Linux ELKS Kernel (strength=70=70+0) after VBR boot sector (130=70+60) DOS/MBR IPL (115=50+65), MBR boot sector (105=40+65) via ./filesystem
+#!:strength +0
+# "newer" kernel (with HdrS magic) already done before
+>514	string		HdrS
+# so handle "old" kernel variant (without HdrS magic)
+>514	default	x			Linux
+#!:mime	application/octet-stream
+!:mime	application/x-linux-kernel
+# GRR: in file 5.45 remaining default clause not working for samples with size = 512 like LILO 24.2 bootsect.b
+>>0	belong	x
+# ELKS kernel variant is now unified with other "old" kernel variant (without HdrS magic)
+>>0x1e6		belong		=0x454c4b53	ELKS Kernel
+!:ext	/
+# "old" kernel variant and not ELKS
+>>0x1e6		belong		!0x454c4b53	x86 kernel
+!:ext	/b/bin
+# show kernel version information based on "Loading" message offset
+>>0		use	kernel-version-old1
+# unified "old" variant with start instruction \xb8\xc0\x07\x8e\xd8\xb8\x00\x90 
+>>4		string		\xd8\xb8\x00\x90
+# show kernel version information part 2 for "old" kernel variant (without HdrS magic) based on new HdrS field
+>>>0		use	kernel-version-old2
+# show kernel version information part 3 for "old" kernel variant (without HdrS magic) based on new HdrS field
+>>>0		use	kernel-version-old3
+# show common kernel information 
+>>0		use	kernel-info
+# show kernel version information part 1 for "old" kernel variant (without HdrS magic) based on "Loading" message offset
+0		name	kernel-version-old1
+>0x1e3		string	Loading		version 1.3.79 or older
+>0x1e9		string	Loading		from prehistoric times
+# LILO 24.2-5.1 bootsect.b
+>0x1c5		string	Loading			from LILO 24.2
+# Memtest86 5.31b memtest86+.bin
+>0x1d2		string	Loading			from Memtest86 5.31b
+# DamnSmallLinux kernel version 2.4.26 damnsmll.lnx not needed because done by kernel_version pointer
+#>0x1cb		string	Loading			damnsmll.lnx 2.4.26~
+# Memtest86+ v6.20 memtest32.bin not needed because done by kernel_version pointer
+#>0x1c6		string	Loading\040Memtest86+	from Memtest86+ v6.20
+
+# System.map files - Nicolas Lichtmaier <nick@debian.org>
+8	search/1	\ A\ _text	Linux kernel symbol map text
+
+# LSM entries - Nicolas Lichtmaier <nick@debian.org>
+0	search/1	Begin3	Linux Software Map entry text
+0	search/1	Begin4	Linux Software Map entry text (new format)
+
+# From Matt Zimmerman, enhanced for v3 by Matthew Palmer
+0	belong	0x4f4f4f4d	User-mode Linux COW file
+>4	belong	<3		\b, version %d
+>>8	string	>\0		\b, backing file %s
+>4	belong	>2		\b, version %d
+>>32	string	>\0		\b, backing file %s
+
+############################################################################
+# Linux kernel versions
+
+# apply only to "old" kernel variant (without HdrS magic) like damnsmll.lnx memtest86+.bin
+# wrong (497 setup_sects 498 root_flags) and now already done by 1st unified "old" kernel variant
+#0		string		\xb8\xc0\x07\x8e\xd8\xb8\x00\x90	Linux
+0		string		\xb8\xc0\x07\x8e\xd8\xb8\x00\x90foo	OLD_VARIANT Linux
+>497		leshort		0		x86 boot sector
+>>0		use	kernel-version-old2
+>497		leshort		!0		x86 kernel
+# not needed any more because information is now shown by common kernel-info with other phrases
+>>0		use	kernel-info-old
+# kernel version information part 3 for "old" kernel variant (without HdrS magic) based on HdrS field
+>>0		use	kernel-version-old3
+>>0		use	kernel-version-4
+# version information part 2 for "old" kernel variant (without HdrS magic) based on new HdrS field
+0		name	kernel-version-old2
+# dummy test to get same magic indention level like in v 1.85
+>518		leshort		x
+>>514		belong		0x8e	of a kernel from the dawn of time!
+>>514		belong		0x908ed8b4	version 0.99-1.1.42
+>>514		belong		0x908ed8b8	for memtest86
+# dummy test function to get same magic indention level like in v 1.85
+0		name	kernel-version-dummy
+>497		leshort		!0		x86 kernel
+# not needed any more because information is now shown by kernel-info
+#>0		use	kernel-info-old
+>>0		use	kernel-info
+# kernel version information part 3 for "old" kernel variant (without HdrS magic) based on HdrS field
+>0		use	kernel-version-old3
+# deprecated because same information is shown by kernel-info with other phrases
+0		name	kernel-info-old
+# dummy test to get same magic indention level like in v 1.85
+>504		leshort		x
+>>504		leshort		>0		RAMdisksize=%u KB
+>>502		leshort		>0		swap=%#X
+>>508		leshort		>0		root=%#X
+>>>498		leshort		1		\b-ro
+>>>498		leshort		0		\b-rw
+>>506		leshort		0xFFFF		vga=normal
+>>506		leshort		0xFFFE		vga=extended
+>>506		leshort		0xFFFD		vga=ask
+>>506		leshort		>0		vga=%d
+# kernel version information part 3 for "old" kernel variant (without HdrS magic) based on HdrS field
+0		name	kernel-version-old3
+# dummy test to get same magic indention level like in v 1.85
+>514		belong		x
+>>514		belong		0x908ed881	version 1.1.43-1.1.45
+>>514		belong		0x15b281cd
+>>>0xa8e	belong		0x55AA5a5a	version 1.1.46-1.2.13,1.3.0
+>>>0xa99	belong		0x55AA5a5a	version 1.3.1,2
+>>>0xaa3	belong		0x55AA5a5a	version 1.3.3-1.3.30
+>>>0xaa6	belong		0x55AA5a5a	version 1.3.31-1.3.41
+>>>0xb2b	belong		0x55AA5a5a	version 1.3.42-1.3.45
+>>>0xaf7	belong		0x55AA5a5a	version 1.3.46-1.3.72
+# show kernel version information part 4 for kernel variant (with HdrS magic) based on "HdrS" field
+# not needed any more because information is now shown by common kernel-info
+0		name	kernel-version-4
+# dummy test to get same magic indention level like in v 1.85
+>518		leshort		x
+>>514		string		HdrS
+>>>518		leshort		>0x1FF
+>>>>529		byte		0		\b, zImage
+>>>>529		byte		1		\b, bzImage
+# GRR: Not valid if kernel_version=0
+>>>>(526.s+0x200) string 	>\0		\b, version %s
+
+# Linux boot sector thefts.
+# ELKS kernel variant is now unified with above "old" kernel variant (without HdrS magic)
+#0		belong		0xb8c0078e	Linux
+# display "Linux ELKS Kernel" or "Linux style boot sector" (strength=70) after DOS/MBR IPL (115=50+65) and MBR boot sector (105=40+65) via ./filesystem
+#!:strength +0
+# https://en.wikipedia.org/wiki/Embeddable_Linux_Kernel_Subset
+# https://github.com/jbruchon/elks/releases/download/v0.6.0/fd2880-fat.img/linux
+#>0x1e6		belong		0x454c4b53	ELKS Kernel
+#>0x1e6		belong		!0x454c4b53	style boot sector
+
+############################################################################
+# Linux S390 kernel image
+# Created by: Jan Kaluza <jkaluza@redhat.com>
+8 string \x02\x00\x00\x18\x60\x00\x00\x50\x02\x00\x00\x68\x60\x00\x00\x50\x40\x40\x40\x40\x40\x40\x40\x40 Linux S390
+>0x00010000 search/b/4096 \x00\x0a\x00\x00\x8b\xad\xcc\xcc
+# 64bit
+>>&0 string \xc1\x00\xef\xe3\xf0\x68\x00\x00 Z10 64bit kernel
+>>&0 string \xc1\x00\xef\xc3\x00\x00\x00\x00 Z9-109 64bit kernel
+>>&0 string \xc0\x00\x20\x00\x00\x00\x00\x00 Z990 64bit kernel
+>>&0 string \x00\x00\x00\x00\x00\x00\x00\x00 Z900 64bit kernel
+# 32bit
+>>&0 string \x81\x00\xc8\x80\x00\x00\x00\x00 Z10 32bit kernel
+>>&0 string \x81\x00\xc8\x80\x00\x00\x00\x00 Z9-109 32bit kernel
+>>&0 string \x80\x00\x20\x00\x00\x00\x00\x00 Z990 32bit kernel
+>>&0 string \x80\x00\x00\x00\x00\x00\x00\x00 Z900 32bit kernel
+
+############################################################################
+# Linux ARM compressed kernel image
+# From: Kevin Cernekee <cernekee@gmail.com>
+# Update: Joerg Jenderek
+# Update: Luke T. Shumaker
+0	name	arm-zimage
+# Version indicators
+>0x34	lelong	0x45454545	(kernel >=v4.15)
+>0x34	lelong	!0x45454545
+>>0x30	clear	x
+>>0x30	belong	0x04030201	(kernel >=v3.17, <v4.15)
+>>0x30	lelong	0x04030201	(kernel >=v3.17, <v4.15)
+>>0x30	default x	(kernel <v3.17)
+# Endianness indicators
+#
+# The kernel has 3 endianness modes: little-endian, and 2 variants of
+# big-endian: BE-32 (ARMv5) and BE-8 (ARMv6+).
+#
+# In kernels <v3.17:
+#  - the 0x016f2818 @ 0x24 magic number indicates big-endian or
+#    little-endian (can't distinguish between BE-8 and BE-32)
+# In kernels >=v3.17:
+#  - a new 0x04030201 @ 0x30 magic number indicates big-endian or
+#    little-endian, but doesn't distinguish between BE-8 and BE-32
+#  - the old 0x016f2818 @ 0x24 magic number is little-endian for
+#    LE *and* BE-8, or big-endian for BE-32
+#
+# >=v3.17
+>0x30	clear	x
+>0x30	belong	0x04030201	(big-endian,
+>>0x24	belong	0x016f2818	BE-32, ARMv5)
+>>0x24	lelong	0x016f2818	BE-8, ARMv6+)
+>0x30	lelong	0x04030201	(little-endian)
+# <v3.17
+>0x30	default x
+>>0x24	lelong	0x016f2818	(little-endian)
+>>0x24	belong	0x016f2818	(big-endian)
+
+0x24	lelong	0x016f2818	Linux kernel ARM boot executable zImage
+>0	use	arm-zimage
+0x24	belong	0x016f2818	Linux kernel ARM boot executable zImage
+>0	use	arm-zimage
+
+############################################################################
+# Linux AARCH64 kernel image
+0x38    lelong  0x644d5241  Linux kernel ARM64 boot executable Image
+>0x18   lelong  ^1          \b, little-endian
+>0x18   lelong  &1          \b, big-endian
+>0x18   lelong  &2          \b, 4K pages
+>0x18   lelong  &4          \b, 16K pages
+>0x18   lelong  &6          \b, 32K pages
+
+############################################################################
+# Linux RISC-V kernel image
+0x38	string	RSC\05		Linux kernel RISC-V boot executable Image
+>0x18	lelong	^1		\b, little-endian
+>0x18	lelong	&1		\b, big-endian
+
+############################################################################
+# Linux 8086 executable
+0	lelong&0xFF0000FF 0xC30000E9	Linux-Dev86 executable, headerless
+>5	string		.
+>>4	string		>\0		\b, libc version %s
+
+0	lelong&0xFF00FFFF 0x4000301	Linux-8086 executable
+>2	byte&0x01	!0		\b, unmapped zero page
+>2	byte&0x20	0		\b, impure
+>2	byte&0x20	!0
+>>2	byte&0x10	!0		\b, A_EXEC
+>2	byte&0x02	!0		\b, A_PAL
+>2	byte&0x04	!0		\b, A_NSYM
+>2	byte&0x08	!0		\b, A_STAND
+>2	byte&0x40	!0		\b, A_PURE
+>2	byte&0x80	!0		\b, A_TOVLY
+>28     long            !0              \b, not stripped
+>37	string		.
+>>36	string		>\0		\b, libc version %s
+
+# 0	lelong&0xFF00FFFF 0x10000301	ld86 I80386 executable
+# 0	lelong&0xFF00FFFF 0xB000301	ld86 M68K executable
+# 0	lelong&0xFF00FFFF 0xC000301	ld86 NS16K executable
+# 0	lelong&0xFF00FFFF 0x17000301	ld86 SPARC executable
+
+# SYSLINUX boot logo files (from 'ppmtolss16' sources)
+# https://www.syslinux.org/wiki/index.php/SYSLINUX#Display_graphic_from_filename:
+# file extension .lss .16
+0	lelong	=0x1413f33d		SYSLINUX' LSS16 image data
+# syslinux-4.05/mime/image/x-lss16.xml
+!:mime image/x-lss16
+>4	leshort	x			\b, width %d
+>6	leshort	x			\b, height %d
+
+0	string	OOOM			User-Mode-Linux's Copy-On-Write disk image
+>4	belong	x			version %d
+
+# SE Linux policy database
+# From: Mike Frysinger <vapier@gentoo.org>
+0	lelong	0xf97cff8c		SE Linux policy
+>16	lelong	x			v%d
+>20	lelong	1			MLS
+>24	lelong	x			%d symbols
+>28	lelong	x			%d ocons
+
+# Linux Logical Volume Manager (LVM)
+# Emmanuel VARAGNAT <emmanuel.varagnat@guzu.net>
+#
+# System ID, UUID and volume group name are 128 bytes long
+# but they should never be full and initialized with zeros...
+#
+# LVM1
+#
+0x0	string/b	HM\001		LVM1 (Linux Logical Volume Manager), version 1
+>0x12c	string/b	>\0		, System ID: %s
+
+0x0	string/b	HM\002		LVM1 (Linux Logical Volume Manager), version 2
+>0x12c	string/b	>\0		, System ID: %s
+
+#  LVM2
+#
+# It seems that the label header can be in one the four first sector
+# of the disk... (from _find_labeller in lib/label/label.c of LVM2)
+#
+# 0x200 seems to be the common case
+0		name	lvm2
+# display UUID in LVM format + display all 32 bytes (instead of max string length: 31)
+>0x0          string  >\x2f          \b, UUID: %.6s
+>0x6          string  >\x2f          \b-%.4s
+>0xa          string  >\x2f          \b-%.4s
+>0xe          string  >\x2f          \b-%.4s
+>0x12         string  >\x2f          \b-%.4s
+>0x16         string  >\x2f          \b-%.4s
+>0x1a         string  >\x2f          \b-%.6s
+>0x20         lequad  x              \b, size: %lld
+
+
+# read the offset to add to the start of the header, and the header
+# start in 0x200
+0x218           string/b  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
+>&(&-12.l-0x20) use	lvm2
+
+0x018           string/b  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
+>&(&-12.l-0x20) use	lvm2
+
+0x418           string/b  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
+>&(&-12.l-0x20) use	lvm2
+
+0x618           string/b  LVM2\ 001      LVM2 PV (Linux Logical Volume Manager)
+>&(&-12.l-0x20) use	lvm2
+
+# LVM snapshot
+# from Jason Farrel
+0	string	SnAp	LVM Snapshot (CopyOnWrite store)
+>4	lelong	!0	- valid,
+>4	lelong	0	- invalid,
+>8	lelong	x	version %d,
+>12	lelong	x	chunk_size %d
+
+# Summary: Xen saved domain file
+# Created by: Radek Vokal <rvokal@redhat.com>
+0	string		LinuxGuestRecord	Xen saved domain
+>20	search/256	(name
+>>&1	string		x			(name %s)
+
+# Systemd journald files
+# See https://www.freedesktop.org/wiki/Software/systemd/journal-files/.
+# From: Zbigniew Jedrzejewski-Szmek <zbyszek@in.waw.pl>
+# Update: 	Joerg Jenderek
+# URL:		https://systemd.io/JOURNAL_FILE_FORMAT/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/j/journal-sysd.trid.xml
+# Note:		called "systemd journal" by TrID
+#		verified by `journalctl --file=user-1000.journal`
+# check magic signature[8]
+0	string	LPKSHHRH
+# check that state is one of known values
+# STATE_OFFLINE~0 STATE_ONLINE~1 STATE_ARCHIVED~2
+>16		ubyte&252	0
+# check that each half of three unique id128s is non-zero
+# file_id
+>>24		ubequad		>0
+>>>32		ubequad		>0
+# machine_id
+>>>>40		ubequad		>0
+>>>>>48		ubequad		>0
+# boot_id; last writer
+>>>>>>56	ubequad		>0
+>>>>>>>64	ubequad		>0	Journal file
+#!:mime application/octet-stream
+!:mime application/x-linux-journal
+# provide more info
+# head_entry_realtime; contains a POSIX timestamp stored in microseconds
+>>>>>>>>184	leqdate/1000000	!0	\b, %s
+>>>>>>>>184	leqdate		0	empty
+# If a file is closed after writing the state field should be set to STATE_OFFLINE
+>>>>>>>>16	ubyte		0	\b,
+# for offline and empty only journal~ extension found
+>>>>>>>>>184	leqdate		0	offline
+# https://man7.org/linux/man-pages/man8/systemd-journald.service.8.html
+# GRR: add char ~ inside parse_ext in ../../src/apprentice.c to avoid in file version 5.44 error like:
+# Magdir/linux, 463: Warning: EXTENSION type `		journal~' has bad char '~'
+!:ext		journal~
+# for offline and non empty often *.journal~ but also user-1001.journal
+>>>>>>>>>184	leqdate		!0	offline
+!:ext		journal/journal~
+# if a file is opened for writing the state field should be set to STATE_ONLINE
+>>>>>>>>16	ubyte		1	\b,
+# for online and empty only journal~ extension found
+>>>>>>>>>184	leqdate		0	online
+# system@0005febee06e2ff2-f7ea54d10e4346ff.journal~
+!:ext		journal~
+# for online and non empty only journal extension found
+>>>>>>>>>184	leqdate		!0	online
+# system.journal user-1000.journal
+!:ext		journal
+# after a file has been rotated it should be set to STATE_ARCHIVED
+>>>>>>>>16	ubyte		2	\b, archived
+!:ext		journal
+# no *.journal~ found
+#!:ext		journal/journal~
+# compatible_flags
+>>>>>>>>8	ulelong&1	1	\b, sealed
+# incompatible_flags; COMPRESSED_XZ~1 COMPRESSED_LZ4~2 KEYED_HASH~4 COMPRESSED_ZSTD~8 COMPACT~16
+#>>>>>>>>12	ulelong		x	FLAGS=%#x
+>>>>>>>>12	ulelong&1	1	\b, compressed
+>>>>>>>>12	ulelong&2	!0	\b, compressed lz4
+>>>>>>>>12	ulelong&4	!0	\b, keyed hash siphash24
+>>>>>>>>12	ulelong&8	!0	\b, compressed zstd
+>>>>>>>>12	ulelong&16	!0	\b, compact
+# uint8_t reserved[7]; apparently nil
+#>>17		long		!0	\b, reserved %#8.8x
+# seqnum_id; like: 0 e623691afec94b5aa968ae2d726c49cc f98b2af481924b29 8d6816ca3639edc6
+#>>>>>>>>72	ubequad		x	\b, seqnum_id %#16.16llx
+#>>>>>>>>80	ubequad		x	b%16.16llx
+# header_size like: 100h
+>>>>>>>>88	ulequad		!0x100h	\b, header size %#llx
+# arena_size  like: 0 7fff00h ffff00h 17fff00h
+#>>>>>>>>96	ulequad		>0	\b, arena size %#llx
+# data_hash_table_offset like: 0 15f0h 15f0h
+#>>>>>>>>104	ulequad		>0	\b, hash table offset %#llx
+# data_hash_table_size like: 0 38e380h
+#>>>>>>>>112	ulequad		>0	\b, hash table size %#llx
+# field_hash_table_offset like: 0 110h
+#>>>>>>>>120	ulequad		>0	\b, field hash table offset %#llx
+# field_hash_table_size like: 0 14d0h
+#>>>>>>>>128	ulequad		>0	\b, field hash table size %#llx
+# tail_object_offset like: 0 43edd8h 511278h c68968h d487d0h efaa98h
+#>>>>>>>>136	ulequad		>0	\b, tail object offset %#llx
+# n_objects like: 0 1032h 5a2eh 92bdh a8b5h aa75h 112adh 40c23h 4714eh
+#>>>>>>>>144	ulequad		>0	\b, objects %#llx
+# n_entries like: 0 3aeh 235ah 2dc4h 3125h 16129h 187a1h
+>>>>>>>>152	ulequad		>0	\b, entries %#llx
+# tail_entry_seqnum like: 0 1988h 16249h 24c12h 24c12h 41e64h 9fefdh
+#>>>>>>>>160	ulequad		>0	\b, tail entry seqnum %#llx
+# head_entry_seqnum like: 0 1h 15dbh 6552h 213bfh 213bfh 3e672h 9a28ah
+#>>>>>>>>168	ulequad		>0	\b, head entry seqnum %#llx
+# entry_array_offset like: 0 390058h 3909d8h 3909e0h
+#>>>>>>>>176	ulequad		>0	\b, entry array offset %#llx
+
+# BCache backing and cache devices
+# From: Gabriel de Perthuis <g2p.code@gmail.com>
+0x1008		lequad		8
+>0x1018		string		\xc6\x85\x73\xf6\x4e\x1a\x45\xca\x82\x65\xf5\x7f\x48\xba\x6d\x81	BCache
+>>0x1010	ulequad		0	cache device
+>>0x1010	ulequad		1	backing device
+>>0x1010	ulequad		3	cache device
+>>0x1010	ulequad		4	backing device
+>>0x1048	string		>0	\b, label "%.32s"
+>>0x1028	ubelong		x	\b, uuid %08x
+>>0x102c	ubeshort	x	\b-%04x
+>>0x102e	ubeshort	x	\b-%04x
+>>0x1030	ubeshort	x	\b-%04x
+>>0x1032	ubelong		x	\b-%08x
+>>0x1036	ubeshort	x	\b%04x
+>>0x1038	ubelong		x	\b, set uuid %08x
+>>0x103c	ubeshort	x	\b-%04x
+>>0x103e	ubeshort	x	\b-%04x
+>>0x1040	ubeshort	x	\b-%04x
+>>0x1042	ubelong		x	\b-%08x
+>>0x1046	ubeshort	x	\b%04x
+
+# Linux device tree:
+# File format description can be found in the Linux kernel sources at
+# Documentation/devicetree/booting-without-of.txt
+# From Christoph Biedl
+0		belong		0xd00dfeed
+# structure must be within blob, strings are omitted to handle devicetrees > 1M
+>&(8.L)		byte		x
+>>20		belong		>1	Device Tree Blob version %d
+>>>4		belong		x	\b, size=%d
+>>>20		belong		>1
+>>>>28		belong		x	\b, boot CPU=%d
+>>>20		belong		>2
+>>>>32		belong		x	\b, string block size=%d
+>>>20		belong		>16
+>>>>36		belong		x	\b, DT structure block size=%d
+
+# glibc locale archive as defined in glibc locale/locarchive.h
+0		lelong		0xde020109	locale archive
+>24		lelong		x		%d strings
+
+# Linux Software RAID (mdadm)
+# Russell Coker <russell@coker.com.au>
+0	name	linuxraid
+>16	belong	x		UUID=%8x:
+>20	belong	x		\b%8x:
+>24	belong	x		\b%8x:
+>28	belong	x		\b%8x
+>32	string	x		name=%s
+>72	lelong	x		level=%d
+>92	lelong	x		disks=%d
+
+4096	lelong	0xa92b4efc	Linux Software RAID
+>4100	lelong	x		version 1.2 (%d)
+>4096	use	linuxraid
+
+0	lelong	0xa92b4efc	Linux Software RAID
+>4	lelong	x		version 1.1 (%d)
+>0	use	linuxraid
+
+# Summary:     Database file for mlocate
+# Description: A database file as used by mlocate, a fast implementation
+#              of locate/updatedb. It uses merging to reuse the existing
+#              database and avoid rereading most of the filesystem. It's
+#              the default version of locate on Arch Linux (and others).
+# File path:   /var/lib/mlocate/mlocate.db by default (but configurable)
+# Site:        https://fedorahosted.org/mlocate/
+# Format docs: https://linux.die.net/man/5/mlocate.db
+# Type: mlocate database file
+# URL:		https://en.wikipedia.org/wiki/Locate_(Unix)
+# URL:  https://fedorahosted.org/mlocate/
+# From: Wander Nauta <info@wandernauta.nl>
+# Update:	Joerg Jenderek
+0		string		\0mlocate	mlocate database
+#!:mime	application/octet-stream
+!:mime	application/x-mlocate
+# default mlocate.db if not overriden with --output option of updatedb
+!:ext	db
+# at the moment value is 0; a higher version will probably not occur, because mlocate is now often replaced by plocate
+>12		byte		!0		\b, version %d
+# configured with -l option of updatedb
+>13		byte		1		\b, require visibility
+# 2 byte pad for 32-bit total alignment 
+#>14		short		!0		\b, padding %#x
+# standard is 1 byte / if not overriden with --database-root option of updatedb
+>16		string		x		\b, root %s
+# 1st variable name nil terminated like: prune_bind_mounts
+>>&1		string		x		\b, 1st variable %s
+# 1st variable value like: 0 1
+>>>&1		string		x		\b=%s
+# configuration block size in big endian like: 82 85 174 181 185 483 491 496 497 556 600 
+>8		ubelong		x		\b, configuration size %u
+
+# URL:		https://plocate.sesse.net/
+# Reference:	https://plocate.sesse.net/download/plocate-1.1.19.tar.gz
+#		plocate-1.1.19/db.h
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/db-plocate.trid.xml
+# Note:		called "plocate database" by TrID
+# magic[8]
+0		string		\0plocate	plocate database
+#!:mime		application/octet-stream
+!:mime		application/x-plocate
+# default /var/lib/plocate/plocate.db if not overriden with --output option of updatedb.plocate 
+!:ext		db
+# version; 2 is the current version
+>8		ulelong    	!1		\b, version %u
+# hashtable_size; like 1 (for "empty" samples) 1b5c3h
+#>12		ulelong    	>1		\b, hash table size %#x
+# extra_ht_slots; like: 10h
+>16		ulelong    	!0x10		\b, extra_ht_slots %#x
+# num_docids; like 0 (for "empty" samples) a132h
+>20		ulelong    	>0		\b, num_docids %u
+# hash_table_offset_bytes; 78h (for "empty" samples) afdf99h
+#>24		ulequad    	!0x78		\b, hash table offset %#llx
+# filename_index_offset_bytes; 70h (for "empty" samples) aad571h
+#>32		ulequad    	!0x70		\b, filename index offset %#llx
+# version 1 and up only
+>8		ulelong    	>0
+# max_version;  nominally 1 or 2 but can be increased if more features are added in a backward-compatible way
+>>40		ulelong    	!2		\b, max version %u
+# zstd_dictionary_length_bytes; 0 (for "empty" samples) 400h
+>>44		ulelong    	!0		\b, at %#x
+# zstd_dictionary_offset_bytes; 0 (for "empty" samples) 70h
+>>48		ulequad    	>0		\b+%#llx
+# jump to beginning of zstd dictionary
+>>>(48.q)		ubequad    	x
+# jump realative zstd dictionary length bytes - 8 (quad length) forward to ZST data beginning
+#>>>>&(44.l-8)		ubelong    	x		ZST=%8.8x
+>>>>&(44.l-8)		ubelong    	x
+# print 1 space char after zstd_dictionary_offset and then handles Zstandard compressed data by ./compress
+# to get phrase like "at 0x400+0x70 Zstandard compressed data (v0.8+)"
+>>>>>&-4		indirect	x		\b 
+# only if max_version >= 2 and only relevant for updatedb
+>40		ulelong    	>1
+# directory_data_length_byte
+#>>56		ulequad    	x		\b, directory data length %#llx
+# directory_data_offset_bytes;
+#>>64		ulequad    	x		offset %#llx
+# next_zstd_dictionary_length_bytes; 0 (for "empty" samples) 400h
+>>72		ulequad    	>0		\b, next zstd dictionary length %#llx
+# next_zstd_dictionary_offset_bytes; 0 (for "empty" samples) 14b9cb8h
+>>>80		ulequad    	>0		offset %#llx
+# conf_block_length_bytes like; 65 147 148 151 152 452 537 540 543 
+>>88		ulequad    	x		\b, configuration size %llu
+# conf_block_offset_bytes; 1a1h (for "empty" samples) 14ba0b8h
+>>96		ulequad    	>0		\b, at %#llx 1st variable
+# 1st variable name nil terminated like: prune_bind_mounts
+>>>(96.q)	string    	x		%s
+# 1st variable value nil terminated like: 0 1
+>>>>&1		string		x		\b=%s
+# bool check_visibility; 0 or 1 configured with -l option of updatedb.plocate
+>>104		ubyte    	1		\b, require visibility
+#>>104		ubyte    	x		\b, check_visibility %#x
+
+# Dump files for iproute2 tool. Generated by the "ip r|a save" command. URL:
+# https://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2
+# From: Pavel Emelyanov <xemul@parallels.com>
+0		lelong		0x45311224	iproute2 routes dump
+0		lelong		0x47361222	iproute2 addresses dump
+
+# Image and service files for CRIU tool.
+# URL: https://criu.org
+# From: Pavel Emelyanov <xemul@parallels.com>
+0		lelong		0x54564319	CRIU image file v1.1
+0		lelong		0x55105940	CRIU service file
+0		lelong		0x58313116	CRIU inventory
+
+# Kdump compressed dump files
+# https://github.com/makedumpfile/makedumpfile/blob/master/IMPLEMENTATION
+
+0		string		KDUMP\x20\x20\x20	Kdump compressed dump
+>0		use		kdump-compressed-dump
+
+0		name		kdump-compressed-dump
+>8		long		x		v%d
+>12		string		>\0		\b, system %s
+>77		string		>\0		\b, node %s
+>142		string		>\0		\b, release %s
+>207		string		>\0		\b, version %s
+>272		string		>\0		\b, machine %s
+>337		string		>\0		\b, domain %s
+
+# Flattened format
+0		string		makedumpfile
+>16		bequad		1
+>>0x1010	string		KDUMP\x20\x20\x20	Flattened kdump compressed dump
+>>>0x1010	use		kdump-compressed-dump
+
+# Device Tree files
+0		search/1024	/dts-v1/	Device Tree File (v1)
+# beat c code
+!:strength +14
+
+
+# e2fsck undo file
+# David Gilman <davidgilman1@gmail.com>
+0		string		E2UNDO02	e2fsck undo file, version 2
+>44		lelong		x		\b, undo file is
+>>44		lelong&1	0		not finished
+>>44		lelong&1	1		finished
+>48		lelong		x		\b, undo file features:
+>>48		lelong&1	0		lacks filesystem offset
+>>48		lelong&1	1		has filesystem offset
+>>>64		lequad		x		at %#llx
+
+# ansible vault (does not really belong here)
+0		string		$ANSIBLE_VAULT;	Ansible Vault
+>&0		regex		[0-9]+\\.[0-9]+	\b, version %s
+>>&0		string		;
+>>>&0		regex		[A-Z0-9]+	\b, encryption %s
+
+# From:		Joerg Jenderek
+# URL:		https://www.gnu.org/software/grub
+# Reference:	https://ftp.gnu.org/gnu/grub/grub-2.06.tar.gz
+#		grub-2.06/include/grub/keyboard_layouts.h 
+#		grub-2.06/grub-core/commands/keylayouts.c
+# GRUB_KEYBOARD_LAYOUTS_FILEMAGIC
+0	string		GRUBLAYO		GRUB Keyboard
+!:mime			application/x-grub-keyboard
+!:ext			gkb
+# GRUB_KEYBOARD_LAYOUTS_VERSION like: 10
+>8	ulelong		!10			\b, version %u
+# 4 grub_uint32_t grub_keyboard_layout[160]
+# for normal french keyboard this is letter a
+>92	ubyte		!0x71
+>>92	ubyte		>0x40			\b, english q is %c
+#>732	ubyte		x			\b, english Q is %c
+# for normal german keyboard this is letter z
+>124	ubyte		!0x79
+>>124	ubyte		>0x40			\b, english y is %c
+#>764	ubyte		x			\b, english Y is %c
+
+
+# From: Ben Dooks <ben.dooks@codethink.co.uk>
+# URL: https://github.com/torvalds/linux/blob/master/tools/perf/util/header.c
+# perf files for v1 and v2
+0	string		PERFFILE		Linux perf recording, version 1
+
+0	lequad		0x32454c4946524550	Linux perf recording, version 2. little endian
+
+0	bequad		0x32454c4946524550	Linux perf recording, version 2. big endian

@@ -1,0 +1,204 @@
+.\"-
+.\" Copyright (c) 2020 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Mark Johnston under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 18, 2020
+.Dt KCOV 4
+.Os
+.Sh NAME
+.Nm kcov
+.Nd interface for collecting kernel code coverage information
+.Sh SYNOPSIS
+To compile KCOV into the kernel, place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "options COVERAGE"
+.Cd "options KCOV"
+.Ed
+.Pp
+The following header file defines the application interface provided
+by KCOV:
+.Pp
+.In sys/kcov.h
+.Sh DESCRIPTION
+.Nm
+is a module that enables collection of code coverage information from the
+kernel.
+It relies on code instrumentation enabled by the
+.Dv COVERAGE
+kernel option.
+When
+.Nm
+is enabled by a user-mode thread, it collects coverage information only for
+that thread, excluding hard interrupt handlers.
+As a result,
+.Nm
+is not suited to collect comprehensive coverage data for the entire kernel;
+its main purpose is to provide input for coverage-guided system call fuzzers.
+.Pp
+In typical usage, a user-mode thread first allocates a chunk of memory to be
+shared with
+.Nm .
+The thread then enables coverage tracing, with coverage data being written by
+the kernel to the shared memory region.
+When tracing is disabled, the kernel relinquishes its access to the shared
+memory region, and the written coverage data may be consumed.
+.Pp
+The shared memory buffer can be treated as a 64-bit unsigned integer followed
+by an array of records.
+The integer records the number of valid records and is updated by the kernel as
+coverage information is recorded.
+The state of the tracing buffer can be reset by writing the value 0 to this
+field.
+The record layout depends on the tracing mode set using the
+.Dv KIOENABLE
+ioctl.
+.Pp
+Two tracing modes are implemented,
+.Dv KCOV_MODE_TRACE_PC
+and
+.Dv KCOV_MODE_TRACE_CMP .
+PC-tracing records a program counter value for each basic block executed while
+tracing is enabled.
+In this mode, each record is a single 64-bit unsigned integer containing the
+program counter value.
+Comparison tracing provides information about data flow; information about
+dynamic variable comparisons is recorded.
+Such records provide information about the results of
+.Xr c 7
+.Ql if
+or
+.Ql switch
+statements, for example.
+In this mode each record consists of four 64-bit unsigned integers.
+The first integer is a bitmask defining attributes of the variables involved in
+the comparison.
+.Dv KCOV_CMP_CONST
+is set if one of the variables has a constant value at compile-time, and
+.Dv KCOV_CMP_SIZE(n)
+specifies the width of the variables:
+.Pp
+.Bl -inset -offset indent -compact
+.It Dv KCOV_CMP_SIZE(0) :
+a comparison of 8-bit integers
+.It Dv KCOV_CMP_SIZE(1) :
+a comparison of 16-bit integers
+.It Dv KCOV_CMP_SIZE(2) :
+a comparison of 32-bit integers
+.It Dv KCOV_CMP_SIZE(3) :
+a comparison of 64-bit integers
+.El
+.Pp
+The second and third fields record the values of the two variables, and the
+fourth and final field stores the program counter value of the comparison.
+.Sh IOCTL INTERFACE
+Applications interact with
+.Nm
+using the
+.Xr ioctl 2
+system call.
+Each thread making use of
+.Nm
+must use a separate file descriptor for
+.Fa /dev/kcov .
+The following ioctls are defined:
+.Bl -tag -width indent
+.It Dv KIOSETBUFSIZE Fa size_t entries
+Set the size of the tracing buffer in units of
+.Dv KCOV_ENTRY_SIZE .
+The buffer may then be mapped into the calling thread's address space by
+calling
+.Xr mmap 2
+on the
+.Nm
+device file.
+.It Dv KIOENABLE Fa int mode
+Enable coverage tracing for the calling thread.
+Valid modes are
+.Dv KCOV_MODE_TRACE_PC
+and
+.Dv KCOV_MODE_TRACE_CMP .
+.It Dv KIODISABLE
+Disable coverage tracing for the calling thread.
+.El
+.Sh FILES
+.Nm
+creates the
+.Pa /dev/kcov
+device file.
+.Sh EXAMPLES
+The following code sample collects information about basic block coverage for
+kernel code executed while printing
+.Ql "Hello, world" .
+.Bd -literal
+size_t sz;
+uint64_t *buf;
+int fd;
+
+fd = open("/dev/kcov", O_RDWR);
+if (fd == -1)
+	err(1, "open(/dev/kcov)");
+sz = 1ul << 20; /* 1MB */
+if (ioctl(fd, KIOSETBUFSIZE, sz / KCOV_ENTRY_SIZE) != 0)
+	err(1, "ioctl(KIOSETBUFSIZE)");
+buf = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+if (buf == MAP_FAILED)
+	err(1, "mmap");
+
+/* Enable PC tracing. */
+if (ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) != 0)
+	err(1, "ioctl(KIOENABLE)");
+
+/* Clear trace records from the preceding ioctl() call. */
+buf[0] = 0;
+
+printf("Hello, world!\\n");
+
+/* Disable PC tracing. */
+if (ioctl(fd, KIODISABLE, 0) != 0)
+	err(1, "ioctl(KIODISABLE)");
+
+for (uint64_t i = 1; i < buf[0]; i++)
+	printf("%#jx\\n", (uintmax_t)buf[i]);
+.Ed
+The output of this program can be approximately mapped to line numbers
+in kernel source code:
+.Bd -literal
+# ./kcov-test | sed 1d | addr2line -e /usr/lib/debug/boot/kernel/kernel.debug
+.Ed
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr mmap 2
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 13.0 .
+.Sh BUGS
+The
+.Fx
+implementation of
+.Nm
+does not yet support remote tracing.

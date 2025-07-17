@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: bsnmpd
+# REQUIRE: NETWORKING syslogd
+# KEYWORD: nojailvnet shutdown
+
+. /etc/rc.subr
+
+name="bsnmpd"
+desc="Simple and extensible SNMP daemon"
+rcvar="bsnmpd_enable"
+command="/usr/sbin/${name}"
+
+: ${bsnmpd_svcj_options:="net_basic"}
+
+load_rc_config $name
+pidfile="${bsnmpd_pidfile:-/var/run/snmpd.pid}"
+command_args="-p ${pidfile}"
+run_rc_command "$1"

@@ -1,0 +1,7 @@
+# Rockchip rk32xx common options
+
+cpu		CPU_CORTEXA
+machine		arm armv7
+makeoptions	CONF_CFLAGS="-mcpu=cortex-a17"
+
+files		"../rockchip/files.rk32xx"

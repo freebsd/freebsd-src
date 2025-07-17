@@ -1,0 +1,111 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023-2024 Bjoern A. Zeeb
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 10, 2024
+.Dt MT7921 4
+.Os
+.Sh NAME
+.Nm mt7921
+.Nd MediaTek IEEE 802.11ax wireless network driver
+.Sh SYNOPSIS
+The driver will auto-load without any user interaction using
+.Xr devmatch 8
+if enabled in
+.Xr rc.conf 5 .
+.Pp
+Only if auto-loading is explicitly disabled, place the following
+lines in
+.Xr rc.conf 5
+to manually load the driver as a module at boot time:
+.Bd -literal -offset indent
+kld_list="${kld_list} if_mt7921"
+.Ed
+.Pp
+The driver should automatically load any
+firmware needed for the particular chipset.
+.Pp
+It is discouraged to load the driver from
+.Xr loader 8 .
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for MediaTek MT7921E wireless network devices.
+.Nm
+is derived from MediaTek's Linux mt76 driver.
+.Pp
+This driver requires firmware to be loaded before it will work.
+The package
+.Pa wifi-firmware-mt76-kmod
+from the
+.Pa ports/net/wifi-firmware-mt76-kmod
+port needs to be installed before the driver is loaded.
+Otherwise no
+.Xr wlan 4
+interface can be created using
+.Xr ifconfig 8 .
+One can use
+.Xr fwget 8
+to install the correct firmware package.
+.Pp
+The driver uses the
+.\" No LinuxKPI man pages so no .Xr here.
+.Sy linuxkpi_wlan
+and
+.Sy linuxkpi
+compat framework to bridge between the Linux and
+native
+.Fx
+driver code as well as to the native
+.Xr net80211 4
+wireless stack.
+.Sh HARDWARE
+The
+.Nm
+driver supports PCIe devices with the following chipsets:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+MediaTek MT7921E
+.El
+.Sh SEE ALSO
+.Xr wlan 4 ,
+.Xr networking 7 ,
+.Xr fwget 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 14.0 .
+.Sh BUGS
+Certainly.
+.Pp
+While
+.Nm
+supports 802.11a/b/g/n/ac/ax modes,
+the compatibility code currently only supports 802.11a/b/g modes.
+Support for 802.11n/ac/ax is to come.

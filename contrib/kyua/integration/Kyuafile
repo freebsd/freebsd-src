@@ -1,0 +1,16 @@
+syntax(2)
+
+test_suite("kyua")
+
+atf_test_program{name="cmd_about_test"}
+atf_test_program{name="cmd_config_test"}
+atf_test_program{name="cmd_db_exec_test"}
+atf_test_program{name="cmd_db_migrate_test"}
+atf_test_program{name="cmd_debug_test"}
+atf_test_program{name="cmd_help_test"}
+atf_test_program{name="cmd_list_test"}
+atf_test_program{name="cmd_report_html_test"}
+atf_test_program{name="cmd_report_junit_test"}
+atf_test_program{name="cmd_report_test"}
+atf_test_program{name="cmd_test_test"}
+atf_test_program{name="global_test"}

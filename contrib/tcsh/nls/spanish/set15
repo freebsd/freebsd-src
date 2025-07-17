@@ -1,0 +1,6 @@
+$ sh.func.c
+$set 15 
+1 %s: %s: No se puede %s el límite %s\n
+2 quitar
+3 poner
+4 \040(hard-limit)

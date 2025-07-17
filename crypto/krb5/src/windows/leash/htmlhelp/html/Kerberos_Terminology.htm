@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>Kerberos Terminology</title></head>
+
+<body>
+<h1><a name="top"> Kerberos Terminology</a></h1>
+<p>
+It is helpful to understand three terms when using Kerberos; <a href="#principal"> principals</a>, <a href="#realm"> realms</a>, and <a href="#ticket"> tickets</a>.</p>
+<p>
+<table>
+<tbody><tr>
+<th><a name="principal">Principals</a></th>
+</tr>
+<tr>
+<td>
+ A Kerberos <i>principal</i> is a unique identity that uses
+Kerberos. For users, it is the identity you use to log on to Kerberos.
+Principals are a combination of your user name and the name of the <a href="#realm"> realm</a> (or domain) you belong to, in the form <span class="typed">username@REALM.NAME.</span> For example: <span class="typed">jdoe@SALES.WIDGET.COM.</span>
+Some people will have more than one principal. An administrator might
+have a regular principal and a separate one with administrative rights.
+Or if a particular installation uses multiple realms and requires a
+separate log-on for each one, people with access to multiple realms
+will have a principal for each realm.
+<p></p>
+Because Kerberos provides <em>mutual</em> authentication, the
+network resources that use Kerberos also have unique principals.
+However, you do not need to know a service's principal to access it.<p></p>
+<a href="#top">Back to Top</a>
+</td>
+</tr>
+<tr>
+<th> <a name="realm"> Realms</a> </th>
+</tr>
+<tr>
+<td>
+ Kerberos <i>realms</i> are a way of logically grouping
+resources and identities that use Kerberos. Your realm is the home of
+your Kerberos identity and your point of entry to the network resources
+controlled by Kerberos. In Windows, realms are called <em>domains.</em>
+<p></p>
+When a Kerberos installation is set up, administrators decide how to
+group identities and network resources into realms. For example, some
+installations group all network resources into one realm. Others group
+all identities into one realm that is solely used as an entry point to
+resources grouped in other realms. Depending on your installation and
+your needs, you might have a <a href="#principal"> principal</a>
+(or principals) in only one realm that provides you with all the access
+you need, or you might have different principals for accessing
+different realms.
+<p></p>Realms are usually named after the DNS domain they correspond
+to, but using all upper case letters. For example, Widget Makers
+Incorporated might have a realm named <span type="" typed="">WIDGETMAKERSINC.COM.</span>  By definition, each network resource in a Kerberos realm uses the same Kerberos installation  for authentication.<p></p>
+  <p></p>
+<a href="#top">Back to Top</a>
+</td>
+</tr>
+
+<tr>
+<th> <a name="ticket">Tickets</a></th>
+</tr>
+<tr>
+<td>
+Kerberos uses the concept of <i>tickets </i> to keep passwords
+from being transmitted in the clear and to provide users the
+convenience of a single log-on to access multiple services and hosts. <p></p>
+Once a you provide a valid principal and password, Kerberos issues you
+a ticket with a limited lifetime. This ticket is an encrypted block of
+data that authenticates you. In most cases the ticket allows you to
+access all of the appropriate network resources in the realm you use,
+for the lifetime of the ticket, without having to take any further
+action. <p></p>
+When you access one of these resources, MIT Kerberos passes your
+initial Ticket Granting Ticket (TGT) to the service. Kerberos verifies
+the ticket and then issues a separate ticket that allows access to that
+service. You don't have to worry about obtaining or managing these new
+service tickets; they are automatically issued. Service tickets can be
+viewed with MIT Kerberos but cannot be directly obtained or destroyed
+through it.
+<p></p>
+Tickets contain two <a href="JavaScript:popup.TextPopup(popupEncryptionKey, popfont,9,9,-1,-1)">encryption keys</a>:
+the ticket key and the session key. The ticket key is shared between
+the Kerberos infrastructure and the service you are using. The session
+key is shared between you and the service, and is used to encrypt and
+decrypt communication with the service. <p></p>
+<a href="#top">Back to Top</a>
+</td>
+</tr>
+</tbody></table>
+</p><h2>Related Help</h2>
+<ul id="helpul">
+<li><a href="HTML/Kerberos.htm">What is Kerberos?</a></li>
+<li><a href="HTML/How_Kerberos_Works.htm">How does Kerberos work?</a></li>
+<li><a href="HTML/Encryption_Types.htm">Encryption types</a></li>
+</ul>
+
+<script language="JavaScript">
+popfont="Arial,.725,"
+popupEncryptionKey="A value that a specific code or algorithim uses to makes information unreadable to anyone without a matching key."
+</script>
+
+<object id="popup" type="application/x-oleobject" classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</object>
+</body></html>

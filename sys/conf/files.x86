@@ -1,0 +1,395 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+#
+# This file contains all the x86 devices and such that are
+# common between i386 and amd64, but aren't applicable to
+# any other architecture we support.
+#
+
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+
+#
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"${KEYMAP} -L ${ATKBD_DFLT_KEYMAP} | ${KEYMAP_FIX} > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
+cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
+cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
+crypto/aesni/aesni.c		optional aesni
+aesni_ghash.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_ghash.o"
+aesni_ccm.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_ccm.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_ccm.o"
+aesni_wrap.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_wrap.o"
+intel_sha1.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha1.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha1.o"
+intel_sha256.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha256.c"		\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha256.o"
+crypto/openssl/ossl_x86.c	optional ossl
+crypto/via/padlock.c		optional padlock
+crypto/via/padlock_cipher.c	optional padlock
+crypto/via/padlock_hash.c	optional padlock
+dev/acpica/acpi_hpet.c		optional	acpi
+dev/acpica/acpi_if.m		standard
+dev/acpica/acpi_pci.c		optional	acpi pci
+dev/acpica/acpi_pci_link.c	optional	acpi pci
+dev/acpica/acpi_pcib.c		optional	acpi pci
+dev/acpica/acpi_pcib_acpi.c	optional	acpi pci
+dev/acpica/acpi_pcib_pci.c	optional	acpi pci
+dev/acpica/acpi_pxm.c		optional	acpi
+dev/acpica/acpi_timer.c		optional	acpi
+dev/acpi_support/acpi_wmi_if.m	standard
+dev/agp/agp_amd64.c		optional	agp
+dev/agp/agp_i810.c		optional	agp
+dev/agp/agp_via.c		optional	agp
+dev/amdsbwd/amdsbwd.c		optional	amdsbwd
+dev/amdsmn/amdsmn.c		optional	amdsmn | amdtemp
+dev/amdtemp/amdtemp.c		optional	amdtemp
+dev/arcmsr/arcmsr.c		optional	arcmsr pci
+dev/asmc/asmc.c			optional	asmc isa
+dev/atkbdc/atkbd.c		optional	atkbd atkbdc
+dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
+dev/atkbdc/atkbdc.c		optional	atkbdc
+dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
+dev/atkbdc/atkbdc_subr.c	optional	atkbdc
+dev/atkbdc/psm.c		optional	psm atkbdc
+dev/atopcase/atopcase.c		optional	atopcase acpi hid spibus
+dev/atopcase/atopcase_acpi.c	optional	atopcase acpi hid spibus
+dev/bxe/bxe.c                   optional	bxe pci
+dev/bxe/bxe_stats.c             optional	bxe pci
+dev/bxe/bxe_debug.c             optional	bxe pci
+dev/bxe/ecore_sp.c              optional	bxe pci
+dev/bxe/bxe_elink.c             optional	bxe pci
+dev/bxe/57710_init_values.c     optional	bxe pci
+dev/bxe/57711_init_values.c     optional	bxe pci
+dev/bxe/57712_init_values.c     optional	bxe pci
+dev/coretemp/coretemp.c		optional	coretemp
+dev/cpuctl/cpuctl.c		optional	cpuctl
+dev/dpms/dpms.c			optional	dpms
+dev/fb/fb.c			optional	fb | vga
+dev/fb/s3_pci.c			optional	s3pci
+dev/fb/vesa.c			optional	vga vesa
+dev/fb/vga.c			optional	vga
+dev/fdc/fdc.c			optional	fdc
+dev/fdc/fdc_acpi.c		optional	fdc
+dev/fdc/fdc_isa.c		optional	fdc isa
+dev/gpio/bytgpio.c		optional	bytgpio
+dev/gpio/chvgpio.c		optional	chvgpio
+dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
+dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
+dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
+dev/hpt27xx/$M-elf.hpt27xx_lib.o optional	hpt27xx
+dev/hptmv/entry.c		optional	hptmv
+dev/hptmv/mv.c			optional	hptmv
+dev/hptmv/gui_lib.c		optional	hptmv
+dev/hptmv/hptproc.c		optional	hptmv
+dev/hptmv/ioctl.c		optional	hptmv
+dev/hptmv/$M-elf.hptmvraid.o	optional	hptmv
+dev/hptnr/hptnr_os_bsd.c	optional	hptnr
+dev/hptnr/hptnr_osm_bsd.c	optional	hptnr
+dev/hptnr/hptnr_config.c	optional	hptnr
+dev/hptnr/$M-elf.hptnr_lib.o	optional	hptnr
+dev/hptrr/hptrr_os_bsd.c	optional	hptrr
+dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
+dev/hptrr/hptrr_config.c	optional	hptrr
+dev/hptrr/$M-elf.hptrr_lib.o	optional	hptrr
+dev/hwpmc/hwpmc_amd.c		optional	hwpmc
+dev/hwpmc/hwpmc_intel.c		optional	hwpmc
+dev/hwpmc/hwpmc_core.c		optional	hwpmc
+dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
+dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
+dev/hwpmc/hwpmc_x86.c		optional	hwpmc
+dev/hyperv/hvsock/hv_sock.c				optional	hyperv
+dev/hyperv/input/hv_hid.c				optional	hyperv hvhid
+dev/hyperv/input/hv_kbd.c				optional	hyperv
+dev/hyperv/input/hv_kbdc.c				optional	hyperv
+dev/hyperv/pcib/vmbus_pcib.c				optional	hyperv pci
+dev/hyperv/netvsc/hn_nvs.c				optional	hyperv
+dev/hyperv/netvsc/hn_rndis.c				optional	hyperv
+dev/hyperv/netvsc/if_hn.c				optional	hyperv
+dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_kvp.c				optional	hyperv
+dev/hyperv/utilities/hv_snapshot.c			optional	hyperv
+dev/hyperv/utilities/vmbus_heartbeat.c			optional	hyperv
+dev/hyperv/utilities/vmbus_ic.c				optional	hyperv
+dev/hyperv/utilities/vmbus_shutdown.c			optional	hyperv
+dev/hyperv/utilities/vmbus_timesync.c			optional	hyperv
+dev/hyperv/vmbus/hyperv.c				optional	hyperv
+dev/hyperv/vmbus/x86/hyperv_x86.c		optional    hyperv
+dev/hyperv/vmbus/x86/vmbus_x86.c		optional    hyperv
+dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
+dev/hyperv/vmbus/vmbus.c				optional	hyperv pci
+dev/hyperv/vmbus/vmbus_br.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_chan.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
+dev/hyperv/vmbus/vmbus_res.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
+dev/ichwd/ichwd.c		optional	ichwd
+dev/imcsmb/imcsmb.c		optional	imcsmb
+dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
+dev/intel/pchtherm.c		optional	pchtherm
+dev/intel/spi.c			optional	intelspi
+dev/intel/spi_pci.c			optional	intelspi pci
+dev/intel/spi_acpi.c			optional	intelspi acpi
+dev/io/iodev.c			optional	io
+dev/iommu/busdma_iommu.c	optional	acpi iommu pci
+dev/iommu/iommu_gas.c		optional	acpi iommu pci
+dev/ipmi/ipmi.c			optional	ipmi
+dev/ipmi/ipmi_acpi.c		optional	ipmi acpi
+dev/ipmi/ipmi_bt.c		optional	ipmi
+dev/ipmi/ipmi_isa.c		optional	ipmi isa
+dev/ipmi/ipmi_kcs.c		optional	ipmi
+dev/ipmi/ipmi_pci.c		optional	ipmi pci
+dev/ipmi/ipmi_smbios.c		optional	ipmi
+dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
+dev/ipmi/ipmi_smic.c		optional	ipmi
+dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
+dev/isci/isci.c							optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/isci_controller.c					optional isci
+dev/isci/isci_domain.c						optional isci
+dev/isci/isci_interrupt.c					optional isci
+dev/isci/isci_io_request.c					optional isci
+dev/isci/isci_logger.c						optional isci
+dev/isci/isci_oem_parameters.c					optional isci
+dev/isci/isci_remote_device.c					optional isci
+dev/isci/isci_sysctl.c						optional isci
+dev/isci/isci_task_request.c					optional isci
+dev/isci/isci_timer.c						optional isci
+dev/isci/scil/sati.c						optional isci
+dev/isci/scil/sati_abort_task_set.c				optional isci
+dev/isci/scil/sati_atapi.c					optional isci
+dev/isci/scil/sati_device.c					optional isci
+dev/isci/scil/sati_inquiry.c					optional isci
+dev/isci/scil/sati_log_sense.c					optional isci
+dev/isci/scil/sati_lun_reset.c					optional isci
+dev/isci/scil/sati_mode_pages.c					optional isci
+dev/isci/scil/sati_mode_select.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/sati_mode_sense.c					optional isci
+dev/isci/scil/sati_mode_sense_10.c				optional isci
+dev/isci/scil/sati_mode_sense_6.c				optional isci
+dev/isci/scil/sati_move.c					optional isci
+dev/isci/scil/sati_passthrough.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/sati_read.c					optional isci
+dev/isci/scil/sati_read_buffer.c				optional isci
+dev/isci/scil/sati_read_capacity.c				optional isci
+dev/isci/scil/sati_reassign_blocks.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/sati_report_luns.c				optional isci
+dev/isci/scil/sati_request_sense.c				optional isci
+dev/isci/scil/sati_start_stop_unit.c				optional isci
+dev/isci/scil/sati_synchronize_cache.c				optional isci
+dev/isci/scil/sati_test_unit_ready.c				optional isci
+dev/isci/scil/sati_unmap.c					optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/sati_util.c					optional isci
+dev/isci/scil/sati_verify.c					optional isci
+dev/isci/scil/sati_write.c					optional isci
+dev/isci/scil/sati_write_and_verify.c				optional isci
+dev/isci/scil/sati_write_buffer.c				optional isci
+dev/isci/scil/sati_write_long.c					optional isci
+dev/isci/scil/sci_abstract_list.c				optional isci
+dev/isci/scil/sci_base_controller.c				optional isci
+dev/isci/scil/sci_base_domain.c					optional isci
+dev/isci/scil/sci_base_iterator.c				optional isci
+dev/isci/scil/sci_base_library.c				optional isci
+dev/isci/scil/sci_base_logger.c					optional isci
+dev/isci/scil/sci_base_memory_descriptor_list.c			optional isci
+dev/isci/scil/sci_base_memory_descriptor_list_decorator.c	optional isci
+dev/isci/scil/sci_base_object.c					optional isci
+dev/isci/scil/sci_base_observer.c				optional isci
+dev/isci/scil/sci_base_phy.c					optional isci
+dev/isci/scil/sci_base_port.c					optional isci
+dev/isci/scil/sci_base_remote_device.c				optional isci
+dev/isci/scil/sci_base_request.c				optional isci
+dev/isci/scil/sci_base_state_machine.c				optional isci
+dev/isci/scil/sci_base_state_machine_logger.c			optional isci
+dev/isci/scil/sci_base_state_machine_observer.c			optional isci
+dev/isci/scil/sci_base_subject.c				optional isci
+dev/isci/scil/sci_util.c					optional isci
+dev/isci/scil/scic_sds_controller.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scic_sds_library.c				optional isci
+dev/isci/scil/scic_sds_pci.c					optional isci
+dev/isci/scil/scic_sds_phy.c					optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scic_sds_port.c					optional isci
+dev/isci/scil/scic_sds_port_configuration_agent.c		optional isci
+dev/isci/scil/scic_sds_remote_device.c				optional isci
+dev/isci/scil/scic_sds_remote_node_context.c			optional isci
+dev/isci/scil/scic_sds_remote_node_table.c			optional isci
+dev/isci/scil/scic_sds_request.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scic_sds_sgpio.c					optional isci
+dev/isci/scil/scic_sds_smp_remote_device.c			optional isci
+dev/isci/scil/scic_sds_smp_request.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scic_sds_ssp_request.c				optional isci
+dev/isci/scil/scic_sds_stp_packet_request.c			optional isci
+dev/isci/scil/scic_sds_stp_remote_device.c			optional isci
+dev/isci/scil/scic_sds_stp_request.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scic_sds_unsolicited_frame_control.c		optional isci
+dev/isci/scil/scif_sas_controller.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scif_sas_controller_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_controller_states.c			optional isci
+dev/isci/scil/scif_sas_domain.c					optional isci
+dev/isci/scil/scif_sas_domain_state_handlers.c			optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scif_sas_domain_states.c				optional isci
+dev/isci/scil/scif_sas_high_priority_request_queue.c		optional isci
+dev/isci/scil/scif_sas_internal_io_request.c			optional isci
+dev/isci/scil/scif_sas_io_request.c				optional isci
+dev/isci/scil/scif_sas_io_request_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_io_request_states.c			optional isci
+dev/isci/scil/scif_sas_library.c				optional isci
+dev/isci/scil/scif_sas_remote_device.c				optional isci
+dev/isci/scil/scif_sas_remote_device_ready_substate_handlers.c	optional isci
+dev/isci/scil/scif_sas_remote_device_ready_substates.c		optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scif_sas_remote_device_starting_substate_handlers.c		optional isci
+dev/isci/scil/scif_sas_remote_device_starting_substates.c	optional isci
+dev/isci/scil/scif_sas_remote_device_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_remote_device_states.c			optional isci
+dev/isci/scil/scif_sas_request.c				optional isci
+dev/isci/scil/scif_sas_smp_activity_clear_affiliation.c		optional isci
+dev/isci/scil/scif_sas_smp_io_request.c				optional isci
+dev/isci/scil/scif_sas_smp_phy.c				optional isci
+dev/isci/scil/scif_sas_smp_remote_device.c			optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
+dev/isci/scil/scif_sas_stp_io_request.c				optional isci
+dev/isci/scil/scif_sas_stp_remote_device.c			optional isci
+dev/isci/scil/scif_sas_stp_task_request.c			optional isci
+dev/isci/scil/scif_sas_task_request.c				optional isci
+dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_task_request_states.c			optional isci
+dev/isci/scil/scif_sas_timer.c					optional isci
+dev/itwd/itwd.c							optional itwd
+dev/kvm_clock/kvm_clock.c	optional	kvm_clock
+dev/mana/gdma_main.c		optional	mana
+dev/mana/mana_en.c		optional	mana
+dev/mana/mana_sysctl.c		optional	mana
+dev/mana/shm_channel.c		optional	mana
+dev/mana/hw_channel.c		optional	mana
+dev/mana/gdma_util.c		optional	mana
+dev/nctgpio/nctgpio.c		optional	nctgpio
+dev/nfe/if_nfe.c		optional	nfe pci
+dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
+dev/ntb/ntb_transport.c		optional	ntb_transport | if_ntb
+dev/ntb/ntb.c			optional	ntb | ntb_transport | if_ntb | ntb_hw_amd | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_if.m		optional	ntb | ntb_transport | if_ntb | ntb_hw_amd | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_amd.c	optional	ntb_hw_amd | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_intel.c	optional	ntb_hw_intel | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_plx.c	optional	ntb_hw_plx | ntb_hw
+dev/ntb/test/ntb_tool.c		optional	ntb_tool
+dev/nvram/nvram.c		optional	nvram isa
+dev/random/ivy.c		optional	rdrand_rng !random_loadable
+dev/random/nehemiah.c		optional	padlock_rng !random_loadable
+dev/qat_c2xxx/qat.c		optional	qat_c2xxx
+dev/qat_c2xxx/qat_ae.c		optional	qat_c2xxx
+dev/qat_c2xxx/qat_c2xxx.c	optional	qat_c2xxx
+dev/qat_c2xxx/qat_hw15.c	optional	qat_c2xxx
+dev/smbios/smbios_subr.c	standard
+dev/speaker/spkr.c		optional	speaker
+dev/superio/superio.c		optional	superio isa
+dev/syscons/scvesactl.c		optional	sc vga vesa
+dev/syscons/scvgarndr.c		optional	sc vga
+dev/tpm/tpm.c			optional	tpm
+dev/tpm/tpm_acpi.c		optional	tpm acpi
+dev/tpm/tpm_isa.c		optional	tpm isa
+dev/uart/uart_cpu_x86.c		optional	uart
+dev/viawd/viawd.c		optional	viawd
+dev/vmd/vmd.c			optional	vmd | vmd_bus
+dev/wbwd/wbwd.c			optional	wbwd
+dev/wdatwd/wdatwd.c		optional	wdatwd
+isa/syscons_isa.c		optional	sc
+isa/vga_isa.c			optional	vga
+libkern/strcmp.c		standard
+libkern/strncmp.c		standard
+libkern/x86/crc32_sse42.c	standard
+kern/imgact_aout.c		optional	compat_aout
+#
+# x86 shared code between IA32 and AMD64 architectures
+#
+x86/acpica/OsdEnvironment.c	optional	acpi
+x86/acpica/acpi_apm.c		optional	acpi
+x86/acpica/srat.c		optional	acpi
+x86/bios/vpd.c			optional	vpd
+x86/cpufreq/est.c		optional	cpufreq
+x86/cpufreq/hwpstate_amd.c	optional	cpufreq
+x86/cpufreq/hwpstate_intel.c	optional	cpufreq
+x86/cpufreq/p4tcc.c		optional	cpufreq
+x86/cpufreq/powernow.c		optional	cpufreq
+x86/iommu/amd_cmd.c		optional	acpi iommu pci
+x86/iommu/amd_ctx.c		optional	acpi iommu pci
+x86/iommu/amd_drv.c		optional	acpi iommu pci
+x86/iommu/amd_event.c		optional	acpi iommu pci
+x86/iommu/amd_idpgtbl.c		optional	acpi iommu pci
+x86/iommu/amd_intrmap.c		optional	acpi iommu pci
+x86/iommu/intel_ctx.c		optional	acpi iommu pci
+x86/iommu/intel_drv.c		optional	acpi iommu pci
+x86/iommu/intel_fault.c		optional	acpi iommu pci
+x86/iommu/intel_idpgtbl.c	optional	acpi iommu pci
+x86/iommu/intel_intrmap.c	optional	acpi iommu pci
+x86/iommu/intel_qi.c		optional	acpi iommu pci
+x86/iommu/intel_quirks.c	optional	acpi iommu pci
+x86/iommu/intel_utils.c		optional	acpi iommu pci
+x86/iommu/iommu_utils.c		optional	acpi iommu pci
+x86/isa/atrtc.c			standard
+x86/isa/clock.c			standard
+x86/isa/isa.c			optional	isa
+x86/isa/isa_dma.c		optional	isa
+x86/isa/nmi.c			standard
+x86/isa/orm.c			optional	isa
+x86/pci/pci_bus.c		optional	pci
+x86/pci/qpi.c			optional	pci
+x86/x86/autoconf.c		standard
+x86/x86/bus_machdep.c		standard
+x86/x86/busdma_bounce.c		standard
+x86/x86/busdma_machdep.c	standard
+x86/x86/cpu_machdep.c		standard
+x86/x86/dbreg.c			optional	ddb | gdb
+x86/x86/dump_machdep.c		standard
+x86/x86/fdt_machdep.c		optional	fdt
+x86/x86/identcpu.c		standard
+x86/x86/intr_machdep.c		standard
+x86/x86/legacy.c		standard
+x86/x86/mca.c			standard
+x86/x86/x86_mem.c		optional	mem
+x86/x86/mp_x86.c		optional	smp
+x86/x86/nexus.c			standard
+x86/x86/pvclock.c		optional	kvm_clock | xenhvm
+x86/x86/sdt_machdep.c		optional	kdtrace_hooks
+x86/x86/stack_machdep.c		optional	ddb | stack
+x86/x86/tsc.c			standard
+x86/x86/ucode.c			standard
+x86/x86/ucode_subr.c		standard
+x86/x86/vmware_guestrpc.c	optional	vmware_guestrpc
+x86/x86/delay.c			standard
+x86/xen/hvm.c			optional	xenhvm
+x86/xen/xen_apic.c		optional	xenhvm smp
+x86/xen/xen_arch_intr.c		optional	xenhvm

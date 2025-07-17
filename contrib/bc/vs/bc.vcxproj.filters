@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{ef855c5b-fc2c-4736-bb38-346aae9184f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{df4ea0e1-2549-4c13-bf11-79ba8ba4cad9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="gen">
+      <UniqueIdentifier>{1bbcb2e0-c1a0-417e-88bf-8eda8a53714e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src2">
+      <UniqueIdentifier>{c384b486-4ea2-473a-8b04-86f2f5f7bb69}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\args.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\bc.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\bcl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\dc.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\file.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\history.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\lang.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\lex.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\library.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\num.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\opt.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\parse.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\program.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rand.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\read.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\status.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\vector.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\version.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\vm.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\args.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bc.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bc_lex.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bc_parse.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\data.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dc.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dc_lex.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dc_parse.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\file.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\history.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lang.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lex.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\library.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\main.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\num.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\opt.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\parse.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\program.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rand.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\read.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vector.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vm.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src2\bc_help.c">
+      <Filter>src2</Filter>
+    </ClCompile>
+    <ClCompile Include="src2\dc_help.c">
+      <Filter>src2</Filter>
+    </ClCompile>
+    <ClCompile Include="src2\lib.c">
+      <Filter>src2</Filter>
+    </ClCompile>
+    <ClCompile Include="src2\lib2.c">
+      <Filter>src2</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\gen\lib.bc">
+      <Filter>gen</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\gen\lib2.bc">
+      <Filter>gen</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\gen\dc_help.txt">
+      <Filter>gen</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\gen\bc_help.txt">
+      <Filter>gen</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\gen\strgen.c">
+      <Filter>gen</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

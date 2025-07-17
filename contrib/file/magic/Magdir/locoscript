@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: locoscript,v 1.1 2021/01/03 20:56:25 christos Exp $
+# locoscript:  file(1) magic for LocoScript documents and related files
+#
+# See http://fileformats.archiveteam.org/wiki/LocoScript
+0	string	JOY\x01\x01	LocoScript 1 document
+0	string	JOY\x01\x02	LocoScript 2 document
+0	string	JOY\x01\x04	LocoScript 3 document
+0	string	JOY\x01\x06	LocoScript 4 document
+0	string	DOC\x01\x01	LocoScript PC document
+0	string	DOC\x01\x03	LocoScript Professional document

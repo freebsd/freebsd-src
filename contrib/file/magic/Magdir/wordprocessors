@@ -1,0 +1,666 @@
+
+#------------------------------------------------------------------------------
+# $File: wordprocessors,v 1.39 2024/11/09 23:26:33 christos Exp $
+# wordprocessors:  file(1) magic fo word processors.
+#
+####### PWP file format used on Smith Corona Personal Word Processors:
+2	string	\040\040\040\040\040\040\040\040\040\040\040ML4D\040'92	Smith Corona PWP
+>24	byte	2	\b, single spaced
+>24	byte	3	\b, 1.5 spaced
+>24	byte	4	\b, double spaced
+>25	byte	0x42	\b, letter
+>25	byte	0x54	\b, legal
+>26	byte	0x46	\b, A4
+
+# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Works_Word_Processor
+# reference:	http://mark0.net/download/triddefs_xml.7z
+#		/defs/w/wps-works-dos.trid.xml
+# From:	Joerg Jenderek
+# Note:	older non OLE 2 Compound based versions
+0	ubeshort	=0x01FE
+>112	ubeshort	=0x0100		Microsoft Works 1-3 (DOS) or 2 (Windows) document
+# title like THE GREAT KHAN GAME
+>>0x100	string		x		%s
+!:mime	application/vnd-ms-works
+#!:mime	application/x-msworks
+# https://www.macdisk.com/macsigen.php
+!:apple	????AWWP
+!:ext	wps
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Publisher
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Publisher
+# Note:		older non OLE 2 (./ole2compounddocs) Compound based version
+0	ubelong		=0xE7AC2C00	Microsoft Publisher (1.0)
+#!:mime	application/x-mspublisher
+# Not registered at IANA but
+# https://web.archive.org/web/20200930085807/https://reposcope.com/mimetype/application/vnd.ms-publisher
+!:mime	application/vnd.ms-publisher
+!:ext	pub
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/COSMI_MultiMedia
+#		https://en.wikipedia.org/wiki/Cosmi_Corporation
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cosmi.trid.xml
+# Note:		called "COSMI document (generic)" by TrID
+0	string/b	LCP		COSMI document
+#!:mime		application/octet-stream
+!:mime	application/x-cosmi
+# BCD~Business Card Maker BRO~Brochure Magic CRD~Greeting Card Magic DTP~Print Perfect PUB~Desktop Publisher
+!:ext		bcd/bro/crd/dtp/pub/
+
+# Corel/WordPerfect
+# URL:		https://en.wikipedia.org/wiki/WordPerfect
+# Reference:	https://github.com/OneWingedShark/WordPerfect/blob/master/doc/SDK_Help/FileFormats/WPFF_DocumentStructure.htm
+#		http://mark0.net/download/triddefs_xml.7z/defs/w/wp-generic.trid.xml
+0	string	\xffWPC
+# WordPerfect
+>8	byte	1
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/w/wpm-macro.trid.xml
+# Note:		there exist other macro variants
+>>9	byte	1	WordPerfect macro
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-wpm
+# like: ALTD.WPM ENDFOOT.WPM FOOTEND.WPM LABELS.WPM REVEALTX.WPM
+!:ext		wpm
+# Note:		used in WordPerfect 5.1; there exist other FIL variants
+>>9	byte	2	WordPerfect help file
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-help
+# like: WPHELP.FIL
+!:ext		fil
+# pointer to document area like: 10h
+>>>4		ulelong	!0x10	\b, at %#x document area
+>>9	byte	3	WordPerfect keyboard file
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-keyboard
+!:ext		wpk
+# no document area, so point to end of file; so this is file size like: 23381 2978 32835 3355 3775 919
+>>>4		ulelong	x	\b, %u bytes
+>>9	byte	4	WordPerfect VAX keyboard definition
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-keyboard
+#!:ext	foo
+# URL:		http://fileformats.archiveteam.org/wiki/WordPerfect
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/w/wpd-doc-gen.trid.xml
+>>9	byte	10	WordPerfect document
+# https://www.iana.org/assignments/media-types/application/vnd.wordperfect
+!:mime		application/vnd.wordperfect
+#!:apple		????WPC2
+# TODO: distinguish different suffix
+!:ext		wpd/wpt/wkb/icr/tut/sty/tst/crs
+>>9	byte	11	WordPerfect dictionary
+>>9	byte	12	WordPerfect thesaurus
+>>9	byte	13	WordPerfect block
+>>9	byte	14	WordPerfect rectangular block
+>>9	byte	15	WordPerfect column block
+>>9	byte	16	WordPerfect printer data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-prs
+# like: STANDARD.PRS WORKBOOK.PRS
+!:ext		prs
+# like: "Standard Printer" "Workbook Printer"
+>>>0x64		pstring/B	>A	"%s"
+#>>9	byte	18	WordPerfect Prefix information file
+# printer resource .ALL
+>>9	byte	19	WordPerfect printer data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-all
+!:ext		all
+# display Resource
+>>9	byte	20	WordPerfect driver resource data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-drs
+# like: WPSMALL.DRS
+!:ext		drs
+# pointer to index area with string "smalldrs" like: 46h
+>>>4		uleshort	!0x46	\b, at %#x index area
+>>9	byte	21	WordPerfect Overlay file
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-fil
+# like: WP.FIL
+!:ext		fil
+# URL:		http://fileformats.archiveteam.org/wiki/WordPerfect_Graphics
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-wpg.trid.xml
+# Note:		called "WordPerfect Graphics bitmap" by TrID and
+#		"WordPerfect Graphics Metafile" by DROID via x-fmt/395 fmt/1042
+#		"WPG (Word Perfect Graphics)" by ImageMagick `identify -verbose BUTTRFLY.WPG`
+>>9	byte	22	WordPerfect graphic image
+# TODO: skip DROID x-fmt-395-signature-id-132.wpg by check for existing document area
+#>>>4		ulelong	>15	WordPerfect_graphic_OK
+#!:mime		application/octet-stream
+# http://extension.nirsoft.net/wpg
+!:mime		image/x-wordperfect-graphics
+# https://reposcope.com/mimetype/application/x-wpg
+#!:mime		application/x-wpg
+# like: BUTTRFLY.WPG STAR-5.WPG input.wpg WORDPFCT.WPG
+!:ext		wpg
+# pointer to document area like: 10h 1Ah
+>>>4		ulelong		!0x1A	\b, at %#x document area
+>>9	byte	23	WordPerfect hyphenation code
+>>9	byte	24	WordPerfect hyphenation data
+>>9	byte	25	WordPerfect macro resource data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-mrs
+# like: WP.MRS
+!:ext		mrs
+>>9	byte	27	WordPerfect hyphenation lex
+>>9	byte	29	WordPerfect wordlist
+>>9	byte	30	WordPerfect equation resource data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-qrs
+# like: WQ.QRS wpDE.qrs wpen.qrs
+!:ext		qrs
+# jump to document area with some marker and equation
+>>>(4.l)	ubyte	x
+# equation like: "Fraction:  x OVER y"
+>>>>&1		string	>A	(...%-.19s...)
+# pointer to document area like: 17C4h
+>>>4		ulelong	x	\b, at %#x document area
+#>>9	byte	31	reserved
+#>>9	byte	32	WordPerfect VAX .SET
+>>9	byte	33	WordPerfect spell rules
+>>9	byte	34	WordPerfect dictionary rules
+#>>9	byte	35	reserved
+# video resource device driver
+# Note:		 filetype 26 for VRS and filetype 36 for WPD apparently is wrong
+>>9	byte	36	WordPerfect Video Resource
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-vrs
+# like: STANDARD.VRS
+!:ext		vrs
+# like: "IBM CGA (& compatibles)"
+>>>0x20		string	>A	"%.23s"
+>>9	byte	39	WordPerfect spell rules (Microlytics)
+#>>9	byte	40	reserved
+>>9	byte	41	WordPerfect Install options
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-ins
+# like: WP51.INS
+!:ext		ins
+# probably default directory name like: "C:\WP51\"
+>>>0x12		string	>A	"%.8s"
+# maybe mouse driver for WP5.1
+>>9	byte	42	WordPerfect Resource
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-irs
+# like: STANDARD.IRS
+!:ext		irs
+# like: "Mouse Driver (MOUSE.COM)"
+>>>0x28		string	>A	"%.24s"
+>>9	byte	43	WordPerfect settings file
+# maybe Macintosh WP2.0 document
+>>9	byte	44	WordPerfect 3.5 document
+!:mime		application/vnd.wordperfect
+!:apple		????WPD3
+# like: WP3.wpd
+!:ext		wpd
+>>9	byte	45	WordPerfect 4.2 document
+# External spell code module (WP5.1)
+#>>9	byte	46	WordPerfect external spell 
+# external spell dictionary .LEX
+#>>9	byte	47	WordPerfect external spell dictionary
+# Macintosh SOFT graphics file (SOFT (Sequential Object Format)
+#>>9	byte	48	WordPerfect SOFT graphics
+#>>9	byte	49	reserved
+#>>9	byte	50	reserved
+# WPWin 5.1 Application Resource Library added for WPWin 5.1
+#>>9	byte	51	WordPerfect application resource library
+>>9	byte	69	WordPerfect dialog file
+# From:		Joerg Jenderek
+# Note:		found in sub directory WritingTools inside WordPerfect 2021 program directory
+>>9	byte	70	WordPerfect Writing Tools
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-cbt
+# like: Wt13cbede.cbt Wt13cbeit.cbt Wt13cbefr.cbt WT21cbede.cbt Wt13cbeEN.CBD WT21cbeEN.CBD
+!:ext	cbd/cbt
+>>9	byte	76	WordPerfect button bar
+>>9	default x
+>>>9	byte	x	Corel WordPerfect: Unknown filetype %d
+# Corel Shell
+>8	byte	2
+>>9	byte	1	Corel shell macro
+>>9	byte	10	Corel shell definition
+>>9	default x
+>>>9	byte	x	Corel Shell: Unknown filetype %d
+# Corel Notebook
+>8	byte	3
+>>9	byte	1	Corel Notebook macro
+>>9	byte	2	Corel Notebook help file
+>>9	byte	3	Corel Notebook keyboard file
+>>9	byte	10	Corel Notebook definition
+>>9	default	x
+>>>9	byte	x	Corel Notebook: Unknown filetype %d
+# Corel Calculator
+>8	byte	4
+>>9	byte	2	Corel Calculator help file
+>>9	default	x
+>>>9	byte	x	Corel Calculator: Unknown filetype %d
+# Corel File Manager
+>8	byte	5
+>>9	default	x
+>>>9	byte	x	Corel File Manager: Unknown filetype %d
+# Corel Calendar
+>8	byte	6
+>>9	byte 	2	Corel Calendar help file
+>>9	byte 	10	Corel Calendar data file
+>>9	default	x
+>>>9	byte	x	Corel Calendar: Unknown filetype %d
+# Corel Program Editor/Ed Editor
+>8	byte	7
+>>9	byte	1	Corel Editor macro
+>>9	byte	2	Corel Editor help file
+>>9	byte	3	Corel Editor keyboard file
+>>9	byte	25	Corel Editor macro resource file
+>>9	default	x
+>>>9	byte	x	Corel Program Editor/Ed Editor: Unknown filetype %d
+# Corel Macro Editor
+>8	byte	8
+>>9	byte 	1	Corel Macro editor macro
+>>9	byte 	2	Corel Macro editor help file
+>>9	byte	3	Corel Macro editor keyboard file
+>>9	default	x
+>>>9	byte	x	Corel Macro Editor: Unknown filetype %d
+# Corel Plan Perfect
+>8	byte	9
+>>9	default	x
+>>>9	byte	x	Corel Plan Perfect: Unknown filetype %d
+# Corel DataPerfect
+>8	byte	10
+# CHECK: Don't these belong into product 9?
+>>9	byte	1	Corel PlanPerfect macro
+>>9	byte	2	Corel PlanPerfect help file
+>>9	byte	3	Corel PlanPerfect keyboard file
+>>9	byte	10	Corel PlanPerfect worksheet
+>>9	byte	15	Corel PlanPerfect printer definition
+>>9	byte	18	Corel PlanPerfect graphic definition
+>>9	byte	19	Corel PlanPerfect data
+>>9	byte	20	Corel PlanPerfect temporary printer
+>>9	byte	25	Corel PlanPerfect macro resource data
+>>9	default	x
+>>>9	byte	x	Corel DataPerfect: Unknown filetype %d
+# Corel Mail
+>8	byte	11
+>>9	byte	2	Corel Mail help file
+>>9	byte	5	Corel Mail distribution list
+>>9	byte	10	Corel Mail out box
+>>9	byte	11	Corel Mail in box
+>>9	byte	20	Corel Mail users archived mailbox
+>>9	byte	21	Corel Mail archived message database
+>>9	byte	22	Corel Mail archived attachments
+>>9	default	x
+>>>9	byte	x	Corel Mail: Unknown filetype %d
+# Corel Printer
+>8	byte	12
+>>9	byte	11	Corel Printer temporary file
+>>9	default	x
+>>>9	byte	x	Corel Printer: Unknown filetype %d
+# Corel Scheduler
+>8	byte	13
+>>9	byte	2	Corel Scheduler help file
+>>9	byte	10	Corel Scheduler in file
+>>9	byte	11	Corel Scheduler out file
+>>9	default	x
+>>>9	byte	x	Corel Scheduler: Unknown filetype %d
+# Corel WordPerfect Office
+>8	byte	14
+>>9	byte	10	Corel GroupWise settings file
+>>9	byte	17	Corel GroupWise directory services
+>>9	byte	43	Corel GroupWise settings file
+>>9	default	x
+>>>9	byte	x	Corel WordPerfect Office: Unknown filetype %d
+# Corel DrawPerfect
+# URL:		http://fileformats.archiveteam.org/wiki/Corel_Presentations
+# Update:	Joerg Jenderek
+>8	byte	15
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-wp-2.trid.xml
+# Note:		called "WordPerfect Presentations (v2)" by TrID and
+#		"Corel Presentation" with version "7-8-9" by DROID via PUID fmt/877
+>>9	byte	10	WordPerfect Presentation
+#!:mime		application/octet-stream
+#!:mime		application/vnd.wordperfect
+!:mime		application/x-drawperfect-shw
+# like: BENEFITS.SHW chartbar.shw chartbul.shw chartgal.shw chartorg.shw fig-demo.shw figurgal.shw mastrgal.shw scuba.shw tutorial.shw
+!:ext		shw
+# pointer to document area like: 10h
+>>>4	ulelong	!0x10	\b, at %#x document area
+# according to TrID this is nil
+>>>12	ulelong	!0	\b, at 0xC %#x
+# search for embedded WP file like in tutorial.shw
+#>>>16	search/638/sb	\xffWPC	WPC_MAGIC_FOUND
+# GRR: indirect call leads to recursion! WHY?
+#>>>>&0	indirect	x	\b; contains
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-wp-3.trid.xml
+# Note:		called "WordPerfect/Corel Presentations (v3)" by TrID and
+#		"Corel Presentation" with version "3" by DROID via PUID fmt/878
+>>9	byte	15	Corel Presentation
+#!:mime		application/octet-stream
+#!:mime		application/vnd.wordperfect
+!:mime		application/x-drawperfect-shw
+# like: FIG_ANIM.SHW presenta.shw
+!:ext		shw
+# pointer to document area like: 1ah
+>>>4	ulelong	!0x1a	\b, at %#x document area
+# according to TrID this is nil
+>>>12	ulelong	!0	\b, at 0xC %#x
+# reserved like: 3
+>>>16	ulelong	!0x3	\b, at 0x10 %#x
+# file size, not including pad characters at EOF
+>>>0x14	ulelong x	\b, %u bytes
+# search for embedded WP file like in foo
+#>>>24	search/638/sb	\xffWPC	WPC_MAGIC_FOUND
+# GRR: indirect call leads to recursion! WHY?
+#>>>>&0	indirect	x	\b; contains
+# embedded inside Compound Document variant handled by ./ole2compounddocs
+>>9	byte	16	Corel Presentation (embeded)
+#!:mime		application/octet-stream
+#!:mime		application/vnd.wordperfect
+!:mime		application/x-corelpresentations
+# like: PerfectOffice_MAIN
+!:ext		/
+# pointer to document area like: 1ah
+>>>4	ulelong	!0x1a	\b, at %#x document area
+>>>12	ulelong	!0	\b, at 0xC %#x
+# reserved like: 3
+>>>16	ulelong	!0x3	\b, at 0x10 %#x
+# file size, not including pad characters at EOF
+>>>0x14	ulelong x	\b, %u bytes
+# search for embedded WP file
+#>>>24	search/638/sb	\xffWPC	WPC_MAGIC_FOUND
+# GRR: indirect call leads to recursion! WHY?
+#>>>>&0	indirect	x	\b; contains
+>>9	default	x
+>>>9	byte	x	Corel DrawPerfect: Unknown filetype %d
+# Corel LetterPerfect
+>8	byte	16
+>>9	default	x
+>>>9	byte	x	Corel LetterPerfect: Unknown filetype %d
+# Corel Terminal
+>8	byte	17
+>>9	byte	10	Corel Terminal resource data
+>>9	byte	11	Corel Terminal resource data
+>>9	byte	43	Corel Terminal resource data
+>>9	default	x
+>>>9	byte	x	Corel Terminal: Unknown filetype %d
+# Corel loadable file
+>8	byte	18
+>>9	byte	10	Corel loadable file
+>>9	byte	11	Corel GUI loadable text
+>>9	byte	12	Corel graphics resource data
+>>9	byte	13	Corel printer settings file
+>>9	byte	14	Corel port definition file
+>>9	byte	15	Corel print queue parameters
+>>9	byte	16	Corel compressed file
+>>9	default	x
+>>>9	byte	x	Corel loadable file: Unknown filetype %d
+>>15	byte	0	\b, optimized for Intel
+>>15	byte	1	\b, optimized for Non-Intel
+# Network service
+>8	byte	20
+>>9	byte	10	Corel Network service msg file
+>>9	byte	11	Corel Network service msg file
+>>9	byte	12	Corel Async gateway login msg
+>>9	byte	14	Corel GroupWise message file
+>>9	default	x
+>>>9	byte	x	Corel Network service: Unknown filetype %d
+# GroupWise
+>8	byte	31
+>>9	byte	20	GroupWise admin domain database
+>>9	byte	21	GroupWise admin host database
+>>9	byte	23	GroupWise admin remote host database
+>>9	byte	24	GroupWise admin ADS deferment data file
+>>9	default	x
+>>>9	byte	x	GroupWise: Unknown filetype %d
+# Corel Writing Tools WT*.*
+# From:		Joerg Jenderek
+# URL:		https://support.corel.com/hc/en-us/articles/215876258-Writing-Tools-Spell-Check-Dictionary-does-not-work-in-WordPerfect-X5
+#		http://wordperfect.helpmax.net/en/editing-and-formatting-documents/using-the-writing-tools/working-with-user-word-lists/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/u/uwl-wp.trid.xml
+>8	byte	32
+>>9	byte	10	Corel Writing Tools User Word List
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-wordlist
+# personal user word list UWL under user directory like: WTDE.UWL WTUS.UWL WT21DE.UWL WT21US.UWL WT13DE.UWL ...
+# and "template" SAV/HWL variant under program directory like: wt13en.hwl Wt13de.sav Wt13it.sav wt13ru.sav WT21us.sav Wtcz.sav ...
+!:ext	uwl/hwl/sav
+# jump to document area with some marker and word list
+>>>(4.l)	ubyte	x
+# look for beginning of word list starting mostly with letter a as UTF-16 like: Wt13es.sav
+# but not found in russian wt13ru.sav
+>>>>&0	search/91/sb	a\0
+# word list starting like: "acsesory\022accessory.\001\026acomodate\026accommodate4\001"
+>>>>>&0		lestring16	x	(...%-.33s...)
+# pointer to document area like: 200h
+>>>4	ulelong	!0x200	\b, at %#x document area
+# file size, not including pad characters at EOF
+>>>0x14	uleshort x	\b, %u bytes
+# IntelliTAG
+>8	byte	33
+>>9	byte	10	IntelliTAG (SGML) compiled DTD
+>>9	default	x
+>>>9	byte	x	IntelliTAG: Unknown filetype %d
+# Summary:	Corel WordPerfect WritingTools advise part
+# From:		Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/adv-wp.trid.xml
+>8	byte	34
+>>9	byte	11	Corel WordPerfect dictionary advise
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-adv
+#!:mime	application/vnd.wordperfect.adv
+# like: WT21de.adv Wt13de.adv Wt13es.adv Wt13fr.adv wt13us.adv
+!:ext	adv
+# advise text part often start with tag like: 580A
+#>>>(16.s)	ubequad	x	ADVISE PART %#llx
+# part of advise text like: "This is too informal for most writing."
+>>>(16.s+16)	string	x	(...%-.33s...)
+# everything else
+>8	default x
+>>8	byte	x	Unknown Corel/Wordperfect product %d,
+>>>9	byte	x	file type %d
+>10	byte	0	\b, v5.
+# version of WP file; 2.1~WP 8.0
+# major version of WP file like: 1 2
+>10	byte	!0	\b, v%d.
+# minor version of WP file like: 0 1
+>11	byte	x	\b%d
+
+# Hancom HWP (Hangul Word Processor)
+# Hangul Word Processor 3.0 through 97 used HWP 3.0 format.
+# URL: https://www.hancom.com/etc/hwpDownload.do
+0	string	HWP\ Document\ File     Hancom HWP (Hangul Word Processor) file, version 3.0
+!:ext	hwp
+
+# CosmicBook, from Benoit Rouits
+0       string  CSBK    Ted Neslson's CosmicBook hypertext file
+
+2       string  EYWR    AmigaWriter file
+
+# chi:  file(1) magic for ChiWriter files
+0       string          \\1cw\          ChiWriter file
+>5      string          >\0             version %s
+0       string          \\1cw           ChiWriter file
+
+# Quark Express from https://www.garykessler.net/library/file_sigs.html
+2	string	IIXPR3			Intel Quark Express Document (English)
+2	string	IIXPRa			Intel Quark Express Document (Korean)
+2	string	MMXPR3			Motorola Quark Express Document (English)
+!:mime	application/x-quark-xpress-3
+2	string	MMXPRa			Motorola Quark Express Document (Korean)
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/PageMaker
+#		https://en.wikipedia.org/wiki/Adobe_PageMaker
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p
+#		pm4-pagemaker.trid.xml
+#		pm5-pagemaker.trid.xml
+# Note:		since version 6 in 1995 called Adobe PageMaker and
+#		embedded in Compound Document handled by ./ole2compounddocs
+#		mainly tested little endian variant
+4	ubelong		=0x0000FF99
+>0	use		PageMaker
+# big endian variant
+4	ubelong		=0x000099FF
+>0	use		\^PageMaker
+#	display information of Aldus/Adobe PageMaker document/publication
+0	name		PageMaker
+>110	uleshort	<0x0600			Aldus
+>110	uleshort	>0x05FF			Adobe
+>110	uleshort	x			PageMaker
+# "MP" marker for newer version 4 and above according to TrID
+#>108	string		x			\b, MARKER "%.2s"
+# http://www.nationalarchives.gov.uk/pronom/fmt/876
+!:mime		application/vnd.pagemaker	
+#!:mime		application/x-pagemaker
+# different file name extensions are used depending on version
+# older version like 3
+>110	uleshort/256	=0			document
+# https://www.macdisk.com/macsigen.php
+!:apple	ALB3ALD3
+# PT3 for template and no example for PageMaker document/publication with PM3 extension
+!:ext	pm3/pt3
+>110	uleshort/256	=4			document
+!:apple	ALD4ALB4
+# no example for PT4 template
+!:ext	pm4/pt4
+>110	uleshort/256	=5			document
+!:apple	ALD5ALB5
+# no example for PT5 template
+!:ext	pm5/pt5
+>110	uleshort	=0x0600			document
+!:apple	ALD6ALB6
+# PT6 for template
+!:ext	pm6/pt6
+# HOWTO to distinguish version 7 from 6.5 ?
+>110	uleshort	=0x0632			document
+!:apple	AD65AB65
+# no example for T65 template
+!:ext	p65/t65/pmd/pmt
+# version 7 with PMT extension for template
+#!:ext	pmd/pmt
+#!:apple	????PUBF
+# endian marker FF 99 for little endian
+>6	ubyte	=0xFF			\b, little-endian
+>6	ubyte	=0x99			\b, big-endian
+# newer numeric version like: 4 5 6 6.50
+#>110	uleshort	x			\b, VERSION=%#x
+>110	uleshort	>0x03FF
+>>110	uleshort/256	x			\b, version %u
+>>110	uleshort%256	>0			\b.%u
+# older version like 3
+>110	uleshort	<0x0400			\b, maybe version 3
+
+# adobe indesign (document, whatever...) from querkan
+0	belong	0x0606edf5		Adobe InDesign
+>16	string	DOCUMENT		Document
+
+#------------------------------------------------------------------------------
+# ichitaro456: file(1) magic for Just System Word Processor Ichitaro
+#
+# Contributor kenzo-:
+# Reversed-engineered JS Ichitaro magic numbers
+#
+
+0	string		DOC
+>43	byte		0x14	Just System Word Processor Ichitaro v4
+!:mime	application/x-ichitaro4
+>43	byte		0x15	Just System Word Processor Ichitaro v5
+!:mime	application/x-ichitaro5
+>43	byte		0x16	Just System Word Processor Ichitaro v6
+!:mime	application/x-ichitaro6
+>144	string	JDASH		application/x-ichitaro4
+
+# Type: Freemind mindmap documents
+# From: Jamie Thompson <debian-bugs@jamie-thompson.co.uk>
+0	string/w	\<map\ version	Freemind document
+!:mime	application/x-freemind
+
+# Type: Freeplane mindmap documents
+# From: Felix Natter <fnatter@gmx.net>
+0       string/w        \<map\ version="freeplane  Freeplane document
+!:mime  application/x-freeplane
+
+# Type:        Scribus
+# From:        Werner Fink <werner@suse.de>
+0	string	\<SCRIBUSUTF8\ Version		Scribus Document
+0	string	\<SCRIBUSUTF8NEW\ Version	Scribus Document
+!:mime	application/x-scribus
+
+# help files .hlp compiled from html and used by gfxboot added by Joerg Jenderek
+# URL: 		https://en.opensuse.org/Gfxboot
+# Reference:	https://github.com/openSUSE/gfxboot/blob/master/gfxboot
+#		http://mark0.net/download/triddefs_xml.7z/defs/h/hlp-gfxboot-main.trid.xml,hlp-gfxboot-opt.trid.xml
+# Note:		called "gfxboot compiled html help" (main),(opt) by TrID
+#		verified by command like `gfxboot --help-show en.hlp > en.html`
+# markups page=0x04,label=0x12, followed by strings like "opt" or "main" and title=0x14
+0	ulelong&0x8080FFFF	0x00001204
+# display "gfxboot compiled html help file" (strength=70) after one "TeX font metric data" (tri10u.tfm strength=71=50+21) handled by ./tex
+#!:strength +0
+>2	regex			\^(main|opt)	gfxboot compiled html help file, label %s
+#!:mime	application/octet-stream
+!:mime	application/x-gfxboot-hlp
+!:ext	hlp
+# check for title token \x14
+>>&0	ubyte			0x14		\b, title
+# title text ends with \x10
+>>>&0	regex			\^[[:print:]]+	'%s'
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/StarOffice
+# Reference:	http://mark0.net/download/triddefs_xml.7z
+#		/defs/t/thm-staroffice.trid.xml
+# Note:		used in Star-, Open- and Libre-Office
+# named as soffice.StarConfigFile.6 or OpenOffice.org configuration by others
+0		ubeshort	0x0400
+# non nil gap
+#>(2.s+8)	ubequad		x		\b, gap %#16.16llx
+# test for null value in gap after theme name maybe unreliable
+#>(2.s+9)	ubyte		0		\b, 0-byte
+# look for keyword GALRESRV near the end
+# "C:\Program Files (x86)\StarOffice6.0\share\gallery\sg27.thm" Navigation, 238 objects
+#>0		search/8415	GALRESRV	\b, GALRESRV found
+# "neues thema6.thm" MorePictures, 315 objects
+#>0		search/19299	GALRESRV	\b, GALRESRV FOUND
+#>2		uleshort	x		\b, name length %u
+# skip file2147.chk by check for positive name length like for sg16.thm "3D"
+>2		uleshort	>0
+# skip dBase printer form T6.PRF with misidentified gallery 
+# name :\DBASE\IV\T6.txts by check for 1st object name or RESRV keyword
+# https://www.clicketyclick.dk/databases/xbase/xbase/dbase_ex.zip
+# template/t6/with_data/T6.PRF
+# by first char of object name or RESRV part of keyword GALRESRV
+>>(2.s+13)	ubyte		>0x1F		StarOffice Gallery theme
+!:mime		application/x-stargallery-thm
+# thm is also used for JPEG thumbnail images
+!:ext		thm
+# gallery name often 1 word like: 3D sounds Diagrams Flussdiagramme Fotos
+# or like private://gallery/hidden/imgppt "Cisco - WAN - LAN"
+>>>2		pstring/h	x		%s
+# number of objects
+>>>(2.s+4)	ulelong		x		\b, %u object
+# plural s
+>>>(2.s+4)	ulelong		!1		\bs
+# if available then display first object name 
+>>>(2.s+4)	ulelong		>0
+# partial file name, URL or internal name like "dd2*" of 1st object or RESRV
+>>>>(2.s+11)	pstring/h	x		\b, 1st %s
+
+# From:	Joerg Jenderek
+# URL:	http://fileformats.archiveteam.org/wiki/StarOffice_Gallery
+# Note:	used in Star-, Open- and Libre-Office and found in directories like
+#	%APPDATA%\Roaming\LibreOffice\4\user\gallery
+#	$HOME/.config/libreoffice/4/user/gallery
+0	string		SGA3	StarOffice Gallery thumbnails
+# Unknown like 0x04000?0001000142
+#>4	ubequad		x	\b, UNKNOWN %#16.16llx
+#!:mime	application/x-sdg
+!:mime	application/x-stargallery-sdg
+!:ext	sdg
+# display image magic for debugging purpose like 'BM'
+# looking like PC bitmap, Windows 3.x format with unknown compression
+#>11	string		x	\b, image magic '%-.2s'
+# inspect 1st GALLERY thumbnail magic by ./images with 1 space at end
+#>11	indirect	x	\b; contains 
+
+# Atari ST Hypertext files
+0	string	HDOC\0	ST-Guide file
+0	string	HREF\0	ST-Guide reference file

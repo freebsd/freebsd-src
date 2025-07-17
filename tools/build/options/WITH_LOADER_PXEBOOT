@@ -1,0 +1,25 @@
+Build pxeboot on i386/amd64 for BIOS booting.
+The PXE Boot loader package needs more space than we may have in the boot loader.
+If you need to increase
+.Va LOADERSIZE
+beyond 500000, then building
+.Xr pxeboot 8
+will fail.
+To allow a larger
+.Va LOADERSIZE
+for some environments, it may be necessary to disable pxeboot builds or adjust
+its defaults.
+You can set the default loader for pxeboot to use independently of the system
+default by setting
+.Va PXEBOOT_DEFAULT_INTERP
+to one of
+.Dq lua ,
+.Dq 4th ,
+or
+.Dq simp .
+The limit on the size of the loader used for
+.Xr pxeboot 8
+can be set independently with
+.Va PXEBOOTSIZE .
+.Pp
+This option only has an effect on x86.

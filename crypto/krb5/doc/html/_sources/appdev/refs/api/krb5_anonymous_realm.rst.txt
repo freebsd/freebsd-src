@@ -1,0 +1,47 @@
+krb5_anonymous_realm -  Return an anonymous realm data. 
+========================================================
+
+..
+
+.. c:function:: const krb5_data * krb5_anonymous_realm(void None)
+
+..
+
+
+:param:
+
+	          **None**
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function returns constant storage that must not be freed.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         #KRB5_ANONYMOUS_REALMSTR
+ 
+
+
+
+

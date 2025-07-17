@@ -1,0 +1,2 @@
+pass in on lo1000000 all flags S/SA keep state
+match out on lo0 inet6 all nat-to { ::1, fe80::1 } round-robin

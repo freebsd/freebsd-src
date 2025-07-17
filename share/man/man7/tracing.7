@@ -1,0 +1,100 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.Dd July 12, 2025
+.Dt TRACING 7
+.Os
+.Sh NAME
+.Nm tracing
+.Nd introduction to FreeBSD tracing and performance monitoring
+.Sh DESCRIPTION
+.Fx
+features a large variety of tracing and performance monitoring facilities.
+Use them to measure performance and
+troubleshoot kernel and userland problems both during
+.Xr development 7
+and potentially on production systems.
+The facilities differ in scope, ease of use, overhead, design, and limitations.
+.Ss DTrace
+.Xr dtrace 1
+is the most versatile tracing framework available on
+.Fx
+and is capable of tracing throughout the
+.Fx
+software stack from the kernel to the applications running in userland.
+Refer to
+.Xr dtrace 1
+and
+.Xr SDT 9
+for more details.
+.Pp
+.Xr dwatch 1
+is a user-friendly wrapper for DTrace.
+It simplifies common DTrace usage patterns and requires less expert knowledge
+to operate.
+.Ss Userland Tracing
+.Xr truss 1
+traces system calls.
+It uses
+.Xr sysdecode 3
+to pretty-print system call arguments and
+.Xr ptrace 2
+to trace processes.
+.Pp
+.Xr ktrace 1
+is useful for debugging user programs.
+It enables kernel trace logging for specified processes.
+Like
+.Xr truss 1 ,
+it mainly traces system calls, but instead of using
+.Xr ptrace 2 ,
+it asynchronously logs entries to a trace file configured with
+.Xr ktrace 2
+(typically
+.Pa ktrace.out ) ,
+and it can log other types of kernel events, such as page faults
+and name lookups
+.Po refer to
+.Fl t
+in
+.Xr ktrace 1
+.Pc .
+Also, programs can log to a
+.Xr ktrace 1
+stream using the
+.Xr utrace 2
+system call.
+.Ss Kernel Tracing
+.Xr ktr 4
+is a facility for logging strings in the kernel.
+It comes in handy for some niche purposes during kernel development.
+It lets kernel programmers log events to a global ring buffer,
+which can later be dumped using
+.Xr ktrdump 8 .
+.Ss Hardware-Accelerated Tracing
+.Xr hwt 4
+is a kernel trace framework providing infrastructure
+for hardware-assisted tracing.
+.Ss Hardware Counters
+.Xr pmcstat 8 ,
+and its kernel counterpart,
+.Xr hwpmc 4 ,
+is the
+.Fx
+facility for conducting performance measurements with hardware counters.
+.Ss Boot-Time And Shutdown Tracing
+.Xr boottrace 4
+is a facility for tracing events at boot and shutdown.
+Its target audience are system administrators.
+.Pp
+.Xr tslog 4
+is a developer-oriented tool for tracing boot-time events.
+.Sh HISTORY
+The
+.Nm
+manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
+It first appeared in
+.Fx 15.0 .

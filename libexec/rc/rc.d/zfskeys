@@ -1,0 +1,131 @@
+#!/bin/sh
+
+# PROVIDE: zfskeys
+# REQUIRE: zpool
+# BEFORE: zfs zvol
+
+. /etc/rc.subr
+
+name="zfskeys"
+desc="Load dataset keys"
+rcvar="zfskeys_enable"
+extra_commands="status"
+start_cmd="load_zfs_keys"
+stop_cmd="unload_zfs_keys"
+status_cmd="status_zfs_keys"
+required_modules="zfs"
+
+# Note that zfskeys_datasets must have any character found in IFS escaped.
+# Forcibly unmounting/unloading only applies to filesystems; ignored for zvols.
+: ${zfskeys_datasets:=''}
+: ${zfskeys_timeout:=10}
+: ${zfskeys_unload_force:='NO'}
+
+encode_args()
+{
+    shift && [ $# -gt 0 ] && printf "%s\0" "$@" | b64encode -r -
+}
+
+list_datasets()
+{
+    if [ "$zfskeys_args" ]; then
+        echo "$zfskeys_args" | b64decode -r |
+            xargs -0 zfs get -H -s local -o value,name keylocation
+    elif [ ! "$zfskeys_datasets" ]; then
+        zfs get -H -t filesystem,volume -s local -o value,name keylocation
+    else
+        echo "$zfskeys_datasets" | xargs -n 1 zfs get -H -s local \
+            -o value,name keylocation
+    fi
+}
+
+unlock_fs()
+{
+    local fs="$1"
+    local kl="$2"
+    local k="${kl##file://}"
+
+    if [ "$kl" == "prompt" ]
+    then
+        echo "Key prompt for $fs."
+        if zfs load-key -L "$kl" "$fs" < /dev/tty > /dev/tty 2>/dev/tty ; then
+	    echo "Key loaded for $fs."
+        else
+	    echo "Key failed to load for $fs."
+        fi
+    elif [ "$k" ] && [ -f "$k" ] && [ -s "$k" ] && [ -r "$k" ]; then
+        if [ "$(zfs get -Ho value keystatus "$fs")" = 'available' ]; then
+            echo "Key already loaded for $fs."
+        elif keytest=$(zfs load-key -n -L "$kl" "$fs" 2>&1); then
+            echo "Loading key for $fs from $kl.."
+            if ! keyload=$(timeout $zfskeys_timeout zfs load-key -L "$kl" "$fs" 2>&1) ; then
+                if [ $? -eq 124 ]; then
+                    echo "Timed out loading key from $kl for $fs"
+                else
+                    echo "Failed to load key from $kl for $fs:"
+                    echo "$keyload"
+                fi
+            fi
+        else
+            echo "Could not verify key from $kl for $fs:"
+            echo "$keytest"
+        fi
+    else
+        echo "Key file $k not found, empty or unreadable. Skipping $fs.."
+    fi
+}
+
+lock_fs()
+{
+    local fs=$1
+
+    if [ "$(zfs get -Ho value mounted "$fs")" = 'yes' ]; then
+        if checkyesno zfskeys_unload_force ; then
+            zfs unmount -f "$fs" && echo "Forcibly unmounted $fs."
+        else
+            zfs unmount "$fs" && echo "Unmounted $fs."
+        fi
+    fi
+    if [ "$?" -ne 0 ]; then
+        echo "Unmount failed for $fs"
+    elif [ "$(zfs get -Ho value keystatus "$fs")" = 'available' ]; then
+        zfs unload-key "$fs" && echo "Unloaded key for $fs."
+    else
+        echo "No key loaded for $fs."
+    fi
+}
+
+status_zfs_keys()
+{
+    local IFS=$(printf "\t")
+
+    list_datasets | while read kl fs ; do
+        echo "$fs: $(zfs get -Ho value keystatus "$fs")"
+    done
+}
+
+load_zfs_keys()
+{
+    local IFS=$(printf "\t")
+
+    list_datasets | while read kl fs ; do
+        unlock_fs "$fs" "$kl"
+    done
+}
+
+unload_zfs_keys()
+{
+    local IFS=$(printf "\t")
+
+    list_datasets | while read kl fs ; do
+        lock_fs "$fs"
+    done
+}
+
+zfskeys_args=$(encode_args "$@")
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+zfskeys_svcj="NO"
+
+run_rc_command "$1"

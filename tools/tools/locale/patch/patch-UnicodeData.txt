@@ -1,0 +1,29 @@
+--- UnicodeData.txt.orig	2020-06-29 14:05:49.483379000 +0900
++++ UnicodeData.txt	2020-06-29 14:12:09.808622000 +0900
+@@ -12138,7 +12138,7 @@
+ 33FE;IDEOGRAPHIC TELEGRAPH SYMBOL FOR DAY THIRTY-ONE;So;0;L;<compat> 0033 0031 65E5;;;;N;;;;;
+ 33FF;SQUARE GAL;So;0;ON;<square> 0067 0061 006C;;;;N;;;;;
+ 3400;<CJK Ideograph Extension A, First>;Lo;0;L;;;;;N;;;;;
+-4DBF;<CJK Ideograph Extension A, Last>;Lo;0;L;;;;;N;;;;;
++4DB5;<CJK Ideograph Extension A, Last>;Lo;0;L;;;;;N;;;;;
+ 4DC0;HEXAGRAM FOR THE CREATIVE HEAVEN;So;0;ON;;;;;N;;;;;
+ 4DC1;HEXAGRAM FOR THE RECEPTIVE EARTH;So;0;ON;;;;;N;;;;;
+ 4DC2;HEXAGRAM FOR DIFFICULTY AT THE BEGINNING;So;0;ON;;;;;N;;;;;
+@@ -12204,7 +12204,7 @@
+ 4DFE;HEXAGRAM FOR AFTER COMPLETION;So;0;ON;;;;;N;;;;;
+ 4DFF;HEXAGRAM FOR BEFORE COMPLETION;So;0;ON;;;;;N;;;;;
+ 4E00;<CJK Ideograph, First>;Lo;0;L;;;;;N;;;;;
+-9FFC;<CJK Ideograph, Last>;Lo;0;L;;;;;N;;;;;
++9FEF;<CJK Ideograph, Last>;Lo;0;L;;;;;N;;;;;
+ A000;YI SYLLABLE IT;Lo;0;L;;;;;N;;;;;
+ A001;YI SYLLABLE IX;Lo;0;L;;;;;N;;;;;
+ A002;YI SYLLABLE I;Lo;0;L;;;;;N;;;;;
+@@ -32901,7 +32901,7 @@
+ 1FBF8;SEGMENTED DIGIT EIGHT;Nd;0;EN;<font> 0038;8;8;8;N;;;;;
+ 1FBF9;SEGMENTED DIGIT NINE;Nd;0;EN;<font> 0039;9;9;9;N;;;;;
+ 20000;<CJK Ideograph Extension B, First>;Lo;0;L;;;;;N;;;;;
+-2A6DD;<CJK Ideograph Extension B, Last>;Lo;0;L;;;;;N;;;;;
++2A6D6;<CJK Ideograph Extension B, Last>;Lo;0;L;;;;;N;;;;;
+ 2A700;<CJK Ideograph Extension C, First>;Lo;0;L;;;;;N;;;;;
+ 2B734;<CJK Ideograph Extension C, Last>;Lo;0;L;;;;;N;;;;;
+ 2B740;<CJK Ideograph Extension D, First>;Lo;0;L;;;;;N;;;;;

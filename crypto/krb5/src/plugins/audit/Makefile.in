@@ -1,0 +1,22 @@
+mydir=plugins$(S)audit
+BUILDTOP=$(REL)..$(S)..
+
+STLIBOBJS=kdc_j_encode.o
+LIBOBJS=$(OUTPRE)kdc_j_encode.$(OBJEXT)
+SRCS=kdc_j_encode.c
+
+AUJENC_HDR=$(BUILDTOP)$(S)include$(S)kdc_j_encode.h
+
+all-unix: all-libobjs includes
+
+clean-unix:: clean-libobjs
+	$(RM) $(AUJENC_HDR)
+
+includes: $(AUJENC_HDR)
+depend: $(AUJENC_HDR)
+
+$(AUJENC_HDR): $(srcdir)/kdc_j_encode.h
+	$(RM) $@
+	$(CP) $(srcdir)/kdc_j_encode.h $@
+
+@libobj_frag@

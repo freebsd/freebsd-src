@@ -1,0 +1,465 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Options to configure &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="osconf.hin" href="osconf.html" />
+    <link rel="prev" title="Doing the build" href="doing_build.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="doing_build.html" title="Doing the build"
+            accesskey="P">previous</a> |
+        <a href="osconf.html" title="osconf.hin"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Options to <em>configure</em>">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="options-to-configure">
+<span id="options2configure"></span><h1>Options to <em>configure</em><a class="headerlink" href="#options-to-configure" title="Permalink to this headline">¶</a></h1>
+<p>There are a number of options to configure which you can use to
+control how the Kerberos distribution is built.</p>
+<section id="most-commonly-used-options">
+<h2>Most commonly used options<a class="headerlink" href="#most-commonly-used-options" title="Permalink to this headline">¶</a></h2>
+<dl>
+<dt><strong>-</strong><strong>-help</strong></dt><dd><p>Provides help to configure.  This will list the set of commonly
+used options for building Kerberos.</p>
+</dd>
+<dt><strong>-</strong><strong>-prefix=</strong><em>PREFIX</em></dt><dd><p>By default, Kerberos will install the package’s files rooted at
+<code class="docutils literal notranslate"><span class="pre">/usr/local</span></code>.  If you desire to place the binaries into the
+directory <em>PREFIX</em>, use this option.</p>
+</dd>
+<dt><strong>-</strong><strong>-exec-prefix=</strong><em>EXECPREFIX</em></dt><dd><p>This option allows one to separate the architecture independent
+programs from the host-dependent files (configuration files,
+manual pages).  Use this option to install architecture-dependent
+programs in <em>EXECPREFIX</em>.  The default location is the value of
+specified by <strong>-</strong><strong>-prefix</strong> option.</p>
+</dd>
+<dt><strong>-</strong><strong>-localstatedir=</strong><em>LOCALSTATEDIR</em></dt><dd><p>This option sets the directory for locally modifiable
+single-machine data.  In Kerberos, this mostly is useful for
+setting a location for the KDC data files, as they will be
+installed in <code class="docutils literal notranslate"><span class="pre">LOCALSTATEDIR/krb5kdc</span></code>, which is by default
+<code class="docutils literal notranslate"><span class="pre">PREFIX/var/krb5kdc</span></code>.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-netlib</strong>[=<em>libs</em>]</dt><dd><p>Allows for suppression of or replacement of network libraries.  By
+default, Kerberos V5 configuration will look for <code class="docutils literal notranslate"><span class="pre">-lnsl</span></code> and
+<code class="docutils literal notranslate"><span class="pre">-lsocket</span></code>.  If your operating system has a broken resolver
+library or fails to pass the tests in <code class="docutils literal notranslate"><span class="pre">src/tests/resolv</span></code>, you
+will need to use this option.</p>
+</dd>
+<dt><strong>-</strong><strong>-enable-dns-for-realm</strong></dt><dd><p>Enable the use of DNS to look up a host’s Kerberos realm,
+if the information is not provided in
+<a class="reference internal" href="../admin/conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  See <a class="reference internal" href="../admin/realm_config.html#mapping-hostnames"><span class="std std-ref">Mapping hostnames onto Kerberos realms</span></a>
+for information about using DNS to determine the default realm.
+DNS lookups for realm names are disabled by default.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-system-et</strong></dt><dd><p>Use an installed version of the error-table (et) support software,
+the compile_et program, the com_err.h header file and the com_err
+library.  If these are not in the default locations, you may wish
+to specify <code class="docutils literal notranslate"><span class="pre">CPPFLAGS=-I/some/dir</span></code> and
+<code class="docutils literal notranslate"><span class="pre">LDFLAGS=-L/some/other/dir</span></code> options at configuration time as
+well.</p>
+<p>If this option is not given, a version supplied with the Kerberos
+sources will be built and installed along with the rest of the
+Kerberos tree, for Kerberos applications to link against.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-system-ss</strong></dt><dd><p>Use an installed version of the subsystem command-line interface
+software, the mk_cmds program, the <code class="docutils literal notranslate"><span class="pre">ss/ss.h</span></code> header file and the
+ss library.  If these are not in the default locations, you may
+wish to specify <code class="docutils literal notranslate"><span class="pre">CPPFLAGS=-I/some/dir</span></code> and
+<code class="docutils literal notranslate"><span class="pre">LDFLAGS=-L/some/other/dir</span></code> options at configuration time as
+well.  See also the <strong>SS_LIB</strong> option.</p>
+<p>If this option is not given, the ss library supplied with the
+Kerberos sources will be compiled and linked into those programs
+that need it; it will not be installed separately.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-system-db</strong></dt><dd><p>Use an installed version of the Berkeley DB package, which must
+provide an API compatible with version 1.85.  This option is
+unsupported and untested.  In particular, we do not know if the
+database-rename code used in the dumpfile load operation will
+behave properly.</p>
+<p>If this option is not given, a version supplied with the Kerberos
+sources will be built and installed.  (We are not updating this
+version at this time because of licensing issues with newer
+versions that we haven’t investigated sufficiently yet.)</p>
+</dd>
+</dl>
+</section>
+<section id="environment-variables">
+<h2>Environment variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h2>
+<dl>
+<dt><strong>CC=</strong><em>COMPILER</em></dt><dd><p>Use <em>COMPILER</em> as the C compiler.</p>
+</dd>
+<dt><strong>CFLAGS=</strong><em>FLAGS</em></dt><dd><p>Use <em>FLAGS</em> as the default set of C compiler flags.</p>
+</dd>
+<dt><strong>CPP=</strong><em>CPP</em></dt><dd><p>C preprocessor to use. (e.g., <code class="docutils literal notranslate"><span class="pre">CPP='gcc</span> <span class="pre">-E'</span></code>)</p>
+</dd>
+<dt><strong>CPPFLAGS=</strong><em>CPPOPTS</em></dt><dd><p>Use <em>CPPOPTS</em> as the default set of C preprocessor flags.  The
+most common use of this option is to select certain #define’s for
+use with the operating system’s include files.</p>
+</dd>
+<dt><strong>DB_HEADER=</strong><em>headername</em></dt><dd><p>If db.h is not the correct header file to include to compile
+against the Berkeley DB 1.85 API, specify the correct header file
+name with this option. For example, <code class="docutils literal notranslate"><span class="pre">DB_HEADER=db3/db_185.h</span></code>.</p>
+</dd>
+<dt><strong>DB_LIB=</strong><em>libs</em>…</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">-ldb</span></code> is not the correct library specification for the
+Berkeley DB library version to be used, override it with this
+option. For example, <code class="docutils literal notranslate"><span class="pre">DB_LIB=-ldb-3.3</span></code>.</p>
+</dd>
+<dt><strong>DEFCCNAME=</strong><em>ccachename</em></dt><dd><p>Override the built-in default credential cache name.
+For example, <code class="docutils literal notranslate"><span class="pre">DEFCCNAME=DIR:/var/run/user/%{USERID}/ccache</span></code>
+See <a class="reference internal" href="../admin/conf_files/krb5_conf.html#parameter-expansion"><span class="std std-ref">Parameter expansion</span></a> for information about supported
+parameter expansions.</p>
+</dd>
+<dt><strong>DEFCKTNAME=</strong><em>keytabname</em></dt><dd><p>Override the built-in default client keytab name.
+The format is the same as for <em>DEFCCNAME</em>.</p>
+</dd>
+<dt><strong>DEFKTNAME=</strong><em>keytabname</em></dt><dd><p>Override the built-in default keytab name.
+The format is the same as for <em>DEFCCNAME</em>.</p>
+</dd>
+<dt><strong>LD=</strong><em>LINKER</em></dt><dd><p>Use <em>LINKER</em> as the default loader if it should be different from
+C compiler as specified above.</p>
+</dd>
+<dt><strong>LDFLAGS=</strong><em>LDOPTS</em></dt><dd><p>This option informs the linker where to get additional libraries
+(e.g., <code class="docutils literal notranslate"><span class="pre">-L&lt;lib</span> <span class="pre">dir&gt;</span></code>).</p>
+</dd>
+<dt><strong>LIBS=</strong><em>LDNAME</em></dt><dd><p>This option allows one to specify libraries to be passed to the
+linker (e.g., <code class="docutils literal notranslate"><span class="pre">-l&lt;library&gt;</span></code>)</p>
+</dd>
+<dt><strong>PKCS11_MODNAME=</strong><em>library</em></dt><dd><p>Override the built-in default PKCS11 library name.</p>
+</dd>
+<dt><strong>SS_LIB=</strong><em>libs</em>…</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">-lss</span></code> is not the correct way to link in your installed ss
+library, for example if additional support libraries are needed,
+specify the correct link options here.  Some variants of this
+library are around which allow for Emacs-like line editing, but
+different versions require different support libraries to be
+explicitly specified.</p>
+<p>This option is ignored if <strong>-</strong><strong>-with-system-ss</strong> is not specified.</p>
+</dd>
+<dt><strong>YACC</strong></dt><dd><p>The ‘Yet Another C Compiler’ implementation to use. Defaults to
+the first program found out of: ‘<cite>bison -y</cite>’, ‘<cite>byacc</cite>’,
+‘<cite>yacc</cite>’.</p>
+</dd>
+<dt><strong>YFLAGS</strong></dt><dd><p>The list of arguments that will be passed by default to $YACC.
+This script will default YFLAGS to the empty string to avoid a
+default value of <code class="docutils literal notranslate"><span class="pre">-d</span></code> given by some make applications.</p>
+</dd>
+</dl>
+</section>
+<section id="fine-tuning-of-the-installation-directories">
+<h2>Fine tuning of the installation directories<a class="headerlink" href="#fine-tuning-of-the-installation-directories" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><strong>-</strong><strong>-bindir=</strong><em>DIR</em></dt><dd><p>User executables.  Defaults to <code class="docutils literal notranslate"><span class="pre">EXECPREFIX/bin</span></code>, where
+<em>EXECPREFIX</em> is the path specified by <strong>-</strong><strong>-exec-prefix</strong>
+configuration option.</p>
+</dd>
+<dt><strong>-</strong><strong>-sbindir=</strong><em>DIR</em></dt><dd><p>System admin executables.  Defaults to <code class="docutils literal notranslate"><span class="pre">EXECPREFIX/sbin</span></code>, where
+<em>EXECPREFIX</em> is the path specified by <strong>-</strong><strong>-exec-prefix</strong>
+configuration option.</p>
+</dd>
+<dt><strong>-</strong><strong>-sysconfdir=</strong><em>DIR</em></dt><dd><p>Read-only single-machine data such as krb5.conf.
+Defaults to <code class="docutils literal notranslate"><span class="pre">PREFIX/etc</span></code>, where
+<em>PREFIX</em> is the path specified by <strong>-</strong><strong>-prefix</strong> configuration
+option.</p>
+</dd>
+<dt><strong>-</strong><strong>-libdir=</strong><em>DIR</em></dt><dd><p>Object code libraries.  Defaults to <code class="docutils literal notranslate"><span class="pre">EXECPREFIX/lib</span></code>, where
+<em>EXECPREFIX</em> is the path specified by <strong>-</strong><strong>-exec-prefix</strong>
+configuration option.</p>
+</dd>
+<dt><strong>-</strong><strong>-includedir=</strong><em>DIR</em></dt><dd><p>C header files.  Defaults to <code class="docutils literal notranslate"><span class="pre">PREFIX/include</span></code>, where <em>PREFIX</em> is
+the path specified by <strong>-</strong><strong>-prefix</strong> configuration option.</p>
+</dd>
+<dt><strong>-</strong><strong>-datarootdir=</strong><em>DATAROOTDIR</em></dt><dd><p>Read-only architecture-independent data root.  Defaults to
+<code class="docutils literal notranslate"><span class="pre">PREFIX/share</span></code>, where <em>PREFIX</em> is the path specified by
+<strong>-</strong><strong>-prefix</strong> configuration option.</p>
+</dd>
+<dt><strong>-</strong><strong>-datadir=</strong><em>DIR</em></dt><dd><p>Read-only architecture-independent data.  Defaults to path
+specified by <strong>-</strong><strong>-datarootdir</strong> configuration option.</p>
+</dd>
+<dt><strong>-</strong><strong>-localedir=</strong><em>DIR</em></dt><dd><p>Locale-dependent data.  Defaults to <code class="docutils literal notranslate"><span class="pre">DATAROOTDIR/locale</span></code>, where
+<em>DATAROOTDIR</em> is the path specified by <strong>-</strong><strong>-datarootdir</strong>
+configuration option.</p>
+</dd>
+<dt><strong>-</strong><strong>-mandir=</strong><em>DIR</em></dt><dd><p>Man documentation.  Defaults to <code class="docutils literal notranslate"><span class="pre">DATAROOTDIR/man</span></code>, where
+<em>DATAROOTDIR</em> is the path specified by <strong>-</strong><strong>-datarootdir</strong>
+configuration option.</p>
+</dd>
+</dl>
+</section>
+<section id="program-names">
+<h2>Program names<a class="headerlink" href="#program-names" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><strong>-</strong><strong>-program-prefix=</strong><em>PREFIX</em></dt><dd><p>Prepend <em>PREFIX</em> to the names of the programs when installing
+them. For example, specifying <code class="docutils literal notranslate"><span class="pre">--program-prefix=mit-</span></code> at the
+configure time will cause the program named <code class="docutils literal notranslate"><span class="pre">abc</span></code> to be
+installed as <code class="docutils literal notranslate"><span class="pre">mit-abc</span></code>.</p>
+</dd>
+<dt><strong>-</strong><strong>-program-suffix=</strong><em>SUFFIX</em></dt><dd><p>Append <em>SUFFIX</em> to the names of the programs when installing them.
+For example, specifying <code class="docutils literal notranslate"><span class="pre">--program-suffix=-mit</span></code> at the configure
+time will cause the program named <code class="docutils literal notranslate"><span class="pre">abc</span></code> to be installed as
+<code class="docutils literal notranslate"><span class="pre">abc-mit</span></code>.</p>
+</dd>
+<dt><strong>-</strong><strong>-program-transform-name=</strong><em>PROGRAM</em></dt><dd><p>Run <code class="docutils literal notranslate"><span class="pre">sed</span> <span class="pre">-e</span> <span class="pre">PROGRAM</span></code> on installed program names. (<em>PROGRAM</em> is a
+sed script).</p>
+</dd>
+</dl>
+</section>
+<section id="system-types">
+<h2>System types<a class="headerlink" href="#system-types" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><strong>-</strong><strong>-build=</strong><em>BUILD</em></dt><dd><p>Configure for building on <em>BUILD</em>
+(e.g., <code class="docutils literal notranslate"><span class="pre">--build=x86_64-linux-gnu</span></code>).</p>
+</dd>
+<dt><strong>-</strong><strong>-host=</strong><em>HOST</em></dt><dd><p>Cross-compile to build programs to run on <em>HOST</em>
+(e.g., <code class="docutils literal notranslate"><span class="pre">--host=x86_64-linux-gnu</span></code>).  By default, Kerberos V5
+configuration will look for “build” option.</p>
+</dd>
+</dl>
+</section>
+<section id="optional-features">
+<h2>Optional features<a class="headerlink" href="#optional-features" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><strong>-</strong><strong>-disable-option-checking</strong></dt><dd><p>Ignore unrecognized –enable/–with options.</p>
+</dd>
+<dt><strong>-</strong><strong>-disable-</strong><em>FEATURE</em></dt><dd><p>Do not include <em>FEATURE</em> (same as –enable-FEATURE=no).</p>
+</dd>
+<dt><strong>-</strong><strong>-enable-</strong><em>FEATURE</em>[=<em>ARG</em>]</dt><dd><p>Include <em>FEATURE</em> [ARG=yes].</p>
+</dd>
+<dt><strong>-</strong><strong>-enable-maintainer-mode</strong></dt><dd><p>Enable rebuilding of source files, Makefiles, etc.</p>
+</dd>
+<dt><strong>-</strong><strong>-disable-delayed-initialization</strong></dt><dd><p>Initialize library code when loaded.  Defaults to delay until
+first use.</p>
+</dd>
+<dt><strong>-</strong><strong>-disable-thread-support</strong></dt><dd><p>Don’t enable thread support.  Defaults to enabled.</p>
+</dd>
+<dt><strong>-</strong><strong>-disable-rpath</strong></dt><dd><p>Suppress run path flags in link lines.</p>
+</dd>
+<dt><strong>-</strong><strong>-enable-athena</strong></dt><dd><p>Build with MIT Project Athena configuration.</p>
+</dd>
+<dt><strong>-</strong><strong>-disable-kdc-lookaside-cache</strong></dt><dd><p>Disable the cache which detects client retransmits.</p>
+</dd>
+<dt><strong>-</strong><strong>-disable-pkinit</strong></dt><dd><p>Disable PKINIT plugin support.</p>
+</dd>
+<dt><strong>-</strong><strong>-disable-aesni</strong></dt><dd><p>Disable support for using AES instructions on x86 platforms.</p>
+</dd>
+<dt><strong>-</strong><strong>-enable-asan</strong>[=<em>ARG</em>]</dt><dd><p>Enable building with asan memory error checking.  If <em>ARG</em> is
+given, it controls the -fsanitize compilation flag value (the
+default is “address”).</p>
+</dd>
+</dl>
+</section>
+<section id="optional-packages">
+<h2>Optional packages<a class="headerlink" href="#optional-packages" title="Permalink to this headline">¶</a></h2>
+<dl>
+<dt><strong>-</strong><strong>-with-</strong><em>PACKAGE</em>[=ARG]</dt><dd><p>Use <em>PACKAGE</em> (e.g., <code class="docutils literal notranslate"><span class="pre">--with-imap</span></code>).  The default value of <em>ARG</em>
+is <code class="docutils literal notranslate"><span class="pre">yes</span></code>.</p>
+</dd>
+<dt><strong>-</strong><strong>-without-</strong><em>PACKAGE</em></dt><dd><p>Do not use <em>PACKAGE</em> (same as <code class="docutils literal notranslate"><span class="pre">--with-PACKAGE=no</span></code>)
+(e.g., <code class="docutils literal notranslate"><span class="pre">--without-libedit</span></code>).</p>
+</dd>
+<dt><strong>-</strong><strong>-with-size-optimizations</strong></dt><dd><p>Enable a few optimizations to reduce code size possibly at some
+run-time cost.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-system-et</strong></dt><dd><p>Use the com_err library and compile_et utility that are already
+installed on the system, instead of building and installing
+local versions.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-system-ss</strong></dt><dd><p>Use the ss library and mk_cmds utility that are already installed
+on the system, instead of building and using private versions.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-system-db</strong></dt><dd><p>Use the berkeley db utility already installed on the system,
+instead of using a private version.  This option is not
+recommended; enabling it may result in incompatibility with key
+databases originating on other systems.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-netlib=</strong><em>LIBS</em></dt><dd><p>Use the resolver library specified in <em>LIBS</em>.  Use this variable
+if the C library resolver is insufficient or broken.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-hesiod=</strong><em>path</em></dt><dd><p>Compile with Hesiod support.  The <em>path</em> points to the Hesiod
+directory.  By default Hesiod is unsupported.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-ldap</strong></dt><dd><p>Compile OpenLDAP database backend module.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-lmdb</strong></dt><dd><p>Compile LMDB database backend module.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-vague-errors</strong></dt><dd><p>Do not send helpful errors to client.  For example, if the KDC
+should return only vague error codes to clients.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-crypto-impl=</strong><em>IMPL</em></dt><dd><p>Use specified crypto implementation (e.g., <strong>-</strong><strong>-with-crypto-impl=</strong><em>openssl</em>).  The default is the native MIT
+Kerberos implementation <code class="docutils literal notranslate"><span class="pre">builtin</span></code>.  The other currently
+implemented crypto backend is <code class="docutils literal notranslate"><span class="pre">openssl</span></code>.  (See
+<a class="reference internal" href="../mitK5features.html#mitk5features"><span class="std std-ref">MIT Kerberos features</span></a>)</p>
+</dd>
+<dt><strong>-</strong><strong>-without-libedit</strong></dt><dd><p>Do not compile and link against libedit.  Some utilities will no
+longer offer command history or completion in interactive mode if
+libedit is disabled.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-readline</strong></dt><dd><p>Compile and link against GNU readline, as an alternative to libedit.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-system-verto</strong></dt><dd><p>Use an installed version of libverto.  If the libverto header and
+library are not in default locations, you may wish to specify
+<code class="docutils literal notranslate"><span class="pre">CPPFLAGS=-I/some/dir</span></code> and <code class="docutils literal notranslate"><span class="pre">LDFLAGS=-L/some/other/dir</span></code> options
+at configuration time as well.</p>
+<p>If this option is not given, the build system will try to detect
+an installed version of libverto and use it if it is found.
+Otherwise, a version supplied with the Kerberos sources will be
+built and installed.  The built-in version does not contain the
+full set of back-end modules and is not a suitable general
+replacement for the upstream version, but will work for the
+purposes of Kerberos.</p>
+<p>Specifying <strong>-</strong><strong>-without-system-verto</strong> will cause the built-in
+version of libverto to be used unconditionally.</p>
+</dd>
+<dt><strong>-</strong><strong>-with-krb5-config=</strong><em>PATH</em></dt><dd><p>Use the krb5-config program at <em>PATH</em> to obtain the build-time
+default credential cache, keytab, and client keytab names.  The
+default is to use <code class="docutils literal notranslate"><span class="pre">krb5-config</span></code> from the program path.  Specify
+<code class="docutils literal notranslate"><span class="pre">--without-krb5-config</span></code> to disable the use of krb5-config and
+use the usual built-in defaults.</p>
+</dd>
+<dt><strong>-</strong><strong>-without-keyutils</strong></dt><dd><p>Build without libkeyutils support.  This disables the KEYRING
+credential cache type.</p>
+</dd>
+</dl>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>For example, in order to configure Kerberos on a Solaris machine using
+the suncc compiler with the optimizer turned on, run the configure
+script with the following options:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="o">./</span><span class="n">configure</span> <span class="n">CC</span><span class="o">=</span><span class="n">suncc</span> <span class="n">CFLAGS</span><span class="o">=-</span><span class="n">O</span>
+</pre></div>
+</div>
+<p>For a slightly more complicated example, consider a system where
+several packages to be used by Kerberos are installed in
+<code class="docutils literal notranslate"><span class="pre">/usr/foobar</span></code>, including Berkeley DB 3.3, and an ss library that
+needs to link against the curses library.  The configuration of
+Kerberos might be done thus:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">configure</span> <span class="n">CPPFLAGS</span><span class="o">=-</span><span class="n">I</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">foobar</span><span class="o">/</span><span class="n">include</span> <span class="n">LDFLAGS</span><span class="o">=-</span><span class="n">L</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">foobar</span><span class="o">/</span><span class="n">lib</span> \
+<span class="o">--</span><span class="k">with</span><span class="o">-</span><span class="n">system</span><span class="o">-</span><span class="n">et</span> <span class="o">--</span><span class="k">with</span><span class="o">-</span><span class="n">system</span><span class="o">-</span><span class="n">ss</span> <span class="o">--</span><span class="k">with</span><span class="o">-</span><span class="n">system</span><span class="o">-</span><span class="n">db</span>  \
+<span class="n">SS_LIB</span><span class="o">=</span><span class="s1">&#39;-lss -lcurses&#39;</span>  <span class="n">DB_HEADER</span><span class="o">=</span><span class="n">db3</span><span class="o">/</span><span class="n">db_185</span><span class="o">.</span><span class="n">h</span> <span class="n">DB_LIB</span><span class="o">=-</span><span class="n">ldb</span><span class="o">-</span><span class="mf">3.3</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Options to <em>configure</em></a><ul>
+<li><a class="reference internal" href="#most-commonly-used-options">Most commonly used options</a></li>
+<li><a class="reference internal" href="#environment-variables">Environment variables</a></li>
+<li><a class="reference internal" href="#fine-tuning-of-the-installation-directories">Fine tuning of the installation directories</a></li>
+<li><a class="reference internal" href="#program-names">Program names</a></li>
+<li><a class="reference internal" href="#system-types">System types</a></li>
+<li><a class="reference internal" href="#optional-features">Optional features</a></li>
+<li><a class="reference internal" href="#optional-packages">Optional packages</a></li>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Building Kerberos V5</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="directory_org.html">Organization of the source directory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="doing_build.html">Doing the build</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Options to <em>configure</em></a></li>
+<li class="toctree-l2"><a class="reference internal" href="osconf.html">osconf.hin</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="doing_build.html" title="Doing the build"
+            >previous</a> |
+        <a href="osconf.html" title="osconf.hin"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Options to <em>configure</em>">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

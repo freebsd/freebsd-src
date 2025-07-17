@@ -1,0 +1,226 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_bkgd.3x,v 1.61 2024/04/20 18:54:36 tom Exp $
+.TH curs_bkgd 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%bkgdset\fP,
+\fB\%wbkgdset\fP,
+\fB\%bkgd\fP,
+\fB\%wbkgd\fP,
+\fB\%getbkgd\fP \-
+manipulate background of a \fIcurses\fR window of characters
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint bkgd(chtype \fIch\fP);
+\fBint wbkgd(WINDOW *\fIwin\fP, chtype \fIch\fP);
+.PP
+\fBvoid bkgdset(chtype \fIch\fP);
+\fBvoid wbkgdset(WINDOW *\fIwin\fP, chtype \fIch\fP);
+.PP
+\fBchtype getbkgd(WINDOW *\fIwin\fP);
+.fi
+.SH DESCRIPTION
+The
+.I background
+of a
+.I curses
+window
+(in the library's non-\*(``wide\*('' configuration)
+is a
+.I \%chtype
+combining a set of attributes
+(see \fB\%curs_attr\fP(3X))
+with a character called the
+.I "blank character."
+.PP
+The blank character is a spacing character that populates a window's
+character cells when their contents are erased without replacement.
+The background's attributes are combined with all non-blank characters
+written to the window,
+as with the \fB\%waddch\fP(3X) and \fB\%winsch\fP(3X) families of
+functions.
+.PP
+The blank character and attributes of the background combine with
+characters written to the window as described below.
+The background becomes a property of the character and moves with it
+through any scrolling and insert/delete line/character operations.
+.PP
+To the extent possible on a given terminal,
+the attribute part of the background is displayed as the graphic
+rendition of the character put on the screen.
+.SS "bkgd, wbkgd"
+\fB\%bkgd\fP and \fB\%wbkgd\fP set the background property of
+\fB\%stdscr\fP or the specified window and then apply this setting to
+every character cell in that window.
+.bP
+The rendition of every character in the window changes to the new
+background rendition.
+.bP
+Wherever the former background character appears,
+it changes to the new background character.
+.PP
+.I \%ncurses
+updates the rendition of each character cell by comparing the character,
+non-color attributes,
+and colors.
+The library applies to following procedure to each cell in the window,
+whether or not it is blank.
+.bP
+.I \%ncurses
+first compares the cell's character to the previously specified blank
+character;
+if they match,
+.I \%ncurses
+writes the new blank character to the cell.
+.bP
+.I \%ncurses
+then checks if the cell uses color,
+that is,
+its color pair value is nonzero.
+If not,
+it simply replaces the attributes and color pair in the cell with those
+from the new background character.
+.bP
+If the cell uses color,
+and its background color matches that of the current window background,
+.I \%ncurses
+removes attributes that may have come from the current background and
+adds those from the new background.
+It finishes by setting the cell's background to use the new window
+background color.
+.bP
+If the cell uses color,
+and its background color does not match that of the current window
+background,
+.I \%ncurses
+updates only the non-color attributes,
+first removing those that may have come from the current background,
+and then adding attributes from the new background.
+.PP
+.I \%ncurses
+treats a background character value of zero (0) as a blank character.
+.PP
+If the terminal does not support color,
+or if color has not been initialized with \fB\%start_color\fP(3X),
+.I \%ncurses
+ignores the new background character's color attribute.
+.SS "bkgdset, wbkgdset"
+\fB\%bkgdset\fP and \fB\%wbkgdset\fP manipulate the background of
+the applicable window,
+without updating the character cells as \fB\%bkgd\fP and
+\fB\%wbkgd\fP do;
+only future writes reflect the updated background.
+.SS getbkgd
+\fB\%getbkgd\fP obtains the given window's background character and
+attribute combination.
+.SH RETURN VALUE
+Functions returning an \fIint\fP return \fBOK\fP on success.
+\fB\%bkgd\fP returns \fBERR\fP if the library has not been initialized.
+\fB\%wbkgd\fP and \fB\%getbkgd\fP return \fBERR\fP if a \fI\%WINDOW\fP
+pointer argument is null.
+.PP
+\fB\%bkgdset\fP and \fBwbkgdset\fP do not return a value.
+.PP
+\fB\%getbkgd\fP returns a window's background character and attribute
+combination.
+.SH NOTES
+Unusually,
+there is no \fB\%wgetbkgd\fP function;
+\fB\%getbkgd\fP behaves as one would expect \fB\%wgetbkgd\fP to,
+accepting a \fI\%WINDOW\fP pointer argument.
+.PP
+\fB\%bkgd\fP and
+\fB\%bkgdset\fP
+may be implemented as macros.
+.PP
+X/Open Curses mentions that the character part of the background must
+be a single-byte value.
+\fI\%ncurses\fP,
+like SVr4 \fIcurses\fP,
+checks to ensure that,
+and will reuse the old background character if the check fails.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+It specifies that
+\fB\%bkgd\fP,
+\fB\%wbkgd\fP,
+and
+\fB\%getbkgd\fP
+return \fBERR\fP on failure
+(in the case of the last,
+this value is cast to
+.IR \%chtype ),
+but describes no failure conditions.
+.PP
+The SVr4.0 manual says that \fB\%bkgd\fP and \fB\%wbkgd\fP may return
+\fBOK\fP
+\*(``or a non-negative integer if \fB\%immedok\fP is set\*('',
+which refers to the return value from \fB\%wrefresh\fP(3X),
+used to implement the immediate repainting.
+SVr4 \fIcurses\fP's \fB\%wrefresh\fP returns the number of characters
+written to the screen during the refresh.
+\fI\%ncurses\fP does not do that.
+.PP
+Neither X/Open Curses nor the SVr4 manual pages detail how the rendition
+of characters on the screen updates when \fB\%bkgd\fP or \fB\%wbkgd\fP
+changes the background character.
+.IR \%ncurses ,
+like SVr4
+.IR curses ,
+does not
+(in its non-\*(``wide\*('' configuration)
+store the background and window attribute contributions to each
+character cell separately.
+.SH SEE ALSO
+\fB\%curs_bkgrnd\fP(3X) describes the corresponding functions in the
+\*(``wide\*('' configuration of
+.IR \%ncurses .
+.PP
+\fB\%curses\fP(3X),
+\fB\%curs_addch\fP(3X),
+\fB\%curs_attr\fP(3X)

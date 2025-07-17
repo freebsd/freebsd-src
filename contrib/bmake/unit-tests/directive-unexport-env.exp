@@ -1,0 +1,18 @@
+make: directive-unexport-env.mk:14: Unknown directive "unexport-en"
+make: directive-unexport-env.mk:17: Unknown directive "unexport-environment"
+Global: UT_EXPORTED = value
+Global: UT_UNEXPORTED = value
+Global: .MAKE.EXPORTED = UT_EXPORTED
+make: directive-unexport-env.mk:24: The directive .unexport-env does not take arguments
+Var_Parse: ${.MAKE.EXPORTED:O:u} (eval)
+Evaluating modifier ${.MAKE.EXPORTED:O} on value "UT_EXPORTED"
+Result of ${.MAKE.EXPORTED:O} is "UT_EXPORTED"
+Evaluating modifier ${.MAKE.EXPORTED:u} on value "UT_EXPORTED"
+Result of ${.MAKE.EXPORTED:u} is "UT_EXPORTED"
+Unexporting "UT_EXPORTED"
+Global: delete .MAKE.EXPORTED
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+make: Fatal errors encountered -- cannot continue
+make: stopped making "all" in unit-tests
+exit status 1

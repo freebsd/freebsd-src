@@ -1,0 +1,7 @@
+The test produces a diff, which is successful if it is able to reconstruct the
+original source files from it. It is not tested whether diff output is optimal
+or beautiful.
+
+Since different diff algorithms can produce different diff outputs, the
+expect*.diff files are merely provided for reference and are not part of the
+tests.

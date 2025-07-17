@@ -1,0 +1,538 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>krb5 simple macros &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../../copyright.html" />
+    <link rel="next" title="ADDRTYPE_ADDRPORT" href="ADDRTYPE_ADDRPORT.html" />
+    <link rel="prev" title="krb5_tkt_creds_context" href="../types/krb5_tkt_creds_context.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="../types/krb5_tkt_creds_context.html" title="krb5_tkt_creds_context"
+            accesskey="P">previous</a> |
+        <a href="ADDRTYPE_ADDRPORT.html" title="ADDRTYPE_ADDRPORT"
+            accesskey="N">next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5 simple macros">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="krb5-simple-macros">
+<h1>krb5 simple macros<a class="headerlink" href="#krb5-simple-macros" title="Permalink to this headline">¶</a></h1>
+<section id="public">
+<h2>Public<a class="headerlink" href="#public" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_ADDRPORT.html">ADDRTYPE_ADDRPORT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_CHAOS.html">ADDRTYPE_CHAOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_DDP.html">ADDRTYPE_DDP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_INET.html">ADDRTYPE_INET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_INET6.html">ADDRTYPE_INET6</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_IPPORT.html">ADDRTYPE_IPPORT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_ISO.html">ADDRTYPE_ISO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_IS_LOCAL.html">ADDRTYPE_IS_LOCAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_NETBIOS.html">ADDRTYPE_NETBIOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_XNS.html">ADDRTYPE_XNS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AD_TYPE_EXTERNAL.html">AD_TYPE_EXTERNAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AD_TYPE_FIELD_TYPE_MASK.html">AD_TYPE_FIELD_TYPE_MASK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AD_TYPE_REGISTERED.html">AD_TYPE_REGISTERED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AD_TYPE_RESERVED.html">AD_TYPE_RESERVED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AP_OPTS_ETYPE_NEGOTIATION.html">AP_OPTS_ETYPE_NEGOTIATION</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AP_OPTS_MUTUAL_REQUIRED.html">AP_OPTS_MUTUAL_REQUIRED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AP_OPTS_RESERVED.html">AP_OPTS_RESERVED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AP_OPTS_USE_SESSION_KEY.html">AP_OPTS_USE_SESSION_KEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AP_OPTS_USE_SUBKEY.html">AP_OPTS_USE_SUBKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AP_OPTS_WIRE_MASK.html">AP_OPTS_WIRE_MASK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_CMAC_CAMELLIA128.html">CKSUMTYPE_CMAC_CAMELLIA128</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_CMAC_CAMELLIA256.html">CKSUMTYPE_CMAC_CAMELLIA256</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_CRC32.html">CKSUMTYPE_CRC32</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_DESCBC.html">CKSUMTYPE_DESCBC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_HMAC_MD5_ARCFOUR.html">CKSUMTYPE_HMAC_MD5_ARCFOUR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_HMAC_SHA1_96_AES128.html">CKSUMTYPE_HMAC_SHA1_96_AES128</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_HMAC_SHA1_96_AES256.html">CKSUMTYPE_HMAC_SHA1_96_AES256</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_HMAC_SHA256_128_AES128.html">CKSUMTYPE_HMAC_SHA256_128_AES128</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_HMAC_SHA384_192_AES256.html">CKSUMTYPE_HMAC_SHA384_192_AES256</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_HMAC_SHA1_DES3.html">CKSUMTYPE_HMAC_SHA1_DES3</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_MD5_HMAC_ARCFOUR.html">CKSUMTYPE_MD5_HMAC_ARCFOUR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_NIST_SHA.html">CKSUMTYPE_NIST_SHA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_RSA_MD4.html">CKSUMTYPE_RSA_MD4</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_RSA_MD4_DES.html">CKSUMTYPE_RSA_MD4_DES</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_RSA_MD5.html">CKSUMTYPE_RSA_MD5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_RSA_MD5_DES.html">CKSUMTYPE_RSA_MD5_DES</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CKSUMTYPE_SHA1.html">CKSUMTYPE_SHA1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_AES128_CTS_HMAC_SHA1_96.html">ENCTYPE_AES128_CTS_HMAC_SHA1_96</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_AES128_CTS_HMAC_SHA256_128.html">ENCTYPE_AES128_CTS_HMAC_SHA256_128</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_AES256_CTS_HMAC_SHA1_96.html">ENCTYPE_AES256_CTS_HMAC_SHA1_96</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_AES256_CTS_HMAC_SHA384_192.html">ENCTYPE_AES256_CTS_HMAC_SHA384_192</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_ARCFOUR_HMAC.html">ENCTYPE_ARCFOUR_HMAC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_ARCFOUR_HMAC_EXP.html">ENCTYPE_ARCFOUR_HMAC_EXP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_CAMELLIA128_CTS_CMAC.html">ENCTYPE_CAMELLIA128_CTS_CMAC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_CAMELLIA256_CTS_CMAC.html">ENCTYPE_CAMELLIA256_CTS_CMAC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES3_CBC_ENV.html">ENCTYPE_DES3_CBC_ENV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES3_CBC_RAW.html">ENCTYPE_DES3_CBC_RAW</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES3_CBC_SHA.html">ENCTYPE_DES3_CBC_SHA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES3_CBC_SHA1.html">ENCTYPE_DES3_CBC_SHA1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES_CBC_CRC.html">ENCTYPE_DES_CBC_CRC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES_CBC_MD4.html">ENCTYPE_DES_CBC_MD4</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES_CBC_MD5.html">ENCTYPE_DES_CBC_MD5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES_CBC_RAW.html">ENCTYPE_DES_CBC_RAW</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DES_HMAC_SHA1.html">ENCTYPE_DES_HMAC_SHA1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_DSA_SHA1_CMS.html">ENCTYPE_DSA_SHA1_CMS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_MD5_RSA_CMS.html">ENCTYPE_MD5_RSA_CMS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_NULL.html">ENCTYPE_NULL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_RC2_CBC_ENV.html">ENCTYPE_RC2_CBC_ENV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_RSA_ENV.html">ENCTYPE_RSA_ENV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_RSA_ES_OAEP_ENV.html">ENCTYPE_RSA_ES_OAEP_ENV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_SHA1_RSA_CMS.html">ENCTYPE_SHA1_RSA_CMS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ENCTYPE_UNKNOWN.html">ENCTYPE_UNKNOWN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_ALLOW_POSTDATE.html">KDC_OPT_ALLOW_POSTDATE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_CANONICALIZE.html">KDC_OPT_CANONICALIZE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_CNAME_IN_ADDL_TKT.html">KDC_OPT_CNAME_IN_ADDL_TKT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_DISABLE_TRANSITED_CHECK.html">KDC_OPT_DISABLE_TRANSITED_CHECK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_ENC_TKT_IN_SKEY.html">KDC_OPT_ENC_TKT_IN_SKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_FORWARDABLE.html">KDC_OPT_FORWARDABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_FORWARDED.html">KDC_OPT_FORWARDED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_POSTDATED.html">KDC_OPT_POSTDATED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_PROXIABLE.html">KDC_OPT_PROXIABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_PROXY.html">KDC_OPT_PROXY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_RENEW.html">KDC_OPT_RENEW</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_RENEWABLE.html">KDC_OPT_RENEWABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_RENEWABLE_OK.html">KDC_OPT_RENEWABLE_OK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_REQUEST_ANONYMOUS.html">KDC_OPT_REQUEST_ANONYMOUS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_OPT_VALIDATE.html">KDC_OPT_VALIDATE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KDC_TKT_COMMON_MASK.html">KDC_TKT_COMMON_MASK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_ALTAUTH_ATT_CHALLENGE_RESPONSE.html">KRB5_ALTAUTH_ATT_CHALLENGE_RESPONSE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_ANONYMOUS_PRINCSTR.html">KRB5_ANONYMOUS_PRINCSTR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_ANONYMOUS_REALMSTR.html">KRB5_ANONYMOUS_REALMSTR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AP_REP.html">KRB5_AP_REP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AP_REQ.html">KRB5_AP_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AS_REP.html">KRB5_AS_REP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AS_REQ.html">KRB5_AS_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_AND_OR.html">KRB5_AUTHDATA_AND_OR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_AP_OPTIONS.html">KRB5_AUTHDATA_AP_OPTIONS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_AUTH_INDICATOR.html">KRB5_AUTHDATA_AUTH_INDICATOR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_CAMMAC.html">KRB5_AUTHDATA_CAMMAC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_ETYPE_NEGOTIATION.html">KRB5_AUTHDATA_ETYPE_NEGOTIATION</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_FX_ARMOR.html">KRB5_AUTHDATA_FX_ARMOR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_IF_RELEVANT.html">KRB5_AUTHDATA_IF_RELEVANT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_INITIAL_VERIFIED_CAS.html">KRB5_AUTHDATA_INITIAL_VERIFIED_CAS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_KDC_ISSUED.html">KRB5_AUTHDATA_KDC_ISSUED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_MANDATORY_FOR_KDC.html">KRB5_AUTHDATA_MANDATORY_FOR_KDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_OSF_DCE.html">KRB5_AUTHDATA_OSF_DCE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_SESAME.html">KRB5_AUTHDATA_SESAME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_SIGNTICKET.html">KRB5_AUTHDATA_SIGNTICKET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTHDATA_WIN2K_PAC.html">KRB5_AUTHDATA_WIN2K_PAC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_DO_SEQUENCE.html">KRB5_AUTH_CONTEXT_DO_SEQUENCE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_DO_TIME.html">KRB5_AUTH_CONTEXT_DO_TIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR.html">KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR.html">KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR.html">KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR.html">KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_PERMIT_ALL.html">KRB5_AUTH_CONTEXT_PERMIT_ALL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_RET_SEQUENCE.html">KRB5_AUTH_CONTEXT_RET_SEQUENCE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_RET_TIME.html">KRB5_AUTH_CONTEXT_RET_TIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_AUTH_CONTEXT_USE_SUBKEY.html">KRB5_AUTH_CONTEXT_USE_SUBKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRED.html">KRB5_CRED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_CHECKSUM.html">KRB5_CRYPTO_TYPE_CHECKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_DATA.html">KRB5_CRYPTO_TYPE_DATA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_EMPTY.html">KRB5_CRYPTO_TYPE_EMPTY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_HEADER.html">KRB5_CRYPTO_TYPE_HEADER</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_PADDING.html">KRB5_CRYPTO_TYPE_PADDING</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_SIGN_ONLY.html">KRB5_CRYPTO_TYPE_SIGN_ONLY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_STREAM.html">KRB5_CRYPTO_TYPE_STREAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CRYPTO_TYPE_TRAILER.html">KRB5_CRYPTO_TYPE_TRAILER</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_CYBERSAFE_SECUREID.html">KRB5_CYBERSAFE_SECUREID</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_DOMAIN_X500_COMPRESS.html">KRB5_DOMAIN_X500_COMPRESS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_ENCPADATA_REQ_ENC_PA_REP.html">KRB5_ENCPADATA_REQ_ENC_PA_REP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_ERROR.html">KRB5_ERROR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_FAST_REQUIRED.html">KRB5_FAST_REQUIRED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GC_CACHED.html">KRB5_GC_CACHED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GC_CANONICALIZE.html">KRB5_GC_CANONICALIZE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GC_CONSTRAINED_DELEGATION.html">KRB5_GC_CONSTRAINED_DELEGATION</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GC_FORWARDABLE.html">KRB5_GC_FORWARDABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GC_NO_STORE.html">KRB5_GC_NO_STORE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GC_NO_TRANSIT_CHECK.html">KRB5_GC_NO_TRANSIT_CHECK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GC_USER_USER.html">KRB5_GC_USER_USER</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_ADDRESS_LIST.html">KRB5_GET_INIT_CREDS_OPT_ADDRESS_LIST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_ANONYMOUS.html">KRB5_GET_INIT_CREDS_OPT_ANONYMOUS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_CANONICALIZE.html">KRB5_GET_INIT_CREDS_OPT_CANONICALIZE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_CHG_PWD_PRMPT.html">KRB5_GET_INIT_CREDS_OPT_CHG_PWD_PRMPT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_ETYPE_LIST.html">KRB5_GET_INIT_CREDS_OPT_ETYPE_LIST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_FORWARDABLE.html">KRB5_GET_INIT_CREDS_OPT_FORWARDABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST.html">KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_PROXIABLE.html">KRB5_GET_INIT_CREDS_OPT_PROXIABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE.html">KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_SALT.html">KRB5_GET_INIT_CREDS_OPT_SALT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_GET_INIT_CREDS_OPT_TKT_LIFE.html">KRB5_GET_INIT_CREDS_OPT_TKT_LIFE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_INIT_CONTEXT_SECURE.html">KRB5_INIT_CONTEXT_SECURE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_INIT_CONTEXT_KDC.html">KRB5_INIT_CONTEXT_KDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_INIT_CREDS_STEP_FLAG_CONTINUE.html">KRB5_INIT_CREDS_STEP_FLAG_CONTINUE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_INT16_MAX.html">KRB5_INT16_MAX</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_INT16_MIN.html">KRB5_INT16_MIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_INT32_MAX.html">KRB5_INT32_MAX</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_INT32_MIN.html">KRB5_INT32_MIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AD_ITE.html">KRB5_KEYUSAGE_AD_ITE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AD_KDCISSUED_CKSUM.html">KRB5_KEYUSAGE_AD_KDCISSUED_CKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AD_MTE.html">KRB5_KEYUSAGE_AD_MTE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AD_SIGNEDPATH.html">KRB5_KEYUSAGE_AD_SIGNEDPATH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_APP_DATA_CKSUM.html">KRB5_KEYUSAGE_APP_DATA_CKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_APP_DATA_ENCRYPT.html">KRB5_KEYUSAGE_APP_DATA_ENCRYPT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AP_REP_ENCPART.html">KRB5_KEYUSAGE_AP_REP_ENCPART</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AP_REQ_AUTH.html">KRB5_KEYUSAGE_AP_REQ_AUTH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AP_REQ_AUTH_CKSUM.html">KRB5_KEYUSAGE_AP_REQ_AUTH_CKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AS_REP_ENCPART.html">KRB5_KEYUSAGE_AS_REP_ENCPART</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AS_REQ.html">KRB5_KEYUSAGE_AS_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_AS_REQ_PA_ENC_TS.html">KRB5_KEYUSAGE_AS_REQ_PA_ENC_TS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_CAMMAC.html">KRB5_KEYUSAGE_CAMMAC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_ENC_CHALLENGE_CLIENT.html">KRB5_KEYUSAGE_ENC_CHALLENGE_CLIENT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_ENC_CHALLENGE_KDC.html">KRB5_KEYUSAGE_ENC_CHALLENGE_KDC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_FAST_ENC.html">KRB5_KEYUSAGE_FAST_ENC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_FAST_FINISHED.html">KRB5_KEYUSAGE_FAST_FINISHED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_FAST_REP.html">KRB5_KEYUSAGE_FAST_REP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_FAST_REQ_CHKSUM.html">KRB5_KEYUSAGE_FAST_REQ_CHKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_GSS_TOK_MIC.html">KRB5_KEYUSAGE_GSS_TOK_MIC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG.html">KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_GSS_TOK_WRAP_PRIV.html">KRB5_KEYUSAGE_GSS_TOK_WRAP_PRIV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_IAKERB_FINISHED.html">KRB5_KEYUSAGE_IAKERB_FINISHED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_KDC_REP_TICKET.html">KRB5_KEYUSAGE_KDC_REP_TICKET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_KRB_CRED_ENCPART.html">KRB5_KEYUSAGE_KRB_CRED_ENCPART</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_KRB_ERROR_CKSUM.html">KRB5_KEYUSAGE_KRB_ERROR_CKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_KRB_PRIV_ENCPART.html">KRB5_KEYUSAGE_KRB_PRIV_ENCPART</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_KRB_SAFE_CKSUM.html">KRB5_KEYUSAGE_KRB_SAFE_CKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_AS_FRESHNESS.html">KRB5_KEYUSAGE_PA_AS_FRESHNESS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_FX_COOKIE.html">KRB5_KEYUSAGE_PA_FX_COOKIE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_OTP_REQUEST.html">KRB5_KEYUSAGE_PA_OTP_REQUEST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_PKINIT_KX.html">KRB5_KEYUSAGE_PA_PKINIT_KX</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_S4U_X509_USER_REPLY.html">KRB5_KEYUSAGE_PA_S4U_X509_USER_REPLY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_S4U_X509_USER_REQUEST.html">KRB5_KEYUSAGE_PA_S4U_X509_USER_REQUEST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_SAM_CHALLENGE_CKSUM.html">KRB5_KEYUSAGE_PA_SAM_CHALLENGE_CKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID.html">KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_PA_SAM_RESPONSE.html">KRB5_KEYUSAGE_PA_SAM_RESPONSE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_SPAKE.html">KRB5_KEYUSAGE_SPAKE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_TGS_REP_ENCPART_SESSKEY.html">KRB5_KEYUSAGE_TGS_REP_ENCPART_SESSKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_TGS_REP_ENCPART_SUBKEY.html">KRB5_KEYUSAGE_TGS_REP_ENCPART_SUBKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_TGS_REQ_AD_SESSKEY.html">KRB5_KEYUSAGE_TGS_REQ_AD_SESSKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_TGS_REQ_AD_SUBKEY.html">KRB5_KEYUSAGE_TGS_REQ_AD_SUBKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_TGS_REQ_AUTH.html">KRB5_KEYUSAGE_TGS_REQ_AUTH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_TGS_REQ_AUTH_CKSUM.html">KRB5_KEYUSAGE_TGS_REQ_AUTH_CKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_ACCESSDENIED.html">KRB5_KPASSWD_ACCESSDENIED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_AUTHERROR.html">KRB5_KPASSWD_AUTHERROR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_BAD_VERSION.html">KRB5_KPASSWD_BAD_VERSION</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_HARDERROR.html">KRB5_KPASSWD_HARDERROR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_INITIAL_FLAG_NEEDED.html">KRB5_KPASSWD_INITIAL_FLAG_NEEDED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_MALFORMED.html">KRB5_KPASSWD_MALFORMED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_SOFTERROR.html">KRB5_KPASSWD_SOFTERROR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KPASSWD_SUCCESS.html">KRB5_KPASSWD_SUCCESS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ALL_ACCT_EXPTIME.html">KRB5_LRQ_ALL_ACCT_EXPTIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ALL_LAST_INITIAL.html">KRB5_LRQ_ALL_LAST_INITIAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ALL_LAST_RENEWAL.html">KRB5_LRQ_ALL_LAST_RENEWAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ALL_LAST_REQ.html">KRB5_LRQ_ALL_LAST_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ALL_LAST_TGT.html">KRB5_LRQ_ALL_LAST_TGT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ALL_LAST_TGT_ISSUED.html">KRB5_LRQ_ALL_LAST_TGT_ISSUED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ALL_PW_EXPTIME.html">KRB5_LRQ_ALL_PW_EXPTIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_NONE.html">KRB5_LRQ_NONE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ONE_ACCT_EXPTIME.html">KRB5_LRQ_ONE_ACCT_EXPTIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ONE_LAST_INITIAL.html">KRB5_LRQ_ONE_LAST_INITIAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ONE_LAST_RENEWAL.html">KRB5_LRQ_ONE_LAST_RENEWAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ONE_LAST_REQ.html">KRB5_LRQ_ONE_LAST_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ONE_LAST_TGT.html">KRB5_LRQ_ONE_LAST_TGT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ONE_LAST_TGT_ISSUED.html">KRB5_LRQ_ONE_LAST_TGT_ISSUED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_LRQ_ONE_PW_EXPTIME.html">KRB5_LRQ_ONE_PW_EXPTIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_ENTERPRISE_PRINCIPAL.html">KRB5_NT_ENTERPRISE_PRINCIPAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_ENT_PRINCIPAL_AND_ID.html">KRB5_NT_ENT_PRINCIPAL_AND_ID</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_MS_PRINCIPAL.html">KRB5_NT_MS_PRINCIPAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_MS_PRINCIPAL_AND_ID.html">KRB5_NT_MS_PRINCIPAL_AND_ID</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_PRINCIPAL.html">KRB5_NT_PRINCIPAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_SMTP_NAME.html">KRB5_NT_SMTP_NAME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_SRV_HST.html">KRB5_NT_SRV_HST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_SRV_INST.html">KRB5_NT_SRV_INST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_SRV_XHST.html">KRB5_NT_SRV_XHST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_UID.html">KRB5_NT_UID</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_UNKNOWN.html">KRB5_NT_UNKNOWN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_WELLKNOWN.html">KRB5_NT_WELLKNOWN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_NT_X500_PRINCIPAL.html">KRB5_NT_X500_PRINCIPAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_ATTRIBUTES_INFO.html">KRB5_PAC_ATTRIBUTES_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_CLIENT_INFO.html">KRB5_PAC_CLIENT_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_CLIENT_CLAIMS.html">KRB5_PAC_CLIENT_CLAIMS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_CREDENTIALS_INFO.html">KRB5_PAC_CREDENTIALS_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_DELEGATION_INFO.html">KRB5_PAC_DELEGATION_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_DEVICE_CLAIMS.html">KRB5_PAC_DEVICE_CLAIMS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_DEVICE_INFO.html">KRB5_PAC_DEVICE_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_LOGON_INFO.html">KRB5_PAC_LOGON_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_PRIVSVR_CHECKSUM.html">KRB5_PAC_PRIVSVR_CHECKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_REQUESTOR.html">KRB5_PAC_REQUESTOR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_SERVER_CHECKSUM.html">KRB5_PAC_SERVER_CHECKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_TICKET_CHECKSUM.html">KRB5_PAC_TICKET_CHECKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_UPN_DNS_INFO.html">KRB5_PAC_UPN_DNS_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PAC_FULL_CHECKSUM.html">KRB5_PAC_FULL_CHECKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_AFS3_SALT.html">KRB5_PADATA_AFS3_SALT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_AP_REQ.html">KRB5_PADATA_AP_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_AS_CHECKSUM.html">KRB5_PADATA_AS_CHECKSUM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_AS_FRESHNESS.html">KRB5_PADATA_AS_FRESHNESS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_ENCRYPTED_CHALLENGE.html">KRB5_PADATA_ENCRYPTED_CHALLENGE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_ENC_SANDIA_SECURID.html">KRB5_PADATA_ENC_SANDIA_SECURID</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_ENC_TIMESTAMP.html">KRB5_PADATA_ENC_TIMESTAMP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_ENC_UNIX_TIME.html">KRB5_PADATA_ENC_UNIX_TIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_ETYPE_INFO.html">KRB5_PADATA_ETYPE_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_ETYPE_INFO2.html">KRB5_PADATA_ETYPE_INFO2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_FOR_USER.html">KRB5_PADATA_FOR_USER</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_FX_COOKIE.html">KRB5_PADATA_FX_COOKIE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_FX_ERROR.html">KRB5_PADATA_FX_ERROR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_FX_FAST.html">KRB5_PADATA_FX_FAST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_GET_FROM_TYPED_DATA.html">KRB5_PADATA_GET_FROM_TYPED_DATA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_NONE.html">KRB5_PADATA_NONE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_OSF_DCE.html">KRB5_PADATA_OSF_DCE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_OTP_CHALLENGE.html">KRB5_PADATA_OTP_CHALLENGE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_OTP_PIN_CHANGE.html">KRB5_PADATA_OTP_PIN_CHANGE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_OTP_REQUEST.html">KRB5_PADATA_OTP_REQUEST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PAC_OPTIONS.html">KRB5_PADATA_PAC_OPTIONS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PAC_REQUEST.html">KRB5_PADATA_PAC_REQUEST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PKINIT_KX.html">KRB5_PADATA_PKINIT_KX</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PK_AS_REP.html">KRB5_PADATA_PK_AS_REP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PK_AS_REP_OLD.html">KRB5_PADATA_PK_AS_REP_OLD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PK_AS_REQ.html">KRB5_PADATA_PK_AS_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PK_AS_REQ_OLD.html">KRB5_PADATA_PK_AS_REQ_OLD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_PW_SALT.html">KRB5_PADATA_PW_SALT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_REFERRAL.html">KRB5_PADATA_REFERRAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_S4U_X509_USER.html">KRB5_PADATA_S4U_X509_USER</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SAM_CHALLENGE.html">KRB5_PADATA_SAM_CHALLENGE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SAM_CHALLENGE_2.html">KRB5_PADATA_SAM_CHALLENGE_2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SAM_REDIRECT.html">KRB5_PADATA_SAM_REDIRECT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SAM_RESPONSE.html">KRB5_PADATA_SAM_RESPONSE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SAM_RESPONSE_2.html">KRB5_PADATA_SAM_RESPONSE_2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SESAME.html">KRB5_PADATA_SESAME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SPAKE.html">KRB5_PADATA_SPAKE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_REDHAT_IDP_OAUTH2.html">KRB5_PADATA_REDHAT_IDP_OAUTH2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_REDHAT_PASSKEY.html">KRB5_PADATA_REDHAT_PASSKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_SVR_REFERRAL_INFO.html">KRB5_PADATA_SVR_REFERRAL_INFO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_TGS_REQ.html">KRB5_PADATA_TGS_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PADATA_USE_SPECIFIED_KVNO.html">KRB5_PADATA_USE_SPECIFIED_KVNO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_COMPARE_CASEFOLD.html">KRB5_PRINCIPAL_COMPARE_CASEFOLD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_COMPARE_ENTERPRISE.html">KRB5_PRINCIPAL_COMPARE_ENTERPRISE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_COMPARE_IGNORE_REALM.html">KRB5_PRINCIPAL_COMPARE_IGNORE_REALM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_COMPARE_UTF8.html">KRB5_PRINCIPAL_COMPARE_UTF8</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_PARSE_ENTERPRISE.html">KRB5_PRINCIPAL_PARSE_ENTERPRISE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_PARSE_IGNORE_REALM.html">KRB5_PRINCIPAL_PARSE_IGNORE_REALM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_PARSE_NO_DEF_REALM.html">KRB5_PRINCIPAL_PARSE_NO_DEF_REALM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_PARSE_NO_REALM.html">KRB5_PRINCIPAL_PARSE_NO_REALM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_PARSE_REQUIRE_REALM.html">KRB5_PRINCIPAL_PARSE_REQUIRE_REALM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_UNPARSE_DISPLAY.html">KRB5_PRINCIPAL_UNPARSE_DISPLAY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_UNPARSE_NO_REALM.html">KRB5_PRINCIPAL_UNPARSE_NO_REALM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRINCIPAL_UNPARSE_SHORT.html">KRB5_PRINCIPAL_UNPARSE_SHORT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PRIV.html">KRB5_PRIV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PROMPT_TYPE_NEW_PASSWORD.html">KRB5_PROMPT_TYPE_NEW_PASSWORD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN.html">KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PROMPT_TYPE_PASSWORD.html">KRB5_PROMPT_TYPE_PASSWORD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PROMPT_TYPE_PREAUTH.html">KRB5_PROMPT_TYPE_PREAUTH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_PVNO.html">KRB5_PVNO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_REALM_BRANCH_CHAR.html">KRB5_REALM_BRANCH_CHAR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RECVAUTH_BADAUTHVERS.html">KRB5_RECVAUTH_BADAUTHVERS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RECVAUTH_SKIP_VERSION.html">KRB5_RECVAUTH_SKIP_VERSION</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_REFERRAL_REALM.html">KRB5_REFERRAL_REALM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW.html">KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_COUNT_LOW</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY.html">KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED.html">KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_LOCKED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_QUESTION_PKINIT.html">KRB5_RESPONDER_QUESTION_PKINIT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_OTP_FLAGS_COLLECT_PIN.html">KRB5_RESPONDER_OTP_FLAGS_COLLECT_PIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_OTP_FLAGS_COLLECT_TOKEN.html">KRB5_RESPONDER_OTP_FLAGS_COLLECT_TOKEN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_OTP_FLAGS_NEXTOTP.html">KRB5_RESPONDER_OTP_FLAGS_NEXTOTP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_OTP_FLAGS_SEPARATE_PIN.html">KRB5_RESPONDER_OTP_FLAGS_SEPARATE_PIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_OTP_FORMAT_ALPHANUMERIC.html">KRB5_RESPONDER_OTP_FORMAT_ALPHANUMERIC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_OTP_FORMAT_DECIMAL.html">KRB5_RESPONDER_OTP_FORMAT_DECIMAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_OTP_FORMAT_HEXADECIMAL.html">KRB5_RESPONDER_OTP_FORMAT_HEXADECIMAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_QUESTION_OTP.html">KRB5_RESPONDER_QUESTION_OTP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_RESPONDER_QUESTION_PASSWORD.html">KRB5_RESPONDER_QUESTION_PASSWORD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_SAFE.html">KRB5_SAFE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_SAM_MUST_PK_ENCRYPT_SAD.html">KRB5_SAM_MUST_PK_ENCRYPT_SAD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_SAM_SEND_ENCRYPTED_SAD.html">KRB5_SAM_SEND_ENCRYPTED_SAD</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_SAM_USE_SAD_AS_KEY.html">KRB5_SAM_USE_SAD_AS_KEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_2ND_TKT.html">KRB5_TC_MATCH_2ND_TKT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_AUTHDATA.html">KRB5_TC_MATCH_AUTHDATA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_FLAGS.html">KRB5_TC_MATCH_FLAGS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_FLAGS_EXACT.html">KRB5_TC_MATCH_FLAGS_EXACT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_IS_SKEY.html">KRB5_TC_MATCH_IS_SKEY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_KTYPE.html">KRB5_TC_MATCH_KTYPE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_SRV_NAMEONLY.html">KRB5_TC_MATCH_SRV_NAMEONLY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_TIMES.html">KRB5_TC_MATCH_TIMES</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_MATCH_TIMES_EXACT.html">KRB5_TC_MATCH_TIMES_EXACT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_NOTICKET.html">KRB5_TC_NOTICKET</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_OPENCLOSE.html">KRB5_TC_OPENCLOSE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TC_SUPPORTED_KTYPES.html">KRB5_TC_SUPPORTED_KTYPES</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TGS_NAME.html">KRB5_TGS_NAME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TGS_NAME_SIZE.html">KRB5_TGS_NAME_SIZE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TGS_REP.html">KRB5_TGS_REP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TGS_REQ.html">KRB5_TGS_REQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_TKT_CREDS_STEP_FLAG_CONTINUE.html">KRB5_TKT_CREDS_STEP_FLAG_CONTINUE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL.html">KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_WELLKNOWN_NAMESTR.html">KRB5_WELLKNOWN_NAMESTR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LR_TYPE_INTERPRETATION_MASK.html">LR_TYPE_INTERPRETATION_MASK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LR_TYPE_THIS_SERVER_ONLY.html">LR_TYPE_THIS_SERVER_ONLY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="MAX_KEYTAB_NAME_LEN.html">MAX_KEYTAB_NAME_LEN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="MSEC_DIRBIT.html">MSEC_DIRBIT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="MSEC_VAL_MASK.html">MSEC_VAL_MASK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SALT_TYPE_AFS_LENGTH.html">SALT_TYPE_AFS_LENGTH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SALT_TYPE_NO_LENGTH.html">SALT_TYPE_NO_LENGTH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="THREEPARAMOPEN.html">THREEPARAMOPEN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_ANONYMOUS.html">TKT_FLG_ANONYMOUS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_ENC_PA_REP.html">TKT_FLG_ENC_PA_REP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_FORWARDABLE.html">TKT_FLG_FORWARDABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_FORWARDED.html">TKT_FLG_FORWARDED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_HW_AUTH.html">TKT_FLG_HW_AUTH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_INITIAL.html">TKT_FLG_INITIAL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_INVALID.html">TKT_FLG_INVALID</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_MAY_POSTDATE.html">TKT_FLG_MAY_POSTDATE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_OK_AS_DELEGATE.html">TKT_FLG_OK_AS_DELEGATE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_POSTDATED.html">TKT_FLG_POSTDATED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_PRE_AUTH.html">TKT_FLG_PRE_AUTH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_PROXIABLE.html">TKT_FLG_PROXIABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_PROXY.html">TKT_FLG_PROXY</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_RENEWABLE.html">TKT_FLG_RENEWABLE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TKT_FLG_TRANSIT_POLICY_CHECKED.html">TKT_FLG_TRANSIT_POLICY_CHECKED</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VALID_INT_BITS.html">VALID_INT_BITS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VALID_UINT_BITS.html">VALID_UINT_BITS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_const.html">krb5_const</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_component.html">krb5_princ_component</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_name.html">krb5_princ_name</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_realm.html">krb5_princ_realm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_set_realm.html">krb5_princ_set_realm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_set_realm_data.html">krb5_princ_set_realm_data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_set_realm_length.html">krb5_princ_set_realm_length</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_size.html">krb5_princ_size</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_princ_type.html">krb5_princ_type</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_roundup.html">krb5_roundup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_x.html">krb5_x</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb5_xc.html">krb5_xc</a></li>
+</ul>
+</div>
+</section>
+<section id="deprecated-macros">
+<h2>Deprecated macros<a class="headerlink" href="#deprecated-macros" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="krb524_convert_creds_kdc.html">krb524_convert_creds_kdc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="krb524_init_ets.html">krb524_init_ets</a></li>
+</ul>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5 simple macros</a><ul>
+<li><a class="reference internal" href="#public">Public</a></li>
+<li><a class="reference internal" href="#deprecated-macros">Deprecated macros</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">Complete reference - API and datatypes</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../api/index.html">krb5 API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../types/index.html">krb5 types and structures</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">krb5 simple macros</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="../types/krb5_tkt_creds_context.html" title="krb5_tkt_creds_context"
+            >previous</a> |
+        <a href="ADDRTYPE_ADDRPORT.html" title="ADDRTYPE_ADDRPORT"
+            >next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5 simple macros">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

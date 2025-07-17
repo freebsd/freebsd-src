@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+
+# PROVIDE: nuageinit_user_data_script
+# REQUIRE: local
+# KEYWORD: firstboot
+
+. /etc/rc.subr
+
+name="nuageinit_user_data_script"
+desc="Execute user data script provided by cloudinit"
+start_cmd="execute_user_data_script"
+stop_cmd=":"
+rcvar="nuageinit_enable"
+
+execute_user_data_script()
+{
+	if [ -x /var/cache/nuageinit/runcmds ]; then
+		echo "Executing 'runcmd'" | tee -a /var/log/nuageinit.log
+		/var/cache/nuageinit/runcmds 2>&1 | tee -a /var/log/nuageinit.log
+	fi
+	test -x /var/cache/nuageinit/user_data || return
+	echo "Executing user_data script" | tee -a /var/log/nuageinit.log
+	/var/cache/nuageinit/user_data 2>&1 | tee -a /var/log/nuageinit.log
+}
+
+# Share the same config as nuageinit
+load_rc_config nuageinit
+run_rc_command "$1"

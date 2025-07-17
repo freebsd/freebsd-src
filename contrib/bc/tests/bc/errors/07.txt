@@ -1,0 +1,36 @@
+for (q = F; i <=020; ++i)  #	i
+{print "n"
+if(6)if(6){3
+}
+{pryn}
+""}
+{pryn}
+{print "" ""}
+{pryn}
+{print "" ""}
+{pryn}
+{print "" ""}
+{pryn}
+ ""}
+{pryn}
+{print "" ""}
+{pryn}
+{print "" ""}
+{tryn}
+{print "" ""}
+{print "" ""}
+{pryn}
+{print "" ""}
+{pryn}
+{print "" ""}
+{pryn}
+ ""}
+{prynn}
+{print "" ""}
+{print "" ""}
+{pryn}
+{print "" ""}
+{pryn}
+{print "" ""}
+{pryn}
+ ""}

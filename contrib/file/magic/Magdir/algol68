@@ -1,0 +1,33 @@
+
+#------------------------------------------------------------------------------
+# $File: algol68,v 1.7 2024/08/27 18:50:56 christos Exp $
+# algol68:  file(1) magic for Algol 68 source
+#
+# URL: 		https://en.wikipedia.org/wiki/ALGOL_68
+# Reference:	http://www.softwarepreservation.org/projects/ALGOL/report/Algol68_revised_report-AB.pdf
+# Update:	Joerg Jenderek
+0	search/8192	(input,
+>0	use		algol_68
+# graph_2d.a68
+0	regex/4006	\^PROC[[:space:]][a-zA-Z0-9_[:space:]]*[[:space:]]=
+>0	use		algol_68
+0	regex/1024	\bMODE[\t\ ]
+>0	use		algol_68
+0	regex/1024	\bREF[\t\ ]
+>0	use		algol_68
+0	regex/1024	\bFLEX[\t\ ]\*\\[
+>0	use		algol_68
+
+# display information like mime type and file name extension of Algol 68 source text
+0	name		algol_68		Algol 68 source text
+!:mime	text/x-Algol68
+# https://file-extension.net/seeker/file_extension_a68
+!:ext   a68
+#!:ext   a68/alg
+
+#0	regex          	[\t\ ]OD		Algol 68 source text
+#>0	use		algol_68
+#!:mime	text/x-Algol68
+#0	regex          	[\t\ ]FI		Algol 68 source text
+#>0	use		algol_68
+#!:mime	text/x-Algol68

@@ -1,0 +1,95 @@
+.\" Copyright (C) 2019-2023, Microchip Technology Inc. and its subsidiaries
+.\" Copyright (C) 2016-2018, Microsemi Corporation
+.\" Copyright (C) 2016, PMC-Sierra, Inc.
+.\" Written by John Hall <john.hall@microchip.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 24, 2023
+.Dt SMARTPQI 4
+.Os
+.Sh NAME
+.Nm smartpqi
+.Nd "Microchip Smart Storage SCSI driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place these lines in the kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd device pci
+.Cd device scbus
+.Cd device smartpqi
+.Ed
+.Pp
+The driver can be loaded as a module at boot time by placing this line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+smartpqi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Microchip Technology Inc. / Adaptec SmartRaid and
+SmartHBA SATA/SAS/NVME PCIe controllers
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include, but not limited to:
+.Pp
+.Bl -bullet -compact
+.It
+HPE Gen10 Smart Array Controller Family
+.It
+Adaptec SmartRaid and SmartHBA Controllers
+.It
+OEM Controllers based on the Microchip Technology Inc. SmartROC
+and SmartIOC Chipsets
+.El
+.Sh FILES
+.Bl -tag -width /boot/kernel/smartpqi.ko -compact
+.It Pa /dev/smartpqi?
+smartpqi management interface
+.El
+.Sh NOTES
+.Ss Configuration
+To configure a Microchip Smart Storage controller,
+refer to the User Guide for the controller,
+which can be found by searching for the specific controller at
+https://www.microchip.com/design-centers/storage
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr linux 4 ,
+.Xr pass 4 ,
+.Xr scsi 4 ,
+.Xr xpt 4 ,
+.Xr loader.conf 5 ,
+.Xr camcontrol 8 ,
+.Xr kldload 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.1 .
+.Sh AUTHORS
+.An John Hall
+.Aq john.hall@microchip.com
+.Sh BUGS
+The controller is not actually paused on suspend/resume.

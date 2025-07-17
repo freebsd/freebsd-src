@@ -1,0 +1,53 @@
+one:
+Building .meta-cmd-cmp.cmp
+Building .meta-cmd-cmp.nocmp
+Building .meta-cmd-cmp.cmp2
+This line not compared FLAGS=
+Skipping meta for .END: .SPECIAL
+two:
+`.meta-cmd-cmp.cmp' is up to date.
+`.meta-cmd-cmp.nocmp' is up to date.
+.meta-cmd-cmp.cmp2.meta:3: cannot compare command using .OODATE
+`.meta-cmd-cmp.cmp2' is up to date.
+Skipping meta for .END: .SPECIAL
+change1:
+.meta-cmd-cmp.cmp.meta:2: a build command has changed
+@echo FLAGS= > .meta-cmd-cmp.cmp
+vs
+@echo FLAGS=changed > .meta-cmd-cmp.cmp
+Building .meta-cmd-cmp.cmp
+`.meta-cmd-cmp.nocmp' is up to date.
+.meta-cmd-cmp.cmp2.meta:3: cannot compare command using .OODATE
+`.meta-cmd-cmp.cmp2' is up to date.
+Skipping meta for .END: .SPECIAL
+change2:
+.meta-cmd-cmp.cmp.meta:2: a build command has changed
+@echo FLAGS=changed > .meta-cmd-cmp.cmp
+vs
+@echo FLAGS= > .meta-cmd-cmp.cmp
+Building .meta-cmd-cmp.cmp
+`.meta-cmd-cmp.nocmp' is up to date.
+.meta-cmd-cmp.cmp2.meta:2: a build command has changed
+@echo FLAGS2= > .meta-cmd-cmp.cmp2
+vs
+@echo FLAGS2=changed > .meta-cmd-cmp.cmp2
+Building .meta-cmd-cmp.cmp2
+This line not compared FLAGS=
+Skipping meta for .END: .SPECIAL
+filter0:
+Building .meta-cmd-cmp.filter
+Skipping meta for .END: .SPECIAL
+filter1:
+.meta-cmd-cmp.filter.meta:2: a build command has changed
+@echo ccache cc -c foo.c > .meta-cmd-cmp.filter
+vs
+@echo  cc -c foo.c > .meta-cmd-cmp.filter
+Building .meta-cmd-cmp.filter
+Skipping meta for .END: .SPECIAL
+filter2:
+`.meta-cmd-cmp.filter' is up to date.
+Skipping meta for .END: .SPECIAL
+filter3:
+`.meta-cmd-cmp.filter' is up to date.
+Skipping meta for .END: .SPECIAL
+exit status 0

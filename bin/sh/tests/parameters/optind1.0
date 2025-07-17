@@ -1,0 +1,2 @@
+
+unset OPTIND && [ -z "$OPTIND" ]

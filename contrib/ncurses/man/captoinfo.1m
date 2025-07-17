@@ -1,0 +1,235 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2016 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: captoinfo.1m,v 1.63 2024/03/23 20:37:25 tom Exp $
+.TH @CAPTOINFO@ 1M 2024-03-23 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.SH NAME
+\fB\%@CAPTOINFO@\fP \-
+convert a \fItermcap\fP description into a \fI\%term\%info\fP description
+.SH SYNOPSIS
+.B @CAPTOINFO@
+.RI [ tic-option ]
+.RI [ file
+\&.\|.\|.]
+.P
+.B "@CAPTOINFO@ \-V"
+.SH DESCRIPTION
+\fB\%@CAPTOINFO@\fP translates terminal descriptions.
+It looks in each given text \fIfile\fP for \fI\%termcap\fP entries and,
+for each one found,
+writes an equivalent \fI\%\%term\%info\fP description to the standard
+output stream.
+\fI\%termcap\fP \fBtc\fP capabilities translate to \fI\%\%term\%info\fP
+\*(``\fBuse\fP\*('' capabilities.
+.PP
+If no \fIfile\fPs are specified,
+\fB\%@CAPTOINFO@\fP interprets the content of the environment variable
+\fI\%TERMCAP\fP as a file name,
+and extracts only the entry for the terminal named in the environment
+variable \fITERM\fP from it.
+If the environment variable \fI\%TERMCAP\fP is not set,
+\fB\%@CAPTOINFO@\fP reads
+.IR \%/etc/termcap .
+.PP
+This utility is implemented as a link to \fB\%@TIC@\fP(1M),
+with the latter's
+.B \-I
+option implied.
+You can use other \fB\%@TIC@\fP options such as
+.BR \-1 ,
+.BR \-f ,
+.BR \-v ,
+.BR \-w ,
+and
+.BR \-x .
+The \fB\-V\fP option reports the version of \fI\%ncurses\fP associated
+with this program and exits with a successful status.
+.SS "Translations from Nonstandard Capabilities"
+\fB\%@CAPTOINFO@\fP translates some obsolete,
+nonstandard capabilities into standard
+(SVr4/XSI Curses)
+\fI\%\%term\%info\fP capabilities.
+It issues a diagnostic to the standard error stream for each,
+inviting the user to check that it has not mistakenly translated an
+unknown or mistyped capability name.
+.PP
+.\" DWB 3.3 tbl requires the two junk "L" specifiers in the first row.
+.TS
+center;
+Cb S  L  L
+Cb Cb Cb Cb
+Cb Cb C  Lb.
+Name
+Obsolete	Standard	Origin	\f(BIterminfo\fP capability
+_
+BO	mr	AT&T	enter_reverse_mode
+CI	vi	AT&T	cursor_invisible
+CV	ve	AT&T	cursor_normal
+DS	mh	AT&T	enter_dim_mode
+EE	me	AT&T	exit_attribute_mode
+FE	LF	AT&T	label_on
+FL	LO	AT&T	label_off
+XS	mk	AT&T	enter_secure_mode
+EN	@7	XENIX	key_end
+GE	ae	XENIX	exit_alt_charset_mode
+GS	as	XENIX	enter_alt_charset_mode
+HM	kh	XENIX	key_home
+LD	kL	XENIX	key_dl
+PD	kN	XENIX	key_npage
+PN	po	XENIX	prtr_off
+PS	pf	XENIX	prtr_on
+PU	kP	XENIX	key_ppage
+RT	@8	XENIX	kent
+UP	ku	XENIX	kcuu1
+KA	k;	Tektronix	key_f10
+KB	F1	Tektronix	key_f11
+KC	F2	Tektronix	key_f12
+KD	F3	Tektronix	key_f13
+KE	F4	Tektronix	key_f14
+KF	F5	Tektronix	key_f15
+BC	Sb	Tektronix	set_background
+FC	Sf	Tektronix	set_foreground
+HS	mh	IRIX	enter_dim_mode
+.TE
+.PP
+XENIX \fI\%termcap\fP had a set of extension capabilities,
+corresponding to box drawing characters of CCSID
+(\*(``code page\*('') 437,
+as follows.
+.PP
+.TS
+center;
+cb cb
+cb l .
+\f(BItermcap\fP Name	Graphic
+_
+G2	upper left corner
+G3	lower left corner
+G1	upper right corner
+G4	lower right corner
+GR	tee pointing right
+GL	tee pointing left
+GU	tee pointing up
+GD	tee pointing down
+GH	horizontal line
+GV	vertical line
+GC	intersection
+G6	double upper left corner
+G7	double lower left corner
+G5	double upper right corner
+G8	double lower right corner
+Gr	double tee pointing right
+Gr	double tee pointing left
+Gu	double tee pointing up
+Gd	double tee pointing down
+Gh	double horizontal line
+Gv	double vertical line
+Gc	double intersection
+.\" TODO: There are about 40 box drawing code points in CCSID 437;
+.\" were there no XENIX capabilities for the mixed single- and double-
+.\" line intersections?
+.\"
+.\" TODO: GG doesn't seem to fit with the others; explain it.
+GG	ACS magic cookie count
+.TE
+.PP
+\fB\%@CAPTOINFO@\fP composes single-line capabilities into an \fBacsc\fP
+string,
+and discards \fBGG\fP and double-line capabilities with a warning
+diagnostic.
+.PP
+IBM's AIX has a \fI\%\%term\%info\fP facility descended from SVr1
+\fI\%\%term\%info\fP,
+but which is incompatible with the SVr4 format.
+\fB\%@CAPTOINFO@\fP translates the following AIX extensions.
+.PP
+.TS
+center;
+cb cb
+l  l .
+IBM	XSI
+_
+ksel	kslt
+kbtab	kcbt
+font0	s0ds
+font1	s1ds
+font2	s2ds
+font3	s3ds
+.TE
+.PP
+Additionally,
+this program translates the AIX \fBbox1\fP capability to an \fBacsc\fP
+string.
+.PP
+The HP-UX \fI\%\%term\%info\fP library supports two nonstandard
+\fI\%\%term\%info\fP capabilities,
+\fBmeml\fP (memory lock) and \fBmemu\fP (memory unlock).
+\fB\%@CAPTOINFO@\fP discards these with a warning message.
+.SH FILES
+.TP
+.I /etc/termcap
+default \fI\%termcap\fP terminal capability database
+.SH PORTABILITY
+X/Open Curses,
+Issue 7 (2009) describes \fBtic\fP briefly,
+but omits this program.
+.PP
+SVr4 systems provide \fB\%captoinfo\fP as a separate application from
+\fBtic\fP.
+Its
+.B \-v
+option does not accept a trace level argument
+.IR n ;
+repeat
+.B \-v
+.I n
+times instead.
+.PP
+NetBSD does not provide this application.
+.SH AUTHORS
+Eric S. Raymond <esr@snark.thyrsus.com>
+and
+.br
+Thomas E. Dickey <dickey@invisible\-island.net>
+.SH SEE ALSO
+\fB\%@INFOCMP@\fP(1M),
+\fB\%@TIC@\fP(1M),
+\fB\%curses\fP(3X),
+\fB\%terminfo\fP(5)

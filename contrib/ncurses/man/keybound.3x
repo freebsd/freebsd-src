@@ -1,0 +1,65 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1999-2008,2010 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey 1999
+.\"
+.\" $Id: keybound.3x,v 1.36 2024/03/16 15:35:01 tom Exp $
+.TH keybound 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.SH NAME
+\fB\%keybound\fP \-
+get definition of \fIcurses\fR keycode
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBchar * keybound(int \fIkeycode\fP, int \fIcount\fP);
+.fi
+.SH DESCRIPTION
+This is an extension to the \fIcurses\fP library.
+It permits an application to determine the string which is defined
+in the terminfo for specific keycodes.
+.SH RETURN VALUE
+The \fIkeycode\fP parameter must be greater than zero,
+else \fBNULL\fP is returned.
+If it does not correspond to a defined key, then \fBNULL\fP is returned.
+The \fIcount\fP parameter is used to allow the application to iterate
+through multiple definitions, counting from zero.
+When successful,
+the function returns a string which must be freed by the caller.
+.SH PORTABILITY
+This routine is specific to \fI\%ncurses\fP.
+It was not supported on
+Version 7, BSD or System V implementations.
+It is recommended that
+any code depending on them be conditioned using \fB\%NCURSES_VERSION\fP.
+.SH AUTHORS
+Thomas Dickey
+.SH SEE ALSO
+\fB\%define_key\fP(3X),
+\fB\%keyok\fP(3X)

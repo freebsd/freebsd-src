@@ -1,0 +1,106 @@
+.\"-
+.\" Copyright (c) 2023 Dag-Erling Smørgrav
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd September 5, 2023
+.Dt STDCKDINT 3
+.Os
+.Sh NAME
+.Nm stdckdint
+.Nd checked integer arithmetic
+.Sh SYNOPSIS
+.In stdckdint.h
+.Ft bool
+.Fn ckd_add "type1 *result" "type2 a" "type3 b"
+.Ft bool
+.Fn ckd_sub "type1 *result" "type2 a" "type3 b"
+.Ft bool
+.Fn ckd_mul "type1 *result" "type2 a" "type3 b"
+.Sh DESCRIPTION
+The function-like macros
+.Nm ckd_add ,
+.Nm ckd_sub ,
+and
+.Nm ckd_mul
+perform checked integer addition, subtraction, and multiplication,
+respectively.
+If the result of adding, subtracting, or multiplying
+.Fa a
+and
+.Fa b
+as if their respective types had infinite range fits in
+.Ft type1 ,
+it is stored in the location pointed to by
+.Fa result
+and the macro evaluates to
+.Dv false .
+Otherwise, the macro evaluates to
+.Dv true
+and the contents of the location pointed to by
+.Fa result
+is the result of the operation wrapped to the range of
+.Ft type1 .
+.Sh RETURN VALUES
+The
+.Nm ckd_add ,
+.Nm ckd_sub ,
+and
+.Nm ckd_mul
+macros evaluate to
+.Dv true
+if the requested operation overflowed the result type and
+.Dv false
+otherwise.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+#include <assert.h>
+#include <limits.h>
+#include <stdckdint.h>
+
+int main(void)
+{
+	int result;
+
+	assert(!ckd_add(&result, INT_MAX, 0));
+	assert(result == INT_MAX);
+	assert(ckd_add(&result, INT_MAX, 1));
+	assert(result == INT_MIN);
+
+	assert(!ckd_sub(&result, INT_MIN, 0));
+	assert(result == INT_MIN);
+	assert(ckd_sub(&result, INT_MIN, 1));
+	assert(result == INT_MAX);
+
+	assert(!ckd_mul(&result, INT_MAX / 2, 2));
+	assert(result == INT_MAX - 1);
+	assert(ckd_mul(&result, INT_MAX / 2 + 1, 2));
+	assert(result == INT_MIN);
+
+	return 0;
+}
+.Ed
+.\" .Sh STANDARDS
+.\" The
+.\" .Nm ckd_add ,
+.\" .Nm ckd_sub ,
+.\" and
+.\" .Nm ckd_mul
+.\" macros conform to
+.\" .St -isoC-23 .
+.Sh HISTORY
+The
+.Nm ckd_add ,
+.Nm ckd_sub ,
+and
+.Nm ckd_mul
+macros were first introduced in
+.Fx 14.0 .
+.Sh AUTHORS
+The
+.Nm ckd_add ,
+.Nm ckd_sub ,
+and
+.Nm ckd_mul
+macros and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

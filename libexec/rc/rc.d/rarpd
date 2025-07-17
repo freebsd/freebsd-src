@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: rarpd
+# REQUIRE: DAEMON FILESYSTEMS
+# BEFORE:  LOGIN
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+
+name="rarpd"
+desc="Reverse ARP daemon"
+rcvar="rarpd_enable"
+command="/usr/sbin/${name}"
+required_files="/etc/ethers"
+
+: ${rarpd_svcj_options:="net_basic"}
+
+load_rc_config $name
+pidfile="${rarpd_pidfile:-/var/run/${name}.pid}"
+
+run_rc_command "$1"

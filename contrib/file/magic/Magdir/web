@@ -1,0 +1,18 @@
+
+#------------------------------------------------------------------------------
+# $File: web,v 1.2 2022/10/29 16:02:37 christos Exp $
+
+# http://www.rdfhdt.org/
+# From Christoph Biedl
+# http://www.rdfhdt.org/hdt-internals/
+# https://github.com/rdfhdt/hdt-cpp
+
+0	string	$HDT\x01 HDT file (binary compressed indexed RDF triples) type 1
+!:mime application/vnd.hdt
+!:ext hdt
+
+0	string		[Adblock\040Plus	Adblock Plus
+>&1	regex		[0-9.]+			%s
+>1	string		x			rules file
+>10	search/100	Version:
+>>&1	regex		[0-9]+			\b, version %s

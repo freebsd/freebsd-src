@@ -1,0 +1,204 @@
+--- test019.left.txt
++++ test019.right.txt
+@@ -40,8 +40,23 @@
+ #include "got_lib_object.h"
+ 
+ static const struct got_error *
+-diff_blobs(struct got_diffreg_result **resultp,
+-struct got_blob_object *blob1, struct got_blob_object *blob2,
++add_line_offset(off_t **line_offsets, size_t *nlines, off_t off)
++{
++	off_t *p;
++
++	p = reallocarray(*line_offsets, *nlines + 1, sizeof(off_t));
++	if (p == NULL)
++		return got_error_from_errno("reallocarray");
++	*line_offsets = p;
++	(*line_offsets)[*nlines] = off;
++	(*nlines)++;
++	return NULL;
++}
++
++static const struct got_error *
++diff_blobs(off_t **line_offsets, size_t *nlines,
++    struct got_diffreg_result **resultp, struct got_blob_object *blob1,
++    struct got_blob_object *blob2,
+     const char *label1, const char *label2, mode_t mode1, mode_t mode2,
+     int diff_context, int ignore_whitespace, FILE *outfile)
+ {
+@@ -52,7 +67,12 @@
+ 	char *idstr1 = NULL, *idstr2 = NULL;
+ 	size_t size1, size2;
+ 	struct got_diffreg_result *result;
++	off_t outoff = 0;
++	int n;
+ 
++	if (line_offsets && *line_offsets && *nlines > 0)
++		outoff = (*line_offsets)[*nlines - 1];
++
+ 	if (resultp)
+ 		*resultp = NULL;
+ 
+@@ -116,10 +136,32 @@
+ 				goto done;
+ 			}
+ 		}
+-		fprintf(outfile, "blob - %s%s\n", idstr1,
++		n = fprintf(outfile, "blob - %s%s\n", idstr1,
+ 		    modestr1 ? modestr1 : "");
+-		fprintf(outfile, "blob + %s%s\n", idstr2,
++		if (n < 0) {
++			err = got_error_from_errno("fprintf");
++			goto done;
++		}
++		outoff += n;
++		if (line_offsets) {
++			err = add_line_offset(line_offsets, nlines, outoff);
++			if (err)
++				goto done;
++		}
++
++		n = fprintf(outfile, "blob + %s%s\n", idstr2,
+ 		    modestr2 ? modestr2 : "");
++		if (n < 0) {
++			err = got_error_from_errno("fprintf");
++			goto done;
++		}
++		outoff += n;
++		if (line_offsets) {
++			err = add_line_offset(line_offsets, nlines, outoff);
++			if (err)
++				goto done;
++		}
++
+ 		free(modestr1);
+ 		free(modestr2);
+ 	}
+@@ -129,7 +171,7 @@
+ 		goto done;
+ 
+ 	if (outfile) {
+-		err = got_diffreg_output(NULL, NULL, result, f1, f2,
++		err = got_diffreg_output(line_offsets, nlines, result, f1, f2,
+ 		    label1 ? label1 : idstr1,
+ 		    label2 ? label2 : idstr2,
+ 		    GOT_DIFF_OUTPUT_UNIDIFF, diff_context, outfile);
+@@ -158,21 +200,21 @@
+     struct got_object_id *id2, const char *label1, const char *label2,
+     mode_t mode1, mode_t mode2, struct got_repository *repo)
+ {
+-	const struct got_error *err;
+ 	struct got_diff_blob_output_unidiff_arg *a = arg;
+ 
+-	err = diff_blobs(NULL, blob1, blob2, label1, label2, mode1, mode2,
+-	    a->diff_context, a->ignore_whitespace, a->outfile);
+-	return err;
++	return diff_blobs(&a->line_offsets, &a->nlines, NULL,
++	    blob1, blob2, label1, label2, mode1, mode2, a->diff_context,
++	    a->ignore_whitespace, a->outfile);
+ }
+ 
+ const struct got_error *
+-got_diff_blob(struct got_blob_object *blob1, struct got_blob_object *blob2,
++got_diff_blob(off_t **line_offsets, size_t *nlines,
++    struct got_blob_object *blob1, struct got_blob_object *blob2,
+     const char *label1, const char *label2, int diff_context,
+     int ignore_whitespace, FILE *outfile)
+ {
+-	return diff_blobs(NULL, blob1, blob2, label1, label2, 0, 0, diff_context,
+-	    ignore_whitespace, outfile);
++	return diff_blobs(line_offsets, nlines, NULL, blob1, blob2,
++	    label1, label2, 0, 0, diff_context, ignore_whitespace, outfile);
+ }
+ 
+ static const struct got_error *
+@@ -259,7 +301,8 @@
+ {
+ 	const struct got_error *err = NULL;
+ 
+-	err = diff_blobs(result, blob1, blob2, NULL, NULL, 0, 0, 3, 0, NULL);
++	err = diff_blobs(NULL, NULL, result, blob1, blob2,
++	    NULL, NULL, 0, 0, 3, 0, NULL);
+ 	if (err) {
+ 		got_diffreg_result_free(*result);
+ 		*result = NULL;
+@@ -702,7 +745,8 @@
+ }
+ 
+ const struct got_error *
+-got_diff_objects_as_blobs(struct got_object_id *id1, struct got_object_id *id2,
++got_diff_objects_as_blobs(off_t **line_offsets, size_t *nlines,
++    struct got_object_id *id1, struct got_object_id *id2,
+     const char *label1, const char *label2, int diff_context,
+     int ignore_whitespace, struct got_repository *repo, FILE *outfile)
+ {
+@@ -722,8 +766,8 @@
+ 		if (err)
+ 			goto done;
+ 	}
+-	err = got_diff_blob(blob1, blob2, label1, label2, diff_context,
+-	    ignore_whitespace, outfile);
++	err = got_diff_blob(line_offsets, nlines, blob1, blob2,
++	    label1, label2, diff_context, ignore_whitespace, outfile);
+ done:
+ 	if (blob1)
+ 		got_object_blob_close(blob1);
+@@ -733,13 +777,15 @@
+ }
+ 
+ const struct got_error *
+-got_diff_objects_as_trees(struct got_object_id *id1, struct got_object_id *id2,
++got_diff_objects_as_trees(off_t **line_offsets, size_t *nlines,
++    struct got_object_id *id1, struct got_object_id *id2,
+     char *label1, char *label2, int diff_context, int ignore_whitespace,
+     struct got_repository *repo, FILE *outfile)
+ {
+ 	const struct got_error *err;
+ 	struct got_tree_object *tree1 = NULL, *tree2 = NULL;
+ 	struct got_diff_blob_output_unidiff_arg arg;
++	int want_lineoffsets = (line_offsets != NULL && *line_offsets != NULL);
+ 
+ 	if (id1 == NULL && id2 == NULL)
+ 		return got_error(GOT_ERR_NO_OBJ);
+@@ -757,8 +803,20 @@
+ 	arg.diff_context = diff_context;
+ 	arg.ignore_whitespace = ignore_whitespace;
+ 	arg.outfile = outfile;
++	if (want_lineoffsets) {
++		arg.line_offsets = *line_offsets;
++		arg.nlines = *nlines;
++	} else {
++		arg.line_offsets = NULL;
++		arg.nlines = 0;
++	}
+ 	err = got_diff_tree(tree1, tree2, label1, label2, repo,
+ 	    got_diff_blob_output_unidiff, &arg, 1);
++
++	if (want_lineoffsets) {
++		*line_offsets = arg.line_offsets; /* was likely re-allocated */
++		*nlines = arg.nlines;
++	}
+ done:
+ 	if (tree1)
+ 		got_object_tree_close(tree1);
+@@ -768,8 +826,9 @@
+ }
+ 
+ const struct got_error *
+-got_diff_objects_as_commits(struct got_object_id *id1,
+-    struct got_object_id *id2, int diff_context, int ignore_whitespace,
++got_diff_objects_as_commits(off_t **line_offsets, size_t *nlines,
++    struct got_object_id *id1, struct got_object_id *id2,
++    int diff_context, int ignore_whitespace,
+     struct got_repository *repo, FILE *outfile)
+ {
+ 	const struct got_error *err;
+@@ -788,7 +847,7 @@
+ 	if (err)
+ 		goto done;
+ 
+-	err = got_diff_objects_as_trees(
++	err = got_diff_objects_as_trees(line_offsets, nlines,
+ 	    commit1 ? got_object_commit_get_tree_id(commit1) : NULL,
+ 	    got_object_commit_get_tree_id(commit2), "", "", diff_context,
+ 	    ignore_whitespace, repo, outfile);

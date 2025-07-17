@@ -1,0 +1,13 @@
+FBSDprivate_1.0 {
+	__elf_aux_vector;
+	__libsys_errno;
+	__getosreldate;
+	__libsys_interposing_slot;
+	_elf_aux_info;
+	freebsd11_fstat;
+	freebsd11_fstatat;
+	freebsd11_getfsstat;
+	freebsd11_lstat;
+	freebsd11_stat;
+	freebsd11_statfs;
+};

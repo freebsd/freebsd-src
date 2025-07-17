@@ -1,0 +1,88 @@
+#!/bin/sh
+
+# Copyright (c) 2018 M. Warner Losh <imp@FreeBSD.org>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+# PROVIDE: devmatch
+# REQUIRE: kld
+# BEFORE: netif
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="devmatch"
+desc="Use devmatch(8) to load kernel modules"
+rcvar="${name}_enable"
+
+start_cmd="${name}_start"
+stop_cmd=':'
+one_nomatch="$2"
+
+devmatch_start()
+{
+	local x m list boot_safe
+
+	boot_safe=$(kenv -q boot_safe || echo "NO")
+	checkyesno boot_safe && return
+
+	if [ -n "$one_nomatch" ]; then
+		list=$(devmatch -p "${one_nomatch}" | sort -u)
+	else
+		sysctl hw.bus.devctl_nomatch_enabled=1 > /dev/null
+		list=$(devmatch | sort -u)
+	fi
+
+	[ -n "$list" ] || return
+
+	# While kldload can accept multiple modules on the line at once, we loop
+	# here in case there's some weird error with one of them.  We also
+	# optimize against the false positives or drivers that have symbolic
+	# links that confuse devmatch by running it -n.  Finally, we filter out
+	# all items in the devmatch_blocklist.
+	#
+	# We strip all the .ko suffixes off so that one may specify modules
+	# with or without .ko. Prior version documented it was without, while
+	# the code required it, so accept both now. devmatch produces module
+	# names with .ko
+
+	devctl freeze
+	x=$(echo "#${devmatch_blocklist:-${devmatch_blacklist}}#$(kenv -q devmatch_blocklist)#" | \
+		sed -e "s/ /#/g;s/\.ko#/#/g")
+	for m in ${list}; do
+		m="${m%.ko}"
+		case "${x}" in
+		*"#${m}#"*) continue ;;
+		esac
+		kldstat -q -n ${m} || \
+		    (echo "Autoloading module: ${m}"; kldload -n ${m})
+	done
+	devctl thaw
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: privileged operations
+devmatch_svcj="NO"
+
+run_rc_command "$1"

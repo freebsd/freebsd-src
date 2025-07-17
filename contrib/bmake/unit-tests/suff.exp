@@ -1,0 +1,146 @@
+Adding suffix ".from"
+Adding suffix ".to"
+defining transformation from `.from' to `.to'
+inserting ".from" (1) at end of list
+inserting ".to" (2) at end of list
+transformation .from.to complete
+Var_Parse: ${.PREFIX}${.ARCHIVE}.additional (eval)
+Var_Parse: ${.ARCHIVE}.additional (eval)
+Global: .ALLTARGETS =  step1 edge-case.to everything ${.PREFIX}${.ARCHIVE}.additional
+Global: .ALLTARGETS =  step1 edge-case.to everything ${.PREFIX}${.ARCHIVE}.additional edge-case.from
+Global: .ALLTARGETS =  step1 edge-case.to everything ${.PREFIX}${.ARCHIVE}.additional edge-case.from edge-case.additional
+Global: .ALLTARGETS =  step1 edge-case.to everything ${.PREFIX}${.ARCHIVE}.additional edge-case.from edge-case.additional a*.mk
+Global: delete .PARSEDIR
+Global: delete .PARSEFILE
+Global: ignoring delete '.INCLUDEDFROMDIR' as it is not found
+Global: ignoring delete '.INCLUDEDFROMFILE' as it is not found
+Var_Parse: ${.MAKE.DEPENDFILE} (eval)
+Var_Parse: ${.MAKE.MODE:tl} (eval)
+Evaluating modifier ${.MAKE.MODE:t...} on value "" (eval, undefined)
+Result of ${.MAKE.MODE:tl} is "" (eval, undefined)
+Global: MFLAGS =   -r -k -d sv
+Var_Parse: ${.MAKEFLAGS} ${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@} (eval)
+Var_Parse: ${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@} (eval)
+Evaluating modifier ${.MAKEOVERRIDES:O} on value ""
+Result of ${.MAKEOVERRIDES:O} is ""
+Evaluating modifier ${.MAKEOVERRIDES:u} on value ""
+Result of ${.MAKEOVERRIDES:u} is ""
+Evaluating modifier ${.MAKEOVERRIDES:@...} on value ""
+Modifier part: "v"
+Modifier part: "$v=${$v:Q}"
+ModifyWords: split "" into 1 word
+Command: ignoring delete 'v' as it is not found
+Result of ${.MAKEOVERRIDES:@v@$v=${$v:Q}@} is ""
+Global: .INCLUDES = # (empty)
+Global: .LIBS = # (empty)
+Global: ignoring delete '.SHELL' as it is not found
+Command: .SHELL = /bin/sh
+Global: .ALLTARGETS =  step1 edge-case.to everything ${.PREFIX}${.ARCHIVE}.additional edge-case.from edge-case.additional a*.mk .END
+step1: @ = step1
+step1: @ = step1
+step1: * = step1
+SuffFindDeps "step1"
+step1: @ = step1
+step1: * = step1
+	No valid suffix on step1
+Wildcard expanding "edge-case.to"...suffix is ".to"...
+edge-case.to: @ = edge-case.to
+edge-case.to: @ = edge-case.to
+edge-case.to: * = edge-case.to
+SuffFindDeps "edge-case.to"
+	trying edge-case.from...got it
+edge-case.to: @ = edge-case.to
+edge-case.to: * = edge-case
+Expanding "${.PREFIX}${.ARCHIVE}.additional"...Var_Parse: ${.PREFIX}${.ARCHIVE}.additional (eval)
+Var_Parse: ${.ARCHIVE}.additional (eval)
+edge-case.additional...
+	applying .from -> .to to "edge-case.to"
+everything: @ = everything
+everything: @ = everything
+everything: * = everything
+SuffFindDeps "everything"
+everything: @ = everything
+everything: * = everything
+Wildcard expanding "a*.mk"...
+archive-suffix.mk...Global: .ALLTARGETS =  step1 edge-case.to everything ${.PREFIX}${.ARCHIVE}.additional edge-case.from edge-case.additional a*.mk .END archive-suffix.mk
+archive.mk...Global: .ALLTARGETS =  step1 edge-case.to everything ${.PREFIX}${.ARCHIVE}.additional edge-case.from edge-case.additional a*.mk .END archive-suffix.mk archive.mk
+
+	No valid suffix on everything
+Wildcard expanding "edge-case.additional"...
+edge-case.additional: @ = edge-case.additional
+edge-case.additional: @ = edge-case.additional
+edge-case.additional: * = edge-case.additional
+SuffFindDeps "edge-case.additional"
+	No known suffix on edge-case.additional. Using .NULL suffix
+not adding suffix rules
+edge-case.additional: @ = edge-case.additional
+edge-case.additional: * = edge-case.additional
+suffix is ".from"...
+edge-case.from: @ = edge-case.from
+edge-case.from: @ = edge-case.from
+edge-case.from: * = edge-case.from
+SuffFindDeps "edge-case.from"
+edge-case.from: @ = edge-case.from
+edge-case.from: * = edge-case
+Wildcard expanding "archive-suffix.mk"...
+archive-suffix.mk: @ = archive-suffix.mk
+archive-suffix.mk: @ = archive-suffix.mk
+archive-suffix.mk: * = archive-suffix.mk
+SuffFindDeps "archive-suffix.mk"
+	No known suffix on archive-suffix.mk. Using .NULL suffix
+adding suffix rules
+archive-suffix.mk: @ = archive-suffix.mk
+archive-suffix.mk: * = archive-suffix.mk
+archive-suffix.mk: @ = archive-suffix.mk
+archive-suffix.mk: * = archive-suffix.mk
+Wildcard expanding "archive.mk"...
+archive.mk: @ = archive.mk
+archive.mk: @ = archive.mk
+archive.mk: * = archive.mk
+SuffFindDeps "archive.mk"
+	No known suffix on archive.mk. Using .NULL suffix
+adding suffix rules
+archive.mk: @ = archive.mk
+archive.mk: * = archive.mk
+archive.mk: @ = archive.mk
+archive.mk: * = archive.mk
+Wildcard expanding "edge-case.additional"...
+edge-case.additional: ? = # (empty)
+edge-case.additional: > = # (empty)
+Var_Parse: ${.TARGET} out of nothing. (eval)
+: Making edge-case.additional out of nothing.
+edge-case.to: < = edge-case.from
+suffix is ".from"...
+edge-case.from: ? = # (empty)
+edge-case.from: > = # (empty)
+Var_Parse: ${.TARGET} out of nothing. (eval)
+: Making edge-case.from out of nothing.
+edge-case.to: > = edge-case.additional
+edge-case.to: ? = edge-case.additional
+edge-case.to: > = edge-case.additional edge-case.from
+edge-case.to: ? = edge-case.additional edge-case.from
+Var_Parse: ${.TARGET} from ${.ALLSRC}. (eval)
+Var_Parse: ${.ALLSRC}. (eval)
+: Making edge-case.to from edge-case.additional edge-case.from.
+everything: > = archive-suffix.mk
+everything: ? = archive-suffix.mk
+everything: > = archive-suffix.mk archive.mk
+everything: ? = archive-suffix.mk archive.mk
+Var_Parse: ${.TARGET} from ${.ALLSRC}. (eval)
+Var_Parse: ${.ALLSRC}. (eval)
+: Making everything from archive-suffix.mk archive.mk.
+step1: > = edge-case.to
+step1: ? = edge-case.to
+step1: > = edge-case.to everything
+step1: ? = edge-case.to everything
+.END: @ = .END
+.END: * = .END
+SuffFindDeps ".END"
+	No known suffix on .END. Using .NULL suffix
+adding suffix rules
+.END: @ = .END
+.END: * = .END
+Wildcard expanding ".END"...
+.END: ? = # (empty)
+.END: > = # (empty)
+exit status 0

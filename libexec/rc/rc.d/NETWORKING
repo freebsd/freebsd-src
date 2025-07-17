@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: NETWORKING NETWORK
+# REQUIRE: netif netwait netoptions routing ppp ipfw stf
+# REQUIRE: defaultroute route6d resolv bridge
+# REQUIRE: static_arp static_ndp
+
+#	This is a dummy dependency, for services which require networking
+#	to be operational before starting.

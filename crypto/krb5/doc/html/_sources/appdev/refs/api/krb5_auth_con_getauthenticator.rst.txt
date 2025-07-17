@@ -1,0 +1,51 @@
+krb5_auth_con_getauthenticator -  Retrieve the authenticator from an auth context. 
+===================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_getauthenticator(krb5_context context, krb5_auth_context auth_context, krb5_authenticator ** authenticator)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[out]** **authenticator** - Authenticator
+
+
+..
+
+
+:retval:
+         -   0   Success. Otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Use krb5_free_authenticator() to free *authenticator* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

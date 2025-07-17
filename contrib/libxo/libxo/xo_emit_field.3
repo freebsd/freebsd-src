@@ -1,0 +1,113 @@
+.\" #
+.\" # Copyright (c) 2021, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_emit_field
+.Nd emit formatted output based on format string and arguments
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft xo_ssize_t
+.Fn xo_emit_field "const char *rolmod" "const char *content" "const char *fmt" "const char *efmt"  "..."
+.Ft xo_ssize_t
+.Fn xo_emit_field_h "xo_handle_t *xop" "const char *rolmod" "const char *content" "const char *fmt" const char *efmt"  "..."
+.Ft xo_ssize_t
+.Fn xo_emit_field_hv "xo_handle_t *xop" "const char *rolmod" "const char *content" "const char *fmt" "const char *efmt" "va_list vap"
+.Sh DESCRIPTION
+The
+.Fn xo_emit_field
+function emits formatted output similar to
+.Xr xo_emit 3
+but where
+.Fn xo_emit
+uses a single string argument containing the description
+for multiple fields,
+.Fn xo_emit_field
+emits a single field using multiple arguments to contain the
+field description.
+.Fn xo_emit_field_h
+adds an explicit handle to use instead of the default
+handle, while
+.Fn xo_emit_field_hv
+accepts a
+.Fa va_list
+for additional flexibility.
+.Pp
+The arguments
+.Fa rolmod ,
+.Fa content ,
+.Fa fmt ,
+and
+.Fa efmt
+are detailed in
+.Xr xo_format 5 .
+Using distinct arguments allows callers to pass the field description
+in pieces, rather than having to use something like
+.Xr snprintf 3
+to build the format string required by
+.Fn xo_emit .
+The arguments are each NUL-terminated strings. The
+.Fa rolmod
+argument contains the "role" and "modifier" portions of
+the field description, the
+.Fa content
+argument contains the "content" portion, and the
+.Fa fmt
+and
+.Fa efmt
+contain the "field-format" and "encoding-format" portions, respectively.
+.Pp
+As with xo_emit, the
+.Fa fmt
+and
+.Fa efmt
+values are both optional, since the field-format string
+defaults to "%s", and the encoding-format's default value is
+derived from the field-format
+per
+.Xr xo_format 5 .
+However, care must be taken to avoid using a value directly as the
+format, since characters like '{', '%', and '}' will be interpreted
+as formatting directives, and may cause
+.Nm
+to dereference arbitrary values off the stack, leading to bugs,
+core files, and gnashing of teeth.
+.Sh EXAMPLES
+In this example, a set of four values is emitted using the following
+source code:
+.Bd  -literal -offset indent
+    xo_emit_field("T", title, NULL, NULL, NULL);
+    xo_emit_field("Vt", "max-chaos", NULL, NULL, "  very  ");
+    xo_emit_field("V", "min-chaos", "%02d", "%d", 42);
+    xo_emit_field_h(NULL, ",leaf-list,quotes", "sku", "%s-%u", "%s-000-%u",
+		    "gum", 1412);
+.Ed
+.Sh RETURN CODE
+.Nm
+returns a negative value on error.  If the
+.Nm XOF_COLUMNS
+flag has been turned on for the specific handle using
+.Xr xo_set_flags 3 ,
+then the number of display columns consumed by the output will be returned.
+.Sh SEE ALSO
+.Xr xo_format 5 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .

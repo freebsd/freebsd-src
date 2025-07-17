@@ -1,0 +1,81 @@
+
+#------------------------------------------------------------------------------
+# $File: xilinx,v 1.12 2024/09/04 19:06:12 christos Exp $
+# This is Aaron's attempt at a MAGIC file for Xilinx .bit files.
+# Xilinx-Magic@RevRagnarok.com
+# Got the info from FPGA-FAQ 0026
+#
+# Rewritten to use pstring/H instead of hardcoded lengths by O. Freyermuth,
+# fixes at least reading of bitfiles from Spartan 2, 3, 6.
+# http://www.fpga-faq.com/FAQ_Pages/0026_Tell_me_about_bit_files.htm
+#
+# First there is the sync header and its length
+0	beshort 0x0009
+>2 	belong	=0x0ff00ff0
+>>&0	belong  =0x0ff00ff0
+>>>&0	byte    =0x00
+>>>>&1   beshort =0x0001
+>>>>>&3	string	a	Xilinx BIT data
+# Next is a Pascal-style string with the NCD name. We want to capture that.
+>>>>>>&0	   pstring/H	x	- from %s
+# And then 'b'
+>>>>>>>&1    string b
+# Then the model / part number:
+>>>>>>>>&0   pstring/H    x       - for %s
+# Then 'c'
+>>>>>>>>>&1 string c
+# Then the build-date
+>>>>>>>>>>&0 pstring/H    x       - built %s
+# Then 'd'
+>>>>>>>>>>>&1   string d
+# Then the build-time
+>>>>>>>>>>>>&0  pstring/H x        \b(%s)
+# Then 'e'
+>>>>>>>>>>>>>&1  string e
+# And length of data
+>>>>>>>>>>>>>>&0 belong x          - data length %#x
+
+# Raw bitstream files
+0      long    0xffffffff
+>&0    belong  0xaa995566      Xilinx RAW bitstream (.BIN)
+
+# AXLF (xclbin) files used by AMD/Xilinx accelerators.
+# The file format is defined by XRT source tree:
+# https://github.com/Xilinx/XRT/blob/master/src/runtime_src/core/include/xclbin.h
+# Display file size, creation date, accelerator shell name, xclbin uuid and
+# number of sections.
+
+0       string      xclbin2     AMD/Xilinx accelerator AXLF (xclbin) file
+>0x130  lequad      x           \b, %lld bytes
+>0x138  leqdate     x           \b, created %s
+>0x160  string      >0          \b, shell "%.64s"
+>0x1a0  ubelong     x           \b, uuid %08x
+>0x1a4  ubeshort    x           \b-%04x
+>0x1a6  ubeshort    x           \b-%04x
+>0x1a8  ubeshort    x           \b-%04x
+>0x1aa  ubelong     x           \b-%08x
+>0x1ae  ubeshort    x           \b%04x
+>0x1c0  lelong      x           \b, %d sections
+
+# Xilinx Boot Image files
+# File format spec is from Xilinx UG1283
+# https://docs.xilinx.com/r/en-US/ug1283-bootgen-user-guide
+0x20	lelong	0xAA995566
+>0x24	lelong	0x584c4e58	Xilinx Boot Image
+>>0x0	lelong	0xEAFFFFFE	\b, 32-bit
+>>0x0	lelong	0x14000000	\b, 64-bit
+>>0x28	lelong	0x00000000	\b, unencrypted
+>>0x28	lelong	0xA5C3C5A5	\b, black key in efuse
+>>0x28	lelong	0xA5C3C5A7	\b, obfuscated key in efuse
+>>0x28	lelong	0x3A5C3C5A	\b, red key in bbram
+>>0x28	lelong	0xA5C3C5A3	\b, efuse red key in efuse
+>>0x28	lelong	0xA35C7CA5	\b, obfuscated key in boot header
+>>0x28	lelong	0xA3A5C3C5	\b, user key in boot header
+>>0x28	lelong	0xA35C7C53	\b, black key in boot header
+>>0x2C	lelong	0x01010000	\b, Zynq 7000 SoC
+!:mime	application/x-xilinx-boot-zynq
+>>>0x34	ulelong	>0		\b, FSBL size %#x bytes
+>>0x2C	lelong	!0x01010000	\b, Zynq UltraScale+ MPSoC
+!:mime	application/x-xilinx-boot-zynqmp
+>>>0x34	ulelong	>0		\b, PMU size %#x bytes
+>>>0x3C	ulelong	>0		\b, FSBL size %#x bytes

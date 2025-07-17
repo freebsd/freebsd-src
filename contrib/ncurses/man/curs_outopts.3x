@@ -1,0 +1,199 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_outopts.3x,v 1.64 2024/04/20 21:24:19 tom Exp $
+.TH curs_outopts 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%clearok\fP,
+\fB\%idlok\fP,
+\fB\%idcok\fP,
+\fB\%immedok\fP,
+\fB\%leaveok\fP,
+\fB\%setscrreg\fP,
+\fB\%wsetscrreg\fP,
+\fB\%scrollok\fP \-
+set \fIcurses\fR output options
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint clearok(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint idlok(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBvoid idcok(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBvoid immedok(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint leaveok(WINDOW *\fIwin\fP, bool \fIbf\fP);
+\fBint scrollok(WINDOW *\fIwin\fP, bool \fIbf\fP);
+.PP
+\fBint setscrreg(int \fItop\fP, int \fIbot\fP);
+\fBint wsetscrreg(WINDOW *\fIwin\fP, int \fItop\fP, int \fIbot\fP);
+.fi
+.SH DESCRIPTION
+These routines set options that change the style of output within
+\fBcurses\fP.
+All options are initially \fBFALSE\fP, unless otherwise stated.
+It is not necessary to turn these options off before calling \fBendwin\fP(3X).
+.SS clearok
+If \fBclearok\fP is called with \fBTRUE\fP as argument, the next
+call to \fBwrefresh\fP with this window will clear the screen completely and
+redraw the entire screen from scratch.
+This is useful when the contents of the
+screen are uncertain, or in some cases for a more pleasing visual effect.
+If
+the \fIwin\fP argument to \fBclearok\fP is the global variable \fBcurscr\fP,
+the next call to \fBwrefresh\fP with any window causes the screen to be cleared
+and repainted from scratch.
+.SS idlok
+If \fBidlok\fP is called with \fBTRUE\fP as second argument, \fBcurses\fP
+considers using the hardware insert/delete line feature of terminals so
+equipped.
+Calling \fBidlok\fP with \fBFALSE\fP as second argument disables use
+of line insertion and deletion.
+This option should be enabled only if the
+application needs insert/delete line, for example, for a screen editor.
+It is
+disabled by default because insert/delete line tends to be visually annoying
+when used in applications where it is not really needed.
+If insert/delete line
+cannot be used, \fBcurses\fP redraws the changed portions of all lines.
+.SS idcok
+If \fBidcok\fP is called with \fBFALSE\fP as second argument, \fBcurses\fP
+no longer considers using the hardware insert/delete character feature of
+terminals so equipped.
+Use of character insert/delete is enabled by default.
+Calling \fBidcok\fP with \fBTRUE\fP as second argument re-enables use
+of character insertion and deletion.
+.SS immedok
+If \fBimmedok\fP is called with \fBTRUE\fP as second argument,
+any change in the window image,
+such as the ones caused by \fBwaddch, wclrtobot, wscrl\fP,
+etc., automatically causes a call to \fBwrefresh\fP.
+However, it may degrade performance considerably,
+due to repeated calls to \fBwrefresh\fP.
+Calling \fBimmedok\fP with \fBFALSE\fP as second argument
+restores the default behavior,
+i.e., deferring screen updates until a refresh is needed.
+.SS leaveok
+Normally, the hardware cursor is left at the location of the window cursor
+being refreshed.
+The \fBleaveok\fP option allows the cursor to be left
+wherever the update happens to leave it.
+It is useful for applications where
+the cursor is not used, since it reduces the need for cursor motions.
+.SS scrollok
+The \fBscrollok\fP option controls what happens when the cursor of a window is
+moved off the edge of the window or scrolling region, either as a result of a
+newline action on the bottom line, or typing the last character of the last
+line.
+If disabled, (\fIbf\fP is \fBFALSE\fP), the cursor is left on the bottom
+line.
+If enabled, (\fIbf\fP is \fBTRUE\fP), the window is scrolled up one line
+(Note that to get the physical scrolling effect on the terminal, it is
+also necessary to call \fBidlok\fP).
+.SS  "setscrreg, wsetscrreg"
+The \fBsetscrreg\fP and \fBwsetscrreg\fP routines allow the application
+programmer to set a software scrolling region in a window.
+The \fItop\fP and
+\fIbot\fP parameters
+are the line numbers of the top and bottom margin of the scrolling
+region.
+(Line 0 is the top line of the window.)  If this option and
+\fBscrollok\fP are enabled, an attempt to move off the bottom margin line
+causes all lines in the scrolling region to scroll one line in the direction
+of the first line.
+Only the text of the window is scrolled.
+(Note that this
+has nothing to do with the use of a physical scrolling region capability in the
+terminal, like that in the VT100.
+If \fBidlok\fP is enabled and the terminal
+has either a scrolling region or insert/delete line capability, they will
+probably be used by the output routines.)
+.SH RETURN VALUE
+The functions \fBsetscrreg\fP and \fBwsetscrreg\fP return \fBOK\fP upon success
+and \fBERR\fP upon failure.
+All other routines that return an integer always
+return \fBOK\fP.
+.PP
+X/Open Curses does not specify any error conditions.
+.PP
+In this implementation,
+.bP
+those functions that have a window pointer
+will return an error if the window pointer is null
+.bP
+\fBwsetscrreg\fP
+returns an error if the scrolling region limits extend outside the
+window boundaries.
+.SH NOTES
+Note that
+\fBclearok\fP,
+\fBleaveok\fP,
+\fBscrollok\fP,
+\fBidcok\fP, and
+\fBsetscrreg\fP may be macros.
+.PP
+The \fBimmedok\fP routine is useful for windows that are used as terminal
+emulators.
+.SH PORTABILITY
+These functions are described in X/Open Curses, Issue 4.
+.PP
+Some historic curses implementations had, as an undocumented feature, the
+ability to do the equivalent of \fBclearok(..., 1)\fP by saying
+\fBtouchwin(stdscr)\fP or \fBclear(stdscr)\fP.
+This will not work under \fI\%ncurses\fP.
+.PP
+Earlier System V curses implementations specified that with \fBscrollok\fP
+enabled, any window modification triggering a scroll also forced a physical
+refresh.
+X/Open Curses does not require this, and \fI\%ncurses\fP avoids doing
+it to perform better vertical-motion optimization at \fBwrefresh\fP
+time.
+.PP
+X/Open Curses does not mention that the cursor should be
+made invisible as a side-effect of \fBleaveok\fP.
+SVr4 curses documentation does this, but the code does not.
+Use \fBcurs_set\fP to make the cursor invisible.
+.SH HISTORY
+.I \%ncurses
+formerly treated \fBnl\fP(3X) and \fBnonl\fP(3X) as both input
+.I and
+output options,
+but no longer;
+see \fB\%curs_inopts\fP(3X).
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_addch\fP(3X),
+\fB\%curs_clear\fP(3X),
+\fB\%curs_initscr\fP(3X),
+\fB\%curs_refresh\fP(3X),
+\fB\%curs_scroll\fP(3X),
+\fB\%curs_variables\fP(3X)

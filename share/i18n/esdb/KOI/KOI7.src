@@ -1,0 +1,7 @@
+# $NetBSD: KOI7.src,v 1.1 2006/04/08 14:15:48 tnozaki Exp $
+
+NAME		"KOI7"
+ENCODING	"NONE"
+VARIABLE	""
+DEFCSID		"KOI7"		0
+INVALID		0x3F # ?

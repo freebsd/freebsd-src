@@ -1,0 +1,431 @@
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
+.TH newtzset 3 "" "Time Zone Database"
+.SH NAME
+tzset \- initialize time conversion information
+.SH SYNOPSIS
+.nf
+.ie \n(.g .ds - \f(CR-\fP
+.el .ds - \-
+.B #include <time.h>
+.PP
+.BI "timezone_t tzalloc(char const *" TZ );
+.PP
+.BI "void tzfree(timezone_t " tz );
+.PP
+.B void tzset(void);
+.PP
+/\(** Optional and obsolescent:  \(**/
+.br
+.B extern char *tzname[];
+.br
+.B extern long timezone;
+.br
+.B extern int daylight;
+.PP
+.B cc ... \*-ltz
+.fi
+.SH DESCRIPTION
+.ie '\(en'' .ds en \-
+.el .ds en \(en
+.ie '\(lq'' .ds lq \&"\"
+.el .ds lq \(lq\"
+.ie '\(rq'' .ds rq \&"\"
+.el .ds rq \(rq\"
+.de q
+\\$3\*(lq\\$1\*(rq\\$2
+..
+The
+.B tzalloc
+function
+allocates and returns a timezone object described by
+.IR TZ .
+.PP
+If
+.I TZ
+is a null pointer,
+.B tzalloc
+uses the best available approximation to local (wall
+clock) time, as specified by the
+.BR tzfile (5)-format
+file
+.B localtime
+in the system time conversion information directory.
+.PP
+If
+.I TZ
+is the empty string,
+.B tzalloc
+uses Universal Time (UT), with the abbreviation "UTC"
+and without leap second correction; please see
+.BR newctime (3)
+for more about UT, UTC, and leap seconds.
+.PP
+If
+.I TZ
+is nonnull and nonempty:
+.IP
+if the value begins with a colon, it is used as a pathname of a file
+from which to read the time conversion information;
+.IP
+if the value does not begin with a colon, it is first used as the
+pathname of a file from which to read the time conversion information,
+and, if that file cannot be read, is used directly as a specification of
+the time conversion information.
+.PP
+When
+.I TZ
+contents are used as a pathname, a pathname beginning with
+.q "/"
+is used as-is; otherwise
+the pathname is relative to a system time conversion information
+directory.
+The file must be in the format specified in
+.BR tzfile (5).
+.PP
+When
+.I TZ
+is used directly as a specification of the time conversion information,
+it must have the following syntax:
+.IP
+\fIstd\|offset\fR[\fIdst\fR[\fIoffset\fR][\fB,\fIrule\fR]]
+.PP
+Where:
+.RS
+.TP
+.IR std " and " dst
+Three or more bytes that are the designation for the standard
+.RI ( std )
+or the alternative
+.RI ( dst ,
+such as daylight saving time)
+time zone.  Only
+.I std
+is required; if
+.I dst
+is missing, then daylight saving time does not apply in this locale.
+Upper- and lowercase letters are explicitly allowed.  Any characters
+except a leading colon
+.RB ( : ),
+digits, comma
+.RB ( , ),
+ASCII minus
+.RB ( \*- ),
+ASCII plus
+.RB ( + ),
+and NUL bytes are allowed.
+Alternatively, a designation can be surrounded by angle brackets
+.B <
+and
+.BR > ;
+in this case, the designation can contain any characters other than
+.B >
+and NUL.
+.TP
+.I offset
+Indicates the value one must add to the local time to arrive at
+Coordinated Universal Time.  The
+.I offset
+has the form:
+.RS
+.IP
+\fIhh\fR[\fB:\fImm\fR[\fB:\fIss\fR]]
+.RE
+.IP
+The minutes
+.RI ( mm )
+and seconds
+.RI ( ss )
+are optional.  The hour
+.RI ( hh )
+is required and may be a single digit.  The
+.I offset
+following
+.I std
+is required.  If no
+.I offset
+follows
+.IR dst ,
+daylight saving time is assumed to be one hour ahead of standard time.  One or
+more digits may be used; the value is always interpreted as a decimal
+number.  The hour must be between zero and 24, and the minutes (and
+seconds) \*(en if present \*(en between zero and 59.  If preceded by a
+.q "\*-" ,
+the time zone shall be east of the Prime Meridian; otherwise it shall be
+west (which may be indicated by an optional preceding
+.q "+" .
+.TP
+.I rule
+Indicates when to change to and back from daylight saving time.  The
+.I rule
+has the form:
+.RS
+.IP
+\fIdate\fB/\fItime\fB,\fIdate\fB/\fItime\fR
+.RE
+.IP
+where the first
+.I date
+describes when the change from standard to daylight saving time occurs and the
+second
+.I date
+describes when the change back happens.  Each
+.I time
+field describes when, in current local time, the change to the other
+time is made.
+Daylight saving is assumed to be in effect
+all year if it begins January 1 at 00:00 and ends December 31 at
+24:00 plus the difference between daylight saving and standard time,
+leaving no room for standard time in the calendar.
+.IP
+The format of
+.I date
+is one of the following:
+.RS
+.TP
+.BI J n
+The Julian day
+.I n
+.RI "(1\ \(<=" "\ n\ " "\(<=\ 365).
+Leap days are not counted; that is, in all years \*(en including leap
+years \*(en February 28 is day 59 and March 1 is day 60.  It is
+impossible to explicitly refer to the occasional February 29.
+.TP
+.I n
+The zero-based Julian day
+.RI "(0\ \(<=" "\ n\ " "\(<=\ 365).
+Leap days are counted, and it is possible to refer to February 29.
+.TP
+.BI M m . n . d
+The
+.IR d' th
+day
+.RI "(0\ \(<=" "\ d\ " "\(<=\ 6)
+of week
+.I n
+of month
+.I m
+of the year
+.RI "(1\ \(<=" "\ n\ " "\(<=\ 5,
+.RI "1\ \(<=" "\ m\ " "\(<=\ 12,
+where week 5 means
+.q "the last \fId\fP day in month \fIm\fP"
+which may occur in either the fourth or the fifth week).  Week 1 is the
+first week in which the
+.IR d' th
+day occurs.  Day zero is Sunday.
+.RE
+.IP
+The
+.I time
+has the same format as
+.I offset
+except that the hours part of
+.I time
+can range from \-167 through 167; this allows for unusual rules such
+as
+.q "the Saturday before the first Sunday of March" .
+The default, if
+.I time
+is not given, is
+.BR 02:00:00 .
+.RE
+.LP
+Here are some examples of
+.I TZ
+values that directly specify the timezone.
+.TP
+.B EST5
+stands for US Eastern Standard
+Time (EST), 5 hours behind UT, without daylight saving.
+.TP
+.B <+12>\*-12<+13>,M11.1.0,M1.2.1/147
+stands for Fiji time, 12 hours ahead
+of UT, springing forward on November's first Sunday at 02:00, and
+falling back on January's second Monday at 147:00 (i.e., 03:00 on the
+first Sunday on or after January 14).  The abbreviations for standard
+and daylight saving time are
+.q "+12"
+and
+.q "+13".
+.TP
+.B IST\*-2IDT,M3.4.4/26,M10.5.0
+stands for Israel Standard Time (IST) and Israel Daylight Time (IDT),
+2 hours ahead of UT, springing forward on March's fourth
+Thursday at 26:00 (i.e., 02:00 on the first Friday on or after March
+23), and falling back on October's last Sunday at 02:00.
+.TP
+.B <\*-04>4<\*-03>,J1/0,J365/25
+stands for permanent daylight saving time, 3 hours behind UT with
+abbreviation
+.q "\*-03".
+There is a dummy fall-back transition on December 31 at 25:00 daylight
+saving time (i.e., 24:00 standard time, equivalent to January 1 at
+00:00 standard time), and a simultaneous spring-forward transition on
+January 1 at 00:00 standard time, so daylight saving time is in effect
+all year and the initial
+.B <\*-04>
+is a placeholder.
+.TP
+.B <\*-03>3<\*-02>,M3.5.0/\*-2,M10.5.0/\*-1
+stands for time in western Greenland, 3 hours behind UT, where clocks
+follow the EU rules of
+springing forward on March's last Sunday at 01:00 UT (\-02:00 local
+time, i.e., 22:00 the previous day) and falling back on October's last
+Sunday at 01:00 UT (\-01:00 local time, i.e., 23:00 the previous day).
+The abbreviations for standard and daylight saving time are
+.q "\*-03"
+and
+.q "\*-02".
+.PP
+If
+.I TZ
+specifies daylight saving time but does not specify a
+.IR rule ,
+and the optional
+.BR tzfile (5)-format
+file
+.B posixrules
+is present in the system time conversion information directory, the
+rules in
+.B posixrules
+are used, with the
+.B posixrules
+standard and daylight saving time offsets from UT
+replaced by those specified by the
+.I offset
+values in
+.IR TZ .
+However, the
+.B posixrules
+file is obsolete: if it is present it is only for backward compatibility,
+and it does not work reliably.
+Therefore, if a
+.I TZ
+string directly specifies a timezone with daylight saving time,
+it should specify the daylight saving rules explicitly.
+.PP
+For compatibility with System V Release 3.1, a semicolon
+.RB ( ; )
+may be used to separate the
+.I rule
+from the rest of the specification;
+this is an extension to POSIX.
+.PP
+The
+.B tzfree
+function
+frees a timezone object
+.IR tz ,
+which should have been successfully allocated by
+.BR tzalloc .
+This invalidates any
+.B tm_zone
+pointers that
+.I tz
+was used to set.
+.PP
+The
+.B tzset
+function
+acts like
+.BR tzalloc(getenv("TZ")) ,
+except it saves any resulting timezone object into internal
+storage that is accessed by
+.BR localtime ,
+.BR localtime_r ,
+and
+.BR mktime .
+The anonymous shared timezone object is freed by the next call to
+.BR tzset .
+If the implied call to
+.B getenv
+fails,
+.B tzset
+acts like
+.BR tzalloc(nullptr) ;
+if the implied call to
+.B tzalloc
+fails,
+.B tzset
+falls back on UT.
+.PP
+As a side effect, the
+.B tzset
+function sets some external variables if the platform defines them.
+It sets
+.BR tzname [0]
+and
+.BR tzname [1]
+to pointers to strings that are time zone abbreviations to be used with
+standard and daylight saving time, respectively.
+It also sets
+.B timezone
+to be the number of seconds that standard time is west of the Prime Meridian,
+and
+.B daylight
+to be zero if daylight saving time is never in effect, non-zero otherwise.
+.SH "RETURN VALUE"
+If successful, the
+.B tzalloc
+function returns a nonnull pointer to the newly allocated object.
+Otherwise, it returns a null pointer and sets
+.IR errno .
+.SH ERRORS
+.TP
+.B EOVERFLOW
+.I TZ
+directly specifies time conversion information,
+and contains an integer out of machine range
+or a time zone abbreviation that is too long for this platform.
+.PP
+The
+.B tzalloc
+function may also fail and set
+.I errno
+for any of the errors specified for the routines
+.BR access (2),
+.BR close (2),
+.BR malloc (3),
+.BR open (2),
+and
+.BR read (2).
+.SH FILES
+.ta \w'/usr/share/zoneinfo/posixrules\0\0'u
+/etc/localtime	local timezone file
+.br
+/usr/share/zoneinfo	timezone directory
+.br
+/usr/share/zoneinfo/posixrules	default DST rules (obsolete)
+.br
+/usr/share/zoneinfo/GMT	for UTC leap seconds
+.PP
+If /usr/share/zoneinfo/GMT is absent,
+UTC leap seconds are loaded from /usr/share/zoneinfo/GMT0 if present.
+.SH SEE ALSO
+.BR getenv (3),
+.BR newctime (3),
+.BR newstrftime (3),
+.BR time (2),
+.BR tzfile (5).
+.SH NOTES
+Portable code should not rely on the contents of the external variables
+.BR tzname ,
+.B timezone
+and
+.B daylight
+as their contents are unspecified (and do not make sense in general)
+when a geographical TZ is used.
+In multithreaded applications behavior is undefined if one thread accesses
+one of these variables while another thread invokes
+.BR tzset .
+A future version of POSIX is planned to remove these variables;
+callers can instead use the
+.I tm_gmtoff
+and
+.I tm_zone
+members of
+.B struct tm,
+or use
+.B strftime
+with "%z" or "%Z".

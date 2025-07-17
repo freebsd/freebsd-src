@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: kdc
+# REQUIRE: NETWORKING
+# BEFORE: SERVERS
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=kdc
+desc="Kerberos 5 server"
+rcvar=${name}_enable
+: ${kdc_restart:="NO"}
+: ${kdc_restart_delay:=""}
+: ${kdc_svcj_options:="net_basic"}
+
+set_rcvar_obsolete kerberos5_server_enable kdc_enable
+set_rcvar_obsolete kerberos5_server kdc_program
+set_rcvar_obsolete kerberos5_server_flags kdc_flags
+
+default_kdc_programs='/usr/libexec/kdc /usr/libexec/kdc /usr/libexec/krb5kdc /usr/local/sbin/krb5kdc'
+
+load_rc_config $name
+
+# XXX Remove the following block of code when Heimdal is removed
+if [ -z "${kdc_program}" ]; then
+	for i in ${default_kdc_programs}; do
+		if [ -x "${i}" ]; then
+			kdc_program=${i}
+			break
+		fi
+	done
+fi
+
+command="${kdc_program}"
+
+if [ "${kdc_program}" = /usr/libexec/kdc -o \
+     "${kdc_program}" = /usr/local/libexec/kdc ]; then
+	detach="--detach"
+	flavor=heimdal
+else
+	flavor=mit
+	unset detach
+fi
+
+case ${kdc_restart} in
+[Yy][Ee][Ss])
+	if [ "$flavor" = mit ]; then
+		detach=-n
+	else
+		unset detach
+	fi
+	case ${kdc_restart_delay} in
+	"")	unset daemon_restart_delay;;
+	*)	daemon_restart_delay="-R ${kdc_restart_delay}";;
+	esac
+	command_args="-r ${daemon_restart_delay} ${kdc_program} ${detach} ${command_args}"
+	kdc_program=/usr/sbin/daemon
+	;;
+*)
+	command_args="${detach} ${command_args}"
+	;;
+esac
+
+run_rc_command "$1"

@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: iscsictl
+# REQUIRE: NETWORKING iscsid
+# BEFORE:  DAEMON
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="iscsictl"
+desc="iSCSI initiator management utility"
+rcvar="iscsictl_enable"
+command="/usr/bin/${name}"
+command_args="${iscsictl_flags}"
+required_modules="iscsi"
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+iscsictl_svcj="NO"
+
+run_rc_command "$1"

@@ -1,0 +1,205 @@
+.\"***************************************************************************
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
+.\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_printw.3x,v 1.53 2024/04/20 19:18:18 tom Exp $
+.TH curs_printw 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH NAME
+\fB\%printw\fP,
+\fB\%wprintw\fP,
+\fB\%mvprintw\fP,
+\fB\%mvwprintw\fP,
+\fB\%vwprintw\fP,
+\fB\%vw_printw\fP \-
+write formatted output to a \fIcurses\fR window
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>
+.PP
+\fBint printw(const char *\fIfmt\fP, ...);
+\fBint wprintw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, ...);
+\fBint mvprintw(int \fIy\fP, int \fIx\fP, const char *\fIfmt\fP, ...);
+\fBint mvwprintw(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const char *\fIfmt\fP, ...);
+.PP
+\fBint vw_printw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, va_list \fIvarglist\fP);
+.PP
+\fI/* obsolete */\fP
+\fBint vwprintw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, va_list \fIvarglist\fP);
+.fi
+.SH DESCRIPTION
+\fB\%printw\fP,
+\fB\%wprintw\fP,
+\fB\%mvprintw\fP,
+and
+\fB\%mvwprintw\fP
+are analogous to \fI\%printf\fP(3).
+In effect,
+the string that would be output by \fI\%printf\fP(3) is instead output
+as though \fB\%waddstr\fP(3X) were used with
+.I win
+(or
+.BR \%stdscr )
+as its first argument.
+.PP
+\fB\%vwprintw\fP
+and
+\fB\%vw_printw\fP are analogous to \fI\%vprintf\fP(3),
+and perform a \fB\%wprintw\fP using a variable argument list.
+The third argument is a \fI\%va_list\fP,
+a pointer to a list of arguments,
+as defined in \fI\%stdarg.h\fP.
+.SH RETURN VALUE
+These functions return
+.B ERR
+upon failure and
+.B OK
+upon success.
+.PP
+In
+.IR \%ncurses ,
+failure occurs if the library cannot allocate enough memory for the
+buffer into which the output is formatted,
+or if the window pointer
+.I win
+is null.
+.PP
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+No wide character counterpart functions are defined by the
+\*(``wide\*(''
+.I \%ncurses
+configuration nor by any standard.
+To format and write a wide-character string to a
+.I curses
+window,
+consider using \fI\%swprintf\fP(3) and \fB\%waddwstr\fP(3X) or similar.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+.I \%ncurses
+defines \fB\%vw_printw\fP and \fB\%vwprintw\fP identically to support
+legacy applications.
+However,
+the latter is obsolete.
+.bP
+X/Open Curses,
+Issue 4 Version 2 (1996),
+marked \fB\%vwprintw\fP as requiring \fI\%varargs.h\fP and
+\*(``TO BE WITHDRAWN\*('',
+and specified \fB\%vw_printw\fP using the \fI\%stdarg.h\fP interface.
+.bP
+X/Open Curses, Issue 5, Draft 2
+(December 2007) marked \fBvwprintw\fP (along with
+\fBvwscanw\fP and the \fItermcap\fP interface) as withdrawn.
+After incorporating review comments,
+this became
+X/Open Curses, Issue 7 (2009).
+.bP
+.I \%ncurses
+provides \fB\%vwprintw\fP,
+but marks it as deprecated.
+.SH HISTORY
+While \fB\%printw\fP was implemented in 4BSD
+(November 1980),
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4BSD/usr/src/lib/\
+.\"   libcurses/printw.c
+it was unused until 4.2BSD
+(August 1983),
+which employed it for games.
+That early version of
+.I curses
+preceded the ANSI C standard of 1989.
+It did not use \fI\%varargs.h\fP,
+though that had been available since Seventh Edition Unix (1979).
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=V7/usr/include/\
+.\"  varargs.h
+In 1991
+(a couple of years after SVr4 was generally available,
+and after the C standard was published),
+other developers updated the library,
+using \fI\%stdarg.h\fP internally in 4.4BSD
+.IR curses .
+Even with this improvement,
+BSD
+.I curses
+did not use function prototypes
+(nor even declare functions)
+in \fI\%curses.h\fP until 1992.
+.PP
+SVr2 (1984) documented \fB\%printw\fP and \fB\%wprintw\fP tersely as
+\*(``printf on \fB\%stdscr\fP\*('' and
+\*(``printf on \fIwin\fP\*('',
+respectively.
+.PP
+SVr3 (1987) added \fB\%mvprintw\fP and \fB\%mvwprintw\fP,
+with a three-line summary asserting that they were analogous to
+\fI\%printf\fP(3),
+explaining that the string that \fI\%printf\fP(3) would write to the
+standard output stream would instead be output using \fB\%waddstr\fP to
+the given window.
+SVr3 also implemented \fB\%vwprintw\fP,
+describing its third parameter as a \fI\%va_list\fP,
+defined in \fI\%varargs.h\fP,
+and referred the reader to the manual pages for \fI\%varargs\fP and
+\fI\%vprintf\fP for detailed descriptions.
+.PP
+SVr4 (1989) introduced no new variations of \fI\%printw\fP,
+but provided for using either \fI\%varargs.h\fP or \fI\%stdarg.h\fP to
+define the \fI\%va_list\fP type.
+.\" either header declares "va_list", but only one can be used
+.PP
+X/Open Curses, Issue 4 (1995),
+defined \fB\%vw_printw\fP to replace \fB\%vwprintw\fP,
+stating that its \fI\%va_list\fP type is defined in \fI\%stdarg.h\fP.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%curs_addstr\fP(3X),
+\fB\%curs_scanw\fP(3X),
+\fB\%printf\fP(3),
+\fB\%vprintf\fP(3)

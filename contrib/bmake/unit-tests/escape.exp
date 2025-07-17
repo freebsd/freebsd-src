@@ -1,0 +1,98 @@
+var-1bs
+VAR1BS=:111\111:
+VAR1BSa=:111\aaa:
+VAR1BSA=:111\aaa:
+VAR1BSda=:111\${a}:
+VAR1BSdA=:111\${A}:
+VAR1BSc=:111# backslash escapes comment char, so this is part of the value:
+VAR1BSsc=:111\ :
+var-2bs
+VAR2.BS=:222\\222:
+VAR2.BS.a=:222\\aaa:
+VAR2.BS.A=:222\\aaa:
+VAR2.BS.d.a=:222\\${a}:
+VAR2.BS.d.A=:222\\${A}:
+VAR2.BS.c=:222\\:
+VAR2.BS.s.c=:222\\:
+var-1bs-nl
+VAR1.BS-NL=:111 111:
+VAR1.BS-NL.a=:111 aaa:
+VAR1.BS-NL.A=:111 aaa:
+VAR1.BS-NL.d-a=:111 ${a}:
+VAR1.BS-NL.d-A=:111 ${A}:
+VAR1.BS-NL.c=:111:
+VAR1.BS-NL.s-c=:111:
+var-2bsnl
+VAR2BSNL=:222\\:
+VAR2BSNLa=:222\\:
+VAR2BSNLA=:222\\:
+VAR2BSNLda=:222\\:
+VAR2BSNLdA=:222\\:
+VAR2BSNLc=:222\\:
+VAR2BSNLsc=:222\\:
+var-3bsnl
+VAR3BSNL=:333\\ 333=:
+VAR3BSNLa=:333\\ aaa=:
+VAR3BSNLA=:333\\ aaa=:
+VAR3BSNLda=:333\\ ${a}=:
+VAR3BSNLdA=:333\\ ${A}=:
+VAR3BSNLc=:333\\:
+VAR3BSNLsc=:333\\:
+var-1bsnl-space
+VAR1BSNL00=:first line:
+VAR1BSNL0=:first line no space on second line:
+VAR1BSNLs=:first line one space on second line:
+VAR1BSNLss=:first line two spaces on second line:
+VAR1BSNLt=:first line one tab on second line:
+VAR1BSNLtt=:first line two tabs on second line:
+VAR1BSNLxx=:first line many spaces and tabs [  	 ] on second line:
+cmd-1bsnl
+echo :'first line\
+#second line without space\
+third line':
+:first line\
+#second line without space\
+third line:
+echo :'first line\
+     second line spaces should be retained':
+:first line\
+     second line spaces should be retained:
+echo :'first line\
+second line tab should be elided':
+:first line\
+second line tab should be elided:
+echo :'first line\
+	only one tab should be elided, second tab remains'
+:first line\
+	only one tab should be elided, second tab remains
+cmd-1bsnl-eof
+echo :'command ending with backslash-newline'; \
+
+:command ending with backslash-newline
+cmd-2bsnl
+echo take one\\
+take one\
+echo take two\\
+take two\
+echo take three\\
+take three\
+cmd-3bsnl
+echo :'first line\\\
+#second line without space\\\
+third line':
+:first line\\\
+#second line without space\\\
+third line:
+echo :'first line\\\
+     second line spaces should be retained':
+:first line\\\
+     second line spaces should be retained:
+echo :'first line\\\
+second line tab should be elided':
+:first line\\\
+second line tab should be elided:
+echo :'first line\\\
+	only one tab should be elided, second tab remains'
+:first line\\\
+	only one tab should be elided, second tab remains
+exit status 0

@@ -1,0 +1,437 @@
+
+#------------------------------------------------------------------------------
+# $File: cad,v 1.31 2022/12/09 15:36:23 christos Exp $
+# autocad:  file(1) magic for cad files
+#
+
+# Microstation DGN/CIT Files (www.bentley.com)
+# Last updated July 29, 2005 by Lester Hightower
+# DGN is the default file extension of Microstation/Intergraph CAD files.
+# CIT is the proprietary raster format (similar to TIFF) used to attach
+# raster underlays to Microstation DGN (vector) drawings.
+#
+# http://www.wotsit.org/search.asp
+# https://filext.com/detaillist.php?extdetail=DGN
+# https://filext.com/detaillist.php?extdetail=CIT
+#
+# https://www.bentley.com/products/default.cfm?objectid=97F351F5-9C35-4E5E-89C2
+# 3F86C928&method=display&p_objectid=97F351F5-9C35-4E5E-89C280A93F86C928
+# https://www.bentley.com/products/default.cfm?objectid=A5C2FD43-3AC9-4C71-B682
+# 721C479F&method=display&p_objectid=A5C2FD43-3AC9-4C71-B682C7BE721C479F
+# 
+# URL:		https://en.wikipedia.org/wiki/MicroStation
+# reference:	http://dgnlib.maptools.org/dgn.html
+#		http://dgnlib.maptools.org/dl/ref18.pdf
+# Update:	Joerg Jenderek
+# Note: verfied by command like `dgndump seed2d_b.dgn`
+# test for level 8 and type 5 or 9
+0	beshort&0x3F73	0x0801
+# level of element like 8
+#>0	ubyte&0x3F	x			\b, level %u
+#>0	ubyte		&0x80			\b, complex
+#>0	ubyte		&0x40			\b, reserved
+# type of element 9~TCB 8~Digitizer setup 5~Group Data Elements
+#>1	ubyte&0x7F	x			\b, type %u
+# words to follow in element: 17H~CEL library 2FEh~DGN 9FEh,DFEh~CIT
+#>2	uleshort	x			\b, words %#4.4x to follow
+# test for 3 reserved 0 bytes in CIT or "conversion" in ViewInfo structure (DGN CEL)
+#>508	ubelong		x			\b, RESERVED %8.8x
+>508	ubelong&0xFFffFF00	=0
+# test for level 8 and type 9 for INGR raster image
+>>0	beshort		0x0809
+# test for length of 1st element is multiple of blocks a 512 bytes
+>>>2	ubyte		0xfe
+>>>>0 	use		ingr-image
+# test for DGN or CEL by jump words (uleshort) forward to next element
+>(2.s*2)	ulong		x
+# 2nd element type: 8~Digitizer~DesiGNfile 1~library cell header other~CIT
+#>>&1		ubyte&0x7F	x		\b, 2nd type %u
+# DGN
+>>&1		ubyte&0x7F	8
+>>>2		uleshort	=0x02FE		Bentley/Intergraph Microstation CAD drawing
+!:mime		application/x-bentley-dgn
+!:ext		dgn
+# The 0x40 bit of this byte is 1 if the file is 3D, otherwise 0
+>>>>1214	ubyte  		&0x40		3D
+>>>>1214	ubyte  		^0x40		2D
+# 2 chars for name of subunits like ft FT in IN mu m mm '\0 '\040
+>>>>1120	string		x		\b, units %-.2s
+# 2 chars for name of master unit like IN in ML SU tn th TH HU mm "\0 "\040 \0\0
+>>>>1122	string		>\0		%-.2s
+#>>>>1120	ubelong		x		\b, units %#8.8x
+# element range low,high x y z like xlow=0 08010000h 01080000h
+#>>>>4		ubelong	  	!0		\b, xlow %8.8x
+#>>>>8		ubelong	  	!0		\b, ylow %8.8x
+#>>>>12		ubelong	  	!0		\b, zlow %8.8x
+#>>>>16		ubelong	  	!0		\b, xhigh %8.8x
+#>>>>20		ubelong	  	!0		\b, yhigh %8.8x
+#>>>>24		ubelong	  	!0		\b, zhigh %8.8x
+# graphic group number; all other elements in that group have same non-0 number
+#>>>>28		leshort		x		\b, grphgrp %#4.4x
+# words to optional attribute linkage
+#>>>>30		ubyte		x		\b, attindx \%o
+#>>>>31		ubyte		x		\b\%o
+# >>30	string	\026\105			DGNFile
+# >>30	string	\034\105			DGNFile
+# >>30	string	\073\107			DGNFile
+# >>30	string	\073\110			DGNFile
+# >>30	string	\106\107			DGNFile
+# >>30	string	\110\103			DGNFile
+# >>30	string	\120\104			DGNFile
+# >>30	string	\172\104			DGNFile
+# >>30	string	\172\105			DGNFile
+# >>30	string	\172\106			DGNFile
+# >>30	string	\234\106			DGNFile
+# >>30	string	\273\105			DGNFile
+# >>30	string	\306\106			DGNFile
+# >>30	string	\310\104			DGNFile
+# >>30	string	\341\104			DGNFile
+# >>30	string	\372\103			DGNFile
+# >>30	string	\372\104			DGNFile
+# >>30	string	\372\106			DGNFile
+# >>30	string	\376\103			DGNFile
+# elements properties indicator
+#>>>>32		uleshort	!0		\b, properties %#4.4x
+# class 0~Primary
+#>>>>>32		uleshort&0x000F	!0		\b, class %#4.4x
+# Symbology
+#>>>>>34		uleshort	x		\b, Symbology %#4.4x
+# test for 2nd element type 1~library cell header
+>>&1		ubyte&0x7F	1
+# test for 1st element with level 8 and type 5 for cell library
+>>>0		beshort		0x0805		Bentley/Intergraph Microstation CAD cell library
+!:mime		application/x-bentley-cel
+!:ext		cel
+#
+# URL:		http://fileformats.archiveteam.org/wiki/Intergraph_Raster
+# reference:	https://web.archive.org/web/20140903185431/
+#		http://oreilly.com/www/centers/gff/formats/ingr/index.htm
+# note:		verfied by command like `nconvert -fullinfo LONGLAT.CIT`
+# display information for intergraph raster bitmap
+0	name	ingr-image
+# in 5.37 "Microstation CITFile" "Bentley/Intergraph MicroStation CIT raster CAD"
+# DataTypeCode indicates format, depth of the pixel data and used compression 
+>4	uleshort	x			Intergraph raster image
+>>4	uleshort	0x0009			\b, Run-Length Encoded 1-bit
+!:mime	image/x-intergraph-rle
+!:ext	rel
+>>4	uleshort	0x0018			\b, CCITT Group 4 1-bit
+!:mime	image/x-intergraph-cit
+!:ext	cit
+>>4	uleshort	27			\b, Adaptive RLE RGB
+!:mime	image/x-intergraph-rgb
+!:ext	rgb
+>>4	default		x
+>>>4	uleshort	x			\b, Type %u
+!:mime	image/x-intergraph
+# TODO:
+#>4	uleshort	0			\b, no data
+# ...
+#>4	uleshort	0x0045			\b, Continuous Tone CMKY (Uncompressed)
+# ApplicationType: 0~generic raster image 3~drawing, scanning
+# 8~I/IMAGE and MicroStation Imager 9~ModelView
+>6	uleshort	!0			\b, ApplicationType %u
+#>6	uleshort	x			\b, ApplicationType %u
+# XViewOrigin; Raster grid data X origin
+#>8	ulequad		!0			\b, XViewOrigin %llx
+# PixelsPerLine is the number of pixels in a scan line of bitmapp
+>184	ulelong		x			\b, %u x
+# NumberOfLines is height of the raster data in scanlines
+>188	ulelong		x			%u
+# DeviceResolution; resolution of scanning device
+# positive indicates number of micros between lines; negative indicates DPI
+#>192	leshort		x			\b, DeviceResolution %d
+# ScanlineOrient indicates the origin and the orientation of the scan lines
+#>194	ubyte		x			\b, ScanlineOrient %x
+>194	ubyte		x			\b, orientation
+>194	ubyte		&0x01			right
+>194	ubyte		^0x01			left
+>194	ubyte		&0x02			down
+>194	ubyte		^0x02			top
+>194	ubyte		&0x04			horizontal
+>194	ubyte		^0x04			vertical
+# ScannableFlag; Scanline indexing method used
+#>195	ubyte		!0			\b, ScannableFlag %#x
+# RotationAngle; Rotation angle of raster data
+#>196	ubequad		!0			\b, RotationAngle %#llx
+# SkewAngle; Skew angle of raster data
+#>204	ubequad		!0			\b, SkewAngle %llx
+# DataTypeModifier; Additional raster data format info
+#>212	uleshort	!0			\b, DataTypeModifier %#4.4x
+# DesignFile[66]; Name of the design file
+>214	string		>\0			\b, DesignFile %-.66s
+# DatabaseFile[66]; Name of the database file
+>280	string		>\0			\b, DatabaseFile %-.66s
+# ParentGridFile[66]; Name of parent grid file
+>346	string		>\0			\b, ParentGridFile %-.66s
+# FileDescription[80]; Text description of file and contents
+>412	string		>\0			\b, FileDescription %-.80s
+# MinValue
+#>492	ubequad		!0			\b, MinValue %#llx
+# MaxValue
+#>500	ubequad		!0			\b, MaxValue %#llx
+# Reserved[3]; Unused (always 0)
+#>508	ubelong&0xFFffFF00	x		\b, RESERVED %8.8x
+# GridFileVersion; Grid File Version like 2 3
+#>511	ubyte		x			\b, GridFileVersion %x
+
+# AutoCAD
+# Merge of the different contributions and updates from https://en.wikipedia.org/wiki/Dwg
+# and https://www.iana.org/assignments/media-types/image/vnd.dwg
+0	string	MC0.0	DWG AutoDesk AutoCAD Release 1.0
+!:mime image/vnd.dwg
+0	string	AC1.2	DWG AutoDesk AutoCAD Release 1.2
+!:mime image/vnd.dwg
+0	string	AC1.3	DWG AutoDesk AutoCAD Release 1.3
+!:mime image/vnd.dwg
+0	string	AC1.40	DWG AutoDesk AutoCAD Release 1.40
+!:mime image/vnd.dwg
+0	string	AC1.50	DWG AutoDesk AutoCAD Release 2.05
+!:mime image/vnd.dwg
+0	string	AC2.10	DWG AutoDesk AutoCAD Release 2.10
+!:mime image/vnd.dwg
+0	string	AC2.21	DWG AutoDesk AutoCAD Release 2.21
+!:mime image/vnd.dwg
+0	string	AC2.22	DWG AutoDesk AutoCAD Release 2.22
+!:mime image/vnd.dwg
+0	string	AC1001	DWG AutoDesk AutoCAD Release 2.22
+!:mime image/vnd.dwg
+0	string	AC1002	DWG AutoDesk AutoCAD Release 2.50
+!:mime image/vnd.dwg
+0	string	AC1003	DWG AutoDesk AutoCAD Release 2.60
+!:mime image/vnd.dwg
+0	string	AC1004	DWG AutoDesk AutoCAD Release 9
+!:mime image/vnd.dwg
+0	string	AC1006	DWG AutoDesk AutoCAD Release 10
+!:mime image/vnd.dwg
+0	string	AC1009	DWG AutoDesk AutoCAD Release 11/12
+!:mime image/vnd.dwg
+# AutoCAD DWG versions R13/R14 (www.autodesk.com)
+# Written December 01, 2003 by Lester Hightower
+# Based on the DWG File Format Specifications at http://www.opendwg.org/
+# AutoCad, from Nahuel Greco
+# AutoCAD DWG versions R12/R13/R14 (www.autodesk.com)
+0	string	AC1012	DWG AutoDesk AutoCAD Release 13
+!:mime image/vnd.dwg
+0	string	AC1013	DWG AutoDesk AutoCAD Release 13c3
+!:mime image/vnd.dwg
+0	string	AC1014	DWG AutoDesk AutoCAD Release 14
+!:mime image/vnd.dwg
+0	string	AC1015	DWG AutoDesk AutoCAD 2000
+!:mime image/vnd.dwg
+
+# A new version of AutoCAD DWG
+# Sergey Zaykov (mail_of_sergey@mail.ru, sergey_zaikov@rambler.ru,
+# ICQ 358572321)
+# From various sources like:
+# https://autodesk.blogs.com/between_the_lines/autocad-release-history.html
+0	string	AC1018	DWG AutoDesk AutoCAD 2004/2005/2006
+!:mime image/vnd.dwg
+0	string	AC1021	DWG AutoDesk AutoCAD 2007/2008/2009
+!:mime image/vnd.dwg
+0	string	AC1024	DWG AutoDesk AutoCAD 2010/2011/2012
+!:mime image/vnd.dwg
+0	string	AC1027	DWG AutoDesk AutoCAD 2013-2017
+!:mime image/vnd.dwg
+
+# From GNU LibreDWG
+0	string	AC1032	DWG AutoDesk AutoCAD 2018/2019/2020
+!:mime image/vnd.dwg
+0	string	AC1035	DWG AutoDesk AutoCAD 2021
+!:mime image/vnd.dwg
+
+# KOMPAS 2D drawing from ASCON
+# This is KOMPAS 2D drawing or fragment of drawing but is not detailed nor
+# gathered nor specification
+# ASCON https://ascon.net/main/ in English,
+#	https://ascon.ru/ main site in Russian
+# Extension is CDW for drawing and FRW for fragment of drawing
+# Sergey Zaykov (mail_of_sergey@mail.ru, sergey_zaikov@rambler.ru,
+# ICQ 358572321, https://vkontakte.ru/id16076543)
+# From:
+# https://sd.ascon.ru/otrs/customer.pl?Action=CustomerFAQ&CategoryID=4&ItemID=292
+# (in russian) and my experiments
+0	string	KF
+>2	belong	0x4E00000C	Kompas drawing 12.0 SP1
+>2	belong	0x4D00000C	Kompas drawing 12.0
+>2	belong	0x3200000B	Kompas drawing 11.0 SP1
+>2	belong	0x3100000B	Kompas drawing 11.0
+>2	belong	0x2310000A	Kompas drawing 10.0 SP1
+>2	belong	0x2110000A	Kompas drawing 10.0
+>2	belong	0x08000009	Kompas drawing 9.0 SP1
+>2	belong	0x05000009	Kompas drawing 9.0
+>2	belong	0x33010008	Kompas drawing 8+
+>2	belong	0x1A000008	Kompas drawing 8.0
+>2	belong	0x2C010107	Kompas drawing 7+
+>2	belong	0x05000007	Kompas drawing 7.0
+>2	belong	0x32000006	Kompas drawing 6+
+>2	belong	0x09000006	Kompas drawing 6.0
+>2	belong	0x5C009005	Kompas drawing 5.11R03
+>2	belong	0x54009005	Kompas drawing 5.11R02
+>2	belong	0x51009005	Kompas drawing 5.11R01
+>2	belong	0x22009005	Kompas drawing 5.10R03
+>2	belong	0x22009005	Kompas drawing 5.10R02 mar
+>2	belong	0x21009005	Kompas drawing 5.10R02 febr
+>2	belong	0x19009005	Kompas drawing 5.10R01
+>2	belong	0xF4008005	Kompas drawing 5.9R01.003
+>2	belong	0x1C008005	Kompas drawing 5.9R01.002
+>2	belong	0x11008005	Kompas drawing 5.8R01.003
+
+# CAD: file(1) magic for computer aided design files
+# Phillip Griffith <phillip dot griffith at gmail dot com>
+# AutoCAD magic taken from the Open Design Alliance's OpenDWG specifications.
+#
+
+# 3DS (3d Studio files)
+0	leshort		0x4d4d
+>6	leshort		0x2
+>>8	lelong		0xa
+>>>16	leshort		0x3d3d	3D Studio model
+# Beat sgi MMV
+!:strength +20
+!:mime	image/x-3ds
+!:ext 3ds
+
+# MegaCAD 2D/3D drawing (.prt)
+# https://megacad.de/
+# From: Markus Heidelberg <markus.heidelberg@web.de>
+0	string	MegaCad23\0	MegaCAD 2D/3D drawing
+
+# Hoops CAD files
+# https://docs.techsoft3d.com/visualize/3df/latest/build/general/hsf/\
+# HSF_architecture.html
+# Stephane Charette <stephane.charette@gmail.com>
+0	string	;;\040HSF\040V		OpenHSF (Hoops Stream Format)
+>7	regex/9 V[.0-9]{4,5}\040	%s
+!:ext hsf
+
+# AutoCAD Drawing Exchange Format
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/DXF
+#		https://en.wikipedia.org/wiki/AutoCAD_DXF
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/
+#		dxf-var0.trid.xml dxf-var0u.trid.xml dxf-var2.trid.xml dxf-var2u.trid.xml
+# Note:		called "AutoCAD Drawing eXchange Format" by TrID and
+#		"Drawing Interchange File Format (ASCII)" by DROID
+# GRR: some samples does not match 1st test like: abydos.dxf
+0	regex		\^[\ \t]*0\r?\000$
+>1	regex		\^[\ \t]*SECTION\r?$
+>>2	regex		\^[\ \t]*2\r?$
+# GRR: some samples without HEADER section like: airplan2.dxf
+>>>3	regex		\^[\ \t]*HEADER\r?$	AutoCAD Drawing Exchange Format
+#!:mime	application/x-dxf
+!:mime	image/vnd.dxf
+!:ext	dxf
+# DROID PUID fmt/64	fmt-64-signature-id-99.dxf
+>>>>&1	search/8192	MC0.0			\b, 1.0
+# DROID PUID fmt/65	fmt-65-signature-id-100.dxf
+>>>>&1	search/8192	AC1.2			\b, 1.2
+# DROID PUID fmt/66	fmt-66-signature-id-101.dxf
+>>>>&1	search/8192	AC1.3			\b, 1.3
+# DROID PUID fmt/67	fmt-67-signature-id-102.dxf
+>>>>&1	search/8192	AC1.40			\b, 1.4
+# DROID PUID fmt/68	fmt-68-signature-id-103.dxf
+>>>>&1	search/8192	AC1.50			\b, 2.0
+# DROID PUID fmt/69	fmt-69-signature-id-104.dxf
+>>>>&1	search/8192	AC2.10			\b, 2.1
+# DROID PUID fmt/70	fmt-70-signature-id-105.dxf
+>>>>&1	search/8192	AC2.21			\b, 2.2
+# DROID PUID fmt/71	fmt-71-signature-id-106.dxf
+>>>>&1	search/8192	AC1002			\b, 2.5
+# DROID PUID fmt/72	fmt-72-signature-id-107.dxf
+>>>>&1	search/8192	AC1003			\b, 2.6
+# DROID PUID fmt/73	fmt-73-signature-id-108.dxf
+>>>>&1	search/8192	AC1004			\b, R9
+>>>>&1	search/8192	AC1006			\b, R10
+# http://cd.textfiles.com/amigaenv/DXF/OBJEKTE/LASTMINUTE/apple.dxf
+#>>>>&1	search/8192	AC1008			\b, Rfoo
+>>>>&1	search/8192	AC1009			\b, R11/R12
+>>>>&1	search/8192	AC1012			\b, R13
+>>>>&1	search/8192	AC1013			\b, R13c3
+>>>>&1	search/8192	AC1014			\b, R14
+>>>>&1	search/8192	AC1015			\b, version 2000
+>>>>&1	search/8192	AC1018			\b, version 2004
+>>>>&1	search/8192	AC1021			\b, version 2007
+>>>>&1	search/8192	AC1024			\b, version 2010
+>>>>&1	search/8192	AC1027			\b, version 2013
+>>>>&1	search/8192	AC1032			\b, version 2018
+>>>>&1	search/8192	AC1035			\b, version 2021
+
+# The Sketchup 3D model format https://www.sketchup.com/
+0	string	\xff\xfe\xff\x0e\x53\x00\x6b\x00\x65\x00\x74\x00\x63\x00\x68\x00\x55\x00\x70\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00	SketchUp Model
+!:mime application/vnd.sketchup.skp
+!:ext skp
+
+4	regex/b	P[0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.[0-9]	NAXOS CAD System file from version %s
+!:strength +40
+
+# glTF (GL Transmission Format) - by the Khronos Group
+# Reference: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#glb-file-format-specification
+0	string		glTF		glTF binary model
+>4	ulelong		x		\b, version %d
+>8	ulelong		x		\b, length %d bytes
+!:mime	model/gltf-binary
+!:ext	glb
+
+# FBX (FilmBoX) - by Kaydara/Autodesk
+# Reference: https://code.blender.org/2013/08/fbx-binary-file-format-specification
+0	string	Kaydara\ FBX\ Binary\ \ \0	Kaydara FBX model,
+>&2	ulelong	x	version %d
+!:ext	fbx
+
+# PLY (Polygon File Format/Stanford Triangle Format) - by Greg Turk
+# Reference: https://web.archive.org/web/20161204152348/http://www.dcs.ed.ac.uk/teaching/cs4/www/graphics/Web/ply.html
+0	string	ply\n          	PLY model,
+!:ext	ply
+>4	string	format\ ascii\ 	ASCII,
+>>&0	regex/6	[0-9.]+        	version %s
+>4	string	format\ binary  	binary,
+>>&0	string	_little_endian\ 	little endian,
+>>>&0	regex/6	[0-9.]+         	version %s
+>>&0	string	_big_endian\ 	big endian,
+>>>&0	regex/6	[0-9.]+      	version %s
+
+# VRML (Virtual Reality Modeling Language) - by the Web3D Consortium
+# From:      Michel Briand <michelbriand@free.fr>
+# Reference: https://www.web3d.org/standards
+0	string/w	#VRML\ V1.0\ ascii	VRML 1 file
+!:mime	model/vrml
+!:ext	wrl
+0	string/w	#VRML\ V2.0\ utf8	ISO/IEC 14772 VRML 97 file
+!:mime	model/vrml
+!:ext	wrl
+# X3D, VRML encoded
+0	string	#X3D	X3D (Extensible 3D) model, VRML format
+>4	string	V
+>>5	regex/6	[0-9.]+	\b, version %s
+!:mime	model/x3d+vrml
+!:ext	x3dv
+
+## XML-based 3D CAD Formats
+# From: Michel Briand <michelbriand@free.fr>, Oliver Galvin <odg@riseup.net>
+0	string/w        \<?xml\ version=
+!:strength + 5
+# X3D (Extensible 3D)
+# Schema:    https://www.web3d.org/specifications/x3d-3.2.dtd
+# MIME Type: https://www.iana.org/assignments/media-types/model/x3d+xml
+# Example:   https://www.web3d.org/x3d/content/examples/Basic/course/CreateX3DFromStringRandomSpheres.x3d
+>20	search/1000/w   \<!DOCTYPE\ X3D         X3D (Extensible 3D) model, XML document
+!:mime	model/x3d+xml
+!:ext	x3d
+# COLLADA (COLLAborative Design Activity) - by the Khronos Group
+# Schema:    http://www.collada.org/2005/11/COLLADASchema
+# Reference: https://www.khronos.org/collada
+>20	search/1000/w	\<COLLADA	COLLADA model, XML document
+!:mime	model/vnd.collada+xml
+!:ext	dae
+# 3MF (3D Manufacturing Format) - by the 3MF Consortium
+# Schema:    http://schemas.microsoft.com/3dmanufacturing/core/2015/02
+# Reference: https://3mf.io/specification
+>20	search/1000/w	xmlns="http://schemas.microsoft.com/3dmanufacturing	3MF (3D Manufacturing Format) model, XML document
+!:mime	model/3mf
+!:ext	3mf
+# AMF (Additive Manufacturing File)
+# Reference: https://www.astm.org/Standards/ISOASTM52915.htm
+>20	search/1000/w	\<amf	AMF (Additive Manufacturing Format) model, XML document
+!:mime	application/x-amf
+!:ext	amf

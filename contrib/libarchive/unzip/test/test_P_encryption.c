@@ -1,0 +1,22 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2023 Adrian Vovk
+ * All rights reserved.
+ */
+#include "test.h"
+
+/* Test P arg - password protected */
+DEFINE_TEST(test_P_encryption)
+{
+	const char *reffile = "test_encrypted.zip";
+	int r;
+
+	extract_reference_file(reffile);
+	r = systemf("%s -P password %s >test.out 2>test.err", testprog, reffile);
+	assertEqualInt(0, r);
+	assertNonEmptyFile("test.out");
+	assertEmptyFile("test.err");
+
+	assertTextFileContents("plaintext\n", "encrypted/file.txt");
+}

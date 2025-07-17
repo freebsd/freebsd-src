@@ -1,0 +1,119 @@
+.if !targets(__<${_this:T}>__)
+__<${_this:T}>__:
+
+# Makefile for the compatibility libraries.
+# - 32-bit compat libraries on some 64-bit architectures
+
+.if defined(_LIBCOMPATS)
+
+.include <bsd.compat.mk>
+
+.for libcompatidx _LIBCOMPAT libcompat in ${_LIBCOMPATS:range:@i@${i} ${_LIBCOMPATS:[$i]} ${libcompats:[$i]}@}
+
+# Yes, the flags are redundant.
+LIB${_LIBCOMPAT}WMAKEENV+= \
+		INSTALL="${INSTALL_CMD} -U" \
+		PATH=${TMPPATH} \
+		SYSROOT=${WORLDTMP} \
+		LIBDIR=/usr/lib${libcompat} \
+		SHLIBDIR=/usr/lib${libcompat} \
+		LIBDATADIR=/usr/lib${libcompat} \
+		DTRACE="${LIB${_LIBCOMPAT}DTRACE:U${DTRACE}}"
+.if ${MK_META_MODE} != "no"
+# Don't rebuild build-tools targets during normal build.
+LIB${_LIBCOMPAT}WMAKEENV+=	BUILD_TOOLS_META=.NOMETA
+.endif
+LIB${_LIBCOMPAT}WMAKEFLAGS+= CC=${${XCC} ${LIB${_LIBCOMPAT}CFLAGS}:L:Q} \
+		CXX=${${XCXX} ${LIB${_LIBCOMPAT}CXXFLAGS} ${LIB${_LIBCOMPAT}CFLAGS}:L:Q} \
+		CPP=${${XCPP} ${LIB${_LIBCOMPAT}CFLAGS}:L:Q} \
+		DESTDIR=${WORLDTMP} \
+		-DNO_CPU_CFLAGS \
+		MK_BOOT=no \
+		MK_CTF=no \
+		MK_TESTS=no
+LIB${_LIBCOMPAT}WMAKE+=	${TIME_ENV} ${LIB${_LIBCOMPAT}WMAKEENV} ${MAKE} \
+			${LIB${_LIBCOMPAT}WMAKEFLAGS} \
+			OBJTOP=${LIB${_LIBCOMPAT}_OBJTOP} \
+			OBJROOT='$${OBJTOP}/' \
+			UNIVERSE_TOOLCHAIN_PATH=${UNIVERSE_TOOLCHAIN_PATH} \
+			MAKEOBJDIRPREFIX= \
+			MK_INCLUDES=no \
+			MK_MAN=no MK_HTML=no
+LIB${_LIBCOMPAT}IMAKE+=	${LIB${_LIBCOMPAT}WMAKE:NINSTALL=*:NDESTDIR=*} \
+			${IMAKE_INSTALL} \
+			-DLIBRARIES_ONLY
+
+# Shared logic
+build${libcompat}: .PHONY
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 4.3.${libcompatidx}: building lib${libcompat} shim libraries"
+	@echo "--------------------------------------------------------------"
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	    -p ${WORLDTMP}/usr >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
+.endif
+	${_+_}cd ${.CURDIR}; \
+	    WORLDTMP=${WORLDTMP} \
+	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
+	    ${MAKE} -f Makefile.inc1 \
+	    DESTDIR= \
+	    OBJTOP=${LIB${_LIBCOMPAT}_OBJTOP} \
+	    OBJROOT='$${OBJTOP}/' \
+	    UNIVERSE_TOOLCHAIN_PATH=${UNIVERSE_TOOLCHAIN_PATH} \
+	    MAKEOBJDIRPREFIX= \
+	    -DNO_CPU_CFLAGS \
+	    MK_ASAN=no \
+	    MK_CTF=no \
+	    MK_RETPOLINE=no \
+	    MK_SSP=no \
+	    MK_UBSAN=no \
+	    MK_WERROR=no \
+	    _lc_build-tools
+	${_+_}cd ${.CURDIR}; \
+	    ${LIB${_LIBCOMPAT}WMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
+
+distribute${libcompat} install${libcompat}: .PHONY
+	${_+_}cd ${.CURDIR}; \
+	    ${LIB${_LIBCOMPAT}IMAKE} -f Makefile.inc1 _lc_${.TARGET:S/${libcompat}$//}
+
+.endfor # libcompatidx _LIBCOMPAT libcompat
+
+.endif # defined(_LIBCOMPATS)
+
+# These depend on MK_*, which could vary between the native and compat
+# architectures. Thus targets using them are run within a compat sub-make
+# rather than the native make environment.
+
+_LC_LIBDIRS.yes=		lib
+_LC_LIBDIRS.yes+=		gnu/lib
+_LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
+_LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
+.if ${MK_MITKRB5} != "no"
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	krb5/lib
+.else
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
+.endif
+
+.if ${MK_FILE} != "no"
+_libmagic=	lib/libmagic
+.endif
+.if ${MK_PMC} != "no"
+_jevents=	lib/libpmc/pmu-events
+.endif
+
+_lc_build-tools:
+.for _dir in lib/ncurses/tinfo ${_libmagic} ${_jevents}
+.for _t in ${_obj} build-tools
+	${_+_}cd ${.CURDIR}/${_dir}; ${MAKE} DIRPRFX=${_dir}/ ${_t}
+.endfor
+.endfor
+
+_lc_distribute _lc_install:
+.for _dir in ${_LC_LIBDIRS.yes}
+	${_+_}cd ${.CURDIR}/${_dir}; ${MAKE} ${.TARGET:S/^_lc_//}
+.endfor
+
+.endif # !targets(__<${_this:T}>__)

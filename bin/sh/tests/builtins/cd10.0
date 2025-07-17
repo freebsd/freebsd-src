@@ -1,0 +1,5 @@
+
+# Precondition
+(cd /bin) || exit
+# Verify write error is ignored.
+ENV= $SH +m -ic 'CDPATH=/:; cd bin 1</dev/null'

@@ -1,0 +1,1583 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021-2025 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 12, 2025
+.Dt IWLWIFIFW 4
+.Os
+.Sh NAME
+.Nm iwlwififw
+.Nd Firmware for Intel iwlwifi wireless network driver
+.Sh SYNOPSIS
+The
+.Xr iwlwifi 4
+driver should auto-load any firmware needed.
+It is discouraged to load the driver or firmware manually from
+.Xr loader 8 .
+.Sh DESCRIPTION
+Firmware files are available from
+.Xr ports 7
+for the various chipset models supported
+by the
+.Xr iwlwifi 4
+driver.
+Modern chipsets often require a
+.Pa .ucode
+and an accompanying
+.Pa .pnvm
+file.
+.Pp
+One can use
+.Xr fwget 8
+to install the correct firmware package.
+.Pp
+The list is provided as a reference as to with file prefix is needed for
+a specific card as far as it can be determined and the port flavor.
+.Pp
+.Bl -column -compact "Vendor" "Device" "Subv. " "Subd. " "Flavor" "Firmware-Prefix"
+.It Ar Name
+.It Ar Vendor Ta Ar Device Ta Ar Subv. Ta Ar Subd. Ta Ar Flavor Ta Ar Firmware-Prefix
+.\" ---------------------------------------------------------------------
+.\" This list is manually generated from a sysctl and post-processing
+.\" by sys/contrib/dev/iwlwifi/zzz_fw_ports_fwget.sh generating the list.
+.\" Edits will be overwritten on next update.
+.\" ---------------------------------------------------------------------
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4070 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4072 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4170 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4c60 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4c70 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4060 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x406a Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4160 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4062 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4162 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x4270 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x4272 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x4260 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x426a Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x4262 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4470 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4472 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4460 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x446a Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4462 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4870 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x486e Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4a70 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4a6e Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4a6c Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4570 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4560 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x4370 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x4360 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x5070 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x5072 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x5170 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x5770 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4020 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x402a Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0x4220 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0x4420 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc070 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc072 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc170 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc060 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc06a Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc160 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc062 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc162 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc770 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc760 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0xc270 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xcc70 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xcc60 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0xc272 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0xc260 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0xc26a Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0xc262 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc470 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc472 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc460 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc462 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc570 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc560 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0xc370 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc360 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc020 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc02a Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b2 Ta any Ta 0xc220 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless N 7260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b1 Ta any Ta 0xc420 Ta 7000 Ta iwlwifi-7260
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0070 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0072 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0170 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0172 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless N 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0060 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Wireless N 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0062 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b4 Ta any Ta 0x0270 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b4 Ta any Ta 0x0272 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0470 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x0472 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b4 Ta any Ta 0x0370 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8070 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8072 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8170 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8172 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless N 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8060 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Wireless N 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8062 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b4 Ta any Ta 0x8270 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b4 Ta any Ta 0x8370 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b4 Ta any Ta 0x8272 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8470 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x8570 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x1070 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3160 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x08b3 Ta any Ta 0x1170 Ta 7000 Ta iwlwifi-3160
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3165 Ta any Ta 0x4010 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3165 Ta any Ta 0x4012 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3166 Ta any Ta 0x4212 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3165 Ta any Ta 0x4410 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3165 Ta any Ta 0x4510 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3165 Ta any Ta 0x4110 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3166 Ta any Ta 0x4310 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3166 Ta any Ta 0x4210 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3165 Ta any Ta 0x8010 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3165 Ta any Ta 0x8110 Ta 7000 Ta iwlwifi-7265D
+.It ""
+.It Intel(R) Dual Band Wireless AC 3168 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fb Ta any Ta 0x2010 Ta 7000 Ta iwlwifi-3168
+.It ""
+.It Intel(R) Dual Band Wireless AC 3168 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fb Ta any Ta 0x2110 Ta 7000 Ta iwlwifi-3168
+.It ""
+.It Intel(R) Dual Band Wireless AC 3168 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fb Ta any Ta 0x2050 Ta 7000 Ta iwlwifi-3168
+.It ""
+.It Intel(R) Dual Band Wireless AC 3168 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fb Ta any Ta 0x2150 Ta 7000 Ta iwlwifi-3168
+.It ""
+.It Intel(R) Dual Band Wireless AC 3168 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fb Ta any Ta 000000 Ta 7000 Ta iwlwifi-3168
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5010 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5110 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5100 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x5310 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x5302 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x5210 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5c10 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5012 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5412 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5410 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5510 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5400 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x1010 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5000 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x500a Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x5200 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5002 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5102 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x5202 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9010 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9012 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x900a Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9110 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9112 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x9210 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x9200 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9510 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x9310 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9410 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5020 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x502a Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless N 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5420 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5090 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5190 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5590 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x5290 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5490 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x5f10 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x5212 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095b Ta any Ta 0x520a Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9000 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9400 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 7265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x095a Ta any Ta 0x9e10 Ta 7000 Ta iwlwifi-7265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x1010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x10b0 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0130 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x1130 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0132 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x1132 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0110 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x01f0 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0012 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x1012 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x1110 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0050 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0250 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x1050 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0150 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x1150 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f4 Ta any Ta 0x0030 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f4 Ta any Ta 0x1030 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0xc010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0xc110 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0xd010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0xc050 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0xd050 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0xd0b0 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0xb0b0 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x8010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x8110 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x9010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x9110 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f4 Ta any Ta 0x8030 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f4 Ta any Ta 0x9030 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f4 Ta any Ta 0xc030 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f4 Ta any Ta 0xd030 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x8130 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x9130 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x8132 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x9132 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x8050 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x8150 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x9050 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x9150 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless N 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0004 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless N 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0044 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 4165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f5 Ta any Ta 0x0010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 4165 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f6 Ta any Ta 0x0030 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0810 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0910 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0850 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0950 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x0930 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 000000 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24f3 Ta any Ta 0x4010 Ta 8000 Ta iwlwifi-8000C
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0010 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0110 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x1110 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x1130 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0130 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x1010 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x10d0 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0050 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0150 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x9010 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x8110 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x8050 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x8010 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0810 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x9110 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x8130 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0910 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0930 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0950 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0850 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x1014 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8275 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x3e02 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8275 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x3e01 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8275 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x1012 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8275 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0012 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x0014 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It Intel(R) Dual Band Wireless AC 8265 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x24fd Ta any Ta 0x9074 Ta 8000 Ta iwlwifi-8265
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta any Ta 9000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x271b Ta any Ta any Ta 9000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x271c Ta any Ta any Ta 9000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x30dc Ta any Ta any Ta 9000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x31dc Ta any Ta any Ta 9000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x9df0 Ta any Ta any Ta 9000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa370 Ta any Ta any Ta 9000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2723 Ta any Ta any Ta 22000 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f0 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f1 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x54f0 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7f70 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2729 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7e40 Ta any Ta any Ta AX210 Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2727 Ta any Ta any Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x272d Ta any Ta any Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x272b Ta any Ta any Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 000000 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0090 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0094 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0098 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x009c Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00c0 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00c4 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00e0 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00e4 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00e8 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00ec Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0100 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0110 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0114 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0118 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x011c Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0310 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0314 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0510 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0a10 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1671 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1672 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1771 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1772 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1791 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1792 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x4090 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x40c4 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x40e0 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x4110 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa840 Ta any Ta 0x4314 Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7740 Ta any Ta any Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4d40 Ta any Ta any Ta BZ Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xe440 Ta any Ta any Ta SC Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xe340 Ta any Ta any Ta SC Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xd340 Ta any Ta any Ta SC Ta (unknown)
+.It ""
+.It (unknown) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x6e70 Ta any Ta any Ta SC Ta (unknown)
+.It ""
+.It Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta 0x1550 Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x30dc Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x30dc Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x31dc Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x31dc Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa370 Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa370 Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x54f0 Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x54f0 Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f0 Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f0 Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f0 Ta any Ta 0x1691 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f0 Ta any Ta 0x1692 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f1 Ta any Ta 0x1692 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x54f0 Ta any Ta 0x1691 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x54f0 Ta any Ta 0x1692 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x1691 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x1692 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x1691 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x1692 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Intel(R) Wireless-AC 9260-1 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x271c Ta any Ta 0x0214 Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7e40 Ta any Ta 0x1691 Ta AX210 Ta (null)
+.It ""
+.It Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7e40 Ta any Ta 0x1692 Ta AX210 Ta (null)
+.It ""
+.It Intel(R) Wi-Fi 6 AX200 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2723 Ta any Ta any Ta 22000 Ta iwlwifi-cc-a0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650w 160MHz Wireless Network Adapter (200D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2723 Ta any Ta 0x1653 Ta 22000 Ta iwlwifi-cc-a0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650x 160MHz Wireless Network Adapter (200NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2723 Ta any Ta 0x1654 Ta 22000 Ta iwlwifi-cc-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x0070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x0074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x0078 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x007c Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x1651 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x1652 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x2074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x43f0 Ta any Ta 0x4070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x0070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x0074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x0078 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x007c Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x0a10 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x1651 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x1652 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x2074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x4070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0xa0f0 Ta any Ta 0x6074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x0070 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x0074 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x6074 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x0078 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x007c Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x0310 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x1651 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x1652 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x2074 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x02f0 Ta any Ta 0x4070 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x0070 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x0074 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x0078 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x007c Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x0310 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x1651 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x1652 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x2074 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x06f0 Ta any Ta 0x4070 Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x0070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x0074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x0078 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x007c Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x0310 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x1651 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x1652 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x2074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x34f0 Ta any Ta 0x4070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x0070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x0074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x0078 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x007c Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x0310 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x1651 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x1652 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x2074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x3df0 Ta any Ta 0x4070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x0070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x0074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x0078 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x007c Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x0310 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x1651 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x1652 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x2074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x4070 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x4df0 Ta any Ta 0x6074 Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x0090 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x0020 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x2020 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x0024 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x0310 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x0510 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x0a10 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0xe020 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0xe024 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x4020 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x6020 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6 AX210 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x6024 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675w 160MHz Wireless Network Adapter (210D2W) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x1673 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675x 160MHz Wireless Network Adapter (210NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2725 Ta any Ta 0x1674 Ta AX210 Ta iwlwifi-ty-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x0090 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x0098 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX411 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x00b0 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x0310 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x0510 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x0a10 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x0090 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x0098 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX411 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x00b0 Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x0310 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x0510 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x0a10 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x1551 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x1552 Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2726 Ta any Ta 0x1671 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2726 Ta any Ta 0x1672 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f0 Ta any Ta 0x1671 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f0 Ta any Ta 0x1672 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f1 Ta any Ta 0x1671 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x51f1 Ta any Ta 0x1672 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x54f0 Ta any Ta 0x1671 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x54f0 Ta any Ta 0x1672 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x1671 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7a70 Ta any Ta 0x1672 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x1671 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7af0 Ta any Ta 0x1672 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7f70 Ta any Ta 0x1671 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7f70 Ta any Ta 0x1672 Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7e40 Ta any Ta 0x1671 Ta AX210 Ta (null)
+.It ""
+.It Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x7e40 Ta any Ta 0x1672 Ta AX210 Ta (null)
+.It ""
+.It Intel(R) Wireless-AC 9461 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta iwlwifi Ta iwlwifi-9000-pu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9270 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta any Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9270 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta any Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9162 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x271b Ta any Ta any Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9162 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x271b Ta any Ta any Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9260 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta any Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9260 Ta Ta Ta Ta Ta
+.It 0x8086 Ta 0x2526 Ta any Ta any Ta iwlwifi Ta iwlwifi-9260-th-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta 0x1551 Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta 0x1552 Ta 22000 Ta iwlwifi-Qu-b0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta 0x1551 Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta 0x1552 Ta 22000 Ta iwlwifi-Qu-c0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta 0x1551 Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta 0x1552 Ta 22000 Ta iwlwifi-QuZ-a0-jf-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX101 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX203 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-b0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX101 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX203 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-Qu-c0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX101 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX203 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta 22000 Ta iwlwifi-QuZ-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta (null)
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta (null)
+.It ""
+.It Intel(R) Wi-Fi 6E AX231 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta (null)
+.It ""
+.It Intel(R) Wi-Fi 6 AX203 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX101 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6 AX201 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-hr-b0
+.It ""
+.It Intel(R) Wi-Fi 6E AX211 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-gf-a0
+.It ""
+.It Intel(R) Wi-Fi 6E AX411 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-gf4-a0
+.It ""
+.It Intel(R) Wireless-AC 9560 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9560 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9461 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-jf-b0
+.It ""
+.It Intel(R) Wireless-AC 9462 Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta AX210 Ta iwlwifi-so-a0-jf-b0
+.It ""
+.It Intel(R) Wi-Fi 7 BE201 320MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta BZ Ta (null)
+.It ""
+.It Intel(R) Wi-Fi 7 BE200 320MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta BZ Ta (null)
+.It ""
+.It Intel(R) Wi-Fi 7 BE202 160MHz Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta BZ Ta (null)
+.It ""
+.It Intel(R) TBD Sc device Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta SC Ta (null)
+.It ""
+.It Intel(R) TBD Sc2 device Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta SC Ta (null)
+.It ""
+.It Intel(R) TBD Sc2f device Ta Ta Ta Ta Ta
+.It 0x8086 Ta any Ta any Ta any Ta SC Ta (null)
+.\" ---------------------------------------------------------------------
+.El
+.Pp
+.Em Note :
+some devices can only be determined correctly at run-time
+based on hardware registers (or by other special magic not replicated
+in the above listing).
+.Sh FILES
+A copy of the
+.Xr iwlwifi 4
+firmware license is installed along with the
+.Pa wifi-firmware-iwlwifi-kmod
+package or the
+.Pa ports/net/wifi-firmware-iwlwifi-kmod
+port (or each of its flavors).
+.Sh SEE ALSO
+.Xr iwlwifi 4 ,
+.Xr fwget 8 ,
+.Xr firmware 9
+.Sh HISTORY
+The
+.Nm
+firmware modules first appeared in
+.Fx 13.1
+and were removed before
+.Fx 14.3
+and replaced by
+.Xr ports 7
+based firmware packages.

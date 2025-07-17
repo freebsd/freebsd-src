@@ -1,0 +1,116 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2024 The FreeBSD Foundation
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+if [ -n "$ROOTPASS_ENC" ]; then
+	printf '%s\n' "$ROOTPASS_ENC" | pw -R $BSDINSTALL_CHROOT usermod root -H 0
+	exit $?
+elif [ -n "$ROOTPASS_PLAIN" ]; then
+	printf '%s\n' "$ROOTPASS_PLAIN" | pw -R $BSDINSTALL_CHROOT usermod root -h 0
+	exit $?
+fi
+
+: ${BSDDIALOG_OK:=0}
+
+error_get_message()
+{
+	case $1 in
+	62)
+		echo "The password cannot be empty"
+		;;
+	63)
+		echo "The passwords do not match"
+		;;
+	64) #EX_USAGE
+		echo "Command used incorrectly"
+		;;
+	65) #EX_DATAERR
+		echo "Incorrect input data"
+		;;
+	67) #EX_NOUSER
+		echo "User not found"
+		;;
+	70) #EX_SOFTWARE
+		echo "Internal software error"
+		;;
+	71) #EX_OSERR
+		echo "Operating System error detected"
+		;;
+	72) #EX_OSFILE
+		echo "Error in a system file"
+		;;
+	74) #EX_IOERR
+		echo "I/O error"
+		;;
+	77) #EX_NOPERM
+		echo "Insufficient permissions"
+		;;
+	78) #EX_CONFIG
+		echo "Configuration error"
+		;;
+	0)
+		;;
+	*)
+		echo "An unknown error occurred (code $1)"
+		return 1
+		;;
+	esac
+	return $1
+}
+
+errormsg=
+username="root"
+while true; do
+	exec 5>&1
+	output=$(bsddialog --backtitle "$OSNAME Installer" \
+		--title "Set $username password" \
+		--cancel-label "Skip" \
+		--passwordform --insecure \
+		"Please select a password for the system management account ($username)
+$errormsg" \
+		0 0 2 \
+		"Password" 0 0 '' 0 17 32 32 \
+		"Repeat password" 1 0 '' 1 17 32 32 \
+		2>&1 1>&5)
+	res=$?
+	exec 5>&-
+	[ $res -eq $BSDDIALOG_OK ] || exit 0
+
+	echo -n "$output" | (read password1
+		read password2
+		[ -n "$password1" -o -n "$password2" ] || exit 62
+		[ "$password1" = "$password2" ] || exit 63
+		echo "$password1" | chroot $BSDINSTALL_CHROOT \
+			/usr/sbin/pw usermod "$username" -h 0
+	)
+	err=$?
+	[ $err -eq 0 ] && exit 0
+	errormsg=$(error_get_message $err)
+done

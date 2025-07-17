@@ -1,0 +1,131 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Chelsio Communications, Inc.
+.\"
+.Dd July 25, 2024
+.Dt NVMFD 8
+.Os
+.Sh NAME
+.Nm nvmfd
+.Nd "NVMeoF controller daemon"
+.Sh SYNOPSIS
+.Nm
+.Fl K
+.Op Fl dFGg
+.Op Fl H Ar MAXH2CDATA
+.Op Fl P Ar port
+.Op Fl p Ar port
+.Op Fl t Ar transport
+.Op Fl n Ar subnqn
+.Nm
+.Op Fl dFGg
+.Op Fl H Ar MAXH2CDATA
+.Op Fl P Ar port
+.Op Fl p Ar port
+.Op Fl t Ar transport
+.Op Fl n Ar subnqn
+.Ar device
+.Op Ar device ...
+.Sh DESCRIPTION
+.Nm
+accepts incoming NVMeoF connections for both I/O and discovery controllers.
+.Nm
+can either implement a single dynamic I/O controller in user mode or hand
+off incoming I/O controller connections to
+.Xr nvmft 4 .
+A dynamic discovery controller service is always provided in user mode.
+.Pp
+The following options are available:
+.Bl -tag -width "-t transport"
+.It Fl F
+Permit remote hosts to disable SQ flow control.
+.It Fl G
+Permit remote hosts to enable PDU data digests for the TCP transport.
+.It Fl g
+Permit remote hosts to enable PDU header digests for the TCP transport.
+.It Fl H
+Set the MAXH2CDATA value advertised to the remote host for the TCP transport.
+This value is in bytes and determines the maximum data payload size for
+data PDUs sent by the remote host.
+The value must be at least 4096 and defaults to 256KiB.
+.It Fl K
+Enable kernel mode which hands off incoming I/O controller connections to
+.Xr nvmft 4 .
+.It Fl P Ar port
+Use
+.Ar port
+as the listen TCP port for the discovery controller service.
+The default value is 8009.
+.It Fl d
+Enable debug mode.
+The daemon sends any errors to standard output and does not place
+itself in the background.
+.It Fl p Ar port
+Use
+.Ar port
+as the listen TCP port for the I/O controller service.
+By default an unused ephemeral port will be chosen.
+.It Fl n Ar subnqn
+The Subsystem NVMe Qualified Name for the I/O controller.
+If an explicit NQN is not given, a default value is generated from the
+current host's UUID obtained from the
+.Vt kern.hostuuid
+sysctl.
+.It Fl t Ar transport
+The transport type to use.
+The default transport is
+.Dq tcp .
+.It Ar device
+When implementing a user mode I/O controller,
+one or more
+.Ar device
+arguments must be specified.
+Each
+.Ar device
+describes the backing store for a namespace exported to remote hosts.
+Devices can be specified using one of the following syntaxes:
+.Bl -tag -width "ramdisk:size"
+.It Pa pathname
+File or disk device
+.It ramdisk : Ns Ar size
+Allocate a memory disk with the given
+.Ar size .
+.Ar size
+may use any of the suffixes supported by
+.Xr expand_number 3 .
+.El
+.El
+.Sh FILES
+.Bl -tag -width "/var/run/nvmfd.pid" -compact
+.It Pa /var/run/nvmfd.pid
+The default location of the
+.Nm
+PID file.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ctl 4 ,
+.Xr nvmft 4 ,
+.Xr ctladm 8 ,
+.Xr ctld 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+subsystem was developed by
+.An John Baldwin Aq Mt jhb@FreeBSD.org
+under sponsorship from Chelsio Communications, Inc.
+.Sh BUGS
+The discovery controller and kernel mode functionality of
+.Nm
+should be merged into
+.Xr ctld 8 .
+.Pp
+Additional parameters such as
+queue sizes should be configurable.

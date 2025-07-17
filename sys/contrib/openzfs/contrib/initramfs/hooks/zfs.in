@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# Add OpenZFS filesystem capabilities to an initrd, usually for a native ZFS root.
+#
+
+if [ "$1" = "prereqs" ]; then
+	echo "udev"
+	exit
+fi
+
+. /usr/share/initramfs-tools/hook-functions
+
+for req in "@sbindir@/zpool" "@sbindir@/zfs" "@mounthelperdir@/mount.zfs"; do
+	copy_exec "$req" || {
+		echo "$req not available!" >&2
+		exit 2
+	}
+done
+
+copy_exec "@udevdir@/vdev_id"
+copy_exec "@udevdir@/zvol_id"
+if command -v systemd-ask-password > /dev/null; then
+	copy_exec "$(command -v systemd-ask-password)"
+fi
+
+# We use pthreads, but i-t from buster doesn't automatically
+# copy this indirect dependency: this can be removed when buster finally dies.
+find /lib/ -type f -name "libgcc_s.so.[1-9]" | while read -r libgcc; do
+	copy_exec "$libgcc"
+done
+
+# shellcheck disable=SC2050
+if [ @LIBFETCH_DYNAMIC@ -gt 0 ]; then
+	find /lib/ -name "@LIBFETCH_SONAME@" | while read -r libfetch; do
+		copy_exec "$libfetch"
+	done
+fi
+
+copy_file config "/etc/hostid"
+copy_file cache  "@sysconfdir@/zfs/zpool.cache"
+copy_file config "@initconfdir@/zfs"
+copy_file config "@sysconfdir@/zfs/zfs-functions"
+copy_file config "@sysconfdir@/zfs/vdev_id.conf"
+for f in "@sysconfdir@/zfs/initramfs-tools-load-key" "@sysconfdir@/zfs/initramfs-tools-load-key.d/"*; do
+	copy_file config "$f"
+done
+copy_file rule   "@udevruledir@/60-zvol.rules"
+copy_file rule   "@udevruledir@/69-vdev.rules"
+
+manual_add_modules zfs
+
+if [ -f "/etc/hostname" ]; then
+	copy_file config "/etc/hostname"
+else
+	hostname="$(mktemp -t hostname.XXXXXXXXXX)"
+	hostname > "$hostname"
+	copy_file config "$hostname" "/etc/hostname"
+	rm -f "$hostname"
+fi

@@ -1,0 +1,37 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 John Baldwin <jhb@FreeBSD.org>
+.Dd February 5, 2025
+.Dt BUS_HINTED_CHILD 9
+.Os
+.Sh NAME
+.Nm BUS_HINTED_CHILD
+.Nd notify a bus device about a potential child device identified by hints
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft void
+.Fn BUS_HINTED_CHILD "device_t dev" "const char *dname" "int dunit"
+.Sh DESCRIPTION
+The
+.Fn BUS_HINTED_CHILD
+method is invoked by the
+.Xr bus_enumerate_hinted_children 9
+function for each set of named hints whose
+.Dq at
+hint matches the bus device
+.Fa dev .
+Typically, this method should determine if the set of hints for the given
+device name and unit sufficiently describe a new device.
+If so, a new device should be added via
+.Xr BUS_ADD_CHILD 9 .
+.Sh SEE ALSO
+.Xr BUS_ADD_CHILD 9 ,
+.Xr bus_enumerate_hinted_children 9 ,
+.Xr device 9
+.Sh HISTORY
+The
+.Fn BUS_HINTED_CHILD
+method first appeared in
+.Fx 6.2 .

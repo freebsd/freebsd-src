@@ -1,0 +1,35 @@
+#
+# NXP SoC support
+#
+
+# SoC support
+options 	SOC_NXP_LS
+
+# I2C
+device		pca954x			# NPX I2C bus multiplexer / switches
+device		pcf8563			# NXP Real-time clock/calendar
+device		tca64xx			# NXP I2C gpio expander
+device		pcf85063		# NXP Real-time clock
+
+# Serial (COM) ports
+device		uart_ns8250		# ns8250-type UART driver
+device		uart_snps
+
+# USB support
+device		dwc3			# Synopsys DWC controller
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+
+# Ethernet NICs
+device		dpaa2			# Data Path Acceleration Architecture (2nd Gen)
+device		enetc			# QorIQ LS1028A NIC
+
+# SFF/SFP
+device		sff			# Small Form Factor Transceivers
+
+options 	FDT
+device		acpi
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/freescale"

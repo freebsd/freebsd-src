@@ -1,0 +1,86 @@
+# Standard kernel config items for all ARMv7 systems.
+#
+
+options 	HZ=1000
+options 	PREEMPTION		# Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	CC_CUBIC		# include CUBIC congestion control
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+device		crypto			# core crypto support
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	NETLINK			# netlink(4) support
+options 	SCTP_SUPPORT		# Allow kldload of SCTP
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
+options 	NFSCL			# Network Filesystem Client
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	TMPFS			# Efficient memory filesystem
+options 	GEOM_PART_GPT		# GUID Partition Tables
+options 	GEOM_PART_BSD		# BSD partition scheme
+options 	GEOM_PART_MBR		# MBR partition scheme
+options 	GEOM_LABEL		# Provides labelization
+options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+options 	KTRACE			# ktrace(1) support
+options 	STACK			# stack(9) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilites
+options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
+options 	VFP			# Enable floating point hardware support
+options 	MAC			# Support for Mandatory Access Control (MAC)
+
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
+options 	COMPAT_FREEBSD13	# Compatible with FreeBSD13
+options 	COMPAT_FREEBSD14	# Compatible with FreeBSD14
+
+# DTrace support
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data
+makeoptions	WITH_CTF=1
+
+# Debugging support.  Always need this:
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
+
+options		USB_DEBUG		# Enable usb debug support code
+
+# For full debugger support use (turn off in stable branch):
+include "std.debug"
+
+# Optional extras, never enabled by default:
+#options 	BOOTVERBOSE
+#options 	DEBUG			# May result in extreme spewage
+#options 	KTR
+#options 	KTR_COMPILE=KTR_ALL
+#options 	KTR_ENTRIES=16384
+#options 	KTR_MASK=(KTR_SPARE2)
+#options 	KTR_VERBOSE=0
+#options 	USB_REQ_DEBUG
+#options 	USB_VERBOSE
+
+# Enable support for the kernel PLL to use an external PPS signal,
+# under supervision of [x]ntpd(8)
+# More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
+
+options 	PPS_SYNC

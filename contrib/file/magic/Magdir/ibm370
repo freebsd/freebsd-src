@@ -1,0 +1,58 @@
+
+#------------------------------------------------------------------------------
+# $File: ibm370,v 1.13 2024/06/19 16:52:57 christos Exp $
+# ibm370:  file(1) magic for IBM 370 and compatibles.
+#
+# "ibm370" said that 0x15d == 0535 was "ibm 370 pure executable".
+# "USS/370" is an old name for the z/OS Unix subsystem
+# AIX 4.1's "/etc/magic" has
+#
+#	0	short		0535		370 sysV executable
+#	>12	long		>0		not stripped
+#	>22	short		>0		- version %d
+#	>30	long		>0		- 5.2 format
+#	0	short		0530		370 sysV pure executable
+#	>12	long		>0		not stripped
+#	>22	short		>0		- version %d
+#	>30	long		>0		- 5.2 format
+#
+# instead of the "USS/370" versions of the same magic numbers.
+#
+0	beshort		0537		370 XA sysV executable
+>12	belong		>0		not stripped
+>22	beshort		>0		- version %d
+>30	belong		>0		- 5.2 format
+0	beshort		0532		370 XA sysV pure executable
+>12	belong		>0		not stripped
+>22	beshort		>0		- version %d
+>30	belong		>0		- 5.2 format
+0	beshort		054001		370 sysV pure executable
+>12	belong		>0		not stripped
+0	beshort		055001		370 XA sysV pure executable
+>12	belong		>0		not stripped
+0	beshort		056401		370 sysV executable
+>12	belong		>0		not stripped
+0	beshort		057401		370 XA sysV executable
+>12	belong		>0		not stripped
+0       beshort		0531		SVR2 executable (Amdahl-UTS)
+>12	belong		>0		not stripped
+>24     belong		>0		- version %d
+0	beshort		0534		SVR2 pure executable (Amdahl-UTS)
+>12	belong		>0		not stripped
+>24	belong		>0		- version %d
+0	beshort		0530		SVR2 pure executable (USS/370)
+>12	belong		>0		not stripped
+>24	belong		>0		- version %d
+0	beshort		0535		SVR2 executable (USS/370)
+>12	belong		>0		not stripped
+>24	belong		>0		- version %d
+
+# NETDATA (https://en.wikipedia.org/wiki/NETDATA)
+# INMR01 In EBCDIC starting at offset 2
+2	string		\xc9\xd5\xd4\xd9\xf0\xf1	IBM NETDATA file
+
+# z/OS Program Object executable
+# Starts with "IEWPLMH" in EBCDIC, followed by a single EBCDIC space to pad
+# to 8 bytes. According to https://www.ibm.com/support/pages/apar/PK91585
+# IEWPLMH is eyecatcher for "Binder Program Load Module Header" control block
+0	string   	\xc9\xc5\xe6\xd7\xd3\xd4\xc8\x40	z/OS Program Object executable

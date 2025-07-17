@@ -1,0 +1,102 @@
+cddl/dev/dtrace/riscv/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/riscv/dtrace_isa.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/dtrace/riscv/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/dtrace/riscv/instr_size.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/riscv/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
+crypto/des/des_enc.c		optional	netsmb
+dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
+dev/ofw/ofw_cpu.c		optional	fdt
+dev/ofw/ofw_pcib.c		optional 	pci fdt
+dev/pci/pci_dw.c		optional	pci fdt
+dev/pci/pci_dw_if.m		optional	pci fdt
+dev/pci/pci_host_generic.c	optional	pci
+dev/pci/pci_host_generic_fdt.c	optional	pci fdt
+dev/uart/uart_cpu_fdt.c		optional	uart fdt
+dev/uart/uart_dev_lowrisc.c	optional	uart_lowrisc
+dev/usb/controller/generic_ehci.c		optional ehci
+dev/usb/controller/generic_ehci_fdt.c		optional ehci fdt
+dev/usb/controller/generic_ohci.c		optional ohci fdt
+dev/usb/controller/generic_usb_if.m		optional ohci fdt
+dev/usb/controller/generic_xhci.c		optional xhci
+dev/usb/controller/generic_xhci_fdt.c		optional xhci fdt
+dev/vmm/vmm_dev.c		optional	vmm
+dev/vmm/vmm_mem.c		optional	vmm
+dev/vmm/vmm_stat.c		optional	vmm
+dev/xilinx/axi_quad_spi.c	optional	xilinx_spi
+dev/xilinx/axidma.c		optional	axidma xdma
+dev/xilinx/if_xae.c		optional	xae
+dev/xilinx/xlnx_pcib.c		optional	pci fdt xlnx_pcib
+kern/msi_if.m			standard
+kern/pic_if.m			standard
+kern/subr_devmap.c		standard
+kern/subr_dummy_vdso_tc.c	standard
+kern/subr_efi_map.c		standard
+kern/subr_intr.c		standard
+kern/subr_physmem.c		standard
+libkern/bcopy.c			standard
+libkern/memcmp.c		standard
+libkern/memset.c		standard
+libkern/strcmp.c		standard
+libkern/strlen.c		standard
+libkern/strncmp.c		standard
+riscv/riscv/aplic.c		standard
+riscv/riscv/autoconf.c		standard
+riscv/riscv/bus_machdep.c	standard
+riscv/riscv/bus_space_asm.S	standard
+riscv/riscv/busdma_bounce.c	standard
+riscv/riscv/busdma_machdep.c	standard
+riscv/riscv/cache.c		standard
+riscv/riscv/cbo.c		standard
+riscv/riscv/clock.c		standard
+riscv/riscv/copyinout.S		standard
+riscv/riscv/cpufunc_asm.S	standard
+riscv/riscv/db_disasm.c		optional	ddb
+riscv/riscv/db_interface.c	optional	ddb
+riscv/riscv/db_trace.c		optional	ddb
+riscv/riscv/dump_machdep.c	standard
+riscv/riscv/elf_machdep.c	standard
+riscv/riscv/exception.S		standard
+riscv/riscv/exec_machdep.c	standard
+riscv/riscv/fpe.c		standard
+riscv/riscv/gdb_machdep.c	optional	gdb
+riscv/riscv/intc.c		standard
+riscv/riscv/identcpu.c		standard
+riscv/riscv/locore.S		standard	no-obj
+riscv/riscv/machdep.c		standard
+riscv/riscv/minidump_machdep.c	standard
+riscv/riscv/mp_machdep.c	optional	smp
+riscv/riscv/mem.c		standard
+riscv/riscv/nexus.c		standard
+riscv/riscv/ofw_machdep.c	optional	fdt
+riscv/riscv/plic.c		standard
+riscv/riscv/pmap.c		standard
+riscv/riscv/ptrace_machdep.c	standard
+riscv/riscv/riscv_console.c	optional	rcons
+riscv/riscv/riscv_syscon.c	optional	syscon riscv_syscon fdt
+riscv/riscv/sigtramp.S		standard
+riscv/riscv/sbi.c		standard
+riscv/riscv/sbi_ipi.c		optional	smp
+riscv/riscv/sdt_machdep.c	optional	kdtrace_hooks
+riscv/riscv/stack_machdep.c	optional	ddb | stack
+riscv/riscv/support.S		standard
+riscv/riscv/swtch.S		standard
+riscv/riscv/sys_machdep.c	standard
+riscv/riscv/trap.c		standard
+riscv/riscv/timer.c		standard
+riscv/riscv/uio_machdep.c	standard
+riscv/riscv/unwind.c		optional	ddb | kdtrace_hooks | stack
+riscv/riscv/vm_machdep.c	standard
+riscv/vmm/vmm.c					optional	vmm
+riscv/vmm/vmm_aplic.c				optional	vmm
+riscv/vmm/vmm_dev_machdep.c			optional	vmm
+riscv/vmm/vmm_fence.c				optional	vmm
+riscv/vmm/vmm_instruction_emul.c		optional	vmm
+riscv/vmm/vmm_riscv.c				optional	vmm
+riscv/vmm/vmm_sbi.c				optional	vmm
+riscv/vmm/vmm_switch.S				optional	vmm
+riscv/vmm/vmm_vtimer.c				optional	vmm
+
+riscv/thead/thead.c		standard
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}
