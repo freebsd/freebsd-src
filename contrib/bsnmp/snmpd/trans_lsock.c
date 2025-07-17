@@ -417,7 +417,7 @@ lsock_send(struct tport *tp, const u_char *buf, size_t len,
 		}
 	}
 
-	return (sendto(peer->input.fd, buf, len, 0, addr, addrlen));
+	return (sendto(peer->input.fd, buf, len, MSG_NOSIGNAL, addr, addrlen));
 }
 
 static void
