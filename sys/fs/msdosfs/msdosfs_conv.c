@@ -797,19 +797,24 @@ mbsadjpos(const char **instr, size_t inlen, size_t outlen, int weight, int flag,
 static u_char *
 dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
 {
-	u_char c, *outp;
-	size_t len, olen;
+	u_char c, *outp, *outp1;
+	size_t i, len, olen;
 
 	outp = outbuf;
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		olen = len = 4;
 
+		outp1 = outp;
 		if (lower & (LCASE_BASE | LCASE_EXT))
 			msdosfs_iconv->convchr_case(pmp->pm_d2u, (const char **)instr,
 						  ilen, (char **)&outp, &olen, KICONV_LOWER);
 		else
 			msdosfs_iconv->convchr(pmp->pm_d2u, (const char **)instr,
 					     ilen, (char **)&outp, &olen);
+		for (i = 0; i < outp - outp1; i++) {
+			if (outp1[i] == '/')
+				outp1[i] = '?';
+		}
 		len -= olen;
 
 		/*
@@ -826,6 +831,8 @@ dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struc
 		c = dos2unix[c];
 		if (lower & (LCASE_BASE | LCASE_EXT))
 			c = u2l[c];
+		if (c == '/')
+			c = '?';
 		*outp++ = c;
 		outbuf[1] = '\0';
 	}
