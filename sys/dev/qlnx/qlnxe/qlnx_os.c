@@ -30,6 +30,8 @@
  * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
  */
 
+#include "opt_inet.h"
+
 #include <sys/cdefs.h>
 #include "qlnx_os.h"
 #include "bcm_osal.h"
