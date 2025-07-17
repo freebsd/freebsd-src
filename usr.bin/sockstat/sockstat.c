@@ -1346,6 +1346,7 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 	laddr = s->laddr;
 	faddr = s->faddr;
 	first = true;
+	const bool is_text_style = (xo_get_style(NULL) == XO_STYLE_TEXT);
 
 	snprintf(buf, bufsize, "%s%s%s",
 		s->protoname,
@@ -1357,43 +1358,62 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 			if ((laddr == NULL) || (faddr == NULL))
 				xo_errx(1, "laddr = %p or faddr = %p is NULL",
 					(void *)laddr, (void *)faddr);
-			if (laddr->address.ss_len > 0)
+			if (laddr->address.ss_len > 0) {
 				formataddr(&laddr->address, buf, bufsize);
-			else if (laddr->address.ss_len == 0 && faddr->conn == 0)
-				strlcpy(buf, "(not connected)", bufsize);
-			else
-				strlcpy(buf, "??", bufsize);
-			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				if (is_text_style) {
+					xo_emit(" {:local-address/%-*.*s}",
+						cw->local_addr, cw->local_addr,
+						buf);
+				} else
+					xo_emit("{:local-address/%s}", buf);
+			}
+			else if (laddr->address.ss_len == 0 &&
+				faddr->conn == 0 && is_text_style) {
 				xo_emit(" {:local-address/%-*.*s}",
-				cw->local_addr, cw->local_addr, buf);
-			else
-				xo_emit("{:local-address/%s}", buf);
-			if (format_unix_faddr(faddr, buf, bufsize) == 0)
-				strlcpy(buf, "??", bufsize);
-			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+					cw->local_addr, cw->local_addr,
+					"(not connected)");
+			}
+			else if (is_text_style) {
+				xo_emit(" {:local-address/%-*.*s}",
+					cw->local_addr, cw->local_addr, "??");
+			}
+			if (format_unix_faddr(faddr, buf, bufsize) == 0) {
+				if (is_text_style)
+					xo_emit(" {:foreign-address/%-*.*s}",
+						cw->foreign_addr,
+						cw->foreign_addr, "??");
+			} else if (is_text_style)
 				xo_emit(" {:foreign-address/%-*.*s}",
-				cw->foreign_addr, cw->foreign_addr, buf);
+					cw->foreign_addr, cw->foreign_addr, buf);
 			else
 				xo_emit("{:foreign-address/%s}", buf);
 		} else {
-			if (laddr != NULL)
+			if (laddr != NULL) {
 				formataddr(&laddr->address, buf, bufsize);
-			else
-				strlcpy(buf, "??", bufsize);
-			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				if (is_text_style) {
+					xo_emit(" {:local-address/%-*.*s}",
+						cw->local_addr, cw->local_addr,
+						buf);
+				} else
+					xo_emit("{:local-address/%s}", buf);
+			}
+			else if (is_text_style)
 				xo_emit(" {:local-address/%-*.*s}",
-				cw->local_addr, cw->local_addr, buf);
-			else
-				xo_emit("{:local-address/%s}", buf);
-			if (faddr != NULL)
+					cw->local_addr, cw->local_addr, "??");
+			if (faddr != NULL) {
 				formataddr(&faddr->address, buf, bufsize);
-			else
-				strlcpy(buf, "??", bufsize);
-			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				if (is_text_style) {
+					xo_emit(" {:foreign-address/%-*.*s}",
+						cw->foreign_addr,
+						cw->foreign_addr, buf);
+				} else
+					xo_emit("{:foreign-address/%s}", buf);
+			}
+			else if (is_text_style) {
 				xo_emit(" {:foreign-address/%-*.*s}",
-				cw->foreign_addr, cw->foreign_addr, buf);
-			else
-				xo_emit("{:foreign-address/%s}", buf);
+					cw->foreign_addr, cw->foreign_addr,
+					"??");
+			}
 		}
 		if (opt_A) {
 			snprintf(buf, bufsize, "%#*" PRIx64,
@@ -1414,16 +1434,20 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					strlcpy(buf, "??", bufsize);
 			} else
 				strlcpy(buf, "??", bufsize);
-			xo_emit(" {:splice-address/%-*s}",
-				cw->splice_address, buf);
+			if (is_text_style || strcmp(buf, "??") != 0) {
+				xo_emit(" {:splice-address/%-*s}",
+					cw->splice_address, buf);
+				}
 		}
 		if (opt_i) {
 			if (s->proto == IPPROTO_TCP || s->proto == IPPROTO_UDP)
+			{
 				snprintf(buf, bufsize, "%" PRIu64,
 					s->inp_gencnt);
-			else
-				strlcpy(buf, "??", bufsize);
-			xo_emit(" {:id/%*s}", cw->inp_gencnt, buf);
+				xo_emit(" {:id/%*s}", cw->inp_gencnt, buf);
+			}
+			else if (is_text_style)
+				xo_emit(" {:id/%*s}", cw->inp_gencnt, "??");
 		}
 		if (opt_U) {
 			if (faddr != NULL &&
@@ -1436,7 +1460,7 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					s->state != TCPS_LISTEN))) {
 				xo_emit(" {:encaps/%*u}", cw->encaps,
 					ntohs(faddr->encaps_port));
-			} else
+			} else if (is_text_style)
 				xo_emit(" {:encaps/%*s}", cw->encaps, "??");
 		}
 		if (opt_s) {
@@ -1447,7 +1471,7 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				s->state != SCTP_LISTEN) {
 				xo_emit(" {:path-state/%-*s}", cw->path_state,
 					sctp_path_state(faddr->state));
-			} else
+			} else if (is_text_style)
 				xo_emit(" {:path-state/%-*s}",
 					cw->path_state, "??");
 		}
@@ -1465,15 +1489,15 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					case IPPROTO_TCP:
 						if (s->state >= 0 &&
 							s->state < TCP_NSTATES)
-						    xo_emit(" {:conn-state/%-*s}",
-							cw->conn_state,
-							tcpstates[s->state]);
-						else
-						    xo_emit(" {:conn-state/%-*s}",
-							cw->conn_state, "??");
+							xo_emit(" {:conn-state/%-*s}",
+								cw->conn_state,
+								tcpstates[s->state]);
+						else if (is_text_style)
+							xo_emit(" {:conn-state/%-*s}",
+								cw->conn_state, "??");
 						break;
 					}
-				} else
+				} else if (is_text_style)
 					xo_emit(" {:conn-state/%-*s}",
 						cw->conn_state, "??");
 			}
@@ -1481,14 +1505,14 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				if (s->proto == IPPROTO_TCP)
 					xo_emit(" {:stack/%-*s}",
 						cw->stack, s->stack);
-				else
+				else if (is_text_style)
 					xo_emit(" {:stack/%-*s}",
 						cw->stack, "??");
 			}
 			if (opt_C) {
 				if (s->proto == IPPROTO_TCP)
 					xo_emit(" {:cc/%-*s}", cw->cc, s->cc);
-				else
+				else if (is_text_style)
 					xo_emit(" {:cc/%-*s}", cw->cc, "??");
 			}
 		}
@@ -1496,10 +1520,10 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 			laddr = laddr->next;
 		if (faddr != NULL)
 			faddr = faddr->next;
-		if (laddr != NULL || faddr != NULL)
+		if (is_text_style && (laddr != NULL || faddr != NULL))
 			xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} "
-			"{:fd/%*s}", cw->user, "??", cw->command, "??",
-			cw->pid, "??", cw->fd, "??");
+				"{:fd/%*s}", cw->user, "??", cw->command, "??",
+				cw->pid, "??", cw->fd, "??");
 		first = false;
 	}
 	xo_emit("\n");
@@ -1604,9 +1628,10 @@ display(void)
 		if (!check_ports(s))
 			continue;
 		xo_open_instance("socket");
-		xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} {:fd/%*s}",
-			cw.user, "??", cw.command, "??", cw.pid, "??",
-			cw.fd, "??");
+		if (xo_get_style(NULL) == XO_STYLE_TEXT)
+			xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} "
+				"{:fd/%*s}", cw.user, "??", cw.command, "??",
+				cw.pid, "??", cw.fd, "??");
 		display_sock(s, &cw, buf, bufsize);
 		xo_close_instance("socket");
 	}
@@ -1616,9 +1641,10 @@ display(void)
 		if (!check_ports(s))
 			continue;
 		xo_open_instance("socket");
-		xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} {:fd/%*s}",
-			cw.user, "??", cw.command, "??", cw.pid, "??",
-			cw.fd, "??");
+		if (xo_get_style(NULL) == XO_STYLE_TEXT)
+			xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} "
+				"{:fd/%*s}", cw.user, "??", cw.command, "??",
+				cw.pid, "??", cw.fd, "??");
 		display_sock(s, &cw, buf, bufsize);
 		xo_close_instance("socket");
 	}
