@@ -733,6 +733,7 @@ print_nlmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct snl_msg_info *cinf
 		print_nlmsg_generic(h, hdr, cinfo);
 	}
 
+	fflush(stdout);
 	snl_clear_lb(&h->ss_cmd);
 }
 
