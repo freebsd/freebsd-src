@@ -7,7 +7,7 @@
 .\"
 .\" Author: Jaeyoon Choi <j_yoon.choi@samsung.com>
 .\"
-.Dd June 24, 2025
+.Dd July 17, 2025
 .Dt UFSHCI 4
 .Os
 .Sh NAME
@@ -28,11 +28,6 @@ ufshci_load="YES"
 .Sh DESCRIPTION
 Universal Flash Storage (UFS) is a low-power, high-performance storage
 standard composed of a host controller and a single target device.
-The
-.Nm
-initializes both the host controller and the target device, and handles I/O.
-It currently supports the UFS/UFSHCI 4.1 specification and all earlier
-revisions.
 .Pp
 The driver currently provides:
 .Bl -bullet
@@ -58,6 +53,11 @@ subsystem and its logical unit appears as the device node
 The driver is under active development; upcoming work includes full
 UFS 4.1 feature coverage, additional power-management modes, and
 ACPI/FDT-based attach support.
+.Sh HARDWARE
+The
+.Nm
+driver supports both host controllers and devices implementing the
+Universal Flash Storage Host Controller Interface 4.1 and earlier.
 .Sh CONFIGURATION
 The
 .Nm
