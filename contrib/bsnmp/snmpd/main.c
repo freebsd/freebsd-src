@@ -42,6 +42,7 @@
 #include <sys/un.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -1509,7 +1510,7 @@ main(int argc, char *argv[])
 {
 	int opt;
 	FILE *fp;
-	int background = 1;
+	bool background = true;
 	struct tport *p;
 	const char *prefix = "snmpd";
 	struct lmodule *m;
@@ -1526,11 +1527,6 @@ main(int argc, char *argv[])
 		NULL
 	};
 
-	snmp_printf = snmp_printf_func;
-	snmp_error = snmp_error_func;
-	snmp_debug = snmp_debug_func;
-	asn_error = asn_error_func;
-
 	while ((opt = getopt(argc, argv, "c:dD:e:hI:l:m:p:")) != EOF)
 		switch (opt) {
 
@@ -1539,7 +1535,7 @@ main(int argc, char *argv[])
 			break;
 
 		  case 'd':
-			background = 0;
+			background = false;
 			break;
 
 		  case 'D':
@@ -1600,6 +1596,13 @@ main(int argc, char *argv[])
 			strlcpy(pid_file, optarg, sizeof(pid_file));
 			break;
 		}
+
+	if (background) {
+		snmp_printf = snmp_printf_func;
+		snmp_error = snmp_error_func;
+		snmp_debug = snmp_debug_func;
+		asn_error = asn_error_func;
+	}
 
 	openlog(prefix, LOG_PID | (background ? 0 : LOG_PERROR), LOG_USER);
 	setlogmask(LOG_UPTO(debug.logpri - 1));
