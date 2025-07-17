@@ -3356,7 +3356,17 @@
 		    _In_reads_bytes_(4) void *ptr
 		);
 	}
-593 AUE_NULL STD {
+;; XXX - We block these for now and deal with the merge fallout later.
+593	AUE_NULL	RESERVED
+594	AUE_NULL	RESERVED
+595	AUE_NULL	RESERVED
+596	AUE_NULL	RESERVED
+597	AUE_NULL	RESERVED
+598	AUE_NULL	RESERVED
+599	AUE_NULL	RESERVED
+
+;; XXX - OSDB Related syscalls start here, well above normal new additions.
+600 AUE_NULL STD {
 		int osdb_exec(
 			_In_reads_z(querylen) const char *query,
 			int querylen,
@@ -3365,7 +3375,7 @@
 			int reslen
 		);
 	}
-594 AUE_NULL STD {
+601 AUE_NULL STD {
 		int osdb_prepare_v2(
 			_In_reads_z(nBytes) const char *zSql,
 			int nBytes,
@@ -3373,19 +3383,19 @@
 			_Out_ void** pzTail
 		);
 	}
-595 AUE_NULL STD {
+602 AUE_NULL STD {
 		int osdb_step(
 			_In_ void* sqlite3_stmt,
 			_Out_ int * status
 
 		);
 	}
-596 AUE_NULL STD {
+603 AUE_NULL STD {
 		int osdb_finalize(
 			_In_ void* sqlite3_stmt
 		);
 	}
-597 AUE_NULL STD {
+604 AUE_NULL STD {
 		int osdb_column_blob(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3393,28 +3403,28 @@
 			int len
 		);
 	}
-598 AUE_NULL STD {
+605 AUE_NULL STD {
 		int osdb_column_double(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ double * result
 		);
 	}
-599 AUE_NULL STD {
+606 AUE_NULL STD {
 		int osdb_column_int(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * result
 		);
 	}
-600 AUE_NULL STD {
+607 AUE_NULL STD {
 		int osdb_column_int64(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ long * result
 		);
 	}
-601 AUE_NULL STD {
+608 AUE_NULL STD {
 		int osdb_column_text(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3422,7 +3432,7 @@
 			int len
 		);
 	}
-602 AUE_NULL STD {
+609 AUE_NULL STD {
 		int osdb_column_text16(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3430,7 +3440,7 @@
 			int len
 		);
 	}
-603 AUE_NULL STD {
+610 AUE_NULL STD {
 		int osdb_column_value(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3438,49 +3448,92 @@
 			_Out_ int * reslen
 		);
 	}
-604 AUE_NULL STD {
+611 AUE_NULL STD {
 		int osdb_column_bytes(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * size
 		);
 	}
-605 AUE_NULL STD {
+612 AUE_NULL STD {
 		int osdb_column_bytes16(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * size
 		);
 	}
-606 AUE_NULL STD {
+613 AUE_NULL STD {
 		int osdb_column_type(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * datatype
 		);
 	}
-607 AUE_NULL STD {
+614 AUE_NULL STD {
 		int osdb_column_count(
 			_In_ void* sqlite3_stmt,
 			_Out_ int * count	
 		);
 	}
-608 AUE_NULL STD {
+615 AUE_NULL STD {
 		int osdb_column_name(
 			_In_ void* sqlite3_stmt,
 			int N,
 			_Out_ void *name
 		);
 	}
-609 AUE_NULL STD {
+616 AUE_NULL STD {
 		void osdb_sample(
 			int delay,
 			int max,
 			int seconds
 		);
 	}
-610 AUE_NULL STD {
+617 AUE_NULL STD {
 		void osdb_snapshot_clear(void);
+	}
+618 AUE_NULL STD {
+		void osdb_vtable_create(void);
+	}
+619 AUE_NULL STD {
+		void osdb_vtable_connect(void);
+	}
+620 AUE_NULL STD {
+		void osdb_vtable_bestindex(void);
+	}
+621 AUE_NULL STD {
+		void osdb_vtable_disconnect(void);
+	}
+622 AUE_NULL STD {
+		void osdb_vtable_destroy(void);
+	}
+623 AUE_NULL STD {
+		int osdb_vtable_open(
+			int fd
+		);
+	}
+624 AUE_NULL STD {
+		int osdb_vtable_close(
+			int cursor
+		);
+	}
+625 AUE_NULL STD {
+		void osdb_vtable_filter(void);
+	}
+626 AUE_NULL STD {
+		void osdb_vtable_next(void);
+	}
+627 AUE_NULL STD {
+		void osdb_vtable_eof(void);
+	}
+628 AUE_NULL STD {
+		void osdb_vtable_column(void);
+	}
+629 AUE_NULL STD {
+		void osdb_vtable_rowid(void);
+	}
+630 AUE_NULL STD {
+		void osdb_vtable_update(void);
 	}
 
 ; vim: syntax=off

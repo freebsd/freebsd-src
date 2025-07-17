@@ -452,4 +452,17 @@ MIASM =  \
 	osdb_column_count.o \
 	osdb_column_name.o \
 	osdb_sample.o \
-	osdb_snapshot_clear.o
+	osdb_snapshot_clear.o \
+	osdb_vtable_create.o \
+	osdb_vtable_connect.o \
+	osdb_vtable_bestindex.o \
+	osdb_vtable_disconnect.o \
+	osdb_vtable_destroy.o \
+	osdb_vtable_open.o \
+	osdb_vtable_close.o \
+	osdb_vtable_filter.o \
+	osdb_vtable_next.o \
+	osdb_vtable_eof.o \
+	osdb_vtable_column.o \
+	osdb_vtable_rowid.o \
+	osdb_vtable_update.o

@@ -484,6 +484,19 @@ typedef int (__sys_osdb_column_count_t)(void*, int *);
 typedef int (__sys_osdb_column_name_t)(void*, int, void *);
 typedef void (__sys_osdb_sample_t)(int, int, int);
 typedef void (__sys_osdb_snapshot_clear_t)(void);
+typedef void (__sys_osdb_vtable_create_t)(void);
+typedef void (__sys_osdb_vtable_connect_t)(void);
+typedef void (__sys_osdb_vtable_bestindex_t)(void);
+typedef void (__sys_osdb_vtable_disconnect_t)(void);
+typedef void (__sys_osdb_vtable_destroy_t)(void);
+typedef int (__sys_osdb_vtable_open_t)(int);
+typedef int (__sys_osdb_vtable_close_t)(int);
+typedef void (__sys_osdb_vtable_filter_t)(void);
+typedef void (__sys_osdb_vtable_next_t)(void);
+typedef void (__sys_osdb_vtable_eof_t)(void);
+typedef void (__sys_osdb_vtable_column_t)(void);
+typedef void (__sys_osdb_vtable_rowid_t)(void);
+typedef void (__sys_osdb_vtable_update_t)(void);
 
 void __sys_exit(int rval);
 int __sys_fork(void);
@@ -904,6 +917,19 @@ int __sys_osdb_column_count(void* sqlite3_stmt, int * count);
 int __sys_osdb_column_name(void* sqlite3_stmt, int N, void * name);
 void __sys_osdb_sample(int delay, int max, int seconds);
 void __sys_osdb_snapshot_clear(void);
+void __sys_osdb_vtable_create(void);
+void __sys_osdb_vtable_connect(void);
+void __sys_osdb_vtable_bestindex(void);
+void __sys_osdb_vtable_disconnect(void);
+void __sys_osdb_vtable_destroy(void);
+int __sys_osdb_vtable_open(int fd);
+int __sys_osdb_vtable_close(int cursor);
+void __sys_osdb_vtable_filter(void);
+void __sys_osdb_vtable_next(void);
+void __sys_osdb_vtable_eof(void);
+void __sys_osdb_vtable_column(void);
+void __sys_osdb_vtable_rowid(void);
+void __sys_osdb_vtable_update(void);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */
