@@ -285,8 +285,8 @@ poll_register(int fd, poll_f func, void *arg, int mask)
 	poll_unblocksig();
 
 	if(rpoll_trace)
-		fprintf(stderr, "poll_register(%d, %p, %p, %#x)->%tu",
-			fd, (void *)func, (void *)arg, mask, p - regs);
+		fprintf(stderr, "%s(%d, %p, %p, %#x)->%tu\n", __func__, fd,
+		    (void *)func, (void *)arg, mask, p - regs);
 	return p - regs;
 }
 
@@ -297,7 +297,7 @@ void
 poll_unregister(int handle)
 {
 	if(rpoll_trace)
-		fprintf(stderr, "poll_unregister(%d)", handle);
+		fprintf(stderr, "%s(%d)\n", __func__, handle);
 
 	poll_blocksig();
 
@@ -399,8 +399,8 @@ poll_start_utimer(unsigned long long usecs, int repeat, timer_f func, void *arg)
 	resort = 1;
 
 	if(rpoll_trace)
-		fprintf(stderr, "poll_start_utimer(%llu, %d, %p, %p)->%tu",
-			usecs, repeat, (void *)func, (void *)arg, p - tims);
+		fprintf(stderr, "%s(%llu, %d, %p, %p)->%tu\n", __func__, usecs,
+		    repeat, (void *)func, (void *)arg, p - tims);
 
 	return p - tims;
 }
@@ -418,7 +418,7 @@ poll_stop_timer(int handle)
 	u_int i;
 
 	if(rpoll_trace)
-		fprintf(stderr, "poll_stop_timer(%d)", handle);
+		fprintf(stderr, "%s(%d)\n", __func__, handle);
 
 	tims[handle].func = NULL;
 	tims_used--;
@@ -597,9 +597,10 @@ poll_dispatch(int wait)
 
 				if(mask) {
 					if(rpoll_trace)
-						fprintf(stderr, "poll_dispatch() -- "
-						    "file %d/%d %x",
-						    regs[idx].fd, idx, mask);
+						fprintf(stderr,
+						    "%s() -- file %d/%d %x\n",
+						    __func__, regs[idx].fd,
+						    idx, mask);
 					(*regs[idx].func)(regs[idx].fd, mask, regs[idx].arg);
 				}
 			}
@@ -617,7 +618,8 @@ poll_dispatch(int wait)
 			if(tims[tfd[i]].when > now)
 				break;
 			if(rpoll_trace)
-				fprintf(stderr, "rpoll_dispatch() -- timeout %d",tfd[i]);
+				fprintf(stderr, "%s() -- timeout %d\n",
+				    __func__, tfd[i]);
 			(*tims[tfd[i]].func)(tfd[i], tims[tfd[i]].arg);
 			if(tfd[i] < 0)
 				continue;
