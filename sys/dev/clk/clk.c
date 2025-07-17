@@ -511,6 +511,8 @@ clkdom_dump(struct clkdom * clkdom)
 
 	CLK_TOPO_SLOCK();
 	TAILQ_FOREACH(clknode, &clkdom->clknode_list, clkdom_link) {
+		printf("Print Clock name: %s \n",
+			    clknode->name);
 		rv = clknode_get_freq(clknode, &freq);
 		if (rv != 0) {
 			printf("Clock: %s, error getting frequency: %d\n",
