@@ -40,6 +40,7 @@
 
 
 #define SNMP_STRERROR_LEN 200
+#define	SNMP_DEFAULT_LOCAL "/var/run/snmpd.sock"
 
 #define SNMP_LOCAL_PATH	"/tmp/snmpXXXXXXXXXXXXXX"
 
