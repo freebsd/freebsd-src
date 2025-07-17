@@ -32,12 +32,6 @@
 
 #include "vmx_assym.h"
 
-#ifdef SMP
-#define	LK	lock ;
-#else
-#define	LK
-#endif
-
 /* Be friendly to DTrace FBT's prologue/epilogue pattern matching */
 #define VENTER  push %rbp ; mov %rsp,%rbp
 #define VLEAVE  pop %rbp
