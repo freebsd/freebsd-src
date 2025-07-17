@@ -2778,7 +2778,7 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 		if (!p_ptt) {
 			QL_DPRINT1(ha, "ecore_ptt_acquire failed\n");
-			ret = -1;
+			ret = ERESTART;
 			break;
 		}
 
@@ -2789,7 +2789,7 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		ecore_ptt_release(p_hwfn, p_ptt);
 
 		if (ret) {
-			ret = -1;
+			ret = ENODEV;
 			break;
 		}
 
