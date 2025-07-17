@@ -66,10 +66,6 @@
 #include "dev_net.h"
 #include "bootstrap.h"
 
-#ifdef	NETIF_DEBUG
-int debug = 0;
-#endif
-
 static char *netdev_name;
 static int netdev_sock = -1;
 static int netdev_opens;
@@ -143,11 +139,8 @@ net_open(struct open_file *f, ...)
 				return (ENXIO);
 			}
 			netdev_name = strdup(devname);
-#ifdef	NETIF_DEBUG
-			if (debug)
-				printf("%s: netif_open() succeeded\n",
-				    __func__);
-#endif
+			DEBUG_PRINTF(1,("%s: netif_open() succeeded %#x\n",
+				__func__, rootip.s_addr));
 		}
 		/*
 		 * If network params were not set by netif_open(), try to get
@@ -200,10 +193,7 @@ net_close(struct open_file *f)
 {
 	struct devdesc *dev;
 
-#ifdef	NETIF_DEBUG
-	if (debug)
-		printf("%s: opens=%d\n", __func__, netdev_opens);
-#endif
+	DEBUG_PRINTF(1,("%s: opens=%d\n", __func__, netdev_opens));
 
 	dev = f->f_devdata;
 	dev->d_opendata = NULL;
@@ -216,10 +206,7 @@ net_cleanup(void)
 {
 
 	if (netdev_sock >= 0) {
-#ifdef	NETIF_DEBUG
-		if (debug)
-			printf("%s: calling netif_close()\n", __func__);
-#endif
+		DEBUG_PRINTF(1,("%s: calling netif_close()\n", __func__));
 		rootip.s_addr = 0;
 		free(netdev_name);
 		netif_close(netdev_sock);
@@ -271,10 +258,7 @@ net_getparams(int sock)
 		bootp(sock);
 	if (myip.s_addr != 0)
 		goto exit;
-#ifdef	NETIF_DEBUG
-	if (debug)
-		printf("%s: BOOTP failed, trying RARP/RPC...\n", __func__);
-#endif
+	DEBUG_PRINTF(1,("%s: BOOTP failed, trying RARP/RPC...\n", __func__));
 #endif
 
 	/*
@@ -292,10 +276,7 @@ net_getparams(int sock)
 		printf("%s: bootparam/whoami RPC failed\n", __func__);
 		return (EIO);
 	}
-#ifdef	NETIF_DEBUG
-	if (debug)
-		printf("%s: client name: %s\n", __func__, hostname);
-#endif
+	DEBUG_PRINTF(1,("%s: client name: %s\n", __func__, hostname));
 
 	/*
 	 * Ignore the gateway from whoami (unreliable).
@@ -309,16 +290,12 @@ net_getparams(int sock)
 	}
 	if (smask) {
 		netmask = smask;
-#ifdef	NETIF_DEBUG
-		if (debug)
-			printf("%s: subnet mask: %s\n", __func__,
-			    intoa(netmask));
-#endif
+		DEBUG_PRINTF(1,("%s: subnet mask: %s\n", __func__,
+			intoa(netmask)));
 	}
-#ifdef	NETIF_DEBUG
-	if (gateip.s_addr && debug)
-		printf("%s: net gateway: %s\n", __func__, inet_ntoa(gateip));
-#endif
+	if (gateip.s_addr)
+		DEBUG_PRINTF(1,("%s: net gateway: %s\n", __func__,
+			inet_ntoa(gateip)));
 
 	/* Get the root server and pathname. */
 	if (bp_getfile(sock, "root", &rootip, rootpath)) {
@@ -329,12 +306,10 @@ exit:
 	if ((rootaddr = net_parse_rootpath()) != INADDR_NONE)
 		rootip.s_addr = rootaddr;
 
-#ifdef	NETIF_DEBUG
-	if (debug) {
-		printf("%s: server addr: %s\n", __func__, inet_ntoa(rootip));
-		printf("%s: server path: %s\n", __func__, rootpath);
-	}
-#endif
+	DEBUG_PRINTF(1,("%s: proto: %d\n", __func__, netproto));
+	DEBUG_PRINTF(1,("%s: server addr: %s\n", __func__, inet_ntoa(rootip)));
+	DEBUG_PRINTF(1,("%s: server port: %d\n", __func__, rootport));
+	DEBUG_PRINTF(1,("%s: server path: %s\n", __func__, rootpath));
 
 	return (0);
 }
@@ -410,6 +385,8 @@ net_parse_rootpath(void)
 		(void)strsep(&ptr, ":");
 		if (ptr != NULL) {
 			addr = inet_addr(rootpath);
+			DEBUG_PRINTF(1,("rootpath=%s addr=%#x\n",
+				rootpath, addr));
 			bcopy(ptr, rootpath, strlen(ptr) + 1);
 		}
 	} else {

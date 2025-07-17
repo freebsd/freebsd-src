@@ -29,6 +29,7 @@
 
 #include <sys/param.h>
 #ifdef _STANDALONE
+#define _DEBUG_LEVEL_VAR DebugVe
 #include <stand.h>
 #else
 #include <sys/types.h>

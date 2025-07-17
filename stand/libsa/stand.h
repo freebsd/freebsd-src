@@ -558,4 +558,17 @@ void tslog_getbuf(void ** buf, size_t * len);
 
 __END_DECLS
 
+/* define _DEBUG_LEVEL n or _DEBUG_LEVEL_VAR before include */
+#ifndef DEBUG_PRINTF
+# if defined(_DEBUG_LEVEL) || defined(_DEBUG_LEVEL_VAR)
+#   ifndef _DEBUG_LEVEL_VAR
+#     define _DEBUG_LEVEL_VAR _debug
+static int _debug = _DEBUG_LEVEL;
+#   endif
+#   define DEBUG_PRINTF(n, args) if (_DEBUG_LEVEL_VAR >= n) printf args
+# else
+#   define DEBUG_PRINTF(n, args)
+# endif
+#endif
+
 #endif	/* STAND_H */
