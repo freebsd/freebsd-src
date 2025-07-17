@@ -160,6 +160,8 @@ static void ipsec_accel_drv_sa_lifetime_update_impl(struct secasvar *sav,
 static int ipsec_accel_drv_sa_lifetime_fetch_impl(struct secasvar *sav,
     if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs);
 static void ipsec_accel_ifdetach_event(void *arg, struct ifnet *ifp);
+static bool ipsec_accel_fill_xh_impl(if_t ifp, uint32_t drv_spi,
+    struct xform_history *xh);
 
 static void
 ipsec_accel_init(void *arg)
@@ -186,6 +188,7 @@ ipsec_accel_init(void *arg)
 	    ipsec_accel_drv_sa_lifetime_update_impl;
 	ipsec_accel_drv_sa_lifetime_fetch_p =
 	    ipsec_accel_drv_sa_lifetime_fetch_impl;
+	ipsec_accel_fill_xh_p = ipsec_accel_fill_xh_impl;
 	pctrie_init(&drv_spi_pctrie);
 	ipsec_accel_ifdetach_event_tag = EVENTHANDLER_REGISTER(
 	    ifnet_departure_event, ipsec_accel_ifdetach_event, NULL,
@@ -210,6 +213,7 @@ ipsec_accel_fini(void *arg)
 	ipsec_accel_on_ifdown_p = NULL;
 	ipsec_accel_drv_sa_lifetime_update_p = NULL;
 	ipsec_accel_drv_sa_lifetime_fetch_p = NULL;
+	ipsec_accel_fill_xh_p = NULL;
 	ipsec_accel_sync_imp();
 	clean_unrhdr(drv_spi_unr);	/* avoid panic, should go later */
 	clear_unrhdr(drv_spi_unr);
@@ -1167,8 +1171,8 @@ ipsec_accel_key_setaccelif_impl(struct secasvar *sav)
 	return (m);
 }
 
-bool
-ipsec_accel_fill_xh(if_t ifp, uint32_t drv_spi, struct xform_history *xh)
+static bool
+ipsec_accel_fill_xh_impl(if_t ifp, uint32_t drv_spi, struct xform_history *xh)
 {
 	struct ifp_handle_sav *i;
 
