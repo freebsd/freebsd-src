@@ -1111,6 +1111,14 @@ event_loop(void)
 			err(1, "select");
 		} else if (rv == 0)
 			check_clients();
+		/*
+		 * Aside from the socket type, both sockets use the same
+		 * protocol, so we can process clients the same way.
+		 */
+		if (FD_ISSET(stream_fd, &fds))
+			new_client(stream_fd, SOCK_STREAM);
+		if (FD_ISSET(seqpacket_fd, &fds))
+			new_client(seqpacket_fd, SOCK_SEQPACKET);
 		if (FD_ISSET(fd, &fds)) {
 			rv = read(fd, buffer, sizeof(buffer) - 1);
 			if (rv > 0) {
@@ -1139,14 +1147,6 @@ event_loop(void)
 				break;
 			}
 		}
-		if (FD_ISSET(stream_fd, &fds))
-			new_client(stream_fd, SOCK_STREAM);
-		/*
-		 * Aside from the socket type, both sockets use the same
-		 * protocol, so we can process clients the same way.
-		 */
-		if (FD_ISSET(seqpacket_fd, &fds))
-			new_client(seqpacket_fd, SOCK_SEQPACKET);
 	}
 	cfg.remove_pidfile();
 	close(seqpacket_fd);
