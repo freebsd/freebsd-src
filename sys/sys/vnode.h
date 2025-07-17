@@ -538,7 +538,7 @@ extern struct vnodeop_desc *vnodeop_descs[];
 #define	VOPARG_OFFSETTO(s_type, s_offset, struct_p) \
     ((s_type)(((char*)(struct_p)) + (s_offset)))
 
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 /*
  * Support code to aid in debugging VFS locking problems.  Not totally
  * reliable since if the thread sleeps between changing the lock
@@ -572,7 +572,7 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 	VNPASS(!seqc_in_modify(_vp->v_seqc), _vp);		\
 } while (0)
 
-#else /* !DEBUG_VFS_LOCKS */
+#else /* !INVARIANTS */
 
 #define	ASSERT_VI_LOCKED(vp, str)	((void)0)
 #define	ASSERT_VI_UNLOCKED(vp, str)	((void)0)
@@ -583,7 +583,7 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 #define ASSERT_VOP_IN_SEQC(vp)		((void)0)
 #define ASSERT_VOP_NOT_IN_SEQC(vp)	((void)0)
 
-#endif /* DEBUG_VFS_LOCKS */
+#endif /* INVARIANTS */
 
 /*
  * This call works for vnodes in the kernel.
@@ -956,7 +956,7 @@ void	vop_symlink_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 void	vop_fdatasync_debugpre(void *a);
 void	vop_fdatasync_debugpost(void *a, int rc);
 void	vop_fplookup_vexec_debugpre(void *a);
