@@ -68,6 +68,8 @@ extern void (*ipsec_accel_drv_sa_lifetime_update_p)(struct secasvar *sav,
     if_t ifp, u_int drv_spi, uint64_t octets, uint64_t allocs);
 extern int (*ipsec_accel_drv_sa_lifetime_fetch_p)(struct secasvar *sav,
     if_t ifp, u_int drv_spi, uint64_t *octets, uint64_t *allocs);
+extern bool (*ipsec_accel_fill_xh_p)(if_t ifp, uint32_t drv_spi,
+    struct xform_history *xh);
 
 #ifdef IPSEC_OFFLOAD
 /*
@@ -160,6 +162,16 @@ ipsec_accel_key_setaccelif(struct secasvar *sav)
 	return (NULL);
 }
 
+static inline bool
+ipsec_accel_fill_xh(if_t ifp, uint32_t drv_spi, struct xform_history *xh)
+{
+	bool (*p)(if_t ifp, uint32_t drv_spi, struct xform_history *xh);
+
+	p = atomic_load_ptr(&ipsec_accel_fill_xh_p);
+	if (p != NULL)
+		return (p(ifp, drv_spi, xh));
+	return (false);
+}
 
 #else
 #define	ipsec_accel_sa_newkey(a)
@@ -170,6 +182,7 @@ ipsec_accel_key_setaccelif(struct secasvar *sav)
 #define	ipsec_accel_sync()
 #define	ipsec_accel_is_accel_sav(a)
 #define	ipsec_accel_key_setaccelif(a)
+#define	ipsec_accel_fill_xh(a, b, c)	(false)
 #endif
 
 void ipsec_accel_forget_sav_impl(struct secasvar *sav);
@@ -183,8 +196,6 @@ bool ipsec_accel_output(struct ifnet *ifp, struct mbuf *m,
     int mtu, int *hwassist);
 void ipsec_accel_forget_sav(struct secasvar *sav);
 struct xform_history;
-bool ipsec_accel_fill_xh(if_t ifp, uint32_t drv_spi,
-    struct xform_history *xh);
 #else
 #define	ipsec_accel_input(a, b, c) (ENXIO)
 #define	ipsec_accel_output(a, b, c, d, e, f, g, h) ({	\
@@ -192,7 +203,6 @@ bool ipsec_accel_fill_xh(if_t ifp, uint32_t drv_spi,
 	false;						\
 })
 #define	ipsec_accel_forget_sav(a)
-#define	ipsec_accel_fill_xh(a, b, c)	(false)
 #endif
 
 struct ipsec_accel_in_tag *ipsec_accel_input_tag_lookup(const struct mbuf *);

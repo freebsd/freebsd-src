@@ -114,6 +114,8 @@ void (*ipsec_accel_drv_sa_lifetime_update_p)(struct secasvar *sav, if_t ifp,
     u_int drv_spi, uint64_t octets, uint64_t allocs);
 int (*ipsec_accel_drv_sa_lifetime_fetch_p)(struct secasvar *sav, if_t ifp,
     u_int drv_spi, uint64_t *octets, uint64_t *allocs);
+bool (*ipsec_accel_fill_xh_p)(if_t ifp, uint32_t drv_spi,
+    struct xform_history *xh);
 #endif
 
 #define FULLMASK	0xff
