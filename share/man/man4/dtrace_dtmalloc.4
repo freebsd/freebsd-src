@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (c) 2025-2026 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 12, 2026
+.Dt DTRACE_DTMALLOC 4
+.Os
+.Sh NAME
+.Nm dtrace_dtmalloc
+.Nd a DTrace provider for tracing kernel memory allocations by type
+.Sh SYNOPSIS
+.Nm dtmalloc Ns Cm :: Ns Ar function Ns Cm :malloc
+.Nm dtmalloc Ns Cm :: Ns Ar function Ns Cm :free
+.Sh DESCRIPTION
+The
+.Nm dtmalloc
+provider instruments
+.Xr malloc 9
+and
+.Xr free 9
+kernel functions to trace memory allocations by type.
+Refer to
+.Xr malloc 9
+for more details about malloc types.
+.Pp
+The
+.Nm dtmalloc Ns Cm :: Ns Ar function Ns Cm :malloc
+probe fires upon a successful allocation.
+Its probe arguments are:
+.Bl -column -offset indent "malloc Probe Argument" "Definition"
+.It Sy Probe Argument Ta Sy Definition
+.It Fa args[0]  Ta Ft struct malloc_type *mtp
+.It Fa args[1]  Ta Ft struct malloc_type_internal *mtip
+.It Fa args[2]  Ta Ft struct malloc_type_stats *mtsp
+.It Fa args[3]  Ta Ft unsigned long size
+.It Fa args[4]  Ta Ft int zindx
+.El
+.Pp
+The
+.Nm dtmalloc Ns Cm :: Ns Ar function Ns Cm :free
+probe fires upon a free operation.
+Its probe arguments are:
+.Bl -column -offset indent "free Probe Argument" "Definition"
+.It Sy free Probe Argument Ta Sy Definition
+.It Fa args[0]  Ta Ft struct malloc_type *mtp
+.It Fa args[1]  Ta Ft struct malloc_type_internal *mtip
+.It Fa args[2]  Ta Ft struct malloc_type_stats *mtsp
+.It Fa args[3]  Ta Ft unsigned long size
+.It Fa args[4]  Ta Always 0
+.El
+.Pp
+The first three arguments for each probe
+.Po i.e.,
+.Fa mtp , mtip ,
+and
+.Fa mtsp Pc
+provide references to the
+.Xr malloc 9
+type internals;
+.Fa size
+is the size of the allocation;
+.Fa zindx
+is the index into the
+.Va kmemzones[]
+array used for the allocation.
+In practice,
+.Fa size
+is the most useful parameter to trace.
+.Sh IMPLEMENTATION NOTES
+The
+.Ar function
+part of the probe description in the
+.Nm dtmalloc
+provider is the
+.Xr malloc 9
+type short description with all whitespace characters replaced
+with underscores.
+For example, a malloc type defined by
+.Bd -literal -offset indent
+MALLOC_DEFINE(M_FOO_BAR, "foo bar", "FooBar subsystem");
+.Ed
+.Pp
+will have probes called
+.Bd -literal -offset indent
+dtmalloc::foo_bar:
+.Ed
+.Sh FILES
+.Bl -tag -width "<sys/malloc.h>"
+.It In sys/malloc.h
+The header where
+.Vt struct malloc_type
+is defined.
+.El
+.Sh EXAMPLES
+.Ss Example 1 : Counting Successful Memory Allocations by Type
+.Bd -literal -offset 2n
+# dtrace -n 'dtmalloc:::malloc {@[stringof args[0]->ks_shortdesc] = count()}'
+dtrace: description 'dtmalloc:::malloc ' matched 480 probes
+^C
+  80211node                                                         1
+  CAM CCB                                                           1
+  CAM periph                                                        1
+  ioctlops                                                          1
+  netlink                                                           1
+  soname                                                            4
+  sysctltmp                                                         4
+  solaris                                                           5
+  acpica                                                           16
+  temp                                                             36
+  lkpikmalloc                                                      44
+  iov                                                             100
+  selfd                                                           648
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr tracing 7 ,
+.Xr malloc 9
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An John Birrell Aq Mt jb@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
+.Sh CAVEATS
+The
+.Nm dtmalloc
+provider does not trace
+.Xr uma 9
+allocations.

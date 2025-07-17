@@ -1017,6 +1017,7 @@ _ccd.4=		ccd.4
 _dtrace_provs=	dtrace_audit.4 \
 		dtrace_callout_execute.4 \
 		dtrace_cam.4 \
+		dtrace_dtmalloc.4 \
 		dtrace_dtrace.4 \
 		dtrace_fbt.4 \
 		dtrace_io.4 \
