@@ -175,6 +175,22 @@ class TestICMP(VnetTestTemplate):
         self.check_icmp_echo(sp, 1464)
         self.check_icmp_echo(sp, 1468)
 
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_truncated_opts(self):
+        ToolsHelper.print_output("/sbin/route add default 192.0.2.1")
+
+        # Import in the correct vnet, so at to not confuse Scapy
+        import scapy.all as sp
+
+        packet = sp.IP(dst="198.51.100.2", flags="DF") \
+            / sp.ICMP(type='dest-unreach', length=108) \
+            / sp.IP(src="198.51.100.2", dst="192.0.2.2", len=1000, \
+              ihl=(120 >> 2), options=[ \
+              sp.IPOption_Security(length=100)])
+        packet.show()
+        sp.sr1(packet, timeout=3)
+
 class TestICMP_NAT(VnetTestTemplate):
     REQUIRED_MODULES = [ "pf" ]
     TOPOLOGY = {
