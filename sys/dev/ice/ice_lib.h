@@ -611,6 +611,10 @@ struct ice_vsi {
 	u16 mirror_src_vsi;
 	u16 rule_mir_ingress;
 	u16 rule_mir_egress;
+
+#ifdef PCI_IOV
+	u8 vf_num;		/* Index of owning VF, if applicable */
+#endif
 };
 
 /**

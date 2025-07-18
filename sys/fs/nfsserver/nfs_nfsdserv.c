@@ -4353,9 +4353,10 @@ nfsrvd_openattr(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 
 	NFSNAMEICNDSET(&cn, nd->nd_cred, LOOKUP, OPENNAMED | ISLASTCN |
-	    NOFOLLOW);
+	    NOFOLLOW | LOCKLEAF);
 	cn.cn_nameptr = ".";
 	cn.cn_namelen = 1;
+	cn.cn_lkflags = LK_SHARED;
 	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 	if (*tl == newnfs_true)
 		cn.cn_flags |= CREATENAMED;
@@ -4374,6 +4375,8 @@ nfsrvd_openattr(struct nfsrv_descript *nd, __unused int isdgram,
 		if (nd->nd_repstat == ENOATTR)
 			nd->nd_repstat = NFSERR_NOENT;
 	}
+	if (nd->nd_repstat == 0)
+		NFSVOPUNLOCK(*vpp);
 
 	vput(dp);
 	NFSEXITCODE2(0, nd);
