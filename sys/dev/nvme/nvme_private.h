@@ -123,6 +123,8 @@ struct nvme_request {
 struct nvme_async_event_request {
 	struct nvme_controller		*ctrlr;
 	struct nvme_request		*req;
+	struct task			task;
+	struct mtx			mtx;
 	struct nvme_completion		cpl;
 	uint32_t			log_page_id;
 	uint32_t			log_page_size;
