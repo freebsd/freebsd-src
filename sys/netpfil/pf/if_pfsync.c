@@ -110,8 +110,6 @@
 
 #include <netpfil/pf/pfsync_nv.h>
 
-#define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
-
 struct pfsync_bucket;
 struct pfsync_softc;
 
@@ -597,9 +595,9 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			if ((rpool_first == NULL) ||
 			    (TAILQ_NEXT(rpool_first, entries) != NULL)) {
 				DPFPRINTF(PF_DEBUG_MISC,
-				    ("%s: can't recover routing information "
-				    "because of empty or bad redirection pool\n",
-				    __func__));
+				    "%s: can't recover routing information "
+				    "because of empty or bad redirection pool",
+				    __func__);
 				return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
 			}
 			rt = r->rt;
@@ -610,8 +608,8 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			 * give up on recovering.
 			 */
 			DPFPRINTF(PF_DEBUG_MISC,
-			    ("%s: can't recover routing information "
-			    "because of different ruleset\n", __func__));
+			    "%s: can't recover routing information "
+			    "because of different ruleset", __func__);
 			return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
 		}
 	break;
@@ -624,8 +622,8 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			rt_kif = pfi_kkif_find(sp->pfs_1400.rt_ifname);
 			if (rt_kif == NULL) {
 				DPFPRINTF(PF_DEBUG_MISC,
-				    ("%s: unknown route interface: %s\n",
-				    __func__, sp->pfs_1400.rt_ifname));
+				    "%s: unknown route interface: %s",
+				    __func__, sp->pfs_1400.rt_ifname);
 				return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
 			}
 			rt = sp->pfs_1400.rt;

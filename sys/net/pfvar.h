@@ -331,6 +331,14 @@ MALLOC_DECLARE(M_PF_RULE_ITEM);
 
 SDT_PROVIDER_DECLARE(pf);
 SDT_PROBE_DECLARE(pf, , test, reason_set);
+SDT_PROBE_DECLARE(pf, , log, log);
+
+#define DPFPRINTF(n, fmt, x...)				\
+	do {						\
+		SDT_PROBE2(pf, , log, log, (n), fmt);	\
+		if (V_pf_status.debug >= (n))	 	\
+			printf(fmt "\n", ##x); 		\
+	} while (0)
 
 struct pfi_dynaddr {
 	TAILQ_ENTRY(pfi_dynaddr)	 entry;
