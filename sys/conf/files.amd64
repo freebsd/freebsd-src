@@ -119,6 +119,7 @@ dev/axgbe/xgbe-txrx.c		optional	axp
 dev/axgbe/xgbe_osdep.c		optional	axp
 dev/axgbe/xgbe-i2c.c		optional	axp
 dev/axgbe/xgbe-phy-v2.c		optional	axp
+dev/thermal/thermal.c           optional        thermal
 dev/enic/enic_res.c		optional	enic
 dev/enic/enic_txrx.c		optional	enic
 dev/enic/if_enic.c		optional	enic
