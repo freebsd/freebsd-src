@@ -234,17 +234,20 @@ static SYSCTL_NODE(_net_inet6_mld, OID_AUTO, ifinfo,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_mld_ifinfo,
     "Per-interface MLDv2 state");
 
-static int	mld_v1enable = 1;
-SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RWTUN,
-    &mld_v1enable, 0, "Enable fallback to MLDv1");
+VNET_DEFINE_STATIC(bool, mld_v1enable) = true;
+#define	V_mld_v1enable	VNET(mld_v1enable)
+SYSCTL_BOOL(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_VNET | CTLFLAG_RWTUN,
+    &VNET_NAME(mld_v1enable), 0, "Enable fallback to MLDv1");
 
-static int	mld_v2enable = 1;
-SYSCTL_INT(_net_inet6_mld, OID_AUTO, v2enable, CTLFLAG_RWTUN,
-    &mld_v2enable, 0, "Enable MLDv2");
+VNET_DEFINE_STATIC(bool, mld_v2enable) = true;
+#define	V_mld_v2enable	VNET(mld_v2enable)
+SYSCTL_BOOL(_net_inet6_mld, OID_AUTO, v2enable, CTLFLAG_VNET | CTLFLAG_RWTUN,
+    &VNET_NAME(mld_v2enable), 0, "Enable MLDv2");
 
-static int	mld_use_allow = 1;
-SYSCTL_INT(_net_inet6_mld, OID_AUTO, use_allow, CTLFLAG_RWTUN,
-    &mld_use_allow, 0, "Use ALLOW/BLOCK for RFC 4604 SSM joins/leaves");
+VNET_DEFINE_STATIC(bool, mld_use_allow) = true;
+#define	V_mld_use_allow	VNET(mld_use_allow)
+SYSCTL_BOOL(_net_inet6_mld, OID_AUTO, use_allow, CTLFLAG_VNET | CTLFLAG_RWTUN,
+    &VNET_NAME(mld_use_allow), 0, "Use ALLOW/BLOCK for RFC 4604 SSM joins/leaves");
 
 /*
  * Packed Router Alert option structure declaration.
@@ -481,7 +484,7 @@ mld_domifattach(struct ifnet *ifp)
 	mbufq_init(&mli->mli_gq, MLD_MAX_RESPONSE_PACKETS);
 	if ((ifp->if_flags & IFF_MULTICAST) == 0)
 		mli->mli_flags |= MLIF_SILENT;
-	if (mld_use_allow)
+	if (V_mld_use_allow)
 		mli->mli_flags |= MLIF_USEALLOW;
 
 	MLD_LOCK();
@@ -614,7 +617,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	is_general_query = 0;
 
-	if (!mld_v1enable) {
+	if (!V_mld_v1enable) {
 		CTR3(KTR_MLD, "ignore v1 query %s on ifp %p(%s)",
 		    ip6_sprintf(ip6tbuf, &mld->mld_addr),
 		    ifp, if_name(ifp));
@@ -790,7 +793,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	NET_EPOCH_ASSERT();
 
-	if (!mld_v2enable) {
+	if (!V_mld_v2enable) {
 		CTR3(KTR_MLD, "ignore v2 query src %s on ifp %p(%s)",
 		    ip6_sprintf(ip6tbuf, &ip6->ip6_src),
 		    ifp, if_name(ifp));
@@ -1076,7 +1079,7 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	NET_EPOCH_ASSERT();
 
-	if (!mld_v1enable) {
+	if (!V_mld_v1enable) {
 		CTR3(KTR_MLD, "ignore v1 report %s on ifp %p(%s)",
 		    ip6_sprintf(ip6tbuf, &mld->mld_addr),
 		    ifp, if_name(ifp));
