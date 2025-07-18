@@ -312,7 +312,7 @@ randomdev_accumulate(uint8_t *buf, u_int count)
 	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
 		event.he_somecounter = random_get_cyclecount();
 		event.he_size = sizeof(event.he_entropy);
-		event.he_source = RANDOM_CACHED;
+		event.he_source = RANDOM_RANDOMDEV;
 		event.he_destination = destination++; /* Harmless cheating */
 		memcpy(event.he_entropy, entropy_data + i, sizeof(event.he_entropy));
 		p_random_alg_context->ra_event_processor(&event);
