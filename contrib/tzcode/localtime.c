@@ -514,6 +514,8 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 			return errno;
 		case 0:
 			return 0;
+		case 1:
+			break;
 		}
 	}
 	fid = _open(name, O_RDONLY | O_BINARY);
