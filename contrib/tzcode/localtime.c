@@ -408,10 +408,8 @@ change_in_tz(const char *name)
 	static char old_name[PATH_MAX];
 	static struct stat old_sb;
 	struct stat sb;
-	int error;
 
-	error = stat(name, &sb);
-	if (error != 0)
+	if (stat(name, &sb) != 0)
 		return -1;
 
 	if (strcmp(name, old_name) != 0) {
@@ -510,13 +508,13 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 		 * 'doextend' to ignore TZDEFRULES; the change_in_tz()
 		 * function can only keep state for a single file.
 		 */
-		int ret = change_in_tz(name);
-		if (ret <= 0) {
-			/*
-			 * Returns an errno value if there was an error,
-			 * and 0 if the timezone had not changed.
-			 */
+		switch (change_in_tz(name)) {
+		case -1:
 			return errno;
+		case 0:
+			return 0;
+		case 1:
+			break;
 		}
 	}
 	fid = _open(name, O_RDONLY | O_BINARY);
