@@ -240,6 +240,14 @@ rpctls_rpc_failed(struct upsock *ups, struct socket *so)
 		 * failed to do the handshake.
 		 */
 		mtx_unlock(&rpctls_lock);
+		/*
+		 * Do a shutdown on the socket, since the daemon is
+		 * probably stuck in SSL_accept() or SSL_connect() trying to
+		 * read the socket.  Do not soclose() the socket, since the
+		 * daemon will close() the socket after SSL_accept()
+		 * returns an error.
+		 */
+		soshutdown(so, SHUT_RD);
 	}
 }
 
