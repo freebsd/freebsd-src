@@ -1023,6 +1023,7 @@ _dtrace_provs=	dtrace_audit.4 \
 		dtrace_ip.4 \
 		dtrace_kinst.4 \
 		dtrace_lockstat.4 \
+		dtrace_mib.4 \
 		dtrace_pid.4 \
 		dtrace_priv.4 \
 		dtrace_proc.4 \

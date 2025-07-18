@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 2025-2026  Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 7, 2026
+.Dt DTRACE_MIB 4
+.Os
+.Sh NAME
+.Nm dtrace_mib
+.Nd a DTrace provider for Management Information Base
+.Sh SYNOPSIS
+.Cm mib: Ns Ar module Ns Cm \&:count: Ns Ar counter
+.Pp
+In
+.Xr config 5 :
+.Cd "options KDTRACE_MIB_SDT"
+.Sh DESCRIPTION
+The
+.Nm mib
+provider allows tracing of Management Information Base stats counters.
+.Pp
+The list of instrumented
+.Ar module Ns s
+includes:
+.Bl -tag -offset indent -width ipcomp -compact
+.It Cm ah
+IP Authentication Header (RFC 2402),
+.Xr ipsec 4
+.It Cm esp
+IP Encapsulating Security Payload (RFC 1827, RFC 2406),
+.Xr ipsec 4
+.It Cm icmp
+.Xr icmp 4
+.It Cm icmp6
+.Xr icmp6 4
+.It Cm ip
+.Xr ip 4
+.It Cm ip6
+.Xr ip6 4
+.It Cm ipcomp
+IP Payload Compression Protocol,
+.Xr ipsec 4
+.It Cm ipsec
+.Xr ipsec 4
+.It Cm tcp
+.Xr tcp 4
+.It Cm udp
+.Xr udp 4
+.El
+.Pp
+The
+.Cm mib: Ns Ar module Ns Cm \&:count: Ns Ar counter
+probes fire when the
+.Ar counter
+in
+.Ar module Ns s
+increases.
+.Pp
+The first probe argument,
+.Vt uint64_t Va args[0] ,
+is the increment that the
+.Ar counter
+will increase by.
+.Pp
+Note that some probes like
+.Cm mib:esp:count:esps_hist
+or
+.Cm mib:icmp6:count:icp6s_outhist
+provide additional probe-specific arguments.
+.Sh EXAMPLES
+.Ss Example 1 : Tracing IP Stats Counters
+When debugging network issues one common clue is an unexpectedly
+incrementing error counter.
+This is helpful, in that it gives us an
+idea of what might be going wrong, but often these counters may be
+incremented in different functions.
+.Pp
+Trace all
+.Nm mib
+probes in the
+.Xr ip 4
+module and print the current count and a stack trace:
+.Pp
+.Bd -literal -offset 2n
+# dtrace -n 'mib:ip:count: { printf("%d", arg0); stack(); }'
+dtrace: description 'mib:ip:count: ' matched 29 probes
+CPU     ID                    FUNCTION:NAME
+  7  98784               count:ips_localout 1
+              kernel`ip_output+0x17a2
+              kernel`udp_send+0xaca
+              kernel`sosend_dgram+0x315
+              kernel`sousrsend+0x79
+              kernel`kern_sendit+0x1be
+              kernel`sendit+0x1ab
+              kernel`sys_sendmsg+0x5b
+              kernel`amd64_syscall+0x169
+              kernel`0xffffffff81094b8b
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_ip 4 ,
+.Xr dtrace_tcp 4 ,
+.Xr dtrace_udp 4 ,
+.Xr tracing 7 ,
+.Xr sysctl 8
+.Sh STANDARDS
+The probe descriptions in
+the
+.Fx
+.Nm mib
+provider are not compatible with those in the Solaris/illumos mib provider.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm mib
+provider was added to
+.Fx
+by
+.An Kristof Provost Aq Mt kp@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
