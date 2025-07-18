@@ -307,8 +307,6 @@ struct nvme_controller {
 	bool				isr_warned;
 	bool				is_initialized;
 
-	STAILQ_HEAD(, nvme_request)	fail_req;
-
 	/* Host Memory Buffer */
 	int				hmb_nchunks;
 	size_t				hmb_chunk;
