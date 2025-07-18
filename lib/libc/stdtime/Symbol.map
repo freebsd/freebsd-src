@@ -30,3 +30,9 @@ FBSD_1.0 {
 	asctime_r;
 	asctime;
 };
+
+FBSDprivate_1.0 {
+#ifdef DETECT_TZ_CHANGES
+	__tz_change_interval;
+#endif
+};

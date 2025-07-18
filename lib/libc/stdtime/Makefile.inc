@@ -18,6 +18,7 @@ CFLAGS.${src}+=	-I${LIBC_SRCTOP}/stdtime
 CFLAGS.localtime.c+= -DALL_STATE -DTHREAD_SAFE
 .if ${MK_DETECT_TZ_CHANGES} != "no"
 CFLAGS.localtime.c+= -DDETECT_TZ_CHANGES
+CFLAGS.Version.map+= -DDETECT_TZ_CHANGES
 .endif
 
 MAN+=	ctime.3 strftime.3 strptime.3 time2posix.3 tzset.3
