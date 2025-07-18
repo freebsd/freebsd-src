@@ -40,9 +40,6 @@
 #endif
 
 static MALLOC_DEFINE(M_PFOSFP, "pf_osfp", "pf(4) operating system fingerprints");
-#define	DPFPRINTF(format, x...)		\
-	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
-		printf(format , ##x)
 
 SLIST_HEAD(pf_osfp_list, pf_os_fingerprint);
 VNET_DEFINE_STATIC(struct pf_osfp_list,	pf_osfp_list) =
@@ -189,8 +186,8 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 		optlen = MAX(optlen, 1);	/* paranoia */
 	}
 
-	DPFPRINTF("fingerprinted %s:%d  %d:%d:%d:%d:%llx (%d) "
-	    "(TS=%s,M=%s%d,W=%s%d)\n",
+	DPFPRINTF(PF_DEBUG_NOISY, "fingerprinted %s:%d  %d:%d:%d:%d:%llx (%d) "
+	    "(TS=%s,M=%s%d,W=%s%d)",
 	    srcname, ntohs(tcp->th_sport),
 	    fp.fp_wsize, fp.fp_ttl, (fp.fp_flags & PF_OSFP_DF) != 0,
 	    fp.fp_psize, (long long int)fp.fp_tcpopts, fp.fp_optcnt,
@@ -219,7 +216,7 @@ pf_osfp_match(struct pf_osfp_enlist *list, pf_osfp_t os)
 	if (os == PF_OSFP_ANY)
 		return (1);
 	if (list == NULL) {
-		DPFPRINTF("osfp no match against %x\n", os);
+		DPFPRINTF(PF_DEBUG_NOISY, "osfp no match against %x", os);
 		return (os == PF_OSFP_UNKNOWN);
 	}
 	PF_OSFP_UNPACK(os, os_class, os_version, os_subtype);
@@ -228,13 +225,13 @@ pf_osfp_match(struct pf_osfp_enlist *list, pf_osfp_t os)
 		if ((os_class == PF_OSFP_ANY || en_class == os_class) &&
 		    (os_version == PF_OSFP_ANY || en_version == os_version) &&
 		    (os_subtype == PF_OSFP_ANY || en_subtype == os_subtype)) {
-			DPFPRINTF("osfp matched %s %s %s  %x==%x\n",
+			DPFPRINTF(PF_DEBUG_NOISY, "osfp matched %s %s %s  %x==%x",
 			    entry->fp_class_nm, entry->fp_version_nm,
 			    entry->fp_subtype_nm, os, entry->fp_os);
 			return (1);
 		}
 	}
-	DPFPRINTF("fingerprint 0x%x didn't match\n", os);
+	DPFPRINTF(PF_DEBUG_NOISY, "fingerprint 0x%x didn't match", os);
 	return (0);
 }
 
@@ -275,8 +272,8 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 	fpadd.fp_ttl = fpioc->fp_ttl;
 
 #if 0	/* XXX RYAN wants to fix logging */
-	DPFPRINTF("adding osfp %s %s %s = %s%d:%d:%d:%s%d:0x%llx %d "
-	    "(TS=%s,M=%s%d,W=%s%d) %x\n",
+	DPFPRINTF(PF_DEBUG_NOISY, "adding osfp %s %s %s ="
+	    " %s%d:%d:%d:%s%d:0x%llx %d (TS=%s,M=%s%d,W=%s%d) %x",
 	    fpioc->fp_os.fp_class_nm, fpioc->fp_os.fp_version_nm,
 	    fpioc->fp_os.fp_subtype_nm,
 	    (fpadd.fp_flags & PF_OSFP_WSIZE_MOD) ? "%" :

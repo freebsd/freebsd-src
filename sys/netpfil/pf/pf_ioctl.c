@@ -217,8 +217,6 @@ static u_int16_t	 tagname2tag(struct pf_tagset *, const char *);
 static u_int16_t	 pf_tagname2tag(const char *);
 static void		 tag_unref(struct pf_tagset *, u_int16_t);
 
-#define DPFPRINTF(n, x) if (V_pf_status.debug >= (n)) printf x
-
 struct cdev *pf_dev;
 
 /*
@@ -2143,14 +2141,14 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		ERROUT(EINVAL);
 	if (ticket != ruleset->rules[rs_num].inactive.ticket) {
 		DPFPRINTF(PF_DEBUG_MISC,
-		    ("ticket: %d != [%d]%d\n", ticket, rs_num,
-		    ruleset->rules[rs_num].inactive.ticket));
+		    "ticket: %d != [%d]%d", ticket, rs_num,
+		    ruleset->rules[rs_num].inactive.ticket);
 		ERROUT(EBUSY);
 	}
 	if (pool_ticket != V_ticket_pabuf) {
 		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pool_ticket: %d != %d\n", pool_ticket,
-		    V_ticket_pabuf));
+		    "pool_ticket: %d != %d", pool_ticket,
+		    V_ticket_pabuf);
 		ERROUT(EBUSY);
 	}
 	/*
@@ -2469,7 +2467,7 @@ pf_start(void)
 		V_pf_status.since = time_uptime;
 		new_unrhdr64(&V_pf_stateid, time_second);
 
-		DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
+		DPFPRINTF(PF_DEBUG_MISC, "pf: started");
 	}
 	sx_xunlock(&V_pf_ioctl_lock);
 
@@ -2489,7 +2487,7 @@ pf_stop(void)
 		dehook_pf();
 		dehook_pf_eth();
 		V_pf_status.since = time_uptime;
-		DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
+		DPFPRINTF(PF_DEBUG_MISC, "pf: stopped");
 	}
 	sx_xunlock(&V_pf_ioctl_lock);
 
@@ -3264,9 +3262,9 @@ DIOCGETETHRULE_error:
 		if (nvlist_get_number(nvl, "ticket") !=
 		    ruleset->inactive.ticket) {
 			DPFPRINTF(PF_DEBUG_MISC,
-			    ("ticket: %d != %d\n",
+			    "ticket: %d != %d",
 			    (u_int32_t)nvlist_get_number(nvl, "ticket"),
-			    ruleset->inactive.ticket));
+			    ruleset->inactive.ticket);
 			ERROUT(EBUSY);
 		}
 
@@ -4340,7 +4338,7 @@ DIOCGETSTATESV2_full:
 		if (error == 0)
 			V_pf_altq_running = 1;
 		PF_RULES_WUNLOCK();
-		DPFPRINTF(PF_DEBUG_MISC, ("altq: started\n"));
+		DPFPRINTF(PF_DEBUG_MISC, "altq: started");
 		break;
 	}
 
@@ -4359,7 +4357,7 @@ DIOCGETSTATESV2_full:
 		if (error == 0)
 			V_pf_altq_running = 0;
 		PF_RULES_WUNLOCK();
-		DPFPRINTF(PF_DEBUG_MISC, ("altq: stopped\n"));
+		DPFPRINTF(PF_DEBUG_MISC, "altq: stopped");
 		break;
 	}
 
@@ -6457,9 +6455,9 @@ shutdown_pf(void)
 			for (rs_num = 0; rs_num < PF_RULESET_MAX; ++rs_num) {
 				if ((error = pf_begin_rules(&t[rs_num], rs_num,
 				    anchor->path)) != 0) {
-					DPFPRINTF(PF_DEBUG_MISC, ("%s: "
-					    "anchor.path=%s rs_num=%d\n",
-					    __func__, anchor->path, rs_num));
+					DPFPRINTF(PF_DEBUG_MISC, "%s: "
+					    "anchor.path=%s rs_num=%d",
+					    __func__, anchor->path, rs_num);
 					goto error;	/* XXX: rollback? */
 				}
 			}
@@ -6481,9 +6479,9 @@ shutdown_pf(void)
 				eth_anchor->refcnt = 1;
 			if ((error = pf_begin_eth(&t[0], eth_anchor->path))
 			    != 0) {
-				DPFPRINTF(PF_DEBUG_MISC, ("%s: eth "
-				    "anchor.path=%s\n", __func__,
-				    eth_anchor->path));
+				DPFPRINTF(PF_DEBUG_MISC, "%s: eth "
+				    "anchor.path=%s", __func__,
+				    eth_anchor->path);
 				goto error;
 			}
 			error = pf_commit_eth(t[0], eth_anchor->path);
@@ -6492,27 +6490,27 @@ shutdown_pf(void)
 
 		if ((error = pf_begin_rules(&t[0], PF_RULESET_SCRUB, &nn))
 		    != 0) {
-			DPFPRINTF(PF_DEBUG_MISC, ("%s: SCRUB\n", __func__));
+			DPFPRINTF(PF_DEBUG_MISC, "%s: SCRUB", __func__);
 			break;
 		}
 		if ((error = pf_begin_rules(&t[1], PF_RULESET_FILTER, &nn))
 		    != 0) {
-			DPFPRINTF(PF_DEBUG_MISC, ("%s: FILTER\n", __func__));
+			DPFPRINTF(PF_DEBUG_MISC, "%s: FILTER", __func__);
 			break;		/* XXX: rollback? */
 		}
 		if ((error = pf_begin_rules(&t[2], PF_RULESET_NAT, &nn))
 		    != 0) {
-			DPFPRINTF(PF_DEBUG_MISC, ("%s: NAT\n", __func__));
+			DPFPRINTF(PF_DEBUG_MISC, "%s: NAT", __func__);
 			break;		/* XXX: rollback? */
 		}
 		if ((error = pf_begin_rules(&t[3], PF_RULESET_BINAT, &nn))
 		    != 0) {
-			DPFPRINTF(PF_DEBUG_MISC, ("%s: BINAT\n", __func__));
+			DPFPRINTF(PF_DEBUG_MISC, "%s: BINAT", __func__);
 			break;		/* XXX: rollback? */
 		}
 		if ((error = pf_begin_rules(&t[4], PF_RULESET_RDR, &nn))
 		    != 0) {
-			DPFPRINTF(PF_DEBUG_MISC, ("%s: RDR\n", __func__));
+			DPFPRINTF(PF_DEBUG_MISC, "%s: RDR", __func__);
 			break;		/* XXX: rollback? */
 		}
 
@@ -6531,7 +6529,7 @@ shutdown_pf(void)
 			break;
 
 		if ((error = pf_begin_eth(&t[0], &nn)) != 0) {
-			DPFPRINTF(PF_DEBUG_MISC, ("%s: eth\n", __func__));
+			DPFPRINTF(PF_DEBUG_MISC, "%s: eth", __func__);
 			break;
 		}
 		error = pf_commit_eth(t[0], &nn);
@@ -6539,7 +6537,7 @@ shutdown_pf(void)
 
 #ifdef ALTQ
 		if ((error = pf_begin_altq(&t[0])) != 0) {
-			DPFPRINTF(PF_DEBUG_MISC, ("%s: ALTQ\n", __func__));
+			DPFPRINTF(PF_DEBUG_MISC, "%s: ALTQ", __func__);
 			break;
 		}
 		pf_commit_altq(t[0]);

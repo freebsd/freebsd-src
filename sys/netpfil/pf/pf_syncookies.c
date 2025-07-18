@@ -88,8 +88,6 @@
 #include <net/pfvar.h>
 #include <netpfil/pf/pf_nv.h>
 
-#define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
-
 union pf_syncookie {
 	uint8_t		cookie;
 	struct {
@@ -281,7 +279,7 @@ pf_synflood_check(struct pf_pdesc *pd)
 		    pf_syncookie_rotate, curvnet);
 		V_pf_status.syncookies_active = true;
 		DPFPRINTF(LOG_WARNING,
-		    ("synflood detected, enabling syncookies\n"));
+		    "synflood detected, enabling syncookies");
 		// XXXTODO V_pf_status.lcounters[LCNT_SYNFLOODS]++;
 	}
 
@@ -367,7 +365,7 @@ pf_syncookie_rotate(void *arg)
 	    V_pf_status.syncookies_mode == PF_SYNCOOKIES_NEVER)
 			) {
 		V_pf_status.syncookies_active = false;
-		DPFPRINTF(PF_DEBUG_MISC, ("syncookies disabled\n"));
+		DPFPRINTF(PF_DEBUG_MISC, "syncookies disabled");
 	}
 
 	/* nothing in flight any more? delete keys and return */

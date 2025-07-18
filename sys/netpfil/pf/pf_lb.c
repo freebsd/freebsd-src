@@ -71,8 +71,6 @@
 #define	V_pf_rdr_srcport_rewrite_tries	VNET(pf_rdr_srcport_rewrite_tries)
 VNET_DEFINE_STATIC(int, pf_rdr_srcport_rewrite_tries) = 16;
 
-#define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
-
 static uint64_t		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
 struct pf_krule		*pf_match_translation(int, struct pf_test_ctx *);
@@ -904,19 +902,19 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 			if (pf_get_mape_sport(pd, r, naddr, nportp,
 			    &ctx->udp_mapping, rpool)) {
 				DPFPRINTF(PF_DEBUG_MISC,
-				    ("pf: MAP-E port allocation (%u/%u/%u)"
-				    " failed\n",
+				    "pf: MAP-E port allocation (%u/%u/%u)"
+				    " failed",
 				    rpool->mape.offset,
 				    rpool->mape.psidlen,
-				    rpool->mape.psid));
+				    rpool->mape.psid);
 				reason = PFRES_MAPFAILED;
 				goto notrans;
 			}
 		} else if (pf_get_sport(pd, r, naddr, nportp, low, high,
 		    rpool, &ctx->udp_mapping, PF_SN_NAT)) {
 			DPFPRINTF(PF_DEBUG_MISC,
-			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
-			    rpool->proxy_port[0], rpool->proxy_port[1]));
+			    "pf: NAT proxy port allocation (%u-%u) failed",
+			    rpool->proxy_port[0], rpool->proxy_port[1]);
 			reason = PFRES_MAPFAILED;
 			goto notrans;
 		}
@@ -1085,13 +1083,13 @@ pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
 		 * the state may be reused if the TCP state is terminal.
 		 */
 		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pf: RDR source port allocation failed\n"));
+		    "pf: RDR source port allocation failed");
 		break;
 
 out:
 		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pf: RDR source port allocation %u->%u\n",
-		    ntohs(pd->nsport), ntohs(ctx->nk->port[0])));
+		    "pf: RDR source port allocation %u->%u",
+		    ntohs(pd->nsport), ntohs(ctx->nk->port[0]));
 		break;
 	}
 	default:
@@ -1140,8 +1138,8 @@ pf_get_transaddr_af(struct pf_krule *r, struct pf_pdesc *pd)
 	if (pf_get_sport(pd, r, &nsaddr, &nport, r->nat.proxy_port[0],
 	    r->nat.proxy_port[1], &r->nat, NULL, PF_SN_NAT)) {
 		DPFPRINTF(PF_DEBUG_MISC,
-		    ("pf: af-to NAT proxy port allocation (%u-%u) failed",
-		    r->nat.proxy_port[0], r->nat.proxy_port[1]));
+		    "pf: af-to NAT proxy port allocation (%u-%u) failed",
+		    r->nat.proxy_port[0], r->nat.proxy_port[1]);
 		return (-1);
 	}
 
