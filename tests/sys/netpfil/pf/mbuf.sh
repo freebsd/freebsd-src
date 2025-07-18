@@ -105,6 +105,12 @@ inet6_in_mbuf_len_body()
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a inet6 2001:db8::1/64 up no_dad
 
+	# Ensure we don't unintentionally send MLD packets to alcatraz
+	pfctl -e
+	echo "block
+	pass out inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv, echoreq, echorep }
+	" | pfctl -g -f -
+
 	# Set up a simple jail with one interface
 	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::2/64 up no_dad
