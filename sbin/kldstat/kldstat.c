@@ -35,7 +35,7 @@
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 
 #define	PTR_WIDTH ((int)(sizeof(void *) * 2 + 2))
