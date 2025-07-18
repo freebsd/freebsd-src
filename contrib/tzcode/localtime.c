@@ -18,6 +18,7 @@
 #ifndef DETECT_TZ_CHANGES_INTERVAL
 #define DETECT_TZ_CHANGES_INTERVAL 61
 #endif
+int __tz_change_interval = DETECT_TZ_CHANGES_INTERVAL;
 #include <sys/stat.h>
 #endif
 #include <fcntl.h>
@@ -1372,22 +1373,13 @@ recheck_tzdata()
 {
 	static time_t last_checked;
 	struct timespec now;
-	time_t current_time;
-	int error;
 
-	/*
-	 * We want to recheck the timezone file every 61 sec.
-	 */
-	error = clock_gettime(CLOCK_MONOTONIC, &now);
-	if (error < 0) {
-		/* XXX: Can we somehow report this? */
+	if (clock_gettime(CLOCK_MONOTONIC, &now) < 0)
 		return 0;
-	}
 
-	current_time = now.tv_sec;
-	if ((current_time - last_checked > DETECT_TZ_CHANGES_INTERVAL) ||
-	    (last_checked > current_time)) {
-		last_checked = current_time;
+	if ((now.tv_sec - last_checked >= __tz_change_interval) ||
+	    (last_checked > now.tv_sec)) {
+		last_checked = now.tv_sec;
 		return 1;
 	}
 
