@@ -341,6 +341,13 @@ random_fortuna_process_event(struct harvest_event *event)
 	u_int pl;
 
 	RANDOM_RESEED_LOCK();
+	/*
+	 * Run SP 800-90B health tests on the source if so configured.
+	 */
+	if (!random_harvest_healthtest(event)) {
+		RANDOM_RESEED_UNLOCK();
+		return;
+	}
 	/*-
 	 * FS&K - P_i = P_i|<harvested stuff>
 	 * Accumulate the event into the appropriate pool
