@@ -35,3 +35,9 @@ FBSD_1.8 {
 	daylight;
 	timezone;
 };
+
+FBSDprivate_1.0 {
+#ifdef DETECT_TZ_CHANGES
+	__tz_change_interval;
+#endif
+};

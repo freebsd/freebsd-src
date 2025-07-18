@@ -1441,6 +1441,10 @@ OLD_LIBS+=${DEBUG_LIBS}
 .endif
 .endif
 
+.if ${MK_DETECT_TZ_CHANGES} == no
+OLD_FILES+=tests/lib/libc/stdtime/detect_tz_changes_test
+.endif
+
 .if ${MK_DIALOG} == no
 OLD_FILES+=usr/bin/dialog
 OLD_FILES+=usr/bin/dpv
