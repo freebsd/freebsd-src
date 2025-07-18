@@ -590,6 +590,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 		    strcmp(md.md_name, sc->sc_name) != 0 ||
 		    md.md_id != sc->sc_id) {
 			G_CONCAT_DEBUG(0, "Metadata on %s changed.", pp->name);
+			error = EINVAL;
 			goto fail;
 		}
 
