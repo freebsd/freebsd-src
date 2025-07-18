@@ -371,7 +371,7 @@ inotify_unlink_watch_locked(struct inotify_softc *sc, struct inotify_watch *watc
 
 	TAILQ_REMOVE(&vp->v_pollinfo->vpi_inotify, watch, vlink);
 	if (TAILQ_EMPTY(&vp->v_pollinfo->vpi_inotify))
-		vn_irflag_unset_locked(vp, VIRF_INOTIFY);
+		vn_irflag_unset(vp, VIRF_INOTIFY);
 }
 
 /*
@@ -675,7 +675,8 @@ vn_inotify(struct vnode *vp, struct vnode *dvp, struct componentname *cnp,
 					struct vattr va;
 					int error;
 
-					error = VOP_GETATTR(vp, &va, cnp->cn_cred);
+					error = VOP_GETATTR(vp, &va,
+					    cnp->cn_cred);
 					if (error == 0 && va.va_nlink != 0)
 						selfevent = 0;
 				}
