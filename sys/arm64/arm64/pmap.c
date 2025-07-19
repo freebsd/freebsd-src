@@ -8501,18 +8501,20 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 
 	/*
 	 * Invalidate the 2MB page mapping and return "failure" if the
-	 * mapping was never accessed.
+	 * mapping was never accessed and not wired.
 	 */
 	if ((oldl2 & ATTR_AF) == 0) {
-		KASSERT((oldl2 & ATTR_SW_WIRED) == 0,
-		    ("pmap_demote_l2: a wired mapping is missing ATTR_AF"));
-		pmap_demote_l2_abort(pmap, va, l2, lockp);
-		CTR2(KTR_PMAP, "pmap_demote_l2: failure for va %#lx in pmap %p",
-		    va, pmap);
-		goto fail;
-	}
-
-	if ((ml3 = pmap_remove_pt_page(pmap, va)) == NULL) {
+		if ((oldl2 & ATTR_SW_WIRED) == 0) {
+			pmap_demote_l2_abort(pmap, va, l2, lockp);
+			CTR2(KTR_PMAP,
+			    "pmap_demote_l2: failure for va %#lx in pmap %p",
+			    va, pmap);
+			goto fail;
+		}
+		ml3 = pmap_remove_pt_page(pmap, va);
+		/* Fill the PTP with L3Es that have ATTR_AF cleared. */
+		ml3->valid = 0;
+	} else if ((ml3 = pmap_remove_pt_page(pmap, va)) == NULL) {
 		KASSERT((oldl2 & ATTR_SW_WIRED) == 0,
 		    ("pmap_demote_l2: page table page for a wired mapping"
 		    " is missing"));
@@ -8568,7 +8570,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	/*
 	 * If the PTP is not leftover from an earlier promotion or it does not
 	 * have ATTR_AF set in every L3E, then fill it.  The new L3Es will all
-	 * have ATTR_AF set.
+	 * have ATTR_AF set, unless this is a wired mapping with ATTR_AF clear.
 	 *
 	 * When pmap_update_entry() clears the old L2 mapping, it (indirectly)
 	 * performs a dsb().  That dsb() ensures that the stores for filling
