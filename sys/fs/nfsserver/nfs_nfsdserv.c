@@ -251,7 +251,8 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	accmode_t accmode;
 	struct thread *p = curthread;
 	size_t atsiz;
-	bool xattrsupp;
+	long pathval;
+	bool has_hiddensystem, has_namedattr, xattrsupp;
 
 	if (nd->nd_repstat)
 		goto out;
@@ -318,6 +319,17 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 					    p);
 					xattrsupp = ret != EOPNOTSUPP;
 				}
+				if (VOP_PATHCONF(vp, _PC_HAS_HIDDENSYSTEM,
+				    &pathval) != 0)
+					pathval = 0;
+				has_hiddensystem = pathval > 0;
+				pathval = 0;
+				if (NFSISSET_ATTRBIT(&attrbits,
+				    NFSATTRBIT_NAMEDATTR) &&
+				    VOP_PATHCONF(vp, _PC_HAS_NAMEDATTR,
+				    &pathval) != 0)
+					pathval = 0;
+				has_namedattr = pathval > 0;
 				mp = vp->v_mount;
 				if (nfsrv_enable_crossmntpt != 0 &&
 				    vp->v_type == VDIR &&
@@ -352,7 +364,8 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 					    &fh, 0, &attrbits, nd->nd_cred, p,
 					    isdgram, 1, supports_nfsv4acls,
 					    at_root, mounted_on_fileno,
-					    xattrsupp);
+					    xattrsupp, has_hiddensystem,
+					    has_namedattr);
 					vfs_unbusy(mp);
 				}
 				vrele(vp);
