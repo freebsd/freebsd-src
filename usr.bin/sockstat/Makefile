@@ -2,7 +2,7 @@
 
 PROG=		sockstat
 
-LIBADD=		jail
+LIBADD=		jail xo
 
 .if ${MK_CASPER} != "no"
 LIBADD+=	casper
