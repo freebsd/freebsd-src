@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.39 2025/04/30 06:01:07 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.41 2025/06/29 11:27:21 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -73,9 +73,9 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 .  error
 .endif
 
-# If the "Bad conditional expression" appears in a quoted string literal, the
+# If the "Bad condition" appears in a quoted string literal, the
 # error message "Malformed conditional" is not printed, leaving only the "Bad
-# conditional expression".
+# condition".
 #
 # XXX: The left-hand side is enclosed in quotes.  This results in Var_Parse
 # being called without VARE_EVAL_DEFINED.  When ApplyModifier_IfElse
@@ -94,8 +94,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 .if "${1 == == 2:?yes:no}" != ""
 .  error
 .else
-# expect+1: warning: Oops, the parse error should have been propagated.
-.  warning Oops, the parse error should have been propagated.
+.  error
 .endif
 .MAKEFLAGS: -d0
 
@@ -158,7 +157,7 @@ STRING=		string
 NUMBER=		no		# not really a number
 # expect+1: no.
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
-# expect+2: Comparison with '>=' requires both operands 'no' and '10' to be numeric
+# expect+2: Comparison with ">=" requires both operands "no" and "10" to be numeric
 # expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
