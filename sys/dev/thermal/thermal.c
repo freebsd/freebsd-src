@@ -41,11 +41,11 @@ static struct cdevsw thermal_cdevsw = {
 };
 
 static int
-thermal_get_temperature(struct thermal_softc *sc)
+thermal_get_temperature(struct thermal_softc *sc, int core)
 {
 	uint64_t val;
 
-	val = rdmsr(THERMAL_MSR_THERM_STATUS);
+	val = rdmsr(THERMAL_MSR_THERM_STATUS + core);
 	if (!(val & 0x80000000))
 		return (-1);
 	return (THERMAL_MAX_TEMP - ((val >> 16) & 0x7F));
@@ -55,10 +55,11 @@ static int
 thermal_temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct thermal_softc *sc = arg1;
+	int core = arg2;
 	int temp;
 
 	mtx_lock(&sc->mtx);
-	temp = thermal_get_temperature(sc);
+	temp = thermal_get_temperature(sc, core);
 	if (temp >= 0)
 		sc->current_temp = temp;
 	mtx_unlock(&sc->mtx);
@@ -83,12 +84,16 @@ static int
 thermal_read(struct cdev *dev, struct uio *uio, int ioflag __unused)
 {
 	struct thermal_softc *sc = dev->si_drv1;
-	char buf[64];
-	int len;
+	char buf[256];
+	int len, temp, i;
 
 	mtx_lock(&sc->mtx);
-	len = snprintf(buf, sizeof(buf), "temp: %d\n",
-	    thermal_get_temperature(sc));
+	len = 0;
+	for (i = 0; i < 8; i++) {  // Assuming up to 8 cores
+		temp = thermal_get_temperature(sc, i);
+		if (temp >= 0)
+			len += snprintf(buf + len, sizeof(buf) - len, "Core %d: %d\n", i, temp);
+	}
 	mtx_unlock(&sc->mtx);
 	return (uiomove(buf, min(len, uio->uio_resid), uio));
 }
@@ -118,10 +123,12 @@ thermal_attach(device_t dev)
 	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "thermal",
 	    CTLFLAG_RD, 0, "Thermal monitoring");
 
-	SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-	    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "temperature",
-	    CTLTYPE_INT | CTLFLAG_RD, sc, 0, thermal_temp_sysctl, "I",
-	    "Current CPU temperature");
+	for (int i = 0; i < 8; i++) {  // Assuming up to 8 cores
+		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "core",
+		    CTLTYPE_INT | CTLFLAG_RW, sc, i, thermal_temp_sysctl, "I",
+		    "Core %d temperature", i);
+	}
 
 	sc->cdev = make_dev(&thermal_cdevsw, 0, UID_ROOT, GID_WHEEL, 0644,
 	    "thermal");
