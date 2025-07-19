@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-make.mk,v 1.6 2025/01/10 23:00:38 rillig Exp $
+# $NetBSD: cond-func-make.mk,v 1.7 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for the make() function in .if conditions, which tests whether
 # the argument has been passed as a target via the command line or later
@@ -20,7 +20,7 @@
 .  error
 .endif
 
-# expect+1: warning: Unfinished character list in pattern argument '[' to function 'make'
+# expect+1: warning: Unfinished character list in pattern argument "[" to function "make"
 .if make([)
 .  error
 .endif

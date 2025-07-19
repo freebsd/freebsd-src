@@ -1,4 +1,4 @@
-/*	$NetBSD: make_malloc.c,v 1.27 2025/06/12 18:51:05 rillig Exp $	*/
+/*	$NetBSD: make_malloc.c,v 1.28 2025/06/29 09:37:58 rillig Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: make_malloc.c,v 1.27 2025/06/12 18:51:05 rillig Exp $");
+MAKE_RCSID("$NetBSD: make_malloc.c,v 1.28 2025/06/29 09:37:58 rillig Exp $");
 
 #ifndef USE_EMALLOC
 
@@ -50,6 +50,9 @@ bmake_malloc(size_t len)
 
 	if ((p = malloc(len)) == NULL)
 		enomem();
+#ifdef CLEANUP
+	memset(p, 'Z', len);
+#endif
 	return p;
 }
 

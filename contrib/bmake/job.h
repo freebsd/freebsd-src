@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.84 2025/04/22 19:28:50 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.85 2025/07/06 07:11:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -101,7 +101,7 @@ void Job_CatchOutput(void);
 void Job_Make(GNode *);
 void Job_Init(void);
 bool Job_ParseShell(char *) MAKE_ATTR_USE;
-int Job_Finish(void);
+int Job_MakeDotEnd(void);
 #ifdef CLEANUP
 void Job_End(void);
 #endif

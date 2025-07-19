@@ -1,4 +1,4 @@
-# $NetBSD: cmdline-undefined.mk,v 1.5 2024/04/23 22:51:28 rillig Exp $
+# $NetBSD: cmdline-undefined.mk,v 1.6 2025/06/30 21:44:39 rillig Exp $
 #
 # Tests for undefined variables in expressions in the command line.
 
@@ -8,6 +8,12 @@ all:
 	# (which probably occurs rarely in practice, if at all), but their
 	# variable value is not expanded, as usual.
 	#
+# expect+30: From the command line: Undefined is .
+# expect+30: From .MAKEFLAGS '=': Undefined is .
+# expect+30: From .MAKEFLAGS ':=': Undefined is .
+# expect+33: From the command line: Undefined is now defined.
+# expect+33: From .MAKEFLAGS '=': Undefined is now defined.
+# expect+33: From .MAKEFLAGS ':=': Undefined is now defined.
 	@echo 'The = assignment operator'
 	@${.MAKE} -f ${MAKEFILE} print-undefined \
 		CMDLINE='Undefined is $${UNDEFINED}.'
@@ -16,6 +22,12 @@ all:
 	# The interesting case is using the ':=' assignment operator, which
 	# expands its right-hand side.  But only those variables that are
 	# defined.
+# expect+16: From the command line: Undefined is .
+# expect+16: From .MAKEFLAGS '=': Undefined is .
+# expect+16: From .MAKEFLAGS ':=': Undefined is .
+# expect+19: From the command line: Undefined is now defined.
+# expect+19: From .MAKEFLAGS '=': Undefined is now defined.
+# expect+19: From .MAKEFLAGS ':=': Undefined is now defined.
 	@echo 'The := assignment operator'
 	@${.MAKE} -f ${MAKEFILE} print-undefined \
 		CMDLINE:='Undefined is $${UNDEFINED}.'
@@ -26,26 +38,14 @@ all:
 .MAKEFLAGS: MAKEFLAGS_ASSIGN='Undefined is $${UNDEFINED}.'
 .MAKEFLAGS: MAKEFLAGS_SUBST:='Undefined is $${UNDEFINED}.'
 
-# expect+2: From the command line: Undefined is .
-# expect+1: From the command line: Undefined is .
 .info From the command line: ${CMDLINE}
-# expect+2: From .MAKEFLAGS '=': Undefined is .
-# expect+1: From .MAKEFLAGS '=': Undefined is .
 .info From .MAKEFLAGS '=': ${MAKEFLAGS_ASSIGN}
-# expect+2: From .MAKEFLAGS ':=': Undefined is .
-# expect+1: From .MAKEFLAGS ':=': Undefined is .
 .info From .MAKEFLAGS ':=': ${MAKEFLAGS_SUBST}
 
 UNDEFINED?=	now defined
 
-# expect+2: From the command line: Undefined is now defined.
-# expect+1: From the command line: Undefined is now defined.
 .info From the command line: ${CMDLINE}
-# expect+2: From .MAKEFLAGS '=': Undefined is now defined.
-# expect+1: From .MAKEFLAGS '=': Undefined is now defined.
 .info From .MAKEFLAGS '=': ${MAKEFLAGS_ASSIGN}
-# expect+2: From .MAKEFLAGS ':=': Undefined is now defined.
-# expect+1: From .MAKEFLAGS ':=': Undefined is now defined.
 .info From .MAKEFLAGS ':=': ${MAKEFLAGS_SUBST}
 
 print-undefined:

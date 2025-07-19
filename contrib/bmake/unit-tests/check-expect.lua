@@ -1,5 +1,5 @@
 #!  /usr/bin/lua
--- $NetBSD: check-expect.lua,v 1.13 2025/04/13 09:29:32 rillig Exp $
+-- $NetBSD: check-expect.lua,v 1.17 2025/07/01 05:03:18 rillig Exp $
 
 --[[
 
@@ -9,29 +9,32 @@ Check that the various 'expect' comments in the .mk files produce the
 expected text in the corresponding .exp file.
 
 # expect: <line>
-        All of these lines must occur in the .exp file, in the same order as
-        in the .mk file.
-
-# expect-reset
-        Search the following 'expect:' comments from the top of the .exp
-        file again.
+        Each <line> must occur in the .exp file.
+        The order in the .mk file must be the same as in the .exp file.
 
 # expect[+-]offset: <message>
-        Each message must occur in the .exp file and refer back to the
+        Each <message> must occur in the .exp file and refer back to the
         source line in the .mk file.
+        Each such line in the .exp file must have a corresponding expect line
+        in the .mk file.
+        The order in the .mk file must be the same as in the .exp file.
+
+# expect-reset
+        Search the following "expect:" and "expect[+-]offset:" comments
+        from the top of the .exp file again.
 
 # expect-not: <substring>
-        The substring must not occur as part of any line of the .exp file.
+        The <substring> must not occur as part of any line in the .exp file.
 
 # expect-not-matches: <pattern>
-        The pattern (see https://lua.org/manual/5.4/manual.html#6.4.1)
-        must not occur as part of any line of the .exp file.
+        The <pattern> (see https://lua.org/manual/5.4/manual.html#6.4.1)
+        must not occur as part of any line in the .exp file.
 ]]
 
 
 local had_errors = false
 ---@param fmt string
-function print_error(fmt, ...)
+local function print_error(fmt, ...)
   print(fmt:format(...))
   had_errors = true
 end
@@ -42,7 +45,9 @@ local function load_lines(fname)
   local lines = {}
 
   local f = io.open(fname, "r")
-  if f == nil then return nil end
+  if f == nil then
+    return nil
+  end
 
   for line in f:lines() do
     table.insert(lines, line)
@@ -53,135 +58,129 @@ local function load_lines(fname)
 end
 
 
----@param exp_lines string[]
-local function collect_lineno_diagnostics(exp_lines)
-  ---@type table<string, string[]>
-  local by_location = {}
+--- @shape ExpLine
+--- @field filename string | nil
+--- @field lineno number | nil
+--- @field text string
 
-  for _, line in ipairs(exp_lines) do
-    ---@type string | nil, string, string
-    local l_fname, l_lineno, l_msg =
-      line:match('^make: ([^:]+):(%d+): (.*)')
-    if l_fname ~= nil then
-      local location = ("%s:%d"):format(l_fname, l_lineno)
-      if by_location[location] == nil then
-        by_location[location] = {}
-      end
-      table.insert(by_location[location], l_msg)
+
+--- @param lines string[]
+--- @return ExpLine[]
+local function parse_exp(lines)
+  local exp_lines = {}
+  for _, line in ipairs(lines) do
+    local l_filename, l_lineno, l_text =
+      line:match('^make: ([^:]+%.mk):(%d+):%s+(.*)')
+    if not l_filename then
+      l_text = line
     end
+    l_text = l_text:gsub("^%s+", ""):gsub("%s+$", "")
+    table.insert(exp_lines, {
+      filename = l_filename,
+      lineno = tonumber(l_lineno),
+      text = l_text,
+    })
   end
-
-  return by_location
+  return exp_lines
 end
 
-
-local function missing(by_location)
-  ---@type {filename: string, lineno: number, location: string, message: string}[]
-  local missing_expectations = {}
-
-  for location, messages in pairs(by_location) do
-    for _, message in ipairs(messages) do
-      if message ~= "" and location:find(".mk:") then
-        local filename, lineno = location:match("^(%S+):(%d+)$")
-        table.insert(missing_expectations, {
-          filename = filename,
-          lineno = tonumber(lineno),
-          location = location,
-          message = message
-        })
-      end
+---@param exp_lines ExpLine[]
+local function detect_missing_expect_lines(exp_fname, exp_lines, s, e)
+  for i = s, e do
+    local exp_line = exp_lines[i]
+    if exp_line.filename then
+      print_error("error: %s:%d requires in %s:%d: # expect+1: %s",
+        exp_fname, i, exp_line.filename, exp_line.lineno, exp_line.text)
     end
   end
-  table.sort(missing_expectations, function(a, b)
-    if a.filename ~= b.filename then
-      return a.filename < b.filename
-    end
-    return a.lineno < b.lineno
-  end)
-  return missing_expectations
 end
-
 
 local function check_mk(mk_fname)
   local exp_fname = mk_fname:gsub("%.mk$", ".exp")
   local mk_lines = load_lines(mk_fname)
-  local exp_lines = load_lines(exp_fname)
-  if exp_lines == nil then return end
-  local by_location = collect_lineno_diagnostics(exp_lines)
-  local prev_expect_line = 0
+  local exp_raw_lines = load_lines(exp_fname)
+  if exp_raw_lines == nil then
+    return
+  end
+  local exp_lines = parse_exp(exp_raw_lines)
+
+  local exp_it = 1
 
   for mk_lineno, mk_line in ipairs(mk_lines) do
 
-    for text in mk_line:gmatch("#%s*expect%-not:%s*(.*)") do
-      local i = 1
-      while i <= #exp_lines and not exp_lines[i]:find(text, 1, true) do
-        i = i + 1
-      end
-      if i <= #exp_lines then
-        print_error("error: %s:%d: %s must not contain '%s'",
-          mk_fname, mk_lineno, exp_fname, text)
+    local function match(pattern, action)
+      local _, n = mk_line:gsub(pattern, action)
+      if n > 0 then
+        match = function() end
       end
     end
 
-    for text in mk_line:gmatch("#%s*expect%-not%-matches:%s*(.*)") do
-      local i = 1
-      while i <= #exp_lines and not exp_lines[i]:find(text) do
-        i = i + 1
-      end
-      if i <= #exp_lines then
-        print_error("error: %s:%d: %s must not match '%s'",
-          mk_fname, mk_lineno, exp_fname, text)
-      end
-    end
-
-    for text in mk_line:gmatch("#%s*expect:%s*(.*)") do
-      local i = prev_expect_line
-      -- As of 2022-04-15, some lines in the .exp files contain trailing
-      -- whitespace.  If possible, this should be avoided by rewriting the
-      -- debug logging.  When done, the trailing gsub can be removed.
-      -- See deptgt-phony.exp lines 14 and 15.
-      while i < #exp_lines and text ~= exp_lines[i + 1]:gsub("^%s*", ""):gsub("%s*$", "") do
-        i = i + 1
-      end
-      if i < #exp_lines then
-        prev_expect_line = i + 1
-      else
-        print_error("error: %s:%d: '%s:%d+' must contain '%s'",
-          mk_fname, mk_lineno, exp_fname, prev_expect_line + 1, text)
-      end
-    end
-    if mk_line:match("^#%s*expect%-reset$") then
-      prev_expect_line = 0
-    end
-
-    ---@param text string
-    for offset, text in mk_line:gmatch("#%s*expect([+%-]%d+):%s*(.*)") do
-      local location = ("%s:%d"):format(mk_fname, mk_lineno + tonumber(offset))
-
-      local found = false
-      if by_location[location] ~= nil then
-        for i, message in ipairs(by_location[location]) do
-          if message == text then
-            by_location[location][i] = ""
-            found = true
-            break
-          elseif message ~= "" then
-            print_error("error: %s:%d: out-of-order '%s'",
-              mk_fname, mk_lineno, message)
-          end
+    match("^#%s+expect%-not:%s*(.*)", function(text)
+      for exp_lineno, exp_line in ipairs(exp_lines) do
+        if exp_line.text:find(text, 1, true) then
+          print_error("error: %s:%d: %s:%d must not contain '%s'",
+            mk_fname, mk_lineno, exp_fname, exp_lineno, text)
         end
       end
+    end)
 
-      if not found then
-        print_error("error: %s:%d: %s must contain '%s'",
-          mk_fname, mk_lineno, exp_fname, text)
+    match("^#%s+expect%-not%-matches:%s*(.*)", function(pattern)
+      for exp_lineno, exp_line in ipairs(exp_lines) do
+        if exp_line.text:find(pattern) then
+          print_error("error: %s:%d: %s:%d must not match '%s'",
+            mk_fname, mk_lineno, exp_fname, exp_lineno, pattern)
+        end
       end
-    end
-  end
+    end)
 
-  for _, m in ipairs(missing(by_location)) do
-    print_error("missing: %s: # expect+1: %s", m.location, m.message)
+    match("^#%s+expect:%s*(.*)", function(text)
+      local i = exp_it
+      while i <= #exp_lines and text ~= exp_lines[i].text do
+        i = i + 1
+      end
+      if i <= #exp_lines then
+        detect_missing_expect_lines(exp_fname, exp_lines, exp_it, i - 1)
+        exp_lines[i].text = ""
+        exp_it = i + 1
+      else
+        print_error("error: %s:%d: '%s:%d+' must contain '%s'",
+          mk_fname, mk_lineno, exp_fname, exp_it, text)
+      end
+    end)
+
+    match("^#%s+expect%-reset$", function()
+      exp_it = 1
+    end)
+
+    match("^#%s+expect([+%-]%d+):%s*(.*)", function(offset, text)
+      local msg_lineno = mk_lineno + tonumber(offset)
+
+      local i = exp_it
+      while i <= #exp_lines and text ~= exp_lines[i].text do
+        i = i + 1
+      end
+
+      if i <= #exp_lines and exp_lines[i].lineno == msg_lineno then
+        detect_missing_expect_lines(exp_fname, exp_lines, exp_it, i - 1)
+        exp_lines[i].text = ""
+        exp_it = i + 1
+      elseif i <= #exp_lines then
+        print_error("error: %s:%d: expect%+d must be expect%+d",
+          mk_fname, mk_lineno, tonumber(offset),
+          exp_lines[i].lineno - mk_lineno)
+      else
+        print_error("error: %s:%d: %s:%d+ must contain '%s'",
+          mk_fname, mk_lineno, exp_fname, exp_it, text)
+      end
+    end)
+
+    match("^#%s+expect[+%-:]", function()
+      print_error("error: %s:%d: invalid \"expect\" line: %s",
+        mk_fname, mk_lineno, mk_line)
+    end)
+
   end
+  detect_missing_expect_lines(exp_fname, exp_lines, exp_it, #exp_lines)
 end
 
 for _, fname in ipairs(arg) do

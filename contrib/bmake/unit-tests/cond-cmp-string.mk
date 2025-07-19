@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.20 2024/08/06 18:00:16 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.21 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -15,7 +15,7 @@
 
 # The left-hand side of the comparison must be enclosed in quotes.
 # This one is not enclosed in quotes and thus generates an error message.
-# expect+1: Malformed conditional 'str != str'
+# expect+1: Malformed conditional "str != str"
 .if str != str
 .  error
 .endif
@@ -40,7 +40,7 @@
 
 # It is not possible to concatenate two string literals to form a single
 # string.  In C, Python and the shell this is possible, but not in make.
-# expect+1: Malformed conditional '"string" != "str""ing"'
+# expect+1: Malformed conditional ""string" != "str""ing""
 .if "string" != "str""ing"
 .  error
 .else
@@ -48,7 +48,7 @@
 .endif
 
 # There is no = operator for strings.
-# expect+1: Malformed conditional '!("value" = "value")'
+# expect+1: Malformed conditional "!("value" = "value")"
 .if !("value" = "value")
 .  error
 .else
@@ -56,7 +56,7 @@
 .endif
 
 # There is no === operator for strings either.
-# expect+1: Malformed conditional '!("value" === "value")'
+# expect+1: Malformed conditional "!("value" === "value")"
 .if !("value" === "value")
 .  error
 .else
@@ -114,7 +114,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
-# expect+1: Comparison with '<' requires both operands 'string' and 'string' to be numeric
+# expect+1: Comparison with "<" requires both operands "string" and "string" to be numeric
 .if "string" < "string"
 .  error
 .else
@@ -122,7 +122,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
-# expect+1: Comparison with '<=' requires both operands 'string' and 'string' to be numeric
+# expect+1: Comparison with "<=" requires both operands "string" and "string" to be numeric
 .if "string" <= "string"
 .  error
 .else
@@ -130,7 +130,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
-# expect+1: Comparison with '>' requires both operands 'string' and 'string' to be numeric
+# expect+1: Comparison with ">" requires both operands "string" and "string" to be numeric
 .if "string" > "string"
 .  error
 .else
@@ -138,7 +138,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
-# expect+1: Comparison with '>=' requires both operands 'string' and 'string' to be numeric
+# expect+1: Comparison with ">=" requires both operands "string" and "string" to be numeric
 .if "string" >= "string"
 .  error
 .else

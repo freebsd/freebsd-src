@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match.mk,v 1.30 2025/03/29 19:08:52 rillig Exp $
+# $NetBSD: varmod-match.mk,v 1.32 2025/06/29 09:40:13 rillig Exp $
 #
 # Tests for the ':M' modifier, which keeps only those words that match the
 # given pattern.
@@ -13,8 +13,12 @@
 # 6. Error handling
 # 7. Historical bugs
 #
-# See ApplyModifier_Match, ParseModifier_Match, ModifyWord_Match and
-# Str_Match.
+# See also:
+#	char-005c-reverse-solidus.mk
+#	ApplyModifier_Match
+#	ParseModifier_Match
+#	ModifyWord_Match
+#	Str_Match
 
 
 # 1. Pattern characters '*', '?' and '\'
@@ -285,7 +289,7 @@ ${:U*}=		asterisk
 
 #	[	Incomplete empty character list, never matches.
 WORDS=		a a[
-# expect+1: Unfinished character list in pattern 'a[' of modifier ':M'
+# expect+1: Unfinished character list in pattern "a[" of modifier ":M"
 .if ${WORDS:Ma[} != ""
 .  error
 .endif
@@ -293,7 +297,7 @@ WORDS=		a a[
 #	[^	Incomplete negated empty character list, matches any single
 #		character.
 WORDS=		a a[ aX
-# expect+1: Unfinished character list in pattern 'a[^' of modifier ':M'
+# expect+1: Unfinished character list in pattern "a[^" of modifier ":M"
 .if ${WORDS:Ma[^} != "a[ aX"
 .  error
 .endif
@@ -301,7 +305,7 @@ WORDS=		a a[ aX
 #	[-x1-3	Incomplete character list, matches those elements that can be
 #		parsed without lookahead.
 WORDS=		- + x xx 0 1 2 3 4 [x1-3
-# expect+1: Unfinished character list in pattern '[-x1-3' of modifier ':M'
+# expect+1: Unfinished character list in pattern "[-x1-3" of modifier ":M"
 .if ${WORDS:M[-x1-3} != "- x 1 2 3"
 .  error
 .endif
@@ -309,7 +313,7 @@ WORDS=		- + x xx 0 1 2 3 4 [x1-3
 #	*[-x1-3	Incomplete character list after a wildcard, matches those
 #		words that end with one of the characters from the list.
 WORDS=		- + x xx 0 1 2 3 4 00 01 10 11 000 001 010 011 100 101 110 111 [x1-3
-# expect+1: Unfinished character list in pattern '*[-x1-3' of modifier ':M'
+# expect+1: Unfinished character list in pattern "*[-x1-3" of modifier ":M"
 .if ${WORDS:M*[-x1-3} != "- x xx 1 2 3 01 11 001 011 101 111 [x1-3"
 .  warning ${WORDS:M*[-x1-3}
 .endif
@@ -318,7 +322,7 @@ WORDS=		- + x xx 0 1 2 3 4 00 01 10 11 000 001 010 011 100 101 110 111 [x1-3
 #		Incomplete negated character list, matches any character
 #		except those elements that can be parsed without lookahead.
 WORDS=		- + x xx 0 1 2 3 4 [x1-3
-# expect+1: Unfinished character list in pattern '[^-x1-3' of modifier ':M'
+# expect+1: Unfinished character list in pattern "[^-x1-3" of modifier ":M"
 .if ${WORDS:M[^-x1-3} != "+ 0 4"
 .  error
 .endif
@@ -332,7 +336,7 @@ WORDS=		- + x xx 0 1 2 3 4 [x1-3
 #		'\', as there is no following space that could be escaped.
 WORDS=		\\ \a ${:Ux\\}
 PATTERN=	${:U?[\\}
-# expect+1: Unfinished character list in pattern '?[\' of modifier ':M'
+# expect+1: Unfinished character list in pattern "?[\" of modifier ":M"
 .if ${WORDS:M${PATTERN}} != "\\\\ x\\"
 .  error
 .endif
@@ -340,7 +344,7 @@ PATTERN=	${:U?[\\}
 #	[x-	Incomplete character list containing an incomplete character
 #		range, matches only the 'x'.
 WORDS=		[x- x x- y
-# expect+1: Unfinished character range in pattern '[x-' of modifier ':M'
+# expect+1: Unfinished character range in pattern "[x-" of modifier ":M"
 .if ${WORDS:M[x-} != "x"
 .  error
 .endif
@@ -352,13 +356,13 @@ WORDS=		[x- x x- y
 #		XXX: Even matches strings that are longer than a single
 #		character.
 WORDS=		[x- x x- y yyyyy
-# expect+1: Unfinished character range in pattern '[^x-' of modifier ':M'
+# expect+1: Unfinished character range in pattern "[^x-" of modifier ":M"
 .if ${WORDS:M[^x-} != "[x- y yyyyy"
 .  error
 .endif
 
 #	[:]	matches never since the ':' starts the next modifier
-# expect+2: Unfinished character list in pattern '[' of modifier ':M'
+# expect+2: Unfinished character list in pattern "[" of modifier ":M"
 # expect+1: Unknown modifier ":]"
 .if ${ ${:U\:} ${:U\:\:} :L:M[:]} != ":"
 .  error

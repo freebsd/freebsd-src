@@ -1,10 +1,12 @@
 CondParser_Eval: ${:Uvalue} != value
 Comparing "value" != "value"
 CondParser_Eval: ${:U} != "
+make: cond-token-plain.mk:19: Unfinished string literal """
 Comparing "" != ""
 CondParser_Eval: ${:U#hash} != "#hash"
 Comparing "#hash" != "#hash"
 CondParser_Eval: ${:U\\} != "\\
+make: cond-token-plain.mk:43: Unfinished string literal ""\\"
 Comparing "\" != "\"
 CondParser_Eval: ${:U#hash} != #hash
 Comparing "#hash" != "#hash"
@@ -39,9 +41,9 @@ make: cond-token-plain.mk:139: Numbers can be composed from literals and express
 CondParser_Eval: 0${:Ux01}
 make: cond-token-plain.mk:144: Numbers can be composed from literals and expressions.
 CondParser_Eval: "" ==
-make: cond-token-plain.mk:151: Missing right-hand side of operator '=='
+make: cond-token-plain.mk:151: Missing right-hand side of operator "=="
 CondParser_Eval: == ""
-make: cond-token-plain.mk:160: Malformed conditional '== ""'
+make: cond-token-plain.mk:160: Malformed conditional "== """
 CondParser_Eval: \\
 make: cond-token-plain.mk:176: The variable '\\' is not defined.
 CondParser_Eval: \\
@@ -49,15 +51,23 @@ make: cond-token-plain.mk:182: Now the variable '\\' is defined.
 CondParser_Eval: "unquoted\"quoted" != unquoted"quoted
 Comparing "unquoted"quoted" != "unquoted"quoted"
 CondParser_Eval: $$$$$$$$ != ""
-make: cond-token-plain.mk:197: Malformed conditional '$$$$$$$$ != ""'
+make: cond-token-plain.mk:197: Malformed conditional "$$$$$$$$ != """
 CondParser_Eval: left == right
-make: cond-token-plain.mk:206: Malformed conditional 'left == right'
+make: cond-token-plain.mk:206: Malformed conditional "left == right"
 CondParser_Eval: ${0:?:} || left == right
 CondParser_Eval: 0
-make: cond-token-plain.mk:212: Malformed conditional '${0:?:} || left == right'
+make: cond-token-plain.mk:212: Malformed conditional "${0:?:} || left == right"
 CondParser_Eval: left == right || ${0:?:}
-make: cond-token-plain.mk:217: Malformed conditional 'left == right || ${0:?:}'
-make: cond-token-plain.mk:236: Malformed conditional 'VAR.${IF_COUNT::+=1} != ""'
+make: cond-token-plain.mk:217: Malformed conditional "left == right || ${0:?:}"
+make: cond-token-plain.mk:236: Malformed conditional "VAR.${IF_COUNT::+=1} != """
+make: cond-token-plain.mk:272: Unfinished backslash escape sequence
+	while evaluating condition " str == str\"
+make: cond-token-plain.mk:282: Unfinished backslash escape sequence
+	while evaluating condition " str == "str\"
+make: cond-token-plain.mk:282: Unfinished string literal ""str\"
+	while evaluating condition " str == "str\"
+make: cond-token-plain.mk:289: Unfinished string literal ""str"
+	while evaluating condition " str == "str"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

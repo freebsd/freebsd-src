@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-lint.mk,v 1.24 2025/04/04 18:57:01 rillig Exp $
+# $NetBSD: opt-debug-lint.mk,v 1.25 2025/06/28 22:39:29 rillig Exp $
 #
 # Tests for the -dL command line option, which runs additional checks
 # to catch common mistakes, such as unclosed expressions.
@@ -60,8 +60,8 @@ ${UNDEF}: ${UNDEF}
 
 # Since 2020-10-03, in lint mode the variable modifier must be separated
 # by colons.  See varparse-mod.mk.
-# expect+2: Missing delimiter ':' after modifier "L"
-# expect+1: Missing delimiter ':' after modifier "P"
+# expect+2: Missing delimiter ":" after modifier "L"
+# expect+1: Missing delimiter ":" after modifier "P"
 .if ${value:LPL} != "value"
 .  error
 .endif

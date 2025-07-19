@@ -8,7 +8,7 @@ make: directive-include.mk:56: Unknown modifier ":Z"
 	while evaluating "${:U123:Z}.mk" with value "123"
 make: directive-include.mk:56: Could not find nonexistent.mk
 make: directive-include.mk:61: Cannot open /nonexistent
-make: directive-include.mk:66: Invalid line 'include'
+make: directive-include.mk:66: Invalid line "include"
 make: Fatal errors encountered -- cannot continue
 make: stopped making "all" in unit-tests
 exit status 1

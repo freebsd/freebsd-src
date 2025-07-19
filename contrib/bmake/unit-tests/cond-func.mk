@@ -1,4 +1,4 @@
-# $NetBSD: cond-func.mk,v 1.18 2024/08/07 05:48:45 rillig Exp $
+# $NetBSD: cond-func.mk,v 1.19 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for those parts of the functions in .if conditions that are common
 # among several functions.
@@ -33,7 +33,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .endif
 
 # The argument of a function must not directly contain whitespace.
-# expect+1: Missing ')' after argument 'A' for 'defined'
+# expect+1: Missing ")" after argument "A" for "defined"
 .if !defined(A B)
 .  error
 .endif
@@ -49,11 +49,11 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 #
 # It's not entirely clear why these characters are forbidden.
 # The most plausible reason seems to be typo detection.
-# expect+1: Missing ')' after argument 'A' for 'defined'
+# expect+1: Missing ")" after argument "A" for "defined"
 .if !defined(A&B)
 .  error
 .endif
-# expect+1: Missing ')' after argument 'A' for 'defined'
+# expect+1: Missing ")" after argument "A" for "defined"
 .if !defined(A|B)
 .  error
 .endif
@@ -87,7 +87,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 # interpreted as defined(A) && defined(B). Each kind of .if directive has a
 # default function that is called when a bare word is parsed.  For the plain
 # .if directive, this function is 'defined'; see "struct If ifs" in cond.c.
-# expect+1: Unknown operator '&'
+# expect+1: Unknown operator "&"
 .if A&B
 .  error
 .endif
@@ -134,14 +134,14 @@ defined-var=	# defined but empty
 .  error
 .endif
 
-# expect+1: Missing ')' after argument '' for 'defined'
+# expect+1: Missing ")" after argument "" for "defined"
 .if defined(
 .  error
 .else
 .  error
 .endif
 
-# expect+1: Missing ')' after argument '${:UVARNAME}.param' for 'defined'
+# expect+1: Missing ")" after argument "${:UVARNAME}.param" for "defined"
 .if defined(${:UVARNAME}.param extra)
 .  error
 .else

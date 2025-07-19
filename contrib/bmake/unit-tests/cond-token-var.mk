@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-var.mk,v 1.13 2025/04/04 18:57:01 rillig Exp $
+# $NetBSD: cond-token-var.mk,v 1.14 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for expressions in .if conditions.
 #
@@ -102,17 +102,17 @@ DEF=	defined
 
 .MAKEFLAGS: -dv
 # The left-hand side of a comparison must not be an unquoted word.
-# expect+1: Malformed conditional 'x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}'
+# expect+1: Malformed conditional "x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}"
 .if x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}
 .endif
 
 # The left-hand side of a comparison must not be an unquoted word.
-# expect+1: Malformed conditional 'x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}'
+# expect+1: Malformed conditional "x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}"
 .if x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}
 .endif
 
 # The left-hand side of a comparison must not be an unquoted word.
-# expect+1: Malformed conditional 'x${DEF}y == "${DEF}" || 0x${UNDEF3}'
+# expect+1: Malformed conditional "x${DEF}y == "${DEF}" || 0x${UNDEF3}"
 .if x${DEF}y == "${DEF}" || 0x${UNDEF3}
 .endif
 

@@ -1,4 +1,4 @@
-# $NetBSD: directive-export-gmake.mk,v 1.9 2023/12/17 09:44:00 rillig Exp $
+# $NetBSD: directive-export-gmake.mk,v 1.10 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for the export directive (without leading dot), as in GNU make.
 
@@ -67,7 +67,7 @@ export VAR=an ${UNDEF} variable
 .for value in 1
 # XXX: The ':' in this line is inside an expression and should thus not be
 # interpreted as a dependency operator.
-# expect+1: Invalid line 'export VAR=${:U1}', expanded to 'export VAR=1'
+# expect+1: Invalid line "export VAR=${:U1}", expanded to "export VAR=1"
 export VAR=${value}
 .endfor
 

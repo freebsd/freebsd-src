@@ -1,4 +1,4 @@
-# $NetBSD: varmod-mtime.mk,v 1.16 2025/06/12 18:51:05 rillig Exp $
+# $NetBSD: varmod-mtime.mk,v 1.17 2025/06/28 22:39:29 rillig Exp $
 #
 # Tests for the ':mtime' variable modifier, which maps each word of the
 # expression to that file's modification time.
@@ -42,7 +42,7 @@ not_found_mtime:=	${no/such/file:L:mtime}
 
 
 # The fallback timestamp must only be an integer, without trailing characters.
-# expect+1: Invalid argument '123x' for modifier ':mtime'
+# expect+1: Invalid argument "123x" for modifier ":mtime"
 .if ${no/such/file:L:mtime=123x}
 .  error
 .else
@@ -74,7 +74,7 @@ _!=	rm -f ${COOKIE}
 
 # Only the word 'error' is a special argument to the ':mtime' modifier, all
 # other words result in a parse error.
-# expect+1: Invalid argument 'errorhandler-no' for modifier ':mtime'
+# expect+1: Invalid argument "errorhandler-no" for modifier ":mtime"
 .if ${MAKEFILE:mtime=errorhandler-no} > 0
 .else
 .  error
@@ -82,7 +82,7 @@ _!=	rm -f ${COOKIE}
 
 
 # Only the word 'error' can be used as a fallback argument to the modifier.
-# expect+1: Invalid argument 'warn' for modifier ':mtime'
+# expect+1: Invalid argument "warn" for modifier ":mtime"
 .if ${MAKEFILE:mtime=warn} > 0
 .  error
 .else

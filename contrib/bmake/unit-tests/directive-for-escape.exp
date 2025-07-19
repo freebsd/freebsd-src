@@ -1,14 +1,14 @@
 For: end for 1
 For: loop body with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
 .  info ${:U!"#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: directive-for-escape.mk:21: Unclosed expression, expecting '}' for modifier "U!""
+make: directive-for-escape.mk:21: Unclosed expression, expecting "}" for modifier "U!""
 	while evaluating "${:U!"" with value "!""
 	in .for loop from directive-for-escape.mk:20 with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
 make: directive-for-escape.mk:21: !"
 For: end for 1
 For: loop body with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
 .  info ${:U!"\\\\#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: directive-for-escape.mk:33: Unclosed expression, expecting '}' for modifier "U!"\\\\"
+make: directive-for-escape.mk:33: Unclosed expression, expecting "}" for modifier "U!"\\\\"
 	while evaluating "${:U!"\\\\" with value "!"\\"
 	in .for loop from directive-for-escape.mk:32 with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
 make: directive-for-escape.mk:33: !"\\
@@ -69,9 +69,9 @@ For: end for 1
 For: loop body with i = $:
 .  info ${:U\$}
 make: directive-for-escape.mk:147: $
-make: directive-for-escape.mk:155: invalid character ':' in .for loop variable name
+make: directive-for-escape.mk:155: Invalid character ":" in .for loop variable name
 For: end for 1
-make: directive-for-escape.mk:165: invalid character '}' in .for loop variable name
+make: directive-for-escape.mk:165: Invalid character "}" in .for loop variable name
 For: end for 1
 For: end for 1
 For: loop body with i = inner:
@@ -89,7 +89,7 @@ For: end for 1
 For: loop body with i = inner:
 .  info ${i2} ${i,} ${:Uinner}${:Uinner}${:Uinner:M*}${:Uinner}
 make: directive-for-escape.mk:187: two comma innerinnerinnerinner
-make: directive-for-escape.mk:196: invalid character '$' in .for loop variable name
+make: directive-for-escape.mk:196: Invalid character "$" in .for loop variable name
 For: end for 1
 make: directive-for-escape.mk:208: eight  and no cents.
 For: end for 1

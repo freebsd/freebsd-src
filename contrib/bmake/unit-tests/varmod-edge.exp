@@ -1,8 +1,8 @@
-make: varmod-edge.mk:60: Unclosed expression, expecting '}' for modifier "U*)"
+make: varmod-edge.mk:60: Unclosed expression, expecting "}" for modifier "U*)"
 	while evaluating "${:U*)" with value "*)"
 	while evaluating variable "INP" with value "(parentheses)"
 	while evaluating variable "MOD" with value "${INP:M${:U*)}}"
-make: varmod-edge.mk:88: Unfinished character list in pattern '[[' of modifier ':M'
+make: varmod-edge.mk:88: Unfinished character list in pattern "[[" of modifier ":M"
 	while evaluating variable "INP" with value "[ [[ [[["
 	while evaluating variable "MOD" with value "${INP:M${:U[[}}"
 make: varmod-edge.mk:178: Unfinished modifier after "a\=b}", expecting "="

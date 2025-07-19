@@ -1,4 +1,4 @@
-# $NetBSD: varmod-range.mk,v 1.18 2025/04/04 18:57:01 rillig Exp $
+# $NetBSD: varmod-range.mk,v 1.19 2025/06/28 22:39:29 rillig Exp $
 #
 # Tests for the :range variable modifier, which generates sequences
 # of integers from the given range.
@@ -62,7 +62,7 @@
 #
 # Since 2020-11-01, the parser issues a more precise "Invalid number" error
 # instead.
-# expect+1: Invalid number "x}Rest" != "Rest"" for ':range' modifier
+# expect+1: Invalid number "x}Rest" != "Rest"" for modifier ":range"
 .if "${:U:range=x}Rest" != "Rest"
 .  error
 .else

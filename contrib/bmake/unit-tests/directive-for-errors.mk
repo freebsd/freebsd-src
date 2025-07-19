@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-errors.mk,v 1.17 2025/05/03 08:18:33 rillig Exp $
+# $NetBSD: directive-for-errors.mk,v 1.18 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for error handling in .for loops.
 
@@ -40,7 +40,7 @@
 # error everywhere outside a .for loop.
 ${:U\$}=	dollar		# see whether the "variable" '$' is local
 ${:U\\}=	backslash	# see whether the "variable" '\' is local
-# expect+1: invalid character '$' in .for loop variable name
+# expect+1: Invalid character "$" in .for loop variable name
 .for a b $ \ in 1 2 3 4
 .  info Dollar $$ ${$} $($) and backslash $\ ${\} $(\).
 .endfor
@@ -48,7 +48,7 @@ ${:U\\}=	backslash	# see whether the "variable" '\' is local
 # If there are no variables, there is no point in expanding the .for loop
 # since this would end up in an endless loop, consuming 0 of the 3 values in
 # each iteration.
-# expect+1: no iteration variables in for
+# expect+1: Missing iteration variables in .for loop
 .for in 1 2 3
 # XXX: This should not be reached.  It should be skipped, as already done
 # when the number of values is not a multiple of the number of variables,
@@ -74,7 +74,7 @@ ${:U\\}=	backslash	# see whether the "variable" '\' is local
 
 
 # A missing 'in' parses the .for loop but skips the body.
-# expect+1: missing `in' in for
+# expect+1: Missing "in" in .for loop
 .for i over k
 .  error
 .endfor

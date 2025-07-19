@@ -1,4 +1,4 @@
-# $NetBSD: directive-include.mk,v 1.19 2025/03/30 09:51:50 rillig Exp $
+# $NetBSD: directive-include.mk,v 1.20 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for the .include directive, which includes another file.
 
@@ -62,7 +62,7 @@ include /nonexistent		# comment
 sinclude /nonexistent		# comment
 include ${:U/dev/null}		# comment
 include /dev/null /dev/null
-# expect+1: Invalid line 'include'
+# expect+1: Invalid line "include"
 include
 
 # XXX: trailing whitespace in diagnostic, missing quotes around filename

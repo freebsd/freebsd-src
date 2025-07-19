@@ -6,11 +6,11 @@ make: cond-token-var.mk:64: Variable "U" is undefined
 make: cond-token-var.mk:69: Variable "U" is undefined
 make: cond-token-var.mk:78: Variable "U" is undefined
 Var_Parse: ${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3} (eval)
-make: cond-token-var.mk:106: Malformed conditional 'x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}'
+make: cond-token-var.mk:106: Malformed conditional "x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}"
 Var_Parse: ${DEF}y == "${UNDEF2}" || 0x${UNDEF3} (eval)
-make: cond-token-var.mk:111: Malformed conditional 'x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}'
+make: cond-token-var.mk:111: Malformed conditional "x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}"
 Var_Parse: ${DEF}y == "${DEF}" || 0x${UNDEF3} (eval)
-make: cond-token-var.mk:116: Malformed conditional 'x${DEF}y == "${DEF}" || 0x${UNDEF3}'
+make: cond-token-var.mk:116: Malformed conditional "x${DEF}y == "${DEF}" || 0x${UNDEF3}"
 Global: VAR.param = value of VAR.param
 Var_Parse: ${VAR.param$U} (eval-defined-loud)
 Var_Parse: $U} (eval)

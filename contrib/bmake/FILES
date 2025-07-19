@@ -76,6 +76,8 @@ unit-tests/archive-suffix.exp
 unit-tests/archive-suffix.mk
 unit-tests/archive.exp
 unit-tests/archive.mk
+unit-tests/char-005c-reverse-solidus.exp
+unit-tests/char-005c-reverse-solidus.mk
 unit-tests/check-expect.lua
 unit-tests/cmd-errors-jobs.exp
 unit-tests/cmd-errors-jobs.mk
@@ -602,8 +604,6 @@ unit-tests/shell-ksh.exp
 unit-tests/shell-ksh.mk
 unit-tests/shell-sh.exp
 unit-tests/shell-sh.mk
-unit-tests/suff.exp
-unit-tests/suff.mk
 unit-tests/suff-add-later.exp
 unit-tests/suff-add-later.mk
 unit-tests/suff-clear-regular.exp
@@ -634,6 +634,8 @@ unit-tests/suff-transform-select.exp
 unit-tests/suff-transform-select.mk
 unit-tests/suff-use.exp
 unit-tests/suff-use.mk
+unit-tests/suff.exp
+unit-tests/suff.mk
 unit-tests/sunshcmd.exp
 unit-tests/sunshcmd.mk
 unit-tests/ternary.exp
@@ -780,6 +782,8 @@ unit-tests/varmod-unique.exp
 unit-tests/varmod-unique.mk
 unit-tests/varmod.exp
 unit-tests/varmod.mk
+unit-tests/varname-circumflex.exp
+unit-tests/varname-circumflex.mk
 unit-tests/varname-dollar.exp
 unit-tests/varname-dollar.mk
 unit-tests/varname-dot-alltargets.exp

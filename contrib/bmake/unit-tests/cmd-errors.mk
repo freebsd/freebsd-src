@@ -1,4 +1,4 @@
-# $NetBSD: cmd-errors.mk,v 1.12 2025/03/29 19:08:52 rillig Exp $
+# $NetBSD: cmd-errors.mk,v 1.13 2025/06/28 22:39:28 rillig Exp $
 #
 # Demonstrate how errors in expressions affect whether the commands
 # are actually executed in compat mode.
@@ -17,7 +17,7 @@ unclosed-expression:
 	: $@-${UNCLOSED
 
 unclosed-modifier:
-# expect: make: Unclosed expression, expecting '}'
+# expect: make: Unclosed expression, expecting "}"
 # expect-not: : unclosed-modifier-
 	: $@-${UNCLOSED:
 

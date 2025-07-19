@@ -1,4 +1,4 @@
-# $NetBSD: directive-unexport.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-unexport.mk,v 1.9 2025/06/30 21:44:39 rillig Exp $
 #
 # Tests for the .unexport directive.
 #
@@ -28,6 +28,7 @@ UT_C=	c
 
 # expect+1: UT_A=a UT_B=b UT_C=c
 .info ${:!env|sort|grep '^UT_'!}
+# expect+1:
 .info ${.MAKE.EXPORTED}
 
 .unexport			# oops: missing argument
