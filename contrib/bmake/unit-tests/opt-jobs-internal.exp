@@ -1,25 +1,13 @@
 direct: mode=parallel
 make: error: invalid internal option "-J garbage" in "<curdir>"
-make: warning: internal option "-J" in "<curdir>" refers to unopened file descriptors; falling back to compat mode.
-	To run the target even in -n mode, add the .MAKE pseudo-source to the target.
-	To run the target in default mode only, add a ${:D make} marker to a target's command. (This marker expression expands to an empty string.)
-	To make the sub-make run in compat mode, add -B to its invocation.
-	To make the sub-make independent from the parent make, unset the MAKEFLAGS environment variable in the target's commands.
+make: warning: Invalid internal option "-J" in "<curdir>"; see the manual page
 	in make[2] in directory "<curdir>"
 direct-open: mode=compat
-make: warning: internal option "-J" in "<curdir>" refers to unopened file descriptors; falling back to compat mode.
-	To run the target even in -n mode, add the .MAKE pseudo-source to the target.
-	To run the target in default mode only, add a ${:D make} marker to a target's command. (This marker expression expands to an empty string.)
-	To make the sub-make run in compat mode, add -B to its invocation.
-	To make the sub-make independent from the parent make, unset the MAKEFLAGS environment variable in the target's commands.
+make: warning: Invalid internal option "-J" in "<curdir>"; see the manual page
 	in make[2] in directory "<curdir>"
 indirect-open: mode=compat
 indirect-expr: mode=parallel
-make: warning: internal option "-J" in "<curdir>" refers to unopened file descriptors; falling back to compat mode.
-	To run the target even in -n mode, add the .MAKE pseudo-source to the target.
-	To run the target in default mode only, add a ${:D make} marker to a target's command. (This marker expression expands to an empty string.)
-	To make the sub-make run in compat mode, add -B to its invocation.
-	To make the sub-make independent from the parent make, unset the MAKEFLAGS environment variable in the target's commands.
+make: warning: Invalid internal option "-J" in "<curdir>"; see the manual page
 	in make[2] in directory "<curdir>"
 indirect-comment: mode=compat
 indirect-silent-comment: mode=parallel

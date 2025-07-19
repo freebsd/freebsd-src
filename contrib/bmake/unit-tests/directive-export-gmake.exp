@@ -1,4 +1,4 @@
-make: directive-export-gmake.mk:71: Invalid line 'export VAR=${:U1}', expanded to 'export VAR=1'
+make: directive-export-gmake.mk:71: Invalid line "export VAR=${:U1}", expanded to "export VAR=1"
 	in .for loop from directive-export-gmake.mk:67 with value = 1
 make: directive-export-gmake.mk:85: 16:00:00
 make: directive-export-gmake.mk:92: Variable/Value missing from "export"

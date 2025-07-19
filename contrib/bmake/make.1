@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.385 2025/06/13 03:51:18 rillig Exp $
+.\"	$NetBSD: make.1,v 1.387 2025/07/02 17:11:56 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 12, 2025
+.Dd July 2, 2025
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -785,11 +785,13 @@ Is redundant with respect to global variables,
 which have already been expanded.
 .El
 .Pp
-The seven built-in local variables are:
+The built-in local variables are:
 .Bl -tag -width ".Va .ARCHIVE" -offset indent
 .It Va .ALLSRC
 The list of all sources for this target; also known as
-.Sq Va \&> .
+.Sq Va \&>
+or
+.Sq Va \&^ .
 .It Va .ARCHIVE
 The name of the archive file; also known as
 .Sq Va \&! .
@@ -823,6 +825,7 @@ in archive member rules.
 The shorter forms
 .Po
 .Sq Va \&> ,
+.Sq Va \&^ ,
 .Sq Va \&! ,
 .Sq Va \&< ,
 .Sq Va \&% ,
@@ -2725,6 +2728,8 @@ If the
 environment variable is set to
 .Dq yes ,
 any stack traces include the call chain of the parent processes.
+.\" .Sh EXIT STATUS
+.\" .Sh ENVIRONMENT
 .Sh FILES
 .Bl -tag -width /usr/share/mk -compact
 .It .depend
@@ -2737,6 +2742,68 @@ second default makefile if no makefile is specified on the command line
 system makefile
 .It /usr/share/mk
 system makefile directory
+.El
+.\" .Sh EXAMPLES
+.Sh DIAGNOSTICS
+.Bl -tag
+.It Dv Invalid internal option \(dq-J\(dq in \(dq Ns Ar directory Ns Dv \(dq
+The internal
+.Fl J
+option coordinates the main
+.Nm
+process with the sub-make processes to limit
+the number of jobs that run in parallel.
+The option is passed to all child processes via the
+.Ev MAKEFLAGS
+environment variable.
+To become valid,
+this option requires that the target running the sub-make is marked with the
+.Dv .MAKE
+special source,
+or that one of the target's commands directly contains the word
+.Dq make
+or one of the expressions
+.Dq ${MAKE} ,
+.Dq ${.MAKE} ,
+.Dq $(MAKE) ,
+.Dq $(.MAKE) .
+If that's not the case,
+make issues the above warning and falls back to compat mode.
+.Pp
+To see the chain of sub-makes that leads to the invalid option, set the
+.Ev MAKE_STACK_TRACE
+environment variable to
+.Dq yes .
+.Pp
+To run the sub-make in parallel mode, even in dry-run mode (see the
+.Fl n
+option), add the
+.Dv .MAKE
+pseudo source to the target.
+This is appropriate when the sub-make runs the same target in a subdirectory.
+.Pp
+To run the sub-make in parallel mode but not in dry-mode,
+add a
+.Dq ${:D make}
+marker to one of the target's commands.
+This marker expands to an empty string
+and thus does not affect the executed commands.
+.\" The marker can even be added before any of the "@+-" modifiers,
+.\" so no need to mention this explicitly.
+.Pp
+To run the sub-make in compat mode, add the
+.Fl B
+option to its invocation.
+This is appropriate when the sub-make is only used to print a variable's
+value using the
+.Fl v
+or
+.Fl V
+options.
+.Pp
+To make the sub-make independent from the parent make, unset the
+.Ev MAKEFLAGS
+environment variable in the target's commands.
 .El
 .Sh COMPATIBILITY
 The basic make syntax is compatible between different make variants;
@@ -2825,6 +2892,7 @@ portable.
 .Sh SEE ALSO
 .Xr mkdep 1 ,
 .Xr style.Makefile 5
+.\" .Sh STANDARDS
 .Sh HISTORY
 A
 .Nm
@@ -2844,6 +2912,8 @@ has been used to FoRCe rebuilding (since the target/dependency
 does not exist ... unless someone creates an
 .Pa FRC
 file).
+.\" .Sh AUTHORS
+.\" .Sh CAVEATS
 .Sh BUGS
 The
 .Nm
@@ -2865,3 +2935,4 @@ using that token pool to abort the build and exit with error code 6.
 Sometimes the attempt to suppress a cascade of unnecessary errors,
 can result in a seemingly unexplained
 .Ql *** Error code 6
+.\" .Sh SECURITY CONSIDERATIONS

@@ -507,10 +507,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
            ::==      Is redundant with respect to global variables, which have
                    already been expanded.
 
-     The seven built-in local variables are:
+     The built-in local variables are:
 
            _._A_L_L_S_R_C   The list of all sources for this target; also known as
-                     `_>'.
+                     `_>' or `_^'.
 
            _._A_R_C_H_I_V_E  The name of the archive file; also known as `_!'.
 
@@ -531,9 +531,9 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      compatibility with other makes this is an alias for
                      _._A_R_C_H_I_V_E in archive member rules.
 
-     The shorter forms (`_>', `_!', `_<', `_%', `_?', `_*', and `_@') are permitted
-     for backward compatibility with historical makefiles and legacy POSIX
-     make and are not recommended.
+     The shorter forms (`_>', `_^', `_!', `_<', `_%', `_?', `_*', and `_@') are
+     permitted for backward compatibility with historical makefiles and legacy
+     POSIX make and are not recommended.
 
      Variants of these variables with the punctuation followed immediately by
      `D' or `F', e.g. `$(@D)', are legacy forms equivalent to using the `:H'
@@ -1748,6 +1748,39 @@ FFIILLEESS
      sys.mk         system makefile
      /usr/share/mk  system makefile directory
 
+DDIIAAGGNNOOSSTTIICCSS
+     Invalid internal option "-J" in "_d_i_r_e_c_t_o_r_y"
+             The internal --JJ option coordinates the main bbmmaakkee process with
+             the sub-make processes to limit the number of jobs that run in
+             parallel.  The option is passed to all child processes via the
+             MAKEFLAGS environment variable.  To become valid, this option
+             requires that the target running the sub-make is marked with the
+             .MAKE special source, or that one of the target's commands
+             directly contains the word "make" or one of the expressions
+             "${MAKE}", "${.MAKE}", "$(MAKE)", "$(.MAKE)".  If that's not the
+             case, make issues the above warning and falls back to compat
+             mode.
+
+             To see the chain of sub-makes that leads to the invalid option,
+             set the MAKE_STACK_TRACE environment variable to "yes".
+
+             To run the sub-make in parallel mode, even in dry-run mode (see
+             the --nn option), add the .MAKE pseudo source to the target.  This
+             is appropriate when the sub-make runs the same target in a
+             subdirectory.
+
+             To run the sub-make in parallel mode but not in dry-mode, add a
+             "${:D make}" marker to one of the target's commands.  This marker
+             expands to an empty string and thus does not affect the executed
+             commands.
+
+             To run the sub-make in compat mode, add the --BB option to its
+             invocation.  This is appropriate when the sub-make is only used
+             to print a variable's value using the --vv or --VV options.
+
+             To make the sub-make independent from the parent make, unset the
+             MAKEFLAGS environment variable in the target's commands.
+
 CCOOMMPPAATTIIBBIILLIITTYY
      The basic make syntax is compatible between different make variants;
      however the special variables, variable modifiers and conditionals are
@@ -1831,4 +1864,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.2-RELEASE-p1          June 12, 2025         FreeBSD 14.2-RELEASE-p1
+FreeBSD 14.2-RELEASE-p1          July 2, 2025          FreeBSD 14.2-RELEASE-p1
