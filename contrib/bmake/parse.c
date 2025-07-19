@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.752 2025/06/16 18:20:00 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.753 2025/06/28 22:39:27 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -110,7 +110,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.752 2025/06/16 18:20:00 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.753 2025/06/28 22:39:27 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -954,10 +954,10 @@ InvalidLineType(const char *line, const char *unexpanded_line)
 		Parse_Error(PARSE_FATAL, "Unknown directive \"%.*s\"",
 		    (int)(dirend - dirstart), dirstart);
 	} else if (strcmp(line, unexpanded_line) == 0)
-		Parse_Error(PARSE_FATAL, "Invalid line '%s'", line);
+		Parse_Error(PARSE_FATAL, "Invalid line \"%s\"", line);
 	else
 		Parse_Error(PARSE_FATAL,
-		    "Invalid line '%s', expanded to '%s'",
+		    "Invalid line \"%s\", expanded to \"%s\"",
 		    unexpanded_line, line);
 }
 
@@ -1063,7 +1063,7 @@ HandleDependencyTargetPath(const char *suffixName,
 	path = Suff_GetPath(suffixName);
 	if (path == NULL) {
 		Parse_Error(PARSE_FATAL,
-		    "Suffix '%s' not defined (yet)", suffixName);
+		    "Suffix \"%s\" not defined (yet)", suffixName);
 		return false;
 	}
 
@@ -1159,7 +1159,7 @@ SkipExtraTargets(char **pp, const char *lstart)
 	if (warning) {
 		const char *start = *pp;
 		cpp_skip_whitespace(&start);
-		Parse_Error(PARSE_WARNING, "Extra target '%.*s' ignored",
+		Parse_Error(PARSE_WARNING, "Extra target \"%.*s\" ignored",
 		    (int)(p - start), start);
 	}
 
@@ -1446,7 +1446,8 @@ ApplyDependencyTarget(char *name, char *nameEnd, ParseSpecial *inout_special,
 	if (*inout_special == SP_NOT && *name != '\0')
 		HandleDependencyTargetMundane(name);
 	else if (*inout_special == SP_PATH && *name != '.' && *name != '\0')
-		Parse_Error(PARSE_WARNING, "Extra target (%s) ignored", name);
+		Parse_Error(PARSE_WARNING, "Extra target \"%s\" ignored",
+		    name);
 
 	*nameEnd = savedNameEnd;
 	return true;
@@ -2066,7 +2067,7 @@ ParseInclude(char *directive)
 
 	if (*p != '"' && *p != '<') {
 		Parse_Error(PARSE_FATAL,
-		    ".include filename must be delimited by '\"' or '<'");
+		    ".include filename must be delimited by \"\" or <>");
 		return;
 	}
 
@@ -2078,7 +2079,7 @@ ParseInclude(char *directive)
 
 	if (*p != endc) {
 		Parse_Error(PARSE_FATAL,
-		    "Unclosed .include filename. '%c' expected", endc);
+		    "Unclosed .include filename, \"%c\" expected", endc);
 		return;
 	}
 

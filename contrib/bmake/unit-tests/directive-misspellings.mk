@@ -1,4 +1,4 @@
-# $NetBSD: directive-misspellings.mk,v 1.4 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-misspellings.mk,v 1.5 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for misspelled directives.
 #
@@ -14,7 +14,7 @@
 .dinclude "file"
 # expect+1: Unknown directive "dincludx"
 .dincludx "file"
-# expect+1: .include filename must be delimited by '"' or '<'
+# expect+1: .include filename must be delimited by "" or <>
 .dincludes "file"		# XXX: the 's' is not meant to be a filename
 
 # expect+1: Unknown directive "erro"
@@ -52,7 +52,7 @@
 .-include "file"
 # expect+1: Unknown directive "-includx"
 .-includx "file"
-# expect+1: .include filename must be delimited by '"' or '<'
+# expect+1: .include filename must be delimited by "" or <>
 .-includes "file"		# XXX: the 's' is not meant to be a filename
 
 # expect+1: Unknown directive "includ"
@@ -61,7 +61,7 @@
 .include "file"
 # expect+1: Unknown directive "includx"
 .includx "file"
-# expect+1: .include filename must be delimited by '"' or '<'
+# expect+1: .include filename must be delimited by "" or <>
 .includex "file"		# XXX: the 's' is not meant to be a filename
 
 # expect+1: Unknown directive "inf"
@@ -78,7 +78,7 @@
 .sinclude "file"
 # expect+1: Unknown directive "sincludx"
 .sincludx "file"
-# expect+1: .include filename must be delimited by '"' or '<'
+# expect+1: .include filename must be delimited by "" or <>
 .sincludes "file"		# XXX: the 's' is not meant to be a filename
 
 # expect+1: Unknown directive "unde"

@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-numeric-eq.mk,v 1.8 2024/08/06 18:00:16 rillig Exp $
+# $NetBSD: cond-cmp-numeric-eq.mk,v 1.9 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for numeric comparisons with the == operator in .if conditions.
 
@@ -64,7 +64,7 @@
 .endif
 
 # There is no = operator for numbers.
-# expect+1: Malformed conditional '!(12345 = 12345)'
+# expect+1: Malformed conditional "!(12345 = 12345)"
 .if !(12345 = 12345)
 .  error
 .else
@@ -72,7 +72,7 @@
 .endif
 
 # There is no === operator for numbers either.
-# expect+1: Malformed conditional '!(12345 === 12345)'
+# expect+1: Malformed conditional "!(12345 === 12345)"
 .if !(12345 === 12345)
 .  error
 .else

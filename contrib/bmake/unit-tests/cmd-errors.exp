@@ -2,7 +2,7 @@
 make: Unclosed variable "UNCLOSED"
 	in command ": $@-${UNCLOSED"
 	in target "unclosed-expression"
-make: Unclosed expression, expecting '}'
+make: Unclosed expression, expecting "}"
 	while evaluating variable "UNCLOSED" with value ""
 	in command ": $@-${UNCLOSED:"
 	in target "unclosed-modifier"

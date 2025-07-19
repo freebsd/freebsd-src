@@ -1,6 +1,6 @@
 make: varmod-range.mk:43: Variable "" is undefined
 	while evaluating "${:range=5} != """ with value "1 2 3 4 5"
-make: varmod-range.mk:66: Invalid number "x}Rest" != "Rest"" for ':range' modifier
+make: varmod-range.mk:66: Invalid number "x}Rest" != "Rest"" for modifier ":range"
 	while evaluating "${:U:range=x}Rest" != "Rest"" with value ""
 make: varmod-range.mk:76: Unknown modifier ":x0"
 	while evaluating "${:U:range=0x0}Rest" != "Rest"" with value "1"

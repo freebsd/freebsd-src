@@ -1,4 +1,4 @@
-# $NetBSD: var-op-expand.mk,v 1.24 2025/04/30 06:01:07 rillig Exp $
+# $NetBSD: var-op-expand.mk,v 1.25 2025/06/29 11:27:21 rillig Exp $
 #
 # Tests for the := variable assignment operator, which expands its
 # right-hand side.
@@ -274,15 +274,13 @@ indirect:=	${INDIRECT:tl}
 .if ${indirect} != " ok "
 .  error
 .else
-# expect+1: warning: XXX Neither branch should be taken.
-.  warning	XXX Neither branch should be taken.
+.  error
 .endif
 LATER=	uppercase-value
 later=	lowercase-value
 # expect+1: Unknown modifier ":s,value,replaced,"
 .if ${indirect} != "uppercase-replaced ok uppercase-sysv"
-# expect+1: warning: XXX Neither branch should be taken.
-.  warning	XXX Neither branch should be taken.
+.  error
 .else
 .  error
 .endif

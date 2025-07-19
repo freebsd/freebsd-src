@@ -1,3 +1,30 @@
+2025-07-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250707
+	Merge with NetBSD make, pick up
+	o cond.c: improve debug log message for 'exists' function.
+	complain about unfinished escape sequences or string literals.
+
+2025-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250704
+	Merge with NetBSD make, pick up
+	o make.1: add a DIAGNOSTICS section for make to reference.
+	o main.c: simplify the warning for invalid -J by refering to
+	manual page.
+
+2025-06-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250630
+	Merge with NetBSD make, pick up
+	o consistently use double quotes in error messages
+	o cond.c: if a condition is erroneous, skip the whole .if/.endif
+	o make_malloc.c: in cleanup mode, initialize freshly allocated memory
+	o str.c: error out on an ":M" modifier whose pattern ends with
+	backslash
+	o var.c: fix parsing of modifier parts for :gmtime and :localtime
+	add POSIX $^ support
+
 2025-06-18  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20250618

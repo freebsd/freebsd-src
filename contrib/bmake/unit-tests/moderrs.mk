@@ -1,4 +1,4 @@
-# $NetBSD: moderrs.mk,v 1.46 2025/03/30 00:35:52 rillig Exp $
+# $NetBSD: moderrs.mk,v 1.47 2025/06/28 22:39:29 rillig Exp $
 #
 # various modifier error tests
 
@@ -33,11 +33,11 @@ mod-unknown-indirect:
 	@echo 'VAR:${MOD_UNKN}=before-${VAR:${MOD_UNKN}:inner}-after'
 
 unclosed-direct:
-# expect: make: Unclosed expression, expecting '}' for modifier "S,V,v,"
+# expect: make: Unclosed expression, expecting "}" for modifier "S,V,v,"
 	@echo VAR:S,V,v,=${VAR:S,V,v,
 
 unclosed-indirect:
-# expect: make: Unclosed expression after indirect modifier, expecting '}'
+# expect: make: Unclosed expression after indirect modifier, expecting "}"
 	@echo VAR:${MOD_TERM},=${VAR:${MOD_S}
 
 unfinished-indirect:
@@ -60,7 +60,7 @@ unfinished-loop-3:
 # This is also contrary to the SysV modifier, where only the actually
 # used delimiter (either braces or parentheses) must be balanced.
 loop-close-1:
-# expect: make: Unclosed expression, expecting '}' for modifier "@var@${var}}...@"
+# expect: make: Unclosed expression, expecting "}" for modifier "@var@${var}}...@"
 	@echo ${UNDEF:U1 2 3:@var@${var}}...@
 loop-close-2:
 	@echo ${UNDEF:U1 2 3:@var@${var}}...@}
@@ -107,7 +107,7 @@ exclam-2:
 	@echo ${!:L:!=exclam}
 
 mod-subst-delimiter-1:
-# expect: make: Missing delimiter for modifier ':S'
+# expect: make: Missing delimiter for modifier ":S"
 	@echo 1: ${VAR:S
 mod-subst-delimiter-2:
 # expect: make: Unfinished modifier after "", expecting ","
@@ -122,13 +122,13 @@ mod-subst-delimiter-5:
 # expect: make: Unfinished modifier after "to", expecting ","
 	@echo 5: ${VAR:S,from,to
 mod-subst-delimiter-6:
-# expect: make: Unclosed expression, expecting '}' for modifier "S,from,to,"
+# expect: make: Unclosed expression, expecting "}" for modifier "S,from,to,"
 	@echo 6: ${VAR:S,from,to,
 mod-subst-delimiter-7:
 	@echo 7: ${VAR:S,from,to,}
 
 mod-regex-delimiter-1:
-# expect: make: Missing delimiter for modifier ':C'
+# expect: make: Missing delimiter for modifier ":C"
 	@echo 1: ${VAR:C
 mod-regex-delimiter-2:
 # expect: make: Unfinished modifier after "", expecting ","
@@ -143,7 +143,7 @@ mod-regex-delimiter-5:
 # expect: make: Unfinished modifier after "to", expecting ","
 	@echo 5: ${VAR:C,from,to
 mod-regex-delimiter-6:
-# expect: make: Unclosed expression, expecting '}' for modifier "C,from,to,"
+# expect: make: Unclosed expression, expecting "}" for modifier "C,from,to,"
 	@echo 6: ${VAR:C,from,to,
 mod-regex-delimiter-7:
 	@echo 7: ${VAR:C,from,to,}

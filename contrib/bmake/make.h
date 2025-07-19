@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.360 2025/06/13 18:31:08 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.361 2025/07/06 07:11:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -884,7 +884,8 @@ void JobReapChild(pid_t, int, bool);
 #endif
 /* main.c */
 void Main_ParseArgLine(const char *);
-int Cmd_Argv(const char *, size_t, const char **, size_t, char *, size_t, bool, bool);
+void Cmd_Argv(const char *, size_t, const char *[5], char *, size_t,
+    bool, bool);
 char *Cmd_Exec(const char *, char **) MAKE_ATTR_USE;
 void Var_ExportStackTrace(const char *, const char *);
 void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);

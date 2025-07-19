@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-plain.mk,v 1.20 2024/08/06 18:00:17 rillig Exp $
+# $NetBSD: cond-token-plain.mk,v 1.23 2025/07/06 07:56:16 rillig Exp $
 #
 # Tests for plain tokens (that is, string literals without quotes)
 # in .if conditions.  These are also called bare words.
@@ -14,8 +14,8 @@
 # condition since comment parsing is done in an early phase and removes the
 # '#' and everything after it long before the condition parser gets to see it.
 #
-# XXX: The error message is missing for this malformed condition.
-# The right-hand side of the comparison is just a '"', before unescaping.
+#
+# expect+1: Unfinished string literal """
 .if ${:U} != "#hash"
 .  error
 .endif
@@ -38,8 +38,8 @@
 # comments are stripped in an earlier phase.  See "case '#'" in
 # CondParser_Token.
 #
-# XXX: Missing error message for the malformed condition. The right-hand
-# side before unescaping is double-quotes, backslash, backslash.
+#
+# expect+1: Unfinished string literal ""\\"
 .if ${:U\\} != "\\#hash"
 .  error
 .endif
@@ -147,7 +147,7 @@ VAR=	defined
 .endif
 
 # If the right-hand side is missing, it's a parse error.
-# expect+1: Missing right-hand side of operator '=='
+# expect+1: Missing right-hand side of operator "=="
 .if "" ==
 .  error
 .else
@@ -156,7 +156,7 @@ VAR=	defined
 
 # If the left-hand side is missing, it's a parse error as well, but without
 # a specific error message.
-# expect+1: Malformed conditional '== ""'
+# expect+1: Malformed conditional "== """
 .if == ""
 .  error
 .else
@@ -193,7 +193,7 @@ ${:U\\\\}=	backslash
 
 # FIXME: In CondParser_String, Var_Parse returns var_Error without a
 # corresponding error message.
-# expect+1: Malformed conditional '$$$$$$$$ != ""'
+# expect+1: Malformed conditional "$$$$$$$$ != """
 .if $$$$$$$$ != ""
 .  error
 .else
@@ -202,18 +202,18 @@ ${:U\\\\}=	backslash
 
 # In a condition in an .if directive, the left-hand side must not be an
 # unquoted string literal.
-# expect+1: Malformed conditional 'left == right'
+# expect+1: Malformed conditional "left == right"
 .if left == right
 .endif
 # Before cond.c 1.276 from 2021-09-21, an expression containing the
 # modifier ':?:' allowed unquoted string literals for the rest of the
 # condition.  This was an unintended implementation mistake.
-# expect+1: Malformed conditional '${0:?:} || left == right'
+# expect+1: Malformed conditional "${0:?:} || left == right"
 .if ${0:?:} || left == right
 .endif
 # This affected only the comparisons after the expression, so the following
 # was still a syntax error.
-# expect+1: Malformed conditional 'left == right || ${0:?:}'
+# expect+1: Malformed conditional "left == right || ${0:?:}"
 .if left == right || ${0:?:}
 .endif
 
@@ -232,7 +232,7 @@ ${:U\\\\}=	backslash
 # for the second time.  The right-hand side of a comparison may be a bare
 # word, but that side has no risk of being parsed more than once.
 #
-# expect+1: Malformed conditional 'VAR.${IF_COUNT::+=1} != ""'
+# expect+1: Malformed conditional "VAR.${IF_COUNT::+=1} != """
 .if VAR.${IF_COUNT::+=1} != ""
 .  error
 .else
@@ -265,3 +265,29 @@ COND=	VAR.$${MOD_COUNT::+=1}
 .  error
 .endif
 #.MAKEFLAGS: -d0
+
+
+# A trailing backslash in a bare word does not escape anything.
+# expect+1: Unfinished backslash escape sequence
+.if ${${:U str == str\\}:?yes:no}
+.  error
+.else
+.  error
+.endif
+
+# A trailing backslash in an unfinished string literal word does not escape
+# anything.
+# expect+2: Unfinished backslash escape sequence
+# expect+1: Unfinished string literal ""str\"
+.if ${${:U str == "str\\}:?yes:no}
+.  error
+.else
+.  error
+.endif
+
+# expect+1: Unfinished string literal ""str"
+.if ${${:U str == "str}:?yes:no}
+.  error
+.else
+.  error
+.endif

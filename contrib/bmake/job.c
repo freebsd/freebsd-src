@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.516 2025/06/13 06:13:19 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.517 2025/07/06 07:11:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -89,7 +89,7 @@
  *			define the shell that is used for the creation
  *			commands in jobs mode.
  *
- *	Job_Finish	Make the .END target. Must only be called when the
+ *	Job_MakeDotEnd	Make the .END target. Must only be called when the
  *			job table is empty.
  *
  *	Job_AbortAll	Kill all currently running jobs, in an emergency.
@@ -137,7 +137,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.516 2025/06/13 06:13:19 rillig Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.517 2025/07/06 07:11:31 rillig Exp $");
 
 
 #ifdef USE_SELECT
@@ -599,7 +599,7 @@ Job_Pid(Job *job)
 }
 
 static void
-DumpJobs(const char *where)
+JobTable_Dump(const char *where)
 {
 	const Job *job;
 	char flags[4];
@@ -663,6 +663,13 @@ SetNonblocking(int fd)
 }
 
 static void
+SetCloseOnExec(int fd)
+{
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+		Punt("SetCloseOnExec: %s", strerror(errno));
+}
+
+static void
 JobCreatePipe(Job *job, int minfd)
 {
 	int i;
@@ -683,10 +690,8 @@ JobCreatePipe(Job *job, int minfd)
 	job->inPipe = pipe_fds[0];
 	job->outPipe = pipe_fds[1];
 
-	if (fcntl(job->inPipe, F_SETFD, FD_CLOEXEC) == -1)
-		Punt("SetCloseOnExec: %s", strerror(errno));
-	if (fcntl(job->outPipe, F_SETFD, FD_CLOEXEC) == -1)
-		Punt("SetCloseOnExec: %s", strerror(errno));
+	SetCloseOnExec(job->inPipe);
+	SetCloseOnExec(job->outPipe);
 
 	/*
 	 * We mark the input side of the pipe non-blocking; we poll(2) the
@@ -822,7 +827,7 @@ JobFindPid(int pid, enum JobStatus status, bool isJobs)
 			return job;
 	}
 	if (DEBUG(JOB) && isJobs)
-		DumpJobs("no pid");
+		JobTable_Dump("no pid");
 	return NULL;
 }
 
@@ -1624,7 +1629,7 @@ JobExec(Job *job, char **argv)
 		debug_printf(
 		    "JobExec: target %s, pid %d added to jobs table\n",
 		    job->node->name, job->pid);
-		DumpJobs("job started");
+		JobTable_Dump("job started");
 	}
 	JobsTable_Unlock(&mask);
 }
@@ -2433,7 +2438,6 @@ static void
 JobInterrupt(bool runINTERRUPT, int signo)
 {
 	Job *job;
-	GNode *interrupt;
 	sigset_t mask;
 
 	aborting = ABORT_INTERRUPT;
@@ -2460,10 +2464,10 @@ JobInterrupt(bool runINTERRUPT, int signo)
 	JobsTable_Unlock(&mask);
 
 	if (runINTERRUPT && !opts.touch) {
-		interrupt = Targ_FindNode(".INTERRUPT");
-		if (interrupt != NULL) {
+		GNode *dotInterrupt = Targ_FindNode(".INTERRUPT");
+		if (dotInterrupt != NULL) {
 			opts.ignoreErrors = false;
-			JobRun(interrupt);
+			JobRun(dotInterrupt);
 		}
 	}
 	Trace_Log(MAKEINTR, NULL);
@@ -2472,15 +2476,15 @@ JobInterrupt(bool runINTERRUPT, int signo)
 
 /* Make the .END target, returning the number of job-related errors. */
 int
-Job_Finish(void)
+Job_MakeDotEnd(void)
 {
-	GNode *endNode = Targ_GetEndNode();
-	if (!Lst_IsEmpty(&endNode->commands) ||
-	    !Lst_IsEmpty(&endNode->children)) {
+	GNode *dotEnd = Targ_GetEndNode();
+	if (!Lst_IsEmpty(&dotEnd->commands) ||
+	    !Lst_IsEmpty(&dotEnd->children)) {
 		if (job_errors != 0)
 			Error("Errors reported so .END ignored");
 		else
-			JobRun(endNode);
+			JobRun(dotEnd);
 	}
 	return job_errors;
 }

@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-defined.mk,v 1.14 2025/01/10 23:00:38 rillig Exp $
+# $NetBSD: cond-func-defined.mk,v 1.15 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for the defined() function in .if conditions.
 
@@ -20,7 +20,7 @@ ${:UA B}=	variable name with spaces
 .endif
 
 # The argument of a function must not directly contain whitespace.
-# expect+1: Missing ')' after argument 'A' for 'defined'
+# expect+1: Missing ")" after argument "A" for "defined"
 .if !defined(A B)
 .  error
 .endif
@@ -30,7 +30,7 @@ ${:UA B}=	variable name with spaces
 .  error
 .endif
 
-# expect+1: Missing ')' after argument 'DEF' for 'defined'
+# expect+1: Missing ")" after argument "DEF" for "defined"
 .if defined(DEF
 .  error
 .else
