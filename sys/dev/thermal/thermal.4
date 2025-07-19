@@ -1,0 +1,36 @@
+.Dd July 19, 2025
+.Dt THERMAL 4
+.Os
+.Sh NAME
+.Nm thermal
+.Nd Intel CPU thermal monitoring driver
+.Sh SYNOPSIS
+.Cd "device thermal"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides thermal monitoring for Intel CPUs by reading temperature data from the CPU's on-die thermal sensors.
+.Pp
+This driver enhances the existing thermal monitoring capabilities by providing per-core temperature readings and a user-friendly interface for accessing thermal data.
+.Sh INTERFACE
+The
+.Nm
+driver exposes the following sysctls for each CPU core:
+.Pp
+.Nm .Va hw.thermal.core0
+- Temperature of core 0 in degrees Celsius.
+.Pp
+.Nm .Va hw.thermal.core1
+- Temperature of core 1 in degrees Celsius.
+.Pp
+... and so on for each additional core.
+.Pp
+The driver also provides a read interface to retrieve the temperature data for all cores:
+.Pp
+Read from the thermal device to get the current temperatures of all cores in the format:
+.Dl "Core 0: <temperature>"
+.Dl "Core 1: <temperature>"
+.Pp
+Where <temperature> is the current temperature of the core in degrees Celsius.
+.Sh AUTHORS
+.An KERN_SUCCESS Aq Mt dpmanager154@gmail.com
