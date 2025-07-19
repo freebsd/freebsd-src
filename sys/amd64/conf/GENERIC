@@ -387,3 +387,6 @@ options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support
 # EFI devices
 device		efidev			# EFI pseudo-device
 device		efirtc			# EFI RTC
+
+# thermal device
+device thermal
