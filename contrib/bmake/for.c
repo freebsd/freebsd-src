@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.185 2025/04/22 19:28:50 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.186 2025/06/28 22:39:27 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.185 2025/04/22 19:28:50 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.186 2025/06/28 22:39:27 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -153,7 +153,8 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 	for (;;) {
 		cpp_skip_whitespace(&p);
 		if (*p == '\0') {
-			Parse_Error(PARSE_FATAL, "missing `in' in for");
+			Parse_Error(PARSE_FATAL,
+			    "Missing \"in\" in .for loop");
 			goto cleanup;
 		}
 
@@ -168,7 +169,8 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 	}
 
 	if (f->vars.len == 0) {
-		Parse_Error(PARSE_FATAL, "no iteration variables in for");
+		Parse_Error(PARSE_FATAL,
+		    "Missing iteration variables in .for loop");
 		return;
 	}
 
@@ -177,7 +179,7 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 
 invalid_variable_name:
 	Parse_Error(PARSE_FATAL,
-	    "invalid character '%c' in .for loop variable name", *p);
+	    "Invalid character \"%c\" in .for loop variable name", *p);
 cleanup:
 	while (f->vars.len > 0)
 		free(*(char **)Vector_Pop(&f->vars));

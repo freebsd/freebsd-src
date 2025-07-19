@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.105 2024/07/07 07:50:57 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.106 2025/06/28 21:09:43 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,7 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.105 2024/07/07 07:50:57 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.106 2025/06/28 21:09:43 rillig Exp $");
 
 
 static HashTable interned_strings;
@@ -363,8 +363,11 @@ match_fixed_length:
 			continue;
 		}
 
-		if (*pat == '\\')	/* match the next character exactly */
+		if (*pat == '\\') {	/* match the next character exactly */
 			pat++;
+			if (*pat == '\0')
+				res.error = "Unfinished backslash at the end";
+		}
 		if (*pat != *str) {
 			if (asterisk && str == fixed_str) {
 				while (*str != '\0' && *str != *pat)

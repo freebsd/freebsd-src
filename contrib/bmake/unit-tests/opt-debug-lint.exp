@@ -1,8 +1,8 @@
 make: opt-debug-lint.mk:20: Variable "X" is undefined
 make: opt-debug-lint.mk:43: Variable "UNDEF" is undefined
-make: opt-debug-lint.mk:65: Missing delimiter ':' after modifier "L"
+make: opt-debug-lint.mk:65: Missing delimiter ":" after modifier "L"
 	while evaluating variable "value" with value "value"
-make: opt-debug-lint.mk:65: Missing delimiter ':' after modifier "P"
+make: opt-debug-lint.mk:65: Missing delimiter ":" after modifier "P"
 	while evaluating variable "value" with value "value"
 make: opt-debug-lint.mk:74: Unknown modifier ":${"
 	while evaluating variable "value" with value ""
