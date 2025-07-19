@@ -1541,7 +1541,9 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	struct tcpopt to;
 	int tfo_syn;
 	u_int maxseg;
+	bool no_data;
 
+	no_data = (tlen == 0);
 	thflags = tcp_get_flags(th);
 	tp->sackhint.last_sack_ack = 0;
 	sack_changed = SACK_NOCHANGE;
@@ -1769,7 +1771,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			tp->ts_recent = to.to_tsval;
 		}
 
-		if (tlen == 0) {
+		if (no_data) {
 			if (SEQ_GT(th->th_ack, tp->snd_una) &&
 			    SEQ_LEQ(th->th_ack, tp->snd_max) &&
 			    !IN_RECOVERY(tp->t_flags) &&
@@ -2570,7 +2572,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			maxseg = tcp_maxseg(tp);
-			if (tlen == 0 &&
+			if (no_data &&
 			    (tiwin == tp->snd_wnd ||
 			    (tp->t_flags & TF_SACK_PERMIT))) {
 				/*
@@ -3104,8 +3106,7 @@ step6:
 	    (tp->snd_wl1 == th->th_seq && (SEQ_LT(tp->snd_wl2, th->th_ack) ||
 	     (tp->snd_wl2 == th->th_ack && tiwin > tp->snd_wnd))))) {
 		/* keep track of pure window updates */
-		if (tlen == 0 &&
-		    tp->snd_wl2 == th->th_ack && tiwin > tp->snd_wnd)
+		if (no_data && tp->snd_wl2 == th->th_ack && tiwin > tp->snd_wnd)
 			TCPSTAT_INC(tcps_rcvwinupd);
 		tp->snd_wnd = tiwin;
 		tp->snd_wl1 = th->th_seq;
