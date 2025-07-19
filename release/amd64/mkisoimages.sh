@@ -54,11 +54,9 @@ if [ "$1" = "-b" ]; then
 	# ESP file size in KB.
 	espsize="2048"
 	if [ -f "${BASEBITSDIR}/boot/loader_ia32.efi" ]; then
-		make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi bootx64 \
-		    ${BASEBITSDIR}/boot/loader_ia32.efi bootia32
-	else
-		make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi
+		extra_args="${BASEBITSDIR}/boot/loader_ia32.efi bootia32"
 	fi
+	make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi bootx64 ${extra_args}
 	bootable="$bootable -o bootimage=i386;${espfilename} -o no-emul-boot -o platformid=efi"
 
 	shift
