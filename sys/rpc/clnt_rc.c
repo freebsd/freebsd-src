@@ -198,6 +198,12 @@ clnt_reconnect_connect(CLIENT *cl)
 		newclient = clnt_vc_create(so,
 		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
 		    rc->rc_sendsz, rc->rc_recvsz, rc->rc_intr);
+		/*
+		 * CLSET_FD_CLOSE must be done now, in case rpctls_connect()
+		 * fails just below.
+		 */
+		if (newclient != NULL)
+			CLNT_CONTROL(newclient, CLSET_FD_CLOSE, 0);
 		if (rc->rc_tls && newclient != NULL) {
 			CURVNET_SET(so->so_vnet);
 			stat = rpctls_connect(newclient, rc->rc_tlscertname, so,
@@ -236,7 +242,6 @@ clnt_reconnect_connect(CLIENT *cl)
 		goto out;
 	}
 
-	CLNT_CONTROL(newclient, CLSET_FD_CLOSE, 0);
 	CLNT_CONTROL(newclient, CLSET_CONNECT, &one);
 	CLNT_CONTROL(newclient, CLSET_TIMEOUT, &rc->rc_timeout);
 	CLNT_CONTROL(newclient, CLSET_RETRY_TIMEOUT, &rc->rc_retry);
