@@ -653,7 +653,7 @@ gen_bus_dma_teardown(struct gen_softc *sc)
 			    error);
 	}
 
-	if (sc->tx_buf_tag != NULL) {
+	if (sc->rx_buf_tag != NULL) {
 		for (i = 0; i < RX_DESC_COUNT; i++) {
 			error = bus_dmamap_destroy(sc->rx_buf_tag,
 			    sc->rx_ring_ent[i].map);
