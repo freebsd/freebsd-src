@@ -2112,7 +2112,8 @@ int
 nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
     struct nfsvattr *nvap, fhandle_t *fhp, int rderror, nfsattrbit_t *attrbitp,
     struct ucred *cred, struct thread *p, int isdgram, int reterr,
-    int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno)
+    int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno,
+    bool xattrsupp)
 {
 	struct statfs *sf;
 	int error;
@@ -2131,7 +2132,7 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
 	}
 	error = nfsv4_fillattr(nd, mp, vp, NULL, &nvap->na_vattr, fhp, rderror,
 	    attrbitp, cred, p, isdgram, reterr, supports_nfsv4acls, at_root,
-	    mounted_on_fileno, sf);
+	    mounted_on_fileno, sf, xattrsupp);
 	free(sf, M_TEMP);
 	NFSEXITCODE2(0, nd);
 	return (error);
@@ -2448,7 +2449,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr nva, at, *nvap = &nva;
 	struct mbuf *mb0, *mb1;
 	struct nfsreferral *refp;
-	int nlen, r, error = 0, getret = 1, usevget = 1;
+	int nlen, r, error = 0, getret = 1, ret, usevget = 1;
 	int siz, cnt, fullsiz, eofflag, ncookies, entrycnt;
 	caddr_t bpos0, bpos1;
 	u_int64_t off, toff, verf __unused;
@@ -2462,6 +2463,8 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	uint64_t mounted_on_fileno;
 	struct thread *p = curthread;
 	int bextpg0, bextpg1, bextpgsiz0, bextpgsiz1;
+	size_t atsiz;
+	bool xattrsupp;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -2936,9 +2939,18 @@ again:
 				*tl++ = newnfs_true;
 				txdr_hyper(*cookiep, tl);
 				dirlen += nfsm_strtom(nd, dp->d_name, nlen);
+				xattrsupp = false;
 				if (nvp != NULL) {
 					supports_nfsv4acls =
 					    nfs_supportsnfsv4acls(nvp);
+					if (NFSISSET_ATTRBIT(&attrbits,
+					    NFSATTRBIT_XATTRSUPPORT)) {
+						ret = VOP_GETEXTATTR(nvp,
+						    EXTATTR_NAMESPACE_USER,
+						    "xxx", NULL, &atsiz,
+						    nd->nd_cred, p);
+						xattrsupp = ret != EOPNOTSUPP;
+					}
 					NFSVOPUNLOCK(nvp);
 				} else
 					supports_nfsv4acls = 0;
@@ -2958,13 +2970,13 @@ again:
 					    nvp, nvap, &nfh, r, &rderrbits,
 					    nd->nd_cred, p, isdgram, 0,
 					    supports_nfsv4acls, at_root,
-					    mounted_on_fileno);
+					    mounted_on_fileno, xattrsupp);
 				} else {
 					dirlen += nfsvno_fillattr(nd, new_mp,
 					    nvp, nvap, &nfh, r, &attrbits,
 					    nd->nd_cred, p, isdgram, 0,
 					    supports_nfsv4acls, at_root,
-					    mounted_on_fileno);
+					    mounted_on_fileno, xattrsupp);
 				}
 				if (nvp != NULL)
 					vrele(nvp);
@@ -6356,7 +6368,7 @@ nfsrv_setacldsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	 * the same type (VREG).
 	 */
 	nfsv4_fillattr(nd, NULL, vp, aclp, NULL, NULL, 0, &attrbits, NULL,
-	    NULL, 0, 0, 0, 0, 0, NULL);
+	    NULL, 0, 0, 0, 0, 0, NULL, false);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0) {
