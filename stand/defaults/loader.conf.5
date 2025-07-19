@@ -21,7 +21,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.Dd June 5, 2025
+.Dd June 12, 2025
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -116,6 +116,10 @@ option in this manner,
 .Va beastie_disable
 must be set to
 .Dq Li YES .
+.It Ar print_delay
+Add a delay in microseconds after printing each line.
+Default
+.Dq Li 0 .
 .It Ar boot_*
 See list in
 .Xr loader.efi 8
