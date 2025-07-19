@@ -350,7 +350,7 @@ gen_attach(device_t dev)
 	}
 
 	/* If address was not found, create one based on the hostid and name. */
-	if (eaddr_found == 0)
+	if (!eaddr_found)
 		ether_gen_addr(sc->ifp, &eaddr);
 	/* Attach ethernet interface */
 	ether_ifattach(sc->ifp, eaddr.octet);
