@@ -489,6 +489,14 @@ struct kva_layout_s	kva_layout = {
 	.km_high =	KV4ADDR(KPML4BASE + NKPML4E - 1, NPDPEPG - 1,
 			    NPDEPG - 1, NPTEPG - 1),
 	.rec_pt =	KV4ADDR(PML4PML4I, 0, 0, 0),
+	.kasan_shadow_low = KV4ADDR(KASANPML4I, 0, 0, 0),
+	.kasan_shadow_high = KV4ADDR(KASANPML4I + NKASANPML4E, 0, 0, 0),
+	.kmsan_shadow_low = KV4ADDR(KMSANSHADPML4I, 0, 0, 0),
+	.kmsan_shadow_high = KV4ADDR(KMSANSHADPML4I + NKMSANSHADPML4E,
+			    0, 0, 0),
+	.kmsan_origin_low = KV4ADDR(KMSANORIGPML4I, 0, 0, 0),
+	.kmsan_origin_high = KV4ADDR(KMSANORIGPML4I + NKMSANORIGPML4E,
+			    0, 0, 0),
 };
 
 struct kva_layout_s	kva_layout_la57 = {
@@ -501,6 +509,14 @@ struct kva_layout_s	kva_layout_la57 = {
 	.km_high =	KV4ADDR(KPML4BASE + NKPML4E - 1, NPDPEPG - 1,
 			    NPDEPG - 1, NPTEPG - 1),
 	.rec_pt =	KV5ADDR(PML5PML5I, 0, 0, 0, 0),
+	.kasan_shadow_low = KV4ADDR(KASANPML4I, 0, 0, 0),
+	.kasan_shadow_high = KV4ADDR(KASANPML4I + NKASANPML4E, 0, 0, 0),
+	.kmsan_shadow_low = KV4ADDR(KMSANSHADPML4I, 0, 0, 0),
+	.kmsan_shadow_high = KV4ADDR(KMSANSHADPML4I + NKMSANSHADPML4E,
+			    0, 0, 0),
+	.kmsan_origin_low = KV4ADDR(KMSANORIGPML4I, 0, 0, 0),
+	.kmsan_origin_high = KV4ADDR(KMSANORIGPML4I + NKMSANORIGPML4E,
+			    0, 0, 0),
 };
 
 /*
