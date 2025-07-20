@@ -10777,15 +10777,15 @@ pmap_large_map_getptp(void)
 static pdp_entry_t *
 pmap_large_map_pdpe(vm_offset_t va)
 {
-	pml4_entry_t *pm4;
+	pml4_entry_t *pml4;
 	vm_pindex_t pml4_idx;
 	vm_paddr_t mphys;
 
 	KASSERT(va >= kva_layout.lm_low && va < kva_layout.lm_low +
 	    (vm_offset_t)NBPML4 * lm_ents, ("va %#lx not in large map", va));
 	if (la57) {
-		pm4 = pmap_pml4e(kernel_pmap, va);
-		mphys = *pm4 & PG_FRAME;
+		pml4 = pmap_pml4e(kernel_pmap, va);
+		mphys = *pml4 & PG_FRAME;
 	} else {
 		pml4_idx = pmap_pml4e_index(va);
 
