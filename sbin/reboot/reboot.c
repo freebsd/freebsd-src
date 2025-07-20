@@ -111,12 +111,6 @@ zfsbootcfg(const char *pool, bool force)
 }
 
 static void
-unlink_tmp(char *tmp) {
-	if (unlink(tmp))
-		warn("unlink %s", tmp);
-}
-
-static void
 write_nextboot(const char *fn, const char *env, bool force)
 {
 	char tmp[PATH_MAX];
@@ -164,7 +158,8 @@ write_nextboot(const char *fn, const char *env, bool force)
 		int e;
 
 		e = errno;
-		unlink_tmp(tmp);
+		if (unlink(tmp))
+			warn("unlink %s", tmp);
 		errno = e;
 		E("Can't write %s", tmp);
 	}
@@ -174,7 +169,8 @@ write_nextboot(const char *fn, const char *env, bool force)
 		int e;
 
 		e = errno;
-		unlink_tmp(tmp);
+		if (unlink(tmp))
+			warn("unlink %s", tmp);
 		errno = e;
 		E("Can't rename %s to %s", tmp, fn);
 	}
@@ -206,12 +202,12 @@ split_kv(char *raw)
 static void
 add_env(char **env, const char *key, const char *value)
 {
-	char *oldenv;
-
-	oldenv = *env;
-	asprintf(env, "%s%s=\"%s\"\n", oldenv != NULL ? oldenv : "", key, value);
 	if (env == NULL)
 		errx(1, "No memory to build env array");
+	char *oldenv;
+	oldenv = *env;
+	
+	asprintf(env, "%s%s=\"%s\"\n", oldenv != NULL ? oldenv : "", key, value);
 	free(oldenv);
 }
 
@@ -298,20 +294,22 @@ main(int argc, char *argv[])
 	if (argc != 0)
 		usage();
 
-	if (Dflag && ((howto & ~RB_HALT) != 0  || kernel != NULL)) {
+	if (Dflag && ((howto & ~RB_HALT) != 0  || kernel != NULL))
 		errx(1, "cannot delete existing nextboot config and do anything else");
-	} else if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT)) {
-		errx(1, "cannot dump (-d) when halting; must reboot instead");
-	} else if (Nflag && (howto & RB_NOSYNC) != 0) {
+	if (Nflag && (howto & RB_NOSYNC) != 0)
 		errx(1, "-N cannot be used with -n");
-	} else if ((howto & RB_POWEROFF) && (howto & RB_POWERCYCLE)) {
+	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT)) 
+		errx(1, "cannot dump (-d) when halting; must reboot instead");
+	if ((howto & RB_POWEROFF) && (howto & RB_POWERCYCLE)) 
 		errx(1, "-c and -p cannot be used together");
-	} else if ((howto & RB_REROOT) != 0 && howto != RB_REROOT) {
-		errx(1, "-r cannot be used with -c, -d, -n, or -p");
-	} else if ((howto & RB_REROOT) != 0 && kernel != NULL) {
-		errx(1, "-r and -k cannot be used together, there is no next kernel");
+	if ((howto & RB_REROOT) != 0) {
+		if (howto != RB_REROOT) {
+			errx(1, "-r cannot be used with -c, -d, -n, or -p");
+		}
+		if (kernel != NULL) {
+			errx(1, "-r and -k cannot be used together, there is no next kernel");
+		}
 	}
-	
 	if (Dflag) {
 		struct stat sb;
 
@@ -345,17 +343,14 @@ main(int argc, char *argv[])
 
 	if (kernel != NULL) {
 		if (!fflag) {
-			char *k;
+			char k[PATH_MAX];
 			struct stat sb;
 
-			asprintf(&k, "/boot/%s/kernel", kernel);
-			if (k == NULL)
-				errx(1, "No memory to check %s", kernel);
+			snprintf(k, sizeof(k), "/boot/%s/kernel", kernel);
 			if (stat(k, &sb) != 0)
 				err(1, "stat %s", k);
 			if (!S_ISREG(sb.st_mode))
 				errx(1, "%s is not a file", k);
-			free(k);
 		}
 		add_env(&env, "kernel", kernel);
 	}
