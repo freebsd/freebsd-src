@@ -2424,4 +2424,4 @@
        For more information, see the less homepage at
        ⟨https://greenwoodsoftware.com/less⟩.
 
-                           Version 678: 01 May 2025                    [4mLESS[24m(1)
+                           Version 679: 28 May 2025                    [4mLESS[24m(1)

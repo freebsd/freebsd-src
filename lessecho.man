@@ -48,4 +48,4 @@
 
        Report bugs at ⟨https://github.com/gwsw/less/issues⟩.
 
-                           Version 678: 01 May 2025                [4mLESSECHO[24m(1)
+                           Version 679: 28 May 2025                [4mLESSECHO[24m(1)
