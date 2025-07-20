@@ -11,6 +11,16 @@
 
 ======================================================================
 
+	Major changes between "less" versions 678 and 679
+
+* Fix bad parsing of lesskey file an env var is a prefix of another
+  env var (github #626).
+
+* Fix unexpected exit using -K if a key press is received while reading
+  the input file (github #628).
+
+======================================================================
+
 	Major changes between "less" versions 668 and 678
 
 * Treat -r in LESS environment variable as -R.
