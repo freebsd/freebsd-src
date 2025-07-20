@@ -55,7 +55,7 @@ freopen(const char * __restrict file, const char * __restrict mode,
     FILE * __restrict fp)
 {
 	int f;
-	int dflags, flags, isopen, oflags, sverrno, wantfd;
+	int dflags, fdflags, flags, isopen, oflags, sverrno, wantfd;
 
 	if ((flags = __sflags(mode, &oflags)) == 0) {
 		sverrno = errno;
@@ -113,8 +113,12 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			(void) ftruncate(fp->_file, (off_t)0);
 		if (!(oflags & O_APPEND))
 			(void) _sseek(fp, (fpos_t)0, SEEK_SET);
-		if (oflags & O_CLOEXEC)
-			(void) _fcntl(fp->_file, F_SETFD, FD_CLOEXEC);
+		if ((oflags & O_CLOEXEC) != 0) {
+			fdflags = _fcntl(fp->_file, F_GETFD, 0);
+			if (fdflags != -1 && (fdflags & FD_CLOEXEC) == 0)
+				(void) _fcntl(fp->_file, F_SETFD,
+				    fdflags | FD_CLOEXEC);
+		}
 		f = fp->_file;
 		isopen = 0;
 		wantfd = -1;

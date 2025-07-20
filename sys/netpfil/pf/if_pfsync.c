@@ -532,6 +532,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	struct pf_kpooladdr	*rpool_first;
 	int			 error;
 	uint8_t			 rt = 0;
+	int			 n = 0;
 
 	PF_RULES_RASSERT();
 
@@ -557,10 +558,12 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	 */
 	if (sp->pfs_1301.rule != htonl(-1) && sp->pfs_1301.anchor == htonl(-1) &&
 	    (flags & (PFSYNC_SI_IOCTL | PFSYNC_SI_CKSUM)) && ntohl(sp->pfs_1301.rule) <
-	    pf_main_ruleset.rules[PF_RULESET_FILTER].active.rcount)
-		r = pf_main_ruleset.rules[
-		    PF_RULESET_FILTER].active.ptr_array[ntohl(sp->pfs_1301.rule)];
-	else
+	    pf_main_ruleset.rules[PF_RULESET_FILTER].active.rcount) {
+		TAILQ_FOREACH(r, pf_main_ruleset.rules[
+		    PF_RULESET_FILTER].active.ptr, entries)
+			if (ntohl(sp->pfs_1301.rule) == n++)
+				break;
+	} else
 		r = &V_pf_default_rule;
 
 	/*
@@ -762,6 +765,10 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			panic("%s: Unsupported pfsync_msg_version %d",
 			    __func__, msg_version);
 	}
+
+	if (! (st->act.rtableid == -1 ||
+	    (st->act.rtableid >= 0 && st->act.rtableid < rt_numfibs)))
+		goto cleanup;
 
 	st->id = sp->pfs_1301.id;
 	st->creatorid = sp->pfs_1301.creatorid;
@@ -1083,7 +1090,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			msg_version = PFSYNC_MSG_VERSION_1400;
 			break;
 		default:
-			V_pfsyncstats.pfsyncs_badact++;
+			V_pfsyncstats.pfsyncs_badver++;
 			return (-1);
 	}
 
@@ -1110,9 +1117,8 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			continue;
 		}
 
-		if (pfsync_state_import(sp, flags, msg_version) == ENOMEM)
-			/* Drop out, but process the rest of the actions. */
-			break;
+		if (pfsync_state_import(sp, flags, msg_version) != 0)
+			V_pfsyncstats.pfsyncs_badact++;
 	}
 
 	return (total_len);

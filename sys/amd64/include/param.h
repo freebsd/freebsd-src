@@ -146,8 +146,9 @@
 #define	amd64_btop(x)	((unsigned long)(x) >> PAGE_SHIFT)
 #define	amd64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)
 
-#define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
-    || ((va) >= VM_MIN_KERNEL_ADDRESS && (va) < VM_MAX_KERNEL_ADDRESS))
+#define	INKERNEL(va)	\
+    (((va) >= kva_layout.dmap_low && (va) < kva_layout.dmap_high) || \
+    ((va) >= kva_layout.km_low && (va) < kva_layout.km_high))
 
 #ifdef SMP
 #define SC_TABLESIZE    1024                     /* Must be power of 2. */

@@ -41,7 +41,6 @@
 #include "libc_private.h"
 
 void __pthread_map_stacks_exec(void);
-void __pthread_distribute_static_tls(size_t, void *, size_t, size_t);
 
 int
 __elf_phdr_match_addr(struct dl_phdr_info *phdr_info, void *addr)
@@ -104,29 +103,4 @@ __pthread_map_stacks_exec(void)
 {
 
 	((void (*)(void))__libc_interposing[INTERPOS_map_stacks_exec])();
-}
-
-void
-__libc_distribute_static_tls(size_t offset, void *src, size_t len,
-    size_t total_len)
-{
-	char *tlsbase;
-
-#ifdef TLS_VARIANT_I
-	tlsbase = (char *)_tcb_get() + offset;
-#else
-	tlsbase = (char *)_tcb_get() - offset;
-#endif
-	memcpy(tlsbase, src, len);
-	memset(tlsbase + len, 0, total_len - len);
-}
-
-#pragma weak __pthread_distribute_static_tls
-void
-__pthread_distribute_static_tls(size_t offset, void *src, size_t len,
-    size_t total_len)
-{
-
-	((void (*)(size_t, void *, size_t, size_t))__libc_interposing[
-	    INTERPOS_distribute_static_tls])(offset, src, len, total_len);
 }

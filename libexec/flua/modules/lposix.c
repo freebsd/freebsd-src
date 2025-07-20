@@ -88,18 +88,23 @@ static int
 lua_chown(lua_State *L)
 {
 	const char *path;
-	uid_t owner = (uid_t) -1;
-	gid_t group = (gid_t) -1;
+	uid_t owner = (uid_t)-1;
+	gid_t group = (gid_t)-1;
+	int error;
 
 	enforce_max_args(L, 3);
 
 	path = luaL_checkstring(L, 1);
 	if (lua_isinteger(L, 2))
-		owner = (uid_t) lua_tointeger(L, 2);
+		owner = (uid_t)lua_tointeger(L, 2);
 	else if (lua_isstring(L, 2)) {
-		struct passwd *p = getpwnam(lua_tostring(L, 2));
-		if (p != NULL)
-			owner = p->pw_uid;
+		char buf[4096];
+		struct passwd passwd, *pwd;
+
+		error = getpwnam_r(lua_tostring(L, 2), &passwd,
+		    buf, sizeof(buf), &pwd);
+		if (error == 0)
+			owner = pwd->pw_uid;
 		else
 			return (luaL_argerror(L, 2,
 			    lua_pushfstring(L, "unknown user %s",
@@ -112,11 +117,15 @@ lua_chown(lua_State *L)
 	}
 
 	if (lua_isinteger(L, 3))
-		group = (gid_t) lua_tointeger(L, 3);
+		group = (gid_t)lua_tointeger(L, 3);
 	else if (lua_isstring(L, 3)) {
-		struct group *g = getgrnam(lua_tostring(L, 3));
-		if (g != NULL)
-			group = g->gr_gid;
+		char buf[4096];
+		struct group gr, *grp;
+
+		error = getgrnam_r(lua_tostring(L, 3), &gr, buf, sizeof(buf),
+		    &grp);
+		if (error == 0)
+			group = grp->gr_gid;
 		else
 			return (luaL_argerror(L, 3,
 			    lua_pushfstring(L, "unknown group %s",
@@ -581,21 +590,21 @@ static const struct luaL_Reg unistdlib[] = {
 #undef REG_SIMPLE
 #undef REG_DEF
 
-int
+static int
 luaopen_posix_libgen(lua_State *L)
 {
 	luaL_newlib(L, libgenlib);
 	return (1);
 }
 
-int
+static int
 luaopen_posix_stdlib(lua_State *L)
 {
 	luaL_newlib(L, stdliblib);
 	return (1);
 }
 
-int
+static int
 luaopen_posix_fnmatch(lua_State *L)
 {
 	luaL_newlib(L, fnmatchlib);
@@ -613,14 +622,21 @@ luaopen_posix_fnmatch(lua_State *L)
 	return 1;
 }
 
-int
+static int
 luaopen_posix_sys_stat(lua_State *L)
 {
 	luaL_newlib(L, sys_statlib);
 	return (1);
 }
 
-int
+static int
+luaopen_posix_sys_utsname(lua_State *L)
+{
+	luaL_newlib(L, sys_utsnamelib);
+	return 1;
+}
+
+static int
 luaopen_posix_sys_wait(lua_State *L)
 {
 	luaL_newlib(L, sys_waitlib);
@@ -646,16 +662,38 @@ luaopen_posix_sys_wait(lua_State *L)
 	return (1);
 }
 
-int
-luaopen_posix_sys_utsname(lua_State *L)
-{
-	luaL_newlib(L, sys_utsnamelib);
-	return 1;
-}
-
-int
+static int
 luaopen_posix_unistd(lua_State *L)
 {
 	luaL_newlib(L, unistdlib);
+	return (1);
+}
+
+int
+luaopen_posix(lua_State *L)
+{
+	lua_newtable(L); /* posix */
+
+	luaL_requiref(L, "posix.fnmatch", luaopen_posix_fnmatch, 0);
+	lua_setfield(L, -2, "fnmatch");
+
+	luaL_requiref(L, "posix.libgen", luaopen_posix_libgen, 0);
+	lua_setfield(L, -2, "libgen");
+
+	luaL_requiref(L, "posix.stdlib", luaopen_posix_stdlib, 0);
+	lua_setfield(L, -2, "stdlib");
+
+	lua_newtable(L); /* posix.sys */
+	luaL_requiref(L, "posix.sys.stat", luaopen_posix_sys_stat, 0);
+	lua_setfield(L, -2, "stat");
+	luaL_requiref(L, "posix.sys.utsname", luaopen_posix_sys_utsname, 0);
+	lua_setfield(L, -2, "utsname");
+	luaL_requiref(L, "posix.sys.wait", luaopen_posix_sys_wait, 0);
+	lua_setfield(L, -2, "wait");
+	lua_setfield(L, -2, "sys");
+
+	luaL_requiref(L, "posix.unistd", luaopen_posix_unistd, 0);
+	lua_setfield(L, -2, "unistd");
+
 	return (1);
 }

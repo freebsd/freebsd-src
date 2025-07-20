@@ -205,7 +205,7 @@ nfs_freesillyrename(void *arg, __unused int pending)
 }
 
 static void
-ncl_releasesillyrename(struct vnode *vp, struct thread *td)
+ncl_releasesillyrename(struct vnode *vp, bool flushed, struct thread *td)
 {
 	struct nfsnode *np;
 	struct sillyrename *sp;
@@ -220,7 +220,8 @@ ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 		sp = NULL;
 	if (sp != NULL) {
 		NFSUNLOCKNODE(np);
-		(void) ncl_vinvalbuf(vp, 0, td, 1);
+		if (flushed)
+			(void)ncl_vinvalbuf(vp, 0, td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */
@@ -238,9 +239,13 @@ ncl_inactive(struct vop_inactive_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np;
 	struct thread *td;
+	struct nfsmount *nmp;
+	bool flushed;
 
 	td = curthread;
 	np = VTONFS(vp);
+	nmp = VFSTONFS(vp->v_mount);
+	flushed = true;
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		NFSLOCKNODE(np);
 		np->n_openstateid = NULL;
@@ -251,13 +256,18 @@ ncl_inactive(struct vop_inactive_args *ap)
 		 * buffers/pages must be flushed before the close, so that the
 		 * stateid is available for the writes.
 		 */
-		vnode_pager_clean_sync(vp);
-		(void)ncl_flush(vp, MNT_WAIT, td, 1, 0);
+		if ((nmp->nm_flag & NFSMNT_NOCTO) == 0 || !NFSHASNFSV4N(nmp) ||
+		    nfscl_mustflush(vp) != 0) {
+			vnode_pager_clean_sync(vp);
+			(void)ncl_flush(vp, MNT_WAIT, td, 1, 0);
+		} else {
+			flushed = false;
+		}
 		(void)nfsrpc_close(vp, 1, td);
 	}
 
 	NFSLOCKNODE(np);
-	ncl_releasesillyrename(vp, td);
+	ncl_releasesillyrename(vp, flushed, td);
 
 	/*
 	 * NMODIFIED means that there might be dirty/stale buffers
@@ -294,7 +304,7 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		nfs_reclaim_p(ap);
 
 	NFSLOCKNODE(np);
-	ncl_releasesillyrename(vp, td);
+	ncl_releasesillyrename(vp, true, td);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		np->n_openstateid = NULL;
@@ -315,7 +325,7 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		MNT_ILOCK(mp);
 		if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0) {
 			MNT_IUNLOCK(mp);
-			nfscl_delegreturnvp(vp, td);
+			nfscl_delegreturnvp(vp, true, td);
 		} else
 			MNT_IUNLOCK(mp);
 	} else

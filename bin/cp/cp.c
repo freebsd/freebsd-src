@@ -55,6 +55,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <getopt.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -69,14 +70,35 @@ static char dot[] = ".";
 
 #define END(buf) (buf + sizeof(buf))
 PATH_T to = { .dir = -1, .end = to.path };
-int Nflag, fflag, iflag, lflag, nflag, pflag, sflag, vflag;
-static int Hflag, Lflag, Pflag, Rflag, rflag;
+bool Nflag, fflag, iflag, lflag, nflag, pflag, sflag, vflag;
+static bool Hflag, Lflag, Pflag, Rflag, rflag, Sflag;
 volatile sig_atomic_t info;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
 static int copy(char *[], enum op, int, struct stat *);
 static void siginfo(int __unused);
+
+enum {
+	SORT_OPT = CHAR_MAX,
+};
+
+static const struct option long_opts[] =
+{
+	{ "archive",		no_argument,		NULL,	'a' },
+	{ "force",		no_argument,		NULL,	'f' },
+	{ "interactive",	no_argument,		NULL,	'i' },
+	{ "dereference",	no_argument,		NULL,	'L' },
+	{ "link",		no_argument,		NULL,	'l' },
+	{ "no-clobber",		no_argument,		NULL,	'n' },
+	{ "no-dereference",	no_argument,		NULL,	'P' },
+	{ "recursive",		no_argument,		NULL,	'R' },
+	{ "symbolic-link",	no_argument,		NULL,	's' },
+	{ "verbose",		no_argument,		NULL,	'v' },
+	{ "one-file-system",	no_argument,		NULL,	'x' },
+	{ "sort",		no_argument,		NULL,	SORT_OPT },
+	{ 0 }
+};
 
 int
 main(int argc, char *argv[])
@@ -88,62 +110,66 @@ main(int argc, char *argv[])
 	bool have_trailing_slash = false;
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPRafilNnprsvx")) != -1)
+	while ((ch = getopt_long(argc, argv, "+HLPRafilNnprsvx", long_opts,
+	    NULL)) != -1)
 		switch (ch) {
 		case 'H':
-			Hflag = 1;
-			Lflag = Pflag = 0;
+			Hflag = true;
+			Lflag = Pflag = false;
 			break;
 		case 'L':
-			Lflag = 1;
-			Hflag = Pflag = 0;
+			Lflag = true;
+			Hflag = Pflag = false;
 			break;
 		case 'P':
-			Pflag = 1;
-			Hflag = Lflag = 0;
+			Pflag = true;
+			Hflag = Lflag = false;
 			break;
 		case 'R':
-			Rflag = 1;
+			Rflag = true;
 			break;
 		case 'a':
-			pflag = 1;
-			Rflag = 1;
-			Pflag = 1;
-			Hflag = Lflag = 0;
+			pflag = true;
+			Rflag = true;
+			Pflag = true;
+			Hflag = Lflag = false;
 			break;
 		case 'f':
-			fflag = 1;
-			iflag = nflag = 0;
+			fflag = true;
+			iflag = nflag = false;
 			break;
 		case 'i':
-			iflag = 1;
-			fflag = nflag = 0;
+			iflag = true;
+			fflag = nflag = false;
 			break;
 		case 'l':
-			lflag = 1;
+			lflag = true;
 			break;
 		case 'N':
-			Nflag = 1;
+			Nflag = true;
 			break;
 		case 'n':
-			nflag = 1;
-			fflag = iflag = 0;
+			nflag = true;
+			fflag = iflag = false;
 			break;
 		case 'p':
-			pflag = 1;
+			pflag = true;
 			break;
 		case 'r':
-			rflag = Lflag = 1;
-			Hflag = Pflag = 0;
+			rflag = Lflag = true;
+			Hflag = Pflag = false;
 			break;
 		case 's':
-			sflag = 1;
+			sflag = true;
 			break;
 		case 'v':
-			vflag = 1;
+			vflag = true;
 			break;
 		case 'x':
 			fts_options |= FTS_XDEV;
+			break;
+		case SORT_OPT:
+			Sflag = true;
 			break;
 		default:
 			usage();
@@ -159,7 +185,7 @@ main(int argc, char *argv[])
 	if (lflag && sflag)
 		errx(1, "the -l and -s options may not be specified together");
 	if (rflag)
-		Rflag = 1;
+		Rflag = true;
 	if (Rflag) {
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
@@ -263,6 +289,12 @@ main(int argc, char *argv[])
 }
 
 static int
+ftscmp(const FTSENT * const *a, const FTSENT * const *b)
+{
+	return (strcmp((*a)->fts_name, (*b)->fts_name));
+}
+
+static int
 copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 {
 	char rootname[NAME_MAX];
@@ -270,10 +302,9 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 	FTS *ftsp;
 	FTSENT *curr;
 	char *recpath = NULL, *sep;
-	int atflags, dne, badcp, len, rval;
+	int atflags, dne, badcp, len, level, rval;
 	mode_t mask, mode;
 	bool beneath = Rflag && type != FILE_TO_FILE;
-	bool skipdp = false;
 
 	/*
 	 * Keep an inverted copy of the umask, for use in correcting
@@ -305,7 +336,8 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		to.dir = -1;
 	}
 
-	if ((ftsp = fts_open(argv, fts_options, NULL)) == NULL)
+	level = FTS_ROOTLEVEL;
+	if ((ftsp = fts_open(argv, fts_options, Sflag ? ftscmp : NULL)) == NULL)
 		err(1, "fts_open");
 	for (badcp = rval = 0;
 	     (curr = fts_read(ftsp)) != NULL;
@@ -315,6 +347,20 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		case FTS_NS:
 		case FTS_DNR:
 		case FTS_ERR:
+			if (level > curr->fts_level) {
+				/* leaving a directory; remove its name from to.path */
+				if (type == DIR_TO_DNE &&
+				    curr->fts_level == FTS_ROOTLEVEL) {
+					/* this is actually our created root */
+				} else {
+					while (to.end > to.path && *to.end != '/')
+						to.end--;
+					assert(strcmp(to.end + (*to.end == '/'),
+					    curr->fts_name) == 0);
+					*to.end = '\0';
+				}
+				level--;
+			}
 			warnc(curr->fts_errno, "%s", curr->fts_path);
 			badcp = rval = 1;
 			continue;
@@ -335,14 +381,6 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				strlcpy(rootname, curr->fts_name,
 				    sizeof(rootname));
 			}
-			/*
-			 * If we FTS_SKIP while handling FTS_D, we will
-			 * immediately get FTS_DP for the same directory.
-			 * If this happens before we've appended the name
-			 * to to.path, we need to remember not to perform
-			 * the reverse operation.
-			 */
-			skipdp = true;
 			/* we must have a destination! */
 			if (type == DIR_TO_DNE &&
 			    curr->fts_level == FTS_ROOTLEVEL) {
@@ -410,7 +448,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				}
 				to.end += len;
 			}
-			skipdp = false;
+			level++;
 			/*
 			 * We're on the verge of recursing on ourselves.
 			 * Either we need to stop right here (we knowingly
@@ -477,18 +515,19 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 					rval = 1;
 				}
 			}
-			/* are we leaving a directory we failed to enter? */
-			if (skipdp)
-				continue;
-			/* leaving a directory; remove its name from to.path */
-			if (type == DIR_TO_DNE &&
-			    curr->fts_level == FTS_ROOTLEVEL) {
-				/* this is actually our created root */
-			} else {
-				while (to.end > to.path && *to.end != '/')
-					to.end--;
-				assert(strcmp(to.end + (*to.end == '/'), curr->fts_name) == 0);
-				*to.end = '\0';
+			if (level > curr->fts_level) {
+				/* leaving a directory; remove its name from to.path */
+				if (type == DIR_TO_DNE &&
+				    curr->fts_level == FTS_ROOTLEVEL) {
+					/* this is actually our created root */
+				} else {
+					while (to.end > to.path && *to.end != '/')
+						to.end--;
+					assert(strcmp(to.end + (*to.end == '/'),
+					    curr->fts_name) == 0);
+					*to.end = '\0';
+				}
+				level--;
 			}
 			continue;
 		default:
@@ -638,6 +677,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		if (vflag && !badcp)
 			(void)printf("%s -> %s%s\n", curr->fts_path, to.base, to.path);
 	}
+	assert(level == FTS_ROOTLEVEL);
 	if (errno)
 		err(1, "fts_read");
 	(void)fts_close(ftsp);

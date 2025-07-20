@@ -49,12 +49,6 @@
 #include <machine/specialreg.h>
 #include <x86/apicreg.h>
 
-#ifdef SMP
-#define LK	lock ;
-#else
-#define LK
-#endif
-
 	.text
 	SUPERALIGN_TEXT
 	/* End Of Interrupt to APIC */

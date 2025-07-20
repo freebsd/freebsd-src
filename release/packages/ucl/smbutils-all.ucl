@@ -1,0 +1,4 @@
+comment = "SMB Utilities"
+desc = <<EOD
+SMB Utilities
+EOD

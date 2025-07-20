@@ -103,7 +103,7 @@
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
-# If TARGET=machine (e.g. powerpc, arm64, ...) is specified you can
+# If TARGET=machine (e.g. powerpc64, arm64, ...) is specified you can
 # cross build world for other machine types using the buildworld target,
 # and once the world is built you can cross build a kernel using the
 # buildkernel target.
@@ -376,22 +376,13 @@ buildworld: upgrade_checks
 kernel-toolchain: upgrade_checks
 .endif
 
-# we need the system time(1) command, not from the shell
-time_cmd= /usr/bin/time
-
-# mktemp(1) is not portable
-mktemp_cmd= mktemp /tmp/_time-logging-XXXXXXXXX
-
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
 
 tinderbox toolchains kernel-toolchains: .MAKE
 ${TGTS}: .PHONY .MAKE
-	${_+_}@cd ${.CURDIR}; _time_tmp=$$(${mktemp_cmd}); \
-	  ${time_cmd} -o $${_time_tmp} -p env ${_MAKE} ${.TARGET}; \
-	  echo ">>> Time spent on target ${.TARGET}: $$(tr '\n' ' ' < $${_time_tmp})"; \
-	  rm -f $${_time_tmp}
+	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # The historic default "all" target creates files which may cause stale
 # or (in the cross build case) unlinkable results. Fail with an error
@@ -539,8 +530,7 @@ worlds: .PHONY
 # Don't build rarely used, semi-supported architectures unless requested.
 #
 .if defined(EXTRA_TARGETS)
-# powerpcspe excluded from main list until clang fixed
-EXTRA_ARCHES_powerpc=	powerpcspe
+EXTRA_ARCHES_powerpc=	powerpc powerpcspe
 .endif
 TARGETS?= ${TARGET_MACHINE_LIST}
 _UNIVERSE_TARGETS=	${TARGETS}
@@ -555,8 +545,7 @@ TOOLCHAINS_amd64=	amd64-${_GCC_VERSION}
 TOOLCHAINS_arm=		armv7-${_GCC_VERSION}
 TOOLCHAINS_arm64=	aarch64-${_GCC_VERSION}
 TOOLCHAINS_i386=	i386-${_GCC_VERSION}
-TOOLCHAINS_powerpc=	powerpc-${_GCC_VERSION} powerpc64-${_GCC_VERSION}
-TOOLCHAIN_powerpc64=	powerpc64-${_GCC_VERSION}
+TOOLCHAINS_powerpc=	powerpc64-${_GCC_VERSION}
 TOOLCHAINS_riscv=	riscv64-${_GCC_VERSION}
 .endif
 

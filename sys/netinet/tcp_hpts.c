@@ -433,38 +433,40 @@ static void
 tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
     int slots_to_run, int idx, bool from_callout)
 {
-	union tcp_log_stackspecific log;
-	/*
-	 * Unused logs are
-	 * 64 bit - delRate, rttProp, bw_inuse
-	 * 16 bit - cwnd_gain
-	 *  8 bit - bbr_state, bbr_substate, inhpts;
-	 */
-	memset(&log, 0, sizeof(log));
-	log.u_bbr.flex1 = hpts->p_nxt_slot;
-	log.u_bbr.flex2 = hpts->p_cur_slot;
-	log.u_bbr.flex3 = hpts->p_prev_slot;
-	log.u_bbr.flex4 = idx;
-	log.u_bbr.flex5 = hpts->p_curtick;
-	log.u_bbr.flex6 = hpts->p_on_queue_cnt;
-	log.u_bbr.flex7 = hpts->p_cpu;
-	log.u_bbr.flex8 = (uint8_t)from_callout;
-	log.u_bbr.inflight = slots_to_run;
-	log.u_bbr.applimited = hpts->overidden_sleep;
-	log.u_bbr.delivered = hpts->saved_curtick;
-	log.u_bbr.timeStamp = tcp_tv_to_usectick(tv);
-	log.u_bbr.epoch = hpts->saved_curslot;
-	log.u_bbr.lt_epoch = hpts->saved_prev_slot;
-	log.u_bbr.pkts_out = hpts->p_delayed_by;
-	log.u_bbr.lost = hpts->p_hpts_sleep_time;
-	log.u_bbr.pacing_gain = hpts->p_cpu;
-	log.u_bbr.pkt_epoch = hpts->p_runningslot;
-	log.u_bbr.use_lt_bw = 1;
-	TCP_LOG_EVENTP(tp, NULL,
-		       &tptosocket(tp)->so_rcv,
-		       &tptosocket(tp)->so_snd,
-		       BBR_LOG_HPTSDIAG, 0,
-		       0, &log, false, tv);
+	if (hpts_does_tp_logging && tcp_bblogging_on(tp)) {
+		union tcp_log_stackspecific log;
+		/*
+		 * Unused logs are
+		 * 64 bit - delRate, rttProp, bw_inuse
+		 * 16 bit - cwnd_gain
+		 *  8 bit - bbr_state, bbr_substate, inhpts;
+		 */
+		memset(&log, 0, sizeof(log));
+		log.u_bbr.flex1 = hpts->p_nxt_slot;
+		log.u_bbr.flex2 = hpts->p_cur_slot;
+		log.u_bbr.flex3 = hpts->p_prev_slot;
+		log.u_bbr.flex4 = idx;
+		log.u_bbr.flex5 = hpts->p_curtick;
+		log.u_bbr.flex6 = hpts->p_on_queue_cnt;
+		log.u_bbr.flex7 = hpts->p_cpu;
+		log.u_bbr.flex8 = (uint8_t)from_callout;
+		log.u_bbr.inflight = slots_to_run;
+		log.u_bbr.applimited = hpts->overidden_sleep;
+		log.u_bbr.delivered = hpts->saved_curtick;
+		log.u_bbr.timeStamp = tcp_tv_to_usectick(tv);
+		log.u_bbr.epoch = hpts->saved_curslot;
+		log.u_bbr.lt_epoch = hpts->saved_prev_slot;
+		log.u_bbr.pkts_out = hpts->p_delayed_by;
+		log.u_bbr.lost = hpts->p_hpts_sleep_time;
+		log.u_bbr.pacing_gain = hpts->p_cpu;
+		log.u_bbr.pkt_epoch = hpts->p_runningslot;
+		log.u_bbr.use_lt_bw = 1;
+		TCP_LOG_EVENTP(tp, NULL,
+			&tptosocket(tp)->so_rcv,
+			&tptosocket(tp)->so_snd,
+			BBR_LOG_HPTSDIAG, 0,
+			0, &log, false, tv);
+	}
 }
 
 static void
@@ -1353,10 +1355,7 @@ again:
 			}
 			CURVNET_SET(inp->inp_vnet);
 			/* Lets do any logging that we might want to */
-			if (hpts_does_tp_logging && tcp_bblogging_on(tp)) {
-				tcp_hpts_log(hpts, tp, &tv, slots_to_run, i,
-				    from_callout);
-			}
+			tcp_hpts_log(hpts, tp, &tv, slots_to_run, i, from_callout);
 
 			if (tp->t_fb_ptr != NULL) {
 				kern_prefetch(tp->t_fb_ptr, &did_prefetch);
@@ -1487,7 +1486,7 @@ no_run:
 }
 
 void
-__tcp_set_hpts(struct tcpcb *tp, int32_t line)
+tcp_set_hpts(struct tcpcb *tp)
 {
 	struct tcp_hpts_entry *hpts;
 	int failed;

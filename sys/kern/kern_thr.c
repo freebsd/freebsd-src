@@ -29,7 +29,7 @@
 #include "opt_ktrace.h"
 #include "opt_posix.h"
 #include "opt_hwpmc_hooks.h"
-
+#include "opt_hwt_hooks.h"
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #ifdef KTRACE
@@ -59,6 +59,9 @@
 #include <sys/umtxvar.h>
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
+#endif
+#ifdef HWT_HOOKS
+#include <dev/hwt/hwt_hook.h>
 #endif
 
 #include <machine/frame.h>
@@ -278,6 +281,10 @@ thread_create(struct thread *td, struct rtprio *rtp,
 		PMC_CALL_HOOK(newtd, PMC_FN_THR_CREATE, NULL);
 	else if (PMC_SYSTEM_SAMPLING_ACTIVE())
 		PMC_CALL_HOOK_UNLOCKED(newtd, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
+
+#ifdef HWT_HOOKS
+	HWT_CALL_HOOK(newtd, HWT_THREAD_CREATE, NULL);
 #endif
 
 	tidhash_add(newtd);
@@ -612,6 +619,9 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 #ifdef HWPMC_HOOKS
 	if (PMC_PROC_IS_USING_PMCS(p) || PMC_SYSTEM_SAMPLING_ACTIVE())
 		PMC_CALL_HOOK_UNLOCKED(ttd, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
+#ifdef HWT_HOOKS
+	HWT_CALL_HOOK(ttd, HWT_THREAD_SET_NAME, NULL);
 #endif
 #ifdef KTR
 	sched_clear_tdname(ttd);

@@ -702,6 +702,7 @@ vop_vptocnp {
 
 
 %% allocate	vp	E E E
+%! allocate	post	vop_allocate_post
 
 vop_allocate {
 	IN struct vnode *vp;
@@ -786,6 +787,7 @@ vop_fdatasync {
 
 %% copy_file_range	invp	U U U
 %% copy_file_range	outvp	U U U
+%! copy_file_range	post	vop_copy_file_range_post
 
 vop_copy_file_range {
 	IN struct vnode *invp;
@@ -810,6 +812,7 @@ vop_vput_pair {
 
 
 %% deallocate	vp	L L L
+%! deallocate	post	vop_deallocate_post
 
 vop_deallocate {
 	IN struct vnode *vp;
@@ -820,6 +823,27 @@ vop_deallocate {
 	IN struct ucred *cred;
 };
 
+
+%% inotify	vp	- - -
+
+vop_inotify {
+	IN struct vnode *vp;
+	IN struct vnode *dvp;
+	IN struct componentname *cnp;
+	IN int event;
+	IN uint32_t cookie;
+};
+
+
+%% inotify_add_watch vp	L L L
+
+vop_inotify_add_watch {
+	IN struct vnode *vp;
+	IN struct inotify_softc *sc;
+	IN uint32_t mask;
+	OUT uint32_t *wdp;
+	IN struct thread *td;
+};
 
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should

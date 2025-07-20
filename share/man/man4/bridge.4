@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 28, 2025
+.Dd July 5, 2025
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -271,6 +271,54 @@ by setting the
 .Va net.link.bridge.log_stp
 node using
 .Xr sysctl 8 .
+.Sh VLAN SUPPORT
+The
+.Nm
+driver has full support for virtual LANs (VLANs).
+The bridge implements independent VLAN learning, i.e. MAC addresses are
+learned on a per-VLAN basis, and the same MAC address may be learned on
+multiple interfaces on different VLANs.
+Incoming frames with an 802.1Q tag will be assigned to the appropriate
+VLAN.
+.Pp
+Traffic sent to or from the host is not assigned to a VLAN by default.
+To allow the host to communicate on a VLAN, configure a
+.Xr vlan 4
+interface on the bridge and (if necessary) assign IP addresses there.
+.Pp
+By default no access control is enabled, so any interface may
+participate in any VLAN.
+.Pp
+VLAN filtering may be enabled on an interface using the
+.Xr ifconfig 8
+.Cm vlanfilter
+option.
+When VLAN filtering is enabled, an interface may only send and receive
+frames based on its configured VLAN access list.
+.Pp
+The interface's untagged VLAN ID may be configured using the
+.Xr ifconfig 8
+.Cm untagged
+option.
+If an untagged VLAN ID is configured, incoming frames will be assigned
+to that VLAN, and the interface may receive outgoing untagged frames
+in that VLAN.
+.Pp
+The tagged VLAN access list may be configured using the
+.Cm tagged ,
+.Cm +tagged
+and
+.Cm -tagged
+options to
+.Xr ifconfig 8 .
+An interface may send and receive tagged frames for any VLAN in its
+access list.
+.Pp
+The bridge will automatically insert or remove 802.1q tags as needed,
+based on the interface configuration, when forwarding frames between
+interfaces.
+This tag processing is only done for interfaces with VLAN filtering
+enabled.
 .Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
@@ -538,6 +586,7 @@ ifconfig bridge0 addm fxp0 addm gif0 up
 .Xr ipfw 4 ,
 .Xr netmap 4 ,
 .Xr pf 4 ,
+.Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The

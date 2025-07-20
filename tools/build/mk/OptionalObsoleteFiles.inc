@@ -1441,6 +1441,10 @@ OLD_LIBS+=${DEBUG_LIBS}
 .endif
 .endif
 
+.if ${MK_DETECT_TZ_CHANGES} == no
+OLD_FILES+=tests/lib/libc/stdtime/detect_tz_changes_test
+.endif
+
 .if ${MK_DIALOG} == no
 OLD_FILES+=usr/bin/dialog
 OLD_FILES+=usr/bin/dpv
@@ -1683,9 +1687,6 @@ OLD_FILES+=usr/share/examples/diskless/README.BOOTP
 OLD_FILES+=usr/share/examples/diskless/README.TEMPLATING
 OLD_FILES+=usr/share/examples/diskless/clone_root
 OLD_FILES+=usr/share/examples/dma/mailer.conf
-OLD_FILES+=usr/share/examples/drivers/README
-OLD_FILES+=usr/share/examples/drivers/make_device_driver.sh
-OLD_FILES+=usr/share/examples/drivers/make_pseudo_driver.sh
 OLD_FILES+=usr/share/examples/dwatch/profile_template
 OLD_FILES+=usr/share/examples/etc/README.examples
 OLD_FILES+=usr/share/examples/etc/bsd-style-copyright
@@ -1912,7 +1913,6 @@ OLD_DIRS+=usr/share/examples/bsdconfig
 OLD_DIRS+=usr/share/examples/csh
 OLD_DIRS+=usr/share/examples/diskless
 OLD_DIRS+=usr/share/examples/dma
-OLD_DIRS+=usr/share/examples/drivers
 OLD_DIRS+=usr/share/examples/dwatch
 OLD_DIRS+=usr/share/examples/etc
 OLD_DIRS+=usr/share/examples/etc/defaults
@@ -4950,7 +4950,6 @@ OLD_FILES+=usr/lib/libhx509.so
 OLD_LIBS+=usr/lib/libhx509.so.11
 OLD_FILES+=usr/lib/libhx509_p.a
 OLD_FILES+=usr/lib/libkadm5clnt.a
-OLD_FILES+=usr/lib/libkadm5clnt.so
 OLD_LIBS+=usr/lib/libkadm5clnt.so.11
 OLD_FILES+=usr/lib/libkadm5clnt_p.a
 OLD_FILES+=usr/lib/libkadm5srv.a

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.272 2025/05/18 07:02:00 rillig Exp $	*/
+/*	$NetBSD: make.c,v 1.273 2025/07/06 07:11:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #endif
 
 /*	"@(#)make.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: make.c,v 1.272 2025/05/18 07:02:00 rillig Exp $");
+MAKE_RCSID("$NetBSD: make.c,v 1.273 2025/07/06 07:11:31 rillig Exp $");
 
 /* Sequence # to detect recursion. */
 static unsigned checked_seqno = 1;
@@ -1404,7 +1404,7 @@ Make_MakeParallel(GNodeList *targets)
 		(void)MakeStartJobs();
 	}
 
-	errors = Job_Finish();
+	errors = Job_MakeDotEnd();
 
 	DEBUG1(MAKE, "done: errors %d\n", errors);
 	if (errors == 0) {

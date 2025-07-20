@@ -539,12 +539,12 @@ struct tcpcb;
 			    NULL, NULL, 0, NULL);			\
 	} while (0)
 #endif /* TCP_LOG_FORCEVERBOSE */
+/* Assumes/requires the caller has already checked tcp_bblogging_on(tp). */
 #define	TCP_LOG_EVENTP(tp, th, rxbuf, txbuf, eventid, errornum, len, stackinfo, th_hostorder, tv) \
 	do {								\
-		if (tcp_bblogging_on(tp))				\
-			tcp_log_event(tp, th, rxbuf, txbuf, eventid,	\
-			    errornum, len, stackinfo, th_hostorder,	\
-			    NULL, NULL, 0, tv);				\
+		KASSERT(tcp_bblogging_on(tp), ("bblogging is off")); \
+		tcp_log_event(tp, th, rxbuf, txbuf, eventid, errornum, len,	\
+			stackinfo, th_hostorder, NULL, NULL, 0, tv); \
 	} while (0)
 
 #ifdef TCP_BLACKBOX

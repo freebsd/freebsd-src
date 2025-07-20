@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 12, 2025
+.Dd June 13, 2025
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -105,6 +105,19 @@ Get the ASCII representation of the error given by the
 .Fa code
 argument.
 This function does not return NULL.
+.Pp
+.Ft int
+.Fn libusb_setlocale "const char *locale"
+Set locale for the error message when using
+.Fn libusb_strerror
+to
+.Ft locale .
+Note other
+.Nm
+implementations only support the first two bytes, that means
+.Ql en-US
+is equivalent to
+.Ql en-CA .
 .Pp
 .Ft const char *
 .Fn libusb_error_name "int code"

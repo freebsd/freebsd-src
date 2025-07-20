@@ -598,4 +598,6 @@ const char *freebsd32_syscallnames[] = {
 	"fchroot",			/* 590 = fchroot */
 	"freebsd32_setcred",			/* 591 = freebsd32_setcred */
 	"exterrctl",			/* 592 = exterrctl */
+	"inotify_add_watch_at",			/* 593 = inotify_add_watch_at */
+	"inotify_rm_watch",			/* 594 = inotify_rm_watch */
 };

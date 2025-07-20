@@ -214,10 +214,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sfpsize = sizeof(sf);
 		#ifdef __powerpc64__
 		/*
-		 * 64-bit PPC defines a 288 byte scratch region
-		 * below the stack.
+		 * 64-bit PPC defines a 512 byte red zone below
+		 * the existing stack (ELF ABI v2 §2.2.2.4)
 		 */
-		rndfsize = 288 + roundup(sizeof(sf), 48);
+		rndfsize = 512 + roundup(sizeof(sf), 48);
 		#else
 		rndfsize = roundup(sizeof(sf), 16);
 		#endif
@@ -349,13 +349,6 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	/*
-	 * Save FPU state if needed. User may have changed it on
-	 * signal handler
-	 */
-	if (uc.uc_mcontext.mc_srr1 & PSL_FP)
-		save_fpu(td);
-
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
@@ -432,6 +425,7 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	}
 
 	if (pcb->pcb_flags & PCB_VSX) {
+		mcp->mc_flags |= _MC_VS_VALID;
 		for (i = 0; i < 32; i++)
 			memcpy(&mcp->mc_vsxfpreg[i],
 			    &pcb->pcb_fpu.fpr[i].vsr[2], sizeof(double));
@@ -481,6 +475,7 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	struct pcb *pcb;
 	struct trapframe *tf;
 	register_t tls;
+	register_t msr;
 	int i;
 
 	pcb = td->td_pcb;
@@ -531,6 +526,22 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	tf->srr1 &= ~(PSL_FP | PSL_VSX | PSL_VEC);
 	pcb->pcb_flags &= ~(PCB_FPU | PCB_VSX | PCB_VEC);
 
+	/*
+	 * Ensure the FPU is also disabled in hardware.
+	 *
+	 * Without this, it's possible for the register reload to fail if we
+	 * don't switch to a FPU disabled context before resuming the original
+	 * thread.  Specifically, if the FPU/VSX unavailable exception is never
+	 * hit, then whatever data is still in the FP/VSX registers when
+	 * sigresume is callled will used by the resumed thread, instead of the
+	 * previously saved data from the mcontext.
+	 */
+	critical_enter();
+	msr = mfmsr() & ~(PSL_FP | PSL_VSX | PSL_VEC);
+	isync();
+	mtmsr(msr);
+	critical_exit();
+
 	if (mcp->mc_flags & _MC_FP_VALID) {
 		/* enable_fpu() will happen lazily on a fault */
 		pcb->pcb_flags |= PCB_FPREGS;
@@ -539,8 +550,12 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		for (i = 0; i < 32; i++) {
 			memcpy(&pcb->pcb_fpu.fpr[i].fpr, &mcp->mc_fpreg[i],
 			    sizeof(double));
-			memcpy(&pcb->pcb_fpu.fpr[i].vsr[2],
-			    &mcp->mc_vsxfpreg[i], sizeof(double));
+		}
+		if (mcp->mc_flags & _MC_VS_VALID) {
+			for (i = 0; i < 32; i++) {
+				memcpy(&pcb->pcb_fpu.fpr[i].vsr[2],
+				    &mcp->mc_vsxfpreg[i], sizeof(double));
+			}
 		}
 	}
 

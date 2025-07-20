@@ -1,0 +1,4 @@
+comment = "Network Address Translation (NAT) daemon for ipfw"
+desc = <<EOD
+natd provides userland NAT support for ipfw using divert(4) sockets.
+EOD

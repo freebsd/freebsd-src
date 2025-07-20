@@ -1032,10 +1032,6 @@ tcp_default_fb_init(struct tcpcb *tp, void **ptr)
 	/* We don't use the pointer */
 	*ptr = NULL;
 
-	KASSERT(tp->t_state < TCPS_TIME_WAIT,
-	    ("%s: connection %p in unexpected state %d", __func__, tp,
-	    tp->t_state));
-
 	/* Make sure we get no interesting mbuf queuing behavior */
 	/* All mbuf queue/ack compress flags should be off */
 	tcp_lro_features_off(tp);
@@ -2724,9 +2720,15 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 				    ksr->snd_tag->sw->snd_tag_status_str !=
 				    NULL) {
 					sz = SND_TAG_STATUS_MAXLEN;
-					ksr->snd_tag->sw->snd_tag_status_str(
+					in_pcbref(inp);
+					INP_RUNLOCK(inp);
+					error = ksr->snd_tag->sw->
+					    snd_tag_status_str(
 					    ksr->snd_tag, NULL, &sz);
-					len += sz;
+					if (in_pcbrele_rlock(inp))
+						return (EDEADLK);
+					if (error == 0)
+						len += sz;
 				}
 			}
 			kss = so->so_snd.sb_tls_info;
@@ -2743,9 +2745,15 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 				    kss->snd_tag->sw->snd_tag_status_str !=
 				    NULL) {
 					sz = SND_TAG_STATUS_MAXLEN;
-					kss->snd_tag->sw->snd_tag_status_str(
+					in_pcbref(inp);
+					INP_RUNLOCK(inp);
+					error = kss->snd_tag->sw->
+					    snd_tag_status_str(
 					    kss->snd_tag, NULL, &sz);
-					len += sz;
+					if (in_pcbrele_rlock(inp))
+						return (EDEADLK);
+					if (error == 0)
+						len += sz;
 				}
 			}
 			if (p) {
@@ -2815,9 +2823,16 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 			if (ksr->snd_tag != NULL &&
 			    ksr->snd_tag->sw->snd_tag_status_str != NULL) {
 				sz = SND_TAG_STATUS_MAXLEN;
-				ksr->snd_tag->sw->snd_tag_status_str(
+				in_pcbref(inp);
+				INP_RUNLOCK(inp);
+				error = ksr->snd_tag->sw->snd_tag_status_str(
 				    ksr->snd_tag, buf + len, &sz);
-				len += sz;
+				if (in_pcbrele_rlock(inp))
+					return (EDEADLK);
+				if (error == 0) {
+					xktls->rcv.drv_st_len = sz;
+					len += sz;
+				}
 			}
 		}
 		if (kss != NULL && kss->gen == xig.xig_gen) {
@@ -2832,9 +2847,16 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 			if (kss->snd_tag != NULL &&
 			    kss->snd_tag->sw->snd_tag_status_str != NULL) {
 				sz = SND_TAG_STATUS_MAXLEN;
-				kss->snd_tag->sw->snd_tag_status_str(
+				in_pcbref(inp);
+				INP_RUNLOCK(inp);
+				error = kss->snd_tag->sw->snd_tag_status_str(
 				    kss->snd_tag, buf + len, &sz);
-				len += sz;
+				if (in_pcbrele_rlock(inp))
+					return (EDEADLK);
+				if (error == 0) {
+					xktls->snd.drv_st_len = sz;
+					len += sz;
+				}
 			}
 		}
 		len = roundup2(len, __alignof(*xktls));
@@ -2862,12 +2884,23 @@ tcp_ktlslist_locked(SYSCTL_HANDLER_ARGS, bool export_keys)
 static int
 tcp_ktlslist1(SYSCTL_HANDLER_ARGS, bool export_keys)
 {
-	int res;
+	int repeats, error;
 
-	sx_xlock(&ktlslist_lock);
-	res = tcp_ktlslist_locked(oidp, arg1, arg2, req, export_keys);
-	sx_xunlock(&ktlslist_lock);
-	return (res);
+	for (repeats = 0; repeats < 100; repeats++) {
+		if (sx_xlock_sig(&ktlslist_lock))
+			return (EINTR);
+		error = tcp_ktlslist_locked(oidp, arg1, arg2, req,
+		    export_keys);
+		sx_xunlock(&ktlslist_lock);
+		if (error != EDEADLK)
+			break;
+		if (sig_intr() != 0) {
+			error = EINTR;
+			break;
+		}
+		req->oldidx = 0;
+	}
+	return (error);
 }
 	
 static int

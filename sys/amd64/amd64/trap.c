@@ -769,7 +769,7 @@ trap_pfault(struct trapframe *frame, bool usermode, int *signo, int *ucode)
 			return (-1);
 		}
 	}
-	if (eva >= VM_MIN_KERNEL_ADDRESS) {
+	if (eva >= kva_layout.km_low) {
 		/*
 		 * Don't allow user-mode faults in kernel address space.
 		 */

@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 7, 2022
+.Dd July 16, 2025
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -136,7 +136,7 @@ flag is specified the output is generated via
 .Xr libxo 3
 in a selection of different human and machine readable formats.
 See
-.Xr xo_parse_args 3
+.Xr xo_options 7
 for details on command line arguments.
 .Pp
 The following commands are available for
@@ -377,6 +377,8 @@ eventfd
 fifo
 .It h
 shared memory
+.It i
+inotify descriptor
 .It k
 kqueue
 .It m
@@ -862,12 +864,13 @@ procstat: procstat_getprocs()
 .Xr sockstat 1 ,
 .Xr cap_enter 2 ,
 .Xr cap_rights_limit 2 ,
+.Xr inotify 2 ,
 .Xr mlock 2 ,
 .Xr mlockall 2 ,
 .Xr libprocstat 3 ,
 .Xr libxo 3 ,
 .Xr signal 3 ,
-.Xr xo_parse_args 3 ,
+.Xr xo_options 7 ,
 .Xr ddb 4 ,
 .Xr divert 4 ,
 .Xr icmp 4 ,

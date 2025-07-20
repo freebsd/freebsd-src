@@ -1,0 +1,4 @@
+comment = "Examples in /usr/share/examples"
+desc = <<EOD
+Examples in /usr/share/examples
+EOD

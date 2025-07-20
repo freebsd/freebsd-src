@@ -30,11 +30,12 @@
  */
 
 #include "namespace.h"
-#include <sys/param.h>
+#include <sys/types.h>
 
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -52,8 +53,7 @@ __opendir2(const char *name, int flags)
 
 	if ((flags & (__DTF_READALL | __DTF_SKIPREAD)) != 0)
 		return (NULL);
-	if ((fd = _open(name,
-	    O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC)) == -1)
+	if ((fd = _open(name, O_DIRECTORY | O_RDONLY | O_CLOEXEC)) == -1)
 		return (NULL);
 
 	dir = __opendir_common(fd, flags, false);
@@ -243,20 +243,18 @@ _filldir(DIR *dirp, bool use_current_pos)
 	return (true);
 }
 
+/*
+ * Return true if the file descriptor is associated with a file from a
+ * union file system or from a file system mounted with the union flag.
+ */
 static bool
 is_unionstack(int fd)
 {
-	int unionstack;
-
-	unionstack = _fcntl(fd, F_ISUNIONSTACK, 0);
-	if (unionstack != -1)
-		return (unionstack);
-
 	/*
-	 * Should not happen unless running on a kernel without the op,
-	 * but no use rendering the system useless in such a case.
+	 * This call shouldn't fail, but if it does, just assume that the
+	 * answer is no.
 	 */
-	return (0);
+	return (_fcntl(fd, F_ISUNIONSTACK, 0) > 0);
 }
 
 /*
@@ -266,6 +264,7 @@ DIR *
 __opendir_common(int fd, int flags, bool use_current_pos)
 {
 	DIR *dirp;
+	ssize_t ret;
 	int incr;
 	int saved_errno;
 	bool unionstack;
@@ -315,13 +314,11 @@ __opendir_common(int fd, int flags, bool use_current_pos)
 			 * to prime dd_seek.  This also checks if the
 			 * fd passed to fdopendir() is a directory.
 			 */
-			dirp->dd_size = _getdirentries(dirp->dd_fd,
+			ret = _getdirentries(dirp->dd_fd,
 			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
-			if (dirp->dd_size < 0) {
-				if (errno == EINVAL)
-					errno = ENOTDIR;
+			if (ret < 0)
 				goto fail;
-			}
+			dirp->dd_size = (size_t)ret;
 			dirp->dd_flags |= __DTF_SKIPREAD;
 		} else {
 			dirp->dd_size = 0;

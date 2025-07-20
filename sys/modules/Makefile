@@ -141,6 +141,7 @@ SUBDIR=	\
 	${_hptnr} \
 	${_hptrr} \
 	hwpmc \
+	${_hwt} \
 	${_hyperv} \
 	i2c \
 	${_iavf} \
@@ -325,6 +326,7 @@ SUBDIR=	\
 	proto \
 	pseudofs \
 	${_pst} \
+	${_pt} \
 	pty  \
 	puc \
 	pwm \
@@ -841,6 +843,7 @@ _iwx=		iwx
 _ixl=		ixl
 _nvdimm=	nvdimm
 _pms=		pms
+_pt=		pt
 _qat=		qat
 .if ${MK_SOURCELESS_UCODE} != "no"
 _qatfw=		qatfw
@@ -857,6 +860,10 @@ _sgx=		sgx
 _sgx_linux=	sgx_linux
 _smartpqi=	smartpqi
 _p2sb=		p2sb
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+_hwt=		hwt
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \

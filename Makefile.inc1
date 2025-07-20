@@ -2130,11 +2130,10 @@ create-source-src-package: _pkgbootstrap .PHONY
 		PKGNAME "src" \
 		PKGGENNAME "src" \
 		VERSION "${PKG_VERSION}" \
-		DESC "FreeBSD Kernel Sources" \
-		COMMENT "FreeBSD Userland Sources" \
 		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
 		PKG_WWW "${PKG_WWW}" \
+		UCLFILES "${SRCDIR}/release/packages/ucl" \
 		${SRCDIR}/release/packages/template.ucl \
 		${SSTAGEDIR}/src.ucl
 	${PKG_CMD} -o ABI=${PKG_ABI} \
@@ -2155,13 +2154,12 @@ create-source-src-sys-package: _pkgbootstrap .PHONY
 		> ${SSTAGEDIR}/src-sys.plist
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src-sys" \
-		PKGGENNAME "src" \
+		PKGGENNAME "src-sys" \
 		VERSION "${PKG_VERSION}" \
-		DESC "FreeBSD Kernel Sources" \
-		COMMENT "FreeBSD Kernel Sources" \
 		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
 		PKG_WWW "${PKG_WWW}" \
+		UCLFILES "${SRCDIR}/release/packages/ucl" \
 		${SRCDIR}/release/packages/template.ucl \
 		${SSTAGEDIR}/src-sys.ucl
 	${PKG_CMD} -o ABI=${PKG_ABI} \
@@ -2226,12 +2224,12 @@ create-dtb-package:
 	@if [ -f ${KSTAGEDIR}/${DISTDIR}/dtb.plist ]; then \
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "dtb" \
+		PKGGENNAME "dtb" \
 		VERSION "${PKG_VERSION}" \
-		COMMENT "FreeBSD Devicetree Blobs" \
-		DESC "FreeBSD Devicetree Blobs" \
 		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
 		PKG_WWW "${PKG_WWW}" \
+		UCLFILES "${SRCDIR}/release/packages/ucl" \
 		${SRCDIR}/release/packages/template.ucl \
 		${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
 	awk -F\" ' \
@@ -2257,13 +2255,15 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "kernel-${INSTALLKERNEL:tl}${flavor}" \
+		PKGGENNAME "kernel" \
 		VERSION "${PKG_VERSION}" \
 		KERNELDIR "kernel" \
-		COMMENT "FreeBSD ${INSTALLKERNEL} kernel ${flavor}" \
-		DESC "FreeBSD ${INSTALLKERNEL} kernel ${flavor}" \
+		KERNEL_NAME "${INSTALLKERNEL}" \
+		KERNEL_FLAVOR "${flavor}" \
 		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
 		PKG_WWW "${PKG_WWW}" \
+		UCLFILES "${SRCDIR}/release/packages/ucl" \
 		${SRCDIR}/release/packages/template.ucl \
 		 ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -2296,14 +2296,14 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		PKGNAME "kernel-${_kernel:tl}${flavor}" \
 		PKGGENNAME "kernel" \
 		FORCEINCLUDE "kernel${flavor}" \
-		UCLFILES "${SRCDIR}/release/packages/" \
 		VERSION "${PKG_VERSION}" \
+		KERNEL_NAME "${_kernel:tl}" \
+		KERNEL_FLAVOR "${flavor}" \
 		KERNELDIR "kernel.${_kernel}" \
-		DESC "FreeBSD ${_kernel} kernel ${flavor}" \
-		COMMENT "FreeBSD ${_kernel} kernel ${flavor}" \
 		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
 		PKG_WWW "${PKG_WWW}" \
+		UCLFILES "${SRCDIR}/release/packages/ucl" \
 		${SRCDIR}/release/packages/template.ucl \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -2758,7 +2758,7 @@ ${_bt}-links: .PHONY
 .for _tool in ${_bootstrap_tools_links}
 ${_bt}-link-${_tool}: .PHONY
 	@rm -f "${WORLDTMP}/legacy/bin/${_tool}"; \
-	source_path=`which ${_tool}`; \
+	source_path=`which ${_tool} || true`; \
 	if [ ! -e "$${source_path}" ] ; then \
 		echo "Cannot find host tool '${_tool}'"; false; \
 	fi; \

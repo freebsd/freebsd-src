@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 17, 2025
+.Dd July 9, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -361,11 +361,11 @@ For example:
 .Bd -literal -offset indent
 set timeout tcp.first 120
 set timeout tcp.established 86400
-set timeout { adaptive.start 6000, adaptive.end 12000 }
-set limit states 10000
+set timeout { adaptive.start 60000, adaptive.end 120000 }
+set limit states 100000
 .Ed
 .Pp
-With 9000 state table entries, the timeout values are scaled to 50%
+With 90000 state table entries, the timeout values are scaled to 50%
 (tcp.first 60, tcp.established 43200).
 .It Ar set loginterface
 Enable collection of packet and byte count statistics for the given
@@ -542,6 +542,9 @@ an ICMP UNREACHABLE is returned for blocked UDP packets,
 and all other packets are silently dropped.
 .El
 .Pp
+The default value is
+.Cm drop .
+.Pp
 For example:
 .Bd -literal -offset indent
 set block-policy return
@@ -666,6 +669,8 @@ but can be overridden via this option.
 Setting this option may leave a small period of time where the fingerprints
 referenced by the currently active ruleset are inconsistent until the new
 ruleset finishes loading.
+The default location for fingerprints is
+.Pa /etc/pf.os .
 .Pp
 For example:
 .Pp
@@ -1382,7 +1387,7 @@ part of the new destination address according to the specified subnet.
 It is possible to embed a complete IPv4 address into an IPv6 address
 using a network prefix of /96 or smaller.
 .Pp
-When a destination address is not specified it is assumed that the host
+When a destination address is not specified, it is assumed that the host
 part is 32-bit long.
 For IPv6 to IPv4 translation this would mean using only the lower 32
 bits of the original IPv6 destination address.
@@ -2042,6 +2047,21 @@ connections:
 block out proto { tcp, udp } all
 pass  out proto { tcp, udp } all user { < 1000, dhartmei }
 .Ed
+.Pp
+The example below permits users with uid between 1000 and 1500
+to open connections:
+.Bd -literal -offset indent
+block out proto tcp all
+pass  out proto tcp from self user { 999 >< 1501 }
+.Ed
+.Pp
+The
+.Sq \&:
+operator, which works for port number matching, does not work for
+.Cm user
+and
+.Cm group
+match.
 .It Xo Ar flags Aq Ar a
 .Pf / Ns Aq Ar b
 .No \*(Ba / Ns Aq Ar b
@@ -2102,10 +2122,10 @@ options, or scrubbed with
 will also not be recoverable from intermediate packets.
 Such connections will stall and time out.
 .It Xo Ar icmp-type Aq Ar type
-.Ar code Aq Ar code
+.Ar Op code Aq Ar code
 .Xc
 .It Xo Ar icmp6-type Aq Ar type
-.Ar code Aq Ar code
+.Ar Op code Aq Ar code
 .Xc
 This rule only applies to ICMP or ICMPv6 packets with the specified type
 and code.
@@ -2554,6 +2574,7 @@ will not work if
 .Xr pf 4
 operates on a
 .Xr bridge 4 .
+Also they act on incoming SYN packets only.
 .Pp
 Example:
 .Bd -literal -offset indent
@@ -2763,8 +2784,8 @@ This means that it will not work on other protocols and will not match
 a currently established connection.
 .Pp
 Caveat: operating system fingerprints are occasionally wrong.
-There are three problems: an attacker can trivially craft his packets to
-appear as any operating system he chooses;
+There are three problems: an attacker can trivially craft packets to
+appear as any operating system;
 an operating system patch could change the stack behavior and no fingerprints
 will match it until the database is updated;
 and multiple operating systems may have the same fingerprint.
@@ -3091,7 +3112,7 @@ rule can also contain a filter ruleset in a brace-delimited block.
 In that case, no separate loading of rules into the anchor
 is required.
 Brace delimited blocks may contain rules or other brace-delimited blocks.
-When an anchor is populated this way the anchor name becomes optional.
+When an anchor is populated this way, the anchor name becomes optional.
 .Bd -literal -offset indent
 anchor "external" on $ext_if {
 	block

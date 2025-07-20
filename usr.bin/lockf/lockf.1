@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 25, 2023
+.Dd June 24, 2025
 .Dt LOCKF 1
 .Os
 .Sh NAME
@@ -30,7 +30,7 @@
 .Nd execute a command while holding a file lock
 .Sh SYNOPSIS
 .Nm
-.Op Fl knsw
+.Op Fl knpsTw
 .Op Fl t Ar seconds
 .Ar file
 .Ar command
@@ -126,6 +126,32 @@ is not specified,
 will create
 .Ar file
 if necessary.
+.It Fl p
+Write the pid of the
+.Ar command
+to
+.Ar file .
+This option will cause
+.Nm
+to open
+.Ar file
+for writing rather than reading.
+.It Fl T
+Upon receipt of a
+.Dv SIGTERM ,
+forward a
+.Dv SIGTERM
+along to the
+.Ar command
+before cleaning up the
+.Ar file
+and exiting.
+By default,
+.Nm
+effectively orphans the
+.Ar command
+after cleaning up the
+.Ar file .
 .It Fl t Ar seconds
 Specifies a timeout for waiting for the lock.
 By default,

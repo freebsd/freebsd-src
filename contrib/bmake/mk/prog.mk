@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.45 2024/12/12 19:56:36 sjg Exp $
+#	$Id: prog.mk,v 1.46 2025/07/05 16:43:03 sjg Exp $
 
 # should be set properly in sys.mk
 _this ?= ${.PARSEFILE:S,bsd.,,}
@@ -27,11 +27,11 @@ CFLAGS+=	-mcmodel=medlow
 .if ${OBJECT_FMT} == "ELF"
 .ifndef LIBCRTBEGIN
 LIBCRTBEGIN=	${DESTDIR}/usr/lib/crtbegin.o
-.MADE: ${LIBCRTBEGIN}
+${LIBCRTBEGIN}:	.MADE
 .endif
 .ifndef LIBCRTEND
 LIBCRTEND=	${DESTDIR}/usr/lib/crtend.o
-.MADE: ${LIBCRTEND}
+${LIBCRTEND}:	.MADE
 .endif
 _SHLINKER=	${SHLINKDIR}/ld.elf_so
 .else
@@ -42,7 +42,7 @@ _SHLINKER=	${SHLINKDIR}/ld.so
 
 .ifndef LIBCRT0
 LIBCRT0=	${DESTDIR}/usr/lib/crt0.o
-.MADE: ${LIBCRT0}
+${LIBCRT0}:	.MADE
 .endif
 .endif	# NetBSD
 

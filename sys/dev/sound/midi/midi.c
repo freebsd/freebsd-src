@@ -30,12 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
- /*
-  * Parts of this file started out as NetBSD: midi.c 1.31
-  * They are mostly gone.  Still the most obvious will be the state
-  * machine midi_in
-  */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
@@ -66,7 +60,6 @@
 #include "mpu_if.h"
 
 #include <dev/sound/midi/midiq.h>
-#include "synth_if.h"
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
 #ifndef KOBJMETHOD_END
@@ -78,17 +71,6 @@ MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 enum midi_states {
 	MIDI_IN_START, MIDI_IN_SYSEX, MIDI_IN_DATA
 };
-
-/*
- * The MPU interface current has init() uninit() inqsize() outqsize()
- * callback() : fiddle with the tx|rx status.
- */
-
-#include "mpu_if.h"
-
-/*
- * /dev/rmidi	Structure definitions
- */
 
 #define MIDI_NAMELEN   16
 struct snd_midi {
@@ -115,94 +97,12 @@ struct snd_midi {
 					 * complete command packets. */
 	struct proc *async;
 	struct cdev *dev;
-	struct synth_midi *synth;
-	int	synth_flags;
 	TAILQ_ENTRY(snd_midi) link;
 };
 
-struct synth_midi {
-	KOBJ_FIELDS;
-	struct snd_midi *m;
-};
-
-static synth_open_t midisynth_open;
-static synth_close_t midisynth_close;
-static synth_writeraw_t midisynth_writeraw;
-static synth_killnote_t midisynth_killnote;
-static synth_startnote_t midisynth_startnote;
-static synth_setinstr_t midisynth_setinstr;
-static synth_alloc_t midisynth_alloc;
-static synth_controller_t midisynth_controller;
-static synth_bender_t midisynth_bender;
-
-static kobj_method_t midisynth_methods[] = {
-	KOBJMETHOD(synth_open, midisynth_open),
-	KOBJMETHOD(synth_close, midisynth_close),
-	KOBJMETHOD(synth_writeraw, midisynth_writeraw),
-	KOBJMETHOD(synth_setinstr, midisynth_setinstr),
-	KOBJMETHOD(synth_startnote, midisynth_startnote),
-	KOBJMETHOD(synth_killnote, midisynth_killnote),
-	KOBJMETHOD(synth_alloc, midisynth_alloc),
-	KOBJMETHOD(synth_controller, midisynth_controller),
-	KOBJMETHOD(synth_bender, midisynth_bender),
-	KOBJMETHOD_END
-};
-
-DEFINE_CLASS(midisynth, midisynth_methods, 0);
-
-/*
- * Module Exports & Interface
- *
- * struct midi_chan *midi_init(MPU_CLASS cls, int unit, int chan,
- *     void *cookie)
- * int midi_uninit(struct snd_midi *)
- *
- * 0 == no error
- * EBUSY or other error
- *
- * int midi_in(struct snd_midi *, char *buf, int count)
- * int midi_out(struct snd_midi *, char *buf, int count)
- *
- * midi_{in,out} return actual size transfered
- *
- */
-
-/*
- * midi_devs tailq, holder of all rmidi instances protected by midistat_lock
- */
-
 TAILQ_HEAD(, snd_midi) midi_devs;
 
-/*
- * /dev/midistat variables and declarations, protected by midistat_lock
- */
-
 struct sx mstat_lock;
-
-static int      midistat_isopen = 0;
-static struct sbuf midistat_sbuf;
-static struct cdev *midistat_dev;
-
-/*
- * /dev/midistat	dev_t declarations
- */
-
-static d_open_t midistat_open;
-static d_close_t midistat_close;
-static d_read_t midistat_read;
-
-static struct cdevsw midistat_cdevsw = {
-	.d_version = D_VERSION,
-	.d_open = midistat_open,
-	.d_close = midistat_close,
-	.d_read = midistat_read,
-	.d_name = "midistat",
-};
-
-/*
- * /dev/rmidi dev_t declarations, struct variable access is protected by
- * locks contained within the structure.
- */
 
 static d_open_t midi_open;
 static d_close_t midi_close;
@@ -222,41 +122,18 @@ static struct cdevsw midi_cdevsw = {
 	.d_name = "rmidi",
 };
 
-/*
- * Prototypes of library functions
- */
-
 static int      midi_destroy(struct snd_midi *, int);
-static int      midistat_prepare(struct sbuf * s);
 static int      midi_load(void);
 static int      midi_unload(void);
 
-/*
- * Misc declr.
- */
 SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Midi driver");
-static SYSCTL_NODE(_hw_midi, OID_AUTO, stat, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "Status device");
 
 int             midi_debug;
 /* XXX: should this be moved into debug.midi? */
 SYSCTL_INT(_hw_midi, OID_AUTO, debug, CTLFLAG_RW, &midi_debug, 0, "");
 
-int             midi_dumpraw;
-SYSCTL_INT(_hw_midi, OID_AUTO, dumpraw, CTLFLAG_RW, &midi_dumpraw, 0, "");
-
-int             midi_instroff;
-SYSCTL_INT(_hw_midi, OID_AUTO, instroff, CTLFLAG_RW, &midi_instroff, 0, "");
-
-int             midistat_verbose;
-SYSCTL_INT(_hw_midi_stat, OID_AUTO, verbose, CTLFLAG_RW, 
-	&midistat_verbose, 0, "");
-
 #define MIDI_DEBUG(l,a)	if(midi_debug>=l) a
-/*
- * CODE START
- */
 
 void
 midistat_lock(void)
@@ -285,9 +162,6 @@ midistat_lockassert(void)
  * what unit number is used.
  *
  * It is an error to call midi_init with an already used unit/channel combo.
- *
- * Returns NULL on error
- *
  */
 struct snd_midi *
 midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
@@ -326,9 +200,6 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 
 	MIDI_DEBUG(1, printf("midiinit #2: unit %d/%d.\n", unit, channel));
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
-	m->synth = malloc(sizeof(*m->synth), M_MIDI, M_WAITOK | M_ZERO);
-	kobj_init((kobj_t)m->synth, &midisynth_class);
-	m->synth->m = m;
 	kobj_init((kobj_t)m, cls);
 	inqsize = MPU_INQSIZE(m, cookie);
 	outqsize = MPU_OUTQSIZE(m, cookie);
@@ -393,7 +264,6 @@ err2:
 	if (MIDIQ_BUF(m->outq))
 		free(MIDIQ_BUF(m->outq), M_MIDI);
 err1:
-	free(m->synth, M_MIDI);
 	free(m, M_MIDI);
 err0:
 	midistat_unlock();
@@ -405,9 +275,7 @@ err0:
  * midi_uninit does not call MIDI_UNINIT, as since this is the implementors
  * entry point. midi_uninit if fact, does not send any methods. A call to
  * midi_uninit is a defacto promise that you won't manipulate ch anymore
- *
  */
-
 int
 midi_uninit(struct snd_midi *m)
 {
@@ -440,13 +308,6 @@ exit:
 	return err;
 }
 
-/*
- * midi_in: process all data until the queue is full, then discards the rest.
- * Since midi_in is a state machine, data discards can cause it to get out of
- * whack.  Process as much as possible.  It calls, wakeup, selnotify and
- * psignal at most once.
- */
-
 #ifdef notdef
 static int midi_lengths[] = {2, 2, 2, 2, 1, 1, 2, 0};
 
@@ -460,6 +321,12 @@ static int midi_lengths[] = {2, 2, 2, 2, 1, 1, 2, 0};
 #define MIDI_SYSEX_START	0xF0
 #define MIDI_SYSEX_END	    0xF7
 
+/*
+ * midi_in: process all data until the queue is full, then discards the rest.
+ * Since midi_in is a state machine, data discards can cause it to get out of
+ * whack.  Process as much as possible.  It calls, wakeup, selnotify and
+ * psignal at most once.
+ */
 int
 midi_in(struct snd_midi *m, uint8_t *buf, int size)
 {
@@ -627,9 +494,6 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 	return used;
 }
 
-/*
- * /dev/rmidi#.#	device access functions
- */
 int
 midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
@@ -934,434 +798,6 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 }
 
 /*
- * /dev/midistat device functions
- *
- */
-static int
-midistat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
-{
-	int error;
-
-	MIDI_DEBUG(1, printf("midistat_open\n"));
-
-	midistat_lock();
-	if (midistat_isopen) {
-		midistat_unlock();
-		return EBUSY;
-	}
-	midistat_isopen = 1;
-	sbuf_new(&midistat_sbuf, NULL, 4096, SBUF_AUTOEXTEND);
-	error = (midistat_prepare(&midistat_sbuf) > 0) ? 0 : ENOMEM;
-	if (error)
-		midistat_isopen = 0;
-	midistat_unlock();
-	return error;
-}
-
-static int
-midistat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
-{
-	MIDI_DEBUG(1, printf("midistat_close\n"));
-	midistat_lock();
-	if (!midistat_isopen) {
-		midistat_unlock();
-		return EBADF;
-	}
-	sbuf_delete(&midistat_sbuf);
-	midistat_isopen = 0;
-	midistat_unlock();
-	return 0;
-}
-
-static int
-midistat_read(struct cdev *i_dev, struct uio *uio, int flag)
-{
-	long l;
-	int err;
-
-	MIDI_DEBUG(4, printf("midistat_read\n"));
-	midistat_lock();
-	if (!midistat_isopen) {
-		midistat_unlock();
-		return EBADF;
-	}
-	if (uio->uio_offset < 0 || uio->uio_offset > sbuf_len(&midistat_sbuf)) {
-		midistat_unlock();
-		return EINVAL;
-	}
-	err = 0;
-	l = lmin(uio->uio_resid, sbuf_len(&midistat_sbuf) - uio->uio_offset);
-	if (l > 0) {
-		err = uiomove(sbuf_data(&midistat_sbuf) + uio->uio_offset, l,
-		    uio);
-	}
-	midistat_unlock();
-	return err;
-}
-
-/*
- * Module library functions
- */
-
-static int
-midistat_prepare(struct sbuf *s)
-{
-	struct snd_midi *m;
-
-	midistat_lockassert();
-
-	sbuf_printf(s, "FreeBSD Midi Driver (midi2)\n");
-	if (TAILQ_EMPTY(&midi_devs)) {
-		sbuf_printf(s, "No devices installed.\n");
-		sbuf_finish(s);
-		return sbuf_len(s);
-	}
-	sbuf_printf(s, "Installed devices:\n");
-
-	TAILQ_FOREACH(m, &midi_devs, link) {
-		mtx_lock(&m->lock);
-		sbuf_printf(s, "%s [%d/%d:%s]", m->name, m->unit, m->channel,
-		    MPU_PROVIDER(m, m->cookie));
-		sbuf_printf(s, "%s", MPU_DESCR(m, m->cookie, midistat_verbose));
-		sbuf_printf(s, "\n");
-		mtx_unlock(&m->lock);
-	}
-
-	sbuf_finish(s);
-	return sbuf_len(s);
-}
-
-#ifdef notdef
-/*
- * Convert IOCTL command to string for debugging
- */
-
-static char *
-midi_cmdname(int cmd)
-{
-	static struct {
-		int	cmd;
-		char   *name;
-	}     *tab, cmdtab_midiioctl[] = {
-#define A(x)	{x, ## x}
-		/*
-	         * Once we have some real IOCTLs define, the following will
-	         * be relavant.
-	         *
-	         * A(SNDCTL_MIDI_PRETIME), A(SNDCTL_MIDI_MPUMODE),
-	         * A(SNDCTL_MIDI_MPUCMD), A(SNDCTL_SYNTH_INFO),
-	         * A(SNDCTL_MIDI_INFO), A(SNDCTL_SYNTH_MEMAVL),
-	         * A(SNDCTL_FM_LOAD_INSTR), A(SNDCTL_FM_4OP_ENABLE),
-	         * A(MIOSPASSTHRU), A(MIOGPASSTHRU), A(AIONWRITE),
-	         * A(AIOGSIZE), A(AIOSSIZE), A(AIOGFMT), A(AIOSFMT),
-	         * A(AIOGMIX), A(AIOSMIX), A(AIOSTOP), A(AIOSYNC),
-	         * A(AIOGCAP),
-	         */
-#undef A
-		{
-			-1, "unknown"
-		},
-	};
-
-	for (tab = cmdtab_midiioctl; tab->cmd != cmd && tab->cmd != -1; tab++);
-	return tab->name;
-}
-
-#endif					/* notdef */
-
-/*
- * midisynth
- */
-
-int
-midisynth_open(void *n, void *arg, int flags)
-{
-	struct snd_midi *m = ((struct synth_midi *)n)->m;
-	int retval;
-
-	MIDI_DEBUG(1, printf("midisynth_open %s %s\n",
-	    flags & FREAD ? "M_RX" : "", flags & FWRITE ? "M_TX" : ""));
-
-	if (m == NULL)
-		return ENXIO;
-
-	mtx_lock(&m->lock);
-	mtx_lock(&m->qlock);
-
-	retval = 0;
-
-	if (flags & FREAD) {
-		if (MIDIQ_SIZE(m->inq) == 0)
-			retval = ENXIO;
-		else if (m->flags & M_RX)
-			retval = EBUSY;
-		if (retval)
-			goto err;
-	}
-	if (flags & FWRITE) {
-		if (MIDIQ_SIZE(m->outq) == 0)
-			retval = ENXIO;
-		else if (m->flags & M_TX)
-			retval = EBUSY;
-		if (retval)
-			goto err;
-	}
-	m->busy++;
-
-	/*
-	 * TODO: Consider m->async = 0;
-	 */
-
-	if (flags & FREAD) {
-		m->flags |= M_RX | M_RXEN;
-		/*
-	         * Only clear the inq, the outq might still have data to drain
-	         * from a previous session
-	         */
-		MIDIQ_CLEAR(m->inq);
-		m->rchan = 0;
-	}
-
-	if (flags & FWRITE) {
-		m->flags |= M_TX;
-		m->wchan = 0;
-	}
-	m->synth_flags = flags & (FREAD | FWRITE);
-
-	MPU_CALLBACK(m, m->cookie, m->flags);
-
-err:	mtx_unlock(&m->qlock);
-	mtx_unlock(&m->lock);
-	MIDI_DEBUG(2, printf("midisynth_open: return %d.\n", retval));
-	return retval;
-}
-
-int
-midisynth_close(void *n)
-{
-	struct snd_midi *m = ((struct synth_midi *)n)->m;
-	int retval;
-	int oldflags;
-
-	MIDI_DEBUG(1, printf("midisynth_close %s %s\n",
-	    m->synth_flags & FREAD ? "M_RX" : "",
-	    m->synth_flags & FWRITE ? "M_TX" : ""));
-
-	if (m == NULL)
-		return ENXIO;
-
-	mtx_lock(&m->lock);
-	mtx_lock(&m->qlock);
-
-	if ((m->synth_flags & FREAD && !(m->flags & M_RX)) ||
-	    (m->synth_flags & FWRITE && !(m->flags & M_TX))) {
-		retval = ENXIO;
-		goto err;
-	}
-	m->busy--;
-
-	oldflags = m->flags;
-
-	if (m->synth_flags & FREAD)
-		m->flags &= ~(M_RX | M_RXEN);
-	if (m->synth_flags & FWRITE)
-		m->flags &= ~M_TX;
-
-	if ((m->flags & (M_TXEN | M_RXEN)) != (oldflags & (M_RXEN | M_TXEN)))
-		MPU_CALLBACK(m, m->cookie, m->flags);
-
-	MIDI_DEBUG(1, printf("midi_close: closed, busy = %d.\n", m->busy));
-
-	mtx_unlock(&m->qlock);
-	mtx_unlock(&m->lock);
-	retval = 0;
-err:	return retval;
-}
-
-/*
- * Always blocking.
- */
-
-int
-midisynth_writeraw(void *n, uint8_t *buf, size_t len)
-{
-	struct snd_midi *m = ((struct synth_midi *)n)->m;
-	int retval;
-	int used;
-	int i;
-
-	MIDI_DEBUG(4, printf("midisynth_writeraw\n"));
-
-	retval = 0;
-
-	if (m == NULL)
-		return ENXIO;
-
-	mtx_lock(&m->lock);
-	mtx_lock(&m->qlock);
-
-	if (!(m->flags & M_TX))
-		goto err1;
-
-	if (midi_dumpraw)
-		printf("midi dump: ");
-
-	while (len > 0) {
-		while (MIDIQ_AVAIL(m->outq) == 0) {
-			if (!(m->flags & M_TXEN)) {
-				m->flags |= M_TXEN;
-				MPU_CALLBACK(m, m->cookie, m->flags);
-			}
-			mtx_unlock(&m->lock);
-			m->wchan = 1;
-			MIDI_DEBUG(3, printf("midisynth_writeraw msleep\n"));
-			retval = msleep(&m->wchan, &m->qlock,
-			    PCATCH | PDROP, "midi TX", 0);
-			/*
-			 * We slept, maybe things have changed since last
-			 * dying check
-			 */
-			if (retval == EINTR)
-				goto err0;
-
-			if (retval)
-				goto err0;
-			mtx_lock(&m->lock);
-			mtx_lock(&m->qlock);
-			m->wchan = 0;
-			if (!m->busy)
-				goto err1;
-		}
-
-		/*
-	         * We are certain than data can be placed on the queue
-	         */
-
-		used = MIN(MIDIQ_AVAIL(m->outq), len);
-		used = MIN(used, MIDI_WSIZE);
-		MIDI_DEBUG(5,
-		    printf("midi_synth: resid %zu len %jd avail %jd\n",
-		    len, (intmax_t)MIDIQ_LEN(m->outq),
-		    (intmax_t)MIDIQ_AVAIL(m->outq)));
-
-		if (midi_dumpraw)
-			for (i = 0; i < used; i++)
-				printf("%x ", buf[i]);
-
-		MIDIQ_ENQ(m->outq, buf, used);
-		len -= used;
-
-		/*
-	         * Inform the bottom half that data can be written
-	         */
-		if (!(m->flags & M_TXEN)) {
-			m->flags |= M_TXEN;
-			MPU_CALLBACK(m, m->cookie, m->flags);
-		}
-	}
-	/*
-	 * If we Made it here then transfer is good
-	 */
-	if (midi_dumpraw)
-		printf("\n");
-
-	retval = 0;
-err1:	mtx_unlock(&m->qlock);
-	mtx_unlock(&m->lock);
-err0:	return retval;
-}
-
-static int
-midisynth_killnote(void *n, uint8_t chn, uint8_t note, uint8_t vel)
-{
-	u_char c[3];
-
-	if (note > 127 || chn > 15)
-		return (EINVAL);
-
-	if (vel > 127)
-		vel = 127;
-
-	if (vel == 64) {
-		c[0] = 0x90 | (chn & 0x0f);	/* Note on. */
-		c[1] = (u_char)note;
-		c[2] = 0;
-	} else {
-		c[0] = 0x80 | (chn & 0x0f);	/* Note off. */
-		c[1] = (u_char)note;
-		c[2] = (u_char)vel;
-	}
-
-	return midisynth_writeraw(n, c, 3);
-}
-
-static int
-midisynth_setinstr(void *n, uint8_t chn, uint16_t instr)
-{
-	u_char c[2];
-
-	if (instr > 127 || chn > 15)
-		return EINVAL;
-
-	c[0] = 0xc0 | (chn & 0x0f);	/* Progamme change. */
-	c[1] = instr + midi_instroff;
-
-	return midisynth_writeraw(n, c, 2);
-}
-
-static int
-midisynth_startnote(void *n, uint8_t chn, uint8_t note, uint8_t vel)
-{
-	u_char c[3];
-
-	if (note > 127 || chn > 15)
-		return EINVAL;
-
-	if (vel > 127)
-		vel = 127;
-
-	c[0] = 0x90 | (chn & 0x0f);	/* Note on. */
-	c[1] = (u_char)note;
-	c[2] = (u_char)vel;
-
-	return midisynth_writeraw(n, c, 3);
-}
-static int
-midisynth_alloc(void *n, uint8_t chan, uint8_t note)
-{
-	return chan;
-}
-
-static int
-midisynth_controller(void *n, uint8_t chn, uint8_t ctrlnum, uint16_t val)
-{
-	u_char c[3];
-
-	if (ctrlnum > 127 || chn > 15)
-		return EINVAL;
-
-	c[0] = 0xb0 | (chn & 0x0f);	/* Control Message. */
-	c[1] = ctrlnum;
-	c[2] = val;
-	return midisynth_writeraw(n, c, 3);
-}
-
-static int
-midisynth_bender(void *n, uint8_t chn, uint16_t val)
-{
-	u_char c[3];
-
-	if (val > 16383 || chn > 15)
-		return EINVAL;
-
-	c[0] = 0xe0 | (chn & 0x0f);	/* Pitch bend. */
-	c[1] = (u_char)val & 0x7f;
-	c[2] = (u_char)(val >> 7) & 0x7f;
-
-	return midisynth_writeraw(n, c, 3);
-}
-
-/*
  * Single point of midi destructions.
  */
 static int
@@ -1381,23 +817,15 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 	free(MIDIQ_BUF(m->outq), M_MIDI);
 	mtx_destroy(&m->qlock);
 	mtx_destroy(&m->lock);
-	free(m->synth, M_MIDI);
 	free(m, M_MIDI);
 	return 0;
 }
-
-/*
- * Load and unload functions, creates the /dev/midistat device
- */
 
 static int
 midi_load(void)
 {
 	sx_init(&mstat_lock, "midistat lock");
 	TAILQ_INIT(&midi_devs);
-
-	midistat_dev = make_dev(&midistat_cdevsw, MIDI_DEV_MIDICTL, UID_ROOT,
-	    GID_WHEEL, 0666, "midistat");
 
 	return 0;
 }
@@ -1411,9 +839,6 @@ midi_unload(void)
 	MIDI_DEBUG(1, printf("midi_unload()\n"));
 	retval = EBUSY;
 	midistat_lock();
-	if (midistat_isopen)
-		goto exit0;
-
 	TAILQ_FOREACH_SAFE(m, &midi_devs, link, tmp) {
 		mtx_lock(&m->lock);
 		if (m->busy)
@@ -1421,27 +846,20 @@ midi_unload(void)
 		else
 			retval = midi_destroy(m, 1);
 		if (retval)
-			goto exit1;
+			goto exit;
 	}
 	midistat_unlock();
-	destroy_dev(midistat_dev);
 
-	/*
-	 * Made it here then unload is complete
-	 */
 	sx_destroy(&mstat_lock);
 	return 0;
 
-exit1:
+exit:
 	mtx_unlock(&m->lock);
-exit0:
 	midistat_unlock();
 	if (retval)
 		MIDI_DEBUG(2, printf("midi_unload: failed\n"));
 	return retval;
 }
-
-extern int seq_modevent(module_t mod, int type, void *data);
 
 static int
 midi_modevent(module_t mod, int type, void *data)
@@ -1453,14 +871,10 @@ midi_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		retval = midi_load();
-		if (retval == 0)
-			retval = seq_modevent(mod, type, data);
 		break;
 
 	case MOD_UNLOAD:
 		retval = midi_unload();
-		if (retval == 0)
-			retval = seq_modevent(mod, type, data);
 		break;
 
 	default:
@@ -1468,74 +882,6 @@ midi_modevent(module_t mod, int type, void *data)
 	}
 
 	return retval;
-}
-
-kobj_t
-midimapper_addseq(void *arg1, int *unit, void **cookie)
-{
-	unit = NULL;
-
-	return (kobj_t)arg1;
-}
-
-int
-midimapper_open_locked(void *arg1, void **cookie)
-{
-	int retval = 0;
-	struct snd_midi *m;
-
-	midistat_lockassert();
-	TAILQ_FOREACH(m, &midi_devs, link) {
-		retval++;
-	}
-
-	return retval;
-}
-
-int
-midimapper_open(void *arg1, void **cookie)
-{
-	int retval;
-
-	midistat_lock();
-	retval = midimapper_open_locked(arg1, cookie);
-	midistat_unlock();
-
-	return retval;
-}
-
-int
-midimapper_close(void *arg1, void *cookie)
-{
-	return 0;
-}
-
-kobj_t
-midimapper_fetch_synth_locked(void *arg, void *cookie, int unit)
-{
-	struct snd_midi *m;
-	int retval = 0;
-
-	midistat_lockassert();
-	TAILQ_FOREACH(m, &midi_devs, link) {
-		if (unit == retval)
-			return (kobj_t)m->synth;
-		retval++;
-	}
-
-	return NULL;
-}
-
-kobj_t
-midimapper_fetch_synth(void *arg, void *cookie, int unit)
-{
-	kobj_t synth;
-
-	midistat_lock();
-	synth = midimapper_fetch_synth_locked(arg, cookie, unit);
-	midistat_unlock();
-
-	return synth;
 }
 
 DEV_MODULE(midi, midi_modevent, NULL);

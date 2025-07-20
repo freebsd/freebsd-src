@@ -1,0 +1,4 @@
+comment = "Front-end to vmm(4) virtualization driver"
+desc = <<EOD
+libvmmapi provides an interface for applications to access the vmm(4) driver.
+EOD

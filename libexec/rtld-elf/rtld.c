@@ -82,9 +82,15 @@ struct dlerror_save {
 	char *msg;
 };
 
+struct tcb_list_entry {
+	TAILQ_ENTRY(tcb_list_entry)	next;
+};
+
 /*
  * Function declarations.
  */
+static bool allocate_tls_offset_common(size_t *offp, size_t tlssize,
+    size_t tlsalign, size_t tlspoffset);
 static const char *basename(const char *);
 static void digest_dynamic1(Obj_Entry *, int, const Elf_Dyn **,
     const Elf_Dyn **, const Elf_Dyn **);
@@ -92,7 +98,7 @@ static bool digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *,
     const Elf_Dyn *);
 static bool digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
-static void distribute_static_tls(Objlist *, RtldLockState *);
+static void distribute_static_tls(Objlist *);
 static Obj_Entry *dlcheck(void *);
 static int dlclose_locked(void *, RtldLockState *);
 static Obj_Entry *dlopen_object(const char *name, int fd, Obj_Entry *refobj,
@@ -302,6 +308,10 @@ size_t tls_static_space; /* Static TLS space allocated */
 static size_t tls_static_max_align;
 Elf_Addr tls_dtv_generation = 1; /* Used to detect when dtv size changes */
 int tls_max_index = 1;		 /* Largest module index allocated */
+
+static TAILQ_HEAD(, tcb_list_entry) tcb_list =
+    TAILQ_HEAD_INITIALIZER(tcb_list);
+static size_t tcb_list_entry_offset;
 
 static bool ld_library_path_rpath = false;
 bool ld_fast_sigblock = false;
@@ -928,6 +938,19 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		 */
 		allocate_tls_offset(entry->obj);
 	}
+
+	if (!allocate_tls_offset_common(&tcb_list_entry_offset,
+	    sizeof(struct tcb_list_entry), _Alignof(struct tcb_list_entry),
+	    0)) {
+		/*
+		 * This should be impossible as the static block size is not
+		 * yet fixed, but catch and diagnose it failing if that ever
+		 * changes or somehow turns out to be false.
+		 */
+		_rtld_error("Could not allocate offset for tcb_list_entry");
+		rtld_die();
+	}
+	dbg("tcb_list_entry_offset %zu", tcb_list_entry_offset);
 
 	if (relocate_objects(obj_main,
 		ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld,
@@ -3973,7 +3996,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	if ((lo_flags & RTLD_LO_EARLY) == 0) {
 		map_stacks_exec(lockstate);
 		if (obj != NULL)
-			distribute_static_tls(&initlist, lockstate);
+			distribute_static_tls(&initlist);
 	}
 
 	if (initlist_objects_ifunc(&initlist, (mode & RTLD_MODEMASK) ==
@@ -5400,6 +5423,44 @@ tls_get_addr_common(struct tcb *tcb, int index, size_t offset)
 	return (tls_get_addr_slow(tcb, index, offset, false));
 }
 
+static struct tcb *
+tcb_from_tcb_list_entry(struct tcb_list_entry *tcbelm)
+{
+#ifdef TLS_VARIANT_I
+	return ((struct tcb *)((char *)tcbelm - tcb_list_entry_offset));
+#else
+	return ((struct tcb *)((char *)tcbelm + tcb_list_entry_offset));
+#endif
+}
+
+static struct tcb_list_entry *
+tcb_list_entry_from_tcb(struct tcb *tcb)
+{
+#ifdef TLS_VARIANT_I
+	return ((struct tcb_list_entry *)((char *)tcb + tcb_list_entry_offset));
+#else
+	return ((struct tcb_list_entry *)((char *)tcb - tcb_list_entry_offset));
+#endif
+}
+
+static void
+tcb_list_insert(struct tcb *tcb)
+{
+	struct tcb_list_entry *tcbelm;
+
+	tcbelm = tcb_list_entry_from_tcb(tcb);
+	TAILQ_INSERT_TAIL(&tcb_list, tcbelm, next);
+}
+
+static void
+tcb_list_remove(struct tcb *tcb)
+{
+	struct tcb_list_entry *tcbelm;
+
+	tcbelm = tcb_list_entry_from_tcb(tcb);
+	TAILQ_REMOVE(&tcb_list, tcbelm, next);
+}
+
 #ifdef TLS_VARIANT_I
 
 /*
@@ -5513,6 +5574,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 		}
 	}
 
+	tcb_list_insert(tcb);
 	return (tcb);
 }
 
@@ -5523,6 +5585,8 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 	uintptr_t tlsstart, tlsend;
 	size_t post_size;
 	size_t i, tls_init_align __unused;
+
+	tcb_list_remove(tcb);
 
 	assert(tcbsize >= TLS_TCB_SIZE);
 	tls_init_align = MAX(obj_main->tlsalign, 1);
@@ -5624,6 +5688,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 		}
 	}
 
+	tcb_list_insert(tcb);
 	return (tcb);
 }
 
@@ -5634,6 +5699,8 @@ free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 	size_t size, ralign;
 	size_t i;
 	uintptr_t tlsstart, tlsend;
+
+	tcb_list_remove(tcb);
 
 	/*
 	 * Figure out the size of the initial TLS block so that we can
@@ -5698,32 +5765,22 @@ allocate_module_tls(struct tcb *tcb, int index)
 	return (p);
 }
 
-bool
-allocate_tls_offset(Obj_Entry *obj)
+static bool
+allocate_tls_offset_common(size_t *offp, size_t tlssize, size_t tlsalign,
+    size_t tlspoffset __unused)
 {
 	size_t off;
 
-	if (obj->tls_dynamic)
-		return (false);
-
-	if (obj->tls_static)
-		return (true);
-
-	if (obj->tlssize == 0) {
-		obj->tls_static = true;
-		return (true);
-	}
-
 	if (tls_last_offset == 0)
-		off = calculate_first_tls_offset(obj->tlssize, obj->tlsalign,
-		    obj->tlspoffset);
+		off = calculate_first_tls_offset(tlssize, tlsalign,
+		    tlspoffset);
 	else
 		off = calculate_tls_offset(tls_last_offset, tls_last_size,
-		    obj->tlssize, obj->tlsalign, obj->tlspoffset);
+		    tlssize, tlsalign, tlspoffset);
 
-	obj->tlsoffset = off;
+	*offp = off;
 #ifdef TLS_VARIANT_I
-	off += obj->tlssize;
+	off += tlssize;
 #endif
 
 	/*
@@ -5735,12 +5792,34 @@ allocate_tls_offset(Obj_Entry *obj)
 	if (tls_static_space != 0) {
 		if (off > tls_static_space)
 			return (false);
-	} else if (obj->tlsalign > tls_static_max_align) {
-		tls_static_max_align = obj->tlsalign;
+	} else if (tlsalign > tls_static_max_align) {
+		tls_static_max_align = tlsalign;
 	}
 
 	tls_last_offset = off;
-	tls_last_size = obj->tlssize;
+	tls_last_size = tlssize;
+
+	return (true);
+}
+
+bool
+allocate_tls_offset(Obj_Entry *obj)
+{
+	if (obj->tls_dynamic)
+		return (false);
+
+	if (obj->tls_static)
+		return (true);
+
+	if (obj->tlssize == 0) {
+		obj->tls_static = true;
+		return (true);
+	}
+
+	if (!allocate_tls_offset_common(&obj->tlsoffset, obj->tlssize,
+	    obj->tlsalign, obj->tlspoffset))
+		return (false);
+
 	obj->tls_static = true;
 
 	return (true);
@@ -6124,25 +6203,29 @@ map_stacks_exec(RtldLockState *lockstate)
 }
 
 static void
-distribute_static_tls(Objlist *list, RtldLockState *lockstate)
+distribute_static_tls(Objlist *list)
 {
-	Objlist_Entry *elm;
+	struct tcb_list_entry *tcbelm;
+	Objlist_Entry *objelm;
+	struct tcb *tcb;
 	Obj_Entry *obj;
-	void (*distrib)(size_t, void *, size_t, size_t);
+	char *tlsbase;
 
-	distrib = (void (*)(size_t, void *, size_t, size_t))(
-	    uintptr_t)get_program_var_addr("__pthread_distribute_static_tls",
-	    lockstate);
-	if (distrib == NULL)
-		return;
-	STAILQ_FOREACH(elm, list, link) {
-		obj = elm->obj;
+	STAILQ_FOREACH(objelm, list, link) {
+		obj = objelm->obj;
 		if (obj->marker || !obj->tls_static || obj->static_tls_copied)
 			continue;
-		lock_release(rtld_bind_lock, lockstate);
-		distrib(obj->tlsoffset, obj->tlsinit, obj->tlsinitsize,
-		    obj->tlssize);
-		wlock_acquire(rtld_bind_lock, lockstate);
+		TAILQ_FOREACH(tcbelm, &tcb_list, next) {
+			tcb = tcb_from_tcb_list_entry(tcbelm);
+#ifdef TLS_VARIANT_I
+			tlsbase = (char *)tcb + obj->tlsoffset;
+#else
+			tlsbase = (char *)tcb - obj->tlsoffset;
+#endif
+			memcpy(tlsbase, obj->tlsinit, obj->tlsinitsize);
+			memset(tlsbase + obj->tlsinitsize, 0,
+			    obj->tlssize - obj->tlsinitsize);
+		}
 		obj->static_tls_copied = true;
 	}
 }

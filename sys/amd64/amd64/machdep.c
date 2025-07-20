@@ -188,6 +188,12 @@ struct init_ops init_ops = {
  */
 vm_paddr_t efi_systbl_phys;
 
+/*
+ * Bitmap of extra EFI memory region types that should be preserved and mapped
+ * during runtime services calls.
+ */
+uint32_t efi_map_regs;
+
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
@@ -645,7 +651,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	 * NB: physmap_idx points to the next free slot.
 	 */
 	insert_idx = physmap_idx;
-	for (i = 0; i <= physmap_idx; i += 2) {
+	for (i = 0; i < physmap_idx; i += 2) {
 		if (base < physmap[i + 1]) {
 			if (base + length <= physmap[i]) {
 				insert_idx = i;
@@ -659,7 +665,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	}
 
 	/* See if we can prepend to the next entry. */
-	if (insert_idx <= physmap_idx && base + length == physmap[insert_idx]) {
+	if (insert_idx < physmap_idx && base + length == physmap[insert_idx]) {
 		physmap[insert_idx] = base;
 		return (1);
 	}
@@ -670,8 +676,6 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 		return (1);
 	}
 
-	physmap_idx += 2;
-	*physmap_idxp = physmap_idx;
 	if (physmap_idx == PHYS_AVAIL_ENTRIES) {
 		printf(
 		"Too many segments in the physical address map, giving up\n");
@@ -682,10 +686,13 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	 * Move the last 'N' entries down to make room for the new
 	 * entry if needed.
 	 */
-	for (i = (physmap_idx - 2); i > insert_idx; i -= 2) {
+	for (i = physmap_idx; i > insert_idx; i -= 2) {
 		physmap[i] = physmap[i - 2];
 		physmap[i + 1] = physmap[i - 1];
 	}
+
+	physmap_idx += 2;
+	*physmap_idxp = physmap_idx;
 
 	/* Insert the new entry. */
 	physmap[insert_idx] = base;
@@ -757,6 +764,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		printf("%23s %12s %12s %8s %4s\n",
 		    "Type", "Physical", "Virtual", "#Pages", "Attr");
 
+	TUNABLE_INT_FETCH("machdep.efirt.regs", &efi_map_regs);
 	for (i = 0, p = map; i < ndesc; i++,
 	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		if (boothowto & RB_VERBOSE) {
@@ -794,10 +802,13 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		}
 
 		switch (p->md_type) {
-		case EFI_MD_TYPE_CODE:
-		case EFI_MD_TYPE_DATA:
 		case EFI_MD_TYPE_BS_CODE:
 		case EFI_MD_TYPE_BS_DATA:
+			if (EFI_MAP_BOOTTYPE_ALLOWED(p->md_type))
+				continue;
+			/* FALLTHROUGH */
+		case EFI_MD_TYPE_CODE:
+		case EFI_MD_TYPE_DATA:
 		case EFI_MD_TYPE_FREE:
 			/*
 			 * We're allowed to use any entry with these types.

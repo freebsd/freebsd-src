@@ -1,4 +1,4 @@
-/*	$NetBSD: arch.c,v 1.222 2024/08/06 17:46:01 rillig Exp $	*/
+/*	$NetBSD: arch.c,v 1.223 2025/06/28 22:39:27 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@ struct ar_hdr {
 #include "dir.h"
 
 /*	"@(#)arch.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: arch.c,v 1.222 2024/08/06 17:46:01 rillig Exp $");
+MAKE_RCSID("$NetBSD: arch.c,v 1.223 2025/06/28 22:39:27 rillig Exp $");
 
 typedef struct List ArchList;
 typedef struct ListNode ArchListNode;
@@ -314,7 +314,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *scope)
 
 		if (*cp == '\0') {
 			Parse_Error(PARSE_FATAL,
-			    "Missing ')' in archive specification");
+			    "Missing \")\" in archive specification");
 			return false;
 		}
 

@@ -30,14 +30,13 @@
  */
 
 #include "namespace.h"
-#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <stdbool.h>
 #include "un-namespace.h"
 
 #include "gen-private.h"
@@ -49,8 +48,16 @@
 DIR *
 fdopendir(int fd)
 {
+	int flags, rc;
 
-	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+	flags = _fcntl(fd, F_GETFD, 0);
+	if (flags == -1)
 		return (NULL);
+
+	if ((flags & FD_CLOEXEC) == 0) {
+		rc = _fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+		if (rc == -1)
+			return (NULL);
+	}
 	return (__opendir_common(fd, DTF_HIDEW | DTF_NODUP, true));
 }

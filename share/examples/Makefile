@@ -10,11 +10,11 @@ LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	bootforth \
 	csh \
-	drivers \
 	etc \
 	find_interface \
 	flua \
 	indent \
+	inotify \
 	ipfw \
 	jails \
 	kld \
@@ -73,12 +73,6 @@ SE_DIRS+=	csh
 SE_CSHPACKAGE=	csh
 SE_CSH=		dot.cshrc
 
-SE_DIRS+=	drivers
-SE_DRIVERS= \
-	README \
-	make_device_driver.sh \
-	make_pseudo_driver.sh
-
 SE_DIRS+=	etc
 SE_ETC= \
 	README.examples \
@@ -96,6 +90,10 @@ SE_FLUA=	libjail.lua
 
 SE_DIRS+=	indent
 SE_INDENT=	indent.pro
+
+SE_DIRS+=	inotify
+SE_INOTIFY=	inotify.c \
+		Makefile
 
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=	ipfilter

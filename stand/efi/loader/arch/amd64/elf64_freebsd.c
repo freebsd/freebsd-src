@@ -209,6 +209,12 @@ elf64_exec(struct preloaded_file *fp)
 	    trampoline, PT4);
 	printf("Start @ 0x%lx ...\n", ehdr->e_entry);
 
+	/*
+	 * we have to cleanup here because net_cleanup() doesn't work after
+	 * we call ExitBootServices
+	 */
+	dev_cleanup();
+
 	efi_time_fini();
 	err = bi_load(fp->f_args, &modulep, &kernend, true);
 	if (err != 0) {
@@ -217,8 +223,6 @@ elf64_exec(struct preloaded_file *fp)
 			copy_staging = COPY_STAGING_AUTO;
 		return (err);
 	}
-
-	dev_cleanup();
 
 	trampoline(trampstack, copy_staging == COPY_STAGING_ENABLE ?
 	    efi_copy_finish : efi_copy_finish_nop, kernend, modulep,

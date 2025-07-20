@@ -893,6 +893,8 @@ struct proc {
 #define	P2_LOGSIGEXIT_ENABLE	0x00800000	/* Disable logging on sigexit */
 #define	P2_LOGSIGEXIT_CTL	0x01000000	/* Override kern.logsigexit */
 
+#define	P2_HWT			0x02000000	/* Process is using HWT. */
+
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
 #define	P_TREE_FIRST_ORPHAN	0x00000002	/* First element of orphan

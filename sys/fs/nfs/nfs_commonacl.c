@@ -65,7 +65,7 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 		goto nfsmout;
 	} else if (len == 0) {
 		/* Netapp filers return a 0 length who for nil users */
-		acep->ae_tag = ACL_UNDEFINED_TAG;
+		acep->ae_tag = ACL_EVERYONE;	/* Avoid panics. */
 		acep->ae_id = ACL_UNDEFINED_ID;
 		acep->ae_perm = (acl_perm_t)0;
 		acep->ae_entry_type = ACL_ENTRY_TYPE_DENY;

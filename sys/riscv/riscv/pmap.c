@@ -4838,6 +4838,8 @@ pmap_unmapbios(void *p, vm_size_t size)
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
+	if (m->md.pv_memattr == ma)
+		return;
 
 	m->md.pv_memattr = ma;
 

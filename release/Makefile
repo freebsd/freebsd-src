@@ -276,6 +276,7 @@ bootonly:
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
 	${PKG_INSTALL} pkg || true
+	${PKG_INSTALL} wifi-firmware-iwlwifi-kmod wifi-firmware-rtw88-kmod || true
 	${PKG_CLEAN} || true
 .endif
 # Set up installation environment
@@ -340,8 +341,8 @@ dvd: ${PKGBASE_REPO}
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
-	echo loader_brand=\"install\" >> ${.TARGET}/boot/loader.conf
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
+	echo loader_brand=\"install\" >> ${.TARGET}/boot/loader.conf
 	echo loader_menu_multi_user_prompt=\"Installer\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	echo "./etc/resolv.conf type=link uname=root gname=wheel mode=0644 link=/tmp/bsdinstall_etc/resolv.conf" >> ${.TARGET}/METALOG

@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/errno.h>
+#include <sys/sbuf.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
@@ -56,9 +57,9 @@ const char *
 mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id, uint32_t def)
 {
 	struct mfi_pd_info info;
+	struct sbuf sb;
 	static char buf[16];
-	char *p;
-	int error, fd, len;
+	int fd;
 
 	if ((def & MFI_DNAME_HONOR_OPTS) != 0 &&
 	    (mfi_opts & (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID)) != 0)
@@ -89,40 +90,29 @@ mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id, uint32_t def)
 		pinfo = &info;
 	}
 
-	p = buf;
-	len = sizeof(buf);
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
 	if (def & MFI_DNAME_DEVICE_ID) {
 		if (device_id == 0xffff)
-			error = snprintf(p, len, "MISSING");
+			sbuf_printf(&sb, "MISSING");
 		else
-			error = snprintf(p, len, "%2u", device_id);
-		if (error >= 0) {
-			p += error;
-			len -= error;
-		}
+			sbuf_printf(&sb, "%2u", device_id);
 	}
 	if ((def & (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID)) ==
-	    (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID) && len >= 2) {
-		*p++ = ' ';
-		len--;
-		*p = '\0';
-		len--;
+	    (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID)) {
+		sbuf_cat(&sb, " ");
 	}
 	if (def & MFI_DNAME_ES) {
 		if (pinfo->encl_device_id == 0xffff)
-			error = snprintf(p, len, "S%u",
+			sbuf_printf(&sb, "S%u",
 			    pinfo->slot_number);
 		else if (pinfo->encl_device_id == pinfo->ref.v.device_id)
-			error = snprintf(p, len, "E%u",
+			sbuf_printf(&sb, "E%u",
 			    pinfo->encl_index);
 		else
-			error = snprintf(p, len, "E%u:S%u",
+			sbuf_printf(&sb, "E%u:S%u",
 			    pinfo->encl_index, pinfo->slot_number);
-		if (error >= 0) {
-			p += error;
-			len -= error;
-		}
 	}
+	sbuf_finish(&sb);
 
 	return (buf);
 }

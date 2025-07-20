@@ -395,8 +395,9 @@ int nfsrv_putopbit(struct nfsrv_descript *, nfsopbit_t *);
 void nfsrv_wcc(struct nfsrv_descript *, int, struct nfsvattr *, int,
     struct nfsvattr *);
 int nfsv4_fillattr(struct nfsrv_descript *, struct mount *, vnode_t, NFSACL_T *,
-    struct vattr *, fhandle_t *, int, nfsattrbit_t *,
-    struct ucred *, NFSPROC_T *, int, int, int, int, uint64_t, struct statfs *);
+    struct vattr *, fhandle_t *, int, nfsattrbit_t *, struct ucred *,
+    NFSPROC_T *, int, int, int, int, uint64_t, struct statfs *, bool, bool,
+    bool);
 void nfsrv_fillattr(struct nfsrv_descript *, struct nfsvattr *);
 struct mbuf *nfsrv_adj(struct mbuf *, int, int);
 void nfsrv_postopattr(struct nfsrv_descript *, int, struct nfsvattr *);
@@ -483,11 +484,13 @@ int nfsrpc_mknod(vnode_t, char *, int, struct vattr *, u_int32_t,
 int nfsrpc_create(vnode_t, char *, int, struct vattr *, nfsquad_t,
     int, struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     struct nfsfh **, int *, int *);
-int nfsrpc_remove(vnode_t, char *, int, vnode_t, struct ucred *, NFSPROC_T *,
-    struct nfsvattr *, int *);
-int nfsrpc_rename(vnode_t, vnode_t, char *, int, vnode_t, vnode_t, char *, int,
-    struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
-    int *, int *);
+int nfsrpc_remove(struct vnode *, char *, int, struct vnode *,
+    struct nfsvattr *, int *, nfsremove_status *, struct nfsvattr *, int *,
+    struct ucred *, NFSPROC_T *);
+int nfsrpc_rename(struct vnode *, struct vnode *, char *, int, struct vnode *,
+    struct vnode *, char *, int, nfsremove_status *, struct nfsvattr *,
+    struct nfsvattr *, int *, int *, struct nfsvattr *, int *, struct ucred *,
+    NFSPROC_T *);
 int nfsrpc_link(vnode_t, vnode_t, char *, int,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     int *, int *);
@@ -616,7 +619,7 @@ void nfscl_lockinit(struct nfsv4lock *);
 void nfscl_lockexcl(struct nfsv4lock *, void *);
 void nfscl_lockunlock(struct nfsv4lock *);
 void nfscl_lockderef(struct nfsv4lock *);
-void nfscl_delegreturnvp(vnode_t, NFSPROC_T *);
+void nfscl_delegreturnvp(struct vnode *, bool, NFSPROC_T *);
 void nfscl_docb(struct nfsrv_descript *, NFSPROC_T *);
 void nfscl_releasealllocks(struct nfsclclient *, vnode_t, NFSPROC_T *, void *,
     int);
@@ -656,6 +659,8 @@ void nfscl_freelayout(struct nfscllayout *);
 void nfscl_freeflayout(struct nfsclflayout *);
 void nfscl_freedevinfo(struct nfscldevinfo *);
 int nfscl_layoutcommit(vnode_t, NFSPROC_T *);
+int nfscl_delegacecheck(struct vnode *, accmode_t, struct ucred *);
+void nfscl_startdelegrecall(struct nfsclclient *, struct nfsfh *);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,
@@ -731,7 +736,8 @@ int nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct nfsrv_descript *,
     NFSPROC_T *);
 int nfsvno_fillattr(struct nfsrv_descript *, struct mount *, vnode_t,
     struct nfsvattr *, fhandle_t *, int, nfsattrbit_t *,
-    struct ucred *, NFSPROC_T *, int, int, int, int, uint64_t);
+    struct ucred *, NFSPROC_T *, int, int, int, int, uint64_t, bool, bool,
+    bool);
 int nfsrv_sattr(struct nfsrv_descript *, vnode_t, struct nfsvattr *, nfsattrbit_t *,
     NFSACL_T *, NFSPROC_T *);
 int nfsv4_sattr(struct nfsrv_descript *, vnode_t, struct nfsvattr *, nfsattrbit_t *,

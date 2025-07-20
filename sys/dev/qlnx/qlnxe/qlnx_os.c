@@ -30,6 +30,8 @@
  * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
  */
 
+#include "opt_inet.h"
+
 #include <sys/cdefs.h>
 #include "qlnx_os.h"
 #include "bcm_osal.h"
@@ -2778,7 +2780,7 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 		if (!p_ptt) {
 			QL_DPRINT1(ha, "ecore_ptt_acquire failed\n");
-			ret = -1;
+			ret = ERESTART;
 			break;
 		}
 
@@ -2789,7 +2791,7 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		ecore_ptt_release(p_hwfn, p_ptt);
 
 		if (ret) {
-			ret = -1;
+			ret = ENODEV;
 			break;
 		}
 

@@ -945,7 +945,7 @@ msdosfs_rename(struct vop_rename_args *ap)
 	struct denode *fdip, *fip, *tdip, *tip, *nip;
 	u_char toname[12], oldname[11];
 	u_long to_diroffset;
-	bool checkpath_locked, doingdirectory, newparent;
+	bool doingdirectory, newparent;
 	int error;
 	u_long cn, pcl, blkoff;
 	daddr_t bn, wait_scn, scn;
@@ -985,8 +985,6 @@ msdosfs_rename(struct vop_rename_args *ap)
 	VOP_UNLOCK(tdvp);
 	if (tvp != NULL && tvp != tdvp)
 		VOP_UNLOCK(tvp);
-
-	checkpath_locked = false;
 
 relock:
 	doingdirectory = newparent = false;
@@ -1108,12 +1106,8 @@ relock:
 	if (doingdirectory && newparent) {
 		if (error != 0)	/* write access check above */
 			goto unlock;
-		lockmgr(&pmp->pm_checkpath_lock, LK_EXCLUSIVE, NULL);
-		checkpath_locked = true;
 		error = doscheckpath(fip, tdip, &wait_scn);
 		if (wait_scn != 0) {
-			lockmgr(&pmp->pm_checkpath_lock, LK_RELEASE, NULL);
-			checkpath_locked = false;
 			VOP_UNLOCK(fdvp);
 			VOP_UNLOCK(tdvp);
 			VOP_UNLOCK(fvp);
@@ -1276,8 +1270,6 @@ relock:
 	cache_purge(fvp);
 
 unlock:
-	if (checkpath_locked)
-		lockmgr(&pmp->pm_checkpath_lock, LK_RELEASE, NULL);
 	vput(fdvp);
 	vput(fvp);
 	if (tvp != NULL) {
@@ -1289,7 +1281,6 @@ unlock:
 	vput(tdvp);
 	return (error);
 releout:
-	MPASS(!checkpath_locked);
 	vrele(tdvp);
 	if (tvp != NULL)
 		vrele(tvp);
@@ -1530,6 +1521,9 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 	    ap->a_vp, uio, ap->a_cred, ap->a_eofflag);
 #endif
 
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = 0;
+
 	/*
 	 * msdosfs_readdir() won't operate properly on regular files since
 	 * it does i/o only with the filesystem vnode, and hence can
@@ -1623,8 +1617,11 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 		on = (offset - bias) & pmp->pm_crbomask;
 		n = min(pmp->pm_bpcluster - on, uio->uio_resid);
 		diff = dep->de_FileSize - (offset - bias);
-		if (diff <= 0)
-			break;
+		if (diff <= 0) {
+			if (ap->a_eofflag != NULL)
+				*ap->a_eofflag = 1;
+			goto out;
+		}
 		n = min(n, diff);
 		error = pcbmap(dep, lbn, &bn, &cn, &blsize);
 		if (error)
@@ -1655,6 +1652,8 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 			 */
 			if (dentp->deName[0] == SLOT_EMPTY) {
 				brelse(bp);
+				if (ap->a_eofflag != NULL)
+					*ap->a_eofflag = 1;
 				goto out;
 			}
 			/*
@@ -1752,15 +1751,6 @@ out:
 
 	uio->uio_offset = off;
 
-	/*
-	 * Set the eofflag (NFS uses it)
-	 */
-	if (ap->a_eofflag) {
-		if (dep->de_FileSize - (offset - bias) <= 0)
-			*ap->a_eofflag = 1;
-		else
-			*ap->a_eofflag = 0;
-	}
 	return (error);
 }
 
@@ -1950,6 +1940,9 @@ msdosfs_pathconf(struct vop_pathconf_args *ap)
 		return (0);
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 0;
+		return (0);
+	case _PC_HAS_HIDDENSYSTEM:
+		*ap->a_retval = 1;
 		return (0);
 	default:
 		return (vop_stdpathconf(ap));

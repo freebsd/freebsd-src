@@ -979,10 +979,7 @@ ses_paths_iter(enc_softc_t *enc, enc_element_t *elm,
 			     != CAM_REQ_CMP)
 				return;
 
-			memset(&cgd, 0, sizeof(cgd));
-			xpt_setup_ccb(&cgd.ccb_h, path, CAM_PRIORITY_NORMAL);
-			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-			xpt_action((union ccb *)&cgd);
+			xpt_gdev_type(&cgd, path);
 			if (cam_ccb_success((union ccb *)&cgd))
 				callback(enc, elm, path, callback_arg);
 

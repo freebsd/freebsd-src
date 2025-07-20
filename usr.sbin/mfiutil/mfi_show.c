@@ -218,8 +218,9 @@ show_battery(int ac, char **av __unused)
 	printf("      Current Voltage: %d mV\n", stat.voltage);
 	printf("          Temperature: %d C\n", stat.temperature);
 	if (show_props) {
-		mfi_autolearn_period(props.auto_learn_period, buf, sizeof(buf));
-		printf("     Autolearn period: %s\n", buf);
+		printf("     Autolearn period: ");
+		mfi_autolearn_period(stdout, props.auto_learn_period);
+		printf("\n");
 		if (props.auto_learn_mode != 0)
 			snprintf(buf, sizeof(buf), "never");
 		else
@@ -229,8 +230,9 @@ show_battery(int ac, char **av __unused)
 		printf(" Learn delay interval: %u hour%s\n",
 		    props.learn_delay_interval,
 		    props.learn_delay_interval != 1 ? "s" : "");
-		mfi_autolearn_mode(props.auto_learn_mode, buf, sizeof(buf));
-		printf("       Autolearn mode: %s\n", buf);
+		printf("       Autolearn mode: ");
+		mfi_autolearn_mode(stdout, props.auto_learn_mode);
+		printf("\n");
 		if (props.bbu_mode != 0)
 			printf("             BBU Mode: %d\n", props.bbu_mode);
 	}

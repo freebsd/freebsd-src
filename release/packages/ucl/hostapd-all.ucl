@@ -1,0 +1,4 @@
+comment = "802.11 Access Point Daemon an Utilities"
+desc = <<EOD
+802.11 Access Point Daemon an Utilities
+EOD

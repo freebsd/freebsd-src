@@ -92,11 +92,6 @@
 
 #include <crypto/sha1.h>
 
-#ifdef CTASSERT
-CTASSERT(sizeof (struct ether_header) == ETHER_ADDR_LEN * 2 + 2);
-CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
-#endif
-
 VNET_DEFINE(pfil_head_t, link_pfil_head);	/* Packet filter hooks */
 
 /* netgraph node hooks for ng_ether(4) */
@@ -1486,7 +1481,7 @@ ether_gen_addr_byname(const char *nameunit, struct ether_addr *hwaddr)
 	char uuid[HOSTUUIDLEN + 1];
 	uint64_t addr;
 	int i, sz;
-	char digest[SHA1_RESULTLEN];
+	unsigned char digest[SHA1_RESULTLEN];
 	char jailname[MAXHOSTNAMELEN];
 
 	getcredhostuuid(curthread->td_ucred, uuid, sizeof(uuid));
@@ -1510,9 +1505,7 @@ ether_gen_addr_byname(const char *nameunit, struct ether_addr *hwaddr)
 	SHA1Final(digest, &ctx);
 	free(buf, M_TEMP);
 
-	addr = ((digest[0] << 16) | (digest[1] << 8) | digest[2]) &
-	    OUI_FREEBSD_GENERATED_MASK;
-	addr = OUI_FREEBSD(addr);
+	addr = (digest[0] << 8) | digest[1] | OUI_FREEBSD_GENERATED_LOW;
 	for (i = 0; i < ETHER_ADDR_LEN; ++i) {
 		hwaddr->octet[i] = addr >> ((ETHER_ADDR_LEN - i - 1) * 8) &
 		    0xFF;

@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 6, 2024
+.Dd July 2, 2025
 .Dt PF 4
 .Os
 .Sh NAME
@@ -35,6 +35,10 @@
 .Sh SYNOPSIS
 .Cd "device pf"
 .Cd "options PF_DEFAULT_TO_DROP"
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd pf_enable="YES"
 .Pp
 In
 .Xr loader.conf 5 :
@@ -1110,7 +1114,7 @@ will be set to the length of the buffer actually used.
 .It Dv DIOCCLRSRCNODES
 Clear the tree of source tracking nodes.
 .It Dv DIOCIGETIFACES Fa "struct pfioc_iface *io"
-Get the list of interfaces and interface drivers known to
+Get the list of interfaces and interface groups known to
 .Nm .
 All the ioctls that manipulate interfaces
 use the same structure described below:
@@ -1127,7 +1131,7 @@ struct pfioc_iface {
 .Pp
 If not empty,
 .Va pfiio_name
-can be used to restrict the search to a specific interface or driver.
+can be used to restrict the search to a specific interface or group.
 .Va pfiio_buffer[pfiio_size]
 is the user-supplied buffer for returning the data.
 On entry,

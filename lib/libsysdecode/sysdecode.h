@@ -61,6 +61,7 @@ const char *sysdecode_getfsstat_mode(int _mode);
 const char *sysdecode_getrusage_who(int _who);
 const char *sysdecode_idtype(int _idtype);
 const char *sysdecode_ioctlname(unsigned long _val);
+bool	sysdecode_inotifyflags(FILE *_fp, int _flags, int *_rem);
 const char *sysdecode_ipproto(int _protocol);
 void	sysdecode_kevent_fflags(FILE *_fp, short _filter, int _fflags,
 	    int _base);

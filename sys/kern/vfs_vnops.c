@@ -41,6 +41,7 @@
  */
 
 #include "opt_hwpmc_hooks.h"
+#include "opt_hwt_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,6 +52,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
+#include <sys/inotify.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/limits.h>
@@ -84,6 +86,10 @@
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+#endif
+
+#ifdef HWT_HOOKS
+#include <dev/hwt/hwt_hook.h>
 #endif
 
 static fo_rdwr_t	vn_read;
@@ -303,7 +309,8 @@ restart:
 				NDREINIT(ndp);
 				goto restart;
 			}
-			if ((vn_open_flags & VN_OPEN_NAMECACHE) != 0)
+			if ((vn_open_flags & VN_OPEN_NAMECACHE) != 0 ||
+			    (vn_irflag_read(ndp->ni_dvp) & VIRF_INOTIFY) != 0)
 				ndp->ni_cnd.cn_flags |= MAKEENTRY;
 #ifdef MAC
 			error = mac_vnode_check_create(cred, ndp->ni_dvp,
@@ -479,6 +486,7 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if (vp->v_type != VFIFO && vp->v_type != VSOCK &&
 		    VOP_ACCESS(vp, VREAD, cred, td) == 0)
 			fp->f_flag |= FKQALLOWED;
+		INOTIFY(vp, IN_OPEN);
 		return (0);
 	}
 
@@ -1741,6 +1749,8 @@ vn_truncate_locked(struct vnode *vp, off_t length, bool sync,
 			vattr.va_vaflags |= VA_SYNC;
 		error = VOP_SETATTR(vp, &vattr, cred);
 		VOP_ADD_WRITECOUNT_CHECKED(vp, -1);
+		if (error == 0)
+			INOTIFY(vp, IN_MODIFY);
 	}
 	return (error);
 }
@@ -3005,6 +3015,24 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 		}
 	}
 #endif
+
+#ifdef HWT_HOOKS
+	if (HWT_HOOK_INSTALLED && (prot & VM_PROT_EXECUTE) != 0 &&
+	    error == 0) {
+		struct hwt_record_entry ent;
+		char *fullpath;
+		char *freepath;
+
+		if (vn_fullpath(vp, &fullpath, &freepath) == 0) {
+			ent.fullpath = fullpath;
+			ent.addr = (uintptr_t) *addr;
+			ent.record_type = HWT_RECORD_MMAP;
+			HWT_CALL_HOOK(td, HWT_MMAP, &ent);
+			free(freepath, M_TEMP);
+		}
+	}
+#endif
+
 	return (error);
 }
 
