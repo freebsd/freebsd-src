@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2025 Martin Filla
- * 
+ *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
