@@ -11985,13 +11985,15 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 {
 	struct pmap_kernel_map_range range;
 	struct sbuf sbuf, *sb;
+	pml5_entry_t pml5e;
 	pml4_entry_t pml4e;
 	pdp_entry_t *pdp, pdpe;
 	pd_entry_t *pd, pde;
 	pt_entry_t *pt, pte;
 	vm_offset_t sva;
 	vm_paddr_t pa;
-	int error, i, j, k, l;
+	int error, j, k, l;
+	bool first;
 
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
@@ -12001,6 +12003,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 
 	/* Sentinel value. */
 	range.sva = kva_layout.kva_max;
+	pml5e = 0;	/* no UB for la48 */
 
 	/*
 	 * Iterate over the kernel page tables without holding the kernel pmap
@@ -12009,49 +12012,50 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 	 * Within the large map, ensure that PDP and PD page addresses are
 	 * valid before descending.
 	 */
-	for (sva = 0, i = pmap_pml4e_index(sva); i < NPML4EPG; i++) {
-		switch (i) {
-		case PML4PML4I:
-			if (!la57)
-				sbuf_printf(sb, "\nRecursive map:\n");
-			break;
-		case DMPML4I:
-			if (!la57)
-				sbuf_printf(sb, "\nDirect map:\n");
-			break;
+	for (first = true, sva = 0; sva != 0 || first; first = false) {
+		if (sva == kva_layout.rec_pt)
+			sbuf_printf(sb, "\nRecursive map:\n");
+		else if (sva == kva_layout.dmap_low)
+			sbuf_printf(sb, "\nDirect map:\n");
 #ifdef KASAN
-		case KASANPML4I:
+		else if (sva == kva_layout.kasan_shadow_low)
 			sbuf_printf(sb, "\nKASAN shadow map:\n");
-			break;
 #endif
 #ifdef KMSAN
-		case KMSANSHADPML4I:
+		else if (sva == kva_layout.kmsan_shadow_low)
 			sbuf_printf(sb, "\nKMSAN shadow map:\n");
-			break;
-		case KMSANORIGPML4I:
+		else if (sva == kva_layout.kmsan_origin_low)
 			sbuf_printf(sb, "\nKMSAN origin map:\n");
-			break;
 #endif
-		case KPML4BASE:
+		else if (sva == kva_layout.km_low)
 			sbuf_printf(sb, "\nKernel map:\n");
-			break;
-		case LMSPML4I:
-			if (!la57)
-				sbuf_printf(sb, "\nLarge map:\n");
-			break;
-		}
+		else if (sva == kva_layout.lm_low)
+			sbuf_printf(sb, "\nLarge map:\n");
 
 		/* Convert to canonical form. */
 		if (la57) {
-			if (sva == 1ul << 56)
+			if (sva == 1ul << 56) {
 				sva |= -1ul << 57;
+				continue;
+			}
 		} else {
-			if (sva == 1ul << 47)
+			if (sva == 1ul << 47) {
 				sva |= -1ul << 48;
+				continue;
+			}
 		}
 
 restart:
-		pml4e = kernel_pml4[i];
+		if (la57) {
+			pml5e = *pmap_pml5e(kernel_pmap, sva);
+			if ((pml5e & X86_PG_V) == 0) {
+				sva = rounddown2(sva, NBPML5);
+				sysctl_kmaps_dump(sb, &range, sva);
+				sva += NBPML5;
+				continue;
+			}
+		}
+		pml4e = *pmap_pml4e(kernel_pmap, sva);
 		if ((pml4e & X86_PG_V) == 0) {
 			sva = rounddown2(sva, NBPML4);
 			sysctl_kmaps_dump(sb, &range, sva);
@@ -12072,7 +12076,7 @@ restart:
 			pa = pdpe & PG_FRAME;
 			if ((pdpe & PG_PS) != 0) {
 				sva = rounddown2(sva, NBPDP);
-				sysctl_kmaps_check(sb, &range, sva, 0,
+				sysctl_kmaps_check(sb, &range, sva, pml5e,
 				    pml4e, pdpe, 0, 0);
 				range.pdpes++;
 				sva += NBPDP;
@@ -12085,6 +12089,7 @@ restart:
 				 * freed.  Validate the next-level address
 				 * before descending.
 				 */
+				sva += NBPDP;
 				goto restart;
 			}
 			pd = (pd_entry_t *)PHYS_TO_DMAP(pa);
@@ -12101,7 +12106,7 @@ restart:
 				if ((pde & PG_PS) != 0) {
 					sva = rounddown2(sva, NBPDR);
 					sysctl_kmaps_check(sb, &range, sva,
-					    0, pml4e, pdpe, pde, 0);
+					    pml5e, pml4e, pdpe, pde, 0);
 					range.pdes++;
 					sva += NBPDR;
 					continue;
@@ -12113,6 +12118,7 @@ restart:
 					 * may be freed.  Validate the
 					 * next-level address before descending.
 					 */
+					sva += NBPDR;
 					goto restart;
 				}
 				pt = (pt_entry_t *)PHYS_TO_DMAP(pa);
@@ -12126,7 +12132,7 @@ restart:
 						continue;
 					}
 					sysctl_kmaps_check(sb, &range, sva,
-					    0, pml4e, pdpe, pde, pte);
+					    pml5e, pml4e, pdpe, pde, pte);
 					range.ptes++;
 				}
 			}
