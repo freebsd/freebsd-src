@@ -12042,8 +12042,13 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 		}
 
 		/* Convert to canonical form. */
-		if (sva == 1ul << 47)
-			sva |= -1ul << 48;
+		if (la57) {
+			if (sva == 1ul << 56)
+				sva |= -1ul << 57;
+		} else {
+			if (sva == 1ul << 47)
+				sva |= -1ul << 48;
+		}
 
 restart:
 		pml4e = kernel_pml4[i];
