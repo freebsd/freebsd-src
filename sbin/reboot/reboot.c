@@ -111,6 +111,12 @@ zfsbootcfg(const char *pool, bool force)
 }
 
 static void
+unlink_tmp(char *tmp) {
+	if (unlink(tmp))
+		warn("unlink %s", tmp);
+}
+
+static void
 write_nextboot(const char *fn, const char *env, bool force)
 {
 	char tmp[PATH_MAX];
@@ -158,8 +164,7 @@ write_nextboot(const char *fn, const char *env, bool force)
 		int e;
 
 		e = errno;
-		if (unlink(tmp))
-			warn("unlink %s", tmp);
+		unlink_tmp(tmp);
 		errno = e;
 		E("Can't write %s", tmp);
 	}
@@ -169,8 +174,7 @@ write_nextboot(const char *fn, const char *env, bool force)
 		int e;
 
 		e = errno;
-		if (unlink(tmp))
-			warn("unlink %s", tmp);
+		unlink_tmp(tmp);
 		errno = e;
 		E("Can't rename %s to %s", tmp, fn);
 	}
@@ -294,19 +298,20 @@ main(int argc, char *argv[])
 	if (argc != 0)
 		usage();
 
-	if (Dflag && ((howto & ~RB_HALT) != 0  || kernel != NULL))
+	if (Dflag && ((howto & ~RB_HALT) != 0  || kernel != NULL)) {
 		errx(1, "cannot delete existing nextboot config and do anything else");
-	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
+	} else if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT)) {
 		errx(1, "cannot dump (-d) when halting; must reboot instead");
-	if (Nflag && (howto & RB_NOSYNC) != 0)
+	} else if (Nflag && (howto & RB_NOSYNC) != 0) {
 		errx(1, "-N cannot be used with -n");
-	if ((howto & RB_POWEROFF) && (howto & RB_POWERCYCLE))
+	} else if ((howto & RB_POWEROFF) && (howto & RB_POWERCYCLE)) {
 		errx(1, "-c and -p cannot be used together");
-	if ((howto & RB_REROOT) != 0 && howto != RB_REROOT)
+	} else if ((howto & RB_REROOT) != 0 && howto != RB_REROOT) {
 		errx(1, "-r cannot be used with -c, -d, -n, or -p");
-	if ((howto & RB_REROOT) != 0 && kernel != NULL)
+	} else if ((howto & RB_REROOT) != 0 && kernel != NULL) {
 		errx(1, "-r and -k cannot be used together, there is no next kernel");
-
+	}
+	
 	if (Dflag) {
 		struct stat sb;
 
