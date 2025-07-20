@@ -114,7 +114,7 @@ main(int argc, char **argv)
 	 *
 	 *	trim -f -- /dev/da0 -r rfile
 	 */
-	
+
 	if (strcmp(argv[optind-1], "--") != 0) {
 		for (ch = optind; ch < argc; ch++)
 			if (argv[ch][0] == '-')
@@ -126,6 +126,9 @@ main(int argc, char **argv)
 
 	if (argc < 1)
 		usage(name);
+
+	if (dryrun)
+		printf("dry run: add -f to actually perform the operation\n");
 
 	while ((fname = *argv++) != NULL)
 		if (trim(fname, offset, length, dryrun, verbose) < 0)
@@ -213,10 +216,8 @@ trim(const char *path, off_t offset, off_t length, bool dryrun, bool verbose)
 		printf("trim %s offset %ju length %ju\n",
 		    path, (uintmax_t)offset, (uintmax_t)length);
 
-	if (dryrun) {
-		printf("dry run: add -f to actually perform the operation\n");
+	if (dryrun)
 		return (0);
-	}
 
 	fd = opendev(path, O_RDWR | O_DIRECT);
 	arg[0] = offset;
@@ -237,7 +238,7 @@ static void
 usage(const char *name)
 {
 	(void)fprintf(stderr,
-	    "usage: %s [-[lo] offset[K|k|M|m|G|g|T|t]] [-r rfile] [-Nfqv] device ...\n",
+	    "usage: %s [-[lo] offset[K|k|M|m|G|g|T|t|Pt|Ee]] [-r rfile] [-Nfqv] device ...\n",
 	    name);
 	exit(EX_USAGE);
 }
