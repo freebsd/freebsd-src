@@ -647,7 +647,8 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		    NFSATTRBIT_TIMECREATE))
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMECREATE);
 		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
-		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL);
+		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL,
+		    false, false, false);
 		break;
 	}
 }
@@ -2646,7 +2647,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
     NFSACL_T *saclp, struct vattr *vap, fhandle_t *fhp, int rderror,
     nfsattrbit_t *attrbitp, struct ucred *cred, NFSPROC_T *p, int isdgram,
     int reterr, int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno,
-    struct statfs *pnfssf)
+    struct statfs *pnfssf, bool xattrsupp, bool has_hiddensystem,
+    bool has_namedattr)
 {
 	int bitpos, retnum = 0;
 	u_int32_t *tl;
@@ -2660,10 +2662,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	struct nfsfsinfo fsinf;
 	struct timespec temptime;
 	NFSACL_T *aclp, *naclp = NULL;
-	size_t atsiz;
-	bool xattrsupp;
 	short irflag;
-	long has_pathconf;
 #ifdef QUOTA
 	struct dqblk dqb;
 	uid_t savuid;
@@ -2747,18 +2746,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		}
 	}
 
-	/* Check to see if Extended Attributes are supported. */
-	xattrsupp = false;
-	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_XATTRSUPPORT)) {
-		if (NFSVOPLOCK(vp, LK_SHARED) == 0) {
-			error = VOP_GETEXTATTR(vp, EXTATTR_NAMESPACE_USER,
-			    "xxx", NULL, &atsiz, cred, p);
-			NFSVOPUNLOCK(vp);
-			if (error != EOPNOTSUPP)
-				xattrsupp = true;
-		}
-	}
-
 	/*
 	 * Put out the attribute bitmap for the ones being filled in
 	 * and get the field for the number of attributes returned.
@@ -2780,11 +2767,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACLSUPPORT);
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACL);
 			}
-			if (cred == NULL || p == NULL || vp == NULL ||
-			    VOP_PATHCONF(vp, _PC_HAS_HIDDENSYSTEM,
-			    &has_pathconf) != 0)
-			    has_pathconf = 0;
-			if (has_pathconf == 0) {
+			if (!has_hiddensystem) {
 			    NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN);
 			    NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM);
 			}
@@ -2828,10 +2811,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_NAMEDATTR:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (VOP_PATHCONF(vp, _PC_HAS_NAMEDATTR,
-			    &has_pathconf) != 0)
-				has_pathconf = 0;
-			if (has_pathconf != 0)
+			if (has_namedattr)
 				*tl = newnfs_true;
 			else
 				*tl = newnfs_false;

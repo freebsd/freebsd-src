@@ -149,8 +149,7 @@ uint32_t tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line,
 #define	tcp_hpts_insert(inp, slot)	\
 	tcp_hpts_insert_diag((inp), (slot), __LINE__, NULL)
 
-void __tcp_set_hpts(struct tcpcb *tp, int32_t line);
-#define tcp_set_hpts(a) __tcp_set_hpts(a, __LINE__)
+void tcp_set_hpts(struct tcpcb *tp);
 
 void tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason);
 
@@ -165,25 +164,25 @@ extern int32_t tcp_min_hptsi_time;
  * The following functions should also be available
  * to userspace as well.
  */
-static __inline uint32_t
+static inline uint32_t
 tcp_tv_to_hptstick(const struct timeval *sv)
 {
 	return ((sv->tv_sec * 100000) + (sv->tv_usec / HPTS_TICKS_PER_SLOT));
 }
 
-static __inline uint32_t
+static inline uint32_t
 tcp_tv_to_usectick(const struct timeval *sv)
 {
 	return ((uint32_t) ((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
 }
 
-static __inline uint32_t
+static inline uint32_t
 tcp_tv_to_mssectick(const struct timeval *sv)
 {
 	return ((uint32_t) ((sv->tv_sec * HPTS_MSEC_IN_SEC) + (sv->tv_usec/HPTS_USEC_IN_MSEC)));
 }
 
-static __inline uint64_t
+static inline uint64_t
 tcp_tv_to_lusectick(const struct timeval *sv)
 {
 	return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
@@ -199,7 +198,7 @@ get_hpts_min_sleep_time(void)
 	return (tcp_min_hptsi_time + HPTS_TICKS_PER_SLOT);
 }
 
-static __inline uint32_t
+static inline uint32_t
 tcp_gethptstick(struct timeval *sv)
 {
 	struct timeval tv;
@@ -210,7 +209,7 @@ tcp_gethptstick(struct timeval *sv)
 	return (tcp_tv_to_hptstick(sv));
 }
 
-static __inline uint64_t
+static inline uint64_t
 tcp_get_u64_usecs(struct timeval *tv)
 {
 	struct timeval tvd;
@@ -221,7 +220,7 @@ tcp_get_u64_usecs(struct timeval *tv)
 	return (tcp_tv_to_lusectick(tv));
 }
 
-static __inline uint32_t
+static inline uint32_t
 tcp_get_usecs(struct timeval *tv)
 {
 	struct timeval tvd;

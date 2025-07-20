@@ -241,7 +241,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 {
 	struct nfsvattr nva;
 	fhandle_t fh;
-	int at_root = 0, error = 0, supports_nfsv4acls;
+	int at_root = 0, error = 0, ret, supports_nfsv4acls;
 	struct nfsreferral *refp;
 	nfsattrbit_t attrbits, tmpbits;
 	struct mount *mp;
@@ -250,6 +250,9 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	uint64_t mounted_on_fileno = 0;
 	accmode_t accmode;
 	struct thread *p = curthread;
+	size_t atsiz;
+	long pathval;
+	bool has_hiddensystem, has_namedattr, xattrsupp;
 
 	if (nd->nd_repstat)
 		goto out;
@@ -307,6 +310,26 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				    &nva, &attrbits, p);
 			if (nd->nd_repstat == 0) {
 				supports_nfsv4acls = nfs_supportsnfsv4acls(vp);
+				xattrsupp = false;
+				if (NFSISSET_ATTRBIT(&attrbits,
+				    NFSATTRBIT_XATTRSUPPORT)) {
+					ret = VOP_GETEXTATTR(vp,
+					    EXTATTR_NAMESPACE_USER,
+					    "xxx", NULL, &atsiz, nd->nd_cred,
+					    p);
+					xattrsupp = ret != EOPNOTSUPP;
+				}
+				if (VOP_PATHCONF(vp, _PC_HAS_HIDDENSYSTEM,
+				    &pathval) != 0)
+					pathval = 0;
+				has_hiddensystem = pathval > 0;
+				pathval = 0;
+				if (NFSISSET_ATTRBIT(&attrbits,
+				    NFSATTRBIT_NAMEDATTR) &&
+				    VOP_PATHCONF(vp, _PC_HAS_NAMEDATTR,
+				    &pathval) != 0)
+					pathval = 0;
+				has_namedattr = pathval > 0;
 				mp = vp->v_mount;
 				if (nfsrv_enable_crossmntpt != 0 &&
 				    vp->v_type == VDIR &&
@@ -340,7 +363,9 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 					(void)nfsvno_fillattr(nd, mp, vp, &nva,
 					    &fh, 0, &attrbits, nd->nd_cred, p,
 					    isdgram, 1, supports_nfsv4acls,
-					    at_root, mounted_on_fileno);
+					    at_root, mounted_on_fileno,
+					    xattrsupp, has_hiddensystem,
+					    has_namedattr);
 					vfs_unbusy(mp);
 				}
 				vrele(vp);

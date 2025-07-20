@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 18, 2019
+.Dd July 20, 2025
 .Dt TRIM 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Bk -words
 .Sm off
 .Ar offset
-.Op Cm K | k | M | m | G | g | T | t ]
+.Op Cm K | k | M | m | G | g | T | t | P | p | E | e ]
 .Sm on
 .Xc
 .Ek
@@ -68,13 +68,13 @@ Overrides
 .It Fl l Xo
 .Sm off
 .Ar offset
-.Op Cm K | k | M | m | G | g | T | t
+.Op Cm K | k | M | m | G | g | T | t | P | p | E | e
 .Sm on
 .Xc
 .It Fl o Xo
 .Sm off
 .Ar offset
-.Op Cm K | k | M | m | G | g | T | t
+.Op Cm K | k | M | m | G | g | T | t | P | p | E | e
 .Sm on
 .Xc
 Specify the length
@@ -88,12 +88,14 @@ unless one or both of these options are presented.
 The argument may be suffixed with one of
 .Cm K ,
 .Cm M ,
-.Cm G
+.Cm G ,
+.Cm T ,
+.Cm P
 or
-.Cm T
+.Cm E
 (either upper or lower case) to indicate a multiple of
-Kilobytes, Megabytes, Gigabytes or Terabytes
-respectively.
+Kilobytes, Megabytes, Gigabytes, Terabytes, Petabytes or
+Exabytes, respectively.
 .It Fl q
 Do not output anything except of possible error messages (quiet mode).
 Overrides
