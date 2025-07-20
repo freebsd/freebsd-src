@@ -1486,7 +1486,7 @@ no_run:
 }
 
 void
-__tcp_set_hpts(struct tcpcb *tp, int32_t line)
+tcp_set_hpts(struct tcpcb *tp)
 {
 	struct tcp_hpts_entry *hpts;
 	int failed;

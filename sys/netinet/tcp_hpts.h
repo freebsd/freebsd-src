@@ -149,8 +149,7 @@ uint32_t tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line,
 #define	tcp_hpts_insert(inp, slot)	\
 	tcp_hpts_insert_diag((inp), (slot), __LINE__, NULL)
 
-void __tcp_set_hpts(struct tcpcb *tp, int32_t line);
-#define tcp_set_hpts(a) __tcp_set_hpts(a, __LINE__)
+void tcp_set_hpts(struct tcpcb *tp);
 
 void tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason);
 
