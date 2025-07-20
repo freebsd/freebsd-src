@@ -238,7 +238,7 @@ static void
 usage(const char *name)
 {
 	(void)fprintf(stderr,
-	    "usage: %s [-[lo] offset[K|k|M|m|G|g|T|t|Pt|Ee]] [-r rfile] [-Nfqv] device ...\n",
+	    "usage: %s [-[lo] offset[K|k|M|m|G|g|T|t|P|p|E|e]] [-r rfile] [-Nfqv] device ...\n",
 	    name);
 	exit(EX_USAGE);
 }
