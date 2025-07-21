@@ -17987,7 +17987,7 @@ start_set:
 		tp->gput_ack = tp->gput_seq + rack_get_measure_window(tp, rack);
 		rack->r_ctl.rc_gp_cumack_ts = 0;
 		if ((rack->r_ctl.cleared_app_ack == 1) &&
-		    (SEQ_GEQ(rack->r_ctl.cleared_app_ack, tp->gput_seq))) {
+		    (SEQ_GEQ(tp->gput_seq, rack->r_ctl.cleared_app_ack_seq))) {
 			/*
 			 * We just cleared an application limited period
 			 * so the next seq out needs to skip the first
