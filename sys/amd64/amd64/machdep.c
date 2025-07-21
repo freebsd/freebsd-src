@@ -38,7 +38,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_atpic.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
@@ -82,9 +81,7 @@
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
-#ifdef SMP
 #include <sys/smp.h>
-#endif
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -132,9 +129,7 @@
 #include <machine/tss.h>
 #include <x86/ucode.h>
 #include <x86/ifunc.h>
-#ifdef SMP
 #include <machine/smp.h>
-#endif
 #ifdef FDT
 #include <x86/fdt.h>
 #endif
@@ -148,6 +143,10 @@
 #include <isa/isareg.h>
 #include <isa/rtc.h>
 #include <x86/init.h>
+
+#ifndef SMP
+#error amd64 requires options SMP
+#endif
 
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
