@@ -45,9 +45,6 @@ void test_tcp_md5_getsockopt(int);
 void
 test_tcp_md5_getsockopt(int v6)
 {
-	if (kldfind("tcpmd5.ko") == -1)
-		atf_tc_skip("Test requires the tcpmd5 kernel module to be loaded");
-
         struct sockaddr_in *s;
         struct sockaddr_in6 s6 = { 0 };
         struct sockaddr_in s4 = { 0 };
@@ -108,6 +105,7 @@ ATF_TC(tcp_md5_getsockopt_v4);
 ATF_TC_HEAD(tcp_md5_getsockopt_v4, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Test getsockopt for TCP MD5 SIG (IPv4)");
+	atf_tc_set_md_var(tc, "require.kmods", "tcpmd5");
 }
 
 ATF_TC_BODY(tcp_md5_getsockopt_v4, tc)
@@ -119,6 +117,7 @@ ATF_TC(tcp_md5_getsockopt_v6);
 ATF_TC_HEAD(tcp_md5_getsockopt_v6, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Test getsockopt for TCP MD5 SIG (IPv6)");
+	atf_tc_set_md_var(tc, "require.kmods", "tcpmd5");
 }
 
 ATF_TC_BODY(tcp_md5_getsockopt_v6, tc)
