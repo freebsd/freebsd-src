@@ -136,7 +136,7 @@ ctx_switch_fpusave_done:
 	movq	%r15,TD_LOCK(%r13)		/* Release the old thread */
 sw1:
 	leaq	TD_MD_PCB(%r12),%r8
-#if defined(SCHED_ULE) && defined(SMP)
+#if defined(SCHED_ULE)
 	movq	$blocked_lock, %rdx
 	movq	TD_LOCK(%r12),%rcx
 	cmpq	%rcx, %rdx
@@ -492,7 +492,7 @@ ENTRY(resumectx)
 END(resumectx)
 
 /* Wait for the new thread to become unblocked */
-#if defined(SCHED_ULE) && defined(SMP)
+#if defined(SCHED_ULE)
 sw1wait:
 1:
 	pause

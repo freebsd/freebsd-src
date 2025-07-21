@@ -59,9 +59,7 @@
 #include <sys/reg.h>
 #include <sys/rwlock.h>
 #include <sys/signalvar.h>
-#ifdef SMP
 #include <sys/smp.h>
-#endif
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>

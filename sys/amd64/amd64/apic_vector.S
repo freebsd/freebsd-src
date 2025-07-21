@@ -157,7 +157,6 @@ IDTVEC(spuriousint)
 	jmp	doreti
 #endif
 
-#ifdef SMP
 /*
  * Global address space TLB shootdown.
  */
@@ -264,5 +263,3 @@ IDTVEC(justreturn)
 	INTR_HANDLER	justreturn1
 	call	as_lapic_eoi
 	jmp	doreti
-
-#endif /* SMP */

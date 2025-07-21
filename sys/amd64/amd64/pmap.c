@@ -162,9 +162,7 @@
 #include <machine/msan.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
-#ifdef SMP
 #include <machine/smp.h>
-#endif
 #include <machine/sysarch.h>
 #include <machine/tss.h>
 
@@ -3045,7 +3043,6 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
  * XXX TODO
  */
 
-#ifdef SMP
 /*
  * Interrupt the cpus that are executing in the guest context.
  * This will force the vcpu to exit and the cached EPT mappings
@@ -3503,168 +3500,6 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	}
 	sched_unpin();
 }
-#else /* !SMP */
-/*
- * Normal, non-SMP, invalidation functions.
- */
-void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
-{
-	struct invpcid_descr d;
-	struct pmap_pcid *pcidp;
-	uint64_t kcr3, ucr3;
-	uint32_t pcid;
-
-	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
-		pmap->pm_eptgen++;
-		return;
-	}
-	KASSERT(pmap->pm_type == PT_X86,
-	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
-
-	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap)) {
-		invlpg(va);
-		if (pmap == PCPU_GET(curpmap) && pmap_pcid_enabled &&
-		    pmap->pm_ucr3 != PMAP_NO_CR3) {
-			critical_enter();
-			pcid = pmap_get_pcid(pmap);
-			if (invpcid_works) {
-				d.pcid = pcid | PMAP_PCID_USER_PT;
-				d.pad = 0;
-				d.addr = va;
-				invpcid(&d, INVPCID_ADDR);
-			} else {
-				kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
-				ucr3 = pmap->pm_ucr3 | pcid |
-				    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
-				pmap_pti_pcid_invlpg(ucr3, kcr3, va);
-			}
-			critical_exit();
-		}
-	} else if (pmap_pcid_enabled) {
-		pcidp = zpcpu_get(pmap->pm_pcidp);
-		pcidp->pm_gen = 0;
-	}
-}
-
-void
-pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
-{
-	struct invpcid_descr d;
-	struct pmap_pcid *pcidp;
-	vm_offset_t addr;
-	uint64_t kcr3, ucr3;
-	uint32_t pcid;
-
-	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
-		pmap->pm_eptgen++;
-		return;
-	}
-	KASSERT(pmap->pm_type == PT_X86,
-	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
-
-	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap)) {
-		for (addr = sva; addr < eva; addr += PAGE_SIZE)
-			invlpg(addr);
-		if (pmap == PCPU_GET(curpmap) && pmap_pcid_enabled &&
-		    pmap->pm_ucr3 != PMAP_NO_CR3) {
-			critical_enter();
-			pcid = pmap_get_pcid(pmap);
-			if (invpcid_works) {
-				d.pcid = pcid | PMAP_PCID_USER_PT;
-				d.pad = 0;
-				d.addr = sva;
-				for (; d.addr < eva; d.addr += PAGE_SIZE)
-					invpcid(&d, INVPCID_ADDR);
-			} else {
-				kcr3 = pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
-				ucr3 = pmap->pm_ucr3 | pcid |
-				    PMAP_PCID_USER_PT | CR3_PCID_SAVE;
-				pmap_pti_pcid_invlrng(ucr3, kcr3, sva, eva);
-			}
-			critical_exit();
-		}
-	} else if (pmap_pcid_enabled) {
-		pcidp = zpcpu_get(pmap->pm_pcidp);
-		pcidp->pm_gen = 0;
-	}
-}
-
-void
-pmap_invalidate_all(pmap_t pmap)
-{
-	struct invpcid_descr d;
-	struct pmap_pcid *pcidp;
-	uint64_t kcr3, ucr3;
-	uint32_t pcid;
-
-	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
-		pmap->pm_eptgen++;
-		return;
-	}
-	KASSERT(pmap->pm_type == PT_X86,
-	    ("pmap_invalidate_all: unknown type %d", pmap->pm_type));
-
-	if (pmap == kernel_pmap) {
-		if (pmap_pcid_enabled && invpcid_works) {
-			bzero(&d, sizeof(d));
-			invpcid(&d, INVPCID_CTXGLOB);
-		} else {
-			invltlb_glob();
-		}
-	} else if (pmap == PCPU_GET(curpmap)) {
-		if (pmap_pcid_enabled) {
-			critical_enter();
-			pcid = pmap_get_pcid(pmap);
-			if (invpcid_works) {
-				d.pcid = pcid;
-				d.pad = 0;
-				d.addr = 0;
-				invpcid(&d, INVPCID_CTX);
-				if (pmap->pm_ucr3 != PMAP_NO_CR3) {
-					d.pcid |= PMAP_PCID_USER_PT;
-					invpcid(&d, INVPCID_CTX);
-				}
-			} else {
-				kcr3 = pmap->pm_cr3 | pcid;
-				if (pmap->pm_ucr3 != PMAP_NO_CR3) {
-					ucr3 = pmap->pm_ucr3 | pcid |
-					    PMAP_PCID_USER_PT;
-					pmap_pti_pcid_invalidate(ucr3, kcr3);
-				} else
-					load_cr3(kcr3);
-			}
-			critical_exit();
-		} else {
-			invltlb();
-		}
-	} else if (pmap_pcid_enabled) {
-		pcidp = zpcpu_get(pmap->pm_pcidp);
-		pcidp->pm_gen = 0;
-	}
-}
-
-void
-pmap_invalidate_cache(void)
-{
-
-	wbinvd();
-}
-
-static void
-pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
-{
-	struct pmap_pcid *pcidp;
-
-	pmap_update_pde_store(pmap, pde, newpde);
-	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap))
-		pmap_update_pde_invalidate(pmap, va, newpde);
-	else {
-		pcidp = zpcpu_get(pmap->pm_pcidp);
-		pcidp->pm_gen = 0;
-	}
-}
-#endif /* !SMP */
 
 static void
 pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
@@ -10358,17 +10193,9 @@ pmap_activate_sw(struct thread *td)
 		return;
 	}
 	cpuid = PCPU_GET(cpuid);
-#ifdef SMP
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
-#else
-	CPU_SET(cpuid, &pmap->pm_active);
-#endif
 	pmap_activate_sw_mode(td, pmap, cpuid);
-#ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
-#else
-	CPU_CLR(cpuid, &oldpmap->pm_active);
-#endif
 }
 
 void
@@ -10409,11 +10236,7 @@ pmap_activate_boot(pmap_t pmap)
 	MPASS(pmap != kernel_pmap);
 
 	cpuid = PCPU_GET(cpuid);
-#ifdef SMP
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
-#else
-	CPU_SET(cpuid, &pmap->pm_active);
-#endif
 	PCPU_SET(curpmap, pmap);
 	if (pti) {
 		kcr3 = pmap->pm_cr3;

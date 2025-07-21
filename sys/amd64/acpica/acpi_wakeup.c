@@ -54,10 +54,8 @@
 
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
-#ifdef SMP
 #include <machine/smp.h>
 #include <machine/vmparam.h>
-#endif
 
 #include <contrib/dev/acpica/include/acpi.h>
 
@@ -73,19 +71,13 @@ extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
 extern int		acpi_susp_bounce;
 
-#ifdef SMP
 extern struct susppcb	**susppcbs;
 static cpuset_t		suspcpus;
-#else
-static struct susppcb	**susppcbs;
-#endif
 
 static void		acpi_stop_beep(void *);
 
-#ifdef SMP
 static int		acpi_wakeup_ap(struct acpi_softc *, int);
 static void		acpi_wakeup_cpus(struct acpi_softc *);
-#endif
 
 #define	ACPI_WAKEPT_PAGES	7
 
@@ -103,7 +95,6 @@ acpi_stop_beep(void *arg)
 		timer_spkr_release();
 }
 
-#ifdef SMP
 static int
 acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 {
@@ -177,7 +168,6 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 		outb(CMOS_DATA, mpbiosreason);
 	}
 }
-#endif
 
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
@@ -190,10 +180,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	if (sc->acpi_wakeaddr == 0ul)
 		return (-1);	/* couldn't alloc wake memory */
 
-#ifdef SMP
 	suspcpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &suspcpus);
-#endif
 
 	if (acpi_resume_beep != 0)
 		timer_spkr_acquire();
@@ -208,12 +196,10 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	pcb = &susppcbs[0]->sp_pcb;
 	if (savectx(pcb)) {
 		fpususpend(susppcbs[0]->sp_fpususpend);
-#ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
 			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
 			return (0);	/* couldn't sleep */
 		}
-#endif
 		hw_ibrs_ibpb_active = 0;
 		hw_ssb_active = 0;
 		cpu_stdext_feature3 = 0;
@@ -278,16 +264,12 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
 			lapic_xapic_mode();
-#ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
 				acpi_wakeup_cpus(sc);
-#endif
 		}
 
-#ifdef SMP
 		if (!CPU_EMPTY(&suspcpus))
 			resume_cpus(suspcpus);
-#endif
 
 		/*
 		 * Re-read cpu_stdext_feature3, which was zeroed-out

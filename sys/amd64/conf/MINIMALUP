@@ -1,4 +1,0 @@
-include 	MINIMAL
-ident 		MINIMALUP
-nooptions 	SMP
-nooptions 	NUMA
