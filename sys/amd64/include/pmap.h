@@ -557,6 +557,7 @@ pmap_pml5e_index(vm_offset_t va)
 
 struct kva_layout_s {
 	vm_offset_t kva_min;
+	vm_offset_t kva_max;
 	vm_offset_t dmap_low;	/* DMAP_MIN_ADDRESS */
 	vm_offset_t dmap_high;	/* DMAP_MAX_ADDRESS */
 	vm_offset_t lm_low;	/* LARGEMAP_MIN_ADDRESS */
