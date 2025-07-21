@@ -35,12 +35,10 @@ vmm_cred_jail_host_head()
 {
 	atf_set "descr" "Tests deleting the host's VM from within a jail"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "vmm"
 }
 vmm_cred_jail_host_body()
 {
-	if ! -c /dev/vmmctl; then
-		atf_skip "vmm is not loaded"
-	fi
 	bhyvectl --vm=testvm --create
 	vmm_mkjail myjail
 	atf_check -s exit:1 -e ignore jexec myjail bhyvectl --vm=testvm --destroy
@@ -56,12 +54,10 @@ vmm_cred_jail_other_head()
 {
 	atf_set "descr" "Tests deleting a jail's VM from within another jail"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "vmm"
 }
 vmm_cred_jail_other_body()
 {
-	if ! -c /dev/vmmctl; then
-		atf_skip "vmm is not loaded"
-	fi
 	vmm_mkjail myjail1
 	vmm_mkjail myjail2
 	atf_check -s exit:0 jexec myjail1 bhyvectl --vm=testvm --create
