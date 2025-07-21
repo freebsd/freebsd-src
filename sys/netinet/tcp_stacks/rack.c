@@ -40,7 +40,6 @@
 #endif
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
