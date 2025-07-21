@@ -37,7 +37,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * AMD64 Trap and System call handling
  */
@@ -898,9 +897,9 @@ trap_diag(struct trapframe *frame, vm_offset_t eva)
 	printf("\n\nFatal trap %d: %s while in %s mode\n", type,
 	    type < nitems(trap_msg) ? trap_msg[type] : UNKNOWN,
 	    TRAPF_USERMODE(frame) ? "user" : "kernel");
-	/* two separate prints in case of a trap on an unmapped page */
-	printf("cpuid = %d; ", PCPU_GET(cpuid));
-	printf("apic id = %02x\n", PCPU_GET(apic_id));
+	/* Print these separately in case pcpu accesses trap. */
+	printf("cpuid = %d; apic id = %02x\n", PCPU_GET(cpuid),
+	    PCPU_GET(apic_id));
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%lx\n", eva);
 		printf("fault code		= %s %s %s%s%s, %s\n",
@@ -1021,9 +1020,9 @@ dblfault_handler(struct trapframe *frame)
 	    frame->tf_cs, frame->tf_ss, frame->tf_ds, frame->tf_es,
 	    frame->tf_fs, frame->tf_gs,
 	    rdmsr(MSR_FSBASE), rdmsr(MSR_GSBASE), rdmsr(MSR_KGSBASE));
-	/* two separate prints in case of a trap on an unmapped page */
-	printf("cpuid = %d; ", PCPU_GET(cpuid));
-	printf("apic id = %02x\n", PCPU_GET(apic_id));
+	/* Print these separately in case pcpu accesses trap. */
+	printf("cpuid = %d; apic id = %02x\n", PCPU_GET(cpuid),
+	    PCPU_GET(apic_id));
 	panic("double fault");
 }
 
