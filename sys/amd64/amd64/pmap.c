@@ -481,6 +481,8 @@ vm_paddr_t		KERNend;	/* and the end */
 
 struct kva_layout_s	kva_layout = {
 	.kva_min =	KV4ADDR(PML4PML4I, 0, 0, 0),
+	.kva_max =	KV4ADDR(NPML4EPG - 1, NPDPEPG - 1,
+			    NPDEPG - 1, NPTEPG - 1),
 	.dmap_low =	KV4ADDR(DMPML4I, 0, 0, 0),
 	.dmap_high =	KV4ADDR(DMPML4I + NDMPML4E, 0, 0, 0),
 	.lm_low =	KV4ADDR(LMSPML4I, 0, 0, 0),
@@ -501,6 +503,8 @@ struct kva_layout_s	kva_layout = {
 
 struct kva_layout_s	kva_layout_la57 = {
 	.kva_min =	KV5ADDR(NPML5EPG / 2, 0, 0, 0, 0),	/* == rec_pt */
+	.kva_max =	KV5ADDR(NPML5EPG - 1, NPML4EPG - 1, NPDPEPG - 1,
+			    NPDEPG - 1, NPTEPG - 1),
 	.dmap_low =	KV5ADDR(DMPML5I, 0, 0, 0, 0),
 	.dmap_high =	KV5ADDR(DMPML5I + NDMPML5E, 0, 0, 0, 0),
 	.lm_low =	KV5ADDR(LMSPML5I, 0, 0, 0, 0),
@@ -11896,9 +11900,7 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 	    mode, range->pdpes, range->pdes, range->ptes);
 
 	/* Reset to sentinel value. */
-	range->sva = la57 ? KV5ADDR(NPML5EPG - 1, NPML4EPG - 1, NPDPEPG - 1,
-	    NPDEPG - 1, NPTEPG - 1) : KV4ADDR(NPML4EPG - 1, NPDPEPG - 1,
-	    NPDEPG - 1, NPTEPG - 1);
+	range->sva = kva_layout.kva_max;
 }
 
 /*
@@ -11992,9 +11994,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(sb, NULL, PAGE_SIZE, req);
 
 	/* Sentinel value. */
-	range.sva = la57 ? KV5ADDR(NPML5EPG - 1, NPML4EPG - 1, NPDPEPG - 1,
-	    NPDEPG - 1, NPTEPG - 1) : KV4ADDR(NPML4EPG - 1, NPDPEPG - 1,
-	    NPDEPG - 1, NPTEPG - 1);
+	range.sva = kva_layout.kva_max;
 
 	/*
 	 * Iterate over the kernel page tables without holding the kernel pmap
