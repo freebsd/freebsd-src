@@ -634,11 +634,89 @@ ofw_bus_find_iparent(phandle_t node)
 	return (iparent);
 }
 
+static phandle_t
+ofw_bus_search_iparent(phandle_t node)
+{
+	phandle_t iparent;
+
+	do {
+		if (OF_getencprop(node, "interrupt-parent", &iparent,
+		    sizeof(iparent)) > 0) {
+			node = OF_node_from_xref(iparent);
+		} else {
+			node = OF_parent(node);
+		}
+		if (node == 0)
+			return (0);
+	} while (!OF_hasprop(node, "#interrupt-cells"));
+
+	return (OF_xref_from_node(node));
+}
+
+static int
+ofw_bus_traverse_imap(phandle_t inode, phandle_t node, uint32_t *intr,
+    int intrsz, pcell_t *res, int ressz, phandle_t *iparentp)
+{
+	struct ofw_bus_iinfo ii;
+	void *reg;
+	uint32_t *intrp;
+	phandle_t iparent;
+	int rv = 0;
+
+	/* We already have an interrupt controller */
+	if (OF_hasprop(node, "interrupt-controller"))
+		return (0);
+
+	intrp = malloc(intrsz, M_OFWPROP, M_WAITOK);
+	memcpy(intrp, intr, intrsz);
+
+	while (true) {
+		/* There is no interrupt-map to follow */
+		if (!OF_hasprop(inode, "interrupt-map")) {
+			free(intrp, M_OFWPROP);
+			return (0);
+		}
+
+		memset(&ii, 0, sizeof(ii));
+		ofw_bus_setup_iinfo(inode, &ii, sizeof(cell_t));
+
+		reg = NULL;
+		if (ii.opi_addrc > 0)
+			reg = malloc(ii.opi_addrc, M_OFWPROP, M_WAITOK);
+
+		rv = ofw_bus_lookup_imap(node, &ii, reg, ii.opi_addrc, intrp,
+		    intrsz, res, ressz, &iparent);
+
+		free(reg, M_OFWPROP);
+		free(ii.opi_imap, M_OFWPROP);
+		free(ii.opi_imapmsk, M_OFWPROP);
+		free(intrp, M_OFWPROP);
+
+		if (rv == 0)
+			return (0);
+
+		node = inode;
+		inode = OF_node_from_xref(iparent);
+
+		/* Stop when we have an interrupt controller */
+		if (OF_hasprop(inode, "interrupt-controller")) {
+			*iparentp = iparent;
+			return (rv);
+		}
+
+		intrsz = rv * sizeof(pcell_t);
+		intrp = malloc(intrsz, M_OFWPROP, M_WAITOK);
+		memcpy(intrp, res, intrsz);
+	}
+}
+
 int
 ofw_bus_intr_to_rl(device_t dev, phandle_t node,
     struct resource_list *rl, int *rlen)
 {
-	phandle_t iparent;
+	phandle_t iparent, iparent_node;
+	uint32_t result[16];
+	uint32_t intrpcells, *intrp;
 	uint32_t icells, *intr;
 	int err, i, irqnum, nintr, rid;
 	bool extended;
@@ -646,15 +724,16 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
-		iparent = ofw_bus_find_iparent(node);
+		iparent = ofw_bus_search_iparent(node);
 		if (iparent == 0) {
 			device_printf(dev, "No interrupt-parent found, "
 			    "assuming direct parent\n");
 			iparent = OF_parent(node);
 			iparent = OF_xref_from_node(iparent);
 		}
-		if (OF_searchencprop(OF_node_from_xref(iparent), 
-		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
+		iparent_node = OF_node_from_xref(iparent);
+		if (OF_searchencprop(iparent_node, "#interrupt-cells", &icells,
+		    sizeof(icells)) == -1) {
 			device_printf(dev, "Missing #interrupt-cells "
 			    "property, assuming <1>\n");
 			icells = 1;
@@ -677,7 +756,8 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 	for (i = 0; i < nintr; i += icells) {
 		if (extended) {
 			iparent = intr[i++];
-			if (OF_searchencprop(OF_node_from_xref(iparent), 
+			iparent_node = OF_node_from_xref(iparent);
+			if (OF_searchencprop(iparent_node,
 			    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
 				device_printf(dev, "Missing #interrupt-cells "
 				    "property\n");
@@ -691,7 +771,16 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 				break;
 			}
 		}
-		irqnum = ofw_bus_map_intr(dev, iparent, icells, &intr[i]);
+
+		intrp = &intr[i];
+		intrpcells = ofw_bus_traverse_imap(iparent_node, node, intrp,
+		    icells * sizeof(intr[0]), result, sizeof(result), &iparent);
+		if (intrpcells > 0)
+			intrp = result;
+		else
+			intrpcells = icells;
+
+		irqnum = ofw_bus_map_intr(dev, iparent, intrpcells, intrp);
 		resource_list_add(rl, SYS_RES_IRQ, rid++, irqnum, irqnum, 1);
 	}
 	if (rlen != NULL)
