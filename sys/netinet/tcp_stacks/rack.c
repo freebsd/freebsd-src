@@ -3480,9 +3480,9 @@ static void
 rack_free(struct tcp_rack *rack, struct rack_sendmap *rsm)
 {
 	if (rsm->r_flags & RACK_APP_LIMITED) {
-		if (rack->r_ctl.rc_app_limited_cnt > 0) {
-			rack->r_ctl.rc_app_limited_cnt--;
-		}
+		KASSERT((rack->r_ctl.rc_app_limited_cnt > 0),
+		    ("app_cnt %u, rsm %p", rack->r_ctl.rc_app_limited_cnt, rsm));
+		rack->r_ctl.rc_app_limited_cnt--;
 	}
 	if (rsm->r_limit_type) {
 		/* currently there is only one limit type */
@@ -7044,6 +7044,9 @@ rack_clone_rsm(struct tcp_rack *rack, struct rack_sendmap *nrsm,
 	/* Push bit must go to the right edge as well */
 	if (rsm->r_flags & RACK_HAD_PUSH)
 		rsm->r_flags &= ~RACK_HAD_PUSH;
+	/* Update the count if app limited */
+	if (nrsm->r_flags & RACK_APP_LIMITED)
+		rack->r_ctl.rc_app_limited_cnt++;
 	/* Clone over the state of the hw_tls flag */
 	nrsm->r_hw_tls = rsm->r_hw_tls;
 	/*
