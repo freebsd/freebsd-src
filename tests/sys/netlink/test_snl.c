@@ -25,13 +25,6 @@ static const struct snl_hdr_parser *snl_all_route_parsers[] = {
 	&_addr_fbsd_parser, &snl_rtm_addr_parser, &_nh_fbsd_parser, &snl_nhmsg_parser,
 };
 
-static void
-require_netlink(void)
-{
-	if (modfind("netlink") == -1)
-		atf_tc_skip("netlink module not loaded");
-}
-
 ATF_TC(snl_verify_core_parsers);
 ATF_TC_HEAD(snl_verify_core_parsers, tc)
 {
@@ -60,14 +53,13 @@ ATF_TC(snl_parse_errmsg_capped);
 ATF_TC_HEAD(snl_parse_errmsg_capped, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Tests snl(3) correctly parsing capped errors");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
 }
 
 ATF_TC_BODY(snl_parse_errmsg_capped, tc)
 {
 	struct snl_state ss;
 	struct snl_writer nw;
-
-	require_netlink();
 
 	if (!snl_init(&ss, NETLINK_ROUTE))
 		atf_tc_fail("snl_init() failed");
@@ -102,14 +94,13 @@ ATF_TC(snl_parse_errmsg_capped_extack);
 ATF_TC_HEAD(snl_parse_errmsg_capped_extack, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Tests snl(3) correctly parsing capped errors with extack");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
 }
 
 ATF_TC_BODY(snl_parse_errmsg_capped_extack, tc)
 {
 	struct snl_state ss;
 	struct snl_writer nw;
-
-	require_netlink();
 
 	if (!snl_init(&ss, NETLINK_ROUTE))
 		atf_tc_fail("snl_init() failed");
@@ -145,14 +136,13 @@ ATF_TC(snl_parse_errmsg_uncapped_extack);
 ATF_TC_HEAD(snl_parse_errmsg_uncapped_extack, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Tests snl(3) correctly parsing errors with extack");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
 }
 
 ATF_TC_BODY(snl_parse_errmsg_uncapped_extack, tc)
 {
 	struct snl_state ss;
 	struct snl_writer nw;
-
-	require_netlink();
 
 	ATF_CHECK(snl_init(&ss, NETLINK_ROUTE));
 
@@ -185,6 +175,7 @@ ATF_TC(snl_list_ifaces);
 ATF_TC_HEAD(snl_list_ifaces, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Tests snl(3) listing interfaces");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
 }
 
 struct nl_parsed_link {
@@ -211,8 +202,6 @@ ATF_TC_BODY(snl_list_ifaces, tc)
 {
 	struct snl_state ss;
 	struct snl_writer nw;
-
-	require_netlink();
 
 	if (!snl_init(&ss, NETLINK_ROUTE))
 		atf_tc_fail("snl_init() failed");
