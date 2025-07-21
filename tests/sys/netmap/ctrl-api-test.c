@@ -59,8 +59,6 @@
 #include <stddef.h>
 
 #ifdef __FreeBSD__
-#include "freebsd_test_suite/macros.h"
-
 static int
 eventfd(int x __unused, int y __unused)
 {
@@ -2198,11 +2196,6 @@ main(int argc, char **argv)
 	int list = 0;
 	int opt;
 	int i;
-
-#ifdef __FreeBSD__
-	PLAIN_REQUIRE_KERNEL_MODULE("if_tap", 0);
-	PLAIN_REQUIRE_KERNEL_MODULE("netmap", 0);
-#endif
 
 	memset(&ctx_, 0, sizeof(ctx_));
 
