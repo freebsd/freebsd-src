@@ -2,6 +2,7 @@ TESTSDIR=	${TESTSBASE}/sys/aio
 
 ATF_TESTS_C+=	aio_test
 ATF_TESTS_C+=	lio_test
+TEST_METADATA+=	required_kmods="aio"
 TEST_METADATA.aio_test+= timeout="30"
 TEST_METADATA.lio_test+= timeout="10"
 # Some lio_test testcases involve system resource limitations, so cannot run concurrently
