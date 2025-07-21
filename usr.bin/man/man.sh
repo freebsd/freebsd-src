@@ -313,6 +313,8 @@ manpath_warnings() {
 # redirected to another source file.
 man_check_for_so() {
 	local IFS line tstr
+	local counter_so=0
+	local counter_so_limit=32
 
 	unset IFS
 	if [ -n "$catpage" ]; then
@@ -320,13 +322,16 @@ man_check_for_so() {
 	fi
 
 	# We need to loop to accommodate multiple .so directives.
-	while true
+	while [ $counter_so -lt $counter_so_limit ]
 	do
+		counter_so=$((counter_so + 1))
+
 		line=$($cattool "$manpage" 2>/dev/null | grep -E -m1 -v '^\.\\"[ ]*|^[ ]*$')
 		case "$line" in
                '.so /'*) break ;; # ignore absolute path
                '.so '*) trim "${line#.so}"
-			decho "$manpage includes $tstr"
+			decho "$manpage includes $tstri level=$counter_so"
+
 			# Glob and check for the file.
 			if ! check_man "$1/$tstr" ""; then
 				decho "  Unable to find $tstr"
@@ -336,6 +341,10 @@ man_check_for_so() {
 		*)	break ;;
 		esac
 	done
+
+	if [ $counter_so -ge $counter_so_limit ]; then
+		decho ".so include limit of $counter_so_limit reached, stop"
+	fi
 
 	return 0
 }
