@@ -550,6 +550,12 @@ This option allows the default heuristic to be overridden.
 .It verify-txgs
 Prompt OpenZFS to verify pool metadata during import.
 This is disabled by default as it may significantly increase import times.
+.It poolguid
+Use the specified 64-bit integer as the pool GUID.
+If this option is not specified, the pool GUID will be random but fixed
+across multiple identical invocations of
+.Nm .
+This option is useful for testing but not required for reproducibility.
 .It poolname
 The name of the ZFS pool.
 This option must be specified.
