@@ -4506,30 +4506,30 @@ dt_cook_none(dt_node_t *dnp, uint_t idflags)
 	return (dnp);
 }
 
-static dt_node_t *(*dt_cook_funcs[])(dt_node_t *, uint_t) = {
-	dt_cook_none,		/* DT_NODE_FREE */
-	dt_cook_none,		/* DT_NODE_INT */
-	dt_cook_none,		/* DT_NODE_STRING */
-	dt_cook_ident,		/* DT_NODE_IDENT */
-	dt_cook_var,		/* DT_NODE_VAR */
-	dt_cook_none,		/* DT_NODE_SYM */
-	dt_cook_none,		/* DT_NODE_TYPE */
-	dt_cook_func,		/* DT_NODE_FUNC */
-	dt_cook_op1,		/* DT_NODE_OP1 */
-	dt_cook_op2,		/* DT_NODE_OP2 */
-	dt_cook_op3,		/* DT_NODE_OP3 */
-	dt_cook_statement,	/* DT_NODE_DEXPR */
-	dt_cook_statement,	/* DT_NODE_DFUNC */
-	dt_cook_aggregation,	/* DT_NODE_AGG */
-	dt_cook_none,		/* DT_NODE_PDESC */
-	dt_cook_clause,		/* DT_NODE_CLAUSE */
-	dt_cook_inline,		/* DT_NODE_INLINE */
-	dt_cook_member,		/* DT_NODE_MEMBER */
-	dt_cook_xlator,		/* DT_NODE_XLATOR */
-	dt_cook_none,		/* DT_NODE_PROBE */
-	dt_cook_provider,	/* DT_NODE_PROVIDER */
-	dt_cook_none,		/* DT_NODE_PROG */
-	dt_cook_none,		/* DT_NODE_IF */
+static dt_node_t *(* const dt_cook_funcs[])(dt_node_t *, uint_t) = {
+	[DT_NODE_FREE] = dt_cook_none,
+	[DT_NODE_INT] = dt_cook_none,
+	[DT_NODE_STRING] = dt_cook_none,
+	[DT_NODE_IDENT] = dt_cook_ident,
+	[DT_NODE_VAR] = dt_cook_var,
+	[DT_NODE_SYM] = dt_cook_none,
+	[DT_NODE_TYPE] = dt_cook_none,
+	[DT_NODE_FUNC] = dt_cook_func,
+	[DT_NODE_OP1] = dt_cook_op1,
+	[DT_NODE_OP2] = dt_cook_op2,
+	[DT_NODE_OP3] = dt_cook_op3,
+	[DT_NODE_DEXPR] = dt_cook_statement,
+	[DT_NODE_DFUNC] = dt_cook_statement,
+	[DT_NODE_AGG] = dt_cook_aggregation,
+	[DT_NODE_PDESC] = dt_cook_none,
+	[DT_NODE_CLAUSE] = dt_cook_clause,
+	[DT_NODE_INLINE] = dt_cook_inline,
+	[DT_NODE_MEMBER] = dt_cook_member,
+	[DT_NODE_XLATOR] = dt_cook_xlator,
+	[DT_NODE_PROBE] = dt_cook_none,
+	[DT_NODE_PROVIDER] = dt_cook_provider,
+	[DT_NODE_PROG] = dt_cook_none,
+	[DT_NODE_IF] = dt_cook_none,
 };
 
 /*
