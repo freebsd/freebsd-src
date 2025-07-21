@@ -337,7 +337,7 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 		obj->tlsalign = phtls->p_align;
 		obj->tlspoffset = phtls->p_offset;
 		obj->tlsinitsize = phtls->p_filesz;
-		obj->tlsinit = mapbase + phtls->p_vaddr;
+		obj->tlsinit = obj->relocbase + phtls->p_vaddr;
 	}
 	obj->stack_flags = stack_flags;
 	if (note_start < note_end)
