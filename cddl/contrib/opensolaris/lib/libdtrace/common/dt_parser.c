@@ -1918,6 +1918,14 @@ dt_node_op1(int op, dt_node_t *cp)
 		return (cp);
 	}
 
+	/*
+	 * When applying the addressof operator to an identifier, it's okay if
+	 * we can't find type information for the identifier, so flag the node
+	 * to ensure that we don't raise an error.
+	 */
+	if (op == DT_TOK_ADDROF && cp->dn_kind == DT_NODE_IDENT)
+		cp->dn_flags |= DT_NF_IDENTADDR;
+
 	dnp = dt_node_alloc(DT_NODE_OP1);
 	assert(op <= USHRT_MAX);
 	dnp->dn_op = (ushort_t)op;
@@ -2786,10 +2794,21 @@ dt_xcook_ident(dt_node_t *dnp, dt_idhash_t *dhp, uint_t idkind, int create)
 				    dt_module_modelname(dtp->dt_ddefs));
 			}
 
-			xyerror(D_SYM_NOTYPES,
+			/*
+			 * If we're taking the address of an identifier that
+			 * doesn't have type info, try to make it a void *.
+			 * This lets us use identifiers that are defined in
+			 * assembly and don't have type information.
+			 */
+			if ((dnp->dn_flags & DT_NF_IDENTADDR) == 0 ||
+			    dtrace_lookup_by_type(dtp, DTRACE_OBJ_CDEFS,
+			    "void", &dtt) != 0) {
+				xyerror(D_SYM_NOTYPES,
 			    "no symbolic type information is available for "
-			    "%s%s%s: %s\n", dts.dts_object, mark, dts.dts_name,
-			    dtrace_errmsg(dtp, dtrace_errno(dtp)));
+				    "%s%s%s: %s\n", dts.dts_object, mark,
+				    dts.dts_name,
+				    dtrace_errmsg(dtp, dtrace_errno(dtp)));
+			}
 		}
 
 		idp = dt_ident_create(name, DT_IDENT_SYMBOL, 0, 0,
