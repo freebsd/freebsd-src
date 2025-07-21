@@ -320,7 +320,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 	obj->tlsalign = phtls->p_align;
 	obj->tlspoffset = phtls->p_offset;
 	obj->tlsinitsize = phtls->p_filesz;
-	obj->tlsinit = mapbase + phtls->p_vaddr;
+	obj->tlsinit = obj->relocbase + phtls->p_vaddr;
     }
     obj->stack_flags = stack_flags;
     obj->relro_page = obj->relocbase + rtld_trunc_page(relro_page);
