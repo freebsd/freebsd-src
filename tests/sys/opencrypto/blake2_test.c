@@ -126,14 +126,11 @@ do_cryptop(int fd, int ses, size_t inlen, void *out)
 }
 
 static void
-test_blake2b_vectors(const char *devname, const char *modname)
+test_blake2b_vectors(const char *devname)
 {
 	uint8_t hash[BLAKE2B_OUTBYTES];
 	int crid, fd, ses;
 	size_t i;
-
-	ATF_REQUIRE_KERNEL_MODULE(modname);
-	ATF_REQUIRE_KERNEL_MODULE("cryptodev");
 
 	initialize_constant_buffers();
 	fd = get_handle_fd();
@@ -150,14 +147,11 @@ test_blake2b_vectors(const char *devname, const char *modname)
 }
 
 static void
-test_blake2s_vectors(const char *devname, const char *modname)
+test_blake2s_vectors(const char *devname)
 {
 	uint8_t hash[BLAKE2S_OUTBYTES];
 	int crid, fd, ses;
 	size_t i;
-
-	ATF_REQUIRE_KERNEL_MODULE(modname);
-	ATF_REQUIRE_KERNEL_MODULE("cryptodev");
 
 	initialize_constant_buffers();
 	fd = get_handle_fd();
@@ -173,33 +167,49 @@ test_blake2s_vectors(const char *devname, const char *modname)
 	}
 }
 
-ATF_TC_WITHOUT_HEAD(blake2b_vectors);
+ATF_TC(blake2b_vectors);
+ATF_TC_HEAD(blake2b_vectors, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "nexus/cryptosoft cryptodev");
+}
 ATF_TC_BODY(blake2b_vectors, tc)
 {
 	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
-	test_blake2b_vectors("cryptosoft0", "nexus/cryptosoft");
+	test_blake2b_vectors("cryptosoft0");
 }
 
-ATF_TC_WITHOUT_HEAD(blake2s_vectors);
+ATF_TC(blake2s_vectors);
+ATF_TC_HEAD(blake2s_vectors, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "nexus/cryptosoft cryptodev");
+}
 ATF_TC_BODY(blake2s_vectors, tc)
 {
 	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
-	test_blake2s_vectors("cryptosoft0", "nexus/cryptosoft");
+	test_blake2s_vectors("cryptosoft0");
 }
 
 #if defined(__i386__) || defined(__amd64__)
-ATF_TC_WITHOUT_HEAD(blake2b_vectors_x86);
+ATF_TC(blake2b_vectors_x86);
+ATF_TC_HEAD(blake2b_vectors_x86, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "nexus/blake2 cryptodev");
+}
 ATF_TC_BODY(blake2b_vectors_x86, tc)
 {
 	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
-	test_blake2b_vectors("blaketwo0", "nexus/blake2");
+	test_blake2b_vectors("blaketwo0");
 }
 
-ATF_TC_WITHOUT_HEAD(blake2s_vectors_x86);
+ATF_TC(blake2s_vectors_x86);
+ATF_TC_HEAD(blake2s_vectors_x86, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "nexus/blake2 cryptodev");
+}
 ATF_TC_BODY(blake2s_vectors_x86, tc)
 {
 	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
-	test_blake2s_vectors("blaketwo0", "nexus/blake2");
+	test_blake2s_vectors("blaketwo0");
 }
 #endif
 
