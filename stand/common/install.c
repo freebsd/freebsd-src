@@ -137,7 +137,9 @@ read_metatags(int fd)
 		}
 		*p++ = '\0';
 
-		if (strcmp(tag, "KERNEL") == 0)
+		if (strncmp(tag, "ENV_", 4) == 0)
+			setenv(&tag[4], val, 1);
+		else if (strcmp(tag, "KERNEL") == 0)
 			error = setpath(&inst_kernel, val);
 		else if (strcmp(tag, "MODULES") == 0)
 			error = setmultipath(&inst_modules, val);
