@@ -116,7 +116,11 @@ fullsocket(void)
 	return (fd);
 }
 
-ATF_TC_WITHOUT_HEAD(overflow);
+ATF_TC(overflow);
+ATF_TC_HEAD(overflow, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(overflow, tc)
 {
 	char buf[BUFLEN];
@@ -143,7 +147,11 @@ ATF_TC_BODY(overflow, tc)
 	ATF_REQUIRE(timer_done == 0);
 }
 
-ATF_TC_WITHOUT_HEAD(peek);
+ATF_TC(peek);
+ATF_TC_HEAD(peek, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(peek, tc)
 {
 	char *buf;
@@ -185,7 +193,11 @@ cmsg_check(struct msghdr *msg)
 	ATF_REQUIRE((msg->msg_flags & MSG_CTRUNC) == 0);
 }
 
-ATF_TC_WITHOUT_HEAD(sizes);
+ATF_TC(sizes);
+ATF_TC_HEAD(sizes, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(sizes, tc)
 {
 #define	NLMSG_LARGE 2048		/* XXX: match kernel nl_buf */
@@ -273,7 +285,11 @@ nla_RTA_DST(struct nlattr *start, ssize_t len)
  * Check that NETLINK_ADD_MEMBERSHIP subscribes us.  Add & delete a temporary
  * route and check if announcements came in.
  */
-ATF_TC_WITHOUT_HEAD(membership);
+ATF_TC(membership);
+ATF_TC_HEAD(membership, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
 ATF_TC_BODY(membership, tc)
 {
 	struct {
@@ -329,9 +345,6 @@ ATF_TC_BODY(membership, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-	if (modfind("netlink") == -1)
-		atf_tc_skip("netlink module not loaded");
-
 	ATF_TP_ADD_TC(tp, overflow);
 	ATF_TP_ADD_TC(tp, peek);
 	ATF_TP_ADD_TC(tp, sizes);

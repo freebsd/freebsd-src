@@ -15,13 +15,6 @@ static const struct snl_hdr_parser *snl_all_genl_parsers[] = {
 	&_genl_ctrl_getfam_parser, &_genl_ctrl_mc_parser,
 };
 
-static void
-require_netlink(void)
-{
-	if (modfind("netlink") == -1)
-		atf_tc_skip("netlink module not loaded");
-}
-
 ATF_TC(snl_verify_genl_parsers);
 ATF_TC_HEAD(snl_verify_genl_parsers, tc)
 {
@@ -38,13 +31,12 @@ ATF_TC(test_snl_get_genl_family_success);
 ATF_TC_HEAD(test_snl_get_genl_family_success, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Tests successfull resolution of the 'nlctrl' family");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
 }
 
 ATF_TC_BODY(test_snl_get_genl_family_success, tc)
 {
 	struct snl_state ss;
-
-	require_netlink();
 
 	if (!snl_init(&ss, NETLINK_GENERIC))
 		atf_tc_fail("snl_init() failed");
@@ -56,13 +48,12 @@ ATF_TC(test_snl_get_genl_family_failure);
 ATF_TC_HEAD(test_snl_get_genl_family_failure, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Tests unsuccessfull resolution of 'no-such-family' family");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
 }
 
 ATF_TC_BODY(test_snl_get_genl_family_failure, tc)
 {
 	struct snl_state ss;
-
-	require_netlink();
 
 	if (!snl_init(&ss, NETLINK_GENERIC))
 		atf_tc_fail("snl_init() failed");
@@ -74,6 +65,7 @@ ATF_TC(test_snl_get_genl_family_groups);
 ATF_TC_HEAD(test_snl_get_genl_family_groups, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Tests getting 'nlctrl' groups");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
 }
 
 ATF_TC_BODY(test_snl_get_genl_family_groups, tc)
@@ -81,8 +73,6 @@ ATF_TC_BODY(test_snl_get_genl_family_groups, tc)
 	struct snl_state ss;
 	struct snl_writer nw;
 	struct nlmsghdr *hdr;
-
-	require_netlink();
 
 	if (!snl_init(&ss, NETLINK_GENERIC))
 		atf_tc_fail("snl_init() failed");
