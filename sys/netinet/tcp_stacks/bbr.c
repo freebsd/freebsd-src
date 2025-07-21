@@ -8763,7 +8763,7 @@ bbr_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    (SEQ_LEQ(th->th_ack, tp->iss) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_RST_IN_FRONT);
-		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+		ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, tlen);
 		return (1);
 	}
 	if ((thflags & (TH_ACK | TH_RST)) == (TH_ACK | TH_RST)) {
@@ -8965,7 +8965,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    (SEQ_LEQ(th->th_ack, tp->snd_una) ||
 	     SEQ_GT(th->th_ack, tp->snd_max))) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_RST_IN_FRONT);
-		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+		ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, tlen);
 		return (1);
 	}
 	if (tp->t_flags & TF_FASTOPEN) {
@@ -8977,7 +8977,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 */
 		if ((thflags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)) {
 			tcp_log_end_status(tp, TCP_EI_STATUS_RST_IN_FRONT);
-			ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+			ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, tlen);
 			return (1);
 		} else if (thflags & TH_SYN) {
 			/* non-initial SYN is ignored */
@@ -9010,7 +9010,7 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if (SEQ_LT(th->th_seq, tp->irs)) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_RST_IN_FRONT);
-		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+		ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, tlen);
 		return (1);
 	}
 	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
@@ -9288,7 +9288,7 @@ bbr_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (sbavail(&so->so_snd)) {
 		if (ctf_progress_timeout_check(tp, true)) {
 			bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_TCP_RST, tlen);
 			return (1);
 		}
 	}
@@ -9385,7 +9385,7 @@ bbr_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (sbavail(&so->so_snd)) {
 		if (ctf_progress_timeout_check(tp, true)) {
 			bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_TCP_RST, tlen);
 			return (1);
 		}
 	}
@@ -9535,7 +9535,7 @@ bbr_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (sbavail(&so->so_snd)) {
 		if (ctf_progress_timeout_check(tp, true)) {
 			bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_TCP_RST, tlen);
 			return (1);
 		}
 	}
@@ -9637,7 +9637,7 @@ bbr_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (sbavail(&so->so_snd)) {
 		if (ctf_progress_timeout_check(tp, true)) {
 			bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_TCP_RST, tlen);
 			return (1);
 		}
 	}
@@ -9739,7 +9739,7 @@ bbr_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (sbavail(&so->so_snd)) {
 		if (ctf_progress_timeout_check(tp, true)) {
 			bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_TCP_RST, tlen);
 			return (1);
 		}
 	}
@@ -9848,7 +9848,7 @@ bbr_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (sbavail(&so->so_snd)) {
 		if (ctf_progress_timeout_check(tp, true)) {
 			bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+			ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_TCP_RST, tlen);
 			return (1);
 		}
 	}
@@ -11510,7 +11510,7 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	if ((tp->t_state == TCPS_SYN_SENT) && (thflags & TH_ACK) &&
 	    (SEQ_LEQ(th->th_ack, tp->iss) || SEQ_GT(th->th_ack, tp->snd_max))) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_RST_IN_FRONT);
-		ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+		ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_TCP_RST, tlen);
 		return (1);
 	}
 	if (tiwin > bbr->r_ctl.rc_high_rwnd)

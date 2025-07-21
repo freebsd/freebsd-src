@@ -1097,8 +1097,7 @@ static const char *icmp_rate_descrs[BANDLIM_MAX] = {
 	[BANDLIM_ICMP_UNREACH] = "icmp unreach",
 	[BANDLIM_ICMP_ECHO] = "icmp ping",
 	[BANDLIM_ICMP_TSTAMP] = "icmp tstamp",
-	[BANDLIM_RST_CLOSEDPORT] = "closed port RST",
-	[BANDLIM_RST_OPENPORT] = "open port RST",
+	[BANDLIM_TCP_RST] = "tcp reset",
 	[BANDLIM_ICMP6_UNREACH] = "icmp6 unreach",
 	[BANDLIM_SCTP_OOTB] = "sctp ootb",
 };
