@@ -198,7 +198,7 @@ static uint32_t rack_pcm_blast = 0;
 static uint32_t rack_pcm_is_enabled = 1;
 static uint8_t rack_ssthresh_rest_rto_rec = 0; /* Do we restore ssthresh when we have rec -> rto -> rec */
 
-static uint32_t rack_gp_gain_req = 1200;		/* Amount percent wise required to gain to record a round has "gaining" */
+static uint32_t rack_gp_gain_req = 1200;		/* Amount percent wise required to gain to record a round as "gaining" */
 static uint32_t rack_rnd_cnt_req = 0x10005;		/* Default number of rounds if we are below rack_gp_gain_req where we exit ss */
 
 
@@ -938,7 +938,7 @@ rack_init_sysctls(void)
 	SYSCTL_ADD_U32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_probertt),
 	    OID_AUTO, "time_between", CTLFLAG_RW,
-	    & rack_time_between_probertt, 96000000,
+	    &rack_time_between_probertt, 96000000,
 	    "How many useconds between the lowest rtt falling must past before we enter probertt");
 	SYSCTL_ADD_U32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_probertt),
@@ -3554,8 +3554,7 @@ rack_get_measure_window(struct tcpcb *tp, struct tcp_rack *rack)
 	 * earlier.
 	 *
 	 * So lets calculate the BDP with the "known" b/w using
-	 * the SRTT has our rtt and then multiply it by the
-	 * goal.
+	 * the SRTT as our rtt and then multiply it by the goal.
 	 */
 	bw = rack_get_bw(rack);
 	srtt = (uint64_t)tp->t_srtt;
@@ -5793,7 +5792,7 @@ rack_cong_signal(struct tcpcb *tp, uint32_t type, uint32_t ack, int line)
 		tp->t_badrxtwin = 0;
 		break;
 	}
-	if ((CC_ALGO(tp)->cong_signal != NULL)  &&
+	if ((CC_ALGO(tp)->cong_signal != NULL) &&
 	    (type != CC_RTO)){
 		tp->t_ccv.curack = ack;
 		CC_ALGO(tp)->cong_signal(&tp->t_ccv, type);
@@ -5904,7 +5903,7 @@ rack_calc_thresh_rack(struct tcp_rack *rack, uint32_t srtt, uint32_t cts, int li
 	 *
 	 * If reorder-fade is configured, then we track the last time we saw
 	 * re-ordering occur. If we reach the point where enough time as
-	 * passed we no longer consider reordering has occuring.
+	 * passed we no longer consider reordering as occurring.
 	 *
 	 * Or if reorder-face is 0, then once we see reordering we consider
 	 * the connection to alway be subject to reordering and just set lro
@@ -7096,7 +7095,7 @@ rack_merge_rsm(struct tcp_rack *rack,
 		l_rsm->r_flags |= RACK_TLP;
 	if (r_rsm->r_flags & RACK_RWND_COLLAPSED)
 		l_rsm->r_flags |= RACK_RWND_COLLAPSED;
-	if ((r_rsm->r_flags & RACK_APP_LIMITED)  &&
+	if ((r_rsm->r_flags & RACK_APP_LIMITED) &&
 	    ((l_rsm->r_flags & RACK_APP_LIMITED) == 0)) {
 		/*
 		 * If both are app-limited then let the
@@ -8137,7 +8136,7 @@ rack_update_rsm(struct tcpcb *tp, struct tcp_rack *rack,
 		 * remove the lost desgination and reduce the
 		 * bytes considered lost.
 		 */
-		rsm->r_flags  &= ~RACK_WAS_LOST;
+		rsm->r_flags &= ~RACK_WAS_LOST;
 		KASSERT((rack->r_ctl.rc_considered_lost >= (rsm->r_end - rsm->r_start)),
 			("rsm:%p rack:%p rc_considered_lost goes negative", rsm,  rack));
 		if (rack->r_ctl.rc_considered_lost >= (rsm->r_end - rsm->r_start))
@@ -8832,7 +8831,7 @@ rack_apply_updated_usrtt(struct tcp_rack *rack, uint32_t us_rtt, uint32_t us_cts
 
 				val = rack_probertt_lower_within * rack_time_between_probertt;
 				val /= 100;
-				if ((rack->in_probe_rtt == 0)  &&
+				if ((rack->in_probe_rtt == 0) &&
 				    (rack->rc_skip_timely == 0) &&
 				    ((us_cts - rack->r_ctl.rc_lower_rtt_us_cts) >= (rack_time_between_probertt - val)))	{
 					rack_enter_probertt(rack, us_cts);
@@ -10369,7 +10368,7 @@ more:
 			 * and yet before retransmitting we get an ack
 			 * which can happen due to reordering.
 			 */
-			rsm->r_flags  &= ~RACK_WAS_LOST;
+			rsm->r_flags &= ~RACK_WAS_LOST;
 			KASSERT((rack->r_ctl.rc_considered_lost >= (rsm->r_end - rsm->r_start)),
 				("rsm:%p rack:%p rc_considered_lost goes negative", rsm,  rack));
 			if (rack->r_ctl.rc_considered_lost >= (rsm->r_end - rsm->r_start))
@@ -11065,7 +11064,7 @@ rack_strike_dupack(struct tcp_rack *rack, tcp_seq th_ack)
 		 * We need to skip anything already set
 		 * to be retransmitted.
 		 */
-		if ((rsm->r_dupack >= DUP_ACK_THRESHOLD)  ||
+		if ((rsm->r_dupack >= DUP_ACK_THRESHOLD) ||
 		    (rsm->r_flags & RACK_MUST_RXT)) {
 			rsm = TAILQ_NEXT(rsm, r_tnext);
 			continue;
@@ -16919,7 +16918,7 @@ do_output_now:
 		} else if ((nxt_pkt == 0) && (tp->t_flags & TF_ACKNOW)) {
 			goto do_output_now;
 		} else if ((no_output == 1) &&
-			   (nxt_pkt == 0)  &&
+			   (nxt_pkt == 0) &&
 			   (tcp_in_hpts(rack->rc_tp) == 0)) {
 			/*
 			 * We are not in hpts and we had a pacing timer up. Use
@@ -17546,7 +17545,7 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 						   rack->r_ctl.rc_last_us_rtt,
 						   88, __LINE__, NULL, gain);
 		}
-		if (((bw_est == 0) || (rate_wanted == 0)  || (rack->gp_ready == 0)) &&
+		if (((bw_est == 0) || (rate_wanted == 0) || (rack->gp_ready == 0)) &&
 		    (rack->use_fixed_rate == 0)) {
 			/*
 			 * No way yet to make a b/w estimate or
@@ -20043,7 +20042,7 @@ again:
 			rack->r_ctl.pcm_max_seg = ctf_fixed_maxseg(tp) * 10;
 		}
 	}
-	if ((rack->r_ctl.pcm_max_seg != 0)  && (rack->pcm_needed == 1)) {
+	if ((rack->r_ctl.pcm_max_seg != 0) && (rack->pcm_needed == 1)) {
 		uint32_t rw_avail, cwa;
 
 		if (tp->snd_wnd > ctf_outstanding(tp))
@@ -21031,7 +21030,7 @@ just_return_nolock:
 					} else
 						log = 1;
 				}
-				/* Mark the last packet has app limited */
+				/* Mark the last packet as app limited */
 				rsm = tqhash_max(rack->r_ctl.tqh);
 				if (rsm && ((rsm->r_flags & RACK_APP_LIMITED) == 0)) {
 					if (rack->r_ctl.rc_app_limited_cnt == 0)
