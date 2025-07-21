@@ -2003,7 +2003,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 				 */
 				p5_p[i] = KPML5phys | X86_PG_RW | X86_PG_A |
 				    X86_PG_M | X86_PG_V | pg_nx;
-			} else if (i >= DMPML5I && i < DMPML5I + NDMPML5E) {
+			} else if (i >= DMPML5I && i < DMPML5I + ndmpml4phys) {
 				/* Connect DMAP pml4 pages to PML5. */
 				p5_p[i] = (DMPML4phys + ptoa(i - DMPML5I)) |
 				    X86_PG_RW | X86_PG_V | pg_nx;
