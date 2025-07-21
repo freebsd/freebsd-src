@@ -182,6 +182,7 @@ typedef struct dt_node {
 #define	DT_NF_WRITABLE	0x10	/* node is writable (can be modified) */
 #define	DT_NF_BITFIELD	0x20	/* node is an integer bitfield */
 #define	DT_NF_USERLAND	0x40	/* data is a userland address */
+#define	DT_NF_IDENTADDR	0x80	/* node is an identifier address */
 
 #define	DT_TYPE_NAMELEN	128	/* reasonable size for ctf_type_name() */
 
