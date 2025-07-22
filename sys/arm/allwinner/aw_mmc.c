@@ -84,21 +84,26 @@
 
 struct aw_mmc_conf {
 	uint32_t	dma_xferlen;
+	uint32_t	dma_desc_shift;
 	bool		mask_data0;
 	bool		can_calibrate;
 	bool		new_timing;
+	bool		zero_is_skip;
 };
 
 static const struct aw_mmc_conf a10_mmc_conf = {
 	.dma_xferlen = 0x2000,
+	.dma_desc_shift = 0,
 };
 
 static const struct aw_mmc_conf a13_mmc_conf = {
 	.dma_xferlen = 0x10000,
+	.dma_desc_shift = 0,
 };
 
 static const struct aw_mmc_conf a64_mmc_conf = {
 	.dma_xferlen = 0x10000,
+	.dma_desc_shift = 0,
 	.mask_data0 = true,
 	.can_calibrate = true,
 	.new_timing = true,
@@ -106,13 +111,24 @@ static const struct aw_mmc_conf a64_mmc_conf = {
 
 static const struct aw_mmc_conf a64_emmc_conf = {
 	.dma_xferlen = 0x2000,
+	.dma_desc_shift = 0,
 	.can_calibrate = true,
+};
+
+static const struct aw_mmc_conf d1_mmc_conf = {
+	.dma_xferlen = 0x1000,
+	.dma_desc_shift = 2,
+	.mask_data0 = true,
+	.can_calibrate = true,
+	.new_timing = true,
+	.zero_is_skip = true,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-mmc", (uintptr_t)&a10_mmc_conf},
 	{"allwinner,sun5i-a13-mmc", (uintptr_t)&a13_mmc_conf},
 	{"allwinner,sun7i-a20-mmc", (uintptr_t)&a13_mmc_conf},
+	{"allwinner,sun20i-d1-mmc", (uintptr_t)&d1_mmc_conf},
 	{"allwinner,sun50i-a64-mmc", (uintptr_t)&a64_mmc_conf},
 	{"allwinner,sun50i-a64-emmc", (uintptr_t)&a64_emmc_conf},
 	{NULL,             0}
@@ -607,16 +623,18 @@ aw_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 
 	dma_desc = sc->aw_dma_desc;
 	for (i = 0; i < nsegs; i++) {
-		if (segs[i].ds_len == sc->aw_mmc_conf->dma_xferlen)
+		if ((segs[i].ds_len == sc->aw_mmc_conf->dma_xferlen) &&
+		    !sc->aw_mmc_conf->zero_is_skip)
 			dma_desc[i].buf_size = 0;		/* Size of 0 indicate max len */
 		else
 			dma_desc[i].buf_size = segs[i].ds_len;
-		dma_desc[i].buf_addr = segs[i].ds_addr;
+		dma_desc[i].buf_addr = segs[i].ds_addr >>
+		    sc->aw_mmc_conf->dma_desc_shift;
 		dma_desc[i].config = AW_MMC_DMA_CONFIG_CH |
-			AW_MMC_DMA_CONFIG_OWN | AW_MMC_DMA_CONFIG_DIC;
-
-		dma_desc[i].next = sc->aw_dma_desc_phys +
-			((i + 1) * sizeof(struct aw_mmc_dma_desc));
+		    AW_MMC_DMA_CONFIG_OWN | AW_MMC_DMA_CONFIG_DIC;
+		dma_desc[i].next = (sc->aw_dma_desc_phys +
+		    (i + 1) * sizeof(struct aw_mmc_dma_desc)) >>
+		    sc->aw_mmc_conf->dma_desc_shift;
 	}
 
 	dma_desc[0].config |= AW_MMC_DMA_CONFIG_FD;
@@ -678,7 +696,8 @@ aw_mmc_prepare_dma(struct aw_mmc_softc *sc)
 	AW_MMC_WRITE_4(sc, AW_MMC_IDIE, val);
 
 	/* Set DMA descritptor list address */
-	AW_MMC_WRITE_4(sc, AW_MMC_DLBA, sc->aw_dma_desc_phys);
+	AW_MMC_WRITE_4(sc, AW_MMC_DLBA, sc->aw_dma_desc_phys >>
+	    sc->aw_mmc_conf->dma_desc_shift);
 
 	/* FIFO trigger level */
 	AW_MMC_WRITE_4(sc, AW_MMC_FWLR, AW_MMC_DMA_FTRGLEVEL);
