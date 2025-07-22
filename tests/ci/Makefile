@@ -110,7 +110,7 @@ QEMUTGT=portinstall-qemu
 .endif
 .endif
 QEMUTGT?=
-QEMU_DEVICES?=-device virtio-blk,drive=hd0
+QEMU_DEVICES?=-device virtio-blk,drive=hd0 -device virtio-blk,drive=hd1
 QEMU_EXTRA_PARAM?=
 QEMU_MACHINE?=virt
 QEMUBIN=/usr/local/bin/qemu-system-${QEMU_ARCH}
