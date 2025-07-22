@@ -610,7 +610,6 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_RESET\n"));
 		/* FALLTHROUGH */
 	case PROBE_IDENTIFY:
-		xpt_path_inq(&start_ccb->cpi, periph->path);
 		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_IDENTIFY\n"));
 		init_standard_ccb(start_ccb, XPT_MMC_GET_TRAN_SETTINGS);
 		break;
