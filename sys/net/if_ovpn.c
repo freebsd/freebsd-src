@@ -363,6 +363,7 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 
 		memset(in, 0, sizeof(*in));
 		in->sin_family = af;
+		in->sin_len = sizeof(*in);
 		if (len != sizeof(in->sin_addr))
 			return (EINVAL);
 
@@ -379,6 +380,7 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 
 		memset(in6, 0, sizeof(*in6));
 		in6->sin6_family = af;
+		in6->sin6_len = sizeof(*in6);
 		if (len != sizeof(in6->sin6_addr))
 			return (EINVAL);
 
