@@ -2389,7 +2389,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 
 	ifp->if_capabilities = IFCAP_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
-
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
 	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
@@ -2399,6 +2398,7 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 	ifp->if_capabilities |= IFCAP_TSO6;
 	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capabilities |= IFCAP_HWSTATS;
 
 	ifp->if_hw_tsomax =  QLNX_MAX_TSO_FRAME_SIZE -
 				(ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
