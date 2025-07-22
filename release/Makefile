@@ -162,7 +162,8 @@ kernel.txz: # Also (if enabled) kernel-dbg.txz.
 
 src.txz:
 	mkdir -p ${DISTDIR}/usr
-	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
+	rm -f ${DISTDIR}/usr/src
+	ln -s ${WORLDDIR} ${DISTDIR}/usr/src
 	( cd ${DISTDIR} && ${TAR_XZ_CMD} -cLvf ${.OBJDIR}/src.txz \
 	    --exclude .svn --exclude .zfs \
 	    --exclude .git --exclude @ --exclude usr/src/release/dist \
@@ -170,7 +171,8 @@ src.txz:
 
 ports.txz:
 	mkdir -p ${DISTDIR}/usr
-	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
+	rm -f ${DISTDIR}/usr/ports
+	ln -s ${PORTSDIR} ${DISTDIR}/usr/ports
 	( cd ${DISTDIR} && ${TAR_XZ_CMD} -cLvf ${.OBJDIR}/ports.txz \
 	    --exclude .git --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
