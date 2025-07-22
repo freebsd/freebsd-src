@@ -8,6 +8,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  */
+
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/disk.h>
@@ -27,18 +28,10 @@
 #include <time.h>
 #include <unistd.h>
 
-/* Safe printf into a fixed-size buffer */
-#define bprintf(buf, fmt, ...)                                          \
-	do {                                                            \
-		int ibprintf;                                           \
-		ibprintf = snprintf(buf, sizeof buf, fmt, __VA_ARGS__); \
-		assert(ibprintf >= 0 && ibprintf < (int)sizeof buf);    \
-	} while (0)
-
 struct lump {
-	off_t			start;
-	off_t			len;
-	int			state;
+	uint64_t		start;
+	uint64_t		len;
+	unsigned		pass;
 	TAILQ_ENTRY(lump)	list;
 };
 
@@ -46,25 +39,32 @@ struct period {
 	time_t			t0;
 	time_t			t1;
 	char			str[20];
-	off_t			bytes_read;
+	uint64_t		bytes_read;
 	TAILQ_ENTRY(period)	list;
 };
 TAILQ_HEAD(period_head, period);
 
 static volatile sig_atomic_t aborting = 0;
 static int verbose = 0;
-static size_t bigsize = 1024 * 1024;
-static size_t medsize;
-static size_t minsize = 512;
-static off_t tot_size;
-static off_t done_size;
+static uint64_t big_read;
+static uint64_t medium_read;
+static uint64_t small_read;
+static uint64_t total_size;
+static uint64_t done_size;
 static char *input;
-static char *wworklist = NULL;
-static char *rworklist = NULL;
+static char *write_worklist_file = NULL;
+static char *read_worklist_file = NULL;
 static const char *unreadable_pattern = "_UNREAD_";
-static const int write_errors_are_fatal = 1;
-static int fdr, fdw;
+static int write_errors_are_fatal = 1;
+static int read_fd, write_fd;
+static FILE *log_file = NULL;
+static char *work_buf;
+static char *pattern_buf;
+static double error_pause;
 
+static unsigned nlumps;
+static double n_reads, n_good_reads;
+static time_t t_first;
 static TAILQ_HEAD(, lump) lumps = TAILQ_HEAD_INITIALIZER(lumps);
 static struct period_head minute = TAILQ_HEAD_INITIALIZER(minute);
 static struct period_head quarter = TAILQ_HEAD_INITIALIZER(quarter);
@@ -74,7 +74,8 @@ static struct period_head day = TAILQ_HEAD_INITIALIZER(quarter);
 /**********************************************************************/
 
 static void
-report_good_read2(time_t now, size_t bytes, struct period_head *ph, time_t dt)
+account_good_read_period(time_t now, uint64_t bytes,
+    struct period_head *ph, time_t dt)
 {
 	struct period *pp;
 	const char *fmt;
@@ -82,7 +83,7 @@ report_good_read2(time_t now, size_t bytes, struct period_head *ph, time_t dt)
 
 	pp = TAILQ_FIRST(ph);
 	if (pp == NULL || pp->t1 < now) {
-		pp = calloc(1, sizeof(*pp));
+		pp = calloc(1UL, sizeof(*pp));
 		assert(pp != NULL);
 		pp->t0 = (now / dt) * dt;
 		pp->t1 = (now / dt + 1) * dt;
@@ -98,13 +99,13 @@ report_good_read2(time_t now, size_t bytes, struct period_head *ph, time_t dt)
 }
 
 static void
-report_good_read(time_t now, size_t bytes)
+account_good_read(time_t now, uint64_t bytes)
 {
 
-	report_good_read2(now, bytes, &minute, 60L);
-	report_good_read2(now, bytes, &quarter, 900L);
-	report_good_read2(now, bytes, &hour, 3600L);
-	report_good_read2(now, bytes, &day, 86400L);
+	account_good_read_period(now, bytes, &minute, 60L);
+	account_good_read_period(now, bytes, &quarter, 900L);
+	account_good_read_period(now, bytes, &hour, 3600L);
+	account_good_read_period(now, bytes, &day, 86400L);
 }
 
 static void
@@ -114,20 +115,18 @@ report_one_period(const char *period, struct period_head *ph)
 	int n;
 
 	n = 0;
-	printf("%s \xe2\x94\x82", period);
+	printf("%s ", period);
 	TAILQ_FOREACH(pp, ph, list) {
-		if (n == 3) {
+		if (++n == 4) {
 			TAILQ_REMOVE(ph, pp, list);
 			free(pp);
 			break;
 		}
-		if (n++)
-			printf("  \xe2\x94\x82");
-		printf("  %s %14jd", pp->str, pp->bytes_read);
+		printf("\xe2\x94\x82  %s %14ju  ",
+		    pp->str, (uintmax_t)pp->bytes_read);
 	}
 	for (; n < 3; n++) {
-		printf("  \xe2\x94\x82");
-		printf("  %5s %14s", "", "");
+		printf("\xe2\x94\x82  %5s %14s  ", "", "");
 	}
 	printf("\x1b[K\n");
 }
@@ -146,27 +145,23 @@ report_periods(void)
 static void
 set_verbose(void)
 {
-	struct winsize wsz;
 
-	if (!isatty(STDIN_FILENO) || ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz))
-		return;
 	verbose = 1;
 }
 
 static void
-report_header(int eol)
+report_header(const char *term)
 {
-	printf("%13s %7s %13s %5s %13s %13s %9s",
+	printf("%13s %7s %13s %5s %13s %13s %9s%s",
 	    "start",
 	    "size",
 	    "block-len",
 	    "pass",
 	    "done",
 	    "remaining",
-	    "% done");
-	if (eol)
-		printf("\x1b[K");
-	putchar('\n');
+	    "% done",
+	    term
+	);
 }
 
 #define REPORTWID 79
@@ -186,20 +181,20 @@ report_hline(const char *how)
 	printf("\x1b[K\n");
 }
 
-static off_t hist[REPORTWID];
-static off_t last_done = -1;
+static uint64_t hist[REPORTWID];
+static uint64_t prev_done = ~0UL;
 
 static void
-report_histogram(const struct lump *lp)
+report_histogram(uint64_t start)
 {
-	off_t j, bucket, fp, fe, k, now;
+	uint64_t j, bucket, fp, fe, k, now;
 	double a;
 	struct lump *lp2;
 
-	bucket = tot_size / REPORTWID;
-	if (tot_size > bucket * REPORTWID)
+	bucket = total_size / REPORTWID;
+	if (total_size > bucket * REPORTWID)
 		bucket += 1;
-	if (done_size != last_done) {
+	if (done_size != prev_done) {
 		memset(hist, 0, sizeof hist);
 		TAILQ_FOREACH(lp2, &lumps, list) {
 			fp = lp2->start;
@@ -213,9 +208,9 @@ report_histogram(const struct lump *lp)
 				fp += k;
 			}
 		}
-		last_done = done_size;
+		prev_done = done_size;
 	}
-	now = lp->start / bucket;
+	now = start / bucket;
 	for (j = 0; j < REPORTWID; j++) {
 		a = round(8 * (double)hist[j] / bucket);
 		assert (a >= 0 && a < 9);
@@ -228,7 +223,7 @@ report_histogram(const struct lump *lp)
 		} else {
 			putchar(0xe2);
 			putchar(0x96);
-			putchar(0x80 + (int)a);
+			putchar(0x80 + (char)a);
 		}
 		if (j == now)
 			printf("\x1b[0m");
@@ -237,34 +232,40 @@ report_histogram(const struct lump *lp)
 }
 
 static void
-report(const struct lump *lp, size_t sz)
+report(uint64_t sz)
 {
 	struct winsize wsz;
+	const struct lump *lp = TAILQ_FIRST(&lumps);
 	int j;
+	unsigned pass = 0;
+	uintmax_t start = 0, length = 0;
+	time_t t_now = time(NULL);
 
-	assert(lp != NULL);
+	if (lp != NULL) {
+		pass = lp->pass;
+		start = lp->start;
+		length = lp->len;
+	}
 
 	if (verbose) {
 		printf("\x1b[H%s\x1b[K\n", input);
-		report_header(1);
-	} else {
-		putchar('\r');
+		report_header("\x1b[K\n");
 	}
 
-	printf("%13jd %7zu %13jd %5d %13jd %13jd %9.4f",
-	    (intmax_t)lp->start,
-	    sz,
-	    (intmax_t)lp->len,
-	    lp->state,
-	    (intmax_t)done_size,
-	    (intmax_t)(tot_size - done_size),
-	    100*(double)done_size/(double)tot_size
+	printf("%13ju %7ju %13ju %5u %13ju %13ju %9.4f",
+	    start,
+	    (uintmax_t)sz,
+	    length,
+	    pass,
+	    (uintmax_t)done_size,
+	    (uintmax_t)(total_size - done_size),
+	    100*(double)done_size/(double)total_size
 	);
 
 	if (verbose) {
 		printf("\x1b[K\n");
 		report_hline(NULL);
-		report_histogram(lp);
+		report_histogram(start);
 		if (TAILQ_EMPTY(&minute)) {
 			report_hline(NULL);
 		} else {
@@ -272,27 +273,36 @@ report(const struct lump *lp, size_t sz)
 			report_periods();
 			report_hline("\xe2\x94\xb4");
 		}
+		printf("Missing: %u", nlumps);
+		printf("  Success: %.0f/%.0f =", n_good_reads, n_reads);
+		printf(" %.4f%%", 100 * n_good_reads / n_reads);
+		printf("  Duration: %.3fs", (t_now - t_first) / n_reads);
+		printf("\x1b[K\n");
+		report_hline(NULL);
 		j = ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz);
 		if (!j)
 			printf("\x1b[%d;1H", wsz.ws_row);
+	} else {
+		printf("\n");
 	}
-	fflush(stdout);
 }
 
 /**********************************************************************/
 
 static void
-new_lump(off_t start, off_t len, int state)
+new_lump(uint64_t start, uint64_t len, unsigned pass)
 {
 	struct lump *lp;
 
+	assert(len > 0);
 	lp = malloc(sizeof *lp);
 	if (lp == NULL)
 		err(1, "Malloc failed");
 	lp->start = start;
 	lp->len = len;
-	lp->state = state;
+	lp->pass = pass;
 	TAILQ_INSERT_TAIL(&lumps, lp, list);
+	nlumps += 1;
 }
 
 /**********************************************************************
@@ -306,98 +316,100 @@ save_worklist(void)
 	struct lump *llp;
 	char buf[PATH_MAX];
 
-	if (fdw >= 0 && fdatasync(fdw))
+	if (write_fd >= 0 && fdatasync(write_fd))
 		err(1, "Write error, probably disk full");
 
-	if (wworklist != NULL) {
-		bprintf(buf, "%s.tmp", wworklist);
-		(void)fprintf(stderr, "\nSaving worklist ...");
-		(void)fflush(stderr);
+	if (write_worklist_file != NULL) {
+		snprintf(buf, sizeof(buf), "%s.tmp", write_worklist_file);
+		fprintf(stderr, "\nSaving worklist ...");
 
 		file = fopen(buf, "w");
 		if (file == NULL)
 			err(1, "Error opening file %s", buf);
 
-		TAILQ_FOREACH(llp, &lumps, list)
-			fprintf(file, "%jd %jd %d\n",
-			    (intmax_t)llp->start, (intmax_t)llp->len,
-			    llp->state);
-		(void)fflush(file);
+		TAILQ_FOREACH(llp, &lumps, list) {
+			assert (llp->len > 0);
+			fprintf(file, "%ju %ju %u\n",
+			    (uintmax_t)llp->start,
+			    (uintmax_t)llp->len,
+			    llp->pass);
+		}
+		fflush(file);
 		if (ferror(file) || fdatasync(fileno(file)) || fclose(file))
 			err(1, "Error writing file %s", buf);
-		if (rename(buf, wworklist))
-			err(1, "Error renaming %s to %s", buf, wworklist);
-		(void)fprintf(stderr, " done.\n");
+		if (rename(buf, write_worklist_file))
+			err(1, "Error renaming %s to %s",
+			    buf, write_worklist_file);
+		fprintf(stderr, " done.\n");
 	}
 }
 
 /* Read the worklist if -r was given */
-static off_t
-read_worklist(off_t t)
+static uint64_t
+read_worklist(void)
 {
-	off_t s, l, d;
-	int state, lines;
+	uintmax_t start, length;
+	uint64_t missing = 0;
+	unsigned pass, lines;
 	FILE *file;
 
-	(void)fprintf(stderr, "Reading worklist ...");
-	(void)fflush(stderr);
-	file = fopen(rworklist, "r");
+	fprintf(stderr, "Reading worklist ...");
+	file = fopen(read_worklist_file, "r");
 	if (file == NULL)
-		err(1, "Error opening file %s", rworklist);
+		err(1, "Error opening file %s", read_worklist_file);
 
 	lines = 0;
-	d = t;
 	for (;;) {
 		++lines;
-		if (3 != fscanf(file, "%jd %jd %d\n", &s, &l, &state)) {
+		if (3 != fscanf(file, "%ju %ju %u\n", &start, &length, &pass)) {
 			if (!feof(file))
-				err(1, "Error parsing file %s at line %d",
-				    rworklist, lines);
+				err(1, "Error parsing file %s at line %u",
+				    read_worklist_file, lines);
 			else
 				break;
 		}
-		new_lump(s, l, state);
-		d -= l;
+		if (length > 0) {
+			new_lump(start, length, pass);
+			missing += length;
+		}
 	}
 	if (fclose(file))
-		err(1, "Error closing file %s", rworklist);
-	(void)fprintf(stderr, " done.\n");
+		err(1, "Error closing file %s", read_worklist_file);
+	fprintf(stderr, " done.\n");
 	/*
-	 * Return the number of bytes already read
-	 * (at least not in worklist).
+	 * Return the number of bytes outstanding
 	 */
-	return (d);
+	return (missing);
 }
 
 /**********************************************************************/
 
 static void
-write_buf(int fd, const void *buf, ssize_t len, off_t where)
+write_buf(int fd, const void *buf, uint64_t length, uint64_t where)
 {
-	ssize_t i;
+	int64_t i;
 
-	i = pwrite(fd, buf, len, where);
-	if (i == len)
+	i = pwrite(fd, buf, length, (off_t)where);
+	if (i > 0 && (uint64_t)i == length)
 		return;
 
-	printf("\nWrite error at %jd/%zu\n\t%s\n",
-	    where, i, strerror(errno));
+	printf("\nWrite error at %ju/%ju: %jd (%s)\n",
+	    (uintmax_t)where,
+	    (uintmax_t)length,
+	    (intmax_t)i, strerror(errno));
 	save_worklist();
 	if (write_errors_are_fatal)
 		exit(3);
 }
 
 static void
-fill_buf(char *buf, ssize_t len, const char *pattern)
+fill_buf(char *buf, int64_t len, const char *pattern)
 {
-	ssize_t sz = strlen(pattern);
-	ssize_t i, j;
+	int64_t sz = strlen(pattern);
+	int64_t i;
 
 	for (i = 0; i < len; i += sz) {
-		j = len - i;
-		if (j > sz)
-			j = sz;
-		memcpy(buf + i, pattern, j);
+		memcpy(buf + i, pattern, MIN(len - i, sz));
 	}
 }
 
@@ -406,45 +418,334 @@ fill_buf(char *buf, ssize_t len, const char *pattern)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: recoverdisk [-b bigsize] [-r readlist] "
+	fprintf(stderr, "usage: recoverdisk [-b big_read] [-r readlist] "
 	    "[-s interval] [-w writelist] source [destination]\n");
 	/* XXX update */
 	exit(1);
 }
 
 static void
-sighandler(__unused int sig)
+sighandler(int sig)
 {
 
+	(void)sig;
 	aborting = 1;
 }
+
+/**********************************************************************/
+
+static int64_t
+attempt_one_lump(time_t t_now)
+{
+	struct lump *lp;
+	uint64_t sz;
+	int64_t retval;
+	int error;
+
+	lp = TAILQ_FIRST(&lumps);
+	if (lp == NULL)
+		return(0);
+
+	if (lp->pass == 0) {
+		sz = MIN(lp->len, big_read);
+	} else if (lp->pass == 1) {
+		sz = MIN(lp->len, medium_read);
+	} else {
+		sz = MIN(lp->len, small_read);
+	}
+
+	assert(sz != 0);
+
+	n_reads += 1;
+	retval = pread(read_fd, work_buf, sz, lp->start);
+
+#if 0 /* enable this when testing */
+	if (!(random() & 0xf)) {
+		retval = -1;
+		errno = EIO;
+		usleep(20000);
+	} else {
+		usleep(2000);
+	}
+#endif
+
+	error = errno;
+	if (retval > 0) {
+		n_good_reads += 1;
+		sz = retval;
+		done_size += sz;
+		if (write_fd >= 0) {
+			write_buf(write_fd, work_buf, sz, lp->start);
+		}
+		if (log_file != NULL) {
+			fprintf(log_file, "%jd %ju %ju\n",
+			    (intmax_t)t_now,
+			    (uintmax_t)lp->start,
+			    (uintmax_t)sz
+			);
+			fflush(log_file);
+		}
+	} else {
+		printf("%14ju %7ju read error %d: (%s)",
+		    (uintmax_t)lp->start,
+		    (uintmax_t)sz, error, strerror(error));
+		if (error_pause > 1) {
+			printf(" (Pausing %g s)", error_pause);
+		}
+		printf("\n");
+
+		if (write_fd >= 0 && pattern_buf != NULL) {
+			write_buf(write_fd, pattern_buf, sz, lp->start);
+		}
+		new_lump(lp->start, sz, lp->pass + 1);
+		retval = -sz;
+	}
+	lp->start += sz;
+	lp->len -= sz;
+	if (lp->len == 0) {
+		TAILQ_REMOVE(&lumps, lp, list);
+		nlumps -= 1;
+		free(lp);
+	}
+	errno = error;
+	return (retval);
+}
+
+
+/**********************************************************************/
+
+static void
+determine_total_size(void)
+{
+	struct stat sb;
+	int error;
+
+	if (total_size != 0)
+		return;
+
+	error = fstat(read_fd, &sb);
+	if (error < 0)
+		err(1, "fstat failed");
+
+	if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
+#ifdef DIOCGMEDIASIZE
+		off_t mediasize;
+		error = ioctl(read_fd, DIOCGMEDIASIZE, &mediasize);
+		if (error == 0 && mediasize > 0) {
+			total_size = mediasize;
+			printf("# Got total_size from DIOCGMEDIASIZE: %ju\n",
+			    (uintmax_t)total_size);
+			return;
+		}
+#endif
+	} else if (S_ISREG(sb.st_mode) && sb.st_size > 0) {
+		total_size = sb.st_size;
+		printf("# Got total_size from stat(2): %ju\n",
+		    (uintmax_t)total_size);
+		return;
+	} else {
+		errx(1, "Input must be device or regular file");
+	}
+	fprintf(stderr, "Specify total size with -t option\n");
+	exit(1);
+}
+
+static void
+determine_read_sizes(void)
+{
+	int error;
+	u_int sectorsize;
+	off_t stripesize;
+
+	determine_total_size();
+
+#ifdef DIOCGSECTORSIZE
+	if (small_read == 0) {
+		error = ioctl(read_fd, DIOCGSECTORSIZE, &sectorsize);
+		if (error >= 0 && sectorsize > 0) {
+			small_read = sectorsize;
+			printf("# Got small_read from DIOCGSECTORSIZE: %ju\n",
+			    (uintmax_t)small_read
+			);
+		}
+	}
+#endif
+
+	if (small_read == 0) {
+		printf("Assuming 512 for small_read\n");
+		small_read = 512;
+	}
+
+	if (medium_read && (medium_read % small_read)) {
+		errx(1,
+		    "medium_read (%ju) is not a multiple of small_read (%ju)\n",
+		    (uintmax_t)medium_read, (uintmax_t)small_read
+		);
+	}
+
+	if (big_read != 0 && (big_read % small_read)) {
+		errx(1,
+		    "big_read (%ju) is not a multiple of small_read (%ju)\n",
+		    (uintmax_t)big_read, (uintmax_t)small_read
+		);
+	}
+
+#ifdef DIOCGSTRIPESIZE
+	if (medium_read == 0) {
+		error = ioctl(read_fd, DIOCGSTRIPESIZE, &stripesize);
+		if (error < 0 || stripesize < 0) {
+			// nope
+		} else if ((uint64_t)stripesize < small_read) {
+			// nope
+		} else if (stripesize % small_read) {
+			// nope
+		} else if (0 < stripesize && stripesize < (128<<10)) {
+			medium_read = stripesize;
+			printf("# Got medium_read from DIOCGSTRIPESIZE: %ju\n",
+			    (uintmax_t)medium_read
+			);
+		}
+	}
+#endif
+#if defined(DIOCGFWSECTORS) && defined(DIOCGFWHEADS)
+	if (medium_read == 0) {
+		u_int fwsectors = 0, fwheads = 0;
+		error = ioctl(read_fd, DIOCGFWSECTORS, &fwsectors);
+		if (error)
+			fwsectors = 0;
+		error = ioctl(read_fd, DIOCGFWHEADS, &fwheads);
+		if (error)
+			fwheads = 0;
+		if (fwsectors && fwheads) {
+			medium_read = fwsectors * fwheads * small_read;
+			printf(
+			    "# Got medium_read from DIOCGFW{SECTORS,HEADS}: %ju\n",
+			    (uintmax_t)medium_read
+			);
+		}
+	}
+#endif
+
+	if (big_read == 0 && medium_read != 0) {
+		if (medium_read > (64<<10)) {
+			big_read = medium_read;
+		} else {
+			big_read = 128 << 10;
+			big_read -= big_read % medium_read;
+		}
+		printf("# Got big_read from medium_read: %ju\n",
+		    (uintmax_t)big_read
+		);
+	}
+
+	if (big_read == 0) {
+		big_read = 128 << 10;
+		printf("# Defaulting big_read to %ju\n",
+		    (uintmax_t)big_read
+		);
+	}
+
+	if (medium_read == 0) {
+		/*
+		 * We do not want to go directly to single sectors, but
+		 * we also dont want to waste time doing multi-sector
+		 * reads with high failure probability.
+		 */
+		uint64_t h = big_read;
+		uint64_t l = small_read;
+		while (h > l) {
+			h >>= 2;
+			l <<= 1;
+		}
+		medium_read = h;
+		printf("# Got medium_read from small_read & big_read: %ju\n",
+		    (uintmax_t)medium_read
+		);
+	}
+	fprintf(stderr,
+	    "# Bigsize = %ju, medium_read = %ju, small_read = %ju\n",
+	    (uintmax_t)big_read, (uintmax_t)medium_read, (uintmax_t)small_read);
+
+}
+
+
+/**********************************************************************/
+
+static void
+monitor_read_sizes(uint64_t failed_size)
+{
+
+	if (failed_size == big_read && medium_read != small_read) {
+		if (n_reads < n_good_reads + 3)
+			return;
+		fprintf(
+		    stderr,
+		    "Too many failures for big reads."
+		    " (%.0f bad of %.0f)"
+		    " Shifting to medium_reads.\n",
+		    n_reads - n_good_reads, n_reads
+		);
+		big_read = medium_read;
+		medium_read = small_read;
+		return;
+	}
+
+	if (failed_size > small_read) {
+		if (n_reads < n_good_reads + 100)
+			return;
+		fprintf(
+		    stderr,
+		    "Too many failures."
+		    " (%.0f bad of %.0f)"
+		    " Shifting to small_reads.\n",
+		    n_reads - n_good_reads, n_reads
+		);
+		big_read = small_read;
+		medium_read = small_read;
+		return;
+	}
+}
+
+/**********************************************************************/
 
 int
 main(int argc, char * const argv[])
 {
 	int ch;
-	size_t sz, j;
+	int64_t sz;
 	int error;
-	char *buf;
-	u_int sectorsize;
-	off_t stripesize;
-	time_t t1, t2;
-	struct stat sb;
-	u_int n, snapshot = 60;
-	static struct lump *lp;
+	time_t t_now, t_report, t_save;
+	unsigned snapshot = 60, unsaved;
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
 
-	while ((ch = getopt(argc, argv, "b:r:w:s:u:v")) != -1) {
+	while ((ch = getopt(argc, argv, "b:l:p:m:r:w:s:t:u:v")) != -1) {
 		switch (ch) {
 		case 'b':
-			bigsize = strtoul(optarg, NULL, 0);
+			big_read = strtoul(optarg, NULL, 0);
+			break;
+		case 'l':
+			log_file = fopen(optarg, "a");
+			if (log_file == NULL) {
+				err(1, "Could not open logfile for append");
+			}
+			break;
+		case 'p':
+			error_pause = strtod(optarg, NULL);
+			break;
+		case 'm':
+			medium_read = strtoul(optarg, NULL, 0);
 			break;
 		case 'r':
-			rworklist = strdup(optarg);
-			if (rworklist == NULL)
+			read_worklist_file = strdup(optarg);
+			if (read_worklist_file == NULL)
 				err(1, "Cannot allocate enough memory");
 			break;
 		case 's':
-			snapshot = strtoul(optarg, NULL, 0);
+			small_read = strtoul(optarg, NULL, 0);
+			break;
+		case 't':
+			total_size = strtoul(optarg, NULL, 0);
 			break;
 		case 'u':
 			unreadable_pattern = optarg;
@@ -453,8 +754,8 @@ main(int argc, char * const argv[])
 			set_verbose();
 			break;
 		case 'w':
-			wworklist = strdup(optarg);
-			if (wworklist == NULL)
+			write_worklist_file = strdup(optarg);
+			if (write_worklist_file == NULL)
 				err(1, "Cannot allocate enough memory");
 			break;
 		default:
@@ -469,149 +770,106 @@ main(int argc, char * const argv[])
 		usage();
 
 	input = argv[0];
-	fdr = open(argv[0], O_RDONLY);
-	if (fdr < 0)
+	read_fd = open(argv[0], O_RDONLY);
+	if (read_fd < 0)
 		err(1, "Cannot open read descriptor %s", argv[0]);
 
-	error = fstat(fdr, &sb);
-	if (error < 0)
-		err(1, "fstat failed");
-	if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
-		error = ioctl(fdr, DIOCGSECTORSIZE, &sectorsize);
-		if (error < 0)
-			err(1, "DIOCGSECTORSIZE failed");
+	determine_read_sizes();
 
-		error = ioctl(fdr, DIOCGSTRIPESIZE, &stripesize);
-		if (error == 0 && stripesize < sectorsize)
-			sectorsize = stripesize;
-
-		minsize = sectorsize;
-		bigsize = rounddown(bigsize, sectorsize);
-
-		error = ioctl(fdr, DIOCGMEDIASIZE, &tot_size);
-		if (error < 0)
-			err(1, "DIOCGMEDIASIZE failed");
-	} else {
-		tot_size = sb.st_size;
-	}
-
-	if (bigsize < minsize)
-		bigsize = minsize;
-
-	for (ch = 0; (bigsize >> ch) > minsize; ch++)
-		continue;
-	medsize = bigsize >> (ch / 2);
-	medsize = rounddown(medsize, minsize);
-
-	fprintf(stderr, "Bigsize = %zu, medsize = %zu, minsize = %zu\n",
-	    bigsize, medsize, minsize);
-
-	buf = malloc(bigsize);
-	if (buf == NULL)
-		err(1, "Cannot allocate %zu bytes buffer", bigsize);
+	work_buf = malloc(big_read);
+	assert (work_buf != NULL);
 
 	if (argc > 1) {
-		fdw = open(argv[1], O_WRONLY | O_CREAT, DEFFILEMODE);
-		if (fdw < 0)
+		write_fd = open(argv[1], O_WRONLY | O_CREAT, DEFFILEMODE);
+		if (write_fd < 0)
 			err(1, "Cannot open write descriptor %s", argv[1]);
-		if (ftruncate(fdw, tot_size) < 0)
-			err(1, "Cannot truncate output %s to %jd bytes",
-			    argv[1], (intmax_t)tot_size);
-	} else
-		fdw = -1;
-
-	if (rworklist != NULL) {
-		done_size = read_worklist(tot_size);
+		if (ftruncate(write_fd, (off_t)total_size) < 0)
+			err(1, "Cannot truncate output %s to %ju bytes",
+			    argv[1], (uintmax_t)total_size);
 	} else {
-		new_lump(0, tot_size, 0);
+		write_fd = -1;
+	}
+
+	if (strlen(unreadable_pattern)) {
+		pattern_buf = malloc(big_read);
+		assert(pattern_buf != NULL);
+		fill_buf(pattern_buf, big_read, unreadable_pattern);
+	}
+
+	if (read_worklist_file != NULL) {
+		done_size = total_size - read_worklist();
+	} else {
+		new_lump(0UL, total_size, 0UL);
 		done_size = 0;
 	}
-	if (wworklist != NULL)
+	if (write_worklist_file != NULL)
 		signal(SIGINT, sighandler);
 
-	t1 = time(NULL);
 	sz = 0;
 	if (!verbose)
-		report_header(0);
+		report_header("\n");
 	else
 		printf("\x1b[2J");
-	n = 0;
-	for (;;) {
-		lp = TAILQ_FIRST(&lumps);
-		if (lp == NULL)
+
+	t_first = time(NULL);
+	t_report = t_first;
+	t_save = t_first;
+	unsaved = 0;
+	while (!aborting) {
+		t_now = time(NULL);
+		sz = attempt_one_lump(t_now);
+		error = errno;
+
+		if (sz == 0) {
 			break;
-		while (lp->len > 0) {
+		}
 
-			if (lp->state == 0)
-				sz = MIN(lp->len, (off_t)bigsize);
-			else if (lp->state == 1)
-				sz = MIN(lp->len, (off_t)medsize);
-			else
-				sz = MIN(lp->len, (off_t)minsize);
-			assert(sz != 0);
-
-			t2 = time(NULL);
-			if (t1 != t2 || lp->len < (off_t)bigsize) {
-				t1 = t2;
-				if (++n == snapshot) {
-					save_worklist();
-					n = 0;
-				}
-				report(lp, sz);
-			}
-
-			j = pread(fdr, buf, sz, lp->start);
-#if 0
-if (!(random() & 0xf)) {
-	j = -1;
-	errno = EIO;
-}
-#endif
-			if (j == sz) {
-				done_size += sz;
-				if (fdw >= 0)
-					write_buf(fdw, buf, sz, lp->start);
-				lp->start += sz;
-				lp->len -= sz;
-				if (verbose && lp->state > 2)
-					report_good_read(t2, sz);
-				continue;
-			}
-			error = errno;
-
-			printf("%jd %zu %d read error (%s)\n",
-			    lp->start, sz, lp->state, strerror(error));
-			if (verbose)
-				report(lp, sz);
-			if (fdw >= 0 && strlen(unreadable_pattern)) {
-				fill_buf(buf, sz, unreadable_pattern);
-				write_buf(fdw, buf, sz, lp->start);
-			}
-			new_lump(lp->start, sz, lp->state + 1);
-			lp->start += sz;
-			lp->len -= sz;
-			if (error == EINVAL) {
-				printf("Try with -b 131072 or lower ?\n");
-				aborting = 1;
-				break;
-			}
-			if (error == ENXIO) {
-				printf("Input device probably detached...\n");
-				aborting = 1;
-				break;
+		if (sz > 0) {
+			unsaved += 1;
+		}
+		if (unsaved && (t_save + snapshot) < t_now) {
+			save_worklist();
+			unsaved = 0;
+			t_save = t_now;
+			if (!verbose) {
+				report_header("\n");
+				t_report = t_now;
 			}
 		}
-		if (aborting)
-			save_worklist();
-		if (aborting || !TAILQ_NEXT(lp, list))
-			report(lp, sz);
-		if (aborting)
+		if (sz > 0) {
+			if (verbose) {
+				account_good_read(t_now, sz);
+			}
+			if (t_report != t_now) {
+				report(sz);
+				t_report = t_now;
+			}
+			continue;
+		}
+
+		monitor_read_sizes(-sz);
+
+		if (error == EINVAL) {
+			printf("Try with -b 131072 or lower ?\n");
+			aborting = 1;
 			break;
-		assert(lp->len == 0);
-		TAILQ_REMOVE(&lumps, lp, list);
-		free(lp);
+		}
+		if (error == ENXIO) {
+			printf("Input device probably detached...\n");
+			aborting = 1;
+			break;
+		}
+		report(-sz);
+		t_report = t_now;
+		if (error_pause > 0) {
+			usleep((unsigned long)(1e6 * error_pause));
+		}
 	}
+	save_worklist();
+	free(work_buf);
+	if (pattern_buf != NULL)
+		free(pattern_buf);
 	printf("%s", aborting ? "Aborted\n" : "Completed\n");
-	free(buf);
-	return (0);
+	report(0UL);
+	return (0);	// XXX
 }
