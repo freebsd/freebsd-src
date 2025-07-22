@@ -15,6 +15,7 @@ PACKAGE=	krb5
 
 LIB=		krb5profile
 LIBADD=	com_err krb5support
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	prof_file.c \
 	prof_get.c \
