@@ -17,6 +17,7 @@ LIB=	krad
 # SHLIB_MAJOR=	0
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5 k5crypto com_err krb5profile krb5support verto
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	attr.c \
 	attrset.c \

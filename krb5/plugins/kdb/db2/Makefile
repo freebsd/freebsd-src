@@ -18,6 +18,7 @@ SHLIBDIR=	${LIBDIR}
 LIB=		db2
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile krb5 com_err k5crypto kadm5srv_mit kdb5 gssrpc gssapi_krb5 krb5support
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	\
 	adb_openclose.c \

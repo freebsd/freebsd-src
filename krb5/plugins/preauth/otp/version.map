@@ -1,0 +1,4 @@
+KRB5_PREAUTH_OTP {
+	global:
+		kdcpreauth_otp_initvt;
+};

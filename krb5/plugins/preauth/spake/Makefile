@@ -17,6 +17,7 @@ LIB=		spake
 LIBDIR=		${PLUGINSDIR}/preauth
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile krb5 k5crypto com_err krb5support crypto sys
+VERSION_MAP=	${.CURDIR}/version.map
 
 .PATH:	${KRB5_DIR}/plugins/preauth/spake
 

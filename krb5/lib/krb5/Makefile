@@ -17,6 +17,7 @@ LIB=		krb5
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile k5crypto com_err krb5support
 # SHLIB_MAJOR=	3
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	krb5_libinit.c
 
