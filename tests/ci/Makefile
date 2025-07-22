@@ -33,11 +33,11 @@ EXTRA_MAKE_FLAGS?=
 TARGET=		${MACHINE}
 .endif
 .if !defined(TARGET_ARCH) || empty(TARGET_ARCH)
-.if ${TARGET} == ${MACHINE}
+.  if ${TARGET} == ${MACHINE}
 TARGET_ARCH=	${MACHINE_ARCH}
-.else
+.  else
 TARGET_ARCH=	${TARGET}
-.endif
+.  endif
 .endif
 IMAKE=		${MAKE} TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}
 
@@ -47,20 +47,20 @@ CROSS_TOOLCHAIN_PARAM=	"CROSS_TOOLCHAIN=${CROSS_TOOLCHAIN}"
 
 # Define OSRELEASE by using newvers.sh
 .if !defined(OSRELEASE) || empty(OSRELEASE)
-.for _V in TYPE BRANCH REVISION
-. if !defined(${_V}) || empty(${_V})
+.  for _V in TYPE BRANCH REVISION
+.    if !defined(${_V}) || empty(${_V})
 ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../../sys/conf/newvers.sh); echo $$${_V}
-. endif
-.endfor
-.for _V in ${TARGET_ARCH}
-.if !empty(TARGET:M${_V})
+.    endif
+.  endfor
+.  for _V in ${TARGET_ARCH}
+.    if !empty(TARGET:M${_V})
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}
 VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET}
-.else
+.    else
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
 VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
-.endif
-.endfor
+.    endif
+.  endfor
 .endif
 
 .if exists(${.CURDIR}/tools/ci.conf) && !defined(CICONF)
@@ -104,10 +104,10 @@ TIMEOUT_VM=$$((${TIMEOUT_EXPECT} - 120))
 .	include "${.CURDIR}/Makefile.${TARGET_ARCH}"
 .endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
+.  if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 QEMUSTATIC=/usr/local/bin/qemu-${QEMU_ARCH}-static
 QEMUTGT=portinstall-qemu
-.endif
+.  endif
 .endif
 QEMUTGT?=
 QEMU_DEVICES?=-device virtio-blk,drive=hd0 -device virtio-blk,drive=hd1
