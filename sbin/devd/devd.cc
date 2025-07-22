@@ -1354,8 +1354,7 @@ main(int argc, char **argv)
 	len = sizeof(vm_guest);
 	if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) < 0) {
 		devdlog(LOG_ERR,
-		    "sysctlnametomib(kern.vm_guest) failed: %d\n",
-		    errno);
+		    "sysctlbyname(kern.vm_guest) failed: %d\n", errno);
 	}
 
 	cfg.parse();
