@@ -2346,7 +2346,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         else if (device_id == QLOGIC_PCI_DEVICE_ID_1644)
 		ifp->if_baudrate = IF_Gbps(100);
 
-        ifp->if_capabilities = IFCAP_LINKSTATE;
 #else
         ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = (1 * 1000 * 1000 *1000);
@@ -2401,6 +2400,7 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 	ifp->if_capabilities |= IFCAP_TSO4;
 	ifp->if_capabilities |= IFCAP_TSO6;
 	ifp->if_capabilities |= IFCAP_LRO;
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
 
 	ifp->if_hw_tsomax =  QLNX_MAX_TSO_FRAME_SIZE -
 				(ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
