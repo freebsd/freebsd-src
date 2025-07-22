@@ -1347,7 +1347,7 @@ vga_postswitch(struct vt_device *vd)
 
 	/* Reinit VGA mode, to restore view after app which change mode. */
 	vga_initialize(vd, (vd->vd_flags & VDF_TEXTMODE));
-	/* Ask vt(9) to update chars on visible area. */
+	/* Ask vt(4) to update chars on visible area. */
 	vd->vd_flags |= VDF_INVALID;
 }
 
