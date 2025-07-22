@@ -12,9 +12,6 @@ gidoutrange="daemon" # We expect $uidinrange in this group
 
 check_ko()
 {
-	if ! sysctl -N security.mac.bsdextended >/dev/null 2>&1; then
-		atf_skip "mac_bsdextended(4) support isn't available"
-	fi
 	if [ $(sysctl -n security.mac.bsdextended.enabled) = "0" ]; then
 		# The kernel module is loaded but disabled.  Enable it for the
 		# duration of the test.
