@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <assert.h>
@@ -734,7 +735,7 @@ fs_add_zpl_attr_layout(zfs_zap_t *zap, unsigned int index,
 
 	assert(sizeof(layout[0]) == 2);
 
-	snprintf(ti, sizeof(ti), "%u", index);
+	(void)snprintf(ti, sizeof(ti), "%u", index);
 	zap_add(zap, ti, sizeof(sa_attr_type_t), sacnt,
 	    (const uint8_t *)layout);
 }
