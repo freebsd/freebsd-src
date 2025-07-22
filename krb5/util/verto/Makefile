@@ -15,6 +15,7 @@ PACKAGE=	krb5
 
 LIB=		verto
 # SHLIB_MAJOR=	0
+VERSION_MAP=	${.CURDIR}/version.map
 
 .PATH: ${KRB5_DIR}/util/verto
 
