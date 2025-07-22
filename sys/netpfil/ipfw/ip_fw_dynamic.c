@@ -1323,6 +1323,33 @@ dyn_lookup_ipv6_parent_locked(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 
 #endif /* INET6 */
 
+static int
+dyn_handle_orphaned(struct ip_fw *old_rule, struct dyn_data *data)
+{
+	struct ip_fw *rule;
+	const ipfw_insn *cmd, *old_cmd;
+
+	old_cmd = ACTION_PTR(old_rule);
+	switch (old_cmd->opcode) {
+	case O_SETMARK:
+	case O_SKIPTO:
+		/*
+		 * Rule pointer was changed. For O_SKIPTO action it can be
+		 * dangerous to keep use old rule. If new rule has the same
+		 * action and the same destination number, then use this dynamic
+		 * state. Otherwise it is better to create new one.
+		 */
+		rule = V_layer3_chain.map[data->f_pos];
+		cmd = ACTION_PTR(rule);
+		if (cmd->opcode != old_cmd->opcode ||
+		    cmd->len != old_cmd->len || cmd->arg1 != old_cmd->arg1 ||
+		    insntoc(cmd, u32)->d[0] != insntoc(old_cmd, u32)->d[0])
+			return (-1);
+		break;
+	}
+	return (0);
+}
+
 /*
  * Lookup dynamic state.
  *  pkt - filled by ipfw_chk() ipfw_flow_id;
@@ -1426,8 +1453,13 @@ ipfw_dyn_lookup_state(const struct ip_fw_args *args, const void *ulp,
 				 * changed to point to the penultimate rule.
 				 */
 				MPASS(V_layer3_chain.n_rules > 1);
-				data->chain_id = V_layer3_chain.id;
-				data->f_pos = V_layer3_chain.n_rules - 2;
+				if (dyn_handle_orphaned(rule, data) == 0) {
+					data->chain_id = V_layer3_chain.id;
+					data->f_pos = V_layer3_chain.n_rules - 2;
+				} else {
+					rule = NULL;
+					info->direction = MATCH_NONE;
+				}
 			} else {
 				rule = NULL;
 				info->direction = MATCH_NONE;
