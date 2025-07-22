@@ -3141,6 +3141,43 @@ ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd)
 #undef DYN_EXPORT_STATES
 }
 
+/*
+ * When we have enabled V_dyn_keep_states, states that become ORPHANED
+ * will keep pointer to original rule. Then this rule pointer is used
+ * to apply rule action after ipfw_dyn_lookup_state().
+ * Some rule actions use IPFW_INC_RULE_COUNTER() directly to this rule
+ * pointer, but other actions use chain->map[f_pos] instead. The last
+ * case leads to incrementing counters on the wrong rule, because
+ * ORPHANED states have not parent rule in chain->map[].
+ * To solve this we add protected rule:
+ *   count ip from any to any not // comment
+ * It will be matched only by packets that are handled by ORPHANED states.
+ */
+static void
+dyn_add_protected_rule(struct ip_fw_chain *chain)
+{
+	static const char *comment =
+	    "orphaned dynamic states counter";
+	struct ip_fw *rule;
+	ipfw_insn *cmd;
+	size_t l;
+
+	l = roundup(strlen(comment) + 1, sizeof(uint32_t));
+	rule = ipfw_alloc_rule(chain, sizeof(*rule) + sizeof(ipfw_insn) + l);
+	cmd = rule->cmd;
+	cmd->opcode = O_NOP;
+	cmd->len = 1 + l/sizeof(uint32_t);
+	cmd->len |= F_NOT; /* make rule to be not matched */
+	strcpy((char *)(cmd + 1), comment);
+	cmd += F_LEN(cmd);
+
+	cmd->len = 1;
+	cmd->opcode = O_COUNT;
+	rule->act_ofs = cmd - rule->cmd;
+	rule->cmd_len = rule->act_ofs + 1;
+	ipfw_add_protected_rule(chain, rule, 0);
+}
+
 void
 ipfw_dyn_init(struct ip_fw_chain *chain)
 {
@@ -3203,6 +3240,8 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
 	callout_init(&V_dyn_timeout, 1);
 	callout_reset(&V_dyn_timeout, hz, dyn_tick, curvnet);
 	IPFW_ADD_OBJ_REWRITER(IS_DEFAULT_VNET(curvnet), dyn_opcodes);
+
+	dyn_add_protected_rule(chain);
 }
 
 void
