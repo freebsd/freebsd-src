@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+1349a733cf28:
+	Add a driver supporting a new storage controller interface,
+	Universal Flash Storage Host Controller Interface, supporting
+	version 4.1 and earlier, via ufshci(4).
+
 f1f230439fa4:
 	FreeBSD now implements the inotify(2) family of system calls.
 
