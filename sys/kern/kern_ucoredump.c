@@ -51,7 +51,7 @@
 #include <sys/ucoredump.h>
 #include <sys/wait.h>
 
-static int coredump(struct thread *td);
+static int coredump(struct thread *td, const char **);
 
 int compress_user_cores = 0;
 
@@ -135,7 +135,6 @@ void
 sigexit(struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
-	const char *coreinfo;
 	int rv;
 	bool logexit;
 
@@ -158,6 +157,8 @@ sigexit(struct thread *td, int sig)
 	 *     (e.g. via fork()), we won't get a dump at all.
 	 */
 	if (sig_do_core(sig) && thread_single(p, SINGLE_NO_EXIT) == 0) {
+		const char *err = NULL;
+
 		p->p_sig = sig;
 		/*
 		 * Log signals which would cause core dumps
@@ -166,32 +167,34 @@ sigexit(struct thread *td, int sig)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 * Note that coredump() drops proc lock.
 		 */
-		rv = coredump(td);
-		switch (rv) {
-		case 0:
+		rv = coredump(td, &err);
+		if (rv == 0) {
+			MPASS(err == NULL);
 			sig |= WCOREFLAG;
-			coreinfo = " (core dumped)";
-			break;
-		case EFAULT:
-			coreinfo = " (no core dump - bad address)";
-			break;
-		case EINVAL:
-			coreinfo = " (no core dump - invalid argument)";
-			break;
-		case EFBIG:
-			coreinfo = " (no core dump - too large)";
-			break;
-		default:
-			coreinfo = " (no core dump - other error)";
-			break;
+		} else if (err == NULL) {
+			switch (rv) {
+			case EFAULT:
+				err = "bad address";
+				break;
+			case EINVAL:
+				err = "invalild argument";
+				break;
+			case EFBIG:
+				err = "too large";
+				break;
+			default:
+				err = "other error";
+				break;
+			}
 		}
 		if (logexit)
 			log(LOG_INFO,
 			    "pid %d (%s), jid %d, uid %d: exited on "
-			    "signal %d%s\n", p->p_pid, p->p_comm,
+			    "signal %d (%s%s)\n", p->p_pid, p->p_comm,
 			    p->p_ucred->cr_prison->pr_id,
-			    td->td_ucred->cr_uid,
-			    sig &~ WCOREFLAG, coreinfo);
+			    td->td_ucred->cr_uid, sig &~ WCOREFLAG,
+			    err != NULL ? "no core dump - " : "core dumped",
+			    err != NULL ? err : "");
 	} else
 		PROC_UNLOCK(p);
 	exit1(td, 0, sig);
@@ -207,7 +210,7 @@ sigexit(struct thread *td, int sig)
  * ENOSYS; otherwise it returns the error from the process-specific routine.
  */
 static int
-coredump(struct thread *td)
+coredump(struct thread *td, const char **errmsg)
 {
 	struct coredumper *iter, *chosen;
 	struct proc *p = td->td_proc;
@@ -221,6 +224,13 @@ coredump(struct thread *td)
 	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0) ||
 	    (p->p_flag2 & P2_NOTRACE) != 0) {
 		PROC_UNLOCK(p);
+
+		if (!do_coredump)
+			*errmsg = "denied by kern.coredump";
+		else if ((p->p_flag2 & P2_NOTRACE) != 0)
+			*errmsg = "process has trace disabled";
+		else
+			*errmsg = "sugid process denied by kern.sugid_coredump";
 		return (EFAULT);
 	}
 
@@ -235,6 +245,7 @@ coredump(struct thread *td)
 	limit = (off_t)lim_cur(td, RLIMIT_CORE);
 	if (limit == 0 || racct_get_available(p, RACCT_CORE) == 0) {
 		PROC_UNLOCK(p);
+		*errmsg = "coredumpsize limit is 0";
 		return (EFBIG);
 	}
 
