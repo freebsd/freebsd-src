@@ -111,7 +111,6 @@ KRB5_GSSAPI_1.0 {
 		gss_localname;
 		gss_map_name_to_any;
 		gss_mech_iakerb;
-		gss_mech_initialize;
 		gss_mech_krb5;
 		gss_mech_krb5_old;
 		gss_mech_krb5_wrong;
