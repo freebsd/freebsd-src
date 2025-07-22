@@ -1391,6 +1391,7 @@ extern bool		mb_use_ext_pgs;	/* Use ext_pgs for sendfile */
 #define	PACKET_TAG_PF_REASSEMBLED		31
 #define	PACKET_TAG_IPSEC_ACCEL_OUT		32  /* IPSEC accel out */
 #define	PACKET_TAG_IPSEC_ACCEL_IN		33  /* IPSEC accel in */
+#define	PACKET_TAG_OVPN				34 /* if_ovpn */
 
 /* Specific cookies and tags. */
 
