@@ -2350,6 +2350,7 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 	if_setcapabilitiesbit(ifp, IFCAP_TSO6, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_LINKSTATE, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
 
 	if_sethwtsomax(ifp,  QLNX_MAX_TSO_FRAME_SIZE -
 				(ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
