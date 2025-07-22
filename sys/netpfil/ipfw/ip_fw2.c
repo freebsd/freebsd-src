@@ -197,7 +197,7 @@ SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Firewall");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_one_pass), 0,
-    "Only do a single pass through ipfw when using dummynet(4)");
+    "Only do a single pass through ipfw when using dummynet(4), ipfw_nat or other divert(4)-like interfaces");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
     "Rule number auto-increment step");
