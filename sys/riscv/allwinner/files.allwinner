@@ -1,5 +1,6 @@
 
 arm/allwinner/aw_gpio.c			optional gpio aw_gpio fdt
+arm/allwinner/aw_mmc.c			optional mmc aw_mmc fdt | mmccam aw_mmc fdt
 arm/allwinner/aw_rtc.c			optional aw_rtc fdt
 arm/allwinner/aw_syscon.c		optional syscon
 arm/allwinner/aw_sid.c			optional aw_sid nvmem
