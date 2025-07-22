@@ -38,12 +38,6 @@
 # PGTAG,TARGET pair must be globally unique.
 PGTAG=30257
 
-load_cfiscsi() {
-	if ! kldstat -q -m cfiscsi; then
-		kldload cfiscsi || atf_skip "could not load cfscsi kernel mod"
-	fi
-}
-
 skip_if_ctld() {
 	if service ctld onestatus > /dev/null; then
 		# If ctld is running on this server, let's not interfere.
@@ -118,11 +112,11 @@ create_iscsi_head()
 	atf_set "descr" "ctladm can create a new iscsi port"
 	atf_set "require.user" "root"
 	atf_set "require.progs" ctladm
+	atf_set "require.kmods" "cfiscsi"
 }
 create_iscsi_body()
 {
 	skip_if_ctld
-	load_cfiscsi
 
 	TARGET=iqn.2018-10.myhost.create_iscsi
 	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
@@ -146,11 +140,11 @@ create_iscsi_alias_head()
 	atf_set "descr" "ctladm can create a new iscsi port with a target alias"
 	atf_set "require.user" "root"
 	atf_set "require.progs" ctladm
+	atf_set "require.kmods" "cfiscsi"
 }
 create_iscsi_alias_body()
 {
 	skip_if_ctld
-	load_cfiscsi
 
 	TARGET=iqn.2018-10.myhost.create_iscsi_alias
 	ALIAS="foobar"
@@ -173,11 +167,11 @@ create_iscsi_without_required_args_head()
 	atf_set "descr" "ctladm will gracefully fail to create an iSCSI target if required arguments are missing"
 	atf_set "require.user" "root"
 	atf_set "require.progs" ctladm
+	atf_set "require.kmods" "cfiscsi"
 }
 create_iscsi_without_required_args_body()
 {
 	skip_if_ctld
-	load_cfiscsi
 
 	TARGET=iqn.2018-10.myhost.create_iscsi
 	atf_check -s exit:1 -e match:"Missing required argument: cfiscsi_target" ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG
@@ -288,11 +282,11 @@ remove_iscsi_head()
 	atf_set "descr" "ctladm can remove an iscsi port"
 	atf_set "require.user" "root"
 	atf_set "require.progs" ctladm
+	atf_set "require.kmods" "cfiscsi"
 }
 remove_iscsi_body()
 {
 	skip_if_ctld
-	load_cfiscsi
 
 	TARGET=iqn.2018-10.myhost.remove_iscsi
 	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
@@ -314,11 +308,11 @@ remove_iscsi_without_required_args_head()
 	atf_set "descr" "ctladm will gracefully fail to remove an iSCSI target if required arguments are missing"
 	atf_set "require.user" "root"
 	atf_set "require.progs" ctladm
+	atf_set "require.kmods" "cfiscsi"
 }
 remove_iscsi_without_required_args_body()
 {
 	skip_if_ctld
-	load_cfiscsi
 
 	TARGET=iqn.2018-10.myhost.remove_iscsi_without_required_args
 	atf_check -o save:port-create.txt ctladm port -c -d "iscsi" -O cfiscsi_portal_group_tag=$PGTAG -O cfiscsi_target="$TARGET"
