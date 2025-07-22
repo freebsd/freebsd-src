@@ -17,6 +17,7 @@ LIB=		kadm5clnt_mit
 # SHLIB_MAJOR=	12
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile gssrpc gssapi_krb5 krb5 k5crypto krb5support com_err
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	alt_prof.c \
 	chpass_util.c \

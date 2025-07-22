@@ -1,0 +1,5 @@
+KRB5_PREAUTH_PKINIT_1.0 {
+	global:
+		clpreauth_pkinit_initvt;
+		kdcpreauth_pkinit_initvt;
+};

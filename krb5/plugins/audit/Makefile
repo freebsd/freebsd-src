@@ -16,6 +16,7 @@ PACKAGE=	krb5
 LIB=		kdc_j_encode
 LIBDIR=		${PLUGINSDIR}/audit
 LDFLAGS=-Wl,--no-undefined
+VERSION_MAP=	${.CURDIR}/version.map
 
 .PATH:	${KRB5_DIR}/plugins/audit
 

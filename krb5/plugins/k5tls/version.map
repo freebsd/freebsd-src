@@ -1,0 +1,4 @@
+KRB5_K5TLS_1.0 {
+	global:
+		tls_k5tls_initvt;
+};
