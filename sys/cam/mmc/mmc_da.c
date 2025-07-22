@@ -1081,7 +1081,7 @@ sdda_start_init_task(void *context, int pending)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sdda_start_init_task\n"));
 	new_ccb = xpt_alloc_ccb();
 	xpt_setup_ccb(&new_ccb->ccb_h, periph->path,
-		      CAM_PRIORITY_NONE);
+		      CAM_PRIORITY_NORMAL);
 
 	cam_periph_lock(periph);
 	cam_periph_hold(periph, PRIBIO|PCATCH);
