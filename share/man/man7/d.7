@@ -1,0 +1,287 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.Dd June 14, 2025
+.Dt D 7
+.Os
+.Sh NAME
+.Nm D
+.Nd DTrace scripting language overview
+.Sh SYNOPSIS
+.Sm off
+.Ar provider Cm \&:
+.Ar module Cm \&:
+.Ar function Cm \&:
+.Ar name
+.Sm on
+.Sm off
+.Oo
+.Cm /
+.Ar predicate
+.Cm /
+.Sm on
+.Oc
+.Op Cm \&{ Ns Ar action Ns Cm \&}
+.Sh DESCRIPTION
+.Nm D
+is the
+.Xr dtrace 1
+scripting language.
+This manual provides a brief reference of the
+.Nm
+language and scripting.
+.Pp
+This manual page serves as a short reference of the language.
+Refer to books listed in
+.Sx SEE ALSO
+for a complete reference.
+.Sh PROBE'S DESCRIPTION
+A probe's description consists of four elements:
+.Sm off
+.D1 Ar provider Ns Cm \&: Ns Ar module Cm \&: Ar function Cm \&: Ar name
+.Sm on
+.Pp
+The exact meaning of
+.Ar module ,
+.Ar function ,
+and
+.Ar name
+depends on
+.Ar provider .
+.Sh USER-DEFINED VARIABLE TYPES
+.Bl -column "thread-local" "Syntax"
+.It Sy Type Ta Sy Syntax
+.It global       Ta Va variable_name
+.It thread-local Ta Sy self-> Ns Va variable_name
+.It clause-local Ta Sy this-> Ns Va variable_name
+.It aggregate  Ta Sy @ Ns Va variable_name
+.El
+.Pp
+.Em Tips :
+.Bl -dash -compact
+.It
+Always use the variable type with the smallest scope
+to minimize processing overhead.
+.It
+Use aggregate variables instead of global variables when possible.
+Aggregate variables are multi-CPU safe in contrast to global variables.
+.El
+.Sh BUILT-IN VARIABLES
+.Ss Probe Arguments
+.Bl -tag -width "arg0, ..., arg9"
+.It Va args[]
+The array of typed probe arguments.
+.It Va arg0 , ... , arg9
+The untyped probe arguments represented as 64-bit unsigned integers.
+Only the first ten arguments are available this way.
+.El
+.Ss Probe Information
+.Bl -tag -width probeprov
+.It Va epid
+The enabled probe ID which uniquely identifies an enabled probe.
+An enabled probe is defined by its probe ID, its predicates, and its actions.
+.It Va id
+The probe ID which uniquely identifies a probe available to DTrace.
+.It Va probeprov
+The
+.Ar provider
+in the probe's description
+.Sm off
+.Pq Ar provider Cm \&: Ar module Cm \&: Ar function Cm \&: Ar name
+.Sm on .
+.It Va probemod
+The
+.Ar module
+in the probe's description
+.Sm off
+.Pq Ar provider Cm \&: Ar module Cm \&: Ar function Cm \&: Ar name
+.Sm on .
+.It Va probefunc
+The
+.Ar function
+in the probe's description
+.Sm off
+.Pq Ar provider Cm \&: Ar module Cm \&: Ar function Cm \&: Ar name
+.Sm on .
+.It Va probename
+The
+.Ar name
+in the probe's description
+.Sm off
+.Pq Ar provider Cm \&: Ar module Cm \&: Ar function Cm \&: Ar name
+.Sm on .
+.El
+.Ss Process Information
+.Bl -tag -width execname
+.It Va execargs
+The process arguments.
+Effectively,
+.Ql curthread->td_proc->p_args .
+.It Va execname
+The name of the current process.
+Effectively,
+.Ql curthread->td_proc->p_comm .
+.It Va gid
+The group ID of the current process.
+.It Va pid
+The process ID of the current process.
+.It Va ppid
+The parent process ID of the current process.
+.It Va uid
+The user ID of the current process.
+.El
+.Ss Thread Information
+.Bl -tag -width curlwpsinfo
+.It Va uregs[]
+The saved user-mode register values.
+.It Va cpu
+The ID of the current CPU.
+.It Va stackdepth
+The kernel stack frame depth.
+.It Va ustackdepth
+The userspace counterpart of
+.Va stackdepth .
+.It Va tid
+The thread ID.
+Depending on the context,
+this can be either the ID of a kernel thread or a thread in a user process.
+.It Va errno
+The
+.Xr errno 2
+value of the last system call performed by the current thread.
+.It Va curlwpsinfo
+A pointer to the
+.Vt lwpsinfo_t
+representation of the current thread.
+Refer to
+.Xr dtrace_proc 4
+for more details.
+.It Va curpsinfo
+A pointer to the
+.Vt psinfo_t
+representation of the current process.
+Refer to
+.Xr dtrace_proc 4
+for more details.
+.It Va curthread
+A pointer to the thread struct that is currently on-CPU.
+E.g.,
+.Ql curthread->td_name
+returns the thread name.
+The
+.In sys/proc.h
+header documents all members of
+.Vt struct thread .
+.It Va caller
+The address of the kernel thread instruction at the time of execution
+of the current probe.
+.It Va ucaller
+The userspace counterpart of
+.Va caller .
+.El
+.Ss Timestamps
+.Bl -tag -width walltimestamp
+.It Va timestamp
+The number of nanoseconds since boot.
+Suitable for calculating relative time differences of elapsed time and latency.
+.It Va vtimestamp
+The number of nanoseconds that the current thread spent on CPU.
+The counter is not increased during handling of a fired DTrace probe.
+Suitable for calculating relative time differences of on-CPU time.
+.It Va walltimestamp
+The number of nanoseconds since the Epoch
+.Pq 1970-01-01T00+00:00 .
+Suitable for timestamping logs.
+.El
+.Sh BUILT-IN FUNCTIONS
+.Ss Aggregation Functions
+.Bl -tag -compact -width "llquantize(value, factor, low, high, nsteps)"
+.It Fn avg value
+Average
+.It Fn count
+Count
+.It Fn llquantize value factor low high nsteps
+Log-linear quantization
+.It Fn lquantize value low high nsteps
+Linear quantization
+.It Fn max value
+Maximum
+.It Fn min value
+Minimum
+.It Fn quantize value
+Power-of-two frequency distribution
+.It Fn stddev value
+Standard deviation
+.It Fn sum value
+Sum
+.El
+.Ss Kernel Destructive Functions
+By default,
+.Xr dtrace 1
+does not permit the use of destructive actions.
+.Bl -tag -width "chill(nanoseconds)"
+.It Fn breakpoint
+Set a kernel breakpoint and transfer control to
+the
+.Xr ddb 4
+kernel debugger.
+.It Fn chill nanoseconds
+Spin on the CPU for the specified number of
+.Fa nanoseconds .
+.It Fn panic
+Panic the kernel.
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/dtrace
+.It Pa /usr/share/dtrace
+DTrace scripts shipped with
+.Fx
+base.
+.El
+.Sh SEE ALSO
+.Xr awk 1 ,
+.Xr dtrace 1 ,
+.Xr tracing 7
+.Rs
+.%B The illumos Dynamic Tracing Guide
+.%D 2008
+.%U https://illumos.org/books/dtrace/
+.Re
+.Rs
+.%A Brendan Gregg
+.%A Jim Mauro
+.%B DTrace: Dynamic Tracing in Oracle Solaris, Mac OS X and FreeBSD
+.%I Prentice Hall
+.%D 2011
+.%U https://www.brendangregg.com/dtracebook/
+.Re
+.Rs
+.%A George Neville-Neil
+.%A Jonathan Anderson
+.%A Graeme Jenkinson
+.%A Brian Kidney
+.%A Domagoj Stolfa
+.%A Arun Thomas
+.%A Robert N. M. Watson
+.%C Cambridge, United Kingdom
+.%D August 2018
+.%T Univeristy of Cambridge Computer Laboratory
+.%R OpenDTrace Specification version 1.0
+.%U https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-924.pdf
+.Re
+.Sh HISTORY
+This manual page first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
+.Sh BUGS
+The
+.Va cwd
+variable which typically provides the current working directory is
+not supported on
+.Fx
+at the moment.

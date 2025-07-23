@@ -30,11 +30,12 @@
  */
 
 #include "namespace.h"
-#include <sys/param.h>
+#include <sys/types.h>
 
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -52,8 +53,7 @@ __opendir2(const char *name, int flags)
 
 	if ((flags & (__DTF_READALL | __DTF_SKIPREAD)) != 0)
 		return (NULL);
-	if ((fd = _open(name,
-	    O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC)) == -1)
+	if ((fd = _open(name, O_DIRECTORY | O_RDONLY | O_CLOEXEC)) == -1)
 		return (NULL);
 
 	dir = __opendir_common(fd, flags, false);
@@ -264,6 +264,7 @@ DIR *
 __opendir_common(int fd, int flags, bool use_current_pos)
 {
 	DIR *dirp;
+	ssize_t ret;
 	int incr;
 	int saved_errno;
 	bool unionstack;
@@ -313,13 +314,11 @@ __opendir_common(int fd, int flags, bool use_current_pos)
 			 * to prime dd_seek.  This also checks if the
 			 * fd passed to fdopendir() is a directory.
 			 */
-			dirp->dd_size = _getdirentries(dirp->dd_fd,
+			ret = _getdirentries(dirp->dd_fd,
 			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
-			if (dirp->dd_size < 0) {
-				if (errno == EINVAL)
-					errno = ENOTDIR;
+			if (ret < 0)
 				goto fail;
-			}
+			dirp->dd_size = (size_t)ret;
 			dirp->dd_flags |= __DTF_SKIPREAD;
 		} else {
 			dirp->dd_size = 0;

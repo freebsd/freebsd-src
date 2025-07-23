@@ -876,14 +876,16 @@ __CONCAT(PMTYPE, init_pat)(void)
 
 #ifdef PMAP_PAE_COMP
 static void *
-pmap_pdpt_allocf(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
-    int wait)
+pmap_pdpt_allocf(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *sflagsp,
+    int flags)
 {
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
-	*flags = UMA_SLAB_KERNEL;
+	*sflagsp = UMA_SLAB_KERNEL;
+	/* contig allocations cannot be NEVERFREED */
+	flags &= ~M_NEVERFREED;
 	return ((void *)kmem_alloc_contig_domainset(DOMAINSET_FIXED(domain),
-	    bytes, wait, 0x0ULL, 0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
+	    bytes, flags, 0x0ULL, 0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
 }
 #endif
 
@@ -5617,6 +5619,8 @@ __CONCAT(PMTYPE, unmapdev)(void *p, vm_size_t size)
 static void
 __CONCAT(PMTYPE, page_set_memattr)(vm_page_t m, vm_memattr_t ma)
 {
+	if (m->md.pat_mode == ma)
+		return;
 
 	m->md.pat_mode = ma;
 	if ((m->flags & PG_FICTITIOUS) != 0)

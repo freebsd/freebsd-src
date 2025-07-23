@@ -298,11 +298,15 @@ LIBUSB20_MAKE_STRUCT(LIBUSB20_USB_20_DEVCAP_DESC);
 
 LIBUSB20_MAKE_STRUCT(LIBUSB20_SS_USB_DEVCAP_DESC);
 
+#ifndef bNumDeviceCapabilities
+#define bNumDeviceCapabilities bNumDeviceCaps
+#endif
+
 #define	LIBUSB20_BOS_DESCRIPTOR(m,n) \
   m(n, UINT8_T,  bLength, ) \
   m(n, UINT8_T,  bDescriptorType, ) \
   m(n, UINT16_T, wTotalLength, ) \
-  m(n, UINT8_T,  bNumDeviceCapabilities, ) \
+  m(n, UINT8_T,  bNumDeviceCaps, ) \
 
 LIBUSB20_MAKE_STRUCT(LIBUSB20_BOS_DESCRIPTOR);
 

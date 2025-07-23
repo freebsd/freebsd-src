@@ -1,0 +1,4 @@
+comment = "OpenBSD packet filter"
+desc = <<EOD
+pf is an advanced stateful packet filter developed by the OpenBSD project.
+EOD

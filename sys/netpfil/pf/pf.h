@@ -140,7 +140,7 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 
 #define	PF_LOG			0x01
 #define	PF_LOG_ALL		0x02
-#define	PF_LOG_SOCKET_LOOKUP	0x04
+#define	PF_LOG_USER		0x04
 #define	PF_LOG_FORCE		0x08
 #define	PF_LOG_MATCHES		0x10
 
@@ -490,6 +490,7 @@ struct pf_osfp_ioctl {
 
 #define	PF_ANCHOR_NAME_SIZE	 64
 #define	PF_ANCHOR_MAXPATH	(MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 1)
+#define	PF_OPTIMIZER_TABLE_PFX	"__automatic_"
 
 struct pf_rule {
 	struct pf_rule_addr	 src;

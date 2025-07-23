@@ -55,6 +55,7 @@
 #define PF_OPT_RECURSE		0x04000
 #define PF_OPT_KILLMATCH	0x08000
 #define PF_OPT_NODNS		0x10000
+#define PF_OPT_IGNFAIL		0x20000
 
 #define PF_NAT_PROXY_PORT_LOW	50001
 #define PF_NAT_PROXY_PORT_HIGH	65535
@@ -262,7 +263,6 @@ struct pf_opt_tbl {
 	struct node_tinithead	 pt_nodes;
 	struct pfr_buffer	*pt_buf;
 };
-#define PF_OPT_TABLE_PREFIX	"__automatic_"
 
 /* optimizer pf_rule container */
 struct pf_opt_rule {

@@ -17,6 +17,7 @@ LIB=		test
 LIBDIR=		${PLUGINSDIR}/preauth
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5 k5crypto com_err krb5support
+VERSION_MAP=	${.CURDIR}/version.map
 
 .PATH:	${KRB5_DIR}/plugins/preauth/test
 

@@ -835,6 +835,90 @@ basic_ipv6_cleanup()
 	pfsynct_cleanup
 }
 
+atf_test_case "rtable" "cleanup"
+rtable_head()
+{
+	atf_set descr 'Test handling of invalid rtableid'
+	atf_set require.user root
+}
+
+rtable_body()
+{
+	pfsynct_init
+
+	epair_sync=$(vnet_mkepair)
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair_one}a ${epair_sync}a
+	vnet_mkjail two ${epair_two}a ${epair_sync}b
+
+	# pfsync interface
+	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair_one}a 198.51.100.1/24 up
+	jexec one ifconfig pfsync0 \
+		syncdev ${epair_sync}a \
+		maxupd 1 \
+		up
+	jexec two ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec two ifconfig ${epair_sync}b 192.0.2.2/24 up
+	jexec two ifconfig pfsync0 \
+		syncdev ${epair_sync}b \
+		maxupd 1 \
+		up
+
+	# Make life easy, give ${epair_two}a the same mac addrss as ${epair_one}a
+	mac=$(jexec one ifconfig ${epair_one}a | awk '/ether/ { print($2); }')
+	jexec two ifconfig ${epair_two}a ether ${mac}
+
+	# Enable pf!
+	jexec one /sbin/sysctl net.fibs=8
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass rtable 3 keep state"
+	# No extra fibs in two
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set skip on ${epair_sync}b" \
+		"pass keep state"
+
+	ifconfig ${epair_one}b 198.51.100.254/24 up
+	ifconfig ${epair_two}b 198.51.100.253/24 up
+
+	# Create a new state
+	env PYTHONPATH=${common_dir} \
+		${common_dir}/pft_ping.py \
+		--sendif ${epair_one}b \
+		--fromaddr 198.51.100.254 \
+		--to 198.51.100.1 \
+		--recvif ${epair_one}b
+
+	# Now
+	jexec one pfctl -ss -vv
+	sleep 2
+
+	# Now try to use that state on jail two
+	env PYTHONPATH=${common_dir} \
+		${common_dir}/pft_ping.py \
+		--sendif ${epair_two}b \
+		--fromaddr 198.51.100.254 \
+		--to 198.51.100.1 \
+		--recvif ${epair_two}b
+
+	echo one
+	jexec one pfctl -ss -vv
+	jexec one pfctl -sr -vv
+	echo two
+	jexec two pfctl -ss -vv
+	jexec two pfctl -sr -vv
+}
+
+rtable_cleanup()
+{
+	pfsynct_cleanup
+}
+
 route_to_common_head()
 {
 	pfsync_version=$1
@@ -1134,6 +1218,7 @@ atf_init_test_cases()
 	atf_add_test_case "timeout"
 	atf_add_test_case "basic_ipv6_unicast"
 	atf_add_test_case "basic_ipv6"
+	atf_add_test_case "rtable"
 	atf_add_test_case "route_to_1301"
 	atf_add_test_case "route_to_1301_bad_ruleset"
 	atf_add_test_case "route_to_1301_bad_rpool"

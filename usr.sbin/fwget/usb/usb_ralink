@@ -1,0 +1,12 @@
+#
+# Copyright (c) 2025 Jesper Schmitz Mouridsen
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
+usb_ralink()
+{
+
+	case "$1" in
+	0x7601)	addpkg "wifi-firmware-mt7601u-kmod"; return 1 ;;
+	esac
+}

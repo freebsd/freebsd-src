@@ -92,7 +92,7 @@ dialog_country_select()
 		sub(/.*domains:/, ""), /[^[:alnum:][[:space:]]/ {
 			n = split($0, domains)
 			for (i = 1; i <= n; i++)
-				printf "'\''%s'\'' '\'\''", domains[i]
+				printf "'\''%s'\'' '\'\''\n", domains[i]
 		}
 	' | sort )
 	countries=$( echo "$input" | awk '
@@ -200,6 +200,12 @@ fi
 
 while :; do
 	SCANSSID=0
+	# While wpa_supplicant may IFF_UP the interface, we do not want to rely
+	# in this.  In case the script is run manually (outside the installer,
+	# e.g., for testing) wpa_supplicant may be running and the wlanN
+	# interface may be down (especially if dialog_country_select is not
+	# run successfully either) and scanning will not work.
+	f_eval_catch -d wlanconfig ifconfig "ifconfig $WLAN_IFACE up"
 	f_eval_catch -d wlanconfig wpa_cli "wpa_cli scan"
 	f_dialog_title "Scanning"
 	f_dialog_pause "Waiting 5 seconds to scan for wireless networks..." 5 ||

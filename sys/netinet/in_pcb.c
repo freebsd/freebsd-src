@@ -1745,6 +1745,23 @@ in_pcbrele(struct inpcb *inp, const inp_lookup_t lock)
 }
 
 /*
+ * Dereference and rlock inp, for which the caller must own the
+ * reference.  Returns true if inp no longer usable, false otherwise.
+ */
+bool
+in_pcbrele_rlock(struct inpcb *inp)
+{
+	INP_RLOCK(inp);
+	if (in_pcbrele_rlocked(inp))
+		return (true);
+	if ((inp->inp_flags & INP_FREED) != 0) {
+		INP_RUNLOCK(inp);
+		return (true);
+	}
+	return (false);
+}
+
+/*
  * Unconditionally schedule an inpcb to be freed by decrementing its
  * reference count, which should occur only after the inpcb has been detached
  * from its socket.  If another thread holds a temporary reference (acquired

@@ -1,0 +1,191 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.Dd July 14, 2025
+.Dt DTRACE_DTRACE 4
+.Os
+.Sh NAME
+.Nm dtrace_dtrace
+.Nd a DTrace provider for BEGIN, END, and ERROR probes
+.Sh SYNOPSIS
+.Nm dtrace Ns Cm :::BEGIN
+.Nm dtrace Ns Cm :::END
+.Nm dtrace Ns Cm :::ERROR
+.Sh DESCRIPTION
+The
+.Nm dtrace
+provider implements three special probes related to the life cycle of the
+DTrace program itself.
+.Ss dtrace:::BEGIN
+The
+.Nm dtrace Ns Cm :::BEGIN
+probe fires at the beginning of a
+.Xr dtrace 1 ,
+program before tracing has begun.
+It provides a convenient place for initializing variables
+and printing column headers.
+.Pp
+Variables such as
+.Va stack
+or
+.Va execname
+cannot be relied upon in the execution context of the
+.Nm dtrace Ns Cm :::BEGIN
+probe.
+.Ss dtrace:::END
+The
+.Nm dtrace Ns Cm :::END
+probe fires at the end of a
+.Xr dtrace 1
+program, when all tracing has stopped.
+.Ss dtrace:::ERROR
+The
+.Nm dtrace Ns Cm :::ERROR
+probe fires when an unexpected runtime error occurs in another probe.
+.Pp
+The following table describes the arguments to
+.Nm dtrace Ns Cm :::ERROR .
+.Bl -column -offset indent "Argument" "Definition"
+.It Sy Argument Ta Sy Definition
+.It Fa arg1  Ta Enabled probe identifier (EPID)
+of the probe where the runtime error occurred
+.It Fa arg2  Ta Index of the action statement that caused the error
+.It Fa arg3  Ta DIF offset into the action if available (otherwise -1)
+.It Fa arg4  Ta Fault type
+.It Fa arg5  Ta Accessed address (or 0 if not applicable) when
+.Va arg4
+is of fault type
+.Dv DTRACEFLT_BADADDR , DTRACEFLT_BADALIGN , DTRACEFLT_KPRIV ,
+or
+.Dv DTRACEFLT_UPRIV
+.El
+.Pp
+The fault types are:
+.Bl -tag -offset indent -width "DTRACEFLT_NOSCRATCH" -compact
+.It Dv DTRACEFLT_UNKNOWN
+Unknown fault
+.It Dv DTRACEFLT_BADADDR
+Bad address
+.It Dv DTRACEFLT_BADALIGN
+Bad alignment
+.It Dv DTRACEFLT_ILLOP
+Illegal operation
+.It Dv DTRACEFLT_DIVZERO
+Divide-by-zero
+.It Dv DTRACEFLT_NOSCRATCH
+Out of scratch space
+.It Dv DTRACEFLT_KPRIV
+Illegal kernel access
+.It Dv DTRACEFLT_UPRIV
+Illegal user access
+.It Dv DTRACEFLT_TUPOFLOW
+Tuple stack overflow
+.It Dv DTRACEFLT_BADSTACK
+Bad stack
+.El
+.Sh FILES
+.Bl -tag -width '<sys/dtrace.h>'
+.It In sys/dtrace.h
+The header file containing the definitions of DTrace fault types.
+.El
+.Sh EXAMPLES
+.Ss Example 1 : Custom Column Headers
+The following script uses the
+.Nm dtrace Ns Cm :::BEGIN
+probe to print column headers.
+Note the pragma line setting the
+.Ql quiet
+option to disable the default column headers.
+.Bd -literal -offset 2n
+#pragma D option quiet
+
+dtrace:::BEGIN
+{
+    printf("   %12s %-20s    %-20s %s\en",
+        "DELTA(us)", "OLD", "NEW", "TIMESTAMP");
+}
+.Ed
+.Ss Example 2 : Handling Runtime Errors with dtrace:::ERROR
+The following script causes a runtime error by dereferencing a pointer
+on address
+.Ad 19930908
+in the
+.Cm BEGIN
+probe.
+As a result, the
+.Cm ERROR
+probe fires and prints out
+.Dq Oops
+along with the probe arguments.
+At that point, the program ends and fires the
+.Cm END
+probe.
+.\" It might look weird to define ERROR first, but that is on purpose.
+.\" This way the probe IDs and EPIDs are a bit more mixed up
+.\" and are easier to understand.
+.Bd -literal -offset 2n
+ERROR
+{
+    printf("Oops\en");
+    printf("EPID (arg1): %d\en", arg1);
+    printf("Action index (arg2): %d\en", arg2);
+    printf("DIF offset (arg3): %d\en", arg3);
+    printf("Fault type (arg4): %d\en", arg4);
+    printf("Accessed address (arg5): %X\en", arg5);
+    exit(1);
+}
+BEGIN
+{
+    *(int *)0x19931101;
+}
+END {
+    printf("Bye");
+}
+.Ed
+.Pp
+This script will result in the following output:
+.Bd -literal -offset 2n
+CPU     ID                    FUNCTION:NAME
+  2      3                           :ERROR Oops
+EPID (arg1): 2
+Action index (arg2): 1
+DIF offset (arg3): 16
+Fault type: 1
+arg5: 19931101
+
+dtrace: error on enabled probe ID 2 (ID 1: dtrace:::BEGIN): invalid address (0x19931101) in action #1 at DIF offset 16
+  2      2                             :END Bye
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr tracing 7
+.Rs
+.%B The illumos Dynamic Tracing Guide
+.%O Chapter dtrace Provider
+.%D 2008
+.%U https://illumos.org/books/dtrace/chp-dtrace.html
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
+.Sh CAVEATS
+The
+.Nm dtrace Ns Cm :::ERROR
+probe arguments cannot be accessed through the typed
+.Va args[]
+array.
+.Pp
+.Xr dtrace 1
+will not fire the
+.Nm dtrace Ns Cm :::ERROR
+probe recursively.
+If an error occurs in one of the action statements of the
+.Nm dtrace Ns Cm :::ERROR ,
+then
+.Xr dtrace 1
+will abort further processing of
+the
+.Nm dtrace Ns Cm :::ERROR
+probe's actions.

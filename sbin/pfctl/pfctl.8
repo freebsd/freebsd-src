@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 2, 2025
+.Dd July 7, 2025
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -186,6 +186,13 @@ as the anchor name:
 .Bd -literal -offset indent
 # pfctl -a '*' -sr
 .Ed
+.Pp
+To flush all rulesets and tables recursively, specify only
+.Sq *
+as the anchor name:
+.Bd -literal -offset indent
+# pfctl -a '*' -Fa
+.Ed
 .It Fl D Ar macro Ns = Ns Ar value
 Define
 .Ar macro
@@ -231,6 +238,19 @@ for details.
 .It Fl F Cm all
 Flush all of the above.
 .El
+.Pp
+If
+.Fl a
+is specified as well and
+.Ar anchor
+is terminated with a
+.Sq *
+character,
+.Cm rules ,
+.Cm Tables
+and
+.Cm all
+flush the given anchor recursively.
 .It Fl f Ar file
 Load the rules contained in
 .Ar file .
@@ -467,7 +487,10 @@ Show the contents of the source tracking table.
 Show filter information (statistics and counters).
 When used together with
 .Fl v ,
-source tracking statistics are also shown.
+source tracking statistics, the firewall's 32-bit hostid number and the
+main ruleset's MD5 checksum for use with
+.Xr pfsync 4
+are also shown.
 .It Fl s Cm Running
 Show the running status and provide a non-zero exit status when disabled.
 .It Fl s Cm labels

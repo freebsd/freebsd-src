@@ -1241,6 +1241,9 @@ main(int argc, CHAR16 *argv[])
 #endif
 	cons_probe();
 
+	/* Set print_delay variable to have hooks in place. */
+	env_setenv("print_delay", EV_VOLATILE, "", setprint_delay, env_nounset);
+
 	/* Set up currdev variable to have hooks in place. */
 	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev, env_nounset);
 

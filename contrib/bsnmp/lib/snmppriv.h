@@ -44,4 +44,3 @@ enum snmp_code snmp_pdu_decrypt(const struct snmp_pdu *);
 
 #define DEFAULT_HOST "localhost"
 #define DEFAULT_PORT "snmp"
-#define DEFAULT_LOCAL "/var/run/snmp.sock"

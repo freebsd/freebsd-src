@@ -251,6 +251,9 @@ main(void)
 		initial_bootinfo->bi_extmem = bios_extmem / 1024;
 	}
 
+	/* detect MEMDISK virtual disks */
+	biosmemdisk_detect();
+
 	/* detect SMBIOS for future reference */
 	smbios_detect(NULL);
 

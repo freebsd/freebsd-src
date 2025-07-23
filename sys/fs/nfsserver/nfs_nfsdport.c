@@ -1652,10 +1652,11 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 	}
 	if (fvp == tvp) {
 		/*
-		 * If source and destination are the same, there is nothing to
-		 * do. Set error to -1 to indicate this.
+		 * If source and destination are the same, there is
+		 * nothing to do. Set error to EJUSTRETURN to indicate
+		 * this.
 		 */
-		error = -1;
+		error = EJUSTRETURN;
 		goto out;
 	}
 	if (nd->nd_flag & ND_NFSV4) {
@@ -1697,10 +1698,26 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		    " dsdvp=%p\n", dsdvp[0]);
 	}
 out:
-	if (!error) {
+	mp = NULL;
+	if (error == 0) {
+		error = VOP_GETWRITEMOUNT(tondp->ni_dvp, &mp);
+		if (error == 0) {
+			if (mp == NULL) {
+				error = ENOENT;
+			} else {
+				error = lockmgr(&mp->mnt_renamelock,
+				    LK_EXCLUSIVE | LK_NOWAIT, NULL);
+				if (error != 0)
+					error = ERELOOKUP;
+			}
+		}
+	}
+	if (error == 0) {
 		error = VOP_RENAME(fromndp->ni_dvp, fromndp->ni_vp,
 		    &fromndp->ni_cnd, tondp->ni_dvp, tondp->ni_vp,
 		    &tondp->ni_cnd);
+		lockmgr(&mp->mnt_renamelock, LK_RELEASE, 0);
+		vfs_rel(mp);
 	} else {
 		if (tdvp == tvp)
 			vrele(tdvp);
@@ -1710,8 +1727,13 @@ out:
 			vput(tvp);
 		vrele(fromndp->ni_dvp);
 		vrele(fvp);
-		if (error == -1)
+		if (error == EJUSTRETURN) {
 			error = 0;
+		} else if (error == ERELOOKUP && mp != NULL) {
+			lockmgr(&mp->mnt_renamelock, LK_EXCLUSIVE, 0);
+			lockmgr(&mp->mnt_renamelock, LK_RELEASE, 0);
+			vfs_rel(mp);
+		}
 	}
 
 	/*
@@ -2090,7 +2112,8 @@ int
 nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
     struct nfsvattr *nvap, fhandle_t *fhp, int rderror, nfsattrbit_t *attrbitp,
     struct ucred *cred, struct thread *p, int isdgram, int reterr,
-    int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno)
+    int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno,
+    bool xattrsupp, bool has_hiddensystem, bool has_namedattr)
 {
 	struct statfs *sf;
 	int error;
@@ -2109,7 +2132,7 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
 	}
 	error = nfsv4_fillattr(nd, mp, vp, NULL, &nvap->na_vattr, fhp, rderror,
 	    attrbitp, cred, p, isdgram, reterr, supports_nfsv4acls, at_root,
-	    mounted_on_fileno, sf);
+	    mounted_on_fileno, sf, xattrsupp, has_hiddensystem, has_namedattr);
 	free(sf, M_TEMP);
 	NFSEXITCODE2(0, nd);
 	return (error);
@@ -2426,7 +2449,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr nva, at, *nvap = &nva;
 	struct mbuf *mb0, *mb1;
 	struct nfsreferral *refp;
-	int nlen, r, error = 0, getret = 1, usevget = 1;
+	int nlen, r, error = 0, getret = 1, ret, usevget = 1;
 	int siz, cnt, fullsiz, eofflag, ncookies, entrycnt;
 	caddr_t bpos0, bpos1;
 	u_int64_t off, toff, verf __unused;
@@ -2440,6 +2463,9 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	uint64_t mounted_on_fileno;
 	struct thread *p = curthread;
 	int bextpg0, bextpg1, bextpgsiz0, bextpgsiz1;
+	size_t atsiz;
+	long pathval;
+	bool has_hiddensystem, has_namedattr, xattrsupp;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -2914,9 +2940,32 @@ again:
 				*tl++ = newnfs_true;
 				txdr_hyper(*cookiep, tl);
 				dirlen += nfsm_strtom(nd, dp->d_name, nlen);
+				xattrsupp = false;
+				has_hiddensystem = false;
+				has_namedattr = false;
 				if (nvp != NULL) {
 					supports_nfsv4acls =
 					    nfs_supportsnfsv4acls(nvp);
+					if (NFSISSET_ATTRBIT(&attrbits,
+					    NFSATTRBIT_XATTRSUPPORT)) {
+						ret = VOP_GETEXTATTR(nvp,
+						    EXTATTR_NAMESPACE_USER,
+						    "xxx", NULL, &atsiz,
+						    nd->nd_cred, p);
+						xattrsupp = ret != EOPNOTSUPP;
+					}
+					if (VOP_PATHCONF(nvp,
+					    _PC_HAS_HIDDENSYSTEM, &pathval) !=
+					    0)
+						pathval = 0;
+					has_hiddensystem = pathval > 0;
+					pathval = 0;
+					if (NFSISSET_ATTRBIT(&attrbits,
+					    NFSATTRBIT_NAMEDATTR) &&
+					    VOP_PATHCONF(nvp, _PC_HAS_NAMEDATTR,
+					    &pathval) != 0)
+						pathval = 0;
+					has_namedattr = pathval > 0;
 					NFSVOPUNLOCK(nvp);
 				} else
 					supports_nfsv4acls = 0;
@@ -2936,13 +2985,15 @@ again:
 					    nvp, nvap, &nfh, r, &rderrbits,
 					    nd->nd_cred, p, isdgram, 0,
 					    supports_nfsv4acls, at_root,
-					    mounted_on_fileno);
+					    mounted_on_fileno, xattrsupp,
+					    has_hiddensystem, has_namedattr);
 				} else {
 					dirlen += nfsvno_fillattr(nd, new_mp,
 					    nvp, nvap, &nfh, r, &attrbits,
 					    nd->nd_cred, p, isdgram, 0,
 					    supports_nfsv4acls, at_root,
-					    mounted_on_fileno);
+					    mounted_on_fileno, xattrsupp,
+					    has_hiddensystem, has_namedattr);
 				}
 				if (nvp != NULL)
 					vrele(nvp);
@@ -6334,7 +6385,7 @@ nfsrv_setacldsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	 * the same type (VREG).
 	 */
 	nfsv4_fillattr(nd, NULL, vp, aclp, NULL, NULL, 0, &attrbits, NULL,
-	    NULL, 0, 0, 0, 0, 0, NULL);
+	    NULL, 0, 0, 0, 0, 0, NULL, false, false, false);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0) {

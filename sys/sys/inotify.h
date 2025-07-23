@@ -107,11 +107,18 @@ void	vn_inotify_revoke(struct vnode *);
 } while (0)
 
 /* Log an inotify event using a specific name for the vnode. */
-#define	INOTIFY_NAME(vp, dvp, cnp, ev) do {				\
+#define	INOTIFY_NAME_LOCK(vp, dvp, cnp, ev, lock) do {			\
 	if (__predict_false((vn_irflag_read(vp) & VIRF_INOTIFY) != 0 ||	\
-	    (vn_irflag_read(dvp) & VIRF_INOTIFY) != 0)) 		\
+	    (vn_irflag_read(dvp) & VIRF_INOTIFY) != 0)) {		\
+		if (lock)						\
+			vn_lock((vp), LK_SHARED | LK_RETRY);		\
 		VOP_INOTIFY((vp), (dvp), (cnp), (ev), 0);		\
+		if (lock)						\
+			VOP_UNLOCK(vp);					\
+	}								\
 } while (0)
+#define	INOTIFY_NAME(vp, dvp, cnp, ev)					\
+	INOTIFY_NAME_LOCK((vp), (dvp), (cnp), (ev), false)
 
 extern __uint32_t inotify_rename_cookie;
 
@@ -126,7 +133,8 @@ extern __uint32_t inotify_rename_cookie;
 		VOP_INOTIFY((vp), (tdvp), (tcnp), IN_MOVED_TO, cookie);	\
 	}								\
 	if ((tvp) != NULL)						\
-		INOTIFY_NAME((tvp), (tdvp), (tcnp), _IN_MOVE_DELETE);	\
+		INOTIFY_NAME_LOCK((tvp), (tdvp), (tcnp),		\
+		    _IN_MOVE_DELETE, true);				\
 } while (0)
 
 #define	INOTIFY_REVOKE(vp) do {						\

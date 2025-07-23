@@ -598,42 +598,24 @@ contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
 contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
 contrib/dev/acpica/os_specific/service_layers/osgendbg.c	optional acpi acpi_debug
-netpfil/ipfilter/netinet/fil.c	optional ipfilter inet \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_auth.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_frag.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_log.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_nat.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_proxy.c optional ipfilter inet \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_state.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_lookup.c optional ipfilter inet \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -Wno-unused -Wno-error -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_pool.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_htable.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter ${NO_WTAUTOLOGICAL_POINTER_COMPARE}"
-netpfil/ipfilter/netinet/ip_sync.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_nat6.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_rules.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_scan.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/ip_dstlist.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-unused -I$S/netpfil/ipfilter"
-netpfil/ipfilter/netinet/radix_ipf.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/netpfil/ipfilter"
+netpfil/ipfilter/netinet/fil.c	optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_auth.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_frag.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_log.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_nat.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_proxy.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_state.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_lookup.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_pool.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_htable.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_sync.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_nat6.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_rules.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_scan.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/ip_dstlist.c optional ipfilter inet compile-with "${IPFILTER_C}"
+netpfil/ipfilter/netinet/radix_ipf.c optional ipfilter inet compile-with "${IPFILTER_C}"
 contrib/libfdt/fdt.c		optional fdt
 contrib/libfdt/fdt_ro.c		optional fdt
 contrib/libfdt/fdt_rw.c		optional fdt
@@ -3244,6 +3226,19 @@ dev/uart/uart_dev_z8530.c	optional uart uart_z8530 | uart scc
 dev/uart/uart_if.m		optional uart
 dev/uart/uart_subr.c		optional uart
 dev/uart/uart_tty.c		optional uart
+#
+# Universal Flash Storage Host Controller Interface drivers
+#
+dev/ufshci/ufshci.c		optional ufshci
+dev/ufshci/ufshci_ctrlr.c	optional ufshci
+dev/ufshci/ufshci_ctrlr_cmd.c	optional ufshci
+dev/ufshci/ufshci_dev.c		optional ufshci
+dev/ufshci/ufshci_pci.c		optional ufshci
+dev/ufshci/ufshci_req_queue.c	optional ufshci
+dev/ufshci/ufshci_req_sdb.c	optional ufshci
+dev/ufshci/ufshci_sim.c		optional ufshci
+dev/ufshci/ufshci_sysctl.c	optional ufshci
+dev/ufshci/ufshci_uic_cmd.c	optional ufshci
 #
 # USB controller drivers
 #

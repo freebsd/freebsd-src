@@ -99,6 +99,11 @@ xhci_pci_match(device_t self)
 		return ("AMD Starship USB 3.0 controller");
 	case 0x149c1022:
 		return ("AMD Matisse USB 3.0 controller");
+	case 0x15b61022:
+	case 0x15b71022:
+		return ("AMD Raphael/Granite Ridge USB 3.1 controller");
+	case 0x15b81022:
+		return ("AMD Raphael/Granite Ridge USB 2.0 controller");
 	case 0x15e01022:
 	case 0x15e11022:
 		return ("AMD Raven USB 3.1 controller");
@@ -109,6 +114,8 @@ xhci_pci_match(device_t self)
 		return ("AMD 300 Series USB 3.1 controller");
 	case 0x43d51022:
 		return ("AMD 400 Series USB 3.1 controller");
+	case 0x43f71022:
+		return ("AMD 600 Series USB 3.2 controller");
 	case 0x78121022:
 	case 0x78141022:
 	case 0x79141022:

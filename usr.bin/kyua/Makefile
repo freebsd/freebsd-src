@@ -32,7 +32,7 @@ MAN=		kyua-about.1 \
 
 CFLAGS+=	-I${KYUA_SRCDIR} -I${.CURDIR}
 CFLAGS+=	-I${SRCTOP}/contrib/lutok/include
-CFLAGS+=	-I${SRCTOP}/contrib/sqlite3
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/sqlite3
 CFLAGS+=	-DHAVE_CONFIG_H
 
 # We compile the kyua libraries as part of the main executable as this saves

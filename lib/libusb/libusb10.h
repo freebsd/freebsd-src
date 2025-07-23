@@ -29,6 +29,7 @@
 #define	__LIBUSB10_H__
 
 #ifndef LIBUSB_GLOBAL_INCLUDE_FILE
+#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <netlink/netlink.h>
 #include <netlink/netlink_generic.h>
@@ -46,24 +47,11 @@
 #define	HOTPLUG_LOCK(ctx) pthread_mutex_lock(&(ctx)->hotplug_lock)
 #define	HOTPLUG_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->hotplug_lock)
 
-#define	DPRINTF(ctx, dbg, format, ...) do {			\
-	switch (dbg) {						\
-	case LIBUSB_DEBUG_FUNCTION:				\
-		if ((ctx)->debug & LIBUSB_DEBUG_FUNCTION) {	\
-			printf("LIBUSB_FUNCTION: "		\
-			       format "\n", ## __VA_ARGS__);	\
-		}						\
-		break;						\
-	case LIBUSB_DEBUG_TRANSFER:				\
-		if ((ctx)->debug & LIBUSB_DEBUG_TRANSFER) { 	\
-			printf("LIBUSB_TRANSFER: "		\
-			       format "\n", ## __VA_ARGS__);	\
-		}						\
-		break;						\
-	default:						\
-		break;						\
-	}							\
-} while (0)
+void libusb_log_va_args(struct libusb_context *ctx, enum libusb_log_level level,
+    const char *fmt, ...) __printflike(3, 4);
+
+#define DPRINTF(ctx, dbg, format, ...) \
+	libusb_log_va_args(ctx, dbg, format, ##__VA_ARGS__)
 
 /* internal structures */
 
@@ -149,6 +137,12 @@ struct libusb_device {
 	TAILQ_HEAD(, libusb_super_transfer) tr_head;
 
 	struct libusb20_device *os_priv;
+};
+
+struct libusb_language_context {
+	const char *lang_name;
+	/* All error Plus 1 UNKNOWN */
+	const char *err_strs[LIBUSB_ERROR_COUNT + 1];
 };
 
 extern struct libusb_context *usbi_default_context;

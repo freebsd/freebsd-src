@@ -4579,7 +4579,7 @@ pf_match_port(u_int8_t op, u_int16_t a1, u_int16_t a2, u_int16_t p)
 static int
 pf_match_uid(u_int8_t op, uid_t a1, uid_t a2, uid_t u)
 {
-	if (u == UID_MAX && op != PF_OP_EQ && op != PF_OP_NE)
+	if (u == -1 && op != PF_OP_EQ && op != PF_OP_NE)
 		return (0);
 	return (pf_match(op, a1, a2, u));
 }
@@ -4587,7 +4587,7 @@ pf_match_uid(u_int8_t op, uid_t a1, uid_t a2, uid_t u)
 static int
 pf_match_gid(u_int8_t op, gid_t a1, gid_t a2, gid_t g)
 {
-	if (g == GID_MAX && op != PF_OP_EQ && op != PF_OP_NE)
+	if (g == -1 && op != PF_OP_EQ && op != PF_OP_NE)
 		return (0);
 	return (pf_match(op, a1, a2, g));
 }
@@ -4914,8 +4914,8 @@ pf_socket_lookup(struct pf_pdesc *pd)
 	struct inpcbinfo	*pi;
 	struct inpcb		*inp;
 
-	pd->lookup.uid = UID_MAX;
-	pd->lookup.gid = GID_MAX;
+	pd->lookup.uid = -1;
+	pd->lookup.gid = -1;
 
 	switch (pd->proto) {
 	case IPPROTO_TCP:
@@ -5901,18 +5901,17 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		M_SETFIB(pd->m, pd->act.rtableid);
 
 	if (r->rt) {
-		struct pf_ksrc_node	*sn = NULL;
-		struct pf_srchash	*snh = NULL;
 		/*
 		 * Set act.rt here instead of in pf_rule_to_actions() because
 		 * it is applied only from the last pass rule.
 		 */
 		pd->act.rt = r->rt;
-		/* Don't use REASON_SET, pf_map_addr increases the reason counters */
-		ctx.reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
-		    &pd->act.rt_kif, NULL, &sn, &snh, &(r->route), PF_SN_ROUTE);
-		if (ctx.reason != 0)
+		if ((transerror = pf_map_addr_sn(pd->af, r, pd->src,
+		    &pd->act.rt_addr, &pd->act.rt_kif, NULL, &(r->route),
+		    PF_SN_ROUTE)) != PFRES_MATCH) {
+			REASON_SET(&ctx.reason, transerror);
 			goto cleanup;
+		}
 	}
 
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
@@ -6056,9 +6055,16 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	/* src node for translation rule */
 	if (ctx->nr != NULL) {
 		KASSERT(ctx->nat_pool != NULL, ("%s: nat_pool is NULL", __func__));
+		/*
+		 * The NAT addresses are chosen during ruleset parsing.
+		 * The new afto code stores post-nat addresses in nsaddr.
+		 * The old nat code (also used for new nat-to rules) creates
+		 * state keys and stores addresses in them.
+		 */
 		if ((ctx->nat_pool->opts & PF_POOL_STICKYADDR) &&
 		    (sn_reason = pf_insert_src_node(sns, snhs, ctx->nr,
-		    &ctx->sk->addr[pd->sidx], pd->af, &ctx->nk->addr[1], NULL,
+		    ctx->sk ? &(ctx->sk->addr[pd->sidx]) : pd->src, pd->af,
+		    ctx->nk ? &(ctx->nk->addr[1]) : &(pd->nsaddr), NULL,
 		    PF_SN_NAT)) != 0 ) {
 			REASON_SET(&ctx->reason, sn_reason);
 			goto csfailed;
@@ -6213,7 +6219,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	if (ctx->tag > 0)
 		s->tag = ctx->tag;
 	if (pd->proto == IPPROTO_TCP && (tcp_get_flags(th) & (TH_SYN|TH_ACK)) ==
-	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY) {
+	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY && pd->dir == PF_IN) {
 		pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
 		pf_undo_nat(ctx->nr, pd, bip_sum);
 		s->src.seqhi = arc4random();
@@ -9062,6 +9068,9 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 		goto bad;
 	}
 
+	if (r->rt == PF_DUPTO)
+		skip_test = true;
+
 	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET, PF_OUT, PFIL_FWD, ifp, &m0, inp,
 		    &pd->act) != PF_PASS) {
@@ -9363,6 +9372,9 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
 	}
+
+	if (r->rt == PF_DUPTO)
+		skip_test = true;
 
 	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD | PF_PFIL_NOREFRAGMENT,
@@ -10052,6 +10064,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	pd->didx = (dir == PF_IN) ? 1 : 0;
 	pd->af = pd->naf = af;
 
+	PF_RULES_ASSERT();
+
 	TAILQ_INIT(&pd->sctp_multihome_jobs);
 	if (default_actions != NULL)
 		memcpy(&pd->act, default_actions, sizeof(pd->act));
@@ -10127,6 +10141,12 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		}
 
 		h = mtod(pd->m, struct ip6_hdr *);
+		if (pd->m->m_pkthdr.len <
+		    sizeof(struct ip6_hdr) + ntohs(h->ip6_plen)) {
+			*action = PF_DROP;
+			REASON_SET(reason, PFRES_SHORT);
+			return (-1);
+		}
 
 		if (pf_walk_header6(pd, h, reason) != PF_PASS) {
 			*action = PF_DROP;
@@ -10465,11 +10485,10 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	PF_RULES_RLOCK_TRACKER;
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
 	M_ASSERTPKTHDR(*m0);
+	NET_EPOCH_ASSERT();
 
 	if (!V_pf_status.running)
 		return (PF_PASS);
-
-	PF_RULES_RLOCK();
 
 	kif = (struct pfi_kkif *)ifp->if_pf_kif;
 
@@ -10477,23 +10496,19 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    ("%s: kif == NULL, if_xname %s\n",
 		    __func__, ifp->if_xname));
-		PF_RULES_RUNLOCK();
 		return (PF_DROP);
 	}
 	if (kif->pfik_flags & PFI_IFLAG_SKIP) {
-		PF_RULES_RUNLOCK();
 		return (PF_PASS);
 	}
 
 	if ((*m0)->m_flags & M_SKIP_FIREWALL) {
-		PF_RULES_RUNLOCK();
 		return (PF_PASS);
 	}
 
 	if (__predict_false(! M_WRITABLE(*m0))) {
 		*m0 = m_unshare(*m0, M_NOWAIT);
 		if (*m0 == NULL) {
-			PF_RULES_RUNLOCK();
 			return (PF_DROP);
 		}
 	}
@@ -10506,12 +10521,10 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		ifp = ifnet_byindexgen(pd.pf_mtag->if_index,
 		    pd.pf_mtag->if_idxgen);
 		if (ifp == NULL || ifp->if_flags & IFF_DYING) {
-			PF_RULES_RUNLOCK();
 			m_freem(*m0);
 			*m0 = NULL;
 			return (PF_PASS);
 		}
-		PF_RULES_RUNLOCK();
 		(ifp->if_output)(ifp, *m0, sintosa(&pd.pf_mtag->dst), NULL);
 		*m0 = NULL;
 		return (PF_PASS);
@@ -10526,10 +10539,11 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		/* But only once. We may see the packet multiple times (e.g.
 		 * PFIL_IN/PFIL_OUT). */
 		pf_dummynet_flag_remove(pd.m, pd.pf_mtag);
-		PF_RULES_RUNLOCK();
 
 		return (PF_PASS);
 	}
+
+	PF_RULES_RLOCK();
 
 	if (pf_setup_pdesc(af, dir, &pd, m0, &action, &reason,
 		kif, default_actions) == -1) {

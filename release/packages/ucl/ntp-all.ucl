@@ -1,0 +1,4 @@
+comment = "Network Time Protocol server and client"
+desc = <<EOD
+Network Time Protocol server and client
+EOD

@@ -1,3 +1,7 @@
+2025-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* prog.mk: .MADE is a special source not a target!
+
 2025-05-28  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20250528

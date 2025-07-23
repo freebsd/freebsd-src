@@ -2019,6 +2019,7 @@ typedef struct vdev {
 	vdev_list_t	v_children;	/* children of this vdev */
 	const char	*v_name;	/* vdev name */
 	uint64_t	v_guid;		/* vdev guid */
+	uint64_t	v_txg;		/* most recent transaction */
 	uint64_t	v_id;		/* index in parent */
 	uint64_t	v_psize;	/* physical device capacity */
 	int		v_ashift;	/* offset to block shift */
@@ -2048,7 +2049,6 @@ typedef struct spa {
 	STAILQ_ENTRY(spa) spa_link;	/* link in global pool list */
 	char		*spa_name;	/* pool name */
 	uint64_t	spa_guid;	/* pool guid */
-	uint64_t	spa_txg;	/* most recent transaction */
 	struct uberblock *spa_uberblock;	/* best uberblock so far */
 	vdev_t		*spa_root_vdev;	/* toplevel vdev container */
 	objset_phys_t	*spa_mos;	/* MOS for this pool */

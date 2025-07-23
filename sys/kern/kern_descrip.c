@@ -480,6 +480,92 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, intptr_t arg)
 	return (error);
 }
 
+struct flags_trans_elem {
+	u_int f;
+	u_int t;
+};
+
+static u_int
+flags_trans(const struct flags_trans_elem *ftes, int nitems, u_int from_flags)
+{
+	u_int res;
+	int i;
+
+	res = 0;
+	for (i = 0; i < nitems; i++) {
+		if ((from_flags & ftes[i].f) != 0)
+			res |= ftes[i].t;
+	}
+	return (res);
+}
+
+static uint8_t
+fd_to_fde_flags(int fd_flags)
+{
+	static const struct flags_trans_elem fd_to_fde_flags_s[] = {
+		{ .f = FD_CLOEXEC,		.t = UF_EXCLOSE },
+		{ .f = FD_CLOFORK,		.t = UF_FOCLOSE },
+		{ .f = FD_RESOLVE_BENEATH,	.t = UF_RESOLVE_BENEATH },
+	};
+
+	return (flags_trans(fd_to_fde_flags_s, nitems(fd_to_fde_flags_s),
+	    fd_flags));
+}
+
+static int
+fde_to_fd_flags(uint8_t fde_flags)
+{
+	static const struct flags_trans_elem fde_to_fd_flags_s[] = {
+		{ .f = UF_EXCLOSE,		.t = FD_CLOEXEC },
+		{ .f = UF_FOCLOSE,		.t = FD_CLOFORK },
+		{ .f = UF_RESOLVE_BENEATH,	.t = FD_RESOLVE_BENEATH },
+	};
+
+	return (flags_trans(fde_to_fd_flags_s, nitems(fde_to_fd_flags_s),
+	    fde_flags));
+}
+
+static uint8_t
+fddup_to_fde_flags(int fddup_flags)
+{
+	static const struct flags_trans_elem fddup_to_fde_flags_s[] = {
+		{ .f = FDDUP_FLAG_CLOEXEC,	.t = UF_EXCLOSE },
+		{ .f = FDDUP_FLAG_CLOFORK,	.t = UF_FOCLOSE },
+	};
+
+	return (flags_trans(fddup_to_fde_flags_s, nitems(fddup_to_fde_flags_s),
+	    fddup_flags));
+}
+
+static uint8_t
+close_range_to_fde_flags(int close_range_flags)
+{
+	static const struct flags_trans_elem close_range_to_fde_flags_s[] = {
+		{ .f = CLOSE_RANGE_CLOEXEC,	.t = UF_EXCLOSE },
+		{ .f = CLOSE_RANGE_CLOFORK,	.t = UF_FOCLOSE },
+	};
+
+	return (flags_trans(close_range_to_fde_flags_s,
+	   nitems(close_range_to_fde_flags_s), close_range_flags));
+}
+
+static uint8_t
+open_to_fde_flags(int open_flags, bool sticky_orb)
+{
+	static const struct flags_trans_elem open_to_fde_flags_s[] = {
+		{ .f = O_CLOEXEC,		.t = UF_EXCLOSE },
+		{ .f = O_CLOFORK,		.t = UF_FOCLOSE },
+		{ .f = O_RESOLVE_BENEATH,	.t = UF_RESOLVE_BENEATH },
+	};
+#if defined(__clang__) && __clang_major__ >= 19
+	_Static_assert(open_to_fde_flags_s[nitems(open_to_fde_flags_s) - 1].f ==
+	    O_RESOLVE_BENEATH, "O_RESOLVE_BENEATH must be last, for sticky_orb");
+#endif
+
+	return (flags_trans(open_to_fde_flags_s, nitems(open_to_fde_flags_s) -
+	    (sticky_orb ? 0 : 1), open_flags));
+}
+
 int
 kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 {
@@ -534,11 +620,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		FILEDESC_SLOCK(fdp);
 		fde = fdeget_noref(fdp, fd);
 		if (fde != NULL) {
-			td->td_retval[0] =
-			    ((fde->fde_flags & UF_EXCLOSE) ? FD_CLOEXEC : 0) |
-			    ((fde->fde_flags & UF_FOCLOSE) ? FD_CLOFORK : 0) |
-			    ((fde->fde_flags & UF_RESOLVE_BENEATH) ?
-			    FD_RESOLVE_BENEATH : 0);
+			td->td_retval[0] = fde_to_fd_flags(fde->fde_flags);
 			error = 0;
 		}
 		FILEDESC_SUNLOCK(fdp);
@@ -552,11 +634,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			/*
 			 * UF_RESOLVE_BENEATH is sticky and cannot be cleared.
 			 */
-			fde->fde_flags = (fde->fde_flags & ~UF_EXCLOSE) |
-			    ((arg & FD_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
-			    ((arg & FD_CLOFORK) != 0 ? UF_FOCLOSE : 0) |
-			    ((arg & FD_RESOLVE_BENEATH) != 0 ?
-			    UF_RESOLVE_BENEATH : 0);
+			fde->fde_flags = (fde->fde_flags &
+			    ~(UF_EXCLOSE | UF_FOCLOSE)) | fd_to_fde_flags(arg);
 			error = 0;
 		}
 		FILEDESC_XUNLOCK(fdp);
@@ -991,10 +1070,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 		goto unlock;
 	if (mode == FDDUP_FIXED && old == new) {
 		td->td_retval[0] = new;
-		if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
-			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
-		if ((flags & FDDUP_FLAG_CLOFORK) != 0)
-			fdp->fd_ofiles[new].fde_flags |= UF_FOCLOSE;
+		fdp->fd_ofiles[new].fde_flags |= fddup_to_fde_flags(flags);
 		error = 0;
 		goto unlock;
 	}
@@ -1070,8 +1146,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
 	    nioctls);
 	newfde->fde_flags = (oldfde->fde_flags & ~(UF_EXCLOSE | UF_FOCLOSE)) |
-	    ((flags & FDDUP_FLAG_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
-	    ((flags & FDDUP_FLAG_CLOFORK) != 0 ? UF_FOCLOSE : 0);
+	    fddup_to_fde_flags(flags);
 #ifdef CAPABILITIES
 	seqc_write_end(&newfde->fde_seqc);
 #endif
@@ -1444,8 +1519,7 @@ close_range_flags(struct thread *td, u_int lowfd, u_int highfd, int flags)
 	struct filedescent *fde;
 	int fd, fde_flags;
 
-	fde_flags = ((flags & CLOSE_RANGE_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
-	    ((flags & CLOSE_RANGE_CLOFORK) != 0 ? UF_FOCLOSE : 0);
+	fde_flags = close_range_to_fde_flags(flags);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_XLOCK(fdp);
 	fdt = atomic_load_ptr(&fdp->fd_files);
@@ -2194,9 +2268,7 @@ _finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 	seqc_write_begin(&fde->fde_seqc);
 #endif
 	fde->fde_file = fp;
-	fde->fde_flags = ((flags & O_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
-	    ((flags & O_CLOFORK) != 0 ? UF_FOCLOSE : 0) |
-	    ((flags & O_RESOLVE_BENEATH) != 0 ? UF_RESOLVE_BENEATH : 0);
+	fde->fde_flags = open_to_fde_flags(flags, true);
 	if (fcaps != NULL)
 		filecaps_move(fcaps, &fde->fde_caps);
 	else

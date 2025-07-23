@@ -1,0 +1,4 @@
+comment = "Highly Available Storage daemon"
+desc = <<EOD
+Highly Available Storage daemon
+EOD

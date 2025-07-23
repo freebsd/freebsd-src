@@ -1,0 +1,6 @@
+comment = "ELF linker from the LLVM project"
+desc = <<EOD
+ld.lld is the ELF linker provided by LLVM.
+EOD
+
+licenses = [ NCSA ]

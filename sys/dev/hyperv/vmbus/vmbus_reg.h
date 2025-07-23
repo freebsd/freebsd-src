@@ -60,16 +60,10 @@ CTASSERT(sizeof(struct vmbus_message) == VMBUS_MSG_SIZE);
  * Hyper-V SynIC event flags
  */
 
-#ifdef __LP64__
-#define VMBUS_EVTFLAGS_MAX	32
-#define VMBUS_EVTFLAG_SHIFT	6
-#else
-#define VMBUS_EVTFLAGS_MAX	64
-#define VMBUS_EVTFLAG_SHIFT	5
-#endif
-#define VMBUS_EVTFLAG_LEN	(1 << VMBUS_EVTFLAG_SHIFT)
+#define VMBUS_EVTFLAG_LEN	(sizeof(u_long) * 8)
 #define VMBUS_EVTFLAG_MASK	(VMBUS_EVTFLAG_LEN - 1)
 #define VMBUS_EVTFLAGS_SIZE	256
+#define VMBUS_EVTFLAGS_MAX	(VMBUS_EVTFLAGS_SIZE / sizeof(u_long))
 
 struct vmbus_evtflags {
 	u_long		evt_flags[VMBUS_EVTFLAGS_MAX];

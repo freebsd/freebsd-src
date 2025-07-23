@@ -1,0 +1,129 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.Dd July 14, 2025
+.Dt DTRACE_PROFILE 4
+.Os
+.Sh NAME
+.Nm dtrace_profile
+.Nd a DTrace provider for firing probes at a given time interval
+.Sh SYNOPSIS
+.Nm profile Ns Cm :::profile- Ns Ar rate Ns Op Ar unit
+.Nm profile Ns Cm :::tick- Ns Ar rate Ns Op Ar unit
+.Sh DESCRIPTION
+The
+.Nm profile
+provider implements three special probes related to the life cycle of the
+DTrace program itself.
+.Ss Probes
+The
+.Nm profile Ns Cm :::profile
+probes fire on all CPUs and are suitable for measuring the whole system
+periodically.
+.Pp
+The
+.Nm profile Ns Cm :::tick
+probes fire on a single CPU, potentially a different one every time.
+They are useful, e.g., for printing partial results periodically.
+.Ss Rate and Time Units
+The
+.Nm profile
+provider probes will fire at the specified
+.Ar rate .
+.Pp
+The default unit is
+.Cm hz .
+The
+.Nm profile
+provider supports the following time units:
+.Bl -column -offset indent "ns, nsec" "Definition"
+.It Sy Time Unit Ta Sy Definition
+.It Cm ns , nsec Ta nanoseconds
+.It Cm us , usec Ta microseconds
+.It Cm ms , msec Ta milliseconds
+.It Cm s , sec Ta seconds
+.It Cm m , min Ta minutes
+.It Cm h , hour Ta hours
+.It Cm d , day Ta days
+.It Cm hz Ta Hertz (frequency per second)
+.El
+.Ss Probe Arguments
+The arguments of the
+.Nm profile
+provider probes
+are:
+.Bl -tag -width arg0
+.It Va arg0
+The PC (program counter) in the kernel when the probe triggered,
+or 0 if the process was not in the kernel at that time.
+.It Va arg1
+The PC in the user process when the probe triggered,
+or 0 if the process was in the kernel when the probe triggered.
+.El
+.Pp
+Use arguments
+.Va arg0
+and
+.Va arg1
+to tell if the
+.Nm profile
+provider probe fired in the kernel or in the userspace context.
+.Sh IMPLEMENTATION NOTES
+The
+.Xr sysctl 8
+variable
+.Va kern.dtrace.profile.aframes
+controls the number of skipped artificial frames for
+the
+.Nm profile
+provider.
+.Sh EXAMPLES
+.Ss Example 1 : Profiling On-CPU Kernel Stack Traces
+The following DTrace one-liner uses the
+.Nm profile
+provider to collect stack traces over 60 seconds.
+.\" XXX: Keep on one line for easier copy-pasting.
+.Bd -literal -offset indent
+dtrace -x stackframes=100 -n 'profile-197 /arg0/ {@[stack()] = count();} tick-60s {exit(0);}
+.Ed
+.Pp
+The system is profiled at the 197 Hz to avoid sampling in lockstep
+with other periodic activities.
+This unnatural frequency minimizes the chance of overlapping with other events.
+.Pp
+Option
+.Fl x Cm stackframes=100
+increases the maximum number of kernel stack frames to unwind during
+.Fn stack .
+.Pp
+Checking if
+.Ar arg0
+is not zero makes sure that profiling happens
+when the program is in the kernel context.
+.Pp
+Refer to
+.Lk https://www.brendangregg.com/flamegraphs.html
+to learn about generating flame graphs from the obtained stack traces.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr tracing 7
+.Rs
+.%B The illumos Dynamic Tracing Guide
+.%O Chapter profile Provider
+.%D 2008
+.%U https://www.illumos.org/books/dtrace/chp-profile.html
+.Re
+.Rs
+.%A Brendan Gregg
+.%A Jim Mauro
+.%B DTrace: Dynamic Tracing in Oracle Solaris, Mac OS X and FreeBSD
+.%I Prentice Hall
+.%P pp. 24\(en25
+.%D 2011
+.%U https://www.brendangregg.com/dtracebook/
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

@@ -27,6 +27,13 @@
 #define	NVMF_NN			(1024)
 
 /*
+ * Default timeouts for Fabrics hosts.  These match values used by
+ * Linux.
+ */
+#define	NVMF_DEFAULT_RECONNECT_DELAY	10
+#define	NVMF_DEFAULT_CONTROLLER_LOSS	600
+
+/*
  * (data, size) is the userspace buffer for a packed nvlist.
  *
  * For requests that copyout an nvlist, len is the amount of data
@@ -68,6 +75,8 @@ struct nvmf_ioc_nv {
  *
  * number			trtype
  * number			kato	(optional)
+ * number                       reconnect_delay (optional)
+ * number                       controller_loss_timeout (optional)
  * qpair handoff nvlist		admin
  * qpair handoff nvlist array	io
  * binary			cdata	struct nvme_controller_data
@@ -81,6 +90,8 @@ struct nvmf_ioc_nv {
  * string			hostnqn
  * number			num_io_queues
  * number			kato	(optional)
+ * number                       reconnect_delay (optional)
+ * number                       controller_loss_timeout (optional)
  * number			io_qsize
  * bool				sq_flow_control
  *

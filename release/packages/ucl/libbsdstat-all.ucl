@@ -1,0 +1,5 @@
+comment = "Periodic statistics library"
+desc = <<EOD
+libbsdstat is a library for managing and display periodically collected
+statistics.
+EOD

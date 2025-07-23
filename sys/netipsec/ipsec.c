@@ -636,8 +636,10 @@ ipsec4_in_reject1(const struct mbuf *m, struct ip *ip1, struct inpcb *inp)
 
 #ifdef IPSEC_OFFLOAD
 	tag = ipsec_accel_input_tag_lookup(m);
-	if (tag != NULL)
-		return (0);
+	if (tag != NULL) {
+		tag->tag.m_tag_id = PACKET_TAG_IPSEC_IN_DONE;
+		__DECONST(struct mbuf *, m)->m_flags |= M_DECRYPTED;
+	}
 #endif
 
 	if (ip1 == NULL) {

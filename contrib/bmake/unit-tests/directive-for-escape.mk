@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-escape.mk,v 1.29 2024/08/29 20:20:36 rillig Exp $
+# $NetBSD: directive-for-escape.mk,v 1.30 2025/06/28 22:39:28 rillig Exp $
 #
 # Test escaping of special characters in the iteration values of a .for loop.
 # These values get expanded later using the :U variable modifier, and this
@@ -15,7 +15,7 @@ ASCII=	!"\#$$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
 # XXX: As of 2020-12-31, the '#' is not preserved in the expanded body of
 # the loop.  Not only would it need the escaping for the variable modifier
 # ':U' but also the escaping for the line-end comment.
-# expect+3: Unclosed expression, expecting '}' for modifier "U!""
+# expect+3: Unclosed expression, expecting "}" for modifier "U!""
 # expect+2: !"
 .for chars in ${ASCII}
 .  info ${chars}
@@ -27,7 +27,7 @@ ASCII=	!"\#$$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
 # This means that a '#' sign cannot be passed in the value of a .for loop
 # at all.
 ASCII.2020-12-31=	!"\\\#$$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
-# expect+3: Unclosed expression, expecting '}' for modifier "U!"\\\\"
+# expect+3: Unclosed expression, expecting "}" for modifier "U!"\\\\"
 # expect+2: !"\\
 .for chars in ${ASCII.2020-12-31}
 .  info ${chars}
@@ -151,7 +151,7 @@ VALUES=		begin<$${UNDEF:Ufallback:N{{{}}}}>end
 # could contain colons, which affected expressions having this exact
 # modifier.  This possibility was neither intended nor documented.
 NUMBERS=	one two three
-# expect+1: invalid character ':' in .for loop variable name
+# expect+1: Invalid character ":" in .for loop variable name
 .for NUMBERS:M*e in replaced
 .  info ${NUMBERS} ${NUMBERS:M*e}
 .endfor
@@ -161,7 +161,7 @@ NUMBERS=	one two three
 # expressions.  This possibility was neither intended nor documented.
 BASENAME=	one
 EXT=		.c
-# expect+1: invalid character '}' in .for loop variable name
+# expect+1: Invalid character "}" in .for loop variable name
 .for BASENAME}${EXT in replaced
 .  info ${BASENAME}${EXT}
 .endfor
@@ -192,7 +192,7 @@ i,=		comma
 # skipped "stupid" variable names though, but ForLoop_SubstVarLong naively
 # parsed the body of the loop, substituting each '${$}' with an actual
 # '${:Udollar}'.
-# expect+1: invalid character '$' in .for loop variable name
+# expect+1: Invalid character "$" in .for loop variable name
 .for $ in dollar
 .  info eight $$$$$$$$ and no cents.
 .  info eight ${$}${$}${$}${$} and no cents.

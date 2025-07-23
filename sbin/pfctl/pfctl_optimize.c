@@ -273,7 +273,10 @@ pfctl_optimize_ruleset(struct pfctl *pf, struct pfctl_ruleset *rs)
 	struct pfctl_rule *r;
 	struct pfctl_rulequeue *old_rules;
 
-	DEBUG("optimizing ruleset");
+	if (TAILQ_EMPTY(rs->rules[PF_RULESET_FILTER].active.ptr))
+		return (0);
+
+	DEBUG("optimizing ruleset \"%s\"", rs->anchor->path);
 	memset(&table_buffer, 0, sizeof(table_buffer));
 	skip_init();
 	TAILQ_INIT(&opt_queue);
@@ -720,11 +723,7 @@ reorder_rules(struct pfctl *pf, struct superblock *block, int depth)
 	 * it based on a more optimal skipstep order.
 	 */
 	TAILQ_INIT(&head);
-	while ((por = TAILQ_FIRST(&block->sb_rules))) {
-		TAILQ_REMOVE(&block->sb_rules, por, por_entry);
-		TAILQ_INSERT_TAIL(&head, por, por_entry);
-	}
-
+	TAILQ_CONCAT(&head, &block->sb_rules, por_entry);
 
 	while (!TAILQ_EMPTY(&head)) {
 		largest = 1;
@@ -745,11 +744,7 @@ reorder_rules(struct pfctl *pf, struct superblock *block, int depth)
 			 * Nothing useful left.  Leave remaining rules in order.
 			 */
 			DEBUG("(%d) no more commonality for skip steps", depth);
-			while ((por = TAILQ_FIRST(&head))) {
-				TAILQ_REMOVE(&head, por, por_entry);
-				TAILQ_INSERT_TAIL(&block->sb_rules, por,
-				    por_entry);
-			}
+			TAILQ_CONCAT(&block->sb_rules, &head, por_entry);
 		} else {
 			/*
 			 * There is commonality.  Extract those common rules
@@ -860,10 +855,7 @@ block_feedback(struct pfctl *pf, struct superblock *block)
 	 */
 
 	TAILQ_INIT(&queue);
-	while ((por1 = TAILQ_FIRST(&block->sb_rules)) != NULL) {
-		TAILQ_REMOVE(&block->sb_rules, por1, por_entry);
-		TAILQ_INSERT_TAIL(&queue, por1, por_entry);
-	}
+	TAILQ_CONCAT(&queue, &block->sb_rules, por_entry);
 
 	while ((por1 = TAILQ_FIRST(&queue)) != NULL) {
 		TAILQ_REMOVE(&queue, por1, por_entry);
@@ -900,13 +892,13 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 	struct pf_opt_queue queue;
 	struct pfctl_rules_info rules;
 	struct pfctl_rule a, b, rule;
-	int nr, mnr;
+	int nr, mnr, ret;
 
 	TAILQ_INIT(&queue);
 	TAILQ_INIT(&prof_superblocks);
 
-	if (pfctl_get_rules_info_h(pf->h, &rules, PF_PASS, "")) {
-		warn("DIOCGETRULES");
+	if ((ret = pfctl_get_rules_info_h(pf->h, &rules, PF_PASS, "")) != 0) {
+		warnx("%s", pf_strerror(ret));
 		return (1);
 	}
 	mnr = rules.nr;
@@ -921,7 +913,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 
 		if (pfctl_get_rule_h(pf->h, nr, rules.ticket, "", PF_PASS,
 		    &rule, anchor_call)) {
-			warn("DIOCGETRULENV");
+			warnx("%s", pf_strerror(ret));
 			free(por);
 			return (1);
 		}
@@ -1256,7 +1248,7 @@ add_opt_table(struct pfctl *pf, struct pf_opt_tbl **tbl, sa_family_t af,
 
 		/* This is just a temporary table name */
 		snprintf((*tbl)->pt_name, sizeof((*tbl)->pt_name), "%s%d",
-		    PF_OPT_TABLE_PREFIX, tablenum++);
+		    PF_OPTIMIZER_TABLE_PFX, tablenum++);
 		DEBUG("creating table <%s>", (*tbl)->pt_name);
 	}
 
@@ -1323,9 +1315,9 @@ pf_opt_create_table(struct pfctl *pf, struct pf_opt_tbl *tbl)
 	/* Now we have to pick a table name that isn't used */
 again:
 	DEBUG("translating temporary table <%s> to <%s%x_%d>", tbl->pt_name,
-	    PF_OPT_TABLE_PREFIX, table_identifier, tablenum);
+	    PF_OPTIMIZER_TABLE_PFX, table_identifier, tablenum);
 	snprintf(tbl->pt_name, sizeof(tbl->pt_name), "%s%x_%d",
-	    PF_OPT_TABLE_PREFIX, table_identifier, tablenum);
+	    PF_OPTIMIZER_TABLE_PFX, table_identifier, tablenum);
 	PFRB_FOREACH(t, &table_buffer) {
 		if (strcasecmp(t->pfrt_name, tbl->pt_name) == 0) {
 			/* Collision.  Try again */

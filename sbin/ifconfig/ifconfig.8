@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 5, 2025
+.Dd July 14, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2878,34 +2878,26 @@ interfaces previously configured with
 Another name for the
 .Fl tunnel
 parameter.
-.It Cm accept_rev_ethip_ver
-Set a flag to accept both correct EtherIP packets and ones
-with reversed version field.
-Enabled by default.
-This is for backward compatibility with
-.Fx 6.1 ,
-6.2, 6.3, 7.0, and 7.1.
-.It Cm -accept_rev_ethip_ver
-Clear a flag
-.Cm accept_rev_ethip_ver .
+.It Cm noclamp
+This flag prevents the MTU from being clamped to 1280 bytes, the
+minimum MTU for IPv6, when the outer protocol is IPv6.  When the
+flag is set, the MTU value configured on the interface will be
+used instead of the fixed length of 1280 bytes. For more details,
+please refer to the
+.Ar MTU Configuration and Path MTU Discovery
+section in
+.Xr gif 4 .
+.It Cm -noclamp
+Clear the flag
+.Cm noclamp .
 .It Cm ignore_source
 Set a flag to accept encapsulated packets destined to this host
 independently from source address.
 This may be useful for hosts, that receive encapsulated packets
 from the load balancers.
 .It Cm -ignore_source
-Clear a flag
+Clear the flag
 .Cm ignore_source .
-.It Cm send_rev_ethip_ver
-Set a flag to send EtherIP packets with reversed version
-field intentionally.
-Disabled by default.
-This is for backward compatibility with
-.Fx 6.1 ,
-6.2, 6.3, 7.0, and 7.1.
-.It Cm -send_rev_ethip_ver
-Clear a flag
-.Cm send_rev_ethip_ver .
 .El
 .Ss GRE Tunnel Parameters
 The following parameters apply to GRE tunnel interfaces,

@@ -43,7 +43,6 @@
 #define	MAX_BUFF_SIZE		(ASN_MAXOCTETSTRING + 50)
 
 #define	SNMP_DEFS_DIR		"/usr/share/snmp/defs/"
-#define	SNMP_DEFAULT_LOCAL	"/var/run/snmpd.sock"
 
 #define	SNMP_MAX_REPETITIONS	10
 

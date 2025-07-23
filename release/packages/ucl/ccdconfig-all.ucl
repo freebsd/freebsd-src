@@ -1,0 +1,5 @@
+comment = "Concatenated disk driver (ccd) configuration utility"
+desc = <<EOD
+ccdconfig(8) is used to configure the concatenated disk driver, ccd(4).
+ccdconfig(8) may also be started on boot using the "ccd" rc(8) service.
+EOD

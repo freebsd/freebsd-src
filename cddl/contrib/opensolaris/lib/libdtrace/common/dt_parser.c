@@ -1918,6 +1918,14 @@ dt_node_op1(int op, dt_node_t *cp)
 		return (cp);
 	}
 
+	/*
+	 * When applying the addressof operator to an identifier, it's okay if
+	 * we can't find type information for the identifier, so flag the node
+	 * to ensure that we don't raise an error.
+	 */
+	if (op == DT_TOK_ADDROF && cp->dn_kind == DT_NODE_IDENT)
+		cp->dn_flags |= DT_NF_IDENTADDR;
+
 	dnp = dt_node_alloc(DT_NODE_OP1);
 	assert(op <= USHRT_MAX);
 	dnp->dn_op = (ushort_t)op;
@@ -2786,10 +2794,21 @@ dt_xcook_ident(dt_node_t *dnp, dt_idhash_t *dhp, uint_t idkind, int create)
 				    dt_module_modelname(dtp->dt_ddefs));
 			}
 
-			xyerror(D_SYM_NOTYPES,
+			/*
+			 * If we're taking the address of an identifier that
+			 * doesn't have type info, try to make it a void *.
+			 * This lets us use identifiers that are defined in
+			 * assembly and don't have type information.
+			 */
+			if ((dnp->dn_flags & DT_NF_IDENTADDR) == 0 ||
+			    dtrace_lookup_by_type(dtp, DTRACE_OBJ_CDEFS,
+			    "void", &dtt) != 0) {
+				xyerror(D_SYM_NOTYPES,
 			    "no symbolic type information is available for "
-			    "%s%s%s: %s\n", dts.dts_object, mark, dts.dts_name,
-			    dtrace_errmsg(dtp, dtrace_errno(dtp)));
+				    "%s%s%s: %s\n", dts.dts_object, mark,
+				    dts.dts_name,
+				    dtrace_errmsg(dtp, dtrace_errno(dtp)));
+			}
 		}
 
 		idp = dt_ident_create(name, DT_IDENT_SYMBOL, 0, 0,
@@ -4506,30 +4525,30 @@ dt_cook_none(dt_node_t *dnp, uint_t idflags)
 	return (dnp);
 }
 
-static dt_node_t *(*dt_cook_funcs[])(dt_node_t *, uint_t) = {
-	dt_cook_none,		/* DT_NODE_FREE */
-	dt_cook_none,		/* DT_NODE_INT */
-	dt_cook_none,		/* DT_NODE_STRING */
-	dt_cook_ident,		/* DT_NODE_IDENT */
-	dt_cook_var,		/* DT_NODE_VAR */
-	dt_cook_none,		/* DT_NODE_SYM */
-	dt_cook_none,		/* DT_NODE_TYPE */
-	dt_cook_func,		/* DT_NODE_FUNC */
-	dt_cook_op1,		/* DT_NODE_OP1 */
-	dt_cook_op2,		/* DT_NODE_OP2 */
-	dt_cook_op3,		/* DT_NODE_OP3 */
-	dt_cook_statement,	/* DT_NODE_DEXPR */
-	dt_cook_statement,	/* DT_NODE_DFUNC */
-	dt_cook_aggregation,	/* DT_NODE_AGG */
-	dt_cook_none,		/* DT_NODE_PDESC */
-	dt_cook_clause,		/* DT_NODE_CLAUSE */
-	dt_cook_inline,		/* DT_NODE_INLINE */
-	dt_cook_member,		/* DT_NODE_MEMBER */
-	dt_cook_xlator,		/* DT_NODE_XLATOR */
-	dt_cook_none,		/* DT_NODE_PROBE */
-	dt_cook_provider,	/* DT_NODE_PROVIDER */
-	dt_cook_none,		/* DT_NODE_PROG */
-	dt_cook_none,		/* DT_NODE_IF */
+static dt_node_t *(* const dt_cook_funcs[])(dt_node_t *, uint_t) = {
+	[DT_NODE_FREE] = dt_cook_none,
+	[DT_NODE_INT] = dt_cook_none,
+	[DT_NODE_STRING] = dt_cook_none,
+	[DT_NODE_IDENT] = dt_cook_ident,
+	[DT_NODE_VAR] = dt_cook_var,
+	[DT_NODE_SYM] = dt_cook_none,
+	[DT_NODE_TYPE] = dt_cook_none,
+	[DT_NODE_FUNC] = dt_cook_func,
+	[DT_NODE_OP1] = dt_cook_op1,
+	[DT_NODE_OP2] = dt_cook_op2,
+	[DT_NODE_OP3] = dt_cook_op3,
+	[DT_NODE_DEXPR] = dt_cook_statement,
+	[DT_NODE_DFUNC] = dt_cook_statement,
+	[DT_NODE_AGG] = dt_cook_aggregation,
+	[DT_NODE_PDESC] = dt_cook_none,
+	[DT_NODE_CLAUSE] = dt_cook_clause,
+	[DT_NODE_INLINE] = dt_cook_inline,
+	[DT_NODE_MEMBER] = dt_cook_member,
+	[DT_NODE_XLATOR] = dt_cook_xlator,
+	[DT_NODE_PROBE] = dt_cook_none,
+	[DT_NODE_PROVIDER] = dt_cook_provider,
+	[DT_NODE_PROG] = dt_cook_none,
+	[DT_NODE_IF] = dt_cook_none,
 };
 
 /*

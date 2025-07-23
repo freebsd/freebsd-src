@@ -27,6 +27,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250721:
+	WITH_MITKRB5 is now enabled by default. MIT KRB5 has replaced
+	Heimdal in base. Ports that use USES=gssapi must be rebuilt.
+	A clean buildworld is required.
+
+20250719:
+	Commits 392a82b225 and c00baac0ab both changed the
+	internal API between the NFS modules.  As such, all
+	these modules need to be rebuilt from sources.
+	__FreeBSD_version was bumped to 1500053 for this.
+
+20250710:
+	The shar(1) utility has been removed from base.  The
+	sysutils/freebsd-shar port was created to maintain this version of
+	shar(1) past its removal from base.
+
 20250704:
 	LinuxKPI device.h and acpi changes effecting drivers and drm-kmod.
 	Bump __FreeBSD_version 1500050 to be able to detect these changes.

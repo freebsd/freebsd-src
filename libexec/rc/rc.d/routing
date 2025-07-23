@@ -331,7 +331,7 @@ _check_dynamicrouting()
 
 	# copied from /etc/rc
 	skip="-s nostart"
-	if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
+	if check_jail jailed; then
 		skip="$skip -s nojail"
 	fi
 	[ -n "$local_startup" ] && find_local_scripts_new

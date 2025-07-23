@@ -31,6 +31,24 @@
 : ${EX_CANTCREAT:=73}
 : ${EX_TEMPFAIL:=75}
 
+waitlock()
+{
+	local cur lockfile tmo
+
+	lockfile="$1"
+
+	cur=0
+	tmo=20
+
+	while [ "$cur" -lt "$tmo" -a ! -f "$lockfile" ]; do
+		sleep 0.1
+		cur=$((cur + 1))
+	done
+
+	atf_check_not_equal "$cur" "$tmo"
+}
+
+
 atf_test_case badargs
 badargs_body()
 {
@@ -60,6 +78,13 @@ basic_body()
 	# Make sure it cleans up after the initial sleep 10 is over.
 	wait "$lpid"
 	atf_check test ! -e "testlock"
+}
+
+atf_test_case bubble_error
+bubble_error_body()
+{
+	# Ensure that lockf bubbles up the error as expected.
+	atf_check -s exit:9 lockf testlock sh -c 'exit 9'
 }
 
 atf_test_case fdlock
@@ -189,6 +214,52 @@ needfile_body()
 	atf_check test "$tpass" -lt 10
 }
 
+atf_test_case termchild
+termchild_body()
+{
+	lockf -kp testlock sleep 30 &
+	lpid=$!
+
+	waitlock testlock
+
+	atf_check -o file:testlock pgrep -F testlock
+
+	start=$(date +"%s")
+	atf_check kill -TERM "$lpid"
+	wait "$lpid"
+	end=$(date +"%s")
+	elapsed=$((end - start))
+
+	if [ "$elapsed" -gt 5 ]; then
+		atf_fail "lockf seems to have dodged the SIGTERM ($elapsed passed)"
+	fi
+
+	# We didn't start lockf with -T this time, so the process should not
+	# have been terminated.
+	atf_check -o file:testlock pgrep -F testlock
+
+	lockf -kpT testlock sleep 30 &
+	lpid=$!
+
+	waitlock testlock
+
+	atf_check -o file:testlock pgrep -F testlock
+
+	start=$(date +"%s")
+	atf_check kill -TERM "$lpid"
+	wait "$lpid"
+	end=$(date +"%s")
+	elapsed=$((end - start))
+
+	if [ "$elapsed" -gt 5 ]; then
+		atf_fail "lockf -T seems to have dodged the SIGTERM ($elapsed passed)"
+	fi
+
+	# This time, it should have terminated (notably much earlier than our
+	# 30 second timeout).
+	atf_check -o empty -e not-empty -s not-exit:0 pgrep -F testlock
+}
+
 atf_test_case timeout
 timeout_body()
 {
@@ -212,6 +283,34 @@ timeout_body()
 	wait "$lpid" || true
 }
 
+atf_test_case writepid
+writepid_body()
+{
+	lockf -p "testlock" sleep 10 &
+	lpid=$!
+
+	waitlock "testlock"
+
+	atf_check test -s testlock
+	atf_check -o file:testlock pgrep -F testlock
+	atf_check -o file:testlock pgrep -F testlock -fx "sleep 10"
+	atf_check pkill -TERM -F testlock
+
+	wait
+
+	atf_check test ! -f testlock
+}
+
+atf_test_case writepid_keep
+writepid_keep_body()
+{
+	# Check that we'll clobber any existing contents (a pid, usually)
+	# once we acquire the lock.
+	jot -b A -s "" 64 > testlock
+	atf_check lockf -kp testlock sleep 0
+	atf_check -o not-match:"A" cat testlock
+}
+
 atf_test_case wrlock
 wrlock_head()
 {
@@ -233,9 +332,13 @@ atf_init_test_cases()
 {
 	atf_add_test_case badargs
 	atf_add_test_case basic
+	atf_add_test_case bubble_error
 	atf_add_test_case fdlock
 	atf_add_test_case keep
 	atf_add_test_case needfile
+	atf_add_test_case termchild
 	atf_add_test_case timeout
+	atf_add_test_case writepid
+	atf_add_test_case writepid_keep
 	atf_add_test_case wrlock
 }

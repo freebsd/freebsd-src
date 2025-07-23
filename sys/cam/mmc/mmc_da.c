@@ -692,10 +692,7 @@ sddaasync(void *callback_arg, uint32_t code,
 	case AC_GETDEV_CHANGED:
 	{
 		CAM_DEBUG(path, CAM_DEBUG_TRACE, ("=> AC_GETDEV_CHANGED\n"));
-		memset(&cgd, 0, sizeof(cgd));
-		xpt_setup_ccb(&cgd.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-		xpt_action((union ccb *)&cgd);
+		xpt_gdev_type(&cgd, periph->path);
 		cam_periph_async(periph, code, path, arg);
 		break;
 	}
@@ -789,7 +786,8 @@ sddaregister(struct cam_periph *periph, void *arg)
 
 static int
 mmc_exec_app_cmd(struct cam_periph *periph, union ccb *ccb,
-	struct mmc_command *cmd) {
+	struct mmc_command *cmd)
+{
 	int err;
 
 	/* Send APP_CMD first */
@@ -843,7 +841,8 @@ mmc_exec_app_cmd(struct cam_periph *periph, union ccb *ccb,
 }
 
 static int
-mmc_app_get_scr(struct cam_periph *periph, union ccb *ccb, uint32_t *rawscr) {
+mmc_app_get_scr(struct cam_periph *periph, union ccb *ccb, uint32_t *rawscr)
+{
 	int err;
 	struct mmc_command cmd;
 	struct mmc_data d;
@@ -869,7 +868,8 @@ mmc_app_get_scr(struct cam_periph *periph, union ccb *ccb, uint32_t *rawscr) {
 
 static int
 mmc_send_ext_csd(struct cam_periph *periph, union ccb *ccb,
-		 uint8_t *rawextcsd, size_t buf_len) {
+		 uint8_t *rawextcsd, size_t buf_len)
+{
 	int err;
 	struct mmc_data d;
 
@@ -966,14 +966,16 @@ mmc_switch(struct cam_periph *periph, union ccb *ccb,
 }
 
 static uint32_t
-mmc_get_spec_vers(struct cam_periph *periph) {
+mmc_get_spec_vers(struct cam_periph *periph)
+{
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
 
 	return (softc->csd.spec_vers);
 }
 
 static uint64_t
-mmc_get_media_size(struct cam_periph *periph) {
+mmc_get_media_size(struct cam_periph *periph)
+{
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
 
 	return (softc->mediasize);
@@ -992,7 +994,8 @@ mmc_get_cmd6_timeout(struct cam_periph *periph)
 static int
 mmc_sd_switch(struct cam_periph *periph, union ccb *ccb,
 	      uint8_t mode, uint8_t grp, uint8_t value,
-	      uint8_t *res) {
+	      uint8_t *res)
+{
 	struct mmc_data mmc_d;
 	uint32_t arg;
 	int err;
@@ -1069,7 +1072,8 @@ mmc_set_timing(struct cam_periph *periph,
 }
 
 static void
-sdda_start_init_task(void *context, int pending) {
+sdda_start_init_task(void *context, int pending)
+{
 	union ccb *new_ccb;
 	struct cam_periph *periph;
 
@@ -1077,7 +1081,7 @@ sdda_start_init_task(void *context, int pending) {
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sdda_start_init_task\n"));
 	new_ccb = xpt_alloc_ccb();
 	xpt_setup_ccb(&new_ccb->ccb_h, periph->path,
-		      CAM_PRIORITY_NONE);
+		      CAM_PRIORITY_NORMAL);
 
 	cam_periph_lock(periph);
 	cam_periph_hold(periph, PRIBIO|PCATCH);
@@ -1088,7 +1092,8 @@ sdda_start_init_task(void *context, int pending) {
 }
 
 static void
-sdda_set_bus_width(struct cam_periph *periph, union ccb *ccb, int width) {
+sdda_set_bus_width(struct cam_periph *periph, union ccb *ccb, int width)
+{
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
 	struct mmc_params *mmcp = &periph->path->device->mmc_ident_data;
 	int err;

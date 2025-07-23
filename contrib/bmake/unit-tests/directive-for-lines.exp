@@ -1,9 +1,9 @@
-make: directive-for-lines.mk:27: expect 23
-make: directive-for-lines.mk:27: expect 23
-make: directive-for-lines.mk:36: expect 30
-make: directive-for-lines.mk:27: expect 23
-make: directive-for-lines.mk:27: expect 23
-make: directive-for-lines.mk:36: expect 30
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:38: This is line 38.
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:31: This is line 31.
+make: directive-for-lines.mk:38: This is line 38.
 make: no target to make.
 
 make: stopped in unit-tests

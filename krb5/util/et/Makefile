@@ -18,6 +18,7 @@ LIB=		com_err
 LDFLAGS=-Wl,--no-undefined
 INCSDIR=${INCLUDEDIR}
 LIBADD=	krb5support
+VERSION_MAP=	${.CURDIR}/version.map
 
 
 SRCS=	com_err.c \

@@ -27,6 +27,8 @@ static struct options {
 	const char	*transport;
 	const char	*hostnqn;
 	uint32_t	kato;
+	uint32_t	reconnect_delay;
+	uint32_t	controller_loss_timeout;
 	uint16_t	num_io_queues;
 	uint16_t	queue_size;
 	bool		data_digests;
@@ -37,6 +39,8 @@ static struct options {
 	.transport = "tcp",
 	.hostnqn = NULL,
 	.kato = NVMF_KATO_DEFAULT / 1000,
+	.reconnect_delay = NVMF_DEFAULT_RECONNECT_DELAY,
+	.controller_loss_timeout = NVMF_DEFAULT_CONTROLLER_LOSS,
 	.num_io_queues = 1,
 	.queue_size = 0,
 	.data_digests = false,
@@ -59,6 +63,7 @@ static int
 reconnect_nvm_controller(int fd, const struct nvmf_association_params *aparams,
     enum nvmf_trtype trtype, int adrfam, const char *address, const char *port,
     uint16_t cntlid, const char *subnqn, const char *hostnqn, uint32_t kato,
+    uint32_t reconnect_delay, uint32_t controller_loss_timeout,
     u_int num_io_queues, u_int queue_size,
     const struct nvme_discovery_log_entry *dle)
 {
@@ -88,7 +93,7 @@ reconnect_nvm_controller(int fd, const struct nvmf_association_params *aparams,
 	}
 
 	error = nvmf_reconnect_host(fd, dle, hostnqn, admin, num_io_queues, io,
-	    &cdata);
+	    &cdata, reconnect_delay, controller_loss_timeout);
 	if (error != 0) {
 		warnc(error, "Failed to handoff queues to kernel");
 		free(io);
@@ -137,7 +142,8 @@ reconnect_by_address(int fd, const nvlist_t *rparams, const char *addr)
 
 	error = reconnect_nvm_controller(fd, &aparams, trtype, AF_UNSPEC,
 	    address, port, le16toh(dle->cntlid), subnqn, hostnqn,
-	    opt.kato * 1000, opt.num_io_queues, opt.queue_size, NULL);
+	    opt.kato * 1000, opt.reconnect_delay, opt.controller_loss_timeout,
+	    opt.num_io_queues, opt.queue_size, NULL);
 	free(subnqn);
 	free(tofree);
 	return (error);
@@ -196,6 +202,8 @@ reconnect_by_params(int fd, const nvlist_t *rparams)
 	    address, port, le16toh(dle->cntlid), dle->subnqn,
 	    nvlist_get_string(rparams, "hostnqn"),
 	    dnvlist_get_number(rparams, "kato", 0),
+	    dnvlist_get_number(rparams, "reconnect_delay", 0),
+	    dnvlist_get_number(rparams, "controller_loss_timeout", 0),
 	    nvlist_get_number(rparams, "num_io_queues"),
 	    nvlist_get_number(rparams, "io_qsize"), dle);
 	free(subnqn);
@@ -291,6 +299,11 @@ static const struct opts reconnect_opts[] = {
 	    "Number of entries in each I/O queue"),
 	OPT("keep-alive-tmo", 'k', arg_uint32, opt, kato,
 	    "Keep Alive timeout (in seconds)"),
+	OPT("reconnect-delay", 'r', arg_uint32, opt, reconnect_delay,
+	    "Delay between reconnect attempts after connection loss "
+	    "(in seconds)"),
+	OPT("ctrl-loss-tmo", 'l', arg_uint32, opt, controller_loss_timeout,
+	    "Controller loss timeout after connection loss (in seconds)"),
 	OPT("hostnqn", 'q', arg_string, opt, hostnqn,
 	    "Host NQN"),
 	OPT("flow_control", 'F', arg_none, opt, flow_control,

@@ -17,6 +17,7 @@ LIB=		k5crypto
 # SHLIB_MAJOR=	3
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	com_err krb5support crypto
+VERSION_MAP=	${.CURDIR}/version.map
 
 # XXX The following doesn't work. Even though the pathnames are the same
 # XXX we need to use the alternative .include statements.

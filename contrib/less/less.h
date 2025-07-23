@@ -575,10 +575,11 @@ typedef enum {
 #endif
 #endif
 
-#define S_INTERRUPT     01
-#define S_STOP          02
-#define S_WINCH         04
-#define ABORT_SIGS()    (sigs & (S_INTERRUPT|S_STOP))
+#define S_INTERRUPT     (1<<0)
+#define S_SWINTERRUPT   (1<<1)
+#define S_STOP          (1<<2)
+#define S_WINCH         (1<<3)
+#define ABORT_SIGS()    (sigs & (S_INTERRUPT|S_SWINTERRUPT|S_STOP))
 
 #ifdef EXIT_SUCCESS
 #define QUIT_OK         EXIT_SUCCESS

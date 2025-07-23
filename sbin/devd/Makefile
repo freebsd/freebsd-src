@@ -46,6 +46,11 @@ HYPERV+=	hyperv.conf
 HYPERVPACKAGE=	hyperv-tools
 .endif
 
+CONFGROUPS+=		NVME
+NVMEDIR=		${DEVDDIR}
+NVME+=			nvmf.conf
+NVMEPACKAGE=		nvme-tools
+
 .if ${MK_USB} != "no"
 DEVD+=	uath.conf ulpt.conf
 .endif

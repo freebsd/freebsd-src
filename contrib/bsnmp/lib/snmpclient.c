@@ -981,14 +981,8 @@ open_client_local(const char *path)
 	char *ptr;
 	int stype;
 
-	if (snmp_client.chost == NULL) {
-		if ((snmp_client.chost = malloc(1 + sizeof(DEFAULT_LOCAL)))
-		    == NULL) {
-			seterr(&snmp_client, "%s", strerror(errno));
-			return (-1);
-		}
-		strcpy(snmp_client.chost, DEFAULT_LOCAL);
-	}
+	if (snmp_client.chost == NULL && path == NULL)
+		path = SNMP_DEFAULT_LOCAL;
 	if (path != NULL) {
 		if ((ptr = malloc(1 + strlen(path))) == NULL) {
 			seterr(&snmp_client, "%s", strerror(errno));
@@ -1012,7 +1006,7 @@ open_client_local(const char *path)
 	snprintf(snmp_client.local_path, sizeof(snmp_client.local_path),
 	    "%s", SNMP_LOCAL_PATH);
 
-	if (mkstemp(snmp_client.local_path) == -1) {
+	if (mktemp(snmp_client.local_path) == NULL) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		(void)close(snmp_client.fd);
 		snmp_client.fd = -1;

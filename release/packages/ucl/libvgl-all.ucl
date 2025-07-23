@@ -1,0 +1,13 @@
+comment = "Video Graphics Library"
+desc = <<EOD
+libvgl is a library that enables the programmer access to the graphics modes
+supported by the console driver (syscons).  The library takes care of
+programming the actual video hardware, and provides a number of simple
+functions to do various graphic operations.  There is also support for a mouse
+via the standard mouse system in FreeBSD, including the ability to
+transparently have a mouse pointer superimposed on the graphic image currently
+being worked on.  The library takes care of screen switching by storing the
+current image in memory before switching to another virtual console, and
+restoring when the user switches back.  This allows several graphic
+applications at once, but on different virtual consoles.
+EOD

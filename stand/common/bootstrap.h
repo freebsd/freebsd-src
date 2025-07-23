@@ -372,6 +372,8 @@ extern struct arch_switch archsw;
 /* This must be provided by the MD code, but should it be in the archsw? */
 void	delay(int delay);
 
+int setprint_delay(struct env_var *ev, int flags, const void *value);
+
 /* common code to set currdev variable. */
 int gen_setcurrdev(struct env_var *ev, int flags, const void *value);
 int mount_currdev(struct env_var *, int, const void *);
