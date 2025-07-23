@@ -380,6 +380,7 @@ vop_symlink {
 
 
 %% readdir	vp	L L L
+%! readdir	pre	vop_readdir_pre
 %! readdir	post	vop_readdir_post
 
 vop_readdir {

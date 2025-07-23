@@ -939,7 +939,6 @@ void	vop_mknod_post(void *a, int rc);
 void	vop_open_post(void *a, int rc);
 void	vop_read_post(void *a, int rc);
 void	vop_read_pgcache_post(void *ap, int rc);
-void	vop_readdir_post(void *a, int rc);
 void	vop_reclaim_post(void *a, int rc);
 void	vop_remove_pre(void *a);
 void	vop_remove_post(void *a, int rc);
@@ -1014,6 +1013,34 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 		_ap->a_sb->st_gen = 0;						\
 	_error;									\
 })
+
+#ifdef INVARIANTS
+#define	vop_readdir_pre_assert(ap)					\
+	ssize_t nresid, oresid;						\
+									\
+	oresid = (ap)->a_uio->uio_resid;
+
+#define	vop_readdir_post_assert(ap, ret)				\
+	nresid = (ap)->a_uio->uio_resid;				\
+	if ((ret) == 0 && (ap)->a_eofflag != NULL) {			\
+		VNASSERT(nresid != oresid || *(ap)->a_eofflag == 1,	\
+		    (ap)->a_vp, ("VOP_READDIR: eofflag not set"));	\
+	}
+#else
+#define	vop_readdir_pre_assert(ap)
+#define	vop_readdir_post_assert(ap, ret)
+#endif
+
+#define	vop_readdir_pre(ap) do {					\
+	vop_readdir_pre_assert(ap)
+
+#define vop_readdir_post(ap, ret)					\
+	vop_readdir_post_assert(ap, ret);				\
+	if ((ret) == 0) {						\
+		VFS_KNOTE_LOCKED((ap)->a_vp, NOTE_READ);		\
+		INOTIFY((ap)->a_vp, IN_ACCESS);				\
+	}								\
+} while (0)
 
 #define	VOP_WRITE_PRE(ap)						\
 	struct vattr va;						\
