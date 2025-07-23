@@ -368,20 +368,15 @@ g_retaste(struct g_class *mp)
 }
 
 struct g_geom *
-g_new_geomf(struct g_class *mp, const char *fmt, ...)
+g_new_geom(struct g_class *mp, const char *name)
 {
+	int len;
 	struct g_geom *gp;
-	va_list ap;
-	struct sbuf *sb;
 
 	g_topology_assert();
 	G_VALID_CLASS(mp);
-	sb = sbuf_new_auto();
-	va_start(ap, fmt);
-	sbuf_vprintf(sb, fmt, ap);
-	va_end(ap);
-	sbuf_finish(sb);
-	gp = g_malloc(sizeof *gp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+	len = strlen(name);
+	gp = g_malloc(sizeof *gp + len + 1, M_WAITOK | M_ZERO);
 	gp->name = (char *)(gp + 1);
 	gp->class = mp;
 	gp->rank = 1;
@@ -389,8 +384,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	LIST_INIT(&gp->provider);
 	LIST_INSERT_HEAD(&mp->geom, gp, geom);
 	TAILQ_INSERT_HEAD(&geoms, gp, geoms);
-	strcpy(gp->name, sbuf_data(sb));
-	sbuf_delete(sb);
+	memcpy(gp->name, name, len);
 	/* Fill in defaults from class */
 	gp->start = mp->start;
 	gp->spoiled = mp->spoiled;
@@ -401,6 +395,23 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->orphan = mp->orphan;
 	gp->ioctl = mp->ioctl;
 	gp->resize = mp->resize;
+	return (gp);
+}
+
+struct g_geom *
+g_new_geomf(struct g_class *mp, const char *fmt, ...)
+{
+	struct g_geom *gp;
+	va_list ap;
+	struct sbuf *sb;
+
+	sb = sbuf_new_auto();
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	gp = g_new_geom(mp, sbuf_data(sb));
+	sbuf_delete(sb);
 	return (gp);
 }
 
