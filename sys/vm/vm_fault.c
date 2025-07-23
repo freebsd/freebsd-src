@@ -202,7 +202,10 @@ vm_fault_page_release(vm_page_t *mp)
 		 * pageout while optimizing fault restarts.
 		 */
 		vm_page_deactivate(m);
-		vm_page_xunbusy(m);
+		if (vm_page_xbusied(m))
+			vm_page_xunbusy(m);
+		else
+			vm_page_sunbusy(m);
 		*mp = NULL;
 	}
 }
@@ -331,6 +334,13 @@ vm_fault_dirty(struct faultstate *fs, vm_page_t m)
 			vm_page_aflag_clear(m, PGA_NOSYNC);
 	}
 
+}
+
+static bool
+vm_fault_is_read(const struct faultstate *fs)
+{
+	return ((fs->prot & VM_PROT_WRITE) == 0 &&
+	    (fs->fault_type & (VM_PROT_COPY | VM_PROT_WRITE)) == 0);
 }
 
 /*
@@ -1019,7 +1029,7 @@ vm_fault_can_cow_rename(struct faultstate *fs)
 static void
 vm_fault_cow(struct faultstate *fs)
 {
-	bool is_first_object_locked;
+	bool is_first_object_locked, rename_cow;
 
 	KASSERT(vm_fault_might_be_cow(fs),
 	    ("source and target COW objects are identical"));
@@ -1033,13 +1043,29 @@ vm_fault_cow(struct faultstate *fs)
 	 * object so that it will go out to swap when needed.
 	 */
 	is_first_object_locked = false;
-	if (vm_fault_can_cow_rename(fs) &&
-	    /*
-	     * We don't chase down the shadow chain and we can acquire locks.
-	     */
-	    (is_first_object_locked = VM_OBJECT_TRYWLOCK(fs->first_object)) &&
-	    fs->object == fs->first_object->backing_object &&
-	    VM_OBJECT_TRYWLOCK(fs->object)) {
+	rename_cow = false;
+
+	if (vm_fault_can_cow_rename(fs) && vm_page_xbusied(fs->m)) {
+		/*
+		 * Check that we don't chase down the shadow chain and
+		 * we can acquire locks.  Recheck the conditions for
+		 * rename after the shadow chain is stable after the
+		 * object locking.
+		 */
+		is_first_object_locked = VM_OBJECT_TRYWLOCK(fs->first_object);
+		if (is_first_object_locked &&
+		    fs->object == fs->first_object->backing_object) {
+			if (VM_OBJECT_TRYWLOCK(fs->object)) {
+				rename_cow = vm_fault_can_cow_rename(fs);
+				if (!rename_cow)
+					VM_OBJECT_WUNLOCK(fs->object);
+			}
+		}
+	}
+
+	if (rename_cow) {
+		vm_page_assert_xbusied(fs->m);
+
 		/*
 		 * Remove but keep xbusy for replace.  fs->m is moved into
 		 * fs->first_object and left busy while fs->first_m is
@@ -1096,8 +1122,12 @@ vm_fault_cow(struct faultstate *fs)
 		 * address space.  If OBJ_ONEMAPPING is set after the check,
 		 * removing mappings will at worse trigger some unnecessary page
 		 * faults.
+		 *
+		 * In the fs->m shared busy case, the xbusy state of
+		 * fs->first_m prevents new mappings of fs->m from
+		 * being created because a parallel fault on this
+		 * shadow chain should wait for xbusy on fs->first_m.
 		 */
-		vm_page_assert_xbusied(fs->m_cow);
 		if ((fs->first_object->flags & OBJ_ONEMAPPING) == 0)
 			pmap_remove_all(fs->m_cow);
 	}
@@ -1493,6 +1523,51 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	vm_page_iter_init(&pages, fs->object);
 	fs->m = vm_radix_iter_lookup(&pages, fs->pindex);
 	if (fs->m != NULL) {
+		/*
+		 * If the found page is valid, will be either shadowed
+		 * or mapped read-only, and will not be renamed for
+		 * COW, then busy it in shared mode.  This allows
+		 * other faults needing this page to proceed in
+		 * parallel.
+		 *
+		 * Unlocked check for validity, rechecked after busy
+		 * is obtained.
+		 */
+		if (vm_page_all_valid(fs->m) &&
+		    /*
+		     * No write permissions for the new fs->m mapping,
+		     * or the first object has only one mapping, so
+		     * other writeable COW mappings of fs->m cannot
+		     * appear under us.
+		     */
+		    (vm_fault_is_read(fs) || vm_fault_might_be_cow(fs)) &&
+		    /*
+		     * fs->m cannot be renamed from object to
+		     * first_object.  These conditions will be
+		     * re-checked with proper synchronization in
+		     * vm_fault_cow().
+		     */
+		    (!vm_fault_can_cow_rename(fs) ||
+		    fs->object != fs->first_object->backing_object)) {
+			if (!vm_page_trysbusy(fs->m)) {
+				vm_fault_busy_sleep(fs, VM_ALLOC_SBUSY);
+				return (FAULT_RESTART);
+			}
+
+			/*
+			 * Now make sure that racily checked
+			 * conditions are still valid.
+			 */
+			if (__predict_true(vm_page_all_valid(fs->m) &&
+			    (vm_fault_is_read(fs) ||
+			    vm_fault_might_be_cow(fs)))) {
+				VM_OBJECT_UNLOCK(fs->object);
+				return (FAULT_SOFT);
+			}
+
+			vm_page_sunbusy(fs->m);
+		}
+
 		if (!vm_page_tryxbusy(fs->m)) {
 			vm_fault_busy_sleep(fs, 0);
 			return (FAULT_RESTART);
@@ -1707,10 +1782,10 @@ RetryFault:
 
 found:
 	/*
-	 * A valid page has been found and exclusively busied.  The
-	 * object lock must no longer be held.
+	 * A valid page has been found and busied.  The object lock
+	 * must no longer be held if the page was busied.
 	 */
-	vm_page_assert_xbusied(fs.m);
+	vm_page_assert_busied(fs.m);
 	VM_OBJECT_ASSERT_UNLOCKED(fs.object);
 
 	/*
@@ -1779,7 +1854,7 @@ found:
 	 * Page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
 	 */
-	vm_page_assert_xbusied(fs.m);
+	vm_page_assert_busied(fs.m);
 	KASSERT(vm_page_all_valid(fs.m),
 	    ("vm_fault: page %p partially invalid", fs.m));
 
@@ -1811,7 +1886,10 @@ found:
 		(*fs.m_hold) = fs.m;
 		vm_page_wire(fs.m);
 	}
-	vm_page_xunbusy(fs.m);
+	if (vm_page_xbusied(fs.m))
+		vm_page_xunbusy(fs.m);
+	else
+		vm_page_sunbusy(fs.m);
 	fs.m = NULL;
 
 	/*
