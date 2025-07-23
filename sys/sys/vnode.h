@@ -1023,7 +1023,8 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 #define	vop_readdir_post_assert(ap, ret)				\
 	nresid = (ap)->a_uio->uio_resid;				\
 	if ((ret) == 0 && (ap)->a_eofflag != NULL) {			\
-		VNASSERT(nresid != oresid || *(ap)->a_eofflag == 1,	\
+		VNASSERT(oresid == 0 || nresid != oresid ||		\
+		    *(ap)->a_eofflag == 1,				\
 		    (ap)->a_vp, ("VOP_READDIR: eofflag not set"));	\
 	}
 #else
