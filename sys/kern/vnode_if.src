@@ -242,8 +242,8 @@ vop_read_pgcache {
 
 
 %% write	vp	L L L
-%! write	pre	VOP_WRITE_PRE
-%! write	post	VOP_WRITE_POST
+%! write	pre	vop_write_pre
+%! write	post	vop_write_post
 
 vop_write {
 	IN struct vnode *vp;
