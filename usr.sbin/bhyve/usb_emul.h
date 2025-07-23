@@ -52,7 +52,8 @@ struct usb_devemu {
 	int	ue_usbspeed;	/* usb device speed */
 
 	/* instance creation */
-	void	*(*ue_init)(struct usb_hci *hci, nvlist_t *nvl);
+	void	*(*ue_probe)(struct usb_hci *hci, nvlist_t *nvl);
+	int	(*ue_init)(void *sc);
 
 	/* handlers */
 	int	(*ue_request)(void *sc, struct usb_data_xfer *xfer);
@@ -86,6 +87,7 @@ struct usb_hci {
 	int	hci_address;
 	int	hci_port;
 	int	hci_speed;
+	int	hci_usbver;
 };
 
 /*

@@ -295,12 +295,20 @@ umouse_event(uint8_t button, int x, int y, void *arg)
 }
 
 static void *
-umouse_init(struct usb_hci *hci, nvlist_t *nvl __unused)
+umouse_probe(struct usb_hci *hci, nvlist_t *nvl __unused)
 {
 	struct umouse_softc *sc;
 
 	sc = calloc(1, sizeof(struct umouse_softc));
 	sc->hci = hci;
+
+	return (sc);
+}
+
+static int
+umouse_init(void *scarg)
+{
+	struct umouse_softc *sc = (struct umouse_softc *)scarg;
 
 	sc->hid.protocol = 1;	/* REPORT protocol */
 	pthread_mutex_init(&sc->mtx, NULL);
@@ -308,7 +316,7 @@ umouse_init(struct usb_hci *hci, nvlist_t *nvl __unused)
 
 	console_ptr_register(umouse_event, sc, 10);
 
-	return (sc);
+	return (0);
 }
 
 #define	UREQ(x,y)	((x) | ((y) << 8))
@@ -811,6 +819,7 @@ static struct usb_devemu ue_mouse = {
 	.ue_emu =	"tablet",
 	.ue_usbver =	3,
 	.ue_usbspeed =	USB_SPEED_HIGH,
+	.ue_probe =	umouse_probe,
 	.ue_init =	umouse_init,
 	.ue_request =	umouse_request,
 	.ue_data =	umouse_data_handler,
