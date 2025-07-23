@@ -89,6 +89,8 @@
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/disk.h>
+#include <sys/param.h>
+#include <sys/bus.h>
 
 #include <geom/geom.h>
 #include <geom/geom_int.h>
@@ -2082,8 +2084,10 @@ g_md_init(struct g_class *mp __unused)
 {
 	caddr_t mod;
 	u_char *ptr, *name, *type;
+	u_char scratch[40];
 	unsigned len;
 	int i;
+	vm_offset_t paddr;
 
 	/* figure out log2(NINDIR) */
 	for (i = NINDIR, nshift = -1; i; nshift++)
@@ -2123,6 +2127,25 @@ g_md_init(struct g_class *mp __unused)
 			sx_xunlock(&md_sx);
 		}
 	}
+
+	/*
+	 * Load up to 32 pre-loaded disks
+	 */
+	for (int i = 0; i < 32; i++) {
+		if (resource_long_value("md", i, "physaddr",
+			(long *) &paddr) != 0 ||
+		    resource_int_value("md", i, "len", &len) != 0)
+		        break;
+		ptr = (char *)pmap_map(NULL, paddr, paddr + len, VM_PROT_READ);
+		if (ptr != NULL && len != 0) {
+			sprintf(scratch, "preload%d 0x%016jx", i,
+			    (uintmax_t)paddr);
+			sx_xlock(&md_sx);
+			md_preloaded(ptr, len, scratch);
+			sx_xunlock(&md_sx);
+		}
+	}
+
 	status_dev = make_dev(&mdctl_cdevsw, INT_MAX, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
 	g_topology_lock();

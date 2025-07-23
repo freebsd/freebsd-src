@@ -149,3 +149,5 @@ int	bi_load64(char *args, vm_offset_t *modulep,
 	    vm_offset_t *kernend, int add_smap);
 
 void	pxe_enable(void *pxeinfo);
+
+void	biosmemdisk_detect(void);
