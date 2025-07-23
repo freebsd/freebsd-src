@@ -594,11 +594,10 @@ g_new_provider_event(void *arg, int flag)
 }
 
 struct g_provider *
-g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+g_new_provider(struct g_geom *gp, const char *name)
 {
+	int len;
 	struct g_provider *pp;
-	struct sbuf *sb;
-	va_list ap;
 
 	g_topology_assert();
 	G_VALID_GEOM(gp);
@@ -611,15 +610,10 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
 	    ("new provider on WITHERing geom(%s) (class %s)",
 	    gp->name, gp->class->name));
-	sb = sbuf_new_auto();
-	va_start(ap, fmt);
-	sbuf_vprintf(sb, fmt, ap);
-	va_end(ap);
-	sbuf_finish(sb);
-	pp = g_malloc(sizeof *pp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+	len = strlen(name);
+	pp = g_malloc(sizeof *pp + len + 1, M_WAITOK | M_ZERO);
 	pp->name = (char *)(pp + 1);
-	strcpy(pp->name, sbuf_data(sb));
-	sbuf_delete(sb);
+	memcpy(pp->name, name, len);
 	LIST_INIT(&pp->consumers);
 	LIST_INIT(&pp->aliases);
 	pp->error = ENXIO;
@@ -628,6 +622,23 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_post_event(g_new_provider_event, pp, M_WAITOK, pp, gp, NULL);
+	return (pp);
+}
+
+struct g_provider *
+g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+{
+	struct g_provider *pp;
+	struct sbuf *sb;
+	va_list ap;
+
+	sb = sbuf_new_auto();
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	pp = g_new_provider(gp, sbuf_data(sb));
+	sbuf_delete(sb);
 	return (pp);
 }
 

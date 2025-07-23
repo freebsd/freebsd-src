@@ -292,7 +292,8 @@ int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...)
     __printflike(2, 3);
-struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+struct g_provider *g_new_provider(struct g_geom *gp, const char *name);
+struct g_provider *g_new_providerf(struct g_geom *gp, const char *fmt, ...)
     __printflike(2, 3);
 void g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
     __printflike(2, 3);

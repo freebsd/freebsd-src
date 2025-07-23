@@ -27,6 +27,7 @@
 .Os
 .Sh NAME
 .Nm g_new_providerf ,
+.Nm g_new_provider ,
 .Nm g_destroy_provider ,
 .Nm g_error_provider
 .Nd "GEOM providers management"
@@ -34,6 +35,8 @@
 .In geom/geom.h
 .Ft "struct g_provider *"
 .Fn g_new_providerf "struct g_geom *gp" "const char *fmt" ...
+.Ft "struct g_provider *"
+.Fn g_new_provider "struct g_geom *gp" "const char *name"
 .Ft void
 .Fn g_destroy_provider "struct g_provider *pp"
 .Ft void
@@ -66,6 +69,14 @@ to reset the provider's error, which is initially set to
 .Er ENXIO .
 .Pp
 The
+.Fn g_new_provider
+function is very similar to
+.Fn g_new_providerf
+except that it accepts a regular string instead of a
+.Xr printf 3 Ns
+-like format string as provider's name.
+.Pp
+The
 .Fn g_destroy_provider
 function destroys the given provider, cancels all related pending events and
 removes the corresponding devfs entry.
@@ -78,6 +89,8 @@ as well as increasing its access count will not be possible (error
 .Fa error
 will be returned).
 .Sh RESTRICTIONS/CONDITIONS
+.Fn g_new_providerf
+and
 .Fn g_new_provider :
 .Bl -item -offset indent
 .It
@@ -106,7 +119,9 @@ The topology lock has to be held.
 .Sh RETURN VALUES
 The
 .Fn g_new_providerf
-function returns a pointer to the newly created provider.
+and
+.Fn g_new_provider
+functions return a pointer to the newly created provider.
 .Sh EXAMPLES
 Create an example provider, set its parameters and make it usable.
 .Bd -literal -offset indent
