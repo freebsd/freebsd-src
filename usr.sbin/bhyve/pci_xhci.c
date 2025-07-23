@@ -3231,6 +3231,7 @@ pci_xhci_snapshot(struct vm_snapshot_meta *meta)
 		/* devices[i]->hci */
 		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_address, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_port, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_speed, meta, ret, done);
 	}
 
 	SNAPSHOT_VAR_OR_LEAVE(sc->usb2_port_start, meta, ret, done);
