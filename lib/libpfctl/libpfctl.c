@@ -3348,6 +3348,11 @@ pfctl_clear_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
 	return (e.error);
 }
 
+static struct snl_attr_parser ap_clr_addrs[] = {
+	{ .type = PF_T_NBR_DELETED, .off = 0, .cb = snl_attr_get_uint64 },
+};
+SNL_DECLARE_PARSER(clr_addrs_parser, struct genlmsghdr, snl_f_p_empty, ap_clr_addrs);
+
 int
 pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
     int *ndel, int flags)
@@ -3380,7 +3385,7 @@ pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
 		return (ENXIO);
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
-		if (!snl_parse_nlmsg(&h->ss, hdr, &tstats_clr_parser, &del))
+		if (!snl_parse_nlmsg(&h->ss, hdr, &clr_addrs_parser, &del))
 			continue;
 		if (ndel)
 			*ndel = (uint32_t)del;
