@@ -71,7 +71,7 @@ SYSCTL_INT(_vfs_smbfs, OID_AUTO, fastlookup, CTLFLAG_RW, &smbfs_fastlookup, 0, "
 #define DE_SIZE	(sizeof(struct dirent))
 
 static int
-smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
+smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred, int *eofp)
 {
 	struct dirent de;
 	struct componentname cn;
@@ -86,6 +86,8 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 	SMBVDEBUG("dirname='%s'\n", np->n_name);
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, uio->uio_td, cred);
+	if (eofp != NULL)
+		*eofp = 0;
 	offset = uio->uio_offset / DE_SIZE;	/* offset in the directory */
 	limit = uio->uio_resid / DE_SIZE;
 	if (uio->uio_resid < DE_SIZE || uio->uio_offset < 0) {
@@ -138,8 +140,7 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 		if (error) {
 			smbfs_findclose(np->n_dirseq, scred);
 			np->n_dirseq = NULL;
-			error = ENOENT ? 0 : error;
-			goto out;
+			goto out1;
 		}
 	}
 	error = 0;
@@ -170,16 +171,21 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 		if (error)
 			break;
 	}
-	if (error == ENOENT)
-		error = 0;
 	uio->uio_offset = offset * DE_SIZE;
+out1:
+	if (error == ENOENT) {
+		if (eofp != NULL)
+			*eofp = 1;
+		error = 0;
+	}
 out:
 	smbfs_free_scred(scred);
 	return error;
 }
 
 int
-smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
+smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred,
+    int *eofp)
 {
 	struct smbmount *smp = VFSTOSMBFS(vp->v_mount);
 	struct smbnode *np = VTOSMB(vp);
@@ -209,7 +215,7 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		lks = LK_EXCLUSIVE;	/* lockstatus(vp->v_vnlock); */
 		if (lks == LK_SHARED)
 			vn_lock(vp, LK_UPGRADE | LK_RETRY);
-		error = smbfs_readvdir(vp, uiop, cred);
+		error = smbfs_readvdir(vp, uiop, cred, eofp);
 		if (lks == LK_SHARED)
 			vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
 		return error;
