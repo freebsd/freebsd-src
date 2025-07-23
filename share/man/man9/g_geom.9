@@ -27,12 +27,15 @@
 .Os
 .Sh NAME
 .Nm g_new_geomf ,
+.Nm g_new_geom ,
 .Nm g_destroy_geom
 .Nd "geom management"
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft "struct g_geom *"
 .Fn g_new_geomf "struct g_class *mp" "const char *fmt" ...
+.Ft "struct g_geom *"
+.Fn g_new_geom "struct g_class *mp" "const char *name"
 .Ft void
 .Fn g_destroy_geom "struct g_geom *gp"
 .Sh DESCRIPTION
@@ -56,6 +59,14 @@ function creates a new geom, which will be an instance of the class
 The geom's name is created in a
 .Xr printf 3 Ns
 -like way from the rest of the arguments.
+.Pp
+The
+.Fn g_new_geom
+function is very similar to
+.Fn g_new_geomf
+except that it accepts a regular string instead of a
+.Xr printf 3 Ns
+-like format strng as the geom's name.
 .Pp
 The
 .Fn g_destroy_geom
@@ -94,7 +105,9 @@ and
 .Va access
 for it.
 .Pp
-.Fn g_new_geomf :
+.Fn g_new_geomf
+and
+.Fn g_new_geom :
 .Bl -item -offset indent
 .It
 Class
