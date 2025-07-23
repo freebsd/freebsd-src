@@ -1,4 +1,4 @@
-options 	SOC_MEDIATEK_7622
+options 	SOC_MEDIATEK
 
 device		uart_ns8250
 
