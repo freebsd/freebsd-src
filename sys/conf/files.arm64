@@ -843,3 +843,13 @@ dev/clk/xilinx/zynqmp_reset.c			optional fdt soc_xilinx_zynq
 
 # Mediatek
 arm64/mediatek/mt_uart.c			optional fdt soc_mediatek
+arm64/mediatek/mt7622_clk_topckgen.c		optional clk fdt soc_mediatek
+arm64/mediatek/mt7622_clk_pericfg.c             optional clk fdt soc_mediatek
+arm64/mediatek/mt7622_clk_infracfg.c             optional clk fdt soc_mediatek
+arm64/mediatek/mt7622_clk_audio.c             optional clk fdt soc_mediatek
+arm64/mediatek/mt7622_clk_eth.c             optional clk fdt soc_mediatek
+arm64/mediatek/mt7622_clk_sgmii.c             optional clk fdt soc_mediatek
+arm64/mediatek/mt7622_clk_ssusbsys.c		optional clk fdt soc_mediatek
+arm64/mediatek/mt7622_clk_pciesys.c		optional clk fdt soc_mediatek
+arm64/mediatek/mdtk_clk.c	                optional clk fdt soc_mediatek
+
