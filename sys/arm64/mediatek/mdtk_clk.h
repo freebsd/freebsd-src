@@ -142,6 +142,7 @@ struct mdtk_clk_softc {
     struct resource *mem_res;
     struct mtx mtx;
     struct clkdom *clkdom;
+    struct syscon *syscon;
 };
 
 int mdtk_clkdev_read_4(device_t dev, bus_addr_t addr, uint32_t *val);
