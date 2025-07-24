@@ -8,7 +8,7 @@ HEIMDAL_COM_ERR_1.0 {
 		set_com_err_hook;
 };
 
-com_err_3_MIT {
+HEIMDAL_COM_ERR_2.0 {
 	global:
 		add_error_table;
 		error_table_name_r;

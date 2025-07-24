@@ -85,7 +85,7 @@ HEIMDAL_GSS_2.0 {
 		krb5_gss_register_acceptor_identity;
 };
 
-gssapi_krb5_2_MIT {
+HEIMDAL_GSS_3.0 {
 	global:
 		GSS_C_ATTR_LOCAL_LOGIN_USER;
 		GSS_C_INQ_SSPI_SESSION_KEY;
