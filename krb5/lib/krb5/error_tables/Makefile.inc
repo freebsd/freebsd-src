@@ -144,3 +144,5 @@ ${GEN_ASN1_ERR_C}: ${GEN_ASN1_ERR}
 	${COMPILE_ET} et-c-${.PREFIX}.et
 	mv et-c-${.PREFIX}.c ${.PREFIX}.c
 	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c
+
+SRCS+=	${GEN_ET}
