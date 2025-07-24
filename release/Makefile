@@ -134,7 +134,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist pkgdb-dvd pkgdb-disc1 pkgbase-repo pkgbase-repo-conf ftp disc1 disc1-disc1 disc1-memstick bootonly bootonly-bootonly bootonly-memstick dvd
+CLEANDIRS=	dist pkgdb-dvd pkgdb-disc1 pkgbase-repo pkgbase-repo-dir ftp disc1 disc1-disc1 disc1-memstick bootonly bootonly-bootonly bootonly-memstick dvd
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -195,8 +195,10 @@ dvd: packagesystem
 .endif
 
 .if !defined(NOPKGBASE) || empty(NOPKGBASE)
-PKGBASE_REPO=	pkgbase-repo
-PKG_ABI=	$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/usr/bin/uname config ABI)
+PKGBASE_REPO_DIR= pkgbase-repo-dir
+WSTAGEDIR!=	${IMAKE} -f Makefile.inc1 -C ${WORLDDIR} -V WSTAGEDIR
+PKG_ABI_FILE=	${WSTAGEDIR}/usr/bin/uname
+PKG_ABI=	$$(${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI)
 .endif
 
 pkgbase-repo:
@@ -205,7 +207,13 @@ pkgbase-repo:
 	( ${IMAKE} -C ${WORLDDIR} packages REPODIR=${.OBJDIR}/pkgbase-repo \
 	    INCLUDE_PKG_IN_PKGBASE_REPO=YES BOOTSTRAP_PKG_FROM_PORTS=YES )
 
-disc1: ${PKGBASE_REPO}
+pkgbase-repo-dir: pkgbase-repo
+	mkdir -p pkgbase-repo-dir
+	printf "FreeBSD-base: { url: "file://%s", enabled: yes }" \
+	    ${.OBJDIR}/pkgbase-repo/${PKG_ABI}/latest \
+	    > pkgbase-repo-dir/FreeBSD-base.conf
+
+disc1: ${PKGBASE_REPO_DIR}
 # Install system
 	mkdir -p ${.TARGET}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
@@ -219,7 +227,7 @@ disc1: ${PKGBASE_REPO}
 # Create offline pkgbase repo on release media
 	mkdir -p ${.TARGET}/usr/freebsd-packages/repos/
 	${.CURDIR}/scripts/pkgbase-stage.lua disc \
-	    ${.OBJDIR}/pkgbase-repo/${PKG_ABI}/latest \
+	    ${.OBJDIR}/pkgbase-repo-dir \
 	    ${.TARGET}/usr/freebsd-packages/offline \
 	    "${_ALL_libcompats}" ${PKG_ABI} ${.OBJDIR}/pkgdb-disc1
 	cp ${.CURDIR}/scripts/FreeBSD-base-offline.conf \
@@ -307,7 +315,7 @@ bootonly:
 	echo "./boot/loader.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/rc.local type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 
-dvd: ${PKGBASE_REPO}
+dvd: ${PKGBASE_REPO_DIR}
 # Install system
 	mkdir -p ${.TARGET}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
@@ -317,7 +325,7 @@ dvd: ${PKGBASE_REPO}
 # Create offline pkgbase repo on release media
 	mkdir -p ${.TARGET}/usr/freebsd-packages/repos/
 	${.CURDIR}/scripts/pkgbase-stage.lua dvd \
-	    ${.OBJDIR}/pkgbase-repo/${PKG_ABI}/latest \
+	    ${.OBJDIR}/pkgbase-repo-dir \
 	    ${.TARGET}/usr/freebsd-packages/offline \
 	    "${_ALL_libcompats}" ${PKG_ABI} ${.OBJDIR}/pkgdb-dvd
 	cp ${.CURDIR}/scripts/FreeBSD-base-offline.conf \
