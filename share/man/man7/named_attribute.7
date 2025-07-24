@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 3, 2025
+.Dd July 20, 2025
 .Dt NAMED_ATTRIBUTE 7
 .Os
 .Sh NAME
@@ -122,7 +122,7 @@ Although the named attribute machanism might require different internal
 implementation
 of extended attributes within a file system, both ZFS and NFSv4 provide
 both mechanisms, which can be used interchangeably to manipulate
-extended attributes, but with a couple of limitations.
+extended attributes, but with a few limitations.
 .Bl -bullet
 .It
 The
@@ -134,6 +134,24 @@ This limits the size of the attribute's value.
 The named attribute interface does not support system namespace
 extended attributes and,
 as such, system namespace extended attributes must be manipulated via
+.Xr extattr 2 .
+.It
+For ZFS, if an extended attribute with a value
+that is a small length in bytes is created when the ZFS
+.Dv xattr
+property is set to
+.Dq sa ,
+that extended attribute is only visible via
+.Xr extattr 2
+and not as a named attribute.
+Archiving/de-archiving the file via
+.Xr tar 1
+after setting the
+.Dv xattr
+property to
+.Dq dir
+will make the attribute(s) visible as both named attributes
+and via
 .Xr extattr 2 .
 .El
 .Pp
@@ -259,6 +277,7 @@ enters the named attribute directory for the file object
 .Sh SEE ALSO
 .Xr bash 1 ,
 .Xr runat 1 ,
+.Xr tar 1 ,
 .Xr chdir 2 ,
 .Xr extattr 2 ,
 .Xr lseek 2 ,
