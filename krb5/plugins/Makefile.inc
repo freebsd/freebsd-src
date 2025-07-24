@@ -7,6 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
+PACKAGE?=	kerberos-kdc
 MK_INSTALLLIB=	no
 SHLIB_NAME?=	${LIB}.so.${SHLIB_MAJOR}
 PLUGINSDIR=	${LIBDIR_BASE}/krb5/plugins

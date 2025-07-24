@@ -7,7 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5-lib
+PACKAGE=	kerberos-lib
 
 .include <src.opts.mk>
 

@@ -1,4 +1,4 @@
-comment = "Kerberos Libraries"
+comment = "Kerberos libraries"
 desc = <<EOD
-Kerberos Libraries
+Libraries requires to run programs that use Kerberos.
 EOD
