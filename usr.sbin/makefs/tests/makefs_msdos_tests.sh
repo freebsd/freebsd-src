@@ -43,12 +43,6 @@ common_cleanup()
 	mdconfig -d -u $test_md_device || :
 }
 
-check_msdosfs_support()
-{
-	kldstat -m msdosfs || \
-		atf_skip "Requires msdosfs filesystem support to be present in the kernel"
-}
-
 atf_test_case T_flag_dir cleanup
 T_flag_dir_body()
 {
@@ -56,7 +50,6 @@ T_flag_dir_body()
 	    "The msdos backend saves the wrong timestamp value" \
 	    "(possibly due to the 2s resolution for FAT timestamp)"
 	timestamp=1742574909
-	check_msdosfs_support
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
@@ -106,7 +99,6 @@ atf_test_case T_flag_mtree cleanup
 T_flag_mtree_body()
 {
 	timestamp=1742574908 # Even value, timestamp precision is 2s.
-	check_msdosfs_support
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1

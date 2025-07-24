@@ -2,9 +2,11 @@
 
 ATF_TESTS_SH+=	makefs_cd9660_tests
 TEST_METADATA.makefs_cd9660_tests+=	required_files="/sbin/mount_cd9660"
+TEST_METADATA.makefs_cd9660_tests+=	required_kmods="cd9660"
 ATF_TESTS_SH+=	makefs_ffs_tests
 ATF_TESTS_SH+=	makefs_msdos_tests
 TEST_METADATA.makefs_msdos_tests+=	required_files="/sbin/mount_msdosfs"
+TEST_METADATA.makefs_msdos_tests+=	required_kmods="msdosfs"
 .if ${MK_ZFS} != "no"
 ATF_TESTS_SH+=	makefs_zfs_tests
 .endif
