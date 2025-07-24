@@ -27,6 +27,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250724:
+	The Kerberos packages which are built when WITH_MITKRB5 is enabled
+	have been renamed from FreeBSD-krb5* to FreeBSD-kerberos*.  This
+	affects pkgbase users who manually enabled WITH_MITKRB5, *or* use
+	the default value of WITH_MITKRB5 and updated past c7da9fb90b0b
+	(20250721) which made WITH_MITKRB5 the default.
+
+	In either case, if you have FreeBSD-krb5* packages installed, you
+	should remove them and (re)install the equivalent FreeBSD-kerberos*
+	packages instead.
+
 20250721:
 	WITH_MITKRB5 is now enabled by default. MIT KRB5 has replaced
 	Heimdal in base. Ports that use USES=gssapi must be rebuilt.
