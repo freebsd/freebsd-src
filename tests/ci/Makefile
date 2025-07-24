@@ -134,7 +134,8 @@ METAMODE?=-DWITH_META_MODE
 .endif
 
 CLEANFILES+=	${.OBJDIR}/${CIIMAGE} ${.OBJDIR}/ci.img ${META_TAR}
-CLEANDIRS+=	${.OBJDIR}/ci-buildimage
+IMAGEDIR=	${.OBJDIR}/ci-buildimage
+CLEANDIRS+=	${IMAGEDIR}
 
 portinstall: portinstall-pkg portinstall-qemu portinstall-expect portinstall-${TARGET_ARCH:tl} .PHONY
 
@@ -157,7 +158,7 @@ portinstall-expect: portinstall-pkg .PHONY
 .endif
 
 beforeclean: .PHONY
-	chflags -R noschg ${.OBJDIR}/${.TARGET}
+	chflags -R noschg ${IMAGEDIR}
 
 .include <bsd.obj.mk>
 clean: beforeclean .PHONY
