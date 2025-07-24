@@ -120,7 +120,8 @@ __hash_open(const char *file, int flags, int mode,
 		if ((hashp->fp = _open(file, flags | O_CLOEXEC, mode)) == -1)
 			RETURN_ERROR(errno, error0);
 		new_table = _fstat(hashp->fp, &statbuf) == 0 &&
-		    statbuf.st_size == 0 && (flags & O_ACCMODE) != O_RDONLY;
+		    statbuf.st_size == 0 &&
+		    ((flags & O_ACCMODE) != O_RDONLY || (flags & O_CREAT) != 0);
 	} else
 		new_table = 1;
 
