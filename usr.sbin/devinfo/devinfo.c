@@ -100,7 +100,7 @@ print_kvlist(char *s)
 
 	while ((kv = strsep(&copy, " ")) != NULL) {
 		char* k = strsep(&kv, "=");
-		xo_emit("{ea:%s/%s} {d:%s}={d:%s}", k, kv, k, kv);
+		xo_emit("{ea:%s/%s} {d:key/%s}={d:value/%s}", k, kv, k, kv);
 	}
 	free(copy);
 }
@@ -200,7 +200,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 		/* there are, print header */
 		safe_desc = xml_safe_string(rman->dm_desc);
 		print_indent(indent);
-		xo_emit("{d:%s}:\n", rman->dm_desc);
+		xo_emit("<{:description/%s}>\n", rman->dm_desc);
 		xo_open_list(safe_desc);
 
 		/* print resources */
@@ -220,8 +220,7 @@ print_device_props(struct devinfo_dev *dev)
 {
 	if (vflag) {
 		if (*dev->dd_desc) {
-			xo_emit(" <{d:%s}>", dev->dd_desc);
-			xo_emit("{e:description/%s}", dev->dd_desc);
+			xo_emit("<{:description/%s}>", dev->dd_desc);
 		}
 		if (*dev->dd_pnpinfo) {
 			xo_open_container("pnpinfo");
@@ -273,7 +272,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 		print_indent(indent);
 
 		xo_open_container(devname);
-		xo_emit("{d:%s}", devname);
+		xo_emit("{d:devicename/%s}", devname);
 
 		print_device_props(dev);
 		xo_emit("\n");
@@ -367,7 +366,7 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 {
 	char* safe_desc = xml_safe_string(rman->dm_desc);
 
-	xo_emit("{d:%s}:\n", rman->dm_desc);
+	xo_emit("<{:description/%s}\n>", rman->dm_desc);
 	xo_open_container(safe_desc);
 
 	devinfo_foreach_rman_resource(rman, print_rman_resource, 0);
@@ -385,7 +384,7 @@ print_device_path_entry(struct devinfo_dev *dev)
 
 	xo_open_container(devname);
 	open_tag_count++;
-	xo_emit("{d:%s }", devname);
+	xo_emit("{:devicename/%s} ", devname);
 	print_device_props(dev);
 	if (vflag)
 		xo_emit("\n");
