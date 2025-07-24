@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 PROG=	ksu
 .if defined(ENABLE_SUID_K5SU)
 BINMODE=4555

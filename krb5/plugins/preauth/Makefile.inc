@@ -7,6 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
+PACKAGE?=	kerberos-kdc
 LIBDIR=		${PLUGINSDIR}/preauth
 SHLIBDIR=	${LIBDIR}
 

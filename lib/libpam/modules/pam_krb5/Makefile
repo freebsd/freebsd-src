@@ -32,7 +32,7 @@ SRCDIR= ${SRCTOP}/contrib/pam-krb5
 	${SRCDIR}/pam-util \
 	${SRCDIR}
 
-PACKAGE=	krb5
+PACKAGE=	kerberos
 LIB=	pam_krb5
 LIBADD=	com_err krb5
 

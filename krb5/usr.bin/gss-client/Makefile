@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 PROG=	gss-client
 
 LIBADD=	gssapi_krb5 krb5 k5crypto com_err krb5profile krb5support sys

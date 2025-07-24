@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 PROG=	kadmin
 
 LIBADD=	kadmin_common edit kadm5clnt_mit gssrpc gssapi_krb5 krb5 k5crypto \
