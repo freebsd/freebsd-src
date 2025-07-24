@@ -85,11 +85,6 @@ static const char rcsid[] = "$Id: res_query.c,v 1.11 2008/11/14 02:36:51 marka E
 #include <unistd.h>
 #include "port_after.h"
 
-/* Options.  Leave them on. */
-#ifndef	DEBUG
-#define	DEBUG
-#endif
-
 #if PACKETSZ > 1024
 #define MAXPACKET	PACKETSZ
 #else

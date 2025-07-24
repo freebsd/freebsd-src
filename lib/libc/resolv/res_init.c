@@ -112,12 +112,6 @@ static const char rcsid[] = "$Id: res_init.c,v 1.26 2008/12/11 09:59:00 marka Ex
 
 #include "res_private.h"
 
-/*% Options.  Should all be left alone. */
-#define RESOLVSORT
-#ifndef	DEBUG
-#define	DEBUG
-#endif
-
 #ifdef SOLARIS2
 #include <sys/systeminfo.h>
 #endif

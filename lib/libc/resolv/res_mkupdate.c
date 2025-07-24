@@ -51,10 +51,6 @@ static const char rcsid[] = "$Id: res_mkupdate.c,v 1.10 2008/12/11 09:59:00 mark
 
 #include "port_after.h"
 
-/* Options.  Leave them on. */
-#ifndef	DEBUG
-#define	DEBUG
-#endif
 #define MAXPORT 1024
 
 static int getnum_str(u_char **, u_char *);
