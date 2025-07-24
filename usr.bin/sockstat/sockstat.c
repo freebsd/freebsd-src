@@ -933,6 +933,7 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	struct sockaddr_un *sun;
 	char addrstr[NI_MAXHOST] = { '\0', '\0' };
 	int error, off, port = 0;
+	const bool is_text_style = (xo_get_style(NULL) == XO_STYLE_TEXT);
 
 	switch (ss->ss_family) {
 	case AF_INET:
@@ -948,6 +949,9 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	case AF_UNIX:
 		sun = sstosun(ss);
 		off = (int)((char *)&sun->sun_path - (char *)sun);
+		if (!is_text_style)
+			xo_emit("{:path/%.*s}", sun->sun_len - off,
+				sun->sun_path);
 		return snprintf(buf, bufsize, "%.*s",
 				sun->sun_len - off, sun->sun_path);
 	}
@@ -956,6 +960,10 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 		    addrstr, sizeof(addrstr), NULL, 0, NI_NUMERICHOST);
 		if (error)
 			xo_errx(1, "cap_getnameinfo()");
+	}
+	if (!is_text_style) {
+		xo_emit("{:address/%s}", addrstr);
+		xo_emit("{:port/%d}", port);
 	}
 	if (port == 0)
 		return snprintf(buf, bufsize, "%s:*", addrstr);
@@ -1100,6 +1108,7 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 	#define SAFESIZE (buf == NULL ? 0 : bufsize - pos)
 
 	size_t pos = 0;
+	const bool is_text_style = (xo_get_style(NULL) == XO_STYLE_TEXT);
 	/* Remote peer we connect(2) to, if any. */
 	if (faddr->conn != 0) {
 		struct sock *p;
@@ -1117,6 +1126,10 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 			if (f != NULL) {
 				pos += snprintf(SAFEBUF, SAFESIZE, "[%lu %d]",
 					(u_long)f->xf_pid, f->xf_fd);
+				if (!is_text_style) {
+				    xo_emit("{:pid/%lu}", (u_long)f->xf_pid);
+				    xo_emit("{:fd/%d}", f->xf_fd);
+				}
 			}
 		} else
 			pos += formataddr(&p->laddr->address,
@@ -1131,6 +1144,7 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 
 		pos += snprintf(SAFEBUF, SAFESIZE, " <- ");
 
+		xo_open_list("connections");
 		while ((p = RB_FIND(pcbs_t, &pcbs,
 			&(struct sock){ .pcb = ref })) != 0) {
 			f = RB_FIND(files_t, &ftree,
@@ -1139,10 +1153,17 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 				pos += snprintf(SAFEBUF, SAFESIZE,
 					"%s[%lu %d]", fref ? "" : ",",
 					(u_long)f->xf_pid, f->xf_fd);
+				if (!is_text_style) {
+					xo_open_instance("connections");
+					xo_emit("{:pid/%lu}", (u_long)f->xf_pid);
+					xo_emit("{:fd/%d}", f->xf_fd);
+					xo_close_instance("connections");
+				}
 			}
 			ref = p->faddr->nextref;
 			fref = false;
 		}
+		xo_close_list("connections");
 	}
 	return pos;
 }
@@ -1299,6 +1320,7 @@ calculate_column_widths(struct col_widths *cw)
 	struct sock *s;
 	struct passwd *pwd;
 
+	cap_setpassent(cappwd, 1);
 	for (xf = files, n = 0; n < nfiles; ++n, ++xf) {
 		if (xf->xf_data == 0)
 			continue;
@@ -1359,60 +1381,57 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				xo_errx(1, "laddr = %p or faddr = %p is NULL",
 					(void *)laddr, (void *)faddr);
 			if (laddr->address.ss_len > 0) {
+				xo_open_container("local");
 				formataddr(&laddr->address, buf, bufsize);
 				if (is_text_style) {
-					xo_emit(" {:local-address/%-*.*s}",
-						cw->local_addr, cw->local_addr,
-						buf);
-				} else
-					xo_emit("{:local-address/%s}", buf);
-			}
-			else if (laddr->address.ss_len == 0 &&
+					xo_emit(" {:/%-*.*s}", cw->local_addr,
+						cw->local_addr, buf);
+				}
+				xo_close_container("local");
+			} else if (laddr->address.ss_len == 0 &&
 				faddr->conn == 0 && is_text_style) {
-				xo_emit(" {:local-address/%-*.*s}",
-					cw->local_addr, cw->local_addr,
-					"(not connected)");
+				xo_emit(" {:/%-*.*s}", cw->local_addr,
+					cw->local_addr, "(not connected)");
+			} else if (is_text_style) {
+				xo_emit(" {:/%-*.*s}", cw->local_addr,
+					cw->local_addr, "??");
 			}
-			else if (is_text_style) {
-				xo_emit(" {:local-address/%-*.*s}",
-					cw->local_addr, cw->local_addr, "??");
-			}
-			if (format_unix_faddr(faddr, buf, bufsize) == 0) {
-				if (is_text_style)
-					xo_emit(" {:foreign-address/%-*.*s}",
-						cw->foreign_addr,
+			if (faddr->conn != 0 || faddr->firstref != 0) {
+				xo_open_container("foreign");
+				int len = format_unix_faddr(faddr, buf,
+						bufsize);
+				if (len == 0 && is_text_style)
+					xo_emit(" {:/%-*s}",
 						cw->foreign_addr, "??");
+				else if (is_text_style)
+					xo_emit(" {:/%-*.*s}", cw->foreign_addr,
+						cw->foreign_addr, buf);
+				xo_close_container("foreign");
 			} else if (is_text_style)
-				xo_emit(" {:foreign-address/%-*.*s}",
-					cw->foreign_addr, cw->foreign_addr, buf);
-			else
-				xo_emit("{:foreign-address/%s}", buf);
+				xo_emit(" {:/%-*s}", cw->foreign_addr, "??");
 		} else {
 			if (laddr != NULL) {
+				xo_open_container("local");
 				formataddr(&laddr->address, buf, bufsize);
 				if (is_text_style) {
-					xo_emit(" {:local-address/%-*.*s}",
-						cw->local_addr, cw->local_addr,
-						buf);
-				} else
-					xo_emit("{:local-address/%s}", buf);
-			}
-			else if (is_text_style)
-				xo_emit(" {:local-address/%-*.*s}",
-					cw->local_addr, cw->local_addr, "??");
+					xo_emit(" {:/%-*.*s}", cw->local_addr,
+						cw->local_addr, buf);
+				}
+				xo_close_container("local");
+			} else if (is_text_style)
+				xo_emit(" {:/%-*.*s}", cw->local_addr,
+					cw->local_addr, "??");
 			if (faddr != NULL) {
+				xo_open_container("foreign");
 				formataddr(&faddr->address, buf, bufsize);
 				if (is_text_style) {
-					xo_emit(" {:foreign-address/%-*.*s}",
-						cw->foreign_addr,
+					xo_emit(" {:/%-*.*s}", cw->foreign_addr,
 						cw->foreign_addr, buf);
-				} else
-					xo_emit("{:foreign-address/%s}", buf);
-			}
-			else if (is_text_style) {
-				xo_emit(" {:foreign-address/%-*.*s}",
-					cw->foreign_addr, cw->foreign_addr,
-					"??");
+				}
+				xo_close_container("foreign");
+			} else if (is_text_style) {
+				xo_emit(" {:/%-*.*s}", cw->foreign_addr,
+					cw->foreign_addr, "??");
 			}
 		}
 		if (opt_A) {
@@ -1427,17 +1446,17 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				struct sock *sp;
 				sp = RB_FIND(socks_t, &socks, &(struct sock)
 					{ .socket = s->splice_socket });
-				if (sp != NULL)
+				if (sp != NULL) {
+					xo_open_container("splice");
 					formataddr(&sp->laddr->address,
 								buf, bufsize);
-				else
+					xo_close_container("splice");
+				} else
 					strlcpy(buf, "??", bufsize);
 			} else
 				strlcpy(buf, "??", bufsize);
-			if (is_text_style || strcmp(buf, "??") != 0) {
-				xo_emit(" {:splice-address/%-*s}",
-					cw->splice_address, buf);
-				}
+			if (is_text_style)
+				xo_emit(" {:/%-*s}", cw->splice_address, buf);
 		}
 		if (opt_i) {
 			if (s->proto == IPPROTO_TCP || s->proto == IPPROTO_UDP)
@@ -1445,9 +1464,8 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				snprintf(buf, bufsize, "%" PRIu64,
 					s->inp_gencnt);
 				xo_emit(" {:id/%*s}", cw->inp_gencnt, buf);
-			}
-			else if (is_text_style)
-				xo_emit(" {:id/%*s}", cw->inp_gencnt, "??");
+			} else if (is_text_style)
+				xo_emit(" {:/%*s}", cw->inp_gencnt, "??");
 		}
 		if (opt_U) {
 			if (faddr != NULL &&
@@ -1461,7 +1479,7 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				xo_emit(" {:encaps/%*u}", cw->encaps,
 					ntohs(faddr->encaps_port));
 			} else if (is_text_style)
-				xo_emit(" {:encaps/%*s}", cw->encaps, "??");
+				xo_emit(" {:/%*s}", cw->encaps, "??");
 		}
 		if (opt_s) {
 			if (faddr != NULL &&
@@ -1472,8 +1490,7 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				xo_emit(" {:path-state/%-*s}", cw->path_state,
 					sctp_path_state(faddr->state));
 			} else if (is_text_style)
-				xo_emit(" {:path-state/%-*s}",
-					cw->path_state, "??");
+				xo_emit(" {:/%-*s}", cw->path_state, "??");
 		}
 		if (first) {
 			if (opt_s) {
@@ -1493,12 +1510,12 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 								cw->conn_state,
 								tcpstates[s->state]);
 						else if (is_text_style)
-							xo_emit(" {:conn-state/%-*s}",
+							xo_emit(" {:/%-*s}",
 								cw->conn_state, "??");
 						break;
 					}
 				} else if (is_text_style)
-					xo_emit(" {:conn-state/%-*s}",
+					xo_emit(" {:/%-*s}",
 						cw->conn_state, "??");
 			}
 			if (opt_S) {
@@ -1506,14 +1523,14 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					xo_emit(" {:stack/%-*s}",
 						cw->stack, s->stack);
 				else if (is_text_style)
-					xo_emit(" {:stack/%-*s}",
+					xo_emit(" {:/%-*s}",
 						cw->stack, "??");
 			}
 			if (opt_C) {
 				if (s->proto == IPPROTO_TCP)
 					xo_emit(" {:cc/%-*s}", cw->cc, s->cc);
 				else if (is_text_style)
-					xo_emit(" {:cc/%-*s}", cw->cc, "??");
+					xo_emit(" {:/%-*s}", cw->cc, "??");
 			}
 		}
 		if (laddr != NULL)
@@ -1521,8 +1538,8 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 		if (faddr != NULL)
 			faddr = faddr->next;
 		if (is_text_style && (laddr != NULL || faddr != NULL))
-			xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} "
-				"{:fd/%*s}", cw->user, "??", cw->command, "??",
+			xo_emit("{:/%-*s} {:/%-*s} {:/%*s} {:/%*s}",
+				cw->user, "??", cw->command, "??",
 				cw->pid, "??", cw->fd, "??");
 		first = false;
 	}
@@ -1567,6 +1584,7 @@ display(void)
 	} else
 		memset(&cw, 0, sizeof(cw));
 
+	xo_set_version(SOCKSTAT_XO_VERSION);
 	xo_open_container("sockstat");
 	xo_open_list("socket");
 	if (!opt_q) {
@@ -1610,12 +1628,16 @@ display(void)
 			s->shown = 1;
 			if (opt_n ||
 			    (pwd = cap_getpwuid(cappwd, xf->xf_uid)) == NULL)
-				xo_emit("{:uid/%-*lu}", cw.user,
+				xo_emit("{:user/%-*lu}", cw.user,
 					(u_long)xf->xf_uid);
 			else
-				xo_emit("{:uid/%-*s}", cw.user, pwd->pw_name);
-			xo_emit(" {:command/%-*.10s}", cw.command,
-				getprocname(xf->xf_pid));
+				xo_emit("{:user/%-*s}", cw.user, pwd->pw_name);
+			if (xo_get_style(NULL) == XO_STYLE_TEXT)
+				xo_emit(" {:/%-*.10s}", cw.command,
+					getprocname(xf->xf_pid));
+			else
+				xo_emit(" {:command/%-*s}", cw.command,
+					getprocname(xf->xf_pid));
 			xo_emit(" {:pid/%*lu}", cw.pid, (u_long)xf->xf_pid);
 			xo_emit(" {:fd/%*d}", cw.fd, xf->xf_fd);
 			display_sock(s, &cw, buf, bufsize);
@@ -1629,8 +1651,8 @@ display(void)
 			continue;
 		xo_open_instance("socket");
 		if (xo_get_style(NULL) == XO_STYLE_TEXT)
-			xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} "
-				"{:fd/%*s}", cw.user, "??", cw.command, "??",
+			xo_emit("{:/%-*s} {:/%-*s} {:/%*s} {:/%*s}",
+				cw.user, "??", cw.command, "??",
 				cw.pid, "??", cw.fd, "??");
 		display_sock(s, &cw, buf, bufsize);
 		xo_close_instance("socket");
@@ -1642,8 +1664,8 @@ display(void)
 			continue;
 		xo_open_instance("socket");
 		if (xo_get_style(NULL) == XO_STYLE_TEXT)
-			xo_emit("{:uid/%-*s} {:command/%-*s} {:pid/%*s} "
-				"{:fd/%*s}", cw.user, "??", cw.command, "??",
+			xo_emit("{:/%-*s} {:/%-*s} {:/%*s} {:/%*s}",
+				cw.user, "??", cw.command, "??",
 				cw.pid, "??", cw.fd, "??");
 		display_sock(s, &cw, buf, bufsize);
 		xo_close_instance("socket");
@@ -1653,6 +1675,7 @@ display(void)
 	if (xo_finish() < 0)
 		xo_err(1, "stdout");
 	free(buf);
+	cap_endpwent(cappwd);
 }
 
 static int
@@ -1730,7 +1753,6 @@ main(int argc, char *argv[])
 	int protos_defined = -1;
 	int o, i;
 
-	xo_set_version(SOCKSTAT_XO_VERSION);
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		exit(1);
