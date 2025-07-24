@@ -70,13 +70,41 @@ vm_copy_base() {
 	return 0
 }
 
+vm_filter_base_packages() {
+	# Reads a list of all base system packages from stdin.
+	# Writes a list of base system packages to install to stdout.
+	grep -v -e '^FreeBSD-src.*' -e '^FreeBSD-kernel.*'
+	# There are several kernel variants available in separate packages.
+	# For VMs it is sufficient to install only the generic kernel.
+	echo "FreeBSD-kernel-man"
+	echo "FreeBSD-kernel-generic"
+	echo "FreeBSD-kernel-generic-dbg"
+}
+
+vm_extra_filter_base_packages() {
+	# Prototype. When overridden, allows further filtering of base system
+	# packages, reading package names from stdin and writing to stdout.
+	cat
+}
+
 vm_install_base() {
 	# Installs the FreeBSD userland/kernel to the virtual machine disk.
 
-	cd ${WORLDDIR} && \
-		make DESTDIR=${DESTDIR} ${INSTALLOPTS} \
-		installworld installkernel distribution || \
-		err "\n\nCannot install the base system to ${DESTDIR}."
+	if [ -z "${NOPKGBASE}" ]; then
+		local pkg_cmd
+		pkg_cmd="pkg --rootdir ${DESTDIR} --repo-conf-dir ${PKGBASE_REPO_DIR}
+			-o ASSUME_ALWAYS_YES=yes -o IGNORE_OSVERSION=yes
+			-o INSTALL_AS_USER=yes "
+		$pkg_cmd update
+		selected=$($pkg_cmd rquery -U -r FreeBSD-base %n | \
+			vm_filter_base_packages | vm_extra_filter_base_packages)
+		$pkg_cmd install -U -r FreeBSD-base $selected
+	else
+		cd ${WORLDDIR} && \
+			make DESTDIR=${DESTDIR} ${INSTALLOPTS} \
+			installworld installkernel distribution || \
+			err "\n\nCannot install the base system to ${DESTDIR}."
+	fi
 
 	# Bootstrap etcupdate(8) database.
 	mkdir -p ${DESTDIR}/var/db/etcupdate
