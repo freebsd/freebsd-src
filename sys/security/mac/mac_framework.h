@@ -488,7 +488,7 @@ void	mac_sysvshm_init(struct shmid_kernel *);
 
 void	mac_thread_userret(struct thread *td);
 
-#if defined(MAC) && defined(DEBUG_VFS_LOCKS)
+#if defined(MAC) && defined(INVARIANTS)
 void	mac_vnode_assert_locked(struct vnode *vp, const char *func);
 #else
 #define mac_vnode_assert_locked(vp, func) do { } while (0)
