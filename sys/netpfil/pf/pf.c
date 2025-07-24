@@ -4976,7 +4976,7 @@ pf_socket_lookup(struct pf_pdesc *pd)
 	}
 	INP_RLOCK_ASSERT(inp);
 	pd->lookup.uid = inp->inp_cred->cr_uid;
-	pd->lookup.gid = inp->inp_cred->cr_groups[0];
+	pd->lookup.gid = inp->inp_cred->cr_gid;
 	INP_RUNLOCK(inp);
 
 	return (1);
@@ -5760,7 +5760,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		pd->lookup.uid = inp->inp_cred->cr_uid;
-		pd->lookup.gid = inp->inp_cred->cr_groups[0];
+		pd->lookup.gid = inp->inp_cred->cr_gid;
 		pd->lookup.done = 1;
 	}
 
