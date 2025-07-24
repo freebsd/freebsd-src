@@ -1732,6 +1732,7 @@ OLD_FILES+=usr/sbin/efidp
 OLD_FILES+=usr/sbin/efivar
 OLD_FILES+=usr/sbin/uefisign
 OLD_FILES+=usr/share/examples/uefisign/uefikeys
+OLD_FILES+=usr/tests/sys/tpm/efi_eventlog_test
 .endif
 
 .if ${MK_EXAMPLES} == no

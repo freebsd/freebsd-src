@@ -403,6 +403,9 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 	case MODINFOMD_FW_HANDLE:
 		sbuf_cat(sbp, "MODINFOMD_FW_HANDLE");
 		break;
+	case MODINFOMD_TPM_EVENTLOG:
+		sbuf_cat(sbp, "MODINFOMD_TPM_EVENTLOG");
+		break;
 	case MODINFOMD_KEYBUF:
 		sbuf_cat(sbp, "MODINFOMD_KEYBUF");
 		break;
@@ -529,6 +532,7 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 	case MODINFO_METADATA | MODINFOMD_ELFHDR:
 	case MODINFO_METADATA | MODINFOMD_FW_HANDLE:
 	case MODINFO_METADATA | MODINFOMD_KEYBUF:
+	case MODINFO_METADATA | MODINFOMD_TPM_EVENTLOG:
 #ifdef MODINFOMD_EFI_MAP
 	case MODINFO_METADATA | MODINFOMD_EFI_MAP:
 #endif

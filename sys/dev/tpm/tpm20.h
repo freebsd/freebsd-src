@@ -126,6 +126,7 @@ struct tpm_sc {
 	int		irq_rid;
 
 	struct cdev	*sc_cdev;
+	struct tpm_eventlog *eventlog;
 
 	/* Serialize commands and lifecycle; intr_lock nests inside. */
 	struct sx 	dev_lock;
