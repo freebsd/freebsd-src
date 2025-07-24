@@ -363,8 +363,12 @@ main(int argc, char *argv[])
 			tftp_log(LOG_ERR, "chdir: %s", strerror(errno));
 			exit(1);
 		}
-		if (setgroups(1, &nobody->pw_gid) != 0) {
+		if (setgroups(0, NULL) != 0) {
 			tftp_log(LOG_ERR, "setgroups failed");
+			exit(1);
+		}
+		if (setgid(nobody->pw_gid) != 0) {
+			tftp_log(LOG_ERR, "setgid failed");
 			exit(1);
 		}
 		if (setuid(nobody->pw_uid) != 0) {
