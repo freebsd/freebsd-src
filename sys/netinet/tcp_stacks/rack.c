@@ -14638,9 +14638,6 @@ rack_init(struct tcpcb *tp, void **ptr)
 	if (rack->r_ctl.pcm_s == NULL) {
 		rack->r_ctl.pcm_i.cnt_alloc = 0;
 	}
-#ifdef NETFLIX_STATS
-	rack->r_ctl.side_chan_dis_mask = tcp_sidechannel_disable_mask;
-#endif
 	rack->r_ctl.rack_per_upper_bound_ss = (uint8_t)rack_per_upper_bound_ss;
 	rack->r_ctl.rack_per_upper_bound_ca = (uint8_t)rack_per_upper_bound_ca;
 	if (rack_enable_shared_cwnd)
@@ -21556,11 +21553,7 @@ send:
 			m->m_next = tcp_m_copym(
 				mb, moff, &len,
 				if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, msb,
-				((rsm == NULL) ? hw_tls : 0)
-#ifdef NETFLIX_COPY_ARGS
-				, &s_mb, &s_moff
-#endif
-				);
+				((rsm == NULL) ? hw_tls : 0));
 			if (len <= (tp->t_maxseg - optlen)) {
 				/*
 				 * Must have ran out of mbufs for the copy

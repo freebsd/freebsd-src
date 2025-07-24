@@ -13172,11 +13172,7 @@ send:
 				mb, moff, &len,
 				if_hw_tsomaxsegcount,
 				if_hw_tsomaxsegsize, msb,
-				((rsm == NULL) ? hw_tls : 0)
-#ifdef NETFLIX_COPY_ARGS
-				, NULL, NULL
-#endif
-				);
+				((rsm == NULL) ? hw_tls : 0));
 			if (len <= maxseg) {
 				/*
 				 * Must have ran out of mbufs for the copy
