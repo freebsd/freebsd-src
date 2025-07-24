@@ -140,11 +140,6 @@ static void		Aerror(const res_state, FILE *, const char *, int,
 static void		Perror(const res_state, FILE *, const char *, int);
 #endif
 static int		sock_eq(struct sockaddr *, struct sockaddr *);
-#if defined(NEED_PSELECT) && !defined(USE_POLL) && !defined(USE_KQUEUE)
-static int		pselect(int, void *, void *, void *,
-				struct timespec *,
-				const sigset_t *);
-#endif
 void res_pquery(const res_state, const u_char *, int, FILE *);
 
 static const int niflags = NI_NUMERICHOST | NI_NUMERICSERV;
@@ -1147,29 +1142,3 @@ sock_eq(struct sockaddr *a, struct sockaddr *b) {
 		return 0;
 	}
 }
-
-#if defined(NEED_PSELECT) && !defined(USE_POLL) && !defined(USE_KQUEUE)
-/* XXX needs to move to the porting library. */
-static int
-pselect(int nfds, void *rfds, void *wfds, void *efds,
-	struct timespec *tsp, const sigset_t *sigmask)
-{
-	struct timeval tv, *tvp;
-	sigset_t sigs;
-	int n;
-
-	if (tsp) {
-		tvp = &tv;
-		tv = evTimeVal(*tsp);
-	} else
-		tvp = NULL;
-	if (sigmask)
-		sigprocmask(SIG_SETMASK, sigmask, &sigs);
-	n = select(nfds, rfds, wfds, efds, tvp);
-	if (sigmask)
-		sigprocmask(SIG_SETMASK, &sigs, NULL);
-	if (tsp)
-		*tsp = evTimeSpec(tv);
-	return (n);
-}
-#endif
