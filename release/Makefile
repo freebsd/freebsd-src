@@ -23,7 +23,8 @@
 #            (by default, the directory above this one)
 #  NODISTSETS: if set, do not include dist sets or MANIFEST
 #  NOPKGBASE:  if set, include dist tarballs rather than pkgbase packages in
-#            disc1 and dvd1 installation media
+#            disc1 and dvd1 installation media and build VM/cloud images using
+#            make installkernel installworld.
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  XTRADIR:  xtra-bits-dir argument for <arch>/mkisoimages.sh
 #  NOPKG:    if set, do not distribute third-party packages

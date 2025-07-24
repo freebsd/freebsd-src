@@ -131,7 +131,7 @@ ${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FS}.${_FMT}
 cw-${_CW:tl}-${_FS}-${_FMT}: cw-ec2-base-${_FS}-${_FMT}
 .endif
 
-cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
+cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT} ${PKGBASE_REPO_DIR}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
@@ -142,6 +142,8 @@ cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 		PKG_REPOS_DIR=${PKG_REPOS_DIR:U${.OBJDIR}/${.TARGET}/etc/pkg} \
 		PKG_REPO_NAME=${PKG_REPO_NAME:UFreeBSD-ports} \
 		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
+		NOPKGBASE=${NOPKGBASE} \
+		PKGBASE_REPO_DIR=${.OBJDIR}/pkgbase-repo-dir \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-F ${"${_CW:MEC2-BUILDER}" != "":?ufs:${_FS}} \
@@ -185,7 +187,7 @@ CLEANFILES+=	${VMBASE}.${FS}.${FORMAT}
 
 vm-base:	vm-image
 
-vm-image:	${QEMUTGT}
+vm-image:	${QEMUTGT} ${PKGBASE_REPO_DIR}
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . for FORMAT in ${VMFORMATS}
 .  for FS in ${VMFSLIST}
@@ -198,6 +200,8 @@ vm-image:	${QEMUTGT}
 		PKG_REPOS_DIR=${PKG_REPOS_DIR:U${.OBJDIR}/${.TARGET}-${FORMAT}-${FS}/etc/pkg} \
 		PKG_REPO_NAME=${PKG_REPO_NAME:UFreeBSD-ports} \
 		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
+		NOPKGBASE=${NOPKGBASE} \
+		PKGBASE_REPO_DIR=${.OBJDIR}/pkgbase-repo-dir \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
