@@ -68,4 +68,7 @@ mountd_precmd()
 }
 
 load_rc_config $name
+load_rc_config nfsd
+load_rc_config zfs
+
 run_rc_command "$1"
