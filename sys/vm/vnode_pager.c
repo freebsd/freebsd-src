@@ -487,7 +487,7 @@ vnode_pager_setsize(struct vnode *vp, vm_ooffset_t nsize)
 
 	if ((object = vp->v_object) == NULL)
 		return;
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 	{
 		struct mount *mp;
 
