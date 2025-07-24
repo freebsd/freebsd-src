@@ -1006,6 +1006,16 @@ vm_fault_relookup(struct faultstate *fs)
 	return (KERN_SUCCESS);
 }
 
+static bool
+vm_fault_can_cow_rename(struct faultstate *fs)
+{
+	return (
+	    /* Only one shadow object and no other refs. */
+	    fs->object->shadow_count == 1 && fs->object->ref_count == 1 &&
+	    /* No other ways to look the object up. */
+	    fs->object->handle == NULL && (fs->object->flags & OBJ_ANON) != 0);
+}
+
 static void
 vm_fault_cow(struct faultstate *fs)
 {
@@ -1023,15 +1033,7 @@ vm_fault_cow(struct faultstate *fs)
 	 * object so that it will go out to swap when needed.
 	 */
 	is_first_object_locked = false;
-	if (
-	    /*
-	     * Only one shadow object and no other refs.
-	     */
-	    fs->object->shadow_count == 1 && fs->object->ref_count == 1 &&
-	    /*
-	     * No other ways to look the object up
-	     */
-	    fs->object->handle == NULL && (fs->object->flags & OBJ_ANON) != 0 &&
+	if (vm_fault_can_cow_rename(fs) &&
 	    /*
 	     * We don't chase down the shadow chain and we can acquire locks.
 	     */
