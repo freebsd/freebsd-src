@@ -823,7 +823,9 @@ gather_unix(int proto)
 		break;
 	case SOCK_SEQPACKET:
 		varname = "net.local.seqpacket.pcblist";
-		protoname = "seqpac";
+		protoname = (xo_get_style(NULL) == XO_STYLE_TEXT)
+				? "seqpac"
+				: "seqpacket";
 		break;
 	default:
 		abort();
@@ -949,9 +951,11 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	case AF_UNIX:
 		sun = sstosun(ss);
 		off = (int)((char *)&sun->sun_path - (char *)sun);
-		if (!is_text_style)
+		if (!is_text_style) {
 			xo_emit("{:path/%.*s}", sun->sun_len - off,
 				sun->sun_path);
+			return 0;
+		}
 		return snprintf(buf, bufsize, "%.*s",
 				sun->sun_len - off, sun->sun_path);
 	}
@@ -964,6 +968,7 @@ formataddr(struct sockaddr_storage *ss, char *buf, size_t bufsize)
 	if (!is_text_style) {
 		xo_emit("{:address/%s}", addrstr);
 		xo_emit("{:port/%d}", port);
+		return 0;
 	}
 	if (port == 0)
 		return snprintf(buf, bufsize, "%s:*", addrstr);
@@ -1109,13 +1114,15 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 
 	size_t pos = 0;
 	const bool is_text_style = (xo_get_style(NULL) == XO_STYLE_TEXT);
+	xo_open_list("connections");
 	/* Remote peer we connect(2) to, if any. */
 	if (faddr->conn != 0) {
 		struct sock *p;
-		pos += strlcpy(SAFEBUF, "-> ", SAFESIZE);
+		if (is_text_style)
+			pos += strlcpy(SAFEBUF, "-> ", SAFESIZE);
 		p = RB_FIND(pcbs_t, &pcbs,
 			&(struct sock){ .pcb = faddr->conn });
-		if (__predict_false(p == NULL)) {
+		if (__predict_false(p == NULL) && is_text_style) {
 			/* XXGL: can this happen at all? */
 			pos += snprintf(SAFEBUF, SAFESIZE, "??");
 		} else if (p->laddr->address.ss_len == 0) {
@@ -1124,11 +1131,15 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 				&(struct file){ .xf_data =
 				p->socket });
 			if (f != NULL) {
-				pos += snprintf(SAFEBUF, SAFESIZE, "[%lu %d]",
-					(u_long)f->xf_pid, f->xf_fd);
-				if (!is_text_style) {
-				    xo_emit("{:pid/%lu}", (u_long)f->xf_pid);
-				    xo_emit("{:fd/%d}", f->xf_fd);
+				if (is_text_style) {
+					pos += snprintf(SAFEBUF, SAFESIZE,
+						"[%lu %d]", (u_long)f->xf_pid,
+						f->xf_fd);
+				} else {
+					xo_open_instance("connections");
+					xo_emit("{:pid/%lu}", (u_long)f->xf_pid);
+					xo_emit("{:fd/%d}", f->xf_fd);
+					xo_close_instance("connections");
 				}
 			}
 		} else
@@ -1142,18 +1153,18 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 		kvaddr_t ref = faddr->firstref;
 		bool fref = true;
 
-		pos += snprintf(SAFEBUF, SAFESIZE, " <- ");
-
-		xo_open_list("connections");
+		if (is_text_style)
+			pos += snprintf(SAFEBUF, SAFESIZE, " <- ");
 		while ((p = RB_FIND(pcbs_t, &pcbs,
 			&(struct sock){ .pcb = ref })) != 0) {
 			f = RB_FIND(files_t, &ftree,
 				&(struct file){ .xf_data = p->socket });
 			if (f != NULL) {
-				pos += snprintf(SAFEBUF, SAFESIZE,
-					"%s[%lu %d]", fref ? "" : ",",
-					(u_long)f->xf_pid, f->xf_fd);
-				if (!is_text_style) {
+				if (is_text_style) {
+					pos += snprintf(SAFEBUF, SAFESIZE,
+						"%s[%lu %d]", fref ? "" : ",",
+						(u_long)f->xf_pid, f->xf_fd);
+				} else {
 					xo_open_instance("connections");
 					xo_emit("{:pid/%lu}", (u_long)f->xf_pid);
 					xo_emit("{:fd/%d}", f->xf_fd);
@@ -1163,8 +1174,8 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 			ref = p->faddr->nextref;
 			fref = false;
 		}
-		xo_close_list("connections");
 	}
+	xo_close_list("connections");
 	return pos;
 }
 
@@ -1451,9 +1462,9 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					formataddr(&sp->laddr->address,
 								buf, bufsize);
 					xo_close_container("splice");
-				} else
+				} else if (is_text_style)
 					strlcpy(buf, "??", bufsize);
-			} else
+			} else if (is_text_style)
 				strlcpy(buf, "??", bufsize);
 			if (is_text_style)
 				xo_emit(" {:/%-*s}", cw->splice_address, buf);
