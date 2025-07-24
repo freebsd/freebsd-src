@@ -1,4 +1,4 @@
-KRB5_KDB5_1.0 {
+kdb5_10_MIT {
 	global:
 		krb5_db_setup_lib_handle;
 		krb5_db_open;
@@ -109,3 +109,4 @@ KRB5_KDB5_1.0 {
 		xdr_kdb_incr_update_t;
 		krb5_dbe_sort_key_data;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };

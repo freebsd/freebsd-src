@@ -1,4 +1,4 @@
-KRB5_KRB5_1.0 {
+krb5_3_MIT {
 	global:
 		_krb5_conf_boolean;
 		decode_krb5_ad_kdcissued;
@@ -105,6 +105,17 @@ KRB5_KRB5_1.0 {
 		encode_krb5_ticket;
 		encode_krb5_typed_data;
 		encode_utf8_strings;
+		et_asn1_error_table;
+		et_k524_error_table;
+		et_kdb5_error_table;
+		et_krb5_error_table;
+		et_kv5m_error_table;
+		initialize_asn1_error_table;
+		initialize_k524_error_table;
+		initialize_kdb5_error_table;
+		initialize_krb5_error_table;
+		initialize_k5e1_error_table;
+		initialize_kv5m_error_table;
 		k5_add_empty_pa_data;
 		k5_add_pa_data_element;
 		k5_add_pa_data_from_data;
@@ -615,3 +626,4 @@ KRB5_KRB5_1.0 {
 		krb5int_random_string;
 		krb5int_trace;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };

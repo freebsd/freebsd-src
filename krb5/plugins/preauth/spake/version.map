@@ -1,4 +1,5 @@
-KRB5_PLUGINS_SPAKE_1.0 {
+HIDDEN { local: __*; _rest*; _save*; *; };
+spake_0_MIT {
 	global:
 		clpreauth_spake_initvt;
 		kdcpreauth_spake_initvt;

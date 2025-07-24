@@ -1,4 +1,4 @@
-KRB5_VERTO_1.0 {
+verto_0_MIT {
 	global:
 		verto_add_child;
 		verto_add_idle;
@@ -34,3 +34,4 @@ KRB5_VERTO_1.0 {
 		verto_set_private;
 		verto_set_proc_status;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };

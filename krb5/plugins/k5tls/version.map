@@ -1,4 +1,5 @@
-KRB5_K5TLS_1.0 {
+HIDDEN { local: __*; _rest*; _save*; *; };
+k5tls_0_MIT {
 	global:
 		tls_k5tls_initvt;
 };

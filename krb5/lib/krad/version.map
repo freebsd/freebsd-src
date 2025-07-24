@@ -1,4 +1,4 @@
-KRB5_KRAD_1.0 {
+krad_0_MIT {
 	global:
 		krad_code_name2num;
 		krad_code_num2name;
@@ -24,3 +24,4 @@ KRB5_KRAD_1.0 {
 		krad_client_free;
 		krad_client_send;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };
