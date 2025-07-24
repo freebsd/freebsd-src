@@ -1301,9 +1301,9 @@ tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, bool use_h
 		return (TCP_LRO_CANNOT);
 #endif
 	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
-	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) || 
+	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
 	    (m->m_pkthdr.csum_data != 0xffff)) {
-		/* 
+		/*
 		 * The checksum either did not have hardware offload
 		 * or it was a bad checksum. We can't LRO such
 		 * a packet.
@@ -1334,7 +1334,7 @@ tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, bool use_h
 #endif
 	/* If no hardware or arrival stamp on the packet add timestamp */
 	if ((m->m_flags & (M_TSTMP_LRO | M_TSTMP)) == 0) {
-		m->m_pkthdr.rcv_tstmp = bintime2ns(&lc->lro_last_queue_time); 
+		m->m_pkthdr.rcv_tstmp = bintime2ns(&lc->lro_last_queue_time);
 		m->m_flags |= M_TSTMP_LRO;
 	}
 
@@ -1429,9 +1429,9 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	int error;
 
 	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
-	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) || 
+	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
 	    (m->m_pkthdr.csum_data != 0xffff)) {
-		/* 
+		/*
 		 * The checksum either did not have hardware offload
 		 * or it was a bad checksum. We can't LRO such
 		 * a packet.
@@ -1481,7 +1481,7 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
  	    ((mb->m_flags & M_TSTMP) == 0)) {
  		/* Add in an LRO time since no hardware */
  		binuptime(&lc->lro_last_queue_time);
- 		mb->m_pkthdr.rcv_tstmp = bintime2ns(&lc->lro_last_queue_time); 
+ 		mb->m_pkthdr.rcv_tstmp = bintime2ns(&lc->lro_last_queue_time);
  		mb->m_flags |= M_TSTMP_LRO;
  	}
 

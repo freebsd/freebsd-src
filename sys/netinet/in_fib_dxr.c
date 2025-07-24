@@ -345,7 +345,7 @@ initheap(struct dxr_aux *da, uint32_t dst_u32, uint32_t chunk)
 	struct heap_entry *fhp = &da->heap[0];
 	struct rtentry *rt;
 	struct route_nhop_data rnd;
- 
+
 	da->heap_index = 0;
 	da->dst.sin_addr.s_addr = htonl(dst_u32);
 	rt = fib4_lookup_rt(da->fibnum, da->dst.sin_addr, 0, NHR_UNLOCKED,
@@ -1143,7 +1143,7 @@ dxr_destroy(void *data)
 	free(da, M_DXRAUX);
 }
 
-static void 
+static void
 epoch_dxr_destroy(epoch_context_t ctx)
 {
 	struct dxr *dxr = __containerof(ctx, struct dxr, epoch_ctx);
@@ -1202,7 +1202,7 @@ dxr_dump_end(void *data, struct fib_dp *dp)
 static enum flm_op_result
 dxr_dump_rib_item(struct rtentry *rt, void *data)
 {
-	
+
 	return (FLM_SUCCESS);
 }
 

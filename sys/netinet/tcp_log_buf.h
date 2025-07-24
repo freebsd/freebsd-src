@@ -377,12 +377,12 @@ extern int32_t tcp_trace_point_count;
 
 /*
  * Returns true if any sort of BB logging is enabled,
- * commonly used throughout the codebase. 
+ * commonly used throughout the codebase.
  */
 static inline int
 tcp_bblogging_on(struct tcpcb *tp)
 {
-	if (tp->_t_logstate <= TCP_LOG_STATE_OFF) 
+	if (tp->_t_logstate <= TCP_LOG_STATE_OFF)
 		return (0);
 	if (tp->_t_logstate == TCP_LOG_VIA_BBPOINTS)
 		return (0);
@@ -427,7 +427,7 @@ tcp_set_bblog_state(struct tcpcb *tp, uint8_t ls, uint8_t bbpoint)
 	}
 }
 
-static inline uint32_t 
+static inline uint32_t
 tcp_get_bblog_state(struct tcpcb *tp)
 {
 	return (tp->_t_logstate);

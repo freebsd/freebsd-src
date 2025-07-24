@@ -5126,8 +5126,8 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
 				if (tp->t_maxseg < V_tcp_mssdflt) {
 					/*
-					 * The MSS is so small we should not 
-					 * process incoming SACK's since we are 
+					 * The MSS is so small we should not
+					 * process incoming SACK's since we are
 					 * subject to attack in such a case.
 					 */
 					tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
@@ -10141,7 +10141,7 @@ bbr_init(struct tcpcb *tp, void **ptr)
 	 * flags.
 	 */
 	bbr_stop_all_timers(tp, bbr);
-	/* 
+	/*
 	 * Validate the timers are not in usec, if they are convert.
 	 * BBR should in theory move to USEC and get rid of a
 	 * lot of the TICKS_2 calls.. but for now we stay
@@ -11544,7 +11544,7 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		bbr_check_bbr_for_state(bbr, cts, __LINE__, (bbr->r_ctl.rc_lost - lost));
 		if (nxt_pkt == 0) {
 			if ((bbr->r_wanted_output != 0) ||
-			    (tp->t_flags & TF_ACKNOW)) { 
+			    (tp->t_flags & TF_ACKNOW)) {
 
 				bbr->rc_output_starts_timer = 0;
 				did_out = 1;
@@ -13802,8 +13802,8 @@ nomore:
 					tp->t_maxseg = old_maxseg - 40;
 					if (tp->t_maxseg < V_tcp_mssdflt) {
 						/*
-						 * The MSS is so small we should not 
-						 * process incoming SACK's since we are 
+						 * The MSS is so small we should not
+						 * process incoming SACK's since we are
 						 * subject to attack in such a case.
 						 */
 						tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
