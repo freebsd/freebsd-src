@@ -505,8 +505,23 @@ in6_set_unicast_scopeid(struct in6_addr *in6, uint32_t scopeid)
 struct ifnet*
 in6_getlinkifnet(uint32_t zoneid)
 {
+	struct ifnet *ifp;
 
-	return (ifnet_byindex((u_short)zoneid));
+	ifp = ifnet_byindex((u_short)zoneid);
+
+	if (ifp == NULL)
+		return (NULL);
+
+	/* An interface might not be IPv6 capable. */
+	if (ifp->if_afdata[AF_INET6] == NULL) {
+		log(LOG_NOTICE,
+		    "%s: embedded scope points to an interface without "
+		    "IPv6: %s%%%d.\n", __func__,
+		    if_name(ifp), zoneid);
+		return (NULL);
+	}
+
+	return (ifp);
 }
 
 /*
