@@ -4537,7 +4537,7 @@ tcp_change_time_units(struct tcpcb *tp, int granularity)
 		panic("Unknown granularity:%d tp:%p",
 		      granularity, tp);
 	}
-#endif	
+#endif
 }
 
 void

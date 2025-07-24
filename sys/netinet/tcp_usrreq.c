@@ -1768,9 +1768,9 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 				/*
 				 * Release the ref count the lookup
 				 * acquired.
-				 */ 
+				 */
 				refcount_release(&blk->tfb_refcnt);
-				/* 
+				/*
 				 * Now there is a chance that the
 				 * init() function mucked with some
 				 * things before it failed, such as
@@ -1800,7 +1800,7 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 		 * new one already.
 		 */
 		refcount_release(&tp->t_fb->tfb_refcnt);
-		/* 
+		/*
 		 * Set in the new stack.
 		 */
 		tp->t_fb = blk;
@@ -1934,7 +1934,7 @@ tcp_set_cc_mod(struct inpcb *inp, struct sockopt *sopt)
 		CC_LIST_RUNLOCK();
 		return(ESRCH);
 	}
-	/* 
+	/*
 	 * With a reference the algorithm cannot be removed
 	 * so we hold a reference through the change process.
 	 */

@@ -7888,8 +7888,8 @@ drop_it:
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
 				if (tp->t_maxseg < V_tcp_mssdflt) {
 					/*
-					 * The MSS is so small we should not 
-					 * process incoming SACK's since we are 
+					 * The MSS is so small we should not
+					 * process incoming SACK's since we are
 					 * subject to attack in such a case.
 					 */
 					tp->t_flags2 |= TF2_PROC_SACK_PROHIBIT;
@@ -15561,7 +15561,7 @@ rack_log_pcm(struct tcp_rack *rack, uint8_t mod, uint32_t flex1, uint32_t flex2,
 	if (tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
-		
+
 		(void)tcp_get_usecs(&tv);
 		memset(&log, 0, sizeof(log));
 		log.u_bbr.timeStamp = tcp_tv_to_usectick(&tv);
@@ -19912,7 +19912,7 @@ rack_output(struct tcpcb *tp)
 			goto nomore;
 		} else {
 			/* Return == 0, if there is more we can send tot_len wise fall through and send */
-			if (tot_len_this_send >= pace_max_seg) 
+			if (tot_len_this_send >= pace_max_seg)
 				return (ret);
 #ifdef TCP_ACCOUNTING
 			/* We need to re-pin since fast_output un-pined */
