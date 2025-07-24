@@ -1,4 +1,5 @@
-KRB5_PREAUTH_PKINIT_1.0 {
+HIDDEN { local: __*; _rest*; _save*; *; };
+pkinit_0_MIT {
 	global:
 		clpreauth_pkinit_initvt;
 		kdcpreauth_pkinit_initvt;

@@ -1,4 +1,4 @@
-KRB5_ET_1.0 {
+com_err_3_MIT {
 	global:
 		add_error_table;
 		com_err;
@@ -10,3 +10,4 @@ KRB5_ET_1.0 {
 		reset_com_err_hook;
 		set_com_err_hook;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };

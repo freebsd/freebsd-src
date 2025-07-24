@@ -1,4 +1,4 @@
-KRB5_CRYPTO_1.0 {
+k5crypto_3_MIT {
 	global:
 		krb5_c_make_random_key;
 		krb5_c_encrypt_length;
@@ -106,3 +106,4 @@ KRB5_CRYPTO_1.0 {
 		k5_enctype_to_ssf;
 		krb5int_c_deprecated_enctype;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };

@@ -1,4 +1,4 @@
-KRB5_RPC_1.0 {
+gssrpc_4_MIT {
 	global:
 		gssrpc_auth_debug_gss;
 		gssrpc_auth_debug_gssapi;
@@ -145,3 +145,4 @@ KRB5_RPC_1.0 {
 		gssrpc_xprt_register;
 		gssrpc_xprt_unregister;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };
