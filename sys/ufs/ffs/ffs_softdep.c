@@ -14528,10 +14528,8 @@ getdirtybuf(struct buf *bp,
 		BUF_UNLOCK(bp);
 		if (waitfor != MNT_WAIT)
 			return (NULL);
-#ifdef DEBUG_VFS_LOCKS
 		if (bp->b_vp->v_type != VCHR)
 			ASSERT_BO_WLOCKED(bp->b_bufobj);
-#endif
 		bp->b_vflags |= BV_BKGRDWAIT;
 		rw_sleep(&bp->b_xflags, lock, PRIBIO, "getbuf", 0);
 		return (NULL);
