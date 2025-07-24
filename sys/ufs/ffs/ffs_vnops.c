@@ -508,9 +508,7 @@ ffs_lock(
 	case LK_EXCLUSIVE:
 		flags = ap->a_flags;
 		for (;;) {
-#ifdef DEBUG_VFS_LOCKS
 			VNPASS(vp->v_holdcnt != 0, vp);
-#endif	/* DEBUG_VFS_LOCKS */
 			lkp = vp->v_vnlock;
 			result = lockmgr_lock_flags(lkp, flags,
 			    &VI_MTX(vp)->lock_object, ap->a_file, ap->a_line);
