@@ -869,7 +869,7 @@ fuse_setup_ihead(struct fuse_in_header *ihead, struct fuse_ticket *ftick,
 
 	ihead->pid = pid;
 	ihead->uid = cred->cr_uid;
-	ihead->gid = cred->cr_groups[0];
+	ihead->gid = cred->cr_gid;
 }
 
 /*

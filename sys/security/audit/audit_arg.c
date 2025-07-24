@@ -409,7 +409,7 @@ audit_arg_process(struct proc *p)
 	cred = p->p_ucred;
 	ar->k_ar.ar_arg_auid = cred->cr_audit.ai_auid;
 	ar->k_ar.ar_arg_euid = cred->cr_uid;
-	ar->k_ar.ar_arg_egid = cred->cr_groups[0];
+	ar->k_ar.ar_arg_egid = cred->cr_gid;
 	ar->k_ar.ar_arg_ruid = cred->cr_ruid;
 	ar->k_ar.ar_arg_rgid = cred->cr_rgid;
 	ar->k_ar.ar_arg_asid = cred->cr_audit.ai_asid;

@@ -423,7 +423,7 @@ smb_vc_create(struct smb_vcspec *vcspec,
 	if (uid == SMBM_ANY_OWNER)
 		uid = realuid;
 	if (gid == SMBM_ANY_GROUP)
-		gid = cred->cr_groups[0];
+		gid = cred->cr_gid;
 	vcp->vc_uid = uid;
 	vcp->vc_grp = gid;
 
@@ -766,7 +766,7 @@ smb_share_create(struct smb_vc *vcp, struct smb_sharespec *shspec,
 	if (uid == SMBM_ANY_OWNER)
 		uid = realuid;
 	if (gid == SMBM_ANY_GROUP)
-		gid = cred->cr_groups[0];
+		gid = cred->cr_gid;
 	ssp = smb_zmalloc(sizeof(*ssp), M_SMBCONN, M_WAITOK);
 	smb_co_init(SSTOCP(ssp), SMBL_SHARE, "smbss ilock", "smbss");
 	ssp->obj.co_free = smb_share_free;

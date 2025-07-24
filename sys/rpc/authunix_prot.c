@@ -97,7 +97,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 
 	if (!xdr_uint32_t(xdrs, &cred->cr_uid))
 		return (FALSE);
-	if (!xdr_uint32_t(xdrs, &cred->cr_groups[0]))
+	if (!xdr_uint32_t(xdrs, &cred->cr_gid))
 		return (FALSE);
 
 	if (xdrs->x_op == XDR_ENCODE) {
@@ -109,7 +109,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	if (!xdr_uint32_t(xdrs, &ngroups))
 		return (FALSE);
 	for (i = 0; i < ngroups; i++) {
-		if (i + 1 < ngroups_max + 1) {
+		if (i < ngroups_max) {
 			if (!xdr_uint32_t(xdrs, &cred->cr_groups[i + 1]))
 				return (FALSE);
 		} else {
@@ -119,7 +119,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	}
 
 	if (xdrs->x_op == XDR_DECODE) {
-		if (ngroups + 1 > ngroups_max + 1)
+		if (ngroups > ngroups_max)
 			cred->cr_ngroups = ngroups_max + 1;
 		else
 			cred->cr_ngroups = ngroups + 1;

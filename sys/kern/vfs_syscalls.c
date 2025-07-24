@@ -2174,10 +2174,10 @@ kern_accessat(struct thread *td, int fd, const char *path,
 	cred = td->td_ucred;
 	if ((flag & AT_EACCESS) == 0 &&
 	    ((cred->cr_uid != cred->cr_ruid ||
-	    cred->cr_rgid != cred->cr_groups[0]))) {
+	    cred->cr_rgid != cred->cr_gid))) {
 		usecred = crdup(cred);
 		usecred->cr_uid = cred->cr_ruid;
-		usecred->cr_groups[0] = cred->cr_rgid;
+		usecred->cr_gid = cred->cr_rgid;
 		td->td_ucred = usecred;
 	} else
 		usecred = cred;

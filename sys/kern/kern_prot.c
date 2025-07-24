@@ -287,7 +287,7 @@ sys_getgid(struct thread *td, struct getgid_args *uap)
 
 	td->td_retval[0] = td->td_ucred->cr_rgid;
 #if defined(COMPAT_43)
-	td->td_retval[1] = td->td_ucred->cr_groups[0];
+	td->td_retval[1] = td->td_ucred->cr_gid;
 #endif
 	return (0);
 }
@@ -307,7 +307,7 @@ int
 sys_getegid(struct thread *td, struct getegid_args *uap)
 {
 
-	td->td_retval[0] = td->td_ucred->cr_groups[0];
+	td->td_retval[0] = td->td_ucred->cr_gid;
 	return (0);
 }
 
@@ -1080,7 +1080,7 @@ sys_setgid(struct thread *td, struct setgid_args *uap)
 	    gid != oldcred->cr_svgid &&		/* allow setgid(saved gid) */
 #endif
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
-	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
+	    gid != oldcred->cr_gid && /* allow setgid(getegid()) */
 #endif
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETGID)) != 0)
 		goto fail;
@@ -1092,7 +1092,7 @@ sys_setgid(struct thread *td, struct setgid_args *uap)
 	 */
 	if (
 #ifdef POSIX_APPENDIX_B_4_2_2	/* use the clause from B.4.2.2 */
-	    gid == oldcred->cr_groups[0] ||
+	    gid == oldcred->cr_gid ||
 #endif
 	    /* We are using privs. */
 	    priv_check_cred(oldcred, PRIV_CRED_SETGID) == 0)
@@ -1121,7 +1121,7 @@ sys_setgid(struct thread *td, struct setgid_args *uap)
 	 * In all cases permitted cases, we are changing the egid.
 	 * Copy credentials so other references do not see our changes.
 	 */
-	if (oldcred->cr_groups[0] != gid) {
+	if (oldcred->cr_gid != gid) {
 		change_egid(newcred, gid);
 		setsugid(p);
 	}
@@ -1167,7 +1167,7 @@ sys_setegid(struct thread *td, struct setegid_args *uap)
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEGID)) != 0)
 		goto fail;
 
-	if (oldcred->cr_groups[0] != egid) {
+	if (oldcred->cr_gid != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
 	}
@@ -1393,12 +1393,12 @@ sys_setregid(struct thread *td, struct setregid_args *uap)
 
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	    rgid != oldcred->cr_svgid) ||
-	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
+	     (egid != (gid_t)-1 && egid != oldcred->cr_gid &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREGID)) != 0)
 		goto fail;
 
-	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
+	if (egid != (gid_t)-1 && oldcred->cr_gid != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
 	}
@@ -1406,9 +1406,9 @@ sys_setregid(struct thread *td, struct setregid_args *uap)
 		change_rgid(newcred, rgid);
 		setsugid(p);
 	}
-	if ((rgid != (gid_t)-1 || newcred->cr_groups[0] != newcred->cr_rgid) &&
-	    newcred->cr_svgid != newcred->cr_groups[0]) {
-		change_svgid(newcred, newcred->cr_groups[0]);
+	if ((rgid != (gid_t)-1 || newcred->cr_gid != newcred->cr_rgid) &&
+	    newcred->cr_svgid != newcred->cr_gid) {
+		change_svgid(newcred, newcred->cr_gid);
 		setsugid(p);
 	}
 	proc_set_cred(p, newcred);
@@ -1547,17 +1547,17 @@ sys_setresgid(struct thread *td, struct setresgid_args *uap)
 
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	      rgid != oldcred->cr_svgid &&
-	      rgid != oldcred->cr_groups[0]) ||
+	      rgid != oldcred->cr_gid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_rgid &&
 	      egid != oldcred->cr_svgid &&
-	      egid != oldcred->cr_groups[0]) ||
+	      egid != oldcred->cr_gid) ||
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
-	      sgid != oldcred->cr_groups[0])) &&
+	      sgid != oldcred->cr_gid)) &&
 	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESGID)) != 0)
 		goto fail;
 
-	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
+	if (egid != (gid_t)-1 && oldcred->cr_gid != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
 	}
@@ -1626,8 +1626,8 @@ sys_getresgid(struct thread *td, struct getresgid_args *uap)
 		error1 = copyout(&cred->cr_rgid,
 		    uap->rgid, sizeof(cred->cr_rgid));
 	if (uap->egid)
-		error2 = copyout(&cred->cr_groups[0],
-		    uap->egid, sizeof(cred->cr_groups[0]));
+		error2 = copyout(&cred->cr_gid,
+		    uap->egid, sizeof(cred->cr_gid));
 	if (uap->sgid)
 		error3 = copyout(&cred->cr_svgid,
 		    uap->sgid, sizeof(cred->cr_svgid));
@@ -1737,7 +1737,7 @@ groupmember(gid_t gid, const struct ucred *cred)
 
 	groups_check_positive_len(cred->cr_ngroups);
 
-	if (gid == cred->cr_groups[0])
+	if (gid == cred->cr_gid)
 		return (true);
 
 	return (group_is_supplementary(gid, cred));
@@ -3004,7 +3004,7 @@ void
 change_egid(struct ucred *newcred, gid_t egid)
 {
 
-	newcred->cr_groups[0] = egid;
+	newcred->cr_gid = egid;
 }
 
 /*-

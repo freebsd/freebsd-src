@@ -208,9 +208,9 @@ fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
 	if (basecred->cr_uid == usercred->cr_uid             &&
 	    basecred->cr_uid == usercred->cr_ruid            &&
 	    basecred->cr_uid == usercred->cr_svuid           &&
-	    basecred->cr_groups[0] == usercred->cr_groups[0] &&
-	    basecred->cr_groups[0] == usercred->cr_rgid      &&
-	    basecred->cr_groups[0] == usercred->cr_svgid)
+	    basecred->cr_gid == usercred->cr_gid             &&
+	    basecred->cr_gid == usercred->cr_rgid            &&
+	    basecred->cr_gid == usercred->cr_svgid)
 		return (0);
 
 	return (EPERM);

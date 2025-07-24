@@ -6827,7 +6827,7 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		if ((dp->nfsdi_flags & NFSDI_TIGHTCOUPLED) == 0) {
 			tcred = NFSNEWCRED(cred);
 			tcred->cr_uid = flp->nfsfl_ffm[mirror].user;
-			tcred->cr_groups[0] = flp->nfsfl_ffm[mirror].group;
+			tcred->cr_gid = flp->nfsfl_ffm[mirror].group;
 			tcred->cr_ngroups = 1;
 		} else
 			tcred = cred;

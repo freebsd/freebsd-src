@@ -878,7 +878,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	if (incred->cr_uid != outcred->cr_uid)
 		goto fallback;
 
-	if (incred->cr_groups[0] != outcred->cr_groups[0])
+	if (incred->cr_gid != outcred->cr_gid)
 		goto fallback;
 
 	/* Caller busied mp, mnt_data can be safely accessed. */

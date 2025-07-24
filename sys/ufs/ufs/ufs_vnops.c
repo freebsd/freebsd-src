@@ -2082,7 +2082,7 @@ ufs_mkdir(
 				ucred.cr_uid = ip->i_uid;
 				ucred.cr_ngroups = 1;
 				ucred.cr_groups = &ucred_group;
-				ucred.cr_groups[0] = dp->i_gid;
+				ucred.cr_gid = ucred_group = dp->i_gid;
 				ucp = &ucred;
 			}
 #endif
@@ -2837,7 +2837,7 @@ ufs_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 			ucred.cr_uid = ip->i_uid;
 			ucred.cr_ngroups = 1;
 			ucred.cr_groups = &ucred_group;
-			ucred.cr_groups[0] = pdir->i_gid;
+			ucred.cr_gid = ucred_group = pdir->i_gid;
 			ucp = &ucred;
 #endif
 		} else {
