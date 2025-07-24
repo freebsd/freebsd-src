@@ -884,7 +884,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		return (EXTERROR(ENOSYS, "FUSE_COPY_FILE_RANGE does not "
 		    "support different credentials for infd and outfd"));
 
-	if (incred->cr_groups[0] != outcred->cr_groups[0])
+	if (incred->cr_gid != outcred->cr_gid)
 		return (EXTERROR(ENOSYS, "FUSE_COPY_FILE_RANGE does not "
 		    "support different credentials for infd and outfd"));
 
