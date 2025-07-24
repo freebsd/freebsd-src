@@ -81,28 +81,18 @@ local function main()
 	-- Determines package subset selected
 	local media = assert(arg[1])
 	assert(media == "disc" or media == "dvd")
-	-- Local repository to fetch from
-	local source = assert(arg[2])
+	-- Directory containing FreeBSD-base repository config
+	local repo_dir = assert(arg[2])
 	-- Directory to create new repository
 	local target = assert(arg[3])
-	-- =hitespace separated list of all libcompat names (e.g. "32")
+	-- Whitespace separated list of all libcompat names (e.g. "32")
 	local all_libcompats = assert(arg[4])
 	-- ABI of repository
 	local ABI = assert(arg[5])
 
-	assert(os.execute("mkdir -p pkgbase-repo-conf"))
-	local f <close> = assert(io.open("pkgbase-repo-conf/FreeBSD-base.conf", "w"))
-	assert(f:write(string.format([[
-	FreeBSD-base: {
-	  url: "file://%s",
-	  enabled: yes
-	}
-	]], source)))
-	assert(f:close())
-
 	local pkg = "pkg -o ASSUME_ALWAYS_YES=yes -o IGNORE_OSVERSION=yes " ..
 	    "-o ABI=" .. ABI .. " " ..
-	    "-o INSTALL_AS_USER=1 -o PKG_DBDIR=./pkgdb -R ./pkgbase-repo-conf "
+	    "-o INSTALL_AS_USER=1 -o PKG_DBDIR=./pkgdb -R " .. repo_dir .. " "
 
 	assert(os.execute(pkg .. "update"))
 
