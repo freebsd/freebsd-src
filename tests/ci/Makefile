@@ -205,6 +205,7 @@ ci-create-meta: .PHONY
 
 ci-extract-meta: .PHONY
 	tar xfv ${META_TAR} -C ${META_DIROUT}
+	rm -rf ${META_TAR} ${META_DIR}
 	@echo "Extracted kyua reports to ${META_DIROUT}"
 
 ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
@@ -254,7 +255,7 @@ ci-checktarget: .PHONY
 
 ci-smoke: ci-set-smoke-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .PHONY
 
-ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} ci-extract-meta .PHONY
+ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
 
 ci: ci-${CITYPE:tl} .PHONY
 
