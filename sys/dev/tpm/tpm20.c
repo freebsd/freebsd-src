@@ -31,6 +31,7 @@
 #include <machine/atomic.h>
 
 #include "tpm20.h"
+#include "tpm_eventlog.h"
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 #include <dev/random/random_harvestq.h>
@@ -285,6 +286,7 @@ tpm20_init(struct tpm_sc *sc)
 		    0);
 	}
 #endif
+	sc->eventlog = tpm_eventlog_create(sc->dev);
 	sc->common_initialized = true;
 
 	return (result);
@@ -294,6 +296,9 @@ tpm20_init(struct tpm_sc *sc)
 void
 tpm20_release(struct tpm_sc *sc)
 {
+
+	tpm_eventlog_destroy(sc->eventlog);
+	sc->eventlog = NULL;
 
 	/* Publish teardown so a retrying command stops using the device. */
 	atomic_store_bool(&sc->dying, true);

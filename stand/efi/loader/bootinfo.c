@@ -168,18 +168,20 @@ efi_do_vmap(EFI_MEMORY_DESCRIPTOR *mm, UINTN sz, UINTN mmsz, UINT32 mmver)
 }
 
 static int
-bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
+bi_load_efi_data(struct preloaded_file *kfp, vm_offset_t modulep, bool is64,
+    bool exit_bs)
 {
 	EFI_MEMORY_DESCRIPTOR *mm;
 	EFI_PHYSICAL_ADDRESS addr = 0;
 	EFI_STATUS status;
 	const char *efi_novmap;
-	size_t efisz;
+	size_t efisz, modules_size, map_size;
 	UINTN efi_mapkey;
 	UINTN dsz, pages, retry, sz;
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
 	bool do_vmap;
+	struct efi_tpm_eventlog *eventlog;
 
 #ifdef MODINFOMD_EFI_FB
 	struct efi_fb efifb;
@@ -207,16 +209,6 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
 	}
-#endif
-
-#if defined(__amd64__) || defined(__i386__)
-	/*
-	 * Staging can't move after this point, so report the final value before
-	 * we try to exit boot services below. The metadata added is added to
-	 * the malloced arena that we setup when we started and doesn't interact
-	 * with boot services.
-	 */
-	printf("staging %#jx\n", (uintmax_t)staging);
 #endif
 
 	do_vmap = true;
@@ -269,11 +261,45 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 		return (ENOMEM);
 	}
 
+	eventlog = efi_tpm_log_prepare(kfp);
 	/*
-	 * Read the memory map and stash it after bootinfo. Align the
-	 * memory map on a 16-byte boundary (the bootinfo block is page
-	 * aligned).
+	 * Include the maximum TPM record and the memory-map record (two
+	 * uint32_t tags plus at most the allocated pages) in the reservation.
+	 * efi_check_space() keeps the architecture's slop beyond this bound.
+	 * No later metadata addition may exceed these reserved sizes.
 	 */
+	map_size = 2 * sizeof(uint32_t) + pages * EFI_PAGE_SIZE;
+	modules_size = md_copymodules(0, is64);
+	if (modules_size > SIZE_MAX - map_size ||
+	    modulep > UINTPTR_MAX - (modules_size + map_size) ||
+	    !efi_copy_reserve(modulep + modules_size + map_size, false)) {
+		/*
+		 * Retry without the optional log. After ExitBootServices,
+		 * copies can use existing slack even if staging cannot grow.
+		 */
+		efi_tpm_log_free(eventlog);
+		eventlog = NULL;
+		modules_size = md_copymodules(0, is64);
+		if (modules_size > SIZE_MAX - map_size ||
+		    modulep > UINTPTR_MAX - (modules_size + map_size) ||
+		    !efi_copy_reserve(modulep + modules_size + map_size,
+		    exit_bs)) {
+			BS->FreePages(addr, pages);
+			return (ENOMEM);
+		}
+	}
+
+#if defined(__amd64__) || defined(__i386__)
+	/*
+	 * Staging can't move after this point, so report the final value before
+	 * we try to exit boot services below. The metadata added is added to
+	 * the malloced arena that we setup when we started and doesn't interact
+	 * with boot services.
+	 */
+	printf("staging %#jx\n", (uintmax_t)staging);
+#endif
+
+	/* The map follows its header on a 16-byte boundary. */
 	efihdr = (struct efi_map_header *)(uintptr_t)addr;
 	mm = (void *)((uint8_t *)efihdr + efisz);
 
@@ -291,6 +317,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 		sz = (EFI_PAGE_SIZE * pages) - efisz;
 		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &dsz, &mmver);
 		if (EFI_ERROR(status)) {
+			efi_tpm_log_free(eventlog);
 			BS->FreePages(addr, pages);
 			printf("%s: GetMemoryMap error %lu\n", __func__,
 			    DECODE_ERROR(status));
@@ -305,10 +332,13 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	}
 
 	if (retry == 0) {
+		efi_tpm_log_free(eventlog);
 		BS->FreePages(addr, pages);
 		printf("ExitBootServices error %lu\n", DECODE_ERROR(status));
 		return (EINVAL);
 	}
+
+	efi_tpm_log_finish(eventlog, mm, sz, dsz);
 
 	/*
 	 * This may be disabled by setting efi_disable_vmap in
@@ -358,6 +388,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
+#ifdef EFI
+	int error;
+#endif
 #ifdef __i386__
 	/*
 	 * The 32-bit UEFI loader is used to
@@ -486,7 +519,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	geli_export_key_metadata(kfp);
 #endif
 #ifdef EFI
-	bi_load_efi_data(kfp, exit_bs);
+	error = bi_load_efi_data(kfp, addr, is64, exit_bs);
+	if (error != 0)
+		return (error);
 #else
 	bi_loadsmap(kfp);
 #endif

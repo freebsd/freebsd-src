@@ -3317,6 +3317,7 @@ dev/ti/if_ti.c			optional ti pci
 dev/tpm/tpm20.c			optional	tpm
 dev/tpm/tpm_acpi_subr.c		optional tpm acpi
 dev/tpm/tpm_bus.c		optional tpm acpi
+dev/tpm/tpm_eventlog.c		optional tpm
 dev/tpm/tpm_if.m		optional tpm
 dev/tpm/tpm_spibus.c		optional tpm spibus fdt
 dev/tpm/tpm_tis_acpi.c		optional tpm acpi
