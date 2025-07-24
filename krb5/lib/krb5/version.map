@@ -215,7 +215,7 @@ HEIMDAL_KRB5_2.0 {
 		krb5_write_message;
 };
 
-HEIMDAL_KRB5_3.0 {
+krb5_3_MIT {
 	global:
 		_krb5_conf_boolean;
 		decode_krb5_ad_kdcissued;
