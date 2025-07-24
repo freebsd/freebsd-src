@@ -345,14 +345,12 @@ server_accept_client(server_p srv, int32_t fd)
 			return;
 		}
 	} else {
-		struct xucred	 cr;
+		uid_t		 uid;
+		gid_t		 gid;
 		struct passwd	*pw;
 
 		/* Get peer's credentials */
-		memset(&cr, 0, sizeof(cr));
-		size = sizeof(cr);
-
-		if (getsockopt(cfd, 0, LOCAL_PEERCRED, &cr, &size) < 0) {
+		if (getpeereid(cfd, &uid, &gid) < 0) {
 			log_err("Could not get peer's credentials. %s (%d)",
 				strerror(errno), errno);
 			close(cfd);
@@ -360,12 +358,12 @@ server_accept_client(server_p srv, int32_t fd)
 		}
 
 		/* Check credentials */
-		pw = getpwuid(cr.cr_uid);
+		pw = getpwuid(uid);
 		if (pw != NULL)
 			priv = (strcmp(pw->pw_name, "root") == 0);
 		else
 			log_warning("Could not verify credentials for uid %d",
-				cr.cr_uid);
+				uid);
 
 		memcpy(&srv->req_sa.l2cap_bdaddr, NG_HCI_BDADDR_ANY,
 			sizeof(srv->req_sa.l2cap_bdaddr));
