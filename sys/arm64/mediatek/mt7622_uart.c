@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2025 Martin Filla, Michal Meloun
+ * Copyright (c) 2025 Martin Filla, Michal Meloun <mmel@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
 #include <machine/bus.h>
 
 #include <dev/clk/clk.h>
-#include <dev/hwreset/hwreset.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/uart/uart.h>
@@ -58,7 +57,6 @@
 struct mdtk_softc {
 	struct ns8250_softc 	ns8250_base;
 	clk_t			clk;
-	hwreset_t		reset;
 };
 
 /*
@@ -143,7 +141,7 @@ static kobj_method_t mdtk_methods[] = {
 };
 
 static struct uart_class mdtk_uart_class = {
-    "mdtk class",
+    "mediatek class",
     mdtk_methods,
     sizeof(struct mdtk_softc),
 	.uc_ops = &uart_ns8250_ops,
@@ -182,7 +180,7 @@ mdtk_uart_probe(device_t dev)
 	phandle_t node;
 	uint64_t freq;
 	int shift;
-	//int rv;
+	int rv;
 	const struct ofw_compat_data *cd;
 
 	sc = device_get_softc(dev);
@@ -192,19 +190,10 @@ mdtk_uart_probe(device_t dev)
 	if (cd->ocd_data == 0)
 		return (ENXIO);
 	sc->ns8250_base.base.sc_class = (struct uart_class *)cd->ocd_data;
-/*	rv = hwreset_get_by_ofw_name(dev, 0, "serial", &sc->reset);
-	if (rv != 0) {
-		device_printf(dev, "Cannot get 'serial' reset\n");
-		return (ENXIO);
-	}
-	rv = hwreset_deassert(sc->reset);
-	if (rv != 0) {
-		device_printf(dev, "Cannot unreset 'serial' reset\n");
-		return (ENXIO);
-	}*/
+
 	node = ofw_bus_get_node(dev);
 	shift = uart_fdt_get_shift1(node);
-	/*rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
+	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get UART clock: %d\n", rv);
 		return (ENXIO);
@@ -218,8 +207,8 @@ mdtk_uart_probe(device_t dev)
 	if (rv != 0) {
 		device_printf(dev, "Cannot enable UART clock: %d\n", rv);
 		return (ENXIO);
-	}*/
-	freq = 25000000;
+	}
+
 	return (uart_bus_probe(dev, shift, 0, (int)freq, 0, 0, 0));
 }
 
