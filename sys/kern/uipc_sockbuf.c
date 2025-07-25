@@ -779,6 +779,7 @@ sbsetopt(struct socket *so, struct sockopt *sopt)
 		 * high-water.
 		 */
 		*lowat = (cc > *hiwat) ? *hiwat : cc;
+		*flags &= ~SB_AUTOLOWAT;
 		break;
 	}
 
