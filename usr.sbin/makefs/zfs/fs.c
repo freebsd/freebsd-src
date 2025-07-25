@@ -384,22 +384,34 @@ fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
 		links = 1; /* .. */
 		objsize = 1; /* .. */
 
-		/*
-		 * The size of a ZPL directory is the number of entries
-		 * (including "." and ".."), and the link count is the number of
-		 * entries which are directories (including "." and "..").
-		 */
-		for (fsnode *c = fsnode_isroot(cur) ? cur->next : cur->child;
-		    c != NULL; c = c->next) {
-			switch (c->type) {
-			case S_IFDIR:
-				links++;
-				/* FALLTHROUGH */
-			case S_IFREG:
-			case S_IFLNK:
-				objsize++;
-				break;
+		if ((cur->inode->flags & FI_ROOT) == 0 ) {
+			/*
+			 * The size of a ZPL directory is the number of entries
+			 * (including "." and ".."), and the link count is the
+			 * number of entries which are directories
+			 * (including "." and "..").
+			 */
+			for (fsnode *c =
+			    fsnode_isroot(cur) ? cur->next : cur->child;
+			    c != NULL; c = c->next) {
+				switch (c->type) {
+				case S_IFDIR:
+					links++;
+					/* FALLTHROUGH */
+				case S_IFREG:
+				case S_IFLNK:
+					objsize++;
+					break;
+				}
 			}
+		} else {
+			/*
+			 * Root directory children do belong to
+			 * different dataset and this directory is
+			 * empty in the current objset.
+			 */
+			links++;        /* . */
+			objsize++;      /* . */
 		}
 
 		/* The root directory is its own parent. */
