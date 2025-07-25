@@ -866,6 +866,49 @@ c_follow(OPTION *option, char ***argvp __unused)
 	return palloc(option);
 }
 
+/*
+ * -fprint functions --
+ *
+ *	Always true, causes the current pathname to be written to
+ *	specified file followed by a newline
+ */
+int
+f_fprint(PLAN *plan, FTSENT *entry)
+{
+	fprintf(plan->fprint_file, "%s\n", entry->fts_path);
+	return 1;
+}
+
+PLAN *
+c_fprint(OPTION *option, char ***argvp)
+{
+	PLAN *new;
+	char *fn;
+
+	isoutput = 1;
+
+	new = palloc(option);
+	fn = nextarg(option, argvp);
+	new->fprint_file = fopen(fn, "w");
+	if (new->fprint_file == NULL)
+		err(1, "fprint: cannot create %s", fn);
+
+	return (new);
+}
+
+/*
+ * -fprint0 functions --
+ *
+ *	Always true, causes the current pathname to be written to
+ *	specified file followed by a NUL
+ */
+int
+f_fprint0(PLAN *plan, FTSENT *entry)
+{
+	fprintf(plan->fprint_file, "%s%c", entry->fts_path, '\0');
+	return 1;
+}
+
 #if HAVE_STRUCT_STATFS_F_FSTYPENAME
 /*
  * -fstype functions --

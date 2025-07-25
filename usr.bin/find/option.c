@@ -83,8 +83,8 @@ static OPTION const options[] = {
 #endif
 // -fls
 	{ "-follow",	c_follow,	f_always_true,	0 },
-// -fprint
-// -fprint0
+	{ "-fprint",	c_fprint,	f_fprint,	0 },
+	{ "-fprint0",	c_fprint,	f_fprint0,	0 },
 // -fprintf
 #if HAVE_STRUCT_STATFS_F_FSTYPENAME
 	{ "-fstype",	c_fstype,	f_fstype,	0 },
