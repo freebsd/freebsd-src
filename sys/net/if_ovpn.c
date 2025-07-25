@@ -2521,6 +2521,7 @@ ovpn_clone_destroy_cb(struct epoch_context *ctx)
 
 	COUNTER_ARRAY_FREE(sc->counters, OVPN_COUNTER_SIZE);
 
+	rm_destroy(&sc->lock);
 	if_free(sc->ifp);
 	free(sc, M_OVPN);
 }
