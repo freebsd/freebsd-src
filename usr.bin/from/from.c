@@ -30,8 +30,11 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
+
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,6 +58,7 @@ main(int argc, char **argv)
 #else
 	char buf[BUFSIZ];
 #endif
+	cap_rights_t rights;
 
 	file = sender = NULL;
 	count = -1;
@@ -95,12 +99,15 @@ main(int argc, char **argv)
 	}
 
 	/* read from stdin */
-	if (strcmp(file, "-") == 0) {
+	if (strcmp(file, "-") == 0)
 		mbox = stdin;
-	} 
-	else if ((mbox = fopen(file, "r")) == NULL) {
+	else if ((mbox = fopen(file, "r")) == NULL)
 		errx(1, "can't read %s", file);
-	}
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+	cap_rights_init(&rights, CAP_READ);
+	if (cap_rights_limit(fileno(mbox), &rights) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "unable to limit rights");
 	for (newline = 1; fgets(buf, sizeof(buf), mbox);) {
 		if (*buf == '\n') {
 			newline = 1;
@@ -119,14 +126,14 @@ main(int argc, char **argv)
 		printf("There %s %d message%s in your incoming mailbox.\n",
 		    count == 1 ? "is" : "are", count, count == 1 ? "" : "s"); 
 	fclose(mbox);
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 static void
 usage(void)
 {
 	fprintf(stderr, "usage: from [-c] [-f file] [-s sender] [user]\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 static int
@@ -137,14 +144,14 @@ match(const char *line, const char *sender)
 
 	for (first = *sender++;;) {
 		if (isspace(ch = *line))
-			return(0);
+			return(EXIT_SUCCESS);
 		++line;
 		ch = tolower(ch);
 		if (ch != first)
 			continue;
 		for (p = sender, t = line;;) {
 			if (!(pch = *p++))
-				return(1);
+				return(EXIT_FAILURE);
 			ch = tolower(*t);
 			t++;
 			if (ch != pch)
