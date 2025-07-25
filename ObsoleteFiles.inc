@@ -62,6 +62,7 @@ OLD_FILES+=usr/include/t_test.h
 OLD_FILES+=usr/include/dyn.h
 OLD_FILES+=usr/include/dynP.h
 OLD_FILES+=usr/include/gssrpcint.h
+OLD_FILES+=usr/include/import_err.h
 OLD_FILES+=usr/share/man/man5/profile.5.gz
 OLD_FILES+=usr/share/man/man8/kamdin.local.8.gz
 
