@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 20, 2021
+.Dd July 25, 2025
 .Dt CHROOT 8
 .Os
 .Sh NAME
@@ -52,13 +52,15 @@ or an interactive copy of the user's login shell.
 The options are as follows:
 .Bl -tag -width "-G group[,group ...]"
 .It Fl G Ar group Ns Op Cm \&, Ns Ar group  ...
-Run the command with the permissions of the specified groups.
+Run the command with the specified groups as supplementary groups.
 .It Fl g Ar group
-Run the command with the permissions of the specified
-.Ar group .
+Run the command with the specified
+.Ar group
+as the real, effective and saved groups.
 .It Fl u Ar user
-Run the command as the
-.Ar user .
+Run the command with the specified
+.Ar user
+as the real, effective and saved users.
 .It Fl n
 Use the
 .Dv PROC_NO_NEW_PRIVS_CTL
