@@ -33,9 +33,10 @@ and need discussion, or changes that require specialized review.
 
 A pull request will be considered if:
 
+* The request is substantive in nature. We generally don't accept minor or cosmetic changes unless they are part of larger work in that area. Pull requests should solve a real, actual problem.
 * It is ready or nearly ready to be committed. A committer should be able to land the pull request with less than 10 minutes of additional work.
 * It passes all the GitHub CI jobs.
-* You can respond to feedback quickly.
+* You can respond to feedback quickly. If feedback is requested and one month passes without a response we may close the pull request.
 * It touches fewer than about 10 files and the changes are less than about 200 lines. Changes larger than this may be OK, or you may be asked to submit multiple pull requests of a more manageable size.
 * Each logical change is a separate commit within the pull request. Commit messages for each change should follow the [commit log message guide](https://docs.freebsd.org/en/articles/committers-guide/#commit-log-message).
 * All commits have, as the author, your name and valid email address as you would like to see them in the FreeBSD repository. Fake github.com addresses cannot be used.
@@ -43,11 +44,14 @@ A pull request will be considered if:
 * Fixup commits should be squashed with the commit they are fixing. Each commit in your branch should be suitable for FreeBSD's repository.
 * Commits should include one or more `Signed-off-by:` lines with full name and email address certifying [Developer Certificate of Origin](https://developercertificate.org/).
 * The commits follow FreeBSD's style guide. See [Style](#Style).
-* Run tools/build/checkstyle9.pl on your Git branch and eliminate all errors.
+* Run tools/build/checkstyle9.pl on your Git branch and eliminate all errors, or provide an explanation for exceptions.
 * The commits do not introduce trailing white space.
-* If the commit fixes a bug, please add 'PR: \<bugnumber\>' to the commit message.
-* If there's a code review in Phabricator, please include a link as a 'Differential Revision: ' line.
+* If the commit fixes a bug, please add 'PR: \<bugnumber\>' to the commit message to document the Bugzilla Problem Report number.
+* If there's a code review related to this change, please include its URL in the commit message. However, where possible, please do not open both a differential review and a GitHub pull request.
 * If you have run FreeBSD's sources through a static analysis tool, please don't submit the raw results. Please also see the chunking up guidelines. Also, please make sure that kyua tests are the same before / after your change. Ideally, you'd also create a test case that shows an actual bug that's being fixed by these changes.
+* FreeBSD committers submitting pull requests are responsible for pushing them into the tree (possibly with approval if cross-repo commit bit policy needs it). Pull requests by FreeBSD committers will be closed after a month unless there's a very good reason not to.
+* Submissions using generative AI will be rejected.
+* Submissions from AI chatbots will result in the account being banned.
 
 When updating your pull request, please rebase with a forced push rather than a
 merge commit.
@@ -70,7 +74,8 @@ so. While the project strives to have a uniform coding style, our style offers a
 range of choices making some 'cleanups' ambiguous at best. Also, some files have
 their own consistent style that deviates from style(9). Style changes take
 volunteer time to process, but that time can be quite limited, so please be
-respectful.
+respectful. Trivial spelling changes should generally not be made in isolation
+as they usually add little value, but do take up valuable volunteer time.
 
 The current theory for pull requests on GitHub is to facilitate inclusion in the
 project. The guidelines are streamlined for quick decisions about each pull
@@ -90,7 +95,8 @@ closing it.
 We require that contributions are associated with a unique identity.
 The author email address should not be `<something>@users.noreply.github.com`.
 Do note that your name and email address will become a permanent and immutable
-part of the public Git history of the FreeBSD source tree.
+part of the public Git history of the FreeBSD source tree. Authors that use
+pseudonyms will be considered on a case by case basis.
 
 ## Style
 
@@ -128,7 +134,7 @@ not present in FreeBSD's [shell](https://man.freebsd.org/cgi/man.cgi?query=sh&se
 
 ## Signed-off-by
 
-Other projects use Signed-off-by to create a paper trail for contributions they
+Other projects mandate Signed-off-by to create a paper trail for contributions they
 receive. The Developer Certificate of Origin is an attestation that the person
 making the contribution can do it under the current license of the file. Other
 projects that have 'delegated' hierarchies also use it when maintainers
