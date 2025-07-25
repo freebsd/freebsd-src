@@ -204,7 +204,8 @@ static int ovpn_encap(struct ovpn_softc *, uint32_t, struct mbuf *);
 static int ovpn_get_af(struct mbuf *);
 static void ovpn_free_kkey_dir(struct ovpn_kkey_dir *);
 static bool ovpn_check_replay(struct ovpn_kkey_dir *, uint32_t);
-static int ovpn_peer_compare(struct ovpn_kpeer *, struct ovpn_kpeer *);
+static int ovpn_peer_compare(const struct ovpn_kpeer *,
+    const struct ovpn_kpeer *);
 
 static RB_PROTOTYPE(ovpn_kpeers, ovpn_kpeer, tree, ovpn_peer_compare);
 static RB_GENERATE(ovpn_kpeers, ovpn_kpeer, tree, ovpn_peer_compare);
@@ -277,7 +278,7 @@ SYSCTL_INT(_net_link_openvpn, OID_AUTO, netisr_queue,
 	"Use netisr_queue() rather than netisr_dispatch().");
 
 static int
-ovpn_peer_compare(struct ovpn_kpeer *a, struct ovpn_kpeer *b)
+ovpn_peer_compare(const struct ovpn_kpeer *a, const struct ovpn_kpeer *b)
 {
 	return (a->peerid - b->peerid);
 }
@@ -303,15 +304,15 @@ ovpn_find_only_peer(struct ovpn_softc *sc)
 }
 
 static uint16_t
-ovpn_get_port(struct sockaddr_storage *s)
+ovpn_get_port(const struct sockaddr_storage *s)
 {
 	switch (s->ss_family) {
 	case AF_INET: {
-		struct sockaddr_in *in = (struct sockaddr_in *)s;
+		const struct sockaddr_in *in = (const struct sockaddr_in *)s;
 		return (in->sin_port);
 	}
 	case AF_INET6: {
-		struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)s;
+		const struct sockaddr_in6 *in6 = (const struct sockaddr_in6 *)s;
 		return (in6->sin6_port);
 	}
 	default:
