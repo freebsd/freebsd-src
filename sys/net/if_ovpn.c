@@ -635,6 +635,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 		 * a new one.
 		 */
 		ret = udp_set_kernel_tunneling(sc->so, NULL, NULL, NULL);
+		MPASS(ret == 0);
 		sorele(sc->so);
 		sc->so = NULL;
 	}
