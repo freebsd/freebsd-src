@@ -46,7 +46,9 @@ local function select_packages(pkg, media, all_libcompats)
 			table.insert(components["src"], package)
 		elseif package == "FreeBSD-tests" or package:match("^FreeBSD%-tests%-.*") then
 			table.insert(components["tests"], package)
-		elseif package:match("^FreeBSD%-kernel%-.*") then
+		elseif package:match("^FreeBSD%-kernel%-.*") and
+			package ~= "FreeBSD-kernel-man"
+		then
 			-- Kernels other than FreeBSD-kernel-generic are ignored
 			if package == "FreeBSD-kernel-generic" then
 				table.insert(components["kernel"], package)
