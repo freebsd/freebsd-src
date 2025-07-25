@@ -217,8 +217,9 @@ bridge_status(if_ctx *ctx)
 		printf("%s%s ", prefix, member->ifbr_ifsname);
 		printb("flags", member->ifbr_ifsflags, IFBIFBITS);
 		printf("\n%s", pad);
-		printf("ifmaxaddr %u port %u priority %u path cost %u",
-		    member->ifbr_addrmax,
+		if (member->ifbr_addrmax != 0)
+			printf("ifmaxaddr %u ", member->ifbr_addrmax);
+		printf("port %u priority %u path cost %u",
 		    member->ifbr_portno,
 		    member->ifbr_priority,
 		    member->ifbr_path_cost);
