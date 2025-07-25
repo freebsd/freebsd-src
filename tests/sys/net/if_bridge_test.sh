@@ -537,7 +537,7 @@ get_mtu()
 {
 	intf=$1
 
-	ifconfig ${intf} ether | awk '$5 == "mtu" { print $6 }'
+	ifconfig ${intf} | awk '$5 == "mtu" { print $6 }'
 }
 
 check_mtu()
@@ -546,7 +546,7 @@ check_mtu()
 	expected=$2
 
 	mtu=$(get_mtu $intf)
-	if [ $mtu -ne $expected ];
+	if [ "$mtu" -ne "$expected" ];
 	then
 		atf_fail "Expected MTU of $expected on $intf but found $mtu"
 	fi
