@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 23, 2011
+.Dd July 25, 2025
 .Dt CRASH 8
 .Os
 .Sh NAME
@@ -71,18 +71,19 @@ Left unstated in all cases is the possibility that hardware or software
 error produced the message in some unexpected way.
 .Pp
 .Bl -diag -compact
-.It "cannot mount root"
-This panic message results from a failure to mount the root file system
-during the bootstrap process.
-Either the root file system has been corrupted,
-or the system is attempting to use the wrong device as root file system.
-Usually, an alternate copy of the system binary or an alternate root
-file system can be used to bring up the system to investigate.
-Most often
-this is done by the use of the boot floppy you used to install the system,
-and then using the
-.Dq fixit
-floppy.
+.It Mounting from <device> failed with error <err>
+The system was unable to mount the configured root filesystem.
+Either the root filesystem has been corrupted,
+or the system is attempting to use the wrong device as root filesystem.
+.Pp
+This is not a panic message; rather it is followed by an interactive
+.Sy mountroot>
+prompt where the operator can list detected devices and filesystems,
+and select an alternative root filesystem to mount.
+Alternatively, the system can be booted from recovery media to repair
+the situation.
+The system install media provides a live environment which is suitable
+for this task.
 .Pp
 .It "init: not found"
 This is not a panic message, as reboots are likely to be futile.
@@ -107,11 +108,6 @@ The problem generally results from a failure to repair damaged file systems
 after a crash, hardware failures, or other condition that should not
 normally occur.
 A file system check will normally correct the problem.
-.Pp
-.It "timeout table full"
-This really should not be a panic, but until the data structure
-involved is made to be extensible, running out of entries causes a crash.
-If this happens, make the timeout table bigger.
 .Pp
 .\" .It "trap type %d, code = %x, v = %x"
 .\" An unexpected trap has occurred within the system; the trap types are:
