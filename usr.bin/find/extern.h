@@ -44,6 +44,8 @@ void	 printlong(char *, char *, struct stat *);
 int	 queryuser(char **);
 OPTION	*lookup_option(const char *);
 void	 finish_execplus(void);
+void	 do_printf(PLAN *plan, FTSENT *entry, FILE *fout);
+
 
 creat_f	c_Xmin;
 creat_f	c_Xtime;
@@ -68,6 +70,7 @@ creat_f	c_nogroup;
 creat_f	c_nouser;
 creat_f	c_perm;
 creat_f	c_print;
+creat_f	c_printf;
 creat_f	c_regex;
 creat_f	c_samefile;
 creat_f	c_simple;
@@ -106,6 +109,7 @@ exec_f	f_path;
 exec_f	f_perm;
 exec_f	f_print;
 exec_f	f_print0;
+exec_f	f_printf;
 exec_f	f_prune;
 exec_f	f_quit;
 exec_f	f_readable;

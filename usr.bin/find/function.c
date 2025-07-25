@@ -1389,6 +1389,33 @@ f_print0(PLAN *plan __unused, FTSENT *entry)
 /* c_print0 is the same as c_print */
 
 /*
+ * -printf functions --
+ *
+ *	Always true. Causes information as specified in the
+ *	argument to be written to standard output.
+ */
+int
+f_printf(PLAN *plan, FTSENT *entry)
+{
+	do_printf(plan, entry, stdout);
+	return 1;
+}
+
+PLAN *
+c_printf(OPTION *option, char ***argvp)
+{
+	PLAN *new;
+
+	isoutput = 1;
+	ftsoptions &= ~FTS_NOSTAT;
+
+	new = palloc(option);
+	new->c_data = nextarg(option, argvp);
+
+	return (new);
+}
+
+/*
  * -prune functions --
  *
  *	Prune a portion of the hierarchy.

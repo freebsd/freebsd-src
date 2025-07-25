@@ -97,6 +97,8 @@ typedef	struct _plandata *creat_f(struct _option *, char ***);
 #define	F_TIME2_B	0x00080000	/* one of -newer?B */
 #endif
 #define F_LINK		0x00100000	/* lname or ilname */
+/* Notes about execution */
+#define F_HAS_WARNED	0x10000000	/* Has issued a warning for maybe bad input */
 
 /* node definition */
 typedef struct _plandata {

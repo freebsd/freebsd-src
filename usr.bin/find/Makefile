@@ -3,7 +3,7 @@
 PACKAGE=	runtime
 
 PROG=	find
-SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c \
+SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c printf.c \
 	getdate.y
 YFLAGS=
 CFLAGS.clang+=	-Werror=undef
