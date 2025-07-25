@@ -164,7 +164,7 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		goto out;
 
 	so->so_rcv.sb_flags |= SB_AUTOSIZE;
-	so->so_snd.sb_flags |= SB_AUTOSIZE;
+	so->so_snd.sb_flags |= (SB_AUTOLOWAT | SB_AUTOSIZE);
 	error = in_pcballoc(so, &V_tcbinfo);
 	if (error)
 		goto out;

@@ -1211,7 +1211,8 @@ solisten_clone(struct socket *head)
 	so->so_rcv.sb_timeo = head->sol_sbrcv_timeo;
 	so->so_snd.sb_timeo = head->sol_sbsnd_timeo;
 	so->so_rcv.sb_flags = head->sol_sbrcv_flags & SB_AUTOSIZE;
-	so->so_snd.sb_flags = head->sol_sbsnd_flags & SB_AUTOSIZE;
+	so->so_snd.sb_flags = head->sol_sbsnd_flags &
+	    (SB_AUTOSIZE | SB_AUTOLOWAT);
 	if ((so->so_proto->pr_flags & PR_SOCKBUF) == 0) {
 		so->so_snd.sb_mtx = &so->so_snd_mtx;
 		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
@@ -4514,6 +4515,9 @@ sokqfilter_generic(struct socket *so, struct knote *kn)
 		SOCK_BUF_LOCK(so, which);
 		knlist_add(knl, kn, 1);
 		sb->sb_flags |= SB_KNOTE;
+		if ((kn->kn_sfflags & NOTE_LOWAT) &&
+		    (sb->sb_flags & SB_AUTOLOWAT))
+			sb->sb_flags &= ~SB_AUTOLOWAT;
 		SOCK_BUF_UNLOCK(so, which);
 	}
 	SOCK_UNLOCK(so);
