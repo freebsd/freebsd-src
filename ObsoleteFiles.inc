@@ -63,6 +63,14 @@ OLD_FILES+=usr/include/dyn.h
 OLD_FILES+=usr/include/dynP.h
 OLD_FILES+=usr/include/gssrpcint.h
 OLD_FILES+=usr/include/import_err.h
+OLD_FILES+=usr/share/man/man3/db_btree.3.gz
+OLD_FILES+=usr/share/man/man3/db_hash.3.gz
+OLD_FILES+=usr/share/man/man3/db_lock.3.gz
+OLD_FILES+=usr/share/man/man3/db_log.3.gz
+OLD_FILES+=usr/share/man/man3/db_mpool.3.gz
+OLD_FILES+=usr/share/man/man3/db_open.3.gz
+OLD_FILES+=usr/share/man/man3/db_recno.3.gz
+OLD_FILES+=usr/share/man/man3/db_txn.3.gz
 OLD_FILES+=usr/share/man/man5/profile.5.gz
 OLD_FILES+=usr/share/man/man8/kamdin.local.8.gz
 
