@@ -76,13 +76,10 @@ are as specified to the
 .Xr open 2
 routine, however, only the
 .Dv O_CREAT , O_EXCL , O_EXLOCK , O_NOFOLLOW , O_NONBLOCK ,
-.Dv O_RDONLY , O_RDWR , O_SHLOCK , O_SYNC
+.Dv O_RDONLY , O_RDWR , O_SHLOCK , O_SYNC, O_WRONLY,
 and
 .Dv O_TRUNC
 flags are meaningful.
-(Note, opening a database file
-.Dv O_WRONLY
-is not possible.)
 .\"Three additional options may be specified by
 .\".Em or Ns 'ing
 .\"them into the
