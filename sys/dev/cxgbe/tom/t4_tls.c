@@ -563,7 +563,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		 * If there is no ready data to send, wait until more
 		 * data arrives.
 		 */
-		if (m == NULL || (m->m_flags & M_NOTAVAIL) != 0) {
+		if (m == NULL || (m->m_flags & M_NOTREADY) != 0) {
 			if (sowwakeup)
 				sowwakeup_locked(so);
 			else
@@ -614,7 +614,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 
 		/* Shove if there is no additional data pending. */
 		shove = ((m->m_next == NULL ||
-		    (m->m_next->m_flags & M_NOTAVAIL) != 0)) &&
+		    (m->m_next->m_flags & M_NOTREADY) != 0)) &&
 		    (tp->t_flags & TF_MORETOCOME) == 0;
 
 		if (sb->sb_flags & SB_AUTOSIZE &&

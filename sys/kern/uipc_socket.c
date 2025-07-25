@@ -3342,7 +3342,7 @@ deliver:
 			for (m = sb->sb_mb;
 			     m != NULL && m->m_len <= len;
 			     m = m->m_next) {
-				KASSERT(!(m->m_flags & M_NOTAVAIL),
+				KASSERT(!(m->m_flags & M_NOTREADY),
 				    ("%s: m %p not available", __func__, m));
 				len -= m->m_len;
 				uio->uio_resid -= m->m_len;
