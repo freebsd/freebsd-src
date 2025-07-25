@@ -49,6 +49,7 @@ CFLAGS+=-I${KRB5_DIR}/plugins/kdb/db2 \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
 	-I${KRB5_DIR}/lib/kdb \
+	-I${KRB5_DIR}/lib \
 	-I${KRB5_OBJTOP}/plugins/kdb/db2 \
 	-I${KRB5_OBJTOP}/lib/kdb
 
