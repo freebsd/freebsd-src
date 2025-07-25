@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.12 2005/10/04 08:46:50 brandt_h Exp $
 .\"
-.Dd March 31, 2020
+.Dd June 24, 2025
 .Dt BSNMPCLIENT 3
 .Os
 .Sh NAME
@@ -155,7 +155,7 @@ struct snmp_client {
 	snmp_timeout_start_f	timeout_start;
 	snmp_timeout_stop_f	timeout_stop;
 
-	char			local_path[sizeof(SNMP_LOCAL_PATH)];
+	char			local_path[SUNPATHLEN];
 };
 .Ed
 .Pp
@@ -285,8 +285,19 @@ The function will be called with the return value of the corresponding
 .Fn timeout_start
 function.
 .It Va local_path
-If in local socket mode, the name of the clients socket.
-Not needed by the application.
+In local socket mode, optional path name the client socket shall be bound to
+before connecting to the server.
+For
+.Dv SOCK_STREAM
+local socket the named path is optional, and library will skip
+.Xr bind 2
+if path is not provided.
+For
+.Dv SOCK_DGRAM
+local socket the named path is required, thus library will create a random
+one in
+.Pa /tmp
+if path is not provided.
 .El
 .Pp
 In the current implementation there is a global variable

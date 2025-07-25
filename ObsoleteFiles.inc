@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250725: libbsnmp bumped to version 7
+OLD_LIBS+=usr/lib/libbsnmp.so.6
+
 # 20250725: Files which were briefly installed by WITH_MITKRB5 in 15.0.
 OLD_FILES+=usr/include/kadm5/admin_internal.h
 OLD_FILES+=usr/include/kadm5/admin_xdr.h
