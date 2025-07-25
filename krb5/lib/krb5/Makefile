@@ -50,19 +50,24 @@ CFLAGS+=${DEFINES} \
 	-I${KRB5_SRCTOP}/include \
 	-I${KRB5_DIR}
 
-MAN=	k5identity.5 \
-	k5login.5 \
-	kadm5.acl.5 \
-	kdc.conf.5 \
-	krb5.conf.5 \
-	kerberos.7
+MANGROUPS=	KRB5
+KRB5=		k5identity.5 \
+		k5login.5 \
+		krb5.conf.5 \
+		kerberos.7
+KRB5PACKAGE=	kerberos
+KRB5LINKS=k5identity.5 .k5identity.5
+KRB5LINKS+=k5login.5 .k5login.5
 
-MLINKS= k5identity.5 .k5identity.5
-MLINKS+=k5login.5 .k5login.5
+MANGROUPS+=	KDC
+KDC=		kadm5.acl.5 \
+		kdc.conf.5
+KDCPACKAGE=	kerberos-kdc
+
 
 .include <bsd.lib.mk>
 
-.SUFFIXES: .h .c .et .man .5 .7
+.SUFFIXES: .et .man
 
 .man.5:
 	@cp ${.ALLSRC} ${.TARGET}
