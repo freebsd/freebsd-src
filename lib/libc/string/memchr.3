@@ -34,7 +34,7 @@
 .Os
 .Sh NAME
 .Nm memchr
-.Nd locate byte in byte string
+.Nd locate byte in memory object
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -51,7 +51,7 @@ locates the first occurrence of
 .Fa c
 (converted to an
 .Vt "unsigned char" )
-in string
+in object
 .Fa b ,
 limited to at most
 .Fa len
@@ -63,7 +63,7 @@ function behaves like
 .Fn memchr ,
 except that it locates the last occurrence of
 .Fa c
-in string
+in object
 .Fa b ,
 limited to the first
 .Fa len
