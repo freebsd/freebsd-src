@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+9ba51cce8bbd:
+	bsnmpd(1) no longer supports legacy UDP transport.  Users, that have
+	not updated their /etc/snmpd.config since 12.0-RELEASE or older will
+	need to merge in the new configuration.  In particular, the transport
+	definition shall be changed from begemotSnmpdPortStatus OID to
+	begemotSnmpdTransInetStatus.
+
 1349a733cf28:
 	Add a driver supporting a new storage controller interface,
 	Universal Flash Storage Host Controller Interface, supporting
