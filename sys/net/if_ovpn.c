@@ -372,33 +372,6 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 	return (0);
 }
 
-static bool
-ovpn_has_peers(struct ovpn_softc *sc)
-{
-	OVPN_ASSERT(sc);
-
-	return (sc->peercount > 0);
-}
-
-static void
-ovpn_rele_so(struct ovpn_softc *sc)
-{
-	bool has_peers;
-
-	OVPN_WASSERT(sc);
-
-	if (sc->so == NULL)
-		return;
-
-	has_peers = ovpn_has_peers(sc);
-
-	if (! has_peers) {
-		MPASS(sc->peercount == 0);
-	} else {
-		MPASS(sc->peercount > 0);
-	}
-}
-
 static void
 ovpn_notify_del_peer(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
 {
@@ -486,8 +459,6 @@ ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 		ovpn_free_kkey_dir(peer->keys[i].encrypt);
 		ovpn_free_kkey_dir(peer->keys[i].decrypt);
 	}
-
-	ovpn_rele_so(sc);
 
 	callout_stop(&peer->ping_send);
 	callout_stop(&peer->ping_rcv);
