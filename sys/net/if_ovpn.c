@@ -320,6 +320,25 @@ ovpn_get_port(const struct sockaddr_storage *s)
 	}
 }
 
+static void
+ovpn_set_port(struct sockaddr_storage *s, unsigned short port)
+{
+	switch (s->ss_family) {
+	case AF_INET: {
+		struct sockaddr_in *in = (struct sockaddr_in *)s;
+		in->sin_port = port;
+		break;
+	}
+	case AF_INET6: {
+		struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)s;
+		in6->sin6_port = port;
+		break;
+	}
+	default:
+		panic("Unsupported address family %d", s->ss_family);
+	}
+}
+
 static int
 ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 {
@@ -333,13 +352,14 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 		return (EINVAL);
 
 	af = nvlist_get_number(nvl, "af");
-
 	switch (af) {
 #ifdef INET
 	case AF_INET: {
 		struct sockaddr_in *in = (struct sockaddr_in *)sa;
 		size_t len;
 		const void *addr = nvlist_get_binary(nvl, "address", &len);
+
+		memset(in, 0, sizeof(*in));
 		in->sin_family = af;
 		if (len != sizeof(in->sin_addr))
 			return (EINVAL);
@@ -354,6 +374,8 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 		struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)sa;
 		size_t len;
 		const void *addr = nvlist_get_binary(nvl, "address", &len);
+
+		memset(in6, 0, sizeof(*in6));
 		in6->sin6_family = af;
 		if (len != sizeof(in6->sin6_addr))
 			return (EINVAL);
@@ -506,7 +528,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 #ifdef INET6
 	struct epoch_tracker et;
 #endif
-	struct sockaddr_storage remote;
+	struct sockaddr_storage local, remote;
 	struct ovpn_kpeer *peer = NULL;
 	struct file *fp = NULL;
 	struct sockaddr *name = NULL;
@@ -578,19 +600,37 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	ret = so->so_proto->pr_sockaddr(so, &name);
 	if (ret)
 		goto error;
-
-	if (ovpn_get_port((struct sockaddr_storage *)name) == 0) {
-		ret = EINVAL;
-		goto error;
-	}
-	if (name->sa_family != remote.ss_family) {
-		ret = EINVAL;
-		goto error;
-	}
-
-	memcpy(&peer->local, name, name->sa_len);
-	memcpy(&peer->remote, &remote, sizeof(remote));
+	memset(&local, 0, sizeof(local));
+	memcpy(&local, name, name->sa_len);
 	free(name, M_SONAME);
+	name = NULL;
+	if (nvlist_exists_nvlist(nvl, "local")) {
+		struct sockaddr_storage local1;
+
+		ret = ovpn_nvlist_to_sockaddr(nvlist_get_nvlist(nvl, "local"),
+		    &local1);
+		if (ret != 0)
+			goto error;
+
+		/*
+		 * openvpn doesn't provide a port here when in multihome mode,
+		 * just steal the one the socket is bound to.
+		 */
+		if (ovpn_get_port(&local1) == 0)
+			ovpn_set_port(&local1, ovpn_get_port(&local));
+		memcpy(&local, &local1, sizeof(local1));
+	}
+	if (ovpn_get_port(&local) == 0) {
+		ret = EINVAL;
+		goto error;
+	}
+	if (local.ss_family != remote.ss_family) {
+		ret = EINVAL;
+		goto error;
+	}
+
+	memcpy(&peer->local, &local, sizeof(local));
+	memcpy(&peer->remote, &remote, sizeof(remote));
 	name = NULL;
 
 #ifdef INET6
