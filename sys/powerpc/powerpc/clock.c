@@ -61,7 +61,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/sysctl.h>
 #include <sys/timeet.h>
@@ -72,7 +71,7 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
