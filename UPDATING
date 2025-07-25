@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250725:
+	gssd(8) has been moved to a new package, FreeBSD-gssd.  If you use
+	pkgbase and you need gssd, you should install this package.
+
 20250724:
 	The Kerberos packages which are built when WITH_MITKRB5 is enabled
 	have been renamed from FreeBSD-krb5* to FreeBSD-kerberos*.  This
