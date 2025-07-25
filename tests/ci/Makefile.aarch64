@@ -8,7 +8,7 @@
 # CI Makefile for aarch64.
 #
 QEMU_ARCH=aarch64
-QEMU_DEVICES=-device virtio-blk,drive=hd0 -device ahci,id=ahci
+QEMU_DEVICES=-device ahci,id=ahci
 QEMU_EXTRA_PARAM=-bios /usr/local/share/u-boot/u-boot-qemu-arm64/u-boot.bin -cpu cortex-a57
 QEMU_MAX_CPU_COUNT=64
 QEMU_MAX_MEM_SIZE=64

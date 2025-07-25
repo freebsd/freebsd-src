@@ -8,7 +8,6 @@
 # CI Makefile for riscv64.
 #
 QEMU_ARCH=riscv64
-QEMU_DEVICES=-device virtio-blk-device,drive=hd0
 QEMU_EXTRA_PARAM=-bios /usr/local/share/opensbi/lp64/generic/firmware/fw_jump.elf -kernel /usr/local/share/u-boot/u-boot-qemu-riscv64/u-boot.bin
 QEMU_MAX_CPU_COUNT=16
 QEMU_MAX_MEM_SIZE=64

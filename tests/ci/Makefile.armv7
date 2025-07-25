@@ -8,7 +8,7 @@
 # CI Makefile for armv7.
 #
 QEMU_ARCH=arm
-QEMU_DEVICES=-device virtio-blk,drive=hd0 -device ahci,id=ahci
+QEMU_DEVICES=-device ahci,id=ahci
 QEMU_EXTRA_PARAM=-bios /usr/local/share/u-boot/u-boot-qemu-arm/u-boot.bin
 QEMU_MAX_CPU_COUNT=1
 QEMU_MAX_MEM_SIZE=3
