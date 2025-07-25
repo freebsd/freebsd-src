@@ -1114,9 +1114,8 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 
 	size_t pos = 0;
 	const bool is_text_style = (xo_get_style(NULL) == XO_STYLE_TEXT);
-	xo_open_list("connections");
-	/* Remote peer we connect(2) to, if any. */
 	if (faddr->conn != 0) {
+		/* Remote peer we connect(2) to, if any. */
 		struct sock *p;
 		if (is_text_style)
 			pos += strlcpy(SAFEBUF, "-> ", SAFESIZE);
@@ -1136,18 +1135,19 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 						"[%lu %d]", (u_long)f->xf_pid,
 						f->xf_fd);
 				} else {
+					xo_open_list("connections");
 					xo_open_instance("connections");
 					xo_emit("{:pid/%lu}", (u_long)f->xf_pid);
 					xo_emit("{:fd/%d}", f->xf_fd);
 					xo_close_instance("connections");
+					xo_close_list("connections");
 				}
 			}
 		} else
 			pos += formataddr(&p->laddr->address,
 				SAFEBUF, SAFESIZE);
-	}
-	/* Remote peer(s) connect(2)ed to us, if any. */
-	if (faddr->firstref != 0) {
+	} else if (faddr->firstref != 0) {
+		/* Remote peer(s) connect(2)ed to us, if any. */
 		struct sock *p;
 		struct file *f;
 		kvaddr_t ref = faddr->firstref;
@@ -1155,6 +1155,7 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 
 		if (is_text_style)
 			pos += snprintf(SAFEBUF, SAFESIZE, " <- ");
+		xo_open_list("connections");
 		while ((p = RB_FIND(pcbs_t, &pcbs,
 			&(struct sock){ .pcb = ref })) != 0) {
 			f = RB_FIND(files_t, &ftree,
@@ -1174,8 +1175,8 @@ format_unix_faddr(struct addr *faddr, char *buf, size_t bufsize) {
 			ref = p->faddr->nextref;
 			fref = false;
 		}
+		xo_close_list("connections");
 	}
-	xo_close_list("connections");
 	return pos;
 }
 
