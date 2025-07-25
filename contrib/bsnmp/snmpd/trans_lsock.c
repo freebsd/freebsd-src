@@ -58,7 +58,7 @@ static int lsock_stop(int);
 static void lsock_close_port(struct tport *);
 static int lsock_init_port(struct tport *);
 static ssize_t lsock_send(struct tport *, const u_char *, size_t,
-    const struct sockaddr *, size_t);
+    struct port_input *);
 static ssize_t lsock_recv(struct tport *, struct port_input *);
 
 /* exported */
@@ -396,9 +396,9 @@ lsock_init_port(struct tport *tp)
  */
 static ssize_t
 lsock_send(struct tport *tp, const u_char *buf, size_t len,
-    const struct sockaddr *addr, size_t addrlen)
+    struct port_input *pi)
 {
-	struct lsock_port *p = (struct lsock_port *)tp;
+	struct lsock_port *p = __containerof(tp, struct lsock_port, tport);
 	struct lsock_peer *peer;
 
 	if (p->type == LOCP_DGRAM_PRIV || p->type == LOCP_DGRAM_UNPRIV) {
@@ -407,8 +407,8 @@ lsock_send(struct tport *tp, const u_char *buf, size_t len,
 	} else {
 		/* search for the peer */
 		LIST_FOREACH(peer, &p->peers, link)
-			if (peer->input.peerlen == addrlen &&
-			    memcmp(peer->input.peer, addr, addrlen) == 0)
+			if (peer->input.peerlen == pi->peerlen &&
+			    memcmp(peer->input.peer, pi->peer, pi->peerlen) == 0)
 				break;
 		if (peer == NULL) {
 			errno = ENOTCONN;
@@ -416,7 +416,8 @@ lsock_send(struct tport *tp, const u_char *buf, size_t len,
 		}
 	}
 
-	return (sendto(peer->input.fd, buf, len, MSG_NOSIGNAL, addr, addrlen));
+	return (sendto(peer->input.fd, buf, len, MSG_NOSIGNAL, pi->peer,
+	    pi->peerlen));
 }
 
 static void

@@ -375,17 +375,16 @@ inet_recv(struct tport *tp, struct port_input *pi)
  * \param tp		port
  * \param buf		data to send
  * \param len		number of bytes to send
- * \param addr		destination address
- * \param addlen	destination address length
+ * \param pi		destination
  *
  * \return number of bytes sent
  */
 static ssize_t
-inet_send2(struct tport *tp, const u_char *buf, size_t len,
+inet_send(struct tport *tp, const u_char *buf, size_t len,
     struct port_input *pi)
 {
 	struct inet_port *p = __containerof(tp, struct inet_port, tport);
-	struct port_sock *s = (pi == NULL) ?  TAILQ_FIRST(&p->socks) :
+	struct port_sock *s = (pi->fd == -1) ? TAILQ_FIRST(&p->socks) :
 	    __containerof(pi, struct port_sock, input);
 
 	struct iovec iov;
@@ -421,7 +420,7 @@ const struct transport_def inet_trans = {
 	.close_port = 	inet_destroy_port,
 	.init_port = 	inet_activate,
 	.recv = 	inet_recv,
-	.send2 = 	inet_send2,
+	.send = 	inet_send,
 };
 
 struct inet_port_params {
