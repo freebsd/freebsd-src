@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_ISNS_H
-#define	_ISNS_H
+#ifndef	__ISNS_HH__
+#define	__ISNS_HH__
 
 #define	ISNS_VERSION		0x0001
 
@@ -87,4 +87,4 @@ int isns_req_send(int s, struct isns_req *req);
 int isns_req_receive(int s, struct isns_req *req);
 uint32_t isns_req_get_status(struct isns_req *req);
 
-#endif /* _ISNS_H */
+#endif /* __ISNS_HH__ */

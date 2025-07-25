@@ -38,7 +38,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
-#include "ctld.h"
+#include "ctld.hh"
 #include "iscsi_proto.h"
 
 static struct pdu *
