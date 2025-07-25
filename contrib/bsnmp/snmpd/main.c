@@ -237,7 +237,6 @@ static struct request_info req;
 #endif
 
 /* transports */
-extern const struct transport_def udp_trans;
 extern const struct transport_def lsock_trans;
 
 struct transport_list transport_list = TAILQ_HEAD_INITIALIZER(transport_list);
@@ -1661,8 +1660,6 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "atexit failed: %m");
 		exit(1);
 	}
-	if (udp_trans.start() != SNMP_ERR_NOERROR)
-		syslog(LOG_WARNING, "cannot start UDP transport");
 	if (lsock_trans.start() != SNMP_ERR_NOERROR)
 		syslog(LOG_WARNING, "cannot start LSOCK transport");
 	if (inet_trans.start() != SNMP_ERR_NOERROR)
