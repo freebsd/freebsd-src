@@ -821,6 +821,17 @@ It prints the pathname of the current file to standard output, followed by an
 ASCII
 .Dv NUL
 character (character code 0).
+.It Ic -printf Ar fmt
+This primary always evaluates to true.
+It prints information about the file, interpreting
+.Sq \
+and
+.Sq %
+escape sequences as described in the PRINTF FORMATS section.
+Unlike
+.Ic -print ,
+.Ic -printf
+does not add a newline automatically.
 .It Ic -prune
 This primary always evaluates to true.
 It causes
@@ -993,6 +1004,79 @@ All operands and primaries must be separate arguments to
 Primaries which themselves take arguments expect each argument
 to be a separate argument to
 .Nm .
+.Sh PRINTF FORMATS
+The following
+.Sq \e
+escapes are recognized:
+.Bl -tag -width Ds -offset indent -compact
+.It Cm \ea
+Write a <bell> character.
+.It Cm \eb
+Write a <backspace> character.
+.It Cm \ec
+Writes no characters, but terminates the string and flushes the output so far
+after each match.
+.It Cm \ef
+Write a <form-feed> character.
+.It Cm \en
+Write a <new-line> character.
+.It Cm \er
+Write a <carriage return> character.
+.It Cm \et
+Write a <tab> character.
+.It Cm \ev
+Write a <vertical tab> character.
+.It Cm \e\'
+Write a <single quote> character.
+.It Cm \e\e
+Write a backslash character.
+.It Cm \e Ns Ar num
+Write a byte whose
+value is the 1-, 2-, or 3-digit
+octal number
+.Ar num .
+Multibyte characters can be constructed using multiple
+.Cm \e Ns Ar num
+sequences.
+.El
+.Pp
+Each format specification is introduced by the percent character
+(``%'').
+The remainder of the format specification includes,
+in the following order:
+.Bl -tag -width Ds
+.It "Zero or more of the following flags:"
+.Bl -tag -width Ds
+.It Cm #
+A `#' character, has no effect on almost all formats.
+It is not yet implemented.
+.It Cm \&\-
+A minus sign `\-' which specifies
+.Em left adjustment
+of the output in the indicated field;
+It is not yet implemented.
+.It "Field Width:"
+An optional digit string specifying a
+.Em field width ;
+if the output string has fewer bytes than the field width it will
+be blank-padded on the left (or right, if the left-adjustment indicator
+has been given) to make up the field width (note that a leading zero
+is a flag, but an embedded zero is part of a field width);
+It is not yet implemented.
+.It Precision:
+An optional period,
+.Sq Cm \&.\& ,
+followed by an optional digit string giving a
+.Em precision
+which specifies the maximum number of bytes to be printed
+from a string; if the digit string is missing, the precision is treated
+as zero;
+It is not yet implemented.
+.It Format:
+One or two characters, described below, which indicates the information to display.
+XXX need to write this.
+.El
+.El
 .Sh ENVIRONMENT
 The
 .Ev LANG , LC_ALL , LC_COLLATE , LC_CTYPE , LC_MESSAGES

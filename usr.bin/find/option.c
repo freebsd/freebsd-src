@@ -148,7 +148,7 @@ static OPTION const options[] = {
 	{ "-perm",	c_perm,		f_perm,		0 },
 	{ "-print",	c_print,	f_print,	0 },
 	{ "-print0",	c_print,	f_print0,	0 },
-// -printf
+	{ "-printf",	c_printf,	f_printf,	0 },
 	{ "-prune",	c_simple,	f_prune,	0 },
 	{ "-quit",	c_simple,	f_quit,		0 },
 	{ "-readable",	c_simple,	f_readable,	0 },
