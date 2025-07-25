@@ -881,12 +881,11 @@ parse_local_path(char *opt_arg)
 {
 	assert(opt_arg != NULL);
 
-	if (sizeof(opt_arg) > sizeof(SNMP_LOCAL_PATH)) {
+	if (strlcpy(snmp_client.local_path, opt_arg,
+	    sizeof(snmp_client.local_path)) >= sizeof(snmp_client.local_path)) {
 		warnx("Filename too long - %s", opt_arg);
 		return (-1);
 	}
-
-	strlcpy(snmp_client.local_path, opt_arg, sizeof(SNMP_LOCAL_PATH));
 	return (2);
 }
 

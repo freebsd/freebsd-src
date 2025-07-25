@@ -977,7 +977,10 @@ remove_local(void)
 static int
 open_client_local(const char *path)
 {
-	struct sockaddr_un sa;
+	struct sockaddr_un sa = {
+		.sun_family = AF_LOCAL,
+		.sun_len = sizeof(sa),
+	};
 	char *ptr;
 	int stype;
 
@@ -1003,43 +1006,56 @@ open_client_local(const char *path)
 		return (-1);
 	}
 
-	snprintf(snmp_client.local_path, sizeof(snmp_client.local_path),
-	    "%s", SNMP_LOCAL_PATH);
-
-	if (mktemp(snmp_client.local_path) == NULL) {
-		seterr(&snmp_client, "%s", strerror(errno));
-		(void)close(snmp_client.fd);
-		snmp_client.fd = -1;
-		return (-1);
+	/*
+	 * A datagram socket requires a name to receive replies back.  Would
+	 * be cool to have an extension to unix(4) sockets similar to ip(4)
+	 * IP_RECVDSTADDR/IP_SENDSRCADDR, so that a one-to-many datagram
+	 * UNIX socket can send replies to its anonymous peers.
+	 */
+	if (snmp_client.trans == SNMP_TRANS_LOC_DGRAM &&
+	    snmp_client.local_path[0] == '\0') {
+		(void)strlcpy(snmp_client.local_path, "/tmp/snmpXXXXXXXXXXXXXX",
+		    sizeof(snmp_client.local_path));
+		if (mktemp(snmp_client.local_path) == NULL) {
+			seterr(&snmp_client, "mktemp(3): %s", strerror(errno));
+			goto fail;
+		}
 	}
 
-	sa.sun_family = AF_LOCAL;
-	sa.sun_len = sizeof(sa);
-	strcpy(sa.sun_path, snmp_client.local_path);
-
-	if (bind(snmp_client.fd, (struct sockaddr *)&sa, sizeof(sa)) == -1) {
-		seterr(&snmp_client, "%s", strerror(errno));
-		(void)close(snmp_client.fd);
-		snmp_client.fd = -1;
-		(void)remove(snmp_client.local_path);
-		return (-1);
+	if (snmp_client.local_path[0] != '\0') {
+		if (strlcpy(sa.sun_path, snmp_client.local_path,
+		    sizeof(sa.sun_path)) >=
+		    sizeof(sa.sun_path)) {
+			seterr(&snmp_client, "%s",
+			    "Local socket pathname too long");
+			goto fail;
+		}
+		if (bind(snmp_client.fd, (struct sockaddr *)&sa, sizeof(sa)) ==
+		    -1) {
+			seterr(&snmp_client, "%s", strerror(errno));
+			goto fail;
+		}
+		atexit(remove_local);
 	}
-	atexit(remove_local);
 
-	sa.sun_family = AF_LOCAL;
-	sa.sun_len = offsetof(struct sockaddr_un, sun_path) +
-	    strlen(snmp_client.chost);
-	strncpy(sa.sun_path, snmp_client.chost, sizeof(sa.sun_path) - 1);
-	sa.sun_path[sizeof(sa.sun_path) - 1] = '\0';
+	if (strlcpy(sa.sun_path, snmp_client.chost, sizeof(sa.sun_path)) >=
+	    sizeof(sa.sun_path)) {
+		seterr(&snmp_client, "%s", "Server socket pathname too long");
+		goto fail;
+	}
 
 	if (connect(snmp_client.fd, (struct sockaddr *)&sa, sa.sun_len) == -1) {
 		seterr(&snmp_client, "%s", strerror(errno));
-		(void)close(snmp_client.fd);
-		snmp_client.fd = -1;
-		(void)remove(snmp_client.local_path);
-		return (-1);
+		goto fail;
 	}
 	return (0);
+
+fail:
+	(void)close(snmp_client.fd);
+	snmp_client.fd = -1;
+	if (snmp_client.local_path[0] != '\0')
+		(void)remove(snmp_client.local_path);
+	return (-1);
 }
 
 /*
