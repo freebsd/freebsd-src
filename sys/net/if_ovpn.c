@@ -79,7 +79,6 @@
 #include "if_ovpn.h"
 
 struct ovpn_kkey_dir {
-	int			refcount;
 	uint8_t			key[32];
 	uint8_t			keylen;
 	uint8_t			nonce[8];
