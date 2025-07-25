@@ -279,7 +279,7 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 		case 'c': /* status change time ctime */
 			fp_ctime(fp, sb->st_ctime);
 			break;
-		case 'C': /* statuc change time with next char strftime format */
+		case 'C': /* status change time with next char strftime format */
 			fp_strftime(fp, sb->st_ctime, *fmt++);
 			break;
 		case 't': /* modification change time ctime */
