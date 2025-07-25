@@ -63,6 +63,7 @@ OLD_FILES+=usr/include/dyn.h
 OLD_FILES+=usr/include/dynP.h
 OLD_FILES+=usr/include/gssrpcint.h
 OLD_FILES+=usr/share/man/man5/profile.5.gz
+OLD_FILES+=usr/share/man/man8/kamdin.local.8.gz
 
 # 20250716: Remove an old manual page, vn(4) was removed in FreeBSD 5.0
 OLD_FILES+=usr/share/man/man4/vn.4.gz
