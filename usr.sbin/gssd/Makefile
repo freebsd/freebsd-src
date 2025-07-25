@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=	kerberos
+PACKAGE=	gssd
 
 PROG=	gssd
 MAN=	gssd.8
