@@ -1,16 +1,17 @@
 .include <src.opts.mk>
 
-MAN=	builtin.1 intro.1
+MANGROUPS=	MAN
 
-.if ${MK_TESTS} != "no"
-ATF=	${SRCTOP}/contrib/atf
-.PATH:	${ATF}/doc
-MAN+=	atf-test-program.1
-.endif
+MANLINKS=	intro.1 introduction.1
+
+MANGROUPS+=	RUNTIME
+RUNTIME=	builtin.1 intro.1
+RUNTIMEPACKAGE=	runtime
 
 # Create MLINKS for Shell built in commands for which there are no userland
 # utilities of the same name:
-MLINKS=	builtin.1 alias.1 \
+RUNTIMELINKS=\
+	builtin.1 alias.1 \
 	builtin.1 alloc.1 \
 	builtin.1 bg.1 \
 	builtin.1 bind.1 \
@@ -96,6 +97,13 @@ MLINKS=	builtin.1 alias.1 \
 	builtin.1 wait.1 \
 	builtin.1 where.1 \
 	builtin.1 while.1
-MLINKS+=intro.1 introduction.1
+
+.if ${MK_TESTS} != "no"
+MANGROUPS+=	TESTS
+ATF=		${SRCTOP}/contrib/atf
+.PATH:		${ATF}/doc
+TESTS=		atf-test-program.1
+TESTSPACKAGE=	tests
+.endif
 
 .include <bsd.prog.mk>

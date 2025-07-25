@@ -1,5 +1,7 @@
 .include <src.opts.mk>
 
+PACKAGE=	clibs
+
 MAN=		alloca.3 \
 		arb.3 \
 		assert.3 \

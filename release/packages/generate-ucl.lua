@@ -54,8 +54,15 @@ pkg_suffixes = {
 	},
 }
 
+-- A list of packages which don't get the automatic suffix handling,
+-- e.g. -man packages with no corresponding base package.
+local no_suffix_pkgs = {
+	["kernel-man"] = true,
+}
+
 function add_suffixes(obj)
 	local pkgname = obj["name"]
+
 	for _,pattern in pairs(pkg_suffixes) do
 		if pkgname:match(pattern[1]) ~= nil then
 			obj["comment"] = obj["comment"] .. " " .. pattern[2]
@@ -76,6 +83,7 @@ local no_gen_deps = {
 	["libcompiler_rt-dev-lib32"] = true,
 	["liby-dev"] = true,
 	["liby-dev-lib32"] = true,
+	["kernel-man"] = true,
 }
 
 -- Return true if the package 'pkgname' should have a dependency on the package
@@ -163,7 +171,9 @@ if pkgprefix ~= nil and obj["deps"] ~= nil then
 end
 
 -- Add comment and desc suffix.
-add_suffixes(obj)
+if no_suffix_pkgs[pkgname] == nil then
+	add_suffixes(obj)
+end
 
 -- Write the output file.
 local f,err = io.open(arg[#arg], "w")
