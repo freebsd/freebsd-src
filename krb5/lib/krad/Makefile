@@ -24,10 +24,6 @@ SRCS=	attr.c \
 	packet.c \
 	remote.c
 
-INCS=	internal.h \
-	t_daemon.h \
-	t_test.h
-
 CFLAGS+=-I${KRB5_DIR}/lib/krad \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
