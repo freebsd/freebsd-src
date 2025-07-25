@@ -396,7 +396,7 @@ vm_page_blacklist_load(char **list, char **end)
         }
 	*list = ptr;
 	if (ptr != NULL)
-		*end = ptr + len;
+		*end = ptr + len - 1;
 	else
 		*end = NULL;
 	return;
