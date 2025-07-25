@@ -414,15 +414,14 @@ inet_send2(struct tport *tp, const u_char *buf, size_t len,
 
 /** exported to daemon */
 const struct transport_def inet_trans = {
-	"inet",
-	OIDX_begemotSnmpdTransInet,
-	inet_start,
-	inet_stop,
-	inet_destroy_port,
-	inet_activate,
-	NULL,
-	inet_recv,
-	inet_send2,
+	.name = 	"inet",
+	.id =		OIDX_begemotSnmpdTransInet,
+	.start =	inet_start,
+	.stop = 	inet_stop,
+	.close_port = 	inet_destroy_port,
+	.init_port = 	inet_activate,
+	.recv = 	inet_recv,
+	.send2 = 	inet_send2,
 };
 
 struct inet_port_params {

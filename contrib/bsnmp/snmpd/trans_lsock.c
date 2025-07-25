@@ -63,15 +63,14 @@ static ssize_t lsock_recv(struct tport *, struct port_input *);
 
 /* exported */
 const struct transport_def lsock_trans = {
-	"lsock",
-	OIDX_begemotSnmpdTransLsock,
-	lsock_start,
-	lsock_stop,
-	lsock_close_port,
-	lsock_init_port,
-	lsock_send,
-	lsock_recv,
-	NULL
+	.name =		"lsock",
+	.id =		OIDX_begemotSnmpdTransLsock,
+	.start = 	lsock_start,
+	.stop = 	lsock_stop,
+	.close_port =	lsock_close_port,
+	.init_port =	lsock_init_port,
+	.send =		lsock_send,
+	.recv =		lsock_recv,
 };
 static struct transport *my_trans;
 
