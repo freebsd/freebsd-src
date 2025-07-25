@@ -19,7 +19,7 @@ SCRIPTS=	k5srvutil.sh
 MAN=	kadmin.1 \
 	k5srvutil.1
 
-MLINKS=	kadmin.1 kamdin.local.8
+MLINKS=	kadmin.1 kadmin.local.8
 
 CLEANFILES=	kadmin.1 k5srvutil.1
 
@@ -32,7 +32,7 @@ k5srvutil.1:	k5srvutil.man
 
 .include <bsd.prog.mk>
 
-.SUFFIXES: .h .c. .man .1
+.SUFFIXES: .man
 
 .man.1:
 	@cp ${.ALLSRC} ${.TARGET}
