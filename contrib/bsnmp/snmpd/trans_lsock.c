@@ -395,29 +395,10 @@ lsock_init_port(struct tport *tp)
  * Send something
  */
 static ssize_t
-lsock_send(struct tport *tp, const u_char *buf, size_t len,
+lsock_send(struct tport *tp __unused, const u_char *buf, size_t len,
     struct port_input *pi)
 {
-	struct lsock_port *p = __containerof(tp, struct lsock_port, tport);
-	struct lsock_peer *peer;
-
-	if (p->type == LOCP_DGRAM_PRIV || p->type == LOCP_DGRAM_UNPRIV) {
-		peer = LIST_FIRST(&p->peers);
-
-	} else {
-		/* search for the peer */
-		LIST_FOREACH(peer, &p->peers, link)
-			if (peer->input.peerlen == pi->peerlen &&
-			    memcmp(peer->input.peer, pi->peer, pi->peerlen) == 0)
-				break;
-		if (peer == NULL) {
-			errno = ENOTCONN;
-			return (-1);
-		}
-	}
-
-	return (sendto(peer->input.fd, buf, len, MSG_NOSIGNAL, pi->peer,
-	    pi->peerlen));
+	return (sendto(pi->fd, buf, len, MSG_NOSIGNAL, pi->peer, pi->peerlen));
 }
 
 static void
