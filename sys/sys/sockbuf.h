@@ -210,8 +210,6 @@ typedef enum { SO_RCV, SO_SND } sb_which;
  * Socket buffer private mbuf(9) flags.
  */
 #define	M_NOTREADY	M_PROTO1	/* m_data not populated yet */
-#define	M_BLOCKED	M_PROTO2	/* M_NOTREADY in front of m */
-#define	M_NOTAVAIL	(M_NOTREADY | M_BLOCKED)
 
 void	sbappend(struct sockbuf *sb, struct mbuf *m, int flags);
 void	sbappend_locked(struct sockbuf *sb, struct mbuf *m, int flags);
