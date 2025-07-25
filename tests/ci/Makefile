@@ -110,7 +110,7 @@ QEMUTGT=portinstall-qemu
 .  endif
 .endif
 QEMUTGT?=
-QEMU_DEVICES?=-device virtio-blk,drive=hd0 -device virtio-blk,drive=hd1
+QEMU_DEVICES?=
 QEMU_EXTRA_PARAM?=
 QEMU_MACHINE?=virt
 QEMUBIN=/usr/local/bin/qemu-system-${QEMU_ARCH}
@@ -237,8 +237,10 @@ ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 		-nographic \
 		-no-reboot \
 		${QEMU_EXTRA_PARAM} \
-		-drive if=none,file=${CIDISK},format=raw,id=hd0 \
-		-drive if=none,file=${META_TAR},format=raw,id=hd1 \
+		-device virtio-blk,drive=hd0 \
+		-device virtio-blk,drive=hd1 \
+		-blockdev driver=raw,node-name=hd0,file.driver=file,file.filename=${CIDISK} \
+		-blockdev driver=raw,node-name=hd1,file.driver=file,file.filename=${META_TAR} \
 		${QEMU_DEVICES}
 .endif
 
