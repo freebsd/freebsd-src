@@ -83,6 +83,7 @@ main(int argc, char **argv)
 		err(1, "unable to limit capabitilities for stdio");
 
 	caph_cache_catpages();
+	caph_cache_tzdata();
 	if (caph_enter() < 0)
 		err(1, "unable to enter capability mode");
 
