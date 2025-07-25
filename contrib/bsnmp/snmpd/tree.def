@@ -117,15 +117,6 @@ typedef BegemotSnmpdTransportProto ENUM (
                 )
               )
 #
-#	Port table
-#
-              (4 begemotSnmpdPortTable
-                (1 begemotSnmpdPortEntry : IPADDRESS INTEGER op_snmp_port
-                  (1 begemotSnmpdPortAddress IPADDRESS)
-                  (2 begemotSnmpdPortPort UNSIGNED32)
-                  (3 begemotSnmpdPortStatus INTEGER GET SET)
-              ))
-#
 #	Community table
 #
 	      (5 begemotSnmpdCommunityTable
