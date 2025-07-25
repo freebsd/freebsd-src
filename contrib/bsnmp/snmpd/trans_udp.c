@@ -60,15 +60,14 @@ static ssize_t udp_recv(struct tport *, struct port_input *);
 
 /* exported */
 const struct transport_def udp_trans = {
-	"udp",
-	OIDX_begemotSnmpdTransUdp,
-	udp_start,
-	udp_stop,
-	udp_close_port,
-	udp_init_port,
-	udp_send,
-	udp_recv,
-	NULL
+	.name =		"udp",
+	.id =		OIDX_begemotSnmpdTransUdp,
+	.start =	udp_start,
+	.stop = 	udp_stop,
+	.close_port =	udp_close_port,
+	.init_port =	udp_init_port,
+	.send =		udp_send,
+	.recv = 	udp_recv,
 };
 static struct transport *my_trans;
 
