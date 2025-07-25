@@ -515,6 +515,28 @@ and none of the
 .Ar flags
 bits match those of
 .Ar notflags .
+.It Ic -fprint Ar filename
+This primary always evaluates to true.
+This creates
+.Ar filename
+or truncates the file if it already exists.
+The file is created at startup.
+It writes the pathname of the current file to this file, followed
+by a newline character.
+The file will be empty if no files are matched.
+.Pp
+.It Ic -fprint0 Ar filename
+This primary always evaluates to true.
+This creates
+.Ar filename
+or truncates the file if it already exists.
+The file is created at startup.
+It writes the pathname of the current file to this file, followed
+by an ASCII
+.Dv NUL
+character (character code 0).
+The file will be empty if no files are matched.
+.Pp
 .It Ic -fstype Ar type
 True if the file is contained in a file system of type
 .Ar type .
