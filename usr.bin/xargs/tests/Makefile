@@ -1,6 +1,6 @@
 PACKAGE=	tests
 
-TAP_TESTS_SH=	legacy_test
+ATF_TESTS_SH=	xargs_test
 
 ${PACKAGE}FILES+=		regress.0.in
 ${PACKAGE}FILES+=		regress.0.out
@@ -23,6 +23,5 @@ ${PACKAGE}FILES+=		regress.n3.out
 ${PACKAGE}FILES+=		regress.normal.out
 ${PACKAGE}FILES+=		regress.quotes.in
 ${PACKAGE}FILES+=		regress.quotes.out
-${PACKAGE}FILES+=		regress.sh
 
 .include <bsd.test.mk>
