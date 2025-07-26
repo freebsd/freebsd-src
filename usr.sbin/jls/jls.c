@@ -140,8 +140,11 @@ main(int argc, char **argv)
 	ip4_ok = feature_present("inet");
 #endif
 
+	argc -= optind;
+	argv += optind;
+
 	/* Add the parameters to print. */
-	if (optind == argc) {
+	if (argc == 0) {
 		if (pflags & (PRINT_HEADER | PRINT_NAMEVAL))
 			add_param("all", NULL, (size_t)0, NULL, JP_USER);
 		else if (pflags & PRINT_VERBOSE) {
@@ -179,9 +182,8 @@ main(int argc, char **argv)
 		}
 	} else {
 		pflags &= ~PRINT_VERBOSE;
-		while (optind < argc)
-			add_param(argv[optind++], NULL, (size_t)0, NULL,
-			    JP_USER);
+		for (i = 0; i < argc; i++)
+			add_param(argv[i], NULL, (size_t)0, NULL, JP_USER);
 	}
 
 	if (pflags & PRINT_SKIP) {
