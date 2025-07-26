@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250726: This file is now installed in /etc/dma
+OLD_FILES+=usr/share/examples/dma/auth.conf
+
 # 20250725: libbsnmp bumped to version 7
 OLD_LIBS+=usr/lib/libbsnmp.so.6
 
