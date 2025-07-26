@@ -246,12 +246,12 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "bind: %m");
 		exit(1);
 	}
-	if (setgid(unpriv_gid) != 0) {
-		syslog(LOG_ERR, "setgid: %m");
+	if (setgroups(0, NULL) != 0) {
+		syslog(LOG_ERR, "setgroups: %m");
 		exit(1);
 	}
-	if (setgroups(1, &unpriv_gid) != 0) {	/* XXX BOGUS groups[0] = egid */
-		syslog(LOG_ERR, "setgroups: %m");
+	if (setgid(unpriv_gid) != 0) {
+		syslog(LOG_ERR, "setgid: %m");
 		exit(1);
 	}
 	if (setuid(unpriv_uid) != 0) {

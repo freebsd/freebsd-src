@@ -539,7 +539,7 @@ main(int argc, char *argv[])
 	setproctitle("%s", ifi->name);
 
 	/* setgroups(2) is not permitted in capability mode. */
-	if (setgroups(1, &pw->pw_gid) != 0)
+	if (setgroups(0, NULL) != 0)
 		error("can't restrict groups: %m");
 
 	if (caph_enter_casper() < 0)
