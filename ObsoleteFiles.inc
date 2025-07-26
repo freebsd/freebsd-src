@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250805: Test case renamed
+OLD_FILES+=usr/tests/usr.bin/xargs/regress.n2147483647.out
+
 # 20250524: don't install zoneinfo version
 OLD_FILES+=usr/share/zoneinfo/version
 
