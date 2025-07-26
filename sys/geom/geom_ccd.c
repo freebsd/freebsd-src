@@ -730,17 +730,17 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	int i, error;
 
 	g_topology_assert();
-	unit = gctl_get_paraml(req, "unit", sizeof (*unit));
+	unit = gctl_get_paraml(req, "unit", sizeof(*unit));
 	if (unit == NULL) {
 		gctl_error(req, "unit parameter not given");
 		return;
 	}
-	ileave = gctl_get_paraml(req, "ileave", sizeof (*ileave));
+	ileave = gctl_get_paraml(req, "ileave", sizeof(*ileave));
 	if (ileave == NULL) {
 		gctl_error(req, "ileave parameter not given");
 		return;
 	}
-	nprovider = gctl_get_paraml(req, "nprovider", sizeof (*nprovider));
+	nprovider = gctl_get_paraml(req, "nprovider", sizeof(*nprovider));
 	if (nprovider == NULL) {
 		gctl_error(req, "nprovider parameter not given");
 		return;
@@ -769,7 +769,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	}
 
 	gp = g_new_geomf(mp, "ccd%d", *unit);
-	sc = g_malloc(sizeof *sc, M_WAITOK | M_ZERO);
+	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	gp->softc = sc;
 	sc->sc_ndisks = *nprovider;
 
@@ -872,7 +872,7 @@ g_ccd_list(struct gctl_req *req, struct g_class *mp)
 	struct g_geom *gp;
 	int i, unit, *up;
 
-	up = gctl_get_paraml(req, "unit", sizeof (*up));
+	up = gctl_get_paraml(req, "unit", sizeof(*up));
 	if (up == NULL) {
 		gctl_error(req, "unit parameter not given");
 		return;

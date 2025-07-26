@@ -145,7 +145,7 @@ g_attr_changed(struct g_provider *pp, const char *attr, int flag)
 	struct g_attrchanged_args *args;
 	int error;
 
-	args = g_malloc(sizeof *args, flag);
+	args = g_malloc(sizeof(*args), flag);
 	if (args == NULL)
 		return (ENOMEM);
 	args->pp = pp;
