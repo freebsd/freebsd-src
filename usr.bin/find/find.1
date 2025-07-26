@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 23, 2024
+.Dd July 26, 2025
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -1096,7 +1096,79 @@ as zero;
 It is not yet implemented.
 .It Format:
 One or two characters, described below, which indicates the information to display.
-XXX need to write this.
+.Bl -tag -width Ds
+.It p
+Path to file
+.It f
+Filename without directories.
+.It h
+Path relative to the starting point, or '.' if that's empty for some reason.
+.It P
+Unimplemented -- File with command line arg.
+.It H
+Unimplemented -- Command line arg.
+.It g
+gid in human readable form.
+.It G
+gid as a number.
+.It h
+uid in human readable form.
+.It U
+uid as a number.
+.It m
+File permission mode in octal.
+.It M
+File mode in
+.Xr ls 1
+standard form.
+.It k
+File size in KiB (units of 1024 bytes).
+.It b
+File size in blocks (Always 512 byte units, even if underlying storage
+size differs).
+.It s
+Size in bytes of the file.
+.It S
+Sparseness of the file.
+The blocks the file occupies times 512 divided by the file size.
+.It d
+Depth in the tree
+.It D
+Device number for the file.
+.It F
+Unimplemented -- Filesystem type where the file resides.
+.It l
+Object of the symbolic link.
+.It i
+Inode of the file.
+.It n
+Number of hard links.
+.It y
+Unimplemented -- Type of the file
+.It Y
+Unimplemented -- Type of the file with loop detection
+.It a
+Access time of the file.
+.It A
+Access time of the file in strftime format.
+Takes an additional argument.
+.It b
+Birth time of a file.
+.It B
+Birth time of the file in strftime format.
+Takes an additional argument.
+.It c
+Creation time of the file.
+.It C
+Creation time of the file in strftime format.
+Takes an additional argument.
+.It t
+Modification time of the file.
+.It T
+Modification time of the file in strftime format.
+Takes an additional argument.
+.El
+Any format not listed is not supported, though the error changes.
 .El
 .El
 .Sh ENVIRONMENT
