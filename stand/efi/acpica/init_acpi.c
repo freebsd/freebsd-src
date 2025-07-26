@@ -24,10 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/_inttypes.h>
-
-#include <efi.h>
-
 #include <stand.h>
 
 #include <acpi.h>
@@ -39,52 +35,8 @@
 #define _COMPONENT ACPI_LOADER
 ACPI_MODULE_NAME("init_acpi");
 
-/* Holds the description of the acpi0 device. */
-static char acpi_desc[ACPI_OEM_ID_SIZE + ACPI_OEM_TABLE_ID_SIZE + 2];
-
-/* Holds the current ACPICA version. */
-static char acpi_ca_version[12];
-
-/* For ACPI rsdp discovery. */
-EFI_GUID acpi = ACPI_TABLE_GUID;
-EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
-ACPI_TABLE_RSDP *rsdp;
-
 /* Singleton protection. */
 static int acpi_inited = 0;
-
-void
-acpi_detect(void)
-{
-	char buf[24];
-	int revision;
-
-	feature_enable(FEATURE_EARLY_ACPI);
-	if ((rsdp = efi_get_table(&acpi20)) == NULL)
-		if ((rsdp = efi_get_table(&acpi)) == NULL)
-			return;
-
-	sprintf(buf, "0x%016"PRIxPTR, (uintptr_t)rsdp);
-	setenv("acpi.rsdp", buf, 1);
-	revision = rsdp->Revision;
-	if (revision == 0)
-		revision = 1;
-	sprintf(buf, "%d", revision);
-	setenv("acpi.revision", buf, 1);
-	strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
-	buf[sizeof(rsdp->OemId)] = '\0';
-	setenv("acpi.oem", buf, 1);
-	sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
-	setenv("acpi.rsdt", buf, 1);
-	if (revision >= 2) {
-		/* XXX extended checksum? */
-		sprintf(buf, "0x%016llx",
-		    (unsigned long long)rsdp->XsdtPhysicalAddress);
-		setenv("acpi.xsdt", buf, 1);
-		sprintf(buf, "%d", rsdp->Length);
-		setenv("acpi.xsdt_length", buf, 1);
-	}
-}
 
 /*
  * Intialize the ACPI subsystem and tables.
@@ -124,6 +76,8 @@ acpi_Startup(void)
 		    AcpiFormatException(status));
 		return_VALUE (status);
 	}
+
+	printf("Successfully initialized ACPI.\n");
 
 	return_VALUE (status);
 }

@@ -37,7 +37,7 @@ SRCS+= acpi_detect.c
 .if ${MACHINE_ARCH} == "amd64"
 SRCS+= OsdMemory.c osunixxf.c
 
-.PATH: ${.CURDIR}/../acpica/amd64/Osd
+.PATH: ${.CURDIR}/../acpica/amd64/Osd/
 .PATH: ${.CURDIR}/../contrib/dev/acpica/os_specific/service_layers
 
 CFLAGS+=	-DACPI_SINGLE_THREADED \

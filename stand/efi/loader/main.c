@@ -70,6 +70,7 @@
 #include "actbl.h"
 
 #include <init_acpi.h>
+#include <acpi_detect.h>
 
 #include "loader_efi.h"
 
@@ -1230,10 +1231,12 @@ main(int argc, CHAR16 *argv[])
 
 	devinit();
 
+#if defined(__amd64__)
 	/* Initialize ACPI Subsystem and Tables. */
 	if ((ret = init_acpi()) != 0) {
 		printf("Failed to initialize ACPI\n.");
 	}
+#endif
 
 	/*
 	 * Detect console settings two different ways: one via the command

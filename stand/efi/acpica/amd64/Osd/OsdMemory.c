@@ -24,13 +24,44 @@
  * SUCH DAMAGE.
  */
 
-#ifndef INIT_ACPI_H
-#define INIT_ACPI_H
+#include <efi.h>
 
-#define ACPI_LOADER 0x00020000
+#include <acpi.h>
 
-ACPI_STATUS acpi_Startup(void);
-int init_acpi(void);
-int acpi_is_initialized(void);
+#include <init_acpi.h>
+#include <acpi_detect.h>
 
-#endif /* ACPI_H */
+void *
+AcpiOsAllocate(ACPI_SIZE Size)
+{
+	return (malloc(Size));
+}
+
+void
+AcpiOsFree(void *Memory)
+{
+	free(Memory);
+}
+
+void *
+AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length)
+{
+	return (void *)(PhysicalAddress);
+}
+
+void
+AcpiOsUnmapMemory(void *LogicalAddress, ACPI_SIZE Length)
+{
+	/* No-op as we never mapped any memory. */
+}
+
+ACPI_PHYSICAL_ADDRESS
+AcpiOsGetRootPointer (
+    void)
+{
+	if (!rsdp) {
+		return (0);
+	}
+
+	return (ACPI_PHYSICAL_ADDRESS)(uintptr_t)(rsdp);
+}

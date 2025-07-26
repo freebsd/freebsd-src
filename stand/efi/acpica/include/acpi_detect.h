@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 2025 Kayla Powell <kpowkitty@FreeBSD.org>
  * All rights reserved.
  *
@@ -24,43 +24,18 @@
  * SUCH DAMAGE.
  */
 
+#ifndef ACPI_DETECT_H
+#define ACPI_DETECT_H
+
 #include <efi.h>
+#include <efilib.h>
 
-#include <acpi.h>
+struct ACPI_TABLE_RSDP; // forward declaration
 
-#include <init_acpi.h>
+extern EFI_GUID acpi;
+extern EFI_GUID acpi20;
+extern ACPI_TABLE_RSDP *rsdp;
 
-void *
-AcpiOsAllocate(ACPI_SIZE Size)
-{
-	return (malloc(Size));
-}
+void acpi_detect(void);
 
-void
-AcpiOsFree(void *Memory)
-{
-	free(Memory);
-}
-
-void *
-AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length)
-{
-	return (void *)(PhysicalAddress);
-}
-
-void
-AcpiOsUnmapMemory(void *LogicalAddress, ACPI_SIZE Length)
-{
-	/* No-op as we never mapped any memory. */
-}
-
-ACPI_PHYSICAL_ADDRESS
-AcpiOsGetRootPointer (
-    void)
-{
-	if (!rsdp) {
-		return (0);
-	}
-
-	return (ACPI_PHYSICAL_ADDRESS)(uintptr_t)(rsdp);
-}
+#endif
