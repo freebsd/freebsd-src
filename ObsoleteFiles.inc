@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250726: Test case renamed
+OLD_FILES+=usr/tests/usr.bin/xargs/regress.n2147483647.out
+
 # 20250726: This file is now installed in /etc/dma
 OLD_FILES+=usr/share/examples/dma/auth.conf
 
