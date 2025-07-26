@@ -820,7 +820,6 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 
 	buflen = VM_MAX_NAMELEN + 1;
 	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
-	strlcpy(buf, "beavis", buflen);
 	error = sysctl_handle_string(oidp, buf, buflen, req);
 	if (error == 0 && req->newptr != NULL)
 		error = vmmdev_lookup_and_destroy(buf, req->td->td_ucred);
@@ -830,7 +829,7 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw_vmm, OID_AUTO, destroy,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_vmm_destroy, "A",
-    NULL);
+    "Destroy a vmm(4) instance (legacy interface)");
 
 static struct cdevsw vmmdevsw = {
 	.d_name		= "vmmdev",
@@ -909,7 +908,6 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 
 	buflen = VM_MAX_NAMELEN + 1;
 	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
-	strlcpy(buf, "beavis", buflen);
 	error = sysctl_handle_string(oidp, buf, buflen, req);
 	if (error == 0 && req->newptr != NULL)
 		error = vmmdev_create(buf, req->td->td_ucred);
@@ -919,7 +917,7 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_vmm_create, "A",
-    NULL);
+    "Create a vmm(4) instance (legacy interface)");
 
 static int
 vmmctl_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
