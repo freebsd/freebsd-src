@@ -1900,47 +1900,87 @@ lkpi_hex_dump(int(*_fpf)(void *, const char *, ...), void *arg1,
 	typedef const struct { uint32_t value; } __packed *print_32p_t;
 	typedef const struct { uint16_t value; } __packed *print_16p_t;
 	const void *buf_old = buf;
-	int row;
+	int row, linelen, ret;
 
 	while (len > 0) {
-		if (level != NULL)
-			_fpf(arg1, "%s", level);
-		if (prefix_str != NULL)
-			_fpf(arg1, "%s ", prefix_str);
+		linelen = 0;
+		if (level != NULL) {
+			ret = _fpf(arg1, "%s", level);
+			if (ret < 0)
+				break;
+			linelen += ret;
+		}
+		if (prefix_str != NULL) {
+			ret = _fpf(
+			    arg1, "%s%s", linelen ? " " : "", prefix_str);
+			if (ret < 0)
+				break;
+			linelen += ret;
+		}
 
 		switch (prefix_type) {
 		case DUMP_PREFIX_ADDRESS:
-			_fpf(arg1, "[%p] ", buf);
+			ret = _fpf(
+			    arg1, "%s[%p]", linelen ? " " : "", buf);
+			if (ret < 0)
+				return;
+			linelen += ret;
 			break;
 		case DUMP_PREFIX_OFFSET:
-			_fpf(arg1, "[%#tx] ", ((const char *)buf -
-			    (const char *)buf_old));
+			ret = _fpf(
+			    arg1, "%s[%#tx]", linelen ? " " : "",
+			    ((const char *)buf - (const char *)buf_old));
+			if (ret < 0)
+				return;
+			linelen += ret;
 			break;
 		default:
 			break;
 		}
 		for (row = 0; row != rowsize; row++) {
 			if (groupsize == 8 && len > 7) {
-				_fpf(arg1, "%016llx ", ((print_64p_t)buf)->value);
+				ret = _fpf(
+				    arg1, "%s%016llx", linelen ? " " : "",
+				    ((print_64p_t)buf)->value);
+				if (ret < 0)
+					return;
+				linelen += ret;
 				buf = (const uint8_t *)buf + 8;
 				len -= 8;
 			} else if (groupsize == 4 && len > 3) {
-				_fpf(arg1, "%08x ", ((print_32p_t)buf)->value);
+				ret = _fpf(
+				    arg1, "%s%08x", linelen ? " " : "",
+				    ((print_32p_t)buf)->value);
+				if (ret < 0)
+					return;
+				linelen += ret;
 				buf = (const uint8_t *)buf + 4;
 				len -= 4;
 			} else if (groupsize == 2 && len > 1) {
-				_fpf(arg1, "%04x ", ((print_16p_t)buf)->value);
+				ret = _fpf(
+				    arg1, "%s%04x", linelen ? " " : "",
+				    ((print_16p_t)buf)->value);
+				if (ret < 0)
+					return;
+				linelen += ret;
 				buf = (const uint8_t *)buf + 2;
 				len -= 2;
 			} else if (len > 0) {
-				_fpf(arg1, "%02x ", *(const uint8_t *)buf);
+				ret = _fpf(
+				    arg1, "%s%02x", linelen ? " " : "",
+				    *(const uint8_t *)buf);
+				if (ret < 0)
+					return;
+				linelen += ret;
 				buf = (const uint8_t *)buf + 1;
 				len--;
 			} else {
 				break;
 			}
 		}
-		_fpf(arg1, "\n");
+		ret = _fpf(arg1, "\n");
+		if (ret < 0)
+			break;
 	}
 }
 
