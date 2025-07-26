@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251023: This file is now installed in /etc/dma
+OLD_FILES+=usr/share/examples/dma/auth.conf
+
 # 20251006: Remove libnss_tacplus.a (it never should have been installed)
 OLD_FILES+=usr/lib/libnss_tacplus.a
 
