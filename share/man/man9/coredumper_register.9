@@ -31,8 +31,8 @@ struct coredumper {
 .Ed
 .Pp
 .Ft int
-.Fn coredump_init_fn "const struct coredump_writer *" "const struct coredump_params *"
-"int"
+.Fn coredump_init_fn "const struct coredump_writer *" \
+"const struct coredump_params *"
 .Ft int
 .Fn coredump_write_fn "const struct coredump_writer *" "const void *" "size_t" \
 "off_t" "enum uio_seg" "struct ucred *" "size_t *" "struct thread *"
