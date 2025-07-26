@@ -178,7 +178,7 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			nflag = 1;
-			nargs = (int)strtonum(optarg, 1, INT_MAX, &errstr);
+			nargs = (int)strtonum(optarg, 1, arg_max, &errstr);
 			if (errstr)
 				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
