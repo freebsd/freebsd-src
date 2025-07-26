@@ -1473,12 +1473,12 @@ OLD_DIRS+=usr/share/dict
 .endif
 
 .if ${MK_DMAGENT} == no
+OLD_FILES+=etc/dma/auth.conf
 OLD_FILES+=etc/dma/dma.conf
 OLD_DIRS+=etc/dma
 OLD_FILES+=usr/libexec/dma
 OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
-OLD_FILES+=usr/share/examples/dma/auth.conf
 OLD_FILES+=usr/share/examples/dma/mailer.conf
 OLD_DIRS+=usr/share/examples/dma
 .endif
