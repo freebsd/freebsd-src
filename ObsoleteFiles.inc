@@ -51,8 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20250726: Test case renamed
+# 20250726: xargs tests rewritten
+OLD_FILES+=usr/tests/usr.bin/xargs/legacy_test
 OLD_FILES+=usr/tests/usr.bin/xargs/regress.n2147483647.out
+OLD_FILES+=usr/tests/usr.bin/xargs/regress.sh
 
 # 20250726: This file is now installed in /etc/dma
 OLD_FILES+=usr/share/examples/dma/auth.conf
