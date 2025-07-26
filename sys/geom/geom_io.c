@@ -275,7 +275,7 @@ g_io_init(void)
 
 	g_bioq_init(&g_bio_run_down);
 	g_bioq_init(&g_bio_run_up);
-	biozone = uma_zcreate("g_bio", sizeof (struct bio),
+	biozone = uma_zcreate("g_bio", sizeof(struct bio),
 	    NULL, NULL,
 	    NULL, NULL,
 	    0, 0);

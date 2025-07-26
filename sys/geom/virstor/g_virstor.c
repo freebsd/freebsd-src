@@ -203,7 +203,7 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 	int *force, *nargs;
 	int i;
 
-	nargs = gctl_get_paraml(req, "nargs", sizeof *nargs);
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "Error fetching argument '%s'", "nargs");
 		return;
@@ -212,7 +212,7 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Invalid number of arguments");
 		return;
 	}
-	force = gctl_get_paraml(req, "force", sizeof *force);
+	force = gctl_get_paraml(req, "force", sizeof(*force));
 	if (force == NULL) {
 		gctl_error(req, "Error fetching argument '%s'", "force");
 		return;
@@ -316,7 +316,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		u_int nc;
 		u_int j;
 
-		snprintf(aname, sizeof aname, "arg%d", i);
+		snprintf(aname, sizeof(aname), "arg%d", i);
 		pp = gctl_get_provider(req, aname);
 		if (pp == NULL) {
 			/* This is the most common error so be verbose about it */
@@ -488,12 +488,12 @@ fill_metadata(struct g_virstor_softc *sc, struct g_virstor_metadata *md,
 {
 	struct g_virstor_component *c;
 
-	bzero(md, sizeof *md);
+	bzero(md, sizeof(*md));
 	c = &sc->components[nc];
 
-	strncpy(md->md_magic, G_VIRSTOR_MAGIC, sizeof md->md_magic);
+	strncpy(md->md_magic, G_VIRSTOR_MAGIC, sizeof(md->md_magic));
 	md->md_version = G_VIRSTOR_VERSION;
-	strncpy(md->md_name, sc->geom->name, sizeof md->md_name);
+	strncpy(md->md_name, sc->geom->name, sizeof(md->md_name));
 	md->md_id = sc->id;
 	md->md_virsize = sc->virsize;
 	md->md_chunk_size = sc->chunk_size;
@@ -501,7 +501,7 @@ fill_metadata(struct g_virstor_softc *sc, struct g_virstor_metadata *md,
 
 	if (hardcode) {
 		strncpy(md->provider, c->gcons->provider->name,
-		    sizeof md->provider);
+		    sizeof(md->provider));
 	}
 	md->no = nc;
 	md->provsize = c->gcons->provider->mediasize;
@@ -960,7 +960,7 @@ virstor_geom_destroy(struct g_virstor_softc *sc, boolean_t force,
 
 	free(sc->map, M_GVIRSTOR);
 	free(sc->components, M_GVIRSTOR);
-	bzero(sc, sizeof *sc);
+	bzero(sc, sizeof(*sc));
 	free(sc, M_GVIRSTOR);
 
 	pp = LIST_FIRST(&gp->provider); /* We only offer one provider */
@@ -1214,7 +1214,7 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		    sc->provider->name,
 		    sc->chunk_count * (off_t)sc->chunk_size);
 	}
-	sc->map_size = sc->chunk_count * sizeof *(sc->map);
+	sc->map_size = sc->chunk_count * sizeof(*(sc->map));
 	/* The following allocation is in order of 4MB - 8MB */
 	sc->map = malloc(sc->map_size, M_GVIRSTOR, M_WAITOK);
 	KASSERT(sc->map != NULL, ("%s: Memory allocation error (%zu bytes) for %s",
@@ -1268,7 +1268,7 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		bcopy(mapbuf, &sc->map[n], bs);
 		off += bs;
 		count += bs;
-		n += bs / sizeof *(sc->map);
+		n += bs / sizeof(*(sc->map));
 		g_free(mapbuf);
 	}
 	g_access(sc->components[0].gcons, -1, 0, 0);
@@ -1307,8 +1307,8 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		    sc->components[index].chunk_next);
 	}
 
-	sc->me_per_sector = sc->sectorsize / sizeof *(sc->map);
-	if (sc->sectorsize % sizeof *(sc->map) != 0) {
+	sc->me_per_sector = sc->sectorsize / sizeof(*(sc->map));
+	if (sc->sectorsize % sizeof(*(sc->map)) != 0) {
 		LOG_MSG(LVL_ERROR,
 		    "%s: Map entries don't fit exactly in a sector (%s)",
 		    __func__, sc->geom->name);
@@ -1656,7 +1656,7 @@ g_virstor_start(struct bio *b)
 					 * XXX: this will prevent the fs from
 					 * being umounted! */
 					struct g_virstor_bio_q *biq;
-					biq = malloc(sizeof *biq, M_GVIRSTOR,
+					biq = malloc(sizeof(*biq), M_GVIRSTOR,
 					    M_NOWAIT);
 					if (biq == NULL) {
 						bioq_dismantle(&bq);
@@ -1706,7 +1706,7 @@ g_virstor_start(struct bio *b)
 				 * map array.
 				 * sc_offset will end up pointing to the drive
 				 * sector. */
-				s_offset = chunk_index * sizeof *me;
+				s_offset = chunk_index * sizeof(*me);
 				s_offset = rounddown(s_offset, sc->sectorsize);
 
 				/* data_me points to map entry sector
