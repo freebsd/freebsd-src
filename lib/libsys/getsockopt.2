@@ -593,6 +593,15 @@ specified amount of time has elapsed since the initial call to
 If
 .Fa sp_fd
 is -1, the socket will be unspliced immediately.
+A successful
+.Xr select 2 ,
+.Xr poll 2 ,
+or
+.Xr kqueue 2
+operation testing the ability to read from the source socket indicates
+that the splicing has terminated and at least one byte is available for
+reading.
+When one of the sockets gets closed, splicing ends.
 .Pp
 When passed to
 .Fn getsockopt ,
