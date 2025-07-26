@@ -230,13 +230,13 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 			break;
 		}
 		case 'k': /* kbytes used by file */
-			fprintf(fp, "%ld", sb->st_blocks / 2);
+			fprintf(fp, "%jd", (intmax_t)sb->st_blocks / 2);
 			break;
 		case 'b': /* blocks used by file */
-			fprintf(fp, "%ld", sb->st_blocks);
+			fprintf(fp, "%jd", (intmax_t)sb->st_blocks);
 			break;
 		case 's': /* size in bytes of file */
-			fprintf(fp, "%zu", sb->st_size);
+			fprintf(fp, "%ju", (uintmax_t)sb->st_size);
 			break;
 		case 'S': /* sparseness of file */
 			fprintf(fp, "%3.1f",
@@ -246,7 +246,7 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 			fprintf(fp, "%ld", entry->fts_level);
 			break;
 		case 'D': /* device number */
-			fprintf(fp, "%lu", sb->st_dev);
+			fprintf(fp, "%ju", (uintmax_t)sb->st_dev);
 			break;
 		case 'F': /* Filesystem type */
 			errx(1, "%%%c is unimplemented", c);
@@ -254,10 +254,10 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 			fprintf(fp, "%s", entry->fts_accpath);
 			break;
 		case 'i': /* inode # */
-			fprintf(fp, "%lu", sb->st_ino);
+			fprintf(fp, "%ju", (uintmax_t)sb->st_ino);
 			break;
 		case 'n': /* number of hard links */
-			fprintf(fp, "%lu", sb->st_nlink);
+			fprintf(fp, "%ju", (uintmax_t)sb->st_nlink);
 			break;
 		case 'y': /* -type of file, incl 'l' */
 			errx(1, "%%%c is unimplemented", c);
