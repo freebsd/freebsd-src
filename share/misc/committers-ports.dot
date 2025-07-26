@@ -153,6 +153,7 @@ ak [label="Alex Kozlov\nak@FreeBSD.org\n2012/02/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 alexey [label="Alexey Degtyarev\nalexey@FreeBSD.org\n2013/11/09"]
+alven [label="Älven\nalven@FreeBSD.org\n2025/07/28"]
 amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2013/04/03"]
 arrowd [label="Gleb Popov\narrowd@FreeBSD.org\n2018/05/18"]
@@ -420,6 +421,7 @@ culot -> marino
 culot -> pi
 culot -> wg
 
+db -> alven
 db -> tj
 db -> shurd
 
@@ -865,6 +867,7 @@ wxs -> zi
 
 ygy -> yasu
 
+yuri -> alven
 yuri -> rea
 
 zirias -> jbo
