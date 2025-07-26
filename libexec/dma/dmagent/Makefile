@@ -15,7 +15,7 @@ SRCS=	aliases_parse.y \
 	net.c \
 	spool.c \
 	util.c
-MAN8=	dma.8
+MAN=	dma.8
 MLINKS=	dma.8 dma.conf.5
 CONFSMODE=	0640
 CONFSGRP=	mail

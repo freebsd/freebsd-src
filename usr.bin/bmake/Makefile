@@ -99,8 +99,6 @@ COPTS.filemon_ktrace.c+= -Wno-error=unused-parameter
 SUBDIR.${MK_TESTS}+= unit-tests
 .endif
 
-MAN1= ${MAN}
-
 .if ${MK_GEN_MAN:Uno} == "yes"
 
 # we use this to generate ${MAN}
