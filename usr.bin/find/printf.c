@@ -269,6 +269,12 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 		case 'A': /* access time with next char strftime format */
 			fp_strftime(fp, sb->st_atime, *fmt++);
 			break;
+		case 'b': /* birth time  */
+#ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
+			fp_ctime(fp, sb->st_birthtime);
+#else
+			fp_ctime(fp, 0);
+#endif
 		case 'B': /* birth time with next char strftime format */
 #ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
 			if (sb->st_birthtime != 0)
