@@ -99,6 +99,7 @@ void lkpi_kmem_cache_free(struct linux_kmem_cache *, void *);
 void linux_kmem_cache_destroy(struct linux_kmem_cache *);
 
 void *lkpi_kmalloc(size_t, gfp_t);
+void *lkpi_kvmalloc(size_t, gfp_t);
 void *lkpi___kmalloc(size_t, gfp_t);
 void *lkpi___kmalloc_node(size_t, gfp_t, int);
 void *lkpi_krealloc(void *, size_t, gfp_t);
@@ -225,7 +226,7 @@ vmalloc_32(size_t size)
 static inline void *
 kvmalloc(size_t size, gfp_t flags)
 {
-	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
+	return (lkpi_kvmalloc(size, flags));
 }
 
 static inline void *
