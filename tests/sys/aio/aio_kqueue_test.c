@@ -45,7 +45,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "freebsd_test_suite/macros.h"
 #include "local.h"
 
 #define PATH_TEMPLATE   "aio.XXXXXXXXXX"
@@ -70,7 +69,6 @@ main (int argc, char *argv[])
 	int tmp_file = 0;
 	int i, j;
 
-	PLAIN_REQUIRE_KERNEL_MODULE("aio", 0);
 	PLAIN_REQUIRE_UNSAFE_AIO(0);
 
 	max_queue_per_proc_size = sizeof(max_queue_per_proc);
