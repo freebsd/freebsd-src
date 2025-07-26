@@ -165,6 +165,133 @@ commands_cleanup()
 	fi
 }
 
+atf_test_case "jid_name_set" "cleanup"
+jid_name_set_head()
+{
+	atf_set descr 'Test that one can set both the jid and name in a config file'
+	atf_set require.user root
+}
+
+find_unused_jid()
+{
+	: ${JAIL_MAX=999999}
+
+	# We'll start at a higher jid number and roll through the space until
+	# we find one that isn't taken.  We start high to avoid racing parallel
+	# activity for the 'next available', though ideally we don't have a lot
+	# of parallel jail activity like that.
+	jid=5309
+	while jls -cj "$jid"; do
+		if [ "$jid" -eq "$JAIL_MAX" ]; then
+			atf_skip "System has too many jail, cannot find free slot"
+		fi
+
+		jid=$((jid + 1))
+	done
+
+	echo "$jid" | tee -a jails.lst
+}
+clean_jails()
+{
+	if [ ! -s jails.lst ]; then
+		return 0
+	fi
+
+	while read jail; do
+		if jls -e -j "$jail"; then
+			jail -r "$jail"
+		fi
+	done < jails.lst
+}
+
+jid_name_set_body()
+{
+	local jid=$(find_unused_jid)
+
+	echo "basejail" >> jails.lst
+	echo "$jid { name = basejail; persist; }" > jail.conf
+	atf_check -o match:"$jid: created" jail -f jail.conf -c "$jid"
+	atf_check -o match:"$jid: removed" jail -f jail.conf -r "$jid"
+
+	echo "basejail { jid = $jid; persist; }" > jail.conf
+	atf_check -o match:"basejail: created" jail -f jail.conf -c basejail
+	atf_check -o match:"basejail: removed" jail -f jail.conf -r basejail
+}
+
+jid_name_set_cleanup()
+{
+	clean_jails
+}
+
+atf_test_case "param_consistency" "cleanup"
+param_consistency_head()
+{
+	atf_set descr 'Test for consistency in jid/name params being set implicitly'
+	atf_set require.user root
+}
+
+param_consistency_body()
+{
+	local iface jid
+
+	echo "basejail" >> jails.lst
+
+	# Most basic test: exec.poststart running a command without a jail
+	# config.  This would previously crash as we only had the jid and name
+	# as populated at creation time.
+	atf_check jail -c path=/ exec.poststart="true" command=/usr/bin/true
+
+	iface=$(ifconfig lo create)
+	atf_check test -n "$iface"
+	echo "$iface" >> interfaces.lst
+
+	# Now do it again but exercising IP_VNET_INTERFACE, which is an
+	# implied command that wants to use the jid or name.  This would crash
+	# as neither KP_JID or KP_NAME are populated when a jail is created,
+	# just as above- just at a different spot.
+	atf_check jail -c \
+		path=/ vnet=new vnet.interface="$iface" command=/usr/bin/true
+
+	# Test that a jail that we only know by name will have its jid resolved
+	# and added to its param set.
+	echo "basejail {path = /; exec.prestop = 'echo STOP'; persist; }" > jail.conf
+
+	atf_check -o ignore jail -f jail.conf -c basejail
+	atf_check -o match:"STOP" jail -f jail.conf -r basejail
+
+	# Do the same sequence as above, but use a jail with a jid-ish name.
+	jid=$(find_unused_jid)
+	echo "$jid {path = /; exec.prestop = 'echo STOP'; persist; }" > jail.conf
+
+	atf_check -o ignore jail -f jail.conf -c "$jid"
+	atf_check -o match:"STOP" jail -f jail.conf -r "$jid"
+
+	# Ditto, but now we set a name for that jid-jail.
+	echo "$jid {name = basejail; path = /; exec.prestop = 'echo STOP'; persist; }" > jail.conf
+
+	atf_check -o ignore jail -f jail.conf -c "$jid"
+	atf_check -o match:"STOP" jail -f jail.conf -r "$jid"
+
+	# Confirm that we have a valid jid available in exec.poststop.  It's
+	# probably debatable whether we should or not.
+	echo "basejail {path = /; exec.poststop = 'echo JID=\$JID'; persist; }" > jail.conf
+	atf_check -o ignore jail -f jail.conf -c basejail
+	jid=$(jls -j basejail jid)
+
+	atf_check -o match:"JID=$jid" jail -f jail.conf -r basejail
+
+}
+
+param_consistency_cleanup()
+{
+	clean_jails
+
+	if [ -f "interfaces.lst" ]; then
+		while read iface; do
+			ifconfig "$iface" destroy
+		done < interfaces.lst
+	fi
+}
 
 atf_init_test_cases()
 {
@@ -172,4 +299,6 @@ atf_init_test_cases()
 	atf_add_test_case "list"
 	atf_add_test_case "nested"
 	atf_add_test_case "commands"
+	atf_add_test_case "jid_name_set"
+	atf_add_test_case "param_consistency"
 }

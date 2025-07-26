@@ -290,7 +290,7 @@ run_command(struct cfjail *j)
 	const struct cfstring *comstring, *s;
 	login_cap_t *lcap;
 	const char **argv;
-	char *acs, *ajidstr, *cs, *comcs, *devpath;
+	char *acs, *cs, *comcs, *devpath;
 	const char *jidstr, *conslog, *fmt, *path, *ruleset, *term, *username;
 	enum intparam comparam;
 	size_t comlen, ret;
@@ -332,6 +332,25 @@ run_command(struct cfjail *j)
 				printf("%d\n", j->jid);
 			if (verbose >= 0 && (j->name || verbose > 0))
 				jail_note(j, "created\n");
+
+			/*
+			 * Populate our jid and name parameters if they were not
+			 * provided.  This simplifies later logic that wants to
+			 * use the jid or name to be able to do so reliably.
+			 */
+			if (j->intparams[KP_JID] == NULL) {
+				char ljidstr[16];
+
+				(void)snprintf(ljidstr, sizeof(ljidstr), "%d",
+				    j->jid);
+				add_param(j, NULL, KP_JID, ljidstr);
+			}
+
+			/* This matches the kernel behavior. */
+			if (j->intparams[KP_NAME] == NULL)
+				add_param(j, j->intparams[KP_JID], KP_NAME,
+				    NULL);
+
 			dep_done(j, DF_LIGHT);
 		}
 		return 0;
@@ -456,8 +475,7 @@ run_command(struct cfjail *j)
 		argv[0] = _PATH_IFCONFIG;
 		argv[1] = comstring->s;
 		argv[2] = down ? "-vnet" : "vnet";
-		jidstr = string_param(j->intparams[KP_JID]);
-		argv[3] = jidstr ? jidstr : string_param(j->intparams[KP_NAME]);
+		argv[3] = string_param(j->intparams[KP_JID]);
 		argv[4] = NULL;
 		break;
 
@@ -592,9 +610,7 @@ run_command(struct cfjail *j)
 
 	case IP_ZFS_DATASET:
 		argv = alloca(4 * sizeof(char *));
-		jidstr = string_param(j->intparams[KP_JID]) ?
-		    string_param(j->intparams[KP_JID]) :
-		    string_param(j->intparams[KP_NAME]);
+		jidstr = string_param(j->intparams[KP_JID]);
 		fmt = "if [ $(/sbin/zfs get -H -o value jailed %s) = on ]; then /sbin/zfs jail %s %s || echo error, attaching %s to jail %s failed; else echo error, you need to set jailed=on for dataset %s; fi";
 		comlen = strlen(fmt)
 		    + 2 * strlen(jidstr)
@@ -796,14 +812,10 @@ run_command(struct cfjail *j)
 		endpwent();
 	}
 	if (!injail) {
-		if (asprintf(&ajidstr, "%d", j->jid) == -1) {
-			jail_warnx(j, "asprintf jid=%d: %s", j->jid,
-				strerror(errno));
-			exit(1);
-		}
-		setenv("JID", ajidstr, 1);
-		free(ajidstr);
+		if (string_param(j->intparams[KP_JID]))
+			setenv("JID", string_param(j->intparams[KP_JID]), 1);
 		setenv("JNAME", string_param(j->intparams[KP_NAME]), 1);
+
 		path = string_param(j->intparams[KP_PATH]);
 		setenv("JPATH", path ? path : "", 1);
 	}

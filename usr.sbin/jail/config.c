@@ -156,11 +156,14 @@ load_config(const char *cfname)
 		TAILQ_CONCAT(&opp, &j->params, tq);
 		/*
 		 * The jail name implies its "name" or "jid" parameter,
-		 * though they may also be explicitly set later on.
+		 * though they may also be explicitly set later on.  After we
+		 * collect other parameters, we'll go back and ensure they're
+		 * both set if we need to do so here.
 		 */
 		add_param(j, NULL,
 		    strtol(j->name, &ep, 10) && !*ep ? KP_JID : KP_NAME,
 		    j->name);
+
 		/*
 		 * Collect parameters for the jail, global parameters/variables,
 		 * and any matching wildcard jails.
@@ -179,6 +182,14 @@ load_config(const char *cfname)
 		if (!did_self)
 			TAILQ_FOREACH(p, &opp, tq)
 				add_param(j, p, 0, NULL);
+
+		/*
+		 * We only backfill if it's the name that wasn't set; if it was
+		 * the jid, we can assume that will be populated later when the
+		 * jail is created or found.
+		 */
+		if (j->intparams[KP_NAME] == NULL)
+			add_param(j, j->intparams[KP_JID], KP_NAME, NULL);
 
 		/* Resolve any variable substitutions. */
 		pgen = 0;
