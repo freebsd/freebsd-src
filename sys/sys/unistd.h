@@ -156,6 +156,8 @@
 #define	_PC_DEALLOC_PRESENT	65
 #define	_PC_NAMEDATTR_ENABLED	66
 #define	_PC_HAS_NAMEDATTR	67
+#define	_PC_XATTR_ENABLED	_PC_NAMEDATTR_ENABLED	/* Solaris Compatible */
+#define	_PC_XATTR_EXISTS	_PC_HAS_NAMEDATTR	/* Solaris Compatible */
 #define	_PC_HAS_HIDDENSYSTEM	68
 #endif
 
