@@ -887,7 +887,14 @@ running_jid(struct cfjail *j, int dflag)
 		j->jid = -1;
 		return;
 	}
+
 	j->jid = jail_get(jiov, 2, dflag ? JAIL_DYING : 0);
+	if (j->jid > 0 && j->intparams[KP_JID] == NULL) {
+		char jidstr[16];
+
+		(void)snprintf(jidstr, sizeof(jidstr), "%d", j->jid);
+		add_param(j, NULL, KP_JID, jidstr);
+	}
 }
 
 static void
