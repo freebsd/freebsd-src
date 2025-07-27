@@ -10,6 +10,7 @@ UPDATE_DEPENDFILE= no
 
 .include <src.opts.mk>
 
+PACKAGE= bmake
 FILES=	\
 	auto.obj.mk \
 	bsd.README \

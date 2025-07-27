@@ -1,0 +1,5 @@
+comment = "Program maintenance utility"
+desc = <<EOD
+make(1) allows programs to be built from source files based on a specification
+of the program's dependencies called a Makefile.
+EOD

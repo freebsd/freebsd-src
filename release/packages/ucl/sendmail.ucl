@@ -1,0 +1,7 @@
+deps {
+	# sendmail requires make to build its configuration file.
+	"bmake": {
+		version = "${VERSION}"
+		origin = "base"
+	}
+}
