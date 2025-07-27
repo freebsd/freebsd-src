@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250727:
+	LLVM's debugging assertions are now disabled in main by default.
+	The WITH_LLVM_ASSERTIONS src.conf(5) knob should be used to
+	enable it when working on LLVM or requesting help with it.
+
 20250726:
 	amd64 kernel configurations must contain "options SMP".
 
