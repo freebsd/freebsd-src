@@ -1107,8 +1107,6 @@ g_concat_ctl_append(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 1);
 		goto fail;
 	}
-	if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-		name += strlen("/dev/");
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
 		G_CONCAT_DEBUG(1, "Disk %s is invalid.", name);
