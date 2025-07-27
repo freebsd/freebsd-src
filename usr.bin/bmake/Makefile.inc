@@ -3,6 +3,8 @@ MK_host_egacy= no
 
 .sinclude <src.opts.mk>
 
+PACKAGE?= bmake
+
 .if defined(.PARSEDIR)
 # make sure this is available to unit-tests/Makefile
 .export SRCTOP
