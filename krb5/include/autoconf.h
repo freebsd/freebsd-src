@@ -5,9 +5,6 @@
 #ifndef KRB5_AUTOCONF_H
 #define KRB5_AUTOCONF_H
 
-#include <sys/types.h>
-#include <machine/param.h>
-
 
 /* Define if AES-NI support is enabled */
 /* #undef AESNI */
