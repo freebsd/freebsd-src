@@ -1268,7 +1268,8 @@ ufs_rename(
 	struct inode *fip, *tip, *tdp, *fdp;
 	struct direct newdir;
 	off_t endoff;
-	int doingdirectory, newparent;
+	int doingdirectory;
+	u_int newparent;
 	int error = 0;
 	struct mount *mp;
 	ino_t ino;
