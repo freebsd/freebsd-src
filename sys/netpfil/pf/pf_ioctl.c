@@ -2092,19 +2092,18 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	int			 rs_num;
 	int			 error = 0;
 
-	if ((rule->return_icmp >> 8) > ICMP_MAXTYPE) {
-		error = EINVAL;
-		goto errout_unlocked;
-	}
+#define	ERROUT(x)		ERROUT_FUNCTION(errout, x)
+#define	ERROUT_UNLOCKED(x)	ERROUT_FUNCTION(errout_unlocked, x)
 
-#define	ERROUT(x)	ERROUT_FUNCTION(errout, x)
+	if ((rule->return_icmp >> 8) > ICMP_MAXTYPE)
+		ERROUT_UNLOCKED(EINVAL);
 
 	if ((error = pf_rule_checkaf(rule)))
-		ERROUT(error);
+		ERROUT_UNLOCKED(error);
 	if (pf_validate_range(rule->src.port_op, rule->src.port))
-		ERROUT(EINVAL);
+		ERROUT_UNLOCKED(EINVAL);
 	if (pf_validate_range(rule->dst.port_op, rule->dst.port))
-		ERROUT(EINVAL);
+		ERROUT_UNLOCKED(EINVAL);
 
 	if (rule->ifname[0])
 		kif = pf_kkif_create(M_WAITOK);
@@ -2294,6 +2293,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	return (0);
 
 #undef ERROUT
+#undef ERROUT_UNLOCKED
 errout:
 	PF_RULES_WUNLOCK();
 	PF_CONFIG_UNLOCK();
