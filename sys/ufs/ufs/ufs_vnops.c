@@ -1482,7 +1482,7 @@ relock:
 	 * the user must have write permission in the source so
 	 * as to be able to change "..".
 	 */
-	if (doingdirectory && newparent) {
+	if (doingdirectory && newparent != 0) {
 		error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, curthread);
 		if (error)
 			goto unlockout;
@@ -1549,7 +1549,7 @@ relock:
 	if (tip == NULL) {
 		if (ITODEV(tdp) != ITODEV(fip))
 			panic("ufs_rename: EXDEV");
-		if (doingdirectory && newparent) {
+		if (doingdirectory && newparent != 0) {
 			/*
 			 * Account for ".." in new directory.
 			 * When source and destination have the same
@@ -1644,7 +1644,7 @@ relock:
 			goto bad;
 		}
 		if (doingdirectory) {
-			if (!newparent) {
+			if (newparent == 0) {
 				tdp->i_effnlink--;
 				if (DOINGSOFTDEP(tdvp))
 					softdep_change_linkcnt(tdp);
@@ -1654,11 +1654,10 @@ relock:
 				softdep_change_linkcnt(tip);
 		}
 		error = ufs_dirrewrite(tdp, tip, fip->i_number,
-		    IFTODT(fip->i_mode),
-		    (doingdirectory && newparent) ? newparent : doingdirectory);
+		    IFTODT(fip->i_mode), doingdirectory);
 		if (error) {
 			if (doingdirectory) {
-				if (!newparent) {
+				if (newparent == 0) {
 					tdp->i_effnlink++;
 					if (DOINGSOFTDEP(tdvp))
 						softdep_change_linkcnt(tdp);
@@ -1681,7 +1680,7 @@ relock:
 			 * disk, so when running with that code we avoid doing
 			 * them now.
 			 */
-			if (!newparent) {
+			if (newparent == 0) {
 				tdp->i_nlink--;
 				DIP_SET_NLINK(tdp, tdp->i_nlink);
 				UFS_INODE_SET_FLAG(tdp, IN_CHANGE);
@@ -1710,7 +1709,7 @@ relock:
 	 * parent directory must be decremented
 	 * and ".." set to point to the new parent.
 	 */
-	if (doingdirectory && newparent) {
+	if (doingdirectory && newparent != 0) {
 		/*
 		 * Set the directory depth based on its new parent.
 		 */
