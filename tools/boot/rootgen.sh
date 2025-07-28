@@ -244,7 +244,7 @@ mk_nogeli_mbr_zfs_uefi() {
     makefs -t zfs -s 200m \
 	-o poolname=${pool} -o bootfs=${pool} -o rootpath=/ \
 	${img}.s2a ${src} ${dst}
-    mkimg -s bsd -b ${dst}zfsboot1 -p freebsd-zfs:=${img}.s2a -o ${img}.s2
+    mkimg -s bsd -p freebsd-zfs:=${img}.s2a -o ${img}.s2
     mkimg -a 1 -s mbr -b ${src}/boot/mbr -p efi:=${img}.s1 -p freebsd:=${img}.s2 -o ${img}
     rm -rf ${dst}
 }
