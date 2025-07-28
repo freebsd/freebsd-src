@@ -1335,6 +1335,29 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (ifs->if_ioctl == NULL)	/* must be supported */
 		return (EXTERROR(EINVAL, "Interface must support ioctl(2)"));
 
+	/*
+	 * If the new interface is a vlan(4), it could be a bridge SVI.
+	 * Don't allow such things to be added to bridges.
+	 */
+	if (ifs->if_type == IFT_L2VLAN) {
+		struct ifnet *parent;
+		struct epoch_tracker et;
+		bool is_bridge;
+
+		/*
+		 * Entering NET_EPOCH with BRIDGE_LOCK held, but this is okay
+		 * since we don't sleep here.
+		 */
+		NET_EPOCH_ENTER(et);
+		parent = VLAN_TRUNKDEV(ifs);
+		is_bridge = (parent != NULL && parent->if_type == IFT_BRIDGE);
+		NET_EPOCH_EXIT(et);
+
+		if (is_bridge)
+			return (EXTERROR(EINVAL,
+			    "Bridge SVI cannot be added to a bridge"));
+	}
+
 	/* If it's in the span list, it can't be a member. */
 	CK_LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
 		if (ifs == bif->bif_ifp)
