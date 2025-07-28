@@ -1,7 +1,7 @@
 .include <bsd.init.mk>
 
 .PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/gptboot \
-		${BOOTSRC}/i386/zfsboot ${BOOTSRC}/i386/common \
+		${BOOTSRC}/i386/common \
 		${BOOTSRC}/common
 
 FILES=		gptzfsboot
