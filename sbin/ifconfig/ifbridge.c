@@ -80,6 +80,20 @@ get_val(const char *cp, u_long *valp)
 }
 
 static int
+get_vlan_id(const char *cp, ether_vlanid_t *valp)
+{
+	u_long val;
+
+	if (get_val(cp, &val) == -1)
+		return (-1);
+	if (val < DOT1Q_VID_MIN || val > DOT1Q_VID_MAX)
+		return (-1);
+
+	*valp = (ether_vlanid_t)val;
+	return (0);
+}
+
+static int
 do_cmd(if_ctx *ctx, u_long op, void *arg, size_t argsize, int set)
 {
 	struct ifdrv ifd = {};
@@ -614,22 +628,12 @@ static void
 setbridge_untagged(if_ctx *ctx, const char *ifn, const char *vlanid)
 {
 	struct ifbreq req;
-	u_long val;
 
 	memset(&req, 0, sizeof(req));
-
-	if (get_val(vlanid, &val) < 0)
-		errx(1, "invalid VLAN identifier: %s", vlanid);
-
-	/*
-	 * Reject vlan 0, since it's not a valid vlan identifier and has a
-	 * special meaning in the kernel interface.
-	 */
-	if (val == 0)
-		errx(1, "invalid VLAN identifier: %lu", val);
-
 	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
-	req.ifbr_untagged = val;
+
+	if (get_vlan_id(vlanid, &req.ifbr_untagged) < 0)
+		errx(1, "invalid VLAN identifier: %s", vlanid);
 
 	if (do_cmd(ctx, BRDGSIFUNTAGGED, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSIFUNTAGGED %s", vlanid);
