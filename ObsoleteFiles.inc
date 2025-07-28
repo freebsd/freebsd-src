@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250728: Machine versions of 'runq.h' do not exist anymore
+OLD_FILES+=usr/include/machine/runq.h
+
 # 20250726: MIT KRB5 DSO bump
 OLD_LIBS+=usr/lib/libcom_err.so.121
 OLD_LIBS+=usr/lib/libgssapi_krb5.so.121
