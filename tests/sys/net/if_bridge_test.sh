@@ -1221,6 +1221,29 @@ vlan_qinq_cleanup()
 	vnet_cleanup
 }
 
+# Adding a bridge SVI to a bridge should not be allowed.
+atf_test_case "bridge_svi_in_bridge" "cleanup"
+bridge_svi_in_bridge_head()
+{
+	atf_set descr 'adding a bridge SVI to a bridge is not allowed (1)'
+	atf_set require.user root
+}
+
+bridge_svi_in_bridge_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	bridge=$(vnet_mkbridge)
+	atf_check -s exit:0 ifconfig ${bridge}.1 create
+	atf_check -s exit:1 -e ignore ifconfig ${bridge} addm ${bridge}.1
+}
+
+bridge_svi_in_bridge_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -1247,4 +1270,5 @@ atf_init_test_cases()
 	atf_add_test_case "vlan_ifconfig_tagged"
 	atf_add_test_case "vlan_svi"
 	atf_add_test_case "vlan_qinq"
+	atf_add_test_case "bridge_svi_in_bridge"
 }
