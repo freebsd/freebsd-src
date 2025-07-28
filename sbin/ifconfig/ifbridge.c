@@ -256,8 +256,8 @@ bridge_status(if_ctx *ctx)
 			else
 				printf(" <unknown state %d>", state);
 		}
-		if (member->ifbr_untagged != 0)
-			printf(" untagged %u", (unsigned)member->ifbr_untagged);
+		if (member->ifbr_pvid != 0)
+			printf(" untagged %u", (unsigned)member->ifbr_pvid);
 		print_vlans(&bridge->member_vlans[i]);
 		printf("\n");
 	}
@@ -632,11 +632,11 @@ setbridge_untagged(if_ctx *ctx, const char *ifn, const char *vlanid)
 	memset(&req, 0, sizeof(req));
 	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
 
-	if (get_vlan_id(vlanid, &req.ifbr_untagged) < 0)
+	if (get_vlan_id(vlanid, &req.ifbr_pvid) < 0)
 		errx(1, "invalid VLAN identifier: %s", vlanid);
 
-	if (do_cmd(ctx, BRDGSIFUNTAGGED, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGSIFUNTAGGED %s", vlanid);
+	if (do_cmd(ctx, BRDGSIFPVID, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFPVID %s", vlanid);
 }
 
 static void
@@ -647,10 +647,10 @@ unsetbridge_untagged(if_ctx *ctx, const char *ifn, int dummy __unused)
 	memset(&req, 0, sizeof(req));
 
 	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
-	req.ifbr_untagged = 0;
+	req.ifbr_pvid = 0;
 
-	if (do_cmd(ctx, BRDGSIFUNTAGGED, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGSIFUNTAGGED");
+	if (do_cmd(ctx, BRDGSIFPVID, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFPVID");
 }
 
 static void
