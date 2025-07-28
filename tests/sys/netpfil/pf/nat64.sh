@@ -55,15 +55,19 @@ nat64_setup_base()
 
 nat64_setup_in()
 {
+	state_policy="${1:-if-bound}"
 	nat64_setup_base
 	pft_set_rules rtr \
 	    "set reassemble yes" \
-	    "set state-policy if-bound" \
+	    "set state-policy ${state_policy}" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 }
 
 nat64_setup_out()
 {
+	state_policy="${1:-if-bound}"
 	nat64_setup_base
 	jexec rtr sysctl net.inet6.ip6.forwarding=1
 	# AF translation happens post-routing, traffic must be directed
@@ -72,11 +76,11 @@ nat64_setup_out()
 	jexec rtr route add -inet6 64:ff9b::/96 -iface ${epair_link}a;
 	pft_set_rules rtr \
 	    "set reassemble yes" \
-	    "set state-policy if-bound" \
-	    "pass quick inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
-	    "pass in  quick on ${epair}b from any to 64:ff9b::/96" \
-	    "pass out quick on ${epair_link}a from any to 64:ff9b::/96 af-to inet from (${epair_link}a)" \
-	    "block"
+	    "set state-policy ${state_policy}" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+	    "pass in  on ${epair}b from any to 64:ff9b::/96" \
+	    "pass out on ${epair_link}a from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 }
 
 atf_test_case "icmp_echo_in" "cleanup"
@@ -185,14 +189,14 @@ fragmentation_out_cleanup()
 	pft_cleanup
 }
 
-atf_test_case "tcp_in" "cleanup"
-tcp_in_head()
+atf_test_case "tcp_in_if_bound" "cleanup"
+tcp_in_if_bound_head()
 {
-	atf_set descr 'TCP NAT64 test on inbound interface'
+	atf_set descr 'TCP NAT64 test on inbound interface, if-bound states'
 	atf_set require.user root
 }
 
-tcp_in_body()
+tcp_in_if_bound_body()
 {
 	nat64_setup_in
 
@@ -208,21 +212,32 @@ tcp_in_body()
 		echo "rcv=${rcv}"
 		atf_fail "Failed to connect to TCP server"
 	fi
+
+	# Interfaces of the state are reversed when doing inbound NAT64!
+	# FIXME: Packets counters seem wrong!
+	states=$(mktemp) || exit 1
+	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
+	for state_regexp in \
+		"${epair_link}a tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\) .* 9:9 pkts.* rule 3 .* origif: ${epair}b" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+	[ $(cat $states | grep tcp | wc -l) -eq 1 ] || atf_fail "Not exactly 1 state found!"
 }
 
-tcp_in_cleanup()
+tcp_in_if_bound_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "tcp_out" "cleanup"
-tcp_out_head()
+atf_test_case "tcp_out_if_bound" "cleanup"
+tcp_out_if_bound_head()
 {
-	atf_set descr 'TCP NAT64 test on outbound interface'
+	atf_set descr 'TCP NAT64 test on outbound interface, if-bound states'
 	atf_set require.user root
 }
 
-tcp_out_body()
+tcp_out_if_bound_body()
 {
 	nat64_setup_out
 
@@ -238,9 +253,102 @@ tcp_out_body()
 		echo "rcv=${rcv}"
 		atf_fail "Failed to connect to TCP server"
 	fi
+
+	# Origif is not printed when identical as if.
+	states=$(mktemp) || exit 1
+	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
+	for state_regexp in \
+		"${epair}b tcp 64:ff9b::c000:202\[1234\] <- 2001:db8::2\[[0-9]+\] .* 5:4 pkts.* rule 3 .*creatorid" \
+		"${epair_link}a tcp 192.0.2.1:[0-9]+ \(64:ff9b::c000:202\[1234\]\) -> 192.0.2.2:1234 \(2001:db8::2\[[0-9]+\]\).* 5:4 pkts.* rule 4 .*creatorid" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+	[ $(cat $states | grep tcp | wc -l) -eq 2 ] || atf_fail "Not exactly 2 states found!"
 }
 
-tcp_out_cleanup()
+tcp_out_if_bound_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "tcp_in_floating" "cleanup"
+tcp_in_floating_head()
+{
+	atf_set descr 'TCP NAT64 test on inbound interface, floating states'
+	atf_set require.user root
+}
+
+tcp_in_floating_body()
+{
+	nat64_setup_in "floating"
+
+	echo "foo" | jexec dst nc -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 3 64:ff9b::192.0.2.2
+
+	rcv=$(nc -w 3 -6 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to TCP server"
+	fi
+
+	# Interfaces of the state are reversed when doing inbound NAT64!
+	# FIXME: Packets counters seem wrong!
+	states=$(mktemp) || exit 1
+	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
+	for state_regexp in \
+		"all tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\).* 9:9 pkts.* rule 3 .* origif: ${epair}b" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+	[ $(cat $states | grep tcp | wc -l) -eq 1 ] || atf_fail "Not exactly 1 state found!"
+}
+
+tcp_in_floating_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "tcp_out_floating" "cleanup"
+tcp_out_floating_head()
+{
+	atf_set descr 'TCP NAT64 test on outbound interface, floating states'
+	atf_set require.user root
+}
+
+tcp_out_floating_body()
+{
+	nat64_setup_out "floating"
+
+	echo "foo" | jexec dst nc -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 3 64:ff9b::192.0.2.2
+
+	rcv=$(nc -w 3 -6 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to TCP server"
+	fi
+
+	# Origif is not printed when identical as if.
+	states=$(mktemp) || exit 1
+	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
+	for state_regexp in \
+		"all tcp 64:ff9b::c000:202\[1234\] <- 2001:db8::2\[[0-9]+\] .* 5:4 pkts,.* rule 3 .*creatorid"\
+		"all tcp 192.0.2.1:[0-9]+ \(64:ff9b::c000:202\[1234\]\) -> 192.0.2.2:1234 \(2001:db8::2\[[0-9]+\]\) .* 5:4 pkts,.* rule 4 .*creatorid"\
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+	[ $(cat $states | grep tcp | wc -l) -eq 2 ] || atf_fail "Not exactly 2 states found!"
+}
+
+tcp_out_floating_cleanup()
 {
 	pft_cleanup
 }
@@ -433,7 +541,9 @@ no_v4_body()
 
 	jexec rtr pfctl -e
 	pft_set_rules rtr \
-	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)" \
 
 	atf_check -s exit:2 -o ignore \
 	    ping6 -c 3 64:ff9b::192.0.2.2
@@ -484,7 +594,9 @@ range_body()
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
-	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from 192.0.2.2/31 round-robin"
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from 192.0.2.2/31 round-robin" \
 
 	# Use pf to count sources
 	jexec dst pfctl -e
@@ -545,6 +657,8 @@ pool_body()
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from { 192.0.2.1, 192.0.2.3, 192.0.2.4 } round-robin"
 
 	# Use pf to count sources
@@ -642,6 +756,8 @@ table_range_body()
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
 	    "table <wanaddrs> { 192.0.2.2/31 }" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from <wanaddrs> round-robin"
 
 	# Use pf to count sources
@@ -699,6 +815,8 @@ table_common_body()
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
 	    "table <wanaddrs> { 192.0.2.1, 192.0.2.3, 192.0.2.4 }" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from <wanaddrs> ${pool_type}"
 
 	# Use pf to count sources
@@ -798,6 +916,8 @@ dummynet_body()
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 dnpipe 1 af-to inet from (${epair_link}a)"
 
 	# The ping request will pass, but take 1.2 seconds (.6 in, .6 out)
@@ -860,6 +980,8 @@ gateway6_body()
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair_lan_link}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 
 	# One ping
@@ -912,6 +1034,8 @@ route_to_body()
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b route-to (${epair_link}a 192.0.2.2) inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 
 	atf_check -s exit:0 -o ignore \
@@ -965,6 +1089,8 @@ reply_to_body()
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair}b reply-to (${epair}b 2001:db8::2) inet6 from any to 64:ff9b::/96 af-to inet from 192.0.2.1"
 
 	atf_check -s exit:0 -o ignore \
@@ -1024,6 +1150,8 @@ v6_gateway_body()
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
+	    "block" \
+	    "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 	    "pass in on ${epair_lan}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_wan_one}a)"
 
 	atf_check -s exit:0 -o ignore \
@@ -1043,8 +1171,10 @@ atf_init_test_cases()
 	atf_add_test_case "icmp_echo_out"
 	atf_add_test_case "fragmentation_in"
 	atf_add_test_case "fragmentation_out"
-	atf_add_test_case "tcp_in"
-	atf_add_test_case "tcp_out"
+	atf_add_test_case "tcp_in_if_bound"
+	atf_add_test_case "tcp_out_if_bound"
+	atf_add_test_case "tcp_in_floating"
+	atf_add_test_case "tcp_out_floating"
 	atf_add_test_case "udp_in"
 	atf_add_test_case "udp_out"
 	atf_add_test_case "sctp_in"

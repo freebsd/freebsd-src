@@ -96,8 +96,10 @@ class TestNAT64(VnetTestTemplate):
         ToolsHelper.print_output("/sbin/route add default 192.0.2.2")
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
-            "pass inet6 proto icmp6",
-            "pass in on %s inet6 af-to inet from 192.0.2.1" % ifname])
+            "block",
+            "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }",
+            "pass in on %s inet6 af-to inet from 192.0.2.1" % ifname,
+        ])
 
         vnet.pipe.send(socket.if_nametoindex("pflog0"))
 
