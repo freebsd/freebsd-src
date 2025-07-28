@@ -193,7 +193,7 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 	    initgroups(p->pw_name, p->pw_gid) == -1 ||
 	    setgid(p->pw_gid) == -1 ||
 	    setuid(p->pw_uid) == -1)
-		return;
+		_exit(1);
 
 	if (stb.st_mode & S_IXUSR) {
 		(void)fprintf(tp, 
