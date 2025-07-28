@@ -153,7 +153,7 @@ f1f230439fa4:
 	and obj NFSv4 mounted, the total RPC count dropped from
 	5461286 to 945643, with a 20% drop in elapsed time.
 
-c3fc0db3bc50
+c3fc0db3bc50:
 	The default value of the sysctl variable
 	net.inet.tcp.nolocaltimewait has changed from 1 to 0. This means
 	that FreeBSD does not skip the TIME_WAIT state anymore for
@@ -163,12 +163,12 @@ c3fc0db3bc50
 	net.inet.tcp.nolocaltimewait is deprecated and intended to be
 	removed in FreeBSD 16.
 
-cd240957d7ba
+cd240957d7ba:
 	Making a connection to INADDR_ANY (i.e., using INADDR_ANY as an alias
 	for localhost) is now disabled by default.  This functionality can be
 	re-enabled by setting the net.inet.ip.connect_inaddr_wild sysctl to 1.
 
-b61850c4e6f6
+b61850c4e6f6:
 	The bridge(4) sysctl net.link.bridge.member_ifaddrs now defaults to 0,
 	meaning that interfaces added to a bridge may not have IP addresses
 	assigned.  Refer to bridge(4) for more information.
