@@ -7,6 +7,7 @@
 
 #include <sys/utsname.h>
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
@@ -14,6 +15,55 @@
 #include "libnvmf.h"
 #include "internal.h"
 #include "nvmft_subr.h"
+
+bool
+nvmf_nqn_valid_strict(const char *nqn)
+{
+	size_t len;
+
+	if (!nvmf_nqn_valid(nqn))
+		return (false);
+
+	/*
+	 * Stricter checks from the spec.  Linux does not seem to
+	 * require these.
+	 */
+	len = strlen(nqn);
+
+	/*
+	 * NVMF_NQN_MIN_LEN does not include '.' and require at least
+	 * one character of a domain name.
+	 */
+	if (len < NVMF_NQN_MIN_LEN + 2)
+		return (false);
+	if (memcmp("nqn.", nqn, strlen("nqn.")) != 0)
+		return (false);
+	nqn += strlen("nqn.");
+
+	/* Next 4 digits must be a year. */
+	for (u_int i = 0; i < 4; i++) {
+		if (!isdigit(nqn[i]))
+			return (false);
+	}
+	nqn += 4;
+
+	/* '-' between year and month. */
+	if (nqn[0] != '-')
+		return (false);
+	nqn++;
+
+	/* 2 digit month. */
+	for (u_int i = 0; i < 2; i++) {
+		if (!isdigit(nqn[i]))
+			return (false);
+	}
+	nqn += 2;
+
+	/* '.' between month and reverse domain name. */
+	if (nqn[0] != '.')
+		return (false);
+	return (true);
+}
 
 void
 nvmf_init_cqe(void *cqe, const struct nvmf_capsule *nc, uint16_t status)
