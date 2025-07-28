@@ -80,6 +80,20 @@ get_val(const char *cp, u_long *valp)
 }
 
 static int
+get_vlan_id(const char *cp, ether_vlanid_t *valp)
+{
+	u_long val;
+
+	if (get_val(cp, &val) == -1)
+		return (-1);
+	if (val < 0x1 || val > 0xffe)
+		return (-1);
+
+	*valp = (ether_vlanid_t)val;
+	return (0);
+}
+
+static int
 do_cmd(if_ctx *ctx, u_long op, void *arg, size_t argsize, int set)
 {
 	struct ifdrv ifd = {};
