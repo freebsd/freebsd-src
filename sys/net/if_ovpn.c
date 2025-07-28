@@ -322,6 +322,8 @@ ovpn_sockaddr_compare(const struct sockaddr *a,
 
 		if (a6->sin6_port != b6->sin6_port)
 			return (false);
+		if (a6->sin6_scope_id != b6->sin6_scope_id)
+			return (false);
 
 		return (memcmp(&a6->sin6_addr, &b6->sin6_addr,
 		    sizeof(a6->sin6_addr)) == 0);
@@ -392,6 +394,8 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 {
 	int af;
 
+	memset(sa, 0, sizeof(*sa));
+
 	if (! nvlist_exists_number(nvl, "af"))
 		return (EINVAL);
 	if (! nvlist_exists_binary(nvl, "address"))
@@ -432,6 +436,10 @@ ovpn_nvlist_to_sockaddr(const nvlist_t *nvl, struct sockaddr_storage *sa)
 
 		memcpy(&in6->sin6_addr, addr, sizeof(in6->sin6_addr));
 		in6->sin6_port = nvlist_get_number(nvl, "port");
+
+		if (nvlist_exists_number(nvl, "scopeid"))
+			in6->sin6_scope_id = nvlist_get_number(nvl, "scopeid");
+
 		break;
 	}
 #endif
@@ -468,6 +476,7 @@ ovpn_add_sockaddr(nvlist_t *parent, const char *name, const struct sockaddr *s)
 		nvlist_add_number(nvl, "port", s6->sin6_port);
 		nvlist_add_binary(nvl, "address", &s6->sin6_addr,
 		    sizeof(s6->sin6_addr));
+		nvlist_add_number(nvl, "scopeid", s6->sin6_scope_id);
 		break;
 	}
 	default:
@@ -725,7 +734,8 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 		NET_EPOCH_ENTER(et);
 		ret = in6_selectsrc_addr(curthread->td_proc->p_fibnum,
 		    &TO_IN6(&peer->remote)->sin6_addr,
-		    0, NULL, &TO_IN6(&peer->local)->sin6_addr, NULL);
+		    TO_IN6(&peer->remote)->sin6_scope_id, NULL,
+		    &TO_IN6(&peer->local)->sin6_addr, NULL);
 		NET_EPOCH_EXIT(et);
 		if (ret != 0) {
 			goto error;
@@ -2274,6 +2284,15 @@ ovpn_encap(struct ovpn_softc *sc, uint32_t peerid, struct mbuf *m)
 		    sizeof(ip6->ip6_src));
 		memcpy(&ip6->ip6_dst, &in6_remote->sin6_addr,
 		    sizeof(ip6->ip6_dst));
+
+		if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src)) {
+			/* Local and remote must have the same scope. */
+			ip6->ip6_src.__u6_addr.__u6_addr16[1] =
+			    htons(in6_remote->sin6_scope_id & 0xffff);
+		}
+		if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst))
+			ip6->ip6_dst.__u6_addr.__u6_addr16[1] =
+			    htons(in6_remote->sin6_scope_id & 0xffff);
 
 		udp = mtodo(m, sizeof(*ip6));
 		udp->uh_sum = in6_cksum_pseudo(ip6,
