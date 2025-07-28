@@ -533,22 +533,43 @@ private:
 #define	CONN_SESSION_TYPE_NORMAL	2
 
 struct ctld_connection {
+	ctld_connection(struct portal *portal, int fd, const char *host,
+	    const struct sockaddr *client_sa);
+	~ctld_connection();
+
+	int session_type() const { return conn_session_type; }
+
+	void login();
+	void discovery();
+	void kernel_handoff();
+private:
+	void login_chap(struct auth_group *ag);
+	void login_negotiate_key(struct pdu *request, const char *name,
+	    const char *value, bool skipped_security,
+	    struct keys *response_keys);
+	bool login_portal_redirect(struct pdu *request);
+	bool login_target_redirect(struct pdu *request);
+	void login_negotiate(struct pdu *request);
+	void login_wait_transition();
+
+	bool discovery_target_filtered_out(const struct port *port) const;
+
 	struct connection	conn;
-	struct portal		*conn_portal;
-	const struct port	*conn_port;
-	struct target		*conn_target;
-	int			conn_session_type;
-	char			*conn_initiator_name;
-	char			*conn_initiator_addr;
-	char			*conn_initiator_alias;
+	struct portal		*conn_portal = nullptr;
+	const struct port	*conn_port = nullptr;
+	struct target		*conn_target = nullptr;
+	int			conn_session_type = CONN_SESSION_TYPE_NONE;
+	std::string		conn_initiator_name;
+	std::string		conn_initiator_addr;
+	std::string		conn_initiator_alias;
 	uint8_t			conn_initiator_isid[6];
-	const struct sockaddr	*conn_initiator_sa;
-	int			conn_max_recv_data_segment_limit;
-	int			conn_max_send_data_segment_limit;
-	int			conn_max_burst_limit;
-	int			conn_first_burst_limit;
-	const char		*conn_user;
-	struct chap		*conn_chap;
+	const struct sockaddr	*conn_initiator_sa = nullptr;
+	int			conn_max_recv_data_segment_limit = 0;
+	int			conn_max_send_data_segment_limit = 0;
+	int			conn_max_burst_limit = 0;
+	int			conn_first_burst_limit = 0;
+	std::string		conn_user;
+	struct chap		*conn_chap = nullptr;
 };
 
 extern int ctl_fd;
@@ -564,7 +585,6 @@ bool			option_new(nvlist_t *nvl,
 			    const char *name, const char *value);
 
 void			kernel_init(void);
-void			kernel_handoff(struct ctld_connection *conn);
 void			kernel_capsicate(void);
 
 #ifdef ICL_KERNEL_PROXY
@@ -576,10 +596,6 @@ void			kernel_accept(int *connection_id, int *portal_id,
 void			kernel_send(struct pdu *pdu);
 void			kernel_receive(struct pdu *pdu);
 #endif
-
-void			login(struct ctld_connection *conn);
-
-void			discovery(struct ctld_connection *conn);
 
 void			start_timer(int timeout, bool fatal = false);
 void			stop_timer();
