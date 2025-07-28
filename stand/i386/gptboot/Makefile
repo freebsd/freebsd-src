@@ -1,6 +1,6 @@
 .include <bsd.init.mk>
 
-.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common ${SASRC}
+.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common
 
 FILES=		gptboot
 MAN=		gptboot.8
