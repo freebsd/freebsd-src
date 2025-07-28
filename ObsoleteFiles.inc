@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250728: Machine versions of 'runq.h' do not exist anymore
+OLD_FILES+=usr/include/machine/runq.h
+
 # 20250708: replace yaml.lua with lyaml
 OLD_FILES+=usr/share/flua/yaml.lua
 
