@@ -409,14 +409,14 @@ static void		 pf_mtag_free(struct m_tag *);
 static void		 pf_packet_rework_nat(struct pf_pdesc *, int,
 			    struct pf_state_key *);
 #ifdef INET
-static void		 pf_route(struct pf_krule *,
+static int		 pf_route(struct pf_krule *,
 			    struct ifnet *, struct pf_kstate *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET */
 #ifdef INET6
 static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int8_t);
-static void		 pf_route6(struct pf_krule *,
+static int		 pf_route6(struct pf_krule *,
 			    struct ifnet *, struct pf_kstate *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET6 */
@@ -8914,7 +8914,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kkif *kif,
 }
 
 #ifdef INET
-static void
+static int
 pf_route(struct pf_krule *r, struct ifnet *oifp,
     struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
@@ -8929,6 +8929,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 	uint16_t		 tmp;
 	int			 r_dir;
 	bool			 skip_test = false;
+	int			 action = PF_PASS;
 
 	KASSERT(pd->m && r && oifp, ("%s: invalid parameters", __func__));
 
@@ -8950,6 +8951,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 		m0 = pd->m;
 		pd->m = NULL;
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+		action = PF_DROP;
 		goto bad_locked;
 	}
 
@@ -8963,11 +8965,12 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 			}
 			if (ifp == oifp) {
 				/* When the 2nd interface is not skipped */
-				return;
+				return (action);
 			} else {
 				m0 = pd->m;
 				pd->m = NULL;
 				SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+				action = PF_DROP;
 				goto bad;
 			}
 		} else {
@@ -8975,7 +8978,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 			if (((m0 = m_dup(pd->m, M_NOWAIT)) == NULL)) {
 				if (s)
 					PF_STATE_UNLOCK(s);
-				return;
+				return (action);
 			}
 		}
 	} else {
@@ -8984,7 +8987,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 				pf_dummynet(pd, s, r, &pd->m);
 				if (s)
 					PF_STATE_UNLOCK(s);
-				return;
+				return (action);
 			} else {
 				if (r_dir == PF_IN) {
 					skip_test = true;
@@ -9024,6 +9027,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 				pf_send_icmp(m0, ICMP_TIMXCEED,
 				    ICMP_TIMXCEED_INTRANS, 0, pd->af, r,
 				    pd->act.rtableid);
+			action = PF_DROP;
 			goto bad_locked;
 		}
 		ip->ip_ttl -= IPTTLDEC;
@@ -9070,6 +9074,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 	if (ifp == NULL) {
 		m0 = pd->m;
 		pd->m = NULL;
+		action = PF_DROP;
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 		goto bad;
 	}
@@ -9080,9 +9085,11 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET, PF_OUT, PFIL_FWD, ifp, &m0, inp,
 		    &pd->act) != PF_PASS) {
+			action = PF_DROP;
 			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 			goto bad;
 		} else if (m0 == NULL) {
+			action = PF_DROP;
 			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 			goto done;
 		}
@@ -9090,6 +9097,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    "%s: m0->m_len < sizeof(struct ip)", __func__);
 			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+			action = PF_DROP;
 			goto bad;
 		}
 		ip = mtod(m0, struct ip *);
@@ -9171,12 +9179,14 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 			   ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+		action = PF_DROP;
 		goto bad;
 	}
 
 	error = ip_fragment(ip, &m0, ifp->if_mtu, ifp->if_hwassist);
 	if (error) {
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+		action = PF_DROP;
 		goto bad;
 	}
 
@@ -9203,7 +9213,9 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 done:
 	if (pd->act.rt != PF_DUPTO)
 		pd->m = NULL;
-	return;
+	else
+		action = PF_PASS;
+	return (action);
 
 bad_locked:
 	if (s)
@@ -9215,7 +9227,7 @@ bad:
 #endif /* INET */
 
 #ifdef INET6
-static void
+static int
 pf_route6(struct pf_krule *r, struct ifnet *oifp,
     struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
@@ -9226,6 +9238,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	struct ifnet		*ifp = NULL;
 	int			 r_dir;
 	bool			 skip_test = false;
+	int			 action = PF_PASS;
 
 	KASSERT(pd->m && r && oifp, ("%s: invalid parameters", __func__));
 
@@ -9246,6 +9259,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	    pd->pf_mtag->routed++ > 3) {
 		m0 = pd->m;
 		pd->m = NULL;
+		action = PF_DROP;
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad_locked;
 	}
@@ -9260,10 +9274,11 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 			}
 			if (ifp == oifp) {
 				/* When the 2nd interface is not skipped */
-				return;
+				return (action);
 			} else {
 				m0 = pd->m;
 				pd->m = NULL;
+				action = PF_DROP;
 				SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 				goto bad;
 			}
@@ -9272,7 +9287,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 			if (((m0 = m_dup(pd->m, M_NOWAIT)) == NULL)) {
 				if (s)
 					PF_STATE_UNLOCK(s);
-				return;
+				return (action);
 			}
 		}
 	} else {
@@ -9281,7 +9296,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 				pf_dummynet(pd, s, r, &pd->m);
 				if (s)
 					PF_STATE_UNLOCK(s);
-				return;
+				return (action);
 			} else {
 				if (r_dir == PF_IN) {
 					skip_test = true;
@@ -9321,6 +9336,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 				pf_send_icmp(m0, ICMP6_TIME_EXCEEDED,
 				    ICMP6_TIME_EXCEED_TRANSIT, 0, pd->af, r,
 				    pd->act.rtableid);
+			action = PF_DROP;
 			goto bad_locked;
 		}
 		ip6->ip6_hlim -= IPV6_HLIMDEC;
@@ -9375,6 +9391,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	if (ifp == NULL) {
 		m0 = pd->m;
 		pd->m = NULL;
+		action = PF_DROP;
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
 	}
@@ -9385,9 +9402,11 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD | PF_PFIL_NOREFRAGMENT,
 		    ifp, &m0, inp, &pd->act) != PF_PASS) {
+			action = PF_DROP;
 			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 			goto bad;
 		} else if (m0 == NULL) {
+			action = PF_DROP;
 			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 			goto done;
 		}
@@ -9395,6 +9414,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    "%s: m0->m_len < sizeof(struct ip6_hdr)",
 			    __func__);
+			action = PF_DROP;
 			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 			goto bad;
 		}
@@ -9470,6 +9490,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 				pf_send_icmp(m0, ICMP6_PACKET_TOO_BIG, 0,
 				    ifp->if_mtu, pd->af, r, pd->act.rtableid);
 		}
+		action = PF_DROP;
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
 	}
@@ -9477,7 +9498,9 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 done:
 	if (pd->act.rt != PF_DUPTO)
 		pd->m = NULL;
-	return;
+	else
+		action = PF_PASS;
+	return (action);
 
 bad_locked:
 	if (s)
@@ -11033,15 +11056,18 @@ done:
 			break;
 		}
 #ifdef INET
-		if (pd.naf == AF_INET)
-			pf_route(r, kif->pfik_ifp, s, &pd, inp);
+		if (pd.naf == AF_INET) {
+			action = pf_route(r, kif->pfik_ifp, s, &pd,
+			    inp);
+		}
 #endif /* INET */
 #ifdef INET6
-		if (pd.naf == AF_INET6)
-			pf_route6(r, kif->pfik_ifp, s, &pd, inp);
+		if (pd.naf == AF_INET6) {
+			action = pf_route6(r, kif->pfik_ifp, s, &pd,
+			    inp);
+}
 #endif /* INET6 */
 		*m0 = pd.m;
-		action = PF_PASS;
 		goto out;
 		break;
 	default:
@@ -11050,13 +11076,15 @@ done:
 #ifdef INET
 			case AF_INET:
 				/* pf_route() returns unlocked. */
-				pf_route(r, kif->pfik_ifp, s, &pd, inp);
+				action = pf_route(r, kif->pfik_ifp, s, &pd,
+				    inp);
 				break;
 #endif /* INET */
 #ifdef INET6
 			case AF_INET6:
 				/* pf_route6() returns unlocked. */
-				pf_route6(r, kif->pfik_ifp, s, &pd, inp);
+				action = pf_route6(r, kif->pfik_ifp, s, &pd,
+				    inp);
 				break;
 #endif /* INET6 */
 			}
