@@ -198,7 +198,7 @@ main(void)
 
 #ifdef LOADER_ZFS_SUPPORT
 	/*
-	 * zfsboot and gptzfsboot have always passed KARGS_FLAGS_ZFS,
+	 * gptzfsboot has always passed KARGS_FLAGS_ZFS,
 	 * so if that is set along with KARGS_FLAGS_EXTARG we know we
 	 * can interpret the extarg data as a struct zfs_boot_args.
 	 */
