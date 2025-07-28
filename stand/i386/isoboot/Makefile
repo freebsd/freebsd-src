@@ -1,7 +1,7 @@
 .include <bsd.init.mk>
 
 .PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/gptboot \
-		${BOOTSRC}/i386/common ${SASRC}
+		${BOOTSRC}/i386/common
 
 FILES=		isoboot
 MAN=		isoboot.8
