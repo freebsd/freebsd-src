@@ -3423,7 +3423,7 @@ prison_check_af(struct ucred *cred, int af)
 	pr = cred->cr_prison;
 #ifdef VIMAGE
 	/* Prisons with their own network stack are not limited. */
-	if (prison_owns_vnet(cred))
+	if (prison_owns_vnet(pr))
 		return (0);
 #endif
 
@@ -3488,7 +3488,7 @@ prison_if(struct ucred *cred, const struct sockaddr *sa)
 	KASSERT(sa != NULL, ("%s: sa is NULL", __func__));
 
 #ifdef VIMAGE
-	if (prison_owns_vnet(cred))
+	if (prison_owns_vnet(cred->cr_prison))
 		return (0);
 #endif
 
@@ -3605,7 +3605,7 @@ jailed_without_vnet(struct ucred *cred)
 	if (!jailed(cred))
 		return (false);
 #ifdef VIMAGE
-	if (prison_owns_vnet(cred))
+	if (prison_owns_vnet(cred->cr_prison))
 		return (false);
 #endif
 
@@ -3668,20 +3668,17 @@ getjailname(struct ucred *cred, char *name, size_t len)
 
 #ifdef VIMAGE
 /*
- * Determine whether the prison represented by cred owns
- * its vnet rather than having it inherited.
- *
- * Returns true in case the prison owns the vnet, false otherwise.
+ * Determine whether the prison owns its VNET.
  */
 bool
-prison_owns_vnet(struct ucred *cred)
+prison_owns_vnet(struct prison *pr)
 {
 
 	/*
 	 * vnets cannot be added/removed after jail creation,
 	 * so no need to lock here.
 	 */
-	return ((cred->cr_prison->pr_flags & PR_VNET) != 0);
+	return ((pr->pr_flags & PR_VNET) != 0);
 }
 #endif
 
@@ -4343,7 +4340,7 @@ sysctl_jail_vnet(SYSCTL_HANDLER_ARGS)
 #ifdef VIMAGE
 	struct ucred *cred = req->td->td_ucred;
 
-	havevnet = jailed(cred) && prison_owns_vnet(cred);
+	havevnet = jailed(cred) && prison_owns_vnet(cred->cr_prison);
 #else
 	havevnet = 0;
 #endif

@@ -428,7 +428,7 @@ void prison0_init(void);
 bool prison_allow(struct ucred *, unsigned);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
 bool prison_check_nfsd(struct ucred *cred);
-bool prison_owns_vnet(struct ucred *);
+bool prison_owns_vnet(struct prison *pr);
 int prison_canseemount(struct ucred *cred, struct mount *mp);
 void prison_enforce_statfs(struct ucred *cred, struct mount *mp,
     struct statfs *sp);
