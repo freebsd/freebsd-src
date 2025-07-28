@@ -51,7 +51,7 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # Default options to use when creating zroot pool
 #
-: ${ZFSBOOT_POOL_CREATE_OPTIONS:=-O compress=lz4 -O atime=off}
+: ${ZFSBOOT_POOL_CREATE_OPTIONS:=-O compression=on -O atime=off}
 
 #
 # Default name for the boot environment parent dataset
