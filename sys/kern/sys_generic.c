@@ -2269,6 +2269,7 @@ exterr_copyout(struct thread *td)
 		ue.error = 0;
 		sz = sizeof(ue.error);
 	} else {
+		ktrexterr(td);
 		sz = sizeof(ue) - __offsetof(struct uexterror, error);
 	}
 	error = copyout(&ue.error, uloc, sz);
@@ -2335,7 +2336,6 @@ exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
 		td->td_kexterr.p1 = pp1;
 		td->td_kexterr.p2 = pp2;
 		td->td_kexterr.src_line = line;
-		ktrexterr(td);
 	}
 	return (eerror);
 }
