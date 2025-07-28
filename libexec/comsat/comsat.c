@@ -125,29 +125,24 @@ mailfor(char *name)
 	char *file;
 	off_t offset;
 	int folder;
-	char buf[sizeof(_PATH_MAILDIR) + sizeof(utp->ut_user) + 1];
-	char buf2[sizeof(_PATH_MAILDIR) + sizeof(utp->ut_user) + 1];
+	char buf[MAXPATHLEN];
 
-	if (!(cp = strchr(name, '@')))
+	if ((cp = strchr(name, '@')) == NULL)
 		return;
 	*cp = '\0';
 	offset = strtoll(cp + 1, NULL, 10);
-	if (!(cp = strchr(cp + 1, ':')))
-		file = name;
-	else
-		file = cp + 1;
-	sprintf(buf, "%s/%.*s", _PATH_MAILDIR, (int)sizeof(utp->ut_user),
-	    name);
-	if (*file != '/') {
-		sprintf(buf2, "%s/%.*s", _PATH_MAILDIR,
-		    (int)sizeof(utp->ut_user), file);
-		file = buf2;
+	if ((cp = strchr(cp + 1, ':')) != NULL &&
+	    strchr((file = cp + 1), '/') == NULL) {
+		snprintf(buf, sizeof(buf), "%s/%s", _PATH_MAILDIR, file);
+		folder = 1;
+	} else {
+		snprintf(buf, sizeof(buf), "%s/%s", _PATH_MAILDIR, name);
+		folder = 0;
 	}
-	folder = strcmp(buf, file);
 	setutxent();
 	while ((utp = getutxent()) != NULL)
 		if (utp->ut_type == USER_PROCESS && !strcmp(utp->ut_user, name))
-			notify(utp, file, offset, folder);
+			notify(utp, buf, offset, folder);
 	endutxent();
 }
 
@@ -171,8 +166,7 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 		    utp->ut_line);
 		return;
 	}
-	(void)snprintf(tty, sizeof(tty), "%s%.*s",
-	    _PATH_DEV, (int)sizeof(utp->ut_line), utp->ut_line);
+	(void)snprintf(tty, sizeof(tty), "%s%s", _PATH_DEV, utp->ut_line);
 	if (stat(tty, &stb) == -1 || !(stb.st_mode & (S_IXUSR | S_IXGRP))) {
 		dsyslog(LOG_DEBUG, "%s: wrong mode on %s", utp->ut_user, tty);
 		return;
@@ -199,26 +193,20 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 	    initgroups(p->pw_name, p->pw_gid) == -1 ||
 	    setgid(p->pw_gid) == -1 ||
 	    setuid(p->pw_uid) == -1)
-		return;
+		_exit(1);
 
-	switch (stb.st_mode & (S_IXUSR | S_IXGRP)) {
-	case S_IXUSR:
-	case (S_IXUSR | S_IXGRP):
+	if (stb.st_mode & S_IXUSR) {
 		(void)fprintf(tp, 
 		    "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
 		    cr, utp->ut_user, (int)sizeof(hostname), hostname,
 		    folder ? cr : "", folder ? "to " : "", folder ? file : "",
 		    cr, cr);
 		jkfprintf(tp, file, offset);
-		break;
-	case S_IXGRP:
+	} else if (stb.st_mode & S_IXGRP) {
 		(void)fprintf(tp, "\007");
 		(void)fflush(tp);      
 		(void)sleep(1);
 		(void)fprintf(tp, "\007");
-		break;
-	default:
-		break;
 	}	
 	(void)fclose(tp);
 	_exit(0);
