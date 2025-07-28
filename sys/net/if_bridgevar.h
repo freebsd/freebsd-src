@@ -124,7 +124,7 @@
 #define	BRDGSPROTO		28	/* set protocol (ifbrparam) */
 #define	BRDGSTXHC		29	/* set tx hold count (ifbrparam) */
 #define	BRDGSIFAMAX		30	/* set max interface addrs (ifbreq) */
-#define	BRDGSIFUNTAGGED		31	/* set if untagged vlan */
+#define	BRDGSIFPVID		31	/* set if PVID */
 #define	BRDGSIFVLANSET		32	/* set if vlan set */
 #define	BRDGGIFVLANSET		33	/* get if vlan set */
 
@@ -144,7 +144,7 @@ struct ifbreq {
 	uint32_t	ifbr_addrcnt;		/* member if addr number */
 	uint32_t	ifbr_addrmax;		/* member if addr max */
 	uint32_t	ifbr_addrexceeded;	/* member if addr violations */
-	ether_vlanid_t	ifbr_untagged;		/* member if untagged vlan */
+	ether_vlanid_t	ifbr_pvid;		/* member if PVID */
 	uint8_t		pad[32];
 };
 

@@ -257,8 +257,8 @@ struct bridge_iflist {
 	uint32_t		bif_addrcnt;	/* cur. # of addresses */
 	uint32_t		bif_addrexceeded;/* # of address violations */
 	struct epoch_context	bif_epoch_ctx;
-	ether_vlanid_t		bif_untagged;	/* untagged vlan id */
-	ifbvlan_set_t		bif_vlan_set;	/* allowed tagged vlans */
+	ether_vlanid_t		bif_pvid;	/* port vlan id */
+	ifbvlan_set_t		bif_vlan_set;	/* if allowed tagged vlans */
 };
 
 /*
@@ -407,7 +407,7 @@ static int	bridge_ioctl_sma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifmaxaddr(struct bridge_softc *, void *);
-static int	bridge_ioctl_sifuntagged(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifpvid(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifvlanset(struct bridge_softc *, void *);
 static int	bridge_ioctl_gifvlanset(struct bridge_softc *, void *);
 static int	bridge_ioctl_addspan(struct bridge_softc *, void *);
@@ -628,7 +628,7 @@ static const struct bridge_control bridge_control_table[] = {
 	{ bridge_ioctl_sifmaxaddr,	sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 
-	{ bridge_ioctl_sifuntagged,	sizeof(struct ifbreq),
+	{ bridge_ioctl_sifpvid,		sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 
 	{ bridge_ioctl_sifvlanset,	sizeof(struct ifbif_vlan_req),
@@ -1533,7 +1533,7 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 	req->ifbr_addrcnt = bif->bif_addrcnt;
 	req->ifbr_addrmax = bif->bif_addrmax;
 	req->ifbr_addrexceeded = bif->bif_addrexceeded;
-	req->ifbr_untagged = bif->bif_untagged;
+	req->ifbr_pvid = bif->bif_pvid;
 
 	/* Copy STP state options as flags */
 	if (bp->bp_operedge)
@@ -1913,7 +1913,7 @@ bridge_ioctl_sifmaxaddr(struct bridge_softc *sc, void *arg)
 }
 
 static int
-bridge_ioctl_sifuntagged(struct bridge_softc *sc, void *arg)
+bridge_ioctl_sifpvid(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
@@ -1922,12 +1922,12 @@ bridge_ioctl_sifuntagged(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (EXTERROR(ENOENT, "Interface is not a bridge member"));
 
-	if (req->ifbr_untagged > DOT1Q_VID_MAX)
+	if (req->ifbr_pvid > DOT1Q_VID_MAX)
 		return (EXTERROR(EINVAL, "Invalid VLAN ID"));
 
-	if (req->ifbr_untagged != DOT1Q_VID_NULL)
+	if (req->ifbr_pvid != DOT1Q_VID_NULL)
 		bif->bif_flags |= IFBIF_VLANFILTER;
-	bif->bif_untagged = req->ifbr_untagged;
+	bif->bif_pvid = req->ifbr_pvid;
 	return (0);
 }
 
@@ -2303,8 +2303,8 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 		 * the VLAN header.
 		 */
 		if ((bif->bif_flags & IFBIF_VLANFILTER) &&
-		    bif->bif_untagged != DOT1Q_VID_NULL &&
-		    VLANTAGOF(m) == bif->bif_untagged) {
+		    bif->bif_pvid != DOT1Q_VID_NULL &&
+		    VLANTAGOF(m) == bif->bif_pvid) {
 			m->m_flags &= ~M_VLANTAG;
 			m->m_pkthdr.ether_vtag = 0;
 		}
@@ -3170,14 +3170,14 @@ bridge_vfilter_in(const struct bridge_iflist *sbif, struct mbuf *m)
 		 * The frame doesn't have a tag.  If the interface does not
 		 * have an untagged vlan configured, drop the frame.
 		 */
-		if (sbif->bif_untagged == DOT1Q_VID_NULL)
+		if (sbif->bif_pvid == DOT1Q_VID_NULL)
 			return (false);
 
 		/*
 		 * Otherwise, insert a new tag based on the interface's
 		 * untagged vlan id.
 		 */
-		m->m_pkthdr.ether_vtag = sbif->bif_untagged;
+		m->m_pkthdr.ether_vtag = sbif->bif_pvid;
 		m->m_flags |= M_VLANTAG;
 	} else {
 		/*
@@ -3238,7 +3238,7 @@ bridge_vfilter_out(const struct bridge_iflist *dbif, const struct mbuf *m)
 	 * If the frame's vlan matches the interfaces's untagged vlan,
 	 * allow it.
 	 */
-	if (vlan == dbif->bif_untagged)
+	if (vlan == dbif->bif_pvid)
 		return (true);
 
 	/*
