@@ -34,11 +34,13 @@
 #include <sys/epoch.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/nv.h>
+#include <sys/osd.h>
 #include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>
@@ -2619,23 +2621,53 @@ vnet_ovpn_init(const void *unused __unused)
 VNET_SYSINIT(vnet_ovpn_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_ovpn_init, NULL);
 
-static void
-vnet_ovpn_uninit(const void *unused __unused)
+static int
+ovpn_prison_remove(void *obj, void *data __unused)
 {
-	if_clone_detach(V_ovpn_cloner);
+#ifdef VIMAGE
+	struct prison *pr;
+
+	pr = obj;
+	if (prison_owns_vnet(pr)) {
+		CURVNET_SET(pr->pr_vnet);
+		if (V_ovpn_cloner != NULL) {
+			ifc_detach_cloner(V_ovpn_cloner);
+			V_ovpn_cloner = NULL;
+		}
+		CURVNET_RESTORE();
+	}
+#endif
+	return (0);
 }
-VNET_SYSUNINIT(vnet_ovpn_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    vnet_ovpn_uninit, NULL);
 
 static int
 ovpnmodevent(module_t mod, int type, void *data)
 {
+	static int ovpn_osd_jail_slot;
+
 	switch (type) {
-	case MOD_LOAD:
-		/* Done in vnet_ovpn_init() */
+	case MOD_LOAD: {
+		/*
+		 * Registration is handled in vnet_ovpn_init(), but cloned
+		 * interfaces must be destroyed via PR_METHOD_REMOVE since they
+		 * hold a reference to the prison via the UDP socket, which
+		 * prevents the prison from being destroyed.
+		 */
+		osd_method_t methods[PR_MAXMETHOD] = {
+			[PR_METHOD_REMOVE] = ovpn_prison_remove,
+		};
+		ovpn_osd_jail_slot = osd_jail_register(NULL, methods);
 		break;
+	}
 	case MOD_UNLOAD:
-		/* Done in vnet_ovpn_uninit() */
+		if (ovpn_osd_jail_slot != 0)
+			osd_jail_deregister(ovpn_osd_jail_slot);
+		CURVNET_SET(vnet0);
+		if (V_ovpn_cloner != NULL) {
+			ifc_detach_cloner(V_ovpn_cloner);
+			V_ovpn_cloner = NULL;
+		}
+		CURVNET_RESTORE();
 		break;
 	default:
 		return (EOPNOTSUPP);
