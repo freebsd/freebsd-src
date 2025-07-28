@@ -481,6 +481,81 @@ atf_test_case "6in6" "cleanup"
 	ovpn_cleanup
 }
 
+atf_test_case "linklocal" "cleanup"
+linklocal_head()
+{
+	atf_set descr 'Use IPv6 link-local addresses'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+linklocal_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a inet6 fe80::a/64 up no_dad
+	vnet_mkjail b ${l}b
+	jexec b ifconfig ${l}b inet6 fe80::b/64 up no_dad
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping6 -c 1 fe80::b%${l}a
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp6
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local fe80::a%${l}a
+		server-ipv6 2001:db8:1::/64
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote fe80::a%${l}b
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+	jexec a ifconfig
+
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 2001:db8:1::1
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 -z 16 2001:db8:1::1
+}
+
+linklocal_cleanup()
+{
+	ovpn_cleanup
+}
+
 atf_test_case "timeout_client" "cleanup"
 timeout_client_head()
 {
@@ -1378,6 +1453,7 @@ atf_init_test_cases()
 	atf_add_test_case "6in4"
 	atf_add_test_case "6in6"
 	atf_add_test_case "4in6"
+	atf_add_test_case "linklocal"
 	atf_add_test_case "timeout_client"
 	atf_add_test_case "explicit_exit"
 	atf_add_test_case "multi_client"
