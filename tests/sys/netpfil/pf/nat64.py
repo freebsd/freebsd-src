@@ -326,3 +326,31 @@ class TestNAT64(VnetTestTemplate):
         packets = sp.sniff(iface=ifname, timeout=5)
         for r in packets:
             r.show()
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_ttl_zero(self):
+        """
+            PR 288274: we can use an mbuf after free on TTL = 0
+        """
+        ifname = self.vnet.iface_alias_map["if1"].name
+        gw_mac = self.vnet.iface_alias_map["if1"].epairb.ether
+        ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
+
+        import scapy.all as sp
+
+        pkt = sp.Ether(dst=gw_mac) \
+            / sp.IPv6(dst="64:ff9b::192.0.2.2", hlim=0) \
+            / sp.SCTP(sport=1111, dport=2222) \
+            / sp.SCTPChunkInit(init_tag=1, n_in_streams=1, n_out_streams=1, \
+                a_rwnd=1500, params=[ \
+                    sp.SCTPChunkParamIPv4Addr() \
+                ])
+        pkt.show()
+        sp.hexdump(pkt)
+        s = DelayedSend(pkt, sendif=ifname)
+
+        packets = sp.sniff(iface=ifname, timeout=5)
+        for r in packets:
+            r.show()
+
