@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250728: zfsboot (MBR) removed
+OLD_FILES+=boot/zfsboot
+OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
+
 # 20250728: Machine versions of 'runq.h' do not exist anymore
 OLD_FILES+=usr/include/machine/runq.h
 
