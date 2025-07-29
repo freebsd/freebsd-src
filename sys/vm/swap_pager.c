@@ -65,9 +65,9 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  */
 
-#include <sys/cdefs.h>
 #include "opt_vm.h"
 
+#define	EXTERR_CATEGORY		EXTERR_CAT_SWAP
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/blist.h>
@@ -76,6 +76,7 @@
 #include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/eventhandler.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -2686,7 +2687,7 @@ swapon_check_swzone(void)
 	}
 }
 
-static void
+static int
 swaponsomething(struct vnode *vp, void *id, u_long nblks,
     sw_strategy_t *strategy, sw_close_t *close, dev_t dev, int flags)
 {
@@ -2701,6 +2702,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	 */
 	nblks &= ~(ctodb(1) - 1);
 	nblks = dbtoc(nblks);
+	if (nblks == 0)
+		return (EXTERROR(EINVAL, "swap device too small"));
 
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
 	sp->sw_blist = blist_create(nblks, M_WAITOK);
@@ -2742,6 +2745,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	swp_sizecheck();
 	mtx_unlock(&sw_dev_mtx);
 	EVENTHANDLER_INVOKE(swapon, sp);
+
+	return (0);
 }
 
 /*
@@ -3286,10 +3291,10 @@ swapongeom_locked(struct cdev *dev, struct vnode *vp)
 		return (error);
 	}
 	nblks = pp->mediasize / DEV_BSIZE;
-	swaponsomething(vp, cp, nblks, swapgeom_strategy,
+	error = swaponsomething(vp, cp, nblks, swapgeom_strategy,
 	    swapgeom_close, dev2udev(dev),
 	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
-	return (0);
+	return (error);
 }
 
 static int
@@ -3378,9 +3383,9 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	if (error != 0)
 		return (error);
 
-	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
+	error = swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
 	    NODEV, 0);
-	return (0);
+	return (error);
 }
 
 static int
