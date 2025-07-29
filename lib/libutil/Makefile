@@ -15,10 +15,10 @@ SRCS=	_secure_path.c cpuset.c expand_number.c flopen.c fparseln.c \
 	kinfo_getallproc.c kinfo_getproc.c kinfo_getvmmap.c \
 	kinfo_getvmobject.c kld.c \
 	login_auth.c login_cap.c \
-	login_class.c login_crypt.c login_ok.c login_times.c login_tty.c \
+	login_class.c login_ok.c login_times.c login_tty.c \
 	mntopts.c \
 	pidfile.c property.c pty.c pw_scan.c pw_util.c quotafile.c \
-	realhostname.c stub.c trimdomain.c uucplock.c
+	realhostname.c trimdomain.c uucplock.c
 INCS=	libutil.h login_cap.h mntopts.h
 
 CFLAGS+= -DNO__SCCSID
@@ -69,7 +69,6 @@ MLINKS+=login_cap.3 login_getpath.3
 MLINKS+=login_cap.3 login_getpwclass.3
 MLINKS+=login_cap.3 login_getstyle.3
 MLINKS+=login_cap.3 login_getuserclass.3
-MLINKS+=login_cap.3 login_setcryptfmt.3
 MAN+=	login_class.3
 MLINKS+=login_class.3 setclasscontext.3
 MLINKS+=login_class.3 setclasscpumask.3

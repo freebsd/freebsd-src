@@ -393,10 +393,12 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			return (PAM_BUF_ERR);
 
 		lc = login_getclass(pwd->pw_class);
-		if (login_setcryptfmt(lc, password_hash, NULL) == NULL)
+		if (lc == NULL ||
+		    !crypt_set_format(login_getcapstr(lc, "passwd_format", password_hash, NULL))) {
 			openpam_log(PAM_LOG_ERROR,
 			    "can't set password cipher, relying on default");
-		
+		}
+
 		/* set password expiry date */
 		pwd->pw_change = 0;
 		passwordtime = login_getcaptime(lc, "passwordtime", 0, 0);

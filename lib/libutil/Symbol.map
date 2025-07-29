@@ -63,7 +63,6 @@ FBSD_1.8 {
 	login_getstyle;
 	login_getuserclass;
 	login_hostok;
-	login_setcryptfmt;
 	login_str2inlist;
 	login_strinlist;
 	login_timelist;

@@ -113,7 +113,6 @@ int login_getcapenum(login_cap_t *lc, const char *cap,
 rlim_t login_getcapsize(login_cap_t *, const char *, rlim_t, rlim_t);
 const char *login_getpath(login_cap_t *, const char *, const char *);
 int login_getcapbool(login_cap_t *, const char *, int);
-const char *login_setcryptfmt(login_cap_t *, const char *, const char *);
 
 int setclasscontext(const char *, unsigned int);
 void setclasscpumask(login_cap_t *);

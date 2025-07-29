@@ -204,8 +204,9 @@ pw_set_passwd(struct passwd *pwd, int fd, bool precrypted, bool update)
 	} else {
 		lc = login_getpwclass(pwd);
 		if (lc == NULL ||
-				login_setcryptfmt(lc, "sha512", NULL) == NULL)
+		    !crypt_set_format(login_getcapstr(lc, "passwd_format", "sha512", NULL))) {
 			warn("setting crypt(3) format");
+		}
 		login_close(lc);
 		pwd->pw_passwd = pw_pwcrypt(line);
 	}
@@ -1394,8 +1395,10 @@ pw_user_add(int argc, char **argv, char *arg1)
 	pwd->pw_dir = pw_homepolicy(cmdcnf, homedir, pwd->pw_name);
 	pwd->pw_shell = pw_shellpolicy(cmdcnf);
 	lc = login_getpwclass(pwd);
-	if (lc == NULL || login_setcryptfmt(lc, "sha512", NULL) == NULL)
+	if (lc == NULL ||
+	    !crypt_set_format(login_getcapstr(lc, "passwd_format", "sha512", NULL))) {
 		warn("setting crypt(3) format");
+	}
 	login_close(lc);
 	pwd->pw_passwd = pw_password(cmdcnf, pwd->pw_name);
 	if (pwd->pw_uid == 0 && strcmp(pwd->pw_name, "root") != 0)
@@ -1748,8 +1751,10 @@ pw_user_mod(int argc, char **argv, char *arg1)
 
 	if (passwd && conf.fd == -1) {
 		lc = login_getpwclass(pwd);
-		if (lc == NULL || login_setcryptfmt(lc, "sha512", NULL) == NULL)
+		if (lc == NULL ||
+		    !crypt_set_format(login_getcapstr(lc, "passwd_format", "sha512", NULL))) {
 			warn("setting crypt(3) format");
+		}
 		login_close(lc);
 		cnf->default_password = passwd_val(passwd,
 		    cnf->default_password);
