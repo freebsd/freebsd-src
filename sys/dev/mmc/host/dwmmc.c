@@ -316,20 +316,11 @@ static void
 dwmmc_cmd_done(struct dwmmc_softc *sc)
 {
 	struct mmc_command *cmd;
-#ifdef MMCCAM
-	union ccb *ccb;
-#endif
 
-#ifdef MMCCAM
-	ccb = sc->ccb;
-	if (ccb == NULL)
-		return;
-	cmd = &ccb->mmcio.cmd;
-#else
+	DWMMC_ASSERT_LOCKED(sc);
+
 	cmd = sc->curcmd;
-#endif
-	if (cmd == NULL)
-		return;
+	KASSERT(cmd != NULL, ("%s: sc %p curcmd %p == NULL", __func__, sc, cmd));
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
@@ -351,15 +342,17 @@ dwmmc_tasklet(struct dwmmc_softc *sc)
 {
 	struct mmc_command *cmd;
 
+	DWMMC_ASSERT_LOCKED(sc);
+
 	cmd = sc->curcmd;
-	if (cmd == NULL)
-		return;
+	KASSERT(cmd != NULL, ("%s: sc %p curcmd %p == NULL", __func__, sc, cmd));
 
 	if (!sc->cmd_done)
 		return;
 
 	if (cmd->error != MMC_ERR_NONE || !cmd->data) {
 		dwmmc_next_operation(sc);
+
 	} else if (cmd->data && sc->dto_rcvd) {
 		if ((cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK ||
 		     cmd->opcode == MMC_READ_MULTIPLE_BLOCK) &&
@@ -384,6 +377,7 @@ dwmmc_intr(void *arg)
 	DWMMC_LOCK(sc);
 
 	cmd = sc->curcmd;
+	KASSERT(cmd != NULL, ("%s: sc %p curcmd %p == NULL", __func__, sc, cmd));
 
 	/* First handle SDMMC controller interrupts */
 	reg = READ4(sc, SDMMC_MINTSTS);
@@ -1094,6 +1088,9 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 	uint32_t cmdr;
 
 	dprintf("%s\n", __func__);
+
+	DWMMC_ASSERT_LOCKED(sc);
+
 	sc->curcmd = cmd;
 	data = cmd->data;
 
@@ -1178,18 +1175,22 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 static void
 dwmmc_next_operation(struct dwmmc_softc *sc)
 {
-	struct mmc_command *cmd;
-	dprintf("%s\n", __func__);
 #ifdef MMCCAM
 	union ccb *ccb;
+#else
+	struct mmc_request *req;
+#endif
+	struct mmc_command *cmd;
 
+	dprintf("%s\n", __func__);
+	DWMMC_ASSERT_LOCKED(sc);
+
+#ifdef MMCCAM
 	ccb = sc->ccb;
 	if (ccb == NULL)
 		return;
 	cmd = &ccb->mmcio.cmd;
 #else
-	struct mmc_request *req;
-
 	req = sc->req;
 	if (req == NULL)
 		return;
@@ -1206,7 +1207,7 @@ dwmmc_next_operation(struct dwmmc_softc *sc)
 	 * mostly caused by multi-block write command
 	 * followed by single-read.
 	 */
-	while(READ4(sc, SDMMC_STATUS) & (SDMMC_STATUS_DATA_BUSY))
+	while (READ4(sc, SDMMC_STATUS) & (SDMMC_STATUS_DATA_BUSY))
 		continue;
 
 	if (sc->flags & PENDING_CMD) {
@@ -1220,50 +1221,44 @@ dwmmc_next_operation(struct dwmmc_softc *sc)
 		return;
 	}
 
-#ifdef MMCCAM
-	sc->ccb = NULL;
 	sc->curcmd = NULL;
+#ifdef MMCCAM
 	ccb->ccb_h.status =
 		(ccb->mmcio.cmd.error == 0 ? CAM_REQ_CMP : CAM_REQ_CMP_ERR);
 	xpt_done(ccb);
+	sc->ccb = NULL;
 #else
-	sc->req = NULL;
-	sc->curcmd = NULL;
 	req->done(req);
+	sc->req = NULL;
 #endif
 }
 
+#ifndef MMCCAM
 static int
 dwmmc_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 {
 	struct dwmmc_softc *sc;
 
-	sc = device_get_softc(brdev);
-
 	dprintf("%s\n", __func__);
 
-	DWMMC_LOCK(sc);
+	sc = device_get_softc(brdev);
 
-#ifdef MMCCAM
-	sc->flags |= PENDING_CMD;
-#else
+	DWMMC_LOCK(sc);
 	if (sc->req != NULL) {
 		DWMMC_UNLOCK(sc);
 		return (EBUSY);
 	}
-
 	sc->req = req;
 	sc->flags |= PENDING_CMD;
 	if (sc->req->stop)
 		sc->flags |= PENDING_STOP;
-#endif
-	dwmmc_next_operation(sc);
 
+	dwmmc_next_operation(sc);
 	DWMMC_UNLOCK(sc);
+
 	return (0);
 }
 
-#ifndef MMCCAM
 static int
 dwmmc_get_ro(device_t brdev, device_t reqdev)
 {
@@ -1506,9 +1501,14 @@ dwmmc_cam_request(device_t dev, union ccb *ccb)
 	struct ccb_mmcio *mmcio;
 
 	sc = device_get_softc(dev);
-	mmcio = &ccb->mmcio;
-
 	DWMMC_LOCK(sc);
+
+	KASSERT(ccb->ccb_h.pinfo.index == CAM_ACTIVE_INDEX,
+	    ("%s: ccb %p index %d != CAM_ACTIVE_INDEX: func=%#x %s status %#x\n",
+	    __func__, ccb, ccb->ccb_h.pinfo.index, ccb->ccb_h.func_code,
+	    xpt_action_name(ccb->ccb_h.func_code), ccb->ccb_h.status));
+
+	mmcio = &ccb->mmcio;
 
 #ifdef DEBUG
 	if (__predict_false(bootverbose)) {
@@ -1520,16 +1520,21 @@ dwmmc_cam_request(device_t dev, union ccb *ccb)
 #endif
 	if (mmcio->cmd.data != NULL) {
 		if (mmcio->cmd.data->len == 0 || mmcio->cmd.data->flags == 0)
-			panic("data->len = %d, data->flags = %d -- something is b0rked",
-			      (int)mmcio->cmd.data->len, mmcio->cmd.data->flags);
+			panic("%s: data %p data->len = %d, data->flags = %d -- something is b0rked",
+			      __func__, mmcio->cmd.data, (int)mmcio->cmd.data->len, mmcio->cmd.data->flags);
 	}
+
 	if (sc->ccb != NULL) {
-		device_printf(sc->dev, "Controller still has an active command\n");
+		device_printf(sc->dev, "%s: Controller still has an active command: "
+		    "sc->ccb %p new ccb %p\n", __func__, sc->ccb, ccb);
+		DWMMC_UNLOCK(sc);
 		return (EBUSY);
 	}
 	sc->ccb = ccb;
+	sc->flags |= PENDING_CMD;
+
+	dwmmc_next_operation(sc);
 	DWMMC_UNLOCK(sc);
-	dwmmc_request(sc->dev, NULL, NULL);
 
 	return (0);
 }
