@@ -68,7 +68,6 @@
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
  */
 
-#include <sys/cdefs.h>
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -2404,7 +2403,7 @@ swapon_check_swzone(void)
 	}
 }
 
-static void
+static int
 swaponsomething(struct vnode *vp, void *id, u_long nblks,
     sw_strategy_t *strategy, sw_close_t *close, dev_t dev, int flags)
 {
@@ -2419,6 +2418,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	 */
 	nblks &= ~(ctodb(1) - 1);
 	nblks = dbtoc(nblks);
+	if (nblks == 0)
+		return (EINVAL);
 
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
 	sp->sw_blist = blist_create(nblks, M_WAITOK);
@@ -2460,6 +2461,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	swp_sizecheck();
 	mtx_unlock(&sw_dev_mtx);
 	EVENTHANDLER_INVOKE(swapon, sp);
+
+	return (0);
 }
 
 /*
@@ -3005,10 +3008,10 @@ swapongeom_locked(struct cdev *dev, struct vnode *vp)
 		return (error);
 	}
 	nblks = pp->mediasize / DEV_BSIZE;
-	swaponsomething(vp, cp, nblks, swapgeom_strategy,
+	error = swaponsomething(vp, cp, nblks, swapgeom_strategy,
 	    swapgeom_close, dev2udev(dev),
 	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
-	return (0);
+	return (error);
 }
 
 static int
@@ -3097,9 +3100,9 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	if (error != 0)
 		return (error);
 
-	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
+	error = swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
 	    NODEV, 0);
-	return (0);
+	return (error);
 }
 
 static int
