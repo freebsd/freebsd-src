@@ -68,8 +68,8 @@ void	 ufs_makedirentry(struct inode *, struct componentname *,
 	    struct direct *);
 int	 ufs_direnter(struct vnode *, struct vnode *, struct direct *,
 	    struct componentname *, struct buf *);
-int	 ufs_dirremove(struct vnode *, struct inode *, int, int);
-int	 ufs_dirrewrite(struct inode *, struct inode *, ino_t, int, int);
+int	 ufs_dirremove(struct vnode *, struct inode *, int, bool);
+int	 ufs_dirrewrite(struct inode *, struct inode *, ino_t, int, u_int);
 int	 ufs_lookup_ino(struct vnode *, struct vnode **, struct componentname *,
 	    ino_t *);
 int	 ufs_getlbns(struct vnode *, ufs2_daddr_t, struct indir *, int *);
@@ -95,9 +95,9 @@ int	softdep_setup_directory_add(struct buf *, struct inode *, off_t,
 	    ino_t, struct buf *, int);
 void	softdep_change_directoryentry_offset(struct buf *, struct inode *,
 	    caddr_t, caddr_t, caddr_t, int);
-void	softdep_setup_remove(struct buf *,struct inode *, struct inode *, int);
+void	softdep_setup_remove(struct buf *,struct inode *, struct inode *, bool);
 void	softdep_setup_directory_change(struct buf *, struct inode *,
-	    struct inode *, ino_t, int);
+	    struct inode *, ino_t, u_int);
 void	softdep_change_linkcnt(struct inode *);
 int	softdep_slowdown(struct vnode *);
 void	softdep_setup_create(struct inode *, struct inode *);

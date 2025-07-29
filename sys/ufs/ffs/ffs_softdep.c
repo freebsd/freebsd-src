@@ -276,7 +276,7 @@ void
 softdep_setup_remove(struct buf *bp,
 	struct inode *dp,
 	struct inode *ip,
-	int isrmdir)
+	bool isrmdir)
 {
 
 	panic("softdep_setup_remove called");
@@ -287,7 +287,7 @@ softdep_setup_directory_change(struct buf *bp,
 	struct inode *dp,
 	struct inode *ip,
 	ino_t newinum,
-	int isrmdir)
+	u_int newparent)
 {
 
 	panic("softdep_setup_directory_change called");
@@ -767,7 +767,7 @@ static	void initiate_write_inodeblock_ufs2(struct inodedep *, struct buf *);
 static	void handle_workitem_freefile(struct freefile *);
 static	int handle_workitem_remove(struct dirrem *, int);
 static	struct dirrem *newdirrem(struct buf *, struct inode *,
-	    struct inode *, int, struct dirrem **);
+	    struct inode *, bool, struct dirrem **);
 static	struct indirdep *indirdep_lookup(struct mount *, struct inode *,
 	    struct buf *);
 static	void cancel_indirdep(struct indirdep *, struct buf *,
@@ -9173,7 +9173,7 @@ softdep_setup_remove(
 	struct buf *bp,		/* buffer containing directory block */
 	struct inode *dp,	/* inode for the directory being modified */
 	struct inode *ip,	/* inode for directory entry being removed */
-	int isrmdir)		/* indicates if doing RMDIR */
+	bool isrmdir)		/* indicates if doing RMDIR */
 {
 	struct dirrem *dirrem, *prevdirrem;
 	struct inodedep *inodedep;
@@ -9365,7 +9365,7 @@ newdirrem(
 	struct buf *bp,		/* buffer containing directory block */
 	struct inode *dp,	/* inode for the directory being modified */
 	struct inode *ip,	/* inode for directory entry being removed */
-	int isrmdir,		/* indicates if doing RMDIR */
+	bool isrmdir,		/* indicates if doing RMDIR */
 	struct dirrem **prevdirremp) /* previously referenced inode, if any */
 {
 	int offset;
@@ -9494,7 +9494,7 @@ newdirrem(
 	dirrem->dm_state |= COMPLETE;
 	cancel_diradd(dap, dirrem, jremref, dotremref, dotdotremref);
 #ifdef INVARIANTS
-	if (isrmdir == 0) {
+	if (!isrmdir) {
 		struct worklist *wk;
 
 		LIST_FOREACH(wk, &dirrem->dm_jwork, wk_list)
@@ -9529,7 +9529,7 @@ softdep_setup_directory_change(
 	struct inode *dp,	/* inode for the directory being modified */
 	struct inode *ip,	/* inode for directory entry being removed */
 	ino_t newinum,		/* new inode number for changed entry */
-	int isrmdir)		/* indicates if doing RMDIR */
+	u_int newparent)	/* indicates if doing RMDIR */
 {
 	int offset;
 	struct diradd *dap = NULL;
@@ -9562,10 +9562,10 @@ softdep_setup_directory_change(
 	/*
 	 * Allocate a new dirrem and ACQUIRE_LOCK.
 	 */
-	dirrem = newdirrem(bp, dp, ip, isrmdir, &prevdirrem);
+	dirrem = newdirrem(bp, dp, ip, newparent != 0, &prevdirrem);
 	pagedep = dirrem->dm_pagedep;
 	/*
-	 * The possible values for isrmdir:
+	 * The possible values for newparent:
 	 *	0 - non-directory file rename
 	 *	1 - directory rename within same directory
 	 *   inum - directory rename to new directory of given inode number
@@ -9576,7 +9576,7 @@ softdep_setup_directory_change(
 	 * the DIRCHG flag to tell handle_workitem_remove to skip the 
 	 * followup dirrem.
 	 */
-	if (isrmdir > 1)
+	if (newparent > 1)
 		dirrem->dm_state |= DIRCHG;
 
 	/*
