@@ -1051,7 +1051,7 @@ ufs_remove(
 #ifdef UFS_GJOURNAL
 	ufs_gjournal_orphan(vp);
 #endif
-	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
+	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, false);
 	if (ip->i_nlink <= 0)
 		vp->v_vflag |= VV_NOSYNC;
 	if (IS_SNAPSHOT(ip)) {
@@ -1209,7 +1209,7 @@ ufs_whiteout(
 #endif
 
 		cnp->cn_flags &= ~DOWHITEOUT;
-		error = ufs_dirremove(dvp, NULL, cnp->cn_flags, 0);
+		error = ufs_dirremove(dvp, NULL, cnp->cn_flags, false);
 		break;
 	default:
 		panic("ufs_whiteout: unknown op");
@@ -1728,7 +1728,7 @@ relock:
 			    "rename: missing .. entry");
 		cache_purge(fdvp);
 	}
-	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, 0);
+	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, false);
 	/*
 	 * The kern_renameat() looks up the fvp using the DELETE flag, which
 	 * causes the removal of the name cache entry for fvp.
@@ -2309,7 +2309,7 @@ ufs_rmdir(
 	ip->i_effnlink--;
 	if (DOINGSOFTDEP(vp))
 		softdep_setup_rmdir(dp, ip);
-	error = ufs_dirremove(dvp, ip, cnp->cn_flags, 1);
+	error = ufs_dirremove(dvp, ip, cnp->cn_flags, true);
 	if (error) {
 		dp->i_effnlink++;
 		ip->i_effnlink++;

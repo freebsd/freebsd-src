@@ -1101,7 +1101,7 @@ ufs_direnter(struct vnode *dvp, struct vnode *tvp, struct direct *dirp,
  * to the size of the previous entry.
  */
 int
-ufs_dirremove(struct vnode *dvp, struct inode *ip, int flags, int isrmdir)
+ufs_dirremove(struct vnode *dvp, struct inode *ip, int flags, bool isrmdir)
 {
 	struct inode *dp;
 	struct direct *ep, *rep;
@@ -1224,7 +1224,7 @@ out:
  */
 int
 ufs_dirrewrite(struct inode *dp, struct inode *oip, ino_t newinum, int newtype,
-    int isrmdir)
+    u_int newparent)
 {
 	struct buf *bp;
 	struct direct *ep;
@@ -1267,7 +1267,8 @@ ufs_dirrewrite(struct inode *dp, struct inode *oip, ino_t newinum, int newtype,
 	if (!OFSFMT(vdp))
 		ep->d_type = newtype;
 	if (DOINGSOFTDEP(vdp)) {
-		softdep_setup_directory_change(bp, dp, oip, newinum, isrmdir);
+		softdep_setup_directory_change(bp, dp, oip, newinum,
+		    newparent);
 		bdwrite(bp);
 	} else {
 		if (DOINGASYNC(vdp)) {
