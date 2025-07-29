@@ -1876,7 +1876,7 @@ g_raid_create_node(struct g_class *mp,
 	g_topology_assert();
 	G_RAID_DEBUG(1, "Creating array %s.", name);
 
-	gp = g_new_geomf(mp, "%s", name);
+	gp = g_new_geom(mp, name);
 	sc = malloc(sizeof(*sc), M_RAID, M_WAITOK | M_ZERO);
 	gp->start = g_raid_start;
 	gp->orphan = g_raid_orphan;
@@ -2217,7 +2217,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	geom = NULL;
 	status = G_RAID_MD_TASTE_FAIL;
-	gp = g_new_geomf(mp, "raid:taste");
+	gp = g_new_geom(mp, "raid:taste");
 	/*
 	 * This orphan function should be never called.
 	 */

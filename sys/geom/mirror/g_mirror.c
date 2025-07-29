@@ -3149,7 +3149,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md,
 	/*
 	 * Action geom.
 	 */
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	sc = malloc(sizeof(*sc), M_MIRROR, M_WAITOK | M_ZERO);
 	gp->start = g_mirror_start;
 	gp->orphan = g_mirror_orphan;
@@ -3290,7 +3290,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_MIRROR_DEBUG(2, "Tasting %s.", pp->name);
 
-	gp = g_new_geomf(mp, "mirror:taste");
+	gp = g_new_geom(mp, "mirror:taste");
 	/*
 	 * This orphan function should be never called.
 	 */

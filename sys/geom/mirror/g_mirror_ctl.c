@@ -433,7 +433,7 @@ g_mirror_ctl_create(struct gctl_req *req, struct g_class *mp)
 	g_topology_lock();
 	mediasize = OFF_MAX;
 	sectorsize = 0;
-	gp = g_new_geomf(mp, "%s", md.md_name);
+	gp = g_new_geom(mp, md.md_name);
 	gp->orphan = g_mirror_create_orphan;
 	cp = g_new_consumer(gp);
 	for (no = 1; no < *nargs; no++) {

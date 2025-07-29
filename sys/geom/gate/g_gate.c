@@ -571,7 +571,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		}
 	}
 
-	gp = g_new_geomf(&g_gate_class, "%s", name);
+	gp = g_new_geom(&g_gate_class, name);
 	gp->start = g_gate_start;
 	gp->access = g_gate_access;
 	gp->orphan = g_gate_orphan;

@@ -769,7 +769,7 @@ g_eli_read_metadata_offset(struct g_class *mp, struct g_provider *pp,
 
 	g_topology_assert();
 
-	gp = g_new_geomf(mp, "eli:taste");
+	gp = g_new_geom(mp, "eli:taste");
 	gp->start = g_eli_start;
 	gp->access = g_std_access;
 	/*

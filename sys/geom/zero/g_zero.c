@@ -102,7 +102,7 @@ g_zero_init(struct g_class *mp)
 	struct g_provider *pp;
 
 	g_topology_assert();
-	gp = g_new_geomf(mp, "gzero");
+	gp = g_new_geom(mp, "gzero");
 	gp->start = g_zero_start;
 	gp->access = g_std_access;
 	gpp = pp = g_new_providerf(gp, "%s", gp->name);

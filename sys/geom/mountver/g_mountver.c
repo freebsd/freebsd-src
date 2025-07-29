@@ -291,7 +291,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 			return (EEXIST);
 		}
 	}
-	gp = g_new_geomf(mp, "%s", name);
+	gp = g_new_geom(mp, name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "gmountver", NULL, MTX_DEF | MTX_RECURSE);
 	TAILQ_INIT(&sc->sc_queue);
