@@ -76,8 +76,38 @@ broadcast_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "delete6" "cleanup"
+delete6_head()
+{
+	atf_set descr 'Test removing IPv6 addresses'
+	atf_set require.user root
+}
+
+delete6_body()
+{
+	vnet_init
+
+	ep=$(vnet_mkepair)
+
+	atf_check -s exit:0 \
+	    ifconfig ${ep}a inet6 fe80::42/64
+	atf_check -s exit:0 -o match:"fe80::42%${ep}" \
+	    ifconfig ${ep}a inet6
+
+	atf_check -s exit:0 \
+	    ifconfig ${ep}a inet6 -alias fe80::42
+	atf_check -s exit:0 -o not-match:"fe80::42%${ep}" \
+	    ifconfig ${ep}a inet6
+}
+
+delete6_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case netmask
 	atf_add_test_case broadcast
+	atf_add_test_case delete6
 }
