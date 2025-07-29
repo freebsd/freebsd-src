@@ -819,7 +819,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	pp = g_new_providerf(gp, "%s", gp->name);
+	pp = g_new_provider(gp, gp->name);
 	pp->mediasize = sc->sc_size * (off_t)sc->sc_secsize;
 	pp->sectorsize = sc->sc_secsize;
 	g_error_provider(pp, 0);

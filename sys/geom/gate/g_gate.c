@@ -598,7 +598,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 
 	ggio->gctl_unit = sc->sc_unit;
 
-	pp = g_new_providerf(gp, "%s", name);
+	pp = g_new_provider(gp, name);
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	pp->mediasize = ggio->gctl_mediasize;
 	pp->sectorsize = ggio->gctl_sectorsize;

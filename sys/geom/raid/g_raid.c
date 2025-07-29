@@ -1634,7 +1634,7 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 		snprintf(name, sizeof(name), "raid/r%d", vol->v_global_id);
 	}
 
-	pp = g_new_providerf(sc->sc_geom, "%s", name);
+	pp = g_new_provider(sc->sc_geom, name);
 	pp->flags |= G_PF_DIRECT_RECEIVE;
 	if (vol->v_tr->tro_class->trc_accept_unmapped) {
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;

@@ -611,7 +611,7 @@ g_new_provider(struct g_geom *gp, const char *name)
 	    ("new provider on WITHERing geom(%s) (class %s)",
 	    gp->name, gp->class->name));
 	len = strlen(name);
-	pp = g_malloc(sizeof *pp + len + 1, M_WAITOK | M_ZERO);
+	pp = g_malloc(sizeof(*pp) + len + 1, M_WAITOK | M_ZERO);
 	pp->name = (char *)(pp + 1);
 	memcpy(pp->name, name, len);
 	LIST_INIT(&pp->consumers);
