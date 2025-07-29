@@ -56,12 +56,15 @@ AuthorizedKeysFile	.ssh/authorized_keys
 # Don't read the user's ~/.rhosts and ~/.shosts files
 #IgnoreRhosts yes
 
-# Change to yes to enable built-in password authentication.
+# Change to "yes" to enable built-in password authentication.
 # Note that passwords may also be accepted via KbdInteractiveAuthentication.
 #PasswordAuthentication no
 #PermitEmptyPasswords no
 
-# Change to no to disable PAM authentication
+# Change to "no" to disable keyboard-interactive authentication.  Depending on
+# the system's configuration, this may involve passwords, challenge-response,
+# one-time passwords or some combination of these and other methods.
+# Keyboard interactive authentication is also used for PAM authentication.
 #KbdInteractiveAuthentication yes
 
 # Kerberos options
