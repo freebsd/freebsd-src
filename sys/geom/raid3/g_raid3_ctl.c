@@ -425,7 +425,7 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		no = gctl_get_paraml(req, "number", sizeof(*no));
 	else
 		no = NULL;
-	gp = g_new_geomf(mp, "raid3:insert");
+	gp = g_new_geom(mp, "raid3:insert");
 	gp->orphan = g_raid3_ctl_insert_orphan;
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
