@@ -105,7 +105,7 @@ g_zero_init(struct g_class *mp)
 	gp = g_new_geomf(mp, "gzero");
 	gp->start = g_zero_start;
 	gp->access = g_std_access;
-	gpp = pp = g_new_providerf(gp, "%s", gp->name);
+	gpp = pp = g_new_provider(gp, gp->name);
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	if (!g_zero_clear)
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;

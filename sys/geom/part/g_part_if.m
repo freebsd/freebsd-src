@@ -61,7 +61,7 @@ CODE {
 		sb = sbuf_new_auto();
 		G_PART_FULLNAME(table, entry, sb, pfx);
 		sbuf_finish(sb);
-		ret = g_new_providerf(gp, "%s", sbuf_data(sb));
+		ret = g_new_provider(gp, sbuf_data(sb));
 		sbuf_delete(sb);
 		return (ret);
 	}

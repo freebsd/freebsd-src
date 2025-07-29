@@ -303,7 +303,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	gp->access = g_mountver_access;
 	gp->dumpconf = g_mountver_dumpconf;
 
-	newpp = g_new_providerf(gp, "%s", gp->name);
+	newpp = g_new_provider(gp, gp->name);
 	newpp->mediasize = pp->mediasize;
 	newpp->sectorsize = pp->sectorsize;
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;

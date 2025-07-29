@@ -267,7 +267,7 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	sc->sc_writemap_memory = 0;
 	gp->softc = sc;
 
-	newpp = g_new_providerf(gp, "%s", gp->name);
+	newpp = g_new_provider(gp, gp->name);
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
