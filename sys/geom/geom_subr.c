@@ -376,7 +376,7 @@ g_new_geom(struct g_class *mp, const char *name)
 	g_topology_assert();
 	G_VALID_CLASS(mp);
 	len = strlen(name);
-	gp = g_malloc(sizeof *gp + len + 1, M_WAITOK | M_ZERO);
+	gp = g_malloc(sizeof(*gp) + len + 1, M_WAITOK | M_ZERO);
 	gp->name = (char *)(gp + 1);
 	gp->class = mp;
 	gp->rank = 1;

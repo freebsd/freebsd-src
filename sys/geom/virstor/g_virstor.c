@@ -771,7 +771,7 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	LOG_MSG(LVL_DEBUG, "Tasting %s", pp->name);
 
 	/* We need a dummy geom to attach a consumer to the given provider */
-	gp = g_new_geomf(mp, "virstor:taste.helper");
+	gp = g_new_geom(mp, "virstor:taste.helper");
 	gp->start = (void *)invalid_call;	/* XXX: hacked up so the        */
 	gp->access = (void *)invalid_call;	/* compiler doesn't complain.   */
 	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
@@ -1085,7 +1085,7 @@ create_virstor_geom(struct g_class *mp, struct g_virstor_metadata *md)
 			return (NULL);
 		}
 	}
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	gp->softc = NULL; /* to circumevent races that test softc */
 
 	gp->start = g_virstor_start;
