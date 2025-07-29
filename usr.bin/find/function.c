@@ -1449,11 +1449,12 @@ c_printf(OPTION *option, char ***argvp)
 {
 	PLAN *new;
 
-	isoutput = 1;
 	/*
 	 * XXX We could scan the format looking for stat-dependent formats, and
-	 * turn off the stat if there's none: `%p`/`%f`/`%h` don't need a stat.
+	 * turn off the nostat bit for trival cases: `%p`/`%f`/`%h`.
 	 */
+	isoutput = 1;
+	ftsoptions &= ~FTS_NOSTAT;
 
 	new = palloc(option);
 	new->c_data = nextarg(option, argvp);
