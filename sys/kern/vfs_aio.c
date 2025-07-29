@@ -229,6 +229,7 @@ typedef struct oaiocb {
 #define	KAIOCB_CHECKSYNC	0x08
 #define	KAIOCB_CLEARED		0x10
 #define	KAIOCB_FINISHED		0x20
+#define	KAIOCB_MARKER		0x40
 
 /* ioflags */
 #define	KAIOCB_IO_FOFFSET	0x01
@@ -593,6 +594,12 @@ aio_cancel_job(struct proc *p, struct kaioinfo *ki, struct kaiocb *job)
 	int cancelled;
 
 	AIO_LOCK_ASSERT(ki, MA_OWNED);
+
+	/*
+	 * If we're running down the queue, the process must be single-threaded,
+	 * and so no markers should be present.
+	 */
+	MPASS((job->jobflags & KAIOCB_MARKER) == 0);
 	if (job->jobflags & (KAIOCB_CANCELLED | KAIOCB_FINISHED))
 		return (0);
 	MPASS((job->jobflags & KAIOCB_CANCELLING) == 0);
@@ -667,7 +674,7 @@ restart:
 	}
 
 	/* Wait for all running I/O to be finished */
-	if (TAILQ_FIRST(&ki->kaio_jobqueue) || ki->kaio_active_count != 0) {
+	if (!TAILQ_EMPTY(&ki->kaio_jobqueue) || ki->kaio_active_count != 0) {
 		ki->kaio_flags |= KAIO_WAKEUP;
 		msleep(&p->p_aioinfo, AIO_MTX(ki), PRIBIO, "aioprn", hz);
 		goto restart;
@@ -1832,6 +1839,8 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 	} else if (job->uaiocb.aio_lio_opcode & LIO_SYNC) {
 		AIO_LOCK(ki);
 		TAILQ_FOREACH(job2, &ki->kaio_jobqueue, plist) {
+			if ((job2->jobflags & KAIOCB_MARKER) != 0)
+				continue;
 			if (job2->fd_file == job->fd_file &&
 			    ((job2->uaiocb.aio_lio_opcode & LIO_SYNC) == 0) &&
 			    job2->seqno < job->seqno) {
@@ -2061,7 +2070,7 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct kaioinfo *ki;
-	struct kaiocb *job, *jobn;
+	struct kaiocb *job, *jobn, marker;
 	struct file *fp;
 	int error;
 	int cancelled = 0;
@@ -2086,16 +2095,30 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		}
 	}
 
+	/*
+	 * We may have to drop the list mutex in order to cancel a job.  After
+	 * that point it is unsafe to rely on the stability of the list.  We
+	 * could restart the search from the beginning after canceling a job,
+	 * but this may inefficient.  Instead, use a marker job to keep our
+	 * place in the list.
+	 */
+	memset(&marker, 0, sizeof(marker));
+	marker.jobflags = KAIOCB_MARKER;
+
 	AIO_LOCK(ki);
 	TAILQ_FOREACH_SAFE(job, &ki->kaio_jobqueue, plist, jobn) {
-		if ((uap->fd == job->uaiocb.aio_fildes) &&
-		    ((uap->aiocbp == NULL) ||
-		     (uap->aiocbp == job->ujob))) {
+		if (uap->fd == job->uaiocb.aio_fildes &&
+		    (uap->aiocbp == NULL || uap->aiocbp == job->ujob) &&
+		    (job->jobflags & KAIOCB_MARKER) == 0) {
+			TAILQ_INSERT_AFTER(&ki->kaio_jobqueue, job, &marker,
+			    plist);
 			if (aio_cancel_job(p, ki, job)) {
 				cancelled++;
 			} else {
 				notcancelled++;
 			}
+			jobn = TAILQ_NEXT(&marker, plist);
+			TAILQ_REMOVE(&ki->kaio_jobqueue, &marker, plist);
 			if (uap->aiocbp != NULL)
 				break;
 		}
