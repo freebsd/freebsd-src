@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2023 Robert Clausecker
+ * Copyright (c) 2023, 2025 Robert Clausecker <fuz@FreeBSD.org>
  */
 
 #include <machine/asm.h>
@@ -71,95 +71,91 @@ ARCHENTRY(memrchr, scalar)
 ARCHEND(memrchr, scalar)
 
 ARCHENTRY(memrchr, baseline)
-	movd		%esi, %xmm4
-	test		%rdx, %rdx		# empty buffer?
-	jz		.L0			# if yes, return immediately
+	test		%rdx, %rdx		# empty input?
+	je		.Lnomatchb
 
-	punpcklbw	%xmm4, %xmm4		# c -> cc
-	mov		%edi, %ecx
-	punpcklwd	%xmm4, %xmm4		# cc -> cccc
-	and		$~0xf, %rdi		# align source pointer
-	pshufd		$0, %xmm4, %xmm4	# cccc -> cccccccccccccccc
-	and		$0xf, %ecx
-	movdqa		%xmm4, %xmm0
+
+	lea		(%rdi, %rdx, 1), %ecx	# pointer to end of buffer
+	lea		-1(%rdi, %rdx, 1), %rdx	# pointer to last char in buffer
+	movd		%esi, %xmm2
+	and		$~0x1f, %rdx		# pointer to final 32 buffer bytes
+	movdqa		(%rdx), %xmm0		# load last 32 bytes
+	movdqa		16(%rdx), %xmm1
+
+	punpcklbw	%xmm2, %xmm2		# c -> cc
+
 	mov		$-1, %r8d
-	pcmpeqb		(%rdi), %xmm0		# compare aligned head
-	shl		%cl, %r8d		# mask of bytes in the head of the buffer
-	pmovmskb	%xmm0, %eax
+	neg		%ecx
+	mov		%r8d, %r9d
+	shr		%cl, %r8d		# mask with zeroes after the string
 
-	sub		$16, %rcx
-	and		%r8d, %eax		# match mask
-	add		%rcx, %rdx		# advance past head
-	cmc
-	jbe		.Lrunt			# did the string end in the buffer?
+	punpcklwd	%xmm2, %xmm2		# cc -> cccc
 
-	mov		%rdi, %rsi		# pointer to matching chunk
-	add		$16, %rdi
-	sub		$16, %rdx		# enough left for another round?
-	jbe		1f
+	mov		%edi, %ecx
+	mov		%r9d, %eax
+	shl		%cl, %r9d		# mask with zeroes before the string
 
-	/* main loop unrolled twice */
-	ALIGN_TEXT
-0:	movdqa		%xmm4, %xmm0
-	pcmpeqb		(%rdi), %xmm0
-	pmovmskb	%xmm0, %r8d
+	pshufd		$0, %xmm2, %xmm2	# cccc -> cccccccccccccccc
 
-	cmp		$16, %rdx		# enough left for second chunk?
-	jbe		2f
+	cmp		%rdx, %rdi		# tail is beginning of buffer?
+	cmovae		%r9d, %eax		# if yes, do combined head/tail processing
+	and		%r8d, %eax		# mak of bytes in tail part of string
 
-	movdqa		%xmm4, %xmm0
-	pcmpeqb		16(%rdi), %xmm0
+	/* process tail */
+	pcmpeqb		%xmm2, %xmm1
+	pcmpeqb		%xmm2, %xmm0
+	pmovmskb	%xmm1, %esi
 	pmovmskb	%xmm0, %ecx
+	shl		$16, %esi
+	or		%esi, %ecx		# locations of matches
+	and		%ecx, %eax		# any match inside buffer?
+	jnz		.Lprecisematchb
 
-	lea		16(%rdi), %r9
-	test		%ecx, %ecx		# match found in second chunk?
-	cmovz		%r8d, %ecx		# if not, use match data from first chunk
-	cmovz		%rdi, %r9
+	cmp		%rdx, %rdi		# did the buffer begin here?
+	jae		.Lnomatchb		# if yes, we are done
 
-	test		%ecx, %ecx		# any match found?
-	cmovnz		%ecx, %eax		# if yes, overwrite previously found match
-	cmovnz		%r9, %rsi
+	/* main loop */
+	ALIGN_TEXT
+0:	movdqa		-32(%rdx), %xmm0	# load previous string chunk
+	movdqa		-16(%rdx), %xmm1
+	sub		$32, %rdx		# beginning of string reached?
+	cmp		%rdx, %rdi
+	jae		.Ltailb
 
-	add		$32, %rdi		# advance to next iteration
-	sub		$32, %rdx		# advance to next chunks
-	ja		0b
+	pcmpeqb		%xmm2, %xmm0
+	pcmpeqb		%xmm2, %xmm1
+	por		%xmm1, %xmm0		# match in either half?
+	pmovmskb	%xmm0, %eax
+	test		%eax, %eax
+	jz		0b
 
-	/* process remaining 1--16 bytes */
-1:	pcmpeqb		(%rdi), %xmm4
-	mov		$0xffff, %r8d
-	xor		%ecx, %ecx
-	sub		%edx, %ecx		# number of bytes to be masked out
-	pmovmskb	%xmm4, %r9d
-	shr		%cl, %r8d		# mask of bytes to be kept in the buffer
-	and		%r9d, %r8d
-	cmovnz		%r8d, %eax
-	cmovnz		%rdi, %rsi
-	bsr		%eax, %eax
-	lea		(%rsi, %rax, 1), %rsi	# pointer to match (or junk)
-	cmovnz		%rsi, %rax		# if any match was found, return it
+.Lmatchb:
+	pcmpeqb		(%rdx), %xmm2		# redo comparison of first 16 bytes
+	pmovmskb	%xmm1, %ecx
+	pmovmskb	%xmm2, %eax
+	shl		$16, %ecx
+	or		%ecx, %eax		# location of matches
+
+.Lprecisematchb:
+	bsr		%eax, %eax		# find location of match
+	add		%rdx, %rax		# point to matching byte
 	ret
 
-	/* end of chunk reached within first half iteration */
-2:	test		%r8d, %r8d		# match in previous chunk?
-	cmovnz		%r8d, %eax		# if yes, overwrite previous chunks
-	cmovnz		%rdi, %rsi
-	add		$16, %rdi		# point to tail
-	sub		$16, %edx
-	jmp		1b			# handle tail the same otherwise
+.Ltailb:
+	pcmpeqb		%xmm2, %xmm1
+	pcmpeqb		%xmm2, %xmm0
+	pmovmskb	%xmm1, %ecx
+	pmovmskb	%xmm0, %eax
+	shl		$16, %ecx
+	or		%ecx, %eax		# location of matches
+	and		%r9d, %eax		# mask out matches before buffer
+	bsr		%eax, %edi		# location of match
+	lea		(%rdx, %rdi, 1), %rdx	# pointer to match (if any)
+	cmovnz		%rdx, %rax		# point to match if present,
+	ret					# else null pointer
 
-	/* runt: string ends within head, edx has negated amount of invalid head bytes */
-.Lrunt:	mov		$0xffff, %r8d
-	xor		%ecx, %ecx
-	sub		%edx, %ecx
-	shr		%cl, %r8d
-	and		%r8d, %eax
-	bsr		%eax, %eax
-	lea		(%rdi, %rax, 1), %rdi
-	cmovnz		%rdi, %rax
-	ret
-
-	/* empty buffer: return a null pointer */
-.L0:	xor		%eax, %eax
+.Lnomatchb:
+	xor		%eax, %eax		# return null pointer
 	ret
 ARCHEND(memrchr, baseline)
 
