@@ -1642,7 +1642,8 @@ relock:
 				softdep_change_linkcnt(tip);
 		}
 		error = ufs_dirrewrite(tdp, tip, fip->i_number,
-		    IFTODT(fip->i_mode), doingdirectory);
+		    IFTODT(fip->i_mode), (doingdirectory && newparent != 0) ?
+		    newparent != 0: doingdirectory);
 		if (error) {
 			if (doingdirectory) {
 				if (newparent == 0) {
