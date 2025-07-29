@@ -862,7 +862,7 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 			return (NULL);
 		}
 	}
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	sc = malloc(sizeof(*sc), M_STRIPE, M_WAITOK | M_ZERO);
 	gp->start = g_stripe_start;
 	gp->spoiled = g_stripe_orphan;
@@ -963,7 +963,7 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_STRIPE_DEBUG(3, "Tasting %s.", pp->name);
 
-	gp = g_new_geomf(mp, "stripe:taste");
+	gp = g_new_geom(mp, "stripe:taste");
 	gp->start = g_stripe_start;
 	gp->access = g_stripe_access;
 	gp->orphan = g_stripe_orphan;

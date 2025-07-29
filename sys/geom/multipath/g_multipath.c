@@ -549,7 +549,7 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 		}
 	}
 
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "multipath", NULL, MTX_DEF);
 	memcpy(sc->sc_uuid, md->md_uuid, sizeof(sc->sc_uuid));
@@ -821,7 +821,7 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 
-	gp = g_new_geomf(mp, "multipath:taste");
+	gp = g_new_geom(mp, "multipath:taste");
 	gp->start = g_multipath_start;
 	gp->access = g_multipath_access;
 	gp->orphan = g_multipath_orphan;

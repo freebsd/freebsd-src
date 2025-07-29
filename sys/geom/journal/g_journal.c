@@ -2477,7 +2477,7 @@ g_journal_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (pp->geom->class == mp)
 		return (NULL);
 
-	gp = g_new_geomf(mp, "journal:taste");
+	gp = g_new_geom(mp, "journal:taste");
 	/* This orphan function should be never called. */
 	gp->orphan = g_journal_taste_orphan;
 	cp = g_new_consumer(gp);
