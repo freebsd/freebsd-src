@@ -16,58 +16,54 @@ ARCHFUNCS(memrchr)
 ENDARCHFUNCS(memrchr)
 
 ARCHENTRY(memrchr, scalar)
-	xor	%eax, %eax		# prospective return value
-	sub	$4, %rdx		# 4 bytes left to process?
-	jb	1f
+	lea		-1(%rdi, %rdx, 1), %rax	# point to last char in buffer
+	sub		$4, %rdx		# 4 bytes left to process?
+	jb		.Ltail
 
 	ALIGN_TEXT
-0:	xor	%r8, %r8
-	lea	2(%rdi), %r10
-	cmp	%sil, 2(%rdi)
-	cmovne	%r8, %r10		# point to null if no match
+0:	cmp		%sil, (%rax)		# match at last entry?
+	je		1f
 
-	cmp	%sil, (%rdi)
-	cmove	%rdi, %r8		# point to first char if match
+	cmp		%sil, -1(%rax)		# match at second to last entry?
+	je		2f
 
-	lea	1(%rdi), %r9
-	cmp	%sil, 1(%rdi)
-	cmovne	%r8, %r9		# point to first result if no match in second
+	cmp		%sil, -2(%rax)		# match at third to last entry?
+	je		3f
 
-	lea	3(%rdi), %r11
-	cmp	%sil, 3(%rdi)
-	cmovne	%r10, %r11
+	cmp		%sil, -3(%rax)		# match at fourth to last entry?
+	je		4f
 
-	test	%r11, %r11
-	cmovz	%r9, %r11		# take first pair match if none in second
+	sub		$4, %rax
+	sub		$4, %rdx
+	jae		0b
 
-	test	%r11, %r11
-	cmovnz	%r11, %rax		# take match in current set if any
+.Ltail:	cmp		$-3, %edx		# at least one character left to process?
+	jb		.Lnotfound
 
-	add	$4, %rdi
-	sub	$4, %rdx
-	jae	0b
+	cmp		%sil, (%rax)
+	je		1f
 
-1:	cmp	$-3, %edx		# a least one character left to process?
-	jb	2f
+	cmp		$-2, %edx		# at least two characters left to process?
+	jb		.Lnotfound
 
-	cmp	%sil, (%rdi)
-	cmove	%rdi, %rax
+	cmp		%sil, -1(%rax)
+	je		2f
 
-	lea	1(%rdi), %rcx
-	cmp	$-2, %edx		# at least two characters left to process?
-	jb	2f
+	cmp		$-1, %edx		# at least three characters left to process?
+	jb		.Lnotfound
 
-	cmp	%sil, 1(%rdi)
-	cmove	%rcx, %rax
+	cmp		%sil, -2(%rax)
+	je		3f
 
-	lea	2(%rdi), %rcx
-	cmp	$-1, %edx		# at least three character left to process?
-	jb	2f
+.Lnotfound:
+	xor		%eax, %eax
+	ret
 
-	cmp	%sil, 2(%rdi)
-	cmove	%rcx, %rax
-
-2:	ret
+	/* match found -- adjust rax to point to matching byte */
+4:	dec		%rax
+3:	dec		%rax
+2:	dec		%rax
+1:	ret
 ARCHEND(memrchr, scalar)
 
 ARCHENTRY(memrchr, baseline)
