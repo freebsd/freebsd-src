@@ -178,28 +178,49 @@ def check_xtool_make_env_var(varname, binary_name):
         return
     global parsed_args
     if parsed_args.cross_bindir is None:
-        parsed_args.cross_bindir = default_cross_toolchain()
+        cross_bindir = default_cross_toolchain(binary_name)
+    else:
+        cross_bindir = parsed_args.cross_bindir
     return check_required_make_env_var(varname, binary_name,
-                                       parsed_args.cross_bindir)
+                                       cross_bindir)
 
 
-def default_cross_toolchain():
+def default_cross_toolchain(binary_name):
     # default to homebrew-installed clang on MacOS if available
     if sys.platform.startswith("darwin"):
         if shutil.which("brew"):
-            llvm_dir = subprocess.run([
-                "brew", "--prefix", "llvm"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
-            debug("Inferred LLVM dir as", llvm_dir)
+            global llvm_dir
+            if llvm_dir is None:
+                llvm_dir = subprocess.run([
+                    "brew", "--prefix", "llvm"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE).stdout.strip()
+                debug("Inferred LLVM dir as", llvm_dir)
             try:
-                if llvm_dir and Path(llvm_dir.decode("utf-8"), "bin").exists():
+                if llvm_dir and Path(llvm_dir.decode("utf-8"), "bin",
+                                     binary_name).exists():
                     return str(Path(llvm_dir.decode("utf-8"), "bin"))
             except OSError:
-                return None
+                pass
+
+            # brew installs lld as a separate package for LLVM 19 and later
+            if binary_name == "ld.lld":
+                lld_dir = subprocess.run([
+                    "brew", "--prefix", "lld"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE).stdout.strip()
+                debug("Inferred lld dir as", lld_dir)
+                try:
+                    if lld_dir and Path(lld_dir.decode("utf-8"), "bin",
+                                        binary_name).exists():
+                        return str(Path(lld_dir.decode("utf-8"), "bin"))
+                except OSError:
+                    return None
     return None
 
 
 if __name__ == "__main__":
+    llvm_dir = None
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--host-bindir",
