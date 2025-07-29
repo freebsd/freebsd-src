@@ -47,6 +47,11 @@ CFLAGS+=-I${KRB5_DIR}/util/ss \
 	-I${.OBJDIR:H} \
 	-I${.OBJDIR}
 
+.if !defined(BOOTSTRAPPING)
+CFLAGS+= -DHAVE_READLINE=1 \
+	 -I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
+.endif
+
 GEN=	std_rqs.c ${GEN_SS_ERR_C} ${GEN_SS_ERR_H}
 GEN_SCRIPTS=	ct_c.awk ct_c.sed mk_cmds
 GEN_SS_ERR_C=	${GEN_SS_ERR:S/.et$/.c/}

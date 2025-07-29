@@ -9,8 +9,8 @@
 
 PROG=	kadmin
 
-LIBADD=	kadmin_common edit kadm5clnt_mit gssrpc gssapi_krb5 krb5 k5crypto \
-	com_err krb5ss krb5profile krb5support tinfow sys
+LIBADD=	kadmin_common kadm5clnt_mit gssrpc gssapi_krb5 krb5 k5crypto \
+	com_err krb5ss krb5profile krb5support sys
 
 SRCS=	keytab.c
 
