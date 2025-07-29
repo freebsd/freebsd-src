@@ -260,7 +260,7 @@
 #define HAVE_LIBCRYPTO 1
 
 /* Define if building with libedit. */
-#define HAVE_LIBEDIT 1
+/* #undef HAVE_LIBEDIT */
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 /* #undef HAVE_LIBNSL */

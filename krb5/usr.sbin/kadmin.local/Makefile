@@ -11,8 +11,8 @@ PACKAGE=	kerberos-kdc
 
 PROG=	kadmin.local
 
-LIBADD=	kadmin_common edit kadm5srv_mit kdb5 gssrpc gssapi_krb5 krb5 \
-	k5crypto com_err krb5profile krb5support krb5ss tinfow sys
+LIBADD=	kadmin_common kadm5srv_mit kdb5 gssrpc gssapi_krb5 krb5 \
+	k5crypto com_err krb5profile krb5support krb5ss sys
 
 SRCS=	keytab_local.c
 

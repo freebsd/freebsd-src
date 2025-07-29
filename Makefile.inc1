@@ -2627,8 +2627,6 @@ _kerberos5_bootstrap_tools= \
 	krb5/util/compile_et \
 	krb5/util/support \
 	krb5/util/et \
-	lib/ncurses/tinfo \
-	lib/libedit \
 	krb5/util/ss \
 	krb5/util/profile \
 	krb5/util/verto
