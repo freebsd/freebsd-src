@@ -335,7 +335,7 @@ static struct clk_fixed_def fixed_clk[] = {
     FRATE(CLK_TOP_SSUSB_CDR_FB,	"ssusb_cdr_fb", 50000000),
     FRATE(CLK_TOP_SATA_ASIC, "sata_asic", 50000000),
     FRATE(CLK_TOP_SATA_RBC, "sata_rbc", 50000000),
-    FRATE(CLK_APMIXED_ARMPLL,   "armpll",    120000000ULL),
+    /*FRATE(CLK_APMIXED_ARMPLL,   "armpll",    120000000ULL),
     FRATE(CLK_APMIXED_MAINPLL,  "mainpll",  1120000000ULL),
     FRATE(CLK_APMIXED_UNIV2PLL, "univ2pll", 2400000000ULL),
     FRATE(CLK_APMIXED_ETH1PLL,  "eth1pll",   500000000ULL),
@@ -343,7 +343,7 @@ static struct clk_fixed_def fixed_clk[] = {
     FRATE(CLK_APMIXED_AUD1PLL,  "aud1pll",   147456000ULL),
     FRATE(CLK_APMIXED_AUD2PLL,  "aud2pll",   135475000ULL),
     FRATE(CLK_APMIXED_TRGPLL,   "trgpll",    725000000ULL),
-    FRATE(CLK_APMIXED_SGMIPLL,  "sgmipll",   650000000ULL),
+    FRATE(CLK_APMIXED_SGMIPLL,  "sgmipll",   650000000ULL),*/
 
     FFACT(CLK_TOP_TO_USB3_SYS, "to_usb3_sys", "eth1pll", 1, 4),
     FFACT(CLK_TOP_P1_1MHZ, "p1_1mhz", "eth1pll", 1, 500),
