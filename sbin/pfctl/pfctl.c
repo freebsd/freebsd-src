@@ -3139,6 +3139,7 @@ pfctl_reset(int dev, int opts)
 	struct pfr_buffer t;
 	int i;
 
+	memset(&pf, 0, sizeof(pf));
 	pf.dev = dev;
 	pf.h = pfh;
 	pfctl_init_options(&pf);
