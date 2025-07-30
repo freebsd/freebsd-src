@@ -1161,7 +1161,7 @@ static const struct mrs_field id_aa64isar2_fields[] = {
 /* ID_AA64MMFR0_EL1 */
 static const struct mrs_field_value id_aa64mmfr0_ecv[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, ECV, NONE, IMPL),
-	MRS_FIELD_VALUE(ID_AA64MMFR0_ECV_CNTHCTL, "ECV+CNTHCTL"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_ECV_POFF, "ECV POFF"),
 	MRS_FIELD_VALUE_END,
 };
 
