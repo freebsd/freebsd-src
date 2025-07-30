@@ -1262,6 +1262,13 @@ pf_initialize(void)
 	uma_zone_set_max(V_pf_anchor_z, PF_ANCHOR_HIWAT);
 	uma_zone_set_warning(V_pf_anchor_z, "PF anchor limit reached");
 
+	V_pf_eth_anchor_z = uma_zcreate("pf Ethernet anchors",
+	    sizeof(struct pf_keth_anchor), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+	V_pf_limits[PF_LIMIT_ETH_ANCHORS].zone = V_pf_eth_anchor_z;
+	uma_zone_set_max(V_pf_eth_anchor_z, PF_ANCHOR_HIWAT);
+	uma_zone_set_warning(V_pf_eth_anchor_z, "PF Ethernet anchor limit reached");
+
 	/* ALTQ */
 	TAILQ_INIT(&V_pf_altqs[0]);
 	TAILQ_INIT(&V_pf_altqs[1]);
