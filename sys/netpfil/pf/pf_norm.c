@@ -118,6 +118,7 @@ VNET_DEFINE_STATIC(uma_zone_t, pf_frnode_z);
 #define	V_pf_frnode_z	VNET(pf_frnode_z)
 VNET_DEFINE_STATIC(uma_zone_t, pf_frag_z);
 #define	V_pf_frag_z	VNET(pf_frag_z)
+VNET_DEFINE(uma_zone_t, pf_anchor_z);
 
 TAILQ_HEAD(pf_fragqueue, pf_fragment);
 TAILQ_HEAD(pf_cachequeue, pf_fragment);
