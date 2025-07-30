@@ -51,6 +51,14 @@
 #define	CNTHCTL_EVNTDIR		(1 << 3) /* Control transition trigger bit */
 #define	CNTHCTL_EVNTEN		(1 << 2) /* Enable event stream */
 
+/* CNTPOFF_EL2 - Counter-timer Physical Offset Register */
+#define	CNTPOFF_EL2_REG			MRS_REG_ALT_NAME(CNTPOFF_EL2)
+#define	CNTPOFF_EL2_op0			3
+#define	CNTPOFF_EL2_op1			4
+#define	CNTPOFF_EL2_CRn			14
+#define	CNTPOFF_EL2_CRm			0
+#define	CNTPOFF_EL2_op2			6
+
 /* CPTR_EL2 - Architecture feature trap register */
 /* Valid if HCR_EL2.E2H == 0 */
 #define	CPTR_TRAP_ALL		0xc01037ff /* Enable all traps */
