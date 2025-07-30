@@ -184,6 +184,7 @@ static const struct {
 	{ "frags",		PF_LIMIT_FRAGS },
 	{ "table-entries",	PF_LIMIT_TABLE_ENTRIES },
 	{ "anchors",		PF_LIMIT_ANCHORS },
+	{ "eth-anchors",	PF_LIMIT_ETH_ANCHORS },
 	{ NULL,			0 }
 };
 
