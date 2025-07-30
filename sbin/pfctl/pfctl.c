@@ -183,6 +183,7 @@ static const struct {
 	{ "src-nodes",		PF_LIMIT_SRC_NODES },
 	{ "frags",		PF_LIMIT_FRAGS },
 	{ "table-entries",	PF_LIMIT_TABLE_ENTRIES },
+	{ "anchors",		PF_LIMIT_ANCHORS },
 	{ NULL,			0 }
 };
 

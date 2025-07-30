@@ -1254,6 +1254,14 @@ pf_initialize(void)
 		    MTX_DEF | MTX_DUPOK);
 	}
 
+	/* Anchors */
+	V_pf_anchor_z = uma_zcreate("pf anchors",
+	    sizeof(struct pf_kanchor), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+	V_pf_limits[PF_LIMIT_ANCHORS].zone = V_pf_anchor_z;
+	uma_zone_set_max(V_pf_anchor_z, PF_ANCHOR_HIWAT);
+	uma_zone_set_warning(V_pf_anchor_z, "PF anchor limit reached");
+
 	/* ALTQ */
 	TAILQ_INIT(&V_pf_altqs[0]);
 	TAILQ_INIT(&V_pf_altqs[1]);

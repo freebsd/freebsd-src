@@ -2338,6 +2338,8 @@ VNET_DECLARE(uma_zone_t,	 pf_udp_mapping_z);
 #define	V_pf_udp_mapping_z	 VNET(pf_udp_mapping_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_scrub_z);
 #define	V_pf_state_scrub_z	 VNET(pf_state_scrub_z)
+VNET_DECLARE(uma_zone_t,	 pf_anchor_z);
+#define	V_pf_anchor_z		 VNET(pf_anchor_z)
 
 extern void			 pf_purge_thread(void *);
 extern void			 pf_unload_vnet_purge(void);
