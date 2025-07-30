@@ -704,17 +704,19 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 	u_int16_t *bp, ndx;
 
 	hashp = (HTAB *)dbp->internal;
-	if (flag && flag != R_FIRST && flag != R_NEXT) {
+	if (flag != R_FIRST || flag != R_NEXT) {
 		hashp->error = errno = EINVAL;
 		return (ERROR);
 	}
 #ifdef HASH_STATISTICS
 	hash_accesses++;
 #endif
-	if ((hashp->cbucket < 0) || (flag == R_FIRST)) {
+	if (flag == R_FIRST) {
 		hashp->cbucket = 0;
 		hashp->cndx = 1;
 		hashp->cpage = NULL;
+	} else if (hashp->cbucket < 0) { /* R_NEXT */
+		return (ABNORMAL);
 	}
 next_bucket:
 	for (bp = NULL; !bp || !bp[0]; ) {
