@@ -3278,6 +3278,7 @@ swapongeom_locked(struct cdev *dev, struct vnode *vp)
 	cp->index = 1;	/* Number of active I/Os, plus one for being active. */
 	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
+
 	/*
 	 * XXX: Every time you think you can improve the margin for
 	 * footshooting, somebody depends on the ability to do so:
@@ -3285,15 +3286,19 @@ swapongeom_locked(struct cdev *dev, struct vnode *vp)
 	 * set an exclusive count :-(
 	 */
 	error = g_access(cp, 1, 1, 0);
+
+	if (error == 0) {
+		nblks = pp->mediasize / DEV_BSIZE;
+		error = swaponsomething(vp, cp, nblks, swapgeom_strategy,
+		    swapgeom_close, dev2udev(dev),
+		    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
+		if (error != 0)
+			g_access(cp, -1, -1, 0);
+	}
 	if (error != 0) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
-		return (error);
 	}
-	nblks = pp->mediasize / DEV_BSIZE;
-	error = swaponsomething(vp, cp, nblks, swapgeom_strategy,
-	    swapgeom_close, dev2udev(dev),
-	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
 	return (error);
 }
 
@@ -3385,6 +3390,8 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 
 	error = swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
 	    NODEV, 0);
+	if (error != 0)
+		VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
 	return (error);
 }
 
