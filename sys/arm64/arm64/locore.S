@@ -415,8 +415,7 @@ LENTRY(enter_kernel_el)
 	 */
 	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, HCX, IMPL, 2f)
 	/* Extended Hypervisor Configuration */
-	mov x2, xzr
-	msr HCRX_EL2_REG, x2
+	msr	HCRX_EL2_REG, xzr
 	isb
 2:
 
