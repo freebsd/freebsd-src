@@ -6592,22 +6592,22 @@ rack_start_hpts_timer (struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 			 * on the clock. We always have a min
 			 * 10 slots (10 x 10 i.e. 100 usecs).
 			 */
-			if (slot <= HPTS_TICKS_PER_SLOT) {
+			if (slot <= HPTS_USECS_PER_SLOT) {
 				/* We gain delay */
-				rack->r_ctl.rc_agg_delayed += (HPTS_TICKS_PER_SLOT - slot);
-				slot = HPTS_TICKS_PER_SLOT;
+				rack->r_ctl.rc_agg_delayed += (HPTS_USECS_PER_SLOT - slot);
+				slot = HPTS_USECS_PER_SLOT;
 			} else {
 				/* We take off some */
-				rack->r_ctl.rc_agg_delayed -= (slot - HPTS_TICKS_PER_SLOT);
-				slot = HPTS_TICKS_PER_SLOT;
+				rack->r_ctl.rc_agg_delayed -= (slot - HPTS_USECS_PER_SLOT);
+				slot = HPTS_USECS_PER_SLOT;
 			}
 		} else {
 			slot -= rack->r_ctl.rc_agg_delayed;
 			rack->r_ctl.rc_agg_delayed = 0;
 			/* Make sure we have 100 useconds at minimum */
-			if (slot < HPTS_TICKS_PER_SLOT) {
-				rack->r_ctl.rc_agg_delayed = HPTS_TICKS_PER_SLOT - slot;
-				slot = HPTS_TICKS_PER_SLOT;
+			if (slot < HPTS_USECS_PER_SLOT) {
+				rack->r_ctl.rc_agg_delayed = HPTS_USECS_PER_SLOT - slot;
+				slot = HPTS_USECS_PER_SLOT;
 			}
 			if (rack->r_ctl.rc_agg_delayed == 0)
 				rack->r_late = 0;
@@ -14368,17 +14368,17 @@ rack_switch_failed(struct tcpcb *tp)
 			toval = rack->r_ctl.rc_last_output_to - cts;
 		} else {
 			/* one slot please */
-			toval = HPTS_TICKS_PER_SLOT;
+			toval = HPTS_USECS_PER_SLOT;
 		}
 	} else if (rack->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
 		if (TSTMP_GT(rack->r_ctl.rc_timer_exp, cts)) {
 			toval = rack->r_ctl.rc_timer_exp - cts;
 		} else {
 			/* one slot please */
-			toval = HPTS_TICKS_PER_SLOT;
+			toval = HPTS_USECS_PER_SLOT;
 		}
 	} else
-		toval = HPTS_TICKS_PER_SLOT;
+		toval = HPTS_USECS_PER_SLOT;
 	(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(toval),
 				   __LINE__, &diag);
 	rack_log_hpts_diag(rack, cts, &diag, &tv);
@@ -14957,7 +14957,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 					if (TSTMP_GT(qr.timer_pacing_to, us_cts))
 						tov = qr.timer_pacing_to - us_cts;
 					else
-						tov = HPTS_TICKS_PER_SLOT;
+						tov = HPTS_USECS_PER_SLOT;
 				}
 				if (qr.timer_hpts_flags & PACE_TMR_MASK) {
 					rack->r_ctl.rc_timer_exp = qr.timer_timer_exp;
@@ -14965,7 +14965,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 						if (TSTMP_GT(qr.timer_timer_exp, us_cts))
 							tov = qr.timer_timer_exp - us_cts;
 						else
-							tov = HPTS_TICKS_PER_SLOT;
+							tov = HPTS_USECS_PER_SLOT;
 					}
 				}
 				rack_log_chg_info(tp, rack, 4,

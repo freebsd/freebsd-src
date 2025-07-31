@@ -14123,17 +14123,17 @@ bbr_switch_failed(struct tcpcb *tp)
 			toval = bbr->rc_pacer_started - cts;
 		} else {
 			/* one slot please */
-			toval = HPTS_TICKS_PER_SLOT;
+			toval = HPTS_USECS_PER_SLOT;
 		}
 	} else if (bbr->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
 		if (TSTMP_GT(bbr->r_ctl.rc_timer_exp, cts)) {
 			toval = bbr->r_ctl.rc_timer_exp - cts;
 		} else {
 			/* one slot please */
-			toval = HPTS_TICKS_PER_SLOT;
+			toval = HPTS_USECS_PER_SLOT;
 		}
 	} else
-		toval = HPTS_TICKS_PER_SLOT;
+		toval = HPTS_USECS_PER_SLOT;
 	(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(toval),
 				   __LINE__, &diag);
 	bbr_log_hpts_diag(bbr, cts, &diag);
