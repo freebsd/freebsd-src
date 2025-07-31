@@ -380,8 +380,7 @@ newnfs_setroot(struct ucred *cred)
 
 	cred->cr_uid = 0;
 	cred->cr_gid = 0;
-	/* XXXKE Fix this if cr_gid gets separated out. */
-	cred->cr_ngroups = 1;
+	cred->cr_ngroups = 0;
 }
 
 /*

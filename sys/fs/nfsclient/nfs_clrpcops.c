@@ -6934,8 +6934,7 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			tcred = NFSNEWCRED(cred);
 			tcred->cr_uid = flp->nfsfl_ffm[mirror].user;
 			tcred->cr_gid = flp->nfsfl_ffm[mirror].group;
-			/* XXXKE Fix this if cr_gid gets separated out. */
-			tcred->cr_ngroups = 1;
+			tcred->cr_ngroups = 0;
 		} else
 			tcred = cred;
 		if (rwflag == NFSV4OPEN_ACCESSREAD)
