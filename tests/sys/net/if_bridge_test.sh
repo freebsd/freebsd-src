@@ -245,7 +245,8 @@ static_body()
 	    jexec one ifconfig ${bridge} static ${epair}a 00:01:02:03:04:05
 
 	# List addresses
-	atf_check -s exit:0 -o ignore \
+	atf_check -s exit:0 \
+	    -o match:"00:01:02:03:04:05 Vlan0 ${epair}a 0 flags=1<STATIC>" \
 	    jexec one ifconfig ${bridge} addr
 
 	# Delete with bad address format
@@ -262,6 +263,72 @@ static_body()
 }
 
 static_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "vstatic" "cleanup"
+vstatic_head()
+{
+	atf_set descr 'Bridge VLAN static address test'
+	atf_set require.user root
+}
+
+vstatic_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epair=$(vnet_mkepair)
+	bridge=$(vnet_mkbridge)
+
+	vnet_mkjail one ${bridge} ${epair}a
+
+	ifconfig ${epair}b up
+
+	jexec one ifconfig ${bridge} up
+	jexec one ifconfig ${epair}a up
+	jexec one ifconfig ${bridge} addm ${epair}a
+
+	# Wrong interface
+	atf_check -s exit:1 -o ignore -e ignore jexec one \
+	    ifconfig ${bridge} static ${epair}b 00:01:02:03:04:05 vlan 10
+
+	# Bad address format
+	atf_check -s exit:1 -o ignore -e ignore jexec one \
+	    ifconfig ${bridge} static ${epair}a 00:01:02:03:04 vlan 10
+
+	# Invalid VLAN ID
+	atf_check -s exit:1 -o ignore -e ignore jexec one \
+	    ifconfig ${bridge} static ${epair}a 00:01:02:03:04:05 vlan 5000
+
+	# Correct add
+	atf_check -s exit:0 -o ignore jexec one \
+	    ifconfig ${bridge} static ${epair}a 00:01:02:03:04:05 vlan 10
+
+	# List addresses
+	atf_check -s exit:0 \
+	    -o match:"00:01:02:03:04:05 Vlan10 ${epair}a 0 flags=1<STATIC>" \
+	    jexec one ifconfig ${bridge} addr
+
+	# Delete with bad address format
+	atf_check -s exit:1 -o ignore -e ignore jexec one \
+	    ifconfig ${bridge} deladdr 00:01:02:03:04 vlan 10
+
+	# Delete with unlisted address
+	atf_check -s exit:1 -o ignore -e ignore jexec one \
+	    ifconfig ${bridge} deladdr 00:01:02:03:04:06 vlan 10
+
+	# Delete with wrong vlan id
+	atf_check -s exit:1 -o ignore -e ignore jexec one \
+	    ifconfig ${bridge} deladdr 00:01:02:03:04:05 vlan 20
+
+	# Correct delete
+	atf_check -s exit:0 -o ignore jexec one \
+	    ifconfig ${bridge} deladdr 00:01:02:03:04:05 vlan 10
+}
+
+vstatic_cleanup()
 {
 	vnet_cleanup
 }
@@ -1250,6 +1317,7 @@ atf_init_test_cases()
 	atf_add_test_case "stp"
 	atf_add_test_case "stp_vlan"
 	atf_add_test_case "static"
+	atf_add_test_case "vstatic"
 	atf_add_test_case "span"
 	atf_add_test_case "inherit_mac"
 	atf_add_test_case "delete_with_members"
