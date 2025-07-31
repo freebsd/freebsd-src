@@ -365,6 +365,7 @@ void __iomem **linuxkpi_pcim_iomap_table(struct pci_dev *pdev);
 void *linuxkpi_pci_iomap_range(struct pci_dev *, int,
     unsigned long, unsigned long);
 void *linuxkpi_pci_iomap(struct pci_dev *, int, unsigned long);
+void *linuxkpi_pcim_iomap(struct pci_dev *, int, unsigned long);
 void linuxkpi_pci_iounmap(struct pci_dev *pdev, void *res);
 int linuxkpi_pcim_iomap_regions(struct pci_dev *pdev, uint32_t mask,
     const char *name);
@@ -803,6 +804,8 @@ static inline void pci_disable_sriov(struct pci_dev *dev)
     linuxkpi_pci_iomap_range(pdev, mmio_bar, mmio_off, mmio_size)
 #define	pci_iomap(pdev, mmio_bar, mmio_size)				\
     linuxkpi_pci_iomap(pdev, mmio_bar, mmio_size)
+#define	pcim_iomap(pdev, bar, maxlen)					\
+    linuxkpi_pcim_iomap(pdev, bar, maxlen)
 #define	pci_iounmap(pdev, res)						\
     linuxkpi_pci_iounmap(pdev, res)
 
