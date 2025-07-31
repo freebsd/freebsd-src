@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 16, 2023
+.Dd July 31, 2025
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -527,8 +527,12 @@ The path of the process' text file is returned.
 The in-kernel call stacks for the threads of the specified process.
 .It Dv KERN_PROC_VMMAP
 The description of the map entries for the process.
+Also refer to
+.Xr kinfo_getvmmap 3 .
 .It Dv KERN_PROC_FILEDESC
 The file descriptors for files opened in the specified process.
+Also refer to
+.Xr kinfo_getfile 3 .
 .It Dv KERN_PROC_GROUPS
 Groups associated with the process.
 .It Dv KERN_PROC_ENV
@@ -949,6 +953,7 @@ A process without appropriate privilege attempts to set a value.
 .El
 .Sh SEE ALSO
 .Xr confstr 3 ,
+.Xr kinfo_getproc 3 ,
 .Xr kvm 3 ,
 .Xr sysconf 3 ,
 .Xr sysctl 8
