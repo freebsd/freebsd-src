@@ -4,7 +4,7 @@
  * Copyright (c) 2010 Panasas, Inc.
  * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
- * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -354,9 +354,9 @@ bool pci_device_is_present(struct pci_dev *pdev);
 
 int linuxkpi_pcim_enable_device(struct pci_dev *pdev);
 void __iomem **linuxkpi_pcim_iomap_table(struct pci_dev *pdev);
-void *linuxkpi_pci_iomap_range(struct pci_dev *pdev, int mmio_bar,
-    unsigned long mmio_off, unsigned long mmio_size);
-void *linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size);
+void *linuxkpi_pci_iomap_range(struct pci_dev *, int,
+    unsigned long, unsigned long);
+void *linuxkpi_pci_iomap(struct pci_dev *, int, unsigned long);
 void linuxkpi_pci_iounmap(struct pci_dev *pdev, void *res);
 int linuxkpi_pcim_iomap_regions(struct pci_dev *pdev, uint32_t mask,
     const char *name);

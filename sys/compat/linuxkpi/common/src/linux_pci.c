@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2015-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
- * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -735,7 +735,7 @@ linuxkpi_pcim_iomap_table(struct pci_dev *pdev)
 }
 
 static struct resource *
-_lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size __unused)
+_lkpi_pci_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen __unused)
 {
 	struct pci_mmio_region *mmio, *p;
 	int type;
@@ -775,25 +775,25 @@ _lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size __unused)
 }
 
 void *
-linuxkpi_pci_iomap_range(struct pci_dev *pdev, int mmio_bar,
-    unsigned long mmio_off, unsigned long mmio_size)
+linuxkpi_pci_iomap_range(struct pci_dev *pdev, int bar,
+    unsigned long off, unsigned long maxlen)
 {
 	struct resource *res;
 
-	res = _lkpi_pci_iomap(pdev, mmio_bar, mmio_size);
+	res = _lkpi_pci_iomap(pdev, bar, maxlen);
 	if (res == NULL)
 		return (NULL);
 	/* This is a FreeBSD extension so we can use bus_*(). */
 	if (pdev->want_iomap_res)
 		return (res);
-	MPASS(mmio_off < rman_get_size(res));
-	return ((void *)(rman_get_bushandle(res) + mmio_off));
+	MPASS(off < rman_get_size(res));
+	return ((void *)(rman_get_bushandle(res) + off));
 }
 
 void *
-linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size)
+linuxkpi_pci_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 {
-	return (linuxkpi_pci_iomap_range(pdev, mmio_bar, 0, mmio_size));
+	return (linuxkpi_pci_iomap_range(pdev, bar, 0, maxlen));
 }
 
 void
