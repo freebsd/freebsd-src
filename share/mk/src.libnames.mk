@@ -472,7 +472,11 @@ _DP_ncursesw=	tinfow
 _DP_formw=	ncursesw
 _DP_nvpair=	spl
 _DP_panelw=	ncursesw
+.if ${MK_MITKRB5} == "no"
 _DP_rpcsec_gss=	gssapi
+.else
+_DP_rpcsec_gss=	gssapi_krb5
+.endif
 _DP_smb=	kiconv
 _DP_ulog=	md
 _DP_fifolog=	z

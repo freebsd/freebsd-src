@@ -36,7 +36,7 @@ SRCS+=	disp_com_err_status.c \
 INCSGROUPS=	GSSAPI_INCS
 GSSAPI_INCS=	gssapi.h
 INCS+=		${GENI}
-GSSAPI_INCSDIR=	${INCLUDEDIR}/gssapi_krb5/gssapi
+GSSAPI_INCSDIR=	${INCLUDEDIR}/gssapi
 
 CLEANFILES+=	gssapi.h ${GGEN} ${GGENI}
 

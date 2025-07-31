@@ -51,6 +51,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250807: Replace lib/libgssapi with krb5/lib/gssapi
+OLD_FILES+=usr/include/gssapi_krb5/gssapi/gssapi.h
+OLD_DIRS+=usr/include/gssapi_krb5/gssapi
+OLD_DIRS+=usr/include/gssapi_krb5
+OLD_FILES+=etc/gssapi/qop
+
 # 20250802: libutil bumped to 10
 OLD_LIBS+=lib/libutil.so.9
 

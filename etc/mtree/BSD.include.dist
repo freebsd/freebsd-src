@@ -258,10 +258,6 @@
     ..
     gssapi
     ..
-    gssapi_krb5
-        gssapi
-        ..
-    ..
     gssrpc
     ..
     infiniband
