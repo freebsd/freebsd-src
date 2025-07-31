@@ -2038,7 +2038,6 @@ ufs_mkdir(
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
-		gid_t ucred_group;
 		ucp = cnp->cn_cred;
 #endif
 		/*
@@ -2065,13 +2064,8 @@ ufs_mkdir(
 				 */
 				ucred.cr_ref = 1;
 				ucred.cr_uid = ip->i_uid;
-
-				/*
-				 * XXXKE Fix this is cr_gid gets separated out
-				 */
-				ucred.cr_ngroups = 1;
-				ucred.cr_groups = &ucred_group;
-				ucred.cr_gid = ucred_group = dp->i_gid;
+				ucred.cr_gid = dp->i_gid;
+				ucred.cr_ngroups = 0;
 				ucp = &ucred;
 			}
 #endif
@@ -2802,7 +2796,6 @@ ufs_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
-		gid_t ucred_group;
 		ucp = cnp->cn_cred;
 #endif
 		/*
@@ -2828,13 +2821,8 @@ ufs_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 			 */
 			ucred.cr_ref = 1;
 			ucred.cr_uid = ip->i_uid;
-
-			/*
-			 * XXXKE Fix this is cr_gid gets separated out
-			 */
-			ucred.cr_ngroups = 1;
-			ucred.cr_groups = &ucred_group;
-			ucred.cr_gid = ucred_group = pdir->i_gid;
+			ucred.cr_gid = pdir->i_gid;
+			ucred.cr_ngroups = 0;
 			ucp = &ucred;
 #endif
 		} else {

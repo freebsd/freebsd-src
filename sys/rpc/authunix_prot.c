@@ -96,8 +96,12 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	if (!xdr_uint32_t(xdrs, &cred->cr_gid))
 		return (FALSE);
 
-	/* XXXKE Fix this is cr_gid gets separated out. */
 	if (xdrs->x_op == XDR_ENCODE) {
+		/*
+		 * Note that this is a `struct xucred`, which maintains its
+		 * historical layout of preserving the egid in cr_ngroups and
+		 * cr_groups[0] == egid.
+		 */
 		ngroups = cred->cr_ngroups - 1;
 		if (ngroups > NGRPS)
 			ngroups = NGRPS;

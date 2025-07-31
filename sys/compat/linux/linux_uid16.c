@@ -87,12 +87,11 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 {
 	struct ucred *newcred, *oldcred;
 	l_gid16_t *linux_gidset;
-	gid_t *bsd_gidset;
 	int ngrp, error;
 	struct proc *p;
 
 	ngrp = args->gidsetsize;
-	if (ngrp < 0 || ngrp >= ngroups_max + 1)
+	if (ngrp < 0 || ngrp >= ngroups_max)
 		return (EINVAL);
 	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_LINUX, M_WAITOK);
 	error = copyin(args->gidset, linux_gidset, ngrp * sizeof(l_gid16_t));
@@ -106,12 +105,6 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
 
-	/*
-	 * cr_groups[0] holds egid. Setting the whole set from
-	 * the supplied set will cause egid to be changed too.
-	 * Keep cr_groups[0] unchanged to prevent that.
-	 */
-
 	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
@@ -121,18 +114,9 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 		goto out;
 	}
 
-	if (ngrp > 0) {
-		newcred->cr_ngroups = ngrp + 1;
-
-		bsd_gidset = newcred->cr_groups;
-		ngrp--;
-		while (ngrp >= 0) {
-			bsd_gidset[ngrp + 1] = linux_gidset[ngrp];
-			ngrp--;
-		}
-	}
-	else
-		newcred->cr_ngroups = 1;
+	newcred->cr_ngroups = ngrp;
+	for (int i = 0; i < ngrp; i++)
+		newcred->cr_groups[i] = linux_gidset[i];
 
 	setsugid(td->td_proc);
 	proc_set_cred(p, newcred);
@@ -155,13 +139,7 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 
 	cred = td->td_ucred;
 	bsd_gidset = cred->cr_groups;
-	bsd_gidsetsz = cred->cr_ngroups - 1;
-
-	/*
-	 * cr_groups[0] holds egid. Returning the whole set
-	 * here will cause a duplicate. Exclude cr_groups[0]
-	 * to prevent that.
-	 */
+	bsd_gidsetsz = cred->cr_ngroups;
 
 	if ((ngrp = args->gidsetsize) == 0) {
 		td->td_retval[0] = bsd_gidsetsz;
@@ -175,7 +153,7 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 	linux_gidset = malloc(bsd_gidsetsz * sizeof(*linux_gidset),
 	    M_LINUX, M_WAITOK);
 	while (ngrp < bsd_gidsetsz) {
-		linux_gidset[ngrp] = bsd_gidset[ngrp + 1];
+		linux_gidset[ngrp] = bsd_gidset[ngrp];
 		ngrp++;
 	}
 
