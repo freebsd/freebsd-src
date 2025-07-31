@@ -170,6 +170,50 @@
 
 #define NUM_OF_HPTSI_SLOTS 102400
 
+/* The number of connections after which the dynamic sleep logic kicks in. */
+#define DEFAULT_CONNECTION_THRESHOLD 100
+
+/*
+ * When using the hpts, a TCP stack must make sure
+ * that once a INP_DROPPED flag is applied to a INP
+ * that it does not expect tcp_output() to ever be
+ * called by the hpts. The hpts will *not* call
+ * any output (or input) functions on a TCB that
+ * is in the DROPPED state.
+ *
+ * This implies final ACK's and RST's that might
+ * be sent when a TCB is still around must be
+ * sent from a routine like tcp_respond().
+ */
+#define LOWEST_SLEEP_ALLOWED 50
+#define DEFAULT_MIN_SLEEP 250	/* How many usec's is default for hpts sleep
+				 * this determines min granularity of the
+				 * hpts. If 1, granularity is 10useconds at
+				 * the cost of more CPU (context switching).
+				 * Note do not set this to 0.
+				 */
+#define DYNAMIC_MIN_SLEEP DEFAULT_MIN_SLEEP
+#define DYNAMIC_MAX_SLEEP 5000	/* 5ms */
+
+/* Thresholds for raising/lowering sleep */
+#define SLOTS_INDICATE_MORE_SLEEP 100		/* This would be 1ms */
+#define SLOTS_INDICATE_LESS_SLEEP 1000		/* This would indicate 10ms */
+/**
+ *
+ * Dynamic adjustment of sleeping times is done in "new" mode
+ * where we are depending on syscall returns and lro returns
+ * to push hpts forward mainly and the timer is only a backstop.
+ *
+ * When we are in the "new" mode i.e. conn_cnt > conn_cnt_thresh
+ * then we do a dynamic adjustment on the time we sleep.
+ * Our threshold is if the lateness of the first client served (in ticks) is
+ * greater than or equal too slots_indicate_more_sleep (10ms
+ * or 10000 ticks). If we were that late, the actual sleep time
+ * is adjusted down by 50%. If the ticks_ran is less than
+ * slots_indicate_more_sleep (100 ticks or 1000usecs).
+ *
+ */
+
 /* Each hpts has its own p_mtx which is used for locking */
 #define	HPTS_MTX_ASSERT(hpts)	mtx_assert(&(hpts)->p_mtx, MA_OWNED)
 #define	HPTS_LOCK(hpts)		mtx_lock(&(hpts)->p_mtx)
@@ -244,10 +288,9 @@ static int32_t tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout);
 static void tcp_hpts_thread(void *ctx);
 
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
-static int conn_cnt_thresh = DEFAULT_CONNECTION_THESHOLD;
+static int conn_cnt_thresh = DEFAULT_CONNECTION_THRESHOLD;
 static int32_t dynamic_min_sleep = DYNAMIC_MIN_SLEEP;
 static int32_t dynamic_max_sleep = DYNAMIC_MAX_SLEEP;
-
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Hpts controls");
