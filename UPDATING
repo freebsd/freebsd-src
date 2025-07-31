@@ -42,11 +42,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	package, FreeBSD-bmake.  If you use pkgbase and you need make, you
 	should install this package.
 
-20250727:
-	LLVM's debugging assertions are now disabled in main by default.
-	The WITH_LLVM_ASSERTIONS src.conf(5) knob should be used to
-	enable it when working on LLVM or requesting help with it.
-
 20250726:
 	amd64 kernel configurations must contain "options SMP".
 
