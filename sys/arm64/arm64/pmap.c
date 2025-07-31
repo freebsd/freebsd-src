@@ -2915,13 +2915,13 @@ retry:
 	l1 = pmap_l1(pmap, va);
 	if (l1 != NULL && (pmap_load(l1) & ATTR_DESCR_MASK) == L1_TABLE) {
 		l2 = pmap_l1_to_l2(l1, va);
-		if (!ADDR_IS_KERNEL(va)) {
+		if (ADDR_IS_USER(va)) {
 			/* Add a reference to the L2 page. */
 			l2pg = PTE_TO_VM_PAGE(pmap_load(l1));
 			l2pg->ref_count++;
 		} else
 			l2pg = NULL;
-	} else if (!ADDR_IS_KERNEL(va)) {
+	} else if (ADDR_IS_USER(va)) {
 		/* Allocate a L2 page. */
 		l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
 		l2pg = _pmap_alloc_l3(pmap, NUL2E + l2pindex, lockp);
@@ -4082,7 +4082,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(rounddown2(sva, L2_SIZE) + L2_SIZE == roundup2(eva, L2_SIZE),
 	    ("pmap_remove_l3_range: range crosses an L3 page table boundary"));
-	l3pg = !ADDR_IS_KERNEL(sva) ? PTE_TO_VM_PAGE(l2e) : NULL;
+	l3pg = ADDR_IS_USER(sva) ? PTE_TO_VM_PAGE(l2e) : NULL;
 	va = eva;
 	for (l3 = pmap_l2_to_l3(&l2e, sva); sva != eva; l3++, sva += L3_SIZE) {
 		old_l3 = pmap_load(l3);
@@ -5310,7 +5310,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((flags & PMAP_ENTER_WIRED) != 0)
 		new_l3 |= ATTR_SW_WIRED;
 	if (pmap->pm_stage == PM_STAGE1) {
-		if (!ADDR_IS_KERNEL(va))
+		if (ADDR_IS_USER(va))
 			new_l3 |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 		else
 			new_l3 |= ATTR_S1_UXN;
@@ -5401,7 +5401,7 @@ retry:
 	pde = pmap_pde(pmap, va, &lvl);
 	if (pde != NULL && lvl == 2) {
 		l3 = pmap_l2_to_l3(pde, va);
-		if (!ADDR_IS_KERNEL(va) && mpte == NULL) {
+		if (ADDR_IS_USER(va) && mpte == NULL) {
 			mpte = PTE_TO_VM_PAGE(pmap_load(pde));
 			mpte->ref_count++;
 		}
@@ -5411,7 +5411,7 @@ retry:
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK &&
 		    (l3 = pmap_demote_l2_locked(pmap, l2, va, &lock)) != NULL) {
 			l3 = &l3[pmap_l3_index(va)];
-			if (!ADDR_IS_KERNEL(va)) {
+			if (ADDR_IS_USER(va)) {
 				mpte = PTE_TO_VM_PAGE(pmap_load(l2));
 				mpte->ref_count++;
 			}
@@ -5419,7 +5419,7 @@ retry:
 		}
 		/* We need to allocate an L3 table. */
 	}
-	if (!ADDR_IS_KERNEL(va)) {
+	if (ADDR_IS_USER(va)) {
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
 
 		/*
@@ -5657,7 +5657,7 @@ pmap_enter_l2_rx(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((prot & VM_PROT_EXECUTE) == 0 ||
 	    m->md.pv_memattr == VM_MEMATTR_DEVICE)
 		new_l2 |= ATTR_S1_XN;
-	if (!ADDR_IS_KERNEL(va))
+	if (ADDR_IS_USER(va))
 		new_l2 |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 	else
 		new_l2 |= ATTR_S1_UXN;
@@ -5745,7 +5745,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				    "pmap_enter_l2: no space for va %#lx"
 				    " in pmap %p", va, pmap);
 				return (KERN_NO_SPACE);
-			} else if (!ADDR_IS_KERNEL(va) ||
+			} else if (ADDR_IS_USER(va) ||
 			    !pmap_every_pte_zero(PTE_TO_PHYS(old_l2))) {
 				if (l2pg != NULL)
 					l2pg->ref_count--;
@@ -5796,7 +5796,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		}
 		KASSERT(pmap_load(l2) == 0,
 		    ("pmap_enter_l2: non-zero L2 entry %p", l2));
-		if (!ADDR_IS_KERNEL(va)) {
+		if (ADDR_IS_USER(va)) {
 			vm_page_free_pages_toq(&free, true);
 		} else {
 			KASSERT(SLIST_EMPTY(&free),
@@ -5916,7 +5916,7 @@ pmap_enter_l3c_rx(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t *ml3p,
 	if ((prot & VM_PROT_EXECUTE) == 0 ||
 	    m->md.pv_memattr == VM_MEMATTR_DEVICE)
 		l3e |= ATTR_S1_XN;
-	if (!ADDR_IS_KERNEL(va))
+	if (ADDR_IS_USER(va))
 		l3e |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 	else
 		l3e |= ATTR_S1_UXN;
@@ -5948,7 +5948,7 @@ pmap_enter_l3c(pmap_t pmap, vm_offset_t va, pt_entry_t l3e, u_int flags,
 	/*
 	 * If the L3 PTP is not resident, we attempt to create it here.
 	 */
-	if (!ADDR_IS_KERNEL(va)) {
+	if (ADDR_IS_USER(va)) {
 		/*
 		 * Were we given the correct L3 PTP?  If so, we can simply
 		 * increment its ref count.
@@ -6224,7 +6224,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
 	 */
-	if (!ADDR_IS_KERNEL(va)) {
+	if (ADDR_IS_USER(va)) {
 		vm_pindex_t l2pindex;
 
 		/*
@@ -6310,7 +6310,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((prot & VM_PROT_EXECUTE) == 0 ||
 	    m->md.pv_memattr == VM_MEMATTR_DEVICE)
 		l3_val |= ATTR_S1_XN;
-	if (!ADDR_IS_KERNEL(va))
+	if (ADDR_IS_USER(va))
 		l3_val |= ATTR_S1_AP(ATTR_S1_AP_USER) | ATTR_S1_PXN;
 	else
 		l3_val |= ATTR_S1_UXN;
@@ -8528,7 +8528,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 		 * region and early kernel memory are the only parts of the
 		 * kernel address space that must be handled here.
 		 */
-		KASSERT(!ADDR_IS_KERNEL(va) || VIRT_IN_DMAP(va) ||
+		KASSERT(ADDR_IS_USER(va) || VIRT_IN_DMAP(va) ||
 		    (va >= VM_MIN_KERNEL_ADDRESS && va < kernel_vm_end),
 		    ("pmap_demote_l2: No saved mpte for va %#lx", va));
 
@@ -8555,7 +8555,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 		}
 		ml3->pindex = pmap_l2_pindex(va);
 
-		if (!ADDR_IS_KERNEL(va)) {
+		if (ADDR_IS_USER(va)) {
 			ml3->ref_count = NL3PG;
 			pmap_resident_count_inc(pmap, 1);
 		}
