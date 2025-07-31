@@ -145,6 +145,23 @@ struct linux_dma_priv {
 #define	DMA_PRIV_LOCK(priv) mtx_lock(&(priv)->lock)
 #define	DMA_PRIV_UNLOCK(priv) mtx_unlock(&(priv)->lock)
 
+static void
+lkpi_set_pcim_iomap_devres(struct pcim_iomap_devres *dr, int bar,
+    void *res)
+{
+	dr->mmio_table[bar] = (void *)rman_get_bushandle(res);
+	dr->res_table[bar] = res;
+}
+
+static bool
+lkpi_pci_bar_id_valid(int bar)
+{
+	if (bar < 0 || bar > PCIR_MAX_BAR_0)
+		return (false);
+
+	return (true);
+}
+
 static int
 linux_pdev_dma_uninit(struct pci_dev *pdev)
 {
@@ -763,6 +780,9 @@ _lkpi_pci_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen __unused)
 	struct pci_mmio_region *mmio, *p;
 	int type;
 
+	if (!lkpi_pci_bar_id_valid(bar))
+		return (NULL);
+
 	type = pci_resource_type(pdev, bar);
 	if (type < 0) {
 		device_printf(pdev->dev.bsddev, "%s: bar %d type %d\n",
@@ -803,6 +823,9 @@ linuxkpi_pci_iomap_range(struct pci_dev *pdev, int bar,
 {
 	struct resource *res;
 
+	if (!lkpi_pci_bar_id_valid(bar))
+		return (NULL);
+
 	res = _lkpi_pci_iomap(pdev, bar, maxlen);
 	if (res == NULL)
 		return (NULL);
@@ -816,7 +839,39 @@ linuxkpi_pci_iomap_range(struct pci_dev *pdev, int bar,
 void *
 linuxkpi_pci_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 {
+	if (!lkpi_pci_bar_id_valid(bar))
+		return (NULL);
+
 	return (linuxkpi_pci_iomap_range(pdev, bar, 0, maxlen));
+}
+
+void *
+linuxkpi_pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
+{
+	struct pcim_iomap_devres *dr;
+	void *res;
+
+	if (!lkpi_pci_bar_id_valid(bar))
+		return (NULL);
+
+	dr = lkpi_pcim_iomap_devres_find(pdev);
+	if (dr == NULL)
+		return (NULL);
+
+	if (dr->res_table[bar] != NULL)
+		return (dr->res_table[bar]);
+
+	res = linuxkpi_pci_iomap(pdev, bar, maxlen);
+	if (res == NULL) {
+		/*
+		 * Do not free the devres in case there were
+		 * other valid mappings before already.
+		 */
+		return (NULL);
+	}
+	lkpi_set_pcim_iomap_devres(dr, bar, res);
+
+	return (res);
 }
 
 void
@@ -870,8 +925,7 @@ linuxkpi_pcim_iomap_regions(struct pci_dev *pdev, uint32_t mask, const char *nam
 		res = _lkpi_pci_iomap(pdev, bar, 0);
 		if (res == NULL)
 			goto err;
-		dr->mmio_table[bar] = (void *)rman_get_bushandle(res);
-		dr->res_table[bar] = res;
+		lkpi_set_pcim_iomap_devres(dr, bar, res);
 
 		mappings |= (1 << bar);
 	}
