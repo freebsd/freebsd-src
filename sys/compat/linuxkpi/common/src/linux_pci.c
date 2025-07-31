@@ -1140,8 +1140,9 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 	return (rle->count);
 }
 
-int
-pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
+static int
+lkpi_pci_request_region(struct pci_dev *pdev, int bar, const char *res_name,
+    bool managed)
 {
 	struct resource *res;
 	struct pci_devres *dr;
@@ -1149,9 +1150,13 @@ pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	int rid;
 	int type;
 
+	if (!lkpi_pci_bar_id_valid(bar))
+		return (-EINVAL);
+
 	type = pci_resource_type(pdev, bar);
 	if (type < 0)
-		return (-ENODEV);
+		return (0);
+
 	rid = PCIR_BAR(bar);
 	res = bus_alloc_resource_any(pdev->dev.bsddev, type, &rid,
 	    RF_ACTIVE|RF_SHAREABLE);
@@ -1159,16 +1164,21 @@ pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 		device_printf(pdev->dev.bsddev, "%s: failed to alloc "
 		    "bar %d type %d rid %d\n",
 		    __func__, bar, type, PCIR_BAR(bar));
-		return (-ENODEV);
+		return (-EBUSY);
 	}
 
 	/*
 	 * It seems there is an implicit devres tracking on these if the device
-	 * is managed; otherwise the resources are not automatiaclly freed on
-	 * FreeBSD/LinuxKPI tough they should be/are expected to be by Linux
-	 * drivers.
+	 * is managed (lkpi_pci_devres_find() case); otherwise the resources are
+	 * not automatically freed on FreeBSD/LinuxKPI though they should be/are
+	 * expected to be by Linux drivers.
+	 * Otherwise if we are called from a pcim-function with the managed
+	 * argument set, we need to track devres independent of pdev->managed.
 	 */
-	dr = lkpi_pci_devres_find(pdev);
+	if (managed)
+		dr = lkpi_pci_devres_get_alloc(pdev);
+	else
+		dr = lkpi_pci_devres_find(pdev);
 	if (dr != NULL) {
 		dr->region_mask |= (1 << bar);
 		dr->region_table[bar] = res;
@@ -1185,6 +1195,12 @@ pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 }
 
 int
+linuxkpi_pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
+{
+	return (lkpi_pci_request_region(pdev, bar, res_name, false));
+}
+
+int
 linuxkpi_pci_request_regions(struct pci_dev *pdev, const char *res_name)
 {
 	int error;
@@ -1192,7 +1208,25 @@ linuxkpi_pci_request_regions(struct pci_dev *pdev, const char *res_name)
 
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
 		error = pci_request_region(pdev, i, res_name);
-		if (error && error != -ENODEV) {
+		if (error && error != -EBUSY) {
+			pci_release_regions(pdev);
+			return (error);
+		}
+	}
+	return (0);
+}
+
+int
+linuxkpi_pcim_request_all_regions(struct pci_dev *pdev, const char *res_name)
+{
+	int bar, error;
+
+	for (bar = 0; bar <= PCIR_MAX_BAR_0; bar++) {
+		error = lkpi_pci_request_region(pdev, bar, res_name, true);
+		if (error != 0 && error != -EBUSY) {
+			device_printf(pdev->dev.bsddev, "%s: bar %d res_name '%s': "
+			    "lkpi_pci_request_region returned %d\n", __func__,
+			    bar, res_name, error);
 			pci_release_regions(pdev);
 			return (error);
 		}
