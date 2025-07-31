@@ -2608,6 +2608,26 @@
 #define	SCTLR_EnALS			(UL(0x1) << 56)
 #define	SCTLR_EPAN			(UL(0x1) << 57)
 
+#define	SCTLR_MMU_OFF			\
+    (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_EIS | SCTLR_TSCXT | SCTLR_EOS)
+#define	SCTLR_MMU_ON			\
+    (SCTLR_MMU_OFF |			\
+     SCTLR_BT1 |			\
+     SCTLR_BT0 |			\
+     SCTLR_UCI |			\
+     SCTLR_SPAN |			\
+     SCTLR_nTWE |			\
+     SCTLR_nTWI |			\
+     SCTLR_UCT |			\
+     SCTLR_DZE |			\
+     SCTLR_I |				\
+     SCTLR_SED |			\
+     SCTLR_CP15BEN |			\
+     SCTLR_SA0 |			\
+     SCTLR_SA |				\
+     SCTLR_C |				\
+     SCTLR_M)
+
 /* SCTLR_EL12 */
 #define	SCTLR_EL12_REG			MRS_REG_ALT_NAME(SCTLR_EL12)
 #define	SCTLR_EL12_op0			3
