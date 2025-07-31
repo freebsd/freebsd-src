@@ -319,14 +319,12 @@ LEND(mpentry_common)
  *  - Configure EL2 to support running the kernel at EL1 and exit to that
  */
 LENTRY(enter_kernel_el)
-#define	INIT_SCTLR_EL1	(SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_EIS | \
-    SCTLR_TSCXT | SCTLR_EOS)
 	mrs	x23, CurrentEL
 	and	x23, x23, #(CURRENTEL_EL_MASK)
 	cmp	x23, #(CURRENTEL_EL_EL2)
 	b.eq	1f
 
-	ldr	x2, =INIT_SCTLR_EL1
+	ldr	x2, =SCTLR_MMU_OFF
 	msr	sctlr_el1, x2
 	/* SCTLR_EOS is set so eret is a context synchronizing event so we
 	 * need an isb here to ensure it's observed by later instructions,
@@ -370,7 +368,7 @@ LENTRY(enter_kernel_el)
 	msr	vmpidr_el2, x2
 
 	/* Set the initial sctlr_el1 */
-	ldr	x2, =INIT_SCTLR_EL1
+	ldr	x2, =SCTLR_MMU_OFF
 	msr	sctlr_el1, x2
 
 	/* Check for VHE */
@@ -442,7 +440,6 @@ LENTRY(enter_kernel_el)
 	isb
 
 	eret
-#undef INIT_SCTLR_EL1
 LEND(enter_kernel_el)
 
 /*
@@ -1037,11 +1034,7 @@ LENTRY(start_mmu)
 	/*
 	 * Setup SCTLR.
 	 */
-	ldr	x2, sctlr_set
-	ldr	x3, sctlr_clear
-	mrs	x1, sctlr_el1
-	bic	x1, x1, x3	/* Clear the required bits */
-	orr	x1, x1, x2	/* Set the required bits */
+	ldr	x1, =SCTLR_MMU_ON
 	msr	sctlr_el1, x1
 	isb
 
@@ -1066,16 +1059,6 @@ tcr:
 	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG |			\
 	    TCR_SH1_IS | TCR_ORGN1_WBWA | TCR_IRGN1_WBWA |		\
 	    TCR_SH0_IS | TCR_ORGN0_WBWA | TCR_IRGN0_WBWA)
-sctlr_set:
-	/* Bits to set */
-	.quad (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_UCI | SCTLR_SPAN | \
-	    SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
-	    SCTLR_I | SCTLR_SED | SCTLR_SA0 | SCTLR_SA | SCTLR_C | \
-	    SCTLR_M | SCTLR_CP15BEN | SCTLR_BT1 | SCTLR_BT0)
-sctlr_clear:
-	/* Bits to clear */
-	.quad (SCTLR_EE | SCTLR_E0E | SCTLR_IESB | SCTLR_WXN | SCTLR_UMA | \
-	    SCTLR_ITD | SCTLR_A)
 LEND(start_mmu)
 
 ENTRY(abort)
