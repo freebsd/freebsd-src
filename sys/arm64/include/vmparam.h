@@ -211,6 +211,9 @@
 /* The address bits that hold a pointer authentication code */
 #define	PAC_ADDR_MASK		(0xff7f000000000000UL)
 
+/* The top-byte ignore address bits */
+#define	TBI_ADDR_MASK		0xff00000000000000UL
+
 /* If true addr is in the kernel address space */
 #define	ADDR_IS_KERNEL(addr)	(((addr) & (1ul << 55)) == (1ul << 55))
 /* If true addr is in the user address space */
