@@ -181,6 +181,7 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	ssize_t n;
 	size_t hlen;
 	struct ether_header *eh;
+	void *buf;
 	struct ip *ip;
 	struct udphdr *uh;
 	uint16_t etype;		/* host order */
@@ -195,7 +196,7 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 
 	ip = NULL;
 	ptr = NULL;
-	n = readether(d, (void **)&ptr, (void **)&ip, tleft, &etype);
+	n = readether(d, (void **)&ptr, (void **)&buf, tleft, &etype);
 	if (n == -1 || n < sizeof(*ip) + sizeof(*uh)) {
 		free(ptr);
 		return (-1);
@@ -205,7 +206,7 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 
 	/* Need to respond to ARP requests. */
 	if (etype == ETHERTYPE_ARP) {
-		struct arphdr *ah = (void *)ip;
+		struct arphdr *ah = buf;
 		if (ah->ar_op == htons(ARPOP_REQUEST)) {
 			/* Send ARP reply */
 			arp_reply(d, ah);
@@ -224,6 +225,7 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 		return (-1);
 	}
 
+	ip = buf;
 	/* Check ip header */
 	if (ip->ip_v != IPVERSION ||	/* half char */
 	    ip->ip_p != proto) {
