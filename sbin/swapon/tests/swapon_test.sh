@@ -31,7 +31,10 @@ attach_mdX_head()
 attach_mdX_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo 'md31    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md31 as swap device" -x "swapon -F fstab.out -a"
 }
@@ -49,7 +52,10 @@ attach_dev_mdX_head()
 attach_dev_mdX_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md32    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md32 as swap device" -x "swapon -F fstab.out -a"
 }
@@ -67,7 +73,10 @@ attach_md_head()
 attach_md_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo 'md    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]* as swap device" -x "swapon -F fstab.out -a"
 }
@@ -85,7 +94,10 @@ attach_dev_md_head()
 attach_dev_md_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]* as swap device" -x "swapon -F fstab.out -a"
 }
@@ -103,7 +115,10 @@ attach_mdX_eli_head()
 attach_mdX_eli_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo 'md33.eli    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md33.eli as swap device" -x "swapon -F fstab.out -a"
 }
@@ -121,7 +136,10 @@ attach_dev_mdX_eli_head()
 attach_dev_mdX_eli_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md34.eli    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md34.eli as swap device" -x "swapon -F fstab.out -a"
 }
@@ -139,7 +157,10 @@ attach_md_eli_head()
 attach_md_eli_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo 'md.eli    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]*.eli as swap device" -x "swapon -F fstab.out -a"
 }
@@ -157,13 +178,34 @@ attach_dev_md_eli_head()
 attach_dev_md_eli_body()
 {
 	# if the swapfile is too small (like 1k) then mdconfig hangs looking up the md
-	atf_check -s exit:0 -x "truncate -s 10k swapfile"
+	# but need a swapfile bigger than one page kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize * 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
 	atf_check -s exit:0 -o save:fstab.out -x "echo '/dev/md.eli    none    swap    sw,file=swapfile  0       0'"
 	atf_check -s exit:0 -o match:"swapon: adding /dev/md[0-9][0-9]*.eli as swap device" -x "swapon -F fstab.out -a"
 }
 attach_dev_md_eli_cleanup()
 {
 	swapoff -F fstab.out -a
+}
+
+###
+
+atf_test_case attach_too_small
+attach_too_small_head()
+{
+	atf_set "descr" "should refuse to attach if smaller than one kernel page size"
+}
+attach_too_small_body()
+{
+	# Need to use smaller than kernel page size
+	pagesize=$(sysctl -n hw.pagesize)
+	minsize=$(( pagesize / 2 ))
+	atf_check -s exit:0 -x "truncate -s $minsize swapfile"
+	atf_check -s exit:0 -o save:fstab.out -x "echo 'md35    none    swap    sw,file=swapfile  0       0'"
+	atf_check -s exit:1 -e match:"swapon: /dev/md35: NSWAPDEV limit reached" -x "swapon -F fstab.out -a"
+	atf_check -s exit:0 -x "mdconfig -d -u 35"
 }
 
 ###
@@ -178,4 +220,6 @@ atf_init_test_cases()
 	atf_add_test_case attach_dev_mdX_eli
 	atf_add_test_case attach_md_eli
 	atf_add_test_case attach_dev_md_eli
+
+	atf_add_test_case attach_too_small
 }
