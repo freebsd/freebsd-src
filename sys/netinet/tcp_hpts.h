@@ -34,6 +34,30 @@
 #define HPTS_MSEC_IN_SEC 1000
 #define HPTS_USEC_IN_MSEC 1000
 
+static inline uint32_t
+tcp_tv_to_hpts_slot(const struct timeval *sv)
+{
+	return ((sv->tv_sec * 100000) + (sv->tv_usec / HPTS_USECS_PER_SLOT));
+}
+
+static inline uint32_t
+tcp_tv_to_usec(const struct timeval *sv)
+{
+	return ((uint32_t) ((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
+}
+
+static inline uint32_t
+tcp_tv_to_msec(const struct timeval *sv)
+{
+	return ((uint32_t) ((sv->tv_sec * HPTS_MSEC_IN_SEC) + (sv->tv_usec/HPTS_USEC_IN_MSEC)));
+}
+
+static inline uint64_t
+tcp_tv_to_lusec(const struct timeval *sv)
+{
+	return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
+}
+
 struct hpts_diag {
 	uint32_t p_hpts_active; 	/* bbr->flex7 x */
 	uint32_t p_nxt_slot;		/* bbr->flex1 x */
@@ -66,52 +90,16 @@ struct hpts_diag {
 #define PACE_PKT_OUTPUT 0x40	/* Output Packets being paced */
 #define PACE_TMR_MASK   (PACE_TMR_KEEP|PACE_TMR_PERSIT|PACE_TMR_RXT|PACE_TMR_TLP|PACE_TMR_RACK|PACE_TMR_DELACK)
 
-#define DEFAULT_CONNECTION_THESHOLD 100
+#ifdef _KERNEL
 
 /*
- * When using the hpts, a TCP stack must make sure
- * that once a INP_DROPPED flag is applied to a INP
- * that it does not expect tcp_output() to ever be
- * called by the hpts. The hpts will *not* call
- * any output (or input) functions on a TCB that
- * is in the DROPPED state.
- *
- * This implies final ACK's and RST's that might
- * be sent when a TCB is still around must be
- * sent from a routine like tcp_respond().
- */
-#define LOWEST_SLEEP_ALLOWED 50
-#define DEFAULT_MIN_SLEEP 250	/* How many usec's is default for hpts sleep
-				 * this determines min granularity of the
-				 * hpts. If 1, granularity is 10useconds at
-				 * the cost of more CPU (context switching).
-				 * Note do not set this to 0.
-				 */
-#define DYNAMIC_MIN_SLEEP DEFAULT_MIN_SLEEP
-#define DYNAMIC_MAX_SLEEP 5000	/* 5ms */
+ * The following are the definitions for the kernel HPTS interface for managing
+ * the HPTS ring and the TCBs on it.
+*/
 
-/* Thresholds for raising/lowering sleep */
-#define SLOTS_INDICATE_MORE_SLEEP 100		/* This would be 1ms */
-#define SLOTS_INDICATE_LESS_SLEEP 1000		/* This would indicate 10ms */
-/**
- *
- * Dynamic adjustment of sleeping times is done in "new" mode
- * where we are depending on syscall returns and lro returns
- * to push hpts forward mainly and the timer is only a backstop.
- *
- * When we are in the "new" mode i.e. conn_cnt > conn_cnt_thresh
- * then we do a dynamic adjustment on the time we sleep.
- * Our threshold is if the lateness of the first client served (in ticks) is
- * greater than or equal too slots_indicate_more_sleep (10ms
- * or 10000 ticks). If we were that late, the actual sleep time
- * is adjusted down by 50%. If the ticks_ran is less than
- * slots_indicate_more_sleep (100 ticks or 1000usecs).
- *
- */
-
-#ifdef _KERNEL
 void tcp_hpts_init(struct tcpcb *);
 void tcp_hpts_remove(struct tcpcb *);
+
 static inline bool
 tcp_in_hpts(struct tcpcb *tp)
 {
@@ -150,45 +138,6 @@ uint32_t tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line,
 	tcp_hpts_insert_diag((inp), (slot), __LINE__, NULL)
 
 void tcp_set_hpts(struct tcpcb *tp);
-
-void tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason);
-
-void tcp_lro_hpts_init(void);
-void tcp_lro_hpts_uninit(void);
-
-extern int32_t tcp_min_hptsi_time;
-
-#endif /* _KERNEL */
-
-/*
- * The following functions should also be available
- * to userspace as well.
- */
-static inline uint32_t
-tcp_tv_to_hpts_slot(const struct timeval *sv)
-{
-	return ((sv->tv_sec * 100000) + (sv->tv_usec / HPTS_USECS_PER_SLOT));
-}
-
-static inline uint32_t
-tcp_tv_to_usec(const struct timeval *sv)
-{
-	return ((uint32_t) ((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
-}
-
-static inline uint32_t
-tcp_tv_to_msec(const struct timeval *sv)
-{
-	return ((uint32_t) ((sv->tv_sec * HPTS_MSEC_IN_SEC) + (sv->tv_usec/HPTS_USEC_IN_MSEC)));
-}
-
-static inline uint64_t
-tcp_tv_to_lusec(const struct timeval *sv)
-{
-	return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
-}
-
-#ifdef _KERNEL
 
 extern int32_t tcp_min_hptsi_time;
 
@@ -230,6 +179,13 @@ tcp_get_usecs(struct timeval *tv)
 	microuptime(tv);
 	return (tcp_tv_to_usec(tv));
 }
+
+/*
+ * LRO HPTS initialization and uninitialization, only for internal use by the
+ * HPTS code.
+ */
+void tcp_lro_hpts_init(void);
+void tcp_lro_hpts_uninit(void);
 
 #endif /* _KERNEL */
 #endif /* __tcp_hpts_h__ */
