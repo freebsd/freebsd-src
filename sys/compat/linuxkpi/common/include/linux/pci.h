@@ -369,7 +369,7 @@ int linuxkpi_pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries,
 /* Internal helper function(s). */
 struct pci_dev *lkpinew_pci_dev(device_t);
 void lkpi_pci_devres_release(struct device *, void *);
-struct pci_dev *lkpi_pci_get_device(uint16_t, uint16_t, struct pci_dev *);
+struct pci_dev *lkpi_pci_get_device(uint32_t, uint32_t, struct pci_dev *);
 struct msi_desc *lkpi_pci_msi_desc_alloc(int);
 struct device *lkpi_pci_find_irq_dev(unsigned int irq);
 int _lkpi_pci_enable_msi_range(struct pci_dev *pdev, int minvec, int maxvec);
@@ -1415,7 +1415,7 @@ err:
  * using pci_get_device() need to be changed to call linuxkpi_pci_get_device().
  */
 static inline struct pci_dev *
-linuxkpi_pci_get_device(uint16_t vendor, uint16_t device, struct pci_dev *odev)
+linuxkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 {
 
 	return (lkpi_pci_get_device(vendor, device, odev));

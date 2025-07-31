@@ -286,7 +286,7 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 }
 
 struct pci_dev *
-lkpi_pci_get_device(uint16_t vendor, uint16_t device, struct pci_dev *odev)
+lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 {
 	struct pci_dev *pdev, *found;
 
