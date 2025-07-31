@@ -529,6 +529,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	struct pfi_kkif		*rt_kif = NULL;
 	struct pf_kpooladdr	*rpool_first;
 	int			 error;
+	sa_family_t		 rt_af = 0;
 	uint8_t			 rt = 0;
 	int			 n = 0;
 
@@ -602,6 +603,11 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			}
 			rt = r->rt;
 			rt_kif = rpool_first->kif;
+			/*
+			 * Guess the AF of the route address, FreeBSD 13 does
+			 * not support af-to so it should be safe.
+			 */
+			rt_af = r->af;
 		} else if (!PF_AZERO(&sp->pfs_1301.rt_addr, sp->pfs_1301.af)) {
 			/*
 			 * Ruleset different, routing *supposedly* requested,
@@ -627,6 +633,11 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 				return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
 			}
 			rt = sp->pfs_1400.rt;
+			/*
+			 * Guess the AF of the route address, FreeBSD 13 does
+			 * not support af-to so it should be safe.
+			 */
+			rt_af = sp->pfs_1400.af;
 		}
 	break;
 	}
@@ -706,6 +717,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 
 	st->act.rt = rt;
 	st->act.rt_kif = rt_kif;
+	st->act.rt_af = rt_af;
 
 	switch (msg_version) {
 		case PFSYNC_MSG_VERSION_1301:

@@ -1940,6 +1940,7 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_RT, .off = _OUT(rt), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_RT_IFNAME, .off = _OUT(rt_ifname), .cb = snl_attr_store_ifname },
 	{ .type = PF_ST_SRC_NODE_FLAGS, .off = _OUT(src_node_flags), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_RT_AF, .off = _OUT(rt_af), .cb = snl_attr_get_uint8 },
 };
 #undef _IN
 #undef _OUT
@@ -3043,7 +3044,7 @@ static struct snl_attr_parser ap_srcnode[] = {
 	{ .type = PF_SN_CREATION, .off = _OUT(creation), .cb = snl_attr_get_uint64 },
 	{ .type = PF_SN_EXPIRE, .off = _OUT(expire), .cb = snl_attr_get_uint64 },
 	{ .type = PF_SN_CONNECTION_RATE, .off = _OUT(conn_rate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
-	{ .type = PF_SN_NAF, .off = _OUT(naf), .cb = snl_attr_get_uint8 },
+	{ .type = PF_SN_RAF, .off = _OUT(raf), .cb = snl_attr_get_uint8 },
 	{ .type = PF_SN_NODE_TYPE, .off = _OUT(type), .cb = snl_attr_get_uint8 },
 };
 #undef _OUT

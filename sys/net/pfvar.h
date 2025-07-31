@@ -629,6 +629,7 @@ struct pf_kpooladdr {
 	struct pf_addr_wrap		 addr;
 	TAILQ_ENTRY(pf_kpooladdr)	 entries;
 	char				 ifname[IFNAMSIZ];
+	sa_family_t		 	 af;
 	struct pfi_kkif			*kif;
 };
 
@@ -656,6 +657,7 @@ struct pf_rule_actions {
 	uint16_t	 max_mss;
 	uint16_t	 dnpipe;
 	uint16_t	 dnrpipe;	/* Reverse direction pipe */
+	sa_family_t	 rt_af;
 	uint8_t		 log;
 	uint8_t		 set_tos;
 	uint8_t		 min_ttl;
@@ -911,7 +913,7 @@ struct pf_ksrc_node {
 	u_int32_t		 creation;
 	u_int32_t		 expire;
 	sa_family_t		 af;
-	sa_family_t		 naf;
+	sa_family_t		 raf;
 	u_int8_t		 ruletype;
 	pf_sn_types_t		 type;
 	struct mtx		*lock;
@@ -2717,14 +2719,15 @@ int			 pf_step_out_of_keth_anchor(struct pf_keth_anchor_stackframe *,
 			    struct pf_keth_rule **, struct pf_keth_rule **,
 			    int *);
 
-u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
+u_short			 pf_map_addr(sa_family_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
-			    struct pfi_kkif **nkif, struct pf_addr *,
-			    struct pf_kpool *);
+			    struct pfi_kkif **nkif, sa_family_t *,
+			    struct pf_addr *, struct pf_kpool *);
 u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
-			    struct pfi_kkif **nkif, struct pf_addr *,
-			    struct pf_kpool *, pf_sn_types_t);
+			    sa_family_t *, struct pfi_kkif **nkif,
+			    struct pf_addr *, struct pf_kpool *,
+			    pf_sn_types_t);
 int			 pf_get_transaddr_af(struct pf_krule *,
 			    struct pf_pdesc *);
 u_short			 pf_get_translation(struct pf_test_ctx *);

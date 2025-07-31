@@ -178,7 +178,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 
 	nlattr_add_string(nw, PF_ST_IFNAME, s->kif->pfik_name);
 	nlattr_add_string(nw, PF_ST_ORIG_IFNAME, s->orig_kif->pfik_name);
-	dump_addr(nw, PF_ST_RT_ADDR, &s->act.rt_addr, af);
+	dump_addr(nw, PF_ST_RT_ADDR, &s->act.rt_addr, s->act.rt_af);
 	nlattr_add_u32(nw, PF_ST_CREATION, time_uptime - (s->creation / 1000));
 	uint32_t expire = pf_state_expires(s);
 	if (expire > time_uptime)
@@ -224,6 +224,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	if (s->sns[PF_SN_ROUTE] != NULL)
 		src_node_flags |= PFSTATE_SRC_NODE_ROUTE;
 	nlattr_add_u8(nw, PF_ST_SRC_NODE_FLAGS, src_node_flags);
+	nlattr_add_u8(nw, PF_ST_RT_AF, s->act.rt_af);
 
 	if (!dump_state_peer(nw, PF_ST_PEER_SRC, &s->src))
 		goto enomem;
@@ -1761,7 +1762,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 			nlattr_add_u32(nw, PF_SN_STATES, n->states);
 			nlattr_add_u32(nw, PF_SN_CONNECTIONS, n->conn);
 			nlattr_add_u8(nw, PF_SN_AF, n->af);
-			nlattr_add_u8(nw, PF_SN_NAF, n->naf);
+			nlattr_add_u8(nw, PF_SN_RAF, n->raf);
 			nlattr_add_u8(nw, PF_SN_RULE_TYPE, n->ruletype);
 
 			nlattr_add_u64(nw, PF_SN_CREATION, secs - n->creation);
