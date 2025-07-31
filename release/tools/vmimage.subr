@@ -118,7 +118,6 @@ vm_emulation_setup() {
 
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
-	chroot ${DESTDIR} ${EMULATOR} /usr/bin/newaliases
 	chroot ${DESTDIR} ${EMULATOR} /bin/sh /etc/rc.d/ldconfig forcestart
 	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
 
