@@ -17,13 +17,12 @@ SUBDIR=	krb5 gssrpc gssapi
 
 SUBDIR_PARALLEL=
 
-INCSGROUPS=	INCS
-
 INCSDIR=	${INCLUDEDIR}
 
 .PATH:	${KRB5_DIR}/include
 
-INCS=	kdb.h \
+INCS=	gssapi.h \
+	kdb.h \
 	krad.h \
 	krb5.h
 
