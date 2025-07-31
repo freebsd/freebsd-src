@@ -1038,7 +1038,7 @@ pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
     u_int32_t ticket, int r_action, const char *anchorname, int which)
 {
 	struct pfioc_pooladdr pp;
-	struct pf_pooladdr *pa;
+	struct pfctl_pooladdr *pa;
 	u_int32_t pnr, mpnr;
 	int ret;
 
@@ -1054,10 +1054,11 @@ pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
 			warnc(ret, "DIOCGETADDR");
 			return (-1);
 		}
-		pa = calloc(1, sizeof(struct pf_pooladdr));
+		pa = calloc(1, sizeof(struct pfctl_pooladdr));
 		if (pa == NULL)
 			err(1, "calloc");
-		bcopy(&pp.addr, pa, sizeof(struct pf_pooladdr));
+		bcopy(&pp.addr, pa, sizeof(struct pfctl_pooladdr));
+		pa->af = pp.af;
 		TAILQ_INSERT_TAIL(&pool->list, pa, entries);
 	}
 
@@ -1067,7 +1068,7 @@ pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
 void
 pfctl_move_pool(struct pfctl_pool *src, struct pfctl_pool *dst)
 {
-	struct pf_pooladdr *pa;
+	struct pfctl_pooladdr *pa;
 
 	while ((pa = TAILQ_FIRST(&src->list)) != NULL) {
 		TAILQ_REMOVE(&src->list, pa, entries);
@@ -1078,7 +1079,7 @@ pfctl_move_pool(struct pfctl_pool *src, struct pfctl_pool *dst)
 void
 pfctl_clear_pool(struct pfctl_pool *pool)
 {
-	struct pf_pooladdr *pa;
+	struct pfctl_pooladdr *pa;
 
 	while ((pa = TAILQ_FIRST(&pool->list)) != NULL) {
 		TAILQ_REMOVE(&pool->list, pa, entries);
@@ -1794,14 +1795,14 @@ pfctl_show_creators(int opts)
 
 /* callbacks for rule/nat/rdr/addr */
 int
-pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af, int which)
+pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, int which)
 {
-	struct pf_pooladdr *pa;
+	struct pfctl_pooladdr *pa;
 	int ret;
 
-	pf->paddr.af = af;
 	TAILQ_FOREACH(pa, &p->list, entries) {
-		memcpy(&pf->paddr.addr, pa, sizeof(struct pf_pooladdr));
+		memcpy(&pf->paddr.addr, pa, sizeof(struct pfctl_pooladdr));
+		pf->paddr.af = pa->af;
 		if ((pf->opts & PF_OPT_NOACTION) == 0) {
 			if ((ret = pfctl_add_addr(pf->h, &pf->paddr, which)) != 0)
 				errc(1, ret, "DIOCADDADDR");
@@ -2165,11 +2166,11 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 				errc(1, error, "DIOCBEGINADDRS");
 		}
 
-		if (pfctl_add_pool(pf, &r->rdr, r->af, PF_RDR))
+		if (pfctl_add_pool(pf, &r->rdr, PF_RDR))
 			return (1);
-		if (pfctl_add_pool(pf, &r->nat, r->naf ? r->naf : r->af, PF_NAT))
+		if (pfctl_add_pool(pf, &r->nat, PF_NAT))
 			return (1);
-		if (pfctl_add_pool(pf, &r->route, r->af, PF_RT))
+		if (pfctl_add_pool(pf, &r->route, PF_RT))
 			return (1);
 		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
 		    pf->paddr.ticket);

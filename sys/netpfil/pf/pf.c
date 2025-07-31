@@ -401,7 +401,7 @@ static void		 pf_overload_task(void *v, int pending);
 static u_short		 pf_insert_src_node(struct pf_ksrc_node *[PF_SN_MAX],
 			    struct pf_srchash *[PF_SN_MAX], struct pf_krule *,
 			    struct pf_addr *, sa_family_t, struct pf_addr *,
-			    struct pfi_kkif *, pf_sn_types_t);
+			    struct pfi_kkif *, sa_family_t, pf_sn_types_t);
 static u_int		 pf_purge_expired_states(u_int, int);
 static void		 pf_purge_unlinked_rules(void);
 static int		 pf_mtag_uminit(void *, int, int);
@@ -1017,7 +1017,7 @@ static u_short
 pf_insert_src_node(struct pf_ksrc_node *sns[PF_SN_MAX],
     struct pf_srchash *snhs[PF_SN_MAX], struct pf_krule *rule,
     struct pf_addr *src, sa_family_t af, struct pf_addr *raddr,
-    struct pfi_kkif *rkif, pf_sn_types_t sn_type)
+    struct pfi_kkif *rkif, sa_family_t raf, pf_sn_types_t sn_type)
 {
 	u_short			 reason = 0;
 	struct pf_krule		*r_track = rule;
@@ -1089,8 +1089,9 @@ pf_insert_src_node(struct pf_ksrc_node *sns[PF_SN_MAX],
 		(*sn)->rule = r_track;
 		pf_addrcpy(&(*sn)->addr, src, af);
 		if (raddr != NULL)
-			pf_addrcpy(&(*sn)->raddr, raddr, af);
+			pf_addrcpy(&(*sn)->raddr, raddr, raf);
 		(*sn)->rkif = rkif;
+		(*sn)->raf = raf;
 		LIST_INSERT_HEAD(&(*sh)->nodes, *sn, entry);
 		(*sn)->creation = time_uptime;
 		(*sn)->ruletype = rule->action;
@@ -5907,9 +5908,13 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		 * it is applied only from the last pass rule.
 		 */
 		pd->act.rt = r->rt;
+		if (r->rt == PF_REPLYTO)
+			pd->act.rt_af = pd->af;
+		else
+			pd->act.rt_af = pd->naf;
 		if ((transerror = pf_map_addr_sn(pd->af, r, pd->src,
-		    &pd->act.rt_addr, &pd->act.rt_kif, NULL, &(r->route),
-		    PF_SN_ROUTE)) != PFRES_MATCH) {
+		    &pd->act.rt_addr, &pd->act.rt_af, &pd->act.rt_kif, NULL,
+		    &(r->route), PF_SN_ROUTE)) != PFRES_MATCH) {
 			REASON_SET(&ctx.reason, transerror);
 			goto cleanup;
 		}
@@ -6039,7 +6044,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	/* src node for limits */
 	if ((r->rule_flag & PFRULE_SRCTRACK) &&
 	    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src, pd->af,
-	        NULL, NULL, PF_SN_LIMIT)) != 0) {
+	    NULL, NULL, pd->af, PF_SN_LIMIT)) != 0) {
 		REASON_SET(&ctx->reason, sn_reason);
 		goto csfailed;
 	}
@@ -6047,7 +6052,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	if (r->rt) {
 		if ((r->route.opts & PF_POOL_STICKYADDR) &&
 		    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src,
-		    pd->af, &pd->act.rt_addr, pd->act.rt_kif,
+		    pd->af, &pd->act.rt_addr, pd->act.rt_kif, pd->act.rt_af,
 		    PF_SN_ROUTE)) != 0) {
 			REASON_SET(&ctx->reason, sn_reason);
 			goto csfailed;
@@ -6066,7 +6071,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 		    (sn_reason = pf_insert_src_node(sns, snhs, ctx->nr,
 		    ctx->sk ? &(ctx->sk->addr[pd->sidx]) : pd->src, pd->af,
 		    ctx->nk ? &(ctx->nk->addr[1]) : &(pd->nsaddr), NULL,
-		    PF_SN_NAT)) != 0 ) {
+		    pd->naf, PF_SN_NAT)) != 0 ) {
 			REASON_SET(&ctx->reason, sn_reason);
 			goto csfailed;
 		}

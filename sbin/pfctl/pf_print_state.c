@@ -113,10 +113,11 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 	if (addr->type != PF_ADDR_RANGE &&
 	    !(PF_AZERO(&addr->v.a.addr, AF_INET6) &&
 	    PF_AZERO(&addr->v.a.mask, AF_INET6))) {
-		int bits = unmask(&addr->v.a.mask);
-
-		if (bits < (af == AF_INET ? 32 : 128))
-			printf("/%d", bits);
+		if (af == AF_INET || af == AF_INET6) {
+			int bits = unmask(&addr->v.a.mask);
+			if (bits < (af == AF_INET ? 32 : 128))
+				printf("/%d", bits);
+		}
 	}
 }
 
@@ -228,7 +229,6 @@ print_state(struct pfctl_state *s, int opts)
 	struct pfctl_state_key *key, *sk, *nk;
 	const char *protoname;
 	int min, sec;
-	sa_family_t af;
 	uint8_t proto;
 	int afto = (s->key[PF_SK_STACK].af != s->key[PF_SK_WIRE].af);
 	int idx;
@@ -242,7 +242,6 @@ print_state(struct pfctl_state *s, int opts)
 	key = s->key;
 #endif
 
-	af = s->key[PF_SK_WIRE].af;
 	proto = s->key[PF_SK_WIRE].proto;
 
 	if (s->direction == PF_OUT) {
@@ -430,7 +429,7 @@ print_state(struct pfctl_state *s, int opts)
 				default:
 					printf(" gateway: ");
 			}
-			print_host(&s->rt_addr, 0, af, opts);
+			print_host(&s->rt_addr, 0, s->rt_af, opts);
 			if (s->rt_ifname[0])
 				printf("@%s", s->rt_ifname);
 		}

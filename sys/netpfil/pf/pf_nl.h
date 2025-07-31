@@ -135,6 +135,7 @@ enum pfstate_type_t {
 	PF_ST_RT		= 36, /* u8 */
 	PF_ST_RT_IFNAME		= 37, /* string */
 	PF_ST_SRC_NODE_FLAGS	= 38, /* u8 */
+	PF_ST_RT_AF		= 39, /* u8 */
 };
 
 enum pf_addr_type_t {
@@ -433,7 +434,7 @@ enum pf_srcnodes_types_t {
 	PF_SN_CREATION		= 12, /* u64 */
 	PF_SN_EXPIRE		= 13, /* u64 */
 	PF_SN_CONNECTION_RATE	= 14, /* nested, pf_threshold */
-	PF_SN_NAF		= 15, /* u8 */
+	PF_SN_RAF		= 15, /* u8 */
 	PF_SN_NODE_TYPE		= 16, /* u8 */
 };
 

@@ -503,6 +503,66 @@ sn_types_pass_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "mixed_af" "cleanup"
+mixed_af_head()
+{
+       atf_set descr 'Test mixed address family source tracking'
+       atf_set require.user root
+}
+
+mixed_af_body()
+{
+	setup_router_server_nat64
+
+	# Clients will connect from another network behind the router.
+	# This allows for using multiple source addresses.
+	jexec router route add -6 ${net_clients_6}::/${net_clients_6_mask} ${net_tester_6_host_tester}
+
+	jexec router pfctl -e
+	pft_set_rules router \
+		"set reassemble yes" \
+		"set state-policy if-bound" \
+		"pass in on ${epair_tester}b \
+			route-to { (${epair_server1}a ${net_server1_4_host_server}) \
+		} sticky-address \
+		inet6 proto tcp from any to 64:ff9b::/96 \
+		af-to inet from ${net_clients_4}.0/${net_clients_4_mask} round-robin sticky-address"
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_tester}a \
+		--replyif ${epair_tester}a \
+		--fromaddr 2001:db8:44::1 \
+		--to 64:ff9b::192.0.2.100 \
+		--ping-type=tcp3way \
+		--send-sport=4201
+
+	states=$(mktemp) || exit 1
+	jexec router pfctl -qvvss | normalize_pfctl_s > $states
+	nodes=$(mktemp) || exit 1
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+
+	# States are checked for proper route-to information.
+	# The route-to gateway is IPv4.
+	for state_regexp in \
+		"${epair_tester}b tcp 203.0.113.0:4201 \(2001:db8:44::1\[4201\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 198.51.100.18@${epair_server1}a" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+
+	# Source nodes map IPv6 source address onto IPv4 gateway and IPv4 SNAT address.
+	for node_regexp in \
+		'2001:db8:44::1 -> 203.0.113.0 .* states 1, .* NAT/RDR sticky-address' \
+		'2001:db8:44::1 -> 198.51.100.18 .* states 1, .* route sticky-address' \
+	; do
+		grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+	done
+}
+
+mixed_af_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "source_track"
@@ -512,4 +572,5 @@ atf_init_test_cases()
 	atf_add_test_case "max_src_states_global"
 	atf_add_test_case "sn_types_compat"
 	atf_add_test_case "sn_types_pass"
+	atf_add_test_case "mixed_af"
 }

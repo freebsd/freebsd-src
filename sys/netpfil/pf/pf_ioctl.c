@@ -2661,6 +2661,7 @@ pf_ioctl_add_addr(struct pf_nl_pooladdr *pp)
 		PF_RULES_WUNLOCK();
 		goto out;
 	}
+	pa->af = pp->af;
 	switch (pp->which) {
 	case PF_NAT:
 		TAILQ_INSERT_TAIL(&V_pf_pabuf[0], pa, entries);
@@ -2742,6 +2743,7 @@ pf_ioctl_get_addr(struct pf_nl_pooladdr *pp)
 		return (EBUSY);
 	}
 	pf_kpooladdr_to_pooladdr(pa, &pp->addr);
+	pp->af = pa->af;
 	pf_addr_copyout(&pp->addr.addr);
 	PF_RULES_RUNLOCK();
 
