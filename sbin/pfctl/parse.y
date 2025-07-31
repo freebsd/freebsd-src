@@ -249,7 +249,7 @@ struct redirspec {
 	struct node_host	*host;
 	struct range		 rport;
 	struct pool_opts	 pool_opts;
-	int			 af;
+	sa_family_t		 af;
 	bool			 binat;
 };
 
@@ -393,7 +393,7 @@ void		 expand_eth_rule(struct pfctl_eth_rule *,
 int		 apply_rdr_ports(struct pfctl_rule *r, struct pfctl_pool *, struct redirspec *);
 int		 apply_nat_ports(struct pfctl_pool *, struct redirspec *);
 int		 apply_redirspec(struct pfctl_pool *, struct redirspec *);
-int		 check_binat_redirspec(struct node_host *, struct pfctl_rule *, int);
+int		 check_binat_redirspec(struct node_host *, struct pfctl_rule *, sa_family_t);
 void		 add_binat_rdr_rule(struct pfctl_rule *, struct redirspec *,
 		 struct node_host *, struct pfctl_rule *, struct redirspec **,
 		 struct node_host **);
@@ -6172,7 +6172,8 @@ apply_redirspec(struct pfctl_pool *rpool, struct redirspec *rs)
 }
 
 int
-check_binat_redirspec(struct node_host *src_host, struct pfctl_rule *r, int af)
+check_binat_redirspec(struct node_host *src_host, struct pfctl_rule *r,
+    sa_family_t af)
 {
 	struct pf_pooladdr	*nat_pool = TAILQ_FIRST(&(r->nat.list));
 	int			error = 0;
