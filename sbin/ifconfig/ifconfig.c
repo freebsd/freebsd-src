@@ -1209,6 +1209,13 @@ top:
 			argc -= 2, argv += 2;
 		} else if (p->c_parameter == SPARAM && p->c_u.c_func3) {
 			p->c_u.c_func3(ctx, *argv, p->c_sparameter);
+		} else if (p->c_parameter == ARGVECTOR && p->c_u.c_funcv) {
+			int argsdone;
+
+			argsdone = p->c_u.c_funcv(ctx, argc - 1,
+			    (const char *const *)argv + 1);
+			argc -= argsdone;
+			argv += argsdone;
 		} else if (p->c_u.c_func)
 			p->c_u.c_func(ctx, *argv, p->c_parameter);
 		argc--, argv++;
