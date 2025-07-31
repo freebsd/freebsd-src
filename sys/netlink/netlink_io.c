@@ -308,6 +308,7 @@ static void
 npt_clear(struct nl_pstate *npt)
 {
 	lb_clear(&npt->lb);
+	npt->cookie = NULL;
 	npt->error = 0;
 	npt->err_msg = NULL;
 	npt->err_off = 0;
