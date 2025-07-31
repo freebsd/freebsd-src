@@ -614,7 +614,7 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 			break;
 
 		case CPUID_BHYVE_FEATURES:
-			regs[0] = 0; /* No features to advertise yet */
+			regs[0] = CPUID_BHYVE_FEAT_EXT_DEST_ID;
 			regs[1] = 0;
 			regs[2] = 0;
 			regs[3] = 0;
