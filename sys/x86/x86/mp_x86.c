@@ -45,7 +45,6 @@
 #include <sys/cons.h>	/* cngetc() */
 #include <sys/cpuset.h>
 #include <sys/csan.h>
-#include <sys/interrupt.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -70,6 +69,7 @@
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
+#include <machine/interrupt.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>

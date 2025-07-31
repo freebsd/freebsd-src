@@ -30,7 +30,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/libkern.h>
@@ -45,6 +44,8 @@
 #include <sys/stdarg.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
+
+#include <machine/interrupt.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;

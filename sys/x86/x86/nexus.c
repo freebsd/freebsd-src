@@ -50,7 +50,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>
@@ -65,7 +64,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/nexusvar.h>
@@ -490,8 +489,13 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 	int error;
+	struct intsrc *isrc;
 
-	error = intr_remove_handler(ih);
+	isrc = intr_lookup_source(rman_get_start(r));
+	if (isrc == NULL)
+		return (EINVAL);
+
+	error = intr_remove_handler(isrc, ih);
 	if (error == 0)
 		rman_set_irq_cookie(r, NULL);
 	return (error);
@@ -518,7 +522,7 @@ nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 	isrc = intr_lookup_source(rman_get_start(irq));
 	if (isrc == NULL)
 		return (EINVAL);
-	return (intr_event_bind(isrc->is_event, cpu));
+	return (intr_event_bind(&isrc->is_event, cpu));
 }
 #endif
 
