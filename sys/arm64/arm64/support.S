@@ -39,8 +39,15 @@
 #include "assym.inc"
 
 .macro check_user_access user_arg, limit, bad_addr_func
+	/*
+	 * TBI is enabled from 15.0. Clear the top byte of the userspace
+	 * address before checking whether it's within the given limit.
+	 * The later load/store instructions will fault if TBI is disabled
+	 * for the current process.
+	 */
+	and	x6, x\user_arg, #(~TBI_ADDR_MASK)
 	ldr	x7, =(\limit)
-	cmp	x\user_arg, x7
+	cmp	x6, x7
 	b.cs	\bad_addr_func
 .endm
 
