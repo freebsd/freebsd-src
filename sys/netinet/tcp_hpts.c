@@ -453,7 +453,7 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 		log.u_bbr.inflight = slots_to_run;
 		log.u_bbr.applimited = hpts->overidden_sleep;
 		log.u_bbr.delivered = hpts->saved_curtick;
-		log.u_bbr.timeStamp = tcp_tv_to_usectick(tv);
+		log.u_bbr.timeStamp = tcp_tv_to_usec(tv);
 		log.u_bbr.epoch = hpts->saved_curslot;
 		log.u_bbr.lt_epoch = hpts->saved_prev_slot;
 		log.u_bbr.pkts_out = hpts->p_delayed_by;
@@ -1104,7 +1104,7 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout)
 
 	hpts->p_lasttick = hpts->p_curtick;
 	hpts->p_curtick = tcp_gethptstick(&tv);
-	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
+	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usec(&tv);
 	orig_exit_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 	if ((hpts->p_on_queue_cnt == 0) ||
 	    (hpts->p_lasttick == hpts->p_curtick)) {
@@ -1446,7 +1446,7 @@ no_one:
 		goto again;
 	}
 no_run:
-	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
+	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usec(&tv);
 	/*
 	 * Set flag to tell that we are done for
 	 * any slot input that happens during
@@ -1948,7 +1948,7 @@ tcp_hpts_mod_load(void)
 		hpts->p_hpts_sleep_time = hpts_sleep_max;
 		hpts->p_num = i;
 		hpts->p_curtick = tcp_gethptstick(&tv);
-		tcp_pace.cts_last_ran[i] = tcp_tv_to_usectick(&tv);
+		tcp_pace.cts_last_ran[i] = tcp_tv_to_usec(&tv);
 		hpts->p_prev_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 		hpts->p_cpu = 0xffff;
 		hpts->p_nxt_slot = hpts_slot(hpts->p_cur_slot, 1);

@@ -188,7 +188,7 @@ tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
 		log.u_bbr.cur_del_rate = (uintptr_t)m;
 		log.u_bbr.bw_inuse = (uintptr_t)le->m_head;
 		bintime2timeval(&lc->lro_last_queue_time, &btv);
-		log.u_bbr.flex6 = tcp_tv_to_usectick(&btv);
+		log.u_bbr.flex6 = tcp_tv_to_usec(&btv);
 		log.u_bbr.flex7 = le->compressed;
 		log.u_bbr.pacing_gain = le->uncompressed;
 		if (in_epoch(net_epoch_preempt))
