@@ -401,43 +401,80 @@ setbridge_flushall(if_ctx *ctx, const char *val __unused, int dummy __unused)
 		err(1, "BRDGFLUSH");
 }
 
-static void
-setbridge_static(if_ctx *ctx, const char *val, const char *mac)
+static int
+setbridge_static(if_ctx *ctx, int argc, const char *const *argv)
 {
 	struct ifbareq req;
 	struct ether_addr *ea;
+	int arg;
+
+	if (argc < 2)
+		errx(1, "usage: static <interface> <address> [vlan <id>]");
+	arg = 0;
 
 	memset(&req, 0, sizeof(req));
-	strlcpy(req.ifba_ifsname, val, sizeof(req.ifba_ifsname));
-
-	ea = ether_aton(mac);
-	if (ea == NULL)
-		errx(1, "%s: invalid address: %s", val, mac);
-
-	memcpy(req.ifba_dst, ea->octet, sizeof(req.ifba_dst));
 	req.ifba_flags = IFBAF_STATIC;
-	req.ifba_vlan = 0; /* XXX allow user to specify */
+
+	strlcpy(req.ifba_ifsname, argv[arg], sizeof(req.ifba_ifsname));
+	++arg;
+
+	ea = ether_aton(argv[arg]);
+	if (ea == NULL)
+		errx(1, "invalid address: %s", argv[arg]);
+	memcpy(req.ifba_dst, ea->octet, sizeof(req.ifba_dst));
+	++arg;
+
+	req.ifba_vlan = 0;
+	if (argc > 2 && strcmp(argv[arg], "vlan") == 0) {
+		if (argc < 3)
+			errx(1, "usage: static <interface> <address> "
+			    "[vlan <id>]");
+		++arg;
+
+		if (get_vlan_id(argv[arg], &req.ifba_vlan) < 0)
+			errx(1, "invalid vlan id: %s", argv[arg]);
+		++arg;
+	}
 
 	if (do_cmd(ctx, BRDGSADDR, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGSADDR %s",  val);
+		err(1, "BRDGSADDR");
+	return arg;
 }
 
-static void
-setbridge_deladdr(if_ctx *ctx, const char *val, int dummy __unused)
+static int
+setbridge_deladdr(if_ctx *ctx, int argc, const char *const *argv)
 {
 	struct ifbareq req;
 	struct ether_addr *ea;
+	int arg;
+
+	if (argc < 1)
+		errx(1, "usage: deladdr <address> [vlan <id>]");
+	arg = 0;
 
 	memset(&req, 0, sizeof(req));
 
-	ea = ether_aton(val);
+	ea = ether_aton(argv[arg]);
 	if (ea == NULL)
-		errx(1, "invalid address: %s",  val);
-
+		errx(1, "invalid address: %s", argv[arg]);
 	memcpy(req.ifba_dst, ea->octet, sizeof(req.ifba_dst));
+	++arg;
+
+	req.ifba_vlan = 0;
+	if (argc >= 2 && strcmp(argv[arg], "vlan") == 0) {
+		if (argc < 3)
+			errx(1, "usage: deladdr <address> [vlan <id>]");
+		++arg;
+
+		if (get_vlan_id(argv[arg], &req.ifba_vlan) < 0)
+			errx(1, "invalid vlan id: %s", argv[arg]);
+		++arg;
+	}
 
 	if (do_cmd(ctx, BRDGDADDR, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGDADDR %s",  val);
+		err(1, "BRDGDADDR");
+
+	return arg;
 }
 
 static void
@@ -660,8 +697,8 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("-autoptp",		unsetbridge_autoptp),
 	DEF_CMD("flush", 0,		setbridge_flush),
 	DEF_CMD("flushall", 0,		setbridge_flushall),
-	DEF_CMD_ARG2("static",		setbridge_static),
-	DEF_CMD_ARG("deladdr",		setbridge_deladdr),
+	DEF_CMD_VARG("static",		setbridge_static),
+	DEF_CMD_VARG("deladdr",		setbridge_deladdr),
 	DEF_CMD("addr",	 1,		setbridge_addr),
 	DEF_CMD_ARG("maxaddr",		setbridge_maxaddr),
 	DEF_CMD_ARG("hellotime",	setbridge_hellotime),
