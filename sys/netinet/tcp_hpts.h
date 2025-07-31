@@ -171,19 +171,19 @@ tcp_tv_to_hptstick(const struct timeval *sv)
 }
 
 static inline uint32_t
-tcp_tv_to_usectick(const struct timeval *sv)
+tcp_tv_to_usec(const struct timeval *sv)
 {
 	return ((uint32_t) ((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
 }
 
 static inline uint32_t
-tcp_tv_to_mssectick(const struct timeval *sv)
+tcp_tv_to_msec(const struct timeval *sv)
 {
 	return ((uint32_t) ((sv->tv_sec * HPTS_MSEC_IN_SEC) + (sv->tv_usec/HPTS_USEC_IN_MSEC)));
 }
 
 static inline uint64_t
-tcp_tv_to_lusectick(const struct timeval *sv)
+tcp_tv_to_lusec(const struct timeval *sv)
 {
 	return ((uint64_t)((sv->tv_sec * HPTS_USEC_IN_SEC) + sv->tv_usec));
 }
@@ -217,7 +217,7 @@ tcp_get_u64_usecs(struct timeval *tv)
 	if (tv == NULL)
 		tv = &tvd;
 	microuptime(tv);
-	return (tcp_tv_to_lusectick(tv));
+	return (tcp_tv_to_lusec(tv));
 }
 
 static inline uint32_t
@@ -228,7 +228,7 @@ tcp_get_usecs(struct timeval *tv)
 	if (tv == NULL)
 		tv = &tvd;
 	microuptime(tv);
-	return (tcp_tv_to_usectick(tv));
+	return (tcp_tv_to_usec(tv));
 }
 
 #endif /* _KERNEL */
