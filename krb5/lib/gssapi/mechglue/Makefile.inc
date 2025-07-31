@@ -72,3 +72,5 @@ SRCS+=	g_accept_sec_context.c \
 	g_wrap_aead.c \
 	g_wrap_iov.c \
 	gssd_pname_to_uid.c
+
+GSSAPI_INCS+=	mechglue.h
