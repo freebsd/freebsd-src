@@ -75,6 +75,10 @@
 
 #include <netipsec/ipsec_support.h>
 
+#if defined(SCTP) || defined(SCTP_SUPPORT)
+#include <netinet/sctp_crc32.h>
+#endif
+
 /*
  * Forward a packet.  If some error occurs return the sender
  * an icmp packet.  Note we can't always generate a meaningful
@@ -388,6 +392,29 @@ pass:
 			    IN6_LINKMTU(nh->nh_ifp));
 		goto bad;
 	}
+
+	/*
+	 * If TCP/UDP header still needs a valid checksum and interface will not
+	 * calculate it for us, do it here.
+	 */
+	if (__predict_false(m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6 &
+	    ~nh->nh_ifp->if_hwassist)) {
+		int offset = ip6_lasthdr(m, 0, IPPROTO_IPV6, NULL);
+
+		if (offset < sizeof(struct ip6_hdr) || offset > m->m_pkthdr.len)
+			goto bad;
+		in6_delayed_cksum(m, m->m_pkthdr.len - offset, offset);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+	}
+#if defined(SCTP) || defined(SCTP_SUPPORT)
+	if (__predict_false(m->m_pkthdr.csum_flags & CSUM_IP6_SCTP &
+	    ~nh->nh_ifp->if_hwassist)) {
+		int offset = ip6_lasthdr(m, 0, IPPROTO_IPV6, NULL);
+
+		sctp_delayed_cksum(m, offset);
+		m->m_pkthdr.csum_flags &= ~CSUM_IP6_SCTP;
+	}
+#endif
 
 	/* Currently LLE layer stores embedded IPv6 addresses */
 	if (IN6_IS_SCOPE_LINKLOCAL(&dst.sin6_addr)) {

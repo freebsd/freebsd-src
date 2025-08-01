@@ -69,6 +69,7 @@
 
 #include <sys/cdefs.h>
 #include "opt_ipstealth.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -101,6 +102,10 @@
 #include <netinet/ip_options.h>
 
 #include <machine/in_cksum.h>
+
+#if defined(SCTP) || defined(SCTP_SUPPORT)
+#include <netinet/sctp_crc32.h>
+#endif
 
 #define	V_ipsendredirects	VNET(ipsendredirects)
 
@@ -459,6 +464,23 @@ passout:
 		ro.ro_flags |= RT_HAS_GW;
 	} else
 		gw = (const struct sockaddr *)dst;
+
+	/*
+	 * If TCP/UDP header still needs a valid checksum and interface will not
+	 * calculate it for us, do it here.
+	 */
+	if (__predict_false(m->m_pkthdr.csum_flags & CSUM_DELAY_DATA &
+	    ~nh->nh_ifp->if_hwassist)) {
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
+#if defined(SCTP) || defined(SCTP_SUPPORT)
+	if (__predict_false(m->m_pkthdr.csum_flags & CSUM_IP_SCTP &
+	    ~nh->nh_ifp->if_hwassist)) {
+		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
+		m->m_pkthdr.csum_flags &= ~CSUM_IP_SCTP;
+	}
+#endif
 
 	/* Handle redirect case. */
 	redest.s_addr = 0;

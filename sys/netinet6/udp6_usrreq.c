@@ -434,6 +434,12 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			uh_sum = in6_cksum_pseudo(ip6, ulen, nxt,
 			    m->m_pkthdr.csum_data);
 		uh_sum ^= 0xffff;
+	} else if (m->m_pkthdr.csum_flags & CSUM_IP6_UDP) {
+		/*
+		 * Packet from local host (maybe from a VM).
+		 * Checksum not required.
+		 */
+		uh_sum = 0;
 	} else
 		uh_sum = in6_cksum_partial(m, nxt, off, plen, ulen);
 
