@@ -73,6 +73,8 @@ syzkaller66.sh		panic: in_pcbconnect: inp is already connected			20230621
 syzkaller67.sh		panic: ASan: Invalid access, 8-byte read at ...			20230621
 syzkaller80.sh		panic								20250711
 syzkaller81.sh		panic								20250711
+syzkaller82.sh		panic: m_apply, length > size of mbuf chain			20250724
+quota3.sh		https://people.freebsd.org/~pho/stress/log/log0604.txt		20250728
 quota6.sh		https://people.freebsd.org/~pho/stress/log/log0456.txt		20240707
 truss3.sh		WiP								20200915
 zfs18.sh		https://people.freebsd.org/~pho/stress/log/log0560.txt		20241118
