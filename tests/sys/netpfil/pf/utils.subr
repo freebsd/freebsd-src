@@ -274,8 +274,8 @@ setup_router_server_ipv6()
 	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
 }
 
-# Create a router and 2 server jails for nat64 and rfc5549 test cases.
-# The router is connected to servers, both are dual-stack, and to the
+# Create a router and 2 server jails for nat64 and prefer-ipv6-nexthop test
+# cases. The router is connected to servers, both are dual-stack, and to the
 # tester jail. All links are dual stack.
 setup_router_server_nat64()
 {

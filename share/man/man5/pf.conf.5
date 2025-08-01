@@ -2470,7 +2470,13 @@ NAT address and port.
 This feature implements "full-cone" NAT behavior.
 .El
 .Pp
-Additionally, the
+Additionally, options
+.Ar sticky-address
+and
+.Ar prefer-ipv6-nexthop
+can be specified to influence how IP addresses selected from pools.
+.Pp
+The
 .Ar sticky-address
 option can be specified to help ensure that multiple connections from the
 same source are mapped to the same redirection address.
@@ -2486,6 +2492,14 @@ beyond the lifetime of the states, increase the global options with
 See
 .Sx STATEFUL TRACKING OPTIONS
 for more ways to control the source tracking.
+.Pp
+The
+.Ar prefer-ipv6-nexthop
+option allows for IPv6 addresses to be used as the nexthop
+for IPv4 packets routed with the
+.Ar route-to
+rule option. If a table is used with IPv4 and IPv6 addresses, first the IPv6 addresses
+will be used in round-robin fashion, then IPv4 addresses.
 .Sh STATE MODULATION
 Much of the security derived from TCP is attributable to how well the
 initial sequence numbers (ISNs) are chosen.
@@ -3580,7 +3594,7 @@ limit-item     = ( "states" | "frags" | "src-nodes" ) number
 
 pooltype       = ( "bitmask" | "random" |
                  "source-hash" [ ( hex-key | string-key ) ] |
-                 "round-robin" ) [ sticky-address ]
+                 "round-robin" ) [ sticky-address | prefer-ipv6-nexthop ]
 
 subqueue       = string | "{" queue-list "}"
 queue-list     = string [ [ "," ] string ]

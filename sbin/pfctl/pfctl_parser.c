@@ -508,6 +508,8 @@ print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2, int id)
 	if (pool->mape.offset > 0)
 		printf(" map-e-portset %u/%u/%u",
 		    pool->mape.offset, pool->mape.psidlen, pool->mape.psid);
+	if (pool->opts & PF_POOL_IPV6NH)
+		printf(" prefer-ipv6-nexthop");
 }
 
 void
@@ -1438,7 +1440,7 @@ ifa_add_groups_to_map(char *ifa_name)
 			ENTRY	 		 item;
 			ENTRY			*ret_item;
 			int			*answer;
-	
+
 			item.key = ifg->ifgrq_group;
 			if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0) {
 				struct ifgroupreq	 ifgr2;
@@ -1580,7 +1582,7 @@ is_a_group(char *name)
 {
 	ENTRY	 		 item;
 	ENTRY			*ret_item;
-	
+
 	item.key = name;
 	if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0)
 		return (0);
