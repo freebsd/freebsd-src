@@ -30,12 +30,13 @@
  * SUCH DAMAGE.
  */
 
+#include "assym.inc"
+#include "opt_kstack_pages.h"
+
 #include <machine/asmacros.h>
 #include <machine/psl.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
-
-#include "assym.inc"
 
 /*
  * Compiled KERNBASE location
