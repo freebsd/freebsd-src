@@ -704,7 +704,7 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 	u_int16_t *bp, ndx;
 
 	hashp = (HTAB *)dbp->internal;
-	if (flag != R_FIRST || flag != R_NEXT) {
+	if (flag != R_FIRST && flag != R_NEXT) {
 		hashp->error = errno = EINVAL;
 		return (ERROR);
 	}
