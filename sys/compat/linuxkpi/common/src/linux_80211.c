@@ -3826,8 +3826,10 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	IMPROVE();
 
+	wiphy_lock(hw->wiphy);
 	error = lkpi_80211_mo_start(hw);
 	if (error != 0) {
+		wiphy_unlock(hw->wiphy);
 		ic_printf(ic, "%s: failed to start hw: %d\n", __func__, error);
 		mtx_destroy(&lvif->mtx);
 		free(lvif, M_80211_VAP);
@@ -3837,11 +3839,13 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	error = lkpi_80211_mo_add_interface(hw, vif);
 	if (error != 0) {
 		IMPROVE();	/* XXX-BZ mo_stop()? */
+		wiphy_unlock(hw->wiphy);
 		ic_printf(ic, "%s: failed to add interface: %d\n", __func__, error);
 		mtx_destroy(&lvif->mtx);
 		free(lvif, M_80211_VAP);
 		return (NULL);
 	}
+	wiphy_unlock(hw->wiphy);
 
 	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_INSERT_TAIL(&lhw->lvif_head, lvif, lvif_entry);
