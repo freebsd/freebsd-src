@@ -157,7 +157,7 @@ pamk5_conv(struct pam_args *args, const char *message, int type,
         return PAM_CONV_ERR;
     pmsg = &msg;
     msg.msg_style = type;
-    msg.msg = (PAM_CONST char *) message;
+    msg.msg = (char *) message;
     pamret = conv->conv(1, &pmsg, &resp, conv->appdata_ptr);
     if (pamret != PAM_SUCCESS)
         return pamret;

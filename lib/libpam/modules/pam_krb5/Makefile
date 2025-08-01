@@ -63,7 +63,6 @@ MLINKS=	pam-krb5.8 pam_krb5.8
 CFLAGS=	-I${SRCDIR} \
 	-I${.CURDIR} \
 	-fno-strict-aliasing \
-	-Wno-error=incompatible-pointer-types-discards-qualifiers \
 	-DHAVE_CONFIG_H
 
 WARNS?=	3
