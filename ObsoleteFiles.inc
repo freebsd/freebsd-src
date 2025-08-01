@@ -59,6 +59,9 @@ OLD_FILES+=lib/libopencsd.so.0
 OLD_FILES+=usr/lib/libopencsd.a
 OLD_FILES+=usr/lib/libopencsd.so
 
+# 20250801: Move compile_et to /usr/sbin
+OLD_FILES+=usr/share/et/compile_et
+
 # 20250728: zfsboot (MBR) removed
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
