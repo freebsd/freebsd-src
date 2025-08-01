@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2025
+.Dd July 30, 2025
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -537,6 +537,17 @@ option is not specified,
 .Nm
 does not permit the compilation or enabling of a D program that contains
 destructive actions.
+.Pp
+Set the
+.Va security.bsd.allow_destructive_dtrace
+.Xr loader 8
+tunable
+to
+.Ql 0
+to disallow the possibility of enabling destructive actions system-wide at any point at all.
+Any attempts to enable destructive actions will cause
+.Nm
+to exit with a runtime error.
 .It Fl x Ar arg Op Ns = Ns value
 Enable or modify a DTrace runtime option or D compiler option.
 Boolean options are enabled by specifying their name.
@@ -1218,6 +1229,18 @@ For D program requests, an exit status of 1 indicates that program compilation
 failed or that the specified request could not be satisfied.
 .It 2
 Invalid command line options or arguments were specified.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It dtrace: could not enable tracing: Permission denied
+This can happen when
+.Nm
+fails to enable destructive actions because
+.Va security.bsd.allow_destructive_dtrace
+is set to
+.Ql 0
+in
+.Xr loader.conf 5 .
 .El
 .Sh SEE ALSO
 .Xr cpp 1 ,
