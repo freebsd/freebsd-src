@@ -32,7 +32,7 @@ extern "C" {
 /*
  * The FIPS provider vendor name, as a string.
  */
-#define FIPS_VENDOR "OpenSSL FIPS Provider"
+#define FIPS_VENDOR "OpenSSL non-compliant FIPS Provider"
 
 # ifdef  __cplusplus
 }

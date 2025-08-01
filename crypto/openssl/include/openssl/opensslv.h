@@ -57,7 +57,7 @@ extern "C" {
  * be related to the API version expressed with the macros above.
  * This is defined in free form.
  */
-# define OPENSSL_SHLIB_VERSION 17
+# define OPENSSL_SHLIB_VERSION 3
 
 /*
  * SECTION 2: USEFUL MACROS
