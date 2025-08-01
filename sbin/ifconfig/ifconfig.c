@@ -2028,11 +2028,6 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-alias",	-IFF_UP,	notealias),
 	DEF_CMD("delete",	-IFF_UP,	notealias),
 	DEF_CMD("remove",	-IFF_UP,	notealias),
-#ifdef notdef
-#define	EN_SWABIPS	0x1000
-	DEF_CMD("swabips",	EN_SWABIPS,	setifflags),
-	DEF_CMD("-swabips",	EN_SWABIPS,	clearifflags),
-#endif
 	DEF_CMD_ARG("netmask",			setifnetmask),
 	DEF_CMD_ARG("metric",			setifmetric),
 	DEF_CMD_ARG("broadcast",		setifbroadaddr),
