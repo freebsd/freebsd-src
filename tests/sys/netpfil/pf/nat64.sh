@@ -200,7 +200,7 @@ tcp_in_body()
 
 	# Sanity check & delay for nc startup
 	atf_check -s exit:0 -o ignore \
-	    ping6 -c 1 64:ff9b::192.0.2.2
+	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	rcv=$(nc -w 3 -6 64:ff9b::c000:202 1234)
 	if [ "${rcv}" != "foo" ];
@@ -230,7 +230,7 @@ tcp_out_body()
 
 	# Sanity check & delay for nc startup
 	atf_check -s exit:0 -o ignore \
-	    ping6 -c 1 64:ff9b::192.0.2.2
+	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	rcv=$(nc -w 3 -6 64:ff9b::c000:202 1234)
 	if [ "${rcv}" != "foo" ];
@@ -260,7 +260,7 @@ udp_in_body()
 
 	# Sanity check & delay for nc startup
 	atf_check -s exit:0 -o ignore \
-	    ping6 -c 1 64:ff9b::192.0.2.2
+	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	rcv=$(echo bar | nc -w 3 -6 -u 64:ff9b::c000:202 1234)
 	if [ "${rcv}" != "foo" ];
@@ -290,7 +290,7 @@ udp_out_body()
 
 	# Sanity check & delay for nc startup
 	atf_check -s exit:0 -o ignore \
-	    ping6 -c 1 64:ff9b::192.0.2.2
+	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	rcv=$(echo bar | nc -w 3 -6 -u 64:ff9b::c000:202 1234)
 	if [ "${rcv}" != "foo" ];
@@ -323,7 +323,7 @@ sctp_in_body()
 
 	# Sanity check & delay for nc startup
 	atf_check -s exit:0 -o ignore \
-	    ping6 -c 1 64:ff9b::192.0.2.2
+	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	rcv=$(echo bar | nc --sctp -w 3 -6 64:ff9b::c000:202 1234)
 	if [ "${rcv}" != "foo" ];
@@ -356,7 +356,7 @@ sctp_out_body()
 
 	# Sanity check & delay for nc startup
 	atf_check -s exit:0 -o ignore \
-	    ping6 -c 1 64:ff9b::192.0.2.2
+	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	rcv=$(echo bar | nc --sctp -w 3 -6 64:ff9b::c000:202 1234)
 	if [ "${rcv}" != "foo" ];
