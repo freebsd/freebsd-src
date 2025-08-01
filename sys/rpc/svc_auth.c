@@ -192,7 +192,7 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 			return (FALSE);
 		cr = crget();
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xprt->xp_uid;
-		crsetgroups_fallback(cr, xprt->xp_ngrps, xprt->xp_gidp, GID_NOGROUP);
+		crsetgroups_and_egid(cr, xprt->xp_ngrps, xprt->xp_gidp, GID_NOGROUP);
 		cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 		cr->cr_prison = curthread->td_ucred->cr_prison;
 		prison_hold(cr->cr_prison);
@@ -207,7 +207,7 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 			return (FALSE);
 		cr = crget();
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xcr->cr_uid;
-		crsetgroups_fallback(cr, xcr->cr_ngroups, xcr->cr_groups, GID_NOGROUP);
+		crsetgroups_and_egid(cr, xcr->cr_ngroups, xcr->cr_groups, GID_NOGROUP);
 		cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 		cr->cr_prison = curthread->td_ucred->cr_prison;
 		prison_hold(cr->cr_prison);

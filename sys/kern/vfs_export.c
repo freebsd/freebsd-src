@@ -134,7 +134,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		np->netc_exflags = argp->ex_flags;
 		np->netc_anon = crget();
 		np->netc_anon->cr_uid = argp->ex_uid;
-		crsetgroups_fallback(np->netc_anon, argp->ex_ngroups,
+		crsetgroups_and_egid(np->netc_anon, argp->ex_ngroups,
 		    argp->ex_groups, GID_NOGROUP);
 		np->netc_anon->cr_prison = &prison0;
 		prison_hold(np->netc_anon->cr_prison);
@@ -213,7 +213,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	np->netc_exflags = argp->ex_flags;
 	np->netc_anon = crget();
 	np->netc_anon->cr_uid = argp->ex_uid;
-	crsetgroups_fallback(np->netc_anon, argp->ex_ngroups, argp->ex_groups,
+	crsetgroups_and_egid(np->netc_anon, argp->ex_ngroups, argp->ex_groups,
 	    GID_NOGROUP);
 	np->netc_anon->cr_prison = &prison0;
 	prison_hold(np->netc_anon->cr_prison);

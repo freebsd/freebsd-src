@@ -1425,7 +1425,7 @@ nfsrv_createrootcred(void)
 
 	cr = crget();
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = UID_ROOT;
-	crsetgroups_fallback(cr, 0, NULL, GID_WHEEL);
+	crsetgroups_and_egid(cr, 0, NULL, GID_WHEEL);
 	cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 	cr->cr_prison = curthread->td_ucred->cr_prison;
 	prison_hold(cr->cr_prison);

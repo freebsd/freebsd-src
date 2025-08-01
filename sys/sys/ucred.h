@@ -242,8 +242,8 @@ void	crcowfree(struct thread *td);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	cru2xt(struct thread *td, struct xucred *xcr);
 void	crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups);
-void	crsetgroups_fallback(struct ucred *cr, int ngrp, const gid_t *groups,
-	    const gid_t fallback);
+void	crsetgroups_and_egid(struct ucred *cr, int ngrp, const gid_t *groups,
+	    const gid_t default_egid);
 bool	cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred);
 
 /*
