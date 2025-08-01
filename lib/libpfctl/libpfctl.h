@@ -515,6 +515,8 @@ int	pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struc
 	    *addr, int size, int *nadd, int flags);
 int	pfctl_table_add_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *nadd, int flags);
+int	pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
+	    struct pfr_addr *addr, int size, int *ndel, int flags);
 int	pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *ndel, int flags);
 int     pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr

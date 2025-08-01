@@ -2497,6 +2497,51 @@ pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pf
 	return (ret);
 }
 
+static struct snl_attr_parser ap_table_del_addr[] = {
+	{ .type = PF_TA_NBR_DELETED, .off = 0, .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_PARSER(table_del_addr_parser, struct genlmsghdr, snl_f_p_empty, ap_table_del_addr);
+static int
+_pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+    *addrs, int size, int *ndel, int flags)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	uint32_t deleted;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_TABLE_DEL_ADDR);
+
+	snl_add_msg_attr_table(&nw, PF_TA_TABLE, tbl);
+	snl_add_msg_attr_u32(&nw, PF_TA_FLAGS, flags);
+	for (int i = 0; i < size && i < 256; i++)
+		snl_add_msg_attr_pfr_addr(&nw, PF_TA_ADDR, &addrs[i]);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_del_addr_parser, &deleted))
+			continue;
+	}
+
+	if (ndel)
+		*ndel = deleted;
+
+	return (e.error);
+}
+
 int
 pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
     *addr, int size, int *ndel, int flags)
@@ -2518,6 +2563,30 @@ pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	if (ndel != NULL)
 		*ndel = io.pfrio_ndel;
 	return (0);
+}
+
+int
+pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+    *addr, int size, int *ndel, int flags)
+{
+	int ret;
+	int off = 0;
+	int partial_deleted;
+
+	do {
+		ret = _pfctl_table_del_addrs_h(h, tbl, &addr[off], size - off,
+		    &partial_deleted, flags);
+		if (ret != 0)
+			break;
+		if (ndel)
+			*ndel += partial_deleted;
+		off += partial_deleted;
+	} while (off < size);
+
+	if (ndel)
+		*ndel = off;
+
+	return (ret);
 }
 
 int
