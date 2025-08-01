@@ -1163,8 +1163,7 @@ again:
 	hpts->p_wheel_complete = 0;
 	HPTS_MTX_ASSERT(hpts);
 	slots_to_run = hpts_slots_diff(hpts->p_prev_slot, hpts->p_cur_slot);
-	if (((hpts->p_curtick - hpts->p_lasttick) >
-	     ((NUM_OF_HPTSI_SLOTS-1) * HPTS_USECS_PER_SLOT)) &&
+	if (((hpts->p_curtick - hpts->p_lasttick) > (NUM_OF_HPTSI_SLOTS - 1)) &&
 	    (hpts->p_on_queue_cnt != 0)) {
 		/*
 		 * Wheel wrap is occuring, basically we
