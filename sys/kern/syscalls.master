@@ -1223,7 +1223,7 @@
 	}
 202	AUE_SYSCTL	STD|CAPENABLED {
 		int __sysctl(
-		    _In_reads_(namelen) int *name,
+		    _In_reads_(namelen) const int *name,
 		    u_int namelen,
 		    _Out_writes_bytes_opt_(*oldlenp) void *old,
 		    _Inout_opt_ size_t *oldlenp,
