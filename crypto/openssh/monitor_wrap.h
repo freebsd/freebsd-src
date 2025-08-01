@@ -90,6 +90,12 @@ void mm_session_pty_cleanup2(struct Session *);
 
 void mm_send_keystate(struct ssh *, struct monitor*);
 
+/* state */
+struct include_list;
+void mm_get_state(struct ssh *, struct include_list *, struct sshbuf *,
+    struct sshbuf **, uint64_t *, struct sshbuf **, struct sshbuf **,
+    u_char **, struct sshbuf **, struct sshbuf **);
+
 /* bsdauth */
 int mm_bsdauth_query(void *, char **, char **, u_int *, char ***, u_int **);
 int mm_bsdauth_respond(void *, u_int, char **);

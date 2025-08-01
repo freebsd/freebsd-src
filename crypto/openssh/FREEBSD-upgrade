@@ -173,9 +173,6 @@
    added the same functionality in the 10.0p2 release.  We have not restored
    setting a default value on FreeBSD.
 
-   We recognize and ignore the configuration options to avoid breaking
-   existing configurations.
-
 10) PrintLastLog bugfix
 
    Upstream's autoconf sets DISABLE_LASTLOG if the system does not have

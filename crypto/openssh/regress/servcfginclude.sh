@@ -4,14 +4,14 @@ tid="server config include"
 
 cat > $OBJ/sshd_config.i << _EOF
 HostKey $OBJ/host.ssh-ed25519
-Match host a
+Match host=a
 	Banner /aa
 
 Match host b
 	Banner /bb
 	Include $OBJ/sshd_config.i.* # comment
 
-Match host c
+Match host=c
 	Include $OBJ/sshd_config.i.* # comment
 	Banner /cc
 
@@ -25,7 +25,7 @@ Match Host e
 	Banner /ee
 	Include $OBJ/sshd_config.i.*
 
-Match Host f
+Match Host=f
 	Include $OBJ/sshd_config.i.*
 	Banner /ff
 
@@ -47,13 +47,13 @@ Match host b
 Match host c
 	Banner /ccc
 
-Match Host d
+Match Host=d
 	Banner /ddd
 
 Match Host e
 	Banner /eee
 
-Match Host f
+Match Host=f
 	Banner /fff
 _EOF
 
@@ -61,13 +61,13 @@ cat > $OBJ/sshd_config.i.2 << _EOF
 Match host a
 	Banner /aaaa
 
-Match host b
+Match host=b
 	Banner /bbbb
 
 Match host c # comment
 	Banner /cccc
 
-Match Host d
+Match Host=d
 	Banner /dddd
 
 Match Host e

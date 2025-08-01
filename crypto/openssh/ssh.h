@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.h,v 1.90 2020/07/14 23:57:01 djm Exp $ */
+/* $OpenBSD: ssh.h,v 1.91 2024/09/25 23:01:39 jsg Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -11,9 +11,6 @@
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
  */
-
-/* Cipher used for encrypting authentication files. */
-#define SSH_AUTHFILE_CIPHER	SSH_CIPHER_3DES
 
 /* Default port number. */
 #define SSH_DEFAULT_PORT	22
@@ -36,11 +33,9 @@
  *
  * Minor protocol version.  Different version indicates minor incompatibility
  * that does not prevent interoperation.
+ *
+ * We support only SSH2
  */
-#define PROTOCOL_MAJOR_1	1
-#define PROTOCOL_MINOR_1	5
-
-/* We support only SSH2 */
 #define PROTOCOL_MAJOR_2	2
 #define PROTOCOL_MINOR_2	0
 
@@ -71,12 +66,6 @@
  * Environment variable to control whether or not askpass is used.
  */
 #define SSH_ASKPASS_REQUIRE_ENV		"SSH_ASKPASS_REQUIRE"
-
-/*
- * Force host key length and server key length to differ by at least this
- * many bits.  This is to make double encryption with rsaref work.
- */
-#define SSH_KEY_BITS_RESERVED		128
 
 /*
  * Length of the session key in bytes.  (Specified as 256 bits in the

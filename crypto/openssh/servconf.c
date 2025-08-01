@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.419 2024/09/25 01:24:04 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.425 2025/02/25 06:25:30 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -215,6 +215,7 @@ initialize_server_options(ServerOptions *options)
 	options->num_channel_timeouts = 0;
 	options->unused_connection_timeout = -1;
 	options->sshd_session_path = NULL;
+	options->sshd_auth_path = NULL;
 	options->refuse_connection = -1;
 	options->use_blacklist = -1;
 }
@@ -501,6 +502,8 @@ fill_default_server_options(ServerOptions *options)
 		options->unused_connection_timeout = 0;
 	if (options->sshd_session_path == NULL)
 		options->sshd_session_path = xstrdup(_PATH_SSHD_SESSION);
+	if (options->sshd_auth_path == NULL)
+		options->sshd_auth_path = xstrdup(_PATH_SSHD_AUTH);
 	if (options->refuse_connection == -1)
 		options->refuse_connection = 0;
 	if (options->use_blacklist == -1)
@@ -587,7 +590,7 @@ typedef enum {
 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
 	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
 	sRequiredRSASize, sChannelTimeout, sUnusedConnectionTimeout,
-	sSshdSessionPath, sRefuseConnection,
+	sSshdSessionPath, sSshdAuthPath, sRefuseConnection,
 	sUseBlacklist,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
@@ -756,6 +759,7 @@ static struct {
 	{ "channeltimeout", sChannelTimeout, SSHCFG_ALL },
 	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
 	{ "sshdsessionpath", sSshdSessionPath, SSHCFG_GLOBAL },
+	{ "sshdauthpath", sSshdAuthPath, SSHCFG_GLOBAL },
 	{ "refuseconnection", sRefuseConnection, SSHCFG_ALL },
 	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "useblocklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
@@ -1049,16 +1053,17 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 	int result = 1, attributes = 0, port;
 	char *arg, *attrib = NULL, *oattrib;
 
-	if (ci == NULL)
-		debug3("checking syntax for 'Match %s'", full_line);
-	else {
+	if (ci == NULL) {
+		debug3("checking syntax for 'Match %s' on line %d",
+		    full_line, line);
+	} else {
 		debug3("checking match for '%s' user %s%s host %s addr %s "
-		    "laddr %s lport %d", full_line,
+		    "laddr %s lport %d on line %d", full_line,
 		    ci->user ? ci->user : "(null)",
 		    ci->user_invalid ? " (invalid)" : "",
 		    ci->host ? ci->host : "(null)",
 		    ci->address ? ci->address : "(null)",
-		    ci->laddress ? ci->laddress : "(null)", ci->lport);
+		    ci->laddress ? ci->laddress : "(null)", ci->lport, line);
 	}
 
 	while ((oattrib = argv_next(acp, avp)) != NULL) {
@@ -1105,7 +1110,8 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 		    strprefix(attrib, "address=", 1) != NULL ||
 		    strprefix(attrib, "localaddress=", 1) != NULL ||
 		    strprefix(attrib, "localport=", 1) != NULL ||
-		    strprefix(attrib, "rdomain=", 1) != NULL) {
+		    strprefix(attrib, "rdomain=", 1) != NULL ||
+		    strprefix(attrib, "version=", 1) != NULL) {
 			arg = strchr(attrib, '=');
 			*(arg++) = '\0';
 		} else {
@@ -1235,8 +1241,16 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 			if (match_pattern_list(ci->rdomain, arg, 0) != 1)
 				result = 0;
 			else
-				debug("user %.100s matched 'RDomain %.100s' at "
-				    "line %d", ci->rdomain, arg, line);
+				debug("connection RDomain %.100s matched "
+				    "'RDomain %.100s' at line %d",
+				    ci->rdomain, arg, line);
+		} else if (strcasecmp(attrib, "version") == 0) {
+			if (match_pattern_list(SSH_RELEASE, arg, 0) != 1)
+				result = 0;
+			else
+				debug("version %.100s matched "
+				    "'version %.100s' at line %d",
+				    SSH_RELEASE, arg, line);
 		} else {
 			error("Unsupported Match attribute %s", oattrib);
 			result = -1;
@@ -1251,7 +1265,7 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 	}
  out:
 	if (ci != NULL && result != -1)
-		debug3("match %sfound", result ? "" : "not ");
+		debug3("match %sfound on line %d", result ? "" : "not ", line);
 	free(attrib);
 	return result;
 }
@@ -2719,6 +2733,10 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		charptr = &options->sshd_session_path;
 		goto parse_filename;
 
+	case sSshdAuthPath:
+		charptr = &options->sshd_auth_path;
+		goto parse_filename;
+
 	case sRefuseConnection:
 		intptr = &options->refuse_connection;
 		multistate_ptr = multistate_flag;
@@ -2820,23 +2838,25 @@ parse_server_match_config(ServerOptions *options,
 	copy_set_server_options(options, &mo, 0);
 }
 
-int parse_server_match_testspec(struct connection_info *ci, char *spec)
+int
+parse_server_match_testspec(struct connection_info *ci, char *spec)
 {
 	char *p;
+	const char *val;
 
 	while ((p = strsep(&spec, ",")) && *p != '\0') {
-		if (strncmp(p, "addr=", 5) == 0) {
-			ci->address = xstrdup(p + 5);
-		} else if (strncmp(p, "host=", 5) == 0) {
-			ci->host = xstrdup(p + 5);
-		} else if (strncmp(p, "user=", 5) == 0) {
-			ci->user = xstrdup(p + 5);
-		} else if (strncmp(p, "laddr=", 6) == 0) {
-			ci->laddress = xstrdup(p + 6);
-		} else if (strncmp(p, "rdomain=", 8) == 0) {
-			ci->rdomain = xstrdup(p + 8);
-		} else if (strncmp(p, "lport=", 6) == 0) {
-			ci->lport = a2port(p + 6);
+		if ((val = strprefix(p, "addr=", 0)) != NULL) {
+			ci->address = xstrdup(val);
+		} else if ((val = strprefix(p, "host=", 0)) != NULL) {
+			ci->host = xstrdup(val);
+		} else if ((val = strprefix(p, "user=", 0)) != NULL) {
+			ci->user = xstrdup(val);
+		} else if ((val = strprefix(p, "laddr=", 0)) != NULL) {
+			ci->laddress = xstrdup(val);
+		} else if ((val = strprefix(p, "rdomain=", 0)) != NULL) {
+			ci->rdomain = xstrdup(val);
+		} else if ((val = strprefix(p, "lport=", 0)) != NULL) {
+			ci->lport = a2port(val);
 			if (ci->lport == -1) {
 				fprintf(stderr, "Invalid port '%s' in test mode"
 				    " specification %s\n", p+6, p);
@@ -3309,6 +3329,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_string(sRDomain, o->routing_domain);
 #endif
 	dump_cfg_string(sSshdSessionPath, o->sshd_session_path);
+	dump_cfg_string(sSshdAuthPath, o->sshd_auth_path);
 	dump_cfg_string(sPerSourcePenaltyExemptList, o->per_source_penalty_exempt);
 
 	/* string arguments requiring a lookup */

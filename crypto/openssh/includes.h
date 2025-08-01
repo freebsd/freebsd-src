@@ -49,6 +49,9 @@
 #ifdef HAVE_PATHS_H
 # include <paths.h>
 #endif
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h> /* For AT_FDCWD */
+#endif
 
 /*
  *-*-nto-qnx needs these headers for strcasecmp and LASTLOG_FILE respectively

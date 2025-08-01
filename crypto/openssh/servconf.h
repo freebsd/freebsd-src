@@ -249,6 +249,7 @@ typedef struct {
 	int	unused_connection_timeout;
 
 	char   *sshd_session_path;
+	char   *sshd_auth_path;
 
 	int	refuse_connection;
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: authfile.c,v 1.144 2023/03/14 07:26:25 dtucker Exp $ */
+/* $OpenBSD: authfile.c,v 1.145 2024/09/22 12:56:21 jsg Exp $ */
 /*
  * Copyright (c) 2000, 2013 Markus Friedl.  All rights reserved.
  *
@@ -48,8 +48,6 @@
 #include "sshbuf.h"
 #include "ssherr.h"
 #include "krl.h"
-
-#define MAX_KEY_FILE_SIZE	(1024 * 1024)
 
 /* Save a key blob to a file */
 static int

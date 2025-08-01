@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.63 2024/08/15 00:51:51 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.64 2024/09/20 02:00:46 jsg Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -1192,7 +1192,7 @@ pkcs11_fetch_certs(struct pkcs11_provider *p, CK_ULONG slotidx,
 		}
 		note_key(p, slotidx, __func__, key);
 		if (pkcs11_key_included(keysp, nkeys, key)) {
-			debug2_f("key already included");;
+			debug2_f("key already included");
 			sshkey_free(key);
 		} else {
 			/* expand key array and add key */
@@ -1306,7 +1306,7 @@ pkcs11_fetch_keys(struct pkcs11_provider *p, CK_ULONG slotidx,
 		}
 		note_key(p, slotidx, __func__, key);
 		if (pkcs11_key_included(keysp, nkeys, key)) {
-			debug2_f("key already included");;
+			debug2_f("key already included");
 			sshkey_free(key);
 		} else {
 			/* expand key array and add key */

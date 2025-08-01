@@ -41,7 +41,7 @@ In addition, certain platforms and build-time options may require additional dep
 
 ### Building a release
 
-Releases include a pre-built copy of the ``configure`` script and may be built using:
+Release tarballs and release branches in git include a pre-built copy of the ``configure`` script and may be built using:
 
 ```
 tar zxvf openssh-X.YpZ.tar.gz
@@ -54,7 +54,7 @@ See the [Build-time Customisation](#build-time-customisation) section below for 
 
 ### Building from git
 
-If building from git, you'll need [autoconf](https://www.gnu.org/software/autoconf/) installed to build the ``configure`` script. The following commands will check out and build portable OpenSSH from git:
+If building from the git master branch, you'll need [autoconf](https://www.gnu.org/software/autoconf/) installed to build the ``configure`` script. The following commands will check out and build portable OpenSSH from git:
 
 ```
 git clone https://github.com/openssh/openssh-portable # or https://anongit.mindrot.org/openssh.git
