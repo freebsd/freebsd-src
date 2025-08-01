@@ -34,6 +34,7 @@
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <grp.h>
 #include <limits.h>
 #include <paths.h>
@@ -158,8 +159,13 @@ main(int argc, char *argv[])
 			err(1, "procctl");
 	}
 
-	if (chdir(argv[0]) == -1 || chroot(".") == -1)
+	if (chdir(argv[0]) == -1)
 		err(1, "%s", argv[0]);
+	if (chroot(".") == -1) {
+		if (errno == EPERM && !nonprivileged && geteuid() != 0)
+			errx(1, "unprivileged use requires -n");
+		err(1, "%s", argv[0]);
+	}
 
 	if (gids && setgroups(gids, gidlist) == -1)
 		err(1, "setgroups");
