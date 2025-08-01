@@ -68,6 +68,7 @@ enum {
 	PFNL_CMD_CLR_TSTATS = 30,
 	PFNL_CMD_CLR_ADDRS = 31,
 	PFNL_CMD_TABLE_ADD_ADDR = 32,
+	PFNL_CMD_TABLE_DEL_ADDR = 33,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -476,6 +477,7 @@ enum pf_table_addrs_t {
 	PF_TA_ADDR		= 2, /* nested, pfr_addr_t */
 	PF_TA_FLAGS		= 3, /* u32 */
 	PF_TA_NBR_ADDED		= 4, /* u32 */
+	PF_TA_NBR_DELETED	= 5, /* u32 */
 };
 
 #ifdef _KERNEL
