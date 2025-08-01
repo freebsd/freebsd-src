@@ -19,10 +19,6 @@ BINDIR?=	/usr/bin
 MAN=		compile_et.1
 CLEANFILES=	compile_et
 
-.if !defined(BOOTSTRAPPING)
-SCRIPTSDIR=	${SHAREDIR}/et
-.endif
-
 compile_et: compile_et.sh
 	sh ${SRC_ETDIR}/config_script ${SRC_ETDIR}/compile_et.sh \
 	"${KRB5_ETDIR}" /usr/bin/awk /usr/bin/sed > ${.TARGET}
