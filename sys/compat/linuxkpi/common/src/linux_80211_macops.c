@@ -54,6 +54,8 @@ lkpi_80211_mo_start(struct ieee80211_hw *hw)
 	struct lkpi_hw *lhw;
 	int error;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->start == NULL) {
 		error = EOPNOTSUPP;
