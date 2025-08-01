@@ -2276,6 +2276,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	rule->nat.cur = TAILQ_FIRST(&rule->nat.list);
 	rule->rdr.cur = TAILQ_FIRST(&rule->rdr.list);
 	rule->route.cur = TAILQ_FIRST(&rule->route.list);
+	rule->route.ipv6_nexthop_af = AF_INET6;
 	TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 	    rule, entries);
 	ruleset->rules[rs_num].inactive.rcount++;

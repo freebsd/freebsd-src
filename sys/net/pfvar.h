@@ -645,6 +645,7 @@ struct pf_kpool {
 	int			 tblidx;
 	u_int16_t		 proxy_port[2];
 	u_int8_t		 opts;
+	sa_family_t		 ipv6_nexthop_af;
 };
 
 struct pf_rule_actions {
@@ -2680,7 +2681,7 @@ u_short			 pf_map_addr(sa_family_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_kpool *);
 u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
-			    sa_family_t *, struct pfi_kkif **nkif,
+			    sa_family_t *, struct pfi_kkif **,
 			    struct pf_addr *, struct pf_kpool *,
 			    pf_sn_types_t);
 int			 pf_get_transaddr_af(struct pf_krule *,

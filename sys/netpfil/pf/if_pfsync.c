@@ -605,7 +605,8 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			rt_kif = rpool_first->kif;
 			/*
 			 * Guess the AF of the route address, FreeBSD 13 does
-			 * not support af-to so it should be safe.
+			 * not support af-to nor prefer-ipv6-nexthop
+			 * so it should be safe.
 			 */
 			rt_af = r->af;
 		} else if (!PF_AZERO(&sp->pfs_1301.rt_addr, sp->pfs_1301.af)) {
@@ -634,8 +635,9 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			}
 			rt = sp->pfs_1400.rt;
 			/*
-			 * Guess the AF of the route address, FreeBSD 13 does
-			 * not support af-to so it should be safe.
+			 * Guess the AF of the route address, FreeBSD 14 does
+			 * not support af-to nor prefer-ipv6-nexthop
+			 * so it should be safe.
 			 */
 			rt_af = sp->pfs_1400.af;
 		}
