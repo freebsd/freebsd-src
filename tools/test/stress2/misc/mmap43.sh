@@ -10,7 +10,7 @@
 
 set -u
 prog=$(basename "$0" .sh)
-log=/tmp/$prog.log
+log=`dirname $diskimage`/$prog.log
 rm -f $log
 cat > /tmp/$prog.c <<EOF
 #include <sys/mman.h>
@@ -148,7 +148,12 @@ s=0
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt 300 ]; do
 	st=`date +%s`
-	cp file.orig file
+	cp file.orig file || {
+		# Workaround for known UFS SU ENOSPC issue
+		echo "Flush file system buffers and retry."
+		(cd $mntpoint; umount $mntpoint) > /dev/null 2>&1 # busy umount
+		cp file.orig file || exit 1
+	}
 	for i in `jot $n`; do
 		timeout -k 70s 1m /tmp/$prog.sort /dev/zero &
 	done
