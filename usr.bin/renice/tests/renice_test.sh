@@ -51,6 +51,50 @@ renice_rel_pid_body() {
 	kill $pid
 }
 
+atf_test_case renice_invalid_priority
+renice_invalid_priority_head() {
+	atf_set "descr" "Verify handling of invalid priority values"
+}
+renice_invalid_priority_body() {
+	local pid
+	sleep 60 &
+	pid=$!
+	
+	# Test out of range priority
+	atf_check -s exit:1 -e match:"numeric value out of range" renice 100000 $pid
+	atf_check -s exit:1 -e match:"numeric value out of range" renice -100000 $pid
+	
+	# Test invalid priority format
+	atf_check -s exit:1 -e match:"invalid numeric value" renice "abc" $pid
+	atf_check -s exit:1 -e match:"invalid numeric value" renice "12.3" $pid
+	
+	kill $pid
+}
+
+atf_test_case renice_permission_denied
+renice_permission_denied_head() {
+	atf_set "descr" "Verify handling of permission denied cases"
+}
+renice_permission_denied_body() {
+	local pid
+	sleep 60 &
+	pid=$!
+	
+	# Test permission denied with non-root user
+	atf_check -s exit:1 -e match:"Permission denied: cannot set priority" renice -n 10 $pid
+	
+	kill $pid
+}
+
+atf_test_case renice_nonexistent_process
+renice_nonexistent_process_head() {
+	atf_set "descr" "Verify handling of non-existent process"
+}
+renice_nonexistent_process_body() {
+	# Test with a non-existent PID
+	atf_check -s exit:1 -e match:"process 999999 not found" renice 10 999999
+}
+
 atf_test_case renice_abs_pgid
 renice_abs_pgid_head() {
 	atf_set "descr" "Set a process group's nice number to an absolute value"
@@ -115,6 +159,18 @@ renice_rel_user_body() {
 	kill $pid
 }
 
+atf_test_case renice_invalid_user
+renice_invalid_user_head() {
+	atf_set "descr" "Verify handling of invalid user names"
+}
+renice_invalid_user_body() {
+	# Test with non-existent user name
+	atf_check -s exit:1 -e match:"Invalid user name or UID: nonexist" renice 10 -u nonexist
+	
+	# Test with invalid UID
+	atf_check -s exit:1 -e match:"Invalid UID: -1" renice 10 -u -1
+}
+
 atf_test_case renice_delim
 renice_delim_head() {
 	atf_set "descr" "Test various delimiter positions"
@@ -169,6 +225,7 @@ atf_init_test_cases() {
 	atf_add_test_case renice_rel_pgid
 	atf_add_test_case renice_abs_user
 	atf_add_test_case renice_rel_user
+	atf_add_test_case renice_invalid_user
 	atf_add_test_case renice_delim
 	atf_add_test_case renice_incr_noarg
 }
