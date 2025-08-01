@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 29, 2025
+.Dd August 1, 2025
 .Dt MBUF 9
 .Os
 .\"
@@ -1102,8 +1102,7 @@ of a packet contains two fields used for that purpose,
 .Vt int Va csum_flags
 and
 .Vt int Va csum_data .
-The meaning of those fields depends on the direction a packet flows in,
-and on whether the packet is fragmented.
+The meaning of those fields depends on whether the packet is fragmented.
 Henceforth,
 .Va csum_flags
 or
@@ -1117,14 +1116,14 @@ in the
 .Vt mbuf chain
 containing the packet.
 .Pp
-On output, the computation of the checksum is delayed until the outgoing
-interface has been determined for a packet.
+When a packet is sent by SCTP, TCP, or UDP, the computation of the checksum
+is delayed until the outgoing interface has been determined for a packet.
 The interface-specific field
 .Va ifnet.if_data.ifi_hwassist
 (see
 .Xr ifnet 9 )
-is consulted for the capabilities of the interface to assist in
-computing checksums.
+is consulted by IP for the capabilities of the network interface selected for
+output to assist in computing checksums.
 The
 .Va csum_flags
 field of the packet header is set to indicate which actions the interface
@@ -1163,8 +1162,8 @@ defined by the TCP and UDP specifications.
 In the case of SCTP, the checksum field will be initially
 set by the SCTP implementation to 0.
 .Pp
-On input, an interface indicates the actions it has performed
-on a packet by setting one or more of the following flags in
+When a packet is received by an interface, it indicates the actions it has
+performed on a packet by setting one or more of the following flags in
 .Va csum_flags
 associated with the packet:
 .Bl -tag -width ".Dv CSUM_IP_CHECKED" -offset indent
@@ -1215,6 +1214,21 @@ is not relevant and
 in
 .Va csum_flags
 is not set, since SCTP does not use a pseudo header checksum.
+.Pp
+If IP delivers a packet with the flags
+.Dv CSUM_SCTP ,
+.Dv CSUM_TCP ,
+or
+.Dv CSUM_UDP
+set in
+.Va csum_flags
+to a local SCTP, TCP, or UDP stack, the packet will be processed without
+computing or validating the checksum, since the packet has not been on the
+wire.
+This can happen if the packet was handled by a virtual interface such as
+.Xr tap 4
+or
+.Xr epair 4 .
 .Sh STRESS TESTING
 When running a kernel compiled with the option
 .Dv MBUF_STRESS_TEST ,

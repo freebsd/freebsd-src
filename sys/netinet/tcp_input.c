@@ -650,6 +650,12 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 				th->th_sum = in6_cksum_pseudo(ip6, tlen,
 				    IPPROTO_TCP, m->m_pkthdr.csum_data);
 			th->th_sum ^= 0xffff;
+		} else if (m->m_pkthdr.csum_flags & CSUM_IP6_TCP) {
+			/*
+			 * Packet from local host (maybe from a VM).
+			 * Checksum not required.
+			 */
+			th->th_sum = 0;
 		} else
 			th->th_sum = in6_cksum(m, IPPROTO_TCP, off0, tlen);
 		if (th->th_sum) {
@@ -710,6 +716,12 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 				    htonl(m->m_pkthdr.csum_data + tlen +
 				    IPPROTO_TCP));
 			th->th_sum ^= 0xffff;
+		} else if (m->m_pkthdr.csum_flags & CSUM_IP_TCP) {
+			/*
+			 * Packet from local host (maybe from a VM).
+			 * Checksum not required.
+			 */
+			th->th_sum = 0;
 		} else {
 			struct ipovly *ipov = (struct ipovly *)ip;
 
