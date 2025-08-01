@@ -546,7 +546,7 @@ struct setrlimit_args {
 	char rlp_l_[PADL_(struct rlimit *)]; struct rlimit * rlp; char rlp_r_[PADR_(struct rlimit *)];
 };
 struct __sysctl_args {
-	char name_l_[PADL_(int *)]; int * name; char name_r_[PADR_(int *)];
+	char name_l_[PADL_(const int *)]; const int * name; char name_r_[PADR_(const int *)];
 	char namelen_l_[PADL_(u_int)]; u_int namelen; char namelen_r_[PADR_(u_int)];
 	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
 	char oldlenp_l_[PADL_(size_t *)]; size_t * oldlenp; char oldlenp_r_[PADR_(size_t *)];
