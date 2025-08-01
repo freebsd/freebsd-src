@@ -2928,19 +2928,19 @@ crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups)
 }
 
 /*
- * Same as crsetgroups() but accepts an empty groups array.
+ * Same as crsetgroups() but sets the effective GID as well.
  *
  * This function ensures that an effective GID is always present in credentials.
- * An empty array will only set the effective GID to the fallback, while a
+ * An empty array will only set the effective GID to the default_egid, while a
  * non-empty array will peel off groups[0] to set as the effective GID and use
  * the remainder, if any, as supplementary groups.
  */
 void
-crsetgroups_fallback(struct ucred *cr, int ngrp, const gid_t *groups,
-    const gid_t fallback)
+crsetgroups_and_egid(struct ucred *cr, int ngrp, const gid_t *groups,
+    const gid_t default_egid)
 {
 	if (ngrp == 0) {
-		cr->cr_gid = fallback;
+		cr->cr_gid = default_egid;
 		cr->cr_ngroups = 0;
 		cr->cr_flags |= CRED_FLAG_GROUPSET;
 		return;
