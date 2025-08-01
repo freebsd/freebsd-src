@@ -1056,6 +1056,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	newcred->cr_ngroups = ngrp;
 	for (int i = 0; i < ngrp; i++)
 		newcred->cr_groups[i] = linux_gidset[i];
+	newcred->cr_flags |= CRED_FLAG_GROUPSET;
 
 	setsugid(p);
 	proc_set_cred(p, newcred);
