@@ -26,14 +26,14 @@
 
 . $(atf_get_srcdir)/../common/vnet.subr
 
-atf_test_case "basic" "cleanup"
-basic_head()
+atf_test_case "4in4" "cleanup"
+4in4_head()
 {
-	atf_set descr 'Basic gif(4) test'
+	atf_set descr 'IPv4 in IPv4 tunnel'
 	atf_set require.user root
 }
 
-basic_body()
+4in4_body()
 {
 	vnet_init
 	if ! kldstat -q -m if_gif; then
@@ -65,12 +65,147 @@ basic_body()
 	    jexec two ping -c 1 198.51.100.1
 }
 
-basic_cleanup()
+4in4_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "6in4" "cleanup"
+6in4_head()
+{
+	atf_set descr 'IPv6 in IPv4 tunnel'
+	atf_set require.user root
+}
+
+6in4_body()
+{
+	vnet_init
+	if ! kldstat -q -m if_gif; then
+		atf_skip "This test requires if_gif"
+	fi
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair}a
+	jexec one ifconfig ${epair}a 192.0.2.1/24 up
+	gone=$(jexec one ifconfig gif create)
+	jexec one ifconfig $gone tunnel 192.0.2.1 192.0.2.2
+	jexec one ifconfig $gone inet6 no_dad 2001:db8:1::1/64 up
+
+	vnet_mkjail two ${epair}b
+	jexec two ifconfig ${epair}b 192.0.2.2/24 up
+	gtwo=$(jexec two ifconfig gif create)
+	jexec two ifconfig $gtwo tunnel 192.0.2.2 192.0.2.1
+	jexec two ifconfig $gtwo inet6 no_dad 2001:db8:1::2/64 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -c 1 192.0.2.2
+
+	# Tunnel test
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -6 -c 1 2001:db8:1::2
+	atf_check -s exit:0 -o ignore \
+	    jexec two ping -6 -c 1 2001:db8:1::1
+}
+
+6in4_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "4in6" "cleanup"
+4in6_head()
+{
+	atf_set descr 'IPv4 in IPv6 tunnel'
+	atf_set require.user root
+}
+
+4in6_body()
+{
+	vnet_init
+	if ! kldstat -q -m if_gif; then
+		atf_skip "This test requires if_gif"
+	fi
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair}a
+	jexec one ifconfig ${epair}a inet6 no_dad 2001:db8::1/64 up
+	gone=$(jexec one ifconfig gif create)
+	jexec one ifconfig $gone inet6 tunnel 2001:db8::1 2001:db8::2
+	jexec one ifconfig $gone inet 198.51.100.1/24 198.51.100.2 up
+
+	vnet_mkjail two ${epair}b
+	jexec two ifconfig ${epair}b inet6 no_dad 2001:db8::2/64 up
+	gtwo=$(jexec two ifconfig gif create)
+	jexec two ifconfig $gtwo inet6 tunnel 2001:db8::2 2001:db8::1
+	jexec two ifconfig $gtwo inet 198.51.100.2/24 198.51.100.1 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -6 -c 1 2001:db8::2
+
+	# Tunnel test
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -c 1 198.51.100.2
+	atf_check -s exit:0 -o ignore \
+	    jexec two ping -c 1 198.51.100.1
+}
+
+4in6_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "6in6" "cleanup"
+6in6_head()
+{
+	atf_set descr 'IPv6 in IPv6 tunnel'
+	atf_set require.user root
+}
+
+6in6_body()
+{
+	vnet_init
+	if ! kldstat -q -m if_gif; then
+		atf_skip "This test requires if_gif"
+	fi
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair}a
+	jexec one ifconfig ${epair}a inet6 no_dad 2001:db8::1/64 up
+	gone=$(jexec one ifconfig gif create)
+	jexec one ifconfig $gone inet6 tunnel 2001:db8::1 2001:db8::2
+	jexec one ifconfig $gone inet6 no_dad 2001:db8:1::1/64 up
+
+	vnet_mkjail two ${epair}b
+	jexec two ifconfig ${epair}b inet6 no_dad 2001:db8::2/64 up
+	gtwo=$(jexec two ifconfig gif create)
+	jexec two ifconfig $gtwo inet6 tunnel 2001:db8::2 2001:db8::1
+	jexec two ifconfig $gtwo inet6 no_dad 2001:db8:1::2/64 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -6 -c 1 2001:db8::2
+
+	# Tunnel test
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -6 -c 1 2001:db8:1::2
+	atf_check -s exit:0 -o ignore \
+	    jexec two ping -6 -c 1 2001:db8:1::1
+}
+
+6in6_cleanup()
 {
 	vnet_cleanup
 }
 
 atf_init_test_cases()
 {
-	atf_add_test_case "basic"
+	atf_add_test_case "4in4"
+	atf_add_test_case "6in4"
+	atf_add_test_case "4in6"
+	atf_add_test_case "6in6"
 }
