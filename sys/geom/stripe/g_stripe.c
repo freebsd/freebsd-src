@@ -454,11 +454,9 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 		cbp->bio_done = g_stripe_done;
 	cbp->bio_offset = offset;
 	cbp->bio_length = length;
-	if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
-		bp->bio_ma_n = round_page(bp->bio_ma_offset +
-		    bp->bio_length) / PAGE_SIZE;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0)
 		addr = NULL;
-	} else
+	else
 		addr = bp->bio_data;
 	cbp->bio_caller2 = sc->sc_disks[no];
 
