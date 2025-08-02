@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+2bd157bc732a:
+	The readdir_r(3) function is deprecated and may be removed in future
+	releases.  Using it in a program will result in compile-time and
+	link-time warnings.
+
 9ba51cce8bbd:
 	bsnmpd(1) no longer supports legacy UDP transport.  Users, that have
 	not updated their /etc/snmpd.config since 12.0-RELEASE or older will
