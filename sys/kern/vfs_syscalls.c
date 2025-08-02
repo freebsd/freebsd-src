@@ -982,13 +982,10 @@ kern_chroot(struct thread *td, struct vnode *vp)
 	error = priv_check(td, PRIV_VFS_CHROOT);
 	if (error != 0) {
 		p = td->td_proc;
-		PROC_LOCK(p);
 		if (unprivileged_chroot == 0 ||
 		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
-			PROC_UNLOCK(p);
 			goto e_vunlock;
 		}
-		PROC_UNLOCK(p);
 	}
 
 	error = change_dir(vp, td);
