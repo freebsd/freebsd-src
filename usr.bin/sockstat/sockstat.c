@@ -1510,10 +1510,9 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 				    s->proto == IPPROTO_TCP) {
 					switch (s->proto) {
 					case IPPROTO_SCTP:
-						xo_emit(" {:path-state/%-*s}",
-							cw->path_state,
-							sctp_path_state(
-								faddr->state));
+						xo_emit(" {:conn-state/%-*s}",
+							cw->conn_state,
+							sctp_conn_state(s->state));
 						break;
 					case IPPROTO_TCP:
 						if (s->state >= 0 &&
