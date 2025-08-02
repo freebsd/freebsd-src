@@ -1,5 +1,6 @@
 .\" Copyright (c) 2007 Eric Anderson <anderson@FreeBSD.org>
 .\" Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2025 Dag-Erling Smørgrav <des@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,43 +24,49 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 13, 2023
+.Dd July 25, 2025
 .Dt EXPAND_NUMBER 3
 .Os
 .Sh NAME
 .Nm expand_number
-.Nd format a number from human readable form
+.Nd parse a number from human readable form
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
 .In libutil.h
 .Ft int
 .Fo expand_number
-.Fa "const char *buf" "uint64_t *num"
+.Fa "const char *buf" "int64_t *num"
 .Fc
 .Sh DESCRIPTION
 The
 .Fn expand_number
-function parses the
+function parses the number in the string pointed to by its
 .Fa buf
-string and stores a unsigned 64-bit quantity at
-.Fa *num .
+argument and stores the number it represents as a signed 64-bit
+quantity in the location pointed to by its
+.Fa *num
+argument.
 .Pp
-The
-.Fn expand_number
-function
-is case-insensitive and
-follows the SI power of two convention.
+The input string must consist of a decimal number, optionally preceded
+by a
+.Sq +
+or
+.Sq -
+sign, and optionally followed, without intervening whitespace, by a
+suffix indicating a power-of-two multiplier to apply.
+Any amount of whitespace at the beginning of the string will be
+ignored.
 .Pp
-The suffixes are:
+Recognized suffixes are:
 .Bl -column "Suffix" "Description" "1000000000000000000" -offset indent
 .It Sy "Suffix" Ta Sy "Description" Ta Sy "Multiplier"
-.It Li K Ta No kilo Ta 1024
-.It Li M Ta No mega Ta 1048576
-.It Li G Ta No giga Ta 1073741824
-.It Li T Ta No tera Ta 1099511627776
-.It Li P Ta No peta Ta 1125899906842624
-.It Li E Ta No exa  Ta 1152921504606846976
+.It Li K Ta No kilo Ta 1,024
+.It Li M Ta No mega Ta 1,048,576
+.It Li G Ta No giga Ta 1,073,741,824
+.It Li T Ta No tera Ta 1,099,511,627,776
+.It Li P Ta No peta Ta 1,125,899,906,842,624
+.It Li E Ta No exa  Ta 1,152,921,504,606,846,976
 .El
 .Pp
 For historical reasons, the
@@ -68,7 +75,11 @@ function accepts and ignores a single
 .Dq B
 suffix at the end of the
 .Fa buf
-string.
+string (i.e.
+.Dq 5b
+is interpreted as 5, and
+.Dq 5kb
+is interpreted as 5,120).
 However, the usage of this suffix is discouraged.
 .Sh RETURN VALUES
 .Rv -std
@@ -78,11 +89,12 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-The given string contains no digits.
+The given string does not contain a valid number.
 .It Bq Er EINVAL
-An unrecognized suffix was given.
+An unrecognized suffix was encountered.
 .It Bq Er ERANGE
-Result doesn't fit into 64 bits.
+The given string represents a number which does not fit into a
+.Vt int64_t .
 .El
 .Sh SEE ALSO
 .Xr humanize_number 3

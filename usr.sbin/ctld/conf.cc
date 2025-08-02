@@ -409,7 +409,8 @@ lun_set_blocksize(size_t value)
 bool
 lun_set_device_type(const char *value)
 {
-	uint64_t device_type;
+	const char *errstr;
+	int device_type;
 
 	if (strcasecmp(value, "disk") == 0 ||
 	    strcasecmp(value, "direct") == 0)
@@ -421,9 +422,12 @@ lun_set_device_type(const char *value)
 	    strcasecmp(value, "dvd") == 0 ||
 	    strcasecmp(value, "dvdrom") == 0)
 		device_type = T_CDROM;
-	else if (expand_number(value, &device_type) != 0 || device_type > 15) {
-		log_warnx("invalid device-type \"%s\" for lun \"%s\"", value,
-		    lun->l_name);
+	else {
+		device_type = strtonum(value, 0, 15, &errstr);
+		if (errstr != NULL) {
+			log_warnx("invalid device-type \"%s\" for lun \"%s\"", value,
+			    lun->l_name);
+		}
 		return (false);
 	}
 
