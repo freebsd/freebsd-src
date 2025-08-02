@@ -40,17 +40,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static void
-load_dummy(void)
-{
-	if (kldload("snd_dummy.ko") < 0 && errno != EEXIST)
-		atf_tc_skip("snd_dummy.ko not found");
-}
-
 ATF_TC(sndstat_nv);
 ATF_TC_HEAD(sndstat_nv, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "/dev/sndstat nvlist test");
+	atf_tc_set_md_var(tc, "require.kmods", "snd_dummy");
 }
 
 ATF_TC_BODY(sndstat_nv, tc)
@@ -61,8 +55,6 @@ ATF_TC_BODY(sndstat_nv, tc)
 	struct sndstioc_nv_arg arg;
 	size_t nitems, nchans, i, j;
 	int fd, rc, pchan, rchan;
-
-	load_dummy();
 
 	if ((fd = open("/dev/sndstat", O_RDONLY)) < 0)
 		atf_tc_skip("/dev/sndstat not found, load sound(4)");
@@ -223,6 +215,7 @@ ATF_TC(sndstat_udev);
 ATF_TC_HEAD(sndstat_udev, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "/dev/sndstat userdev interface test");
+	atf_tc_set_md_var(tc, "require.kmods", "snd_dummy");
 }
 
 ATF_TC_BODY(sndstat_udev, tc)
@@ -233,8 +226,6 @@ ATF_TC_BODY(sndstat_udev, tc)
 	const char *str;
 	size_t nitems, i;
 	int fd, rc, pchan, rchan, n;
-
-	load_dummy();
 
 	if ((fd = open("/dev/sndstat", O_RDWR)) < 0)
 		atf_tc_skip("/dev/sndstat not found, load sound(4)");
