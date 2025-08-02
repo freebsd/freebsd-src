@@ -89,7 +89,7 @@ __BEGIN_DECLS
 char	*auth_getval(const char *_name);
 void	clean_environment(const char * const *_white,
 	    const char * const *_more_white);
-int	expand_number(const char *_buf, uint64_t *_num);
+int	expand_number(const char *_buf, int64_t *_num);
 int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 int	flopen(const char *_path, int _flags, ...);

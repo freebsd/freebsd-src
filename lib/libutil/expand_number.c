@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2007 Eric Anderson <anderson@FreeBSD.org>
  * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2025 Dag-Erling Smørgrav <des@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,79 +29,120 @@
  */
 
 #include <sys/types.h>
+
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <libutil.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 int
-expand_number(const char *buf, uint64_t *num)
+expand_number(const char *buf, int64_t *num)
 {
 	char *endptr;
-	uintmax_t umaxval;
-	uint64_t number;
-	unsigned shift;
+	uintmax_t number;
+	unsigned int shift;
+	bool neg;
 	int serrno;
+
+	/*
+	 * Skip whitespace and optional sign.
+	 */
+	while (isspace((unsigned char)*buf))
+		buf++;
+	if (*buf == '-') {
+		neg = true;
+		buf++;
+	} else {
+		neg = false;
+		if (*buf == '+')
+			buf++;
+	}
+
+	/*
+	 * The next character should be the first digit of the number.  If
+	 * we don't enforce this ourselves, strtoumax() will allow further
+	 * whitespace and a (second?) sign.
+	 */
+	if (!isdigit((unsigned char)*buf)) {
+		errno = EINVAL;
+		return (-1);
+	}
 
 	serrno = errno;
 	errno = 0;
-	umaxval = strtoumax(buf, &endptr, 0);
-	if (umaxval > UINT64_MAX)
-		errno = ERANGE;
+	number = strtoumax(buf, &endptr, 0);
 	if (errno != 0)
 		return (-1);
 	errno = serrno;
-	number = umaxval;
 
 	switch (tolower((unsigned char)*endptr)) {
 	case 'e':
 		shift = 60;
+		endptr++;
 		break;
 	case 'p':
 		shift = 50;
+		endptr++;
 		break;
 	case 't':
 		shift = 40;
+		endptr++;
 		break;
 	case 'g':
 		shift = 30;
+		endptr++;
 		break;
 	case 'm':
 		shift = 20;
+		endptr++;
 		break;
 	case 'k':
 		shift = 10;
+		endptr++;
 		break;
-	case 'b':
-		shift = 0;
-		break;
-	case '\0': /* No unit. */
-		*num = number;
-		return (0);
 	default:
-		/* Unrecognized unit. */
-		errno = EINVAL;
-		return (-1);
+		shift = 0;
 	}
 
 	/*
 	 * Treat 'b' as an ignored suffix for all unit except 'b',
 	 * otherwise there should be no remaining character(s).
 	 */
-	endptr++;
-	if (shift != 0 && tolower((unsigned char)*endptr) == 'b')
+	if (tolower((unsigned char)*endptr) == 'b')
 		endptr++;
 	if (*endptr != '\0') {
 		errno = EINVAL;
 		return (-1);
 	}
 
+	/*
+	 * Apply the shift and check for overflow.
+	 */
 	if ((number << shift) >> shift != number) {
 		/* Overflow */
 		errno = ERANGE;
 		return (-1);
 	}
-	*num = number << shift;
+	number <<= shift;
+
+	/*
+	 * Apply the sign and check for overflow.
+	 */
+	if (neg) {
+		if (number > 0x8000000000000000LLU /* -INT64_MIN */) {
+			errno = ERANGE;
+			return (-1);
+		}
+		*num = -number;
+	} else {
+		if (number > INT64_MAX) {
+			errno = ERANGE;
+			return (-1);
+		}
+		*num = number;
+	}
+
 	return (0);
 }

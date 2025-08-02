@@ -105,7 +105,7 @@ statement:
 
 debug:		DEBUG STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -120,7 +120,7 @@ debug:		DEBUG STR
 
 timeout:	TIMEOUT STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -135,7 +135,7 @@ timeout:	TIMEOUT STR
 
 maxproc:	MAXPROC STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -172,7 +172,7 @@ isns_server:	ISNS_SERVER STR
 
 isns_period:	ISNS_PERIOD STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -187,7 +187,7 @@ isns_period:	ISNS_PERIOD STR
 
 isns_timeout:	ISNS_TIMEOUT STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -432,7 +432,7 @@ portal_group_redirect:	REDIRECT STR
 
 portal_group_tag:	TAG STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -448,7 +448,7 @@ portal_group_tag:	TAG STR
 portal_group_dscp
 : DSCP STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (strcmp($2, "0x") == 0) {
 			tmp = strtol($2 + 2, NULL, 16);
@@ -488,7 +488,7 @@ portal_group_dscp
 
 portal_group_pcp:	PCP STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -704,7 +704,7 @@ target_lun:	LUN lun_number
 
 lun_number:	STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($1, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -720,7 +720,7 @@ lun_number:	STR
 
 target_lun_ref:	LUN STR STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 		bool ok;
 
 		if (expand_number($2, &tmp) != 0) {
@@ -778,7 +778,7 @@ lun_backend:	BACKEND STR
 
 lun_blocksize:	BLOCKSIZE STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -816,7 +816,7 @@ lun_device_type:	DEVICE_TYPE STR
 
 lun_ctl_lun:	CTL_LUN STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -866,7 +866,7 @@ lun_serial:	SERIAL STR
 
 lun_size:	SIZE STR
 	{
-		uint64_t tmp;
+		int64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
 			yyerror("invalid numeric value");
