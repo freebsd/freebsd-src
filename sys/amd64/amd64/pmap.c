@@ -104,7 +104,6 @@
  */
 
 #include "opt_ddb.h"
-#include "opt_kstack_pages.h"
 #include "opt_pmap.h"
 #include "opt_vm.h"
 
