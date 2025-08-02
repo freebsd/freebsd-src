@@ -35,7 +35,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	additional issues prior to FreeBSD 15.0.
 
 	To revert to the previous USB HID driver behavior, set the loader
-	tunable hw.usb.usbhid_enable=0.
+	tunable hw.usb.usbhid.enable=0.
 
 20250727:
 	bmake (i.e., /usr/bin/make and /usr/share/mk) has moved to a new
