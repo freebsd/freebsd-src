@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 15, 2024
+.Dd August 2, 2025
 .Dt CHROOT 2
 .Os
 .Sh NAME
@@ -61,7 +61,12 @@ It should be noted that
 .Fn chroot
 has no effect on the process's current directory.
 .Pp
-This call is restricted to the super-user.
+This call is restricted to the super-user, unless the
+.Ql security.bsd.unprivileged_chroot
+sysctl variable is set to 1
+and the process has enabled the
+.Dv PROC_NO_NEW_PRIVS_CTL
+.Xr procctl 2 .
 .Pp
 Depending on the setting of the
 .Ql kern.chroot_allow_open_directories
@@ -106,14 +111,37 @@ except it takes a file descriptor instead of path.
 .Sh ERRORS
 The
 .Fn chroot
+and
+.Fn fchroot
+system calls
+will fail and the root directory will be unchanged if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The effective user ID is not the super-user and the
+.Ql security.bsd.unprivileged_chroot
+sysctl is 0.
+.It Bq Er EPERM
+The effective user ID is not the super-user and the
+process has not enabled the
+.Dv PROC_NO_NEW_PRIVS_CTL
+.Xr procctl 2 .
+.It Bq Er EPERM
+One or more filedescriptors are open directories and the
+.Ql kern.chroot_allow_open_directories
+sysctl is not set to permit this.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
+.El
+.Pp
+The
+.Fn chroot
 system call
 will fail and the root directory will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path name is not a directory.
-.It Bq Er EPERM
-The effective user ID is not the super-user, or one or more
-filedescriptors are open directories.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.
@@ -128,10 +156,6 @@ The
 .Fa dirname
 argument
 points outside the process's allocated address space.
-.It Bq Er EIO
-An I/O error occurred while reading from or writing to the file system.
-.It Bq Er EINTEGRITY
-Corrupted data was detected while reading from the file system.
 .El
 .Pp
 The
@@ -146,15 +170,8 @@ file descriptor.
 The argument
 .Fa fd
 is not a valid file descriptor.
-.It Bq Er EIO
-An I/O error occurred while reading from or writing to the file system.
-.It Bq Er EINTEGRITY
-Corrupted data was detected while reading from the file system.
 .It Bq Er ENOTDIR
 The file descriptor does not reference a directory.
-.It Bq Er EPERM
-The effective user ID is not the super-user, or one or more
-filedescriptors are open directories.
 .El
 .Sh SEE ALSO
 .Xr chdir 2 ,
