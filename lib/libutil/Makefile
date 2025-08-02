@@ -7,7 +7,7 @@ PACKAGE=	runtime
 .PATH: ${SRCTOP}/lib/libc/gen # for pw_scan.c
 
 LIB=	util
-SHLIB_MAJOR= 9
+SHLIB_MAJOR= 10
 
 SRCS=	_secure_path.c auth.c cpuset.c expand_number.c flopen.c fparseln.c \
 	ftime.c getlocalbase.c gr_util.c \
@@ -28,6 +28,9 @@ CFLAGS+= -DINET6
 .endif
 
 CFLAGS+= -I${.CURDIR} -I${SRCTOP}/lib/libc/gen/
+
+VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 MAN+=	cpuset.3 expand_number.3 flopen.3 fparseln.3 ftime.3 getlocalbase.3 \
 	hexdump.3 humanize_number.3 kinfo_getallproc.3 kinfo_getfile.3 \
