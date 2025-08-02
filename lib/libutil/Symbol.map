@@ -2,7 +2,6 @@ FBSD_1.8 {
 	_secure_path;
 	auth_cat;
 	auth_checknologin;
-	auth_getval;
 	auth_hostok;
 	auth_timeok;
 	auth_ttyok;

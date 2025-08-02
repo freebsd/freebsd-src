@@ -9,7 +9,7 @@ PACKAGE=	runtime
 LIB=	util
 SHLIB_MAJOR= 10
 
-SRCS=	_secure_path.c auth.c cpuset.c expand_number.c flopen.c fparseln.c \
+SRCS=	_secure_path.c cpuset.c expand_number.c flopen.c fparseln.c \
 	ftime.c getlocalbase.c gr_util.c \
 	hexdump.c humanize_number.c kinfo_getfile.c \
 	kinfo_getallproc.c kinfo_getproc.c kinfo_getvmmap.c \

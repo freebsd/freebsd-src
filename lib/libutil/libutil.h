@@ -86,7 +86,6 @@ struct termios;
 struct winsize;
 
 __BEGIN_DECLS
-char	*auth_getval(const char *_name);
 void	clean_environment(const char * const *_white,
 	    const char * const *_more_white);
 int	expand_number(const char *_buf, int64_t *_num);
