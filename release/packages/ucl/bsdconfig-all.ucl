@@ -1,0 +1,5 @@
+comment = "System configuration utility"
+desc = <<EOD
+bsdconfig(8) and bsdinstall(8) provide graphical interfaces to configure the
+system and to install new instances of the system, e.g. to create jails.
+EOD

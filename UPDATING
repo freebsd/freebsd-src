@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250804:
+	bsdconfig (including sysrc(8)) has moved to the new bsdconfig
+	package.  If you use pkgbase and wish to use bsdconfig, you should
+	install FreeBSD-bsdconfig.
+
 20250730:
 	The usbhid(4) USB HID driver is now enabled by default, and will be
 	used in preference to other USB HID drivers like ukbd(4), ums(4), and
