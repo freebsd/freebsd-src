@@ -22,14 +22,16 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 10, 2020
+.Dd August 2, 2025
 .Dt PIDFILE 3
 .Os
 .Sh NAME
 .Nm pidfile_open ,
 .Nm pidfile_write ,
 .Nm pidfile_close ,
-.Nm pidfile_remove
+.Nm pidfile_remove ,
+.Nm pidfile_fileno ,
+.Nm pidfile_signal
 .Nd "library for PID files handling"
 .Sh LIBRARY
 .Lb libutil
@@ -45,6 +47,8 @@
 .Fn pidfile_remove "struct pidfh *pfh"
 .Ft int
 .Fn pidfile_fileno "struct pidfh *pfh"
+.Ft int
+.Fn pidfile_signal "const char *path" "int sig" "pid_t *pidptr"
 .Sh DESCRIPTION
 The
 .Nm pidfile
@@ -101,6 +105,26 @@ function closes and removes a pidfile.
 The
 .Fn pidfile_fileno
 function returns the file descriptor for the open pidfile.
+.Pp
+The
+.Fn pidfile_signal
+function looks for the pidfile specified by
+.Va path ,
+and if it exists and is locked, sends the signal specified by
+.Va sig
+to the PID it contains.
+If
+.Va pidptr
+is not
+.Dv NULL ,
+the PID that was found in the pidfile is stored in the location it
+points to.
+Note that calling
+.Fn pidfile_signal
+with
+.Va sig
+set to zero is an effective way to verify the existence of a pidfile
+and of the process that owns it.
 .Sh RETURN VALUES
 The
 .Fn pidfile_open
@@ -125,6 +149,13 @@ and sets
 if a NULL
 .Vt pidfh
 is specified, or if the pidfile is no longer open.
+.Pp
+The
+.Fn pidfile_signal
+function returns 0 if it successfully signaled a process, and an
+appropriate
+.Va errno
+value otherwise.
 .Sh EXAMPLES
 The following example shows in which order these functions should be used.
 Note that it is safe to pass
@@ -132,7 +163,7 @@ Note that it is safe to pass
 to
 .Fn pidfile_write ,
 .Fn pidfile_remove ,
-.Fn pidfile_close
+.Fn pidfile_close ,
 and
 .Fn pidfile_fileno
 functions.
@@ -280,7 +311,28 @@ Improper function use.
 Probably called not from the process which used
 .Fn pidfile_open .
 .El
+.Pp
+The
+.Fn pidfile_signal
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The pidfile does not exist, or exists but is not locked.
+.It Bq Er EDOM
+The pidfile contains a negative number.
+.El
+.Pp
+The
+.Fn pidfile_signal
+function may also fail and return any of the
+.Va errno
+values specified for the
+.Fn pidfile_read
+function and the
+.Xr kill 2
+system call.
 .Sh SEE ALSO
+.Xr kill 2 ,
 .Xr open 2 ,
 .Xr daemon 3 ,
 .Xr flopen 3
@@ -288,11 +340,19 @@ Probably called not from the process which used
 The functions
 .Fn pidfile_open ,
 .Fn pidfile_write ,
-.Fn pidfile_close
+.Fn pidfile_close ,
 and
 .Fn pidfile_remove
 first appeared in
 .Fx 5.5 .
+The
+.Fn pidfile_fileno
+function was added in
+.Fx 9.1 .
+The
+.Fn pidfile_signal
+function was added in
+.Fx 14.0 .
 .Sh AUTHORS
 .An -nosplit
 The
