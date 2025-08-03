@@ -379,14 +379,15 @@ If
 is specified, then logins are only allowed during the periods given.
 If
 .Em times.deny
-is specified, then logins are denied during the periods given, regardless of whether
-one of the periods specified in
+is specified, then logins are denied during the periods given,
+regardless of whether one of the periods specified in
 .Em times.allow
 applies.
 .Pp
 Note that
 .Xr login 1
-enforces only that the actual login falls within periods allowed by these entries.
+enforces only that the actual login falls within periods allowed by
+these entries.
 Further enforcement over the life of a session requires a separate daemon to
 monitor transitions from an allowed period to a non-allowed one.
 .Pp
