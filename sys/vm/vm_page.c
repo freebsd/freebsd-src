@@ -394,11 +394,15 @@ vm_page_blacklist_load(char **list, char **end)
 		ptr = preload_fetch_addr(mod);
 		len = preload_fetch_size(mod);
         }
-	*list = ptr;
-	if (ptr != NULL)
+
+	if (ptr != NULL && len > 0) {
+		*list = ptr;
 		*end = ptr + len - 1;
-	else
+	} else {
+		*list = NULL;
 		*end = NULL;
+	}
+
 	return;
 }
 
