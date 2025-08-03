@@ -2710,18 +2710,23 @@ The behaviour of these options is described in the
 section of
 .Xr bridge 4 .
 .Bl -tag -width indent
-.It Cm vlanfilter Ar interface
-Enable VLAN filtering on an interface.
-.It Cm -vlanfilter Ar interface
-Disable VLAN filtering on an interface.
+.It Cm vlanfilter
+Enable VLAN filtering on the bridge.
+.It Cm -vlanfilter
+Disable VLAN filtering on the bridge.
+This is the default.
 .It Cm untagged Ar interface Ar vlan-id
 Set the untagged VLAN identifier for an interface.
-.Pp
-Setting
-.Cm untagged
-will automatically enable VLAN filtering on the interface.
 .It Cm -untagged Ar interface Ar vlan-id
 Clear the untagged VLAN identifier for an interface.
+.It Cm defuntagged Ar vlan-id
+Enable the
+.Cm untagged
+option by default on newly added members.
+.It Cm -defuntagged
+Do not enable the
+.Cm untagged
+option by default on newly added members.
 .It Cm tagged Ar interface Ar vlan-list
 Set the interface's VLAN access list to the provided list of VLANs.
 The list should be a comma-separated list of one or more VLAN IDs
@@ -2733,27 +2738,15 @@ meaning the empty set,
 or the value
 .Dq all
 meaning all VLANs (1-4094).
-.Pp
-Setting
-.Cm tagged
-will automatically enable VLAN filtering on the interface.
 .It Cm +tagged Ar interface Ar vlan-list
 Add the provided list of VLAN IDs to the interface's VLAN access list.
 The list should be formatted as described for
 .Cm tagged .
-.Pp
-Setting
-.Cm +tagged
-will automatically enable VLAN filtering on the interface.
 .It Cm -tagged Ar interface Ar vlan-list
 Remove the provided list of VLAN IDs from the interface's VLAN access
 list.
 The list should be formatted as described for
 .Cm tagged .
-.Pp
-Setting
-.Cm -tagged
-will automatically enable VLAN filtering on the interface.
 .El
 .Ss Link Aggregation and Link Failover Parameters
 The following parameters are specific to lagg interfaces:
