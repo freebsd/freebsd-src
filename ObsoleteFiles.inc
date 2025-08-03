@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250812: Remove a bogus manlink
+OLD_FILES+=usr/share/man/man3/quota_statfs.3.gz
+
 # 20250805: Test case renamed
 OLD_FILES+=usr/tests/usr.bin/xargs/regress.n2147483647.out
 
