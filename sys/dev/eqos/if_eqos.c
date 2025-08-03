@@ -117,7 +117,8 @@ eqos_miibus_readreg(device_t dev, int phy, int reg)
 	addr = sc->csr_clock_range |
 	    (phy << GMAC_MAC_MDIO_ADDRESS_PA_SHIFT) |
 	    (reg << GMAC_MAC_MDIO_ADDRESS_RDA_SHIFT) |
-	    GMAC_MAC_MDIO_ADDRESS_GOC_READ | GMAC_MAC_MDIO_ADDRESS_GB;
+	    GMAC_MAC_MDIO_ADDRESS_GOC_READ |
+	    GMAC_MAC_MDIO_ADDRESS_GB;
 	WR4(sc, GMAC_MAC_MDIO_ADDRESS, addr);
 
 	DELAY(100);
@@ -150,7 +151,8 @@ eqos_miibus_writereg(device_t dev, int phy, int reg, int val)
 	addr = sc->csr_clock_range |
 	    (phy << GMAC_MAC_MDIO_ADDRESS_PA_SHIFT) |
 	    (reg << GMAC_MAC_MDIO_ADDRESS_RDA_SHIFT) |
-	    GMAC_MAC_MDIO_ADDRESS_GOC_WRITE | GMAC_MAC_MDIO_ADDRESS_GB;
+	    GMAC_MAC_MDIO_ADDRESS_GOC_WRITE |
+	    GMAC_MAC_MDIO_ADDRESS_GB;
 	WR4(sc, GMAC_MAC_MDIO_ADDRESS, addr);
 
 	DELAY(100);
@@ -195,7 +197,7 @@ eqos_miibus_statchg(device_t dev)
 		reg |= GMAC_MAC_CONFIGURATION_FES;
 		break;
 	case IFM_1000_T:
-        case IFM_1000_SX:
+	case IFM_1000_SX:
 		reg &= ~GMAC_MAC_CONFIGURATION_PS;
 		reg &= ~GMAC_MAC_CONFIGURATION_FES;
 		break;
@@ -241,7 +243,7 @@ eqos_media_change(if_t ifp)
 	int error;
 
 	EQOS_LOCK(sc);
-	error = mii_mediachg(device_get_softc(sc->miibus)); 
+	error = mii_mediachg(device_get_softc(sc->miibus));
 	EQOS_UNLOCK(sc);
 	return (error);
 }
@@ -329,8 +331,8 @@ eqos_setup_rxdesc(struct eqos_softc *sc, int index, bus_addr_t paddr)
 	sc->rx.desc_ring[index].des1 = htole32((uint32_t)(paddr >> 32));
 	sc->rx.desc_ring[index].des2 = htole32(0);
 	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map, BUS_DMASYNC_PREWRITE);
-	sc->rx.desc_ring[index].des3 = htole32(EQOS_RDES3_OWN | EQOS_RDES3_IOC |
-	    EQOS_RDES3_BUF1V);
+	sc->rx.desc_ring[index].des3 =
+	    htole32(EQOS_RDES3_OWN | EQOS_RDES3_IOC | EQOS_RDES3_BUF1V);
 }
 
 static int
@@ -370,8 +372,10 @@ eqos_enable_intr(struct eqos_softc *sc)
 {
 
 	WR4(sc, GMAC_DMA_CHAN0_INTR_ENABLE,
-	    GMAC_DMA_CHAN0_INTR_ENABLE_NIE | GMAC_DMA_CHAN0_INTR_ENABLE_AIE |
-	    GMAC_DMA_CHAN0_INTR_ENABLE_FBE | GMAC_DMA_CHAN0_INTR_ENABLE_RIE |
+	    GMAC_DMA_CHAN0_INTR_ENABLE_NIE |
+	    GMAC_DMA_CHAN0_INTR_ENABLE_AIE |
+	    GMAC_DMA_CHAN0_INTR_ENABLE_FBE |
+	    GMAC_DMA_CHAN0_INTR_ENABLE_RIE |
 	    GMAC_DMA_CHAN0_INTR_ENABLE_TIE);
 }
 
@@ -437,8 +441,7 @@ eqos_setup_rxfilter(struct eqos_softc *sc)
 	eaddr = if_getlladdr(ifp);
 	val = eaddr[4] | (eaddr[5] << 8);
 	WR4(sc, GMAC_MAC_ADDRESS0_HIGH, val);
-	val = eaddr[0] | (eaddr[1] << 8) | (eaddr[2] << 16) |
-	    (eaddr[3] << 24);
+	val = eaddr[0] | (eaddr[1] << 8) | (eaddr[2] << 16) | (eaddr[3] << 24);
 	WR4(sc, GMAC_MAC_ADDRESS0_LOW, val);
 
 	/* Multicast hash filters */
@@ -726,8 +729,7 @@ eqos_rxintr(struct eqos_softc *sc)
 		if ((m = eqos_alloc_mbufcl(sc))) {
 			if ((error = eqos_setup_rxbuf(sc, sc->rx.head, m)))
 				printf("ERROR: Hole in RX ring!!\n");
-		}
-		else
+		} else
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
@@ -896,12 +898,10 @@ eqos_ioctl(if_t ifp, u_long cmd, caddr_t data)
 					eqos_setup_rxfilter(sc);
 					EQOS_UNLOCK(sc);
 				}
-			}
-			else {
+			} else {
 				eqos_init(sc);
 			}
-		}
-		else {
+		} else {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				eqos_stop(sc);
 		}
@@ -1008,39 +1008,55 @@ eqos_setup_dma(struct eqos_softc *sc)
 	int error, i;
 
 	/* Set up TX descriptor ring, descriptors, and dma maps */
-	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),
-					DESC_ALIGN, DESC_BOUNDARY,
-					BUS_SPACE_MAXADDR_32BIT,
-					BUS_SPACE_MAXADDR, NULL, NULL,
-					TX_DESC_SIZE, 1, TX_DESC_SIZE, 0,
-					NULL, NULL, &sc->tx.desc_tag))) {
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* Parent tag */
+	    DESC_ALIGN, DESC_BOUNDARY,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filterfunc, filterarg */
+	    TX_DESC_SIZE, 1,			/* maxsize, nsegs */
+	    TX_DESC_SIZE,			/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->tx.desc_tag);
+	if (error != 0) {
 		device_printf(sc->dev, "could not create TX ring DMA tag\n");
 		return (error);
 	}
 
-	if ((error = bus_dmamem_alloc(sc->tx.desc_tag,
+	error = bus_dmamem_alloc(sc->tx.desc_tag,
 	    (void**)&sc->tx.desc_ring,
 	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
-	    &sc->tx.desc_map))) {
+	    &sc->tx.desc_map);
+	if (error != 0) {
 		device_printf(sc->dev,
 		    "could not allocate TX descriptor ring.\n");
 		return (error);
 	}
 
-	if ((error = bus_dmamap_load(sc->tx.desc_tag, sc->tx.desc_map,
-	    sc->tx.desc_ring,
-	    TX_DESC_SIZE, eqos_get1paddr, &sc->tx.desc_ring_paddr, 0))) {
+
+	error = bus_dmamap_load(sc->tx.desc_tag, sc->tx.desc_map,
+	    sc->tx.desc_ring, TX_DESC_SIZE,
+	    eqos_get1paddr, &sc->tx.desc_ring_paddr,
+	    0);
+	if (error != 0) {
 		device_printf(sc->dev,
 		    "could not load TX descriptor ring map.\n");
 		return (error);
 	}
 
-	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
-					BUS_SPACE_MAXADDR_32BIT,
-					BUS_SPACE_MAXADDR, NULL, NULL,
-					MCLBYTES*TX_MAX_SEGS, TX_MAX_SEGS,
-					MCLBYTES, 0, NULL, NULL,
-					&sc->tx.buf_tag))) {
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* Parent tag */
+	    1, 0,				/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filterfunc, filterarg */
+	    MCLBYTES*TX_MAX_SEGS, TX_MAX_SEGS,	/* maxsize, nsegs */
+	    MCLBYTES,				/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->tx.buf_tag);
+	if (error != 0) {
 		device_printf(sc->dev, "could not create TX buffer DMA tag.\n");
 		return (error);
 	}
@@ -1055,39 +1071,54 @@ eqos_setup_dma(struct eqos_softc *sc)
 	}
 
 	/* Set up RX descriptor ring, descriptors, dma maps, and mbufs */
-	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),
-					DESC_ALIGN, DESC_BOUNDARY,
-					BUS_SPACE_MAXADDR_32BIT,
-					BUS_SPACE_MAXADDR, NULL, NULL,
-					RX_DESC_SIZE, 1, RX_DESC_SIZE, 0,
-					NULL, NULL, &sc->rx.desc_tag))) {
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* Parent tag */
+	    DESC_ALIGN, DESC_BOUNDARY,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filterfunc, filterarg */
+	    RX_DESC_SIZE, 1,			/* maxsize, nsegs */
+	    RX_DESC_SIZE,			/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->rx.desc_tag);
+	if (error != 0) {
 		device_printf(sc->dev, "could not create RX ring DMA tag.\n");
 		return (error);
 	}
 
-	if ((error = bus_dmamem_alloc(sc->rx.desc_tag,
+	error = bus_dmamem_alloc(sc->rx.desc_tag,
 	    (void **)&sc->rx.desc_ring,
 	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
-	    &sc->rx.desc_map))) {
+	    &sc->rx.desc_map);
+	if (error != 0) {
 		device_printf(sc->dev,
 		    "could not allocate RX descriptor ring.\n");
 		return (error);
 	}
 
-	if ((error = bus_dmamap_load(sc->rx.desc_tag, sc->rx.desc_map,
-	    sc->rx.desc_ring, RX_DESC_SIZE, eqos_get1paddr,
-	    &sc->rx.desc_ring_paddr, 0))) {
+	error = bus_dmamap_load(sc->rx.desc_tag, sc->rx.desc_map,
+	    sc->rx.desc_ring, RX_DESC_SIZE,
+	    eqos_get1paddr, &sc->rx.desc_ring_paddr,
+	    0);
+	if (error != 0) {
 		device_printf(sc->dev,
 		    "could not load RX descriptor ring map.\n");
 		return (error);
 	}
 
-	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
-					BUS_SPACE_MAXADDR_32BIT,
-					BUS_SPACE_MAXADDR, NULL, NULL,
-					MCLBYTES, 1,
-					MCLBYTES, 0, NULL, NULL,
-					&sc->rx.buf_tag))) {
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* Parent tag */
+	    1, 0,				/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filterfunc, filterarg */
+	    MCLBYTES, 1,			/* maxsize, nsegs */
+	    MCLBYTES,				/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->rx.buf_tag);
+	if (error != 0) {
 		device_printf(sc->dev, "could not create RX buf DMA tag.\n");
 		return (error);
 	}
