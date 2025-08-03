@@ -300,6 +300,8 @@ struct bridge_softc {
 	struct ether_addr	sc_defaddr;	/* Default MAC address */
 	if_input_fn_t		sc_if_input;	/* Saved copy of if_input */
 	struct epoch_context	sc_epoch_ctx;
+	ifbr_flags_t		sc_flags;	/* bridge flags */
+	ether_vlanid_t		sc_defpvid;	/* default PVID */
 };
 
 VNET_DEFINE_STATIC(struct sx, bridge_list_sx);
@@ -417,6 +419,10 @@ static int	bridge_ioctl_grte(struct bridge_softc *, void *);
 static int	bridge_ioctl_gifsstp(struct bridge_softc *, void *);
 static int	bridge_ioctl_sproto(struct bridge_softc *, void *);
 static int	bridge_ioctl_stxhc(struct bridge_softc *, void *);
+static int	bridge_ioctl_gflags(struct bridge_softc *, void *);
+static int	bridge_ioctl_sflags(struct bridge_softc *, void *);
+static int	bridge_ioctl_gdefpvid(struct bridge_softc *, void *);
+static int	bridge_ioctl_sdefpvid(struct bridge_softc *, void *);
 static int	bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *,
 		    int);
 #ifdef INET
@@ -636,6 +642,18 @@ static const struct bridge_control bridge_control_table[] = {
 
 	{ bridge_ioctl_gifvlanset,	sizeof(struct ifbif_vlan_req),
 	  BC_F_COPYIN|BC_F_COPYOUT },
+
+	{ bridge_ioctl_gflags,		sizeof(struct ifbrparam),
+	  BC_F_COPYOUT },
+
+	{ bridge_ioctl_sflags,		sizeof(struct ifbrparam),
+	  BC_F_COPYIN|BC_F_SUSER },
+
+	{ bridge_ioctl_gdefpvid,	sizeof(struct ifbrparam),
+	  BC_F_COPYOUT },
+
+	{ bridge_ioctl_sdefpvid,	sizeof(struct ifbrparam),
+	  BC_F_COPYIN|BC_F_SUSER },
 };
 static const int bridge_control_table_size = nitems(bridge_control_table);
 
@@ -1476,6 +1494,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	bif->bif_ifp = ifs;
 	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
 	bif->bif_savedcaps = ifs->if_capenable;
+	if (sc->sc_flags & IFBRF_VLANFILTER)
+		bif->bif_pvid = sc->sc_defpvid;
 
 	/*
 	 * Assign the interface's MAC address to the bridge if it's the first
@@ -1941,6 +1961,9 @@ bridge_ioctl_sifpvid(struct bridge_softc *sc, void *arg)
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
 
+	if ((sc->sc_flags & IFBRF_VLANFILTER) == 0)
+		return (EXTERROR(EINVAL, "VLAN filtering not enabled"));
+
 	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
 	if (bif == NULL)
 		return (EXTERROR(ENOENT, "Interface is not a bridge member"));
@@ -1948,8 +1971,6 @@ bridge_ioctl_sifpvid(struct bridge_softc *sc, void *arg)
 	if (req->ifbr_pvid > DOT1Q_VID_MAX)
 		return (EXTERROR(EINVAL, "Invalid VLAN ID"));
 
-	if (req->ifbr_pvid != DOT1Q_VID_NULL)
-		bif->bif_flags |= IFBIF_VLANFILTER;
 	bif->bif_pvid = req->ifbr_pvid;
 	return (0);
 }
@@ -1959,6 +1980,9 @@ bridge_ioctl_sifvlanset(struct bridge_softc *sc, void *arg)
 {
 	struct ifbif_vlan_req *req = arg;
 	struct bridge_iflist *bif;
+
+	if ((sc->sc_flags & IFBRF_VLANFILTER) == 0)
+		return (EXTERROR(EINVAL, "VLAN filtering not enabled"));
 
 	bif = bridge_lookup_member(sc, req->bv_ifname);
 	if (bif == NULL)
@@ -1990,12 +2014,6 @@ bridge_ioctl_sifvlanset(struct bridge_softc *sc, void *arg)
 		return (EXTERROR(EINVAL,
 		    "Unsupported BRDGSIFVLANSET operation"));
 	}
-
-	/*
-	 * The only reason to modify the VLAN access list is to use VLAN
-	 * filtering on this interface, so enable it automatically.
-	 */
-	bif->bif_flags |= IFBIF_VLANFILTER;
 
 	return (0);
 }
@@ -2190,6 +2208,50 @@ bridge_ioctl_stxhc(struct bridge_softc *sc, void *arg)
 	return (bstp_set_holdcount(&sc->sc_stp, param->ifbrp_txhc));
 }
 
+static int
+bridge_ioctl_gflags(struct bridge_softc *sc, void *arg)
+{
+	struct ifbrparam *param = arg;
+
+	param->ifbrp_flags = sc->sc_flags;
+
+	return (0);
+}
+
+static int
+bridge_ioctl_sflags(struct bridge_softc *sc, void *arg)
+{
+	struct ifbrparam *param = arg;
+
+	sc->sc_flags = param->ifbrp_flags;
+
+	return (0);
+}
+
+static int
+bridge_ioctl_gdefpvid(struct bridge_softc *sc, void *arg)
+{
+	struct ifbrparam *param = arg;
+
+	param->ifbrp_defpvid = sc->sc_defpvid;
+
+	return (0);
+}
+
+static int
+bridge_ioctl_sdefpvid(struct bridge_softc *sc, void *arg)
+{
+	struct ifbrparam *param = arg;
+
+	/* Reject invalid VIDs, but allow 0 to mean 'none'. */
+	if (param->ifbrp_defpvid > DOT1Q_VID_MAX)
+		return (EINVAL);
+
+	sc->sc_defpvid = param->ifbrp_defpvid;
+
+	return (0);
+}
+
 /*
  * bridge_ifdetach:
  *
@@ -2325,7 +2387,7 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 		 * outgoing interface matches the VLAN ID of the frame, remove
 		 * the VLAN header.
 		 */
-		if ((bif->bif_flags & IFBIF_VLANFILTER) &&
+		if ((sc->sc_flags & IFBRF_VLANFILTER) &&
 		    bif->bif_pvid != DOT1Q_VID_NULL &&
 		    VLANTAGOF(m) == bif->bif_pvid) {
 			m->m_flags &= ~M_VLANTAG;
@@ -3185,7 +3247,7 @@ bridge_vfilter_in(const struct bridge_iflist *sbif, struct mbuf *m)
 		return (false);
 
 	/* If VLAN filtering isn't enabled, pass everything. */
-	if ((sbif->bif_flags & IFBIF_VLANFILTER) == 0)
+	if ((sbif->bif_sc->sc_flags & IFBRF_VLANFILTER) == 0)
 		return (true);
 
 	if (vlan == DOT1Q_VID_NULL) {
@@ -3231,7 +3293,7 @@ bridge_vfilter_out(const struct bridge_iflist *dbif, const struct mbuf *m)
 	NET_EPOCH_ASSERT();
 
 	/* If VLAN filtering isn't enabled, pass everything. */
-	if ((dbif->bif_flags & IFBIF_VLANFILTER) == 0)
+	if ((dbif->bif_sc->sc_flags & IFBRF_VLANFILTER) == 0)
 		return (true);
 
 	vlan = VLANTAGOF(m);
