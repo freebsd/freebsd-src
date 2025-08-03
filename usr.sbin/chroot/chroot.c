@@ -47,17 +47,58 @@
 
 static void usage(void) __dead2;
 
+static gid_t
+resolve_group(const char *group)
+{
+	char *endp;
+	struct group *gp;
+	unsigned long gid;
+
+	gp = getgrnam(group);
+	if (gp != NULL)
+		return (gp->gr_gid);
+
+	/*
+	 * Numeric IDs don't need a trip through the database to check them,
+	 * POSIX seems to think we should generally accept a numeric ID as long
+	 * as it's within the valid range.
+	 */
+	errno = 0;
+	gid = strtoul(group, &endp, 0);
+	if (errno == 0 && *endp == '\0' && (gid_t)gid >= 0 && gid <= GID_MAX)
+		return (gid);
+
+	errx(1, "no such group '%s'", group);
+}
+
+static uid_t
+resolve_user(const char *user)
+{
+	char *endp;
+	struct passwd *pw;
+	unsigned long uid;
+
+	pw = getpwnam(user);
+	if (pw != NULL)
+		return (pw->pw_uid);
+
+	errno = 0;
+	uid = strtoul(user, &endp, 0);
+	if (errno == 0 && *endp == '\0' && (uid_t)uid >= 0 && uid <= UID_MAX)
+		return (uid);
+
+	errx(1, "no such user '%s'", user);
+}
+
 int
 main(int argc, char *argv[])
 {
-	struct group	*gp;
-	struct passwd	*pw;
-	char		*endp, *p, *user, *group, *grouplist;
-	const char	*shell;
+	const char	*group, *p, *shell, *user;
+	char		*grouplist;
+	long		ngroups_max;
 	gid_t		gid, *gidlist;
 	uid_t		uid;
 	int		arg, ch, error, gids;
-	long		ngroups_max;
 	bool		nonprivileged;
 
 	gid = 0;
@@ -95,19 +136,8 @@ main(int argc, char *argv[])
 	if (argc < 1)
 		usage();
 
-	if (group != NULL) {
-		if (isdigit((unsigned char)*group)) {
-			gid = (gid_t)strtoul(group, &endp, 0);
-			if (*endp != '\0')
-				goto getgroup;
-		} else {
- getgroup:
-			if ((gp = getgrnam(group)) != NULL)
-				gid = gp->gr_gid;
-			else
-				errx(1, "no such group `%s'", group);
-		}
-	}
+	if (group != NULL)
+		gid = resolve_group(group);
 
 	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
 	if ((gidlist = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
@@ -122,35 +152,13 @@ main(int argc, char *argv[])
 		if (*p == '\0')
 			continue;
 
-		if (isdigit((unsigned char)*p)) {
-			gidlist[gids] = (gid_t)strtoul(p, &endp, 0);
-			if (*endp != '\0')
-				goto getglist;
-		} else {
- getglist:
-			if ((gp = getgrnam(p)) != NULL)
-				gidlist[gids] = gp->gr_gid;
-			else
-				errx(1, "no such group `%s'", p);
-		}
-		gids++;
+		gidlist[gids++] = resolve_group(p);
 	}
 	if (p != NULL && gids == ngroups_max)
 		errx(1, "too many supplementary groups provided");
 
-	if (user != NULL) {
-		if (isdigit((unsigned char)*user)) {
-			uid = (uid_t)strtoul(user, &endp, 0);
-			if (*endp != '\0')
-				goto getuser;
-		} else {
- getuser:
-			if ((pw = getpwnam(user)) != NULL)
-				uid = pw->pw_uid;
-			else
-				errx(1, "no such user `%s'", user);
-		}
-	}
+	if (user != NULL)
+		uid = resolve_user(user);
 
 	if (nonprivileged) {
 		arg = PROC_NO_NEW_PRIVS_ENABLE;
