@@ -106,8 +106,8 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 	const struct addrinfo *ai;
 	int ret;
 
-	keys_add(response_keys, "TargetName", targ->t_name);
-	for (const port *port : targ->t_ports) {
+	keys_add(response_keys, "TargetName", targ->name());
+	for (const port *port : targ->ports()) {
 	    const struct portal_group *pg = port->portal_group();
 	    if (pg == nullptr)
 		continue;
@@ -157,7 +157,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	targ = port->target();
 	ag = port->auth_group();
 	if (ag == nullptr)
-		ag = targ->t_auth_group.get();
+		ag = targ->auth_group();
 	pg = conn->conn_portal->portal_group();
 
 	assert(pg->discovery_filter() != discovery_filter::UNKNOWN);
@@ -165,14 +165,14 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	if (pg->discovery_filter() >= discovery_filter::PORTAL &&
 	    !ag->initiator_permitted(conn->conn_initiator_sa)) {
 		log_debugx("initiator does not match initiator portals "
-		    "allowed for target \"%s\"; skipping", targ->t_name);
+		    "allowed for target \"%s\"; skipping", targ->name());
 		return (true);
 	}
 
 	if (pg->discovery_filter() >= discovery_filter::PORTAL_NAME &&
 	    !ag->initiator_permitted(conn->conn_initiator_name)) {
 		log_debugx("initiator does not match initiator names "
-		    "allowed for target \"%s\"; skipping", targ->t_name);
+		    "allowed for target \"%s\"; skipping", targ->name());
 		return (true);
 	}
 
@@ -183,7 +183,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 			    auth_type::NO_AUTHENTICATION);
 
 			log_debugx("initiator didn't authenticate, but target "
-			    "\"%s\" requires CHAP; skipping", targ->t_name);
+			    "\"%s\" requires CHAP; skipping", targ->name());
 			return (true);
 		}
 
@@ -191,7 +191,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 		auth = ag->find_auth(conn->conn_user);
 		if (auth == NULL) {
 			log_debugx("CHAP user \"%s\" doesn't match target "
-			    "\"%s\"; skipping", conn->conn_user, targ->t_name);
+			    "\"%s\"; skipping", conn->conn_user, targ->name());
 			return (true);
 		}
 
@@ -199,7 +199,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 		if (error != 0) {
 			log_debugx("password for CHAP user \"%s\" doesn't "
 			    "match target \"%s\"; skipping",
-			    conn->conn_user, targ->t_name);
+			    conn->conn_user, targ->name());
 			return (true);
 		}
 	}

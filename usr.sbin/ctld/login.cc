@@ -722,12 +722,12 @@ login_target_redirect(struct ctld_connection *conn, struct pdu *request)
 	if (conn->conn_target == NULL)
 		return (false);
 
-	target_address = conn->conn_target->t_redirection;
-	if (target_address == NULL)
+	if (!conn->conn_target->has_redirection())
 		return (false);
 
+	target_address = conn->conn_target->redirection();
 	log_debugx("target \"%s\" configured to redirect to %s",
-	  conn->conn_target->t_name, target_address);
+	  conn->conn_target->name(), target_address);
 	login_redirect(request, target_address);
 
 	return (true);
@@ -821,9 +821,9 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 
 	if (skipped_security &&
 	    conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		if (conn->conn_target->t_alias != NULL)
+		if (conn->conn_target->has_alias())
 			keys_add(response_keys,
-			    "TargetAlias", conn->conn_target->t_alias);
+			    "TargetAlias", conn->conn_target->alias());
 		keys_add_int(response_keys, "TargetPortalGroupTag",
 		    pg->tag());
 	}
@@ -988,15 +988,15 @@ login(struct ctld_connection *conn)
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
 		ag = conn->conn_port->auth_group();
 		if (ag == nullptr)
-			ag = conn->conn_target->t_auth_group.get();
+			ag = conn->conn_target->auth_group();
 		if (conn->conn_port->auth_group() == nullptr &&
-		    conn->conn_target->t_private_auth) {
+		    conn->conn_target->private_auth()) {
 			log_debugx("initiator requests to connect "
-			    "to target \"%s\"", conn->conn_target->t_name);
+			    "to target \"%s\"", conn->conn_target->name());
 		} else {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"; %s",
-			    conn->conn_target->t_name, ag->label());
+			    conn->conn_target->name(), ag->label());
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
@@ -1083,9 +1083,9 @@ login(struct ctld_connection *conn)
 		}
 	}
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		if (conn->conn_target->t_alias != NULL)
+		if (conn->conn_target->has_alias())
 			keys_add(response_keys,
-			    "TargetAlias", conn->conn_target->t_alias);
+			    "TargetAlias", conn->conn_target->alias());
 		keys_add_int(response_keys,
 		    "TargetPortalGroupTag", pg->tag());
 	}
