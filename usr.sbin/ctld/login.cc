@@ -41,7 +41,7 @@
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl_ioctl.h>
 
-#include "ctld.h"
+#include "ctld.hh"
 #include "iscsi_proto.h"
 
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)

@@ -42,7 +42,7 @@
 #include <netinet/ip.h>
 
 #include "conf.h"
-#include "ctld.h"
+#include "ctld.hh"
 
 static bool uclparse_toplevel(const ucl_object_t *);
 static bool uclparse_chap(const char *, const ucl_object_t *);
