@@ -9,6 +9,7 @@
 #define	__LIBUTILPP_HH__
 
 #include <netdb.h>
+#include <unistd.h>
 
 #include <cstdarg>
 #include <cstdio>
@@ -42,6 +43,76 @@ namespace freebsd {
 	};
 
 	using addrinfo_up = std::unique_ptr<addrinfo, freeaddrinfo_deleter>;
+
+	/*
+	 * This class is intended to function similar to unique_ptr<>,
+	 * but it contains a file descriptor rather than a pointer to
+	 * an object.  On destruction the descriptor is closed via
+	 * close(2).
+	 *
+	 * Similar to unique_ptr<>, release() returns ownership of the
+	 * file descriptor to the caller.  reset() closes the current
+	 * file descriptor and takes ownership of a new one.  A move
+	 * constructor permits ownership to be transferred via
+	 * std::move().  An integer file descriptor can be assigned
+	 * directly which is equivalent to calling reset().
+	 *
+	 * An explicit bool conversion operator permits testing this
+	 * class in logical expressions.  It returns true if it
+	 * contains a valid descriptor.
+	 *
+	 * An implicit int conversion operator returns the underlying
+	 * file descriptor allowing objects of this type to be passed
+	 * directly to APIs such as connect(), listen(), etc.
+	 */
+	class fd_up {
+	public:
+		fd_up() : fd(-1) {}
+		fd_up(int fd) : fd(fd) {}
+		fd_up(fd_up &&other) : fd(other.release()) {}
+		fd_up(fd_up const &) = delete;
+
+		~fd_up() { reset(); }
+
+		int get() const { return (fd); }
+
+		int release()
+		{
+			int oldfd = fd;
+
+			fd = -1;
+			return (oldfd);
+		}
+
+		void reset(int newfd = -1)
+		{
+			if (fd >= 0)
+				close(fd);
+			fd = newfd;
+		}
+
+		fd_up &operator=(fd_up &&other) noexcept
+		{
+			if (this == &other)
+				return *this;
+
+			reset(other.release());
+			return *this;
+		}
+
+		fd_up &operator=(fd_up const &) = delete;
+
+		fd_up &operator=(int newfd)
+		{
+			reset(newfd);
+			return *this;
+		}
+
+		explicit operator bool() const { return fd >= 0; }
+		operator int() const { return fd; }
+	private:
+		int	fd;
+	};
 
 	/*
 	 * malloc_up<T> is a std::unique_ptr<> which uses free() to
