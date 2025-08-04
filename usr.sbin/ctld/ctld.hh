@@ -195,6 +195,7 @@ struct target {
 	char				*t_redirection;
 	/* Name of this target's physical port, if any, i.e. "isp0" */
 	char				*t_pport;
+	bool				t_private_auth;
 };
 
 struct isns {

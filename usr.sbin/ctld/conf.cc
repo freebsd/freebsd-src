@@ -519,7 +519,7 @@ static bool
 target_use_private_auth(const char *keyword)
 {
 	if (target->t_auth_group != NULL) {
-		if (target->t_auth_group->ag_name != NULL) {
+		if (!target->t_private_auth) {
 			log_warnx("cannot use both auth-group and "
 			    "%s for target \"%s\"", keyword, target->t_name);
 			return (false);
@@ -528,6 +528,7 @@ target_use_private_auth(const char *keyword)
 		target->t_auth_group = auth_group_new(conf, target);
 		if (target->t_auth_group == NULL)
 			return (false);
+		target->t_private_auth = true;
 	}
 	return (true);
 }
@@ -644,12 +645,12 @@ bool
 target_set_auth_group(const char *name)
 {
 	if (target->t_auth_group != NULL) {
-		if (target->t_auth_group->ag_name != NULL)
-			log_warnx("auth-group for target \"%s\" "
-			    "specified more than once", target->t_name);
-		else
+		if (target->t_private_auth)
 			log_warnx("cannot use both auth-group and explicit "
 			    "authorisations for target \"%s\"", target->t_name);
+		else
+			log_warnx("auth-group for target \"%s\" "
+			    "specified more than once", target->t_name);
 		return (false);
 	}
 	target->t_auth_group = auth_group_find(conf, name);
