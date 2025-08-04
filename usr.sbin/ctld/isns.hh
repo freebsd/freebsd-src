@@ -71,7 +71,9 @@ struct isns_tlv {
 
 struct isns_req {
 	isns_req() {}
-	isns_req(uint16_t func, uint16_t flags);
+	isns_req(uint16_t func, uint16_t flags, const char *descr);
+
+	const char *descr() const { return ir_descr; }
 
 	void add(uint32_t tag, uint32_t len, const void *value);
 	void add_delim();
@@ -87,6 +89,7 @@ private:
 	void append(const void *buf, size_t len);
 
 	std::vector<char> ir_buf;
+	const char *ir_descr;
 };
 
 #endif /* __ISNS_HH__ */

@@ -103,7 +103,6 @@ conf_new(void)
 	conf = new struct conf();
 	TAILQ_INIT(&conf->conf_luns);
 	TAILQ_INIT(&conf->conf_targets);
-	TAILQ_INIT(&conf->conf_isns);
 
 	conf->conf_isns_period = 900;
 	conf->conf_isns_timeout = 5;
@@ -119,7 +118,6 @@ conf_delete(struct conf *conf)
 {
 	struct lun *lun, *ltmp;
 	struct target *targ, *tmp;
-	struct isns *is, *istmp;
 
 	assert(conf->conf_pidfh == NULL);
 
@@ -127,8 +125,6 @@ conf_delete(struct conf *conf)
 		lun_delete(lun);
 	TAILQ_FOREACH_SAFE(targ, &conf->conf_targets, t_next, tmp)
 		target_delete(targ);
-	TAILQ_FOREACH_SAFE(is, &conf->conf_isns, i_next, istmp)
-		isns_delete(is);
 	free(conf->conf_pidfile_path);
 	delete conf;
 }
@@ -769,19 +765,14 @@ portal_group::close_sockets()
 bool
 isns_new(struct conf *conf, const char *addr)
 {
-	struct isns *isns;
+	if (conf->conf_isns.count(addr) > 0) {
+		log_warnx("duplicate iSNS address %s", addr);
+		return (false);
+	}
 
-	isns = reinterpret_cast<struct isns *>(calloc(1, sizeof(*isns)));
-	if (isns == NULL)
-		log_err(1, "calloc");
-	isns->i_conf = conf;
-	TAILQ_INSERT_TAIL(&conf->conf_isns, isns, i_next);
-	isns->i_addr = checked_strdup(addr);
-
-	freebsd::addrinfo_up ai = parse_addr_port(isns->i_addr, "3205");
+	freebsd::addrinfo_up ai = parse_addr_port(addr, "3205");
 	if (!ai) {
-		log_warnx("invalid iSNS address %s", isns->i_addr);
-		isns_delete(isns);
+		log_warnx("invalid iSNS address %s", addr);
 		return (false);
 	}
 
@@ -790,49 +781,54 @@ isns_new(struct conf *conf, const char *addr)
 	 *	those into multiple servers.
 	 */
 
-	isns->i_ai = ai.release();
+	conf->conf_isns.emplace(addr, isns(addr, std::move(ai)));
 	return (true);
 }
 
-void
-isns_delete(struct isns *isns)
+freebsd::fd_up
+isns::connect()
 {
+	freebsd::fd_up s;
 
-	TAILQ_REMOVE(&isns->i_conf->conf_isns, isns, i_next);
-	free(isns->i_addr);
-	if (isns->i_ai != NULL)
-		freeaddrinfo(isns->i_ai);
-	free(isns);
+	s = socket(i_ai->ai_family, i_ai->ai_socktype, i_ai->ai_protocol);
+	if (!s) {
+		log_warn("socket(2) failed for %s", addr());
+		return (s);
+	}
+	if (::connect(s, i_ai->ai_addr, i_ai->ai_addrlen)) {
+		log_warn("connect(2) failed for %s", addr());
+		s.reset();
+	}
+	return (s);
 }
 
-static int
-isns_do_connect(struct isns *isns)
+bool
+isns::send_request(int s, struct isns_req req)
 {
-	int s;
-
-	s = socket(isns->i_ai->ai_family, isns->i_ai->ai_socktype,
-	    isns->i_ai->ai_protocol);
-	if (s < 0) {
-		log_warn("socket(2) failed for %s", isns->i_addr);
-		return (-1);
+	if (!req.send(s)) {
+		log_warn("send(2) failed for %s", addr());
+		return (false);
 	}
-	if (connect(s, isns->i_ai->ai_addr, isns->i_ai->ai_addrlen)) {
-		log_warn("connect(2) failed for %s", isns->i_addr);
-		close(s);
-		return (-1);
+	if (!req.receive(s)) {
+		log_warn("receive(2) failed for %s", addr());
+		return (false);
 	}
-	return(s);
+	uint32_t error = req.get_status();
+	if (error != 0) {
+		log_warnx("iSNS %s error %u for %s", req.descr(), error,
+		    addr());
+		return (false);
+	}
+	return (true);
 }
 
-static void
-isns_do_register(struct isns *isns, int s, const char *hostname)
+static struct isns_req
+isns_register_request(struct conf *conf, const char *hostname)
 {
-	struct conf *conf = isns->i_conf;
 	struct target *target;
 	const struct portal_group *pg;
-	uint32_t error;
 
-	isns_req req(ISNS_FUNC_DEVATTRREG, ISNS_FLAG_CLIENT);
+	isns_req req(ISNS_FUNC_DEVATTRREG, ISNS_FLAG_CLIENT, "register");
 	req.add_str(32, TAILQ_FIRST(&conf->conf_targets)->t_name);
 	req.add_delim();
 	req.add_str(1, hostname);
@@ -864,84 +860,43 @@ isns_do_register(struct isns *isns, int s, const char *hostname)
 			}
 		}
 	}
-	if (!req.send(s)) {
-		log_warn("send(2) failed for %s", isns->i_addr);
-		return;
-	}
-	if (!req.receive(s)) {
-		log_warn("receive(2) failed for %s", isns->i_addr);
-		return;
-	}
-	error = req.get_status();
-	if (error != 0) {
-		log_warnx("iSNS register error %d for %s", error, isns->i_addr);
-	}
+	return (req);
 }
 
-static bool
-isns_do_check(struct isns *isns, int s, const char *hostname)
+static struct isns_req
+isns_check_request(struct conf *conf, const char *hostname)
 {
-	struct conf *conf = isns->i_conf;
-	uint32_t error;
-
-	isns_req req(ISNS_FUNC_DEVATTRQRY, ISNS_FLAG_CLIENT);
+	isns_req req(ISNS_FUNC_DEVATTRQRY, ISNS_FLAG_CLIENT, "check");
 	req.add_str(32, TAILQ_FIRST(&conf->conf_targets)->t_name);
 	req.add_str(1, hostname);
 	req.add_delim();
 	req.add(2, 0, NULL);
-	if (!req.send(s)) {
-		log_warn("send(2) failed for %s", isns->i_addr);
-		return (false);
-	}
-	if (!req.receive(s)) {
-		log_warn("receive(2) failed for %s", isns->i_addr);
-		return (false);
-	}
-	error = req.get_status();
-	if (error != 0) {
-		log_warnx("iSNS check error %d for %s", error, isns->i_addr);
-		return (false);
-	}
-	return (true);
+	return (req);
 }
 
-static void
-isns_do_deregister(struct isns *isns, int s, const char *hostname)
+static struct isns_req
+isns_deregister_request(struct conf *conf, const char *hostname)
 {
-	struct conf *conf = isns->i_conf;
-	uint32_t error;
-
-	isns_req req(ISNS_FUNC_DEVDEREG, ISNS_FLAG_CLIENT);
+	isns_req req(ISNS_FUNC_DEVDEREG, ISNS_FLAG_CLIENT, "deregister");
 	req.add_str(32, TAILQ_FIRST(&conf->conf_targets)->t_name);
 	req.add_delim();
 	req.add_str(1, hostname);
-	if (!req.send(s)) {
-		log_warn("send(2) failed for %s", isns->i_addr);
-		return;
-	}
-	if (!req.receive(s)) {
-		log_warn("receive(2) failed for %s", isns->i_addr);
-		return;
-	}
-	error = req.get_status();
-	if (error != 0) {
-		log_warnx("iSNS deregister error %d for %s", error, isns->i_addr);
-	}
+	return (req);
 }
 
 void
-isns_register(struct isns *isns, struct isns *oldisns)
+isns_register_targets(struct conf *conf, struct isns *isns,
+    struct conf *oldconf)
 {
-	struct conf *conf = isns->i_conf;
-	int error, s;
+	int error;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
 	    conf->conf_portal_groups.empty())
 		return;
 	set_timeout(conf->conf_isns_timeout, false);
-	s = isns_do_connect(isns);
-	if (s < 0) {
+	freebsd::fd_up s = isns->connect();
+	if (!s) {
 		set_timeout(0, false);
 		return;
 	}
@@ -949,27 +904,26 @@ isns_register(struct isns *isns, struct isns *oldisns)
 	if (error != 0)
 		log_err(1, "gethostname");
 
-	if (oldisns == NULL || TAILQ_EMPTY(&oldisns->i_conf->conf_targets))
-		oldisns = isns;
-	isns_do_deregister(oldisns, s, hostname);
-	isns_do_register(isns, s, hostname);
-	close(s);
+	if (oldconf == NULL || TAILQ_EMPTY(&oldconf->conf_targets))
+		oldconf = conf;
+	isns->send_request(s, isns_deregister_request(oldconf, hostname));
+	isns->send_request(s, isns_register_request(conf, hostname));
+	s.reset();
 	set_timeout(0, false);
 }
 
 void
-isns_check(struct isns *isns)
+isns_check(struct conf *conf, struct isns *isns)
 {
-	struct conf *conf = isns->i_conf;
-	int error, s;
+	int error;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
 	    conf->conf_portal_groups.empty())
 		return;
 	set_timeout(conf->conf_isns_timeout, false);
-	s = isns_do_connect(isns);
-	if (s < 0) {
+	freebsd::fd_up s = isns->connect();
+	if (!s) {
 		set_timeout(0, false);
 		return;
 	}
@@ -977,34 +931,33 @@ isns_check(struct isns *isns)
 	if (error != 0)
 		log_err(1, "gethostname");
 
-	if (!isns_do_check(isns, s, hostname)) {
-		isns_do_deregister(isns, s, hostname);
-		isns_do_register(isns, s, hostname);
+	if (!isns->send_request(s, isns_check_request(conf, hostname))) {
+		isns->send_request(s, isns_deregister_request(conf, hostname));
+		isns->send_request(s, isns_register_request(conf, hostname));
 	}
-	close(s);
+	s.reset();
 	set_timeout(0, false);
 }
 
 void
-isns_deregister(struct isns *isns)
+isns_deregister_targets(struct conf *conf, struct isns *isns)
 {
-	struct conf *conf = isns->i_conf;
-	int error, s;
+	int error;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
 	    conf->conf_portal_groups.empty())
 		return;
 	set_timeout(conf->conf_isns_timeout, false);
-	s = isns_do_connect(isns);
-	if (s < 0)
+	freebsd::fd_up s = isns->connect();
+	if (!s)
 		return;
 	error = gethostname(hostname, sizeof(hostname));
 	if (error != 0)
 		log_err(1, "gethostname");
 
-	isns_do_deregister(isns, s, hostname);
-	close(s);
+	isns->send_request(s, isns_deregister_request(conf, hostname));
+	s.reset();
 	set_timeout(0, false);
 }
 
@@ -1608,7 +1561,6 @@ static int
 conf_apply(struct conf *oldconf, struct conf *newconf)
 {
 	struct lun *oldlun, *newlun, *tmplun;
-	struct isns *oldns, *newns;
 	int changed, cumulated_error = 0, error;
 
 	if (oldconf->conf_debug != newconf->conf_debug) {
@@ -1653,13 +1605,9 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	}
 
 	/* Deregister on removed iSNS servers. */
-	TAILQ_FOREACH(oldns, &oldconf->conf_isns, i_next) {
-		TAILQ_FOREACH(newns, &newconf->conf_isns, i_next) {
-			if (strcmp(oldns->i_addr, newns->i_addr) == 0)
-				break;
-		}
-		if (newns == NULL)
-			isns_deregister(oldns);
+	for (auto &kv : oldconf->conf_isns) {
+		if (newconf->conf_isns.count(kv.first) == 0)
+			isns_deregister_targets(oldconf, &kv.second);
 	}
 
 	/*
@@ -1856,16 +1804,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	}
 
 	/* (Re-)Register on remaining/new iSNS servers. */
-	TAILQ_FOREACH(newns, &newconf->conf_isns, i_next) {
-		TAILQ_FOREACH(oldns, &oldconf->conf_isns, i_next) {
-			if (strcmp(oldns->i_addr, newns->i_addr) == 0)
-				break;
-		}
-		isns_register(newns, oldns);
+	for (auto &kv : newconf->conf_isns) {
+		auto it = oldconf->conf_isns.find(kv.first);
+		if (it == oldconf->conf_isns.end())
+			isns_register_targets(newconf, &kv.second, nullptr);
+		else
+			isns_register_targets(newconf, &kv.second, oldconf);
 	}
 
 	/* Schedule iSNS update */
-	if (!TAILQ_EMPTY(&newconf->conf_isns))
+	if (!newconf->conf_isns.empty())
 		set_timeout((newconf->conf_isns_period + 2) / 3, false);
 
 	return (cumulated_error);
@@ -2316,7 +2264,6 @@ main(int argc, char **argv)
 {
 	struct kports kports;
 	struct conf *oldconf, *newconf, *tmpconf;
-	struct isns *newns;
 	const char *config_path = DEFAULT_CONFIG_PATH;
 	int debug = 0, ch, error;
 	pid_t otherpid;
@@ -2416,7 +2363,7 @@ main(int argc, char **argv)
 	pidfile_write(newconf->conf_pidfh);
 
 	/* Schedule iSNS update */
-	if (!TAILQ_EMPTY(&newconf->conf_isns))
+	if (!newconf->conf_isns.empty())
 		set_timeout((newconf->conf_isns_period + 2) / 3, false);
 
 	for (;;) {
@@ -2475,10 +2422,11 @@ main(int argc, char **argv)
 			assert(nchildren >= 0);
 			if (timed_out()) {
 				set_timeout(0, false);
-				TAILQ_FOREACH(newns, &newconf->conf_isns, i_next)
-					isns_check(newns);
+				for (auto &kv : newconf->conf_isns)
+					isns_check(newconf, &kv.second);
+
 				/* Schedule iSNS update */
-				if (!TAILQ_EMPTY(&newconf->conf_isns)) {
+				if (!newconf->conf_isns.empty()) {
 					set_timeout((newconf->conf_isns_period
 					    + 2) / 3,
 					    false);
