@@ -226,57 +226,18 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 bool
 auth_name_new(struct auth_group *ag, const char *name)
 {
-	struct auth_name *an;
-
-	an = reinterpret_cast<struct auth_name *>(calloc(1, sizeof(*an)));
-	if (an == NULL)
-		log_err(1, "calloc");
-	an->an_auth_group = ag;
-	an->an_initiator_name = checked_strdup(name);
-	TAILQ_INSERT_TAIL(&ag->ag_names, an, an_next);
+	/* Silently ignore duplicates. */
+	ag->ag_names.emplace(name);
 	return (true);
-}
-
-static void
-auth_name_delete(struct auth_name *an)
-{
-	TAILQ_REMOVE(&an->an_auth_group->ag_names, an, an_next);
-
-	free(an->an_initiator_name);
-	free(an);
-}
-
-bool
-auth_name_defined(const struct auth_group *ag)
-{
-	if (TAILQ_EMPTY(&ag->ag_names))
-		return (false);
-	return (true);
-}
-
-const struct auth_name *
-auth_name_find(const struct auth_group *ag, const char *name)
-{
-	const struct auth_name *auth_name;
-
-	TAILQ_FOREACH(auth_name, &ag->ag_names, an_next) {
-		if (strcmp(auth_name->an_initiator_name, name) == 0)
-			return (auth_name);
-	}
-
-	return (NULL);
 }
 
 bool
 auth_name_check(const struct auth_group *ag, const char *initiator_name)
 {
-	if (!auth_name_defined(ag))
+	if (ag->ag_names.empty())
 		return (true);
 
-	if (auth_name_find(ag, initiator_name) == NULL)
-		return (false);
-
-	return (true);
+	return (ag->ag_names.count(initiator_name) != 0);
 }
 
 bool
@@ -420,7 +381,6 @@ auth_group_create(struct conf *conf, const char *name, char *label)
 	if (name != NULL)
 		ag->ag_name = checked_strdup(name);
 	ag->ag_label = label;
-	TAILQ_INIT(&ag->ag_names);
 	TAILQ_INIT(&ag->ag_portals);
 	ag->ag_conf = conf;
 	TAILQ_INSERT_TAIL(&conf->conf_auth_groups, ag, ag_next);
@@ -456,13 +416,10 @@ auth_group_new(struct conf *conf, struct target *target)
 void
 auth_group_delete(struct auth_group *ag)
 {
-	struct auth_name *auth_name, *auth_name_tmp;
 	struct auth_portal *auth_portal, *auth_portal_tmp;
 
 	TAILQ_REMOVE(&ag->ag_conf->conf_auth_groups, ag, ag_next);
 
-	TAILQ_FOREACH_SAFE(auth_name, &ag->ag_names, an_next, auth_name_tmp)
-		auth_name_delete(auth_name);
 	TAILQ_FOREACH_SAFE(auth_portal, &ag->ag_portals, ap_next,
 	    auth_portal_tmp)
 		auth_portal_delete(auth_portal);
