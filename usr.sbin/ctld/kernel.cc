@@ -410,7 +410,7 @@ conf_new_from_kernel(struct kports &kports)
 	const char *key;
 	char *str, *name;
 	void *cookie;
-	int error, len, retval;
+	int len, retval;
 
 	bzero(&devlist, sizeof(devlist));
 	STAILQ_INIT(&devlist.lun_list);
@@ -602,7 +602,7 @@ retry_port:
 			log_warnx("found CTL lun %ju \"%s\", "
 			    "also backed by CTL lun %d; ignoring",
 			    (uintmax_t)lun->lun_id, lun->ctld_name,
-			    cl->l_ctl_lun);
+			    cl->ctl_lun());
 			continue;
 		}
 
@@ -614,34 +614,27 @@ retry_port:
 			log_warnx("lun_new failed");
 			continue;
 		}
-		cl->l_backend = lun->backend_type;
-		lun->backend_type = NULL;
-		cl->l_device_type = lun->device_type;
-		cl->l_blocksize = lun->blocksize;
-		cl->l_device_id = lun->device_id;
-		lun->device_id = NULL;
-		cl->l_serial = lun->serial_number;
-		lun->serial_number = NULL;
-		cl->l_size = lun->size_blocks * cl->l_blocksize;
-		cl->l_ctl_lun = lun->lun_id;
+		cl->set_backend(lun->backend_type);
+		cl->set_device_type(lun->device_type);
+		cl->set_blocksize(lun->blocksize);
+		cl->set_device_id(lun->device_id);
+		cl->set_serial(lun->serial_number);
+		cl->set_size(lun->size_blocks * lun->blocksize);
+		cl->set_ctl_lun(lun->lun_id);
 
 		cookie = NULL;
 		while ((key = nvlist_next(lun->attr_list, NULL, &cookie)) !=
 		    NULL) {
 			if (strcmp(key, "file") == 0 ||
 			    strcmp(key, "dev") == 0) {
-				cl->l_path = checked_strdup(
-				    cnvlist_get_string(cookie));
+				cl->set_path(cnvlist_get_string(cookie));
 				continue;
 			}
-			nvlist_add_string(cl->l_options, key,
-			    cnvlist_get_string(cookie));
-			error = nvlist_error(cl->l_options);
-			if (error != 0)
-				log_warnc(error, "unable to add CTL lun option "
+			if (!cl->add_option(key, cnvlist_get_string(cookie)))
+				log_warnx("unable to add CTL lun option "
 				    "%s for CTL lun %ju \"%s\"",
 				    key, (uintmax_t)lun->lun_id,
-				    cl->l_name);
+				    cl->name());
 		}
 	}
 	while ((lun = STAILQ_FIRST(&devlist.lun_list))) {
@@ -653,65 +646,47 @@ retry_port:
 	return (conf);
 }
 
-static void
-nvlist_replace_string(nvlist_t *nvl, const char *name, const char *value)
-{
-	if (nvlist_exists_string(nvl, name))
-		nvlist_free_string(nvl, name);
-	nvlist_add_string(nvl, name, value);
-}
-
-int
-kernel_lun_add(struct lun *lun)
+bool
+lun::kernel_add()
 {
 	struct ctl_lun_req req;
 	int error;
 
 	bzero(&req, sizeof(req));
 
-	strlcpy(req.backend, lun->l_backend, sizeof(req.backend));
+	strlcpy(req.backend, l_backend.c_str(), sizeof(req.backend));
 	req.reqtype = CTL_LUNREQ_CREATE;
 
-	req.reqdata.create.blocksize_bytes = lun->l_blocksize;
+	req.reqdata.create.blocksize_bytes = l_blocksize;
 
-	if (lun->l_size != 0)
-		req.reqdata.create.lun_size_bytes = lun->l_size;
+	if (l_size != 0)
+		req.reqdata.create.lun_size_bytes = l_size;
 
-	if (lun->l_ctl_lun >= 0) {
-		req.reqdata.create.req_lun_id = lun->l_ctl_lun;
+	if (l_ctl_lun >= 0) {
+		req.reqdata.create.req_lun_id = l_ctl_lun;
 		req.reqdata.create.flags |= CTL_LUN_FLAG_ID_REQ;
 	}
 
 	req.reqdata.create.flags |= CTL_LUN_FLAG_DEV_TYPE;
-	req.reqdata.create.device_type = lun->l_device_type;
+	req.reqdata.create.device_type = l_device_type;
 
-	if (lun->l_serial != NULL) {
-		strncpy((char *)req.reqdata.create.serial_num, lun->l_serial,
+	if (!l_serial.empty()) {
+		strncpy((char *)req.reqdata.create.serial_num, l_serial.c_str(),
 			sizeof(req.reqdata.create.serial_num));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_SERIAL_NUM;
 	}
 
-	if (lun->l_device_id != NULL) {
-		strncpy((char *)req.reqdata.create.device_id, lun->l_device_id,
-			sizeof(req.reqdata.create.device_id));
+	if (!l_device_id.empty()) {
+		strncpy((char *)req.reqdata.create.device_id,
+		    l_device_id.c_str(), sizeof(req.reqdata.create.device_id));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_DEVID;
 	}
 
-	if (lun->l_path != NULL)
-		nvlist_replace_string(lun->l_options, "file", lun->l_path);
-
-	nvlist_replace_string(lun->l_options, "ctld_name", lun->l_name);
-
-	if (!nvlist_exists_string(lun->l_options, "scsiname") &&
-	    lun->l_scsiname != NULL)
-		nvlist_add_string(lun->l_options, "scsiname", lun->l_scsiname);
-
-	if (!nvlist_empty(lun->l_options)) {
-		req.args = nvlist_pack(lun->l_options, &req.args_len);
-		if (req.args == NULL) {
-			log_warn("error packing nvlist");
-			return (1);
-		}
+	freebsd::nvlist_up nvl = options();
+	req.args = nvlist_pack(nvl.get(), &req.args_len);
+	if (req.args == NULL) {
+		log_warn("error packing nvlist");
+		return (false);
 	}
 
 	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
@@ -719,13 +694,13 @@ kernel_lun_add(struct lun *lun)
 
 	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
-		return (1);
+		return (false);
 	}
 
 	switch (req.status) {
 	case CTL_LUN_ERROR:
 		log_warnx("LUN creation error: %s", req.error_str);
-		return (1);
+		return (false);
 	case CTL_LUN_WARNING:
 		log_warnx("LUN creation warning: %s", req.error_str);
 		break;
@@ -734,42 +709,32 @@ kernel_lun_add(struct lun *lun)
 	default:
 		log_warnx("unknown LUN creation status: %d",
 		    req.status);
-		return (1);
+		return (false);
 	}
 
-	lun->l_ctl_lun = req.reqdata.create.req_lun_id;
-	return (0);
+	l_ctl_lun = req.reqdata.create.req_lun_id;
+	return (true);
 }
 
-int
-kernel_lun_modify(struct lun *lun)
+bool
+lun::kernel_modify() const
 {
 	struct ctl_lun_req req;
 	int error;
 
 	bzero(&req, sizeof(req));
 
-	strlcpy(req.backend, lun->l_backend, sizeof(req.backend));
+	strlcpy(req.backend, l_backend.c_str(), sizeof(req.backend));
 	req.reqtype = CTL_LUNREQ_MODIFY;
 
-	req.reqdata.modify.lun_id = lun->l_ctl_lun;
-	req.reqdata.modify.lun_size_bytes = lun->l_size;
+	req.reqdata.modify.lun_id = l_ctl_lun;
+	req.reqdata.modify.lun_size_bytes = l_size;
 
-	if (lun->l_path != NULL)
-		nvlist_replace_string(lun->l_options, "file", lun->l_path);
-
-	nvlist_replace_string(lun->l_options, "ctld_name", lun->l_name);
-
-	if (!nvlist_exists_string(lun->l_options, "scsiname") &&
-	    lun->l_scsiname != NULL)
-		nvlist_add_string(lun->l_options, "scsiname", lun->l_scsiname);
-
-	if (!nvlist_empty(lun->l_options)) {
-		req.args = nvlist_pack(lun->l_options, &req.args_len);
-		if (req.args == NULL) {
-			log_warn("error packing nvlist");
-			return (1);
-		}
+	freebsd::nvlist_up nvl = options();
+	req.args = nvlist_pack(nvl.get(), &req.args_len);
+	if (req.args == NULL) {
+		log_warn("error packing nvlist");
+		return (false);
 	}
 
 	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
@@ -777,13 +742,13 @@ kernel_lun_modify(struct lun *lun)
 
 	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
-		return (1);
+		return (false);
 	}
 
 	switch (req.status) {
 	case CTL_LUN_ERROR:
 		log_warnx("LUN modification error: %s", req.error_str);
-		return (1);
+		return (false);
 	case CTL_LUN_WARNING:
 		log_warnx("LUN modification warning: %s", req.error_str);
 		break;
@@ -792,33 +757,33 @@ kernel_lun_modify(struct lun *lun)
 	default:
 		log_warnx("unknown LUN modification status: %d",
 		    req.status);
-		return (1);
+		return (false);
 	}
 
-	return (0);
+	return (true);
 }
 
-int
-kernel_lun_remove(struct lun *lun)
+bool
+lun::kernel_remove() const
 {
 	struct ctl_lun_req req;
 
 	bzero(&req, sizeof(req));
 
-	strlcpy(req.backend, lun->l_backend, sizeof(req.backend));
+	strlcpy(req.backend, l_backend.c_str(), sizeof(req.backend));
 	req.reqtype = CTL_LUNREQ_RM;
 
-	req.reqdata.rm.lun_id = lun->l_ctl_lun;
+	req.reqdata.rm.lun_id = l_ctl_lun;
 
 	if (ioctl(ctl_fd, CTL_LUN_REQ, &req) == -1) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
-		return (1);
+		return (false);
 	}
 
 	switch (req.status) {
 	case CTL_LUN_ERROR:
 		log_warnx("LUN removal error: %s", req.error_str);
-		return (1);
+		return (false);
 	case CTL_LUN_WARNING:
 		log_warnx("LUN removal warning: %s", req.error_str);
 		break;
@@ -826,10 +791,10 @@ kernel_lun_remove(struct lun *lun)
 		break;
 	default:
 		log_warnx("unknown LUN removal status: %d", req.status);
-		return (1);
+		return (false);
 	}
 
-	return (0);
+	return (true);
 }
 
 void
@@ -1014,7 +979,7 @@ port::kernel_add()
 			continue;
 		lm.port = p_ctl_port;
 		lm.plun = i;
-		lm.lun = targ->t_luns[i]->l_ctl_lun;
+		lm.lun = targ->t_luns[i]->ctl_lun();
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
 		if (error != 0)
 			log_warn("CTL_LUN_MAP ioctl failed");
@@ -1050,11 +1015,11 @@ port::kernel_update(const struct port *oport)
 		if (targ->t_luns[i] == NULL)
 			lm.lun = UINT32_MAX;
 		else
-			lm.lun = targ->t_luns[i]->l_ctl_lun;
+			lm.lun = targ->t_luns[i]->ctl_lun();
 		if (otarg->t_luns[i] == NULL)
 			olun = UINT32_MAX;
 		else
-			olun = otarg->t_luns[i]->l_ctl_lun;
+			olun = otarg->t_luns[i]->ctl_lun();
 		if (lm.lun == olun)
 			continue;
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);

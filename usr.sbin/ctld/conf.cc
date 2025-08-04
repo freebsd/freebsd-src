@@ -277,126 +277,55 @@ lun_finish(void)
 bool
 lun_add_option(const char *name, const char *value)
 {
-	return (option_new(lun->l_options, name, value));
+	return (lun->add_option(name, value));
 }
 
 bool
 lun_set_backend(const char *value)
 {
-	if (lun->l_backend != NULL) {
-		log_warnx("backend for lun \"%s\" specified more than once",
-		    lun->l_name);
-		return (false);
-	}
-
-	lun->l_backend = checked_strdup(value);
-	return (true);
+	return (lun->set_backend(value));
 }
 
 bool
 lun_set_blocksize(size_t value)
 {
-	if (lun->l_blocksize != 0) {
-		log_warnx("blocksize for lun \"%s\" specified more than once",
-		    lun->l_name);
-		return (false);
-	}
-	lun->l_blocksize = value;
-	return (true);
+	return (lun->set_blocksize(value));
 }
 
 bool
 lun_set_device_type(const char *value)
 {
-	const char *errstr;
-	int device_type;
-
-	if (strcasecmp(value, "disk") == 0 ||
-	    strcasecmp(value, "direct") == 0)
-		device_type = T_DIRECT;
-	else if (strcasecmp(value, "processor") == 0)
-		device_type = T_PROCESSOR;
-	else if (strcasecmp(value, "cd") == 0 ||
-	    strcasecmp(value, "cdrom") == 0 ||
-	    strcasecmp(value, "dvd") == 0 ||
-	    strcasecmp(value, "dvdrom") == 0)
-		device_type = T_CDROM;
-	else {
-		device_type = strtonum(value, 0, 15, &errstr);
-		if (errstr != NULL) {
-			log_warnx("invalid device-type \"%s\" for lun \"%s\"", value,
-			    lun->l_name);
-			return (false);
-		}
-	}
-
-	lun->l_device_type = device_type;
-	return (true);
+	return (lun->set_device_type(value));
 }
 
 bool
 lun_set_device_id(const char *value)
 {
-	if (lun->l_device_id != NULL) {
-		log_warnx("device_id for lun \"%s\" specified more than once",
-		    lun->l_name);
-		return (false);
-	}
-
-	lun->l_device_id = checked_strdup(value);
-	return (true);
+	return (lun->set_device_id(value));
 }
 
 bool
 lun_set_path(const char *value)
 {
-	if (lun->l_path != NULL) {
-		log_warnx("path for lun \"%s\" specified more than once",
-		    lun->l_name);
-		return (false);
-	}
-
-	lun->l_path = checked_strdup(value);
-	return (true);
+	return (lun->set_path(value));
 }
 
 bool
 lun_set_serial(const char *value)
 {
-	if (lun->l_serial != NULL) {
-		log_warnx("serial for lun \"%s\" specified more than once",
-		    lun->l_name);
-		return (false);
-	}
-
-	lun->l_serial = checked_strdup(value);
-	return (true);
+	return (lun->set_serial(value));
 }
 
 bool
 lun_set_size(uint64_t value)
 {
-	if (lun->l_size != 0) {
-		log_warnx("size for lun \"%s\" specified more than once",
-		    lun->l_name);
-		return (false);
-	}
-
-	lun->l_size = value;
-	return (true);
+	return (lun->set_size(value));
 }
 
 bool
 lun_set_ctl_lun(uint32_t value)
 {
-
-	if (lun->l_ctl_lun >= 0) {
-		log_warnx("ctl_lun for lun \"%s\" specified more than once",
-		    lun->l_name);
-		return (false);
-	}
-	lun->l_ctl_lun = value;
-	return (true);
+	return (lun->set_ctl_lun(value));
 }
 
 bool
@@ -616,7 +545,7 @@ target_start_lun(u_int id)
 	if (new_lun == NULL)
 		return (false);
 
-	lun_set_scsiname(new_lun, name);
+	new_lun->set_scsiname(name);
 	free(name);
 
 	target->t_luns[id] = new_lun;
