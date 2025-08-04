@@ -5767,7 +5767,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 
 	CTR5(KTR_PMAP, "%s: page %p - 0x%08X oma: %d, ma: %d", __func__, m,
 	    VM_PAGE_TO_PHYS(m), oma, ma);
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if (ma == oma || (m->flags & PG_FICTITIOUS) != 0)
 		return;
 #if 0
 	/*
@@ -5784,22 +5784,20 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * If page is not mapped by sf buffer, map the page
 	 * transient and do invalidation.
 	 */
-	if (ma != oma) {
-		pa = VM_PAGE_TO_PHYS(m);
-		sched_pin();
-		pc = get_pcpu();
-		cmap2_pte2p = pc->pc_cmap2_pte2p;
-		mtx_lock(&pc->pc_cmap_lock);
-		if (pte2_load(cmap2_pte2p) != 0)
-			panic("%s: CMAP2 busy", __func__);
-		pte2_store(cmap2_pte2p, PTE2_KERN_NG(pa, PTE2_AP_KRW,
-		    vm_memattr_to_pte2(ma)));
-		dcache_wbinv_poc((vm_offset_t)pc->pc_cmap2_addr, pa, PAGE_SIZE);
-		pte2_clear(cmap2_pte2p);
-		tlb_flush((vm_offset_t)pc->pc_cmap2_addr);
-		sched_unpin();
-		mtx_unlock(&pc->pc_cmap_lock);
-	}
+	pa = VM_PAGE_TO_PHYS(m);
+	sched_pin();
+	pc = get_pcpu();
+	cmap2_pte2p = pc->pc_cmap2_pte2p;
+	mtx_lock(&pc->pc_cmap_lock);
+	if (pte2_load(cmap2_pte2p) != 0)
+		panic("%s: CMAP2 busy", __func__);
+	pte2_store(cmap2_pte2p, PTE2_KERN_NG(pa, PTE2_AP_KRW,
+	    vm_memattr_to_pte2(ma)));
+	dcache_wbinv_poc((vm_offset_t)pc->pc_cmap2_addr, pa, PAGE_SIZE);
+	pte2_clear(cmap2_pte2p);
+	tlb_flush((vm_offset_t)pc->pc_cmap2_addr);
+	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 /*

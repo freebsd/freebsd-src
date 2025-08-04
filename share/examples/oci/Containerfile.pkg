@@ -6,7 +6,7 @@
 ARG version=14.snap
 
 # Select freebsd-runtime as our starting point.
-FROM localhost/freebsd-runtime:${version}
+FROM ghcr.io/freebsd/freebsd-runtime:${version}
 
 # A list of package(s) to install
 ARG packages
@@ -15,7 +15,10 @@ ARG packages
 # use for downloading pkg since the freebsd-runtime image has both FreeBSD and
 # FreeBSD-base pkg repo configs installed and FreeBSD-base does not contain the
 # pkg package.
-RUN env ASSUME_ALWAYS_YES=yes pkg bootstrap -r FreeBSD && pkg update
+#
+# Set IGNORE_OSVERSION to allow building e.g. FreeBSD-14 images on
+# FreeBSD-15 hosts.
+RUN pkg bootstrap -y -r FreeBSD && pkg -o IGNORE_OSVERSION=yes update -f
 
 # Install some package(s).
 RUN pkg install -y ${packages}

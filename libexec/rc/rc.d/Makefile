@@ -223,7 +223,7 @@ FTPDPACKAGE=	ftpd
 .if ${MK_GSSAPI} != "no"
 CONFGROUPS+=	GSSD
 GSSD=		gssd
-GSSDPACKAGE=	kerberos
+GSSDPACKAGE=	gssd
 .endif
 
 .if ${MK_HAST} != "no"

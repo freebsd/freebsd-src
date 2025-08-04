@@ -1,0 +1,6 @@
+deps {
+	"openssl": {
+		version = "${VERSION}"
+		origin = "base"
+	}
+}

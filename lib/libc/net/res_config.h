@@ -1,5 +1,5 @@
 
-#define	DEBUG	1	/* enable debugging code (needed for dig) */
+//#define	DEBUG		/* enable debugging code */
 #define	RESOLVSORT	/* allow sorting of addresses in gethostbyname */
-#undef	SUNSECURITY	/* verify gethostbyaddr() calls - WE DON'T NEED IT  */
+//#define	SUNSECURITY	/* verify gethostbyaddr() calls */
 #define MULTI_PTRS_ARE_ALIASES 1 /* fold multiple PTR records into aliases */

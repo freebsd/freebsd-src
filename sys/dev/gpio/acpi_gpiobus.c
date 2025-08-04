@@ -36,6 +36,7 @@
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/acpi_gpiobusvar.h>
+#include <dev/gpio/gpiobus_internal.h>
 
 #include "gpiobus_if.h"
 
@@ -356,7 +357,7 @@ acpi_gpiobus_attach(device_t dev)
 	status = AcpiWalkResources(handle, "_AEI", acpi_gpiobus_enumerate_aei,
 	    &ctx);
 
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
 		device_printf(dev, "Failed to enumerate AEI resources\n");
 
 	return (0);

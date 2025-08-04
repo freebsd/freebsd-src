@@ -55,6 +55,13 @@ struct pfr_buffer {
 	    (var) != NULL;				\
 	    (var) = pfr_buf_next((buf), (var)))
 
+struct pfr_anchoritem {
+	SLIST_ENTRY(pfr_anchoritem)	 pfra_sle;
+	char				*pfra_anchorname;
+};
+
+SLIST_HEAD(pfr_anchors, pfr_anchoritem);
+
 int	 pfr_get_fd(void);
 int	 pfr_add_table(struct pfr_table *, int *, int);
 int	 pfr_del_table(struct pfr_table *, int *, int);
@@ -76,17 +83,17 @@ void	*pfr_buf_next(struct pfr_buffer *, const void *);
 int	 pfr_buf_grow(struct pfr_buffer *, int);
 int	 pfr_buf_load(struct pfr_buffer *, char *, int,
 	    int (*)(struct pfr_buffer *, char *, int, int), int);
-char	*pfr_strerror(int);
+char	*pf_strerror(int);
 int	 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
 int	 pfi_clr_istats(const char *, int *, int);
 
 void	 pfctl_print_title(char *);
-void	 pfctl_do_clear_tables(const char *, int);
+int	 pfctl_do_clear_tables(const char *, int);
 void	 pfctl_show_tables(const char *, int);
-int	 pfctl_command_tables(int, char *[], char *, const char *, char *,
+int	 pfctl_table(int, char *[], char *, const char *, char *,
 	    const char *, int);
 int	 pfctl_show_altq(int, const char *, int, int);
-void	 warn_namespace_collision(const char *);
+void	 warn_duplicate_tables(const char *, const char *);
 void	 pfctl_show_ifaces(const char *, int);
 void	pfctl_show_creators(int);
 FILE	*pfctl_fopen(const char *, const char *);
@@ -149,5 +156,8 @@ void			 pf_remove_if_empty_eth_ruleset(
 void		 expand_label(char *, size_t, struct pfctl_rule *);
 
 const char *pfctl_proto2name(int);
+
+void	 pfctl_err(int, int, const char *, ...);
+void	 pfctl_errx(int, int, const char *, ...);
 
 #endif /* _PFCTL_H_ */

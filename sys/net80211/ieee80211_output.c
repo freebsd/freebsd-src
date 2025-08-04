@@ -4195,16 +4195,14 @@ ieee80211_tx_complete(struct ieee80211_node *ni, struct mbuf *m, int status)
  * Check the frame type and TID and assign a suitable sequence number
  * from the correct sequence number space.
  *
+ * This implements the components of 802.11-2020 10.3.2.14.2
+ * (Transmitter Requirements) that net80211 currently supports.
+ *
  * It assumes the mbuf has been encapsulated, and has the TID assigned
  * if it is a QoS frame.
  *
  * Note this also clears any existing fragment ID in the header, so it
  * must be called first before assigning fragment IDs.
- *
- * For now this implements parts of 802.11-2012; it doesn't do all of
- * the needed checks for full compliance (notably QoS-Data NULL frames).
- *
- * TODO: update to 802.11-2020 10.3.2.14.2 (Transmitter Requirements)
  *
  * @param ni	ieee80211_node this frame will be transmitted to
  * @param arg_tid	A temporary check, existing callers may set
@@ -4239,16 +4237,30 @@ ieee80211_output_seqno_assign(struct ieee80211_node *ni, int arg_tid,
 		    "%s: called; TID mismatch; tid=%u, arg_tid=%d\n",
 		    __func__, tid, arg_tid);
 
-	if (IEEE80211_HAS_SEQ(type, subtype)) {
-		/*
-		 * 802.11-2012 9.3.2.10 - QoS multicast frames
-		 * come out of a different seqno space.
-		 */
-		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
-			seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
-		else
-			seqno = ni->ni_txseqs[tid]++;
-	} else
+
+	/* 802.11-2020 10.3.2.14.2 (Transmitter Requirements) sections */
+
+	/* SNS7 - unicast PV1 management frame */
+
+	/* SNS6 - unicast PV1 data frame */
+
+	/* SNS5 - QoS NULL frames */
+	if (IEEE80211_QOS_HAS_SEQ(wh) && IEEE80211_IS_QOS_NULL(wh))
+		seqno = ieee80211_tx_seqno_fetch_incr(ni, IEEE80211_NONQOS_TID);
+
+	/* SNS4 - QMF STA transmitting a QMF */
+
+	/* SNS3 - QoS STA; Time Priority Management frame */
+
+	/* SNS2 - unicast QoS STA, data frame, excluding SNS5 */
+	else if (IEEE80211_QOS_HAS_SEQ(wh) &&
+	    !IEEE80211_IS_MULTICAST(wh->i_addr1))
+		seqno = ieee80211_tx_seqno_fetch_incr(ni, tid);
+
+	/* SNS1 - Baseline (everything else) */
+	else if (IEEE80211_HAS_SEQ(type, subtype))
+		seqno = ieee80211_tx_seqno_fetch_incr(ni, IEEE80211_NONQOS_TID);
+	else
 		seqno = 0;
 
 	/*
@@ -4276,7 +4288,7 @@ ieee80211_output_beacon_seqno_assign(struct ieee80211_node *ni, struct mbuf *m)
 
 	wh = mtod(m, struct ieee80211_frame *);
 
-	seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+	seqno = ieee80211_tx_seqno_fetch_incr(ni, IEEE80211_NONQOS_TID);
 	*(uint16_t *)&wh->i_seq[0] =
 		htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 	M_SEQNO_SET(m, seqno);

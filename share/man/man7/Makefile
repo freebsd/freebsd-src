@@ -6,6 +6,7 @@ MAN=	arch.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
 	c.7 \
+	d.7 \
 	clocks.7 \
 	crypto.7 \
 	development.7 \
@@ -17,6 +18,7 @@ MAN=	arch.7 \
 	intro.7 \
 	maclabel.7 \
 	mitigations.7 \
+	named_attribute.7 \
 	operator.7 \
 	orders.7 \
 	ports.7 \

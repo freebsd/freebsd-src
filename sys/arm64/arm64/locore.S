@@ -374,7 +374,7 @@ LENTRY(enter_kernel_el)
 	msr	sctlr_el1, x2
 
 	/* Check for VHE */
-	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, VH, .Lno_vhe)
+	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, VH, IMPL, .Lno_vhe)
 
 	/*
 	 * The kernel will be running in EL2, route exceptions here rather
@@ -413,10 +413,9 @@ LENTRY(enter_kernel_el)
 	 * Configure the Extended Hypervisor register. This is only valid if
 	 * FEAT_HCX is enabled.
 	 */
-	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, HCX, 2f)
+	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, HCX, IMPL, 2f)
 	/* Extended Hypervisor Configuration */
-	mov x2, xzr
-	msr HCRX_EL2_REG, x2
+	msr	HCRX_EL2_REG, xzr
 	isb
 2:
 
@@ -430,7 +429,7 @@ LENTRY(enter_kernel_el)
 	msr	vttbr_el2, xzr
 
 	/* Check the CPU supports GIC, and configure the CPU interface */
-	CHECK_CPU_FEAT(x2, ID_AA64PFR0, GIC, 3f)
+	CHECK_CPU_FEAT(x2, ID_AA64PFR0, GIC, CPUIF_EN, 3f)
 
 	mrs	x2, icc_sre_el2
 	orr	x2, x2, #ICC_SRE_EL2_EN	/* Enable access from insecure EL1 */
@@ -1029,7 +1028,7 @@ LENTRY(start_mmu)
 	 * HW management of dirty state is set in C code as it may
 	 * need to be disabled because of CPU errata.
 	 */
-	CHECK_CPU_FEAT(x3, ID_AA64MMFR1, HAFDBS, 1f)
+	CHECK_CPU_FEAT(x3, ID_AA64MMFR1, HAFDBS, AF, 1f)
 	orr	x2, x2, #(TCR_HA)
 1:
 

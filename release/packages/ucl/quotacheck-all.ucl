@@ -1,0 +1,8 @@
+comment = "Filesystem quota consistency checker"
+desc = <<EOD
+The quotacheck utility examines each file system, builds a table of current
+disk usage, and compares this table against that recorded in the disk quota
+file for the file system.  If any inconsistencies are detected, both the quota
+file and the current system copy of the incorrect quotas are updated (the
+latter only occurs if an active file system is checked).
+EOD

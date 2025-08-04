@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5-lib
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -17,6 +15,7 @@ LIB=	krad
 # SHLIB_MAJOR=	0
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5 k5crypto com_err krb5profile krb5support verto
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	attr.c \
 	attrset.c \
@@ -24,10 +23,6 @@ SRCS=	attr.c \
 	code.c \
 	packet.c \
 	remote.c
-
-INCS=	internal.h \
-	t_daemon.h \
-	t_test.h
 
 CFLAGS+=-I${KRB5_DIR}/lib/krad \
 	-I${KRB5_DIR}/include \

@@ -169,11 +169,12 @@
  * the recursive page table map.
  */
 #define	NDMPML4E	8
+#define	NDMPML5E	32
 
 /*
- * These values control the layout of virtual memory.  The starting address
- * of the direct map, which is controlled by DMPML4I, must be a multiple of
- * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
+ * These values control the layout of virtual memory.  The starting
+ * address of the direct map is controlled by DMPML4I on LA48 and
+ * DMPML5I on LA57.
  *
  * Note: KPML4I is the index of the (single) level 4 page that maps
  * the KVA that holds KERNBASE, while KPML4BASE is the index of the
@@ -191,6 +192,7 @@
 
 #define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
 #define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
+#define	DMPML5I		(NPML5EPG / 2 + 1)
 
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
@@ -200,9 +202,14 @@
 #define	KMSANSHADPML4I	(KPML4BASE - NKMSANSHADPML4E)
 #define	KMSANORIGPML4I	(DMPML4I - NKMSANORIGPML4E)
 
-/* Large map: index of the first and max last pml4 entry */
+/*
+ * Large map: index of the first and max last pml4/la48 and pml5/la57
+ * entry.
+ */
 #define	LMSPML4I	(PML4PML4I + 1)
 #define	LMEPML4I	(KASANPML4I - 1)
+#define	LMSPML5I	(DMPML5I + NDMPML5E)
+#define	LMEPML5I	(LMSPML5I + 32 - 1)	/* 32 slots for large map */
 
 /*
  * XXX doesn't really belong here I guess...
@@ -547,6 +554,25 @@ pmap_pml5e_index(vm_offset_t va)
 
 	return ((va >> PML5SHIFT) & ((1ul << NPML5EPGSHIFT) - 1));
 }
+
+struct kva_layout_s {
+	vm_offset_t kva_min;
+	vm_offset_t kva_max;
+	vm_offset_t dmap_low;	/* DMAP_MIN_ADDRESS */
+	vm_offset_t dmap_high;	/* DMAP_MAX_ADDRESS */
+	vm_offset_t lm_low;	/* LARGEMAP_MIN_ADDRESS */
+	vm_offset_t lm_high;	/* LARGEMAP_MAX_ADDRESS */
+	vm_offset_t km_low;	/* VM_MIN_KERNEL_ADDRESS */
+	vm_offset_t km_high;	/* VM_MAX_KERNEL_ADDRESS */
+	vm_offset_t rec_pt;
+	vm_offset_t kasan_shadow_low;	/* KASAN_MIN_ADDRESS */
+	vm_offset_t kasan_shadow_high;	/* KASAN_MAX_ADDRESS */
+	vm_offset_t kmsan_shadow_low;	/* KMSAN_SHAD_MIN_ADDRESS */
+	vm_offset_t kmsan_shadow_high;	/* KMSAN_SHAD_MAX_ADDRESS */
+	vm_offset_t kmsan_origin_low;	/* KMSAN_ORIG_MIN_ADDRESS */
+	vm_offset_t kmsan_origin_high;	/* KMSAN_ORIG_MAX_ADDRESS */
+};
+extern struct kva_layout_s kva_layout;
 
 #endif /* !LOCORE */
 

@@ -2571,7 +2571,7 @@ syslogd_cap_enter(void)
 	if (cap_syslogd == NULL)
 		err(1, "Failed to open the syslogd.casper libcasper service");
 	cap_net = cap_service_open(cap_casper, "system.net");
-	if (cap_syslogd == NULL)
+	if (cap_net == NULL)
 		err(1, "Failed to open the system.net libcasper service");
 	cap_close(cap_casper);
 	limit = cap_net_limit_init(cap_net,

@@ -384,7 +384,7 @@ static int
 tmpfs_access_locked(struct vnode *vp, struct tmpfs_node *node,
     accmode_t accmode, struct ucred *cred)
 {
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 	if (!mtx_owned(TMPFS_NODE_MTX(node))) {
 		ASSERT_VOP_LOCKED(vp,
 		    "tmpfs_access_locked needs locked vnode or node");
@@ -1689,6 +1689,10 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 
 	case _PC_MIN_HOLE_SIZE:
 		*retval = PAGE_SIZE;
+		break;
+
+	case _PC_HAS_HIDDENSYSTEM:
+		*retval = 1;
 		break;
 
 	default:

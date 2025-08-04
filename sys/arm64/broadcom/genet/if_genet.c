@@ -201,6 +201,7 @@ struct gen_softc {
 
 static void gen_init(void *softc);
 static void gen_start(if_t ifp);
+static void gen_stop(struct gen_softc *sc);
 static void gen_destroy(struct gen_softc *sc);
 static int gen_encap(struct gen_softc *sc, struct mbuf **mp);
 static int gen_parse_tx(struct mbuf *m, int csum_flags);
@@ -349,7 +350,7 @@ gen_attach(device_t dev)
 	}
 
 	/* If address was not found, create one based on the hostid and name. */
-	if (eaddr_found == 0)
+	if (!eaddr_found)
 		ether_gen_addr(sc->ifp, &eaddr);
 	/* Attach ethernet interface */
 	ether_ifattach(sc->ifp, eaddr.octet);
@@ -377,6 +378,39 @@ gen_destroy(struct gen_softc *sc)
 		if_free(sc->ifp);
 		sc->ifp = NULL;
 	}
+}
+
+static int
+gen_detach(device_t dev)
+{
+	struct gen_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	GEN_LOCK(sc);
+	gen_stop(sc);
+	GEN_UNLOCK(sc);
+	callout_drain(&sc->stat_ch);
+	ether_ifdetach(sc->ifp);
+
+	/* Detach the miibus */
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
+	/* clean up dma */
+	gen_bus_dma_teardown(sc);
+
+	/* Release bus resources. */
+	bus_teardown_intr(sc->dev, sc->res[_RES_IRQ1], sc->ih);
+	bus_teardown_intr(sc->dev, sc->res[_RES_IRQ2], sc->ih2);
+	bus_release_resources(sc->dev, gen_spec, sc->res);
+
+	if (sc->ifp != NULL)
+		if_free(sc->ifp);
+	mtx_destroy(&sc->mtx);
+	return (0);
 }
 
 static int
@@ -653,7 +687,7 @@ gen_bus_dma_teardown(struct gen_softc *sc)
 			    error);
 	}
 
-	if (sc->tx_buf_tag != NULL) {
+	if (sc->rx_buf_tag != NULL) {
 		for (i = 0; i < RX_DESC_COUNT; i++) {
 			error = bus_dmamap_destroy(sc->rx_buf_tag,
 			    sc->rx_ring_ent[i].map);
@@ -1805,6 +1839,7 @@ static device_method_t gen_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gen_probe),
 	DEVMETHOD(device_attach,	gen_attach),
+	DEVMETHOD(device_detach,	gen_detach),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	gen_miibus_readreg),

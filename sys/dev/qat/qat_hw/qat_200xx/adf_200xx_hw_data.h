@@ -4,8 +4,8 @@
 #define ADF_200XX_HW_DATA_H_
 
 /* PCIe configuration space */
-#define ADF_200XX_PMISC_BAR 1
-#define ADF_200XX_ETR_BAR 2
+#define ADF_200XX_PMISC_BAR 0
+#define ADF_200XX_ETR_BAR 1
 #define ADF_200XX_RX_RINGS_OFFSET 8
 #define ADF_200XX_TX_RINGS_MASK 0xFF
 #define ADF_200XX_MAX_ACCELERATORS 3

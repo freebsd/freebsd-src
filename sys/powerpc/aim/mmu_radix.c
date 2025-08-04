@@ -5937,6 +5937,10 @@ mmu_radix_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
 
 	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, m, ma);
+
+	if (m->md.mdpg_cache_attrs == ma)
+		return;
+
 	m->md.mdpg_cache_attrs = ma;
 
 	/*

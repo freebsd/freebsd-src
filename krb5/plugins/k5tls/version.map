@@ -1,0 +1,5 @@
+HIDDEN { local: __*; _rest*; _save*; *; };
+k5tls_0_MIT {
+	global:
+		tls_k5tls_initvt;
+};

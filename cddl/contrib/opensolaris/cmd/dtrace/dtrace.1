@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2025
+.Dd July 30, 2025
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -537,6 +537,17 @@ option is not specified,
 .Nm
 does not permit the compilation or enabling of a D program that contains
 destructive actions.
+.Pp
+Set the
+.Va security.bsd.allow_destructive_dtrace
+.Xr loader 8
+tunable
+to
+.Ql 0
+to disallow the possibility of enabling destructive actions system-wide at any point at all.
+Any attempts to enable destructive actions will cause
+.Nm
+to exit with a runtime error.
 .It Fl x Ar arg Op Ns = Ns value
 Enable or modify a DTrace runtime option or D compiler option.
 Boolean options are enabled by specifying their name.
@@ -617,6 +628,52 @@ Same as the
 flag.
 .It Sy dynvarsize Ns = Ns Ar size
 Size of the dynamic variable space.
+.Sm off
+.It Sy evaltime = Cm exec | preinit | postinit | main
+.Sm on
+Process create mode.
+When using
+.Fl c Ar cmd
+to start a command,
+.Nm
+will first stop the newly started
+.Ar cmd ,
+evaluate the
+.Xr d 7
+program,
+and then resume the
+.Ar cmd .
+The
+.Cm evaltime
+option controls the exact moment when this happens.
+.Pp
+The following table describes supported modes.
+.Bl -column -offset indent "postinit" "D Program Evaluation Time"
+.It Sy Mode Ta Sy D Program Evaluation Time
+.It Cm exec Ta
+Right at the first instruction of the command
+.Ar cmd
+execution.
+.It Cm preinit Ta
+Before
+.Xr elf 5 Ap s
+.Dq .init
+sections.
+.It Cm postinit Ta
+After
+.Xr elf 5 Ap s
+.Dq .init
+sections.
+Default on
+.Fx .
+.It Cm main Ta
+Before the first instruction of the
+.Fn main
+function.
+.El
+.Pp
+Usually, there is no reason to change the default mode,
+but it might be handy in situations such as shared library tracing.
 .It Sy flowindent
 Turn on flow indentation.
 Same as the
@@ -1219,20 +1276,38 @@ failed or that the specified request could not be satisfied.
 .It 2
 Invalid command line options or arguments were specified.
 .El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It dtrace: could not enable tracing: Permission denied
+This can happen when
+.Nm
+fails to enable destructive actions because
+.Va security.bsd.allow_destructive_dtrace
+is set to
+.Ql 0
+in
+.Xr loader.conf 5 .
+.El
 .Sh SEE ALSO
 .Xr cpp 1 ,
+.Xr dwatch 1 ,
 .Xr dtrace_audit 4 ,
+.Xr dtrace_dtrace 4 ,
+.Xr dtrace_fbt 4 ,
 .Xr dtrace_io 4 ,
 .Xr dtrace_ip 4 ,
 .Xr dtrace_kinst 4 ,
 .Xr dtrace_lockstat 4 ,
 .Xr dtrace_proc 4 ,
+.Xr dtrace_profile 4 ,
 .Xr dtrace_sched 4 ,
 .Xr dtrace_sctp 4 ,
 .Xr dtrace_tcp 4 ,
 .Xr dtrace_udp 4 ,
 .Xr dtrace_udplite 4 ,
 .Xr elf 5 ,
+.Xr d 7 ,
+.Xr tracing 7 ,
 .Xr SDT 9
 .Rs
 .%T Solaris Dynamic Tracing Guide

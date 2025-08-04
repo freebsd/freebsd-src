@@ -33,11 +33,11 @@ EXTRA_MAKE_FLAGS?=
 TARGET=		${MACHINE}
 .endif
 .if !defined(TARGET_ARCH) || empty(TARGET_ARCH)
-.if ${TARGET} == ${MACHINE}
+.  if ${TARGET} == ${MACHINE}
 TARGET_ARCH=	${MACHINE_ARCH}
-.else
+.  else
 TARGET_ARCH=	${TARGET}
-.endif
+.  endif
 .endif
 IMAKE=		${MAKE} TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}
 
@@ -47,20 +47,20 @@ CROSS_TOOLCHAIN_PARAM=	"CROSS_TOOLCHAIN=${CROSS_TOOLCHAIN}"
 
 # Define OSRELEASE by using newvers.sh
 .if !defined(OSRELEASE) || empty(OSRELEASE)
-.for _V in TYPE BRANCH REVISION
-. if !defined(${_V}) || empty(${_V})
+.  for _V in TYPE BRANCH REVISION
+.    if !defined(${_V}) || empty(${_V})
 ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../../sys/conf/newvers.sh); echo $$${_V}
-. endif
-.endfor
-.for _V in ${TARGET_ARCH}
-.if !empty(TARGET:M${_V})
+.    endif
+.  endfor
+.  for _V in ${TARGET_ARCH}
+.    if !empty(TARGET:M${_V})
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}
 VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET}
-.else
+.    else
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
 VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
-.endif
-.endfor
+.    endif
+.  endfor
 .endif
 
 .if exists(${.CURDIR}/tools/ci.conf) && !defined(CICONF)
@@ -104,13 +104,13 @@ TIMEOUT_VM=$$((${TIMEOUT_EXPECT} - 120))
 .	include "${.CURDIR}/Makefile.${TARGET_ARCH}"
 .endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
+.  if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 QEMUSTATIC=/usr/local/bin/qemu-${QEMU_ARCH}-static
 QEMUTGT=portinstall-qemu
-.endif
+.  endif
 .endif
 QEMUTGT?=
-QEMU_DEVICES?=-device virtio-blk,drive=hd0
+QEMU_DEVICES?=
 QEMU_EXTRA_PARAM?=
 QEMU_MACHINE?=virt
 QEMUBIN=/usr/local/bin/qemu-system-${QEMU_ARCH}
@@ -134,7 +134,8 @@ METAMODE?=-DWITH_META_MODE
 .endif
 
 CLEANFILES+=	${.OBJDIR}/${CIIMAGE} ${.OBJDIR}/ci.img ${META_TAR}
-CLEANDIRS+=	${.OBJDIR}/ci-buildimage
+IMAGEDIR=	${.OBJDIR}/ci-buildimage
+CLEANDIRS+=	${IMAGEDIR}
 
 portinstall: portinstall-pkg portinstall-qemu portinstall-expect portinstall-${TARGET_ARCH:tl} .PHONY
 
@@ -144,10 +145,10 @@ portinstall-pkg: .PHONY
 .endif
 
 portinstall-qemu: portinstall-pkg .PHONY
-.if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
+.if !exists(/usr/local/bin/qemu-${QEMU_ARCH}-static)
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu-user-static
 .endif
-.if !exists(/usr/local/bin/qemu-system-${QEMU_ARCH})
+.if !exists(${QEMUBIN})
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu@nox11
 .endif
 
@@ -157,7 +158,7 @@ portinstall-expect: portinstall-pkg .PHONY
 .endif
 
 beforeclean: .PHONY
-	chflags -R noschg ${.OBJDIR}/${.TARGET}
+	chflags -R noschg ${IMAGEDIR}
 
 .include <bsd.obj.mk>
 clean: beforeclean .PHONY
@@ -205,12 +206,17 @@ ci-create-meta: .PHONY
 
 ci-extract-meta: .PHONY
 	tar xfv ${META_TAR} -C ${META_DIROUT}
+	rm -rf ${META_TAR} ${META_DIR}
 	@echo "Extracted kyua reports to ${META_DIROUT}"
 
 ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 .if ${MACHINE} == "amd64" && ( ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" ) && ( !defined(USE_QEMU) || empty(USE_QEMU) )
 	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy || true
-	/usr/sbin/bhyveload -c stdio -m ${VM_MEM_SIZE} -d ${CIDISK} ${TEST_VM_NAME}
+	expect -c "set timeout ${TIMEOUT_EXPECT}; \
+		spawn /usr/bin/timeout -k 5s 30s /usr/sbin/bhyveload \
+		-c stdio -m ${VM_MEM_SIZE} -d ${CIDISK} ${TEST_VM_NAME}; \
+		expect { eof }; \
+		exit [lindex [wait] 3]"
 	expect -c "set timeout ${TIMEOUT_EXPECT}; \
 		spawn /usr/bin/timeout -k 60 ${TIMEOUT_VM} /usr/sbin/bhyve \
 		-c ${PARALLEL_JOBS} -m ${VM_MEM_SIZE} -A -H -P \
@@ -231,8 +237,10 @@ ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 		-nographic \
 		-no-reboot \
 		${QEMU_EXTRA_PARAM} \
-		-drive if=none,file=${CIDISK},format=raw,id=hd0 \
-		-drive if=none,file=${META_TAR},format=raw,id=hd1 \
+		-device virtio-blk,drive=hd0 \
+		-device virtio-blk,drive=hd1 \
+		-blockdev driver=raw,node-name=hd0,file.driver=file,file.filename=${CIDISK} \
+		-blockdev driver=raw,node-name=hd1,file.driver=file,file.filename=${META_TAR} \
 		${QEMU_DEVICES}
 .endif
 
@@ -250,7 +258,7 @@ ci-checktarget: .PHONY
 
 ci-smoke: ci-set-smoke-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .PHONY
 
-ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} ci-extract-meta .PHONY
+ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
 
 ci: ci-${CITYPE:tl} .PHONY
 

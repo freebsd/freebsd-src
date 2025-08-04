@@ -767,27 +767,28 @@ camperiphfree(struct cam_periph *periph)
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
-		union ccb ccb;
-		void *arg;
-
-		memset(&ccb, 0, sizeof(ccb));
 		switch (periph->deferred_ac) {
-		case AC_FOUND_DEVICE:
-			ccb.ccb_h.func_code = XPT_GDEV_TYPE;
-			xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-			xpt_action(&ccb);
-			arg = &ccb;
-			break;
-		case AC_PATH_REGISTERED:
-			xpt_path_inq(&ccb.cpi, periph->path);
-			arg = &ccb;
-			break;
-		default:
-			arg = NULL;
+		case AC_FOUND_DEVICE: {
+			struct ccb_getdev cgd;
+
+			xpt_gdev_type(&cgd, periph->path);
+			periph->deferred_callback(NULL, periph->deferred_ac,
+			    periph->path, &cgd);
 			break;
 		}
-		periph->deferred_callback(NULL, periph->deferred_ac,
-					  periph->path, arg);
+		case AC_PATH_REGISTERED: {
+			struct ccb_pathinq cpi;
+
+			xpt_path_inq(&cpi, periph->path);
+			periph->deferred_callback(NULL, periph->deferred_ac,
+			    periph->path, &cpi);
+			break;
+		}
+		default:
+			periph->deferred_callback(NULL, periph->deferred_ac,
+			    periph->path, NULL);
+			break;
+		}
 	}
 	xpt_free_path(periph->path);
 	free(periph, M_CAMPERIPH);
@@ -1682,10 +1683,7 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 		/*
 		 * Grab the inquiry data for this device.
 		 */
-		memset(&cgd, 0, sizeof(cgd));
-		xpt_setup_ccb(&cgd.ccb_h, ccb->ccb_h.path, CAM_PRIORITY_NORMAL);
-		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-		xpt_action((union ccb *)&cgd);
+		xpt_gdev_type(&cgd, ccb->ccb_h.path);
 
 		err_action = scsi_error_action(&ccb->csio, &cgd.inq_data,
 		    sense_flags);
@@ -2133,11 +2131,7 @@ cam_periph_devctl_notify(union ccb *ccb)
 
 	sbuf_cat(&sb, "serial=\"");
 	if ((cgd = (struct ccb_getdev *)xpt_alloc_ccb_nowait()) != NULL) {
-		xpt_setup_ccb(&cgd->ccb_h, ccb->ccb_h.path,
-		    CAM_PRIORITY_NORMAL);
-		cgd->ccb_h.func_code = XPT_GDEV_TYPE;
-		xpt_action((union ccb *)cgd);
-
+		xpt_gdev_type(cgd, ccb->ccb_h.path);
 		if (cgd->ccb_h.status == CAM_REQ_CMP)
 			sbuf_bcat(&sb, cgd->serial_num, cgd->serial_num_len);
 		xpt_free_ccb((union ccb *)cgd);

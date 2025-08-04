@@ -1,0 +1,144 @@
+.\"
+.\" Copyright (c) 2025 Ruslan Bukin <br@bsdpad.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 12, 2025
+.Dt HWT 4
+.Os
+.Sh NAME
+.Nm hwt
+.Nd Hardware Trace Framework
+.Sh SYNOPSIS
+.Cd "options HWT_HOOKS"
+.Cd "device hwt"
+.Pp
+At least one of:
+.Cd "device intel_pt"
+.Pq amd64
+.Cd "device coresight"
+.Pq arm64
+.Cd "device spe"
+.Pq arm64
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="hwt"
+.Sh DESCRIPTION
+The
+.Nm
+framework provides infrastructure for hardware-assisted tracing.
+It collects detailed information about software execution and stores it as
+events in highly compressed format into DRAM.
+The events cover information about control flow changes of a program, whether
+branches taken or not, exceptions taken, timing information, cycles elapsed and
+more.
+The information collected allows to reconstruct entire program flow of a given
+application without noticeable performance impact.
+.Sh HARDWARE
+The framework supports several tracing technologies found on
+.Cd arm64
+and
+.Cd amd64
+systems:
+.Pp
+.Bl -bullet -compact
+.It
+ARM Coresight
+.It
+ARM Statistical Profiling Extension (SPE)
+.It
+Intel Processor Trace (PT)
+.El
+.Pp
+The
+.Nm
+framework supports two modes of operation:
+.Bl -tag -width "Thread mode"
+.It Em CPU mode
+Capture CPU activity in kernel mode.
+.It Em Thread mode
+Capture activity of each of a process's threads in user mode.
+.El
+.Sh MANAGEMENT
+When loaded into kernel, the
+.Nm
+framework provides
+.Pa /dev/hwt
+character device.
+The only
+.Xr ioctl 2
+request it accepts is
+.Dv HWT_IOC_ALLOC .
+This request allocates kernel tracing context (CTX) based on requested mode of
+operation, set of CPUs and/or pid.
+.Pp
+Upon successful CTX allocation, the ioctl returns a CTX identification
+number (ident).
+.Pp
+Each CTX is then managed using its own dedicated character device found at
+.Pa "/dev/hwt_${ident}_${d}",
+where ident is a unique identification number of tracing context, d is either
+cpu_id (in HWT CPU mode) or process pid (in HWT Thread mode).
+.Sh HOOKS
+During tracing of a target process, HWT records runtime events such as threads
+creation, exec and mmap system calls.
+These events are logged as "records" within a particular CTX associated with
+traced process.
+.Pp
+Additionally, HWT can suspend the target thread upon exec or mmap system calls
+if requested by the user.
+This pause allows user-space tools to retrieve the records and adjust tracing
+settings before execution continues.
+This feature is especially useful when address range filtering is enabled,
+allowing tracing of specific functions within the target executable or a
+dynamic library.
+.Sh KERNEL OPTIONS
+The following options in the kernel configuration file are mandatory and
+related to
+.Nm
+operation:
+.Pp
+.Bl -tag -width ".Dv HWT_HOOKS" -compact
+.It Dv HWT_HOOKS
+Enable kernel hooks.
+.El
+.Sh IOCTL INTERFACE
+Once a CTX is allocated, its management character device accepts several
+.Xr ioctl 2
+requests:
+.Bl -tag -width "HWT_IOC_RECORD_GET"
+.It Dv HWT_IOC_START
+Start tracing.
+In HWT CPU mode the tracing does actually start with this
+.Xr ioctl 2
+request.
+In the Thread mode, the tracing "running" flag set, but tracing begins after
+scheduler switches the target thread onto CPU and return to user mode.
+.It Dv HWT_IOC_STOP
+Stop tracing of the particular CTX.
+.It Dv HWT_IOC_RECORD_GET
+Copy all or part of records collected during hook invocation and associated
+with this CTX to userspace.
+.It Dv HWT_IOC_BUFPTR_GET
+Get current pointer in buffer that is filled by tracing units in real-time.
+.It Dv HWT_IOC_SET_CONFIG
+Set architecture-specific config (optional).
+.It Dv HWT_IOC_WAKEUP
+Wake up a thread that has been put to sleep by HWT framework hooks.
+.It Dv HWT_IOC_SVC_BUF
+For SPE-only, the kernel is waiting for userspace to notify that it has copied
+out a buffer to avoid data loss/overwriting buffers.
+.El
+.Sh SEE ALSO
+.Xr tracing 7 ,
+.Xr hwt 8
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+.An Ruslan Bukin Aq Mt br@FreeBSD.org
+.An Bojan Novković Aq Mt bnovkov@freebsd.org
+.An Zachary Leaf Aq Mt zachary.leaf@arm.com

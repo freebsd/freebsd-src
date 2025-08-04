@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -17,6 +15,7 @@ LIB=		kdb5
 # SHLIB_MAJOR=	10
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile gssrpc krb5 k5crypto com_err krb5support gssapi_krb5
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	decrypt_key.c \
 	encrypt_key.c \

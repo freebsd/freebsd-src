@@ -175,9 +175,9 @@ int	mfi_bbu_get_props(int fd, struct mfi_bbu_properties *props,
 	    uint8_t *statusp);
 int	mfi_bbu_set_props(int fd, struct mfi_bbu_properties *props,
 	    uint8_t *statusp);
-void	mfi_autolearn_period(uint32_t, char *, size_t);
+void	mfi_autolearn_period(FILE *, uint32_t);
 void	mfi_next_learn_time(uint32_t, char *, size_t);
-void	mfi_autolearn_mode(uint8_t, char *, size_t);
+void	mfi_autolearn_mode(FILE *, uint8_t);
 int	get_mfi_unit(const char *dev);
 char	*get_mfi_type(const char *dev);
 

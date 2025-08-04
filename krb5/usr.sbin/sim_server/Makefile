@@ -7,7 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
+PACKAGE=	kerberos
 
 PROG=	sim_server
 

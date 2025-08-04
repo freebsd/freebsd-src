@@ -792,7 +792,8 @@ static int
 prepare_queues_for_handoff(struct nvmf_ioc_nv *nv,
     const struct nvme_discovery_log_entry *dle, const char *hostnqn,
     struct nvmf_qpair *admin_qp, u_int num_queues,
-    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
+    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata,
+    uint32_t reconnect_delay, uint32_t controller_loss_timeout)
 {
 	const struct nvmf_association *na = admin_qp->nq_association;
 	nvlist_t *nvl, *nvl_qp, *nvl_rparams;
@@ -820,6 +821,9 @@ prepare_queues_for_handoff(struct nvmf_ioc_nv *nv,
 	nvlist_add_string(nvl_rparams, "hostnqn", hostnqn);
 	nvlist_add_number(nvl_rparams, "num_io_queues", num_queues);
 	nvlist_add_number(nvl_rparams, "kato", admin_qp->nq_kato);
+	nvlist_add_number(nvl_rparams, "reconnect_delay", reconnect_delay);
+	nvlist_add_number(nvl_rparams, "controller_loss_timeout",
+	    controller_loss_timeout);
 	nvlist_add_number(nvl_rparams, "io_qsize", io_queues[0]->nq_qsize);
 	nvlist_add_bool(nvl_rparams, "sq_flow_control",
 	    na->na_params.sq_flow_control);
@@ -842,6 +846,9 @@ prepare_queues_for_handoff(struct nvmf_ioc_nv *nv,
 	nvl = nvlist_create(0);
 	nvlist_add_number(nvl, "trtype", na->na_trtype);
 	nvlist_add_number(nvl, "kato", admin_qp->nq_kato);
+	nvlist_add_number(nvl, "reconnect_delay", reconnect_delay);
+	nvlist_add_number(nvl, "controller_loss_timeout",
+	    controller_loss_timeout);
 	nvlist_move_nvlist(nvl, "rparams", nvl_rparams);
 
 	/* First, the admin queue. */
@@ -872,7 +879,8 @@ prepare_queues_for_handoff(struct nvmf_ioc_nv *nv,
 int
 nvmf_handoff_host(const struct nvme_discovery_log_entry *dle,
     const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
-    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
+    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata,
+    uint32_t reconnect_delay, uint32_t controller_loss_timeout)
 {
 	struct nvmf_ioc_nv nv;
 	u_int i;
@@ -885,7 +893,8 @@ nvmf_handoff_host(const struct nvme_discovery_log_entry *dle,
 	}
 
 	error = prepare_queues_for_handoff(&nv, dle, hostnqn, admin_qp,
-	    num_queues, io_queues, cdata);
+	    num_queues, io_queues, cdata, reconnect_delay,
+	    controller_loss_timeout);
 	if (error != 0)
 		goto out;
 
@@ -981,14 +990,16 @@ nvmf_reconnect_params(int fd, nvlist_t **nvlp)
 int
 nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
     const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
-    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
+    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata,
+    uint32_t reconnect_delay, uint32_t controller_loss_timeout)
 {
 	struct nvmf_ioc_nv nv;
 	u_int i;
 	int error;
 
 	error = prepare_queues_for_handoff(&nv, dle, hostnqn, admin_qp,
-	    num_queues, io_queues, cdata);
+	    num_queues, io_queues, cdata, reconnect_delay,
+	    controller_loss_timeout);
 	if (error != 0)
 		goto out;
 

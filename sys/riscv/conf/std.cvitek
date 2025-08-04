@@ -1,0 +1,14 @@
+#
+# CVITEK SoC support
+#
+
+device	fdt
+device	dwc
+device	dwgpio
+device	uart_snps
+device	dwc_cvitek
+device	sdhci_cvitek
+device	cvitek_reset
+device	cvitek_restart
+
+files	"../cvitek/files.cvitek"

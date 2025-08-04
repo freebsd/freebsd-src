@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -17,6 +15,7 @@ LIB=		otp
 LIBDIR=		${PLUGINSDIR}/preauth
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile krad verto krb5 k5crypto com_err krb5support m
+VERSION_MAP=	${.CURDIR}/version.map
 
 .PATH:	${KRB5_DIR}/plugins/preauth/otp
 

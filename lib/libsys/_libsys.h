@@ -180,7 +180,7 @@ typedef int (__sys_pathconf_t)(const char *, int);
 typedef int (__sys_fpathconf_t)(int, int);
 typedef int (__sys_getrlimit_t)(u_int, struct rlimit *);
 typedef int (__sys_setrlimit_t)(u_int, struct rlimit *);
-typedef int (__sys___sysctl_t)(int *, u_int, void *, size_t *, const void *, size_t);
+typedef int (__sys___sysctl_t)(const int *, u_int, void *, size_t *, const void *, size_t);
 typedef int (__sys_mlock_t)(const void *, size_t);
 typedef int (__sys_munlock_t)(const void *, size_t);
 typedef int (__sys_undelete_t)(const char *);
@@ -466,6 +466,8 @@ typedef int (__sys_getrlimitusage_t)(u_int, int, rlim_t *);
 typedef int (__sys_fchroot_t)(int);
 typedef int (__sys_setcred_t)(u_int, const struct setcred *, size_t);
 typedef int (__sys_exterrctl_t)(u_int, u_int, void *);
+typedef int (__sys_inotify_add_watch_at_t)(int, int, const char *, uint32_t);
+typedef int (__sys_inotify_rm_watch_t)(int, int);
 
 void __sys_exit(int rval);
 int __sys_fork(void);
@@ -582,7 +584,7 @@ int __sys_pathconf(const char * path, int name);
 int __sys_fpathconf(int fd, int name);
 int __sys_getrlimit(u_int which, struct rlimit * rlp);
 int __sys_setrlimit(u_int which, struct rlimit * rlp);
-int __sys___sysctl(int * name, u_int namelen, void * old, size_t * oldlenp, const void * new, size_t newlen);
+int __sys___sysctl(const int * name, u_int namelen, void * old, size_t * oldlenp, const void * new, size_t newlen);
 int __sys_mlock(const void * addr, size_t len);
 int __sys_munlock(const void * addr, size_t len);
 int __sys_undelete(const char * path);
@@ -868,6 +870,8 @@ int __sys_getrlimitusage(u_int which, int flags, rlim_t * res);
 int __sys_fchroot(int fd);
 int __sys_setcred(u_int flags, const struct setcred * wcred, size_t size);
 int __sys_exterrctl(u_int op, u_int flags, void * ptr);
+int __sys_inotify_add_watch_at(int fd, int dfd, const char * path, uint32_t mask);
+int __sys_inotify_rm_watch(int fd, int wd);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */

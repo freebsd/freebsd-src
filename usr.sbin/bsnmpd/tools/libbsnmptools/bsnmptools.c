@@ -790,15 +790,6 @@ parse_server(char *opt_arg)
 	if (snmp_parse_server(&snmp_client, opt_arg) < 0)
 		return (-1);
 
-	if (snmp_client.trans > SNMP_TRANS_UDP && snmp_client.chost == NULL) {
-		if ((snmp_client.chost = malloc(strlen(SNMP_DEFAULT_LOCAL) + 1))
-		    == NULL) {
-			syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
-			return (-1);
-		}
-		strcpy(snmp_client.chost, SNMP_DEFAULT_LOCAL);
-	}
-
 	return (2);
 }
 
@@ -890,12 +881,11 @@ parse_local_path(char *opt_arg)
 {
 	assert(opt_arg != NULL);
 
-	if (sizeof(opt_arg) > sizeof(SNMP_LOCAL_PATH)) {
+	if (strlcpy(snmp_client.local_path, opt_arg,
+	    sizeof(snmp_client.local_path)) >= sizeof(snmp_client.local_path)) {
 		warnx("Filename too long - %s", opt_arg);
 		return (-1);
 	}
-
-	strlcpy(snmp_client.local_path, opt_arg, sizeof(SNMP_LOCAL_PATH));
 	return (2);
 }
 

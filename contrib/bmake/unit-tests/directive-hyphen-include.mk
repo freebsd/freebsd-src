@@ -1,4 +1,4 @@
-# $NetBSD: directive-hyphen-include.mk,v 1.4 2025/03/30 09:51:50 rillig Exp $
+# $NetBSD: directive-hyphen-include.mk,v 1.5 2025/06/28 22:39:28 rillig Exp $
 #
 # Tests for the .-include directive, which includes another file,
 # silently skipping it if it cannot be opened.
@@ -15,7 +15,7 @@
 .-include "${MAKEFILE}/subdir"
 
 # Errors that are not related to opening the file are still reported.
-# expect: make: directive-hyphen-include-error.inc:1: Invalid line 'syntax error'
+# expect: make: directive-hyphen-include-error.inc:1: Invalid line "syntax error"
 _!=	echo 'syntax error' > directive-hyphen-include-error.inc
 .-include "${.CURDIR}/directive-hyphen-include-error.inc"
 _!=	rm directive-hyphen-include-error.inc

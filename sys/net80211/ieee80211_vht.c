@@ -838,12 +838,10 @@ ieee80211_add_vhtinfo(uint8_t *frm, struct ieee80211_node *ni)
 }
 
 void
-ieee80211_vht_update_cap(struct ieee80211_node *ni, const uint8_t *vhtcap_ie,
-    const uint8_t *vhtop_ie)
+ieee80211_vht_update_cap(struct ieee80211_node *ni, const uint8_t *vhtcap_ie)
 {
 
 	ieee80211_parse_vhtcap(ni, vhtcap_ie);
-	ieee80211_parse_vhtopmode(ni, vhtop_ie);
 }
 
 static struct ieee80211_channel *

@@ -182,7 +182,7 @@ struct tcp_sendfile_track {
  * snd_una). When the response comes back indicating
  * that there was data (return value 1), then the caller
  * can build a sendmap entry based on the range and the
- * times. The next query would then be done at the 
+ * times. The next query would then be done at the
  * newly created sendmap_end. Repeated until sendmap_end == snd_max.
  *
  * Flags in sendmap_flags are defined below as well.
@@ -197,7 +197,7 @@ struct tcp_sendfile_track {
  * The rack_times are a misc collection of information that
  * the old stack might possibly fill in. Of course its possible
  * that an old stack may not have a piece of information. If so
- * then setting that value to zero is advised. Setting any 
+ * then setting that value to zero is advised. Setting any
  * timestamp passed should only place a zero in it when it
  * is unfilled. This may mean that a time is off by a micro-second
  * but this is ok in the grand scheme of things.
@@ -205,13 +205,13 @@ struct tcp_sendfile_track {
  * When switching stacks it is desireable to get as much information
  * from the old stack to the new stack as possible. Though not always
  * will the stack be compatible in the types of information. The
- * init() function needs to take care when it begins changing 
+ * init() function needs to take care when it begins changing
  * things such as inp_flags2 and the timer units to position these
  * changes at a point where it is unlikely they will fail after
  * making such changes. A stack optionally can have an "undo"
- * function  
+ * function
  *
- * To transfer information to the old stack from the new in 
+ * To transfer information to the old stack from the new in
  * respect to LRO and the inp_flags2, the new stack should set
  * the inp_flags2 to what it supports. The old stack in its
  * fini() function should call the tcp_handle_orphaned_packets()
@@ -544,13 +544,13 @@ typedef enum {
  * do is:
  * a) Make sure that the inp_flags2 is setup correctly
  *    for LRO. There are two flags that the previous
- *    stack may have set INP_MBUF_ACKCMP and 
+ *    stack may have set INP_MBUF_ACKCMP and
  *    INP_SUPPORTS_MBUFQ. If the new stack does not
  *    support these it *should* clear the flags.
  * b) Make sure that the timers are in the proper
  *    granularity that the stack wants. The stack
  *    should check the t_tmr_granularity field. Currently
- *    there are two values that it may hold 
+ *    there are two values that it may hold
  *    TCP_TMR_GRANULARITY_TICKS and TCP_TMR_GRANULARITY_USEC.
  *    Use the functions tcp_timer_convert(tp, granularity);
  *    to move the timers to the correct format for your stack.
@@ -558,14 +558,14 @@ typedef enum {
  * The new stack may also optionally query the tfb_chg_query
  * function if the old stack has one. The new stack may ask
  * for one of three entries and can also state to the old
- * stack its support for the INP_MBUF_ACKCMP and 
+ * stack its support for the INP_MBUF_ACKCMP and
  * INP_SUPPORTS_MBUFQ. This is important since if there are
  * queued ack's without that statement the old stack will
  * be forced to discard the queued acks. The requests that
  * can be made for information by the new stacks are:
  *
  * Note also that the tfb_tcp_fb_init() when called can
- * determine if a query is needed by looking at the 
+ * determine if a query is needed by looking at the
  * value passed in the ptr. The ptr is designed to be
  * set in with any allocated memory, but the address
  * of the condtion (ptr == &tp->t_fb_ptr) will be
@@ -573,17 +573,17 @@ typedef enum {
  * setup of a tcb (which means no query would be needed).
  * If, however, the value is not t_fb_ptr, then the caller
  * is in the middle of a stack switch and is the new stack.
- * A query would be appropriate (if the new stack support 
+ * A query would be appropriate (if the new stack support
  * the query mechanism).
  *
  * TCP_QUERY_SENDMAP - Query of outstanding data.
  * TCP_QUERY_TIMERS_UP	- Query about running timers.
- * TCP_SUPPORTED_LRO - Declaration in req_param of 
- *                     the inp_flags2 supported by 
+ * TCP_SUPPORTED_LRO - Declaration in req_param of
+ *                     the inp_flags2 supported by
  *                     the new stack.
  * TCP_QUERY_RACK_TIMES	- Enquire about various timestamps
  *                        and states the old stack may be in.
- * 
+ *
  * tfb_tcp_fb_fini is changed to add a flag to tell
  * the old stack if the tcb is being destroyed or
  * not. A one in the flag means the TCB is being

@@ -1,0 +1,5 @@
+comment = "Magic number recognition library"
+desc = <<EOD
+libmagic allows an application to identity data using the magic(5) magic number
+database.
+EOD

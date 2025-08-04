@@ -1673,6 +1673,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid,
 	 */
 	if (p->if_type != IFT_ETHER &&
 	    p->if_type != IFT_L2VLAN &&
+	    p->if_type != IFT_BRIDGE &&
 	    (p->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
 		return (EPROTONOSUPPORT);
 	if ((p->if_flags & VLAN_IFFLAGS) != VLAN_IFFLAGS)
@@ -2335,6 +2336,18 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = ENOENT;
 			break;
 		}
+
+		/*
+		 * If the ifp is in a bridge, do not allow setting the device
+		 * to a bridge; this prevents having a bridge SVI as a bridge
+		 * member (which is not permitted).
+		 */
+		if (ifp->if_bridge != NULL && p->if_type == IFT_BRIDGE) {
+			if_rele(p);
+			error = EINVAL;
+			break;
+		}
+
 		if (vlr.vlr_proto == 0)
 			vlr.vlr_proto = ETHERTYPE_VLAN;
 		oldmtu = ifp->if_mtu;

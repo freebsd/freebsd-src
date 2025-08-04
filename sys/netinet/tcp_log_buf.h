@@ -377,12 +377,12 @@ extern int32_t tcp_trace_point_count;
 
 /*
  * Returns true if any sort of BB logging is enabled,
- * commonly used throughout the codebase. 
+ * commonly used throughout the codebase.
  */
 static inline int
 tcp_bblogging_on(struct tcpcb *tp)
 {
-	if (tp->_t_logstate <= TCP_LOG_STATE_OFF) 
+	if (tp->_t_logstate <= TCP_LOG_STATE_OFF)
 		return (0);
 	if (tp->_t_logstate == TCP_LOG_VIA_BBPOINTS)
 		return (0);
@@ -427,7 +427,7 @@ tcp_set_bblog_state(struct tcpcb *tp, uint8_t ls, uint8_t bbpoint)
 	}
 }
 
-static inline uint32_t 
+static inline uint32_t
 tcp_get_bblog_state(struct tcpcb *tp)
 {
 	return (tp->_t_logstate);
@@ -539,12 +539,12 @@ struct tcpcb;
 			    NULL, NULL, 0, NULL);			\
 	} while (0)
 #endif /* TCP_LOG_FORCEVERBOSE */
+/* Assumes/requires the caller has already checked tcp_bblogging_on(tp). */
 #define	TCP_LOG_EVENTP(tp, th, rxbuf, txbuf, eventid, errornum, len, stackinfo, th_hostorder, tv) \
 	do {								\
-		if (tcp_bblogging_on(tp))				\
-			tcp_log_event(tp, th, rxbuf, txbuf, eventid,	\
-			    errornum, len, stackinfo, th_hostorder,	\
-			    NULL, NULL, 0, tv);				\
+		KASSERT(tcp_bblogging_on(tp), ("bblogging is off")); \
+		tcp_log_event(tp, th, rxbuf, txbuf, eventid, errornum, len,	\
+			stackinfo, th_hostorder, NULL, NULL, 0, tv); \
 	} while (0)
 
 #ifdef TCP_BLACKBOX

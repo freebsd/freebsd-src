@@ -7,7 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
+PACKAGE=	kerberos-lib
 
 .include <src.opts.mk>
 
@@ -15,6 +15,7 @@ PACKAGE=	krb5
 
 LIB=		krb5profile
 LIBADD=	com_err krb5support
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	prof_file.c \
 	prof_get.c \
@@ -66,13 +67,8 @@ profile.h:	profile.hin prof_err.h
 
 prof_file.c:	profile.h
 
-MAN=	profile.5
-
 .include <bsd.lib.mk>
 
-.SUFFIXES: .h .c .man .1 .et
-
-.man.5:
-	cp ${.ALLSRC} ${.TARGET}
+.SUFFIXES: .et
 
 .PATH: ${KRB5_DIR}/util/profile

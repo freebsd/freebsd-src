@@ -582,6 +582,34 @@ anchor_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "flush" "cleanup"
+flush_head()
+{
+	atf_set descr 'Test flushing addresses from tables'
+	atf_set require.user root
+}
+
+flush_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+
+	atf_check -s exit:0 -e match:"1/1 addresses added." \
+	    jexec alcatraz pfctl -t foo -T add 1.2.3.4
+	atf_check -s exit:0 -o match:"   1.2.3.4" \
+	    jexec alcatraz pfctl -t foo -T show
+	atf_check -s exit:0 -e match:"1 addresses deleted." \
+	    jexec alcatraz pfctl -t foo -T flush
+	atf_check -s exit:0 -o not-match:"1.2.3.4" \
+	    jexec alcatraz pfctl -t foo -T show
+}
+
+flush_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -596,4 +624,5 @@ atf_init_test_cases()
 	atf_add_test_case "pr259689"
 	atf_add_test_case "precreate"
 	atf_add_test_case "anchor"
+	atf_add_test_case "flush"
 }

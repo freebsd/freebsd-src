@@ -1,0 +1,5 @@
+comment = "Secure Shell Utilities"
+desc = <<EOD
+Secure Shell Utilities
+EOD
+licenses = [ ISCL ]

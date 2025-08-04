@@ -4158,6 +4158,13 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		if (!NFSISSET_ATTRBIT(&dnp->n_vattr.na_suppattr,
 		    NFSATTRBIT_TIMECREATE))
 			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMECREATE);
+		if (!NFSISSET_ATTRBIT(&dnp->n_vattr.na_suppattr,
+		    NFSATTRBIT_HIDDEN) ||
+		    !NFSISSET_ATTRBIT(&dnp->n_vattr.na_suppattr,
+		    NFSATTRBIT_SYSTEM)) {
+			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_HIDDEN);
+			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_SYSTEM);
+		}
 	}
 
 	/*
@@ -5429,7 +5436,8 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
 	(void) nfsv4_fillattr(nd, vp->v_mount, vp, aclp, NULL, NULL, 0,
-	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL);
+	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL, false, false,
+	    false);
 	error = nfscl_request(nd, vp, p, cred);
 	if (error)
 		return (error);
@@ -6925,8 +6933,8 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		if ((dp->nfsdi_flags & NFSDI_TIGHTCOUPLED) == 0) {
 			tcred = NFSNEWCRED(cred);
 			tcred->cr_uid = flp->nfsfl_ffm[mirror].user;
-			tcred->cr_groups[0] = flp->nfsfl_ffm[mirror].group;
-			tcred->cr_ngroups = 1;
+			tcred->cr_gid = flp->nfsfl_ffm[mirror].group;
+			tcred->cr_ngroups = 0;
 		} else
 			tcred = cred;
 		if (rwflag == NFSV4OPEN_ACCESSREAD)

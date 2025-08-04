@@ -575,7 +575,6 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 	pmp->pm_bo = bo;
 
 	lockinit(&pmp->pm_fatlock, 0, msdosfs_lock_msg, 0, 0);
-	lockinit(&pmp->pm_checkpath_lock, 0, "msdoscp", 0, 0);
 
 	TASK_INIT(&pmp->pm_rw2ro_task, 0, msdosfs_remount_ro, pmp);
 
@@ -871,7 +870,6 @@ error_exit:
 	}
 	if (pmp != NULL) {
 		lockdestroy(&pmp->pm_fatlock);
-		lockdestroy(&pmp->pm_checkpath_lock);
 		free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
 		mp->mnt_data = NULL;
@@ -971,7 +969,6 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	dev_rel(pmp->pm_dev);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	lockdestroy(&pmp->pm_fatlock);
-	lockdestroy(&pmp->pm_checkpath_lock);
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
 	return (error);

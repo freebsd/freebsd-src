@@ -196,7 +196,7 @@ SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Firewall");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_one_pass), 0,
-    "Only do a single pass through ipfw when using dummynet(4)");
+    "Only do a single pass through ipfw when using dummynet(4), ipfw_nat or other divert(4)-like interfaces");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
     "Rule number auto-increment step");
@@ -3680,6 +3680,7 @@ vnet_ipfw_init(const void *unused)
 
 	IPFW_LOCK_INIT(chain);
 
+	ipfw_dyn_init(chain);
 	/* fill and insert the default rule */
 	rule = ipfw_alloc_rule(chain, sizeof(struct ip_fw));
 	rule->flags |= IPFW_RULE_NOOPT;
@@ -3689,7 +3690,6 @@ vnet_ipfw_init(const void *unused)
 	chain->default_rule = rule;
 	ipfw_add_protected_rule(chain, rule, 0);
 
-	ipfw_dyn_init(chain);
 	ipfw_eaction_init(chain, first);
 	ipfw_init_skipto_cache(chain);
 	ipfw_bpf_init(first);

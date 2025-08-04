@@ -1,0 +1,7 @@
+comment = "BSD/SunOS remote status commands"
+desc = <<EOD
+The BSD/SunOS remote status commands, which can be used to query or interact
+with remote hosts over the network.  This includes the command-line utilities
+rwho, ruptime, rup, rusers and rwall and the daemons rwhod, rpc.rstatd,
+rpc.rusersd, and rpc.rwalld.
+EOD

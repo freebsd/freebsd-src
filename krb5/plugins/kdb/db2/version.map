@@ -1,0 +1,5 @@
+HIDDEN { local: __*; _rest*; _save*; *; };
+db2_0_MIT {
+	global:
+		kdb_function_table;
+};

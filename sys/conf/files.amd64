@@ -84,8 +84,8 @@ amd64/amd64/xen-locore.S	optional	xenhvm \
 amd64/amd64/machdep.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
-amd64/amd64/mp_machdep.c	optional	smp
-amd64/amd64/mpboot.S		optional	smp
+amd64/amd64/mp_machdep.c	standard
+amd64/amd64/mpboot.S		standard
 amd64/amd64/pmap.c		standard
 amd64/amd64/ptrace_machdep.c	standard
 amd64/amd64/support.S		standard
@@ -190,6 +190,10 @@ dev/ice/irdma_if.m		optional	ice pci \
 dev/ice/irdma_di_if.m		optional	ice pci \
 	compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/ice_ddp_common.c	optional	ice pci \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_iov.c	optional	ice pci pci_iov \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_vf_mbx.c	optional	ice pci pci_iov \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c			optional ice_ddp	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01032900 -mice_ddp -c${.TARGET}"	\

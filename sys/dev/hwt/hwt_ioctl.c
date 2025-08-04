@@ -305,9 +305,11 @@ hwt_ioctl_alloc_mode_cpu(struct thread *td, struct hwt_owner *ho,
 		return (error);
 
 	CPU_FOREACH_ISSET(cpu_id, &cpu_map) {
+#ifdef SMP
 		/* Ensure CPU is not halted. */
 		if (CPU_ISSET(cpu_id, &hlt_cpus_mask))
 			return (ENXIO);
+#endif
 #if 0
 		/* TODO: Check if the owner have this cpu configured already. */
 		ctx = hwt_owner_lookup_ctx_by_cpu(ho, halloc->cpu);

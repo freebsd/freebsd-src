@@ -52,7 +52,6 @@
 
 #define	SS_TYPE_PCM		1
 #define	SS_TYPE_MIDI		2
-#define	SS_TYPE_SEQUENCER	3
 
 static d_open_t sndstat_open;
 static void sndstat_close(void *);
@@ -1165,8 +1164,6 @@ sndstat_register(device_t dev, char *str)
 		type = SS_TYPE_PCM;
 	else if (!strcmp(devtype, "midi"))
 		type = SS_TYPE_MIDI;
-	else if (!strcmp(devtype, "sequencer"))
-		type = SS_TYPE_SEQUENCER;
 	else
 		return (EINVAL);
 
@@ -1441,8 +1438,8 @@ static void
 sndstat_sysinit(void *p)
 {
 	sx_init(&sndstat_lock, "sndstat lock");
-	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS,
-	    UID_ROOT, GID_WHEEL, 0644, "sndstat");
+	sndstat_dev = make_dev(&sndstat_cdevsw, 0, UID_ROOT, GID_WHEEL, 0644,
+	    "sndstat");
 }
 SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);
 

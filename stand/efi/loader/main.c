@@ -1241,6 +1241,9 @@ main(int argc, CHAR16 *argv[])
 #endif
 	cons_probe();
 
+	/* Set print_delay variable to have hooks in place. */
+	env_setenv("print_delay", EV_VOLATILE, "", setprint_delay, env_nounset);
+
 	/* Set up currdev variable to have hooks in place. */
 	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev, env_nounset);
 
@@ -1547,6 +1550,7 @@ command_seed_entropy(int argc, char *argv[])
 }
 
 COMMAND_SET(poweroff, "poweroff", "power off the system", command_poweroff);
+COMMAND_SET(halt, "halt", "power off the system", command_poweroff);
 
 static int
 command_poweroff(int argc __unused, char *argv[] __unused)

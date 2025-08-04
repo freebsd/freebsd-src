@@ -7,6 +7,8 @@ options 	SOC_ALLWINNER_D1
 
 device		aw_ccu		# Allwinner clock controller
 device		aw_gpio		# Allwinner GPIO controller
+device		aw_mmc		# Allwinner SD/MMC controller
+device		aw_rtc		# Allwinner Real-time Clock
 device		aw_sid		# Allwinner Secure ID EFUSE
 device		aw_timer	# Allwinner Timer
 device		aw_usbphy	# Allwinner USB PHY

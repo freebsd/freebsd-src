@@ -46,7 +46,5 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 DUMMY(sysfs);
 DUMMY(quotactl);
-/* Linux 2.6.13: */
-DUMMY(inotify_init);
 /* Linux 2.6.22: */
 DUMMY(signalfd);

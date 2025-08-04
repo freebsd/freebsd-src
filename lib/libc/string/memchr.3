@@ -34,7 +34,7 @@
 .Os
 .Sh NAME
 .Nm memchr
-.Nd locate byte in byte string
+.Nd locate byte in memory object
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -51,8 +51,11 @@ locates the first occurrence of
 .Fa c
 (converted to an
 .Vt "unsigned char" )
-in string
-.Fa b .
+in object
+.Fa b ,
+limited to at most
+.Fa len
+characters.
 .Pp
 The
 .Fn memrchr
@@ -60,16 +63,19 @@ function behaves like
 .Fn memchr ,
 except that it locates the last occurrence of
 .Fa c
-in string
-.Fa b .
+in object
+.Fa b ,
+limited to the first
+.Fa len
+characters.
 .Sh RETURN VALUES
 The
 .Fn memchr
 and
 .Fn memrchr
-functions
-return a pointer to the byte located,
-or NULL if no such byte exists within
+functions return a pointer to the byte located, or
+.Dv NULL
+if no such byte exists within
 .Fa len
 bytes.
 .Sh SEE ALSO

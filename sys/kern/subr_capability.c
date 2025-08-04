@@ -74,6 +74,10 @@ const cap_rights_t cap_getsockopt_rights =
     CAP_RIGHTS_INITIALIZER(CAP_GETSOCKOPT);
 const cap_rights_t cap_getsockname_rights =
     CAP_RIGHTS_INITIALIZER(CAP_GETSOCKNAME);
+const cap_rights_t cap_inotify_add_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_INOTIFY_ADD);
+const cap_rights_t cap_inotify_rm_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_INOTIFY_RM);
 const cap_rights_t cap_ioctl_rights = CAP_RIGHTS_INITIALIZER(CAP_IOCTL);
 const cap_rights_t cap_listen_rights = CAP_RIGHTS_INITIALIZER(CAP_LISTEN);
 const cap_rights_t cap_linkat_source_rights =

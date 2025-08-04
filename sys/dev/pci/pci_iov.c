@@ -734,11 +734,18 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	first_rid = pci_get_rid(dev) + rid_off;
 	last_rid = first_rid + (num_vfs - 1) * rid_stride;
 
-	/* We don't yet support allocating extra bus numbers for VFs. */
 	if (pci_get_bus(dev) != PCI_RID2BUS(last_rid)) {
-		device_printf(dev, "not enough PCIe bus numbers for VFs\n");
-		error = ENOSPC;
-		goto out;
+		int rid = 0;
+		uint16_t last_rid_bus = PCI_RID2BUS(last_rid);
+
+		iov->iov_bus_res = bus_alloc_resource(bus, PCI_RES_BUS, &rid,
+		    last_rid_bus, last_rid_bus, 1, RF_ACTIVE);
+		if (iov->iov_bus_res == NULL) {
+			device_printf(dev,
+			    "failed to allocate PCIe bus number for VFs\n");
+			error = ENOSPC;
+			goto out;
+		}
 	}
 
 	if (!ari_enabled && PCI_RID2SLOT(last_rid) != 0) {
@@ -784,6 +791,11 @@ out:
 			    iov->iov_pos + PCIR_SRIOV_BAR(i));
 			iov->iov_bar[i].res = NULL;
 		}
+	}
+
+	if (iov->iov_bus_res != NULL) {
+		bus_release_resource(bus, iov->iov_bus_res);
+		iov->iov_bus_res = NULL;
 	}
 
 	if (iov->iov_flags & IOV_RMAN_INITED) {
@@ -894,6 +906,11 @@ pci_iov_delete_iov_children(struct pci_devinfo *dinfo)
 			    iov->iov_pos + PCIR_SRIOV_BAR(i));
 			iov->iov_bar[i].res = NULL;
 		}
+	}
+
+	if (iov->iov_bus_res != NULL) {
+		bus_release_resource(bus, iov->iov_bus_res);
+		iov->iov_bus_res = NULL;
 	}
 
 	if (iov->iov_flags & IOV_RMAN_INITED) {

@@ -744,7 +744,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	while (cur != NULL) {
 		if (!(sblkp >= sack_blocks)) {
 			if (((loss_sblks >= tcprexmtthresh) ||
-			    (loss_thresh > (tcprexmtthresh-1)*tp->t_maxseg))) 
+			    (loss_thresh > (tcprexmtthresh-1)*tp->t_maxseg)))
 				break;
 			loss_thresh += loss_hiack - cur->end;
 			loss_hiack = cur->start;

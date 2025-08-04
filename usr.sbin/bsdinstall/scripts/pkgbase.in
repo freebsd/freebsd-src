@@ -165,7 +165,9 @@ local function select_packages(pkg, options)
 			table.insert(components["src"], package)
 		elseif package == "FreeBSD-tests" or package:match("^FreeBSD%-tests%-.*") then
 			table.insert(components["tests"], package)
-		elseif package:match("^FreeBSD%-kernel%-.*") then
+		elseif package:match("^FreeBSD%-kernel%-.*") and
+			package ~= "FreeBSD-kernel-man"
+		then
 			-- Kernels other than FreeBSD-kernel-generic are ignored
 			if package == "FreeBSD-kernel-generic" then
 				table.insert(components["kernel"], package)
@@ -234,12 +236,17 @@ local function pkgbase()
 	local chroot = assert(os.getenv("BSDINSTALL_CHROOT"))
 	assert(os.execute("mkdir -p " .. chroot))
 
+	-- Always install the default FreeBSD-base.conf file to the chroot, even
+	-- if we don't actually fetch the packages from the repository specified
+	-- there (e.g. because we are performing an offline installation).
+	local chroot_repos_dir = chroot .. "/usr/local/etc/pkg/repos/"
+	assert(os.execute("mkdir -p " .. chroot_repos_dir))
+	assert(os.execute("cp /usr/share/bsdinstall/FreeBSD-base.conf " ..
+		chroot_repos_dir))
+
 	local repos_dir = os.getenv("BSDINSTALL_PKG_REPOS_DIR")
 	if not repos_dir then
-		repos_dir = chroot .. "/usr/local/etc/pkg/repos/"
-		assert(os.execute("mkdir -p " .. repos_dir))
-		assert(os.execute("cp /usr/share/bsdinstall/FreeBSD-base.conf " .. repos_dir))
-
+		repos_dir = chroot_repos_dir
 		-- Since pkg always interprets fingerprints paths as relative to
 		-- the --rootdir we must copy the key from the host.
 		assert(os.execute("mkdir -p " .. chroot .. "/usr/share/keys"))

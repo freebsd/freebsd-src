@@ -800,7 +800,7 @@ wait_for_pids()
 	fi
 	_prefix=
 	while true; do
-		_nlist="";
+		_nlist=""
 		for _j in $_list; do
 			if kill -0 $_j 2>/dev/null; then
 				_nlist="${_nlist}${_nlist:+ }$_j"
@@ -813,7 +813,7 @@ wait_for_pids()
 		_list=$_nlist
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		pwait $_list 2>/dev/null
+		pwait -o $_list 2>/dev/null
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
@@ -1689,7 +1689,7 @@ $_cpusetcmd $command $rc_flags $command_args"
 		start)
 			# We cannot use protect(1) inside jails.
 			if [ -n "$_oomprotect" ] && [ -f "${PROTECT}" ] &&
-			    [ "$(sysctl -n security.jail.jailed)" -eq 0 ]; then
+			    ! check_jail jailed; then
 				[ -z "${rc_pid}" ] && eval $_pidcmd
 				case $_oomprotect in
 				[Aa][Ll][Ll])
@@ -2671,7 +2671,7 @@ check_required_after()
 }
 
 # check_jail mib
-#	Return true if security.jail.$mib exists and set to 1.
+#	Return true if security.jail.$mib exists and is set to 1.
 
 check_jail()
 {

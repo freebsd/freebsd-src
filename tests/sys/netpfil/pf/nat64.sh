@@ -916,6 +916,15 @@ route_to_body()
 
 	atf_check -s exit:0 -o ignore \
 	    ping6 -c 3 64:ff9b::192.0.2.2
+
+	states=$(mktemp) || exit 1
+	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
+
+	for state_regexp in \
+		"${epair}b ipv6-icmp 192.0.2.1:.* \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:8 \(64:ff9b::c000:202\[[0-9]+\]\).*4:2 pkts.*route-to: 192.0.2.2@${epair_link}a" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
 }
 
 route_to_cleanup()

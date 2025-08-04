@@ -44,6 +44,7 @@
 
 static void efi_table_print_esrt(const void *data);
 static void efi_table_print_prop(const void *data);
+static void efi_table_print_memory(const void *data);
 static void usage(void) __dead2;
 
 struct efi_table_op {
@@ -56,7 +57,9 @@ static const struct efi_table_op efi_table_ops[] = {
 	{ .name = "esrt", .parse = efi_table_print_esrt,
 	    .guid = EFI_TABLE_ESRT },
 	{ .name = "prop", .parse = efi_table_print_prop,
-	    .guid = EFI_PROPERTIES_TABLE }
+	    .guid = EFI_PROPERTIES_TABLE },
+	{ .name = "memory", .parse = efi_table_print_memory,
+	    .guid = EFI_MEMORY_ATTRIBUTES_TABLE }
 };
 
 int
@@ -235,6 +238,51 @@ efi_table_print_prop(const void *data)
 	    "{:memory_protection_attribute/%#lx}\n",
 	    prop->memory_protection_attribute);
 	xo_close_container("prop");
+	if (xo_finish() < 0)
+		xo_err(EX_IOERR, "stdout");
+}
+
+static void
+efi_table_print_memory(const void *data)
+{
+	const struct efi_memory_attribute_table *attr =
+	    (const struct efi_memory_attribute_table *)data;
+	const struct efi_memory_descriptor *desc;
+	int i, nentries;
+
+	nentries = attr->num_ents;
+	desc = attr->tables;
+
+	xo_set_version(EFITABLE_XO_VERSION);
+
+	xo_open_container("memory");
+	xo_emit("{Lwc:Version}{:version/%#x}\n", attr->version);
+	xo_emit("{Lwc:Length}{:length/%u}\n", attr->descriptor_size);
+	xo_emit("{Lwc:Entries}{:entries/%u}\n", attr->num_ents);
+
+	xo_open_container("attributes");
+
+	/*
+	 * According to https://forum.osdev.org/viewtopic.php?t=32953, the size
+	 * of records into the attribute table never equals to
+	 * sizeof(efi_memory_descriptor). The correct one for indexing the array
+	 * resides in the attributet table.
+	 */
+	for (i = 0; i < nentries; i++) {
+		xo_emit("{Lwc:ID}{:id/%#x}\n", i);
+		xo_emit("{Lwc:Attributes}{:attributes/%#x}\n", desc->attrs);
+		xo_emit("{Lwc:Type}{:type/%#x}\n", desc->type);
+		xo_emit("{Lwc:Pages}{:pages/%#x}\n", desc->pages);
+		xo_emit("{Lwc:Phyaddr}{:phyaddr/%#p}\n", desc->phy_addr);
+		xo_emit("{Lwc:Virtaddr}{:virtaddr/%#p}\n", desc->virt_addr);
+		desc = (const struct efi_memory_descriptor *)(const void *)
+		    ((const char *)desc + attr->descriptor_size);
+	}
+
+	xo_close_container("attributes");
+
+	xo_close_container("memory");
+
 	if (xo_finish() < 0)
 		xo_err(EX_IOERR, "stdout");
 }

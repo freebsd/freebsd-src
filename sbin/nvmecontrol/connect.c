@@ -31,6 +31,8 @@ static struct options {
 	const char	*subnqn;
 	const char	*hostnqn;
 	uint32_t	kato;
+	uint32_t	reconnect_delay;
+	uint32_t	controller_loss_timeout;
 	uint16_t	num_io_queues;
 	uint16_t	queue_size;
 	bool		data_digests;
@@ -43,6 +45,8 @@ static struct options {
 	.subnqn = NULL,
 	.hostnqn = NULL,
 	.kato = NVMF_KATO_DEFAULT / 1000,
+	.reconnect_delay = NVMF_DEFAULT_RECONNECT_DELAY,
+	.controller_loss_timeout = NVMF_DEFAULT_CONTROLLER_LOSS,
 	.num_io_queues = 1,
 	.queue_size = 0,
 	.data_digests = false,
@@ -107,7 +111,7 @@ connect_nvm_controller(enum nvmf_trtype trtype, int adrfam, const char *address,
 	}
 
 	error = nvmf_handoff_host(dle, hostnqn, admin, opt.num_io_queues, io,
-	    &cdata);
+	    &cdata, opt.reconnect_delay, opt.controller_loss_timeout);
 	if (error != 0) {
 		warnc(error, "Failed to handoff queues to kernel");
 		free(io);
@@ -259,6 +263,11 @@ static const struct opts connect_opts[] = {
 	    "Number of entries in each I/O queue"),
 	OPT("keep-alive-tmo", 'k', arg_uint32, opt, kato,
 	    "Keep Alive timeout (in seconds)"),
+	OPT("reconnect-delay", 'r', arg_uint32, opt, reconnect_delay,
+	    "Delay between reconnect attempts after connection loss "
+	    "(in seconds)"),
+	OPT("ctrl-loss-tmo", 'l', arg_uint32, opt, controller_loss_timeout,
+	    "Controller loss timeout after connection loss (in seconds)"),
 	OPT("hostnqn", 'q', arg_string, opt, hostnqn,
 	    "Host NQN"),
 	OPT("flow_control", 'F', arg_none, opt, flow_control,

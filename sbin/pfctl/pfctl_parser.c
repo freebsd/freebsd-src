@@ -66,10 +66,9 @@
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
-void		 copy_satopfaddr(struct pf_addr *, struct sockaddr *);
 void		 print_op (u_int8_t, const char *, const char *);
 void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *, int);
-void		 print_ugid (u_int8_t, unsigned, unsigned, const char *, unsigned);
+void		 print_ugid (u_int8_t, id_t, id_t, const char *);
 void		 print_flags (uint16_t);
 void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
 		    struct pf_rule_addr *, sa_family_t, u_int8_t, int, int);
@@ -365,14 +364,14 @@ print_port(u_int8_t op, u_int16_t p1, u_int16_t p2, const char *proto, int numer
 }
 
 void
-print_ugid(u_int8_t op, unsigned u1, unsigned u2, const char *t, unsigned umax)
+print_ugid(u_int8_t op, id_t i1, id_t i2, const char *t)
 {
 	char	a1[11], a2[11];
 
-	snprintf(a1, sizeof(a1), "%u", u1);
-	snprintf(a2, sizeof(a2), "%u", u2);
+	snprintf(a1, sizeof(a1), "%ju", (uintmax_t)i1);
+	snprintf(a2, sizeof(a2), "%ju", (uintmax_t)i2);
 	printf(" %s", t);
-	if (u1 == umax && (op == PF_OP_EQ || op == PF_OP_NE))
+	if (i1 == -1 && (op == PF_OP_EQ || op == PF_OP_NE))
 		print_op(op, "unknown", a2);
 	else
 		print_op(op, a1, a2);
@@ -430,10 +429,9 @@ print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
 }
 
 void
-print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2,
-    sa_family_t af, int id)
+print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2, int id)
 {
-	struct pf_pooladdr	*pooladdr;
+	struct pfctl_pooladdr	*pooladdr;
 
 	if ((TAILQ_FIRST(&pool->list) != NULL) &&
 	    TAILQ_NEXT(TAILQ_FIRST(&pool->list), entries) != NULL)
@@ -443,15 +441,15 @@ print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2,
 		case PF_NAT:
 		case PF_RDR:
 		case PF_BINAT:
-			print_addr(&pooladdr->addr, af, 0);
+			print_addr(&pooladdr->addr, pooladdr->af, 0);
 			break;
 		case PF_PASS:
 		case PF_MATCH:
-			if (PF_AZERO(&pooladdr->addr.v.a.addr, af))
+			if (PF_AZERO(&pooladdr->addr.v.a.addr, pooladdr->af))
 				printf("%s", pooladdr->ifname);
 			else {
 				printf("(%s ", pooladdr->ifname);
-				print_addr(&pooladdr->addr, af, 0);
+				print_addr(&pooladdr->addr, pooladdr->af, 0);
 				printf(")");
 			}
 			break;
@@ -675,7 +673,7 @@ print_src_node(struct pfctl_src_node *sn, int opts)
 	print_addr(&aw, sn->af, opts & PF_OPT_VERBOSE2);
 	printf(" -> ");
 	aw.v.a.addr = sn->raddr;
-	print_addr(&aw, sn->naf ? sn->naf : sn->af, opts & PF_OPT_VERBOSE2);
+	print_addr(&aw, sn->raf, opts & PF_OPT_VERBOSE2);
 	printf(" ( states %u, connections %u, rate %u.%u/%us )\n", sn->states,
 	    sn->conn, sn->conn_rate.count / 1000,
 	    (sn->conn_rate.count % 1000) / 100, sn->conn_rate.seconds);
@@ -929,7 +927,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 				printf("%sall", count++ ? ", " : "");
 			if (r->log & PF_LOG_MATCHES)
 				printf("%smatches", count++ ? ", " : "");
-			if (r->log & PF_LOG_SOCKET_LOOKUP)
+			if (r->log & PF_LOG_USER)
 				printf("%suser", count++ ? ", " : "");
 			if (r->logif)
 				printf("%sto pflog%u", count++ ? ", " : "",
@@ -953,10 +951,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		else if (r->rt == PF_DUPTO)
 			printf(" dup-to");
 		printf(" ");
-		print_pool(&r->rdr, 0, 0, r->af, PF_PASS);
-		print_pool(&r->route, 0, 0,
-		    r->rule_flag & PFRULE_AFTO && r->rt != PF_REPLYTO ? r->naf : r->af,
-		    PF_PASS);
+		print_pool(&r->route, 0, 0, PF_PASS);
 	}
 	if (r->af) {
 		if (r->af == AF_INET)
@@ -978,11 +973,9 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		printf(" %sreceived-on %s", r->rcvifnot ? "!" : "",
 		    r->rcv_ifname);
 	if (r->uid.op)
-		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user",
-		    UID_MAX);
+		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user");
 	if (r->gid.op)
-		print_ugid(r->gid.op, r->gid.gid[0], r->gid.gid[1], "group",
-		    GID_MAX);
+		print_ugid(r->gid.op, r->gid.gid[0], r->gid.gid[1], "group");
 	if (r->flags || r->flagset) {
 		printf(" flags ");
 		print_flags(r->flags);
@@ -1255,17 +1248,16 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	if (r->action == PF_NAT || r->action == PF_BINAT || r->action == PF_RDR) {
 		printf(" -> ");
 		print_pool(&r->rdr, r->rdr.proxy_port[0],
-		    r->rdr.proxy_port[1], r->af, r->action);
+		    r->rdr.proxy_port[1], r->action);
 	} else {
 		if (!TAILQ_EMPTY(&r->nat.list)) {
 			if (r->rule_flag & PFRULE_AFTO) {
-				printf(" af-to %s from ", r->naf == AF_INET ? "inet" : "inet6");
+				printf(" af-to %s from ", r->naf == AF_INET ? "inet" : (r->naf == AF_INET6 ? "inet6" : "? "));
 			} else {
 				printf(" nat-to ");
 			}
 			print_pool(&r->nat, r->nat.proxy_port[0],
-			    r->nat.proxy_port[1], r->naf ? r->naf : r->af,
-			    PF_NAT);
+			    r->nat.proxy_port[1], PF_NAT);
 		}
 		if (!TAILQ_EMPTY(&r->rdr.list)) {
 			if (r->rule_flag & PFRULE_AFTO) {
@@ -1274,8 +1266,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 				printf(" rdr-to ");
 			}
 			print_pool(&r->rdr, r->rdr.proxy_port[0],
-			    r->rdr.proxy_port[1], r->naf ? r->naf : r->af,
-			    PF_RDR);
+			    r->rdr.proxy_port[1], PF_RDR);
 		}
 	}
 }
@@ -1486,7 +1477,8 @@ ifa_load(void)
 		err(1, "getifaddrs");
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-		if (!(ifa->ifa_addr->sa_family == AF_INET ||
+		if (ifa->ifa_addr == NULL ||
+		    !(ifa->ifa_addr->sa_family == AF_INET ||
 		    ifa->ifa_addr->sa_family == AF_INET6 ||
 		    ifa->ifa_addr->sa_family == AF_LINK))
 				continue;
@@ -1795,7 +1787,7 @@ host(const char *s, int opts)
 	char			*p, *ps;
 	const char		*errstr;
 
-	if ((p = strrchr(s, '/')) != NULL) {
+	if ((p = strchr(s, '/')) != NULL) {
 		mask = strtonum(p+1, 0, 128, &errstr);
 		if (errstr) {
 			fprintf(stderr, "netmask is %s: %s\n", errstr, p);

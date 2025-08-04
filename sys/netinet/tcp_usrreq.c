@@ -164,7 +164,7 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		goto out;
 
 	so->so_rcv.sb_flags |= SB_AUTOSIZE;
-	so->so_snd.sb_flags |= SB_AUTOSIZE;
+	so->so_snd.sb_flags |= (SB_AUTOLOWAT | SB_AUTOSIZE);
 	error = in_pcballoc(so, &V_tcbinfo);
 	if (error)
 		goto out;
@@ -1520,7 +1520,8 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 	INP_WLOCK_ASSERT(inp);
 
 	if (__predict_false((so->so_state &
-	    (SS_ISCONNECTING | SS_ISCONNECTED)) != 0))
+	    (SS_ISCONNECTING | SS_ISCONNECTED | SS_ISDISCONNECTING |
+	    SS_ISDISCONNECTED)) != 0))
 		return (EISCONN);
 	if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
 		return (EOPNOTSUPP);
@@ -1767,9 +1768,9 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 				/*
 				 * Release the ref count the lookup
 				 * acquired.
-				 */ 
+				 */
 				refcount_release(&blk->tfb_refcnt);
-				/* 
+				/*
 				 * Now there is a chance that the
 				 * init() function mucked with some
 				 * things before it failed, such as
@@ -1799,7 +1800,7 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 		 * new one already.
 		 */
 		refcount_release(&tp->t_fb->tfb_refcnt);
-		/* 
+		/*
 		 * Set in the new stack.
 		 */
 		tp->t_fb = blk;
@@ -1933,7 +1934,7 @@ tcp_set_cc_mod(struct inpcb *inp, struct sockopt *sopt)
 		CC_LIST_RUNLOCK();
 		return(ESRCH);
 	}
-	/* 
+	/*
 	 * With a reference the algorithm cannot be removed
 	 * so we hold a reference through the change process.
 	 */

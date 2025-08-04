@@ -86,7 +86,7 @@ function add_debug_code(name, arg, pos, ind)
 function add_debugpre(name)
 {
 	if (lockdata[name, "debugpre"]) {
-		printc("#ifdef DEBUG_VFS_LOCKS");
+		printc("#ifdef INVARIANTS");
 		printc("\t"lockdata[name, "debugpre"]"(a);");
 		printc("#endif");
 	}
@@ -95,7 +95,7 @@ function add_debugpre(name)
 function add_debugpost(name)
 {
 	if (lockdata[name, "debugpost"]) {
-		printc("#ifdef DEBUG_VFS_LOCKS");
+		printc("#ifdef INVARIANTS");
 		printc("\t"lockdata[name, "debugpost"]"(a, rc);");
 		printc("#endif");
 	}
@@ -193,6 +193,7 @@ if (cfile) {
 	printc(common_head \
 	    "#include <sys/param.h>\n" \
 	    "#include <sys/event.h>\n" \
+	    "#include <sys/inotify.h>\n" \
 	    "#include <sys/kernel.h>\n" \
 	    "#include <sys/mount.h>\n" \
 	    "#include <sys/sdt.h>\n" \
@@ -339,7 +340,7 @@ while ((getline < srcfile) > 0) {
 		for (i = 0; i < numargs; ++i)
 			printh("\ta.a_" args[i] " = " args[i] ";");
 		if (can_inline(name)) {
-			printh("\n#if !defined(DEBUG_VFS_LOCKS) && !defined(INVARIANTS) && !defined(KTR)");
+			printh("\n#if !defined(INVARIANTS) && !defined(KTR)");
 			printh("\tif (!SDT_PROBES_ENABLED())");
 			printh("\t\treturn (" args[0]"->v_op->"name"(&a));");
 			printh("\telse");

@@ -32,18 +32,18 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd May 20, 2024
+.Dd March 28, 2025
 .Dt ICE 4
 .Os
 .Sh NAME
 .Nm ice
-.Nd "Intel Ethernet 800 Series Driver"
+.Nd "Intel\(rg Ethernet 800 Series Driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device iflib"
-.Cd "device ice"
+.Bd -literal -offset indent
+.Cd device iflib
+.Cd device ice
 .Ed
 .Pp
 To load the driver as a module at boot time, place the following lines in
@@ -57,7 +57,7 @@ The
 .Nm
 driver provides support for any PCI Express adapter or LOM
 (LAN On Motherboard)
-in the Intel Ethernet 800 Series.
+in the Intel\(rg Ethernet 800 Series.
 As of this writing, the series includes devices with these model numbers:
 .Pp
 .Bl -bullet -compact
@@ -73,6 +73,16 @@ Intel\(rg Ethernet Connection E822\-L
 Intel\(rg Ethernet Connection E823\-C
 .It
 Intel\(rg Ethernet Connection E823\-L
+.It
+Intel\(rg Ethernet Connection E825\-C
+.It
+Intel\(rg Ethernet Connection E830\-C
+.It
+Intel\(rg Ethernet Connection E830\-CC
+.It
+Intel\(rg Ethernet Connection E830\-L
+.It
+Intel\(rg Ethernet Connection E830\-XXV
 .El
 .Pp
 For questions related to hardware requirements, refer to the documentation
@@ -83,11 +93,17 @@ Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit Jumbo Frames.
 The maximum MTU size for Jumbo Frames is 9706.
-This value coincides with the maximum Jumbo Frame size of 9728.
+For more information, see the
+.Sx Jumbo Frames
+section.
 .Pp
 This driver version supports VLANs.
-For information on enabling VLANs, see the
-.Pa README .
+For information on enabling VLANs, see
+.Xr vlan 4 .
+For additional information on configuring VLANs, see
+.Xr ifconfig 8 Ap s
+.Dq VLAN Parameters
+section.
 .Pp
 Offloads are also controlled via the interface, for instance, checksumming for
 both IPv4 and IPv6 can be set and unset, TSO4 and/or TSO6, and finally LRO can
@@ -95,29 +111,739 @@ be set and unset.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Pp
+The associated Virtual Function (VF) driver for this driver is
+.Xr iavf 4 .
+.Pp
+The associated RDMA driver for this driver is
+.Xr irdma 4 .
+.Ss Dynamic Device Personalization
+The DDP package loads during device initialization.
+The driver looks for the
+.Sy ice_ddp
+module and checks that it contains a valid DDP package file.
+.Pp
+If the driver is unable to load the DDP package, the device will enter Safe
+Mode.
+Safe Mode disables advanced and performance features and supports only
+basic traffic and minimal functionality, such as updating the NVM or
+downloading a new driver or DDP package.
+Safe Mode only applies to the affected physical function and does not impact
+any other PFs.
+See the
+.Dq Intel\(rg Ethernet Adapters and Devices User Guide
+for more details on DDP and Safe Mode.
+.Pp
+If you encounter issues with the DDP package file, you may need to download
+an updated driver or
+.Sy ice_ddp
+module.
+See the log messages for more information.
+.Pp
+You cannot update the DDP package if any PF drivers are already loaded.
+To overwrite a package, unload all PFs and then reload the driver with the
+new package.
+.Pp
+You can only use one DDP package per driver, even if you have more than one
+device installed that uses the driver.
+.Pp
+Only the first loaded PF per device can download a package for that device.
+.Ss Jumbo Frames
+Jumbo Frames support is enabled by changing the Maximum Transmission Unit (MTU)
+to a value larger than the default value of 1500.
+.Pp
+Use
+.Xr ifconfig 8
+to increase the MTU size.
+.Pp
+The maximum MTU setting for jumbo frames is 9706.
+This corresponds to the maximum jumbo frame size of 9728 bytes.
+.Pp
+This driver will attempt to use multiple page sized buffers to receive
+each jumbo packet.
+This should help to avoid buffer starvation issues when allocating receive
+packets.
+.Pp
+Packet loss may have a greater impact on throughput when you use jumbo
+frames.
+If you observe a drop in performance after enabling jumbo frames, enabling
+flow control may mitigate the issue.
+.Ss Remote Direct Memory Access
+Remote Direct Memory Access, or RDMA, allows a network device to transfer data
+directly to and from application memory on another system, increasing
+throughput and lowering latency in certain networking environments.
+.Pp
+The ice driver supports both the iWARP (Internet Wide Area RDMA Protocol) and
+RoCEv2 (RDMA over Converged Ethernet) protocols.
+The major difference is that iWARP performs RDMA over TCP, while RoCEv2 uses
+UDP.
+.Pp
+Devices based on the Intel\(rg Ethernet 800 Series do not support RDMA when
+operating in multiport mode with more than 4 ports.
+.Pp
+For detailed installation and configuration information for RDMA, see
+.Xr irdma 4 .
+.Ss RDMA Monitoring
+For debugging/testing purposes, you can use sysctl to set up a mirroring
+interface on a port.
+The interface can receive mirrored RDMA traffic for packet
+analysis tools like
+.Xr tcpdump 1 .
+This mirroring may impact performance.
+.Pp
+To use RDMA monitoring, you may need to reserve more MSI\-X interrupts.
+Before the
+.Nm
+driver loads, configure the following tunable provided by
+.Xr iflib 4 :
+.Bd -literal -offset indent
+dev.ice.<interface #>.iflib.use_extra_msix_vectors=4
+.Ed
+.Pp
+You may need to adjust the number of extra MSI\-X interrupt vectors.
+.Pp
+To create/delete the interface:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.create_interface=1
+sysctl dev.ice.<interface #>.delete_interface=1
+.Ed
+.Pp
+The mirrored interface receives both LAN and RDMA traffic.
+Additional filters can be configured in tcpdump.
+.Pp
+To differentiate the mirrored interface from the primary interface, the network
+interface naming convention is:
+.Bd -literal -offset indent
+<driver name><port number><modifier><modifier unit number>
+.Ed
+.Pp
+For example,
+.Dq Li ice0m0
+is the first mirroring interface on
+.Dq Li ice0 .
+.Ss Data Center Bridging
+Data Center Bridging (DCB) is a configuration Quality of Service
+implementation in hardware.
+It uses the VLAN priority tag (802.1p) to filter traffic.
+That means that there are 8 different priorities that traffic can be filtered
+into.
+It also enables priority flow control (802.1Qbb) which can limit or eliminate
+the number of dropped packets during network stress.
+Bandwidth can be allocated to each of these priorities, which is enforced at
+the hardware level (802.1Qaz).
+.Pp
+DCB is normally configured on the network using the DCBX protocol (802.1Qaz), a
+specialization of LLDP (802.1AB). The
+.Nm
+driver supports the following mutually exclusive variants of DCBX support:
+.Bl -bullet -compact
+.It
+Firmware\-based LLDP Agent
+.It
+Software\-based LLDP Agent
+.El
+.Pp
+In firmware\-based mode, firmware intercepts all LLDP traffic and handles DCBX
+negotiation transparently for the user.
+In this mode, the adapter operates in
+.Dq willing
+DCBX mode, receiving DCB settings from the link partner (typically a
+switch).
+The local user can only query the negotiated DCB configuration.
+For information on configuring DCBX parameters on a switch, please consult the
+switch manufacturer'ss documentation.
+.Pp
+In software\-based mode, LLDP traffic is forwarded to the network stack and user
+space, where a software agent can handle it.
+In this mode, the adapter can operate in
+.Dq nonwilling
+DCBX mode and DCB configuration can be both queried and set locally.
+This mode requires the FW\-based LLDP Agent to be disabled.
+.Pp
+Firmware\-based mode and software\-based mode are controlled by the
+.Dq fw_lldp_agent
+sysctl.
+Refer to the Firmware Link Layer Discovery Protocol Agent section for more
+information.
+.Pp
+Link\-level flow control and priority flow control are mutually exclusive.
+The ice driver will disable link flow control when priority flow control
+is enabled on any traffic class (TC).
+It will disable priority flow control when link flow control is enabled.
+.Pp
+To enable/disable priority flow control in software\-based DCBX mode:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.pfc=1 (or 0 to disable)
+.Ed
+.Pp
+Enhanced Transmission Selection (ETS) allows you to assign bandwidth to certain
+TCs, to help ensure traffic reliability.
+To view the assigned ETS configuration, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.ets_min_rate
+.Ed
+.Pp
+To set the minimum ETS bandwidth per TC, separate the values by commas.
+All values must add up to 100.
+For example, to set all TCs to a minimum bandwidth of 10% and TC 7 to 30%,
+use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.ets_min_rate=10,10,10,10,10,10,10,30
+.Ed
+.Pp
+To set the User Priority (UP) to a TC mapping for a port, separate the values
+by commas.
+For example, to map UP 0 and 1 to TC 0, UP 2 and 3 to TC 1, UP 4 and
+5 to TC 2, and UP 6 and 7 to TC 3, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.up2tc_map=0,0,1,1,2,2,3,3
+.Ed
+.Ss L3 QoS mode
+The
+.Nm
+driver supports setting DSCP\-based Layer 3 Quality of Service (L3 QoS)
+in the PF driver.
+The driver initializes in L2 QoS mode by default; L3 QoS is disabled by
+default.
+Use the following sysctl to enable or disable L3 QoS:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.pfc_mode=1 (or 0 to disable)
+.Ed
+.Pp
+If you disable L3 QoS mode, it returns to L2 QoS mode.
+.Pp
+To map a DSCP value to a traffic class, separate the values by commas.
+For example, to map DSCPs 0\-3 and DSCP 8 to DCB TCs 0\-3 and 4, respectively:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.dscp2tc_map.0\-7=0,1,2,3,0,0,0,0
+sysctl dev.ice.<interface #>.dscp2tc_map.8\-15=4,0,0,0,0,0,0,0
+.Ed
+.Pp
+To change the DSCP mapping back to the default traffic class, set all the
+values back to 0.
+.Pp
+To view the currently configured mappings, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.dscp2tc_map
+.Ed
+.Pp
+L3 QoS mode is not available when FW\-LLDP is enabled.
+.Pp
+You also cannot enable FW\-LLDP if L3 QoS mode is active.
+.Pp
+Disable FW\-LLDP before switching to L3 QoS mode.
+.Pp
+Refer to the
+.Sx Firmware Link Layer Discovery Protocol Agent
+section in this README for more information on disabling FW\-LLDP.
+.Ss Firmware Link Layer Discovery Protocol Agent
+Use sysctl to change FW\-LLDP settings.
+The FW\-LLDP setting is per port and persists across boots.
+.Pp
+To enable the FW\-LLDP Agent:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.fw_lldp_agent=1
+.Ed
+.Pp
+To disable the FW\-LLDP Agebt:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.fw_lldp_agent=0
+.Ed
+.Pp
+To check the current LLDP setting:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.fw_lldp_agent
+.Ed
+.Pp
+You must enable the UEFI HII LLDP Agent attribute for this setting
+to take effect.
+If the
+.Dq LLDP AGENT
+attribute is set to disabled, you cannot enable the FW\-LLDP Agent from the
+driver.
+.Ss Link\-Level Flow Control (LFC)
+Ethernet Flow Control (IEEE 802.3x) can be configured with sysctl to enable
+receiving and transmitting pause frames for
+.Nm .
+When transmit is enabled, pause frames are generated when the receive packet
+buffer crosses a predefined threshold.
+When receive is enabled, the transmit unit will halt for the time delay
+specified in the firmware when a pause frame is received.
+.Pp
+Flow Control is disabled by default.
+.Pp
+Use sysctl to change the flow control settings for a single interface without
+reloading the driver:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.fc
+.Ed
+.Pp
+The available values for flow control are:
+.Bd -literal -offset indent
+0 = Disable flow control
+1 = Enable Rx pause
+2 = Enable Tx pause
+3 = Enable Rx and Tx pause
+.Ed
+.Pp
+Verify that link flow control was negotiated on the link by checking the
+interface entry in
+.Xr ifconfig 8
+and looking for the flags
+.Dq txpause
+and/or
+.Dq rxpause
+in the
+.Dq media
+status.
+.Pp
+The
+.Nm
+driver requires flow control on both the port and link partner.
+If flow control is disabled on one of the sides, the port may appear to
+hang on heavy traffic.
+.Pp
+For more information on priority flow control, refer to the
+.Sx Data Center Bridging
+section.
+.Pp
+The VF driver does not have access to flow control.
+It must be managed from the host side.
+.Ss Forward Error Correction
+Forward Error Correction (FEC) improves link stability but increases latency.
+Many high quality optics, direct attach cables, and backplane channels can
+provide a stable link without FEC.
+.Pp
+For devices to benefit from this feature, link partners must have FEC enabled.
+.Pp
+If you enable the sysctl
+.Em allow_no_fec_modules_in_auto
+Auto FEC negotiation will include
+.Dq No FEC
+in case your link partner does not have FEC enabled or is not FEC capable:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.allow_no_fec_modules_in_auto=1
+.Ed
+.Pp
+NOTE: This flag is currently not supported on the Intel\(rg Ethernet 830
+Series.
+.Pp
+To show the current FEC settings that are negotiated on the link:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.negotiated_fec
+.Ed
+.Pp
+To view or set the FEC setting that was requested on the link:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.requested_fec
+.Ed
+.Pp
+To see the valid FEC modes for the link:
+.Bd -literal -offset indent
+sysctl \-d dev.ice.<interface #>.requested_fec
+.Ed
+.Ss Speed and Duplex Configuration
+You cannot set duplex or autonegotiation settings.
+.Pp
+To have your device change the speeds it will use in auto-negotiation or
+force link with:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.advertise_speed=<mask>
+.Ed
+.Pp
+Supported speeds will vary by device.
+Depending on the speeds your device supports, valid bits used in a speed mask
+could include:
+.Bd -literal -offset indent
+0x0 \- Auto
+0x2 \- 100 Mbps
+0x4 \- 1 Gbps
+0x8 \- 2.5 Gbps
+0x10 \- 5 Gbps
+0x20 \- 10 Gbps
+0x80 \- 25 Gbps
+0x100 \- 40 Gbps
+0x200 \- 50 Gbps
+0x400 \- 100 Gbps
+0x800 \- 200 Gbps
+.Ed
+.Ss Disabling physical link when the interface is brought down
+When the
+.Va link_active_on_if_down
+sysctl is set to
+.Dq 0 ,
+the port's link will go down when the interface is brought down.
+By default, link will stay up.
+.Pp
+To disable link when the interface is down:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.link_active_on_if_down=0
+.Ed
+.Ss Firmware Logging
+The
+.Nm
+driver allows for the generation of firmware logs for supported categories of
+events, to help debug issues with Customer Support.
+Refer to the
+.Dq Intel\(rg Ethernet Adapters and Devices User Guide
+for an overview of this feature and additional tips.
+.Pp
+At a high level, to capture a firmware log:
+.Bl -enum -compact
+.It
+Set the configuration for the firmware log.
+.It
+Perform the necessary steps to generate the issue you are trying to debug.
+.It
+Capture the firmware log.
+.It
+Stop capturing the firmware log.
+.It
+Reset your firmware log settings as needed.
+.It
+Work with Customer Support to debug the issue.
+.El
+.Pp
+NOTE: Firmware logs are generated in a binary format and must be decoded by
+Customer Support.
+Information collected is related only to firmware and hardware for debug
+purposes.
+.Pp
+Once the driver is loaded, it will create the
+.Va fw_log
+sysctl node under the debug section of the driver's sysctl list.
+The driver groups these events into categories, called
+.Dq modules .
+Supported modules include:
+.Pp
+.Bl -tag -offset indent -compact -width "task_dispatch"
+.It Va general
+General (Bit 0)
+.It Va ctrl
+Control (Bit 1)
+.It Va link
+Link Management (Bit 2)
+.It Va link_topo
+Link Topology Detection (Bit 3)
+.It Va dnl
+Link Control Technology (Bit 4)
+.It Va i2c
+I2C (Bit 5)
+.It Va sdp
+SDP (Bit 6)
+.It Va mdio
+MDIO (Bit 7)
+.It Va adminq
+Admin Queue (Bit 8)
+.It Va hdma
+Host DMA (Bit 9)
+.It Va lldp
+LLDP (Bit 10)
+.It Va dcbx
+DCBx (Bit 11)
+.It Va dcb
+DCB (Bit 12)
+.It Va xlr
+XLR (function\-level resets; Bit 13)
+.It Va nvm
+NVM (Bit 14)
+.It Va auth
+Authentication (Bit 15)
+.It Va vpd
+Vital Product Data (Bit 16)
+.It Va iosf
+Intel On\-Chip System Fabric (Bit 17)
+.It Va parser
+Parser (Bit 18)
+.It Va sw
+Switch (Bit 19)
+.It Va scheduler
+Scheduler (Bit 20)
+.It Va txq
+TX Queue Management (Bit 21)
+.It Va acl
+ACL (Access Control List; Bit 22)
+.It Va post
+Post (Bit 23)
+.It Va watchdog
+Watchdog (Bit 24)
+.It Va task_dispatch
+Task Dispatcher (Bit 25)
+.It Va mng
+Manageability (Bit 26)
+.It Va synce
+SyncE (Bit 27)
+.It Va health
+Health (Bit 28)
+.It Va tsdrv
+Time Sync (Bit 29)
+.It Va pfreg
+PF Registration (Bit 30)
+.It Va mdlver
+Module Version (Bit 31)
+.El
+.Pp
+You can change the verbosity level of the firmware logs.
+You can set only one log level per module, and each level includes the
+verbosity levels lower than it.
+For instance, setting the level to
+.Dq normal
+will also log warning and error messages.
+Available verbosity levels are:
+.Pp
+.Bl -item -offset indent -compact
+.It
+0 = none
+.It
+1 = error
+.It
+2 = warning
+.It
+3 = normal
+.It
+4 = verbose
+.El
+.Pp
+To set the desired verbosity level for a module, use the following sysctl
+command and then register it:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.debug.fw_log.severity.<module>=<level>
+.Ed
+.Pp
+For example:
+.Bd -literal -offset indent
+sysctl dev.ice.0.debug.fw_log.severity.link=1
+sysctl dev.ice.0.debug.fw_log.severity.link_topo=2
+sysctl dev.ice.0.debug.fw_log.register=1
+.Ed
+.Pp
+To log firmware messages after booting, but before the driver initializes, use
+.Xr kenv 1
+to set the tunable.
+The
+.Va on_load
+setting tells the device to register the variable as soon as possible during
+driver load.
+For example:
+.Bd -literal -offset indent
+kenv dev.ice.0.debug.fw_log.severity.link=1
+kenv dev.ice.0.debug.fw_log.severity.link_topo=2
+kenv dev.ice.0.debug.fw_log.on_load=1
+.Ed
+.Pp
+To view the firmware logs and redirect them to a file, use the following
+command:
+.Bd -literal -offset indent
+dmesg > log_output
+.Ed
+.Pp
+NOTE: Logging a large number of modules or too high of a verbosity level will
+add extraneous messages to dmesg and could hinder debug efforts.
+.Ss Debug Dump
+Intel\(rg Ethernet 800 Series devices support debug dump, which allows you to
+obtain runtime register values from the firmware for
+.Dq clusters
+of events and then write the results to a single dump file, for debugging
+complicated issues in the field.
+.Pp
+This debug dump contains a snapshot of the device and its existing hardware
+configuration, such as switch tables, transmit scheduler tables, and other
+information.
+Debug dump captures the current state of the specified cluster(s) and is a
+stateless snapshot of the whole device.
+.Pp
+NOTE: Like with firmware logs, the contents of the debug dump are not
+human\-readable.
+You must work with Customer Support to decode the file.
+.Pp
+Debug dump is per device, not per PF.
+.Pp
+Debug dump writes all information to a single file.
+.Pp
+To generate a debug dump file in
+.Fx
+do the following:
+.Pp
+Specify the cluster(s) to include in the dump file, using a bitmask and the
+following command:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.debug.dump.clusters=<bitmask>
+.Ed
+.Pp
+To print the complete cluster bitmask and parameter list to the screen,
+pass the
+.Fl d
+argument.
+For example:
+.Bd -literal -offset indent
+sysctl \-d dev.ice.0.debug.dump.clusters
+.Ed
+.Pp
+Possible bitmask values for
+.Va clusters
+are:
+.Bl -bullet -compact
+.It
+0 \- Dump all clusters (only supported on Intel\(rg Ethernet E810 Series and
+Intel\(rg Ethernet E830 Series)
+.It
+0x1 \- Switch
+.It
+0x2 \- ACL
+.It
+0x4 \- Tx Scheduler
+.It
+0x8 \- Profile Configuration
+.It
+0x20 \- Link
+.It
+0x80 \- DCB
+.It
+0x100 \- L2P
+.It
+0x400000 \- Manageability Transactions (only supported on Intel\(rg Ethernet
+E810 Series)
+.El
+.Pp
+For example, to dump the Switch, DCB, and L2P clusters, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.0.debug.dump.clusters=0x181
+.Ed
+.Pp
+To dump all clusters, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.0.debug.dump.clusters=0
+.Ed
+.Pp
+NOTE: Using 0 will skip Manageability Transactions data.
+.Pp
+If you don't specify a cluster, the driver will dump all clusters to a
+single file.
+Issue the debug dump command, using the following:
+.Bd -literal -offset indent
+sysctl \-b dev.ice.<interface #>.debug.dump.dump=1 > dump.bin
+.Ed
+.Pp
+NOTE: The driver will not receive the command if you do not write
+.Dq 1
+to the sysctl.
+.Pp
+Replace
+.Dq dump.bin
+above with the file name you want to use.
+.Pp
+To clear the
+.Va clusters
+mask before a subsequent debug dump and then do the dump:
+.Bd -literal -offset indent
+sysctl dev.ice.0.debug.dump.clusters=0
+sysctl dev.ice.0.debug.dump.dump=1
+.Ed
+.Ss Debugging PHY Statistics
+The ice driver supports the ability to obtain the values of the PHY registers
+from Intel(R) Ethernet 810 Series devices in order to debug link and
+connection issues during runtime.
+.Pp
+The driver allows you to obtain information about:
+.Bl -bullet
+.It
+Rx and Tx Equalization parameters
+.It
+RS FEC correctable and uncorrectable block counts
+.El
+.Pp
+Use the following sysctl to read the PHY registers:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.debug.phy_statistics
+.Ed
+.Pp
+NOTE: The contents of the registers are not human\-readable.
+Like with firmware logs and debug dump, you must work with Customer Support
+to decode the file.
+.Ss Transmit Balancing
+Some Intel(R) Ethernet 800 Series devices allow you to enable a transmit
+balancing feature to improve transmit performance under certain conditions.
+When the feature is enabled, you should experience more consistent transmit
+performance across queues and/or PFs and VFs.
+.Pp
+By default, transmit balancing is disabled in the NVM.
+To enable this feature, use one of the following to persistently change the
+setting for the device:
+.Bl -bullet
+.It
+Use the Ethernet Port Configuration Tool (EPCT) to enable the
+.Va tx_balancing
+option.
+Refer to the EPCT readme for more information.
+.It
+Enable the Transmit Balancing device setting in UEFI HII.
+.El
+.Pp
+When the driver loads, it reads the transmit balancing setting from the NVM and
+configures the device accordingly.
+.Pp
+NOTE: The user selection for transmit balancing in EPCT or HII is persistent
+across reboots.
+You must reboot the system for the selected setting to take effect.
+.Pp
+This setting is device wide.
+.Pp
+The driver, NVM, and DDP package must all support this functionality to
+enable the feature.
+.Ss Thermal Monitoring
+Intel(R) Ethernet 810 Series and Intel(R) Ethernet 830 Series devices can
+display temperature data (in degrees Celsius) via:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.temp
+.Ed
+.Ss Network Memory Buffer Allocation
+.Fx
+may have a low number of network memory buffers (mbufs) by default.
+If the number of mbufs available is too low, it may cause the driver to fail
+to initialize and/or cause the system to become unresponsive.
+You can check to see if the system is mbuf\-starved by running
+.Ic netstat Fl m .
+Increase the number of mbufs by editing the lines below in
+.Pa /etc/sysctl.conf :
+.Bd -literal -offset indent
+kern.ipc.nmbclusters
+kern.ipc.nmbjumbop
+kern.ipc.nmbjumbo9
+kern.ipc.nmbjumbo16
+kern.ipc.nmbufs
+.Ed
+.Pp
+The amount of memory that you allocate is system specific, and may require some
+trial and error.
+Also, increasing the following in
+.Pa /etc/sysctl.conf
+could help increase network performance:
+.Bd -literal -offset indent
+kern.ipc.maxsockbuf
+net.inet.tcp.sendspace
+net.inet.tcp.recvspace
+net.inet.udp.maxdgram
+net.inet.udp.recvspace
+.Ed
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
 These tools can be downloaded directly from Intel at
 .Lk https://downloadcenter.intel.com ,
-by searching for their names, or by installing certain packages:
+by searching for their names:
 .Bl -bullet
 .It
-To change the behavior of the QSFP28 ports on E810-C adapters, use the
-Intel EPCT (Ethernet Port configuration tool); installed by the
-.Em sysutils/intel-epct
-package.
+To change the behavior of the QSFP28 ports on E810-C adapters, use the Intel
+.Sy Ethernet Port Configuration Tool - FreeBSD .
 .It
-To update the firmware on an adapter, use the Intel Non-Volatile Memory (NVM)
-Update Utility for Intel Network Adapter 800 series; installed by the
-.Em sysutils/intel-nvmupdate-100g
-package.
+To update the firmware on an adapter, use the Intel
+.Sy Non-Volatile Memory (NVM) Update Utility for Intel Ethernet Network Adapters E810 series - FreeBSD
 .El
 .Sh HARDWARE
 The
 .Nm
 driver supports the Intel Ethernet 800 series.
-Most adapters in this series with SFP28/QSFP28 cages
+Some adapters in this series with SFP28/QSFP28 cages
 have firmware that requires that Intel qualified modules are used; these
 qualified modules are listed below.
 This qualification check cannot be disabled by the driver.
@@ -173,6 +899,38 @@ SFF-8472 v10.4 specifications.
 .Pp
 This is not an exhaustive list; please consult product documentation for an
 up-to-date list of supported media.
+.Ss Fiber optics and auto\-negotiation
+Modules based on 100GBASE\-SR4, active optical cable (AOC), and active copper
+cable (ACC) do not support auto\-negotiation per the IEEE specification.
+To obtain link with these modules, auto\-negotiation must be turned off on the
+link partner's switch ports.
+.Ss PCI-Express Slot Bandwidth
+Some PCIe x8 slots are actually configured as x4 slots.
+These slots have insufficient bandwidth for full line rate with dual port and
+quad port devices.
+In addition, if you put a PCIe v4.0 or v3.0\-capable adapter into a PCIe v2.x
+slot, you cannot get full bandwidth.
+.Pp
+The driver detects this situation and writes the following message in the
+system log:
+.Bd -literal -offset indent
+PCI\-Express bandwidth available for this device may be insufficient for
+optimal performance.
+Please move the device to a different PCI\-e link with more lanes and/or
+higher transfer rate.
+.Ed
+.Pp
+If this error occurs, moving your adapter to a true PCIe x8 or x16 slot will
+resolve the issue.
+For best performance, install devices in the following PCI slots:
+.Bl -bullet
+.It
+Any 100Gbps\-capable Intel(R) Ethernet 800 Series device: Install in a
+PCIe v4.0 x8 or v3.0 x16 slot
+.It
+A 200Gbps\-capable Intel(R) Ethernet 830 Series device: Install in a
+PCIe v5.0 x8 or v4.0 x16 slot
+.El
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
@@ -182,42 +940,62 @@ See the
 .Xr iflib 4
 man page for more information on using iflib sysctl variables as tunables.
 .Bl -tag -width indent
-.It Va hw.ice.#.enable_health_events
-TBW
-.It Va hw.ice.#.debug.enable_tx_fc_filter
-TBW
-.It Va hw.ice.#.debug.enable_tx_lldp_filter
-TBW
-.It Va hw.ice.#.debug.enable_health_events
-TBW
+.It Va hw.ice.enable_health_events
+Set to 1 to enable firmware health event reporting across all devices.
+Enabled by default.
+.Pp
+If enabled, when the driver receives a firmware health event message, it will
+print out a description of the event to the kernel message buffer and if
+applicable, possible actions to take to remedy it.
+.It Va hw.ice.irdma
+Set to 1 to enable the RDMA client interface, required by the
+.Xr irdma 4
+driver.
+Enabled by default.
+.It Va hw.ice.rdma_max_msix
+Set the maximum number of per-device MSI-X vectors that are allocated for use
+by the
+.Xr irdma 4
+driver.
+Set to 64 by default.
+.It Va hw.ice.debug.enable_tx_fc_filter
+Set to 1 to enable the TX Flow Control filter across all devices.
+Enabled by default.
+.Pp
+If enabled, the hardware will drop any transmitted Ethertype 0x8808 control
+frames that do not originate from the hardware.
+.It Va hw.ice.debug.enable_tx_lldp_filter
+Set to 1 to enable the TX LLDP filter across all devices.
+Enabled by default.
+.Pp
+If enabled, the hardware will drop any transmitted Ethertype 0x88cc LLDP frames
+that do not originate from the hardware.
+This must be disabled in order to use LLDP daemon software such as
+.Xr lldpd 8 .
+.It Va hw.ice.debug.ice_tx_balance_en
+Set to 1 to allow the driver to use the 5-layer Tx Scheduler tree topology if
+configured by the DDP package.
+.Pp
+Enabled by default.
 .El
-.Sh SYSCTL PROCEDURES
+.Sh SYSCTL VARIABLES
 .Bl -tag -width indent
-.It Va dev.ice.#.fc
-Allows one to set the flow control value.
-A value of 0 disables flow control, 3 enables full, 1 is RX, and 2 is
-TX pause.
-.It Va dev.ice.#.advertise_speed
-Allows one to set advertised link speeds, this will then cause a link
-renegotiation.
 .It Va dev.ice.#.current_speed
-This is a display of the current setting.
+This is a display of the current link speed of the interface.
+This is expected to match the speed of the media type in-use displayed by
+.Xr ifconfig 8 .
 .It Va dev.ice.#.fw_version
 Displays the current firmware and NVM versions of the adapter.
+This information should be submitted along with any support requests.
 .It Va dev.ice.#.ddp_version
-TBW
-.It Va dev.ice.#.requested_fec
-TBW
-.It Va dev.ice.#.negotiated_fec
-TBW
-.It Va dev.ice.#.fw_lldp_agent
-TBW
-.It Va dev.ice.#.ets_min_rate
-TBW
-.It Va dev.ice.#.up2tc_map
-TBW
-.It Va dev.ice.#.pfc
-TBW
+Displays the current DDP package version downloaded to the adapter.
+This information should be submitted along with any support requests.
+.It Va dev.ice.#.pba_number
+Displays the Product Board Assembly Number.
+May be used to help identify the type of adapter in use.
+This sysctl may not exist depending on the adapter type.
+.It Va dev.ice.#.hw.mac.*
+This sysctl tree contains statistics collected by the hardware for the port.
 .El
 .Sh INTERRUPT STORMS
 It is important to note that 100G operation can generate high
@@ -226,21 +1004,77 @@ a storm condition in the kernel.
 It is suggested that this be resolved by setting
 .Va hw.intr_storm_threshold
 to 0.
+.Sh IOVCTL OPTIONS
+The driver supports additional optional parameters for created VFs
+(Virtual Functions) when using
+.Xr iovctl 8 :
+.Bl -tag -width indent
+.It mac-addr Pq unicast-mac
+Set the Ethernet MAC address that the VF will use.
+If unspecified, the VF will use a randomly generated MAC address and
+.Dq allow-set-mac
+will be set to true.
+.It mac-anti-spoof Pq bool
+Prevent the VF from sending Ethernet frames with a source address
+that does not match its own.
+Enabled by default.
+.It allow-set-mac Pq bool
+Allow the VF to set its own Ethernet MAC address.
+Disallowed by default.
+.It allow-promisc Pq bool
+Allow the VF to inspect all of the traffic sent to the port that it is created
+on.
+Disabled by default.
+.It num-queues Pq uint16_t
+Specify the number of queues the VF will have.
+By default, this is set to the number of MSI\-X vectors supported by the VF
+minus one.
+.It mirror-src-vsi Pq uint16_t
+Specify which VSI the VF will mirror traffic from by setting this to a value
+other than \-1.
+All traffic from that VSI will be mirrored to this VF.
+Can be used as an alternative method to mirror RDMA traffic to another
+interface than the method described in the
+.Sx RDMA Monitoring
+section.
+Not affected by the
+.Dq allow-promisc
+parameter.
+.It max-vlan-allowed Pq uint16_t
+Specify maximum number of VLAN filters that the VF can use.
+Receiving traffic on a VLAN requires a hardware filter which are a finite
+resource; this is used to prevent a VF from starving other VFs or the PF of
+filter resources.
+By default, this is set to 16.
+.It max-mac-filters Pq uint16_t
+Specify maximum number of MAC address filters that the VF can use.
+Each allowed MAC address requires a hardware filter which are a finite
+resource; this is used to prevent a VF from starving other VFs or the PF of
+filter resources.
+The VF's default mac address does not count towards this limit.
+By default, this is set to 64.
+.El
+.Pp
+An up to date list of parameters and their defaults can be found by using
+.Xr iovctl 8
+with the
+.Fl S
+option.
+.Pp
+For more information on standard and mandatory parameters, see
+.Xr iovctl.conf 5 .
 .Sh SUPPORT
-For general information and support,
-go to the Intel support website at:
+For general information and support, go to the Intel support website at:
 .Lk http://www.intel.com/support/ .
 .Pp
 If an issue is identified with this driver with a supported adapter,
 email all the specific information related to the issue to
 .Aq Mt freebsd@intel.com .
 .Sh SEE ALSO
-.Xr arp 4 ,
 .Xr iflib 4 ,
-.Xr netintro 4 ,
-.Xr ng_ether 4 ,
 .Xr vlan 4 ,
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm

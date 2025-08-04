@@ -1,0 +1,4 @@
+comment = "Compatibility library"
+desc = <<EOD
+libcompat provides implementations of some obsolete library functions.
+EOD

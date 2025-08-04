@@ -65,9 +65,9 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  */
 
-#include <sys/cdefs.h>
 #include "opt_vm.h"
 
+#define	EXTERR_CATEGORY		EXTERR_CAT_SWAP
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/blist.h>
@@ -76,6 +76,7 @@
 #include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/eventhandler.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -384,8 +385,8 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 #endif
 }
 
-static int swap_pager_full = 2;	/* swap space exhaustion (task killing) */
-static int swap_pager_almost_full = 1; /* swap space exhaustion (w/hysteresis)*/
+static bool swap_pager_full = true; /* swap space exhaustion (task killing) */
+bool swap_pager_almost_full = true; /* swap space exhaustion (w/hysteresis) */
 static struct mtx swbuf_mtx;	/* to sync nsw_wcount_async */
 static int nsw_wcount_async;	/* limit async write buffers */
 static int nsw_wcount_async_max;/* assigned maximum			*/
@@ -642,14 +643,14 @@ swp_sizecheck(void)
 {
 
 	if (swap_pager_avail < nswap_lowat) {
-		if (swap_pager_almost_full == 0) {
+		if (!swap_pager_almost_full) {
 			printf("swap_pager: out of swap space\n");
-			swap_pager_almost_full = 1;
+			swap_pager_almost_full = true;
 		}
 	} else {
-		swap_pager_full = 0;
+		swap_pager_full = false;
 		if (swap_pager_avail > nswap_hiwat)
-			swap_pager_almost_full = 0;
+			swap_pager_almost_full = false;
 	}
 }
 
@@ -958,11 +959,10 @@ swp_pager_getswapspace(int *io_npages)
 		swp_sizecheck();
 		swdevhd = TAILQ_NEXT(sp, sw_list);
 	} else {
-		if (swap_pager_full != 2) {
+		if (!swap_pager_full) {
 			printf("swp_pager_getswapspace(%d): failed\n",
 			    *io_npages);
-			swap_pager_full = 2;
-			swap_pager_almost_full = 1;
+			swap_pager_full = swap_pager_almost_full = true;
 		}
 		swdevhd = NULL;
 	}
@@ -2687,7 +2687,7 @@ swapon_check_swzone(void)
 	}
 }
 
-static void
+static int
 swaponsomething(struct vnode *vp, void *id, u_long nblks,
     sw_strategy_t *strategy, sw_close_t *close, dev_t dev, int flags)
 {
@@ -2702,6 +2702,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	 */
 	nblks &= ~(ctodb(1) - 1);
 	nblks = dbtoc(nblks);
+	if (nblks == 0)
+		return (EXTERROR(EINVAL, "swap device too small"));
 
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
 	sp->sw_blist = blist_create(nblks, M_WAITOK);
@@ -2743,6 +2745,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	swp_sizecheck();
 	mtx_unlock(&sw_dev_mtx);
 	EVENTHANDLER_INVOKE(swapon, sp);
+
+	return (0);
 }
 
 /*
@@ -2863,10 +2867,8 @@ swapoff_one(struct swdevt *sp, struct ucred *cred, u_int flags)
 	sp->sw_id = NULL;
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
 	nswapdev--;
-	if (nswapdev == 0) {
-		swap_pager_full = 2;
-		swap_pager_almost_full = 1;
-	}
+	if (nswapdev == 0)
+		swap_pager_full = swap_pager_almost_full = true;
 	if (swdevhd == sp)
 		swdevhd = NULL;
 	mtx_unlock(&sw_dev_mtx);
@@ -3276,6 +3278,7 @@ swapongeom_locked(struct cdev *dev, struct vnode *vp)
 	cp->index = 1;	/* Number of active I/Os, plus one for being active. */
 	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
+
 	/*
 	 * XXX: Every time you think you can improve the margin for
 	 * footshooting, somebody depends on the ability to do so:
@@ -3283,16 +3286,20 @@ swapongeom_locked(struct cdev *dev, struct vnode *vp)
 	 * set an exclusive count :-(
 	 */
 	error = g_access(cp, 1, 1, 0);
+
+	if (error == 0) {
+		nblks = pp->mediasize / DEV_BSIZE;
+		error = swaponsomething(vp, cp, nblks, swapgeom_strategy,
+		    swapgeom_close, dev2udev(dev),
+		    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
+		if (error != 0)
+			g_access(cp, -1, -1, 0);
+	}
 	if (error != 0) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
-		return (error);
 	}
-	nblks = pp->mediasize / DEV_BSIZE;
-	swaponsomething(vp, cp, nblks, swapgeom_strategy,
-	    swapgeom_close, dev2udev(dev),
-	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
-	return (0);
+	return (error);
 }
 
 static int
@@ -3381,9 +3388,11 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	if (error != 0)
 		return (error);
 
-	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
+	error = swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
 	    NODEV, 0);
-	return (0);
+	if (error != 0)
+		VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
+	return (error);
 }
 
 static int

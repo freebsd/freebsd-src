@@ -29,6 +29,7 @@
 #include <sys/types.h>
 
 #include <net/if.h>
+#include <net/if_bridgevar.h> /* for ifbvlan_set_t */
 
 #include <netinet/in.h>
 #include <netinet/ip_carp.h>
@@ -64,9 +65,12 @@ struct lagg_reqport;
 struct ifconfig_bridge_status {
 	struct ifbropreq *params;	/**< current operational parameters */
 	struct ifbreq *members;		/**< list of bridge members */
+	ifbvlan_set_t *member_vlans;	/**< bridge member vlan sets */
 	size_t members_count;		/**< how many member interfaces */
 	uint32_t cache_size;		/**< size of address cache */
 	uint32_t cache_lifetime;	/**< address cache entry lifetime */
+	ifbr_flags_t flags;		/**< bridge flags */
+	ether_vlanid_t defpvid;		/**< default pvid */
 };
 
 struct ifconfig_capabilities {

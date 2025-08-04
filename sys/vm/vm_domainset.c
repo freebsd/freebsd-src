@@ -131,8 +131,7 @@ static void
 vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 {
 
-	KASSERT(di->di_n > 0,
-	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
+	KASSERT(di->di_n > 0, ("%s: Invalid n %d", __func__, di->di_n));
 	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		/*
@@ -149,11 +148,10 @@ vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 		vm_domainset_iter_prefer(di, domain);
 		break;
 	default:
-		panic("vm_domainset_iter_first: Unknown policy %d",
-		    di->di_policy);
+		panic("%s: Unknown policy %d", __func__, di->di_policy);
 	}
 	KASSERT(*domain < vm_ndomains,
-	    ("vm_domainset_iter_next: Invalid domain %d", *domain));
+	    ("%s: Invalid domain %d", __func__, *domain));
 }
 
 static void
@@ -189,13 +187,11 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 		di->di_n = di->di_domain->ds_cnt;
 		break;
 	default:
-		panic("vm_domainset_iter_first: Unknown policy %d",
-		    di->di_policy);
+		panic("%s: Unknown policy %d", __func__, di->di_policy);
 	}
-	KASSERT(di->di_n > 0,
-	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
+	KASSERT(di->di_n > 0, ("%s: Invalid n %d", __func__, di->di_n));
 	KASSERT(*domain < vm_ndomains,
-	    ("vm_domainset_iter_first: Invalid domain %d", *domain));
+	    ("%s: Invalid domain %d", __func__, *domain));
 }
 
 void

@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2021 3mdeb Embedded Systems Consulting <contact@3mdeb.com>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,12 +24,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 10, 2021
+.Dd July 16, 2025
 .Dt EFITABLE 8
 .Os
 .Sh NAME
 .Nm efitable
-.Nd Dump UEFI tables
+.Nd dump UEFI tables
 .Sh SYNOPSIS
 .Nm
 .Op Fl u Ar uuid | Fl t Ar name
@@ -39,28 +41,29 @@ This program prints data from
 tables.
 .Pp
 The following options are available:
-.Bl -tag -width 20m
+.Bl -tag -width "-t name | --table name"
 .It Fl -libxo
 Generate output via
 .Xr libxo 3
 in a selection of different human and machine readable formats.
 See
-.Xr xo_parse_args 3
+.Xr xo_options 7
 for details on command line arguments.
-.It Fl t Ar name Fl -table Ar name
+.It Fl t Ar name | Fl -table Ar name
 Specify the name of the table to print.
 Currently supported tables:
 .Pp
 .Bl -tag -width indent -compact
 .It Cm esrt
 EFI System Resource Table
+.It Cm memory
+EFI Memory Attributes Table
 .It Cm prop
 EFI Properties Table
 .El
-.It Fl u Ar uuid Fl -uuid Ar uuid
+.It Fl u Ar uuid | Fl -uuid Ar uuid
 Specify the UUID of the table to print.
 .El
-.Pp
 .Sh HISTORY
 The
 .Nm

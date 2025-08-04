@@ -463,13 +463,14 @@ ipf_send_ip(fr_info_t *fin, mb_t *m)
 int
 ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 {
-	int err, hlen, xtra, iclen, ohlen, avail, code;
+	int err, hlen, xtra, iclen, ohlen, avail;
 	struct in_addr dst4;
 	struct icmp *icmp;
 	struct mbuf *m;
 	i6addr_t dst6;
 	void *ifp;
 #ifdef USE_INET6
+	int code;
 	ip6_t *ip6;
 #endif
 	ip_t *ip, *ip2;
@@ -477,8 +478,8 @@ ipf_send_icmp_err(int type, fr_info_t *fin, int dst)
 	if ((type < 0) || (type >= ICMP_MAXTYPE))
 		return (-1);
 
-	code = fin->fin_icode;
 #ifdef USE_INET6
+	code = fin->fin_icode;
 	/* See NetBSD ip_fil_netbsd.c r1.4: */
 	if ((code < 0) || (code >= sizeof(icmptoicmp6unreach)/sizeof(int)))
 		return (-1);

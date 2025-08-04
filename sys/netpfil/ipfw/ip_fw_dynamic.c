@@ -1323,6 +1323,33 @@ dyn_lookup_ipv6_parent_locked(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 
 #endif /* INET6 */
 
+static int
+dyn_handle_orphaned(struct ip_fw *old_rule, struct dyn_data *data)
+{
+	struct ip_fw *rule;
+	const ipfw_insn *cmd, *old_cmd;
+
+	old_cmd = ACTION_PTR(old_rule);
+	switch (old_cmd->opcode) {
+	case O_SETMARK:
+	case O_SKIPTO:
+		/*
+		 * Rule pointer was changed. For O_SKIPTO action it can be
+		 * dangerous to keep use old rule. If new rule has the same
+		 * action and the same destination number, then use this dynamic
+		 * state. Otherwise it is better to create new one.
+		 */
+		rule = V_layer3_chain.map[data->f_pos];
+		cmd = ACTION_PTR(rule);
+		if (cmd->opcode != old_cmd->opcode ||
+		    cmd->len != old_cmd->len || cmd->arg1 != old_cmd->arg1 ||
+		    insntoc(cmd, u32)->d[0] != insntoc(old_cmd, u32)->d[0])
+			return (-1);
+		break;
+	}
+	return (0);
+}
+
 /*
  * Lookup dynamic state.
  *  pkt - filled by ipfw_chk() ipfw_flow_id;
@@ -1426,8 +1453,13 @@ ipfw_dyn_lookup_state(const struct ip_fw_args *args, const void *ulp,
 				 * changed to point to the penultimate rule.
 				 */
 				MPASS(V_layer3_chain.n_rules > 1);
-				data->chain_id = V_layer3_chain.id;
-				data->f_pos = V_layer3_chain.n_rules - 2;
+				if (dyn_handle_orphaned(rule, data) == 0) {
+					data->chain_id = V_layer3_chain.id;
+					data->f_pos = V_layer3_chain.n_rules - 2;
+				} else {
+					rule = NULL;
+					info->direction = MATCH_NONE;
+				}
 			} else {
 				rule = NULL;
 				info->direction = MATCH_NONE;
@@ -3109,6 +3141,43 @@ ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd)
 #undef DYN_EXPORT_STATES
 }
 
+/*
+ * When we have enabled V_dyn_keep_states, states that become ORPHANED
+ * will keep pointer to original rule. Then this rule pointer is used
+ * to apply rule action after ipfw_dyn_lookup_state().
+ * Some rule actions use IPFW_INC_RULE_COUNTER() directly to this rule
+ * pointer, but other actions use chain->map[f_pos] instead. The last
+ * case leads to incrementing counters on the wrong rule, because
+ * ORPHANED states have not parent rule in chain->map[].
+ * To solve this we add protected rule:
+ *   count ip from any to any not // comment
+ * It will be matched only by packets that are handled by ORPHANED states.
+ */
+static void
+dyn_add_protected_rule(struct ip_fw_chain *chain)
+{
+	static const char *comment =
+	    "orphaned dynamic states counter";
+	struct ip_fw *rule;
+	ipfw_insn *cmd;
+	size_t l;
+
+	l = roundup(strlen(comment) + 1, sizeof(uint32_t));
+	rule = ipfw_alloc_rule(chain, sizeof(*rule) + sizeof(ipfw_insn) + l);
+	cmd = rule->cmd;
+	cmd->opcode = O_NOP;
+	cmd->len = 1 + l/sizeof(uint32_t);
+	cmd->len |= F_NOT; /* make rule to be not matched */
+	strcpy((char *)(cmd + 1), comment);
+	cmd += F_LEN(cmd);
+
+	cmd->len = 1;
+	cmd->opcode = O_COUNT;
+	rule->act_ofs = cmd - rule->cmd;
+	rule->cmd_len = rule->act_ofs + 1;
+	ipfw_add_protected_rule(chain, rule, 0);
+}
+
 void
 ipfw_dyn_init(struct ip_fw_chain *chain)
 {
@@ -3171,6 +3240,8 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
 	callout_init(&V_dyn_timeout, 1);
 	callout_reset(&V_dyn_timeout, hz, dyn_tick, curvnet);
 	IPFW_ADD_OBJ_REWRITER(IS_DEFAULT_VNET(curvnet), dyn_opcodes);
+
+	dyn_add_protected_rule(chain);
 }
 
 void

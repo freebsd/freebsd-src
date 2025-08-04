@@ -7,11 +7,9 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 PROG=	ktutil
 
-LIBADD=	edit krb5 k5crypto com_err krb5profile krb5support krb5ss tinfow sys
+LIBADD=	krb5 k5crypto com_err krb5profile krb5support krb5ss sys
 
 SRCS=	ktutil.c \
 	ktutil_ct.c \

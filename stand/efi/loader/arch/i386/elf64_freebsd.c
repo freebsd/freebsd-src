@@ -252,14 +252,19 @@ elf64_exec(struct preloaded_file *fp)
 	    ehdr->e_entry
 	);
 
+
+	/*
+	 * we have to cleanup here because net_cleanup() doesn't work after
+	 * we call ExitBootServices
+	 */
+	dev_cleanup();
+
 	efi_time_fini();
 	err = bi_load(fp->f_args, &modulep, &kernend, true);
 	if (err != 0) {
 		efi_time_init();
 		return (err);
 	}
-
-	dev_cleanup();
 
 	trampoline(trampstack, type == AllocateMaxAddress ? efi_copy_finish :
 	    efi_copy_finish_nop, kernend, modulep, PT4, gdtr, ehdr->e_entry);

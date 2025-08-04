@@ -86,10 +86,11 @@ extern "C" {
 #  define EXTERN extern
 #endif
 
+/* Renamed from ALIGN in MIT source to avoid a conflict with machine/param.h */
 #if defined(_MSC_VER) && defined(TABLE_ALIGN)
-#define ALIGN __declspec(align(TABLE_ALIGN))
+#define AES_ALIGN __declspec(align(TABLE_ALIGN))
 #else
-#define ALIGN
+#define AES_ALIGN
 #endif
 
 #if defined( __WATCOMC__ ) && ( __WATCOMC__ >= 1100 )
@@ -99,13 +100,13 @@ extern "C" {
 #endif
 
 #if defined(DO_TABLES) && defined(STATIC_TABLES)
-#define d_1(t,n,b,e)       EXTERN ALIGN CONST XP_DIR t n[256]    =   b(e)
-#define d_4(t,n,b,e,f,g,h) EXTERN ALIGN CONST XP_DIR t n[4][256] = { b(e), b(f), b(g), b(h) }
-EXTERN ALIGN CONST uint32_t t_dec(r,c)[RC_LENGTH] = rc_data(w0);
+#define d_1(t,n,b,e)       EXTERN AES_ALIGN CONST XP_DIR t n[256]    =   b(e)
+#define d_4(t,n,b,e,f,g,h) EXTERN AES_ALIGN CONST XP_DIR t n[4][256] = { b(e), b(f), b(g), b(h) }
+EXTERN AES_ALIGN CONST uint32_t t_dec(r,c)[RC_LENGTH] = rc_data(w0);
 #else
-#define d_1(t,n,b,e)       EXTERN ALIGN CONST XP_DIR t n[256]
-#define d_4(t,n,b,e,f,g,h) EXTERN ALIGN CONST XP_DIR t n[4][256]
-EXTERN ALIGN CONST uint32_t t_dec(r,c)[RC_LENGTH];
+#define d_1(t,n,b,e)       EXTERN AES_ALIGN CONST XP_DIR t n[256]
+#define d_4(t,n,b,e,f,g,h) EXTERN AES_ALIGN CONST XP_DIR t n[4][256]
+EXTERN AES_ALIGN CONST uint32_t t_dec(r,c)[RC_LENGTH];
 #endif
 
 #if defined( SBX_SET )

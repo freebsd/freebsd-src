@@ -81,11 +81,6 @@
 #include <unistd.h>
 #include "port_after.h"
 
-/* Options.  Leave them on. */
-#ifndef	DEBUG
-#define	DEBUG
-#endif
-
 #if PACKETSZ > 1024
 #define MAXPACKET	PACKETSZ
 #else

@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
 
@@ -156,10 +157,11 @@ vm_mem_allocated(struct vcpu *vcpu, vm_paddr_t gpa)
 }
 
 int
-vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem)
+vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem,
+    struct domainset *obj_domainset)
 {
-	struct vm_mem *mem;
 	struct vm_mem_seg *seg;
+	struct vm_mem *mem;
 	vm_object_t obj;
 
 	mem = vm_mem(vm);
@@ -179,13 +181,22 @@ vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem)
 			return (EINVAL);
 	}
 
+	/*
+	 * When given an impossible policy, signal an
+	 * error to the user.
+	 */
+	if (obj_domainset != NULL && domainset_empty_vm(obj_domainset))
+		return (EINVAL);
 	obj = vm_object_allocate(OBJT_SWAP, len >> PAGE_SHIFT);
 	if (obj == NULL)
 		return (ENOMEM);
 
 	seg->len = len;
 	seg->object = obj;
+	if (obj_domainset != NULL)
+		seg->object->domain.dr_policy = obj_domainset;
 	seg->sysmem = sysmem;
+
 	return (0);
 }
 

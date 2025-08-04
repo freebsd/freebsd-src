@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 12, 2025
+.Dd July 14, 2025
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -67,8 +67,7 @@ and
 should be avoided.
 .Pp
 On some architectures, e.g.,
-.Dv powerpc
-and AIM variants of
+AIM variants of
 .Dv powerpc64 ,
 the kernel uses a separate address space.
 On other architectures, kernel and a user mode process share a
@@ -88,9 +87,6 @@ release to support each architecture.
 .It aarch64     Ta 11.0
 .It amd64       Ta 5.1
 .It armv7       Ta 12.0
-.It i386        Ta 1.0
-.It powerpc     Ta 6.0
-.It powerpcspe  Ta 12.0
 .It powerpc64   Ta 9.0
 .It powerpc64le Ta 13.0
 .It riscv64     Ta 12.0
@@ -104,6 +100,7 @@ Discontinued architectures are shown in the following table.
 .It armeb       Ta 8.0   Ta 11.4
 .It armv6       Ta 10.0  Ta 14.x
 .It ia64        Ta 5.0   Ta 10.4
+.It i386        Ta 1.0   Ta 14.x
 .It mips        Ta 8.0   Ta 13.5
 .It mipsel      Ta 9.0   Ta 13.5
 .It mipselhf    Ta 12.0  Ta 13.5
@@ -114,6 +111,8 @@ Discontinued architectures are shown in the following table.
 .It mips64elhf  Ta 12.0  Ta 13.5
 .It mips64hf    Ta 12.0  Ta 13.5
 .It pc98        Ta 2.2   Ta 11.4
+.It powerpc     Ta 6.0   Ta 14.x
+.It powerpcspe  Ta 12.0  Ta 14.x
 .It riscv64sf   Ta 12.0  Ta 13.5
 .It sparc64     Ta 5.0   Ta 12.4
 .El

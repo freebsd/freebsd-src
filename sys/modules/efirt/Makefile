@@ -9,7 +9,7 @@ SRCS+=  device_if.h bus_if.h clock_if.h
 DPSRCS+= assym.inc
 
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	opt_hwpmc_hooks.h opt_kstack_pages.h
+SRCS+=	opt_acpi.h opt_hwpmc_hooks.h opt_kstack_pages.h
 .endif
 
 efirt_support.o:	efirt_support.S assym.inc

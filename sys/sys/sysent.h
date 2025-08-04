@@ -79,11 +79,10 @@ struct sysent {			/* system call table */
  */
 #define	SYF_CAPENABLED	0x00000001
 
-#define	SY_THR_FLAGMASK	0x7
-#define	SY_THR_STATIC	0x1
-#define	SY_THR_DRAINING	0x2
-#define	SY_THR_ABSENT	0x4
-#define	SY_THR_INCR	0x8
+#define	SY_THR_STATIC	0x01
+#define	SY_THR_DRAINING	0x02
+#define	SY_THR_ABSENT	0x04
+#define	SY_THR_INCR	0x08
 
 #ifdef KLD_MODULE
 #define	SY_THR_STATIC_KLD	0
@@ -91,6 +90,7 @@ struct sysent {			/* system call table */
 #define	SY_THR_STATIC_KLD	SY_THR_STATIC
 #endif
 
+struct coredump_writer;
 struct image_params;
 struct proc;
 struct __sigset;
@@ -109,7 +109,8 @@ struct sysentvec {
 	int 		*sv_szsigcode;	/* size of sigtramp code */
 	int		sv_sigcodeoff;
 	char		*sv_name;	/* name of binary type */
-	int		(*sv_coredump)(struct thread *, struct vnode *, off_t, int);
+	int		(*sv_coredump)(struct thread *, struct coredump_writer *,
+			    off_t, int);
 					/* function to dump core, or NULL */
 	int		sv_elf_core_osabi;
 	const char	*sv_elf_core_abi_vendor;

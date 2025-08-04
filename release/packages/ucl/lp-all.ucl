@@ -1,0 +1,4 @@
+comment = "Printer subsystem"
+desc = <<EOD
+Printer subsystem
+EOD

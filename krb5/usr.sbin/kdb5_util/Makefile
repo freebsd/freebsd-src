@@ -7,7 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
+PACKAGE=	kerberos-kdc
 
 PROG=	kdb5_util
 
@@ -27,11 +27,13 @@ SRCS=	dump.c \
 	tdumputil.c \
 	${GEN}
 
-INCS=	${GENI}
+DPSRCS=	${GENI}
 
 MAN=	kdb5_util.8
 
-CFLAGS+=-I${KRB5_DIR}/include \
+CFLAGS+=-I. \
+	-I${KRB5_DIR}/include \
+	-I${KRB5_DIR}/lib \
 	-I${KRB5_SRCTOP}/include
 
 MAN=	kdb5_util.8

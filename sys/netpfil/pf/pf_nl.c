@@ -178,7 +178,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 
 	nlattr_add_string(nw, PF_ST_IFNAME, s->kif->pfik_name);
 	nlattr_add_string(nw, PF_ST_ORIG_IFNAME, s->orig_kif->pfik_name);
-	dump_addr(nw, PF_ST_RT_ADDR, &s->act.rt_addr, af);
+	dump_addr(nw, PF_ST_RT_ADDR, &s->act.rt_addr, s->act.rt_af);
 	nlattr_add_u32(nw, PF_ST_CREATION, time_uptime - (s->creation / 1000));
 	uint32_t expire = pf_state_expires(s);
 	if (expire > time_uptime)
@@ -224,6 +224,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	if (s->sns[PF_SN_ROUTE] != NULL)
 		src_node_flags |= PFSTATE_SRC_NODE_ROUTE;
 	nlattr_add_u8(nw, PF_ST_SRC_NODE_FLAGS, src_node_flags);
+	nlattr_add_u8(nw, PF_ST_RT_AF, s->act.rt_af);
 
 	if (!dump_state_peer(nw, PF_ST_PEER_SRC, &s->src))
 		goto enomem;
@@ -1256,23 +1257,13 @@ pf_handle_clear_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
-struct pf_nl_natlook {
-	sa_family_t af;
-	uint8_t direction;
-	uint8_t proto;
-	struct pf_addr src;
-	struct pf_addr dst;
-	uint16_t sport;
-	uint16_t dport;
-};
-
-#define	_OUT(_field)	offsetof(struct pf_nl_natlook, _field)
+#define	_OUT(_field)	offsetof(struct pfioc_natlook, _field)
 static const struct nlattr_parser nla_p_natlook[] = {
 	{ .type = PF_NL_AF, .off = _OUT(af), .cb = nlattr_get_uint8 },
 	{ .type = PF_NL_DIRECTION, .off = _OUT(direction), .cb = nlattr_get_uint8 },
 	{ .type = PF_NL_PROTO, .off = _OUT(proto), .cb = nlattr_get_uint8 },
-	{ .type = PF_NL_SRC_ADDR, .off = _OUT(src), .cb = nlattr_get_in6_addr },
-	{ .type = PF_NL_DST_ADDR, .off = _OUT(dst), .cb = nlattr_get_in6_addr },
+	{ .type = PF_NL_SRC_ADDR, .off = _OUT(saddr), .cb = nlattr_get_in6_addr },
+	{ .type = PF_NL_DST_ADDR, .off = _OUT(daddr), .cb = nlattr_get_in6_addr },
 	{ .type = PF_NL_SRC_PORT, .off = _OUT(sport), .cb = nlattr_get_uint16 },
 	{ .type = PF_NL_DST_PORT, .off = _OUT(dport), .cb = nlattr_get_uint16 },
 };
@@ -1282,63 +1273,31 @@ NL_DECLARE_PARSER(natlook_parser, struct genlmsghdr, nlf_p_empty, nla_p_natlook)
 static int
 pf_handle_natlook(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
-	struct pf_nl_natlook	 attrs = {};
-	struct pf_state_key_cmp	 key = {};
+	struct pfioc_natlook attrs = {};
 	struct nl_writer	*nw = npt->nw;
-	struct pf_state_key	*sk;
-	struct pf_kstate	*state;
 	struct genlmsghdr	*ghdr_new;
-	int			 error, m = 0;
-	int			 sidx, didx;
+	int			 error;
 
 	error = nl_parse_nlmsg(hdr, &natlook_parser, npt, &attrs);
 	if (error != 0)
 		return (error);
 
-	if (attrs.proto == 0 ||
-	    PF_AZERO(&attrs.src, attrs.af) ||
-	    PF_AZERO(&attrs.dst, attrs.af) ||
-	    ((attrs.proto == IPPROTO_TCP || attrs.proto == IPPROTO_UDP) &&
-	     (attrs.sport == 0 || attrs.dport == 0)))
-		return (EINVAL);
+	error = pf_ioctl_natlook(&attrs);
+	if (error != 0)
+		return (error);
 
-	/* NATLOOK src and dst are reversed, so reverse sidx/didx */
-	sidx = (attrs.direction == PF_IN) ? 1 : 0;
-	didx = (attrs.direction == PF_IN) ? 0 : 1;
-
-	key.af = attrs.af;
-	key.proto = attrs.proto;
-	PF_ACPY(&key.addr[sidx], &attrs.src, attrs.af);
-	key.port[sidx] = attrs.sport;
-	PF_ACPY(&key.addr[didx], &attrs.dst, attrs.af);
-	key.port[didx] = attrs.dport;
-
-	state = pf_find_state_all(&key, attrs.direction, &m);
-	if (state == NULL)
-		return (ENOENT);
-	if (m > 1) {
-		PF_STATE_UNLOCK(state);
-		return (E2BIG);
-	}
-
-	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
-		PF_STATE_UNLOCK(state);
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
 		return (ENOMEM);
-	}
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = PFNL_CMD_NATLOOK;
 	ghdr_new->version = 0;
 	ghdr_new->reserved = 0;
 
-	sk = state->key[sidx];
-
-	nlattr_add_in6_addr(nw, PF_NL_SRC_ADDR, &sk->addr[sidx].v6);
-	nlattr_add_in6_addr(nw, PF_NL_DST_ADDR, &sk->addr[didx].v6);
-	nlattr_add_u16(nw, PF_NL_SRC_PORT, sk->port[sidx]);
-	nlattr_add_u16(nw, PF_NL_DST_PORT, sk->port[didx]);
-
-	PF_STATE_UNLOCK(state);
+	nlattr_add_in6_addr(nw, PF_NL_SRC_ADDR, &attrs.rsaddr.v6);
+	nlattr_add_in6_addr(nw, PF_NL_DST_ADDR, &attrs.rdaddr.v6);
+	nlattr_add_u16(nw, PF_NL_SRC_PORT, attrs.rsport);
+	nlattr_add_u16(nw, PF_NL_DST_PORT, attrs.rdport);
 
 	if (!nlmsg_end(nw)) {
 		nlmsg_abort(nw);
@@ -1803,7 +1762,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 			nlattr_add_u32(nw, PF_SN_STATES, n->states);
 			nlattr_add_u32(nw, PF_SN_CONNECTIONS, n->conn);
 			nlattr_add_u8(nw, PF_SN_AF, n->af);
-			nlattr_add_u8(nw, PF_SN_NAF, n->naf);
+			nlattr_add_u8(nw, PF_SN_RAF, n->raf);
 			nlattr_add_u8(nw, PF_SN_RULE_TYPE, n->ruletype);
 
 			nlattr_add_u64(nw, PF_SN_CREATION, secs - n->creation);

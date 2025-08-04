@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -17,6 +15,7 @@ LIB=		kadm5clnt_mit
 # SHLIB_MAJOR=	12
 LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile gssrpc gssapi_krb5 krb5 k5crypto krb5support com_err
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	alt_prof.c \
 	chpass_util.c \
@@ -29,7 +28,8 @@ SRCS=	alt_prof.c \
 
 .include "${KRB5_SRCTOP}/lib/kadm5clnt/clnt/Makefile.inc"
 
-CFLAGS+=-I${KRB5_DIR}/lib/kadm5 \
+CFLAGS+=-I${KRB5_DIR}/lib \
+	-I${KRB5_DIR}/lib/kadm5 \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_OBJTOP}/include/krb5_private \
 	-I${KRB5_SRCTOP}/include \
@@ -37,10 +37,6 @@ CFLAGS+=-I${KRB5_DIR}/lib/kadm5 \
 
 INCSDIR=${INCLUDEDIR}/kadm5
 INCS=	admin.h \
-	admin_internal.h \
-	admin_xdr.h \
-	kadm_rpc.h \
-	server_internal.h \
 	${GENI}
 
 KADM_ERR=	kadm_err.et
@@ -88,7 +84,7 @@ ${CHPASS_UTIL_STRINGS_ERR_C}: ${CHPASS_UTIL_STRINGS_ERR}
 	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c
 
 afterinstall:
-	${INSTALL_LIBSYMLINK} ${SHLIB} ${DESTDIR}${LIBDIR}/libkadm5clnt
+	${INSTALL_LIBSYMLINK} ${SHLIB_LINK} ${DESTDIR}${LIBDIR}/libkadm5clnt.so
 
 .include <bsd.lib.mk>
 

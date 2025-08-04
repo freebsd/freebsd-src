@@ -59,9 +59,6 @@
 #error "Kernel only file. Please use sbin/pfctl/pf_ruleset.c instead."
 #endif
 
-#define DPFPRINTF(format, x...)				\
-	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
-		printf(format , ##x)
 #define rs_malloc(x)		malloc(x, M_TEMP, M_NOWAIT|M_ZERO)
 #define rs_free(x)		free(x, M_TEMP)
 
@@ -232,7 +229,7 @@ pf_get_leaf_kruleset(char *path, char **path_remainder)
 	return (ruleset);
 }
 
-struct pf_kanchor *
+static struct pf_kanchor *
 pf_create_kanchor(struct pf_kanchor *parent, const char *aname)
 {
 	struct pf_kanchor	*anchor, *dup;
@@ -259,8 +256,8 @@ pf_create_kanchor(struct pf_kanchor *parent, const char *aname)
 
 	if ((dup = RB_INSERT(pf_kanchor_global, &V_pf_anchors, anchor)) !=
 	    NULL) {
-		printf("pf_find_or_create_ruleset: RB_INSERT1 "
-		    "'%s' '%s' collides with '%s' '%s'\n",
+		printf("%s: RB_INSERT1 "
+		    "'%s' '%s' collides with '%s' '%s'\n", __func__,
 		    anchor->path, anchor->name, dup->path, dup->name);
 		rs_free(anchor);
 		return (NULL);
@@ -270,10 +267,10 @@ pf_create_kanchor(struct pf_kanchor *parent, const char *aname)
 		anchor->parent = parent;
 		if ((dup = RB_INSERT(pf_kanchor_node, &parent->children,
 		    anchor)) != NULL) {
-			printf("pf_find_or_create_ruleset: "
+			printf("%s: "
 			    "RB_INSERT2 '%s' '%s' collides with "
-			    "'%s' '%s'\n", anchor->path, anchor->name,
-			    dup->path, dup->name);
+			    "'%s' '%s'\n", __func__, anchor->path,
+			    anchor->name, dup->path, dup->name);
 			RB_REMOVE(pf_kanchor_global, &V_pf_anchors,
 			    anchor);
 			rs_free(anchor);
@@ -339,7 +336,7 @@ pf_remove_if_empty_kruleset(struct pf_kruleset *ruleset)
 	int			 i;
 
 	while (ruleset != NULL) {
-		if (ruleset == &pf_main_ruleset || ruleset->anchor == NULL ||
+		if (ruleset == &pf_main_ruleset ||
 		    !RB_EMPTY(&ruleset->anchor->children) ||
 		    ruleset->anchor->refcnt > 0 || ruleset->tables > 0 ||
 		    ruleset->topen)
@@ -386,7 +383,8 @@ pf_kanchor_setup(struct pf_krule *r, const struct pf_kruleset *s,
 			strlcpy(path, s->anchor->path, MAXPATHLEN);
 		while (name[0] == '.' && name[1] == '.' && name[2] == '/') {
 			if (!path[0]) {
-				DPFPRINTF("%s: .. beyond root\n", __func__);
+				DPFPRINTF(PF_DEBUG_NOISY, "%s: .. beyond root",
+				    __func__);
 				rs_free(path);
 				return (1);
 			}
@@ -407,8 +405,8 @@ pf_kanchor_setup(struct pf_krule *r, const struct pf_kruleset *s,
 	}
 	ruleset = pf_find_or_create_kruleset(path);
 	rs_free(path);
-	if (ruleset == NULL || ruleset->anchor == NULL) {
-		DPFPRINTF("%s: ruleset\n", __func__);
+	if (ruleset == NULL || ruleset == &pf_main_ruleset) {
+		DPFPRINTF(PF_DEBUG_NOISY, "%s: ruleset", __func__);
 		return (1);
 	}
 	r->anchor = ruleset->anchor;
@@ -432,7 +430,7 @@ pf_kanchor_copyout(const struct pf_kruleset *rs, const struct pf_krule *r,
 		char	 a[MAXPATHLEN];
 		char	*p;
 		int	 i;
-		if (rs->anchor == NULL)
+		if (rs == &pf_main_ruleset)
 			a[0] = 0;
 		else
 			strlcpy(a, rs->anchor->path, MAXPATHLEN);
@@ -444,7 +442,7 @@ pf_kanchor_copyout(const struct pf_kruleset *rs, const struct pf_krule *r,
 			    anchor_call_len);
 		}
 		if (strncmp(a, r->anchor->path, strlen(a))) {
-			printf("pf_anchor_copyout: '%s' '%s'\n", a,
+			printf("%s: '%s' '%s'\n", __func__, a,
 			    r->anchor->path);
 			return (1);
 		}
@@ -525,16 +523,13 @@ done:
 }
 
 void
-pf_kanchor_remove(struct pf_krule *r)
+pf_remove_kanchor(struct pf_krule *r)
 {
 	if (r->anchor == NULL)
 		return;
-	if (r->anchor->refcnt <= 0) {
-		printf("pf_anchor_remove: broken refcount\n");
-		r->anchor = NULL;
-		return;
-	}
-	if (!--r->anchor->refcnt)
+	if (r->anchor->refcnt <= 0)
+		printf("%s: broken refcount\n", __func__);
+	else if (!--r->anchor->refcnt)
 		pf_remove_if_empty_kruleset(&r->anchor->ruleset);
 	r->anchor = NULL;
 }
@@ -693,7 +688,8 @@ pf_keth_anchor_setup(struct pf_keth_rule *r, const struct pf_keth_ruleset *s,
 			strlcpy(path, s->anchor->path, MAXPATHLEN);
 		while (name[0] == '.' && name[1] == '.' && name[2] == '/') {
 			if (!path[0]) {
-				DPFPRINTF("%s: .. beyond root\n", __func__);
+				DPFPRINTF(PF_DEBUG_NOISY, "%s: .. beyond root",
+				    __func__);
 				rs_free(path);
 				return (1);
 			}
@@ -715,7 +711,7 @@ pf_keth_anchor_setup(struct pf_keth_rule *r, const struct pf_keth_ruleset *s,
 	ruleset = pf_find_or_create_keth_ruleset(path);
 	rs_free(path);
 	if (ruleset == NULL || ruleset->anchor == NULL) {
-		DPFPRINTF("%s: ruleset\n", __func__);
+		DPFPRINTF(PF_DEBUG_NOISY, "%s: ruleset", __func__);
 		return (1);
 	}
 	r->anchor = ruleset->anchor;

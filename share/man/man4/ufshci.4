@@ -1,0 +1,181 @@
+.\"
+.\" Copyright (c) 2025, Samsung Electronics Co., Ltd.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" ufshci driver man page.
+.\"
+.\" Author: Jaeyoon Choi <j_yoon.choi@samsung.com>
+.\"
+.Dd July 17, 2025
+.Dt UFSHCI 4
+.Os
+.Sh NAME
+.Nm ufshci
+.Nd Universal Flash Storage Host Controller Interface driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ufshci"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ufshci_load="YES"
+.Ed
+.Sh DESCRIPTION
+Universal Flash Storage (UFS) is a low-power, high-performance storage
+standard composed of a host controller and a single target device.
+.Pp
+The driver currently provides:
+.Bl -bullet
+.It
+Initialization of the host controller and the target device
+.It
+Handling of UFS Interconnect (UIC) commands
+.It
+Support for UTP Transfer Requests (UTR) and UTP Task Management Requests (UTMR)
+.It
+Support for the SCSI command set
+.It
+Operation in the legacy single-doorbell queue mode
+.It
+Support for the PCI Express bus
+.El
+.Pp
+After initialization, the controller is registered with the
+.Xr cam 4
+subsystem and its logical unit appears as the device node
+.Pa /dev/daX .
+.Pp
+The driver is under active development; upcoming work includes full
+UFS 4.1 feature coverage, additional power-management modes, and
+ACPI/FDT-based attach support.
+.Sh HARDWARE
+The
+.Nm
+driver supports both host controllers and devices implementing the
+Universal Flash Storage Host Controller Interface 4.1 and earlier.
+.Sh CONFIGURATION
+The
+.Nm
+driver currently operates with a single doorbell (one I/O-queue), so any
+tunables that change the queue count are ignored.
+When Multi-Circular Queue (MCQ) support is added and multiple queues
+become available, the following queue count tunable values will take effect:
+.Pp
+To force a single I/O queue pair shared by all CPUs, set the following
+tunable value in loader.conf(5):
+.Bd -literal -offset indent
+hw.ufshci.per_cpu_io_queues=0
+.Ed
+.Pp
+To assign more than one CPU per I/O queue pair, thereby reducing the
+number of MSI-X vectors consumed by the device, set the following tunable
+value in loader.conf(5):
+.Bd -literal -offset indent
+hw.ufshci.min_cpus_per_ioq=X
+.Ed
+.Pp
+To change the I/O command timeout value (in seconds), set the following tunable
+value in loader.conf(5):
+.Bd -literal -offset indent
+hw.ufshci.timeout_period=X
+.Ed
+.Pp
+To change the I/O command retry count, set the following tunable value in
+loader.conf(5):
+.Bd -literal -offset indent
+hw.ufshci.retry_count=X
+.Ed
+.Pp
+To force the driver to use legacy INTx interrupts, set the following tunable
+value in loader.conf(5):
+.br
+(Note: until MCQ support is available the driver always uses legacy INTx, so
+this value effectively remains 1)
+.Bd -literal -offset indent
+hw.ufshci.force_intx=1
+.Ed
+.Sh SYSCTL VARIABLES
+The following controller-level
+.Xr sysctl 8
+nodes are currently implemented:
+.Bl -tag -width indent
+.It Va dev.ufshci.0.num_failures
+(R) Number of command failures for the entire controller.
+.It Va dev.ufshci.0.num_retries
+(R) Number of command retries for the entire controller.
+.It Va dev.ufshci.0.num_intr_handler_calls
+(R) Number of times the interrupt handler has been called.
+.It Va dev.ufshci.0.num_cmds
+(R) Total number of commands issued by the controller.
+.It Va dev.ufshci.0.timeout_period
+(RW) Configured timeout period (in seconds).
+.It Va dev.ufshci.0.cap
+(R) Host controller capabilities register value.
+.It Va dev.ufshci.0.num_io_queues
+(R) Number of I/O-queue pairs.
+.It Va dev.ufshci.0.io_queue_mode
+(R) Indicates single doorbell mode or multi circular queue mode.
+.It Va dev.ufshci.0.minor_version
+(R) Host controller minor version.
+.It Va dev.ufshci.0.major_version
+(R) Host controller major version.
+.It Va dev.ufshci.0.utmrq.num_failures
+(R) Number of failed UTP task-management requests.
+.It Va dev.ufshci.0.utmrq.ioq.num_retries
+(R) Number of retried UTP task-management requests.
+.It Va dev.ufshci.0.utmrq.num_intr_handler_calls
+(R) Number of interrupt handler calls caused by UTP task-management requests.
+.It Va dev.ufshci.0.utmrq.num_cmds
+(R) Number of UTP task-management requests issued.
+.It Va dev.ufshci.0.utmrq.cq_head
+(R) Current location of the UTP task-management completion queue head.
+.It Va dev.ufshci.0.utmrq.sq_tail
+(R) Current location of the UTP task-management submission queue tail.
+.It Va dev.ufshci.0.utmrq.sq_head
+(R) Current location of the UTP task-management submission queue head.
+.It Va dev.ufshci.0.utmrq.num_trackers
+(R) Number of trackers in the UTP task-management queue.
+.It Va dev.ufshci.0.utmrq.num_entries
+(R) Number of entries in the UTP task-management queue.
+.It Va dev.ufshci.0.ioq.0.num_failures
+(R) Number of failed UTP transfer requests.
+.It Va dev.ufshci.0.ioq.0.num_retries
+(R) Number of retried UTP transfer requests.
+.It Va dev.ufshci.0.ioq.0.num_intr_handler_calls
+(R) Number of interrupt-handler calls caused by UTP transfer requests.
+.It Va dev.ufshci.0.ioq.0.num_cmds
+(R) Number of UTP transfer requests issued.
+.It Va dev.ufshci.0.ioq.0.cq_head
+(R) Current location of the UTP transfer completion queue head.
+.It Va dev.ufshci.0.ioq.0.sq_tail
+(R) Current location of the UTP transfer submission queue tail.
+.It Va dev.ufshci.0.ioq.0.sq_head
+(R) Current location of the UTP transfer submission queue head.
+.It Va dev.ufshci.0.ioq.0.num_trackers
+(R) Number of trackers in the UTP transfer queue.
+.It Va dev.ufshci.0.ioq.0.num_entries
+(R) Number of entries in the UTP transfer queue.
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr pci 4 ,
+.Xr disk 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was developed by Samsung Electronics and originally written by
+.An Jaeyoon Choi Aq Mt j_yoon.choi@samsung.com .
+.Pp
+This manual page was written by
+.An Jaeyoon Choi Aq Mt j_yoon.choi@samsung.com .

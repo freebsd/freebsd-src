@@ -39,6 +39,7 @@
 
 #include <linux/notifier.h>
 #include <linux/suspend.h>
+#include <linux/uuid.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/video.h>
@@ -71,8 +72,9 @@ bsd_acpi_get_handle(device_t bsddev)
 }
 
 bool
-acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev, uint64_t funcs)
+acpi_check_dsm(ACPI_HANDLE handle, const guid_t *uuid, int rev, uint64_t funcs)
 {
+	UINT64 ret;
 
 	if (funcs == 0)
 		return (false);
@@ -86,17 +88,33 @@ acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev, uint64_t funcs)
 	 */
 	funcs |= 1 << 0;
 
-	return ((acpi_DSMQuery(handle, uuid, rev) & funcs) == funcs);
+	ret = acpi_DSMQuery(handle, (const uint8_t *)uuid, rev);
+	return ((ret & funcs) == funcs);
 }
 
 ACPI_OBJECT *
-acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev,
+acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const guid_t *uuid, int rev,
     int func, ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type)
 {
 	ACPI_BUFFER buf;
+	ACPI_STATUS status;
 
-	return (ACPI_SUCCESS(acpi_EvaluateDSMTyped(handle, uuid, rev, func,
-	    argv4, &buf, type)) ? (ACPI_OBJECT *)buf.Pointer : NULL);
+	status = acpi_EvaluateDSMTyped(handle, (const uint8_t *)uuid, rev, func,
+	    argv4, &buf, type);
+	return (ACPI_SUCCESS(status) ? (ACPI_OBJECT *)buf.Pointer : NULL);
+}
+
+union linuxkpi_acpi_object *
+acpi_evaluate_dsm(ACPI_HANDLE ObjHandle, const guid_t *guid,
+    UINT64 rev, UINT64 func, union linuxkpi_acpi_object *pkg)
+{
+	ACPI_BUFFER buf;
+	ACPI_STATUS status;
+
+	status = acpi_EvaluateDSM(ObjHandle, (const uint8_t *)guid, rev, func,
+	    (ACPI_OBJECT *)pkg, &buf);
+	return (ACPI_SUCCESS(status) ?
+	    (union linuxkpi_acpi_object *)buf.Pointer : NULL);
 }
 
 static void
@@ -311,14 +329,21 @@ bsd_acpi_get_handle(device_t bsddev)
 }
 
 bool
-acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev, uint64_t funcs)
+acpi_check_dsm(ACPI_HANDLE handle, const guid_t *uuid, int rev, uint64_t funcs)
 {
 	return (false);
 }
 
 ACPI_OBJECT *
-acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev,
+acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const guid_t *uuid, int rev,
      int func, ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type)
+{
+	return (NULL);
+}
+
+union linuxkpi_acpi_object *
+acpi_evaluate_dsm(ACPI_HANDLE ObjHandle, const guid_t *guid,
+    UINT64 rev, UINT64 func, union linuxkpi_acpi_object *pkg)
 {
 	return (NULL);
 }

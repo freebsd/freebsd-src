@@ -1,7 +1,8 @@
+#-
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright 2022 Mateusz Piotrowski <0mp@FreeBSD.org>
-#
-# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2025 Klara, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -52,7 +53,7 @@ oomprotect_all_body()
 	_rc_arg="$4"
 	setvar "${name}_oomprotect" all
 	command="/usr/sbin/daemon"
-	command_args="-P $pidfile -p $_childpidfile -- /bin/sleep 5"
+	command_args="-P $pidfile -p $_childpidfile -- /bin/sleep 60"
 	run_rc_command "$_rc_arg"
 	LITERAL
 
@@ -92,7 +93,7 @@ oomprotect_yes_body()
 	setvar "${name}_oomprotect" yes
 	procname="/bin/sleep"
 	command="/usr/sbin/daemon"
-	command_args="-p $pidfile -- $procname 5"
+	command_args="-p $pidfile -- $procname 60"
 	run_rc_command "$_rc_arg"
 	LITERAL
 
@@ -104,8 +105,32 @@ oomprotect_yes_body()
 		/bin/sh "$__script" "$__name" "$__pidfile" onestop
 }
 
+atf_test_case wait_for_pids_progress
+wait_for_pids_progress_head()
+{
+	atf_set "descr" "Verify that wait_for_pids prints progress updates"
+}
+wait_for_pids_progress_body()
+{
+	cat >>script <<'EOF'
+. /etc/rc.subr
+sleep 15 &
+a=$!
+sleep 10 &
+b=$!
+sleep 5 &
+c=$!
+wait_for_pids $a $b $c
+EOF
+	re="^Waiting for PIDS: [0-9]+ [0-9]+ [0-9]+"
+	re="${re}, [0-9]+ [0-9]+"
+	re="${re}, [0-9]+\.$"
+	atf_check -s exit:0 -o match:"${re}" /bin/sh script
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case oomprotect_all
 	atf_add_test_case oomprotect_yes
+	atf_add_test_case wait_for_pids_progress
 }

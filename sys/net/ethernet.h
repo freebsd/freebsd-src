@@ -62,6 +62,8 @@ struct ether_header {
 	u_char	ether_shost[ETHER_ADDR_LEN];
 	u_short	ether_type;
 } __packed;
+_Static_assert(sizeof(struct ether_header) == ETHER_HDR_LEN,
+    "size of struct ether_header is wrong");
 
 /*
  * Structure of a 48-bit Ethernet address.
@@ -69,6 +71,8 @@ struct ether_header {
 struct ether_addr {
 	u_char octet[ETHER_ADDR_LEN];
 } __packed;
+_Static_assert(sizeof(struct ether_addr) == ETHER_ADDR_LEN,
+    "size of struct ether_addr is wrong");
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
 #define	ETHER_IS_IPV6_MULTICAST(addr) \
@@ -79,6 +83,23 @@ struct ether_addr {
 #define	ETHER_IS_ZERO(addr) \
 	(((addr)[0] | (addr)[1] | (addr)[2] | \
 	  (addr)[3] | (addr)[4] | (addr)[5]) == 0x00)
+
+/*
+ * 802.1q VID constants from IEEE 802.1Q-2014, table 9-2.
+ */
+
+/* Null VID: The tag contains only PCP (priority) and DEI information. */
+#define	DOT1Q_VID_NULL		0x0
+/* The default PVID for a bridge port.  NB: bridge(4) does not honor this. */
+#define	DOT1Q_VID_DEF_PVID	0x1
+/* The default SR_PVID for SRP Stream related traffic. */
+#define	DOT1Q_VID_DEF_SR_PVID	0x2
+/* A VID reserved for implementation use, not permitted on the wire. */
+#define	DOT1Q_VID_RSVD_IMPL	0xfff
+/* The lowest valid VID. */
+#define	DOT1Q_VID_MIN		0x1
+/* The highest valid VID. */
+#define	DOT1Q_VID_MAX		0xffe
 
 /*
  * This is the type of the VLAN ID inside the tag, not the tag itself.
@@ -95,6 +116,8 @@ struct ether_vlan_header {
 	uint16_t evl_tag;
 	uint16_t evl_proto;
 } __packed;
+_Static_assert(sizeof(struct ether_vlan_header) == ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN,
+    "size of struct ether_vlan_header is wrong");
 
 #define	EVL_VLID_MASK		0x0FFF
 #define	EVL_PRI_MASK		0xE000

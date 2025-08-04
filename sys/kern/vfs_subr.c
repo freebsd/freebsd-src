@@ -38,7 +38,6 @@
  * External virtual filesystem routines
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 #include "opt_watchdog.h"
 
@@ -57,6 +56,7 @@
 #include <sys/extattr.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
+#include <sys/inotify.h>
 #include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -96,10 +96,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vnode_pager.h>
 #include <vm/uma.h>
-
-#if defined(DEBUG_VFS_LOCKS) && (!defined(INVARIANTS) || !defined(WITNESS))
-#error DEBUG_VFS_LOCKS requires INVARIANTS and WITNESS
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -5246,7 +5242,8 @@ destroy_vpollinfo_free(struct vpollinfo *vi)
 static void
 destroy_vpollinfo(struct vpollinfo *vi)
 {
-
+	KASSERT(TAILQ_EMPTY(&vi->vpi_inotify),
+	    ("%s: pollinfo %p has lingering watches", __func__, vi));
 	knlist_clear(&vi->vpi_selinfo.si_note, 1);
 	seldrain(&vi->vpi_selinfo);
 	destroy_vpollinfo_free(vi);
@@ -5260,12 +5257,13 @@ v_addpollinfo(struct vnode *vp)
 {
 	struct vpollinfo *vi;
 
-	if (vp->v_pollinfo != NULL)
+	if (atomic_load_ptr(&vp->v_pollinfo) != NULL)
 		return;
 	vi = malloc(sizeof(*vi), M_VNODEPOLL, M_WAITOK | M_ZERO);
 	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
 	    vfs_knlunlock, vfs_knl_assert_lock);
+	TAILQ_INIT(&vi->vpi_inotify);
 	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
 		VI_UNLOCK(vp);
@@ -5734,102 +5732,69 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 	}
 }
 
-#ifdef DEBUG_VFS_LOCKS
-int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0,
-    "Drop into debugger on lock violation");
-
-int vfs_badlock_mutex = 1;	/* Check for interlock across VOPs. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex,
-    0, "Check for interlock across VOPs");
-
-int vfs_badlock_print = 1;	/* Print lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print,
-    0, "Print lock violations");
-
-int vfs_badlock_vnode = 1;	/* Print vnode details on lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_vnode, CTLFLAG_RW, &vfs_badlock_vnode,
-    0, "Print vnode details on lock violations");
-
-#ifdef KDB
-int vfs_badlock_backtrace = 1;	/* Print backtrace at lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW,
-    &vfs_badlock_backtrace, 0, "Print backtrace at lock violations");
-#endif
-
-static void
-vfs_badlock(const char *msg, const char *str, struct vnode *vp)
-{
-
-#ifdef KDB
-	if (vfs_badlock_backtrace)
-		kdb_backtrace();
-#endif
-	if (vfs_badlock_vnode)
-		vn_printf(vp, "vnode ");
-	if (vfs_badlock_print)
-		printf("%s: %p %s\n", str, (void *)vp, msg);
-	if (vfs_badlock_ddb)
-		kdb_enter(KDB_WHY_VFSLOCK, "lock violation");
-}
-
+#ifdef INVARIANTS
 void
 assert_vi_locked(struct vnode *vp, const char *str)
 {
-
-	if (vfs_badlock_mutex && !mtx_owned(VI_MTX(vp)))
-		vfs_badlock("interlock is not locked but should be", str, vp);
+	VNASSERT(mtx_owned(VI_MTX(vp)), vp,
+	    ("%s: vnode interlock is not locked but should be", str));
 }
 
 void
 assert_vi_unlocked(struct vnode *vp, const char *str)
 {
-
-	if (vfs_badlock_mutex && mtx_owned(VI_MTX(vp)))
-		vfs_badlock("interlock is locked but should not be", str, vp);
+	VNASSERT(!mtx_owned(VI_MTX(vp)), vp,
+	    ("%s: vnode interlock is locked but should not be", str));
 }
 
 void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
+	bool locked;
+
 	if (KERNEL_PANICKED() || vp == NULL)
 		return;
 
 #ifdef WITNESS
-	if ((vp->v_irflag & VIRF_CROSSMP) == 0 &&
-	    witness_is_owned(&vp->v_vnlock->lock_object) == -1)
+	locked = !((vp->v_irflag & VIRF_CROSSMP) == 0 &&
+	    witness_is_owned(&vp->v_vnlock->lock_object) == -1);
 #else
-	int locked = VOP_ISLOCKED(vp);
-	if (locked == 0 || locked == LK_EXCLOTHER)
+	int state = VOP_ISLOCKED(vp);
+	locked = state != 0 && state != LK_EXCLOTHER;
 #endif
-		vfs_badlock("is not locked but should be", str, vp);
+	VNASSERT(locked, vp, ("%s: vnode is not locked but should be", str));
 }
 
 void
 assert_vop_unlocked(struct vnode *vp, const char *str)
 {
+	bool locked;
+
 	if (KERNEL_PANICKED() || vp == NULL)
 		return;
 
 #ifdef WITNESS
-	if ((vp->v_irflag & VIRF_CROSSMP) == 0 &&
-	    witness_is_owned(&vp->v_vnlock->lock_object) == 1)
+	locked = (vp->v_irflag & VIRF_CROSSMP) == 0 &&
+	    witness_is_owned(&vp->v_vnlock->lock_object) == 1;
 #else
-	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
+	locked = VOP_ISLOCKED(vp) == LK_EXCLUSIVE;
 #endif
-		vfs_badlock("is locked but should not be", str, vp);
+	VNASSERT(!locked, vp, ("%s: vnode is locked but should not be", str));
 }
 
 void
 assert_vop_elocked(struct vnode *vp, const char *str)
 {
+	bool locked;
+
 	if (KERNEL_PANICKED() || vp == NULL)
 		return;
 
-	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
-		vfs_badlock("is not exclusive locked but should be", str, vp);
+	locked = VOP_ISLOCKED(vp) == LK_EXCLUSIVE;
+	VNASSERT(locked, vp,
+	    ("%s: vnode is not exclusive locked but should be", str));
 }
-#endif /* DEBUG_VFS_LOCKS */
+#endif /* INVARIANTS */
 
 void
 vop_rename_fail(struct vop_rename_args *ap)
@@ -5850,7 +5815,9 @@ vop_rename_pre(void *ap)
 {
 	struct vop_rename_args *a = ap;
 
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
+	struct mount *tmp;
+
 	if (a->a_tvp)
 		ASSERT_VI_UNLOCKED(a->a_tvp, "VOP_RENAME");
 	ASSERT_VI_UNLOCKED(a->a_tdvp, "VOP_RENAME");
@@ -5868,6 +5835,11 @@ vop_rename_pre(void *ap)
 	if (a->a_tvp)
 		ASSERT_VOP_LOCKED(a->a_tvp, "vop_rename: tvp not locked");
 	ASSERT_VOP_LOCKED(a->a_tdvp, "vop_rename: tdvp not locked");
+
+	tmp = NULL;
+	VOP_GETWRITEMOUNT(a->a_tdvp, &tmp);
+	lockmgr_assert(&tmp->mnt_renamelock, KA_XLOCKED);
+	vfs_rel(tmp);
 #endif
 	/*
 	 * It may be tempting to add vn_seqc_write_begin/end calls here and
@@ -5886,7 +5858,7 @@ vop_rename_pre(void *ap)
 		vhold(a->a_tvp);
 }
 
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 void
 vop_fplookup_vexec_debugpre(void *ap __unused)
 {
@@ -5925,6 +5897,8 @@ vop_fplookup_symlink_debugpost(void *ap __unused, int rc __unused)
 static void
 vop_fsync_debugprepost(struct vnode *vp, const char *name)
 {
+	struct mount *mp;
+
 	if (vp->v_type == VCHR)
 		;
 	/*
@@ -5942,10 +5916,16 @@ vop_fsync_debugprepost(struct vnode *vp, const char *name)
 	 * should still be caught when the stacked filesystem
 	 * invokes VOP_FSYNC() on the underlying filesystem.
 	 */
-	else if (MNT_SHARED_WRITES(vp->v_mount))
-		ASSERT_VOP_LOCKED(vp, name);
-	else
-		ASSERT_VOP_ELOCKED(vp, name);
+	else {
+		mp = NULL;
+		VOP_GETWRITEMOUNT(vp, &mp);
+		if (vn_lktype_write(mp, vp) == LK_SHARED)
+			ASSERT_VOP_LOCKED(vp, name);
+		else
+			ASSERT_VOP_ELOCKED(vp, name);
+		if (mp != NULL)
+			vfs_rel(mp);
+	}
 }
 
 void
@@ -5999,13 +5979,7 @@ vop_strategy_debugpre(void *ap)
 	if ((bp->b_flags & B_CLUSTER) != 0)
 		return;
 
-	if (!KERNEL_PANICKED() && !BUF_ISLOCKED(bp)) {
-		if (vfs_badlock_print)
-			printf(
-			    "VOP_STRATEGY: bp is not locked but should be\n");
-		if (vfs_badlock_ddb)
-			kdb_enter(KDB_WHY_VFSLOCK, "lock violation");
-	}
+	BUF_ASSERT_LOCKED(bp);
 }
 
 void
@@ -6054,7 +6028,29 @@ vop_need_inactive_debugpost(void *ap, int rc)
 
 	ASSERT_VI_LOCKED(a->a_vp, "VOP_NEED_INACTIVE");
 }
-#endif
+#endif /* INVARIANTS */
+
+void
+vop_allocate_post(void *ap, int rc)
+{
+	struct vop_allocate_args *a;
+
+	a = ap;
+	if (rc == 0)
+		INOTIFY(a->a_vp, IN_MODIFY);
+}
+
+void
+vop_copy_file_range_post(void *ap, int rc)
+{
+	struct vop_copy_file_range_args *a;
+
+	a = ap;
+	if (rc == 0) {
+		INOTIFY(a->a_invp, IN_ACCESS);
+		INOTIFY(a->a_outvp, IN_MODIFY);
+	}
+}
 
 void
 vop_create_pre(void *ap)
@@ -6076,8 +6072,20 @@ vop_create_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
+		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
+	}
+}
+
+void
+vop_deallocate_post(void *ap, int rc)
+{
+	struct vop_deallocate_args *a;
+
+	a = ap;
+	if (rc == 0)
+		INOTIFY(a->a_vp, IN_MODIFY);
 }
 
 void
@@ -6122,8 +6130,10 @@ vop_deleteextattr_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	vn_seqc_write_end(vp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+		INOTIFY(vp, IN_ATTRIB);
+	}
 }
 
 void
@@ -6153,6 +6163,8 @@ vop_link_post(void *ap, int rc)
 	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_LINK);
 		VFS_KNOTE_LOCKED(tdvp, NOTE_WRITE);
+		INOTIFY_NAME(vp, tdvp, a->a_cnp, _IN_ATTRIB_LINKCOUNT);
+		INOTIFY_NAME(vp, tdvp, a->a_cnp, IN_CREATE);
 	}
 }
 
@@ -6176,11 +6188,13 @@ vop_mkdir_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE | NOTE_LINK);
+		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
+	}
 }
 
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 void
 vop_mkdir_debugpost(void *ap, int rc)
 {
@@ -6212,8 +6226,10 @@ vop_mknod_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
+		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
+	}
 }
 
 void
@@ -6225,8 +6241,10 @@ vop_reclaim_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	ASSERT_VOP_IN_SEQC(vp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_REVOKE);
+		INOTIFY_REVOKE(vp);
+	}
 }
 
 void
@@ -6257,6 +6275,8 @@ vop_remove_post(void *ap, int rc)
 	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 		VFS_KNOTE_LOCKED(vp, NOTE_DELETE);
+		INOTIFY_NAME(vp, dvp, a->a_cnp, _IN_ATTRIB_LINKCOUNT);
+		INOTIFY_NAME(vp, dvp, a->a_cnp, IN_DELETE);
 	}
 }
 
@@ -6288,6 +6308,8 @@ vop_rename_post(void *ap, int rc)
 		VFS_KNOTE_UNLOCKED(a->a_fvp, NOTE_RENAME);
 		if (a->a_tvp)
 			VFS_KNOTE_UNLOCKED(a->a_tvp, NOTE_DELETE);
+		INOTIFY_MOVE(a->a_fvp, a->a_fdvp, a->a_fcnp, a->a_tvp,
+		    a->a_tdvp, a->a_tcnp);
 	}
 	if (a->a_tdvp != a->a_fdvp)
 		vdrop(a->a_fdvp);
@@ -6327,6 +6349,7 @@ vop_rmdir_post(void *ap, int rc)
 		vp->v_vflag |= VV_UNLINKED;
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 		VFS_KNOTE_LOCKED(vp, NOTE_DELETE);
+		INOTIFY_NAME(vp, dvp, a->a_cnp, IN_DELETE);
 	}
 }
 
@@ -6350,8 +6373,10 @@ vop_setattr_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	vn_seqc_write_end(vp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_ATTRIB);
+		INOTIFY(vp, IN_ATTRIB);
+	}
 }
 
 void
@@ -6396,8 +6421,10 @@ vop_setextattr_post(void *ap, int rc)
 	a = ap;
 	vp = a->a_vp;
 	vn_seqc_write_end(vp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(vp, NOTE_ATTRIB);
+		INOTIFY(vp, IN_ATTRIB);
+	}
 }
 
 void
@@ -6420,8 +6447,10 @@ vop_symlink_post(void *ap, int rc)
 	a = ap;
 	dvp = a->a_dvp;
 	vn_seqc_write_end(dvp);
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
+		INOTIFY_NAME(*a->a_vpp, dvp, a->a_cnp, IN_CREATE);
+	}
 }
 
 void
@@ -6429,8 +6458,10 @@ vop_open_post(void *ap, int rc)
 {
 	struct vop_open_args *a = ap;
 
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_OPEN);
+		INOTIFY(a->a_vp, IN_OPEN);
+	}
 }
 
 void
@@ -6442,6 +6473,8 @@ vop_close_post(void *ap, int rc)
 	    !VN_IS_DOOMED(a->a_vp))) {
 		VFS_KNOTE_LOCKED(a->a_vp, (a->a_fflag & FWRITE) != 0 ?
 		    NOTE_CLOSE_WRITE : NOTE_CLOSE);
+		INOTIFY(a->a_vp, (a->a_fflag & FWRITE) != 0 ?
+		    IN_CLOSE_WRITE : IN_CLOSE_NOWRITE);
 	}
 }
 
@@ -6450,8 +6483,10 @@ vop_read_post(void *ap, int rc)
 {
 	struct vop_read_args *a = ap;
 
-	if (!rc)
+	if (!rc) {
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_READ);
+		INOTIFY(a->a_vp, IN_ACCESS);
+	}
 }
 
 void
@@ -6461,15 +6496,6 @@ vop_read_pgcache_post(void *ap, int rc)
 
 	if (!rc)
 		VFS_KNOTE_UNLOCKED(a->a_vp, NOTE_READ);
-}
-
-void
-vop_readdir_post(void *ap, int rc)
-{
-	struct vop_readdir_args *a = ap;
-
-	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_READ);
 }
 
 static struct knlist fs_knlist;
@@ -6616,7 +6642,7 @@ vfs_knlunlock(void *arg)
 static void
 vfs_knl_assert_lock(void *arg, int what)
 {
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 	struct vnode *vp = arg;
 
 	if (what == LA_LOCKED)

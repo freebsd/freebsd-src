@@ -35,13 +35,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <stddef.h>
 
 
 #define SNMP_STRERROR_LEN 200
-
-#define SNMP_LOCAL_PATH	"/tmp/snmpXXXXXXXXXXXXXX"
+#define	SNMP_DEFAULT_LOCAL "/var/run/snmpd.sock"
 
 /*
  * transport methods
@@ -110,7 +110,7 @@ struct snmp_client {
 	snmp_timeout_start_f	timeout_start;
 	snmp_timeout_stop_f	timeout_stop;
 
-	char			local_path[sizeof(SNMP_LOCAL_PATH)];
+	char			local_path[SUNPATHLEN];
 };
 
 /* the global context */

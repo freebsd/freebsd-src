@@ -1,5 +1,7 @@
 .include <src.opts.mk>
 
+PACKAGE=	kernel
+
 MAN=	accept_filter.9 \
 	accf_data.9 \
 	accf_dns.9 \
@@ -67,6 +69,7 @@ MAN=	accept_filter.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
 	copy.9 \
+	coredumper_register.9 \
 	counter.9 \
 	cpu_machdep.9 \
 	cpuset.9 \
@@ -434,6 +437,7 @@ MAN=	accept_filter.9 \
 	VOP_GETEXTATTR.9 \
 	VOP_GETPAGES.9 \
 	VOP_INACTIVE.9 \
+	VOP_INOTIFY.9 \
 	VOP_IOCTL.9 \
 	VOP_LINK.9 \
 	VOP_LISTEXTATTR.9 \
@@ -902,6 +906,7 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyout.9 \
 	copy.9 copyout_nofault.9 \
 	copy.9 copystr.9
+MLINKS+=coredumper_register.9 coredumper_unregister.9
 MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_u64_free.9 \
 	counter.9 counter_u64_add.9 \
@@ -2460,6 +2465,7 @@ MLINKS+=VOP_CREATE.9 VOP_MKDIR.9 \
 MLINKS+=VOP_FSYNC.9 VOP_FDATASYNC.9
 MLINKS+=VOP_GETPAGES.9 VOP_PUTPAGES.9
 MLINKS+=VOP_INACTIVE.9 VOP_RECLAIM.9
+MLINKS+=VOP_INOTIFY.9 VOP_INOTIFY_ADD_WATCH.9
 MLINKS+=VOP_LOCK.9 vn_lock.9 \
 	VOP_LOCK.9 VOP_ISLOCKED.9 \
 	VOP_LOCK.9 VOP_UNLOCK.9

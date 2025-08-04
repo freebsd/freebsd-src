@@ -27,6 +27,64 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250804:
+	bsdconfig (including sysrc(8)) has moved to the new bsdconfig
+	package.  If you use pkgbase and wish to use bsdconfig, you should
+	install FreeBSD-bsdconfig.
+
+20250730:
+	The usbhid(4) USB HID driver is now enabled by default, and will be
+	used in preference to other USB HID drivers like ukbd(4), ums(4), and
+	uhid(4).  Work on a FIDO/U2F driver and moused(8) is in progress.
+	The default is being switched now so that we can find and fix any
+	additional issues prior to FreeBSD 15.0.
+
+	To revert to the previous USB HID driver behavior, set the loader
+	tunable hw.usb.usbhid.enable=0.
+
+20250727:
+	bmake (i.e., /usr/bin/make and /usr/share/mk) has moved to a new
+	package, FreeBSD-bmake.  If you use pkgbase and you need make, you
+	should install this package.
+
+20250726:
+	amd64 kernel configurations must contain "options SMP".
+
+20250725:
+	gssd(8) has been moved to a new package, FreeBSD-gssd.  If you use
+	pkgbase and you need gssd, you should install this package.
+
+20250724:
+	The Kerberos packages which are built when WITH_MITKRB5 is enabled
+	have been renamed from FreeBSD-krb5* to FreeBSD-kerberos*.  This
+	affects pkgbase users who manually enabled WITH_MITKRB5, *or* use
+	the default value of WITH_MITKRB5 and updated past c7da9fb90b0b
+	(20250721) which made WITH_MITKRB5 the default.
+
+	In either case, if you have FreeBSD-krb5* packages installed, you
+	should remove them and (re)install the equivalent FreeBSD-kerberos*
+	packages instead.
+
+20250721:
+	WITH_MITKRB5 is now enabled by default. MIT KRB5 has replaced
+	Heimdal in base. Ports that use USES=gssapi must be rebuilt.
+	A clean buildworld is required.
+
+20250719:
+	Commits 392a82b225 and c00baac0ab both changed the
+	internal API between the NFS modules.  As such, all
+	these modules need to be rebuilt from sources.
+	__FreeBSD_version was bumped to 1500053 for this.
+
+20250710:
+	The shar(1) utility has been removed from base.  The
+	sysutils/freebsd-shar port was created to maintain this version of
+	shar(1) past its removal from base.
+
+20250704:
+	LinuxKPI device.h and acpi changes effecting drivers and drm-kmod.
+	Bump __FreeBSD_version 1500050 to be able to detect these changes.
+
 20250630:
 	Commits 171f66b0c2ca and 8e2a90ac8089 changed the internal
 	api between nfscommon.ko and the other nfs modules.

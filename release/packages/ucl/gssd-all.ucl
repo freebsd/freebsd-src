@@ -1,0 +1,11 @@
+comment = "gssd(8) daemon for kernel GSS-API"
+desc = <<EOD
+The Generic Security Services (GSS) API is used to perform authentication over
+a network connection, most commonly when using Kerberos authentication.
+
+The kernel contains an implementation of GSS-API primarily for use by the NFS
+client and server.  When kernel GSS-API is in use, gssd(8) allows the kernel
+to fetch authentication data such as Kerberos tickets from userland.
+
+This daemon is required when using Kerberos authentication with NFS.
+EOD

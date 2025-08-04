@@ -304,6 +304,8 @@
             ..
             indent
             ..
+            inotify
+            ..
             ipfilter
             ..
             ipfw

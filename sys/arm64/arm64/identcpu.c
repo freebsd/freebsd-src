@@ -618,7 +618,7 @@ static const struct mrs_field id_aa64dfr0_fields[] = {
 	    id_aa64dfr0_tracebuffer),
 	MRS_FIELD(ID_AA64DFR0, TraceFilt, false, MRS_LOWER, 0,
 	    id_aa64dfr0_tracefilt),
-	MRS_FIELD(ID_AA64DFR0, DoubleLock, false, MRS_LOWER, 0,
+	MRS_FIELD(ID_AA64DFR0, DoubleLock, true, MRS_LOWER, 0,
 	    id_aa64dfr0_doublelock),
 	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_LOWER, 0, id_aa64dfr0_pmsver),
 	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_LOWER, 0,
@@ -628,7 +628,7 @@ static const struct mrs_field id_aa64dfr0_fields[] = {
 	MRS_FIELD(ID_AA64DFR0, PMSS, false, MRS_LOWER, 0, id_aa64dfr0_pmss),
 	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64dfr0_brps),
-	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_LOWER, 0, id_aa64dfr0_pmuver),
+	MRS_FIELD(ID_AA64DFR0, PMUVer, true, MRS_LOWER, 0, id_aa64dfr0_pmuver),
 	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_LOWER, 0,
 	    id_aa64dfr0_tracever),
 	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_LOWER | MRS_SAFE(0x6), 0,
@@ -1161,7 +1161,7 @@ static const struct mrs_field id_aa64isar2_fields[] = {
 /* ID_AA64MMFR0_EL1 */
 static const struct mrs_field_value id_aa64mmfr0_ecv[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, ECV, NONE, IMPL),
-	MRS_FIELD_VALUE(ID_AA64MMFR0_ECV_CNTHCTL, "ECV+CNTHCTL"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_ECV_POFF, "ECV POFF"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1259,9 +1259,9 @@ static const struct mrs_field id_aa64mmfr0_fields[] = {
 	    id_aa64mmfr0_tgran64_2),
 	MRS_FIELD(ID_AA64MMFR0, TGran16_2, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran16_2),
-	MRS_FIELD(ID_AA64MMFR0, TGran4, false, MRS_LOWER, 0,
+	MRS_FIELD(ID_AA64MMFR0, TGran4, true, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran4),
-	MRS_FIELD(ID_AA64MMFR0, TGran64, false, MRS_LOWER, 0,
+	MRS_FIELD(ID_AA64MMFR0, TGran64, true, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran64),
 	MRS_FIELD(ID_AA64MMFR0, TGran16, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran16),
@@ -1856,7 +1856,8 @@ static const struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD(ID_AA64PFR1, DF2, false, MRS_LOWER, 0, id_aa64pfr1_df2),
 	MRS_FIELD(ID_AA64PFR1, MTEX, false, MRS_LOWER, 0, id_aa64pfr1_mtex),
 	MRS_FIELD(ID_AA64PFR1, THE, false, MRS_LOWER, 0, id_aa64pfr1_the),
-	MRS_FIELD(ID_AA64PFR1, MTE_frac, false, MRS_LOWER, 0, id_aa64pfr1_mtefrac),
+	MRS_FIELD(ID_AA64PFR1, MTE_frac, true, MRS_LOWER, 0,
+	    id_aa64pfr1_mtefrac),
 	MRS_FIELD(ID_AA64PFR1, NMI, false, MRS_LOWER, 0, id_aa64pfr1_nmi),
 	MRS_FIELD(ID_AA64PFR1, CSV2_frac, false, MRS_LOWER, 0,
 	    id_aa64pfr1_csv2_frac),

@@ -165,7 +165,6 @@
 #define HAVE_POSIX_SPAWNP 1
 #define HAVE_PTHREAD_H 1
 #define HAVE_PWD_H 1
-#define HAVE_READDIR_R 1
 #define HAVE_READLINK 1
 #define HAVE_READLINKAT 1
 #ifndef __linux__

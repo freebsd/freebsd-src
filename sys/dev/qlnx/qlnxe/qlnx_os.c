@@ -30,6 +30,8 @@
  * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
  */
 
+#include "opt_inet.h"
+
 #include <sys/cdefs.h>
 #include "qlnx_os.h"
 #include "bcm_osal.h"
@@ -2306,8 +2308,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         else if (device_id == QLOGIC_PCI_DEVICE_ID_1644)
 		if_setbaudrate(ifp, IF_Gbps(100));
 
-        if_setcapabilities(ifp, IFCAP_LINKSTATE);
-
         if_setinitfn(ifp, qlnx_init);
         if_setsoftc(ifp, ha);
         if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -2341,7 +2341,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 
 	if_setcapabilities(ifp, IFCAP_HWCSUM);
 	if_setcapabilitiesbit(ifp, IFCAP_JUMBO_MTU, 0);
-
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWTAGGING, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWFILTER, 0);
@@ -2350,6 +2349,8 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 	if_setcapabilitiesbit(ifp, IFCAP_TSO4, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_TSO6, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_LINKSTATE, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
 
 	if_sethwtsomax(ifp,  QLNX_MAX_TSO_FRAME_SIZE -
 				(ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
@@ -2778,7 +2779,7 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 		if (!p_ptt) {
 			QL_DPRINT1(ha, "ecore_ptt_acquire failed\n");
-			ret = -1;
+			ret = ERESTART;
 			break;
 		}
 
@@ -2789,7 +2790,7 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		ecore_ptt_release(p_hwfn, p_ptt);
 
 		if (ret) {
-			ret = -1;
+			ret = ENODEV;
 			break;
 		}
 

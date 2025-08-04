@@ -55,6 +55,7 @@
 #define PF_OPT_RECURSE		0x04000
 #define PF_OPT_KILLMATCH	0x08000
 #define PF_OPT_NODNS		0x10000
+#define PF_OPT_IGNFAIL		0x20000
 
 #define PF_NAT_PROXY_PORT_LOW	50001
 #define PF_NAT_PROXY_PORT_HIGH	65535
@@ -262,7 +263,6 @@ struct pf_opt_tbl {
 	struct node_tinithead	 pt_nodes;
 	struct pfr_buffer	*pt_buf;
 };
-#define PF_OPT_TABLE_PREFIX	"__automatic_"
 
 /* optimizer pf_rule container */
 struct pf_opt_rule {
@@ -276,6 +276,8 @@ struct pf_opt_rule {
 
 TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 
+void	copy_satopfaddr(struct pf_addr *, struct sockaddr *);
+
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
@@ -284,7 +286,7 @@ int	pfctl_append_rule(struct pfctl *, struct pfctl_rule *, const char *);
 int	pfctl_append_eth_rule(struct pfctl *, struct pfctl_eth_rule *,
 	    const char *);
 int	pfctl_add_altq(struct pfctl *, struct pf_altq *);
-int	pfctl_add_pool(struct pfctl *, struct pfctl_pool *, sa_family_t, int);
+int	pfctl_add_pool(struct pfctl *, struct pfctl_pool *, int);
 void	pfctl_move_pool(struct pfctl_pool *, struct pfctl_pool *);
 void	pfctl_clear_pool(struct pfctl_pool *);
 
@@ -302,7 +304,7 @@ int	parse_config(char *, struct pfctl *);
 int	parse_flags(char *);
 int	pfctl_load_anchors(int, struct pfctl *, struct pfr_buffer *);
 
-void	print_pool(struct pfctl_pool *, u_int16_t, u_int16_t, sa_family_t, int);
+void	print_pool(struct pfctl_pool *, u_int16_t, u_int16_t, int);
 void	print_src_node(struct pfctl_src_node *, int);
 void	print_eth_rule(struct pfctl_eth_rule *, const char *, int);
 void	print_rule(struct pfctl_rule *, const char *, int, int);

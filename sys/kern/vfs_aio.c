@@ -222,6 +222,7 @@ typedef struct oaiocb {
 #define	KAIOCB_CHECKSYNC	0x08
 #define	KAIOCB_CLEARED		0x10
 #define	KAIOCB_FINISHED		0x20
+#define	KAIOCB_MARKER		0x40
 
 /* ioflags */
 #define	KAIOCB_IO_FOFFSET	0x01
@@ -301,7 +302,7 @@ static TAILQ_HEAD(,kaiocb) aio_jobs;			/* (c) Async job list */
 static struct unrhdr *aiod_unr;
 
 static void	aio_biocleanup(struct bio *bp);
-void		aio_init_aioinfo(struct proc *p);
+static int	aio_init_aioinfo(struct proc *p);
 static int	aio_onceonly(void);
 static int	aio_free_entry(struct kaiocb *job);
 static void	aio_process_rw(struct kaiocb *job);
@@ -309,7 +310,7 @@ static void	aio_process_sync(struct kaiocb *job);
 static void	aio_process_mlock(struct kaiocb *job);
 static void	aio_schedule_fsync(void *context, int pending);
 static int	aio_newproc(int *);
-int		aio_aqueue(struct thread *td, struct aiocb *ujob,
+static int	aio_aqueue(struct thread *td, struct aiocb *ujob,
 		    struct aioliojob *lio, int type, struct aiocb_ops *ops);
 static int	aio_queue_file(struct file *fp, struct kaiocb *job);
 static void	aio_biowakeup(struct bio *bp);
@@ -422,10 +423,11 @@ aio_onceonly(void)
  * Init the per-process aioinfo structure.  The aioinfo limits are set
  * per-process for user limit (resource) management.
  */
-void
+static int
 aio_init_aioinfo(struct proc *p)
 {
 	struct kaioinfo *ki;
+	int error;
 
 	ki = uma_zalloc(kaio_zone, M_WAITOK);
 	mtx_init(&ki->kaio_mtx, "aiomtx", NULL, MTX_DEF | MTX_NEW);
@@ -451,8 +453,20 @@ aio_init_aioinfo(struct proc *p)
 		uma_zfree(kaio_zone, ki);
 	}
 
-	while (num_aio_procs < MIN(target_aio_procs, max_aio_procs))
-		aio_newproc(NULL);
+	error = 0;
+	while (num_aio_procs < MIN(target_aio_procs, max_aio_procs)) {
+		error = aio_newproc(NULL);
+		if (error != 0) {
+			/*
+			 * At least one worker is enough to have AIO
+			 * functional.  Clear error in that case.
+			 */
+			if (num_aio_procs > 0)
+				error = 0;
+			break;
+		}
+	}
+	return (error);
 }
 
 static int
@@ -571,6 +585,12 @@ aio_cancel_job(struct proc *p, struct kaioinfo *ki, struct kaiocb *job)
 	int cancelled;
 
 	AIO_LOCK_ASSERT(ki, MA_OWNED);
+
+	/*
+	 * If we're running down the queue, the process must be single-threaded,
+	 * and so no markers should be present.
+	 */
+	MPASS((job->jobflags & KAIOCB_MARKER) == 0);
 	if (job->jobflags & (KAIOCB_CANCELLED | KAIOCB_FINISHED))
 		return (0);
 	MPASS((job->jobflags & KAIOCB_CANCELLING) == 0);
@@ -645,7 +665,7 @@ restart:
 	}
 
 	/* Wait for all running I/O to be finished */
-	if (TAILQ_FIRST(&ki->kaio_jobqueue) || ki->kaio_active_count != 0) {
+	if (!TAILQ_EMPTY(&ki->kaio_jobqueue) || ki->kaio_active_count != 0) {
 		ki->kaio_flags |= KAIO_WAKEUP;
 		msleep(&p->p_aioinfo, AIO_MTX(ki), PRIBIO, "aioprn", hz);
 		goto restart;
@@ -1476,7 +1496,7 @@ static struct aiocb_ops aiocb_ops_osigevent = {
  * Queue a new AIO request.  Choosing either the threaded or direct bio VCHR
  * technique is done in this code.
  */
-int
+static int
 aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
     int type, struct aiocb_ops *ops)
 {
@@ -1490,8 +1510,11 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	int fd, kqfd;
 	u_short evflags;
 
-	if (p->p_aioinfo == NULL)
-		aio_init_aioinfo(p);
+	if (p->p_aioinfo == NULL) {
+		error = aio_init_aioinfo(p);
+		if (error != 0)
+			goto err1;
+	}
 
 	ki = p->p_aioinfo;
 
@@ -1788,6 +1811,8 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 	} else if (job->uaiocb.aio_lio_opcode & LIO_SYNC) {
 		AIO_LOCK(ki);
 		TAILQ_FOREACH(job2, &ki->kaio_jobqueue, plist) {
+			if ((job2->jobflags & KAIOCB_MARKER) != 0)
+				continue;
 			if (job2->fd_file == job->fd_file &&
 			    ((job2->uaiocb.aio_lio_opcode & LIO_SYNC) == 0) &&
 			    job2->seqno < job->seqno) {
@@ -2017,7 +2042,7 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct kaioinfo *ki;
-	struct kaiocb *job, *jobn;
+	struct kaiocb *job, *jobn, marker;
 	struct file *fp;
 	int error;
 	int cancelled = 0;
@@ -2042,16 +2067,30 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		}
 	}
 
+	/*
+	 * We may have to drop the list mutex in order to cancel a job.  After
+	 * that point it is unsafe to rely on the stability of the list.  We
+	 * could restart the search from the beginning after canceling a job,
+	 * but this may inefficient.  Instead, use a marker job to keep our
+	 * place in the list.
+	 */
+	memset(&marker, 0, sizeof(marker));
+	marker.jobflags = KAIOCB_MARKER;
+
 	AIO_LOCK(ki);
 	TAILQ_FOREACH_SAFE(job, &ki->kaio_jobqueue, plist, jobn) {
-		if ((uap->fd == job->uaiocb.aio_fildes) &&
-		    ((uap->aiocbp == NULL) ||
-		     (uap->aiocbp == job->ujob))) {
+		if (uap->fd == job->uaiocb.aio_fildes &&
+		    (uap->aiocbp == NULL || uap->aiocbp == job->ujob) &&
+		    (job->jobflags & KAIOCB_MARKER) == 0) {
+			TAILQ_INSERT_AFTER(&ki->kaio_jobqueue, job, &marker,
+			    plist);
 			if (aio_cancel_job(p, ki, job)) {
 				cancelled++;
 			} else {
 				notcancelled++;
 			}
+			jobn = TAILQ_NEXT(&marker, plist);
+			TAILQ_REMOVE(&ki->kaio_jobqueue, &marker, plist);
 			if (uap->aiocbp != NULL)
 				break;
 		}
@@ -2213,8 +2252,11 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 	if (nent < 0 || nent > max_aio_queue_per_proc)
 		return (EINVAL);
 
-	if (p->p_aioinfo == NULL)
-		aio_init_aioinfo(p);
+	if (p->p_aioinfo == NULL) {
+		error = aio_init_aioinfo(p);
+		if (error != 0)
+			return (error);
+	}
 
 	ki = p->p_aioinfo;
 
@@ -2503,8 +2545,11 @@ kern_aio_waitcomplete(struct thread *td, struct aiocb **ujobp,
 		timo = tvtohz(&atv);
 	}
 
-	if (p->p_aioinfo == NULL)
-		aio_init_aioinfo(p);
+	if (p->p_aioinfo == NULL) {
+		error = aio_init_aioinfo(p);
+		if (error != 0)
+			return (error);
+	}
 	ki = p->p_aioinfo;
 
 	error = 0;

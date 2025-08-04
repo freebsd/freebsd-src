@@ -51,15 +51,101 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250802: libutil bumped to 10
+OLD_LIBS+=lib/libutil.so.9
+
+# 20250801: libopencsd libraries moved to /usr/lib and made private
+OLD_FILES+=lib/libopencsd.so.0
+OLD_FILES+=usr/lib/libopencsd.a
+OLD_FILES+=usr/lib/libopencsd.so
+
+# 20250728: zfsboot (MBR) removed
+OLD_FILES+=boot/zfsboot
+OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
+
+# 20250728: Machine versions of 'runq.h' do not exist anymore
+OLD_FILES+=usr/include/machine/runq.h
+
+# 20250726: MIT KRB5 DSO bump
+OLD_LIBS+=usr/lib/libcom_err.so.121
+OLD_LIBS+=usr/lib/libgssapi_krb5.so.121
+OLD_LIBS+=usr/lib/libgssrpc.so.121
+OLD_LIBS+=usr/lib/libk5crypto.so.121
+OLD_LIBS+=usr/lib/libkadm5clnt_mit.so.121
+OLD_LIBS+=usr/lib/libkadm5srv_mit.so.121
+OLD_LIBS+=usr/lib/libkdb5.so.121
+OLD_LIBS+=usr/lib/libkrad.so.121
+OLD_LIBS+=usr/lib/libkrb5.so.121
+OLD_LIBS+=usr/lib/libkrb5profile.so.121
+OLD_LIBS+=usr/lib/libkrb5support.so.121
+OLD_LIBS+=usr/lib/libverto.so.121
+OLD_LIBS+=usr/lib/libcom_err.so.121
+OLD_LIBS+=usr/lib/libgssapi_krb5.so.121
+OLD_LIBS+=usr/lib/libgssrpc.so.121
+OLD_LIBS+=usr/lib/libk5crypto.so.121
+OLD_LIBS+=usr/lib/libkadm5clnt_mit.so.121
+OLD_LIBS+=usr/lib/libkadm5srv_mit.so.121
+OLD_LIBS+=usr/lib/libkdb5.so.121
+OLD_LIBS+=usr/lib/libkrad.so.121
+OLD_LIBS+=usr/lib/libkrb5.so.121
+OLD_LIBS+=usr/lib/libkrb5profile.so.121
+OLD_LIBS+=usr/lib/libkrb5support.so.121
+OLD_LIBS+=usr/lib/libverto.so.121
+
+# 20250726: xargs tests rewritten
+OLD_FILES+=usr/tests/usr.bin/xargs/legacy_test
+OLD_FILES+=usr/tests/usr.bin/xargs/regress.n2147483647.out
+OLD_FILES+=usr/tests/usr.bin/xargs/regress.sh
+
+# 20250726: This file is now installed in /etc/dma
+OLD_FILES+=usr/share/examples/dma/auth.conf
+
+# 20250725: libbsnmp bumped to version 7
+OLD_LIBS+=usr/lib/libbsnmp.so.6
+
+# 20250725: Files which were briefly installed by WITH_MITKRB5 in 15.0.
+OLD_FILES+=usr/include/kadm5/admin_internal.h
+OLD_FILES+=usr/include/kadm5/admin_xdr.h
+OLD_FILES+=usr/include/kadm5/kadm_rpc.h
+OLD_FILES+=usr/include/kadm5/server_internal.h
+OLD_FILES+=usr/include/internal.h
+OLD_FILES+=usr/include/t_daemon.h
+OLD_FILES+=usr/include/t_test.h
+OLD_FILES+=usr/include/dyn.h
+OLD_FILES+=usr/include/dynP.h
+OLD_FILES+=usr/include/gssrpcint.h
+OLD_FILES+=usr/include/import_err.h
+OLD_FILES+=usr/share/man/man3/db_btree.3.gz
+OLD_FILES+=usr/share/man/man3/db_hash.3.gz
+OLD_FILES+=usr/share/man/man3/db_lock.3.gz
+OLD_FILES+=usr/share/man/man3/db_log.3.gz
+OLD_FILES+=usr/share/man/man3/db_mpool.3.gz
+OLD_FILES+=usr/share/man/man3/db_open.3.gz
+OLD_FILES+=usr/share/man/man3/db_recno.3.gz
+OLD_FILES+=usr/share/man/man3/db_txn.3.gz
+OLD_FILES+=usr/share/man/man5/profile.5.gz
+OLD_FILES+=usr/share/man/man8/kamdin.local.8.gz
+
+# 20250716: Remove an old manual page, vn(4) was removed in FreeBSD 5.0
+OLD_FILES+=usr/share/man/man4/vn.4.gz
+
+# 20250710: share: Delete bitrotted make_*_driver.sh scripts
+OLD_FILES+=usr/share/examples/drivers/README
+OLD_FILES+=usr/share/examples/drivers/make_device_driver.sh
+OLD_FILES+=usr/share/examples/drivers/make_pseudo_driver.sh
+OLD_DIRS+=usr/share/examples/drivers
+
+# 20250710: shar(1) removed
+OLD_FILES+=usr/bin/shar
+
+# 20250708: For 34 days 15.0-CURRENT installed libkadm5clnt symlink without .so
+OLD_FILES+=usr/lib/libkadm5clnt
+
 # 20250626: For 11 days 15.0-CURRENT installed libtpool to the wrong location
 MOVED_LIBS+=usr/lib/libtpool.so.2
 
 # 20250626: replace yaml.lua with lyaml
 OLD_FILES+=usr/share/flua/yaml.lua
-
-# 20250623: fscandir() renamed to fdscandir()
-OLD_FILES+=usr/share/man/man3/fscandir.3.gz
-OLD_FILES+=usr/share/man/man3/fscandir_b.3.gz
 
 # 20250615: don't install man page for absent function
 OLD_FILES+=usr/share/man/man9/vm_map_simplify_entry.9.gz
@@ -2481,7 +2567,7 @@ OLD_FILES+=usr/share/man/man4/ng_uni.4.gz
 OLD_FILES+=usr/share/man/man4/ngatmbase.4.gz
 
 # 20230308: machine-id merged into hostid_save
-OLD_FILES+=etc/rc.d/machine-id
+OLD_FILES+=etc/rc.d/machine_id
 
 # 20230306: remove tzsetwall(3)
 OLD_FILES+=usr/share/man/man3/tzsetwall.3.gz

@@ -78,6 +78,8 @@
 #define	_NET_IF_BRIDGEVAR_H_
 
 #include <sys/types.h>
+#include <sys/_bitset.h>
+#include <sys/bitset.h>
 #include <sys/callout.h>
 #include <sys/queue.h>
 #include <sys/condvar.h>
@@ -122,6 +124,20 @@
 #define	BRDGSPROTO		28	/* set protocol (ifbrparam) */
 #define	BRDGSTXHC		29	/* set tx hold count (ifbrparam) */
 #define	BRDGSIFAMAX		30	/* set max interface addrs (ifbreq) */
+#define	BRDGSIFPVID		31	/* set if PVID */
+#define	BRDGSIFVLANSET		32	/* set if vlan set */
+#define	BRDGGIFVLANSET		33	/* get if vlan set */
+#define	BRDGGFLAGS		34	/* get bridge flags (ifbrparam) */
+#define	BRDGSFLAGS		35	/* set bridge flags (ifbrparam) */
+#define	BRDGGDEFPVID		36	/* get default pvid (ifbrparam) */
+#define	BRDGSDEFPVID		37	/* set default pvid (ifbrparam) */
+
+/* BRDGSFLAGS, Bridge flags (non-interface-specific) */
+typedef uint32_t ifbr_flags_t;
+
+#define	IFBRF_VLANFILTER	(1U<<0)	/* VLAN filtering enabled */
+
+#define	IFBRFBITS	"\020\01VLANFILTER"
 
 /*
  * Generic bridge control request.
@@ -139,6 +155,7 @@ struct ifbreq {
 	uint32_t	ifbr_addrcnt;		/* member if addr number */
 	uint32_t	ifbr_addrmax;		/* member if addr max */
 	uint32_t	ifbr_addrexceeded;	/* member if addr violations */
+	ether_vlanid_t	ifbr_pvid;		/* member if PVID */
 	uint8_t		pad[32];
 };
 
@@ -155,6 +172,8 @@ struct ifbreq {
 #define	IFBIF_BSTP_ADMEDGE	0x0200	/* member stp admin edge enabled */
 #define	IFBIF_BSTP_ADMCOST	0x0400	/* member stp admin path cost */
 #define	IFBIF_PRIVATE		0x0800	/* if is a private segment */
+/* was	IFBIF_VLANFILTER	0x1000 */
+#define	IFBIF_QINQ		0x2000	/* if allows 802.1ad Q-in-Q */
 
 #define	IFBIFBITS	"\020\001LEARNING\002DISCOVER\003STP\004SPAN" \
 			"\005STICKY\014PRIVATE\006EDGE\007AUTOEDGE\010PTP" \
@@ -230,7 +249,10 @@ struct ifbrparam {
 #define	ifbrp_fwddelay	ifbrp_ifbrpu.ifbrpu_int8	/* fwd time (sec) */
 #define	ifbrp_maxage	ifbrp_ifbrpu.ifbrpu_int8	/* max age (sec) */
 #define	ifbrp_cexceeded ifbrp_ifbrpu.ifbrpu_int32	/* # of cache dropped
-							 * adresses */
+							 * addresses */
+#define	ifbrp_flags	ifbrp_ifbrpu.ifbrpu_int32	/* bridge flags */
+#define	ifbrp_defpvid	ifbrp_ifbrpu.ifbrpu_int16	/* default pvid */
+
 /*
  * Bridge current operational parameters structure.
  */
@@ -303,6 +325,26 @@ struct ifbpstpconf {
 	eaddr[4] = pv >> 8;          \
 	eaddr[5] = pv >> 0;          \
 } while (0)
+
+/*
+ * Bridge VLAN access request.
+ */
+#define	BRVLAN_SETSIZE	4096
+typedef __BITSET_DEFINE(ifbvlan_set, BRVLAN_SETSIZE) ifbvlan_set_t;
+
+#define	BRVLAN_SET(set, bit)	__BIT_SET(BRVLAN_SETSIZE, (bit), set)
+#define	BRVLAN_CLR(set, bit)	__BIT_CLR(BRVLAN_SETSIZE, (bit), set)
+#define	BRVLAN_TEST(set, bit)	__BIT_ISSET(BRVLAN_SETSIZE, (bit), set)
+
+#define	BRDG_VLAN_OP_SET	1	/* replace current vlan set */
+#define	BRDG_VLAN_OP_ADD	2	/* add vlans to current set */
+#define	BRDG_VLAN_OP_DEL	3	/* remove vlans from current set */
+
+struct ifbif_vlan_req {
+	char		bv_ifname[IFNAMSIZ];
+	uint8_t		bv_op;
+	ifbvlan_set_t	bv_set;
+};
 
 #ifdef _KERNEL
 

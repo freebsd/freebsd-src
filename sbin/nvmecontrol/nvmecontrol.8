@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd April 29, 2025
+.Dd July 9, 2025
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -216,6 +216,8 @@
 .Op Fl c Ar cntl-id
 .Op Fl i Ar queues
 .Op Fl k Ar seconds
+.Op Fl l Ar seconds
+.Op Fl r Ar seconds
 .Op Fl t Ar transport
 .Op Fl q Ar HostNQN
 .Op Fl Q Ar entries
@@ -226,6 +228,8 @@
 .Op Fl FGg
 .Op Fl i Ar queues
 .Op Fl k Ar seconds
+.Op Fl l Ar seconds
+.Op Fl r Ar seconds
 .Op Fl t Ar transport
 .Op Fl q Ar HostNQN
 .Op Fl Q Ar entries
@@ -241,6 +245,8 @@
 .Op Fl FGg
 .Op Fl i Ar queues
 .Op Fl k Ar seconds
+.Op Fl l Ar seconds
+.Op Fl r Ar seconds
 .Op Fl t Ar transport
 .Op Fl q Ar HostNQN
 .Op Fl Q Ar entries
@@ -786,6 +792,29 @@ The default is 1.
 .It Fl k Ar seconds
 Keep Alive timer duration in seconds.
 The default is 120.
+.It Fl l Ar seconds
+Controller Loss timer duration in seconds.
+The default is 600.
+.Pp
+This timer starts when an association is lost with a remote I/O controller
+and is cancelled when a new association is established.
+If the timer expires, the controller device is deleted.
+A setting of zero disables this timer.
+.It Fl r Ar seconds
+Reconnect timer duration in seconds.
+The default is 10.
+.Pp
+When an association is lost with a remote I/O controller,
+the controller device will request reconnection via periodic
+.Xr devctl 4
+notifications until either a new association is established or the controller
+device is deleted.
+This timer sets the interval between each
+.Xr devctl 4
+notification.
+Note that the first notification is triggered immediately after an association
+is lost.
+A setting of zero disables this timer.
 .It Fl t Ar transport
 Transport to use.
 The default is

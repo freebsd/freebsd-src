@@ -1,4 +1,4 @@
-.Dd April 1, 2025
+.Dd June 9, 2025
 .Dt TOP 1
 .Os
 .Sh NAME
@@ -189,7 +189,7 @@ This option makes them visible.
 Set the delay between screen updates to
 .Ar time
 seconds, which may be fractional.
-The default delay between updates is 1 second.
+The default delay between updates is 2 seconds.
 .It Fl T
 Toggle displaying thread ID (tid) instead of process id (pid).
 .It Fl t
@@ -398,6 +398,7 @@ ID corresponding to the process,
 USERNAME is the name of the process's owner (if
 .Fl u
 is specified, a UID column will be substituted for USERNAME),
+THR is the thread count, showing the number of threads a process has,
 PRI is the current priority of the process,
 NICE is the
 .Xr nice 1

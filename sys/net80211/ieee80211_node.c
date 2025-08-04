@@ -3138,6 +3138,36 @@ ieee80211_getsignal(struct ieee80211vap *vap, int8_t *rssi, int8_t *noise)
 }
 
 /**
+ * @brief Increment the given TID TX sequence, return the current one.
+ *
+ * @param ni ieee80211_node to operate on
+ * @param tid TID, or IEEE80211_NONQOS_TID
+ * @returns sequence number, from 0 .. 4095 inclusive, post increments
+ */
+ieee80211_seq ieee80211_tx_seqno_fetch_incr(struct ieee80211_node *ni,
+    uint8_t tid)
+{
+	ieee80211_seq seq;
+
+	seq = ni->ni_txseqs[tid];
+	ni->ni_txseqs[tid] = (ni->ni_txseqs[tid] + 1) % IEEE80211_SEQ_RANGE;
+	return (seq);
+}
+
+/**
+ * @brief Return the current sequence number for the given TID
+ *
+ * @param ni ieee80211_node to operate on
+ * @param tid TID, or IEEE80211_NONQOS_TID
+ * @returns sequence number, from 0 .. 4095 inclusive
+ */
+ieee80211_seq ieee80211_tx_seqno_fetch(const struct ieee80211_node *ni,
+    uint8_t tid)
+{
+	return (ni->ni_txseqs[tid]);
+}
+
+/**
  * @brief return a dot11rate / ratecode representing the current transmit rate
  *
  * This is the API call for legacy / 802.11n drivers and rate control APIs
