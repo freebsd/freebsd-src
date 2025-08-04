@@ -890,20 +890,14 @@ yyerror(const char *str)
 }
 
 bool
-parse_conf(const char *path)
+yyparse_conf(FILE *fp)
 {
 	int error;
 
-	yyin = fopen(path, "r");
-	if (yyin == NULL) {
-		log_warn("unable to open configuration file %s", path);
-		return (false);
-	}
-
+	yyin = fp;
 	lineno = 1;
 	yyrestart(yyin);
 	error = yyparse();
-	fclose(yyin);
 
 	return (error == 0);
 }
