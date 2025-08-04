@@ -706,51 +706,51 @@ lun::kernel_remove() const
 }
 
 void
-kernel_handoff(struct ctld_connection *conn)
+ctld_connection::kernel_handoff()
 {
-	struct portal_group *pg = conn->conn_portal->portal_group();
+	struct portal_group *pg = conn_portal->portal_group();
 	struct ctl_iscsi req;
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_HANDOFF;
-	strlcpy(req.data.handoff.initiator_name,
-	    conn->conn_initiator_name, sizeof(req.data.handoff.initiator_name));
-	strlcpy(req.data.handoff.initiator_addr,
-	    conn->conn_initiator_addr, sizeof(req.data.handoff.initiator_addr));
-	if (conn->conn_initiator_alias != NULL) {
+	strlcpy(req.data.handoff.initiator_name, conn_initiator_name.c_str(),
+	    sizeof(req.data.handoff.initiator_name));
+	strlcpy(req.data.handoff.initiator_addr, conn_initiator_addr.c_str(),
+	    sizeof(req.data.handoff.initiator_addr));
+	if (!conn_initiator_alias.empty()) {
 		strlcpy(req.data.handoff.initiator_alias,
-		    conn->conn_initiator_alias, sizeof(req.data.handoff.initiator_alias));
+		    conn_initiator_alias.c_str(),
+		    sizeof(req.data.handoff.initiator_alias));
 	}
-	memcpy(req.data.handoff.initiator_isid, conn->conn_initiator_isid,
+	memcpy(req.data.handoff.initiator_isid, conn_initiator_isid,
 	    sizeof(req.data.handoff.initiator_isid));
-	strlcpy(req.data.handoff.target_name,
-	    conn->conn_target->name(), sizeof(req.data.handoff.target_name));
+	strlcpy(req.data.handoff.target_name, conn_target->name(),
+	    sizeof(req.data.handoff.target_name));
 	strlcpy(req.data.handoff.offload, pg->offload(),
 	    sizeof(req.data.handoff.offload));
 #ifdef ICL_KERNEL_PROXY
 	if (proxy_mode)
-		req.data.handoff.connection_id = conn->conn.conn_socket;
+		req.data.handoff.connection_id = conn.conn_socket;
 	else
-		req.data.handoff.socket = conn->conn.conn_socket;
+		req.data.handoff.socket = conn.conn_socket;
 #else
-	req.data.handoff.socket = conn->conn.conn_socket;
+	req.data.handoff.socket = conn.conn_socket;
 #endif
 	req.data.handoff.portal_group_tag = pg->tag();
-	if (conn->conn.conn_header_digest == CONN_DIGEST_CRC32C)
+	if (conn.conn_header_digest == CONN_DIGEST_CRC32C)
 		req.data.handoff.header_digest = CTL_ISCSI_DIGEST_CRC32C;
-	if (conn->conn.conn_data_digest == CONN_DIGEST_CRC32C)
+	if (conn.conn_data_digest == CONN_DIGEST_CRC32C)
 		req.data.handoff.data_digest = CTL_ISCSI_DIGEST_CRC32C;
-	req.data.handoff.cmdsn = conn->conn.conn_cmdsn;
-	req.data.handoff.statsn = conn->conn.conn_statsn;
+	req.data.handoff.cmdsn = conn.conn_cmdsn;
+	req.data.handoff.statsn = conn.conn_statsn;
 	req.data.handoff.max_recv_data_segment_length =
-	    conn->conn.conn_max_recv_data_segment_length;
+	    conn.conn_max_recv_data_segment_length;
 	req.data.handoff.max_send_data_segment_length =
-	    conn->conn.conn_max_send_data_segment_length;
-	req.data.handoff.max_burst_length = conn->conn.conn_max_burst_length;
-	req.data.handoff.first_burst_length =
-	    conn->conn.conn_first_burst_length;
-	req.data.handoff.immediate_data = conn->conn.conn_immediate_data;
+	    conn.conn_max_send_data_segment_length;
+	req.data.handoff.max_burst_length = conn.conn_max_burst_length;
+	req.data.handoff.first_burst_length = conn.conn_first_burst_length;
+	req.data.handoff.immediate_data = conn.conn_immediate_data;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
