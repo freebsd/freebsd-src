@@ -9,6 +9,7 @@
 #define	__LIBUTILPP_HH__
 
 #include <sys/nv.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <unistd.h>
 
@@ -144,6 +145,79 @@ namespace freebsd {
 	};
 
 	using nvlist_up = std::unique_ptr<nvlist_t, nvlist_deleter>;
+
+	/*
+	 * A wrapper class for the pidfile_* API.  The destructor
+	 * calls pidfile_remove() when an object is destroyed.  This
+	 * class is similar to std::unique_ptr<> in that it retains
+	 * exclusive ownership of the pidfh object.
+	 *
+	 * In addition to release() and reset methods(), write(),
+	 * close(), and fileno() methods are provided as wrappers for
+	 * pidfile_*.
+	 */
+	class pidfile {
+	public:
+		pidfile() = default;
+		pidfile(struct pidfh *pfh) : pfh(pfh) {}
+		pidfile(pidfile &&other) : pfh(other.release()) {}
+		pidfile(pidfile const &) = delete;
+
+		~pidfile() { reset(); }
+
+		struct pidfh *release()
+		{
+			struct pidfh *oldpfh = pfh;
+
+			pfh = nullptr;
+			return (oldpfh);
+		}
+
+		void reset(struct pidfh *newpfh = nullptr)
+		{
+			if (pfh != nullptr)
+				pidfile_remove(pfh);
+			pfh = newpfh;
+		}
+
+		int write()
+		{
+			return (pidfile_write(pfh));
+		}
+
+		int close()
+		{
+			int rv = pidfile_close(pfh);
+			if (rv == 0)
+				pfh = nullptr;
+			return (rv);
+		}
+
+		int fileno()
+		{
+			return (pidfile_fileno(pfh));
+		}
+
+		pidfile &operator=(pidfile &&other) noexcept
+		{
+			if (this == &other)
+				return *this;
+			reset(other.release());
+			return *this;
+		}
+
+		pidfile &operator=(pidfile const &) = delete;
+
+		pidfile &operator=(struct pidfh *newpfh)
+		{
+			reset(newpfh);
+			return *this;
+		}
+
+		explicit operator bool() const { return pfh != nullptr; }
+	private:
+		struct pidfh *pfh = nullptr;
+	};
 
 	/*
 	 * Returns a std::string containing the same output as
