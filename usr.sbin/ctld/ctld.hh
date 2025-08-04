@@ -154,30 +154,78 @@ private:
 
 using portal_up = std::unique_ptr<portal>;
 
-#define	PG_FILTER_UNKNOWN		0
-#define	PG_FILTER_NONE			1
-#define	PG_FILTER_PORTAL		2
-#define	PG_FILTER_PORTAL_NAME		3
-#define	PG_FILTER_PORTAL_NAME_AUTH	4
+enum class discovery_filter {
+	UNKNOWN,
+	NONE,
+	PORTAL,
+	PORTAL_NAME,
+	PORTAL_NAME_AUTH
+};
 
 struct portal_group {
-	TAILQ_ENTRY(portal_group)	pg_next;
+	portal_group(struct conf *conf, std::string_view name);
+
+	struct conf *conf() const { return pg_conf; }
+	const char *name() const { return pg_name.c_str(); }
+	bool assigned() const { return pg_assigned; }
+	bool is_dummy() const;
+	bool is_redirecting() const { return !pg_redirection.empty(); }
+	struct auth_group *discovery_auth_group() const
+	{ return pg_discovery_auth_group.get(); }
+	discovery_filter discovery_filter() const
+	{ return pg_discovery_filter; }
+	int dscp() const { return pg_dscp; }
+	const char *offload() const { return pg_offload.c_str(); }
+	const char *redirection() const { return pg_redirection.c_str(); }
+	int pcp() const { return pg_pcp; }
+	uint16_t tag() const { return pg_tag; }
+
+	freebsd::nvlist_up options() const;
+
+	const std::list<portal_up> &portals() const { return pg_portals; }
+	const std::unordered_map<std::string, port *> &ports() const
+	{ return pg_ports; }
+
+	bool add_portal(const char *value, bool iser);
+	bool add_option(const char *name, const char *value);
+	bool set_discovery_auth_group(const char *name);
+	bool set_dscp(u_int dscp);
+	bool set_filter(const char *str);
+	void set_foreign();
+	bool set_offload(const char *offload);
+	bool set_pcp(u_int pcp);
+	bool set_redirection(const char *addr);
+	void set_tag(uint16_t tag);
+
+	void add_port(struct portal_group_port *port);
+	const struct port *find_port(std::string_view target) const;
+	void remove_port(struct portal_group_port *port);
+	void verify(struct conf *conf);
+
+	bool reuse_socket(struct portal &newp);
+	int open_sockets(struct conf &oldconf);
+	void close_sockets();
+
+private:
 	struct conf			*pg_conf;
-	nvlist_t			*pg_options;
-	char				*pg_name;
+	freebsd::nvlist_up		pg_options;
+	std::string			pg_name;
 	auth_group_sp			pg_discovery_auth_group;
-	int				pg_discovery_filter = PG_FILTER_UNKNOWN;
+	enum discovery_filter		pg_discovery_filter =
+	    discovery_filter::UNKNOWN;
 	bool				pg_foreign = false;
-	bool				pg_unassigned = false;
+	bool				pg_assigned = false;
 	std::list<portal_up>	        pg_portals;
 	std::unordered_map<std::string, port *> pg_ports;
-	char				*pg_offload = nullptr;
-	char				*pg_redirection = nullptr;
-	int				pg_dscp;
-	int				pg_pcp;
+	std::string			pg_offload;
+	std::string			pg_redirection;
+	int				pg_dscp = -1;
+	int				pg_pcp = -1;
 
-	uint16_t			pg_tag;
+	uint16_t			pg_tag = 0;
 };
+
+using portal_group_up = std::unique_ptr<portal_group>;
 
 struct port {
 	port(struct target *target);
@@ -292,12 +340,14 @@ struct isns {
 };
 
 struct conf {
+	bool reuse_portal_group_socket(struct portal &newp);
+
 	char				*conf_pidfile_path = nullptr;
 	TAILQ_HEAD(, lun)		conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
 	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
 	std::unordered_map<std::string, std::unique_ptr<port>> conf_ports;
-	TAILQ_HEAD(, portal_group)	conf_portal_groups;
+	std::unordered_map<std::string, portal_group_up> conf_portal_groups;
 	TAILQ_HEAD(, isns)		conf_isns;
 	int				conf_isns_period;
 	int				conf_isns_timeout;
@@ -352,7 +402,7 @@ private:
 struct ctld_connection {
 	struct connection	conn;
 	struct portal		*conn_portal;
-	struct port		*conn_port;
+	const struct port	*conn_port;
 	struct target		*conn_target;
 	int			conn_session_type;
 	char			*conn_initiator_name;
@@ -386,11 +436,7 @@ auth_group_sp		auth_group_find(const struct conf *conf,
 			    const char *name);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
-void			portal_group_delete(struct portal_group *pg);
-struct portal_group	*portal_group_find(const struct conf *conf,
-			    const char *name);
-bool			portal_group_add_portal(struct portal_group *pg,
-			    const char *value, bool iser);
+struct portal_group	*portal_group_find(struct conf *conf, const char *name);
 
 bool			isns_new(struct conf *conf, const char *addr);
 void			isns_delete(struct isns *is);
@@ -402,8 +448,6 @@ bool			port_new(struct conf *conf, struct target *target,
 			    struct portal_group *pg, auth_group_sp ag);
 bool			port_new(struct conf *conf, struct target *target,
 			    struct portal_group *pg, uint32_t ctl_port);
-struct port		*port_find_in_pg(const struct portal_group *pg,
-			    const char *target);
 
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);

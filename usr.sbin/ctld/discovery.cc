@@ -111,7 +111,7 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 	    const struct portal_group *pg = port->portal_group();
 	    if (pg == nullptr)
 		continue;
-	    for (const portal_up &portal : pg->pg_portals) {
+	    for (const portal_up &portal : pg->portals()) {
 		ai = portal->ai();
 		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
 		    hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
@@ -125,13 +125,13 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 			if (strcmp(hbuf, "0.0.0.0") == 0)
 				continue;
 			ret = asprintf(&buf, "%s:%s,%d", hbuf, sbuf,
-			    pg->pg_tag);
+			    pg->tag());
 			break;
 		case AF_INET6:
 			if (strcmp(hbuf, "::") == 0)
 				continue;
 			ret = asprintf(&buf, "[%s]:%s,%d", hbuf, sbuf,
-			    pg->pg_tag);
+			    pg->tag());
 			break;
 		default:
 			continue;
@@ -160,26 +160,26 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 		ag = targ->t_auth_group.get();
 	pg = conn->conn_portal->portal_group();
 
-	assert(pg->pg_discovery_filter != PG_FILTER_UNKNOWN);
+	assert(pg->discovery_filter() != discovery_filter::UNKNOWN);
 
-	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL &&
+	if (pg->discovery_filter() >= discovery_filter::PORTAL &&
 	    !ag->initiator_permitted(conn->conn_initiator_sa)) {
 		log_debugx("initiator does not match initiator portals "
 		    "allowed for target \"%s\"; skipping", targ->t_name);
 		return (true);
 	}
 
-	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME &&
+	if (pg->discovery_filter() >= discovery_filter::PORTAL_NAME &&
 	    !ag->initiator_permitted(conn->conn_initiator_name)) {
 		log_debugx("initiator does not match initiator names "
 		    "allowed for target \"%s\"; skipping", targ->t_name);
 		return (true);
 	}
 
-	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME_AUTH &&
+	if (pg->discovery_filter() >= discovery_filter::PORTAL_NAME_AUTH &&
 	    ag->type() != auth_type::NO_AUTHENTICATION) {
 		if (conn->conn_chap == NULL) {
-			assert(pg->pg_discovery_auth_group->type() ==
+			assert(pg->discovery_auth_group()->type() ==
 			    auth_type::NO_AUTHENTICATION);
 
 			log_debugx("initiator didn't authenticate, but target "
@@ -228,7 +228,7 @@ discovery(struct ctld_connection *conn)
 	response_keys = keys_new();
 
 	if (strcmp(send_targets, "All") == 0) {
-		for (const auto &kv : pg->pg_ports) {
+		for (const auto &kv : pg->ports()) {
 			port = kv.second;
 			if (discovery_target_filtered_out(conn, port)) {
 				/* Ignore this target. */
@@ -237,7 +237,7 @@ discovery(struct ctld_connection *conn)
 			discovery_add_target(response_keys, port->target());
 		}
 	} else {
-		port = port_find_in_pg(pg, send_targets);
+		port = pg->find_port(send_targets);
 		if (port == NULL) {
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);

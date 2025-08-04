@@ -60,9 +60,7 @@ kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
 
 	req.type = CTL_ISCSI_LIMITS;
 	cilp = (struct ctl_iscsi_limits_params *)&(req.data.limits);
-	if (offload != NULL) {
-		strlcpy(cilp->offload, offload, sizeof(cilp->offload));
-	}
+	strlcpy(cilp->offload, offload, sizeof(cilp->offload));
 	cilp->socket = s;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
@@ -88,7 +86,7 @@ kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
 	if (*max_burst_length < *first_burst_length)
 		*first_burst_length = *max_burst_length;
 
-	if (offload != NULL) {
+	if (offload[0] != '\0') {
 		log_debugx("Kernel limits for offload \"%s\" are "
 		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
 		    "MaxBurstLength=%d, FirstBurstLength=%d",
@@ -704,12 +702,12 @@ login_portal_redirect(struct ctld_connection *conn, struct pdu *request)
 	const struct portal_group *pg;
 
 	pg = conn->conn_portal->portal_group();
-	if (pg->pg_redirection == NULL)
+	if (!pg->is_redirecting())
 		return (false);
 
 	log_debugx("portal-group \"%s\" configured to redirect to %s",
-	    pg->pg_name, pg->pg_redirection);
-	login_redirect(request, pg->pg_redirection);
+	    pg->name(), pg->redirection());
+	login_redirect(request, pg->redirection());
 
 	return (true);
 }
@@ -719,7 +717,7 @@ login_target_redirect(struct ctld_connection *conn, struct pdu *request)
 {
 	const char *target_address;
 
-	assert(conn->conn_portal->portal_group()->pg_redirection == NULL);
+	assert(!conn->conn_portal->portal_group()->is_redirecting());
 
 	if (conn->conn_target == NULL)
 		return (false);
@@ -755,7 +753,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 		conn->conn_max_send_data_segment_limit = (1 << 24) - 1;
 		conn->conn_max_burst_limit = (1 << 24) - 1;
 		conn->conn_first_burst_limit = (1 << 24) - 1;
-		kernel_limits(pg->pg_offload,
+		kernel_limits(pg->offload(),
 		    conn->conn.conn_socket,
 		    &conn->conn_max_recv_data_segment_limit,
 		    &conn->conn_max_send_data_segment_limit,
@@ -827,7 +825,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
 		keys_add_int(response_keys, "TargetPortalGroupTag",
-		    pg->pg_tag);
+		    pg->tag());
 	}
 
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -975,7 +973,7 @@ login(struct ctld_connection *conn)
 			log_errx(1, "received Login PDU without TargetName");
 		}
 
-		conn->conn_port = port_find_in_pg(pg, target_name);
+		conn->conn_port = pg->find_port(target_name);
 		if (conn->conn_port == NULL) {
 			login_send_error(request, 0x02, 0x03);
 			log_errx(1, "requested target \"%s\" not found",
@@ -1002,7 +1000,7 @@ login(struct ctld_connection *conn)
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
-		ag = pg->pg_discovery_auth_group.get();
+		ag = pg->discovery_auth_group();
 		log_debugx("initiator requests discovery session; %s",
 		    ag->label());
 	}
@@ -1089,7 +1087,7 @@ login(struct ctld_connection *conn)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
 		keys_add_int(response_keys,
-		    "TargetPortalGroupTag", pg->pg_tag);
+		    "TargetPortalGroupTag", pg->tag());
 	}
 	keys_save_pdu(response_keys, response);
 
