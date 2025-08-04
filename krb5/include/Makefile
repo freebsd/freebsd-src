@@ -37,19 +37,8 @@ osconf.h:
 
 rebuild-error-tables: ${K5_ET_HEADERS}
 
-force:
-
-stage_includes: copies
-SDESTDIR?=	${SYSROOT:U${DESTDIR}}
-
-.PHONY: force rebuild-error-tables osconf.h
+.PHONY: rebuild-error-tables osconf.h
 
 .PATH:	${KRB5_DIR}/include/krb5
 
-copies:	.PHONY .META
-	cd ${KRB5_DIR}/include; \
-	${INSTALL} -C ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m444 ${INCS} ${SDESTDIR}${INCLUDEDIR}
-
 .include <bsd.prog.mk>
-
-installincludes: copies
