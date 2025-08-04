@@ -137,13 +137,15 @@ ZEXT=
 CLEANFILES+=	${${__group}:T:S/$/${FILTEXTENSION}/g}
 CLEANFILES+=	${${__group}:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 .for __page in ${${__group}}
-.for __target in ${__page:T:S/$/${FILTEXTENSION}/g}
+# Escape colons in target names to support manual pages whose
+# filenames contain colons.
+.for __target in ${__page:T:S/:/\:/g:S/$/${FILTEXTENSION}/g}
 all-man: ${__target}
 ${__target}: ${__page}
 	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-.for __target in ${__page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
+.for __target in ${__page:T:S/:/\:/g:S/$/${CATEXT}${FILTEXTENSION}/g}
 all-man: ${__target}
 ${__target}: ${__page}
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} > ${.TARGET}
@@ -156,7 +158,7 @@ ${__target}: ${__page}
 CLEANFILES+=	${${__group}:T:S/$/${CATEXT}/g}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __page in ${${__group}}
-.for __target in ${__page:T:S/$/${CATEXT}/g}
+.for __target in ${__page:T:S/:/\:/g:S/$/${CATEXT}/g}
 all-man: ${__target}
 ${__target}: ${__page}
 	${MANDOC_CMD} ${.ALLSRC} > ${.TARGET}
@@ -176,7 +178,7 @@ ZEXT=		${MCOMPRESS_EXT}
 CLEANFILES+=	${${__group}:T:S/$/${MCOMPRESS_EXT}/g}
 CLEANFILES+=	${${__group}:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
 .for __page in ${${__group}}
-.for __target in ${__page:T:S/$/${MCOMPRESS_EXT}/}
+.for __target in ${__page:T:S/:/\:/g:S/$/${MCOMPRESS_EXT}/}
 all-man: ${__target}
 ${__target}: ${__page}
 .if defined(MANFILTER)
@@ -186,7 +188,7 @@ ${__target}: ${__page}
 .endif
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-.for __target in ${__page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
+.for __target in ${__page:T:S/:/\:/g:S/$/${CATEXT}${MCOMPRESS_EXT}/}
 all-man: ${__target}
 ${__target}: ${__page}
 .if defined(MANFILTER)
