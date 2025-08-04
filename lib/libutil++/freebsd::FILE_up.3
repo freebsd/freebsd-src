@@ -1,0 +1,41 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.Dd July 31, 2025
+.Dt FREEBSD::FILE_UP 3
+.Os
+.Sh NAME
+.Nm freebsd::FILE_up
+.Nd std::unique_ptr specialization for stdio FILE objects
+.Sh LIBRARY
+.Lb libutil++
+.Sh SYNOPSIS
+.In libutil++.hh
+.Ft using FILE_up = std::unique_ptr<FILE, fclose_deleter>;
+.Sh DESCRIPTION
+This class is a specialization of
+.Vt std::unique_ptr
+for stdio
+.Vt FILE
+objects.
+When a
+.Vt FILE
+object managed by an instance of this class is disposed,
+.Xr fclose 3
+is invoked to dispose of the
+.Vt FILE
+object.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+freebsd::FILE_up fp(fopen("foo.txt", "w"));
+if (!fp)
+	err(1, "fopen");
+fprintf(fp.get(), "hello\n");
+// `fp' is implicitly closed on destruction
+.Ed
+.Sh SEE ALSO
+.Xr fclose 3 ,
+.Xr fopen 3
