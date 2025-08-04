@@ -17,7 +17,7 @@ SUBDIR=	krb5_private krb5 gssrpc gssapi
 
 SUBDIR_PARALLEL=
 
-INCSGROUPS=	INCS GSSAPI_KRB5
+INCSGROUPS=	INCS
 
 INCSDIR=	${INCLUDEDIR}
 
@@ -26,9 +26,6 @@ INCSDIR=	${INCLUDEDIR}
 INCS=	kdb.h \
 	krad.h \
 	krb5.h
-
-GSSAPI_KRB5DIR=	${INCLUDEDIR}/gssapi_krb5/gssapi
-GSSAPI_KRB5=	gssapi.h
 
 CLEANFILES=	osconf.new
 
