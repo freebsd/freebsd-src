@@ -637,7 +637,7 @@ isns_do_connect(struct isns *isns)
 	return(s);
 }
 
-static int
+static void
 isns_do_register(struct isns *isns, int s, const char *hostname)
 {
 	struct conf *conf = isns->i_conf;
@@ -645,122 +645,100 @@ isns_do_register(struct isns *isns, int s, const char *hostname)
 	struct portal *portal;
 	struct portal_group *pg;
 	struct port *port;
-	struct isns_req *req;
-	int res = 0;
 	uint32_t error;
 
-	req = isns_req_create(ISNS_FUNC_DEVATTRREG, ISNS_FLAG_CLIENT);
-	isns_req_add_str(req, 32, TAILQ_FIRST(&conf->conf_targets)->t_name);
-	isns_req_add_delim(req);
-	isns_req_add_str(req, 1, hostname);
-	isns_req_add_32(req, 2, 2); /* 2 -- iSCSI */
-	isns_req_add_32(req, 6, conf->conf_isns_period);
+	isns_req req(ISNS_FUNC_DEVATTRREG, ISNS_FLAG_CLIENT);
+	req.add_str(32, TAILQ_FIRST(&conf->conf_targets)->t_name);
+	req.add_delim();
+	req.add_str(1, hostname);
+	req.add_32(2, 2); /* 2 -- iSCSI */
+	req.add_32(6, conf->conf_isns_period);
 	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
 		if (pg->pg_unassigned)
 			continue;
 		TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
-			isns_req_add_addr(req, 16, portal->p_ai);
-			isns_req_add_port(req, 17, portal->p_ai);
+			req.add_addr(16, portal->p_ai);
+			req.add_port(17, portal->p_ai);
 		}
 	}
 	TAILQ_FOREACH(target, &conf->conf_targets, t_next) {
-		isns_req_add_str(req, 32, target->t_name);
-		isns_req_add_32(req, 33, 1); /* 1 -- Target*/
+		req.add_str(32, target->t_name);
+		req.add_32(33, 1); /* 1 -- Target*/
 		if (target->t_alias != NULL)
-			isns_req_add_str(req, 34, target->t_alias);
+			req.add_str(34, target->t_alias);
 		TAILQ_FOREACH(port, &target->t_ports, p_ts) {
 			if ((pg = port->p_portal_group) == NULL)
 				continue;
-			isns_req_add_32(req, 51, pg->pg_tag);
+			req.add_32(51, pg->pg_tag);
 			TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
-				isns_req_add_addr(req, 49, portal->p_ai);
-				isns_req_add_port(req, 50, portal->p_ai);
+				req.add_addr(49, portal->p_ai);
+				req.add_port(50, portal->p_ai);
 			}
 		}
 	}
-	res = isns_req_send(s, req);
-	if (res < 0) {
+	if (!req.send(s)) {
 		log_warn("send(2) failed for %s", isns->i_addr);
-		goto quit;
+		return;
 	}
-	res = isns_req_receive(s, req);
-	if (res < 0) {
+	if (!req.receive(s)) {
 		log_warn("receive(2) failed for %s", isns->i_addr);
-		goto quit;
+		return;
 	}
-	error = isns_req_get_status(req);
+	error = req.get_status();
 	if (error != 0) {
 		log_warnx("iSNS register error %d for %s", error, isns->i_addr);
-		res = -1;
 	}
-quit:
-	isns_req_free(req);
-	return (res);
 }
 
-static int
+static bool
 isns_do_check(struct isns *isns, int s, const char *hostname)
 {
 	struct conf *conf = isns->i_conf;
-	struct isns_req *req;
-	int res = 0;
 	uint32_t error;
 
-	req = isns_req_create(ISNS_FUNC_DEVATTRQRY, ISNS_FLAG_CLIENT);
-	isns_req_add_str(req, 32, TAILQ_FIRST(&conf->conf_targets)->t_name);
-	isns_req_add_str(req, 1, hostname);
-	isns_req_add_delim(req);
-	isns_req_add(req, 2, 0, NULL);
-	res = isns_req_send(s, req);
-	if (res < 0) {
+	isns_req req(ISNS_FUNC_DEVATTRQRY, ISNS_FLAG_CLIENT);
+	req.add_str(32, TAILQ_FIRST(&conf->conf_targets)->t_name);
+	req.add_str(1, hostname);
+	req.add_delim();
+	req.add(2, 0, NULL);
+	if (!req.send(s)) {
 		log_warn("send(2) failed for %s", isns->i_addr);
-		goto quit;
+		return (false);
 	}
-	res = isns_req_receive(s, req);
-	if (res < 0) {
+	if (!req.receive(s)) {
 		log_warn("receive(2) failed for %s", isns->i_addr);
-		goto quit;
+		return (false);
 	}
-	error = isns_req_get_status(req);
+	error = req.get_status();
 	if (error != 0) {
 		log_warnx("iSNS check error %d for %s", error, isns->i_addr);
-		res = -1;
+		return (false);
 	}
-quit:
-	isns_req_free(req);
-	return (res);
+	return (true);
 }
 
-static int
+static void
 isns_do_deregister(struct isns *isns, int s, const char *hostname)
 {
 	struct conf *conf = isns->i_conf;
-	struct isns_req *req;
-	int res = 0;
 	uint32_t error;
 
-	req = isns_req_create(ISNS_FUNC_DEVDEREG, ISNS_FLAG_CLIENT);
-	isns_req_add_str(req, 32, TAILQ_FIRST(&conf->conf_targets)->t_name);
-	isns_req_add_delim(req);
-	isns_req_add_str(req, 1, hostname);
-	res = isns_req_send(s, req);
-	if (res < 0) {
+	isns_req req(ISNS_FUNC_DEVDEREG, ISNS_FLAG_CLIENT);
+	req.add_str(32, TAILQ_FIRST(&conf->conf_targets)->t_name);
+	req.add_delim();
+	req.add_str(1, hostname);
+	if (!req.send(s)) {
 		log_warn("send(2) failed for %s", isns->i_addr);
-		goto quit;
+		return;
 	}
-	res = isns_req_receive(s, req);
-	if (res < 0) {
+	if (!req.receive(s)) {
 		log_warn("receive(2) failed for %s", isns->i_addr);
-		goto quit;
+		return;
 	}
-	error = isns_req_get_status(req);
+	error = req.get_status();
 	if (error != 0) {
 		log_warnx("iSNS deregister error %d for %s", error, isns->i_addr);
-		res = -1;
 	}
-quit:
-	isns_req_free(req);
-	return (res);
 }
 
 void
@@ -795,7 +773,7 @@ void
 isns_check(struct isns *isns)
 {
 	struct conf *conf = isns->i_conf;
-	int error, s, res;
+	int error, s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -811,8 +789,7 @@ isns_check(struct isns *isns)
 	if (error != 0)
 		log_err(1, "gethostname");
 
-	res = isns_do_check(isns, s, hostname);
-	if (res < 0) {
+	if (!isns_do_check(isns, s, hostname)) {
 		isns_do_deregister(isns, s, hostname);
 		isns_do_register(isns, s, hostname);
 	}

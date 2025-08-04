@@ -27,6 +27,8 @@
 #ifndef	__ISNS_HH__
 #define	__ISNS_HH__
 
+#include <vector>
+
 #define	ISNS_VERSION		0x0001
 
 #define	ISNS_FUNC_DEVATTRREG	0x0001
@@ -68,23 +70,23 @@ struct isns_tlv {
 };
 
 struct isns_req {
-	u_int	ir_buflen;
-	u_int	ir_usedlen;
-	uint8_t	*ir_buf;
-};
+	isns_req() {}
+	isns_req(uint16_t func, uint16_t flags);
 
-struct isns_req * isns_req_alloc(void);
-struct isns_req * isns_req_create(uint16_t func, uint16_t flags);
-void isns_req_free(struct isns_req *req);
-void isns_req_add(struct isns_req *req, uint32_t tag, uint32_t len,
-    const void *value);
-void isns_req_add_delim(struct isns_req *req);
-void isns_req_add_str(struct isns_req *req, uint32_t tag, const char *value);
-void isns_req_add_32(struct isns_req *req, uint32_t tag, uint32_t value);
-void isns_req_add_addr(struct isns_req *req, uint32_t tag, struct addrinfo *ai);
-void isns_req_add_port(struct isns_req *req, uint32_t tag, struct addrinfo *ai);
-int isns_req_send(int s, struct isns_req *req);
-int isns_req_receive(int s, struct isns_req *req);
-uint32_t isns_req_get_status(struct isns_req *req);
+	void add(uint32_t tag, uint32_t len, const void *value);
+	void add_delim();
+	void add_str(uint32_t tag, const char *value);
+	void add_32(uint32_t tag, uint32_t value);
+	void add_addr(uint32_t tag, const struct addrinfo *ai);
+	void add_port(uint32_t tag, const struct addrinfo *ai);
+	bool send(int s);
+	bool receive(int s);
+	uint32_t get_status();
+private:
+	void getspace(uint32_t len);
+	void append(const void *buf, size_t len);
+
+	std::vector<char> ir_buf;
+};
 
 #endif /* __ISNS_HH__ */
