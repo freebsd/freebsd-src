@@ -396,12 +396,11 @@ cctl_char_handler(void *user_data, const XML_Char *str, int len)
 }
 
 struct conf *
-conf_new_from_kernel(struct kports *kports)
+conf_new_from_kernel(struct kports &kports)
 {
 	struct conf *conf = NULL;
 	struct target *targ;
 	struct portal_group *pg;
-	struct pport *pp;
 	struct port *cp;
 	struct lun *cl;
 	struct ctl_lun_list list;
@@ -542,11 +541,9 @@ retry_port:
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
 			    port->port_id, name);
-			pp = pport_find(kports, name);
-			if (pp == NULL) {
-				pp = pport_new(kports, name, port->port_id);
-				if (pp == NULL) {
-					log_warnx("pport_new failed");
+			if (!kports.has_port(name)) {
+				if (!kports.add_port(name, port->port_id)) {
+					log_warnx("kports::add_port failed");
 					continue;
 				}
 			}
@@ -976,7 +973,7 @@ kernel_port_add(struct port *port)
 		port->p_ctl_port = nvlist_get_number(req.result_nvl, "port_id");
 		nvlist_destroy(req.result_nvl);
 	} else if (port->p_pport) {
-		port->p_ctl_port = port->p_pport->pp_ctl_port;
+		port->p_ctl_port = port->p_pport->ctl_port();
 
 		if (strncmp(targ->t_name, "naa.", 4) == 0 &&
 		    strlen(targ->t_name) == 20) {
