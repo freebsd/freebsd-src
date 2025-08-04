@@ -427,8 +427,8 @@ lun_set_device_type(const char *value)
 		if (errstr != NULL) {
 			log_warnx("invalid device-type \"%s\" for lun \"%s\"", value,
 			    lun->l_name);
+			return (false);
 		}
-		return (false);
 	}
 
 	lun->l_device_type = device_type;
