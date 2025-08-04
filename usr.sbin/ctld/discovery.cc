@@ -156,32 +156,32 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	int error;
 
 	targ = port->p_target;
-	ag = port->p_auth_group;
-	if (ag == NULL)
-		ag = targ->t_auth_group;
+	ag = port->p_auth_group.get();
+	if (ag == nullptr)
+		ag = targ->t_auth_group.get();
 	pg = conn->conn_portal->p_portal_group;
 
 	assert(pg->pg_discovery_filter != PG_FILTER_UNKNOWN);
 
 	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL &&
-	    !auth_portal_check(ag, &conn->conn_initiator_sa)) {
+	    !ag->initiator_permitted(conn->conn_initiator_sa)) {
 		log_debugx("initiator does not match initiator portals "
 		    "allowed for target \"%s\"; skipping", targ->t_name);
 		return (true);
 	}
 
 	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME &&
-	    !auth_name_check(ag, conn->conn_initiator_name)) {
+	    !ag->initiator_permitted(conn->conn_initiator_name)) {
 		log_debugx("initiator does not match initiator names "
 		    "allowed for target \"%s\"; skipping", targ->t_name);
 		return (true);
 	}
 
 	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME_AUTH &&
-	    ag->ag_type != AG_TYPE_NO_AUTHENTICATION) {
+	    ag->type() != auth_type::NO_AUTHENTICATION) {
 		if (conn->conn_chap == NULL) {
-			assert(pg->pg_discovery_auth_group->ag_type ==
-			    AG_TYPE_NO_AUTHENTICATION);
+			assert(pg->pg_discovery_auth_group->type() ==
+			    auth_type::NO_AUTHENTICATION);
 
 			log_debugx("initiator didn't authenticate, but target "
 			    "\"%s\" requires CHAP; skipping", targ->t_name);
@@ -189,7 +189,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 		}
 
 		assert(conn->conn_user != NULL);
-		auth = auth_find(ag, conn->conn_user);
+		auth = ag->find_auth(conn->conn_user);
 		if (auth == NULL) {
 			log_debugx("CHAP user \"%s\" doesn't match target "
 			    "\"%s\"; skipping", conn->conn_user, targ->t_name);

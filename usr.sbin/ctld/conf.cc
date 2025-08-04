@@ -114,64 +114,35 @@ conf_set_timeout(int timeout)
 	conf->conf_timeout = timeout;
 }
 
-static bool
-_auth_group_set_type(struct auth_group *ag, const char *str)
-{
-	int type;
-
-	if (strcmp(str, "none") == 0) {
-		type = AG_TYPE_NO_AUTHENTICATION;
-	} else if (strcmp(str, "deny") == 0) {
-		type = AG_TYPE_DENY;
-	} else if (strcmp(str, "chap") == 0) {
-		type = AG_TYPE_CHAP;
-	} else if (strcmp(str, "chap-mutual") == 0) {
-		type = AG_TYPE_CHAP_MUTUAL;
-	} else {
-		log_warnx("invalid auth-type \"%s\" for %s", str, ag->ag_label);
-		return (false);
-	}
-
-	if (ag->ag_type != AG_TYPE_UNKNOWN && ag->ag_type != type) {
-		log_warnx("cannot set auth-type to \"%s\" for %s; "
-		    "already has a different type", str, ag->ag_label);
-		return (false);
-	}
-
-	ag->ag_type = type;
-
-	return (true);
-}
-
 bool
 auth_group_add_chap(const char *user, const char *secret)
 {
-	return (auth_new_chap(auth_group, user, secret));
+	return (auth_group->add_chap(user, secret));
 }
 
 bool
 auth_group_add_chap_mutual(const char *user, const char *secret,
     const char *user2, const char *secret2)
 {
-	return (auth_new_chap_mutual(auth_group, user, secret, user2, secret2));
+	return (auth_group->add_chap_mutual(user, secret, user2, secret2));
 }
 
 bool
 auth_group_add_initiator_name(const char *name)
 {
-	return (auth_name_new(auth_group, name));
+	return (auth_group->add_initiator_name(name));
 }
 
 bool
 auth_group_add_initiator_portal(const char *portal)
 {
-	return (auth_portal_new(auth_group, portal));
+	return (auth_group->add_initiator_portal(portal));
 }
 
 bool
 auth_group_set_type(const char *type)
 {
-	return (_auth_group_set_type(auth_group, type));
+	return (auth_group->set_type(type));
 }
 
 bool
@@ -188,12 +159,12 @@ auth_group_start(const char *name)
 		}
 
 		conf->conf_default_ag_defined = true;
-		auth_group = auth_group_find(conf, "default");
+		auth_group = auth_group_find(conf, "default").get();
 		return (true);
 	}
 
 	auth_group = auth_group_new(conf, name);
-	return (auth_group != NULL);
+	return (auth_group != nullptr);
 }
 
 void
@@ -245,14 +216,14 @@ portal_group_add_option(const char *name, const char *value)
 bool
 portal_group_set_discovery_auth_group(const char *name)
 {
-	if (portal_group->pg_discovery_auth_group != NULL) {
+	if (portal_group->pg_discovery_auth_group != nullptr) {
 		log_warnx("discovery-auth-group for portal-group "
 		    "\"%s\" specified more than once",
 		    portal_group->pg_name);
 		return (false);
 	}
 	portal_group->pg_discovery_auth_group = auth_group_find(conf, name);
-	if (portal_group->pg_discovery_auth_group == NULL) {
+	if (portal_group->pg_discovery_auth_group == nullptr) {
 		log_warnx("unknown discovery-auth-group \"%s\" "
 		    "for portal-group \"%s\"", name, portal_group->pg_name);
 		return (false);
@@ -518,15 +489,15 @@ target_finish(void)
 static bool
 target_use_private_auth(const char *keyword)
 {
-	if (target->t_auth_group != NULL) {
+	if (target->t_auth_group != nullptr) {
 		if (!target->t_private_auth) {
 			log_warnx("cannot use both auth-group and "
 			    "%s for target \"%s\"", keyword, target->t_name);
 			return (false);
 		}
 	} else {
-		target->t_auth_group = auth_group_new(conf, target);
-		if (target->t_auth_group == NULL)
+		target->t_auth_group = auth_group_new(target);
+		if (target->t_auth_group == nullptr)
 			return (false);
 		target->t_private_auth = true;
 	}
@@ -538,7 +509,7 @@ target_add_chap(const char *user, const char *secret)
 {
 	if (!target_use_private_auth("chap"))
 		return (false);
-	return (auth_new_chap(target->t_auth_group, user, secret));
+	return (target->t_auth_group->add_chap(user, secret));
 }
 
 bool
@@ -547,7 +518,7 @@ target_add_chap_mutual(const char *user, const char *secret,
 {
 	if (!target_use_private_auth("chap-mutual"))
 		return (false);
-	return (auth_new_chap_mutual(target->t_auth_group, user, secret, user2,
+	return (target->t_auth_group->add_chap_mutual(user, secret, user2,
 	    secret2));
 }
 
@@ -556,7 +527,7 @@ target_add_initiator_name(const char *name)
 {
 	if (!target_use_private_auth("initiator-name"))
 		return (false);
-	return (auth_name_new(target->t_auth_group, name));
+	return (target->t_auth_group->add_initiator_name(name));
 }
 
 bool
@@ -564,7 +535,7 @@ target_add_initiator_portal(const char *addr)
 {
 	if (!target_use_private_auth("initiator-portal"))
 		return (false);
-	return (auth_portal_new(target->t_auth_group, addr));
+	return (target->t_auth_group->add_initiator_portal(addr));
 }
 
 bool
@@ -599,7 +570,7 @@ bool
 target_add_portal_group(const char *pg_name, const char *ag_name)
 {
 	struct portal_group *pg;
-	struct auth_group *ag;
+	auth_group_sp ag;
 	struct port *p;
 
 	pg = portal_group_find(conf, pg_name);
@@ -616,8 +587,7 @@ target_add_portal_group(const char *pg_name, const char *ag_name)
 			    ag_name, target->t_name);
 			return (false);
 		}
-	} else
-		ag = NULL;
+	}
 
 	p = port_new(conf, target, pg);
 	if (p == NULL) {
@@ -625,7 +595,7 @@ target_add_portal_group(const char *pg_name, const char *ag_name)
 		    pg_name, target->t_name);
 		return (false);
 	}
-	p->p_auth_group = ag;
+	p->p_auth_group = std::move(ag);
 	return (true);
 }
 
@@ -644,7 +614,7 @@ target_set_alias(const char *alias)
 bool
 target_set_auth_group(const char *name)
 {
-	if (target->t_auth_group != NULL) {
+	if (target->t_auth_group != nullptr) {
 		if (target->t_private_auth)
 			log_warnx("cannot use both auth-group and explicit "
 			    "authorisations for target \"%s\"", target->t_name);
@@ -654,7 +624,7 @@ target_set_auth_group(const char *name)
 		return (false);
 	}
 	target->t_auth_group = auth_group_find(conf, name);
-	if (target->t_auth_group == NULL) {
+	if (target->t_auth_group == nullptr) {
 		log_warnx("unknown auth-group \"%s\" for target \"%s\"", name,
 		    target->t_name);
 		return (false);
@@ -667,7 +637,7 @@ target_set_auth_type(const char *type)
 {
 	if (!target_use_private_auth("auth-type"))
 		return (false);
-	return (_auth_group_set_type(target->t_auth_group, type));
+	return (target->t_auth_group->set_type(type));
 }
 
 bool
