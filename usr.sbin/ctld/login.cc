@@ -336,7 +336,7 @@ login_send_chap_c(struct pdu *request, struct chap *chap)
 
 static struct pdu *
 login_receive_chap_r(struct connection *conn, struct auth_group *ag,
-    struct chap *chap, const struct auth **authp)
+    struct chap *chap, const struct auth **authp, std::string &user)
 {
 	struct pdu *request;
 	struct keys *request_keys;
@@ -376,15 +376,13 @@ login_receive_chap_r(struct connection *conn, struct auth_group *ag,
 		    chap_n);
 	}
 
-	assert(auth->a_secret != NULL);
-	assert(strlen(auth->a_secret) > 0);
-
-	error = chap_authenticate(chap, auth->a_secret);
+	error = chap_authenticate(chap, auth->secret());
 	if (error != 0) {
 		login_send_error(request, 0x02, 0x01);
 		log_errx(1, "CHAP authentication failed for user \"%s\"",
-		    auth->a_user);
+		    chap_n);
 	}
+	user = chap_n;
 
 	keys_delete(request_keys);
 
@@ -394,7 +392,7 @@ login_receive_chap_r(struct connection *conn, struct auth_group *ag,
 
 static void
 login_send_chap_success(struct pdu *request,
-    const struct auth *auth)
+    const struct auth *auth, const std::string &user)
 {
 	struct pdu *response;
 	struct keys *request_keys, *response_keys;
@@ -424,17 +422,17 @@ login_send_chap_success(struct pdu *request,
 			log_errx(1, "initiator requested target "
 			    "authentication, but didn't send CHAP_C");
 		}
-		if (auth->a_auth_group->ag_type != AG_TYPE_CHAP_MUTUAL) {
+		if (!auth->mutual()) {
 			login_send_error(request, 0x02, 0x01);
 			log_errx(1, "initiator requests target authentication "
 			    "for user \"%s\", but mutual user/secret "
-			    "is not set", auth->a_user);
+			    "is not set", user.c_str());
 		}
 
 		log_debugx("performing mutual authentication as user \"%s\"",
-		    auth->a_mutual_user);
+		    auth->mutual_user());
 
-		rchap = rchap_new(auth->a_mutual_secret);
+		rchap = rchap_new(auth->mutual_secret());
 		error = rchap_receive(rchap, chap_i, chap_c);
 		if (error != 0) {
 			login_send_error(request, 0x02, 0x07);
@@ -444,7 +442,7 @@ login_send_chap_success(struct pdu *request,
 		chap_r = rchap_get_response(rchap);
 		rchap_delete(rchap);
 		response_keys = keys_new();
-		keys_add(response_keys, "CHAP_N", auth->a_mutual_user);
+		keys_add(response_keys, "CHAP_N", auth->mutual_user());
 		keys_add(response_keys, "CHAP_R", chap_r);
 		free(chap_r);
 		keys_save_pdu(response_keys, response);
@@ -461,6 +459,7 @@ login_send_chap_success(struct pdu *request,
 static void
 login_chap(struct ctld_connection *conn, struct auth_group *ag)
 {
+	std::string user;
 	const struct auth *auth;
 	struct chap *chap;
 	struct pdu *request;
@@ -488,20 +487,20 @@ login_chap(struct ctld_connection *conn, struct auth_group *ag)
 	 * Receive CHAP_N/CHAP_R PDU and authenticate.
 	 */
 	log_debugx("waiting for CHAP_N/CHAP_R");
-	request = login_receive_chap_r(&conn->conn, ag, chap, &auth);
+	request = login_receive_chap_r(&conn->conn, ag, chap, &auth, user);
 
 	/*
 	 * Yay, authentication succeeded!
 	 */
 	log_debugx("authentication succeeded for user \"%s\"; "
-	    "transitioning to operational parameter negotiation", auth->a_user);
-	login_send_chap_success(request, auth);
+	    "transitioning to operational parameter negotiation", user.c_str());
+	login_send_chap_success(request, auth, user);
 	pdu_delete(request);
 
 	/*
 	 * Leave username and CHAP information for discovery().
 	 */
-	conn->conn_user = auth->a_user;
+	conn->conn_user = checked_strdup(user.c_str());
 	conn->conn_chap = chap;
 }
 
