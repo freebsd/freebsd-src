@@ -801,53 +801,37 @@ isns_deregister(struct isns *isns)
 	set_timeout(0, false);
 }
 
-struct pport *
-pport_new(struct kports *kports, const char *name, uint32_t ctl_port)
+pport::~pport()
 {
-	struct pport *pp;
-
-	pp = reinterpret_cast<struct pport *>(calloc(1, sizeof(*pp)));
-	if (pp == NULL)
-		log_err(1, "calloc");
-	pp->pp_kports = kports;
-	pp->pp_name = checked_strdup(name);
-	pp->pp_ctl_port = ctl_port;
-	TAILQ_INIT(&pp->pp_ports);
-	TAILQ_INSERT_TAIL(&kports->pports, pp, pp_next);
-	return (pp);
+	if (pp_port != nullptr)
+		port_delete(pp_port);
 }
 
-struct pport *
-pport_find(const struct kports *kports, const char *name)
+bool
+kports::add_port(const char *name, uint32_t ctl_port)
 {
-	struct pport *pp;
-
-	TAILQ_FOREACH(pp, &kports->pports, pp_next) {
-		if (strcasecmp(pp->pp_name, name) == 0)
-			return (pp);
+	const auto &pair = pports.try_emplace(name, name, ctl_port);
+	if (!pair.second) {
+		log_warnx("duplicate kernel port \"%s\" (%u)", name, ctl_port);
+		return (false);
 	}
-	return (NULL);
+
+	return (true);
+}
+
+bool
+kports::has_port(std::string_view name)
+{
+	return (pports.count(std::string(name)) > 0);
 }
 
 struct pport *
-pport_copy(struct pport *pp, struct kports *kports)
+kports::find_port(std::string_view name)
 {
-	struct pport *ppnew;
-
-	ppnew = pport_new(kports, pp->pp_name, pp->pp_ctl_port);
-	return (ppnew);
-}
-
-void
-pport_delete(struct pport *pp)
-{
-	struct port *port, *tport;
-
-	TAILQ_FOREACH_SAFE(port, &pp->pp_ports, p_ts, tport)
-		port_delete(port);
-	TAILQ_REMOVE(&pp->pp_kports->pports, pp, pp_next);
-	free(pp->pp_name);
-	free(pp);
+	auto it = pports.find(std::string(name));
+	if (it == pports.end())
+		return (nullptr);
+	return (&it->second);
 }
 
 struct port *
@@ -877,7 +861,7 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 }
 
 struct port *
-port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target,
+port_new_ioctl(struct conf *conf, struct kports &kports, struct target *target,
     int pp, int vp)
 {
 	struct pport *pport;
@@ -892,7 +876,7 @@ port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target,
 		return (NULL);
 	}
 
-	pport = pport_find(kports, pname);
+	pport = kports.find_port(pname);
 	if (pport != NULL) {
 		free(pname);
 		return (port_new_pp(conf, target, pport));
@@ -927,7 +911,7 @@ port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
 	char *name;
 	int ret;
 
-	ret = asprintf(&name, "%s-%s", pp->pp_name, target->t_name);
+	ret = asprintf(&name, "%s-%s", pp->name(), target->t_name);
 	if (ret <= 0)
 		log_err(1, "asprintf");
 	if (port_find(conf, name) != NULL) {
@@ -941,8 +925,7 @@ port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
 	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
 	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
 	port->p_target = target;
-	TAILQ_INSERT_TAIL(&pp->pp_ports, port, p_pps);
-	port->p_pport = pp;
+	pp->link(port);
 	return (port);
 }
 
@@ -978,8 +961,6 @@ port_delete(struct port *port)
 
 	if (port->p_portal_group)
 		TAILQ_REMOVE(&port->p_portal_group->pg_ports, port, p_pgs);
-	if (port->p_pport)
-		TAILQ_REMOVE(&port->p_pport->pp_ports, port, p_pps);
 	if (port->p_target)
 		TAILQ_REMOVE(&port->p_target->t_ports, port, p_ts);
 	TAILQ_REMOVE(&port->p_conf->conf_ports, port, p_next);
@@ -2149,7 +2130,7 @@ conf_new_from_file(const char *path, bool ucl)
  * with the config file.  If necessary, create them.
  */
 static bool
-new_pports_from_conf(struct conf *conf, struct kports *kports)
+new_pports_from_conf(struct conf *conf, struct kports &kports)
 {
 	struct target *targ;
 	struct pport *pp;
@@ -2172,13 +2153,13 @@ new_pports_from_conf(struct conf *conf, struct kports *kports)
 			continue;
 		}
 
-		pp = pport_find(kports, targ->t_pport);
+		pp = kports.find_port(targ->t_pport);
 		if (pp == NULL) {
 			log_warnx("unknown port \"%s\" for target \"%s\"",
 			    targ->t_pport, targ->t_name);
 			return (false);
 		}
-		if (!TAILQ_EMPTY(&pp->pp_ports)) {
+		if (pp->linked()) {
 			log_warnx("can't link port \"%s\" to target \"%s\", "
 			    "port already linked to some target",
 			    targ->t_pport, targ->t_name);
@@ -2241,7 +2222,6 @@ main(int argc, char **argv)
 	log_init(debug);
 	kernel_init();
 
-	TAILQ_INIT(&kports.pports);
 	newconf = conf_new_from_file(config_path, use_ucl);
 
 	if (newconf == NULL)
@@ -2264,14 +2244,14 @@ main(int argc, char **argv)
 
 	register_signals();
 
-	oldconf = conf_new_from_kernel(&kports);
+	oldconf = conf_new_from_kernel(kports);
 
 	if (debug > 0) {
 		oldconf->conf_debug = debug;
 		newconf->conf_debug = debug;
 	}
 
-	if (!new_pports_from_conf(newconf, &kports))
+	if (!new_pports_from_conf(newconf, kports))
 		log_errx(1, "Error associating physical ports; exiting");
 
 	if (daemonize) {
@@ -2313,7 +2293,7 @@ main(int argc, char **argv)
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");
-			} else if (!new_pports_from_conf(tmpconf, &kports)) {
+			} else if (!new_pports_from_conf(tmpconf, kports)) {
 				log_warnx("Error associating physical ports, "
 				    "continuing with old configuration");
 				conf_delete(tmpconf);
