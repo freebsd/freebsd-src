@@ -1,0 +1,45 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.Dd July 31, 2025
+.Dt FREEBSD::ADDRINFO_UP 3
+.Os
+.Sh NAME
+.Nm freebsd::addrinfo_up
+.Nd std::unique_ptr specialization for lists of socket addresses
+.Sh LIBRARY
+.Lb libutil++
+.Sh SYNOPSIS
+.In libutil++.hh
+.Ft using addrinfo_up = std::unique_ptr<addrinfo, freeaddrinfo_deleter>;
+.Sh DESCRIPTION
+This class is a specialization of
+.Vt std::unique_ptr
+for socket addresses returned by
+.Xr getaddrinfo 3 .
+When a list of socket addresses managed by an instance of this class is
+disposed,
+.Xr freeaddrinfo 3
+is invoked to dispose of the list.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+freebsd::addrinfo_up
+resolve_address(const char *address, const char *port)
+{
+	struct addrinfo hints, *ai;
+	int error;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	error = getaddrinfo(address, port, &hints, &ai);
+	if (error != 0)
+		return {};
+	return freebsd::addrinfo_up(ai);
+}
+.Ed
+.Sh SEE ALSO
+.Xr getaddrinfo 3

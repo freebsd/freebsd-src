@@ -8,6 +8,8 @@
 #ifndef __LIBUTILPP_HH__
 #define	__LIBUTILPP_HH__
 
+#include <netdb.h>
+
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -26,6 +28,20 @@ namespace freebsd {
 	};
 
 	using FILE_up = std::unique_ptr<std::FILE, fclose_deleter>;
+
+	/*
+	 * addrinfo_up is a std::unique_ptr<> which uses
+	 * freeaddrinfo() to destroy the wrapped pointer.  It is
+	 * intended to wrap arrays allocated by getaddrinfo().
+	 */
+	struct freeaddrinfo_deleter {
+		void operator() (struct addrinfo *ai) const
+		{
+			freeaddrinfo(ai);
+		}
+	};
+
+	using addrinfo_up = std::unique_ptr<addrinfo, freeaddrinfo_deleter>;
 
 	/*
 	 * malloc_up<T> is a std::unique_ptr<> which uses free() to
