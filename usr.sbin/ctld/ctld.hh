@@ -42,6 +42,7 @@
 #include <libutil.h>
 
 #include <list>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -83,22 +84,46 @@ private:
 	int				ap_mask = 0;
 };
 
-#define	AG_TYPE_UNKNOWN			0
-#define	AG_TYPE_DENY			1
-#define	AG_TYPE_NO_AUTHENTICATION	2
-#define	AG_TYPE_CHAP			3
-#define	AG_TYPE_CHAP_MUTUAL		4
+enum class auth_type {
+	UNKNOWN,
+	DENY,
+	NO_AUTHENTICATION,
+	CHAP,
+	CHAP_MUTUAL
+};
 
 struct auth_group {
-	TAILQ_ENTRY(auth_group)		ag_next;
-	struct conf			*ag_conf;
-	char				*ag_name;
-	char				*ag_label;
-	int				ag_type;
+	auth_group(std::string label) : ag_label(label) {}
+
+	auth_type type() const { return ag_type; }
+	bool set_type(const char *str);
+	void set_type(auth_type type);
+
+	const char *label() const { return ag_label.c_str(); }
+
+	bool add_chap(const char *user, const char *secret);
+	bool add_chap_mutual(const char *user, const char *secret,
+	    const char *user2, const char *secret2);
+	const struct auth *find_auth(std::string_view user) const;
+
+	bool add_initiator_name(std::string_view initiator_name);
+	bool initiator_permitted(std::string_view initiator_name) const;
+
+	bool add_initiator_portal(const char *initiator_portal);
+	bool initiator_permitted(const struct sockaddr *sa) const;
+
+private:
+	void check_secret_length(const char *user, const char *secret,
+	    const char *secret_type);
+
+	std::string			ag_label;
+	auth_type			ag_type = auth_type::UNKNOWN;
 	std::unordered_map<std::string, auth> ag_auths;
 	std::unordered_set<std::string> ag_names;
 	std::list<auth_portal>		ag_portals;
 };
+
+using auth_group_sp = std::shared_ptr<auth_group>;
 
 struct portal {
 	TAILQ_ENTRY(portal)		p_next;
@@ -125,14 +150,14 @@ struct portal_group {
 	struct conf			*pg_conf;
 	nvlist_t			*pg_options;
 	char				*pg_name;
-	struct auth_group		*pg_discovery_auth_group;
-	int				pg_discovery_filter;
-	bool				pg_foreign;
-	bool				pg_unassigned;
+	auth_group_sp			pg_discovery_auth_group;
+	int				pg_discovery_filter = PG_FILTER_UNKNOWN;
+	bool				pg_foreign = false;
+	bool				pg_unassigned = false;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
-	char				*pg_offload;
-	char				*pg_redirection;
+	char				*pg_offload = nullptr;
+	char				*pg_redirection = nullptr;
 	int				pg_dscp;
 	int				pg_pcp;
 
@@ -156,15 +181,15 @@ struct port {
 	TAILQ_ENTRY(port)		p_ts;
 	struct conf			*p_conf;
 	char				*p_name;
-	struct auth_group		*p_auth_group;
-	struct portal_group		*p_portal_group;
-	struct pport			*p_pport;
+	auth_group_sp			p_auth_group;
+	struct portal_group		*p_portal_group = nullptr;
+	struct pport			*p_pport = nullptr;
 	struct target			*p_target;
 
-	bool				p_ioctl_port;
-	int				p_ioctl_pp;
-	int				p_ioctl_vp;
-	uint32_t			p_ctl_port;
+	bool				p_ioctl_port = false;
+	int				p_ioctl_pp = 0;
+	int				p_ioctl_vp = 0;
+	uint32_t			p_ctl_port = 0;
 };
 
 struct lun {
@@ -187,8 +212,8 @@ struct lun {
 struct target {
 	TAILQ_ENTRY(target)		t_next;
 	struct conf			*t_conf;
-	struct lun			*t_luns[MAX_LUNS];
-	struct auth_group		*t_auth_group;
+	struct lun			*t_luns[MAX_LUNS] = {};
+	auth_group_sp			t_auth_group;
 	TAILQ_HEAD(, port)		t_ports;
 	char				*t_name;
 	char				*t_alias;
@@ -206,10 +231,10 @@ struct isns {
 };
 
 struct conf {
-	char				*conf_pidfile_path;
+	char				*conf_pidfile_path = nullptr;
 	TAILQ_HEAD(, lun)		conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
-	TAILQ_HEAD(, auth_group)	conf_auth_groups;
+	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
 	TAILQ_HEAD(, port)		conf_ports;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
 	TAILQ_HEAD(, isns)		conf_isns;
@@ -220,13 +245,13 @@ struct conf {
 	int				conf_maxproc;
 
 #ifdef ICL_KERNEL_PROXY
-	int				conf_portal_id;
+	int				conf_portal_id = 0;
 #endif
-	struct pidfh			*conf_pidfh;
+	struct pidfh			*conf_pidfh = nullptr;
 
-	bool				conf_default_pg_defined;
-	bool				conf_default_ag_defined;
-	bool				conf_kernel_port_on;
+	bool				conf_default_pg_defined = false;
+	bool				conf_default_ag_defined = false;
+	bool				conf_kernel_port_on = false;
 };
 
 /* Physical ports exposed by the kernel */
@@ -248,7 +273,7 @@ struct ctld_connection {
 	char			*conn_initiator_addr;
 	char			*conn_initiator_alias;
 	uint8_t			conn_initiator_isid[6];
-	struct sockaddr_storage	conn_initiator_sa;
+	const struct sockaddr	*conn_initiator_sa;
 	int			conn_max_recv_data_segment_limit;
 	int			conn_max_send_data_segment_limit;
 	int			conn_max_burst_limit;
@@ -270,29 +295,9 @@ void			conf_start(struct conf *new_conf);
 bool			conf_verify(struct conf *conf);
 
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
-struct auth_group	*auth_group_new(struct conf *conf,
-			    struct target *target);
-void			auth_group_delete(struct auth_group *ag);
-struct auth_group	*auth_group_find(const struct conf *conf,
+auth_group_sp		auth_group_new(struct target *target);
+auth_group_sp		auth_group_find(const struct conf *conf,
 			    const char *name);
-
-bool			auth_new_chap(struct auth_group *ag, const char *user,
-			    const char *secret);
-bool			auth_new_chap_mutual(struct auth_group *ag,
-			    const char *user, const char *secret,
-			    const char *user2, const char *secret2);
-const struct auth	*auth_find(const struct auth_group *ag,
-			    const char *user);
-
-bool			auth_name_new(struct auth_group *ag,
-			    const char *initiator_name);
-bool			auth_name_check(const struct auth_group *ag,
-			    const char *initiator_name);
-
-bool			auth_portal_new(struct auth_group *ag,
-			    const char *initiator_portal);
-bool			auth_portal_check(const struct auth_group *ag,
-			    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);
