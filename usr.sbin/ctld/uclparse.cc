@@ -41,6 +41,8 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
+#include <memory>
+
 #include "conf.h"
 #include "ctld.hh"
 
@@ -1113,7 +1115,15 @@ uclparse_conf(const char *path)
 	}
 
 	top = ucl_parser_get_object(parser);
-	parsed = uclparse_toplevel(top);
+	try {
+		parsed = uclparse_toplevel(top);
+	} catch (std::bad_alloc) {
+		log_warnx("failed to allocate memory parsing %s", path);
+		parsed = false;
+	} catch (...) {
+		log_warnx("unknown exception parsing %s", path);
+		parsed = false;
+	}
 	ucl_object_unref(top);
 	ucl_parser_free(parser);
 

@@ -247,6 +247,7 @@ struct ctld_connection {
 
 extern int ctl_fd;
 
+bool			parse_conf(const char *path);
 bool			uclparse_conf(const char *path);
 
 struct conf		*conf_new(void);
