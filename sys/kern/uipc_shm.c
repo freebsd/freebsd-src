@@ -1160,7 +1160,8 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 	if ((flags & O_ACCMODE) != O_RDONLY && (flags & O_ACCMODE) != O_RDWR)
 		return (EINVAL);
 
-	if ((flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC | O_CLOEXEC)) != 0)
+	if ((flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC | O_CLOEXEC |
+	    O_CLOFORK)) != 0)
 		return (EINVAL);
 
 	largepage = (shmflags & SHM_LARGEPAGE) != 0;
