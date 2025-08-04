@@ -413,9 +413,66 @@ private:
 };
 
 struct conf {
-	bool reuse_portal_group_socket(struct portal &newp);
+	int maxproc() const { return conf_maxproc; }
+	int timeout() const { return conf_timeout; }
 
-	char				*conf_pidfile_path = nullptr;
+	bool default_auth_group_defined() const
+	{ return conf_default_ag_defined; }
+	bool default_portal_group_defined() const
+	{ return conf_default_pg_defined; }
+
+	struct auth_group *add_auth_group(const char *ag_name);
+	struct auth_group *define_default_auth_group();
+	auth_group_sp find_auth_group(std::string_view ag_name);
+
+	struct portal_group *add_portal_group(const char *name);
+	struct portal_group *define_default_portal_group();
+	struct portal_group *find_portal_group(std::string_view name);
+
+	bool add_port(struct target *target, struct portal_group *pg,
+	    auth_group_sp ag);
+	bool add_port(struct target *target, struct portal_group *pg,
+	    uint32_t ctl_port);
+	bool add_port(struct target *target, struct pport *pp);
+	bool add_port(struct kports &kports, struct target *target, int pp,
+	    int vp);
+	bool add_pports(struct kports &kports);
+
+	struct target *add_target(const char *name);
+	struct target *find_target(std::string_view name);
+
+	struct lun *add_lun(const char *name);
+	struct lun *find_lun(std::string_view name);
+
+	void set_debug(int debug);
+	void set_isns_period(int period);
+	void set_isns_timeout(int timeout);
+	void set_maxproc(int maxproc);
+	bool set_pidfile_path(std::string_view path);
+	void set_timeout(int timeout);
+
+	void open_pidfile();
+	void write_pidfile();
+	void close_pidfile();
+
+	bool add_isns(const char *addr);
+	void isns_register_targets(struct isns *isns, struct conf *oldconf);
+	void isns_deregister_targets(struct isns *isns);
+	void isns_schedule_update();
+	void isns_update();
+
+	int apply(struct conf *oldconf);
+	void delete_target_luns(struct lun *lun);
+	bool reuse_portal_group_socket(struct portal &newp);
+	bool verify();
+
+private:
+	struct isns_req isns_register_request(const char *hostname);
+	struct isns_req isns_check_request(const char *hostname);
+	struct isns_req isns_deregister_request(const char *hostname);
+	void isns_check(struct isns *isns);
+
+	std::string			conf_pidfile_path;
 	std::unordered_map<std::string, std::unique_ptr<lun>> conf_luns;
 	std::unordered_map<std::string, std::unique_ptr<target>> conf_targets;
 	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
@@ -423,25 +480,27 @@ struct conf {
 	std::unordered_map<std::string, portal_group_up> conf_portal_groups;
 	std::unordered_map<std::string, isns> conf_isns;
 	struct target			*conf_first_target = nullptr;
-	int				conf_isns_period;
-	int				conf_isns_timeout;
-	int				conf_debug;
-	int				conf_timeout;
-	int				conf_maxproc;
+	int				conf_isns_period = 900;
+	int				conf_isns_timeout = 5;
+	int				conf_debug = 0;
+	int				conf_timeout = 60;
+	int				conf_maxproc = 30;
 
-	struct pidfh			*conf_pidfh = nullptr;
+	freebsd::pidfile		conf_pidfile;
 
 	bool				conf_default_pg_defined = false;
 	bool				conf_default_ag_defined = false;
-	bool				conf_kernel_port_on = false;
 
 #ifdef ICL_KERNEL_PROXY
+public:
 	int add_proxy_portal(portal *);
 	portal *proxy_portal(int);
 private:
 	std::vector<portal *>		conf_proxy_portals;
 #endif
 };
+
+using conf_up = std::unique_ptr<conf>;
 
 /* Physical ports exposed by the kernel */
 struct pport {
@@ -497,38 +556,9 @@ extern int ctl_fd;
 bool			parse_conf(const char *path);
 bool			uclparse_conf(const char *path);
 
-struct conf		*conf_new(void);
-struct conf		*conf_new_from_kernel(struct kports &kports);
-void			conf_delete(struct conf *conf);
+conf_up			conf_new_from_kernel(struct kports &kports);
 void			conf_finish(void);
 void			conf_start(struct conf *new_conf);
-bool			conf_verify(struct conf *conf);
-
-struct auth_group	*auth_group_new(struct conf *conf, const char *name);
-auth_group_sp		auth_group_find(const struct conf *conf,
-			    const char *name);
-
-struct portal_group	*portal_group_new(struct conf *conf, const char *name);
-struct portal_group	*portal_group_find(struct conf *conf, const char *name);
-
-bool			isns_new(struct conf *conf, const char *addr);
-void			isns_check(struct conf *conf, struct isns *isns);
-void			isns_deregister_targets(struct conf *conf,
-			    struct isns *isns);
-void			isns_register_targets(struct conf *conf,
-			    struct isns *isns, struct conf *oldconf);
-
-bool			port_new(struct conf *conf, struct target *target,
-			    struct portal_group *pg, auth_group_sp ag);
-bool			port_new(struct conf *conf, struct target *target,
-			    struct portal_group *pg, uint32_t ctl_port);
-
-struct target		*target_new(struct conf *conf, const char *name);
-struct target		*target_find(struct conf *conf,
-			    const char *name);
-
-struct lun		*lun_new(struct conf *conf, const char *name);
-struct lun		*lun_find(const struct conf *conf, const char *name);
 
 bool			option_new(nvlist_t *nvl,
 			    const char *name, const char *value);
@@ -551,6 +581,7 @@ void			login(struct ctld_connection *conn);
 
 void			discovery(struct ctld_connection *conn);
 
-void			set_timeout(int timeout, int fatal);
+void			start_timer(int timeout, bool fatal = false);
+void			stop_timer();
 
 #endif /* !__CTLD_HH__ */
