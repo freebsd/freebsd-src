@@ -341,217 +341,78 @@ target_finish(void)
 	target = NULL;
 }
 
-static bool
-target_use_private_auth(const char *keyword)
-{
-	if (target->t_auth_group != nullptr) {
-		if (!target->t_private_auth) {
-			log_warnx("cannot use both auth-group and "
-			    "%s for target \"%s\"", keyword, target->t_name);
-			return (false);
-		}
-	} else {
-		target->t_auth_group = auth_group_new(target);
-		if (target->t_auth_group == nullptr)
-			return (false);
-		target->t_private_auth = true;
-	}
-	return (true);
-}
-
 bool
 target_add_chap(const char *user, const char *secret)
 {
-	if (!target_use_private_auth("chap"))
-		return (false);
-	return (target->t_auth_group->add_chap(user, secret));
+	return (target->add_chap(user, secret));
 }
 
 bool
 target_add_chap_mutual(const char *user, const char *secret,
     const char *user2, const char *secret2)
 {
-	if (!target_use_private_auth("chap-mutual"))
-		return (false);
-	return (target->t_auth_group->add_chap_mutual(user, secret, user2,
-	    secret2));
+	return (target->add_chap_mutual(user, secret, user2, secret2));
 }
 
 bool
 target_add_initiator_name(const char *name)
 {
-	if (!target_use_private_auth("initiator-name"))
-		return (false);
-	return (target->t_auth_group->add_initiator_name(name));
+	return (target->add_initiator_name(name));
 }
 
 bool
 target_add_initiator_portal(const char *addr)
 {
-	if (!target_use_private_auth("initiator-portal"))
-		return (false);
-	return (target->t_auth_group->add_initiator_portal(addr));
+	return (target->add_initiator_portal(addr));
 }
 
 bool
 target_add_lun(u_int id, const char *name)
 {
-	struct lun *t_lun;
-
-	if (id >= MAX_LUNS) {
-		log_warnx("LUN %u too big for target \"%s\"", id,
-		    target->t_name);
-		return (false);
-	}
-
-	if (target->t_luns[id] != NULL) {
-		log_warnx("duplicate LUN %u for target \"%s\"", id,
-		    target->t_name);
-		return (false);
-	}
-
-	t_lun = lun_find(conf, name);
-	if (t_lun == NULL) {
-		log_warnx("unknown LUN named %s used for target \"%s\"",
-		    name, target->t_name);
-		return (false);
-	}
-
-	target->t_luns[id] = t_lun;
-	return (true);
+	return (target->add_lun(id, name));
 }
 
 bool
 target_add_portal_group(const char *pg_name, const char *ag_name)
 {
-	struct portal_group *pg;
-	auth_group_sp ag;
-
-	pg = portal_group_find(conf, pg_name);
-	if (pg == NULL) {
-		log_warnx("unknown portal-group \"%s\" for target \"%s\"",
-		    pg_name, target->t_name);
-		return (false);
-	}
-
-	if (ag_name != NULL) {
-		ag = auth_group_find(conf, ag_name);
-		if (ag == NULL) {
-			log_warnx("unknown auth-group \"%s\" for target \"%s\"",
-			    ag_name, target->t_name);
-			return (false);
-		}
-	}
-
-	if (!port_new(conf, target, pg, std::move(ag))) {
-		log_warnx("can't link portal-group \"%s\" to target \"%s\"",
-		    pg_name, target->t_name);
-		return (false);
-	}
-	return (true);
+	return (target->add_portal_group(pg_name, ag_name));
 }
 
 bool
 target_set_alias(const char *alias)
 {
-	if (target->t_alias != NULL) {
-		log_warnx("alias for target \"%s\" specified more than once",
-		    target->t_name);
-		return (false);
-	}
-	target->t_alias = checked_strdup(alias);
-	return (true);
+	return (target->set_alias(alias));
 }
 
 bool
 target_set_auth_group(const char *name)
 {
-	if (target->t_auth_group != nullptr) {
-		if (target->t_private_auth)
-			log_warnx("cannot use both auth-group and explicit "
-			    "authorisations for target \"%s\"", target->t_name);
-		else
-			log_warnx("auth-group for target \"%s\" "
-			    "specified more than once", target->t_name);
-		return (false);
-	}
-	target->t_auth_group = auth_group_find(conf, name);
-	if (target->t_auth_group == nullptr) {
-		log_warnx("unknown auth-group \"%s\" for target \"%s\"", name,
-		    target->t_name);
-		return (false);
-	}
-	return (true);
+	return (target->set_auth_group(name));
 }
 
 bool
 target_set_auth_type(const char *type)
 {
-	if (!target_use_private_auth("auth-type"))
-		return (false);
-	return (target->t_auth_group->set_type(type));
+	return (target->set_auth_type(type));
 }
 
 bool
 target_set_physical_port(const char *pport)
 {
-	if (target->t_pport != NULL) {
-		log_warnx("cannot set multiple physical ports for target "
-		    "\"%s\"", target->t_name);
-		return (false);
-	}
-	target->t_pport = checked_strdup(pport);
-	return (true);
+	return (target->set_physical_port(pport));
 }
 
 bool
 target_set_redirection(const char *addr)
 {
-
-	if (target->t_redirection != NULL) {
-		log_warnx("cannot set redirection to \"%s\" for "
-		    "target \"%s\"; already defined",
-		    addr, target->t_name);
-		return (false);
-	}
-
-	target->t_redirection = checked_strdup(addr);
-
-	return (true);
+	return (target->set_redirection(addr));
 }
 
 bool
 target_start_lun(u_int id)
 {
-	struct lun *new_lun;
-	char *name;
-
-	if (id >= MAX_LUNS) {
-		log_warnx("LUN %u too big for target \"%s\"", id,
-		    target->t_name);
-		return (false);
-	}
-
-	if (target->t_luns[id] != NULL) {
-		log_warnx("duplicate LUN %u for target \"%s\"", id,
-		    target->t_name);
-		return (false);
-	}
-
-	if (asprintf(&name, "%s,lun,%u", target->t_name, id) <= 0)
-		log_err(1, "asprintf");
-
-	new_lun = lun_new(conf, name);
-	if (new_lun == NULL)
-		return (false);
-
-	new_lun->set_scsiname(name);
-	free(name);
-
-	target->t_luns[id] = new_lun;
-
-	lun = new_lun;
-	return (true);
+	lun = target->start_lun(id);
+	return (lun != nullptr);
 }
 
 bool
