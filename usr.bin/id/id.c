@@ -40,13 +40,14 @@
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-static void	id_print(struct passwd *, int, int, int);
+static void	id_print(struct passwd *);
 static void	pline(struct passwd *);
 static void	pretty(struct passwd *);
 #ifdef USE_BSM_AUDIT
@@ -202,14 +203,7 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
-	if (pw) {
-		id_print(pw, 1, 0, 0);
-	}
-	else {
-		id = getuid();
-		pw = getpwuid(id);
-		id_print(pw, 0, 1, 1);
-	}
+	id_print(pw);
 	exit(0);
 }
 
@@ -254,7 +248,7 @@ pretty(struct passwd *pw)
 }
 
 static void
-id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
+id_print(struct passwd *pw)
 {
 	struct group *gr;
 	gid_t gid, egid, lastgid;
@@ -263,21 +257,24 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 	long ngroups_max;
 	gid_t *groups;
 	const char *fmt;
+	bool print_dbinfo;
 
-	if (pw != NULL) {
+	print_dbinfo = pw != NULL;
+	if (print_dbinfo) {
 		uid = pw->pw_uid;
 		gid = pw->pw_gid;
 	}
 	else {
 		uid = getuid();
 		gid = getgid();
+		pw = getpwuid(uid);
 	}
 
 	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
 	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
 		err(1, "malloc");
 
-	if (use_ggl && pw != NULL) {
+	if (print_dbinfo) {
 		ngroups = ngroups_max;
 		getgrouplist(pw->pw_name, gid, groups, &ngroups);
 	}
@@ -285,19 +282,23 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 		ngroups = getgroups(ngroups_max, groups);
 	}
 
+	/*
+	 * We always resolve uids and gids where we can to a name, even if we
+	 * are printing the running process credentials, to be nice.
+	 */
 	if (pw != NULL)
 		printf("uid=%u(%s)", uid, pw->pw_name);
-	else 
-		printf("uid=%u", getuid());
+	else
+		printf("uid=%u", uid);
 	printf(" gid=%u", gid);
 	if ((gr = getgrgid(gid)))
 		(void)printf("(%s)", gr->gr_name);
-	if (p_euid && (euid = geteuid()) != uid) {
+	if (!print_dbinfo && (euid = geteuid()) != uid) {
 		(void)printf(" euid=%u", euid);
 		if ((pw = getpwuid(euid)))
 			(void)printf("(%s)", pw->pw_name);
 	}
-	if (p_egid && (egid = getegid()) != gid) {
+	if (!print_dbinfo && (egid = getegid()) != gid) {
 		(void)printf(" egid=%u", egid);
 		if ((gr = getgrgid(egid)))
 			(void)printf("(%s)", gr->gr_name);
