@@ -841,6 +841,7 @@ kernel_lun_remove(struct lun *lun)
 void
 kernel_handoff(struct ctld_connection *conn)
 {
+	struct portal_group *pg = conn->conn_portal->portal_group();
 	struct ctl_iscsi req;
 
 	bzero(&req, sizeof(req));
@@ -858,9 +859,8 @@ kernel_handoff(struct ctld_connection *conn)
 	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
-	if (conn->conn_portal->p_portal_group->pg_offload != NULL) {
-		strlcpy(req.data.handoff.offload,
-		    conn->conn_portal->p_portal_group->pg_offload,
+	if (pg->pg_offload != NULL) {
+		strlcpy(req.data.handoff.offload, pg->pg_offload,
 		    sizeof(req.data.handoff.offload));
 	}
 #ifdef ICL_KERNEL_PROXY
@@ -871,8 +871,7 @@ kernel_handoff(struct ctld_connection *conn)
 #else
 	req.data.handoff.socket = conn->conn.conn_socket;
 #endif
-	req.data.handoff.portal_group_tag =
-	    conn->conn_portal->p_portal_group->pg_tag;
+	req.data.handoff.portal_group_tag = pg->pg_tag;
 	if (conn->conn.conn_header_digest == CONN_DIGEST_CRC32C)
 		req.data.handoff.header_digest = CTL_ISCSI_DIGEST_CRC32C;
 	if (conn->conn.conn_data_digest == CONN_DIGEST_CRC32C)

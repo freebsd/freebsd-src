@@ -139,6 +139,23 @@ conf_delete(struct conf *conf)
 	delete conf;
 }
 
+#ifdef ICL_KERNEL_PROXY
+int
+conf::add_proxy_portal(portal *portal)
+{
+	conf_proxy_portals.push_back(portal);
+	return (conf_proxy_portals.size() - 1);
+}
+
+portal *
+conf::proxy_portal(int id)
+{
+	if (id >= conf_proxy_portals.size())
+		return (nullptr);
+	return (conf_proxy_portals[id]);
+}
+#endif
+
 bool
 auth_group::set_type(const char *str)
 {
@@ -424,31 +441,6 @@ auth_group_find(const struct conf *conf, const char *name)
 	return (it->second);
 }
 
-static struct portal *
-portal_new(struct portal_group *pg)
-{
-	struct portal *portal;
-
-	portal = reinterpret_cast<struct portal *>(calloc(1, sizeof(*portal)));
-	if (portal == NULL)
-		log_err(1, "calloc");
-	TAILQ_INIT(&portal->p_targets);
-	portal->p_portal_group = pg;
-	TAILQ_INSERT_TAIL(&pg->pg_portals, portal, p_next);
-	return (portal);
-}
-
-static void
-portal_delete(struct portal *portal)
-{
-
-	TAILQ_REMOVE(&portal->p_portal_group->pg_portals, portal, p_next);
-	if (portal->p_ai != NULL)
-		freeaddrinfo(portal->p_ai);
-	free(portal->p_listen);
-	free(portal);
-}
-
 struct portal_group *
 portal_group_new(struct conf *conf, const char *name)
 {
@@ -463,7 +455,6 @@ portal_group_new(struct conf *conf, const char *name)
 	pg = new portal_group();
 	pg->pg_name = checked_strdup(name);
 	pg->pg_options = nvlist_create(0);
-	TAILQ_INIT(&pg->pg_portals);
 	TAILQ_INIT(&pg->pg_ports);
 	pg->pg_conf = conf;
 	pg->pg_tag = 0;		/* Assigned later in conf_apply(). */
@@ -477,15 +468,12 @@ portal_group_new(struct conf *conf, const char *name)
 void
 portal_group_delete(struct portal_group *pg)
 {
-	struct portal *portal, *tmp;
 	struct port *port, *tport;
 
 	TAILQ_FOREACH_SAFE(port, &pg->pg_ports, p_pgs, tport)
 		port_delete(port);
 	TAILQ_REMOVE(&pg->pg_conf->conf_portal_groups, pg, pg_next);
 
-	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
-		portal_delete(portal);
 	nvlist_destroy(pg->pg_options);
 	free(pg->pg_name);
 	free(pg->pg_offload);
@@ -557,16 +545,9 @@ parse_addr_port(const char *address, const char *def_port)
 bool
 portal_group_add_portal(struct portal_group *pg, const char *value, bool iser)
 {
-	struct portal *portal;
-
-	portal = portal_new(pg);
-	portal->p_listen = checked_strdup(value);
-	portal->p_iser = iser;
-
-	freebsd::addrinfo_up ai = parse_addr_port(portal->p_listen, "3260");
+	freebsd::addrinfo_up ai = parse_addr_port(value, "3260");
 	if (!ai) {
-		log_warnx("invalid listen address %s", portal->p_listen);
-		portal_delete(portal);
+		log_warnx("invalid listen address %s", value);
 		return (false);
 	}
 
@@ -575,7 +556,8 @@ portal_group_add_portal(struct portal_group *pg, const char *value, bool iser)
 	 *	those into multiple portals.
 	 */
 
-	portal->p_ai = ai.release();
+	pg->pg_portals.emplace_back(std::make_unique<portal>(pg, value, iser,
+	    std::move(ai)));
 	return (true);
 }
 
@@ -642,7 +624,6 @@ isns_do_register(struct isns *isns, int s, const char *hostname)
 {
 	struct conf *conf = isns->i_conf;
 	struct target *target;
-	struct portal *portal;
 	struct portal_group *pg;
 	struct port *port;
 	uint32_t error;
@@ -656,9 +637,9 @@ isns_do_register(struct isns *isns, int s, const char *hostname)
 	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
 		if (pg->pg_unassigned)
 			continue;
-		TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
-			req.add_addr(16, portal->p_ai);
-			req.add_port(17, portal->p_ai);
+		for (const portal_up &portal : pg->pg_portals) {
+			req.add_addr(16, portal->ai());
+			req.add_port(17, portal->ai());
 		}
 	}
 	TAILQ_FOREACH(target, &conf->conf_targets, t_next) {
@@ -670,9 +651,9 @@ isns_do_register(struct isns *isns, int s, const char *hostname)
 			if ((pg = port->p_portal_group) == NULL)
 				continue;
 			req.add_32(51, pg->pg_tag);
-			TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
-				req.add_addr(49, portal->p_ai);
-				req.add_port(50, portal->p_ai);
+			for (const portal_up &portal : pg->pg_portals) {
+				req.add_addr(49, portal->ai());
+				req.add_port(50, portal->ai());
 			}
 		}
 	}
@@ -1013,7 +994,7 @@ port_is_dummy(struct port *port)
 	if (port->p_portal_group) {
 		if (port->p_portal_group->pg_foreign)
 			return (true);
-		if (TAILQ_EMPTY(&port->p_portal_group->pg_portals))
+		if (port->p_portal_group->pg_portals.empty())
 			return (true);
 	}
 	return (false);
@@ -1363,124 +1344,126 @@ conf_verify(struct conf *conf)
 	return (true);
 }
 
-static bool
-portal_reuse_socket(struct portal *oldp, struct portal *newp)
+bool
+portal::reuse_socket(struct portal &oldp)
 {
 	struct kevent kev;
 
-	if (strcmp(newp->p_listen, oldp->p_listen) != 0)
+	if (p_listen != oldp.p_listen)
 		return (false);
 
-	if (oldp->p_socket <= 0)
+	if (!oldp.p_socket)
 		return (false);
 
-	EV_SET(&kev, oldp->p_socket, EVFILT_READ, EV_ADD, 0, 0, newp);
+	EV_SET(&kev, oldp.p_socket, EVFILT_READ, EV_ADD, 0, 0, this);
 	if (kevent(kqfd, &kev, 1, NULL, 0, NULL) == -1)
 		return (false);
 
-	newp->p_socket = oldp->p_socket;
-	oldp->p_socket = 0;
+	p_socket = std::move(oldp.p_socket);
 	return (true);
 }
 
-static bool
-portal_init_socket(struct portal *p)
+bool
+portal::init_socket()
 {
-	struct portal_group *pg = p->p_portal_group;
+	struct portal_group *pg = portal_group();
 	struct kevent kev;
+	freebsd::fd_up s;
 	int error, sockbuf;
 	int one = 1;
 
-	log_debugx("listening on %s, portal-group \"%s\"",
-	    p->p_listen, pg->pg_name);
-	p->p_socket = socket(p->p_ai->ai_family, p->p_ai->ai_socktype,
-	    p->p_ai->ai_protocol);
-	if (p->p_socket < 0) {
-		log_warn("socket(2) failed for %s",
-		    p->p_listen);
+#ifdef ICL_KERNEL_PROXY
+	if (proxy_mode) {
+		int id = pg->pg_conf->add_proxy_portal(this);
+		log_debugx("listening on %s, portal-group \"%s\", "
+		    "portal id %d, using ICL proxy", listen(), pg->pg_name,
+		    id);
+		kernel_listen(ai(), p_iser, id);
+		return (true);
+	}
+#endif
+	assert(proxy_mode == false);
+	assert(p_iser == false);
+
+	log_debugx("listening on %s, portal-group \"%s\"", listen(),
+	    pg->pg_name);
+	s = ::socket(p_ai->ai_family, p_ai->ai_socktype, p_ai->ai_protocol);
+	if (!s) {
+		log_warn("socket(2) failed for %s", listen());
 		return (false);
 	}
 
 	sockbuf = SOCKBUF_SIZE;
-	if (setsockopt(p->p_socket, SOL_SOCKET, SO_RCVBUF, &sockbuf,
+	if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &sockbuf,
 	    sizeof(sockbuf)) == -1)
-		log_warn("setsockopt(SO_RCVBUF) failed for %s",
-		    p->p_listen);
+		log_warn("setsockopt(SO_RCVBUF) failed for %s", listen());
 	sockbuf = SOCKBUF_SIZE;
-	if (setsockopt(p->p_socket, SOL_SOCKET, SO_SNDBUF, &sockbuf,
+	if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sockbuf,
 	    sizeof(sockbuf)) == -1)
-		log_warn("setsockopt(SO_SNDBUF) failed for %s", p->p_listen);
-	if (setsockopt(p->p_socket, SOL_SOCKET, SO_NO_DDP, &one,
+		log_warn("setsockopt(SO_SNDBUF) failed for %s", listen());
+	if (setsockopt(s, SOL_SOCKET, SO_NO_DDP, &one,
 	    sizeof(one)) == -1)
-		log_warn("setsockopt(SO_NO_DDP) failed for %s", p->p_listen);
-	error = setsockopt(p->p_socket, SOL_SOCKET, SO_REUSEADDR, &one,
+		log_warn("setsockopt(SO_NO_DDP) failed for %s", listen());
+	error = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one,
 	    sizeof(one));
 	if (error != 0) {
-		log_warn("setsockopt(SO_REUSEADDR) failed for %s", p->p_listen);
-		close(p->p_socket);
-		p->p_socket = 0;
+		log_warn("setsockopt(SO_REUSEADDR) failed for %s", listen());
 		return (false);
 	}
 
 	if (pg->pg_dscp != -1) {
 		/* Only allow the 6-bit DSCP field to be modified */
 		int tos = pg->pg_dscp << 2;
-		switch (p->p_ai->ai_family) {
+		switch (p_ai->ai_family) {
 		case AF_INET:
-			if (setsockopt(p->p_socket, IPPROTO_IP, IP_TOS,
+			if (setsockopt(s, IPPROTO_IP, IP_TOS,
 			    &tos, sizeof(tos)) == -1)
 				log_warn("setsockopt(IP_TOS) failed for %s",
-				    p->p_listen);
+				    listen());
 			break;
 		case AF_INET6:
-			if (setsockopt(p->p_socket, IPPROTO_IPV6, IPV6_TCLASS,
+			if (setsockopt(s, IPPROTO_IPV6, IPV6_TCLASS,
 			    &tos, sizeof(tos)) == -1)
 				log_warn("setsockopt(IPV6_TCLASS) failed for %s",
-				    p->p_listen);
+				    listen());
 			break;
 		}
 	}
 	if (pg->pg_pcp != -1) {
 		int pcp = pg->pg_pcp;
-		switch (p->p_ai->ai_family) {
+		switch (p_ai->ai_family) {
 		case AF_INET:
-			if (setsockopt(p->p_socket, IPPROTO_IP, IP_VLAN_PCP,
+			if (setsockopt(s, IPPROTO_IP, IP_VLAN_PCP,
 			    &pcp, sizeof(pcp)) == -1)
 				log_warn("setsockopt(IP_VLAN_PCP) failed for %s",
-				    p->p_listen);
+				    listen());
 			break;
 		case AF_INET6:
-			if (setsockopt(p->p_socket, IPPROTO_IPV6, IPV6_VLAN_PCP,
+			if (setsockopt(s, IPPROTO_IPV6, IPV6_VLAN_PCP,
 			    &pcp, sizeof(pcp)) == -1)
 				log_warn("setsockopt(IPV6_VLAN_PCP) failed for %s",
-				    p->p_listen);
+				    listen());
 			break;
 		}
 	}
 
-	error = bind(p->p_socket, p->p_ai->ai_addr,
-	    p->p_ai->ai_addrlen);
+	error = bind(s, p_ai->ai_addr, p_ai->ai_addrlen);
 	if (error != 0) {
-		log_warn("bind(2) failed for %s", p->p_listen);
-		close(p->p_socket);
-		p->p_socket = 0;
+		log_warn("bind(2) failed for %s", listen());
 		return (false);
 	}
-	error = listen(p->p_socket, -1);
+	error = ::listen(s, -1);
 	if (error != 0) {
-		log_warn("listen(2) failed for %s", p->p_listen);
-		close(p->p_socket);
-		p->p_socket = 0;
+		log_warn("listen(2) failed for %s", listen());
 		return (false);
 	}
-	EV_SET(&kev, p->p_socket, EVFILT_READ, EV_ADD, 0, 0, p);
+	EV_SET(&kev, s, EVFILT_READ, EV_ADD, 0, 0, this);
 	error = kevent(kqfd, &kev, 1, NULL, 0, NULL);
 	if (error == -1) {
-		log_warn("kevent(2) failed to register for %s", p->p_listen);
-		close(p->p_socket);
-		p->p_socket = 0;
+		log_warn("kevent(2) failed to register for %s", listen());
 		return (false);
 	}
+	p_socket = std::move(s);
 	return (true);
 }
 
@@ -1489,7 +1472,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 {
 	struct lun *oldlun, *newlun, *tmplun;
 	struct portal_group *oldpg, *newpg;
-	struct portal *oldp, *newp;
 	struct port *oldport, *newport, *tmpport;
 	struct isns *oldns, *newns;
 	int changed, cumulated_error = 0, error;
@@ -1716,7 +1698,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			    newpg->pg_name);
 			continue;
 		}
-		TAILQ_FOREACH(newp, &newpg->pg_portals, p_next) {
+		for (portal_up &newp : newpg->pg_portals) {
 			/*
 			 * Try to find already open portal and reuse
 			 * the listening socket.  We don't care about
@@ -1725,39 +1707,18 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			 */
 			TAILQ_FOREACH(oldpg, &oldconf->conf_portal_groups,
 			    pg_next) {
-				TAILQ_FOREACH(oldp, &oldpg->pg_portals,
-				    p_next) {
-					if (portal_reuse_socket(oldp, newp))
+				for (portal_up &oldp : oldpg->pg_portals) {
+					if (newp->reuse_socket(*oldp))
 						goto reused;
 				}
 			}
-		reused:
-			if (newp->p_socket > 0) {
-				/*
-				 * We're done with this portal.
-				 */
-				continue;
-			}
 
-#ifdef ICL_KERNEL_PROXY
-			if (proxy_mode) {
-				newpg->pg_conf->conf_portal_id++;
-				newp->p_id = newpg->pg_conf->conf_portal_id;
-				log_debugx("listening on %s, portal-group "
-				    "\"%s\", portal id %d, using ICL proxy",
-				    newp->p_listen, newpg->pg_name, newp->p_id);
-				kernel_listen(newp->p_ai, newp->p_iser,
-				    newp->p_id);
-				continue;
-			}
-#endif
-			assert(proxy_mode == false);
-			assert(newp->p_iser == false);
-
-			if (!portal_init_socket(newp)) {
+			if (!newp->init_socket()) {
 				cumulated_error++;
 				continue;
 			}
+		reused:
+			;
 		}
 	}
 
@@ -1765,13 +1726,12 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * Go through the no longer used sockets, closing them.
 	 */
 	TAILQ_FOREACH(oldpg, &oldconf->conf_portal_groups, pg_next) {
-		TAILQ_FOREACH(oldp, &oldpg->pg_portals, p_next) {
-			if (oldp->p_socket <= 0)
+		for (portal_up &oldp : oldpg->pg_portals) {
+			if (oldp->socket() < 0)
 				continue;
 			log_debugx("closing socket for %s, portal-group \"%s\"",
-			    oldp->p_listen, oldpg->pg_name);
-			close(oldp->p_socket);
-			oldp->p_socket = 0;
+			    oldp->listen(), oldpg->pg_name);
+			oldp->close();
 		}
 	}
 
@@ -1903,12 +1863,14 @@ handle_connection(struct portal *portal, int fd,
     const struct sockaddr *client_sa, bool dont_fork)
 {
 	struct ctld_connection *conn;
+	struct portal_group *pg;
 	int error;
 	pid_t pid;
 	char host[NI_MAXHOST + 1];
 	struct conf *conf;
 
-	conf = portal->p_portal_group->pg_conf;
+	pg = portal->portal_group();
+	conf = pg->pg_conf;
 
 	if (dont_fork) {
 		log_debugx("incoming connection; not forking due to -d flag");
@@ -1941,7 +1903,7 @@ handle_connection(struct portal *portal, int fd,
 		log_errx(1, "getnameinfo: %s", gai_strerror(error));
 
 	log_debugx("accepted connection from %s; portal group \"%s\"",
-	    host, portal->p_portal_group->pg_name);
+	    host, pg->pg_name);
 	log_set_peer_addr(host);
 	setproctitle("%s", host);
 
@@ -1986,18 +1948,12 @@ main_loop(bool dont_fork)
 
 			log_debugx("incoming connection, id %d, portal id %d",
 			    connection_id, portal_id);
-			TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
-				TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
-					if (portal->p_id == portal_id) {
-						goto found;
-					}
-				}
-			}
+			portal = conf->proxy_portal(portal_id);
+			if (portal == nullptr)
+				log_errx(1,
+				    "kernel returned invalid portal_id %d",
+				    portal_id);
 
-			log_errx(1, "kernel returned invalid portal_id %d",
-			    portal_id);
-
-found:
 			handle_connection(portal, connection_id,
 			    (struct sockaddr *)&client_sa, dont_fork);
 		} else {
@@ -2014,10 +1970,10 @@ found:
 			switch (kev.filter) {
 			case EVFILT_READ:
 				portal = reinterpret_cast<struct portal *>(kev.udata);
-				assert(portal->p_socket == (int)kev.ident);
+				assert(portal->socket() == (int)kev.ident);
 
 				client_salen = sizeof(client_sa);
-				client_fd = accept(portal->p_socket,
+				client_fd = accept(portal->socket(),
 				    (struct sockaddr *)&client_sa,
 				    &client_salen);
 				if (client_fd < 0) {

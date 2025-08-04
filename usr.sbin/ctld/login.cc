@@ -703,7 +703,7 @@ login_portal_redirect(struct ctld_connection *conn, struct pdu *request)
 {
 	const struct portal_group *pg;
 
-	pg = conn->conn_portal->p_portal_group;
+	pg = conn->conn_portal->portal_group();
 	if (pg->pg_redirection == NULL)
 		return (false);
 
@@ -719,7 +719,7 @@ login_target_redirect(struct ctld_connection *conn, struct pdu *request)
 {
 	const char *target_address;
 
-	assert(conn->conn_portal->p_portal_group->pg_redirection == NULL);
+	assert(conn->conn_portal->portal_group()->pg_redirection == NULL);
 
 	if (conn->conn_target == NULL)
 		return (false);
@@ -738,6 +738,7 @@ login_target_redirect(struct ctld_connection *conn, struct pdu *request)
 static void
 login_negotiate(struct ctld_connection *conn, struct pdu *request)
 {
+	struct portal_group *pg = conn->conn_portal->portal_group();
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
@@ -754,7 +755,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 		conn->conn_max_send_data_segment_limit = (1 << 24) - 1;
 		conn->conn_max_burst_limit = (1 << 24) - 1;
 		conn->conn_first_burst_limit = (1 << 24) - 1;
-		kernel_limits(conn->conn_portal->p_portal_group->pg_offload,
+		kernel_limits(pg->pg_offload,
 		    conn->conn.conn_socket,
 		    &conn->conn_max_recv_data_segment_limit,
 		    &conn->conn_max_send_data_segment_limit,
@@ -826,7 +827,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
 		keys_add_int(response_keys, "TargetPortalGroupTag",
-		    conn->conn_portal->p_portal_group->pg_tag);
+		    pg->pg_tag);
 	}
 
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -916,7 +917,7 @@ login(struct ctld_connection *conn)
 		log_errx(1, "received Login PDU with non-zero TSIH");
 	}
 
-	pg = conn->conn_portal->p_portal_group;
+	pg = conn->conn_portal->portal_group();
 
 	memcpy(conn->conn_initiator_isid, bhslr->bhslr_isid,
 	    sizeof(conn->conn_initiator_isid));
