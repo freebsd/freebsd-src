@@ -46,7 +46,7 @@ CFLAGS+=-I${KRB5_DIR}/lib \
 	-I${KRB5_OBJTOP}/lib/gssapi \
 	-I${KRB5_DIR}/lib/gssapi/krb5 \
 	-I${KRB5_DIR}/lib/gssapi/generic
-CWARNFLAGS+=-Wno-alloc-size-larger-than
+CWARNFLAGS.gcc+=-Wno-alloc-size-larger-than
 
 HDRDIR=	${KRB5_OBJHDR}/kadm5
 HDRS=	${HDRDIR}/admin.h \
