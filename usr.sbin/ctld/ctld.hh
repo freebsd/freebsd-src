@@ -57,6 +57,8 @@
 #define	MAX_LUNS			1024
 #define	SOCKBUF_SIZE			1048576
 
+struct port;
+
 struct auth {
 	auth(std::string_view secret) : a_secret(secret) {}
 	auth(std::string_view secret, std::string_view mutual_user,
@@ -168,7 +170,7 @@ struct portal_group {
 	bool				pg_foreign = false;
 	bool				pg_unassigned = false;
 	std::list<portal_up>	        pg_portals;
-	TAILQ_HEAD(, port)		pg_ports;
+	std::unordered_map<std::string, port *> pg_ports;
 	char				*pg_offload = nullptr;
 	char				*pg_redirection = nullptr;
 	int				pg_dscp;
@@ -178,20 +180,77 @@ struct portal_group {
 };
 
 struct port {
-	TAILQ_ENTRY(port)		p_next;
-	TAILQ_ENTRY(port)		p_pgs;
-	TAILQ_ENTRY(port)		p_ts;
-	struct conf			*p_conf;
-	char				*p_name;
-	auth_group_sp			p_auth_group;
-	struct portal_group		*p_portal_group = nullptr;
-	struct pport			*p_pport = nullptr;
+	port(struct target *target);
+	virtual ~port() = default;
+
+	struct target *target() const { return p_target; }
+	virtual struct auth_group *auth_group() const { return nullptr; }
+	virtual struct portal_group *portal_group() const { return nullptr; }
+
+	virtual bool is_dummy() const { return true; }
+
+	virtual void clear_references();
+
+	bool kernel_add();
+	bool kernel_update(const port *oport);
+	bool kernel_remove();
+
+	virtual bool kernel_create_port() = 0;
+	virtual bool kernel_remove_port() = 0;
+
+protected:
 	struct target			*p_target;
 
-	bool				p_ioctl_port = false;
-	int				p_ioctl_pp = 0;
-	int				p_ioctl_vp = 0;
 	uint32_t			p_ctl_port = 0;
+};
+
+struct portal_group_port final : public port {
+	portal_group_port(struct target *target, struct portal_group *pg,
+	    auth_group_sp ag);
+	portal_group_port(struct target *target, struct portal_group *pg,
+	    uint32_t ctl_port);
+	~portal_group_port() override = default;
+
+	struct auth_group *auth_group() const override
+	{ return p_auth_group.get(); }
+	struct portal_group *portal_group() const override
+	{ return p_portal_group; }
+
+	bool is_dummy() const override;
+
+	void clear_references() override;
+
+	bool kernel_create_port() override;
+	bool kernel_remove_port() override;
+
+private:
+	auth_group_sp			p_auth_group;
+	struct portal_group		*p_portal_group;
+};
+
+struct ioctl_port final : public port {
+	ioctl_port(struct target *target, int pp, int vp) :
+		port(target), p_ioctl_pp(pp), p_ioctl_vp(vp) {}
+	~ioctl_port() override = default;
+
+	bool kernel_create_port() override;
+	bool kernel_remove_port() override;
+
+private:
+	int				p_ioctl_pp;
+	int				p_ioctl_vp;
+};
+
+struct kernel_port final : public port {
+	kernel_port(struct target *target, struct pport *pp) :
+		port(target), p_pport(pp) {}
+	~kernel_port() override = default;
+
+	bool kernel_create_port() override;
+	bool kernel_remove_port() override;
+
+private:
+	struct pport			*p_pport;
 };
 
 struct lun {
@@ -216,7 +275,7 @@ struct target {
 	struct conf			*t_conf;
 	struct lun			*t_luns[MAX_LUNS] = {};
 	auth_group_sp			t_auth_group;
-	TAILQ_HEAD(, port)		t_ports;
+	std::list<port *>		t_ports;
 	char				*t_name;
 	char				*t_alias;
 	char				*t_redirection;
@@ -237,7 +296,7 @@ struct conf {
 	TAILQ_HEAD(, lun)		conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
 	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
-	TAILQ_HEAD(, port)		conf_ports;
+	std::unordered_map<std::string, std::unique_ptr<port>> conf_ports;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
 	TAILQ_HEAD(, isns)		conf_isns;
 	int				conf_isns_period;
@@ -264,19 +323,17 @@ private:
 struct pport {
 	pport(std::string_view name, uint32_t ctl_port) : pp_name(name),
 	    pp_ctl_port(ctl_port) {}
-	~pport();
 
 	const char *name() const { return pp_name.c_str(); }
 	uint32_t ctl_port() const { return pp_ctl_port; }
 
-	bool linked() const { return pp_port != nullptr; }
-	void link(struct port *port) { pp_port = port; }
+	bool linked() const { return pp_linked; }
+	void link() { pp_linked = true; }
 
 private:
-	struct port			*pp_port;
 	std::string			pp_name;
-
 	uint32_t			pp_ctl_port;
+	bool				pp_linked;
 };
 
 struct kports {
@@ -341,18 +398,12 @@ void			isns_register(struct isns *isns, struct isns *oldisns);
 void			isns_check(struct isns *isns);
 void			isns_deregister(struct isns *isns);
 
-struct port		*port_new(struct conf *conf, struct target *target,
-			    struct portal_group *pg);
-struct port		*port_new_ioctl(struct conf *conf,
-			    struct kports &kports, struct target *target,
-			    int pp, int vp);
-struct port		*port_new_pp(struct conf *conf, struct target *target,
-			    struct pport *pp);
-struct port		*port_find(const struct conf *conf, const char *name);
+bool			port_new(struct conf *conf, struct target *target,
+			    struct portal_group *pg, auth_group_sp ag);
+bool			port_new(struct conf *conf, struct target *target,
+			    struct portal_group *pg, uint32_t ctl_port);
 struct port		*port_find_in_pg(const struct portal_group *pg,
 			    const char *target);
-void			port_delete(struct port *port);
-bool			port_is_dummy(struct port *port);
 
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
@@ -372,9 +423,6 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct ctld_connection *conn);
-int			kernel_port_add(struct port *port);
-int			kernel_port_update(struct port *port, struct port *old);
-int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 
 #ifdef ICL_KERNEL_PROXY

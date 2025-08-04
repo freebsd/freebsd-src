@@ -101,17 +101,17 @@ logout_new_response(struct pdu *request)
 static void
 discovery_add_target(struct keys *response_keys, const struct target *targ)
 {
-	struct port *port;
 	char *buf;
 	char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
 	const struct addrinfo *ai;
 	int ret;
 
 	keys_add(response_keys, "TargetName", targ->t_name);
-	TAILQ_FOREACH(port, &targ->t_ports, p_ts) {
-	    if (port->p_portal_group == NULL)
+	for (const port *port : targ->t_ports) {
+	    const struct portal_group *pg = port->portal_group();
+	    if (pg == nullptr)
 		continue;
-	    for (portal_up &portal : port->p_portal_group->pg_portals) {
+	    for (const portal_up &portal : pg->pg_portals) {
 		ai = portal->ai();
 		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
 		    hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
@@ -125,13 +125,13 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 			if (strcmp(hbuf, "0.0.0.0") == 0)
 				continue;
 			ret = asprintf(&buf, "%s:%s,%d", hbuf, sbuf,
-			    port->p_portal_group->pg_tag);
+			    pg->pg_tag);
 			break;
 		case AF_INET6:
 			if (strcmp(hbuf, "::") == 0)
 				continue;
 			ret = asprintf(&buf, "[%s]:%s,%d", hbuf, sbuf,
-			    port->p_portal_group->pg_tag);
+			    pg->pg_tag);
 			break;
 		default:
 			continue;
@@ -154,8 +154,8 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	const struct auth *auth;
 	int error;
 
-	targ = port->p_target;
-	ag = port->p_auth_group.get();
+	targ = port->target();
+	ag = port->auth_group();
 	if (ag == nullptr)
 		ag = targ->t_auth_group.get();
 	pg = conn->conn_portal->portal_group();
@@ -228,12 +228,13 @@ discovery(struct ctld_connection *conn)
 	response_keys = keys_new();
 
 	if (strcmp(send_targets, "All") == 0) {
-		TAILQ_FOREACH(port, &pg->pg_ports, p_pgs) {
+		for (const auto &kv : pg->pg_ports) {
+			port = kv.second;
 			if (discovery_target_filtered_out(conn, port)) {
 				/* Ignore this target. */
 				continue;
 			}
-			discovery_add_target(response_keys, port->p_target);
+			discovery_add_target(response_keys, port->target());
 		}
 	} else {
 		port = port_find_in_pg(pg, send_targets);
@@ -244,7 +245,8 @@ discovery(struct ctld_connection *conn)
 			if (discovery_target_filtered_out(conn, port)) {
 				/* Ignore this target. */
 			} else {
-				discovery_add_target(response_keys, port->p_target);
+				discovery_add_target(response_keys,
+				    port->target());
 			}
 		}
 	}

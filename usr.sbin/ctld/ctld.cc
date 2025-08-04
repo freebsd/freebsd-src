@@ -103,7 +103,6 @@ conf_new(void)
 	conf = new struct conf();
 	TAILQ_INIT(&conf->conf_luns);
 	TAILQ_INIT(&conf->conf_targets);
-	TAILQ_INIT(&conf->conf_ports);
 	TAILQ_INIT(&conf->conf_portal_groups);
 	TAILQ_INIT(&conf->conf_isns);
 
@@ -134,7 +133,6 @@ conf_delete(struct conf *conf)
 		portal_group_delete(pg);
 	TAILQ_FOREACH_SAFE(is, &conf->conf_isns, i_next, istmp)
 		isns_delete(is);
-	assert(TAILQ_EMPTY(&conf->conf_ports));
 	free(conf->conf_pidfile_path);
 	delete conf;
 }
@@ -455,7 +453,6 @@ portal_group_new(struct conf *conf, const char *name)
 	pg = new portal_group();
 	pg->pg_name = checked_strdup(name);
 	pg->pg_options = nvlist_create(0);
-	TAILQ_INIT(&pg->pg_ports);
 	pg->pg_conf = conf;
 	pg->pg_tag = 0;		/* Assigned later in conf_apply(). */
 	pg->pg_dscp = -1;
@@ -468,10 +465,6 @@ portal_group_new(struct conf *conf, const char *name)
 void
 portal_group_delete(struct portal_group *pg)
 {
-	struct port *port, *tport;
-
-	TAILQ_FOREACH_SAFE(port, &pg->pg_ports, p_pgs, tport)
-		port_delete(port);
 	TAILQ_REMOVE(&pg->pg_conf->conf_portal_groups, pg, pg_next);
 
 	nvlist_destroy(pg->pg_options);
@@ -625,7 +618,6 @@ isns_do_register(struct isns *isns, int s, const char *hostname)
 	struct conf *conf = isns->i_conf;
 	struct target *target;
 	struct portal_group *pg;
-	struct port *port;
 	uint32_t error;
 
 	isns_req req(ISNS_FUNC_DEVATTRREG, ISNS_FLAG_CLIENT);
@@ -647,8 +639,9 @@ isns_do_register(struct isns *isns, int s, const char *hostname)
 		req.add_32(33, 1); /* 1 -- Target*/
 		if (target->t_alias != NULL)
 			req.add_str(34, target->t_alias);
-		TAILQ_FOREACH(port, &target->t_ports, p_ts) {
-			if ((pg = port->p_portal_group) == NULL)
+		for (const port *port : target->t_ports) {
+			pg = port->portal_group();
+			if (pg == nullptr)
 				continue;
 			req.add_32(51, pg->pg_tag);
 			for (const portal_up &portal : pg->pg_portals) {
@@ -801,12 +794,6 @@ isns_deregister(struct isns *isns)
 	set_timeout(0, false);
 }
 
-pport::~pport()
-{
-	if (pp_port != nullptr)
-		port_delete(pp_port);
-}
-
 bool
 kports::add_port(const char *name, uint32_t ctl_port)
 {
@@ -834,151 +821,129 @@ kports::find_port(std::string_view name)
 	return (&it->second);
 }
 
-struct port *
-port_new(struct conf *conf, struct target *target, struct portal_group *pg)
+port::port(struct target *target) :
+	p_target(target)
 {
-	struct port *port;
-	char *name;
-	int ret;
-
-	ret = asprintf(&name, "%s-%s", pg->pg_name, target->t_name);
-	if (ret <= 0)
-		log_err(1, "asprintf");
-	if (port_find(conf, name) != NULL) {
-		log_warnx("duplicate port \"%s\"", name);
-		free(name);
-		return (NULL);
-	}
-	port = new struct port();
-	port->p_conf = conf;
-	port->p_name = name;
-	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
-	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
-	port->p_target = target;
-	TAILQ_INSERT_TAIL(&pg->pg_ports, port, p_pgs);
-	port->p_portal_group = pg;
-	return (port);
+	target->t_ports.push_back(this);
 }
 
-struct port *
+void
+port::clear_references()
+{
+	p_target->t_ports.remove(this);
+}
+
+portal_group_port::portal_group_port(struct target *target,
+    struct portal_group *pg, auth_group_sp ag) :
+	port(target), p_auth_group(ag), p_portal_group(pg)
+{
+	pg->pg_ports.emplace(target->t_name, this);
+}
+
+portal_group_port::portal_group_port(struct target *target,
+    struct portal_group *pg, uint32_t ctl_port) :
+	port(target), p_portal_group(pg)
+{
+	p_ctl_port = ctl_port;
+	pg->pg_ports.emplace(target->t_name, this);
+}
+
+bool
+portal_group_port::is_dummy() const
+{
+	if (p_portal_group->pg_foreign)
+		return (true);
+	if (p_portal_group->pg_portals.empty())
+		return (true);
+	return (false);
+}
+
+void
+portal_group_port::clear_references()
+{
+	auto it = p_portal_group->pg_ports.find(p_target->t_name);
+	p_portal_group->pg_ports.erase(it);
+	port::clear_references();
+}
+
+bool
+port_new(struct conf *conf, struct target *target, struct portal_group *pg,
+    auth_group_sp ag)
+{
+	std::string name = freebsd::stringf("%s-%s", pg->pg_name,
+	    target->t_name);
+	const auto &pair = conf->conf_ports.try_emplace(name,
+	    std::make_unique<portal_group_port>(target, pg, ag));
+	if (!pair.second) {
+		log_warnx("duplicate port \"%s\"", name.c_str());
+		return (false);
+	}
+
+	return (true);
+}
+
+bool
+port_new(struct conf *conf, struct target *target, struct portal_group *pg,
+    uint32_t ctl_port)
+{
+	std::string name = freebsd::stringf("%s-%s", pg->pg_name,
+	    target->t_name);
+	const auto &pair = conf->conf_ports.try_emplace(name,
+	    std::make_unique<portal_group_port>(target, pg, ctl_port));
+	if (!pair.second) {
+		log_warnx("duplicate port \"%s\"", name.c_str());
+		return (false);
+	}
+
+	return (true);
+}
+
+static bool
+port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
+{
+	std::string name = freebsd::stringf("%s-%s", pp->name(),
+	    target->t_name);
+	const auto &pair = conf->conf_ports.try_emplace(name,
+	    std::make_unique<kernel_port>(target, pp));
+	if (!pair.second) {
+		log_warnx("duplicate port \"%s\"", name.c_str());
+		return (false);
+	}
+
+	pp->link();
+	return (true);
+}
+
+static bool
 port_new_ioctl(struct conf *conf, struct kports &kports, struct target *target,
     int pp, int vp)
 {
 	struct pport *pport;
-	struct port *port;
-	char *pname;
-	char *name;
-	int ret;
 
-	ret = asprintf(&pname, "ioctl/%d/%d", pp, vp);
-	if (ret <= 0) {
-		log_err(1, "asprintf");
-		return (NULL);
-	}
+	std::string pname = freebsd::stringf("ioctl/%d/%d", pp, vp);
 
 	pport = kports.find_port(pname);
-	if (pport != NULL) {
-		free(pname);
+	if (pport != NULL)
 		return (port_new_pp(conf, target, pport));
+
+	std::string name = pname + "-" + target->t_name;
+	const auto &pair = conf->conf_ports.try_emplace(name,
+	    std::make_unique<ioctl_port>(target, pp, vp));
+	if (!pair.second) {
+		log_warnx("duplicate port \"%s\"", name.c_str());
+		return (false);
 	}
 
-	ret = asprintf(&name, "%s-%s", pname, target->t_name);
-	free(pname);
-
-	if (ret <= 0)
-		log_err(1, "asprintf");
-	if (port_find(conf, name) != NULL) {
-		log_warnx("duplicate port \"%s\"", name);
-		free(name);
-		return (NULL);
-	}
-	port = new struct port();
-	port->p_conf = conf;
-	port->p_name = name;
-	port->p_ioctl_port = true;
-	port->p_ioctl_pp = pp;
-	port->p_ioctl_vp = vp;
-	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
-	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
-	port->p_target = target;
-	return (port);
-}
-
-struct port *
-port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
-{
-	struct port *port;
-	char *name;
-	int ret;
-
-	ret = asprintf(&name, "%s-%s", pp->name(), target->t_name);
-	if (ret <= 0)
-		log_err(1, "asprintf");
-	if (port_find(conf, name) != NULL) {
-		log_warnx("duplicate port \"%s\"", name);
-		free(name);
-		return (NULL);
-	}
-	port = new struct port();
-	port->p_conf = conf;
-	port->p_name = name;
-	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
-	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
-	port->p_target = target;
-	pp->link(port);
-	return (port);
-}
-
-struct port *
-port_find(const struct conf *conf, const char *name)
-{
-	struct port *port;
-
-	TAILQ_FOREACH(port, &conf->conf_ports, p_next) {
-		if (strcasecmp(port->p_name, name) == 0)
-			return (port);
-	}
-
-	return (NULL);
+	return (true);
 }
 
 struct port *
 port_find_in_pg(const struct portal_group *pg, const char *target)
 {
-	struct port *port;
-
-	TAILQ_FOREACH(port, &pg->pg_ports, p_pgs) {
-		if (strcasecmp(port->p_target->t_name, target) == 0)
-			return (port);
-	}
-
-	return (NULL);
-}
-
-void
-port_delete(struct port *port)
-{
-
-	if (port->p_portal_group)
-		TAILQ_REMOVE(&port->p_portal_group->pg_ports, port, p_pgs);
-	if (port->p_target)
-		TAILQ_REMOVE(&port->p_target->t_ports, port, p_ts);
-	TAILQ_REMOVE(&port->p_conf->conf_ports, port, p_next);
-	free(port->p_name);
-	free(port);
-}
-
-bool
-port_is_dummy(struct port *port)
-{
-
-	if (port->p_portal_group) {
-		if (port->p_portal_group->pg_foreign)
-			return (true);
-		if (port->p_portal_group->pg_portals.empty())
-			return (true);
-	}
-	return (false);
+	auto it = pg->pg_ports.find(target);
+	if (it == pg->pg_ports.end())
+		return (nullptr);
+	return (it->second);
 }
 
 struct target *
@@ -1006,7 +971,6 @@ target_new(struct conf *conf, const char *name)
 		targ->t_name[i] = tolower(targ->t_name[i]);
 
 	targ->t_conf = conf;
-	TAILQ_INIT(&targ->t_ports);
 	TAILQ_INSERT_TAIL(&conf->conf_targets, targ, t_next);
 
 	return (targ);
@@ -1015,10 +979,6 @@ target_new(struct conf *conf, const char *name)
 void
 target_delete(struct target *targ)
 {
-	struct port *port, *tport;
-
-	TAILQ_FOREACH_SAFE(port, &targ->t_ports, p_ts, tport)
-		port_delete(port);
 	TAILQ_REMOVE(&targ->t_conf->conf_targets, targ, t_next);
 
 	free(targ->t_pport);
@@ -1261,10 +1221,10 @@ conf_verify(struct conf *conf)
 			    "default");
 			assert(targ->t_auth_group != NULL);
 		}
-		if (TAILQ_EMPTY(&targ->t_ports)) {
+		if (targ->t_ports.empty()) {
 			pg = portal_group_find(conf, "default");
 			assert(pg != NULL);
-			port_new(conf, targ, pg);
+			port_new(conf, targ, pg, nullptr);
 		}
 		found = false;
 		for (i = 0; i < MAX_LUNS; i++) {
@@ -1293,14 +1253,14 @@ conf_verify(struct conf *conf)
 			pg->pg_discovery_filter = PG_FILTER_NONE;
 
 		if (pg->pg_redirection != NULL) {
-			if (!TAILQ_EMPTY(&pg->pg_ports)) {
+			if (!pg->pg_ports.empty()) {
 				log_debugx("portal-group \"%s\" assigned "
 				    "to target, but configured "
 				    "for redirection",
 				    pg->pg_name);
 			}
 			pg->pg_unassigned = false;
-		} else if (!TAILQ_EMPTY(&pg->pg_ports)) {
+		} else if (!pg->pg_ports.empty()) {
 			pg->pg_unassigned = false;
 		} else {
 			if (strcmp(pg->pg_name, "default") != 0)
@@ -1453,7 +1413,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 {
 	struct lun *oldlun, *newlun, *tmplun;
 	struct portal_group *oldpg, *newpg;
-	struct port *oldport, *newport, *tmpport;
 	struct isns *oldns, *newns;
 	int changed, cumulated_error = 0, error;
 
@@ -1517,17 +1476,19 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * First, remove any ports present in the old configuration
 	 * and missing in the new one.
 	 */
-	TAILQ_FOREACH_SAFE(oldport, &oldconf->conf_ports, p_next, tmpport) {
-		if (port_is_dummy(oldport))
+	for (const auto &kv : oldconf->conf_ports) {
+		const std::string &name = kv.first;
+		port *oldport = kv.second.get();
+
+		if (oldport->is_dummy())
 			continue;
-		newport = port_find(newconf, oldport->p_name);
-		if (newport != NULL && !port_is_dummy(newport))
+		const auto it = newconf->conf_ports.find(name);
+		if (it != newconf->conf_ports.end() &&
+		    !it->second->is_dummy())
 			continue;
-		log_debugx("removing port \"%s\"", oldport->p_name);
-		error = kernel_port_remove(oldport);
-		if (error != 0) {
-			log_warnx("failed to remove port %s",
-			    oldport->p_name);
+		log_debugx("removing port \"%s\"", name.c_str());
+		if (!oldport->kernel_remove()) {
+			log_warnx("failed to remove port %s", name.c_str());
 			/*
 			 * XXX: Uncomment after fixing the root cause.
 			 *
@@ -1640,30 +1601,46 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	/*
 	 * Now add new ports or modify existing ones.
 	 */
-	TAILQ_FOREACH_SAFE(newport, &newconf->conf_ports, p_next, tmpport) {
-		if (port_is_dummy(newport))
-			continue;
-		oldport = port_find(oldconf, newport->p_name);
+	for (auto it = newconf->conf_ports.begin();
+	     it != newconf->conf_ports.end(); ) {
+		const std::string &name = it->first;
+		port *newport = it->second.get();
 
-		if (oldport == NULL || port_is_dummy(oldport)) {
-			log_debugx("adding port \"%s\"", newport->p_name);
-			error = kernel_port_add(newport);
-		} else {
-			log_debugx("updating port \"%s\"", newport->p_name);
-			newport->p_ctl_port = oldport->p_ctl_port;
-			error = kernel_port_update(newport, oldport);
+		if (newport->is_dummy()) {
+			it++;
+			continue;
 		}
-		if (error != 0) {
-			log_warnx("failed to %s port %s",
-			    (oldport == NULL) ? "add" : "update",
-			    newport->p_name);
-			if (oldport == NULL || port_is_dummy(oldport))
-				port_delete(newport);
-			/*
-			 * XXX: Uncomment after fixing the root cause.
-			 *
-			 * cumulated_error++;
-			 */
+		const auto oldit = oldconf->conf_ports.find(name);
+		if (oldit == oldconf->conf_ports.end() ||
+		    oldit->second->is_dummy()) {
+			log_debugx("adding port \"%s\"", name.c_str());
+			if (!newport->kernel_add()) {
+				log_warnx("failed to add port %s",
+				    name.c_str());
+
+				/*
+				 * XXX: Uncomment after fixing the
+				 * root cause.
+				 *
+				 * cumulated_error++;
+				 */
+
+				/*
+				 * conf "owns" the port, but other
+				 * objects contain pointers to this
+				 * port that must be removed before
+				 * deleting the port.
+				 */
+				newport->clear_references();
+				it = newconf->conf_ports.erase(it);
+			} else
+				it++;
+		} else {
+			log_debugx("updating port \"%s\"", name.c_str());
+			if (!newport->kernel_update(oldit->second.get()))
+				log_warnx("failed to update port %s",
+				    name.c_str());
+			it++;
 		}
 	}
 
@@ -2134,7 +2111,6 @@ new_pports_from_conf(struct conf *conf, struct kports &kports)
 {
 	struct target *targ;
 	struct pport *pp;
-	struct port *tp;
 	int ret, i_pp, i_vp;
 
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
@@ -2143,8 +2119,7 @@ new_pports_from_conf(struct conf *conf, struct kports &kports)
 
 		ret = sscanf(targ->t_pport, "ioctl/%d/%d", &i_pp, &i_vp);
 		if (ret > 0) {
-			tp = port_new_ioctl(conf, kports, targ, i_pp, i_vp);
-			if (tp == NULL) {
+			if (!port_new_ioctl(conf, kports, targ, i_pp, i_vp)) {
 				log_warnx("can't create new ioctl port "
 				    "for target \"%s\"", targ->t_name);
 				return (false);
@@ -2165,8 +2140,7 @@ new_pports_from_conf(struct conf *conf, struct kports &kports)
 			    targ->t_pport, targ->t_name);
 			return (false);
 		}
-		tp = port_new_pp(conf, targ, pp);
-		if (tp == NULL) {
+		if (!port_new_pp(conf, targ, pp)) {
 			log_warnx("can't link port \"%s\" to target \"%s\"",
 			    targ->t_pport, targ->t_name);
 			return (false);

@@ -401,7 +401,6 @@ conf_new_from_kernel(struct kports &kports)
 	struct conf *conf = NULL;
 	struct target *targ;
 	struct portal_group *pg;
-	struct port *cp;
 	struct lun *cl;
 	struct ctl_lun_list list;
 	struct cctl_devlist_data devlist;
@@ -575,12 +574,10 @@ retry_port:
 			}
 		}
 		pg->pg_tag = port->cfiscsi_portal_group_tag;
-		cp = port_new(conf, targ, pg);
-		if (cp == NULL) {
+		if (!port_new(conf, targ, pg, port->port_id)) {
 			log_warnx("port_new failed");
 			continue;
 		}
-		cp->p_ctl_port = port->port_id;
 	}
 	while ((port = STAILQ_FIRST(&devlist.port_list))) {
 		STAILQ_REMOVE_HEAD(&devlist.port_list, links);
@@ -895,100 +892,118 @@ kernel_handoff(struct ctld_connection *conn)
 	}
 }
 
-int
-kernel_port_add(struct port *port)
+static bool
+ctl_create_port(const char *driver, const nvlist_t *nvl, uint32_t *ctl_port)
 {
-	struct ctl_port_entry entry;
 	struct ctl_req req;
-	struct ctl_lun_map lm;
-	struct target *targ = port->p_target;
-	struct portal_group *pg = port->p_portal_group;
 	char result_buf[NVLIST_BUFSIZE];
-	int error, i;
+	int error;
 
-	/* Create iSCSI port. */
-	if (port->p_portal_group || port->p_ioctl_port) {
-		bzero(&req, sizeof(req));
-		req.reqtype = CTL_REQ_CREATE;
+	bzero(&req, sizeof(req));
+	req.reqtype = CTL_REQ_CREATE;
 
-		if (port->p_portal_group) {
-			strlcpy(req.driver, "iscsi", sizeof(req.driver));
-			req.args_nvl = nvlist_clone(pg->pg_options);
-			nvlist_add_string(req.args_nvl, "cfiscsi_target",
-			    targ->t_name);
-			nvlist_add_string(req.args_nvl,
-			    "ctld_portal_group_name", pg->pg_name);
-			nvlist_add_stringf(req.args_nvl,
-			    "cfiscsi_portal_group_tag", "%u", pg->pg_tag);
-
-			if (targ->t_alias) {
-				nvlist_add_string(req.args_nvl,
-				    "cfiscsi_target_alias", targ->t_alias);
-			}
-		}
-
-		if (port->p_ioctl_port) {
-			strlcpy(req.driver, "ioctl", sizeof(req.driver));
-			req.args_nvl = nvlist_create(0);
-			nvlist_add_stringf(req.args_nvl, "pp", "%d",
-			    port->p_ioctl_pp);
-			nvlist_add_stringf(req.args_nvl, "vp", "%d",
-			    port->p_ioctl_vp);
-		}
-
-		req.args = nvlist_pack(req.args_nvl, &req.args_len);
-		if (req.args == NULL) {
-			nvlist_destroy(req.args_nvl);
-			log_warn("error packing nvlist");
-			return (1);
-		}
-
-		req.result = result_buf;
-		req.result_len = sizeof(result_buf);
-		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
-		free(req.args);
-		nvlist_destroy(req.args_nvl);
-
-		if (error != 0) {
-			log_warn("error issuing CTL_PORT_REQ ioctl");
-			return (1);
-		}
-		if (req.status == CTL_LUN_ERROR) {
-			log_warnx("error returned from port creation request: %s",
-			    req.error_str);
-			return (1);
-		}
-		if (req.status != CTL_LUN_OK) {
-			log_warnx("unknown port creation request status %d",
-			    req.status);
-			return (1);
-		}
-
-		req.result_nvl = nvlist_unpack(result_buf, req.result_len, 0);
-		if (req.result_nvl == NULL) {
-			log_warnx("error unpacking result nvlist");
-			return (1);
-		}
-
-		port->p_ctl_port = nvlist_get_number(req.result_nvl, "port_id");
-		nvlist_destroy(req.result_nvl);
-	} else if (port->p_pport) {
-		port->p_ctl_port = port->p_pport->ctl_port();
-
-		if (strncmp(targ->t_name, "naa.", 4) == 0 &&
-		    strlen(targ->t_name) == 20) {
-			bzero(&entry, sizeof(entry));
-			entry.port_type = CTL_PORT_NONE;
-			entry.targ_port = port->p_ctl_port;
-			entry.flags |= CTL_PORT_WWNN_VALID;
-			entry.wwnn = strtoull(targ->t_name + 4, NULL, 16);
-			if (ioctl(ctl_fd, CTL_SET_PORT_WWNS, &entry) == -1)
-				log_warn("CTL_SET_PORT_WWNS ioctl failed");
-		}
+	strlcpy(req.driver, driver, sizeof(req.driver));
+	req.args = nvlist_pack(nvl, &req.args_len);
+	if (req.args == NULL) {
+		log_warn("error packing nvlist");
+		return (false);
 	}
 
+	req.result = result_buf;
+	req.result_len = sizeof(result_buf);
+	error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
+	free(req.args);
+
+	if (error != 0) {
+		log_warn("error issuing CTL_PORT_REQ ioctl");
+		return (false);
+	}
+	if (req.status == CTL_LUN_ERROR) {
+		log_warnx("error returned from port creation request: %s",
+		    req.error_str);
+		return (false);
+	}
+	if (req.status != CTL_LUN_OK) {
+		log_warnx("unknown port creation request status %d",
+		    req.status);
+		return (false);
+	}
+
+	freebsd::nvlist_up result_nvl(nvlist_unpack(result_buf, req.result_len,
+	    0));
+	if (result_nvl == NULL) {
+		log_warnx("error unpacking result nvlist");
+		return (false);
+	}
+
+	*ctl_port = nvlist_get_number(result_nvl.get(), "port_id");
+	return (true);
+}
+
+bool
+portal_group_port::kernel_create_port()
+{
+	struct portal_group *pg = p_portal_group;
+	struct target *targ = p_target;
+
+	freebsd::nvlist_up nvl(nvlist_clone(pg->pg_options));
+	nvlist_add_string(nvl.get(), "cfiscsi_target", targ->t_name);
+	nvlist_add_string(nvl.get(), "ctld_portal_group_name", pg->pg_name);
+	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
+	    pg->pg_tag);
+
+	if (targ->t_alias) {
+		nvlist_add_string(nvl.get(), "cfiscsi_target_alias",
+		    targ->t_alias);
+	}
+
+	return (ctl_create_port("iscsi", nvl.get(), &p_ctl_port));
+}
+
+bool
+ioctl_port::kernel_create_port()
+{
+	freebsd::nvlist_up nvl(nvlist_create(0));
+	nvlist_add_stringf(nvl.get(), "pp", "%d", p_ioctl_pp);
+	nvlist_add_stringf(nvl.get(), "vp", "%d", p_ioctl_vp);
+
+	return (ctl_create_port("ioctl", nvl.get(), &p_ctl_port));
+}
+
+bool
+kernel_port::kernel_create_port()
+{
+	struct ctl_port_entry entry;
+	struct target *targ = p_target;
+
+	p_ctl_port = p_pport->ctl_port();
+
+	if (strncmp(targ->t_name, "naa.", 4) == 0 &&
+	    strlen(targ->t_name) == 20) {
+		bzero(&entry, sizeof(entry));
+		entry.port_type = CTL_PORT_NONE;
+		entry.targ_port = p_ctl_port;
+		entry.flags |= CTL_PORT_WWNN_VALID;
+		entry.wwnn = strtoull(targ->t_name + 4, NULL, 16);
+		if (ioctl(ctl_fd, CTL_SET_PORT_WWNS, &entry) == -1)
+			log_warn("CTL_SET_PORT_WWNS ioctl failed");
+	}
+	return (true);
+}
+
+bool
+port::kernel_add()
+{
+	struct ctl_port_entry entry;
+	struct ctl_lun_map lm;
+	struct target *targ = p_target;
+	int error, i;
+
+	if (!kernel_create_port())
+		return (false);
+
 	/* Explicitly enable mapping to block any access except allowed. */
-	lm.port = port->p_ctl_port;
+	lm.port = p_ctl_port;
 	lm.plun = UINT32_MAX;
 	lm.lun = 0;
 	error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
@@ -999,7 +1014,7 @@ kernel_port_add(struct port *port)
 	for (i = 0; i < MAX_LUNS; i++) {
 		if (targ->t_luns[i] == NULL)
 			continue;
-		lm.port = port->p_ctl_port;
+		lm.port = p_ctl_port;
 		lm.plun = i;
 		lm.lun = targ->t_luns[i]->l_ctl_lun;
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
@@ -1009,28 +1024,30 @@ kernel_port_add(struct port *port)
 
 	/* Enable port */
 	bzero(&entry, sizeof(entry));
-	entry.targ_port = port->p_ctl_port;
+	entry.targ_port = p_ctl_port;
 	error = ioctl(ctl_fd, CTL_ENABLE_PORT, &entry);
 	if (error != 0) {
 		log_warn("CTL_ENABLE_PORT ioctl failed");
-		return (-1);
+		return (false);
 	}
 
-	return (0);
+	return (true);
 }
 
-int
-kernel_port_update(struct port *port, struct port *oport)
+bool
+port::kernel_update(const struct port *oport)
 {
 	struct ctl_lun_map lm;
-	struct target *targ = port->p_target;
+	struct target *targ = p_target;
 	struct target *otarg = oport->p_target;
 	int error, i;
 	uint32_t olun;
 
+	p_ctl_port = oport->p_ctl_port;
+
 	/* Map configured LUNs and unmap others */
 	for (i = 0; i < MAX_LUNS; i++) {
-		lm.port = port->p_ctl_port;
+		lm.port = p_ctl_port;
 		lm.plun = i;
 		if (targ->t_luns[i] == NULL)
 			lm.lun = UINT32_MAX;
@@ -1046,83 +1063,94 @@ kernel_port_update(struct port *port, struct port *oport)
 		if (error != 0)
 			log_warn("CTL_LUN_MAP ioctl failed");
 	}
-	return (0);
+	return (true);
 }
 
-int
-kernel_port_remove(struct port *port)
+bool
+ctl_remove_port(const char *driver, nvlist_t *nvl)
+{
+	struct ctl_req req;
+	int error;
+
+	strlcpy(req.driver, driver, sizeof(req.driver));
+	req.reqtype = CTL_REQ_REMOVE;
+	req.args = nvlist_pack(nvl, &req.args_len);
+	if (req.args == NULL) {
+		log_warn("error packing nvlist");
+		return (false);
+	}
+
+	error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
+	free(req.args);
+
+	if (error != 0) {
+		log_warn("error issuing CTL_PORT_REQ ioctl");
+		return (false);
+	}
+	if (req.status == CTL_LUN_ERROR) {
+		log_warnx("error returned from port removal request: %s",
+		    req.error_str);
+		return (false);
+	}
+	if (req.status != CTL_LUN_OK) {
+		log_warnx("unknown port removal request status %d", req.status);
+		return (false);
+	}
+	return (true);
+}
+
+bool
+portal_group_port::kernel_remove_port()
+{
+	freebsd::nvlist_up nvl(nvlist_create(0));
+	nvlist_add_string(nvl.get(), "cfiscsi_target", p_target->t_name);
+	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
+	    p_portal_group->pg_tag);
+
+	return (ctl_remove_port("iscsi", nvl.get()));
+}
+
+bool
+ioctl_port::kernel_remove_port()
+{
+	freebsd::nvlist_up nvl(nvlist_create(0));
+	nvlist_add_stringf(nvl.get(), "port_id", "%d", p_ctl_port);
+
+	return (ctl_remove_port("ioctl", nvl.get()));
+}
+
+bool
+kernel_port::kernel_remove_port()
+{
+	struct ctl_lun_map lm;
+	int error;
+
+	/* Disable LUN mapping. */
+	lm.port = p_ctl_port;
+	lm.plun = UINT32_MAX;
+	lm.lun = UINT32_MAX;
+	error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+	if (error != 0)
+		log_warn("CTL_LUN_MAP ioctl failed");
+	return (true);
+}
+
+bool
+port::kernel_remove()
 {
 	struct ctl_port_entry entry;
-	struct ctl_lun_map lm;
-	struct ctl_req req;
-	struct target *targ = port->p_target;
-	struct portal_group *pg = port->p_portal_group;
 	int error;
 
 	/* Disable port */
 	bzero(&entry, sizeof(entry));
-	entry.targ_port = port->p_ctl_port;
+	entry.targ_port = p_ctl_port;
 	error = ioctl(ctl_fd, CTL_DISABLE_PORT, &entry);
 	if (error != 0) {
 		log_warn("CTL_DISABLE_PORT ioctl failed");
-		return (-1);
+		return (false);
 	}
 
-	/* Remove iSCSI or ioctl port. */
-	if (port->p_portal_group || port->p_ioctl_port) {
-		bzero(&req, sizeof(req));
-		strlcpy(req.driver, port->p_ioctl_port ? "ioctl" : "iscsi",
-		    sizeof(req.driver));
-		req.reqtype = CTL_REQ_REMOVE;
-		req.args_nvl = nvlist_create(0);
-		if (req.args_nvl == NULL)
-			log_err(1, "nvlist_create");
-
-		if (port->p_ioctl_port)
-			nvlist_add_stringf(req.args_nvl, "port_id", "%d",
-			    port->p_ctl_port);
-		else {
-			nvlist_add_string(req.args_nvl, "cfiscsi_target",
-			    targ->t_name);
-			nvlist_add_stringf(req.args_nvl,
-			    "cfiscsi_portal_group_tag", "%u", pg->pg_tag);
-		}
-
-		req.args = nvlist_pack(req.args_nvl, &req.args_len);
-		if (req.args == NULL) {
-			nvlist_destroy(req.args_nvl);
-			log_warn("error packing nvlist");
-			return (1);
-		}
-
-		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
-		free(req.args);
-		nvlist_destroy(req.args_nvl);
-
-		if (error != 0) {
-			log_warn("error issuing CTL_PORT_REQ ioctl");
-			return (1);
-		}
-		if (req.status == CTL_LUN_ERROR) {
-			log_warnx("error returned from port removal request: %s",
-			    req.error_str);
-			return (1);
-		}
-		if (req.status != CTL_LUN_OK) {
-			log_warnx("unknown port removal request status %d",
-			    req.status);
-			return (1);
-		}
-	} else {
-		/* Disable LUN mapping. */
-		lm.port = port->p_ctl_port;
-		lm.plun = UINT32_MAX;
-		lm.lun = UINT32_MAX;
-		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
-		if (error != 0)
-			log_warn("CTL_LUN_MAP ioctl failed");
-	}
-	return (0);
+	return (kernel_remove_port());
 }
 
 #ifdef ICL_KERNEL_PROXY
