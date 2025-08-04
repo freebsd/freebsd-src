@@ -28,8 +28,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef CTLD_H
-#define	CTLD_H
+#ifndef __CTLD_HH__
+#define	__CTLD_HH__
 
 #include <sys/_nv.h>
 #include <sys/queue.h>
@@ -359,4 +359,4 @@ void			discovery(struct ctld_connection *conn);
 
 void			set_timeout(int timeout, int fatal);
 
-#endif /* !CTLD_H */
+#endif /* !__CTLD_HH__ */

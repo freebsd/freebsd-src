@@ -40,7 +40,7 @@
 #include <cam/scsi/scsi_all.h>
 
 #include "conf.h"
-#include "ctld.h"
+#include "ctld.hh"
 
 static struct conf *conf = NULL;
 static struct auth_group *auth_group = NULL;
