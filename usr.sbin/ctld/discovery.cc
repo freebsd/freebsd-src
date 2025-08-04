@@ -102,18 +102,17 @@ static void
 discovery_add_target(struct keys *response_keys, const struct target *targ)
 {
 	struct port *port;
-	struct portal *portal;
 	char *buf;
 	char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-	struct addrinfo *ai;
+	const struct addrinfo *ai;
 	int ret;
 
 	keys_add(response_keys, "TargetName", targ->t_name);
 	TAILQ_FOREACH(port, &targ->t_ports, p_ts) {
 	    if (port->p_portal_group == NULL)
 		continue;
-	    TAILQ_FOREACH(portal, &port->p_portal_group->pg_portals, p_next) {
-		ai = portal->p_ai;
+	    for (portal_up &portal : port->p_portal_group->pg_portals) {
+		ai = portal->ai();
 		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
 		    hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
 		    NI_NUMERICHOST | NI_NUMERICSERV);
@@ -159,7 +158,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	ag = port->p_auth_group.get();
 	if (ag == nullptr)
 		ag = targ->t_auth_group.get();
-	pg = conn->conn_portal->p_portal_group;
+	pg = conn->conn_portal->portal_group();
 
 	assert(pg->pg_discovery_filter != PG_FILTER_UNKNOWN);
 
@@ -217,7 +216,7 @@ discovery(struct ctld_connection *conn)
 	const struct portal_group *pg;
 	const char *send_targets;
 
-	pg = conn->conn_portal->p_portal_group;
+	pg = conn->conn_portal->portal_group();
 
 	log_debugx("beginning discovery session; waiting for TextRequest PDU");
 	request_keys = text_read_request(&conn->conn, &request);

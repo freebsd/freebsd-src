@@ -47,6 +47,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <libutil++.hh>
 
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
@@ -126,18 +127,30 @@ private:
 using auth_group_sp = std::shared_ptr<auth_group>;
 
 struct portal {
-	TAILQ_ENTRY(portal)		p_next;
-	struct portal_group		*p_portal_group;
-	bool				p_iser;
-	char				*p_listen;
-	struct addrinfo			*p_ai;
-#ifdef ICL_KERNEL_PROXY
-	int				p_id;
-#endif
+	portal(struct portal_group *pg, std::string_view listen, bool iser,
+	    freebsd::addrinfo_up ai) :
+		p_portal_group(pg), p_listen(listen), p_ai(std::move(ai)),
+		p_iser(iser) {}
 
-	TAILQ_HEAD(, target)		p_targets;
-	int				p_socket;
+	bool reuse_socket(portal &oldp);
+	bool init_socket();
+
+	portal_group *portal_group() { return p_portal_group; }
+	const char *listen() const { return p_listen.c_str(); }
+	const addrinfo *ai() const { return p_ai.get(); }
+	int socket() const { return p_socket; }
+	void close() { p_socket.reset(); }
+
+private:
+	struct portal_group		*p_portal_group;
+	std::string			p_listen;
+	freebsd::addrinfo_up		p_ai;
+	bool				p_iser;
+
+	freebsd::fd_up			p_socket;
 };
+
+using portal_up = std::unique_ptr<portal>;
 
 #define	PG_FILTER_UNKNOWN		0
 #define	PG_FILTER_NONE			1
@@ -154,7 +167,7 @@ struct portal_group {
 	int				pg_discovery_filter = PG_FILTER_UNKNOWN;
 	bool				pg_foreign = false;
 	bool				pg_unassigned = false;
-	TAILQ_HEAD(, portal)		pg_portals;
+	std::list<portal_up>	        pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
 	char				*pg_offload = nullptr;
 	char				*pg_redirection = nullptr;
@@ -244,14 +257,18 @@ struct conf {
 	int				conf_timeout;
 	int				conf_maxproc;
 
-#ifdef ICL_KERNEL_PROXY
-	int				conf_portal_id = 0;
-#endif
 	struct pidfh			*conf_pidfh = nullptr;
 
 	bool				conf_default_pg_defined = false;
 	bool				conf_default_ag_defined = false;
 	bool				conf_kernel_port_on = false;
+
+#ifdef ICL_KERNEL_PROXY
+	int add_proxy_portal(portal *);
+	portal *proxy_portal(int);
+private:
+	std::vector<portal *>		conf_proxy_portals;
+#endif
 };
 
 /* Physical ports exposed by the kernel */
