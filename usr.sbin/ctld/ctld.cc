@@ -1753,22 +1753,18 @@ pdu_fail(const struct connection *conn __unused, const char *reason __unused)
 {
 }
 
-static struct ctld_connection *
-connection_new(struct portal *portal, int fd, const char *host,
-    const struct sockaddr *client_sa)
+ctld_connection::ctld_connection(struct portal *portal, int fd,
+    const char *host, const struct sockaddr *client_sa) :
+	conn_portal(portal), conn_initiator_addr(host),
+	conn_initiator_sa(client_sa)
 {
-	struct ctld_connection *conn;
+	connection_init(&conn, &conn_ops, proxy_mode);
+	conn.conn_socket = fd;
+}
 
-	conn = reinterpret_cast<struct ctld_connection *>(calloc(1, sizeof(*conn)));
-	if (conn == NULL)
-		log_err(1, "calloc");
-	connection_init(&conn->conn, &conn_ops, proxy_mode);
-	conn->conn.conn_socket = fd;
-	conn->conn_portal = portal;
-	conn->conn_initiator_addr = checked_strdup(host);
-	conn->conn_initiator_sa = client_sa;
-
-	return (conn);
+ctld_connection::~ctld_connection()
+{
+	chap_delete(conn_chap);
 }
 
 bool
@@ -2349,7 +2345,6 @@ static void
 handle_connection(struct portal *portal, int fd,
     const struct sockaddr *client_sa, bool dont_fork)
 {
-	struct ctld_connection *conn;
 	struct portal_group *pg;
 	int error;
 	pid_t pid;
@@ -2395,16 +2390,16 @@ handle_connection(struct portal *portal, int fd,
 	log_set_peer_addr(host);
 	setproctitle("%s", host);
 
-	conn = connection_new(portal, fd, host, client_sa);
+	ctld_connection conn(portal, fd, host, client_sa);
 	start_timer(conf->timeout(), true);
 	kernel_capsicate();
-	login(conn);
-	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		kernel_handoff(conn);
+	conn.login();
+	if (conn.session_type() == CONN_SESSION_TYPE_NORMAL) {
+		conn.kernel_handoff();
 		log_debugx("connection handed off to the kernel");
 	} else {
-		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
-		discovery(conn);
+		assert(conn.session_type() == CONN_SESSION_TYPE_DISCOVERY);
+		conn.discovery();
 	}
 	log_debugx("nothing more to do; exiting");
 	exit(0);

@@ -144,9 +144,8 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 	}
 }
 
-static bool
-discovery_target_filtered_out(const struct ctld_connection *conn,
-    const struct port *port)
+bool
+ctld_connection::discovery_target_filtered_out(const struct port *port) const
 {
 	const struct auth_group *ag;
 	const struct portal_group *pg;
@@ -158,19 +157,19 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	ag = port->auth_group();
 	if (ag == nullptr)
 		ag = targ->auth_group();
-	pg = conn->conn_portal->portal_group();
+	pg = conn_portal->portal_group();
 
 	assert(pg->discovery_filter() != discovery_filter::UNKNOWN);
 
 	if (pg->discovery_filter() >= discovery_filter::PORTAL &&
-	    !ag->initiator_permitted(conn->conn_initiator_sa)) {
+	    !ag->initiator_permitted(conn_initiator_sa)) {
 		log_debugx("initiator does not match initiator portals "
 		    "allowed for target \"%s\"; skipping", targ->name());
 		return (true);
 	}
 
 	if (pg->discovery_filter() >= discovery_filter::PORTAL_NAME &&
-	    !ag->initiator_permitted(conn->conn_initiator_name)) {
+	    !ag->initiator_permitted(conn_initiator_name)) {
 		log_debugx("initiator does not match initiator names "
 		    "allowed for target \"%s\"; skipping", targ->name());
 		return (true);
@@ -178,7 +177,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 
 	if (pg->discovery_filter() >= discovery_filter::PORTAL_NAME_AUTH &&
 	    ag->type() != auth_type::NO_AUTHENTICATION) {
-		if (conn->conn_chap == NULL) {
+		if (conn_chap == nullptr) {
 			assert(pg->discovery_auth_group()->type() ==
 			    auth_type::NO_AUTHENTICATION);
 
@@ -187,19 +186,20 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 			return (true);
 		}
 
-		assert(conn->conn_user != NULL);
-		auth = ag->find_auth(conn->conn_user);
+		assert(!conn_user.empty());
+		auth = ag->find_auth(conn_user);
 		if (auth == NULL) {
 			log_debugx("CHAP user \"%s\" doesn't match target "
-			    "\"%s\"; skipping", conn->conn_user, targ->name());
+			    "\"%s\"; skipping", conn_user.c_str(),
+			    targ->name());
 			return (true);
 		}
 
-		error = chap_authenticate(conn->conn_chap, auth->secret());
+		error = chap_authenticate(conn_chap, auth->secret());
 		if (error != 0) {
 			log_debugx("password for CHAP user \"%s\" doesn't "
 			    "match target \"%s\"; skipping",
-			    conn->conn_user, targ->name());
+			    conn_user.c_str(), targ->name());
 			return (true);
 		}
 	}
@@ -208,7 +208,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 }
 
 void
-discovery(struct ctld_connection *conn)
+ctld_connection::discovery()
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
@@ -216,10 +216,10 @@ discovery(struct ctld_connection *conn)
 	const struct portal_group *pg;
 	const char *send_targets;
 
-	pg = conn->conn_portal->portal_group();
+	pg = conn_portal->portal_group();
 
 	log_debugx("beginning discovery session; waiting for TextRequest PDU");
-	request_keys = text_read_request(&conn->conn, &request);
+	request_keys = text_read_request(&conn, &request);
 
 	send_targets = keys_find(request_keys, "SendTargets");
 	if (send_targets == NULL)
@@ -230,7 +230,7 @@ discovery(struct ctld_connection *conn)
 	if (strcmp(send_targets, "All") == 0) {
 		for (const auto &kv : pg->ports()) {
 			port = kv.second;
-			if (discovery_target_filtered_out(conn, port)) {
+			if (discovery_target_filtered_out(port)) {
 				/* Ignore this target. */
 				continue;
 			}
@@ -242,7 +242,7 @@ discovery(struct ctld_connection *conn)
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
 		} else {
-			if (discovery_target_filtered_out(conn, port)) {
+			if (discovery_target_filtered_out(port)) {
 				/* Ignore this target. */
 			} else {
 				discovery_add_target(response_keys,
@@ -257,7 +257,7 @@ discovery(struct ctld_connection *conn)
 	keys_delete(request_keys);
 
 	log_debugx("done sending targets; waiting for Logout PDU");
-	request = logout_receive(&conn->conn);
+	request = logout_receive(&conn);
 	response = logout_new_response(request);
 
 	pdu_send(response);
