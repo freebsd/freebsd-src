@@ -8,6 +8,7 @@
 #ifndef __LIBUTILPP_HH__
 #define	__LIBUTILPP_HH__
 
+#include <sys/nv.h>
 #include <netdb.h>
 #include <unistd.h>
 
@@ -130,6 +131,19 @@ namespace freebsd {
 
 	template <class T>
 	using malloc_up = std::unique_ptr<T, free_deleter<T>>;
+
+	/*
+	 * nvlist_up is a std::unique_ptr<> for nvlist_t objects which
+	 * uses nvlist_destroy() to destroy the wrapped pointer.
+	 */
+	struct nvlist_deleter {
+		void operator() (nvlist_t *nvl) const
+		{
+			nvlist_destroy(nvl);
+		}
+	};
+
+	using nvlist_up = std::unique_ptr<nvlist_t, nvlist_deleter>;
 
 	/*
 	 * Returns a std::string containing the same output as
