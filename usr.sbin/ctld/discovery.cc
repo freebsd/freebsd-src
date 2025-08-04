@@ -196,7 +196,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 			return (true);
 		}
 
-		error = chap_authenticate(conn->conn_chap, auth->a_secret);
+		error = chap_authenticate(conn->conn_chap, auth->secret());
 		if (error != 0) {
 			log_debugx("password for CHAP user \"%s\" doesn't "
 			    "match target \"%s\"; skipping",
