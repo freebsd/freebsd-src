@@ -48,11 +48,6 @@ CFLAGS+=-I${KRB5_DIR}/lib \
 	-I${KRB5_DIR}/lib/gssapi/generic
 CWARNFLAGS.gcc+=-Wno-alloc-size-larger-than
 
-HDRDIR=	${KRB5_OBJHDR}/kadm5
-HDRS=	${HDRDIR}/admin.h \
-	${HDRDIR}/chpass_util_strings.h \
-	${HDRDIR}/kadm_err.h
-
 GEN_KADM_ERR=	kadm_err.et
 GEN_KADM_ERR_C=	${GEN_KADM_ERR:S/.et$/.c/}
 GEN_KADM_ERR_H=	${GEN_KADM_ERR:S/.et$/.h/}
