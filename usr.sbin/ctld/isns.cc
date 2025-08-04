@@ -41,8 +41,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "ctld.h"
-#include "isns.h"
+#include "ctld.hh"
+#include "isns.hh"
 
 struct isns_req *
 isns_req_alloc(void)

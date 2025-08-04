@@ -69,7 +69,7 @@
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 
-#include "ctld.h"
+#include "ctld.hh"
 
 #ifdef ICL_KERNEL_PROXY
 #include <netdb.h>

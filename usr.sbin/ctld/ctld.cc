@@ -53,8 +53,8 @@
 #include <cam/scsi/scsi_all.h>
 
 #include "conf.h"
-#include "ctld.h"
-#include "isns.h"
+#include "ctld.hh"
+#include "isns.hh"
 
 static bool	timed_out(void);
 #ifdef ICL_KERNEL_PROXY
