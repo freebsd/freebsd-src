@@ -515,13 +515,13 @@ target_finish(void)
 	target = NULL;
 }
 
-bool
-target_add_chap(const char *user, const char *secret)
+static bool
+target_use_private_auth(const char *keyword)
 {
 	if (target->t_auth_group != NULL) {
 		if (target->t_auth_group->ag_name != NULL) {
 			log_warnx("cannot use both auth-group and "
-			    "chap for target \"%s\"", target->t_name);
+			    "%s for target \"%s\"", keyword, target->t_name);
 			return (false);
 		}
 	} else {
@@ -529,6 +529,14 @@ target_add_chap(const char *user, const char *secret)
 		if (target->t_auth_group == NULL)
 			return (false);
 	}
+	return (true);
+}
+
+bool
+target_add_chap(const char *user, const char *secret)
+{
+	if (!target_use_private_auth("chap"))
+		return (false);
 	return (auth_new_chap(target->t_auth_group, user, secret));
 }
 
@@ -536,17 +544,8 @@ bool
 target_add_chap_mutual(const char *user, const char *secret,
     const char *user2, const char *secret2)
 {
-	if (target->t_auth_group != NULL) {
-		if (target->t_auth_group->ag_name != NULL) {
-			log_warnx("cannot use both auth-group and "
-			    "chap-mutual for target \"%s\"", target->t_name);
-			return (false);
-		}
-	} else {
-		target->t_auth_group = auth_group_new(conf, target);
-		if (target->t_auth_group == NULL)
-			return (false);
-	}
+	if (!target_use_private_auth("chap-mutual"))
+		return (false);
 	return (auth_new_chap_mutual(target->t_auth_group, user, secret, user2,
 	    secret2));
 }
@@ -554,35 +553,16 @@ target_add_chap_mutual(const char *user, const char *secret,
 bool
 target_add_initiator_name(const char *name)
 {
-	if (target->t_auth_group != NULL) {
-		if (target->t_auth_group->ag_name != NULL) {
-			log_warnx("cannot use both auth-group and "
-			    "initiator-name for target \"%s\"", target->t_name);
-			return (false);
-		}
-	} else {
-		target->t_auth_group = auth_group_new(conf, target);
-		if (target->t_auth_group == NULL)
-			return (false);
-	}
+	if (!target_use_private_auth("initiator-name"))
+		return (false);
 	return (auth_name_new(target->t_auth_group, name));
 }
 
 bool
 target_add_initiator_portal(const char *addr)
 {
-	if (target->t_auth_group != NULL) {
-		if (target->t_auth_group->ag_name != NULL) {
-			log_warnx("cannot use both auth-group and "
-			    "initiator-portal for target \"%s\"",
-			    target->t_name);
-			return (false);
-		}
-	} else {
-		target->t_auth_group = auth_group_new(conf, target);
-		if (target->t_auth_group == NULL)
-			return (false);
-	}
+	if (!target_use_private_auth("initiator-portal"))
+		return (false);
 	return (auth_portal_new(target->t_auth_group, addr));
 }
 
@@ -684,17 +664,8 @@ target_set_auth_group(const char *name)
 bool
 target_set_auth_type(const char *type)
 {
-	if (target->t_auth_group != NULL) {
-		if (target->t_auth_group->ag_name != NULL) {
-			log_warnx("cannot use both auth-group and "
-			    "auth-type for target \"%s\"", target->t_name);
-			return (false);
-		}
-	} else {
-		target->t_auth_group = auth_group_new(conf, target);
-		if (target->t_auth_group == NULL)
-			return (false);
-	}
+	if (!target_use_private_auth("auth-type"))
+		return (false);
 	return (_auth_group_set_type(target->t_auth_group, type));
 }
 
