@@ -57,6 +57,7 @@
 #define	MAX_LUNS			1024
 #define	SOCKBUF_SIZE			1048576
 
+struct isns_req;
 struct port;
 
 struct auth {
@@ -333,10 +334,17 @@ struct target {
 };
 
 struct isns {
-	TAILQ_ENTRY(isns)		i_next;
-	struct conf			*i_conf;
-	char				*i_addr;
-	struct addrinfo			*i_ai;
+	isns(std::string_view addr, freebsd::addrinfo_up ai) :
+		i_addr(addr), i_ai(std::move(ai)) {}
+
+	const char *addr() const { return i_addr.c_str(); }
+
+	freebsd::fd_up connect();
+	bool send_request(int s, struct isns_req req);
+
+private:
+	std::string			i_addr;
+	freebsd::addrinfo_up		i_ai;
 };
 
 struct conf {
@@ -348,7 +356,7 @@ struct conf {
 	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
 	std::unordered_map<std::string, std::unique_ptr<port>> conf_ports;
 	std::unordered_map<std::string, portal_group_up> conf_portal_groups;
-	TAILQ_HEAD(, isns)		conf_isns;
+	std::unordered_map<std::string, isns> conf_isns;
 	int				conf_isns_period;
 	int				conf_isns_timeout;
 	int				conf_debug;
@@ -439,10 +447,11 @@ struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 struct portal_group	*portal_group_find(struct conf *conf, const char *name);
 
 bool			isns_new(struct conf *conf, const char *addr);
-void			isns_delete(struct isns *is);
-void			isns_register(struct isns *isns, struct isns *oldisns);
-void			isns_check(struct isns *isns);
-void			isns_deregister(struct isns *isns);
+void			isns_check(struct conf *conf, struct isns *isns);
+void			isns_deregister_targets(struct conf *conf,
+			    struct isns *isns);
+void			isns_register_targets(struct conf *conf,
+			    struct isns *isns, struct conf *oldconf);
 
 bool			port_new(struct conf *conf, struct target *target,
 			    struct portal_group *pg, auth_group_sp ag);
