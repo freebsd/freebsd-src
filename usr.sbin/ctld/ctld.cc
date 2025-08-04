@@ -506,51 +506,41 @@ portal_group_find(const struct conf *conf, const char *name)
 	return (NULL);
 }
 
-static int
-parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
+static freebsd::addrinfo_up
+parse_addr_port(const char *address, const char *def_port)
 {
-	struct addrinfo hints;
-	char *str, *addr, *ch;
-	const char *port;
-	int error, colons = 0;
+	struct addrinfo hints, *ai;
+	int error;
 
-	str = arg = strdup(arg);
-	if (arg[0] == '[') {
+	std::string addr(address);
+	std::string port(def_port);
+	if (addr[0] == '[') {
 		/*
 		 * IPv6 address in square brackets, perhaps with port.
 		 */
-		arg++;
-		addr = strsep(&arg, "]");
-		if (arg == NULL) {
-			free(str);
-			return (1);
+		addr.erase(0, 1);
+		size_t pos = addr.find(']');
+		if (pos == 0 || pos == addr.npos)
+			return {};
+		if (pos < addr.length() - 1) {
+			port = addr.substr(pos + 1);
+			if (port[0] != ':' || port.length() < 2)
+				return {};
+			port.erase(0, 1);
 		}
-		if (arg[0] == '\0') {
-			port = def_port;
-		} else if (arg[0] == ':') {
-			port = arg + 1;
-		} else {
-			free(str);
-			return (1);
-		}
+		addr.resize(pos);
 	} else {
 		/*
 		 * Either IPv6 address without brackets - and without
 		 * a port - or IPv4 address.  Just count the colons.
 		 */
-		for (ch = arg; *ch != '\0'; ch++) {
-			if (*ch == ':')
-				colons++;
-		}
-		if (colons > 1) {
-			addr = arg;
-			port = def_port;
-		} else {
-			addr = strsep(&arg, ":");
-			if (arg == NULL)
-				port = def_port;
-			else
-				port = arg;
+		size_t pos = addr.find(':');
+		if (pos != addr.npos && addr.find(':', pos + 1) == addr.npos) {
+			/* Only a single colon at `pos`. */
+			if (pos == addr.length() - 1)
+				return {};
+			port = addr.substr(pos + 1);
+			addr.resize(pos);
 		}
 	}
 
@@ -558,9 +548,10 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	error = getaddrinfo(addr, port, &hints, ai);
-	free(str);
-	return ((error != 0) ? 1 : 0);
+	error = getaddrinfo(addr.c_str(), port.c_str(), &hints, &ai);
+	if (error != 0)
+		return {};
+	return freebsd::addrinfo_up(ai);
 }
 
 bool
@@ -572,7 +563,8 @@ portal_group_add_portal(struct portal_group *pg, const char *value, bool iser)
 	portal->p_listen = checked_strdup(value);
 	portal->p_iser = iser;
 
-	if (parse_addr_port(portal->p_listen, "3260", &portal->p_ai)) {
+	freebsd::addrinfo_up ai = parse_addr_port(portal->p_listen, "3260");
+	if (!ai) {
 		log_warnx("invalid listen address %s", portal->p_listen);
 		portal_delete(portal);
 		return (false);
@@ -583,6 +575,7 @@ portal_group_add_portal(struct portal_group *pg, const char *value, bool iser)
 	 *	those into multiple portals.
 	 */
 
+	portal->p_ai = ai.release();
 	return (true);
 }
 
@@ -598,7 +591,8 @@ isns_new(struct conf *conf, const char *addr)
 	TAILQ_INSERT_TAIL(&conf->conf_isns, isns, i_next);
 	isns->i_addr = checked_strdup(addr);
 
-	if (parse_addr_port(isns->i_addr, "3205", &isns->i_ai)) {
+	freebsd::addrinfo_up ai = parse_addr_port(isns->i_addr, "3205");
+	if (!ai) {
 		log_warnx("invalid iSNS address %s", isns->i_addr);
 		isns_delete(isns);
 		return (false);
@@ -609,6 +603,7 @@ isns_new(struct conf *conf, const char *addr)
 	 *	those into multiple servers.
 	 */
 
+	isns->i_ai = ai.release();
 	return (true);
 }
 
