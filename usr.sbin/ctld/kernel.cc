@@ -46,7 +46,6 @@
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <sys/nv.h>
 #include <sys/stat.h>
 #include <assert.h>
 #include <bsdxml.h>
@@ -109,42 +108,40 @@ kernel_init(void)
 /*
  * Backend LUN information.
  */
+using attr_list = std::list<std::pair<std::string, std::string>>;
+
 struct cctl_lun {
 	uint64_t lun_id;
-	char *backend_type;
+	std::string backend_type;
 	uint8_t device_type;
 	uint64_t size_blocks;
 	uint32_t blocksize;
-	char *serial_number;
-	char *device_id;
-	char *ctld_name;
-	nvlist_t *attr_list;
-	STAILQ_ENTRY(cctl_lun) links;
+	std::string serial_number;
+	std::string device_id;
+	std::string ctld_name;
+	attr_list attr_list;
 };
 
 struct cctl_port {
 	uint32_t port_id;
-	char *port_frontend;
-	char *port_name;
+	std::string port_frontend;
+	std::string port_name;
 	int pp;
 	int vp;
 	int cfiscsi_state;
-	char *cfiscsi_target;
+	std::string cfiscsi_target;
 	uint16_t cfiscsi_portal_group_tag;
-	char *ctld_portal_group_name;
-	nvlist_t *attr_list;
-	STAILQ_ENTRY(cctl_port) links;
+	std::string ctld_portal_group_name;
+	attr_list attr_list;
 };
 
 struct cctl_devlist_data {
-	int num_luns;
-	STAILQ_HEAD(,cctl_lun) lun_list;
-	struct cctl_lun *cur_lun;
-	int num_ports;
-	STAILQ_HEAD(,cctl_port) port_list;
-	struct cctl_port *cur_port;
-	int level;
-	struct sbuf *cur_sb[32];
+	std::list<cctl_lun> lun_list;
+	struct cctl_lun *cur_lun = nullptr;
+	std::list<cctl_port> port_list;
+	struct cctl_port *cur_port = nullptr;
+	u_int level = 0;
+	struct sbuf *cur_sb[32] = {};
 };
 
 static void
@@ -157,9 +154,8 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
 	devlist->level++;
-	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
-	    sizeof(devlist->cur_sb[0])))
-		log_errx(1, "%s: too many nesting levels, %zd max", __func__,
+	if (devlist->level >= nitems(devlist->cur_sb))
+		log_errx(1, "%s: too many nesting levels, %zu max", __func__,
 		     nitems(devlist->cur_sb));
 
 	devlist->cur_sb[devlist->level] = sbuf_new_auto();
@@ -171,16 +167,10 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 			log_errx(1, "%s: improper lun element nesting",
 			    __func__);
 
-		cur_lun = reinterpret_cast<struct cctl_lun *>(calloc(1, sizeof(*cur_lun)));
-		if (cur_lun == NULL)
-			log_err(1, "%s: cannot allocate %zd bytes", __func__,
-			    sizeof(*cur_lun));
+		devlist->lun_list.emplace_back();
+		cur_lun = &devlist->lun_list.back();
 
-		devlist->num_luns++;
 		devlist->cur_lun = cur_lun;
-
-		cur_lun->attr_list = nvlist_create(0);
-		STAILQ_INSERT_TAIL(&devlist->lun_list, cur_lun, links);
 
 		for (i = 0; attr[i] != NULL; i += 2) {
 			if (strcmp(attr[i], "id") == 0) {
@@ -198,8 +188,7 @@ cctl_end_element(void *user_data, const char *name)
 {
 	struct cctl_devlist_data *devlist;
 	struct cctl_lun *cur_lun;
-	char *str;
-	int error;
+	std::string str;
 
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
@@ -213,55 +202,39 @@ cctl_end_element(void *user_data, const char *name)
 		     devlist->level, name);
 
 	sbuf_finish(devlist->cur_sb[devlist->level]);
-	str = checked_strdup(sbuf_data(devlist->cur_sb[devlist->level]));
-
-	if (strlen(str) == 0) {
-		free(str);
-		str = NULL;
-	}
+	str = sbuf_data(devlist->cur_sb[devlist->level]);
 
 	sbuf_delete(devlist->cur_sb[devlist->level]);
 	devlist->cur_sb[devlist->level] = NULL;
 	devlist->level--;
 
 	if (strcmp(name, "backend_type") == 0) {
-		cur_lun->backend_type = str;
-		str = NULL;
+		cur_lun->backend_type = std::move(str);
 	} else if (strcmp(name, "lun_type") == 0) {
-		if (str == NULL)
+		if (str.empty())
 			log_errx(1, "%s: %s missing its argument", __func__, name);
-		cur_lun->device_type = strtoull(str, NULL, 0);
+		cur_lun->device_type = strtoull(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "size") == 0) {
-		if (str == NULL)
+		if (str.empty())
 			log_errx(1, "%s: %s missing its argument", __func__, name);
-		cur_lun->size_blocks = strtoull(str, NULL, 0);
+		cur_lun->size_blocks = strtoull(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "blocksize") == 0) {
-		if (str == NULL)
+		if (str.empty())
 			log_errx(1, "%s: %s missing its argument", __func__, name);
-		cur_lun->blocksize = strtoul(str, NULL, 0);
+		cur_lun->blocksize = strtoul(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "serial_number") == 0) {
-		cur_lun->serial_number = str;
-		str = NULL;
+		cur_lun->serial_number = std::move(str);
 	} else if (strcmp(name, "device_id") == 0) {
-		cur_lun->device_id = str;
-		str = NULL;
+		cur_lun->device_id = std::move(str);
 	} else if (strcmp(name, "ctld_name") == 0) {
-		cur_lun->ctld_name = str;
-		str = NULL;
+		cur_lun->ctld_name = std::move(str);
 	} else if (strcmp(name, "lun") == 0) {
 		devlist->cur_lun = NULL;
 	} else if (strcmp(name, "ctllunlist") == 0) {
 		/* Nothing. */
 	} else {
-		nvlist_move_string(cur_lun->attr_list, name, str);
-		error = nvlist_error(cur_lun->attr_list);
-		if (error != 0)
-			log_errc(1, error, "%s: failed to add nv pair for %s",
-			    __func__, name);
-		str = NULL;
+		cur_lun->attr_list.emplace_back(name, std::move(str));
 	}
-
-	free(str);
 }
 
 static void
@@ -274,9 +247,8 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_port = devlist->cur_port;
 	devlist->level++;
-	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
-	    sizeof(devlist->cur_sb[0])))
-		log_errx(1, "%s: too many nesting levels, %zd max", __func__,
+	if (devlist->level >= nitems(devlist->cur_sb))
+		log_errx(1, "%s: too many nesting levels, %zu max", __func__,
 		     nitems(devlist->cur_sb));
 
 	devlist->cur_sb[devlist->level] = sbuf_new_auto();
@@ -288,16 +260,9 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 			log_errx(1, "%s: improper port element nesting (%s)",
 			    __func__, name);
 
-		cur_port = reinterpret_cast<struct cctl_port *>(calloc(1, sizeof(*cur_port)));
-		if (cur_port == NULL)
-			log_err(1, "%s: cannot allocate %zd bytes", __func__,
-			    sizeof(*cur_port));
-
-		devlist->num_ports++;
+		devlist->port_list.emplace_back();
+		cur_port = &devlist->port_list.back();
 		devlist->cur_port = cur_port;
-
-		cur_port->attr_list = nvlist_create(0);
-		STAILQ_INSERT_TAIL(&devlist->port_list, cur_port, links);
 
 		for (i = 0; attr[i] != NULL; i += 2) {
 			if (strcmp(attr[i], "id") == 0) {
@@ -315,8 +280,7 @@ cctl_end_pelement(void *user_data, const char *name)
 {
 	struct cctl_devlist_data *devlist;
 	struct cctl_port *cur_port;
-	char *str;
-	int error;
+	std::string str;
 
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_port = devlist->cur_port;
@@ -330,59 +294,43 @@ cctl_end_pelement(void *user_data, const char *name)
 		     devlist->level, name);
 
 	sbuf_finish(devlist->cur_sb[devlist->level]);
-	str = checked_strdup(sbuf_data(devlist->cur_sb[devlist->level]));
-
-	if (strlen(str) == 0) {
-		free(str);
-		str = NULL;
-	}
+	str = sbuf_data(devlist->cur_sb[devlist->level]);
 
 	sbuf_delete(devlist->cur_sb[devlist->level]);
 	devlist->cur_sb[devlist->level] = NULL;
 	devlist->level--;
 
 	if (strcmp(name, "frontend_type") == 0) {
-		cur_port->port_frontend = str;
-		str = NULL;
+		cur_port->port_frontend = std::move(str);
 	} else if (strcmp(name, "port_name") == 0) {
-		cur_port->port_name = str;
-		str = NULL;
+		cur_port->port_name = std::move(str);
 	} else if (strcmp(name, "physical_port") == 0) {
-		if (str == NULL)
+		if (str.empty())
 			log_errx(1, "%s: %s missing its argument", __func__, name);
-		cur_port->pp = strtoul(str, NULL, 0);
+		cur_port->pp = strtoul(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "virtual_port") == 0) {
-		if (str == NULL)
+		if (str.empty())
 			log_errx(1, "%s: %s missing its argument", __func__, name);
-		cur_port->vp = strtoul(str, NULL, 0);
+		cur_port->vp = strtoul(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "cfiscsi_target") == 0) {
-		cur_port->cfiscsi_target = str;
-		str = NULL;
+		cur_port->cfiscsi_target = std::move(str);
 	} else if (strcmp(name, "cfiscsi_state") == 0) {
-		if (str == NULL)
+		if (str.empty())
 			log_errx(1, "%s: %s missing its argument", __func__, name);
-		cur_port->cfiscsi_state = strtoul(str, NULL, 0);
+		cur_port->cfiscsi_state = strtoul(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "cfiscsi_portal_group_tag") == 0) {
-		if (str == NULL)
+		if (str.empty())
 			log_errx(1, "%s: %s missing its argument", __func__, name);
-		cur_port->cfiscsi_portal_group_tag = strtoul(str, NULL, 0);
+		cur_port->cfiscsi_portal_group_tag = strtoul(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "ctld_portal_group_name") == 0) {
-		cur_port->ctld_portal_group_name = str;
-		str = NULL;
+		cur_port->ctld_portal_group_name = std::move(str);
 	} else if (strcmp(name, "targ_port") == 0) {
 		devlist->cur_port = NULL;
 	} else if (strcmp(name, "ctlportlist") == 0) {
 		/* Nothing. */
 	} else {
-		nvlist_move_string(cur_port->attr_list, name, str);
-		error = nvlist_error(cur_port->attr_list);
-		if (error != 0)
-			log_errc(1, error, "%s: failed to add nv pair for %s",
-			    __func__, name);
-		str = NULL;
+		cur_port->attr_list.emplace_back(name, std::move(str));
 	}
-
-	free(str);
 }
 
 static void
@@ -395,254 +343,212 @@ cctl_char_handler(void *user_data, const XML_Char *str, int len)
 	sbuf_bcat(devlist->cur_sb[devlist->level], str, len);
 }
 
-conf_up
-conf_new_from_kernel(struct kports &kports)
+static bool
+parse_kernel_config(struct cctl_devlist_data &devlist)
 {
-	struct target *targ;
-	struct portal_group *pg;
-	struct lun *cl;
 	struct ctl_lun_list list;
-	struct cctl_devlist_data devlist;
-	struct cctl_lun *lun;
-	struct cctl_port *port;
 	XML_Parser parser;
-	const char *key;
-	char *str, *name;
-	void *cookie;
-	int len, retval;
+	int retval;
 
-	bzero(&devlist, sizeof(devlist));
-	STAILQ_INIT(&devlist.lun_list);
-	STAILQ_INIT(&devlist.port_list);
-
-	log_debugx("obtaining previously configured CTL luns from the kernel");
-
-	str = NULL;
-	len = 4096;
+	std::vector<char> buf(4096);
 retry:
-	str = reinterpret_cast<char *>(realloc(str, len));
-	if (str == NULL)
-		log_err(1, "realloc");
-
 	bzero(&list, sizeof(list));
-	list.alloc_len = len;
+	list.alloc_len = buf.size();
 	list.status = CTL_LUN_LIST_NONE;
-	list.lun_xml = str;
+	list.lun_xml = buf.data();
 
 	if (ioctl(ctl_fd, CTL_LUN_LIST, &list) == -1) {
 		log_warn("error issuing CTL_LUN_LIST ioctl");
-		free(str);
-		return (NULL);
+		return (false);
 	}
 
 	if (list.status == CTL_LUN_LIST_ERROR) {
 		log_warnx("error returned from CTL_LUN_LIST ioctl: %s",
 		    list.error_str);
-		free(str);
-		return (NULL);
+		return (false);
 	}
 
 	if (list.status == CTL_LUN_LIST_NEED_MORE_SPACE) {
-		len = len << 1;
+		buf.resize(buf.size() << 1);
 		goto retry;
 	}
 
 	parser = XML_ParserCreate(NULL);
 	if (parser == NULL) {
 		log_warnx("unable to create XML parser");
-		free(str);
-		return (NULL);
+		return (false);
 	}
 
 	XML_SetUserData(parser, &devlist);
 	XML_SetElementHandler(parser, cctl_start_element, cctl_end_element);
 	XML_SetCharacterDataHandler(parser, cctl_char_handler);
 
-	retval = XML_Parse(parser, str, strlen(str), 1);
+	retval = XML_Parse(parser, buf.data(), strlen(buf.data()), 1);
 	XML_ParserFree(parser);
-	free(str);
 	if (retval != 1) {
 		log_warnx("XML_Parse failed");
-		return (NULL);
+		return (false);
 	}
 
-	str = NULL;
-	len = 4096;
 retry_port:
-	str = reinterpret_cast<char *>(realloc(str, len));
-	if (str == NULL)
-		log_err(1, "realloc");
-
 	bzero(&list, sizeof(list));
-	list.alloc_len = len;
+	list.alloc_len = buf.size();
 	list.status = CTL_LUN_LIST_NONE;
-	list.lun_xml = str;
+	list.lun_xml = buf.data();
 
 	if (ioctl(ctl_fd, CTL_PORT_LIST, &list) == -1) {
 		log_warn("error issuing CTL_PORT_LIST ioctl");
-		free(str);
-		return (NULL);
+		return (false);
 	}
 
 	if (list.status == CTL_LUN_LIST_ERROR) {
 		log_warnx("error returned from CTL_PORT_LIST ioctl: %s",
 		    list.error_str);
-		free(str);
-		return (NULL);
+		return (false);
 	}
 
 	if (list.status == CTL_LUN_LIST_NEED_MORE_SPACE) {
-		len = len << 1;
+		buf.resize(buf.size() << 1);
 		goto retry_port;
 	}
 
 	parser = XML_ParserCreate(NULL);
 	if (parser == NULL) {
 		log_warnx("unable to create XML parser");
-		free(str);
-		return (NULL);
+		return (false);
 	}
 
 	XML_SetUserData(parser, &devlist);
 	XML_SetElementHandler(parser, cctl_start_pelement, cctl_end_pelement);
 	XML_SetCharacterDataHandler(parser, cctl_char_handler);
 
-	retval = XML_Parse(parser, str, strlen(str), 1);
+	retval = XML_Parse(parser, buf.data(), strlen(buf.data()), 1);
 	XML_ParserFree(parser);
-	free(str);
 	if (retval != 1) {
 		log_warnx("XML_Parse failed");
-		return (NULL);
+		return (false);
 	}
+
+	return (true);
+}
+
+conf_up
+conf_new_from_kernel(struct kports &kports)
+{
+	struct cctl_devlist_data devlist;
+
+	log_debugx("obtaining previously configured CTL luns from the kernel");
+
+	if (!parse_kernel_config(devlist))
+		return {};
 
 	conf_up conf = std::make_unique<struct conf>();
 
-	name = NULL;
-	STAILQ_FOREACH(port, &devlist.port_list, links) {
-		if (strcmp(port->port_frontend, "ha") == 0)
+	for (const auto &port : devlist.port_list) {
+		if (port.port_frontend == "ha")
 			continue;
-		free(name);
-		if (port->pp == 0 && port->vp == 0) {
-			name = checked_strdup(port->port_name);
-		} else if (port->vp == 0) {
-			retval = asprintf(&name, "%s/%d",
-			    port->port_name, port->pp);
-			if (retval <= 0)
-				log_err(1, "asprintf");
-		} else {
-			retval = asprintf(&name, "%s/%d/%d",
-			    port->port_name, port->pp, port->vp);
-			if (retval <= 0)
-				log_err(1, "asprintf");
+
+		std::string name = port.port_name;
+		if (port.pp != 0) {
+			name += "/" + std::to_string(port.pp);
+			if (port.vp != 0)
+				name += "/" + std::to_string(port.vp);
 		}
 
-		if (port->cfiscsi_target == NULL) {
+		if (port.cfiscsi_target.empty()) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
-			    port->port_id, name);
+			    port.port_id, name.c_str());
 			if (!kports.has_port(name)) {
-				if (!kports.add_port(name, port->port_id)) {
+				if (!kports.add_port(name, port.port_id)) {
 					log_warnx("kports::add_port failed");
 					continue;
 				}
 			}
 			continue;
 		}
-		if (port->cfiscsi_state != 1) {
+		if (port.cfiscsi_state != 1) {
 			log_debugx("CTL port %ju is not active (%d); ignoring",
-			    (uintmax_t)port->port_id, port->cfiscsi_state);
+			    (uintmax_t)port.port_id, port.cfiscsi_state);
 			continue;
 		}
 
-		targ = conf->find_target(port->cfiscsi_target);
+		const char *t_name = port.cfiscsi_target.c_str();
+		struct target *targ = conf->find_target(t_name);
 		if (targ == NULL) {
-			targ = conf->add_target(port->cfiscsi_target);
+			targ = conf->add_target(t_name);
 			if (targ == NULL) {
 				log_warnx("Failed to add target \"%s\"",
-				    port->cfiscsi_target);
+				    t_name);
 				continue;
 			}
 		}
 
-		if (port->ctld_portal_group_name == NULL)
+		if (port.ctld_portal_group_name.empty())
 			continue;
-		pg = conf->find_portal_group(port->ctld_portal_group_name);
+		const char *pg_name = port.ctld_portal_group_name.c_str();
+		struct portal_group *pg = conf->find_portal_group(pg_name);
 		if (pg == NULL) {
-			pg = conf->add_portal_group(port->ctld_portal_group_name);
+			pg = conf->add_portal_group(pg_name);
 			if (pg == NULL) {
 				log_warnx("Failed to add portal_group \"%s\"",
-				    port->ctld_portal_group_name);
+				    pg_name);
 				continue;
 			}
 		}
-		pg->set_tag(port->cfiscsi_portal_group_tag);
-		if (!conf->add_port(targ, pg, port->port_id)) {
+		pg->set_tag(port.cfiscsi_portal_group_tag);
+		if (!conf->add_port(targ, pg, port.port_id)) {
 			log_warnx("Failed to add port for target \"%s\" and portal-group \"%s\"",
-			    port->cfiscsi_target, port->ctld_portal_group_name);
+			    t_name, pg_name);
 			continue;
 		}
 	}
-	while ((port = STAILQ_FIRST(&devlist.port_list))) {
-		STAILQ_REMOVE_HEAD(&devlist.port_list, links);
-		free(port->port_frontend);
-		free(port->port_name);
-		free(port->cfiscsi_target);
-		free(port->ctld_portal_group_name);
-		nvlist_destroy(port->attr_list);
-		free(port);
-	}
-	free(name);
 
-	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
-		if (lun->ctld_name == NULL) {
+	for (const auto &lun : devlist.lun_list) {
+		if (lun.ctld_name.empty()) {
 			log_debugx("CTL lun %ju wasn't managed by ctld; "
-			    "ignoring", (uintmax_t)lun->lun_id);
+			    "ignoring", (uintmax_t)lun.lun_id);
 			continue;
 		}
 
-		cl = conf->find_lun(lun->ctld_name);
+		const char *l_name = lun.ctld_name.c_str();
+		struct lun *cl = conf->find_lun(l_name);
 		if (cl != NULL) {
 			log_warnx("found CTL lun %ju \"%s\", "
 			    "also backed by CTL lun %d; ignoring",
-			    (uintmax_t)lun->lun_id, lun->ctld_name,
+			    (uintmax_t)lun.lun_id, l_name,
 			    cl->ctl_lun());
 			continue;
 		}
 
 		log_debugx("found CTL lun %ju \"%s\"",
-		    (uintmax_t)lun->lun_id, lun->ctld_name);
+		    (uintmax_t)lun.lun_id, l_name);
 
-		cl = conf->add_lun(lun->ctld_name);
+		cl = conf->add_lun(l_name);
 		if (cl == NULL) {
 			log_warnx("lun_new failed");
 			continue;
 		}
-		cl->set_backend(lun->backend_type);
-		cl->set_device_type(lun->device_type);
-		cl->set_blocksize(lun->blocksize);
-		cl->set_device_id(lun->device_id);
-		cl->set_serial(lun->serial_number);
-		cl->set_size(lun->size_blocks * lun->blocksize);
-		cl->set_ctl_lun(lun->lun_id);
+		cl->set_backend(lun.backend_type.c_str());
+		cl->set_device_type(lun.device_type);
+		cl->set_blocksize(lun.blocksize);
+		cl->set_device_id(lun.device_id.c_str());
+		cl->set_serial(lun.serial_number.c_str());
+		cl->set_size(lun.size_blocks * lun.blocksize);
+		cl->set_ctl_lun(lun.lun_id);
 
-		cookie = NULL;
-		while ((key = nvlist_next(lun->attr_list, NULL, &cookie)) !=
-		    NULL) {
-			if (strcmp(key, "file") == 0 ||
-			    strcmp(key, "dev") == 0) {
-				cl->set_path(cnvlist_get_string(cookie));
+		for (const auto &pair : lun.attr_list) {
+			const char *key = pair.first.c_str();
+			const char *value = pair.second.c_str();
+			if (pair.first == "file" || pair.first == "dev") {
+				cl->set_path(value);
 				continue;
 			}
-			if (!cl->add_option(key, cnvlist_get_string(cookie)))
+			if (!cl->add_option(key, value))
 				log_warnx("unable to add CTL lun option "
 				    "%s for CTL lun %ju \"%s\"",
-				    key, (uintmax_t)lun->lun_id,
+				    key, (uintmax_t)lun.lun_id,
 				    cl->name());
 		}
-	}
-	while ((lun = STAILQ_FIRST(&devlist.lun_list))) {
-		STAILQ_REMOVE_HEAD(&devlist.lun_list, links);
-		nvlist_destroy(lun->attr_list);
-		free(lun);
 	}
 
 	return (conf);
