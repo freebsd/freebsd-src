@@ -865,6 +865,7 @@ empty_pool_head()
 {
 	atf_set descr 'Route-to with empty pool'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 empty_pool_body()
@@ -899,6 +900,7 @@ table_loop_head()
 {
 	atf_set descr 'Check that iterating over tables poperly loops'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 table_loop_body()

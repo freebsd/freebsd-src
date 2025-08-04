@@ -782,6 +782,7 @@ empty_pool_head()
 {
 	atf_set descr 'NAT with empty pool'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 empty_pool_body()

@@ -508,6 +508,7 @@ mixed_af_head()
 {
        atf_set descr 'Test mixed address family source tracking'
        atf_set require.user root
+       atf_set require.progs python3 scapy
 }
 
 mixed_af_body()
