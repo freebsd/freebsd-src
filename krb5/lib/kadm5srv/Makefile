@@ -17,8 +17,6 @@ LDFLAGS=-Wl,--no-undefined
 LIBADD=	krb5profile gssrpc gssapi_krb5 kdb5 krb5 k5crypto krb5support com_err
 VERSION_MAP=	${.CURDIR}/version.map
 
-INCSDIR=	${INCLUDEDIR}/kadm5
-
 SRCS=	alt_prof.c \
 	chpass_util.c \
 	logger.c \
@@ -29,10 +27,6 @@ SRCS=	alt_prof.c \
 	${GEN}
 
 .include "${KRB5_SRCTOP}/lib/kadm5srv/srv/Makefile.inc"
-
-INCS=	admin.h \
-	chpass_util_strings.h \
-	kadm_err.h
 
 GEN=	kadm_err.c kadm_err.h chpass_util_strings.c chpass_util_strings.h
 CLEANFILES=	${GEN} ${GENI}
