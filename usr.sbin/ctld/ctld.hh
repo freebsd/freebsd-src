@@ -41,6 +41,7 @@
 #include <libiscsiutil.h>
 #include <libutil.h>
 
+#include <list>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -74,11 +75,12 @@ private:
 };
 
 struct auth_portal {
-	TAILQ_ENTRY(auth_portal)	ap_next;
-	struct auth_group		*ap_auth_group;
-	char				*ap_initiator_portal;
+	bool matches(const struct sockaddr *sa) const;
+	bool parse(const char *portal);
+
+private:
 	struct sockaddr_storage		ap_sa;
-	int				ap_mask;
+	int				ap_mask = 0;
 };
 
 #define	AG_TYPE_UNKNOWN			0
@@ -95,7 +97,7 @@ struct auth_group {
 	int				ag_type;
 	std::unordered_map<std::string, auth> ag_auths;
 	std::unordered_set<std::string> ag_names;
-	TAILQ_HEAD(, auth_portal)	ag_portals;
+	std::list<auth_portal>		ag_portals;
 };
 
 struct portal {
@@ -286,13 +288,10 @@ bool			auth_name_new(struct auth_group *ag,
 bool			auth_name_check(const struct auth_group *ag,
 			    const char *initiator_name);
 
-bool				auth_portal_new(struct auth_group *ag,
-				    const char *initiator_portal);
-bool			auth_portal_defined(const struct auth_group *ag);
-const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
-				    const struct sockaddr_storage *sa);
-bool				auth_portal_check(const struct auth_group *ag,
-				    const struct sockaddr_storage *sa);
+bool			auth_portal_new(struct auth_group *ag,
+			    const char *initiator_portal);
+bool			auth_portal_check(const struct auth_group *ag,
+			    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);
