@@ -2773,8 +2773,8 @@ crcopysafe(struct proc *p, struct ucred *cr)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	oldcred = p->p_ucred;
-	while (cr->cr_agroups < oldcred->cr_agroups) {
-		groups = oldcred->cr_agroups;
+	while (cr->cr_agroups < oldcred->cr_ngroups) {
+		groups = oldcred->cr_ngroups;
 		PROC_UNLOCK(p);
 		crextend(cr, groups);
 		PROC_LOCK(p);
