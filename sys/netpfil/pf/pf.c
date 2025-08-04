@@ -621,7 +621,7 @@ static void
 pf_packet_rework_nat(struct pf_pdesc *pd, int off, struct pf_state_key *nk)
 {
 
-	switch (pd->proto) {
+	switch (pd->virtual_proto) {
 	case IPPROTO_TCP: {
 		struct tcphdr *th = &pd->hdr.tcp;
 
@@ -6391,7 +6391,7 @@ pf_translate_compat(struct pf_test_ctx *ctx)
 	KASSERT(ctx->sk != NULL, ("%s: null sk", __func__));
 	KASSERT(ctx->nk != NULL, ("%s: null nk", __func__));
 
-	switch (pd->proto) {
+	switch (pd->virtual_proto) {
 	case IPPROTO_TCP:
 		if (PF_ANEQ(&pd->nsaddr, &nk->addr[pd->sidx], pd->af) ||
 		    nk->port[pd->sidx] != pd->nsport) {

@@ -55,6 +55,7 @@ ATF_TESTS_SH+=	altq \
 		tcp \
 		tos
 
+ATF_TESTS_PYTEST+=	frag4.py
 ATF_TESTS_PYTEST+=	frag6.py
 ATF_TESTS_PYTEST+=	header.py
 ATF_TESTS_PYTEST+=	icmp.py
