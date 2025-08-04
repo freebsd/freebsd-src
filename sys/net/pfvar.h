@@ -1303,39 +1303,10 @@ extern pflog_packet_t		*pflog_packet_ptr;
 
 /* for copies to/from network byte order */
 /* ioctl interface also uses network byte order */
-#define pf_state_peer_hton(s,d) do {		\
-	(d)->seqlo = htonl((s)->seqlo);		\
-	(d)->seqhi = htonl((s)->seqhi);		\
-	(d)->seqdiff = htonl((s)->seqdiff);	\
-	(d)->max_win = htons((s)->max_win);	\
-	(d)->mss = htons((s)->mss);		\
-	(d)->state = (s)->state;		\
-	(d)->wscale = (s)->wscale;		\
-	if ((s)->scrub) {						\
-		(d)->scrub.pfss_flags = 				\
-		    htons((s)->scrub->pfss_flags & PFSS_TIMESTAMP);	\
-		(d)->scrub.pfss_ttl = (s)->scrub->pfss_ttl;		\
-		(d)->scrub.pfss_ts_mod = htonl((s)->scrub->pfss_ts_mod);\
-		(d)->scrub.scrub_flag = PF_SCRUB_FLAG_VALID;		\
-	}								\
-} while (0)
-
-#define pf_state_peer_ntoh(s,d) do {		\
-	(d)->seqlo = ntohl((s)->seqlo);		\
-	(d)->seqhi = ntohl((s)->seqhi);		\
-	(d)->seqdiff = ntohl((s)->seqdiff);	\
-	(d)->max_win = ntohs((s)->max_win);	\
-	(d)->mss = ntohs((s)->mss);		\
-	(d)->state = (s)->state;		\
-	(d)->wscale = (s)->wscale;		\
-	if ((s)->scrub.scrub_flag == PF_SCRUB_FLAG_VALID && 		\
-	    (d)->scrub != NULL) {					\
-		(d)->scrub->pfss_flags =				\
-		    ntohs((s)->scrub.pfss_flags) & PFSS_TIMESTAMP;	\
-		(d)->scrub->pfss_ttl = (s)->scrub.pfss_ttl;		\
-		(d)->scrub->pfss_ts_mod = ntohl((s)->scrub.pfss_ts_mod);\
-	}								\
-} while (0)
+void	 pf_state_peer_hton(const struct pf_state_peer *,
+	    struct pf_state_peer_export *);
+void	 pf_state_peer_ntoh(const struct pf_state_peer_export *,
+	    struct pf_state_peer *);
 
 #define pf_state_counter_hton(s,d) do {				\
 	d[0] = htonl((s>>32)&0xffffffff);			\
