@@ -47,6 +47,16 @@
 #include "conf.h"
 #include "ctld.hh"
 
+struct scope_exit {
+	using callback = void();
+	scope_exit(callback *fn) : fn(fn) {}
+
+	~scope_exit() { fn(); }
+
+private:
+	callback *fn;
+};
+
 static bool uclparse_toplevel(const ucl::Ucl &);
 static bool uclparse_chap(const char *, const ucl::Ucl &);
 static bool uclparse_chap_mutual(const char *, const ucl::Ucl &);
@@ -259,6 +269,7 @@ uclparse_target_lun(const char *t_name, const ucl::Ucl &obj)
 		if (!target_start_lun(id))
 			return (false);
 
+		scope_exit finisher(lun_finish);
 		std::string lun_name =
 		    freebsd::stringf("lun %u for target \"%s\"", id, t_name);
 		return (uclparse_lun_entries(lun_name.c_str(), obj));
@@ -420,45 +431,46 @@ uclparse_auth_group(const char *name, const ucl::Ucl &top)
 	if (!auth_group_start(name))
 		return (false);
 
+	scope_exit finisher(auth_group_finish);
 	for (const auto &obj : top) {
 		std::string key = obj.key();
 
 		if (key == "auth-type") {
 			if (!auth_group_set_type(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "chap") {
 			if (obj.type() == UCL_OBJECT) {
 				if (!uclparse_chap(name, obj))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!uclparse_chap(name, tmp))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"chap\" property of auth-group "
 				    "\"%s\" is not an array or object",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
 		if (key == "chap-mutual") {
 			if (obj.type() == UCL_OBJECT) {
 				if (!uclparse_chap_mutual(name, obj))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!uclparse_chap_mutual(name, tmp))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"chap-mutual\" property of "
 				    "auth-group \"%s\" is not an array or object",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
@@ -466,18 +478,18 @@ uclparse_auth_group(const char *name, const ucl::Ucl &top)
 			if (obj.type() == UCL_STRING) {
 				if (!auth_group_add_initiator_name(
 				    obj.string_value().c_str()))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!auth_group_add_initiator_name(
 					    tmp.string_value().c_str()))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"initiator-name\" property of "
 				    "auth-group \"%s\" is not an array or string",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
@@ -485,27 +497,23 @@ uclparse_auth_group(const char *name, const ucl::Ucl &top)
 			if (obj.type() == UCL_STRING) {
 				if (!auth_group_add_initiator_portal(
 				    obj.string_value().c_str()))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!auth_group_add_initiator_portal(
 					    tmp.string_value().c_str()))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"initiator-portal\" property of "
 				    "auth-group \"%s\" is not an array or string",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 	}
 
-	auth_group_finish();
 	return (true);
-fail:
-	auth_group_finish();
-	return (false);
 }
 
 static bool
@@ -590,6 +598,7 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 	if (!portal_group_start(name))
 		return (false);
 
+	scope_exit finisher(portal_group_finish);
 	for (const auto &obj : top) {
 		std::string key = obj.key();
 
@@ -598,12 +607,12 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 				log_warnx("\"discovery-auth-group\" property "
 				    "of portal-group \"%s\" is not a string",
 				    name);
-				goto fail;
+				return false;
 			}
 
 			if (!portal_group_set_discovery_auth_group(
 			    obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "discovery-filter") {
@@ -611,12 +620,12 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 				log_warnx("\"discovery-filter\" property of "
 				    "portal-group \"%s\" is not a string",
 				    name);
-				goto fail;
+				return false;
 			}
 
 			if (!portal_group_set_filter(
 			    obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "foreign") {
@@ -627,19 +636,19 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 			if (obj.type() == UCL_STRING) {
 				if (!portal_group_add_listen(
 				    obj.string_value().c_str(), false))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!portal_group_add_listen(
 					    tmp.string_value().c_str(),
 					    false))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"listen\" property of "
 				    "portal-group \"%s\" is not a string",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
@@ -647,19 +656,19 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 			if (obj.type() == UCL_STRING) {
 				if (!portal_group_add_listen(
 				    obj.string_value().c_str(), true))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!portal_group_add_listen(
 					    tmp.string_value().c_str(),
 					    true))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"listen\" property of "
 				    "portal-group \"%s\" is not a string",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
@@ -668,12 +677,12 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 				log_warnx("\"offload\" property of "
 				    "portal-group \"%s\" is not a string",
 				    name);
-				goto fail;
+				return false;
 			}
 
 			if (!portal_group_set_offload(
 			    obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "redirect") {
@@ -681,26 +690,26 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 				log_warnx("\"listen\" property of "
 				    "portal-group \"%s\" is not a string",
 				    name);
-				goto fail;
+				return false;
 			}
 
 			if (!portal_group_set_redirection(
 			    obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "options") {
 			if (obj.type() != UCL_OBJECT) {
 				log_warnx("\"options\" property of portal group "
 				    "\"%s\" is not an object", name);
-				goto fail;
+				return false;
 			}
 
 			for (const auto &tmp : obj) {
 				if (!portal_group_add_option(
 				    tmp.key().c_str(),
 				    tmp.forced_string_value().c_str()))
-					goto fail;
+					return false;
 			}
 		}
 
@@ -709,7 +718,7 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 				log_warnx("\"tag\" property of portal group "
 				    "\"%s\" is not an integer",
 				    name);
-				goto fail;
+				return false;
 			}
 
 			portal_group_set_tag(obj.int_value());
@@ -717,20 +726,16 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 
 		if (key == "dscp") {
 			if (!uclparse_dscp("portal", name, obj))
-				goto fail;
+				return false;
 		}
 
 		if (key == "pcp") {
 			if (!uclparse_pcp("portal", name, obj))
-				goto fail;
+				return false;
 		}
 	}
 
-	portal_group_finish();
 	return (true);
-fail:
-	portal_group_finish();
-	return (false);
 }
 
 static bool
@@ -739,6 +744,7 @@ uclparse_target(const char *name, const ucl::Ucl &top)
 	if (!target_start(name))
 		return (false);
 
+	scope_exit finisher(target_finish);
 	for (const auto &obj : top) {
 		std::string key = obj.key();
 
@@ -746,67 +752,67 @@ uclparse_target(const char *name, const ucl::Ucl &top)
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"alias\" property of target "
 				    "\"%s\" is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!target_set_alias(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "auth-group") {
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"auth-group\" property of target "
 				    "\"%s\" is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!target_set_auth_group(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "auth-type") {
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"auth-type\" property of target "
 				    "\"%s\" is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!target_set_auth_type(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "chap") {
 			if (obj.type() == UCL_OBJECT) {
 				if (!uclparse_target_chap(name, obj))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!uclparse_target_chap(name, tmp))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"chap\" property of target "
 				    "\"%s\" is not an array or object",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
 		if (key == "chap-mutual") {
 			if (obj.type() == UCL_OBJECT) {
 				if (!uclparse_target_chap_mutual(name, obj))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!uclparse_target_chap_mutual(name,
 					    tmp))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"chap-mutual\" property of target "
 				    "\"%s\" is not an array or object",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
@@ -814,18 +820,18 @@ uclparse_target(const char *name, const ucl::Ucl &top)
 			if (obj.type() == UCL_STRING) {
 				if (!target_add_initiator_name(
 				    obj.string_value().c_str()))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!target_add_initiator_name(
 					    tmp.string_value().c_str()))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"initiator-name\" property of "
 				    "target \"%s\" is not an array or string",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
@@ -833,18 +839,18 @@ uclparse_target(const char *name, const ucl::Ucl &top)
 			if (obj.type() == UCL_STRING) {
 				if (!target_add_initiator_portal(
 				    obj.string_value().c_str()))
-					goto fail;
+					return false;
 			} else if (obj.type() == UCL_ARRAY) {
 				for (const auto &tmp : obj) {
 					if (!target_add_initiator_portal(
 					    tmp.string_value().c_str()))
-						goto fail;
+						return false;
 				}
 			} else {
 				log_warnx("\"initiator-portal\" property of "
 				    "target \"%s\" is not an array or string",
 				    name);
-				goto fail;
+				return false;
 			}
 		}
 
@@ -853,11 +859,11 @@ uclparse_target(const char *name, const ucl::Ucl &top)
 				for (const auto &tmp : obj) {
 					if (!uclparse_target_portal_group(name,
 					    tmp))
-						goto fail;
+						return false;
 				}
 			} else {
 				if (!uclparse_target_portal_group(name, obj))
-					goto fail;
+					return false;
 			}
 		}
 
@@ -865,37 +871,33 @@ uclparse_target(const char *name, const ucl::Ucl &top)
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"port\" property of target "
 				    "\"%s\" is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!target_set_physical_port(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "redirect") {
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"redirect\" property of target "
 				    "\"%s\" is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!target_set_redirection(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "lun") {
 			for (const auto &tmp : obj) {
 				if (!uclparse_target_lun(name, tmp))
-					goto fail;
+					return false;
 			}
 		}
 	}
 
-	target_finish();
 	return (true);
-fail:
-	target_finish();
-	return (false);
 }
 
 static bool
@@ -904,6 +906,7 @@ uclparse_lun(const char *name, const ucl::Ucl &top)
 	if (!lun_start(name))
 		return (false);
 
+	scope_exit finisher(lun_finish);
 	std::string lun_name = freebsd::stringf("lun \"%s\"", name);
 	return (uclparse_lun_entries(lun_name.c_str(), top));
 }
@@ -918,68 +921,68 @@ uclparse_lun_entries(const char *name, const ucl::Ucl &top)
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"backend\" property of %s "
 				    "is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_backend(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "blocksize") {
 			if (obj.type() != UCL_INT) {
 				log_warnx("\"blocksize\" property of %s "
 				    "is not an integer", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_blocksize(obj.int_value()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "device-id") {
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"device-id\" property of %s "
 				    "is not an integer", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_device_id(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "device-type") {
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"device-type\" property of %s "
 				    "is not an integer", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_device_type(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "ctl-lun") {
 			if (obj.type() != UCL_INT) {
 				log_warnx("\"ctl-lun\" property of %s "
 				    "is not an integer", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_ctl_lun(obj.int_value()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "options") {
 			if (obj.type() != UCL_OBJECT) {
 				log_warnx("\"options\" property of %s "
 				    "is not an object", name);
-				goto fail;
+				return false;
 			}
 
 			for (const auto &child : obj) {
 				if (!lun_add_option(child.key().c_str(),
 				    child.forced_string_value().c_str()))
-					goto fail;
+					return false;
 			}
 		}
 
@@ -987,41 +990,37 @@ uclparse_lun_entries(const char *name, const ucl::Ucl &top)
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"path\" property of %s "
 				    "is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_path(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "serial") {
 			if (obj.type() != UCL_STRING) {
 				log_warnx("\"serial\" property of %s "
 				    "is not a string", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_serial(obj.string_value().c_str()))
-				goto fail;
+				return false;
 		}
 
 		if (key == "size") {
 			if (obj.type() != UCL_INT) {
 				log_warnx("\"size\" property of %s "
 				    "is not an integer", name);
-				goto fail;
+				return false;
 			}
 
 			if (!lun_set_size(obj.int_value()))
-				goto fail;
+				return false;
 		}
 	}
 
-	lun_finish();
 	return (true);
-fail:
-	lun_finish();
-	return (false);
 }
 
 bool
