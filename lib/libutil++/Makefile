@@ -8,6 +8,7 @@ MAN+=	freebsd::FILE_up.3 \
 	freebsd::addrinfo_up.3 \
 	freebsd::fd_up.3 \
 	freebsd::malloc_up.3 \
+	freebsd::nvlist_up.3 \
 	freebsd::stringf.3
 
 .include <src.opts.mk>
