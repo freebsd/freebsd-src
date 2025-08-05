@@ -2494,12 +2494,27 @@ compatibility.
 .Ss Bridge Interface Parameters
 The following parameters are specific to bridge interfaces:
 .Bl -tag -width indent
-.It Cm addm Ar interface
+.It Cm addm Ar interface Op Ar options ...
 Add the interface named by
 .Ar interface
 as a member of the bridge.
 The interface is put into promiscuous mode
 so that it can receive every packet sent on the network.
+.Pp
+The interface name may be followed by one or more of the following
+.Ar options :
+.Bl -tag -width ".Cm untagged Ar vlan-id"
+.It Cm untagged Ar vlan-id
+Set the untagged VLAN identifier for the interface.
+This is equivalent to the
+.Cm ifuntagged
+command.
+.It Cm tagged Ar vlan-set
+Set the allowed VLAN list for the interface.
+This is equivalent to the
+.Cm iftagged
+command.
+.El
 .It Cm deletem Ar interface
 Remove the interface named by
 .Ar interface
@@ -2715,9 +2730,9 @@ Enable VLAN filtering on the bridge.
 .It Cm -vlanfilter
 Disable VLAN filtering on the bridge.
 This is the default.
-.It Cm untagged Ar interface Ar vlan-id
+.It Cm ifuntagged Ar interface Ar vlan-id
 Set the untagged VLAN identifier for an interface.
-.It Cm -untagged Ar interface Ar vlan-id
+.It Cm -ifuntagged Ar interface Ar vlan-id
 Clear the untagged VLAN identifier for an interface.
 .It Cm defuntagged Ar vlan-id
 Enable the
@@ -2727,7 +2742,7 @@ option by default on newly added members.
 Do not enable the
 .Cm untagged
 option by default on newly added members.
-.It Cm tagged Ar interface Ar vlan-list
+.It Cm iftagged Ar interface Ar vlan-list
 Set the interface's VLAN access list to the provided list of VLANs.
 The list should be a comma-separated list of one or more VLAN IDs
 or ranges formatted as
@@ -2738,15 +2753,15 @@ meaning the empty set,
 or the value
 .Dq all
 meaning all VLANs (1-4094).
-.It Cm +tagged Ar interface Ar vlan-list
+.It Cm +iftagged Ar interface Ar vlan-list
 Add the provided list of VLAN IDs to the interface's VLAN access list.
 The list should be formatted as described for
-.Cm tagged .
-.It Cm -tagged Ar interface Ar vlan-list
+.Cm iftagged .
+.It Cm -iftagged Ar interface Ar vlan-list
 Remove the provided list of VLAN IDs from the interface's VLAN access
 list.
 The list should be formatted as described for
-.Cm tagged .
+.Cm iftagged .
 .It Cm qinq Ar interface
 Allow this interface to send 802.1ad
 .Dq Q-in-Q

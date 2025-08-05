@@ -922,15 +922,15 @@ vlan_pvid_body()
 	ifconfig ${bridge} vlanfilter up
 	ifconfig ${epone}a up
 	ifconfig ${eptwo}a up
-	ifconfig ${bridge} addm ${epone}a untagged ${epone}a 20
-	ifconfig ${bridge} addm ${eptwo}a untagged ${eptwo}a 20
+	ifconfig ${bridge} addm ${epone}a untagged 20
+	ifconfig ${bridge} addm ${eptwo}a untagged 20
 
 	# With VLAN filtering enabled, traffic should be passed.
 	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 
 	# Removed the untagged VLAN on one port; traffic should not be passed.
-	ifconfig ${bridge} -untagged ${epone}a
+	ifconfig ${bridge} -ifuntagged ${epone}a
 	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 }
@@ -966,10 +966,8 @@ vlan_pvid_filtered_body()
 	atf_check -s exit:0 ifconfig ${bridge} vlanfilter up
 	atf_check -s exit:0 ifconfig ${epone}a up
 	atf_check -s exit:0 ifconfig ${eptwo}a up
-	atf_check -s exit:0 ifconfig ${bridge} \
-	    addm ${epone}a untagged ${epone}a 20
-	atf_check -s exit:0 ifconfig ${bridge} \
-	    addm ${eptwo}a untagged ${eptwo}a 30
+	atf_check -s exit:0 ifconfig ${bridge} addm ${epone}a untagged 20
+	atf_check -s exit:0 ifconfig ${bridge} addm ${eptwo}a untagged 30
 
 	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
@@ -1011,10 +1009,8 @@ vlan_pvid_tagged_body()
 	atf_check -s exit:0 ifconfig ${bridge} vlanfilter up
 	atf_check -s exit:0 ifconfig ${epone}a up
 	atf_check -s exit:0 ifconfig ${eptwo}a up
-	atf_check -s exit:0 ifconfig ${bridge} \
-	    addm ${epone}a untagged ${epone}a 20
-	atf_check -s exit:0 ifconfig ${bridge} \
-	    addm ${eptwo}a untagged ${eptwo}a 20
+	atf_check -s exit:0 ifconfig ${bridge} addm ${epone}a untagged 20
+	atf_check -s exit:0 ifconfig ${bridge} addm ${eptwo}a untagged 20
 
 	# Tagged frames should not be passed.
 	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
@@ -1055,10 +1051,8 @@ vlan_pvid_1q_body()
 	bridge=$(vnet_mkbridge)
 
 	atf_check -s exit:0 ifconfig ${bridge} vlanfilter up
-	atf_check -s exit:0 ifconfig ${bridge} \
-	    addm ${epone}a untagged ${epone}a 20
-	atf_check -s exit:0 ifconfig ${bridge} addm ${eptwo}a \
-	    tagged ${eptwo}a 20
+	atf_check -s exit:0 ifconfig ${bridge} addm ${epone}a untagged 20
+	atf_check -s exit:0 ifconfig ${bridge} addm ${eptwo}a tagged 20
 
 	atf_check -s exit:0 ifconfig ${epone}a up
 	atf_check -s exit:0 ifconfig ${eptwo}a up
@@ -1116,25 +1110,25 @@ vlan_filtering_body()
 	# Set the untagged vlan on both ports to 20 and make sure traffic is
 	# still blocked.  We intentionally do not pass tagged traffic for the
 	# untagged vlan.
-	atf_check -s exit:0 ifconfig ${bridge} untagged ${epone}a 20
-	atf_check -s exit:0 ifconfig ${bridge} untagged ${eptwo}a 20
+	atf_check -s exit:0 ifconfig ${bridge} ifuntagged ${epone}a 20
+	atf_check -s exit:0 ifconfig ${bridge} ifuntagged ${eptwo}a 20
 
 	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 
-	atf_check -s exit:0 ifconfig ${bridge} -untagged ${epone}a
-	atf_check -s exit:0 ifconfig ${bridge} -untagged ${eptwo}a
+	atf_check -s exit:0 ifconfig ${bridge} -ifuntagged ${epone}a
+	atf_check -s exit:0 ifconfig ${bridge} -ifuntagged ${eptwo}a
 
 	# Add VLANs 10-30 to the access list; now access should be allowed.
-	atf_check -s exit:0 ifconfig ${bridge} +tagged ${epone}a 10-30
-	atf_check -s exit:0 ifconfig ${bridge} +tagged ${eptwo}a 10-30
+	atf_check -s exit:0 ifconfig ${bridge} +iftagged ${epone}a 10-30
+	atf_check -s exit:0 ifconfig ${bridge} +iftagged ${eptwo}a 10-30
 	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 
 	# Remove vlan 20 from the access list, now access should be blocked
 	# again.
-	atf_check -s exit:0 ifconfig ${bridge} -tagged ${epone}a 20
-	atf_check -s exit:0 ifconfig ${bridge} -tagged ${eptwo}a 20
+	atf_check -s exit:0 ifconfig ${bridge} -iftagged ${epone}a 20
+	atf_check -s exit:0 ifconfig ${bridge} -iftagged ${eptwo}a 20
 	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 }
@@ -1145,16 +1139,16 @@ vlan_filtering_cleanup()
 }
 
 #
-# Test the ifconfig 'tagged' option.
+# Test the ifconfig 'iftagged' option.
 #
-atf_test_case "vlan_ifconfig_tagged" "cleanup"
-vlan_ifconfig_tagged_head()
+atf_test_case "vlan_ifconfig_iftagged" "cleanup"
+vlan_ifconfig_iftagged_head()
 {
-	atf_set descr 'test the ifconfig tagged option'
+	atf_set descr 'test the ifconfig iftagged option'
 	atf_set require.user root
 }
 
-vlan_ifconfig_tagged_body()
+vlan_ifconfig_iftagged_body()
 {
 	vnet_init
 	vnet_init_bridge
@@ -1170,34 +1164,34 @@ vlan_ifconfig_tagged_body()
 	atf_check -s exit:0 -o not-match:"tagged" ifconfig ${bridge}
 
 	# Add vlans 100-149.
-	atf_check -s exit:0 ifconfig ${bridge} tagged ${ep}a 100-149
+	atf_check -s exit:0 ifconfig ${bridge} iftagged ${ep}a 100-149
 	atf_check -s exit:0 -o match:"tagged 100-149" ifconfig ${bridge}
 
 	# Replace the vlan list with 139-199.
-	atf_check -s exit:0 ifconfig ${bridge} tagged ${ep}a 139-199
+	atf_check -s exit:0 ifconfig ${bridge} iftagged ${ep}a 139-199
 	atf_check -s exit:0 -o match:"tagged 139-199" ifconfig ${bridge}
 
 	# Add vlans 100-170.
-	atf_check -s exit:0 ifconfig ${bridge} +tagged ${ep}a 100-170
+	atf_check -s exit:0 ifconfig ${bridge} +iftagged ${ep}a 100-170
 	atf_check -s exit:0 -o match:"tagged 100-199" ifconfig ${bridge}
 
 	# Remove vlans 104, 105, and 150-159
-	atf_check -s exit:0 ifconfig ${bridge} -tagged ${ep}a 104,105,150-159
+	atf_check -s exit:0 ifconfig ${bridge} -iftagged ${ep}a 104,105,150-159
 	atf_check -s exit:0 -o match:"tagged 100-103,106-149,160-199" \
 	    ifconfig ${bridge}
 
 	# Remove the entire vlan list.
-	atf_check -s exit:0 ifconfig ${bridge} tagged ${ep}a none
+	atf_check -s exit:0 ifconfig ${bridge} iftagged ${ep}a none
 	atf_check -s exit:0 -o not-match:"tagged" ifconfig ${bridge}
 
 	# Test some invalid vlans sets.
 	for bad_vlan in -1 0 4096 4097 foo 0-10 4000-5000 foo-40 40-foo; do
 		atf_check -s exit:1 -e ignore \
-		    ifconfig ${bridge} tagged "$bad_vlan"
+		    ifconfig ${bridge} iftagged "$bad_vlan"
 	done
 }
 
-vlan_ifconfig_tagged_cleanup()
+vlan_ifconfig_iftagged_cleanup()
 {
 	vnet_cleanup
 }
@@ -1229,8 +1223,7 @@ vlan_svi_body()
 
 	atf_check -s exit:0 ifconfig ${bridge} vlanfilter up
 	atf_check -s exit:0 ifconfig ${epone}a up
-	atf_check -s exit:0 ifconfig ${bridge} addm ${epone}a \
-	    tagged ${epone}a 20
+	atf_check -s exit:0 ifconfig ${bridge} addm ${epone}a tagged 20
 
 	svi=$(vnet_mkvlan)
 	atf_check -s exit:0 ifconfig ${svi} vlan 20 vlandev ${bridge}
@@ -1294,8 +1287,8 @@ vlan_qinq_body()
 	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 
 	# Add the provider tag to the access list; now traffic should be passed.
-	atf_check -s exit:0 ifconfig ${bridge} +tagged ${epone}a 5
-	atf_check -s exit:0 ifconfig ${bridge} +tagged ${eptwo}a 5
+	atf_check -s exit:0 ifconfig ${bridge} +iftagged ${epone}a 5
+	atf_check -s exit:0 ifconfig ${bridge} +iftagged ${eptwo}a 5
 	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 
@@ -1411,7 +1404,7 @@ atf_init_test_cases()
 	atf_add_test_case "vlan_pvid_filtered"
 	atf_add_test_case "vlan_pvid_tagged"
 	atf_add_test_case "vlan_filtering"
-	atf_add_test_case "vlan_ifconfig_tagged"
+	atf_add_test_case "vlan_ifconfig_iftagged"
 	atf_add_test_case "vlan_svi"
 	atf_add_test_case "vlan_qinq"
 	atf_add_test_case "vlan_defuntagged"

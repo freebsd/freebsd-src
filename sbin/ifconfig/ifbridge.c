@@ -60,6 +60,10 @@
 
 #include "ifconfig.h"
 
+static int	parse_vlans(ifbvlan_set_t *set, const char *str);
+static int	get_val(const char *cp, u_long *valp);
+static int	get_vlan_id(const char *cp, ether_vlanid_t *valp);
+
 static const char *stpstates[] = { STP_STATES };
 static const char *stpproto[] = { STP_PROTOS };
 static const char *stproles[] = { STP_ROLES };
@@ -288,15 +292,62 @@ bridge_status(if_ctx *ctx)
 	ifconfig_bridge_free_bridge_status(bridge);
 }
 
-static void
-setbridge_add(if_ctx *ctx, const char *val, int dummy __unused)
+static int
+setbridge_add(if_ctx *ctx, int argc, const char *const *argv)
 {
 	struct ifbreq req;
+	struct ifbif_vlan_req vlreq;
+	int oargc = argc;
 
 	memset(&req, 0, sizeof(req));
-	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
+	memset(&vlreq, 0, sizeof(vlreq));
+
+	if (argc < 1)
+		errx(1, "usage: addm <interface> [opts ...]");
+
+	strlcpy(req.ifbr_ifsname, argv[0], sizeof(req.ifbr_ifsname));
+	--argc; ++argv;
+
+	while (argc) {
+		if (strcmp(argv[0], "untagged") == 0) {
+			if (argc < 2)
+				errx(1, "usage: untagged <vlan id>");
+
+			if (get_vlan_id(argv[1], &req.ifbr_pvid) < 0)
+				errx(1, "invalid VLAN identifier: %s", argv[1]);
+
+			argc -= 2;
+			argv += 2;
+		} else if (strcmp(argv[0], "tagged") == 0) {
+			if (argc < 2)
+				errx(1, "usage: tagged <vlan set>");
+
+			vlreq.bv_op = BRDG_VLAN_OP_SET;
+			strlcpy(vlreq.bv_ifname, req.ifbr_ifsname,
+			    sizeof(vlreq.bv_ifname));
+			if (parse_vlans(&vlreq.bv_set, argv[1]) != 0)
+				errx(1, "invalid vlan set: %s", argv[1]);
+
+			argc -= 2;
+			argv += 2;
+		} else {
+			break;
+		}
+	}
+
 	if (do_cmd(ctx, BRDGADD, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGADD %s",  val);
+		err(1, "BRDGADD %s", req.ifbr_ifsname);
+
+	if (req.ifbr_pvid != 0 &&
+	    do_cmd(ctx, BRDGSIFPVID, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFPVID %s %u", req.ifbr_ifsname,
+		    (unsigned)req.ifbr_pvid);
+
+	if (vlreq.bv_op != 0 &&
+	    do_cmd(ctx, BRDGSIFVLANSET, &vlreq, sizeof(vlreq), 1) < 0)
+		err(1, "BRDGSIFVLANSET %s", req.ifbr_ifsname);
+
+	return (oargc - argc);
 }
 
 static void
@@ -684,7 +735,7 @@ setbridge_ifpathcost(if_ctx *ctx, const char *ifn, const char *cost)
 }
 
 static void
-setbridge_untagged(if_ctx *ctx, const char *ifn, const char *vlanid)
+setbridge_ifuntagged(if_ctx *ctx, const char *ifn, const char *vlanid)
 {
 	struct ifbreq req;
 
@@ -699,7 +750,7 @@ setbridge_untagged(if_ctx *ctx, const char *ifn, const char *vlanid)
 }
 
 static void
-unsetbridge_untagged(if_ctx *ctx, const char *ifn, int dummy __unused)
+unsetbridge_ifuntagged(if_ctx *ctx, const char *ifn, int dummy __unused)
 {
 	struct ifbreq req;
 
@@ -831,19 +882,19 @@ set_bridge_vlanset(if_ctx *ctx, const char *ifn, const char *vlans, int op)
 }
 
 static void
-setbridge_tagged(if_ctx *ctx, const char *ifn, const char *vlans)
+setbridge_iftagged(if_ctx *ctx, const char *ifn, const char *vlans)
 {
 	set_bridge_vlanset(ctx, ifn, vlans, BRDG_VLAN_OP_SET);
 }
 
 static void
-addbridge_tagged(if_ctx *ctx, const char *ifn, const char *vlans)
+addbridge_iftagged(if_ctx *ctx, const char *ifn, const char *vlans)
 {
 	set_bridge_vlanset(ctx, ifn, vlans, BRDG_VLAN_OP_ADD);
 }
 
 static void
-delbridge_tagged(if_ctx *ctx, const char *ifn, const char *vlans)
+delbridge_iftagged(if_ctx *ctx, const char *ifn, const char *vlans)
 {
 	set_bridge_vlanset(ctx, ifn, vlans, BRDG_VLAN_OP_DEL);
 }
@@ -933,7 +984,7 @@ setbridge_ifvlanproto(if_ctx *ctx, const char *ifname, const char *proto)
 }
 
 static struct cmd bridge_cmds[] = {
-	DEF_CMD_ARG("addm",		setbridge_add),
+	DEF_CMD_VARG("addm",		setbridge_add),
 	DEF_CMD_ARG("deletem",		setbridge_delete),
 	DEF_CMD_ARG("discover",		setbridge_discover),
 	DEF_CMD_ARG("-discover",	unsetbridge_discover),
@@ -968,11 +1019,11 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
 	DEF_CMD_ARG2("ifmaxaddr",	setbridge_ifmaxaddr),
-	DEF_CMD_ARG2("untagged",	setbridge_untagged),
-	DEF_CMD_ARG("-untagged",	unsetbridge_untagged),
-	DEF_CMD_ARG2("tagged",		setbridge_tagged),
-	DEF_CMD_ARG2("+tagged",		addbridge_tagged),
-	DEF_CMD_ARG2("-tagged",		delbridge_tagged),
+	DEF_CMD_ARG2("ifuntagged",	setbridge_ifuntagged),
+	DEF_CMD_ARG("-ifuntagged",	unsetbridge_ifuntagged),
+	DEF_CMD_ARG2("iftagged",	setbridge_iftagged),
+	DEF_CMD_ARG2("+iftagged",	addbridge_iftagged),
+	DEF_CMD_ARG2("-iftagged",	delbridge_iftagged),
 	DEF_CMD_ARG2("ifvlanproto",	setbridge_ifvlanproto),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
 	DEF_CMD_ARG("private",		setbridge_private),
