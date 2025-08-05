@@ -55,7 +55,7 @@ AOPT('m', uint8_t, media_descriptor, 0, "Media descriptor") \
 AOPT('n', uint8_t, num_FAT, 1, "Number of FATs") \
 AOPT('o', uint32_t, hidden_sectors, 0, "Hidden sectors") \
 AOPT('r', uint16_t, reserved_sectors, 1, "Reserved sectors") \
-AOPT('s', uint32_t, size, 1, "File System size") \
+AOPT('s', uint64_t, size, 1, "File System size") \
 AOPT('u', uint16_t, sectors_per_track, 1, "Sectors per track")
 
 struct msdos_options {
@@ -66,6 +66,7 @@ ALLOPTS
 	uint32_t volume_id_set:1;
 	uint32_t media_descriptor_set:1;
 	uint32_t hidden_sectors_set:1;
+	uint32_t exfat:1;
 };
 
 int mkfs_msdos(const char *, const char *, const struct msdos_options *);
