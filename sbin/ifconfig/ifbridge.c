@@ -883,6 +883,18 @@ unsetbridge_defuntagged(if_ctx *ctx, const char *val __unused, int dummy __unuse
 		err(1, "BRDGSDEFPVID");
 }
 
+static void
+setbridge_qinq(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	do_bridgeflag(ctx, val, IFBIF_QINQ, 1);
+}
+
+static void
+unsetbridge_qinq(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	do_bridgeflag(ctx, val, IFBIF_QINQ, 0);
+}
+
 static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("addm",		setbridge_add),
 	DEF_CMD_ARG("deletem",		setbridge_delete),
@@ -933,6 +945,12 @@ static struct cmd bridge_cmds[] = {
 					unsetbridge_flags),
 	DEF_CMD_ARG("defuntagged",	setbridge_defuntagged),
 	DEF_CMD("-defuntagged", 0,	unsetbridge_defuntagged),
+	DEF_CMD("defqinq", (int32_t)IFBRF_DEFQINQ,
+					setbridge_flags),
+	DEF_CMD("-defqinq", (int32_t)IFBRF_DEFQINQ,
+					unsetbridge_flags),
+	DEF_CMD_ARG("qinq",		setbridge_qinq),
+	DEF_CMD_ARG("-qinq",		unsetbridge_qinq),
 };
 
 static struct afswtch af_bridge = {
