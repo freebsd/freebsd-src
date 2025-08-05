@@ -1,3 +1,12 @@
+2025-08-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250804
+	Merge with NetBSD make, pick up
+	o meta.c: allow printing only partial string to meta file
+	in jobs mode, otherwise we end up with duplicated output when
+	buffer does not end in newline.
+	Add a suitable unit test.
+
 2025-07-07  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20250707

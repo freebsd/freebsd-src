@@ -39,7 +39,7 @@ We only pay attention to a subset of the information in the
 SPDX-License-Identifier: BSD-2-Clause
 
 RCSid:
-	$Id: meta2deps.py,v 1.51 2025/05/16 20:03:43 sjg Exp $
+	$Id: meta2deps.py,v 1.54 2025/07/24 16:05:48 sjg Exp $
 
 	Copyright (c) 2011-2025, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -441,7 +441,7 @@ class MetaFile:
         # Bye bye
 
         We go to some effort to avoid processing a dependency more than once.
-        Of the above record types only C,E,F,L,R,V and W are of interest.
+        Of the above record types only C,E,F,L,M,R,V,W and X are of interest.
         """
 
         version = 0                     # unknown
@@ -465,8 +465,8 @@ class MetaFile:
         if self.sb and self.name.startswith(self.sb):
             error_name = self.name.replace(self.sb+'/','')
         else:
-            error_name = self.name 
-        interesting = '#CEFLRVX'
+            error_name = self.name
+        interesting = '#CEFLMRVX'
         for line in f:
             self.line += 1
             # ignore anything we don't care about
@@ -475,6 +475,7 @@ class MetaFile:
             if self.debug > 2:
                 print("input:", line, end=' ', file=self.debug_out)
             w = line.split()
+            wlen = len(w)
 
             if skip:
                 if w[0] == 'V':
@@ -498,6 +499,23 @@ class MetaFile:
                 if line.find('Bye') > 0:
                     eof_token = True
                 continue
+            else:
+                # before we go further check we have a sane number of args
+                # the Linux filemon module is rather unreliable.
+                if w[0] in 'LM':
+                    elen = 4
+                elif w[0] == 'X':
+                    # at least V4 on Linux does 3 args
+                    if wlen == 3:
+                        elen = 3
+                    else:
+                        elen = 4
+                else:
+                    elen = 3
+                if self.debug > 2:
+                    print('op={} elen={} wlen={} line="{}"'.format(w[0], elen, wlen, line.strip()), file=self.debug_out)
+                if wlen != elen:
+                    raise AssertionError('corrupted filemon data: wrong number of words: expected {} got {} in: {}'.format(elen, wlen, line))
 
             pid = int(w[1])
             if pid != last_pid:
@@ -540,7 +558,7 @@ class MetaFile:
                     print("seen:", w[2], file=self.debug_out)
                 continue
             # file operations
-            if w[0] in 'ML':
+            if w[0] in 'LM':
                 # these are special, tread src as read and
                 # target as write
                 self.parse_path(w[3].strip("'"), cwd, 'W', w)
