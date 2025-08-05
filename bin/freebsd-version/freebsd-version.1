@@ -75,14 +75,6 @@ version, next the userland version, and finally the userland version
 of the specified jails, on separate lines.
 If neither is specified, it will print the userland version only.
 .Sh IMPLEMENTATION NOTES
-The
-.Nm
-utility should provide the correct answer in the vast majority of
-cases, including on systems kept up-to-date using
-.Xr freebsd-update 8 ,
-which does not update the kernel version unless the kernel itself was
-affected by the latest patch.
-.Pp
 To determine the name (and hence the location) of a custom kernel, the
 .Nm
 utility will attempt to parse
