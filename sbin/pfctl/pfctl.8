@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 7, 2025
+.Dd August 5, 2025
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -410,6 +410,7 @@ This is the default behaviour.
 .It Fl o Cm profile
 Enable basic ruleset optimizations with profiling.
 .El
+.Pp
 For further information on the ruleset optimizer, see
 .Xr pf.conf 5 .
 .It Fl P
@@ -431,7 +432,7 @@ Perform reverse DNS lookups on states and tables when displaying them.
 and
 .Fl r
 are mutually exclusive.
-.It Fl s Ar modifier
+.It Fl s Ar modifier Op Fl R Ar id
 Show the filter parameters specified by
 .Ar modifier
 (may be abbreviated):
@@ -563,19 +564,16 @@ no free ports in translation port range
 .It Fl S
 Do not perform domain name resolution.
 If a name cannot be resolved without DNS, an error will be reported.
-.It Fl T Ar command Op Ar address ...
+.It Fl t Ar table Fl T Ar command Op Ar address ...
 Specify the
 .Ar command
-(may be abbreviated) to apply to the table.
+(may be abbreviated) to apply to
+.Ar table .
 Commands include:
 .Pp
-.Bl -tag -width xxxxxxxxxxxx -compact
-.It Fl T Cm kill
-Kill a table.
-.It Fl T Cm flush
-Flush all addresses of a table.
+.Bl -tag -width "-T expire number" -compact
 .It Fl T Cm add
-Add one or more addresses in a table.
+Add one or more addresses to a table.
 Automatically create a persistent table if it does not exist.
 .It Fl T Cm delete
 Delete one or more addresses from a table.
@@ -586,6 +584,10 @@ seconds ago.
 For entries which have never had their statistics cleared,
 .Ar number
 refers to the time they were added to the table.
+.It Fl T Cm flush
+Flush all addresses in a table.
+.It Fl T Cm kill
+Kill a table.
 .It Fl T Cm replace
 Replace the addresses of the table.
 Automatically create a persistent table if it does not exist.
@@ -765,8 +767,6 @@ tables of the same name from anchors attached below it.
 .It C
 This flag is set when per-address counters are enabled on the table.
 .El
-.It Fl t Ar table
-Specify the name of the table.
 .It Fl v
 Produce more verbose output.
 A second use of
