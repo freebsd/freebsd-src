@@ -176,6 +176,13 @@ enum libusb_usb_2_0_extension_attributes {
 	LIBUSB_BM_LPM_SUPPORT = 0x2,
 };
 
+enum libusb_supported_speed {
+	LIBUSB_LOW_SPEED_OPERATION = (1 << 0),
+	LIBUSB_FULL_SPEED_OPERATION = (1 << 1),
+	LIBUSB_HIGH_SPEED_OPERATION = (1 << 2),
+	LIBUSB_SUPER_SPEED_OPERATION = (1 << 3),
+};
+
 enum libusb_bos_type {
 	LIBUSB_BT_WIRELESS_USB_DEVICE_CAPABILITY = 1,
 	LIBUSB_BT_USB_2_0_EXTENSION = 2,
