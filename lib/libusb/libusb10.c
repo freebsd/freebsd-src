@@ -1918,3 +1918,10 @@ libusb_dev_mem_free(libusb_device_handle *devh, unsigned char *buffer,
 {
 	return (LIBUSB_ERROR_NOT_SUPPORTED);
 }
+
+int
+libusb_wrap_sys_device(libusb_context *ctx, intptr_t sys_dev,
+    libusb_device_handle **dev_handle)
+{
+	return (LIBUSB_ERROR_NOT_SUPPORTED);
+}

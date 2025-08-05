@@ -209,6 +209,14 @@ Decrement the reference counter of the device
 .Fa dev .
 .Pp
 .Ft int
+.Fn libusb_wrap_sys_device "libusb_context *ctx" "intptr_t sys_dev" "libusb_device_handle **dev_handle"
+This function creates a libusb handler from a previously opened fd
+.Fa sys_dev .
+This function is provided for compatibility and is currently unimplemented.
+It always returns
+.Dv LIBUSB_ERROR_NOT_SUPPORTED .
+.Pp
+.Ft int
 .Fn libusb_open "libusb_device *dev" "libusb_device_handle **devh"
 Open a device and obtain a device_handle.
 Returns 0 on success,

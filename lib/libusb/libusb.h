@@ -506,6 +506,7 @@ int	libusb_get_max_packet_size(libusb_device * dev, uint8_t endpoint);
 int	libusb_get_max_iso_packet_size(libusb_device * dev, uint8_t endpoint);
 libusb_device *libusb_ref_device(libusb_device * dev);
 void	libusb_unref_device(libusb_device * dev);
+int	libusb_wrap_sys_device(libusb_context *ctx, intptr_t sys_dev, libusb_device_handle **dev_handle);
 int	libusb_open(libusb_device * dev, libusb_device_handle ** devh);
 libusb_device_handle *libusb_open_device_with_vid_pid(libusb_context * ctx, uint16_t vendor_id, uint16_t product_id);
 void	libusb_close(libusb_device_handle * devh);
