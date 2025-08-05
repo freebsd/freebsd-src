@@ -1770,14 +1770,14 @@ libusb10_cancel_all_transfer_locked(struct libusb20_device *pdev, struct libusb_
 		if (sxfer == NULL)
 			continue;
 		/* complete pending transfer */
-		libusb10_complete_transfer(xfer, sxfer, LIBUSB_TRANSFER_ERROR);
+		libusb10_complete_transfer(xfer, sxfer, LIBUSB_TRANSFER_CANCELLED);
 	}
 
 	while ((sxfer = TAILQ_FIRST(&dev->tr_head))) {
 		TAILQ_REMOVE(&dev->tr_head, sxfer, entry);
 
 		/* complete pending transfer */
-		libusb10_complete_transfer(NULL, sxfer, LIBUSB_TRANSFER_ERROR);
+		libusb10_complete_transfer(NULL, sxfer, LIBUSB_TRANSFER_CANCELLED);
 	}
 }
 
