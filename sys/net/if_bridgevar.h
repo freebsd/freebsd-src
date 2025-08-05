@@ -131,6 +131,7 @@
 #define	BRDGSFLAGS		35	/* set bridge flags (ifbrparam) */
 #define	BRDGGDEFPVID		36	/* get default pvid (ifbrparam) */
 #define	BRDGSDEFPVID		37	/* set default pvid (ifbrparam) */
+#define	BRDGSIFVLANPROTO	38	/* set if vlan protocol (ifbreq) */
 
 /* BRDGSFLAGS, Bridge flags (non-interface-specific) */
 typedef uint32_t ifbr_flags_t;
@@ -157,6 +158,7 @@ struct ifbreq {
 	uint32_t	ifbr_addrmax;		/* member if addr max */
 	uint32_t	ifbr_addrexceeded;	/* member if addr violations */
 	ether_vlanid_t	ifbr_pvid;		/* member if PVID */
+	uint16_t	ifbr_vlanproto;		/* member if VLAN protocol */
 	uint8_t		pad[32];
 };
 
@@ -252,6 +254,7 @@ struct ifbrparam {
 							 * addresses */
 #define	ifbrp_flags	ifbrp_ifbrpu.ifbrpu_int32	/* bridge flags */
 #define	ifbrp_defpvid	ifbrp_ifbrpu.ifbrpu_int16	/* default pvid */
+#define	ifbrp_vlanproto	ifbrp_ifbrpu.ifbrpu_int8	/* vlan protocol */
 
 /*
  * Bridge current operational parameters structure.

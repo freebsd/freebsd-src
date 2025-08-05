@@ -190,6 +190,21 @@ print_vlans(ifbvlan_set_t *vlans)
 	}
 }
 
+static char const *
+vlan_proto_name(uint16_t proto)
+{
+	switch (proto) {
+	case 0:
+		return "none";
+	case ETHERTYPE_VLAN:
+		return "802.1q";
+	case ETHERTYPE_QINQ:
+		return "802.1ad";
+	default:
+		return "unknown";
+	}
+}
+
 static void
 bridge_status(if_ctx *ctx)
 {
@@ -261,6 +276,9 @@ bridge_status(if_ctx *ctx)
 			else
 				printf(" <unknown state %d>", state);
 		}
+		if (member->ifbr_vlanproto != 0)
+			printf(" vlan protocol %s",
+			    vlan_proto_name(member->ifbr_vlanproto));
 		if (member->ifbr_pvid != 0)
 			printf(" untagged %u", (unsigned)member->ifbr_pvid);
 		print_vlans(&bridge->member_vlans[i]);
@@ -895,6 +913,25 @@ unsetbridge_qinq(if_ctx *ctx, const char *val, int dummy __unused)
 	do_bridgeflag(ctx, val, IFBIF_QINQ, 0);
 }
 
+static void
+setbridge_ifvlanproto(if_ctx *ctx, const char *ifname, const char *proto)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.ifbr_ifsname, ifname, sizeof(req.ifbr_ifsname));
+
+	if (strcmp(proto, "802.1q") == 0)
+		req.ifbr_vlanproto = ETHERTYPE_VLAN;
+	else if (strcmp(proto, "802.1ad") == 0)
+		req.ifbr_vlanproto = ETHERTYPE_QINQ;
+	else
+		errx(1, "unrecognised VLAN protocol: %s", proto);
+
+	if (do_cmd(ctx, BRDGSIFVLANPROTO, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFVLANPROTO");
+}
+
 static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("addm",		setbridge_add),
 	DEF_CMD_ARG("deletem",		setbridge_delete),
@@ -936,6 +973,7 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG2("tagged",		setbridge_tagged),
 	DEF_CMD_ARG2("+tagged",		addbridge_tagged),
 	DEF_CMD_ARG2("-tagged",		delbridge_tagged),
+	DEF_CMD_ARG2("ifvlanproto",	setbridge_ifvlanproto),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
 	DEF_CMD_ARG("private",		setbridge_private),
 	DEF_CMD_ARG("-private",		unsetbridge_private),
