@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.517 2025/07/06 07:11:31 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.519 2025/08/04 15:40:39 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -137,7 +137,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.517 2025/07/06 07:11:31 rillig Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.519 2025/08/04 15:40:39 sjg Exp $");
 
 
 #ifdef USE_SELECT
@@ -1884,7 +1884,7 @@ again:
 			SwitchOutputTo(job->node);
 #ifdef USE_META
 		if (useMeta)
-			meta_job_output(job, p);
+			meta_job_output(job, p, (i < max) ? i : max);
 #endif
 		(void)fwrite(p, 1, (size_t)(job->outBuf + i - p), stdout);
 		(void)fflush(stdout);
