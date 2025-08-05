@@ -160,8 +160,8 @@ struct pfsync_ins_ack {
 
 struct pfsync_upd_c {
 	u_int64_t			id;
-	struct pfsync_state_peer	src;
-	struct pfsync_state_peer	dst;
+	struct pf_state_peer_export	src;
+	struct pf_state_peer_export	dst;
 	u_int32_t			creatorid;
 	u_int32_t			expire;
 	u_int8_t			timeout;
