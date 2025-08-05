@@ -1496,6 +1496,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	bif->bif_savedcaps = ifs->if_capenable;
 	if (sc->sc_flags & IFBRF_VLANFILTER)
 		bif->bif_pvid = sc->sc_defpvid;
+	if (sc->sc_flags & IFBRF_DEFQINQ)
+		bif->bif_flags |= IFBIF_QINQ;
 
 	/*
 	 * Assign the interface's MAC address to the bridge if it's the first
@@ -2828,6 +2830,16 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	NET_EPOCH_ASSERT();
 
+	/* We need the Ethernet header later, so make sure we have it now. */
+	if (m->m_len < ETHER_HDR_LEN) {
+		m = m_pullup(m, ETHER_HDR_LEN);
+		if (m == NULL) {
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_IERRORS, 1);
+			m_freem(m);
+			return (NULL);
+		}
+	}
+
 	eh = mtod(m, struct ether_header *);
 	vlan = VLANTAGOF(m);
 
@@ -3249,6 +3261,18 @@ bridge_vfilter_in(const struct bridge_iflist *sbif, struct mbuf *m)
 	/* If VLAN filtering isn't enabled, pass everything. */
 	if ((sbif->bif_sc->sc_flags & IFBRF_VLANFILTER) == 0)
 		return (true);
+
+	/* If Q-in-Q is disabled, check for stacked tags. */
+	if ((sbif->bif_flags & IFBIF_QINQ) == 0) {
+		struct ether_header *eh;
+		uint16_t proto;
+
+		eh = mtod(m, struct ether_header *);
+		proto = ntohs(eh->ether_type);
+
+		if (proto == ETHERTYPE_VLAN || proto == ETHERTYPE_QINQ)
+			return (false);
+	}
 
 	if (vlan == DOT1Q_VID_NULL) {
 		/*

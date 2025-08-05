@@ -1268,21 +1268,25 @@ vlan_qinq_body()
 	# Create a QinQ trunk between the two jails.  The outer (provider) tag
 	# is 5, and the inner tag is 10.
 
-	jexec one ifconfig ${epone}b up
-	jexec one ifconfig ${epone}b.5 create vlanproto 802.1ad up
-	jexec one ifconfig ${epone}b.5.10 create inet 192.0.2.1/24 up
+	atf_check -s exit:0 jexec one ifconfig ${epone}b up
+	atf_check -s exit:0 jexec one \
+	    ifconfig ${epone}b.5 create vlanproto 802.1ad up
+	atf_check -s exit:0 jexec one \
+	    ifconfig ${epone}b.5.10 create inet 192.0.2.1/24 up
 
-	jexec two ifconfig ${eptwo}b up
-	jexec two ifconfig ${eptwo}b.5 create vlanproto 802.1ad up
-	jexec two ifconfig ${eptwo}b.5.10 create inet 192.0.2.2/24 up
+	atf_check -s exit:0 jexec two ifconfig ${eptwo}b up
+	atf_check -s exit:0 jexec two ifconfig \
+	    ${eptwo}b.5 create vlanproto 802.1ad up
+	atf_check -s exit:0 jexec two ifconfig \
+	    ${eptwo}b.5.10 create inet 192.0.2.2/24 up
 
 	bridge=$(vnet_mkbridge)
 
-	ifconfig ${bridge} up
-	ifconfig ${epone}a up
-	ifconfig ${eptwo}a up
-	ifconfig ${bridge} addm ${epone}a vlanfilter ${epone}a
-	ifconfig ${bridge} addm ${eptwo}a vlanfilter ${eptwo}a
+	atf_check -s exit:0 ifconfig ${bridge} vlanfilter defqinq up
+	atf_check -s exit:0 ifconfig ${epone}a up
+	atf_check -s exit:0 ifconfig ${eptwo}a up
+	atf_check -s exit:0 ifconfig ${bridge} addm ${epone}a
+	atf_check -s exit:0 ifconfig ${bridge} addm ${eptwo}a
 
 	# Right now there are no VLANs on the access list, so everything
 	# should be blocked.
@@ -1290,10 +1294,16 @@ vlan_qinq_body()
 	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 
 	# Add the provider tag to the access list; now traffic should be passed.
-	ifconfig ${bridge} +tagged ${epone}a 5
-	ifconfig ${bridge} +tagged ${eptwo}a 5
+	atf_check -s exit:0 ifconfig ${bridge} +tagged ${epone}a 5
+	atf_check -s exit:0 ifconfig ${bridge} +tagged ${eptwo}a 5
 	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
 	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	# Remove the qinq flag from one of the interfaces; traffic should
+	# be blocked again.
+	atf_check -s exit:0 ifconfig ${bridge} -qinq ${epone}a
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
 }
 
 vlan_qinq_cleanup()
