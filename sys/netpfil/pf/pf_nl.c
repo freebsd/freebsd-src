@@ -118,7 +118,7 @@ dump_state_peer(struct nl_writer *nw, int attr, const struct pf_state_peer *peer
 		nlattr_add_u16(nw, PF_STP_PFSS_FLAGS, pfss_flags);
 		nlattr_add_u32(nw, PF_STP_PFSS_TS_MOD, sc->pfss_ts_mod);
 		nlattr_add_u8(nw, PF_STP_PFSS_TTL, sc->pfss_ttl);
-		nlattr_add_u8(nw, PF_STP_SCRUB_FLAG, PFSYNC_SCRUB_FLAG_VALID);
+		nlattr_add_u8(nw, PF_STP_SCRUB_FLAG, PF_SCRUB_FLAG_VALID);
 	}
 	nlattr_set_len(nw, off);
 
