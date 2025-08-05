@@ -172,6 +172,10 @@ enum libusb_iso_usage_type {
 	LIBUSB_ISO_USAGE_TYPE_IMPLICIT = 2,
 };
 
+enum libusb_usb_2_0_extension_attributes {
+	LIBUSB_BM_LPM_SUPPORT = 0x2,
+};
+
 enum libusb_bos_type {
 	LIBUSB_BT_WIRELESS_USB_DEVICE_CAPABILITY = 1,
 	LIBUSB_BT_USB_2_0_EXTENSION = 2,
