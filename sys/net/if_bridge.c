@@ -2871,6 +2871,16 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	eh = mtod(m, struct ether_header *);
 	vlan = VLANTAGOF(m);
 
+	/*
+	 * If this frame has a VLAN tag and the receiving interface has a
+	 * vlan(4) trunk, then it is is destined for vlan(4), not for us.
+	 * This means if vlan(4) and bridge(4) are configured on the same
+	 * interface, vlan(4) is preferred, which is what users typically
+	 * expect.
+	 */
+	if (vlan != DOT1Q_VID_NULL && ifp->if_vlantrunk != NULL)
+		return (m);
+
 	bif = ifp->if_bridge;
 	if (bif)
 		sc = bif->bif_sc;
@@ -3071,19 +3081,13 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	do { GRAB_OUR_PACKETS(bifp) } while (0);
 
 	/*
-	 * Check the interface the packet arrived on.  For tagged frames,
-	 * we need to do this even if member_ifaddrs is disabled because
-	 * vlan(4) might need to handle the traffic.
-	 */
-	if (V_member_ifaddrs || (vlan && ifp->if_vlantrunk))
-		do { GRAB_OUR_PACKETS(ifp) } while (0);
-
-	/*
-	 * We only need to check other members interface if member_ifaddrs
-	 * is enabled; otherwise we should have never traffic destined for
-	 * a member's lladdr.
+	 * If member_ifaddrs is enabled, see if the packet is destined for
+	 * one of the members' addresses.
 	 */
 	if (V_member_ifaddrs) {
+		/* Check the interface the packet arrived on. */
+		do { GRAB_OUR_PACKETS(ifp) } while (0);
+
 		CK_LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
 			GRAB_OUR_PACKETS(bif2->bif_ifp)
 		}
