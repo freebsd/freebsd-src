@@ -734,6 +734,14 @@ another thread is already doing so.
 Must be called with the event lock held.
 .Pp
 .Ft int
+.Fn libusb_pollfds_handle_timeouts "libusb_context *ctx"
+This function determines whether applications maintaining libusb events using
+.Fn libusb_get_pollfds
+are responsible for handling timeout events themselves.
+Returns 1 if libusb handles the timeout internally, 0 if the application
+needs to set a dedicated timer to handle it.
+.Pp
+.Ft int
 .Fn libusb_get_next_timeout "libusb_context *ctx" "struct timeval *tv"
 Determine the next internal timeout that libusb needs to handle.
 Returns 0
