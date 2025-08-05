@@ -96,6 +96,13 @@ static void racct_sub_cred_locked(struct ucred *cred, int resource,
 		uint64_t amount);
 static void racct_add_cred_locked(struct ucred *cred, int resource,
 		uint64_t amount);
+static int racct_set_locked(struct proc *p, int resource, uint64_t amount,
+                int force);
+static void racct_updatepcpu_locked(struct proc *p);
+static void racct_updatepcpu_racct_locked(struct racct *racct);
+static void racct_updatepcpu_containers(void);
+static void racct_settime_locked(struct proc *p, bool exit);
+static void racct_zeropcpu_locked(struct proc *p);
 
 SDT_PROVIDER_DEFINE(racct);
 SDT_PROBE_DEFINE3(racct, , rusage, add,
@@ -308,74 +315,6 @@ fixpt_t ccpu_exp[] = {
 
 #define	CCPU_EXP_MAX	110
 
-/*
- * This function is analogical to the getpcpu() function in the ps(1) command.
- * They should both calculate in the same way so that the racct %cpu
- * calculations are consistent with the values shown by the ps(1) tool.
- * The calculations are more complex in the 4BSD scheduler because of the value
- * of the ccpu variable.  In ULE it is defined to be zero which saves us some
- * work.
- */
-static uint64_t
-racct_getpcpu(struct proc *p, u_int pcpu)
-{
-	u_int swtime;
-#ifdef SCHED_4BSD
-	fixpt_t pctcpu, pctcpu_next;
-#endif
-	fixpt_t p_pctcpu;
-	struct thread *td;
-
-	ASSERT_RACCT_ENABLED();
-	KASSERT((p->p_flag & P_IDLEPROC) == 0,
-	    ("racct_getpcpu: idle process %p", p));
-
-	/*
-	 * If the process is swapped out, we count its %cpu usage as zero.
-	 * This behaviour is consistent with the userland ps(1) tool.
-	 */
-	if ((p->p_flag & P_INMEM) == 0)
-		return (0);
-	swtime = (ticks - p->p_swtick) / hz;
-
-	/*
-	 * For short-lived processes, the sched_pctcpu() returns small
-	 * values even for cpu intensive processes.  Therefore we use
-	 * our own estimate in this case.
-	 */
-	if (swtime < RACCT_PCPU_SECS)
-		return (pcpu);
-
-	p_pctcpu = 0;
-	FOREACH_THREAD_IN_PROC(p, td) {
-		thread_lock(td);
-#ifdef SCHED_4BSD
-		pctcpu = sched_pctcpu(td);
-		/* Count also the yet unfinished second. */
-		pctcpu_next = (pctcpu * ccpu_exp[1]) >> FSHIFT;
-		pctcpu_next += sched_pctcpu_delta(td);
-		p_pctcpu += max(pctcpu, pctcpu_next);
-#else
-		/*
-		 * In ULE the %cpu statistics are updated on every
-		 * sched_pctcpu() call.  So special calculations to
-		 * account for the latest (unfinished) second are
-		 * not needed.
-		 */
-		p_pctcpu += sched_pctcpu(td);
-#endif
-		thread_unlock(td);
-	}
-
-#ifdef SCHED_4BSD
-	if (swtime <= CCPU_EXP_MAX)
-		return ((100 * (uint64_t)p_pctcpu * 1000000) /
-		    (FSCALE - ccpu_exp[swtime]));
-#endif
-
-	return ((100 * (uint64_t)p_pctcpu * 1000000) / FSCALE);
-}
-
 static void
 racct_add_racct(struct racct *dest, const struct racct *src)
 {
@@ -505,19 +444,6 @@ racct_adjust_resource(struct racct *racct, int resource,
 		    ("%s: resource %d usage < 0", __func__, resource));
 		racct->r_resources[resource] = 0;
 	}
-
-	/*
-	 * There are some cases where the racct %cpu resource would grow
-	 * beyond 100% per core.  For example in racct_proc_exit() we add
-	 * the process %cpu usage to the ucred racct containers.  If too
-	 * many processes terminated in a short time span, the ucred %cpu
-	 * resource could grow too much.  Also, the 4BSD scheduler sometimes
-	 * returns for a thread more than 100% cpu usage. So we set a sane
-	 * boundary here to 100% * the maximum number of CPUs.
-	 */
-	if ((resource == RACCT_PCTCPU) &&
-	    (racct->r_resources[RACCT_PCTCPU] > 100 * 1000000 * (int64_t)MAXCPU))
-		racct->r_resources[RACCT_PCTCPU] = 100 * 1000000 * (int64_t)MAXCPU;
 }
 
 static int
@@ -641,10 +567,44 @@ racct_add_buf(struct proc *p, const struct buf *bp, int is_write)
 	RACCT_UNLOCK();
 }
 
+static void
+racct_settime_locked(struct proc *p, bool exit)
+{
+	struct thread *td;
+	struct timeval wallclock;
+	uint64_t runtime;
+
+	ASSERT_RACCT_ENABLED();
+	RACCT_LOCK_ASSERT();
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if (exit) {
+		/*
+		 * proc_reap() has already calculated rux
+		 * and added crux to rux.
+		 */
+		runtime = cputick2usec(p->p_rux.rux_runtime -
+		    p->p_crux.rux_runtime);
+	} else {
+		PROC_STATLOCK(p);
+		FOREACH_THREAD_IN_PROC(p, td)
+			ruxagg(p, td);
+		PROC_STATUNLOCK(p);
+		runtime = cputick2usec(p->p_rux.rux_runtime);
+	}
+	microuptime(&wallclock);
+	timevalsub(&wallclock, &p->p_stats->p_start);
+
+	racct_set_locked(p, RACCT_CPU, runtime, 0);
+	racct_set_locked(p, RACCT_WALLCLOCK,
+	    (uint64_t)wallclock.tv_sec * 1000000 +
+	    wallclock.tv_usec, 0);
+}
+
 static int
 racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
 {
-	int64_t old_amount, decayed_amount, diff_proc, diff_cred;
+	int64_t old_amount, diff_proc, diff_cred;
 #ifdef RCTL
 	int error;
 #endif
@@ -661,17 +621,7 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
 	 * The diffs may be negative.
 	 */
 	diff_proc = amount - old_amount;
-	if (resource == RACCT_PCTCPU) {
-		/*
-		 * Resources in per-credential racct containers may decay.
-		 * If this is the case, we need to calculate the difference
-		 * between the new amount and the proportional value of the
-		 * old amount that has decayed in the ucred racct containers.
-		 */
-		decayed_amount = old_amount * RACCT_DECAY_FACTOR / FSCALE;
-		diff_cred = amount - decayed_amount;
-	} else
-		diff_cred = diff_proc;
+	diff_cred = diff_proc;
 #ifdef notyet
 	KASSERT(diff_proc >= 0 || RACCT_CAN_DROP(resource),
 	    ("%s: usage of non-droppable resource %d dropping", __func__,
@@ -914,8 +864,6 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 		goto out;
 #endif
 
-	/* Init process cpu time. */
-	child->p_prev_runtime = 0;
 	child->p_throttled = 0;
 
 	/*
@@ -970,37 +918,16 @@ racct_proc_fork_done(struct proc *child)
 void
 racct_proc_exit(struct proc *p)
 {
-	struct timeval wallclock;
-	uint64_t pct_estimate, pct, runtime;
 	int i;
 
 	if (!racct_enable)
 		return;
 
 	PROC_LOCK(p);
-	/*
-	 * We don't need to calculate rux, proc_reap() has already done this.
-	 */
-	runtime = cputick2usec(p->p_rux.rux_runtime);
-#ifdef notyet
-	KASSERT(runtime >= p->p_prev_runtime, ("runtime < p_prev_runtime"));
-#else
-	if (runtime < p->p_prev_runtime)
-		runtime = p->p_prev_runtime;
-#endif
-	microuptime(&wallclock);
-	timevalsub(&wallclock, &p->p_stats->p_start);
-	if (wallclock.tv_sec > 0 || wallclock.tv_usec > 0) {
-		pct_estimate = (1000000 * runtime * 100) /
-		    ((uint64_t)wallclock.tv_sec * 1000000 +
-		    wallclock.tv_usec);
-	} else
-		pct_estimate = 0;
-	pct = racct_getpcpu(p, pct_estimate);
-
 	RACCT_LOCK();
-	racct_set_locked(p, RACCT_CPU, runtime, 0);
-	racct_add_cred_locked(p->p_ucred, RACCT_PCTCPU, pct);
+
+	racct_settime_locked(p, true);
+	racct_zeropcpu_locked(p);
 
 	KASSERT(p->p_racct->r_resources[RACCT_RSS] == 0,
 	    ("process reaped with %ju allocated for RSS\n",
@@ -1076,6 +1003,10 @@ racct_move(struct racct *dest, struct racct *src)
 	RACCT_LOCK();
 	racct_add_racct(dest, src);
 	racct_sub_racct(src, src);
+	dest->r_runtime = src->r_runtime;
+	dest->r_time = src->r_time;
+	src->r_runtime = 0;
+	timevalsub(&src->r_time, &src->r_time);
 	RACCT_UNLOCK();
 }
 
@@ -1178,8 +1109,6 @@ racct_proc_wakeup(struct proc *p)
 static void
 racct_decay_callback(struct racct *racct, void *dummy1, void *dummy2)
 {
-	int64_t r_old, r_new;
-
 	ASSERT_RACCT_ENABLED();
 	RACCT_LOCK_ASSERT();
 
@@ -1189,15 +1118,6 @@ racct_decay_callback(struct racct *racct, void *dummy1, void *dummy2)
 	rctl_throttle_decay(racct, RACCT_READIOPS);
 	rctl_throttle_decay(racct, RACCT_WRITEIOPS);
 #endif
-
-	r_old = racct->r_resources[RACCT_PCTCPU];
-
-	/* If there is nothing to decay, just exit. */
-	if (r_old <= 0)
-		return;
-
-	r_new = r_old * RACCT_DECAY_FACTOR / FSCALE;
-	racct->r_resources[RACCT_PCTCPU] = r_new;
 }
 
 static void
@@ -1236,12 +1156,99 @@ racct_proc_to_skip(const struct proc *p)
 }
 
 static void
+racct_updatepcpu_racct_locked(struct racct *racct)
+{
+	struct timeval diff;
+	uint64_t elapsed;
+	uint64_t runtime;
+	uint64_t newpcpu;
+	uint64_t oldpcpu;
+
+	ASSERT_RACCT_ENABLED();
+	RACCT_LOCK_ASSERT();
+
+	/* Difference between now and previously-recorded time. */
+	microuptime(&diff);
+	timevalsub(&diff, &racct->r_time);
+	elapsed = (uint64_t)diff.tv_sec * 1000000 + diff.tv_usec;
+
+	/* Difference between current and previously-recorded runtime. */
+	runtime = racct->r_resources[RACCT_CPU] - racct->r_runtime;
+
+	newpcpu = runtime * 100 * 1000000 / elapsed;
+	oldpcpu = racct->r_resources[RACCT_PCTCPU];
+	/*
+	 * This calculation is equivalent to
+	 *    (1 - 0.3) * newpcpu + 0.3 * oldpcpu
+	 * where RACCT_DECAY_FACTOR = 0.3 * FSCALE.
+	 */
+	racct->r_resources[RACCT_PCTCPU] = ((FSCALE - RACCT_DECAY_FACTOR) *
+	    newpcpu + RACCT_DECAY_FACTOR * oldpcpu) / FSCALE;
+	if (racct->r_resources[RACCT_PCTCPU] >
+	    100 * 1000000 * (uint64_t)mp_ncpus)
+		racct->r_resources[RACCT_PCTCPU] = 100 * 1000000 *
+		    (uint64_t)mp_ncpus;
+
+	/* Record current times. */
+	racct->r_runtime = racct->r_resources[RACCT_CPU];
+	timevaladd(&racct->r_time, &diff);
+}
+
+static void
+racct_zeropcpu_locked(struct proc *p)
+{
+	ASSERT_RACCT_ENABLED();
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	p->p_racct->r_resources[RACCT_PCTCPU] = 0;
+}
+
+static void
+racct_updatepcpu_locked(struct proc *p)
+{
+	ASSERT_RACCT_ENABLED();
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	racct_updatepcpu_racct_locked(p->p_racct);
+}
+
+static void
+racct_updatepcpu_pre(void)
+{
+
+	RACCT_LOCK();
+}
+
+static void
+racct_updatepcpu_post(void)
+{
+
+	RACCT_UNLOCK();
+}
+
+static void
+racct_updatepcpu_racct_callback(struct racct *racct, void *dummy1, void *dummy2)
+{
+	racct_updatepcpu_racct_locked(racct);
+}
+
+static void
+racct_updatepcpu_containers(void)
+{
+	ASSERT_RACCT_ENABLED();
+
+	ui_racct_foreach(racct_updatepcpu_racct_callback, racct_updatepcpu_pre,
+	    racct_updatepcpu_post, NULL, NULL);
+	loginclass_racct_foreach(racct_updatepcpu_racct_callback, racct_updatepcpu_pre,
+	    racct_updatepcpu_post, NULL, NULL);
+	prison_racct_foreach(racct_updatepcpu_racct_callback, racct_updatepcpu_pre,
+	    racct_updatepcpu_post, NULL, NULL);
+}
+
+static void
 racctd(void)
 {
-	struct thread *td;
 	struct proc *p;
-	struct timeval wallclock;
-	uint64_t pct, pct_estimate, runtime;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -1253,34 +1260,10 @@ racctd(void)
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (racct_proc_to_skip(p)) {
-				if (p->p_state == PRS_ZOMBIE)
-					racct_set(p, RACCT_PCTCPU, 0);
 				PROC_UNLOCK(p);
 				continue;
 			}
 
-			microuptime(&wallclock);
-			timevalsub(&wallclock, &p->p_stats->p_start);
-			PROC_STATLOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td)
-				ruxagg(p, td);
-			runtime = cputick2usec(p->p_rux.rux_runtime);
-			PROC_STATUNLOCK(p);
-#ifdef notyet
-			KASSERT(runtime >= p->p_prev_runtime,
-			    ("runtime < p_prev_runtime"));
-#else
-			if (runtime < p->p_prev_runtime)
-				runtime = p->p_prev_runtime;
-#endif
-			p->p_prev_runtime = runtime;
-			if (wallclock.tv_sec > 0 || wallclock.tv_usec > 0) {
-				pct_estimate = (1000000 * runtime * 100) /
-				    ((uint64_t)wallclock.tv_sec * 1000000 +
-				    wallclock.tv_usec);
-			} else
-				pct_estimate = 0;
-			pct = racct_getpcpu(p, pct_estimate);
 			RACCT_LOCK();
 #ifdef RCTL
 			rctl_throttle_decay(p->p_racct, RACCT_READBPS);
@@ -1288,11 +1271,8 @@ racctd(void)
 			rctl_throttle_decay(p->p_racct, RACCT_READIOPS);
 			rctl_throttle_decay(p->p_racct, RACCT_WRITEIOPS);
 #endif
-			racct_set_locked(p, RACCT_PCTCPU, pct, 1);
-			racct_set_locked(p, RACCT_CPU, runtime, 0);
-			racct_set_locked(p, RACCT_WALLCLOCK,
-			    (uint64_t)wallclock.tv_sec * 1000000 +
-			    wallclock.tv_usec, 0);
+			racct_settime_locked(p, false);
+			racct_updatepcpu_locked(p);
 			RACCT_UNLOCK();
 			PROC_UNLOCK(p);
 		}
@@ -1320,6 +1300,8 @@ racctd(void)
 			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
+
+		racct_updatepcpu_containers();
 		pause("-", hz);
 	}
 }
