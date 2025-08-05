@@ -2765,6 +2765,17 @@ Do not enable the
 .Cm qinq
 option by default on newly added members.
 This is the default behavior.
+.It Cm ifvlanproto Ar interface Ar proto
+Set the VLAN encapsulation protocol on
+.Ar interface
+to
+.Ar proto ,
+which must be either
+.Dq 802.1q
+or
+.Dq 802.1ad .
+The default is
+.Dq 802.1q .
 .El
 .Ss Link Aggregation and Link Failover Parameters
 The following parameters are specific to lagg interfaces:
