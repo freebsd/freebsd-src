@@ -1,0 +1,4 @@
+comment = "C++ utility library"
+desc = <<EOD
+libutil++ contains various C++ utility classes used by the base system.
+EOD
