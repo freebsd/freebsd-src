@@ -422,6 +422,12 @@ libusb_get_next_timeout(libusb_context *ctx, struct timeval *tv)
 	return (0);
 }
 
+int
+libusb_pollfds_handle_timeouts(libusb_context *ctx)
+{
+	return (1);
+}
+
 void
 libusb_set_pollfd_notifiers(libusb_context *ctx,
     libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
