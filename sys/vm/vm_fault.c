@@ -1784,6 +1784,11 @@ found:
 	/*
 	 * A valid page has been found and busied.  The object lock
 	 * must no longer be held if the page was busied.
+	 *
+	 * Regardless of the busy state of fs.m, fs.first_m is always
+	 * exclusively busied after the first iteration of the loop
+	 * calling vm_fault_object().  This is an ordering point for
+	 * the parallel faults occuring in on the same page.
 	 */
 	vm_page_assert_busied(fs.m);
 	VM_OBJECT_ASSERT_UNLOCKED(fs.object);
@@ -1886,6 +1891,9 @@ found:
 		(*fs.m_hold) = fs.m;
 		vm_page_wire(fs.m);
 	}
+
+	KASSERT(fs.first_object == fs.object || vm_page_xbusied(fs.first_m),
+	    ("first_m must be xbusy"));
 	if (vm_page_xbusied(fs.m))
 		vm_page_xunbusy(fs.m);
 	else
