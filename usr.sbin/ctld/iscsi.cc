@@ -61,7 +61,7 @@ struct iscsi_portal final : public portal {
 		portal(pg, listen, protocol, std::move(ai)) {}
 
 	bool init_socket_options(int s) override;
-	void handle_connection(int fd, const char *host,
+	void handle_connection(freebsd::fd_up fd, const char *host,
 	    const struct sockaddr *client_sa) override;
 };
 
@@ -410,13 +410,13 @@ pdu_fail(const struct connection *conn __unused, const char *reason __unused)
 {
 }
 
-iscsi_connection::iscsi_connection(struct portal *portal, int fd,
+iscsi_connection::iscsi_connection(struct portal *portal, freebsd::fd_up fd,
     const char *host, const struct sockaddr *client_sa) :
-	conn_portal(portal), conn_initiator_addr(host),
+	conn_portal(portal), conn_fd(std::move(fd)), conn_initiator_addr(host),
 	conn_initiator_sa(client_sa)
 {
 	connection_init(&conn, &conn_ops, proxy_mode);
-	conn.conn_socket = fd;
+	conn.conn_socket = conn_fd;
 }
 
 iscsi_connection::~iscsi_connection()
@@ -496,12 +496,12 @@ iscsi_connection::handle()
 }
 
 void
-iscsi_portal::handle_connection(int fd, const char *host,
+iscsi_portal::handle_connection(freebsd::fd_up fd, const char *host,
     const struct sockaddr *client_sa)
 {
 	struct conf *conf = portal_group()->conf();
 
-	iscsi_connection conn(this, fd, host, client_sa);
+	iscsi_connection conn(this, std::move(fd), host, client_sa);
 	start_timer(conf->timeout(), true);
 	kernel_capsicate();
 	conn.handle();
