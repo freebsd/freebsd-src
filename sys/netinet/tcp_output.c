@@ -1255,7 +1255,7 @@ send:
 		 * fack acks recoverypoint.
 		 */
 		if ((tp->t_flags & TF_LRD) && SEQ_GEQ(p->rxmit, p->end))
-			p->rxmit = tp->snd_recover;
+			p->rxmit = SEQ_MAX(p->rxmit, tp->snd_recover);
 		tp->sackhint.sack_bytes_rexmit += len;
 	}
 	if (IN_RECOVERY(tp->t_flags)) {
