@@ -73,11 +73,9 @@
  *	Page fault handling module.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ktrace.h"
 #include "opt_vm.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
