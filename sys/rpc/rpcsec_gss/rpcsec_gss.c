@@ -746,6 +746,7 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 	struct rpc_callextra	 ext;
 	gss_OID			mech_oid;
 	gss_OID_set		mechlist;
+	static enum krb_imp	my_krb_imp = KRBIMP_UNKNOWN;
 
 	rpc_gss_log_debug("in rpc_gss_refresh()");
 	
@@ -852,6 +853,14 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 		goto out;
 	}
 
+	if (my_krb_imp == KRBIMP_UNKNOWN) {
+		maj_stat = gss_supports_lucid(&min_stat, NULL);
+		if (maj_stat == GSS_S_COMPLETE)
+			my_krb_imp = KRBIMP_MIT;
+		else
+			my_krb_imp = KRBIMP_HESIOD1;
+	}
+
 	/* GSS context establishment loop. */
 	memset(&recv_token, 0, sizeof(recv_token));
 	memset(&gr, 0, sizeof(gr));
@@ -862,19 +871,34 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 	for (;;) {
 		crsave = td->td_ucred;
 		td->td_ucred = gd->gd_ucred;
-		maj_stat = gss_init_sec_context(&min_stat,
-		    gd->gd_options.my_cred,
-		    &gd->gd_ctx,
-		    name,
-		    gd->gd_mech,
-		    gd->gd_options.req_flags,
-		    gd->gd_options.time_req,
-		    gd->gd_options.input_channel_bindings,
-		    recv_tokenp,
-		    &gd->gd_mech,	/* used mech */
-		    &send_token,
-		    &options_ret->ret_flags,
-		    &options_ret->time_req);
+		if (my_krb_imp == KRBIMP_MIT)
+			maj_stat = gss_init_sec_context_lucid_v1(&min_stat,
+			    gd->gd_options.my_cred,
+			    &gd->gd_ctx,
+			    name,
+			    gd->gd_mech,
+			    gd->gd_options.req_flags,
+			    gd->gd_options.time_req,
+			    gd->gd_options.input_channel_bindings,
+			    recv_tokenp,
+			    &gd->gd_mech,	/* used mech */
+			    &send_token,
+			    &options_ret->ret_flags,
+			    &options_ret->time_req);
+		else
+			maj_stat = gss_init_sec_context(&min_stat,
+			    gd->gd_options.my_cred,
+			    &gd->gd_ctx,
+			    name,
+			    gd->gd_mech,
+			    gd->gd_options.req_flags,
+			    gd->gd_options.time_req,
+			    gd->gd_options.input_channel_bindings,
+			    recv_tokenp,
+			    &gd->gd_mech,	/* used mech */
+			    &send_token,
+			    &options_ret->ret_flags,
+			    &options_ret->time_req);
 		td->td_ucred = crsave;
 		
 		/*

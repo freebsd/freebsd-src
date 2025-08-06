@@ -41,6 +41,11 @@
 #include "gssd.h"
 #include "kgss_if.h"
 
+/*
+ * This function should only be called when the gssd
+ * daemon running on the system is an old one that
+ * does not use gss_krb5_export_lucid_sec_context().
+ */
 OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
     gss_ctx_id_t *context_handle,
     const gss_cred_id_t acceptor_cred_handle,
@@ -138,7 +143,145 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	 * etc.) to the kernel implementation.
 	 */
 	if (res.major_status == GSS_S_COMPLETE)
-		res.major_status = kgss_transfer_context(ctx);
+		res.major_status = kgss_transfer_context(ctx, NULL);
+
+	return (res.major_status);
+}
+
+/*
+ * This function should be called when the gssd daemon is
+ * one that uses gss_krb5_export_lucid_sec_context().
+ * There is a lot of code common with
+ * gss_accept_sec_context().  However, the structures used
+ * are not the same and future changes may be needed for
+ * this one.  As such, I have not factored out the common
+ * code.
+ * gss_supports_lucid() may be used to check to see if the
+ * gssd daemon uses gss_krb5_export_lucid_sec_context().
+ */
+OM_uint32 gss_accept_sec_context_lucid_v1(OM_uint32 *minor_status,
+    gss_ctx_id_t *context_handle,
+    const gss_cred_id_t acceptor_cred_handle,
+    const gss_buffer_t input_token,
+    const gss_channel_bindings_t input_chan_bindings,
+    gss_name_t *src_name,
+    gss_OID *mech_type,
+    gss_buffer_t output_token,
+    OM_uint32 *ret_flags,
+    OM_uint32 *time_rec,
+    gss_cred_id_t *delegated_cred_handle,
+    gss_buffer_t exported_name,
+    uid_t *uidp,
+    gid_t *gidp,
+    int *numgroups,
+    gid_t *groups)
+{
+	struct accept_sec_context_lucid_v1_res res;
+	struct accept_sec_context_lucid_v1_args args;
+	enum clnt_stat stat;
+	gss_ctx_id_t ctx = *context_handle;
+	gss_name_t name;
+	gss_cred_id_t cred;
+	CLIENT *cl;
+
+	cl = kgss_gssd_client();
+	if (cl == NULL) {
+		*minor_status = 0;
+		return (GSS_S_FAILURE);
+	}
+
+	if (ctx)
+		args.ctx = ctx->handle;
+	else
+		args.ctx = 0;
+	if (acceptor_cred_handle)
+		args.cred = acceptor_cred_handle->handle;
+	else
+		args.cred = 0;
+	args.input_token = *input_token;
+	args.input_chan_bindings = input_chan_bindings;
+
+	bzero(&res, sizeof(res));
+	stat = gssd_accept_sec_context_lucid_v1_1(&args, &res, cl);
+	CLNT_RELEASE(cl);
+	if (stat != RPC_SUCCESS) {
+		*minor_status = stat;
+		return (GSS_S_FAILURE);
+	}
+
+	if (res.major_status != GSS_S_COMPLETE
+	    && res.major_status != GSS_S_CONTINUE_NEEDED) {
+		*minor_status = res.minor_status;
+		xdr_free((xdrproc_t) xdr_accept_sec_context_res, &res);
+		return (res.major_status);
+	}
+
+	*minor_status = res.minor_status;
+
+	if (!ctx) {
+		ctx = kgss_create_context(res.mech_type);
+		if (!ctx) {
+			xdr_free((xdrproc_t) xdr_accept_sec_context_res, &res);
+			*minor_status = 0;
+			return (GSS_S_BAD_MECH);
+		}
+	}
+	*context_handle = ctx;
+
+	ctx->handle = res.ctx;
+	name = malloc(sizeof(struct _gss_name_t), M_GSSAPI, M_WAITOK);
+	name->handle = res.src_name;
+	if (src_name) {
+		*src_name = name;
+	} else {
+		OM_uint32 junk;
+		gss_release_name(&junk, &name);
+	}
+	if (mech_type)
+		*mech_type = KGSS_MECH_TYPE(ctx);
+	kgss_copy_buffer(&res.output_token, output_token);
+	if (ret_flags)
+		*ret_flags = res.ret_flags;
+	if (time_rec)
+		*time_rec = res.time_rec;
+	cred = malloc(sizeof(struct _gss_cred_id_t), M_GSSAPI, M_WAITOK);
+	cred->handle = res.delegated_cred_handle;
+	if (delegated_cred_handle) {
+		*delegated_cred_handle = cred;
+	} else {
+		OM_uint32 junk;
+		gss_release_cred(&junk, &cred);
+	}
+
+	/*
+	 * If the context establishment is complete, export it from
+	 * userland and hand the result (which includes key material
+	 * etc.) to the kernel implementation.
+	 */
+	if (res.major_status == GSS_S_COMPLETE) {
+		int i, n;
+
+		/* First, get the unix credentials. */
+		*uidp = res.uid;
+		*gidp = res.gid;
+		n = res.gidlist.gidlist_len;
+		if (n > *numgroups)
+			n = *numgroups;
+		for (i = 0; i < n; i++)
+			groups[i] = res.gidlist.gidlist_val[i];
+		*numgroups = n;
+
+		/* Next, get the exported_name. */
+		kgss_copy_buffer(&res.exported_name, exported_name);
+
+		/* Now, handle the lucid credential setup. */
+		res.major_status = kgss_transfer_context(ctx, &res.lucid);
+		if (res.major_status != GSS_S_COMPLETE)
+			printf("gss_accept_sec_context_lucid_v1: "
+			    "transfer failed\n");
+	}
+
+	xdr_free((xdrproc_t) xdr_accept_sec_context_res, &res);
 
 	return (res.major_status);
 }
