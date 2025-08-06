@@ -50,9 +50,11 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <gssapi/gssapi.h>
 #ifdef MK_MITKRB5
+#include <gssapi_krb5/gssapi/gssapi.h>
 #include <gssapi/gssapi_krb5.h>
+#else
+#include <gssapi/gssapi.h>
 #endif
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
