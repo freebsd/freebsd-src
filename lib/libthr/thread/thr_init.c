@@ -170,7 +170,6 @@ STATIC_LIB_REQUIRE(_sem_trywait);
 STATIC_LIB_REQUIRE(_sem_wait);
 STATIC_LIB_REQUIRE(_sigaction);
 STATIC_LIB_REQUIRE(_sigprocmask);
-STATIC_LIB_REQUIRE(_sigsuspend);
 STATIC_LIB_REQUIRE(_sigtimedwait);
 STATIC_LIB_REQUIRE(_sigwait);
 STATIC_LIB_REQUIRE(_sigwaitinfo);

@@ -683,14 +683,6 @@ _thr_sigmask(int how, const sigset_t *set, sigset_t *oset)
 }
 
 int
-_sigsuspend(const sigset_t *set)
-{
-	sigset_t newset;
-
-	return (__sys_sigsuspend(thr_remove_thr_signals(set, &newset)));
-}
-
-int
 __thr_sigsuspend(const sigset_t *set)
 {
 	struct pthread *curthread;
