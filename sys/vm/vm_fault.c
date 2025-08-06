@@ -1422,7 +1422,7 @@ vm_fault_getpages(struct faultstate *fs, int *behindp, int *aheadp)
  * page except, perhaps, to pmap it.
  */
 static void
-vm_fault_busy_sleep(struct faultstate *fs)
+vm_fault_busy_sleep(struct faultstate *fs, int allocflags)
 {
 	/*
 	 * Reference the page before unlocking and
@@ -1436,7 +1436,7 @@ vm_fault_busy_sleep(struct faultstate *fs)
 	}
 	vm_object_pip_wakeup(fs->object);
 	vm_fault_unlock_map(fs);
-	if (!vm_page_busy_sleep(fs->m, "vmpfw", 0))
+	if (!vm_page_busy_sleep(fs->m, "vmpfw", allocflags))
 		VM_OBJECT_UNLOCK(fs->object);
 	VM_CNT_INC(v_intrans);
 	vm_object_deallocate(fs->first_object);
@@ -1483,7 +1483,7 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	fs->m = vm_radix_iter_lookup(&pages, fs->pindex);
 	if (fs->m != NULL) {
 		if (!vm_page_tryxbusy(fs->m)) {
-			vm_fault_busy_sleep(fs);
+			vm_fault_busy_sleep(fs, 0);
 			return (FAULT_RESTART);
 		}
 
