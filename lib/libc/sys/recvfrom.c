@@ -35,8 +35,6 @@
 #include <ssp/ssp.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_recvfrom, __recvfrom);
-
 ssize_t __weak_symbol
 __ssp_real(recvfrom)(int s, void *buf, size_t len, int flags,
     struct sockaddr * __restrict from, socklen_t * __restrict fromlen)

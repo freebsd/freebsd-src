@@ -34,8 +34,6 @@
 #include <sys/socket.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_sendmsg, __sendmsg);
-
 #pragma weak sendmsg
 ssize_t
 sendmsg(int s, const struct msghdr *msg, int flags)
