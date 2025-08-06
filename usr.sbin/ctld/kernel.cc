@@ -126,10 +126,13 @@ struct cctl_port {
 	std::string port_name;
 	int pp;
 	int vp;
+	uint16_t portid;
 	int cfiscsi_state;
 	std::string cfiscsi_target;
+	std::string nqn;
 	uint16_t cfiscsi_portal_group_tag;
 	std::string ctld_portal_group_name;
+	std::string ctld_transport_group_name;
 	attr_list attr_list;
 };
 
@@ -322,6 +325,14 @@ cctl_end_pelement(void *user_data, const char *name)
 		cur_port->cfiscsi_portal_group_tag = strtoul(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "ctld_portal_group_name") == 0) {
 		cur_port->ctld_portal_group_name = std::move(str);
+	} else if (strcmp(name, "ctld_transport_group_name") == 0) {
+		cur_port->ctld_transport_group_name = std::move(str);
+	} else if (strcmp(name, "nqn") == 0) {
+		cur_port->nqn = std::move(str);
+	} else if (strcmp(name, "portid") == 0) {
+		if (str.empty())
+			log_errx(1, "%s: %s missing its argument", __func__, name);
+		cur_port->portid = strtoul(str.c_str(), NULL, 0);
 	} else if (strcmp(name, "targ_port") == 0) {
 		devlist->cur_port = NULL;
 	} else if (strcmp(name, "ctlportlist") == 0) {
@@ -469,7 +480,7 @@ add_iscsi_port(struct kports &kports, struct conf *conf,
 	if (pg == nullptr) {
 		pg = conf->add_portal_group(pg_name);
 		if (pg == nullptr) {
-			log_warnx("Failed to add portal_group \"%s\"", pg_name);
+			log_warnx("Failed to add portal-group \"%s\"", pg_name);
 			return;
 		}
 	}
@@ -477,6 +488,43 @@ add_iscsi_port(struct kports &kports, struct conf *conf,
 	if (!conf->add_port(targ, pg, port.port_id)) {
 		log_warnx("Failed to add port for target \"%s\" and portal-group \"%s\"",
 		    t_name, pg_name);
+	}
+}
+
+void
+add_nvmf_port(struct conf *conf, const struct cctl_port &port,
+    std::string &name)
+{
+	if (port.nqn.empty() || port.ctld_transport_group_name.empty()) {
+		log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
+		    port.port_id, name.c_str());
+		return;
+	}
+
+	const char *nqn = port.nqn.c_str();
+	struct target *targ = conf->find_controller(nqn);
+	if (targ == nullptr) {
+		targ = conf->add_controller(nqn);
+		if (targ == nullptr) {
+			log_warnx("Failed to add controller \"%s\"", nqn);
+			return;
+		}
+	}
+
+	const char *tg_name = port.ctld_transport_group_name.c_str();
+	struct portal_group *pg = conf->find_transport_group(tg_name);
+	if (pg == nullptr) {
+		pg = conf->add_transport_group(tg_name);
+		if (pg == nullptr) {
+			log_warnx("Failed to add transport-group \"%s\"",
+			    tg_name);
+			return;
+		}
+	}
+	pg->set_tag(port.portid);
+	if (!conf->add_port(targ, pg, port.port_id)) {
+		log_warnx("Failed to add port for controller \"%s\" and transport-group \"%s\"",
+		    nqn, tg_name);
 	}
 }
 
@@ -505,6 +553,8 @@ conf_new_from_kernel(struct kports &kports)
 
 		if (port.port_frontend == "iscsi") {
 			add_iscsi_port(kports, conf.get(), port, name);
+		} else if (port.port_frontend == "nvmf") {
+			add_nvmf_port(conf.get(), port, name);
 		} else {
 			/* XXX: Treat all unknown ports as iSCSI? */
 			add_iscsi_port(kports, conf.get(), port, name);
@@ -1060,7 +1110,7 @@ void
 kernel_capsicate(void)
 {
 	cap_rights_t rights;
-	const unsigned long cmds[] = { CTL_ISCSI };
+	const unsigned long cmds[] = { CTL_ISCSI, CTL_NVMF };
 
 	cap_rights_init(&rights, CAP_IOCTL);
 	if (caph_rights_limit(ctl_fd, &rights) < 0)

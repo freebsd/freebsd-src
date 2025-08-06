@@ -54,12 +54,14 @@ extern void	yyrestart(FILE *);
 %}
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
-%token CLOSING_BRACKET CTL_LUN DEBUG DEVICE_ID DEVICE_TYPE
-%token DISCOVERY_AUTH_GROUP DISCOVERY_FILTER DSCP FOREIGN
+%token CLOSING_BRACKET CONTROLLER CTL_LUN DEBUG DEVICE_ID DEVICE_TYPE
+%token DISCOVERY_AUTH_GROUP DISCOVERY_FILTER DISCOVERY_TCP DSCP FOREIGN
+%token HOST_ADDRESS HOST_NQN
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
-%token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
+%token LISTEN LISTEN_ISER LUN MAXPROC NAMESPACE
+%token OFFLOAD OPENING_BRACKET OPTION
 %token PATH PCP PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL
-%token SIZE STR TAG TARGET TIMEOUT
+%token SIZE STR TAG TARGET TCP TIMEOUT TRANSPORT_GROUP
 %token AF11 AF12 AF13 AF21 AF22 AF23 AF31 AF32 AF33 AF41 AF42 AF43
 %token BE EF CS0 CS1 CS2 CS3 CS4 CS5 CS6 CS7
 
@@ -98,9 +100,13 @@ statement:
 	|
 	portal_group
 	|
+	transport_group
+	|
 	lun
 	|
 	target
+	|
+	controller
 	;
 
 debug:		DEBUG STR
@@ -232,6 +238,10 @@ auth_group_entry:
 	|
 	auth_group_chap_mutual
 	|
+	auth_group_host_address
+	|
+	auth_group_host_nqn
+	|
 	auth_group_initiator_name
 	|
 	auth_group_initiator_portal
@@ -269,6 +279,28 @@ auth_group_chap_mutual:	CHAP_MUTUAL STR STR STR STR
 		free($3);
 		free($4);
 		free($5);
+		if (!ok)
+			return (1);
+	}
+	;
+
+auth_group_host_address:	HOST_ADDRESS STR
+	{
+		bool ok;
+
+		ok = auth_group_add_host_address($2);
+		free($2);
+		if (!ok)
+			return (1);
+	}
+	;
+
+auth_group_host_nqn:	HOST_NQN STR
+	{
+		bool ok;
+
+		ok = auth_group_add_host_nqn($2);
+		free($2);
 		if (!ok)
 			return (1);
 	}
@@ -498,6 +530,71 @@ portal_group_pcp:	PCP STR
 		free($2);
 
 		if (!portal_group_set_pcp(tmp))
+			return (1);
+	}
+	;
+
+transport_group:	TRANSPORT_GROUP transport_group_name
+    OPENING_BRACKET transport_group_entries CLOSING_BRACKET
+	{
+		portal_group_finish();
+	}
+	;
+
+transport_group_name:	STR
+	{
+		bool ok;
+
+		ok = transport_group_start($1);
+		free($1);
+		if (!ok)
+			return (1);
+	}
+	;
+
+transport_group_entries:
+	|
+	transport_group_entries transport_group_entry
+	|
+	transport_group_entries transport_group_entry SEMICOLON
+	;
+
+transport_group_entry:
+	portal_group_discovery_auth_group
+	|
+	portal_group_discovery_filter
+	|
+	transport_group_listen_discovery_tcp
+	|
+	transport_group_listen_tcp
+	|
+	portal_group_option
+	|
+	portal_group_tag
+	|
+	portal_group_dscp
+	|
+	portal_group_pcp
+	;
+
+transport_group_listen_discovery_tcp:	LISTEN DISCOVERY_TCP STR
+	{
+		bool ok;
+
+		ok = transport_group_add_listen_discovery_tcp($3);
+		free($3);
+		if (!ok)
+			return (1);
+	}
+	;
+
+transport_group_listen_tcp:	LISTEN TCP STR
+	{
+		bool ok;
+
+		ok = transport_group_add_listen_tcp($3);
+		free($3);
+		if (!ok)
 			return (1);
 	}
 	;
@@ -732,6 +829,133 @@ target_lun_ref:	LUN STR STR
 		free($2);
 
 		ok = target_add_lun(tmp, $3);
+		free($3);
+		if (!ok)
+			return (1);
+	}
+	;
+
+controller:	CONTROLLER controller_name
+    OPENING_BRACKET controller_entries CLOSING_BRACKET
+	{
+		target_finish();
+	}
+	;
+
+controller_name:	STR
+	{
+		bool ok;
+
+		ok = controller_start($1);
+		free($1);
+		if (!ok)
+			return (1);
+	}
+	;
+
+controller_entries:
+	|
+	controller_entries controller_entry
+	|
+	controller_entries controller_entry SEMICOLON
+	;
+
+controller_entry:
+	target_auth_group
+	|
+	target_auth_type
+	|
+	controller_host_address
+	|
+	controller_host_nqn
+	|
+	controller_transport_group
+	|
+	controller_namespace
+	|
+	controller_namespace_ref
+	;
+
+controller_host_address:	HOST_ADDRESS STR
+	{
+		bool ok;
+
+		ok = controller_add_host_address($2);
+		free($2);
+		if (!ok)
+			return (1);
+	}
+	;
+
+controller_host_nqn:	HOST_NQN STR
+	{
+		bool ok;
+
+		ok = controller_add_host_nqn($2);
+		free($2);
+		if (!ok)
+			return (1);
+	}
+	;
+
+controller_transport_group:	TRANSPORT_GROUP STR STR
+	{
+		bool ok;
+
+		ok = target_add_portal_group($2, $3);
+		free($2);
+		free($3);
+		if (!ok)
+			return (1);
+	}
+	|		TRANSPORT_GROUP STR
+	{
+		bool ok;
+
+		ok = target_add_portal_group($2, NULL);
+		free($2);
+		if (!ok)
+			return (1);
+	}
+	;
+
+controller_namespace:	NAMESPACE ns_number
+    OPENING_BRACKET lun_entries CLOSING_BRACKET
+	{
+		lun_finish();
+	}
+	;
+
+ns_number:	STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($1, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($1);
+			return (1);
+		}
+		free($1);
+
+		if (!controller_start_namespace(tmp))
+			return (1);
+	}
+	;
+
+controller_namespace_ref:	NAMESPACE STR STR
+	{
+		uint64_t tmp;
+		bool ok;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			free($3);
+			return (1);
+		}
+		free($2);
+
+		ok = controller_add_namespace(tmp, $3);
 		free($3);
 		if (!ok)
 			return (1);
