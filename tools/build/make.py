@@ -40,6 +40,7 @@
 # --cross-bindir=/path/to/cross/compiler buildworld -DWITH_FOO TARGET=foo
 # TARGET_ARCH=bar`
 import argparse
+import functools
 import os
 import shlex
 import shutil
@@ -178,24 +179,41 @@ def check_xtool_make_env_var(varname, binary_name):
         return
     global parsed_args
     if parsed_args.cross_bindir is None:
-        parsed_args.cross_bindir = default_cross_toolchain()
+        cross_bindir = default_cross_toolchain(binary_name)
+    else:
+        cross_bindir = parsed_args.cross_bindir
     return check_required_make_env_var(varname, binary_name,
-                                       parsed_args.cross_bindir)
+                                       cross_bindir)
 
 
-def default_cross_toolchain():
+@functools.cache
+def brew_prefix(package: str) -> str:
+    path = subprocess.run(["brew", "--prefix", package], stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE).stdout.strip()
+    debug("Inferred", package, "dir as", path)
+    return path.decode("utf-8")
+
+def binary_path(bindir: str, binary_name: str) -> "Optional[str]":
+    try:
+        if bindir and Path(bindir, "bin", binary_name).exists():
+            return str(Path(bindir, "bin"))
+    except OSError:
+        pass
+    return None
+
+def default_cross_toolchain(binary_name: str) -> str:
     # default to homebrew-installed clang on MacOS if available
     if sys.platform.startswith("darwin"):
         if shutil.which("brew"):
-            llvm_dir = subprocess.run([
-                "brew", "--prefix", "llvm"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
-            debug("Inferred LLVM dir as", llvm_dir)
-            try:
-                if llvm_dir and Path(llvm_dir.decode("utf-8"), "bin").exists():
-                    return str(Path(llvm_dir.decode("utf-8"), "bin"))
-            except OSError:
-                return None
+            bindir = binary_path(brew_prefix("llvm"), binary_name)
+            if bindir:
+                return bindir
+
+            # brew installs lld as a separate package for LLVM 19 and later
+            if binary_name == "ld.lld":
+                bindir = binary_path(brew_prefix("lld"), binary_name)
+                if bindir:
+                    return bindir
     return None
 
 
