@@ -301,17 +301,17 @@ bool
 auth_group::add_initiator_name(std::string_view name)
 {
 	/* Silently ignore duplicates. */
-	ag_names.emplace(name);
+	ag_initiator_names.emplace(name);
 	return (true);
 }
 
 bool
 auth_group::initiator_permitted(std::string_view initiator_name) const
 {
-	if (ag_names.empty())
+	if (ag_initiator_names.empty())
 		return (true);
 
-	return (ag_names.count(std::string(initiator_name)) != 0);
+	return (ag_initiator_names.count(std::string(initiator_name)) != 0);
 }
 
 bool
@@ -390,7 +390,7 @@ auth_group::add_initiator_portal(const char *portal)
 		return (false);
 	}
 
-	ag_portals.emplace_back(ap);
+	ag_initiator_portals.emplace_back(ap);
 	return (true);
 }
 
@@ -429,10 +429,10 @@ auth_portal::matches(const struct sockaddr *sa) const
 bool
 auth_group::initiator_permitted(const struct sockaddr *sa) const
 {
-	if (ag_portals.empty())
+	if (ag_initiator_portals.empty())
 		return (true);
 
-	for (const auth_portal &ap : ag_portals)
+	for (const auth_portal &ap : ag_initiator_portals)
 		if (ap.matches(sa))
 			return (true);
 	return (false);
