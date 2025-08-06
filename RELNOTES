@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+d390633cf8c:
+	On modern amd64 machines (which have the LA57 CPU feature),
+	FreeBSD is able to utilize more than 4TB of RAM.
+
 2bd157bc732a:
 	The readdir_r(3) function is deprecated and may be removed in future
 	releases.  Using it in a program will result in compile-time and
