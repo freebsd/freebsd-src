@@ -71,3 +71,4 @@ bool_t      xdr_osa_pw_hist_ent(XDR *xdrs, osa_pw_hist_ent *objp);
 bool_t      xdr_kadm5_key_data(XDR *xdrs, kadm5_key_data *objp);
 bool_t      xdr_getpkeys_arg(XDR *xdrs, getpkeys_arg *objp);
 bool_t      xdr_getpkeys_ret(XDR *xdrs, getpkeys_ret *objp);
+bool_t      xdr_calias_arg(XDR *xdrs, calias_arg *objp);

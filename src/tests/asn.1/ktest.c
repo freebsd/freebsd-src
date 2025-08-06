@@ -700,9 +700,7 @@ ktest_make_sample_pk_authenticator(krb5_pk_authenticator *p)
     p->cusec = SAMPLE_USEC;
     p->ctime = SAMPLE_TIME;
     p->nonce = SAMPLE_NONCE;
-    ktest_make_sample_checksum(&p->paChecksum);
-    /* We don't encode the checksum type, only the contents. */
-    p->paChecksum.checksum_type = 0;
+    ktest_make_sample_data(&p->paChecksum);
     p->freshnessToken = ealloc(sizeof(krb5_data));
     ktest_make_sample_data(p->freshnessToken);
 }
@@ -1068,7 +1066,7 @@ ktest_destroy_keyblock(krb5_keyblock **kb)
 void
 ktest_empty_authorization_data(krb5_authdata **ad)
 {
-    int i;
+    size_t i;
 
     if (*ad != NULL) {
         for (i=0; ad[i] != NULL; i++)
@@ -1097,7 +1095,7 @@ ktest_destroy_authdata(krb5_authdata **ad)
 void
 ktest_empty_pa_data_array(krb5_pa_data **pad)
 {
-    int i;
+    size_t i;
 
     for (i=0; pad[i] != NULL; i++)
         ktest_destroy_pa_data(&pad[i]);
@@ -1134,7 +1132,7 @@ ktest_destroy_address(krb5_address **a)
 void
 ktest_empty_addresses(krb5_address **a)
 {
-    int i;
+    size_t i;
 
     for (i=0; a[i] != NULL; i++)
         ktest_destroy_address(&a[i]);
@@ -1173,7 +1171,7 @@ ktest_destroy_sequence_of_integer(long **soi)
 void
 ktest_destroy_sequence_of_ticket(krb5_ticket ***sot)
 {
-    int i;
+    size_t i;
 
     for (i=0; (*sot)[i] != NULL; i++)
         ktest_destroy_ticket(&(*sot)[i]);
@@ -1220,7 +1218,7 @@ ktest_destroy_etype_info_entry(krb5_etype_info_entry *i)
 void
 ktest_destroy_etype_info(krb5_etype_info_entry **info)
 {
-    int i;
+    size_t i;
 
     for (i = 0; info[i] != NULL; i++)
         ktest_destroy_etype_info_entry(info[i]);
@@ -1371,7 +1369,7 @@ ktest_destroy_cred_info(krb5_cred_info **ci)
 void
 ktest_destroy_sequence_of_cred_info(krb5_cred_info ***soci)
 {
-    int i;
+    size_t i;
 
     for (i = 0; (*soci)[i] != NULL; i++)
         ktest_destroy_cred_info(&(*soci)[i]);
@@ -1413,7 +1411,7 @@ ktest_empty_cred(krb5_cred *c)
 void
 ktest_destroy_last_req(krb5_last_req_entry ***lr)
 {
-    int i;
+    size_t i;
 
     if (*lr) {
         for (i=0; (*lr)[i] != NULL; i++)
@@ -1604,8 +1602,7 @@ ktest_empty_pa_otp_req(krb5_pa_otp_req *p)
 static void
 ktest_empty_pk_authenticator(krb5_pk_authenticator *p)
 {
-    ktest_empty_checksum(&p->paChecksum);
-    p->paChecksum.contents = NULL;
+    ktest_empty_data(&p->paChecksum);
     krb5_free_data(NULL, p->freshnessToken);
     p->freshnessToken = NULL;
 }
@@ -1710,7 +1707,7 @@ void ktest_empty_pkinit_supp_pub_info(krb5_pkinit_supp_pub_info *p)
 
 #ifdef ENABLE_LDAP
 void
-ktest_empty_ldap_seqof_key_data(krb5_context ctx, ldap_seqof_key_data *p)
+ktest_empty_ldap_seqof_key_data(ldap_seqof_key_data *p)
 {
     int i;
 
@@ -1758,7 +1755,7 @@ ktest_empty_cammac(krb5_cammac *p)
 void
 ktest_empty_secure_cookie(krb5_secure_cookie *p)
 {
-    ktest_empty_pa_data_array(p->data);
+    ktest_destroy_pa_data_array(&p->data);
 }
 
 void

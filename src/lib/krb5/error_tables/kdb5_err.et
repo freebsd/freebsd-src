@@ -85,5 +85,6 @@ ec KRB5_LOG_ERROR,		"Generic update log error"
 ec KRB5_KDB_DBTYPE_MISMATCH,    "Database module does not match KDC version"
 ec KRB5_KDB_POLICY_REF,		"Policy is in use"
 ec KRB5_KDB_STRINGS_TOOLONG,    "Too much string mapping data"
+ec KRB5_KDB_ALIAS_UNSUPPORTED,  "Operation unsupported on alias principal name"
 
 end

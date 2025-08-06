@@ -46,7 +46,9 @@
 #include <stdio.h>
 #include <string.h>
 
-int main () {
+int
+main(void)
+{
     krb5_error_code ret;
     char pepper1[1025], pepper2[1025];
     krb5_keyblock *k1 = NULL, *k2 = NULL, *out = NULL;

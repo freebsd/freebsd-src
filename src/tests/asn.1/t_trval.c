@@ -36,7 +36,8 @@
    -DSTANDALONE code.  */
 #include "trval.c"
 
-static void usage()
+static void
+usage(void)
 {
     fprintf(stderr, "Usage: trval [--types] [--krb5] [--krb5decode] [--hex] [-notypebytes] [file]\n");
     exit(1);
@@ -46,10 +47,8 @@ static void usage()
  * Returns true if the option was selected.  Allow "-option" and
  * "--option" syntax, since we used to accept only "-option"
  */
-static
-int check_option(word, option)
-    char *word;
-    char *option;
+static int
+check_option(char *word, char *option)
 {
     if (word[0] != '-')
         return 0;
@@ -60,9 +59,8 @@ int check_option(word, option)
     return 1;
 }
 
-int main(argc, argv)
-    int argc;
-    char **argv;
+int
+main(int argc, char **argv)
 {
     int optflg = 1;
     FILE *fp;

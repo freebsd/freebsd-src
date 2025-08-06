@@ -88,34 +88,15 @@ val_init_sec_ctx_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_init_sec_context (minor_status,
-                      claimant_cred_handle,
-                      context_handle,
-                      target_name,
-                      req_mech_type,
-                      req_flags,
-                      time_req,
-                      input_chan_bindings,
-                      input_token,
-                      actual_mech_type,
-                      output_token,
-                      ret_flags,
-                      time_rec)
-
-OM_uint32 *		minor_status;
-gss_cred_id_t		claimant_cred_handle;
-gss_ctx_id_t *		context_handle;
-gss_name_t		target_name;
-gss_OID			req_mech_type;
-OM_uint32		req_flags;
-OM_uint32		time_req;
-gss_channel_bindings_t	input_chan_bindings;
-gss_buffer_t		input_token;
-gss_OID *		actual_mech_type;
-gss_buffer_t		output_token;
-OM_uint32 *		ret_flags;
-OM_uint32 *		time_rec;
-
+gss_init_sec_context(OM_uint32 *minor_status,
+		     gss_cred_id_t claimant_cred_handle,
+		     gss_ctx_id_t *context_handle, gss_name_t target_name,
+		     gss_OID req_mech_type, OM_uint32 req_flags,
+		     OM_uint32 time_req,
+		     gss_channel_bindings_t input_chan_bindings,
+		     gss_buffer_t input_token, gss_OID *actual_mech_type,
+		     gss_buffer_t output_token, OM_uint32 *ret_flags,
+		     OM_uint32 *time_rec)
 {
     OM_uint32		status, temp_minor_status;
     gss_union_name_t	union_name;

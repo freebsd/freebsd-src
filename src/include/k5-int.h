@@ -248,6 +248,7 @@ typedef unsigned char   u_char;
 #define KRB5_CONF_KDC_TCP_LISTEN               "kdc_tcp_listen"
 #define KRB5_CONF_KDC_TCP_LISTEN_BACKLOG       "kdc_tcp_listen_backlog"
 #define KRB5_CONF_KDC_TIMESYNC                 "kdc_timesync"
+#define KRB5_CONF_KDC_UNIXSOCK_LISTEN          "kdc_unixsock_listen"
 #define KRB5_CONF_KEY_STASH_FILE               "key_stash_file"
 #define KRB5_CONF_KPASSWD_LISTEN               "kpasswd_listen"
 #define KRB5_CONF_KPASSWD_PORT                 "kpasswd_port"
@@ -293,10 +294,12 @@ typedef unsigned char   u_char;
 #define KRB5_CONF_REJECT_BAD_TRANSIT           "reject_bad_transit"
 #define KRB5_CONF_RENEW_LIFETIME               "renew_lifetime"
 #define KRB5_CONF_RESTRICT_ANONYMOUS_TO_TGT    "restrict_anonymous_to_tgt"
+#define KRB5_CONF_SITENAME                     "sitename"
 #define KRB5_CONF_SUPPORTED_ENCTYPES           "supported_enctypes"
 #define KRB5_CONF_SPAKE_PREAUTH_INDICATOR      "spake_preauth_indicator"
 #define KRB5_CONF_SPAKE_PREAUTH_KDC_CHALLENGE  "spake_preauth_kdc_challenge"
 #define KRB5_CONF_SPAKE_PREAUTH_GROUPS         "spake_preauth_groups"
+#define KRB5_CONF_REQUEST_TIMEOUT              "request_timeout"
 #define KRB5_CONF_TICKET_LIFETIME              "ticket_lifetime"
 #define KRB5_CONF_UDP_PREFERENCE_LIMIT         "udp_preference_limit"
 #define KRB5_CONF_UNLOCKITER                   "unlockiter"
@@ -696,6 +699,7 @@ krb5_error_code krb5int_c_copy_keyblock_contents(krb5_context context,
                                                  const krb5_keyblock *from,
                                                  krb5_keyblock *to);
 
+krb5_error_code k5_us_timeofday(krb5_timestamp *, krb5_int32 *);
 krb5_error_code krb5_crypto_us_timeofday(krb5_timestamp *, krb5_int32 *);
 
 /*
@@ -1201,6 +1205,7 @@ struct _krb5_context {
     kdb5_dal_handle *dal_handle;
     /* allowable clock skew */
     krb5_deltat     clockskew;
+    krb5_deltat     req_timeout;
     krb5_flags      kdc_default_options;
     krb5_flags      library_options;
     krb5_boolean    profile_secure;
@@ -2140,10 +2145,6 @@ void KRB5_CALLCONV krb5_free_tkt_authent(krb5_context, krb5_tkt_authent *);
 void KRB5_CALLCONV krb5_free_enc_data(krb5_context, krb5_enc_data *);
 krb5_error_code krb5_set_config_files(krb5_context, const char **);
 
-krb5_error_code KRB5_CALLCONV krb5_get_default_config_files(char ***filenames);
-
-void KRB5_CALLCONV krb5_free_config_files(char **filenames);
-
 krb5_error_code krb5_rd_req_decoded(krb5_context, krb5_auth_context *,
                                     const krb5_ap_req *, krb5_const_principal,
                                     krb5_keytab, krb5_flags *, krb5_ticket **);
@@ -2239,7 +2240,7 @@ make_data(void *data, unsigned int len)
 }
 
 static inline krb5_data
-empty_data()
+empty_data(void)
 {
     return make_data(NULL, 0);
 }
@@ -2403,5 +2404,32 @@ void k5_change_error_message_code(krb5_context ctx, krb5_error_code oldcode,
 krb5_boolean
 k5_sname_compare(krb5_context context, krb5_const_principal sname,
                  krb5_const_principal princ);
+
+/* Generate an HMAC-MD5 keyed checksum as specified by RFC 2104. */
+krb5_error_code
+k5_hmac_md5(const krb5_data *key, const krb5_crypto_iov *data, size_t num_data,
+            krb5_data *output);
+
+/* Address objects for initiator and acceptor directional addresses. */
+extern const krb5_address k5_addr_directional_init;
+extern const krb5_address k5_addr_directional_accept;
+
+/*
+ * Translate sa to a krb5_address, putting the result in *out with contents
+ * aliased from *sa.  If local_use is true, translate UNIX domain socket names
+ * to ADDRTYPE_UNIXSOCK; otherwise do not handle them.  Return
+ * KRB5_PROG_ATYPE_NOSUPP if sa cannot be converted.
+ */
+krb5_error_code
+k5_sockaddr_to_address(const struct sockaddr *sa, krb5_boolean local_use,
+                       krb5_address *out);
+
+/* Place a printable representation of sa (without port) into buf. */
+void
+k5_print_addr(const struct sockaddr *sa, char *buf, size_t len);
+
+/* Place a printable representation of sa (with port) into buf. */
+void
+k5_print_addr_port(const struct sockaddr *sa, char *buf, size_t len);
 
 #endif /* _KRB5_INT_H */

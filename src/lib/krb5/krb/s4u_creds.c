@@ -205,7 +205,7 @@ build_pa_s4u_x509_user(krb5_context context,
     krb5_pa_s4u_x509_user *s4u_user = (krb5_pa_s4u_x509_user *)gcvt_data;
     krb5_data *data = NULL;
     krb5_cksumtype cksumtype;
-    int i;
+    size_t i;
 
     assert(s4u_user->cksum.contents == NULL);
 

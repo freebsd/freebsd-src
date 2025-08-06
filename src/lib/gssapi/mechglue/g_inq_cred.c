@@ -35,20 +35,9 @@
 #include <time.h>
 
 OM_uint32 KRB5_CALLCONV
-gss_inquire_cred(minor_status,
-                 cred_handle,
-                 name,
-                 lifetime,
-		 cred_usage,
-                 mechanisms)
-
-OM_uint32 *		minor_status;
-gss_cred_id_t 		cred_handle;
-gss_name_t *		name;
-OM_uint32 *		lifetime;
-int *			cred_usage;
-gss_OID_set *		mechanisms;
-
+gss_inquire_cred(OM_uint32 *minor_status, gss_cred_id_t cred_handle,
+		 gss_name_t *name, OM_uint32 *lifetime, int *cred_usage,
+		 gss_OID_set *mechanisms)
 {
     OM_uint32		status, temp_minor_status;
     gss_union_cred_t	union_cred;
@@ -159,15 +148,11 @@ error:
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_inquire_cred_by_mech(minor_status, cred_handle, mech_type, name,
-			 initiator_lifetime, acceptor_lifetime, cred_usage)
-    OM_uint32		*minor_status;
-    gss_cred_id_t	cred_handle;
-    gss_OID		mech_type;
-    gss_name_t		*name;
-    OM_uint32		*initiator_lifetime;
-    OM_uint32		*acceptor_lifetime;
-    gss_cred_usage_t *cred_usage;
+gss_inquire_cred_by_mech(OM_uint32 *minor_status, gss_cred_id_t cred_handle,
+			 gss_OID mech_type, gss_name_t *name,
+			 OM_uint32 *initiator_lifetime,
+			 OM_uint32 *acceptor_lifetime,
+			 gss_cred_usage_t *cred_usage)
 {
     gss_union_cred_t	union_cred;
     gss_cred_id_t	mech_cred;

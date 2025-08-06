@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Encryption types &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,13 +51,13 @@
           <div class="body" role="main">
             
   <section id="encryption-types">
-<span id="enctypes"></span><h1>Encryption types<a class="headerlink" href="#encryption-types" title="Permalink to this headline">¶</a></h1>
+<span id="enctypes"></span><h1>Encryption types<a class="headerlink" href="#encryption-types" title="Link to this heading">¶</a></h1>
 <p>Kerberos can use a variety of cipher algorithms to protect data.  A
 Kerberos <strong>encryption type</strong> (also known as an <strong>enctype</strong>) is a
 specific combination of a cipher algorithm with an integrity algorithm
 to provide both confidentiality and integrity to data.</p>
 <section id="enctypes-in-requests">
-<h2>Enctypes in requests<a class="headerlink" href="#enctypes-in-requests" title="Permalink to this headline">¶</a></h2>
+<h2>Enctypes in requests<a class="headerlink" href="#enctypes-in-requests" title="Link to this heading">¶</a></h2>
 <p>Clients make two types of requests (KDC-REQ) to the KDC: AS-REQs and
 TGS-REQs.  The client uses the AS-REQ to obtain initial tickets
 (typically a Ticket-Granting Ticket (TGT)), and uses the TGS-REQ to
@@ -84,7 +82,7 @@ session key selection and the reply-encrypting key selection.  For the
 TGS-REQ, this list only affects the session key selection.</p>
 </section>
 <section id="session-key-selection">
-<span id="id1"></span><h2>Session key selection<a class="headerlink" href="#session-key-selection" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>Session key selection<a class="headerlink" href="#session-key-selection" title="Link to this heading">¶</a></h2>
 <p>The KDC chooses the session key enctype by taking the intersection of
 its <strong>permitted_enctypes</strong> list, the list of long-term keys for the
 most recent kvno of the service, and the client’s requested list of
@@ -98,7 +96,7 @@ long-term keys and the assumption of aes256-cts-hmac-sha1-96 support.
 See <a class="reference internal" href="admin_commands/kadmin_local.html#set-string"><span class="std std-ref">set_string</span></a> in <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> for details.</p>
 </section>
 <section id="choosing-enctypes-for-a-service">
-<h2>Choosing enctypes for a service<a class="headerlink" href="#choosing-enctypes-for-a-service" title="Permalink to this headline">¶</a></h2>
+<h2>Choosing enctypes for a service<a class="headerlink" href="#choosing-enctypes-for-a-service" title="Link to this heading">¶</a></h2>
 <p>Generally, a service should have a key of the strongest
 enctype that both it and the KDC support.  If the KDC is running a
 release earlier than krb5-1.11, it is also useful to generate an
@@ -112,7 +110,7 @@ independently of the set of long-term keys that the KDC has stored for
 a service principal.</p>
 </section>
 <section id="configuration-variables">
-<h2>Configuration variables<a class="headerlink" href="#configuration-variables" title="Permalink to this headline">¶</a></h2>
+<h2>Configuration variables<a class="headerlink" href="#configuration-variables" title="Link to this heading">¶</a></h2>
 <p>The following <code class="docutils literal notranslate"><span class="pre">[libdefaults]</span></code> settings in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> will
 affect how enctypes are chosen.</p>
 <dl class="simple">
@@ -165,15 +163,9 @@ passwords</p>
 </dl>
 </section>
 <section id="enctype-compatibility">
-<h2>Enctype compatibility<a class="headerlink" href="#enctype-compatibility" title="Permalink to this headline">¶</a></h2>
+<h2>Enctype compatibility<a class="headerlink" href="#enctype-compatibility" title="Link to this heading">¶</a></h2>
 <p>See <a class="reference internal" href="conf_files/kdc_conf.html#encryption-types"><span class="std std-ref">Encryption types</span></a> for additional information about enctypes.</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 51%" />
-<col style="width: 20%" />
-<col style="width: 16%" />
-<col style="width: 14%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>enctype</p></th>
 <th class="head"><p>weak?</p></th>
@@ -256,7 +248,7 @@ disable <code class="docutils literal notranslate"><span class="pre">des3-cbc-sh
 it.</p>
 </section>
 <section id="migrating-away-from-older-encryption-types">
-<h2>Migrating away from older encryption types<a class="headerlink" href="#migrating-away-from-older-encryption-types" title="Permalink to this headline">¶</a></h2>
+<h2>Migrating away from older encryption types<a class="headerlink" href="#migrating-away-from-older-encryption-types" title="Link to this heading">¶</a></h2>
 <p>Administrator intervention may be required to migrate a realm away
 from legacy encryption types, especially if the realm was created
 using krb5 release 1.2 or earlier.  This migration should be performed
@@ -378,8 +370,8 @@ be ignored.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

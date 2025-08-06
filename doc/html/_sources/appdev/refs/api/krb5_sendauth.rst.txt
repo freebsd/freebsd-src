@@ -32,7 +32,7 @@ krb5_sendauth -  Client function for sendauth protocol.
 
 	          **[out]** **error** - If non-null, contains KRB_ERROR message returned from server
 
-	          **[out]** **rep_result** - If non-null and *ap_req_options* is #AP_OPTS_MUTUAL_REQUIRED, contains the result of mutual authentication exchange
+	          **[out]** **rep_result** - If non-null and *ap_req_options* is AP_OPTS_MUTUAL_REQUIRED, contains the result of mutual authentication exchange
 
 	          **[out]** **out_creds** - If non-null, the retrieved credentials
 

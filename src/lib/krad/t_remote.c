@@ -78,13 +78,13 @@ do_auth(const char *password, const krad_packet **pkt)
     krb5_error_code retval;
     krb5_data tmp = string2data((char *)password);
 
-    retval = krad_attrset_add(set, krad_attr_name2num("User-Password"), &tmp);
+    retval = krad_attrset_add(set, KRAD_ATTR_USER_PASSWORD, &tmp);
     if (retval != 0)
         return retval;
 
-    retval = kr_remote_send(rr, krad_code_name2num("Access-Request"), set,
-                            callback, NULL, 1000, 3, &tmppkt);
-    krad_attrset_del(set, krad_attr_name2num("User-Password"), 0);
+    retval = kr_remote_send(rr, KRAD_CODE_ACCESS_REQUEST, set, callback, NULL,
+                            1000, 3, &tmppkt);
+    krad_attrset_del(set, KRAD_ATTR_USER_PASSWORD, 0);
     if (retval != 0)
         return retval;
 
@@ -122,7 +122,7 @@ main(int argc, const char **argv)
     /* Create attribute set. */
     noerror(krad_attrset_new(kctx, &set));
     tmp = string2data("testUser");
-    noerror(krad_attrset_add(set, krad_attr_name2num("User-Name"), &tmp));
+    noerror(krad_attrset_add(set, KRAD_ATTR_USER_NAME, &tmp));
 
     /* Send accept packet. */
     noerror(do_auth("accept", NULL));
@@ -150,11 +150,9 @@ main(int argc, const char **argv)
     /* Verify the results. */
     insist(record.count == EVENT_COUNT);
     insist(record.events[0].error == FALSE);
-    insist(record.events[0].result.code ==
-           krad_code_name2num("Access-Accept"));
+    insist(record.events[0].result.code == KRAD_CODE_ACCESS_ACCEPT);
     insist(record.events[1].error == FALSE);
-    insist(record.events[1].result.code ==
-           krad_code_name2num("Access-Reject"));
+    insist(record.events[1].result.code == KRAD_CODE_ACCESS_REJECT);
     insist(record.events[2].error == TRUE);
     insist(record.events[2].result.retval == ECANCELED);
     insist(record.events[3].error == TRUE);

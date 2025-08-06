@@ -34,7 +34,7 @@ krb5_get_init_creds_opt_set_fast_flags -  Set FAST flags in initial credential o
 
 The following flag values are valid: 
  
-	 - #KRB5_FAST_REQUIRED - Require FAST to be used
+	 - KRB5_FAST_REQUIRED - Require FAST to be used
  
  
 

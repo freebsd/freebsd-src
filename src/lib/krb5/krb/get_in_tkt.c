@@ -544,14 +544,14 @@ krb5_init_creds_free(krb5_context context,
 
 krb5_error_code
 k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
-                  int *use_primary)
+                  krb5_boolean use_primary, struct kdclist *kdcs)
 {
     krb5_error_code code;
     krb5_data request;
     krb5_data reply;
     krb5_data realm;
     unsigned int flags = 0;
-    int tcp_only = 0, primary = *use_primary;
+    int no_udp = 0;
 
     request.length = 0;
     request.data = NULL;
@@ -567,17 +567,16 @@ k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
                                     &request,
                                     &realm,
                                     &flags);
-        if (code == KRB5KRB_ERR_RESPONSE_TOO_BIG && !tcp_only) {
+        if (code == KRB5KRB_ERR_RESPONSE_TOO_BIG && !no_udp) {
             TRACE_INIT_CREDS_RETRY_TCP(context);
-            tcp_only = 1;
+            no_udp = 1;
         } else if (code != 0 || !(flags & KRB5_INIT_CREDS_STEP_FLAG_CONTINUE))
             break;
 
         krb5_free_data_contents(context, &reply);
 
-        primary = *use_primary;
-        code = krb5_sendto_kdc(context, &request, &realm,
-                               &reply, &primary, tcp_only);
+        code = k5_sendto_kdc(context, &request, &realm, use_primary, no_udp,
+                             &reply, kdcs);
         if (code != 0)
             break;
 
@@ -589,7 +588,6 @@ k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
     krb5_free_data_contents(context, &reply);
     krb5_free_data_contents(context, &realm);
 
-    *use_primary = primary;
     return code;
 }
 
@@ -598,9 +596,7 @@ krb5_error_code KRB5_CALLCONV
 krb5_init_creds_get(krb5_context context,
                     krb5_init_creds_context ctx)
 {
-    int use_primary = 0;
-
-    return k5_init_creds_get(context, ctx, &use_primary);
+    return k5_init_creds_get(context, ctx, FALSE, NULL);
 }
 
 krb5_error_code KRB5_CALLCONV
@@ -1311,7 +1307,7 @@ init_creds_step_request(krb5_context context,
             krb5_clear_error_message(context);
             code = 0;
         }
-    } if (ctx->more_padata != NULL) {
+    } else if (ctx->more_padata != NULL) {
         /* Continuing after KDC_ERR_MORE_PREAUTH_DATA_REQUIRED. */
         TRACE_INIT_CREDS_PREAUTH_MORE(context, ctx->selected_preauth_type);
         code = k5_preauth(context, ctx, ctx->more_padata, TRUE,
@@ -1954,13 +1950,13 @@ cleanup:
     return code;
 }
 
-krb5_error_code KRB5_CALLCONV
-k5_get_init_creds(krb5_context context, krb5_creds *creds,
-                  krb5_principal client, krb5_prompter_fct prompter,
-                  void *prompter_data, krb5_deltat start_time,
-                  const char *in_tkt_service, krb5_get_init_creds_opt *options,
-                  get_as_key_fn gak_fct, void *gak_data, int *use_primary,
-                  krb5_kdc_rep **as_reply)
+static krb5_error_code
+try_init_creds(krb5_context context, krb5_creds *creds, krb5_principal client,
+               krb5_prompter_fct prompter, void *prompter_data,
+               krb5_deltat start_time, const char *in_tkt_service,
+               krb5_get_init_creds_opt *options, get_as_key_fn gak_fct,
+               void *gak_data, krb5_boolean use_primary, struct kdclist *kdcs,
+               krb5_kdc_rep **as_reply)
 {
     krb5_error_code code;
     krb5_init_creds_context ctx = NULL;
@@ -1984,7 +1980,7 @@ k5_get_init_creds(krb5_context context, krb5_creds *creds,
             goto cleanup;
     }
 
-    code = k5_init_creds_get(context, ctx, use_primary);
+    code = k5_init_creds_get(context, ctx, use_primary, kdcs);
     if (code != 0)
         goto cleanup;
 
@@ -2004,13 +2000,62 @@ cleanup:
 }
 
 krb5_error_code
+k5_get_init_creds(krb5_context context, krb5_creds *creds,
+                  krb5_principal client, krb5_prompter_fct prompter,
+                  void *prompter_data, krb5_deltat start_time,
+                  const char *in_tkt_service, krb5_get_init_creds_opt *options,
+                  get_as_key_fn gak_fct, void *gak_data,
+                  krb5_kdc_rep **as_reply)
+{
+    krb5_error_code ret;
+    struct kdclist *kdcs = NULL;
+    struct errinfo errsave = EMPTY_ERRINFO;
+
+    ret = k5_kdclist_create(&kdcs);
+    if (ret)
+        goto cleanup;
+
+    /* Try getting the requested ticket from any KDC. */
+    ret = try_init_creds(context, creds, client, prompter, prompter_data,
+                         start_time, in_tkt_service, options, gak_fct,
+                         gak_data, FALSE, kdcs, as_reply);
+    if (!ret)
+        goto cleanup;
+
+    /* If all of the KDCs are unavailable, or if the error was due to a user
+     * interrupt, fail. */
+    if (ret == KRB5_KDC_UNREACH || ret == KRB5_REALM_CANT_RESOLVE ||
+        ret == KRB5_LIBOS_PWDINTR || ret == KRB5_LIBOS_CANTREADPWD)
+        goto cleanup;
+
+    /* If any reply came from a replica, try again with only primary KDCs. */
+    if (k5_kdclist_any_replicas(context, kdcs)) {
+        k5_save_ctx_error(context, ret, &errsave);
+        TRACE_INIT_CREDS_PRIMARY(context);
+        ret = try_init_creds(context, creds, client, prompter, prompter_data,
+                             start_time, in_tkt_service, options, gak_fct,
+                             gak_data, TRUE, NULL, as_reply);
+        if (ret == KRB5_KDC_UNREACH || ret == KRB5_REALM_CANT_RESOLVE ||
+            ret == KRB5_REALM_UNKNOWN) {
+            /* We couldn't contact a primary KDC; return the error from the
+             * replica we were able to contact. */
+            ret = k5_restore_ctx_error(context, &errsave);
+        }
+    }
+
+cleanup:
+    k5_kdclist_free(kdcs);
+    k5_clear_error(&errsave);
+    return ret;
+}
+
+krb5_error_code
 k5_identify_realm(krb5_context context, krb5_principal client,
                   const krb5_data *subject_cert, krb5_principal *client_out)
 {
     krb5_error_code ret;
     krb5_get_init_creds_opt *opts = NULL;
     krb5_init_creds_context ctx = NULL;
-    int use_primary = 0;
 
     *client_out = NULL;
 
@@ -2030,7 +2075,7 @@ k5_identify_realm(krb5_context context, krb5_principal client,
     ctx->identify_realm = TRUE;
     ctx->subject_cert = subject_cert;
 
-    ret = k5_init_creds_get(context, ctx, &use_primary);
+    ret = k5_init_creds_get(context, ctx, FALSE, NULL);
     if (ret)
         goto cleanup;
 

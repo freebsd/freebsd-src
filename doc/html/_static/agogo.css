@@ -4,7 +4,7 @@
  *
  * Sphinx stylesheet -- agogo theme.
  *
- * :copyright: Copyright 2007-2021 by the Sphinx team, see AUTHORS.
+ * :copyright: Copyright 2007-2023 by the Sphinx team, see AUTHORS.
  * :license: BSD, see LICENSE for details.
  *
  */
@@ -19,6 +19,10 @@ body {
   line-height: 1.4em;
   color: black;
   background-color: #5d1509;
+
+  /* fix for background colors breaking at horizontal
+    scrolling on smaller devices */
+  min-width: fit-content;
 }
 
 
@@ -39,6 +43,10 @@ div.header-wrapper {
 /* Default body styles */
 a {
   color: #881f0d;
+}
+
+a:visited {
+  color: #551a8b;
 }
 
 div.bodywrapper a, div.footer a {
@@ -127,8 +135,7 @@ dt:target, .highlighted {
 /* Header */
 
 div.header {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding: 1em;
 }
 
 div.header .headertitle {
@@ -165,8 +172,7 @@ img.logo {
 /* Content */
 div.content-wrapper {
   background-color: white;
-  padding-top: 20px;
-  padding-bottom: 20px;
+  padding: 1em;
 }
 
 div.document {
@@ -267,32 +273,36 @@ div.document ol {
 
 /* Sidebar */
 
-div.sidebar {
+div.sidebar,
+aside.sidebar {
   width: 20%;
   float: right;
   font-size: .9em;
 }
 
-div.sidebar a, div.header a {
+div.sidebar a, aside.sidebar a, div.header a {
   text-decoration: none;
 }
 
-div.sidebar a:hover, div.header a:hover {
+div.sidebar a:hover, aside.sidebar a:hover, div.header a:hover {
   text-decoration: underline;
 }
 
-div.sidebar h3 {
+div.sidebar h3,
+aside.sidebar h3 {
   color: #2e3436;
   text-transform: uppercase;
   font-size: 130%;
   letter-spacing: .1em;
 }
 
-div.sidebar ul {
+div.sidebar ul,
+aside.sidebar ul {
   list-style-type: none;
 }
 
-div.sidebar li.toctree-l1 a {
+div.sidebar li.toctree-l1 a,
+aside.sidebar li.toctree-l1 a {
   display: block;
   padding: 1px;
   border: 1px solid #dddddd;
@@ -302,37 +312,44 @@ div.sidebar li.toctree-l1 a {
   color: #2e3436;
 }
 
-div.sidebar li.toctree-l2 a {
+div.sidebar li.toctree-l2 a,
+aside.sidebar li.toctree-l2 a {
   background-color: transparent;
   border: none;
   margin-left: 1em;
   border-bottom: 1px solid #dddddd;
 }
 
-div.sidebar li.toctree-l3 a {
+div.sidebar li.toctree-l3 a,
+aside.sidebar li.toctree-l3 a {
   background-color: transparent;
   border: none;
   margin-left: 2em;
   border-bottom: 1px solid #dddddd;
 }
 
-div.sidebar li.toctree-l2:last-child a {
+div.sidebar li.toctree-l2:last-child a,
+aside.sidebar li.toctree-l2:last-child a {
   border-bottom: none;
 }
 
-div.sidebar li.toctree-l1.current a {
+div.sidebar li.toctree-l1.current a,
+aside.sidebar li.toctree-l1.current a {
   border-right: 5px solid #fcaf3e;
 }
 
-div.sidebar li.toctree-l1.current li.toctree-l2 a {
+div.sidebar li.toctree-l1.current li.toctree-l2 a,
+aside.sidebar li.toctree-l1.current li.toctree-l2 a {
   border-right: none;
 }
 
-div.sidebar input[type="text"] {
+div.sidebar input[type="text"],
+aside.sidebar input[type="text"] {
   width: 170px;
 }
 
-div.sidebar input[type="submit"] {
+div.sidebar input[type="submit"],
+aside.sidebar input[type="submit"] {
   width: 30px;
 }
 

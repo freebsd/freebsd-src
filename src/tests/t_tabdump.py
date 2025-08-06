@@ -19,7 +19,13 @@ def checkkeys(rows, dumptype, names):
 
 
 realm = K5Realm(start_kdc=False, get_creds=False)
+realm.run([kadminl, 'alias', 'useralias', 'user'])
 
+rows = getrows('alias')
+checkkeys(rows, 'alias', ["aliasname", "targetname"])
+if (rows[0]['aliasname'] != 'useralias@KRBTEST.COM' or
+    rows[0]['targetname'] != 'user@KRBTEST.COM'):
+    fail('tabdump alias principal names')
 
 rows = getrows('keyinfo')
 checkkeys(rows, 'keyinfo',

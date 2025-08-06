@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Realm configuration decisions &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="realm-configuration-decisions">
-<h1>Realm configuration decisions<a class="headerlink" href="#realm-configuration-decisions" title="Permalink to this headline">¶</a></h1>
+<h1>Realm configuration decisions<a class="headerlink" href="#realm-configuration-decisions" title="Link to this heading">¶</a></h1>
 <p>Before installing Kerberos V5, it is necessary to consider the
 following issues:</p>
 <ul class="simple">
@@ -68,7 +66,7 @@ not be using the default ports.</p></li>
 to the replica KDCs.</p></li>
 </ul>
 <section id="realm-name">
-<h2>Realm name<a class="headerlink" href="#realm-name" title="Permalink to this headline">¶</a></h2>
+<h2>Realm name<a class="headerlink" href="#realm-name" title="Link to this heading">¶</a></h2>
 <p>Although your Kerberos realm can be any ASCII string, convention is to
 make it the same as your domain name, in upper-case letters.</p>
 <p>For example, hosts in the domain <code class="docutils literal notranslate"><span class="pre">example.com</span></code> would be in the
@@ -84,7 +82,7 @@ descriptive names which end with your domain name, such as:</p>
 </div>
 </section>
 <section id="mapping-hostnames-onto-kerberos-realms">
-<span id="mapping-hostnames"></span><h2>Mapping hostnames onto Kerberos realms<a class="headerlink" href="#mapping-hostnames-onto-kerberos-realms" title="Permalink to this headline">¶</a></h2>
+<span id="mapping-hostnames"></span><h2>Mapping hostnames onto Kerberos realms<a class="headerlink" href="#mapping-hostnames-onto-kerberos-realms" title="Link to this heading">¶</a></h2>
 <p>Mapping hostnames onto Kerberos realms is done in one of three ways.</p>
 <p>The first mechanism works through a set of rules in the
 <a class="reference internal" href="conf_files/krb5_conf.html#domain-realm"><span class="std std-ref">[domain_realm]</span></a> section of <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  You can specify
@@ -124,7 +122,7 @@ would be:</p>
 you may wish to set it up anyway, for use when interacting with other sites.</p>
 </section>
 <section id="ports-for-the-kdc-and-admin-services">
-<h2>Ports for the KDC and admin services<a class="headerlink" href="#ports-for-the-kdc-and-admin-services" title="Permalink to this headline">¶</a></h2>
+<h2>Ports for the KDC and admin services<a class="headerlink" href="#ports-for-the-kdc-and-admin-services" title="Link to this heading">¶</a></h2>
 <p>The default ports used by Kerberos are port 88 for the KDC and port
 749 for the admin server.  You can, however, choose to run on other
 ports, as long as they are specified in each host’s
@@ -134,7 +132,7 @@ port numbers used by the Kerberos V5 programs, refer to the
 <a class="reference internal" href="appl_servers.html#conf-firewall"><span class="std std-ref">Configuring your firewall to work with Kerberos V5</span></a>.</p>
 </section>
 <section id="replica-kdcs">
-<h2>Replica KDCs<a class="headerlink" href="#replica-kdcs" title="Permalink to this headline">¶</a></h2>
+<h2>Replica KDCs<a class="headerlink" href="#replica-kdcs" title="Link to this heading">¶</a></h2>
 <p>Replica KDCs provide an additional source of Kerberos ticket-granting
 services in the event of inaccessibility of the primary KDC.  The
 number of replica KDCs you need and the decision of where to place them,
@@ -157,14 +155,14 @@ localized disasters.</p></li>
 </ul>
 </section>
 <section id="hostnames-for-kdcs">
-<span id="kdc-hostnames"></span><h2>Hostnames for KDCs<a class="headerlink" href="#hostnames-for-kdcs" title="Permalink to this headline">¶</a></h2>
+<span id="kdc-hostnames"></span><h2>Hostnames for KDCs<a class="headerlink" href="#hostnames-for-kdcs" title="Link to this heading">¶</a></h2>
 <p>MIT recommends that your KDCs have a predefined set of CNAME records
 (DNS hostname aliases), such as <code class="docutils literal notranslate"><span class="pre">kerberos</span></code> for the primary KDC and
 <code class="docutils literal notranslate"><span class="pre">kerberos-1</span></code>, <code class="docutils literal notranslate"><span class="pre">kerberos-2</span></code>, … for the replica KDCs.  This way,
 if you need to swap a machine, you only need to change a DNS entry,
 rather than having to change hostnames.</p>
 <p>As of MIT krb5 1.4, clients can locate a realm’s KDCs through DNS
-using SRV records (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc2782.html"><strong>RFC 2782</strong></a>), assuming the Kerberos realm name is
+using SRV records (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc2782.html"><strong>RFC 2782</strong></a>), assuming the Kerberos realm name is
 also a DNS domain name.  These records indicate the hostname and port
 number to contact for that service, optionally with weighting and
 prioritization.  The domain name used in the SRV record name is the
@@ -226,11 +224,17 @@ using the <strong>kdc</strong>, <strong>master_kdc</strong>, <strong>admin_serve
 <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  Even if some clients will be configured with
 explicit server locations, providing SRV records will still benefit
 unconfigured clients, and be useful for other sites.</p>
+<p>Clients can be configured with the <strong>sitename</strong> realm variable (new in
+release 1.22).  If a site name is set, the client first attempts SRV
+record lookups with “.*sitename*._sites” inserted after the service
+and protocol name and before the Kerberos realm.  Site-specific
+records may indicate servers more proximal to the client, allowing for
+faster access.</p>
 </section>
 <section id="kdc-discovery">
-<span id="id1"></span><h2>KDC Discovery<a class="headerlink" href="#kdc-discovery" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>KDC Discovery<a class="headerlink" href="#kdc-discovery" title="Link to this heading">¶</a></h2>
 <p>As of MIT krb5 1.15, clients can also locate KDCs in DNS through URI
-records (<span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc7553.html"><strong>RFC 7553</strong></a>).  Limitations with the SRV record format may
+records (<span class="target" id="index-1"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc7553.html"><strong>RFC 7553</strong></a>).  Limitations with the SRV record format may
 result in extra DNS queries in situations where a client must failover
 to other transport types, or find a primary server.  The URI record
 can convey more information about a realm’s KDCs with a single query.</p>
@@ -269,9 +273,11 @@ include a port and/or path extension.</p></li>
 <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> to False.  When enabled, URI lookups take
 precedence over SRV lookups, falling back to SRV lookups if no URI
 records are found.</p>
+<p>The <strong>sitename</strong> variable in the <a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> section of
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> applies to URI lookups as well as SRV lookups.</p>
 </section>
 <section id="database-propagation">
-<span id="db-prop"></span><h2>Database propagation<a class="headerlink" href="#database-propagation" title="Permalink to this headline">¶</a></h2>
+<span id="db-prop"></span><h2>Database propagation<a class="headerlink" href="#database-propagation" title="Link to this heading">¶</a></h2>
 <p>The Kerberos database resides on the primary KDC, and must be
 propagated regularly (usually by a cron job) to the replica KDCs.  In
 deciding how frequently the propagation should happen, you will need
@@ -370,8 +376,8 @@ the database to additional replicas.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

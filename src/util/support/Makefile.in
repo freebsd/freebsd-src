@@ -58,6 +58,11 @@ SECURE_GETENV_OBJ= @SECURE_GETENV_OBJ@
 ##DOS##SECURE_GETENV_ST_OBJ=
 ##DOS##SECURE_GETENV_OBJ=
 
+K5_REGEX_ST_OBJ=
+K5_REGEX_OBJ=
+##DOS##K5_REGEX_ST_OBJ= regex.o
+##DOS##K5_REGEX_OBJ= $(OUTPRE)regex.$(OBJEXT)
+
 IPC_ST_OBJ=
 IPC_OBJ=
 ##DOS##IPC_ST_OBJ= ipc_stream.o
@@ -99,7 +104,8 @@ STLIBOBJS= \
 	$(MKSTEMP_ST_OBJ) \
 	$(GETOPT_ST_OBJ) \
 	$(GETOPT_LONG_ST_OBJ) \
-	$(SECURE_GETENV_OBJ)
+	$(SECURE_GETENV_OBJ) \
+	$(K5_REGEX_ST_OBJ)
 
 LIBOBJS= \
 	$(OUTPRE)threads.$(OBJEXT) \
@@ -128,7 +134,8 @@ LIBOBJS= \
 	$(MKSTEMP_OBJ) \
 	$(GETOPT_OBJ) \
 	$(GETOPT_LONG_OBJ) \
-	$(SECURE_GETENV_OBJ)
+	$(SECURE_GETENV_OBJ) \
+	$(K5_REGEX_OBJ)
 
 SRCS=\
 	$(srcdir)/threads.c \
@@ -164,7 +171,8 @@ SRCS=\
 	$(srcdir)/t_utf16.c \
 	$(srcdir)/getopt.c \
 	$(srcdir)/getopt_long.c \
-	$(srcdir)/secure_getenv.c
+	$(srcdir)/secure_getenv.c \
+	$(srcdir)/regex.cpp
 
 SHLIB_EXPDEPS =
 # Add -lm if dumping thread stats, for sqrt.
@@ -193,7 +201,8 @@ SHLIB_EXPORT_FILE=libkrb5support.exports
 EXTRA_SUPPORT_SYMS= @EXTRA_SUPPORT_SYMS@
 ##DOS##EXTRA_SUPPORT_SYMS= krb5int_mkstemp krb5int_strlcpy krb5int_strlcat \
 ##DOS##		k5_getopt k5_getopt_long \
-##DOS##		krb5int_vasprintf krb5int_asprintf krb5int_gettimeofday $(IPC_SYMS)
+##DOS##		krb5int_vasprintf krb5int_asprintf krb5int_gettimeofday $(IPC_SYMS) \
+##DOS##		k5_regcomp k5_regexec k5_regerror k5_regfree
 ##DOS##DATA_SUPPORT_SYMS= k5_opterr k5_optind k5_optopt k5_optarg
 
 ##DOS##!if 0

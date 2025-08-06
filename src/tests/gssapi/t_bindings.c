@@ -43,34 +43,46 @@
  * reported as channel-bound on the acceptor.  Exit with status 0 if all
  * operations are successful, or 1 if not.
  *
- * Usage: ./t_bindings [-s] targetname icb acb
+ * Usage: ./t_bindings [-s] [-b] targetname icb acb
  *
- * An icb or abc value of "-" will not specify channel bindings.
+ * An icb or abc value of "-" will not specify channel bindings.  The -s flag
+ * uses the SPNEGO mechanism instead of the krb5 mecanism.  The -b flag
+ * includes GSS_C_CHANNEL_BOUND in req_flags, which requests strict enforcement
+ * of channel bindings by the acceptor.
  */
 
 int
 main(int argc, char *argv[])
 {
+    OM_uint32 client_flags = 0;
     OM_uint32 minor, flags1, flags2;
     gss_name_t target_name;
     gss_ctx_id_t ictx, actx;
     struct gss_channel_bindings_struct icb_data = {0}, acb_data = {0};
     gss_channel_bindings_t icb = GSS_C_NO_CHANNEL_BINDINGS;
     gss_channel_bindings_t acb = GSS_C_NO_CHANNEL_BINDINGS;
-    gss_OID_desc *mech;
+    gss_OID_desc *mech = GSS_C_NO_OID;
 
     argv++;
     argc--;
+
     if (*argv != NULL && strcmp(*argv, "-s") == 0) {
         mech = &mech_spnego;
         argv++;
         argc--;
-    } else {
-        mech = &mech_krb5;
     }
 
+    if (*argv != NULL && strcmp(*argv, "-b") == 0) {
+        client_flags |= GSS_C_CHANNEL_BOUND_FLAG;
+        argv++;
+        argc--;
+    }
+
+    if (mech == GSS_C_NO_OID)
+        mech = &mech_krb5;
+
     if (argc != 3) {
-        fprintf(stderr, "Usage: t_bindings [-s] targetname icb acb\n");
+        fprintf(stderr, "Usage: t_bindings [-s] [-b] targetname icb acb\n");
         return 1;
     }
 
@@ -89,15 +101,16 @@ main(int argc, char *argv[])
     }
 
     establish_contexts_ex(mech, GSS_C_NO_CREDENTIAL, GSS_C_NO_CREDENTIAL,
-                          target_name, 0, &ictx, &actx, icb, acb, &flags1,
-                          NULL, NULL, NULL);
+                          target_name, client_flags, &ictx, &actx, icb, acb,
+                          &flags1, NULL, NULL, NULL);
 
     /* Try again with GSS_C_DCE_STYLE */
     (void)gss_delete_sec_context(&minor, &ictx, NULL);
     (void)gss_delete_sec_context(&minor, &actx, NULL);
 
+    client_flags |= GSS_C_DCE_STYLE;
     establish_contexts_ex(mech, GSS_C_NO_CREDENTIAL, GSS_C_NO_CREDENTIAL,
-                          target_name, GSS_C_DCE_STYLE, &ictx, &actx, icb, acb,
+                          target_name, client_flags, &ictx, &actx, icb, acb,
                           &flags2, NULL, NULL, NULL);
     assert((flags1 & GSS_C_CHANNEL_BOUND_FLAG) ==
            (flags2 & GSS_C_CHANNEL_BOUND_FLAG));

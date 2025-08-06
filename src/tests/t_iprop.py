@@ -86,8 +86,10 @@ def wait_for_prop(kpropd, full_expected, expected_old, expected_new):
 # Verify the output of kproplog against the expected number of
 # entries, first and last serial number, and a list of principal names
 # for the update entrires.
-def check_ulog(num, first, last, entries, env=None):
+def check_ulog(num, first, last, entries, env=None, bsize=2048):
     out = realm.run([kproplog], env=env)
+    if 'Entry block size : ' + str(bsize) + '\n' not in out:
+        fail('Expected block size %d' % bsize)
     if 'Number of entries : ' + str(num) + '\n' not in out:
         fail('Expected %d entries' % num)
     if last:
@@ -458,8 +460,32 @@ for realm in multidb_realms(kdc_conf=conf, create_user=False,
     wait_for_prop(kpropd2, True, 6, 1)
     check_ulog(1, 1, 1, [None], replica2)
 
-    # Stop the kprop daemons so we can test kpropd -t.
+    # Create an update large enough to cause a block resize, and make
+    # sure that it propagates incrementally.
+    mark('block resize')
+    cmd = [kadminl, 'cpw',
+           '-e', 'aes128-sha1,aes256-sha1,aes128-sha2,aes256-sha2',
+           '-randkey', '-keepold', pr2]
+    n = 6
+    for i in range(n):
+        realm.run(cmd)
+    check_ulog(n + 1, 1, n + 1, [None] + n * [pr2], bsize=4096)
+    kpropd1.send_signal(signal.SIGUSR1)
+    wait_for_prop(kpropd1, False, 1, n + 1)
+    check_ulog(n + 1, 1, n + 1, [None] + n * [pr2], replica1, bsize=4096)
+    kpropd2.send_signal(signal.SIGUSR1)
+    wait_for_prop(kpropd2, False, 1, n + 1)
+    check_ulog(n + 1, 1, n + 1, [None] + n * [pr2], replica2, bsize=4096)
+
+    # Reset the ulog again.
+    realm.run([kproplog, '-R'])
+    kpropd1.send_signal(signal.SIGUSR1)
+    wait_for_prop(kpropd1, True, 7, 1)
+    kpropd2.send_signal(signal.SIGUSR1)
+    wait_for_prop(kpropd2, True, 7, 1)
     realm.stop_kpropd(kpropd1)
+
+    # Stop the kprop daemons so we can test kpropd -t.
     stop_daemon(kpropd2)
     stop_daemon(kadmind_proponly)
     mark('kpropd -t')

@@ -199,7 +199,7 @@ bool_t auth_gssapi_wrap_data(
      gss_ctx_id_t context,
      uint32_t seq_num,
      XDR *out_xdrs,
-     bool_t (*xdr_func)(),
+     xdrproc_t xdr_func,
      caddr_t xdr_ptr)
 {
      gss_buffer_desc in_buf, out_buf;
@@ -267,7 +267,7 @@ bool_t auth_gssapi_unwrap_data(
      gss_ctx_id_t context,
      uint32_t seq_num,
      XDR *in_xdrs,
-     bool_t (*xdr_func)(),
+     xdrproc_t xdr_func,
      caddr_t xdr_ptr)
 {
      gss_buffer_desc in_buf, out_buf;

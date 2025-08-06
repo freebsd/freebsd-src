@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>KDC cookie format &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,26 +51,26 @@
           <div class="body" role="main">
             
   <section id="kdc-cookie-format">
-<h1>KDC cookie format<a class="headerlink" href="#kdc-cookie-format" title="Permalink to this headline">¶</a></h1>
-<p><span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a> section 5.2 specifies a pa-data type PA-FX-COOKIE, which
+<h1>KDC cookie format<a class="headerlink" href="#kdc-cookie-format" title="Link to this heading">¶</a></h1>
+<p><span class="target" id="index-0"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6113.html"><strong>RFC 6113</strong></a> section 5.2 specifies a pa-data type PA-FX-COOKIE, which
 clients are required to reflect back to the KDC during
 pre-authentication.  The MIT krb5 KDC uses the following formats for
 cookies.</p>
 <section id="trivial-cookie-version-0">
-<h2>Trivial cookie (version 0)<a class="headerlink" href="#trivial-cookie-version-0" title="Permalink to this headline">¶</a></h2>
+<h2>Trivial cookie (version 0)<a class="headerlink" href="#trivial-cookie-version-0" title="Link to this heading">¶</a></h2>
 <p>If there is no pre-authentication mechanism state information to save,
 a trivial cookie containing the value “MIT” is used.  A trivial cookie
 is needed to indicate that the conversation can continue.</p>
 </section>
 <section id="secure-cookie-version-1">
-<h2>Secure cookie (version 1)<a class="headerlink" href="#secure-cookie-version-1" title="Permalink to this headline">¶</a></h2>
+<h2>Secure cookie (version 1)<a class="headerlink" href="#secure-cookie-version-1" title="Link to this heading">¶</a></h2>
 <p>In release 1.14 and later, a secure cookie can be sent if there is any
 mechanism state to save for the next request.  A secure cookie
 contains the concatenation of the following:</p>
 <ul class="simple">
 <li><p>the four bytes “MIT1”</p></li>
 <li><p>a four-byte big-endian kvno value</p></li>
-<li><p>an <span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc3961.html"><strong>RFC 3961</strong></a> ciphertext</p></li>
+<li><p>an <span class="target" id="index-1"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc3961.html"><strong>RFC 3961</strong></a> ciphertext</p></li>
 </ul>
 <p>The ciphertext is encrypted in the cookie key with key usage
 number 513.  The cookie key is derived from a key in the local krbtgt
@@ -80,21 +78,21 @@ principal entry for the realm (e.g. <code class="docutils literal notranslate"><
 if the request is to the <code class="docutils literal notranslate"><span class="pre">KRBTEST.COM</span></code> realm).  The first krbtgt key
 for the indicated kvno value is combined with the client principal as
 follows:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cookie</span><span class="o">-</span><span class="n">key</span> <span class="o">&lt;-</span> <span class="n">random</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">key</span><span class="p">(</span><span class="n">PRF</span><span class="o">+</span><span class="p">(</span><span class="n">tgt</span><span class="o">-</span><span class="n">key</span><span class="p">,</span> <span class="s2">&quot;COOKIE&quot;</span> <span class="o">|</span> <span class="n">client</span><span class="o">-</span><span class="n">princ</span><span class="p">))</span>
+<div class="highlight-abnf notranslate"><div class="highlight"><pre><span></span><span class="nc">cookie-key</span><span class="w"> </span>&lt;-<span class="w"> </span><span class="nc">random-to-key</span><span class="p">(</span><span class="nc">PRF</span>+<span class="p">(</span><span class="nc">tgt-key</span>,<span class="w"> </span><span class="l">&quot;COOKIE&quot;</span><span class="w"> </span>|<span class="w"> </span><span class="nc">client-princ</span><span class="p">))</span>
 </pre></div>
 </div>
-<p>where <strong>random-to-key</strong> is the <span class="target" id="index-2"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc3961.html"><strong>RFC 3961</strong></a> random-to-key operation for
-the krbtgt key’s encryption type, <strong>PRF+</strong> is defined in <span class="target" id="index-3"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a>,
+<p>where <strong>random-to-key</strong> is the <span class="target" id="index-2"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc3961.html"><strong>RFC 3961</strong></a> random-to-key operation for
+the krbtgt key’s encryption type, <strong>PRF+</strong> is defined in <span class="target" id="index-3"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6113.html"><strong>RFC 6113</strong></a>,
 and <code class="docutils literal notranslate"><span class="pre">|</span></code> denotes concatenation.  <em>client-princ</em> is the request client
-principal name with realm, marshalled according to <span class="target" id="index-4"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc1964.html"><strong>RFC 1964</strong></a> section
+principal name with realm, marshalled according to <span class="target" id="index-4"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc1964.html"><strong>RFC 1964</strong></a> section
 2.1.1.</p>
 <p>The plain text of the encrypted part of a cookie is the DER encoding
 of the following ASN.1 type:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SecureCookie</span> <span class="p">:</span><span class="o">:=</span> <span class="n">SEQUENCE</span> <span class="p">{</span>
-    <span class="n">time</span>     <span class="n">INTEGER</span><span class="p">,</span>
-    <span class="n">data</span>     <span class="n">SEQUENCE</span> <span class="n">OF</span> <span class="n">PA</span><span class="o">-</span><span class="n">DATA</span><span class="p">,</span>
-    <span class="o">...</span>
-<span class="p">}</span>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>SecureCookie <span class="o">::=</span> SEQUENCE {
+    time     INTEGER,
+    data     SEQUENCE OF PA-DATA,
+    ...
+}
 </pre></div>
 </div>
 <p>The time field represents the cookie creation time; for brevity, it is
@@ -107,20 +105,28 @@ relevant to a request by comparing the request pa-data types to the
 cookie data types.</p>
 </section>
 <section id="spake-cookie-format-version-1">
-<h2>SPAKE cookie format (version 1)<a class="headerlink" href="#spake-cookie-format-version-1" title="Permalink to this headline">¶</a></h2>
+<h2>SPAKE cookie format (version 1)<a class="headerlink" href="#spake-cookie-format-version-1" title="Link to this heading">¶</a></h2>
 <p>Inside the SecureCookie wrapper, a data value of type 151 contains
-state for SPAKE pre-authentication.  This data is the concatenation of
-the following:</p>
-<ul class="simple">
-<li><p>a two-byte big-endian version number with the value 1</p></li>
-<li><p>a two-byte big-endian stage number</p></li>
-<li><p>a four-byte big-endian group number</p></li>
-<li><p>a four-byte big-endian length and data for the SPAKE value</p></li>
-<li><p>a four-byte big-endian length and data for the transcript hash</p></li>
-<li><p>zero or more second factor records, each consisting of:
-- a four-byte big-endian second-factor type
-- a four-byte big-endian length and data</p></li>
-</ul>
+state for SPAKE pre-authentication.  This data has the following
+binary format with big-endian integer encoding:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>cookie <span class="o">::=</span>
+    version (16 bits) [with the value 1]
+    stage number (16 bits)
+    group number (32 bits)
+    SPAKE value length (32 bits)
+    SPAKE value
+    transcript hash length (32 bits)
+    transcript hash
+    second factor record 1 (factor-record)
+    second factor record 2 (factor-record)
+    ...
+
+factor-record <span class="o">::=</span>
+    second factor type (32 bits)
+    second factor data length (32 bits)
+    second factor data
+</pre></div>
+</div>
 <p>The stage value is 0 if the cookie was sent with a challenge message.
 Otherwise it is 1 for the first encdata message sent by the KDC during
 an exchange, 2 for the second, etc..</p>
@@ -173,6 +179,7 @@ corresponding to the factor type chosen by the client.</p>
 <li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">KDC cookie format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database_formats.html">Kerberos Database (KDB) Formats</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
@@ -198,8 +205,8 @@ corresponding to the factor type chosen by the client.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -111,7 +111,7 @@ static __inline void TranslatedWSASetLastError(int posix_error)
  * Translate Winsock errors to their POSIX counterparts.  This is necessary for
  * MSVC 2010+, where both Winsock and POSIX errors are defined.
  */
-static __inline int TranslatedWSAGetLastError()
+static __inline int TranslatedWSAGetLastError(void)
 {
     int err = WSAGetLastError();
     switch (err) {
@@ -157,6 +157,7 @@ typedef int socklen_t;
 
 #include <sys/types.h>
 #include <netinet/in.h>         /* For struct sockaddr_in and in_addr */
+#include <sys/un.h>             /* For struct sockaddr_un */
 #include <arpa/inet.h>          /* For inet_ntoa */
 #include <netdb.h>
 #include <string.h>             /* For memset */

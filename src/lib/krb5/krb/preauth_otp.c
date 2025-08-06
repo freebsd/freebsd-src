@@ -214,7 +214,7 @@ codec_encode_challenge(krb5_context ctx, krb5_pa_otp_challenge *chl,
     k5_json_string str = NULL;
     k5_json_array arr = NULL;
     krb5_error_code retval;
-    int i;
+    size_t i;
 
     retval = k5_json_object_create(&obj);
     if (retval != 0)
@@ -378,8 +378,9 @@ codec_decode_answer(krb5_context context, const char *answer,
 {
     krb5_error_code retval;
     k5_json_value val = NULL;
-    krb5_int32 indx, i;
+    krb5_int32 indx;
     krb5_data tmp;
+    size_t i;
 
     if (answer == NULL)
         return EBADMSG;
@@ -396,7 +397,7 @@ codec_decode_answer(krb5_context context, const char *answer,
         goto cleanup;
 
     for (i = 0; tis[i] != NULL; i++) {
-        if (i == indx) {
+        if (i == (size_t)indx) {
             retval = codec_value_to_data(val, "value", &tmp);
             if (retval != 0 && retval != ENOENT)
                 goto cleanup;
@@ -508,12 +509,12 @@ prompt_for_tokeninfo(krb5_context context, krb5_prompter_fct prompter,
     krb5_otp_tokeninfo *ti = NULL;
     krb5_error_code retval = 0;
     struct k5buf buf;
-    int i = 0, j = 0;
+    size_t i = 0, j = 0;
 
     k5_buf_init_dynamic(&buf);
     k5_buf_add(&buf, _("Please choose from the following:\n"));
     for (i = 0; tis[i] != NULL; i++) {
-        k5_buf_add_fmt(&buf, "\t%d. %s ", i + 1, _("Vendor:"));
+        k5_buf_add_fmt(&buf, "\t%ld. %s ", (long)(i + 1), _("Vendor:"));
         k5_buf_add_len(&buf, tis[i]->vendor.data, tis[i]->vendor.length);
         k5_buf_add(&buf, "\n");
     }
@@ -528,7 +529,7 @@ prompt_for_tokeninfo(krb5_context context, krb5_prompter_fct prompter,
             goto cleanup;
 
         errno = 0;
-        j = strtol(response, NULL, 0);
+        j = strtoul(response, NULL, 0);
         if (errno != 0) {
             retval = errno;
             goto cleanup;
@@ -731,7 +732,7 @@ prompt_for_token(krb5_context context, krb5_prompter_fct prompter,
     krb5_otp_tokeninfo **filtered = NULL;
     krb5_otp_tokeninfo *ti = NULL;
     krb5_error_code retval;
-    int i, challengers = 0;
+    size_t i, challengers = 0;
     char *challenge = NULL;
     char otpvalue[1024];
     krb5_data value, pin;

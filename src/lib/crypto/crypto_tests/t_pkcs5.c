@@ -38,7 +38,7 @@ static void printdata (krb5_data *d) {
     printhex (d->length, d->data);
 }
 
-static void test_pbkdf2_rfc3211()
+static void test_pbkdf2_rfc3211(void)
 {
     char x[100];
     krb5_error_code err;
@@ -92,7 +92,7 @@ static void test_pbkdf2_rfc3211()
     }
 }
 
-int main ()
+int main(void)
 {
     test_pbkdf2_rfc3211();
     return 0;

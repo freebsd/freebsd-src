@@ -844,7 +844,7 @@ ktest_equal_pk_authenticator(krb5_pk_authenticator *ref,
     p = p && scalar_equal(cusec);
     p = p && scalar_equal(ctime);
     p = p && scalar_equal(nonce);
-    p = p && struct_equal(paChecksum, ktest_equal_checksum);
+    p = p && data_eq(ref->paChecksum, var->paChecksum);
     return p;
 }
 

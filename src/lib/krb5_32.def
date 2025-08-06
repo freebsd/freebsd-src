@@ -510,3 +510,10 @@ EXPORTS
 	k5_sname_compare				@474 ; PRIVATE GSSAPI
 	krb5_kdc_sign_ticket                            @475 ;
 	krb5_kdc_verify_ticket                          @476 ;
+
+; new in 1.22
+; private symbols used by PKINIT module
+	encode_krb5_sp80056a_other_info			@477 ; PRIVATE
+	encode_krb5_pkinit_supp_pub_info		@478 ; PRIVATE
+	krb5int_copy_data_contents			@479 ; PRIVATE
+	krb5_free_pa_data				@480 ; PRIVATE

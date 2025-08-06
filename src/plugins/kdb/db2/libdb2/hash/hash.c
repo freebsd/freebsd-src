@@ -94,10 +94,8 @@ u_int32_t hash_accesses, hash_collisions, hash_expansions, hash_overflows,
 /* OPEN/CLOSE */
 
 extern DB *
-__kdb2_hash_open(file, flags, mode, info, dflags)
-	const char *file;
-	int flags, mode, dflags;
-	const HASHINFO *info;	/* Special directives for create */
+__kdb2_hash_open(const char *file, int flags, int mode, const HASHINFO *info,
+		 int dflags)
 {
 	struct stat statbuf;
 	DB *dbp;
@@ -260,8 +258,7 @@ error0:
 }
 
 static int32_t
-hash_close(dbp)
-	DB *dbp;
+hash_close(DB *dbp)
 {
 	HTAB *hashp;
 	int32_t retval;
@@ -276,8 +273,7 @@ hash_close(dbp)
 }
 
 static int32_t
-hash_fd(dbp)
-	const DB *dbp;
+hash_fd(const DB *dbp)
 {
 	HTAB *hashp;
 
@@ -294,10 +290,7 @@ hash_fd(dbp)
 
 /************************** LOCAL CREATION ROUTINES **********************/
 static HTAB *
-init_hash(hashp, file, info)
-	HTAB *hashp;
-	const char *file;
-	const HASHINFO *info;
+init_hash(HTAB *hashp, const char *file, const HASHINFO *info)
 {
 	struct stat statbuf;
 
@@ -349,9 +342,7 @@ init_hash(hashp, file, info)
  * Returns 0 on No Error
  */
 static int32_t
-init_htab(hashp, nelem)
-	HTAB *hashp;
-	int32_t nelem;
+init_htab(HTAB *hashp, int32_t nelem)
 {
 	int32_t l2, nbuckets;
 
@@ -403,9 +394,7 @@ init_htab(hashp, nelem)
  * Functions to get/put hash header.  We access the file directly.
  */
 static u_int32_t
-hget_header(hashp, page_size)
-	HTAB *hashp;
-	u_int32_t page_size;
+hget_header(HTAB *hashp, u_int32_t page_size)
 {
 	u_int32_t num_copied;
 	u_int8_t *hdr_dest;
@@ -431,8 +420,7 @@ hget_header(hashp, page_size)
 }
 
 static void
-hput_header(hashp)
-	HTAB *hashp;
+hput_header(HTAB *hashp)
 {
 	HASHHDR *whdrp;
 #if DB_BYTE_ORDER == DB_LITTLE_ENDIAN
@@ -462,8 +450,7 @@ hput_header(hashp)
  * structure, freeing all allocated space.
  */
 static int32_t
-hdestroy(hashp)
-	HTAB *hashp;
+hdestroy(HTAB *hashp)
 {
 	int32_t save_errno;
 
@@ -549,9 +536,7 @@ hdestroy(hashp)
  *	-1 ERROR
  */
 static int32_t
-hash_sync(dbp, flags)
-	const DB *dbp;
-	u_int32_t flags;
+hash_sync(const DB *dbp, u_int32_t flags)
 {
 	HTAB *hashp;
 
@@ -570,8 +555,7 @@ hash_sync(dbp, flags)
  *	-1 indicates that errno should be set
  */
 static int32_t
-flush_meta(hashp)
-	HTAB *hashp;
+flush_meta(HTAB *hashp)
 {
 	int32_t i;
 
@@ -607,11 +591,7 @@ flush_meta(hashp)
 /* *** make sure this is true! */
 
 static int32_t
-hash_get(dbp, key, data, flag)
-	const DB *dbp;
-	const DBT *key;
-	DBT *data;
-	u_int32_t flag;
+hash_get(const DB *dbp, const DBT *key, DBT *data, u_int32_t flag)
 {
 	HTAB *hashp;
 
@@ -624,11 +604,7 @@ hash_get(dbp, key, data, flag)
 }
 
 static int32_t
-hash_put(dbp, key, data, flag)
-	const DB *dbp;
-	DBT *key;
-	const DBT *data;
-	u_int32_t flag;
+hash_put(const DB *dbp, DBT *key, const DBT *data, u_int32_t flag)
 {
 	HTAB *hashp;
 
@@ -646,10 +622,7 @@ hash_put(dbp, key, data, flag)
 }
 
 static int32_t
-hash_delete(dbp, key, flag)
-	const DB *dbp;
-	const DBT *key;
-	u_int32_t flag;		/* Ignored */
+hash_delete(const DB *dbp, const DBT *key, u_int32_t flag)
 {
 	HTAB *hashp;
 
@@ -670,11 +643,7 @@ hash_delete(dbp, key, flag)
  * Assume that hashp has been set in wrapper routine.
  */
 static int32_t
-hash_access(hashp, action, key, val)
-	HTAB *hashp;
-	ACTION action;
-	const DBT *key;
-	DBT *val;
+hash_access(HTAB *hashp, ACTION action, const DBT *key, DBT *val)
 {
 	DBT page_key, page_val;
 	CURSOR cursor;
@@ -791,8 +760,7 @@ found:	__get_item_done(hashp, &cursor);
 
 /* ****************** CURSORS ********************************** */
 CURSOR *
-__cursor_creat(dbp)
-	const DB *dbp;
+__cursor_creat(const DB *dbp)
 {
 	CURSOR *new_curs;
 	HTAB *hashp;
@@ -823,11 +791,7 @@ __cursor_creat(dbp)
 }
 
 static int32_t
-cursor_get(dbp, cursorp, key, val, flags)
-	const DB *dbp;
-	CURSOR *cursorp;
-	DBT *key, *val;
-	u_int32_t flags;
+cursor_get(const DB *dbp, CURSOR *cursorp, DBT *key, DBT *val, u_int32_t flags)
 {
 	HTAB *hashp;
 	ITEM_INFO item_info;
@@ -896,10 +860,7 @@ cursor_get(dbp, cursorp, key, val, flags)
 }
 
 static int32_t
-cursor_delete(dbp, cursor, flags)
-	const DB *dbp;
-	CURSOR *cursor;
-	u_int32_t flags;
+cursor_delete(const DB *dbp, CURSOR *cursor, u_int32_t flags)
 {
 	/* XXX this is empirically determined, so it might not be completely
 	   correct, but it seems to work.  At the very least it fixes
@@ -912,10 +873,7 @@ cursor_delete(dbp, cursor, flags)
 }
 
 static int32_t
-hash_seq(dbp, key, val, flag)
-	const DB *dbp;
-	DBT *key, *val;
-	u_int32_t flag;
+hash_seq(const DB *dbp, DBT *key, DBT *val, u_int32_t flag)
 {
 	HTAB *hashp;
 
@@ -939,8 +897,7 @@ hash_seq(dbp, key, val, flag)
  *	-1 ==> Error
  */
 int32_t
-__expand_table(hashp)
-	HTAB *hashp;
+__expand_table(HTAB *hashp)
 {
 	u_int32_t old_bucket, new_bucket;
 	int32_t spare_ndx;
@@ -979,10 +936,7 @@ __expand_table(hashp)
 }
 
 u_int32_t
-__call_hash(hashp, k, len)
-	HTAB *hashp;
-	int8_t *k;
-	int32_t len;
+__call_hash(HTAB *hashp, int8_t *k, int32_t len)
 {
 	u_int32_t n, bucket;
 
@@ -998,8 +952,7 @@ __call_hash(hashp, k, len)
  * Hashp->hdr needs to be byteswapped.
  */
 static void
-swap_header_copy(srcp, destp)
-	HASHHDR *srcp, *destp;
+swap_header_copy(HASHHDR *srcp, HASHHDR *destp)
 {
 	int32_t i;
 
@@ -1024,8 +977,7 @@ swap_header_copy(srcp, destp)
 }
 
 static void
-swap_header(hashp)
-	HTAB *hashp;
+swap_header(HTAB *hashp)
 {
 	HASHHDR *hdrp;
 	int32_t i;

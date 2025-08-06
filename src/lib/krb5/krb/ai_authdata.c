@@ -79,7 +79,7 @@ authind_import_authdata(krb5_context kcontext, krb5_authdata_context context,
     struct authind_context *aictx = request_context;
     krb5_error_code ret = 0;
     krb5_data **indps = NULL;
-    int i;
+    size_t i;
 
     for (i = 0; authdata != NULL && authdata[i] != NULL; i++) {
         ret = k5_authind_decode(authdata[i], &indps);
@@ -203,7 +203,7 @@ authind_size(krb5_context kcontext, krb5_authdata_context context,
              void *plugin_context, void *request_context, size_t *sizep)
 {
     struct authind_context *aictx = request_context;
-    int i;
+    size_t i;
 
     /* Add the indicator count. */
     *sizep += sizeof(int32_t);
@@ -224,7 +224,7 @@ authind_externalize(krb5_context kcontext, krb5_authdata_context context,
     krb5_error_code ret = 0;
     uint8_t *bp = *buffer;
     size_t remain = *lenremain;
-    int i, count;
+    size_t i, count;
 
     if (aictx->indicators == NULL)
         return krb5_ser_pack_int32(0, buffer, lenremain);

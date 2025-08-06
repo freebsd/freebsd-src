@@ -34,7 +34,7 @@ $(EXERES): $(VERSIONRC)
 all-windows: $(OUTPRE)kfwlogon.dll $(OUTPRE)kfwcpcc.exe
 
 $(KFWLOGON): $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj $(LIBRES)
-    link $(DLL_LINKOPTS) -out:$@ $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj -entry:DllEntryPoint -def:kfwlogon.def $(SYSLIBS) $(KLIB) $(CLIB) ../lib/$(OUTPRE)libwin.lib $(LIBRES)
+    link $(DLL_LINKOPTS) -out:$@ $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj -def:kfwlogon.def $(SYSLIBS) $(KLIB) $(CLIB) ../lib/$(OUTPRE)libwin.lib $(LIBRES)
     $(_VC_MANIFEST_EMBED_DLL)
 
 $(KFWCPCC): $(OUTPRE)kfwcpcc.obj $(OUTPRE)kfwcommon.obj $(EXERES)

@@ -48,7 +48,6 @@ typedef struct _ss_rp_options { /* DEFAULT VALUES */
 void ss_help __SS_PROTO;
 void ss_list_requests __SS_PROTO;
 void ss_quit __SS_PROTO;
-char *ss_current_request();
 char *ss_name(int);
 void ss_error (int, long, char const *, ...)
 #if !defined(__cplusplus) && (__GNUC__ > 2)

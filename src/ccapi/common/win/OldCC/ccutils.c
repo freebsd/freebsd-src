@@ -30,7 +30,7 @@
 #include "cci_debugging.h"
 #include "util.h"
 
-BOOL isNT() {
+BOOL isNT(void) {
     OSVERSIONINFO osvi;
     DWORD   status              = 0;
     BOOL    bSupportedVersion   = FALSE;

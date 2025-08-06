@@ -60,7 +60,7 @@ Use krb5_free_tgt_creds() to free *creds_out* when it is no longer needed.
 
 .. note::
 
-	 The *rdata_out* argument is required if the #KRB5_AUTH_CONTEXT_RET_TIME or #KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .`
+	 The *rdata_out* argument is required if the KRB5_AUTH_CONTEXT_RET_TIME or KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .`
  
 
 

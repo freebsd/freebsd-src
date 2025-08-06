@@ -45,7 +45,7 @@ else:
 
 # General information about the project.
 project = u'MIT Kerberos'
-copyright = u'1985-2024, MIT'
+copyright = u'1985-2025, MIT'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -261,7 +261,7 @@ else:
 rst_epilog = '\n'
 
 if 'notice' in tags:
-    exclude_patterns = [ 'admin', 'appdev', 'basic', 'build',
+    exclude_patterns = [ 'admin', 'appdev', 'basic', 'build', 'formats',
                          'plugindev', 'user' ]
     exclude_patterns += [ 'about.rst', 'build_this.rst', 'copyright.rst',
                           'index.rst', 'mitK5*.rst', 'resources.rst' ]

@@ -41,7 +41,7 @@ extern kadm5_config_params global_params;
 extern int valid_master_key;
 extern krb5_db_entry master_db;
 extern char **db5util_db_args;
-extern int    db5util_db_args_size;
+extern size_t db5util_db_args_size;
 extern krb5_kvno new_mkvno;
 extern krb5_keyblock new_master_keyblock;
 extern int add_db_arg(char *arg);

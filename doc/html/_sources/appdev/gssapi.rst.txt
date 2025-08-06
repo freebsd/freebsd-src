@@ -424,6 +424,42 @@ set.  If the library does not support the query,
 gss_inquire_cred_by_oid will return **GSS_S_UNAVAILABLE**.
 
 
+Channel binding behavior and GSS_C_CHANNEL_BOUND_FLAG
+-----------------------------------------------------
+
+GSSAPI channel bindings can be used to limit the scope of a context
+establishment token to a particular protected channel or endpoint,
+such as a TLS channel or server certificate.  Channel bindings can be
+supplied via the *input_chan_bindings* parameter to either
+gss_init_sec_context() or gss_accept_sec_context().
+
+If both the initiator and acceptor of a GSSAPI exchange supply
+matching channel bindings, **GSS_C_CHANNEL_BOUND_FLAG** will be
+included in the gss_accept_sec_context() *ret_flags* result.  If
+either the initiator or acceptor (or both) do not supply channel
+bindings, the exchange will succeed, but **GSS_C_CHANNEL_BOUND_FLAG**
+will not be included in the return flags.  If the acceptor and
+initiator both inlude channel bindings but they do not match, the
+exchange will fail.
+
+If **GSS_C_CHANNEL_BOUND_FLAG** is included in the *req_flags*
+parameter of gss_init_sec_context(), the initiator will add the
+Microsoft KERB_AP_OPTIONS_CBT extension to the Kerberos authenticator.
+This extension requests that the acceptor strictly enforce channel
+bindings, causing the exchange to fail if the acceptor supplies
+channel bindings and the initiator does not.  The KERB_AP_OPTIONS_CBT
+extension will also be included if the
+**client_aware_channel_bindings** variable is set to ``true`` in
+:ref:`libdefaults`.
+
+Prior to release 1.19, **GSS_C_CHANNEL_BOUND_FLAG** is not
+implemented, and the exchange will fail if the acceptor supply channel
+bindings and the initiator does not (but not vice versa).  Between
+releases 1.19 and 1.21, **GSS_C_CHANNEL_BOUND_FLAG** is not recognized
+as an initiator flag, so **client_aware_channel_bindings** is the only
+way to cause KERB_AP_OPTIONS_CBT to be included.
+
+
 AEAD message wrapping
 ---------------------
 

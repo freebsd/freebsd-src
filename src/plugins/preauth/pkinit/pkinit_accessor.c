@@ -69,8 +69,8 @@ krb5_error_code
 krb5_error_code
 (*k5int_encode_krb5_kdc_req_body)(const krb5_kdc_req *rep, krb5_data **code);
 
-void KRB5_CALLCONV
-(*k5int_krb5_free_kdc_req)(krb5_context, krb5_kdc_req * );
+void
+(KRB5_CALLCONV *k5int_krb5_free_kdc_req)(krb5_context, krb5_kdc_req * );
 
 void
 (*k5int_set_prompt_types)(krb5_context, krb5_prompt_type *);

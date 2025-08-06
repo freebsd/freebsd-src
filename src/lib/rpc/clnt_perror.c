@@ -76,7 +76,6 @@ char *
 clnt_sperror(CLIENT *rpch, char *s)
 {
 	struct rpc_err e;
-	void clnt_perrno();
 	char *err;
 	char *bufstart = get_buf();
 	char *str = bufstart;

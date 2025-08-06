@@ -63,9 +63,7 @@ extern int exit_status;
 extern int close_policy_db;
 
 void
-kdb5_stash(argc, argv)
-    int argc;
-    char *argv[];
+kdb5_stash(int argc, char *argv[])
 {
     extern char *optarg;
     extern int optind;

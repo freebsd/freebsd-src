@@ -39,9 +39,8 @@
 
 /* fd 0 is a tcp socket used to talk to the client */
 
-int main(argc, argv)
-    int argc;
-    char *argv[];
+int
+main(int argc, char *argv[])
 {
     krb5_data pname_data, tkt_data;
     int sock = 0;

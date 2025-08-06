@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>ktutil &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
@@ -53,21 +51,21 @@
           <div class="body" role="main">
             
   <section id="ktutil">
-<span id="ktutil-1"></span><h1>ktutil<a class="headerlink" href="#ktutil" title="Permalink to this headline">¶</a></h1>
+<span id="ktutil-1"></span><h1>ktutil<a class="headerlink" href="#ktutil" title="Link to this heading">¶</a></h1>
 <section id="synopsis">
-<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Link to this heading">¶</a></h2>
 <p><strong>ktutil</strong></p>
 </section>
 <section id="description">
-<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Link to this heading">¶</a></h2>
 <p>The ktutil command invokes a command interface from which an
 administrator can read, write, or edit entries in a keytab.  (Kerberos
 V4 srvtab files are no longer supported.)</p>
 </section>
 <section id="commands">
-<h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<h2>COMMANDS<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
 <section id="list">
-<h3>list<a class="headerlink" href="#list" title="Permalink to this headline">¶</a></h3>
+<h3>list<a class="headerlink" href="#list" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>list</strong> [<strong>-t</strong>] [<strong>-k</strong>] [<strong>-e</strong>]</p>
 </div></blockquote>
@@ -77,7 +75,7 @@ specified, also display the timestamp, key contents, or enctype
 <p>Alias: <strong>l</strong></p>
 </section>
 <section id="read-kt">
-<h3>read_kt<a class="headerlink" href="#read-kt" title="Permalink to this headline">¶</a></h3>
+<h3>read_kt<a class="headerlink" href="#read-kt" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>read_kt</strong> <em>keytab</em></p>
 </div></blockquote>
@@ -85,7 +83,7 @@ specified, also display the timestamp, key contents, or enctype
 <p>Alias: <strong>rkt</strong></p>
 </section>
 <section id="write-kt">
-<h3>write_kt<a class="headerlink" href="#write-kt" title="Permalink to this headline">¶</a></h3>
+<h3>write_kt<a class="headerlink" href="#write-kt" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>write_kt</strong> <em>keytab</em></p>
 </div></blockquote>
@@ -93,7 +91,7 @@ specified, also display the timestamp, key contents, or enctype
 <p>Alias: <strong>wkt</strong></p>
 </section>
 <section id="clear-list">
-<h3>clear_list<a class="headerlink" href="#clear-list" title="Permalink to this headline">¶</a></h3>
+<h3>clear_list<a class="headerlink" href="#clear-list" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>clear_list</strong></p>
 </div></blockquote>
@@ -101,7 +99,7 @@ specified, also display the timestamp, key contents, or enctype
 <p>Alias: <strong>clear</strong></p>
 </section>
 <section id="delete-entry">
-<h3>delete_entry<a class="headerlink" href="#delete-entry" title="Permalink to this headline">¶</a></h3>
+<h3>delete_entry<a class="headerlink" href="#delete-entry" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>delete_entry</strong> <em>slot</em></p>
 </div></blockquote>
@@ -109,7 +107,7 @@ specified, also display the timestamp, key contents, or enctype
 <p>Alias: <strong>delent</strong></p>
 </section>
 <section id="add-entry">
-<h3>add_entry<a class="headerlink" href="#add-entry" title="Permalink to this headline">¶</a></h3>
+<h3>add_entry<a class="headerlink" href="#add-entry" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>add_entry</strong> {<strong>-key</strong>|<strong>-password</strong>} <strong>-p</strong> <em>principal</em>
 <strong>-k</strong> <em>kvno</em> [<strong>-e</strong> <em>enctype</em>] [<strong>-f</strong>|<strong>-s</strong> <em>salt</em>]</p>
@@ -123,7 +121,7 @@ overridden with the <strong>-s</strong> option.</p>
 <p>Alias: <strong>addent</strong></p>
 </section>
 <section id="list-requests">
-<h3>list_requests<a class="headerlink" href="#list-requests" title="Permalink to this headline">¶</a></h3>
+<h3>list_requests<a class="headerlink" href="#list-requests" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>list_requests</strong></p>
 </div></blockquote>
@@ -131,7 +129,7 @@ overridden with the <strong>-s</strong> option.</p>
 <p>Aliases: <strong>lr</strong>, <strong>?</strong></p>
 </section>
 <section id="quit">
-<h3>quit<a class="headerlink" href="#quit" title="Permalink to this headline">¶</a></h3>
+<h3>quit<a class="headerlink" href="#quit" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>quit</strong></p>
 </div></blockquote>
@@ -140,7 +138,7 @@ overridden with the <strong>-s</strong> option.</p>
 </section>
 </section>
 <section id="example">
-<h2>EXAMPLE<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<h2>EXAMPLE<a class="headerlink" href="#example" title="Link to this heading">¶</a></h2>
 <blockquote>
 <div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ktutil</span><span class="p">:</span>  <span class="n">add_entry</span> <span class="o">-</span><span class="n">password</span> <span class="o">-</span><span class="n">p</span> <span class="n">alice</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span> <span class="o">-</span><span class="n">k</span> <span class="mi">1</span> <span class="o">-</span><span class="n">e</span>
     <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span>
@@ -155,12 +153,12 @@ overridden with the <strong>-s</strong> option.</p>
 </div></blockquote>
 </section>
 <section id="environment">
-<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Link to this heading">¶</a></h2>
 <p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
 variables.</p>
 </section>
 <section id="see-also">
-<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
 <p><a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </section>
 </section>
@@ -268,8 +266,8 @@ variables.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

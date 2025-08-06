@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>krb5_tkt_creds_step - Get the next KDC request in a TGS exchange. &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-    <script src="../../../_static/jquery.js"></script>
-    <script src="../../../_static/underscore.js"></script>
-    <script src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
@@ -53,14 +51,14 @@
           <div class="body" role="main">
             
   <section id="krb5-tkt-creds-step-get-the-next-kdc-request-in-a-tgs-exchange">
-<h1>krb5_tkt_creds_step -  Get the next KDC request in a TGS exchange.<a class="headerlink" href="#krb5-tkt-creds-step-get-the-next-kdc-request-in-a-tgs-exchange" title="Permalink to this headline">¶</a></h1>
+<h1>krb5_tkt_creds_step -  Get the next KDC request in a TGS exchange.<a class="headerlink" href="#krb5-tkt-creds-step-get-the-next-kdc-request-in-a-tgs-exchange" title="Link to this heading">¶</a></h1>
 <dl class="c function">
 <dt class="sig sig-object c" id="c.krb5_tkt_creds_step">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_tkt_creds_step</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_tkt_creds_context.html#c.krb5_tkt_creds_context" title="krb5_tkt_creds_context"><span class="n"><span class="pre">krb5_tkt_creds_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">ctx</span></span>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data"><span class="n"><span class="pre">krb5_data</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">in</span></span>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data"><span class="n"><span class="pre">krb5_data</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">out</span></span>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data"><span class="n"><span class="pre">krb5_data</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">realm</span></span>, <span class="kt"><span class="pre">unsigned</span></span><span class="w"> </span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">flags</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_tkt_creds_step" title="Permalink to this definition">¶</a><br /></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_tkt_creds_step</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_tkt_creds_context.html#c.krb5_tkt_creds_context" title="krb5_tkt_creds_context"><span class="n"><span class="pre">krb5_tkt_creds_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">ctx</span></span>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data"><span class="n"><span class="pre">krb5_data</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">in</span></span>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data"><span class="n"><span class="pre">krb5_data</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">out</span></span>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data"><span class="n"><span class="pre">krb5_data</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">realm</span></span>, <span class="kt"><span class="pre">unsigned</span></span><span class="w"> </span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">flags</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_tkt_creds_step" title="Link to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
 <dl class="field-list">
-<dt class="field-odd">param</dt>
+<dt class="field-odd">param<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>[in]</strong> <strong>context</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>ctx</strong> - TGS request context</p>
 <p><strong>[in]</strong> <strong>in</strong> - KDC response (empty on the first call)</p>
@@ -70,14 +68,14 @@
 </dd>
 </dl>
 <dl class="field-list simple">
-<dt class="field-odd">retval</dt>
+<dt class="field-odd">retval<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p>0   Success; otherwise - Kerberos error codes</p></li>
 </ul>
 </dd>
 </dl>
 <p>This function constructs the next KDC request for a TGS exchange, allowing the caller to control the transport of KDC requests and replies. On the first call, <em>in</em> should be set to an empty buffer; on subsequent calls, it should be set to the KDC’s reply to the previous request.</p>
-<p>If more requests are needed, <em>flags</em> will be set to #KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and the next request will be placed in <em>out</em> . If no more requests are needed, <em>flags</em> will not contain #KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and <em>out</em> will be empty.</p>
+<p>If more requests are needed, <em>flags</em> will be set to KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and the next request will be placed in <em>out</em> . If no more requests are needed, <em>flags</em> will not contain KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and <em>out</em> will be empty.</p>
 <p>If this function returns <strong>KRB5KRB_ERR_RESPONSE_TOO_BIG</strong> , the caller should transmit the next request using TCP rather than UDP. If this function returns any other error, the TGS exchange has failed.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -144,8 +142,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

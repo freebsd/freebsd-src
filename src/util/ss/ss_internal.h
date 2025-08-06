@@ -84,8 +84,7 @@ typedef struct _ss_data {       /* init values */
 #define ss_info(sci_idx)        (_ss_table[sci_idx])
 #define ss_current_request(sci_idx,code_ptr)            \
     (*code_ptr=0,ss_info(sci_idx)->current_request)
-void ss_unknown_function();
-void ss_delete_info_dir();
+void ss_delete_info_dir(int, char *, int *);
 char **ss_parse (int, char *, int *);
 ss_abbrev_info *ss_abbrev_initialize (char *, int *);
 void ss_page_stdin (void);

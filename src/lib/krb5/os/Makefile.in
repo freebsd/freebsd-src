@@ -2,7 +2,6 @@ mydir=lib$(S)krb5$(S)os
 BUILDTOP=$(REL)..$(S)..$(S)..
 DEFINES=-DLIBDIR=\"$(KRB5_LIBDIR)\" -DBINDIR=\"$(CLIENT_BINDIR)\" \
 	-DSBINDIR=\"$(ADMIN_BINDIR)\"
-LOCALINCLUDES= -I$(top_srcdir)/util/profile
 
 # Like RUN_TEST, but use td_krb5.conf from this directory.
 RUN_TEST_LOCAL_CONF=$(RUN_SETUP) KRB5_CONFIG=$(srcdir)/td_krb5.conf LC_ALL=C \
@@ -14,6 +13,7 @@ RUN_TEST_LOCAL_CONF=$(RUN_SETUP) KRB5_CONFIG=$(srcdir)/td_krb5.conf LC_ALL=C \
 
 STLIBOBJS= \
 	accessor.o	\
+	addr.o		\
 	c_ustime.o	\
 	ccdefname.o	\
 	changepw.o	\
@@ -61,6 +61,7 @@ STLIBOBJS= \
 
 OBJS= \
 	$(OUTPRE)accessor.$(OBJEXT)	\
+	$(OUTPRE)addr.$(OBJEXT)		\
 	$(OUTPRE)c_ustime.$(OBJEXT)	\
 	$(OUTPRE)ccdefname.$(OBJEXT)	\
 	$(OUTPRE)changepw.$(OBJEXT)	\
@@ -108,6 +109,7 @@ OBJS= \
 
 SRCS= \
 	$(srcdir)/accessor.c    \
+	$(srcdir)/addr.c	\
 	$(srcdir)/c_ustime.c	\
 	$(srcdir)/ccdefname.c	\
 	$(srcdir)/changepw.c	\
@@ -154,7 +156,8 @@ SRCS= \
 	$(srcdir)/write_msg.c
 
 EXTRADEPSRCS = \
-	t_expand_path.c t_gifconf.c t_locate_kdc.c t_std_conf.c t_trace.c
+	t_ctxprf.c t_expand_path.c t_gifconf.c t_locate_kdc.c t_std_conf.c \
+	t_trace.c
 
 ##DOS##LIBOBJS = $(OBJS)
 
@@ -164,7 +167,7 @@ clean-unix:: clean-libobjs
 shared:
 	mkdir shared
 
-TEST_PROGS= t_std_conf t_locate_kdc t_trace t_expand_path
+TEST_PROGS= t_std_conf t_locate_kdc t_trace t_expand_path t_ctxprf
 
 T_STD_CONF_OBJS= t_std_conf.o 
 
@@ -190,6 +193,9 @@ t_trace: $(T_TRACE_OBJS) $(KRB5_BASE_DEPLIBS)
 t_expand_path: t_expand_path.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ t_expand_path.o $(KRB5_BASE_LIBS)
 
+t_ctxprf: t_ctxprf.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_ctxprf.o $(KRB5_BASE_LIBS)
+
 LCLINT=lclint
 LCLINTOPTS= -warnposix \
 	-usedef +charintliteral +ignoresigns -predboolint +boolint \
@@ -200,7 +206,7 @@ lclint-localaddr: localaddr.c
 		-DTEST $(srcdir)/localaddr.c
 
 check-unix: check-unix-stdconf check-unix-locate check-unix-trace \
-	check-unix-expand check-unix-uri
+	check-unix-expand check-unix-uri check-unix-ctxprf
 
 check-unix-stdconf: t_std_conf
 	$(RUN_TEST_LOCAL_CONF) ./t_std_conf  -d -s NEW.DEFAULT.REALM -d \
@@ -259,9 +265,12 @@ check-unix-expand: t_expand_path
 		'the %{animal}%{s} on the %{place}%{s}' \
 		'the frogs on the pads'
 
+check-unix-ctxprf: t_ctxprf
+	$(RUNPYTEST) $(srcdir)/t_ctxprf.py $(PYTESTFLAGS)
+
 clean:
 	$(RM) $(TEST_PROGS) test.out t_std_conf.o t_locate_kdc.o t_trace.o
-	$(RM) t_expand_path.o
+	$(RM) t_expand_path.o t_ctxprf.o
 
 @libobj_frag@
 

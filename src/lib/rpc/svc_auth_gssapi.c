@@ -201,7 +201,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
      if (! xdr_authgssapi_creds(&xdrs, &creds)) {
 	  PRINTF(("svcauth_gssapi: failed decoding creds\n"));
 	  LOG_MISCERR("protocol error in client credentials");
-	  xdr_free(xdr_authgssapi_creds, &creds);
+	  xdr_free((xdrproc_t)xdr_authgssapi_creds, &creds);
 	  XDR_DESTROY(&xdrs);
 	  ret = AUTH_BADCRED;
 	  goto error;
@@ -223,7 +223,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
 	  if (creds.auth_msg && rqst->rq_proc == AUTH_GSSAPI_EXIT) {
 	       PRINTF(("svcauth_gssapi: GSSAPI_EXIT, cleaning up\n"));
 	       svc_sendreply(rqst->rq_xprt, xdr_void, NULL);
-	       xdr_free(xdr_authgssapi_creds, &creds);
+	       xdr_free((xdrproc_t)xdr_authgssapi_creds, &creds);
 	       cleanup();
 	       exit(0);
 	  }
@@ -306,7 +306,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
 
 	  /* call is for us, deserialize arguments */
 	  memset(&call_arg, 0, sizeof(call_arg));
-	  if (! svc_getargs(rqst->rq_xprt, xdr_authgssapi_init_arg,
+	  if (! svc_getargs(rqst->rq_xprt, (xdrproc_t)xdr_authgssapi_init_arg,
 			    &call_arg)) {
 	       PRINTF(("svcauth_gssapi: cannot decode args\n"));
 	       LOG_MISCERR("protocol error in procedure arguments");
@@ -446,7 +446,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
 	  minor_stat = call_res.gss_minor;
 
 	  /* done with call args */
-	  xdr_free(xdr_authgssapi_init_arg, &call_arg);
+	  xdr_free((xdrproc_t)xdr_authgssapi_init_arg, &call_arg);
 
 	  PRINTF(("svcauth_gssapi: accept_sec_context returned %#x %#x\n",
 		  call_res.gss_major, call_res.gss_minor));
@@ -459,7 +459,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
 	       badauth(call_res.gss_major, call_res.gss_minor, rqst->rq_xprt);
 
 	       gss_release_buffer(&minor_stat, &output_token);
-	       svc_sendreply(rqst->rq_xprt, xdr_authgssapi_init_res,
+	       svc_sendreply(rqst->rq_xprt, (xdrproc_t)xdr_authgssapi_init_res,
 			     (caddr_t) &call_res);
 	       *no_dispatch = TRUE;
 	       ret = AUTH_OK;
@@ -492,7 +492,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
 	  }
 
 	  PRINTF(("svcauth_gssapi: sending reply\n"));
-	  svc_sendreply(rqst->rq_xprt, xdr_authgssapi_init_res,
+	  svc_sendreply(rqst->rq_xprt, (xdrproc_t)xdr_authgssapi_init_res,
 			(caddr_t) &call_res);
 	  *no_dispatch = TRUE;
 
@@ -583,11 +583,13 @@ enum auth_stat gssrpc__svcauth_gssapi(
 	       case AUTH_GSSAPI_MSG:
 		    PRINTF(("svcauth_gssapi: GSSAPI_MSG, getting args\n"));
 		    memset(&call_arg, 0, sizeof(call_arg));
-		    if (! svc_getargs(rqst->rq_xprt, xdr_authgssapi_init_arg,
+		    if (! svc_getargs(rqst->rq_xprt,
+				      (xdrproc_t)xdr_authgssapi_init_arg,
 				      &call_arg)) {
 			 PRINTF(("svcauth_gssapi: cannot decode args\n"));
 			 LOG_MISCERR("protocol error in call arguments");
-			 xdr_free(xdr_authgssapi_init_arg, &call_arg);
+			 xdr_free((xdrproc_t)xdr_authgssapi_init_arg,
+				  &call_arg);
 			 ret = AUTH_BADCRED;
 			 goto error;
 		    }
@@ -598,7 +600,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
 							&call_arg.token);
 
 		    /* done with call args */
-		    xdr_free(xdr_authgssapi_init_arg, &call_arg);
+		    xdr_free((xdrproc_t)xdr_authgssapi_init_arg, &call_arg);
 
 		    if (gssstat != GSS_S_COMPLETE) {
 			 AUTH_GSSAPI_DISPLAY_STATUS(("processing token",
@@ -641,7 +643,7 @@ enum auth_stat gssrpc__svcauth_gssapi(
      if (creds.client_handle.length != 0) {
 	  PRINTF(("svcauth_gssapi: freeing client_handle len %d\n",
 		  (int) creds.client_handle.length));
-	  xdr_free(xdr_authgssapi_creds, &creds);
+	  xdr_free((xdrproc_t)xdr_authgssapi_creds, &creds);
      }
 
      PRINTF(("\n"));
@@ -651,7 +653,7 @@ error:
      if (creds.client_handle.length != 0) {
 	  PRINTF(("svcauth_gssapi: freeing client_handle len %d\n",
 		  (int) creds.client_handle.length));
-	  xdr_free(xdr_authgssapi_creds, &creds);
+	  xdr_free((xdrproc_t)xdr_authgssapi_creds, &creds);
      }
 
      PRINTF(("\n"));
@@ -1079,7 +1081,7 @@ void svcauth_gssapi_set_log_miscerr_func(
 static bool_t svc_auth_gssapi_wrap(
      SVCAUTH *auth,
      XDR *out_xdrs,
-     bool_t (*xdr_func)(),
+     xdrproc_t xdr_func,
      caddr_t xdr_ptr)
 {
      OM_uint32 gssstat, minor_stat;
@@ -1102,7 +1104,7 @@ static bool_t svc_auth_gssapi_wrap(
 static bool_t svc_auth_gssapi_unwrap(
      SVCAUTH *auth,
      XDR *in_xdrs,
-     bool_t (*xdr_func)(),
+     xdrproc_t xdr_func,
      caddr_t xdr_ptr)
 {
      svc_auth_gssapi_data *client_data = SVCAUTH_PRIVATE(auth);

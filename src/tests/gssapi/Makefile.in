@@ -13,9 +13,9 @@ SRCS=	$(srcdir)/ccinit.c $(srcdir)/ccrefresh.c $(srcdir)/common.c \
 	$(srcdir)/t_bindings.c $(srcdir)/t_ccselect.c $(srcdir)/t_ciflags.c \
 	$(srcdir)/t_context.c $(srcdir)/t_credstore.c $(srcdir)/t_enctypes.c \
 	$(srcdir)/t_err.c $(srcdir)/t_export_cred.c $(srcdir)/t_export_name.c \
-	$(srcdir)/t_gssexts.c $(srcdir)/t_imp_cred.c $(srcdir)/t_imp_name.c \
-	$(srcdir)/t_invalid.c $(srcdir)/t_inq_cred.c $(srcdir)/t_inq_ctx.c \
-	$(srcdir)/t_inq_mechs_name.c $(srcdir)/t_iov.c \
+	$(srcdir)/t_gssexts.c $(srcdir)/t_iakerb.c $(srcdir)/t_imp_cred.c \
+	$(srcdir)/t_imp_name.c $(srcdir)/t_invalid.c $(srcdir)/t_inq_cred.c \
+	$(srcdir)/t_inq_ctx.c $(srcdir)/t_inq_mechs_name.c $(srcdir)/t_iov.c \
 	$(srcdir)/t_lifetime.c $(srcdir)/t_namingexts.c $(srcdir)/t_oid.c \
 	$(srcdir)/t_pcontok.c $(srcdir)/t_prf.c $(srcdir)/t_s4u.c \
 	$(srcdir)/t_s4u2proxy_krb5.c $(srcdir)/t_saslname.c \
@@ -24,21 +24,22 @@ SRCS=	$(srcdir)/ccinit.c $(srcdir)/ccrefresh.c $(srcdir)/common.c \
 OBJS=	ccinit.o ccrefresh.o common.o reload.o t_accname.o t_add_cred.o \
 	t_bindings.o t_ccselect.o t_ciflags.o t_context.o t_credstore.o \
 	t_enctypes.o t_err.o t_export_cred.o t_export_name.o t_gssexts.o \
-	t_imp_cred.o t_imp_name.o t_invalid.o t_inq_cred.o t_inq_ctx.o \
-	t_inq_mechs_name.o t_iov.o t_lifetime.o t_namingexts.o t_oid.o \
-	t_pcontok.o t_prf.o t_s4u.o t_s4u2proxy_krb5.o t_saslname.o \
-	t_spnego.o t_srcattrs.o t_store_cred.o
+	t_iakerb.o t_imp_cred.o t_imp_name.o t_invalid.o t_inq_cred.o \
+	t_inq_ctx.o t_inq_mechs_name.o t_iov.o t_lifetime.o t_namingexts.o \
+	t_oid.o t_pcontok.o t_prf.o t_s4u.o t_s4u2proxy_krb5.o t_saslname.o \
+	t_spnego.o t_srcattrs.o t_store_cred.o t_iakerb.o
 
 COMMON_DEPS= common.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
 COMMON_LIBS= common.o $(GSS_LIBS) $(KRB5_BASE_LIBS)
 
-all: ccinit ccrefresh t_accname t_add_cred t_bindings t_ccselect t_ciflags \
-	t_context t_credstore t_enctypes t_err t_export_cred t_export_name \
-	t_gssexts t_imp_cred t_imp_name t_invalid t_inq_cred t_inq_ctx \
-	t_inq_mechs_name t_iov t_lifetime t_namingexts t_oid t_pcontok t_prf \
-	t_s4u t_s4u2proxy_krb5 t_saslname t_spnego t_srcattrs t_store_cred
+all: ccinit ccrefresh reload t_accname t_add_cred t_bindings t_ccselect \
+	t_ciflags t_context t_credstore t_enctypes t_err t_export_cred \
+	t_export_name t_gssexts t_iakerb t_imp_cred t_imp_name t_invalid \
+	t_inq_cred t_inq_ctx t_inq_mechs_name t_iov t_lifetime t_namingexts \
+	t_oid t_pcontok t_prf t_s4u t_s4u2proxy_krb5 t_saslname t_spnego \
+	t_srcattrs t_store_cred
 
-check-unix: t_oid reload
+check-unix: t_invalid t_oid t_prf t_imp_name reload
 	$(RUN_TEST) ./t_invalid
 	$(RUN_TEST) ./t_oid
 	$(RUN_TEST) ./t_prf
@@ -92,6 +93,8 @@ t_export_name: t_export_name.o $(COMMON_DEPS)
 	$(CC_LINK) -o $@ t_export_name.o $(COMMON_LIBS)
 t_gssexts: t_gssexts.o $(COMMON_DEPS)
 	$(CC_LINK) -o $@ t_gssexts.o $(COMMON_LIBS)
+t_iakerb: t_iakerb.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_iakerb.o $(COMMON_LIBS)
 t_imp_cred: t_imp_cred.o $(COMMON_DEPS)
 	$(CC_LINK) -o $@ t_imp_cred.o $(COMMON_LIBS)
 t_imp_name: t_imp_name.o $(COMMON_DEPS)
@@ -132,7 +135,7 @@ t_store_cred: t_store_cred.o $(COMMON_DEPS)
 clean:
 	$(RM) ccinit ccrefresh reload t_accname t_add_cred t_bindings
 	$(RM) t_ccselect t_ciflags t_context t_credstore t_enctypes t_err
-	$(RM) t_export_cred t_export_name t_gssexts t_imp_cred t_imp_name
-	$(RM) t_invalid t_inq_cred t_inq_ctx t_inq_mechs_name t_iov t_lifetime
-	$(RM) t_namingexts t_oid t_pcontok t_prf t_s4u t_s4u2proxy_krb5
-	$(RM) t_saslname t_spnego t_srcattrs t_store_cred
+	$(RM) t_export_cred t_export_name t_gssexts t_iakerb t_imp_cred
+	$(RM) t_imp_name t_invalid t_inq_cred t_inq_ctx t_inq_mechs_name t_iov
+	$(RM) t_lifetime t_namingexts t_oid t_pcontok t_prf t_s4u
+	$(RM) t_s4u2proxy_krb5 t_saslname t_spnego t_srcattrs t_store_cred

@@ -100,9 +100,6 @@ struct my_timeb {
 #define bcopy(from, to, len) memcpy ((to), (from), (len))
 #endif
 
-extern struct tm	*gmtime();
-extern struct tm	*localtime();
-
 #define yyparse getdate_yyparse
 #define yylex getdate_yylex
 #define yyerror getdate_yyerror
@@ -778,7 +775,7 @@ LookupWord(char *buff)
 
 
 static int
-yylex()
+yylex(void)
 {
     char		c;
     char		*p;

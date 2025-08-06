@@ -18,8 +18,8 @@
 
 static krb5_error_code
 process_chpw_request(krb5_context context, void *server_handle, char *realm,
-                     krb5_keytab keytab, const krb5_fulladdr *local_addr,
-                     const krb5_fulladdr *remote_addr, krb5_data *req,
+                     krb5_keytab keytab, const struct sockaddr *local_addr,
+                     const struct sockaddr *remote_addr, krb5_data *req,
                      krb5_data *rep)
 {
     krb5_error_code ret;
@@ -33,16 +33,14 @@ process_chpw_request(krb5_context context, void *server_handle, char *realm,
     krb5_ticket *ticket = NULL;
     krb5_replay_data replay;
     krb5_error krberror;
+    krb5_address laddr;
     int numresult;
     char strresult[1024];
     char *clientstr = NULL, *targetstr = NULL;
     const char *errmsg = NULL;
     size_t clen;
     char *cdots;
-    struct sockaddr_storage ss;
-    socklen_t salen;
-    char addrbuf[100];
-    krb5_address *addr = remote_addr->address;
+    char addrbuf[128];
 
     *rep = empty_data();
 
@@ -222,38 +220,7 @@ process_chpw_request(krb5_context context, void *server_handle, char *realm,
     clen = strlen(clientstr);
     trunc_name(&clen, &cdots);
 
-    switch (addr->addrtype) {
-    case ADDRTYPE_INET: {
-        struct sockaddr_in *sin = ss2sin(&ss);
-
-        sin->sin_family = AF_INET;
-        memcpy(&sin->sin_addr, addr->contents, addr->length);
-        sin->sin_port = htons(remote_addr->port);
-        salen = sizeof(*sin);
-        break;
-    }
-    case ADDRTYPE_INET6: {
-        struct sockaddr_in6 *sin6 = ss2sin6(&ss);
-
-        sin6->sin6_family = AF_INET6;
-        memcpy(&sin6->sin6_addr, addr->contents, addr->length);
-        sin6->sin6_port = htons(remote_addr->port);
-        salen = sizeof(*sin6);
-        break;
-    }
-    default: {
-        struct sockaddr *sa = ss2sa(&ss);
-
-        sa->sa_family = AF_UNSPEC;
-        salen = sizeof(*sa);
-        break;
-    }
-    }
-
-    if (getnameinfo(ss2sa(&ss), salen,
-                    addrbuf, sizeof(addrbuf), NULL, 0,
-                    NI_NUMERICHOST | NI_NUMERICSERV) != 0)
-        strlcpy(addrbuf, "<unprintable>", sizeof(addrbuf));
+    k5_print_addr(remote_addr, addrbuf, sizeof(addrbuf));
 
     if (vno == RFC3244_VERSION) {
         size_t tlen;
@@ -319,8 +286,9 @@ chpwfail:
     cipher = empty_data();
 
     if (ap_rep.length) {
-        ret = krb5_auth_con_setaddrs(context, auth_context,
-                                     local_addr->address, NULL);
+        if (k5_sockaddr_to_address(local_addr, FALSE, &laddr) != 0)
+            laddr = k5_addr_directional_accept;
+        ret = krb5_auth_con_setaddrs(context, auth_context, &laddr, NULL);
         if (ret) {
             numresult = KRB5_KPASSWD_HARDERROR;
             strlcpy(strresult,
@@ -430,8 +398,8 @@ bailout:
 
 /* Dispatch routine for set/change password */
 void
-dispatch(void *handle, const krb5_fulladdr *local_addr,
-         const krb5_fulladdr *remote_addr, krb5_data *request, int is_tcp,
+dispatch(void *handle, const struct sockaddr *local_addr,
+         const struct sockaddr *remote_addr, krb5_data *request, int is_tcp,
          verto_ctx *vctx, loop_respond_fn respond, void *arg)
 {
     krb5_error_code ret;

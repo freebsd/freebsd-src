@@ -198,18 +198,18 @@ k5_build_conf_principals(krb5_context context, krb5_ccache id,
     if (principal) {
         ret = krb5_unparse_name(context, principal, &pname);
         if (ret)
-            return ret;
+            goto cleanup;
     }
 
     ret = krb5_build_principal(context, &cred->server,
                                sizeof(conf_realm) - 1, conf_realm,
                                conf_name, name, pname, (char *)NULL);
-    krb5_free_unparsed_name(context, pname);
-    if (ret) {
-        krb5_free_principal(context, client);
-        return ret;
-    }
+    if (ret)
+        goto cleanup;
     ret = krb5_copy_principal(context, client, &cred->client);
+
+cleanup:
+    krb5_free_unparsed_name(context, pname);
     krb5_free_principal(context, client);
     return ret;
 }

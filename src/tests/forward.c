@@ -51,7 +51,7 @@ check(krb5_error_code code)
 }
 
 int
-main()
+main(void)
 {
     krb5_ccache cc;
     krb5_creds mcred, tgt, *fcred;

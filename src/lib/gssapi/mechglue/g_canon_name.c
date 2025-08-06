@@ -54,14 +54,8 @@ val_canon_name_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_canonicalize_name(minor_status,
-				input_name,
-				mech_type,
-				output_name)
-OM_uint32 *minor_status;
-const gss_name_t input_name;
-const gss_OID mech_type;
-gss_name_t *output_name;
+gss_canonicalize_name(OM_uint32 *minor_status, const gss_name_t input_name,
+		      const gss_OID mech_type, gss_name_t *output_name)
 {
 	gss_union_name_t in_union, out_union = NULL, dest_union = NULL;
 	OM_uint32 major_status = GSS_S_FAILURE, tmpmin;
