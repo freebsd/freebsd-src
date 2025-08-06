@@ -110,6 +110,12 @@ struct auth_group {
 	    const char *user2, const char *secret2);
 	const struct auth *find_auth(std::string_view user) const;
 
+	bool add_host_nqn(std::string_view nqn);
+	bool host_permitted(std::string_view nqn) const;
+
+	bool add_host_address(const char *address);
+	bool host_permitted(const struct sockaddr *sa) const;
+
 	bool add_initiator_name(std::string_view initiator_name);
 	bool initiator_permitted(std::string_view initiator_name) const;
 
@@ -123,6 +129,8 @@ private:
 	std::string			ag_label;
 	auth_type			ag_type = auth_type::UNKNOWN;
 	std::unordered_map<std::string, auth> ag_auths;
+	std::unordered_set<std::string> ag_host_names;
+	std::list<auth_portal>		ag_host_addresses;
 	std::unordered_set<std::string> ag_initiator_names;
 	std::list<auth_portal>		ag_initiator_portals;
 };
@@ -131,7 +139,9 @@ using auth_group_sp = std::shared_ptr<auth_group>;
 
 enum class portal_protocol {
 	ISCSI,
-	ISER
+	ISER,
+	NVME_TCP,
+	NVME_DISCOVERY_TCP,
 };
 
 struct portal {
@@ -147,7 +157,7 @@ struct portal {
 	virtual void handle_connection(freebsd::fd_up fd, const char *host,
 	    const struct sockaddr *client_sa) = 0;
 
-	portal_group *portal_group() { return p_portal_group; }
+	portal_group *portal_group() const { return p_portal_group; }
 	const char *listen() const { return p_listen.c_str(); }
 	const addrinfo *ai() const { return p_ai.get(); }
 	portal_protocol protocol() const { return p_protocol; }
@@ -386,9 +396,12 @@ struct target {
 	bool add_chap(const char *user, const char *secret);
 	bool add_chap_mutual(const char *user, const char *secret,
 	    const char *user2, const char *secret2);
+	virtual bool add_host_address(const char *) { return false; }
+	virtual bool add_host_nqn(std::string_view) { return false; }
 	virtual bool add_initiator_name(std::string_view) { return false; }
 	virtual bool add_initiator_portal(const char *) { return false; }
 	virtual bool add_lun(u_int, const char *) { return false; }
+	virtual bool add_namespace(u_int, const char *) { return false; }
 	virtual bool add_portal_group(const char *pg_name,
 	    const char *ag_name) = 0;
 	bool set_alias(std::string_view alias);
@@ -397,6 +410,7 @@ struct target {
 	bool set_physical_port(std::string_view pport);
 	bool set_redirection(const char *addr);
 	virtual struct lun *start_lun(u_int) { return nullptr; }
+	virtual struct lun *start_namespace(u_int) { return nullptr; }
 
 	void add_port(struct port *port);
 	void remove_lun(struct lun *lun);
@@ -440,13 +454,18 @@ private:
 };
 
 struct conf {
+	conf();
+
 	int maxproc() const { return conf_maxproc; }
 	int timeout() const { return conf_timeout; }
+	uint32_t genctr() const { return conf_genctr; }
 
 	bool default_auth_group_defined() const
 	{ return conf_default_ag_defined; }
 	bool default_portal_group_defined() const
 	{ return conf_default_pg_defined; }
+	bool default_transport_group_defined() const
+	{ return conf_default_tg_defined; }
 
 	struct auth_group *add_auth_group(const char *ag_name);
 	struct auth_group *define_default_auth_group();
@@ -456,6 +475,10 @@ struct conf {
 	struct portal_group *define_default_portal_group();
 	struct portal_group *find_portal_group(std::string_view name);
 
+	struct portal_group *add_transport_group(const char *name);
+	struct portal_group *define_default_transport_group();
+	struct portal_group *find_transport_group(std::string_view name);
+
 	bool add_port(struct target *target, struct portal_group *pg,
 	    auth_group_sp ag);
 	bool add_port(struct target *target, struct portal_group *pg,
@@ -464,6 +487,9 @@ struct conf {
 	bool add_port(struct kports &kports, struct target *target, int pp,
 	    int vp);
 	bool add_pports(struct kports &kports);
+
+	struct target *add_controller(const char *name);
+	struct target *find_controller(std::string_view name);
 
 	struct target *add_target(const char *name);
 	struct target *find_target(std::string_view name);
@@ -501,10 +527,12 @@ private:
 
 	std::string			conf_pidfile_path;
 	std::unordered_map<std::string, std::unique_ptr<lun>> conf_luns;
-	std::unordered_map<std::string, std::unique_ptr<target>> conf_targets;
+	std::unordered_map<std::string, target_up> conf_targets;
+	std::unordered_map<std::string, target_up> conf_controllers;
 	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
 	std::unordered_map<std::string, std::unique_ptr<port>> conf_ports;
 	std::unordered_map<std::string, portal_group_up> conf_portal_groups;
+	std::unordered_map<std::string, portal_group_up> conf_transport_groups;
 	std::unordered_map<std::string, isns> conf_isns;
 	struct target			*conf_first_target = nullptr;
 	int				conf_isns_period = 900;
@@ -512,11 +540,15 @@ private:
 	int				conf_debug = 0;
 	int				conf_timeout = 60;
 	int				conf_maxproc = 30;
+	uint32_t			conf_genctr = 0;
 
 	freebsd::pidfile		conf_pidfile;
 
 	bool				conf_default_pg_defined = false;
+	bool				conf_default_tg_defined = false;
 	bool				conf_default_ag_defined = false;
+
+	static uint32_t			global_genctr;
 
 #ifdef ICL_KERNEL_PROXY
 public:
@@ -591,6 +623,11 @@ bool			ctl_remove_port(const char *driver, nvlist_t *nvl);
 portal_group_up		iscsi_make_portal_group(struct conf *conf,
 			    std::string_view name);
 target_up		iscsi_make_target(struct conf *conf,
+			    std::string_view name);
+
+portal_group_up		nvmf_make_transport_group(struct conf *conf,
+			    std::string_view name);
+target_up		nvmf_make_controller(struct conf *conf,
 			    std::string_view name);
 
 void			start_timer(int timeout, bool fatal = false);

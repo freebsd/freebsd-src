@@ -64,6 +64,10 @@ static bool uclparse_lun(const char *, const ucl::Ucl &);
 static bool uclparse_lun_entries(const char *, const ucl::Ucl &);
 static bool uclparse_auth_group(const char *, const ucl::Ucl &);
 static bool uclparse_portal_group(const char *, const ucl::Ucl &);
+static bool uclparse_transport_group(const char *, const ucl::Ucl &);
+static bool uclparse_controller(const char *, const ucl::Ucl &);
+static bool uclparse_controller_transport_group(const char *, const ucl::Ucl &);
+static bool uclparse_controller_namespace(const char *, const ucl::Ucl &);
 static bool uclparse_target(const char *, const ucl::Ucl &);
 static bool uclparse_target_portal_group(const char *, const ucl::Ucl &);
 static bool uclparse_target_lun(const char *, const ucl::Ucl &);
@@ -230,6 +234,47 @@ uclparse_target_portal_group(const char *t_name, const ucl::Ucl &obj)
 }
 
 static bool
+uclparse_controller_transport_group(const char *t_name, const ucl::Ucl &obj)
+{
+	/*
+	 * If the value is a single string, assume it is a
+	 * transport-group name.
+	 */
+	if (obj.type() == UCL_STRING)
+		return target_add_portal_group(obj.string_value().c_str(),
+		    nullptr);
+
+	if (obj.type() != UCL_OBJECT) {
+		log_warnx("transport-group section in controller \"%s\" must "
+		    "be an object or string", t_name);
+		return false;
+	}
+
+	auto portal_group = obj["name"];
+	if (!portal_group || portal_group.type() != UCL_STRING) {
+		log_warnx("transport-group section in controller \"%s\" is "
+		    "missing \"name\" string key", t_name);
+		return false;
+	}
+
+	auto auth_group = obj["auth-group-name"];
+	if (auth_group) {
+		if (auth_group.type() != UCL_STRING) {
+			log_warnx("\"auth-group-name\" property in "
+			    "transport-group section for controller \"%s\" is "
+			    "not a string", t_name);
+			return false;
+		}
+		return target_add_portal_group(
+		    portal_group.string_value().c_str(),
+		    auth_group.string_value().c_str());
+	}
+
+	return target_add_portal_group(portal_group.string_value().c_str(),
+	    nullptr);
+}
+
+static bool
 uclparse_target_lun(const char *t_name, const ucl::Ucl &obj)
 {
 	char *end;
@@ -282,6 +327,62 @@ uclparse_target_lun(const char *t_name, const ucl::Ucl &obj)
 	}
 
 	return (target_add_lun(id, name.string_value().c_str()));
+}
+
+static bool
+uclparse_controller_namespace(const char *t_name, const ucl::Ucl &obj)
+{
+	char *end;
+	u_int id;
+
+	std::string key = obj.key();
+	if (!key.empty()) {
+		id = strtoul(key.c_str(), &end, 0);
+		if (*end != '\0') {
+			log_warnx("namespace key \"%s\" in controller \"%s\""
+			    " is invalid", key.c_str(), t_name);
+			return false;
+		}
+
+		if (obj.type() == UCL_STRING)
+			return controller_add_namespace(id,
+			    obj.string_value().c_str());
+	}
+
+	if (obj.type() != UCL_OBJECT) {
+		log_warnx("namespace section entries in controller \"%s\""
+		    " must be objects", t_name);
+		return false;
+	}
+
+	if (key.empty()) {
+		auto num = obj["number"];
+		if (!num || num.type() != UCL_INT) {
+			log_warnx("namespace section in controller \"%s\" is "
+			    "missing \"id\" integer property", t_name);
+			return (false);
+		}
+		id = num.int_value();
+	}
+
+	auto name = obj["name"];
+	if (!name) {
+		if (!controller_start_namespace(id))
+			return false;
+
+		std::string lun_name =
+		    freebsd::stringf("namespace %u for controller \"%s\"", id,
+			t_name);
+		return uclparse_lun_entries(lun_name.c_str(), obj);
+	}
+
+	if (name.type() != UCL_STRING) {
+		log_warnx("\"name\" property for namespace %u for "
+		    "controller \"%s\" is not a string", id, t_name);
+		return (false);
+	}
+
+	return controller_add_namespace(id, name.string_value().c_str());
 }
 
 static bool
@@ -390,6 +491,19 @@ uclparse_toplevel(const ucl::Ucl &top)
 			}
 		}
 
+		if (key == "transport-group") {
+			if (obj.type() == UCL_OBJECT) {
+				for (const auto &child : obj) {
+					if (!uclparse_transport_group(
+					    child.key().c_str(), child))
+						return false;
+				}
+			} else {
+				log_warnx("\"transport-group\" section is not an object");
+				return false;
+			}
+		}
+
 		if (key == "lun") {
 			if (obj.type() == UCL_OBJECT) {
 				for (const auto &child : obj) {
@@ -407,6 +521,19 @@ uclparse_toplevel(const ucl::Ucl &top)
 	/* Pass 2 - targets */
 	for (const auto &obj : top) {
 		std::string key = obj.key();
+
+		if (key == "controller") {
+			if (obj.type() == UCL_OBJECT) {
+				for (const auto &child : obj) {
+					if (!uclparse_controller(
+					    child.key().c_str(), child))
+						return false;
+				}
+			} else {
+				log_warnx("\"controller\" section is not an object");
+				return false;
+			}
+		}
 
 		if (key == "target") {
 			if (obj.type() == UCL_OBJECT) {
@@ -469,6 +596,44 @@ uclparse_auth_group(const char *name, const ucl::Ucl &top)
 			} else {
 				log_warnx("\"chap-mutual\" property of "
 				    "auth-group \"%s\" is not an array or object",
+				    name);
+				return false;
+			}
+		}
+
+		if (key == "host-address") {
+			if (obj.type() == UCL_STRING) {
+				if (!auth_group_add_host_address(
+				    obj.string_value().c_str()))
+					return false;
+			} else if (obj.type() == UCL_ARRAY) {
+				for (const auto &tmp : obj) {
+					if (!auth_group_add_host_address(
+					    tmp.string_value().c_str()))
+						return false;
+				}
+			} else {
+				log_warnx("\"host-address\" property of "
+				    "auth-group \"%s\" is not an array or string",
+				    name);
+				return false;
+			}
+		}
+
+		if (key == "host-nqn") {
+			if (obj.type() == UCL_STRING) {
+				if (!auth_group_add_host_nqn(
+				    obj.string_value().c_str()))
+					return false;
+			} else if (obj.type() == UCL_ARRAY) {
+				for (const auto &tmp : obj) {
+					if (!auth_group_add_host_nqn(
+					    tmp.string_value().c_str()))
+						return false;
+				}
+			} else {
+				log_warnx("\"host-nqn\" property of "
+				    "auth-group \"%s\" is not an array or string",
 				    name);
 				return false;
 			}
@@ -736,6 +901,222 @@ uclparse_portal_group(const char *name, const ucl::Ucl &top)
 	}
 
 	return (true);
+}
+
+static bool
+uclparse_transport_listen_obj(const char *pg_name, const ucl::Ucl &top)
+{
+	for (const auto &obj : top) {
+		std::string key = obj.key();
+
+		if (key.empty()) {
+			log_warnx("missing protocol for \"listen\" "
+			    "property of transport-group \"%s\"", pg_name);
+			return false;
+		}
+
+		if (key == "tcp") {
+			if (obj.type() == UCL_STRING) {
+				if (!transport_group_add_listen_tcp(
+				    obj.string_value().c_str()))
+					return false;
+			} else if (obj.type() == UCL_ARRAY) {
+				for (const auto &tmp : obj) {
+					if (!transport_group_add_listen_tcp(
+					    tmp.string_value().c_str()))
+						return false;
+				}
+			}
+		} else if (key == "discovery-tcp") {
+			if (obj.type() == UCL_STRING) {
+				if (!transport_group_add_listen_discovery_tcp(
+				    obj.string_value().c_str()))
+					return false;
+			} else if (obj.type() == UCL_ARRAY) {
+				for (const auto &tmp : obj) {
+					if (!transport_group_add_listen_discovery_tcp(
+					    tmp.string_value().c_str()))
+						return false;
+				}
+			}
+		} else {
+			log_warnx("invalid listen protocol \"%s\" for "
+			    "transport-group \"%s\"", key.c_str(), pg_name);
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool
+uclparse_transport_group(const char *name, const ucl::Ucl &top)
+{
+	if (!transport_group_start(name))
+		return false;
+
+	scope_exit finisher(portal_group_finish);
+	for (const auto &obj : top) {
+		std::string key = obj.key();
+
+		if (key == "discovery-auth-group") {
+			if (obj.type() != UCL_STRING) {
+				log_warnx("\"discovery-auth-group\" property "
+				    "of transport-group \"%s\" is not a string",
+				    name);
+				return false;
+			}
+
+			if (!portal_group_set_discovery_auth_group(
+			    obj.string_value().c_str()))
+				return false;
+		}
+
+		if (key == "discovery-filter") {
+			if (obj.type() != UCL_STRING) {
+				log_warnx("\"discovery-filter\" property of "
+				    "transport-group \"%s\" is not a string",
+				    name);
+				return false;
+			}
+
+			if (!portal_group_set_filter(
+			    obj.string_value().c_str()))
+				return false;
+		}
+
+		if (key == "listen") {
+			if (obj.type() != UCL_OBJECT) {
+				log_warnx("\"listen\" property of "
+				    "transport-group \"%s\" is not an object",
+				    name);
+				return false;
+			}
+			if (!uclparse_transport_listen_obj(name, obj))
+				return false;
+		}
+
+		if (key == "options") {
+			if (obj.type() != UCL_OBJECT) {
+				log_warnx("\"options\" property of transport group "
+				    "\"%s\" is not an object", name);
+				return false;
+			}
+
+			for (const auto &tmp : obj) {
+				if (!portal_group_add_option(
+				    tmp.key().c_str(),
+				    tmp.forced_string_value().c_str()))
+					return false;
+			}
+		}
+
+		if (key == "dscp") {
+			if (!uclparse_dscp("transport", name, obj))
+				return false;
+		}
+
+		if (key == "pcp") {
+			if (!uclparse_pcp("transport", name, obj))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
+uclparse_controller(const char *name, const ucl::Ucl &top)
+{
+	if (!controller_start(name))
+		return false;
+
+	scope_exit finisher(target_finish);
+	for (const auto &obj : top) {
+		std::string key = obj.key();
+
+		if (key == "auth-group") {
+			if (obj.type() != UCL_STRING) {
+				log_warnx("\"auth-group\" property of "
+				    "controller \"%s\" is not a string", name);
+				return false;
+			}
+
+			if (!target_set_auth_group(obj.string_value().c_str()))
+				return false;
+		}
+
+		if (key == "auth-type") {
+			if (obj.type() != UCL_STRING) {
+				log_warnx("\"auth-type\" property of "
+				    "controller \"%s\" is not a string", name);
+				return false;
+			}
+
+			if (!target_set_auth_type(obj.string_value().c_str()))
+				return false;
+		}
+
+		if (key == "host-address") {
+			if (obj.type() == UCL_STRING) {
+				if (!controller_add_host_address(
+				    obj.string_value().c_str()))
+					return false;
+			} else if (obj.type() == UCL_ARRAY) {
+				for (const auto &tmp : obj) {
+					if (!controller_add_host_address(
+					    tmp.string_value().c_str()))
+						return false;
+				}
+			} else {
+				log_warnx("\"host-address\" property of "
+				    "controller \"%s\" is not an array or "
+				    "string", name);
+				return false;
+			}
+		}
+
+		if (key == "host-nqn") {
+			if (obj.type() == UCL_STRING) {
+				if (!controller_add_host_nqn(
+				    obj.string_value().c_str()))
+					return false;
+			} else if (obj.type() == UCL_ARRAY) {
+				for (const auto &tmp : obj) {
+					if (!controller_add_host_nqn(
+					    tmp.string_value().c_str()))
+						return false;
+				}
+			} else {
+				log_warnx("\"host-nqn\" property of "
+				    "controller \"%s\" is not an array or "
+				    "string", name);
+				return false;
+			}
+		}
+
+		if (key == "transport-group") {
+			if (obj.type() == UCL_ARRAY) {
+				for (const auto &tmp : obj) {
+					if (!uclparse_controller_transport_group(name,
+					    tmp))
+						return false;
+				}
+			} else {
+				if (!uclparse_controller_transport_group(name,
+				    obj))
+					return false;
+			}
+		}
+
+		if (key == "namespace") {
+			for (const auto &tmp : obj) {
+				if (!uclparse_controller_namespace(name, tmp))
+					return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 static bool

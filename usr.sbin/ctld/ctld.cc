@@ -41,6 +41,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <libnvmf.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -67,6 +68,8 @@ static volatile bool sigalrm_received = false;
 static int kqfd;
 static int nchildren = 0;
 
+uint32_t conf::global_genctr;
+
 static void
 usage(void)
 {
@@ -74,6 +77,11 @@ usage(void)
 	fprintf(stderr, "usage: ctld [-d][-u][-f config-file]\n");
 	fprintf(stderr, "       ctld -t [-u][-f config-file]\n");
 	exit(1);
+}
+
+conf::conf()
+{
+	conf_genctr = global_genctr++;
 }
 
 void
@@ -278,6 +286,23 @@ auth_group::add_chap_mutual(const char *user, const char *secret,
 }
 
 bool
+auth_group::add_host_nqn(std::string_view nqn)
+{
+	/* Silently ignore duplicates. */
+	ag_host_names.emplace(nqn);
+	return (true);
+}
+
+bool
+auth_group::host_permitted(std::string_view nqn) const
+{
+	if (ag_host_names.empty())
+		return (true);
+
+	return (ag_host_names.count(std::string(nqn)) != 0);
+}
+
+bool
 auth_group::add_initiator_name(std::string_view name)
 {
 	/* Silently ignore duplicates. */
@@ -361,6 +386,20 @@ auth_portal::parse(const char *portal)
 }
 
 bool
+auth_group::add_host_address(const char *address)
+{
+	auth_portal ap;
+	if (!ap.parse(address)) {
+		log_warnx("invalid controller address \"%s\" for %s", address,
+		    label());
+		return (false);
+	}
+
+	ag_host_addresses.emplace_back(ap);
+	return (true);
+}
+
+bool
 auth_group::add_initiator_portal(const char *portal)
 {
 	auth_portal ap;
@@ -404,6 +443,18 @@ auth_portal::matches(const struct sockaddr *sa) const
 			return (false);
 	}
 	return (true);
+}
+
+bool
+auth_group::host_permitted(const struct sockaddr *sa) const
+{
+	if (ag_host_addresses.empty())
+		return (true);
+
+	for (const auth_portal &ap : ag_host_addresses)
+		if (ap.matches(sa))
+			return (true);
+	return (false);
 }
 
 bool
@@ -496,6 +547,45 @@ conf::find_portal_group(std::string_view name)
 {
 	auto it = conf_portal_groups.find(std::string(name));
 	if (it == conf_portal_groups.end())
+		return (nullptr);
+
+	return (it->second.get());
+}
+
+struct portal_group *
+conf::add_transport_group(const char *name)
+{
+	auto pair = conf_transport_groups.try_emplace(name,
+	    nvmf_make_transport_group(this, name));
+	if (!pair.second) {
+		log_warnx("duplicated transport-group \"%s\"", name);
+		return (nullptr);
+	}
+
+	return (pair.first->second.get());
+}
+
+/*
+ * Make it possible to redefine the default transport-group, but only
+ * once.
+ */
+struct portal_group *
+conf::define_default_transport_group()
+{
+	if (conf_default_tg_defined) {
+		log_warnx("duplicated transport-group \"default\"");
+		return (nullptr);
+	}
+
+	conf_default_tg_defined = true;
+	return (find_transport_group("default"));
+}
+
+struct portal_group *
+conf::find_transport_group(std::string_view name)
+{
+	auto it = conf_transport_groups.find(std::string(name));
+	if (it == conf_transport_groups.end())
 		return (nullptr);
 
 	return (it->second.get());
@@ -1113,6 +1203,40 @@ portal_group::find_port(std::string_view target) const
 	return (it->second);
 }
 
+struct target *
+conf::add_controller(const char *name)
+{
+	if (!nvmf_nqn_valid_strict(name)) {
+		log_warnx("controller name \"%s\" is invalid for NVMe", name);
+		return nullptr;
+	}
+
+	/*
+	 * Normalize the name to lowercase to match iSCSI.
+	 */
+	std::string t_name(name);
+	for (char &c : t_name)
+		c = tolower(c);
+
+	auto const &pair = conf_controllers.try_emplace(t_name,
+	    nvmf_make_controller(this, t_name));
+	if (!pair.second) {
+		log_warnx("duplicated controller \"%s\"", name);
+		return nullptr;
+	}
+
+	return pair.first->second.get();
+}
+
+struct target *
+conf::find_controller(std::string_view name)
+{
+	auto it = conf_controllers.find(std::string(name));
+	if (it == conf_controllers.end())
+		return nullptr;
+	return it->second.get();
+}
+
 target::target(struct conf *conf, const char *keyword, std::string_view name) :
 	t_conf(conf), t_name(name)
 {
@@ -1366,6 +1490,8 @@ void
 conf::delete_target_luns(struct lun *lun)
 {
 	for (const auto &kv : conf_targets)
+		kv.second->remove_lun(lun);
+	for (const auto &kv : conf_controllers)
 		kv.second->remove_lun(lun);
 }
 
@@ -1667,7 +1793,13 @@ conf::verify()
 	for (auto &kv : conf_targets) {
 		kv.second->verify();
 	}
+	for (auto &kv : conf_controllers) {
+		kv.second->verify();
+	}
 	for (auto &kv : conf_portal_groups) {
+		kv.second->verify(this);
+	}
+	for (auto &kv : conf_transport_groups) {
 		kv.second->verify(this);
 	}
 	for (const auto &kv : conf_auth_groups) {
@@ -1813,6 +1945,12 @@ conf::reuse_portal_group_socket(struct portal &newp)
 		if (pg.reuse_socket(newp))
 			return (true);
 	}
+	for (auto &kv : conf_transport_groups) {
+		struct portal_group &pg = *kv.second;
+
+		if (pg.reuse_socket(newp))
+			return (true);
+	}
 	return (false);
 }
 
@@ -1860,6 +1998,17 @@ conf::apply(struct conf *oldconf)
 			continue;
 		auto it = oldconf->conf_portal_groups.find(kv.first);
 		if (it != oldconf->conf_portal_groups.end())
+			newpg.set_tag(it->second->tag());
+		else
+			newpg.allocate_tag();
+	}
+	for (auto &kv : conf_transport_groups) {
+		struct portal_group &newpg = *kv.second;
+
+		if (newpg.tag() != 0)
+			continue;
+		auto it = oldconf->conf_transport_groups.find(kv.first);
+		if (it != oldconf->conf_transport_groups.end())
 			newpg.set_tag(it->second->tag());
 		else
 			newpg.allocate_tag();
@@ -2027,11 +2176,17 @@ conf::apply(struct conf *oldconf)
 	for (auto &kv : conf_portal_groups) {
 		cumulated_error += kv.second->open_sockets(*oldconf);
 	}
+	for (auto &kv : conf_transport_groups) {
+		cumulated_error += kv.second->open_sockets(*oldconf);
+	}
 
 	/*
 	 * Go through the no longer used sockets, closing them.
 	 */
 	for (auto &kv : oldconf->conf_portal_groups) {
+		kv.second->close_sockets();
+	}
+	for (auto &kv : oldconf->conf_transport_groups) {
 		kv.second->close_sockets();
 	}
 
@@ -2397,6 +2552,9 @@ conf_new_from_file(const char *path, bool ucl)
 	pg = conf->add_portal_group("default");
 	assert(pg != NULL);
 
+	pg = conf->add_transport_group("default");
+	assert(pg != NULL);
+
 	conf_start(conf.get());
 	if (ucl)
 		valid = uclparse_conf(path);
@@ -2423,6 +2581,14 @@ conf_new_from_file(const char *path, bool ucl)
 		log_debugx("portal-group \"default\" not defined; "
 		    "going with defaults");
 		pg = conf->find_portal_group("default");
+		assert(pg != NULL);
+		pg->add_default_portals();
+	}
+
+	if (!conf->default_portal_group_defined()) {
+		log_debugx("transport-group \"default\" not defined; "
+		    "going with defaults");
+		pg = conf->find_transport_group("default");
 		assert(pg != NULL);
 		pg->add_default_portals();
 	}

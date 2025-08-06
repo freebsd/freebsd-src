@@ -113,6 +113,9 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 	    if (pg == nullptr)
 		continue;
 	    for (const portal_up &portal : pg->portals()) {
+		if (portal->protocol() != portal_protocol::ISCSI &&
+		    portal->protocol() != portal_protocol::ISER)
+			continue;
 		ai = portal->ai();
 		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
 		    hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
