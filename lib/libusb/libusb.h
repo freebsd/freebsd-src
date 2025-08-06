@@ -264,6 +264,7 @@ enum libusb_transfer_flags {
 	LIBUSB_TRANSFER_SHORT_NOT_OK = 1 << 0,
 	LIBUSB_TRANSFER_FREE_BUFFER = 1 << 1,
 	LIBUSB_TRANSFER_FREE_TRANSFER = 1 << 2,
+	LIBUSB_TRANSFER_ADD_ZERO_PACKET = 1 << 3,
 };
 
 enum libusb_log_level {
