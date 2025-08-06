@@ -35,7 +35,6 @@
 #include <stddef.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_swapcontext, __swapcontext);
 __sym_compat(swapcontext, __impl_swapcontext, FBSD_1.0);
 __weak_reference(swapcontext, __impl_swapcontext);
 __sym_default(swapcontext, swapcontext, FBSD_1.2);

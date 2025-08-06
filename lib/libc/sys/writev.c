@@ -35,8 +35,6 @@
 #include <unistd.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_writev, __writev);
-
 #pragma weak writev
 ssize_t
 writev(int fd, const struct iovec *iov, int iovcnt)

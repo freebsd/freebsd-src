@@ -33,8 +33,6 @@
 #include <unistd.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_fork, __fork);
-
 #pragma weak fork
 pid_t
 fork(void)

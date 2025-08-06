@@ -34,8 +34,6 @@
 #include <sys/socket.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_sendto, __sendto);
-
 #pragma weak sendto
 ssize_t
 sendto(int s, const void *msg, size_t len, int flags,

@@ -33,8 +33,6 @@
 #include <sys/aio.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_aio_suspend, __aio_suspend);
-
 #pragma weak aio_suspend
 int
 aio_suspend(const struct aiocb * const iocbs[], int niocb,

@@ -34,8 +34,6 @@
 #include <unistd.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_close, __close);
-
 #pragma weak close
 int
 close(int fd)

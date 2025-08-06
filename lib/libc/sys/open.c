@@ -34,8 +34,6 @@
 #include <stdarg.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_open, __open);
-
 #pragma weak open
 int
 open(const char *path, int flags, ...)

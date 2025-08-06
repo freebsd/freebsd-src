@@ -34,8 +34,6 @@
 #include <ssp/ssp.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_ppoll, __ppoll);
-
 int __weak_symbol
 __ssp_real(ppoll)(struct pollfd pfd[], nfds_t nfds,
     const struct timespec *__restrict timeout,

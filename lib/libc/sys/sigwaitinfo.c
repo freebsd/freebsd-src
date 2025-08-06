@@ -33,8 +33,6 @@
 #include <signal.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_sigwaitinfo, __sigwaitinfo);
-
 #pragma weak sigwaitinfo
 int
 sigwaitinfo(const sigset_t * __restrict set, siginfo_t * __restrict info)

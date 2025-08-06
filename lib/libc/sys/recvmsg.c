@@ -35,8 +35,6 @@
 #include <ssp/ssp.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_recvmsg, __recvmsg);
-
 ssize_t __weak_symbol
 __ssp_real(recvmsg)(int s, struct msghdr *msg, int flags)
 {
