@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+68ba38dad3:
+	amd64: handling of the %fsbase/%gsbase registers and tls base
+	were reworked, making it more useful for apps that directly
+	manipulate CPU context.
+
 78aaab9f1cf:
 	rtld: added support for -z initfirst
 
