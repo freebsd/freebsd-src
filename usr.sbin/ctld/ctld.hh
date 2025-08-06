@@ -144,7 +144,7 @@ struct portal {
 	bool reuse_socket(portal &oldp);
 	bool init_socket();
 	virtual bool init_socket_options(int s __unused) { return true; }
-	virtual void handle_connection(int fd, const char *host,
+	virtual void handle_connection(freebsd::fd_up fd, const char *host,
 	    const struct sockaddr *client_sa) = 0;
 
 	portal_group *portal_group() { return p_portal_group; }

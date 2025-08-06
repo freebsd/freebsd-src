@@ -752,7 +752,7 @@ iscsi_connection::login_negotiate(struct pdu *request)
 		conn_max_burst_limit = (1 << 24) - 1;
 		conn_first_burst_limit = (1 << 24) - 1;
 		kernel_limits(pg->offload(),
-		    conn.conn_socket,
+		    conn_fd,
 		    &conn_max_recv_data_segment_limit,
 		    &conn_max_send_data_segment_limit,
 		    &conn_max_burst_limit,

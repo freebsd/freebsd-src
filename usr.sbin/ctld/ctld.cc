@@ -2166,7 +2166,7 @@ wait_for_children(bool block)
 }
 
 static void
-handle_connection(struct portal *portal, int fd,
+handle_connection(struct portal *portal, freebsd::fd_up fd,
     const struct sockaddr *client_sa, bool dont_fork)
 {
 	struct portal_group *pg;
@@ -2197,10 +2197,8 @@ handle_connection(struct portal *portal, int fd,
 		pid = fork();
 		if (pid < 0)
 			log_err(1, "fork");
-		if (pid > 0) {
-			close(fd);
+		if (pid > 0)
 			return;
-		}
 		conf->close_pidfile();
 	}
 
@@ -2214,7 +2212,7 @@ handle_connection(struct portal *portal, int fd,
 	log_set_peer_addr(host);
 	setproctitle("%s", host);
 
-	portal->handle_connection(fd, host, client_sa);
+	portal->handle_connection(std::move(fd), host, client_sa);
 	log_debugx("nothing more to do; exiting");
 	exit(0);
 }

@@ -36,8 +36,8 @@
 #define	CONN_SESSION_TYPE_NORMAL	2
 
 struct iscsi_connection {
-	iscsi_connection(struct portal *portal, int fd, const char *host,
-	    const struct sockaddr *client_sa);
+	iscsi_connection(struct portal *portal, freebsd::fd_up fd,
+	    const char *host, const struct sockaddr *client_sa);
 	~iscsi_connection();
 
 	void handle();
@@ -61,6 +61,7 @@ private:
 	struct portal		*conn_portal = nullptr;
 	const struct port	*conn_port = nullptr;
 	struct target		*conn_target = nullptr;
+	freebsd::fd_up		conn_fd;
 	int			conn_session_type = CONN_SESSION_TYPE_NONE;
 	std::string		conn_initiator_name;
 	std::string		conn_initiator_addr;
