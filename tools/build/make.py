@@ -34,11 +34,22 @@
 # On FreeBSD you can use it the same way as just calling make:
 # `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py buildworld -DWITH_FOO`
 #
-# On Linux and MacOS you will either need to set XCC/XCXX/XLD/XCPP or pass
-# --cross-bindir to specify the path to the cross-compiler bindir:
-# `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py
-# --cross-bindir=/path/to/cross/compiler buildworld -DWITH_FOO TARGET=foo
-# TARGET_ARCH=bar`
+# On Linux and MacOS you may need to explicitly indicate the cross toolchain
+# to use.  You can do this by:
+# - setting XCC/XCXX/XLD/XCPP to the paths of each tool
+# - using --cross-bindir to specify the path to the cross-compiler bindir:
+#   `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py
+#    --cross-bindir=/path/to/cross/compiler buildworld -DWITH_FOO TARGET=foo
+#    TARGET_ARCH=bar`
+# - using --cross-toolchain to specify the package containing the cross-compiler
+#   (MacOS only currently):
+#   `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py
+#    --cross-toolchain=llvm@NN buildworld -DWITH_FOO TARGET=foo
+#    TARGET_ARCH=bar`
+#
+# On MacOS, this tool will search for an llvm toolchain installed via brew and
+# use it as the cross toolchain if an explicit toolchain is not specified.
+
 import argparse
 import functools
 import os
@@ -160,7 +171,8 @@ def check_required_make_env_var(varname, binary_name, bindir):
         return
     if not bindir:
         sys.exit("Could not infer value for $" + varname + ". Either set $" +
-                 varname + " or pass --cross-bindir=/cross/compiler/dir/bin")
+                 varname + " or pass --cross-bindir=/cross/compiler/dir/bin" +
+                 " or --cross-toolchain=<package>")
     # try to infer the path to the tool
     guess = os.path.join(bindir, binary_name)
     if not os.path.isfile(guess):
@@ -179,7 +191,8 @@ def check_xtool_make_env_var(varname, binary_name):
         return
     global parsed_args
     if parsed_args.cross_bindir is None:
-        cross_bindir = default_cross_toolchain(binary_name)
+        cross_bindir = cross_toolchain_bindir(binary_name,
+                                              parsed_args.cross_toolchain)
     else:
         cross_bindir = parsed_args.cross_bindir
     return check_required_make_env_var(varname, binary_name,
@@ -201,17 +214,20 @@ def binary_path(bindir: str, binary_name: str) -> "Optional[str]":
         pass
     return None
 
-def default_cross_toolchain(binary_name: str) -> str:
+def cross_toolchain_bindir(binary_name: str, package: "Optional[str]") -> str:
     # default to homebrew-installed clang on MacOS if available
     if sys.platform.startswith("darwin"):
         if shutil.which("brew"):
-            bindir = binary_path(brew_prefix("llvm"), binary_name)
+            if not package:
+                package = "llvm"
+            bindir = binary_path(brew_prefix(package), binary_name)
             if bindir:
                 return bindir
 
             # brew installs lld as a separate package for LLVM 19 and later
             if binary_name == "ld.lld":
-                bindir = binary_path(brew_prefix("lld"), binary_name)
+                lld_package = package.replace("llvm", "lld")
+                bindir = binary_path(brew_prefix(lld_package), binary_name)
                 if bindir:
                     return bindir
     return None
@@ -233,6 +249,10 @@ if __name__ == "__main__":
                         help="Compiler type to find in --cross-bindir (only "
                              "needed if XCC/XCPP/XLD are not set)"
                              "Note: using CC is currently highly experimental")
+    parser.add_argument("--cross-toolchain", default=None,
+                        help="Name of package containing cc/c++/cpp/ld to build "
+                             "target binaries (only needed if XCC/XCPP/XLD "
+                             "are not set)")
     parser.add_argument("--host-compiler-type", choices=("cc", "clang", "gcc"),
                         default="cc",
                         help="Compiler type to find in --host-bindir (only "
