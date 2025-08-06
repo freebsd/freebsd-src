@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250806:
+	if_epair(4) now uses ether_gen_addr(9) to generate a stable MAC
+	address.
+	To keep using the random address, set the loader tunable
+	net.link.epair.ether_gen_addr=0.
+
 20250804:
 	bsdconfig (including sysrc(8)) has moved to the new bsdconfig
 	package.  If you use pkgbase and wish to use bsdconfig, you should

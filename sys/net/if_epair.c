@@ -102,7 +102,7 @@ SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	"Pair of virtual cross-over connected Ethernet-like interfaces");
 
-static bool use_ether_gen_addr = false;
+static bool use_ether_gen_addr = true;
 SYSCTL_BOOL(_net_link_epair, OID_AUTO, ether_gen_addr, CTLFLAG_RWTUN,
 	&use_ether_gen_addr, false,
 	"Generate MAC with FreeBSD OUI using ether_gen_addr(9)");
