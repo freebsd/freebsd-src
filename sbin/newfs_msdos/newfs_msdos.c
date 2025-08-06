@@ -31,7 +31,6 @@
 #include <sys/stat.h>
 #include <err.h>
 #include <errno.h>
-#include <libgen.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,14 +42,11 @@
 #define	argto1(arg, lo, msg)  argtou(arg, lo, 0xff, msg)
 #define	argto2(arg, lo, msg)  argtou(arg, lo, 0xffff, msg)
 #define	argto4(arg, lo, msg)  argtou(arg, lo, 0xffffffff, msg)
-#define	argto8(arg, lo, msg)  argtou(arg, lo, 0xffffffffffffffff, msg)
 #define	argtox(arg, lo, msg)  argtou(arg, lo, UINT_MAX, msg)
 
-static u_quad_t argtou(const char *, u_int, u_quad_t, const char *);
+static u_int argtou(const char *, u_int, u_int, const char *);
 static off_t argtooff(const char *, const char *);
 static void usage(void) __dead2;
-
-static const char *fsopts;
 
 static time_t
 get_tstamp(const char *b)
@@ -70,22 +66,12 @@ get_tstamp(const char *b)
 }
 
 /*
- * Check whether invoked as newfs_exfat.
- */
-static int
-check_exfat(char *argv0)
-{
-	return (strstr(basename(argv0), "exfat") != NULL);
-}
-
-/*
  * Construct a FAT12, FAT16, or FAT32 file system.
  */
 int
 main(int argc, char *argv[])
 {
-    static const char fatopts[] = "@:NAB:C:F:I:L:O:S:T:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
-    static const char exfatopts[] = "@:NAB:C:I:L:S:T:a:b:c:n:s:";
+    static const char opts[] = "@:NAB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:T:u:";
     struct msdos_options o;
     const char *fname, *dtype;
     char buf[MAXPATHLEN];
@@ -93,10 +79,7 @@ main(int argc, char *argv[])
 
     memset(&o, 0, sizeof(o));
 
-    o.exfat = check_exfat(argv[0]);
-    fsopts = o.exfat ? exfatopts : fatopts;
-
-    while ((ch = getopt(argc, argv, fsopts)) != -1)
+    while ((ch = getopt(argc, argv, opts)) != -1)
 	switch (ch) {
 	case '@':
 	    o.offset = argtooff(optarg, "offset");
@@ -174,7 +157,7 @@ main(int argc, char *argv[])
 	    o.reserved_sectors = argto2(optarg, 1, "reserved sectors");
 	    break;
 	case 's':
-	    o.size = argto8(optarg, 1, "file system size");
+	    o.size = argto4(optarg, 1, "file system size");
 	    break;
 	case 'T':
 	    o.timestamp_set = 1;
@@ -206,14 +189,14 @@ main(int argc, char *argv[])
 /*
  * Convert and check a numeric option argument.
  */
-static u_quad_t
-argtou(const char *arg, u_int lo, u_quad_t hi, const char *msg)
+static u_int
+argtou(const char *arg, u_int lo, u_int hi, const char *msg)
 {
     char *s;
-    u_quad_t x;
+    u_long x;
 
     errno = 0;
-    x = strtoull(arg, &s, 0);
+    x = strtoul(arg, &s, 0);
     if (errno || !*arg || *s || x < lo || x > hi)
 	errx(1, "%s: bad %s", arg, msg);
     return x;
@@ -288,7 +271,6 @@ ALLOPTS
 #undef AOPT
     };
     for (size_t i = 0; i < nitems(opts); i++)
-	if (strchr(fsopts, opts[i].o) != NULL)
-	    fprintf(stderr, "\t-%c %s\n", opts[i].o, opts[i].h);
+	fprintf(stderr, "\t-%c %s\n", opts[i].o, opts[i].h);
     exit(1);
 }
