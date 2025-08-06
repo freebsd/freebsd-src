@@ -3588,16 +3588,6 @@ delete-old-files: .PHONY
 		  fi; \
 		done; \
 	done
-# Remove catpages without corresponding manpages.
-	@exec 3<&0; \
-	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | sort | \
-	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
-	while read catpage; do \
-		read manpage; \
-		if [ ! -e "$${manpage}" ]; then \
-			rm ${RM_I} $${catpage} <&3; \
-	        fi; \
-	done
 # Remove compressed copies of uncompressed manpages
 .if ${MK_MANCOMPRESS} != "yes"
 	@exec 3<&0; \
@@ -3640,15 +3630,6 @@ check-old-files: .PHONY
 		  fi; \
 		done; \
 	done
-# Check for catpages without corresponding manpages.
-	@find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
-	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
-	while read catpage; do \
-		read manpage; \
-		if [ ! -e "$${manpage}" ]; then \
-			echo $${catpage}; \
-	        fi; \
-	done | sort
 # Check for compressed copies of uncompressed manpages
 .if ${MK_MANCOMPRESS} != "yes"
 	@find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
