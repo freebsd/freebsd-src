@@ -1099,24 +1099,19 @@ IDS_check_params () {
 	fetch_setup_verboselevel
 }
 
-# Packaged base and freebsd-update are incompatible.  Exit with an error if
-# packaged base is in use.
+# Return 0 if the system is managed using pkgbase, 1 otherwise.
 check_pkgbase()
 {
 	# Packaged base requires that pkg is bootstrapped.
-	if ! pkg -c ${BASEDIR} -N >/dev/null 2>/dev/null; then
-		return
+	if ! pkg -r ${BASEDIR} -N >/dev/null 2>/dev/null; then
+		return 1
 	fi
 	# uname(1) is used by pkg to determine ABI, so it should exist.
 	# If it comes from a package then this system uses packaged base.
-	if ! pkg -c ${BASEDIR} which /usr/bin/uname >/dev/null; then
-		return
+	if ! pkg -r ${BASEDIR} which /usr/bin/uname >/dev/null; then
+		return 1
 	fi
-	cat <<EOF
-freebsd-update is incompatible with the use of packaged base.  Please see
-https://wiki.freebsd.org/PkgBase for more information.
-EOF
-	exit 1
+	return 0
 }
 
 #### Core functionality -- the actual work gets done here
@@ -3615,10 +3610,18 @@ export LC_ALL=C
 # Clear environment variables that may affect operation of tools that we use.
 unset GREP_OPTIONS
 
-# Disallow use with packaged base.
-check_pkgbase
+# Parse command line options and the configuration file.
+get_params "$@"
 
-get_params $@
+# Disallow use with packaged base.
+if check_pkgbase; then
+	cat <<EOF
+freebsd-update is incompatible with the use of packaged base.  Please see
+https://wiki.freebsd.org/PkgBase for more information.
+EOF
+	exit 1
+fi
+
 for COMMAND in ${COMMANDS}; do
 	cmd_${COMMAND}
 done
