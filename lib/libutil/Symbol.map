@@ -120,6 +120,14 @@ FBSD_1.8 {
 	uu_lock;
 	uu_lockerr;
 	uu_unlock;
+
+	/*
+	 * login_setcryptfmt() uses crypt_set_format() from libcrypt.  To
+	 * avoid forcing a hard dependency on libcrypt, we provide a weak
+	 * stub.  Applications that use login_setcryptfmt() should link
+	 * with libcrypt, whose crypt_set_format() will override the stub.
+	 */
+	crypt_set_format;
 };
 
 FBSDprivate_1.0 {
