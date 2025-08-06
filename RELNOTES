@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+e36f069ecb4, c069ca085b:
+	Reliability of UFS on volumes with more than 2G of inodes is
+	significantly improved.  The underlying issue was the invalid
+	interpretation of the 32bit inode number as signed, which got
+	sign-extended into ino_t.
+
 d390633cf8c:
 	On modern amd64 machines (which have the LA57 CPU feature),
 	FreeBSD is able to utilize more than 4TB of RAM.
