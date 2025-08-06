@@ -49,25 +49,25 @@ HEADER {
 CODE {
 	static int null_shutdown(device_t dev)
 	{
-	    return 0;
+		return (0);
 	}
 
 	static int null_suspend(device_t dev)
 	{
-	    return 0;
+		return (0);
 	}
 
 	static int null_resume(device_t dev)
 	{
-	    return 0;
+		return (0);
 	}
 
 	static int null_quiesce(device_t dev)
 	{
-	    return 0;
+		return (0);
 	}
 
-	static void * null_register(device_t dev)
+	static void *null_register(device_t dev)
 	{
 		return NULL;
 	}
