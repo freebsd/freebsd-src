@@ -75,8 +75,6 @@
 
 #define	NVLIST_BUFSIZE	1024
 
-extern bool proxy_mode;
-
 int	ctl_fd = 0;
 
 void
@@ -432,6 +430,56 @@ retry_port:
 	return (true);
 }
 
+void
+add_iscsi_port(struct kports &kports, struct conf *conf,
+    const struct cctl_port &port, std::string &name)
+{
+	if (port.cfiscsi_target.empty()) {
+		log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
+		    port.port_id, name.c_str());
+		if (!kports.has_port(name)) {
+			if (!kports.add_port(name, port.port_id)) {
+				log_warnx("kports::add_port failed");
+				return;
+			}
+		}
+		return;
+	}
+	if (port.cfiscsi_state != 1) {
+		log_debugx("CTL port %ju is not active (%d); ignoring",
+		    (uintmax_t)port.port_id, port.cfiscsi_state);
+		return;
+	}
+
+	const char *t_name = port.cfiscsi_target.c_str();
+	struct target *targ = conf->find_target(t_name);
+	if (targ == nullptr) {
+		targ = conf->add_target(t_name);
+		if (targ == nullptr) {
+			log_warnx("Failed to add target \"%s\"", t_name);
+			return;
+		}
+	}
+
+	if (port.ctld_portal_group_name.empty())
+		return;
+
+	const char *pg_name = port.ctld_portal_group_name.c_str();
+	struct portal_group *pg = conf->find_portal_group(pg_name);
+	if (pg == nullptr) {
+		pg = conf->add_portal_group(pg_name);
+		if (pg == nullptr) {
+			log_warnx("Failed to add portal_group \"%s\"", pg_name);
+			return;
+		}
+	}
+	pg->set_tag(port.cfiscsi_portal_group_tag);
+	if (!conf->add_port(targ, pg, port.port_id)) {
+		log_warnx("Failed to add port for target \"%s\" and portal-group \"%s\"",
+		    t_name, pg_name);
+	}
+}
+
 conf_up
 conf_new_from_kernel(struct kports &kports)
 {
@@ -455,51 +503,11 @@ conf_new_from_kernel(struct kports &kports)
 				name += "/" + std::to_string(port.vp);
 		}
 
-		if (port.cfiscsi_target.empty()) {
-			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
-			    port.port_id, name.c_str());
-			if (!kports.has_port(name)) {
-				if (!kports.add_port(name, port.port_id)) {
-					log_warnx("kports::add_port failed");
-					continue;
-				}
-			}
-			continue;
-		}
-		if (port.cfiscsi_state != 1) {
-			log_debugx("CTL port %ju is not active (%d); ignoring",
-			    (uintmax_t)port.port_id, port.cfiscsi_state);
-			continue;
-		}
-
-		const char *t_name = port.cfiscsi_target.c_str();
-		struct target *targ = conf->find_target(t_name);
-		if (targ == NULL) {
-			targ = conf->add_target(t_name);
-			if (targ == NULL) {
-				log_warnx("Failed to add target \"%s\"",
-				    t_name);
-				continue;
-			}
-		}
-
-		if (port.ctld_portal_group_name.empty())
-			continue;
-		const char *pg_name = port.ctld_portal_group_name.c_str();
-		struct portal_group *pg = conf->find_portal_group(pg_name);
-		if (pg == NULL) {
-			pg = conf->add_portal_group(pg_name);
-			if (pg == NULL) {
-				log_warnx("Failed to add portal_group \"%s\"",
-				    pg_name);
-				continue;
-			}
-		}
-		pg->set_tag(port.cfiscsi_portal_group_tag);
-		if (!conf->add_port(targ, pg, port.port_id)) {
-			log_warnx("Failed to add port for target \"%s\" and portal-group \"%s\"",
-			    t_name, pg_name);
-			continue;
+		if (port.port_frontend == "iscsi") {
+			add_iscsi_port(kports, conf.get(), port, name);
+		} else {
+			/* XXX: Treat all unknown ports as iSCSI? */
+			add_iscsi_port(kports, conf.get(), port, name);
 		}
 	}
 
@@ -705,65 +713,7 @@ lun::kernel_remove() const
 	return (true);
 }
 
-void
-ctld_connection::kernel_handoff()
-{
-	struct portal_group *pg = conn_portal->portal_group();
-	struct ctl_iscsi req;
-
-	bzero(&req, sizeof(req));
-
-	req.type = CTL_ISCSI_HANDOFF;
-	strlcpy(req.data.handoff.initiator_name, conn_initiator_name.c_str(),
-	    sizeof(req.data.handoff.initiator_name));
-	strlcpy(req.data.handoff.initiator_addr, conn_initiator_addr.c_str(),
-	    sizeof(req.data.handoff.initiator_addr));
-	if (!conn_initiator_alias.empty()) {
-		strlcpy(req.data.handoff.initiator_alias,
-		    conn_initiator_alias.c_str(),
-		    sizeof(req.data.handoff.initiator_alias));
-	}
-	memcpy(req.data.handoff.initiator_isid, conn_initiator_isid,
-	    sizeof(req.data.handoff.initiator_isid));
-	strlcpy(req.data.handoff.target_name, conn_target->name(),
-	    sizeof(req.data.handoff.target_name));
-	strlcpy(req.data.handoff.offload, pg->offload(),
-	    sizeof(req.data.handoff.offload));
-#ifdef ICL_KERNEL_PROXY
-	if (proxy_mode)
-		req.data.handoff.connection_id = conn.conn_socket;
-	else
-		req.data.handoff.socket = conn.conn_socket;
-#else
-	req.data.handoff.socket = conn.conn_socket;
-#endif
-	req.data.handoff.portal_group_tag = pg->tag();
-	if (conn.conn_header_digest == CONN_DIGEST_CRC32C)
-		req.data.handoff.header_digest = CTL_ISCSI_DIGEST_CRC32C;
-	if (conn.conn_data_digest == CONN_DIGEST_CRC32C)
-		req.data.handoff.data_digest = CTL_ISCSI_DIGEST_CRC32C;
-	req.data.handoff.cmdsn = conn.conn_cmdsn;
-	req.data.handoff.statsn = conn.conn_statsn;
-	req.data.handoff.max_recv_data_segment_length =
-	    conn.conn_max_recv_data_segment_length;
-	req.data.handoff.max_send_data_segment_length =
-	    conn.conn_max_send_data_segment_length;
-	req.data.handoff.max_burst_length = conn.conn_max_burst_length;
-	req.data.handoff.first_burst_length = conn.conn_first_burst_length;
-	req.data.handoff.immediate_data = conn.conn_immediate_data;
-
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
-		log_err(1, "error issuing CTL_ISCSI ioctl; "
-		    "dropping connection");
-	}
-
-	if (req.status != CTL_ISCSI_OK) {
-		log_errx(1, "error returned from CTL iSCSI handoff request: "
-		    "%s; dropping connection", req.error_str);
-	}
-}
-
-static bool
+bool
 ctl_create_port(const char *driver, const nvlist_t *nvl, uint32_t *ctl_port)
 {
 	struct ctl_req req;
@@ -809,26 +759,6 @@ ctl_create_port(const char *driver, const nvlist_t *nvl, uint32_t *ctl_port)
 
 	*ctl_port = nvlist_get_number(result_nvl.get(), "port_id");
 	return (true);
-}
-
-bool
-portal_group_port::kernel_create_port()
-{
-	struct portal_group *pg = p_portal_group;
-	struct target *targ = p_target;
-
-	freebsd::nvlist_up nvl = pg->options();
-	nvlist_add_string(nvl.get(), "cfiscsi_target", targ->name());
-	nvlist_add_string(nvl.get(), "ctld_portal_group_name", pg->name());
-	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
-	    pg->tag());
-
-	if (targ->has_alias()) {
-		nvlist_add_string(nvl.get(), "cfiscsi_target_alias",
-		    targ->alias());
-	}
-
-	return (ctl_create_port("iscsi", nvl.get(), &p_ctl_port));
 }
 
 bool
@@ -968,17 +898,6 @@ ctl_remove_port(const char *driver, nvlist_t *nvl)
 		return (false);
 	}
 	return (true);
-}
-
-bool
-portal_group_port::kernel_remove_port()
-{
-	freebsd::nvlist_up nvl(nvlist_create(0));
-	nvlist_add_string(nvl.get(), "cfiscsi_target", p_target->name());
-	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
-	    p_portal_group->tag());
-
-	return (ctl_remove_port("iscsi", nvl.get()));
 }
 
 bool

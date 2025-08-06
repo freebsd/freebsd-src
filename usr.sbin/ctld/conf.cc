@@ -175,7 +175,8 @@ portal_group_finish(void)
 bool
 portal_group_add_listen(const char *listen, bool iser)
 {
-	return (portal_group->add_portal(listen, iser));
+	return (portal_group->add_portal(listen, iser ? portal_protocol::ISER :
+	    portal_protocol::ISCSI));
 }
 
 bool
