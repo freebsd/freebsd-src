@@ -78,5 +78,5 @@ extern gss_OID kgss_find_mech_by_name(const char *name);
 extern const char *kgss_find_mech_by_oid(const gss_OID oid);
 extern gss_ctx_id_t kgss_create_context(gss_OID mech_type);
 extern void kgss_delete_context(gss_ctx_id_t ctx, gss_buffer_t output_token);
-extern OM_uint32 kgss_transfer_context(gss_ctx_id_t ctx);
+extern OM_uint32 kgss_transfer_context(gss_ctx_id_t ctx, void *lctx);
 extern void kgss_copy_buffer(const gss_buffer_t from, gss_buffer_t to);
