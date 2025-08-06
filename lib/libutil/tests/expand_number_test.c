@@ -206,10 +206,85 @@ ATF_TC_BODY(expand_number__bad, tp)
 	require_error(" + 1", EINVAL);
 }
 
+ATF_TC_WITHOUT_HEAD(expand_unsigned);
+ATF_TC_BODY(expand_unsigned, tp)
+{
+	static struct tc {
+		const char *str;
+		uint64_t num;
+		int error;
+	} tcs[] = {
+		{ "0", 0, 0 },
+		{ "+0", 0, 0 },
+		{ "-0", 0, 0 },
+		{ "1", 1, 0 },
+		{ "+1", 1, 0 },
+		{ "-1", 0, ERANGE },
+		{ "18446744073709551615", UINT64_MAX, 0 },
+		{ "+18446744073709551615", UINT64_MAX, 0 },
+		{ "-18446744073709551615", 0, ERANGE },
+		{ 0 },
+	};
+	struct tc *tc;
+	uint64_t num;
+	int error, ret;
+
+	for (tc = tcs; tc->str != NULL; tc++) {
+		ret = expand_number(tc->str, &num);
+		error = errno;
+		if (tc->error == 0) {
+			ATF_REQUIRE_EQ_MSG(0, ret,
+			    "%s ret = %d", tc->str, ret);
+			ATF_REQUIRE_EQ_MSG(tc->num, num,
+			    "%s num = %ju", tc->str, (uintmax_t)num);
+		} else {
+			ATF_REQUIRE_EQ_MSG(-1, ret,
+			    "%s ret = %d", tc->str, ret);
+			ATF_REQUIRE_EQ_MSG(tc->error, error,
+			    "%s errno = %d", tc->str, error);
+		}
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(expand_generic);
+ATF_TC_BODY(expand_generic, tp)
+{
+	uint64_t uint64;
+	int64_t int64;
+	size_t size;
+	off_t off;
+
+	ATF_REQUIRE_EQ(0, expand_number("18446744073709551615", &uint64));
+	ATF_REQUIRE_EQ(UINT64_MAX, uint64);
+	ATF_REQUIRE_EQ(-1, expand_number("-1", &uint64));
+	ATF_REQUIRE_EQ(ERANGE, errno);
+
+	ATF_REQUIRE_EQ(0, expand_number("9223372036854775807", &int64));
+	ATF_REQUIRE_EQ(INT64_MAX, int64);
+	ATF_REQUIRE_EQ(-1, expand_number("9223372036854775808", &int64));
+	ATF_REQUIRE_EQ(ERANGE, errno);
+	ATF_REQUIRE_EQ(0, expand_number("-9223372036854775808", &int64));
+	ATF_REQUIRE_EQ(INT64_MIN, int64);
+
+	ATF_REQUIRE_EQ(0, expand_number("18446744073709551615", &size));
+	ATF_REQUIRE_EQ(UINT64_MAX, size);
+	ATF_REQUIRE_EQ(-1, expand_number("-1", &size));
+	ATF_REQUIRE_EQ(ERANGE, errno);
+
+	ATF_REQUIRE_EQ(0, expand_number("9223372036854775807", &off));
+	ATF_REQUIRE_EQ(INT64_MAX, off);
+	ATF_REQUIRE_EQ(-1, expand_number("9223372036854775808", &off));
+	ATF_REQUIRE_EQ(ERANGE, errno);
+	ATF_REQUIRE_EQ(0, expand_number("-9223372036854775808", &off));
+	ATF_REQUIRE_EQ(INT64_MIN, off);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, expand_number__ok);
 	ATF_TP_ADD_TC(tp, expand_number__bad);
+	ATF_TP_ADD_TC(tp, expand_unsigned);
+	ATF_TP_ADD_TC(tp, expand_generic);
 
 	return (atf_no_error());
 }

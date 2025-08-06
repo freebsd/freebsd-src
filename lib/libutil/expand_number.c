@@ -37,13 +37,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-int
-expand_number(const char *buf, int64_t *num)
+static int
+expand_impl(const char *buf, uint64_t *num, bool *neg)
 {
 	char *endptr;
 	uintmax_t number;
 	unsigned int shift;
-	bool neg;
 	int serrno;
 
 	/*
@@ -52,10 +51,10 @@ expand_number(const char *buf, int64_t *num)
 	while (isspace((unsigned char)*buf))
 		buf++;
 	if (*buf == '-') {
-		neg = true;
+		*neg = true;
 		buf++;
 	} else {
-		neg = false;
+		*neg = false;
 		if (*buf == '+')
 			buf++;
 	}
@@ -127,6 +126,22 @@ expand_number(const char *buf, int64_t *num)
 	}
 	number <<= shift;
 
+	*num = number;
+	return (0);
+}
+
+int
+(expand_number)(const char *buf, int64_t *num)
+{
+	uint64_t number;
+	bool neg;
+
+	/*
+	 * Parse the number.
+	 */
+	if (expand_impl(buf, &number, &neg) != 0)
+		return (-1);
+
 	/*
 	 * Apply the sign and check for overflow.
 	 */
@@ -144,5 +159,29 @@ expand_number(const char *buf, int64_t *num)
 		*num = number;
 	}
 
+	return (0);
+}
+
+int
+expand_unsigned(const char *buf, uint64_t *num)
+{
+	uint64_t number;
+	bool neg;
+
+	/*
+	 * Parse the number.
+	 */
+	if (expand_impl(buf, &number, &neg) != 0)
+		return (-1);
+
+	/*
+	 * Negative numbers are out of range.
+	 */
+	if (neg && number > 0) {
+		errno = ERANGE;
+		return (-1);
+	}
+
+	*num = number;
 	return (0);
 }
