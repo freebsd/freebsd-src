@@ -124,8 +124,8 @@ private:
 	std::string			ag_label;
 	auth_type			ag_type = auth_type::UNKNOWN;
 	std::unordered_map<std::string, auth> ag_auths;
-	std::unordered_set<std::string> ag_names;
-	std::list<auth_portal>		ag_portals;
+	std::unordered_set<std::string> ag_initiator_names;
+	std::list<auth_portal>		ag_initiator_portals;
 };
 
 using auth_group_sp = std::shared_ptr<auth_group>;
