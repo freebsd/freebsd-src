@@ -556,6 +556,7 @@ struct libusb_control_setup *libusb_control_transfer_get_setup(struct libusb_tra
 void	libusb_fill_control_setup(uint8_t *buf, uint8_t bmRequestType, uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint16_t wLength);
 void	libusb_fill_control_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t *buf, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
 void	libusb_fill_bulk_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf, int length, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
+void	libusb_fill_bulk_stream_transfer(struct libusb_transfer *transfer, libusb_device_handle *dev_handle, unsigned char endpoint, uint32_t stream_id, unsigned char *buffer, int length, libusb_transfer_cb_fn callback, void *user_data, unsigned int timeout);
 void	libusb_fill_interrupt_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf, int length, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
 void	libusb_fill_iso_transfer(struct libusb_transfer *transfer, libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf, int length, int npacket, libusb_transfer_cb_fn callback, void *user_data, uint32_t timeout);
 
