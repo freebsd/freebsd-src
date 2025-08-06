@@ -34,9 +34,12 @@
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/capsicum.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
@@ -45,11 +48,14 @@
 #include <unistd.h>
 #include <wchar.h>
 
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
+
 static wchar_t *delim;
 static int delimcnt;
 
-static int parallel(char **);
-static int sequential(char **);
+static int parallel(char **, fileargs_t *);
+static int sequential(char **, fileargs_t *);
 static int tr(wchar_t *);
 static void usage(void) __dead2;
 
@@ -62,6 +68,8 @@ main(int argc, char *argv[])
 	wchar_t *warg;
 	const char *arg;
 	size_t len;
+	fileargs_t *fa;
+	cap_rights_t rights;
 
 	setlocale(LC_CTYPE, "");
 
@@ -99,8 +107,18 @@ main(int argc, char *argv[])
 		delim = tab;
 	}
 
-	rval = seq ? sequential(argv) : parallel(argv);
+	fa = fileargs_init(argc, argv, O_RDONLY, 0,
+	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_FCNTL), FA_OPEN);
+	if (fa == NULL)
+		err(1, "unable to open system.fileargs service");
 
+	caph_cache_catpages();
+	if (caph_enter_casper() < 0)
+		err(1, "unable to enter capability mode");
+
+	rval = seq ? sequential(argv, fa) : parallel(argv, fa);
+
+	fileargs_free(fa);
 	exit(rval);
 }
 
@@ -114,7 +132,7 @@ typedef struct _list {
 static STAILQ_HEAD(head, _list) lh;
 
 static int
-parallel(char **argv)
+parallel(char **argv, fileargs_t *fa)
 {
 	LIST *lp;
 	int cnt;
@@ -130,7 +148,7 @@ parallel(char **argv)
 			err(1, NULL);
 		if (p[0] == '-' && !p[1])
 			lp->fp = stdin;
-		else if (!(lp->fp = fopen(p, "r")))
+		else if (!(lp->fp = fileargs_fopen(fa, p, "r")))
 			err(1, "%s", p);
 		lp->cnt = cnt;
 		lp->name = p;
@@ -181,7 +199,7 @@ parallel(char **argv)
 }
 
 static int
-sequential(char **argv)
+sequential(char **argv, fileargs_t *fa)
 {
 	FILE *fp;
 	int cnt, failed, needdelim;
@@ -192,7 +210,7 @@ sequential(char **argv)
 	for (; (p = *argv); ++argv) {
 		if (p[0] == '-' && !p[1])
 			fp = stdin;
-		else if (!(fp = fopen(p, "r"))) {
+		else if (!(fp = fileargs_fopen(fa, p, "r"))) {
 			warn("%s", p);
 			failed = 1;
 			continue;
