@@ -423,6 +423,51 @@ no_lf_at_eof_body()
 	atf_check -o inline:"a\nb\nc" tail -4 infile
 }
 
+atf_test_case tail_b
+tail_b_head()
+{
+	atf_set "descr" "Test -b option"
+}
+tail_b_body()
+{
+	(jot -b a 256 ; jot -b b 256 ; jot -b c 256) >infile
+	(jot -b b 256 ; jot -b c 256) >outfile
+	# infile is 3 blocks long, outfile contains the last two
+	atf_check -o file:outfile tail -b +2 infile # start at the 2nd block
+	atf_check -o file:outfile tail -b -2 infile # 2 blocks from the end
+	atf_check -o file:outfile tail -b  2 infile # 2 blocks from the end
+}
+
+atf_test_case tail_c
+tail_c_head()
+{
+	atf_set "descr" "Test -c option"
+}
+tail_c_body()
+{
+	(jot -b a 256 ; jot -b b 256 ; jot -b c 256) >infile
+	(jot -b b 256 ; jot -b c 256) >outfile
+	# infile is 1536 bytes long, outfile contains the last 1024
+	atf_check -o file:outfile tail -c  +513 infile # start at the 513th byte
+	atf_check -o file:outfile tail -c -1024 infile # 1024 bytes from the end
+	atf_check -o file:outfile tail -c  1024 infile # 1024 bytes from the end
+}
+
+atf_test_case tail_n
+tail_n_head()
+{
+	atf_set "descr" "Test -n option"
+}
+tail_n_body()
+{
+	(jot -b a 256 ; jot -b b 256 ; jot -b c 256) >infile
+	(jot -b b 256 ; jot -b c 256) >outfile
+	# infile is 768 lines long, outfile contains the last 512
+	atf_check -o file:outfile tail -n +257 infile # start at the 257th line
+	atf_check -o file:outfile tail -n -512 infile # 512 lines from the end
+	atf_check -o file:outfile tail -n  512 infile # 512 lines from the end
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case empty_r
@@ -448,4 +493,7 @@ atf_init_test_cases()
 	atf_add_test_case verbose_header
 	atf_add_test_case si_number
 	atf_add_test_case no_lf_at_eof
+	atf_add_test_case tail_b
+	atf_add_test_case tail_c
+	atf_add_test_case tail_n
 }
