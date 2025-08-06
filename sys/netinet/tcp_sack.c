@@ -816,7 +816,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 				cur->end = sblkp->start;
 				cur->rxmit = SEQ_MIN(cur->rxmit, cur->end);
 				if ((tp->t_flags & TF_LRD) && SEQ_GEQ(cur->rxmit, cur->end))
-					cur->rxmit = tp->snd_recover;
+					cur->rxmit = SEQ_MAX(cur->rxmit, tp->snd_recover);
 			} else {
 				/*
 				 * ACKs some data in middle of a hole; need
@@ -843,7 +843,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 					cur->rxmit = SEQ_MIN(cur->rxmit,
 					    cur->end);
 					if ((tp->t_flags & TF_LRD) && SEQ_GEQ(cur->rxmit, cur->end))
-						cur->rxmit = tp->snd_recover;
+						cur->rxmit = SEQ_MAX(cur->rxmit, tp->snd_recover);
 					delivered_data += (sblkp->end - sblkp->start);
 				}
 			}
