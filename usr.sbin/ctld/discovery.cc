@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 
 #include "ctld.hh"
+#include "iscsi.hh"
 #include "iscsi_proto.h"
 
 static struct pdu *
@@ -145,7 +146,7 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 }
 
 bool
-ctld_connection::discovery_target_filtered_out(const struct port *port) const
+iscsi_connection::discovery_target_filtered_out(const struct port *port) const
 {
 	const struct auth_group *ag;
 	const struct portal_group *pg;
@@ -208,7 +209,7 @@ ctld_connection::discovery_target_filtered_out(const struct port *port) const
 }
 
 void
-ctld_connection::discovery()
+iscsi_connection::discovery()
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;

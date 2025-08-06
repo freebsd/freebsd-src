@@ -5,7 +5,7 @@ CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 
 PACKAGE=	ctl
 PROG_CXX=	ctld
-SRCS=		ctld.cc conf.cc discovery.cc isns.cc kernel.cc
+SRCS=		ctld.cc conf.cc discovery.cc iscsi.cc isns.cc kernel.cc
 SRCS+=		login.cc parse.y token.l y.tab.h uclparse.cc
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${SRCTOP}/sys
@@ -24,10 +24,6 @@ YFLAGS+=	-v
 CLEANFILES=	y.tab.c y.tab.h y.output
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
-
-.if ${MK_ISCSI} != "no"
-CFLAGS+=	-DWANT_ISCSI
-.endif
 
 .include <bsd.prog.mk>
 
