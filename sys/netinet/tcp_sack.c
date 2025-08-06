@@ -583,6 +583,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	 */
 	if (SEQ_LT(tp->snd_una, th_ack) && !TAILQ_EMPTY(&tp->snd_holes)) {
 		left_edge_delta = th_ack - tp->snd_una;
+		delivered_data += left_edge_delta;
 		sack_blocks[num_sack_blks].start = tp->snd_una;
 		sack_blocks[num_sack_blks++].end = th_ack;
 		/*
@@ -590,7 +591,6 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		 * due to DSACK blocks
 		 */
 		if (SEQ_LT(tp->snd_fack, th_ack)) {
-			delivered_data += th_ack - tp->snd_una;
 			tp->snd_fack = th_ack;
 			sack_changed = SACK_CHANGE;
 		}
