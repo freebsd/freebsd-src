@@ -13,6 +13,7 @@ FBSD_1.8 {
 	cpuset_parselist;
 	domainset_parselist;
 	expand_number;
+	expand_unsigned;
 	flopen;
 	flopenat;
 	forkpty;
