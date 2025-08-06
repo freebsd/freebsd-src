@@ -509,11 +509,9 @@ void
 ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
     int32_t rstreason, int32_t tlen)
 {
-	if (tp != NULL) {
-		tcp_dropwithreset(m, th, tp, tlen, rstreason);
+	tcp_dropwithreset(m, th, tp, tlen, rstreason);
+	if (tp != NULL)
 		INP_WUNLOCK(tptoinpcb(tp));
-	} else
-		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 }
 
 void
