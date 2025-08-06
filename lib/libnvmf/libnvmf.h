@@ -51,6 +51,8 @@ struct nvmf_qpair_params {
 	};
 };
 
+__BEGIN_DECLS
+
 /* Transport-independent APIs. */
 
 /*
@@ -383,5 +385,7 @@ int	nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
  * Fetch connection status from an existing kernel host.
  */
 int	nvmf_connection_status(int fd, nvlist_t **nvlp);
+
+__END_DECLS
 
 #endif /* !__LIBNVMF_H__ */
