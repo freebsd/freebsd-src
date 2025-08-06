@@ -97,7 +97,7 @@ struct nvhdr {
 } __packed;
 #define	NVH_DATA(nvh)	((unsigned char *)nvh + NVH_HSIZE(nvh))
 #define	NVH_HSIZE(nvh)	\
-	(sizeof(struct nvhdr) + roundup2((nvh)->nvh_namesize, 8))
+	(sizeof(struct nvhdr) + roundup2((size_t)(nvh)->nvh_namesize, 8))
 #define	NVH_DSIZE(nvh)	\
 	(((nvh)->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST ?		\
 	(nvh)->nvh_dsize :						\
@@ -247,11 +247,8 @@ nv_validate(struct nv *nv, size_t *extrap)
 			break;
 		}
 		dsize = NVH_DSIZE(nvh);
-		if (dsize == 0) {
-			error = EINVAL;
-			break;
-		}
-		if (size < NVH_SIZE(nvh)) {
+		if (roundup2(dsize, 8) == 0 ||
+		    roundup2(dsize, 8) > size - NVH_HSIZE(nvh)) {
 			error = EINVAL;
 			break;
 		}
