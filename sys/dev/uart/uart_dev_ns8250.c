@@ -495,6 +495,7 @@ UART_CLASS(uart_ns8250_class);
 static struct acpi_spcr_compat_data acpi_spcr_compat_data[] = {
 	{ &uart_ns8250_class, ACPI_DBG2_16550_COMPATIBLE },
 	{ &uart_ns8250_class, ACPI_DBG2_16550_SUBSET },
+	{ &uart_ns8250_class, ACPI_DBG2_16550_WITH_GAS },
 	{ NULL, 0 },
 };
 UART_ACPI_SPCR_CLASS(acpi_spcr_compat_data);
