@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# style fixes for device_if.m
+715aa464bcd5ff972947f39a58341af6eab8c902
 # iflib style tweaks
 721e783a2a3316826f92fb44c931e28163118b3f
 # queue(3) single space after all #define
