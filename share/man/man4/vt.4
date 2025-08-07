@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2014 Warren Block
@@ -26,31 +26,31 @@
 .\" SUCH DAMAGE.
 .\"
 .Dd July 7, 2024
-.Dt "VT" 4
+.Dt VT 4
 .Os
 .Sh NAME
 .Nm vt
 .Nd virtual terminal system video console driver
 .Sh SYNOPSIS
-.Cd "options TERMINAL_KERN_ATTR=_attribute_"
-.Cd "options TERMINAL_NORM_ATTR=_attribute_"
-.Cd "options VT_MAXWINDOWS=N"
+.Cd "options TERMINAL_KERN_ATTR=<attribute>"
+.Cd "options TERMINAL_NORM_ATTR=<attribute>"
+.Cd "options VT_MAXWINDOWS=<N>"
 .Cd "options VT_ALT_TO_ESC_HACK=1"
 .Cd "options VT_TWOBUTTON_MOUSE"
-.Cd "options VT_FB_MAX_WIDTH=X"
-.Cd "options VT_FB_MAX_HEIGHT=Y"
+.Cd "options VT_FB_MAX_WIDTH=<X>"
+.Cd "options VT_FB_MAX_HEIGHT=<Y>"
 .Cd "options SC_NO_CUTPASTE"
 .Cd "device vt"
 .Pp
 In
 .Xr loader.conf 5 :
-.Cd hw.vga.textmode=1
-.Cd hw.vga.acpi_ignore_no_vga=1
-.Cd kern.vty=vt
-.Cd kern.vt.color.<colornum>.rgb="<colorspec>"
-.Cd kern.vt.fb.default_mode="<X>x<Y>"
-.Cd kern.vt.fb.modes.<connector>="<X>x<Y>"
-.Cd screen.font="<X>x<Y>"
+.Cd "hw.vga.textmode=1"
+.Cd "hw.vga.acpi_ignore_no_vga=1"
+.Cd "kern.vty=vt"
+.Cd "kern.vt.color.<colornum>.rgb=<colorspec>"
+.Cd "kern.vt.fb.default_mode=<X>x<Y>"
+.Cd "kern.vt.fb.modes.<connector>=<X>x<Y>"
+.Cd "screen.font=<X>x<Y>"
 .Pp
 In
 .Xr loader.conf 5 or
@@ -129,8 +129,8 @@ These kernel options control the
 .Nm
 driver.
 .Bl -tag -width MAXCONS
-.It Dv TERMINAL_NORM_ATTR= Ns Pa attribute
-.It Dv TERMINAL_KERN_ATTR= Ns Pa attribute
+.It Dv TERMINAL_NORM_ATTR=<attribute>
+.It Dv TERMINAL_KERN_ATTR=<attribute>
 These options change the default colors used for normal and kernel
 text.
 Available colors are defined in
@@ -138,7 +138,7 @@ Available colors are defined in
 See
 .Sx EXAMPLES
 below.
-.It Dv VT_MAXWINDOWS=N
+.It Dv VT_MAXWINDOWS=<N>
 Set the number of virtual terminals to be created to
 .Fa N .
 The value defaults to 12.
@@ -151,10 +151,10 @@ In effect, this makes the right-hand mouse button perform a paste.
 These options are checked in the order shown.
 .It Dv SC_NO_CUTPASTE
 Disable mouse support.
-.It VT_FB_MAX_WIDTH=X
+.It VT_FB_MAX_WIDTH=<X>
 Set the maximum width to
 .Fa X .
-.It VT_FB_MAX_HEIGHT=Y
+.It VT_FB_MAX_HEIGHT=<Y>
 Set the maximum height to
 .Fa Y .
 .El
@@ -165,7 +165,7 @@ console device,
 These options will be removed in a future
 .Fx
 version.
-.Bl -column -offset indent ".Sy vt VT_TWOBUTTON_MOUSE" ".Sy SC_TWOBUTTON_MOUSE"
+.Bl -column -offset indent "TERMINAL_KERN_ATTR" "SC_KERNEL_CONS_ATTR"
 .It Sy vt Option Name Ta Sy sc Option Name
 .It Dv TERMINAL_KERN_ATTR Ta Dv SC_KERNEL_CONS_ATTR
 .It Dv TERMINAL_NORM_ATTR Ta Dv SC_NORM_ATTR
@@ -229,7 +229,7 @@ Note that
 is not compatible with
 .Xr UEFI 8
 boot.
-.It Va kern.vt.color. Ns Ar colornum Ns Va .rgb
+.It Va kern.vt.color. Ns Ar colornum Ns . Ns Va rgb
 Set this value to override default palette entry for color
 .Pa colornum
 which should be in a range from 0 to 15 inclusive.
@@ -244,15 +244,15 @@ Note: The
 .Nm
 VGA hardware driver does not support palette configuration.
 .It Va kern.vt.fb.default_mode
-Set this value to a graphic mode to override the default mode picked by the
+Set this value to a graphic mode to override the default picked by the
 .Nm
 backend.
 The mode is applied to all output connectors.
 This is currently only supported by the
 .Cm vt_fb
 backend when it is paired with a KMS video driver.
-.It Va kern.vt.fb.modes. Ns Pa connector_name
-Set this value to a graphic mode to override the default mode picked by the
+.It Va kern.vt.fb.modes.<connector_name>
+Set this value to a graphic mode to override the default picked by the
 .Nm
 backend.
 This mode is applied to the output connector
