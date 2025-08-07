@@ -9,7 +9,6 @@ SRCS=	gssd.c gssd.h gssd_svc.c gssd_xdr.c gssd_prot.c
 CFLAGS+= -I.
 WARNS?= 1
 
-.if ${MK_KERBEROS_SUPPORT} != "no"
 .if ${MK_MITKRB5} != "no"
 # MIT KRB5
 LIBADD+=	gssapi_krb5 krb5 k5crypto krb5profile krb5support
@@ -17,9 +16,6 @@ CFLAGS+= -DMK_MITKRB5=yes
 .else
 # Heimdal
 LIBADD+=	gssapi krb5 roken
-.endif
-.else
-CFLAGS+= -DWITHOUT_KERBEROS
 .endif
 
 CLEANFILES= gssd_svc.c gssd_xdr.c gssd.h

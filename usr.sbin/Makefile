@@ -140,7 +140,9 @@ SUBDIR.${MK_FLOPPY}+=	fdformat
 SUBDIR.${MK_FLOPPY}+=	fdread
 SUBDIR.${MK_FLOPPY}+=	fdwrite
 SUBDIR.${MK_FREEBSD_UPDATE}+=	freebsd-update
+.if ${MK_KERBEROS_SUPPORT} != "no"
 SUBDIR.${MK_GSSAPI}+=	gssd
+.endif
 SUBDIR.${MK_GPIO}+=	gpioctl
 SUBDIR.${MK_HYPERV}+=	hyperv
 SUBDIR.${MK_INET6}+=	ip6addrctl

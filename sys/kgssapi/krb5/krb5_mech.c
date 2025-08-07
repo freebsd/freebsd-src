@@ -217,6 +217,18 @@ copy_key(struct krb5_keyblock *from, struct krb5_keyblock **to)
 		*to = NULL;
 }
 
+static void
+copy_lucid_key(gss_buffer_desc *from, uint32_t type, struct krb5_keyblock *to)
+{
+
+	to->kk_type = type;
+	to->kk_key.kd_length = from->length;
+	if (from->length > 0) {
+		to->kk_key.kd_data = malloc(from->length, M_GSSAPI, M_WAITOK);
+		memcpy(to->kk_key.kd_data, from->value, from->length);
+	}
+}
+
 /*
  * Return non-zero if we are initiator.
  */
@@ -402,6 +414,70 @@ krb5_init(gss_ctx_id_t ctx)
 }
 
 static OM_uint32
+krb5_lucid_import(gss_ctx_id_t ctx,
+    enum sec_context_format format,
+    const gss_buffer_t context_token)
+{
+	struct krb5_context *kc = (struct krb5_context *)ctx;
+	kgss_lucid_desc *lctx = (kgss_lucid_desc *)context_token;
+	OM_uint32 res;
+
+	kc->kc_more_flags = 0;
+	if (lctx->protocol == 0) {
+		kc->kc_cksumtype = lctx->rfc_sign;
+		kc->kc_keytype = lctx->rfc_seal;
+		copy_lucid_key(&lctx->ctx_key, lctx->ctx_type,
+		    &kc->kc_keyblock);
+	} else if (lctx->protocol == 1) {
+		if (lctx->have_subkey != 0) {
+			if (lctx->initiate != 0)
+				copy_lucid_key(&lctx->subkey_key,
+				    lctx->subkey_type,
+				    &kc->kc_remote_subkey);
+			else
+				copy_lucid_key(&lctx->subkey_key,
+				    lctx->subkey_type,
+				    &kc->kc_local_subkey);
+			kc->kc_cksumtype = lctx->subkey_type;
+			kc->kc_keytype = lctx->subkey_type;
+			kc->kc_more_flags |= ACCEPTOR_SUBKEY;
+		} else {
+			if (lctx->initiate != 0)
+				copy_lucid_key(&lctx->ctx_key,
+				    lctx->ctx_type,
+				    &kc->kc_remote_subkey);
+			else
+				copy_lucid_key(&lctx->ctx_key,
+				    lctx->ctx_type,
+				    &kc->kc_local_subkey);
+			kc->kc_cksumtype = lctx->ctx_type;
+			kc->kc_keytype = lctx->ctx_type;
+		}
+	} else {
+		return (GSS_S_DEFECTIVE_TOKEN);
+	}
+	kc->kc_local_seqnumber = lctx->send_seq;
+	kc->kc_remote_seqnumber = lctx->recv_seq;
+	if (lctx->initiate != 0)
+		kc->kc_more_flags |= LOCAL;
+	kc->kc_lifetime = lctx->endtime;
+	kc->kc_msg_order.km_flags = 0;
+
+	res = get_keys(kc);
+	if (GSS_ERROR(res))
+		return (res);
+
+	/*
+	 * We don't need these anymore.
+	 */
+	delete_keyblock(&kc->kc_keyblock);
+	delete_keyblock(&kc->kc_local_subkey);
+	delete_keyblock(&kc->kc_remote_subkey);
+
+	return (GSS_S_COMPLETE);
+}
+
+static OM_uint32
 krb5_import(gss_ctx_id_t ctx,
     enum sec_context_format format,
     const gss_buffer_t context_token)
@@ -412,6 +488,10 @@ krb5_import(gss_ctx_id_t ctx,
 	size_t len = context_token->length;
 	uint32_t flags;
 	int i;
+
+	/* For MIT, just call krb5_lucid_import(). */
+	if (format == MIT_V1)
+		return (krb5_lucid_import(ctx, format, context_token));
 
 	/*
 	 * We support heimdal 0.6 and heimdal 1.1
