@@ -715,6 +715,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	mutex_init(&spa->spa_feat_stats_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_flushed_ms_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_activities_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&spa->spa_txg_log_time_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	cv_init(&spa->spa_async_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_evicting_os_cv, NULL, CV_DEFAULT, NULL);
@@ -903,6 +904,7 @@ spa_remove(spa_t *spa)
 	mutex_destroy(&spa->spa_vdev_top_lock);
 	mutex_destroy(&spa->spa_feat_stats_lock);
 	mutex_destroy(&spa->spa_activities_lock);
+	mutex_destroy(&spa->spa_txg_log_time_lock);
 
 	kmem_free(spa, sizeof (spa_t));
 }
@@ -1308,6 +1310,7 @@ spa_vdev_config_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error,
 	metaslab_class_validate(spa_log_class(spa));
 	metaslab_class_validate(spa_embedded_log_class(spa));
 	metaslab_class_validate(spa_special_class(spa));
+	metaslab_class_validate(spa_special_embedded_log_class(spa));
 	metaslab_class_validate(spa_dedup_class(spa));
 
 	spa_config_exit(spa, SCL_ALL, spa);
@@ -1896,6 +1899,8 @@ spa_get_slop_space(spa_t *spa)
 	 */
 	uint64_t embedded_log =
 	    metaslab_class_get_dspace(spa_embedded_log_class(spa));
+	embedded_log += metaslab_class_get_dspace(
+	    spa_special_embedded_log_class(spa));
 	slop -= MIN(embedded_log, slop >> 1);
 
 	/*
@@ -1998,6 +2003,12 @@ metaslab_class_t *
 spa_special_class(spa_t *spa)
 {
 	return (spa->spa_special_class);
+}
+
+metaslab_class_t *
+spa_special_embedded_log_class(spa_t *spa)
+{
+	return (spa->spa_special_embedded_log_class);
 }
 
 metaslab_class_t *

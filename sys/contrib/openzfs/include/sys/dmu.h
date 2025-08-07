@@ -414,6 +414,9 @@ typedef struct dmu_buf {
 #define	DMU_POOL_ZPOOL_CHECKPOINT	"com.delphix:zpool_checkpoint"
 #define	DMU_POOL_LOG_SPACEMAP_ZAP	"com.delphix:log_spacemap_zap"
 #define	DMU_POOL_DELETED_CLONES		"com.delphix:deleted_clones"
+#define	DMU_POOL_TXG_LOG_TIME_MINUTES	"com.klaraystems:txg_log_time:minutes"
+#define	DMU_POOL_TXG_LOG_TIME_DAYS	"com.klaraystems:txg_log_time:days"
+#define	DMU_POOL_TXG_LOG_TIME_MONTHS	"com.klaraystems:txg_log_time:months"
 
 /*
  * Allocate an object from this objset.  The range of object numbers
@@ -822,6 +825,7 @@ struct blkptr *dmu_buf_get_blkptr(dmu_buf_t *db);
  */
 void dmu_buf_will_dirty(dmu_buf_t *db, dmu_tx_t *tx);
 void dmu_buf_will_dirty_flags(dmu_buf_t *db, dmu_tx_t *tx, dmu_flags_t flags);
+void dmu_buf_will_rewrite(dmu_buf_t *db, dmu_tx_t *tx);
 boolean_t dmu_buf_is_dirty(dmu_buf_t *db, dmu_tx_t *tx);
 void dmu_buf_set_crypt_params(dmu_buf_t *db_fake, boolean_t byteorder,
     const uint8_t *salt, const uint8_t *iv, const uint8_t *mac, dmu_tx_t *tx);

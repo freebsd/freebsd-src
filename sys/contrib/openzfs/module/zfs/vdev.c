@@ -243,6 +243,25 @@ vdev_dbgmsg_print_tree(vdev_t *vd, int indent)
 		vdev_dbgmsg_print_tree(vd->vdev_child[i], indent + 2);
 }
 
+char *
+vdev_rt_name(vdev_t *vd, const char *name)
+{
+	return (kmem_asprintf("{spa=%s vdev_guid=%llu %s}",
+	    spa_name(vd->vdev_spa),
+	    (u_longlong_t)vd->vdev_guid,
+	    name));
+}
+
+static char *
+vdev_rt_name_dtl(vdev_t *vd, const char *name, vdev_dtl_type_t dtl_type)
+{
+	return (kmem_asprintf("{spa=%s vdev_guid=%llu %s[%d]}",
+	    spa_name(vd->vdev_spa),
+	    (u_longlong_t)vd->vdev_guid,
+	    name,
+	    dtl_type));
+}
+
 /*
  * Virtual device management.
  */
@@ -282,12 +301,15 @@ vdev_getops(const char *type)
  * Given a vdev and a metaslab class, find which metaslab group we're
  * interested in. All vdevs may belong to two different metaslab classes.
  * Dedicated slog devices use only the primary metaslab group, rather than a
- * separate log group. For embedded slogs, the vdev_log_mg will be non-NULL.
+ * separate log group.  For embedded slogs, vdev_log_mg will be non-NULL and
+ * will point to a metaslab group of either embedded_log_class (for normal
+ * vdevs) or special_embedded_log_class (for special vdevs).
  */
 metaslab_group_t *
 vdev_get_mg(vdev_t *vd, metaslab_class_t *mc)
 {
-	if (mc == spa_embedded_log_class(vd->vdev_spa) &&
+	if ((mc == spa_embedded_log_class(vd->vdev_spa) ||
+	    mc == spa_special_embedded_log_class(vd->vdev_spa)) &&
 	    vd->vdev_log_mg != NULL)
 		return (vd->vdev_log_mg);
 	else
@@ -692,8 +714,9 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 
 	rw_init(&vd->vdev_indirect_rwlock, NULL, RW_DEFAULT, NULL);
 	mutex_init(&vd->vdev_obsolete_lock, NULL, MUTEX_DEFAULT, NULL);
-	vd->vdev_obsolete_segments = zfs_range_tree_create(NULL,
-	    ZFS_RANGE_SEG64, NULL, 0, 0);
+	vd->vdev_obsolete_segments = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "vdev_obsolete_segments"));
 
 	/*
 	 * Initialize rate limit structs for events.  We rate limit ZIO delay
@@ -747,8 +770,9 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	cv_init(&vd->vdev_rebuild_cv, NULL, CV_DEFAULT, NULL);
 
 	for (int t = 0; t < DTL_TYPES; t++) {
-		vd->vdev_dtl[t] = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
-		    NULL, 0, 0);
+		vd->vdev_dtl[t] = zfs_range_tree_create_flags(
+		    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+		    ZFS_RT_F_DYN_NAME, vdev_rt_name_dtl(vd, "vdev_dtl", t));
 	}
 
 	txg_list_create(&vd->vdev_ms_list, spa,
@@ -1508,8 +1532,13 @@ vdev_metaslab_group_create(vdev_t *vd)
 		vd->vdev_mg = metaslab_group_create(mc, vd);
 
 		if (!vd->vdev_islog) {
-			vd->vdev_log_mg = metaslab_group_create(
-			    spa_embedded_log_class(spa), vd);
+			if (mc == spa_special_class(spa)) {
+				vd->vdev_log_mg = metaslab_group_create(
+				    spa_special_embedded_log_class(spa), vd);
+			} else {
+				vd->vdev_log_mg = metaslab_group_create(
+				    spa_embedded_log_class(spa), vd);
+			}
 		}
 
 		/*
@@ -1624,9 +1653,10 @@ vdev_metaslab_init(vdev_t *vd, uint64_t txg)
 	/*
 	 * Find the emptiest metaslab on the vdev and mark it for use for
 	 * embedded slog by moving it from the regular to the log metaslab
-	 * group.
+	 * group.  This works for normal and special vdevs.
 	 */
-	if (vd->vdev_mg->mg_class == spa_normal_class(spa) &&
+	if ((vd->vdev_mg->mg_class == spa_normal_class(spa) ||
+	    vd->vdev_mg->mg_class == spa_special_class(spa)) &&
 	    vd->vdev_ms_count > zfs_embedded_slog_min_ms &&
 	    avl_is_empty(&vd->vdev_log_mg->mg_metaslab_tree)) {
 		uint64_t slog_msid = 0;
@@ -3449,7 +3479,9 @@ vdev_dtl_load(vdev_t *vd)
 			return (error);
 		ASSERT(vd->vdev_dtl_sm != NULL);
 
-		rt = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
+		rt = zfs_range_tree_create_flags(
+		    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+		    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "vdev_dtl_load:rt"));
 		error = space_map_load(vd->vdev_dtl_sm, rt, SM_ALLOC);
 		if (error == 0) {
 			mutex_enter(&vd->vdev_dtl_lock);
@@ -3597,7 +3629,8 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 		ASSERT(vd->vdev_dtl_sm != NULL);
 	}
 
-	rtsync = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
+	rtsync = zfs_range_tree_create_flags(NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "rtsync"));
 
 	mutex_enter(&vd->vdev_dtl_lock);
 	zfs_range_tree_walk(rt, zfs_range_tree_add, rtsync);

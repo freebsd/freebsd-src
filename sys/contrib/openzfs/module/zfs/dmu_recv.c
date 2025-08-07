@@ -1403,7 +1403,7 @@ corrective_read_done(zio_t *zio)
 	/* Corruption corrected; update error log if needed */
 	if (zio->io_error == 0) {
 		spa_remove_error(data->spa, &data->zb,
-		    BP_GET_LOGICAL_BIRTH(zio->io_bp));
+		    BP_GET_PHYSICAL_BIRTH(zio->io_bp));
 	}
 	kmem_free(data, sizeof (cr_cb_data_t));
 	abd_free(zio->io_abd);
@@ -1530,7 +1530,7 @@ do_corrective_recv(struct receive_writer_arg *rwa, struct drr_write *drrw,
 	}
 	rrd->abd = abd;
 
-	io = zio_rewrite(NULL, rwa->os->os_spa, BP_GET_LOGICAL_BIRTH(bp), bp,
+	io = zio_rewrite(NULL, rwa->os->os_spa, BP_GET_BIRTH(bp), bp,
 	    abd, BP_GET_PSIZE(bp), NULL, NULL, ZIO_PRIORITY_SYNC_WRITE, flags,
 	    &zb);
 
@@ -3831,11 +3831,11 @@ dmu_recv_end(dmu_recv_cookie_t *drc, void *owner)
 		nvlist_free(drc->drc_keynvl);
 	} else if (!drc->drc_heal) {
 		if (drc->drc_newfs) {
-			zvol_create_minor(drc->drc_tofs);
+			zvol_create_minors(drc->drc_tofs);
 		}
 		char *snapname = kmem_asprintf("%s@%s",
 		    drc->drc_tofs, drc->drc_tosnap);
-		zvol_create_minor(snapname);
+		zvol_create_minors(snapname);
 		kmem_strfree(snapname);
 	}
 

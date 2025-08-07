@@ -589,7 +589,7 @@ zil_clear_log_block(zilog_t *zilog, const blkptr_t *bp, void *tx,
 	 * that we rewind to is invalid. Thus, we return -1 so
 	 * zil_parse() doesn't attempt to read it.
 	 */
-	if (BP_GET_LOGICAL_BIRTH(bp) >= first_txg)
+	if (BP_GET_BIRTH(bp) >= first_txg)
 		return (-1);
 
 	if (zil_bp_tree_add(zilog, bp) != 0)
@@ -615,7 +615,7 @@ zil_claim_log_block(zilog_t *zilog, const blkptr_t *bp, void *tx,
 	 * Claim log block if not already committed and not already claimed.
 	 * If tx == NULL, just verify that the block is claimable.
 	 */
-	if (BP_IS_HOLE(bp) || BP_GET_LOGICAL_BIRTH(bp) < first_txg ||
+	if (BP_IS_HOLE(bp) || BP_GET_BIRTH(bp) < first_txg ||
 	    zil_bp_tree_add(zilog, bp) != 0)
 		return (0);
 
@@ -640,7 +640,7 @@ zil_claim_write(zilog_t *zilog, const lr_t *lrc, void *tx, uint64_t first_txg)
 	 * waited for all writes to be stable first), so it is semantically
 	 * correct to declare this the end of the log.
 	 */
-	if (BP_GET_LOGICAL_BIRTH(&lr->lr_blkptr) >= first_txg) {
+	if (BP_GET_BIRTH(&lr->lr_blkptr) >= first_txg) {
 		error = zil_read_log_data(zilog, lr, NULL);
 		if (error != 0)
 			return (error);
@@ -687,7 +687,7 @@ zil_claim_clone_range(zilog_t *zilog, const lr_t *lrc, void *tx,
 		 * just in case lets be safe and just stop here now instead of
 		 * corrupting the pool.
 		 */
-		if (BP_GET_BIRTH(bp) >= first_txg)
+		if (BP_GET_PHYSICAL_BIRTH(bp) >= first_txg)
 			return (SET_ERROR(ENOENT));
 
 		/*
@@ -742,7 +742,7 @@ zil_free_write(zilog_t *zilog, const lr_t *lrc, void *tx, uint64_t claim_txg)
 	/*
 	 * If we previously claimed it, we need to free it.
 	 */
-	if (BP_GET_LOGICAL_BIRTH(bp) >= claim_txg &&
+	if (BP_GET_BIRTH(bp) >= claim_txg &&
 	    zil_bp_tree_add(zilog, bp) == 0 && !BP_IS_HOLE(bp)) {
 		zio_free(zilog->zl_spa, dmu_tx_get_txg(tx), bp);
 	}
@@ -1997,7 +1997,7 @@ next_lwb:
 		    &slog);
 	}
 	if (error == 0) {
-		ASSERT3U(BP_GET_LOGICAL_BIRTH(bp), ==, txg);
+		ASSERT3U(BP_GET_BIRTH(bp), ==, txg);
 		BP_SET_CHECKSUM(bp, nlwb->lwb_slim ? ZIO_CHECKSUM_ZILOG2 :
 		    ZIO_CHECKSUM_ZILOG);
 		bp->blk_cksum = lwb->lwb_blk.blk_cksum;
@@ -2095,11 +2095,64 @@ zil_max_waste_space(zilog_t *zilog)
  */
 static uint_t zil_maxcopied = 7680;
 
+/*
+ * Largest write size to store the data directly into ZIL.
+ */
+uint_t zfs_immediate_write_sz = 32768;
+
+/*
+ * When enabled and blocks go to normal vdev, treat special vdevs as SLOG,
+ * writing data to ZIL (WR_COPIED/WR_NEED_COPY).  Disabling this forces the
+ * indirect writes (WR_INDIRECT) to preserve special vdev throughput and
+ * endurance, likely at the cost of normal vdev latency.
+ */
+int zil_special_is_slog = 1;
+
 uint64_t
 zil_max_copied_data(zilog_t *zilog)
 {
 	uint64_t max_data = zil_max_log_data(zilog, sizeof (lr_write_t));
 	return (MIN(max_data, zil_maxcopied));
+}
+
+/*
+ * Determine the appropriate write state for ZIL transactions based on
+ * pool configuration, data placement, write size, and logbias settings.
+ */
+itx_wr_state_t
+zil_write_state(zilog_t *zilog, uint64_t size, uint32_t blocksize,
+    boolean_t o_direct, boolean_t commit)
+{
+	if (zilog->zl_logbias == ZFS_LOGBIAS_THROUGHPUT || o_direct)
+		return (WR_INDIRECT);
+
+	/*
+	 * Don't use indirect for too small writes to reduce overhead.
+	 * Don't use indirect if written less than a half of a block if
+	 * we are going to commit it immediately, since next write might
+	 * rewrite the same block again, causing inflation.  If commit
+	 * is not planned, then next writes might coalesce, and so the
+	 * indirect may be perfect.
+	 */
+	boolean_t indirect = (size >= zfs_immediate_write_sz &&
+	    (size >= blocksize / 2 || !commit));
+
+	if (spa_has_slogs(zilog->zl_spa)) {
+		/* Dedicated slogs: never use indirect */
+		indirect = B_FALSE;
+	} else if (spa_has_special(zilog->zl_spa)) {
+		/* Special vdevs: only when beneficial */
+		boolean_t on_special = (blocksize <=
+		    zilog->zl_os->os_zpl_special_smallblock);
+		indirect &= (on_special || !zil_special_is_slog);
+	}
+
+	if (indirect)
+		return (WR_INDIRECT);
+	else if (commit)
+		return (WR_COPIED);
+	else
+		return (WR_NEED_COPY);
 }
 
 static uint64_t
@@ -2902,19 +2955,14 @@ zil_process_commit_list(zilog_t *zilog, zil_commit_waiter_t *zcw, list_t *ilwbs)
 
 	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 
-	/*
-	 * Return if there's nothing to commit before we dirty the fs by
-	 * calling zil_create().
-	 */
-	if (list_is_empty(&zilog->zl_itx_commit_list))
-		return;
-
-	list_create(&nolwb_itxs, sizeof (itx_t), offsetof(itx_t, itx_node));
-	list_create(&nolwb_waiters, sizeof (zil_commit_waiter_t),
-	    offsetof(zil_commit_waiter_t, zcw_node));
-
 	lwb = list_tail(&zilog->zl_lwb_list);
 	if (lwb == NULL) {
+		/*
+		 * Return if there's nothing to commit before we dirty the fs.
+		 */
+		if (list_is_empty(&zilog->zl_itx_commit_list))
+			return;
+
 		lwb = zil_create(zilog);
 	} else {
 		/*
@@ -2941,6 +2989,10 @@ zil_process_commit_list(zilog_t *zilog, zil_commit_waiter_t *zcw, list_t *ilwbs)
 			    ZIL_BURSTS / 2);
 		}
 	}
+
+	list_create(&nolwb_itxs, sizeof (itx_t), offsetof(itx_t, itx_node));
+	list_create(&nolwb_waiters, sizeof (zil_commit_waiter_t),
+	    offsetof(zil_commit_waiter_t, zcw_node));
 
 	while ((itx = list_remove_head(&zilog->zl_itx_commit_list)) != NULL) {
 		lr_t *lrc = &itx->itx_lr;
@@ -3111,7 +3163,8 @@ zil_process_commit_list(zilog_t *zilog, zil_commit_waiter_t *zcw, list_t *ilwbs)
 		 * possible, without significantly impacting the latency
 		 * of each individual itx.
 		 */
-		if (lwb->lwb_state == LWB_STATE_OPENED && !zilog->zl_parallel) {
+		if (lwb->lwb_state == LWB_STATE_OPENED &&
+		    (!zilog->zl_parallel || zilog->zl_suspend > 0)) {
 			zil_burst_done(zilog);
 			list_insert_tail(ilwbs, lwb);
 			lwb = zil_lwb_write_close(zilog, lwb, LWB_STATE_NEW);
@@ -4418,3 +4471,9 @@ ZFS_MODULE_PARAM(zfs_zil, zil_, maxblocksize, UINT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_zil, zil_, maxcopied, UINT, ZMOD_RW,
 	"Limit in bytes WR_COPIED size");
+
+ZFS_MODULE_PARAM(zfs, zfs_, immediate_write_sz, UINT, ZMOD_RW,
+	"Largest write size to store data into ZIL");
+
+ZFS_MODULE_PARAM(zfs_zil, zil_, special_is_slog, INT, ZMOD_RW,
+	"Treat special vdevs as SLOG");

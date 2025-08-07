@@ -16,6 +16,7 @@ SRCS = \
         os/freebsd/zone.c \
         page.c \
         timestamp.c \
+	tunables.c \
         include/sys/list.h \
         include/sys/list_impl.h
 

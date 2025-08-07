@@ -28,6 +28,7 @@ function debian() {
   export DEBIAN_FRONTEND="noninteractive"
 
   echo "##[group]Running apt-get update+upgrade"
+  sudo sed -i '/[[:alpha:]]-backports/d' /etc/apt/sources.list
   sudo apt-get update -y
   sudo apt-get upgrade -y
   echo "##[endgroup]"
@@ -51,7 +52,7 @@ function freebsd() {
 
   echo "##[group]Install Development Tools"
   sudo pkg install -y autoconf automake autotools base64 checkbashisms fio \
-    gdb gettext gettext-runtime git gmake gsed jq ksh93 lcov libtool lscpu \
+    gdb gettext gettext-runtime git gmake gsed jq ksh lcov libtool lscpu \
     pkgconf python python3 pamtester pamtester qemu-guest-agent rsync xxhash
   sudo pkg install -xy \
     '^samba4[[:digit:]]+$' \
