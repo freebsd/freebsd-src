@@ -2218,7 +2218,6 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
 			tcp_log_end_status(tp, TCP_EI_STATUS_RST_IN_FRONT);
 			tp = tcp_drop(tp, ECONNRESET);
-			rstreason = BANDLIM_UNLIMITED;
 		} else {
 			tcp_ecn_input_syn_sent(tp, thflags, iptos);
 			tcp_send_challenge_ack(tp, th, m);
