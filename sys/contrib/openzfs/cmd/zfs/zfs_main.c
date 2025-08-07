@@ -440,7 +440,7 @@ get_usage(zfs_help_t idx)
 		return (gettext("\tredact <snapshot> <bookmark> "
 		    "<redaction_snapshot> ...\n"));
 	case HELP_REWRITE:
-		return (gettext("\trewrite [-rvx] [-o <offset>] [-l <length>] "
+		return (gettext("\trewrite [-Prvx] [-o <offset>] [-l <length>] "
 		    "<directory|file ...>\n"));
 	case HELP_JAIL:
 		return (gettext("\tjail <jailid|jailname> <filesystem>\n"));
@@ -1974,9 +1974,8 @@ fill_dataset_info(nvlist_t *list, zfs_handle_t *zhp, boolean_t as_int)
 	}
 
 	if (type == ZFS_TYPE_SNAPSHOT) {
-		char *ds, *snap;
-		ds = snap = strdup(zfs_get_name(zhp));
-		ds = strsep(&snap, "@");
+		char *snap = strdup(zfs_get_name(zhp));
+		char *ds = strsep(&snap, "@");
 		fnvlist_add_string(list, "dataset", ds);
 		fnvlist_add_string(list, "snapshot_name", snap);
 		free(ds);
@@ -2019,8 +2018,7 @@ get_callback(zfs_handle_t *zhp, void *data)
 	nvlist_t *user_props = zfs_get_user_props(zhp);
 	zprop_list_t *pl = cbp->cb_proplist;
 	nvlist_t *propval;
-	nvlist_t *item, *d, *props;
-	item = d = props = NULL;
+	nvlist_t *item, *d = NULL, *props = NULL;
 	const char *strval;
 	const char *sourceval;
 	boolean_t received = is_recvd_column(cbp);
@@ -5879,7 +5877,7 @@ parse_fs_perm_set(fs_perm_set_t *fspset, nvlist_t *nvl)
 static inline const char *
 deleg_perm_comment(zfs_deleg_note_t note)
 {
-	const char *str = "";
+	const char *str;
 
 	/* subcommands */
 	switch (note) {
@@ -7729,6 +7727,7 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 	struct extmnttab entry;
 	const char *cmdname = (op == OP_SHARE) ? "unshare" : "unmount";
 	ino_t path_inode;
+	char *zfs_mntpnt, *entry_mntpnt;
 
 	/*
 	 * Search for the given (major,minor) pair in the mount table.
@@ -7769,6 +7768,24 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 		    "%s '%s': not a mountpoint\n"), cmdname, path);
 		goto out;
 	}
+
+	/*
+	 * If the filesystem is mounted, check that the mountpoint matches
+	 * the one in the mnttab entry w.r.t. provided path. If it doesn't,
+	 * then we should not proceed further.
+	 */
+	entry_mntpnt = strdup(entry.mnt_mountp);
+	if (zfs_is_mounted(zhp, &zfs_mntpnt)) {
+		if (strcmp(zfs_mntpnt, entry_mntpnt) != 0) {
+			(void) fprintf(stderr, gettext("cannot %s '%s': "
+			    "not an original mountpoint\n"), cmdname, path);
+			free(zfs_mntpnt);
+			free(entry_mntpnt);
+			goto out;
+		}
+		free(zfs_mntpnt);
+	}
+	free(entry_mntpnt);
 
 	if (op == OP_SHARE) {
 		char nfs_mnt_prop[ZFS_MAXPROPLEN];
@@ -9160,8 +9177,11 @@ zfs_do_rewrite(int argc, char **argv)
 	zfs_rewrite_args_t args;
 	memset(&args, 0, sizeof (args));
 
-	while ((c = getopt(argc, argv, "l:o:rvx")) != -1) {
+	while ((c = getopt(argc, argv, "Pl:o:rvx")) != -1) {
 		switch (c) {
+		case 'P':
+			args.flags |= ZFS_REWRITE_PHYSICAL;
+			break;
 		case 'l':
 			args.len = strtoll(optarg, NULL, 0);
 			break;

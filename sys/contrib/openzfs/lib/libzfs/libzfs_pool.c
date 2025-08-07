@@ -31,6 +31,7 @@
  * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  * Copyright (c) 2021, 2023, Klara Inc.
+ * Copyright (c) 2025 Hewlett Packard Enterprise Development LP.
  */
 
 #include <errno.h>
@@ -896,7 +897,7 @@ int
 zpool_set_prop(zpool_handle_t *zhp, const char *propname, const char *propval)
 {
 	zfs_cmd_t zc = {"\0"};
-	int ret = -1;
+	int ret;
 	char errbuf[ERRBUFLEN];
 	nvlist_t *nvl = NULL;
 	nvlist_t *realprops;
@@ -1422,30 +1423,6 @@ zpool_get_state(zpool_handle_t *zhp)
 }
 
 /*
- * Check if vdev list contains a special vdev
- */
-static boolean_t
-zpool_has_special_vdev(nvlist_t *nvroot)
-{
-	nvlist_t **child;
-	uint_t children;
-
-	if (nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN, &child,
-	    &children) == 0) {
-		for (uint_t c = 0; c < children; c++) {
-			const char *bias;
-
-			if (nvlist_lookup_string(child[c],
-			    ZPOOL_CONFIG_ALLOCATION_BIAS, &bias) == 0 &&
-			    strcmp(bias, VDEV_ALLOC_BIAS_SPECIAL) == 0) {
-				return (B_TRUE);
-			}
-		}
-	}
-	return (B_FALSE);
-}
-
-/*
  * Check if vdev list contains a dRAID vdev
  */
 static boolean_t
@@ -1545,16 +1522,6 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 
 		if ((zc_fsprops = zfs_valid_proplist(hdl, ZFS_TYPE_FILESYSTEM,
 		    fsprops, zoned, NULL, NULL, B_TRUE, errbuf)) == NULL) {
-			goto create_failed;
-		}
-
-		if (nvlist_exists(zc_fsprops,
-		    zfs_prop_to_name(ZFS_PROP_SPECIAL_SMALL_BLOCKS)) &&
-		    !zpool_has_special_vdev(nvroot)) {
-			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-			    "%s property requires a special vdev"),
-			    zfs_prop_to_name(ZFS_PROP_SPECIAL_SMALL_BLOCKS));
-			(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
 			goto create_failed;
 		}
 
@@ -2470,6 +2437,30 @@ xlate_init_err(int err)
 	return (err);
 }
 
+int
+zpool_initialize_one(zpool_handle_t *zhp, void *data)
+{
+	int error;
+	libzfs_handle_t *hdl = zpool_get_handle(zhp);
+	const char *pool_name = zpool_get_name(zhp);
+	if (zpool_open_silent(hdl, pool_name, &zhp) != 0)
+		return (-1);
+	initialize_cbdata_t *cb = data;
+	nvlist_t *vdevs = fnvlist_alloc();
+
+	nvlist_t *config = zpool_get_config(zhp, NULL);
+	nvlist_t *nvroot = fnvlist_lookup_nvlist(config,
+	    ZPOOL_CONFIG_VDEV_TREE);
+	zpool_collect_leaves(zhp, nvroot, vdevs);
+	if (cb->wait)
+		error = zpool_initialize_wait(zhp, cb->cmd_type, vdevs);
+	else
+		error = zpool_initialize(zhp, cb->cmd_type, vdevs);
+	fnvlist_free(vdevs);
+
+	return (error);
+}
+
 /*
  * Begin, suspend, cancel, or uninit (clear) the initialization (initializing
  * of all free blocks) for the given vdevs in the given pool.
@@ -2588,6 +2579,58 @@ xlate_trim_err(int err)
 		return (EZFS_TRIM_NOTSUP);
 	}
 	return (err);
+}
+
+void
+zpool_collect_leaves(zpool_handle_t *zhp, nvlist_t *nvroot, nvlist_t *res)
+{
+	libzfs_handle_t *hdl = zhp->zpool_hdl;
+	uint_t children = 0;
+	nvlist_t **child;
+	uint_t i;
+
+	(void) nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children);
+
+	if (children == 0) {
+		char *path = zpool_vdev_name(hdl, zhp, nvroot,
+		    VDEV_NAME_PATH);
+
+		if (strcmp(path, VDEV_TYPE_INDIRECT) != 0 &&
+		    strcmp(path, VDEV_TYPE_HOLE) != 0)
+			fnvlist_add_boolean(res, path);
+
+		free(path);
+		return;
+	}
+
+	for (i = 0; i < children; i++) {
+		zpool_collect_leaves(zhp, child[i], res);
+	}
+}
+
+int
+zpool_trim_one(zpool_handle_t *zhp, void *data)
+{
+	int error;
+	libzfs_handle_t *hdl = zpool_get_handle(zhp);
+	const char *pool_name = zpool_get_name(zhp);
+	if (zpool_open_silent(hdl, pool_name, &zhp) != 0)
+		return (-1);
+
+	trim_cbdata_t *cb = data;
+	nvlist_t *vdevs = fnvlist_alloc();
+
+	/* no individual leaf vdevs specified, so add them all */
+	nvlist_t *config = zpool_get_config(zhp, NULL);
+	nvlist_t *nvroot = fnvlist_lookup_nvlist(config,
+	    ZPOOL_CONFIG_VDEV_TREE);
+
+	zpool_collect_leaves(zhp, nvroot, vdevs);
+	error = zpool_trim(zhp, cb->cmd_type, vdevs, &cb->trim_flags);
+	fnvlist_free(vdevs);
+
+	return (error);
 }
 
 static int
@@ -2730,7 +2773,13 @@ out:
  * Scan the pool.
  */
 int
-zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd)
+zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd) {
+	return (zpool_scan_range(zhp, func, cmd, 0, 0));
+}
+
+int
+zpool_scan_range(zpool_handle_t *zhp, pool_scan_func_t func,
+    pool_scrub_cmd_t cmd, time_t date_start, time_t date_end)
 {
 	char errbuf[ERRBUFLEN];
 	int err;
@@ -2739,6 +2788,8 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd)
 	nvlist_t *args = fnvlist_alloc();
 	fnvlist_add_uint64(args, "scan_type", (uint64_t)func);
 	fnvlist_add_uint64(args, "scan_command", (uint64_t)cmd);
+	fnvlist_add_uint64(args, "scan_date_start", (uint64_t)date_start);
+	fnvlist_add_uint64(args, "scan_date_end", (uint64_t)date_end);
 
 	err = lzc_scrub(ZFS_IOC_POOL_SCRUB, zhp->zpool_name, args, NULL);
 	fnvlist_free(args);
@@ -4344,7 +4395,7 @@ zpool_set_guid(zpool_handle_t *zhp, const uint64_t *guid)
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
 	nvlist_t *nvl = NULL;
 	zfs_cmd_t zc = {"\0"};
-	int error = -1;
+	int error;
 
 	if (guid != NULL) {
 		if (nvlist_alloc(&nvl, NV_UNIQUE_NAME, 0) != 0)
@@ -5127,9 +5178,10 @@ zpool_load_compat(const char *compat, boolean_t *features, char *report,
 	/* special cases (unset), "" and "off" => enable all features */
 	if (compat == NULL || compat[0] == '\0' ||
 	    strcmp(compat, ZPOOL_COMPAT_OFF) == 0) {
-		if (features != NULL)
+		if (features != NULL) {
 			for (uint_t i = 0; i < SPA_FEATURES; i++)
 				features[i] = B_TRUE;
+		}
 		if (report != NULL)
 			strlcpy(report, gettext("all features enabled"), rlen);
 		return (ZPOOL_COMPATIBILITY_OK);

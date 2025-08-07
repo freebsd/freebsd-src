@@ -1025,25 +1025,13 @@ spl_fstrans_unmark(fstrans_cookie_t cookie)
 }
 
 int
-__spl_pf_fstrans_check(void)
-{
-	return (0);
-}
-
-int
 kmem_cache_reap_active(void)
 {
 	return (0);
 }
 
 void
-zvol_create_minor(const char *name)
-{
-	(void) name;
-}
-
-void
-zvol_create_minors_recursive(const char *name)
+zvol_create_minors(const char *name)
 {
 	(void) name;
 }
@@ -1073,8 +1061,8 @@ zvol_rename_minors(spa_t *spa, const char *oldname, const char *newname,
 int
 zfs_file_open(const char *path, int flags, int mode, zfs_file_t **fpp)
 {
-	int fd = -1;
-	int dump_fd = -1;
+	int fd;
+	int dump_fd;
 	int err;
 	int old_umask = 0;
 	zfs_file_t *fp;

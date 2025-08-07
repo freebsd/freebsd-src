@@ -1399,14 +1399,15 @@ If this setting is 0, then even if feature@block_cloning is enabled,
 using functions and system calls that attempt to clone blocks will act as
 though the feature is disabled.
 .
-.It Sy zfs_bclone_wait_dirty Ns = Ns Sy 0 Ns | Ns 1 Pq int
-When set to 1 the FICLONE and FICLONERANGE ioctls wait for dirty data to be
-written to disk.
-This allows the clone operation to reliably succeed when a file is
+.It Sy zfs_bclone_wait_dirty Ns = Ns Sy 1 Ns | Ns 0 Pq int
+When set to 1 the FICLONE and FICLONERANGE ioctls will wait for any dirty
+data to be written to disk before proceeding.
+This ensures that the clone operation reliably succeeds, even if a file is
 modified and then immediately cloned.
-For small files this may be slower than making a copy of the file.
-Therefore, this setting defaults to 0 which causes a clone operation to
-immediately fail when encountering a dirty block.
+Note that for small files this may be slower than simply copying the file.
+When set to 0 the clone operation will immediately fail if it encounters
+any dirty blocks.
+By default waiting is enabled.
 .
 .It Sy zfs_blake3_impl Ns = Ns Sy fastest Pq string
 Select a BLAKE3 implementation.
@@ -1713,10 +1714,19 @@ Similar to
 but for cleanup of old indirection records for removed vdevs.
 .
 .It Sy zfs_immediate_write_sz Ns = Ns Sy 32768 Ns B Po 32 KiB Pc Pq s64
-Largest data block to write to the ZIL.
-Larger blocks will be treated as if the dataset being written to had the
-.Sy logbias Ns = Ns Sy throughput
-property set.
+Largest write size to store the data directly into the ZIL if
+.Sy logbias Ns = Ns Sy latency .
+Larger writes may be written indirectly similar to
+.Sy logbias Ns = Ns Sy throughput .
+In presence of SLOG this parameter is ignored, as if it was set to infinity,
+storing all written data into ZIL to not depend on regular vdev latency.
+.
+.It Sy zil_special_is_slog Ns = Ns Sy 1 Ns | Ns 0 Pq int
+When enabled, and written blocks go to normal vdevs, treat present special
+vdevs as SLOGs.
+Blocks that go to the special vdevs are still written indirectly, as with
+.Sy logbias Ns = Ns Sy throughput .
+This parameter is ignored if an SLOG is present.
 .
 .It Sy zfs_initialize_value Ns = Ns Sy 16045690984833335022 Po 0xDEADBEEFDEADBEEE Pc Pq u64
 Pattern written to vdev free space by
@@ -2237,6 +2247,21 @@ Defer frees starting in this pass.
 Maximum memory used for prefetching a checkpoint's space map on each
 vdev while discarding the checkpoint.
 .
+.It Sy zfs_spa_note_txg_time Ns = Ns Sy 600 Pq uint
+This parameter defines, in seconds, how often the TXG time database will record
+a new TXG if it has changed.
+After the specified time interval has passed, and if the TXG number has changed,
+the new value is recorded in the database.
+These timestamps can later be used for more granular operations, such as
+scrubbing.
+.
+.It Sy zfs_spa_flush_txg_time Ns = Ns Sy 600 Pq uint
+This parameter defines, in seconds, how often the ZFS will flush
+the TXG time database to disk.
+It ensures that the data is actually written to persistent storage, which helps
+preserve the database in case of unexpected shutdown.
+The database is also automatically flushed during the export sequence.
+.
 .It Sy zfs_special_class_metadata_reserve_pct Ns = Ns Sy 25 Ns % Pq uint
 Only allow small data blocks to be allocated on the special and dedup vdev
 types when the available free space percentage on these vdevs exceeds this
@@ -2462,8 +2487,8 @@ code for this record type.
 The tunable has no effect if the feature is disabled.
 .
 .It Sy zfs_embedded_slog_min_ms Ns = Ns Sy 64 Pq uint
-Usually, one metaslab from each normal-class vdev is dedicated for use by
-the ZIL to log synchronous writes.
+Usually, one metaslab from each normal and special class vdev is dedicated
+for use by the ZIL to log synchronous writes.
 However, if there are fewer than
 .Sy zfs_embedded_slog_min_ms
 metaslabs in the vdev, this functionality is disabled.

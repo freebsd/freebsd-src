@@ -345,12 +345,6 @@ smallblk_changed_cb(void *arg, uint64_t newval)
 {
 	objset_t *os = arg;
 
-	/*
-	 * Inheritance and range checking should have been done by now.
-	 */
-	ASSERT(newval <= SPA_MAXBLOCKSIZE);
-	ASSERT(ISP2(newval));
-
 	os->os_zpl_special_smallblock = newval;
 }
 
@@ -1376,7 +1370,7 @@ dmu_objset_create(const char *name, dmu_objset_type_t type, uint64_t flags,
 	    6, ZFS_SPACE_CHECK_NORMAL);
 
 	if (rv == 0)
-		zvol_create_minor(name);
+		zvol_create_minors(name);
 
 	crfree(cr);
 

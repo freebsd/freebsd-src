@@ -621,7 +621,6 @@ extern uint64_t vdev_default_asize(vdev_t *vd, uint64_t psize, uint64_t txg);
 extern uint64_t vdev_default_min_asize(vdev_t *vd);
 extern uint64_t vdev_get_min_asize(vdev_t *vd);
 extern void vdev_set_min_asize(vdev_t *vd);
-extern uint64_t vdev_get_min_alloc(vdev_t *vd);
 extern uint64_t vdev_get_nparity(vdev_t *vd);
 extern uint64_t vdev_get_ndisks(vdev_t *vd);
 
@@ -645,10 +644,11 @@ extern int vdev_obsolete_counts_are_precise(vdev_t *vd, boolean_t *are_precise);
 int vdev_checkpoint_sm_object(vdev_t *vd, uint64_t *sm_obj);
 void vdev_metaslab_group_create(vdev_t *vd);
 uint64_t vdev_best_ashift(uint64_t logical, uint64_t a, uint64_t b);
-#if defined(__linux__)
+#if defined(__linux__) && defined(_KERNEL)
 int param_get_raidz_impl(char *buf, zfs_kernel_param_t *kp);
 #endif
 int param_set_raidz_impl(ZFS_MODULE_PARAM_ARGS);
+char *vdev_rt_name(vdev_t *vd, const char *name);
 
 /*
  * Vdev ashift optimization tunables
