@@ -73,12 +73,6 @@ struct rpc_gss_init_res {
 /* Maximum sequence number value. */
 #define MAXSEQ		0x80000000
 
-enum krb_imp {
-	KRBIMP_UNKNOWN,
-	KRBIMP_HESIOD1,
-	KRBIMP_MIT
-};
-
 /* Prototypes. */
 __BEGIN_DECLS
 
