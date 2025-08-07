@@ -202,7 +202,10 @@ vmexit_smccc(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 		smccc_rv = PSCI_VER(1, 0);
 		break;
 	case PSCI_FNID_CPU_SUSPEND:
+		break;
 	case PSCI_FNID_CPU_OFF:
+		CPU_CLR_ATOMIC(vcpu_id(vcpu), &running_cpumask);
+		vm_suspend_cpu(vcpu);
 		break;
 	case PSCI_FNID_CPU_ON:
 		mpidr = vme->u.smccc_call.args[0];
