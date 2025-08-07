@@ -129,7 +129,7 @@ STRIP?=	-s
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
 TAGS+=		package=${PACKAGE:Uutilities}
 .endif
-TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+TAG_ARGS=	-T ${TAGS:ts,:[*]}
 .endif
 
 .if defined(NO_SHARED) && ${NO_SHARED:tl} != "no"

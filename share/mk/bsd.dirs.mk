@@ -22,7 +22,7 @@ ${dir}_FLAG=	-f ${${dir}_FLAGS}
 .        if !defined(${dir}TAGS) || ! ${${dir}TAGS:Mpackage=*}
 ${dir}TAGS+=		package=${${dir}PACKAGE:Uutilities}
 .        endif
-${dir}TAG_ARGS=	-T ${${dir}TAGS:[*]:S/ /,/g}
+${dir}TAG_ARGS=	-T ${${dir}TAGS:ts,:[*]}
 .      endif
 
 installdirs: installdirs-${dir}

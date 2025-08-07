@@ -49,7 +49,7 @@ ${group}TAGS+=		package=${PACKAGE:Uutilities}
 .          endif
 .        endif
 ${group}TAGS+=		config
-${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
+${group}TAG_ARGS=	-T ${${group}TAGS:ts,:[*]}
 .      endif
 
 

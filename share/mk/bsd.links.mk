@@ -7,7 +7,7 @@
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
 TAGS+=         package=${PACKAGE}
 .endif
-TAG_ARGS=      -T ${TAGS:[*]:S/ /,/g}
+TAG_ARGS=      -T ${TAGS:ts,:[*]}
 .endif
 
 afterinstall: _installlinks
