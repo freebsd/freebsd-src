@@ -39,6 +39,7 @@
 #include <vmmapi.h>
 
 #include "config.h"
+#include "bhyve_machdep.h"
 #include "bhyverun.h"
 #include "fdt.h"
 
@@ -92,7 +93,7 @@ add_cpu(void *fdt, int cpuid)
 	fdt_begin_node(fdt, node_name);
 	fdt_property_string(fdt, "device_type", "cpu");
 	fdt_property_string(fdt, "compatible", "arm,armv8");
-	fdt_property_u64(fdt, "reg", cpuid);
+	fdt_property_u64(fdt, "reg", cpu_to_mpidr[cpuid]);
 	fdt_property_string(fdt, "enable-method", "psci");
 	fdt_end_node(fdt);
 }
