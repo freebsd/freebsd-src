@@ -22,7 +22,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 23, 2022
+.Dd August 7, 2025
 .Dt CPUSET 9
 .Os
 .Sh NAME
@@ -50,8 +50,10 @@
 .Nm CPU_ANDNOT ,
 .Nm CPU_XOR ,
 .Nm CPU_CLR_ATOMIC ,
+.Nm CPU_TEST_CLR_ATOMIC ,
 .Nm CPU_SET_ATOMIC ,
 .Nm CPU_SET_ATOMIC_ACQ ,
+.Nm CPU_TEST_SET_ATOMIC ,
 .Nm CPU_AND_ATOMIC ,
 .Nm CPU_OR_ATOMIC ,
 .Nm CPU_COPY_STORE_REL
@@ -93,8 +95,10 @@
 .Fn CPU_XOR "cpuset_t *dst" "cpuset_t *src1" "cpuset_t *src2"
 .\"
 .Fn CPU_CLR_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
+.Fn CPU_TEST_CLR_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
 .Fn CPU_SET_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
 .Fn CPU_SET_ATOMIC_ACQ "size_t cpu_idx" "cpuset_t *cpuset"
+.Fn CPU_TEST_SET_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
 .\"
 .Fn CPU_AND_ATOMIC "cpuset_t *dst" "cpuset_t *src"
 .Fn CPU_OR_ATOMIC "cpuset_t *dst" "cpuset_t *src"
@@ -143,6 +147,10 @@ The
 .Fn CPU_CLR_ATOMIC
 macro is identical, but the bit representing the CPU is cleared with atomic
 machine instructions.
+The
+.Fn CPU_TEST_CLR_ATOMIC
+macro atomically clears the bit representing the CPU and returns whether it
+was set.
 .Pp
 The
 .Fn CPU_COPY
@@ -176,6 +184,10 @@ machine instructions.
 The
 .Fn CPU_SET_ATOMIC_ACQ
 macro sets the bit representing the CPU with atomic acquire semantics.
+The
+.Fn CPU_TEST_SET_ATOMIC
+macro atomically sets the bit representing the CPU and returns whether it was
+set.
 .Pp
 The
 .Fn CPU_ISSET
