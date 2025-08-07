@@ -13,7 +13,7 @@ PACKAGE=	kerberos-lib
 
 .include "../Makefile.inc"
 
-SUBDIR=	krb5_private krb5 gssrpc gssapi
+SUBDIR=	krb5 gssrpc gssapi
 
 SUBDIR_PARALLEL=
 
