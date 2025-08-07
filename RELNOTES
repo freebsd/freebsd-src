@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+2ec2ba7e232d, df58e8b1506f (openzfs 2957eabbe), f61844833ee8, b1b607bd200f,
+	ee95e4d02dbd:
+	Add Solaris style extended attributes (called named attributes
+	in NFSv4).  At this time, only ZFS when the ZFS property called
+	xattr=dir and NFSv4 support them.  The attributes are presented
+	in a directory as regular files.  See named_attribute(7) for
+	more information.
+
 ef2a572bf6:
 	Inline IPSEC offload infrastructure and driver support for mlx5(4)
 	Nvidia ConnectX-6+ network cards were added.
