@@ -7863,7 +7863,7 @@ nothing_left:
 			/* tcp_close will kill the inp pre-log the Reset */
 			tcp_log_end_status(tp, TCP_EI_STATUS_SERVER_RST);
 			tp = tcp_close(tp);
-			ctf_do_dropwithreset(m, tp, th, BANDLIM_UNLIMITED, tlen);
+			ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, tlen);
 			BBR_STAT_INC(bbr_dropped_af_data);
 			return (1);
 		}
@@ -9405,7 +9405,7 @@ close_now:
 		tcp_log_end_status(tp, TCP_EI_STATUS_SERVER_RST);
 		tp = tcp_close(tp);
 		KMOD_TCPSTAT_INC(tcps_rcvafterclose);
-		ctf_do_dropwithreset(m, tp, th, BANDLIM_UNLIMITED, (*tlen));
+		ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, (*tlen));
 		return (1);
 	}
 	if (sbavail(&so->so_snd) == 0)
