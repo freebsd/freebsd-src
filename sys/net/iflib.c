@@ -70,6 +70,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <netinet/ip_var.h>
 #include <netinet6/ip6_var.h>
 
@@ -3372,42 +3373,28 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 #ifdef INET
 	case ETHERTYPE_IP:
 	{
-		struct mbuf *n;
-		struct ip *ip = NULL;
-		struct tcphdr *th = NULL;
-		int minthlen;
+		struct ip *ip;
+		struct tcphdr *th;
+		uint8_t hlen;
 
-		minthlen = min(m->m_pkthdr.len, pi->ipi_ehdrlen + sizeof(*ip) + sizeof(*th));
-		if (__predict_false(m->m_len < minthlen)) {
-			/*
-			 * if this code bloat is causing too much of a hit
-			 * move it to a separate function and mark it noinline
-			 */
-			if (m->m_len == pi->ipi_ehdrlen) {
-				n = m->m_next;
-				MPASS(n);
-				if (n->m_len >= sizeof(*ip))  {
-					ip = (struct ip *)n->m_data;
-					if (n->m_len >= (ip->ip_hl << 2) + sizeof(*th))
-						th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-				} else {
-					txq->ift_pullups++;
-					if (__predict_false((m = m_pullup(m, minthlen)) == NULL))
-						return (ENOMEM);
-					ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
-				}
-			} else {
-				txq->ift_pullups++;
-				if (__predict_false((m = m_pullup(m, minthlen)) == NULL))
-					return (ENOMEM);
-				ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
-				if (m->m_len >= (ip->ip_hl << 2) + sizeof(*th))
-					th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-			}
-		} else {
-			ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
-			if (m->m_len >= (ip->ip_hl << 2) + sizeof(*th))
-				th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+		hlen = pi->ipi_ehdrlen + sizeof(*ip);
+		if (__predict_false(m->m_len < hlen)) {
+			txq->ift_pullups++;
+			if (__predict_false((m = m_pullup(m, hlen)) == NULL))
+				return (ENOMEM);
+		}
+		ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
+		hlen = pi->ipi_ehdrlen + (ip->ip_hl << 2);
+		if (ip->ip_p == IPPROTO_TCP) {
+			hlen += sizeof(*th);
+			th = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
+		} else if (ip->ip_p == IPPROTO_UDP) {
+			hlen += sizeof(struct udphdr);
+		}
+		if (__predict_false(m->m_len < hlen)) {
+			txq->ift_pullups++;
+			if ((m = m_pullup(m, hlen)) == NULL)
+				return (ENOMEM);
 		}
 		pi->ipi_ip_hlen = ip->ip_hl << 2;
 		pi->ipi_ipproto = ip->ip_p;
@@ -3417,12 +3404,6 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		/* TCP checksum offload may require TCP header length */
 		if (IS_TX_OFFLOAD4(pi)) {
 			if (__predict_true(pi->ipi_ipproto == IPPROTO_TCP)) {
-				if (__predict_false(th == NULL)) {
-					txq->ift_pullups++;
-					if (__predict_false((m = m_pullup(m, (ip->ip_hl << 2) + sizeof(*th))) == NULL))
-						return (ENOMEM);
-					th = (struct tcphdr *)((caddr_t)ip + pi->ipi_ip_hlen);
-				}
 				pi->ipi_tcp_hflags = tcp_get_flags(th);
 				pi->ipi_tcp_hlen = th->th_off << 2;
 				pi->ipi_tcp_seq = th->th_seq;
