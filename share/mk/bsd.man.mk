@@ -114,7 +114,7 @@ ${__group}TAGS+=	package=${${__group}PACKAGE:U${PACKAGE:Uutilities}}-man
 .endif
 .endif
 
-${__group}TAG_ARGS=	-T ${${__group}TAGS:[*]:S/ /,/g}
+${__group}TAG_ARGS=	-T ${${__group}TAGS:ts,:[*]}
 .endif	# defined(NO_ROOT)
 
 ${__group}INSTALL?=	${INSTALL} ${${__group}TAG_ARGS} \
