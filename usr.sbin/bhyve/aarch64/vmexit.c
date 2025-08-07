@@ -47,6 +47,7 @@
 
 #include <vmmapi.h>
 
+#include "bhyve_machdep.h"
 #include "bhyverun.h"
 #include "config.h"
 #include "debug.h"
