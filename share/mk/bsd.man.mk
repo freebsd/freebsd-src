@@ -291,8 +291,8 @@ manlinksinstall-${__group}:
 manlint:
 .if defined(${__group}) && !empty(${__group})
 .for __page in ${${__group}}
-manlint: ${__page}lint
-${__page}lint: ${__page}
+manlint: ${__page:S/:/\:/g}lint
+${__page:S/:/\:/g}lint: ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} -Tlint
 .else
