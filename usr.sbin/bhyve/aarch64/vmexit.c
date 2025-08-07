@@ -152,7 +152,7 @@ vmexit_bogus(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
 static uint64_t
 smccc_affinity_info(uint64_t target_affinity, uint32_t lowest_affinity_level)
 {
-	uint64_t cpu_aff, mask = 0;
+	uint64_t mask = 0;
 
 	switch (lowest_affinity_level) {
 	case 0:
@@ -172,13 +172,7 @@ smccc_affinity_info(uint64_t target_affinity, uint32_t lowest_affinity_level)
 	}
 
 	for (int vcpu = 0; vcpu < guest_ncpus; vcpu++) {
-		/* TODO: We should get this from the kernel */
-		cpu_aff = (vcpu & 0xf) << MPIDR_AFF0_SHIFT |
-		    ((vcpu >> 4) & 0xff) << MPIDR_AFF1_SHIFT |
-		    ((vcpu >> 12) & 0xff) << MPIDR_AFF2_SHIFT |
-		    (uint64_t)((vcpu >> 20) & 0xff) << MPIDR_AFF3_SHIFT;
-
-		if ((cpu_aff & mask) == (target_affinity & mask) &&
+		if ((cpu_to_mpidr[vcpu] & mask) == (target_affinity & mask) &&
 		    CPU_ISSET(vcpu, &running_cpumask)) {
 			/* Return ON if any CPUs are on */
 			return (PSCI_AFFINITY_INFO_ON);
@@ -194,9 +188,9 @@ vmexit_smccc(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 {
 	struct vcpu *newvcpu;
 	struct vm_exit *vme;
-	uint64_t newcpu, smccc_rv;
+	uint64_t mpidr, smccc_rv;
 	enum vm_suspend_how how;
-	int error;
+	int error, newcpu;
 
 	/* Return the Unknown Function Identifier  by default */
 	smccc_rv = SMCCC_RET_NOT_SUPPORTED;
@@ -211,8 +205,13 @@ vmexit_smccc(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 	case PSCI_FNID_CPU_OFF:
 		break;
 	case PSCI_FNID_CPU_ON:
-		newcpu = vme->u.smccc_call.args[0];
-		if (newcpu > (uint64_t)guest_ncpus) {
+		mpidr = vme->u.smccc_call.args[0];
+		for (newcpu = 0; newcpu < guest_ncpus; newcpu++) {
+			if (cpu_to_mpidr[newcpu] == mpidr)
+				break;
+		}
+
+		if (newcpu == guest_ncpus) {
 			smccc_rv = PSCI_RETVAL_INVALID_PARAMS;
 			break;
 		}
