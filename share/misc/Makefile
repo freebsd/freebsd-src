@@ -2,8 +2,9 @@
 
 .PATH:	${.CURDIR}/../../sys/dev/usb
 
+FILESGROUPS=	FILES
 FILES=	ascii birthtoken bsd-family-tree committers-doc.dot committers-ports.dot \
-	committers-src.dot flowers init.ee \
+	committers-src.dot flowers \
 	iso3166 iso639 latin1 mdoc.template operator pci_vendors \
 	scsi_modes usb_vendors \
 	organization.dot
@@ -13,6 +14,13 @@ FILESDIR=	${BINDIR}/misc
 .if ${MK_USB} != "no"
 FILES+=	usb_hid_usages
 FILES+=	usbdevs
+.endif
+
+.if ${MK_EE} != "no"
+FILESGROUPS+=	EE
+EE=		init.ee
+EEDIR=		${FILESDIR}
+EEPACKAGE=	ee
 .endif
 
 .include <bsd.prog.mk>
