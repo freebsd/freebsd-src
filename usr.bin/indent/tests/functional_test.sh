@@ -3,6 +3,7 @@
 #
 # Copyright 2016 Dell EMC
 # All rights reserved.
+# Copyright (c) 2025 Klara, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -56,9 +57,26 @@ add_legacy_testcase()
 	atf_add_test_case ${tc%.[0-9]}
 }
 
+atf_test_case backup_suffix
+backup_suffix_body()
+{
+	local argmax=$(sysctl -n kern.argmax)
+	local suffix=$(jot -b .bak -s '' $((argmax/5)))
+	local code=$'int main() {}\n'
+
+	printf "${code}" >input.c
+
+	atf_check indent input.c
+	atf_check -o inline:"${code}" cat input.c.BAK
+
+	atf_check -s exit:1 -e match:"name too long"\
+	    env SIMPLE_BACKUP_SUFFIX=${suffix} indent input.c
+}
+
 atf_init_test_cases()
 {
 	for tc in $(find -s "${SRCDIR}" -name '*.[0-9]'); do
 		add_legacy_testcase "${tc##*/}"
 	done
+	atf_add_test_case backup_suffix
 }
