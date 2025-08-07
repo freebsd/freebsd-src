@@ -84,7 +84,7 @@ TRFLAGS+=	-t
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
 TAGS+=		package=${PACKAGE:Uutilities}
 .endif
-TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+TAG_ARGS=	-T ${TAGS:ts,:[*]}
 .endif
 
 DCOMPRESS_EXT?=	${COMPRESS_EXT}
