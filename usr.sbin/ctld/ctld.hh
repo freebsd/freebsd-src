@@ -157,7 +157,7 @@ struct portal {
 	virtual void handle_connection(freebsd::fd_up fd, const char *host,
 	    const struct sockaddr *client_sa) = 0;
 
-	portal_group *portal_group() const { return p_portal_group; }
+	struct portal_group *portal_group() const { return p_portal_group; }
 	const char *listen() const { return p_listen.c_str(); }
 	const addrinfo *ai() const { return p_ai.get(); }
 	portal_protocol protocol() const { return p_protocol; }
@@ -196,7 +196,7 @@ struct portal_group {
 	bool is_redirecting() const { return !pg_redirection.empty(); }
 	struct auth_group *discovery_auth_group() const
 	{ return pg_discovery_auth_group.get(); }
-	discovery_filter discovery_filter() const
+	enum discovery_filter discovery_filter() const
 	{ return pg_discovery_filter; }
 	int dscp() const { return pg_dscp; }
 	const char *offload() const { return pg_offload.c_str(); }

@@ -62,7 +62,7 @@ private:
 
 	struct nvme_controller_data cdata;
 
-	const discovery_log &discovery_log;
+	const struct discovery_log &discovery_log;
 	freebsd::fd_up s;
 };
 
