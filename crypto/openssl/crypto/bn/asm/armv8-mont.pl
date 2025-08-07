@@ -1900,6 +1900,7 @@ __bn_mul4x_mont:
 ___
 }
 $code.=<<___;
+.rodata
 .asciz	"Montgomery Multiplication for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align	4
 ___
