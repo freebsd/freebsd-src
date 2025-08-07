@@ -1418,7 +1418,7 @@ uclparse_conf(const char *path)
 	bool parsed;
 	try {
 		parsed = uclparse_toplevel(top);
-	} catch (std::bad_alloc) {
+	} catch (std::bad_alloc &) {
 		log_warnx("failed to allocate memory parsing %s", path);
 		parsed = false;
 	} catch (...) {
