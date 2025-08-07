@@ -33,8 +33,6 @@
 #include <sys/select.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_select, __select);
-
 #pragma weak select
 int
 select(int n, fd_set *rs, fd_set *ws, fd_set *es, struct timeval *t)

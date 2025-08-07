@@ -422,6 +422,12 @@ libusb_get_next_timeout(libusb_context *ctx, struct timeval *tv)
 	return (0);
 }
 
+int
+libusb_pollfds_handle_timeouts(libusb_context *ctx)
+{
+	return (1);
+}
+
 void
 libusb_set_pollfd_notifiers(libusb_context *ctx,
     libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
@@ -781,6 +787,19 @@ libusb_fill_interrupt_transfer(struct libusb_transfer *transfer,
 }
 
 void
+libusb_fill_bulk_stream_transfer(struct libusb_transfer *transfer,
+    libusb_device_handle *dev_handle, unsigned char endpoint,
+    uint32_t stream_id, unsigned char *buffer, int length,
+    libusb_transfer_cb_fn callback, void *user_data, unsigned int timeout)
+{
+	libusb_fill_bulk_transfer(transfer, dev_handle, endpoint, buffer,
+	    length, callback, user_data, timeout);
+	transfer->type = LIBUSB_TRANSFER_TYPE_BULK_STREAM;
+
+	libusb_transfer_set_stream_id(transfer, stream_id);
+}
+
+void
 libusb_fill_iso_transfer(struct libusb_transfer *transfer, 
     libusb_device_handle *devh, uint8_t endpoint, uint8_t *buf,
     int length, int npacket, libusb_transfer_cb_fn callback,
@@ -841,4 +860,13 @@ libusb_transfer_get_stream_id(struct libusb_transfer *transfer)
 
 	/* get stream ID */
 	return (sxfer->stream_id);
+}
+
+void
+libusb_free_pollfds(const struct libusb_pollfd **pollfds)
+{
+	if (pollfds == NULL)
+		return;
+
+	free(pollfds);
 }

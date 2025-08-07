@@ -414,3 +414,21 @@ void libusb_hotplug_deregister_callback(libusb_context *ctx,
 
 	free(handle);
 }
+
+void *
+libusb_hotplug_get_user_data(struct libusb_context *ctx,
+    libusb_hotplug_callback_handle callback_handle)
+{
+	libusb_hotplug_callback_handle handle;
+
+	ctx = GET_CONTEXT(ctx);
+
+	HOTPLUG_LOCK(ctx);
+	TAILQ_FOREACH(handle, &ctx->hotplug_cbh, entry) {
+		if (handle == callback_handle)
+			break;
+	}
+	HOTPLUG_UNLOCK(ctx);
+
+	return (handle);
+}

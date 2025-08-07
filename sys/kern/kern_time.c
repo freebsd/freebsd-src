@@ -571,7 +571,10 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 				td->td_rtcgen =
 				    atomic_load_acq_int(&rtc_generation);
 			error = kern_clock_gettime(td, clock_id, &now);
-			KASSERT(error == 0, ("kern_clock_gettime: %d", error));
+			if (error != 0) {
+				td->td_rtcgen = 0;
+				return (error);
+			}
 			timespecsub(&ts, &now, &ts);
 		}
 		if (ts.tv_sec < 0 || (ts.tv_sec == 0 && ts.tv_nsec == 0)) {

@@ -1209,6 +1209,13 @@ top:
 			argc -= 2, argv += 2;
 		} else if (p->c_parameter == SPARAM && p->c_u.c_func3) {
 			p->c_u.c_func3(ctx, *argv, p->c_sparameter);
+		} else if (p->c_parameter == ARGVECTOR && p->c_u.c_funcv) {
+			int argsdone;
+
+			argsdone = p->c_u.c_funcv(ctx, argc - 1,
+			    (const char *const *)argv + 1);
+			argc -= argsdone;
+			argv += argsdone;
 		} else if (p->c_u.c_func)
 			p->c_u.c_func(ctx, *argv, p->c_parameter);
 		argc--, argv++;
@@ -2087,11 +2094,6 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-alias",	-IFF_UP,	notealias),
 	DEF_CMD("delete",	-IFF_UP,	notealias),
 	DEF_CMD("remove",	-IFF_UP,	notealias),
-#ifdef notdef
-#define	EN_SWABIPS	0x1000
-	DEF_CMD("swabips",	EN_SWABIPS,	setifflags),
-	DEF_CMD("-swabips",	EN_SWABIPS,	clearifflags),
-#endif
 	DEF_CMD_ARG("netmask",			setifnetmask),
 	DEF_CMD_ARG("metric",			setifmetric),
 	DEF_CMD_ARG("broadcast",		setifbroadaddr),

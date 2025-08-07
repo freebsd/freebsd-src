@@ -8,7 +8,6 @@
 # CI Makefile for powerpc64le.
 #
 QEMU_ARCH=ppc64
-QEMU_DEVICES=-device virtio-blk,drive=hd0
 QEMU_EXTRA_PARAM=-vga none -accel tcg,thread=multi
 QEMU_MACHINE=pseries,cap-hpt-max-page-size=16M
 QEMU_MAX_CPU_COUNT=1

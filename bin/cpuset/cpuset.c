@@ -43,6 +43,7 @@
 #include <err.h>
 #include <errno.h>
 #include <jail.h>
+#include <libutil.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,154 +69,6 @@ static cpulevel_t level;
 static cpuwhich_t which;
 
 static void usage(void) __dead2;
-
-struct numa_policy {
-	const char 	*name;
-	int		policy;
-};
-
-static struct numa_policy policies[] = {
-	{ "round-robin", DOMAINSET_POLICY_ROUNDROBIN },
-	{ "rr", DOMAINSET_POLICY_ROUNDROBIN },
-	{ "first-touch", DOMAINSET_POLICY_FIRSTTOUCH },
-	{ "ft", DOMAINSET_POLICY_FIRSTTOUCH },
-	{ "prefer", DOMAINSET_POLICY_PREFER },
-	{ "interleave", DOMAINSET_POLICY_INTERLEAVE},
-	{ "il", DOMAINSET_POLICY_INTERLEAVE},
-	{ NULL, DOMAINSET_POLICY_INVALID }
-};
-
-static void printset(struct bitset *mask, int size);
-
-static void
-parselist(char *list, struct bitset *mask, int size)
-{
-	enum { NONE, NUM, DASH } state;
-	int lastnum;
-	int curnum;
-	char *l;
-
-	state = NONE;
-	curnum = lastnum = 0;
-	for (l = list; *l != '\0';) {
-		if (isdigit(*l)) {
-			curnum = atoi(l);
-			if (curnum >= size)
-				errx(EXIT_FAILURE,
-				    "List entry %d exceeds maximum of %d",
-				    curnum, size - 1);
-			while (isdigit(*l))
-				l++;
-			switch (state) {
-			case NONE:
-				lastnum = curnum;
-				state = NUM;
-				break;
-			case DASH:
-				for (; lastnum <= curnum; lastnum++)
-					BIT_SET(size, lastnum, mask);
-				state = NONE;
-				break;
-			case NUM:
-			default:
-				goto parserr;
-			}
-			continue;
-		}
-		switch (*l) {
-		case ',':
-			switch (state) {
-			case NONE:
-				break;
-			case NUM:
-				BIT_SET(size, curnum, mask);
-				state = NONE;
-				break;
-			case DASH:
-				goto parserr;
-				break;
-			}
-			break;
-		case '-':
-			if (state != NUM)
-				goto parserr;
-			state = DASH;
-			break;
-		default:
-			goto parserr;
-		}
-		l++;
-	}
-	switch (state) {
-		case NONE:
-			break;
-		case NUM:
-			BIT_SET(size, curnum, mask);
-			break;
-		case DASH:
-			goto parserr;
-	}
-	return;
-parserr:
-	errx(EXIT_FAILURE, "Malformed list %s", list);
-}
-
-static void
-parsecpulist(char *list, cpuset_t *mask)
-{
-
-	if (strcasecmp(list, "all") == 0) {
-		if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
-		    sizeof(*mask), mask) != 0)
-			err(EXIT_FAILURE, "getaffinity");
-		return;
-	}
-	parselist(list, (struct bitset *)mask, CPU_SETSIZE);
-}
-
-/*
- * permissively parse policy:domain list
- * allow:
- *	round-robin:0-4		explicit
- *	round-robin:all		explicit root domains
- *	0-4			implicit root policy
- *	round-robin		implicit root domains
- *	all			explicit root domains and implicit policy
- */
-static void
-parsedomainlist(char *list, domainset_t *mask, int *policyp)
-{
-	domainset_t rootmask;
-	struct numa_policy *policy;
-	char *l;
-	int p;
-
-	/*
-	 * Use the rootset's policy as the default for unspecified policies.
-	 */
-	if (cpuset_getdomain(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
-	    sizeof(rootmask), &rootmask, &p) != 0)
-		err(EXIT_FAILURE, "getdomain");
-
-	l = list;
-	for (policy = &policies[0]; policy->name != NULL; policy++) {
-		if (strncasecmp(l, policy->name, strlen(policy->name)) == 0) {
-			p = policy->policy;
-			l += strlen(policy->name);
-			if (*l != ':' && *l != '\0')
-				errx(EXIT_FAILURE, "Malformed list %s", list);
-			if (*l == ':')
-				l++;
-			break;
-		}
-	}
-	*policyp = p;
-	if (strcasecmp(l, "all") == 0 || *l == '\0') {
-		DOMAINSET_COPY(&rootmask, mask);
-		return;
-	}
-	parselist(l, (struct bitset *)mask, DOMAINSET_SETSIZE);
-}
 
 static void
 printset(struct bitset *mask, int size)
@@ -327,11 +180,11 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			lflag = 1;
-			parsecpulist(optarg, &mask);
+			cpuset_parselist(optarg, &mask);
 			break;
 		case 'n':
 			nflag = 1;
-			parsedomainlist(optarg, &domains, &policy);
+			domainset_parselist(optarg, &domains, &policy);
 			break;
 		case 'p':
 			pflag = 1;

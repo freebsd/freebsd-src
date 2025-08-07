@@ -74,6 +74,7 @@
 #include <sys/malloc.h>
 #include <sys/random.h>
 #include <sys/ctype.h>
+#include <sys/osd.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -178,6 +179,7 @@ struct tuntap_softc {
 static struct mtx tunmtx;
 static eventhandler_tag arrival_tag;
 static eventhandler_tag clone_tag;
+static int tuntap_osd_jail_slot;
 static const char tunname[] = "tun";
 static const char tapname[] = "tap";
 static const char vmnetname[] = "vmnet";
@@ -497,6 +499,10 @@ vmnet_clone_match(struct if_clone *ifc, const char *name)
 	return (0);
 }
 
+/*
+ * Create a clone via the ifnet cloning mechanism.  Note that this is invoked
+ * indirectly by tunclone() below.
+ */
 static int
 tun_clone_create(struct if_clone *ifc, char *name, size_t len,
     struct ifc_data *ifd, struct ifnet **ifpp)
@@ -532,15 +538,19 @@ tun_clone_create(struct if_clone *ifc, char *name, size_t len,
 	if (i != 0)
 		i = tun_create_device(drv, unit, NULL, &dev, name);
 	if (i == 0) {
-		dev_ref(dev);
+		struct tuntap_softc *tp;
+
 		tuncreate(dev);
-		struct tuntap_softc *tp = dev->si_drv1;
+		tp = dev->si_drv1;
 		*ifpp = tp->tun_ifp;
 	}
 
 	return (i);
 }
 
+/*
+ * Create a clone via devfs access.
+ */
 static void
 tunclone(void *arg, struct ucred *cred, char *name, int namelen,
     struct cdev **dev)
@@ -595,11 +605,12 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 		}
 
 		i = tun_create_device(drv, u, cred, dev, name);
-	}
-	if (i == 0) {
+	} else {
+		/* Consumed by the dev_clone invoker. */
 		dev_ref(*dev);
-		if_clone_create(name, namelen, NULL);
 	}
+	if (i == 0)
+		if_clone_create(name, namelen, NULL);
 out:
 	CURVNET_RESTORE();
 }
@@ -670,16 +681,6 @@ VNET_SYSINIT(vnet_tun_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
 		vnet_tun_init, NULL);
 
 static void
-vnet_tun_uninit(const void *unused __unused)
-{
-
-	for (u_int i = 0; i < NDRV; ++i)
-		if_clone_detach(V_tuntap_driver_cloners[i]);
-}
-VNET_SYSUNINIT(vnet_tun_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
-    vnet_tun_uninit, NULL);
-
-static void
 tun_uninit(const void *unused __unused)
 {
 	struct tuntap_driver *drv;
@@ -688,6 +689,16 @@ tun_uninit(const void *unused __unused)
 
 	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, arrival_tag);
 	EVENTHANDLER_DEREGISTER(dev_clone, clone_tag);
+
+	CURVNET_SET(vnet0);
+	for (u_int i = 0; i < NDRV; i++) {
+		if_clone_detach(V_tuntap_driver_cloners[i]);
+		V_tuntap_driver_cloners[i] = NULL;
+	}
+	CURVNET_RESTORE();
+
+	if (tuntap_osd_jail_slot != 0)
+		osd_jail_deregister(tuntap_osd_jail_slot);
 
 	mtx_lock(&tunmtx);
 	while ((tp = TAILQ_FIRST(&tunhead)) != NULL) {
@@ -724,6 +735,30 @@ tuntap_driver_from_ifnet(const struct ifnet *ifp)
 	return (NULL);
 }
 
+/*
+ * Remove devices that were created by devfs cloning, as they hold references
+ * which prevent the prison from collapsing, in which state VNET sysuninits will
+ * not be invoked.
+ */
+static int
+tuntap_prison_remove(void *obj, void *data __unused)
+{
+#ifdef VIMAGE
+	struct prison *pr;
+
+	pr = obj;
+	if (prison_owns_vnet(pr)) {
+		CURVNET_SET(pr->pr_vnet);
+		for (u_int i = 0; i < NDRV; i++) {
+			if_clone_detach(V_tuntap_driver_cloners[i]);
+			V_tuntap_driver_cloners[i] = NULL;
+		}
+		CURVNET_RESTORE();
+	}
+#endif
+	return (0);
+}
+
 static int
 tuntapmodevent(module_t mod, int type, void *data)
 {
@@ -738,8 +773,12 @@ tuntapmodevent(module_t mod, int type, void *data)
 			clone_setup(&drv->clones);
 			drv->unrhdr = new_unrhdr(0, IF_MAXUNIT, &tunmtx);
 		}
+		osd_method_t methods[PR_MAXMETHOD] = {
+			[PR_METHOD_REMOVE] = tuntap_prison_remove,
+		};
+		tuntap_osd_jail_slot = osd_jail_register(NULL, methods);
 		arrival_tag = EVENTHANDLER_REGISTER(ifnet_arrival_event,
-		   tunrename, 0, 1000);
+		    tunrename, 0, 1000);
 		if (arrival_tag == NULL)
 			return (ENOMEM);
 		clone_tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
@@ -747,7 +786,7 @@ tuntapmodevent(module_t mod, int type, void *data)
 			return (ENOMEM);
 		break;
 	case MOD_UNLOAD:
-		/* See tun_uninit, so it's done after the vnet_sysuninit() */
+		/* See tun_uninit(). */
 		break;
 	default:
 		return EOPNOTSUPP;
@@ -798,6 +837,8 @@ tun_create_device(struct tuntap_driver *drv, int unit, struct ucred *cr,
 	args.mda_si_drv1 = tp;
 	error = make_dev_s(&args, dev, "%s", name);
 	if (error != 0) {
+		mtx_destroy(&tp->tun_mtx);
+		cv_destroy(&tp->tun_cv);
 		free(tp, M_TUN);
 		return (error);
 	}
@@ -914,7 +955,6 @@ tap_transmit(struct ifnet *ifp, struct mbuf *m)
 	return (error);
 }
 
-/* XXX: should return an error code so it can fail. */
 static void
 tuncreate(struct cdev *dev)
 {

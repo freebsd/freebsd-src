@@ -200,16 +200,14 @@
 #define	VM_MIN_KERNEL_ADDRESS		kva_layout.km_low
 #define	VM_MAX_KERNEL_ADDRESS		kva_layout.km_high
 
-#define	KASAN_MIN_ADDRESS	KV4ADDR(KASANPML4I, 0, 0, 0)
-#define	KASAN_MAX_ADDRESS	KV4ADDR(KASANPML4I + NKASANPML4E, 0, 0, 0)
+#define	KASAN_MIN_ADDRESS		(kva_layout.kasan_shadow_low)
+#define	KASAN_MAX_ADDRESS		(kva_layout.kasan_shadow_high)
 
-#define	KMSAN_SHAD_MIN_ADDRESS	KV4ADDR(KMSANSHADPML4I, 0, 0, 0)
-#define	KMSAN_SHAD_MAX_ADDRESS	KV4ADDR(KMSANSHADPML4I + NKMSANSHADPML4E, \
-					0, 0, 0)
+#define	KMSAN_SHAD_MIN_ADDRESS		(kva_layout.kmsan_shadow_low)
+#define	KMSAN_SHAD_MAX_ADDRESS		(kva_layout.kmsan_shadow_high)
 
-#define	KMSAN_ORIG_MIN_ADDRESS	KV4ADDR(KMSANORIGPML4I, 0, 0, 0)
-#define	KMSAN_ORIG_MAX_ADDRESS	KV4ADDR(KMSANORIGPML4I + NKMSANORIGPML4E, \
-					0, 0, 0)
+#define	KMSAN_ORIG_MIN_ADDRESS		(kva_layout.kmsan_origin_low)
+#define	KMSAN_ORIG_MAX_ADDRESS		(kva_layout.kmsan_origin_high)
 
 /*
  * Formally kernel mapping starts at KERNBASE, but kernel linker

@@ -202,33 +202,6 @@ mk_nogeli_mbr_ufs_both() {
     rm -f ${src}/etc/fstab
 }
 
-mk_nogeli_mbr_zfs_legacy() {
-    src=$1
-    img=$2
-    mntpt=$3
-    geli=$4
-    scheme=$5
-    fs=$6
-    bios=$7
-    pool=nogeli-mbr-zfs-legacy
-
-    zfs_extra $src $dst
-    makefs -t zfs -s 200m \
-	-o poolname=${pool} -o bootfs=${pool} -o rootpath=/ \
-	${img}.s1a ${src} ${dst}
-    # The old boot1/boot2 boot split is also used by zfs. We need to extract zfsboot1
-    # from this image. Since there's no room in the mbr format for the rest of the loader,
-    # it will load the zfsboot loader from the reserved for bootloader area of the ZFS volume
-    # being booted, hence the need to dd it into the raw img later.
-    # Please note: zfsboot only works with partition 'a' which must be the root
-    # partition / zfs volume
-    dd if=${src}/boot/zfsboot of=${dst}/zfsboot1 count=1
-    mkimg -s bsd -b ${dst}zfsboot1 -p freebsd-zfs:=${img}.s1a -o ${img}.s1
-    dd if=${src}/boot/zfsboot of=${img}.s1a skip=1 seek=1024
-    mkimg -a 1 -s mbr -b ${src}/boot/mbr -p freebsd:=${img}.s1 -o ${img}
-    rm -rf ${dst}
-}
-
 mk_nogeli_mbr_zfs_uefi() {
     src=$1
     img=$2
@@ -244,36 +217,9 @@ mk_nogeli_mbr_zfs_uefi() {
     makefs -t zfs -s 200m \
 	-o poolname=${pool} -o bootfs=${pool} -o rootpath=/ \
 	${img}.s2a ${src} ${dst}
-    mkimg -s bsd -b ${dst}zfsboot1 -p freebsd-zfs:=${img}.s2a -o ${img}.s2
+    mkimg -s bsd -p freebsd-zfs:=${img}.s2a -o ${img}.s2
     mkimg -a 1 -s mbr -b ${src}/boot/mbr -p efi:=${img}.s1 -p freebsd:=${img}.s2 -o ${img}
     rm -rf ${dst}
-}
-
-mk_nogeli_mbr_zfs_both() {
-    src=$1
-    img=$2
-    mntpt=$3
-    geli=$4
-    scheme=$5
-    fs=$6
-    bios=$7
-    pool=nogeli-mbr-zfs-both
-
-    zfs_extra $src $dst
-    make_esp_file ${img}.s1 ${espsize} ${src}/boot/loader.efi
-    makefs -t zfs -s 200m \
-	-o poolname=${pool} -o bootfs=${pool} -o rootpath=/ \
-	${img}.s2a ${src} ${dst}
-    # The old boot1/boot2 boot split is also used by zfs. We need to extract zfsboot1
-    # from this image. Since there's no room in the mbr format for the rest of the loader,
-    # it will load the zfsboot loader from the reserved for bootloader area of the ZFS volume
-    # being booted, hence the need to dd it into the raw img later.
-    # Please note: zfsboot only works with partition 'a' which must be the root
-    # partition / zfs volume
-    dd if=${src}/boot/zfsboot of=${dst}/zfsboot1 count=1
-    mkimg -s bsd -b ${dst}zfsboot1 -p freebsd-zfs:=${img}.s2a -o ${img}.s2
-    dd if=${src}/boot/zfsboot of=${img}.s1a skip=1 seek=1024
-    mkimg -a 1 -s mbr -b ${src}/boot/mbr -p efi:=${img}.s1 -p freebsd:=${img}.s2 -o ${img}
 }
 
 mk_geli_gpt_ufs_legacy() {
@@ -728,6 +674,10 @@ for arch in amd64; do
 	for scheme in gpt mbr; do
 	    for fs in ufs zfs; do
 		for bios in legacy uefi both; do
+		    # ZFS+MBR+BIOS is not supported
+		    if [ "$scheme" = "mbr" -a "$fs" = "zfs" -a "$bios" != "uefi" ]; then
+			continue
+		    fi
 		    make_one_image ${arch} ${geli} ${scheme} ${fs} ${bios}
 		done
 	    done
@@ -750,6 +700,11 @@ for arch in i386; do
 		for bios in legacy; do
 		    # The legacy boot is shared with amd64 so those routines could
 		    # likely be used here.
+
+		    # ZFS+MBR+BIOS is not supported
+		    if [ "$scheme" = "mbr" -a "$fs" = "zfs" -a "$bios" != "uefi" ]; then
+			continue
+		    fi
 		    make_one_image ${arch} ${geli} ${scheme} ${fs} ${bios}
 		done
 	    done

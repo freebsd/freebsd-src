@@ -400,7 +400,7 @@ sack_filter_run(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 			break;
 		}
 		/* Copy it out to the outbound */
-		memcpy(&in[at], &blkboard[i], sizeof(struct sackblk));		
+		memcpy(&in[at], &blkboard[i], sizeof(struct sackblk));
 		at++;
 		room--;
 		/* now lets add it to our sack-board */
@@ -588,7 +588,7 @@ sack_filter_blks(struct tcpcb *tp, struct sack_filter *sf, struct sackblk *in, i
 
 		sf->sf_ack = th_ack;
 		for(i=0, sf->sf_cur=0; i<numblks; i++) {
-			if ((in[i].end != tp->snd_max) && 
+			if ((in[i].end != tp->snd_max) &&
 			    ((in[i].end - in[i].start) < segmax)) {
 				/*
 				 * We do not accept blocks less than a MSS minus all
@@ -707,7 +707,7 @@ main(int argc, char **argv)
 	out = stdout;
 	memset(&tp, 0, sizeof(tp));
 	tp.t_maxseg = 1460;
-	
+
 	while ((i = getopt(argc, argv, "dIi:o:?hS:")) != -1) {
 		switch (i) {
 		case 'S':
@@ -883,7 +883,7 @@ main(int argc, char **argv)
 			} else {
 				printf("can't open sack_setup.bin -- sorry no load\n");
 			}
-			
+
 		} else if (strncmp(buffer, "help", 4) == 0) {
 help:
 			fprintf(out, "You can input:\n");

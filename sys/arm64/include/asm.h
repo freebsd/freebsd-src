@@ -77,10 +77,11 @@
  * to the given label. The tmp register should be a register able to hold the
  * temporary data.
  */
-#define CHECK_CPU_FEAT(tmp, feat_reg, feat, label)	\
-	mrs tmp, ##feat_reg##_el1;	\
+#define CHECK_CPU_FEAT(tmp, feat_reg, feat, min_val, label)	\
+	mrs tmp, ##feat_reg##_el1;				\
 	ubfx tmp, tmp, ##feat_reg##_##feat##_SHIFT, ##feat_reg##_##feat##_WIDTH; \
-	cbz tmp, label
+	cmp tmp, #(##feat_reg##_##feat##_##min_val## >> ##feat_reg##_##feat##_SHIFT); \
+	b.lt label
 
 /*
  * Sets the trap fault handler. The exception handler will return to the

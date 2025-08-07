@@ -509,11 +509,9 @@ void
 ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
     int32_t rstreason, int32_t tlen)
 {
-	if (tp != NULL) {
-		tcp_dropwithreset(m, th, tp, tlen, rstreason);
+	tcp_dropwithreset(m, th, tp, tlen, rstreason);
+	if (tp != NULL)
 		INP_WUNLOCK(tptoinpcb(tp));
-	} else
-		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 }
 
 void
@@ -672,7 +670,7 @@ ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t
 	    (SEQ_GT(tp->snd_una, th->th_ack) ||
 	    SEQ_GT(th->th_ack, tp->snd_max))) {
 		*ret_val = 1;
-		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
+		ctf_do_dropwithreset(m, tp, th, BANDLIM_TCP_RST, tlen);
 		return;
 	} else
 		*ret_val = 0;

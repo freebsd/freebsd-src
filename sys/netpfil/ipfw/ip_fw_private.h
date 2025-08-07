@@ -489,6 +489,7 @@ struct obj_idx {
 
 struct rule_check_info {
 	uint16_t	flags;		/* rule-specific check flags */
+#define	IPFW_RCIFLAG_HAS_STATE		0x0001
 	uint16_t	object_opcodes;	/* num of opcodes referencing objects */
 	uint16_t	urule_numoff;	/* offset of rulenum in bytes */
 	uint8_t		version;	/* rule version */

@@ -42,7 +42,7 @@
  * previously processed sack information.
  *
  * The second thing that the sack filter does is help protect against malicious
- * attackers that are trying to attack any linked lists (or other data structures) 
+ * attackers that are trying to attack any linked lists (or other data structures)
  * that are used in sack processing. Consider an attacker sending in sacks for
  * every other byte of data outstanding. This could in theory drastically split
  * up any scoreboard you are maintaining and make you search through a very large

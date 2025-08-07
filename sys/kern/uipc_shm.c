@@ -1134,10 +1134,10 @@ shm_doremove(struct shm_mapping *map)
 
 int
 kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
-    int shmflags, struct filecaps *fcaps, const char *name __unused)
+    int shmflags, struct filecaps *fcaps, const char *name __unused,
+    struct shmfd *shmfd)
 {
 	struct pwddesc *pdp;
-	struct shmfd *shmfd;
 	struct file *fp;
 	char *path;
 	void *rl_cookie;
@@ -1214,23 +1214,41 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 	if (error != 0)
 		goto outnofp;
 
-	/* A SHM_ANON path pointer creates an anonymous object. */
+	/*
+	 * A SHM_ANON path pointer creates an anonymous object.  We allow other
+	 * parts of the kernel to pre-populate a shmfd and then materialize an
+	 * fd for it here as a means to pass data back up to userland.  This
+	 * doesn't really make sense for named shm objects, but it makes plenty
+	 * of sense for anonymous objects.
+	 */
 	if (userpath == SHM_ANON) {
-		/* A read-only anonymous object is pointless. */
-		if ((flags & O_ACCMODE) == O_RDONLY) {
-			error = EINVAL;
-			goto out;
+		if (shmfd != NULL) {
+			shm_hold(shmfd);
+		} else {
+			/*
+			 * A read-only anonymous object is pointless, unless it
+			 * was pre-populated by the kernel with the expectation
+			 * that a shmfd would later be created for userland to
+			 * access it through.
+			 */
+			if ((flags & O_ACCMODE) == O_RDONLY) {
+				error = EINVAL;
+				goto out;
+			}
+			shmfd = shm_alloc(td->td_ucred, cmode, largepage);
+			if (shmfd == NULL) {
+				error = ENOMEM;
+				goto out;
+			}
+
+			shmfd->shm_seals = initial_seals;
+			shmfd->shm_flags = shmflags;
 		}
-		shmfd = shm_alloc(td->td_ucred, cmode, largepage);
-		if (shmfd == NULL) {
-			error = ENOMEM;
-			goto out;
-		}
-		shmfd->shm_seals = initial_seals;
-		shmfd->shm_flags = shmflags;
 	} else {
 		fnv = fnv_32_str(path, FNV1_32_INIT);
 		sx_xlock(&shm_dict_lock);
+
+		MPASS(shmfd == NULL);
 		shmfd = shm_lookup(path, fnv);
 		if (shmfd == NULL) {
 			/* Object does not yet exist, create it if requested. */
@@ -2173,7 +2191,7 @@ kern_shm_open(struct thread *td, const char *path, int flags, mode_t mode,
     struct filecaps *caps)
 {
 
-	return (kern_shm_open2(td, path, flags, mode, 0, caps, NULL));
+	return (kern_shm_open2(td, path, flags, mode, 0, caps, NULL, NULL));
 }
 
 /*
@@ -2191,7 +2209,7 @@ sys_shm_open2(struct thread *td, struct shm_open2_args *uap)
 {
 
 	return (kern_shm_open2(td, uap->path, uap->flags, uap->mode,
-	    uap->shmflags, NULL, uap->name));
+	    uap->shmflags, NULL, uap->name, NULL));
 }
 
 int

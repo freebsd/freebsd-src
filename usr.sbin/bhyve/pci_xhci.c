@@ -2588,7 +2588,7 @@ pci_xhci_reset_port(struct pci_xhci_softc *sc, int portn, int warm)
 	if (dev) {
 		port->portsc &= ~(XHCI_PS_PLS_MASK | XHCI_PS_PR | XHCI_PS_PRC);
 		port->portsc |= XHCI_PS_PED |
-		    XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
+		    XHCI_PS_SPEED_SET(dev->hci.hci_speed);
 
 		if (warm && dev->dev_ue->ue_usbver == 3) {
 			port->portsc |= XHCI_PS_WRC;
@@ -2622,11 +2622,11 @@ pci_xhci_init_port(struct pci_xhci_softc *sc, int portn)
 
 		if (dev->dev_ue->ue_usbver == 2) {
 			port->portsc |= XHCI_PS_PLS_SET(UPS_PORT_LS_POLL) |
-		               XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
+			    XHCI_PS_SPEED_SET(dev->hci.hci_speed);
 		} else {
 			port->portsc |= XHCI_PS_PLS_SET(UPS_PORT_LS_U0) |
-		               XHCI_PS_PED |		/* enabled */
-		               XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
+			    XHCI_PS_PED | /* enabled */
+			    XHCI_PS_SPEED_SET(dev->hci.hci_speed);
 		}
 
 		DPRINTF(("Init port %d 0x%x", portn, port->portsc));
@@ -2833,6 +2833,7 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 		dev->hci.hci_sc = dev;
 		dev->hci.hci_intr = pci_xhci_dev_intr;
 		dev->hci.hci_event = pci_xhci_dev_event;
+		dev->hci.hci_speed = USB_SPEED_MAX;
 
 		if (ue->ue_usbver == 2) {
 			if (usb2_port == sc->usb2_port_start +
@@ -2863,6 +2864,8 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 
 		dev->dev_ue = ue;
 		dev->dev_sc = devsc;
+		if (dev->hci.hci_speed == USB_SPEED_MAX)
+			dev->hci.hci_speed = ue->ue_usbspeed;
 
 		XHCI_SLOTDEV_PTR(sc, slot) = dev;
 		ndevices++;
@@ -3228,6 +3231,7 @@ pci_xhci_snapshot(struct vm_snapshot_meta *meta)
 		/* devices[i]->hci */
 		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_address, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_port, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_speed, meta, ret, done);
 	}
 
 	SNAPSHOT_VAR_OR_LEAVE(sc->usb2_port_start, meta, ret, done);

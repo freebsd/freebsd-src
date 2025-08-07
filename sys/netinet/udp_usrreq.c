@@ -243,7 +243,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	struct sockaddr_in6 udp_in6;
 #endif
 	struct udpcb *up;
-	bool filtered;
 
 	INP_LOCK_ASSERT(inp);
 
@@ -252,13 +251,19 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	 */
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
+		bool filtered;
+
 		in_pcbref(inp);
 		INP_RUNLOCK(inp);
 		filtered = (*up->u_tun_func)(n, off, inp, (struct sockaddr *)&udp_in[0],
 		    up->u_tun_ctx);
 		INP_RLOCK(inp);
-		if (filtered)
-			return (in_pcbrele_rlocked(inp));
+		if (in_pcbrele_rlocked(inp))
+			return (1);
+		if (filtered) {
+			INP_RUNLOCK(inp);
+			return (1);
+		}
 	}
 
 	off += sizeof(struct udphdr);
@@ -555,6 +560,12 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 				    ip->ip_dst.s_addr, htonl((u_short)len +
 				    m->m_pkthdr.csum_data + proto));
 			uh_sum ^= 0xffff;
+		} else if (m->m_pkthdr.csum_flags & CSUM_IP_UDP) {
+			/*
+			 * Packet from local host (maybe from a VM).
+			 * Checksum not required.
+			 */
+			uh_sum = 0;
 		} else {
 			char b[offsetof(struct ipovly, ih_src)];
 			struct ipovly *ipov = (struct ipovly *)ip;

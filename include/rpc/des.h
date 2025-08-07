@@ -56,26 +56,6 @@ struct desparams {
 #	define des_buf	UDES.UDES_buf	/* otherwise, pointer to data */
 };
 
-#ifdef notdef
-
-/*
- * These ioctls are only implemented in SunOS. Maybe someday
- * if somebody writes a driver for DES hardware that works
- * with FreeBSD, we can being that back.
- */
-
-/*
- * Encrypt an arbitrary sized buffer
- */
-#define	DESIOCBLOCK	_IOWR('d', 6, struct desparams)
-
-/* 
- * Encrypt of small amount of data, quickly
- */
-#define DESIOCQUICK	_IOWR('d', 7, struct desparams) 
-
-#endif
-
 /*
  * Software DES.
  */

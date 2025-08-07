@@ -1240,13 +1240,6 @@ fdt_cmd_ls(int argc, char *argv[])
 	return (CMD_OK);
 }
 
-static __inline int
-isprint(int c)
-{
-
-	return (c >= ' ' && c <= 0x7e);
-}
-
 static int
 fdt_isprint(const void *data, int len, int *count)
 {

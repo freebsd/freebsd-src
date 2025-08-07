@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 22, 2012
+.Dd July 29, 2025
 .Dt VTNET 4
 .Os
 .Sh NAME
@@ -70,6 +70,11 @@ prompt before booting the kernel or stored in
 .It Va hw.vtnet. Ns Ar X Ns Va .csum_disable
 This tunable disables receive and send checksum offload.
 The default value is 0.
+.It Va hw.vtnet.fixup_needs_csum
+.It Va hw.vtnet. Ns Ar X Ns Va .fixup_needs_csum
+This tunable enforces the calculation of a valid checksum for NEEDS_CSUM
+packets.
+The default value is 0.
 .It Va hw.vtnet.tso_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .tso_disable
 This tunable disables TSO.
@@ -90,6 +95,22 @@ This driver supports a maximum of 8 queue pairs.
 The number of queue pairs used is the lesser of the maximum supported by the
 driver and the hypervisor, the number of CPUs present in the guest, and this
 tunable if not zero.
+The default value is 0.
+.It Va hw.vtnet.tso_maxlen
+.It Va hw.vtnet. Ns Ar X Ns Va .tso_maxlen
+This tunable sets the TSO burst limit.
+The default value is 65535.
+.It Va hw.vtnet.rx_process_limit
+.It Va hw.vtnet. Ns Ar X Ns Va .rx_process_limit
+This tunable sets the number of RX segments processed in one pass.
+The default value is 1024.
+.It Va hw.vtnet.lro_entry_count
+.It Va hw.vtnet. Ns Ar X Ns Va .lro_entry_count
+This tunable sets the software LRO entry count.
+The default value is 128, the minimum value is 8.
+.It Va hw.vtnet.lro_mbufq_depth
+.It Va hw.vtnet. Ns Ar X Ns Va .lro_mbufq_depth
+This tunable sets the depth of the software LRO mbuf queue.
 The default value is 0.
 .It Va hw.vtnet.altq_disable
 This tunable disables ALTQ support, allowing the use of multiqueue instead.

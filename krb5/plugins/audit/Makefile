@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -16,6 +14,7 @@ PACKAGE=	krb5
 LIB=		kdc_j_encode
 LIBDIR=		${PLUGINSDIR}/audit
 LDFLAGS=-Wl,--no-undefined
+VERSION_MAP=	${.CURDIR}/version.map
 
 .PATH:	${KRB5_DIR}/plugins/audit
 

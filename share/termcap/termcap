@@ -4705,14 +4705,14 @@ xterm-termite|VTE-based terminal:\
 	:ti=\E[?1049h:ts=\E]2;:u6=\E[%i%d;%dR:u7=\E[6n:ue=\E[24m:\
 	:up=\E[A:us=\E[4m:ve=\E[?25h:vi=\E[?25l:
 
-# Termcap for st terminal taken from the st-0.8 sources
-st|simpleterm:\
+# Termcap for st terminal taken from the st-0.9.2 sources
+st-mono|simpleterm monocolor:\
 	:am:hs:mi:ms:xn:\
 	:co#80:it#8:li#24:\
 	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
 	:K1=\E[1~:K2=\EOu:K3=\E[5~:K4=\E[4~:K5=\E[6~:LE=\E[%dD:\
-	:RI=\E[%dC:SF=\E[%dS:UP=\E[%dA:ae=\E(B:al=\E[L:as=\E(0:\
-	:bl=^G:bt=\E[Z:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:\
+	:RI=\E[%dC:SF=\E[%dS:SR=\E[%dT:UP=\E[%dA:ae=\E(B:al=\E[L:\
+	:as=\E(0:bl=^G:bt=\E[Z:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:\
 	:cm=\E[%i%d;%dH:cr=\r:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:\
 	:dl=\E[M:do=\n:ec=\E[%dX:ei=\E[4l:fs=^G:ho=\E[H:im=\E[4h:\
 	:is=\E[4l\E>\E[?1034l:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
@@ -4724,6 +4724,14 @@ st|simpleterm:\
 	:sr=\EM:st=\EH:ta=^I:te=\E[?1049l:ti=\E[?1049h:ts=\E]0;:\
 	:ue=\E[24m:up=\E[A:us=\E[4m:vb=\E[?5h\E[?5l:\
 	:ve=\E[?12l\E[?25h:vi=\E[?25l:vs=\E[?25h:
+
+st|simpleterm:\
+	:Co#8:\
+	:AB=\E[4%dm:AF=\E[3%dm:\
+	:..Sb=\E[4%?%p1%{1}%=%t4%e%p1%{3}%=%t6%e%p1%{4}%=%t1%e%p1%{6}%=%t3%e%p1%d%;m:\
+	:..Sf=\E[3%?%p1%{1}%=%t4%e%p1%{3}%=%t6%e%p1%{4}%=%t1%e%p1%{6}%=%t3%e%p1%d%;m:\
+	:..sa=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;%?%p7%t;8%;m:\
+	:tc=st-mono:
 
 st-256color|simpleterm with 256 colors:\
 	:cc:\
@@ -4741,6 +4749,12 @@ st-meta-256color|simpleterm with meta key and 256 colors:\
 	:km:\
 	:is=\E[4l\E>\E[?1034h:mm=\E[?1034h:mo=\E[?1034l:\
 	:rs=\E[4l\E>\E[?1034h:tc=st-256color:
+
+st-bs|simpleterm with backspace as backspace:\
+	:kD=\177:kb=^H:tc=st:
+
+st-bs-256color|simpleterm with backspace as backspace and 256colors:\
+	:kD=\177:kb=^H:tc=st-256color:
 
 
 # From version 0.13.3

@@ -557,6 +557,7 @@ pmap_pml5e_index(vm_offset_t va)
 
 struct kva_layout_s {
 	vm_offset_t kva_min;
+	vm_offset_t kva_max;
 	vm_offset_t dmap_low;	/* DMAP_MIN_ADDRESS */
 	vm_offset_t dmap_high;	/* DMAP_MAX_ADDRESS */
 	vm_offset_t lm_low;	/* LARGEMAP_MIN_ADDRESS */
@@ -564,6 +565,12 @@ struct kva_layout_s {
 	vm_offset_t km_low;	/* VM_MIN_KERNEL_ADDRESS */
 	vm_offset_t km_high;	/* VM_MAX_KERNEL_ADDRESS */
 	vm_offset_t rec_pt;
+	vm_offset_t kasan_shadow_low;	/* KASAN_MIN_ADDRESS */
+	vm_offset_t kasan_shadow_high;	/* KASAN_MAX_ADDRESS */
+	vm_offset_t kmsan_shadow_low;	/* KMSAN_SHAD_MIN_ADDRESS */
+	vm_offset_t kmsan_shadow_high;	/* KMSAN_SHAD_MAX_ADDRESS */
+	vm_offset_t kmsan_origin_low;	/* KMSAN_ORIG_MIN_ADDRESS */
+	vm_offset_t kmsan_origin_high;	/* KMSAN_ORIG_MAX_ADDRESS */
 };
 extern struct kva_layout_s kva_layout;
 

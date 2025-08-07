@@ -28,7 +28,7 @@
 # SUCH DAMAGE.
 #
 
-MAKEFS="makefs -t zfs -o verify-txgs=true"
+MAKEFS="makefs -t zfs -o verify-txgs=true -o poolguid=$$"
 ZFS_POOL_NAME="makefstest$$"
 TEST_ZFS_POOL_NAME="$TMPDIR/poolname"
 
@@ -124,6 +124,95 @@ basic_cleanup()
 	common_cleanup
 }
 
+#
+# Try configuring various compression algorithms.
+#
+atf_test_case compression cleanup
+compression_body()
+{
+	create_test_inputs
+
+	cd $TEST_INPUTS_DIR
+	mkdir dir
+	mkdir dir2
+	cd -
+
+	for alg in off on lzjb gzip gzip-1 gzip-2 gzip-3 gzip-4 \
+	    gzip-5 gzip-6 gzip-7 gzip-8 gzip-9 zle lz4 zstd; do
+		atf_check $MAKEFS -s 1g -o rootpath=/ \
+		    -o poolname=$ZFS_POOL_NAME \
+		    -o fs=${ZFS_POOL_NAME}\;compression=$alg \
+		    -o fs=${ZFS_POOL_NAME}/dir \
+		    -o fs=${ZFS_POOL_NAME}/dir2\;compression=off \
+		    $TEST_IMAGE $TEST_INPUTS_DIR
+
+		import_image
+
+		check_image_contents
+
+		if [ $alg = gzip-6 ]; then
+			# ZFS reports gzip-6 as just gzip since it uses
+			# a default compression level of 6.
+			alg=gzip
+		fi
+		# The "dir" dataset's compression algorithm should be
+		# inherited from the root dataset.
+		atf_check -o inline:$alg\\n -e empty -s exit:0 \
+		    zfs get -H -o value compression ${ZFS_POOL_NAME}
+		atf_check -o inline:$alg\\n -e empty -s exit:0 \
+		    zfs get -H -o value compression ${ZFS_POOL_NAME}/dir
+		atf_check -o inline:off\\n -e empty -s exit:0 \
+		    zfs get -H -o value compression ${ZFS_POOL_NAME}/dir2
+
+		atf_check -e ignore dd if=/dev/random \
+		    of=${TEST_MOUNT_DIR}/dir/random bs=1M count=10
+		atf_check -e ignore dd if=/dev/zero \
+		    of=${TEST_MOUNT_DIR}/dir/zero bs=1M count=10
+		atf_check -e ignore dd if=/dev/zero \
+		    of=${TEST_MOUNT_DIR}/dir2/zero bs=1M count=10
+
+		# Export and reimport to ensure that everything is
+		# flushed to disk.
+		atf_check zpool export ${ZFS_POOL_NAME}
+		atf_check -o ignore -e empty -s exit:0 \
+		    zdb -e -p /dev/$(cat $TEST_MD_DEVICE_FILE) -mmm -ddddd \
+		    $ZFS_POOL_NAME
+		atf_check zpool import -R $TEST_MOUNT_DIR $ZFS_POOL_NAME
+
+		if [ $alg = off ]; then
+			# If compression is off, the files should be the
+			# same size as the input.
+			atf_check -o match:"^11[[:space:]]+${TEST_MOUNT_DIR}/dir/random" \
+			    du -m ${TEST_MOUNT_DIR}/dir/random
+			atf_check -o match:"^11[[:space:]]+${TEST_MOUNT_DIR}/dir/zero" \
+			    du -m ${TEST_MOUNT_DIR}/dir/zero
+			atf_check -o match:"^11[[:space:]]+${TEST_MOUNT_DIR}/dir2/zero" \
+			    du -m ${TEST_MOUNT_DIR}/dir2/zero
+		else
+			# If compression is on, the dir/zero file ought
+			# to be smaller.
+			atf_check -o match:"^1[[:space:]]+${TEST_MOUNT_DIR}/dir/zero" \
+			    du -m ${TEST_MOUNT_DIR}/dir/zero
+			atf_check -o match:"^11[[:space:]]+${TEST_MOUNT_DIR}/dir/random" \
+			    du -m ${TEST_MOUNT_DIR}/dir/random
+			atf_check -o match:"^11[[:space:]]+${TEST_MOUNT_DIR}/dir2/zero" \
+			    du -m ${TEST_MOUNT_DIR}/dir2/zero
+		fi
+
+		atf_check zpool destroy ${ZFS_POOL_NAME}
+		atf_check rm -f ${TEST_ZFS_POOL_NAME}
+		atf_check mdconfig -d -u $(cat ${TEST_MD_DEVICE_FILE})
+		atf_check rm -f ${TEST_MD_DEVICE_FILE}
+	done
+}
+compression_cleanup()
+{
+	common_cleanup
+}
+
+#
+# Try destroying a dataset that was created by makefs.
+#
 atf_test_case dataset_removal cleanup
 dataset_removal_body()
 {
@@ -939,6 +1028,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case autoexpand
 	atf_add_test_case basic
+	atf_add_test_case compression
 	atf_add_test_case dataset_removal
 	atf_add_test_case devfs
 	atf_add_test_case empty_dir

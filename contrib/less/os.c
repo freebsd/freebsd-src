@@ -275,7 +275,7 @@ start:
 		if (ret != 0)
 		{
 			if (ret == READ_INTR)
-				sigs |= S_INTERRUPT;
+				sigs |= S_SWINTERRUPT;
 			reading = FALSE;
 			return (ret);
 		}
@@ -287,7 +287,7 @@ start:
 		int c;
 
 		c = WIN32getch();
-		sigs |= S_INTERRUPT;
+		sigs |= S_SWINTERRUPT;
 		reading = FALSE;
 		if (c != CONTROL('C') && c != intr_char)
 			WIN32ungetch((char) c);
@@ -348,7 +348,7 @@ public int iopen(constant char *filename, int flags)
 	while (!opening && SET_JUMP(open_label))
 	{
 		opening = FALSE;
-		if (sigs & S_INTERRUPT)
+		if (sigs & (S_INTERRUPT|S_SWINTERRUPT))
 		{
 			sigs = 0;
 #if HAVE_SETTABLE_ERRNO

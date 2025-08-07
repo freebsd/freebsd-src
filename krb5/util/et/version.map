@@ -1,0 +1,17 @@
+HEIMDAL_COM_ERR_1.0 {
+	global:
+		com_err;
+		com_err_va;
+		error_message;
+		error_table_name;
+		reset_com_err_hook;
+		set_com_err_hook;
+};
+
+com_err_3_MIT {
+	global:
+		add_error_table;
+		error_table_name_r;
+		remove_error_table;
+};
+HIDDEN { local: __*; _rest*; _save*; *; };

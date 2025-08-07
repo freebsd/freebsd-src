@@ -7,7 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
+PACKAGE=	kerberos-lib
 
 .include <src.opts.mk>
 
@@ -17,7 +17,7 @@ SUBDIR=	krb5_private krb5 gssrpc gssapi
 
 SUBDIR_PARALLEL=
 
-INCSGROUPS=	INCS GSSAPI_KRB5
+INCSGROUPS=	INCS
 
 INCSDIR=	${INCLUDEDIR}
 
@@ -26,9 +26,6 @@ INCSDIR=	${INCLUDEDIR}
 INCS=	kdb.h \
 	krad.h \
 	krb5.h
-
-GSSAPI_KRB5DIR=	${INCLUDEDIR}/gssapi_krb5/gssapi
-GSSAPI_KRB5=	gssapi.h
 
 CLEANFILES=	osconf.new
 
@@ -40,19 +37,8 @@ osconf.h:
 
 rebuild-error-tables: ${K5_ET_HEADERS}
 
-force:
-
-stage_includes: copies
-SDESTDIR?=	${SYSROOT:U${DESTDIR}}
-
-.PHONY: force rebuild-error-tables osconf.h
+.PHONY: rebuild-error-tables osconf.h
 
 .PATH:	${KRB5_DIR}/include/krb5
 
-copies:	.PHONY .META
-	cd ${KRB5_DIR}/include; \
-	${INSTALL} -C ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m444 ${INCS} ${SDESTDIR}${INCLUDEDIR}
-
 .include <bsd.prog.mk>
-
-installincludes: copies

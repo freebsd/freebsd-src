@@ -119,7 +119,7 @@ dsl_dir_get_mountpoint(zfs_opt_t *zfs, zfs_dsl_dir_t *dir)
 
 			if (nvlist_find_string(pdir->propsnv, "mountpoint",
 			    &tmp) == 0) {
-				easprintf(&mountpoint, "%s%s%s", tmp,
+				(void)easprintf(&mountpoint, "%s%s%s", tmp,
 				    tmp[strlen(tmp) - 1] == '/' ?  "" : "/",
 				    origmountpoint);
 				free(tmp);
@@ -127,7 +127,7 @@ dsl_dir_get_mountpoint(zfs_opt_t *zfs, zfs_dsl_dir_t *dir)
 				break;
 			}
 
-			easprintf(&mountpoint, "%s/%s", pdir->name,
+			(void)easprintf(&mountpoint, "%s/%s", pdir->name,
 			    origmountpoint);
 			free(origmountpoint);
 		}
@@ -175,24 +175,57 @@ dsl_dir_set_prop(zfs_opt_t *zfs, zfs_dsl_dir_t *dir, const char *key,
 				    "the root path `%s'", val, zfs->rootpath);
 			}
 		}
-		nvlist_add_string(nvl, key, val);
+		(void)nvlist_add_string(nvl, key, val);
 	} else if (strcmp(key, "atime") == 0 || strcmp(key, "exec") == 0 ||
 	    strcmp(key, "setuid") == 0) {
 		if (strcmp(val, "on") == 0)
-			nvlist_add_uint64(nvl, key, 1);
+			(void)nvlist_add_uint64(nvl, key, 1);
 		else if (strcmp(val, "off") == 0)
-			nvlist_add_uint64(nvl, key, 0);
+			(void)nvlist_add_uint64(nvl, key, 0);
 		else
 			errx(1, "invalid value `%s' for %s", val, key);
 	} else if (strcmp(key, "canmount") == 0) {
 		if (strcmp(val, "noauto") == 0)
-			nvlist_add_uint64(nvl, key, 2);
+			(void)nvlist_add_uint64(nvl, key, 2);
 		else if (strcmp(val, "on") == 0)
-			nvlist_add_uint64(nvl, key, 1);
+			(void)nvlist_add_uint64(nvl, key, 1);
 		else if (strcmp(val, "off") == 0)
-			nvlist_add_uint64(nvl, key, 0);
+			(void)nvlist_add_uint64(nvl, key, 0);
 		else
 			errx(1, "invalid value `%s' for %s", val, key);
+	} else if (strcmp(key, "compression") == 0) {
+		size_t i;
+
+		const struct zfs_compression_algorithm {
+			const char *name;
+			enum zio_compress alg;
+		} compression_algorithms[] = {
+			{ "off", ZIO_COMPRESS_OFF },
+			{ "on", ZIO_COMPRESS_ON },
+			{ "lzjb", ZIO_COMPRESS_LZJB },
+			{ "gzip", ZIO_COMPRESS_GZIP_6 },
+			{ "gzip-1", ZIO_COMPRESS_GZIP_1 },
+			{ "gzip-2", ZIO_COMPRESS_GZIP_2 },
+			{ "gzip-3", ZIO_COMPRESS_GZIP_3 },
+			{ "gzip-4", ZIO_COMPRESS_GZIP_4 },
+			{ "gzip-5", ZIO_COMPRESS_GZIP_5 },
+			{ "gzip-6", ZIO_COMPRESS_GZIP_6 },
+			{ "gzip-7", ZIO_COMPRESS_GZIP_7 },
+			{ "gzip-8", ZIO_COMPRESS_GZIP_8 },
+			{ "gzip-9", ZIO_COMPRESS_GZIP_9 },
+			{ "zle", ZIO_COMPRESS_ZLE },
+			{ "lz4", ZIO_COMPRESS_LZ4 },
+			{ "zstd", ZIO_COMPRESS_ZSTD },
+		};
+		for (i = 0; i < nitems(compression_algorithms); i++) {
+			if (strcmp(val, compression_algorithms[i].name) == 0) {
+				nvlist_add_uint64(nvl, key,
+				    compression_algorithms[i].alg);
+				break;
+			}
+		}
+		if (i == nitems(compression_algorithms))
+			errx(1, "invalid compression algorithm `%s'", val);
 	} else {
 		errx(1, "unknown property `%s'", key);
 	}
@@ -204,7 +237,7 @@ dsl_metadir_alloc(zfs_opt_t *zfs, const char *name)
 	zfs_dsl_dir_t *dir;
 	char *path;
 
-	easprintf(&path, "%s/%s", zfs->poolname, name);
+	(void)easprintf(&path, "%s/%s", zfs->poolname, name);
 	dir = dsl_dir_alloc(zfs, path);
 	free(path);
 	return (dir);
@@ -235,9 +268,6 @@ dsl_init(zfs_opt_t *zfs)
 	dspropdelim = ";";
 
 	zfs->rootdsldir = dsl_dir_alloc(zfs, NULL);
-
-	nvlist_add_uint64(zfs->rootdsldir->propsnv, "compression",
-	    ZIO_COMPRESS_OFF);
 
 	zfs->rootds = dsl_dataset_alloc(zfs, zfs->rootdsldir);
 	zfs->rootdsldir->headds = zfs->rootds;
@@ -288,11 +318,15 @@ dsl_init(zfs_opt_t *zfs)
 	}
 
 	/*
-	 * Set the root dataset's mount point if the user didn't override the
-	 * default.
+	 * Set the root dataset's mount point and compression strategy if the
+	 * user didn't override the defaults.
 	 */
+	if (nvpair_find(zfs->rootdsldir->propsnv, "compression") == NULL) {
+		(void)nvlist_add_uint64(zfs->rootdsldir->propsnv,
+		    "compression", ZIO_COMPRESS_OFF);
+	}
 	if (nvpair_find(zfs->rootdsldir->propsnv, "mountpoint") == NULL) {
-		nvlist_add_string(zfs->rootdsldir->propsnv, "mountpoint",
+		(void)nvlist_add_string(zfs->rootdsldir->propsnv, "mountpoint",
 		    zfs->rootpath);
 	}
 }
@@ -397,6 +431,7 @@ dsl_dir_alloc(zfs_opt_t *zfs, const char *name)
 	STAILQ_INIT(&l);
 	STAILQ_INSERT_HEAD(&l, zfs->rootdsldir, next);
 	origname = dirname = nextdir = estrdup(name);
+	parent = NULL;
 	for (lp = &l;; lp = &parent->children) {
 		dirname = strsep(&nextdir, "/");
 		if (nextdir == NULL)

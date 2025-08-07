@@ -1051,7 +1051,7 @@ ufs_remove(
 #ifdef UFS_GJOURNAL
 	ufs_gjournal_orphan(vp);
 #endif
-	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
+	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, false);
 	if (ip->i_nlink <= 0)
 		vp->v_vflag |= VV_NOSYNC;
 	if (IS_SNAPSHOT(ip)) {
@@ -1209,7 +1209,7 @@ ufs_whiteout(
 #endif
 
 		cnp->cn_flags &= ~DOWHITEOUT;
-		error = ufs_dirremove(dvp, NULL, cnp->cn_flags, 0);
+		error = ufs_dirremove(dvp, NULL, cnp->cn_flags, false);
 		break;
 	default:
 		panic("ufs_whiteout: unknown op");
@@ -1268,7 +1268,8 @@ ufs_rename(
 	struct inode *fip, *tip, *tdp, *fdp;
 	struct direct newdir;
 	off_t endoff;
-	int doingdirectory, newparent;
+	int doingdirectory;
+	u_int newparent;
 	int error = 0;
 	struct mount *mp;
 	ino_t ino;
@@ -1475,7 +1476,7 @@ relock:
 	 * the user must have write permission in the source so
 	 * as to be able to change "..".
 	 */
-	if (doingdirectory && newparent) {
+	if (doingdirectory && newparent != 0) {
 		error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, curthread);
 		if (error)
 			goto unlockout;
@@ -1538,7 +1539,7 @@ relock:
 	if (tip == NULL) {
 		if (ITODEV(tdp) != ITODEV(fip))
 			panic("ufs_rename: EXDEV");
-		if (doingdirectory && newparent) {
+		if (doingdirectory && newparent != 0) {
 			/*
 			 * Account for ".." in new directory.
 			 * When source and destination have the same
@@ -1631,7 +1632,7 @@ relock:
 			goto bad;
 		}
 		if (doingdirectory) {
-			if (!newparent) {
+			if (newparent == 0) {
 				tdp->i_effnlink--;
 				if (DOINGSOFTDEP(tdvp))
 					softdep_change_linkcnt(tdp);
@@ -1641,11 +1642,11 @@ relock:
 				softdep_change_linkcnt(tip);
 		}
 		error = ufs_dirrewrite(tdp, tip, fip->i_number,
-		    IFTODT(fip->i_mode),
-		    (doingdirectory && newparent) ? newparent : doingdirectory);
+		    IFTODT(fip->i_mode), (doingdirectory && newparent != 0) ?
+		    newparent : doingdirectory);
 		if (error) {
 			if (doingdirectory) {
-				if (!newparent) {
+				if (newparent == 0) {
 					tdp->i_effnlink++;
 					if (DOINGSOFTDEP(tdvp))
 						softdep_change_linkcnt(tdp);
@@ -1668,7 +1669,7 @@ relock:
 			 * disk, so when running with that code we avoid doing
 			 * them now.
 			 */
-			if (!newparent) {
+			if (newparent == 0) {
 				tdp->i_nlink--;
 				DIP_SET_NLINK(tdp, tdp->i_nlink);
 				UFS_INODE_SET_FLAG(tdp, IN_CHANGE);
@@ -1697,7 +1698,7 @@ relock:
 	 * parent directory must be decremented
 	 * and ".." set to point to the new parent.
 	 */
-	if (doingdirectory && newparent) {
+	if (doingdirectory && newparent != 0) {
 		/*
 		 * Set the directory depth based on its new parent.
 		 */
@@ -1727,7 +1728,7 @@ relock:
 			    "rename: missing .. entry");
 		cache_purge(fdvp);
 	}
-	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, 0);
+	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, false);
 	/*
 	 * The kern_renameat() looks up the fvp using the DELETE flag, which
 	 * causes the removal of the name cache entry for fvp.
@@ -2037,7 +2038,6 @@ ufs_mkdir(
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
-		gid_t ucred_group;
 		ucp = cnp->cn_cred;
 #endif
 		/*
@@ -2064,9 +2064,8 @@ ufs_mkdir(
 				 */
 				ucred.cr_ref = 1;
 				ucred.cr_uid = ip->i_uid;
-				ucred.cr_ngroups = 1;
-				ucred.cr_groups = &ucred_group;
-				ucred.cr_groups[0] = dp->i_gid;
+				ucred.cr_gid = dp->i_gid;
+				ucred.cr_ngroups = 0;
 				ucp = &ucred;
 			}
 #endif
@@ -2304,7 +2303,7 @@ ufs_rmdir(
 	ip->i_effnlink--;
 	if (DOINGSOFTDEP(vp))
 		softdep_setup_rmdir(dp, ip);
-	error = ufs_dirremove(dvp, ip, cnp->cn_flags, 1);
+	error = ufs_dirremove(dvp, ip, cnp->cn_flags, true);
 	if (error) {
 		dp->i_effnlink++;
 		ip->i_effnlink++;
@@ -2797,7 +2796,6 @@ ufs_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
-		gid_t ucred_group;
 		ucp = cnp->cn_cred;
 #endif
 		/*
@@ -2823,9 +2821,8 @@ ufs_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 			 */
 			ucred.cr_ref = 1;
 			ucred.cr_uid = ip->i_uid;
-			ucred.cr_ngroups = 1;
-			ucred.cr_groups = &ucred_group;
-			ucred.cr_groups[0] = pdir->i_gid;
+			ucred.cr_gid = pdir->i_gid;
+			ucred.cr_ngroups = 0;
 			ucp = &ucred;
 #endif
 		} else {

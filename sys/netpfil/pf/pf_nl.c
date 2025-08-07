@@ -178,7 +178,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 
 	nlattr_add_string(nw, PF_ST_IFNAME, s->kif->pfik_name);
 	nlattr_add_string(nw, PF_ST_ORIG_IFNAME, s->orig_kif->pfik_name);
-	dump_addr(nw, PF_ST_RT_ADDR, &s->act.rt_addr, af);
+	dump_addr(nw, PF_ST_RT_ADDR, &s->act.rt_addr, s->act.rt_af);
 	nlattr_add_u32(nw, PF_ST_CREATION, time_uptime - (s->creation / 1000));
 	uint32_t expire = pf_state_expires(s);
 	if (expire > time_uptime)
@@ -224,6 +224,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	if (s->sns[PF_SN_ROUTE] != NULL)
 		src_node_flags |= PFSTATE_SRC_NODE_ROUTE;
 	nlattr_add_u8(nw, PF_ST_SRC_NODE_FLAGS, src_node_flags);
+	nlattr_add_u8(nw, PF_ST_RT_AF, s->act.rt_af);
 
 	if (!dump_state_peer(nw, PF_ST_PEER_SRC, &s->src))
 		goto enomem;
@@ -1761,7 +1762,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 			nlattr_add_u32(nw, PF_SN_STATES, n->states);
 			nlattr_add_u32(nw, PF_SN_CONNECTIONS, n->conn);
 			nlattr_add_u8(nw, PF_SN_AF, n->af);
-			nlattr_add_u8(nw, PF_SN_NAF, n->naf);
+			nlattr_add_u8(nw, PF_SN_RAF, n->raf);
 			nlattr_add_u8(nw, PF_SN_RULE_TYPE, n->ruletype);
 
 			nlattr_add_u64(nw, PF_SN_CREATION, secs - n->creation);
@@ -2081,6 +2082,123 @@ pf_handle_clear_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
+TAILQ_HEAD(pfr_addrq, pfr_addr_item);
+struct nl_parsed_table_addrs {
+	struct pfr_table table;
+	uint32_t flags;
+	struct pfr_addr addrs[256];
+	size_t addr_count;
+	int nadd;
+	int ndel;
+};
+#define _OUT(_field)	offsetof(struct pfr_addr, _field)
+static const struct nlattr_parser nla_p_pfr_addr[] = {
+	{ .type = PFR_A_AF, .off = _OUT(pfra_af), .cb = nlattr_get_uint8 },
+	{ .type = PFR_A_NET, .off = _OUT(pfra_net), .cb = nlattr_get_uint8 },
+	{ .type = PFR_A_NOT, .off = _OUT(pfra_not), .cb = nlattr_get_bool },
+	{ .type = PFR_A_ADDR, .off = _OUT(pfra_u), .cb = nlattr_get_in6_addr },
+};
+#undef _OUT
+NL_DECLARE_ATTR_PARSER(pfra_addr_parser, nla_p_pfr_addr);
+
+static int
+nlattr_get_pfr_addr(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
+{
+	struct nl_parsed_table_addrs *attrs = target;
+	struct pfr_addr addr = { 0 };
+	int error;
+
+	if (attrs->addr_count >= nitems(attrs->addrs))
+		return (E2BIG);
+
+	error = nlattr_get_nested(nla, npt, &pfra_addr_parser, &addr);
+	if (error != 0)
+		return (error);
+
+	memcpy(&attrs->addrs[attrs->addr_count], &addr, sizeof(addr));
+	attrs->addr_count++;
+
+	return (0);
+}
+
+NL_DECLARE_ATTR_PARSER(nested_table_parser, nla_p_table);
+
+#define _OUT(_field)	offsetof(struct nl_parsed_table_addrs, _field)
+static const struct nlattr_parser nla_p_table_addr[] = {
+	{ .type = PF_TA_TABLE, .off = _OUT(table), .arg = &nested_table_parser, .cb = nlattr_get_nested },
+	{ .type = PF_TA_ADDR, .cb = nlattr_get_pfr_addr },
+	{ .type = PF_TA_FLAGS, .off = _OUT(flags), .cb = nlattr_get_uint32 },
+};
+NL_DECLARE_PARSER(table_addr_parser, struct genlmsghdr, nlf_p_empty, nla_p_table_addr);
+#undef _OUT
+
+static int
+pf_handle_table_add_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_parsed_table_addrs attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &table_addr_parser, npt, &attrs);
+	if (error != 0)
+		return  (error);
+
+	PF_RULES_WLOCK();
+	error = pfr_add_addrs(&attrs.table, &attrs.addrs[0],
+	    attrs.addr_count, &attrs.nadd, attrs.flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_WUNLOCK();
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_TABLE_ADD_ADDR;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_TA_NBR_ADDED, attrs.nadd);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
+static int
+pf_handle_table_del_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_parsed_table_addrs attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &table_addr_parser, npt, &attrs);
+	if (error != 0)
+		return  (error);
+
+	PF_RULES_WLOCK();
+	error = pfr_del_addrs(&attrs.table, &attrs.addrs[0],
+	    attrs.addr_count, &attrs.ndel, attrs.flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_WUNLOCK();
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_TABLE_DEL_ADDR;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_TA_NBR_DELETED, attrs.ndel);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -2095,6 +2213,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&add_addr_parser,
 	&ruleset_parser,
 	&table_parser,
+	&table_addr_parser,
 };
 
 static uint16_t family_id;
@@ -2314,6 +2433,20 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_CLR_ADDRS,
 		.cmd_name = "CRL_ADDRS",
 		.cmd_cb = pf_handle_clear_addrs,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_TABLE_ADD_ADDR,
+		.cmd_name = "TABLE_ADD_ADDRS",
+		.cmd_cb = pf_handle_table_add_addrs,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_TABLE_DEL_ADDR,
+		.cmd_name = "TABLE_DEL_ADDRS",
+		.cmd_cb = pf_handle_table_del_addrs,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},

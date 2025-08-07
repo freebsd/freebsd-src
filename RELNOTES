@@ -10,6 +10,23 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+2bd157bc732a:
+	The readdir_r(3) function is deprecated and may be removed in future
+	releases.  Using it in a program will result in compile-time and
+	link-time warnings.
+
+9ba51cce8bbd:
+	bsnmpd(1) no longer supports legacy UDP transport.  Users, that have
+	not updated their /etc/snmpd.config since 12.0-RELEASE or older will
+	need to merge in the new configuration.  In particular, the transport
+	definition shall be changed from begemotSnmpdPortStatus OID to
+	begemotSnmpdTransInetStatus.
+
+1349a733cf28:
+	Add a driver supporting a new storage controller interface,
+	Universal Flash Storage Host Controller Interface, supporting
+	version 4.1 and earlier, via ufshci(4).
+
 f1f230439fa4:
 	FreeBSD now implements the inotify(2) family of system calls.
 

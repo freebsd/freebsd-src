@@ -70,6 +70,8 @@ mountd_precmd()
 }
 
 load_rc_config $name
+load_rc_config nfsd
+load_rc_config zfs
 
 # precmd is not compatible with svcj
 mountd_svcj="NO"

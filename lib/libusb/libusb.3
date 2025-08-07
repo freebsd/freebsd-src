@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 13, 2025
+.Dd July 9, 2025
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -209,6 +209,14 @@ Decrement the reference counter of the device
 .Fa dev .
 .Pp
 .Ft int
+.Fn libusb_wrap_sys_device "libusb_context *ctx" "intptr_t sys_dev" "libusb_device_handle **dev_handle"
+This function creates a libusb handler from a previously opened fd
+.Fa sys_dev .
+This function is provided for compatibility and is currently unimplemented.
+It always returns
+.Dv LIBUSB_ERROR_NOT_SUPPORTED .
+.Pp
+.Ft int
 .Fn libusb_open "libusb_device *dev" "libusb_device_handle **devh"
 Open a device and obtain a device_handle.
 Returns 0 on success,
@@ -366,6 +374,23 @@ argument is non-zero the feature is enabled.
 Else disabled.
 Returns 0 on success and a LIBUSB_ERROR code on
 failure.
+.Pp
+.Ft unsigned char *
+.Fn libusb_dev_mem_alloc "libusb_device_handle *devh"
+This function attempts to allocate a DMA memory block from the given
+.Fa devh
+so that we can enjoy the zero-copy transfer from kernel.
+This function is provided for compatibility and is currently unimplemented and always returns NULL.
+.Pp
+.Ft int
+.Fn libusb_dev_mem_free "libusb_device_handle *devh" "unsigned char *buffer" "size_t size"
+This function frees the DMA memory in
+.Fa devh
+from the given
+.Fa buffer
+with
+.Fa size .
+This function is unimplemented and always returns LIBUSB_ERROR_NOT_SUPPORTED.
 .Sh USB DESCRIPTORS
 .Ft int
 .Fn libusb_get_device_descriptor "libusb_device *dev" "libusb_device_descriptor *desc"
@@ -519,6 +544,21 @@ libusb_free_container_id_descriptor function.
 .Fn libusb_free_container_id_descriptor "struct libusb_container_id_descriptor *container_id"
 This function is NULL safe and frees a parsed container ID descriptor given by
 .Fa container_id .
+.Pp
+.Ft int
+.Fn libusb_get_platform_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_platform_descriptor **platform_descriptor"
+This function parses the platform descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa platform_descriptor .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed platform descriptor must be freed using the
+libusb_free_platform_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_platform_descriptor "struct libusb_platform_descriptor *platform_descriptor"
+This function is NULL safe and frees a parsed platform descriptor given by
+.Fa platform_descriptor .
 .Sh USB ASYNCHRONOUS I/O
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"
@@ -717,6 +757,14 @@ another thread is already doing so.
 Must be called with the event lock held.
 .Pp
 .Ft int
+.Fn libusb_pollfds_handle_timeouts "libusb_context *ctx"
+This function determines whether applications maintaining libusb events using
+.Fn libusb_get_pollfds
+are responsible for handling timeout events themselves.
+Returns 1 if libusb handles the timeout internally, 0 if the application
+needs to set a dedicated timer to handle it.
+.Pp
+.Ft int
 .Fn libusb_get_next_timeout "libusb_context *ctx" "struct timeval *tv"
 Determine the next internal timeout that libusb needs to handle.
 Returns 0
@@ -775,6 +823,17 @@ argument can be either of LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED or LIBUSB_HOTPLUG_
 .Ft void
 .Fn libusb_hotplug_deregister_callback "libusb_context *ctx" "libusb_hotplug_callback_handle handle"
 This function unregisters a hotplug filter.
+.Pp
+.Ft void
+.Fn libusb_free_pollfds "const struct libusb_pollfd **pollfds"
+This function releases the memory storage in
+.Fa pollfds ,
+and is safe to call when the argument is NULL.
+.Pp void *
+.Fn libusb_hotplug_get_user_data "struct libusb_context *ctx" "libusb_hotplug_callback_handle callback_handle"
+This function returns the user data from the opaque
+.Fa callback_handle ,
+or returns NULL if no matching handle is found.
 .Sh LIBUSB VERSION 0.1 COMPATIBILITY
 The library is also compliant with LibUSB version 0.1.12.
 .Pp

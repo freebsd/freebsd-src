@@ -1,6 +1,6 @@
 PACKAGE=lib${LIB}
 LIB=	vmmapi
-SHLIB_MAJOR=	6
+SHLIB_MAJOR=	7
 SRCS=	vmmapi.c
 INCS=	vmmapi.h
 

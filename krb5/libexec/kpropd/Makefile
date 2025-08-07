@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 PROG=	kpropd
 
 LIBADD=	kprop_util kdb5 kadm5clnt_mit gssrpc gssapi_krb5 krb5 k5crypto \

@@ -1,5 +1,7 @@
 .include <src.opts.mk>
 
+PACKAGE=	toolchain
+
 ELFTCDIR=	${SRCTOP}/contrib/elftoolchain
 
 .PATH: ${ELFTCDIR}/strings

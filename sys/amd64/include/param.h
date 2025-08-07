@@ -150,8 +150,6 @@
     (((va) >= kva_layout.dmap_low && (va) < kva_layout.dmap_high) || \
     ((va) >= kva_layout.km_low && (va) < kva_layout.km_high))
 
-#ifdef SMP
 #define SC_TABLESIZE    1024                     /* Must be power of 2. */
-#endif
 
 #endif /* !_AMD64_INCLUDE_PARAM_H_ */

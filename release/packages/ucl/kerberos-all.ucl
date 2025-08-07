@@ -1,4 +1,4 @@
-comment = "Kerberos Utilities"
+comment = "Kerberos utilities"
 desc = <<EOD
-Kerberos Utilities
+The Kerberos command-line utilities, including kinit and kadmin.
 EOD

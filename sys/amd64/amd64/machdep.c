@@ -38,7 +38,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_atpic.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
@@ -82,9 +81,7 @@
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
-#ifdef SMP
 #include <sys/smp.h>
-#endif
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -132,9 +129,7 @@
 #include <machine/tss.h>
 #include <x86/ucode.h>
 #include <x86/ifunc.h>
-#ifdef SMP
 #include <machine/smp.h>
-#endif
 #ifdef FDT
 #include <x86/fdt.h>
 #endif
@@ -148,6 +143,10 @@
 #include <isa/isareg.h>
 #include <isa/rtc.h>
 #include <x86/init.h>
+
+#ifndef SMP
+#error amd64 requires options SMP
+#endif
 
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
@@ -1337,12 +1336,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pti = pti_get_default();
 	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
 	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
-	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
-		invpcid_works = (cpu_stdext_feature &
-		    CPUID_STDEXT_INVPCID) != 0;
-	} else {
+	if ((cpu_feature2 & CPUID2_PCID) == 0)
 		pmap_pcid_enabled = 0;
-	}
+	invpcid_works = (cpu_stdext_feature & CPUID_STDEXT_INVPCID) != 0;
 
 	/*
 	 * Now we can do small core initialization, after the PCID

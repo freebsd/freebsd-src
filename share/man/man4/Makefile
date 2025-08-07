@@ -1,5 +1,8 @@
 .include <src.opts.mk>
 
+MANGROUPS=	MAN
+MANPACKAGE=	kernel
+
 # If you add a new file here, please consider adding an entry to the
 # hardware notes template (website/archetypes/release/hardware.adoc in
 # the doc repository); otherwise the automatically generated hardware
@@ -58,7 +61,6 @@ MAN=	aac.4 \
 	atkbdc.4 \
 	${_atopcase.4} \
 	atp.4 \
-	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
 	audit.4 \
@@ -1023,9 +1025,11 @@ MAN+=		mlx5io.4
 .endif
 
 .if ${MK_TESTS} != "no"
+MANGROUPS+=	TESTS
 ATF=            ${SRCTOP}/contrib/atf
 .PATH:          ${ATF}/doc
-_atf_test_case.4=	atf-test-case.4
+TESTS=		atf-test-case.4
+TESTSPACKAGE=	tests
 .endif
 
 .if ${MK_PF} != "no"

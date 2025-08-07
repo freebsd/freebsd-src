@@ -108,12 +108,6 @@
 
 #include "res_private.h"
 
-/*% Options.  Should all be left alone. */
-#define RESOLVSORT
-#ifndef	DEBUG
-#define	DEBUG
-#endif
-
 #ifdef SOLARIS2
 #include <sys/systeminfo.h>
 #endif

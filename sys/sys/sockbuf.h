@@ -40,7 +40,7 @@
 #define	SB_SEL		0x08		/* someone is selecting */
 #define	SB_ASYNC	0x10		/* ASYNC I/O, need signals */
 #define	SB_UPCALL	0x20		/* someone wants an upcall */
-/* was	SB_NOINTR	0x40		*/
+#define	SB_AUTOLOWAT	0x40		/* sendfile(2) may autotune sb_lowat */
 #define	SB_AIO		0x80		/* AIO operations queued */
 #define	SB_KNOTE	0x100		/* kernel note attached */
 #define	SB_NOCOALESCE	0x200		/* don't coalesce new data into existing mbufs */
@@ -210,8 +210,6 @@ typedef enum { SO_RCV, SO_SND } sb_which;
  * Socket buffer private mbuf(9) flags.
  */
 #define	M_NOTREADY	M_PROTO1	/* m_data not populated yet */
-#define	M_BLOCKED	M_PROTO2	/* M_NOTREADY in front of m */
-#define	M_NOTAVAIL	(M_NOTREADY | M_BLOCKED)
 
 void	sbappend(struct sockbuf *sb, struct mbuf *m, int flags);
 void	sbappend_locked(struct sockbuf *sb, struct mbuf *m, int flags);

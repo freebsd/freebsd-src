@@ -7,7 +7,7 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5-lib
+PACKAGE=	kerberos-lib
 
 .include <src.opts.mk>
 
@@ -18,6 +18,7 @@ LIB=		com_err
 LDFLAGS=-Wl,--no-undefined
 INCSDIR=${INCLUDEDIR}
 LIBADD=	krb5support
+VERSION_MAP=	${.CURDIR}/version.map
 
 
 SRCS=	com_err.c \

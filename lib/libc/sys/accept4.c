@@ -34,8 +34,6 @@
 #include <sys/socket.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_accept4, __accept4);
-
 #pragma weak accept4
 int
 accept4(int s, struct sockaddr *addr, socklen_t *addrlen, int flags)

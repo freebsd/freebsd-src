@@ -1,0 +1,11 @@
+audit_121_MIT {
+	global:
+		kau_j_kdc_stop;
+		kau_j_kdc_start;
+		kau_j_as_req;
+		kau_j_tgs_req;
+		kau_j_tgs_s4u2self;
+		kau_j_tgs_s4u2proxy;
+		kau_j_tgs_u2u;
+};
+HIDDEN { local: __*; _rest*; _save*; *; };

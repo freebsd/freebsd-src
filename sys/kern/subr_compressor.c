@@ -538,6 +538,12 @@ compressor_init(compressor_cb_t cb, int format, size_t maxiosize, int level,
 	return (s);
 }
 
+int
+compressor_format(const struct compressor *stream)
+{
+	return (stream->methods->format);
+}
+
 void
 compressor_reset(struct compressor *stream)
 {

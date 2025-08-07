@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 PROG=	kinit
 
 LIBADD=	kadm5srv_mit kdb5 gssrpc gssapi_krb5 krb5 k5crypto com_err \

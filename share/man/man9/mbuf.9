@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 28, 2023
+.Dd August 1, 2025
 .Dt MBUF 9
 .Os
 .\"
@@ -1091,7 +1091,7 @@ network code, when data must be encrypted or otherwise
 altered prior to transmission.
 .El
 .Sh HARDWARE-ASSISTED CHECKSUM CALCULATION
-This section currently applies to TCP/IP only.
+This section currently applies to SCTP, TCP, and UDP over IP only.
 In order to save the host CPU resources, computing checksums is
 offloaded to the network interface hardware if possible.
 The
@@ -1102,8 +1102,7 @@ of a packet contains two fields used for that purpose,
 .Vt int Va csum_flags
 and
 .Vt int Va csum_data .
-The meaning of those fields depends on the direction a packet flows in,
-and on whether the packet is fragmented.
+The meaning of those fields depends on whether the packet is fragmented.
 Henceforth,
 .Va csum_flags
 or
@@ -1117,14 +1116,14 @@ in the
 .Vt mbuf chain
 containing the packet.
 .Pp
-On output, checksum offloading is attempted after the outgoing
-interface has been determined for a packet.
+When a packet is sent by SCTP, TCP, or UDP, the computation of the checksum
+is delayed until the outgoing interface has been determined for a packet.
 The interface-specific field
 .Va ifnet.if_data.ifi_hwassist
 (see
 .Xr ifnet 9 )
-is consulted for the capabilities of the interface to assist in
-computing checksums.
+is consulted by IP for the capabilities of the network interface selected for
+output to assist in computing checksums.
 The
 .Va csum_flags
 field of the packet header is set to indicate which actions the interface
@@ -1135,12 +1134,15 @@ such actions will never be requested through
 .Va csum_flags .
 .Pp
 The flags demanding a particular action from an interface are as follows:
-.Bl -tag -width ".Dv CSUM_TCP" -offset indent
+.Bl -tag -width ".Dv CSUM_SCTP" -offset indent
 .It Dv CSUM_IP
 The IP header checksum is to be computed and stored in the
 corresponding field of the packet.
 The hardware is expected to know the format of an IP header
 to determine the offset of the IP checksum field.
+.It Dv CSUM_SCTP
+The SCTP checksum is to be computed.
+(See below.)
 .It Dv CSUM_TCP
 The TCP checksum is to be computed.
 (See below.)
@@ -1149,17 +1151,19 @@ The UDP checksum is to be computed.
 (See below.)
 .El
 .Pp
-Should a TCP or UDP checksum be offloaded to the hardware,
+Should a SCTP, TCP, or UDP checksum be offloaded to the hardware,
 the field
 .Va csum_data
 will contain the byte offset of the checksum field relative to the
 end of the IP header.
-In this case, the checksum field will be initially
-set by the TCP/IP module to the checksum of the pseudo header
+In the case of TCP or UDP, the checksum field will be initially
+set by the TCP or UDP implementation to the checksum of the pseudo header
 defined by the TCP and UDP specifications.
+In the case of SCTP, the checksum field will be initially
+set by the SCTP implementation to 0.
 .Pp
-On input, an interface indicates the actions it has performed
-on a packet by setting one or more of the following flags in
+When a packet is received by an interface, it indicates the actions it has
+performed on a packet by setting one or more of the following flags in
 .Va csum_flags
 associated with the packet:
 .Bl -tag -width ".Dv CSUM_IP_CHECKED" -offset indent
@@ -1187,13 +1191,13 @@ to obtain the final checksum to be used for TCP or UDP validation purposes.
 .El
 .Pp
 If a particular network interface just indicates success or
-failure of TCP or UDP checksum validation without returning
+failure of SCTP, TCP, or UDP checksum validation without returning
 the exact value of the checksum to the host CPU, its driver can mark
 .Dv CSUM_DATA_VALID
-and
-.Dv CSUM_PSEUDO_HDR
 in
-.Va csum_flags ,
+.Va csum_flags
+as well as, for TCP and UDP,
+.Dv CSUM_PSEUDO_HDR
 and set
 .Va csum_data
 to
@@ -1203,6 +1207,28 @@ It is a peculiarity of the algorithm used that the Internet checksum
 calculated over any valid packet will be
 .Li 0xFFFF
 as long as the original checksum field is included.
+Note that for SCTP the value of
+.Va csum_data
+is not relevant and
+.Dv CSUM_PSEUDO_HDR
+in
+.Va csum_flags
+is not set, since SCTP does not use a pseudo header checksum.
+.Pp
+If IP delivers a packet with the flags
+.Dv CSUM_SCTP ,
+.Dv CSUM_TCP ,
+or
+.Dv CSUM_UDP
+set in
+.Va csum_flags
+to a local SCTP, TCP, or UDP stack, the packet will be processed without
+computing or validating the checksum, since the packet has not been on the
+wire.
+This can happen if the packet was handled by a virtual interface such as
+.Xr tap 4
+or
+.Xr epair 4 .
 .Sh STRESS TESTING
 When running a kernel compiled with the option
 .Dv MBUF_STRESS_TEST ,

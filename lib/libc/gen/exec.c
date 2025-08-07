@@ -32,8 +32,10 @@
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <assert.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -139,26 +141,129 @@ execvp(const char *name, char * const *argv)
 	return (__libc_execvpe(name, argv, environ));
 }
 
+/*
+ * Returns 0 if we don't consider this a terminal condition, -1 if we do.
+ */
+static int
+execvPe_prog(const char *path, char * const *argv, char * const *envp)
+{
+	struct stat sb;
+	const char **memp;
+	size_t cnt;
+	int save_errno;
+
+	(void)_execve(path, argv, envp);
+	/* Grouped roughly by never terminal vs. usually terminal conditions */
+	switch (errno) {
+	case ELOOP:
+	case ENAMETOOLONG:
+	case ENOENT:
+	case ENOTDIR:
+		/* Non-terminal: property of the path we're trying */
+		break;
+	case ENOEXEC:
+		 /*
+		  * Failures here are considered terminal because we must handle
+		  * this via the ENOEXEC fallback path; doing any further
+		  * searching would be categorically incorrect.
+		  */
+
+		for (cnt = 0; argv[cnt] != NULL; ++cnt)
+			;
+
+		/*
+		 * cnt may be 0 above; always allocate at least
+		 * 3 entries so that we can at least fit "sh", path, and
+		 * the NULL terminator.  We can rely on cnt to take into
+		 * account the NULL terminator in all other scenarios,
+		 * as we drop argv[0].
+		 */
+		memp = alloca(MAX(3, cnt + 2) * sizeof(char *));
+		assert(memp != NULL);
+		if (cnt > 0) {
+			memp[0] = argv[0];
+			memp[1] = path;
+			memcpy(&memp[2], &argv[1], cnt * sizeof(char *));
+		} else {
+			memp[0] = "sh";
+			memp[1] = path;
+			memp[2] = NULL;
+		}
+
+		(void)_execve(_PATH_BSHELL, __DECONST(char **, memp), envp);
+		return (-1);
+	case ENOMEM:
+	case E2BIG:
+		/* Terminal: persistent condition */
+		return (-1);
+	case ETXTBSY:
+		/*
+		 * Terminal: we used to retry here, but sh(1) doesn't.
+		 */
+		return (-1);
+	default:
+		/*
+		 * EACCES may be for an inaccessible directory or
+		 * a non-executable file.  Call stat() to decide
+		 * which.  This also handles ambiguities for EFAULT
+		 * and EIO, and undocumented errors like ESTALE.
+		 * We hope that the race for a stat() is unimportant.
+		 */
+		save_errno = errno;
+		if (stat(path, &sb) == -1) {
+			/*
+			 * We force errno to ENOENT here to disambiguate the
+			 * EACCESS case; the results of execve(2) are somewhat
+			 * inconclusive because either the file did not exist or
+			 * we just don't have search permissions, but the caller
+			 * only really wants to see EACCES if the file did exist
+			 * but was not accessible.
+			 */
+			if (save_errno == EACCES)
+				errno = ENOENT;
+			break;
+		}
+
+		errno = save_errno;
+
+		/*
+		 * Non-terminal: the file did exist and we just didn't have
+		 * access to it, so we surface the EACCES and let the search
+		 * continue for a candidate that we do have access to.
+		 */
+		if (errno == EACCES)
+			break;
+
+		/*
+		 * All other errors here are terminal, as prescribed by exec(3).
+		 */
+		return (-1);
+	}
+
+	return (0);
+}
+
 static int
 execvPe(const char *name, const char *path, char * const *argv,
     char * const *envp)
 {
-	const char **memp;
-	size_t cnt, lp, ln;
-	int eacces, save_errno;
 	char buf[MAXPATHLEN];
-	const char *bp, *np, *op, *p;
-	struct stat sb;
+	size_t ln, lp;
+	const char *np, *op, *p;
+	bool eacces;
 
-	eacces = 0;
+	eacces = false;
 
 	/* If it's an absolute or relative path name, it's easy. */
-	if (strchr(name, '/')) {
-		bp = name;
-		op = NULL;
-		goto retry;
+	if (strchr(name, '/') != NULL) {
+		/*
+		 * We ignore non-terminal conditions because we don't have any
+		 * further paths to try -- we can just bubble up the errno from
+		 * execve(2) here.
+		 */
+		(void)execvPe_prog(name, argv, envp);
+		return (-1);
 	}
-	bp = buf;
 
 	/* If it's an empty path name, fail in the usual POSIX way. */
 	if (*name == '\0') {
@@ -192,9 +297,13 @@ execvPe(const char *name, const char *path, char * const *argv,
 			op = np + 1;
 
 		/*
-		 * If the path is too long complain.  This is a possible
-		 * security issue; given a way to make the path too long
-		 * the user may execute the wrong program.
+		 * If the path is too long, then complain.  This is a possible
+		 * security issue: given a way to make the path too long, the
+		 * user may execute the wrong program.
+		 *
+		 * Remember to exercise caution here with assembling our final
+		 * buf and any output, as we may be running in a vfork() context
+		 * via posix_spawnp().
 		 */
 		if (lp + ln + 2 > sizeof(buf)) {
 			(void)_write(STDERR_FILENO, execvPe_err_preamble,
@@ -202,82 +311,40 @@ execvPe(const char *name, const char *path, char * const *argv,
 			(void)_write(STDERR_FILENO, p, lp);
 			(void)_write(STDERR_FILENO, execvPe_err_trailer,
 			    sizeof(execvPe_err_trailer) - 1);
+
 			continue;
 		}
-		bcopy(p, buf, lp);
+
+		memcpy(&buf[0], p, lp);
 		buf[lp] = '/';
-		bcopy(name, buf + lp + 1, ln);
+		memcpy(&buf[lp + 1], name, ln);
 		buf[lp + ln + 1] = '\0';
 
-retry:		(void)_execve(bp, argv, envp);
-		switch (errno) {
-		case E2BIG:
-			goto done;
-		case ELOOP:
-		case ENAMETOOLONG:
-		case ENOENT:
-			break;
-		case ENOEXEC:
-			for (cnt = 0; argv[cnt]; ++cnt)
-				;
-
-			/*
-			 * cnt may be 0 above; always allocate at least
-			 * 3 entries so that we can at least fit "sh", bp, and
-			 * the NULL terminator.  We can rely on cnt to take into
-			 * account the NULL terminator in all other scenarios,
-			 * as we drop argv[0].
-			 */
-			memp = alloca(MAX(3, cnt + 2) * sizeof(char *));
-			if (memp == NULL) {
-				/* errno = ENOMEM; XXX override ENOEXEC? */
-				goto done;
-			}
-			if (cnt > 0) {
-				memp[0] = argv[0];
-				memp[1] = bp;
-				bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
-			} else {
-				memp[0] = "sh";
-				memp[1] = bp;
-				memp[2] = NULL;
-			}
- 			(void)_execve(_PATH_BSHELL,
-			    __DECONST(char **, memp), envp);
-			goto done;
-		case ENOMEM:
-			goto done;
-		case ENOTDIR:
-			break;
-		case ETXTBSY:
-			/*
-			 * We used to retry here, but sh(1) doesn't.
-			 */
-			goto done;
-		default:
-			/*
-			 * EACCES may be for an inaccessible directory or
-			 * a non-executable file.  Call stat() to decide
-			 * which.  This also handles ambiguities for EFAULT
-			 * and EIO, and undocumented errors like ESTALE.
-			 * We hope that the race for a stat() is unimportant.
-			 */
-			save_errno = errno;
-			if (stat(bp, &sb) != 0)
-				break;
-			if (save_errno == EACCES) {
-				eacces = 1;
-				continue;
-			}
-			errno = save_errno;
-			goto done;
-		}
+		/*
+		 * For terminal conditions we can just return immediately.  If
+		 * it was non-terminal, we just need to note if we had an
+		 * EACCES -- execvPe_prog would do a stat(2) and leave us with
+		 * an errno of EACCES only if the file did exist; otherwise it
+		 * would coerce it to an ENOENT because we may not know if a
+		 * file actually existed there or not.
+		 */
+		if (execvPe_prog(buf, argv, envp) == -1)
+			return (-1);
+		if (errno == EACCES)
+			eacces = true;
 	}
+
+	/*
+	 * We don't often preserve errors encountering during the PATH search,
+	 * so we override it here.  ENOENT would be misleading if we found a
+	 * candidate but couldn't access it, but most of the other conditions
+	 * are either terminal or indicate that nothing was there.
+	 */
 	if (eacces)
 		errno = EACCES;
 	else
 		errno = ENOENT;
-done:
+
 	return (-1);
 }
 

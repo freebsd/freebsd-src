@@ -110,8 +110,6 @@
 
 #include <netpfil/pf/pfsync_nv.h>
 
-#define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
-
 struct pfsync_bucket;
 struct pfsync_softc;
 
@@ -531,6 +529,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	struct pfi_kkif		*rt_kif = NULL;
 	struct pf_kpooladdr	*rpool_first;
 	int			 error;
+	sa_family_t		 rt_af = 0;
 	uint8_t			 rt = 0;
 	int			 n = 0;
 
@@ -597,21 +596,26 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			if ((rpool_first == NULL) ||
 			    (TAILQ_NEXT(rpool_first, entries) != NULL)) {
 				DPFPRINTF(PF_DEBUG_MISC,
-				    ("%s: can't recover routing information "
-				    "because of empty or bad redirection pool\n",
-				    __func__));
+				    "%s: can't recover routing information "
+				    "because of empty or bad redirection pool",
+				    __func__);
 				return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
 			}
 			rt = r->rt;
 			rt_kif = rpool_first->kif;
+			/*
+			 * Guess the AF of the route address, FreeBSD 13 does
+			 * not support af-to so it should be safe.
+			 */
+			rt_af = r->af;
 		} else if (!PF_AZERO(&sp->pfs_1301.rt_addr, sp->pfs_1301.af)) {
 			/*
 			 * Ruleset different, routing *supposedly* requested,
 			 * give up on recovering.
 			 */
 			DPFPRINTF(PF_DEBUG_MISC,
-			    ("%s: can't recover routing information "
-			    "because of different ruleset\n", __func__));
+			    "%s: can't recover routing information "
+			    "because of different ruleset", __func__);
 			return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
 		}
 	break;
@@ -624,11 +628,16 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			rt_kif = pfi_kkif_find(sp->pfs_1400.rt_ifname);
 			if (rt_kif == NULL) {
 				DPFPRINTF(PF_DEBUG_MISC,
-				    ("%s: unknown route interface: %s\n",
-				    __func__, sp->pfs_1400.rt_ifname));
+				    "%s: unknown route interface: %s",
+				    __func__, sp->pfs_1400.rt_ifname);
 				return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
 			}
 			rt = sp->pfs_1400.rt;
+			/*
+			 * Guess the AF of the route address, FreeBSD 13 does
+			 * not support af-to so it should be safe.
+			 */
+			rt_af = sp->pfs_1400.af;
 		}
 	break;
 	}
@@ -708,6 +717,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 
 	st->act.rt = rt;
 	st->act.rt_kif = rt_kif;
+	st->act.rt_af = rt_af;
 
 	switch (msg_version) {
 		case PFSYNC_MSG_VERSION_1301:

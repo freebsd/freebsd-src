@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.240 2025/06/30 18:40:54 sjg Exp $
+# $Id: Makefile,v 1.245 2025/08/05 16:18:07 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.369 2025/06/29 09:40:13 rillig Exp $
+# $NetBSD: Makefile,v 1.372 2025/08/04 22:44:49 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -234,6 +234,7 @@ TESTS+=		jobs-error-nested-make
 TESTS+=		lint
 TESTS+=		make-exported
 TESTS+=		meta-cmd-cmp
+TESTS+=		meta-output
 TESTS+=		moderrs
 TESTS+=		modmisc
 .if ${.MAKE.UID} > 0
@@ -592,6 +593,7 @@ SED_CMDS.directive-include-guard= \
 	-e '/^ParseDependency/d' \
 	-e '/^ParseEOF:/d'
 SED_CMDS.export=	-e '/^[^=_A-Za-z0-9]*=/d'
+SED_CMDS.export+=	-e '/^DIFF/d'
 .if ${.MAKE.OS:NCygwin} == ""
 SED_CMDS.export+=	-e '/^WINDIR=/d' -e '/^SYSTEMROOT=/d'
 .endif
@@ -802,6 +804,7 @@ EGREP= grep -E
 EGREP?= egrep
 
 MAKE_TEST_ENV=  EGREP="${EGREP}"
+MAKE_TEST_ENV+= DIFF="${TOOL_DIFF}" DIFF_FLAGS="${DIFF_FLAGS}"
 MAKE_TEST_ENV+=	MALLOC_OPTIONS="JA"	# for jemalloc 100
 MAKE_TEST_ENV+=	MALLOC_CONF="junk:true"	# for jemalloc 510
 MAKE_TEST_ENV+= TMPDIR=${TMPDIR}

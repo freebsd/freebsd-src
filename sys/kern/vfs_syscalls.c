@@ -37,6 +37,7 @@
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
 
+#define	EXTERR_CATEGORY		EXTERR_CAT_VFSSYSCALL
 #include <sys/systm.h>
 #ifdef COMPAT_FREEBSD11
 #include <sys/abi_compat.h>
@@ -46,6 +47,7 @@
 #include <sys/capsicum.h>
 #include <sys/disk.h>
 #include <sys/dirent.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -982,13 +984,16 @@ kern_chroot(struct thread *td, struct vnode *vp)
 	error = priv_check(td, PRIV_VFS_CHROOT);
 	if (error != 0) {
 		p = td->td_proc;
-		PROC_LOCK(p);
-		if (unprivileged_chroot == 0 ||
-		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
-			PROC_UNLOCK(p);
+		if (unprivileged_chroot == 0) {
+			error = EXTERROR(EPERM,
+		    "security.bsd.unprivileged_chroot sysctl not enabled");
 			goto e_vunlock;
 		}
-		PROC_UNLOCK(p);
+		if ((p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
+			error = EXTERROR(EPERM,
+			    "PROC_NO_NEW_PRIVS not enabled");
+			goto e_vunlock;
+		}
 	}
 
 	error = change_dir(vp, td);
@@ -2253,10 +2258,10 @@ kern_accessat(struct thread *td, int fd, const char *path,
 	cred = td->td_ucred;
 	if ((flag & AT_EACCESS) == 0 &&
 	    ((cred->cr_uid != cred->cr_ruid ||
-	    cred->cr_rgid != cred->cr_groups[0]))) {
+	    cred->cr_rgid != cred->cr_gid))) {
 		usecred = crdup(cred);
 		usecred->cr_uid = cred->cr_ruid;
-		usecred->cr_groups[0] = cred->cr_rgid;
+		usecred->cr_gid = cred->cr_rgid;
 		td->td_ucred = usecred;
 	} else
 		usecred = cred;

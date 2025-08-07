@@ -698,10 +698,13 @@ sendfile_wait_generic(struct socket *so, off_t need, int *space)
 	 */
 	error = 0;
 	SOCK_SENDBUF_LOCK(so);
-	if (so->so_snd.sb_lowat < so->so_snd.sb_hiwat / 2)
-		so->so_snd.sb_lowat = so->so_snd.sb_hiwat / 2;
-	if (so->so_snd.sb_lowat < PAGE_SIZE && so->so_snd.sb_hiwat >= PAGE_SIZE)
-		so->so_snd.sb_lowat = PAGE_SIZE;
+	if (so->so_snd.sb_flags & SB_AUTOLOWAT) {
+		if (so->so_snd.sb_lowat < so->so_snd.sb_hiwat / 2)
+			so->so_snd.sb_lowat = so->so_snd.sb_hiwat / 2;
+		if (so->so_snd.sb_lowat < PAGE_SIZE &&
+		    so->so_snd.sb_hiwat >= PAGE_SIZE)
+			so->so_snd.sb_lowat = PAGE_SIZE;
+	}
 retry_space:
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		error = EPIPE;

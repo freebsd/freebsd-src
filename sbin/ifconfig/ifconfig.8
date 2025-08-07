@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 11, 2025
+.Dd August 5, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2494,12 +2494,27 @@ compatibility.
 .Ss Bridge Interface Parameters
 The following parameters are specific to bridge interfaces:
 .Bl -tag -width indent
-.It Cm addm Ar interface
+.It Cm addm Ar interface Op Ar options ...
 Add the interface named by
 .Ar interface
 as a member of the bridge.
 The interface is put into promiscuous mode
 so that it can receive every packet sent on the network.
+.Pp
+The interface name may be followed by one or more of the following
+.Ar options :
+.Bl -tag -width ".Cm untagged Ar vlan-id"
+.It Cm untagged Ar vlan-id
+Set the untagged VLAN identifier for the interface.
+This is equivalent to the
+.Cm ifuntagged
+command.
+.It Cm tagged Ar vlan-set
+Set the allowed VLAN list for the interface.
+This is equivalent to the
+.Cm iftagged
+command.
+.El
 .It Cm deletem Ar interface
 Remove the interface named by
 .Ar interface
@@ -2520,15 +2535,23 @@ is zero, then address cache entries will not be expired.
 The default is 1200 seconds.
 .It Cm addr
 Display the addresses that have been learned by the bridge.
-.It Cm static Ar interface-name Ar address
-Add a static entry into the address cache pointing to
+.It Cm static Ar interface-name Ar address Op Cm vlan Ar vlan-id
+Add a static entry into the address cache for pointing to
 .Ar interface-name .
+If
+.Ar vlan-id
+is specified, the entry is added for that VLAN, otherwise it is added
+for VLAN 0.
+.Pp
 Static entries are never aged out of the cache or re-placed, even if the
 address is seen on a different interface.
-.It Cm deladdr Ar address
+.It Cm deladdr Ar address Op Cm vlan Ar vlan-id
 Delete
 .Ar address
-from the address cache.
+from the address cache.  If
+.Ar vlan-id
+is specified, the entry is deleted from that VLAN's address table,
+otherwise it is deleted from the VLAN 0 address table.
 .It Cm flush
 Delete all dynamically-learned addresses from the address cache.
 .It Cm flushall
@@ -2702,19 +2725,24 @@ The behaviour of these options is described in the
 section of
 .Xr bridge 4 .
 .Bl -tag -width indent
-.It Cm vlanfilter Ar interface
-Enable VLAN filtering on an interface.
-.It Cm -vlanfilter Ar interface
-Disable VLAN filtering on an interface.
-.It Cm untagged Ar interface Ar vlan-id
+.It Cm vlanfilter
+Enable VLAN filtering on the bridge.
+.It Cm -vlanfilter
+Disable VLAN filtering on the bridge.
+This is the default.
+.It Cm ifuntagged Ar interface Ar vlan-id
 Set the untagged VLAN identifier for an interface.
-.Pp
-Setting
-.Cm untagged
-will automatically enable VLAN filtering on the interface.
-.It Cm -untagged Ar interface Ar vlan-id
+.It Cm -ifuntagged Ar interface Ar vlan-id
 Clear the untagged VLAN identifier for an interface.
-.It Cm tagged Ar interface Ar vlan-list
+.It Cm defuntagged Ar vlan-id
+Enable the
+.Cm untagged
+option by default on newly added members.
+.It Cm -defuntagged
+Do not enable the
+.Cm untagged
+option by default on newly added members.
+.It Cm iftagged Ar interface Ar vlan-list
 Set the interface's VLAN access list to the provided list of VLANs.
 The list should be a comma-separated list of one or more VLAN IDs
 or ranges formatted as
@@ -2725,27 +2753,44 @@ meaning the empty set,
 or the value
 .Dq all
 meaning all VLANs (1-4094).
-.Pp
-Setting
-.Cm tagged
-will automatically enable VLAN filtering on the interface.
-.It Cm +tagged Ar interface Ar vlan-list
+.It Cm +iftagged Ar interface Ar vlan-list
 Add the provided list of VLAN IDs to the interface's VLAN access list.
 The list should be formatted as described for
-.Cm tagged .
-.Pp
-Setting
-.Cm +tagged
-will automatically enable VLAN filtering on the interface.
-.It Cm -tagged Ar interface Ar vlan-list
+.Cm iftagged .
+.It Cm -iftagged Ar interface Ar vlan-list
 Remove the provided list of VLAN IDs from the interface's VLAN access
 list.
 The list should be formatted as described for
-.Cm tagged .
-.Pp
-Setting
-.Cm -tagged
-will automatically enable VLAN filtering on the interface.
+.Cm iftagged .
+.It Cm qinq Ar interface
+Allow this interface to send 802.1ad
+.Dq Q-in-Q
+frames.
+.It Cm -qinq Ar interface
+Do not allow this interface to send 802.1ad
+.Dq Q-in-Q
+frames.
+This is the default behavior.
+.It Cm defqinq
+Enable the
+.Cm qinq
+option by default on newly added members.
+.It Cm -defqinq
+Do not enable the
+.Cm qinq
+option by default on newly added members.
+This is the default behavior.
+.It Cm ifvlanproto Ar interface Ar proto
+Set the VLAN encapsulation protocol on
+.Ar interface
+to
+.Ar proto ,
+which must be either
+.Dq 802.1q
+or
+.Dq 802.1ad .
+The default is
+.Dq 802.1q .
 .El
 .Ss Link Aggregation and Link Failover Parameters
 The following parameters are specific to lagg interfaces:
@@ -2878,13 +2923,25 @@ interfaces previously configured with
 Another name for the
 .Fl tunnel
 parameter.
+.It Cm noclamp
+This flag prevents the MTU from being clamped to 1280 bytes, the
+minimum MTU for IPv6, when the outer protocol is IPv6.  When the
+flag is set, the MTU value configured on the interface will be
+used instead of the fixed length of 1280 bytes. For more details,
+please refer to the
+.Ar MTU Configuration and Path MTU Discovery
+section in
+.Xr gif 4 .
+.It Cm -noclamp
+Clear the flag
+.Cm noclamp .
 .It Cm ignore_source
 Set a flag to accept encapsulated packets destined to this host
 independently from source address.
 This may be useful for hosts, that receive encapsulated packets
 from the load balancers.
 .It Cm -ignore_source
-Clear a flag
+Clear the flag
 .Cm ignore_source .
 .El
 .Ss GRE Tunnel Parameters

@@ -1078,7 +1078,7 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 	return (0);
 }
 
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 void
 mac_vnode_assert_locked(struct vnode *vp, const char *func)
 {

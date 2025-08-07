@@ -39,6 +39,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -232,17 +233,29 @@ void
 set_auth(CLIENT *cl, struct xucred *xucred)
 {
 	int ngroups;
+	gid_t *groups;
 
-	ngroups = xucred->cr_ngroups - 1;
+	/*
+	 * Exclude the first element if it is actually the egid, but account for
+	 * the possibility that we could eventually exclude the egid from the
+	 * exported group list some day.
+	 */
+	ngroups = xucred->cr_ngroups;
+	groups = &xucred->cr_groups[0];
+	if (groups == &xucred->cr_gid) {
+		assert(ngroups > 0);
+		ngroups--;
+		groups++;
+	}
 	if (ngroups > NGRPS)
 		ngroups = NGRPS;
         if (cl->cl_auth != NULL)
                 cl->cl_auth->ah_ops->ah_destroy(cl->cl_auth);
         cl->cl_auth = authunix_create(hostname,
                         xucred->cr_uid,
-                        xucred->cr_groups[0],
+                        xucred->cr_gid,
                         ngroups,
-                        &xucred->cr_groups[1]);
+                        groups);
 }
 
 

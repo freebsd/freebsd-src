@@ -333,6 +333,32 @@ conflict_id_cleanup()
 
 }
 
+# If a vlan interface is in a bridge, changing the vlandev to refer to
+# a bridge should not be allowed.
+atf_test_case "bridge_vlandev" "cleanup"
+bridge_vlandev_head()
+{
+	atf_set descr 'transforming a bridge member vlan into an SVI is not allowed'
+	atf_set require.user root
+}
+
+bridge_vlandev_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	bridge=$(vnet_mkbridge)
+	vlan=$(vnet_mkvlan)
+
+	atf_check -s exit:0 ifconfig ${bridge} addm ${vlan}
+	atf_check -s exit:1 -e ignore ifconfig ${vlan} vlan 1 vlandev ${bridge}
+}
+
+bridge_vlandev_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -343,4 +369,5 @@ atf_init_test_cases()
 	atf_add_test_case "qinq_setflags"
 	atf_add_test_case "bpf_pcp"
 	atf_add_test_case "conflict_id"
+	atf_add_test_case "bridge_vlandev"
 }

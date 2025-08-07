@@ -48,7 +48,7 @@
 #define B4_CHK_RDY_DELAY_MS	2300		/* work around controller bug */
 
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
-						struct nvme_async_event_request *aer);
+    struct nvme_async_event_request *aer);
 
 static void
 nvme_ctrlr_barrier(struct nvme_controller *ctrlr, int flags)
@@ -680,96 +680,6 @@ nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
 }
 
 static void
-nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
-{
-	struct nvme_async_event_request		*aer = arg;
-	struct nvme_health_information_page	*health_info;
-	struct nvme_ns_list			*nsl;
-	struct nvme_error_information_entry	*err;
-	int i;
-
-	/*
-	 * If the log page fetch for some reason completed with an error,
-	 *  don't pass log page data to the consumers.  In practice, this case
-	 *  should never happen.
-	 */
-	if (nvme_completion_is_error(cpl))
-		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
-		    aer->log_page_id, NULL, 0);
-	else {
-		/* Convert data to host endian */
-		switch (aer->log_page_id) {
-		case NVME_LOG_ERROR:
-			err = (struct nvme_error_information_entry *)aer->log_page_buffer;
-			for (i = 0; i < (aer->ctrlr->cdata.elpe + 1); i++)
-				nvme_error_information_entry_swapbytes(err++);
-			break;
-		case NVME_LOG_HEALTH_INFORMATION:
-			nvme_health_information_page_swapbytes(
-			    (struct nvme_health_information_page *)aer->log_page_buffer);
-			break;
-		case NVME_LOG_CHANGED_NAMESPACE:
-			nvme_ns_list_swapbytes(
-			    (struct nvme_ns_list *)aer->log_page_buffer);
-			break;
-		case NVME_LOG_COMMAND_EFFECT:
-			nvme_command_effects_page_swapbytes(
-			    (struct nvme_command_effects_page *)aer->log_page_buffer);
-			break;
-		case NVME_LOG_RES_NOTIFICATION:
-			nvme_res_notification_page_swapbytes(
-			    (struct nvme_res_notification_page *)aer->log_page_buffer);
-			break;
-		case NVME_LOG_SANITIZE_STATUS:
-			nvme_sanitize_status_page_swapbytes(
-			    (struct nvme_sanitize_status_page *)aer->log_page_buffer);
-			break;
-		default:
-			break;
-		}
-
-		if (aer->log_page_id == NVME_LOG_HEALTH_INFORMATION) {
-			health_info = (struct nvme_health_information_page *)
-			    aer->log_page_buffer;
-			nvme_ctrlr_log_critical_warnings(aer->ctrlr,
-			    health_info->critical_warning);
-			/*
-			 * Critical warnings reported through the
-			 *  SMART/health log page are persistent, so
-			 *  clear the associated bits in the async event
-			 *  config so that we do not receive repeated
-			 *  notifications for the same event.
-			 */
-			aer->ctrlr->async_event_config &=
-			    ~health_info->critical_warning;
-			nvme_ctrlr_cmd_set_async_event_config(aer->ctrlr,
-			    aer->ctrlr->async_event_config, NULL, NULL);
-		} else if (aer->log_page_id == NVME_LOG_CHANGED_NAMESPACE &&
-		    !nvme_use_nvd) {
-			nsl = (struct nvme_ns_list *)aer->log_page_buffer;
-			for (i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
-				if (nsl->ns[i] > NVME_MAX_NAMESPACES)
-					break;
-				nvme_notify_ns(aer->ctrlr, nsl->ns[i]);
-			}
-		}
-
-		/*
-		 * Pass the cpl data from the original async event completion,
-		 *  not the log page fetch.
-		 */
-		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
-		    aer->log_page_id, aer->log_page_buffer, aer->log_page_size);
-	}
-
-	/*
-	 * Repost another asynchronous event request to replace the one
-	 *  that just completed.
-	 */
-	nvme_ctrlr_construct_and_submit_aer(aer->ctrlr, aer);
-}
-
-static void
 nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_async_event_request	*aer = arg;
@@ -784,33 +694,18 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 		return;
 	}
 
-	/* Associated log page is in bits 23:16 of completion entry dw0. */
+	/*
+	 * Save the completion status and associated log page is in bits 23:16
+	 * of completion entry dw0. Print a message and queue it for further
+	 * processing.
+	 */
+	memcpy(&aer->cpl, cpl, sizeof(*cpl));
 	aer->log_page_id = NVMEV(NVME_ASYNC_EVENT_LOG_PAGE_ID, cpl->cdw0);
-
 	nvme_printf(aer->ctrlr, "async event occurred (type 0x%x, info 0x%02x,"
 	    " page 0x%02x)\n", NVMEV(NVME_ASYNC_EVENT_TYPE, cpl->cdw0),
 	    NVMEV(NVME_ASYNC_EVENT_INFO, cpl->cdw0),
 	    aer->log_page_id);
-
-	if (is_log_page_id_valid(aer->log_page_id)) {
-		aer->log_page_size = nvme_ctrlr_get_log_page_size(aer->ctrlr,
-		    aer->log_page_id);
-		memcpy(&aer->cpl, cpl, sizeof(*cpl));
-		nvme_ctrlr_cmd_get_log_page(aer->ctrlr, aer->log_page_id,
-		    NVME_GLOBAL_NAMESPACE_TAG, aer->log_page_buffer,
-		    aer->log_page_size, nvme_ctrlr_async_event_log_page_cb,
-		    aer);
-		/* Wait to notify consumers until after log page is fetched. */
-	} else {
-		nvme_notify_async_consumers(aer->ctrlr, cpl, aer->log_page_id,
-		    NULL, 0);
-
-		/*
-		 * Repost another asynchronous event request to replace the one
-		 *  that just completed.
-		 */
-		nvme_ctrlr_construct_and_submit_aer(aer->ctrlr, aer);
-	}
+	taskqueue_enqueue(aer->ctrlr->taskqueue, &aer->task);
 }
 
 static void
@@ -819,15 +714,21 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 {
 	struct nvme_request *req;
 
-	aer->ctrlr = ctrlr;
 	/*
-	 * XXX-MJ this should be M_WAITOK but we might be in a non-sleepable
-	 * callback context.  AER completions should be handled on a dedicated
-	 * thread.
+	 * We're racing the reset thread, so let that process submit this again.
+	 * XXX does this really solve that race? And is that race even possible
+	 * since we only reset when we've no theard from the card in a long
+	 * time. Why would we get an AER in the middle of that just before we
+	 * kick off the reset?
 	 */
-	req = nvme_allocate_request_null(M_NOWAIT, nvme_ctrlr_async_event_cb,
+	if (ctrlr->is_resetting)
+		return;
+
+	aer->ctrlr = ctrlr;
+	req = nvme_allocate_request_null(M_WAITOK, nvme_ctrlr_async_event_cb,
 	    aer);
 	aer->req = req;
+	aer->log_page_id = 0;		/* Not a valid page */
 
 	/*
 	 * Disable timeout here, since asynchronous event requests should by
@@ -1203,6 +1104,140 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 }
 
+static void
+nvme_ctrlr_aer_done(void *arg,  const struct nvme_completion *cpl)
+{
+	struct nvme_async_event_request	*aer = arg;
+
+	mtx_lock(&aer->mtx);
+	if (nvme_completion_is_error(cpl))
+		aer->log_page_size = (uint32_t)-1;
+	else
+		aer->log_page_size = nvme_ctrlr_get_log_page_size(
+		    aer->ctrlr, aer->log_page_id);
+	wakeup(aer);
+	mtx_unlock(&aer->mtx);
+}
+
+static void
+nvme_ctrlr_aer_task(void *arg, int pending)
+{
+	struct nvme_async_event_request	*aer = arg;
+	struct nvme_controller	*ctrlr = aer->ctrlr;
+	uint32_t len;
+
+	/*
+	 * We're resetting, so just punt.
+	 */
+	if (ctrlr->is_resetting)
+		return;
+
+	if (!is_log_page_id_valid(aer->log_page_id)) {
+		/*
+		 * Repost another asynchronous event request to replace the one
+		 * that just completed.
+		 */
+		nvme_notify_async_consumers(ctrlr, &aer->cpl, aer->log_page_id,
+		    NULL, 0);
+		nvme_ctrlr_construct_and_submit_aer(ctrlr, aer);
+		goto out;
+	}
+
+	aer->log_page_size = 0;
+	len = nvme_ctrlr_get_log_page_size(aer->ctrlr, aer->log_page_id);
+	nvme_ctrlr_cmd_get_log_page(aer->ctrlr, aer->log_page_id,
+	    NVME_GLOBAL_NAMESPACE_TAG, aer->log_page_buffer, len,
+	    nvme_ctrlr_aer_done, aer);
+	mtx_lock(&aer->mtx);
+	while (aer->log_page_size == 0)
+		mtx_sleep(aer, &aer->mtx, PRIBIO, "nvme_pt", 0);
+	mtx_unlock(&aer->mtx);
+
+	if (aer->log_page_size != (uint32_t)-1) {
+		/*
+		 * If the log page fetch for some reason completed with an
+		 * error, don't pass log page data to the consumers.  In
+		 * practice, this case should never happen.
+		 */
+		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
+		    aer->log_page_id, NULL, 0);
+		goto out;
+	}
+
+	/* Convert data to host endian */
+	switch (aer->log_page_id) {
+	case NVME_LOG_ERROR: {
+		struct nvme_error_information_entry *err =
+		    (struct nvme_error_information_entry *)aer->log_page_buffer;
+		for (int i = 0; i < (aer->ctrlr->cdata.elpe + 1); i++)
+			nvme_error_information_entry_swapbytes(err++);
+		break;
+	}
+	case NVME_LOG_HEALTH_INFORMATION:
+		nvme_health_information_page_swapbytes(
+			(struct nvme_health_information_page *)aer->log_page_buffer);
+		break;
+	case NVME_LOG_CHANGED_NAMESPACE:
+		nvme_ns_list_swapbytes(
+			(struct nvme_ns_list *)aer->log_page_buffer);
+		break;
+	case NVME_LOG_COMMAND_EFFECT:
+		nvme_command_effects_page_swapbytes(
+			(struct nvme_command_effects_page *)aer->log_page_buffer);
+		break;
+	case NVME_LOG_RES_NOTIFICATION:
+		nvme_res_notification_page_swapbytes(
+			(struct nvme_res_notification_page *)aer->log_page_buffer);
+		break;
+	case NVME_LOG_SANITIZE_STATUS:
+		nvme_sanitize_status_page_swapbytes(
+			(struct nvme_sanitize_status_page *)aer->log_page_buffer);
+		break;
+	default:
+		break;
+	}
+
+	if (aer->log_page_id == NVME_LOG_HEALTH_INFORMATION) {
+		struct nvme_health_information_page *health_info =
+		    (struct nvme_health_information_page *)aer->log_page_buffer;
+
+		/*
+		 * Critical warnings reported through the SMART/health log page
+		 * are persistent, so clear the associated bits in the async
+		 * event config so that we do not receive repeated notifications
+		 * for the same event.
+		 */
+		nvme_ctrlr_log_critical_warnings(aer->ctrlr,
+		    health_info->critical_warning);
+		aer->ctrlr->async_event_config &=
+		    ~health_info->critical_warning;
+		nvme_ctrlr_cmd_set_async_event_config(aer->ctrlr,
+		    aer->ctrlr->async_event_config, NULL, NULL);
+	} else if (aer->log_page_id == NVME_LOG_CHANGED_NAMESPACE) {
+		struct nvme_ns_list *nsl =
+		    (struct nvme_ns_list *)aer->log_page_buffer;
+		for (int i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
+			if (nsl->ns[i] > NVME_MAX_NAMESPACES)
+				break;
+			nvme_notify_ns(aer->ctrlr, nsl->ns[i]);
+		}
+	}
+
+	/*
+	 * Pass the cpl data from the original async event completion, not the
+	 * log page fetch.
+	 */
+	nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
+	    aer->log_page_id, aer->log_page_buffer, aer->log_page_size);
+
+	/*
+	 * Repost another asynchronous event request to replace the one
+	 *  that just completed.
+	 */
+out:
+	nvme_ctrlr_construct_and_submit_aer(ctrlr, aer);
+}
+
 /*
  * Poll all the queues enabled on the device for completion.
  */
@@ -1574,13 +1609,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	/*
 	 * Create 2 threads for the taskqueue. The reset thread will block when
 	 * it detects that the controller has failed until all I/O has been
-	 * failed up the stack. The fail_req task needs to be able to run in
-	 * this case to finish the request failure for some cases.
-	 *
-	 * We could partially solve this race by draining the failed requeust
-	 * queue before proceding to free the sim, though nothing would stop
-	 * new I/O from coming in after we do that drain, but before we reach
-	 * cam_sim_free, so this big hammer is used instead.
+	 * failed up the stack. The second thread is used for AER events, which
+	 * can block, but only briefly for memory and log page fetching.
 	 */
 	ctrlr->taskqueue = taskqueue_create("nvme_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
@@ -1590,7 +1620,12 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->is_initialized = false;
 	ctrlr->notification_sent = 0;
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
-	STAILQ_INIT(&ctrlr->fail_req);
+	for (int i = 0; i < NVME_MAX_ASYNC_EVENTS; i++) {
+		struct nvme_async_event_request *aer = &ctrlr->aer[i];
+
+		TASK_INIT(&aer->task, 0, nvme_ctrlr_aer_task, aer);
+		mtx_init(&aer->mtx, "AER mutex", NULL, MTX_DEF);
+	}
 	ctrlr->is_failed = false;
 
 	make_dev_args_init(&md_args);
@@ -1678,8 +1713,14 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	}
 
 noadminq:
-	if (ctrlr->taskqueue)
+	if (ctrlr->taskqueue) {
 		taskqueue_free(ctrlr->taskqueue);
+		for (int i = 0; i < NVME_MAX_ASYNC_EVENTS; i++) {
+			struct nvme_async_event_request *aer = &ctrlr->aer[i];
+
+			mtx_destroy(&aer->mtx);
+		}
+	}
 
 	if (ctrlr->tag)
 		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);

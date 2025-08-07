@@ -30,6 +30,8 @@
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #endif
+#include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/mman.h>
 #ifdef BHYVE_SNAPSHOT
 #include <sys/socket.h>
@@ -54,6 +56,7 @@
 #include <fcntl.h>
 #endif
 #include <libgen.h>
+#include <libutil.h>
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
@@ -68,6 +71,7 @@
 #include <libxo/xo.h>
 #endif
 
+#include <dev/vmm/vmm_mem.h>
 #include <vmmapi.h>
 
 #include "acpi.h"
@@ -107,6 +111,9 @@ char *restore_file;
 static const int BSP = 0;
 
 static cpuset_t cpumask;
+
+static struct vm_mem_domain guest_domains[VM_MAXMEMDOM];
+static int guest_ndomains = 0;
 
 static void vm_loop(struct vmctx *ctx, struct vcpu *vcpu);
 
@@ -177,6 +184,118 @@ parse_int_value(const char *key, const char *value, int minval, int maxval)
 	    lval > maxval)
 		errx(4, "Invalid value for %s: '%s'", key, value);
 	return (lval);
+}
+
+int
+bhyve_numa_parse(const char *opt)
+{
+	int id = -1;
+	nvlist_t *nvl;
+	char *cp, *str, *tofree;
+	char pathbuf[64] = { 0 };
+	char *size = NULL, *cpus = NULL, *domain_policy = NULL;
+
+	if (*opt == '\0') {
+		return (-1);
+	}
+
+	tofree = str = strdup(opt);
+	if (str == NULL)
+		errx(4, "Failed to allocate memory");
+
+	while ((cp = strsep(&str, ",")) != NULL) {
+		if (strncmp(cp, "id=", strlen("id=")) == 0)
+			id = parse_int_value("id", cp + strlen("id="), 0,
+			    UINT8_MAX);
+		else if (strncmp(cp, "size=", strlen("size=")) == 0)
+			size = cp + strlen("size=");
+		else if (strncmp(cp,
+		    "domain_policy=", strlen("domain_policy=")) == 0)
+			domain_policy = cp + strlen("domain_policy=");
+		else if (strncmp(cp, "cpus=", strlen("cpus=")) == 0)
+			cpus = cp + strlen("cpus=");
+	}
+
+	if (id == -1) {
+		EPRINTLN("Missing NUMA domain ID in '%s'", opt);
+		goto out;
+	}
+
+	snprintf(pathbuf, sizeof(pathbuf), "domains.%d", id);
+	nvl = find_config_node(pathbuf);
+	if (nvl == NULL)
+		nvl = create_config_node(pathbuf);
+	if (size != NULL)
+		set_config_value_node(nvl, "size", size);
+	if (domain_policy != NULL)
+		set_config_value_node(nvl, "domain_policy", domain_policy);
+	if (cpus != NULL)
+		set_config_value_node(nvl, "cpus", cpus);
+
+	free(tofree);
+	return (0);
+
+out:
+	free(tofree);
+	return (-1);
+}
+
+static void
+calc_mem_affinity(size_t vm_memsize)
+{
+	int i;
+	nvlist_t *nvl;
+	bool need_recalc;
+	const char *value;
+	struct vm_mem_domain *dom;
+	char pathbuf[64] = { 0 };
+
+	need_recalc = false;
+	for (i = 0; i < VM_MAXMEMDOM; i++) {
+		dom = &guest_domains[i];
+		snprintf(pathbuf, sizeof(pathbuf), "domains.%d", i);
+		nvl = find_config_node(pathbuf);
+		if (nvl == NULL) {
+			break;
+		}
+
+		value = get_config_value_node(nvl, "size");
+		need_recalc |= value == NULL;
+		if (value != NULL && vm_parse_memsize(value, &dom->size)) {
+			errx(EX_USAGE, "invalid memsize for domain %d: '%s'", i,
+			    value);
+		}
+
+		dom->ds_mask = calloc(1, sizeof(domainset_t));
+		if (dom->ds_mask == NULL) {
+			errx(EX_OSERR, "Failed to allocate domainset mask");
+		}
+		dom->ds_size = sizeof(domainset_t);
+		value = get_config_value_node(nvl, "domain_policy");
+		if (value == NULL) {
+			dom->ds_policy = DOMAINSET_POLICY_INVALID;
+			DOMAINSET_ZERO(dom->ds_mask);
+		} else if (domainset_parselist(value, dom->ds_mask, &dom->ds_policy) !=
+		    CPUSET_PARSE_OK) {
+				errx(EX_USAGE, "failed to parse domain policy '%s'", value);
+		}
+	}
+
+	guest_ndomains = i;
+	if (guest_ndomains == 0) {
+		/*
+		 * No domains were specified - create domain
+		 * 0 holding all CPUs and memory.
+		 */
+		guest_ndomains = 1;
+		guest_domains[0].size = vm_memsize;
+	} else if (need_recalc) {
+		warnx("At least one domain memory size was not specified, distributing"
+		    " total VM memory size across all domains");
+		for (i = 0; i < guest_ndomains; i++) {
+			guest_domains[i].size = vm_memsize / guest_ndomains;
+		}
+	}
 }
 
 /*
@@ -337,6 +456,56 @@ build_vcpumaps(void)
 		if (vcpumap[vcpu] == NULL)
 			err(4, "Failed to allocate cpuset for vcpu %d", vcpu);
 		parse_cpuset(vcpu, value, vcpumap[vcpu]);
+	}
+}
+
+static void
+set_vcpu_affinities(void)
+{
+	int cpu, error;
+	nvlist_t *nvl = NULL;
+	cpuset_t cpus;
+	const char *value;
+	char pathbuf[64] = { 0 };
+
+	for (int dom = 0; dom < guest_ndomains; dom++) {
+		snprintf(pathbuf, sizeof(pathbuf), "domains.%d", dom);
+		nvl = find_config_node(pathbuf);
+		if (nvl == NULL)
+			break;
+
+		value = get_config_value_node(nvl, "cpus");
+		if (value == NULL) {
+			EPRINTLN("Missing CPU set for domain %d", dom);
+			exit(4);
+		}
+
+		parse_cpuset(dom, value, &cpus);
+		CPU_FOREACH_ISSET(cpu, &cpus) {
+			error = acpi_add_vcpu_affinity(cpu, dom);
+			if (error) {
+				EPRINTLN(
+				    "Unable to set vCPU %d affinity for domain %d: %s",
+				    cpu, dom, strerror(errno));
+				exit(4);
+			}
+		}
+	}
+	if (guest_ndomains > 1 || nvl != NULL)
+		return;
+
+	/*
+	 * If we're dealing with one domain and no cpuset was provided, create a
+	 * default one holding all cpus.
+	 */
+	for (cpu = 0; cpu < guest_ncpus; cpu++) {
+		error = acpi_add_vcpu_affinity(cpu, 0);
+		if (error) {
+			EPRINTLN(
+			    "Unable to set vCPU %d affinity for domain %d: %s",
+			    cpu, 0, strerror(errno));
+			exit(4);
+		}
 	}
 }
 
@@ -713,18 +882,21 @@ main(int argc, char *argv[])
 			vcpu_info[vcpuid].vcpu = vm_vcpu_open(ctx, vcpuid);
 	}
 
+	calc_mem_affinity(memsize);
 	memflags = 0;
 	if (get_config_bool_default("memory.wired", false))
 		memflags |= VM_MEM_F_WIRED;
 	if (get_config_bool_default("memory.guest_in_core", false))
 		memflags |= VM_MEM_F_INCORE;
 	vm_set_memflags(ctx, memflags);
-	error = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
+	error = vm_setup_memory_domains(ctx, VM_MMAP_ALL, guest_domains,
+	    guest_ndomains);
 	if (error) {
 		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
 		exit(4);
 	}
 
+	set_vcpu_affinities();
 	init_mem(guest_ncpus);
 	init_bootrom(ctx);
 	if (bhyve_init_platform(ctx, bsp) != 0)

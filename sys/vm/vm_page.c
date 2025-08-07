@@ -394,11 +394,15 @@ vm_page_blacklist_load(char **list, char **end)
 		ptr = preload_fetch_addr(mod);
 		len = preload_fetch_size(mod);
         }
-	*list = ptr;
-	if (ptr != NULL)
-		*end = ptr + len;
-	else
+
+	if (ptr != NULL && len > 0) {
+		*list = ptr;
+		*end = ptr + len - 1;
+	} else {
+		*list = NULL;
 		*end = NULL;
+	}
+
 	return;
 }
 
@@ -4713,7 +4717,7 @@ vm_page_grab_pflags(int allocflags)
 
 	pflags = allocflags &
 	    ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL |
-	    VM_ALLOC_NOBUSY | VM_ALLOC_IGN_SBUSY);
+	    VM_ALLOC_NOBUSY | VM_ALLOC_IGN_SBUSY | VM_ALLOC_NOCREAT);
 	if ((allocflags & VM_ALLOC_NOWAIT) == 0)
 		pflags |= VM_ALLOC_WAITFAIL;
 	if ((allocflags & VM_ALLOC_IGN_SBUSY) != 0)

@@ -374,7 +374,7 @@ p9fs_vget_common(struct mount *mp, struct p9fs_node *np, int flags,
 		STAILQ_INSERT_TAIL(&vses->virt_node_list, np, p9fs_node_next);
 		np->flags |= P9FS_NODE_IN_SESSION;
 		P9FS_UNLOCK(vses);
-
+		vn_set_state(vp, VSTATE_CONSTRUCTED);
 		*vpp = vp;
 	} else {
 		/*

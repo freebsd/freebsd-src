@@ -249,7 +249,7 @@ struct redirspec {
 	struct node_host	*host;
 	struct range		 rport;
 	struct pool_opts	 pool_opts;
-	int			 af;
+	sa_family_t		 af;
 	bool			 binat;
 };
 
@@ -393,7 +393,7 @@ void		 expand_eth_rule(struct pfctl_eth_rule *,
 int		 apply_rdr_ports(struct pfctl_rule *r, struct pfctl_pool *, struct redirspec *);
 int		 apply_nat_ports(struct pfctl_pool *, struct redirspec *);
 int		 apply_redirspec(struct pfctl_pool *, struct redirspec *);
-int		 check_binat_redirspec(struct node_host *, struct pfctl_rule *, int);
+int		 check_binat_redirspec(struct node_host *, struct pfctl_rule *, sa_family_t);
 void		 add_binat_rdr_rule(struct pfctl_rule *, struct redirspec *,
 		 struct node_host *, struct pfctl_rule *, struct redirspec **,
 		 struct node_host **);
@@ -4852,7 +4852,7 @@ binatrule	: no BINAT natpasslog interface af proto FROM ipspec toipspec tag
 		    tagged rtable binat_redirspec
 		{
 			struct pfctl_rule	binat;
-			struct pf_pooladdr	*pa;
+			struct pfctl_pooladdr	*pa;
 
 			if (check_rulestate(PFCTL_STATE_NAT))
 				YYERROR;
@@ -5011,11 +5011,12 @@ binatrule	: no BINAT natpasslog interface af proto FROM ipspec toipspec tag
 					YYERROR;
 				}
 
-				pa = calloc(1, sizeof(struct pf_pooladdr));
+				pa = calloc(1, sizeof(struct pfctl_pooladdr));
 				if (pa == NULL)
 					err(1, "binat: calloc");
 				pa->addr = $13->host->addr;
 				pa->ifname[0] = 0;
+				pa->af = $13->host->af;
 				TAILQ_INSERT_TAIL(&binat.rdr.list,
 				    pa, entries);
 
@@ -6115,7 +6116,7 @@ int
 apply_redirspec(struct pfctl_pool *rpool, struct redirspec *rs)
 {
 	struct node_host	*h;
-	struct pf_pooladdr	*pa;
+	struct pfctl_pooladdr	*pa;
 
 	if (rs == NULL)
 		return 0;
@@ -6155,10 +6156,11 @@ apply_redirspec(struct pfctl_pool *rpool, struct redirspec *rs)
 		    sizeof(struct pf_poolhashkey));
 
 	for (h = rs->host; h != NULL; h = h->next) {
-		pa = calloc(1, sizeof(struct pf_pooladdr));
+		pa = calloc(1, sizeof(struct pfctl_pooladdr));
 		if (pa == NULL)
 			err(1, "%s: calloc", __func__);
 		pa->addr = h->addr;
+		pa->af = h->af;
 		if (h->ifname != NULL) {
 			if (strlcpy(pa->ifname, h->ifname,
 			    sizeof(pa->ifname)) >= sizeof(pa->ifname))
@@ -6172,9 +6174,10 @@ apply_redirspec(struct pfctl_pool *rpool, struct redirspec *rs)
 }
 
 int
-check_binat_redirspec(struct node_host *src_host, struct pfctl_rule *r, int af)
+check_binat_redirspec(struct node_host *src_host, struct pfctl_rule *r,
+    sa_family_t af)
 {
-	struct pf_pooladdr	*nat_pool = TAILQ_FIRST(&(r->nat.list));
+	struct pfctl_pooladdr	*nat_pool = TAILQ_FIRST(&(r->nat.list));
 	int			error = 0;
 
 	/* XXX: FreeBSD allows syntax like "{ host1 host2 }" for redirection
@@ -6247,7 +6250,7 @@ add_binat_rdr_rule(
 
 	/*
 	 * We're copying the whole rule, but we must re-init redir pools.
-	 * FreeBSD uses lists of pf_pooladdr, we can't just overwrite them.
+	 * FreeBSD uses lists of pfctl_pooladdr, we can't just overwrite them.
 	 */
 	bcopy(binat_rule, rdr_rule, sizeof(struct pfctl_rule));
 	TAILQ_INIT(&(rdr_rule->rdr.list));

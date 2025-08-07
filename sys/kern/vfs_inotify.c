@@ -34,6 +34,7 @@
 #include <sys/sysent.h>
 #include <sys/syslimits.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
@@ -168,6 +169,8 @@ struct inotify_softc {
 	size_t		nbpending;		/* bytes available to read */
 	uint64_t	ino;			/* unique identifier */
 	struct inotify_watch_tree watches;	/* active watches */
+	TAILQ_HEAD(, inotify_watch) deadwatches; /* watches pending vrele() */
+	struct task	reaptask;		/* task to reap dead watches */
 	struct selinfo	sel;			/* select/poll/kevent info */
 	struct ucred	*cred;			/* credential ref */
 };
@@ -374,6 +377,13 @@ inotify_unlink_watch_locked(struct inotify_softc *sc, struct inotify_watch *watc
 		vn_irflag_unset(vp, VIRF_INOTIFY);
 }
 
+static void
+inotify_free_watch(struct inotify_watch *watch)
+{
+	vrele(watch->vp);
+	free(watch, M_INOTIFY);
+}
+
 /*
  * Assumes that the watch has already been removed from its softc.
  */
@@ -389,9 +399,24 @@ inotify_remove_watch(struct inotify_watch *watch)
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	inotify_unlink_watch_locked(sc, watch);
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
+	inotify_free_watch(watch);
+}
 
-	vrele(vp);
-	free(watch, M_INOTIFY);
+static void
+inotify_reap(void *arg, int pending)
+{
+	struct inotify_softc *sc;
+	struct inotify_watch *watch;
+
+	sc = arg;
+	mtx_lock(&sc->lock);
+	while ((watch = TAILQ_FIRST(&sc->deadwatches)) != NULL) {
+		TAILQ_REMOVE(&sc->deadwatches, watch, vlink);
+		mtx_unlock(&sc->lock);
+		inotify_free_watch(watch);
+		mtx_lock(&sc->lock);
+	}
+	mtx_unlock(&sc->lock);
 }
 
 static int
@@ -403,6 +428,7 @@ inotify_close(struct file *fp, struct thread *td)
 
 	sc = fp->f_data;
 
+	/* Detach watches from their vnodes. */
 	mtx_lock(&sc->lock);
 	(void)chginotifycnt(sc->cred->cr_ruidinfo, -1, 0);
 	while ((watch = RB_MIN(inotify_watch_tree, &sc->watches)) != NULL) {
@@ -411,6 +437,17 @@ inotify_close(struct file *fp, struct thread *td)
 		inotify_remove_watch(watch);
 		mtx_lock(&sc->lock);
 	}
+
+	/* Make sure that any asynchronous vrele() calls are done. */
+	mtx_unlock(&sc->lock);
+	taskqueue_drain(taskqueue_thread, &sc->reaptask);
+	mtx_lock(&sc->lock);
+	KASSERT(RB_EMPTY(&sc->watches),
+	    ("%s: watches not empty in %p", __func__, sc));
+	KASSERT(TAILQ_EMPTY(&sc->deadwatches),
+	    ("%s: deadwatches not empty in %p", __func__, sc));
+
+	/* Drop pending events. */
 	while (!STAILQ_EMPTY(&sc->pending)) {
 		rec = inotify_dequeue(sc);
 		if (rec != &sc->overflow)
@@ -456,6 +493,8 @@ inotify_create_file(struct thread *td, struct file *fp, int flags, int *fflagsp)
 	sc->nextwatch = 1; /* Required for compatibility. */
 	STAILQ_INIT(&sc->pending);
 	RB_INIT(&sc->watches);
+	TAILQ_INIT(&sc->deadwatches);
+	TASK_INIT(&sc->reaptask, 0, inotify_reap, sc);
 	mtx_init(&sc->lock, "inotify", NULL, MTX_DEF);
 	knlist_init_mtx(&sc->sel.si_note, &sc->lock);
 	sc->cred = crhold(td->td_ucred);
@@ -560,17 +599,16 @@ inotify_queue_record(struct inotify_softc *sc, struct inotify_record *rec)
 	return (true);
 }
 
-static int
+static void
 inotify_log_one(struct inotify_watch *watch, const char *name, size_t namelen,
     int event, uint32_t cookie)
 {
 	struct inotify_watch key;
 	struct inotify_softc *sc;
 	struct inotify_record *rec;
-	int relecount;
 	bool allocfail;
 
-	relecount = 0;
+	mtx_assert(&watch->vp->v_pollinfo->vpi_lock, MA_OWNED);
 
 	sc = watch->sc;
 	rec = inotify_alloc_record(watch->wd, name, namelen, event, cookie,
@@ -599,20 +637,22 @@ inotify_log_one(struct inotify_watch *watch, const char *name, size_t namelen,
 
 		/*
 		 * Remove the watch, taking care to handle races with
-		 * inotify_close().
+		 * inotify_close().  The thread that removes the watch is
+		 * responsible for freeing it.
 		 */
 		key.wd = watch->wd;
 		if (RB_FIND(inotify_watch_tree, &sc->watches, &key) != NULL) {
 			RB_REMOVE(inotify_watch_tree, &sc->watches, watch);
 			inotify_unlink_watch_locked(sc, watch);
-			free(watch, M_INOTIFY);
 
-			/* Defer vrele() to until locks are dropped. */
-			relecount++;
+			/*
+			 * Defer the vrele() to a sleepable thread context.
+			 */
+			TAILQ_INSERT_TAIL(&sc->deadwatches, watch, vlink);
+			taskqueue_enqueue(taskqueue_thread, &sc->reaptask);
 		}
 	}
 	mtx_unlock(&sc->lock);
-	return (relecount);
 }
 
 void
@@ -620,25 +660,18 @@ inotify_log(struct vnode *vp, const char *name, size_t namelen, int event,
     uint32_t cookie)
 {
 	struct inotify_watch *watch, *tmp;
-	int relecount;
 
 	KASSERT((event & ~(IN_ALL_EVENTS | IN_ISDIR | IN_UNMOUNT)) == 0,
 	    ("inotify_log: invalid event %#x", event));
 
-	relecount = 0;
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	TAILQ_FOREACH_SAFE(watch, &vp->v_pollinfo->vpi_inotify, vlink, tmp) {
 		KASSERT(watch->vp == vp,
 		    ("inotify_log: watch %p vp != vp", watch));
-		if ((watch->mask & event) != 0 || event == IN_UNMOUNT) {
-			relecount += inotify_log_one(watch, name, namelen, event,
-			    cookie);
-		}
+		if ((watch->mask & event) != 0 || event == IN_UNMOUNT)
+			inotify_log_one(watch, name, namelen, event, cookie);
 	}
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
-
-	for (int i = 0; i < relecount; i++)
-		vrele(vp);
 }
 
 /*
