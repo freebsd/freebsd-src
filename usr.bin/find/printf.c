@@ -5,15 +5,18 @@
  */
 
 #include <sys/types.h>
+
+#include <err.h>
+#include <errno.h>
+#include <fts.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
-#include <fts.h>
-#include <grp.h>
-#include <pwd.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "find.h"
 
@@ -32,7 +35,7 @@ isesc(char c)
 	return (c >= 'a' && c <= 'v' && esc[c - 'a'] != c);
 }
 
-static const char *
+static char *
 escape(const char *str, bool *flush, bool *warned)
 {
 	char c;
@@ -147,7 +150,6 @@ fp_strftime(FILE *fp, time_t t, char mod)
 
 	gmtime_r(&t, &tm);
 	fmt[1] = mod;
-	printf("fmt is '%s'\n", fmt);
 	if (strftime(buffer, sizeof(buffer), fmt, &tm) == 0)
 		errx(1, "Format bad or data too long for buffer"); /* Can't really happen ??? */
 	fputs(buffer, fp);
@@ -156,36 +158,36 @@ fp_strftime(FILE *fp, time_t t, char mod)
 void
 do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 {
-	const char *fmt, *path, *pend, *all;
-	char c;
-	FILE *fp;
+	char buf[4096];
+	struct stat sb;
+	struct stat *sp;
+	const char *path, *pend;
+	char *all, *fmt;
+	ssize_t ret;
+	int c;
 	bool flush, warned;
-	struct stat *sb;
-	char *tmp;
-	size_t tmplen;
 
-	fp = open_memstream(&tmp, &tmplen);
 	warned = (plan->flags & F_HAS_WARNED) != 0;
 	all = fmt = escape(plan->c_data, &flush, &warned);
 	if (warned)
 		plan->flags |= F_HAS_WARNED;
-	sb = entry->fts_statp;
 	for (c = *fmt++; c; c = *fmt++) {
+		sp = entry->fts_statp;
 		if (c != '%') {
-			putc(c, fp);
+			putc(c, fout);
 			continue;
 		}
 		c = *fmt++;
 		/* Style(9) deviation: case order same as gnu find info doc */
 		switch (c) {
 		case '%':
-			putc(c, fp);
+			putc(c, fout);
 			break;
 		case 'p': /* Path to file */
-			fputs(entry->fts_path, fp);
+			fputs(entry->fts_path, fout);
 			break;
 		case 'f': /* filename w/o dirs */
-			fputs(entry->fts_name, fp);
+			fputs(entry->fts_name, fout);
 			break;
 		case 'h':
 			/*
@@ -195,98 +197,139 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 			path = entry->fts_path;
 			pend = strrchr(path, '/');
 			if (pend == NULL)
-				putc('.', fp);
-			else {
-				char *t = malloc(pend - path + 1);
-				memcpy(t, path, pend - path);
-				t[pend - path] = '\0';
-				fputs(t, fp);
-				free(t);
-			}
+				putc('.', fout);
+			else
+				fwrite(path, pend - path, 1, fout);
 			break;
 		case 'P': /* file with command line arg rm'd -- HOW? fts_parent? */
 			errx(1, "%%%c is unimplemented", c);
 		case 'H': /* Command line arg -- HOW? */
 			errx(1, "%%%c is unimplemented", c);
 		case 'g': /* gid human readable */
-			fputs(group_from_gid(sb->st_gid, 0), fp);
+			fputs(group_from_gid(sp->st_gid, 0), fout);
 			break;
 		case 'G': /* gid numeric */
-			fprintf(fp, "%d", sb->st_gid);
+			fprintf(fout, "%d", sp->st_gid);
 			break;
 		case 'u': /* uid human readable */
-			fputs(user_from_uid(sb->st_uid, 0), fp);
+			fputs(user_from_uid(sp->st_uid, 0), fout);
 			break;
 		case 'U': /* uid numeric */
-			fprintf(fp, "%d", sb->st_uid);
+			fprintf(fout, "%d", sp->st_uid);
 			break;
 		case 'm': /* mode in octal */
-			fprintf(fp, "%o", sb->st_mode & 07777);
+			fprintf(fout, "%o", sp->st_mode & 07777);
 			break;
-		case 'M': { /* Mode in ls-standard form */
-			char mode[12];
-			strmode(sb->st_mode, mode);
-			fputs(mode, fp);
+		case 'M': /* Mode in ls-standard form */
+			strmode(sp->st_mode, buf);
+			fwrite(buf, 10, 1, fout);
 			break;
-		}
 		case 'k': /* kbytes used by file */
-			fprintf(fp, "%jd", (intmax_t)sb->st_blocks / 2);
+			fprintf(fout, "%jd", (intmax_t)sp->st_blocks / 2);
 			break;
 		case 'b': /* blocks used by file */
-			fprintf(fp, "%jd", (intmax_t)sb->st_blocks);
+			fprintf(fout, "%jd", (intmax_t)sp->st_blocks);
 			break;
 		case 's': /* size in bytes of file */
-			fprintf(fp, "%ju", (uintmax_t)sb->st_size);
+			fprintf(fout, "%ju", (uintmax_t)sp->st_size);
 			break;
 		case 'S': /* sparseness of file */
-			fprintf(fp, "%3.1f",
-			    (float)sb->st_blocks * 512 / (float)sb->st_size);
+			fprintf(fout, "%3.1f",
+			    (float)sp->st_blocks * 512 / (float)sp->st_size);
 			break;
 		case 'd': /* Depth in tree */
-			fprintf(fp, "%ld", entry->fts_level);
+			fprintf(fout, "%ld", entry->fts_level);
 			break;
 		case 'D': /* device number */
-			fprintf(fp, "%ju", (uintmax_t)sb->st_dev);
+			fprintf(fout, "%ju", (uintmax_t)sp->st_dev);
 			break;
 		case 'F': /* Filesystem type */
 			errx(1, "%%%c is unimplemented", c);
 		case 'l': /* object of symbolic link */
-			fprintf(fp, "%s", entry->fts_accpath);
+			ret = readlink(entry->fts_accpath, buf, sizeof(buf));
+			if (ret > 0)
+				fwrite(buf, ret, 1, fout);
 			break;
 		case 'i': /* inode # */
-			fprintf(fp, "%ju", (uintmax_t)sb->st_ino);
+			fprintf(fout, "%ju", (uintmax_t)sp->st_ino);
 			break;
 		case 'n': /* number of hard links */
-			fprintf(fp, "%ju", (uintmax_t)sb->st_nlink);
+			fprintf(fout, "%ju", (uintmax_t)sp->st_nlink);
 			break;
-		case 'y': /* -type of file, incl 'l' */
-			errx(1, "%%%c is unimplemented", c);
 		case 'Y': /* -type of file, following 'l' types L loop ? error */
-			errx(1, "%%%c is unimplemented", c);
+			if (S_ISLNK(sp->st_mode)) {
+				if (stat(entry->fts_accpath, &sb) != 0) {
+					switch (errno) {
+					case ELOOP:
+						putc('L', fout);
+						break;
+					case ENOENT:
+						putc('N', fout);
+						break;
+					default:
+						putc('?', fout);
+						break;
+					}
+					break;
+				}
+				sp = &sb;
+			}
+			/* FALLTHROUGH */
+		case 'y': /* -type of file, incl 'l' */
+			switch (sp->st_mode & S_IFMT) {
+			case S_IFIFO:
+				putc('p', fout);
+				break;
+			case S_IFCHR:
+				putc('c', fout);
+				break;
+			case S_IFDIR:
+				putc('d', fout);
+				break;
+			case S_IFBLK:
+				putc('b', fout);
+				break;
+			case S_IFREG:
+				putc('f', fout);
+				break;
+			case S_IFLNK:
+				putc('l', fout);
+				break;
+			case S_IFSOCK:
+				putc('s', fout);
+				break;
+			case S_IFWHT:
+				putc('w', fout);
+				break;
+			default:
+				putc('U', fout);
+				break;
+			}
+			break;
 		case 'a': /* access time ctime */
-			fp_ctime(fp, sb->st_atime);
+			fp_ctime(fout, sp->st_atime);
 			break;
 		case 'A': /* access time with next char strftime format */
-			fp_strftime(fp, sb->st_atime, *fmt++);
+			fp_strftime(fout, sp->st_atime, *fmt++);
 			break;
 		case 'B': /* birth time with next char strftime format */
 #ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
-			if (sb->st_birthtime != 0)
-				fp_strftime(fp, sb->st_birthtime, *fmt);
+			if (sp->st_birthtime != 0)
+				fp_strftime(fout, sp->st_birthtime, *fmt);
 #endif
 			fmt++;
 			break;	/* blank on systems that don't support it */
 		case 'c': /* status change time ctime */
-			fp_ctime(fp, sb->st_ctime);
+			fp_ctime(fout, sp->st_ctime);
 			break;
 		case 'C': /* status change time with next char strftime format */
-			fp_strftime(fp, sb->st_ctime, *fmt++);
+			fp_strftime(fout, sp->st_ctime, *fmt++);
 			break;
 		case 't': /* modification change time ctime */
-			fp_ctime(fp, sb->st_mtime);
+			fp_ctime(fout, sp->st_mtime);
 			break;
 		case 'T': /* modification time with next char strftime format */
-			fp_strftime(fp, sb->st_mtime, *fmt++);
+			fp_strftime(fout, sp->st_mtime, *fmt++);
 			break;
 		case 'Z': /* empty string for compat SELinux context string */
 			break;
@@ -299,9 +342,7 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 			errx(1, "Unknown format %c '%s'", c, all);
 		}
 	}
-	fputs(tmp, fout);
 	if (flush)
 		fflush(fout);
-	free(__DECONST(char *, fmt));
-	free(tmp);
+	free(all);
 }
