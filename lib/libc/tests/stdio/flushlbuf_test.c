@@ -22,22 +22,23 @@ struct stream {
 	unsigned int pos;
 };
 
-static int writefn(void *cookie, const char *buf, int len)
+static int
+writefn(void *cookie, const char *buf, int len)
 {
 	struct stream *s = cookie;
 	int written = 0;
 
 	if (len <= 0)
-		return 0;
+		return (0);
 	while (len > 0 && s->pos < s->len) {
 		s->buf[s->pos++] = *buf++;
 		written++;
 		len--;
 	}
 	if (written > 0)
-		return written;
+		return (written);
 	errno = EAGAIN;
-	return -1;
+	return (-1);
 }
 
 ATF_TC_WITHOUT_HEAD(flushlbuf_partial);
@@ -147,7 +148,6 @@ ATF_TC_BODY(flushlbuf_full, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, flushlbuf_partial);
 	ATF_TP_ADD_TC(tp, flushlbuf_full);
 
