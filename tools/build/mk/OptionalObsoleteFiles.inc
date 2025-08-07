@@ -1649,6 +1649,7 @@ OLD_FILES+=usr/bin/ree
 OLD_FILES+=usr/share/man/man1/edit.1.gz
 OLD_FILES+=usr/share/man/man1/ee.1.gz
 OLD_FILES+=usr/share/man/man1/ree.1.gz
+OLD_FILES+=usr/share/misc/init.ee
 OLD_FILES+=usr/share/nls/C/ee.cat
 OLD_FILES+=usr/share/nls/de_DE.ISO8859-1/ee.cat
 OLD_FILES+=usr/share/nls/fr_FR.ISO8859-1/ee.cat
