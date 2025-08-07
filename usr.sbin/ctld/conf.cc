@@ -466,7 +466,7 @@ parse_conf(const char *path)
 	bool parsed;
 	try {
 		parsed = yyparse_conf(fp.get());
-	} catch (std::bad_alloc) {
+	} catch (std::bad_alloc &) {
 		log_warnx("failed to allocate memory parsing %s", path);
 		return (false);
 	} catch (...) {
