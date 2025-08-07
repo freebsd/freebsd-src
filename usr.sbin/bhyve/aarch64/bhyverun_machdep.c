@@ -396,6 +396,9 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 	pci_irq_init(pcie_intrs);
 	fdt_add_pcie(pcie_intrs);
 
+	/* Mark CPU0 as running */
+	CPU_SET(0, &running_cpumask);
+
 	return (0);
 }
 
