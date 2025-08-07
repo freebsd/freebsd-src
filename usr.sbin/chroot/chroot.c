@@ -65,7 +65,7 @@ resolve_group(const char *group)
 	 */
 	errno = 0;
 	gid = strtoul(group, &endp, 0);
-	if (errno == 0 && *endp == '\0' && (gid_t)gid >= 0 && gid <= GID_MAX)
+	if (errno == 0 && *endp == '\0' && gid <= GID_MAX)
 		return (gid);
 
 	errx(1, "no such group '%s'", group);
@@ -84,7 +84,7 @@ resolve_user(const char *user)
 
 	errno = 0;
 	uid = strtoul(user, &endp, 0);
-	if (errno == 0 && *endp == '\0' && (uid_t)uid >= 0 && uid <= UID_MAX)
+	if (errno == 0 && *endp == '\0' && uid <= UID_MAX)
 		return (uid);
 
 	errx(1, "no such user '%s'", user);
