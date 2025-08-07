@@ -80,14 +80,17 @@ extern int rpcbindlockfd;
 
 #ifdef PORTMAP
 extern struct pmaplist *list_pml; /* A list of version 2 rpcbind services */
-extern char *udptrans;		/* Name of UDP transport */
-extern char *tcptrans;		/* Name of TCP transport */
-extern char *udp_uaddr;		/* Universal UDP address */
-extern char *tcp_uaddr;		/* Universal TCP address */
+extern const char *udptrans;	/* Name of UDP transport */
+extern const char *tcptrans;	/* Name of TCP transport */
+extern const char *udp_uaddr;	/* Universal UDP address */
+extern const char *tcp_uaddr;	/* Universal TCP address */
 #endif
 
-int add_bndlist(struct netconfig *, struct netbuf *);
-bool_t is_bound(char *, char *);
+extern const char rpcbind_superuser[];
+extern const char rpcbind_unknown[];
+
+int add_bndlist(const struct netconfig *, struct netbuf *);
+bool_t is_bound(const char *, const char *);
 char *mergeaddr(SVCXPRT *, char *, char *, char *);
 struct netconfig *rpcbind_get_conf(const char *);
 
@@ -95,9 +98,10 @@ void rpcbs_init(void);
 void rpcbs_procinfo(rpcvers_t, rpcproc_t);
 void rpcbs_set(rpcvers_t, bool_t);
 void rpcbs_unset(rpcvers_t, bool_t);
-void rpcbs_getaddr(rpcvers_t, rpcprog_t, rpcvers_t, char *, char *);
+void rpcbs_getaddr(rpcvers_t, rpcprog_t, rpcvers_t, const char *,
+    const char *);
 void rpcbs_rmtcall(rpcvers_t, rpcproc_t, rpcprog_t, rpcvers_t, rpcproc_t,
-			char *, rpcblist_ptr);
+    char *, rpcblist_ptr);
 void *rpcbproc_getstat(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
 
 void rpcb_service_3(struct svc_req *, SVCXPRT *);
@@ -106,20 +110,16 @@ void rpcb_service_4(struct svc_req *, SVCXPRT *);
 /* Common functions shared between versions */
 void *rpcbproc_set_com(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
 void *rpcbproc_unset_com(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
-bool_t map_set(RPCB *, char *);
-bool_t map_unset(RPCB *, char *);
+bool_t map_set(RPCB *, const char *);
+bool_t map_unset(RPCB *, const char *);
 void delete_prog(unsigned int);
 void *rpcbproc_getaddr_com(RPCB *, struct svc_req *, SVCXPRT *, rpcvers_t,
-				 rpcvers_t);
-void *rpcbproc_gettime_com(void *, struct svc_req *, SVCXPRT *,
-				rpcvers_t);
-void *rpcbproc_uaddr2taddr_com(void *, struct svc_req *,
-					     SVCXPRT *, rpcvers_t);
-void *rpcbproc_taddr2uaddr_com(void *, struct svc_req *, SVCXPRT *,
-				    rpcvers_t);
-int create_rmtcall_fd(struct netconfig *);
-void rpcbproc_callit_com(struct svc_req *, SVCXPRT *, rpcvers_t,
-			      rpcvers_t);
+    rpcvers_t);
+void *rpcbproc_gettime_com(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
+void *rpcbproc_uaddr2taddr_com(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
+void *rpcbproc_taddr2uaddr_com(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
+int create_rmtcall_fd(const struct netconfig *);
+void rpcbproc_callit_com(struct svc_req *, SVCXPRT *, rpcvers_t, rpcvers_t);
 void my_svc_run(void);
 
 void rpcbind_abort(void);
@@ -155,5 +155,7 @@ struct sockaddr *local_sa(int);
 #define	SA2SIN6(sa)	((struct sockaddr_in6 *)(sa))
 #define	SA2SIN6ADDR(sa)	(SA2SIN6(sa)->sin6_addr)
 #endif
+
+#define __UNCONST(a)	__DECONST(void *, (a))
 
 #endif /* rpcbind_h */

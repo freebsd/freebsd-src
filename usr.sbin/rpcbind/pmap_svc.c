@@ -35,7 +35,7 @@
 
 /*
  * pmap_svc.c
- * The server procedure for the version 2 portmaper.
+ * The server procedure for the version 2 portmapper.
  * All the portmapper related interface from the portmap side.
  */
 
@@ -47,12 +47,12 @@
 #include <rpc/pmap_prot.h>
 #include <rpc/rpcb_prot.h>
 #ifdef RPCBIND_DEBUG
+#include <stdio.h>
 #include <stdlib.h>
 #endif
 #include "rpcbind.h"
 
-static struct pmaplist *find_service_pmap(rpcprog_t, rpcvers_t,
-					       rpcprot_t);
+static struct pmaplist *find_service_pmap(rpcprog_t, rpcvers_t, rpcprot_t);
 static bool_t pmapproc_change(struct svc_req *, SVCXPRT *, u_long);
 static bool_t pmapproc_getport(struct svc_req *, SVCXPRT *);
 static bool_t pmapproc_dump(struct svc_req *, SVCXPRT *);
@@ -168,17 +168,17 @@ pmapproc_change(struct svc_req *rqstp __unused, SVCXPRT *xprt, unsigned long op)
 	uid_t uid;
 	char uidbuf[32];
 
+	if (!svc_getargs(xprt, (xdrproc_t) xdr_pmap, (char *)&reg)) {
+		svcerr_decode(xprt);
+		return (FALSE);
+	}
+
 #ifdef RPCBIND_DEBUG
 	if (debugging)
 		fprintf(stderr, "%s request for (%lu, %lu) : ",
 		    op == PMAPPROC_SET ? "PMAP_SET" : "PMAP_UNSET",
 		    reg.pm_prog, reg.pm_vers);
 #endif
-
-	if (!svc_getargs(xprt, (xdrproc_t) xdr_pmap, (char *)&reg)) {
-		svcerr_decode(xprt);
-		return (FALSE);
-	}
 
 	if (!check_access(xprt, op, &reg, PMAPVERS)) {
 		svcerr_weakauth(xprt);
@@ -192,12 +192,12 @@ pmapproc_change(struct svc_req *rqstp __unused, SVCXPRT *xprt, unsigned long op)
 	 * and looping.
 	 */
 	if (__rpc_get_local_uid(xprt, &uid) < 0)
-		rpcbreg.r_owner = "unknown";
+		rpcbreg.r_owner = __UNCONST(rpcbind_unknown);
 	else if (uid == 0)
-		rpcbreg.r_owner = "superuser";
+		rpcbreg.r_owner = __UNCONST(rpcbind_superuser);
 	else {
 		/* r_owner will be strdup-ed later */
-		snprintf(uidbuf, sizeof uidbuf, "%d", uid);
+		snprintf(uidbuf, sizeof(uidbuf), "%d", uid);
 		rpcbreg.r_owner = uidbuf;
 	}
 
@@ -207,14 +207,14 @@ pmapproc_change(struct svc_req *rqstp __unused, SVCXPRT *xprt, unsigned long op)
 	if (op == PMAPPROC_SET) {
 		char buf[32];
 
-		snprintf(buf, sizeof buf, "0.0.0.0.%d.%d",
+		snprintf(buf, sizeof(buf), "0.0.0.0.%d.%d",
 		    (int)((reg.pm_port >> 8) & 0xff),
 		    (int)(reg.pm_port & 0xff));
 		rpcbreg.r_addr = buf;
 		if (reg.pm_prot == IPPROTO_UDP) {
-			rpcbreg.r_netid = udptrans;
+			rpcbreg.r_netid = __UNCONST(udptrans);
 		} else if (reg.pm_prot == IPPROTO_TCP) {
-			rpcbreg.r_netid = tcptrans;
+			rpcbreg.r_netid = __UNCONST(tcptrans);
 		} else {
 			ans = FALSE;
 			goto done_change;
@@ -224,9 +224,9 @@ pmapproc_change(struct svc_req *rqstp __unused, SVCXPRT *xprt, unsigned long op)
 		bool_t ans1, ans2;
 
 		rpcbreg.r_addr = NULL;
-		rpcbreg.r_netid = tcptrans;
+		rpcbreg.r_netid = __UNCONST(tcptrans);
 		ans1 = map_unset(&rpcbreg, rpcbreg.r_owner);
-		rpcbreg.r_netid = udptrans;
+		rpcbreg.r_netid = __UNCONST(udptrans);
 		ans2 = map_unset(&rpcbreg, rpcbreg.r_owner);
 		ans = ans1 || ans2;
 	} else {
@@ -285,9 +285,9 @@ pmapproc_getport(struct svc_req *rqstp __unused, SVCXPRT *xprt)
 #endif
 	fnd = find_service_pmap(reg.pm_prog, reg.pm_vers, reg.pm_prot);
 	if (fnd) {
-		char serveuaddr[32], *ua;
+		char serveuaddr[32];
 		int h1, h2, h3, h4, p1, p2;
-		char *netid;
+		const char *netid, *ua;
 
 		if (reg.pm_prot == IPPROTO_UDP) {
 			ua = udp_uaddr;
@@ -303,7 +303,7 @@ pmapproc_getport(struct svc_req *rqstp __unused, SVCXPRT *xprt)
 				&h4, &p1, &p2) == 6) {
 			p1 = (fnd->pml_map.pm_port >> 8) & 0xff;
 			p2 = (fnd->pml_map.pm_port) & 0xff;
-			snprintf(serveuaddr, sizeof serveuaddr,
+			snprintf(serveuaddr, sizeof(serveuaddr),
 			    "%d.%d.%d.%d.%d.%d", h1, h2, h3, h4, p1, p2);
 			if (is_bound(netid, serveuaddr)) {
 				port = fnd->pml_map.pm_port;
