@@ -251,7 +251,9 @@ ATF_TC_BODY(expand_generic, tp)
 {
 	uint64_t uint64;
 	int64_t int64;
+#ifdef __LP64__
 	size_t size;
+#endif
 	off_t off;
 
 	ATF_REQUIRE_EQ(0, expand_number("18446744073709551615", &uint64));
@@ -266,10 +268,12 @@ ATF_TC_BODY(expand_generic, tp)
 	ATF_REQUIRE_EQ(0, expand_number("-9223372036854775808", &int64));
 	ATF_REQUIRE_EQ(INT64_MIN, int64);
 
+#ifdef __LP64__
 	ATF_REQUIRE_EQ(0, expand_number("18446744073709551615", &size));
 	ATF_REQUIRE_EQ(UINT64_MAX, size);
 	ATF_REQUIRE_EQ(-1, expand_number("-1", &size));
 	ATF_REQUIRE_EQ(ERANGE, errno);
+#endif
 
 	ATF_REQUIRE_EQ(0, expand_number("9223372036854775807", &off));
 	ATF_REQUIRE_EQ(INT64_MAX, off);
