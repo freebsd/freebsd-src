@@ -4,6 +4,7 @@
  * Copyright (c) 2000 Mark R. V. Murray & Jeroen C. van Gelderen
  * Copyright (c) 2001-2004 Mark R. V. Murray
  * Copyright (c) 2014 Eitan Adler
+ * Copyright (c) 2025 Pietro Cerutti
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +41,7 @@
 #include <sys/disk.h>
 #include <sys/bus.h>
 #include <sys/filio.h>
+#include <sys/event.h>
 
 #include <machine/bus.h>
 #include <machine/vmparam.h>
@@ -54,12 +56,26 @@ static d_write_t null_write;
 static d_ioctl_t null_ioctl;
 static d_ioctl_t zero_ioctl;
 static d_read_t zero_read;
+static d_kqfilter_t kqfilter;
+static int one_ev(struct knote *kn, long hint);
+static int zero_ev(struct knote *kn, long hint);
+
+static const struct filterops one_fop = {
+	.f_isfd =	1,
+	.f_event =	one_ev
+};
+
+static const struct filterops zero_fop = {
+	.f_isfd =	1,
+	.f_event =	zero_ev
+};
 
 static struct cdevsw full_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_read =	zero_read,
 	.d_write =	full_write,
 	.d_ioctl =	zero_ioctl,
+	.d_kqfilter =	kqfilter,
 	.d_name =	"full",
 };
 
@@ -68,6 +84,7 @@ static struct cdevsw null_cdevsw = {
 	.d_read =	(d_read_t *)nullop,
 	.d_write =	null_write,
 	.d_ioctl =	null_ioctl,
+	.d_kqfilter =	kqfilter,
 	.d_name =	"null",
 };
 
@@ -76,6 +93,7 @@ static struct cdevsw zero_cdevsw = {
 	.d_read =	zero_read,
 	.d_write =	null_write,
 	.d_ioctl =	zero_ioctl,
+	.d_kqfilter =	kqfilter,
 	.d_name =	"zero",
 	.d_flags =	D_MMAP_ANON,
 };
@@ -196,6 +214,36 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 	}
 
 	return (0);
+}
+
+static int
+one_ev(struct knote *kn, long hint)
+{
+
+	return (1);
+}
+
+static int
+zero_ev(struct knote *kn, long hint)
+{
+
+	return (0);
+}
+
+static int
+kqfilter(struct cdev *dev, struct knote *kn)
+{
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+	    kn->kn_fop = dev->si_devsw == &null_cdevsw ? &zero_fop : &one_fop;
+	    return (0);
+	case EVFILT_WRITE:
+	    kn->kn_fop = dev->si_devsw == &full_cdevsw ? &zero_fop : &one_fop;
+	    return (0);
+	default:
+	    return (EOPNOTSUPP);
+	}
 }
 
 DEV_MODULE(null, null_modevent, NULL);
