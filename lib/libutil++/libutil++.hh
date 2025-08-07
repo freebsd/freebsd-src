@@ -70,7 +70,7 @@ namespace freebsd {
 	class fd_up {
 	public:
 		fd_up() : fd(-1) {}
-		fd_up(int fd) : fd(fd) {}
+		fd_up(int _fd) : fd(_fd) {}
 		fd_up(fd_up &&other) : fd(other.release()) {}
 		fd_up(fd_up const &) = delete;
 
@@ -159,7 +159,7 @@ namespace freebsd {
 	class pidfile {
 	public:
 		pidfile() = default;
-		pidfile(struct pidfh *pfh) : pfh(pfh) {}
+		pidfile(struct pidfh *_pfh) : pfh(_pfh) {}
 		pidfile(pidfile &&other) : pfh(other.release()) {}
 		pidfile(pidfile const &) = delete;
 
