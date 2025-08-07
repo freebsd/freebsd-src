@@ -54,7 +54,7 @@
 #include "mem.h"
 #include "vmexit.h"
 
-static cpuset_t running_cpumask;
+cpuset_t running_cpumask;
 
 static int
 vmexit_inst_emul(struct vmctx *ctx __unused, struct vcpu *vcpu,
