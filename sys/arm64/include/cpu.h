@@ -226,6 +226,9 @@ extern uint64_t __cpu_affinity[];
 
 struct arm64_addr_mask;
 extern struct arm64_addr_mask elf64_addr_mask;
+#ifdef COMPAT_FREEBSD14
+extern struct arm64_addr_mask elf64_addr_mask_14;
+#endif
 
 typedef void (*cpu_reset_hook_t)(void);
 extern cpu_reset_hook_t cpu_reset_hook;

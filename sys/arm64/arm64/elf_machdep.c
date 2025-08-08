@@ -65,7 +65,13 @@ u_long __read_frequently linux_elf_hwcap2;
 u_long __read_frequently linux_elf_hwcap3;
 u_long __read_frequently linux_elf_hwcap4;
 
-struct arm64_addr_mask elf64_addr_mask;
+struct arm64_addr_mask elf64_addr_mask = {
+    .code = TBI_ADDR_MASK,
+    .data = TBI_ADDR_MASK,
+};
+#ifdef COMPAT_FREEBSD14
+struct arm64_addr_mask elf64_addr_mask_14;
+#endif
 
 static void arm64_exec_protect(struct image_params *, int);
 
@@ -136,7 +142,14 @@ get_arm64_addr_mask(struct regset *rs, struct thread *td, void *buf,
 	if (buf != NULL) {
 		KASSERT(*sizep == sizeof(elf64_addr_mask),
 		    ("%s: invalid size", __func__));
-		memcpy(buf, &elf64_addr_mask, sizeof(elf64_addr_mask));
+#ifdef COMPAT_FREEBSD14
+		/* running an old binary use the old address mask */
+		if (td->td_proc->p_osrel < TBI_VERSION)
+			memcpy(buf, &elf64_addr_mask_14,
+			    sizeof(elf64_addr_mask_14));
+		else
+#endif
+			memcpy(buf, &elf64_addr_mask, sizeof(elf64_addr_mask));
 	}
 	*sizep = sizeof(elf64_addr_mask);
 
