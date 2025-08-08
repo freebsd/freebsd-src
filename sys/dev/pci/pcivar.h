@@ -516,7 +516,19 @@ pci_is_vga_memory_range(rman_res_t start, rman_res_t end)
 #define	PCI_POWERSTATE_D3_HOT	3
 #define	PCI_POWERSTATE_D3_COLD	4
 #define	PCI_POWERSTATE_D3	PCI_POWERSTATE_D3_COLD
+#define	PCI_POWERSTATE_MAX	PCI_POWERSTATE_D3_COLD
+#define	PCI_POWERSTATE_COUNT	5
 #define	PCI_POWERSTATE_UNKNOWN	-1
+
+static __inline const char *
+pci_powerstate_to_str(int state)
+{
+    const char *strs[PCI_POWERSTATE_COUNT] = {"D0", "D1", "D2", "D3hot",
+        "D3cold"};
+
+    MPASS(state >= PCI_POWERSTATE_D0 && state <= PCI_POWERSTATE_MAX);
+    return (strs[state]);
+}
 
 static __inline int
 pci_set_powerstate(device_t dev, int state)
