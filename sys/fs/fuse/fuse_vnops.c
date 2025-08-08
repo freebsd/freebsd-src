@@ -877,6 +877,9 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	pid_t pid;
 	int err;
 
+	if ((ap->a_flags & COPY_FILE_RANGE_CLONE) != 0)
+		return (EXTERROR(ENOSYS, "Cannot clone"));
+
 	if (mp == NULL || mp != vnode_mount(outvp))
 		return (EXTERROR(ENOSYS, "Mount points do not match"));
 

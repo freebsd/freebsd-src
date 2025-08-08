@@ -457,6 +457,7 @@ vop_stdpathconf(struct vop_pathconf_args *ap)
 		case _PC_NAMEDATTR_ENABLED:
 		case _PC_HAS_NAMEDATTR:
 		case _PC_HAS_HIDDENSYSTEM:
+		case _PC_CLONE_BLKSIZE:
 			*ap->a_retval = 0;
 			return (0);
 		default:

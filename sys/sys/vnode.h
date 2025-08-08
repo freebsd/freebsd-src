@@ -397,7 +397,20 @@ struct vattr {
  */
 #define VLKTIMEOUT	(hz / 20 + 1)
 
+/* copy_file_range flags */
+#define	COPY_FILE_RANGE_KFLAGS		0xff000000
+
+/*
+ * copy_file_range flags visible to user space.
+ * Allocate high bits first, to try and avoid conflicting with Linux.
+ */
+#define	COPY_FILE_RANGE_CLONE		0x00800000	/* Require cloning. */
+#define	COPY_FILE_RANGE_USERFLAGS	(COPY_FILE_RANGE_CLONE)
+
 #ifdef _KERNEL
+
+/* copy_file_range flags only usable in the kernel */
+#define	COPY_FILE_RANGE_TIMEO1SEC	0x01000000	/* Return after 1sec. */
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_VNODE);
@@ -620,10 +633,6 @@ typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 #define	VN_OPEN_NAMECACHE	0x00000004
 #define	VN_OPEN_INVFS		0x00000008
 #define	VN_OPEN_WANTIOCTLCAPS	0x00000010
-
-/* copy_file_range kernel flags */
-#define	COPY_FILE_RANGE_KFLAGS		0xff000000
-#define	COPY_FILE_RANGE_TIMEO1SEC	0x01000000	/* Return after 1sec. */
 
 /*
  * Public vnode manipulation functions.
