@@ -219,7 +219,7 @@ FTPD=		ftpd
 FTPDPACKAGE=	ftpd
 .endif
 
-.if ${MK_GSSAPI} != "no"
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CONFGROUPS+=	GSSD
 GSSD=		gssd
 GSSDPACKAGE=	gssd
