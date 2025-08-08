@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250808:
+	The CLEAN option has been switched back from default-off to
+	default-on.  This reverts the 20240729 change below.
+
 20250807:
 	routed(8) and route6d(8) have moved to the FreeBSD-rip package.
 	If you use either of these, you should install the new package.
