@@ -808,3 +808,4 @@ arm64/mediatek/mdtk_clk.c                       optional clk fdt soc_mediatek
 arm64/mediatek/mt7622_pinctrl.c			optional fdt mt7622_pinctrl soc_mediatek
 arm64/mediatek/mt7622_rtc.c			optional fdt soc_mediatek
 arm64/mediatek/mt7622_sysirq.c			optional fdt soc_mediatek
+arm64/mediatek/mt7622_watchdog.c		optional fdt soc_mediatek
