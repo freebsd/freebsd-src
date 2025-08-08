@@ -270,7 +270,7 @@ struct prison_racct {
  */
 #define	PR_ALLOW_ALL_STATIC		0x007f87ff
 #define	PR_ALLOW_PRISON0		\
-    (PR_ALLOW_ALL_STATIC & ~(PR_ALLOW_UNPRIV_PARENT_TAMPERING))
+    (PR_ALLOW_ALL_STATIC & ~(PR_ALLOW_UNPRIV_PARENT_TAMPER))
 
 /*
  * PR_ALLOW_DIFFERENCES determines which flags are able to be
