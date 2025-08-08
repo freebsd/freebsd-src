@@ -9,7 +9,6 @@
 #define Blowfish_initstate			Fssh_Blowfish_initstate
 #define Blowfish_stream2word			Fssh_Blowfish_stream2word
 #define Decode					Fssh_Decode
-#define EVP_CIPHER_CTX_get_iv			Fssh_EVP_CIPHER_CTX_get_iv
 #define EVP_CIPHER_CTX_set_iv			Fssh_EVP_CIPHER_CTX_set_iv
 #define Encode					Fssh_Encode
 #define Hide					Fssh_Hide
