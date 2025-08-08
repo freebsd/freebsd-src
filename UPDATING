@@ -12,6 +12,22 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250808:
+	14.3-RELEASE-p2	EN-25:12.efi
+			EN-25:13.wlan_tkip
+			EN-25:14.route
+			SA-25:07.libarchive
+
+	Fix bsdinstall(8) not copying the correct loader on systems with IA32 UEFI
+	firmware. [EN-25:12.efi]
+
+	Fix net80211 TKIP crypto support failing for some drivers. [EN-25:13.wlan_tkip]
+
+	Fix route(8) monitor buffering too much when redirected to a file. [EN-25:14.route]
+
+	Update libarchive to 3.8.1 to fix integer overflow leading to double
+	free. [SA-25:07.libarchive]
+
 20250702:
 	14.3-RELEASE-p1	EN-25:10.zfs
 
