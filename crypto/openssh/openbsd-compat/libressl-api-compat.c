@@ -26,6 +26,7 @@
 #include <openssl/evp.h>
 
 #ifndef HAVE_EVP_CIPHER_CTX_GET_IV
+# ifndef HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV
 int
 EVP_CIPHER_CTX_get_iv(const EVP_CIPHER_CTX *ctx, unsigned char *iv, size_t len)
 {
@@ -44,14 +45,15 @@ EVP_CIPHER_CTX_get_iv(const EVP_CIPHER_CTX *ctx, unsigned char *iv, size_t len)
 	if (len != 0) {
 		if (iv == NULL)
 			return 0;
-# ifdef HAVE_EVP_CIPHER_CTX_IV
+#  ifdef HAVE_EVP_CIPHER_CTX_IV
 		memcpy(iv, EVP_CIPHER_CTX_iv(ctx), len);
-# else
+#  else
 		memcpy(iv, ctx->iv, len);
-# endif /* HAVE_EVP_CIPHER_CTX_IV */
+#  endif /* HAVE_EVP_CIPHER_CTX_IV */
 	}
 	return 1;
 }
+# endif /* HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV */
 #endif /* HAVE_EVP_CIPHER_CTX_GET_IV */
 
 #ifndef HAVE_EVP_CIPHER_CTX_SET_IV
