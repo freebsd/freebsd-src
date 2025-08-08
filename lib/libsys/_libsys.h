@@ -65,7 +65,7 @@ struct uuid;
 union semun;
 
 __BEGIN_DECLS
-typedef void (__sys_exit_t)(int);
+typedef void (__sys__exit_t)(int);
 typedef int (__sys_fork_t)(void);
 typedef ssize_t (__sys_read_t)(int, void *, size_t);
 typedef ssize_t (__sys_write_t)(int, const void *, size_t);
@@ -469,7 +469,7 @@ typedef int (__sys_exterrctl_t)(u_int, u_int, void *);
 typedef int (__sys_inotify_add_watch_at_t)(int, int, const char *, uint32_t);
 typedef int (__sys_inotify_rm_watch_t)(int, int);
 
-void __sys_exit(int rval);
+void __sys__exit(int rval);
 int __sys_fork(void);
 ssize_t __sys_read(int fd, void * buf, size_t nbyte);
 ssize_t __sys_write(int fd, const void * buf, size_t nbyte);

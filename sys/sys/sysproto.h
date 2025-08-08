@@ -33,7 +33,7 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-struct exit_args {
+struct _exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
 struct fork_args {
@@ -1901,7 +1901,7 @@ struct inotify_rm_watch_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char wd_l_[PADL_(int)]; int wd; char wd_r_[PADR_(int)];
 };
-int	sys_exit(struct thread *, struct exit_args *);
+int	sys__exit(struct thread *, struct _exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
 int	sys_write(struct thread *, struct write_args *);
@@ -2802,7 +2802,7 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 
 #endif /* COMPAT_FREEBSD14 */
 
-#define	SYS_AUE_exit	AUE_EXIT
+#define	SYS_AUE__exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
 #define	SYS_AUE_read	AUE_READ
 #define	SYS_AUE_write	AUE_WRITE

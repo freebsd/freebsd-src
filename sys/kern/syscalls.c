@@ -6,7 +6,7 @@
 
 const char *syscallnames[] = {
 	"syscall",			/* 0 = syscall */
-	"exit",			/* 1 = exit */
+	"_exit",			/* 1 = _exit */
 	"fork",			/* 2 = fork */
 	"read",			/* 3 = read */
 	"write",			/* 4 = write */
