@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+37b2cb5ecb0f:
+	Add support to VOP_COPY_FILE_RANGE() for block cloning.
+	At this time, ZFS is the only local file system that supports
+	this and only if block cloning is enabled.  NFSv4.2 also supports it.
+	See pathconf(2) and copy_file_range(2) for more information.
+
 2ec2ba7e232d, df58e8b1506f (openzfs 2957eabbe), f61844833ee8, b1b607bd200f,
 	ee95e4d02dbd:
 	Add Solaris style extended attributes (called named attributes
