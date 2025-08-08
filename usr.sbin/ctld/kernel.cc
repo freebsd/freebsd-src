@@ -106,7 +106,7 @@ kernel_init(void)
 /*
  * Backend LUN information.
  */
-using attr_list = std::list<std::pair<std::string, std::string>>;
+using attr_list_t = std::list<std::pair<std::string, std::string>>;
 
 struct cctl_lun {
 	uint64_t lun_id;
@@ -117,7 +117,7 @@ struct cctl_lun {
 	std::string serial_number;
 	std::string device_id;
 	std::string ctld_name;
-	attr_list attr_list;
+	attr_list_t attr_list;
 };
 
 struct cctl_port {
@@ -133,7 +133,7 @@ struct cctl_port {
 	uint16_t cfiscsi_portal_group_tag;
 	std::string ctld_portal_group_name;
 	std::string ctld_transport_group_name;
-	attr_list attr_list;
+	attr_list_t attr_list;
 };
 
 struct cctl_devlist_data {

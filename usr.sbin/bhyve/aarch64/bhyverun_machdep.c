@@ -30,6 +30,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <machine/armreg.h>
+
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -41,6 +43,7 @@
 
 #include <vmmapi.h>
 
+#include "bhyve_machdep.h"
 #include "bhyverun.h"
 #include "config.h"
 #include "debug.h"
@@ -72,6 +75,8 @@
 #define	PCIE_INTB	35
 #define	PCIE_INTC	36
 #define	PCIE_INTD	37
+
+uint64_t *cpu_to_mpidr;
 
 void
 bhyve_init_config(void)
@@ -363,6 +368,23 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 	int error;
 	int pcie_intrs[4] = {PCIE_INTA, PCIE_INTB, PCIE_INTC, PCIE_INTD};
 
+	cpu_to_mpidr = calloc(guest_ncpus, sizeof(*cpu_to_mpidr));
+	if (cpu_to_mpidr == NULL) {
+		warnx("unable to allocate space for mpidr list");
+		return (ENOMEM);
+	}
+
+	for (uint64_t cpu = 0; cpu < (uint64_t)guest_ncpus; cpu++) {
+		uint64_t mpidr;
+
+		error = vm_get_register(fbsdrun_vcpu(cpu), VM_REG_GUEST_MPIDR_EL1,
+		    &mpidr);
+		assert(error == 0);
+#define	MPIDR_AFF_MASK	(MPIDR_AFF0_MASK | MPIDR_AFF1_MASK | MPIDR_AFF2_MASK | MPIDR_AFF3_MASK)
+		cpu_to_mpidr[cpu] = mpidr & MPIDR_AFF_MASK;
+#undef MPIDR_AFF_MASK
+	}
+
 	bootrom = get_config_value("bootrom");
 	if (bootrom == NULL) {
 		warnx("no bootrom specified");
@@ -395,6 +417,9 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 	fdt_add_timer();
 	pci_irq_init(pcie_intrs);
 	fdt_add_pcie(pcie_intrs);
+
+	/* Mark CPU0 as running */
+	CPU_SET(0, &running_cpumask);
 
 	return (0);
 }

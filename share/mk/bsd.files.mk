@@ -39,14 +39,14 @@ STAGE_SETS+=	${group:C,[/*],_,g}
 
 .if ${group} == "FILES"
 FILESPACKAGE?=	${PACKAGE:Uutilities}
-FILESTAGS+=	${TAGS}
+FILESTAGS+=	${TAGS:Npackage=*}
 .endif
 
 .if defined(NO_ROOT)
 .if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
-${group}TAGS+=		package=${${group}PACKAGE:Uutilities}
+${group}TAGS+=		package=${${group}PACKAGE:U${PACKAGE:Uutilities}}
 .endif
-${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
+${group}TAG_ARGS=	-T ${${group}TAGS:ts,:[*]}
 .endif
 
 

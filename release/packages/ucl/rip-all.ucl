@@ -1,0 +1,8 @@
+comment = "RIP routing protocol"
+desc = <<EOD
+routed(8) and route6d(8) allow the host to participate in a RIP (IPv4) or
+RIPng (IPv6) routing domain, exchanging routing information with other RIP
+routers.
+
+RIP support is deprecated and will be removed in FreeBSD 16.0.
+EOD

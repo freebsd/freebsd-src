@@ -1,4 +1,4 @@
-FILES=	mech qop
+FILES=	mech
 NO_OBJ=
 FILESDIR= /etc/gss
 

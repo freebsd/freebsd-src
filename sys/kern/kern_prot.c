@@ -1914,6 +1914,38 @@ cr_canseejailproc(struct ucred *u1, struct ucred *u2)
 }
 
 /*
+ * Determine if u1 can tamper with the subject specified by u2, if they are in
+ * different jails and 'unprivileged_parent_tampering' jail policy allows it.
+ *
+ * May be called if u1 and u2 are in the same jail, but it is expected that the
+ * caller has already done a prison_check() prior to calling it.
+ *
+ * Returns: 0 for permitted, EPERM otherwise
+ */
+static int
+cr_can_tamper_with_subjail(struct ucred *u1, struct ucred *u2, int priv)
+{
+
+	MPASS(prison_check(u1, u2) == 0);
+	if (u1->cr_prison == u2->cr_prison)
+		return (0);
+
+	if (priv_check_cred(u1, priv) == 0)
+		return (0);
+
+	/*
+	 * Jails do not maintain a distinct UID space, so process visibility is
+	 * all that would control an unprivileged process' ability to tamper
+	 * with a process in a subjail by default if we did not have the
+	 * allow.unprivileged_parent_tampering knob to restrict it by default.
+	 */
+	if (prison_allow(u2, PR_ALLOW_UNPRIV_PARENT_TAMPER))
+		return (0);
+
+	return (EPERM);
+}
+
+/*
  * Helper for cr_cansee*() functions to abide by system-wide security.bsd.see_*
  * policies.  Determines if u1 "can see" u2 according to these policies.
  * Returns: 0 for permitted, ESRCH otherwise
@@ -2062,6 +2094,19 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 			return (error);
 	}
 
+	/*
+	 * At this point, the target may be in a different jail than the
+	 * subject -- the subject must be in a parent jail to the target,
+	 * whether it is prison0 or a subordinate of prison0 that has
+	 * children.  Additional privileges are required to allow this, as
+	 * whether the creds are truly equivalent or not must be determined on
+	 * a case-by-case basis.
+	 */
+	error = cr_can_tamper_with_subjail(cred, proc->p_ucred,
+	    PRIV_SIGNAL_DIFFJAIL);
+	if (error)
+		return (error);
+
 	return (0);
 }
 
@@ -2138,6 +2183,12 @@ p_cansched(struct thread *td, struct proc *p)
 		if (error)
 			return (error);
 	}
+
+	error = cr_can_tamper_with_subjail(td->td_ucred, p->p_ucred,
+	    PRIV_SCHED_DIFFJAIL);
+	if (error)
+		return (error);
+
 	return (0);
 }
 
@@ -2257,6 +2308,11 @@ p_candebug(struct thread *td, struct proc *p)
 		if (error)
 			return (error);
 	}
+
+	error = cr_can_tamper_with_subjail(td->td_ucred, p->p_ucred,
+	    PRIV_DEBUG_DIFFJAIL);
+	if (error)
+		return (error);
 
 	/* Can't trace init when securelevel > 0. */
 	if (p == initproc) {

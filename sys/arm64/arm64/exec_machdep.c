@@ -51,6 +51,7 @@
 #include <vm/vm_map.h>
 
 #include <machine/armreg.h>
+#include <machine/elf.h>
 #include <machine/kdb.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -411,6 +412,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *tf = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
+	uint64_t new_tcr, tcr;
 
 	memset(tf, 0, sizeof(struct trapframe));
 
@@ -432,6 +434,35 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	 * Clear debug register state. It is not applicable to the new process.
 	 */
 	bzero(&pcb->pcb_dbg_regs, sizeof(pcb->pcb_dbg_regs));
+
+	/* If the process is new enough enable TBI */
+	if (td->td_proc->p_osrel >= TBI_VERSION)
+		new_tcr = TCR_TBI0;
+	else
+		new_tcr = 0;
+	td->td_proc->p_md.md_tcr = new_tcr;
+
+	/* TODO: should create a pmap function for this... */
+	tcr = READ_SPECIALREG(tcr_el1);
+	if ((tcr & MD_TCR_FIELDS) != new_tcr) {
+		uint64_t asid;
+
+		tcr &= ~MD_TCR_FIELDS;
+		tcr |= new_tcr;
+		WRITE_SPECIALREG(tcr_el1, tcr);
+		isb();
+
+		/*
+		 * TCR_EL1.TBI0 is permitted to be cached in the TLB, so
+		 * we need to perform a TLB invalidation.
+		 */
+		asid = READ_SPECIALREG(ttbr0_el1) & TTBR_ASID_MASK;
+		__asm __volatile(
+		    "tlbi aside1is, %0		\n"
+		    "dsb ish			\n"
+		    "isb			\n"
+		    : : "r" (asid));
+	}
 
 	/* Generate new pointer authentication keys */
 	ptrauth_exec(td);

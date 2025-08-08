@@ -1639,6 +1639,7 @@ OLD_FILES+=usr/bin/ree
 OLD_FILES+=usr/share/man/man1/edit.1.gz
 OLD_FILES+=usr/share/man/man1/ee.1.gz
 OLD_FILES+=usr/share/man/man1/ree.1.gz
+OLD_FILES+=usr/share/misc/init.ee
 OLD_FILES+=usr/share/nls/C/ee.cat
 OLD_FILES+=usr/share/nls/de_DE.ISO8859-1/ee.cat
 OLD_FILES+=usr/share/nls/fr_FR.ISO8859-1/ee.cat
@@ -2258,6 +2259,12 @@ OLD_FILES+=usr/share/man/man3/gpio_pin_tristate.3.gz
 OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
 .endif
 
+.if ${MK_GSSAPI} == "no" || ${MK_KERBEROS_SUPPORT} == "no"
+OLD_FILES+=etc/rc.d/gssd
+OLD_FILES+=usr/sbin/gssd
+OLD_FILES+=usr/share/man/man8/gssd.8.gz
+.endif
+
 .if ${MK_GSSAPI} == no
 OLD_FILES+=usr/include/gssapi/gssapi.h
 OLD_DIRS+=usr/include/gssapi
@@ -2269,7 +2276,6 @@ OLD_FILES+=usr/lib/libgssapi_p.a
 OLD_FILES+=usr/lib/librpcsec_gss.a
 OLD_FILES+=usr/lib/librpcsec_gss.so
 OLD_LIBS+=usr/lib/librpcsec_gss.so.1
-OLD_FILES+=usr/sbin/gssd
 OLD_FILES+=usr/share/man/man3/gss_accept_sec_context.3.gz
 OLD_FILES+=usr/share/man/man3/gss_acquire_cred.3.gz
 OLD_FILES+=usr/share/man/man3/gss_add_cred.3.gz
@@ -2328,7 +2334,6 @@ OLD_FILES+=usr/share/man/man3/rpc_gss_svc_max_data_length.3.gz
 OLD_FILES+=usr/share/man/man3/rpcsec_gss.3.gz
 OLD_FILES+=usr/share/man/man5/mech.5.gz
 OLD_FILES+=usr/share/man/man5/qop.5.gz
-OLD_FILES+=usr/share/man/man8/gssd.8.gz
 .endif
 
 .if ${MK_HAST} == no
@@ -4835,6 +4840,7 @@ OLD_FILES+=usr/share/man/man8/sserver.8.gz
 .else
 .if ${MK_MITKRB5} != "no"
 # Remove Heimdal because we want MIT KRB5 but not Heimdal
+OLD_FILES+=etc/gss/qop
 OLD_FILES+=etc/rc.d/ipropd_master
 OLD_FILES+=etc/rc.d/ipropd_slave
 OLD_FILES+=usr/bin/asn1_compile
@@ -4920,6 +4926,8 @@ OLD_LIBS+=usr/lib/libasn1.so.11
 OLD_FILES+=usr/lib/libasn1_p.a
 OLD_LIBS+=usr/lib/libcom_err.so.5
 OLD_FILES+=usr/lib/libcom_err_p.a
+OLD_LIBS+=usr/lib/libgssapi.a
+OLD_LIBS+=usr/lib/libgssapi.so.10
 OLD_LIBS+=usr/lib/libgssapi_krb5.so.10
 OLD_FILES+=usr/lib/libgssapi_krb5_p.a
 OLD_FILES+=usr/lib/libgssapi_mech.a

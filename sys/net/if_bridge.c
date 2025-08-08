@@ -2441,6 +2441,12 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 		}
 
 		M_ASSERTPKTHDR(m); /* We shouldn't transmit mbuf without pkthdr */
+		/*
+		 * XXXZL: gif(4) requires the af to be saved in csum_data field
+		 * so that gif_transmit() routine can pull it back.
+		 */
+		if (dst_ifp->if_type == IFT_GIF)
+			m->m_pkthdr.csum_data = AF_LINK;
 		if ((err = dst_ifp->if_transmit(dst_ifp, m))) {
 			int n;
 

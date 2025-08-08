@@ -209,7 +209,8 @@
 #define	KMSAN_ORIG_MAX_ADDRESS	(0xffff028000000000UL)
 
 /* The address bits that hold a pointer authentication code */
-#define	PAC_ADDR_MASK		(0xff7f000000000000UL)
+#define	PAC_ADDR_MASK		(0x007f000000000000UL)
+#define	PAC_ADDR_MASK_14	(0xff7f000000000000UL)
 
 /* The top-byte ignore address bits */
 #define	TBI_ADDR_MASK		0xff00000000000000UL

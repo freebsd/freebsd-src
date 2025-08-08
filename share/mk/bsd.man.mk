@@ -114,7 +114,7 @@ ${__group}TAGS+=	package=${${__group}PACKAGE:U${PACKAGE:Uutilities}}-man
 .endif
 .endif
 
-${__group}TAG_ARGS=	-T ${${__group}TAGS:[*]:S/ /,/g}
+${__group}TAG_ARGS=	-T ${${__group}TAGS:ts,:[*]}
 .endif	# defined(NO_ROOT)
 
 ${__group}INSTALL?=	${INSTALL} ${${__group}TAG_ARGS} \
@@ -291,8 +291,8 @@ manlinksinstall-${__group}:
 manlint:
 .if defined(${__group}) && !empty(${__group})
 .for __page in ${${__group}}
-manlint: ${__page}lint
-${__page}lint: ${__page}
+manlint: ${__page:S/:/\:/g}lint
+${__page:S/:/\:/g}lint: ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} -Tlint
 .else

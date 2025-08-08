@@ -62,7 +62,6 @@ CONFS=	DAEMON \
 	rarpd \
 	rctl \
 	root \
-	route6d \
 	routing \
 	rpcbind \
 	rtadvd \
@@ -220,7 +219,7 @@ FTPD=		ftpd
 FTPDPACKAGE=	ftpd
 .endif
 
-.if ${MK_GSSAPI} != "no"
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CONFGROUPS+=	GSSD
 GSSD=		gssd
 GSSDPACKAGE=	gssd
@@ -355,8 +354,16 @@ PPP=		ppp
 PPPPACKAGE=	ppp
 .endif
 
+.if ${MK_INET6} != "no" || ${MK_ROUTED} != "no"
+CONFGROUPS+=	RIP
+RIPPACKAGE=	rip
+
+.if ${MK_INET6} != "no"
+RIP+=		route6d
+.endif
 .if ${MK_ROUTED} != "no"
-CONFS+=		routed
+RIP+=		routed
+.endif
 .endif
 
 .if ${MK_SENDMAIL} != "no"

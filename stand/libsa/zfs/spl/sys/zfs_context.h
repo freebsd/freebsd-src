@@ -20,7 +20,7 @@
 
 #include_next <sys/zfs_context.h>
 
-#define	ZFS_MODULE_PARAM_ARGS void
+#define	SYSCTL_HANDLER_ARGS void
 
 /*
  * Not sure why I need these, but including the canonical stand.h fails because

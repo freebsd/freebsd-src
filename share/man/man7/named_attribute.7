@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 20, 2025
+.Dd August 5, 2025
 .Dt NAMED_ATTRIBUTE 7
 .Os
 .Sh NAME
@@ -153,6 +153,31 @@ property to
 will make the attribute(s) visible as both named attributes
 and via
 .Xr extattr 2 .
+.It
+For ZFS, it is also possible to create two attributes with the same
+name by creating one when the ZFS
+.Dv xattr
+property is set to
+.Dq sa
+and then creating another one with the same name after the ZFS
+property
+.Dv xattr
+has been changed to
+.Dq dir .
+The one created when the ZFS
+.Dv xattr
+property is set to
+.Dq sa
+may be removed via
+.Xr rmextattr 8 .
+.It
+To avoid these issues for ZFS, it is strongly recommended that the ZFS
+property
+.Dv xattr
+be set to
+.Dq dir
+as soon as the file system is created, if named attributes
+are to be used on the file system.
 .El
 .Pp
 The named attribute mechanism/system call interface provides certain
@@ -288,7 +313,8 @@ enters the named attribute directory for the file object
 .Xr truncate 2 ,
 .Xr unlinkat 2 ,
 .Xr write 2 ,
-.Xr zfsprops 7
+.Xr zfsprops 7 ,
+.Xr rmextattr 8
 .Sh HISTORY
 This interface first appeared in
 .Fx 15.0 .

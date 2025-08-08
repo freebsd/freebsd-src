@@ -925,9 +925,29 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 	OM_uint32		maj_stat = 0, min_stat = 0, ret_flags;
 	OM_uint32		cred_lifetime;
 	struct svc_rpc_gss_svc_name *sname;
+	gss_buffer_desc		export_name;
+	rpc_gss_ucred_t		*uc = &client->cl_ucred;
+	int			numgroups;
+	static enum krb_imp	my_krb_imp = KRBIMP_UNKNOWN;
 
 	rpc_gss_log_debug("in svc_rpc_gss_accept_context()");
 	
+	if (my_krb_imp == KRBIMP_UNKNOWN) {
+		maj_stat = gss_supports_lucid(&min_stat, NULL);
+		if (maj_stat == GSS_S_COMPLETE)
+			my_krb_imp = KRBIMP_MIT;
+		else
+			my_krb_imp = KRBIMP_HESIOD1;
+		min_stat = 0;
+	}
+
+	if (my_krb_imp == KRBIMP_MIT) {
+		uc->uid = 65534;
+		uc->gid = 65534;
+		uc->gidlist = client->cl_gid_storage;
+		numgroups = NGROUPS;
+	}
+
 	/* Deserialize arguments. */
 	memset(&recv_tok, 0, sizeof(recv_tok));
 	
@@ -949,18 +969,38 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 			if (sname->sn_program == rqst->rq_prog
 			    && sname->sn_version == rqst->rq_vers) {
 			retry:
-				gr->gr_major = gss_accept_sec_context(
-					&gr->gr_minor,
-					&client->cl_ctx,
-					sname->sn_cred,
-					&recv_tok,
-					GSS_C_NO_CHANNEL_BINDINGS,
-					&client->cl_cname,
-					&mech,
-					&gr->gr_token,
-					&ret_flags,
-					&cred_lifetime,
-					&client->cl_creds);
+				if (my_krb_imp == KRBIMP_MIT)
+					gr->gr_major =
+					    gss_accept_sec_context_lucid_v1(
+						&gr->gr_minor,
+						&client->cl_ctx,
+						sname->sn_cred,
+						&recv_tok,
+						GSS_C_NO_CHANNEL_BINDINGS,
+						&client->cl_cname,
+						&mech,
+						&gr->gr_token,
+						&ret_flags,
+						&cred_lifetime,
+						&client->cl_creds,
+						&export_name,
+						&uc->uid,
+						&uc->gid,
+						&numgroups,
+						&uc->gidlist[0]);
+				else
+					gr->gr_major = gss_accept_sec_context(
+						&gr->gr_minor,
+						&client->cl_ctx,
+						sname->sn_cred,
+						&recv_tok,
+						GSS_C_NO_CHANNEL_BINDINGS,
+						&client->cl_cname,
+						&mech,
+						&gr->gr_token,
+						&ret_flags,
+						&cred_lifetime,
+						&client->cl_creds);
 				if (gr->gr_major == 
 				    GSS_S_CREDENTIALS_EXPIRED) {
 					/*
@@ -982,18 +1022,37 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 			return (FALSE);
 		}
 	} else {
-		gr->gr_major = gss_accept_sec_context(
-			&gr->gr_minor,
-			&client->cl_ctx,
-			client->cl_sname->sn_cred,
-			&recv_tok,
-			GSS_C_NO_CHANNEL_BINDINGS,
-			&client->cl_cname,
-			&mech,
-			&gr->gr_token,
-			&ret_flags,
-			&cred_lifetime,
-			NULL);
+		if (my_krb_imp == KRBIMP_MIT)
+			gr->gr_major = gss_accept_sec_context_lucid_v1(
+				&gr->gr_minor,
+				&client->cl_ctx,
+				client->cl_sname->sn_cred,
+				&recv_tok,
+				GSS_C_NO_CHANNEL_BINDINGS,
+				&client->cl_cname,
+				&mech,
+				&gr->gr_token,
+				&ret_flags,
+				&cred_lifetime,
+				NULL,
+				&export_name,
+				&uc->uid,
+				&uc->gid,
+				&numgroups,
+				&uc->gidlist[0]);
+		else
+			gr->gr_major = gss_accept_sec_context(
+				&gr->gr_minor,
+				&client->cl_ctx,
+				client->cl_sname->sn_cred,
+				&recv_tok,
+				GSS_C_NO_CHANNEL_BINDINGS,
+				&client->cl_cname,
+				&mech,
+				&gr->gr_token,
+				&ret_flags,
+				&cred_lifetime,
+				NULL);
 	}
 	sx_xunlock(&svc_rpc_gss_lock);
 	
@@ -1009,8 +1068,12 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 		rpc_gss_log_status("accept_sec_context", client->cl_mech,
 		    gr->gr_major, gr->gr_minor);
 		client->cl_state = CLIENT_STALE;
+		if (my_krb_imp == KRBIMP_MIT)
+			uc->gidlen = 0;
 		return (TRUE);
 	}
+	if (my_krb_imp == KRBIMP_MIT)
+		uc->gidlen = numgroups;
 
 	gr->gr_handle.value = &client->cl_id;
 	gr->gr_handle.length = sizeof(client->cl_id);
@@ -1022,8 +1085,6 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 	client->cl_done_callback = FALSE;
 
 	if (gr->gr_major == GSS_S_COMPLETE) {
-		gss_buffer_desc	export_name;
-
 		/*
 		 * Change client expiration time to be near when the
 		 * client creds expire (or 24 hours if we can't figure
@@ -1046,8 +1107,10 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 		 */
 		client->cl_rawcred.version = RPCSEC_GSS_VERSION;
 		rpc_gss_oid_to_mech(mech, &client->cl_rawcred.mechanism);
-		maj_stat = gss_export_name(&min_stat, client->cl_cname,
-		    &export_name);
+		maj_stat = GSS_S_COMPLETE;
+		if (my_krb_imp != KRBIMP_MIT)
+			maj_stat = gss_export_name(&min_stat, client->cl_cname,
+			    &export_name);
 		if (maj_stat != GSS_S_COMPLETE) {
 			rpc_gss_log_status("gss_export_name", client->cl_mech,
 			    maj_stat, min_stat);
@@ -1068,7 +1131,8 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 		 * Use gss_pname_to_uid to map to unix creds. For
 		 * kerberos5, this uses krb5_aname_to_localname.
 		 */
-		svc_rpc_gss_build_ucred(client, client->cl_cname);
+		if (my_krb_imp != KRBIMP_MIT)
+			svc_rpc_gss_build_ucred(client, client->cl_cname);
 		svc_rpc_gss_set_flavor(client);
 		gss_release_name(&min_stat, &client->cl_cname);
 

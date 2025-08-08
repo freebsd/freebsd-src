@@ -517,6 +517,15 @@ acpi_get_verbose(struct acpi_softc *sc)
     return (0);
 }
 
+static __inline const char *
+acpi_d_state_to_str(int state)
+{
+    const char *strs[ACPI_D_STATE_COUNT] = {"D0", "D1", "D2", "D3", "D3cold"};
+
+    MPASS(state >= ACPI_STATE_D0 && state <= ACPI_D_STATES_MAX);
+    return (strs[state]);
+}
+
 char		*acpi_name(ACPI_HANDLE handle);
 int		acpi_avoid(ACPI_HANDLE handle);
 int		acpi_disabled(char *subsys);

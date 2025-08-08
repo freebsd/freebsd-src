@@ -401,6 +401,17 @@ This feature becomes
 .Sy active
 when first block is cloned.
 When the last cloned block is freed, it goes back to the enabled state.
+.feature com.truenas block_cloning_endian yes
+This feature corrects ZAP entry endianness issues in the Block Reference
+Table (BRT) used by block cloning.
+During the original block cloning implementation, BRT ZAP entries were
+mistakenly stored as arrays of 8 single-byte entries instead of single
+8-byte entries, making pools non-endian-safe.
+.Pp
+This feature is activated when the first BRT ZAP is created (that way
+ensuring compatibility with existing pools).
+When active, new BRT entries are stored in the correct endian-safe format.
+The feature becomes inactive when all BRT ZAPs are destroyed.
 .feature com.delphix bookmarks yes extensible_dataset
 This feature enables use of the
 .Nm zfs Cm bookmark
@@ -492,6 +503,19 @@ when creating a pool which uses the
 vdev type, or when adding a new
 .Sy draid
 vdev to an existing pool.
+.
+.feature com.klarasystems dynamic_gang_header no
+This feature enables larger gang headers based on the sector size of the pool.
+When enabled, gang headers will use the entire space allocated for them, instead
+of always restricting themselves to 512 bytes.
+This can reduce the need for nested gang trees in extreme fragmentation
+scenarios.
+.Pp
+This feature becomes active when a gang header is written that is larger than
+512 bytes.
+This feature is not enabled by
+.Xr zpool-upgrade 8 .
+Instead, it must be manually enabled, or be part of a compatibility file.
 .
 .feature org.illumos edonr no extensible_dataset
 This feature enables the use of the Edon-R hash algorithm for checksum,
@@ -828,6 +852,23 @@ when the
 .Nm zpool Cm remove
 command is used on a top-level vdev, and will never return to being
 .Sy enabled .
+.
+.feature com.truenas physical_rewrite yes extensible_dataset
+This feature enables physical block rewriting that preserves logical birth
+times, avoiding unnecessary inclusion of rewritten blocks in incremental
+.Nm zfs Cm send
+streams.
+When enabled, the
+.Nm zfs Cm rewrite Fl P
+command can be used.
+.Pp
+This feature becomes
+.Sy active
+the first time
+.Nm zfs Cm rewrite Fl P
+is used on any dataset, and will return to being
+.Sy enabled
+once all datasets that have ever used physical rewrite are destroyed.
 .
 .feature org.zfsonlinux project_quota yes extensible_dataset
 This feature allows administrators to account the spaces and objects usage

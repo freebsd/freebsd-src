@@ -39,7 +39,7 @@ function syscalls_map.generate(tbl, config, fh)
 	for _, v in pairs(s) do
 		gen:write(v.prolog)
 		if v:native() and not v.type.NODEF and not v.type.NOLIB then
-			if v.name ~= "exit" and v.name ~= "vfork" then
+			if v.name ~= "_exit" and v.name ~= "vfork" then
 				gen:write(string.format("\t_%s;\n", v.name))
 			end
 			gen:write(string.format("\t__sys_%s;\n", v.name))

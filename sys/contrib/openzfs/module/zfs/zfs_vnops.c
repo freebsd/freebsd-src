@@ -49,6 +49,7 @@
 #include <sys/dmu.h>
 #include <sys/dmu_objset.h>
 #include <sys/dsl_crypt.h>
+#include <sys/dsl_dataset.h>
 #include <sys/spa.h>
 #include <sys/txg.h>
 #include <sys/dbuf.h>
@@ -67,13 +68,14 @@
 int zfs_bclone_enabled = 1;
 
 /*
- * When set zfs_clone_range() waits for dirty data to be written to disk.
- * This allows the clone operation to reliably succeed when a file is modified
- * and then immediately cloned. For small files this may be slower than making
- * a copy of the file and is therefore not the default.  However, in certain
- * scenarios this behavior may be desirable so a tunable is provided.
+ * When set to 1 the FICLONE and FICLONERANGE ioctls will wait for any dirty
+ * data to be written to disk before proceeding. This ensures that the clone
+ * operation reliably succeeds, even if a file is modified and then immediately
+ * cloned. Note that for small files this may be slower than simply copying
+ * the file. When set to 0 the clone operation will immediately fail if it
+ * encounters any dirty blocks. By default waiting is enabled.
  */
-int zfs_bclone_wait_dirty = 0;
+int zfs_bclone_wait_dirty = 1;
 
 /*
  * Enable Direct I/O. If this setting is 0, then all I/O requests will be
@@ -114,9 +116,7 @@ zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
 	if (zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED) {
 		if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 			return (error);
-		atomic_inc_32(&zp->z_sync_writes_cnt);
 		zil_commit(zfsvfs->z_log, zp->z_id);
-		atomic_dec_32(&zp->z_sync_writes_cnt);
 		zfs_exit(zfsvfs, FTAG);
 	}
 	return (error);
@@ -1102,12 +1102,20 @@ zfs_rewrite(znode_t *zp, uint64_t off, uint64_t len, uint64_t flags,
 {
 	int error;
 
-	if (flags != 0 || arg != 0)
+	if ((flags & ~ZFS_REWRITE_PHYSICAL) != 0 || arg != 0)
 		return (SET_ERROR(EINVAL));
 
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 		return (error);
+
+	/* Check if physical rewrite is allowed */
+	spa_t *spa = zfsvfs->z_os->os_spa;
+	if ((flags & ZFS_REWRITE_PHYSICAL) &&
+	    !spa_feature_is_enabled(spa, SPA_FEATURE_PHYSICAL_REWRITE)) {
+		zfs_exit(zfsvfs, FTAG);
+		return (SET_ERROR(ENOTSUP));
+	}
 
 	if (zfs_is_readonly(zfsvfs)) {
 		zfs_exit(zfsvfs, FTAG);
@@ -1196,7 +1204,10 @@ zfs_rewrite(znode_t *zp, uint64_t off, uint64_t len, uint64_t flags,
 			if (dmu_buf_is_dirty(dbp[i], tx))
 				continue;
 			nw += dbp[i]->db_size;
-			dmu_buf_will_dirty(dbp[i], tx);
+			if (flags & ZFS_REWRITE_PHYSICAL)
+				dmu_buf_will_rewrite(dbp[i], tx);
+			else
+				dmu_buf_will_dirty(dbp[i], tx);
 		}
 		dmu_buf_rele_array(dbp, numbufs, FTAG);
 
