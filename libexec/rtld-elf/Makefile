@@ -128,3 +128,7 @@ ${PROG_FULL}:	${VERSION_MAP}
 # and are therefore not identical to the ones from the system headers.
 CFLAGS+=	-Wno-redundant-decls
 .endif
+
+# Add dependencies on libc and libsys archives after bsd.prog.mk
+# includes bsd.libnames.mk so they are defined.
+rtld_libc.a: ${LIBC_NOSSP_PIC} ${LIBSYS_PIC}
