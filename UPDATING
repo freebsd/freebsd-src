@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250808:
+	13.5-RELEASE-p3	SA-25:07.libarchive
+
+	Update libarchive to 3.8.1 to fix integer overflow leading to double
+	free. [SA-25:07.libarchive]
+
 20250702:
 	13.5-RELEASE-p2	EN-25:09.libc
 			EN-25:10.zfs
