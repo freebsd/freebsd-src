@@ -5058,7 +5058,7 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	error = 0;
 	retlen = 0;
 
-	if (flags != 0) {
+	if ((flags & ~COPY_FILE_RANGE_USERFLAGS) != 0) {
 		error = EINVAL;
 		goto out;
 	}
