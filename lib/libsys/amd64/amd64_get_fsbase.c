@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#define _WANT_P_OSREL
 #include <sys/param.h>
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
@@ -41,7 +40,6 @@
 static int
 amd64_get_fsbase_cpu(void **addr)
 {
-
 	*addr = (void *)rdfsbase();
 	return (0);
 }
@@ -49,15 +47,12 @@ amd64_get_fsbase_cpu(void **addr)
 static int
 amd64_get_fsbase_syscall(void **addr)
 {
-
 	return (sysarch(AMD64_GET_FSBASE, addr));
 }
 
 DEFINE_UIFUNC(, int, amd64_get_fsbase, (void **))
 {
-
-	if (__getosreldate() >= P_OSREL_WRFSBASE &&
-	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0)
+	if ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0)
 		return (amd64_get_fsbase_cpu);
 	return (amd64_get_fsbase_syscall);
 }
