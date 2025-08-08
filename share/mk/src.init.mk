@@ -3,7 +3,7 @@
 __<src.init.mk>__:	.NOTMAIN
 
 .if !target(buildenv)
-buildenv: .PHONY
+buildenv: .PHONY .NOTMAIN
 	${_+_}@env BUILDENV_DIR=${.CURDIR} ${MAKE} -C ${SRCTOP} buildenv
 .endif
 
