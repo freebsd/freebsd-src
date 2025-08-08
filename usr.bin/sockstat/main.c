@@ -110,8 +110,6 @@ static size_t	   default_numprotos = nitems(default_protos);
 static int	*protos;	/* protocols to use */
 static size_t	 numprotos;	/* allocated size of protos[] */
 
-static int	*ports;
-
 struct addr {
 	union {
 		struct sockaddr_storage address;

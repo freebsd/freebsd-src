@@ -32,6 +32,6 @@
 #define	SET_PORT(p) do { ports[p / INT_BIT] |= 1 << (p % INT_BIT); } while (0)
 #define	CHK_PORT(p) (ports[p / INT_BIT] & (1 << (p % INT_BIT)))
 
-static int	*ports;
+extern int	*ports;
 
 void parse_ports(const char *portspec);

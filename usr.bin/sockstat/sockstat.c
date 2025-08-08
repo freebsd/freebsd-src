@@ -34,46 +34,57 @@
 
 #include "sockstat.h"
 
+int	*ports;
+
 void
 parse_ports(const char *portspec)
 {
-	const char *p, *q;
-	int port, end;
+	const char *p;
 
 	if (ports == NULL)
 		if ((ports = calloc(65536 / INT_BIT, sizeof(int))) == NULL)
 			xo_err(1, "calloc()");
 	p = portspec;
 	while (*p != '\0') {
-		if (!isdigit(*p))
+		long port, end;
+		char *endptr = NULL;
+
+		errno = 0;
+		port = strtol(p, &endptr, 10);
+		switch (errno) {
+		case EINVAL:
 			xo_errx(1, "syntax error in port range");
-		for (q = p; *q != '\0' && isdigit(*q); ++q)
-			/* nothing */ ;
-		for (port = 0; p < q; ++p)
-			port = port * 10 + digittoint(*p);
+			break;
+		case ERANGE:
+			xo_errx(1, "invalid port number");
+			break;
+		}
 		if (port < 0 || port > 65535)
 			xo_errx(1, "invalid port number");
 		SET_PORT(port);
-		switch (*p) {
+		switch (*endptr) {
 		case '-':
-			++p;
+			p = endptr + 1;
+			end = strtol(p, &endptr, 10);
 			break;
 		case ',':
-			++p;
-			/* fall through */
-		case '\0':
+			p = endptr + 1;
+			/* FALLTHROUGH */
 		default:
+			p = endptr;
 			continue;
 		}
-		for (q = p; *q != '\0' && isdigit(*q); ++q)
-			/* nothing */ ;
-		for (end = 0; p < q; ++p)
-			end = end * 10 + digittoint(*p);
+		switch (errno) {
+		case EINVAL:
+			xo_errx(1, "syntax error in port range");
+			break;
+		case ERANGE:
+			xo_errx(1, "invalid port number");
+			break;
+		}
 		if (end < port || end > 65535)
 			xo_errx(1, "invalid port number");
 		while (port++ < end)
 			SET_PORT(port);
-		if (*p == ',')
-			++p;
 	}
 }
