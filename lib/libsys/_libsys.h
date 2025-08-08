@@ -469,7 +469,7 @@ typedef int (__sys_exterrctl_t)(u_int, u_int, void *);
 typedef int (__sys_inotify_add_watch_at_t)(int, int, const char *, uint32_t);
 typedef int (__sys_inotify_rm_watch_t)(int, int);
 
-void __sys__exit(int rval);
+_Noreturn void __sys__exit(int rval);
 int __sys_fork(void);
 ssize_t __sys_read(int fd, void * buf, size_t nbyte);
 ssize_t __sys_write(int fd, const void * buf, size_t nbyte);
