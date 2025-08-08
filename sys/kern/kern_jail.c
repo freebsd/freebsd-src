@@ -115,8 +115,11 @@ struct prison prison0 = {
 #else
 	.pr_flags	= PR_HOST|_PR_IP_SADDRSEL,
 #endif
-	.pr_allow	= PR_ALLOW_ALL_STATIC,
+	.pr_allow	= PR_ALLOW_PRISON0,
 };
+_Static_assert((PR_ALLOW_PRISON0 & ~PR_ALLOW_ALL_STATIC) == 0,
+    "Bits enabled in PR_ALLOW_PRISON0 that are not statically reserved");
+
 MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
 
 struct bool_flags {
