@@ -22,7 +22,6 @@ MAKE_COMMANDS=	${KRB5_OBJTOP}/util/ss/mk_cmds
 
 # There are no WARNS levels for this.
 CFLAGS+=	-Wno-deprecated-non-prototype \
-		-Wno-macro-redefined \
 		-Wno-unused-parameter
 
 WARNS?=		1
