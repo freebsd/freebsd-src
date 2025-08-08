@@ -115,6 +115,7 @@
 #define	PRIV_DEBUG_SUGID	81	/* Exempt debugging setuid proc. */
 #define	PRIV_DEBUG_UNPRIV	82	/* Exempt unprivileged debug limit. */
 #define	PRIV_DEBUG_DENIED	83	/* Exempt P2_NOTRACE. */
+#define	PRIV_DEBUG_DIFFJAIL	84	/* Exempt debugging other jails. */
 
 /*
  * Dtrace privileges.
@@ -193,6 +194,7 @@
 #define	PRIV_SCHED_CPUSET	206	/* Can manipulate cpusets. */
 #define	PRIV_SCHED_CPUSET_INTR	207	/* Can adjust IRQ to CPU binding. */
 #define	PRIV_SCHED_IDPRIO	208	/* Can set idle time scheduling. */
+#define	PRIV_SCHED_DIFFJAIL	209	/* Exempt scheduling other jails. */
 
 /*
  * POSIX semaphore privileges.
@@ -204,6 +206,7 @@
  */
 #define	PRIV_SIGNAL_DIFFCRED	230	/* Exempt signalling other users. */
 #define	PRIV_SIGNAL_SUGID	231	/* Non-conserv signal setuid proc. */
+#define	PRIV_SIGNAL_DIFFJAIL	232	/* Exempt signalling other jails. */
 
 /*
  * Sysctl privileges.

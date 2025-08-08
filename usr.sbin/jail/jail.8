@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 11, 2025
+.Dd August 7, 2025
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -686,6 +686,12 @@ in the
 file outside of the jails.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
+.It Va allow.unprivileged_parent_tampering
+Unprivileged processes in the jail's parent may tamper with processes of the
+same UID in the jail.
+This includes the ability to signal, debug, and
+.Xr cpuset 1
+processes that belong to the jail.
 .It Va allow.unprivileged_proc_debug
 Unprivileged processes in the jail may use debugging facilities.
 .It Va allow.suser
