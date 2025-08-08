@@ -469,7 +469,7 @@ static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
 static void pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte);
-static bool pmap_activate_int(pmap_t pmap);
+static bool pmap_activate_int(struct thread *td, pmap_t pmap);
 static void pmap_alloc_asid(pmap_t pmap);
 static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
     vm_prot_t prot, int mode, bool skip_unmapped);
@@ -9113,7 +9113,7 @@ pmap_init_cnp(void *dummy __unused)
 SYSINIT(pmap_init_cnp, SI_SUB_SMP, SI_ORDER_ANY, pmap_init_cnp, NULL);
 
 static bool
-pmap_activate_int(pmap_t pmap)
+pmap_activate_int(struct thread *td, pmap_t pmap)
 {
 	struct asid_set *set;
 	int epoch;
@@ -9152,6 +9152,15 @@ pmap_activate_int(pmap_t pmap)
 		pmap_alloc_asid(pmap);
 
 	if (pmap->pm_stage == PM_STAGE1) {
+		uint64_t new_tcr, tcr;
+
+		new_tcr = td->td_proc->p_md.md_tcr;
+		tcr = READ_SPECIALREG(tcr_el1);
+		if ((tcr & MD_TCR_FIELDS) != new_tcr) {
+			tcr &= ~MD_TCR_FIELDS;
+			tcr |= new_tcr;
+			WRITE_SPECIALREG(tcr_el1, tcr);
+		}
 		set_ttbr0(pmap_to_ttbr0(pmap));
 		if (PCPU_GET(bcast_tlbi_workaround) != 0)
 			invalidate_local_icache();
@@ -9165,7 +9174,7 @@ pmap_activate_vm(pmap_t pmap)
 
 	PMAP_ASSERT_STAGE2(pmap);
 
-	(void)pmap_activate_int(pmap);
+	(void)pmap_activate_int(NULL, pmap);
 }
 
 void
@@ -9176,7 +9185,7 @@ pmap_activate(struct thread *td)
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	PMAP_ASSERT_STAGE1(pmap);
 	critical_enter();
-	(void)pmap_activate_int(pmap);
+	(void)pmap_activate_int(td, pmap);
 	critical_exit();
 }
 
@@ -9202,7 +9211,7 @@ pmap_switch(struct thread *new)
 	 * to a user process.
 	 */
 
-	if (pmap_activate_int(vmspace_pmap(new->td_proc->p_vmspace))) {
+	if (pmap_activate_int(new, vmspace_pmap(new->td_proc->p_vmspace))) {
 		/*
 		 * Stop userspace from training the branch predictor against
 		 * other processes. This will call into a CPU specific
