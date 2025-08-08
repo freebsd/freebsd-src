@@ -36,7 +36,7 @@
 
 int	*ports;
 
-void
+int
 parse_ports(const char *portspec)
 {
 	const char *p;
@@ -51,16 +51,10 @@ parse_ports(const char *portspec)
 
 		errno = 0;
 		port = strtol(p, &endptr, 10);
-		switch (errno) {
-		case EINVAL:
-			xo_errx(1, "syntax error in port range");
-			break;
-		case ERANGE:
-			xo_errx(1, "invalid port number");
-			break;
-		}
+		if (errno)
+			return (errno);
 		if (port < 0 || port > 65535)
-			xo_errx(1, "invalid port number");
+			return (ERANGE);
 		SET_PORT(port);
 		switch (*endptr) {
 		case '-':
@@ -69,22 +63,17 @@ parse_ports(const char *portspec)
 			break;
 		case ',':
 			p = endptr + 1;
-			/* FALLTHROUGH */
+			continue;
 		default:
 			p = endptr;
 			continue;
 		}
-		switch (errno) {
-		case EINVAL:
-			xo_errx(1, "syntax error in port range");
-			break;
-		case ERANGE:
-			xo_errx(1, "invalid port number");
-			break;
-		}
+		if (errno)
+			return (errno);
 		if (end < port || end > 65535)
-			xo_errx(1, "invalid port number");
+			return (ERANGE);
 		while (port++ < end)
 			SET_PORT(port);
 	}
+	return (0);
 }

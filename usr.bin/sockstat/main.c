@@ -1713,7 +1713,7 @@ main(int argc, char *argv[])
 	const char *pwdcmds[] = { "setpassent", "getpwuid" };
 	const char *pwdfields[] = { "pw_name" };
 	int protos_defined = -1;
-	int o, i;
+	int o, i, err;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
@@ -1760,7 +1760,15 @@ main(int argc, char *argv[])
 			opt_n = true;
 			break;
 		case 'p':
-			parse_ports(optarg);
+			err = parse_ports(optarg);
+			switch (err) {
+			case EINVAL:
+				xo_errx(1, "syntax error in port range");
+				break;
+			case ERANGE:
+				xo_errx(1, "invalid port number");
+				break;
+			}
 			break;
 		case 'P':
 			protos_defined = parse_protos(optarg);

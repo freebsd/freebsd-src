@@ -29,6 +29,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/errno.h>
 
 #include <atf-c.h>
 
@@ -39,8 +40,7 @@ ATF_TC_BODY(backwards_range, tc)
 {
 	const char portspec[] = "22-21";
 	
-	/* TODO: in cases like this, return an error rather than abort */
-	parse_ports(portspec);
+	ATF_CHECK_EQ(ERANGE, parse_ports(portspec));
 }
 
 ATF_TC_WITHOUT_HEAD(erange_low);
@@ -48,8 +48,7 @@ ATF_TC_BODY(erange_low, tc)
 {
 	const char portspec[] = "-1";
 	
-	/* TODO: in cases like this, return an error rather than abort */
-	parse_ports(portspec);
+	ATF_CHECK_EQ(ERANGE, parse_ports(portspec));
 }
 
 ATF_TC_WITHOUT_HEAD(erange_high);
@@ -57,8 +56,7 @@ ATF_TC_BODY(erange_high, tc)
 {
 	const char portspec[] = "65536";
 	
-	/* TODO: in cases like this, return an error rather than abort */
-	parse_ports(portspec);
+	ATF_CHECK_EQ(ERANGE, parse_ports(portspec));
 }
 
 ATF_TC_WITHOUT_HEAD(erange_on_range_end);
@@ -66,8 +64,7 @@ ATF_TC_BODY(erange_on_range_end, tc)
 {
 	const char portspec[] = "22-65536";
 	
-	/* TODO: in cases like this, return an error rather than abort */
-	parse_ports(portspec);
+	ATF_CHECK_EQ(ERANGE, parse_ports(portspec));
 }
 
 ATF_TC_WITHOUT_HEAD(multiple);
@@ -75,7 +72,7 @@ ATF_TC_BODY(multiple, tc)
 {
 	const char portspec[] = "80,443";
 	
-	parse_ports(portspec);
+	ATF_REQUIRE_EQ(0, parse_ports(portspec));
 
 	ATF_CHECK(!CHK_PORT(0));
 
@@ -93,7 +90,7 @@ ATF_TC_BODY(multiple_plus_ranges, tc)
 {
 	const char portspec[] = "80,443,500-501,510,520,40000-40002";
 	
-	parse_ports(portspec);
+	ATF_REQUIRE_EQ(0, parse_ports(portspec));
 
 	ATF_CHECK(!CHK_PORT(0));
 
@@ -126,8 +123,7 @@ ATF_TC_BODY(nonnumeric, tc)
 {
 	const char portspec[] = "foo";
 	
-	/* TODO: in cases like this, return an error rather than abort */
-	parse_ports(portspec);
+	ATF_CHECK_EQ(EINVAL, parse_ports(portspec));
 }
 
 ATF_TC_WITHOUT_HEAD(null_range);
@@ -135,7 +131,7 @@ ATF_TC_BODY(null_range, tc)
 {
 	const char portspec[] = "22-22";
 	
-	parse_ports(portspec);
+	ATF_REQUIRE_EQ(0, parse_ports(portspec));
 
 	ATF_CHECK(!CHK_PORT(0));
 	ATF_CHECK(CHK_PORT(22));
@@ -147,7 +143,7 @@ ATF_TC_BODY(range, tc)
 {
 	const char portspec[] = "22-25";
 	
-	parse_ports(portspec);
+	ATF_REQUIRE_EQ(0, parse_ports(portspec));
 
 	ATF_CHECK(!CHK_PORT(0));
 	ATF_CHECK(CHK_PORT(22));
@@ -162,7 +158,7 @@ ATF_TC_BODY(single, tc)
 {
 	const char portspec[] = "22";
 	
-	parse_ports(portspec);
+	ATF_REQUIRE_EQ(0, parse_ports(portspec));
 
 	ATF_CHECK(!CHK_PORT(0));
 	ATF_CHECK(CHK_PORT(22));
@@ -173,7 +169,7 @@ ATF_TC_BODY(zero, tc)
 {
 	const char portspec[] = "0";
 	
-	parse_ports(portspec);
+	ATF_REQUIRE_EQ(0, parse_ports(portspec));
 
 	ATF_CHECK(CHK_PORT(0));
 }

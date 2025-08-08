@@ -34,4 +34,4 @@
 
 extern int	*ports;
 
-void parse_ports(const char *portspec);
+int parse_ports(const char *portspec);
