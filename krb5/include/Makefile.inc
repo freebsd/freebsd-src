@@ -7,4 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
+PACKAGE=	kerberos-lib
+
 .include "../Makefile.inc"
