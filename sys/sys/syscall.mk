@@ -6,7 +6,7 @@
 
 MIASM =  \
 	syscall.o \
-	exit.o \
+	_exit.o \
 	fork.o \
 	read.o \
 	write.o \

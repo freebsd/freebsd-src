@@ -7,7 +7,7 @@
 FBSDprivate_1.0 {
 	_syscall;
 	__sys_syscall;
-	__sys_exit;
+	__sys__exit;
 	_fork;
 	__sys_fork;
 	_read;
