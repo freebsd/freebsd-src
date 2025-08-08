@@ -3205,7 +3205,7 @@ tcp6_next_pmtu(const struct icmp6_hdr *icmp6)
 	 * small, set to the min.
 	 */
 	if (mtu < IPV6_MMTU)
-		mtu = IPV6_MMTU - 8;	/* XXXNP: what is the adjustment for? */
+		mtu = IPV6_MMTU;
 	return (mtu);
 }
 
