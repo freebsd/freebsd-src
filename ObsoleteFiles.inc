@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250808: nvmfd removed from base install
+OLD_FILES+=usr/sbin/nvmfd
+OLD_FILES+=usr/share/man/man8/nvmfd.8.gz
+
 # 20250807: Replace lib/libgssapi with krb5/lib/gssapi
 OLD_FILES+=usr/include/gssapi_krb5/gssapi.h
 OLD_DIRS+=usr/include/gssapi_krb5/gssapi
