@@ -1347,6 +1347,8 @@ pf_cleanup(void)
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
 	uma_zdestroy(V_pf_udp_mapping_z);
+	uma_zdestroy(V_pf_anchor_z);
+	uma_zdestroy(V_pf_eth_anchor_z);
 }
 
 static int
