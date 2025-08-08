@@ -728,6 +728,8 @@ void grep_printline(struct str *line, int sep) {
 	printline_metadata(line, sep);
 	fwrite(line->dat, line->len, 1, stdout);
 	putchar(fileeol);
+
+	fflush(stdout);
 }
 
 static void
@@ -834,6 +836,7 @@ printline(struct parsec *pc, int sep, size_t *last_out)
 				*last_out = pc->ln.len;
 			}
 			putchar('\n');
+			fflush(stdout);
 		} else if (!oflag) {
 			/*
 			 * -o is terminated on every match output, so this
@@ -843,6 +846,8 @@ printline(struct parsec *pc, int sep, size_t *last_out)
 			 * to terminate if it needs to.
 			 */
 			terminated = false;
+		} else {
+			fflush(stdout);
 		}
 	} else
 		grep_printline(&pc->ln, sep);
