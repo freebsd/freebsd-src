@@ -39,10 +39,10 @@ A pull request will be considered if:
 * You can respond to feedback quickly. If feedback is requested and one month passes without a response we may close the pull request.
 * It touches fewer than about 10 files and the changes are less than about 200 lines. Changes larger than this may be OK, or you may be asked to submit multiple pull requests of a more manageable size.
 * Each logical change is a separate commit within the pull request. Commit messages for each change should follow the [commit log message guide](https://docs.freebsd.org/en/articles/committers-guide/#commit-log-message).
-* All commits have, as the author, your name and valid email address as you would like to see them in the FreeBSD repository. Fake github.com addresses cannot be used.
+* All commits have, as the author, your name and valid email address as you would like to see them in the FreeBSD repository. Fake github.com addresses cannot be used. But see [Author Name and Email][#author-name-and-email] for details.
 * The scope of the pull request should not change during review. If the review suggests changes that expand the scope, please create an independent pull request.
 * Fixup commits should be squashed with the commit they are fixing. Each commit in your branch should be suitable for FreeBSD's repository.
-* Commits should include one or more `Signed-off-by:` lines with full name and email address certifying [Developer Certificate of Origin](https://developercertificate.org/).
+* Commits should include one or more `Signed-off-by:` lines with name and email address certifying [Developer Certificate of Origin](https://developercertificate.org/). But see [Author Name and Email][#author-name-and-email] for details.
 * The commits follow FreeBSD's style guide. See [Style](#Style).
 * Run tools/build/checkstyle9.pl on your Git branch and eliminate all errors, or provide an explanation for exceptions.
 * The commits do not introduce trailing white space.
@@ -53,29 +53,31 @@ A pull request will be considered if:
 * Submissions using generative AI will be rejected.
 * Submissions from AI chatbots will result in the account being banned.
 
-When updating your pull request, please rebase with a forced push rather than a
-merge commit.
+When revising your pull request after feedback, please rebase with a forced push
+rather than a merge commit.
 
 More complex changes may be submitted as pull requests, but they may be closed
 if they are too large, too unwieldy, become inactive, need further discussion in
-the community, or need extensive revision.  Please avoid creating large,
-wide-ranging cleanup patches: they are too large and lack the focus needed for a
-good review.  Misdirected patches may be redirected to a more appropriate forum
-for the patch to be resolved.
+the community, or need extensive revision.
+
+Please avoid creating large, wide-ranging cleanup patches: they often lack the
+focus needed for a good review and can be hard to test.  Misdirected patches may
+be redirected to a more appropriate forum for the patch to be resolved.
 
 Please make sure that your submissions compile and work before submitting. If
-you need feedback, a pull request might not be the right place (it may just be
-summarily closed if there are too many obvious mistakes).
+you need feedback, a pull request might not be the right place. A pull request
+may be closed if there are too many obvious mistakes, or when a time-consuming
+rework is needed.
 
 If you want to cleanup style or older coding conventions in preparation for some
-other commit, please go ahead and prepare those patches. However, please avoid just
-cleaning up to make it cleaner, unless there's a clear advantage to doing
+other commit, please go ahead and prepare those patches. However, please avoid
+just cleaning up to make it cleaner, unless there's a clear advantage to doing
 so. While the project strives to have a uniform coding style, our style offers a
 range of choices making some 'cleanups' ambiguous at best. Also, some files have
-their own consistent style that deviates from style(9). Style changes take
-volunteer time to process, but that time can be quite limited, so please be
-respectful. Trivial spelling changes should generally not be made in isolation
-as they usually add little value, but do take up valuable volunteer time.
+their own consistent style that deviates from style(9). Style changes take time
+to process, but our volunteers have limited time, so please be respectful of
+their time. Trivial spelling changes take this valuable time, but rerturn little
+benefit relative to other changes.
 
 The current theory for pull requests on GitHub is to facilitate inclusion in the
 project. The guidelines are streamlined for quick decisions about each pull
@@ -92,11 +94,26 @@ closing it.
 
 ### Author Name and Email
 
-We require that contributions are associated with a unique identity.
-The author email address should not be `<something>@users.noreply.github.com`.
-Do note that your name and email address will become a permanent and immutable
-part of the public Git history of the FreeBSD source tree. Authors that use
-pseudonyms will be considered on a case by case basis.
+Please use a name and email address in the `Signed-off-by` trailer and as the
+author of the git commits, since we cannot accept anonymous contributions. It is
+common, but not required, to use some form of your full name. We realize that
+some contributors are not comfortable doing so or prefer to contribute under a
+pseudonym, preferred name, chosen name or similar moniker that might not match
+relevant government records. We can accept your patch, as long as the name and
+email you use are distinctive, identifying, and not misleading. Please note that
+if your patch is accepted, the name and email address will become a permanent
+and immutable part of the public history of the FreeBSD source tree.
+
+The goal of this policy is to allow us to have sufficient information to contact
+you if questions arise about your contribution. Addresses of the form
+something@users.noreply.github.com do not meet this standard since we cannot use
+it to contact you. We can use `.mailmap` for name or email changes and mistakes,
+but is imperfect.
+
+Core (core@freebsd.org) may request authors of significant changes using an
+obvious pseudonym to document their identity more concretely should there be
+issues in the future. The author may request this documentation be kept
+confidential unless needed for legal issues arising from their contributions.
 
 ## Style
 
