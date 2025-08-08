@@ -28,52 +28,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <libxo/xo.h>
+#define	INT_BIT (sizeof(int)*CHAR_BIT)
+#define	SET_PORT(p) do { ports[p / INT_BIT] |= 1 << (p % INT_BIT); } while (0)
+#define	CHK_PORT(p) (ports[p / INT_BIT] & (1 << (p % INT_BIT)))
 
-#include "sockstat.h"
+static int	*ports;
 
-void
-parse_ports(const char *portspec)
-{
-	const char *p, *q;
-	int port, end;
-
-	if (ports == NULL)
-		if ((ports = calloc(65536 / INT_BIT, sizeof(int))) == NULL)
-			xo_err(1, "calloc()");
-	p = portspec;
-	while (*p != '\0') {
-		if (!isdigit(*p))
-			xo_errx(1, "syntax error in port range");
-		for (q = p; *q != '\0' && isdigit(*q); ++q)
-			/* nothing */ ;
-		for (port = 0; p < q; ++p)
-			port = port * 10 + digittoint(*p);
-		if (port < 0 || port > 65535)
-			xo_errx(1, "invalid port number");
-		SET_PORT(port);
-		switch (*p) {
-		case '-':
-			++p;
-			break;
-		case ',':
-			++p;
-			/* fall through */
-		case '\0':
-		default:
-			continue;
-		}
-		for (q = p; *q != '\0' && isdigit(*q); ++q)
-			/* nothing */ ;
-		for (end = 0; p < q; ++p)
-			end = end * 10 + digittoint(*p);
-		if (end < port || end > 65535)
-			xo_errx(1, "invalid port number");
-		while (port++ < end)
-			SET_PORT(port);
-		if (*p == ',')
-			++p;
-	}
-}
+void parse_ports(const char *portspec);
