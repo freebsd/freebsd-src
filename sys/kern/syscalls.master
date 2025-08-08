@@ -125,7 +125,7 @@
 		);
 	}
 1	AUE_EXIT	STD|CAPENABLED {
-		void exit(
+		void _exit(
 		    int rval
 		);
 	}

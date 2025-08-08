@@ -38,6 +38,10 @@ function syscall_h.generate(tbl, config, fh)
 	-- Write the generated preamble.
 	gen:preamble("System call numbers.")
 
+	if config.syshdr_extra then
+		gen:write(string.format("%s\n\n", config.syshdr_extra))
+	end
+
 	for _, v in pairs(s) do
 		local c = v:compatLevel()
 		if v.num > max then

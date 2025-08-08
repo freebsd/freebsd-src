@@ -202,7 +202,7 @@ exit_onexit(struct proc *p)
  * exit -- death of process.
  */
 int
-sys_exit(struct thread *td, struct exit_args *uap)
+sys__exit(struct thread *td, struct _exit_args *uap)
 {
 
 	exit1(td, uap->rval, 0);

@@ -52,7 +52,6 @@ STATICOBJS+=	interposing_table.o
 PSEUDO= \
 	__realpathat \
 	clock_gettime \
-	exit \
 	getlogin \
 	gettimeofday \
 	sched_getcpu
