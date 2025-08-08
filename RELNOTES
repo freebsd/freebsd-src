@@ -248,10 +248,11 @@ e962b37bf0ff:
 7398d1ece5cf:
 	hw.snd.version is removed.
 
-a15f7c96a276,a8089ea5aee5:
+a15f7c96a276,66b5296f1b29:
 	NVMe over Fabrics controller.  The nvmft(4) kernel module adds
 	a new frontend to the CAM target layer which exports ctl(4)
-	LUNs as NVMe namespaces to remote hosts.  The nvmfd(8) daemon
+	LUNs as NVMe namespaces to remote hosts.  The ctld(8) daemon
+	now supports NVMe controllers in addition to iSCSI targets and
 	is responsible for accepting incoming connection requests and
 	handing off connected queue pairs to nvmft(4).
 
