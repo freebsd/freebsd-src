@@ -125,7 +125,7 @@
 		    ...
 		);
 	}
-1	AUE_EXIT	STD|CAPENABLED {
+1	AUE_EXIT	STD|CAPENABLED|NORETURN {
 		void _exit(
 		    int rval
 		);
