@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2005 Bruce D. Evans and Steven G. Kargl
+ * Copyright (c) 2005-2025 Bruce D. Evans and Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ static const float huge = 0x1p127;
 float complex
 csinhf(float complex z)
 {
-	float x, y, h;
+	float c, h, s, x, y;
 	int32_t hx, hy, ix, iy;
 
 	x = crealf(z);
@@ -56,14 +56,16 @@ csinhf(float complex z)
 	if (ix < 0x7f800000 && iy < 0x7f800000) {
 		if (iy == 0)
 			return (CMPLXF(sinhf(x), y));
+
+		sincosf(y, &s, &c);
 		if (ix < 0x41100000)	/* |x| < 9: normal case */
-			return (CMPLXF(sinhf(x) * cosf(y), coshf(x) * sinf(y)));
+			return (CMPLXF(sinhf(x) * c, coshf(x) * s));
 
 		/* |x| >= 9, so cosh(x) ~= exp(|x|) */
 		if (ix < 0x42b17218) {
 			/* x < 88.7: expf(|x|) won't overflow */
-			h = expf(fabsf(x)) * 0.5F;
-			return (CMPLXF(copysignf(h, x) * cosf(y), h * sinf(y)));
+			h = expf(fabsf(x)) / 2;
+			return (CMPLXF(copysignf(h, x) * c, h * s));
 		} else if (ix < 0x4340b1e7) {
 			/* x < 192.7: scale to avoid overflow */
 			z = __ldexp_cexpf(CMPLXF(fabsf(x), y), -1);
@@ -71,7 +73,7 @@ csinhf(float complex z)
 		} else {
 			/* x >= 192.7: the result always overflows */
 			h = huge * x;
-			return (CMPLXF(h * cosf(y), h * h * sinf(y)));
+			return (CMPLXF(h * c, h * h * s));
 		}
 	}
 
@@ -87,7 +89,9 @@ csinhf(float complex z)
 	if (ix == 0x7f800000) {
 		if (iy >= 0x7f800000)
 			return (CMPLXF(x, y - y));
-		return (CMPLXF(x * cosf(y), INFINITY * sinf(y)));
+
+		sincosf(y, &s, &c);
+		return (CMPLXF(x * c, INFINITY * s));
 	}
 
 	return (CMPLXF(((long double)x + x) * (y - y),

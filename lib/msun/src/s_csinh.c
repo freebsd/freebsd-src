@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2005 Bruce D. Evans and Steven G. Kargl
+ * Copyright (c) 2005-2025 Bruce D. Evans and Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ static const double huge = 0x1p1023;
 double complex
 csinh(double complex z)
 {
-	double x, y, h;
+	double c, h, s, x, y;
 	int32_t hx, hy, ix, iy, lx, ly;
 
 	x = creal(z);
@@ -65,14 +65,16 @@ csinh(double complex z)
 	if (ix < 0x7ff00000 && iy < 0x7ff00000) {
 		if ((iy | ly) == 0)
 			return (CMPLX(sinh(x), y));
+
+		sincos(y, &s, &c);
 		if (ix < 0x40360000)	/* |x| < 22: normal case */
-			return (CMPLX(sinh(x) * cos(y), cosh(x) * sin(y)));
+			return (CMPLX(sinh(x) * c, cosh(x) * s));
 
 		/* |x| >= 22, so cosh(x) ~= exp(|x|) */
 		if (ix < 0x40862e42) {
 			/* x < 710: exp(|x|) won't overflow */
-			h = exp(fabs(x)) * 0.5;
-			return (CMPLX(copysign(h, x) * cos(y), h * sin(y)));
+			h = exp(fabs(x)) / 2;
+			return (CMPLX(copysign(h, x) * c, h * s));
 		} else if (ix < 0x4096bbaa) {
 			/* x < 1455: scale to avoid overflow */
 			z = __ldexp_cexp(CMPLX(fabs(x), y), -1);
@@ -80,7 +82,7 @@ csinh(double complex z)
 		} else {
 			/* x >= 1455: the result always overflows */
 			h = huge * x;
-			return (CMPLX(h * cos(y), h * h * sin(y)));
+			return (CMPLX(h * c, h * h * s));
 		}
 	}
 
@@ -129,7 +131,9 @@ csinh(double complex z)
 	if (ix == 0x7ff00000 && lx == 0) {
 		if (iy >= 0x7ff00000)
 			return (CMPLX(x, y - y));
-		return (CMPLX(x * cos(y), INFINITY * sin(y)));
+
+		sincos(y, &s, &c);
+		return (CMPLX(x * c, INFINITY * s));
 	}
 
 	/*
@@ -155,3 +159,8 @@ csin(double complex z)
 	z = csinh(CMPLX(cimag(z), creal(z)));
 	return (CMPLX(cimag(z), creal(z)));
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(csinh, csinhl);
+__weak_reference(csin, csinl);
+#endif
