@@ -4918,11 +4918,12 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	size_t retlen;
 	void *rl_rcookie, *rl_wcookie;
 	off_t inoff, outoff, savinoff, savoutoff;
-	bool foffsets_locked;
+	bool foffsets_locked, foffsets_set;
 
 	infp = outfp = NULL;
 	rl_rcookie = rl_wcookie = NULL;
 	foffsets_locked = false;
+	foffsets_set = false;
 	error = 0;
 	retlen = 0;
 
@@ -4990,6 +4991,8 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 		}
 		foffset_lock_pair(infp1, &inoff, outfp1, &outoff, 0);
 		foffsets_locked = true;
+	} else {
+		foffsets_set = true;
 	}
 	savinoff = inoff;
 	savoutoff = outoff;
@@ -5045,11 +5048,12 @@ out:
 		vn_rangelock_unlock(invp, rl_rcookie);
 	if (rl_wcookie != NULL)
 		vn_rangelock_unlock(outvp, rl_wcookie);
+	if ((foffsets_locked || foffsets_set) &&
+	    (error == EINTR || error == ERESTART)) {
+		inoff = savinoff;
+		outoff = savoutoff;
+	}
 	if (foffsets_locked) {
-		if (error == EINTR || error == ERESTART) {
-			inoff = savinoff;
-			outoff = savoutoff;
-		}
 		if (inoffp == NULL)
 			foffset_unlock(infp, inoff, 0);
 		else
@@ -5058,6 +5062,9 @@ out:
 			foffset_unlock(outfp, outoff, 0);
 		else
 			*outoffp = outoff;
+	} else if (foffsets_set) {
+		*inoffp = inoff;
+		*outoffp = outoff;
 	}
 	if (outfp != NULL)
 		fdrop(outfp, td);
