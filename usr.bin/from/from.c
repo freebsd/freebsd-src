@@ -30,6 +30,8 @@
  */
 
 #include <sys/types.h>
+
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <pwd.h>
@@ -95,12 +97,12 @@ main(int argc, char **argv)
 	}
 
 	/* read from stdin */
-	if (strcmp(file, "-") == 0) {
+	if (strcmp(file, "-") == 0)
 		mbox = stdin;
-	} 
-	else if ((mbox = fopen(file, "r")) == NULL) {
+	else if ((mbox = fopen(file, "r")) == NULL)
 		errx(1, "can't read %s", file);
-	}
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
 	for (newline = 1; fgets(buf, sizeof(buf), mbox);) {
 		if (*buf == '\n') {
 			newline = 1;
@@ -119,14 +121,14 @@ main(int argc, char **argv)
 		printf("There %s %d message%s in your incoming mailbox.\n",
 		    count == 1 ? "is" : "are", count, count == 1 ? "" : "s"); 
 	fclose(mbox);
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 static void
 usage(void)
 {
 	fprintf(stderr, "usage: from [-c] [-f file] [-s sender] [user]\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 static int
@@ -137,14 +139,14 @@ match(const char *line, const char *sender)
 
 	for (first = *sender++;;) {
 		if (isspace(ch = *line))
-			return(0);
+			return (EXIT_SUCCESS);
 		++line;
 		ch = tolower(ch);
 		if (ch != first)
 			continue;
 		for (p = sender, t = line;;) {
 			if (!(pch = *p++))
-				return(1);
+				return (EXIT_FAILURE);
 			ch = tolower(*t);
 			t++;
 			if (ch != pch)
