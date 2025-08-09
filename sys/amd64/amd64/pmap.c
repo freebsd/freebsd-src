@@ -6036,25 +6036,9 @@ pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	oldpde = *pde;
 	KASSERT((oldpde & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pde: oldpde is missing PG_PS and/or PG_V"));
-<<<<<<< HEAD
-
-	/*
-	 * Invalidate the 2MB page mapping and return "failure" if the
-	 * mapping was never accessed.
-	 */
-	if ((oldpde & PG_A) == 0) {
-		KASSERT((oldpde & PG_W) == 0,
-		    ("pmap_demote_pde: a wired mapping is missing PG_A"));
-		pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
-		return (FALSE);
-	}
-
-	mpte = pmap_remove_pt_page(pmap, va);
-=======
 	KASSERT((oldpde & PG_MANAGED) == 0 || lockp != NULL,
 	    ("pmap_demote_pde: lockp for a managed mapping is NULL"));
 	in_kernel = va >= VM_MAXUSER_ADDRESS;
->>>>>>> 88c8cba04395 (amd64 pmap: preallocate another page table page in pmap_demote_DMAP())
 	if (mpte == NULL) {
 		/*
 		 * Invalidate the 2MB page mapping and return "failure" if the
