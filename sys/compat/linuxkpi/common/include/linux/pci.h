@@ -253,6 +253,20 @@ extern const char *pci_power_names[6];
 #define	PCI_IRQ_LEGACY			PCI_IRQ_INTX
 #endif
 
+/*
+ * Linux PCI code uses `PCI_SET_ERROR_RESPONSE()` to indicate to the caller of
+ * a `pci_read_*()` function that the read failed. An example of failure is
+ * whether the device was disconnected. It is a bit weird because Linux
+ * `pci_read_*()` can return an error value, as the read value is stored in a
+ * integer passed by pointer.
+ *
+ * We don't set PCI_ERROR_RESPONSE anywhere as of this commit, but the DRM
+ * drivers started to use `PCI_POSSIBLE_ERROR()`.
+ */
+#define	PCI_ERROR_RESPONSE		(~0ULL)
+#define	PCI_SET_ERROR_RESPONSE(val)	(*(val) = ((typeof(*(val))) PCI_ERROR_RESPONSE))
+#define	PCI_POSSIBLE_ERROR(val)		((val) == ((typeof(val)) PCI_ERROR_RESPONSE))
+
 struct pci_dev;
 
 struct pci_driver {
