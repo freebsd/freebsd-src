@@ -190,15 +190,6 @@ static int pageshift;		/* log base 2 of the pagesize */
 #define ki_swap(kip) \
     ((kip)->ki_swrss > (kip)->ki_rssize ? (kip)->ki_swrss - (kip)->ki_rssize : 0)
 
-/*
- * Sorting orders.  The first element is the default.
- */
-static const char *ordernames[] = {
-	"cpu", "size", "res", "time", "pri", "threads",
-	"total", "read", "write", "fault", "vcsw", "ivcsw",
-	"jid", "swap", "pid", NULL
-};
-
 /* Per-cpu time states */
 static int maxcpu;
 static int maxid;
@@ -214,6 +205,18 @@ static int *pcpu_cpu_states;
 static int battery_units;
 static int battery_life;
 
+static int compare_cpu(const void *a, const void *b);
+static int compare_size(const void *a, const void *b);
+static int compare_res(const void *a, const void *b);
+static int compare_time(const void *a, const void *b);
+static int compare_prio(const void *a, const void *b);
+static int compare_threads(const void *a, const void *b);
+static int compare_iototal(const void *a, const void *b);
+static int compare_ioread(const void *a, const void *b);
+static int compare_iowrite(const void *a, const void *b);
+static int compare_iofault(const void *a, const void *b);
+static int compare_vcsw(const void *a, const void *b);
+static int compare_ivcsw(const void *a, const void *b);
 static int compare_swap(const void *a, const void *b);
 static int compare_jid(const void *a, const void *b);
 static int compare_pid(const void *a, const void *b);
@@ -224,6 +227,77 @@ static int swapmode(int *retavail, int *retfree);
 static void update_layout(void);
 static int find_uid(uid_t needle, int *haystack);
 static int cmd_matches(struct kinfo_proc *, const char *);
+
+/*
+ * Sorting orders.  The first element is the default.
+ */
+
+typedef int (compare_fn)(const void *arg1, const void *arg2);
+static const struct sort_info {
+	const char	*si_name;
+	compare_fn	*si_compare;
+} sortdata[] = {
+	{
+		.si_name = "cpu",
+		.si_compare = &compare_cpu,
+	},
+	{
+		.si_name = "size",
+		.si_compare = &compare_size,
+	},
+	{
+		.si_name = "res",
+		.si_compare = &compare_res,
+	},
+	{
+		.si_name = "time",
+		.si_compare = &compare_time,
+	},
+	{
+		.si_name = "pri",
+		.si_compare = &compare_prio,
+	},
+	{
+		.si_name = "threads",
+		.si_compare = &compare_threads,
+	},
+	{
+		.si_name = "total",
+		.si_compare = &compare_iototal,
+	},
+	{
+		.si_name = "read",
+		.si_compare = &compare_ioread,
+	},
+	{
+		.si_name = "write",
+		.si_compare = &compare_iowrite,
+	},
+	{
+		.si_name = "fault",
+		.si_compare = &compare_iofault,
+	},
+	{
+		.si_name = "vcsw",
+		.si_compare = &compare_vcsw,
+	},
+	{
+		.si_name = "ivcsw",
+		.si_compare = &compare_ivcsw,
+	},
+	{
+		.si_name = "jid",
+		.si_compare = &compare_jid,
+	},
+	{
+		.si_name = "swap",
+		.si_compare = &compare_swap,
+	},
+	{
+		.si_name = "pid",
+		.si_compare = &compare_pid,
+	},
+};
 
 static int
 find_uid(uid_t needle, int *haystack)
@@ -353,7 +427,6 @@ machine_init(struct statics *statics)
 		statics->swap_names = swapnames;
 	else
 		statics->swap_names = NULL;
-	statics->order_names = ordernames;
 
 	/* Allocate state for per-CPU stats. */
 	GETSYSCTL("kern.smp.maxcpus", maxcpu);
@@ -742,7 +815,7 @@ static struct handle handle;
 
 void *
 get_process_info(struct system_info *si, struct process_select *sel,
-    int (*compare)(const void *, const void *))
+    const struct sort_info *sort_info)
 {
 	int i;
 	int total_procs;
@@ -753,6 +826,9 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	struct kinfo_proc **prefp;
 	struct kinfo_proc *pp;
 	struct timespec previous_proc_uptime;
+	compare_fn *compare;
+
+	compare = sort_info->si_compare;
 
 	/*
 	 * If thread state was toggled, don't cache the previous processes.
@@ -897,6 +973,43 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	handle.next_proc = pref;
 	handle.remaining = active_procs;
 	return (&handle);
+}
+
+/*
+ * Returns the sort info associated with the specified order.  Currently, that's
+ * really only the comparator that we'll later use.  Specifying a NULL ordername
+ * will return the default comparator.
+ */
+const struct sort_info *
+get_sort_info(const char *ordername)
+{
+	const struct sort_info *info;
+	size_t idx;
+
+	if (ordername == NULL)
+		return (&sortdata[0]);
+
+	for (idx = 0; idx < nitems(sortdata); idx++) {
+		info = &sortdata[idx];
+
+		if (strcmp(info->si_name, ordername) == 0)
+			return (info);
+	}
+
+	return (NULL);
+}
+
+void
+dump_sort_names(FILE *fp)
+{
+	const struct sort_info *info;
+	size_t idx;
+
+	for (idx = 0; idx < nitems(sortdata); idx++) {
+		info = &sortdata[idx];
+
+		fprintf(fp, " %s", info->si_name);
+	}
 }
 
 static int
@@ -1558,26 +1671,6 @@ compare_ivcsw(const void *arg1, const void *arg2)
 
 	return (flp2 - flp1);
 }
-
-int (*compares[])(const void *arg1, const void *arg2) = {
-	compare_cpu,
-	compare_size,
-	compare_res,
-	compare_time,
-	compare_prio,
-	compare_threads,
-	compare_iototal,
-	compare_ioread,
-	compare_iowrite,
-	compare_iofault,
-	compare_vcsw,
-	compare_ivcsw,
-	compare_jid,
-	compare_swap,
-	compare_pid,
-	NULL
-};
-
 
 static int
 swapmode(int *retavail, int *retfree)
