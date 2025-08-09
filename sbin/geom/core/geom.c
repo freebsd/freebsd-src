@@ -249,7 +249,7 @@ static void
 set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 {
 	const char *optname;
-	uint64_t number;
+	int64_t number;
 	void *ptr;
 
 	if (G_OPT_ISMULTI(opt)) {
