@@ -41,9 +41,11 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -89,8 +91,11 @@ int
 main(int argc, char *argv[])
 {
 	struct stat sb;
-	int ch, fd, match;
+	int ch, match;
+	size_t nfiles;
 	wchar_t termchar;
+	cap_rights_t rights;
+	int *fds;
 	unsigned char *back, *front;
 	unsigned const char *file;
 	wchar_t *key;
@@ -132,22 +137,38 @@ main(int argc, char *argv[])
 
 	match = 1;
 
-	do {
-		if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
+	cap_rights_init(&rights, CAP_MMAP_R, CAP_READ, CAP_FSTAT);
+	nfiles = argc > 1 ? argc - 1 : argc;
+	if ((fds = malloc(nfiles * sizeof(int))) == NULL)
+		err(2, NULL);
+	for (size_t idx = 0; idx < nfiles; file = argv[idx++]) {
+		if ((fds[idx] = open(file, O_RDONLY, 0)) < 0)
+			err(2, "%s", file);
+		if (caph_rights_limit(fds[idx], &rights) != 0)
+			err(2, "unable to limit rights for %s", file);
+	}
+
+	caph_cache_catpages();
+	if (caph_enter() != 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+
+	for (size_t idx = 0; idx < nfiles; file = argv[idx++]) {
+		if (fstat(fds[idx], &sb))
 			err(2, "%s", file);
 		if ((uintmax_t)sb.st_size > (uintmax_t)SIZE_T_MAX)
 			errx(2, "%s: %s", file, strerror(EFBIG));
 		if (sb.st_size == 0) {
-			close(fd);
+			close(fds[idx]);
 			continue;
 		}
-		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
+		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_SHARED, fds[idx], (off_t)0)) == MAP_FAILED)
 			err(2, "%s", file);
 		back = front + sb.st_size;
 		match *= (look(key, front, back));
-		close(fd);
-	} while (argc-- > 2 && (file = *argv++));
+		close(fds[idx]);
+	}
 
+	free(fds);
 	exit(match);
 }
 
