@@ -117,27 +117,6 @@ digits(int val)
 }
 
 /*
- * string_index(string, array) - find string in array and return index
- */
-
-int
-string_index(const char *string, const char * const *array)
-{
-    size_t i = 0;
-
-    while (*array != NULL)
-    {
-	if (strcmp(string, *array) == 0)
-	{
-	    return(i);
-	}
-	array++;
-	i++;
-    }
-    return(-1);
-}
-
-/*
  * argparse(line, cntp) - parse arguments in string "line", separating them
  *	out into an argv-like array, and setting *cntp to the number of
  *	arguments encountered.  This is a simple parser that doesn't understand

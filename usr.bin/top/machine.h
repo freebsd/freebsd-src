@@ -89,10 +89,15 @@ void	 get_system_info(struct system_info *si);
 int	 machine_init(struct statics *statics);
 
 /* non-int routines typically used by the machine dependent module */
+struct sort_info;
+
 extern struct process_select ps;
 
 void *
 get_process_info(struct system_info *si, struct process_select *sel,
-    int (*compare)(const void *, const void *));
+    const struct sort_info *);
+
+const struct sort_info *get_sort_info(const char *name);
+void dump_sort_names(FILE *fp);
 
 #endif /* MACHINE_H */
