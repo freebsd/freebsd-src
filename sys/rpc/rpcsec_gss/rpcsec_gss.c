@@ -858,7 +858,7 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 		if (maj_stat == GSS_S_COMPLETE)
 			my_krb_imp = KRBIMP_MIT;
 		else
-			my_krb_imp = KRBIMP_HESIOD1;
+			my_krb_imp = KRBIMP_HEIMDALV1;
 	}
 
 	/* GSS context establishment loop. */

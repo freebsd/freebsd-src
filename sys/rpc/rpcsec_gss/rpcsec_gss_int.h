@@ -75,7 +75,7 @@ struct rpc_gss_init_res {
 
 enum krb_imp {
 	KRBIMP_UNKNOWN,
-	KRBIMP_HESIOD1,
+	KRBIMP_HEIMDALV1,
 	KRBIMP_MIT
 };
 
