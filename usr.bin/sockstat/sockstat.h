@@ -28,52 +28,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <libxo/xo.h>
+#define	INT_BIT (sizeof(int)*CHAR_BIT)
+#define	SET_PORT(p) do { ports[p / INT_BIT] |= 1 << (p % INT_BIT); } while (0)
+#define	CHK_PORT(p) (ports[p / INT_BIT] & (1 << (p % INT_BIT)))
 
-#include "sockstat.h"
+extern int	*ports;
 
-int	*ports;
-
-int
-parse_ports(const char *portspec)
-{
-	const char *p;
-
-	if (ports == NULL)
-		if ((ports = calloc(65536 / INT_BIT, sizeof(int))) == NULL)
-			xo_err(1, "calloc()");
-	p = portspec;
-	while (*p != '\0') {
-		long port, end;
-		char *endptr = NULL;
-
-		errno = 0;
-		port = strtol(p, &endptr, 10);
-		if (errno)
-			return (errno);
-		if (port < 0 || port > 65535)
-			return (ERANGE);
-		SET_PORT(port);
-		switch (*endptr) {
-		case '-':
-			p = endptr + 1;
-			end = strtol(p, &endptr, 10);
-			break;
-		case ',':
-			p = endptr + 1;
-			continue;
-		default:
-			p = endptr;
-			continue;
-		}
-		if (errno)
-			return (errno);
-		if (end < port || end > 65535)
-			return (ERANGE);
-		while (port++ < end)
-			SET_PORT(port);
-	}
-	return (0);
-}
+int parse_ports(const char *portspec);
