@@ -115,7 +115,7 @@ seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
     int rowsize, int groupsize, const void *buf, size_t len, bool ascii)
 {
 	lkpi_hex_dump(__lkpi_hexdump_sbuf_printf, m->buf, NULL, prefix_str, prefix_type,
-	    rowsize, groupsize, buf, len, ascii);
+	    rowsize, groupsize, buf, len, ascii, true);
 }
 
 #define	file			linux_file
