@@ -82,6 +82,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
+#include <netinet/icmp_var.h>
 #ifdef INET6
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
@@ -2156,6 +2157,13 @@ tcp_send_challenge_ack(struct tcpcb *tp, struct tcphdr *th, struct mbuf *m)
 	sbintime_t now;
 	bool send_challenge_ack;
 
+	/*
+	 * The sending of a challenge ACK could be triggered by a blind attacker
+	 * to detect an existing TCP connection. To mitigate that, increment
+	 * also the global counter which would be incremented if the attacker
+	 * would have guessed wrongly.
+	 */
+	(void)badport_bandlim(BANDLIM_TCP_RST);
 	if (V_tcp_ack_war_time_window == 0 || V_tcp_ack_war_cnt == 0) {
 		/* ACK war protection is disabled. */
 		send_challenge_ack = true;
