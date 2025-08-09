@@ -44,15 +44,13 @@ ATF_TC(params);
 ATF_TC_HEAD(params, tc)
 {
         atf_tc_set_md_var(tc, "require.user", "root");
+        atf_tc_set_md_var(tc, "require.kmods", "if_epair");
 }
 
 ATF_TC_BODY(params, tc)
 {
 	struct ifreq ifr;
 	int s;
-
-	kldload("if_epair");
-	ATF_REQUIRE_KERNEL_MODULE("if_epair");
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s < 0)
