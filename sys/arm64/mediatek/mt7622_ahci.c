@@ -70,22 +70,22 @@ static struct ofw_compat_data compat_data[] = {
 static int
 get_fdt_resources(struct mt7622_ahci_sc *sc, phandle_t node)
 {
-    int i, rv;
+    int rv;
 
     /* Resets. */
-    rv = hwreset_get_by_ofw_name(sc->dev, 0, "axi", &sc->hwreset_sata );
+    rv = hwreset_get_by_ofw_name(sc->dev, 0, "axi", &sc->hwreset_sw );
     if (rv != 0) {
         device_printf(sc->dev, "Cannot get 'axi' reset\n");
         return (ENXIO);
     }
     rv = hwreset_get_by_ofw_name(sc->dev, 0, "sw",
-                                 &sc->hwreset_sata_oob);
+                                 &sc->hwreset_sw);
     if (rv != 0) {
         device_printf(sc->dev, "Cannot get 'sw' reset\n");
         return (ENXIO);
     }
     rv = hwreset_get_by_ofw_name(sc->dev, 0, "reg",
-                                 &sc->hwreset_sata_cold);
+                                 &sc->hwreset_reg);
     if (rv != 0) {
         device_printf(sc->dev, "Cannot get 'reg' reset\n");
         return (ENXIO);
@@ -137,7 +137,7 @@ get_fdt_resources(struct mt7622_ahci_sc *sc, phandle_t node)
 static int
 enable_fdt_resources(struct mt7622_ahci_sc *sc)
 {
-    int i, rv;
+    int rv;
 
     /* Stop clocks */
     clk_stop(sc->clk_ahb);
@@ -315,7 +315,7 @@ mt7622_ahci_detach(device_t dev)
 static int
 mt7622_ahci_suspend(device_t dev)
 {
-    struct tegra_ahci_sc *sc = device_get_softc(dev);
+    struct mt7622_ahci_sc *sc = device_get_softc(dev);
 
     bus_generic_suspend(dev);
     /* Disable interupts, so the state change(s) doesn't trigger. */
