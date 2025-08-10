@@ -38,7 +38,7 @@ krb5_c_encrypt -  Encrypt data using a key (operates on keyblock).
 
 
 
-This function encrypts the data block *input* and stores the outputinto *output* . The actual encryption key will be derived from *key* and *usage* if key derivation is specified for the encryption type. If non-null, *cipher_state* specifies the beginning state for the encryption operation, and is updated with the state to be passed as input to the next operation.
+This function encrypts the data block *input* and stores the output into *output* . The actual encryption key will be derived from *key* and *usage* if key derivation is specified for the encryption type. If non-null, *cipher_state* specifies the beginning state for the encryption operation, and is updated with the state to be passed as input to the next operation.
 
 
 

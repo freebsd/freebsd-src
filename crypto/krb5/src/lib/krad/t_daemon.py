@@ -40,6 +40,7 @@ DICTIONARY = """
 ATTRIBUTE\tUser-Name\t1\tstring
 ATTRIBUTE\tUser-Password\t2\toctets
 ATTRIBUTE\tNAS-Identifier\t32\tstring
+ATTRIBUTE\tMessage-Authenticator\t80\toctets
 """
 
 class TestServer(server.Server):
@@ -52,7 +53,7 @@ class TestServer(server.Server):
             if key == "User-Password":
                 passwd = [pkt.PwDecrypt(x) for x in pkt[key]]
 
-        reply = self.CreateReplyPacket(pkt)
+        reply = self.CreateReplyPacket(pkt, message_authenticator=True)
         if passwd == ['accept']:
             reply.code = packet.AccessAccept
         else:

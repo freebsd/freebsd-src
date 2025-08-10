@@ -1,4 +1,4 @@
-                   Kerberos Version 5, Release 1.21
+                   Kerberos Version 5, Release 1.22
 
                             Release Notes
                         The MIT Kerberos Team
@@ -6,7 +6,7 @@
 Copyright and Other Notices
 ---------------------------
 
-Copyright (C) 1985-2024 by the Massachusetts Institute of Technology
+Copyright (C) 1985-2025 by the Massachusetts Institute of Technology
 and its contributors.  All rights reserved.
 
 Please see the file named NOTICE for additional notices.
@@ -97,130 +97,133 @@ removed.
 Beginning with the krb5-1.18 release, all support for single-DES
 encryption types has been removed.
 
-Major changes in 1.21.3 (2024-06-26)
-------------------------------------
-
-This is a bug fix release.
-
-* Fix vulnerabilities in GSS message token handling [CVE-2024-37370,
-  CVE-2024-37371].
-
-* Fix a potential bad pointer free in krb5_cccol_have_contents().
-
-* Fix a memory leak in the macOS ccache type.
-
-krb5-1.21.2 changes by ticket ID
---------------------------------
-
-9102    Eliminate sim_client include of getopt.h
-9103    segfault trying to free a garbage pointer
-9104    Work around Doxygen 1.9.7 change
-9107    In PKINIT, check for null PKCS7 enveloped fields
-9109    memory leak on macos
-9115    Fix leak in KDC NDR encoding
-9125    Formatting error in realm_config.rst
-9128    Fix vulnerabilities in GSS message token handling
-
-Major changes in 1.21.2 (2023-08-14)
-------------------------------------
-
-This is a bug fix release.
-
-* Fix double-free in KDC TGS processing [CVE-2023-39975].
-
-krb5-1.21.2 changes by ticket ID
---------------------------------
-
-9101    Fix double-free in KDC TGS processing
-
-Major changes in 1.21.1 (2023-07-10)
-------------------------------------
-
-This is a bug fix release.
-
-* Fix potential uninitialized pointer free in kadm5 XDR parsing
-  [CVE-2023-36054].
-
-krb5-1.21.1 changes by ticket ID
---------------------------------
-
-9099    Ensure array count consistency in kadm5 RPC
-
-Major changes in 1.21 (2023-06-05)
+Major changes in 1.22 (2025-08-05)
 ----------------------------------
 
 User experience:
 
-* Added a credential cache type providing compatibility with the macOS
-  11 native credential cache.
+* The libdefaults configuration variable "request_timeout" can be set
+  to limit the total timeout for KDC requests.  When making a KDC
+  request, the client will now wait indefinitely (or until the request
+  timeout has elapsed) on a KDC which accepts a TCP connection,
+  without contacting any additional KDCs.  Clients will make fewer DNS
+  queries in some configurations.
+
+* The realm configuration variable "sitename" can be set to cause the
+  client to query site-specific DNS records when making KDC requests.
+
+Administrator experience:
+
+* Principal aliases are supported in the DB2 and LMDB KDB modules and
+  in the kadmin protocol.  (The LDAP KDB module has supported aliases
+  since release 1.7.)
+
+* UNIX domain sockets are supported for the Kerberos and kpasswd
+  protocols.
+
+* systemd socket activation is supported for krb5kdc and kadmind.
 
 Developer experience:
 
-* libkadm5 will use the provided krb5_context object to read
-  configuration values, instead of creating its own.
+* KDB modules can be be implemented in terms of other modules using
+  the new krb5_db_load_module() function.
 
-* Added an interface to retrieve the ticket session key from a GSS
-  context.
+* The profile library supports the modification of empty profiles and
+  the copying of modified profiles, making it possible to construct an
+  in-memory profile and pass it to krb5_init_context_profile().
+
+* GSS-API applications can pass the GSS_C_CHANNEL_BOUND flag to
+  gss_init_sec_context() to request strict enforcement of channel
+  bindings by the acceptor.
 
 Protocol evolution:
 
-* The KDC will no longer issue tickets with RC4 or triple-DES session
-  keys unless explicitly configured with the new allow_rc4 or
-  allow_des3 variables respectively.
+* The PKINIT preauth module supports elliptic curve client
+  certificates, ECDH key exchange, and the Microsoft paChecksum2
+  field.
 
-* The KDC will assume that all services can handle aes256-sha1 session
-  keys unless the service principal has a session_enctypes string
-  attribute.
+* The IAKERB implementation has been changed to comply with the most
+  recent draft standard and to support realm discovery.
 
-* Support for PAC full KDC checksums has been added to mitigate an
-  S4U2Proxy privilege escalation attack.
-
-* The PKINIT client will advertise a more modern set of supported CMS
-  algorithms.
+* Message-Authenticator is supported in the RADIUS implementation used
+  by the OTP kdcpreauth module.
 
 Code quality:
 
-* Removed unused code in libkrb5, libkrb5support, and the PKINIT
-  module.
+* Removed old-style function declarations, to accomodate compilers
+  which have removed support for them.
 
-* Modernized the KDC code for processing TGS requests, the code for
-  encrypting and decrypting key data, the PAC handling code, and the
-  GSS library packet parsing and composition code.
+* Added OSS-Fuzz to the project's continuous integration
+  infrastructure.
 
-* Improved the test framework's detection of memory errors in daemon
-  processes when used with asan.
+* Rewrote the GSS per-message token parsing code for improved safety.
 
-krb5-1.21 changes by ticket ID
+krb5-1.22 changes by ticket ID
 ------------------------------
 
-9052    Support macOS 11 native credential cache
-9053    Make kprop work for dump files larger than 4GB
-9054    Replace macros with typedefs in gssrpc types.h
-9055    Use SHA-256 instead of SHA-1 for PKINIT CMS digest
-9057    Omit LDFLAGS from krb5-config --libs output
-9058    Add configure variable for default PKCS#11 module
-9059    Use context profile for libkadm5 configuration
-9066    Set reasonable supportedCMSTypes in PKINIT
-9069    Update error checking for OpenSSL CMS_verify
-9071    Add and use ts_interval() helper
-9072    Avoid small read overrun in UTF8 normalization
-9076    Use memmove() in Unicode functions
-9077    Fix aclocal.m4 syntax error for autoconf 2.72
-9078    Fix profile crash on memory exhaustion
-9079    Fix preauth crash on memory exhaustion
-9080    Fix gic_keytab crash on memory exhaustion
-9082    Fix policy DB fallback error handling
-9083    Fix kpropd crash with unrecognized option
-9084    Add PAC full checksums
-9085    Fix read overruns in SPNEGO parsing
-9086    Fix possible double-free during KDB creation
-9087    Fix meridian type in getdate.y
-9088    Use control flow guard flag in Windows builds
-9089    Add pac_privsvr_enctype string attribute
-9090    Convey realm names to certauth modules
-9091    Add GSS_C_INQ_ODBC_SESSION_KEY
-9092    Fix maintainer-mode build for binutils 2.37
-9093    Add PA-REDHAT-PASSKEY padata type
+7721    Primary KDC lookups happen sooner than necessary
+7899    Client waits before moving on after KDC_ERR_SVC_UNAVAILABLE
+8618    ksu doesn't exit nonzero
+9094    Get arm64-windows builds working
+9095    PKINIT ECDH support
+9096    Enable PKINIT if at least one group is available
+9100    Add ecdsa-with-sha512/256 to supportedCMSTypes
+9105    Wait indefinitely on KDC TCP connections
+9106    Add request_timeout configuration parameter
+9108    Remove PKINIT RSA support
+9110    profile library null dereference when modifying empty profile
+9111    Correct PKINIT EC cert signature metadata
+9112    Support PKCS11 EC client certs in PKINIT
+9113    Improve PKCS11 error reporting in PKINIT
+9114    Build fails with link-time optimization
+9116    Improve error message for DES kadmin/history key
+9118    profile write operation interactions with reloading
+9119    Make profile_copy() work on dirty profiles
+9120    profile final flag limitations
+9121    Don't flush libkrb5 context profiles
+9122    Add GSS flag to include KERB_AP_OPTIONS_CBT
+9123    Correct IAKERB protocol implementation
+9124    Support site-local KDC discovery via DNS
+9126    Handle empty initial buffer in IAKERB initiator
+9130    make krb5_get_default_config_files public
+9131    Adjust removed cred detection in FILE ccache
+9132    Change krb5_get_credentials() endtime behavior
+9133    Add acceptor-side IAKERB realm discovery
+9135    Replace Windows installer FilesInUse dialog text
+9139    Block library unloading to avoid finalizer races
+9141    Fix krb5_crypto_us_timeofday() microseconds check
+9142    Generate and verify message MACs in libkrad
+9143    Fix memory leak in PAC checksum verification
+9144    Fix potential PAC processing crash
+9145    Prevent late initialization of GSS error map
+9146    Allow null keyblocks in IOV checksum functions
+9147    Add numeric constants to krad.h and use them
+9148    Fix krb5_ldap_list_policy() filtering loop
+9149    Use getentropy() when available
+9151    Add kadmind support for disabling listening
+9152    Default kdc_tcp_listen to kdc_listen value
+9153    Fix LDAP module leak on authentication error
+9154    Components of the X509_user_identity string cannot contain ':'
+9155    UNIX domain socket support
+9156    Allow KDB module stacking
+9157    Add support for systemd socket activation
+9158    Set missing mask flags for kdb5_util operations
+9159    Prevent overflow when calculating ulog block size
+9160    Allow only one salt type per enctype in key data
+9161    Improve ulog block resize efficiency
+9162    Build PKINIT on Windows
+9163    Add alias support
+9164    Add database format documentation
+9165    Display NetBIOS ticket addresses in klist
+9166    Add PKINIT paChecksum2 from MS-PKCA v20230920
+9167    Add initiator-side IAKERB realm discovery
+9168    Fix IAKERB accept_sec_context null pointer crash
+9169    Fix IAKERB error handling
+9170    Avoid gss_inquire_attrs_for_mech() null outputs
+9171    Fix getsockname() call in Windows localaddr
+9172    Check lengths in xdr_krb5_key_data()
+9173    Limit -keepold for self-service key changes
+9179    Avoid large numbers of refresh_time cache entries
 
 Acknowledgements
 ----------------
@@ -338,6 +341,7 @@ reports, suggestions, and valuable resources:
     Toby Blake
     Radoslav Bodo
     Alexander Bokovoy
+    Zoltan Borbely
     Sumit Bose
     Emmanuel Bouillon
     Isaac Boukris
@@ -359,6 +363,7 @@ reports, suggestions, and valuable resources:
     Andrea Cirulli
     Christopher D. Clausen
     Kevin Coffman
+    Gerald Combs
     Simon Cooper
     Sylvain Cortes
     Ian Crowther
@@ -368,6 +373,7 @@ reports, suggestions, and valuable resources:
     Nalin Dahyabhai
     Mark Davies
     Dennis Davis
+    Rull Deef
     Alex Dehnert
     Misty De Meo
     Mark Deneen
@@ -385,6 +391,7 @@ reports, suggestions, and valuable resources:
     Peter Eriksson
     Juha Erkkilä
     Gilles Espinasse
+    Valery Fedorenko
     Sergey Fedorov
     Ronni Feldt
     Bill Fellows
@@ -398,6 +405,7 @@ reports, suggestions, and valuable resources:
     Oliver Freyermuth
     Ákos Frohner
     Sebastian Galiano
+    Ilya Gladyshev
     Marcus Granado
     Dylan Gray
     Norm Green
@@ -405,6 +413,7 @@ reports, suggestions, and valuable resources:
     Helmut Grohne
     Steve Grubb
     Philip Guenther
+    Feng Guo
     Timo Gurr
     Dominic Hargreaves
     Robbie Harwood
@@ -440,10 +449,12 @@ reports, suggestions, and valuable resources:
     Zentaro Kavanagh
     Mubashir Kazia
     W. Trevor King
+    Steffen Kieß
     Patrik Kis
     Martin Kittel
     Thomas Klausner
     Tomasz Kłoczko
+    Ivan Korytov
     Matthew Krupcale
     Mikkel Kruse
     Reinhard Kugler
@@ -476,6 +487,7 @@ reports, suggestions, and valuable resources:
     Alexey Melnikov
     Ivan A. Melnikov
     Franklyn Mendez
+    Stefan Metzmacher
     Mantas Mikulėnas
     Markus Moeller
     Kyle Moffett
@@ -487,6 +499,7 @@ reports, suggestions, and valuable resources:
     Sam Morris
     Zbysek Mraz
     Edward Murrell
+    Bahaa Naamneh
     Joshua Neuheisel
     Nikos Nikoleris
     Demi Obenour
@@ -524,6 +537,7 @@ reports, suggestions, and valuable resources:
     Jens Schleusener
     Ryan Schmidt
     Andreas Schneider
+    Eli Schwartz
     Paul Seyfert
     Tom Shaw
     Jim Shi
@@ -538,6 +552,7 @@ reports, suggestions, and valuable resources:
     Bjørn Tore Sund
     Ondřej Surý
     Joseph Sutton
+    Alexey Tikhonov
     Joe Travaglini
     Sergei Trofimovich
     Greg Troxel

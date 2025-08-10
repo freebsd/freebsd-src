@@ -74,7 +74,7 @@ static void compare_authdata(const krb5_authdata *adc1, krb5_authdata *adc2) {
 }
 
 int
-main()
+main(void)
 {
     krb5_context context;
     krb5_authdata **results;

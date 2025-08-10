@@ -180,7 +180,7 @@ unload_kdcpolicy_plugins(krb5_context context)
 {
     kdcpolicy_handle *hp, h;
 
-    for (hp = handles; *hp != NULL; hp++) {
+    for (hp = handles; hp != NULL && *hp != NULL; hp++) {
         h = *hp;
         if (h->vt.fini != NULL)
             h->vt.fini(context, h->moddata);

@@ -33,11 +33,16 @@
  */
 
 OM_uint32 KRB5_CALLCONV
-gss_create_empty_oid_set(minor_status, oid_set)
-    OM_uint32	*minor_status;
-    gss_OID_set	*oid_set;
+gss_create_empty_oid_set(OM_uint32 *minor_status, gss_OID_set *oid_set)
 {
     OM_uint32 status;
+
+    if (minor_status != NULL)
+	*minor_status = 0;
+    if (oid_set != NULL)
+	*oid_set = GSS_C_NO_OID_SET;
+    if (minor_status == NULL || oid_set == NULL)
+	return GSS_S_CALL_INACCESSIBLE_WRITE;
     status = generic_gss_create_empty_oid_set(minor_status, oid_set);
     if (status != GSS_S_COMPLETE)
 	map_errcode(minor_status);
@@ -45,12 +50,18 @@ gss_create_empty_oid_set(minor_status, oid_set)
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_add_oid_set_member(minor_status, member_oid, oid_set)
-    OM_uint32	*minor_status;
-    gss_OID	member_oid;
-    gss_OID_set	*oid_set;
+gss_add_oid_set_member(OM_uint32 *minor_status, gss_OID member_oid,
+		       gss_OID_set *oid_set)
 {
     OM_uint32 status;
+
+    if (minor_status != NULL)
+	*minor_status = 0;
+    if (minor_status == NULL || oid_set == NULL)
+	return GSS_S_CALL_INACCESSIBLE_WRITE;
+    if (member_oid == GSS_C_NO_OID || member_oid->length == 0 ||
+	member_oid->elements == NULL)
+	return GSS_S_CALL_INACCESSIBLE_READ;
     status = generic_gss_add_oid_set_member(minor_status, member_oid, oid_set);
     if (status != GSS_S_COMPLETE)
 	map_errcode(minor_status);
@@ -58,46 +69,58 @@ gss_add_oid_set_member(minor_status, member_oid, oid_set)
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_test_oid_set_member(minor_status, member, set, present)
-    OM_uint32	*minor_status;
-    gss_OID	member;
-    gss_OID_set	set;
-    int		*present;
+gss_test_oid_set_member(OM_uint32 *minor_status, gss_OID member,
+			gss_OID_set set, int *present)
 {
+    if (minor_status != NULL)
+	*minor_status = 0;
+    if (present != NULL)
+	*present = 0;
+    if (minor_status == NULL || present == NULL)
+	return GSS_S_CALL_INACCESSIBLE_WRITE;
+    if (member == GSS_C_NO_OID || set == GSS_C_NO_OID_SET)
+	return GSS_S_CALL_INACCESSIBLE_READ;
     return generic_gss_test_oid_set_member(minor_status, member, set, present);
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_oid_to_str(minor_status, oid, oid_str)
-    OM_uint32		*minor_status;
-    gss_OID		oid;
-    gss_buffer_t	oid_str;
+gss_oid_to_str(OM_uint32 *minor_status, gss_OID oid, gss_buffer_t oid_str)
 {
-    OM_uint32 status = generic_gss_oid_to_str(minor_status, oid, oid_str);
+    OM_uint32 status;
+
+    if (minor_status != NULL)
+	*minor_status = 0;
+    if (oid_str != GSS_C_NO_BUFFER) {
+	oid_str->length = 0;
+	oid_str->value = NULL;
+    }
+    if (minor_status == NULL || oid_str == GSS_C_NO_BUFFER)
+	return GSS_S_CALL_INACCESSIBLE_WRITE;
+    if (oid == GSS_C_NO_OID || oid->length == 0 || oid->elements == NULL)
+	return GSS_S_CALL_INACCESSIBLE_READ;
+    status = generic_gss_oid_to_str(minor_status, oid, oid_str);
     if (status != GSS_S_COMPLETE)
 	map_errcode(minor_status);
     return status;
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_str_to_oid(minor_status, oid_str, oid)
-    OM_uint32		*minor_status;
-    gss_buffer_t	oid_str;
-    gss_OID		*oid;
+gss_str_to_oid(OM_uint32 *minor_status, gss_buffer_t oid_str, gss_OID *oid)
 {
-    OM_uint32 status = generic_gss_str_to_oid(minor_status, oid_str, oid);
+    OM_uint32 status;
+
+    if (minor_status != NULL)
+	*minor_status = 0;
+    if (oid != NULL)
+	*oid = GSS_C_NO_OID;
+    if (minor_status == NULL || oid == NULL)
+	return GSS_S_CALL_INACCESSIBLE_WRITE;
+    if (GSS_EMPTY_BUFFER(oid_str))
+	return GSS_S_CALL_INACCESSIBLE_READ;
+    status = generic_gss_str_to_oid(minor_status, oid_str, oid);
     if (status != GSS_S_COMPLETE)
 	map_errcode(minor_status);
     return status;
-}
-
-OM_uint32
-gssint_copy_oid_set(
-    OM_uint32 *minor_status,
-    const gss_OID_set_desc * const oidset,
-    gss_OID_set *new_oidset)
-{
-    return generic_gss_copy_oid_set(minor_status, oidset, new_oidset);
 }
 
 int KRB5_CALLCONV

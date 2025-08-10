@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _ADDRTYPE-DIRECTIONAL-data:
+
+ADDRTYPE_DIRECTIONAL
+====================
+
+..
+.. data:: ADDRTYPE_DIRECTIONAL
+..
+
+
+
+
+=========================== ======================
+``ADDRTYPE_DIRECTIONAL``       ``0x0003``
+=========================== ======================

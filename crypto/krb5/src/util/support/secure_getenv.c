@@ -68,7 +68,7 @@ static int elevated_privilege = 0;
 MAKE_INIT_FUNCTION(k5_secure_getenv_init);
 
 int
-k5_secure_getenv_init()
+k5_secure_getenv_init(void)
 {
     int saved_errno = errno;
 

@@ -21,7 +21,7 @@
 
 static int dup_db_args(kadm5_server_handle_t handle, char **db_args)
 {
-    int count  = 0;
+    size_t count = 0;
     int ret = 0;
 
     for (count=0; db_args && db_args[count]; count++);
@@ -57,7 +57,7 @@ clean_n_exit:
 
 static void free_db_args(kadm5_server_handle_t handle)
 {
-    int count;
+    size_t count;
 
     if (handle->db_args) {
         for (count=0; handle->db_args[count]; count++)

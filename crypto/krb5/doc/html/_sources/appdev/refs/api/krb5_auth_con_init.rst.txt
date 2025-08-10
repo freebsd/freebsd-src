@@ -34,7 +34,7 @@ This function creates an authentication context to hold configuration and state 
 
 
 
-By default, flags for the context are set to enable the use of the replay cache (#KRB5_AUTH_CONTEXT_DO_TIME), but not sequence numbers. Use krb5_auth_con_setflags() to change the flags.
+By default, flags for the context are set to enable the use of the replay cache (KRB5_AUTH_CONTEXT_DO_TIME), but not sequence numbers. Use krb5_auth_con_setflags() to change the flags.
 
 
 

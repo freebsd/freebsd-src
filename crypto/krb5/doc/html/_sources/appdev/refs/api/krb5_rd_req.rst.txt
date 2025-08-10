@@ -82,7 +82,7 @@ Various other checks are performed on the decoded data, including cross-realm po
 
 
 
-On success the authenticator, subkey, and remote sequence number of the request are stored in *auth_context* . If the #AP_OPTS_MUTUAL_REQUIRED bit is set, the local sequence number is XORed with the remote sequence number in the request.
+On success the authenticator, subkey, and remote sequence number of the request are stored in *auth_context* . If the AP_OPTS_MUTUAL_REQUIRED bit is set, the local sequence number is XORed with the remote sequence number in the request.
 
 
 

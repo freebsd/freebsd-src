@@ -29,7 +29,6 @@
 #include "k5-int.h"
 #include "os-proto.h"
 #include "../krb/int-proto.h"
-#include "prof_int.h"        /* XXX for profile_copy, not public yet */
 
 #if defined(_WIN32)
 #include <winsock.h>
@@ -468,7 +467,7 @@ krb5_set_config_files(krb5_context ctx, const char **filenames)
         return retval;
 
     if (ctx->profile)
-        profile_release(ctx->profile);
+        profile_abandon(ctx->profile);
     ctx->profile = profile;
 
     return 0;
@@ -503,7 +502,7 @@ k5_os_free_context(krb5_context ctx)
     os_ctx->magic = 0;
 
     if (ctx->profile) {
-        profile_release(ctx->profile);
+        profile_abandon(ctx->profile);
         ctx->profile = 0;
     }
 

@@ -6,7 +6,7 @@
 #include "asn1_err.h"
 #include "kdb5_err.h"
 #include "profile.h"
-extern void krb5_stdcc_shutdown();
+extern void krb5_stdcc_shutdown(void);
 #endif
 #ifdef GSSAPI
 #include "gssapi/generic/gssapi_err_generic.h"
@@ -233,7 +233,7 @@ static int CallVersionServer(app_title, app_version, app_ini, code_cover)
 #endif
 
 #ifdef TIMEBOMB
-static krb5_error_code do_timebomb()
+static krb5_error_code do_timebomb(void)
 {
 	char buf[1024];
 	long timeleft;
@@ -276,7 +276,7 @@ static krb5_error_code do_timebomb()
  * doesn't allow you to make messaging calls from LibMain.  So, we now
  * do the timebomb/version server stuff from krb5_init_context().
  */
-krb5_error_code krb5_vercheck()
+krb5_error_code krb5_vercheck(void)
 {
 	static int verchecked = 0;
 	if (verchecked)
@@ -314,7 +314,7 @@ krb5_error_code krb5_vercheck()
 
 static HINSTANCE hlibinstance;
 
-HINSTANCE get_lib_instance()
+HINSTANCE get_lib_instance(void)
 {
     return hlibinstance;
 }
@@ -401,7 +401,7 @@ control(int mode)
 
 #ifdef _WIN32
 
-BOOL WINAPI DllMain (HANDLE hModule, DWORD fdwReason, LPVOID lpReserved)
+BOOL WINAPI DllMain (HANDLE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
     switch (fdwReason)
     {
@@ -420,6 +420,10 @@ BOOL WINAPI DllMain (HANDLE hModule, DWORD fdwReason, LPVOID lpReserved)
 	    break;
 
         case DLL_PROCESS_DETACH:
+	    /* If lpvReserved is non-null, the process is exiting and we do not
+	     * need to clean up library memory. */
+	    if (lpvReserved != NULL)
+		break;
 	    if (control(DLL_SHUTDOWN))
 		return FALSE;
 	    break;

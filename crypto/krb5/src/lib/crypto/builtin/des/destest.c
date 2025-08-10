@@ -62,9 +62,7 @@ void des_cblock_print_file (mit_des_cblock, FILE *);
 krb5_octet zeroblock[8] = {0,0,0,0,0,0,0,0};
 
 int
-main(argc, argv)
-    int argc;
-    char *argv[];
+main(int argc, char *argv[])
 {
     char block1[17], block2[17], block3[17];
     /* Force tests of unaligned accesses.  */
@@ -151,9 +149,7 @@ int value[128] = {
 };
 
 void
-convert(text, cblock)
-    char *text;
-    unsigned char cblock[];
+convert(char *text, unsigned char cblock[])
 {
     int i;
     for (i = 0; i < 8; i++) {
@@ -173,16 +169,13 @@ convert(text, cblock)
  */
 
 int
-mit_des_is_weak_key(key)
-    mit_des_cblock key;
+mit_des_is_weak_key(mit_des_cblock key)
 {
     return 0;                           /* fake it out for testing */
 }
 
 void
-des_cblock_print_file(x, fp)
-    mit_des_cblock x;
-    FILE *fp;
+des_cblock_print_file(mit_des_cblock x, FILE *fp)
 {
     unsigned char *y = (unsigned char *) x;
     int i = 0;
@@ -207,8 +200,7 @@ des_cblock_print_file(x, fp)
  *                       correct des parity.
  */
 int
-mit_des_check_key_parity(key)
-    mit_des_cblock key;
+mit_des_check_key_parity(mit_des_cblock key)
 {
     unsigned int i;
 
@@ -226,8 +218,7 @@ mit_des_check_key_parity(key)
 }
 
 void
-mit_des_fixup_key_parity(key)
-    mit_des_cblock key;
+mit_des_fixup_key_parity(mit_des_cblock key)
 {
     unsigned int i;
     for (i=0; i<sizeof(mit_des_cblock); i++)

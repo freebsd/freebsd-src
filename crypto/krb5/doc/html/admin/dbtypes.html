@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Database types &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="database-types">
-<span id="dbtypes"></span><h1>Database types<a class="headerlink" href="#database-types" title="Permalink to this headline">¶</a></h1>
+<span id="dbtypes"></span><h1>Database types<a class="headerlink" href="#database-types" title="Link to this heading">¶</a></h1>
 <p>A Kerberos database can be implemented with one of three built-in
 database providers, called KDB modules.  Software which incorporates
 the MIT krb5 KDC may also provide its own KDB module.  The following
@@ -79,7 +77,7 @@ LDAP, create the new database using <code class="docutils literal notranslate"><
 from the dump file using <code class="docutils literal notranslate"><span class="pre">kdb5_util</span> <span class="pre">load</span> <span class="pre">-update</span></code>.  Then restart the
 <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> and <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> services.</p>
 <section id="berkeley-database-module-db2">
-<h2>Berkeley database module (db2)<a class="headerlink" href="#berkeley-database-module-db2" title="Permalink to this headline">¶</a></h2>
+<h2>Berkeley database module (db2)<a class="headerlink" href="#berkeley-database-module-db2" title="Link to this heading">¶</a></h2>
 <p>The default KDB module is <code class="docutils literal notranslate"><span class="pre">db2</span></code>, which uses a version of the
 Berkeley DB library.  It creates four files based on the database
 pathname.  If the pathname ends with <code class="docutils literal notranslate"><span class="pre">principal</span></code> then the four files
@@ -116,7 +114,7 @@ the database backwards may also retrieve some of the data which is not
 retrieved by a normal dump operation.</p>
 </section>
 <section id="lightning-memory-mapped-database-module-klmdb">
-<h2>Lightning Memory-Mapped Database module (klmdb)<a class="headerlink" href="#lightning-memory-mapped-database-module-klmdb" title="Permalink to this headline">¶</a></h2>
+<h2>Lightning Memory-Mapped Database module (klmdb)<a class="headerlink" href="#lightning-memory-mapped-database-module-klmdb" title="Link to this heading">¶</a></h2>
 <p>The klmdb module was added in release 1.17.  It uses the LMDB library,
 and may offer better performance and reliability than the db2 module.
 It creates four files based on the database pathname.  If the pathname
@@ -171,7 +169,7 @@ primary database.</p>
 <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> <strong>lock</strong> command.</p>
 </section>
 <section id="ldap-module-kldap">
-<h2>LDAP module (kldap)<a class="headerlink" href="#ldap-module-kldap" title="Permalink to this headline">¶</a></h2>
+<h2>LDAP module (kldap)<a class="headerlink" href="#ldap-module-kldap" title="Link to this heading">¶</a></h2>
 <p>The kldap module stores principal and policy data using an LDAP
 server.  To use it you must configure an LDAP server to use the
 Kerberos schema.  See <a class="reference internal" href="conf_ldap.html#conf-ldap"><span class="std std-ref">Configuring Kerberos with OpenLDAP back-end</span></a> for details.</p>
@@ -264,8 +262,8 @@ requests.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

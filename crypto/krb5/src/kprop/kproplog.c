@@ -24,7 +24,7 @@
 static char *progname;
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, _("\nUsage: %s [-h] [-v] [-v] [-e num]\n\t%s -R\n\n"),
             progname, progname);
@@ -330,7 +330,7 @@ print_update(kdb_hlog_t *ulog, uint32_t entry, uint32_t ulogentries,
     for (i = start_sno; i < ulog->kdb_last_sno; i++) {
         indx = i % ulogentries;
 
-        indx_log = INDEX(ulog, indx);
+        indx_log = ulog_index(ulog, indx);
 
         /*
          * Check for corrupt update entry
@@ -393,7 +393,7 @@ print_update(kdb_hlog_t *ulog, uint32_t entry, uint32_t ulogentries,
                 print_attr(&upd.kdb_update.kdbe_t_val[j], verbose > 1 ? 1 : 0);
         }
 
-        xdr_free(xdr_kdb_incr_update_t, (char *)&upd);
+        xdr_free((xdrproc_t)xdr_kdb_incr_update_t, (char *)&upd);
         free(dbprinc);
     }
 }

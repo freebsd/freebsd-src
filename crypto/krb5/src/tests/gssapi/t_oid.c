@@ -129,7 +129,7 @@ oid_equal(gss_OID o1, gss_OID o2)
 }
 
 int
-main()
+main(void)
 {
     size_t i;
     OM_uint32 major, minor;

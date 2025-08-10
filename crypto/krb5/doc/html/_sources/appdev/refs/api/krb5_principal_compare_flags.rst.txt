@@ -36,16 +36,16 @@ krb5_principal_compare_flags -  Compare two principals with additional flags.
 
 Valid flags are: 
  
-	 - #KRB5_PRINCIPAL_COMPARE_IGNORE_REALM - ignore realm component
+	 - KRB5_PRINCIPAL_COMPARE_IGNORE_REALM - ignore realm component
  
  
-	 - #KRB5_PRINCIPAL_COMPARE_ENTERPRISE - UPNs as real principals
+	 - KRB5_PRINCIPAL_COMPARE_ENTERPRISE - UPNs as real principals
  
  
-	 - #KRB5_PRINCIPAL_COMPARE_CASEFOLD case-insensitive
+	 - KRB5_PRINCIPAL_COMPARE_CASEFOLD case-insensitive
  
  
-	 - #KRB5_PRINCIPAL_COMPARE_UTF8 - treat principals as UTF-8
+	 - KRB5_PRINCIPAL_COMPARE_UTF8 - treat principals as UTF-8
  
  
 

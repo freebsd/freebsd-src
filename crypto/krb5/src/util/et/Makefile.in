@@ -34,6 +34,8 @@ SRCS= $(srcdir)/error_message.c \
 	$(srcdir)/et_name.c \
 	$(srcdir)/com_err.c
 
+EXTRADEPSRCS= $(srcdir)/t_com_err.c $(srcdir)/test_et.c
+
 #
 # Warning flags
 #

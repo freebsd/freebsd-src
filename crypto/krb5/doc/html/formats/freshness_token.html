@@ -1,24 +1,22 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>PKINIT freshness tokens &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
-    <link rel="next" title="MIT Kerberos features" href="../mitK5features.html" />
+    <link rel="next" title="Kerberos Database (KDB) Formats" href="database_formats.html" />
     <link rel="prev" title="KDC cookie format" href="cookie.html" /> 
   </head><body>
     <div class="header-wrapper">
@@ -33,7 +31,7 @@
             accesskey="C">Contents</a> |
         <a href="cookie.html" title="KDC cookie format"
             accesskey="P">previous</a> |
-        <a href="../mitK5features.html" title="MIT Kerberos features"
+        <a href="database_formats.html" title="Kerberos Database (KDB) Formats"
             accesskey="N">next</a> |
         <a href="../genindex.html" title="General Index"
             accesskey="I">index</a> |
@@ -53,8 +51,8 @@
           <div class="body" role="main">
             
   <section id="pkinit-freshness-tokens">
-<h1>PKINIT freshness tokens<a class="headerlink" href="#pkinit-freshness-tokens" title="Permalink to this headline">¶</a></h1>
-<p><span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc8070.html"><strong>RFC 8070</strong></a> specifies a pa-data type PA_AS_FRESHNESS, which clients
+<h1>PKINIT freshness tokens<a class="headerlink" href="#pkinit-freshness-tokens" title="Link to this heading">¶</a></h1>
+<p><span class="target" id="index-0"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc8070.html"><strong>RFC 8070</strong></a> specifies a pa-data type PA_AS_FRESHNESS, which clients
 should reflect within signed PKINIT data to prove recent access to the
 client certificate private key.  The contents of a freshness token are
 left to the KDC implementation.  The MIT krb5 KDC uses the following
@@ -62,7 +60,7 @@ format for freshness tokens (starting in release 1.17):</p>
 <ul class="simple">
 <li><p>a four-byte big-endian POSIX timestamp</p></li>
 <li><p>a four-byte big-endian key version number</p></li>
-<li><p>an <span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc3961.html"><strong>RFC 3961</strong></a> checksum, with no ASN.1 wrapper</p></li>
+<li><p>an <span class="target" id="index-1"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc3961.html"><strong>RFC 3961</strong></a> checksum, with no ASN.1 wrapper</p></li>
 </ul>
 <p>The checksum is computed using the first key in the local krbtgt
 principal entry for the realm (e.g. <code class="docutils literal notranslate"><span class="pre">krbtgt/KRBTEST.COM&#64;KRBTEST.COM</span></code>
@@ -100,6 +98,7 @@ checksum is 514.</p>
 <li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">PKINIT freshness tokens</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database_formats.html">Kerberos Database (KDB) Formats</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
@@ -125,8 +124,8 @@ checksum is 514.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 
@@ -134,7 +133,7 @@ checksum is 514.</p>
             >Contents</a> |
         <a href="cookie.html" title="KDC cookie format"
             >previous</a> |
-        <a href="../mitK5features.html" title="MIT Kerberos features"
+        <a href="database_formats.html" title="Kerberos Database (KDB) Formats"
             >next</a> |
         <a href="../genindex.html" title="General Index"
             >index</a> |

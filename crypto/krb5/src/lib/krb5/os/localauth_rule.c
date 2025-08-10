@@ -68,9 +68,7 @@
 #include "os-proto.h"
 #include <krb5/localauth_plugin.h>
 #include <ctype.h>
-
-#ifdef HAVE_REGEX_H
-#include <regex.h>
+#include "k5-regex.h"
 
 /* Process the match portion of a rule and update *contextp.  Return
  * KRB5_LNAME_NOTRANS if selstring doesn't match the regexp. */
@@ -302,17 +300,6 @@ cleanup:
     free(selstring);
     return ret;
 }
-
-#else /* HAVE_REGEX_H */
-
-static krb5_error_code
-an2ln_rule(krb5_context context, krb5_localauth_moddata data, const char *type,
-           const char *rule, krb5_const_principal aname, char **lname_out)
-{
-    return KRB5_LNAME_NOTRANS;
-}
-
-#endif
 
 static void
 freestr(krb5_context context, krb5_localauth_moddata data, char *str)

@@ -267,11 +267,8 @@ cleanup:
  *      Salttype may be negative to indicate a search for only a enctype.
  */
 krb5_boolean
-krb5_keysalt_is_present(ksaltlist, nksalts, enctype, salttype)
-    krb5_key_salt_tuple *ksaltlist;
-    krb5_int32          nksalts;
-    krb5_enctype        enctype;
-    krb5_int32          salttype;
+krb5_keysalt_is_present(krb5_key_salt_tuple *ksaltlist, krb5_int32 nksalts,
+                        krb5_enctype enctype, krb5_int32 salttype)
 {
     krb5_boolean        foundit;
     int                 i;
@@ -375,12 +372,11 @@ cleanup:
  * If ignoresalt set, then salttype is ignored.
  */
 krb5_error_code
-krb5_keysalt_iterate(ksaltlist, nksalt, ignoresalt, iterator, arg)
-    krb5_key_salt_tuple *ksaltlist;
-    krb5_int32          nksalt;
-    krb5_boolean        ignoresalt;
-    krb5_error_code     (*iterator) (krb5_key_salt_tuple *, krb5_pointer);
-    krb5_pointer        arg;
+krb5_keysalt_iterate(krb5_key_salt_tuple *ksaltlist, krb5_int32 nksalt,
+                     krb5_boolean ignoresalt,
+                     krb5_error_code (*iterator)(krb5_key_salt_tuple *,
+                                                 void *),
+                     void *arg)
 {
     int                 i;
     krb5_error_code     kret;

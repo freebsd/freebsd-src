@@ -68,9 +68,7 @@ int get_tgt
 		   krb5_ccache);
 
 static void
-usage(who, status)
-char *who;
-int status;
+usage(char *who, int status)
 {
     fprintf(stderr,
 	    "usage: %s -p prefix -n num_to_check [-c cachename] [-r realmname]\n",
@@ -100,9 +98,7 @@ struct h_timer tgs_req_times = { 0.0, 1000000.0, -1.0, 0 };
 				     tstart_time.tv_usec))/1000000.0)))
 
 int
-main(argc, argv)
-    int argc;
-    char **argv;
+main(int argc, char **argv)
 {
     krb5_ccache ccache = NULL;
     char *cache_name = NULL;		/* -f option */
@@ -183,7 +179,8 @@ main(argc, argv)
 	}
     }
 
-    if (!(num_to_check && prefix[0])) usage(prog, 1);
+    if (!(num_to_check && prefix[0]) || errflg)
+	usage(prog, 1);
 
     if (!cur_realm) {
 	if ((retval = krb5_get_default_realm(test_context, &cur_realm))) {
@@ -271,11 +268,8 @@ main(argc, argv)
 
 
 static krb5_error_code
-get_server_key(context, server, enctype, key)
-    krb5_context context;
-    krb5_principal server;
-    krb5_enctype enctype;
-    krb5_keyblock ** key;
+get_server_key(krb5_context context, krb5_principal server,
+	       krb5_enctype enctype, krb5_keyblock **key)
 {
     krb5_error_code retval;
     krb5_encrypt_block eblock;
@@ -311,15 +305,10 @@ cleanup_salt:
     return retval;
 }
 
-int verify_cs_pair(context, p_client_str, p_client, service, hostname,
-		   p_num, c_depth, s_depth, ccache)
-    krb5_context context;
-    char *p_client_str;
-    krb5_principal p_client;
-    char * service;
-    char * hostname;
-    int p_num, c_depth, s_depth;
-    krb5_ccache ccache;
+int
+verify_cs_pair(krb5_context context, char *p_client_str,
+	       krb5_principal p_client, char *service, char *hostname,
+	       int p_num, int c_depth, int s_depth, krb5_ccache ccache)
 {
     krb5_error_code 	  retval;
     krb5_creds 	 	  creds;
@@ -433,11 +422,9 @@ cleanup:
     return retval;
 }
 
-int get_tgt (context, p_client_str, p_client, ccache)
-    krb5_context context;
-    char *p_client_str;
-    krb5_principal *p_client;
-    krb5_ccache ccache;
+int
+get_tgt(krb5_context context, char *p_client_str, krb5_principal *p_client,
+	krb5_ccache ccache)
 {
     long lifetime = KRB5_DEFAULT_LIFE;	/* -l option */
     krb5_error_code code;

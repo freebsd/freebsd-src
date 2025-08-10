@@ -53,7 +53,6 @@ int show_flags = 0, show_time = 0, status_only = 0, show_keys = 0;
 int show_etype = 0, show_addresses = 0, no_resolve = 0, print_version = 0;
 int show_adtype = 0, show_all = 0, list_all = 0, use_client_keytab = 0;
 int show_config = 0;
-char *defname;
 char *progname;
 krb5_timestamp now;
 unsigned int timestamp_width;
@@ -62,7 +61,7 @@ krb5_context context;
 
 static krb5_boolean is_local_tgt(krb5_principal princ, krb5_data *realm);
 static char *etype_string(krb5_enctype );
-static void show_credential(krb5_creds *);
+static void show_credential(krb5_creds *, const char *);
 
 static void list_all_ccaches(void);
 static int list_ccache(krb5_ccache);
@@ -80,7 +79,7 @@ static void fillit(FILE *, unsigned int, int);
 #define KEYTAB 2
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, _("Usage: %s [-e] [-V] [[-c] [-l] [-A] [-d] [-f] [-s] "
                       "[-a [-n]]] [-k [-i] [-t] [-K]] [-C] [name]\n"),
@@ -359,7 +358,7 @@ do_keytab(const char *name)
 }
 
 static void
-list_all_ccaches()
+list_all_ccaches(void)
 {
     krb5_error_code ret;
     krb5_ccache cache;
@@ -451,7 +450,7 @@ show_all_ccaches(void)
 }
 
 static void
-do_ccache()
+do_ccache(void)
 {
     krb5_error_code ret;
     krb5_ccache cache;
@@ -469,20 +468,22 @@ do_ccache()
 static int
 show_ccache(krb5_ccache cache)
 {
-    krb5_cc_cursor cur;
+    krb5_cc_cursor cur = NULL;
     krb5_creds creds;
-    krb5_principal princ;
+    krb5_principal princ = NULL;
     krb5_error_code ret;
+    char *defname = NULL;
+    int status = 1;
 
     ret = krb5_cc_get_principal(context, cache, &princ);
     if (ret) {
         com_err(progname, ret, "");
-        return 1;
+        goto cleanup;
     }
     ret = krb5_unparse_name(context, princ, &defname);
     if (ret) {
         com_err(progname, ret, _("while unparsing principal name"));
-        return 1;
+        goto cleanup;
     }
 
     printf(_("Ticket cache: %s:%s\nDefault principal: %s\n\n"),
@@ -498,27 +499,33 @@ show_ccache(krb5_ccache cache)
     ret = krb5_cc_start_seq_get(context, cache, &cur);
     if (ret) {
         com_err(progname, ret, _("while starting to retrieve tickets"));
-        return 1;
+        goto cleanup;
     }
     while ((ret = krb5_cc_next_cred(context, cache, &cur, &creds)) == 0) {
         if (show_config || !krb5_is_config_principal(context, creds.server))
-            show_credential(&creds);
+            show_credential(&creds, defname);
         krb5_free_cred_contents(context, &creds);
     }
-    krb5_free_principal(context, princ);
-    krb5_free_unparsed_name(context, defname);
-    defname = NULL;
     if (ret == KRB5_CC_END) {
         ret = krb5_cc_end_seq_get(context, cache, &cur);
+        cur = NULL;
         if (ret) {
             com_err(progname, ret, _("while finishing ticket retrieval"));
-            return 1;
+            goto cleanup;
         }
-        return 0;
     } else {
         com_err(progname, ret, _("while retrieving a ticket"));
-        return 1;
+        goto cleanup;
     }
+
+    status = 0;
+
+cleanup:
+    if (cur != NULL)
+        (void)krb5_cc_end_seq_get(context, cache, &cur);
+    krb5_free_principal(context, princ);
+    krb5_free_unparsed_name(context, defname);
+    return status;
 }
 
 /* Return 0 if cache is accessible, present, and unexpired; return 1 if not. */
@@ -526,15 +533,18 @@ static int
 check_ccache(krb5_ccache cache)
 {
     krb5_error_code ret;
-    krb5_cc_cursor cur;
+    krb5_cc_cursor cur = NULL;
     krb5_creds creds;
-    krb5_principal princ;
-    krb5_boolean found_tgt, found_current_tgt, found_current_cred;
+    krb5_principal princ = NULL;
+    krb5_boolean found_tgt = FALSE, found_current_tgt = FALSE;
+    krb5_boolean found_current_cred = FALSE;
 
-    if (krb5_cc_get_principal(context, cache, &princ) != 0)
-        return 1;
-    if (krb5_cc_start_seq_get(context, cache, &cur) != 0)
-        return 1;
+    ret = krb5_cc_get_principal(context, cache, &princ);
+    if (ret)
+        goto cleanup;
+    ret = krb5_cc_start_seq_get(context, cache, &cur);
+    if (ret)
+        goto cleanup;
     found_tgt = found_current_tgt = found_current_cred = FALSE;
     while ((ret = krb5_cc_next_cred(context, cache, &cur, &creds)) == 0) {
         if (is_local_tgt(creds.server, &princ->realm)) {
@@ -547,12 +557,17 @@ check_ccache(krb5_ccache cache)
         }
         krb5_free_cred_contents(context, &creds);
     }
-    krb5_free_principal(context, princ);
     if (ret != KRB5_CC_END)
-        return 1;
-    if (krb5_cc_end_seq_get(context, cache, &cur) != 0)
-        return 1;
+        goto cleanup;
+    ret = krb5_cc_end_seq_get(context, cache, &cur);
+    cur = NULL;
 
+cleanup:
+    if (cur != NULL)
+        (void)krb5_cc_end_seq_get(context, cache, &cur);
+    krb5_free_principal(context, princ);
+    if (ret)
+        return 1;
     /* If the cache contains at least one local TGT, require that it be
      * current.  Otherwise accept any current cred. */
     if (found_tgt)
@@ -661,12 +676,12 @@ print_config_data(int col, krb5_data *data)
 }
 
 static void
-show_credential(krb5_creds *cred)
+show_credential(krb5_creds *cred, const char *defname)
 {
     krb5_error_code ret;
     krb5_ticket *tkt = NULL;
     char *name = NULL, *sname = NULL, *tktsname, *flags;
-    int extra_field = 0, ccol = 0, i;
+    int extra_field = 0, ccol = 0, i, r;
     krb5_boolean is_config = krb5_is_config_principal(context, cred->server);
 
     ret = krb5_unparse_name(context, cred->client, &name);
@@ -696,11 +711,11 @@ show_credential(krb5_creds *cred)
         fputs("config: ", stdout);
         ccol = 8;
         for (i = 1; i < cred->server->length; i++) {
-            ccol += printf("%s%.*s%s",
-                           i > 1 ? "(" : "",
-                           (int)cred->server->data[i].length,
-                           cred->server->data[i].data,
-                           i > 1 ? ")" : "");
+            r = printf("%s%.*s%s", i > 1 ? "(" : "",
+                       (int)cred->server->data[i].length,
+                       cred->server->data[i].data, i > 1 ? ")" : "");
+            if (r >= 0)
+                ccol += r;
         }
         fputs(" = ", stdout);
         ccol += 3;
@@ -817,8 +832,9 @@ one_addr(krb5_address *a)
     struct sockaddr_storage ss;
     struct sockaddr_in *sinp;
     struct sockaddr_in6 *sin6p;
-    int err;
+    int err, i;
     char namebuf[NI_MAXHOST];
+    const uint8_t *p;
 
     memset(&ss, 0, sizeof(ss));
 
@@ -843,6 +859,16 @@ one_addr(krb5_address *a)
         sin6p->sin6_family = AF_INET6;
         memcpy(&sin6p->sin6_addr, a->contents, 16);
         break;
+    case ADDRTYPE_NETBIOS:
+        if (a->length != 16) {
+            printf(_("broken address (type %d length %d)"),
+                   a->addrtype, a->length);
+            return;
+        }
+        p = a->contents;
+        for (i = 0; i < 15 && p[i] != '\0' && p[i] != ' '; i++)
+            putchar(p[i]);
+        return;
     default:
         printf(_("unknown addrtype %d"), a->addrtype);
         return;

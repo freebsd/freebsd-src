@@ -392,6 +392,7 @@ command-line flags.  These are documented in the --help output.
 
 import atexit
 import fcntl
+import glob
 import optparse
 import os
 import shlex
@@ -564,6 +565,31 @@ def _find_srctop():
     return os.path.abspath(root)
 
 
+# Look for the system LLVM symbolizer, matching the logic the asan
+# runtime would use as closely as possible.
+def _find_symbolizer():
+    if sys.platform == 'darwin':
+        f = which('atos')
+        if f is not None:
+            return f
+
+    f = which('llvm-symbolizer')
+    if f is not None:
+        return f
+
+    # Debian-derived systems have versioned symbolizer names.  If any
+    # exist, pick one of them.
+    l = glob.glob('/usr/bin/llvm-symbolizer-*')
+    if l:
+        return l[0]
+
+    f = which('addr2line')
+    if f is not None:
+        return f
+
+    return None
+
+
 # Parse command line arguments, setting global option variables.  Also
 # sets the global variable args to the positional arguments, which may
 # be used by the test script.
@@ -672,11 +698,10 @@ def _cfg_merge(cfg1, cfg2):
     return result
 
 
-# Python gives us shlex.split() to turn a shell command into a list of
-# arguments, but oddly enough, not the easier reverse operation.  For
-# now, do a bad job of faking it.
+# We would like to use shlex.join() from Python 3.8.  For now use
+# shlex.quote() from Python 3.3.
 def _shell_equiv(args):
-    return " ".join(args)
+    return ' '.join(shlex.quote(x) for x in args)
 
 
 # Add a valgrind prefix to the front of args if specified in the
@@ -953,6 +978,7 @@ class K5Realm(object):
         if get_creds and create_kdb and create_user and start_kdc:
             self.kinit(self.user_princ, password('user'))
             self.klist(self.user_princ)
+        self._setup_symbolizer()
 
     def _create_empty_dir(self):
         dir = self.testdir
@@ -1038,6 +1064,30 @@ class K5Realm(object):
         env['KPROP_PORT'] = str(self.kprop_port())
         env['GSS_MECH_CONFIG'] = self.gss_mech_config
         return env
+
+    # The krb5 libraries may be included in the dependency chain of
+    # llvm-symbolizer, which is invoked by asan when displaying stack
+    # traces.  If they are, asan-compiled krb5 libraries in
+    # LD_LIBRARY_PATH (or similar) will cause a dynamic linker error
+    # for the symbolizer at startup.  Work around this problem by
+    # wrapping the symbolizer in a script that unsets the dynamic
+    # linker variables before calling the real symbolizer.
+    def _setup_symbolizer(self):
+        if runenv.asan != 'yes':
+            return
+        if 'ASAN_SYMBOLIZER_PATH' in self.env:
+            return
+        symbolizer_path = _find_symbolizer()
+        if symbolizer_path is None:
+            return
+        wrapper_path = os.path.join(self.testdir, 'llvm-symbolizer')
+        with open(wrapper_path, 'w') as f:
+            f.write('#!/bin/sh\n')
+            for v in runenv.env:
+                f.write('unset %s\n' % v)
+            f.write('exec %s "$@"\n' % symbolizer_path)
+        os.chmod(wrapper_path, 0o755)
+        self.env['ASAN_SYMBOLIZER_PATH'] = wrapper_path
 
     def run(self, args, env=None, **keywords):
         if env is None:
@@ -1340,14 +1390,14 @@ _passes = [
 
     # Exercise the DES3 enctype.
     ('des3', None,
-     {'libdefaults': {'permitted_enctypes': 'des3 aes256-sha1'}},
+     {'libdefaults': {'permitted_enctypes': 'des3', 'allow_des3': 'true'}},
      {'realms': {'$realm': {
                     'supported_enctypes': 'des3-cbc-sha1:normal',
                     'master_key_type': 'des3-cbc-sha1'}}}),
 
     # Exercise the arcfour enctype.
     ('arcfour', None,
-     {'libdefaults': {'permitted_enctypes': 'rc4 aes256-sha1'}},
+     {'libdefaults': {'permitted_enctypes': 'rc4', 'allow_rc4': 'true'}},
      {'realms': {'$realm': {
                     'supported_enctypes': 'arcfour-hmac:normal',
                     'master_key_type': 'arcfour-hmac'}}}),

@@ -445,9 +445,9 @@ authgss_refresh(AUTH *auth, struct rpc_msg *msg)
 			memset(&gr, 0, sizeof(gr));
 
 			call_stat = clnt_call(gd->clnt, NULLPROC,
-					      xdr_rpc_gss_init_args,
+					      (xdrproc_t)xdr_rpc_gss_init_args,
 					      &send_token,
-					      xdr_rpc_gss_init_res,
+					      (xdrproc_t)xdr_rpc_gss_init_res,
 					      (caddr_t)&gr, AUTH_TIMEOUT);
 
 			gss_release_buffer(&min_stat, &send_token);

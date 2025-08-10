@@ -38,7 +38,7 @@ encode_krb5_auth_pack:
 .  .  [0] [Integer] 123456
 .  .  [1] [Generalized Time] "19940610060317Z"
 .  .  [2] [Integer] 42
-.  .  [3] [Octet String] "1234"
+.  .  [3] [Octet String] "krb5data"
 .  .  [4] [Octet String] "krb5data"
 .  [1] [Octet String] "pvalue"
 .  [2] [Sequence/Sequence Of]

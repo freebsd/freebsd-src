@@ -82,7 +82,7 @@ xdr_osa_policy_ent_rec(XDR *xdrs, osa_policy_ent_t objp)
         if (!xdr_short(xdrs, &objp->n_tl_data))
             return (FALSE);
         if (!xdr_nulltype(xdrs, (void **) &objp->tl_data,
-                          xdr_krb5_tl_data))
+			  (xdrproc_t)xdr_krb5_tl_data))
             return FALSE;
     }
     return (TRUE);

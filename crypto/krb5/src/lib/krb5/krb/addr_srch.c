@@ -26,10 +26,10 @@
 
 #include "k5-int.h"
 
-static unsigned int
+static size_t
 address_count(krb5_address *const *addrlist)
 {
-    unsigned int i;
+    size_t i;
 
     if (addrlist == NULL)
         return 0;

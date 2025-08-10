@@ -1,4 +1,0 @@
-A sample GSS-API client and server application can be found in the
-directory ./appl/gss-sample in this distribution.  Read the file
-./appl/gss-sample/README for information on how it works and how to
-build it.

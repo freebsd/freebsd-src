@@ -248,8 +248,9 @@ static bool_t svcudp_reply(
 {
      struct svcudp_data *su = su_data(xprt);
      XDR *xdrs = &su->su_xdrs;
-     int slen;
+     u_int slen;
      bool_t stat = FALSE;
+     ssize_t r;
 
      xdrproc_t xdr_results = NULL;
      caddr_t xdr_location = 0;
@@ -272,12 +273,12 @@ static bool_t svcudp_reply(
      if (xdr_replymsg(xdrs, msg) &&
 	 (!has_args ||
 	  (SVCAUTH_WRAP(xprt->xp_auth, xdrs, xdr_results, xdr_location)))) {
-	  slen = (int)XDR_GETPOS(xdrs);
-	  if (sendto(xprt->xp_sock, rpc_buffer(xprt), slen, 0,
-		     (struct sockaddr *)&(xprt->xp_raddr), xprt->xp_addrlen)
-	      == slen) {
+	  slen = XDR_GETPOS(xdrs);
+	  r = sendto(xprt->xp_sock, rpc_buffer(xprt), slen, 0,
+		     (struct sockaddr *)&(xprt->xp_raddr), xprt->xp_addrlen);
+	  if (r >= 0 && (u_int)r == slen) {
 	       stat = TRUE;
-	       if (su->su_cache && slen >= 0) {
+	       if (su->su_cache) {
 		    cache_set(xprt, (uint32_t) slen);
 	       }
 	  }

@@ -49,6 +49,7 @@ ATTRIBUTE    User-Name    1    string
 ATTRIBUTE    User-Password   2    octets
 ATTRIBUTE    Service-Type    6    integer
 ATTRIBUTE    NAS-Identifier  32    string
+ATTRIBUTE    Message-Authenticator 80 octets
 '''
 
 class RadiusDaemon(Process):
@@ -96,6 +97,8 @@ class RadiusDaemon(Process):
         else:
             reply.code = packet.AccessReject
             replyq['reply'] = False
+
+        reply.add_message_authenticator()
 
         outq.put(replyq)
         if addr is None:

@@ -40,7 +40,7 @@ krb5_k_make_checksum(krb5_context context, krb5_cksumtype cksumtype,
     krb5_octet *trunc;
     krb5_error_code ret;
 
-    if (cksumtype == 0) {
+    if (cksumtype == 0 && key != NULL) {
         ret = krb5int_c_mandatory_cksumtype(context, key->keyblock.enctype,
                                             &cksumtype);
         if (ret != 0)

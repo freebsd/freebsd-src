@@ -42,7 +42,7 @@ static void intprt(int v, FILE *f)
 
 foo foo1;
 
-int main ()
+int main (void)
 {
     elt v1 = { 1, 2 }, v2 = { 3, 4 };
     const elt *vp;

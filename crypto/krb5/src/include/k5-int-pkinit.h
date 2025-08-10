@@ -36,20 +36,27 @@
  * pkinit structures
  */
 
-/* PKAuthenticator */
-typedef struct _krb5_pk_authenticator {
-    krb5_int32      cusec;  /* (0..999999) */
-    krb5_timestamp  ctime;
-    krb5_int32      nonce;  /* (0..4294967295) */
-    krb5_checksum   paChecksum;
-    krb5_data      *freshnessToken;
-} krb5_pk_authenticator;
-
 /* AlgorithmIdentifier */
 typedef struct _krb5_algorithm_identifier {
     krb5_data algorithm;      /* OID */
     krb5_data parameters; /* Optional */
 } krb5_algorithm_identifier;
+
+/* PAChecksum2 */
+typedef struct _krb5_pachecksum2 {
+    krb5_data checksum;
+    krb5_algorithm_identifier algorithmIdentifier;
+} krb5_pachecksum2;
+
+/* PKAuthenticator */
+typedef struct _krb5_pk_authenticator {
+    krb5_int32        cusec;  /* (0..999999) */
+    krb5_timestamp    ctime;
+    krb5_int32        nonce;  /* (0..4294967295) */
+    krb5_data         paChecksum;
+    krb5_data        *freshnessToken; /* Optional */
+    krb5_pachecksum2 *paChecksum2; /* Optional */
+} krb5_pk_authenticator;
 
 /** AuthPack from RFC 4556*/
 typedef struct _krb5_auth_pack {

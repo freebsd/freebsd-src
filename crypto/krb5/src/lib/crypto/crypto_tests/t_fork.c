@@ -55,7 +55,7 @@ prepare_enc_data(krb5_key key, size_t in_len, krb5_enc_data *enc_data)
 }
 
 int
-main()
+main(void)
 {
     krb5_keyblock kb_aes, kb_rc4;
     krb5_key key_aes, key_rc4;

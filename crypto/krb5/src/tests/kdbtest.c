@@ -271,7 +271,7 @@ iter_pol_handler(void *data, osa_policy_ent_t pol)
 }
 
 int
-main()
+main(void)
 {
     krb5_db_entry *ent;
     osa_policy_ent_t pol;

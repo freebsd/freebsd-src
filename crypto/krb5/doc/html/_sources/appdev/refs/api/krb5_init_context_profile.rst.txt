@@ -35,10 +35,10 @@ Create a context structure, optionally using a specified profile and initializat
 
  
  
-	 - #KRB5_INIT_CONTEXT_SECURE Ignore environment variables
+	 - KRB5_INIT_CONTEXT_SECURE Ignore environment variables
  
  
-	 - #KRB5_INIT_CONTEXT_KDC Use KDC configuration if creating profile
+	 - KRB5_INIT_CONTEXT_KDC Use KDC configuration if creating profile
  
  
 

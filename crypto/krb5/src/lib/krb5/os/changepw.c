@@ -115,6 +115,7 @@ kpasswd_sendto_msg_callback(SOCKET fd, void *data, krb5_data *message)
     struct sendto_callback_context      *ctx = data;
     GETSOCKNAME_ARG3_TYPE               addrlen;
     krb5_data                           output;
+    krb5_address                        **addrs = NULL;
 
     memset (message, 0, sizeof(krb5_data));
 
@@ -142,21 +143,17 @@ kpasswd_sendto_msg_callback(SOCKET fd, void *data, krb5_data *message)
         local_kaddr.addrtype = ADDRTYPE_INET6;
         local_kaddr.length = sizeof(ss2sin6(&local_addr)->sin6_addr);
         local_kaddr.contents = (krb5_octet *) &ss2sin6(&local_addr)->sin6_addr;
+#ifndef _WIN32
+    } else if (local_addr.ss_family == AF_UNIX) {
+        /* There is no standard way to represent UNIX domain sockets.  Assume
+         * that the receiver will accept a directional address. */
+        local_kaddr = k5_addr_directional_init;
+#endif
     } else {
-        krb5_address **addrs;
-
         code = krb5_os_localaddr(ctx->context, &addrs);
         if (code)
             goto cleanup;
-
-        local_kaddr.magic = addrs[0]->magic;
-        local_kaddr.addrtype = addrs[0]->addrtype;
-        local_kaddr.length = addrs[0]->length;
-        local_kaddr.contents = k5memdup(addrs[0]->contents, addrs[0]->length,
-                                        &code);
-        krb5_free_addresses(ctx->context, addrs);
-        if (local_kaddr.contents == NULL)
-            goto cleanup;
+        local_kaddr = *addrs[0];
     }
 
 
@@ -193,6 +190,7 @@ kpasswd_sendto_msg_callback(SOCKET fd, void *data, krb5_data *message)
     message->data = output.data;
 
 cleanup:
+    krb5_free_addresses(ctx->context, addrs);
     return code;
 }
 

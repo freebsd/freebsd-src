@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Principal names and DNS &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,13 +51,13 @@
           <div class="body" role="main">
             
   <section id="principal-names-and-dns">
-<h1>Principal names and DNS<a class="headerlink" href="#principal-names-and-dns" title="Permalink to this headline">¶</a></h1>
+<h1>Principal names and DNS<a class="headerlink" href="#principal-names-and-dns" title="Link to this heading">¶</a></h1>
 <p>Kerberos clients can do DNS lookups to canonicalize service principal
 names.  This can cause difficulties when setting up Kerberos
 application servers, especially when the client’s name for the service
 is different from what the service thinks its name is.</p>
 <section id="service-principal-names">
-<h2>Service principal names<a class="headerlink" href="#service-principal-names" title="Permalink to this headline">¶</a></h2>
+<h2>Service principal names<a class="headerlink" href="#service-principal-names" title="Link to this heading">¶</a></h2>
 <p>A frequently used kind of principal name is the host-based service
 principal name.  This kind of principal name has two components: a
 service name and a hostname.  For example, <code class="docutils literal notranslate"><span class="pre">imap/imap.example.com</span></code>
@@ -77,7 +75,7 @@ for administrators to set up load balancing for some sorts of services
 based on rotating <code class="docutils literal notranslate"><span class="pre">CNAME</span></code> records in DNS.</p>
 </section>
 <section id="service-principal-canonicalization">
-<h2>Service principal canonicalization<a class="headerlink" href="#service-principal-canonicalization" title="Permalink to this headline">¶</a></h2>
+<h2>Service principal canonicalization<a class="headerlink" href="#service-principal-canonicalization" title="Link to this heading">¶</a></h2>
 <p>In the MIT krb5 client library, canonicalization of host-based service
 principals is controlled by the <strong>dns_canonicalize_hostname</strong>,
 <strong>rnds</strong>, and <strong>qualify_shortname</strong> variables in <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</p>
@@ -104,7 +102,7 @@ canonicalized according to the rules for
 dot is removed.</p>
 </section>
 <section id="reverse-dns-mismatches">
-<h2>Reverse DNS mismatches<a class="headerlink" href="#reverse-dns-mismatches" title="Permalink to this headline">¶</a></h2>
+<h2>Reverse DNS mismatches<a class="headerlink" href="#reverse-dns-mismatches" title="Link to this heading">¶</a></h2>
 <p>Sometimes, an enterprise will have control over its forward DNS but
 not its reverse DNS.  The reverse DNS is sometimes under the control
 of the Internet service provider of the enterprise, and the enterprise
@@ -114,7 +112,7 @@ reverse DNS to match, it is best to set <code class="docutils literal notranslat
 machines.</p>
 </section>
 <section id="overriding-application-behavior">
-<h2>Overriding application behavior<a class="headerlink" href="#overriding-application-behavior" title="Permalink to this headline">¶</a></h2>
+<h2>Overriding application behavior<a class="headerlink" href="#overriding-application-behavior" title="Link to this heading">¶</a></h2>
 <p>Applications can choose to use a default hostname component in their
 service principal name when accepting authentication, which avoids
 some sorts of hostname mismatches.  Because not all relevant
@@ -130,7 +128,7 @@ matches the service name and realm name (if given).  This setting
 defaults to “false” and is available in releases krb5-1.10 and later.</p>
 </section>
 <section id="provisioning-keytabs">
-<h2>Provisioning keytabs<a class="headerlink" href="#provisioning-keytabs" title="Permalink to this headline">¶</a></h2>
+<h2>Provisioning keytabs<a class="headerlink" href="#provisioning-keytabs" title="Link to this heading">¶</a></h2>
 <p>One service principal entry that should be in the keytab is a
 principal whose hostname component is the canonical hostname that
 <code class="docutils literal notranslate"><span class="pre">getaddrinfo()</span></code> reports for all known aliases for the host.  If the
@@ -139,9 +137,9 @@ additional service principal entry should be in the keytab for this
 different hostname.</p>
 </section>
 <section id="specific-application-advice">
-<h2>Specific application advice<a class="headerlink" href="#specific-application-advice" title="Permalink to this headline">¶</a></h2>
+<h2>Specific application advice<a class="headerlink" href="#specific-application-advice" title="Link to this heading">¶</a></h2>
 <section id="secure-shell-ssh">
-<h3>Secure shell (ssh)<a class="headerlink" href="#secure-shell-ssh" title="Permalink to this headline">¶</a></h3>
+<h3>Secure shell (ssh)<a class="headerlink" href="#secure-shell-ssh" title="Link to this heading">¶</a></h3>
 <p>Setting <code class="docutils literal notranslate"><span class="pre">GSSAPIStrictAcceptorCheck</span> <span class="pre">=</span> <span class="pre">no</span></code> in the configuration file
 of modern versions of the openssh daemon will allow the daemon to try
 any key in its keytab when accepting a connection, rather than looking
@@ -150,7 +148,7 @@ for the keytab entry that matches the host’s own idea of its name
 krb5-1.10 or later.</p>
 </section>
 <section id="openldap-ldapsearch-etc">
-<h3>OpenLDAP (ldapsearch, etc.)<a class="headerlink" href="#openldap-ldapsearch-etc" title="Permalink to this headline">¶</a></h3>
+<h3>OpenLDAP (ldapsearch, etc.)<a class="headerlink" href="#openldap-ldapsearch-etc" title="Link to this heading">¶</a></h3>
 <p>OpenLDAP’s SASL implementation performs reverse DNS lookup in order to
 canonicalize service principal names, even if <strong>rdns</strong> is set to
 <code class="docutils literal notranslate"><span class="pre">false</span></code> in the Kerberos configuration.  To disable this behavior,
@@ -244,8 +242,8 @@ add <code class="docutils literal notranslate"><span class="pre">SASL_NOCANON</s
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -51,7 +51,7 @@ int n_threads = DEFAULT_N_THREADS;
 int interval = DEFAULT_INTERVAL;
 int *ip;
 
-static void wait_for_tick ()
+static void wait_for_tick (void)
 {
     time_t now, next;
     now = time(0);

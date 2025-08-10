@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>kdb5_util &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
@@ -53,9 +51,9 @@
           <div class="body" role="main">
             
   <section id="kdb5-util">
-<span id="kdb5-util-8"></span><h1>kdb5_util<a class="headerlink" href="#kdb5-util" title="Permalink to this headline">¶</a></h1>
+<span id="kdb5-util-8"></span><h1>kdb5_util<a class="headerlink" href="#kdb5-util" title="Link to this heading">¶</a></h1>
 <section id="synopsis">
-<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Link to this heading">¶</a></h2>
 <p id="kdb5-util-synopsis"><strong>kdb5_util</strong>
 [<strong>-r</strong> <em>realm</em>]
 [<strong>-d</strong> <em>dbname</em>]
@@ -69,7 +67,7 @@
 <em>command</em> [<em>command_options</em>]</p>
 </section>
 <section id="description">
-<span id="kdb5-util-synopsis-end"></span><h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<span id="kdb5-util-synopsis-end"></span><h2>DESCRIPTION<a class="headerlink" href="#description" title="Link to this heading">¶</a></h2>
 <p>kdb5_util allows an administrator to perform maintenance procedures on
 the KDC database.  Databases can be created, destroyed, and dumped to
 or loaded from ASCII files.  kdb5_util can create a Kerberos master
@@ -82,7 +80,7 @@ may not exist yet or the stash file may be corrupt.</p>
 commands.</p>
 </section>
 <section id="command-line-options">
-<h2>COMMAND-LINE OPTIONS<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<h2>COMMAND-LINE OPTIONS<a class="headerlink" href="#command-line-options" title="Link to this heading">¶</a></h2>
 <dl class="simple" id="kdb5-util-options">
 <dt><strong>-r</strong> <em>realm</em></dt><dd><p>specifies the Kerberos realm of the database.</p>
 </dd>
@@ -119,9 +117,9 @@ supported options.</p>
 </dl>
 </section>
 <section id="commands">
-<span id="kdb5-util-options-end"></span><h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<span id="kdb5-util-options-end"></span><h2>COMMANDS<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
 <section id="create">
-<h3>create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
+<h3>create<a class="headerlink" href="#create" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-util-create">
 <div><p><strong>create</strong> [<strong>-s</strong>]</p>
 </div></blockquote>
@@ -131,7 +129,7 @@ exists.  If the command is successful, the database is opened just as
 if it had already existed when the program was first run.</p>
 </section>
 <section id="destroy">
-<span id="kdb5-util-create-end"></span><h3>destroy<a class="headerlink" href="#destroy" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-util-create-end"></span><h3>destroy<a class="headerlink" href="#destroy" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-util-destroy">
 <div><p><strong>destroy</strong> [<strong>-f</strong>]</p>
 </div></blockquote>
@@ -140,7 +138,7 @@ unlinking the files, after prompting the user for confirmation.  With
 the <strong>-f</strong> argument, does not prompt the user.</p>
 </section>
 <section id="stash">
-<span id="kdb5-util-destroy-end"></span><h3>stash<a class="headerlink" href="#stash" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-util-destroy-end"></span><h3>stash<a class="headerlink" href="#stash" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-util-stash">
 <div><p><strong>stash</strong> [<strong>-f</strong> <em>keyfile</em>]</p>
 </div></blockquote>
@@ -149,7 +147,7 @@ argument can be used to override the <em>keyfile</em> specified in
 <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
 </section>
 <section id="dump">
-<span id="kdb5-util-stash-end"></span><h3>dump<a class="headerlink" href="#dump" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-util-stash-end"></span><h3>dump<a class="headerlink" href="#dump" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-util-dump">
 <div><p><strong>dump</strong> [<strong>-b7</strong>|<strong>-r13</strong>|<strong>-r18</strong>]
 [<strong>-verbose</strong>] [<strong>-mkey_convert</strong>] [<strong>-new_mkey_file</strong>
@@ -204,7 +202,7 @@ doing a normal dump instead of a recursive traversal.</p>
 </dl>
 </section>
 <section id="load">
-<span id="kdb5-util-dump-end"></span><h3>load<a class="headerlink" href="#load" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-util-dump-end"></span><h3>load<a class="headerlink" href="#load" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-util-load">
 <div><p><strong>load</strong> [<strong>-b7</strong>|<strong>-r13</strong>|<strong>-r18</strong>] [<strong>-hash</strong>]
 [<strong>-verbose</strong>] [<strong>-update</strong>] <em>filename</em></p>
@@ -247,7 +245,7 @@ completion.</p>
 </dl>
 </section>
 <section id="ark">
-<span id="kdb5-util-load-end"></span><h3>ark<a class="headerlink" href="#ark" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-util-load-end"></span><h3>ark<a class="headerlink" href="#ark" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>ark</strong> [<strong>-e</strong> <em>enc</em>:<em>salt</em>,…] <em>principal</em></p>
 </div></blockquote>
@@ -257,7 +255,7 @@ preserved.  The <strong>-e</strong> option specifies the list of encryption and
 salt types to be used for the new keys.</p>
 </section>
 <section id="add-mkey">
-<h3>add_mkey<a class="headerlink" href="#add-mkey" title="Permalink to this headline">¶</a></h3>
+<h3>add_mkey<a class="headerlink" href="#add-mkey" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>add_mkey</strong> [<strong>-e</strong> <em>etype</em>] [<strong>-s</strong>]</p>
 </div></blockquote>
@@ -274,7 +272,7 @@ kdb5_util <strong>stash</strong> command.  Once those steps are complete, the ke
 is ready to be marked active with the kdb5_util <strong>use_mkey</strong> command.</p>
 </section>
 <section id="use-mkey">
-<h3>use_mkey<a class="headerlink" href="#use-mkey" title="Permalink to this headline">¶</a></h3>
+<h3>use_mkey<a class="headerlink" href="#use-mkey" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>use_mkey</strong> <em>mkeyVNO</em> [<em>time</em>]</p>
 </div></blockquote>
@@ -288,7 +286,7 @@ active immediately.  The format for <em>time</em> is <a class="reference interna
 principal keys to be encrypted in the new master key.</p>
 </section>
 <section id="list-mkeys">
-<h3>list_mkeys<a class="headerlink" href="#list-mkeys" title="Permalink to this headline">¶</a></h3>
+<h3>list_mkeys<a class="headerlink" href="#list-mkeys" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>list_mkeys</strong></p>
 </div></blockquote>
@@ -298,7 +296,7 @@ each mkey, similar to the output of <a class="reference internal" href="kadmin_l
 <code class="docutils literal notranslate"><span class="pre">*</span></code> following an mkey denotes the currently active master key.</p>
 </section>
 <section id="purge-mkeys">
-<h3>purge_mkeys<a class="headerlink" href="#purge-mkeys" title="Permalink to this headline">¶</a></h3>
+<h3>purge_mkeys<a class="headerlink" href="#purge-mkeys" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>purge_mkeys</strong> [<strong>-f</strong>] [<strong>-n</strong>] [<strong>-v</strong>]</p>
 </div></blockquote>
@@ -316,7 +314,7 @@ not actually purging any keys.</p>
 </dl>
 </section>
 <section id="update-princ-encryption">
-<h3>update_princ_encryption<a class="headerlink" href="#update-princ-encryption" title="Permalink to this headline">¶</a></h3>
+<h3>update_princ_encryption<a class="headerlink" href="#update-princ-encryption" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>update_princ_encryption</strong> [<strong>-f</strong>] [<strong>-n</strong>] [<strong>-v</strong>]
 [<em>princ-pattern</em>]</p>
@@ -332,7 +330,7 @@ needed updating or not.  The <strong>-n</strong> option performs a dry run, only
 showing the actions which would have been taken.</p>
 </section>
 <section id="tabdump">
-<h3>tabdump<a class="headerlink" href="#tabdump" title="Permalink to this headline">¶</a></h3>
+<h3>tabdump<a class="headerlink" href="#tabdump" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>tabdump</strong> [<strong>-H</strong>] [<strong>-c</strong>] [<strong>-e</strong>] [<strong>-n</strong>] [<strong>-o</strong> <em>outfile</em>]
 <em>dumptype</em></p>
@@ -365,6 +363,14 @@ output</p>
 </dl>
 <p>Dump types:</p>
 <dl>
+<dt><strong>alias</strong></dt><dd><p>principal alias information</p>
+<dl class="simple">
+<dt><strong>aliasname</strong></dt><dd><p>the name of the alias</p>
+</dd>
+<dt><strong>targetname</strong></dt><dd><p>the target of the alias</p>
+</dd>
+</dl>
+</dd>
 <dt><strong>keydata</strong></dt><dd><p>principal encryption key information, including actual key data
 (which is still encrypted in the master key)</p>
 <dl class="simple">
@@ -480,12 +486,12 @@ K/M@EXAMPLE.COM     1       1       aes256-cts-hmac-sha384-192      normal  -1
 </section>
 </section>
 <section id="environment">
-<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Link to this heading">¶</a></h2>
 <p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
 variables.</p>
 </section>
 <section id="see-also">
-<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
 <p><a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </section>
 </section>
@@ -597,8 +603,8 @@ variables.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

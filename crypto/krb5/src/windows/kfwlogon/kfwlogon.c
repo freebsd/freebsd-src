@@ -41,7 +41,7 @@ static HANDLE hInitMutex = NULL;
 static BOOL bInit = FALSE;
 
 
-BOOLEAN APIENTRY DllEntryPoint(HANDLE dll, DWORD reason, PVOID reserved)
+BOOLEAN APIENTRY DllMain(HANDLE dll, DWORD reason, PVOID reserved)
 {
     hDLL = dll;
     switch (reason) {

@@ -34,9 +34,7 @@
 #include <kdb.h>
 #include <com_err.h>
 #include "kdb5_util.h"
-#if defined(HAVE_REGEX_H) && defined(HAVE_REGCOMP)
-#include <regex.h>
-#endif  /* HAVE_REGEX_H */
+#include "k5-regex.h"
 
 /* Needed for master key conversion. */
 static krb5_boolean mkey_convert;
@@ -46,18 +44,6 @@ krb5_kvno new_mkvno;
 #define K5Q1(x) #x
 #define K5Q(x) K5Q1(x)
 #define K5CONST_WIDTH_SCANF_STR(x) "%" K5Q(x) "s"
-
-/* Use compile(3) if no regcomp present. */
-#if !defined(HAVE_REGCOMP) && defined(HAVE_REGEXP_H)
-#define INIT char *sp = instring;
-#define GETC() (*sp++)
-#define PEEKC() (*sp)
-#define UNGETC(c) (--sp)
-#define RETURN(c) return(c)
-#define ERROR(c)
-#define RE_BUF_SIZE 1024
-#include <regexp.h>
-#endif /* !HAVE_REGCOMP && HAVE_REGEXP_H */
 
 typedef krb5_error_code (*dump_func)(krb5_context context,
                                      krb5_db_entry *entry, const char *name,
@@ -236,23 +222,15 @@ update_ok_file(krb5_context context, int fd)
 static int
 name_matches(char *name, struct dump_args *args)
 {
-#if HAVE_REGCOMP
     regex_t reg;
     regmatch_t rmatch;
     int st;
     char errmsg[BUFSIZ];
-#elif   HAVE_REGEXP_H
-    char regexp_buffer[RE_BUF_SIZE];
-#elif   HAVE_RE_COMP
-    extern char *re_comp();
-    char *re_result;
-#endif  /* HAVE_RE_COMP */
     int i, match;
 
     /* Check each regular expression in args. */
     match = args->nnames ? 0 : 1;
     for (i = 0; i < args->nnames && !match; i++) {
-#if HAVE_REGCOMP
         /* Compile the regular expression. */
         st = regcomp(&reg, args->names[i], REG_EXTENDED);
         if (st) {
@@ -274,29 +252,6 @@ name_matches(char *name, struct dump_args *args)
             break;
         }
         regfree(&reg);
-#elif HAVE_REGEXP_H
-        /* Compile the regular expression. */
-        compile(args->names[i], regexp_buffer, &regexp_buffer[RE_BUF_SIZE],
-                '\0');
-        if (step(name, regexp_buffer)) {
-            if (loc1 == name && loc2 == &name[strlen(name)])
-                match = 1;
-        }
-#elif HAVE_RE_COMP
-        /* Compile the regular expression. */
-        re_result = re_comp(args->names[i]);
-        if (re_result) {
-            fprintf(stderr, _("%s: regular expression error: %s\n"), progname,
-                    re_result);
-            break;
-        }
-        if (re_exec(name))
-            match = 1;
-#else /* HAVE_RE_COMP */
-        /* If no regular expression support, then just compare the strings. */
-        if (!strcmp(args->names[i], name))
-            match = 1;
-#endif /* HAVE_REGCOMP */
     }
     return match;
 }
@@ -695,6 +650,11 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
 
     dbentry->len = u1;
     dbentry->n_key_data = u4;
+
+    if (u5 > UINT16_MAX) {
+        load_err(fname, *linenop, _("invalid principal extra data size"));
+        goto fail;
+    }
     dbentry->e_length = u5;
 
     if (kp != NULL) {

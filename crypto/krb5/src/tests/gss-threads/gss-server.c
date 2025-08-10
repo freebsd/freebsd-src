@@ -74,7 +74,7 @@
 #endif
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "Usage: gss-server [-port port] [-verbose] [-once]");
 #ifdef _WIN32

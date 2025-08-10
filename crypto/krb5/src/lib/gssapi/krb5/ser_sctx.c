@@ -137,10 +137,8 @@ kg_oid_size(gss_OID oid, size_t *sizep)
 }
 
 static krb5_error_code
-kg_seqstate_externalize(arg, buffer, lenremain)
-    g_seqnum_state      arg;
-    krb5_octet          **buffer;
-    size_t              *lenremain;
+kg_seqstate_externalize(g_seqnum_state arg, krb5_octet **buffer,
+                        size_t *lenremain)
 {
     krb5_error_code err;
     err = krb5_ser_pack_int32(KV5M_GSS_QUEUE, buffer, lenremain);
@@ -152,10 +150,8 @@ kg_seqstate_externalize(arg, buffer, lenremain)
 }
 
 static krb5_error_code
-kg_seqstate_internalize(argp, buffer, lenremain)
-    g_seqnum_state      *argp;
-    krb5_octet          **buffer;
-    size_t              *lenremain;
+kg_seqstate_internalize(g_seqnum_state *argp, krb5_octet **buffer,
+                        size_t *lenremain)
 {
     krb5_int32 ibuf;
     krb5_octet         *bp;
@@ -193,9 +189,7 @@ kg_seqstate_internalize(argp, buffer, lenremain)
 }
 
 static krb5_error_code
-kg_seqstate_size(arg, sizep)
-    g_seqnum_state      arg;
-    size_t              *sizep;
+kg_seqstate_size(g_seqnum_state arg, size_t *sizep)
 {
     krb5_error_code kret;
     size_t required;

@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Database administration &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="database-administration">
-<h1>Database administration<a class="headerlink" href="#database-administration" title="Permalink to this headline">¶</a></h1>
+<h1>Database administration<a class="headerlink" href="#database-administration" title="Link to this heading">¶</a></h1>
 <p>A Kerberos database contains all of a realm’s Kerberos principals,
 their passwords, and other administrative information about each
 principal.  For the most part, you will use the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>
@@ -87,7 +85,7 @@ from the KDC, and uses that service ticket to authenticate to KADM5.</p>
 <p>See <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> for the available kadmin and kadmin.local
 commands and options.</p>
 <section id="principals">
-<span id="id1"></span><h2>Principals<a class="headerlink" href="#principals" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>Principals<a class="headerlink" href="#principals" title="Link to this heading">¶</a></h2>
 <p>Each entry in the Kerberos database contains a Kerberos principal and
 the attributes and policies associated with that principal.</p>
 <p>To add a principal to the database, use the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>
@@ -133,9 +131,12 @@ password policies as would apply to password changes made through
 <strong>get_principal</strong> command.</p>
 <p>To generate a listing of principals, use the kadmin
 <strong>list_principals</strong> command.</p>
+<p>To give a principal additional names, use the kadmin <strong>add_alias</strong>
+command to create aliases to the principal (new in release 1.22).
+Aliases can be removed with the <strong>delete_principal</strong> command.</p>
 </section>
 <section id="policies">
-<span id="id2"></span><h2>Policies<a class="headerlink" href="#policies" title="Permalink to this headline">¶</a></h2>
+<span id="id2"></span><h2>Policies<a class="headerlink" href="#policies" title="Link to this heading">¶</a></h2>
 <p>A policy is a set of rules governing passwords.  Policies can dictate
 minimum and maximum password lifetimes, minimum number of characters
 and character classes a password must contain, and the number of old
@@ -159,7 +160,7 @@ deleted afterwards.  kadmin will warn when associated a principal with
 a nonexistent policy, and will annotate the policy name with “[does
 not exist]” in the <strong>get_principal</strong> output.</p>
 <section id="updating-the-history-key">
-<span id="updating-history-key"></span><h3>Updating the history key<a class="headerlink" href="#updating-the-history-key" title="Permalink to this headline">¶</a></h3>
+<span id="updating-history-key"></span><h3>Updating the history key<a class="headerlink" href="#updating-the-history-key" title="Link to this heading">¶</a></h3>
 <p>If a policy specifies a number of old keys kept of two or more, the
 stored old keys are encrypted in a history key, which is found in the
 key data of the <code class="docutils literal notranslate"><span class="pre">kadmin/history</span></code> principal.</p>
@@ -179,7 +180,7 @@ rollover support for stored old keys.</p>
 </section>
 </section>
 <section id="privileges">
-<span id="id3"></span><h2>Privileges<a class="headerlink" href="#privileges" title="Permalink to this headline">¶</a></h2>
+<span id="id3"></span><h2>Privileges<a class="headerlink" href="#privileges" title="Link to this heading">¶</a></h2>
 <p>Administrative privileges for the Kerberos database are stored in the
 file <a class="reference internal" href="conf_files/kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a>.</p>
 <div class="admonition note">
@@ -194,7 +195,7 @@ only when he actually needs to use those permissions.</p>
 </div>
 </section>
 <section id="operations-on-the-kerberos-database">
-<span id="db-operations"></span><h2>Operations on the Kerberos database<a class="headerlink" href="#operations-on-the-kerberos-database" title="Permalink to this headline">¶</a></h2>
+<span id="db-operations"></span><h2>Operations on the Kerberos database<a class="headerlink" href="#operations-on-the-kerberos-database" title="Link to this heading">¶</a></h2>
 <p>The <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> command is the primary tool for administrating
 the Kerberos database when using the DB2 or LMDB modules (see
 <a class="reference internal" href="dbtypes.html#dbtypes"><span class="std std-ref">Database types</span></a>).  Creating a database is described in
@@ -218,7 +219,7 @@ OK, deleting database &#39;/var/krb5kdc/principal&#39;...
 </pre></div>
 </div>
 <section id="dumping-and-loading-a-kerberos-database">
-<span id="restore-from-dump"></span><h3>Dumping and loading a Kerberos database<a class="headerlink" href="#dumping-and-loading-a-kerberos-database" title="Permalink to this headline">¶</a></h3>
+<span id="restore-from-dump"></span><h3>Dumping and loading a Kerberos database<a class="headerlink" href="#dumping-and-loading-a-kerberos-database" title="Link to this heading">¶</a></h3>
 <p>To dump a Kerberos database into a text file for backup or transfer
 purposes, use the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> <strong>dump</strong> command on one of the
 KDCs:</p>
@@ -256,7 +257,7 @@ given, <em>kdb5_util</em> will overwrite the existing database.</p>
 </div>
 </section>
 <section id="updating-the-master-key">
-<span id="updating-master-key"></span><h3>Updating the master key<a class="headerlink" href="#updating-the-master-key" title="Permalink to this headline">¶</a></h3>
+<span id="updating-master-key"></span><h3>Updating the master key<a class="headerlink" href="#updating-the-master-key" title="Link to this heading">¶</a></h3>
 <p>Starting with release 1.7, <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> allows the master key
 to be changed using a rollover process, with minimal loss of
 availability.  To roll over the master key, follow these steps:</p>
@@ -309,7 +310,7 @@ old master key.</p></li>
 </section>
 </section>
 <section id="operations-on-the-ldap-database">
-<span id="ops-on-ldap"></span><h2>Operations on the LDAP database<a class="headerlink" href="#operations-on-the-ldap-database" title="Permalink to this headline">¶</a></h2>
+<span id="ops-on-ldap"></span><h2>Operations on the LDAP database<a class="headerlink" href="#operations-on-the-ldap-database" title="Link to this heading">¶</a></h2>
 <p>The <a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><span class="std std-ref">kdb5_ldap_util</span></a> command is the primary tool for
 administrating the Kerberos database when using the LDAP module.
 Creating an LDAP Kerberos database is describe in <a class="reference internal" href="conf_ldap.html#conf-ldap"><span class="std std-ref">Configuring Kerberos with OpenLDAP back-end</span></a>.</p>
@@ -342,7 +343,7 @@ OK, deleting database of &#39;KRBTEST.COM&#39;...
 </pre></div>
 </div>
 <section id="ticket-policy-operations">
-<h3>Ticket Policy operations<a class="headerlink" href="#ticket-policy-operations" title="Permalink to this headline">¶</a></h3>
+<h3>Ticket Policy operations<a class="headerlink" href="#ticket-policy-operations" title="Link to this heading">¶</a></h3>
 <p>Unlike the DB2 and LMDB modules, the LDAP module supports ticket
 policy objects, which can be associated with principals to restrict
 maximum ticket lifetimes and set mandatory principal flags.  Ticket
@@ -394,7 +395,7 @@ This will delete the policy object &#39;users&#39;, are you sure?
 </section>
 </section>
 <section id="cross-realm-authentication">
-<span id="xrealm-authn"></span><h2>Cross-realm authentication<a class="headerlink" href="#cross-realm-authentication" title="Permalink to this headline">¶</a></h2>
+<span id="xrealm-authn"></span><h2>Cross-realm authentication<a class="headerlink" href="#cross-realm-authentication" title="Link to this heading">¶</a></h2>
 <p>In order for a KDC in one realm to authenticate Kerberos users in a
 different realm, it must share a key with the KDC in the other realm.
 In both databases, there must be krbtgt service principals for both realms.
@@ -434,7 +435,7 @@ at least 26 characters of random ASCII text.</p>
 </div>
 </section>
 <section id="changing-the-krbtgt-key">
-<span id="changing-krbtgt-key"></span><h2>Changing the krbtgt key<a class="headerlink" href="#changing-the-krbtgt-key" title="Permalink to this headline">¶</a></h2>
+<span id="changing-krbtgt-key"></span><h2>Changing the krbtgt key<a class="headerlink" href="#changing-the-krbtgt-key" title="Link to this heading">¶</a></h2>
 <p>A Kerberos Ticket Granting Ticket (TGT) is a service ticket for the
 principal <code class="docutils literal notranslate"><span class="pre">krbtgt/REALM</span></code>.  The key for this principal is created
 when the Kerberos database is initialized and need not be changed.
@@ -476,9 +477,9 @@ krbtgt key change and the modified ticket is obtained afterwards.
 Upgrading the KDC to release 1.14 or later will correct this bug.</p>
 </section>
 <section id="incremental-database-propagation">
-<span id="incr-db-prop"></span><h2>Incremental database propagation<a class="headerlink" href="#incremental-database-propagation" title="Permalink to this headline">¶</a></h2>
+<span id="incr-db-prop"></span><h2>Incremental database propagation<a class="headerlink" href="#incremental-database-propagation" title="Link to this heading">¶</a></h2>
 <section id="overview">
-<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<h3>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h3>
 <p>At some very large sites, dumping and transmitting the database can
 take more time than is desirable for changes to propagate from the
 primary KDC to the replica KDCs.  The incremental propagation support
@@ -493,11 +494,6 @@ check.  By default, this check is done every two minutes.</p>
 <p>Incremental propagation uses the following entries in the per-realm
 data in the KDC config file (See <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>):</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 4%" />
-<col style="width: 3%" />
-<col style="width: 94%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p>iprop_enable</p></td>
 <td><p><em>boolean</em></p></td>
@@ -566,7 +562,7 @@ both directions, without an intervening NAT.</p></li>
 </ul>
 </section>
 <section id="sun-mit-incremental-propagation-differences">
-<h3>Sun/MIT incremental propagation differences<a class="headerlink" href="#sun-mit-incremental-propagation-differences" title="Permalink to this headline">¶</a></h3>
+<h3>Sun/MIT incremental propagation differences<a class="headerlink" href="#sun-mit-incremental-propagation-differences" title="Link to this heading">¶</a></h3>
 <p>Sun donated the original code for supporting incremental database
 propagation to MIT.  Some changes have been made in the MIT source
 tree that will be visible to administrators.  (These notes are based
@@ -686,8 +682,8 @@ config file, and the per-replica dump files are stored in
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

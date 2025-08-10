@@ -164,7 +164,7 @@ struct test {
 };
 
 int
-main()
+main(void)
 {
     size_t i, j;
     enum width w;

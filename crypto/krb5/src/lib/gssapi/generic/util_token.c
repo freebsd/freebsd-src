@@ -62,47 +62,56 @@ g_make_token_header(struct k5buf *buf, const gss_OID_desc *mech,
 }
 
 /*
- * Given a buffer containing a token, reads and verifies the token,
- * leaving buf advanced past the token header, and setting body_size
- * to the number of remaining bytes.  Returns 0 on success,
- * G_BAD_TOK_HEADER for a variety of errors, and G_WRONG_MECH if the
- * mechanism in the token does not match the mech argument.  buf and
- * *body_size are left unmodified on error.
+ * If a valid GSSAPI generic token header is present at the beginning of *in,
+ * advance past it, set *oid_out to the mechanism OID in the header, set
+ * *token_len_out to the total token length (including the header) as indicated
+ * by length of the outermost DER value, and return true.  Otherwise return
+ * false, leaving *in unchanged if it did not begin with a 0x60 byte.
+ *
+ * Do not verify that the outermost length matches or fits within in->len, as
+ * we need to be able to handle a detached header for krb5 IOV unwrap.  It is
+ * the caller's responsibility to validate *token_len_out if necessary.
  */
-
-gss_int32
-g_verify_token_header(
-    const gss_OID_desc * mech,
-    unsigned int *body_size,
-    unsigned char **buf_in,
-    int tok_type,
-    unsigned int toksize_in,
-    int flags)
+int
+g_get_token_header(struct k5input *in, gss_OID oid_out, size_t *token_len_out)
 {
-    struct k5input in, mech_der;
-    gss_OID_desc toid;
+    size_t len, tlen;
+    const uint8_t *orig_ptr = in->ptr;
+    struct k5input oidbytes;
 
-    k5_input_init(&in, *buf_in, toksize_in);
+    /* Read the outermost tag and length, and compute the full token length. */
+    if (!k5_der_get_taglen(in, 0x60, &len))
+        return 0;
+    tlen = len + (in->ptr - orig_ptr);
 
-    if (k5_der_get_value(&in, 0x60, &in)) {
-        if (in.ptr + in.len != *buf_in + toksize_in)
-            return G_BAD_TOK_HEADER;
-        if (!k5_der_get_value(&in, 0x06, &mech_der))
-            return G_BAD_TOK_HEADER;
-        toid.elements = (uint8_t *)mech_der.ptr;
-        toid.length = mech_der.len;
-        if (!g_OID_equal(&toid, mech))
-            return G_WRONG_MECH;
-    } else if (flags & G_VFY_TOKEN_HDR_WRAPPER_REQUIRED) {
-        return G_BAD_TOK_HEADER;
+    /* Read the mechanism OID. */
+    if (!k5_der_get_value(in, 0x06, &oidbytes))
+        return 0;
+    oid_out->length = oidbytes.len;
+    oid_out->elements = (uint8_t *)oidbytes.ptr;
+
+    *token_len_out = tlen;
+    return 1;
+}
+
+/*
+ * If a token header for expected_mech is present in *in and the token length
+ * indicated by the header is equal to in->len, advance past the header and
+ * return true.  Otherwise return false.  Leave *in unmodified if no token
+ * header is present or it is for a different mechanism.
+ */
+int
+g_verify_token_header(struct k5input *in, gss_const_OID expected_mech)
+{
+    struct k5input orig = *in;
+    gss_OID_desc mech;
+    size_t tlen, orig_len = in->len;
+
+    if (!g_get_token_header(in, &mech, &tlen) || tlen != orig_len)
+        return 0;
+    if (!g_OID_equal(&mech, expected_mech)) {
+        *in = orig;
+        return 0;
     }
-
-    if (tok_type != -1) {
-        if (k5_input_get_uint16_be(&in) != tok_type)
-            return in.status ? G_BAD_TOK_HEADER : G_WRONG_TOKID;
-    }
-
-    *buf_in = (uint8_t *)in.ptr;
-    *body_size = in.len;
-    return 0;
+    return 1;
 }

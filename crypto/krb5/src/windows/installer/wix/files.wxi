@@ -80,9 +80,6 @@
 		    	<Condition>KRB5PRESERVEIDENTITY</Condition>
 		    </Component>
                 
-                    <Component Id="cmf_comerr32_dll" Guid="$(var.cmf_comerr32_dll_guid)" DiskId="1">
-	                    <File Id="fil_comerr32_dll" Name="$(var.cmf_comerr32_dll_name)" KeyPath="yes" />
-                    </Component>
                     <Component Id="cmf_gss_client_exe" Guid="$(var.cmf_gss_client_exe_guid)" DiskId="1">
 	                    <File Id="fil_gss_client_exe" Name="gss-client.exe" KeyPath="yes" />
 	                    <RegistryKey Id="reg_ts_gss_client_0" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\gss-client" Action="createAndRemoveOnUninstall" />
@@ -92,9 +89,6 @@
 	                    <File Id="fil_gss_server_exe" Name="gss-server.exe" KeyPath="yes" />
 	                    <RegistryKey Id="reg_ts_gss_server_0" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\gss-server" Action="createAndRemoveOnUninstall" />
 	                    <RegistryValue Id="reg_ts_gss_server_1" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\gss-server" Name="Flags" Type="integer" Value="1032" />
-                    </Component>
-                    <Component Id="cmf_gssapi32_dll" Guid="$(var.cmf_gssapi32_dll_guid)" DiskId="1">
-	                    <File Id="fil_gssapi32_dll" Name="$(var.cmf_gssapi32_dll_name)" KeyPath="yes" />
                     </Component>
                     <Component Id="cmf_kdestroy_exe" Guid="$(var.cmf_kdestroy_exe_guid)" DiskId="1">
 	                    <File Id="fil_kdestroy_exe" Name="kdestroy.exe" KeyPath="yes" />
@@ -136,29 +130,6 @@
 	                    <RegistryKey Id="reg_ts_kvno_0" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\kvno" Action="createAndRemoveOnUninstall" />
 	                    <RegistryValue Id="reg_ts_kvno_1" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\kvno" Name="Flags" Type="integer" Value="1032" />
                     </Component>
-                    <Component Id="cmf_krb5_32_dll" Guid="$(var.cmf_krb5_32_dll_guid)" DiskId="1">
-	                    <File Id="fil_krb5_32_dll" Name="$(var.cmf_krb5_32_dll_name)" KeyPath="yes" />
-	                    <Environment Id="env_kclient_path" Action="set" Name="PATH" Part="last" System="yes" Value="[KERBEROSDIR]bin" />
-	                    <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Domains\ATHENA.MIT.EDU">
-	                      <RegistryValue Name="KdcNames" Type="multiString">
-	                        <MultiStringValue>kerberos.mit.edu</MultiStringValue>
-	                        <MultiStringValue>kerberos-1.mit.edu</MultiStringValue>
-	                        <MultiStringValue>kerberos-2.mit.edu</MultiStringValue>
-	                      </RegistryValue>
-	                    </RegistryKey>
-	                    <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Domains\CSAIL.MIT.EDU">
-	                      <RegistryValue Name="KdcNames" Type="multiString">
-	                        <MultiStringValue>kerberos-1.csail.mit.edu</MultiStringValue>
-	                        <MultiStringValue>kerberos-2.csail.mit.edu</MultiStringValue>
-	                      </RegistryValue>
-	                    </RegistryKey>
-                    </Component>
-                    <Component Id="cmf_k5sprt32_dll" Guid="$(var.cmf_k5sprt32_dll_guid)" DiskId="1">
-	                    <File Id="fil_k5sprt32_dll" Name="$(var.cmf_k5sprt32_dll_name)" />
-                    </Component>
-                    <Component Id="cmf_krbcc32_dll" Guid="$(var.cmf_krbcc32_dll_guid)" DiskId="1">
-	                    <File Id="fil_krbcc32_dll" Name="$(var.cmf_krbcc32_dll_name)" KeyPath="yes" />
-                    </Component>
                     <Component Id="cmf_ccapiserver_exe" Guid="$(var.cmf_ccapiserver_exe_guid)" DiskId="1">
 	                    <File Id="fil_ccapiserver_exe" Name="$(var.cmf_ccapiserver_exe_name)" KeyPath="yes" />
 	                    <RegistryKey Id="reg_ts_krbcc32s_0" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\ccapiserver" Action="createAndRemoveOnUninstall" />
@@ -192,10 +163,6 @@
 
                     <Component Id="cmf_leash32_chm" Guid="$(var.cmf_leash32_chm_guid)" DiskId="1">
 	                    <File Id="fil_leash32_chm" Name="MIT Kerberos.chm" KeyPath="yes" />
-                    </Component>
-                    
-                    <Component Id="cmf_leashw32_dll" Guid="$(var.cmf_leashw32_dll_guid)" DiskId="1">
-	                    <File Id="fil_leashw32_dll" Name="$(var.cmf_leashw32_dll_name)" KeyPath="yes" />
                     </Component>
                     
                     <!-- Leash DLL configuration -->
@@ -270,53 +237,55 @@
 	                    <RegistryKey Id="reg_ts_mit2ms_0" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\mit2ms" Action="createAndRemoveOnUninstall" />
 	                    <RegistryValue Id="reg_ts_mit2ms_1" Root="HKLM" Key="Software\Microsoft\Windows NT\CurrentVersion\Terminal Server\Compatibility\Applications\mit2ms" Name="Flags" Type="integer" Value="1032" />
                     </Component>
-                    <Component Id="cmf_xpprof32_dll" Guid="$(var.cmf_xpprof32_dll_guid)" DiskId="1">
-	                    <File Id="fil_xpprof32_dll" Name="$(var.cmf_xpprof32_dll_name)" KeyPath="yes" />
-                    </Component>
-                  <?if $(sys.BUILDARCH) = "x64"?>
-                    <Component Id="cmf_krb5_64_dll" Guid="$(var.cmf_krb5_64_dll_guid)" DiskId="1">
-                      <File Id="fil_krb5_64_dll" Name="$(var.cmf_krb5_64_dll_name)" KeyPath="yes" />
-                    </Component>
-                    <Component Id="cmf_k5sprt64_dll" Guid="$(var.cmf_k5sprt64_dll_guid)" DiskId="1">
-                      <File Id="fil_k5sprt64_dll" Name="$(var.cmf_k5sprt64_dll_name)" />
-                    </Component>
-                    <Component Id="cmf_krbcc64_dll" Guid="$(var.cmf_krbcc64_dll_guid)" DiskId="1">
-                      <File Id="fil_krbcc64_dll" Name="$(var.cmf_krbcc64_dll_name)" KeyPath="yes" />
-                    </Component>
-                    <Component Id="cmf_gssapi64_dll" Guid="$(var.cmf_gssapi64_dll_guid)" DiskId="1">
-                      <File Id="fil_gssapi64_dll" Name="$(var.cmf_gssapi64_dll_name)" KeyPath="yes" />
-                    </Component>
-                    <Component Id="cmf_comerr64_dll" Guid="$(var.cmf_comerr64_dll_guid)" DiskId="1">
-                      <File Id="fil_comerr64_dll" Name="$(var.cmf_comerr64_dll_name)" KeyPath="yes" />
-                    </Component>
-                    <Component Id="cmf_leashw64_dll" Guid="$(var.cmf_leashw64_dll_guid)" DiskId="1">
-                      <File Id="fil_leashw64_dll" Name="$(var.cmf_leashw64_dll_name)" KeyPath="yes" />
-                    </Component>
-                    <Component Id="cmf_xpprof64_dll" Guid="$(var.cmf_xpprof64_dll_guid)" DiskId="1">
-                      <File Id="fil_xpprof64_dll" Name="$(var.cmf_xpprof64_dll_name)" KeyPath="yes" />
-                    </Component>
-                  <?endif?>
+                  <Component Id="cmf_krb5_64_dll" Guid="$(var.cmf_krb5_64_dll_guid)" DiskId="1">
+                    <File Id="fil_krb5_64_dll" Name="$(var.cmf_krb5_64_dll_name)" KeyPath="yes" />
+	            <Environment Id="env_kclient_path" Action="set" Name="PATH" Part="last" System="yes" Value="[KERBEROSDIR]bin" />
+	            <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Domains\ATHENA.MIT.EDU">
+	              <RegistryValue Name="KdcNames" Type="multiString">
+	                <MultiStringValue>kerberos.mit.edu</MultiStringValue>
+	                <MultiStringValue>kerberos-1.mit.edu</MultiStringValue>
+	                <MultiStringValue>kerberos-2.mit.edu</MultiStringValue>
+	              </RegistryValue>
+	            </RegistryKey>
+	            <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Domains\CSAIL.MIT.EDU">
+	              <RegistryValue Name="KdcNames" Type="multiString">
+	                <MultiStringValue>kerberos-1.csail.mit.edu</MultiStringValue>
+	                <MultiStringValue>kerberos-2.csail.mit.edu</MultiStringValue>
+	              </RegistryValue>
+	            </RegistryKey>
+                  </Component>
+                  <Component Id="cmf_k5sprt64_dll" Guid="$(var.cmf_k5sprt64_dll_guid)" DiskId="1">
+                    <File Id="fil_k5sprt64_dll" Name="$(var.cmf_k5sprt64_dll_name)" />
+                  </Component>
+                  <Component Id="cmf_krbcc64_dll" Guid="$(var.cmf_krbcc64_dll_guid)" DiskId="1">
+                    <File Id="fil_krbcc64_dll" Name="$(var.cmf_krbcc64_dll_name)" KeyPath="yes" />
+                  </Component>
+                  <Component Id="cmf_gssapi64_dll" Guid="$(var.cmf_gssapi64_dll_guid)" DiskId="1">
+                    <File Id="fil_gssapi64_dll" Name="$(var.cmf_gssapi64_dll_name)" KeyPath="yes" />
+                  </Component>
+                  <Component Id="cmf_comerr64_dll" Guid="$(var.cmf_comerr64_dll_guid)" DiskId="1">
+                    <File Id="fil_comerr64_dll" Name="$(var.cmf_comerr64_dll_name)" KeyPath="yes" />
+                  </Component>
+                  <Component Id="cmf_leashw64_dll" Guid="$(var.cmf_leashw64_dll_guid)" DiskId="1">
+                    <File Id="fil_leashw64_dll" Name="$(var.cmf_leashw64_dll_name)" KeyPath="yes" />
+                  </Component>
+                  <Component Id="cmf_xpprof64_dll" Guid="$(var.cmf_xpprof64_dll_guid)" DiskId="1">
+                    <File Id="fil_xpprof64_dll" Name="$(var.cmf_xpprof64_dll_name)" KeyPath="yes" />
+                  </Component>
+                  <Component Id="cmf_openssl_crypto64_dll" Guid="$(var.cmf_openssl_crypto64_dll)" DiskId="1">
+                    <File Id="fil_openssl_crypto64_dll" Name="$(var.cmf_openssl_crypto64_dll_name)" Source="$(var.OpenSSLDir)\libcrypto-$(var.OpenSSLVer)-x64.dll" KeyPath="yes" />
+                  </Component>
 
                   <!-- Debug symbols -->
                 <?ifdef DebugSyms?>
                     <Component Id="cmf_bin_debug" Guid="$(var.cmf_bin_debug_guid)" DiskId="1">
-                        <?if $(sys.BUILDARCH) = "x86" ?>
-	                    <File Id="fil_comerr32_pdb" Name="comerr32.pdb" />
-	                    <File Id="fil_gssapi32_pdb" Name="gssapi32.pdb" />
-	                    <File Id="fil_krb5_32_pdb" Name="krb5_32.pdb" KeyPath="yes" />
-	                    <File Id="fil_k5sprt32_pdb" Name="k5sprt32.pdb" />
-	                    <File Id="fil_krbcc32_pdb" Name="krbcc32.pdb" />
-	                    <File Id="fil_leashw32_pdb" Name="leashw32.pdb" />
-	                    <File Id="fil_xpprof32_pdb" Name="xpprof32.pdb" />
-                        <?else?>
-	                    <File Id="fil_comerr64_pdb" Name="comerr64.pdb" />
-	                    <File Id="fil_gssapi64_pdb" Name="gssapi64.pdb" />
-	                    <File Id="fil_krb5_64_pdb" Name="krb5_64.pdb" KeyPath="yes" />
-	                    <File Id="fil_k5sprt64_pdb" Name="k5sprt64.pdb" />
-	                    <File Id="fil_krbcc64_pdb" Name="krbcc64.pdb" />
-	                    <File Id="fil_leashw64_pdb" Name="leashw64.pdb" />
-	                    <File Id="fil_xpprof64_pdb" Name="xpprof64.pdb" />
-                        <?endif?>
+	              <File Id="fil_comerr64_pdb" Name="comerr64.pdb" />
+	              <File Id="fil_gssapi64_pdb" Name="gssapi64.pdb" />
+	              <File Id="fil_krb5_64_pdb" Name="krb5_64.pdb" KeyPath="yes" />
+	              <File Id="fil_k5sprt64_pdb" Name="k5sprt64.pdb" />
+	              <File Id="fil_krbcc64_pdb" Name="krbcc64.pdb" />
+	              <File Id="fil_leashw64_pdb" Name="leashw64.pdb" />
+	              <File Id="fil_xpprof64_pdb" Name="xpprof64.pdb" />
                       <File Id="fil_leash_pdb" Name="leash.pdb" />
                       <File Id="fil_ccapiserver_pdb" Name="ccapiserver.pdb" />
                       <File Id="fil_gss_client_pdb" Name="gss-client.pdb" />
@@ -336,21 +305,16 @@
 
                   <Directory Id="dirplugins" Name="plugins">
                     <Directory Id="dirpreauth" Name="preauth" FileSource="$(var.PreauthDir)">
-                      <Component Id="cmf_spake32_dll" Guid="$(var.cmf_spake32_dll_guid)" DiskId="1">
-                        <File Id="fil_spake32_dll" Name="$(var.cmf_spake32_dll_name)" KeyPath="yes" />
+                      <Component Id="cmf_spake64_dll" Guid="$(var.cmf_spake64_dll_guid)" DiskId="1">
+                        <File Id="fil_spake64_dll" Name="$(var.cmf_spake64_dll_name)" KeyPath="yes" />
                       </Component>
-                      <?if $(sys.BUILDARCH) = "x64"?>
-                        <Component Id="cmf_spake64_dll" Guid="$(var.cmf_spake64_dll_guid)" DiskId="1">
-                          <File Id="fil_spake64_dll" Name="$(var.cmf_spake64_dll_name)" KeyPath="yes" />
-                        </Component>
-                      <?endif?>
+                      <Component Id="cmf_pkinit64_dll" Guid="$(var.cmf_pkinit64_dll_guid)" DiskId="1">
+                        <File Id="fil_pkinit64_dll" Name="$(var.cmf_pkinit64_dll_name)" KeyPath="yes" />
+                      </Component>
                       <?ifdef DebugSyms?>
                         <Component Id="cmf_preauth_debug" Guid="$(var.cmf_preauth_debug_guid)" DiskId="1">
-                          <?if $(sys.BUILDARCH) = "x86" ?>
-                            <File Id="fil_spake32_pdb" Name="spake32.pdb" />
-                          <?else?>
-                            <File Id="fil_spake32_pdb" Name="spake64.pdb" />
-                          <?endif?>
+                          <File Id="fil_pkinit64_pdb" Name="pkinit64.pdb" />
+                          <File Id="fil_spake64_pdb" Name="spake64.pdb" />
                         </Component>
                       <?endif?>
                     </Directory> <!-- /preauth -->
@@ -401,19 +365,6 @@
                 </Directory>
                 
                 <Directory Id="dirlib" Name="lib" FileSource="$(var.LibDir)">
-                   <?if $(sys.BUILDARCH) = "x86" ?>
-                    <Directory Id="dirlib_i386" Name="i386" FileSource="$(var.LibDir)">
-                        <Component Id="cmp_dirlib_i386" Guid="CFEE3ED4-92D4-49e1-BB78-8BCBC60C3E57" DiskId="1">
-                            <File Id="fil_comerr32_lib" Name="comerr32.lib" />
-                            <File Id="fil_gssapi32_lib" Name="gssapi32.lib" />
-                            <File Id="fil_krb5_32_lib" Name="krb5_32.lib" KeyPath="yes" />
-                            <File Id="fil_krbcc32_lib" Name="krbcc32.lib" />
-                            <File Id="fil_leashw32_lib" Name="leashw32.lib" />
-                            <File Id="fil_xpprof32_lib" Name="xpprof32.lib" />
-                        </Component>
-                    </Directory>
-                    <?endif?>
-                    <?if $(sys.BUILDARCH) = "x64" ?>
                     <Directory Id="dirlib_amd64" Name="amd64" FileSource="$(var.LibDir)">
                         <Component Id="cmp_dirlib_amd64" Guid="F9A54201-FFD6-4a45-B021-276D9F6C40A2" DiskId="1">
                             <File Id="fil_comerr64_lib" Name="comerr64.lib" />
@@ -424,7 +375,6 @@
                             <File Id="fil_xpprof64_lib" Name="xpprof64.lib" />
                         </Component>
                     </Directory>
-                    <?endif?>
                 </Directory>
             </Directory> <!-- /Kerberos -->
         </Directory> <!-- /MIT -->
@@ -459,20 +409,6 @@
     <?else?>
         <RemoveRegistryKey Id="reg_common7" Root="HKLM" Key="$(var.KfwRegRoot)\CurrentVersion" Action="removeOnInstall"/>
         <RemoveRegistryKey Id="reg_common8" Root="HKLM" Key="$(var.KfwRegRoot)\$(var.VersionString)" Action="removeOnInstall"/>
-    <?endif?>
-    <?if $(sys.BUILDARCH) = "x64"?>
-        <RegistryKey Id="reg_common0_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)" Action="createAndRemoveOnUninstall" />
-        <!-- Cannot set KeyPath twice in one Component -->
-        <RegistryValue Id="reg_common2_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)" Name="InstallDir" Type="string" Value="[KERBEROSDIR]"/>
-    <?ifdef Debug?>
-        <RegistryKey Id="reg_common3_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)\CurrentVersion" Action="createAndRemoveOnUninstall"/>
-        <RegistryValue Id="reg_common4_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)\CurrentVersion" Name="Debug" Type="integer" Value="1"/>
-        <RegistryKey Id="reg_common5_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)\$(var.VersionString)" Action="createAndRemoveOnUninstall"/>
-        <RegistryValue Id="reg_common6_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)\$(var.VersionString)" Name="Debug" Type="integer" Value="1"/>
-    <?else?>
-        <RemoveRegistryKey Id="reg_common7_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)\CurrentVersion" Action="removeOnInstall"/>
-        <RemoveRegistryKey Id="reg_common8_32" Root="HKLM" Key="$(var.KfwRegWow6432Root)\$(var.VersionString)" Action="removeOnInstall"/>
-    <?endif?>
     <?endif?>
     </Component>
     
@@ -554,38 +490,16 @@
       <?ifdef env.VCToolsRedistDir?>
         <?define MM="$(env.VCToolsRedistDir)MergeModules"?>
       <?else?>
-        <?ifdef (env.CommonProgramFiles6432)?>
-          <?define MM="$(env.CommonProgramFiles(x86)/Merge Modules"?>
-        <?else?>
-          <?define MM="$(env.CommonProgramFiles)/Merge Modules"?>
-	<?endif?>
+        <?define MM="$(env.CommonProgramFiles)/Merge Modules"?>
       <?endif?>
-      <?if $(sys.BUILDARCH) = "x64" ?>
-        <?ifndef Debug?>
-          <Merge Id="MSVCRT$(var.VCVer)MEM64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_CRT_x64.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFC64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFC_x64.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFL64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x64.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MEM86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_CRT_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFC86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFC_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFL86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x86.msm"/>
-        <?else?>
-          <Merge Id="MSVCRT$(var.VCVer)MEM64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugCRT_x64.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFC64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugMFC_x64.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFL64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x64.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MEM86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugCRT_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFC86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugMFC_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFL86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x86.msm"/>
-        <?endif?>
+      <?ifndef Debug?>
+        <Merge Id="MSVCRT$(var.VCVer)MEM64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_CRT_x64.msm"/>
+        <Merge Id="MSVCRT$(var.VCVer)MFC64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFC_x64.msm"/>
+        <Merge Id="MSVCRT$(var.VCVer)MFL64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x64.msm"/>
       <?else?>
-        <?ifndef Debug?>
-          <Merge Id="MSVCRT$(var.VCVer)MEM86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_CRT_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFC86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFC_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFL86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x86.msm"/>
-        <?else?>
-          <Merge Id="MSVCRT$(var.VCVer)MEM86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugCRT_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFC86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugMFC_x86.msm"/>
-          <Merge Id="MSVCRT$(var.VCVer)MFL86" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x86.msm"/>
-        <?endif?>
+        <Merge Id="MSVCRT$(var.VCVer)MEM64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugCRT_x64.msm"/>
+        <Merge Id="MSVCRT$(var.VCVer)MFC64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_DebugMFC_x64.msm"/>
+        <Merge Id="MSVCRT$(var.VCVer)MFL64" DiskId="1" Language="0" SourceFile="$(var.MM)\Microsoft_VC$(var.VCVer)_MFCLOC_x64.msm"/>
       <?endif?>
     <?endif?>
 

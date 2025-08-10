@@ -176,29 +176,37 @@ kau_make_tkt_id(krb5_context context,
  */
 krb5_error_code
 kau_init_kdc_req(krb5_context context,
-                 krb5_kdc_req *request, const krb5_fulladdr *from,
+                 krb5_kdc_req *request, const struct sockaddr *from,
                  krb5_audit_state **state_out)
 {
     krb5_error_code ret = 0;
     krb5_audit_state *state = NULL;
+    krb5_address addr;
+    const krb5_address unknown_addr = { KV5M_ADDRESS, 0, 0, NULL };
 
     state = k5calloc(1, sizeof(*state), &ret);
     if (state == NULL)
         return ret;
 
+    ret = k5_sockaddr_to_address(from, TRUE, &addr);
+    if (ret)
+        addr = unknown_addr;
+    ret = krb5_copy_addr(context, &addr, &state->cl_addr);
+    if (ret)
+        goto cleanup;
     state->request = request;
-    state->cl_addr = from->address;
-    state->cl_port = from->port;
+    state->cl_port = sa_getport(from);
     state->stage = AUTHN_REQ_CL;
     ret = krb5int_random_string(context, state->req_id,
                                 sizeof(state->req_id));
-    if (ret) {
-        free(state);
-        return ret;
-    }
+    if (ret)
+        goto cleanup;
     *state_out = state;
+    state = NULL;
 
-    return 0;
+cleanup:
+    kau_free_kdc_req(state);
+    return ret;
 }
 
 /* Free resources allocated by kau_init_kdc_req() and kau_make_tkt_id()
@@ -211,6 +219,7 @@ kau_free_kdc_req(krb5_audit_state *state)
     free(state->tkt_in_id);
     free(state->tkt_out_id);
     free(state->evid_tkt_id);
+    krb5_free_address(NULL, state->cl_addr);
     free(state);
 }
 

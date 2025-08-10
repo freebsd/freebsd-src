@@ -145,7 +145,8 @@ configure_context(krb5_context context, const char *conf_section,
     char *pval = NULL;
     const char *path = NULL;
     profile_t profile = context->profile;
-    int i, bval, ival;
+    size_t i;
+    int bval, ival;
 
     dbc = k5alloc(sizeof(*dbc), &ret);
     if (dbc == NULL)
@@ -468,13 +469,13 @@ error:
 }
 
 static krb5_error_code
-klmdb_lib_init()
+klmdb_lib_init(void)
 {
     return 0;
 }
 
 static krb5_error_code
-klmdb_lib_cleanup()
+klmdb_lib_cleanup(void)
 {
     return 0;
 }

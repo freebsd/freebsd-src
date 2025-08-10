@@ -1,0 +1,52 @@
+krb5_get_default_config_files -  Return a list of default configuration filenames. 
+===================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_default_config_files(char *** filenames)
+
+..
+
+
+:param:
+
+	          **[out]** **filenames** - Configuration filename list
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Fill in *filenames* with a null-terminated list of configuration files which will be read by krb5_init_context() in the current process environment.
+
+
+
+Use krb5_free_config_files() to free *filenames* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.22
+ 
+

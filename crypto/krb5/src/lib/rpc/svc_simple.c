@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)svc_simple.c 1.18 87/08/11 Copyr 1984 Sun Micro";
 #include <netdb.h>
 
 static struct proglst {
-	char *(*p_progname)();
+	char *(*p_progname)(void *);
 	int  p_prognum;
 	int  p_procnum;
 	xdrproc_t p_inproc, p_outproc;
@@ -62,7 +62,7 @@ registerrpc(
 	rpcprog_t prognum,
 	rpcvers_t versnum,
 	rpcproc_t procnum,
-	char *(*progname)(),
+	char *(*progname)(void *),
 	xdrproc_t inproc,
 	xdrproc_t outproc)
 {

@@ -37,14 +37,14 @@ static char plain[16], cipher[16], zero[16];
 
 static krb5_keyblock enc_key;
 static krb5_data ivec;
-static void init()
+static void init(void)
 {
     enc_key.contents = (krb5_octet *)key;
     enc_key.length = 16;
     ivec.data = zero;
     ivec.length = 16;
 }
-static void enc()
+static void enc(void)
 {
     krb5_key k;
     krb5_crypto_iov iov;
@@ -93,7 +93,7 @@ static void vk_test_1(int len, krb5_enctype etype)
     }
     printf("\n==========\n");
 }
-static void vk_test()
+static void vk_test(void)
 {
     vk_test_1(16, ENCTYPE_AES128_CTS_HMAC_SHA1_96);
     vk_test_1(32, ENCTYPE_AES256_CTS_HMAC_SHA1_96);
@@ -119,7 +119,7 @@ static void vt_test_1(int len, krb5_enctype etype)
     }
     printf("\n==========\n");
 }
-static void vt_test()
+static void vt_test(void)
 {
     vt_test_1(16, ENCTYPE_AES128_CTS_HMAC_SHA1_96);
     vt_test_1(32, ENCTYPE_AES256_CTS_HMAC_SHA1_96);

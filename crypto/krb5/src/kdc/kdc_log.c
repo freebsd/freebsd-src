@@ -55,25 +55,21 @@
 /* Currently no info about name canonicalization is logged.  */
 void
 log_as_req(krb5_context context,
-           const krb5_fulladdr *local_addr,
-           const krb5_fulladdr *remote_addr,
+           const struct sockaddr *local_addr,
+           const struct sockaddr *remote_addr,
            krb5_kdc_req *request, krb5_kdc_rep *reply,
            krb5_db_entry *client, const char *cname,
            krb5_db_entry *server, const char *sname,
            krb5_timestamp authtime,
            const char *status, krb5_error_code errcode, const char *emsg)
 {
-    const char *fromstring = 0;
-    char fromstringbuf[70];
+    char fromstring[128];
     char *ktypestr = NULL;
     const char *cname2 = cname ? cname : "<unknown client>";
     const char *sname2 = sname ? sname : "<unknown server>";
+    krb5_address laddr = { 0 }, raddr = { 0 };
 
-    fromstring = inet_ntop(ADDRTYPE2FAMILY(remote_addr->address->addrtype),
-                           remote_addr->address->contents,
-                           fromstringbuf, sizeof(fromstringbuf));
-    if (!fromstring)
-        fromstring = "<unknown>";
+    k5_print_addr(remote_addr, fromstring, sizeof(fromstring));
 
     ktypestr = ktypes2str(request->ktype, request->nktypes);
 
@@ -92,9 +88,10 @@ log_as_req(krb5_context context,
                          ktypestr ? ktypestr : "", fromstring, status, cname2,
                          sname2, emsg ? ", " : "", emsg ? emsg : "");
     }
-    krb5_db_audit_as_req(context, request,
-                         local_addr->address, remote_addr->address,
-                         client, server, authtime, errcode);
+    (void)k5_sockaddr_to_address(local_addr, TRUE, &laddr);
+    (void)k5_sockaddr_to_address(remote_addr, TRUE, &raddr);
+    krb5_db_audit_as_req(context, request, &laddr, &raddr, client, server,
+                         authtime, errcode);
 
     free(ktypestr);
 }
@@ -117,7 +114,7 @@ unparse_and_limit(krb5_context ctx, krb5_principal princ, char **str)
 
    Currently no info about name canonicalization is logged.  */
 void
-log_tgs_req(krb5_context ctx, const krb5_fulladdr *from,
+log_tgs_req(krb5_context ctx, const struct sockaddr *from,
             krb5_kdc_req *request, krb5_kdc_rep *reply,
             krb5_principal cprinc, krb5_principal sprinc,
             krb5_principal altcprinc,
@@ -126,16 +123,11 @@ log_tgs_req(krb5_context ctx, const krb5_fulladdr *from,
             const char *status, krb5_error_code errcode, const char *emsg)
 {
     char *ktypestr = NULL, *rep_etypestr = NULL;
-    const char *fromstring = 0;
-    char fromstringbuf[70];
+    char fromstring[128];
     char *cname = NULL, *sname = NULL, *altcname = NULL;
     char *logcname = NULL, *logsname = NULL, *logaltcname = NULL;
 
-    fromstring = inet_ntop(ADDRTYPE2FAMILY(from->address->addrtype),
-                           from->address->contents,
-                           fromstringbuf, sizeof(fromstringbuf));
-    if (!fromstring)
-        fromstring = "<unknown>";
+    k5_print_addr(from, fromstring, sizeof(fromstring));
 
     unparse_and_limit(ctx, cprinc, &cname);
     logcname = (cname != NULL) ? cname : "<unknown client>";

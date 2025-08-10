@@ -29,46 +29,39 @@
 #include "ksu.h"
 
 
-void plain_dump_principal ();
+void plain_dump_principal(krb5_context, krb5_principal);
 
-krb5_boolean krb5_auth_check(context, client_pname, hostname, options,
-                             target_user, cc, path_passwd, target_uid)
-    krb5_context context;
-    krb5_principal client_pname;
-    char *hostname;
-    krb5_get_init_creds_opt *options;
-    char *target_user;
-    uid_t target_uid;
-    krb5_ccache cc;
-    int *path_passwd;
+krb5_boolean
+krb5_auth_check(krb5_context context, krb5_principal client_pname,
+                char *hostname, krb5_get_init_creds_opt *options,
+                char *target_user, krb5_ccache cc, int *path_passwd,
+                uid_t target_uid)
 {
-    krb5_principal client;
+    krb5_principal client = NULL;
     krb5_verify_init_creds_opt vfy_opts;
-    krb5_creds tgt, tgtq;
+    krb5_creds tgt = { 0 }, tgtq = { 0 };
     krb5_error_code retval =0;
     int got_it = 0;
     krb5_boolean zero_password;
+    krb5_boolean ok = FALSE;
 
     *path_passwd = 0;
-    memset(&tgtq, 0, sizeof(tgtq));
-    memset(&tgt, 0, sizeof(tgt));
 
     if ((retval= krb5_copy_principal(context,  client_pname, &client))){
         com_err(prog_name, retval, _("while copying client principal"));
-        return (FALSE) ;
+        goto cleanup;
     }
 
     if ((retval= krb5_copy_principal(context,  client, &tgtq.client))){
         com_err(prog_name, retval, _("while copying client principal"));
-        return (FALSE) ;
+        goto cleanup;
     }
 
     if ((retval = ksu_tgtname(context,  krb5_princ_realm(context, client),
                               krb5_princ_realm(context, client),
                               &tgtq.server))){
         com_err(prog_name, retval, _("while creating tgt for local realm"));
-        krb5_free_principal(context, client);
-        return (FALSE) ;
+        goto cleanup;
     }
 
     if (auth_debug){ dump_principal(context, "local tgt principal name", tgtq.server ); }
@@ -82,7 +75,7 @@ krb5_boolean krb5_auth_check(context, client_pname, hostname, options,
         if ((retval != KRB5_CC_NOTFOUND) &&
             (retval != KRB5KRB_AP_ERR_TKT_EXPIRED)){
             com_err(prog_name, retval, _("while retrieving creds from cache"));
-            return (FALSE) ;
+            goto cleanup;
         }
     } else{
         got_it = 1;
@@ -93,7 +86,7 @@ krb5_boolean krb5_auth_check(context, client_pname, hostname, options,
 #ifdef GET_TGT_VIA_PASSWD
         if (krb5_seteuid(0)||krb5_seteuid(target_uid)) {
             com_err("ksu", errno, _("while switching to target uid"));
-            return FALSE;
+            goto cleanup;
         }
 
 
@@ -107,19 +100,19 @@ krb5_boolean krb5_auth_check(context, client_pname, hostname, options,
                                    &tgt) == FALSE) {
             krb5_seteuid(0);
 
-            return FALSE;
+            goto cleanup;
         }
         *path_passwd = 1;
         if (krb5_seteuid(0)) {
             com_err("ksu", errno, _("while reclaiming root uid"));
-            return FALSE;
+            goto cleanup;
         }
 
 #else
         plain_dump_principal (context, client);
         fprintf(stderr,
                 _("does not have any appropriate tickets in the cache.\n"));
-        return FALSE;
+        goto cleanup;
 
 #endif /* GET_TGT_VIA_PASSWD */
 
@@ -131,25 +124,29 @@ krb5_boolean krb5_auth_check(context, client_pname, hostname, options,
                                     &vfy_opts);
     if (retval) {
         com_err(prog_name, retval, _("while verifying ticket for server"));
-        return (FALSE);
+        goto cleanup;
     }
 
-    return (TRUE);
+    ok = TRUE;
+
+cleanup:
+    krb5_free_principal(context, client);
+    krb5_free_cred_contents(context, &tgt);
+    krb5_free_cred_contents(context, &tgtq);
+    return ok;
 }
 
-krb5_boolean ksu_get_tgt_via_passwd(context, client, options, zero_password,
-                                    creds_out)
-    krb5_context context;
-    krb5_principal client;
-    krb5_get_init_creds_opt *options;
-    krb5_boolean *zero_password;
-    krb5_creds *creds_out;
+krb5_boolean
+ksu_get_tgt_via_passwd(krb5_context context, krb5_principal client,
+                       krb5_get_init_creds_opt *options,
+                       krb5_boolean *zero_password, krb5_creds *creds_out)
 {
+    krb5_boolean ok = FALSE;
     krb5_error_code code;
-    krb5_creds creds;
+    krb5_creds creds = { 0 };
     krb5_timestamp now;
     unsigned int pwsize;
-    char password[255], *client_name, prompt[255];
+    char password[255], prompt[255], *client_name = NULL;
     int result;
 
     *zero_password = FALSE;
@@ -158,14 +155,14 @@ krb5_boolean ksu_get_tgt_via_passwd(context, client, options, zero_password,
 
     if ((code = krb5_unparse_name(context, client, &client_name))) {
         com_err (prog_name, code, _("when unparsing name"));
-        return (FALSE);
+        goto cleanup;
     }
 
     memset(&creds, 0, sizeof(creds));
 
     if ((code = krb5_timeofday(context, &now))) {
         com_err(prog_name, code, _("while getting time of day"));
-        return (FALSE);
+        goto cleanup;
     }
 
     result = snprintf(prompt, sizeof(prompt), _("Kerberos password for %s: "),
@@ -174,7 +171,7 @@ krb5_boolean ksu_get_tgt_via_passwd(context, client, options, zero_password,
         fprintf(stderr,
                 _("principal name %s too long for internal buffer space\n"),
                 client_name);
-        return FALSE;
+        goto cleanup;
     }
 
     pwsize = sizeof(password);
@@ -183,13 +180,13 @@ krb5_boolean ksu_get_tgt_via_passwd(context, client, options, zero_password,
     if (code ) {
         com_err(prog_name, code, _("while reading password for '%s'\n"),
                 client_name);
-        return (FALSE);
+        goto cleanup;
     }
 
     if ( pwsize == 0) {
         fprintf(stderr, _("No password given\n"));
         *zero_password = TRUE;
-        return (FALSE);
+        goto cleanup;
     }
 
     code = krb5_get_init_creds_password(context, &creds, client, password,
@@ -203,20 +200,23 @@ krb5_boolean ksu_get_tgt_via_passwd(context, client, options, zero_password,
             fprintf(stderr, _("%s: Password incorrect\n"), prog_name);
         else
             com_err(prog_name, code, _("while getting initial credentials"));
-        return (FALSE);
+        goto cleanup;
     }
-    if (creds_out != NULL)
+    if (creds_out != NULL) {
         *creds_out = creds;
-    else
-        krb5_free_cred_contents(context, &creds);
-    return (TRUE);
+        memset(&creds, 0, sizeof(creds));
+    }
+
+    ok = TRUE;
+
+cleanup:
+    krb5_free_cred_contents(context, &creds);
+    free(client_name);
+    return ok;
 }
 
-
-void dump_principal (context, str, p)
-    krb5_context context;
-    char *str;
-    krb5_principal p;
+void
+dump_principal(krb5_context context, char *str, krb5_principal p)
 {
     char * stname;
     krb5_error_code retval;
@@ -224,13 +224,14 @@ void dump_principal (context, str, p)
     if ((retval = krb5_unparse_name(context, p, &stname))) {
         fprintf(stderr, _(" %s while unparsing name\n"),
                 error_message(retval));
+        return;
     }
     fprintf(stderr, " %s: %s\n", str, stname);
+    free(stname);
 }
 
-void plain_dump_principal (context, p)
-    krb5_context context;
-    krb5_principal p;
+void
+plain_dump_principal (krb5_context context, krb5_principal p)
 {
     char * stname;
     krb5_error_code retval;
@@ -238,74 +239,8 @@ void plain_dump_principal (context, p)
     if ((retval = krb5_unparse_name(context, p, &stname))) {
         fprintf(stderr, _(" %s while unparsing name\n"),
                 error_message(retval));
+        return;
     }
     fprintf(stderr, "%s ", stname);
-}
-
-
-/**********************************************************************
-returns the principal that is closest to client. plist contains
-a principal list obtained from .k5login and parhaps .k5users file.
-This routine gets called before getting the password for a tgt.
-A principal is picked that has the best chance of getting in.
-
-**********************************************************************/
-
-
-krb5_error_code get_best_principal(context, plist, client)
-    krb5_context context;
-    char **plist;
-    krb5_principal *client;
-{
-    krb5_error_code retval =0;
-    krb5_principal temp_client, best_client = NULL;
-
-    int i = 0, nelem;
-
-    if (! plist ) return 0;
-
-    nelem = krb5_princ_size(context, *client);
-
-    while(plist[i]){
-
-        if ((retval = krb5_parse_name(context, plist[i], &temp_client))){
-            return retval;
-        }
-
-        if (data_eq(*krb5_princ_realm(context, *client),
-                    *krb5_princ_realm(context, temp_client))) {
-
-            if (nelem &&
-                krb5_princ_size(context, *client) > 0 &&
-                krb5_princ_size(context, temp_client) > 0) {
-                krb5_data *p1 =
-                    krb5_princ_component(context, *client, 0);
-                krb5_data *p2 =
-                    krb5_princ_component(context, temp_client, 0);
-
-                if (data_eq(*p1, *p2)) {
-
-                    if (auth_debug){
-                        fprintf(stderr,
-                                "get_best_principal: compare with %s\n",
-                                plist[i]);
-                    }
-
-                    if(best_client){
-                        if(krb5_princ_size(context, best_client) >
-                           krb5_princ_size(context, temp_client)){
-                            best_client = temp_client;
-                        }
-                    }else{
-                        best_client = temp_client;
-                    }
-                }
-            }
-
-        }
-        i++;
-    }
-
-    if (best_client) *client = best_client;
-    return 0;
+    free(stname);
 }

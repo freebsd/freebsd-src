@@ -351,7 +351,7 @@ void DebugEvent(char *b,...)
 static HANDLE hInitMutex = NULL;
 static BOOL bInit = FALSE;
 
-/* KFW_initialize cannot be called from DllEntryPoint */
+/* KFW_initialize cannot be called from DllMain */
 void
 KFW_initialize(void)
 {
@@ -489,7 +489,7 @@ KFW_kinit( krb5_context alt_ctx,
     krb5_creds			        my_creds;
     krb5_get_init_creds_opt     options;
     krb5_address **             addrs = NULL;
-    int                         i = 0, addr_count = 0;
+    size_t                      i = 0, addr_count = 0;
 
     if (!pkrb5_init_context)
         return 0;

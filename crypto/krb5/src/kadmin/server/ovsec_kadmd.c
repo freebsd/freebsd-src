@@ -77,7 +77,7 @@ static krb5_context context;
 static char *progname;
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, _("Usage: kadmind [-x db_args]* [-r realm] [-m] [-nofork] "
                       "[-port port-number]\n"
@@ -157,6 +157,9 @@ setup_loop(kadm5_config_params *params, int proponly, verto_ctx **ctx_out)
                                    KADM, KADMVERS, kadm_1);
         if (ret)
             return ret;
+        ret = loop_add_unix_socket(params->kpasswd_listen);
+        if (ret)
+            return ret;
     }
 #ifndef DISABLE_IPROP
     if (params->iprop_enabled) {
@@ -173,7 +176,7 @@ setup_loop(kadm5_config_params *params, int proponly, verto_ctx **ctx_out)
 
 /* Point GSSAPI at the KDB keytab so we don't need an actual file keytab. */
 static krb5_error_code
-setup_kdb_keytab()
+setup_kdb_keytab(void)
 {
     krb5_error_code ret;
 
@@ -235,7 +238,7 @@ log_badverf(gss_name_t client_name, gss_name_t server_name,
     OM_uint32 minor;
     gss_buffer_desc client, server;
     gss_OID gss_type;
-    const char *a;
+    const char *a, *cname, *sname;
     rpcproc_t proc;
     unsigned int i;
     const char *procname;
@@ -249,19 +252,11 @@ log_badverf(gss_name_t client_name, gss_name_t server_name,
 
     (void)gss_display_name(&minor, client_name, &client, &gss_type);
     (void)gss_display_name(&minor, server_name, &server, &gss_type);
-    if (client.value == NULL) {
-        client.value = "(null)";
-        clen = sizeof("(null)") - 1;
-    } else {
-        clen = client.length;
-    }
+    cname = (client.value == NULL) ? "(null)" : client.value;
+    clen = (client.value == NULL) ? sizeof("(null)") - 1 : client.length;
     trunc_name(&clen, &cdots);
-    if (server.value == NULL) {
-        server.value = "(null)";
-        slen = sizeof("(null)") - 1;
-    } else {
-        slen = server.length;
-    }
+    sname = (server.value == NULL) ? "(null)" : server.value;
+    slen = (server.value == NULL) ? sizeof("(null)") - 1 : server.length;
     trunc_name(&slen, &sdots);
     a = client_addr(rqst->rq_xprt);
 
@@ -277,14 +272,14 @@ log_badverf(gss_name_t client_name, gss_name_t server_name,
         krb5_klog_syslog(LOG_NOTICE,
                          _("WARNING! Forged/garbled request: %s, claimed "
                            "client = %.*s%s, server = %.*s%s, addr = %s"),
-                         procname, (int)clen, (char *)client.value, cdots,
-                         (int)slen, (char *)server.value, sdots, a);
+                         procname, (int)clen, cname, cdots, (int)slen, sname,
+                         sdots, a);
     } else {
         krb5_klog_syslog(LOG_NOTICE,
                          _("WARNING! Forged/garbled request: %d, claimed "
                            "client = %.*s%s, server = %.*s%s, addr = %s"),
-                         proc, (int)clen, (char *)client.value, cdots,
-                         (int)slen, (char *)server.value, sdots, a);
+                         proc, (int)clen, cname, cdots, (int)slen, sname,
+                         sdots, a);
     }
 
     (void)gss_release_buffer(&minor, &client);
@@ -349,7 +344,8 @@ main(int argc, char *argv[])
     const char *pid_file = NULL;
     char **db_args = NULL, **tmpargs;
     const char *acl_file;
-    int ret, i, db_args_size = 0, proponly = 0;
+    size_t db_args_size = 0;
+    int ret, i, proponly = 0;
 
     setlocale(LC_ALL, "");
     setvbuf(stderr, NULL, _IONBF, 0);

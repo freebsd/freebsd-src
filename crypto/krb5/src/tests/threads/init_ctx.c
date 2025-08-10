@@ -57,7 +57,7 @@ static int do_pause;
 static void usage (void) __attribute__((noreturn));
 
 static void
-usage ()
+usage (void)
 {
     fprintf (stderr, "usage: %s [ options ]\n", prog);
     fprintf (stderr, "options:\n");

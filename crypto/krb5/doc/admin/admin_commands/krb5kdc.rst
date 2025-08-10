@@ -106,6 +106,13 @@ ENVIRONMENT
 See :ref:`kerberos(7)` for a description of Kerberos environment
 variables.
 
+As of release 1.22, krb5kdc supports systemd socket activation via the
+LISTEN_PID and LISTEN_FDS environment variables.  Sockets provided by
+the caller must correspond to configured listener addresses (via the
+**kdc_listen** variable or equivalent) or they will be ignored.  Any
+configured listener addresses that do not correspond to
+caller-provided sockets will be ignored if socket activation is used.
+
 
 SEE ALSO
 --------

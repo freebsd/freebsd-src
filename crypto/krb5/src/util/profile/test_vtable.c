@@ -232,7 +232,8 @@ struct profile_vtable full_vtable = {
     full_flush
 };
 
-int main()
+int
+main(void)
 {
     profile_t profile;
     char **values, *str, *name, *value;

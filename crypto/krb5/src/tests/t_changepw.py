@@ -1,6 +1,12 @@
 from k5test import *
 
-realm = K5Realm(create_host=False, get_creds=False, start_kadmind=True)
+# Also listen on a UNIX domain sockets for kpasswd.
+unix_conf = {'realms': {'$realm': {
+    'kdc_listen': '$port0, $testdir/krb5.sock',
+    'kadmind_listen': '$port1, $testdir/kadmin.sock',
+    'kpasswd_listen': '$port2, $testdir/kpasswd.sock'}}}
+realm = K5Realm(create_host=False,get_creds=False, kdc_conf=unix_conf)
+realm.start_kadmind()
 realm.prep_kadmin()
 
 # Mark a principal as expired and change its password through kinit.
@@ -45,6 +51,20 @@ realm.run([kdestroy])
 realm.run_kadmin(['cpw', '-pw', 'pw4', 'testprinc'])
 realm.kinit('testprinc', 'pw4')
 realm.run([kdestroy])
+realm.run([kadminl, 'delprinc', 'testprinc'])
+
+mark('password change over UNIX domain socket')
+
+unix_cli_conf = {'realms': {'$realm': {
+    'kdc': '$testdir/krb5.sock',
+    'admin_server': '$testdir/kadmin.sock',
+    'kpasswd_server': '$testdir/kpasswd.sock'}}}
+unix_cli = realm.special_env('unix_cli', False, krb5_conf=unix_cli_conf)
+
+realm.run([kadminl, 'addprinc', '-pw', 'pw1', 'testprinc'])
+msgs = ('Sending TCP request to UNIX domain socket',)
+realm.run([kpasswd, 'testprinc'], input='pw1\npw2\npw2\n', env=unix_cli,
+          expected_trace=msgs)
 realm.run([kadminl, 'delprinc', 'testprinc'])
 
 success('Password change tests')

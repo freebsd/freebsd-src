@@ -29,14 +29,8 @@
 #include "mglueP.h"
 
 OM_uint32 KRB5_CALLCONV
-gss_process_context_token (minor_status,
-                           context_handle,
-                           token_buffer)
-
-OM_uint32 *		minor_status;
-gss_ctx_id_t		context_handle;
-gss_buffer_t		token_buffer;
-
+gss_process_context_token(OM_uint32 *minor_status, gss_ctx_id_t context_handle,
+			  gss_buffer_t token_buffer)
 {
     OM_uint32		status;
     gss_union_ctx_id_t	ctx;

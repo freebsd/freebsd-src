@@ -195,7 +195,7 @@ ser_checksum(krb5_checksum *cksum)
 }
 
 static void
-ser_context_test()
+ser_context_test(void)
 {
     krb5_context context;
     profile_t sprofile;
@@ -216,7 +216,7 @@ ser_context_test()
 }
 
 static void
-ser_acontext_test()
+ser_acontext_test(void)
 {
     krb5_auth_context   actx;
     krb5_address        local_address;
@@ -306,7 +306,7 @@ ser_acontext_test()
 }
 
 static void
-ser_princ_test()
+ser_princ_test(void)
 {
     krb5_principal      princ;
     char                pname[1024];
@@ -320,7 +320,7 @@ ser_princ_test()
 }
 
 static void
-ser_cksum_test()
+ser_cksum_test(void)
 {
     krb5_checksum       checksum;
     krb5_octet          ckdata[24];

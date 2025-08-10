@@ -117,7 +117,7 @@ krb5_error_code
 krb5_ldap_list_realm(krb5_context context, char ***realms)
 {
     char                        **values = NULL;
-    unsigned int                i = 0;
+    size_t                      i = 0;
     int                         count = 0;
     krb5_error_code             st = 0, tempst = 0;
     LDAP                        *ld = NULL;
@@ -209,8 +209,8 @@ krb5_ldap_delete_realm (krb5_context context, char *lrealm)
     char                        **values=NULL, **subtrees=NULL, **policy=NULL;
     LDAPMessage                 **result_arr=NULL, *result = NULL, *ent = NULL;
     krb5_principal              principal;
-    unsigned int                l=0, ntree=0;
-    int                         i=0, j=0, mask=0;
+    size_t                      i=0, j=0, l=0, ntree=0;
+    int                         mask=0;
     kdb5_dal_handle             *dal_handle = NULL;
     krb5_ldap_context           *ldap_context = NULL;
     krb5_ldap_server_handle     *ldap_server_handle = NULL;
@@ -271,16 +271,18 @@ krb5_ldap_delete_realm (krb5_context context, char *lrealm)
         for (ent = ldap_first_entry (ld, result); ent != NULL;
              ent = ldap_next_entry (ld, ent)) {
             if ((values = ldap_get_values(ld, ent, "krbPrincipalName")) != NULL) {
-                for (i = 0; values[i] != NULL; ++i) {
+                for (i = 0; values[i] != NULL && !st; ++i) {
                     krb5_parse_name(context, values[i], &principal);
                     if (principal_in_realm_2(principal, lrealm) == 0) {
                         st=krb5_ldap_delete_principal(context, principal);
-                        if (st && st != KRB5_KDB_NOENTRY)
-                            goto cleanup;
+                        if (st == KRB5_KDB_NOENTRY)
+                            st = 0;
                     }
                     krb5_free_principal(context, principal);
                 }
                 ldap_value_free(values);
+                if (st)
+                    goto cleanup;
             }
         }
     }
@@ -346,7 +348,8 @@ krb5_ldap_modify_realm(krb5_context context, krb5_ldap_realm_params *rparams,
     krb5_error_code       st=0;
     char                  **strval=NULL, *strvalprc[5]={NULL};
     LDAPMod               **mods = NULL;
-    int                   objectmask=0,k=0;
+    size_t                k=0;
+    int                   objectmask=0;
     kdb5_dal_handle       *dal_handle=NULL;
     krb5_ldap_context     *ldap_context=NULL;
     krb5_ldap_server_handle *ldap_server_handle=NULL;
@@ -580,7 +583,8 @@ krb5_ldap_create_realm(krb5_context context, krb5_ldap_realm_params *rparams,
     char                        *strval[4]={NULL};
     char                        *contref[2]={NULL};
     LDAPMod                     **mods = NULL;
-    int                         i=0, objectmask=0, subtreecount=0;
+    size_t                      i=0, subtreecount=0;
+    int                         objectmask=0;
     kdb5_dal_handle             *dal_handle=NULL;
     krb5_ldap_context           *ldap_context=NULL;
     krb5_ldap_server_handle     *ldap_server_handle=NULL;
@@ -720,7 +724,7 @@ krb5_ldap_read_realm_params(krb5_context context, char *lrealm,
     kdb5_dal_handle        *dal_handle=NULL;
     krb5_ldap_context      *ldap_context=NULL;
     krb5_ldap_server_handle *ldap_server_handle=NULL;
-    int x=0;
+    size_t x=0;
 
     SETUP_CONTEXT ();
 
@@ -863,7 +867,7 @@ cleanup:
 void
 krb5_ldap_free_realm_params(krb5_ldap_realm_params *rparams)
 {
-    int i=0;
+    size_t i=0;
 
     if (rparams) {
         if (rparams->realmdn)

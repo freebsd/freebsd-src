@@ -43,16 +43,16 @@ Similar to krb5_parse_name(), this function converts a single-string representat
 
 The following flags are valid: 
  
-	 - #KRB5_PRINCIPAL_PARSE_NO_REALM - no realm must be present in *name* 
+	 - KRB5_PRINCIPAL_PARSE_NO_REALM - no realm must be present in *name* 
  
  
-	 - #KRB5_PRINCIPAL_PARSE_REQUIRE_REALM - realm must be present in *name* 
+	 - KRB5_PRINCIPAL_PARSE_REQUIRE_REALM - realm must be present in *name* 
  
  
-	 - #KRB5_PRINCIPAL_PARSE_ENTERPRISE - create single-component enterprise principal
+	 - KRB5_PRINCIPAL_PARSE_ENTERPRISE - create single-component enterprise principal
  
  
-	 - #KRB5_PRINCIPAL_PARSE_IGNORE_REALM - ignore realm if present in *name* 
+	 - KRB5_PRINCIPAL_PARSE_IGNORE_REALM - ignore realm if present in *name* 
  
  If **KRB5_PRINCIPAL_PARSE_NO_REALM** or **KRB5_PRINCIPAL_PARSE_IGNORE_REALM** is specified in *flags* , the realm of the new principal will be empty. Otherwise, the default realm for *context* will be used if *name* does not specify a realm.
 

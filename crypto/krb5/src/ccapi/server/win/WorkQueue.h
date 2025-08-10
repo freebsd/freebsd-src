@@ -29,14 +29,14 @@
 #include "windows.h"
 #include "ccs_pipe.h"
 
-EXTERN_C    int worklist_initialize();
+EXTERN_C    int worklist_initialize(void);
 
-EXTERN_C    int worklist_cleanup();
+EXTERN_C    int worklist_cleanup(void);
 
 /* Wait for work to be added to the list (via worklist_add) from another thread */
-EXTERN_C    void worklist_wait();
+EXTERN_C    void worklist_wait(void);
 
-EXTERN_C    BOOL worklist_isEmpty();
+EXTERN_C    BOOL worklist_isEmpty(void);
 
 EXTERN_C    int worklist_add(  const long          rpcmsg,
                                 const ccs_pipe_t    pipe,

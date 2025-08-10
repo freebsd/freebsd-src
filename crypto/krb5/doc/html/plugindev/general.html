@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>General plugin concepts &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="general-plugin-concepts">
-<h1>General plugin concepts<a class="headerlink" href="#general-plugin-concepts" title="Permalink to this headline">¶</a></h1>
+<h1>General plugin concepts<a class="headerlink" href="#general-plugin-concepts" title="Link to this heading">¶</a></h1>
 <p>A krb5 dynamic plugin module is a Unix shared object or Windows DLL.
 Typically, the source code for a dynamic plugin module should live in
 its own project with a build system using <a class="reference external" href="https://www.gnu.org/software/automake/">automake</a> and <a class="reference external" href="https://www.gnu.org/software/libtool/">libtool</a>, or
@@ -132,7 +130,7 @@ fictional pluggable interface named fences, for a module named
 </pre></div>
 </div>
 <section id="logging-from-kdc-and-kadmind-plugin-modules">
-<h2>Logging from KDC and kadmind plugin modules<a class="headerlink" href="#logging-from-kdc-and-kadmind-plugin-modules" title="Permalink to this headline">¶</a></h2>
+<h2>Logging from KDC and kadmind plugin modules<a class="headerlink" href="#logging-from-kdc-and-kadmind-plugin-modules" title="Link to this heading">¶</a></h2>
 <p>Plugin modules for the KDC or kadmind daemons can write to the
 configured logging outputs (see <a class="reference internal" href="../admin/conf_files/kdc_conf.html#logging"><span class="std std-ref">[logging]</span></a>) by calling the
 <strong>com_err</strong> function.  The first argument (<em>whoami</em>) is ignored.  If
@@ -218,8 +216,8 @@ part of the logging specification, defaulting to error severity.)</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

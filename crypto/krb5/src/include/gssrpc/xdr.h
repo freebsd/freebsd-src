@@ -102,7 +102,6 @@ enum xdr_op {
  *
  * XXX can't actually prototype it, because some take three args!!!
  */
-typedef	bool_t (*xdrproc_t)();
 
 /*
  * The XDR handle.
@@ -142,6 +141,8 @@ typedef struct XDR {
 	caddr_t 	x_base;		/* private used for position info */
 	int		x_handy;	/* extra private word */
 } XDR;
+
+typedef	bool_t (*xdrproc_t)(XDR *, void *);
 
 /*
  * Operations defined on a XDR handle

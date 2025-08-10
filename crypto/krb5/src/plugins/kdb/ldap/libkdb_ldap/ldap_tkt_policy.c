@@ -38,7 +38,7 @@
 static void
 free_list(char **list)
 {
-    int i;
+    size_t i;
 
     for (i = 0; list != NULL && list[i] != NULL; i++)
         free(list[i]);
@@ -355,7 +355,7 @@ cleanup:
 krb5_error_code
 krb5_ldap_list_policy(krb5_context context, char *containerdn, char ***policy)
 {
-    int                         i, j, count;
+    size_t                      i, j, count;
     char                        **list = NULL;
     char                        *policycontainerdn = containerdn;
     kdb5_dal_handle             *dal_handle=NULL;
@@ -382,7 +382,7 @@ krb5_ldap_list_policy(krb5_context context, char *containerdn, char ***policy)
 
     for (i = 0, j = 0; list[i] != NULL; i++, j++) {
         int ret;
-        ret = krb5_ldap_policydn_to_name (context, list[i], &(*policy)[i]);
+        ret = krb5_ldap_policydn_to_name (context, list[i], &(*policy)[j]);
         if (ret != 0)
             j--;
     }

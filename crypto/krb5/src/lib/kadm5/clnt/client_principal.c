@@ -249,7 +249,7 @@ kadm5_chpass_principal(void *server_handle,
 
 kadm5_ret_t
 kadm5_chpass_principal_3(void *server_handle,
-                         krb5_principal princ, krb5_boolean keepold,
+                         krb5_principal princ, unsigned int keepold,
                          int n_ks_tuple, krb5_key_salt_tuple *ks_tuple,
                          char *password)
 {
@@ -300,7 +300,7 @@ kadm5_setkey_principal(void *server_handle,
 kadm5_ret_t
 kadm5_setkey_principal_3(void *server_handle,
                          krb5_principal princ,
-                         krb5_boolean keepold, int n_ks_tuple,
+                         unsigned int keepold, int n_ks_tuple,
                          krb5_key_salt_tuple *ks_tuple,
                          krb5_keyblock *keyblocks,
                          int n_keys)
@@ -329,7 +329,7 @@ kadm5_setkey_principal_3(void *server_handle,
 kadm5_ret_t
 kadm5_setkey_principal_4(void *server_handle,
                          krb5_principal princ,
-                         krb5_boolean keepold,
+                         unsigned int keepold,
                          kadm5_key_data *key_data,
                          int n_key_data)
 {
@@ -355,7 +355,7 @@ kadm5_setkey_principal_4(void *server_handle,
 kadm5_ret_t
 kadm5_randkey_principal_3(void *server_handle,
                           krb5_principal princ,
-                          krb5_boolean keepold, int n_ks_tuple,
+                          unsigned int keepold, int n_ks_tuple,
                           krb5_key_salt_tuple *ks_tuple,
                           krb5_keyblock **key, int *n_keys)
 {
@@ -524,5 +524,25 @@ kadm5_get_principal_keys(void *server_handle, krb5_principal princ,
         *key_data = r.key_data;
         *n_key_data = r.n_key_data;
     }
+    return r.code;
+}
+
+kadm5_ret_t
+kadm5_create_alias(void *server_handle, krb5_principal alias,
+                   krb5_principal target)
+{
+    calias_arg          arg;
+    generic_ret         r = { 0, 0 };
+    kadm5_server_handle_t handle = server_handle;
+
+    CHECK_HANDLE(server_handle);
+
+    arg.alias = alias;
+    arg.target = target;
+    arg.api_version = handle->api_version;
+    if (alias == NULL || target == NULL)
+        return EINVAL;
+    if (create_alias_2(&arg, &r, handle->clnt))
+        eret();
     return r.code;
 }

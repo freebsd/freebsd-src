@@ -31,13 +31,21 @@
  */
 
 /*
- * This program is invoked from t_pwhist.py to simulate some conditions
- * normally only seen in databases created before krb5 1.3.  With the "make"
- * argument, the history key is rolled over to a kvno containing two keys
- * (since krb5 1.3 we ordinarily ensure that there's only one).  With the
- * "swap" argument, the two history keys are swapped in order; we use this
- * operation to simulate the case where krb5 1.7 or earlier chose something
- * other than the first history key to create password history entries.
+ * This program is invoked from t_policy.py to simulate some conditions
+ * normally only seen in older databases.  It expects one argument, which can
+ * be:
+ *
+ *   make: The kadmin/history entry is created with two keys.  (Since krb5 1.3
+ *   we ordinarily ensure that there's only one.)
+ *
+ *   swap: The kadmin/history entry previously created with "make" is modified
+ *   to swap the order of its keys.  We use this operation to simulate the case
+ *   where krb5 1.7 or earlier chose something other than the first history key
+ *   to create password history entries.
+ *
+ *   des: The kadmin/history entry is modified to change its first key type to
+ *   des-cbc-crc.  The key length and contents are not changed.  (DES support
+ *   was removed in krb5 1.18.)
  */
 
 #include <k5-int.h>
@@ -88,6 +96,12 @@ main(int argc, char **argv)
 	kd = ent->key_data[0];
 	ent->key_data[0] = ent->key_data[1];
 	ent->key_data[1] = kd;
+        check(krb5_db_put_principal(ctx, ent));
+        krb5_db_free_principal(ctx, ent);
+    } else if (strcmp(argv[1], "des") == 0) {
+        check(krb5_db_get_principal(ctx, hprinc, 0, &ent));
+        assert(ent->n_key_data >= 1);
+        ent->key_data[0].key_data_type[0] = ENCTYPE_DES_CBC_CRC;
         check(krb5_db_put_principal(ctx, ent));
         krb5_db_free_principal(ctx, ent);
     }

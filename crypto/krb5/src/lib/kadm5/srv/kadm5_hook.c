@@ -64,7 +64,7 @@ k5_kadm5_hook_load(krb5_context context,
         handle = k5alloc(sizeof(*handle), &ret);
         if (handle == NULL)
             goto cleanup;
-        ret = (*mod)(context, 1, 2, (krb5_plugin_vtable)&handle->vt);
+        ret = (*mod)(context, 1, 3, (krb5_plugin_vtable)&handle->vt);
         if (ret != 0) {         /* Failed vtable init is non-fatal. */
             free(handle);
             handle = NULL;
@@ -182,5 +182,13 @@ k5_kadm5_hook_remove(krb5_context context, kadm5_hook_handle *handles,
                      int stage, krb5_principal princ)
 {
     ITERATE(remove, (context, h->data, stage, princ));
+    return 0;
+}
+
+kadm5_ret_t
+k5_kadm5_hook_alias(krb5_context context, kadm5_hook_handle *handles,
+                    int stage, krb5_principal alias, krb5_principal target)
+{
+    ITERATE(alias, (context, h->data, stage, alias, target));
     return 0;
 }

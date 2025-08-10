@@ -167,20 +167,17 @@ cmsg2pktinfo(struct cmsghdr *cmsgptr)
 
 #define check_cmsg_v4_pktinfo check_cmsg_ip_pktinfo
 static int
-check_cmsg_ip_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr *to,
-                      socklen_t *tolen, aux_addressing_info *auxaddr)
+check_cmsg_ip_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr_in *to,
+                      aux_addressing_info *auxaddr)
 {
     struct in_pktinfo *pktinfo;
 
     if (cmsgptr->cmsg_level == IPPROTO_IP &&
-        cmsgptr->cmsg_type == IP_PKTINFO &&
-        *tolen >= sizeof(struct sockaddr_in)) {
-
-        memset(to, 0, sizeof(struct sockaddr_in));
+        cmsgptr->cmsg_type == IP_PKTINFO) {
+        memset(to, 0, sizeof(*to));
         pktinfo = cmsg2pktinfo(cmsgptr);
-        sa2sin(to)->sin_addr = pktinfo->ipi_addr;
-        sa2sin(to)->sin_family = AF_INET;
-        *tolen = sizeof(struct sockaddr_in);
+        to->sin_addr = pktinfo->ipi_addr;
+        to->sin_family = AF_INET;
         return 1;
     }
     return 0;
@@ -196,19 +193,17 @@ cmsg2sin(struct cmsghdr *cmsgptr)
 
 #define check_cmsg_v4_pktinfo check_cmsg_ip_recvdstaddr
 static int
-check_cmsg_ip_recvdstaddr(struct cmsghdr *cmsgptr, struct sockaddr *to,
-                          socklen_t *tolen, aux_addressing_info * auxaddr)
+check_cmsg_ip_recvdstaddr(struct cmsghdr *cmsgptr, struct sockaddr_in *to,
+                          aux_addressing_info *auxaddr)
 {
-    if (cmsgptr->cmsg_level == IPPROTO_IP &&
-        cmsgptr->cmsg_type == IP_RECVDSTADDR &&
-        *tolen >= sizeof(struct sockaddr_in)) {
-        struct in_addr *sin_addr;
+    struct in_addr *sin_addr;
 
-        memset(to, 0, sizeof(struct sockaddr_in));
+    if (cmsgptr->cmsg_level == IPPROTO_IP &&
+        cmsgptr->cmsg_type == IP_RECVDSTADDR) {
+        memset(to, 0, sizeof(*to));
         sin_addr = cmsg2sin(cmsgptr);
-        sa2sin(to)->sin_addr = *sin_addr;
-        sa2sin(to)->sin_family = AF_INET;
-        *tolen = sizeof(struct sockaddr_in);
+        to->sin_addr = *sin_addr;
+        to->sin_family = AF_INET;
         return 1;
     }
     return 0;
@@ -228,20 +223,17 @@ cmsg2pktinfo6(struct cmsghdr *cmsgptr)
 
 #define check_cmsg_v6_pktinfo check_cmsg_ipv6_pktinfo
 static int
-check_cmsg_ipv6_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr *to,
-                        socklen_t *tolen, aux_addressing_info *auxaddr)
+check_cmsg_ipv6_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr_in6 *to,
+                        aux_addressing_info *auxaddr)
 {
     struct in6_pktinfo *pktinfo;
 
     if (cmsgptr->cmsg_level == IPPROTO_IPV6 &&
-        cmsgptr->cmsg_type == IPV6_PKTINFO &&
-        *tolen >= sizeof(struct sockaddr_in6)) {
-
-        memset(to, 0, sizeof(struct sockaddr_in6));
+        cmsgptr->cmsg_type == IPV6_PKTINFO) {
+        memset(to, 0, sizeof(*to));
         pktinfo = cmsg2pktinfo6(cmsgptr);
-        sa2sin6(to)->sin6_addr = pktinfo->ipi6_addr;
-        sa2sin6(to)->sin6_family = AF_INET6;
-        *tolen = sizeof(struct sockaddr_in6);
+        to->sin6_addr = pktinfo->ipi6_addr;
+        to->sin6_family = AF_INET6;
         auxaddr->ipv6_ifindex = pktinfo->ipi6_ifindex;
         return 1;
     }
@@ -252,11 +244,11 @@ check_cmsg_ipv6_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr *to,
 #endif /* HAVE_IPV6_PKTINFO */
 
 static int
-check_cmsg_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr *to,
-                   socklen_t *tolen, aux_addressing_info *auxaddr)
+check_cmsg_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr_storage *to,
+                   aux_addressing_info *auxaddr)
 {
-    return check_cmsg_v4_pktinfo(cmsgptr, to, tolen, auxaddr) ||
-           check_cmsg_v6_pktinfo(cmsgptr, to, tolen, auxaddr);
+    return check_cmsg_v4_pktinfo(cmsgptr, ss2sin(to), auxaddr) ||
+        check_cmsg_v6_pktinfo(cmsgptr, ss2sin6(to), auxaddr);
 }
 
 /*
@@ -268,19 +260,16 @@ check_cmsg_pktinfo(struct cmsghdr *cmsgptr, struct sockaddr *to,
  *  len     - buf length
  *  flags
  *  from    - Set to the address that sent the message
- *  fromlen
  *  to      - Set to the address that the message was sent to if possible.
  *            May not be set in certain cases such as if pktinfo support is
  *            missing. May be NULL.
- *  tolen
  *  auxaddr - Miscellaneous address information.
  *
  * Returns 0 on success, otherwise an error code.
  */
 krb5_error_code
 recv_from_to(int sock, void *buf, size_t len, int flags,
-             struct sockaddr *from, socklen_t * fromlen,
-             struct sockaddr *to, socklen_t * tolen,
+             struct sockaddr_storage *from, struct sockaddr_storage *to,
              aux_addressing_info *auxaddr)
 
 {
@@ -289,24 +278,26 @@ recv_from_to(int sock, void *buf, size_t len, int flags,
     char cmsg[CMSG_SPACE(sizeof(union pktinfo))];
     struct cmsghdr *cmsgptr;
     struct msghdr msg;
+    socklen_t fromlen = sizeof(*from);
 
     /* Don't use pktinfo if the socket isn't bound to a wildcard address. */
     r = is_socket_bound_to_wildcard(sock);
     if (r < 0)
         return errno;
 
-    if (!to || !tolen || !r)
-        return recvfrom(sock, buf, len, flags, from, fromlen);
+    if (to == NULL || !r)
+        return recvfrom(sock, buf, len, flags, ss2sa(from), &fromlen);
 
     /* Clobber with something recognizable in case we can't extract the address
      * but try to use it anyways. */
-    memset(to, 0x40, *tolen);
+    memset(to, 0x40, sizeof(*to));
+    to->ss_family = AF_UNSPEC;
 
     iov.iov_base = buf;
     iov.iov_len = len;
     memset(&msg, 0, sizeof(msg));
-    msg.msg_name = from;
-    msg.msg_namelen = *fromlen;
+    msg.msg_name = ss2sa(from);
+    msg.msg_namelen = sizeof(*from);
     msg.msg_iov = &iov;
     msg.msg_iovlen = 1;
     msg.msg_control = cmsg;
@@ -315,7 +306,6 @@ recv_from_to(int sock, void *buf, size_t len, int flags,
     r = recvmsg(sock, &msg, flags);
     if (r < 0)
         return r;
-    *fromlen = msg.msg_namelen;
 
     /*
      * On Darwin (and presumably all *BSD with KAME stacks), CMSG_FIRSTHDR
@@ -326,13 +316,12 @@ recv_from_to(int sock, void *buf, size_t len, int flags,
     if (msg.msg_controllen) {
         cmsgptr = CMSG_FIRSTHDR(&msg);
         while (cmsgptr) {
-            if (check_cmsg_pktinfo(cmsgptr, to, tolen, auxaddr))
+            if (check_cmsg_pktinfo(cmsgptr, to, auxaddr))
                 return r;
             cmsgptr = CMSG_NXTHDR(&msg, cmsgptr);
         }
     }
     /* No info about destination addr was available.  */
-    *tolen = 0;
     return r;
 }
 
@@ -341,18 +330,15 @@ recv_from_to(int sock, void *buf, size_t len, int flags,
 #define set_msg_from_ipv4 set_msg_from_ip_pktinfo
 static krb5_error_code
 set_msg_from_ip_pktinfo(struct msghdr *msg, struct cmsghdr *cmsgptr,
-                        struct sockaddr *from, socklen_t fromlen,
+                        const struct sockaddr_in *from,
                         aux_addressing_info *auxaddr)
 {
     struct in_pktinfo *p = cmsg2pktinfo(cmsgptr);
-    const struct sockaddr_in *from4 = sa2sin(from);
 
-    if (fromlen != sizeof(struct sockaddr_in))
-        return EINVAL;
     cmsgptr->cmsg_level = IPPROTO_IP;
     cmsgptr->cmsg_type = IP_PKTINFO;
     cmsgptr->cmsg_len = CMSG_LEN(sizeof(struct in_pktinfo));
-    p->ipi_spec_dst = from4->sin_addr;
+    p->ipi_spec_dst = from->sin_addr;
 
     msg->msg_controllen = CMSG_SPACE(sizeof(struct in_pktinfo));
     return 0;
@@ -363,18 +349,16 @@ set_msg_from_ip_pktinfo(struct msghdr *msg, struct cmsghdr *cmsgptr,
 #define set_msg_from_ipv4 set_msg_from_ip_sendsrcaddr
 static krb5_error_code
 set_msg_from_ip_sendsrcaddr(struct msghdr *msg, struct cmsghdr *cmsgptr,
-                            struct sockaddr *from, socklen_t fromlen,
+                            const struct sockaddr_in *from,
                             aux_addressing_info *auxaddr)
 {
     struct in_addr *sin_addr = cmsg2sin(cmsgptr);
-    const struct sockaddr_in *from4 = sa2sin(from);
-    if (fromlen != sizeof(struct sockaddr_in))
-        return EINVAL;
+
     cmsgptr->cmsg_level = IPPROTO_IP;
     cmsgptr->cmsg_type = IP_SENDSRCADDR;
     cmsgptr->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
     msg->msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
-    *sin_addr = from4->sin_addr;
+    *sin_addr = from->sin_addr;
     return 0;
 }
 
@@ -387,19 +371,16 @@ set_msg_from_ip_sendsrcaddr(struct msghdr *msg, struct cmsghdr *cmsgptr,
 #define set_msg_from_ipv6 set_msg_from_ipv6_pktinfo
 static krb5_error_code
 set_msg_from_ipv6_pktinfo(struct msghdr *msg, struct cmsghdr *cmsgptr,
-                          struct sockaddr *from, socklen_t fromlen,
+                          const struct sockaddr_in6 *from,
                           aux_addressing_info *auxaddr)
 {
     struct in6_pktinfo *p = cmsg2pktinfo6(cmsgptr);
-    const struct sockaddr_in6 *from6 = sa2sin6(from);
 
-    if (fromlen != sizeof(struct sockaddr_in6))
-        return EINVAL;
     cmsgptr->cmsg_level = IPPROTO_IPV6;
     cmsgptr->cmsg_type = IPV6_PKTINFO;
     cmsgptr->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
 
-    p->ipi6_addr = from6->sin6_addr;
+    p->ipi6_addr = from->sin6_addr;
     /*
      * Because of the possibility of asymmetric routing, we
      * normally don't want to specify an interface.  However,
@@ -408,7 +389,7 @@ set_msg_from_ipv6_pktinfo(struct msghdr *msg, struct cmsghdr *cmsgptr,
      * with a "foo.local" name) unless we do specify the
      * interface.
      */
-    if (IN6_IS_ADDR_LINKLOCAL(&from6->sin6_addr))
+    if (IN6_IS_ADDR_LINKLOCAL(&from->sin6_addr))
         p->ipi6_ifindex = auxaddr->ipv6_ifindex;
     /* otherwise, already zero */
 
@@ -421,15 +402,14 @@ set_msg_from_ipv6_pktinfo(struct msghdr *msg, struct cmsghdr *cmsgptr,
 #endif /* HAVE_IPV6_PKTINFO */
 
 static krb5_error_code
-set_msg_from(int family, struct msghdr *msg, struct cmsghdr *cmsgptr,
-             struct sockaddr *from, socklen_t fromlen,
-             aux_addressing_info *auxaddr)
+set_msg_from(struct msghdr *msg, struct cmsghdr *cmsgptr,
+             const struct sockaddr *from, aux_addressing_info *auxaddr)
 {
-    switch (family) {
+    switch (from->sa_family) {
     case AF_INET:
-        return set_msg_from_ipv4(msg, cmsgptr, from, fromlen, auxaddr);
+        return set_msg_from_ipv4(msg, cmsgptr, sa2sin(from), auxaddr);
     case AF_INET6:
-        return set_msg_from_ipv6(msg, cmsgptr, from, fromlen, auxaddr);
+        return set_msg_from_ipv6(msg, cmsgptr, sa2sin6(from), auxaddr);
     }
 
     return EINVAL;
@@ -444,17 +424,15 @@ set_msg_from(int family, struct msghdr *msg, struct cmsghdr *cmsgptr,
  *  len     - buf length
  *  flags
  *  to      - The address to send the message to.
- *  tolen
  *  from    - The address to attempt to send the message from. May be NULL.
- *  fromlen
  *  auxaddr - Miscellaneous address information.
  *
  * Returns 0 on success, otherwise an error code.
  */
 krb5_error_code
 send_to_from(int sock, void *buf, size_t len, int flags,
-             const struct sockaddr *to, socklen_t tolen, struct sockaddr *from,
-             socklen_t fromlen, aux_addressing_info *auxaddr)
+             const struct sockaddr *to, const struct sockaddr *from,
+             aux_addressing_info *auxaddr)
 {
     int r;
     struct iovec iov;
@@ -467,7 +445,7 @@ send_to_from(int sock, void *buf, size_t len, int flags,
     if (r < 0)
         return errno;
 
-    if (from == NULL || fromlen == 0 || from->sa_family != to->sa_family || !r)
+    if (from == NULL || from->sa_family != to->sa_family || !r)
         goto use_sendto;
 
     iov.iov_base = buf;
@@ -478,7 +456,7 @@ send_to_from(int sock, void *buf, size_t len, int flags,
     memset(cbuf, 0, sizeof(cbuf));
     memset(&msg, 0, sizeof(msg));
     msg.msg_name = (void *)to;
-    msg.msg_namelen = tolen;
+    msg.msg_namelen = sa_socklen(to);
     msg.msg_iov = &iov;
     msg.msg_iovlen = 1;
     msg.msg_control = cbuf;
@@ -488,39 +466,39 @@ send_to_from(int sock, void *buf, size_t len, int flags,
     cmsgptr = CMSG_FIRSTHDR(&msg);
     msg.msg_controllen = 0;
 
-    if (set_msg_from(from->sa_family, &msg, cmsgptr, from, fromlen, auxaddr))
+    if (set_msg_from(&msg, cmsgptr, from, auxaddr))
         goto use_sendto;
     return sendmsg(sock, &msg, flags);
 
 use_sendto:
-    return sendto(sock, buf, len, flags, to, tolen);
+    return sendto(sock, buf, len, flags, to, sa_socklen(to));
 }
 
 #else /* HAVE_PKTINFO_SUPPORT && CMSG_SPACE */
 
 krb5_error_code
 recv_from_to(int sock, void *buf, size_t len, int flags,
-             struct sockaddr *from, socklen_t *fromlen,
-             struct sockaddr *to, socklen_t *tolen,
+             struct sockaddr_storage *from, struct sockaddr_storage *to,
              aux_addressing_info *auxaddr)
 {
-    if (to && tolen) {
+    socklen_t fromlen = sizeof(*from);
+
+    if (to != NULL) {
         /* Clobber with something recognizable in case we try to use the
          * address. */
-        memset(to, 0x40, *tolen);
-        *tolen = 0;
+        memset(to, 0x40, sizeof(*to));
+        to->ss_family = AF_UNSPEC;
     }
 
-    return recvfrom(sock, buf, len, flags, from, fromlen);
+    return recvfrom(sock, buf, len, flags, ss2sa(from), &fromlen);
 }
 
 krb5_error_code
 send_to_from(int sock, void *buf, size_t len, int flags,
-             const struct sockaddr *to, socklen_t tolen,
-             struct sockaddr *from, socklen_t fromlen,
+             const struct sockaddr *to, const struct sockaddr *from,
              aux_addressing_info *auxaddr)
 {
-    return sendto(sock, buf, len, flags, to, tolen);
+    return sendto(sock, buf, len, flags, to, sa_socklen(to));
 }
 
 #endif /* HAVE_PKTINFO_SUPPORT && CMSG_SPACE */

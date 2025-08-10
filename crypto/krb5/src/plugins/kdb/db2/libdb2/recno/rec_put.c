@@ -59,11 +59,7 @@ static char sccsid[] = "@(#)rec_put.c	8.7 (Berkeley) 8/18/94";
  *	already in the tree and R_NOOVERWRITE specified.
  */
 int
-__rec_put(dbp, key, data, flags)
-	const DB *dbp;
-	DBT *key;
-	const DBT *data;
-	u_int flags;
+__rec_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
 {
 	BTREE *t;
 	DBT fdata, tdata;
@@ -187,11 +183,7 @@ einval:		errno = EINVAL;
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__rec_iput(t, nrec, data, flags)
-	BTREE *t;
-	recno_t nrec;
-	const DBT *data;
-	u_int flags;
+__rec_iput(BTREE *t, recno_t nrec, const DBT *data, u_int flags)
 {
 	DBT tdata;
 	EPG *e;

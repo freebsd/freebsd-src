@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
-\ProvidesPackage{sphinxhighlight}[2016/05/29 stylesheet for highlighting with pygments]
+\ProvidesPackage{sphinxhighlight}[2022/06/30 stylesheet for highlighting with pygments]
 % Its contents depend on pygments_style configuration variable.
 
 
@@ -50,6 +50,7 @@
 \@namedef{PYG@tok@gr}{\def\PYG@tc##1{\textcolor[rgb]{1.00,0.00,0.00}{##1}}}
 \@namedef{PYG@tok@ge}{\let\PYG@it=\textit}
 \@namedef{PYG@tok@gs}{\let\PYG@bf=\textbf}
+\@namedef{PYG@tok@ges}{\let\PYG@bf=\textbf\let\PYG@it=\textit}
 \@namedef{PYG@tok@gp}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor[rgb]{0.78,0.36,0.04}{##1}}}
 \@namedef{PYG@tok@go}{\def\PYG@tc##1{\textcolor[rgb]{0.20,0.20,0.20}{##1}}}
 \@namedef{PYG@tok@gt}{\def\PYG@tc##1{\textcolor[rgb]{0.00,0.27,0.87}{##1}}}
@@ -103,4 +104,27 @@
 \def\PYGZrb{]}
 \makeatother
 
-\renewcommand\PYGZsq{\textquotesingle}
+% Sphinx redefinitions
+% Originally to obtain a straight single quote via package textcomp, then
+% to fix problems for the 5.0.0 inline code highlighting (captions!).
+% The \text is from amstext, a dependency of sphinx.sty.  It is here only
+% to avoid build errors if for some reason expansion is in math mode.
+\def\PYGZbs{\text\textbackslash}
+\def\PYGZus{\_}
+\def\PYGZob{\{}
+\def\PYGZcb{\}}
+\def\PYGZca{\text\textasciicircum}
+\def\PYGZam{\&}
+\def\PYGZlt{\text\textless}
+\def\PYGZgt{\text\textgreater}
+\def\PYGZsh{\#}
+\def\PYGZpc{\%}
+\def\PYGZdl{\$}
+\def\PYGZhy{\sphinxhyphen}% defined in sphinxlatexstyletext.sty
+\def\PYGZsq{\text\textquotesingle}
+\def\PYGZdq{"}
+\def\PYGZti{\text\textasciitilde}
+\makeatletter
+% use \protected to allow syntax highlighting in captions
+\protected\def\PYG#1#2{\PYG@reset\PYG@toks#1+\relax+{\PYG@do{#2}}}
+\makeatother

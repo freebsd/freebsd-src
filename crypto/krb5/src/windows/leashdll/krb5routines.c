@@ -180,7 +180,7 @@ DWORD                       publicIP
     krb5_creds			        my_creds;
     krb5_get_init_creds_opt *   options = NULL;
     krb5_address **             addrs = NULL;
-    int                         i = 0, addr_count = 0;
+    size_t                      i = 0, addr_count = 0;
     int                         cc_new = 0;
     const char *                deftype = NULL;
 

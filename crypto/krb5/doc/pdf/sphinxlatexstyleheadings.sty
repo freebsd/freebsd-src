@@ -1,7 +1,7 @@
 %% TITLES
 %
 % change this info string if making any custom modification
-\ProvidesFile{sphinxlatexstyleheadings.sty}[2021/01/27 headings]
+\ProvidesFile{sphinxlatexstyleheadings.sty}[2023/02/11 headings]
 
 \RequirePackage[nobottomtitles*]{titlesec}
 \@ifpackagelater{titlesec}{2016/03/15}%
@@ -25,6 +25,7 @@
 ******** and Sphinx could not patch it, perhaps because your local ...|^^J%
 ******** copy is already fixed without a changed release date. .......|^^J%
 ******** If not, you must update titlesec! ...........................|}}%
+     \sphinxbuildwarning{badtitlesec}%
    \fi
   }%
  }{}
@@ -35,13 +36,15 @@
             {\py@TitleColor\thesection}{0.5em}{\py@TitleColor}
 \titleformat{\subsection}{\large\py@HeaderFamily}%
             {\py@TitleColor\thesubsection}{0.5em}{\py@TitleColor}
-\titleformat{\subsubsection}{\py@HeaderFamily}%
+% \normalsize added as work-around to a lualatex-ja upstream problem
+% https://osdn.net/projects/luatex-ja/ticket/47321
+\titleformat{\subsubsection}{\normalsize\py@HeaderFamily}%
             {\py@TitleColor\thesubsubsection}{0.5em}{\py@TitleColor}
 % By default paragraphs (and subsubsections) will not be numbered because
 % sphinxmanual.cls and sphinxhowto.cls set secnumdepth to 2
-\titleformat{\paragraph}{\py@HeaderFamily}%
+\titleformat{\paragraph}{\normalsize\py@HeaderFamily}%
             {\py@TitleColor\theparagraph}{0.5em}{\py@TitleColor}
-\titleformat{\subparagraph}{\py@HeaderFamily}%
+\titleformat{\subparagraph}{\normalsize\py@HeaderFamily}%
             {\py@TitleColor\thesubparagraph}{0.5em}{\py@TitleColor}
 
 

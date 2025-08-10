@@ -10,6 +10,9 @@
 %% let collapsible pdf bookmarks panel have high depth per default
 \PassOptionsToPackage{bookmarksdepth=5}{hyperref}
 
+\PassOptionsToPackage{booktabs}{sphinx}
+\PassOptionsToPackage{colorrows}{sphinx}
+
 \PassOptionsToPackage{warn}{textcomp}
 \usepackage[utf8]{inputenc}
 \ifdefined\DeclareUnicodeCharacter
@@ -61,12 +64,17 @@
 
 \title{Kerberos Plugin Module Developer Guide}
 \date{ }
-\release{1.21.3}
+\release{1.22\sphinxhyphen{}final}
 \author{MIT}
 \newcommand{\sphinxlogo}{\vbox{}}
 \renewcommand{\releasename}{Release}
 \makeindex
 \begin{document}
+
+\ifdefined\shorthandoff
+  \ifnum\catcode`\=\string=\active\shorthandoff{=}\fi
+  \ifnum\catcode`\"=\active\shorthandoff{"}\fi
+\fi
 
 \pagestyle{empty}
 \sphinxmaketitle
@@ -89,6 +97,8 @@ plugin modules and how to enable and disable modules via
 
 \chapter{Contents}
 \label{\detokenize{plugindev/index:contents}}
+\sphinxstepscope
+
 
 \section{General plugin concepts}
 \label{\detokenize{plugindev/general:general-plugin-concepts}}\label{\detokenize{plugindev/general::doc}}
@@ -221,6 +231,8 @@ types, the logged message does not include the usual header for some
 output types, and the severity for syslog outputs is configured as
 part of the logging specification, defaulting to error severity.)
 
+\sphinxstepscope
+
 
 \section{Client preauthentication interface (clpreauth)}
 \label{\detokenize{plugindev/clpreauth:client-preauthentication-interface-clpreauth}}\label{\detokenize{plugindev/clpreauth::doc}}
@@ -228,7 +240,7 @@ part of the logging specification, defaulting to error severity.)
 During an initial ticket request, a KDC may ask a client to prove its
 knowledge of the password before issuing an encrypted ticket, or to
 use credentials other than a password.  This process is called
-preauthentication, and is described in \index{RFC@\spxentry{RFC}!RFC 4120@\spxentry{RFC 4120}}\sphinxhref{https://tools.ietf.org/html/rfc4120.html}{\sphinxstylestrong{RFC 4120}} and \index{RFC@\spxentry{RFC}!RFC 6113@\spxentry{RFC 6113}}\sphinxhref{https://tools.ietf.org/html/rfc6113.html}{\sphinxstylestrong{RFC 6113}}.
+preauthentication, and is described in \index{RFC@\spxentry{RFC}!RFC 4120@\spxentry{RFC 4120}}\sphinxhref{https://datatracker.ietf.org/doc/html/rfc4120.html}{\sphinxstylestrong{RFC 4120}} and \index{RFC@\spxentry{RFC}!RFC 6113@\spxentry{RFC 6113}}\sphinxhref{https://datatracker.ietf.org/doc/html/rfc6113.html}{\sphinxstylestrong{RFC 6113}}.
 The clpreauth interface allows the addition of client support for
 preauthentication mechanisms beyond those included in the core MIT
 krb5 code base.  For a detailed description of the clpreauth
@@ -293,6 +305,8 @@ expected enctype of the AS reply, the FAST armor key, and the client
 long\sphinxhyphen{}term key (prompting for the user password if necessary).  A
 callback can also be used to replace the AS reply key if the
 preauthentication mechanism computes one.
+
+\sphinxstepscope
 
 
 \section{KDC preauthentication interface (kdcpreauth)}
@@ -392,6 +406,8 @@ results.  A synchronous implementation can invoke the responder
 function immediately.  An asynchronous implementation can use the
 callback to get an event context for use with the \sphinxhref{https://fedorahosted.org/libverto/}{libverto} API.
 
+\sphinxstepscope
+
 
 \section{Credential cache selection interface (ccselect)}
 \label{\detokenize{plugindev/ccselect:credential-cache-selection-interface-ccselect}}\label{\detokenize{plugindev/ccselect:ccselect-plugin}}\label{\detokenize{plugindev/ccselect::doc}}
@@ -420,6 +436,8 @@ A module can have one of two priorities, “authoritative” or
 available, will take priority over results from heuristic modules.  A
 module communicates its priority as a result of the \sphinxstylestrong{init} method.
 
+\sphinxstepscope
+
 
 \section{Password quality interface (pwqual)}
 \label{\detokenize{plugindev/pwqual:password-quality-interface-pwqual}}\label{\detokenize{plugindev/pwqual:pwqual-plugin}}\label{\detokenize{plugindev/pwqual::doc}}
@@ -446,6 +464,8 @@ object.  The \sphinxstylestrong{open} method also receives the name of the realm
 dictionary file (as configured by the \sphinxstylestrong{dict\_file} variable in the
 \DUrole{xref,std,std-ref}{kdc\_realms} section of \DUrole{xref,std,std-ref}{kdc.conf(5)}) if it wishes to use
 it.
+
+\sphinxstepscope
 
 
 \section{KADM5 hook interface (kadm5\_hook)}
@@ -476,6 +496,8 @@ object.
 Because the kadm5\_hook interface is tied closely to the kadmin
 interface (which is explicitly unstable), it may not remain as stable
 across versions as other public pluggable interfaces.
+
+\sphinxstepscope
 
 
 \section{kadmin authorization interface (kadm5\_auth)}
@@ -515,6 +537,8 @@ To do this, the module must also include \sphinxcode{\sphinxupquote{\textless{}k
 access to the structure definitions for those objects.  As the kadmin
 interface is explicitly not as stable as other public interfaces,
 modules which do this may not retain compatibility across releases.
+
+\sphinxstepscope
 
 
 \section{Host\sphinxhyphen{}to\sphinxhyphen{}realm interface (hostrealm)}
@@ -561,6 +585,8 @@ local default realm.
 If a module implements any of the above methods, it must also
 implement \sphinxstylestrong{free\_list} to ensure that memory is allocated and
 deallocated consistently.
+
+\sphinxstepscope
 
 
 \section{Local authorization interface (localauth)}
@@ -610,6 +636,8 @@ If a module implements \sphinxstylestrong{an2ln}, it must also implement
 \sphinxstylestrong{free\_string} to ensure that memory is allocated and deallocated
 consistently.
 
+\sphinxstepscope
+
 
 \section{Server location interface (locate)}
 \label{\detokenize{plugindev/locate:server-location-interface-locate}}\label{\detokenize{plugindev/locate::doc}}
@@ -642,6 +670,8 @@ A module can create and destroy per\sphinxhyphen{}library\sphinxhyphen{}context 
 implementing the \sphinxstylestrong{init} and \sphinxstylestrong{fini} methods.  State objects have
 the type void *, and should be cast to an internal type for the state
 object.
+
+\sphinxstepscope
 
 
 \section{Configuration interface (profile)}
@@ -747,6 +777,8 @@ values of malloc and strdup.)
     \PYG{k}{return} \PYG{l+m+mi}{0}\PYG{p}{;}
 \PYG{p}{\PYGZcb{}}
 \end{sphinxVerbatim}
+
+\sphinxstepscope
 
 
 \section{GSSAPI mechanism interface}
@@ -912,6 +944,8 @@ sequence may be repeated multiple times.
 
 \end{itemize}
 
+\sphinxstepscope
+
 
 \section{Internal pluggable interfaces}
 \label{\detokenize{plugindev/internal:internal-pluggable-interfaces}}\label{\detokenize{plugindev/internal::doc}}
@@ -946,6 +980,8 @@ consume (in application servers) authorization data of types beyond
 those handled by the core MIT krb5 code base.  The interface is
 defined in the header file \sphinxcode{\sphinxupquote{\textless{}krb5/authdata\_plugin.h\textgreater{}}}, which is not
 installed by the build.
+
+\sphinxstepscope
 
 
 \section{PKINIT certificate authorization interface (certauth)}
@@ -986,6 +1022,8 @@ lifetime of the KDC process.
 If a module allocates and returns a list of authentication indicators
 from \sphinxstylestrong{authorize}, it must also implement the \sphinxstylestrong{free\_ind} method
 to free the list.
+
+\sphinxstepscope
 
 
 \section{KDC policy interface (kdcpolicy)}

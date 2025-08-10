@@ -97,7 +97,7 @@ krb5int_get_plugin_data (struct plugin_file_handle *, const char *, void **,
 
 long KRB5_CALLCONV
 krb5int_get_plugin_func (struct plugin_file_handle *, const char *,
-                         void (**)(), struct errinfo *);
+                         void (**)(void), struct errinfo *);
 
 
 long KRB5_CALLCONV

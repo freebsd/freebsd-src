@@ -121,9 +121,7 @@ DB *XXdbp;				/* Global for gdb. */
 u_long XXlineno;			/* Fast breakpoint for gdb. */
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	extern int optind;
 	extern char *optarg;
@@ -380,8 +378,7 @@ lkey:			switch (command) {
 #define	NOOVERWRITE	"put failed, would overwrite key\n"
 
 void
-compare(db1, db2)
-	DBT *db1, *db2;
+compare(DBT *db1, DBT *db2)
 {
 	size_t len;
 	u_char *p1, *p2;
@@ -402,9 +399,7 @@ compare(db1, db2)
 }
 
 void
-get(dbp, kp)
-	DB *dbp;
-	DBT *kp;
+get(DB *dbp, DBT *kp)
 {
 	DBT data;
 
@@ -437,9 +432,7 @@ get(dbp, kp)
 }
 
 void
-getdata(dbp, kp, dp)
-	DB *dbp;
-	DBT *kp, *dp;
+getdata(DB *dbp, DBT *kp, DBT *dp)
 {
 	switch (dbp->get(dbp, kp, dp, flags)) {
 	case 0:
@@ -454,9 +447,7 @@ getdata(dbp, kp, dp)
 }
 
 void
-put(dbp, kp, dp)
-	DB *dbp;
-	DBT *kp, *dp;
+put(DB *dbp, DBT *kp, DBT *dp)
 {
 	switch (dbp->put(dbp, kp, dp, flags)) {
 	case 0:
@@ -473,9 +464,7 @@ put(dbp, kp, dp)
 }
 
 void
-rem(dbp, kp)
-	DB *dbp;
-	DBT *kp;
+rem(DB *dbp, DBT *kp)
 {
 	switch (dbp->del(dbp, kp, flags)) {
 	case 0:
@@ -502,8 +491,7 @@ rem(dbp, kp)
 }
 
 void
-synk(dbp)
-	DB *dbp;
+synk(DB *dbp)
 {
 	switch (dbp->sync(dbp, flags)) {
 	case 0:
@@ -515,9 +503,7 @@ synk(dbp)
 }
 
 void
-seq(dbp, kp)
-	DB *dbp;
-	DBT *kp;
+seq(DB *dbp, DBT *kp)
 {
 	DBT data;
 
@@ -551,10 +537,7 @@ seq(dbp, kp)
 }
 
 void
-dump(dbp, rev, recurse)
-	DB *dbp;
-	int rev;
-	int recurse;
+dump(DB *dbp, int rev, int recurse)
 {
 	DBT key, data;
 	int lflags, nflags;
@@ -588,8 +571,7 @@ done:	return;
 }
 
 void
-unlinkpg(dbp)
-	DB *dbp;
+unlinkpg(DB *dbp)
 {
 	BTREE *t = dbp->internal;
 	PAGE *h = NULL;
@@ -623,8 +605,7 @@ cleanup:
 }
 
 u_int
-setflags(s)
-	char *s;
+setflags(char *s)
 {
 	char *p;
 
@@ -648,8 +629,7 @@ setflags(s)
 }
 
 char *
-sflags(lflags)
-	int lflags;
+sflags(int lflags)
 {
 	switch (lflags) {
 	case R_CURSOR:		return ("R_CURSOR");
@@ -667,8 +647,7 @@ sflags(lflags)
 }
 
 DBTYPE
-dbtype(s)
-	char *s;
+dbtype(char *s)
 {
 	if (!strcmp(s, "btree"))
 		return (DB_BTREE);
@@ -681,9 +660,7 @@ dbtype(s)
 }
 
 void *
-setinfo(db_type, s)
-	DBTYPE db_type;
-	char *s;
+setinfo(DBTYPE db_type, char *s)
 {
 	static BTREEINFO ib;
 	static HASHINFO ih;
@@ -777,9 +754,7 @@ setinfo(db_type, s)
 }
 
 void *
-rfile(name, lenp)
-	char *name;
-	size_t *lenp;
+rfile(char *name, size_t *lenp)
 {
 	struct stat sb;
 	void *p;
@@ -806,9 +781,7 @@ rfile(name, lenp)
 }
 
 void *
-xmalloc(text, len)
-	char *text;
-	size_t len;
+xmalloc(char *text, size_t len)
 {
 	void *p;
 
@@ -819,7 +792,7 @@ xmalloc(text, len)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: dbtest [-l] [-f file] [-i info] [-o file] type script\n");

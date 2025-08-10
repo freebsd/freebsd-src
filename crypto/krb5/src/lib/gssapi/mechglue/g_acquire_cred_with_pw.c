@@ -98,26 +98,12 @@ val_acq_cred_pw_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_acquire_cred_with_password(
-    minor_status,
-    desired_name,
-    password,
-    time_req,
-    desired_mechs,
-    cred_usage,
-    output_cred_handle,
-    actual_mechs,
-    time_rec)
-
-OM_uint32 *		minor_status;
-const gss_name_t	desired_name;
-const gss_buffer_t	password;
-OM_uint32		time_req;
-const gss_OID_set	desired_mechs;
-int			cred_usage;
-gss_cred_id_t *		output_cred_handle;
-gss_OID_set *		actual_mechs;
-OM_uint32 *		time_rec;
+gss_acquire_cred_with_password(OM_uint32 *minor_status,
+			       const gss_name_t desired_name,
+			       const gss_buffer_t password, OM_uint32 time_req,
+			       const gss_OID_set desired_mechs, int cred_usage,
+			       gss_cred_id_t *output_cred_handle,
+			       gss_OID_set *actual_mechs, OM_uint32 *time_rec)
 {
     OM_uint32 major = GSS_S_FAILURE;
     OM_uint32 initTimeOut, acceptTimeOut, outTime = GSS_C_INDEFINITE;
@@ -306,23 +292,19 @@ val_add_cred_pw_args(
 
 /* V2 KRB5_CALLCONV */
 OM_uint32 KRB5_CALLCONV
-gss_add_cred_with_password(minor_status, input_cred_handle,
-		  desired_name, desired_mech, password, cred_usage,
-		  initiator_time_req, acceptor_time_req,
-		  output_cred_handle, actual_mechs,
-		  initiator_time_rec, acceptor_time_rec)
-    OM_uint32		*minor_status;
-    const gss_cred_id_t	input_cred_handle;
-    const gss_name_t	desired_name;
-    const gss_OID	desired_mech;
-    const gss_buffer_t	password;
-    gss_cred_usage_t	cred_usage;
-    OM_uint32		initiator_time_req;
-    OM_uint32		acceptor_time_req;
-    gss_cred_id_t	*output_cred_handle;
-    gss_OID_set		*actual_mechs;
-    OM_uint32		*initiator_time_rec;
-    OM_uint32		*acceptor_time_rec;
+gss_add_cred_with_password(
+    OM_uint32 *minor_status,
+    const gss_cred_id_t input_cred_handle,
+    const gss_name_t desired_name,
+    const gss_OID desired_mech,
+    const gss_buffer_t password,
+    gss_cred_usage_t cred_usage,
+    OM_uint32 initiator_time_req,
+    OM_uint32 acceptor_time_req,
+    gss_cred_id_t *output_cred_handle,
+    gss_OID_set *actual_mechs,
+    OM_uint32 *initiator_time_rec,
+    OM_uint32 *acceptor_time_rec)
 {
     OM_uint32		status, temp_minor_status;
     OM_uint32		time_req, time_rec;

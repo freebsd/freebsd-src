@@ -116,7 +116,7 @@ find_authdata_1(krb5_context context, krb5_authdata *const *in_authdat,
                 krb5_authdatatype ad_type, struct find_authdata_context *fctx,
                 int from_ap_req)
 {
-    int i = 0;
+    size_t i = 0;
     krb5_error_code retval = 0;
 
     for (i = 0; in_authdat[i] && retval == 0; i++) {

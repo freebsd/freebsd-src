@@ -44,11 +44,11 @@ If *auth_context* has a remote address set, the address will be used to verify t
 
 
 
-If the #KRB5_AUTH_CONTEXT_DO_SEQUENCE flag is set in *auth_context* , the sequence number of the KRB-PRIV message is checked against the remote sequence number field of *auth_context* . Otherwise, the sequence number is not used.
+If the KRB5_AUTH_CONTEXT_DO_SEQUENCE flag is set in *auth_context* , the sequence number of the KRB-PRIV message is checked against the remote sequence number field of *auth_context* . Otherwise, the sequence number is not used.
 
 
 
-If the #KRB5_AUTH_CONTEXT_DO_TIME flag is set in *auth_context* , then the timestamp in the message is verified to be within the permitted clock skew of the current time, and the message is checked against an in-memory replay cache to detect reflections or replays.
+If the KRB5_AUTH_CONTEXT_DO_TIME flag is set in *auth_context* , then the timestamp in the message is verified to be within the permitted clock skew of the current time, and the message is checked against an in-memory replay cache to detect reflections or replays.
 
 
 
@@ -72,7 +72,7 @@ Use krb5_free_data_contents() to free *userdata_out* when it is no longer needed
 
 .. note::
 
-	 The *rdata_out* argument is required if the #KRB5_AUTH_CONTEXT_RET_TIME or #KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .
+	 The *rdata_out* argument is required if the KRB5_AUTH_CONTEXT_RET_TIME or KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .
  
 
 

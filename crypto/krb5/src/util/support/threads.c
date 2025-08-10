@@ -118,7 +118,6 @@ struct tsd_block {
 # pragma weak pthread_mutex_destroy
 # pragma weak pthread_mutex_init
 # pragma weak pthread_self
-# pragma weak pthread_equal
 # pragma weak pthread_getspecific
 # pragma weak pthread_setspecific
 # pragma weak pthread_key_create
@@ -151,7 +150,6 @@ int krb5int_pthread_loaded (void)
         || &pthread_mutex_destroy == 0
         || &pthread_mutex_init == 0
         || &pthread_self == 0
-        || &pthread_equal == 0
         /* Any program that's really multithreaded will have to be
            able to create threads.  */
         || &pthread_create == 0

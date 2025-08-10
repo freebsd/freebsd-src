@@ -37,9 +37,7 @@ gss_decapsulate_token(gss_const_buffer_t input_token,
                       gss_const_OID token_oid,
                       gss_buffer_t output_token)
 {
-    OM_uint32 minor;
-    unsigned int body_size = 0;
-    unsigned char *buf_in;
+    struct k5input in;
 
     if (input_token == GSS_C_NO_BUFFER || token_oid == GSS_C_NO_OID)
         return GSS_S_CALL_INACCESSIBLE_READ;
@@ -47,20 +45,16 @@ gss_decapsulate_token(gss_const_buffer_t input_token,
     if (output_token == GSS_C_NO_BUFFER)
         return GSS_S_CALL_INACCESSIBLE_WRITE;
 
-    buf_in = input_token->value;
-
-    minor = g_verify_token_header(token_oid, &body_size, &buf_in,
-                                  -1, input_token->length,
-                                  G_VFY_TOKEN_HDR_WRAPPER_REQUIRED);
-    if (minor != 0)
+    k5_input_init(&in, input_token->value, input_token->length);
+    if (!g_verify_token_header(&in, token_oid))
         return GSS_S_DEFECTIVE_TOKEN;
 
-    output_token->value = gssalloc_malloc(body_size);
+    output_token->value = gssalloc_malloc(in.len);
     if (output_token->value == NULL)
         return GSS_S_FAILURE;
 
-    memcpy(output_token->value, buf_in, body_size);
-    output_token->length = body_size;
+    memcpy(output_token->value, in.ptr, in.len);
+    output_token->length = in.len;
 
     return GSS_S_COMPLETE;
 }

@@ -122,7 +122,8 @@ static krb5_error_code hmac1(const struct krb5_hash_provider *h,
     return err;
 }
 
-static void test_hmac()
+static void
+test_hmac(void)
 {
     krb5_keyblock key;
     krb5_data in, out;

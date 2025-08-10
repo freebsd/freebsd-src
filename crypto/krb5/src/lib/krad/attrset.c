@@ -164,14 +164,41 @@ krad_attrset_copy(const krad_attrset *set, krad_attrset **copy)
     return 0;
 }
 
+/* Place an encoded attributes into outbuf at position *i.  Increment *i by the
+ * length of the encoding. */
+static krb5_error_code
+append_attr(krb5_context ctx, const char *secret,
+            const uint8_t *auth, krad_attr type, const krb5_data *data,
+            uint8_t outbuf[MAX_ATTRSETSIZE], size_t *i)
+{
+    uint8_t buffer[MAX_ATTRSIZE];
+    size_t attrlen;
+    krb5_error_code retval;
+
+    retval = kr_attr_encode(ctx, secret, auth, type, data, buffer, &attrlen);
+    if (retval)
+        return retval;
+
+    if (attrlen > MAX_ATTRSETSIZE - *i - 2)
+        return EMSGSIZE;
+
+    outbuf[(*i)++] = type;
+    outbuf[(*i)++] = attrlen + 2;
+    memcpy(outbuf + *i, buffer, attrlen);
+    *i += attrlen;
+
+    return 0;
+}
+
 krb5_error_code
 kr_attrset_encode(const krad_attrset *set, const char *secret,
-                  const unsigned char *auth,
+                  const uint8_t *auth, krb5_boolean add_msgauth,
                   unsigned char outbuf[MAX_ATTRSETSIZE], size_t *outlen)
 {
-    unsigned char buffer[MAX_ATTRSIZE];
     krb5_error_code retval;
-    size_t i = 0, attrlen;
+    const uint8_t zeroes[MD5_DIGEST_SIZE] = { 0 };
+    krb5_data zerodata;
+    size_t i = 0;
     attr *a;
 
     if (set == NULL) {
@@ -179,19 +206,22 @@ kr_attrset_encode(const krad_attrset *set, const char *secret,
         return 0;
     }
 
-    K5_TAILQ_FOREACH(a, &set->list, list) {
-        retval = kr_attr_encode(set->ctx, secret, auth, a->type, &a->attr,
-                                buffer, &attrlen);
-        if (retval != 0)
+    if (add_msgauth) {
+        /* Encode Message-Authenticator as the first attribute, per
+         * draft-ietf-radext-deprecating-radius-03 section 5.2. */
+        zerodata = make_data((uint8_t *)zeroes, MD5_DIGEST_SIZE);
+        retval = append_attr(set->ctx, secret, auth,
+                             KRAD_ATTR_MESSAGE_AUTHENTICATOR, &zerodata,
+                             outbuf, &i);
+        if (retval)
             return retval;
+    }
 
-        if (i + attrlen + 2 > MAX_ATTRSETSIZE)
-            return EMSGSIZE;
-
-        outbuf[i++] = a->type;
-        outbuf[i++] = attrlen + 2;
-        memcpy(&outbuf[i], buffer, attrlen);
-        i += attrlen;
+    K5_TAILQ_FOREACH(a, &set->list, list) {
+        retval = append_attr(set->ctx, secret, auth, a->type, &a->attr,
+                             outbuf, &i);
+        if (retval)
+            return retval;
     }
 
     *outlen = i;

@@ -242,7 +242,7 @@ ndr_enc_delegation_info(struct pac_s4u_delegation_info *in, krb5_data *out)
 {
     krb5_error_code ret;
     size_t i;
-    struct k5buf b;
+    struct k5buf b = EMPTY_K5BUF;
     struct encoded_wchars pt_encoded = { 0 }, *tss_encoded = NULL;
     uint32_t pointer = 0;
 

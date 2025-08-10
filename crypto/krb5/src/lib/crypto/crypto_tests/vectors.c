@@ -56,7 +56,7 @@ static void printdata (krb5_data *d) { printhex (d->length, d->data); }
 
 static void printkey (krb5_keyblock *k) { printhex (k->length, k->contents); }
 
-static void test_nfold ()
+static void test_nfold (void)
 {
     int i;
     static const struct {
@@ -96,7 +96,7 @@ static void test_nfold ()
    so try to generate them. */
 
 static void
-test_mit_des_s2k ()
+test_mit_des_s2k (void)
 {
     static const struct {
         const char *pass;
@@ -190,7 +190,7 @@ test_s2k (krb5_enctype enctype)
     }
 }
 
-static void test_des3_s2k () { test_s2k (ENCTYPE_DES3_CBC_SHA1); }
+static void test_des3_s2k (void) { test_s2k (ENCTYPE_DES3_CBC_SHA1); }
 
 static void
 keyToData (krb5_keyblock *k, krb5_data *d)
@@ -227,7 +227,7 @@ void DR (krb5_data *out, krb5_keyblock *in, const krb5_data *usage) {
 #define KEYBYTES  21
 #define KEYLENGTH 24
 
-void test_dr_dk ()
+void test_dr_dk (void)
 {
     static const struct {
         unsigned char keydata[KEYLENGTH];
@@ -371,7 +371,7 @@ static void printk(const char *descr, krb5_keyblock *k) {
 
 
 static void
-test_pbkdf2()
+test_pbkdf2(void)
 {
     static struct {
         int count;

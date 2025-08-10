@@ -559,7 +559,7 @@ try_accept(void *value, size_t len)
 
 /* Accept contexts using superficially valid but truncated encapsulations. */
 static void
-test_short_encapsulation()
+test_short_encapsulation(void)
 {
     /* Include just the initial application tag, to see if we overrun reading
      * the sequence length. */

@@ -103,13 +103,31 @@ sync_header(kdb_hlog_t *ulog)
     }
 }
 
+/* Sync memory to disk for the entire ulog. */
+static void
+sync_ulog(kdb_hlog_t *ulog, uint32_t ulogentries)
+{
+    size_t len;
+
+    if (!pagesize)
+        pagesize = getpagesize();
+
+    len = (sizeof(kdb_hlog_t) + ulogentries * ulog->kdb_block +
+           (pagesize - 1)) & ~(pagesize - 1);
+    if (msync(ulog, len, MS_SYNC)) {
+        /* Couldn't sync to disk, let's panic. */
+        syslog(LOG_ERR, _("could not sync the whole ulog to disk"));
+        abort();
+    }
+}
+
 /* Return true if the ulog entry for sno matches sno and timestamp. */
 static krb5_boolean
 check_sno(kdb_log_context *log_ctx, kdb_sno_t sno,
           const kdbe_time_t *timestamp)
 {
     unsigned int indx = (sno - 1) % log_ctx->ulogentries;
-    kdb_ent_header_t *ent = INDEX(log_ctx->ulog, indx);
+    kdb_ent_header_t *ent = ulog_index(log_ctx->ulog, indx);
 
     return ent->kdb_entry_sno == sno && time_equal(&ent->kdb_time, timestamp);
 }
@@ -175,17 +193,16 @@ extend_file_to(int fd, unsigned int new_size)
     return 0;
 }
 
-/*
- * Resize the array elements.  We reinitialize the update log rather than
- * unrolling the the log and copying it over to a temporary log for obvious
- * performance reasons.  Replicas will subsequently do a full resync, but the
- * need for resizing should be very small.
- */
+/* Resize the array elements of ulog to be at least as large as recsize.  Move
+ * the existing elements into the proper offsets for the new block size. */
 static krb5_error_code
 resize(kdb_hlog_t *ulog, uint32_t ulogentries, int ulogfd,
-       unsigned int recsize)
+       unsigned int recsize, const kdb_incr_update_t *upd)
 {
-    unsigned int new_block, new_size;
+    size_t old_block = ulog->kdb_block, new_block, new_size;
+    krb5_error_code retval;
+    uint8_t *old_ent, *new_ent;
+    uint32_t i;
 
     if (ulog == NULL)
         return KRB5_LOG_ERROR;
@@ -195,19 +212,34 @@ resize(kdb_hlog_t *ulog, uint32_t ulogentries, int ulogfd,
     new_block *= ULOG_BLOCK;
     new_size += ulogentries * new_block;
 
+    if (new_block > UINT16_MAX) {
+        syslog(LOG_ERR, _("ulog overflow caused by principal %.*s"),
+               upd->kdb_princ_name.utf8str_t_len,
+               upd->kdb_princ_name.utf8str_t_val);
+        return KRB5_LOG_ERROR;
+    }
     if (new_size > MAXLOGLEN)
         return KRB5_LOG_ERROR;
 
-    /* Reinit log with new block size. */
-    memset(ulog, 0, sizeof(*ulog));
-    ulog->kdb_hmagic = KDB_ULOG_HDR_MAGIC;
-    ulog->db_version_num = KDB_VERSION;
-    ulog->kdb_state = KDB_STABLE;
-    ulog->kdb_block = new_block;
-    sync_header(ulog);
-
     /* Expand log considering new block size. */
-    return extend_file_to(ulogfd, new_size);
+    retval = extend_file_to(ulogfd, new_size);
+    if (retval)
+        return retval;
+
+    /* Copy each record into its new location and zero out the unused areas.
+     * The area is overlapping, so we have to iterate backwards. */
+    for (i = ulogentries; i > 0; i--) {
+        old_ent = ulog_record_ptr(ulog, i - 1, old_block);
+        new_ent = ulog_record_ptr(ulog, i - 1, new_block);
+        memmove(new_ent, old_ent, old_block);
+        memset(new_ent + old_block, 0, new_block - old_block);
+    }
+
+    syslog(LOG_INFO, _("ulog block size has been resized from %lu to %lu"),
+           (unsigned long)old_block, (unsigned long)new_block);
+    ulog->kdb_block = new_block;
+    sync_ulog(ulog, ulogentries);
+    return 0;
 }
 
 /* Set the ulog to contain only a dummy entry with the given serial number and
@@ -216,7 +248,7 @@ static void
 set_dummy(kdb_log_context *log_ctx, kdb_sno_t sno, const kdbe_time_t *kdb_time)
 {
     kdb_hlog_t *ulog = log_ctx->ulog;
-    kdb_ent_header_t *ent = INDEX(ulog, (sno - 1) % log_ctx->ulogentries);
+    kdb_ent_header_t *ent = ulog_index(ulog, (sno - 1) % log_ctx->ulogentries);
 
     memset(ent, 0, sizeof(*ent));
     ent->kdb_umagic = KDB_ULOG_MAGIC;
@@ -291,7 +323,7 @@ store_update(kdb_log_context *log_ctx, kdb_incr_update_t *upd)
     recsize = sizeof(kdb_ent_header_t) + upd_size;
 
     if (recsize > ulog->kdb_block) {
-        retval = resize(ulog, ulogentries, log_ctx->ulogfd, recsize);
+        retval = resize(ulog, ulogentries, log_ctx->ulogfd, recsize, upd);
         if (retval)
             return retval;
     }
@@ -299,7 +331,7 @@ store_update(kdb_log_context *log_ctx, kdb_incr_update_t *upd)
     ulog->kdb_state = KDB_UNSTABLE;
 
     i = (upd->kdb_entry_sno - 1) % ulogentries;
-    indx_log = INDEX(ulog, i);
+    indx_log = ulog_index(ulog, i);
 
     memset(indx_log, 0, ulog->kdb_block);
     indx_log->kdb_umagic = KDB_ULOG_MAGIC;
@@ -329,7 +361,7 @@ store_update(kdb_log_context *log_ctx, kdb_incr_update_t *upd)
     } else {
         /* We are circling; set kdb_first_sno and time to the next update. */
         i = upd->kdb_entry_sno % ulogentries;
-        indx_log = INDEX(ulog, i);
+        indx_log = ulog_index(ulog, i);
         ulog->kdb_first_sno = indx_log->kdb_entry_sno;
         ulog->kdb_first_time = indx_log->kdb_time;
     }
@@ -587,7 +619,7 @@ ulog_get_entries(krb5_context context, const kdb_last_t *last,
 
     for (; sno < ulog->kdb_last_sno; sno++) {
         indx = sno % ulogentries;
-        indx_log = INDEX(ulog, indx);
+        indx_log = ulog_index(ulog, indx);
 
         memset(upd, 0, sizeof(kdb_incr_update_t));
         xdrmem_create(&xdrs, (char *)indx_log->entry_data,

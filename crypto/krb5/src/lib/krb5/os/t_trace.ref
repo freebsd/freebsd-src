@@ -10,8 +10,8 @@ size_t and const char *, as four-character hex hash: 7B9A
 size_t and const char *, as four-character hex hash: (null)
 struct remote_address *, show socket type, address, port: stream 0.0.0.0:88
 struct remote_address *, show socket type, address, port: dgram 0.0.0.0:88
-struct remote_address *, show socket type, address, port: transport1234 AF_UNSPEC
-struct remote_address *, show socket type, address, port: transport1234 af5678
+struct remote_address *, show socket type, address, port: transport1234 <unknown>
+struct remote_address *, show socket type, address, port: transport1234 <unknown>
 krb5_data *, display as counted string: example.data
 krb5_data *, display as counted string: (null)
 krb5_data *, display as hex bytes: 6578616D706C652E64617461

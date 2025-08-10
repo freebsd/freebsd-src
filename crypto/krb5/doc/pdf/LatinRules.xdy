@@ -1,9 +1,13 @@
-;; style file for xindy
+;; Common Lisp style file for xindy
 ;; filename: LatinRules.xdy
+;;
+;; Please note that this data file deliberately uses strings
+;; with single non-ascii bytes.  This is intentional and
+;; follows the usage observed in similar xindy support files.
 ;;
 ;; It is based upon xindy's files lang/general/utf8.xdy and
 ;; lang/general/utf8-lang.xdy which implement
-;; "a general sorting order for Western European languages"
+;; "a general sorting order for Western European languages".
 ;;
 ;; The aim for Sphinx is to be able to index in a Cyrillic document
 ;; also terms using the Latin alphabets, inclusive of letters
@@ -14,7 +18,7 @@
 ;;
 ;; So here we use only 0o266 or higher bytes.
 ;; (Ŋ, ŋ, Ĳ, and ĳ are absent from
-;; lang/general/utf8.xdy and not included here)
+;; lang/general/utf8.xdy and not included here.)
 ;; Contributed by the Sphinx team, 2018.
 
 (define-letter-group "A" :prefixes ("�"))

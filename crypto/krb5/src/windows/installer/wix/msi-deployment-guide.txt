@@ -825,11 +825,6 @@ Kerberos for Windows
        means that group policy based deployments will fail on machines
        that have the "Kerberos for Windows" NSIS package installed.
 
-       Note that the NSIS package is only available for 32-bit i386.
-       You cannot install both the 32-bit NSIS and 64-bit amd64 MSI 
-       packages on the same machine.  To install both 32-bit and 64-bit
-       KFW, you must use the MSI packages of both.
-
     If you have used a different MSI package to install Kerberos for
     Windows and wish to upgrade it you can author rows into the
     'Upgrade' table to have the "Kerberos for Windows" MSI replace these

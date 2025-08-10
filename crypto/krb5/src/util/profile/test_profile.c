@@ -19,8 +19,8 @@ const char *program_name = "test_profile";
 #define PRINT_VALUE     1
 #define PRINT_VALUES    2
 
-static void do_batchmode(profile)
-    profile_t       profile;
+static void
+do_batchmode(profile_t profile)
 {
     errcode_t       retval;
     int             argc, ret;
@@ -108,10 +108,8 @@ static void do_batchmode(profile)
 
 }
 
-
-int main(argc, argv)
-    int         argc;
-    char        **argv;
+int
+main(int argc, char **argv)
 {
     profile_t   profile;
     long        retval;

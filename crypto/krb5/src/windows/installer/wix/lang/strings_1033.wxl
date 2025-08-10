@@ -25,10 +25,8 @@
   or implied warranty.
   
   -->
-    <String Id="ProductName64">Kerberos for Windows (64-bit)</String>
-    <String Id="ProductNameShort64">KFW64</String>
-    <String Id="ProductName">Kerberos for Windows (32-bit)</String>
-    <String Id="ProductNameShort">KFW32</String>
+    <String Id="ProductName">Kerberos for Windows (64-bit)</String>
+    <String Id="ProductNameShort">KFW64</String>
     <String Id="ProductMIT">MIT</String>
     <String Id="ProductDebug">Debug/Checked</String>
     <String Id="ProductBeta">Beta</String>

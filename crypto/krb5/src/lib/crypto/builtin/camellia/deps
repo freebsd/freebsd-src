@@ -12,3 +12,5 @@ camellia.so camellia.po $(OUTPRE)camellia.$(OBJEXT): \
   $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
   $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
   $(top_srcdir)/include/socket-utils.h camellia.c camellia.h
+camellia-gen.so camellia-gen.po $(OUTPRE)camellia-gen.$(OBJEXT): \
+  camellia-gen.c camellia.h

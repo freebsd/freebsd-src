@@ -137,7 +137,8 @@ struct {
     { "F8F9FAFBFCFDFEFF", "\xF8\xF9\xFA\xFB\xFC\xFD\xFE\xFF", 8, 1 },
 };
 
-int main()
+int
+main(void)
 {
     size_t i;
     char *hex;

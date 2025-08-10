@@ -1,4 +1,5 @@
 from k5test import *
+import re
 
 rollover_krb5_conf = {'libdefaults': {'allow_weak_crypto': 'true'}}
 
@@ -54,6 +55,30 @@ if 'vno 1, aes256-cts' not in out or \
     fail('keyrollover: setup for TGS enctype test failed')
 # Now present the DES3 ticket to the KDC and make sure it's rejected.
 realm.run([kvno, realm.host_princ], expected_code=1)
+
+# Test -keepold limit for self-service requests through kadmind.
+def count_kvnos(princ, expected_count):
+    out = realm.run_kadmin(['getprinc', princ])
+    vnos = re.findall(r' vno \d+,', out)
+    if len(set(vnos)) != expected_count:
+        fail('expected %d key versions' % expected_count)
+realm.start_kadmind()
+realm.prep_kadmin(realm.user_princ, password('user'))
+realm.run_kadmin(['cpw', '-randkey', '-keepold', realm.user_princ])
+realm.run_kadmin(['cpw', '-randkey', '-keepold', realm.user_princ])
+realm.run_kadmin(['cpw', '-randkey', '-keepold', realm.user_princ])
+realm.run_kadmin(['cpw', '-randkey', '-keepold', realm.user_princ])
+count_kvnos(realm.user_princ, 5)
+realm.run_kadmin(['cpw', '-randkey', '-keepold', realm.user_princ])
+count_kvnos(realm.user_princ, 5)
+realm.run_kadmin(['cpw', '-pw', 'pw', '-keepold', realm.user_princ])
+count_kvnos(realm.user_princ, 5)
+# Test that the limit doesn't apply when modifying another principal.
+realm.prep_kadmin()
+realm.run_kadmin(['cpw', '-randkey', '-keepold', realm.user_princ])
+count_kvnos(realm.user_princ, 6)
+realm.run_kadmin(['cpw', '-pw', 'pw', '-keepold', realm.user_princ])
+count_kvnos(realm.user_princ, 7)
 
 realm.stop()
 

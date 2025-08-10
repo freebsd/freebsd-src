@@ -56,7 +56,7 @@ krb5_error_code
 kdc_convert_key (krb5_keyblock *, krb5_keyblock *, int);
 krb5_error_code
 kdc_process_tgs_req (kdc_realm_t *, krb5_kdc_req *,
-                     const krb5_fulladdr *,
+                     const struct sockaddr *,
                      krb5_data *,
                      krb5_ticket **,
                      krb5_db_entry **krbtgt_ptr,
@@ -148,18 +148,18 @@ cammac_check_kdcver(krb5_context context, krb5_cammac *cammac,
 /* do_as_req.c */
 void
 process_as_req (krb5_kdc_req *, krb5_data *,
-                const krb5_fulladdr *, const krb5_fulladdr *, kdc_realm_t *,
-                verto_ctx *, loop_respond_fn, void *);
+                const struct sockaddr *, const struct sockaddr *,
+                kdc_realm_t *, verto_ctx *, loop_respond_fn, void *);
 
 /* do_tgs_req.c */
 krb5_error_code
-process_tgs_req (krb5_kdc_req *, krb5_data *, const krb5_fulladdr *,
+process_tgs_req (krb5_kdc_req *, krb5_data *, const struct sockaddr *,
                  kdc_realm_t *, krb5_data ** );
 /* dispatch.c */
 void
 dispatch (void *,
-          const krb5_fulladdr *,
-          const krb5_fulladdr *,
+          const struct sockaddr *,
+          const struct sockaddr *,
           krb5_data *,
           int,
           verto_ctx *,
@@ -315,15 +315,15 @@ kdc_get_ticket_renewtime(kdc_realm_t *realm, krb5_kdc_req *request,
 
 void
 log_as_req(krb5_context context,
-           const krb5_fulladdr *local_addr,
-           const krb5_fulladdr *remote_addr,
+           const struct sockaddr *local_addr,
+           const struct sockaddr *remote_addr,
            krb5_kdc_req *request, krb5_kdc_rep *reply,
            krb5_db_entry *client, const char *cname,
            krb5_db_entry *server, const char *sname,
            krb5_timestamp authtime,
            const char *status, krb5_error_code errcode, const char *emsg);
 void
-log_tgs_req(krb5_context ctx, const krb5_fulladdr *from,
+log_tgs_req(krb5_context ctx, const struct sockaddr *from,
             krb5_kdc_req *request, krb5_kdc_rep *reply,
             krb5_principal cprinc, krb5_principal sprinc,
             krb5_principal altcprinc,

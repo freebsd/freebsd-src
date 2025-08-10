@@ -40,25 +40,25 @@ This function adds a buffer of type *type* and contents *data* to *pac* if there
 
 The valid values of *type* is one of the following: 
  
-	 - #KRB5_PAC_LOGON_INFO - Logon information
+	 - KRB5_PAC_LOGON_INFO - Logon information
  
  
-	 - #KRB5_PAC_CREDENTIALS_INFO - Credentials information
+	 - KRB5_PAC_CREDENTIALS_INFO - Credentials information
  
  
-	 - #KRB5_PAC_SERVER_CHECKSUM - Server checksum
+	 - KRB5_PAC_SERVER_CHECKSUM - Server checksum
  
  
-	 - #KRB5_PAC_PRIVSVR_CHECKSUM - KDC checksum
+	 - KRB5_PAC_PRIVSVR_CHECKSUM - KDC checksum
  
  
-	 - #KRB5_PAC_CLIENT_INFO - Client name and ticket information
+	 - KRB5_PAC_CLIENT_INFO - Client name and ticket information
  
  
-	 - #KRB5_PAC_DELEGATION_INFO - Constrained delegation information
+	 - KRB5_PAC_DELEGATION_INFO - Constrained delegation information
  
  
-	 - #KRB5_PAC_UPN_DNS_INFO - User principal name and DNS information
+	 - KRB5_PAC_UPN_DNS_INFO - User principal name and DNS information
  
  
 

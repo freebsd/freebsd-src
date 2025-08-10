@@ -34,7 +34,7 @@ krb5_c_crypto_length_iov -  Fill in lengths for header, trailer and padding in a
 
 
 
-Padding is set to the actual padding required based on the provided *data* buffers. Typically this API is used after setting up the data buffers and #KRB5_CRYPTO_TYPE_SIGN_ONLY buffers, but before actually allocating header, trailer and padding.
+Padding is set to the actual padding required based on the provided *data* buffers. Typically this API is used after setting up the data buffers and KRB5_CRYPTO_TYPE_SIGN_ONLY buffers, but before actually allocating header, trailer and padding.
 
 
 

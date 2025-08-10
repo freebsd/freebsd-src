@@ -1,10 +1,45 @@
 %% TEXT STYLING
 %
 % change this info string if making any custom modification
-\ProvidesFile{sphinxlatexstyletext.sty}[2021/01/27 text styling]
+\ProvidesFile{sphinxlatexstyletext.sty}[2023/07/23 text styling]
 
 % Basically everything here consists of macros which are part of the latex
 % markup produced by the Sphinx latex writer
+
+% But those arise rather from the default definitions of the respective
+% latex environments done in sphinxlatexadmonitions.sty
+\def\sphinxstylenotetitle   #1{\sphinxstrong{#1} }
+\let\sphinxstylehinttitle     \sphinxstylenotetitle % #1 holds the localized notice name
+\let\sphinxstyleimportanttitle\sphinxstylenotetitle % followed by a colon
+\let\sphinxstyletiptitle      \sphinxstylenotetitle
+\let\sphinxstylewarningtitle  \sphinxstylenotetitle
+\let\sphinxstylecautiontitle  \sphinxstylenotetitle
+\let\sphinxstyleattentiontitle\sphinxstylenotetitle
+\let\sphinxstyledangertitle   \sphinxstylenotetitle
+\let\sphinxstyleerrortitle    \sphinxstylenotetitle
+\def\sphinxstyleseealsotitle#1{\sphinxstrong{#1}\par\nopagebreak}
+%
+% A utility to remove a final colon.  Removing last token is not easy in
+% LaTeX, and there are additional complications:
+% - some languages will make the : "active" in document body,
+% - the generic admonition ends up using "note", so for \sphinxnotetitle to
+%   use it safely, the utility has to allow an input not having any final colon.
+% - a bit far-fetched but maybe there is more than one colon inside the input
+%   (possible from a generic admonition title).
+% Hence the scary code.
+\def\sphinxremovefinalcolon#1{% #1 is the "active" : TeX token
+\protected\def\sphinxremovefinalcolon ##1{%
+   % complications due to : possibly "active"
+   \begingroup\ifnum\catcode`:=\active
+                    \def\x####1#1\relax{####1}%
+               \else\def\x####1:\relax{####1}\fi
+   \expandafter\endgroup\x##1\relax
+   % trick to let \x work also if input ##1 has no ending colon
+   \@gobblefour#1\relax:\relax\relax\relax
+   }%
+}% end of wrapper to inject active :
+\begingroup\catcode`:\active\expandafter\endgroup\sphinxremovefinalcolon:
+% See doc/latex.rst for an example.
 
 % Some custom font markup commands.
 \protected\def\sphinxstrong#1{\textbf{#1}}
@@ -19,9 +54,13 @@
 \protected\def\sphinxaccelerator#1{\underline{#1}}
 \protected\def\sphinxcrossref#1{\emph{#1}}
 \protected\def\sphinxtermref#1{\emph{#1}}
+\protected\def\sphinxsamedocref#1{\emph{#1}}
+\protected\def\sphinxparam#1{\emph{#1}}
+\protected\def\sphinxtypeparam#1{\emph{#1}}
 % \optional is used for ``[, arg]``, i.e. desc_optional nodes.
 \long\protected\def\sphinxoptional#1{%
-  {\textnormal{\Large[}}{#1}\hspace{0.5mm}{\textnormal{\Large]}}}
+  {\sphinxoptionalhook\textnormal{\Large[}}{#1}\hspace{0.5mm}{\textnormal{\Large]}}}
+\let\sphinxoptionalhook\empty
 
 % additional customizable styling
 \def\sphinxstyleindexentry   #1{\texttt{#1}}
@@ -39,6 +78,7 @@
 \protected\def\sphinxstyleothertitle   #1{\textbf{#1}}
 \protected\def\sphinxstylesidebarsubtitle #1{~\\\textbf{#1} \smallskip}
 % \text.. commands do not allow multiple paragraphs
+% attention, this one is not self-delimiting
 \protected\def\sphinxstyletheadfamily    {\sffamily}
 \protected\def\sphinxstyleemphasis     #1{\emph{#1}}
 \protected\def\sphinxstyleliteralemphasis#1{\emph{\sphinxcode{#1}}}
@@ -46,8 +86,8 @@
 \protected\def\sphinxstyleliteralstrong#1{\sphinxbfcode{#1}}
 \protected\def\sphinxstyleabbreviation #1{\textsc{#1}}
 \protected\def\sphinxstyleliteralintitle#1{\sphinxcode{#1}}
-\newcommand*\sphinxstylecodecontinued[1]{\footnotesize(#1)}%
-\newcommand*\sphinxstylecodecontinues[1]{\footnotesize(#1)}%
+\newcommand*\sphinxstylecodecontinued[1]{{\footnotesize(#1)}}%
+\newcommand*\sphinxstylecodecontinues[1]{{\footnotesize(#1)}}%
 % figure legend comes after caption and may contain arbitrary body elements
 \newenvironment{sphinxlegend}{\par\small}{\par}
 % reduce hyperref "Token not allowed in a PDF string" warnings on PDF builds
@@ -67,17 +107,32 @@
     \let\sphinxemail    \@firstofone
     \let\sphinxcrossref \@firstofone
     \let\sphinxtermref  \@firstofone
+    \let\sphinxsamedocref\@firstofone
     \let\sphinxhyphen\sphinxhyphenforbookmarks
+    \def\PYG#1#2{#2}% (can not yet appear in section titles, but perhaps in future)
 }}
 
 % Special characters
 %
-% This definition prevents en-dash and em-dash TeX ligatures.
+\def\sphinxparamcomma{, }% by default separate parameters with comma + space
+% If the signature is rendered with one line per param, this wil be used
+% instead (this \texttt makes the comma slightly more distinctive).
+\def\sphinxparamcommaoneperline{\texttt{,}}
 %
-% It inserts a potential breakpoint after the hyphen. This is to keep in sync
-% with behavior in code-blocks, parsed and inline literals. For a breakpoint
-% before the hyphen use \leavevmode\kern\z@- (within \makeatletter/\makeatother)
+% The \kern\z@ is to prevent en-dash and em-dash TeX ligatures.
+% A linebreak can occur after the dash in regular text (this is
+% normal behaviour of "-" in TeX, it is not related to \kern\z@).
+%
+% Parsed-literals and inline literals also use the \sphinxhyphen
+% but linebreaks there are prevented due to monospace font family.
+% (xelatex needs a special addition, cf. sphinxlatexliterals.sty)
+%
+% Inside code-blocks, dashes are escaped via another macro, from
+% Pygments latex output (search for \PYGZhy in sphinxlatexliterals.sty),
+% and are configured to allow linebreaks despite the monospace font.
+% (the #1 swallows the {} from \sphinxhyphen{} mark-up)
 \protected\def\sphinxhyphen#1{-\kern\z@}
+\protected\def\sphinxhyphennobreak#1{\mbox{-}}
 % The {} from texescape mark-up is kept, else -- gives en-dash in PDF bookmark
 \def\sphinxhyphenforbookmarks{-}
 

@@ -1,6 +1,0 @@
-#
-# Generated makefile dependencies follow.
-#
-main.so main.po $(OUTPRE)main.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
-  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
-  $(top_srcdir)/plugins/preauth/pkinit/pkcs11.h main.c

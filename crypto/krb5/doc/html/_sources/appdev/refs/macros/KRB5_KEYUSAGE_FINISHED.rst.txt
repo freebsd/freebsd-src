@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-FINISHED-data:
+
+KRB5_KEYUSAGE_FINISHED
+======================
+
+..
+.. data:: KRB5_KEYUSAGE_FINISHED
+..
+
+
+
+
+============================= ======================
+``KRB5_KEYUSAGE_FINISHED``       ``41``
+============================= ======================

@@ -40,7 +40,7 @@ krb5_k_verify_checksum_iov -  Validate a checksum element in IOV array (operates
 
 
 
-Confirm that the checksum in the #KRB5_CRYPTO_TYPE_CHECKSUM element is a valid checksum of the #KRB5_CRYPTO_TYPE_DATA and #KRB5_CRYPTO_TYPE_SIGN_ONLY regions in the iov.
+Confirm that the checksum in the KRB5_CRYPTO_TYPE_CHECKSUM element is a valid checksum of the KRB5_CRYPTO_TYPE_DATA and KRB5_CRYPTO_TYPE_SIGN_ONLY regions in the iov.
 
 
 

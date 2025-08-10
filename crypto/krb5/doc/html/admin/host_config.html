@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Host configuration &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,13 +51,13 @@
           <div class="body" role="main">
             
   <section id="host-configuration">
-<h1>Host configuration<a class="headerlink" href="#host-configuration" title="Permalink to this headline">¶</a></h1>
+<h1>Host configuration<a class="headerlink" href="#host-configuration" title="Link to this heading">¶</a></h1>
 <p>All hosts running Kerberos software, whether they are clients,
 application servers, or KDCs, can be configured using
 <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  Here we describe some of the behavior changes
 you might want to make.</p>
 <section id="default-realm">
-<h2>Default realm<a class="headerlink" href="#default-realm" title="Permalink to this headline">¶</a></h2>
+<h2>Default realm<a class="headerlink" href="#default-realm" title="Link to this heading">¶</a></h2>
 <p>In the <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a> section, the <strong>default_realm</strong> realm
 relation sets the default Kerberos realm.  For example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">libdefaults</span><span class="p">]</span>
@@ -89,7 +87,7 @@ default realm, and <strong>auth_to_local</strong> relations can be used as
 described below to use the second realm for login authorization.</p>
 </section>
 <section id="login-authorization">
-<span id="id1"></span><h2>Login authorization<a class="headerlink" href="#login-authorization" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>Login authorization<a class="headerlink" href="#login-authorization" title="Link to this heading">¶</a></h2>
 <p>If a host runs a Kerberos-enabled login service such as OpenSSH with
 GSSAPIAuthentication enabled, login authorization rules determine
 whether a Kerberos principal is allowed to access a local account.</p>
@@ -158,7 +156,7 @@ An example use of <strong>auth_to_local_names</strong> might be:</p>
 modules; see <a class="reference internal" href="../plugindev/hostrealm.html#hostrealm-plugin"><span class="std std-ref">Host-to-realm interface (hostrealm)</span></a> for details.</p>
 </section>
 <section id="plugin-module-configuration">
-<span id="plugin-config"></span><h2>Plugin module configuration<a class="headerlink" href="#plugin-module-configuration" title="Permalink to this headline">¶</a></h2>
+<span id="plugin-config"></span><h2>Plugin module configuration<a class="headerlink" href="#plugin-module-configuration" title="Link to this heading">¶</a></h2>
 <p>Many aspects of Kerberos behavior, such as client preauthentication
 and KDC service location, can be modified through the use of plugin
 modules.  For most of these behaviors, you can use the <a class="reference internal" href="conf_files/krb5_conf.html#plugins"><span class="std std-ref">[plugins]</span></a>
@@ -212,7 +210,7 @@ each time.</p>
 <p>Some Kerberos interfaces use different mechanisms to register plugin
 modules.</p>
 <section id="kdc-location-modules">
-<h3>KDC location modules<a class="headerlink" href="#kdc-location-modules" title="Permalink to this headline">¶</a></h3>
+<h3>KDC location modules<a class="headerlink" href="#kdc-location-modules" title="Link to this heading">¶</a></h3>
 <p>For historical reasons, modules to control how KDC servers are located
 are registered simply by placing the shared object or DLL into the
 “libkrb5” subdirectory of the krb5 plugin directory, which defaults to
@@ -221,7 +219,7 @@ locator plugin would be registered by placing its shared object in
 <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">LIBDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5/plugins/libkrb5/winbind_krb5_locator.so</span></code>.</p>
 </section>
 <section id="gssapi-mechanism-modules">
-<span id="gssapi-plugin-config"></span><h3>GSSAPI mechanism modules<a class="headerlink" href="#gssapi-mechanism-modules" title="Permalink to this headline">¶</a></h3>
+<span id="gssapi-plugin-config"></span><h3>GSSAPI mechanism modules<a class="headerlink" href="#gssapi-mechanism-modules" title="Link to this heading">¶</a></h3>
 <p>GSSAPI mechanism modules are registered using the file
 <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">SYSCONFDIR</span></a><code class="docutils literal notranslate"><span class="pre">/gss/mech</span></code> or configuration files in the
 <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">SYSCONFDIR</span></a><code class="docutils literal notranslate"><span class="pre">/gss/mech.d</span></code> directory with a <code class="docutils literal notranslate"><span class="pre">.conf</span></code>
@@ -242,7 +240,7 @@ other mechanisms.</p>
 used as the sole mechanism configuration filename.</p>
 </section>
 <section id="configuration-profile-modules">
-<span id="profile-plugin-config"></span><h3>Configuration profile modules<a class="headerlink" href="#configuration-profile-modules" title="Permalink to this headline">¶</a></h3>
+<span id="profile-plugin-config"></span><h3>Configuration profile modules<a class="headerlink" href="#configuration-profile-modules" title="Link to this heading">¶</a></h3>
 <p>A configuration profile module replaces the information source for
 <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> itself.  To use a profile module, begin krb5.conf
 with the line:</p>
@@ -338,8 +336,8 @@ take over, and the rest of krb5.conf will be ignored.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

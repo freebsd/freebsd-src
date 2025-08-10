@@ -570,7 +570,8 @@ test_kdc_insert_lookaside_cache_expire(void **state)
     assert_int_equal(total_size, e2_size);
 }
 
-int main()
+int
+main(void)
 {
     int ret;
 
@@ -611,7 +612,8 @@ int main()
 
 #else /* NOCACHE */
 
-int main()
+int
+main(void)
 {
     return 0;
 }

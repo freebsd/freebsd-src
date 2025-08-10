@@ -1254,7 +1254,7 @@ encode_krb5_ad_kdcissued:
 encode_krb5_iakerb_header:
 
 [Sequence/Sequence Of]
-.  [1] [Octet String] "krb5data"
+.  [1] [UTF8String] "krb5data"
 .  [2] [Octet String] "krb5data"
 
 encode_krb5_iakerb_finished:
@@ -1417,10 +1417,7 @@ encode_krb5_pa_otp_req:
       02                                                  .
 .  [11] <9>
       79 6f 75 72 74 6f 6b 65 6e                          yourtoken
-.  [12] <40>
-      75 72 6e 3a 69 65 74 66 3a 70 61 72 61 6d 73 3a     urn:ietf:params:
-      78 6d 6c 3a 6e 73 3a 6b 65 79 70 72 6f 76 3a 70     xml:ns:keyprov:p
-      73 6b 63 3a 68 6f 74 70                             skc:hotp
+.  [12] "urn:ietf:params:xml:ns:keyprov:pskc:hotp"
 .  [13] <11>
       45 78 61 6d 70 6c 65 63 6f 72 70                    Examplecorp
 

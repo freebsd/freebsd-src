@@ -29,9 +29,8 @@ static SHS_LONG shsTestResults[][ 5 ] = {
 };
 #endif /* NEW_SHS */
 
-static int compareSHSresults(shsInfo, shsTestLevel)
-    SHS_INFO *shsInfo;
-    int shsTestLevel;
+static int
+compareSHSresults(SHS_INFO *shsInfo, int shsTestLevel)
 {
     int i, fail = 0;
 
@@ -55,7 +54,7 @@ static int compareSHSresults(shsInfo, shsTestLevel)
 }
 
 int
-main()
+main(int argc, char *argv[])
 {
     SHS_INFO shsInfo;
     unsigned int i;

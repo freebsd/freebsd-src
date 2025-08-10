@@ -26,6 +26,9 @@ SRCS=\
 	$(srcdir)/aestab.c	\
 	$(srcdir)/aeskey.c	\
 
+EXTRADEPSRCS=\
+	$(srcdir)/aes-gen.c
+
 GEN_OBJS=\
 	$(OUTPRE)aescrypt.$(OBJEXT)	\
 	$(OUTPRE)aestab.$(OBJEXT)	\

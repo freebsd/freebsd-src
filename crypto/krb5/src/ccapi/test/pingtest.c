@@ -23,7 +23,7 @@ extern cc_int32 cci_os_ipc_msg( cc_int32        in_launch_server,
 
 static DWORD    dwTlsIndex;
 
-DWORD GetTlsIndex()    {return dwTlsIndex;}
+DWORD GetTlsIndex(void)    {return dwTlsIndex;}
 
 RPC_STATUS send_test(char* endpoint) {
     unsigned char*  pszNetworkAddress   = NULL;

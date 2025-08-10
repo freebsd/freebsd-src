@@ -48,7 +48,7 @@ get_one_challenge(void *arg, const char *key, k5_json_value val)
 {
     struct get_one_challenge_data *data;
     unsigned long token_flags;
-    int i;
+    size_t i;
 
     data = arg;
     if (data->err != 0)
@@ -191,7 +191,7 @@ krb5_responder_pkinit_challenge_free(krb5_context ctx,
                                      krb5_responder_context rctx,
                                      krb5_responder_pkinit_challenge *chl)
 {
-   unsigned int i;
+   size_t i;
 
    if (chl == NULL)
        return;

@@ -1,15 +1,16 @@
 from k5test import *
+import re
 
 # Skip this test if pkinit wasn't built.
 if not pkinit_enabled:
     skip_rest('PKINIT tests', 'PKINIT module not built')
 
-soft_pkcs11 = os.path.join(buildtop, 'tests', 'softpkcs11', 'softpkcs11.so')
-
 # Construct a krb5.conf fragment configuring pkinit.
 user_pem = os.path.join(pkinit_certs, 'user.pem')
+ecuser_pem = os.path.join(pkinit_certs, 'ecuser.pem')
 privkey_pem = os.path.join(pkinit_certs, 'privkey.pem')
 privkey_enc_pem = os.path.join(pkinit_certs, 'privkey-enc.pem')
+privkey_ec_pem = os.path.join(pkinit_certs, 'eckey.pem')
 user_p12 = os.path.join(pkinit_certs, 'user.p12')
 user_enc_p12 = os.path.join(pkinit_certs, 'user-enc.p12')
 user_upn_p12 = os.path.join(pkinit_certs, 'user-upn.p12')
@@ -43,6 +44,7 @@ alias_kdc_conf = {'realms': {'$realm': {
 
 file_identity = 'FILE:%s,%s' % (user_pem, privkey_pem)
 file_enc_identity = 'FILE:%s,%s' % (user_pem, privkey_enc_pem)
+ec_identity = 'FILE:%s,%s' % (ecuser_pem, privkey_ec_pem)
 dir_identity = 'DIR:%s' % path
 dir_enc_identity = 'DIR:%s' % path_enc
 dir_file_identity = 'FILE:%s,%s' % (os.path.join(path, 'user.crt'),
@@ -55,9 +57,6 @@ p12_upn2_identity = 'PKCS12:%s' % user_upn2_p12
 p12_upn3_identity = 'PKCS12:%s' % user_upn3_p12
 p12_generic_identity = 'PKCS12:%s' % generic_p12
 p12_enc_identity = 'PKCS12:%s' % user_enc_p12
-p11_identity = 'PKCS11:' + soft_pkcs11
-p11_token_identity = ('PKCS11:module_name=' + soft_pkcs11 +
-                      ':slotid=1:token=SoftToken (token)')
 
 # Start a realm with the test kdb module for the following UPN SAN tests.
 realm = K5Realm(kdc_conf=alias_kdc_conf, create_kdb=False, pkinit=True)
@@ -172,19 +171,26 @@ realm.pkinit(realm.user_princ, expected_trace=msgs)
 realm.klist(realm.user_princ)
 realm.run([kvno, realm.host_princ])
 
+# Test each Diffie-Hellman group except 1024-bit (which doesn't work
+# in OpenSSL 3.0) and the default 2048-bit group.
+for g in ('4096', 'P-256', 'P-384', 'P-521'):
+    mark('Diffie-Hellman group ' + g)
+    group_conf = {'realms': {'$realm': {'pkinit_dh_min_bits': g}}}
+    group_env = realm.special_env(g, True, krb5_conf=group_conf)
+    realm.pkinit(realm.user_princ, expected_trace=('PKINIT using ' + g,),
+                 env=group_env)
+
+# Test with an EC client cert.
+mark('EC client cert')
+realm.kinit(realm.user_princ,
+            flags=['-X', 'X509_user_identity=%s' % ec_identity])
+
 # Try using multiple configured pkinit_identities, to make sure we
 # fall back to the second one when the first one cannot be read.
 id_conf = {'realms': {'$realm': {'pkinit_identities': [file_identity + 'X',
                                                        file_identity]}}}
 id_env = realm.special_env('idconf', False, krb5_conf=id_conf)
 realm.kinit(realm.user_princ, expected_trace=msgs, env=id_env)
-
-# Try again using RSA instead of DH.
-mark('FILE identity, no password, RSA')
-realm.pkinit(realm.user_princ, flags=['-X', 'flag_RSA_PROTOCOL=yes'],
-             expected_trace=('PKINIT client making RSA request',
-                             'PKINIT client verified RSA reply'))
-realm.klist(realm.user_princ)
 
 # Test a DH parameter renegotiation by temporarily setting a 4096-bit
 # minimum on the KDC.  (Preauth type 16 is PKINIT PA_PK_AS_REQ;
@@ -197,11 +203,14 @@ realm.start_kdc(env=minbits_env)
 msgs = ('Sending unauthenticated request',
         '/Additional pre-authentication required',
         'Preauthenticating using KDC method data',
+        'PKINIT using 2048-bit DH key exchange group',
         'Preauth module pkinit (16) (real) returned: 0/Success',
         ' preauth for next request: PA-FX-COOKIE (133), PA-PK-AS-REQ (16)',
         '/Key parameters not accepted',
         'Preauth tryagain input types (16): 109, PA-FX-COOKIE (133)',
+        'PKINIT accepting KDC key exchange group preference P-384',
         'trying again with KDC-provided parameters',
+        'PKINIT using P-384 key exchange group',
         'Preauth module pkinit (16) tryagain returned: 0/Success',
         ' preauth for next request: PA-PK-AS-REQ (16), PA-FX-COOKIE (133)')
 realm.pkinit(realm.user_princ, expected_trace=msgs)
@@ -384,54 +393,76 @@ realm.klist(realm.user_princ)
 realm.kinit(realm.user_princ, flags=['-X', 'X509_user_identity=,'],
             expected_code=1, expected_msg='Preauthentication failed while')
 
-softpkcs11rc = os.path.join(os.getcwd(), 'testdir', 'soft-pkcs11.rc')
-realm.env['SOFTPKCS11RC'] = softpkcs11rc
+softhsm2 = '/usr/lib/softhsm/libsofthsm2.so'
+if not os.path.exists(softhsm2):
+    skip_rest('PKCS11 tests', 'SoftHSMv2 required')
+pkcs11_tool = which('pkcs11-tool')
+if not pkcs11_tool:
+    skip_rest('PKCS11 tests', 'pkcs11-tool from OpenSC required')
+tool_cmd = [pkcs11_tool, '--module', softhsm2]
 
-# PKINIT with PKCS11: identity, with no need for a PIN.
-mark('PKCS11 identity, no PIN')
-conf = open(softpkcs11rc, 'w')
-conf.write("%s\t%s\t%s\t%s\n" % ('user', 'user token', user_pem, privkey_pem))
-conf.close()
-# Expect to succeed without having to supply any more information.
-realm.kinit(realm.user_princ,
-            flags=['-X', 'X509_user_identity=%s' % p11_identity])
-realm.klist(realm.user_princ)
-realm.run([kvno, realm.host_princ])
+# Prepare a SoftHSM token.
+softhsm2_conf = os.path.join(realm.testdir, 'softhsm2.conf')
+softhsm2_tokens = os.path.join(realm.testdir, 'tokens')
+os.mkdir(softhsm2_tokens)
+realm.env['SOFTHSM2_CONF'] = softhsm2_conf
+with open(softhsm2_conf, 'w') as f:
+    f.write('directories.tokendir = %s\n' % softhsm2_tokens)
+realm.run(tool_cmd + ['--init-token', '--label', 'user',
+                      '--so-pin', 'sopin', '--init-pin', '--pin', 'userpin'])
+realm.run(tool_cmd + ['-w', user_pem, '-y', 'cert'])
+realm.run(tool_cmd + ['-w', privkey_pem, '-y', 'privkey',
+                      '-l', '--pin', 'userpin'])
 
-# PKINIT with PKCS11: identity, with a PIN supplied by the prompter.
+# Extract the slot ID generated by SoftHSM.
+out = realm.run(tool_cmd + ['-L'])
+m = re.search(r'slot ID 0x([0-9a-f]+)\n', out)
+if not m:
+    fail('could not extract slot ID from SoftHSM token')
+slot_id = int(m.group(1), 16)
+
+p11_attr = 'X509_user_identity=PKCS11:' + softhsm2
+p11_token_identity = ('PKCS11:module_name=%s:slotid=%d:token=user' %
+                      (softhsm2, slot_id))
+
 mark('PKCS11 identity, with PIN (prompter)')
-os.remove(softpkcs11rc)
-conf = open(softpkcs11rc, 'w')
-conf.write("%s\t%s\t%s\t%s\n" % ('user', 'user token', user_pem,
-                                 privkey_enc_pem))
-conf.close()
-# Expect failure if the responder does nothing, and there's no prompter
-realm.run(['./responder', '-x', 'pkinit={"%s": 0}' % p11_token_identity,
-           '-X', 'X509_user_identity=%s' % p11_identity, realm.user_princ],
-          expected_code=2)
-realm.kinit(realm.user_princ,
-            flags=['-X', 'X509_user_identity=%s' % p11_identity],
-            password='encrypted')
+realm.kinit(realm.user_princ, flags=['-X', p11_attr], password='userpin')
 realm.klist(realm.user_princ)
 realm.run([kvno, realm.host_princ])
 
-# Supply the wrong PIN.
+mark('PKCS11 identity, unavailable PIN')
+realm.run(['./responder', '-x', 'pkinit={"%s": 0}' % p11_token_identity,
+           '-X', p11_attr, realm.user_princ], expected_code=2)
+
 mark('PKCS11 identity, wrong PIN')
 expected_trace = ('PKINIT client has no configured identity; giving up',)
 realm.kinit(realm.user_princ,
-            flags=['-X', 'X509_user_identity=%s' % p11_identity],
+            flags=['-X', p11_attr],
             password='wrong', expected_code=1, expected_trace=expected_trace)
 
 # PKINIT with PKCS11: identity, with a PIN supplied by the responder.
-# Supply the response in raw form.
+# Supply the response in raw form.  Expect the PIN_COUNT_LOW flag (1)
+# to be set due to the previous test.
 mark('PKCS11 identity, with PIN (responder)')
-realm.run(['./responder', '-x', 'pkinit={"%s": 0}' % p11_token_identity,
-           '-r', 'pkinit={"%s": "encrypted"}' % p11_token_identity,
-           '-X', 'X509_user_identity=%s' % p11_identity, realm.user_princ])
+realm.run(['./responder', '-x', 'pkinit={"%s": 1}' % p11_token_identity,
+           '-r', 'pkinit={"%s": "userpin"}' % p11_token_identity,
+           '-X', p11_attr, realm.user_princ])
 # Supply the response through the convenience API.
-realm.run(['./responder', '-X', 'X509_user_identity=%s' % p11_identity,
-           '-p', '%s=%s' % (p11_token_identity, 'encrypted'),
+realm.run(['./responder', '-X', p11_attr,
+           '-p', '%s=%s' % (p11_token_identity, 'userpin'),
            realm.user_princ])
+realm.klist(realm.user_princ)
+realm.run([kvno, realm.host_princ])
+
+mark('PKCS11 identity, EC client cert')
+shutil.rmtree(softhsm2_tokens)
+os.mkdir(softhsm2_tokens)
+realm.run(tool_cmd + ['--init-token', '--label', 'user',
+                      '--so-pin', 'sopin', '--init-pin', '--pin', 'userpin'])
+realm.run(tool_cmd + ['-w', ecuser_pem, '-y', 'cert'])
+realm.run(tool_cmd + ['-w', privkey_ec_pem, '-y', 'privkey',
+                      '-l', '--pin', 'userpin'])
+realm.kinit(realm.user_princ, flags=['-X', p11_attr], password='userpin')
 realm.klist(realm.user_princ)
 realm.run([kvno, realm.host_princ])
 

@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Keytab file format &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="keytab-file-format">
-<span id="id1"></span><h1>Keytab file format<a class="headerlink" href="#keytab-file-format" title="Permalink to this headline">¶</a></h1>
+<span id="id1"></span><h1>Keytab file format<a class="headerlink" href="#keytab-file-format" title="Link to this heading">¶</a></h1>
 <p>There are two versions of the file format used by the FILE keytab
 type.  The first byte of the file always has the value 5, and the
 value of the second byte contains the version number (1 or 2).
@@ -66,7 +64,7 @@ to or less than the record length.  A negative length indicates a
 zero-filled hole whose size is the inverse of the length.  A length of
 0 indicates the end of the file.</p>
 <section id="key-entry-format">
-<h2>Key entry format<a class="headerlink" href="#key-entry-format" title="Permalink to this headline">¶</a></h2>
+<h2>Key entry format<a class="headerlink" href="#key-entry-format" title="Link to this heading">¶</a></h2>
 <p>A key entry may be smaller in size than the record length which
 precedes it, because it may have replaced a hole which is larger than
 the key entry.  Key entries use the following informal grammar:</p>
@@ -130,6 +128,7 @@ value of the 32-bit integer contained in those bytes is non-zero.</p>
 <li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
 <li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database_formats.html">Kerberos Database (KDB) Formats</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
@@ -155,8 +154,8 @@ value of the 32-bit integer contained in those bytes is non-zero.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -78,7 +78,12 @@ def tgs_test(realm, options, server_options=[]):
 def pw_test(realm, options, server_options=[]):
     if os.path.exists(realm.ccache):
         os.remove(realm.ccache)
-    options = options + ['-user', realm.user_princ, '-pass', password('user')]
+    if '-iakerb' in options:
+        # Use IAKERB realm discovery.
+        user = realm.user_princ.split('@')[0]
+    else:
+        user = realm.user_princ
+    options = options + ['-user', user, '-pass', password('user')]
     server_client_test(realm, options, server_options)
     if os.path.exists(realm.ccache):
         fail('gss_acquire_cred_with_password created ccache')
@@ -109,6 +114,13 @@ for realm in multipass_realms():
     tgs_test(realm, ['-spnego'])
     tgs_test(realm, ['-iakerb'], ['-iakerb'])
     # test default (i.e., krb5) mechanism with GSS_C_DCE_STYLE
+    tgs_test(realm, ['-dce'])
+
+    mark('AP')
+    ccache_save(realm)
+    tgs_test(realm, ['-krb5'])
+    tgs_test(realm, ['-spnego'])
+    tgs_test(realm, ['-iakerb'], ['-iakerb'])
     tgs_test(realm, ['-dce'])
 
     mark('pw')

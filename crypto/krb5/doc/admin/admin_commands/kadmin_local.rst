@@ -460,6 +460,24 @@ This command requires the **add** and **delete** privileges.
 
 Alias: **renprinc**
 
+.. _add_alias:
+
+add_alias
+~~~~~~~~~
+
+    **add_alias** *alias_princ* *target_princ*
+
+Create an alias *alias_princ* pointing to *target_princ*.  Aliases may
+be chained (that is, *target_princ* may itself be an alias) up to a
+depth of 10.
+
+This command requires the **add** privilege for *alias_princ* and the
+**modify** privilege for *target_princ*.
+
+(New in release 1.22.)
+
+Aliases: **alias**
+
 .. _delete_principal:
 
 delete_principal
@@ -467,8 +485,8 @@ delete_principal
 
     **delete_principal** [**-force**] *principal*
 
-Deletes the specified *principal* from the database.  This command
-prompts for deletion, unless the **-force** option is given.
+Deletes the specified *principal* or alias from the database.  This
+command prompts for deletion, unless the **-force** option is given.
 
 This command requires the **delete** privilege.
 

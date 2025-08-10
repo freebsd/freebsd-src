@@ -47,8 +47,6 @@ static char sccsid[] = "@(#)xdr_reference.c 1.11 87/08/11 SMI";
 #include <gssrpc/types.h>
 #include <gssrpc/xdr.h>
 
-#define LASTUNSIGNED	((u_int)0-1)
-
 /*
  * XDR an indirect pointer
  * xdr_reference is for recursively translating a structure that is
@@ -88,7 +86,7 @@ xdr_reference(
 			break;
 	}
 
-	stat = (*proc)(xdrs, loc, LASTUNSIGNED);
+	stat = (*proc)(xdrs, loc);
 
 	if (xdrs->x_op == XDR_FREE) {
 		mem_free(loc, size);

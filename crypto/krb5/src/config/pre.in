@@ -177,6 +177,7 @@ LD = $(PURE) @LD@
 KRB_INCLUDES = -I$(BUILDTOP)/include -I$(top_srcdir)/include
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
+FUZZ_LDFLAGS = @FUZZ_LDFLAGS@
 
 INSTALL=@INSTALL@
 INSTALL_STRIP=
@@ -347,9 +348,6 @@ VERTO_DEPS-k5	= $(BUILDTOP)/include/verto.h
 
 # LIBS gets substituted in... e.g. -lnsl -lsocket
 
-# GEN_LIB is -lgen if needed for regexp
-GEN_LIB		= @GEN_LIB@
-
 # Editline or readline flags and libraries.
 RL_CFLAGS	= @RL_CFLAGS@
 RL_LIBS		= @RL_LIBS@
@@ -379,7 +377,7 @@ SUPPORT_LIB			= -l$(SUPPORT_LIBNAME)
 # HESIOD_LIBS is -lhesiod...
 HESIOD_LIBS	= @HESIOD_LIBS@
 
-KRB5_BASE_LIBS	= $(KRB5_LIB) $(K5CRYPTO_LIB) $(COM_ERR_LIB) $(SUPPORT_LIB) $(GEN_LIB) $(LIBS) $(DL_LIB)
+KRB5_BASE_LIBS	= $(KRB5_LIB) $(K5CRYPTO_LIB) $(COM_ERR_LIB) $(SUPPORT_LIB) $(LIBS) $(DL_LIB)
 KDB5_LIBS	= $(KDB5_LIB) $(GSSRPC_LIBS)
 GSS_LIBS	= $(GSS_KRB5_LIB)
 # needs fixing if ever used on macOS!

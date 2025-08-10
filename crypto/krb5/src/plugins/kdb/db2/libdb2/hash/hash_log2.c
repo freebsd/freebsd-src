@@ -44,8 +44,7 @@ static char sccsid[] = "@(#)hash_log2.c	8.4 (Berkeley) 11/7/95";
 #include "extern.h"
 
 u_int32_t
-__kdb2_log2(num)
-	u_int32_t num;
+__kdb2_log2(u_int32_t num)
 {
 	u_int32_t i, limit;
 

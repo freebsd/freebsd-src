@@ -46,13 +46,12 @@ set_pktinfo(int sock, int family);
 
 krb5_error_code
 recv_from_to(int sock, void *buf, size_t len, int flags,
-             struct sockaddr *from, socklen_t *fromlen,
-             struct sockaddr *to, socklen_t *tolen,
+             struct sockaddr_storage *from, struct sockaddr_storage *to,
              aux_addressing_info *auxaddr);
 
 krb5_error_code
 send_to_from(int sock, void *buf, size_t len, int flags,
-             const struct sockaddr *to, socklen_t tolen, struct sockaddr *from,
-             socklen_t fromlen, aux_addressing_info *auxaddr);
+             const struct sockaddr *to, const struct sockaddr *from,
+             aux_addressing_info *auxaddr);
 
 #endif /* UDPPKTINFO_H */

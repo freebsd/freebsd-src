@@ -58,7 +58,7 @@ typedef struct _krb5_ldap_realm_params {
     char          *containerref;
     int           search_scope;
     int           upenabled;
-    int           subtreecount;
+    size_t        subtreecount;
     krb5_int32    max_life;
     krb5_int32    max_renewable_life;
     krb5_int32    tktflags;

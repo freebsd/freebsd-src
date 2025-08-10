@@ -60,11 +60,7 @@ static char sccsid[] = "@(#)rec_get.c	8.9 (Berkeley) 8/18/94";
  *	RET_ERROR, RET_SUCCESS and RET_SPECIAL if the key not found.
  */
 int
-__rec_get(dbp, key, data, flags)
-	const DB *dbp;
-	const DBT *key;
-	DBT *data;
-	u_int flags;
+__rec_get(const DB *dbp, const DBT *key, DBT *data, u_int flags)
 {
 	BTREE *t;
 	EPG *e;
@@ -119,9 +115,7 @@ __rec_get(dbp, key, data, flags)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__rec_fpipe(t, top)
-	BTREE *t;
-	recno_t top;
+__rec_fpipe(BTREE *t, recno_t top)
 {
 	DBT data;
 	recno_t nrec;
@@ -175,9 +169,7 @@ __rec_fpipe(t, top)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__rec_vpipe(t, top)
-	BTREE *t;
-	recno_t top;
+__rec_vpipe(BTREE *t, recno_t top)
 {
 	DBT data;
 	recno_t nrec;
@@ -232,9 +224,7 @@ __rec_vpipe(t, top)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__rec_fmap(t, top)
-	BTREE *t;
-	recno_t top;
+__rec_fmap(BTREE *t, recno_t top)
 {
 	DBT data;
 	recno_t nrec;
@@ -282,9 +272,7 @@ __rec_fmap(t, top)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__rec_vmap(t, top)
-	BTREE *t;
-	recno_t top;
+__rec_vmap(BTREE *t, recno_t top)
 {
 	DBT data;
 	u_char *sp, *ep;

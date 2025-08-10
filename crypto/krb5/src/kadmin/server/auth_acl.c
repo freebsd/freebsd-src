@@ -720,6 +720,19 @@ acl_iprop(krb5_context context, kadm5_auth_moddata data,
     return acl_check(data, ACL_IPROP, client, NULL, NULL);
 }
 
+static krb5_error_code
+acl_addalias(krb5_context context, kadm5_auth_moddata data,
+             krb5_const_principal client, krb5_const_principal alias,
+             krb5_const_principal target)
+{
+    struct kadm5_auth_restrictions *rs;
+
+    if (acl_check(data, ACL_ADD, client, alias, &rs) == 0 && rs == NULL &&
+        acl_check(data, ACL_MODIFY, client, target, &rs) == 0)
+        return 0;
+    return KRB5_PLUGIN_NO_HANDLE;
+}
+
 krb5_error_code
 kadm5_auth_acl_initvt(krb5_context context, int maj_ver, int min_ver,
                       krb5_plugin_vtable vtable)
@@ -751,5 +764,6 @@ kadm5_auth_acl_initvt(krb5_context context, int maj_ver, int min_ver,
     vt->getpol = acl_getpol;
     vt->listpols = acl_listpols;
     vt->iprop = acl_iprop;
+    vt->addalias = acl_addalias;
     return 0;
 }

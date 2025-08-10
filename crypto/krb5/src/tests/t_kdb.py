@@ -360,14 +360,14 @@ mark('LDAP service principal aliases')
 
 # Test service principal aliases.
 realm.addprinc('canon', password('canon'))
-ldap_modify('dn: krbPrincipalName=canon@KRBTEST.COM,cn=t1,cn=krb5\n'
-            'changetype: modify\n'
-            'add: krbPrincipalName\n'
-            'krbPrincipalName: alias@KRBTEST.COM\n'
-            'krbPrincipalName: ent@abc@KRBTEST.COM\n'
-            '-\n'
-            'add: krbCanonicalName\n'
-            'krbCanonicalName: canon@KRBTEST.COM\n')
+realm.run([kadminl, 'alias', 'alias', 'canon'])
+realm.run([kadminl, 'alias', 'ent\\@abc', 'canon'])
+out = ldap_search('(krbPrincipalName=canon*)')
+if ('krbPrincipalName: canon@KRBTEST.COM' not in out or
+    'krbPrincipalName: alias@KRBTEST.COM' not in out or
+    'krbPrincipalName: ent@abc@KRBTEST.COM' not in out or
+    'krbCanonicalName: canon@KRBTEST.COM' not in out):
+    fail('expected names not found in canon object')
 realm.run([kadminl, 'getprinc', 'alias'],
           expected_msg='Principal: canon@KRBTEST.COM\n')
 realm.run([kadminl, 'getprinc', 'ent\\@abc'],
@@ -382,14 +382,7 @@ realm.kinit(realm.user_princ, password('user'), ['-S', 'alias'])
 realm.klist(realm.user_princ, 'alias@KRBTEST.COM')
 
 # Make sure an alias to the local TGS is still treated like an alias.
-ldap_modify('dn: krbPrincipalName=krbtgt/KRBTEST.COM@KRBTEST.COM,'
-            'cn=KRBTEST.COM,cn=krb5\n'
-            'changetype: modify\n'
-            'add:krbPrincipalName\n'
-            'krbPrincipalName: tgtalias@KRBTEST.COM\n'
-            '-\n'
-            'add: krbCanonicalName\n'
-            'krbCanonicalName: krbtgt/KRBTEST.COM@KRBTEST.COM\n')
+realm.run([kadminl, 'alias', 'tgtalias', 'krbtgt/KRBTEST.COM'])
 realm.run([kadminl, 'getprinc', 'tgtalias'],
           expected_msg='Principal: krbtgt/KRBTEST.COM@KRBTEST.COM')
 realm.kinit(realm.user_princ, password('user'))
@@ -428,6 +421,23 @@ realm.klist('ent\\@abc@KRBTEST.COM', 'alias@KRBTEST.COM')
 
 # Test client name canonicalization in non-krbtgt AS reply
 realm.kinit('alias', password('canon'), ['-C', '-S', 'kadmin/changepw'])
+
+# Test deleting an alias.
+mark('LDAP alias deletion')
+realm.run([kadminl, 'delprinc', 'alias'])
+realm.run([kadminl, 'getprinc', 'alias'], expected_code=1,
+          expected_msg='Principal does not exist')
+realm.run([kadminl, 'getprinc', 'ent\\@abc'],
+          expected_msg='Principal: canon@KRBTEST.COM\n')
+realm.run([kadminl, 'getprinc', 'canon'],
+          expected_msg='Principal: canon@KRBTEST.COM\n')
+
+# Test deleting a canonical name when an alias is present.
+realm.run([kadminl, 'delprinc', 'canon'])
+realm.run([kadminl, 'getprinc', 'canon'], expected_code=1,
+          expected_msg='Principal does not exist')
+realm.run([kadminl, 'getprinc', 'ent\\@abc'], expected_code=1,
+          expected_msg='Principal does not exist')
 
 mark('LDAP password history')
 
@@ -551,6 +561,8 @@ realm.run([kdb5_util, 'load', '-update', dumpfile])
 out = realm.run([kadminl, 'getprinc', 'pwuser'])
 if 'Password expiration date: [never]' in out:
     fail('pw_expiration not preserved across dump and load')
+realm.run([kadminl, 'getprinc', 'tgtalias'],
+          expected_msg='Principal: krbtgt/KRBTEST.COM@KRBTEST.COM')
 
 # Destroy the realm.
 kldaputil(['destroy', '-f'])
@@ -591,6 +603,9 @@ dbmod['ldap_kdc_sasl_authcid'] = 'digestuser'
 dbmod['ldap_kadmind_sasl_authcid'] = 'digestuser'
 dbmod['ldap_service_password_file'] = ldap_pwfile
 realm = K5Realm(create_kdb=False, kdc_conf=conf)
+# Work around https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1091694
+if runenv.asan == 'yes':
+    realm.env['ASAN_OPTIONS'] = 'detect_leaks=false'
 input = admin_pw + '\n' + admin_pw + '\n'
 realm.run([kdb5_ldap_util, 'stashsrvpw', 'digestuser'], input=input)
 realm.run([kdb5_ldap_util, 'create', '-s', '-P', 'master'])

@@ -725,9 +725,9 @@ cleanup:
 }
 
 static krb5_error_code
-k5_merge_data_list(krb5_data **dst, krb5_data *src, unsigned int *len)
+k5_merge_data_list(krb5_data **dst, krb5_data *src, size_t *len)
 {
-    unsigned int i;
+    size_t i;
     krb5_data *d;
 
     if (src == NULL)
@@ -760,7 +760,7 @@ krb5_authdata_get_attribute_types(krb5_context kcontext,
     int i;
     krb5_error_code code = 0;
     krb5_data *attrs = NULL;
-    unsigned int attrs_len = 0;
+    size_t attrs_len = 0;
 
     for (i = 0; i < context->n_modules; i++) {
         struct _krb5_authdata_context_module *module = &context->modules[i];

@@ -36,20 +36,9 @@
 static OM_uint32 displayMajor(OM_uint32, OM_uint32 *, gss_buffer_t);
 
 OM_uint32 KRB5_CALLCONV
-gss_display_status (minor_status,
-                    status_value,
-                    status_type,
-                    req_mech_type,
-                    message_context,
-                    status_string)
-
-OM_uint32 *		minor_status;
-OM_uint32		status_value;
-int			status_type;
-gss_OID			req_mech_type;
-OM_uint32 *		message_context;
-gss_buffer_t		status_string;
-
+gss_display_status(OM_uint32 *minor_status, OM_uint32 status_value,
+		   int status_type, gss_OID req_mech_type,
+		   OM_uint32 *message_context, gss_buffer_t status_string)
 {
     gss_OID		mech_type = (gss_OID) req_mech_type;
     gss_mechanism	mech;
@@ -147,10 +136,7 @@ gss_buffer_t		status_string;
  *	>= 2 - the supplementary error code bit shifted by 1
  */
 static OM_uint32
-displayMajor(status, msgCtxt, outStr)
-OM_uint32 status;
-OM_uint32 *msgCtxt;
-gss_buffer_t outStr;
+displayMajor(OM_uint32 status, OM_uint32 *msgCtxt, gss_buffer_t outStr)
 {
 	OM_uint32 oneVal, mask = 0x1, currErr;
 	char *errStr = NULL;

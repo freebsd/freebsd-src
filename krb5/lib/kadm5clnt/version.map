@@ -115,5 +115,7 @@ kadm5clnt_mit_12_MIT {
 		xdr_setkey_arg;
 		xdr_ui_4;
 		kadm5_init_iprop;
+		xdr_calias_arg;
+		kadm5_create_alias;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

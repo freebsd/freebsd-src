@@ -64,7 +64,7 @@ load_gssapi(void)
 }
 
 int
-main()
+main(void)
 {
     void *support;
 

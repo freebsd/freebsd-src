@@ -140,7 +140,7 @@ static krb5_address *receiver_addr;
 static const char *port = KPROP_SERVICE;
 
 static char **db_args = NULL;
-static int db_args_size = 0;
+static size_t db_args_size = 0;
 
 static void parse_args(int argc, char **argv);
 static void do_standalone(void);
@@ -165,7 +165,7 @@ static kadm5_ret_t kadm5_get_kiprop_host_srv_name(krb5_context context,
                                                   char **host_service_name);
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr,
             _("\nUsage: %s [-r realm] [-s keytab] [-d] [-D] [-S]\n"
@@ -181,14 +181,15 @@ write_pid_file(const char *path)
 {
     FILE *fp;
     unsigned long pid;
+    int st1, st2;
 
     fp = fopen(path, "w");
     if (fp == NULL)
         return errno;
     pid = (unsigned long)getpid();
-    if (fprintf(fp, "%ld\n", pid) < 0 || fclose(fp) == EOF)
-        return errno;
-    return 0;
+    st1 = (fprintf(fp, "%ld\n", pid) < 0) ? errno : 0;
+    st2 = (fclose(fp) == EOF) ? errno : 0;
+    return st1 ? st1 : st2;
 }
 
 typedef void (*sig_handler_fn)(int sig);
@@ -376,7 +377,7 @@ get_wildcard_addr(struct addrinfo **res)
 }
 
 static void
-do_standalone()
+do_standalone(void)
 {
     struct sockaddr_in frominet;
     struct addrinfo *res;
@@ -630,7 +631,7 @@ full_resync(CLIENT *clnt)
  * Returns non-zero on failure due to errors.
  */
 krb5_error_code
-do_iprop()
+do_iprop(void)
 {
     kadm5_ret_t retval;
     krb5_principal iprop_svc_principal = NULL;
@@ -1185,6 +1186,7 @@ kerberos_authenticate(krb5_context context, int fd, krb5_principal *clientp,
                       krb5_enctype *etype, struct sockaddr_storage *my_sin)
 {
     krb5_error_code retval;
+    krb5_address addr;
     krb5_ticket *ticket;
     struct sockaddr_storage r_sin;
     GETSOCKNAME_ARG3_TYPE sin_length;
@@ -1197,8 +1199,13 @@ kerberos_authenticate(krb5_context context, int fd, krb5_principal *clientp,
         exit(1);
     }
 
-    sockaddr2krbaddr(context, r_sin.ss_family, (struct sockaddr *)&r_sin,
-                     &receiver_addr);
+    if (k5_sockaddr_to_address(ss2sa(my_sin), FALSE, &addr) != 0)
+        addr = k5_addr_directional_accept;
+    retval = krb5_copy_addr(context, &addr, &receiver_addr);
+    if (retval) {
+        com_err(progname, retval, _("while converting local address"));
+        exit(1);
+    }
 
     if (debug) {
         retval = krb5_unparse_name(context, server, &name);
@@ -1291,19 +1298,20 @@ static krb5_boolean
 authorized_principal(krb5_context context, krb5_principal p,
                      krb5_enctype auth_etype)
 {
-    char *name, *ptr, buf[1024];
+    krb5_boolean ok = FALSE;
+    char *name = NULL, *ptr, buf[1024];
     krb5_error_code retval;
-    FILE *acl_file;
+    FILE *acl_file = NULL;
     int end;
     krb5_enctype acl_etype;
 
     retval = krb5_unparse_name(context, p, &name);
     if (retval)
-        return FALSE;
+        goto cleanup;
 
     acl_file = fopen(acl_file_name, "r");
     if (acl_file == NULL)
-        return FALSE;
+        goto cleanup;
 
     while (!feof(acl_file)) {
         if (!fgets(buf, sizeof(buf), acl_file))
@@ -1333,14 +1341,16 @@ authorized_principal(krb5_context context, krb5_principal p,
                  (acl_etype != auth_etype)))
                 continue;
 
-            free(name);
-            fclose(acl_file);
-            return TRUE;
+            ok = TRUE;
+            goto cleanup;
         }
     }
+
+cleanup:
     free(name);
-    fclose(acl_file);
-    return FALSE;
+    if (acl_file != NULL)
+        fclose(acl_file);
+    return ok;
 }
 
 static void

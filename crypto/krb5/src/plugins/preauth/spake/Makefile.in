@@ -27,6 +27,9 @@ SRCS= \
 	$(srcdir)/spake_client.c \
 	$(srcdir)/spake_kdc.c
 
+EXTRADEPSRCS= \
+	$(srcdir)/t_vectors.c
+
 # Don't include spake_kdc.c in the Windows object list since we don't
 # need it.
 OBJS=	$(OUTPRE)util.$(OBJEXT) \

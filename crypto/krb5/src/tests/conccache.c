@@ -110,7 +110,7 @@ refresh_cache(krb5_context context)
 }
 
 static pid_t
-spawn_cred_subprocess()
+spawn_cred_subprocess(void)
 {
     krb5_context context;
     pid_t pid;
@@ -133,7 +133,7 @@ spawn_cred_subprocess()
 }
 
 static pid_t
-spawn_refresh_subprocess()
+spawn_refresh_subprocess(void)
 {
     krb5_context context;
     pid_t pid;

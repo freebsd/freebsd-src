@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _AP-OPTS-CBT-FLAG-data:
+
+AP_OPTS_CBT_FLAG
+================
+
+..
+.. data:: AP_OPTS_CBT_FLAG
+..
+
+
+
+
+======================= ======================
+``AP_OPTS_CBT_FLAG``       ``0x00000004 /* include KERB_AP_OPTIONS_CBT */``
+======================= ======================

@@ -4,6 +4,7 @@ hist_princ
 kadm5_chpass_principal
 kadm5_chpass_principal_3
 kadm5_chpass_principal_util
+kadm5_create_alias
 kadm5_create_policy
 kadm5_create_principal
 kadm5_create_principal_3
@@ -74,6 +75,7 @@ master_db
 master_princ
 osa_free_princ_ent
 passwd_check
+xdr_calias_arg
 xdr_chpass3_arg
 xdr_chpass_arg
 xdr_chrand3_arg

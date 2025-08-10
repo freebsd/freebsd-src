@@ -20,8 +20,8 @@ static gss_mech_spec_name name_list = NULL;
 /*
  * generic searching helper function.
  */
-static gss_mech_spec_name search_mech_spec(name_type)
-    gss_OID name_type;
+static gss_mech_spec_name
+search_mech_spec(gss_OID name_type)
 {
     gss_mech_spec_name p;
 
@@ -36,8 +36,8 @@ static gss_mech_spec_name search_mech_spec(name_type)
  * Given a name_type, if it is specific to a mechanism, return the
  * mechanism OID.  Otherwise, return NULL.
  */
-gss_OID gss_find_mechanism_from_name_type(name_type)
-    gss_OID name_type;
+gss_OID
+gss_find_mechanism_from_name_type(gss_OID name_type)
 {
     gss_mech_spec_name p;
 
@@ -54,10 +54,8 @@ gss_OID gss_find_mechanism_from_name_type(name_type)
  * Otherwise, enter the pair into the registry.
  */
 OM_uint32
-gss_add_mech_name_type(minor_status, name_type, mech)
-    OM_uint32	*minor_status;
-    gss_OID	name_type;
-    gss_OID	mech;
+gss_add_mech_name_type(OM_uint32 *minor_status, gss_OID name_type,
+		       gss_OID mech)
 {
     OM_uint32	major_status, tmp;
     gss_mech_spec_name p;

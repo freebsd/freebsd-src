@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Backups of secure hosts &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="backups-of-secure-hosts">
-<h1>Backups of secure hosts<a class="headerlink" href="#backups-of-secure-hosts" title="Permalink to this headline">¶</a></h1>
+<h1>Backups of secure hosts<a class="headerlink" href="#backups-of-secure-hosts" title="Link to this heading">¶</a></h1>
 <p>When you back up a secure host, you should exclude the host’s keytab
 file from the backup.  If someone obtained a copy of the keytab from a
 backup, that person could make any host masquerade as the host whose
@@ -66,7 +64,7 @@ If you are unable to exclude particular files from backups, you should
 ensure that the backups are kept as secure as the host’s root
 password.</p>
 <section id="backing-up-the-kerberos-database">
-<h2>Backing up the Kerberos database<a class="headerlink" href="#backing-up-the-kerberos-database" title="Permalink to this headline">¶</a></h2>
+<h2>Backing up the Kerberos database<a class="headerlink" href="#backing-up-the-kerberos-database" title="Link to this heading">¶</a></h2>
 <p>As with any file, it is possible that your Kerberos database could
 become corrupted.  If this happens on one of the replica KDCs, you
 might never notice, since the next automatic propagation of the
@@ -160,8 +158,8 @@ corrupted, you can load the most recent dump onto the primary KDC.
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

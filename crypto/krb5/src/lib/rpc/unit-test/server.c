@@ -40,7 +40,7 @@ static void rpc_test_badverf(gss_name_t client, gss_name_t server,
 #define SERVICE_NAME "host"
 #endif
 
-static void usage()
+static void usage(void)
 {
      fprintf(stderr, "Usage: server {-t|-u} [svc-debug] [misc-debug]\n");
      exit(1);

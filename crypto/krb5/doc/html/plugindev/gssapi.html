@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>GSSAPI mechanism interface &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="gssapi-mechanism-interface">
-<h1>GSSAPI mechanism interface<a class="headerlink" href="#gssapi-mechanism-interface" title="Permalink to this headline">¶</a></h1>
+<h1>GSSAPI mechanism interface<a class="headerlink" href="#gssapi-mechanism-interface" title="Link to this heading">¶</a></h1>
 <p>The GSSAPI library in MIT krb5 can load mechanism modules to augment
 the set of built-in mechanisms.</p>
 <p>A mechanism module is a Unix shared object or Windows DLL, built
@@ -76,7 +74,7 @@ of other mechanisms.  If the mechglue detects conflicts, it will map
 the mechanism’s status codes onto unique values, and then map them
 back again when <strong>gss_display_status</strong> is called.</p>
 <section id="negoex-modules">
-<h2>NegoEx modules<a class="headerlink" href="#negoex-modules" title="Permalink to this headline">¶</a></h2>
+<h2>NegoEx modules<a class="headerlink" href="#negoex-modules" title="Link to this heading">¶</a></h2>
 <p>Some Windows GSSAPI mechanisms can only be negotiated via a Microsoft
 extension to SPNEGO called NegoEx.  Beginning with release 1.18,
 mechanism modules can support NegoEx as follows:</p>
@@ -98,7 +96,7 @@ the GSS_C_MA_NEGOEX_AND_SPNEGO attribute (along with any applicable
 RFC 5587 attributes).</p>
 </section>
 <section id="interposer-modules">
-<h2>Interposer modules<a class="headerlink" href="#interposer-modules" title="Permalink to this headline">¶</a></h2>
+<h2>Interposer modules<a class="headerlink" href="#interposer-modules" title="Link to this heading">¶</a></h2>
 <p>The mechglue also supports a kind of loadable module, called an
 interposer module, which intercepts calls to existing mechanisms
 rather than implementing a new mechanism.</p>
@@ -235,8 +233,8 @@ sequence may be repeated multiple times.</p></li>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

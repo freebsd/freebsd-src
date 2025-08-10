@@ -56,9 +56,7 @@ struct mblock {
 int set_dbname_help (char *, char *);
 
 static void
-usage(who, status)
-    char *who;
-    int status;
+usage(char *who, int status)
 {
     fprintf(stderr,
             "usage: %s -p prefix -n num_to_create [-d dbpathname] [-r realmname]\n",
@@ -83,9 +81,7 @@ static krb5_boolean manual_mkey = FALSE;
 void add_princ (krb5_context, char *);
 
 int
-main(argc, argv)
-    int argc;
-    char *argv[];
+main(int argc, char *argv[])
 {
     extern char *optarg;
     int optchar, i, n;
@@ -209,9 +205,7 @@ main(argc, argv)
 }
 
 void
-add_princ(context, str_newprinc)
-    krb5_context          context;
-    char                * str_newprinc;
+add_princ(krb5_context context, char *str_newprinc)
 {
     krb5_error_code       retval;
     krb5_principal        newprinc;
@@ -317,9 +311,7 @@ error: /* Do cleanup of newentry regardless of error */
 }
 
 int
-set_dbname_help(pname, dbname)
-    char *pname;
-    char *dbname;
+set_dbname_help(char *pname, char *dbname)
 {
     krb5_error_code retval;
     krb5_data pwd, scratch;

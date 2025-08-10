@@ -54,13 +54,8 @@
 #include <stdio.h>
 #include <errno.h>
 
-enum save { DISCARD_ALL, KEEP_LAST_KVNO, KEEP_ALL };
-
 int
-krb5_db_get_key_data_kvno(context, count, data)
-    krb5_context          context;
-    int                   count;
-    krb5_key_data       * data;
+krb5_db_get_key_data_kvno(krb5_context context, int count, krb5_key_data *data)
 {
     int i, kvno;
     /* Find last key version number */
@@ -73,10 +68,7 @@ krb5_db_get_key_data_kvno(context, count, data)
 }
 
 static void
-cleanup_key_data(context, count, data)
-    krb5_context          context;
-    int                   count;
-    krb5_key_data       * data;
+cleanup_key_data(krb5_context context, int count, krb5_key_data *data)
 {
     int i;
 
@@ -123,20 +115,28 @@ preserve_one_old_key(krb5_context context, krb5_keyblock *mkey,
 
 /*
  * Add key_data to dbent, making sure that each entry is encrypted in mkey.  If
- * kvno is non-zero, preserve only keys of that kvno.  May steal some elements
- * from key_data and zero them out.
+ * keepold is greater than 1, preserve only the first (keepold-1) key versions,
+ * so that the total number of key versions including the new key set is
+ * keepold.  May steal some elements from key_data and zero them out.
  */
 static krb5_error_code
 preserve_old_keys(krb5_context context, krb5_keyblock *mkey,
-                  krb5_db_entry *dbent, int kvno, int n_key_data,
+                  krb5_db_entry *dbent, unsigned int keepold, int n_key_data,
                   krb5_key_data *key_data)
 {
     krb5_error_code ret;
+    krb5_kvno last_kvno = 0, kvno_changes = 0;
     int i;
 
     for (i = 0; i < n_key_data; i++) {
-        if (kvno != 0 && key_data[i].key_data_kvno != kvno)
-            continue;
+        if (keepold > 1) {
+            if (i > 0 && key_data[i].key_data_kvno != last_kvno)
+                kvno_changes++;
+            if (kvno_changes >= keepold - 1)
+                break;
+            last_kvno = key_data[i].key_data_kvno;
+        }
+
         ret = krb5_dbe_create_key_data(context, dbent);
         if (ret)
             return ret;
@@ -149,13 +149,9 @@ preserve_old_keys(krb5_context context, krb5_keyblock *mkey,
 }
 
 static krb5_error_code
-add_key_rnd(context, master_key, ks_tuple, ks_tuple_count, db_entry, kvno)
-    krb5_context          context;
-    krb5_keyblock       * master_key;
-    krb5_key_salt_tuple * ks_tuple;
-    int                   ks_tuple_count;
-    krb5_db_entry       * db_entry;
-    int                   kvno;
+add_key_rnd(krb5_context context, krb5_keyblock *master_key,
+            krb5_key_salt_tuple *ks_tuple, int ks_tuple_count,
+            krb5_db_entry *db_entry, int kvno)
 {
     krb5_keyblock         key;
     int                   i, j;
@@ -246,15 +242,9 @@ make_random_salt(krb5_context context, krb5_keysalt *salt_out)
  * If passwd is NULL the assumes that the caller wants a random password.
  */
 static krb5_error_code
-add_key_pwd(context, master_key, ks_tuple, ks_tuple_count, passwd,
-            db_entry, kvno)
-    krb5_context          context;
-    krb5_keyblock       * master_key;
-    krb5_key_salt_tuple * ks_tuple;
-    int                   ks_tuple_count;
-    const char          * passwd;
-    krb5_db_entry       * db_entry;
-    int                   kvno;
+add_key_pwd(krb5_context context, krb5_keyblock *master_key,
+            krb5_key_salt_tuple *ks_tuple, int ks_tuple_count,
+            const char *passwd, krb5_db_entry *db_entry, int kvno)
 {
     krb5_error_code       retval;
     krb5_keysalt          key_salt;
@@ -280,8 +270,7 @@ add_key_pwd(context, master_key, ks_tuple, ks_tuple_count, passwd,
                                                  &similar)))
                 return(retval);
 
-            if (similar &&
-                (ks_tuple[j].ks_salttype == ks_tuple[i].ks_salttype))
+            if (similar)
                 break;
         }
 
@@ -351,11 +340,11 @@ add_key_pwd(context, master_key, ks_tuple, ks_tuple_count, passwd,
 static krb5_error_code
 rekey(krb5_context context, krb5_keyblock *mkey, krb5_key_salt_tuple *ks_tuple,
       int ks_tuple_count, const char *password, int new_kvno,
-      enum save savekeys, krb5_db_entry *db_entry)
+      unsigned int keepold, krb5_db_entry *db_entry)
 {
     krb5_error_code ret;
     krb5_key_data *key_data;
-    int n_key_data, old_kvno, save_kvno;
+    int n_key_data, old_kvno;
 
     /* Save aside the old key data. */
     n_key_data = db_entry->n_key_data;
@@ -389,9 +378,8 @@ rekey(krb5_context context, krb5_keyblock *mkey, krb5_key_salt_tuple *ks_tuple,
 
     /* Possibly add some or all of the old keys to the back of the list.  May
      * steal from and zero out some of the old key data entries. */
-    if (savekeys != DISCARD_ALL) {
-        save_kvno = (savekeys == KEEP_LAST_KVNO) ? old_kvno : 0;
-        ret = preserve_old_keys(context, mkey, db_entry, save_kvno, n_key_data,
+    if (keepold > 0) {
+        ret = preserve_old_keys(context, mkey, db_entry, keepold, n_key_data,
                                 key_data);
     }
 
@@ -409,10 +397,10 @@ rekey(krb5_context context, krb5_keyblock *mkey, krb5_key_salt_tuple *ks_tuple,
 krb5_error_code
 krb5_dbe_crk(krb5_context context, krb5_keyblock *mkey,
              krb5_key_salt_tuple *ks_tuple, int ks_tuple_count,
-             krb5_boolean keepold, krb5_db_entry *dbent)
+             unsigned int keepold, krb5_db_entry *dbent)
 {
-    return rekey(context, mkey, ks_tuple, ks_tuple_count, NULL, 0,
-                 keepold ? KEEP_ALL : DISCARD_ALL, dbent);
+    return rekey(context, mkey, ks_tuple, ks_tuple_count, NULL, 0, keepold,
+                 dbent);
 }
 
 /*
@@ -426,8 +414,7 @@ krb5_dbe_ark(krb5_context context, krb5_keyblock *mkey,
              krb5_key_salt_tuple *ks_tuple, int ks_tuple_count,
              krb5_db_entry *dbent)
 {
-    return rekey(context, mkey, ks_tuple, ks_tuple_count, NULL, 0,
-                 KEEP_LAST_KVNO, dbent);
+    return rekey(context, mkey, ks_tuple, ks_tuple_count, NULL, 0, 2, dbent);
 }
 
 /*
@@ -439,11 +426,11 @@ krb5_dbe_ark(krb5_context context, krb5_keyblock *mkey,
 krb5_error_code
 krb5_dbe_def_cpw(krb5_context context, krb5_keyblock *mkey,
                  krb5_key_salt_tuple *ks_tuple, int ks_tuple_count,
-                 char *password, int new_kvno, krb5_boolean keepold,
+                 char *password, int new_kvno, unsigned int keepold,
                  krb5_db_entry *dbent)
 {
     return rekey(context, mkey, ks_tuple, ks_tuple_count, password, new_kvno,
-                 keepold ? KEEP_ALL : DISCARD_ALL, dbent);
+                 keepold, dbent);
 }
 
 /*
@@ -457,6 +444,6 @@ krb5_dbe_apw(krb5_context context, krb5_keyblock *mkey,
              krb5_key_salt_tuple *ks_tuple, int ks_tuple_count, char *password,
              krb5_db_entry *dbent)
 {
-    return rekey(context, mkey, ks_tuple, ks_tuple_count, password, 0,
-                 KEEP_LAST_KVNO, dbent);
+    return rekey(context, mkey, ks_tuple, ks_tuple_count, password, 0, 2,
+                 dbent);
 }

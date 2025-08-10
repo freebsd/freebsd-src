@@ -36,7 +36,7 @@
 #define BOUNDARY (uint32_t)INT32_MIN
 
 int
-main()
+main(void)
 {
     krb5_error_code ret;
     krb5_context context;

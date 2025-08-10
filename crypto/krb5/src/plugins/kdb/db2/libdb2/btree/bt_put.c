@@ -64,11 +64,7 @@ static EPG *bt_fast __P((BTREE *, const DBT *, const DBT *, int *));
  *	tree and R_NOOVERWRITE specified.
  */
 int
-__bt_put(dbp, key, data, flags)
-	const DB *dbp;
-	DBT *key;
-	const DBT *data;
-	u_int flags;
+__bt_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
 {
 	BTREE *t;
 	DBT tkey, tdata;
@@ -272,10 +268,7 @@ u_long bt_cache_hit, bt_cache_miss;
  * 	EPG for new record or NULL if not found.
  */
 static EPG *
-bt_fast(t, key, data, exactp)
-	BTREE *t;
-	const DBT *key, *data;
-	int *exactp;
+bt_fast(BTREE *t, const DBT *key, const DBT *data, int *exactp)
 {
 	PAGE *h;
 	u_int32_t nbytes;

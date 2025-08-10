@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>krb5 simple macros &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-    <script src="../../../_static/jquery.js"></script>
-    <script src="../../../_static/underscore.js"></script>
-    <script src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
@@ -53,13 +51,14 @@
           <div class="body" role="main">
             
   <section id="krb5-simple-macros">
-<h1>krb5 simple macros<a class="headerlink" href="#krb5-simple-macros" title="Permalink to this headline">¶</a></h1>
+<h1>krb5 simple macros<a class="headerlink" href="#krb5-simple-macros" title="Link to this heading">¶</a></h1>
 <section id="public">
-<h2>Public<a class="headerlink" href="#public" title="Permalink to this headline">¶</a></h2>
+<h2>Public<a class="headerlink" href="#public" title="Link to this heading">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_ADDRPORT.html">ADDRTYPE_ADDRPORT</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_CHAOS.html">ADDRTYPE_CHAOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_DIRECTIONAL.html">ADDRTYPE_DIRECTIONAL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_DDP.html">ADDRTYPE_DDP</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_INET.html">ADDRTYPE_INET</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_INET6.html">ADDRTYPE_INET6</a></li>
@@ -68,11 +67,13 @@
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_IS_LOCAL.html">ADDRTYPE_IS_LOCAL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_NETBIOS.html">ADDRTYPE_NETBIOS</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_XNS.html">ADDRTYPE_XNS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ADDRTYPE_UNIXSOCK.html">ADDRTYPE_UNIXSOCK</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AD_TYPE_EXTERNAL.html">AD_TYPE_EXTERNAL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AD_TYPE_FIELD_TYPE_MASK.html">AD_TYPE_FIELD_TYPE_MASK</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AD_TYPE_REGISTERED.html">AD_TYPE_REGISTERED</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AD_TYPE_RESERVED.html">AD_TYPE_RESERVED</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AP_OPTS_ETYPE_NEGOTIATION.html">AP_OPTS_ETYPE_NEGOTIATION</a></li>
+<li class="toctree-l1"><a class="reference internal" href="AP_OPTS_CBT_FLAG.html">AP_OPTS_CBT_FLAG</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AP_OPTS_MUTUAL_REQUIRED.html">AP_OPTS_MUTUAL_REQUIRED</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AP_OPTS_RESERVED.html">AP_OPTS_RESERVED</a></li>
 <li class="toctree-l1"><a class="reference internal" href="AP_OPTS_USE_SESSION_KEY.html">AP_OPTS_USE_SESSION_KEY</a></li>
@@ -228,6 +229,7 @@
 <li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_GSS_TOK_MIC.html">KRB5_KEYUSAGE_GSS_TOK_MIC</a></li>
 <li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG.html">KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG</a></li>
 <li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_GSS_TOK_WRAP_PRIV.html">KRB5_KEYUSAGE_GSS_TOK_WRAP_PRIV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_FINISHED.html">KRB5_KEYUSAGE_FINISHED</a></li>
 <li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_IAKERB_FINISHED.html">KRB5_KEYUSAGE_IAKERB_FINISHED</a></li>
 <li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_KDC_REP_TICKET.html">KRB5_KEYUSAGE_KDC_REP_TICKET</a></li>
 <li class="toctree-l1"><a class="reference internal" href="KRB5_KEYUSAGE_KRB_CRED_ENCPART.html">KRB5_KEYUSAGE_KRB_CRED_ENCPART</a></li>
@@ -441,7 +443,7 @@
 </div>
 </section>
 <section id="deprecated-macros">
-<h2>Deprecated macros<a class="headerlink" href="#deprecated-macros" title="Permalink to this headline">¶</a></h2>
+<h2>Deprecated macros<a class="headerlink" href="#deprecated-macros" title="Link to this heading">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="krb524_convert_creds_kdc.html">krb524_convert_creds_kdc</a></li>
@@ -514,8 +516,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

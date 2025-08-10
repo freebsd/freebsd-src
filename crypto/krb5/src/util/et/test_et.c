@@ -17,7 +17,8 @@ extern const char *error_table_name (errcode_t);
 extern int sys_nerr;
 #endif
 
-int main()
+int
+main(void)
 {
     printf("Before initiating error table:\n\n");
 #ifndef EXPORT_LIST

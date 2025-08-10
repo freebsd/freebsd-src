@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>ksu &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
@@ -53,9 +51,9 @@
           <div class="body" role="main">
             
   <section id="ksu">
-<span id="ksu-1"></span><h1>ksu<a class="headerlink" href="#ksu" title="Permalink to this headline">¶</a></h1>
+<span id="ksu-1"></span><h1>ksu<a class="headerlink" href="#ksu" title="Link to this heading">¶</a></h1>
 <section id="synopsis">
-<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Link to this heading">¶</a></h2>
 <p><strong>ksu</strong>
 [ <em>target_user</em> ]
 [ <strong>-n</strong> <em>target_principal_name</em> ]
@@ -70,12 +68,12 @@
 [ <strong>-e</strong> <em>command</em> [ args …  ] ] [ <strong>-a</strong> [ args …  ] ]</p>
 </section>
 <section id="requirements">
-<h2>REQUIREMENTS<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<h2>REQUIREMENTS<a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h2>
 <p>Must have Kerberos version 5 installed to compile ksu.  Must have a
 Kerberos version 5 server running to use ksu.</p>
 </section>
 <section id="description">
-<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Link to this heading">¶</a></h2>
 <p>ksu is a Kerberized version of the su program that has two missions:
 one is to securely change the real and effective user ID to that of
 the target user, and the other is to create a new security context.</p>
@@ -89,7 +87,7 @@ account will start with “target”.</p>
 </div>
 </section>
 <section id="authentication">
-<h2>AUTHENTICATION<a class="headerlink" href="#authentication" title="Permalink to this headline">¶</a></h2>
+<h2>AUTHENTICATION<a class="headerlink" href="#authentication" title="Link to this heading">¶</a></h2>
 <p>To fulfill the first mission, ksu operates in two phases:
 authentication and authorization.  Resolving the target principal name
 is the first step in authentication.  The user can either specify his
@@ -115,7 +113,7 @@ may be exposed.  If neither ticket is in the cache and
 <strong>GET_TGT_VIA_PASSWD</strong> is not defined, authentication fails.</p>
 </section>
 <section id="authorization">
-<h2>AUTHORIZATION<a class="headerlink" href="#authorization" title="Permalink to this headline">¶</a></h2>
+<h2>AUTHORIZATION<a class="headerlink" href="#authorization" title="Link to this heading">¶</a></h2>
 <p>This section describes authorization of the source user when ksu is
 invoked without the <strong>-e</strong> option.  For a description of the <strong>-e</strong>
 option, see the OPTIONS section.</p>
@@ -145,7 +143,7 @@ granted access to the account according to the aname-&gt;lname mapping
 rules.  Otherwise, authorization fails.</p>
 </section>
 <section id="execution-of-the-target-shell">
-<h2>EXECUTION OF THE TARGET SHELL<a class="headerlink" href="#execution-of-the-target-shell" title="Permalink to this headline">¶</a></h2>
+<h2>EXECUTION OF THE TARGET SHELL<a class="headerlink" href="#execution-of-the-target-shell" title="Link to this heading">¶</a></h2>
 <p>Upon successful authentication and authorization, ksu proceeds in a
 similar fashion to su.  The environment is unmodified with the
 exception of USER, HOME and SHELL variables.  If the target user is
@@ -160,7 +158,7 @@ invoked with the <strong>-k</strong> option).  This is implemented by first doin
 fork and then an exec, instead of just exec, as done by su.</p>
 </section>
 <section id="creating-a-new-security-context">
-<h2>CREATING A NEW SECURITY CONTEXT<a class="headerlink" href="#creating-a-new-security-context" title="Permalink to this headline">¶</a></h2>
+<h2>CREATING A NEW SECURITY CONTEXT<a class="headerlink" href="#creating-a-new-security-context" title="Link to this heading">¶</a></h2>
 <p>ksu can be used to create a new security context for the target
 program (either the target shell, or command specified via the <strong>-e</strong>
 option).  The target program inherits a set of credentials from the
@@ -192,7 +190,7 @@ source cache.</p>
 </div>
 </section>
 <section id="options">
-<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<h2>OPTIONS<a class="headerlink" href="#options" title="Link to this heading">¶</a></h2>
 <dl>
 <dt><strong>-n</strong> <em>target_principal_name</em></dt><dd><p>Specify a Kerberos target principal name.  Used in authentication
 and authorization phases of ksu.</p>
@@ -361,7 +359,7 @@ used as follows:</p>
 </dl>
 </section>
 <section id="installation-instructions">
-<h2>INSTALLATION INSTRUCTIONS<a class="headerlink" href="#installation-instructions" title="Permalink to this headline">¶</a></h2>
+<h2>INSTALLATION INSTRUCTIONS<a class="headerlink" href="#installation-instructions" title="Link to this heading">¶</a></h2>
 <p>ksu can be compiled with the following four flags:</p>
 <dl class="simple">
 <dt><strong>GET_TGT_VIA_PASSWD</strong></dt><dd><p>In case no appropriate tickets are found in the source cache, the
@@ -396,20 +394,20 @@ Kerberos database (e.g., <code class="docutils literal notranslate"><span class=
 file must be in an appropriate location.</p>
 </section>
 <section id="side-effects">
-<h2>SIDE EFFECTS<a class="headerlink" href="#side-effects" title="Permalink to this headline">¶</a></h2>
+<h2>SIDE EFFECTS<a class="headerlink" href="#side-effects" title="Link to this heading">¶</a></h2>
 <p>ksu deletes all expired tickets from the source cache.</p>
 </section>
 <section id="author-of-ksu">
-<h2>AUTHOR OF KSU<a class="headerlink" href="#author-of-ksu" title="Permalink to this headline">¶</a></h2>
+<h2>AUTHOR OF KSU<a class="headerlink" href="#author-of-ksu" title="Link to this heading">¶</a></h2>
 <p>GENNADY (ARI) MEDVINSKY</p>
 </section>
 <section id="environment">
-<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Link to this heading">¶</a></h2>
 <p>See <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
 variables.</p>
 </section>
 <section id="see-also">
-<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
 <p><a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a>, <a class="reference internal" href="kinit.html#kinit-1"><span class="std std-ref">kinit</span></a></p>
 </section>
 </section>
@@ -492,8 +490,8 @@ variables.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

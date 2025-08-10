@@ -43,6 +43,8 @@
 #ifndef SOCKET_UTILS_H
 #define SOCKET_UTILS_H
 
+#include <stdbool.h>
+
 /* Some useful stuff cross-platform for manipulating socket addresses.
    We assume at least ipv4 sockaddr_in support.  The sockaddr_storage
    stuff comes from the ipv6 socket api enhancements; socklen_t is
@@ -66,15 +68,17 @@
  * "sockaddr_in *".
  *
  * The casts to (void *) are to get GCC to shut up about alignment
- * increasing.
+ * increasing.  We assume that struct sockaddr pointers are generally
+ * read-only; there are a few exceptions, but they all go through
+ * sa_setport().
  */
-static inline struct sockaddr_in *sa2sin (struct sockaddr *sa)
+static inline const struct sockaddr_in *sa2sin(const struct sockaddr *sa)
 {
-    return (struct sockaddr_in *) (void *) sa;
+    return (const struct sockaddr_in *)(void *)sa;
 }
-static inline struct sockaddr_in6 *sa2sin6 (struct sockaddr *sa)
+static inline const struct sockaddr_in6 *sa2sin6(const struct sockaddr *sa)
 {
-    return (struct sockaddr_in6 *) (void *) sa;
+    return (const struct sockaddr_in6 *)(void *)sa;
 }
 static inline struct sockaddr *ss2sa (struct sockaddr_storage *ss)
 {
@@ -88,6 +92,16 @@ static inline struct sockaddr_in6 *ss2sin6 (struct sockaddr_storage *ss)
 {
     return (struct sockaddr_in6 *) ss;
 }
+#ifndef _WIN32
+static inline const struct sockaddr_un *sa2sun(const struct sockaddr *sa)
+{
+    return (const struct sockaddr_un *)(void *)sa;
+}
+static inline struct sockaddr_un *ss2sun(struct sockaddr_storage *ss)
+{
+    return (struct sockaddr_un *)ss;
+}
+#endif
 
 /* Set the IPv4 or IPv6 port on sa to port.  Do nothing if sa is not an
  * Internet socket. */
@@ -95,14 +109,14 @@ static inline void
 sa_setport(struct sockaddr *sa, uint16_t port)
 {
     if (sa->sa_family == AF_INET)
-        sa2sin(sa)->sin_port = htons(port);
+        ((struct sockaddr_in *)sa2sin(sa))->sin_port = htons(port);
     else if (sa->sa_family == AF_INET6)
-        sa2sin6(sa)->sin6_port = htons(port);
+        ((struct sockaddr_in6 *)sa2sin6(sa))->sin6_port = htons(port);
 }
 
 /* Get the Internet port number of sa, or 0 if it is not an Internet socket. */
 static inline uint16_t
-sa_getport(struct sockaddr *sa)
+sa_getport(const struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET)
         return ntohs(sa2sin(sa)->sin_port);
@@ -114,14 +128,14 @@ sa_getport(struct sockaddr *sa)
 
 /* Return true if sa is an IPv4 or IPv6 socket address. */
 static inline int
-sa_is_inet(struct sockaddr *sa)
+sa_is_inet(const struct sockaddr *sa)
 {
     return sa->sa_family == AF_INET || sa->sa_family == AF_INET6;
 }
 
 /* Return true if sa is an IPv4 or IPv6 wildcard address. */
 static inline int
-sa_is_wildcard(struct sockaddr *sa)
+sa_is_wildcard(const struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET6)
         return IN6_IS_ADDR_UNSPECIFIED(&sa2sin6(sa)->sin6_addr);
@@ -133,14 +147,51 @@ sa_is_wildcard(struct sockaddr *sa)
 /* Return the length of an IPv4 or IPv6 socket structure; abort if it is
  * neither. */
 static inline socklen_t
-sa_socklen(struct sockaddr *sa)
+sa_socklen(const struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET6)
         return sizeof(struct sockaddr_in6);
     else if (sa->sa_family == AF_INET)
         return sizeof(struct sockaddr_in);
+#ifndef _WIN32
+    else if (sa->sa_family == AF_UNIX)
+        return sizeof(struct sockaddr_un);
+#endif
     else
         abort();
+}
+
+/* Return true if a and b are the same address (and port if applicable). */
+static inline bool
+sa_equal(const struct sockaddr *a, const struct sockaddr *b)
+{
+    if (a == NULL || b == NULL || a->sa_family != b->sa_family)
+        return false;
+
+    if (a->sa_family == AF_INET) {
+        const struct sockaddr_in *x = sa2sin(a);
+        const struct sockaddr_in *y = sa2sin(b);
+
+        if (x->sin_port != y->sin_port)
+            return false;
+        return memcmp(&x->sin_addr, &y->sin_addr, sizeof(x->sin_addr)) == 0;
+    } else if (a->sa_family == AF_INET6) {
+        const struct sockaddr_in6 *x = sa2sin6(a);
+        const struct sockaddr_in6 *y = sa2sin6(b);
+
+        if (x->sin6_port != y->sin6_port)
+            return false;
+        return memcmp(&x->sin6_addr, &y->sin6_addr, sizeof(x->sin6_addr)) == 0;
+#ifndef _WIN32
+    } else if (a->sa_family == AF_UNIX) {
+        const struct sockaddr_un *x = sa2sun(a);
+        const struct sockaddr_un *y = sa2sun(b);
+
+        return strcmp(x->sun_path, y->sun_path) == 0;
+#endif
+    }
+
+    return false;
 }
 
 #endif /* SOCKET_UTILS_H */

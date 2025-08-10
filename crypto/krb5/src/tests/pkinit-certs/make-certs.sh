@@ -116,9 +116,12 @@ extendedKeyUsage = $CLIENT_EKU_LIST
 [exts_none]
 EOF
 
-# Generate a private key.
+# Generate an RSA private key and a password-protected PEM file for it..
 openssl genrsa $KEYSIZE > privkey.pem
 openssl rsa -in privkey.pem -out privkey-enc.pem -des3 -passout pass:encrypted
+
+# Generate an EC private key.
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 > eckey.pem
 
 # Generate a "CA" certificate.
 SUBJECT=ca openssl req -config openssl.cnf -new -x509 -extensions exts_ca \
@@ -126,7 +129,8 @@ SUBJECT=ca openssl req -config openssl.cnf -new -x509 -extensions exts_ca \
 
 serial=2
 gen_cert() {
-    SUBJECT=$1 openssl req -config openssl.cnf -new -key privkey.pem -out csr
+    keyfile=${4-privkey.pem}
+    SUBJECT=$1 openssl req -config openssl.cnf -new -key $keyfile -out csr
     SUBJECT=$1 openssl x509 -extfile openssl.cnf -extensions $2 \
            -set_serial $serial -days $DAYS -req -CA ca.pem -CAkey privkey.pem \
            -in csr -out $3
@@ -151,6 +155,9 @@ gen_cert kdc exts_kdc kdc.pem
 gen_cert user exts_client user.pem
 gen_pkcs12 user.pem user.p12
 gen_pkcs12 user.pem user-enc.p12 encrypted
+
+# Generate an EC client certificate.
+gen_cert user exts_client ecuser.pem eckey.pem
 
 # Generate a client certificate and PKCS#12 bundle with a UPN SAN.
 gen_cert user exts_upn_client user-upn.pem

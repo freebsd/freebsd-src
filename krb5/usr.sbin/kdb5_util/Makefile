@@ -21,7 +21,6 @@ SRCS=	dump.c \
 	kdb5_mkey.c \
 	kdb5_stash.c \
 	kdb5_util.c \
-	ovload.c \
 	strtok.c \
 	tabdump.c \
 	tdumputil.c \

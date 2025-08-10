@@ -30,7 +30,7 @@
 #include "t_test.h"
 
 int
-main()
+main(void)
 {
     const char *tmp;
 

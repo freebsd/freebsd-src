@@ -32,12 +32,8 @@
 
 /* Last argument new for V2 */
 OM_uint32 KRB5_CALLCONV
-gss_inquire_names_for_mech(minor_status, mechanism, name_types)
-
-OM_uint32 *	minor_status;
-gss_OID 	mechanism;
-gss_OID_set *	name_types;
-
+gss_inquire_names_for_mech(OM_uint32 *minor_status, gss_OID mechanism,
+			   gss_OID_set *name_types)
 {
     OM_uint32		status;
     gss_OID		selected_mech = GSS_C_NO_OID, public_mech;

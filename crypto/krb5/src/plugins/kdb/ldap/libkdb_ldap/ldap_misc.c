@@ -46,7 +46,7 @@
 extern char *strptime(const char *, const char *, struct tm *);
 #endif
 
-static void remove_overlapping_subtrees(char **listin, int *subtcount,
+static void remove_overlapping_subtrees(char **listin, size_t *subtcount,
                                         int sscope);
 
 /* Set an extended error message about being unable to read name. */
@@ -439,7 +439,7 @@ krb5_ldap_read_server_params(krb5_context context, char *conf_section,
 void
 krb5_ldap_free_server_context_params(krb5_ldap_context *ctx)
 {
-    int i;
+    size_t i;
     krb5_ldap_server_info **list;
     krb5_ldap_server_handle *h, *next;
 
@@ -518,10 +518,11 @@ is_principal_in_realm(krb5_ldap_context *ldap_context,
  */
 krb5_error_code
 krb5_get_subtree_info(krb5_ldap_context *ldap_context, char ***subtreearr,
-                      unsigned int *ntree)
+                      size_t *ntree)
 {
     krb5_error_code ret;
-    int subtreecount, count = 0, search_scope;
+    size_t subtreecount, count = 0;
+    int search_scope;
     char **subtree, *realm_cont_dn, *containerref;
     char **subtarr = NULL;
 
@@ -860,7 +861,8 @@ checkattributevalue(LDAP *ld, char *dn, char *attribute, char **attrvalues,
                     int *mask)
 {
     krb5_error_code ret;
-    int one = 1, i, j;
+    size_t i, j;
+    int one = 1;
     char **values = NULL, *attributes[2] = { NULL };
     LDAPMessage *result = NULL, *entry;
 
@@ -1153,7 +1155,7 @@ krb5_ldap_get_reference_count(krb5_context context, char *dn, char *refattr,
                               int *count, LDAP *ld)
 {
     int n, st, tempst, gothandle = 0;
-    unsigned int i, ntrees = 0;
+    size_t i, ntrees = 0;
     char *refcntattr[2];
     char *filter = NULL, *corrected = NULL, **subtree = NULL;
     kdb5_dal_handle *dal_handle = NULL;
@@ -1317,11 +1319,9 @@ is_subtree(const char *dn1, size_t len1, const char *dn2, size_t len2)
 /* Remove overlapping and repeated subtree entries from the list of subtrees.
  * If sscope is not 2 (sub), only remove repeated entries. */
 static void
-remove_overlapping_subtrees(char **list, int *subtcount, int sscope)
+remove_overlapping_subtrees(char **list, size_t *subtcount, int sscope)
 {
-    size_t ilen, jlen;
-    int i, j;
-    int count = *subtcount;
+    size_t ilen, jlen, i, j, count = *subtcount;
 
     for (i = 0; i < count && list[i] != NULL; i++) {
         ilen = strlen(list[i]);
@@ -1369,7 +1369,7 @@ get_ldap_auth_ind(krb5_context context, LDAP *ld, LDAPMessage *ldap_ent,
                   krb5_db_entry *entry, unsigned int *mask)
 {
     krb5_error_code ret;
-    int i;
+    size_t i;
     char **auth_inds = NULL, *indstr;
     struct k5buf buf = EMPTY_K5BUF;
 
@@ -1414,7 +1414,8 @@ populate_krb5_db_entry(krb5_context context, krb5_ldap_context *ldap_context,
 {
     krb5_error_code ret;
     unsigned int mask = 0;
-    int val, i, pcount, objtype;
+    size_t i;
+    int val, pcount, objtype;
     krb5_boolean attr_present;
     krb5_kvno mkvno = 0;
     krb5_timestamp lastpwdchange, unlock_time;
@@ -1605,7 +1606,7 @@ populate_krb5_db_entry(krb5_context context, krb5_ldap_context *ldap_context,
             if (tl == NULL)
                 goto cleanup;
             tl->tl_data_type = KRB5_TL_CONSTRAINED_DELEGATION_ACL;
-            tl->tl_data_length = strlen(a2d2[i]);
+            tl->tl_data_length = strlen(a2d2[i]) + 1;
             tl->tl_data_contents = (unsigned char *)strdup(a2d2[i]);
             if (tl->tl_data_contents == NULL) {
                 ret = ENOMEM;

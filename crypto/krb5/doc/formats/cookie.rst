@@ -1,3 +1,5 @@
+.. highlight:: abnf
+
 KDC cookie format
 =================
 
@@ -42,7 +44,9 @@ principal name with realm, marshalled according to :rfc:`1964` section
 2.1.1.
 
 The plain text of the encrypted part of a cookie is the DER encoding
-of the following ASN.1 type::
+of the following ASN.1 type:
+
+.. code-block:: bnf
 
     SecureCookie ::= SEQUENCE {
         time     INTEGER,
@@ -63,17 +67,27 @@ SPAKE cookie format (version 1)
 -------------------------------
 
 Inside the SecureCookie wrapper, a data value of type 151 contains
-state for SPAKE pre-authentication.  This data is the concatenation of
-the following:
+state for SPAKE pre-authentication.  This data has the following
+binary format with big-endian integer encoding:
 
-* a two-byte big-endian version number with the value 1
-* a two-byte big-endian stage number
-* a four-byte big-endian group number
-* a four-byte big-endian length and data for the SPAKE value
-* a four-byte big-endian length and data for the transcript hash
-* zero or more second factor records, each consisting of:
-  - a four-byte big-endian second-factor type
-  - a four-byte big-endian length and data
+.. code-block:: bnf
+
+    cookie ::=
+        version (16 bits) [with the value 1]
+        stage number (16 bits)
+        group number (32 bits)
+        SPAKE value length (32 bits)
+        SPAKE value
+        transcript hash length (32 bits)
+        transcript hash
+        second factor record 1 (factor-record)
+        second factor record 2 (factor-record)
+        ...
+
+    factor-record ::=
+        second factor type (32 bits)
+        second factor data length (32 bits)
+        second factor data
 
 The stage value is 0 if the cookie was sent with a challenge message.
 Otherwise it is 1 for the first encdata message sent by the KDC during

@@ -355,7 +355,7 @@ load_if_needed(krb5_context context, struct plugin_mapping *map,
     krb5_error_code ret;
     char *symname = NULL;
     struct plugin_file_handle *handle = NULL;
-    void (*initvt_fn)();
+    void (*initvt_fn)(void);
 
     if (map->module != NULL || map->dyn_path == NULL)
         return;

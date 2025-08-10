@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Password management &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="password-management">
-<h1>Password management<a class="headerlink" href="#password-management" title="Permalink to this headline">¶</a></h1>
+<h1>Password management<a class="headerlink" href="#password-management" title="Link to this heading">¶</a></h1>
 <p>Your password is the only way Kerberos has of verifying your identity.
 If someone finds out your password, that person can masquerade as
 you—send email that comes from you, read, edit, or delete your files,
@@ -66,7 +64,7 @@ including your system administrator, for any reason.  You should
 change your password frequently, particularly any time you think
 someone may have found out what it is.</p>
 <section id="changing-your-password">
-<h2>Changing your password<a class="headerlink" href="#changing-your-password" title="Permalink to this headline">¶</a></h2>
+<h2>Changing your password<a class="headerlink" href="#changing-your-password" title="Link to this heading">¶</a></h2>
 <p>To change your Kerberos password, use the <a class="reference internal" href="user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a> command.
 It will ask you for your old password (to prevent someone else from
 walking up to your computer when you’re not there and changing your
@@ -107,7 +105,7 @@ try the new password.  If the new password doesn’t work, try again
 using the old one.</p>
 </section>
 <section id="granting-access-to-your-account">
-<span id="grant-access"></span><h2>Granting access to your account<a class="headerlink" href="#granting-access-to-your-account" title="Permalink to this headline">¶</a></h2>
+<span id="grant-access"></span><h2>Granting access to your account<a class="headerlink" href="#granting-access-to-your-account" title="Link to this heading">¶</a></h2>
 <p>If you need to give someone access to log into your account, you can
 do so through Kerberos, without telling the person your password.
 Simply create a file called <a class="reference internal" href="user_config/k5login.html#k5login-5"><span class="std std-ref">.k5login</span></a> in your home directory.
@@ -143,7 +141,7 @@ having to give out the root password, and without anyone having to
 type the root password over the network.</p>
 </section>
 <section id="password-quality-verification">
-<h2>Password quality verification<a class="headerlink" href="#password-quality-verification" title="Permalink to this headline">¶</a></h2>
+<h2>Password quality verification<a class="headerlink" href="#password-quality-verification" title="Link to this heading">¶</a></h2>
 <p>TODO</p>
 </section>
 </section>
@@ -205,8 +203,8 @@ type the root password over the network.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

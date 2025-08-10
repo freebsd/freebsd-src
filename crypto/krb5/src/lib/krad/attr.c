@@ -122,6 +122,23 @@ static const attribute_record attributes[UCHAR_MAX] = {
     {"NAS-Port-Type", 4, 4, NULL, NULL},
     {"Port-Limit", 4, 4, NULL, NULL},
     {"Login-LAT-Port", 1, MAX_ATTRSIZE, NULL, NULL},
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for tunnelling */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for tunnelling */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for tunnelling */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for tunnelling */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for tunnelling */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for tunnelling */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for Apple Remote Access Protocol */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for Apple Remote Access Protocol */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for Apple Remote Access Protocol */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for Apple Remote Access Protocol */
+    {NULL, 0, 0, NULL, NULL}, /* Reserved for Apple Remote Access Protocol */
+    {NULL, 0, 0, NULL, NULL}, /* Password-Retry */
+    {NULL, 0, 0, NULL, NULL}, /* Prompt */
+    {NULL, 0, 0, NULL, NULL}, /* Connect-Info */
+    {NULL, 0, 0, NULL, NULL}, /* Configuration-Token */
+    {NULL, 0, 0, NULL, NULL}, /* EAP-Message */
+    {"Message-Authenticator", MD5_DIGEST_SIZE, MD5_DIGEST_SIZE, NULL, NULL},
 };
 
 /* Encode User-Password attribute. */

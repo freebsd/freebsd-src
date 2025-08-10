@@ -118,7 +118,7 @@ typedef __int128_t int128_t;
 typedef __uint128_t uint128_t;
 #endif
 
-/* From BoringSSL third-party/fiat/internal.h */
+/* From BoringSSL crypto/curve25519/internal.h */
 
 #if defined(BORINGSSL_CURVE25519_64BIT)
 // fe means field element. Here the field is \Z/(2^255-19). An element t,

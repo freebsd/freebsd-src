@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Credential cache &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="credential-cache">
-<span id="ccache-definition"></span><h1>Credential cache<a class="headerlink" href="#credential-cache" title="Permalink to this headline">¶</a></h1>
+<span id="ccache-definition"></span><h1>Credential cache<a class="headerlink" href="#credential-cache" title="Link to this heading">¶</a></h1>
 <p>A credential cache (or “ccache”) holds Kerberos credentials while they
 remain valid and, generally, while the user’s session lasts, so that
 authenticating to a service multiple times (e.g., connecting to a web
@@ -74,7 +72,7 @@ the default), lifetime information, and flags, along with the
 credential itself.  There are also other entries, indicated by special
 names, that store additional information.</p>
 <section id="ccache-types">
-<h2>ccache types<a class="headerlink" href="#ccache-types" title="Permalink to this headline">¶</a></h2>
+<h2>ccache types<a class="headerlink" href="#ccache-types" title="Link to this heading">¶</a></h2>
 <p>The credential cache interface, like the <a class="reference internal" href="keytab_def.html#keytab-definition"><span class="std std-ref">keytab</span></a> and
 <a class="reference internal" href="rcache_def.html#rcache-definition"><span class="std std-ref">replay cache</span></a> interfaces, uses <cite>TYPE:value</cite> strings to
 indicate the type of credential cache and any associated cache naming
@@ -150,7 +148,7 @@ Windows credential store.</p></li>
 </ol>
 </section>
 <section id="collections-of-caches">
-<span id="col-ccache"></span><h2>Collections of caches<a class="headerlink" href="#collections-of-caches" title="Permalink to this headline">¶</a></h2>
+<span id="col-ccache"></span><h2>Collections of caches<a class="headerlink" href="#collections-of-caches" title="Link to this heading">¶</a></h2>
 <p>Some credential cache types can support collections of multiple
 caches.  One of the caches in the collection is designated as the
 <em>primary</em> and will be used when the collection is resolved as a cache.
@@ -164,7 +162,7 @@ from the <strong>DIR</strong> and <strong>API</strong> ccache types.  Starting i
 collections are also supported by the <strong>KEYRING</strong> ccache type.
 Collections are supported by the <strong>KCM</strong> ccache type in release 1.13.</p>
 <section id="tool-alterations-to-use-cache-collection">
-<h3>Tool alterations to use cache collection<a class="headerlink" href="#tool-alterations-to-use-cache-collection" title="Permalink to this headline">¶</a></h3>
+<h3>Tool alterations to use cache collection<a class="headerlink" href="#tool-alterations-to-use-cache-collection" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="../user/user_commands/kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a> <em>-A</em> will destroy all caches in the collection.</p></li>
 <li><p>If the default cache type supports switching, <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>
@@ -182,7 +180,7 @@ matching cache and switch to it.</p></li>
 </section>
 </section>
 <section id="default-ccache-name">
-<h2>Default ccache name<a class="headerlink" href="#default-ccache-name" title="Permalink to this headline">¶</a></h2>
+<h2>Default ccache name<a class="headerlink" href="#default-ccache-name" title="Link to this heading">¶</a></h2>
 <p>The default credential cache name is determined by the following, in
 descending order of priority:</p>
 <ol class="arabic simple">
@@ -255,8 +253,8 @@ descending order of priority:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

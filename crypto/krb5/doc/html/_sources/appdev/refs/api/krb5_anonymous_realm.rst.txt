@@ -39,7 +39,7 @@ This function returns constant storage that must not be freed.
 ..
 
 .. seealso::
-         #KRB5_ANONYMOUS_REALMSTR
+         KRB5_ANONYMOUS_REALMSTR
  
 
 

@@ -66,18 +66,9 @@ val_get_mic_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_get_mic (minor_status,
-	     context_handle,
-	     qop_req,
-	     message_buffer,
-	     msg_token)
-
-OM_uint32 *		minor_status;
-gss_ctx_id_t		context_handle;
-gss_qop_t		qop_req;
-gss_buffer_t		message_buffer;
-gss_buffer_t		msg_token;
-
+gss_get_mic(OM_uint32 *minor_status, gss_ctx_id_t context_handle,
+	    gss_qop_t qop_req, gss_buffer_t message_buffer,
+	    gss_buffer_t msg_token)
 {
     OM_uint32		status;
     gss_union_ctx_id_t	ctx;
@@ -118,18 +109,8 @@ gss_buffer_t		msg_token;
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_sign (minor_status,
-          context_handle,
-          qop_req,
-          message_buffer,
-          msg_token)
-
-OM_uint32 *		minor_status;
-gss_ctx_id_t		context_handle;
-int			qop_req;
-gss_buffer_t		message_buffer;
-gss_buffer_t		msg_token;
-
+gss_sign(OM_uint32 *minor_status, gss_ctx_id_t context_handle, int qop_req,
+	 gss_buffer_t message_buffer, gss_buffer_t msg_token)
 {
 	return (gss_get_mic(minor_status, context_handle, (gss_qop_t) qop_req,
 			    message_buffer, msg_token));

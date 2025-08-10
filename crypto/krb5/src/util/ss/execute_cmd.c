@@ -52,11 +52,9 @@
  * Notes:
  */
 
-static int check_request_table (rqtbl, argc, argv, sci_idx)
-    ss_request_table *rqtbl;
-    int argc;
-    char *argv[];
-    int sci_idx;
+static int
+check_request_table(ss_request_table *rqtbl, int argc, char *argv[],
+                    int sci_idx)
 {
     ss_request_entry *request;
     ss_data *info;
@@ -101,10 +99,8 @@ static int check_request_table (rqtbl, argc, argv, sci_idx)
  * Notes:
  */
 
-static int really_execute_command (sci_idx, argc, argv)
-    int sci_idx;
-    int argc;
-    char **argv[];
+static int
+really_execute_command(int sci_idx, int argc, char **argv[])
 {
     ss_request_table **rqtbl;
     ss_data *info;
@@ -135,9 +131,7 @@ static int really_execute_command (sci_idx, argc, argv)
  */
 
 int
-ss_execute_command(sci_idx, argv)
-    int sci_idx;
-    char *argv[];
+ss_execute_command(int sci_idx, char *argv[])
 {
     unsigned int i, argc;
     char **argp;
@@ -172,9 +166,8 @@ ss_execute_command(sci_idx, argv)
  * Notes:
  */
 
-int ss_execute_line (sci_idx, line_ptr)
-    int sci_idx;
-    char *line_ptr;
+int
+ss_execute_line(int sci_idx, char *line_ptr)
 {
     char **argv;
     int argc, ret;

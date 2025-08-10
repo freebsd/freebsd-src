@@ -19,12 +19,6 @@ extern "C" {
 #endif
 
 /*
- * DB macros
- */
-#define INDEX(ulog, i) (kdb_ent_header_t *)(void *)                     \
-    ((char *)(ulog) + sizeof(kdb_hlog_t) + (i) * ulog->kdb_block)
-
-/*
  * Current DB version #
  */
 #define KDB_VERSION     1
@@ -105,6 +99,20 @@ typedef struct _kdb_log_context {
     uint32_t        ulogentries;
     int             ulogfd;
 } kdb_log_context;
+
+/* Return the address of the i'th record in ulog for the given block size. */
+static inline uint8_t *
+ulog_record_ptr(kdb_hlog_t *ulog, size_t i, size_t bsize)
+{
+    return (uint8_t *)ulog + sizeof(*ulog) + i * bsize;
+}
+
+/* Return the i'th update entry header for ulog. */
+static inline kdb_ent_header_t *
+ulog_index(kdb_hlog_t *ulog, size_t i)
+{
+    return (void *)ulog_record_ptr(ulog, i, ulog->kdb_block);
+}
 
 #ifdef  __cplusplus
 }

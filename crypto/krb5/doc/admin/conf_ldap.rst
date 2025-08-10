@@ -112,9 +112,10 @@ Configuring Kerberos with OpenLDAP back-end
     details.
 
 With the LDAP back end it is possible to provide aliases for principal
-entries.  Currently we provide no administrative utilities for
-creating aliases, so it must be done by direct manipulation of the
-LDAP entries.
+entries.  Beginning in release 1.22, aliases can be added with the
+kadmin **add_alias** command, but it is also possible (in release 1.7
+or later) to provide aliases through direct manipulation of the LDAP
+entries.
 
 An entry with aliases contains multiple values of the
 *krbPrincipalName* attribute.  Since LDAP attribute values are not

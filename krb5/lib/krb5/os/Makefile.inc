@@ -10,6 +10,7 @@
 .PATH:	${KRB5_DIR}/lib/krb5/os
 
 SRCS+=	accessor.c \
+	addr.c \
 	c_ustime.c \
 	ccdefname.c \
 	changepw.c \

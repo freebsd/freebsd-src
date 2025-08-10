@@ -39,7 +39,7 @@ static char *prog;
 static int quiet = 0;
 
 static void
-xusage()
+xusage(void)
 {
     fprintf(stderr, _("usage: %s [-c ccache] [-e etype] [-k keytab] [-q] "
                       "[-u | -S sname]\n"

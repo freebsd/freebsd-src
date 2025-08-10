@@ -73,14 +73,9 @@
 #include "gssapiP_krb5.h"
 
 OM_uint32 KRB5_CALLCONV
-krb5_gss_inquire_cred(minor_status, cred_handle, name, lifetime_ret,
-                      cred_usage, mechanisms)
-    OM_uint32 *minor_status;
-    gss_cred_id_t cred_handle;
-    gss_name_t *name;
-    OM_uint32 *lifetime_ret;
-    gss_cred_usage_t *cred_usage;
-    gss_OID_set *mechanisms;
+krb5_gss_inquire_cred(OM_uint32 *minor_status, gss_cred_id_t cred_handle,
+                      gss_name_t *name, OM_uint32 *lifetime_ret,
+                      gss_cred_usage_t *cred_usage, gss_OID_set *mechanisms)
 {
     krb5_context context;
     gss_cred_id_t defcred = GSS_C_NO_CREDENTIAL;
@@ -209,16 +204,11 @@ cleanup:
 
 /* V2 interface */
 OM_uint32 KRB5_CALLCONV
-krb5_gss_inquire_cred_by_mech(minor_status, cred_handle,
-                              mech_type, name, initiator_lifetime,
-                              acceptor_lifetime, cred_usage)
-    OM_uint32           *minor_status;
-    gss_cred_id_t       cred_handle;
-    gss_OID             mech_type;
-    gss_name_t          *name;
-    OM_uint32           *initiator_lifetime;
-    OM_uint32           *acceptor_lifetime;
-    gss_cred_usage_t *cred_usage;
+krb5_gss_inquire_cred_by_mech(OM_uint32 *minor_status,
+                              gss_cred_id_t cred_handle, gss_OID mech_type,
+                              gss_name_t *name, OM_uint32 *initiator_lifetime,
+                              OM_uint32 *acceptor_lifetime,
+                              gss_cred_usage_t *cred_usage)
 {
     krb5_gss_cred_id_t  cred;
     OM_uint32           lifetime;

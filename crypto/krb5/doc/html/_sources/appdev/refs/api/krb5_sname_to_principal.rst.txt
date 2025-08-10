@@ -49,11 +49,11 @@ The *type* can be one of the following:
 
  
  
-	 - #KRB5_NT_SRV_HST canonicalizes the host name before looking up the realm and generating the principal.
+	 - KRB5_NT_SRV_HST canonicalizes the host name before looking up the realm and generating the principal.
  
  
  
-	 - #KRB5_NT_UNKNOWN accepts the hostname as given, and does not canonicalize it.
+	 - KRB5_NT_UNKNOWN accepts the hostname as given, and does not canonicalize it.
  
  Use krb5_free_principal to free *ret_princ* when it is no longer needed.
 

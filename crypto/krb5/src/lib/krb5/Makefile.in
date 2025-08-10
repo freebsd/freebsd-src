@@ -2,13 +2,12 @@ mydir=lib$(S)krb5
 BUILDTOP=$(REL)..$(S)..
 LOCALINCLUDES = -I$(srcdir)/ccache -I$(srcdir)/keytab -I$(srcdir)/rcache -I$(srcdir)/os -I$(srcdir)/unicode
 SUBDIRS= error_tables asn.1 ccache keytab krb os rcache unicode
-WINSUBDIRS= $(SUBDIRS) posix
 DEFINES=-DLOCALEDIR=\"$(KRB5_LOCALEDIR)\"
 
 ##DOSBUILDTOP = ..\..
 ##DOSLIBNAME=$(OUTPRE)krb5.lib
-##DOSOBJFILEDEP=$(OUTPRE)asn1.lst $(OUTPRE)ccache.lst $(OUTPRE)err_tbls.lst $(OUTPRE)keytab.lst $(OUTPRE)krb.lst $(OUTPRE)os.lst $(OUTPRE)posix.lst $(OUTPRE)rcache.lst $(OUTPRE)krb5.lst $(OUTPRE)unicode.lst
-##DOSOBJFILELIST=@$(OUTPRE)asn1.lst @$(OUTPRE)ccache.lst @$(OUTPRE)err_tbls.lst @$(OUTPRE)keytab.lst @$(OUTPRE)krb.lst @$(OUTPRE)os.lst @$(OUTPRE)posix.lst @$(OUTPRE)rcache.lst @$(OUTPRE)krb5.lst @$(OUTPRE)unicode.lst
+##DOSOBJFILEDEP=$(OUTPRE)asn1.lst $(OUTPRE)ccache.lst $(OUTPRE)err_tbls.lst $(OUTPRE)keytab.lst $(OUTPRE)krb.lst $(OUTPRE)os.lst $(OUTPRE)rcache.lst $(OUTPRE)krb5.lst $(OUTPRE)unicode.lst
+##DOSOBJFILELIST=@$(OUTPRE)asn1.lst @$(OUTPRE)ccache.lst @$(OUTPRE)err_tbls.lst @$(OUTPRE)keytab.lst @$(OUTPRE)krb.lst @$(OUTPRE)os.lst @$(OUTPRE)rcache.lst @$(OUTPRE)krb5.lst @$(OUTPRE)unicode.lst
 ##DOSOBJFILE=$(OUTPRE)krb5.lst
 ##DOSLIBOBJS=$(OBJS)
 ##DOSLOCALINCLUDES=-Iccache\ccapi -I..\..\windows\lib -Iccache -Ikeytab -Ircache -Ios
@@ -46,7 +45,7 @@ RELDIR=krb5
 SHLIB_EXPDEPS = \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
-SHLIB_EXPLIBS=-lk5crypto $(COM_ERR_LIB) $(SUPPORT_LIB) @GEN_LIB@ \
+SHLIB_EXPLIBS=-lk5crypto $(COM_ERR_LIB) $(SUPPORT_LIB) \
 	@MACOS_FRAMEWORK@ $(LIBS)
 
 all-unix: all-liblinks

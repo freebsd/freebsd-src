@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>kadmin &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
@@ -53,9 +51,9 @@
           <div class="body" role="main">
             
   <section id="kadmin">
-<span id="kadmin-1"></span><h1>kadmin<a class="headerlink" href="#kadmin" title="Permalink to this headline">¶</a></h1>
+<span id="kadmin-1"></span><h1>kadmin<a class="headerlink" href="#kadmin" title="Link to this heading">¶</a></h1>
 <section id="synopsis">
-<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Link to this heading">¶</a></h2>
 <p id="kadmin-synopsis"><strong>kadmin</strong>
 [<strong>-O</strong>|<strong>-N</strong>]
 [<strong>-r</strong> <em>realm</em>]
@@ -76,7 +74,7 @@
 [command args…]</p>
 </section>
 <section id="description">
-<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Link to this heading">¶</a></h2>
 <p>kadmin and kadmin.local are command-line interfaces to the Kerberos V5
 administration system.  They provide nearly identical functionalities;
 the difference is that kadmin.local directly accesses the KDC
@@ -101,7 +99,7 @@ the KDC database.  If the KDC database uses the LDAP database module,
 kadmin.local can be run on any host which can access the LDAP server.</p>
 </section>
 <section id="options">
-<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<h2>OPTIONS<a class="headerlink" href="#options" title="Link to this heading">¶</a></h2>
 <dl class="simple" id="kadmin-options">
 <dt><strong>-r</strong> <em>realm</em></dt><dd><p>Use <em>realm</em> as the default database realm.</p>
 </dd>
@@ -185,7 +183,7 @@ option cannot be used in combination with a query in the remaining
 arguments.</p>
 </section>
 <section id="database-options">
-<span id="dboptions"></span><h2>DATABASE OPTIONS<a class="headerlink" href="#database-options" title="Permalink to this headline">¶</a></h2>
+<span id="dboptions"></span><h2>DATABASE OPTIONS<a class="headerlink" href="#database-options" title="Link to this heading">¶</a></h2>
 <p>Database options can be used to override database-specific defaults.
 Supported options for the DB2 module are:</p>
 <blockquote>
@@ -241,12 +239,12 @@ are printed to standard error.  New in release 1.12.</p>
 </div></blockquote>
 </section>
 <section id="commands">
-<h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<h2>COMMANDS<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
 <p>When using the remote client, available commands may be restricted
 according to the privileges specified in the <a class="reference internal" href="../conf_files/kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a> file
 on the admin server.</p>
 <section id="add-principal">
-<span id="id1"></span><h3>add_principal<a class="headerlink" href="#add-principal" title="Permalink to this headline">¶</a></h3>
+<span id="id1"></span><h3>add_principal<a class="headerlink" href="#add-principal" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>add_principal</strong> [<em>options</em>] <em>newprinc</em></p>
 </div></blockquote>
@@ -408,7 +406,7 @@ principal container configured in the realm.</p></li>
 </div>
 </section>
 <section id="modify-principal">
-<span id="id2"></span><h3>modify_principal<a class="headerlink" href="#modify-principal" title="Permalink to this headline">¶</a></h3>
+<span id="id2"></span><h3>modify_principal<a class="headerlink" href="#modify-principal" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>modify_principal</strong> [<em>options</em>] <em>principal</em></p>
 </div></blockquote>
@@ -427,7 +425,7 @@ to its password policy) so that it can successfully authenticate.</p>
 </dl>
 </section>
 <section id="rename-principal">
-<span id="id3"></span><h3>rename_principal<a class="headerlink" href="#rename-principal" title="Permalink to this headline">¶</a></h3>
+<span id="id3"></span><h3>rename_principal<a class="headerlink" href="#rename-principal" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>rename_principal</strong> [<strong>-force</strong>] <em>old_principal</em> <em>new_principal</em></p>
 </div></blockquote>
@@ -437,18 +435,31 @@ given.</p>
 <p>This command requires the <strong>add</strong> and <strong>delete</strong> privileges.</p>
 <p>Alias: <strong>renprinc</strong></p>
 </section>
+<section id="add-alias">
+<span id="id4"></span><h3>add_alias<a class="headerlink" href="#add-alias" title="Link to this heading">¶</a></h3>
+<blockquote>
+<div><p><strong>add_alias</strong> <em>alias_princ</em> <em>target_princ</em></p>
+</div></blockquote>
+<p>Create an alias <em>alias_princ</em> pointing to <em>target_princ</em>.  Aliases may
+be chained (that is, <em>target_princ</em> may itself be an alias) up to a
+depth of 10.</p>
+<p>This command requires the <strong>add</strong> privilege for <em>alias_princ</em> and the
+<strong>modify</strong> privilege for <em>target_princ</em>.</p>
+<p>(New in release 1.22.)</p>
+<p>Aliases: <strong>alias</strong></p>
+</section>
 <section id="delete-principal">
-<span id="id4"></span><h3>delete_principal<a class="headerlink" href="#delete-principal" title="Permalink to this headline">¶</a></h3>
+<span id="id5"></span><h3>delete_principal<a class="headerlink" href="#delete-principal" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>delete_principal</strong> [<strong>-force</strong>] <em>principal</em></p>
 </div></blockquote>
-<p>Deletes the specified <em>principal</em> from the database.  This command
-prompts for deletion, unless the <strong>-force</strong> option is given.</p>
+<p>Deletes the specified <em>principal</em> or alias from the database.  This
+command prompts for deletion, unless the <strong>-force</strong> option is given.</p>
 <p>This command requires the <strong>delete</strong> privilege.</p>
 <p>Alias: <strong>delprinc</strong></p>
 </section>
 <section id="change-password">
-<span id="id5"></span><h3>change_password<a class="headerlink" href="#change-password" title="Permalink to this headline">¶</a></h3>
+<span id="id6"></span><h3>change_password<a class="headerlink" href="#change-password" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>change_password</strong> [<em>options</em>] <em>principal</em></p>
 </div></blockquote>
@@ -484,7 +495,7 @@ necessary except perhaps for <code class="docutils literal notranslate"><span cl
 </div>
 </section>
 <section id="purgekeys">
-<span id="id6"></span><h3>purgekeys<a class="headerlink" href="#purgekeys" title="Permalink to this headline">¶</a></h3>
+<span id="id7"></span><h3>purgekeys<a class="headerlink" href="#purgekeys" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>purgekeys</strong> [<strong>-all</strong>|<strong>-keepkvno</strong> <em>oldest_kvno_to_keep</em>] <em>principal</em></p>
 </div></blockquote>
@@ -496,7 +507,7 @@ is new in release 1.12.</p>
 <p>This command requires the <strong>modify</strong> privilege.</p>
 </section>
 <section id="get-principal">
-<span id="id7"></span><h3>get_principal<a class="headerlink" href="#get-principal" title="Permalink to this headline">¶</a></h3>
+<span id="id8"></span><h3>get_principal<a class="headerlink" href="#get-principal" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>get_principal</strong> [<strong>-terse</strong>] <em>principal</em></p>
 </div></blockquote>
@@ -532,7 +543,7 @@ running the the program to be the same as the one being listed.</p>
 </div>
 </section>
 <section id="list-principals">
-<span id="id8"></span><h3>list_principals<a class="headerlink" href="#list-principals" title="Permalink to this headline">¶</a></h3>
+<span id="id9"></span><h3>list_principals<a class="headerlink" href="#list-principals" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>list_principals</strong> [<em>expression</em>]</p>
 </div></blockquote>
@@ -556,7 +567,7 @@ expression.</p>
 </div>
 </section>
 <section id="get-strings">
-<span id="id9"></span><h3>get_strings<a class="headerlink" href="#get-strings" title="Permalink to this headline">¶</a></h3>
+<span id="id10"></span><h3>get_strings<a class="headerlink" href="#get-strings" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>get_strings</strong> <em>principal</em></p>
 </div></blockquote>
@@ -565,7 +576,7 @@ expression.</p>
 <p>Alias: <strong>getstrs</strong></p>
 </section>
 <section id="set-string">
-<span id="id10"></span><h3>set_string<a class="headerlink" href="#set-string" title="Permalink to this headline">¶</a></h3>
+<span id="id11"></span><h3>set_string<a class="headerlink" href="#set-string" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>set_string</strong> <em>principal</em> <em>name</em> <em>value</em></p>
 </div></blockquote>
@@ -612,7 +623,7 @@ entry.</p>
 </div>
 </section>
 <section id="del-string">
-<span id="id11"></span><h3>del_string<a class="headerlink" href="#del-string" title="Permalink to this headline">¶</a></h3>
+<span id="id12"></span><h3>del_string<a class="headerlink" href="#del-string" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>del_string</strong> <em>principal</em> <em>key</em></p>
 </div></blockquote>
@@ -621,7 +632,7 @@ entry.</p>
 <p>Alias: <strong>delstr</strong></p>
 </section>
 <section id="add-policy">
-<span id="id12"></span><h3>add_policy<a class="headerlink" href="#add-policy" title="Permalink to this headline">¶</a></h3>
+<span id="id13"></span><h3>add_policy<a class="headerlink" href="#add-policy" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>add_policy</strong> [<em>options</em>] <em>policy</em></p>
 </div></blockquote>
@@ -685,7 +696,7 @@ a value of ‘-‘.</p>
 </div>
 </section>
 <section id="modify-policy">
-<span id="id13"></span><h3>modify_policy<a class="headerlink" href="#modify-policy" title="Permalink to this headline">¶</a></h3>
+<span id="id14"></span><h3>modify_policy<a class="headerlink" href="#modify-policy" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>modify_policy</strong> [<em>options</em>] <em>policy</em></p>
 </div></blockquote>
@@ -695,7 +706,7 @@ for <strong>add_policy</strong>.</p>
 <p>Alias: <strong>modpol</strong></p>
 </section>
 <section id="delete-policy">
-<span id="id14"></span><h3>delete_policy<a class="headerlink" href="#delete-policy" title="Permalink to this headline">¶</a></h3>
+<span id="id15"></span><h3>delete_policy<a class="headerlink" href="#delete-policy" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>delete_policy</strong> [<strong>-force</strong>] <em>policy</em></p>
 </div></blockquote>
@@ -713,7 +724,7 @@ kadmin:
 </div>
 </section>
 <section id="get-policy">
-<span id="id15"></span><h3>get_policy<a class="headerlink" href="#get-policy" title="Permalink to this headline">¶</a></h3>
+<span id="id16"></span><h3>get_policy<a class="headerlink" href="#get-policy" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>get_policy</strong> [ <strong>-terse</strong> ] <em>policy</em></p>
 </div></blockquote>
@@ -742,7 +753,7 @@ With the LDAP KDC database module, the reference count field is not
 meaningful.</p>
 </section>
 <section id="list-policies">
-<span id="id16"></span><h3>list_policies<a class="headerlink" href="#list-policies" title="Permalink to this headline">¶</a></h3>
+<span id="id17"></span><h3>list_policies<a class="headerlink" href="#list-policies" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>list_policies</strong> [<em>expression</em>]</p>
 </div></blockquote>
@@ -768,7 +779,7 @@ printed.</p>
 </div>
 </section>
 <section id="ktadd">
-<span id="id17"></span><h3>ktadd<a class="headerlink" href="#ktadd" title="Permalink to this headline">¶</a></h3>
+<span id="id18"></span><h3>ktadd<a class="headerlink" href="#ktadd" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><div class="line-block">
 <div class="line"><strong>ktadd</strong> [options] <em>principal</em></div>
@@ -811,7 +822,7 @@ salt types.</p>
 </div>
 </section>
 <section id="ktremove">
-<span id="id18"></span><h3>ktremove<a class="headerlink" href="#ktremove" title="Permalink to this headline">¶</a></h3>
+<span id="id19"></span><h3>ktremove<a class="headerlink" href="#ktremove" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><p><strong>ktremove</strong> [options] <em>principal</em> [<em>kvno</em> | <em>all</em> | <em>old</em>]</p>
 </div></blockquote>
@@ -840,37 +851,37 @@ used.</p>
 </div>
 </section>
 <section id="lock">
-<h3>lock<a class="headerlink" href="#lock" title="Permalink to this headline">¶</a></h3>
+<h3>lock<a class="headerlink" href="#lock" title="Link to this heading">¶</a></h3>
 <p>Lock database exclusively.  Use with extreme caution!  This command
 only works with the DB2 KDC database module.</p>
 </section>
 <section id="unlock">
-<h3>unlock<a class="headerlink" href="#unlock" title="Permalink to this headline">¶</a></h3>
+<h3>unlock<a class="headerlink" href="#unlock" title="Link to this heading">¶</a></h3>
 <p>Release the exclusive database lock.</p>
 </section>
 <section id="list-requests">
-<h3>list_requests<a class="headerlink" href="#list-requests" title="Permalink to this headline">¶</a></h3>
+<h3>list_requests<a class="headerlink" href="#list-requests" title="Link to this heading">¶</a></h3>
 <p>Lists available for kadmin requests.</p>
 <p>Aliases: <strong>lr</strong>, <strong>?</strong></p>
 </section>
 <section id="quit">
-<h3>quit<a class="headerlink" href="#quit" title="Permalink to this headline">¶</a></h3>
+<h3>quit<a class="headerlink" href="#quit" title="Link to this heading">¶</a></h3>
 <p>Exit program.  If the database was locked, the lock is released.</p>
 <p>Aliases: <strong>exit</strong>, <strong>q</strong></p>
 </section>
 </section>
 <section id="history">
-<h2>HISTORY<a class="headerlink" href="#history" title="Permalink to this headline">¶</a></h2>
+<h2>HISTORY<a class="headerlink" href="#history" title="Link to this heading">¶</a></h2>
 <p>The kadmin program was originally written by Tom Yu at MIT, as an
 interface to the OpenVision Kerberos administration program.</p>
 </section>
 <section id="environment">
-<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Link to this heading">¶</a></h2>
 <p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
 variables.</p>
 </section>
 <section id="see-also">
-<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
 <p><a class="reference internal" href="../../user/user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a>, <a class="reference internal" href="kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </section>
 </section>
@@ -894,6 +905,7 @@ variables.</p>
 <li><a class="reference internal" href="#add-principal">add_principal</a></li>
 <li><a class="reference internal" href="#modify-principal">modify_principal</a></li>
 <li><a class="reference internal" href="#rename-principal">rename_principal</a></li>
+<li><a class="reference internal" href="#add-alias">add_alias</a></li>
 <li><a class="reference internal" href="#delete-principal">delete_principal</a></li>
 <li><a class="reference internal" href="#change-password">change_password</a></li>
 <li><a class="reference internal" href="#purgekeys">purgekeys</a></li>
@@ -994,8 +1006,8 @@ variables.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

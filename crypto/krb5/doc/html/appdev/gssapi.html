@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Developing with GSSAPI &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,20 +51,20 @@
           <div class="body" role="main">
             
   <section id="developing-with-gssapi">
-<h1>Developing with GSSAPI<a class="headerlink" href="#developing-with-gssapi" title="Permalink to this headline">¶</a></h1>
+<h1>Developing with GSSAPI<a class="headerlink" href="#developing-with-gssapi" title="Link to this heading">¶</a></h1>
 <p>The GSSAPI (Generic Security Services API) allows applications to
 communicate securely using Kerberos 5 or other security mechanisms.
 We recommend using the GSSAPI (or a higher-level framework which
 encompasses GSSAPI, such as SASL) for secure network communication
 over using the libkrb5 API directly.</p>
-<p>GSSAPIv2 is specified in <span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc2743.html"><strong>RFC 2743</strong></a> and <span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc2744.html"><strong>RFC 2744</strong></a>.  Also see
-<span class="target" id="index-2"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc7546.html"><strong>RFC 7546</strong></a> for a description of how to use the GSSAPI in a client or
+<p>GSSAPIv2 is specified in <span class="target" id="index-0"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc2743.html"><strong>RFC 2743</strong></a> and <span class="target" id="index-1"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc2744.html"><strong>RFC 2744</strong></a>.  Also see
+<span class="target" id="index-2"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc7546.html"><strong>RFC 7546</strong></a> for a description of how to use the GSSAPI in a client or
 server program.</p>
 <p>This documentation will describe how various ways of using the
 GSSAPI will behave with the krb5 mechanism as implemented in MIT krb5,
 as well as krb5-specific extensions to the GSSAPI.</p>
 <section id="name-types">
-<h2>Name types<a class="headerlink" href="#name-types" title="Permalink to this headline">¶</a></h2>
+<h2>Name types<a class="headerlink" href="#name-types" title="Link to this heading">¶</a></h2>
 <p>A GSSAPI application can name a local or remote entity by calling
 <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.16">gss_import_name</a>, specifying a name type and a value.  The following
 name types are supported by the krb5 mechanism:</p>
@@ -97,19 +95,19 @@ string representation of the uid.</p></li>
 <li><p><strong>GSS_C_NT_EXPORT_NAME</strong>: The value must be the result of a
 <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.13">gss_export_name</a> call.</p></li>
 <li><p><strong>GSS_KRB5_NT_ENTERPRISE_NAME</strong>: The value should be a krb5
-enterprise name string (see <span class="target" id="index-3"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6806.html"><strong>RFC 6806</strong></a> section 5), in the form
+enterprise name string (see <span class="target" id="index-3"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6806.html"><strong>RFC 6806</strong></a> section 5), in the form
 <code class="docutils literal notranslate"><span class="pre">user&#64;suffix</span></code>.  This name type is used to convey alias names, and
 is defined in the <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></code> header.  (New in
 release 1.17.)</p></li>
 <li><p><strong>GSS_KRB5_NT_X509_CERT</strong>: The value should be an X.509 certificate
-encoded according to <span class="target" id="index-4"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5280.html"><strong>RFC 5280</strong></a>.  This name form can be used for
+encoded according to <span class="target" id="index-4"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5280.html"><strong>RFC 5280</strong></a>.  This name form can be used for
 the desired_name parameter of gss_acquire_cred_impersonate_name(),
 to identify the S4U2Self user by certificate.  (New in release
 1.19.)</p></li>
 </ul>
 </section>
 <section id="initiator-credentials">
-<h2>Initiator credentials<a class="headerlink" href="#initiator-credentials" title="Permalink to this headline">¶</a></h2>
+<h2>Initiator credentials<a class="headerlink" href="#initiator-credentials" title="Link to this heading">¶</a></h2>
 <p>A GSSAPI client application uses <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.19">gss_init_sec_context</a> to establish a
 security context.  The <em>initiator_cred_handle</em> parameter determines
 what tickets are used to establish the connection.  An application can
@@ -160,7 +158,7 @@ cache or collection, and will be refreshed by future calls to
 <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.2">gss_acquire_cred</a> as they approach their expire time.</p>
 </section>
 <section id="acceptor-names">
-<h2>Acceptor names<a class="headerlink" href="#acceptor-names" title="Permalink to this headline">¶</a></h2>
+<h2>Acceptor names<a class="headerlink" href="#acceptor-names" title="Link to this heading">¶</a></h2>
 <p>A GSSAPI server application uses <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.1">gss_accept_sec_context</a> to establish
 a security context based on tokens provided by the client.  The
 <em>acceptor_cred_handle</em> parameter determines what
@@ -212,9 +210,9 @@ type which is mapped to a krb5 principal name, clients will only be
 allowed to authenticate to that principal in the default keytab.</p>
 </section>
 <section id="name-attributes">
-<h2>Name Attributes<a class="headerlink" href="#name-attributes" title="Permalink to this headline">¶</a></h2>
+<h2>Name Attributes<a class="headerlink" href="#name-attributes" title="Link to this heading">¶</a></h2>
 <p>In release 1.8 or later, the <a class="reference external" href="https://tools.ietf.org/html/rfc6680.txt#section-7.4">gss_inquire_name</a> and
-<a class="reference external" href="https://tools.ietf.org/html/6680.html#section-7.5">gss_get_name_attribute</a> functions, specified in <span class="target" id="index-5"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6680.html"><strong>RFC 6680</strong></a>, can be
+<a class="reference external" href="https://tools.ietf.org/html/6680.html#section-7.5">gss_get_name_attribute</a> functions, specified in <span class="target" id="index-5"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6680.html"><strong>RFC 6680</strong></a>, can be
 used to retrieve name attributes from the <em>src_name</em> returned by
 <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.1">gss_accept_sec_context</a>.  The following attributes are defined when
 the krb5 mechanism is used:</p>
@@ -228,7 +226,7 @@ so multiple invocations may be necessary to retrieve all of the
 indicators from the ticket.  (New in release 1.15.)</p>
 </section>
 <section id="credential-store-extensions">
-<h2>Credential store extensions<a class="headerlink" href="#credential-store-extensions" title="Permalink to this headline">¶</a></h2>
+<h2>Credential store extensions<a class="headerlink" href="#credential-store-extensions" title="Link to this heading">¶</a></h2>
 <p>Beginning with release 1.11, the following GSSAPI extensions declared
 in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code> can be used to specify how credentials
 are acquired or stored:</p>
@@ -308,7 +306,7 @@ is true, the primary cache of the collection will be switched to the
 selected cache.</p>
 </section>
 <section id="importing-and-exporting-credentials">
-<h2>Importing and exporting credentials<a class="headerlink" href="#importing-and-exporting-credentials" title="Permalink to this headline">¶</a></h2>
+<h2>Importing and exporting credentials<a class="headerlink" href="#importing-and-exporting-credentials" title="Link to this heading">¶</a></h2>
 <p>The following GSSAPI extensions can be used to import and export
 credentials (declared in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_export_cred</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
@@ -351,7 +349,7 @@ resulting token may be imported even if the original memory credential
 cache no longer exists.</p>
 </section>
 <section id="constrained-delegation-s4u">
-<h2>Constrained delegation (S4U)<a class="headerlink" href="#constrained-delegation-s4u" title="Permalink to this headline">¶</a></h2>
+<h2>Constrained delegation (S4U)<a class="headerlink" href="#constrained-delegation-s4u" title="Link to this heading">¶</a></h2>
 <p>The Microsoft S4U2Self and S4U2Proxy Kerberos protocol extensions
 allow an intermediate service to acquire credentials from a client to
 a target service without requiring the client to delegate a
@@ -426,8 +424,39 @@ is not a proxy credential, <em>data_set</em> will be set to an empty buffer
 set.  If the library does not support the query,
 gss_inquire_cred_by_oid will return <strong>GSS_S_UNAVAILABLE</strong>.</p>
 </section>
+<section id="channel-binding-behavior-and-gss-c-channel-bound-flag">
+<h2>Channel binding behavior and GSS_C_CHANNEL_BOUND_FLAG<a class="headerlink" href="#channel-binding-behavior-and-gss-c-channel-bound-flag" title="Link to this heading">¶</a></h2>
+<p>GSSAPI channel bindings can be used to limit the scope of a context
+establishment token to a particular protected channel or endpoint,
+such as a TLS channel or server certificate.  Channel bindings can be
+supplied via the <em>input_chan_bindings</em> parameter to either
+gss_init_sec_context() or gss_accept_sec_context().</p>
+<p>If both the initiator and acceptor of a GSSAPI exchange supply
+matching channel bindings, <strong>GSS_C_CHANNEL_BOUND_FLAG</strong> will be
+included in the gss_accept_sec_context() <em>ret_flags</em> result.  If
+either the initiator or acceptor (or both) do not supply channel
+bindings, the exchange will succeed, but <strong>GSS_C_CHANNEL_BOUND_FLAG</strong>
+will not be included in the return flags.  If the acceptor and
+initiator both inlude channel bindings but they do not match, the
+exchange will fail.</p>
+<p>If <strong>GSS_C_CHANNEL_BOUND_FLAG</strong> is included in the <em>req_flags</em>
+parameter of gss_init_sec_context(), the initiator will add the
+Microsoft KERB_AP_OPTIONS_CBT extension to the Kerberos authenticator.
+This extension requests that the acceptor strictly enforce channel
+bindings, causing the exchange to fail if the acceptor supplies
+channel bindings and the initiator does not.  The KERB_AP_OPTIONS_CBT
+extension will also be included if the
+<strong>client_aware_channel_bindings</strong> variable is set to <code class="docutils literal notranslate"><span class="pre">true</span></code> in
+<a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</p>
+<p>Prior to release 1.19, <strong>GSS_C_CHANNEL_BOUND_FLAG</strong> is not
+implemented, and the exchange will fail if the acceptor supply channel
+bindings and the initiator does not (but not vice versa).  Between
+releases 1.19 and 1.21, <strong>GSS_C_CHANNEL_BOUND_FLAG</strong> is not recognized
+as an initiator flag, so <strong>client_aware_channel_bindings</strong> is the only
+way to cause KERB_AP_OPTIONS_CBT to be included.</p>
+</section>
 <section id="aead-message-wrapping">
-<h2>AEAD message wrapping<a class="headerlink" href="#aead-message-wrapping" title="Permalink to this headline">¶</a></h2>
+<h2>AEAD message wrapping<a class="headerlink" href="#aead-message-wrapping" title="Link to this heading">¶</a></h2>
 <p>The following GSSAPI extensions (declared in
 <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can be used to wrap and unwrap messages
 with additional “associated data” which is integrity-checked but is
@@ -454,7 +483,7 @@ if the same <em>input_assoc_buffer</em> contents are presented to
 gss_unwrap_aead.</p>
 </section>
 <section id="iov-message-wrapping">
-<h2>IOV message wrapping<a class="headerlink" href="#iov-message-wrapping" title="Permalink to this headline">¶</a></h2>
+<h2>IOV message wrapping<a class="headerlink" href="#iov-message-wrapping" title="Link to this heading">¶</a></h2>
 <p>The following extensions (declared in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can
 be used for in-place encryption, fine-grained control over wrap token
 layout, and for constructing wrap tokens compatible with Microsoft DCE
@@ -582,7 +611,7 @@ Here is an example of using gss_wrap_iov_length and gss_wrap_iov:</p>
 </pre></div>
 </div>
 <p>If the context was established using the <strong>GSS_C_DCE_STYLE</strong> flag
-(described in <span class="target" id="index-6"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4757.html"><strong>RFC 4757</strong></a>), wrap tokens compatible with Microsoft DCE
+(described in <span class="target" id="index-6"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc4757.html"><strong>RFC 4757</strong></a>), wrap tokens compatible with Microsoft DCE
 RPC can be constructed.  In this case, the IOV list must include a
 SIGN_ONLY buffer, a DATA buffer, a second SIGN_ONLY buffer, and a
 HEADER buffer in that order (the order of the buffer contents remains
@@ -618,7 +647,7 @@ pre-existing pointer and length for a modifiable region of data):</p>
 </div>
 </section>
 <section id="iov-mic-tokens">
-<span id="gssapi-mic-token"></span><h2>IOV MIC tokens<a class="headerlink" href="#iov-mic-tokens" title="Permalink to this headline">¶</a></h2>
+<span id="gssapi-mic-token"></span><h2>IOV MIC tokens<a class="headerlink" href="#iov-mic-tokens" title="Link to this heading">¶</a></h2>
 <p>The following extensions (declared in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can
 be used in release 1.12 or later to construct and verify MIC tokens
 using an IOV list:</p>
@@ -725,6 +754,7 @@ gss_get_mic_iov_length and gss_get_mic_iov:</p>
 <li><a class="reference internal" href="#credential-store-extensions">Credential store extensions</a></li>
 <li><a class="reference internal" href="#importing-and-exporting-credentials">Importing and exporting credentials</a></li>
 <li><a class="reference internal" href="#constrained-delegation-s4u">Constrained delegation (S4U)</a></li>
+<li><a class="reference internal" href="#channel-binding-behavior-and-gss-c-channel-bound-flag">Channel binding behavior and GSS_C_CHANNEL_BOUND_FLAG</a></li>
 <li><a class="reference internal" href="#aead-message-wrapping">AEAD message wrapping</a></li>
 <li><a class="reference internal" href="#iov-message-wrapping">IOV message wrapping</a></li>
 <li><a class="reference internal" href="#iov-mic-tokens">IOV MIC tokens</a></li>
@@ -773,8 +803,8 @@ gss_get_mic_iov_length and gss_get_mic_iov:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -87,8 +87,8 @@ finish_dispatch_cache(void *arg, krb5_error_code code, krb5_data *response)
 }
 
 void
-dispatch(void *cb, const krb5_fulladdr *local_addr,
-         const krb5_fulladdr *remote_addr, krb5_data *pkt, int is_tcp,
+dispatch(void *cb, const struct sockaddr *local_addr,
+         const struct sockaddr *remote_addr, krb5_data *pkt, int is_tcp,
          verto_ctx *vctx, loop_respond_fn respond, void *arg)
 {
     krb5_error_code retval;
@@ -116,10 +116,9 @@ dispatch(void *cb, const krb5_fulladdr *local_addr,
     if (kdc_check_lookaside(kdc_err_context, pkt, &response)) {
         /* a hit! */
         const char *name = 0;
-        char buf[46];
+        char buf[128];
 
-        name = inet_ntop(ADDRTYPE2FAMILY(remote_addr->address->addrtype),
-                         remote_addr->address->contents, buf, sizeof(buf));
+        k5_print_addr(remote_addr, buf, sizeof(buf));
         if (name == 0)
             name = "[unknown address type]";
         if (response)

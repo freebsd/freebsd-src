@@ -23,7 +23,6 @@ SRCS+=	disp_com_err_status.c \
 	util_buffer_set.c \
 	util_errmap.c \
 	util_seqstate.c \
-	util_set.c \
 	util_token.c \
 	${GGEN} \
 	${GGENI}

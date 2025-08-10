@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="./">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>How to build this documentation from the source &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="_static/kerb.css" />
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="_static/kerb.css?v=6a0b3979" />
+    <script src="_static/documentation_options.js?v=236fef3b"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="how-to-build-this-documentation-from-the-source">
-<h1>How to build this documentation from the source<a class="headerlink" href="#how-to-build-this-documentation-from-the-source" title="Permalink to this headline">¶</a></h1>
+<h1>How to build this documentation from the source<a class="headerlink" href="#how-to-build-this-documentation-from-the-source" title="Link to this heading">¶</a></h1>
 <p>Pre-requisites for a simple build, or to update man pages:</p>
 <ul class="simple">
 <li><p>Sphinx 1.0.4 or higher (See <a class="reference external" href="https://www.sphinx-doc.org">https://www.sphinx-doc.org</a>) with the
@@ -66,7 +64,7 @@ markup:</p>
 <li><p>Doxygen</p></li>
 </ul>
 <section id="simple-build-without-api-reference">
-<h2>Simple build without API reference<a class="headerlink" href="#simple-build-without-api-reference" title="Permalink to this headline">¶</a></h2>
+<h2>Simple build without API reference<a class="headerlink" href="#simple-build-without-api-reference" title="Link to this heading">¶</a></h2>
 <p>To test simple changes to the RST sources, you can build the
 documentation without the Doxygen reference by running, from the doc
 directory:</p>
@@ -79,7 +77,7 @@ need to create one by first running <code class="docutils literal notranslate"><
 <code class="docutils literal notranslate"><span class="pre">src/doc</span></code> directory of a configured build tree.</p>
 </section>
 <section id="updating-man-pages">
-<h2>Updating man pages<a class="headerlink" href="#updating-man-pages" title="Permalink to this headline">¶</a></h2>
+<h2>Updating man pages<a class="headerlink" href="#updating-man-pages" title="Link to this heading">¶</a></h2>
 <p>Man pages are generated from the RST sources and checked into the
 <code class="docutils literal notranslate"><span class="pre">src/man</span></code> directory of the repository.  This allows man pages to be
 installed without requiring Sphinx when using a source checkout.  To
@@ -95,7 +93,7 @@ source tree with:</p>
 files when rebuilding the man pages.</p>
 </section>
 <section id="building-for-a-release-tarball-or-web-site">
-<h2>Building for a release tarball or web site<a class="headerlink" href="#building-for-a-release-tarball-or-web-site" title="Permalink to this headline">¶</a></h2>
+<h2>Building for a release tarball or web site<a class="headerlink" href="#building-for-a-release-tarball-or-web-site" title="Link to this heading">¶</a></h2>
 <p>To generate documentation in HTML format, run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">html</span></code> in the
 <code class="docutils literal notranslate"><span class="pre">doc</span></code> subdirectory of a configured build tree (the build directory
 corresponding to <code class="docutils literal notranslate"><span class="pre">src/doc</span></code>, not the top-level <code class="docutils literal notranslate"><span class="pre">doc</span></code> directory).
@@ -113,7 +111,7 @@ paths.</p>
 </div>
 </section>
 <section id="building-for-an-os-package-or-site-documentation">
-<h2>Building for an OS package or site documentation<a class="headerlink" href="#building-for-an-os-package-or-site-documentation" title="Permalink to this headline">¶</a></h2>
+<h2>Building for an OS package or site documentation<a class="headerlink" href="#building-for-an-os-package-or-site-documentation" title="Link to this heading">¶</a></h2>
 <p>To generate documentation specific to a build of MIT krb5 as you have
 configured it, run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">substhtml</span></code> in the <code class="docutils literal notranslate"><span class="pre">doc</span></code> subdirectory of a
 configured build tree (the build directory corresponding to
@@ -178,8 +176,8 @@ default custom build).</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

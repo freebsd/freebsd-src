@@ -43,12 +43,6 @@
     TRACE(c, "PKINIT client skipping EKU check due to configuration")
 #define TRACE_PKINIT_CLIENT_FRESHNESS_TOKEN(c)                  \
     TRACE(c, "PKINIT client received freshness token from KDC")
-#define TRACE_PKINIT_CLIENT_KDF_ALG(c, kdf, keyblock)                   \
-    TRACE(c, "PKINIT client used KDF {hexdata} to compute reply key "   \
-          "{keyblock}", kdf, keyblock)
-#define TRACE_PKINIT_CLIENT_KDF_OS2K(c, keyblock)                       \
-    TRACE(c, "PKINIT client used octetstring2key to compute reply key " \
-          "{keyblock}", keyblock)
 #define TRACE_PKINIT_CLIENT_NO_IDENTITY(c)                              \
     TRACE(c, "PKINIT client has no configured identity; giving up")
 #define TRACE_PKINIT_CLIENT_REP_CHECKSUM_FAIL(c, expected, received)    \
@@ -58,19 +52,11 @@
     TRACE(c, "PKINIT client verified DH reply")
 #define TRACE_PKINIT_CLIENT_REP_DH_FAIL(c)              \
     TRACE(c, "PKINIT client could not verify DH reply")
-#define TRACE_PKINIT_CLIENT_REP_RSA(c)                  \
-    TRACE(c, "PKINIT client verified RSA reply")
-#define TRACE_PKINIT_CLIENT_REP_RSA_KEY(c, keyblock, cksum)             \
-    TRACE(c, "PKINIT client retrieved reply key {keyblock} from RSA "   \
-          "reply (checksum {cksum})", keyblock, cksum)
-#define TRACE_PKINIT_CLIENT_REP_RSA_FAIL(c)                     \
-    TRACE(c, "PKINIT client could not verify RSA reply")
-#define TRACE_PKINIT_CLIENT_REQ_CHECKSUM(c, cksum)                      \
-    TRACE(c, "PKINIT client computed kdc-req-body checksum {cksum}", cksum)
+#define TRACE_PKINIT_CLIENT_REQ_CHECKSUMS(c, ck1, ck2)                  \
+    TRACE(c, "PKINIT client computed checksums: {hexdata} {hexdata}",   \
+          ck1, &(ck2)->checksum)
 #define TRACE_PKINIT_CLIENT_REQ_DH(c)                           \
     TRACE(c, "PKINIT client making DH request")
-#define TRACE_PKINIT_CLIENT_REQ_RSA(c)                  \
-    TRACE(c, "PKINIT client making RSA request")
 #define TRACE_PKINIT_CLIENT_SAN_CONFIG_DNSNAME(c, host)                 \
     TRACE(c, "PKINIT client config accepts KDC dNSName SAN {str}", host)
 #define TRACE_PKINIT_CLIENT_SAN_MATCH_DNSNAME(c, host)                  \
@@ -90,24 +76,36 @@
 #define TRACE_PKINIT_CLIENT_TRYAGAIN(c)                                 \
     TRACE(c, "PKINIT client trying again with KDC-provided parameters")
 
+#define TRACE_PKINIT_DH_GROUP_UNAVAILABLE(c, name)                      \
+    TRACE(c, "PKINIT key exchange group {str} unsupported", name)
+#define TRACE_PKINIT_DH_INVALID_MIN_BITS(c, str)                        \
+    TRACE(c, "Invalid pkinit_dh_min_bits value {str}, using default", str)
+#define TRACE_PKINIT_DH_NEGOTIATED_GROUP(c, desc)                       \
+    TRACE(c, "PKINIT accepting KDC key exchange group preference {str}", desc)
+#define TRACE_PKINIT_DH_PROPOSING_GROUP(c, desc)                \
+    TRACE(c, "PKINIT using {str} key exchange group", desc)
+#define TRACE_PKINIT_DH_RECEIVED_GROUP(c, desc)                         \
+    TRACE(c, "PKINIT received {str} key from client for key exchange", desc)
+#define TRACE_PKINIT_DH_REJECTING_GROUP(c, desc, mindesc)               \
+    TRACE(c, "PKINIT client key has group {str}, need at least {str}",  \
+          desc, mindesc)
+
+#define TRACE_PKINIT_KDF_ALG(c, kdf, keyblock)                          \
+    TRACE(c, "PKINIT used KDF {hexdata} to compute reply key {keyblock}", \
+          kdf, keyblock)
+#define TRACE_PKINIT_KDF_OS2K(c, keyblock)                              \
+    TRACE(c, "PKINIT used octetstring2key to compute reply key {keyblock}", \
+          keyblock)
+
 #define TRACE_PKINIT_OPENSSL_ERROR(c, msg)              \
     TRACE(c, "PKINIT OpenSSL error: {str}", msg)
 
-#define TRACE_PKINIT_PKCS11_GETFLIST_FAILED(c, errstr)                  \
-    TRACE(c, "PKINIT PKCS11 C_GetFunctionList failed: {str}", errstr)
-#define TRACE_PKINIT_PKCS11_GETSYM_FAILED(c, errstr)                    \
-    TRACE(c, "PKINIT unable to find PKCS11 plugin symbol "              \
-          "C_GetFunctionList: {str}", errstr)
-#define TRACE_PKINIT_PKCS11_LOGIN_FAILED(c, errstr)             \
-    TRACE(c, "PKINIT PKCS11 C_Login failed: {str}", errstr)
 #define TRACE_PKINIT_PKCS11_NO_MATCH_TOKEN(c)                   \
     TRACE(c, "PKINIT PKCS#11 module has no matching tokens")
 #define TRACE_PKINIT_PKCS11_NO_TOKEN(c)                                 \
     TRACE(c, "PKINIT PKCS#11 module shows no slots with tokens")
 #define TRACE_PKINIT_PKCS11_OPEN(c, name)                       \
     TRACE(c, "PKINIT opening PKCS#11 module \"{str}\"", name)
-#define TRACE_PKINIT_PKCS11_OPEN_FAILED(c, errstr)                      \
-    TRACE(c, "PKINIT PKCS#11 module open failed: {str}", errstr)
 #define TRACE_PKINIT_PKCS11_SLOT(c, slot, len, label)            \
     TRACE(c, "PKINIT PKCS#11 slotid {int} token {lenstr}",       \
           slot, len, label)

@@ -1,0 +1,138 @@
+mydir=tests$(S)fuzzing
+BUILDTOP=$(REL)..$(S)..
+
+LOCALINCLUDES= \
+	-I$(srcdir)/../../lib/crypto/krb -I$(srcdir)/../../lib/krad \
+	-I$(srcdir)/../../lib/crypto/builtin/des -I$(srcdir)/../../kdc \
+	-I$(srcdir)/../../lib/krb5/ccache -I$(srcdir)/../../util/profile \
+	-I$(srcdir)/../../util/support
+
+OBJS= \
+	fuzz_aes.o \
+	fuzz_asn.o \
+	fuzz_attrset.o \
+	fuzz_chpw.o \
+	fuzz_crypto.o \
+	fuzz_des.o \
+	fuzz_gss.o \
+	fuzz_json.o \
+	fuzz_kdc.o \
+	fuzz_krad.o \
+	fuzz_krb.o \
+	fuzz_krb5_ticket.o \
+	fuzz_marshal_cred.o \
+	fuzz_marshal_princ.o \
+	fuzz_ndr.o \
+	fuzz_oid.o \
+	fuzz_pac.o \
+	fuzz_profile.o \
+	fuzz_util.o
+
+SRCS= \
+	$(srcdir)/fuzz_aes.c \
+	$(srcdir)/fuzz_asn.c \
+	$(srcdir)/fuzz_attrset.c \
+	$(srcdir)/fuzz_chpw.c \
+	$(srcdir)/fuzz_crypto.c \
+	$(srcdir)/fuzz_des.c \
+	$(srcdir)/fuzz_gss.c \
+	$(srcdir)/fuzz_json.c \
+	$(srcdir)/fuzz_kdc.c \
+	$(srcdir)/fuzz_krad.c \
+	$(srcdir)/fuzz_krb.c \
+	$(srcdir)/fuzz_krb5_ticket.c \
+	$(srcdir)/fuzz_marshal_cred.c \
+	$(srcdir)/fuzz_marshal_princ.c \
+	$(srcdir)/fuzz_ndr.c \
+	$(srcdir)/fuzz_oid.c \
+	$(srcdir)/fuzz_pac.c \
+	$(srcdir)/fuzz_profile.c \
+	$(srcdir)/fuzz_util.c
+
+FUZZ_TARGETS= \
+	fuzz_aes \
+	fuzz_asn \
+	fuzz_attrset \
+	fuzz_chpw \
+	fuzz_crypto \
+	fuzz_des \
+	fuzz_gss \
+	fuzz_json \
+	fuzz_kdc \
+	fuzz_krad \
+	fuzz_krb \
+	fuzz_krb5_ticket \
+	fuzz_marshal_cred \
+	fuzz_marshal_princ \
+	fuzz_ndr \
+	fuzz_oid \
+	fuzz_pac \
+	fuzz_profile \
+	fuzz_util
+
+all: $(FUZZ_TARGETS)
+
+# OSS-Fuzz requires fuzz targets to be linked with the C++ linker,
+# even if they are written in C.
+
+fuzz_aes: fuzz_aes.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_aes.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_asn: fuzz_asn.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_asn.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_attrset: fuzz_attrset.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_attrset.o -lkrad $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_chpw: fuzz_chpw.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_chpw.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_crypto: fuzz_crypto.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_crypto.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_des: fuzz_des.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_des.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_gss: fuzz_gss.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_gss.o $(GSS_LIBS) $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_json: fuzz_json.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_json.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_kdc: fuzz_kdc.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_kdc.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_krad: fuzz_krad.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_krad.o -lkrad $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_krb: fuzz_krb.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_krb.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_krb5_ticket: fuzz_krb5_ticket.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_krb5_ticket.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_marshal_cred: fuzz_marshal_cred.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_marshal_cred.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_marshal_princ: fuzz_marshal_princ.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_marshal_princ.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_ndr: fuzz_ndr.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_ndr.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_oid: fuzz_oid.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_oid.o $(GSS_LIBS) $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_pac: fuzz_pac.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_pac.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_profile: fuzz_profile.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_profile.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+fuzz_util: fuzz_util.o $(KRB5_BASE_DEPLIBS)
+	$(CXX_LINK) -o $@ fuzz_util.o $(KRB5_BASE_LIBS) $(FUZZ_LDFLAGS)
+
+install:
+
+clean:
+	$(RM) $(FUZZ_TARGETS)

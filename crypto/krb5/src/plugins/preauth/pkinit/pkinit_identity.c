@@ -30,12 +30,11 @@
  */
 
 #include "pkinit.h"
-#include <dirent.h>
 
 static void
 free_list(char **list)
 {
-    int i;
+    size_t i;
 
     if (list == NULL)
         return;
@@ -48,7 +47,7 @@ free_list(char **list)
 static krb5_error_code
 copy_list(char ***dst, char **src)
 {
-    int i;
+    size_t i;
     char **newlist;
 
     if (dst == NULL)
@@ -517,7 +516,7 @@ pkinit_identity_initialize(krb5_context context,
                            krb5_principal princ)
 {
     krb5_error_code retval = EINVAL;
-    int i;
+    size_t i;
 
     pkiDebug("%s: %p %p %p\n", __FUNCTION__, context, idopts, id_cryptoctx);
     if (!(princ &&
@@ -582,7 +581,7 @@ pkinit_identity_prompt(krb5_context context,
     krb5_error_code retval = 0;
     const char *signer_identity;
     krb5_boolean valid;
-    int i;
+    size_t i;
 
     pkiDebug("%s: %p %p %p\n", __FUNCTION__, context, idopts, id_cryptoctx);
     if (!(princ &&
@@ -686,7 +685,7 @@ pkinit_set_deferred_id(pkinit_deferred_id **identities,
                        const char *identity, unsigned long ck_flags,
                        const char *password)
 {
-    int i;
+    size_t i;
     pkinit_deferred_id *out = NULL, *ids;
     char *tmp;
 
@@ -748,7 +747,7 @@ const char *
 pkinit_find_deferred_id(pkinit_deferred_id *identities,
                         const char *identity)
 {
-    int i;
+    size_t i;
 
     for (i = 0; identities != NULL && identities[i] != NULL; i++) {
         if (strcmp(identities[i]->identity, identity) == 0)
@@ -765,7 +764,7 @@ unsigned long
 pkinit_get_deferred_id_flags(pkinit_deferred_id *identities,
                              const char *identity)
 {
-    int i;
+    size_t i;
 
     for (i = 0; identities != NULL && identities[i] != NULL; i++) {
         if (strcmp(identities[i]->identity, identity) == 0)
@@ -780,7 +779,7 @@ pkinit_get_deferred_id_flags(pkinit_deferred_id *identities,
 void
 pkinit_free_deferred_ids(pkinit_deferred_id *identities)
 {
-    int i;
+    size_t i;
 
     for (i = 0; identities != NULL && identities[i] != NULL; i++) {
         free(identities[i]->identity);

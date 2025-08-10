@@ -2,7 +2,6 @@ LIBRARY KFWLOGON
 
 EXPORTS
 
-    DllEntryPoint
     NPGetCaps
     NPLogonNotify
     NPPasswordChangeNotify

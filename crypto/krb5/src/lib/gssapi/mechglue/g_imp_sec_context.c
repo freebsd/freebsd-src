@@ -69,14 +69,9 @@ val_imp_sec_ctx_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_import_sec_context(minor_status,
-                       interprocess_token,
-                       context_handle)
-
-OM_uint32 *		minor_status;
-gss_buffer_t		interprocess_token;
-gss_ctx_id_t *		context_handle;
-
+gss_import_sec_context(OM_uint32 *minor_status,
+		       gss_buffer_t interprocess_token,
+		       gss_ctx_id_t *context_handle)
 {
     OM_uint32		length = 0;
     OM_uint32		status;

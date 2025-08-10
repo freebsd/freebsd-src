@@ -170,13 +170,13 @@ const krb5_principal_data anon_princ = {
 };
 
 const krb5_data * KRB5_CALLCONV
-krb5_anonymous_realm()
+krb5_anonymous_realm(void)
 {
     return &anon_realm_data;
 }
 
 krb5_const_principal KRB5_CALLCONV
-krb5_anonymous_principal()
+krb5_anonymous_principal(void)
 {
     return &anon_princ;
 }

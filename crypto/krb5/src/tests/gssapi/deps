@@ -84,6 +84,10 @@ $(OUTPRE)t_gssexts.$(OBJEXT): $(BUILDTOP)/include/gssapi/gssapi.h \
   $(BUILDTOP)/include/gssapi/gssapi_ext.h $(BUILDTOP)/include/gssapi/gssapi_krb5.h \
   $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/krb5.h \
   common.h t_gssexts.c
+$(OUTPRE)t_iakerb.$(OBJEXT): $(BUILDTOP)/include/gssapi/gssapi.h \
+  $(BUILDTOP)/include/gssapi/gssapi_ext.h $(BUILDTOP)/include/gssapi/gssapi_krb5.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/krb5.h \
+  common.h t_iakerb.c
 $(OUTPRE)t_imp_cred.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssapi/gssapi_ext.h \
   $(BUILDTOP)/include/gssapi/gssapi_krb5.h $(BUILDTOP)/include/krb5/krb5.h \
@@ -105,13 +109,13 @@ $(OUTPRE)t_invalid.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(srcdir)/../../lib/gssapi/krb5/gssapiP_krb5.h $(srcdir)/../../lib/gssapi/krb5/gssapi_krb5.h \
   $(srcdir)/../../lib/gssapi/mechglue/mechglue.h $(srcdir)/../../lib/gssapi/mechglue/mglueP.h \
   $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
-  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-int-pkinit.h \
-  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
-  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
-  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
-  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
-  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
-  common.h t_invalid.c
+  $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-input.h \
+  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h common.h t_invalid.c
 $(OUTPRE)t_inq_cred.$(OBJEXT): $(BUILDTOP)/include/gssapi/gssapi.h \
   $(BUILDTOP)/include/gssapi/gssapi_ext.h $(BUILDTOP)/include/gssapi/gssapi_krb5.h \
   $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/krb5.h \
@@ -164,12 +168,13 @@ $(OUTPRE)t_prf.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(srcdir)/../../lib/gssapi/mechglue/mechglue.h $(srcdir)/../../lib/gssapi/mechglue/mglueP.h \
   $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-err.h \
   $(top_srcdir)/include/k5-gmt_mktime.h $(top_srcdir)/include/k5-hex.h \
-  $(top_srcdir)/include/k5-int-pkinit.h $(top_srcdir)/include/k5-int.h \
-  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-plugin.h \
-  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-trace.h \
-  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/authdata_plugin.h \
-  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
-  $(top_srcdir)/include/socket-utils.h common.h t_prf.c
+  $(top_srcdir)/include/k5-input.h $(top_srcdir)/include/k5-int-pkinit.h \
+  $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  common.h t_prf.c
 $(OUTPRE)t_s4u.$(OBJEXT): $(BUILDTOP)/include/gssapi/gssapi.h \
   $(BUILDTOP)/include/gssapi/gssapi_ext.h $(BUILDTOP)/include/gssapi/gssapi_krb5.h \
   $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/krb5.h \

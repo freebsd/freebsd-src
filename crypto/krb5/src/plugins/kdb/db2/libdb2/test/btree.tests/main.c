@@ -908,7 +908,7 @@ keydata(key, data)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: %s [-bdluw] [-c cache] [-i file] [-p page] [file]\n",

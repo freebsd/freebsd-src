@@ -43,10 +43,7 @@
  * ldap get age
  */
 krb5_error_code
-krb5_ldap_get_age(context, db_name, age)
-    krb5_context context;
-    char *db_name;
-    time_t *age;
+krb5_ldap_get_age(krb5_context context, char *db_name, time_t *age)
 {
     time (age);
     return 0;
@@ -299,7 +296,9 @@ krb5_ldap_check_allowed_to_delegate(krb5_context context,
     for (tlp = server->tl_data; tlp != NULL; tlp = tlp->tl_data_next) {
         krb5_principal acl;
 
-        if (tlp->tl_data_type != KRB5_TL_CONSTRAINED_DELEGATION_ACL)
+        if (tlp->tl_data_type != KRB5_TL_CONSTRAINED_DELEGATION_ACL ||
+            tlp->tl_data_length < 1 ||
+            tlp->tl_data_contents[tlp->tl_data_length - 1] != '\0')
             continue;
 
         if (krb5_parse_name(context, (char *)tlp->tl_data_contents, &acl) != 0)

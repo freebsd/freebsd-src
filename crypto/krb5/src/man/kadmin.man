@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KADMIN" "1" " " "1.21.3" "MIT Kerberos"
+.TH "KADMIN" "1" " " "1.22" "MIT Kerberos"
 .SH NAME
 kadmin \- Kerberos V5 database administration program
 .SH SYNOPSIS
@@ -56,8 +56,8 @@ kadmin \- Kerberos V5 database administration program
 kadmin and kadmin.local are command\-line interfaces to the Kerberos V5
 administration system.  They provide nearly identical functionalities;
 the difference is that kadmin.local directly accesses the KDC
-database, while kadmin performs operations using kadmind(8)\&.
-Except as explicitly noted otherwise, this man page will use "kadmin"
+database, while kadmin performs operations using \fI\%kadmind\fP\&.
+Except as explicitly noted otherwise, this man page will use \(dqkadmin\(dq
 to refer to both versions.  kadmin provides for the maintenance of
 Kerberos principals, password policies, and service key tables
 (keytabs).
@@ -103,7 +103,7 @@ with the \fB\-k\fP option.
 Requests anonymous processing.  Two types of anonymous principals
 are supported.  For fully anonymous Kerberos, configure PKINIT on
 the KDC and configure \fBpkinit_anchors\fP in the client\(aqs
-krb5.conf(5)\&.  Then use the \fB\-n\fP option with a principal
+\fI\%krb5.conf\fP\&.  Then use the \fB\-n\fP option with a principal
 of the form \fB@REALM\fP (an empty principal name followed by the
 at\-sign and a realm name).  If permitted by the KDC, an anonymous
 ticket will be returned.  A second form of anonymous tickets is
@@ -119,7 +119,7 @@ Use \fIcredentials_cache\fP as the credentials cache.  The cache
 should contain a service ticket for the \fBkadmin/admin\fP or
 \fBkadmin/ADMINHOST\fP (where \fIADMINHOST\fP is the fully\-qualified
 hostname of the admin server) service; it can be acquired with the
-kinit(1) program.  If this option is not specified, kadmin
+\fI\%kinit\fP program.  If this option is not specified, kadmin
 requests a new service ticket from the KDC, and stores it in its
 own temporary ccache.
 .TP
@@ -142,9 +142,9 @@ Specifies the admin server which kadmin should contact.
 If using kadmin.local, prompt for the database master password
 instead of reading it from a stash file.
 .TP
-\fB\-e\fP "\fIenc\fP:\fIsalt\fP ..."
+\fB\-e\fP \(dq\fIenc\fP:\fIsalt\fP ...\(dq
 Sets the keysalt list to be used for any new keys created.  See
-Keysalt_lists in kdc.conf(5) for a list of possible
+\fI\%Keysalt lists\fP in \fI\%kdc.conf\fP for a list of possible
 values.
 .TP
 \fB\-O\fP
@@ -223,7 +223,7 @@ Specifies the password or SASL secret used to bind to the LDAP
 server.  Using this option may expose the password to other
 users on the system via the process list; to avoid this,
 instead stash the password using the \fBstashsrvpw\fP command of
-kdb5_ldap_util(8)\&.
+\fI\%kdb5_ldap_util\fP\&.
 .TP
 \fB\-x sasl_mech=\fP\fImechanism\fP
 Specifies the SASL mechanism used to bind to the LDAP server.
@@ -254,7 +254,7 @@ are printed to standard error.  New in release 1.12.
 .SH COMMANDS
 .sp
 When using the remote client, available commands may be restricted
-according to the privileges specified in the kadm5.acl(5) file
+according to the privileges specified in the \fI\%kadm5.acl\fP file
 on the admin server.
 .SS add_principal
 .INDENT 0.0
@@ -278,17 +278,17 @@ Options:
 .INDENT 0.0
 .TP
 \fB\-expire\fP \fIexpdate\fP
-(getdate string) The expiration date of the principal.
+(\fI\%getdate time\fP string) The expiration date of the principal.
 .TP
 \fB\-pwexpire\fP \fIpwexpdate\fP
-(getdate string) The password expiration date.
+(\fI\%getdate time\fP string) The password expiration date.
 .TP
 \fB\-maxlife\fP \fImaxlife\fP
-(duration or getdate string) The maximum ticket life
+(\fI\%Time duration\fP or \fI\%getdate time\fP string) The maximum ticket life
 for the principal.
 .TP
 \fB\-maxrenewlife\fP \fImaxrenewlife\fP
-(duration or getdate string) The maximum renewable
+(\fI\%Time duration\fP or \fI\%getdate time\fP string) The maximum renewable
 life of tickets for the principal.
 .TP
 \fB\-kvno\fP \fIkvno\fP
@@ -407,7 +407,7 @@ via the process list.
 .TP
 \fB\-e\fP \fIenc\fP:\fIsalt\fP,...
 Uses the specified keysalt list for setting the keys of the
-principal.  See Keysalt_lists in kdc.conf(5) for a
+principal.  See \fI\%Keysalt lists\fP in \fI\%kdc.conf\fP for a
 list of possible values.
 .TP
 \fB\-x\fP \fIdb_princ_args\fP
@@ -455,17 +455,15 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin: addprinc jennifer
-No policy specified for "jennifer@ATHENA.MIT.EDU";
+No policy specified for \(dqjennifer@ATHENA.MIT.EDU\(dq;
 defaulting to no policy.
 Enter password for principal jennifer@ATHENA.MIT.EDU:
 Re\-enter password for principal jennifer@ATHENA.MIT.EDU:
-Principal "jennifer@ATHENA.MIT.EDU" created.
+Principal \(dqjennifer@ATHENA.MIT.EDU\(dq created.
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS modify_principal
@@ -506,6 +504,23 @@ given.
 This command requires the \fBadd\fP and \fBdelete\fP privileges.
 .sp
 Alias: \fBrenprinc\fP
+.SS add_alias
+.INDENT 0.0
+.INDENT 3.5
+\fBadd_alias\fP \fIalias_princ\fP \fItarget_princ\fP
+.UNINDENT
+.UNINDENT
+.sp
+Create an alias \fIalias_princ\fP pointing to \fItarget_princ\fP\&.  Aliases may
+be chained (that is, \fItarget_princ\fP may itself be an alias) up to a
+depth of 10.
+.sp
+This command requires the \fBadd\fP privilege for \fIalias_princ\fP and the
+\fBmodify\fP privilege for \fItarget_princ\fP\&.
+.sp
+(New in release 1.22.)
+.sp
+Aliases: \fBalias\fP
 .SS delete_principal
 .INDENT 0.0
 .INDENT 3.5
@@ -513,8 +528,8 @@ Alias: \fBrenprinc\fP
 .UNINDENT
 .UNINDENT
 .sp
-Deletes the specified \fIprincipal\fP from the database.  This command
-prompts for deletion, unless the \fB\-force\fP option is given.
+Deletes the specified \fIprincipal\fP or alias from the database.  This
+command prompts for deletion, unless the \fB\-force\fP option is given.
 .sp
 This command requires the \fBdelete\fP privilege.
 .sp
@@ -548,7 +563,7 @@ the process list.
 .TP
 \fB\-e\fP \fIenc\fP:\fIsalt\fP,...
 Uses the specified keysalt list for setting the keys of the
-principal.  See Keysalt_lists in kdc.conf(5) for a
+principal.  See \fI\%Keysalt lists\fP in \fI\%kdc.conf\fP for a
 list of possible values.
 .TP
 \fB\-keepold\fP
@@ -560,15 +575,13 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin: cpw systest
 Enter password for principal systest@BLEEP.COM:
 Re\-enter password for principal systest@BLEEP.COM:
 Password for systest@BLEEP.COM changed.
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS purgekeys
@@ -604,8 +617,7 @@ Examples:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin: getprinc tlyu/admin
 Principal: tlyu/admin@BLEEP.COM
 Expiration date: [never]
@@ -628,8 +640,7 @@ systest@BLEEP.COM   3    86400     604800    1
 785926535 753241234 785900000
 tlyu/admin@BLEEP.COM     786100034 0    0
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS list_principals
@@ -655,16 +666,14 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin:  listprincs test*
 test3@SECURE\-TEST.OV.COM
 test2@SECURE\-TEST.OV.COM
 test1@SECURE\-TEST.OV.COM
 testuser@SECURE\-TEST.OV.COM
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS get_strings
@@ -701,7 +710,7 @@ specified indicators will be accepted.  (New in release 1.14.)
 \fBsession_enctypes\fP
 Specifies the encryption types supported for session keys when the
 principal is authenticated to as a server.  See
-Encryption_types in kdc.conf(5) for a list of the
+\fI\%Encryption types\fP in \fI\%kdc.conf\fP for a list of the
 accepted values.
 .TP
 \fBotp\fP
@@ -714,14 +723,14 @@ Specifies a matching expression that defines the certificate
 attributes required for the client certificate used by the
 principal during PKINIT authentication.  The matching expression
 is in the same format as those used by the \fBpkinit_cert_match\fP
-option in krb5.conf(5)\&.  (New in release 1.16.)
+option in \fI\%krb5.conf\fP\&.  (New in release 1.16.)
 .TP
 \fBpac_privsvr_enctype\fP
 Forces the encryption type of the PAC KDC checksum buffers to the
 specified encryption type for tickets issued to this server, by
 deriving a key from the local krbtgt key if it is of a different
 encryption type.  It may be necessary to set this value to
-"aes256\-sha1" on the cross\-realm krbtgt entry for an Active
+\(dqaes256\-sha1\(dq on the cross\-realm krbtgt entry for an Active
 Directory realm when using aes\-sha2 keys on the local krbtgt
 entry.
 .UNINDENT
@@ -734,12 +743,10 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 set_string host/foo.mit.edu session_enctypes aes128\-cts
-set_string user@FOO.COM otp "[{""type"":""hotp"",""username"":""al""}]"
-.ft P
-.fi
+set_string user@FOO.COM otp \(dq[{\(dq\(dqtype\(dq\(dq:\(dq\(dqhotp\(dq\(dq,\(dq\(dqusername\(dq\(dq:\(dq\(dqal\(dq\(dq}]\(dq
+.EE
 .UNINDENT
 .UNINDENT
 .SS del_string
@@ -771,11 +778,11 @@ The following options are available:
 .INDENT 0.0
 .TP
 \fB\-maxlife\fP \fItime\fP
-(duration or getdate string) Sets the maximum
+(\fI\%Time duration\fP or \fI\%getdate time\fP string) Sets the maximum
 lifetime of a password.
 .TP
 \fB\-minlife\fP \fItime\fP
-(duration or getdate string) Sets the minimum
+(\fI\%Time duration\fP or \fI\%getdate time\fP string) Sets the minimum
 lifetime of a password.
 .TP
 \fB\-minlength\fP \fIlength\fP
@@ -802,7 +809,7 @@ resets to 0 after a successful attempt to authenticate.  A
 .INDENT 0.0
 .TP
 \fB\-failurecountinterval\fP \fIfailuretime\fP
-(duration or getdate string) Sets the allowable time
+(\fI\%Time duration\fP or \fI\%getdate time\fP string) Sets the allowable time
 between authentication failures.  If an authentication failure
 happens after \fIfailuretime\fP has elapsed since the previous
 failure, the number of authentication failures is reset to 1.  A
@@ -811,7 +818,7 @@ failure, the number of authentication failures is reset to 1.  A
 .INDENT 0.0
 .TP
 \fB\-lockoutduration\fP \fIlockouttime\fP
-(duration or getdate string) Sets the duration for
+(\fI\%Time duration\fP or \fI\%getdate time\fP string) Sets the duration for
 which the principal is locked from authenticating if too many
 authentication failures occur without the specified failure count
 interval elapsing.  A duration of 0 (the default) means the
@@ -821,7 +828,7 @@ with \fBmodprinc \-unlock\fP\&.
 \fB\-allowedkeysalts\fP
 Specifies the key/salt tuples supported for long\-term keys when
 setting or changing a principal\(aqs password/keys.  See
-Keysalt_lists in kdc.conf(5) for a list of the
+\fI\%Keysalt lists\fP in \fI\%kdc.conf\fP for a list of the
 accepted values, but note that key/salt tuples must be separated
 with commas (\(aq,\(aq) only.  To clear the allowed key/salt policy use
 a value of \(aq\-\(aq.
@@ -831,12 +838,10 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
-kadmin: add_policy \-maxlife "2 days" \-minlength 5 guests
+.EX
+kadmin: add_policy \-maxlife \(dq2 days\(dq \-minlength 5 guests
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS modify_policy
@@ -871,14 +876,12 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin: del_policy guests
-Are you sure you want to delete the policy "guests"?
+Are you sure you want to delete the policy \(dqguests\(dq?
 (yes/no): yes
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS get_policy
@@ -900,8 +903,7 @@ Examples:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin: get_policy admin
 Policy: admin
 Maximum password life: 180 days 00:00:00
@@ -914,12 +916,11 @@ Reference count: 17
 kadmin: get_policy \-terse admin
 admin     15552000  0    6    2    5    17
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
-The "Reference count" is the number of principals using that policy.
+The \(dqReference count\(dq is the number of principals using that policy.
 With the LDAP KDC database module, the reference count field is not
 meaningful.
 .SS list_policies
@@ -943,8 +944,7 @@ Examples:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin:  listpols
 test\-pol
 dict\-only
@@ -955,8 +955,7 @@ kadmin:  listpols t*
 test\-pol
 test\-pol\-nopw
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS ktadd
@@ -987,7 +986,7 @@ used.
 .TP
 \fB\-e\fP \fIenc\fP:\fIsalt\fP,...
 Uses the specified keysalt list for setting the new keys of the
-principal.  See Keysalt_lists in kdc.conf(5) for a
+principal.  See \fI\%Keysalt lists\fP in \fI\%kdc.conf\fP for a
 list of possible values.
 .TP
 \fB\-q\fP
@@ -1009,15 +1008,13 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin: ktadd \-k /tmp/foo\-new\-keytab host/foo.mit.edu
 Entry for principal host/foo.mit.edu@ATHENA.MIT.EDU with kvno 3,
      encryption type aes256\-cts\-hmac\-sha1\-96 added to keytab
      FILE:/tmp/foo\-new\-keytab
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS ktremove
@@ -1030,8 +1027,8 @@ kadmin:
 Removes entries for the specified \fIprincipal\fP from a keytab.  Requires
 no permissions, since this does not require database access.
 .sp
-If the string "all" is specified, all entries for that principal are
-removed; if the string "old" is specified, all entries for that
+If the string \(dqall\(dq is specified, all entries for that principal are
+removed; if the string \(dqold\(dq is specified, all entries for that
 principal except those with the highest kvno are removed.  Otherwise,
 the value specified is parsed as an integer, and all entries whose
 kvno match that integer are removed.
@@ -1053,14 +1050,12 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kadmin: ktremove kadmin/admin all
 Entry for principal kadmin/admin with kvno 3 removed from keytab
      FILE:/etc/krb5.keytab
 kadmin:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS lock
@@ -1086,14 +1081,14 @@ The kadmin program was originally written by Tom Yu at MIT, as an
 interface to the OpenVision Kerberos administration program.
 .SH ENVIRONMENT
 .sp
-See kerberos(7) for a description of Kerberos environment
+See \fI\%kerberos\fP for a description of Kerberos environment
 variables.
 .SH SEE ALSO
 .sp
-kpasswd(1), kadmind(8), kerberos(7)
+\fI\%kpasswd\fP, \fI\%kadmind\fP, \fI\%kerberos\fP
 .SH AUTHOR
 MIT
 .SH COPYRIGHT
-1985-2024, MIT
+1985-2025, MIT
 .\" Generated by docutils manpage writer.
 .

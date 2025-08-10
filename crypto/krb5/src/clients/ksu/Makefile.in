@@ -33,3 +33,11 @@ install:
 	  $(INSTALL_SETUID) $$f \
 		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
 	done
+
+# The ksu tests must be run as root and may be disruptive to the host
+# system, so they are not included in "make check".  asan's leak
+# checker does not work with setuid binaries (and causes them to
+# always exit with status 1), so it is disabled here.
+check-ksu:
+	sudo LSAN_OPTIONS=detect_leaks=0 $(RUNPYTEST) $(srcdir)/t_ksu.py \
+		$(PYTESTFLAGS)

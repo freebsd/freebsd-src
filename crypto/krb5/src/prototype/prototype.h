@@ -1,7 +1,7 @@
 /* -*- mode: c; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /* prototype/prototype.h - <<< One-line description of file >>> */
 /*
- * Copyright (C) 2024 by the Massachusetts Institute of Technology.
+ * Copyright (C) 2025 by the Massachusetts Institute of Technology.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

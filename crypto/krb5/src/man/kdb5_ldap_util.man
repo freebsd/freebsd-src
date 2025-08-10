@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KDB5_LDAP_UTIL" "8" " " "1.21.3" "MIT Kerberos"
+.TH "KDB5_LDAP_UTIL" "8" " " "1.22" "MIT Kerberos"
 .SH NAME
 kdb5_ldap_util \- Kerberos configuration utility
 .SH SYNOPSIS
@@ -60,9 +60,9 @@ Specifies the URI of the LDAP server.
 .UNINDENT
 .sp
 By default, kdb5_ldap_util operates on the default realm (as specified
-in krb5.conf(5)) and connects and authenticates to the LDAP
+in \fI\%krb5.conf\fP) and connects and authenticates to the LDAP
 server in the same manner as :ref:kadmind(8)\(ga would given the
-parameters in dbdefaults in kdc.conf(5)\&.
+parameters in \fI\%[dbdefaults]\fP in \fI\%kdc.conf\fP\&.
 .SH COMMANDS
 .SS create
 .INDENT 0.0
@@ -104,7 +104,7 @@ realm container.
 \fB\-k\fP \fImkeytype\fP
 Specifies the key type of the master key in the database.  The
 default is given by the \fBmaster_key_type\fP variable in
-kdc.conf(5)\&.
+\fI\%kdc.conf\fP\&.
 .TP
 \fB\-kv\fP \fImkeyVNO\fP
 Specifies the version number of the master key in the database;
@@ -113,7 +113,7 @@ the default is 1.  Note that 0 is not allowed.
 \fB\-M\fP \fImkeyname\fP
 Specifies the principal name for the master key in the database.
 If not specified, the name is determined by the
-\fBmaster_key_name\fP variable in kdc.conf(5)\&.
+\fBmaster_key_name\fP variable in \fI\%kdc.conf\fP\&.
 .TP
 \fB\-m\fP
 Specifies that the master database password should be read from
@@ -130,35 +130,33 @@ Specifies the stash file of the master database password.
 Specifies that the stash file is to be created.
 .TP
 \fB\-maxtktlife\fP \fImax_ticket_life\fP
-(getdate string) Specifies maximum ticket life for
+(\fI\%getdate time\fP string) Specifies maximum ticket life for
 principals in this realm.
 .TP
 \fB\-maxrenewlife\fP \fImax_renewable_ticket_life\fP
-(getdate string) Specifies maximum renewable life of
+(\fI\%getdate time\fP string) Specifies maximum renewable life of
 tickets for principals in this realm.
 .TP
 .B \fIticket_flags\fP
 Specifies global ticket flags for the realm.  Allowable flags are
 documented in the description of the \fBadd_principal\fP command in
-kadmin(1)\&.
+\fI\%kadmin\fP\&.
 .UNINDENT
 .sp
 Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util \-D cn=admin,o=org \-H ldaps://ldap\-server1.mit.edu
     \-r ATHENA.MIT.EDU create \-subtrees o=org \-sscope SUB
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 Initializing database for realm \(aqATHENA.MIT.EDU\(aq
 You will be prompted for the database Master Password.
 It is important that you NOT FORGET this password.
 Enter KDC database master key:
 Re\-enter KDC database master key to verify:
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS modify
@@ -192,31 +190,29 @@ container object in which the principals of a realm will be
 created.
 .TP
 \fB\-maxtktlife\fP \fImax_ticket_life\fP
-(getdate string) Specifies maximum ticket life for
+(\fI\%getdate time\fP string) Specifies maximum ticket life for
 principals in this realm.
 .TP
 \fB\-maxrenewlife\fP \fImax_renewable_ticket_life\fP
-(getdate string) Specifies maximum renewable life of
+(\fI\%getdate time\fP string) Specifies maximum renewable life of
 tickets for principals in this realm.
 .TP
 .B \fIticket_flags\fP
 Specifies global ticket flags for the realm.  Allowable flags are
 documented in the description of the \fBadd_principal\fP command in
-kadmin(1)\&.
+\fI\%kadmin\fP\&.
 .UNINDENT
 .sp
 Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 shell% kdb5_ldap_util \-r ATHENA.MIT.EDU \-D cn=admin,o=org \-H
     ldaps://ldap\-server1.mit.edu modify +requires_preauth
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 shell%
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS view
@@ -232,11 +228,10 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util \-D cn=admin,o=org \-H ldaps://ldap\-server1.mit.edu
     \-r ATHENA.MIT.EDU view
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 Realm Name: ATHENA.MIT.EDU
 Subtree: ou=users,o=org
 Subtree: ou=servers,o=org
@@ -244,8 +239,7 @@ SearchScope: ONE
 Maximum ticket life: 0 days 01:00:00
 Maximum renewable life: 0 days 10:00:00
 Ticket flags: DISALLOW_FORWARDABLE REQUIRES_PWCHANGE
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS destroy
@@ -266,17 +260,15 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 shell% kdb5_ldap_util \-r ATHENA.MIT.EDU \-D cn=admin,o=org \-H
     ldaps://ldap\-server1.mit.edu destroy
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 Deleting KDC database of \(aqATHENA.MIT.EDU\(aq, are you sure?
 (type \(aqyes\(aq to confirm)? yes
 OK, deleting database of \(aqATHENA.MIT.EDU\(aq...
 shell%
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS list
@@ -292,17 +284,15 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 shell% kdb5_ldap_util \-D cn=admin,o=org \-H
     ldaps://ldap\-server1.mit.edu list
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 ATHENA.MIT.EDU
 OPENLDAP.MIT.EDU
 MEDIA\-LAB.MIT.EDU
 shell%
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS stashsrvpw
@@ -325,10 +315,10 @@ default, \fB/usr/local/var/service_passwd\fP is used.
 .TP
 .B \fIname\fP
 Specifies the name of the object whose password is to be stored.
-If krb5kdc(8) or kadmind(8) are configured for
+If \fI\%krb5kdc\fP or \fI\%kadmind\fP are configured for
 simple binding, this should be the distinguished name it will
 use as given by the \fBldap_kdc_dn\fP or \fBldap_kadmind_dn\fP
-variable in kdc.conf(5)\&.  If the KDC or kadmind is
+variable in \fI\%kdc.conf\fP\&.  If the KDC or kadmind is
 configured for SASL binding, this should be the authentication
 name it will use as given by the \fBldap_kdc_sasl_authcid\fP or
 \fBldap_kadmind_sasl_authcid\fP variable.
@@ -338,14 +328,12 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util stashsrvpw \-f /home/andrew/conf_keyfile
     cn=service\-kdc,o=org
-Password for "cn=service\-kdc,o=org":
-Re\-enter password for "cn=service\-kdc,o=org":
-.ft P
-.fi
+Password for \(dqcn=service\-kdc,o=org\(dq:
+Re\-enter password for \(dqcn=service\-kdc,o=org\(dq:
+.EE
 .UNINDENT
 .UNINDENT
 .SS create_policy
@@ -363,18 +351,18 @@ Creates a ticket policy in the directory.  Options:
 .INDENT 0.0
 .TP
 \fB\-maxtktlife\fP \fImax_ticket_life\fP
-(getdate string) Specifies maximum ticket life for
+(\fI\%getdate time\fP string) Specifies maximum ticket life for
 principals.
 .TP
 \fB\-maxrenewlife\fP \fImax_renewable_ticket_life\fP
-(getdate string) Specifies maximum renewable life of
+(\fI\%getdate time\fP string) Specifies maximum renewable life of
 tickets for principals.
 .TP
 .B \fIticket_flags\fP
 Specifies the ticket flags.  If this option is not specified, by
 default, no restriction will be set by the policy.  Allowable
 flags are documented in the description of the \fBadd_principal\fP
-command in kadmin(1)\&.
+command in \fI\%kadmin\fP\&.
 .TP
 .B \fIpolicy_name\fP
 Specifies the name of the ticket policy.
@@ -384,15 +372,13 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util \-D cn=admin,o=org \-H ldaps://ldap\-server1.mit.edu
-    \-r ATHENA.MIT.EDU create_policy \-maxtktlife "1 day"
-    \-maxrenewlife "1 week" \-allow_postdated +needchange
+    \-r ATHENA.MIT.EDU create_policy \-maxtktlife \(dq1 day\(dq
+    \-maxrenewlife \(dq1 week\(dq \-allow_postdated +needchange
     \-allow_forwardable tktpolicy
-Password for "cn=admin,o=org":
-.ft P
-.fi
+Password for \(dqcn=admin,o=org\(dq:
+.EE
 .UNINDENT
 .UNINDENT
 .SS modify_policy
@@ -413,15 +399,13 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util \-D cn=admin,o=org \-H
     ldaps://ldap\-server1.mit.edu \-r ATHENA.MIT.EDU modify_policy
-    \-maxtktlife "60 minutes" \-maxrenewlife "10 hours"
+    \-maxtktlife \(dq60 minutes\(dq \-maxrenewlife \(dq10 hours\(dq
     +allow_postdated \-requires_preauth tktpolicy
-Password for "cn=admin,o=org":
-.ft P
-.fi
+Password for \(dqcn=admin,o=org\(dq:
+.EE
 .UNINDENT
 .UNINDENT
 .SS view_policy
@@ -438,17 +422,15 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util \-D cn=admin,o=org \-H ldaps://ldap\-server1.mit.edu
     \-r ATHENA.MIT.EDU view_policy tktpolicy
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 Ticket policy: tktpolicy
 Maximum ticket life: 0 days 01:00:00
 Maximum renewable life: 0 days 10:00:00
 Ticket flags: DISALLOW_FORWARDABLE REQUIRES_PWCHANGE
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS destroy_policy
@@ -475,16 +457,14 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util \-D cn=admin,o=org \-H ldaps://ldap\-server1.mit.edu
     \-r ATHENA.MIT.EDU destroy_policy tktpolicy
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 This will delete the policy object \(aqtktpolicy\(aq, are you sure?
 (type \(aqyes\(aq to confirm)? yes
 ** policy object \(aqtktpolicy\(aq deleted.
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS list_policy
@@ -500,28 +480,26 @@ Example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 kdb5_ldap_util \-D cn=admin,o=org \-H ldaps://ldap\-server1.mit.edu
     \-r ATHENA.MIT.EDU list_policy
-Password for "cn=admin,o=org":
+Password for \(dqcn=admin,o=org\(dq:
 tktpolicy
 tmppolicy
 userpolicy
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SH ENVIRONMENT
 .sp
-See kerberos(7) for a description of Kerberos environment
+See \fI\%kerberos\fP for a description of Kerberos environment
 variables.
 .SH SEE ALSO
 .sp
-kadmin(1), kerberos(7)
+\fI\%kadmin\fP, \fI\%kerberos\fP
 .SH AUTHOR
 MIT
 .SH COPYRIGHT
-1985-2024, MIT
+1985-2025, MIT
 .\" Generated by docutils manpage writer.
 .

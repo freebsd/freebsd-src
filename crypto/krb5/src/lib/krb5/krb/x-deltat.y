@@ -44,6 +44,7 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuninitialized"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
 
 #include "k5-int.h"

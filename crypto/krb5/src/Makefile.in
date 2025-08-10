@@ -32,7 +32,8 @@ SUBDIRS=util include lib \
 	plugins/tls/k5tls \
 	kdc kadmin kprop clients appl tests \
 	config-files build-tools man doc @po@
-WINSUBDIRS=include util lib ccapi windows clients appl plugins\preauth\spake
+WINSUBDIRS=include util lib ccapi windows clients appl plugins\preauth\spake \
+	$(PKINIT_SUBDIR)
 BUILDTOP=$(REL).
 
 SRCS =  
@@ -106,6 +107,17 @@ config-windows: Makefile-windows
 #	cd ..
 
 #
+# Build the pkinit plugin if OpenSSL was configured
+#
+##DOS##!ifdef OPENSSL_DIR
+##DOS##PKINIT_SUBDIR=plugins\preauth\pkinit
+##DOS##PKINIT_MAKEFILE=$(PKINIT_SUBDIR)\Makefile
+##DOS##!else
+##DOS##PKINIT_SUBDIR=
+##DOS##PKINIT_MAKEFILE=
+##DOS##!endif
+
+#
 # We need outpre-dir explicitly in here because we may
 # try to build wconfig on a config-windows.
 #
@@ -144,7 +156,7 @@ WINMAKEFILES=Makefile \
 	lib\krb5\error_tables\Makefile \
 	lib\krb5\keytab\Makefile \
 	lib\krb5\krb\Makefile \
-	lib\krb5\os\Makefile lib\krb5\posix\Makefile \
+	lib\krb5\os\Makefile \
 	lib\krb5\rcache\Makefile \
 	lib\krb5\unicode\Makefile \
 	util\Makefile \
@@ -154,7 +166,7 @@ WINMAKEFILES=Makefile \
 	windows\Makefile windows\lib\Makefile windows\ms2mit\Makefile \
 	windows\kfwlogon\Makefile windows\leashdll\Makefile \
 	windows\leash\Makefile windows\leash\htmlhelp\Makefile \
-	plugins\preauth\spake\Makefile
+	plugins\preauth\spake\Makefile $(PKINIT_MAKEFILE)
 
 ##DOS##Makefile-windows: $(MKFDEP) $(WINMAKEFILES)
 
@@ -246,8 +258,6 @@ WINMAKEFILES=Makefile \
 ##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##lib\krb5\os\Makefile: lib\krb5\os\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
-##DOS##lib\krb5\posix\Makefile: lib\krb5\posix\Makefile.in $(MKFDEP)
-##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##lib\krb5\rcache\Makefile: lib\krb5\rcache\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##lib\krb5\unicode\Makefile: lib\krb5\unicode\Makefile.in $(MKFDEP)
@@ -279,6 +289,8 @@ WINMAKEFILES=Makefile \
 ##DOS##windows\leash\htmlhelp\Makefile: windows\leash\htmlhelp\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
 ##DOS##plugins\preauth\spake\Makefile: plugins\preauth\spake\Makefile.in $(MKFDEP)
+##DOS##	$(WCONFIG) config < $@.in > $@
+##DOS##plugins\preauth\pkinit\Makefile: plugins\preauth\pkinit\Makefile.in $(MKFDEP)
 ##DOS##	$(WCONFIG) config < $@.in > $@
 
 clean-windows:: Makefile-windows
@@ -487,6 +499,10 @@ install-windows:
 	$(INSTALLDBGSYMS) clients\kswitch\$(OUTPRE)kswitch.pdb "$(KRB_INSTALL_DIR)\bin\."
 	copy plugins\preauth\spake\$(OUTPRE)$(SPAKELIB).dll "$(KRB_INSTALL_DIR)\bin\plugins\preauth\."
 	$(INSTALLDBGSYMS) plugins\preauth\spake\$(OUTPRE)$(SPAKELIB).pdb "$(KRB_INSTALL_DIR)\bin\plugins\preauth\."
+##DOS##!ifdef OPENSSL_DIR
+	copy plugins\preauth\pkinit\$(OUTPRE)$(PKINITLIB).dll "$(KRB_INSTALL_DIR)\bin\plugins\preauth\."
+	$(INSTALLDBGSYMS) plugins\preauth\pkinit\$(OUTPRE)$(PKINITLIB).pdb "$(KRB_INSTALL_DIR)\bin\plugins\preauth\."
+##DOS##!endif
 
 check-prerecurse: runenv.py
 	$(RM) $(SKIPTESTS)
@@ -517,11 +533,13 @@ testrealm: runenv.py
 
 # environment variable settings to propagate to Python-based tests
 
+ASAN = @ASAN@
 pyrunenv.vals: Makefile
 	$(RUN_SETUP); \
 	for i in $(RUN_VARS); do \
 		eval echo 'env['\\\'$$i\\\''] = '\\\'\$$$$i\\\'; \
 	done > $@
+	echo "asan = '$(ASAN)'" >> $@
 	echo "tls_impl = '$(TLS_IMPL)'" >> $@
 	echo "have_sasl = '$(HAVE_SASL)'" >> $@
 	echo "have_spake_openssl = '$(HAVE_SPAKE_OPENSSL)'" >> $@

@@ -66,7 +66,7 @@ static krb5_enctype default_enctype_list[] = {
 };
 
 #if (defined(_WIN32))
-extern krb5_error_code krb5_vercheck();
+extern krb5_error_code krb5_vercheck(void);
 extern void krb5_win_ccdll_load(krb5_context context);
 #endif
 
@@ -158,7 +158,7 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
     krb5_context ctx = 0;
     krb5_error_code retval;
     int tmp;
-    char *plugin_dir = NULL;
+    char *plugin_dir = NULL, *timeout_str = NULL;
 
     /* Verify some assumptions.  If the assumptions hold and the
        compiler is optimizing, this should result in no code being
@@ -251,6 +251,17 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
     get_integer(ctx, KRB5_CONF_CLOCKSKEW, DEFAULT_CLOCKSKEW, &tmp);
     ctx->clockskew = tmp;
 
+    retval = profile_get_string(ctx->profile, KRB5_CONF_LIBDEFAULTS,
+                                KRB5_CONF_REQUEST_TIMEOUT, NULL, NULL,
+                                &timeout_str);
+    if (retval)
+        goto cleanup;
+    if (timeout_str != NULL) {
+        retval = krb5_string_to_deltat(timeout_str, &ctx->req_timeout);
+        if (retval)
+            goto cleanup;
+    }
+
     get_integer(ctx, KRB5_CONF_KDC_DEFAULT_OPTIONS, KDC_OPT_RENEWABLE_OK,
                 &tmp);
     ctx->kdc_default_options = tmp;
@@ -292,6 +303,7 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
 
 cleanup:
     profile_release_string(plugin_dir);
+    profile_release_string(timeout_str);
     krb5_free_context(ctx);
     return retval;
 }

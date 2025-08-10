@@ -28,4 +28,4 @@
  * updated for each alpha, beta, final release.   This will ensure
  * that file identifiers are unique
  */
-#define KRB5_BUILDLEVEL		1
+#define KRB5_BUILDLEVEL		0

@@ -177,15 +177,11 @@ gssint_wrap_aead_iov_shim(gss_mechanism mech,
 }
 
 OM_uint32
-gssint_wrap_aead (gss_mechanism mech,
-		  OM_uint32 *minor_status,
-		  gss_union_ctx_id_t ctx,
-		  int conf_req_flag,
-		  gss_qop_t qop_req,
-		  gss_buffer_t input_assoc_buffer,
-		  gss_buffer_t input_payload_buffer,
-		  int *conf_state,
-		  gss_buffer_t output_message_buffer)
+gssint_wrap_aead(gss_mechanism mech, OM_uint32 *minor_status,
+		 gss_union_ctx_id_t ctx, int conf_req_flag, gss_qop_t qop_req,
+		 gss_buffer_t input_assoc_buffer,
+		 gss_buffer_t input_payload_buffer,
+		 int *conf_state, gss_buffer_t output_message_buffer)
 {
  /* EXPORT DELETE START */
     OM_uint32		status;
@@ -223,22 +219,15 @@ gssint_wrap_aead (gss_mechanism mech,
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_wrap_aead (minor_status,
-               context_handle,
-               conf_req_flag,
-               qop_req,
-	       input_assoc_buffer,
-	       input_payload_buffer,
-               conf_state,
-               output_message_buffer)
-OM_uint32 *		minor_status;
-gss_ctx_id_t		context_handle;
-int			conf_req_flag;
-gss_qop_t		qop_req;
-gss_buffer_t		input_assoc_buffer;
-gss_buffer_t		input_payload_buffer;
-int *			conf_state;
-gss_buffer_t		output_message_buffer;
+gss_wrap_aead (
+    OM_uint32 * minor_status,
+    gss_ctx_id_t context_handle,
+    int conf_req_flag,
+    gss_qop_t qop_req,
+    gss_buffer_t input_assoc_buffer,
+    gss_buffer_t input_payload_buffer,
+    int * conf_state,
+    gss_buffer_t output_message_buffer)
 {
     OM_uint32		status;
     gss_mechanism	mech;

@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include "ss_internal.h"
 
-#define DECLARE(name)   void name(argc,argv,sci_idx,info_ptr)int argc,sci_idx;const char * const *argv; pointer info_ptr;
+#define DECLARE(name)   void name(int argc, const char *const *argv, int sci_idx, pointer info_ptr)
 
 /*
  * ss_self_identify -- assigned by default to the "." request

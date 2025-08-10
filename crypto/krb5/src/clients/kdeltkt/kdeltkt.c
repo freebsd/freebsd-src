@@ -10,7 +10,7 @@ static char *prog;
 static int quiet = 0;
 
 static void
-xusage()
+xusage(void)
 {
     fprintf(stderr, "xusage: %s [-c ccache] [-e etype] [-f flags] service1 "
             "service2 ...\n", prog);

@@ -312,13 +312,13 @@ make_strings(char **stringattrs, krb5_db_entry *ent)
 }
 
 static krb5_error_code
-test_init()
+test_init(void)
 {
     return 0;
 }
 
 static krb5_error_code
-test_cleanup()
+test_cleanup(void)
 {
     return 0;
 }
@@ -615,7 +615,8 @@ static void
 change_auth_indicators(krb5_context context, krb5_data ***auth_indicators)
 {
     krb5_data **inds, d;
-    int i, val;
+    size_t i;
+    int val;
 
     /* If we see an auth indicator "dbincrX", replace the whole indicator list
      * with "dbincr{X+1}". */

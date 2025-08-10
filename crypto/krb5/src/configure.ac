@@ -439,6 +439,25 @@ fi
 AC_SUBST(ASAN_FLAGS)
 AC_SUBST(ASAN)
 
+# Build using OSS-Fuzz build processes for compiling fuzzing targets.
+# LIB_FUZZING_ENGINE is used for supporting various types of fuzzers.
+fuzz_dir=""
+FUZZ_LDFLAGS=
+AC_ARG_ENABLE([ossfuzz],
+  [AS_HELP_STRING([--enable-ossfuzz], [Build with fuzzing targets])],
+  [], [enable_ossfuzz=no])
+if test "$enable_ossfuzz" != no; then
+    # Check if LIB_FUZZING_ENGINE environment is not empty.
+    if test -z "$LIB_FUZZING_ENGINE"; then
+        AC_MSG_ERROR([LIB_FUZZING_ENGINE environment variable is not set])
+    fi
+    fuzz_dir="fuzzing"
+    FUZZ_LDFLAGS="$LIB_FUZZING_ENGINE"
+    K5_GEN_MAKEFILE(tests/fuzzing)
+fi
+AC_SUBST(fuzz_dir)
+AC_SUBST(FUZZ_LDFLAGS)
+
 # from old include/configure.in
 AH_TEMPLATE([HAVE_STRUCT_SOCKADDR_STORAGE],
 [Define if "struct sockaddr_storage" is available.])
@@ -447,7 +466,7 @@ AC_CONFIG_HEADERS(include/autoconf.h, [echo timestamp > include/autoconf.stamp])
 AC_C_CONST
 AC_HEADER_DIRENT
 AC_FUNC_STRERROR_R
-AC_CHECK_FUNCS(strdup setvbuf seteuid setresuid setreuid setegid setresgid setregid setsid flock fchmod chmod strptime geteuid setenv unsetenv getenv gmtime_r localtime_r bswap16 bswap64 mkstemp getusershell access getcwd srand48 srand srandom stat strchr strerror timegm explicit_bzero explicit_memset getresuid getresgid)
+AC_CHECK_FUNCS(strdup setvbuf seteuid setresuid setreuid setegid setresgid setregid setsid flock fchmod chmod strptime geteuid setenv unsetenv getenv gmtime_r localtime_r bswap16 bswap64 mkstemp getusershell access getcwd srand48 srand srandom stat strchr strerror timegm explicit_bzero explicit_memset getresuid getresgid getentropy)
 
 AC_CHECK_FUNC(mkstemp,
 [MKSTEMP_ST_OBJ=
@@ -471,18 +490,9 @@ AC_SUBST(GETTIMEOFDAY_ST_OBJ)
 AC_SUBST(EXTRA_SUPPORT_SYMS)
 
 DECLARE_SYS_ERRLIST
-AC_CHECK_HEADERS(unistd.h paths.h regex.h regexpr.h fcntl.h memory.h ifaddrs.h sys/filio.h byteswap.h machine/endian.h machine/byte_order.h sys/bswap.h endian.h pwd.h arpa/inet.h alloca.h dlfcn.h limits.h)
-AC_CHECK_HEADER(regexp.h, [], [],
-[#define INIT char *sp = instring;
-#define GETC() (*sp++)
-#define PEEKC() (*sp)
-#define UNGETC(c) (--sp)
-#define RETURN(c) return(c)
-#define ERROR(c)
-])
+AC_CHECK_HEADERS(unistd.h paths.h fcntl.h memory.h ifaddrs.h sys/filio.h byteswap.h machine/endian.h machine/byte_order.h sys/bswap.h endian.h pwd.h arpa/inet.h alloca.h dlfcn.h limits.h sys/random.h)
 AC_CHECK_MEMBERS([struct stat.st_mtimensec,struct stat.st_mtimespec.tv_nsec,struct stat.st_mtim.tv_nsec],,,[#include <sys/types.h>
 #include <sys/stat.h>])
-KRB5_AC_REGEX_FUNCS
 AC_TYPE_OFF_T
 
 # Fancy caching of perror result...
@@ -1143,7 +1153,6 @@ int i = 1;
 fi
 if test "$k5_cv_openssl_version_okay" = yes && (test "$enable_pkinit" = yes || test "$enable_pkinit" = try); then
   K5_GEN_MAKEFILE(plugins/preauth/pkinit)
-  K5_GEN_MAKEFILE(tests/softpkcs11)
   PKINIT=yes
 elif test "$k5_cv_openssl_version_okay" = no && test "$enable_pkinit" = yes; then
   AC_MSG_ERROR([Version of OpenSSL is too old; cannot enable PKINIT.])
@@ -1157,10 +1166,9 @@ AC_SUBST(PKINIT)
 # for lib/apputils
 AC_REPLACE_FUNCS(daemon)
 
-# For Python tests.  Python version 3.2.4 is required as prior
-# versions do not accept string input to subprocess.Popen.communicate
-# when universal_newlines is set.
-PYTHON_MINVERSION=3.2.4
+# For Python tests.  Python version 3.4 is required for
+# ssl.create_default_context().
+PYTHON_MINVERSION=3.4
 AC_SUBST(PYTHON_MINVERSION)
 AC_CHECK_PROG(PYTHON,python3,python3)
 if test x"$PYTHON" = x; then
@@ -1168,7 +1176,7 @@ if test x"$PYTHON" = x; then
 fi
 HAVE_PYTHON=no
 if test x"$PYTHON" != x; then
-	wantver="(sys.hexversion >= 0x30204F0)"
+	wantver="(sys.hexversion >= 0x30400F0)"
 	if "$PYTHON" -c "import sys; sys.exit(not $wantver and 1 or 0)"; then
 		HAVE_PYTHON=yes
 	fi

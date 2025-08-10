@@ -33,11 +33,7 @@
 #endif
 
 OM_uint32 KRB5_CALLCONV
-gss_release_buffer (minor_status,
-		    buffer)
-
-OM_uint32 *		minor_status;
-gss_buffer_t		buffer;
+gss_release_buffer(OM_uint32 *minor_status, gss_buffer_t buffer)
 {
     if (minor_status)
 	*minor_status = 0;

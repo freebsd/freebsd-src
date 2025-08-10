@@ -19,8 +19,8 @@ Quick facts
 License - :ref:`mitK5license`
 
 Releases:
-    - Latest stable: https://web.mit.edu/kerberos/krb5-1.20/
-    - Supported: https://web.mit.edu/kerberos/krb5-1.19/
+    - Latest stable: https://web.mit.edu/kerberos/krb5-1.22/
+    - Supported: https://web.mit.edu/kerberos/krb5-1.21/
     - Release cycle: approximately 12 months
 
 Supported platforms \/ OS distributions:
@@ -684,6 +684,69 @@ Release 1.21
 
   - Improved the test framework's detection of memory errors in daemon
     processes when used with asan.
+
+Release 1.22
+
+* User experience:
+
+  - The libdefaults configuration variable "request_timeout" can be
+    set to limit the total timeout for KDC requests.  When making a
+    KDC request, the client will now wait indefinitely (or until the
+    request timeout has elapsed) on a KDC which accepts a TCP
+    connection, without contacting any additional KDCs.  Clients will
+    make fewer DNS queries in some configurations.
+
+  - The realm configuration variable "sitename" can be set to cause
+    the client to query site-specific DNS records when making KDC
+    requests.
+
+* Administrator experience:
+
+  - Principal aliases are supported in the DB2 and LMDB KDB modules
+    and in the kadmin protocol.  (The LDAP KDB module has supported
+    aliases since release 1.7.)
+
+  - UNIX domain sockets are supported for the Kerberos and kpasswd
+    protocols.
+
+  - systemd socket activation is supported for krb5kdc and kadmind.
+
+* Developer experience:
+
+  - KDB modules can be be implemented in terms of other modules using
+    the new krb5_db_load_module() function.
+
+  - The profile library supports the modification of empty profiles
+    and the copying of modified profiles, making it possible to
+    construct an in-memory profile and pass it to
+    krb5_init_context_profile().
+
+  - GSS-API applications can pass the GSS_C_CHANNEL_BOUND flag to
+    gss_init_sec_context() to request strict enforcement of channel
+    bindings by the acceptor.
+
+* Protocol evolution:
+
+  - The PKINIT preauth module supports elliptic curve client
+    certificates, ECDH key exchange, and the Microsoft paChecksum2
+    field.
+
+  - The IAKERB implementation has been changed to comply with the most
+    recent draft standard and to support realm discovery.
+
+  - Message-Authenticator is supported in the RADIUS implementation
+    used by the OTP kdcpreauth module.
+
+* Code quality:
+
+  - Removed old-style function declarations, to accomodate compilers
+    which have removed support for them.
+
+  - Added OSS-Fuzz to the project's continuous integration
+    infrastructure.
+
+  - Rewrote the GSS per-message token parsing code for improved
+    safety.
 
 `Pre-authentication mechanisms`
 

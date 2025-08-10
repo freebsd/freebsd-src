@@ -992,10 +992,14 @@ kcm_start_seq_get(krb5_context context, krb5_ccache cache,
     if (cursor == NULL)
         goto cleanup;
     cursor->uuids = uuids;
+    uuids = NULL;
     cursor->creds = creds;
+    creds = NULL;
     *cursor_out = (krb5_cc_cursor)cursor;
 
 cleanup:
+    free_cred_list(creds);
+    free_uuid_list(uuids);
     kcmreq_free(&req);
     return ret;
 }

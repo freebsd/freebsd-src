@@ -40,16 +40,16 @@ This function sets the local and/or remote addresses in *auth_context* based on 
 
  
  
-	 - #KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR Generate local address.
+	 - KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR Generate local address.
  
  
-	 - #KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR Generate remote address.
+	 - KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR Generate remote address.
  
  
-	 - #KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR Generate local address and port.
+	 - KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR Generate local address and port.
  
  
-	 - #KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR Generate remote address and port.
+	 - KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR Generate remote address and port.
  
  
 

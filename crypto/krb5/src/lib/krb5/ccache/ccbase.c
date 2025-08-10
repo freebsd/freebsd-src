@@ -614,7 +614,7 @@ k5_cccol_unlock(krb5_context context)
 
 /* necessary to make reentrant locks play nice with krb5int_cc_finalize */
 void
-k5_cccol_force_unlock()
+k5_cccol_force_unlock(void)
 {
     /* sanity check */
     if ((&cccol_lock)->refcount == 0) {

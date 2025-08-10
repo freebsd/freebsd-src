@@ -1,0 +1,44 @@
+krb5_free_config_files -  Free a list allocated by krb5_get_default_config_files() 
+===================================================================================
+
+..
+
+.. c:function:: void krb5_free_config_files(char ** filenames)
+
+..
+
+
+:param:
+
+	          **[in]** **filenames** - Configuration filename list
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.22
+ 
+

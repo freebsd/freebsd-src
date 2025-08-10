@@ -193,10 +193,6 @@ OPTIONS
     **X509_anchors**\ =\ *value*
         specify where to find trusted X509 anchor information
 
-    **flag_RSA_PROTOCOL**\ [**=yes**]
-        specify use of RSA, rather than the default Diffie-Hellman
-        protocol
-
     **disable_freshness**\ [**=yes**]
         disable sending freshness tokens (for testing purposes only)
 

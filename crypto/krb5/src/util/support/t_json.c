@@ -86,7 +86,7 @@ check(int pred, const char *str)
 }
 
 static void
-test_array()
+test_array(void)
 {
     k5_json_string v1;
     k5_json_number v2;
