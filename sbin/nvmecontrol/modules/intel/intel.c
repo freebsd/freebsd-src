@@ -195,6 +195,18 @@ print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *b
 	}
 }
 
+static void
+print_intel_drive_marketing_name(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
+{
+	const char *p = buf;
+
+	printf("Intel Drive Marketing Name Log\n");
+	printf("=======================\n");
+	printf("%.*s\n", 29, p);
+}
+
+#define INTEL_LOG_DRIVE_MARKETING_NAME	0xdd
+
 NVME_LOGPAGE(intel_temp,
     INTEL_LOG_TEMP_STATS,		"intel", "Temperature Stats",
     print_intel_temp_stats,		sizeof(struct intel_log_temp_stats));
@@ -207,3 +219,6 @@ NVME_LOGPAGE(intel_wlat,
 NVME_LOGPAGE(intel_smart,	/* Note: Samsung and Micron also use this */
     INTEL_LOG_ADD_SMART,		"intel", "Extra Health/SMART Data",
     print_intel_add_smart,		DEFAULT_SIZE);
+NVME_LOGPAGE(intel_dmn,
+    INTEL_LOG_DRIVE_MARKETING_NAME,	"intel", "Drive Marketing Name Log",
+    print_intel_drive_marketing_name,	DEFAULT_SIZE);
