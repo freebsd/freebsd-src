@@ -899,7 +899,7 @@ member_ifaddrs_vlan_cleanup()
 atf_test_case "vlan_pvid" "cleanup"
 vlan_pvid_head()
 {
-	atf_set descr 'bridge with two ports with pvid set'
+	atf_set descr 'bridge with two ports with pvid and vlanfilter set'
 	atf_set require.user root
 }
 
@@ -1327,6 +1327,56 @@ bridge_svi_in_bridge_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "vlan_untagged" "cleanup"
+vlan_untagged_head()
+{
+	atf_set descr 'bridge with two ports with untagged set'
+	atf_set require.user root
+}
+
+vlan_untagged_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+	eptwo=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+	vnet_mkjail two ${eptwo}b
+
+	jexec one ifconfig ${epone}b 192.0.2.1/24 up
+	jexec two ifconfig ${eptwo}b 192.0.2.2/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${eptwo}a up
+	ifconfig ${bridge} addm ${epone}a untagged 20
+	ifconfig ${bridge} addm ${eptwo}a untagged 30
+
+	# With two ports on different VLANs, traffic should not be passed.
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	# Move the second port to VLAN 20; now traffic should be passed.
+	atf_check -s exit:0 ifconfig ${bridge} ifuntagged ${eptwo}a 20
+	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	# Remove the first's port untagged config, now traffic should
+	# not pass again.
+	atf_check -s exit:0 ifconfig ${bridge} -ifuntagged ${epone}a
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_untagged_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_test_case "vlan_defuntagged" "cleanup"
 vlan_defuntagged_head()
 {
@@ -1340,7 +1390,6 @@ vlan_defuntagged_body()
 	vnet_init_bridge
 
 	bridge=$(vnet_mkbridge)
-	atf_check -s exit:0 ifconfig ${bridge} vlanfilter
 
 	# Invalid VLAN IDs
 	atf_check -s exit:1 -ematch:"invalid vlan id: 0" \
@@ -1407,6 +1456,7 @@ atf_init_test_cases()
 	atf_add_test_case "vlan_ifconfig_iftagged"
 	atf_add_test_case "vlan_svi"
 	atf_add_test_case "vlan_qinq"
+	atf_add_test_case "vlan_untagged"
 	atf_add_test_case "vlan_defuntagged"
 	atf_add_test_case "bridge_svi_in_bridge"
 }
