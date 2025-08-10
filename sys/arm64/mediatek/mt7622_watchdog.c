@@ -133,9 +133,9 @@ mt7622_wdog_watchdog_fn(void *private, u_int cmd, int *error)
     if (cmd == 0) {
         /* request for watchdog disable */
         uint32_t mode = bus_read_4(sc->res, TOPRGUWDT_MODE);
-        mode &= ~TOPRGUWDT_MODE_MODE_EN;
-        mode |= TOPRGUWDT_MODE_MODE_KEY;
-        bus_write_4(sc->res, TOPRGUWDT_MODE_MODE, mode);
+        mode &= ~TOPRGUWDT_MODE_EN;
+        mode |= TOPRGUWDT_MODE_KEY;
+        bus_write_4(sc->res, TOPRGUWDT_MODE, mode);
     }
 
     if (*error != 0)
@@ -166,12 +166,6 @@ mt7622_wdog_watchdog_fn(void *private, u_int cmd, int *error)
         mode &= ~TOPRGUWDT_MODE_CNT_SEL;
 
     mode &= ~(TOPRGUWDT_MODE_IRQ_EN | TOPRGUWDT_MODE_DUAL_EN);
-
-    if (enable)
-        mode |= TOPRGUWDT_MODE_EN;
-    else
-        mode &= ~TOPRGUWDT_MODE_EN;
-
     mode |= TOPRGUWDT_MODE_KEY;
     bus_write_4(sc->res, TOPRGUWDT_MODE, mode);
 
