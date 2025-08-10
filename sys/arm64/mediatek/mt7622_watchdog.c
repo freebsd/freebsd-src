@@ -117,7 +117,7 @@ mt7622_watchdog_attach(device_t dev)
         device_printf(dev, "Could not allocate memory resource\n");
         return (ENXIO);
     }
-    sc->timeout = WDT_MAX_TIMEOUT;
+    sc->timeout = TOPRGUWDT_MAX_TIMEOUT;
     mtx_init(&sc->mtx, "Mediatek Watchdog", "mt7622_wdog", MTX_SPIN);
 
     EVENTHANDLER_REGISTER(watchdog_list, mt7622_wdog_watchdog_fn, sc, 0);
@@ -126,7 +126,7 @@ mt7622_watchdog_attach(device_t dev)
 }
 
 static void
-mt7622_wdog_watchdog_fn(void *private, u_int cmd, int *error);
+mt7622_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 {
     struct mt7622_watchdog_softc *sc = private;
 
@@ -156,7 +156,7 @@ mt7622_wdog_watchdog_fn(void *private, u_int cmd, int *error);
     if (sec < TOPRGUWDT_MIN_TIMEOUT) sec = TOPRGUWDT_MIN_TIMEOUT;
     if (sec > TOPRGUWDT_MAX_TIMEOUT) sec = TOPRGUWDT_MAX_TIMEOUT;
 
-    uint32_t len = TOPRGUWDT_LENGTH_TIMEOUT(seconds << 6) | TOPRGUWDT_LENGTH_KEY;
+    uint32_t len = TOPRGUWDT_LENGTH_TIMEOUT(sec << 6) | TOPRGUWDT_LENGTH_KEY;
     bus_write_4(sc->res, TOPRGUWDT_LENGTH, len);
 
     uint32_t mode = bus_read_4(sc->res, TOPRGUWDT_MODE);
