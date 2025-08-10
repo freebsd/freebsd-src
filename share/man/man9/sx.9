@@ -183,19 +183,19 @@ calling
 and
 .Fn sx_try_xlock
 will return 0 if the shared/exclusive lock cannot be acquired immediately;
-otherwise the shared/exclusive lock will be acquired and a non-zero value will
+otherwise the shared/exclusive lock will be acquired and a nonzero value will
 be returned.
 .Pp
 .Fn sx_try_upgrade
 will return 0 if the shared lock cannot be upgraded to an exclusive lock
-immediately; otherwise the exclusive lock will be acquired and a non-zero value
+immediately; otherwise the exclusive lock will be acquired and a nonzero value
 will be returned.
 .Pp
 .Fn sx_slock_sig
 and
 .Fn sx_xlock_sig
 do the same as their normal versions but performing an interruptible sleep.
-They return a non-zero value if the sleep has been interrupted by a signal
+They return a nonzero value if the sleep has been interrupted by a signal
 or an interrupt, otherwise 0.
 .Pp
 A thread can atomically release a shared/exclusive lock while waiting for an
@@ -265,7 +265,7 @@ then
 is returned instead.
 .Pp
 .Fn sx_xlocked
-will return non-zero if the current thread holds the exclusive lock;
+will return nonzero if the current thread holds the exclusive lock;
 otherwise, it will return zero.
 .Pp
 For ease of programming,

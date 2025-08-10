@@ -217,7 +217,7 @@ as a reader.
 .Fn rm_try_rlock
 will return 0 if the lock cannot be acquired immediately;
 otherwise,
-the lock will be acquired and a non-zero value will be returned.
+the lock will be acquired and a nonzero value will be returned.
 Note that
 .Fn rm_try_rlock
 may fail even while the lock is not currently held by a writer.
@@ -252,7 +252,7 @@ The
 .Fa rm
 lock must be unlocked.
 .It Fn rm_wowned "const struct rmlock *rm"
-This function returns a non-zero value if the current thread owns an
+This function returns a nonzero value if the current thread owns an
 exclusive lock on
 .Fa rm .
 .It Fn rm_sleep "void *wchan" "struct rmlock *rm" "int priority" "const char *wmesg" "int timo"
