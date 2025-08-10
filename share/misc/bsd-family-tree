@@ -980,6 +980,15 @@ URL: https://web.archive.org/web/20090427195917/http://ezine.daemonnews.org/2001
 ("what are the differences between FreeBSD, NetBSD, and OpenBSD?")
 
 
+End-of-Life (EOL)
+-----------------
+The FreeBSD family tree shows when a release was published.
+If you would like to know when the support ends, just look at
+https://www.freebsd.org/security/#sup and
+https://www.freebsd.org/security/unsupported
+For other operating systems, see https://endoflife.date
+
+
 Acknowledgments
 ---------------
 
@@ -989,5 +998,5 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997-2024 Wolfram Schneider <wosch@FreeBSD.org>
+Copyright (c) 1997-2025 Wolfram Schneider <wosch@FreeBSD.org>
 URL: https://cgit.freebsd.org/src/tree/share/misc/bsd-family-tree

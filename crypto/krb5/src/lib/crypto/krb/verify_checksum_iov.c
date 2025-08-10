@@ -40,7 +40,7 @@ krb5_k_verify_checksum_iov(krb5_context context,
     krb5_data computed;
     krb5_crypto_iov *checksum;
 
-    if (checksum_type == 0) {
+    if (checksum_type == 0 && key != NULL) {
         ret = krb5int_c_mandatory_cksumtype(context, key->keyblock.enctype,
                                             &checksum_type);
         if (ret != 0)
@@ -88,12 +88,14 @@ krb5_c_verify_checksum_iov(krb5_context context,
                            size_t num_data,
                            krb5_boolean *valid)
 {
-    krb5_key key;
+    krb5_key key = NULL;
     krb5_error_code ret;
 
-    ret = krb5_k_create_key(context, keyblock, &key);
-    if (ret != 0)
-        return ret;
+    if (keyblock != NULL) {
+        ret = krb5_k_create_key(context, keyblock, &key);
+        if (ret != 0)
+            return ret;
+    }
     ret = krb5_k_verify_checksum_iov(context, checksum_type, key, usage, data,
                                      num_data, valid);
     krb5_k_free_key(context, key);

@@ -137,7 +137,7 @@ hash_test(const struct krb5_hash_provider *hash, struct test *tests)
 }
 
 int
-main()
+main(void)
 {
     hash_test(&krb5int_hash_sha256, sha256_tests);
     hash_test(&krb5int_hash_sha384, sha384_tests);

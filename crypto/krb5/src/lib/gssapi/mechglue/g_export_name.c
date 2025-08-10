@@ -20,12 +20,8 @@
 #include <errno.h>
 
 OM_uint32 KRB5_CALLCONV
-gss_export_name(minor_status,
-			input_name,
-			exported_name)
-OM_uint32 *		minor_status;
-const gss_name_t	input_name;
-gss_buffer_t		exported_name;
+gss_export_name(OM_uint32 *minor_status, const gss_name_t input_name,
+		gss_buffer_t exported_name)
 {
 	gss_union_name_t		union_name;
 

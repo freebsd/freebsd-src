@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-BOOL isNT();
+BOOL isNT(void);
 
 void*
 user_allocate(

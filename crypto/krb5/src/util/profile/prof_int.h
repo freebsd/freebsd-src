@@ -139,12 +139,15 @@ errcode_t profile_create_node
 	(const char *name, const char *value,
 		   struct profile_node **ret_node);
 
+struct profile_node *profile_copy_node
+	(struct profile_node *oldnode);
+
 errcode_t profile_verify_node
 	(struct profile_node *node);
 
 errcode_t profile_add_node
 	(struct profile_node *section,
-		    const char *name, const char *value,
+		    const char *name, const char *value, int check_final,
 		    struct profile_node **ret_node);
 
 errcode_t profile_make_node_final
@@ -168,7 +171,7 @@ errcode_t profile_find_node
 errcode_t profile_find_node_relation
 	(struct profile_node *section,
 		    const char *name, void **state,
-		    char **ret_name, char **value);
+		    char **ret_name, char **value, int *ret_final);
 
 errcode_t profile_find_node_subsection
 	(struct profile_node *section,
@@ -208,11 +211,11 @@ errcode_t profile_rename_node
 
 /* prof_file.c */
 
-errcode_t KRB5_CALLCONV profile_copy (profile_t, profile_t *);
-
 errcode_t profile_open_file
 	(const_profile_filespec_t file, prf_file_t *ret_prof,
 	 char **ret_modspec);
+
+prf_file_t profile_open_memory(void);
 
 #define profile_update_file(P, M) profile_update_file_data((P)->data, M)
 errcode_t profile_update_file_data
@@ -232,6 +235,9 @@ errcode_t profile_flush_file_data_to_file
 errcode_t profile_flush_file_data_to_buffer
 	(prf_data_t data, char **bufp);
 
+prf_file_t profile_copy_file
+	(prf_file_t oldfile);
+
 void profile_free_file
 	(prf_file_t profile);
 
@@ -249,13 +255,13 @@ void profile_unlock_global (void);
 
 /* prof_init.c -- included from profile.h */
 errcode_t profile_ser_size
-        (const char *, profile_t, size_t *);
+	(profile_t, size_t *);
 
 errcode_t profile_ser_externalize
-        (const char *, profile_t, unsigned char **, size_t *);
+	(profile_t, unsigned char **, size_t *);
 
 errcode_t profile_ser_internalize
-        (const char *, profile_t *, unsigned char **, size_t *);
+	(profile_t *, unsigned char **, size_t *);
 
 /* prof_get.c */
 

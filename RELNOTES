@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7ac276298b72, 7b8c9de17448, 1271b1d747a7, 9dcb984251b3:
+	Support for Secure RPC DES authentication has been removed.  This
+	includes publickey(5), keyserv(8) and the rpc_secure(3) routines which
+	rely on keyserv.  The libc symbols are still present for backward
+	compatibility, but all functions will unconditionally return an error.
+
 37b2cb5ecb0f:
 	Add support to VOP_COPY_FILE_RANGE() for block cloning.
 	At this time, ZFS is the only local file system that supports
@@ -248,10 +254,11 @@ e962b37bf0ff:
 7398d1ece5cf:
 	hw.snd.version is removed.
 
-a15f7c96a276,a8089ea5aee5:
+a15f7c96a276,66b5296f1b29:
 	NVMe over Fabrics controller.  The nvmft(4) kernel module adds
 	a new frontend to the CAM target layer which exports ctl(4)
-	LUNs as NVMe namespaces to remote hosts.  The nvmfd(8) daemon
+	LUNs as NVMe namespaces to remote hosts.  The ctld(8) daemon
+	now supports NVMe controllers in addition to iSCSI targets and
 	is responsible for accepting incoming connection requests and
 	handing off connected queue pairs to nvmft(4).
 

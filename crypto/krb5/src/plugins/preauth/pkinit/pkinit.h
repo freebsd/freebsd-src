@@ -59,6 +59,10 @@
 
 #define PKINIT_DEFAULT_DH_MIN_BITS  2048
 #define PKINIT_DH_MIN_CONFIG_BITS   1024
+/* Rough finite-field bit strength equivalents for the elliptic curve groups */
+#define PKINIT_DH_P256_BITS         3072
+#define PKINIT_DH_P384_BITS         7680
+#define PKINIT_DH_P521_BITS         15360
 
 #define KRB5_CONF_KDCDEFAULTS                   "kdcdefaults"
 #define KRB5_CONF_LIBDEFAULTS                   "libdefaults"
@@ -93,15 +97,15 @@ static inline void pkiDebug (const char *fmt, ...) { }
 
 /* Solaris compiler doesn't grok __FUNCTION__
  * hack for now.  Fix all the uses eventually. */
+#ifndef _WIN32
 #define __FUNCTION__ __func__
+#endif
 
 /* Macros to deal with converting between various data types... */
 #define PADATA_TO_KRB5DATA(pad, k5d) \
     (k5d)->length = (pad)->length; (k5d)->data = (char *)(pad)->contents;
 #define OCTETDATA_TO_KRB5DATA(octd, k5d) \
     (k5d)->length = (octd)->length; (k5d)->data = (char *)(octd)->data;
-
-extern const krb5_data dh_oid;
 
 /*
  * notes about crypto contexts:
@@ -146,7 +150,6 @@ typedef struct _pkinit_plg_opts {
     int require_eku;	    /* require EKU checking (default is true) */
     int accept_secondary_eku;/* accept secondary EKU (default is false) */
     int allow_upn;	    /* allow UPN-SAN instead of pkinit-SAN */
-    int dh_or_rsa;	    /* selects DH or RSA based pkinit */
     int require_crl_checking; /* require CRL for a CA (default is false) */
     int require_freshness;  /* require freshness token (default is false) */
     int disable_freshness;  /* disable freshness token on client for testing */
@@ -160,7 +163,6 @@ typedef struct _pkinit_req_opts {
     int require_eku;
     int accept_secondary_eku;
     int allow_upn;
-    int dh_or_rsa;
     int require_crl_checking;
     int dh_size;	    /* initial request DH modulus size (default=1024) */
     int require_hostname_match;
@@ -338,6 +340,7 @@ void free_krb5_external_principal_identifier(krb5_external_principal_identifier 
 void free_krb5_algorithm_identifiers(krb5_algorithm_identifier ***in);
 void free_krb5_algorithm_identifier(krb5_algorithm_identifier *in);
 void free_krb5_kdc_dh_key_info(krb5_kdc_dh_key_info **in);
+void free_pachecksum2(krb5_context context, krb5_pachecksum2 **in);
 krb5_error_code pkinit_copy_krb5_data(krb5_data *dst, const krb5_data *src);
 
 

@@ -45,7 +45,6 @@
 #include <syslog.h>
 #include <acexport.h>
 #include <sdi_defs.h>
-#include <sdi_athd.h>
 #include "extern.h"
 
 #define KRB5_SAM_SECURID_NEXT_CHALLENGE_MAGIC 0x5ec1d000

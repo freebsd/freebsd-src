@@ -203,8 +203,6 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
     TRACE(c, "Attempting password change; {int} tries remaining", tries)
 #define TRACE_GIC_PWD_EXPIRED(c)                                \
     TRACE(c, "Principal expired; getting changepw ticket")
-#define TRACE_GIC_PWD_PRIMARY(c)                        \
-    TRACE(c, "Retrying AS request with primary KDC")
 
 #define TRACE_GSS_CLIENT_KEYTAB_FAIL(c, ret)                            \
     TRACE(c, "Unable to resolve default client keytab: {kerr}", ret)
@@ -249,6 +247,8 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
 #define TRACE_INIT_CREDS_PREAUTH_TRYAGAIN(c, patype, code)              \
     TRACE(c, "Recovering from KDC error {int} using preauth mech {patype}", \
           patype, (int)code)
+#define TRACE_INIT_CREDS_PRIMARY(c)                     \
+    TRACE(c, "Retrying AS request with primary KDC")
 #define TRACE_INIT_CREDS_RESTART_FAST(c)        \
     TRACE(c, "Restarting to upgrade to FAST")
 #define TRACE_INIT_CREDS_RESTART_PREAUTH_FAILED(c)                      \
@@ -387,8 +387,6 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
           rlm, (primary) ? " (primary)" : "", (tcp) ? " (tcp only)" : "")
 #define TRACE_SENDTO_KDC_K5TLS_LOAD_ERROR(c, ret)       \
     TRACE(c, "Error loading k5tls module: {kerr}", ret)
-#define TRACE_SENDTO_KDC_PRIMARY(c, primary)                            \
-    TRACE(c, "Response was{str} from primary KDC", (primary) ? "" : " not")
 #define TRACE_SENDTO_KDC_RESOLVING(c, hostname)         \
     TRACE(c, "Resolving hostname {str}", hostname)
 #define TRACE_SENDTO_KDC_RESPONSE(c, len, raddr)                        \

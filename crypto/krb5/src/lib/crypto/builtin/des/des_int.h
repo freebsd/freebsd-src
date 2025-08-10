@@ -203,9 +203,6 @@ krb5_error_code mit_des_combine_subkeys(const krb5_keyblock *,
                                         const krb5_keyblock *,
                                         krb5_keyblock **);
 
-/* f_pcbc.c */
-int mit_des_pcbc_encrypt();
-
 /* f_sched.c */
 int mit_des_make_key_sched(mit_des_cblock, mit_des_key_schedule);
 

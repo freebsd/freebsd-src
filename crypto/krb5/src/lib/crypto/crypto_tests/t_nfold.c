@@ -33,17 +33,20 @@
 
 #define ASIZE(ARRAY) (sizeof(ARRAY)/sizeof(ARRAY[0]))
 
-static void printhex (size_t len, const unsigned char *p)
+static void
+printhex(size_t len, const unsigned char *p)
 {
     while (len--)
         printf ("%02x", 0xff & *p++);
 }
 
-static void printstringhex (const unsigned char *p) {
+static void
+printstringhex(const unsigned char *p) {
     printhex (strlen ((const char *) p), p);
 }
 
-static void rfc_tests ()
+static void
+rfc_tests(void)
 {
     unsigned i;
     struct {
@@ -92,7 +95,8 @@ static void rfc_tests ()
     }
 }
 
-static void fold_kerberos(unsigned int nbytes)
+static void
+fold_kerberos(unsigned int nbytes)
 {
     unsigned char cipher_text[300];
     unsigned int j;
@@ -125,9 +129,7 @@ unsigned char nfold_192[4][24] = {
 };
 
 int
-main(argc, argv)
-    int argc;
-    char *argv[];
+main(int argc, char *argv[])
 {
     unsigned char cipher_text[64];
     unsigned int i, j;

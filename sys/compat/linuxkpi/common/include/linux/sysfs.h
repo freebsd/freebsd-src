@@ -189,12 +189,69 @@ sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 	return (0);
 }
 
+static inline struct kobject *
+__sysfs_lookup_group(struct kobject *kobj, const char *group)
+{
+	int found;
+	struct sysctl_oid *group_oidp;
+	struct kobject *group_kobj;
+
+	found = 0;
+	if (group != NULL) {
+		SYSCTL_FOREACH(group_oidp, SYSCTL_CHILDREN(kobj->oidp)) {
+			if (strcmp(group_oidp->oid_name, group) != 0)
+				continue;
+			found = 1;
+			break;
+		}
+	} else {
+		found = 1;
+		group_oidp = kobj->oidp;
+	}
+
+	if (!found)
+		return (NULL);
+
+	group_kobj = group_oidp->oid_arg1;
+
+	return (group_kobj);
+}
+
+static inline int
+sysfs_add_file_to_group(struct kobject *kobj,
+    const struct attribute *attr, const char *group)
+{
+	int ret;
+	struct kobject *group_kobj;
+
+	group_kobj = __sysfs_lookup_group(kobj, group);
+	if (group_kobj == NULL)
+		return (-ENOENT);
+
+	ret = sysfs_create_file(group_kobj, attr);
+
+	return (ret);
+}
+
 static inline void
 sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 {
 
 	if (kobj->oidp)
 		sysctl_remove_name(kobj->oidp, attr->name, 1, 1);
+}
+
+static inline void
+sysfs_remove_file_from_group(struct kobject *kobj,
+    const struct attribute *attr, const char *group)
+{
+	struct kobject *group_kobj;
+
+	group_kobj = __sysfs_lookup_group(kobj, group);
+	if (group_kobj == NULL)
+		return;
+
+	sysfs_remove_file(group_kobj, attr);
 }
 
 static inline int

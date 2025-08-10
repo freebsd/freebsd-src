@@ -59,8 +59,9 @@ SRCS = \
 	$(srcdir)/k5sealiov.c \
 	$(srcdir)/k5sealv3.c \
 	$(srcdir)/k5sealv3iov.c \
-	$(srcdir)/k5unseal.c \
 	$(srcdir)/k5unsealiov.c \
+	$(srcdir)/unwrap.c \
+	$(srcdir)/verify_mic.c \
 	$(srcdir)/krb5_gss_glue.c \
 	$(srcdir)/lucid_context.c \
 	$(srcdir)/naming_exts.c \
@@ -112,8 +113,9 @@ OBJS = \
 	$(OUTPRE)k5sealiov.$(OBJEXT) \
 	$(OUTPRE)k5sealv3.$(OBJEXT) \
 	$(OUTPRE)k5sealv3iov.$(OBJEXT) \
-	$(OUTPRE)k5unseal.$(OBJEXT) \
 	$(OUTPRE)k5unsealiov.$(OBJEXT) \
+	$(OUTPRE)unwrap.$(OBJEXT) \
+	$(OUTPRE)verify_mic.$(OBJEXT) \
 	$(OUTPRE)krb5_gss_glue.$(OBJEXT) \
 	$(OUTPRE)lucid_context.$(OBJEXT) \
 	$(OUTPRE)naming_exts.$(OBJEXT) \
@@ -168,8 +170,9 @@ STLIBOBJS = \
 	k5sealiov.o \
 	k5sealv3.o \
 	k5sealv3iov.o \
-	k5unseal.o \
 	k5unsealiov.o \
+	unwrap.o \
+	verify_mic.o \
 	krb5_gss_glue.o \
 	lucid_context.o \
 	naming_exts.o \

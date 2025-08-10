@@ -1,0 +1,26 @@
+This directory builds fuzzing targets for oss-fuzz compatibility.
+ If you wish to build it locally, you can do so by using the given
+ guide below. Note that it only works on GNU/Linux.
+
+Export flags required for building fuzzing targets.
+```bash
+export CC=clang
+export CXX=clang++
+export CFLAGS="-g -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize=fuzzer-no-link"
+export CXXFLAGS="-g -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize=fuzzer-no-link"
+export LIB_FUZZING_ENGINE="-fsanitize=fuzzer"
+```
+
+Compilation of the fuzzing targets.
+```bash
+autoreconf
+./configure CFLAGS="-fcommon $CFLAGS" CXXFLAGS="-fcommon $CXXFLAGS" \
+    --enable-static --disable-shared --enable-ossfuzz
+make
+```
+
+Running fuzzing targets.
+```bash
+mkdir fuzz_${TARGET}_corpus
+./fuzz_${TARGET} fuzz_${TARGET}_corpus/ fuzz_${TARGET}_seed_corpus
+```

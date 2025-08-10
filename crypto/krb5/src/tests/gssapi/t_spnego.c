@@ -195,7 +195,7 @@ test_mskrb_oid(gss_name_t tname, gss_cred_id_t acred)
 /* Check that we return a compatibility NegTokenInit2 message containing
  * NegHints for an empty initiator token. */
 static void
-test_neghints()
+test_neghints(void)
 {
     OM_uint32 major, minor;
     gss_buffer_desc itok = GSS_C_EMPTY_BUFFER, atok;

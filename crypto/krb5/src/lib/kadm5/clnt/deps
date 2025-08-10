@@ -14,16 +14,19 @@ clnt_policy.so clnt_policy.po $(OUTPRE)clnt_policy.$(OBJEXT): \
   $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/kdb.h \
   $(top_srcdir)/include/krb5.h client_internal.h clnt_policy.c
 client_rpc.so client_rpc.po $(OUTPRE)client_rpc.$(OBJEXT): \
-  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
-  $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/chpass_util_strings.h \
-  $(BUILDTOP)/include/kadm5/kadm_err.h $(BUILDTOP)/include/kadm5/kadm_rpc.h \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/gssapi/gssapi.h \
+  $(BUILDTOP)/include/gssrpc/types.h $(BUILDTOP)/include/kadm5/admin.h \
+  $(BUILDTOP)/include/kadm5/admin_internal.h $(BUILDTOP)/include/kadm5/admin_xdr.h \
+  $(BUILDTOP)/include/kadm5/chpass_util_strings.h $(BUILDTOP)/include/kadm5/kadm_err.h \
+  $(BUILDTOP)/include/kadm5/kadm_rpc.h $(BUILDTOP)/include/kadm5/server_internal.h \
   $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/gssrpc/auth.h \
   $(top_srcdir)/include/gssrpc/auth_gss.h $(top_srcdir)/include/gssrpc/auth_unix.h \
   $(top_srcdir)/include/gssrpc/clnt.h $(top_srcdir)/include/gssrpc/rename.h \
   $(top_srcdir)/include/gssrpc/rpc.h $(top_srcdir)/include/gssrpc/rpc_msg.h \
   $(top_srcdir)/include/gssrpc/svc.h $(top_srcdir)/include/gssrpc/svc_auth.h \
   $(top_srcdir)/include/gssrpc/xdr.h $(top_srcdir)/include/kdb.h \
-  $(top_srcdir)/include/krb5.h client_rpc.c
+  $(top_srcdir)/include/krb5.h $(top_srcdir)/include/krb5/plugin.h \
+  client_rpc.c
 client_principal.so client_principal.po $(OUTPRE)client_principal.$(OBJEXT): \
   $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
   $(BUILDTOP)/include/kadm5/admin.h $(BUILDTOP)/include/kadm5/admin_internal.h \

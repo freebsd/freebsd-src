@@ -69,8 +69,7 @@ static DBM *__cur_db;
 static void no_open_db __P((void));
 
 int
-kdb2_dbminit(file)
-	char *file;
+kdb2_dbminit(char *file)
 {
 	if (__cur_db != NULL)
 		(void)kdb2_dbm_close(__cur_db);
@@ -82,8 +81,7 @@ kdb2_dbminit(file)
 }
 
 datum
-kdb2_fetch(key)
-	datum key;
+kdb2_fetch(datum key)
 {
 	datum item;
 
@@ -97,7 +95,7 @@ kdb2_fetch(key)
 }
 
 datum
-kdb2_firstkey()
+kdb2_firstkey(void)
 {
 	datum item;
 
@@ -111,8 +109,7 @@ kdb2_firstkey()
 }
 
 datum
-kdb2_nextkey(key)
-	datum key;
+kdb2_nextkey(datum key)
 {
 	datum item;
 
@@ -126,8 +123,7 @@ kdb2_nextkey(key)
 }
 
 int
-kdb2_delete(key)
-	datum key;
+kdb2_delete(datum key)
 {
 	if (__cur_db == NULL) {
 		no_open_db();
@@ -137,8 +133,7 @@ kdb2_delete(key)
 }
 
 int
-kdb2_store(key, dat)
-	datum key, dat;
+kdb2_store(datum key, datum dat)
 {
 	if (__cur_db == NULL) {
 		no_open_db();
@@ -148,7 +143,7 @@ kdb2_store(key, dat)
 }
 
 static void
-no_open_db()
+no_open_db(void)
 {
 	(void)fprintf(stderr, "dbm: no open database.\n");
 }
@@ -159,9 +154,7 @@ no_open_db()
  *	 NULL on failure
  */
 DBM *
-kdb2_dbm_open(file, flags, mode)
-	const char *file;
-	int flags, mode;
+kdb2_dbm_open(const char *file, int flags, int mode)
 {
 	HASHINFO info;
 	char path[MAXPATHLEN];
@@ -183,8 +176,7 @@ kdb2_dbm_open(file, flags, mode)
  *	Nothing.
  */
 void
-kdb2_dbm_close(db)
-	DBM *db;
+kdb2_dbm_close(DBM *db)
 {
 	(void)(db->close)(db);
 }
@@ -195,9 +187,7 @@ kdb2_dbm_close(db)
  *	NULL on failure
  */
 datum
-kdb2_dbm_fetch(db, key)
-	DBM *db;
-	datum key;
+kdb2_dbm_fetch(DBM *db, datum key)
 {
 	datum retval;
 	int status;
@@ -226,8 +216,7 @@ kdb2_dbm_fetch(db, key)
  *	NULL on failure
  */
 datum
-kdb2_dbm_firstkey(db)
-	DBM *db;
+kdb2_dbm_firstkey(DBM *db)
 {
 	int status;
 	datum retkey;
@@ -254,8 +243,7 @@ kdb2_dbm_firstkey(db)
  *	NULL on failure
  */
 datum
-kdb2_dbm_nextkey(db)
-	DBM *db;
+kdb2_dbm_nextkey(DBM *db)
 {
 	int status;
 	datum retkey;
@@ -282,9 +270,7 @@ kdb2_dbm_nextkey(db)
  *	<0 failure
  */
 int
-kdb2_dbm_delete(db, key)
-	DBM *db;
-	datum key;
+kdb2_dbm_delete(DBM *db, datum key)
 {
 	int status;
 
@@ -310,10 +296,7 @@ kdb2_dbm_delete(db, key)
  *	 1 if DBM_INSERT and entry exists
  */
 int
-kdb2_dbm_store(db, key, content, flags)
-	DBM *db;
-	datum key, content;
-	int flags;
+kdb2_dbm_store(DBM *db, datum key, datum content, int flags)
 {
 #ifdef NEED_COPY
 	DBT k, c;
@@ -331,8 +314,7 @@ kdb2_dbm_store(db, key, content, flags)
 }
 
 int
-kdb2_dbm_error(db)
-	DBM *db;
+kdb2_dbm_error(DBM *db)
 {
 	HTAB *hp;
 
@@ -341,8 +323,7 @@ kdb2_dbm_error(db)
 }
 
 int
-kdb2_dbm_clearerr(db)
-	DBM *db;
+kdb2_dbm_clearerr(DBM *db)
 {
 	HTAB *hp;
 
@@ -352,8 +333,7 @@ kdb2_dbm_clearerr(db)
 }
 
 int
-kdb2_dbm_dirfno(db)
-	DBM *db;
+kdb2_dbm_dirfno(DBM *db)
 {
 	return(((HTAB *)db->internal)->fp);
 }

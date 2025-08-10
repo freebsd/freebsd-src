@@ -24,13 +24,19 @@
 static errcode_t rw_setup(profile_t profile)
 {
     prf_file_t      file;
-    errcode_t       retval = 0;
+    prf_data_t      new_data;
 
     if (!profile)
         return PROF_NO_PROFILE;
 
     if (profile->magic != PROF_MAGIC_PROFILE)
         return PROF_MAGIC_PROFILE;
+
+    /* If the profile has no files, create a memory-only data object. */
+    if (profile->first_file == NULL) {
+        profile->first_file = profile_open_memory();
+        return (profile->first_file == NULL) ? ENOMEM : 0;
+    }
 
     file = profile->first_file;
 
@@ -43,33 +49,22 @@ static errcode_t rw_setup(profile_t profile)
     }
 
     if ((file->data->flags & PROFILE_FILE_SHARED) != 0) {
-        prf_data_t new_data;
         new_data = profile_make_prf_data(file->data->filespec);
         if (new_data == NULL) {
-            retval = ENOMEM;
-        } else {
-            retval = k5_mutex_init(&new_data->lock);
-            if (retval == 0) {
-                new_data->root = NULL;
-                new_data->flags = file->data->flags & ~PROFILE_FILE_SHARED;
-                new_data->timestamp = 0;
-                new_data->upd_serial = file->data->upd_serial;
-            }
-        }
-
-        if (retval != 0) {
             profile_unlock_global();
-            free(new_data);
-            return retval;
+            return ENOMEM;
         }
+        new_data->root = NULL;
+        new_data->flags = file->data->flags & ~PROFILE_FILE_SHARED;
+        new_data->timestamp = 0;
+        new_data->upd_serial = file->data->upd_serial;
+
         profile_dereference_data_locked(file->data);
         file->data = new_data;
     }
 
     profile_unlock_global();
-    retval = profile_update_file(file, NULL);
-
-    return retval;
+    return profile_update_file(file, NULL);
 }
 
 
@@ -275,7 +270,7 @@ profile_add_relation(profile_t profile, const char **names,
         retval = profile_find_node(section, *cpp, 0, 1,
                                    &state, &section);
         if (retval == PROF_NO_SECTION)
-            retval = profile_add_node(section, *cpp, 0, &section);
+            retval = profile_add_node(section, *cpp, NULL, 0, &section);
         if (retval) {
             k5_mutex_unlock(&profile->first_file->data->lock);
             return retval;
@@ -294,7 +289,7 @@ profile_add_relation(profile_t profile, const char **names,
         }
     }
 
-    retval = profile_add_node(section, *cpp, new_value, 0);
+    retval = profile_add_node(section, *cpp, new_value, 0, NULL);
     if (retval) {
         k5_mutex_unlock(&profile->first_file->data->lock);
         return retval;

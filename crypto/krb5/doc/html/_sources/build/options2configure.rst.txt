@@ -284,6 +284,9 @@ Optional features
     given, it controls the -fsanitize compilation flag value (the
     default is "address").
 
+**-**\ **-enable-ossfuzz**
+    Enable building fuzzing targets with OSS-Fuzz build support.
+
 
 Optional packages
 -----------------

@@ -1500,8 +1500,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
 	bif->bif_savedcaps = ifs->if_capenable;
 	bif->bif_vlanproto = ETHERTYPE_VLAN;
-	if (sc->sc_flags & IFBRF_VLANFILTER)
-		bif->bif_pvid = sc->sc_defpvid;
+	bif->bif_pvid = sc->sc_defpvid;
 	if (sc->sc_flags & IFBRF_DEFQINQ)
 		bif->bif_flags |= IFBIF_QINQ;
 
@@ -1970,9 +1969,6 @@ bridge_ioctl_sifpvid(struct bridge_softc *sc, void *arg)
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
 
-	if ((sc->sc_flags & IFBRF_VLANFILTER) == 0)
-		return (EXTERROR(EINVAL, "VLAN filtering not enabled"));
-
 	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
 	if (bif == NULL)
 		return (EXTERROR(ENOENT, "Interface is not a bridge member"));
@@ -2410,12 +2406,10 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 		mflags = m->m_flags;
 
 		/*
-		 * If VLAN filtering is enabled, and the native VLAN ID of the
-		 * outgoing interface matches the VLAN ID of the frame, remove
-		 * the VLAN header.
+		 * If the native VLAN ID of the outgoing interface matches the
+		 * VLAN ID of the frame, remove the VLAN tag.
 		 */
-		if ((sc->sc_flags & IFBRF_VLANFILTER) &&
-		    bif->bif_pvid != DOT1Q_VID_NULL &&
+		if (bif->bif_pvid != DOT1Q_VID_NULL &&
 		    VLANTAGOF(m) == bif->bif_pvid) {
 			m->m_flags &= ~M_VLANTAG;
 			m->m_pkthdr.ether_vtag = 0;
@@ -3296,9 +3290,19 @@ bridge_vfilter_in(const struct bridge_iflist *sbif, struct mbuf *m)
 	if (vlan > DOT1Q_VID_MAX)
 		return (false);
 
-	/* If VLAN filtering isn't enabled, pass everything. */
-	if ((sbif->bif_sc->sc_flags & IFBRF_VLANFILTER) == 0)
+	/*
+	 * If VLAN filtering isn't enabled, pass everything, but add a tag
+	 * if the port has a pvid configured.
+	 */
+	if ((sbif->bif_sc->sc_flags & IFBRF_VLANFILTER) == 0) {
+		if (vlan == DOT1Q_VID_NULL &&
+		    sbif->bif_pvid != DOT1Q_VID_NULL) {
+			m->m_pkthdr.ether_vtag = sbif->bif_pvid;
+			m->m_flags |= M_VLANTAG;
+		}
+
 		return (true);
+	}
 
 	/* If Q-in-Q is disabled, check for stacked tags. */
 	if ((sbif->bif_flags & IFBIF_QINQ) == 0) {

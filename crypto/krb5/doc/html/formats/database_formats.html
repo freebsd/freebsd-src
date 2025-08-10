@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Kerberos Database (KDB) Formats &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="MIT Kerberos features" href="../mitK5features.html" />
+    <link rel="prev" title="PKINIT freshness tokens" href="freshness_token.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="freshness_token.html" title="PKINIT freshness tokens"
+            accesskey="P">previous</a> |
+        <a href="../mitK5features.html" title="MIT Kerberos features"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Kerberos Database (KDB) Formats">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kerberos-database-kdb-formats">
+<h1>Kerberos Database (KDB) Formats<a class="headerlink" href="#kerberos-database-kdb-formats" title="Link to this heading">¶</a></h1>
+<section id="dump-format">
+<h2>Dump format<a class="headerlink" href="#dump-format" title="Link to this heading">¶</a></h2>
+<p>Files created with the <a class="reference internal" href="../admin/admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> <strong>dump</strong> command begin with
+a versioned header “kdb5_util load_dump version 7”.  This version has
+been in use since MIT krb5 release 1.11; some previous versions are
+supported but are not described here.</p>
+<p>Each subsequent line of the dump file contains one or more
+tab-separated fields describing either a principal entry or a policy
+entry.  The fields of a principal entry line are:</p>
+<ul class="simple">
+<li><p>the word “princ”</p></li>
+<li><p>the string “38” (this was originally a length field)</p></li>
+<li><p>the length of the principal name in string form</p></li>
+<li><p>the decimal number of tag-length data elements</p></li>
+<li><p>the decimal number of key-data elements</p></li>
+<li><p>the string “0” (this was originally an extension length field)</p></li>
+<li><p>the principal name in string form</p></li>
+<li><p>the principal attributes as a decimal number; when converted to
+binary, the bits from least significant to most significant are:</p>
+<ul>
+<li><p>disallow_postdated</p></li>
+<li><p>disallow_forwardable</p></li>
+<li><p>disallow_tgt_based</p></li>
+<li><p>disallow_renewable</p></li>
+<li><p>disallow_proxiable</p></li>
+<li><p>disallow_dup_skey</p></li>
+<li><p>disallow_all_tix</p></li>
+<li><p>requires_preauth</p></li>
+<li><p>requires_hwauth</p></li>
+<li><p>requires_pwchange</p></li>
+<li><p>disallow_svr</p></li>
+<li><p>pwchange_service</p></li>
+<li><p>support_desmd5</p></li>
+<li><p>new_princ</p></li>
+<li><p>ok_as_delegate</p></li>
+<li><p>ok_to_auth_as_delegate</p></li>
+<li><p>no_auth_data_required</p></li>
+<li><p>lockdown_keys</p></li>
+</ul>
+</li>
+<li><p>the maximum ticket lifetime, as a decimal number of seconds</p></li>
+<li><p>the maximum renewable ticket lifetime, as a decimal number of seconds</p></li>
+<li><p>the principal expiration time, as a decimal POSIX timestamp</p></li>
+<li><p>the password expiration time, as a decimal POSIX timestamp</p></li>
+<li><p>the last successful authentication time, as a decimal POSIX
+timestamp</p></li>
+<li><p>the last failed authentication time, as a decimal POSIX timestamp</p></li>
+<li><p>the decimal number of failed authentications since the last
+successful authentication time</p></li>
+<li><p>for each tag-length data value:</p>
+<ul>
+<li><p>the tag value in decimal</p></li>
+<li><p>the length in decimal</p></li>
+<li><p>the data as a lowercase hexadecimal byte string, or “-1” if the length is 0</p></li>
+</ul>
+</li>
+<li><p>for each key-data element:</p>
+<ul>
+<li><p>the string “2” if this element has non-normal salt type, “1”
+otherwise</p></li>
+<li><p>the key version number of this element</p></li>
+<li><p>the encryption type</p></li>
+<li><p>the length of the encrypted key value</p></li>
+<li><p>the encrypted key as a lowercase hexadecimal byte string</p></li>
+<li><p>if this element has non-normal salt type:</p>
+<ul>
+<li><p>the salt type</p></li>
+<li><p>the length of the salt data</p></li>
+<li><p>the salt data as a lowercase hexadecimal byte string, or the
+string “-1” if the salt data length is 0</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>the string “-1;” (this was originally an extension field)</p></li>
+</ul>
+<p>The fields of a policy entry line are:</p>
+<ul class="simple">
+<li><p>the string “policy”</p></li>
+<li><p>the policy name</p></li>
+<li><p>the minimum password lifetime as a decimal number of seconds</p></li>
+<li><p>the maximum password lifetime as a decimal number of seconds</p></li>
+<li><p>the minimum password length, in decimal</p></li>
+<li><p>the minimum number of character classes, in decimal</p></li>
+<li><p>the number of historical keys to be stored, in decimal</p></li>
+<li><p>the policy reference count (no longer used)</p></li>
+<li><p>the maximum number of failed authentications before lockout</p></li>
+<li><p>the time interval after which the failed authentication count is
+reset, as a decimal number of seconds</p></li>
+<li><p>the lockout duration, as a decimal number of seconds</p></li>
+<li><p>the required principal attributes, in decimal (currently unenforced)</p></li>
+<li><p>the maximum ticket lifetime as a decimal number of seconds
+(currently unenforced)</p></li>
+<li><p>the maximum renewable lifetime as a decimal number of seconds
+(currently unenforced)</p></li>
+<li><p>the allowed key/salt types, or “-” if unrestricted</p></li>
+<li><p>the number of tag-length values</p></li>
+<li><p>for each tag-length data value:</p>
+<ul>
+<li><p>the tag value in decimal</p></li>
+<li><p>the length in decimal</p></li>
+<li><p>the data as a lowercase hexadecimal byte string, or “-1” if the
+length is 0</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="tag-length-data-formats">
+<h2>Tag-length data formats<a class="headerlink" href="#tag-length-data-formats" title="Link to this heading">¶</a></h2>
+<p>The currently defined tag-length data types are:</p>
+<ul class="simple">
+<li><p>(1) last password change: a four-byte little-endian POSIX timestamp
+giving the last password change time</p></li>
+<li><p>(2) last modification data: a four-byte little-endian POSIX
+timestamp followed by a zero-terminated principal name in string
+form, giving the time of the last principal change and the principal
+who performed it</p></li>
+<li><p>(3) kadmin data: the XDR encoding of a per-principal kadmin data
+record (see below)</p></li>
+<li><p>(8) master key version: a two-byte little-endian integer containing
+the master key version used to encrypt this principal’s key data</p></li>
+<li><ol class="arabic simple" start="9">
+<li><p>active kvno: see below</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="10">
+<li><p>master key auxiliary data: see below</p></li>
+</ol>
+</li>
+<li><p>(11) string attributes: one or more iterations of a zero-terminated
+string key followed by a zero-terminated string value</p></li>
+<li><p>(12) alias target principal: a zero-terminated principal name in
+string form</p></li>
+<li><ol class="arabic simple" start="255">
+<li><p>LDAP object information: see below</p></li>
+</ol>
+</li>
+<li><p>(768) referral padata: a DER-encoded PA-SVR-REFERRAL-DATA to be sent
+to a TGS-REQ client within encrypted padata (see Appendix A of
+<span class="target" id="index-0"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc1606.html"><strong>RFC 1606</strong></a>)</p></li>
+<li><p>(1792) last admin unlock: a four-byte little-endian POSIX timestamp
+giving the time of the last administrative account unlock</p></li>
+<li><p>(32767) database arguments: a zero-terminated key=value string (may
+appear multiple times); used by the kadmin protocol to
+communicate -x arguments to kadmind</p></li>
+</ul>
+<section id="per-principal-kadmin-data">
+<h3>Per-principal kadmin data<a class="headerlink" href="#per-principal-kadmin-data" title="Link to this heading">¶</a></h3>
+<p>Per-principal kadmin data records use a modified XDR encoding of the
+kadmin_data type defined as follows:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">key_data</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">numfields</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">kvno</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">enctype</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">salttype</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">keylen</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">saltlen</span><span class="p">;</span>
+<span class="w">    </span><span class="n">opaque</span><span class="w"> </span><span class="n">key</span><span class="o">&lt;&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">opaque</span><span class="w"> </span><span class="n">salt</span><span class="o">&lt;&gt;</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">hist_entry</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">key_data</span><span class="w"> </span><span class="n">keys</span><span class="o">&lt;&gt;</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">kadmin_data</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">version_number</span><span class="p">;</span>
+<span class="w">    </span><span class="n">nullstring</span><span class="w"> </span><span class="n">policy</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">aux_attributes</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">old_key_next</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">admin_history_kvno</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hist_entry</span><span class="w"> </span><span class="n">old_keysets</span><span class="o">&lt;&gt;</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>The type “nullstring” uses a custom string encoder where the length
+field is zero or the string length plus one; a length of zero
+indicates that no policy object is specified for the principal.  The
+field “version_number” contains 0x12345C01.  The aux_attributes field
+contains the bit 0x800 if a policy object is associated with the
+principal.</p>
+<p>Within a key_data record, numfields is 2 if the key data has
+non-normal salt type, 1 otherwise.</p>
+</section>
+<section id="active-kvno-and-master-key-auxiliary-data">
+<h3>Active kvno and master key auxiliary data<a class="headerlink" href="#active-kvno-and-master-key-auxiliary-data" title="Link to this heading">¶</a></h3>
+<p>These types only appear in the entry of the master key principal
+(K/M).  They use little-endian binary integer encoding.</p>
+<p>The active kvno table determines which master key version is active
+for a given timestamp.  It uses the following binary format:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>active-key-version-table <span class="o">::=</span>
+    version (16 bits) [with the value 1]
+    version entry 1 (key-version-entry)
+    version entry 2 (key-version-entry)
+    ...
+
+key-version-entry <span class="o">::=</span>
+    key version (16 bits)
+    timestamp (32 bits) [when this key version becomes active]
+</pre></div>
+</div>
+<p>The master key auxiliary data record contains copies of the current
+master key encrypted in each older master key.  It uses the following
+binary format:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>master-key-aux <span class="o">::=</span>
+    version (16 bits) [with the value 1]
+    key entry 1 (key-entry)
+    key entry 2 (key-entry)
+    ...
+
+key-entry <span class="o">::=</span>
+    old master key version (16 bits)
+    latest master key version (16 bits)
+    latest master key encryption type (16 bits)
+    encrypted key length (16 bits)
+    encrypted key contents
+</pre></div>
+</div>
+</section>
+<section id="ldap-object-information">
+<h3>LDAP object information<a class="headerlink" href="#ldap-object-information" title="Link to this heading">¶</a></h3>
+<p>This type appears in principal entries retrieved with the LDAP KDB
+module.  The value uses the following binary format, using big-endian
+integer encoding:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>ldap-principal-data <span class="o">::=</span>
+    record 1 (ldap-tl-data)
+    record 2 (ldap-tl-data)
+    ...
+
+ldap-tl-data <span class="o">::=</span>
+    type (8 bits)
+    length (16 bits)
+    data
+</pre></div>
+</div>
+<p>The currently defined ldap-tl-data types are (all integers are
+big-endian):</p>
+<ul class="simple">
+<li><p>(1) principal type: 16 bits containing the value 1, indicating that
+the LDAP object containing the principal entry is a standalone
+principal object</p></li>
+<li><p>(2) principal count: 16 bits containing the number of
+krbPrincipalName values in the LDAP object</p></li>
+<li><p>(3) user DN: the string representation of the distinguished name of
+the LDAP object</p></li>
+<li><p>(5) attribute mask: 16 bits indicating which Kerberos-specific LDAP
+attributes are present in the LDAP object (see below)</p></li>
+<li><p>(7) link DN: the string representation of the distinguished name of
+an LDAP object this object is linked to; may appear multiple times</p></li>
+</ul>
+<p>When converted to binary, the attribute mask bits, from least
+significant to most significant, correspond to the following LDAP
+attributes:</p>
+<ul class="simple">
+<li><p>krbMaxTicketLife</p></li>
+<li><p>krbMaxRenewableAge</p></li>
+<li><p>krbTicketFlags</p></li>
+<li><p>krbPrincipalExpiration</p></li>
+<li><p>krbTicketPolicyReference</p></li>
+<li><p>krbPrincipalAuthInd</p></li>
+<li><p>krbPwdPolicyReference</p></li>
+<li><p>krbPasswordExpiration</p></li>
+<li><p>krbPrincipalKey</p></li>
+<li><p>krbLastPwdChange</p></li>
+<li><p>krbExtraData</p></li>
+<li><p>krbLastSuccessfulAuth</p></li>
+<li><p>krbLastFailedAuth</p></li>
+<li><p>krbLoginFailedCount</p></li>
+<li><p>krbLastAdminUnlock</p></li>
+<li><p>krbPwdHistory</p></li>
+</ul>
+</section>
+</section>
+<section id="alias-principal-entries">
+<h2>Alias principal entries<a class="headerlink" href="#alias-principal-entries" title="Link to this heading">¶</a></h2>
+<p>To allow aliases to be represented in dump files and within the
+incremental update protocol, the krb5 database library supports the
+concept of an alias principal entry.  An alias principal entry
+contains an alias target principal in its tag-length data, has its
+attributes set to disallow_all_tix, and has zero or empty values for
+all other fields.  The database glue library recognizes alias entries
+and iteratively looks up the alias target up to a depth of 10 chained
+aliases.  (Added in release 1.22.)</p>
+</section>
+<section id="db2-principal-and-policy-formats">
+<h2>DB2 principal and policy formats<a class="headerlink" href="#db2-principal-and-policy-formats" title="Link to this heading">¶</a></h2>
+<p>The DB2 KDB module uses the string form of a principal name, with zero
+terminator, as a lookup key for principal entries.  Principal entry
+values use the following binary format with little-endian integer
+encoding:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>db2-principal-entry <span class="o">::=</span>
+    len (16 bits) [always has the value 38]
+    attributes (32 bits)
+    max ticket lifetime (32 bits)
+    max renewable lifetime (32 bits)
+    principal expiration timestamp (32 bits)
+    password expiration timestamp (32 bits)
+    last successful authentication timestamp (32 bits)
+    last failed authentication timestamp (32 bits)
+    failed authentication counter (32 bits)
+    number of tag-length elements (16 bits)
+    number of key-data elements (16 bits)
+    length of string-form principal with zero terminator (16 bits)
+    string-form principal with zero terminator
+    tag-length entry 1 (tag-length-data)
+    tag-length entry 2 (tag-length-data)
+    ...
+    key-data entry 1 (key-data)
+    key-data entry 2 (key-data)
+    ...
+
+tag-length-data <span class="o">::=</span>
+    type tag (16 bits)
+    data length (16 bits)
+    data
+
+key-data <span class="o">::=</span>
+    salt indicator (16 bits) [1 for default salt, 2 otherwise]
+    key version (16 bits)
+    encryption type (16 bits)
+    encrypted key length (16 bits)
+    encrypted key
+    salt type (16 bits) [omitted if salt indicator is 1]
+    salt data length (16 bits) [omitted if salt indicator is 1]
+    salt data [omitted if salt indicator is 1]
+</pre></div>
+</div>
+<p>DB2 policy entries reside in a separate database file.  The lookup key
+is the policy name with zero terminator.  Policy entry values use a
+modified XDR encoding of the policy type defined as follows:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">tl_data</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">type</span><span class="p">;</span>
+<span class="w">    </span><span class="n">opaque</span><span class="w"> </span><span class="n">data</span><span class="o">&lt;&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">tl_data</span><span class="w"> </span><span class="o">*</span><span class="n">next</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">policy</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">version_number</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">min_life</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">max_pw_life</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">min_length</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">min_classes</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">history_num</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">refcount</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">max_fail</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">failcount_interval</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lockout_duration</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">attributes</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">max_ticket_life</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">max_renewable_life</span><span class="p">;</span>
+<span class="w">    </span><span class="n">nullstring</span><span class="w"> </span><span class="n">allowed_keysalts</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">n_tl_data</span><span class="p">;</span>
+<span class="w">    </span><span class="n">tl_data</span><span class="w"> </span><span class="o">*</span><span class="n">tag_length_data</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>The type “nullstring” uses the same custom encoder as in the
+per-principal kadmin data.</p>
+<p>The field “version_number” contains 0x12345D01, 0x12345D02, or
+0x12345D03 for versions 1, 2, and 3 respectively.  Versions 1 and 2
+omit the fields “attributes” through “tag_length_data”.  Version 1
+also omits the fields “max_fail” through “lockout_duration”.  Encoding
+uses the lowest version that can represent the policy entry.</p>
+<p>The field “refcount” is no longer used and its value is ignored.</p>
+</section>
+<section id="lmdb-principal-and-policy-formats">
+<h2>LMDB principal and policy formats<a class="headerlink" href="#lmdb-principal-and-policy-formats" title="Link to this heading">¶</a></h2>
+<p>In the LMDB KDB module, principal entries are stored in the
+“principal” database within the main LMDB environment (typically named
+“principal.mdb”), with the exception of lockout-related fields which
+are stored in the “lockout” table of the lockout LMDB environment
+(typically named “principal.lockout.mdb”).  For both databases the key
+is the principal name in string form, with no zero terminator.  Values
+in the “principal” database use the following binary format with
+little-endian integer encoding:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>lmdb-principal-entry <span class="o">::=</span>
+    attributes (32 bits)
+    max ticket lifetime (32 bits)
+    max renewable lifetime (32 bits)
+    principal expiration timestamp (32 bits)
+    password expiration timestamp (32 bits)
+    number of tag-length elements (16 bits)
+    number of key-data elements (16 bits)
+    tag-length entry 1 (tag-length-data)
+    tag-length entry 2 (tag-length-data)
+    ...
+    key-data entry 1 (key-data)
+    key-data entry 2 (key-data)
+    ...
+
+tag-length-data <span class="o">::=</span>
+    type tag (16 bits)
+    data length (16 bits)
+    data value
+
+key-data <span class="o">::=</span>
+    salt indicator (16 bits) [1 for default salt, 2 otherwise]
+    key version (16 bits)
+    encryption type (16 bits)
+    encrypted key length (16 bits)
+    encrypted key
+    salt type (16 bits) [omitted if salt indicator is 1]
+    salt data length (16 bits) [omitted if salt indicator is 1]
+    salt data [omitted if salt indicator is 1]
+</pre></div>
+</div>
+<p>Values in the “lockout” database have the following binary format with
+little-endian integer encoding:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>lmdb-lockout-entry <span class="o">::=</span>
+    last successful authentication timestamp (32 bits)
+    last failed authentication timestamp (32 bits)
+    failed authentication counter (32 bits)
+</pre></div>
+</div>
+<p>In the “policy” database, the lookup key is the policy name with no
+zero terminator.  Values in this database use the following binary
+format with little-endian integer encoding:</p>
+<div class="highlight-bnf notranslate"><div class="highlight"><pre><span></span>lmdb-policy-entry <span class="o">::=</span>
+    minimum password lifetime (32 bits)
+    maximum password lifetime (32 bits)
+    minimum password length (32 bits)
+    minimum character classes (32 bits)
+    number of historical keys (32 bits)
+    maximum failed authentications before lockout (32 bits)
+    time interval to reset failed authentication counter (32 bits)
+    lockout duration (32 bits)
+    required principal attributes (32 bits) [currently unenforced]
+    maximum ticket lifetime (32 bits) [currently unenforced]
+    maximum renewable lifetime (32 bits) [currently unenforced]
+    allowed key/salt type specification length [32 bits]
+    allowed key/salt type specification
+    number of tag-length values (16 bits)
+    tag-length entry 1 (tag-length-data)
+    tag-length entry 2 (tag-length-data)
+    ...
+
+tag-length-data <span class="o">::=</span>
+    type tag (16 bits)
+    data length (16 bits)
+    data value
+</pre></div>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Kerberos Database (KDB) Formats</a><ul>
+<li><a class="reference internal" href="#dump-format">Dump format</a></li>
+<li><a class="reference internal" href="#tag-length-data-formats">Tag-length data formats</a><ul>
+<li><a class="reference internal" href="#per-principal-kadmin-data">Per-principal kadmin data</a></li>
+<li><a class="reference internal" href="#active-kvno-and-master-key-auxiliary-data">Active kvno and master key auxiliary data</a></li>
+<li><a class="reference internal" href="#ldap-object-information">LDAP object information</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#alias-principal-entries">Alias principal entries</a></li>
+<li><a class="reference internal" href="#db2-principal-and-policy-formats">DB2 principal and policy formats</a></li>
+<li><a class="reference internal" href="#lmdb-principal-and-policy-formats">LMDB principal and policy formats</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Protocols and file formats</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_file_format.html">Credential cache file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="keytab_file_format.html">Keytab file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Kerberos Database (KDB) Formats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="freshness_token.html" title="PKINIT freshness tokens"
+            >previous</a> |
+        <a href="../mitK5features.html" title="MIT Kerberos features"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Kerberos Database (KDB) Formats">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

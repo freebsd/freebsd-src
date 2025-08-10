@@ -103,7 +103,7 @@ init_load_module(const char *modspec, profile_t *ret_profile)
     struct errinfo einfo = { 0 };
     prf_lib_handle_t lib_handle = NULL;
     struct plugin_file_handle *plhandle = NULL;
-    void *cbdata = NULL, (*fptr)();
+    void *cbdata = NULL, (*fptr)(void);
     int have_lock = 0, have_cbdata = 0;
     struct profile_vtable vtable = { 1 };  /* Set minor_ver to 1, rest null. */
     errcode_t err;
@@ -293,26 +293,32 @@ copy_vtable_profile(profile_t profile, profile_t *ret_new_profile)
 errcode_t KRB5_CALLCONV
 profile_copy(profile_t old_profile, profile_t *new_profile)
 {
-    size_t size, i;
-    const_profile_filespec_t *files;
-    prf_file_t file;
-    errcode_t err;
+    profile_t profile;
+    prf_file_t p, q, *nextp;
+
+    *new_profile = NULL;
 
     if (old_profile->vt)
         return copy_vtable_profile(old_profile, new_profile);
 
-    /* The fields we care about are read-only after creation, so
-       no locking is needed.  */
-    COUNT_LINKED_LIST (size, prf_file_t, old_profile->first_file, next);
-    files = malloc ((size+1) * sizeof(*files));
-    if (files == NULL)
+    profile = calloc(1, sizeof(*profile));
+    if (profile == NULL)
         return ENOMEM;
-    for (i = 0, file = old_profile->first_file; i < size; i++, file = file->next)
-        files[i] = file->data->filespec;
-    files[size] = NULL;
-    err = profile_init (files, new_profile);
-    free (files);
-    return err;
+    profile->magic = PROF_MAGIC_PROFILE;
+
+    nextp = &profile->first_file;
+    for (p = old_profile->first_file; p != NULL; p = p->next) {
+        q = profile_copy_file(p);
+        if (q == NULL) {
+            profile_abandon(profile);
+            return ENOMEM;
+        }
+        *nextp = q;
+        nextp = &q->next;
+    }
+
+    *new_profile = profile;
+    return 0;
 }
 
 errcode_t KRB5_CALLCONV
@@ -320,7 +326,7 @@ profile_init_path(const_profile_filespec_list_t filepath,
                   profile_t *ret_profile)
 {
     unsigned int n_entries;
-    int i;
+    size_t i;
     unsigned int ent_len;
     const char *s, *t;
     profile_filespec_t *filenames;
@@ -343,7 +349,8 @@ profile_init_path(const_profile_filespec_list_t filepath,
         filenames[i] = (char*) malloc(ent_len + 1);
         if (filenames[i] == 0) {
             /* if malloc fails, free the ones that worked */
-            while(--i >= 0) free(filenames[i]);
+            while (i > 0)
+                free(filenames[--i]);
             free(filenames);
             return ENOMEM;
         }
@@ -361,7 +368,8 @@ profile_init_path(const_profile_filespec_list_t filepath,
                                 ret_profile);
 
     /* count back down and free the entries */
-    while(--i >= 0) free(filenames[i]);
+    while (i > 0)
+        free(filenames[--i]);
     free(filenames);
 
     return retval;
@@ -521,8 +529,7 @@ profile_release(profile_t profile)
 /*
  * Here begins the profile serialization functions.
  */
-errcode_t profile_ser_size(const char *unused, profile_t profile,
-                           size_t *sizep)
+errcode_t profile_ser_size(profile_t profile, size_t *sizep)
 {
     size_t      required;
     prf_file_t  pfp;
@@ -543,7 +550,7 @@ static void pack_int32(int32_t oval, unsigned char **bufpp, size_t *remainp)
     *remainp -= sizeof(int32_t);
 }
 
-errcode_t profile_ser_externalize(const char *unused, profile_t profile,
+errcode_t profile_ser_externalize(profile_t profile,
                                   unsigned char **bufpp, size_t *remainp)
 {
     errcode_t           retval;
@@ -559,7 +566,7 @@ errcode_t profile_ser_externalize(const char *unused, profile_t profile,
     retval = EINVAL;
     if (profile) {
         retval = ENOMEM;
-        (void) profile_ser_size(unused, profile, &required);
+        (void) profile_ser_size(profile, &required);
         if (required <= remain) {
             fcount = 0;
             for (pfp = profile->first_file; pfp; pfp = pfp->next)
@@ -597,7 +604,7 @@ static int unpack_int32(int32_t *intp, unsigned char **bufpp,
         return 1;
 }
 
-errcode_t profile_ser_internalize(const char *unused, profile_t *profilep,
+errcode_t profile_ser_internalize(profile_t *profilep,
                                   unsigned char **bufpp, size_t *remainp)
 {
     errcode_t               retval;

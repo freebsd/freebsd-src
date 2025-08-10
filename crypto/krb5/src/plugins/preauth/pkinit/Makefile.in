@@ -12,6 +12,9 @@ SHLIB_EXPDEPS = \
 	$(TOPLIBD)/libkrb5$(SHLIBEXT)
 SHLIB_EXPLIBS= -lkrb5 $(COM_ERR_LIB) -lk5crypto -lcrypto $(DL_LIB) $(SUPPORT_LIB) $(LIBS)
 
+WINLIBS = $(KLIB) $(SLIB) $(PLIB) $(CLIB) $(OSSLLIB)
+OSSLINCLUDE = $(OSSLINC)
+
 STLIBOBJS= \
 	pkinit_accessor.o \
 	pkinit_srv.o \
@@ -35,6 +38,19 @@ SRCS= \
 	$(srcdir)/pkinit_matching.c \
 	$(srcdir)/pkinit_crypto_openssl.c
 
+#
+# Don't include pkinit_srv.c in the Windows object list since we
+# don't need it.
+#
+OBJS=	$(OUTPRE)pkinit_accessor.$(OBJEXT) \
+	$(OUTPRE)pkinit_lib.$(OBJEXT) \
+	$(OUTPRE)pkinit_clnt.$(OBJEXT) \
+	$(OUTPRE)pkinit_constants.$(OBJEXT) \
+	$(OUTPRE)pkinit_profile.$(OBJEXT) \
+	$(OUTPRE)pkinit_identity.$(OBJEXT) \
+	$(OUTPRE)pkinit_matching.$(OBJEXT) \
+	$(OUTPRE)pkinit_crypto_openssl.$(OBJEXT)
+
 all-unix: all-liblinks
 install-unix: install-libs
 clean-unix:: clean-liblinks clean-libs clean-libobjs
@@ -47,6 +63,13 @@ check-unix: pkinit_kdf_test
 
 pkinit_kdf_test: pkinit_kdf_test.o $(STLIBOBJS) $(SHLIB_EXPDEPS)
 	$(CC_LINK) -o $@ pkinit_kdf_test.o $(STLIBOBJS) $(SHLIB_EXPLIBS)
+
+all-windows: $(OUTPRE)$(PKINITLIB).dll
+clean-windows::
+	$(RM) $(OUTPRE)$(PKINITLIB).dll
+
+$(OUTPRE)$(PKINITLIB).dll: pkinit.def $(OBJS)
+	link /dll $(LOPTS) -def:pkinit.def -out:$*.dll $(OBJS) $(WINLIBS)
 
 @libnover_frag@
 @libobj_frag@

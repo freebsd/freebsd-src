@@ -216,6 +216,15 @@
 #define	CLOSE_RANGE_CLOEXEC	(1<<2)
 #define	CLOSE_RANGE_CLOFORK	(1<<3)
 
+/*
+ * copy_file_range flags visible to user space.
+ * High order 8 bits reserved for kernel flags.
+ * Allocate from bit 23 down, to try and avoid conflicts with
+ * future Linux flags.
+ */
+#define	COPY_FILE_RANGE_CLONE		0x00800000	/* Require cloning. */
+#define	COPY_FILE_RANGE_USERFLAGS	(COPY_FILE_RANGE_CLONE)
+
 #endif /* __BSD_VISIBLE */
 
 #endif /* !_SYS_UNISTD_H_ */

@@ -51,6 +51,9 @@ long KRB5_CALLCONV profile_init_flags
 long KRB5_CALLCONV profile_init_path
 	(const_profile_filespec_list_t filelist, profile_t *ret_profile);
 
+long KRB5_CALLCONV profile_copy
+	(profile_t, profile_t *);
+
 long KRB5_CALLCONV profile_flush
 	(profile_t profile);
 long KRB5_CALLCONV profile_flush_to_file

@@ -40,13 +40,13 @@ krb5_mk_req_extended -  Create a KRB_AP_REQ message using supplied credentials.
 
 Valid *ap_req_options* are: 
  
-	 - #AP_OPTS_USE_SESSION_KEY - Use the session key when creating the request used for user to user authentication.
+	 - AP_OPTS_USE_SESSION_KEY - Use the session key when creating the request used for user to user authentication.
  
  
-	 - #AP_OPTS_MUTUAL_REQUIRED - Request a mutual authentication packet from the receiver.
+	 - AP_OPTS_MUTUAL_REQUIRED - Request a mutual authentication packet from the receiver.
  
  
-	 - #AP_OPTS_USE_SUBKEY - Generate a subsession key from the current session key obtained from the credentials.
+	 - AP_OPTS_USE_SUBKEY - Generate a subsession key from the current session key obtained from the credentials.
  
  This function creates a KRB_AP_REQ message using supplied credentials *in_creds* . *auth_context* may point to an existing auth context or to NULL, in which case a new one will be created. If *in_data* is non-null, a checksum of it will be included in the authenticator contained in the KRB_AP_REQ message. Use krb5_free_data_contents() to free *outbuf* when it is no longer needed.
 

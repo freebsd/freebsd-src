@@ -80,7 +80,7 @@ struct test {
 };
 
 int
-main()
+main(void)
 {
     size_t i;
     struct test *t;

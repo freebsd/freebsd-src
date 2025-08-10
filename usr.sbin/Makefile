@@ -56,7 +56,6 @@ SUBDIR=	adduser \
 	nfsuserd \
 	nmtree \
 	nologin \
-	nvmfd \
 	pciconf \
 	periodic \
 	pnfsdscopymr \
@@ -175,7 +174,6 @@ SUBDIR.${MK_NETGRAPH}+=	flowctl
 SUBDIR.${MK_NETGRAPH}+=	ngctl
 SUBDIR.${MK_NETGRAPH}+=	nghook
 SUBDIR.${MK_NIS}+=	rpc.yppasswdd
-SUBDIR.${MK_NIS}+=	rpc.ypupdated
 SUBDIR.${MK_NIS}+=	rpc.ypxfrd
 SUBDIR.${MK_NIS}+=	ypbind
 SUBDIR.${MK_NIS}+=	ypldap

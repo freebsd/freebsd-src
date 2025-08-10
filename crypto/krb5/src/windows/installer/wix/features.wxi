@@ -56,21 +56,18 @@
                     <?include runtime_debug.wxi?>
 	        </Feature>
 	    <?endif?>
-      <?if $(sys.BUILDARCH)="x64"?>
-          <ComponentRef Id="cmf_comerr64_dll" />
-          <ComponentRef Id="cmf_gssapi64_dll" />
-          <ComponentRef Id="cmf_k5sprt64_dll" />
-          <ComponentRef Id="cmf_krb5_64_dll" />
-          <ComponentRef Id="cmf_krbcc64_dll" />
-          <ComponentRef Id="cmf_leashw64_dll" />
-          <ComponentRef Id="cmf_xpprof64_dll" />
-          <ComponentRef Id="cmf_spake64_dll" />
-       <?endif?>
-
-            <ComponentRef Id="cmf_comerr32_dll" />
+            <ComponentRef Id="cmf_comerr64_dll" />
+            <ComponentRef Id="cmf_gssapi64_dll" />
+            <ComponentRef Id="cmf_k5sprt64_dll" />
+            <ComponentRef Id="cmf_krb5_64_dll" />
+            <ComponentRef Id="cmf_krbcc64_dll" />
+            <ComponentRef Id="cmf_leashw64_dll" />
+            <ComponentRef Id="cmf_xpprof64_dll" />
+            <ComponentRef Id="cmf_openssl_crypto64_dll" />
+            <ComponentRef Id="cmf_spake64_dll" />
+            <ComponentRef Id="cmf_pkinit64_dll" />
             <ComponentRef Id="cmf_gss_client_exe" />
             <ComponentRef Id="cmf_gss_server_exe" />
-            <ComponentRef Id="cmf_gssapi32_dll" />
             <ComponentRef Id="cmf_kdestroy_exe" />
             <ComponentRef Id="cmf_kcpytkt_exe" />
             <ComponentRef Id="cmf_kdeltkt_exe" />
@@ -79,19 +76,10 @@
             <ComponentRef Id="cmf_kpasswd_exe" />
             <ComponentRef Id="cmf_kswitch_exe" />
             <ComponentRef Id="cmf_kvno_exe" />
-            <ComponentRef Id="cmf_krb5_32_dll" />
-            <ComponentRef Id="cmf_k5sprt32_dll" />
-            <ComponentRef Id="cmf_krbcc32_dll" />
             <ComponentRef Id="cmf_ccapiserver_exe" />
             <ComponentRef Id="cmf_ms2mit_exe" />
             <ComponentRef Id="cmf_mit2ms_exe" />
-            <ComponentRef Id="cmf_xpprof32_dll" />
-            <ComponentRef Id="cmf_spake32_dll" />
-
-            <ComponentRef Id="cmf_leashw32_dll" />
-
             <ComponentRef Id="cmf_leash_exe" />
-<!--            <ComponentRef Id="csc_leash32_exe" /> -->
 	    <ComponentRef Id="cmf_kfwlogon_DLL" />
             <ComponentRef Id="cmf_kfwcpcc_EXE" />
 
@@ -145,11 +133,7 @@
             Level="130" 
             Title="!(loc.KerberosSDKTitle)">
             
-        <?if $(sys.BUILDARCH) = "x86" ?>
-            <ComponentRef Id="cmp_dirlib_i386" />
-        <?else?>
             <ComponentRef Id="cmp_dirlib_amd64" />
-        <?endif?>
             <ComponentRef Id="cmp_dirinc_krb5_gssapi" />
             <ComponentRef Id="cmp_dirinc_krb5_krb5" />
             <ComponentRef Id="cmp_dirinc_krb5" />

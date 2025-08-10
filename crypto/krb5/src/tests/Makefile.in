@@ -1,7 +1,7 @@
 mydir=tests
 BUILDTOP=$(REL)..
 SUBDIRS = asn.1 create hammer verify gssapi shlib gss-threads misc threads \
-	softpkcs11
+	@fuzz_dir@
 
 RUN_DB_TEST = $(RUN_SETUP) KRB5_KDC_PROFILE=kdc.conf KRB5_CONFIG=krb5.conf \
 	GSS_MECH_CONFIG=mech.conf LC_ALL=C $(VALGRIND)
@@ -191,6 +191,8 @@ check-pytests: responder s2p s4u2proxy unlockiter s4u2self
 	$(RUNPYTEST) $(srcdir)/t_u2u.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kdcoptions.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_replay.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_sendto_kdc.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_alias.py $(PYTESTFLAGS)
 
 clean:
 	$(RM) adata conccache etinfo forward gcred hist hooks hrealm

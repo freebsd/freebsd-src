@@ -289,14 +289,16 @@ The following tags may be specified in a [realms] subsection:
 **kadmind_listen**
     (Whitespace- or comma-separated list.)  Specifies the kadmin RPC
     listening addresses and/or ports for the :ref:`kadmind(8)` daemon.
-    Each entry may be an interface address, a port number, or an
-    address and port number separated by a colon.  If the address
-    contains colons, enclose it in square brackets.  If no address is
-    specified, the wildcard address is used.  If kadmind fails to bind
-    to any of the specified addresses, it will fail to start.  The
-    default is to bind to the wildcard address at the port specified
-    in **kadmind_port**, or the standard kadmin port (749).  New in
-    release 1.15.
+    Each entry may be an interface address, a port number, an address
+    and port number separated by a colon, or a UNIX domain socket
+    pathname.  If the address contains colons, enclose it in square
+    brackets.  If no address is specified, the wildcard address is
+    used.  To disable listening for kadmin RPC connections, set this
+    relation to the empty string with ``kadmind_listen = ""``.  If
+    kadmind fails to bind to any of the specified addresses, it will
+    fail to start.  The default is to bind to the wildcard address at
+    the port specified in **kadmind_port**, or the standard kadmin
+    port (749).  New in release 1.15.
 
 **kadmind_port**
     (Port number.)  Specifies the port on which the :ref:`kadmind(8)`
@@ -310,16 +312,18 @@ The following tags may be specified in a [realms] subsection:
     ``/.k5.REALM``, where *REALM* is the Kerberos realm.
 
 **kdc_listen**
-    (Whitespace- or comma-separated list.)  Specifies the UDP
-    listening addresses and/or ports for the :ref:`krb5kdc(8)` daemon.
-    Each entry may be an interface address, a port number, or an
-    address and port number separated by a colon.  If the address
-    contains colons, enclose it in square brackets.  If no address is
-    specified, the wildcard address is used.  If no port is specified,
-    the standard port (88) is used.  If the KDC daemon fails to bind
-    to any of the specified addresses, it will fail to start.  The
-    default is to bind to the wildcard address on the standard port.
-    New in release 1.15.
+    (Whitespace- or comma-separated list.)  Specifies the listening
+    addresses and/or ports for the :ref:`krb5kdc(8)` daemon.  Each
+    entry may be an interface address, a port number, an address and
+    port number separated by a colon, or a UNIX domain socket
+    pathname.  If the address contains colons, enclose it in square
+    brackets.  If no address is specified, the wildcard address is
+    used.  If no port is specified, the standard port (88) is used.
+    To disable listening on UDP, set this relation to the empty string
+    with ``kdc_listen = ""``.  If the KDC daemon fails to bind to any
+    of the specified addresses, it will fail to start.  The default is
+    to bind to the wildcard address on the standard port.  New in
+    release 1.15.
 
 **kdc_ports**
     (Whitespace- or comma-separated list, deprecated.)  Prior to
@@ -331,15 +335,10 @@ The following tags may be specified in a [realms] subsection:
 **kdc_tcp_listen**
     (Whitespace- or comma-separated list.)  Specifies the TCP
     listening addresses and/or ports for the :ref:`krb5kdc(8)` daemon.
-    Each entry may be an interface address, a port number, or an
-    address and port number separated by a colon.  If the address
-    contains colons, enclose it in square brackets.  If no address is
-    specified, the wildcard address is used.  If no port is specified,
-    the standard port (88) is used.  To disable listening on TCP, set
-    this relation to the empty string with ``kdc_tcp_listen = ""``.
-    If the KDC daemon fails to bind to any of the specified addresses,
-    it will fail to start.  The default is to bind to the wildcard
-    address on the standard port.  New in release 1.15.
+    The syntax is identical to that of **kdc_listen**.  To disable
+    listening on TCP, set this relation to the empty string with
+    ``kdc_tcp_listen = ""``.  The default is to bind to the same
+    addresses and ports as for UDP.  New in release 1.15.
 
 **kdc_tcp_ports**
     (Whitespace- or comma-separated list, deprecated.)  Prior to
@@ -349,15 +348,18 @@ The following tags may be specified in a [realms] subsection:
     **kdc_tcp_listen** if that relation is not defined.
 
 **kpasswd_listen**
-    (Comma-separated list.)  Specifies the kpasswd listening addresses
-    and/or ports for the :ref:`kadmind(8)` daemon.  Each entry may be
-    an interface address, a port number, or an address and port number
-    separated by a colon.  If the address contains colons, enclose it
-    in square brackets.  If no address is specified, the wildcard
-    address is used.  If kadmind fails to bind to any of the specified
-    addresses, it will fail to start.  The default is to bind to the
-    wildcard address at the port specified in **kpasswd_port**, or the
-    standard kpasswd port (464).  New in release 1.15.
+    (Comma-separated list.)  Specifies the kpasswd listening
+    addresses and/or ports for the :ref:`kadmind(8)` daemon.  Each
+    entry may be an interface address, a port number, an address and
+    port number separated by a colon, or a UNIX domain socket
+    pathname.  If the address contains colons, enclose it in square
+    brackets.  If no address is specified, the wildcard address is
+    used.  To disable listening for kpasswd requests, set this
+    relation to the empty string with ``kpasswd_listen = ""``.  If
+    kadmind fails to bind to any of the specified addresses, it will
+    fail to start.  The default is to bind to the wildcard address at
+    the port specified in **kpasswd_port**, or the standard kpasswd
+    port (464).  New in release 1.15.
 
 **kpasswd_port**
     (Port number.)  Specifies the port on which the :ref:`kadmind(8)`
@@ -768,8 +770,11 @@ For information about the syntax of some of these options, see
     be specified multiple times.
 
 **pkinit_dh_min_bits**
-    Specifies the minimum number of bits the KDC is willing to accept
-    for a client's Diffie-Hellman key.  The default is 2048.
+    Specifies the minimum strength of Diffie-Hellman group the KDC is
+    willing to accept for key exchange.  Valid values in order of
+    increasing strength are 1024, 2048, P-256, 4096, P-384, and P-521.
+    The default is 2048.  (P-256, P-384, and P-521 are new in release
+    1.22.)
 
 **pkinit_allow_upn**
     Specifies that the KDC is willing to accept client certificates

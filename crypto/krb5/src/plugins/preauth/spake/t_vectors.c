@@ -464,7 +464,7 @@ run_test(const struct test *t)
 }
 
 int
-main()
+main(void)
 {
     size_t i;
 

@@ -10,14 +10,11 @@
 .include "../Makefile.inc"
 
 .PATH:	${KRB5_DIR}/lib/gssapi/krb5 \
-	${KRB5_DIR}/lib/gssapi/generic \
-	${KRB5_DIR}/include
+	${KRB5_DIR}/lib/gssapi/generic
 
-INCSGROUPS=	INCS GSSAPI_KRB5
 INCSDIR=	${INCLUDEDIR}/gssapi
 
-INCS=	gssapi.h \
-	gssapi_alloc.h \
+INCS=	gssapi_alloc.h \
 	gssapi_ext.h \
 	gssapi_generic.h \
 	gssapi_krb5.h

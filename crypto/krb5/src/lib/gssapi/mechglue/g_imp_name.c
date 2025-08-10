@@ -81,16 +81,8 @@ val_imp_name_args(
 static gss_buffer_desc emptyNameBuffer;
 
 OM_uint32 KRB5_CALLCONV
-gss_import_name(minor_status,
-                input_name_buffer,
-                input_name_type,
-                output_name)
-
-OM_uint32 *		minor_status;
-gss_buffer_t		input_name_buffer;
-gss_OID			input_name_type;
-gss_name_t *		output_name;
-
+gss_import_name(OM_uint32 * minor_status, gss_buffer_t input_name_buffer,
+		gss_OID input_name_type, gss_name_t * output_name)
 {
     gss_union_name_t	union_name;
     OM_uint32		tmp, major_status = GSS_S_FAILURE;
@@ -183,10 +175,8 @@ allocation_failure:
 }
 
 static OM_uint32
-importExportName(minor, unionName, inputNameType)
-    OM_uint32 *minor;
-    gss_union_name_t unionName;
-    gss_OID inputNameType;
+importExportName(OM_uint32 *minor, gss_union_name_t unionName,
+		 gss_OID inputNameType)
 {
     gss_OID_desc mechOid;
     gss_buffer_desc expName;

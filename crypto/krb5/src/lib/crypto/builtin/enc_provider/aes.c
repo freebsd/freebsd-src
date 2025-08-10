@@ -69,7 +69,7 @@ void k5_iEnc256_CBC(struct aes_data *data);
 void k5_iDec256_CBC(struct aes_data *data);
 
 static krb5_boolean
-aesni_supported_by_cpu()
+aesni_supported_by_cpu(void)
 {
     unsigned int a, b, c, d;
 

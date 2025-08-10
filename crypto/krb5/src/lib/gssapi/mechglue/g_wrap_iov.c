@@ -60,20 +60,9 @@ val_wrap_iov_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_wrap_iov (minor_status,
-              context_handle,
-              conf_req_flag,
-              qop_req,
-              conf_state,
-              iov,
-              iov_count)
-OM_uint32 *		minor_status;
-gss_ctx_id_t		context_handle;
-int			conf_req_flag;
-gss_qop_t		qop_req;
-int *			conf_state;
-gss_iov_buffer_desc  *	iov;
-int			iov_count;
+gss_wrap_iov(OM_uint32 * minor_status, gss_ctx_id_t context_handle,
+	     int conf_req_flag, gss_qop_t qop_req, int *conf_state,
+	     gss_iov_buffer_desc *iov, int iov_count)
 {
  /* EXPORT DELETE START */
 
@@ -120,20 +109,10 @@ int			iov_count;
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_wrap_iov_length (minor_status,
-                     context_handle,
-                     conf_req_flag,
-                     qop_req,
-                     conf_state,
-                     iov,
-                     iov_count)
-OM_uint32 *		minor_status;
-gss_ctx_id_t		context_handle;
-int			conf_req_flag;
-gss_qop_t		qop_req;
-int *			conf_state;
-gss_iov_buffer_desc  *	iov;
-int			iov_count;
+gss_wrap_iov_length(OM_uint32 *minor_status, gss_ctx_id_t context_handle,
+		    int conf_req_flag, gss_qop_t qop_req,
+		    int *conf_state, gss_iov_buffer_desc *iov,
+		    int iov_count)
 {
  /* EXPORT DELETE START */
 
@@ -239,12 +218,8 @@ gss_get_mic_iov_length(OM_uint32 *minor_status, gss_ctx_id_t context_handle,
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_release_iov_buffer (minor_status,
-			iov,
-			iov_count)
-OM_uint32 *		minor_status;
-gss_iov_buffer_desc *	iov;
-int			iov_count;
+gss_release_iov_buffer(OM_uint32 * minor_status, gss_iov_buffer_desc *iov,
+		       int iov_count)
 {
     OM_uint32		status = GSS_S_COMPLETE;
     int			i;

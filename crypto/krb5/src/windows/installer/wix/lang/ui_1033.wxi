@@ -360,7 +360,7 @@
         </Control>
         <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="374" Height="44" TabSkip="no" Text="[BannerBitmap]" />
         <Control Id="Text" Type="Text" X="20" Y="55" Width="330" Height="30">
-          <Text>The following applications are using files that need to be updated by this setup. Close these applications and then click Retry to continue the installation or Cancel to exit it.</Text>
+          <Text>Some updated files are in use by the following applications.  Click Ignore to continue installation, then reboot the system to replace the affected files.</Text>
         </Control>
         <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="374" Height="0" />
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="374" Height="0" />

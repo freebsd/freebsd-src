@@ -27,15 +27,8 @@
 <Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
     
     <?define VersionString="$(var.VersionMajor).$(var.VersionMinor).$(var.VersionPatch)"?>
-    <?if $(sys.BUILDARCH) = "x64" ?>
-        <?define BaseProductName="!(loc.ProductName64)"?>
-        <?define BaseProductNameShort="!(loc.ProductNameShort64)"?>
-    <?elseif $(sys.BUILDARCH) = "x86" ?>
-        <?define BaseProductName="!(loc.ProductName)"?>
-        <?define BaseProductNameShort="!(loc.ProductNameShort)"?>
-    <?else?>
-        <?error Unknown build type?>
-    <?endif?>
+    <?define BaseProductName="!(loc.ProductName)"?>
+    <?define BaseProductNameShort="!(loc.ProductNameShort)"?>
     
     <?ifdef var.Beta?> 
         <?ifndef var.Debug?>

@@ -81,9 +81,6 @@
 
 #include <dev/iommu/iommu.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-#include <dev/acpica/acpivar.h>
-
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -2900,7 +2897,8 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 
 	if (bootverbose)
 		pci_printf(cfg, "Transition from %s to %s\n",
-		    acpi_d_state_to_str(oldstate), acpi_d_state_to_str(state));
+		    pci_powerstate_to_str(oldstate),
+		    pci_powerstate_to_str(state));
 
 	PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_location + PCIR_POWER_STATUS,
 	    status, 2);

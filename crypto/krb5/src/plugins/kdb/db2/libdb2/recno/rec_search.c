@@ -61,10 +61,7 @@ static char sccsid[] = "@(#)rec_search.c	8.4 (Berkeley) 7/14/94";
  *	the bt_cur field of the tree.  A pointer to the field is returned.
  */
 EPG *
-__rec_search(t, recno, op)
-	BTREE *t;
-	recno_t recno;
-	enum SRCHOP op;
+__rec_search(BTREE *t, recno_t recno, enum SRCHOP op)
 {
 	indx_t idx;
 	PAGE *h;

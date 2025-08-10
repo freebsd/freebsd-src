@@ -40,4 +40,22 @@ realm.run(['./t_bindings', '-s', server, '-', 'a'], env=e,
 realm.run(['./t_bindings', '-s', server, 'a', 'x'], env=e,
           expected_code=1, expected_msg='Incorrect channel bindings')
 
+mark('krb5 GSS_C_CHANNEL_BOUND_FLAG initiator input flag')
+realm.run(['./t_bindings', '-b', server, '-', '-'], expected_msg='no')
+realm.run(['./t_bindings', '-b', server, 'a', '-'], expected_msg='no')
+realm.run(['./t_bindings', '-b', server, 'a', 'a'], expected_msg='yes')
+realm.run(['./t_bindings', '-b', server, '-', 'a'],
+          expected_code=1, expected_msg='Incorrect channel bindings')
+realm.run(['./t_bindings', '-b', server, 'a', 'x'],
+          expected_code=1, expected_msg='Incorrect channel bindings')
+
+mark('SPNEGO GSS_C_CHANNEL_BOUND_FLAG initiator input flag')
+realm.run(['./t_bindings', '-s', '-b', server, '-', '-'], expected_msg='no')
+realm.run(['./t_bindings', '-s', '-b', server, 'a', '-'], expected_msg='no')
+realm.run(['./t_bindings', '-s', '-b', server, 'a', 'a'], expected_msg='yes')
+realm.run(['./t_bindings', '-s', '-b', server, '-', 'a'],
+          expected_code=1, expected_msg='Incorrect channel bindings')
+realm.run(['./t_bindings', '-s', '-b', server, 'a', 'x'],
+          expected_code=1, expected_msg='Incorrect channel bindings')
+
 success('channel bindings tests')

@@ -77,7 +77,7 @@ static void printk(const char *descr, krb5_keyblock *k) {
     printd(descr, &d);
 }
 
-static void test_cts()
+static void test_cts(void)
 {
     static const char input[4*16] =
         "I would like the General Gau's Chicken, please, and wonton soup.";

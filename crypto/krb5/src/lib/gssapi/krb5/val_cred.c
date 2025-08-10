@@ -35,6 +35,7 @@ krb5_gss_validate_cred_1(OM_uint32 *minor_status, gss_cred_id_t cred_handle,
     krb5_gss_cred_id_t cred;
     krb5_error_code code;
     krb5_principal princ;
+    krb5_boolean same;
 
     cred = (krb5_gss_cred_id_t) cred_handle;
     k5_mutex_lock(&cred->lock);
@@ -45,21 +46,20 @@ krb5_gss_validate_cred_1(OM_uint32 *minor_status, gss_cred_id_t cred_handle,
             *minor_status = code;
             return(GSS_S_DEFECTIVE_CREDENTIAL);
         }
-        if (!krb5_principal_compare(context, princ, cred->name->princ)) {
+        same = krb5_principal_compare(context, princ, cred->name->princ);
+        (void)krb5_free_principal(context, princ);
+        if (!same) {
             k5_mutex_unlock(&cred->lock);
             *minor_status = KG_CCACHE_NOMATCH;
             return(GSS_S_DEFECTIVE_CREDENTIAL);
         }
-        (void)krb5_free_principal(context, princ);
     }
     *minor_status = 0;
     return GSS_S_COMPLETE;
 }
 
 OM_uint32
-krb5_gss_validate_cred(minor_status, cred_handle)
-    OM_uint32 *minor_status;
-    gss_cred_id_t cred_handle;
+krb5_gss_validate_cred(OM_uint32 *minor_status, gss_cred_id_t cred_handle)
 {
     krb5_context context;
     krb5_error_code code;

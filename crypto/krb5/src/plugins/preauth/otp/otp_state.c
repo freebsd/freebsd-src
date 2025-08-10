@@ -591,13 +591,11 @@ otp_state_new(krb5_context ctx, otp_state **out)
         goto error;
 
     hndata = make_data(hostname, strlen(hostname));
-    retval = krad_attrset_add(self->attrs,
-                              krad_attr_name2num("NAS-Identifier"), &hndata);
+    retval = krad_attrset_add(self->attrs, KRAD_ATTR_NAS_IDENTIFIER, &hndata);
     if (retval != 0)
         goto error;
 
-    retval = krad_attrset_add_number(self->attrs,
-                                     krad_attr_name2num("Service-Type"),
+    retval = krad_attrset_add_number(self->attrs, KRAD_ATTR_SERVICE_TYPE,
                                      KRAD_SERVICE_TYPE_AUTHENTICATE_ONLY);
     if (retval != 0)
         goto error;
@@ -637,8 +635,7 @@ callback(krb5_error_code retval, const krad_packet *rqst,
         goto error;
 
     /* If we received an accept packet, success! */
-    if (krad_packet_get_code(resp) ==
-        krad_code_name2num("Access-Accept")) {
+    if (krad_packet_get_code(resp) == KRAD_CODE_ACCESS_ACCEPT) {
         indicators = tok->indicators;
         if (indicators == NULL)
             indicators = tok->type->indicators;
@@ -667,16 +664,14 @@ request_send(request *req)
     token *tok = &req->tokens[req->index];
     const token_type *t = tok->type;
 
-    retval = krad_attrset_add(req->attrs, krad_attr_name2num("User-Name"),
-                              &tok->username);
+    retval = krad_attrset_add(req->attrs, KRAD_ATTR_USER_NAME, &tok->username);
     if (retval != 0)
         goto error;
 
-    retval = krad_client_send(req->state->radius,
-                              krad_code_name2num("Access-Request"), req->attrs,
-                              t->server, t->secret, t->timeout, t->retries,
-                              callback, req);
-    krad_attrset_del(req->attrs, krad_attr_name2num("User-Name"), 0);
+    retval = krad_client_send(req->state->radius, KRAD_CODE_ACCESS_REQUEST,
+                              req->attrs, t->server, t->secret, t->timeout,
+                              t->retries, callback, req);
+    krad_attrset_del(req->attrs, KRAD_ATTR_USER_NAME, 0);
     if (retval != 0)
         goto error;
 
@@ -715,7 +710,7 @@ otp_state_verify(otp_state *state, verto_ctx *ctx, krb5_const_principal princ,
     if (retval != 0)
         goto error;
 
-    retval = krad_attrset_add(rqst->attrs, krad_attr_name2num("User-Password"),
+    retval = krad_attrset_add(rqst->attrs, KRAD_ATTR_USER_PASSWORD,
                               &req->otp_value);
     if (retval != 0)
         goto error;

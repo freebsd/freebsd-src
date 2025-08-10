@@ -189,6 +189,7 @@ initialize_server(krb5_ldap_context *ldap_context, krb5_ldap_server_info *info)
     if (ret) {
         info->server_status = OFF;
         time(&info->downtime);
+        ldap_unbind_ext_s(server->ldap_handle, NULL, NULL);
         free(server);
         return ret;
     }
@@ -314,13 +315,13 @@ krb5_ldap_rebind(krb5_ldap_context *ldap_context,
  *     DAL API functions
  */
 krb5_error_code
-krb5_ldap_lib_init()
+krb5_ldap_lib_init(void)
 {
     return 0;
 }
 
 krb5_error_code
-krb5_ldap_lib_cleanup()
+krb5_ldap_lib_cleanup(void)
 {
     /* right now, no cleanup required */
     return 0;

@@ -169,9 +169,7 @@ gssint_mechglue_initialize_library(void)
  * This routine requires direct access to the mechList.
  */
 OM_uint32 KRB5_CALLCONV
-gss_release_oid(minor_status, oid)
-OM_uint32 *minor_status;
-gss_OID *oid;
+gss_release_oid(OM_uint32 *minor_status, gss_OID *oid)
 {
 	OM_uint32 major;
 	gss_mech_info aMech;
@@ -267,9 +265,7 @@ prune_deprecated(gss_OID_set mech_set)
  * a mech oid set, and only update it once the file has changed.
  */
 OM_uint32 KRB5_CALLCONV
-gss_indicate_mechs(minorStatus, mechSet_out)
-OM_uint32 *minorStatus;
-gss_OID_set *mechSet_out;
+gss_indicate_mechs(OM_uint32 *minorStatus, gss_OID_set *mechSet_out)
 {
 	OM_uint32 status;
 
@@ -417,8 +413,7 @@ build_mechSet(void)
  * caller is responsible for freeing the memory
  */
 char *
-gssint_get_modOptions(oid)
-const gss_OID oid;
+gssint_get_modOptions(const gss_OID oid)
 {
 	gss_mech_info aMech;
 	char *modOptions = NULL;
@@ -479,7 +474,7 @@ load_if_changed(const char *pathname, time_t last, time_t *highest)
 /* Try to load any config files which have changed since the last call.  Config
  * files are MECH_CONF and any files matching MECH_CONF_PATTERN. */
 static void
-loadConfigFiles()
+loadConfigFiles(void)
 {
 	glob_t globbuf;
 	time_t highest = (time_t)-1, now;
@@ -679,7 +674,8 @@ gssint_register_mechinfo(gss_mech_info template)
 		memset(&errinfo, 0, sizeof(errinfo)); \
 		if (krb5int_get_plugin_func(_dl, \
 					    #_symbol, \
-					    (void (**)())&(_mech)->_symbol, \
+					    (void (**)(void)) \
+					    &(_mech)->_symbol, \
 					    &errinfo) || errinfo.code) {  \
 			(_mech)->_symbol = NULL; \
 			k5_clear_error(&errinfo); \
@@ -801,7 +797,7 @@ build_dynamicMech(void *dl, const gss_OID mech_type)
 		memset(&errinfo, 0, sizeof(errinfo));			\
 		if (krb5int_get_plugin_func(_dl,			\
 					    "gssi" #_nsym,		\
-					    (void (**)())&(_mech)->_psym \
+					    (void (**)(void))&(_mech)->_psym \
 					    ## _nsym,			\
 					    &errinfo) || errinfo.code) { \
 			(_mech)->_psym ## _nsym = NULL;			\
@@ -948,7 +944,7 @@ loadInterMech(gss_mech_info minfo)
 	}
 
 	if (krb5int_get_plugin_func(dl, MECH_INTERPOSER_SYM,
-				    (void (**)())&isym, &errinfo) != 0)
+				    (void (**)(void))&isym, &errinfo) != 0)
 		goto cleanup;
 
 	/* Get a list of mechs to interpose. */
@@ -1184,7 +1180,7 @@ gssint_get_mechanism(gss_const_OID oid)
 		return ((gss_mechanism)NULL);
 	}
 
-	if (krb5int_get_plugin_func(dl, MECH_SYM, (void (**)())&sym,
+	if (krb5int_get_plugin_func(dl, MECH_SYM, (void (**)(void))&sym,
 				    &errinfo) == 0) {
 		/* Call the symbol to get the mechanism table */
 		aMech->mech = (*sym)(aMech->mech_type);

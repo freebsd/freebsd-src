@@ -69,6 +69,7 @@ struct tdtype {
     tdump_policy_fn *policy_fn;
 };
 
+static tdump_princ_fn alias;
 static tdump_princ_fn keydata;
 static tdump_princ_fn keyinfo;
 static tdump_princ_fn princ_flags;
@@ -98,9 +99,13 @@ static char * const princ_stringattrs_fields[] = {
 static char * const princ_tktpolicy_fields[] = {
     "name", "expiration", "pw_expiration", "max_life", "max_renew_life", NULL
 };
+static char * const alias_fields[] = {
+    "aliasname", "targetname", NULL
+};
 
 /* Lookup table for tabdump record types */
 static struct tdtype tdtypes[] = {
+    {"alias", alias_fields, alias, NULL},
     {"keydata", keydata_fields, keydata, NULL},
     {"keyinfo", keyinfo_fields, keyinfo, NULL},
     {"princ_flags", princ_flags_fields, princ_flags, NULL},
@@ -249,6 +254,39 @@ write_data(struct rec_args *args, krb5_data *data)
 
     ret = writefield(h, "%s", hex);
     free(hex);
+    return ret;
+}
+
+static krb5_error_code
+alias(struct rec_args *args, const char *name, krb5_db_entry *dbe)
+{
+    krb5_error_code ret;
+    struct rechandle *h = args->rh;
+    krb5_principal target = NULL;
+    char *tname = NULL;
+
+    ret = krb5_dbe_read_alias(util_context, dbe, &target);
+    if (ret)
+        return ret;
+    if (target == NULL)
+        return 0;
+
+    ret = krb5_unparse_name(util_context, target, &tname);
+    if (ret)
+        goto cleanup;
+
+    if (startrec(h) < 0)
+        ret = errno;
+    if (!ret && writefield(h, "%s", name) < 0)
+        ret = errno;
+    if (!ret && writefield(h, "%s", tname) < 0)
+        ret = errno;
+    if (!ret && endrec(h) < 0)
+        ret = errno;
+
+cleanup:
+    krb5_free_principal(util_context, target);
+    krb5_free_unparsed_name(util_context, tname);
     return ret;
 }
 

@@ -51,6 +51,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250810: Removal of remaining Secure RPC (DES) bits
+OLD_FILES+=usr/sbin/rpc.ypupdated
+OLD_FILES+=etc/rc.d/ypupdated
+
+# 20250808: nvmfd removed from base install
+OLD_FILES+=usr/sbin/nvmfd
+OLD_FILES+=usr/share/man/man8/nvmfd.8.gz
+
 # 20250807: Replace lib/libgssapi with krb5/lib/gssapi
 OLD_FILES+=usr/include/gssapi_krb5/gssapi.h
 OLD_DIRS+=usr/include/gssapi_krb5/gssapi
@@ -147,6 +155,15 @@ OLD_FILES+=usr/share/flua/yaml.lua
 
 # 20250615: don't install man page for absent function
 OLD_FILES+=usr/share/man/man9/vm_map_simplify_entry.9.gz
+
+# 20250615: OpenSSL 3.5.0
+OLD_LIBS+=lib/libcrypto.so.30
+OLD_FILES+=usr/include/openssl/asn1_mac.h
+OLD_LIBS+=usr/lib/libssl.so.30
+OLD_FILES+=usr/share/man/man3/TS_VERIFY_CTX_set_certs.3
+OLD_FILES+=usr/share/man/man7/crypto.7
+OLD_FILES+=usr/share/man/man7/migration_guide.7
+OLD_FILES+=usr/share/man/man7/ssl.7
 
 # 20250521: don't install zoneinfo version
 OLD_FILES+=usr/share/zoneinfo/version

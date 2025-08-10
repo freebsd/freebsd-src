@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Application servers &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="application-servers">
-<h1>Application servers<a class="headerlink" href="#application-servers" title="Permalink to this headline">¶</a></h1>
+<h1>Application servers<a class="headerlink" href="#application-servers" title="Link to this heading">¶</a></h1>
 <p>If you need to install the Kerberos V5 programs on an application
 server, please refer to the Kerberos V5 Installation Guide.  Once you
 have installed the software, you need to add that host to the Kerberos
@@ -61,7 +59,7 @@ database (see <a class="reference internal" href="database.html#principals"><spa
 that contains the host’s key.  You also need to make sure the host’s
 clock is within your maximum clock skew of the KDCs.</p>
 <section id="keytabs">
-<h2>Keytabs<a class="headerlink" href="#keytabs" title="Permalink to this headline">¶</a></h2>
+<h2>Keytabs<a class="headerlink" href="#keytabs" title="Link to this heading">¶</a></h2>
 <p>A keytab is a host’s copy of its own keylist, which is analogous to a
 user’s password.  An application server that needs to authenticate
 itself to the KDC has to have a keytab that contains its own principal
@@ -73,7 +71,7 @@ network in the clear.  Ideally, you should run the <a class="reference internal"
 command to extract a keytab on the host on which the keytab is to
 reside.</p>
 <section id="adding-principals-to-keytabs">
-<span id="add-princ-kt"></span><h3>Adding principals to keytabs<a class="headerlink" href="#adding-principals-to-keytabs" title="Permalink to this headline">¶</a></h3>
+<span id="add-princ-kt"></span><h3>Adding principals to keytabs<a class="headerlink" href="#adding-principals-to-keytabs" title="Link to this heading">¶</a></h3>
 <p>To generate a keytab, or to add a principal to an existing keytab, use
 the <strong>ktadd</strong> command from kadmin.  Here is a sample session, using
 configuration files that enable only AES encryption:</p>
@@ -84,7 +82,7 @@ configuration files that enable only AES encryption:</p>
 </div>
 </section>
 <section id="removing-principals-from-keytabs">
-<h3>Removing principals from keytabs<a class="headerlink" href="#removing-principals-from-keytabs" title="Permalink to this headline">¶</a></h3>
+<h3>Removing principals from keytabs<a class="headerlink" href="#removing-principals-from-keytabs" title="Link to this heading">¶</a></h3>
 <p>To remove a principal from an existing keytab, use the kadmin
 <strong>ktremove</strong> command:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span>  <span class="n">ktremove</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
@@ -94,7 +92,7 @@ configuration files that enable only AES encryption:</p>
 </div>
 </section>
 <section id="using-a-keytab-to-acquire-client-credentials">
-<h3>Using a keytab to acquire client credentials<a class="headerlink" href="#using-a-keytab-to-acquire-client-credentials" title="Permalink to this headline">¶</a></h3>
+<h3>Using a keytab to acquire client credentials<a class="headerlink" href="#using-a-keytab-to-acquire-client-credentials" title="Link to this heading">¶</a></h3>
 <p>While keytabs are ordinarily used to accept credentials from clients,
 they can also be used to acquire initial credentials, allowing one
 service to authenticate to another.</p>
@@ -126,7 +124,7 @@ specified credential cache, and refresh them before they expire.</p></li>
 </section>
 </section>
 <section id="clock-skew">
-<h2>Clock Skew<a class="headerlink" href="#clock-skew" title="Permalink to this headline">¶</a></h2>
+<h2>Clock Skew<a class="headerlink" href="#clock-skew" title="Link to this heading">¶</a></h2>
 <p>A Kerberos application server host must keep its clock synchronized or
 it will reject authentication requests from clients.  Modern operating
 systems typically provide a facility to maintain the correct time;
@@ -137,7 +135,7 @@ clocks.</p>
 variable in <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</p>
 </section>
 <section id="getting-dns-information-correct">
-<h2>Getting DNS information correct<a class="headerlink" href="#getting-dns-information-correct" title="Permalink to this headline">¶</a></h2>
+<h2>Getting DNS information correct<a class="headerlink" href="#getting-dns-information-correct" title="Link to this heading">¶</a></h2>
 <p>Several aspects of Kerberos rely on name service.  When a hostname is
 used to name a service, clients may canonicalize the hostname using
 forward and possibly reverse name resolution.  The result of this
@@ -172,7 +170,7 @@ file), and then <a class="reference internal" href="../user/user_commands/klist.
 principal of <code class="docutils literal notranslate"><span class="pre">host/daffodil.mit.edu&#64;ATHENA.MIT.EDU</span></code>.</p>
 </section>
 <section id="configuring-your-firewall-to-work-with-kerberos-v5">
-<span id="conf-firewall"></span><h2>Configuring your firewall to work with Kerberos V5<a class="headerlink" href="#configuring-your-firewall-to-work-with-kerberos-v5" title="Permalink to this headline">¶</a></h2>
+<span id="conf-firewall"></span><h2>Configuring your firewall to work with Kerberos V5<a class="headerlink" href="#configuring-your-firewall-to-work-with-kerberos-v5" title="Link to this heading">¶</a></h2>
 <p>If you need off-site users to be able to get Kerberos tickets in your
 realm, they must be able to get to your KDC.  This requires either
 that you have a replica KDC outside your firewall, or that you
@@ -282,8 +280,8 @@ point for learning to configure firewalls.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

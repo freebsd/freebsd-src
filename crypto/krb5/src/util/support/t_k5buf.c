@@ -54,7 +54,7 @@ check_buf(struct k5buf *buf, const char *name)
 }
 
 static void
-test_basic()
+test_basic(void)
 {
     struct k5buf buf;
     char storage[1024];
@@ -76,7 +76,7 @@ test_basic()
 }
 
 static void
-test_realloc()
+test_realloc(void)
 {
     struct k5buf buf;
     char data[1024];
@@ -132,7 +132,7 @@ test_realloc()
 }
 
 static void
-test_overflow()
+test_overflow(void)
 {
     struct k5buf buf;
     char storage[10];
@@ -153,7 +153,7 @@ test_overflow()
 }
 
 static void
-test_error()
+test_error(void)
 {
     struct k5buf buf;
     char storage[1];
@@ -173,7 +173,7 @@ test_error()
 }
 
 static void
-test_truncate()
+test_truncate(void)
 {
     struct k5buf buf;
 
@@ -188,7 +188,7 @@ test_truncate()
 }
 
 static void
-test_binary()
+test_binary(void)
 {
     struct k5buf buf;
     char data[] = { 'a', 0, 'b' }, *s;
@@ -205,7 +205,7 @@ test_binary()
 }
 
 static void
-test_fmt()
+test_fmt(void)
 {
     struct k5buf buf;
     char storage[10], data[1024];
@@ -246,7 +246,7 @@ test_fmt()
 }
 
 int
-main()
+main(void)
 {
     test_basic();
     test_realloc();

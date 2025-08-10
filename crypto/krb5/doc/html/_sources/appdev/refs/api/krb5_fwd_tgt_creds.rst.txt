@@ -49,7 +49,7 @@ krb5_fwd_tgt_creds -  Get a forwarded TGT and format a KRB-CRED message.
 
 
 
-Get a TGT for use at the remote host *rhost* and format it into a KRB-CRED message. If *rhost* is NULL and *server* is of type #KRB5_NT_SRV_HST, the second component of *server* will be used.
+Get a TGT for use at the remote host *rhost* and format it into a KRB-CRED message. If *rhost* is NULL and *server* is of type KRB5_NT_SRV_HST, the second component of *server* will be used.
 
 
 

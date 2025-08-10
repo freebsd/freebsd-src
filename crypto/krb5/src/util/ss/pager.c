@@ -10,13 +10,13 @@
 #include "copyright.h"
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/file.h>
 #include <signal.h>
 
 static char MORE[] = "more";
 extern char *_ss_pager_name;
-extern char *getenv();
 
 /*
  * this needs a *lot* of work....
@@ -25,10 +25,10 @@ extern char *getenv();
  * handle SIGINT sensibly
  * allow finer control -- put-page-break-here
  */
-void ss_page_stdin();
+void ss_page_stdin(void);
 
 #ifndef NO_FORK
-int ss_pager_create()
+int ss_pager_create(void)
 {
     int filedes[2];
 
@@ -56,7 +56,7 @@ int ss_pager_create()
     }
 }
 #else /* don't fork */
-int ss_pager_create()
+int ss_pager_create(void)
 {
     int fd;
     fd = open("/dev/tty", O_WRONLY, 0);
@@ -66,7 +66,7 @@ int ss_pager_create()
 }
 #endif
 
-void ss_page_stdin()
+void ss_page_stdin(void)
 {
     int i;
 #ifdef POSIX_SIGNALS

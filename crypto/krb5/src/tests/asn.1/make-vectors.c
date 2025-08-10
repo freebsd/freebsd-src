@@ -224,7 +224,7 @@ printbuf(void)
 }
 
 int
-main()
+main(void)
 {
     /* Initialize values which can't use static initializers. */
     asn_long2INTEGER(&otp_format, 2);  /* Alphanumeric */

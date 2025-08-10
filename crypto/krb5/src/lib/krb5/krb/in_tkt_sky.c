@@ -75,7 +75,6 @@ krb5_get_in_tkt_with_skey(krb5_context context, krb5_flags options,
     krb5_error_code retval;
     char *server;
     krb5_principal server_princ, client_princ;
-    int use_primary = 0;
     krb5_get_init_creds_opt *opts = NULL;
 
     retval = k5_populate_gic_opt(context, &opts, options, addrs, ktypes,
@@ -105,8 +104,7 @@ krb5_get_in_tkt_with_skey(krb5_context context, krb5_flags options,
     client_princ = creds->client;
     retval = k5_get_init_creds(context, creds, creds->client,
                                krb5_prompter_posix, NULL, 0, server, opts,
-                               get_as_key_skey, (void *)key, &use_primary,
-                               ret_as_reply);
+                               get_as_key_skey, (void *)key, ret_as_reply);
     krb5_free_unparsed_name(context, server);
     if (retval)
         goto cleanup;

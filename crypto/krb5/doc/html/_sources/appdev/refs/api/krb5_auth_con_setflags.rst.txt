@@ -34,16 +34,16 @@ krb5_auth_con_setflags -  Set a flags field in a krb5_auth_context structure.
 
 Valid values for *flags* are: 
  
-	 - #KRB5_AUTH_CONTEXT_DO_TIME Use timestamps
+	 - KRB5_AUTH_CONTEXT_DO_TIME Use timestamps
  
  
-	 - #KRB5_AUTH_CONTEXT_RET_TIME Save timestamps
+	 - KRB5_AUTH_CONTEXT_RET_TIME Save timestamps
  
  
-	 - #KRB5_AUTH_CONTEXT_DO_SEQUENCE Use sequence numbers
+	 - KRB5_AUTH_CONTEXT_DO_SEQUENCE Use sequence numbers
  
  
-	 - #KRB5_AUTH_CONTEXT_RET_SEQUENCE Save sequence numbers
+	 - KRB5_AUTH_CONTEXT_RET_SEQUENCE Save sequence numbers
  
  
 

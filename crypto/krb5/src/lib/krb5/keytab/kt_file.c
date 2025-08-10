@@ -456,15 +456,16 @@ krb5_ktfile_start_seq_get(krb5_context context, krb5_keytab id, krb5_kt_cursor *
         return ENOMEM;
     }
     *fileoff = KTSTARTOFF(id);
-    *cursorp = (krb5_kt_cursor)fileoff;
     KTITERS(id)++;
     if (KTITERS(id) == 0) {
         /* Wrapped?!  */
         KTITERS(id)--;
         KTUNLOCK(id);
+        free(fileoff);
         k5_setmsg(context, KRB5_KT_IOERR, "Too many keytab iterators active");
         return KRB5_KT_IOERR;   /* XXX */
     }
+    *cursorp = (krb5_kt_cursor)fileoff;
     KTUNLOCK(id);
 
     return 0;

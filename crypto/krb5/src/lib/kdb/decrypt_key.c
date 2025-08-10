@@ -60,7 +60,7 @@ krb5_dbe_def_decrypt_key_data(krb5_context context, const krb5_keyblock *mkey,
                               krb5_keyblock *dbkey_out,
                               krb5_keysalt *keysalt_out)
 {
-    krb5_error_code ret;
+    krb5_error_code ret = KRB5_CRYPTO_INTERNAL;
     int16_t keylen;
     krb5_enc_data cipher;
     krb5_data plain = empty_data();
@@ -74,35 +74,37 @@ krb5_dbe_def_decrypt_key_data(krb5_context context, const krb5_keyblock *mkey,
     if (mkey == NULL)
         return KRB5_KDB_BADSTORED_MKEY;
 
-    if (kd->key_data_contents[0] != NULL && kd->key_data_length[0] >= 2) {
-        keylen = load_16_le(kd->key_data_contents[0]);
-        if (keylen < 0)
-            return EINVAL;
-        cipher.enctype = ENCTYPE_UNKNOWN;
-        cipher.ciphertext = make_data(kd->key_data_contents[0] + 2,
-                                      kd->key_data_length[0] - 2);
-        ret = alloc_data(&plain, kd->key_data_length[0] - 2);
+    if (kd->key_data_contents[0] == NULL || kd->key_data_length[0] < 2)
+        return KRB5_KDB_INVALIDKEYSIZE;
+
+    keylen = load_16_le(kd->key_data_contents[0]);
+    if (keylen < 0)
+        return KRB5_KDB_INVALIDKEYSIZE;
+
+    cipher.enctype = ENCTYPE_UNKNOWN;
+    cipher.ciphertext = make_data(kd->key_data_contents[0] + 2,
+                                  kd->key_data_length[0] - 2);
+    ret = alloc_data(&plain, kd->key_data_length[0] - 2);
+    if (ret)
+        goto cleanup;
+
+    ret = krb5_c_decrypt(context, mkey, 0, 0, &cipher, &plain);
+    if (ret)
+        goto cleanup;
+
+    /* Make sure the plaintext has at least as many bytes as the true key
+     * length (it may have more due to padding). */
+    if ((unsigned int)keylen > plain.length) {
+        ret = KRB5_CRYPTO_INTERNAL;
         if (ret)
             goto cleanup;
-
-        ret = krb5_c_decrypt(context, mkey, 0, 0, &cipher, &plain);
-        if (ret)
-            goto cleanup;
-
-        /* Make sure the plaintext has at least as many bytes as the true ke
-         * length (it may have more due to padding). */
-        if ((unsigned int)keylen > plain.length) {
-            ret = KRB5_CRYPTO_INTERNAL;
-            if (ret)
-                goto cleanup;
-        }
-
-        kb.magic = KV5M_KEYBLOCK;
-        kb.enctype = kd->key_data_type[0];
-        kb.length = keylen;
-        kb.contents = (uint8_t *)plain.data;
-        plain = empty_data();
     }
+
+    kb.magic = KV5M_KEYBLOCK;
+    kb.enctype = kd->key_data_type[0];
+    kb.length = keylen;
+    kb.contents = (uint8_t *)plain.data;
+    plain = empty_data();
 
     /* Decode salt data. */
     if (keysalt_out != NULL) {

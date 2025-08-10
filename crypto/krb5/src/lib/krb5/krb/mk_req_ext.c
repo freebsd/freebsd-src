@@ -78,7 +78,7 @@ generate_authenticator(krb5_context,
                        krb5_checksum *, krb5_key,
                        krb5_ui_4, krb5_authdata **,
                        krb5_authdata_context ad_context,
-                       krb5_enctype *desired_etypes,
+                       krb5_enctype *desired_etypes, krb5_boolean cbt_flag,
                        krb5_enctype tkt_enctype);
 
 krb5_error_code KRB5_CALLCONV
@@ -95,6 +95,7 @@ krb5_mk_req_extended(krb5_context context, krb5_auth_context *auth_context,
     krb5_ap_req request;
     krb5_data *scratch = 0;
     krb5_data *toutbuf;
+    krb5_boolean cbt_flag = (ap_req_options & AP_OPTS_CBT_FLAG) != 0;
 
     request.ap_options = ap_req_options & AP_OPTS_WIRE_MASK;
     request.authenticator.ciphertext.data = NULL;
@@ -201,7 +202,7 @@ krb5_mk_req_extended(krb5_context context, krb5_auth_context *auth_context,
                                          (*auth_context)->local_seq_number,
                                          in_creds->authdata,
                                          (*auth_context)->ad_context,
-                                         desired_etypes,
+                                         desired_etypes, cbt_flag,
                                          in_creds->keyblock.enctype)))
         goto cleanup_cksum;
 
@@ -258,7 +259,7 @@ generate_authenticator(krb5_context context, krb5_authenticator *authent,
                        krb5_key key, krb5_ui_4 seq_number,
                        krb5_authdata **authorization,
                        krb5_authdata_context ad_context,
-                       krb5_enctype *desired_etypes,
+                       krb5_enctype *desired_etypes, krb5_boolean cbt_flag,
                        krb5_enctype tkt_enctype)
 {
     krb5_error_code retval;
@@ -297,11 +298,15 @@ generate_authenticator(krb5_context context, krb5_authenticator *authent,
         krb5_free_authdata(context, ext_authdata);
     }
 
-    retval = profile_get_boolean(context->profile, KRB5_CONF_LIBDEFAULTS,
-                                 KRB5_CONF_CLIENT_AWARE_GSS_BINDINGS, NULL,
-                                 FALSE, &client_aware_cb);
-    if (retval)
-        return retval;
+    if (cbt_flag) {
+        client_aware_cb = TRUE;
+    } else {
+        retval = profile_get_boolean(context->profile, KRB5_CONF_LIBDEFAULTS,
+                                     KRB5_CONF_CLIENT_AWARE_GSS_BINDINGS, NULL,
+                                     FALSE, &client_aware_cb);
+        if (retval)
+            return retval;
+    }
 
     /* Add etype negotiation or channel-binding awareness authdata to the
      * front, if appropriate. */
