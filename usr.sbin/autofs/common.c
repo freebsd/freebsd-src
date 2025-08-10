@@ -153,6 +153,7 @@ create_directory(const char *path)
 		}
 	}
 
+	free(partial);
 	free(tofree);
 }
 
