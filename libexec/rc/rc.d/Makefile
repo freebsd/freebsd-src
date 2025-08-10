@@ -29,12 +29,8 @@ CONFS=	DAEMON \
 	iovctl \
 	ip6addrctl \
 	ipsec \
-	${_kadmind} \
-	${_kdc} \
-	${_kfd} \
 	kld \
 	kldxref \
-	${_kpasswdd} \
 	ldconfig \
 	linux \
 	local \
@@ -288,17 +284,32 @@ LPPACKAGE=	lp
 .endif
 
 .if ${MK_KERBEROS} != "no"
-CONFS+=		ipropd_master
-CONFS+=		ipropd_slave
-_kadmind=	kadmind
-_kdc=		kdc
-_kfd=		kfd
-_kpasswdd=	kpasswdd
+.if ${MK_MITKRB5} == "no"
 
-DIRS+=	VAR_HEMIDAL
+# Heimdal rc scripts
+CONFGROUPS+=	HEIMDAL
+HEIMDAL=	ipropd_master \
+		ipropd_slave \
+		kadmind \
+		kdc \
+		kfd \
+		kpasswdd
+HEIMDALPACKAGE=	kerberos
+
+DIRS+=		VAR_HEMIDAL
 VAR_HEMIDAL=	/var/heimdal
 VAR_HEMIDAL_MODE=	700
-.endif
+
+.else	# ${MK_MITKRB5} != "no"
+
+# MIT KRB5 rc scripts
+CONFGROUPS+=	KRB5
+KRB5=		kadmind \
+		kdc
+KRB5PACKAGE=	kerberos-kdc
+
+.endif	# ${MK_MITKRB5}
+.endif	# ${MK_KERBEROS}
 
 .if ${MK_NIS} != "no"
 CONFGROUPS+=	YP
