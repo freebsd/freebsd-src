@@ -149,7 +149,7 @@ create_directory(const char *path)
 		error = mkdir(partial, 0755);
 		if (error != 0 && errno != EEXIST) {
 			log_warn("cannot create %s", partial);
-			return;
+			break;
 		}
 	}
 
