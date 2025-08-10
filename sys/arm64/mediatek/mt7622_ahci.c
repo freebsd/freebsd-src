@@ -131,7 +131,7 @@ get_fdt_resources(struct mt7622_ahci_sc *sc, phandle_t node)
         device_printf(sc->dev, "Cannot get 'pm' clock\n");
         return (ENXIO);
     }
-
+    return (0);
 }
 
 static int
