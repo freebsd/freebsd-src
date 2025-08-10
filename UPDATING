@@ -27,6 +27,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250810:
+	Support for Secure RPC DES authentication has been removed.
+	The keyserv(8) daemon was already removed, but support for it in libc
+	has also been removed, so if you somehow still had keyserv installed,
+	it will now stop working.  There is no workaround for this.  Removing
+	DES is considered a feature.
+
 20250808:
 	The CLEAN option has been switched back from default-off to
 	default-on.  This reverts the 20240729 change below.
