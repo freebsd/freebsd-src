@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250810: Removal of remaining Secure RPC (DES) bits
+OLD_FILES+=usr/sbin/rpc.ypupdated
+OLD_FILES+=etc/rc.d/ypupdated
+
 # 20250808: nvmfd removed from base install
 OLD_FILES+=usr/sbin/nvmfd
 OLD_FILES+=usr/share/man/man8/nvmfd.8.gz

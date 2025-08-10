@@ -379,36 +379,13 @@ clnt_broadcast(u_long prog, u_long vers, u_long proc, xdrproc_t xargs,
  * Create the client des authentication object. Obsoleted by
  * authdes_seccreate().
  */
-AUTH *
-authdes_create(char *servername, u_int window, struct sockaddr *syncaddr,
+static AUTH *
+__authdes_create(char *servername, u_int window, struct sockaddr *syncaddr,
     des_block *ckey)
-/*
- *	char *servername;		// network name of server
- *	u_int window;			// time to live
- *	struct sockaddr *syncaddr;	// optional hostaddr to sync with
- *	des_block *ckey;		// optional conversation key to use
- */
 {
-	AUTH *dummy;
-	AUTH *nauth;
-	char hostname[NI_MAXHOST];
-
-	if (syncaddr) {
-		/*
-		 * Change addr to hostname, because that is the way
-		 * new interface takes it.
-		 */
-		if (getnameinfo(syncaddr, syncaddr->sa_len, hostname,
-		    sizeof hostname, NULL, 0, 0) != 0)
-			goto fallback;
-
-		nauth = authdes_seccreate(servername, window, hostname, ckey);
-		return (nauth);
-	}
-fallback:
-	dummy = authdes_seccreate(servername, window, NULL, ckey);
-	return (dummy);
+	return (NULL);
 }
+__sym_compat(authdes_create, __authdes_create, FBSD_1.0);
 
 /*
  * Create a client handle for a unix connection. Obsoleted by clnt_vc_create()
