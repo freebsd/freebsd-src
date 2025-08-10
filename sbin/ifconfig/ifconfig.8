@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 5, 2025
+.Dd August 10, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2718,30 +2718,17 @@ Set the maximum number of hosts allowed from an interface, packets with unknown
 source addresses are dropped until an existing host cache entry expires or is
 removed.
 Set to 0 to disable.
-.El
-.Ss Bridge VLAN Filtering Parameters
-The behaviour of these options is described in the
-.Dq VLAN SUPPORT
-section of
-.Xr bridge 4 .
-.Bl -tag -width indent
 .It Cm vlanfilter
 Enable VLAN filtering on the bridge.
+Incoming frames on member interfaces will be dropped unless the frame
+is explicitly permitted by the interface's
+.Cm ifuntagged
+or
+.Cm iftagged
+configuration.
 .It Cm -vlanfilter
 Disable VLAN filtering on the bridge.
 This is the default.
-.It Cm ifuntagged Ar interface Ar vlan-id
-Set the untagged VLAN identifier for an interface.
-.It Cm -ifuntagged Ar interface Ar vlan-id
-Clear the untagged VLAN identifier for an interface.
-.It Cm defuntagged Ar vlan-id
-Enable the
-.Cm untagged
-option by default on newly added members.
-.It Cm -defuntagged
-Do not enable the
-.Cm untagged
-option by default on newly added members.
 .It Cm iftagged Ar interface Ar vlan-list
 Set the interface's VLAN access list to the provided list of VLANs.
 The list should be a comma-separated list of one or more VLAN IDs
@@ -2753,24 +2740,61 @@ meaning the empty set,
 or the value
 .Dq all
 meaning all VLANs (1-4094).
+.Pp
+This option is only meaningful if the
+.Cm vlanfilter
+option is enabled for the bridge;
+otherwise, all VLANs will be permitted.
 .It Cm +iftagged Ar interface Ar vlan-list
 Add the provided list of VLAN IDs to the interface's VLAN access list.
 The list should be formatted as described for
 .Cm iftagged .
+.Pp
+This option is only meaningful if the
+.Cm vlanfilter
+option is enabled for the bridge;
+otherwise, all VLANs will be permitted.
 .It Cm -iftagged Ar interface Ar vlan-list
 Remove the provided list of VLAN IDs from the interface's VLAN access
 list.
 The list should be formatted as described for
 .Cm iftagged .
+.Pp
+This option is only meaningful if the
+.Cm vlanfilter
+option is enabled for the bridge;
+otherwise, all VLANs will be permitted.
+.It Cm ifuntagged Ar interface Ar vlan-id
+Set the untagged VLAN identifier for an interface.
+Frames received on this interface without an 802.1Q tag will be assigned
+to this VLAN instead of the default VLAN 0,
+and outgoing frames on this VLAN will have their 802.1Q tag removed.
+.It Cm -ifuntagged Ar interface Ar vlan-id
+Clear the untagged VLAN identifier for an interface.
+.It Cm defuntagged Ar vlan-id
+Enable the
+.Cm untagged
+option by default on newly added members.
+.It Cm -defuntagged
+Do not enable the
+.Cm untagged
+option by default on newly added members.
+This is the default.
 .It Cm qinq Ar interface
 Allow this interface to send 802.1ad
 .Dq Q-in-Q
 frames.
+This option is only meaningful if the
+.Cm vlanfilter
+option is enabled for the bridge;
+otherwise, Q-in-Q frames are always allowed.
 .It Cm -qinq Ar interface
 Do not allow this interface to send 802.1ad
 .Dq Q-in-Q
 frames.
-This is the default behavior.
+This is the default if the
+.Cm vlanfilter
+option is enabled.
 .It Cm defqinq
 Enable the
 .Cm qinq
@@ -2779,7 +2803,7 @@ option by default on newly added members.
 Do not enable the
 .Cm qinq
 option by default on newly added members.
-This is the default behavior.
+This is the default.
 .It Cm ifvlanproto Ar interface Ar proto
 Set the VLAN encapsulation protocol on
 .Ar interface
