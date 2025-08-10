@@ -980,6 +980,13 @@ URL: https://web.archive.org/web/20090427195917/http://ezine.daemonnews.org/2001
 ("what are the differences between FreeBSD, NetBSD, and OpenBSD?")
 
 
+End-of-life (EOL)
+-----------------
+The FreeBSD family tree shows when a release was published.
+If you would like to know when the support ends, just look at
+https://endoflife.date/freebsd
+
+
 Acknowledgments
 ---------------
 
