@@ -295,7 +295,6 @@ jh7110_gpio_attach(device_t dev)
 
 	if (bus_alloc_resources(dev, jh7110_gpio_spec, &sc->res) != 0) {
 		device_printf(dev, "Could not allocate resources\n");
-		bus_release_resources(dev, jh7110_gpio_spec, &sc->res);
 		mtx_destroy(&sc->mtx);
 		return (ENXIO);
 	}
