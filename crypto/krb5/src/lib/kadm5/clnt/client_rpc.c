@@ -1,6 +1,7 @@
 /* -*- mode: c; c-file-style: "bsd"; indent-tabs-mode: t -*- */
 #include <gssrpc/rpc.h>
 #include <kadm5/kadm_rpc.h>
+#include <kadm5/admin_xdr.h>
 #include <krb5.h>
 #include <kadm5/admin.h>
 #include <string.h>  /* for memset prototype */
@@ -210,4 +211,12 @@ get_principal_keys_2(getpkeys_arg *argp, getpkeys_ret *res, CLIENT *clnt)
 	return clnt_call(clnt, EXTRACT_KEYS,
 			 (xdrproc_t)xdr_getpkeys_arg, (caddr_t)argp,
 			 (xdrproc_t)xdr_getpkeys_ret, (caddr_t)res, TIMEOUT);
+}
+
+enum clnt_stat
+create_alias_2(calias_arg *argp, generic_ret *res, CLIENT *clnt)
+{
+	return clnt_call(clnt, CREATE_ALIAS,
+			 (xdrproc_t)xdr_calias_arg, (caddr_t)argp,
+			 (xdrproc_t)xdr_generic_ret, (caddr_t)res, TIMEOUT);
 }

@@ -91,7 +91,7 @@ auth_init(krb5_context context, const char *acl_file)
         h = k5alloc(sizeof(*h), &ret);
         if (h == NULL)
             goto cleanup;
-        ret = (*mod)(context, 1, 1, (krb5_plugin_vtable)&h->vt);
+        ret = (*mod)(context, 1, 2, (krb5_plugin_vtable)&h->vt);
         if (ret) {              /* Failed vtable init is non-fatal. */
             TRACE_KADM5_AUTH_VTINIT_FAIL(context, ret);
             free(h);
@@ -172,6 +172,8 @@ call_module(krb5_context context, auth_handle h, int opcode,
         return h->vt.listpols(context, h->data, client);
     else if (opcode == OP_IPROP && h->vt.iprop != NULL)
         return h->vt.iprop(context, h->data, client);
+    else if (opcode == OP_ADDALIAS && h->vt.addalias != NULL)
+        return h->vt.addalias(context, h->data, client, p1, p2);
 
     return KRB5_PLUGIN_NO_HANDLE;
 }
@@ -264,12 +266,12 @@ impose_restrictions(krb5_context context,
 
 krb5_boolean
 auth_restrict(krb5_context context, int opcode, krb5_const_principal client,
-              kadm5_principal_ent_t ent, long *mask)
+              krb5_const_principal target, kadm5_principal_ent_t ent,
+              long *mask)
 {
     auth_handle *hp, h;
     krb5_boolean authorized = FALSE;
     krb5_error_code ret, rs_ret;
-    krb5_const_principal target = ent->principal;
     struct kadm5_auth_restrictions *rs;
 
     assert(opcode == OP_ADDPRINC || opcode == OP_MODPRINC);

@@ -68,7 +68,7 @@ k5_mutex_t *krb5_db2_mutex;
         return result;                                  \
     }                                                   \
     /* hack: decl to allow a following ";" */           \
-    static TYPE wrap_##NAME ()
+    static TYPE wrap_##NAME ARGLIST
 
 /* Two special cases: void (can't assign result), and krb5_error_code
    (return error from locking code).  */
@@ -81,7 +81,7 @@ k5_mutex_t *krb5_db2_mutex;
         k5_mutex_unlock (krb5_db2_mutex);               \
     }                                                   \
     /* hack: decl to allow a following ";" */           \
-    static void wrap_##NAME ()
+    static void wrap_##NAME ARGLIST
 
 #define WRAP_K(NAME,ARGLIST,ARGNAMES)                   \
     WRAP(NAME,krb5_error_code,ARGLIST,ARGNAMES)

@@ -139,9 +139,8 @@ extern int exit_status;
 extern kadm5_config_params global_params;
 extern krb5_context util_context;
 
-void kdb5_create(argc, argv)
-    int argc;
-    char *argv[];
+void
+kdb5_create(int argc, char *argv[])
 {
     int optchar;
 
@@ -337,9 +336,7 @@ void kdb5_create(argc, argv)
 }
 
 static krb5_error_code
-tgt_keysalt_iterate(ksent, ptr)
-    krb5_key_salt_tuple *ksent;
-    krb5_pointer        ptr;
+tgt_keysalt_iterate(krb5_key_salt_tuple *ksent, krb5_pointer ptr)
 {
     krb5_context        context;
     krb5_error_code     kret;
@@ -378,11 +375,8 @@ tgt_keysalt_iterate(ksent, ptr)
 }
 
 static krb5_error_code
-add_principal(context, princ, op, pblock)
-    krb5_context context;
-    krb5_principal princ;
-    enum ap_op op;
-    struct realm_info *pblock;
+add_principal(krb5_context context, krb5_principal princ, enum ap_op op,
+              struct realm_info *pblock)
 {
     krb5_error_code       retval;
     krb5_db_entry         *entry = NULL;

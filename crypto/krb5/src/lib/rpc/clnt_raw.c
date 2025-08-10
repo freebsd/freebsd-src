@@ -80,7 +80,7 @@ static struct clnt_ops client_ops = {
 	clntraw_control
 };
 
-void	svc_getreq();
+void	svc_getreq(int);
 
 /*
  * Create a client handle for memory based rpc.

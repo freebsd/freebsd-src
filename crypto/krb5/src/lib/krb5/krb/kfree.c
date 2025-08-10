@@ -259,7 +259,7 @@ krb5_free_enc_data(krb5_context context, krb5_enc_data *val)
 
 void krb5_free_etype_info(krb5_context context, krb5_etype_info info)
 {
-    int i;
+    size_t i;
 
     if (info == NULL)
         return;
@@ -710,7 +710,7 @@ krb5_free_fast_armored_req(krb5_context context, krb5_fast_armored_req *val)
 void
 k5_free_data_ptr_list(krb5_data **list)
 {
-    int i;
+    size_t i;
 
     for (i = 0; list != NULL && list[i] != NULL; i++)
         krb5_free_data(NULL, list[i]);
@@ -720,7 +720,7 @@ k5_free_data_ptr_list(krb5_data **list)
 void KRB5_CALLCONV
 krb5int_free_data_list(krb5_context context, krb5_data *data)
 {
-    int i;
+    size_t i;
 
     if (data == NULL)
         return;

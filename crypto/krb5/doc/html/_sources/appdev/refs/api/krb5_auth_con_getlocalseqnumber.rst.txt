@@ -32,7 +32,7 @@ krb5_auth_con_getlocalseqnumber -  Retrieve the local sequence number from an au
 
 
 
-Retrieve the local sequence number from *auth_context* and return it in *seqnumber* . The #KRB5_AUTH_CONTEXT_DO_SEQUENCE flag must be set in *auth_context* for this function to be useful.
+Retrieve the local sequence number from *auth_context* and return it in *seqnumber* . The KRB5_AUTH_CONTEXT_DO_SEQUENCE flag must be set in *auth_context* for this function to be useful.
 
 
 

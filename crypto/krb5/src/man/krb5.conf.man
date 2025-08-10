@@ -1,3 +1,4 @@
+'\" t
 .\" Man page generated from reStructuredText.
 .
 .
@@ -27,7 +28,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KRB5.CONF" "5" " " "1.21.3" "MIT Kerberos"
+.TH "KRB5.CONF" "5" " " "1.22" "MIT Kerberos"
 .SH NAME
 krb5.conf \- Kerberos configuration file
 .sp
@@ -53,11 +54,9 @@ the form:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 foo = bar
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -65,34 +64,24 @@ or:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 fubar = {
     foo = bar
     baz = quux
 }
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
-.sp
-Placing a \(aq*\(aq after the closing bracket of a section name indicates
-that the section is \fIfinal\fP, meaning that if the same section appears
-within a later file specified in \fBKRB5_CONFIG\fP, it will be ignored.
-A subsection can be marked as final by placing a \(aq*\(aq after either the
-tag name or the closing brace.
 .sp
 The krb5.conf file can include other files using either of the
 following directives at the beginning of a line:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 include FILENAME
 includedir DIRNAME
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -100,12 +89,22 @@ includedir DIRNAME
 directory must exist and be readable.  Including a directory includes
 all files within the directory whose names consist solely of
 alphanumeric characters, dashes, or underscores.  Starting in release
-1.15, files with names ending in ".conf" are also included, unless the
-name begins with ".".  Included profile files are syntactically
+1.15, files with names ending in \(dq.conf\(dq are also included, unless the
+name begins with \(dq.\(dq.  Included profile files are syntactically
 independent of their parents, so each included file must begin with a
 section header.  Starting in release 1.17, files are read in
 alphanumeric order; in previous releases, they may be read in any
 order.
+.sp
+Placing a \(aq*\(aq after the closing bracket of a section name indicates
+that the section is \fIfinal\fP, meaning that if the same section appears
+again later, it will be ignored.  A subsection can be marked as final
+by placing a \(aq*\(aq after either the tag name or the closing brace.  A
+relation can be marked as final by placing a \(aq*\(aq after the tag name.
+Prior to release 1.22, only sections and subsections can be marked as
+final, and the flag only causes values to be ignored if they appear in
+later files specified in \fBKRB5_CONFIG\fP, not if they appear later
+within the same file or an included file.
 .sp
 The krb5.conf file can specify that configuration should be obtained
 from a loadable module, rather than the file itself, using the
@@ -114,18 +113,16 @@ headers:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 module MODULEPATH:RESIDUAL
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
 \fIMODULEPATH\fP may be relative to the library path of the krb5
 installation, or it may be an absolute path.  \fIRESIDUAL\fP is provided
 to the module at initialization time.  If krb5.conf uses a module
-directive, kdc.conf(5) should also use one if it exists.
+directive, \fI\%kdc.conf\fP should also use one if it exists.
 .SH SECTIONS
 .sp
 The krb5.conf file may contain the following sections:
@@ -172,7 +169,7 @@ _
 .TE
 .sp
 Additionally, krb5.conf may include any of the relations described in
-kdc.conf(5), but it is not a recommended practice.
+\fI\%kdc.conf\fP, but it is not a recommended practice.
 .SS [libdefaults]
 .sp
 The libdefaults section may contain any of the following relations:
@@ -192,7 +189,7 @@ release 1.21.)
 .TP
 \fBallow_weak_crypto\fP
 If this flag is set to false, then weak encryption types (as noted
-in Encryption_types in kdc.conf(5)) will be filtered
+in \fI\%Encryption types\fP in \fI\%kdc.conf\fP) will be filtered
 out of the lists \fBdefault_tgs_enctypes\fP,
 \fBdefault_tkt_enctypes\fP, and \fBpermitted_enctypes\fP\&.  The default
 value for this tag is false.
@@ -205,7 +202,7 @@ principal will be accepted.  The default value is false.
 .TP
 \fBccache_type\fP
 This parameter determines the format of credential cache types
-created by kinit(1) or other programs.  The default value
+created by \fI\%kinit\fP or other programs.  The default value
 is 4, which represents the most current format.  Smaller values
 can be used for compatibility with very old implementations of
 Kerberos which interact with credential caches on the same host.
@@ -246,14 +243,14 @@ expansion (see below).  New in release 1.18.
 Identifies the default Kerberos realm for the client.  Set its
 value to your Kerberos realm.  If this value is not set, then a
 realm must be specified with every Kerberos principal when
-invoking programs such as kinit(1)\&.
+invoking programs such as \fI\%kinit\fP\&.
 .TP
 \fBdefault_tgs_enctypes\fP
 Identifies the supported list of session key encryption types that
 the client should request when making a TGS\-REQ, in order of
 preference from highest to lowest.  The list may be delimited with
-commas or whitespace.  See Encryption_types in
-kdc.conf(5) for a list of the accepted values for this tag.
+commas or whitespace.  See \fI\%Encryption types\fP in
+\fI\%kdc.conf\fP for a list of the accepted values for this tag.
 Starting in release 1.18, the default value is the value of
 \fBpermitted_enctypes\fP\&.  For previous releases or if
 \fBpermitted_enctypes\fP is not set, the default value is
@@ -304,6 +301,12 @@ it (besides the initial ticket request, which has no encrypted
 data), and anything the fake KDC sends will not be trusted without
 verification using some secret that it won\(aqt know.
 .TP
+\fBdns_lookup_realm\fP
+Indicate whether DNS TXT records should be used to map hostnames
+to realm names for hostnames not listed in the [domain_realm]
+section, and to determine the default realm if \fBdefault_realm\fP
+is not set.  The default value is false.
+.TP
 \fBdns_uri_lookup\fP
 Indicate whether DNS URI records should be used to locate the KDCs
 and other servers for a realm, if they are not listed in the
@@ -346,7 +349,7 @@ default value is false.  New in release 1.10.
 .TP
 \fBk5login_authoritative\fP
 If this flag is true, principals must be listed in a local user\(aqs
-k5login file to be granted login access, if a \&.k5login(5)
+k5login file to be granted login access, if a \fI\%\&.k5login\fP
 file exists.  If this flag is false, a principal may still be
 granted login access through other mechanisms even if a k5login
 file exists but does not list the principal.  The default value is
@@ -409,7 +412,7 @@ parameter expansion (see below) in release 1.17 and later.
 \fBpreferred_preauth_types\fP
 This allows you to set the preferred preauthentication types which
 the client will attempt before others which may be advertised by a
-KDC.  The default value for this setting is "17, 16, 15, 14",
+KDC.  The default value for this setting is \(dq17, 16, 15, 14\(dq,
 which forces libkrb5 to attempt to use PKINIT if it is supported.
 .TP
 \fBproxiable\fP
@@ -423,7 +426,7 @@ single\-component hostnames when DNS canonicalization is not used
 forward canonicalization failed).  The default value is the first
 search domain of the system\(aqs DNS configuration.  To disable
 qualification of shortnames, set this relation to the empty string
-with \fBqualify_shortname = ""\fP\&.  (New in release 1.18.)
+with \fBqualify_shortname = \(dq\(dq\fP\&.  (New in release 1.18.)
 .TP
 \fBrdns\fP
 If this flag is true, reverse name lookup will be used in addition
@@ -442,8 +445,17 @@ realm, which may involve consulting DNS if \fBdns_lookup_kdc\fP is
 set.  The default is not to search domain components.
 .TP
 \fBrenew_lifetime\fP
-(duration string.)  Sets the default renewable lifetime
+(\fI\%Time duration\fP string.)  Sets the default renewable lifetime
 for initial ticket requests.  The default value is 0.
+.TP
+\fBrequest_timeout\fP
+(\fI\%Time duration\fP string.)  Sets the maximum total time for KDC and
+password change requests.  This timeout does not affect the
+intervals between requests, so setting a low timeout may result in
+fewer requests being attempted and/or some servers not being
+contacted.  A value of 0 indicates no specific maximum, in which
+case requests will time out if no server responds after several
+tries.  The default value is 0.  (New in release 1.22.)
 .TP
 \fBspake_preauth_groups\fP
 A whitespace or comma\-separated list of words which specifies the
@@ -483,7 +495,7 @@ The default value for the client is \fBedwards25519\fP\&.  The default
 value for the KDC is empty.  New in release 1.17.
 .TP
 \fBticket_lifetime\fP
-(duration string.)  Sets the default lifetime for initial
+(\fI\%Time duration\fP string.)  Sets the default lifetime for initial
 ticket requests.  The default value is 1 day.
 .TP
 \fBudp_preference_limit\fP
@@ -516,7 +528,7 @@ following tags may be specified in the realm\(aqs subsection:
 \fBadmin_server\fP
 Identifies the host where the administration server is running.
 Typically, this is the primary Kerberos server.  This tag must be
-given a value in order to communicate with the kadmind(8)
+given a value in order to communicate with the \fI\%kadmind\fP
 server for the realm.
 .TP
 \fBauth_to_local\fP
@@ -553,8 +565,7 @@ For example:
 .INDENT 7.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [realms]
     ATHENA.MIT.EDU = {
         auth_to_local = RULE:[2:$1](johndoe)s/^.*$/guest/
@@ -562,8 +573,7 @@ For example:
         auth_to_local = RULE:[2:$2](^.*;root)s/^.*$/root/
         auth_to_local = DEFAULT
     }
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -623,20 +633,21 @@ to a value conforming to one of the previous values.  For example,
 been set to \fBFILE:/tmp/my_proxy.pem\fP\&.
 .TP
 \fBkdc\fP
-The name or address of a host running a KDC for that realm.  An
-optional port number, separated from the hostname by a colon, may
-be included.  If the name or address contains colons (for example,
-if it is an IPv6 address), enclose it in square brackets to
+The name or address of a host running a KDC for the realm, or a
+UNIX domain socket path of a locally running KDC.  An optional
+port number, separated from the hostname by a colon, may be
+included.  If the name or address contains colons (for example, if
+it is an IPv6 address), enclose it in square brackets to
 distinguish the colon from a port separator.  For your computer to
 be able to communicate with the KDC for each realm, this tag must
 be given a value in each realm subsection in the configuration
 file, or there must be DNS SRV records specifying the KDCs.
 .TP
 \fBkpasswd_server\fP
-Points to the server where all the password changes are performed.
-If there is no such entry, DNS will be queried (unless forbidden
-by \fBdns_lookup_kdc\fP).  Finally, port 464 on the \fBadmin_server\fP
-host will be tried.
+The location of the password change server for the realm, using
+the same syntax as \fBkdc\fP\&.  If there is no such entry, DNS will
+be queried (unless forbidden by \fBdns_lookup_kdc\fP).  Finally,
+port 464 on the \fBadmin_server\fP host will be tried.
 .TP
 \fBmaster_kdc\fP
 The name for \fBprimary_kdc\fP prior to release 1.19.  Its value is
@@ -649,6 +660,10 @@ invalid password, the client software will attempt to contact the
 primary KDC, in case the user\(aqs password has just been changed, and
 the updated database has not been propagated to the replica
 servers yet.  New in release 1.19.
+.TP
+\fBsitename\fP
+Specifies the name of the host\(aqs site for the purpose of DNS\-based
+KDC discovery for this realm.  New in release 1.22.
 .TP
 \fBv4_instance_convert\fP
 This subsection allows the administrator to configure exceptions
@@ -675,14 +690,12 @@ Tag names should be in lower case.  For example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [domain_realm]
     crash.mit.edu = TEST.ATHENA.MIT.EDU
     .dev.mit.edu = TEST.ATHENA.MIT.EDU
     mit.edu = ATHENA.MIT.EDU
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -716,7 +729,7 @@ There is a tag for each participating client realm, and each tag has
 subtags for each of the server realms.  The value of the subtags is an
 intermediate realm which may participate in the cross\-realm
 authentication.  The subtags may be repeated if there is more then one
-intermediate realm.  A value of "." means that the two realms share
+intermediate realm.  A value of \(dq.\(dq means that the two realms share
 keys directly, and no intermediate realms should be allowed to
 participate.
 .sp
@@ -734,8 +747,7 @@ would look like this:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [capaths]
     ANL.GOV = {
         TEST.ANL.GOV = .
@@ -755,8 +767,7 @@ would look like this:
     ES.NET = {
         ANL.GOV = .
     }
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -765,8 +776,7 @@ systems would look like this:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [capaths]
     NERSC.GOV = {
         ANL.GOV = ES.NET
@@ -788,8 +798,7 @@ systems would look like this:
         NERSC.GOV = ANL.GOV
         NERSC.GOV = ES.NET
     }
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -806,8 +815,7 @@ For example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [appdefaults]
     telnet = {
         ATHENA.MIT.EDU = {
@@ -822,8 +830,7 @@ For example:
         option2 = false
     }
     option2 = true
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -947,7 +954,7 @@ following built\-in modules exist for this interface:
 .INDENT 0.0
 .TP
 \fBacl\fP
-This module reads the kadm5.acl(5) file, and authorizes
+This module reads the \fI\%kadm5.acl\fP file, and authorizes
 operations which are allowed according to the rules in the file.
 .TP
 \fBself\fP
@@ -1023,7 +1030,7 @@ realm\(aqs section, and applies the default method if no
 .TP
 \fBk5login\fP
 This module authorizes a principal to a local account according to
-the account\(aqs \&.k5login(5) file.
+the account\(aqs \fI\%\&.k5login\fP file.
 .TP
 \fBan2ln\fP
 This module authorizes a principal to a local account if the
@@ -1072,14 +1079,12 @@ realm\-specific subsection of [libdefaults]:
 .INDENT 3.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [libdefaults]
     EXAMPLE.COM = {
         pkinit_anchors = FILE:/usr/local/example.com.crt
     }
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .IP 2. 3
@@ -1087,14 +1092,12 @@ realm\-specific value in the [realms] section:
 .INDENT 3.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [realms]
     OTHERREALM.ORG = {
         pkinit_anchors = FILE:/usr/local/otherrealm.org.crt
     }
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .IP 3. 3
@@ -1102,12 +1105,10 @@ generic value in the [libdefaults] section:
 .INDENT 3.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [libdefaults]
     pkinit_anchors = DIR:/usr/local/generic_trusted_cas/
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1165,8 +1166,10 @@ module\-name is specified, the default is \fB@PKCS11MOD@\fP\&.
 a particular smard card reader or token if there is more than one
 available.  \fBcertid=\fP and/or \fBcertlabel=\fP may be specified to
 force the selection of a particular certificate on the device.
-See the \fBpkinit_cert_match\fP configuration option for more ways
-to select a particular certificate to use for PKINIT.
+Specifier values must not contain colon characters, as colons are
+always treated as separators.  See the \fBpkinit_cert_match\fP
+configuration option for more ways to select a particular
+certificate to use for PKINIT.
 .TP
 \fBENV:\fP\fIenvvar\fP
 \fIenvvar\fP specifies the name of an environment variable which has
@@ -1258,13 +1261,11 @@ Examples:
 .INDENT 7.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 pkinit_cert_match = ||<SUBJECT>.*DoE.*<SAN>.*@EXAMPLE.COM
 pkinit_cert_match = &&<EKU>msScLogin,clientAuth<ISSUER>.*DoE.*
 pkinit_cert_match = <EKU>msScLogin,clientAuth<KU>digitalSignature
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .TP
@@ -1293,9 +1294,10 @@ option is not recommended.
 .UNINDENT
 .TP
 \fBpkinit_dh_min_bits\fP
-Specifies the size of the Diffie\-Hellman key the client will
-attempt to use.  The acceptable values are 1024, 2048, and 4096.
-The default is 2048.
+Specifies the group of the Diffie\-Hellman key the client will
+attempt to use.  The acceptable values are 1024, 2048, P\-256,
+4096, P\-384, and P\-521.  The default is 2048.  (P\-256, P\-384, and
+P\-521 are new in release 1.22.)
 .TP
 \fBpkinit_identities\fP
 Specifies the location(s) to be used to find the user\(aqs X.509
@@ -1456,8 +1458,7 @@ Here is an example of a generic krb5.conf file:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 [libdefaults]
     default_realm = ATHENA.MIT.EDU
     dns_lookup_kdc = true
@@ -1487,8 +1488,7 @@ Here is an example of a generic krb5.conf file:
     EXAMPLE.COM = {
            ATHENA.MIT.EDU = .
     }
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SH FILES
@@ -1500,6 +1500,6 @@ syslog(3)
 .SH AUTHOR
 MIT
 .SH COPYRIGHT
-1985-2024, MIT
+1985-2025, MIT
 .\" Generated by docutils manpage writer.
 .

@@ -2,7 +2,8 @@
 #undef NDEBUG
 #include "k5-platform.h"
 
-int main ()
+int
+main(void)
 {
     /* Test some low-level assumptions the Kerberos code depends
        on.  */

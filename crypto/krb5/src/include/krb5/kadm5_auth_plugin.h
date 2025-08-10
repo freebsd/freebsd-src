@@ -34,7 +34,7 @@
  *
  * The kadm5_auth pluggable interface currently has only one supported major
  * version, which is 1.  Major version 1 has a current minor version number of
- * 1.
+ * 2.
  *
  * kadm5_auth plugin modules should define a function named
  * kadm5_auth_<modulename>_initvt, matching the signature:
@@ -244,6 +244,13 @@ typedef krb5_error_code
 (*kadm5_auth_iprop_fn)(krb5_context context, kadm5_auth_moddata data,
                        krb5_const_principal client);
 
+/* Optional: authorize an add-alias operation. */
+typedef krb5_error_code
+(*kadm5_auth_addalias_fn)(krb5_context context, kadm5_auth_moddata data,
+                          krb5_const_principal client,
+                          krb5_const_principal alias_princ,
+                          krb5_const_principal target_princ);
+
 /*
  * Optional: receive a notification that the most recent authorized operation
  * has ended.  If a kadm5_auth module is also a KDB module, it can assume that
@@ -301,6 +308,8 @@ typedef struct kadm5_auth_vtable_st {
 
     kadm5_auth_free_restrictions_fn free_restrictions;
     /* Minor version 1 ends here. */
+    kadm5_auth_addalias_fn addalias;
+    /* Minor version 2 ends here. */
 } *kadm5_auth_vtable;
 
 #endif /* KRB5_KADM5_AUTH_PLUGIN_H */

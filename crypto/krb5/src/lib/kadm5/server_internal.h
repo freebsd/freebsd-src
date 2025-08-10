@@ -264,6 +264,13 @@ k5_kadm5_hook_rename (krb5_context context,
                       int stage,
                       krb5_principal oprinc, krb5_principal nprinc);
 
+/** Call alias kadm5_hook entry point. */
+kadm5_ret_t
+k5_kadm5_hook_alias (krb5_context context,
+                     kadm5_hook_handle *handles,
+                     int stage,
+                     krb5_principal alias, krb5_principal target);
+
 /** @}*/
 
 #endif /* __KADM5_SERVER_INTERNAL_H__ */

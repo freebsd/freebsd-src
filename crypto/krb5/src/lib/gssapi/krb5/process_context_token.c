@@ -28,14 +28,14 @@
  */
 
 OM_uint32 KRB5_CALLCONV
-krb5_gss_process_context_token(minor_status, context_handle,
-                               token_buffer)
-    OM_uint32 *minor_status;
-    gss_ctx_id_t context_handle;
-    gss_buffer_t token_buffer;
+krb5_gss_process_context_token(OM_uint32 *minor_status,
+                               gss_ctx_id_t context_handle,
+                               gss_buffer_t token_buffer)
 {
     krb5_gss_ctx_id_rec *ctx;
     OM_uint32 majerr;
+    struct k5input in;
+    gss_buffer_desc empty = { 0 };
 
     ctx = (krb5_gss_ctx_id_t) context_handle;
 
@@ -51,13 +51,15 @@ krb5_gss_process_context_token(minor_status, context_handle,
         return(GSS_S_DEFECTIVE_TOKEN);
     }
 
-    /* "unseal" the token */
+    k5_input_init(&in, token_buffer->value, token_buffer->length);
+    (void)g_verify_token_header(&in, ctx->mech_used);
 
-    if (GSS_ERROR(majerr = kg_unseal(minor_status, context_handle,
-                                     token_buffer,
-                                     GSS_C_NO_BUFFER, NULL, NULL,
-                                     KG_TOK_DEL_CTX)))
+    majerr = kg_verify_mic_v1(ctx->k5_context, minor_status, ctx,
+                              KG_TOK_DEL_CTX, &in, &empty);
+    if (GSS_ERROR(majerr)) {
+        save_error_info(*minor_status, ctx->k5_context);
         return(majerr);
+    }
 
     /* Mark the context as terminated, but do not delete it (as that would
      * leave the caller with a dangling context handle). */

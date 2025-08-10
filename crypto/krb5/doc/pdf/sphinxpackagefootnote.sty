@@ -1,27 +1,37 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesPackage{sphinxpackagefootnote}%
- [2021/02/04 v1.1d footnotehyper adapted to sphinx (Sphinx team)]
-% Provides support for this output mark-up from Sphinx latex writer:
-% - footnote environment
-% - savenotes environment (table templates)
-% - \sphinxfootnotemark
-%
+ [2022/08/15 v5.3.0 Sphinx custom footnotehyper package (Sphinx team)]
 %%
 %% Package: sphinxpackagefootnote
 %% Version: based on footnotehyper.sty 2021/02/04 v1.1d
-%% as available at https://www.ctan.org/pkg/footnotehyper
+%%          https://www.ctan.org/pkg/footnotehyper
 %% License: the one applying to Sphinx
 %%
-%% Refer to the PDF documentation  at https://www.ctan.org/pkg/footnotehyper for
-%% the code comments.
+% Provides support for footnote mark-up from Sphinx latex writer:
+% - "footnote" and "footnotetext"  environments allowing verbatim material
+% - "savenotes" environment for wrapping environments, such as for tables
+%   which have problems with LaTeX footnotes
+% - hyperlinks
+% 
+% Sphinx uses exclusively this mark-up for footnotes:
+% - \begin{footnote}[N]
+% - \begin{footnotetext}[N]
+% - \sphinxfootnotemark[N]
+% where N is a number.
+%
+%% Some small differences from upstream footnotehyper.sty:
+%% - a tabulary compatibility layer (partial but enough for Sphinx),
+%% - usage of \spx@opt@BeforeFootnote
+%% - usage of \sphinxunactivateextrasandspace from sphinx.sty,
+%% - \sphinxlongtablepatch
 %%
-%% Differences:
-%% 1. a partial tabulary compatibility layer added (enough for Sphinx mark-up),
-%% 2. use of \spx@opt@BeforeFootnote from sphinx.sty,
-%% 3. use of \sphinxunactivateextrasandspace from sphinx.sty,
-%% 4. macro definition \sphinxfootnotemark,
-%% 5. macro definition \sphinxlongtablepatch
-%% 6. replaced some \undefined by \@undefined
+%% Starting with Sphinx v4.5.0, inherited footnotehyper macros for
+%% footnote/footnotetext receive some Sphinx specific extras to
+%% implement "intelligent" footnote marks checking page numbers.
+%%
+%% All footnotes output from Sphinx are hyperlinked. With "savenotes"
+%% footnotes may appear on page distinct from footnote mark, the latter
+%% will indicate page number of the footnote.
 \newif\iffootnotehyperparse\footnotehyperparsetrue
 \DeclareOption*{\PackageWarning{sphinxpackagefootnote}{Option `\CurrentOption' is unknown}}%
 \ProcessOptions\relax
@@ -42,6 +52,7 @@
     \let\footnotetext   \FNH@footnotetext
     \let\endfootnote    \FNH@endfntext
     \let\endfootnotetext\FNH@endfntext
+    % always True branch taken with Sphinx
     \@ifpackageloaded{hyperref}
      {\ifHy@hyperfootnotes
          \let\FNH@H@@footnotetext\H@@footnotetext
@@ -175,12 +186,40 @@
 }%
 \def\FNH@footnoteenv@i[#1]{%
     \begingroup
+     % This legacy code from LaTeX core restricts #1 to be digits only
+     % This limitation could be lifted but legacy Sphinx anyhow obeys it
      \csname c@\@mpfn\endcsname #1\relax
      \unrestored@protected@xdef\@thefnmark{\thempfn}%
     \endgroup
+% -- Sphinx specific:
+% currently commented out due to 
+% https://github.com/sphinx-doc/sphinx/pull/10191#issuecomment-1038807448
+% Memo: memoir class detection of successive footnote marks (to separate them
+%       by commas) is broken by \refstepcounter and also by \label, and some
+%       mitigation such as in \sphinxfootref would be needed
+      % \global\let\spx@saved@thefnmark\@thefnmark
+      % % this is done to access robustly the page number where footnote mark is
+      % \refstepcounter{sphinxfootnotemark}\label{footnotemark.\thesphinxfootnotemark}%
+      % % if possible, compare page numbers of mark and footnote to define \@thefnmark 
+      % \ltx@ifundefined{r@\thesphinxscope.footnote.#1}%
+      % {}%                           one more latex run is needed
+      % {\sphinx@xdef@thefnmark{#1}}% check of page numbers possible
+% --
     \@footnotemark
     \def\FNH@endfntext@fntext{\@footnotetext}%
+% -- Sphinx specific:
+      % we need to reset \@thefnmark as it is used by \FNH@startfntext via
+      % \FNH@startnote to set \@currentlabel which will be used by \label
+% currently commented out (see above)
+      % \global\let\@thefnmark\spx@saved@thefnmark
+% --
     \FNH@startfntext
+% -- again Sphinx specific
+      % \@currentlabel as needed by \label got set by \FNH@startnote
+      % insert this at start of footnote text then the label will allow
+      % to robustly know on which page the footnote text ends up
+% currently only of use for extra footnote marks so in case footnote multiply referred
+      \phantomsection\label{\thesphinxscope.footnote.#1}%
 }%
 \def\FNH@footnotetext{%
     \ifx\@currenvir\FNH@footnotetext@envname
@@ -207,6 +246,8 @@
       \def\FNH@endfntext@fntext{\FNH@H@@footnotetext}%
     \fi
     \FNH@startfntext
+% -- Sphinx specific addition
+    \phantomsection\label{\thesphinxscope.footnote.#1}%
 }%
 \def\FNH@startfntext{%
   \setbox\z@\vbox\bgroup
@@ -297,6 +338,7 @@
 }%
 % slight reformulation for Sphinx
 \def\FNH@bad@makefntext@alert{%
+  \sphinxbuildwarning{badfootnotes}%
   \PackageWarningNoLine{sphinxpackagefootnote}%
     {Footnotes will be sub-optimal, sorry. This is due to the document class or^^J
   some package modifying macro \string\@makefntext.^^J
@@ -329,60 +371,55 @@
 }%
 %
 % some extras for Sphinx :
-% \sphinxfootnotemark: usable in section titles and silently removed from TOCs.
+% \sphinxfootnotemark:
+% - if in section titles will auto-remove itself from TOC
 \def\sphinxfootnotemark [#1]%
    {\ifx\thepage\relax\else\sphinxfootref{#1}\fi}%
-% \sphinxfootref:
-% - \spx@opt@BeforeFootnote is from BeforeFootnote sphinxsetup option
-% - \ref:
-%     the latex.py writer inserts a \phantomsection\label{<scope>.<num>}
-%     whenever
-%     - the footnote was explicitly numbered in sources,
-%     - or it was in restrained context and is rendered using footnotetext
-%
-%     These are the two types of footnotes that \sphinxfootnotemark must
-%     handle. But for explicitly numbered footnotes the same number
-%     can be found in document. So a secondary part in  <scope> is updated
-%     at each novel such footnote to know what is the target from then on
-%     for \sphinxfootnotemark and already encountered [1], or [2],...
-%
-% LaTeX package varioref is not supported by hyperref (from its doc: "There
-% are too many problems with varioref. Nobody has time to sort them out.
-% Therefore this package is now unsupported.") So we will simply use our own
-% macros to access the page number of footnote text and decide whether to print
-% it. \pagename is internationalized by latex-babel.
-\def\spx@thefnmark#1#2{%
-  % #1=label for reference, #2=page where footnote was printed
-  \ifx\spx@tempa\spx@tempb
-     % same page
-     #1%
-  \else
-    \sphinxthefootnotemark{#1}{#2}%
-  \fi
-}%
-\def\sphinxfootref@get #1#2#3#4#5\relax{%
-    \def\sphinxfootref@label{#1}%
-    \def\sphinxfootref@page {#2}%
-    \def\sphinxfootref@Href {#4}%
-}%
-\protected\def\sphinxfootref#1{% #1 always explicit number in Sphinx usage
-  \spx@opt@BeforeFootnote
-  \ltx@ifundefined{r@\thesphinxscope.#1}%
-    {\gdef\@thefnmark{?}\H@@footnotemark}%
-    {\expandafter\expandafter\expandafter\sphinxfootref@get
-                 \csname r@\thesphinxscope.#1\endcsname\relax
-     \edef\spx@tempa{\thepage}\edef\spx@tempb{\sphinxfootref@page}%
-     \protected@xdef\@thefnmark{\spx@thefnmark{\sphinxfootref@label}{\sphinxfootref@page}}%
-     \let\spx@@makefnmark\@makefnmark
-     \def\@makefnmark{%
-       \hyper@linkstart{link}{\sphinxfootref@Href}%
-       \spx@@makefnmark
-       \hyper@linkend
+\newcounter{sphinxfootnotemark}
+\renewcommand\thesphinxfootnotemark{\number\value{sphinxfootnotemark}}
+% - compares page number of footnote mark versus the one of footnote text
+\def\sphinx@xdef@thefnmark#1{%
+   \expandafter\expandafter\expandafter\sphinx@footref@get
+               \csname r@\thesphinxscope.footnote.#1\endcsname\relax
+   \expandafter\expandafter\expandafter\sphinx@footmark@getpage
+               \csname r@footnotemark.\thesphinxfootnotemark\endcsname\thepage\relax
+   \protected@xdef\@thefnmark{%
+     \ifx\spx@footmarkpage\spx@footrefpage
+       \spx@footreflabel
+     \else
+       % the macro \sphinxthefootnotemark is in sphinx.sty
+       \sphinxthefootnotemark{\spx@footreflabel}{\spx@footrefpage}%
+     \fi
      }%
-     \H@@footnotemark
-     \let\@makefnmark\spx@@makefnmark
-    }%
 }%
+\def\sphinx@footref@get #1#2#3#4#5\relax{%
+    \def\spx@footreflabel{#1}%
+    \def\spx@footrefpage {#2}%
+    \def\spx@footrefHref {#4}%
+}%
+\def\sphinx@footmark@getpage #1#2#3\relax{%
+    \edef\spx@footmarkpage{#2}%
+}%
+\protected\def\sphinxfootref#1{% #1 always is explicit number in Sphinx
+  \spx@opt@BeforeFootnote
+  % each of \refstepcounter and \label interferes with memoir class detection
+  % of successive footnote marks, so we move them to inside \@makefnmark
+  \let\spx@saved@makefnmark\@makefnmark
+  \ltx@ifundefined{r@\thesphinxscope.footnote.#1}%
+    {\gdef\@thefnmark{?}% on first LaTeX run
+     \refstepcounter{sphinxfootnotemark}\label{footnotemark.\thesphinxfootnotemark}%
+    }%
+    {\sphinx@xdef@thefnmark{#1}% also defines \spx@footrefHref
+     \def\@makefnmark{% will be used by \H@@footnotemark
+       \refstepcounter{sphinxfootnotemark}\label{footnotemark.\thesphinxfootnotemark}%
+       \hyper@linkstart{link}{\spx@footrefHref}%
+       \spx@saved@makefnmark
+       \hyper@linkend
+      }%
+    }%
+  \H@@footnotemark
+  \let\@makefnmark\spx@saved@makefnmark
+}%  
 \AtBeginDocument{%
    % let hyperref less complain
    \pdfstringdefDisableCommands{\def\sphinxfootnotemark [#1]{}}%

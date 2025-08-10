@@ -60,7 +60,7 @@ char* serverEndpoint(const char* user) {
     return _serverEndpoint;
     }
 
-char* timestamp() {
+char* timestamp(void) {
     SYSTEMTIME  _stime;
     GetSystemTime(&_stime);
     GetTimeFormat(LOCALE_SYSTEM_DEFAULT, 0, &_stime, "HH:mm:ss", _ts, sizeof(_ts)-1);

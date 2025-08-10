@@ -108,5 +108,7 @@ kdb5_10_MIT {
 		ulog_set_last;
 		xdr_kdb_incr_update_t;
 		krb5_dbe_sort_key_data;
+		krb5_dbe_make_alias_entry;
+		krb5_dbe_read_alias;
 };
 HIDDEN { local: __*; _rest*; _save*; *; };

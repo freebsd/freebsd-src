@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Configuring Kerberos with OpenLDAP back-end &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="configuring-kerberos-with-openldap-back-end">
-<span id="conf-ldap"></span><h1>Configuring Kerberos with OpenLDAP back-end<a class="headerlink" href="#configuring-kerberos-with-openldap-back-end" title="Permalink to this headline">¶</a></h1>
+<span id="conf-ldap"></span><h1>Configuring Kerberos with OpenLDAP back-end<a class="headerlink" href="#configuring-kerberos-with-openldap-back-end" title="Link to this heading">¶</a></h1>
 <blockquote>
 <div><ol class="arabic">
 <li><p>Make sure the LDAP server is using local authentication
@@ -161,9 +159,10 @@ details.</p></li>
 </ol>
 </div></blockquote>
 <p>With the LDAP back end it is possible to provide aliases for principal
-entries.  Currently we provide no administrative utilities for
-creating aliases, so it must be done by direct manipulation of the
-LDAP entries.</p>
+entries.  Beginning in release 1.22, aliases can be added with the
+kadmin <strong>add_alias</strong> command, but it is also possible (in release 1.7
+or later) to provide aliases through direct manipulation of the LDAP
+entries.</p>
 <p>An entry with aliases contains multiple values of the
 <em>krbPrincipalName</em> attribute.  Since LDAP attribute values are not
 ordered, it is necessary to specify which principal name is canonical,
@@ -251,8 +250,8 @@ for initial ticket requests.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

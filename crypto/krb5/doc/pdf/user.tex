@@ -10,6 +10,9 @@
 %% let collapsible pdf bookmarks panel have high depth per default
 \PassOptionsToPackage{bookmarksdepth=5}{hyperref}
 
+\PassOptionsToPackage{booktabs}{sphinx}
+\PassOptionsToPackage{colorrows}{sphinx}
+
 \PassOptionsToPackage{warn}{textcomp}
 \usepackage[utf8]{inputenc}
 \ifdefined\DeclareUnicodeCharacter
@@ -61,12 +64,17 @@
 
 \title{Kerberos User Guide}
 \date{ }
-\release{1.21.3}
+\release{1.22\sphinxhyphen{}final}
 \author{MIT}
 \newcommand{\sphinxlogo}{\vbox{}}
 \renewcommand{\releasename}{Release}
 \makeindex
 \begin{document}
+
+\ifdefined\shorthandoff
+  \ifnum\catcode`\=\string=\active\shorthandoff{=}\fi
+  \ifnum\catcode`\"=\active\shorthandoff{"}\fi
+\fi
 
 \pagestyle{empty}
 \sphinxmaketitle
@@ -75,6 +83,8 @@
 \pagestyle{normal}
 \phantomsection\label{\detokenize{user/index::doc}}
 
+
+\sphinxstepscope
 
 
 \chapter{Password management}
@@ -203,6 +213,8 @@ type the root password over the network.
 \label{\detokenize{user/pwd_mgmt:password-quality-verification}}
 \sphinxAtStartPar
 TODO
+
+\sphinxstepscope
 
 
 \chapter{Ticket management}
@@ -496,110 +508,111 @@ tickets.  The flags are:
 
 
 \begin{savenotes}\sphinxattablestart
+\sphinxthistablewithglobalstyle
 \centering
-\begin{tabulary}{\linewidth}[t]{|T|T|}
-\hline
-
+\begin{tabulary}{\linewidth}[t]{TT}
+\sphinxtoprule
+\sphinxtableatstartofbodyhook
 \sphinxAtStartPar
 F
 &
 \sphinxAtStartPar
 Forwardable
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 f
 &
 \sphinxAtStartPar
 forwarded
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 P
 &
 \sphinxAtStartPar
 Proxiable
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 p
 &
 \sphinxAtStartPar
 proxy
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 D
 &
 \sphinxAtStartPar
 postDateable
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 d
 &
 \sphinxAtStartPar
 postdated
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 R
 &
 \sphinxAtStartPar
 Renewable
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 I
 &
 \sphinxAtStartPar
 Initial
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 i
 &
 \sphinxAtStartPar
 invalid
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 H
 &
 \sphinxAtStartPar
 Hardware authenticated
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 A
 &
 \sphinxAtStartPar
 preAuthenticated
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 T
 &
 \sphinxAtStartPar
 Transit policy checked
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 O
 &
 \sphinxAtStartPar
 Okay as delegate
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 a
 &
 \sphinxAtStartPar
 anonymous
 \\
-\hline
+\sphinxbottomrule
 \end{tabulary}
-\par
+\sphinxtableafterendhook\par
 \sphinxattableend\end{savenotes}
 
 \sphinxAtStartPar
@@ -665,6 +678,8 @@ tickets to destroy, it will give the following message:
 \PYG{n}{shell}\PYG{o}{\PYGZpc{}}
 \end{sphinxVerbatim}
 
+\sphinxstepscope
+
 
 \chapter{User config files}
 \label{\detokenize{user/user_config/index:user-config-files}}\label{\detokenize{user/user_config/index::doc}}
@@ -672,6 +687,8 @@ tickets to destroy, it will give the following message:
 The following files in your home directory can be used to control the
 behavior of Kerberos as it applies to your account (unless they have
 been disabled by your host’s configuration):
+
+\sphinxstepscope
 
 
 \section{kerberos}
@@ -765,7 +782,7 @@ they will then have your tickets.
 Several environment variables affect the operation of Kerberos\sphinxhyphen{}enabled
 programs.  These include:
 \begin{description}
-\item[{\sphinxstylestrong{KRB5CCNAME}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5CCNAME}}
 \sphinxAtStartPar
 Default name for the credentials cache file, in the form
 \sphinxstyleemphasis{TYPE}:\sphinxstyleemphasis{residual}.  The type of the default cache may determine
@@ -779,28 +796,28 @@ is also not set, the default \sphinxstyleemphasis{type} is \sphinxcode{\sphinxup
 \sphinxstyleemphasis{residual} is the path /tmp/krb5cc\_*uid*, where \sphinxstyleemphasis{uid} is the
 decimal user ID of the user.
 
-\item[{\sphinxstylestrong{KRB5\_KTNAME}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5\_KTNAME}}
 \sphinxAtStartPar
 Specifies the location of the default keytab file, in the form
 \sphinxstyleemphasis{TYPE}:\sphinxstyleemphasis{residual}.  If no \sphinxstyleemphasis{type} is present, the \sphinxstylestrong{FILE} type is
 assumed and \sphinxstyleemphasis{residual} is the pathname of the keytab file.  If
 unset, \DUrole{xref,std,std-ref}{DEFKTNAME} will be used.
 
-\item[{\sphinxstylestrong{KRB5\_CONFIG}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5\_CONFIG}}
 \sphinxAtStartPar
 Specifies the location of the Kerberos configuration file.  The
 default is \DUrole{xref,std,std-ref}{SYSCONFDIR}\sphinxcode{\sphinxupquote{/krb5.conf}}.  Multiple filenames can
 be specified, separated by a colon; all files which are present
 will be read.
 
-\item[{\sphinxstylestrong{KRB5\_KDC\_PROFILE}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5\_KDC\_PROFILE}}
 \sphinxAtStartPar
 Specifies the location of the KDC configuration file, which
 contains additional configuration directives for the Key
 Distribution Center daemon and associated programs.  The default
 is \DUrole{xref,std,std-ref}{LOCALSTATEDIR}\sphinxcode{\sphinxupquote{/krb5kdc}}\sphinxcode{\sphinxupquote{/kdc.conf}}.
 
-\item[{\sphinxstylestrong{KRB5RCACHENAME}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5RCACHENAME}}
 \sphinxAtStartPar
 (New in release 1.18) Specifies the location of the default replay
 cache, in the form \sphinxstyleemphasis{type}:\sphinxstyleemphasis{residual}.  The \sphinxcode{\sphinxupquote{file2}} type with a
@@ -810,19 +827,19 @@ ignored) disables the replay cache.  The \sphinxcode{\sphinxupquote{dfl}} type (
 ignored) indicates the default, which uses a file2 replay cache in
 a temporary directory.  The default is \sphinxcode{\sphinxupquote{dfl:}}.
 
-\item[{\sphinxstylestrong{KRB5RCACHETYPE}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5RCACHETYPE}}
 \sphinxAtStartPar
 Specifies the type of the default replay cache, if
 \sphinxstylestrong{KRB5RCACHENAME} is unspecified.  No residual can be specified,
 so \sphinxcode{\sphinxupquote{none}} and \sphinxcode{\sphinxupquote{dfl}} are the only useful types.
 
-\item[{\sphinxstylestrong{KRB5RCACHEDIR}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5RCACHEDIR}}
 \sphinxAtStartPar
 Specifies the directory used by the \sphinxcode{\sphinxupquote{dfl}} replay cache type.
 The default is the value of the \sphinxstylestrong{TMPDIR} environment variable,
 or \sphinxcode{\sphinxupquote{/var/tmp}} if \sphinxstylestrong{TMPDIR} is not set.
 
-\item[{\sphinxstylestrong{KRB5\_TRACE}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5\_TRACE}}
 \sphinxAtStartPar
 Specifies a filename to write trace log output to.  Trace logs can
 help illuminate decisions made internally by the Kerberos
@@ -831,16 +848,16 @@ would send tracing information for {\hyperref[\detokenize{user/user_commands/kin
 \sphinxcode{\sphinxupquote{/dev/stderr}}.  The default is not to write trace log output
 anywhere.
 
-\item[{\sphinxstylestrong{KRB5\_CLIENT\_KTNAME}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KRB5\_CLIENT\_KTNAME}}
 \sphinxAtStartPar
 Default client keytab file name.  If unset, \DUrole{xref,std,std-ref}{DEFCKTNAME} will be
 used).
 
-\item[{\sphinxstylestrong{KPROP\_PORT}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{KPROP\_PORT}}
 \sphinxAtStartPar
 \DUrole{xref,std,std-ref}{kprop(8)} port to use.  Defaults to 754.
 
-\item[{\sphinxstylestrong{GSS\_MECH\_CONFIG}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{GSS\_MECH\_CONFIG}}
 \sphinxAtStartPar
 Specifies a filename containing GSSAPI mechanism module
 configuration.  The default is to read \DUrole{xref,std,std-ref}{SYSCONFDIR}\sphinxcode{\sphinxupquote{/gss/mech}}
@@ -890,6 +907,8 @@ by the MIT Kerberos Consortium.
 \sphinxAtStartPar
 Copyright 1985, 1986, 1989\sphinxhyphen{}1996, 2002, 2011, 2018 Masachusetts
 Institute of Technology
+
+\sphinxstepscope
 
 
 \section{.k5login}
@@ -952,6 +971,8 @@ password.
 \sphinxAtStartPar
 kerberos(1)
 
+\sphinxstepscope
+
 
 \section{.k5identity}
 \label{\detokenize{user/user_config/k5identity:k5identity}}\label{\detokenize{user/user_config/k5identity:k5identity-5}}\label{\detokenize{user/user_config/k5identity::doc}}
@@ -978,7 +999,7 @@ If the server principal meets all of the field constraints, then
 principal is chosen as the client principal.  The following fields are
 recognized:
 \begin{description}
-\item[{\sphinxstylestrong{realm}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{realm}}
 \sphinxAtStartPar
 If the realm of the server principal is known, it is matched
 against \sphinxstyleemphasis{value}, which may be a pattern using shell wildcards.
@@ -986,13 +1007,13 @@ For host\sphinxhyphen{}based server principals, the realm will generally only be
 known if there is a \DUrole{xref,std,std-ref}{domain\_realm} section in
 \DUrole{xref,std,std-ref}{krb5.conf(5)} with a mapping for the hostname.
 
-\item[{\sphinxstylestrong{service}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{service}}
 \sphinxAtStartPar
 If the server principal is a host\sphinxhyphen{}based principal, its service
 component is matched against \sphinxstyleemphasis{value}, which may be a pattern using
 shell wildcards.
 
-\item[{\sphinxstylestrong{host}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{host}}
 \sphinxAtStartPar
 If the server principal is a host\sphinxhyphen{}based principal, its hostname
 component is converted to lower case and matched against \sphinxstyleemphasis{value},
@@ -1029,9 +1050,13 @@ accessing the IMAP service on \sphinxcode{\sphinxupquote{mail.example.com}}:
 \sphinxAtStartPar
 kerberos(1), \DUrole{xref,std,std-ref}{krb5.conf(5)}
 
+\sphinxstepscope
+
 
 \chapter{User commands}
 \label{\detokenize{user/user_commands/index:user-commands}}\label{\detokenize{user/user_commands/index:id1}}\label{\detokenize{user/user_commands/index::doc}}
+\sphinxstepscope
+
 
 \section{kdestroy}
 \label{\detokenize{user/user_commands/kdestroy:kdestroy}}\label{\detokenize{user/user_commands/kdestroy:kdestroy-1}}\label{\detokenize{user/user_commands/kdestroy::doc}}
@@ -1057,18 +1082,18 @@ credentials cache is destroyed.
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/kdestroy:options}}\begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}A}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}A}}
 \sphinxAtStartPar
 Destroys all caches in the collection, if a cache collection is
 available.  May be used with the \sphinxstylestrong{\sphinxhyphen{}c} option to specify the
 collection to be destroyed.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}q}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}q}}
 \sphinxAtStartPar
 Run quietly.  Normally kdestroy beeps if it fails to destroy the
 user’s tickets.  The \sphinxstylestrong{\sphinxhyphen{}q} flag suppresses this behavior.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{cache\_name}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{cache\_name}}
 \sphinxAtStartPar
 Use \sphinxstyleemphasis{cache\_name} as the credentials (ticket) cache name and
 location; if this option is not used, the default cache name and
@@ -1079,7 +1104,7 @@ The default credentials cache may vary between systems.  If the
 \sphinxstylestrong{KRB5CCNAME} environment variable is set, its value is used to
 name the default ticket cache.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}p} \sphinxstyleemphasis{princ\_name}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}p} \sphinxstyleemphasis{princ\_name}}
 \sphinxAtStartPar
 If a cache collection is available, destroy the cache for
 \sphinxstyleemphasis{princ\_name} instead of the primary cache.  May be used with the
@@ -1105,7 +1130,7 @@ variables.
 
 \subsection{FILES}
 \label{\detokenize{user/user_commands/kdestroy:files}}\begin{description}
-\item[{\DUrole{xref,std,std-ref}{DEFCCNAME}}] \leavevmode
+\sphinxlineitem{\DUrole{xref,std,std-ref}{DEFCCNAME}}
 \sphinxAtStartPar
 Default location of Kerberos 5 credentials cache
 
@@ -1116,6 +1141,8 @@ Default location of Kerberos 5 credentials cache
 \label{\detokenize{user/user_commands/kdestroy:see-also}}
 \sphinxAtStartPar
 {\hyperref[\detokenize{user/user_commands/kinit:kinit-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kinit}}}}, {\hyperref[\detokenize{user/user_commands/klist:klist-1}]{\sphinxcrossref{\DUrole{std,std-ref}{klist}}}}, {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}
+
+\sphinxstepscope
 
 
 \section{kinit}
@@ -1160,11 +1187,11 @@ choice of principal name.
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/kinit:options}}\begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}V}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}V}}
 \sphinxAtStartPar
 display verbose output.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}l} \sphinxstyleemphasis{lifetime}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}l} \sphinxstyleemphasis{lifetime}}
 \sphinxAtStartPar
 (\DUrole{xref,std,std-ref}{duration} string.)  Requests a ticket with the lifetime
 \sphinxstyleemphasis{lifetime}.
@@ -1178,7 +1205,7 @@ If the \sphinxstylestrong{\sphinxhyphen{}l} option is not specified, the default
 longer than the maximum ticket lifetime (configured by each site)
 will not override the configured maximum ticket lifetime.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}s} \sphinxstyleemphasis{start\_time}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}s} \sphinxstyleemphasis{start\_time}}
 \sphinxAtStartPar
 (\DUrole{xref,std,std-ref}{duration} string.)  Requests a postdated ticket.  Postdated
 tickets are issued with the \sphinxstylestrong{invalid} flag set, and need to be
@@ -1188,53 +1215,53 @@ resubmitted to the KDC for validation before use.
 \sphinxstyleemphasis{start\_time} specifies the duration of the delay before the ticket
 can become valid.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}r} \sphinxstyleemphasis{renewable\_life}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}r} \sphinxstyleemphasis{renewable\_life}}
 \sphinxAtStartPar
 (\DUrole{xref,std,std-ref}{duration} string.)  Requests renewable tickets, with a total
 lifetime of \sphinxstyleemphasis{renewable\_life}.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}f}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}f}}
 \sphinxAtStartPar
 requests forwardable tickets.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}F}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}F}}
 \sphinxAtStartPar
 requests non\sphinxhyphen{}forwardable tickets.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}p}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}p}}
 \sphinxAtStartPar
 requests proxiable tickets.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}P}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}P}}
 \sphinxAtStartPar
 requests non\sphinxhyphen{}proxiable tickets.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}a}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}a}}
 \sphinxAtStartPar
 requests tickets restricted to the host’s local address{[}es{]}.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}A}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}A}}
 \sphinxAtStartPar
 requests tickets not restricted by address.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}C}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}C}}
 \sphinxAtStartPar
 requests canonicalization of the principal name, and allows the
 KDC to reply with a different client principal from the one
 requested.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}E}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}E}}
 \sphinxAtStartPar
 treats the principal name as an enterprise name.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}v}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}v}}
 \sphinxAtStartPar
 requests that the ticket\sphinxhyphen{}granting ticket in the cache (with the
 \sphinxstylestrong{invalid} flag set) be passed to the KDC for validation.  If the
 ticket is within its requested time range, the cache is replaced
 with the validated ticket.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}R}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}R}}
 \sphinxAtStartPar
 requests renewal of the ticket\sphinxhyphen{}granting ticket.  Note that an
 expired ticket cannot be renewed, even if the ticket is still
@@ -1246,7 +1273,7 @@ Note that renewable tickets that have expired as reported by
 because the KDC applies a grace period to account for client\sphinxhyphen{}KDC
 clock skew.  See \DUrole{xref,std,std-ref}{krb5.conf(5)} \sphinxstylestrong{clockskew} setting.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}k} {[}\sphinxstylestrong{\sphinxhyphen{}i} | \sphinxstylestrong{\sphinxhyphen{}t} \sphinxstyleemphasis{keytab\_file}{]}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}k} {[}\sphinxstylestrong{\sphinxhyphen{}i} | \sphinxstylestrong{\sphinxhyphen{}t} \sphinxstyleemphasis{keytab\_file}{]}}
 \sphinxAtStartPar
 requests a ticket, obtained from a key in the local host’s keytab.
 The location of the keytab may be specified with the \sphinxstylestrong{\sphinxhyphen{}t}
@@ -1259,7 +1286,7 @@ the KDC database and look up the key directly.  This permits an
 administrator to obtain tickets as any principal that supports
 authentication based on the key.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}n}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}n}}
 \sphinxAtStartPar
 Requests anonymous processing.  Two types of anonymous principals
 are supported.
@@ -1297,7 +1324,7 @@ will be used to affect how new credentials are obtained, including
 preselecting the same methods of authenticating to the KDC.
 \end{quote}
 \begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}T} \sphinxstyleemphasis{armor\_ccache}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}T} \sphinxstyleemphasis{armor\_ccache}}
 \sphinxAtStartPar
 Specifies the name of a credentials cache that already contains a
 ticket.  If supported by the KDC, this cache will be used to armor
@@ -1306,7 +1333,7 @@ the use of additional preauthentication mechanisms.  Armoring also
 makes sure that the response from the KDC is not modified in
 transit.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{cache\_name}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{cache\_name}}
 \sphinxAtStartPar
 use \sphinxstyleemphasis{cache\_name} as the Kerberos 5 credentials (ticket) cache
 location.  If this option is not used, the default cache location
@@ -1322,12 +1349,12 @@ principal is selected or a new one is created and becomes the new
 primary cache.  Otherwise, any existing contents of the default
 cache are destroyed by kinit.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}S} \sphinxstyleemphasis{service\_name}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}S} \sphinxstyleemphasis{service\_name}}
 \sphinxAtStartPar
 specify an alternate service name to use when getting initial
 tickets.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}X} \sphinxstyleemphasis{attribute}{[}=\sphinxstyleemphasis{value}{]}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}X} \sphinxstyleemphasis{attribute}{[}=\sphinxstyleemphasis{value}{]}}
 \sphinxAtStartPar
 specify a pre\sphinxhyphen{}authentication \sphinxstyleemphasis{attribute} and \sphinxstyleemphasis{value} to be
 interpreted by pre\sphinxhyphen{}authentication modules.  The acceptable
@@ -1339,26 +1366,21 @@ attributes.  If no value is specified, it is assumed to be “yes”.
 The following attributes are recognized by the PKINIT
 pre\sphinxhyphen{}authentication mechanism:
 \begin{description}
-\item[{\sphinxstylestrong{X509\_user\_identity}=\sphinxstyleemphasis{value}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{X509\_user\_identity}=\sphinxstyleemphasis{value}}
 \sphinxAtStartPar
 specify where to find user’s X509 identity information
 
-\item[{\sphinxstylestrong{X509\_anchors}=\sphinxstyleemphasis{value}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{X509\_anchors}=\sphinxstyleemphasis{value}}
 \sphinxAtStartPar
 specify where to find trusted X509 anchor information
 
-\item[{\sphinxstylestrong{flag\_RSA\_PROTOCOL}{[}\sphinxstylestrong{=yes}{]}}] \leavevmode
-\sphinxAtStartPar
-specify use of RSA, rather than the default Diffie\sphinxhyphen{}Hellman
-protocol
-
-\item[{\sphinxstylestrong{disable\_freshness}{[}\sphinxstylestrong{=yes}{]}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{disable\_freshness}{[}\sphinxstylestrong{=yes}{]}}
 \sphinxAtStartPar
 disable sending freshness tokens (for testing purposes only)
 
 \end{description}
 
-\item[{\sphinxstylestrong{\textendash{}request\sphinxhyphen{}pac} | \sphinxstylestrong{\textendash{}no\sphinxhyphen{}request\sphinxhyphen{}pac}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\textendash{}request\sphinxhyphen{}pac} | \sphinxstylestrong{\textendash{}no\sphinxhyphen{}request\sphinxhyphen{}pac}}
 \sphinxAtStartPar
 mutually exclusive.  If \sphinxstylestrong{\textendash{}request\sphinxhyphen{}pac} is set, ask the KDC to
 include a PAC in authdata; if \sphinxstylestrong{\textendash{}no\sphinxhyphen{}request\sphinxhyphen{}pac} is set, ask the
@@ -1378,11 +1400,11 @@ variables.
 
 \subsection{FILES}
 \label{\detokenize{user/user_commands/kinit:files}}\begin{description}
-\item[{\DUrole{xref,std,std-ref}{DEFCCNAME}}] \leavevmode
+\sphinxlineitem{\DUrole{xref,std,std-ref}{DEFCCNAME}}
 \sphinxAtStartPar
 default location of Kerberos 5 credentials cache
 
-\item[{\DUrole{xref,std,std-ref}{DEFKTNAME}}] \leavevmode
+\sphinxlineitem{\DUrole{xref,std,std-ref}{DEFKTNAME}}
 \sphinxAtStartPar
 default location for the local host’s keytab.
 
@@ -1393,6 +1415,8 @@ default location for the local host’s keytab.
 \label{\detokenize{user/user_commands/kinit:see-also}}
 \sphinxAtStartPar
 {\hyperref[\detokenize{user/user_commands/klist:klist-1}]{\sphinxcrossref{\DUrole{std,std-ref}{klist}}}}, {\hyperref[\detokenize{user/user_commands/kdestroy:kdestroy-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kdestroy}}}}, {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}
+
+\sphinxstepscope
 
 
 \section{klist}
@@ -1420,28 +1444,28 @@ credentials cache, or the keys held in a keytab file.
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/klist:options}}\begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}e}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}e}}
 \sphinxAtStartPar
 Displays the encryption types of the session key and the ticket
 for each credential in the credential cache, or each key in the
 keytab file.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}l}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}l}}
 \sphinxAtStartPar
 If a cache collection is available, displays a table summarizing
 the caches present in the collection.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}A}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}A}}
 \sphinxAtStartPar
 If a cache collection is available, displays the contents of all
 of the caches in the collection.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}c}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}c}}
 \sphinxAtStartPar
 List tickets held in a credentials cache. This is the default if
 neither \sphinxstylestrong{\sphinxhyphen{}c} nor \sphinxstylestrong{\sphinxhyphen{}k} is specified.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}f}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}f}}
 \sphinxAtStartPar
 Shows the flags present in the credentials, using the following
 abbreviations:
@@ -1463,51 +1487,51 @@ abbreviations:
 \PYG{n}{a}    \PYG{n}{anonymous}
 \end{sphinxVerbatim}
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}s}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}s}}
 \sphinxAtStartPar
 Causes klist to run silently (produce no output).  klist will exit
 with status 1 if the credentials cache cannot be read or is
 expired, and with status 0 otherwise.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}a}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}a}}
 \sphinxAtStartPar
 Display list of addresses in credentials.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}n}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}n}}
 \sphinxAtStartPar
 Show numeric addresses instead of reverse\sphinxhyphen{}resolving addresses.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}C}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}C}}
 \sphinxAtStartPar
 List configuration data that has been stored in the credentials
 cache when klist encounters it.  By default, configuration data
 is not listed.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}k}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}k}}
 \sphinxAtStartPar
 List keys held in a keytab file.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}i}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}i}}
 \sphinxAtStartPar
 In combination with \sphinxstylestrong{\sphinxhyphen{}k}, defaults to using the default client
 keytab instead of the default acceptor keytab, if no name is
 given.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}t}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}t}}
 \sphinxAtStartPar
 Display the time entry timestamps for each keytab entry in the
 keytab file.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}K}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}K}}
 \sphinxAtStartPar
 Display the value of the encryption key in each keytab entry in
 the keytab file.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}d}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}d}}
 \sphinxAtStartPar
 Display the authdata types (if any) for each entry.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}V}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}V}}
 \sphinxAtStartPar
 Display the Kerberos version number and exit.
 
@@ -1529,11 +1553,11 @@ variables.
 
 \subsection{FILES}
 \label{\detokenize{user/user_commands/klist:files}}\begin{description}
-\item[{\DUrole{xref,std,std-ref}{DEFCCNAME}}] \leavevmode
+\sphinxlineitem{\DUrole{xref,std,std-ref}{DEFCCNAME}}
 \sphinxAtStartPar
 Default location of Kerberos 5 credentials cache
 
-\item[{\DUrole{xref,std,std-ref}{DEFKTNAME}}] \leavevmode
+\sphinxlineitem{\DUrole{xref,std,std-ref}{DEFKTNAME}}
 \sphinxAtStartPar
 Default location for the local host’s keytab file.
 
@@ -1544,6 +1568,8 @@ Default location for the local host’s keytab file.
 \label{\detokenize{user/user_commands/klist:see-also}}
 \sphinxAtStartPar
 {\hyperref[\detokenize{user/user_commands/kinit:kinit-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kinit}}}}, {\hyperref[\detokenize{user/user_commands/kdestroy:kdestroy-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kdestroy}}}}, {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}
+
+\sphinxstepscope
 
 
 \section{kpasswd}
@@ -1572,7 +1598,7 @@ characters.)
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/kpasswd:options}}\begin{description}
-\item[{\sphinxstyleemphasis{principal}}] \leavevmode
+\sphinxlineitem{\sphinxstyleemphasis{principal}}
 \sphinxAtStartPar
 Change the password for the Kerberos principal principal.
 Otherwise, kpasswd uses the principal name from an existing ccache
@@ -1594,6 +1620,8 @@ variables.
 \sphinxAtStartPar
 \DUrole{xref,std,std-ref}{kadmin(1)}, \DUrole{xref,std,std-ref}{kadmind(8)}, {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}
 
+\sphinxstepscope
+
 
 \section{krb5\sphinxhyphen{}config}
 \label{\detokenize{user/user_commands/krb5-config:krb5-config}}\label{\detokenize{user/user_commands/krb5-config:krb5-config-1}}\label{\detokenize{user/user_commands/krb5-config::doc}}
@@ -1614,96 +1642,97 @@ and link programs against the installed Kerberos libraries.
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/krb5-config:options}}\begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}help}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}help}}
 \sphinxAtStartPar
 prints a usage message.  This is the default behavior when no options
 are specified.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}all}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}all}}
 \sphinxAtStartPar
 prints the version, vendor, prefix, and exec\sphinxhyphen{}prefix.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}version}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}version}}
 \sphinxAtStartPar
 prints the version number of the Kerberos installation.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}vendor}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}vendor}}
 \sphinxAtStartPar
 prints the name of the vendor of the Kerberos installation.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}prefix}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}prefix}}
 \sphinxAtStartPar
 prints the prefix for which the Kerberos installation was built.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}exec\sphinxhyphen{}prefix}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}exec\sphinxhyphen{}prefix}}
 \sphinxAtStartPar
 prints the prefix for executables for which the Kerberos installation
 was built.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}defccname}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}defccname}}
 \sphinxAtStartPar
 prints the built\sphinxhyphen{}in default credentials cache location.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}defktname}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}defktname}}
 \sphinxAtStartPar
 prints the built\sphinxhyphen{}in default keytab location.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}defcktname}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}defcktname}}
 \sphinxAtStartPar
 prints the built\sphinxhyphen{}in default client (initiator) keytab location.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}cflags}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}cflags}}
 \sphinxAtStartPar
 prints the compilation flags used to build the Kerberos installation.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}libs} {[}\sphinxstyleemphasis{library}{]}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}}\sphinxstylestrong{\sphinxhyphen{}libs} {[}\sphinxstyleemphasis{library}{]}}
 \sphinxAtStartPar
 prints the compiler options needed to link against \sphinxstyleemphasis{library}.
 Allowed values for \sphinxstyleemphasis{library} are:
 
 
 \begin{savenotes}\sphinxattablestart
+\sphinxthistablewithglobalstyle
 \centering
-\begin{tabulary}{\linewidth}[t]{|T|T|}
-\hline
-
+\begin{tabulary}{\linewidth}[t]{TT}
+\sphinxtoprule
+\sphinxtableatstartofbodyhook
 \sphinxAtStartPar
 krb5
 &
 \sphinxAtStartPar
 Kerberos 5 applications (default)
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 gssapi
 &
 \sphinxAtStartPar
 GSSAPI applications with Kerberos 5 bindings
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 kadm\sphinxhyphen{}client
 &
 \sphinxAtStartPar
 Kadmin client
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 kadm\sphinxhyphen{}server
 &
 \sphinxAtStartPar
 Kadmin server
 \\
-\hline
+\sphinxhline
 \sphinxAtStartPar
 kdb
 &
 \sphinxAtStartPar
 Applications that access the Kerberos database
 \\
-\hline
+\sphinxbottomrule
 \end{tabulary}
-\par
+\sphinxtableafterendhook\par
 \sphinxattableend\end{savenotes}
 
 \end{description}
@@ -1728,6 +1757,8 @@ the following output:
 \label{\detokenize{user/user_commands/krb5-config:see-also}}
 \sphinxAtStartPar
 {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}, cc(1)
+
+\sphinxstepscope
 
 
 \section{ksu}
@@ -1903,7 +1934,7 @@ source cache.
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/ksu:options}}\begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}n} \sphinxstyleemphasis{target\_principal\_name}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}n} \sphinxstyleemphasis{target\_principal\_name}}
 \sphinxAtStartPar
 Specify a Kerberos target principal name.  Used in authentication
 and authorization phases of ksu.
@@ -1996,13 +2027,13 @@ the resulting cache does not already exist.  For example:
 \end{sphinxVerbatim}
 \end{quote}
 \begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}k}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}k}}
 \sphinxAtStartPar
 Do not delete the target cache upon termination of the target
 shell or a command (\sphinxstylestrong{\sphinxhyphen{}e} command).  Without \sphinxstylestrong{\sphinxhyphen{}k}, ksu deletes
 the target cache.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}z}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}z}}
 \sphinxAtStartPar
 Restrict the copy of tickets from the source cache to the target
 cache to only the tickets where client == the target principal
@@ -2010,7 +2041,7 @@ name.  Use the \sphinxstylestrong{\sphinxhyphen{}n} option if you want the ticke
 the default principal.  Note that the \sphinxstylestrong{\sphinxhyphen{}z} option is mutually
 exclusive with the \sphinxstylestrong{\sphinxhyphen{}Z} option.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}Z}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}Z}}
 \sphinxAtStartPar
 Don’t copy any tickets from the source cache to the target cache.
 Just create a fresh target cache, where the default principal name
@@ -2018,7 +2049,7 @@ of the cache is initialized to the target principal name.  Note
 that the \sphinxstylestrong{\sphinxhyphen{}Z} option is mutually exclusive with the \sphinxstylestrong{\sphinxhyphen{}z}
 option.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}q}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}q}}
 \sphinxAtStartPar
 Suppress the printing of status messages.
 
@@ -2027,7 +2058,7 @@ Suppress the printing of status messages.
 \sphinxAtStartPar
 Ticket granting ticket options:
 \begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}l} \sphinxstyleemphasis{lifetime} \sphinxstylestrong{\sphinxhyphen{}r} \sphinxstyleemphasis{time} \sphinxstylestrong{\sphinxhyphen{}p} \sphinxstylestrong{\sphinxhyphen{}P} \sphinxstylestrong{\sphinxhyphen{}f} \sphinxstylestrong{\sphinxhyphen{}F}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}l} \sphinxstyleemphasis{lifetime} \sphinxstylestrong{\sphinxhyphen{}r} \sphinxstyleemphasis{time} \sphinxstylestrong{\sphinxhyphen{}p} \sphinxstylestrong{\sphinxhyphen{}P} \sphinxstylestrong{\sphinxhyphen{}f} \sphinxstylestrong{\sphinxhyphen{}F}}
 \sphinxAtStartPar
 The ticket granting ticket options only apply to the case where
 there are no appropriate tickets in the cache to authenticate the
@@ -2036,41 +2067,41 @@ for a Kerberos password (\sphinxstylestrong{GET\_TGT\_VIA\_PASSWD} is defined), 
 ticket granting ticket options that are specified will be used
 when getting a ticket granting ticket from the Kerberos server.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}l} \sphinxstyleemphasis{lifetime}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}l} \sphinxstyleemphasis{lifetime}}
 \sphinxAtStartPar
 (\DUrole{xref,std,std-ref}{duration} string.)  Specifies the lifetime to be requested
 for the ticket; if this option is not specified, the default ticket
 lifetime (12 hours) is used instead.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}r} \sphinxstyleemphasis{time}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}r} \sphinxstyleemphasis{time}}
 \sphinxAtStartPar
 (\DUrole{xref,std,std-ref}{duration} string.)  Specifies that the \sphinxstylestrong{renewable} option
 should be requested for the ticket, and specifies the desired
 total lifetime of the ticket.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}p}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}p}}
 \sphinxAtStartPar
 specifies that the \sphinxstylestrong{proxiable} option should be requested for
 the ticket.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}P}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}P}}
 \sphinxAtStartPar
 specifies that the \sphinxstylestrong{proxiable} option should not be requested
 for the ticket, even if the default configuration is to ask for
 proxiable tickets.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}f}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}f}}
 \sphinxAtStartPar
 option specifies that the \sphinxstylestrong{forwardable} option should be
 requested for the ticket.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}F}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}F}}
 \sphinxAtStartPar
 option specifies that the \sphinxstylestrong{forwardable} option should not be
 requested for the ticket, even if the default configuration is to
 ask for forwardable tickets.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}e} \sphinxstyleemphasis{command} {[}\sphinxstyleemphasis{args} …{]}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}e} \sphinxstyleemphasis{command} {[}\sphinxstyleemphasis{args} …{]}}
 \sphinxAtStartPar
 ksu proceeds exactly the same as if it was invoked without the
 \sphinxstylestrong{\sphinxhyphen{}e} option, except instead of executing the target shell, ksu
@@ -2130,7 +2161,7 @@ then command can be either a full or a relative path leading to
 the target program.  Otherwise, the user must specify either a
 full path or just the program name.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}a} \sphinxstyleemphasis{args}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}a} \sphinxstyleemphasis{args}}
 \sphinxAtStartPar
 Specify arguments to be passed to the target shell.  Note that all
 flags and parameters following \sphinxhyphen{}a will be passed to the shell,
@@ -2155,7 +2186,7 @@ used as follows:
 \sphinxAtStartPar
 ksu can be compiled with the following four flags:
 \begin{description}
-\item[{\sphinxstylestrong{GET\_TGT\_VIA\_PASSWD}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{GET\_TGT\_VIA\_PASSWD}}
 \sphinxAtStartPar
 In case no appropriate tickets are found in the source cache, the
 user will be prompted for a Kerberos password.  The password is
@@ -2164,19 +2195,19 @@ server.  The danger of configuring ksu with this macro is if the
 source user is logged in remotely and does not have a secure
 channel, the password may get exposed.
 
-\item[{\sphinxstylestrong{PRINC\_LOOK\_AHEAD}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{PRINC\_LOOK\_AHEAD}}
 \sphinxAtStartPar
 During the resolution of the default principal name,
 \sphinxstylestrong{PRINC\_LOOK\_AHEAD} enables ksu to find principal names in
 the .k5users file as described in the OPTIONS section
 (see \sphinxstylestrong{\sphinxhyphen{}n} option).
 
-\item[{\sphinxstylestrong{CMD\_PATH}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{CMD\_PATH}}
 \sphinxAtStartPar
 Specifies a list of directories containing programs that users are
 authorized to execute (via .k5users file).
 
-\item[{\sphinxstylestrong{HAVE\_GETUSERSHELL}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{HAVE\_GETUSERSHELL}}
 \sphinxAtStartPar
 If the source user is non\sphinxhyphen{}root, ksu insists that the target user’s
 shell to be invoked is a “legal shell”.  \sphinxstyleemphasis{getusershell(3)} is
@@ -2226,6 +2257,8 @@ variables.
 \sphinxAtStartPar
 {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}, {\hyperref[\detokenize{user/user_commands/kinit:kinit-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kinit}}}}
 
+\sphinxstepscope
+
 
 \section{kswitch}
 \label{\detokenize{user/user_commands/kswitch:kswitch}}\label{\detokenize{user/user_commands/kswitch:kswitch-1}}\label{\detokenize{user/user_commands/kswitch::doc}}
@@ -2246,11 +2279,11 @@ collection, if a cache collection is available.
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/kswitch:options}}\begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{cachename}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{cachename}}
 \sphinxAtStartPar
 Directly specifies the credential cache to be made primary.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}p} \sphinxstyleemphasis{principal}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}p} \sphinxstyleemphasis{principal}}
 \sphinxAtStartPar
 Causes the cache collection to be searched for a cache containing
 credentials for \sphinxstyleemphasis{principal}.  If one is found, that collection is
@@ -2268,7 +2301,7 @@ variables.
 
 \subsection{FILES}
 \label{\detokenize{user/user_commands/kswitch:files}}\begin{description}
-\item[{\DUrole{xref,std,std-ref}{DEFCCNAME}}] \leavevmode
+\sphinxlineitem{\DUrole{xref,std,std-ref}{DEFCCNAME}}
 \sphinxAtStartPar
 Default location of Kerberos 5 credentials cache
 
@@ -2280,6 +2313,8 @@ Default location of Kerberos 5 credentials cache
 \sphinxAtStartPar
 {\hyperref[\detokenize{user/user_commands/kinit:kinit-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kinit}}}}, {\hyperref[\detokenize{user/user_commands/kdestroy:kdestroy-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kdestroy}}}}, {\hyperref[\detokenize{user/user_commands/klist:klist-1}]{\sphinxcrossref{\DUrole{std,std-ref}{klist}}}},
 {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}
+
+\sphinxstepscope
 
 
 \section{kvno}
@@ -2311,41 +2346,41 @@ and prints out the key version numbers of each.
 
 \subsection{OPTIONS}
 \label{\detokenize{user/user_commands/kvno:options}}\begin{description}
-\item[{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{ccache}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}c} \sphinxstyleemphasis{ccache}}
 \sphinxAtStartPar
 Specifies the name of a credentials cache to use (if not the
 default)
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}e} \sphinxstyleemphasis{etype}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}e} \sphinxstyleemphasis{etype}}
 \sphinxAtStartPar
 Specifies the enctype which will be requested for the session key
 of all the services named on the command line.  This is useful in
 certain backward compatibility situations.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}k} \sphinxstyleemphasis{keytab}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}k} \sphinxstyleemphasis{keytab}}
 \sphinxAtStartPar
 Decrypt the acquired tickets using \sphinxstyleemphasis{keytab} to confirm their
 validity.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}q}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}q}}
 \sphinxAtStartPar
 Suppress printing output when successful.  If a service ticket
 cannot be obtained, an error message will still be printed and
 kvno will exit with nonzero status.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}u}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}u}}
 \sphinxAtStartPar
 Use the unknown name type in requested service principal names.
 This option Cannot be used with \sphinxstyleemphasis{\sphinxhyphen{}S}.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}P}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}P}}
 \sphinxAtStartPar
 Specifies that the \sphinxstyleemphasis{service1 service2} …  arguments are to be
 treated as services for which credentials should be acquired using
 constrained delegation.  This option is only valid when used in
 conjunction with protocol transition.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}S} \sphinxstyleemphasis{sname}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}S} \sphinxstyleemphasis{sname}}
 \sphinxAtStartPar
 Specifies that the \sphinxstyleemphasis{service1 service2} … arguments are
 interpreted as hostnames, and the service principals are to be
@@ -2353,41 +2388,41 @@ constructed from those hostnames and the service name \sphinxstyleemphasis{sname
 The service hostnames will be canonicalized according to the usual
 rules for constructing service principals.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}I} \sphinxstyleemphasis{for\_user}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}I} \sphinxstyleemphasis{for\_user}}
 \sphinxAtStartPar
 Specifies that protocol transition (S4U2Self) is to be used to
 acquire a ticket on behalf of \sphinxstyleemphasis{for\_user}.  If constrained
 delegation is not requested, the service name must match the
 credentials cache client principal.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}U} \sphinxstyleemphasis{for\_user}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}U} \sphinxstyleemphasis{for\_user}}
 \sphinxAtStartPar
 Same as \sphinxhyphen{}I, but treats \sphinxstyleemphasis{for\_user} as an enterprise name.
 
-\item[{\sphinxstylestrong{\sphinxhyphen{}F} \sphinxstyleemphasis{cert\_file}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\sphinxhyphen{}F} \sphinxstyleemphasis{cert\_file}}
 \sphinxAtStartPar
 Specifies that protocol transition is to be used, identifying the
 client principal with the X.509 certificate in \sphinxstyleemphasis{cert\_file}.  The
 certificate file must be in PEM format.
 
-\item[{\sphinxstylestrong{\textendash{}cached\sphinxhyphen{}only}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\textendash{}cached\sphinxhyphen{}only}}
 \sphinxAtStartPar
 Only retrieve credentials already present in the cache, not from
 the KDC.  (Added in release 1.19.)
 
-\item[{\sphinxstylestrong{\textendash{}no\sphinxhyphen{}store}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\textendash{}no\sphinxhyphen{}store}}
 \sphinxAtStartPar
 Do not store retrieved credentials in the cache.  If
 \sphinxstylestrong{\textendash{}out\sphinxhyphen{}cache} is also specified, credentials will still be
 stored into the output credential cache.  (Added in release 1.19.)
 
-\item[{\sphinxstylestrong{\textendash{}out\sphinxhyphen{}cache} \sphinxstyleemphasis{ccache}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\textendash{}out\sphinxhyphen{}cache} \sphinxstyleemphasis{ccache}}
 \sphinxAtStartPar
 Initialize \sphinxstyleemphasis{ccache} and store all retrieved credentials into it.
 Do not store acquired credentials in the input cache.  (Added in
 release 1.19.)
 
-\item[{\sphinxstylestrong{\textendash{}u2u} \sphinxstyleemphasis{ccache}}] \leavevmode
+\sphinxlineitem{\sphinxstylestrong{\textendash{}u2u} \sphinxstyleemphasis{ccache}}
 \sphinxAtStartPar
 Requests a user\sphinxhyphen{}to\sphinxhyphen{}user ticket.  \sphinxstyleemphasis{ccache} must contain a local
 krbtgt ticket for the server principal.  The reported version
@@ -2406,7 +2441,7 @@ variables.
 
 \subsection{FILES}
 \label{\detokenize{user/user_commands/kvno:files}}\begin{description}
-\item[{\DUrole{xref,std,std-ref}{DEFCCNAME}}] \leavevmode
+\sphinxlineitem{\DUrole{xref,std,std-ref}{DEFCCNAME}}
 \sphinxAtStartPar
 Default location of the credentials cache
 
@@ -2417,6 +2452,8 @@ Default location of the credentials cache
 \label{\detokenize{user/user_commands/kvno:see-also}}
 \sphinxAtStartPar
 {\hyperref[\detokenize{user/user_commands/kinit:kinit-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kinit}}}}, {\hyperref[\detokenize{user/user_commands/kdestroy:kdestroy-1}]{\sphinxcrossref{\DUrole{std,std-ref}{kdestroy}}}}, {\hyperref[\detokenize{user/user_config/kerberos:kerberos-7}]{\sphinxcrossref{\DUrole{std,std-ref}{kerberos}}}}
+
+\sphinxstepscope
 
 
 \section{sclient}

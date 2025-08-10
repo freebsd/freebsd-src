@@ -276,7 +276,7 @@ cpw_test_succeed(char *user, krb5_principal princ, char *pass)
 }
 
 static void
-test_chpass()
+test_chpass(void)
 {
     krb5_principal princ = parse_princ("chpass-test");
     krb5_principal hist_princ = parse_princ("kadmin/history");
@@ -334,7 +334,7 @@ cpol_test_compare(char *user, kadm5_policy_ent_t ent, uint32_t mask)
 }
 
 static void
-test_create_policy()
+test_create_policy(void)
 {
     void *handle;
     kadm5_policy_ent_rec ent;
@@ -440,7 +440,7 @@ cprinc_test_compare(char *user, kadm5_principal_ent_t ent, uint32_t mask,
 }
 
 static void
-test_create_principal()
+test_create_principal(void)
 {
     void *handle;
     kadm5_principal_ent_rec ent;
@@ -535,7 +535,7 @@ dpol_test_succeed(char *user, char *name)
 }
 
 static void
-test_delete_policy()
+test_delete_policy(void)
 {
     krb5_principal princ = parse_princ("delete-policy-test-princ");
 
@@ -587,7 +587,7 @@ dprinc_test_succeed(char *user, krb5_principal princ)
 }
 
 static void
-test_delete_principal()
+test_delete_principal(void)
 {
     krb5_principal princ = parse_princ("delete-principal-test");
 
@@ -638,7 +638,7 @@ gpol_test_fail(char *user, char *name, krb5_error_code code)
 }
 
 static void
-test_get_policy()
+test_get_policy(void)
 {
     /* Fails with unknown policy. */
     dpol_test_fail("admin", "unknown-policy", KADM5_UNK_POLICY);
@@ -684,7 +684,7 @@ gprinc_test_fail(char *user, krb5_principal princ, krb5_error_code code)
 }
 
 static void
-test_get_principal()
+test_get_principal(void)
 {
     void *handle;
     kadm5_principal_ent_rec ent;
@@ -743,7 +743,7 @@ test_get_principal()
 }
 
 static void
-test_init_destroy()
+test_init_destroy(void)
 {
     krb5_context ctx;
     kadm5_ret_t ret;
@@ -1019,7 +1019,7 @@ mpol_test_compare(void *handle, kadm5_policy_ent_t ent, uint32_t mask)
 }
 
 static void
-test_modify_policy()
+test_modify_policy(void)
 {
     kadm5_policy_ent_rec ent;
 
@@ -1109,7 +1109,7 @@ mprinc_test_compare(char *user, kadm5_principal_ent_t ent, uint32_t mask)
 }
 
 static void
-test_modify_principal()
+test_modify_principal(void)
 {
     void *handle;
     krb5_principal princ = parse_princ("modify-principal-test");
@@ -1233,7 +1233,7 @@ rnd_test_succeed(char *user, krb5_principal princ)
 }
 
 static void
-test_randkey()
+test_randkey(void)
 {
     void *handle;
     krb5_principal princ = parse_princ("randkey-principal-test");

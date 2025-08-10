@@ -195,7 +195,7 @@ void ktest_empty_pkinit_supp_pub_info(krb5_pkinit_supp_pub_info *p);
 #endif
 
 #ifdef ENABLE_LDAP
-void ktest_empty_ldap_seqof_key_data(krb5_context, ldap_seqof_key_data *p);
+void ktest_empty_ldap_seqof_key_data(ldap_seqof_key_data *p);
 #endif
 
 void ktest_empty_kkdcp_message(krb5_kkdcp_message *p);

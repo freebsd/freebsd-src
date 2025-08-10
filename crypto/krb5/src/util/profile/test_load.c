@@ -29,7 +29,7 @@
 #include "prof_int.h"
 
 int
-main()
+main(void)
 {
     profile_t pr, pr2;
     const char *files[] = { "./modtest.conf", NULL };

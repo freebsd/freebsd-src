@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>PKINIT configuration &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,14 +51,14 @@
           <div class="body" role="main">
             
   <section id="pkinit-configuration">
-<span id="pkinit"></span><h1>PKINIT configuration<a class="headerlink" href="#pkinit-configuration" title="Permalink to this headline">¶</a></h1>
+<span id="pkinit"></span><h1>PKINIT configuration<a class="headerlink" href="#pkinit-configuration" title="Link to this heading">¶</a></h1>
 <p>PKINIT is a preauthentication mechanism for Kerberos 5 which uses
 X.509 certificates to authenticate the KDC to clients and vice versa.
 PKINIT can also be used to enable anonymity support, allowing clients
 to communicate securely with the KDC or with application servers
 without authenticating as a particular client principal.</p>
 <section id="creating-certificates">
-<h2>Creating certificates<a class="headerlink" href="#creating-certificates" title="Permalink to this headline">¶</a></h2>
+<h2>Creating certificates<a class="headerlink" href="#creating-certificates" title="Link to this heading">¶</a></h2>
 <p>PKINIT requires an X.509 certificate for the KDC and one for each
 client principal which will authenticate using PKINIT.  For anonymous
 PKINIT, a KDC certificate is required, but client certificates are
@@ -72,7 +70,7 @@ this section if you are using a commercially issued server certificate
 as the KDC certificate for anonymous PKINIT, or if you are configuring
 a client to use an Active Directory KDC.</p>
 <section id="generating-a-certificate-authority-certificate">
-<h3>Generating a certificate authority certificate<a class="headerlink" href="#generating-a-certificate-authority-certificate" title="Permalink to this headline">¶</a></h3>
+<h3>Generating a certificate authority certificate<a class="headerlink" href="#generating-a-certificate-authority-certificate" title="Link to this heading">¶</a></h3>
 <p>You can establish a new certificate authority (CA) for use with a
 PKINIT deployment with the commands:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">openssl</span> <span class="n">genrsa</span> <span class="o">-</span><span class="n">out</span> <span class="n">cakey</span><span class="o">.</span><span class="n">pem</span> <span class="mi">2048</span>
@@ -94,7 +92,7 @@ each client host.  cakey.pem will be required to create KDC and client
 certificates.</p>
 </section>
 <section id="generating-a-kdc-certificate">
-<h3>Generating a KDC certificate<a class="headerlink" href="#generating-a-kdc-certificate" title="Permalink to this headline">¶</a></h3>
+<h3>Generating a KDC certificate<a class="headerlink" href="#generating-a-kdc-certificate" title="Link to this heading">¶</a></h3>
 <p>A KDC certificate for use with PKINIT is required to have some unusual
 fields, which makes generating them with OpenSSL somewhat complicated.
 First, you will need a file containing the following:</p>
@@ -146,7 +144,7 @@ name in the Subject Alternative Name extension, so it will appear as
 anything is wrong with the KDC certificate.</p>
 </section>
 <section id="generating-client-certificates">
-<h3>Generating client certificates<a class="headerlink" href="#generating-client-certificates" title="Permalink to this headline">¶</a></h3>
+<h3>Generating client certificates<a class="headerlink" href="#generating-client-certificates" title="Link to this heading">¶</a></h3>
 <p>PKINIT client certificates also must have some unusual certificate
 fields.  To generate a client certificate with OpenSSL for a
 single-component principal name, you will need an extensions file
@@ -215,7 +213,7 @@ to the first and second components when running <code class="docutils literal no
 </section>
 </section>
 <section id="configuring-the-kdc">
-<h2>Configuring the KDC<a class="headerlink" href="#configuring-the-kdc" title="Permalink to this headline">¶</a></h2>
+<h2>Configuring the KDC<a class="headerlink" href="#configuring-the-kdc" title="Link to this heading">¶</a></h2>
 <p>The KDC must have filesystem access to the KDC certificate (kdc.pem)
 and the KDC private key (kdckey.pem).  Configure the following
 relation in the KDC’s <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> file, either in the
@@ -276,7 +274,7 @@ for example:</p>
 </div>
 </section>
 <section id="configuring-the-clients">
-<h2>Configuring the clients<a class="headerlink" href="#configuring-the-clients" title="Permalink to this headline">¶</a></h2>
+<h2>Configuring the clients<a class="headerlink" href="#configuring-the-clients" title="Link to this heading">¶</a></h2>
 <p>Client hosts must be configured to trust the issuing authority for the
 KDC certificate.  For a newly established certificate authority, the
 client host must have filesystem access to the CA certificate
@@ -317,7 +315,7 @@ Configure the following relations in the client host’s
 possible to run <code class="docutils literal notranslate"><span class="pre">kinit</span> <span class="pre">username</span></code> without entering a password.</p>
 </section>
 <section id="anonymous-pkinit">
-<span id="id1"></span><h2>Anonymous PKINIT<a class="headerlink" href="#anonymous-pkinit" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>Anonymous PKINIT<a class="headerlink" href="#anonymous-pkinit" title="Link to this heading">¶</a></h2>
 <p>Anonymity support in Kerberos allows a client to obtain a ticket
 without authenticating as any particular principal.  Such a ticket can
 be used as a FAST armor ticket, or to securely communicate with an
@@ -351,7 +349,7 @@ appropriate <a class="reference internal" href="conf_files/kdc_conf.html#kdc-rea
 will have the client name <code class="docutils literal notranslate"><span class="pre">WELLKNOWN/ANONYMOUS&#64;WELLKNOWN:ANONYMOUS</span></code>.</p>
 </section>
 <section id="freshness-tokens">
-<h2>Freshness tokens<a class="headerlink" href="#freshness-tokens" title="Permalink to this headline">¶</a></h2>
+<h2>Freshness tokens<a class="headerlink" href="#freshness-tokens" title="Link to this heading">¶</a></h2>
 <p>Freshness tokens can ensure that the client has recently had access to
 its certificate private key.  If freshness tokens are not required by
 the KDC, a client program with temporary possession of the private key
@@ -458,8 +456,8 @@ and verify that authentication is unsuccessful.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

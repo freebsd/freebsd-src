@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>OTP Preauthentication &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="otp-preauthentication">
-<span id="otp-preauth"></span><h1>OTP Preauthentication<a class="headerlink" href="#otp-preauthentication" title="Permalink to this headline">¶</a></h1>
+<span id="otp-preauth"></span><h1>OTP Preauthentication<a class="headerlink" href="#otp-preauthentication" title="Link to this heading">¶</a></h1>
 <p>OTP is a preauthentication mechanism for Kerberos 5 which uses One
 Time Passwords (OTP) to authenticate the client to the KDC.  The OTP
 is passed to the KDC over an encrypted FAST channel in clear-text.
@@ -66,7 +64,7 @@ passing of RADIUS requests over a UNIX domain stream socket.  This
 permits the use of a local companion daemon which can handle the
 details of authentication.</p>
 <section id="defining-token-types">
-<h2>Defining token types<a class="headerlink" href="#defining-token-types" title="Permalink to this headline">¶</a></h2>
+<h2>Defining token types<a class="headerlink" href="#defining-token-types" title="Link to this heading">¶</a></h2>
 <p>Token types are defined in either <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> or
 <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> according to the following format:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">otp</span><span class="p">]</span>
@@ -95,7 +93,7 @@ will be annotated with the specified authentication indicator (see
 add multiple indicators.</p>
 </section>
 <section id="the-default-token-type">
-<h2>The default token type<a class="headerlink" href="#the-default-token-type" title="Permalink to this headline">¶</a></h2>
+<h2>The default token type<a class="headerlink" href="#the-default-token-type" title="Link to this heading">¶</a></h2>
 <p>A default token type is used internally when no token type is specified for a
 given user.  It is defined as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">otp</span><span class="p">]</span>
@@ -108,16 +106,16 @@ given user.  It is defined as follows:</p>
 simply by defining a configuration with the same name.</p>
 </section>
 <section id="token-instance-configuration">
-<h2>Token instance configuration<a class="headerlink" href="#token-instance-configuration" title="Permalink to this headline">¶</a></h2>
+<h2>Token instance configuration<a class="headerlink" href="#token-instance-configuration" title="Link to this heading">¶</a></h2>
 <p>To enable OTP for a client principal, the administrator must define
 the <strong>otp</strong> string attribute for that principal.  (See
 <a class="reference internal" href="admin_commands/kadmin_local.html#set-string"><span class="std std-ref">set_string</span></a>.)  The <strong>otp</strong> user string is a JSON string of the
 format:</p>
 <div class="highlight-xml notranslate"><div class="highlight"><pre><span></span>[{
-    &quot;type&quot;: <span class="nt">&lt;string&gt;</span>,
-    &quot;username&quot;: <span class="nt">&lt;string&gt;</span>,
-    &quot;indicators&quot;: [<span class="nt">&lt;string&gt;</span>, ...]
- }, ...]
+<span class="w">    </span>&quot;type&quot;:<span class="w"> </span><span class="nt">&lt;string&gt;</span>,
+<span class="w">    </span>&quot;username&quot;:<span class="w"> </span><span class="nt">&lt;string&gt;</span>,
+<span class="w">    </span>&quot;indicators&quot;:<span class="w"> </span>[<span class="nt">&lt;string&gt;</span>,<span class="w"> </span>...]
+<span class="w"> </span>},<span class="w"> </span>...]
 </pre></div>
 </div>
 <p>This is an array of token objects.  Both fields of token objects are
@@ -132,7 +130,7 @@ indicators specified in the token type.</p>
 equivalent to one DEFAULT token (<code class="docutils literal notranslate"><span class="pre">[{}]</span></code>).</p>
 </section>
 <section id="other-considerations">
-<h2>Other considerations<a class="headerlink" href="#other-considerations" title="Permalink to this headline">¶</a></h2>
+<h2>Other considerations<a class="headerlink" href="#other-considerations" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p>FAST is required for OTP to work.</p></li>
 </ol>
@@ -217,8 +215,8 @@ equivalent to one DEFAULT token (<code class="docutils literal notranslate"><spa
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

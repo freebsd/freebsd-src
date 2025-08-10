@@ -71,10 +71,7 @@ krb5_db_register_keytab(krb5_context context)
 }
 
 krb5_error_code
-krb5_ktkdb_resolve(context, name, id)
-    krb5_context          context;
-    const char          * name;
-    krb5_keytab         * id;
+krb5_ktkdb_resolve(krb5_context context, const char *name, krb5_keytab *id)
 {
     if ((*id = (krb5_keytab) malloc(sizeof(**id))) == NULL)
         return(ENOMEM);
@@ -84,9 +81,7 @@ krb5_ktkdb_resolve(context, name, id)
 }
 
 krb5_error_code
-krb5_ktkdb_close(context, kt)
-    krb5_context context;
-    krb5_keytab kt;
+krb5_ktkdb_close(krb5_context context, krb5_keytab kt)
 {
     /*
      * This routine is responsible for freeing all memory allocated
@@ -119,13 +114,9 @@ krb5_ktkdb_set_context(krb5_context ctx)
 }
 
 krb5_error_code
-krb5_ktkdb_get_entry(in_context, id, principal, kvno, enctype, entry)
-    krb5_context          in_context;
-    krb5_keytab           id;
-    krb5_const_principal  principal;
-    krb5_kvno             kvno;
-    krb5_enctype          enctype;
-    krb5_keytab_entry   * entry;
+krb5_ktkdb_get_entry(krb5_context in_context, krb5_keytab id,
+                     krb5_const_principal principal, krb5_kvno kvno,
+                     krb5_enctype enctype, krb5_keytab_entry *entry)
 {
     krb5_context          context;
     krb5_error_code       kerror = 0;

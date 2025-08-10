@@ -29,43 +29,6 @@
 #include "k5-int.h"
 #include "kprop.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-
-/*
- * Convert an IPv4 or IPv6 socket address to a newly allocated krb5_address.
- * There is similar code elsewhere in the tree, so this should possibly become
- * a libkrb5 API in the future.
- */
-krb5_error_code
-sockaddr2krbaddr(krb5_context context, int family, struct sockaddr *sa,
-                 krb5_address **dest)
-{
-    krb5_address addr;
-
-    addr.magic = KV5M_ADDRESS;
-    if (family == AF_INET) {
-        struct sockaddr_in *sa4 = sa2sin(sa);
-        addr.addrtype = ADDRTYPE_INET;
-        addr.length = sizeof(sa4->sin_addr);
-        addr.contents = (krb5_octet *) &sa4->sin_addr;
-    } else if (family == AF_INET6) {
-        struct sockaddr_in6 *sa6 = sa2sin6(sa);
-        if (IN6_IS_ADDR_V4MAPPED(&sa6->sin6_addr)) {
-            addr.addrtype = ADDRTYPE_INET;
-            addr.contents = (krb5_octet *) &sa6->sin6_addr + 12;
-            addr.length = 4;
-        } else {
-            addr.addrtype = ADDRTYPE_INET6;
-            addr.length = sizeof(sa6->sin6_addr);
-            addr.contents = (krb5_octet *) &sa6->sin6_addr;
-        }
-    } else
-        return KRB5_PROG_ATYPE_NOSUPP;
-
-    return krb5_copy_addr(context, &addr, dest);
-}
-
 /* Construct a host-based principal, similar to krb5_sname_to_principal() but
  * with a specified realm. */
 krb5_error_code

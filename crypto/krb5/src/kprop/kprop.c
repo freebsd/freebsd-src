@@ -80,7 +80,7 @@ static void send_error(krb5_context context, krb5_creds *my_creds, int fd,
                        char *err_text, krb5_error_code err_code);
 static void update_last_prop_file(char *hostname, char *file_name);
 
-static void usage()
+static void usage(void)
 {
     fprintf(stderr, _("\nUsage: %s [-r realm] [-f file] [-d] [-P port] "
                       "[-s keytab] replica_host\n\n"), progname);
@@ -217,9 +217,9 @@ static void
 open_connection(krb5_context context, char *host, int *fd_out)
 {
     krb5_error_code retval;
+    krb5_address addr;
     GETSOCKNAME_ARG3_TYPE socket_length;
     struct addrinfo hints, *res, *answers;
-    struct sockaddr *sa;
     struct sockaddr_storage my_sin;
     int s, error;
 
@@ -269,9 +269,11 @@ open_connection(krb5_context context, char *host, int *fd_out)
         com_err(progname, errno, _("while getting local socket address"));
         exit(1);
     }
-    sa = (struct sockaddr *)&my_sin;
-    if (sockaddr2krbaddr(context, sa->sa_family, sa, &sender_addr) != 0) {
-        com_err(progname, errno, _("while converting local address"));
+    if (k5_sockaddr_to_address(ss2sa(&my_sin), FALSE, &addr) != 0)
+        addr = k5_addr_directional_init;
+    retval = krb5_copy_addr(context, &addr, &sender_addr);
+    if (retval) {
+        com_err(progname, retval, _("while converting local address"));
         exit(1);
     }
 }

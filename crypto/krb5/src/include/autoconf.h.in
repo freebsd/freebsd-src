@@ -121,9 +121,6 @@
 /* Define if cmocka library is available. */
 #undef HAVE_CMOCKA
 
-/* Define to 1 if you have the `compile' function. */
-#undef HAVE_COMPILE
-
 /* Define if com_err has compatible gettext support */
 #undef HAVE_COM_ERR_INTL
 
@@ -182,6 +179,9 @@
 
 /* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
+
+/* Define to 1 if you have the `getentropy' function. */
+#undef HAVE_GETENTROPY
 
 /* Define to 1 if you have the `getenv' function. */
 #undef HAVE_GETENV
@@ -342,18 +342,6 @@
 /* Define if building with GNU Readline. */
 #undef HAVE_READLINE
 
-/* Define if regcomp exists and functions */
-#undef HAVE_REGCOMP
-
-/* Define to 1 if you have the `regexec' function. */
-#undef HAVE_REGEXEC
-
-/* Define to 1 if you have the <regexpr.h> header file. */
-#undef HAVE_REGEXPR_H
-
-/* Define to 1 if you have the <regex.h> header file. */
-#undef HAVE_REGEX_H
-
 /* Define to 1 if you have the `res_nclose' function. */
 #undef HAVE_RES_NCLOSE
 
@@ -368,12 +356,6 @@
 
 /* Define to 1 if you have the `res_search' function */
 #undef HAVE_RES_SEARCH
-
-/* Define to 1 if you have the `re_comp' function. */
-#undef HAVE_RE_COMP
-
-/* Define to 1 if you have the `re_exec' function. */
-#undef HAVE_RE_EXEC
 
 /* Define to 1 if you have the <sasl/sasl.h> header file. */
 #undef HAVE_SASL_SASL_H
@@ -443,9 +425,6 @@
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
-
-/* Define to 1 if you have the `step' function. */
-#undef HAVE_STEP
 
 /* Define to 1 if you have the `strchr' function. */
 #undef HAVE_STRCHR
@@ -523,6 +502,9 @@
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #undef HAVE_SYS_PARAM_H
+
+/* Define to 1 if you have the <sys/random.h> header file. */
+#undef HAVE_SYS_RANDOM_H
 
 /* Define to 1 if you have the <sys/select.h> header file. */
 #undef HAVE_SYS_SELECT_H
@@ -607,6 +589,9 @@
 
 /* Define if the KDC should return only vague error codes to clients */
 #undef KRBCONF_VAGUE_ERRORS
+
+/* Define if library unloading is prevented */
+#undef LIB_UNLOAD_PREVENTED
 
 /* define if the system header files are missing prototype for daemon() */
 #undef NEED_DAEMON_PROTO

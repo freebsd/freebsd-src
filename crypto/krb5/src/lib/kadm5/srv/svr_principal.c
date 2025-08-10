@@ -30,9 +30,9 @@ static int decrypt_key_data(krb5_context context,
 /*
  * XXX Functions that ought to be in libkrb5.a, but aren't.
  */
-kadm5_ret_t krb5_copy_key_data_contents(context, from, to)
-    krb5_context context;
-    krb5_key_data *from, *to;
+kadm5_ret_t
+krb5_copy_key_data_contents(krb5_context context, krb5_key_data *from,
+                            krb5_key_data *to)
 {
     int i, idx;
 
@@ -75,10 +75,8 @@ static krb5_tl_data *dup_tl_data(krb5_tl_data *tl)
 }
 
 /* This is in lib/kdb/kdb_cpw.c, but is static */
-static void cleanup_key_data(context, count, data)
-    krb5_context   context;
-    int                    count;
-    krb5_key_data        * data;
+static void
+cleanup_key_data(krb5_context context, int count, krb5_key_data *data)
 {
     int i;
 
@@ -522,8 +520,6 @@ kadm5_ret_t
 kadm5_delete_principal(void *server_handle, krb5_principal principal)
 {
     unsigned int                ret;
-    krb5_db_entry               *kdb;
-    osa_princ_ent_rec           adb;
     kadm5_server_handle_t handle = server_handle;
 
     CHECK_HANDLE(server_handle);
@@ -537,18 +533,12 @@ kadm5_delete_principal(void *server_handle, krb5_principal principal)
     if (krb5_principal_compare(handle->context, principal, master_princ))
         return KADM5_PROTECT_PRINCIPAL;
 
-    if ((ret = kdb_get_entry(handle, principal, &kdb, &adb)))
-        return(ret);
     ret = k5_kadm5_hook_remove(handle->context, handle->hook_handles,
                                KADM5_HOOK_STAGE_PRECOMMIT, principal);
-    if (ret) {
-        kdb_free_entry(handle, kdb, &adb);
+    if (ret)
         return ret;
-    }
 
     ret = kdb_delete_entry(handle, principal);
-
-    kdb_free_entry(handle, kdb, &adb);
 
     if (ret == 0)
         (void) k5_kadm5_hook_remove(handle->context,
@@ -1228,7 +1218,7 @@ kadm5_chpass_principal(void *server_handle,
 
 kadm5_ret_t
 kadm5_chpass_principal_3(void *server_handle,
-                         krb5_principal principal, krb5_boolean keepold,
+                         krb5_principal principal, unsigned int keepold,
                          int n_ks_tuple, krb5_key_salt_tuple *ks_tuple,
                          char *password)
 {
@@ -1283,6 +1273,8 @@ kadm5_chpass_principal_3(void *server_handle,
             goto done;
         ret = create_history_entry(handle->context, &hist_keyblocks[0],
                                    kdb->n_key_data, kdb->key_data, &hist);
+        if (ret == KRB5_BAD_ENCTYPE)
+            ret = KADM5_BAD_HIST_KEY;
         if (ret)
             goto done;
     }
@@ -1312,9 +1304,7 @@ kadm5_chpass_principal_3(void *server_handle,
         goto done;
 
     kdb->pw_expiration = 0;
-    if ((adb.aux_attributes & KADM5_POLICY)) {
-        /* the policy was loaded before */
-
+    if (have_pol) {
         ret = check_pw_reuse(handle->context, hist_keyblocks,
                              kdb->n_key_data, kdb->key_data,
                              1, &hist);
@@ -1397,7 +1387,7 @@ kadm5_randkey_principal(void *server_handle,
 kadm5_ret_t
 kadm5_randkey_principal_3(void *server_handle,
                           krb5_principal principal,
-                          krb5_boolean keepold,
+                          unsigned int keepold,
                           int n_ks_tuple, krb5_key_salt_tuple *ks_tuple,
                           krb5_keyblock **keyblocks,
                           int *n_keys)
@@ -1528,7 +1518,7 @@ kadm5_setkey_principal(void *server_handle,
 kadm5_ret_t
 kadm5_setkey_principal_3(void *server_handle,
                          krb5_principal principal,
-                         krb5_boolean keepold,
+                         unsigned int keepold,
                          int n_ks_tuple, krb5_key_salt_tuple *ks_tuple,
                          krb5_keyblock *keyblocks,
                          int n_keys)
@@ -1589,7 +1579,7 @@ make_ks_from_key_data(krb5_context context, kadm5_key_data *key_data,
 
 kadm5_ret_t
 kadm5_setkey_principal_4(void *server_handle, krb5_principal principal,
-                         krb5_boolean keepold, kadm5_key_data *key_data,
+                         unsigned int keepold, kadm5_key_data *key_data,
                          int n_key_data)
 {
     krb5_db_entry *kdb;
@@ -2055,4 +2045,43 @@ kadm5_set_string(void *server_handle, krb5_principal principal,
 done:
     kdb_free_entry(handle, kdb, &adb);
     return ret;
+}
+
+kadm5_ret_t
+kadm5_create_alias(void *server_handle, krb5_principal alias,
+                   krb5_principal target)
+{
+    krb5_db_entry *kdb;
+    osa_princ_ent_rec adb = { 0 };
+    krb5_error_code ret;
+    kadm5_server_handle_t handle = server_handle;
+
+    CHECK_HANDLE(server_handle);
+    if (alias == NULL || target == NULL)
+        return EINVAL;
+    if (!krb5_realm_compare(handle->context, alias, target))
+        return KADM5_ALIAS_REALM;
+
+    ret = kdb_get_entry(handle, alias, &kdb, NULL);
+    if (!ret) {
+        kdb_free_entry(handle, kdb, NULL);
+        return KADM5_DUP;
+    }
+
+    ret = k5_kadm5_hook_alias(handle->context, handle->hook_handles,
+                              KADM5_HOOK_STAGE_PRECOMMIT, alias, target);
+    if (ret)
+        return ret;
+
+    ret = krb5_dbe_make_alias_entry(handle->context, alias, target, &kdb);
+    if (ret)
+        return ret;
+    ret = kdb_put_entry(handle, kdb, &adb);
+    krb5_db_free_principal(handle->context, kdb);
+    if (ret)
+        return ret;
+
+    (void) k5_kadm5_hook_alias(handle->context, handle->hook_handles,
+                               KADM5_HOOK_STAGE_POSTCOMMIT, alias, target);
+    return 0;
 }

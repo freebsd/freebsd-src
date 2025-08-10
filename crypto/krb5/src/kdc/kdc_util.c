@@ -142,7 +142,7 @@ comp_cksum(krb5_context kcontext, krb5_data *source, krb5_ticket *ticket,
 /* If a header ticket is decrypted, *ticket_out is filled in even on error. */
 krb5_error_code
 kdc_process_tgs_req(kdc_realm_t *realm, krb5_kdc_req *request,
-                    const krb5_fulladdr *from, krb5_data *pkt,
+                    const struct sockaddr *from, krb5_data *pkt,
                     krb5_ticket **ticket_out, krb5_db_entry **krbtgt_ptr,
                     krb5_keyblock **tgskey, krb5_keyblock **subkey,
                     krb5_pa_data **pa_tgs_req)
@@ -159,6 +159,8 @@ kdc_process_tgs_req(kdc_realm_t *realm, krb5_kdc_req *request,
     krb5_checksum       * his_cksum = NULL;
     krb5_db_entry       * krbtgt = NULL;
     krb5_ticket         * ticket;
+    krb5_address          from_addr;
+    const krb5_address    nomatch_addr = { KV5M_ADDRESS, 0, 0, NULL };
 
     *ticket_out = NULL;
     *krbtgt_ptr = NULL;
@@ -190,8 +192,12 @@ kdc_process_tgs_req(kdc_realm_t *realm, krb5_kdc_req *request,
     if (retval)
         goto cleanup;
 
-    retval = krb5_auth_con_setaddrs(context, auth_context, NULL,
-                                    from->address);
+    /* If from_addr isn't IPv4 or IPv6, fake up an address that won't be
+     * matched if the ticket has an address list. */
+    retval = k5_sockaddr_to_address(from, FALSE, &from_addr);
+    if (retval)
+        from_addr = nomatch_addr;
+    retval = krb5_auth_con_setaddrs(context, auth_context, NULL, &from_addr);
     if (retval)
         goto cleanup_auth_context;
 

@@ -314,7 +314,7 @@ get_persistent_real(uid_t uid)
  * for the session anchor.
  */
 static key_serial_t
-session_write_anchor()
+session_write_anchor(void)
 {
     key_serial_t s, u;
 

@@ -43,6 +43,7 @@ typedef enum {
     TCP,
     UDP,
     HTTPS,
+    UNIXSOCK,
 } k5_transport;
 
 typedef enum {
@@ -70,6 +71,8 @@ struct serverlist {
     size_t nservers;
 };
 #define SERVERLIST_INIT { NULL, 0 }
+
+struct kdclist;
 
 struct remote_address {
     k5_transport transport;
@@ -132,10 +135,23 @@ krb5_error_code k5_locate_kdc(krb5_context context, const krb5_data *realm,
                               struct serverlist *serverlist,
                               krb5_boolean get_primaries, krb5_boolean no_udp);
 
-krb5_boolean k5_kdc_is_primary(krb5_context context, const krb5_data *realm,
+void k5_free_serverlist(struct serverlist *);
+
+/* Create an object for remembering a history of KDCs contacted during an
+ * exchange. */
+krb5_error_code k5_kdclist_create(struct kdclist **kdcs_out);
+
+/* Add a server entry to kdcs.  Transfer ownership of memory from *server and
+ * zero it. */
+krb5_error_code k5_kdclist_add(struct kdclist *kdcs, const krb5_data *realm,
                                struct server_entry *server);
 
-void k5_free_serverlist(struct serverlist *);
+/* Return true if any KDC entries in kdcs are replicas, looking up realms'
+ * primary KDCs as necessary. */
+krb5_boolean k5_kdclist_any_replicas(krb5_context context,
+                                     struct kdclist *kdcs);
+
+void k5_kdclist_free(struct kdclist *kdcs);
 
 #ifdef HAVE_NETINET_IN_H
 krb5_error_code krb5_unpack_full_ipaddr(krb5_context,
@@ -161,13 +177,15 @@ struct srv_dns_entry {
 krb5_error_code
 krb5int_make_srv_query_realm(krb5_context context, const krb5_data *realm,
                              const char *service, const char *protocol,
+                             const char *sitename,
                              struct srv_dns_entry **answers);
 
 void krb5int_free_srv_dns_data(struct srv_dns_entry *);
 
 krb5_error_code
 k5_make_uri_query(krb5_context context, const krb5_data *realm,
-                  const char *service, struct srv_dns_entry **answers);
+                  const char *service, const char *sitename,
+                  struct srv_dns_entry **answers);
 
 krb5_error_code k5_try_realm_txt_rr(krb5_context context, const char *prefix,
                                     const char *name, char **realm);
@@ -188,6 +206,11 @@ krb5_error_code k5_sendto(krb5_context context, const krb5_data *message,
                           int (*msg_handler)(krb5_context, const krb5_data *,
                                              void *),
                           void *msg_handler_data);
+
+krb5_error_code k5_sendto_kdc(krb5_context context, const krb5_data *message,
+                              const krb5_data *realm, krb5_boolean use_primary,
+                              krb5_boolean no_udp, krb5_data *reply_out,
+                              struct kdclist *hist);
 
 krb5_error_code krb5int_get_fq_local_hostname(char **);
 

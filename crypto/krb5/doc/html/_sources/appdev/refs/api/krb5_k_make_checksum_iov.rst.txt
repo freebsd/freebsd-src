@@ -38,7 +38,7 @@ krb5_k_make_checksum_iov -  Fill in a checksum element in IOV array (operates on
 
 
 
-Create a checksum in the #KRB5_CRYPTO_TYPE_CHECKSUM element over #KRB5_CRYPTO_TYPE_DATA and #KRB5_CRYPTO_TYPE_SIGN_ONLY chunks in *data* . Only the #KRB5_CRYPTO_TYPE_CHECKSUM region is modified.
+Create a checksum in the KRB5_CRYPTO_TYPE_CHECKSUM element over KRB5_CRYPTO_TYPE_DATA and KRB5_CRYPTO_TYPE_SIGN_ONLY chunks in *data* . Only the KRB5_CRYPTO_TYPE_CHECKSUM region is modified.
 
 
 

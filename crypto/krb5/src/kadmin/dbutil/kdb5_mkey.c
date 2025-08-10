@@ -11,22 +11,7 @@
 #include <adm_proto.h>
 #include "kdb5_util.h"
 #include <time.h>
-
-#if defined(HAVE_COMPILE) && defined(HAVE_STEP)
-#define SOLARIS_REGEXPS
-#elif defined(HAVE_REGCOMP) && defined(HAVE_REGEXEC)
-#define POSIX_REGEXPS
-#elif defined(HAVE_RE_COMP) && defined(HAVE_RE_EXEC)
-#define BSD_REGEXPS
-#else
-#error I cannot find any regexp functions
-#endif
-#ifdef SOLARIS_REGEXPS
-#include        <regexpr.h>
-#endif
-#ifdef POSIX_REGEXPS
-#include        <regex.h>
-#endif
+#include "k5-regex.h"
 
 extern krb5_keyblock master_keyblock; /* current mkey */
 extern krb5_kvno   master_kvno;
@@ -525,6 +510,8 @@ kdb5_use_mkey(int argc, char *argv[])
         goto cleanup_return;
     }
 
+    master_entry->mask |= KADM5_TL_DATA;
+
     if ((retval = krb5_db_put_principal(util_context, master_entry))) {
         com_err(progname, retval,
                 _("while adding master key entry to the database"));
@@ -644,15 +631,7 @@ struct update_enc_mkvno {
     unsigned int updated;
     unsigned int dry_run : 1;
     unsigned int verbose : 1;
-#ifdef SOLARIS_REGEXPS
-    char *expbuf;
-#endif
-#ifdef POSIX_REGEXPS
     regex_t preg;
-#endif
-#if !defined(SOLARIS_REGEXPS) && !defined(POSIX_REGEXPS)
-    unsigned char placeholder;
-#endif
 };
 
 /* XXX Duplicated in libkadm5srv! */
@@ -667,10 +646,10 @@ struct update_enc_mkvno {
  *
  * Effects:
  *
- * regexp is filled in with allocated memory contained a regular
- * expression to be used with re_comp/compile that matches what the
- * shell-style glob would match.  If glob does not contain an "@"
- * character and realm is not NULL, "@*" is appended to the regexp.
+ * regexp is filled in with allocated memory containing a regular
+ * expression that matches what the shell-style glob would match.
+ * If glob does not contain an "@" character and realm is not
+ * NULL, "@*" is appended to the regexp.
  *
  * Conversion algorithm:
  *
@@ -745,7 +724,6 @@ update_princ_encryption_1(void *cb, krb5_db_entry *ent)
     struct update_enc_mkvno *p = cb;
     char *pname = 0;
     krb5_error_code retval;
-    int match;
     krb5_timestamp now;
     int result;
     krb5_kvno old_mkvno;
@@ -761,18 +739,8 @@ update_princ_encryption_1(void *cb, krb5_db_entry *ent)
         goto skip;
     }
 
-#ifdef SOLARIS_REGEXPS
-    match = (step(pname, p->expbuf) != 0);
-#endif
-#ifdef POSIX_REGEXPS
-    match = (regexec(&p->preg, pname, 0, NULL, 0) == 0);
-#endif
-#ifdef BSD_REGEXPS
-    match = (re_exec(pname) != 0);
-#endif
-    if (!match) {
+    if (regexec(&p->preg, pname, 0, NULL, 0) != 0)
         goto skip;
-    }
     p->re_match_count++;
     retval = krb5_dbe_get_mkvno(util_context, ent, &old_mkvno);
     if (retval) {
@@ -814,7 +782,7 @@ update_princ_encryption_1(void *cb, krb5_db_entry *ent)
         goto fail;
     }
 
-    ent->mask |= KADM5_KEY_DATA;
+    ent->mask |= KADM5_KEY_DATA | KADM5_TL_DATA;
 
     if ((retval = krb5_db_put_principal(util_context, ent))) {
         com_err(progname, retval, _("while updating principal '%s' key data "
@@ -868,9 +836,6 @@ kdb5_update_princ_encryption(int argc, char *argv[])
     krb5_error_code retval;
     krb5_actkvno_node *actkvno_list = 0;
     krb5_db_entry *master_entry = NULL;
-#ifdef BSD_REGEXPS
-    char *msg;
-#endif
     char *regexp = NULL;
     krb5_keyblock *act_mkey;
     krb5_keylist_node *master_keylist = krb5_db_mkey_list_alias(util_context);
@@ -917,17 +882,7 @@ kdb5_update_princ_encryption(int argc, char *argv[])
         goto cleanup;
     }
 
-    if (
-#ifdef SOLARIS_REGEXPS
-        ((data.expbuf = compile(regexp, NULL, NULL)) == NULL)
-#endif
-#ifdef POSIX_REGEXPS
-        ((regcomp(&data.preg, regexp, REG_NOSUB)) != 0)
-#endif
-#ifdef BSD_REGEXPS
-        ((msg = (char *) re_comp(regexp)) != NULL)
-#endif
-    ) {
+    if (regcomp(&data.preg, regexp, REG_NOSUB) != 0) {
         /* XXX syslog msg or regerr(regerrno) */
         com_err(progname, 0, _("error compiling converted regexp '%s'"),
                 regexp);
@@ -1004,9 +959,7 @@ kdb5_update_princ_encryption(int argc, char *argv[])
 cleanup:
     krb5_db_free_principal(util_context, master_entry);
     free(regexp);
-#ifdef POSIX_REGEXPS
     regfree(&data.preg);
-#endif
     memset(&new_master_keyblock, 0, sizeof(new_master_keyblock));
     krb5_dbe_free_actkvno_list(util_context, actkvno_list);
 }

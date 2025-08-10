@@ -56,10 +56,7 @@ static int  mpool_write __P((MPOOL *, BKT *));
  *	Initialize a memory pool.
  */
 MPOOL *
-mpool_open(key, fd, pagesize, maxcache)
-	void *key;
-	int fd;
-	db_pgno_t pagesize, maxcache;
+mpool_open(void *key, int fd, db_pgno_t pagesize, db_pgno_t maxcache)
 {
 	struct stat sb;
 	MPOOL *mp;
@@ -96,11 +93,8 @@ mpool_open(key, fd, pagesize, maxcache)
  *	Initialize input/output filters.
  */
 void
-mpool_filter(mp, pgin, pgout, pgcookie)
-	MPOOL *mp;
-	void (*pgin) __P((void *, db_pgno_t, void *));
-	void (*pgout) __P((void *, db_pgno_t, void *));
-	void *pgcookie;
+mpool_filter(MPOOL *mp, void (*pgin) __P((void *, db_pgno_t, void *)),
+	     void (*pgout) __P((void *, db_pgno_t, void *)), void *pgcookie)
 {
 	mp->pgin = pgin;
 	mp->pgout = pgout;
@@ -112,10 +106,7 @@ mpool_filter(mp, pgin, pgout, pgcookie)
  *	Get a new page of memory.
  */
 void *
-mpool_new(mp, pgnoaddr, flags)
-	MPOOL *mp;
-	db_pgno_t *pgnoaddr;
-	u_int flags;
+mpool_new(MPOOL *mp, db_pgno_t *pgnoaddr, u_int flags)
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -149,9 +140,7 @@ mpool_new(mp, pgnoaddr, flags)
 }
 
 int
-mpool_delete(mp, page)
-	MPOOL *mp;
-	void *page;
+mpool_delete(MPOOL *mp, void *page)
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -180,10 +169,7 @@ mpool_delete(mp, page)
  *	Get a page.
  */
 void *
-mpool_get(mp, pgno, flags)
-	MPOOL *mp;
-	db_pgno_t pgno;
-	u_int flags;				/* XXX not used? */
+mpool_get(MPOOL *mp, db_pgno_t pgno, u_int flags)
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -278,10 +264,7 @@ mpool_get(mp, pgno, flags)
  *	Return a page.
  */
 int
-mpool_put(mp, page, flags)
-	MPOOL *mp;
-	void *page;
-	u_int flags;
+mpool_put(MPOOL *mp, void *page, u_int flags)
 {
 	BKT *bp;
 
@@ -307,8 +290,7 @@ mpool_put(mp, page, flags)
  *	Close the buffer pool.
  */
 int
-mpool_close(mp)
-	MPOOL *mp;
+mpool_close(MPOOL *mp)
 {
 	BKT *bp;
 
@@ -328,8 +310,7 @@ mpool_close(mp)
  *	Sync the pool to disk.
  */
 int
-mpool_sync(mp)
-	MPOOL *mp;
+mpool_sync(MPOOL *mp)
 {
 	BKT *bp;
 
@@ -348,8 +329,7 @@ mpool_sync(mp)
  *	Get a page from the cache (or create one).
  */
 static BKT *
-mpool_bkt(mp)
-	MPOOL *mp;
+mpool_bkt(MPOOL *mp)
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -407,9 +387,7 @@ new:	if ((bp = (BKT *)malloc(sizeof(BKT) + mp->pagesize)) == NULL)
  *	Write a page to disk.
  */
 static int
-mpool_write(mp, bp)
-	MPOOL *mp;
-	BKT *bp;
+mpool_write(MPOOL *mp, BKT *bp)
 {
 	off_t off;
 
@@ -451,9 +429,7 @@ mpool_write(mp, bp)
  *	Lookup a page in the cache.
  */
 static BKT *
-mpool_look(mp, pgno)
-	MPOOL *mp;
-	db_pgno_t pgno;
+mpool_look(MPOOL *mp, db_pgno_t pgno)
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -478,8 +454,7 @@ mpool_look(mp, pgno)
  *	Print out cache statistics.
  */
 void
-mpool_stat(mp)
-	MPOOL *mp;
+mpool_stat(MPOOL *mp)
 {
 	BKT *bp;
 	int cnt;
@@ -520,8 +495,7 @@ mpool_stat(mp)
 }
 #else
 void
-mpool_stat(mp)
-	MPOOL *mp;
+mpool_stat(MPOOL *mp)
 {
 }
 #endif

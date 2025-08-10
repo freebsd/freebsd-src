@@ -163,7 +163,7 @@ kg_make_confounder(krb5_context context, krb5_enctype enctype,
 /* Set *data_out to a krb5_data structure containing iv, or to NULL if iv is
  * NULL. */
 static krb5_error_code
-iv_to_state(krb5_context context, krb5_key key, krb5_pointer iv,
+iv_to_state(krb5_context context, krb5_key key, const uint8_t *iv,
             krb5_data **data_out)
 {
     krb5_error_code code;
@@ -236,8 +236,8 @@ kg_encrypt_inplace(krb5_context context, krb5_key key, int usage,
 /* length is the length of the cleartext. */
 
 krb5_error_code
-kg_decrypt(krb5_context context, krb5_key key, int usage, krb5_pointer iv,
-           krb5_const_pointer in, krb5_pointer out, unsigned int length)
+kg_decrypt(krb5_context context, krb5_key key, int usage, const uint8_t *iv,
+           const uint8_t *in, uint8_t *out, unsigned int length)
 {
     krb5_error_code code;
     krb5_data *state, outputd;
@@ -252,7 +252,7 @@ kg_decrypt(krb5_context context, krb5_key key, int usage, krb5_pointer iv,
     inputd.ciphertext.data = (char *)in;
 
     outputd.length = length;
-    outputd.data = out;
+    outputd.data = (char *)out;
 
     code = krb5_k_decrypt(context, key, usage, state, &inputd, &outputd);
     krb5_free_data(context, state);
@@ -272,6 +272,72 @@ kg_arcfour_docrypt(const krb5_keyblock *keyblock, int usage,
     kiov.flags = KRB5_CRYPTO_TYPE_DATA;
     kiov.data = make_data(output_buf, input_len);
     return krb5int_arcfour_gsscrypt(keyblock, usage, &kd, &kiov, 1);
+}
+
+/* Return true if cksum contains a valid checksum for header (implicitly of
+ * length 8) and data, in the RFC 1964 token format. */
+krb5_boolean
+kg_verify_checksum_v1(krb5_context context, uint16_t signalg, krb5_key key,
+                      krb5_keyusage usage, const uint8_t *header,
+                      const uint8_t *data, size_t data_len,
+                      const uint8_t *cksum, size_t cksum_len)
+{
+    krb5_error_code ret;
+    krb5_cksumtype type;
+    krb5_crypto_iov iov[3];
+    uint8_t ckbuf[20];
+
+    if (signalg == SGN_ALG_HMAC_MD5)
+        type = CKSUMTYPE_HMAC_MD5_ARCFOUR;
+    else if (signalg == SGN_ALG_HMAC_SHA1_DES3_KD)
+        type = CKSUMTYPE_HMAC_SHA1_DES3;
+    else
+        abort();
+
+    iov[0].flags = iov[1].flags = KRB5_CRYPTO_TYPE_SIGN_ONLY;
+    iov[0].data = make_data((uint8_t *)header, 8);
+    iov[1].data = make_data((uint8_t *)data, data_len);
+    iov[2].flags = KRB5_CRYPTO_TYPE_CHECKSUM;
+    iov[2].data = make_data(ckbuf, sizeof(ckbuf));
+
+    /* For RC4 the GSS checksum is only the first eight bytes of the HMAC-MD5
+     * result, so we must compute a checksum and compare. */
+    ret = krb5_k_make_checksum_iov(context, type, key, usage, iov, 3);
+    if (ret)
+        return FALSE;
+    assert(iov[2].data.length >= cksum_len);
+    return k5_bcmp(iov[2].data.data, cksum, cksum_len) == 0;
+}
+
+/* Return true if cksum contains a valid checksum for data and the provided
+ * header fields, in the RFC 4121 token format. */
+krb5_boolean
+kg_verify_checksum_v3(krb5_context context, krb5_key key, krb5_keyusage usage,
+                      krb5_cksumtype cksumtype,
+                      uint16_t toktype, uint8_t flags, uint64_t seqnum,
+                      const uint8_t *data, size_t data_len,
+                      const uint8_t *cksum, size_t cksum_len)
+{
+    krb5_crypto_iov iov[3];
+    uint8_t ckhdr[16];
+    krb5_boolean valid;
+
+    /* Compose an RFC 4121 token header with EC and RRC set to 0. */
+    store_16_be(toktype, ckhdr);
+    ckhdr[2] = flags;
+    ckhdr[3] = 0xFF;
+    store_16_be(0, ckhdr + 4);
+    store_16_be(0, ckhdr + 6);
+    store_64_be(seqnum, ckhdr + 8);
+
+    /* Verify the checksum over the data and composed header. */
+    iov[0].flags = iov[1].flags = KRB5_CRYPTO_TYPE_SIGN_ONLY;
+    iov[0].data = make_data((uint8_t *)data, data_len);
+    iov[1].data = make_data(ckhdr, 16);
+    iov[2].flags = KRB5_CRYPTO_TYPE_CHECKSUM;
+    iov[2].data = make_data((uint8_t *)cksum, cksum_len);
+    return krb5_k_verify_checksum_iov(context, cksumtype, key, usage, iov, 3,
+                                      &valid) == 0 && valid;
 }
 
 /* AEAD */

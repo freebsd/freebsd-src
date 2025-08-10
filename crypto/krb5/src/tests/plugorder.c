@@ -77,7 +77,7 @@ blt3(krb5_context context, int maj_ver, int min_ver, krb5_plugin_vtable vtable)
 }
 
 int
-main()
+main(void)
 {
     krb5_plugin_initvt_fn *modules = NULL, *mod;
     struct krb5_pwqual_vtable_st vt;

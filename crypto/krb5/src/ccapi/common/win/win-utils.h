@@ -50,6 +50,6 @@ char*                   clientEndpoint(const char* UUID);
 char*                   serverEndpoint(const char* UUID);
 extern unsigned char*   pszProtocolSequence;
 
-char* timestamp();
+char* timestamp(void);
 
 #endif // _win_utils_h

@@ -10,13 +10,24 @@ To build Kerberos 5 on Windows, you will need the following:
 
 * A version of Visual Studio (at least 2013) which includes the
   Microsoft Foundation Classes libraries.  These instructions will
-  work for Visual Studio 2017 Community or Professional, both of which
-  include the MFC libraries if the "Visual C++ MFC" checkbox is
-  selected after enabling the "Desktop development with C++" workload.
-  If you do not plan to build the graphical ticket manager
-  application, the MFC libraries are not required.
+  work for Visual Studio 2022 Community or Professional.  Include
+  the following components:
 
-* A version of Perl.
+  - Under Workloads, select Desktop development with C++
+  - Under Individual components -> SDKs, libraries, and frameworks,
+    select "C++ MFC for latest v*** build tools (x86 & x64)".  This
+    component is not required if you do not wish to build the
+    graphical ticket manager.
+  - Under Individual components -> Compilers, build tools, and
+    runtimes, select "C++ 20** Redistributable MSMs".  This component
+    is not required if you do not wish to build the installer.
+
+* An OpenSSL installation, including the headers, DLLs, and import
+  .LIB files.  This dependency is optional if you are not building
+  PKINIT.  We recommend building OpenSSL from source code.
+
+* A version of Perl.  We recommend Strawberry Perl as it will work
+  to build OpenSSL.
 
 * Some common Unix utilities such as sed/awk/cp/cat installed in the
   command-line path.
@@ -28,20 +39,12 @@ To build Kerberos 5 on Windows, you will need the following:
 
 A simple way to get the necessary Unix utilities is to install Git
 BASH from https://gitforwindows.org and configure it to add the Unix
-utilities to the command-line path.  In some versions of Windows (not
-the most current versions), the Unix utilities can alternatively be
-obtained via the Utilities and SDK for UNIX-based Applications, which
-may be enabled as a Windows feature and then the components installed.
-Note that the Windows nmake will not find the SUA awk utility in the
-path unless it is named awk.exe; the permissions on the utility may
-need correcting if awk.exe is created as a copy of the original awk.
+utilities to the command-line path.
 
-Git BASH contains a version of Perl, which will work to build krb5 if
-the newlines in the source tree are not translated to native newlines.
-Strawberry Perl will work regardless of whether newlines are
-translated.  If both Git BASH and Strawberry Perl are installed, you
-may need to adjust the command line path to ensure that the preferred
-Perl appears first.
+Git BASH contains a version of Perl, which will work to build krb5,
+but not to build OpenSSL from source.  If both Git BASH and Strawberry
+Perl are installed, you may need to adjust the command line path to
+ensure that the preferred Perl appears first when building OpenSSL.
 
 The krb5 source tree may be obtained either directly on the Windows
 machine with a native git client cloning the krb5 public mirror at
@@ -51,12 +54,9 @@ checking out the sources with git and are using the Git BASH Perl,
 make sure to set git's core.autocrlf variable to "input" or "false" to
 avoid translating newlines.
 
-After Visual Studio is installed, you should be able to invoke 32-bit
-and 64-bit command prompts via the start menu (Visual Studio 2017 ->
-x86 Native Tools Command Prompt and x64 Native Tools Command Prompt).
-At the current time, Kerberos 5 can only be built for the x64 target
-if the host platform is also 64-bit, because it compiles and runs
-programs during the build.
+After Visual Studio is installed, you should be able to invoke command
+prompts via the start menu (Visual Studio 2017 -> x64 Native Tools
+Command Prompt).
 
 IMPORTANT NOTE: By default, the sources are built with debug
 information and linked against the debug version of the Microsoft C
@@ -76,43 +76,35 @@ You must also define KRB_INSTALL_DIR either in the environment or
 on the command line (for nmake install).  If you are proceeding to build
 the MSI installer, this directory should be a temporary staging area in or
 near your build tree.  The directory must exist before nmake install
-is run.  The 64-bit installer provides 32-bit libraries, so a 32-bit build
-and install must be performed before the 64-bit build.
+is run.
+
+Set the environment variable OPENSSL_DIR to point to the root of the
+OpenSSL install tree, and the environment variable OPENSSL_VERSION to
+the version string as it apears in the DLL names (such as "1_1" or
+"3").  Include files should be in %OPENSSL_DIR%\include, import .LIB
+files should be in %OPENSSL_DIR%\lib, and the libcrypto DLL should be
+in %OPENSSL_DIR%\bin\libcrypto-%OPENSSL_VERSION%-x64.dll.  These steps
+are optional if you do not wish to build PKINIT.
 
 To skip building the graphical ticket manager, run "set NO_LEASH=1"
-before building, and do not build the installers.
+before building, and do not build the installer.
 
-In a 32-bit command shell:
+Run the following commands in a Visual Studio command prompt:
 
- 1) set KRB_INSTALL_DIR=\path\to\dir    # Where bin/include/lib lives
- 2) cd xxx\src                          # Go to where source lives
- 3) nmake -f Makefile.in prep-windows   # Create Makefile for Windows
- 4) nmake [NODEBUG=1]                   # Build the sources
- 5) nmake install [NODEBUG=1]           # Copy headers, libs, executables
- 6) cd windows\installer\wix            # Go to where the installer source is
- 7) nmake [NODEBUG=1]                   # Build the installer
- 8) rename kfw.msi kfw32.msi            # Save the 32-bit installer
+ 1) set PATH=%PATH%;"%WindowsSdkVerBinPath%"\x86  # To get uicc.exe
+ 2) set KRB_INSTALL_DIR=\path\to\dir    # Where bin/include/lib lives
+ 3) set OPENSSL_DIR=\path\to\openssl    # Where OpenSSL lives
+ 4) set OPENSSL_VERSION=3               # Version of OpenSSL DLLs
+ 5) cd xxx\src                          # Go to where source lives
+ 6) nmake -f Makefile.in prep-windows   # Create Makefile for Windows
+ 7) nmake [NODEBUG=1]                   # Build the sources
+ 8) nmake install [NODEBUG=1]           # Copy libraries/executables
+ 9) cd windows\installer\wix            # Go to the installer source
+10) nmake [NODEBUG=1]                   # Build the installer
 
-In a 64-bit command shell:
-
- 9) set PATH=%PATH%;"%WindowsSdkVerBinPath%"\x86  # To get uicc.exe
-10) set KRB_INSTALL_DIR=\path\to\dir    # Where bin/include/lib lives
-11) cd xxx\src                          # Go to where source lives
-12) nmake clean                         # Clean up the 32-bit objects
-13) nmake [NODEBUG=1]                   # Build the sources for 64-bit
-14) nmake install [NODEBUG=1]           # Copy 64-bit lib/executables
-15) cd windows\installer\wix            # Back to the installer source
-16) nmake clean                         # Remove 32-bit leavings
-17) nmake [NODEBUG=1]                   # Build the 64-bit installer
-18) rename kfw.msi kfw64.msi            # And name it usefully
-
-Step 9 may be skipped if uicc is already in the command-line path (try
+Step 1 may be skipped if uicc is already in the command-line path (try
 running "uicc" to see if you get a usage message or a not-found
 error), or if you are not building the graphical ticket manager.
-
-Visual Studio 2013 and 2015 provide only a single command prompt.
-Within this prompt, use "vcvarsall.bat x86" and "vcvarsall.bat amd64"
-to switch to 32-bit and 64-bit mode.
 
 
 Running Kerberos 5 Apps:

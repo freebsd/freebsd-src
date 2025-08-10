@@ -9,3 +9,4 @@ Protocols and file formats
    rcache_file_format
    cookie
    freshness_token
+   database_formats

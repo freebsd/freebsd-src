@@ -180,7 +180,7 @@ static void do_close(void *libhandle)
 
 #endif
 
-int main()
+int main(void)
 {
     void *celib, *k5lib, *gsslib, *celib2;
 

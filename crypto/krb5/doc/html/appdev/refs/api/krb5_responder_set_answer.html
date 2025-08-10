@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>krb5_responder_set_answer - Answer a named question in the responder context. &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-    <script src="../../../_static/jquery.js"></script>
-    <script src="../../../_static/underscore.js"></script>
-    <script src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
@@ -53,14 +51,14 @@
           <div class="body" role="main">
             
   <section id="krb5-responder-set-answer-answer-a-named-question-in-the-responder-context">
-<h1>krb5_responder_set_answer -  Answer a named question in the responder context.<a class="headerlink" href="#krb5-responder-set-answer-answer-a-named-question-in-the-responder-context" title="Permalink to this headline">¶</a></h1>
+<h1>krb5_responder_set_answer -  Answer a named question in the responder context.<a class="headerlink" href="#krb5-responder-set-answer-answer-a-named-question-in-the-responder-context" title="Link to this heading">¶</a></h1>
 <dl class="c function">
 <dt class="sig sig-object c" id="c.krb5_responder_set_answer">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_responder_set_answer</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">ctx</span></span>, <a class="reference internal" href="../types/krb5_responder_context.html#c.krb5_responder_context" title="krb5_responder_context"><span class="n"><span class="pre">krb5_responder_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">rctx</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">question</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">answer</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_responder_set_answer" title="Permalink to this definition">¶</a><br /></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_responder_set_answer</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">ctx</span></span>, <a class="reference internal" href="../types/krb5_responder_context.html#c.krb5_responder_context" title="krb5_responder_context"><span class="n"><span class="pre">krb5_responder_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">rctx</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">question</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">answer</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_responder_set_answer" title="Link to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
 <dl class="field-list">
-<dt class="field-odd">param</dt>
+<dt class="field-odd">param<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>[in]</strong> <strong>ctx</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>rctx</strong> - Responder context</p>
 <p><strong>[in]</strong> <strong>question</strong> - Question name</p>
@@ -68,7 +66,7 @@
 </dd>
 </dl>
 <dl class="field-list simple">
-<dt class="field-odd">retval</dt>
+<dt class="field-odd">retval<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p>EINVAL    question is not present within rctx</p></li>
 </ul>
@@ -140,8 +138,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -247,8 +247,6 @@ typedef struct _krb5_gss_ctx_id_rec {
     krb5_authdata **authdata;
 } krb5_gss_ctx_id_rec, *krb5_gss_ctx_id_t;
 
-extern g_set kg_vdb;
-
 #ifndef LEAN_CLIENT
 extern k5_mutex_t gssint_krb5_keytab_lock;
 #endif /* LEAN_CLIENT */
@@ -268,10 +266,9 @@ krb5_error_code kg_make_seq_num (krb5_context context,
                                  int direction, krb5_ui_4 seqnum, unsigned char *cksum,
                                  unsigned char *buf);
 
-krb5_error_code kg_get_seq_num (krb5_context context,
-                                krb5_key key,
-                                unsigned char *cksum, unsigned char *buf, int *direction,
-                                krb5_ui_4 *seqnum);
+krb5_error_code kg_get_seq_num (krb5_context context, krb5_key key,
+                                const uint8_t *cksum, const uint8_t *buf,
+                                int *direction, krb5_ui_4 *seqnum);
 
 krb5_error_code kg_make_seed (krb5_context context,
                               krb5_key key,
@@ -322,12 +319,22 @@ kg_arcfour_docrypt_iov (krb5_context context,
                         gss_iov_buffer_desc *iov,
                         int iov_count);
 
-krb5_error_code kg_decrypt (krb5_context context,
-                            krb5_key key,  int usage,
-                            krb5_pointer iv,
-                            krb5_const_pointer in,
-                            krb5_pointer out,
+krb5_error_code kg_decrypt (krb5_context context, krb5_key key, int usage,
+                            const uint8_t *iv, const uint8_t *in, uint8_t *out,
                             unsigned int length);
+
+krb5_boolean
+kg_verify_checksum_v1(krb5_context context, uint16_t signalg, krb5_key key,
+                      krb5_keyusage usage, const uint8_t *header,
+                      const uint8_t *data, size_t data_len,
+                      const uint8_t *cksum, size_t cksum_len);
+
+krb5_boolean
+kg_verify_checksum_v3(krb5_context context, krb5_key key, krb5_keyusage usage,
+                      krb5_cksumtype cksumtype,
+                      uint16_t toktype, uint8_t flags, uint64_t seqnum,
+                      const uint8_t *data, size_t data_len,
+                      const uint8_t *cksum, size_t cksum_len);
 
 krb5_error_code kg_decrypt_iov (krb5_context context,
                                 int proto, int dce_style,
@@ -337,6 +344,11 @@ krb5_error_code kg_decrypt_iov (krb5_context context,
                                 gss_iov_buffer_desc *iov,
                                 int iov_count);
 
+OM_uint32
+kg_verify_mic_v1(krb5_context context, OM_uint32 *minor_status,
+                 krb5_gss_ctx_id_rec *ctx, uint16_t exp_toktype,
+                 struct k5input *in, gss_buffer_t message);
+
 OM_uint32 kg_seal (OM_uint32 *minor_status,
                    gss_ctx_id_t context_handle,
                    int conf_req_flag,
@@ -345,14 +357,6 @@ OM_uint32 kg_seal (OM_uint32 *minor_status,
                    int *conf_state,
                    gss_buffer_t output_message_buffer,
                    int toktype);
-
-OM_uint32 kg_unseal (OM_uint32 *minor_status,
-                     gss_ctx_id_t context_handle,
-                     gss_buffer_t input_token_buffer,
-                     gss_buffer_t message_buffer,
-                     int *conf_state,
-                     gss_qop_t *qop_state,
-                     int toktype);
 
 OM_uint32 kg_seal_size (OM_uint32 *minor_status,
                         gss_ctx_id_t context_handle,
@@ -702,6 +706,13 @@ OM_uint32 KRB5_CALLCONV krb5_gss_import_name
  gss_name_t*       /* output_name */
 );
 
+OM_uint32 KRB5_CALLCONV iakerb_gss_import_name
+(OM_uint32*,       /* minor_status */
+ gss_buffer_t,     /* input_name_buffer */
+ gss_OID,          /* input_name_type */
+ gss_name_t*       /* output_name */
+);
+
 OM_uint32 KRB5_CALLCONV krb5_gss_release_name
 (OM_uint32*,       /* minor_status */
  gss_name_t*       /* input_name */
@@ -926,15 +937,6 @@ krb5_error_code gss_krb5int_make_seal_token_v3(krb5_context,
                                                const gss_buffer_desc *,
                                                gss_buffer_t,
                                                int, int);
-
-OM_uint32 gss_krb5int_unseal_token_v3(krb5_context *contextptr,
-                                      OM_uint32 *minor_status,
-                                      krb5_gss_ctx_id_rec *ctx,
-                                      unsigned char *ptr,
-                                      unsigned int bodysize,
-                                      gss_buffer_t message_buffer,
-                                      int *conf_state, gss_qop_t *qop_state,
-                                      int toktype);
 
 int gss_krb5int_rotate_left (void *ptr, size_t bufsiz, size_t rc);
 
@@ -1291,7 +1293,7 @@ data_to_gss(krb5_data *input_k5data, gss_buffer_t output_buffer)
     return code;
 }
 
-#define KRB5_GSS_EXTS_IAKERB_FINISHED 1
+#define GSS_EXTS_FINISHED 2
 
 
 /* Credential store extensions */

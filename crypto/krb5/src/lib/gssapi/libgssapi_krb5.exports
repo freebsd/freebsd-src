@@ -102,7 +102,6 @@ gss_krb5_import_cred
 gss_krb5_set_allowable_enctypes
 gss_krb5_set_cred_rcache
 gss_krb5int_make_seal_token_v3
-gss_krb5int_unseal_token_v3
 gsskrb5_extract_authtime_from_sec_context
 gsskrb5_extract_authz_data_from_sec_context
 gss_localname

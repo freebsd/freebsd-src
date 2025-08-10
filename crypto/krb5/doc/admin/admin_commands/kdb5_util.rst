@@ -376,6 +376,14 @@ Options:
 
 Dump types:
 
+**alias**
+    principal alias information
+
+    **aliasname**
+        the name of the alias
+    **targetname**
+        the target of the alias
+
 **keydata**
     principal encryption key information, including actual key data
     (which is still encrypted in the master key)

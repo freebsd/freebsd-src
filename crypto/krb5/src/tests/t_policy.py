@@ -163,6 +163,11 @@ realm.run(['./hist', 'swap'])
 realm.run([kadminl, 'cpw', '-pw', password('user'), 'user'], expected_code=1,
           expected_msg='Cannot reuse password')
 
+mark('Error message for unsupported kadmin/history key type')
+realm.run(['./hist', 'des'])
+realm.run([kadminl, 'cpw', '-pw', 'pw', 'user'], expected_code=1,
+          expected_msg='(kadmin/history) contains unsupported key type')
+
 # Test key/salt constraints.
 mark('allowedkeysalts')
 

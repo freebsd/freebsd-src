@@ -25,6 +25,7 @@
  */
 
 #include "gssapiP_generic.h"
+#include <mglueP.h>
 #include <string.h>
 #ifndef _WIN32
 #include <unistd.h>
@@ -181,6 +182,9 @@ OM_uint32 gssint_mecherrmap_map(OM_uint32 minor, const gss_OID_desc * oid)
         f = stderr;
 #endif
 
+    if (gssint_mechglue_initialize_library() != 0)
+        return 0;
+
     me.code = minor;
     me.mech = *oid;
     k5_mutex_lock(&mutex);
@@ -249,7 +253,7 @@ int gssint_mecherrmap_get(OM_uint32 minor, gss_OID mech_oid,
 {
     const struct mecherror *p;
 
-    if (minor == 0) {
+    if (minor == 0 || gssint_mechglue_initialize_library() != 0) {
         return EINVAL;
     }
     k5_mutex_lock(&mutex);

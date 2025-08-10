@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>krb5.conf &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="krb5-conf">
-<span id="krb5-conf-5"></span><h1>krb5.conf<a class="headerlink" href="#krb5-conf" title="Permalink to this headline">¶</a></h1>
+<span id="krb5-conf-5"></span><h1>krb5.conf<a class="headerlink" href="#krb5-conf" title="Link to this heading">¶</a></h1>
 <p>The krb5.conf file contains Kerberos configuration information,
 including the locations of KDCs and admin servers for the Kerberos
 realms of interest, defaults for the current realm and for Kerberos
@@ -67,7 +65,7 @@ also be specified in <strong>KRB5_CONFIG</strong>; all files within the director
 whose names consist solely of alphanumeric characters, dashes, or
 underscores will be read.</p>
 <section id="structure">
-<h2>Structure<a class="headerlink" href="#structure" title="Permalink to this headline">¶</a></h2>
+<h2>Structure<a class="headerlink" href="#structure" title="Link to this heading">¶</a></h2>
 <p>The krb5.conf file is set up in the style of a Windows INI file.
 Lines beginning with ‘#’ or ‘;’ (possibly after initial whitespace)
 are ignored as comments.  Sections are headed by the section name, in
@@ -83,11 +81,6 @@ the form:</p>
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>Placing a ‘*’ after the closing bracket of a section name indicates
-that the section is <em>final</em>, meaning that if the same section appears
-within a later file specified in <strong>KRB5_CONFIG</strong>, it will be ignored.
-A subsection can be marked as final by placing a ‘*’ after either the
-tag name or the closing brace.</p>
 <p>The krb5.conf file can include other files using either of the
 following directives at the beginning of a line:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">include</span> <span class="n">FILENAME</span>
@@ -104,6 +97,15 @@ independent of their parents, so each included file must begin with a
 section header.  Starting in release 1.17, files are read in
 alphanumeric order; in previous releases, they may be read in any
 order.</p>
+<p>Placing a ‘*’ after the closing bracket of a section name indicates
+that the section is <em>final</em>, meaning that if the same section appears
+again later, it will be ignored.  A subsection can be marked as final
+by placing a ‘*’ after either the tag name or the closing brace.  A
+relation can be marked as final by placing a ‘*’ after the tag name.
+Prior to release 1.22, only sections and subsections can be marked as
+final, and the flag only causes values to be ignored if they appear in
+later files specified in <strong>KRB5_CONFIG</strong>, not if they appear later
+within the same file or an included file.</p>
 <p>The krb5.conf file can specify that configuration should be obtained
 from a loadable module, rather than the file itself, using the
 following directive at the beginning of a line before any section
@@ -117,13 +119,9 @@ to the module at initialization time.  If krb5.conf uses a module
 directive, <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> should also use one if it exists.</p>
 </section>
 <section id="sections">
-<h2>Sections<a class="headerlink" href="#sections" title="Permalink to this headline">¶</a></h2>
+<h2>Sections<a class="headerlink" href="#sections" title="Link to this heading">¶</a></h2>
 <p>The krb5.conf file may contain the following sections:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 26%" />
-<col style="width: 74%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#libdefaults"><span class="std std-ref">[libdefaults]</span></a></p></td>
 <td><p>Settings used by the Kerberos V5 library</p></td>
@@ -148,7 +146,7 @@ directive, <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><span c
 <p>Additionally, krb5.conf may include any of the relations described in
 <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>, but it is not a recommended practice.</p>
 <section id="libdefaults">
-<span id="id1"></span><h3>[libdefaults]<a class="headerlink" href="#libdefaults" title="Permalink to this headline">¶</a></h3>
+<span id="id1"></span><h3>[libdefaults]<a class="headerlink" href="#libdefaults" title="Link to this heading">¶</a></h3>
 <p>The libdefaults section may contain any of the following relations:</p>
 <dl>
 <dt><strong>allow_des3</strong></dt><dd><p>Permit the KDC to issue tickets with des3-cbc-sha1 session keys.
@@ -257,6 +255,11 @@ because that fake KDC will be unable to decode anything you send
 it (besides the initial ticket request, which has no encrypted
 data), and anything the fake KDC sends will not be trusted without
 verification using some secret that it won’t know.</p>
+</dd>
+<dt><strong>dns_lookup_realm</strong></dt><dd><p>Indicate whether DNS TXT records should be used to map hostnames
+to realm names for hostnames not listed in the [domain_realm]
+section, and to determine the default realm if <strong>default_realm</strong>
+is not set.  The default value is false.</p>
 </dd>
 <dt><strong>dns_uri_lookup</strong></dt><dd><p>Indicate whether DNS URI records should be used to locate the KDCs
 and other servers for a realm, if they are not listed in the
@@ -378,26 +381,30 @@ set.  The default is not to search domain components.</p>
 <dt><strong>renew_lifetime</strong></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Sets the default renewable lifetime
 for initial ticket requests.  The default value is 0.</p>
 </dd>
+<dt><strong>request_timeout</strong></dt><dd><p>(<a class="reference internal" href="../../basic/date_format.html#duration"><span class="std std-ref">Time duration</span></a> string.)  Sets the maximum total time for KDC and
+password change requests.  This timeout does not affect the
+intervals between requests, so setting a low timeout may result in
+fewer requests being attempted and/or some servers not being
+contacted.  A value of 0 indicates no specific maximum, in which
+case requests will time out if no server responds after several
+tries.  The default value is 0.  (New in release 1.22.)</p>
+</dd>
 <dt><strong>spake_preauth_groups</strong></dt><dd><p>A whitespace or comma-separated list of words which specifies the
 groups allowed for SPAKE preauthentication.  The possible values
 are:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 27%" />
-<col style="width: 73%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p>edwards25519</p></td>
-<td><p>Edwards25519 curve (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc7748.html"><strong>RFC 7748</strong></a>)</p></td>
+<td><p>Edwards25519 curve (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc7748.html"><strong>RFC 7748</strong></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>P-256</p></td>
-<td><p>NIST P-256 curve (<span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5480.html"><strong>RFC 5480</strong></a>)</p></td>
+<td><p>NIST P-256 curve (<span class="target" id="index-1"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5480.html"><strong>RFC 5480</strong></a>)</p></td>
 </tr>
 <tr class="row-odd"><td><p>P-384</p></td>
-<td><p>NIST P-384 curve (<span class="target" id="index-2"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5480.html"><strong>RFC 5480</strong></a>)</p></td>
+<td><p>NIST P-384 curve (<span class="target" id="index-2"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5480.html"><strong>RFC 5480</strong></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>P-521</p></td>
-<td><p>NIST P-521 curve (<span class="target" id="index-3"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5480.html"><strong>RFC 5480</strong></a>)</p></td>
+<td><p>NIST P-521 curve (<span class="target" id="index-3"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5480.html"><strong>RFC 5480</strong></a>)</p></td>
 </tr>
 </tbody>
 </table>
@@ -426,7 +433,7 @@ default value is false.</p>
 </dl>
 </section>
 <section id="realms">
-<span id="id2"></span><h3>[realms]<a class="headerlink" href="#realms" title="Permalink to this headline">¶</a></h3>
+<span id="id2"></span><h3>[realms]<a class="headerlink" href="#realms" title="Link to this heading">¶</a></h3>
 <p>Each tag in the [realms] section of the file is the name of a Kerberos
 realm.  The value of the tag is a subsection with relations that
 define the properties of that particular realm.  For each realm, the
@@ -516,19 +523,20 @@ to a value conforming to one of the previous values.  For example,
 <code class="docutils literal notranslate"><span class="pre">ENV:X509_PROXY_CA</span></code>, where environment variable <code class="docutils literal notranslate"><span class="pre">X509_PROXY_CA</span></code> has
 been set to <code class="docutils literal notranslate"><span class="pre">FILE:/tmp/my_proxy.pem</span></code>.</p>
 </dd>
-<dt><strong>kdc</strong></dt><dd><p>The name or address of a host running a KDC for that realm.  An
-optional port number, separated from the hostname by a colon, may
-be included.  If the name or address contains colons (for example,
-if it is an IPv6 address), enclose it in square brackets to
+<dt><strong>kdc</strong></dt><dd><p>The name or address of a host running a KDC for the realm, or a
+UNIX domain socket path of a locally running KDC.  An optional
+port number, separated from the hostname by a colon, may be
+included.  If the name or address contains colons (for example, if
+it is an IPv6 address), enclose it in square brackets to
 distinguish the colon from a port separator.  For your computer to
 be able to communicate with the KDC for each realm, this tag must
 be given a value in each realm subsection in the configuration
 file, or there must be DNS SRV records specifying the KDCs.</p>
 </dd>
-<dt><strong>kpasswd_server</strong></dt><dd><p>Points to the server where all the password changes are performed.
-If there is no such entry, DNS will be queried (unless forbidden
-by <strong>dns_lookup_kdc</strong>).  Finally, port 464 on the <strong>admin_server</strong>
-host will be tried.</p>
+<dt><strong>kpasswd_server</strong></dt><dd><p>The location of the password change server for the realm, using
+the same syntax as <strong>kdc</strong>.  If there is no such entry, DNS will
+be queried (unless forbidden by <strong>dns_lookup_kdc</strong>).  Finally,
+port 464 on the <strong>admin_server</strong> host will be tried.</p>
 </dd>
 <dt><strong>master_kdc</strong></dt><dd><p>The name for <strong>primary_kdc</strong> prior to release 1.19.  Its value is
 used as a fallback if <strong>primary_kdc</strong> is not specified.</p>
@@ -539,6 +547,9 @@ invalid password, the client software will attempt to contact the
 primary KDC, in case the user’s password has just been changed, and
 the updated database has not been propagated to the replica
 servers yet.  New in release 1.19.</p>
+</dd>
+<dt><strong>sitename</strong></dt><dd><p>Specifies the name of the host’s site for the purpose of DNS-based
+KDC discovery for this realm.  New in release 1.22.</p>
 </dd>
 <dt><strong>v4_instance_convert</strong></dt><dd><p>This subsection allows the administrator to configure exceptions
 to the <strong>default_domain</strong> mapping rule.  It contains V4 instances
@@ -555,7 +566,7 @@ is the Kerberos V4 realm name.</p>
 </dl>
 </section>
 <section id="domain-realm">
-<span id="id3"></span><h3>[domain_realm]<a class="headerlink" href="#domain-realm" title="Permalink to this headline">¶</a></h3>
+<span id="id3"></span><h3>[domain_realm]<a class="headerlink" href="#domain-realm" title="Link to this heading">¶</a></h3>
 <p>The [domain_realm] section provides a translation from hostnames to
 Kerberos realms.  Each tag is a domain name, providing the mapping for
 that domain and all subdomains.  If the tag begins with a period
@@ -584,7 +595,7 @@ hostname’s domain portion converted to uppercase, unless the
 parent domain to be used.</p>
 </section>
 <section id="capaths">
-<span id="id4"></span><h3>[capaths]<a class="headerlink" href="#capaths" title="Permalink to this headline">¶</a></h3>
+<span id="id4"></span><h3>[capaths]<a class="headerlink" href="#capaths" title="Link to this heading">¶</a></h3>
 <p>In order to perform direct (non-hierarchical) cross-realm
 authentication, configuration is needed to determine the
 authentication paths between realms.</p>
@@ -660,7 +671,7 @@ the order of values to determine the path.  The order of values is not
 important to servers.</p>
 </section>
 <section id="appdefaults">
-<span id="id5"></span><h3>[appdefaults]<a class="headerlink" href="#appdefaults" title="Permalink to this headline">¶</a></h3>
+<span id="id5"></span><h3>[appdefaults]<a class="headerlink" href="#appdefaults" title="Link to this heading">¶</a></h3>
 <p>Each tag in the [appdefaults] section names a Kerberos V5 application
 or an option that is used by some Kerberos V5 application[s].  The
 value of the tag defines the default behaviors for that application.</p>
@@ -694,7 +705,7 @@ that application’s man pages.  The application defaults specified here
 are overridden by those specified in the <a class="reference internal" href="#realms">realms</a> section.</p>
 </section>
 <section id="plugins">
-<span id="id6"></span><h3>[plugins]<a class="headerlink" href="#plugins" title="Permalink to this headline">¶</a></h3>
+<span id="id6"></span><h3>[plugins]<a class="headerlink" href="#plugins" title="Link to this heading">¶</a></h3>
 <blockquote>
 <div><ul class="simple">
 <li><p><a class="reference internal" href="#pwqual">pwqual</a> interface</p></li>
@@ -734,7 +745,7 @@ order of those tags overrides the normal module order.</p>
 <p>The following subsections are currently supported within the [plugins]
 section:</p>
 <section id="ccselect-interface">
-<span id="ccselect"></span><h4>ccselect interface<a class="headerlink" href="#ccselect-interface" title="Permalink to this headline">¶</a></h4>
+<span id="ccselect"></span><h4>ccselect interface<a class="headerlink" href="#ccselect-interface" title="Link to this heading">¶</a></h4>
 <p>The ccselect subsection controls modules for credential cache
 selection within a cache collection.  In addition to any registered
 dynamic modules, the following built-in modules exist (and may be
@@ -752,7 +763,7 @@ to guess an appropriate cache from the collection</p>
 </dl>
 </section>
 <section id="pwqual-interface">
-<span id="pwqual"></span><h4>pwqual interface<a class="headerlink" href="#pwqual-interface" title="Permalink to this headline">¶</a></h4>
+<span id="pwqual"></span><h4>pwqual interface<a class="headerlink" href="#pwqual-interface" title="Link to this heading">¶</a></h4>
 <p>The pwqual subsection controls modules for the password quality
 interface, which is used to reject weak passwords when passwords are
 changed.  The following built-in modules exist for this interface:</p>
@@ -769,7 +780,7 @@ was built with Hesiod support)</p>
 </dl>
 </section>
 <section id="kadm5-hook-interface">
-<span id="kadm5-hook"></span><h4>kadm5_hook interface<a class="headerlink" href="#kadm5-hook-interface" title="Permalink to this headline">¶</a></h4>
+<span id="kadm5-hook"></span><h4>kadm5_hook interface<a class="headerlink" href="#kadm5-hook-interface" title="Link to this heading">¶</a></h4>
 <p>The kadm5_hook interface provides plugins with information on
 principal creation, modification, password changes and deletion.  This
 interface can be used to write a plugin to synchronize MIT Kerberos
@@ -777,7 +788,7 @@ with another database such as Active Directory.  No plugins are built
 in for this interface.</p>
 </section>
 <section id="kadm5-auth-interface">
-<span id="kadm5-auth"></span><h4>kadm5_auth interface<a class="headerlink" href="#kadm5-auth-interface" title="Permalink to this headline">¶</a></h4>
+<span id="kadm5-auth"></span><h4>kadm5_auth interface<a class="headerlink" href="#kadm5-auth-interface" title="Link to this heading">¶</a></h4>
 <p>The kadm5_auth section (introduced in release 1.16) controls modules
 for the kadmin authorization interface, which determines whether a
 client principal is allowed to perform a kadmin operation.  The
@@ -794,7 +805,7 @@ record associated with the client principal.</p>
 </dl>
 </section>
 <section id="clpreauth-and-kdcpreauth-interfaces">
-<span id="kdcpreauth"></span><span id="clpreauth"></span><h4>clpreauth and kdcpreauth interfaces<a class="headerlink" href="#clpreauth-and-kdcpreauth-interfaces" title="Permalink to this headline">¶</a></h4>
+<span id="kdcpreauth"></span><span id="clpreauth"></span><h4>clpreauth and kdcpreauth interfaces<a class="headerlink" href="#clpreauth-and-kdcpreauth-interfaces" title="Link to this heading">¶</a></h4>
 <p>The clpreauth and kdcpreauth interfaces allow plugin modules to
 provide client and KDC preauthentication mechanisms.  The following
 built-in modules exist for these interfaces:</p>
@@ -808,7 +819,7 @@ built-in modules exist for these interfaces:</p>
 </dl>
 </section>
 <section id="hostrealm-interface">
-<span id="hostrealm"></span><h4>hostrealm interface<a class="headerlink" href="#hostrealm-interface" title="Permalink to this headline">¶</a></h4>
+<span id="hostrealm"></span><h4>hostrealm interface<a class="headerlink" href="#hostrealm-interface" title="Link to this heading">¶</a></h4>
 <p>The hostrealm section (introduced in release 1.12) controls modules
 for the host-to-realm interface, which affects the local mapping of
 hostnames to realm names and the choice of default realm.  The following
@@ -830,7 +841,7 @@ produce a result.</p>
 </dl>
 </section>
 <section id="localauth-interface">
-<span id="localauth"></span><h4>localauth interface<a class="headerlink" href="#localauth-interface" title="Permalink to this headline">¶</a></h4>
+<span id="localauth"></span><h4>localauth interface<a class="headerlink" href="#localauth-interface" title="Link to this heading">¶</a></h4>
 <p>The localauth section (introduced in release 1.12) controls modules
 for the local authorization interface, which affects the relationship
 between Kerberos principals and local system accounts.  The following
@@ -858,7 +869,7 @@ principal name maps to the local account name.</p>
 </dl>
 </section>
 <section id="certauth-interface">
-<span id="certauth"></span><h4>certauth interface<a class="headerlink" href="#certauth-interface" title="Permalink to this headline">¶</a></h4>
+<span id="certauth"></span><h4>certauth interface<a class="headerlink" href="#certauth-interface" title="Link to this heading">¶</a></h4>
 <p>The certauth section (introduced in release 1.16) controls modules for
 the certificate authorization interface, which determines whether a
 certificate is allowed to preauthenticate a user via PKINIT.  The
@@ -882,7 +893,7 @@ the client principal, if that attribute is present.</p>
 </section>
 </section>
 <section id="pkinit-options">
-<h2>PKINIT options<a class="headerlink" href="#pkinit-options" title="Permalink to this headline">¶</a></h2>
+<h2>PKINIT options<a class="headerlink" href="#pkinit-options" title="Link to this heading">¶</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The following are PKINIT-specific options.  These values may
@@ -917,7 +928,7 @@ A realm-specific value overrides, not adds to, a generic
 </li>
 </ol>
 <section id="specifying-pkinit-identity-information">
-<span id="pkinit-identity"></span><h3>Specifying PKINIT identity information<a class="headerlink" href="#specifying-pkinit-identity-information" title="Permalink to this headline">¶</a></h3>
+<span id="pkinit-identity"></span><h3>Specifying PKINIT identity information<a class="headerlink" href="#specifying-pkinit-identity-information" title="Link to this heading">¶</a></h3>
 <p>The syntax for specifying Public Key identity, trust, and revocation
 information for PKINIT is as follows:</p>
 <dl>
@@ -960,8 +971,10 @@ module-name is specified, the default is <a class="reference internal" href="../
 a particular smard card reader or token if there is more than one
 available.  <code class="docutils literal notranslate"><span class="pre">certid=</span></code> and/or <code class="docutils literal notranslate"><span class="pre">certlabel=</span></code> may be specified to
 force the selection of a particular certificate on the device.
-See the <strong>pkinit_cert_match</strong> configuration option for more ways
-to select a particular certificate to use for PKINIT.</p>
+Specifier values must not contain colon characters, as colons are
+always treated as separators.  See the <strong>pkinit_cert_match</strong>
+configuration option for more ways to select a particular
+certificate to use for PKINIT.</p>
 </dd>
 <dt><strong>ENV:</strong><em>envvar</em></dt><dd><p><em>envvar</em> specifies the name of an environment variable which has
 been set to a value conforming to one of the previous values.  For
@@ -971,7 +984,7 @@ example, <code class="docutils literal notranslate"><span class="pre">ENV:X509_P
 </dl>
 </section>
 <section id="pkinit-krb5-conf-options">
-<h3>PKINIT krb5.conf options<a class="headerlink" href="#pkinit-krb5-conf-options" title="Permalink to this headline">¶</a></h3>
+<h3>PKINIT krb5.conf options<a class="headerlink" href="#pkinit-krb5-conf-options" title="Link to this heading">¶</a></h3>
 <dl>
 <dt><strong>pkinit_anchors</strong></dt><dd><p>Specifies the location of trusted anchor (root) certificates which
 the client trusts to sign KDC certificates.  This option may be
@@ -986,7 +999,7 @@ attempting PKINIT authentication.  This option may be specified
 multiple times.  All the available certificates are checked
 against each rule in order until there is a match of exactly one
 certificate.</p>
-<p>The Subject and Issuer comparison strings are the <span class="target" id="index-4"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc2253.html"><strong>RFC 2253</strong></a>
+<p>The Subject and Issuer comparison strings are the <span class="target" id="index-4"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc2253.html"><strong>RFC 2253</strong></a>
 string representations from the certificate Subject DN and Issuer
 DN values.</p>
 <p>The syntax of the matching rules is:</p>
@@ -1044,7 +1057,7 @@ issuing CA has certified this as a KDC certificate.)  The values
 recognized in the krb5.conf file are:</p>
 <dl class="simple">
 <dt><strong>kpKDC</strong></dt><dd><p>This is the default value and specifies that the KDC must have
-the id-pkinit-KPKdc EKU as defined in <span class="target" id="index-5"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a>.</p>
+the id-pkinit-KPKdc EKU as defined in <span class="target" id="index-5"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc4556.html"><strong>RFC 4556</strong></a>.</p>
 </dd>
 <dt><strong>kpServerAuth</strong></dt><dd><p>If <strong>kpServerAuth</strong> is specified, a KDC certificate with the
 id-kp-serverAuth EKU will be accepted.  This key usage value
@@ -1056,9 +1069,10 @@ option is not recommended.</p>
 </dd>
 </dl>
 </dd>
-<dt><strong>pkinit_dh_min_bits</strong></dt><dd><p>Specifies the size of the Diffie-Hellman key the client will
-attempt to use.  The acceptable values are 1024, 2048, and 4096.
-The default is 2048.</p>
+<dt><strong>pkinit_dh_min_bits</strong></dt><dd><p>Specifies the group of the Diffie-Hellman key the client will
+attempt to use.  The acceptable values are 1024, 2048, P-256,
+4096, P-384, and P-521.  The default is 2048.  (P-256, P-384, and
+P-521 are new in release 1.22.)</p>
 </dd>
 <dt><strong>pkinit_identities</strong></dt><dd><p>Specifies the location(s) to be used to find the user’s X.509
 identity information.  If this option is specified multiple times,
@@ -1069,7 +1083,7 @@ Note that these values are not used if the user specifies
 <dt><strong>pkinit_kdc_hostname</strong></dt><dd><p>The presence of this option indicates that the client is willing
 to accept a KDC certificate with a dNSName SAN (Subject
 Alternative Name) rather than requiring the id-pkinit-san as
-defined in <span class="target" id="index-6"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a>.  This option may be specified multiple
+defined in <span class="target" id="index-6"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc4556.html"><strong>RFC 4556</strong></a>.  This option may be specified multiple
 times.  Its value should contain the acceptable hostname for the
 KDC (as contained in its certificate).</p>
 </dd>
@@ -1100,16 +1114,12 @@ multiple times.</p>
 </section>
 </section>
 <section id="parameter-expansion">
-<span id="id7"></span><h2>Parameter expansion<a class="headerlink" href="#parameter-expansion" title="Permalink to this headline">¶</a></h2>
+<span id="id7"></span><h2>Parameter expansion<a class="headerlink" href="#parameter-expansion" title="Link to this heading">¶</a></h2>
 <p>Starting with release 1.11, several variables, such as
 <strong>default_keytab_name</strong>, allow parameters to be expanded.
 Valid parameters are:</p>
 <blockquote>
 <div><table class="docutils align-default">
-<colgroup>
-<col style="width: 25%" />
-<col style="width: 75%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p>%{TEMP}</p></td>
 <td><p>Temporary directory</p></td>
@@ -1164,7 +1174,7 @@ Valid parameters are:</p>
 </div></blockquote>
 </section>
 <section id="sample-krb5-conf-file">
-<h2>Sample krb5.conf file<a class="headerlink" href="#sample-krb5-conf-file" title="Permalink to this headline">¶</a></h2>
+<h2>Sample krb5.conf file<a class="headerlink" href="#sample-krb5-conf-file" title="Link to this heading">¶</a></h2>
 <p>Here is an example of a generic krb5.conf file:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">libdefaults</span><span class="p">]</span>
     <span class="n">default_realm</span> <span class="o">=</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
@@ -1199,11 +1209,11 @@ Valid parameters are:</p>
 </div>
 </section>
 <section id="files">
-<h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
+<h2>FILES<a class="headerlink" href="#files" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">/etc/krb5.conf</span></code></p>
 </section>
 <section id="see-also">
-<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
 <p>syslog(3)</p>
 </section>
 </section>
@@ -1316,8 +1326,8 @@ Valid parameters are:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -1,9 +1,0 @@
-#!/bin/sh
-#
-# Shell script that changes names that have been truncated to 8.3 format
-# back to their original longer name. The awk script produces a script with
-# lines of the following format:
-#     if [ -f <short> ]; then echo ::mv <short> <long> ; mv <short> <long> ; fi
-# These lines then get executed in bin/sh.
-#
-find . -type f -print | gawk -f $0.awk | sh -x 2> /dev/null

@@ -128,6 +128,76 @@ krb5_dbe_free_contents(krb5_context context, krb5_db_entry *entry)
     return;
 }
 
+static krb5_error_code
+iterate_entry(krb5_context context, krb5_ldap_context *ldap_context,
+              LDAP *ld, LDAPMessage *ent,
+              krb5_error_code (*func)(krb5_pointer, krb5_db_entry *),
+              krb5_pointer func_arg)
+{
+    krb5_error_code ret = 0;
+    krb5_principal cprinc = NULL, nprinc = NULL;
+    krb5_db_entry entry = { 0 }, *entptr;
+    char **canon = NULL, **names = NULL, **list;
+    size_t i;
+
+    canon = ldap_get_values(ld, ent, "krbCanonicalName");
+    names = ldap_get_values(ld, ent, "krbPrincipalName");
+    if (canon == NULL && names == NULL)
+        return 0;
+
+    /* Output an entry for the canonical name if one is given.  Otherwise
+     * output an entry for the first name within the realm. */
+    list = (canon != NULL) ? canon : names;
+    for (i = 0; list[i] != NULL; i++) {
+        krb5_free_principal(context, nprinc);
+        nprinc = NULL;
+        ret = krb5_ldap_parse_name(context, list[i], &nprinc);
+        if (ret)
+            goto cleanup;
+
+        if (is_principal_in_realm(ldap_context, nprinc)) {
+            ret = populate_krb5_db_entry(context, ldap_context, ld, ent,
+                                         nprinc, &entry);
+            if (ret)
+                goto cleanup;
+            ret = (*func)(func_arg, &entry);
+            krb5_dbe_free_contents(context, &entry);
+            if (ret)
+                goto cleanup;
+            break;
+        }
+    }
+
+    /* Output alias entries for each non-canonical name. */
+    if (canon != NULL && names != NULL) {
+        ret = krb5_ldap_parse_name(context, canon[0], &cprinc);
+        if (ret)
+            goto cleanup;
+        for (i = 0; names[i] != NULL; i++) {
+            if (strcmp(names[i], canon[0]) == 0)
+                continue;
+            krb5_free_principal(context, nprinc);
+            nprinc = NULL;
+            ret = krb5_ldap_parse_name(context, names[i], &nprinc);
+            if (ret)
+                goto cleanup;
+            ret = krb5_dbe_make_alias_entry(context, nprinc, cprinc, &entptr);
+            if (ret)
+                goto cleanup;
+            ret = (*func)(func_arg, entptr);
+            krb5_db_free_principal(context, entptr);
+            if (ret)
+                goto cleanup;
+        }
+    }
+
+cleanup:
+    krb5_free_principal(context, cprinc);
+    krb5_free_principal(context, nprinc);
+    ldap_value_free(canon);
+    ldap_value_free(names);
+    return ret;
+}
 
 krb5_error_code
 krb5_ldap_iterate(krb5_context context, char *match_expr,
@@ -135,9 +205,8 @@ krb5_ldap_iterate(krb5_context context, char *match_expr,
                   krb5_pointer func_arg, krb5_flags iterflags)
 {
     krb5_db_entry            entry;
-    krb5_principal           principal;
-    char                     **subtree=NULL, *princ_name=NULL, *realm=NULL, **values=NULL, *filter=NULL;
-    unsigned int             tree=0, ntree=1, i=0;
+    char                     **subtree=NULL, *realm=NULL, *filter=NULL;
+    size_t                   tree=0, ntree=1;
     krb5_error_code          st=0, tempst=0;
     LDAP                     *ld=NULL;
     LDAPMessage              *result=NULL, *ent=NULL;
@@ -181,33 +250,10 @@ krb5_ldap_iterate(krb5_context context, char *match_expr,
 
         LDAP_SEARCH(subtree[tree], ldap_context->lrparams->search_scope, filter, principal_attributes);
         for (ent=ldap_first_entry(ld, result); ent != NULL; ent=ldap_next_entry(ld, ent)) {
-            values=ldap_get_values(ld, ent, "krbcanonicalname");
-            if (values == NULL)
-                values=ldap_get_values(ld, ent, "krbprincipalname");
-            if (values != NULL) {
-                for (i=0; values[i] != NULL; ++i) {
-                    if (krb5_ldap_parse_principal_name(values[i], &princ_name) != 0)
-                        continue;
-                    st = krb5_parse_name(context, princ_name, &principal);
-                    free(princ_name);
-                    if (st)
-                        continue;
-
-                    if (is_principal_in_realm(ldap_context, principal)) {
-                        st = populate_krb5_db_entry(context, ldap_context, ld,
-                                                    ent, principal, &entry);
-                        krb5_free_principal(context, principal);
-                        if (st)
-                            goto cleanup;
-                        (*func)(func_arg, &entry);
-                        krb5_dbe_free_contents(context, &entry);
-                        break;
-                    }
-                    (void) krb5_free_principal(context, principal);
-                }
-                ldap_value_free(values);
-            }
-        } /* end of for (ent= ... */
+            st = iterate_entry(context, ldap_context, ld, ent, func, func_arg);
+            if (st)
+                goto cleanup;
+        }
         ldap_msgfree(result);
         result = NULL;
     } /* end of for (tree= ... */
@@ -237,7 +283,8 @@ krb5_ldap_delete_principal(krb5_context context,
     char                      *user=NULL, *DN=NULL, *strval[10] = {NULL};
     LDAPMod                   **mods=NULL;
     LDAP                      *ld=NULL;
-    int                       j=0, ptype=0, pcount=0, attrsetmask=0;
+    size_t                    j=0;
+    int                       ptype=0, pcount=0, attrsetmask=0;
     krb5_error_code           st=0;
     krb5_boolean              singleentry=FALSE;
     kdb5_dal_handle           *dal_handle=NULL;
@@ -267,15 +314,17 @@ krb5_ldap_delete_principal(krb5_context context,
 
     GET_HANDLE();
 
-    if (ptype == KDB_STANDALONE_PRINCIPAL_OBJECT) {
+    if (ptype == KDB_STANDALONE_PRINCIPAL_OBJECT &&
+        (pcount == 1 ||
+         krb5_principal_compare(context, searchfor, entry->princ))) {
         st = ldap_delete_ext_s(ld, DN, NULL, NULL);
         if (st != LDAP_SUCCESS) {
             st = set_ldap_error (context, st, OP_DEL);
             goto cleanup;
         }
     } else {
-        if (((st=krb5_unparse_name(context, searchfor, &user)) != 0)
-            || ((st=krb5_ldap_unparse_principal_name(user)) != 0))
+        st = krb5_ldap_unparse_name(context, searchfor, &user);
+        if (st)
             goto cleanup;
 
         memset(strval, 0, sizeof(strval));
@@ -359,35 +408,6 @@ is_standalone_principal(krb5_context kcontext, krb5_db_entry *entry, int *res)
     if (!code)
         *res = (*res == KDB_STANDALONE_PRINCIPAL_OBJECT) ? 1 : 0;
     return code;
-}
-
-/*
- * Unparse princ in the format used for LDAP attributes, and set *user to the
- * result.
- */
-static krb5_error_code
-unparse_principal_name(krb5_context context, krb5_const_principal princ,
-                       char **user_out)
-{
-    krb5_error_code st;
-    char *luser = NULL;
-
-    *user_out = NULL;
-
-    st = krb5_unparse_name(context, princ, &luser);
-    if (st)
-        goto cleanup;
-
-    st = krb5_ldap_unparse_principal_name(luser);
-    if (st)
-        goto cleanup;
-
-    *user_out = luser;
-    luser = NULL;
-
-cleanup:
-    free(luser);
-    return st;
 }
 
 /*
@@ -477,10 +497,10 @@ krb5_ldap_rename_principal(krb5_context context, krb5_const_principal source,
         goto cleanup;
     }
 
-    st = unparse_principal_name(context, source, &suser);
+    st = krb5_ldap_unparse_name(context, source, &suser);
     if (st)
         goto cleanup;
-    st = unparse_principal_name(context, target, &tuser);
+    st = krb5_ldap_unparse_name(context, target, &tuser);
     if (st)
         goto cleanup;
 
@@ -564,65 +584,63 @@ cleanup:
     return st;
 }
 
-/*
- * Function: krb5_ldap_unparse_principal_name
- *
- * Purpose: Removes '\\' that comes before every occurrence of '@'
- *          in the principal name component.
- *
- * Arguments:
- *       user_name     (input/output)      Principal name
- *
- */
-
+/* Unparse princ in the format used for krb5 principal names within LDAP
+ * attributes. */
 krb5_error_code
-krb5_ldap_unparse_principal_name(char *user_name)
+krb5_ldap_unparse_name(krb5_context context, krb5_const_principal princ,
+                       char **user_out)
 {
-    char *in, *out;
+    krb5_error_code ret;
+    char *p, *q;
 
-    out = user_name;
-    for (in = user_name; *in; in++) {
-        if (*in == '\\' && *(in + 1) == '@')
+    ret = krb5_unparse_name(context, princ, user_out);
+    if (ret)
+        return ret;
+
+    /* Remove backslashes preceding at-signs in the unparsed string. */
+    for (q = p = *user_out; *p != '\0'; p++) {
+        if (*p == '\\' && *(p + 1) == '@')
             continue;
-        *out++ = *in;
+        *q++ = *p;
     }
-    *out = '\0';
+    *q = '\0';
 
     return 0;
 }
 
-
-/*
- * Function: krb5_ldap_parse_principal_name
- *
- * Purpose: Inserts '\\' before every occurrence of '@'
- *          in the principal name component.
- *
- * Arguments:
- *       i_princ_name     (input)      Principal name without '\\'
- *       o_princ_name     (output)     Principal name with '\\'
- *
- * Note: The caller has to free the memory allocated for o_princ_name.
- */
-
+/* Parse username in the format used for krb5 principal names within LDAP
+ * attributes. */
 krb5_error_code
-krb5_ldap_parse_principal_name(char *i_princ_name, char **o_princ_name)
+krb5_ldap_parse_name(krb5_context context, const char *username,
+                     krb5_principal *out)
 {
-    const char *at_rlm_name, *p;
+    krb5_error_code ret;
+    const char *at_realm, *p;
+    char *princstr;
     struct k5buf buf;
 
-    at_rlm_name = strrchr(i_princ_name, '@');
-    if (!at_rlm_name) {
-        *o_princ_name = strdup(i_princ_name);
+    *out = NULL;
+
+    /* Make a copy of username, inserting a backslash before each '@'
+     * before the last one. */
+    at_realm = strrchr(username, '@');
+    if (at_realm == NULL) {
+        princstr = strdup(username);
     } else {
         k5_buf_init_dynamic(&buf);
-        for (p = i_princ_name; p < at_rlm_name; p++) {
+        for (p = username; p < at_realm; p++) {
             if (*p == '@')
                 k5_buf_add(&buf, "\\");
             k5_buf_add_len(&buf, p, 1);
         }
-        k5_buf_add(&buf, at_rlm_name);
-        *o_princ_name = k5_buf_cstring(&buf);
+        k5_buf_add(&buf, at_realm);
+        princstr = k5_buf_cstring(&buf);
     }
-    return (*o_princ_name == NULL) ? ENOMEM : 0;
+
+    if (princstr == NULL)
+        return ENOMEM;
+
+    ret = krb5_parse_name(context, princstr, out);
+    free(princstr);
+    return ret;
 }

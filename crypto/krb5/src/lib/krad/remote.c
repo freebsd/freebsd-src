@@ -76,15 +76,15 @@ on_timeout(verto_ctx *ctx, verto_ev *ev);
 
 /* Iterate over the set of outstanding packets. */
 static const krad_packet *
-iterator(request **out)
+iterator(void *data, krb5_boolean cancel)
 {
-    request *tmp = *out;
+    request **rptr = data, *req = *rptr;
 
-    if (tmp == NULL)
+    if (cancel || req == NULL)
         return NULL;
 
-    *out = K5_TAILQ_NEXT(tmp, list);
-    return tmp->request;
+    *rptr = K5_TAILQ_NEXT(req, list);
+    return req->request;
 }
 
 /* Create a new request. */
@@ -349,8 +349,7 @@ on_io_read(krad_remote *rr)
     /* Decode the packet. */
     tmp = K5_TAILQ_FIRST(&rr->list);
     retval = krad_packet_decode_response(rr->kctx, rr->secret, &rr->buffer,
-                                         (krad_packet_iter_cb)iterator, &tmp,
-                                         &req, &rsp);
+                                         iterator, &tmp, &req, &rsp);
     rr->buffer.length = 0;
     if (retval != 0)
         return;
@@ -457,7 +456,7 @@ kr_remote_send(krad_remote *rr, krad_code code, krad_attrset *attrs,
 
     r = K5_TAILQ_FIRST(&rr->list);
     retval = krad_packet_new_request(rr->kctx, rr->secret, code, attrs,
-                                     (krad_packet_iter_cb)iterator, &r, &tmp);
+                                     iterator, &r, &tmp);
     if (retval != 0)
         goto error;
 

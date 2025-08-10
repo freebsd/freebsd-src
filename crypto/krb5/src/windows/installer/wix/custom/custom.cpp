@@ -541,7 +541,6 @@ _cleanup:
 static bool IsNSISInstalled()
 {
     HKEY nsisKfwKey = NULL;
-    // Note: check Wow6432 node if 64 bit build
     HRESULT res = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion"
                                "\\Uninstall\\Kerberos for Windows",

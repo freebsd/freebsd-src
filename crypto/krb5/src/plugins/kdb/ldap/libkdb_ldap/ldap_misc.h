@@ -67,7 +67,7 @@ krb5_error_code
 store_tl_data(krb5_tl_data *, int, void *);
 
 krb5_error_code
-krb5_get_subtree_info(krb5_ldap_context *, char ***, unsigned int *);
+krb5_get_subtree_info(krb5_ldap_context *, char ***, size_t *);
 
 krb5_error_code
 krb5_ldap_parse_db_params(krb5_context, char **);

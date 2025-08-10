@@ -27,11 +27,9 @@
 #include "k5-int.h"
 #include "int-proto.h"
 
-krb5_error_code profile_ser_size(krb5_context, profile_t, size_t *);
-krb5_error_code profile_ser_externalize(krb5_context, profile_t,
-                                        krb5_octet **, size_t *);
-krb5_error_code profile_ser_internalize(krb5_context, profile_t *,
-                                        krb5_octet **, size_t *);
+errcode_t profile_ser_size(profile_t, size_t *);
+errcode_t profile_ser_externalize(profile_t, krb5_octet **, size_t *);
+errcode_t profile_ser_internalize(profile_t *, krb5_octet **, size_t *);
 
 static krb5_error_code size_oscontext(krb5_os_context os_ctx, size_t *sizep);
 static krb5_error_code externalize_oscontext(krb5_os_context os_ctx,
@@ -83,7 +81,7 @@ k5_size_context(krb5_context context, size_t *sizep)
 
         /* Calculate size required by profile, if appropriate */
         if (!kret && context->profile)
-            kret = profile_ser_size(NULL, context->profile, &required);
+            kret = profile_ser_size(context->profile, &required);
     }
     if (!kret)
         *sizep += required;
@@ -186,7 +184,7 @@ k5_externalize_context(krb5_context context,
 
     /* Finally, handle profile, if appropriate */
     if (context->profile != NULL) {
-        kret = profile_ser_externalize(NULL, context->profile, &bp, &remain);
+        kret = profile_ser_externalize(context->profile, &bp, &remain);
         if (kret)
             return (kret);
     }
@@ -310,7 +308,7 @@ k5_internalize_context(krb5_context *argp,
     }
 
     /* Attempt to read in the profile */
-    kret = profile_ser_internalize(NULL, &context->profile, &bp, &remain);
+    kret = profile_ser_internalize(&context->profile, &bp, &remain);
     if (kret && (kret != EINVAL) && (kret != ENOENT))
         goto cleanup;
 
