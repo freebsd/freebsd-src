@@ -1,6 +1,6 @@
-/* $Id: man_html.c,v 1.187 2023/10/24 20:53:12 schwarze Exp $ */
+/* $Id: man_html.c,v 1.188 2025/06/26 17:06:34 schwarze Exp $ */
 /*
- * Copyright (c) 2013-15,2017-20,2022-23 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013-2020,2022-2023,2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -293,21 +293,30 @@ static void
 man_root_post(const struct roff_meta *man, struct html *h)
 {
 	struct tag	*t;
+	char		*title;
+
+	assert(man->title != NULL);
+	if (man->msec == NULL)
+		title = mandoc_strdup(man->title);
+	else
+		mandoc_asprintf(&title, "%s(%s)", man->title, man->msec);
 
 	t = print_otag(h, TAG_DIV, "cr?", "foot", "doc-pagefooter",
 	    "aria-label", "Manual footer line");
 
 	print_otag(h, TAG_SPAN, "c", "foot-left");
+	if (man->os != NULL)
+		print_text(h, man->os);
 	print_stagq(h, t);
 
 	print_otag(h, TAG_SPAN, "c", "foot-date");
 	print_text(h, man->date);
 	print_stagq(h, t);
 
-	print_otag(h, TAG_SPAN, "c", "foot-os");
-	if (man->os != NULL)
-		print_text(h, man->os);
+	print_otag(h, TAG_SPAN, "c", "foot-right");
+	print_text(h, title);
 	print_tagq(h, t);
+	free(title);
 }
 
 static int

@@ -1,6 +1,6 @@
-.\" $Id: roff.7,v 1.121 2023/10/23 20:25:02 schwarze Exp $
+.\" $Id: roff.7,v 1.123 2025/08/04 23:12:08 schwarze Exp $
 .\"
-.\" Copyright (c) 2010-2019, 2022-2023 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010-2019,2022-2023,2025 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 23 2023 $
+.Dd $Mdocdate: August 4 2025 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -79,8 +79,10 @@ They provide free-form text to be printed; the formatting of the text
 depends on the respective processing context.
 .Sh LANGUAGE SYNTAX
 .Nm
-documents may contain only graphable 7-bit ASCII characters, the space
-character, and, in certain circumstances, the tab character.
+documents are text files containing only printable
+.Xr ascii 7
+characters, the space character,
+and, in certain circumstances, the tab character.
 The backslash character
 .Sq \e
 indicates the start of an escape sequence, used for example for
@@ -180,7 +182,7 @@ Italic font.
 Return to the previous font.
 If a macro caused a font change since the last
 .Ic \ef
-eascape sequence or
+escape sequence or
 .Ic \&ft
 request, this returns to the font before the last font change in
 the macro rather than to the font before the last manual font change.
@@ -267,7 +269,7 @@ width of rendered
 .Pq en
 character
 .It u
-default horizontal span for the terminal
+device-dependent basic units
 .It M
 mini-em (1/100 em)
 .El
@@ -289,7 +291,7 @@ for vertical spaces and
 for horizontal ones.
 .Pp
 Examples:
-.Bl -tag -width ".Bl -tag -width 2i" -offset indent -compact
+.Bl -tag -width "xBl -tag -width 2i" -offset indent -compact
 .It Li \&.Bl -tag -width 2i
 two-inch tagged list indentation in
 .Xr mdoc 7
@@ -1319,10 +1321,16 @@ among others because it overrides the
 .Xr mandoc 1
 .Fl O Cm width
 command line option.
-.It Ic \&lnr Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar value Op Ar increment
+.It Ic \&lnr Ar registername Xo
+.Oo Cm + Ns | Ns Cm \- Oc Ns Ar value
+.Op Ar increment
+.Xc
 Set local number register.
 This is a Heirloom extension and currently unsupported.
-.It Ic \&lnrf Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar value Op Ar increment
+.It Ic \&lnrf Ar registername Xo
+.Oo Cm + Ns | Ns Cm \- Oc Ns Ar value
+.Op Ar increment
+.Xc
 Set local floating-point register.
 This is a Heirloom extension and currently unsupported.
 .It Ic \&lpfx Ar string
@@ -1398,10 +1406,13 @@ skipping the
 .Ic \&nop
 request and any space characters immediately following it.
 This is mostly used to indent text lines inside macro definitions.
-.It Ic \&nr Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar expression Op Ar stepsize
-Define or change a register.
-A register is an arbitrary string value that defines some sort of state,
-which influences parsing and/or formatting.
+.It Ic \&nr Ar registername Xo
+.Oo Cm + Ns | Ns Cm \- Oc Ns Ar expression
+.Op Ar stepsize
+.Xc
+Define or change the number register with the given
+.Ar registername .
+A register can store an integer number.
 For the syntax of
 .Ar expression ,
 see
@@ -1410,6 +1421,9 @@ below.
 If it is prefixed by a sign, the register will be
 incremented or decremented instead of assigned to.
 .Pp
+Once set, the value of a number register can be interpolated using the
+.Ic \en
+escape sequence.
 The
 .Ar stepsize
 is used by the
@@ -1418,29 +1432,13 @@ auto-increment feature.
 It remains unchanged when omitted while changing an existing register,
 and it defaults to 0 when defining a new register.
 .Pp
-The following
-.Ar register
-is handled specially:
-.Bl -tag -width Ds
-.It Cm nS
-If set to a positive integer value, certain
-.Xr mdoc 7
-macros will behave in the same way as in the
-.Em SYNOPSIS
-section.
-If set to 0, these macros will behave in the same way as outside the
-.Em SYNOPSIS
-section, even when called within the
-.Em SYNOPSIS
-section itself.
-Note that starting a new
-.Xr mdoc 7
-section with the
-.Ic \&Sh
-macro will reset this register.
-.El
+Some number registers can be read to inspect parser state,
+and some can be changed to influence formatting.
+For details about individual registers, see the
+.Sx NUMBER REGISTER REFERENCE
+below.
 .It Xo
-.Ic \&nrf Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar expression
+.Ic \&nrf Ar registername Oo Cm + Ns | Ns Cm \- Oc Ns Ar expression
 .Op Ar increment
 .Xc
 Define or change a floating-point register.
@@ -1569,7 +1567,7 @@ requests is not supported, and diversions are not implemented at all.
 Rename a number register.
 Currently unsupported.
 .It Ic \&rr Ar register
-Remove a register.
+Remove a number register.
 .It Ic \&rs
 End no-space mode.
 Currently ignored.
@@ -2152,6 +2150,8 @@ on the current font.
 .It Ic \en Ns Oo +|- Oc Ns Ic \&[ Ns Ar name Ns Ic \&]
 Interpolate the number register
 .Ar name .
+If the register is not yet defined,
+it is automatically initialised to zero before interpolation.
 For short names, there are variants
 .Ic \en Ns Ar c
 and
@@ -2162,6 +2162,9 @@ the register is first incremented or decremented by the
 that was specified in the relevant
 .Ic \&nr
 request, and the changed value is interpolated.
+For the names of predefined registers, see the
+.Sx NUMBER REGISTER REFERENCE
+below.
 .It Ic \eO Ns Ar digit , Ic \eO[5 Ns arguments Ns Ic \&]
 Suppress output.
 This is a groff extension and currently unsupported.
@@ -2250,6 +2253,83 @@ with zero width and height; ignored by
 .It Ic \ez
 Output the next character without advancing the cursor position.
 .El
+.Sh NUMBER REGISTER REFERENCE
+In
+.Xr mdoc 7
+and
+.Xr man 7
+documents, using registers is discouraged.
+For compatibility with legacy documents, the
+.Xr mandoc 1
+.Nm
+parser recognises the following names of read-only registers:
+.Bl -tag -width Ds
+.It Cm .$
+The number of arguments of the innermost user-defined macro
+currently being called, or 0 by default.
+The
+.Ic shift
+request decrements the value of this register.
+.It Cm .A
+Whether ASCII approximation mode is on;
+.Xr mandoc 1
+always returns 0, meaning off.
+.It Cm .g
+Whether the formatter claims groff compatibility;
+.Xr mandoc 1
+always returns 1, meaning yes.
+.It Cm .H
+The minimum horizontal movement in basic units;
+.Xr mandoc 1
+always returns 24, corresponding to one character position.
+.It Cm .j
+The current line adjustment mode;
+.Xr mandoc 1
+always returns 0, meaning flush left.
+.It Cm .l
+The line length in basic units;
+.Xr mandoc 1
+always returns 78 * 24, corresponding to 78 characters per line.
+.It Cm \&.T
+Whether an output device has been selected;
+.Xr mandoc 1
+always returns 1, meaning yes.
+.It Cm .V
+The minimum vertical movement in basic units;
+.Xr mandoc 1
+always returns 40, corresponding to one line height.
+.El
+.Pp
+The
+.Cm nS
+register is handled specially.
+If set to a positive integer value, certain
+.Xr mdoc 7
+macros behave in the same way as in the
+.Em SYNOPSIS
+section.
+If set to 0, these macros behave in the same way as outside the
+.Em SYNOPSIS
+section, even when called within the
+.Em SYNOPSIS
+section itself.
+Starting a new
+.Xr mdoc 7
+section with the
+.Ic \&Sh
+macro resets this register.
+.Pp
+Full
+.Nm
+implementations support large numbers of additional predefined registers.
+While the
+.Ic \&nr
+request supports setting and the
+.Ic \en
+escape sequence supports inspecting arbitrary registers,
+.Xr mandoc 1
+only defines the few registers listed above by default.
+All other registers are undefined by default and yield 0 when interpolated.
 .Sh COMPATIBILITY
 The
 .Xr mandoc 1
@@ -2266,17 +2346,29 @@ never reads or writes external files except via
 .Ic \&so
 requests with safe relative paths.
 .It
-There is no automatic hyphenation, no adjustment to the right margin,
-and very limited support for centering; the output is always set flush-left.
+There is no automatic hyphenation and no support for the
+.Ic \&ad
+line adjustment request.
+Except when the
+.Ic \&ce
+or
+.Ic \&rj
+requests or the
+.Xr tbl 7
+cell specifications
+.Cm c ,
+.Cm n ,
+or
+.Cm r
+or the table option
+.Cm center
+are used, output is always set flush-left.
 .It
-Support for setting tabulator and leader characters is missing,
-and support for manually changing indentation is limited.
-.It
-The
-.Sq u
-scaling unit is the default terminal unit.
-In traditional troff systems, this unit changes depending on the
-output media.
+Support for setting tabulator and leader characters is missing, and the
+.Ic \&in
+indentation request is not supported in
+.Xr mdoc 7
+input files.
 .It
 Width measurements are implemented in a crude way
 and often yield wrong results.
@@ -2335,6 +2427,15 @@ implementations.
 .%T Heirloom Documentation Tools Nroff/Troff User's Manual
 .%D September 17, 2007
 .%U http://heirloom.sourceforge.net/doctools/troff.pdf
+.Re
+.Rs
+.%A James Clark
+.%A Werner Lemberg
+.%A G. Branden Robinson
+.%I Free Software Foundation, Inc.
+.%T The GNU Troff Manual
+.%D 1999\(en2023
+.%U https://www.gnu.org/software/groff/manual/
 .Re
 .Sh HISTORY
 The RUNOFF typesetting system, whose input forms the basis for

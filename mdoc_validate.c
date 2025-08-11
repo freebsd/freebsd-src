@@ -1,4 +1,4 @@
-/* $Id: mdoc_validate.c,v 1.393 2025/06/05 12:38:26 schwarze Exp $ */
+/* $Id: mdoc_validate.c,v 1.396 2025/07/26 12:23:16 schwarze Exp $ */
 /*
  * Copyright (c) 2010-2022, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -1714,7 +1714,7 @@ post_xx(POST_ARGS)
 		os = "OpenBSD";
 		break;
 	case MDOC_Ux:
-		os = "UNIX";
+		os = "Unix";
 		break;
 	default:
 		abort();
@@ -2733,7 +2733,7 @@ post_dd(POST_ARGS)
 		mandoc_msg(MANDOCERR_PROLOG_ORDER,
 		    n->line, n->pos, "Dd after Os");
 
-	if (mdoc->quick && n != NULL)
+	if (mdoc->quick)
 		mdoc->meta.date = mandoc_strdup("");
 	else
 		mdoc->meta.date = mandoc_normdate(n->child, n);
@@ -2798,8 +2798,7 @@ post_dt(POST_ARGS)
 	if (nn == NULL) {
 		mandoc_msg(MANDOCERR_MSEC_MISSING, n->line, n->pos,
 		    "Dt %s", mdoc->meta.title);
-		mdoc->meta.vol = mandoc_strdup("LOCAL");
-		return;  /* msec and arch remain NULL. */
+		return;  /* msec, vol, and arch remain NULL. */
 	}
 
 	mdoc->meta.msec = mandoc_strdup(nn->string);
@@ -2810,7 +2809,6 @@ post_dt(POST_ARGS)
 	if (cp == NULL) {
 		mandoc_msg(MANDOCERR_MSEC_BAD,
 		    nn->line, nn->pos, "Dt ... %s", nn->string);
-		mdoc->meta.vol = mandoc_strdup(nn->string);
 	} else {
 		mdoc->meta.vol = mandoc_strdup(cp);
 		if (mdoc->filesec != '\0' &&
