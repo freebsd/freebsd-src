@@ -23,7 +23,8 @@ SRCS=	authorization.c \
 	xmalloc.c
 
 CFLAGS+=-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-DGET_TGT_VIA_PASSWD
 
 MAN=	ksu.1
 
