@@ -1181,7 +1181,7 @@ badport_bandlim(int which)
 {
 	int64_t pps;
 
-	if (V_icmplim == 0 || which == BANDLIM_UNLIMITED)
+	if (V_icmplim == 0)
 		return (0);
 
 	KASSERT(which >= 0 && which < BANDLIM_MAX,
