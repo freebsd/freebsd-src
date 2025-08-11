@@ -120,10 +120,6 @@ FBSD_1.8 {
 	libusb_wait_for_event;
 	libusb_wrap_sys_device;
 	libusb20_be_add_dev_quirk;
-	libusb20_be_alloc;
-	libusb20_be_alloc_default;
-	libusb20_be_alloc_linux;
-	libusb20_be_alloc_ugen20;
 	libusb20_be_dequeue_device;
 	libusb20_be_device_foreach;
 	libusb20_be_enqueue_device;
@@ -257,4 +253,13 @@ FBSD_1.8 {
 	usb_set_configuration;
 	usb_set_debug;
 	usb_strerror;
+};
+
+FBSD_1.9 {
+	libusb20_be_alloc;
+	libusb20_be_alloc_default;
+	libusb20_be_alloc_linux;
+	libusb20_be_alloc_ugen20;
+	libusb20_be_ctx_alloc;
+	libusb20_be_ctx_free;
 };

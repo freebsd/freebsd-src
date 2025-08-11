@@ -42,7 +42,6 @@
 #include <pwd.h>
 #include <grp.h>
 #include <ctype.h>
-#include <fcntl.h>
 
 #include <libusb20.h>
 #include <libusb20_desc.h>
@@ -51,10 +50,6 @@
 
 #include "dump.h"
 #include "pathnames.h"
-
-#ifndef IOUSB
-#define IOUSB(a) a
-#endif
 
 #define	DUMP0(n,type,field,...) dump_field(pdev, "  ", #field, n->field);
 #define	DUMP0L(n,type,field,...) dump_fieldl(pdev, "  ", #field, n->field);
@@ -76,6 +71,8 @@ struct usb_vendor_info {
 };
 
 STAILQ_HEAD(usb_vendors, usb_vendor_info);
+
+static struct usb_vendors *usb_vendors = NULL;
 
 const char *
 dump_mode(uint8_t value)
@@ -352,17 +349,23 @@ dump_iface(struct libusb20_device *pdev,
 	}
 }
 
-static struct usb_vendors *
-load_vendors(void)
+/*
+ * Read the USB vendor database.  This has to happen before entering
+ * capability mode, because the database is looked up by pathname.
+ */
+void
+dump_vendors_init(void)
 {
 	const char *dbf;
 	FILE *db = NULL;
 	struct usb_vendor_info *cv;
 	struct usb_product_info *cd;
-	struct usb_vendors *usb_vendors;
 	char buf[1024], str[1024];
 	char *ch;
 	int id;
+
+	if (usb_vendors != NULL)
+		return;
 
 	usb_vendors = malloc(sizeof(*usb_vendors));
 	if (usb_vendors == NULL)
@@ -375,7 +378,7 @@ load_vendors(void)
 		if ((db = fopen(dbf, "r")) == NULL) {
 			dbf = _PATH_USBVDB;
 			if ((db = fopen(dbf, "r")) == NULL)
-				return (usb_vendors);
+				return;
 		}
 	}
 	cv = NULL;
@@ -433,7 +436,6 @@ load_vendors(void)
 
 	fclose(db);
 	/* cleanup */
-	return (usb_vendors);
 }
 
 enum _device_descr_list_type {
@@ -446,7 +448,6 @@ static char *
 _device_desc(struct libusb20_device *pdev,
     enum _device_descr_list_type list_type)
 {
-	static struct usb_vendors *usb_vendors = NULL;
 	char *desc = NULL;
 	const char *vendor = NULL, *product = NULL;
 	uint16_t vid;
@@ -465,9 +466,6 @@ _device_desc(struct libusb20_device *pdev,
 	vid = libusb20_dev_get_device_desc(pdev)->idVendor;
 	pid = libusb20_dev_get_device_desc(pdev)->idProduct;
 
-	if (usb_vendors == NULL)
-		usb_vendors = load_vendors();
-
 	STAILQ_FOREACH(vi, usb_vendors, link) {
 		if (vi->id == vid) {
 			vendor = vi->desc;
@@ -483,34 +481,18 @@ _device_desc(struct libusb20_device *pdev,
 		}
 	}
 
-	/*
-	 * Try to gather the information; libusb2 unfortunately seems to
-	 * only build an entire string but not save vendor/product individually.
-	 */
 	if (vendor == NULL || product == NULL) {
-		char buf[64];
-		int f;
-
-		snprintf(buf, sizeof(buf), "/dev/" USB_GENERIC_NAME "%u.%u",
-		    libusb20_dev_get_bus_number(pdev),
-		    libusb20_dev_get_address(pdev));
-
-		f = open(buf, O_RDWR);
-		if (f < 0)
-			goto skip_vp_recovery;
-
-		if (ioctl(f, IOUSB(USB_GET_DEVICEINFO), &devinfo))
-			goto skip_vp_recovery;
-
-
-		if (vendor == NULL)
-			vendor = devinfo.udi_vendor;
-		if (product == NULL)
-			product = devinfo.udi_product;
-
-skip_vp_recovery:
-		if (f >= 0)
-			close(f);
+		/*
+		 * Ask through the already open device, rather than
+		 * reopening it by pathname, so that this keeps working
+		 * in capability mode.
+		 */
+		if (libusb20_dev_get_info(pdev, &devinfo) == 0) {
+			if (vendor == NULL)
+				vendor = devinfo.udi_vendor;
+			if (product == NULL)
+				product = devinfo.udi_product;
+		}
 	}
 
 	if (list_type == _DEVICE_DESCR_LIST_TYPE_PRODUCT_VENDOR) {

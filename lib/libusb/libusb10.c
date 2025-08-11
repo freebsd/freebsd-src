@@ -302,6 +302,21 @@ libusb_init_context(libusb_context **context,
 		return (LIBUSB_ERROR_OTHER);
 	}
 
+	/*
+	 * The backend context acquires the file descriptors needed to
+	 * reach the USB devices, so that the context keeps working
+	 * after cap_enter(2) has been called.
+	 */
+	ctx->be_ctx = libusb20_be_ctx_alloc();
+	if (ctx->be_ctx == NULL) {
+		close(ctx->event);
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
+		pthread_cond_destroy(&ctx->ctx_cond);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+
 	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->event, POLLIN);
 
 	pthread_mutex_lock(&default_context_lock);
@@ -353,6 +368,7 @@ libusb_exit(libusb_context *ctx)
 
 	libusb10_remove_pollfd(ctx, &ctx->ctx_poll);
 	close(ctx->event);
+	libusb20_be_ctx_free(ctx->be_ctx);
 	pthread_mutex_destroy(&ctx->ctx_lock);
 	pthread_mutex_destroy(&ctx->hotplug_lock);
 	pthread_cond_destroy(&ctx->ctx_cond);
@@ -384,7 +400,7 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 	if (list == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	usb_backend = libusb20_be_alloc_default();
+	usb_backend = libusb20_be_alloc_default(ctx->be_ctx);
 	if (usb_backend == NULL)
 		return (LIBUSB_ERROR_NO_MEM);
 

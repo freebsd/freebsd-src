@@ -945,8 +945,25 @@ The library is also compliant with LibUSB version 0.1.12.
 .Fn usb_get_driver_np
 .Fn usb_detach_kernel_driver_np
 .Fn usb_attach_kernel_driver_np
+.Sh CAPABILITY MODE
+Every
+.Nm
+context opens the file descriptors needed to reach the USB devices at
+.Fn libusb_init
+time and opens device nodes relative to a per-context directory
+descriptor using
+.Xr openat 2 .
+All operations on the context, including enumeration of hotplugged
+devices, therefore keep working after entering capability mode, see
+.Xr capsicum 4 .
+The file descriptors are limited with
+.Xr cap_rights_limit 2 .
+Initialise the context before calling
+.Xr cap_enter 2 .
 .Sh SEE ALSO
+.Xr cap_enter 2 ,
 .Xr libusb20 3 ,
+.Xr capsicum 4 ,
 .Xr usb 4 ,
 .Xr usbconfig 8 ,
 .Xr usbdump 8

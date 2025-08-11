@@ -120,6 +120,9 @@ struct libusb_context {
 	void   *fd_cb_user_data;
 	libusb_log_cb log_cb;
 	int no_discovery;
+
+	/* backend context holding the USB file descriptors */
+	struct libusb20_be_ctx *be_ctx;
 };
 
 struct libusb_device {

@@ -30,6 +30,7 @@
  */
 
 
+#include <capsicum_helpers.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -391,9 +392,15 @@ main(int argc, char **argv)
   struct libusb20_backend *be;
   struct libusb20_device *dev;
 
-  if ((be = libusb20_be_alloc_default()) == NULL)
+  if ((be = libusb20_be_alloc_default(NULL)) == NULL)
     {
       perror("libusb20_be_alloc()");
+      return 1;
+    }
+
+  if (caph_enter() < 0)
+    {
+      perror("caph_enter()");
       return 1;
     }
 
