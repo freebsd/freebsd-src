@@ -290,6 +290,7 @@ mt7622_ahci_attach(device_t dev)
     if (rv != 0)
         goto fail;*/
     rv = ahci_attach(dev);
+    device_printf(sc->dev, "return code %d\n", rv);
     return (rv);
 
     fail:
