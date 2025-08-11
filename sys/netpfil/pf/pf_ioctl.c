@@ -6444,19 +6444,14 @@ shutdown_pf(void)
 	int error = 0;
 	u_int32_t t[5];
 	char nn = '\0';
-	struct pf_kanchor *anchor;
-	struct pf_keth_anchor *eth_anchor;
+	struct pf_kanchor *anchor, *tmp_anchor;
+	struct pf_keth_anchor *eth_anchor, *tmp_eth_anchor;
 	int rs_num;
 
 	do {
 		/* Unlink rules of all user defined anchors */
-		RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors) {
-			/* Wildcard based anchors may not have a respective
-			 * explicit anchor rule or they may be left empty
-			 * without rules. It leads to anchor.refcnt=0, and the
-			 * rest of the logic does not expect it. */
-			if (anchor->refcnt == 0)
-				anchor->refcnt = 1;
+		RB_FOREACH_SAFE(anchor, pf_kanchor_global, &V_pf_anchors,
+		    tmp_anchor) {
 			for (rs_num = 0; rs_num < PF_RULESET_MAX; ++rs_num) {
 				if ((error = pf_begin_rules(&t[rs_num], rs_num,
 				    anchor->path)) != 0) {
@@ -6474,14 +6469,8 @@ shutdown_pf(void)
 		}
 
 		/* Unlink rules of all user defined ether anchors */
-		RB_FOREACH(eth_anchor, pf_keth_anchor_global,
-		    &V_pf_keth_anchors) {
-			/* Wildcard based anchors may not have a respective
-			 * explicit anchor rule or they may be left empty
-			 * without rules. It leads to anchor.refcnt=0, and the
-			 * rest of the logic does not expect it. */
-			if (eth_anchor->refcnt == 0)
-				eth_anchor->refcnt = 1;
+		RB_FOREACH_SAFE(eth_anchor, pf_keth_anchor_global,
+		    &V_pf_keth_anchors, tmp_eth_anchor) {
 			if ((error = pf_begin_eth(&t[0], eth_anchor->path))
 			    != 0) {
 				DPFPRINTF(PF_DEBUG_MISC, "%s: eth "
