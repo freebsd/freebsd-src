@@ -9,6 +9,8 @@
 
 .include <src.opts.mk>
 
+KRB5_VERSION=	1.22-final
+
 # MIT KRB5 uses KRB5_DIR. Heimdal uses KRB5DIR.
 KRB5_SRCTOP=	${SRCTOP}/krb5
 KRB5_DIR=	${SRCTOP}/crypto/krb5/src
