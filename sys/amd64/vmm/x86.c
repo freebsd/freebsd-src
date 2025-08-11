@@ -48,7 +48,12 @@ SYSCTL_DECL(_hw_vmm);
 static SYSCTL_NODE(_hw_vmm, OID_AUTO, topology, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     NULL);
 
-#define	CPUID_VM_HIGH		0x40000000
+#define CPUID_VM_SIGNATURE	0x40000000
+#define CPUID_BHYVE_FEATURES	0x40000001
+#define	CPUID_VM_HIGH		CPUID_BHYVE_FEATURES
+
+/* Features advertised in CPUID_BHYVE_FEATURES %eax */
+#define CPUID_BHYVE_FEAT_EXT_DEST_ID	(1UL << 0) /* MSI Extended Dest ID */
 
 static const char bhyve_id[12] = "bhyve bhyve ";
 
@@ -100,7 +105,7 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 	if (cpu_exthigh != 0 && func >= 0x80000000) {
 		if (func > cpu_exthigh)
 			func = cpu_exthigh;
-	} else if (func >= 0x40000000) {
+	} else if (func >= CPUID_VM_SIGNATURE) {
 		if (func > CPUID_VM_HIGH)
 			func = CPUID_VM_HIGH;
 	} else if (func > cpu_high) {
@@ -601,11 +606,18 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 			regs[3] = 0;
 			break;
 
-		case 0x40000000:
+		case CPUID_VM_SIGNATURE:
 			regs[0] = CPUID_VM_HIGH;
 			bcopy(bhyve_id, &regs[1], 4);
 			bcopy(bhyve_id + 4, &regs[2], 4);
 			bcopy(bhyve_id + 8, &regs[3], 4);
+			break;
+
+		case CPUID_BHYVE_FEATURES:
+			regs[0] = 0; /* No features to advertise yet */
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
 			break;
 
 		default:
