@@ -25,7 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _WANT_P_OSREL
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -42,8 +41,6 @@
 static Elf_Ehdr *get_elf_header(int, const char *, const struct stat *,
     Elf_Phdr **phdr);
 static int convert_flags(int); /* Elf flags -> mmap flags */
-
-int __getosreldate(void);
 
 static bool
 phdr_in_zero_page(const Elf_Ehdr *hdr)
@@ -204,8 +201,7 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 	    segs[nsegs]->p_memsz);
 	mapsize = base_vlimit - base_vaddr;
 	base_addr = (caddr_t)base_vaddr;
-	base_flags = __getosreldate() >= P_OSREL_MAP_GUARD ?
-	    MAP_GUARD : MAP_PRIVATE | MAP_ANON | MAP_NOCORE;
+	base_flags = MAP_GUARD;
 	if (npagesizes > 1 &&  rtld_round_page(segs[0]->p_filesz) >=
 	    pagesizes[1])
 		base_flags |= MAP_ALIGNED_SUPER;
