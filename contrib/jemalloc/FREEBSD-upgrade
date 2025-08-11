@@ -1,189 +1,91 @@
 #!/bin/sh
-#
-# Usage: cd /usr/src/contrib/jemalloc
-#        ./FREEBSD-upgrade <command> [args]
-#
-# At least the following ports are required when importing jemalloc:
-# - devel/autoconf
-# - devel/git
-# - devel/gmake
-# - textproc/docbook-xsl
-# - textproc/libxslt
-#
-# The normal workflow for importing a new release is:
-#
-#   cd /usr/src/contrib/jemalloc
-#
-# Merge local changes that were made since the previous import:
-#
-#   ./FREEBSD-upgrade merge-changes
-#   ./FREEBSD-upgrade rediff
-#
-# Extract latest jemalloc release.
-#
-#   ./FREEBSD-upgrade extract <rev>
-#
-# Fix patch conflicts as necessary, then regenerate diffs to update line
-# offsets:
-#
-#   ./FREEBSD-upgrade rediff
-#   ./FREEBSD-upgrade extract <rev>
-#
-# Do multiple buildworld/installworld rounds.  If problems arise and patches
-# are needed, edit the code in ${work} as necessary, then:
-#
-#   ./FREEBSD-upgrade rediff
-#   ./FREEBSD-upgrade extract <rev>
-#
-# The rediff/extract order is important because rediff saves the local
-# changes, then extract blows away the work tree and re-creates it with the
-# diffs applied.
-#
-# Finally, to clean up:
-#
-#  ./FREEBSD-upgrade clean
 
-set -e
-set -x
+# Note: you need docbook installed, as well as gmake (we need it to
+# make private_namespace.h)
 
-if [ ! -x "FREEBSD-upgrade" ] ; then
-  echo "Run from within src/contrib/jemalloc/" >&2
-  exit 1
-fi
+# git subtree merge -- not committed at this time.
+ git subtree merge -P contrib/jemalloc vendor/jemalloc
+cd contrib/jemalloc
 
-if [ "x${JEMALLOC_REPO}" = "x" ] ; then
-  JEMALLOC_REPO=https://github.com/jemalloc/jemalloc.git
-fi
+# Gut the tests, since they take up too much space.
+# Everything else can stay, but if not, add more to trim (there's
+# always a trade off between 
+git rm -rf test msvc
+git commit --amend
 
-src=`pwd`
+# kill the tests with empty files so we don't have to hack configure.ac
+mkdir -p test/include/test
+touch test/include/test/jemalloc_test_defs.h.in
+touch test/include/test/jemalloc_test.h.in
+echo 'exit 0' > test/test.sh.in
 
-jemalloc_tmp="jemalloc.tmp"
-tmpdir="${src}/../${jemalloc_tmp}"
-bare_repo="${tmpdir}/jemalloc_bare.git"
-work="jemalloc_work.git"
-work_repo="${tmpdir}/${work}"
-namespace_repo="${tmpdir}/jemalloc_namespace.git"
-changes="${src}/FREEBSD-changes"
+# Reconfigure -- needed only to regenerate the .h files... We don't
+# use all the files generated.
+#
+# Also note: 5.2 lacks --with-lg-page-sizes, but 5.3 has it.
+# Also, there's got to be a way to not hard-wire version / hash.
+./autogen.sh --enable-xmalloc --enable-fill --enable-lazy-lock --enable-stats \
+	     --enable-utrace --with-malloc-conf=abort_conf:false \
+	     --with-xslroot=/usr/local/share/xsl/docbook --with-private-namespace=__ \
+	     --with-lg-page-sizes=12,13,14,15,16 \
+	     --with-version=5.3.0-0-g54eaed1d8b56b1aa528be3bdd1877e59c56fa90c
 
-do_fetch() {
-  local rev=$1
-  if [ ! -d "${bare_repo}" ] ; then
-    mkdir -p "${bare_repo}"
-    git clone --bare ${JEMALLOC_REPO} ${bare_repo}
-  fi
-  (
-    cd ${bare_repo}
-    git fetch origin ${rev}
-  )
-}
+# Copy over the important generated .h files in configure
+cp ./include/jemalloc/jemalloc.h ../../lib/libc/stdlib/malloc/jemalloc/include/jemalloc
+git add ../../lib/libc/stdlib/malloc/jemalloc/include/jemalloc/jemalloc.h
+cp ./include/jemalloc/jemalloc_defs.h ../../lib/libc/stdlib/malloc/jemalloc/include/jemalloc
+git add ../../lib/libc/stdlib/malloc/jemalloc/include/jemalloc/jemalloc_defs.h
 
-do_extract_helper() {
-  local rev=$1
-  local repo=$2
-  do_fetch ${rev}
-  rm -rf ${repo}
-  git clone ${bare_repo} ${repo}
-  (
-    cd ${repo}
-    if [ "x${rev}" != "x" ] ; then
-      # Use optional rev argument to check out a revision other than HEAD on
-      # master.
-      git checkout ${rev}
-    fi
-  )
-}
+# need to make the namespace .h files, and copy a small subset into the tree
+# These are super-awkward to generate at buildworld time. Also, we assume we
+# only have to make one of these (currently true due to current unlikely to
+# change dependencies.
+gmake include/jemalloc/internal/private_namespace.h
+for i in private_namespace.h jemalloc_internal_defs.h public_namespace.h jemalloc_preamble.h; do
+    cp include/jemalloc/internal/$i ../../lib/libc/stdlib/malloc/jemalloc/include/jemalloc/internal/
+    git add ../../lib/libc/stdlib/malloc/jemalloc/include/jemalloc/internal/$i
+    rm include/jemalloc/internal/$i
+done
+# OK, commit all the generated files
+git add VERSION
+git commit --amend
 
-do_autogen() {
-  ./autogen.sh --enable-xmalloc --enable-utrace \
-    --with-malloc-conf=abort_conf:false \
-    --with-xslroot=/usr/local/share/xsl/docbook --with-private-namespace=__ \
-    --with-lg-page-sizes=12,13,14,16
-}
+# Clean up the mess
+git clean -f .
 
-do_extract_diff() {
-  local rev=$1
-  local repo=$2
-  do_extract_helper ${rev} ${repo}
-  (
-    cd ${repo}
-    # Apply diffs before generating files.
-    patch -p1 < "${src}/FREEBSD-diffs"
-    find . -name '*.orig' -delete
-    # Generate files.
-    do_autogen
-    gmake dist
-  )
-}
+# Save the cheat sheet
+cp ~/jemalloc-upd FREEBSD-upgrade
+git add FREEBSD-upgrade
+git commit --amend
 
-do_extract_namespace() {
-  local rev=$1
-  local repo=$2
-  do_extract_helper ${rev} ${repo}
-  (
-    cd ${repo}
-    # Generate files.
-    do_autogen
-    gmake include/jemalloc/internal/private_namespace.h
-  )
-}
+# Remove hash.c from lib/libc/stdlib/malloc/jemalloc/Makefile.inc
+# mutex_pool.c prng.c 
+# Add
+# bin_info.c san.c san_bump.c counter.c prof_data.c prof_log.c prof_recent.c prof_stats.c prof_sys.c
+# emap.c edata.c edata_cache.c pa.c pa_extra.c pac.c decay.c hpa.c hpa_hooks.c fxp.c hpdata.c pai.c
+# ecache.c ehooks.c eset.c sec.c cache_bin.c peak_event.c psset.c inspect.c exp_grow.c thread_event.c
+#
 
-do_extract() {
-  local rev=$1
-  do_fetch ${rev}
-  do_extract_diff ${rev} ${work_repo}
-  do_extract_namespace ${rev} ${namespace_repo}
-}
+# Manually comment out the following in lib/libc/stdlib/malloc/jemalloc/include/jemalloc/jemalloc.h
+# /* #define JEMALLOC_HAVE_ATTR_FORMAT_GNU_PRINTF */
+# Add
+# #define JEMALLOC_OVERRIDE_VALLOC
+# and #include "jemalloc_FreeBSD.h"
+# With some adjustments to the old jemalloc_FreeBSD.h, but git can help
 
-do_diff() {
-  (
-    cd ${work_repo}
-    find . -name '*.orig' -delete
-    find . -name '*.rej' -delete
-    git add -A
-    git diff --cached
-  ) > FREEBSD-diffs
-}
-
-command=$1
-shift
-case "${command}" in
-  merge-changes) # Merge local changes that were made since the previous import.
-    rev=`cat VERSION |tr 'g' ' ' |awk '{print $2}'`
-    # Extract code corresponding to most recent import.
-    do_extract ${rev}
-    # Compute local differences to the upstream+patches and apply them.
-    (
-      cd ${tmpdir}
-      diff -ru -X ${src}/FREEBSD-Xlist ${work} ../jemalloc > ${changes} || true
-    )
-    (
-      cd ${work_repo}
-      patch -p1 < ${changes} || true
-      find . -name '*.orig' -delete
-    )
-    # Update diff.
-    do_diff
-    ;;
-  extract) # Extract upstream sources, apply patches, copy to contrib/jemalloc.
-    rev=$1
-    do_extract ${rev}
-    # Delete existing files so that cruft doesn't silently remain.
-    rm -rf ChangeLog COPYING VERSION doc include src
-    # Copy files over.
-    tar cf - -C ${work_repo} -X FREEBSD-Xlist . |tar xvf -
-    internal_dir="include/jemalloc/internal"
-    grep -v ' isthreaded ' \
-      "${namespace_repo}/${internal_dir}/private_namespace.h" \
-      > "${internal_dir}/private_namespace.h"
-    ;;
-  rediff) # Regenerate diffs based on working tree.
-    do_diff
-    ;;
-  clean) # Remove working tree and temporary files.
-    rm -rf ${tmpdir} ${changes}
-    ;;
-  *)
-    echo "Unsupported command: \"${command}\"" >&2
-    exit 1
-    ;;
-esac
+# Had to manually remove
+# -#define __malloc_options_1_0 JEMALLOC_N(__malloc_options_1_0)
+# -#define _malloc_first_thread JEMALLOC_N(_malloc_first_thread)
+# -#define __malloc_message_1_0 JEMALLOC_N(__malloc_message_1_0)
+# -#define isthreaded JEMALLOC_N(isthreaded)
+#
+# Also had to remove the following to fix jemalloc 3 ABI compat
+# -#define je_allocm JEMALLOC_N(je_allocm)
+# -#define je_dallocm JEMALLOC_N(je_dallocm)
+# -#define je_nallocm JEMALLOC_N(je_nallocm)
+# -#define je_rallocm JEMALLOC_N(je_rallocm)
+# -#define je_sallocm JEMALLOC_N(je_sallocm)
+# Without the diff you end up with non-exported _je_je*allocm symbols. With you get symbols of the form:
+#  365: 000000000018e2a0   406 FUNC    WEAK   DEFAULT   14 rallocm@FBSD_1.3 (5)
+#  657: 000000000018e2a0   406 FUNC    GLOBAL DEFAULT   14 __rallocm@FBSD_1.3 (5)
+#
