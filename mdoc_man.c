@@ -1,4 +1,4 @@
-/* $Id: mdoc_man.c,v 1.139 2025/01/24 22:37:24 schwarze Exp $ */
+/* $Id: mdoc_man.c,v 1.141 2025/07/02 19:57:48 schwarze Exp $ */
 /*
  * Copyright (c) 2011-2021, 2025 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -494,6 +494,7 @@ print_offs(const char *v, int keywords)
 	const char	 *end;
 	int		  sz;
 
+	outflags &= ~MMAN_PP;
 	print_line(".RS", MMAN_Bk_susp);
 
 	/* Convert v into a number (of characters). */
@@ -1616,9 +1617,7 @@ pre_lk(DECL_ARGS)
 	}
 
 	/* Link target. */
-	font_push('B');
 	print_word(link->string);
-	font_pop();
 
 	/* Trailing punctuation. */
 	while (punct != NULL) {

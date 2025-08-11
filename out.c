@@ -1,8 +1,8 @@
-/*	$Id: out.c,v 1.86 2025/01/05 18:14:39 schwarze Exp $ */
+/* $Id: out.c,v 1.87 2025/07/16 14:33:08 schwarze Exp $ */
 /*
- * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2014, 2015, 2017, 2018, 2019, 2021
+ * Copyright (c) 2011, 2014, 2015, 2017, 2018, 2019, 2021, 2025
  *               Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -122,9 +122,23 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 	const struct tbl_dat	*dp;
 	struct roffcol		*col;
 	struct tbl_colgroup	*first_group, **gp, *g;
-	size_t			*colwidth;
-	size_t			 ewidth, min1, min2, wanted, width, xwidth;
-	int			 done, icol, maxcol, necol, nxcol, quirkcol;
+
+	/* Widths in basic units. */
+	size_t	*colwidth; /* Widths of all columns. */
+	size_t	 min1;     /* Width of the narrowest column. */
+	size_t	 min2;     /* Width of the second narrowest column. */
+	size_t	 wanted;   /* For any of the narrowest columns. */
+	size_t	 xwidth;   /* Total width of columns not to expand. */
+	size_t	 ewidth;   /* Width of widest column to equalize. */
+	size_t	 width;    /* Width of the data in basic units. */
+	size_t	 enw;      /* Width of one EN unit. */
+
+	int	 icol;     /* Column number, starting at zero. */
+	int	 maxcol;   /* Number of last column. */
+	int	 necol;    /* Number of columns to equalize. */
+	int	 nxcol;    /* Number of columns to expand. */
+	int	 done;	   /* Boolean: this group is wide enough. */
+	int	 quirkcol;
 
 	/*
 	 * Allocate the master column specifiers.  These will hold the
@@ -139,6 +153,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 
 	maxcol = -1;
 	first_group = NULL;
+	enw = (*tbl->len)(1, tbl->arg);
 	for (sp = sp_first; sp != NULL; sp = sp->next) {
 		if (sp->pos != TBL_SPAN_DATA)
 			continue;
@@ -175,8 +190,8 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 			    opts, dp,
 			    dp->block == 0 ? 0 :
 			    dp->layout->width ? dp->layout->width :
-			    rmargin ? (rmargin + sp->opts->cols / 2)
-			    / (sp->opts->cols + 1) : 0);
+			    rmargin ? (rmargin / enw + sp->opts->cols / 2) /
+			    (sp->opts->cols + 1) * enw : 0);
 			if (dp->hspans == 0)
 				continue;
 
@@ -211,8 +226,8 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 		maxcol = sp_first->opts->cols - 1;
 	for (icol = 0; icol <= maxcol; icol++) {
 		col = tbl->cols + icol;
-		if (col->width < 1)
-			col->width = 1;
+		if (col->width < enw)
+			col->width = enw;
 
 		/*
 		 * Column spacings are needed for span width
@@ -234,7 +249,8 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 		for (icol = g->startcol; icol <= g->endcol; icol++) {
 			width = tbl->cols[icol].width;
 			if (icol < g->endcol)
-				width += tbl->cols[icol].spacing;
+				width += (*tbl->len)(tbl->cols[icol].spacing,
+				    tbl->arg);
 			if (g->wanted <= width) {
 				done = 1;
 				break;
@@ -372,9 +388,9 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 	 */
 
 	if (nxcol && rmargin) {
-		xwidth += 3*maxcol +
+		xwidth += (*tbl->len)(3 * maxcol +
 		    (opts->opts & (TBL_OPT_BOX | TBL_OPT_DBOX) ?
-		     2 : !!opts->lvert + !!opts->rvert);
+		     2 : !!opts->lvert + !!opts->rvert), tbl->arg);
 		if (rmargin <= offset + xwidth)
 			return;
 		xwidth = rmargin - offset - xwidth;
@@ -387,7 +403,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 		 */
 
 		if (nxcol == 5) {
-			quirkcol = xwidth % nxcol + 2;
+			quirkcol = xwidth / enw % nxcol + 2;
 			if (quirkcol != 3 && quirkcol != 4)
 				quirkcol = -1;
 		} else
@@ -402,7 +418,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 			col->width = (double)xwidth * ++necol / nxcol
 			    - ewidth + 0.4995;
 			if (necol == quirkcol)
-				col->width--;
+				col->width -= enw;
 			ewidth += col->width;
 		}
 	}
@@ -444,9 +460,12 @@ tblcalc_literal(struct rofftbl *tbl, struct roffcol *col,
 	const char	*str;	/* Beginning of the first line. */
 	const char	*beg;	/* Beginning of the current line. */
 	char		*end;	/* End of the current line. */
-	size_t		 lsz;	/* Length of the current line. */
-	size_t		 wsz;	/* Length of the current word. */
-	size_t		 msz;   /* Length of the longest line. */
+
+	/* Widths in basic units. */
+	size_t		 lsz;	/* Of the current line. */
+	size_t		 wsz;	/* Of the current word. */
+	size_t		 msz;   /* Of the longest line. */
+	size_t		 enw;	/* Of one EN unit. */
 
 	if (dp->string == NULL || *dp->string == '\0')
 		return 0;
@@ -460,8 +479,9 @@ tblcalc_literal(struct rofftbl *tbl, struct roffcol *col,
 				end++;
 		}
 		wsz = (*tbl->slen)(beg, tbl->arg);
-		if (mw && lsz && lsz + 1 + wsz <= mw)
-			lsz += 1 + wsz;
+		enw = (*tbl->len)(1, tbl->arg);
+		if (mw && lsz && lsz + enw + wsz <= mw)
+			lsz += enw + wsz;
 		else
 			lsz = wsz;
 		if (msz < lsz)
@@ -479,7 +499,8 @@ tblcalc_number(struct rofftbl *tbl, struct roffcol *col,
 		const struct tbl_opts *opts, const struct tbl_dat *dp)
 {
 	const char	*cp, *lastdigit, *lastpoint;
-	size_t		 intsz, totsz;
+	size_t		 totsz;	/* Total width of the number in basic units. */
+	size_t		 intsz; /* Width of the integer part in basic units. */
 	char		 buf[2];
 
 	if (dp->string == NULL || *dp->string == '\0')
