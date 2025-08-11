@@ -24,6 +24,7 @@ SRCS=	linux_compat.c \
 	linux_radix.c \
 	linux_rcu.c \
 	linux_schedule.c \
+	linux_seq_buf.c \
 	linux_seq_file.c \
 	linux_shmemfs.c \
 	linux_shrinker.c \
