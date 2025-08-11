@@ -132,7 +132,10 @@ PORTSMODULESENV=\
 all:
 .for __i in ${PORTS_MODULES}
 	@${ECHO} "===> Ports module ${__i} (all)"
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B clean build
+	port=${__i}; flavor=$${port#*@}; port=$${port%@*}; flavor=$${flavor%$${port}}; \
+	cd ${PORTSDIR:U/usr/ports}/$${port}; \
+	${PORTSMODULESENV} ${MAKE} -B $${flavor:+FLAVOR=}$${flavor} \
+	    clean build
 .endfor
 
 .for __target in install reinstall clean
@@ -140,7 +143,10 @@ ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
 	@${ECHO} "===> Ports module ${__i} (${__target})"
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/(re)?install/deinstall reinstall/}
+	port=${__i}; flavor=$${port#*@}; port=$${port%@*}; flavor=$${flavor%$${port}}; \
+	cd ${PORTSDIR:U/usr/ports}/$${port}; \
+	${PORTSMODULESENV} ${MAKE} -B $${flavor:+FLAVOR=}$${flavor} \
+	    ${__target:C/(re)?install/deinstall reinstall/}
 .endfor
 .endfor
 .endif

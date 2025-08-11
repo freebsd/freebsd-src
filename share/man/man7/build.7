@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2024
+.Dd August 8, 2025
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -619,8 +619,12 @@ as part of the
 and
 .Cm installkernel
 process.
-.Bd -literal -offset indent
-make PORTS_MODULES=emulators/virtualbox-ose-kmod kernel
+Each port must be specified as
+.Ar category Ns Li / Ns Ar port Ns Op Li @ Ns Ar flavor ,
+e.g.
+.Bd -literal
+PORTS_MODULES=graphics/gpu-firmware-intel-kmod@kabylake
+PORTS_MODULES+=graphics/drm-66-kmod
 .Ed
 .It Va LOCAL_MODULES
 A list of external kernel modules that should be built and installed
