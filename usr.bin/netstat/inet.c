@@ -951,7 +951,7 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		    udpstat.udps_fullsock;
 	if (delivered || sflag <= 1)
 		xo_emit("\t{:delivered-packets/%ju} {N:/delivered}\n",
-		    (uint64_t)delivered);
+		    delivered);
 	p(udps_opackets, "{:output-packets/%ju} {N:/datagram%s output}\n");
 	/* the next statistic is cumulative in udps_noportbcast */
 	p(udps_filtermcast, "{:multicast-source-filter-matches/%ju} "
