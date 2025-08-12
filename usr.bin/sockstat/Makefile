@@ -1,6 +1,7 @@
 .include <src.opts.mk>
 
 PROG=		sockstat
+SRCS=		main.c
 
 LIBADD=		jail xo
 
