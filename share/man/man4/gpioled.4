@@ -70,7 +70,20 @@ Which pin on the GPIO interface to map to this instance.
 Please note that this mask should only ever have one bit set
 (any other bits - i.e., pins - will be ignored).
 .It Va hint.gpioled.%d.invert
-If set to 1, the pin will be set to 0 to light the LED, and 1 to clear it.
+Use pin inversion. If set to 1, the pin will be set to 0 to light the LED, and 1
+to clear it.
+.It Va hint.gpioled.%d.invmode
+Whether or not to use hardware support when pin inversion is requested. Must be
+one of:
+.Bl -tag
+.It Va auto
+Use hardware pin inversion if available, else fallback to software pin
+inversion. This is the default.
+.It Va hw
+Use hardware pin inversion.
+.It Va sw
+Use software pin inversion.
+.El
 .It Va hint.gpioled.%d.state
 The initial state of the LED when the driver takes control over it.
 If set to 1 or 0, the LED will be on or off correspondingly.
