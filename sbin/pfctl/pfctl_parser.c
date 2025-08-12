@@ -242,7 +242,7 @@ copy_satopfaddr(struct pf_addr *pfa, struct sockaddr *sa)
 const struct icmptypeent *
 geticmptypebynumber(u_int8_t type, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_type); i++) {
@@ -261,7 +261,7 @@ geticmptypebynumber(u_int8_t type, sa_family_t af)
 const struct icmptypeent *
 geticmptypebyname(char *w, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_type); i++) {
@@ -280,7 +280,7 @@ geticmptypebyname(char *w, sa_family_t af)
 const struct icmpcodeent *
 geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_code); i++) {
@@ -301,7 +301,7 @@ geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 const struct icmpcodeent *
 geticmpcodebyname(u_long type, char *w, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_code); i++) {
