@@ -101,7 +101,7 @@ ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp,
 
 void
 ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp,
-	struct tcphdr *th, int32_t rstreason, int32_t tlen);
+	struct tcphdr *th, int32_t tlen);
 void
 ctf_do_drop(struct mbuf *m, struct tcpcb *tp);
 
@@ -125,7 +125,7 @@ ctf_calc_rwin(struct socket *so, struct tcpcb *tp);
 
 void
 ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
-    int32_t rstreason, int32_t tlen);
+    int32_t tlen);
 
 uint32_t
 ctf_fixed_maxseg(struct tcpcb *tp);
