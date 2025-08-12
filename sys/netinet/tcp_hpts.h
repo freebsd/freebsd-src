@@ -132,10 +132,14 @@ tcp_in_hpts(struct tcpcb *tp)
  * that INP_WLOCK() or from destroying your TCB where again
  * you should already have the INP_WLOCK().
  */
-uint32_t tcp_hpts_insert_diag(struct tcpcb *tp, uint32_t slot, int32_t line,
-    struct hpts_diag *diag);
-#define	tcp_hpts_insert(inp, slot)	\
-	tcp_hpts_insert_diag((inp), (slot), __LINE__, NULL)
+#ifdef INVARIANTS
+void __tcp_hpts_insert(struct tcpcb *tp, uint32_t slot, int32_t line,
+	struct hpts_diag *diag);
+#define	tcp_hpts_insert(tp, slot, diag)	\
+	__tcp_hpts_insert((tp), (slot), __LINE__, (diag))
+#else
+void tcp_hpts_insert(struct tcpcb *tp, uint32_t slot, struct hpts_diag *diag);
+#endif
 
 void tcp_set_hpts(struct tcpcb *tp);
 
