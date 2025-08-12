@@ -159,9 +159,7 @@ pcf8574_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->busdev != NULL)
-		gpiobus_detach_bus(sc->busdev);
-
+	gpiobus_detach_bus(dev);
 	sx_destroy(&sc->lock);
 	return (0);
 }
