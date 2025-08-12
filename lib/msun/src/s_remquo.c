@@ -5,7 +5,7 @@
  *
  * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
@@ -29,7 +29,7 @@ static const double Zero[] = {0.0, -0.0,};
 double
 remquo(double x, double y, int *quo)
 {
-	int32_t n,hx,hy,hz,ix,iy,sx,i;
+	int32_t hx,hy,hz,ix,iy,n,sx;
 	u_int32_t lx,ly,lz,q,sxy;
 
 	EXTRACT_WORDS(hx,lx,x);
@@ -55,25 +55,19 @@ remquo(double x, double y, int *quo)
 	}
 
     /* determine ix = ilogb(x) */
-	if(hx<0x00100000) {	/* subnormal x */
-	    if(hx==0) {
-		for (ix = -1043, i=lx; i>0; i<<=1) ix -=1;
-	    } else {
-		for (ix = -1022,i=(hx<<11); i>0; i<<=1) ix -=1;
-	    }
-	} else ix = (hx>>20)-1023;
+	if(hx<0x00100000)
+	    ix = subnormal_ilogb(hx, lx);
+	else
+	    ix = (hx>>20)-1023;
 
     /* determine iy = ilogb(y) */
-	if(hy<0x00100000) {	/* subnormal y */
-	    if(hy==0) {
-		for (iy = -1043, i=ly; i>0; i<<=1) iy -=1;
-	    } else {
-		for (iy = -1022,i=(hy<<11); i>0; i<<=1) iy -=1;
-	    }
-	} else iy = (hy>>20)-1023;
+	if(hy<0x00100000)
+	    iy = subnormal_ilogb(hy, ly);
+	else
+	    iy = (hy>>20)-1023;
 
     /* set up {hx,lx}, {hy,ly} and align y to x */
-	if(ix >= -1022) 
+	if(ix >= -1022)
 	    hx = 0x00100000|(0x000fffff&hx);
 	else {		/* subnormal x, shift x to normal */
 	    n = -1022-ix;
@@ -85,7 +79,7 @@ remquo(double x, double y, int *quo)
 		lx = 0;
 	    }
 	}
-	if(iy >= -1022) 
+	if(iy >= -1022)
 	    hy = 0x00100000|(0x000fffff&hy);
 	else {		/* subnormal y, shift y to normal */
 	    n = -1022-iy;
