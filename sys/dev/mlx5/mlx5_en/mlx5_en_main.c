@@ -4646,7 +4646,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if_initname(ifp, "mce", device_get_unit(mdev->pdev->dev.bsddev));
 	if_setmtu(ifp, ETHERMTU);
 	if_setinitfn(ifp, mlx5e_open);
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_ALLMULTI);
 	if_setioctlfn(ifp, mlx5e_ioctl);
 	if_settransmitfn(ifp, mlx5e_xmit);
 	if_setqflushfn(ifp, if_qflush);
