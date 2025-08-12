@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250812: Remove a bogus manlink
+OLD_FILES+=usr/share/man/man3/quota_statfs.3.gz
+
 # 20250810: Removal of remaining Secure RPC (DES) bits
 OLD_FILES+=usr/sbin/rpc.ypupdated
 OLD_FILES+=etc/rc.d/ypupdated
