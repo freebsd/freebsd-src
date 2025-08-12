@@ -108,7 +108,8 @@ uart_ns8250_early_putc(int c)
 {
 	volatile uint32_t *stat = (uint32_t *)(socdev_va + REG_LSR * 4);
 	volatile uint32_t *tx = (uint32_t *)(socdev_va + REG_DATA * 4);
-	while ((*stat & LSR_THRE) == 0)
+	int limit = 1000000;
+	while ((*stat & LSR_THRE) == 0 && --limit > 0)
 		continue;
 	*tx =  c & 0xff;
 }
