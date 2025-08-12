@@ -9997,9 +9997,12 @@ pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
 	pd->proto = h->ip_p;
 	/* IGMP packets have router alert options, allow them */
 	if (pd->proto == IPPROTO_IGMP) {
-		/* According to RFC 1112 ttl must be set to 1. */
-		if ((h->ip_ttl != 1) ||
-		    !IN_MULTICAST(ntohl(h->ip_dst.s_addr))) {
+		/*
+		 * According to RFC 1112 ttl must be set to 1 in all IGMP
+		 * packets sent to 224.0.0.1
+		 */
+		if ((h->ip_ttl != 1) &&
+		    (h->ip_dst.s_addr == INADDR_ALLHOSTS_GROUP)) {
 			DPFPRINTF(PF_DEBUG_MISC, "Invalid IGMP");
 			REASON_SET(reason, PFRES_IPOPTIONS);
 			return (PF_DROP);
