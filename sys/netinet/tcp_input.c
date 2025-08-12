@@ -905,23 +905,23 @@ findpcb:
 	 * XXX MRT Send RST using which routing table?
 	 */
 	if (inp == NULL) {
-		if (rstreason != 0) {
+		if ((lookupflag & INPLOOKUP_WILDCARD) == 0) {
 			/* We came here after second (safety) lookup. */
-			MPASS((lookupflag & INPLOOKUP_WILDCARD) == 0);
-			goto dropwithreset;
-		}
-		/*
-		 * Log communication attempts to ports that are not
-		 * in use.
-		 */
-		if ((V_tcp_log_in_vain == 1 && (thflags & TH_SYN)) ||
-		    V_tcp_log_in_vain == 2) {
-			if ((s = tcp_log_vain(NULL, th, (void *)ip, ip6)))
+			MPASS(!closed_port);
+		} else {
+			/*
+			 * Log communication attempts to ports that are not
+			 * in use.
+			 */
+			if (((V_tcp_log_in_vain == 1 && (thflags & TH_SYN)) ||
+			     V_tcp_log_in_vain == 2) &&
+			    (s = tcp_log_vain(NULL, th, (void *)ip, ip6))) {
 				log(LOG_INFO, "%s; %s: Connection attempt "
 				    "to closed port\n", s, __func__);
+			}
+			closed_port = true;
 		}
 		rstreason = BANDLIM_TCP_RST;
-		closed_port = true;
 		goto dropwithreset;
 	}
 	INP_LOCK_ASSERT(inp);
@@ -1102,7 +1102,8 @@ findpcb:
 				 * don't want to sent RST for the second ACK,
 				 * so we perform second lookup without wildcard
 				 * match, hoping to find the new socket.  If
-				 * the ACK is stray indeed, rstreason would
+				 * the ACK is stray indeed, the missing
+				 * INPLOOKUP_WILDCARD flag in lookupflag would
 				 * hint the above code that the lookup was a
 				 * second attempt.
 				 *
@@ -1110,7 +1111,6 @@ findpcb:
 				 * of the failure cause.
 				 */
 				INP_WUNLOCK(inp);
-				rstreason = BANDLIM_TCP_RST;
 				lookupflag &= ~INPLOOKUP_WILDCARD;
 				goto findpcb;
 			}
