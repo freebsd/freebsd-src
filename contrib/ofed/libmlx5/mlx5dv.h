@@ -106,6 +106,10 @@ struct ibv_cq_ex *mlx5dv_create_cq(struct ibv_context *context,
 int mlx5dv_query_device(struct ibv_context *ctx_in,
 			struct mlx5dv_context *attrs_out);
 
+enum mlx5dv_qp_comp_mask {
+	MLX5DV_QP_MASK_UAR_MMAP_OFFSET		= 1 << 0,
+};
+
 struct mlx5dv_qp {
 	uint32_t		*dbrec;
 	struct {
@@ -123,6 +127,7 @@ struct mlx5dv_qp {
 		uint32_t	size;
 	} bf;
 	uint64_t		comp_mask;
+	off_t			uar_mmap_offset;
 };
 
 struct mlx5dv_cq {

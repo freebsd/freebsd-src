@@ -667,8 +667,8 @@ static int mlx5dv_get_qp(struct ibv_qp *qp_in,
 			 struct mlx5dv_qp *qp_out)
 {
 	struct mlx5_qp *mqp = to_mqp(qp_in);
+	uint64_t mask_out = 0;
 
-	qp_out->comp_mask = 0;
 	qp_out->dbrec     = mqp->db;
 
 	if (mqp->sq_buf_size)
@@ -683,12 +683,19 @@ static int mlx5dv_get_qp(struct ibv_qp *qp_in,
 	qp_out->rq.wqe_cnt = mqp->rq.wqe_cnt;
 	qp_out->rq.stride  = 1 << mqp->rq.wqe_shift;
 
-	qp_out->bf.reg    = mqp->bf->reg;
+	qp_out->bf.reg     = mqp->bf->reg;
+
+	if (qp_out->comp_mask & MLX5DV_QP_MASK_UAR_MMAP_OFFSET) {
+		qp_out->uar_mmap_offset = mqp->bf->uar_mmap_offset;
+		mask_out |= MLX5DV_QP_MASK_UAR_MMAP_OFFSET;
+	}
 
 	if (mqp->bf->uuarn > 0)
 		qp_out->bf.size = mqp->bf->buf_size;
 	else
 		qp_out->bf.size = 0;
+
+	qp_out->comp_mask = mask_out;
 
 	return 0;
 }
@@ -772,6 +779,15 @@ static void adjust_uar_info(struct mlx5_device *mdev,
 
 	context->uar_size = 1 << resp.log_uar_size;
 	context->num_uars_per_page = resp.num_uars_per_page;
+}
+
+static off_t get_uar_mmap_offset(int idx, int page_size)
+{
+	off_t offset = 0;
+
+	set_command(MLX5_MMAP_GET_REGULAR_PAGES_CMD, &offset);
+	set_index(idx, &offset);
+	return offset * page_size;
 }
 
 static int mlx5_init_context(struct verbs_device *vdev,
@@ -889,11 +905,9 @@ static int mlx5_init_context(struct verbs_device *vdev,
 
 	num_sys_page_map = context->tot_uuars / (context->num_uars_per_page * MLX5_NUM_NON_FP_BFREGS_PER_UAR);
 	for (i = 0; i < num_sys_page_map; ++i) {
-		offset = 0;
-		set_command(MLX5_MMAP_GET_REGULAR_PAGES_CMD, &offset);
-		set_index(i, &offset);
+		offset = get_uar_mmap_offset(i, page_size);
 		context->uar[i] = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED,
-				       cmd_fd, page_size * offset);
+				       cmd_fd, offset);
 		if (context->uar[i] == MAP_FAILED) {
 			context->uar[i] = NULL;
 			goto err_db_list_mutex;
@@ -913,6 +927,7 @@ static int mlx5_init_context(struct verbs_device *vdev,
 				if (bfi)
 					context->bfs[bfi].buf_size = context->bf_reg_size / 2;
 				context->bfs[bfi].uuarn = bfi;
+				context->bfs[bfi].uar_mmap_offset = get_uar_mmap_offset(i, page_size);
 			}
 		}
 	}
