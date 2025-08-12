@@ -16,16 +16,16 @@ SRCS = \
         os/freebsd/zone.c \
         page.c \
         timestamp.c \
-	tunables.c \
         include/sys/list.h \
         include/sys/list_impl.h
 
-# These functions are not required when bootstrapping and the atomic code
-# will not compile when building on macOS.
+# These functions are not required when bootstrapping and the atomic code,
+# among others, will not compile when building on macOS.
 .if !defined(BOOTSTRAPPING)
 SRCS += \
         atomic.c \
         getexecname.c \
+        tunables.c \
         os/freebsd/getexecname.c \
         os/freebsd/gethostid.c \
         os/freebsd/getmntany.c \
