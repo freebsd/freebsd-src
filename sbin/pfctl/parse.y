@@ -166,8 +166,8 @@ struct node_gid {
 };
 
 struct node_icmp {
-	u_int8_t		 code;
-	u_int8_t		 type;
+	uint16_t		 code;
+	uint16_t		 type;
 	u_int8_t		 proto;
 	struct node_icmp	*next;
 	struct node_icmp	*tail;

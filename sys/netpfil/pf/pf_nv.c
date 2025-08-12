@@ -505,6 +505,7 @@ int
 pf_nvrule_to_krule(const nvlist_t *nvl, struct pf_krule *rule)
 {
 	int error = 0;
+	uint8_t tmp;
 
 #define	ERROUT(x)	ERROUT_FUNCTION(errout, x)
 
@@ -610,8 +611,10 @@ pf_nvrule_to_krule(const nvlist_t *nvl, struct pf_krule *rule)
 	PFNV_CHK(pf_nvuint8(nvl, "keep_state", &rule->keep_state));
 	PFNV_CHK(pf_nvuint8(nvl, "af", &rule->af));
 	PFNV_CHK(pf_nvuint8(nvl, "proto", &rule->proto));
-	PFNV_CHK(pf_nvuint8(nvl, "type", &rule->type));
-	PFNV_CHK(pf_nvuint8(nvl, "code", &rule->code));
+	PFNV_CHK(pf_nvuint8(nvl, "type", &tmp));
+	rule->type = tmp;
+	PFNV_CHK(pf_nvuint8(nvl, "code", &tmp));
+	rule->code = tmp;
 	PFNV_CHK(pf_nvuint8(nvl, "flags", &rule->flags));
 	PFNV_CHK(pf_nvuint8(nvl, "flagset", &rule->flagset));
 	PFNV_CHK(pf_nvuint8(nvl, "min_ttl", &rule->min_ttl));
