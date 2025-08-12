@@ -654,7 +654,11 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		else
 			UDP_PROBE(receive, NULL, NULL, ip, NULL, uh);
 		UDPSTAT_INC(udps_noport);
-		if (m->m_flags & (M_BCAST | M_MCAST)) {
+		if (m->m_flags & M_MCAST) {
+			UDPSTAT_INC(udps_noportmcast);
+			goto badunlocked;
+		}
+		if (m->m_flags & M_BCAST) {
 			UDPSTAT_INC(udps_noportbcast);
 			goto badunlocked;
 		}
