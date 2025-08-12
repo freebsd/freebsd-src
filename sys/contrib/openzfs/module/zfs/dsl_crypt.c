@@ -534,7 +534,7 @@ out:
 static void
 dsl_crypto_key_free(dsl_crypto_key_t *dck)
 {
-	ASSERT(zfs_refcount_count(&dck->dck_holds) == 0);
+	ASSERT0(zfs_refcount_count(&dck->dck_holds));
 
 	/* destroy the zio_crypt_key_t */
 	zio_crypt_key_destroy(&dck->dck_key);
@@ -1912,7 +1912,7 @@ dsl_dataset_create_crypt_sync(uint64_t dsobj, dsl_dir_t *dd,
 
 	/* clones always use their origin's wrapping key */
 	if (dsl_dir_is_clone(dd)) {
-		ASSERT3P(dcp, ==, NULL);
+		ASSERT0P(dcp);
 
 		/*
 		 * If this is an encrypted clone we just need to clone the

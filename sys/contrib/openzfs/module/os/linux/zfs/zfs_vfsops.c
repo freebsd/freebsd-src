@@ -279,19 +279,14 @@ zfs_sync(struct super_block *sb, int wait, cred_t *cr)
 		return (err);
 
 	/*
-	 * If the pool is suspended, just return an error. This is to help
-	 * with shutting down with pools suspended, as we don't want to block
-	 * in that case.
+	 * Sync any pending writes, but do not block if the pool is suspended.
+	 * This is to help with shutting down with pools suspended, as we don't
+	 * want to block in that case.
 	 */
-	if (spa_suspended(zfsvfs->z_os->os_spa)) {
-		zfs_exit(zfsvfs, FTAG);
-		return (SET_ERROR(EIO));
-	}
-
-	zil_commit(zfsvfs->z_log, 0);
+	err = zil_commit_flags(zfsvfs->z_log, 0, ZIL_COMMIT_NOW);
 	zfs_exit(zfsvfs, FTAG);
 
-	return (0);
+	return (err);
 }
 
 static void
@@ -883,7 +878,7 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 	 * operations out since we closed the ZIL.
 	 */
 	if (mounting) {
-		ASSERT3P(zfsvfs->z_kstat.dk_kstats, ==, NULL);
+		ASSERT0P(zfsvfs->z_kstat.dk_kstats);
 		error = dataset_kstats_create(&zfsvfs->z_kstat, zfsvfs->z_os);
 		if (error)
 			return (error);
@@ -1676,7 +1671,7 @@ zfs_umount(struct super_block *sb)
 
 	if (zfsvfs->z_arc_prune != NULL)
 		arc_remove_prune_callback(zfsvfs->z_arc_prune);
-	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
+	VERIFY0(zfsvfs_teardown(zfsvfs, B_TRUE));
 	os = zfsvfs->z_os;
 
 	/*
@@ -1802,8 +1797,8 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 		ASSERT(*ipp != NULL);
 
 		if (object == ZFSCTL_INO_SNAPDIR) {
-			VERIFY(zfsctl_root_lookup(*ipp, "snapshot", ipp,
-			    0, kcred, NULL, NULL) == 0);
+			VERIFY0(zfsctl_root_lookup(*ipp, "snapshot", ipp,
+			    0, kcred, NULL, NULL));
 		} else {
 			/*
 			 * Must have an existing ref, so igrab()
@@ -1905,7 +1900,7 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 		goto bail;
 
 	ds->ds_dir->dd_activity_cancelled = B_FALSE;
-	VERIFY(zfsvfs_setup(zfsvfs, B_FALSE) == 0);
+	VERIFY0(zfsvfs_setup(zfsvfs, B_FALSE));
 
 	zfs_set_fuid_feature(zfsvfs);
 	zfsvfs->z_rollback_time = jiffies;
@@ -2078,7 +2073,7 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 		    ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
 		ASSERT0(error);
 
-		VERIFY(0 == sa_set_sa_object(os, sa_obj));
+		VERIFY0(sa_set_sa_object(os, sa_obj));
 		sa_register_update_callback(os, zfs_sa_upgrade);
 	}
 

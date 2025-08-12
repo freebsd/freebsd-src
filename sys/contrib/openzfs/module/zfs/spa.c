@@ -426,10 +426,10 @@ spa_prop_add_user(nvlist_t *nvl, const char *propname, char *strval,
 {
 	nvlist_t *propval;
 
-	VERIFY(nvlist_alloc(&propval, NV_UNIQUE_NAME, KM_SLEEP) == 0);
-	VERIFY(nvlist_add_uint64(propval, ZPROP_SOURCE, src) == 0);
-	VERIFY(nvlist_add_string(propval, ZPROP_VALUE, strval) == 0);
-	VERIFY(nvlist_add_nvlist(nvl, propname, propval) == 0);
+	VERIFY0(nvlist_alloc(&propval, NV_UNIQUE_NAME, KM_SLEEP));
+	VERIFY0(nvlist_add_uint64(propval, ZPROP_SOURCE, src));
+	VERIFY0(nvlist_add_string(propval, ZPROP_VALUE, strval));
+	VERIFY0(nvlist_add_nvlist(nvl, propname, propval));
 	nvlist_free(propval);
 }
 
@@ -965,7 +965,7 @@ spa_prop_set(spa_t *spa, nvlist_t *nvp)
 			uint64_t ver = 0;
 
 			if (prop == ZPOOL_PROP_VERSION) {
-				VERIFY(nvpair_value_uint64(elem, &ver) == 0);
+				VERIFY0(nvpair_value_uint64(elem, &ver));
 			} else {
 				ASSERT(zpool_prop_feature(nvpair_name(elem)));
 				ver = SPA_VERSION_FEATURES;
@@ -1295,7 +1295,7 @@ spa_taskqs_fini(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 	spa_taskqs_t *tqs = &spa->spa_zio_taskq[t][q];
 
 	if (tqs->stqs_taskq == NULL) {
-		ASSERT3U(tqs->stqs_count, ==, 0);
+		ASSERT0(tqs->stqs_count);
 		return;
 	}
 
@@ -1836,9 +1836,9 @@ static void
 spa_deactivate(spa_t *spa)
 {
 	ASSERT(spa->spa_sync_on == B_FALSE);
-	ASSERT(spa->spa_dsl_pool == NULL);
-	ASSERT(spa->spa_root_vdev == NULL);
-	ASSERT(spa->spa_async_zio_root == NULL);
+	ASSERT0P(spa->spa_dsl_pool);
+	ASSERT0P(spa->spa_root_vdev);
+	ASSERT0P(spa->spa_async_zio_root);
 	ASSERT(spa->spa_state != POOL_STATE_UNINITIALIZED);
 
 	spa_evicting_os_wait(spa);
@@ -2021,7 +2021,7 @@ spa_unload_log_sm_flush_all(spa_t *spa)
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
 	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 
-	ASSERT3U(spa->spa_log_flushall_txg, ==, 0);
+	ASSERT0(spa->spa_log_flushall_txg);
 	spa->spa_log_flushall_txg = dmu_tx_get_txg(tx);
 
 	dmu_tx_commit(tx);
@@ -2280,7 +2280,7 @@ spa_unload(spa_t *spa)
 	 */
 	if (spa->spa_root_vdev)
 		vdev_free(spa->spa_root_vdev);
-	ASSERT(spa->spa_root_vdev == NULL);
+	ASSERT0P(spa->spa_root_vdev);
 
 	/*
 	 * Close the dsl pool.
@@ -2418,8 +2418,8 @@ spa_load_spares(spa_t *spa)
 	spa->spa_spares.sav_vdevs = kmem_zalloc(nspares * sizeof (void *),
 	    KM_SLEEP);
 	for (i = 0; i < spa->spa_spares.sav_count; i++) {
-		VERIFY(spa_config_parse(spa, &vd, spares[i], NULL, 0,
-		    VDEV_ALLOC_SPARE) == 0);
+		VERIFY0(spa_config_parse(spa, &vd, spares[i], NULL, 0,
+		    VDEV_ALLOC_SPARE));
 		ASSERT(vd != NULL);
 
 		spa->spa_spares.sav_vdevs[i] = vd;
@@ -2546,8 +2546,8 @@ spa_load_l2cache(spa_t *spa)
 			/*
 			 * Create new vdev
 			 */
-			VERIFY(spa_config_parse(spa, &vd, l2cache[i], NULL, 0,
-			    VDEV_ALLOC_L2CACHE) == 0);
+			VERIFY0(spa_config_parse(spa, &vd, l2cache[i], NULL, 0,
+			    VDEV_ALLOC_L2CACHE));
 			ASSERT(vd != NULL);
 			newvdevs[i] = vd;
 
@@ -2799,7 +2799,7 @@ spa_passivate_log(spa_t *spa)
 		vdev_t *tvd = rvd->vdev_child[c];
 
 		if (tvd->vdev_islog) {
-			ASSERT3P(tvd->vdev_log_mg, ==, NULL);
+			ASSERT0P(tvd->vdev_log_mg);
 			metaslab_group_passivate(tvd->vdev_mg);
 			slog_found = B_TRUE;
 		}
@@ -2822,7 +2822,7 @@ spa_activate_log(spa_t *spa)
 		vdev_t *tvd = rvd->vdev_child[c];
 
 		if (tvd->vdev_islog) {
-			ASSERT3P(tvd->vdev_log_mg, ==, NULL);
+			ASSERT0P(tvd->vdev_log_mg);
 			metaslab_group_activate(tvd->vdev_mg);
 		}
 	}
@@ -3259,7 +3259,7 @@ spa_livelist_delete_cb(void *arg, zthr_t *z)
 static void
 spa_start_livelist_destroy_thread(spa_t *spa)
 {
-	ASSERT3P(spa->spa_livelist_delete_zthr, ==, NULL);
+	ASSERT0P(spa->spa_livelist_delete_zthr);
 	spa->spa_livelist_delete_zthr =
 	    zthr_create("z_livelist_destroy",
 	    spa_livelist_delete_cb_check, spa_livelist_delete_cb, spa,
@@ -3275,7 +3275,7 @@ static int
 livelist_track_new_cb(void *arg, const blkptr_t *bp, boolean_t bp_freed,
     dmu_tx_t *tx)
 {
-	ASSERT(tx == NULL);
+	ASSERT0P(tx);
 	livelist_new_arg_t *lna = arg;
 	if (bp_freed) {
 		bplist_append(lna->frees, bp);
@@ -3469,7 +3469,7 @@ spa_start_livelist_condensing_thread(spa_t *spa)
 	spa->spa_to_condense.syncing = B_FALSE;
 	spa->spa_to_condense.cancelled = B_FALSE;
 
-	ASSERT3P(spa->spa_livelist_condense_zthr, ==, NULL);
+	ASSERT0P(spa->spa_livelist_condense_zthr);
 	spa->spa_livelist_condense_zthr =
 	    zthr_create("z_livelist_condense",
 	    spa_livelist_condense_cb_check,
@@ -3486,7 +3486,7 @@ spa_spawn_aux_threads(spa_t *spa)
 	spa_start_livelist_destroy_thread(spa);
 	spa_start_livelist_condensing_thread(spa);
 
-	ASSERT3P(spa->spa_checkpoint_discard_zthr, ==, NULL);
+	ASSERT0P(spa->spa_checkpoint_discard_zthr);
 	spa->spa_checkpoint_discard_zthr =
 	    zthr_create("z_checkpoint_discard",
 	    spa_checkpoint_discard_thread_check,
@@ -4091,11 +4091,11 @@ spa_ld_parse_config(spa_t *spa, spa_import_type_t type)
 	nvlist_free(spa->spa_load_info);
 	spa->spa_load_info = fnvlist_alloc();
 
-	ASSERT(spa->spa_comment == NULL);
+	ASSERT0P(spa->spa_comment);
 	if (nvlist_lookup_string(config, ZPOOL_CONFIG_COMMENT, &comment) == 0)
 		spa->spa_comment = spa_strdup(comment);
 
-	ASSERT(spa->spa_compatibility == NULL);
+	ASSERT0P(spa->spa_compatibility);
 	if (nvlist_lookup_string(config, ZPOOL_CONFIG_COMPATIBILITY,
 	    &compatibility) == 0)
 		spa->spa_compatibility = spa_strdup(compatibility);
@@ -5913,7 +5913,7 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 		nvlist_free(config);
 
 	if (state == SPA_LOAD_RECOVER) {
-		ASSERT3P(loadinfo, ==, NULL);
+		ASSERT0P(loadinfo);
 		spa_import_progress_remove(spa_guid(spa));
 		return (rewind_error);
 	} else {
@@ -9091,7 +9091,7 @@ spa_vdev_setfru(spa_t *spa, uint64_t guid, const char *newfru)
 int
 spa_scrub_pause_resume(spa_t *spa, pool_scrub_cmd_t cmd)
 {
-	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == 0);
+	ASSERT0(spa_config_held(spa, SCL_ALL, RW_WRITER));
 
 	if (dsl_scan_resilvering(spa->spa_dsl_pool))
 		return (SET_ERROR(EBUSY));
@@ -9102,7 +9102,7 @@ spa_scrub_pause_resume(spa_t *spa, pool_scrub_cmd_t cmd)
 int
 spa_scan_stop(spa_t *spa)
 {
-	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == 0);
+	ASSERT0(spa_config_held(spa, SCL_ALL, RW_WRITER));
 	if (dsl_scan_resilvering(spa->spa_dsl_pool))
 		return (SET_ERROR(EBUSY));
 
@@ -9119,7 +9119,7 @@ int
 spa_scan_range(spa_t *spa, pool_scan_func_t func, uint64_t txgstart,
     uint64_t txgend)
 {
-	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == 0);
+	ASSERT0(spa_config_held(spa, SCL_ALL, RW_WRITER));
 
 	if (func >= POOL_SCAN_FUNCS || func == POOL_SCAN_NONE)
 		return (SET_ERROR(ENOTSUP));
@@ -9548,7 +9548,7 @@ spa_sync_frees(spa_t *spa, bplist_t *bpl, dmu_tx_t *tx)
 {
 	zio_t *zio = zio_root(spa, NULL, NULL, 0);
 	bplist_iterate(bpl, spa_free_sync_cb, zio, tx);
-	VERIFY(zio_wait(zio) == 0);
+	VERIFY0(zio_wait(zio));
 }
 
 /*
@@ -9587,7 +9587,7 @@ spa_sync_nvlist(spa_t *spa, uint64_t obj, nvlist_t *nv, dmu_tx_t *tx)
 	size_t nvsize = 0;
 	dmu_buf_t *db;
 
-	VERIFY(nvlist_size(nv, &nvsize, NV_ENCODE_XDR) == 0);
+	VERIFY0(nvlist_size(nv, &nvsize, NV_ENCODE_XDR));
 
 	/*
 	 * Write full (SPA_CONFIG_BLOCKSIZE) blocks of configuration
@@ -9597,15 +9597,15 @@ spa_sync_nvlist(spa_t *spa, uint64_t obj, nvlist_t *nv, dmu_tx_t *tx)
 	bufsize = P2ROUNDUP((uint64_t)nvsize, SPA_CONFIG_BLOCKSIZE);
 	packed = vmem_alloc(bufsize, KM_SLEEP);
 
-	VERIFY(nvlist_pack(nv, &packed, &nvsize, NV_ENCODE_XDR,
-	    KM_SLEEP) == 0);
+	VERIFY0(nvlist_pack(nv, &packed, &nvsize, NV_ENCODE_XDR,
+	    KM_SLEEP));
 	memset(packed + nvsize, 0, bufsize - nvsize);
 
 	dmu_write(spa->spa_meta_objset, obj, 0, bufsize, packed, tx);
 
 	vmem_free(packed, bufsize);
 
-	VERIFY(0 == dmu_bonus_hold(spa->spa_meta_objset, obj, FTAG, &db));
+	VERIFY0(dmu_bonus_hold(spa->spa_meta_objset, obj, FTAG, &db));
 	dmu_buf_will_dirty(db, tx);
 	*(uint64_t *)db->db_data = nvsize;
 	dmu_buf_rele(db, FTAG);
@@ -10541,7 +10541,7 @@ spa_sync_tq_create(spa_t *spa, const char *name)
 {
 	kthread_t **kthreads;
 
-	ASSERT(spa->spa_sync_tq == NULL);
+	ASSERT0P(spa->spa_sync_tq);
 	ASSERT3S(spa->spa_alloc_count, <=, boot_ncpus);
 
 	/*

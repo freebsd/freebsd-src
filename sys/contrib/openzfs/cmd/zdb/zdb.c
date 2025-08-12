@@ -176,7 +176,7 @@ static int
 sublivelist_verify_blkptr(void *arg, const blkptr_t *bp, boolean_t free,
     dmu_tx_t *tx)
 {
-	ASSERT3P(tx, ==, NULL);
+	ASSERT0P(tx);
 	struct sublivelist_verify *sv = arg;
 	sublivelist_verify_block_refcnt_t current = {
 			.svbr_blk = *bp,
@@ -892,9 +892,9 @@ dump_packed_nvlist(objset_t *os, uint64_t object, void *data, size_t size)
 	size_t nvsize = *(uint64_t *)data;
 	char *packed = umem_alloc(nvsize, UMEM_NOFAIL);
 
-	VERIFY(0 == dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH));
+	VERIFY0(dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH));
 
-	VERIFY(nvlist_unpack(packed, nvsize, &nv, 0) == 0);
+	VERIFY0(nvlist_unpack(packed, nvsize, &nv, 0));
 
 	umem_free(packed, nvsize);
 
@@ -1455,8 +1455,8 @@ get_obsolete_refcount(vdev_t *vd)
 			refcount++;
 		}
 	} else {
-		ASSERT3P(vd->vdev_obsolete_sm, ==, NULL);
-		ASSERT3U(obsolete_sm_object, ==, 0);
+		ASSERT0P(vd->vdev_obsolete_sm);
+		ASSERT0(obsolete_sm_object);
 	}
 	for (unsigned c = 0; c < vd->vdev_children; c++) {
 		refcount += get_obsolete_refcount(vd->vdev_child[c]);
@@ -1792,7 +1792,7 @@ print_vdev_indirect(vdev_t *vd)
 	vdev_indirect_births_t *vib = vd->vdev_indirect_births;
 
 	if (vim == NULL) {
-		ASSERT3P(vib, ==, NULL);
+		ASSERT0P(vib);
 		return;
 	}
 
@@ -2043,10 +2043,10 @@ dump_ddt_object(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
 
 	if (error == ENOENT)
 		return;
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	error = ddt_object_count(ddt, type, class, &count);
-	ASSERT(error == 0);
+	ASSERT0(error);
 	if (count == 0)
 		return;
 
@@ -3109,7 +3109,7 @@ dsl_deadlist_entry_count_refd(void *arg, dsl_deadlist_entry_t *dle)
 static int
 dsl_deadlist_entry_dump(void *arg, dsl_deadlist_entry_t *dle)
 {
-	ASSERT(arg == NULL);
+	ASSERT0P(arg);
 	if (dump_opt['d'] >= 5) {
 		char buf[128];
 		(void) snprintf(buf, sizeof (buf),
@@ -3347,7 +3347,7 @@ open_objset(const char *path, const void *tag, objset_t **osp)
 	uint64_t sa_attrs = 0;
 	uint64_t version = 0;
 
-	VERIFY3P(sa_os, ==, NULL);
+	VERIFY0P(sa_os);
 
 	/*
 	 * We can't own an objset if it's redacted.  Therefore, we do this
@@ -3520,8 +3520,8 @@ dump_uidgid(objset_t *os, uint64_t uid, uint64_t gid)
 		uint64_t fuid_obj;
 
 		/* first find the fuid object.  It lives in the master node */
-		VERIFY(zap_lookup(os, MASTER_NODE_OBJ, ZFS_FUID_TABLES,
-		    8, 1, &fuid_obj) == 0);
+		VERIFY0(zap_lookup(os, MASTER_NODE_OBJ, ZFS_FUID_TABLES,
+		    8, 1, &fuid_obj));
 		zfs_fuid_avl_tree_create(&idx_tree, &domain_tree);
 		(void) zfs_fuid_table_load(os, fuid_obj,
 		    &idx_tree, &domain_tree);
@@ -7016,7 +7016,7 @@ deleted_livelists_count_blocks(spa_t *spa, zdb_cb_t *zbc)
 static void
 dump_livelist_cb(dsl_deadlist_t *ll, void *arg)
 {
-	ASSERT3P(arg, ==, NULL);
+	ASSERT0P(arg);
 	global_feature_count[SPA_FEATURE_LIVELIST]++;
 	dump_blkptr_list(ll, "Deleted Livelist");
 	dsl_deadlist_iterate(ll, sublivelist_verify_lightweight, NULL);
@@ -7913,7 +7913,7 @@ verify_checkpoint_vdev_spacemaps(spa_t *checkpoint, spa_t *current)
 		for (uint64_t c = ckpoint_rvd->vdev_children;
 		    c < current_rvd->vdev_children; c++) {
 			vdev_t *current_vd = current_rvd->vdev_child[c];
-			VERIFY3P(current_vd->vdev_checkpoint_sm, ==, NULL);
+			VERIFY0P(current_vd->vdev_checkpoint_sm);
 		}
 	}
 
@@ -9743,7 +9743,7 @@ main(int argc, char **argv)
 	if (error == 0) {
 		if (dump_opt['k'] && (target_is_spa || dump_opt['R'])) {
 			ASSERT(checkpoint_pool != NULL);
-			ASSERT(checkpoint_target == NULL);
+			ASSERT0P(checkpoint_target);
 
 			error = spa_open(checkpoint_pool, &spa, FTAG);
 			if (error != 0) {

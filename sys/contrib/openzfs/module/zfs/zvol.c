@@ -215,8 +215,8 @@ zvol_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
 	int error;
 	uint64_t volblocksize, volsize;
 
-	VERIFY(nvlist_lookup_uint64(nvprops,
-	    zfs_prop_to_name(ZFS_PROP_VOLSIZE), &volsize) == 0);
+	VERIFY0(nvlist_lookup_uint64(nvprops,
+	    zfs_prop_to_name(ZFS_PROP_VOLSIZE), &volsize));
 	if (nvlist_lookup_uint64(nvprops,
 	    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE), &volblocksize) != 0)
 		volblocksize = zfs_prop_default_numeric(ZFS_PROP_VOLBLOCKSIZE);
@@ -225,21 +225,20 @@ zvol_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
 	 * These properties must be removed from the list so the generic
 	 * property setting step won't apply to them.
 	 */
-	VERIFY(nvlist_remove_all(nvprops,
-	    zfs_prop_to_name(ZFS_PROP_VOLSIZE)) == 0);
+	VERIFY0(nvlist_remove_all(nvprops, zfs_prop_to_name(ZFS_PROP_VOLSIZE)));
 	(void) nvlist_remove_all(nvprops,
 	    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE));
 
 	error = dmu_object_claim(os, ZVOL_OBJ, DMU_OT_ZVOL, volblocksize,
 	    DMU_OT_NONE, 0, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	error = zap_create_claim(os, ZVOL_ZAP_OBJ, DMU_OT_ZVOL_PROP,
 	    DMU_OT_NONE, 0, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	error = zap_update(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 }
 
 /*
@@ -254,7 +253,7 @@ zvol_get_stats(objset_t *os, nvlist_t *nv)
 
 	error = zap_lookup(os, ZVOL_ZAP_OBJ, "size", 8, 1, &val);
 	if (error)
-		return (SET_ERROR(error));
+		return (error);
 
 	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_VOLSIZE, val);
 	doi = kmem_alloc(sizeof (dmu_object_info_t), KM_SLEEP);
@@ -267,7 +266,7 @@ zvol_get_stats(objset_t *os, nvlist_t *nv)
 
 	kmem_free(doi, sizeof (dmu_object_info_t));
 
-	return (SET_ERROR(error));
+	return (error);
 }
 
 /*
@@ -305,7 +304,7 @@ zvol_update_volsize(uint64_t volsize, objset_t *os)
 	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
-		return (SET_ERROR(error));
+		return (error);
 	}
 	txg = dmu_tx_get_txg(tx);
 
@@ -337,7 +336,7 @@ zvol_set_volsize(const char *name, uint64_t volsize)
 	error = dsl_prop_get_integer(name,
 	    zfs_prop_to_name(ZFS_PROP_READONLY), &readonly, NULL);
 	if (error != 0)
-		return (SET_ERROR(error));
+		return (error);
 	if (readonly)
 		return (SET_ERROR(EROFS));
 
@@ -353,7 +352,7 @@ zvol_set_volsize(const char *name, uint64_t volsize)
 		    FTAG, &os)) != 0) {
 			if (zv != NULL)
 				mutex_exit(&zv->zv_state_lock);
-			return (SET_ERROR(error));
+			return (error);
 		}
 		owned = B_TRUE;
 		if (zv != NULL)
@@ -390,7 +389,7 @@ out:
 	if (error == 0 && zv != NULL)
 		zvol_os_update_volsize(zv, volsize);
 
-	return (SET_ERROR(error));
+	return (error);
 }
 
 /*
@@ -401,7 +400,7 @@ zvol_set_volthreading(const char *name, boolean_t value)
 {
 	zvol_state_t *zv = zvol_find_by_name(name, RW_NONE);
 	if (zv == NULL)
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	zv->zv_threading = value;
 	mutex_exit(&zv->zv_state_lock);
 	return (0);
@@ -450,8 +449,10 @@ zvol_check_volblocksize(const char *name, uint64_t volblocksize)
 		 * We don't allow setting the property above 1MB,
 		 * unless the tunable has been changed.
 		 */
-		if (volblocksize > zfs_max_recordsize)
+		if (volblocksize > zfs_max_recordsize) {
+			spa_close(spa, FTAG);
 			return (SET_ERROR(EDOM));
+		}
 
 		spa_close(spa, FTAG);
 	}
@@ -618,7 +619,7 @@ zvol_clone_range(zvol_state_t *zv_src, uint64_t inoff, zvol_state_t *zv_dst,
 	dmu_tx_t *tx;
 	blkptr_t *bps;
 	size_t maxblocks;
-	int error = EINVAL;
+	int error = 0;
 
 	rw_enter(&zv_dst->zv_suspend_lock, RW_READER);
 	if (zv_dst->zv_zilog == NULL) {
@@ -644,23 +645,22 @@ zvol_clone_range(zvol_state_t *zv_src, uint64_t inoff, zvol_state_t *zv_dst,
 	 */
 	if (!spa_feature_is_enabled(dmu_objset_spa(outos),
 	    SPA_FEATURE_BLOCK_CLONING)) {
-		error = EOPNOTSUPP;
+		error = SET_ERROR(EOPNOTSUPP);
 		goto out;
 	}
 	if (dmu_objset_spa(inos) != dmu_objset_spa(outos)) {
-		error = EXDEV;
+		error = SET_ERROR(EXDEV);
 		goto out;
 	}
 	if (inos->os_encrypted != outos->os_encrypted) {
-		error = EXDEV;
+		error = SET_ERROR(EXDEV);
 		goto out;
 	}
 	if (zv_src->zv_volblocksize != zv_dst->zv_volblocksize) {
-		error = EINVAL;
+		error = SET_ERROR(EINVAL);
 		goto out;
 	}
 	if (inoff >= zv_src->zv_volsize || outoff >= zv_dst->zv_volsize) {
-		error = 0;
 		goto out;
 	}
 
@@ -671,17 +671,15 @@ zvol_clone_range(zvol_state_t *zv_src, uint64_t inoff, zvol_state_t *zv_dst,
 		len = zv_src->zv_volsize - inoff;
 	if (len > zv_dst->zv_volsize - outoff)
 		len = zv_dst->zv_volsize - outoff;
-	if (len == 0) {
-		error = 0;
+	if (len == 0)
 		goto out;
-	}
 
 	/*
 	 * No overlapping if we are cloning within the same file
 	 */
 	if (zv_src == zv_dst) {
 		if (inoff < outoff + len && outoff < inoff + len) {
-			error = EINVAL;
+			error = SET_ERROR(EINVAL);
 			goto out;
 		}
 	}
@@ -691,7 +689,7 @@ zvol_clone_range(zvol_state_t *zv_src, uint64_t inoff, zvol_state_t *zv_dst,
 	 */
 	if ((inoff % zv_src->zv_volblocksize) != 0 ||
 	    (outoff % zv_dst->zv_volblocksize) != 0) {
-		error = EINVAL;
+		error = SET_ERROR(EINVAL);
 		goto out;
 	}
 
@@ -699,7 +697,7 @@ zvol_clone_range(zvol_state_t *zv_src, uint64_t inoff, zvol_state_t *zv_dst,
 	 * Length must be multiple of block size
 	 */
 	if ((len % zv_src->zv_volblocksize) != 0) {
-		error = EINVAL;
+		error = SET_ERROR(EINVAL);
 		goto out;
 	}
 
@@ -771,13 +769,13 @@ zvol_clone_range(zvol_state_t *zv_src, uint64_t inoff, zvol_state_t *zv_dst,
 	zfs_rangelock_exit(outlr);
 	zfs_rangelock_exit(inlr);
 	if (error == 0 && zv_dst->zv_objset->os_sync == ZFS_SYNC_ALWAYS) {
-		zil_commit(zilog_dst, ZVOL_OBJ);
+		error = zil_commit(zilog_dst, ZVOL_OBJ);
 	}
 out:
 	if (zv_src != zv_dst)
 		rw_exit(&zv_src->zv_suspend_lock);
 	rw_exit(&zv_dst->zv_suspend_lock);
-	return (SET_ERROR(error));
+	return (error);
 }
 
 /*
@@ -897,7 +895,7 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 		if (wr_state == WR_COPIED &&
 		    dmu_read_by_dnode(zv->zv_dn, offset, len, lr + 1,
 		    DMU_READ_NO_PREFETCH | DMU_KEEP_CACHING) != 0) {
-			zil_itx_destroy(itx);
+			zil_itx_destroy(itx, 0);
 			itx = zil_itx_create(TX_WRITE, sizeof (*lr));
 			lr = (lr_write_t *)&itx->itx_lr;
 			wr_state = WR_NEED_COPY;
@@ -916,7 +914,7 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 
 		itx->itx_private = zv;
 
-		(void) zil_itx_assign(zilog, itx, tx);
+		zil_itx_assign(zilog, itx, tx);
 
 		offset += len;
 		size -= len;
@@ -1026,7 +1024,7 @@ zvol_get_data(void *arg, uint64_t arg2, lr_write_t *lr, char *buf,
 
 	zvol_get_done(zgd, error);
 
-	return (SET_ERROR(error));
+	return (error);
 }
 
 /*
@@ -1071,15 +1069,15 @@ zvol_setup_zv(zvol_state_t *zv)
 
 	error = dsl_prop_get_integer(zv->zv_name, "readonly", &ro, NULL);
 	if (error)
-		return (SET_ERROR(error));
+		return (error);
 
 	error = zap_lookup(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize);
 	if (error)
-		return (SET_ERROR(error));
+		return (error);
 
 	error = dnode_hold(os, ZVOL_OBJ, zv, &zv->zv_dn);
 	if (error)
-		return (SET_ERROR(error));
+		return (error);
 
 	zvol_os_set_capacity(zv, volsize >> 9);
 	zv->zv_volsize = volsize;
@@ -1121,7 +1119,7 @@ zvol_shutdown_zv(zvol_state_t *zv)
 	 */
 	if (zv->zv_flags & ZVOL_WRITTEN_TO)
 		txg_wait_synced(dmu_objset_pool(zv->zv_objset), 0);
-	(void) dmu_objset_evict_dbufs(zv->zv_objset);
+	dmu_objset_evict_dbufs(zv->zv_objset);
 }
 
 /*
@@ -1198,7 +1196,7 @@ zvol_resume(zvol_state_t *zv)
 	if (zv->zv_flags & ZVOL_REMOVING)
 		cv_broadcast(&zv->zv_removing_cv);
 
-	return (SET_ERROR(error));
+	return (error);
 }
 
 int
@@ -1214,7 +1212,7 @@ zvol_first_open(zvol_state_t *zv, boolean_t readonly)
 	boolean_t ro = (readonly || (strchr(zv->zv_name, '@') != NULL));
 	error = dmu_objset_own(zv->zv_name, DMU_OST_ZVOL, ro, B_TRUE, zv, &os);
 	if (error)
-		return (SET_ERROR(error));
+		return (error);
 
 	zv->zv_objset = os;
 
@@ -1440,41 +1438,32 @@ zvol_task_update_status(zvol_task_t *task, uint64_t total, uint64_t done,
 	}
 }
 
-static const char *
-zvol_task_op_msg(zvol_async_op_t op)
-{
-	switch (op) {
-	case ZVOL_ASYNC_CREATE_MINORS:
-		return ("create");
-	case ZVOL_ASYNC_REMOVE_MINORS:
-		return ("remove");
-	case ZVOL_ASYNC_RENAME_MINORS:
-		return ("rename");
-	case ZVOL_ASYNC_SET_SNAPDEV:
-	case ZVOL_ASYNC_SET_VOLMODE:
-		return ("set property");
-	default:
-		return ("unknown");
-	}
-
-	__builtin_unreachable();
-	return (NULL);
-}
-
 static void
 zvol_task_report_status(zvol_task_t *task)
 {
+#ifdef ZFS_DEBUG
+	static const char *const msg[] = {
+		"create",
+		"remove",
+		"rename",
+		"set snapdev",
+		"set volmode",
+		"unknown",
+	};
 
 	if (task->zt_status == 0)
 		return;
 
+	zvol_async_op_t op = MIN(task->zt_op, ZVOL_ASYNC_MAX);
 	if (task->zt_error) {
 		dprintf("The %s minors zvol task was not ok, last error %d\n",
-		    zvol_task_op_msg(task->zt_op), task->zt_error);
+		    msg[op], task->zt_error);
 	} else {
-		dprintf("The %s minors zvol task was not ok\n",
-		    zvol_task_op_msg(task->zt_op));
+		dprintf("The %s minors zvol task was not ok\n", msg[op]);
 	}
+#else
+	(void) task;
+#endif
 }
 
 /*
@@ -1733,7 +1722,7 @@ zvol_remove_minor_impl(const char *name)
 
 	if (zv == NULL) {
 		rw_exit(&zvol_state_lock);
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	}
 
 	ASSERT(MUTEX_HELD(&zv->zv_state_lock));
@@ -2212,7 +2201,7 @@ zvol_fini_impl(void)
 	rw_destroy(&zvol_state_lock);
 
 	if (ztqs->tqs_taskq == NULL) {
-		ASSERT3U(ztqs->tqs_cnt, ==, 0);
+		ASSERT0(ztqs->tqs_cnt);
 	} else {
 		for (uint_t i = 0; i < ztqs->tqs_cnt; i++) {
 			ASSERT3P(ztqs->tqs_taskq[i], !=, NULL);

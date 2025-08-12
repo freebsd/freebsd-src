@@ -841,8 +841,8 @@ out:
 		*zpp = zp;
 	}
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -1203,8 +1203,8 @@ out:
 		zfs_zrele_async(xzp);
 	}
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -1392,14 +1392,15 @@ out:
 
 	zfs_dirent_unlock(dl);
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
-
 	if (error != 0) {
 		zrele(zp);
 	} else {
 		zfs_znode_update_vfs(dzp);
 		zfs_znode_update_vfs(zp);
+
+		if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+			error = zil_commit(zilog, 0);
+
 	}
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -1528,8 +1529,8 @@ out:
 	zfs_znode_update_vfs(zp);
 	zrele(zp);
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -2483,10 +2484,10 @@ top:
 			new_mode = zp->z_mode;
 		}
 		err = zfs_acl_chown_setattr(zp);
-		ASSERT(err == 0);
+		ASSERT0(err);
 		if (attrzp) {
 			err = zfs_acl_chown_setattr(attrzp);
-			ASSERT(err == 0);
+			ASSERT0(err);
 		}
 	}
 
@@ -2600,7 +2601,7 @@ out:
 	if (err == 0 && xattr_count > 0) {
 		err2 = sa_bulk_update(attrzp->z_sa_hdl, xattr_bulk,
 		    xattr_count, tx);
-		ASSERT(err2 == 0);
+		ASSERT0(err2);
 	}
 
 	if (aclp)
@@ -2630,8 +2631,8 @@ out:
 	}
 
 out2:
-	if (os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (err == 0 && os->os_sync == ZFS_SYNC_ALWAYS)
+		err = zil_commit(zilog, 0);
 
 out3:
 	kmem_free(xattr_bulk, sizeof (sa_bulk_attr_t) * bulks);
@@ -3157,7 +3158,7 @@ top:
 		 * zfs_link_create() to add back the same entry, but with a new
 		 * dnode (szp), should not fail.
 		 */
-		ASSERT3P(tzp, ==, NULL);
+		ASSERT0P(tzp);
 		goto commit_link_tzp;
 	}
 
@@ -3235,8 +3236,8 @@ out:
 	zfs_dirent_unlock(sdl);
 	zfs_dirent_unlock(tdl);
 
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		error = zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -3436,7 +3437,7 @@ top:
 		*zpp = zp;
 
 		if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-			zil_commit(zilog, 0);
+			error = zil_commit(zilog, 0);
 	} else {
 		zrele(zp);
 	}
@@ -3654,8 +3655,8 @@ top:
 		 * operation are sync safe.
 		 */
 		if (is_tmpfile) {
-			VERIFY(zap_remove_int(zfsvfs->z_os,
-			    zfsvfs->z_unlinkedobj, szp->z_id, tx) == 0);
+			VERIFY0(zap_remove_int(zfsvfs->z_os,
+			    zfsvfs->z_unlinkedobj, szp->z_id, tx));
 		} else {
 			if (flags & FIGNORECASE)
 				txtype |= TX_CI;
@@ -3670,18 +3671,20 @@ top:
 
 	zfs_dirent_unlock(dl);
 
-	if (!is_tmpfile && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
-		zil_commit(zilog, 0);
+	if (error == 0) {
+		if (!is_tmpfile && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+			error = zil_commit(zilog, 0);
 
-	if (is_tmpfile && zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED) {
-		txg_wait_flag_t wait_flags =
-		    spa_get_failmode(dmu_objset_spa(zfsvfs->z_os)) ==
-		    ZIO_FAILURE_MODE_CONTINUE ? TXG_WAIT_SUSPEND : 0;
-		error = txg_wait_synced_flags(dmu_objset_pool(zfsvfs->z_os),
-		    txg, wait_flags);
-		if (error != 0) {
-			ASSERT3U(error, ==, ESHUTDOWN);
-			error = SET_ERROR(EIO);
+		if (is_tmpfile && zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED) {
+			txg_wait_flag_t wait_flags =
+			    spa_get_failmode(dmu_objset_spa(zfsvfs->z_os)) ==
+			    ZIO_FAILURE_MODE_CONTINUE ? TXG_WAIT_SUSPEND : 0;
+			error = txg_wait_synced_flags(
+			    dmu_objset_pool(zfsvfs->z_os), txg, wait_flags);
+			if (error != 0) {
+				ASSERT3U(error, ==, ESHUTDOWN);
+				error = SET_ERROR(EIO);
+			}
 		}
 	}
 
@@ -3691,13 +3694,39 @@ top:
 	return (error);
 }
 
-static void
-zfs_putpage_commit_cb(void *arg)
+/* Finish page writeback. */
+static inline void
+zfs_page_writeback_done(struct page *pp, int err)
 {
-	struct page *pp = arg;
+	if (err != 0) {
+		/*
+		 * Writeback failed. Re-dirty the page. It was undirtied before
+		 * the IO was issued (in zfs_putpage() or write_cache_pages()).
+		 * The kernel only considers writeback for dirty pages; if we
+		 * don't do this, it is eligible for eviction without being
+		 * written out, which we definitely don't want.
+		 */
+#ifdef HAVE_VFS_FILEMAP_DIRTY_FOLIO
+		filemap_dirty_folio(page_mapping(pp), page_folio(pp));
+#else
+		__set_page_dirty_nobuffers(pp);
+#endif
+	}
 
 	ClearPageError(pp);
 	end_page_writeback(pp);
+}
+
+/*
+ * ZIL callback for page writeback. Passes to zfs_log_write() in zfs_putpage()
+ * for syncing writes. Called when the ZIL itx has been written to the log or
+ * the whole txg syncs, or if the ZIL crashes or the pool suspends. Any failure
+ * is passed as `err`.
+ */
+static void
+zfs_putpage_commit_cb(void *arg, int err)
+{
+	zfs_page_writeback_done(arg, err);
 }
 
 /*
@@ -3853,16 +3882,15 @@ zfs_putpage(struct inode *ip, struct page *pp, struct writeback_control *wbc,
 	err = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (err != 0) {
 		dmu_tx_abort(tx);
-#ifdef HAVE_VFS_FILEMAP_DIRTY_FOLIO
-		filemap_dirty_folio(page_mapping(pp), page_folio(pp));
-#else
-		__set_page_dirty_nobuffers(pp);
-#endif
-		ClearPageError(pp);
-		end_page_writeback(pp);
+		zfs_page_writeback_done(pp, err);
 		zfs_rangelock_exit(lr);
 		zfs_exit(zfsvfs, FTAG);
-		return (err);
+
+		/*
+		 * Don't return error for an async writeback; we've re-dirtied
+		 * the page so it will be tried again some other time.
+		 */
+		return (for_sync ? err : 0);
 	}
 
 	va = kmap(pp);
@@ -3916,7 +3944,7 @@ zfs_putpage(struct inode *ip, struct page *pp, struct writeback_control *wbc,
 	 * ALL, zfs_putpage should do it.
 	 *
 	 * Summary:
-	 *   for_sync:  0=unlock immediately; 1 unlock once on disk
+	 *   for_sync:  0=unlock immediately; 1=unlock once on disk
 	 *   sync_mode: NONE=caller will commit; ALL=we will commit
 	 */
 	boolean_t need_commit = (wbc->sync_mode != WB_SYNC_NONE);
@@ -3931,16 +3959,24 @@ zfs_putpage(struct inode *ip, struct page *pp, struct writeback_control *wbc,
 	    B_FALSE, for_sync ? zfs_putpage_commit_cb : NULL, pp);
 
 	if (!for_sync) {
-		ClearPageError(pp);
-		end_page_writeback(pp);
+		/*
+		 * Async writeback is logged and written to the DMU, so page
+		 * can now be unlocked.
+		 */
+		zfs_page_writeback_done(pp, 0);
 	}
 
 	dmu_tx_commit(tx);
 
 	zfs_rangelock_exit(lr);
 
-	if (need_commit)
-		zil_commit(zfsvfs->z_log, zp->z_id);
+	if (need_commit) {
+		err = zil_commit_flags(zfsvfs->z_log, zp->z_id, ZIL_COMMIT_NOW);
+		if (err != 0) {
+			zfs_exit(zfsvfs, FTAG);
+			return (err);
+		}
+	}
 
 	dataset_kstats_update_write_kstats(&zfsvfs->z_kstat, pglen);
 

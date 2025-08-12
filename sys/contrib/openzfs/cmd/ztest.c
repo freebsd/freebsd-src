@@ -273,7 +273,6 @@ extern int zfs_compressed_arc_enabled;
 extern int zfs_abd_scatter_enabled;
 extern uint_t dmu_object_alloc_chunk_shift;
 extern boolean_t zfs_force_some_double_word_sm_entries;
-extern unsigned long zio_decompress_fail_fraction;
 extern unsigned long zfs_reconstruct_indirect_damage_fraction;
 extern uint64_t raidz_expand_max_reflow_bytes;
 extern uint_t raidz_expand_pause_point;
@@ -829,8 +828,8 @@ static char *short_opts = NULL;
 static void
 init_options(void)
 {
-	ASSERT3P(long_opts, ==, NULL);
-	ASSERT3P(short_opts, ==, NULL);
+	ASSERT0P(long_opts);
+	ASSERT0P(short_opts);
 
 	int count = sizeof (option_table) / sizeof (option_table[0]);
 	long_opts = umem_alloc(sizeof (struct option) * count, UMEM_NOFAIL);
@@ -1686,7 +1685,7 @@ ztest_rll_init(rll_t *rll)
 static void
 ztest_rll_destroy(rll_t *rll)
 {
-	ASSERT3P(rll->rll_writer, ==, NULL);
+	ASSERT0P(rll->rll_writer);
 	ASSERT0(rll->rll_readers);
 	mutex_destroy(&rll->rll_lock);
 	cv_destroy(&rll->rll_cv);
@@ -1720,7 +1719,7 @@ ztest_rll_unlock(rll_t *rll)
 		rll->rll_writer = NULL;
 	} else {
 		ASSERT3S(rll->rll_readers, >, 0);
-		ASSERT3P(rll->rll_writer, ==, NULL);
+		ASSERT0P(rll->rll_writer);
 		rll->rll_readers--;
 	}
 
@@ -1996,7 +1995,7 @@ ztest_log_write(ztest_ds_t *zd, dmu_tx_t *tx, lr_write_t *lr)
 	    dmu_read(zd->zd_os, lr->lr_foid, lr->lr_offset, lr->lr_length,
 	    ((lr_write_t *)&itx->itx_lr) + 1, DMU_READ_NO_PREFETCH |
 	    DMU_KEEP_CACHING) != 0) {
-		zil_itx_destroy(itx);
+		zil_itx_destroy(itx, 0);
 		itx = zil_itx_create(TX_WRITE, sizeof (*lr));
 		write_state = WR_NEED_COPY;
 	}
@@ -2278,8 +2277,8 @@ ztest_replay_write(void *arg1, void *arg2, boolean_t byteswap)
 
 			ztest_block_tag_t rbt;
 
-			VERIFY(dmu_read(os, lr->lr_foid, offset,
-			    sizeof (rbt), &rbt, flags) == 0);
+			VERIFY0(dmu_read(os, lr->lr_foid, offset,
+			    sizeof (rbt), &rbt, flags));
 			if (rbt.bt_magic == BT_MAGIC) {
 				ztest_bt_verify(&rbt, os, lr->lr_foid, 0,
 				    offset, gen, txg, crtxg);
@@ -2966,7 +2965,7 @@ ztest_zil_commit(ztest_ds_t *zd, uint64_t id)
 
 	(void) pthread_rwlock_rdlock(&zd->zd_zilog_lock);
 
-	zil_commit(zilog, ztest_random(ZTEST_OBJECTS));
+	VERIFY0(zil_commit(zilog, ztest_random(ZTEST_OBJECTS)));
 
 	/*
 	 * Remember the committed values in zd, which is in parent/child
@@ -4007,7 +4006,7 @@ raidz_scratch_verify(void)
 		 * requested by user, but scratch object was not created.
 		 */
 		case RRSS_SCRATCH_NOT_IN_USE:
-			ASSERT3U(offset, ==, 0);
+			ASSERT0(offset);
 			break;
 
 		/*
@@ -5537,8 +5536,8 @@ ztest_dmu_read_write_zcopy(ztest_ds_t *zd, uint64_t id)
 			}
 
 			if (i == 1) {
-				VERIFY(dmu_buf_hold(os, bigobj, off,
-				    FTAG, &dbt, DMU_READ_NO_PREFETCH) == 0);
+				VERIFY0(dmu_buf_hold(os, bigobj, off,
+				    FTAG, &dbt, DMU_READ_NO_PREFETCH));
 			}
 			if (i != 5 || chunksize < (SPA_MINBLOCKSIZE * 2)) {
 				VERIFY0(dmu_assign_arcbuf_by_dbuf(bonus_db,
@@ -7937,7 +7936,7 @@ ztest_freeze(void)
 	 */
 	while (BP_IS_HOLE(&zd->zd_zilog->zl_header->zh_log)) {
 		ztest_dmu_object_alloc_free(zd, 0);
-		zil_commit(zd->zd_zilog, 0);
+		VERIFY0(zil_commit(zd->zd_zilog, 0));
 	}
 
 	txg_wait_synced(spa_get_dsl(spa), 0);
@@ -7979,7 +7978,7 @@ ztest_freeze(void)
 	/*
 	 * Commit all of the changes we just generated.
 	 */
-	zil_commit(zd->zd_zilog, 0);
+	VERIFY0(zil_commit(zd->zd_zilog, 0));
 	txg_wait_synced(spa_get_dsl(spa), 0);
 
 	/*
@@ -8979,7 +8978,7 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	} else {
 		/* children should not be spawned if setting gvars fails */
-		VERIFY3S(err, ==, 0);
+		VERIFY0(err);
 	}
 
 	/* Override location of zpool.cache */

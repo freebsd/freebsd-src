@@ -455,8 +455,13 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 			return (0);
 		}
 
-		if (zfsvfs->z_log != NULL)
-			zil_commit(zfsvfs->z_log, 0);
+		if (zfsvfs->z_log != NULL) {
+			error = zil_commit(zfsvfs->z_log, 0);
+			if (error != 0) {
+				zfs_exit(zfsvfs, FTAG);
+				return (error);
+			}
+		}
 
 		zfs_exit(zfsvfs, FTAG);
 	} else {
@@ -1091,7 +1096,7 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 	if (mounting) {
 		boolean_t readonly;
 
-		ASSERT3P(zfsvfs->z_kstat.dk_kstats, ==, NULL);
+		ASSERT0P(zfsvfs->z_kstat.dk_kstats);
 		error = dataset_kstats_create(&zfsvfs->z_kstat, zfsvfs->z_os);
 		if (error)
 			return (error);

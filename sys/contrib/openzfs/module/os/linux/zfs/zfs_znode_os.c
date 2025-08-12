@@ -144,9 +144,9 @@ zfs_znode_cache_destructor(void *buf, void *arg)
 	rw_destroy(&zp->z_xattr_lock);
 	zfs_rangelock_fini(&zp->z_rangelock);
 
-	ASSERT3P(zp->z_dirlocks, ==, NULL);
-	ASSERT3P(zp->z_acl_cached, ==, NULL);
-	ASSERT3P(zp->z_xattr_cached, ==, NULL);
+	ASSERT0P(zp->z_dirlocks);
+	ASSERT0P(zp->z_acl_cached);
+	ASSERT0P(zp->z_xattr_cached);
 }
 
 static int
@@ -178,13 +178,13 @@ zfs_znode_init(void)
 	 * backed by kmalloc() when on the Linux slab in order that any
 	 * wait_on_bit() operations on the related inode operate properly.
 	 */
-	ASSERT(znode_cache == NULL);
+	ASSERT0P(znode_cache);
 	znode_cache = kmem_cache_create("zfs_znode_cache",
 	    sizeof (znode_t), 0, zfs_znode_cache_constructor,
 	    zfs_znode_cache_destructor, NULL, NULL, NULL,
 	    KMC_SLAB | KMC_RECLAIMABLE);
 
-	ASSERT(znode_hold_cache == NULL);
+	ASSERT0P(znode_hold_cache);
 	znode_hold_cache = kmem_cache_create("zfs_znode_hold_cache",
 	    sizeof (znode_hold_t), 0, zfs_znode_hold_cache_constructor,
 	    zfs_znode_hold_cache_destructor, NULL, NULL, NULL, 0);
@@ -327,10 +327,10 @@ zfs_znode_sa_init(zfsvfs_t *zfsvfs, znode_t *zp,
 
 	mutex_enter(&zp->z_lock);
 
-	ASSERT(zp->z_sa_hdl == NULL);
-	ASSERT(zp->z_acl_cached == NULL);
+	ASSERT0P(zp->z_sa_hdl);
+	ASSERT0P(zp->z_acl_cached);
 	if (sa_hdl == NULL) {
-		VERIFY(0 == sa_handle_get_from_db(zfsvfs->z_os, db, zp,
+		VERIFY0(sa_handle_get_from_db(zfsvfs->z_os, db, zp,
 		    SA_HDL_SHARED, &zp->z_sa_hdl));
 	} else {
 		zp->z_sa_hdl = sa_hdl;
@@ -530,9 +530,9 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 		return (NULL);
 
 	zp = ITOZ(ip);
-	ASSERT(zp->z_dirlocks == NULL);
-	ASSERT3P(zp->z_acl_cached, ==, NULL);
-	ASSERT3P(zp->z_xattr_cached, ==, NULL);
+	ASSERT0P(zp->z_dirlocks);
+	ASSERT0P(zp->z_acl_cached);
+	ASSERT0P(zp->z_xattr_cached);
 	zp->z_unlinked = B_FALSE;
 	zp->z_atime_dirty = B_FALSE;
 	zp->z_is_ctldir = B_FALSE;
@@ -611,7 +611,7 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	 * processing so do not hash unlinked znodes.
 	 */
 	if (links > 0)
-		VERIFY3S(insert_inode_locked(ip), ==, 0);
+		VERIFY0(insert_inode_locked(ip));
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
 	list_insert_tail(&zfsvfs->z_all_znodes, zp);
@@ -811,7 +811,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	}
 
 	/* Now add in all of the "SA" attributes */
-	VERIFY(0 == sa_handle_get_from_db(zfsvfs->z_os, db, NULL, SA_HDL_SHARED,
+	VERIFY0(sa_handle_get_from_db(zfsvfs->z_os, db, NULL, SA_HDL_SHARED,
 	    &sa_hdl));
 
 	/*
@@ -901,7 +901,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		    acl_ids->z_fuid, acl_ids->z_fgid);
 	}
 
-	VERIFY(sa_replace_all_by_template(sa_hdl, sa_attrs, cnt, tx) == 0);
+	VERIFY0(sa_replace_all_by_template(sa_hdl, sa_attrs, cnt, tx));
 
 	if (!(flag & IS_ROOT_NODE)) {
 		/*
@@ -1200,7 +1200,7 @@ zfs_rezget(znode_t *zp)
 	}
 	rw_exit(&zp->z_xattr_lock);
 
-	ASSERT(zp->z_sa_hdl == NULL);
+	ASSERT0P(zp->z_sa_hdl);
 	err = sa_buf_hold(zfsvfs->z_os, obj_num, NULL, &db);
 	if (err) {
 		zfs_znode_hold_exit(zfsvfs, zh);
@@ -1314,9 +1314,9 @@ zfs_znode_delete(znode_t *zp, dmu_tx_t *tx)
 	zh = zfs_znode_hold_enter(zfsvfs, obj);
 	if (acl_obj) {
 		VERIFY(!zp->z_is_sa);
-		VERIFY(0 == dmu_object_free(os, acl_obj, tx));
+		VERIFY0(dmu_object_free(os, acl_obj, tx));
 	}
-	VERIFY(0 == dmu_object_free(os, obj, tx));
+	VERIFY0(dmu_object_free(os, obj, tx));
 	zfs_znode_dmu_fini(zp);
 	zfs_znode_hold_exit(zfsvfs, zh);
 }
@@ -1536,7 +1536,7 @@ zfs_extend(znode_t *zp, uint64_t end)
 
 	zp->z_size = end;
 
-	VERIFY(0 == sa_update(zp->z_sa_hdl, SA_ZPL_SIZE(ZTOZSB(zp)),
+	VERIFY0(sa_update(zp->z_sa_hdl, SA_ZPL_SIZE(ZTOZSB(zp)),
 	    &zp->z_size, sizeof (zp->z_size), tx));
 
 	zfs_rangelock_exit(lr);
@@ -1726,7 +1726,7 @@ zfs_trunc(znode_t *zp, uint64_t end)
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
 		    NULL, &zp->z_pflags, 8);
 	}
-	VERIFY(sa_bulk_update(zp->z_sa_hdl, bulk, count, tx) == 0);
+	VERIFY0(sa_bulk_update(zp->z_sa_hdl, bulk, count, tx));
 
 	dmu_tx_commit(tx);
 	zfs_rangelock_exit(lr);
@@ -1793,7 +1793,7 @@ log:
 	    NULL, &zp->z_pflags, 8);
 	zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
 	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	zfs_log_truncate(zilog, tx, TX_TRUNCATE, zp, off, len);
 
@@ -1840,7 +1840,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	moid = MASTER_NODE_OBJ;
 	error = zap_create_claim(os, moid, DMU_OT_MASTER_NODE,
 	    DMU_OT_NONE, 0, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Set starting attributes.
@@ -1853,7 +1853,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		const char *name;
 
 		ASSERT(nvpair_type(elem) == DATA_TYPE_UINT64);
-		VERIFY(nvpair_value_uint64(elem, &val) == 0);
+		VERIFY0(nvpair_value_uint64(elem, &val));
 		name = nvpair_name(elem);
 		if (strcmp(name, zfs_prop_to_name(ZFS_PROP_VERSION)) == 0) {
 			if (val < version)
@@ -1861,7 +1861,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		} else {
 			error = zap_update(os, moid, name, 8, 1, &val, tx);
 		}
-		ASSERT(error == 0);
+		ASSERT0(error);
 		if (strcmp(name, zfs_prop_to_name(ZFS_PROP_NORMALIZE)) == 0)
 			norm = val;
 		else if (strcmp(name, zfs_prop_to_name(ZFS_PROP_CASE)) == 0)
@@ -1869,7 +1869,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	}
 	ASSERT(version != 0);
 	error = zap_update(os, moid, ZPL_VERSION_STR, 8, 1, &version, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Create zap object used for SA attribute registration
@@ -1879,7 +1879,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		sa_obj = zap_create(os, DMU_OT_SA_MASTER_NODE,
 		    DMU_OT_NONE, 0, tx);
 		error = zap_add(os, moid, ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
-		ASSERT(error == 0);
+		ASSERT0(error);
 	} else {
 		sa_obj = 0;
 	}
@@ -1889,7 +1889,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	obj = zap_create(os, DMU_OT_UNLINKED_SET, DMU_OT_NONE, 0, tx);
 
 	error = zap_add(os, moid, ZFS_UNLINKED_SET, 8, 1, &obj, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Create root znode.  Create minimal znode/inode/zfsvfs/sb
@@ -1922,7 +1922,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	error = sa_setup(os, sa_obj, zfs_attr_table, ZPL_END,
 	    &zfsvfs->z_attr_table);
 
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Fold case on file systems that are always or sometimes case
@@ -1946,12 +1946,12 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		mutex_init(&zfsvfs->z_hold_locks[i], NULL, MUTEX_DEFAULT, NULL);
 	}
 
-	VERIFY(0 == zfs_acl_ids_create(rootzp, IS_ROOT_NODE, &vattr,
+	VERIFY0(zfs_acl_ids_create(rootzp, IS_ROOT_NODE, &vattr,
 	    cr, NULL, &acl_ids, zfs_init_idmap));
 	zfs_mknode(rootzp, &vattr, tx, cr, IS_ROOT_NODE, &zp, &acl_ids);
 	ASSERT3P(zp, ==, rootzp);
 	error = zap_add(os, moid, ZFS_ROOT_OBJ, 8, 1, &rootzp->z_id, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 	zfs_acl_ids_free(&acl_ids);
 
 	atomic_set(&ZTOI(rootzp)->i_count, 0);
