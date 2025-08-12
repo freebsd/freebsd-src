@@ -2890,51 +2890,6 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 	return (m);
 }
 
-#if defined(INET6) || defined(INET)
-static void
-iflib_get_ip_forwarding(struct lro_ctrl *lc, bool *v4, bool *v6)
-{
-	CURVNET_SET(if_getvnet(lc->ifp));
-#if defined(INET6)
-	*v6 = V_ip6_forwarding;
-#endif
-#if defined(INET)
-	*v4 = V_ipforwarding;
-#endif
-	CURVNET_RESTORE();
-}
-
-/*
- * Returns true if it's possible this packet could be LROed.
- * if it returns false, it is guaranteed that tcp_lro_rx()
- * would not return zero.
- */
-static bool
-iflib_check_lro_possible(struct mbuf *m, bool v4_forwarding, bool v6_forwarding)
-{
-	struct ether_header *eh;
-
-	eh = mtod(m, struct ether_header *);
-	switch (eh->ether_type) {
-#if defined(INET6)
-	case htons(ETHERTYPE_IPV6):
-		return (!v6_forwarding);
-#endif
-#if defined(INET)
-	case htons(ETHERTYPE_IP):
-		return (!v4_forwarding);
-#endif
-	}
-
-	return (false);
-}
-#else
-static void
-iflib_get_ip_forwarding(struct lro_ctrl *lc __unused, bool *v4 __unused, bool *v6 __unused)
-{
-}
-#endif
-
 static void
 _task_fn_rx_watchdog(void *context)
 {
@@ -2956,18 +2911,16 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	int err, budget_left, rx_bytes, rx_pkts;
 	iflib_fl_t fl;
 	int lro_enabled;
-	bool v4_forwarding, v6_forwarding, lro_possible;
 	uint8_t retval = 0;
 
 	/*
 	 * XXX early demux data packets so that if_input processing only handles
 	 * acks in interrupt context
 	 */
-	struct mbuf *m, *mh, *mt, *mf;
+	struct mbuf *m, *mh, *mt;
 
 	NET_EPOCH_ASSERT();
 
-	lro_possible = v4_forwarding = v6_forwarding = false;
 	ifp = ctx->ifc_ifp;
 	mh = mt = NULL;
 	MPASS(budget > 0);
@@ -2982,6 +2935,8 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		DBG_COUNTER_INC(rx_unavail);
 		return (retval);
 	}
+
+	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
 
 	/* pfil needs the vnet to be set */
 	CURVNET_SET_QUIET(if_getvnet(ifp));
@@ -3027,7 +2982,17 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		if (__predict_false(m == NULL))
 			continue;
 
-		/* imm_pkt: -- cxgb */
+#ifndef __NO_STRICT_ALIGNMENT
+		if (!IP_ALIGNED(m) && (m = iflib_fixup_rx(m)) == NULL)
+			continue;
+#endif
+#if defined(INET6) || defined(INET)
+		if (lro_enabled) {
+			tcp_lro_queue_mbuf(&rxq->ifr_lc, m);
+			continue;
+		}
+#endif
+
 		if (mh == NULL)
 			mh = mt = m;
 		else {
@@ -3040,49 +3005,8 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	for (i = 0, fl = &rxq->ifr_fl[0]; i < sctx->isc_nfl; i++, fl++)
 		retval |= iflib_fl_refill_all(ctx, fl);
 
-	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
-	if (lro_enabled)
-		iflib_get_ip_forwarding(&rxq->ifr_lc, &v4_forwarding, &v6_forwarding);
-	mt = mf = NULL;
-	while (mh != NULL) {
-		m = mh;
-		mh = mh->m_nextpkt;
-		m->m_nextpkt = NULL;
-#ifndef __NO_STRICT_ALIGNMENT
-		if (!IP_ALIGNED(m) && (m = iflib_fixup_rx(m)) == NULL)
-			continue;
-#endif
-#if defined(INET6) || defined(INET)
-		if (lro_enabled) {
-			if (!lro_possible) {
-				lro_possible = iflib_check_lro_possible(m, v4_forwarding, v6_forwarding);
-				if (lro_possible && mf != NULL) {
-					if_input(ifp, mf);
-					DBG_COUNTER_INC(rx_if_input);
-					mt = mf = NULL;
-				}
-			}
-			if ((m->m_pkthdr.csum_flags & (CSUM_L4_CALC | CSUM_L4_VALID)) ==
-			    (CSUM_L4_CALC | CSUM_L4_VALID)) {
-				if (lro_possible && tcp_lro_rx(&rxq->ifr_lc, m, 0) == 0)
-					continue;
-			}
-		}
-#endif
-		if (lro_possible) {
-			if_input(ifp, m);
-			DBG_COUNTER_INC(rx_if_input);
-			continue;
-		}
-
-		if (mf == NULL)
-			mf = m;
-		if (mt != NULL)
-			mt->m_nextpkt = m;
-		mt = m;
-	}
-	if (mf != NULL) {
-		if_input(ifp, mf);
+	if (mh != NULL) {
+		if_input(ifp, mh);
 		DBG_COUNTER_INC(rx_if_input);
 	}
 
