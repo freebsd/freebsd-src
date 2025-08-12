@@ -74,9 +74,7 @@ extern const zfs_tunable_t *__stop_zfs_tunables;
  * any NULL pointers.
  */
 static void *__zfs_tunable__placeholder
-#if !defined(__APPLE__)
 	__attribute__((__section__("zfs_tunables")))
-#endif
 	__attribute__((__used__)) = NULL;
 
 /*
