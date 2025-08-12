@@ -160,8 +160,8 @@ bpobj_open(bpobj_t *bpo, objset_t *os, uint64_t object)
 	memset(bpo, 0, sizeof (*bpo));
 	mutex_init(&bpo->bpo_lock, NULL, MUTEX_DEFAULT, NULL);
 
-	ASSERT(bpo->bpo_dbuf == NULL);
-	ASSERT(bpo->bpo_phys == NULL);
+	ASSERT0P(bpo->bpo_dbuf);
+	ASSERT0P(bpo->bpo_phys);
 	ASSERT(object != 0);
 	ASSERT3U(doi.doi_type, ==, DMU_OT_BPOBJ);
 	ASSERT3U(doi.doi_bonus_type, ==, DMU_OT_BPOBJ_HDR);
@@ -478,7 +478,7 @@ bpobj_iterate_impl(bpobj_t *initial_bpo, bpobj_itor_t func, void *arg,
 			 * We have unprocessed subobjs. Process the next one.
 			 */
 			ASSERT(bpo->bpo_havecomp);
-			ASSERT3P(bpobj_size, ==, NULL);
+			ASSERT0P(bpobj_size);
 
 			/* Add the last subobj to stack. */
 			int64_t i = bpi->bpi_unprocessed_subobjs - 1;

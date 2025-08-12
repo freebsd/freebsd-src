@@ -727,9 +727,9 @@ unlock:
 		break;
 	}
 
-	if (commit) {
+	if (error == 0 && commit) {
 commit:
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 	}
 resume:
 	rw_exit(&zv->zv_suspend_lock);
@@ -906,8 +906,8 @@ zvol_cdev_write(struct cdev *dev, struct uio *uio_s, int ioflag)
 	zfs_rangelock_exit(lr);
 	int64_t nwritten = start_resid - zfs_uio_resid(&uio);
 	dataset_kstats_update_write_kstats(&zv->zv_kstat, nwritten);
-	if (commit)
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+	if (error == 0 && commit)
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 	rw_exit(&zv->zv_suspend_lock);
 
 	return (error);
@@ -1117,7 +1117,7 @@ zvol_cdev_ioctl(struct cdev *dev, ulong_t cmd, caddr_t data,
 	case DIOCGFLUSH:
 		rw_enter(&zv->zv_suspend_lock, ZVOL_RW_READER);
 		if (zv->zv_zilog != NULL)
-			zil_commit(zv->zv_zilog, ZVOL_OBJ);
+			error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		rw_exit(&zv->zv_suspend_lock);
 		break;
 	case DIOCGDELETE:
@@ -1152,7 +1152,7 @@ zvol_cdev_ioctl(struct cdev *dev, ulong_t cmd, caddr_t data,
 		}
 		zfs_rangelock_exit(lr);
 		if (sync)
-			zil_commit(zv->zv_zilog, ZVOL_OBJ);
+			error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		rw_exit(&zv->zv_suspend_lock);
 		break;
 	case DIOCGSTRIPESIZE:
@@ -1415,7 +1415,7 @@ zvol_os_free(zvol_state_t *zv)
 		struct zvol_state_geom *zsg = &zv->zv_zso->zso_geom;
 		struct g_provider *pp __maybe_unused = zsg->zsg_provider;
 
-		ASSERT3P(pp->private, ==, NULL);
+		ASSERT0P(pp->private);
 
 		g_topology_lock();
 		zvol_geom_destroy(zv);
@@ -1425,7 +1425,7 @@ zvol_os_free(zvol_state_t *zv)
 		struct cdev *dev = zsd->zsd_cdev;
 
 		if (dev != NULL) {
-			ASSERT3P(dev->si_drv2, ==, NULL);
+			ASSERT0P(dev->si_drv2);
 			destroy_dev(dev);
 			knlist_clear(&zsd->zsd_selinfo.si_note, 0);
 			knlist_destroy(&zsd->zsd_selinfo.si_note);
@@ -1493,11 +1493,11 @@ zvol_os_create_minor(const char *name)
 
 	zv->zv_objset = os;
 
-	ASSERT3P(zv->zv_kstat.dk_kstats, ==, NULL);
+	ASSERT0P(zv->zv_kstat.dk_kstats);
 	error = dataset_kstats_create(&zv->zv_kstat, zv->zv_objset);
 	if (error)
 		goto out_dmu_objset_disown;
-	ASSERT3P(zv->zv_zilog, ==, NULL);
+	ASSERT0P(zv->zv_zilog);
 	zv->zv_zilog = zil_open(os, zvol_get_data, &zv->zv_kstat.dk_zil_sums);
 	if (spa_writeable(dmu_objset_spa(os))) {
 		if (zil_replay_disable)

@@ -397,7 +397,7 @@ ddt_object_create(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 
 	ddt_object_name(ddt, type, class, name);
 
-	ASSERT3U(*objectp, ==, 0);
+	ASSERT0(*objectp);
 	VERIFY0(ddt_ops[type]->ddt_op_create(os, objectp, tx, prehash));
 	ASSERT3U(*objectp, !=, 0);
 
@@ -1011,7 +1011,7 @@ ddt_free(const ddt_t *ddt, ddt_entry_t *dde)
 {
 	if (dde->dde_io != NULL) {
 		for (int p = 0; p < DDT_NPHYS(ddt); p++)
-			ASSERT3P(dde->dde_io->dde_lead_zio[p], ==, NULL);
+			ASSERT0P(dde->dde_io->dde_lead_zio[p]);
 
 		if (dde->dde_io->dde_repair_abd != NULL)
 			abd_free(dde->dde_io->dde_repair_abd);
@@ -1421,7 +1421,7 @@ ddt_key_compare(const void *x1, const void *x2)
 static void
 ddt_create_dir(ddt_t *ddt, dmu_tx_t *tx)
 {
-	ASSERT3U(ddt->ddt_dir_object, ==, 0);
+	ASSERT0(ddt->ddt_dir_object);
 	ASSERT3U(ddt->ddt_version, ==, DDT_VERSION_FDT);
 
 	char name[DDT_NAMELEN];
@@ -2395,7 +2395,7 @@ ddt_sync(spa_t *spa, uint64_t txg)
 	 * scan's root zio here so that we can wait for any scan IOs in
 	 * addition to the regular ddt IOs.
 	 */
-	ASSERT3P(scn->scn_zio_root, ==, NULL);
+	ASSERT0P(scn->scn_zio_root);
 	scn->scn_zio_root = rio;
 
 	for (enum zio_checksum c = 0; c < ZIO_CHECKSUM_FUNCTIONS; c++) {
