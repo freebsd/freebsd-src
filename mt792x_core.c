@@ -28,7 +28,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	},
 };
 
-static const struct ieee80211_iface_limit if_limits_chanctx[] = {
+static const struct ieee80211_iface_limit if_limits_chanctx_mcc[] = {
 	{
 		.max = 2,
 		.types = BIT(NL80211_IFTYPE_STATION) |
@@ -36,8 +36,23 @@ static const struct ieee80211_iface_limit if_limits_chanctx[] = {
 	},
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_AP) |
-			 BIT(NL80211_IFTYPE_P2P_GO)
+		.types = BIT(NL80211_IFTYPE_P2P_GO)
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE)
+	}
+};
+
+static const struct ieee80211_iface_limit if_limits_chanctx_scc[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION) |
+			 BIT(NL80211_IFTYPE_P2P_CLIENT)
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP)
 	},
 	{
 		.max = 1,
@@ -47,10 +62,17 @@ static const struct ieee80211_iface_limit if_limits_chanctx[] = {
 
 static const struct ieee80211_iface_combination if_comb_chanctx[] = {
 	{
-		.limits = if_limits_chanctx,
-		.n_limits = ARRAY_SIZE(if_limits_chanctx),
+		.limits = if_limits_chanctx_mcc,
+		.n_limits = ARRAY_SIZE(if_limits_chanctx_mcc),
 		.max_interfaces = 3,
 		.num_different_channels = 2,
+		.beacon_int_infra_match = false,
+	},
+	{
+		.limits = if_limits_chanctx_scc,
+		.n_limits = ARRAY_SIZE(if_limits_chanctx_scc),
+		.max_interfaces = 3,
+		.num_different_channels = 1,
 		.beacon_int_infra_match = false,
 	}
 };
@@ -283,7 +305,7 @@ EXPORT_SYMBOL_GPL(mt792x_tx_worker);
 
 void mt792x_roc_timer(struct timer_list *timer)
 {
-	struct mt792x_phy *phy = from_timer(phy, timer, roc_timer);
+	struct mt792x_phy *phy = timer_container_of(phy, timer, roc_timer);
 
 	ieee80211_queue_work(phy->mt76->hw, &phy->roc_work);
 }
@@ -291,7 +313,7 @@ EXPORT_SYMBOL_GPL(mt792x_roc_timer);
 
 void mt792x_csa_timer(struct timer_list *timer)
 {
-	struct mt792x_vif *mvif = from_timer(mvif, timer, csa_timer);
+	struct mt792x_vif *mvif = timer_container_of(mvif, timer, csa_timer);
 
 	ieee80211_queue_work(mvif->phy->mt76->hw, &mvif->csa_work);
 }
@@ -340,7 +362,7 @@ void mt792x_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 
 	if (vif->bss_conf.csa_active) {
-		del_timer_sync(&mvif->csa_timer);
+		timer_delete_sync(&mvif->csa_timer);
 		cancel_work_sync(&mvif->csa_work);
 	}
 }
@@ -665,7 +687,8 @@ int mt792x_init_wiphy(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
 	ieee80211_hw_set(hw, CONNECTION_MONITOR);
-	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
+	if (is_mt7921(&dev->mt76))
+		ieee80211_hw_set(hw, CHANCTX_STA_CSA);
 
 	if (dev->pm.enable)
 		ieee80211_hw_set(hw, CONNECTION_MONITOR);
