@@ -342,9 +342,9 @@ By default
 .Va getmnt_silent
 is zero.
 .Sh SEE ALSO
+.Xr nmount 2 ,
 .Xr err 3 ,
-.Xr mount 8 ,
-.Xr nmount 8
+.Xr mount 8
 .Sh HISTORY
 The
 .Fn getmntopts
@@ -358,7 +358,7 @@ The
 and
 .Fn rmslashes
 functions were added with
-.Xr nmount 8
+.Xr nmount 2
 in
 .Fx 5.0 .
 The
@@ -368,7 +368,9 @@ and
 functions were added in
 .Fx 13.2 .
 .Pp
-Historically, these functions were found in getmntopts.c in the sources for the
+Historically, these functions were found in
+.Pa getmntopts.c
+in the source code of the
 .Xr mount 8
 program.
 As of
