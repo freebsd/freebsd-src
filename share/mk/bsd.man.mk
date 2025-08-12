@@ -241,11 +241,11 @@ maninstall: ${MAN}
 .endif
 .endfor
 
-manlint:
+manlint: .PHONY checkmanlinks
 .if defined(MAN) && !empty(MAN)
 .for __page in ${MAN}
 manlint: ${__page}lint
-${__page}lint: ${__page}
+${__page}lint: .PHONY ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} -Tlint
 .else
@@ -253,3 +253,15 @@ ${__page}lint: ${__page}
 .endif
 .endfor
 .endif
+
+checkmanlinks: .PHONY
+.if defined(MLINKS)
+.for __page __link in ${MLINKS}
+checkmanlinks: checkmanlinks-${__link}
+checkmanlinks-${__link}: .PHONY ${__page}
+	@if ! egrep -q "^(\.\\\\\" )?\.Nm ${__link:R}( ,)?$$" ${.ALLSRC}; then \
+		echo "MLINKS: '.Nm ${__link:R}' not found in ${__page}"; \
+		exit 1; \
+	fi >&2
+.endfor # __page __link in ${MLINKS}
+.endif # defined(MLINKS)
