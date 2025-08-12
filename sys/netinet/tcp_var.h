@@ -1379,8 +1379,7 @@ int	 tcp_reass(struct tcpcb *, struct tcphdr *, tcp_seq *, int *,
 void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
 void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
-void	tcp_dropwithreset(struct mbuf *, struct tcphdr *,
-		     struct tcpcb *, int, int);
+void	 tcp_dropwithreset(struct mbuf *, struct tcphdr *, struct tcpcb *, int);
 void	tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 void	tcp_xmit_timer(struct tcpcb *, int);
