@@ -54,7 +54,6 @@
 #include <arpa/inet.h>
 
 #include <capsicum_helpers.h>
-#include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <jail.h>
@@ -73,6 +72,8 @@
 #include <casper/cap_netdb.h>
 #include <casper/cap_pwd.h>
 #include <casper/cap_sysctl.h>
+
+#include "sockstat.h"
 
 #define SOCKSTAT_XO_VERSION "1"
 #define	sstosin(ss)	((struct sockaddr_in *)(ss))
@@ -109,12 +110,6 @@ static size_t	   default_numprotos = nitems(default_protos);
 
 static int	*protos;	/* protocols to use */
 static size_t	 numprotos;	/* allocated size of protos[] */
-
-static int	*ports;
-
-#define	INT_BIT (sizeof(int)*CHAR_BIT)
-#define	SET_PORT(p) do { ports[p / INT_BIT] |= 1 << (p % INT_BIT); } while (0)
-#define	CHK_PORT(p) (ports[p / INT_BIT] & (1 << (p % INT_BIT)))
 
 struct addr {
 	union {
@@ -274,50 +269,6 @@ parse_protos(char *protospec)
 	}
 	numprotos = proto_index;
 	return (proto_index);
-}
-
-static void
-parse_ports(const char *portspec)
-{
-	const char *p, *q;
-	int port, end;
-
-	if (ports == NULL)
-		if ((ports = calloc(65536 / INT_BIT, sizeof(int))) == NULL)
-			xo_err(1, "calloc()");
-	p = portspec;
-	while (*p != '\0') {
-		if (!isdigit(*p))
-			xo_errx(1, "syntax error in port range");
-		for (q = p; *q != '\0' && isdigit(*q); ++q)
-			/* nothing */ ;
-		for (port = 0; p < q; ++p)
-			port = port * 10 + digittoint(*p);
-		if (port < 0 || port > 65535)
-			xo_errx(1, "invalid port number");
-		SET_PORT(port);
-		switch (*p) {
-		case '-':
-			++p;
-			break;
-		case ',':
-			++p;
-			/* fall through */
-		case '\0':
-		default:
-			continue;
-		}
-		for (q = p; *q != '\0' && isdigit(*q); ++q)
-			/* nothing */ ;
-		for (end = 0; p < q; ++p)
-			end = end * 10 + digittoint(*p);
-		if (end < port || end > 65535)
-			xo_errx(1, "invalid port number");
-		while (port++ < end)
-			SET_PORT(port);
-		if (*p == ',')
-			++p;
-	}
 }
 
 static void
@@ -1767,7 +1718,7 @@ main(int argc, char *argv[])
 	const char *pwdcmds[] = { "setpassent", "getpwuid" };
 	const char *pwdfields[] = { "pw_name" };
 	int protos_defined = -1;
-	int o, i;
+	int o, i, err;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
@@ -1817,7 +1768,15 @@ main(int argc, char *argv[])
 			opt_n = true;
 			break;
 		case 'p':
-			parse_ports(optarg);
+			err = parse_ports(optarg);
+			switch (err) {
+			case EINVAL:
+				xo_errx(1, "syntax error in port range");
+				break;
+			case ERANGE:
+				xo_errx(1, "invalid port number");
+				break;
+			}
 			break;
 		case 'P':
 			protos_defined = parse_protos(optarg);
