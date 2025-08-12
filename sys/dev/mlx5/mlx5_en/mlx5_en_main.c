@@ -2460,7 +2460,7 @@ mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	 */
 	if (priv->params.cqe_zipping_en) {
 		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_HASH);
-		MLX5_SET(cqc, cqc, cqe_compression_en, 1);
+		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
 	}
 
 	MLX5_SET(cqc, cqc, log_cq_size, priv->params.log_rq_size);

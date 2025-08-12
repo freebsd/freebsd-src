@@ -3482,7 +3482,7 @@ struct mlx5_ifc_cqc_bits {
 	u8         scqe_break_moderation_en[0x1];
 	u8         oi[0x1];
 	u8         cq_period_mode[0x2];
-	u8         cqe_compression_en[0x1];
+	u8         cqe_comp_en[0x1];
 	u8         mini_cqe_res_format[0x2];
 	u8         st[0x4];
 	u8         reserved_2[0x8];
