@@ -48,6 +48,32 @@ static struct ofw_compat_data compat_data[] =
         {{"mediatek,mt7622-pinctrl", 1},
          {NULL,                      0}};
 
+enum property_id {
+    BIAS_DISABLE,
+    BIAS_PULL_UP,
+    BIAS_PULL_DOWN,
+    INPUT_ENABLE,
+    INPUT_DISABLE,
+    OUTPUT_ENABLE,
+    OUTPUT_LOW,
+    OUTPUT_HIGH,
+    INPUT_SCHMITT_ENABLE,
+    INPUT_SCHMITT_DISABLE,
+
+    /* Drive strength options in mA */
+    DRIVE_STRENGTH_4MA,
+    DRIVE_STRENGTH_8MA,
+    DRIVE_STRENGTH_12MA,
+    DRIVE_STRENGTH_16MA,
+
+    /* Slew rate options */
+    SLEW_RATE_0,
+    SLEW_RATE_1,
+
+    PARAM_MAX
+};
+
+
 struct mt7622_pinmux_desc {
     const char *modes[8];
     bus_size_t reg_offset;
