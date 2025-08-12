@@ -763,6 +763,8 @@ static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_RCV_IFNOT, .off = _OUT(rcvifnot), .cb = nlattr_get_bool },
 	{ .type = PF_RT_PKTRATE, .off = _OUT(pktrate), .arg = &threshold_parser, .cb = nlattr_get_nested },
 	{ .type = PF_RT_MAX_PKT_SIZE, .off = _OUT(max_pkt_size), .cb = nlattr_get_uint16 },
+	{ .type = PF_RT_TYPE_2, .off = _OUT(type), .cb = nlattr_get_uint16 },
+	{ .type = PF_RT_CODE_2, .off = _OUT(code), .cb = nlattr_get_uint16 },
 };
 NL_DECLARE_ATTR_PARSER(rule_parser, nla_p_rule);
 #undef _OUT
@@ -984,8 +986,12 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u8(nw, PF_RT_AF, rule->af);
 	nlattr_add_u8(nw, PF_RT_NAF, rule->naf);
 	nlattr_add_u8(nw, PF_RT_PROTO, rule->proto);
+
 	nlattr_add_u8(nw, PF_RT_TYPE, rule->type);
 	nlattr_add_u8(nw, PF_RT_CODE, rule->code);
+	nlattr_add_u16(nw, PF_RT_TYPE_2, rule->type);
+	nlattr_add_u16(nw, PF_RT_CODE_2, rule->code);
+
 	nlattr_add_u8(nw, PF_RT_FLAGS, rule->flags);
 	nlattr_add_u8(nw, PF_RT_FLAGSET, rule->flagset);
 	nlattr_add_u8(nw, PF_RT_MIN_TTL, rule->min_ttl);
