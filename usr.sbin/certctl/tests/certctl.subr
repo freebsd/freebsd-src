@@ -1,0 +1,44 @@
+#
+# Copyright (c) 2025 Dag-Erling Smørgrav <des@FreeBSD.org>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+# Generate a random name
+rand_name() {
+	local length=${1:-32}
+
+	jot -r -c -s '' ${length} A Z
+}
+
+# Generate a subject for a given name
+subject() {
+	local crtname=$1
+
+	echo "/CN=${crtname}/O=FreeBSD/OU=Test/"
+}
+
+# Generate a key
+gen_key() {
+	local keyname=$1
+
+	env -i PATH="${PATH}" OPENSSL_CONF=/dev/null \
+	openssl genrsa -out ${keyname}.key
+}
+
+# Generate a certificate for a given name, key, and serial number
+gen_crt() {
+	local crtname=$1
+	local keyname=${2:-${crtname}}
+	local serial=${3:-1}
+
+	if ! [ -f "${keyname}".key ]; then
+		gen_key "${keyname}"
+	fi
+	env -i PATH="${PATH}" OPENSSL_CONF=/dev/null \
+	openssl req -x509 -new \
+	    -subj="$(subject ${crtname})" \
+	    -set_serial ${serial} \
+	    -key ${keyname}.key \
+	    -out ${crtname}.crt
+}
