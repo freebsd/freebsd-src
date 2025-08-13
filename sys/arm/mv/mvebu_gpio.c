@@ -804,12 +804,13 @@ mvebu_gpio_attach(device_t dev)
 		}
 	}
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		mvebu_gpio_detach(dev);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

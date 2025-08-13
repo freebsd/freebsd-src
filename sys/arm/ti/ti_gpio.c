@@ -674,12 +674,13 @@ ti_gpio_attach(device_t dev)
 		}
 	}
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		ti_gpio_detach(dev);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

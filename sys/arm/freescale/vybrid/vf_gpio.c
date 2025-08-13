@@ -147,13 +147,14 @@ vf_gpio_attach(device_t dev)
 		    "vf_gpio%d.%d", device_get_unit(dev), i);
 	}
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		bus_release_resources(dev, vf_gpio_spec, sc->res);
 		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

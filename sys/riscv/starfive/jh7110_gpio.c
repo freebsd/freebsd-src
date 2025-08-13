@@ -321,13 +321,14 @@ jh7110_gpio_attach(device_t dev)
 	JH7110_GPIO_WRITE(sc, GPIOE_1, 0);
 	JH7110_GPIO_WRITE(sc, GPIOEN, 1);
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		device_printf(dev, "Cannot attach gpiobus\n");
 		jh7110_gpio_detach(dev);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 
