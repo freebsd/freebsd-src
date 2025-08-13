@@ -28,6 +28,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250813:
+	Commit cce64f2e6851 changed the internal KAPI between the NFS
+	modules.  As such, all of them need to be rebuilt from sources.
+	__FreeBSD_version has been bumped to 1500060 already today,
+	 so I will not bump it again for this.
+
+20250813:
 	The gpiobus_attach_bus() function has been removed. Drivers should now
 	use the gpiobus_add_bus() function instead. The difference being that
 	gpiobus_add_bus() doesn't call bus_attach_children(), calling it will
