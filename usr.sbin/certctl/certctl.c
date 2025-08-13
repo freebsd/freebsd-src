@@ -387,7 +387,12 @@ write_certs(const char *dir, struct cert_tree *tree)
 	 * Open and scan the directory.
 	 */
 	if ((d = open(dir, O_DIRECTORY | O_RDONLY)) < 0 ||
-	    (ndents = fdscandir(d, &dents, NULL, lexisort)) < 0)
+#ifdef BOOTSTRAPPING
+	    (ndents = scandir(dir, &dents, NULL, lexisort))
+#else
+	    (ndents = fdscandir(d, &dents, NULL, lexisort))
+#endif
+	    < 0)
 		err(1, "%s", dir);
 	/*
 	 * Iterate over the directory listing and the certificate listing
