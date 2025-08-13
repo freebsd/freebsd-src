@@ -247,26 +247,6 @@ ci-extract-meta: .PHONY
 	@echo "Extracted kyua reports to ${META_DIROUT}"
 
 ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
-.if ${MACHINE} == "amd64" && ( ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" ) && ( !defined(USE_QEMU) || empty(USE_QEMU) )
-	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy || true
-	expect -c "set timeout ${TIMEOUT_EXPECT}; \
-		spawn /usr/bin/timeout -k 5s 30s /usr/sbin/bhyveload \
-		-c stdio -m ${VM_MEM_SIZE} -d ${CIDISK} ${TEST_VM_NAME}; \
-		expect { eof }; \
-		exit [lindex [wait] 3]"
-	expect -c "set timeout ${TIMEOUT_EXPECT}; \
-		spawn /usr/bin/timeout -k 60 ${TIMEOUT_VM} /usr/sbin/bhyve \
-		-c ${PARALLEL_JOBS} -m ${VM_MEM_SIZE} -A -H -P \
-		-s 0:0,hostbridge \
-		-s 1:0,lpc \
-		-s 2:0,virtio-blk,${CIDISK} \
-		-s 3:0,virtio-blk,${META_TAR} \
-		${BHYVE_EXTRA_DISK_PARAM} \
-		-l com1,stdio \
-		${TEST_VM_NAME}; \
-		expect { eof }"
-	/usr/sbin/bhyvectl --vm=${TEST_VM_NAME} --destroy
-.else
 	timeout -k 60 ${TIMEOUT_VM} ${QEMUBIN} \
 		-machine ${QEMU_MACHINE} \
 		-smp ${QEMU_CPU_COUNT} \
@@ -279,7 +259,6 @@ ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 		-blockdev driver=raw,node-name=hd0,file.driver=file,file.filename=${CIDISK} \
 		-blockdev driver=raw,node-name=hd1,file.driver=file,file.filename=${META_TAR} \
 		${QEMU_DEVICES}
-.endif
 
 ci-checktarget: .PHONY
 .if ${TARGET_ARCH} != "aarch64" && \
