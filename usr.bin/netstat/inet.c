@@ -904,7 +904,7 @@ void
 udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct udpstat udpstat;
-	uint64_t delivered;
+	uint64_t delivered, noportbmcast;
 
 #ifdef INET6
 	if (udp_done != 0)
@@ -937,8 +937,11 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/with no checksum}\n");
 	p1a(udps_noport, "{:dropped-no-socket/%ju} "
 	    "{N:/dropped due to no socket}\n");
-	p(udps_noportbcast, "{:dropped-broadcast-multicast/%ju} "
-	    "{N:/broadcast\\/multicast datagram%s undelivered}\n");
+	noportbmcast = udpstat.udps_noportmcast + udpstat.udps_noportbcast;
+	if (noportbmcast || sflag <= 1)
+		xo_emit("\t{:dropped-broadcast-multicast/%ju} "
+		    "{N:/broadcast\\/multicast datagram%s undelivered}\n",
+		    (uintmax_t)noportbmcast, plural(noportbmcast));
 	p1a(udps_fullsock, "{:dropped-full-socket-buffer/%ju} "
 	    "{N:/dropped due to full socket buffers}\n");
 	p1a(udpps_pcbhashmiss, "{:not-for-hashed-pcb/%ju} "
@@ -951,7 +954,7 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		    udpstat.udps_fullsock;
 	if (delivered || sflag <= 1)
 		xo_emit("\t{:delivered-packets/%ju} {N:/delivered}\n",
-		    delivered);
+		    (uintmax_t)delivered);
 	p(udps_opackets, "{:output-packets/%ju} {N:/datagram%s output}\n");
 	/* the next statistic is cumulative in udps_noportbcast */
 	p(udps_filtermcast, "{:multicast-source-filter-matches/%ju} "
