@@ -87,6 +87,7 @@ struct	nfsmount {
 					/* unclipped, wraps to 0 */
 	struct __rpc_client *nm_aconn[NFS_MAXNCONN - 1]; /* Additional nconn */
 					/* Locked via nm_sockreq.nr_mtx */
+	uint32_t nm_cloneblksize;	/* Block cloning alignment */
 	u_int16_t nm_krbnamelen;	/* Krb5 host principal, if any */
 	u_int16_t nm_dirpathlen;	/* and mount dirpath, for V4 */
 	u_int16_t nm_srvkrbnamelen;	/* and the server's target name */
