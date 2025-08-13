@@ -122,7 +122,20 @@ enum ieee80211_rate_control_changed_flags {
 /* 802.11-2016, 9.4.2.158.3 Supported VHT-MCS and NSS Set field. */
 #define	IEEE80211_VHT_EXT_NSS_BW_CAPABLE	(1 << 13)	/* part of tx_highest */
 
-#define	IEEE80211_VHT_MAX_AMPDU_1024K		7	/* 9.4.2.56.3 A-MPDU Parameters field, Table 9-163 */
+/*
+ * 802.11-2020, 9.4.2.157.2 VHT Capabilities Information field,
+ * Table 9-271-Subfields of the VHT Capabilities Information field (continued).
+ */
+enum ieee80211_vht_max_ampdu_len_exp {
+	IEEE80211_VHT_MAX_AMPDU_8K		= 0,
+	IEEE80211_VHT_MAX_AMPDU_16K		= 1,
+	IEEE80211_VHT_MAX_AMPDU_32K		= 2,
+	IEEE80211_VHT_MAX_AMPDU_64K		= 3,
+	IEEE80211_VHT_MAX_AMPDU_128K		= 4,
+	IEEE80211_VHT_MAX_AMPDU_256K		= 5,
+	IEEE80211_VHT_MAX_AMPDU_512K		= 6,
+	IEEE80211_VHT_MAX_AMPDU_1024K		= 7,
+};
 
 #define	IEEE80211_WEP_IV_LEN			3	/* net80211: IEEE80211_WEP_IVLEN */
 #define	IEEE80211_WEP_ICV_LEN			4
