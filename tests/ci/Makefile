@@ -152,7 +152,7 @@ portinstall-pkg: .PHONY
 .endif
 
 portinstall-qemu: portinstall-pkg .PHONY
-.if !exists(/usr/local/bin/qemu-${QEMU_ARCH}-static)
+.if !empty(QEMUSTATIC) && !exists(${QEMUSTATIC})
 	env ASSUME_ALWAYS_YES=yes pkg install emulators/qemu-user-static
 .endif
 .if !exists(${QEMUBIN})
