@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250813:
+	The gpiobus_attach_bus() function has been removed. Drivers should now
+	use the gpiobus_add_bus() function instead. The difference being that
+	gpiobus_add_bus() doesn't call bus_attach_children(), calling it will
+	be the responsibility of the caller now.
+
 20250810:
 	Support for Secure RPC DES authentication has been removed.
 	The keyserv(8) daemon was already removed, but support for it in libc
