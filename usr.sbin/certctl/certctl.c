@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <sys/sysctl.h>
 #include <sys/stat.h>
 #include <sys/tree.h>
 
@@ -13,6 +12,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <libgen.h>
+#include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -20,6 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <openssl/err.h>
 #include <openssl/ssl.h>
 
 #define info(fmt, ...)							\
@@ -58,6 +60,7 @@ static void usage(void);
 static bool dryrun;
 static bool longnames;
 static bool nobundle;
+static bool nohash;
 static bool unprivileged;
 static bool verbose;
 
@@ -381,14 +384,58 @@ write_certs(const char *dir, struct cert_tree *tree)
 		if (file->c == INT_MAX)
 			errx(1, "unable to disambiguate %08lx", cert->hash);
 		free(cert->path);
-		cert->path = xasprintf("%08lx.%d", cert->hash, file->c);
+		if (nohash) {
+			X509_NAME *xn;
+			X509_NAME_ENTRY *xe;
+			ASN1_STRING *as;
+			unsigned char *us = NULL;
+			int xi, usl;
+
+			xn = X509_get_subject_name(cert->x509);
+			xi = X509_NAME_get_index_by_NID(xn, NID_commonName, -1);
+			if (xi < 0) {
+				warnx("%08lx.%d: certificate has no CN",
+				    cert->hash, file->c);
+				xi = X509_NAME_get_index_by_NID(xn,
+				    NID_organizationalUnitName, -1);
+			}
+			if (xi < 0) {
+				warnx("%08lx.%d: certificate has no OU",
+				    cert->hash, file->c);
+				xi = X509_NAME_get_index_by_NID(xn,
+				    NID_organizationName, -1);
+			}
+			if (xi < 0) {
+				warnx("%08lx.%d: certificate has no O",
+				    cert->hash, file->c);
+				cert->path = xasprintf("%08lx.%d", cert->hash,
+				    file->c);
+			}
+			xe = X509_NAME_get_entry(xn, xi);
+			as = X509_NAME_ENTRY_get_data(xe);
+			usl = ASN1_STRING_to_UTF8(&us, as);
+			if (usl < 0) {
+				errx(1, "%08lx.%d: %s", cert->hash, file->c,
+				    ERR_error_string(ERR_get_error(), NULL));
+			}
+			cert->path = xasprintf("%s.pem", (char *)us);
+			OPENSSL_free(us);
+		} else {
+			cert->path = xasprintf("%08lx.%d", cert->hash, file->c);
+		}
 	}
 	/*
 	 * Open and scan the directory.
 	 */
 	if ((d = open(dir, O_DIRECTORY | O_RDONLY)) < 0 ||
-	    (ndents = fdscandir(d, &dents, NULL, lexisort)) < 0)
+#ifdef BOOTSTRAPPING
+	    (ndents = scandir(dir, &dents, NULL, lexisort))
+#else
+	    (ndents = fdscandir(d, &dents, NULL, lexisort))
+#endif
+	    < 0)
 		err(1, "%s", dir);
+
 	/*
 	 * Iterate over the directory listing and the certificate listing
 	 * in parallel.  If the directory listing gets ahead of the
@@ -598,7 +645,7 @@ load_trusted(bool all, struct cert_tree *exclude)
  * Returns the number of certificates loaded.
  */
 static unsigned int
-load_untrusted(bool all)
+load_untrusted(bool all, struct cert_tree *exclude)
 {
 	char *path;
 	unsigned int i, n;
@@ -606,19 +653,19 @@ load_untrusted(bool all)
 
 	/* load external untrusted certs */
 	for (i = n = 0; all && untrusted_paths[i] != NULL; i++) {
-		ret = read_certs(untrusted_paths[i], &untrusted, NULL);
+		ret = read_certs(untrusted_paths[i], &untrusted, exclude);
 		if (ret > 0)
 			n += ret;
 	}
 
 	/* load installed untrusted certs */
-	ret = read_certs(untrusted_dest, &untrusted, NULL);
+	ret = read_certs(untrusted_dest, &untrusted, exclude);
 	if (ret > 0)
 		n += ret;
 
 	/* load legacy untrusted certs */
 	path = expand_path(LEGACY_PATH);
-	ret = read_certs(path, &untrusted, NULL);
+	ret = read_certs(path, &untrusted, exclude);
 	if (ret > 0) {
 		warnx("certificates found in legacy directory %s",
 		    path);
@@ -748,7 +795,7 @@ certctl_untrusted(int argc, char **argv __unused)
 	if (argc > 1)
 		usage();
 	/* load untrusted certificates */
-	load_untrusted(false);
+	load_untrusted(false, NULL);
 	/* list them */
 	list_certs(&untrusted);
 	free_certs(&untrusted);
@@ -775,7 +822,7 @@ certctl_rehash(int argc, char **argv __unused)
 	}
 
 	/* load untrusted certs first */
-	load_untrusted(true);
+	load_untrusted(true, NULL);
 
 	/* load trusted certs, excluding any that are already untrusted */
 	load_trusted(true, &untrusted);
@@ -808,7 +855,7 @@ certctl_trust(int argc, char **argv)
 		usage();
 
 	/* load untrusted certs first */
-	load_untrusted(true);
+	load_untrusted(true, NULL);
 
 	/* load trusted certs, excluding any that are already untrusted */
 	load_trusted(true, &untrusted);
@@ -869,7 +916,7 @@ certctl_untrust(int argc, char **argv)
 		usage();
 
 	/* load untrusted certs first */
-	load_untrusted(true);
+	load_untrusted(true, NULL);
 
 	/* now load the additional untrusted certificates */
 	n = 0;
@@ -900,22 +947,10 @@ static void
 set_defaults(void)
 {
 	const char *value;
-	char *str;
-	size_t len;
 
 	if (localbase == NULL &&
-	    (localbase = getenv("LOCALBASE")) == NULL) {
-		if ((str = malloc((len = PATH_MAX) + 1)) == NULL)
-			err(1, NULL);
-		while (sysctlbyname("user.localbase", str, &len, NULL, 0) < 0) {
-			if (errno != ENOMEM)
-				err(1, "sysctl(user.localbase)");
-			if ((str = realloc(str, len + 1)) == NULL)
-				err(1, NULL);
-		}
-		str[len] = '\0';
-		localbase = str;
-	}
+	    (localbase = getenv("LOCALBASE")) == NULL)
+		localbase = getlocalbase();
 
 	if (destdir == NULL &&
 	    (destdir = getenv("DESTDIR")) == NULL)
@@ -984,7 +1019,7 @@ usage(void)
 {
 	fprintf(stderr, "usage: certctl [-lv] [-D destdir] list\n"
 	    "       certctl [-lv] [-D destdir] untrusted\n"
-	    "       certctl [-BnUv] [-D destdir] [-M metalog] rehash\n"
+	    "       certctl [-BNnUv] [-D destdir] [-M metalog] rehash\n"
 	    "       certctl [-nv] [-D destdir] untrust <file>\n"
 	    "       certctl [-nv] [-D destdir] trust <file>\n");
 	exit(1);
@@ -996,7 +1031,7 @@ main(int argc, char *argv[])
 	const char *command;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "BcD:g:lL:M:no:Uv")) != -1)
+	while ((opt = getopt(argc, argv, "BcD:g:lL:M:Nno:Uv")) != -1)
 		switch (opt) {
 		case 'B':
 			nobundle = true;
@@ -1018,6 +1053,9 @@ main(int argc, char *argv[])
 			break;
 		case 'M':
 			metalog = optarg;
+			break;
+		case 'N':
+			nohash = true;
 			break;
 		case 'n':
 			dryrun = true;
@@ -1043,7 +1081,7 @@ main(int argc, char *argv[])
 
 	command = *argv;
 
-	if ((nobundle || unprivileged || metalog != NULL) &&
+	if ((nobundle || nohash || unprivileged || metalog != NULL) &&
 	    strcmp(command, "rehash") != 0)
 		usage();
 	if (!unprivileged && metalog != NULL) {

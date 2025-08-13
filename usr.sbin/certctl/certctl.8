@@ -38,7 +38,7 @@
 .Op Fl lv
 .Ic untrusted
 .Nm
-.Op Fl BnUv
+.Op Fl BNnUv
 .Op Fl D Ar destdir
 .Op Fl M Ar metalog
 .Ic rehash
@@ -72,6 +72,11 @@ Specify the path of the METALOG file
 default:
 .Pa ${DESTDIR}/METALOG
 .Pc .
+This option is only valid in conjunction with the
+.Ic rehash
+command.
+.It Fl N
+Base the file name on the certificate's name instead of its hash.
 This option is only valid in conjunction with the
 .Ic rehash
 command.
