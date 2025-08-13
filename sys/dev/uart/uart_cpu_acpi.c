@@ -58,14 +58,6 @@ uart_cpu_acpi_scan(uint8_t interface_type)
 		}
 	}
 
-	SET_FOREACH(cd, uart_acpi_class_set) {
-		curcd = *cd;
-		for (i = 0; curcd[i].cd_hid != NULL; i++) {
-			if (curcd[i].cd_port_subtype == interface_type)
-				return (&curcd[i]);
-		}
-	}
-
 	return (NULL);
 }
 
