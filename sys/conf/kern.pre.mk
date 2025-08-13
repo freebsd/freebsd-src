@@ -343,7 +343,7 @@ MLXFW_C=	${OFED_C_NOIMP} \
 
 # IP Filter
 IPFILTER_CFLAGS=	-I$S/netpfil/ipfilter
-IPFILTER_C=		${NORMAL_C} ${IPFILTER_CFLAGS}
+IPFILTER_C=		${NORMAL_C} -Wno-unused ${IPFILTER_CFLAGS}
 
 GEN_CFILES= $S/$M/$M/genassym.c ${MFILES:T:S/.m$/.c/}
 SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
