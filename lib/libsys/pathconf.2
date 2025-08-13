@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 5, 2025
+.Dd August 6, 2025
 .Dt PATHCONF 2
 .Os
 .Sh NAME
@@ -187,6 +187,11 @@ and
 flags can be set by
 .Xr chflags 2 ,
 otherwise 0.
+.It Li _PC_CLONE_BLKSIZE
+Returns the block size required for block cloning via
+.Xr copy_file_range 2
+for a file system if block cloning is supported,
+otherwise 0.
 .El
 .Sh RETURN VALUES
 If the call to
@@ -264,6 +269,7 @@ Corrupted data was detected while reading from the file system.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,
+.Xr copy_file_range 2 ,
 .Xr lseek 2 ,
 .Xr sysctl 3
 .Sh HISTORY
