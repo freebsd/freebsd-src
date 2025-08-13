@@ -66,4 +66,6 @@ str_enable_disable(bool value)
 		return "disable";
 }
 
+#define	str_disable_enable(_v)		str_enable_disable(!(_v))
+
 #endif
