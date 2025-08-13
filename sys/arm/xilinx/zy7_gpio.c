@@ -441,12 +441,13 @@ zy7_gpio_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		zy7_gpio_detach(dev);
 		return (ENOMEM);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

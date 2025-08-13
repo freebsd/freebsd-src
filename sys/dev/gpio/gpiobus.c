@@ -330,24 +330,6 @@ gpiobus_add_bus(device_t dev)
 	return (busdev);
 }
 
-/*
- * Attach a gpiobus child.
- * Note that the controller is expected
- * to be fully initialized at this point.
- */
-device_t
-gpiobus_attach_bus(device_t dev)
-{
-	device_t busdev;
-
-	busdev = gpiobus_add_bus(dev);
-	if (busdev == NULL)
-		return (NULL);
-
-	bus_attach_children(dev);
-	return (busdev);
-}
-
 int
 gpiobus_detach_bus(device_t dev)
 {

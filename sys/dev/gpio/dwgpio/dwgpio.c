@@ -167,12 +167,13 @@ dwgpio_attach(device_t dev)
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
 		    "dwgpio%d.%d", device_get_unit(dev), i);
 	}
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

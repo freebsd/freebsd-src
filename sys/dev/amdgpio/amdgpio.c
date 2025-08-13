@@ -408,12 +408,13 @@ amdgpio_attach(device_t dev)
 		    GPIO_PIN_OUTPUT : GPIO_PIN_INPUT;
 	}
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		device_printf(dev, "could not attach gpiobus\n");
 		goto err_bus;
 	}
 
+	bus_attach_children(dev);
 	return (0);
 
 err_bus:
