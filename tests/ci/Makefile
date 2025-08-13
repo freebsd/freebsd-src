@@ -196,12 +196,6 @@ ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
 		-S ${WORLDDIR} -o ${CIDISK} -c ${CICONF} ${LOG_TARGET}
 	touch ${.TARGET}
 
-ci-set-smoke-var: .PHONY
-CITYPE=smoke
-
-ci-set-full-var: .PHONY
-CITYPE=full
-
 ci-get-env: .PHONY
 	@echo "TARGET=${TARGET}" > ${ENV_FILE}
 	@echo "TARGET_ARCH=${TARGET_ARCH}" >> ${ENV_FILE}
@@ -299,10 +293,6 @@ ci-checktarget: .PHONY
 	@echo "Error: ${TARGET_ARCH} is not supported on ${TYPE} ${REVISION} ${BRANCH}"
 .endif
 
-ci-smoke: ci-set-smoke-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .PHONY
-
-ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
-
-ci: ci-${CITYPE:tl} .PHONY
+ci: ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
 
 .include "${RELEASEDIR}/Makefile.inc1"
