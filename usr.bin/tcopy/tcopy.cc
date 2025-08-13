@@ -710,7 +710,7 @@ main(int argc, char *argv[])
 	int ch;
 	unsigned long maxphys = 0;
 	size_t l_maxphys = sizeof maxphys;
-	uint64_t tmp;
+	int64_t tmp;
 	int rawfile = 0;
 
 	setbuf(stderr, NULL);
@@ -738,11 +738,11 @@ main(int argc, char *argv[])
 				warnx("illegal block size");
 				usage();
 			}
-			maxblk = tmp;
-			if (maxblk == 0) {
+			if (maxblk <= 0) {
 				warnx("illegal block size");
 				usage();
 			}
+			maxblk = tmp;
 			break;
 		case 'v':
 			op = VERIFY;
