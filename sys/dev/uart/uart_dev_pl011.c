@@ -391,6 +391,14 @@ UART_FDT_CLASS_AND_DEVICE(fdt_compat_data);
 #endif
 
 #ifdef DEV_ACPI
+static struct acpi_spcr_compat_data acpi_spcr_compat_data[] = {
+	{ &uart_pl011_class, ACPI_DBG2_ARM_PL011 },
+	{ &uart_pl011_class, ACPI_DBG2_ARM_SBSA_GENERIC },
+	{ &uart_pl011_class, ACPI_DBG2_ARM_SBSA_32BIT },
+	{ NULL, 0 },
+};
+UART_ACPI_SPCR_CLASS(acpi_spcr_compat_data);
+
 static struct acpi_uart_compat_data acpi_compat_data[] = {
 	{"ARMH0011", &uart_pl011_class, ACPI_DBG2_ARM_PL011, 2, 0, 0, 0, "uart pl011"},
 	{"ARMHB000", &uart_pl011_class, ACPI_DBG2_ARM_SBSA_GENERIC, 2, 0, 0, 0, "uart pl011"},

@@ -35,6 +35,14 @@
 
 struct uart_class;
 
+struct acpi_spcr_compat_data {
+	struct uart_class *cd_class;
+	uint16_t cd_port_subtype;
+};
+SET_DECLARE(uart_acpi_spcr_class_set, struct acpi_spcr_compat_data);
+#define	UART_ACPI_SPCR_CLASS(data)					\
+	DATA_SET(uart_acpi_spcr_class_set, data)
+
 struct acpi_uart_compat_data {
 	const char *cd_hid;
 	struct uart_class *cd_class;

@@ -492,6 +492,13 @@ UART_CLASS(uart_ns8250_class);
  * XXX -- refactor out ACPI and FDT ifdefs
  */
 #ifdef DEV_ACPI
+static struct acpi_spcr_compat_data acpi_spcr_compat_data[] = {
+	{ &uart_ns8250_class, ACPI_DBG2_16550_COMPATIBLE },
+	{ &uart_ns8250_class, ACPI_DBG2_16550_SUBSET },
+	{ NULL, 0 },
+};
+UART_ACPI_SPCR_CLASS(acpi_spcr_compat_data);
+
 static struct acpi_uart_compat_data acpi_compat_data[] = {
 	{"AMD0020",	&uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
 	{"AMDI0020", &uart_ns8250_class, 0, 2, 0, 48000000, UART_F_BUSY_DETECT, "AMD / Synopsys Designware UART"},
