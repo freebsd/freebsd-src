@@ -442,10 +442,13 @@
 /* Do a NFSv4 Openattr. */
 #define	NFSPROC_OPENATTR	70
 
+/* Do a NFSv4.2 Clone. */
+#define	NFSPROC_CLONE		71
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		71
+#define	NFSV42_NPROCS		72
 
 /* Value of NFSV42_NPROCS for old nfsstats structure. (Always 69) */
 #define	NFSV42_OLDNPROCS	69
@@ -477,7 +480,7 @@ struct nfsstatsv1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV42_NPROCS + 9];
+	uint64_t	rpccnt[NFSV42_NPROCS + 8];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
 	uint64_t	srvlayouts;
