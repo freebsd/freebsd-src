@@ -195,21 +195,19 @@ ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
 		-S ${WORLDDIR} -o ${CIDISK} -c ${CICONF} ${LOG_TARGET}
 	touch ${.TARGET}
 
-ci-set-smoke-var: .PHONY
-CITYPE=smoke
-
-ci-set-full-var: .PHONY
-CITYPE=full
-
 ci-create-meta: .PHONY
 	truncate -s 512M ${META_TAR}
 	tar rvf ${META_TAR} -C ${META_DIR} .
 
 ci-extract-meta: .PHONY
+.if ${CITYPE:tl} == "full"
 	tar xfv ${META_TAR} -C ${META_DIROUT}
 	rm -rf ${META_TAR} ${META_DIR}
 	chmod 0755 ${META_DIROUT}
 	@echo "Extracted kyua reports to ${META_DIROUT}"
+.else
+	rm -rf ${META_TAR} ${META_DIR} ${META_DIROUT}
+.endif
 
 ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 .if ${MACHINE} == "amd64" && ( ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" ) && ( !defined(USE_QEMU) || empty(USE_QEMU) )
@@ -258,10 +256,6 @@ ci-checktarget: .PHONY
 	@echo "Error: ${TARGET_ARCH} is not supported on ${TYPE} ${REVISION} ${BRANCH}"
 .endif
 
-ci-smoke: ci-set-smoke-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .PHONY
-
-ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
-
-ci: ci-${CITYPE:tl} .PHONY
+ci: ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
 
 .include "${RELEASEDIR}/Makefile.inc1"
