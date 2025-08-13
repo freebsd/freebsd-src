@@ -134,7 +134,7 @@ KLDFILEMONISLOADED!=kldload -q -n filemon 2>/dev/null && echo "1" || echo "0"
 METAMODE?=-DWITH_META_MODE
 .endif
 
-CLEANFILES+=	${.OBJDIR}/${CIIMAGE} ${.OBJDIR}/ci.img ${META_TAR}
+CLEANFILES+=	${CIDISK} ${.OBJDIR}/ci.img ${META_TAR}
 IMAGEDIR=	${.OBJDIR}/ci-buildimage
 CLEANDIRS+=	${IMAGEDIR}
 
@@ -190,7 +190,7 @@ ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
 		${RELEASEDIR}/scripts/mk-vmimage.sh \
 		-C ${RELEASEDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${VMFS} \
 		-i ${.OBJDIR}/ci.img -s ${VMSIZE} -f ${FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${CIIMAGE} -c ${CICONF} \
+		-S ${WORLDDIR} -o ${CIDISK} -c ${CICONF} \
 		> ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
 		(echo "${.TARGET} failed, check _.${TARGET_ARCH}.${.TARGET} for details" ; false)
 	touch ${.TARGET}
