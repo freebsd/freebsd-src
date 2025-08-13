@@ -7667,8 +7667,8 @@ linuxkpi_ieee80211_queue_work(struct ieee80211_hw *hw,
 }
 
 struct sk_buff *
-linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *hw, uint8_t *addr,
-    uint8_t *ssid, size_t ssid_len, size_t tailroom)
+linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *hw, const uint8_t *addr,
+    const uint8_t *ssid, size_t ssid_len, size_t tailroom)
 {
 	struct sk_buff *skb;
 	struct ieee80211_frame *wh;
