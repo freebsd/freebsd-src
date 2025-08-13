@@ -47,7 +47,6 @@ struct acpi_uart_compat_data {
 	const char *cd_hid;
 	struct uart_class *cd_class;
 
-	uint16_t cd_port_subtype;
 	int cd_regshft;
 	int cd_regiowidth;
 	int cd_rclk;
