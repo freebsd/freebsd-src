@@ -57,12 +57,16 @@ struct ktest_test_info {
 	ktest_parse_t	parse;
 };
 
+#define KTEST_FUNC(X) static int test_hpts_##X(struct ktest_test_context *ctx)
+
 struct ktest_module_info {
 	const char			*name;
 	const struct ktest_test_info	*tests;
 	int				num_tests;
 	void				*module_ptr;
 };
+
+#define KTEST_INFO(X) { "test_hpts_" #X, "Test " #X, test_hpts_##X, NULL }
 
 int ktest_default_modevent(module_t mod, int type, void *arg);
 
@@ -83,6 +87,9 @@ void ktest_end_msg(struct ktest_test_context *ctx);
 
 #define	KTEST_LOG(_ctx, _fmt, ...)					\
 	KTEST_LOG_LEVEL(_ctx, LOG_DEBUG, _fmt, ## __VA_ARGS__)
+
+#define	KTEST_ERR(_ctx, _fmt, ...)	\
+	KTEST_LOG_LEVEL(_ctx, LOG_ERR, _fmt, ## __VA_ARGS__)
 
 #define KTEST_MAX_BUF	512
 

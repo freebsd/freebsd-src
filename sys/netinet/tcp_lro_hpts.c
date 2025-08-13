@@ -62,6 +62,7 @@
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_hpts_internal.h>
 #ifdef TCP_BLACKBOX
 #include <netinet/tcp_log_buf.h>
 #endif

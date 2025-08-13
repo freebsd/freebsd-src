@@ -35,17 +35,13 @@
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#define	_WANT_INPCB
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_seq.h>
-#define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_hpts_internal.h>
 #include <dev/tcp_log/tcp_log_dev.h>
 #include <netinet/tcp_log_buf.h>
-
-#define	KTEST_ERR(_ctx, _fmt, ...)	\
-	KTEST_LOG_LEVEL(_ctx, LOG_ERR, _fmt, ## __VA_ARGS__)
 
 #define KTEST_VERIFY(x) do { \
 	if (!(x)) { \
@@ -56,20 +52,67 @@
 	} \
 } while (0)
 
-static int
-test_hpts_init(struct ktest_test_context *ctx)
+/*
+ * Validates that the HPTS module is properly loaded and initialized by checking
+ * that the minimum HPTS time is configured.
+ */
+KTEST_FUNC(module_load)
 {
-	/* TODO: Refactor HPTS code so that it may be tested. */
 	KTEST_VERIFY(tcp_min_hptsi_time != 0);
+	KTEST_VERIFY(tcp_bind_threads >= 0 && tcp_bind_threads <= 2);
+	return (0);
+}
+
+/*
+ * Validates the creation and destruction of tcp_hptsi structures, ensuring
+ * proper initialization of internal fields and clean destruction.
+ */
+KTEST_FUNC(hptsi_create_destroy)
+{
+	struct tcp_hptsi *pace;
+
+	/* Allocate structure dynamically due to large size */
+	pace = malloc(sizeof(struct tcp_hptsi), M_TEMP, M_WAITOK);
+
+	tcp_hptsi_create(pace, false);
+	KTEST_VERIFY(pace->rp_ent != NULL);
+	KTEST_VERIFY(pace->cts_last_ran != NULL);
+	KTEST_VERIFY(pace->rp_num_hptss > 0);
+	tcp_hptsi_destroy(pace);
+
+	free(pace, M_TEMP);
+	return (0);
+}
+
+/*
+ * Validates that tcp_hptsi structures can be started and stopped properly,
+ * including verification that threads are created during start and cleaned up
+ * during stop operations.
+ */
+KTEST_FUNC(hptsi_start_stop)
+{
+	struct tcp_hptsi *pace;
+
+	pace = malloc(sizeof(struct tcp_hptsi), M_TEMP, M_WAITOK);
+
+	tcp_hptsi_create(pace, false);
+	tcp_hptsi_start(pace);
+
+	/* Verify that entries have threads started */
+	struct tcp_hpts_entry *hpts = pace->rp_ent[0];
+	KTEST_VERIFY(hpts->ie_cookie != NULL);  /* Should have SWI handler */
+
+	tcp_hptsi_stop(pace);
+	tcp_hptsi_destroy(pace);
+
+	free(pace, M_TEMP);
 	return (0);
 }
 
 static const struct ktest_test_info tests[] = {
-	{
-		.name = "test_hpts_init",
-		.desc = "Tests HPTS initialization and cleanup",
-		.func = &test_hpts_init,
-	},
+	KTEST_INFO(module_load),
+	KTEST_INFO(hptsi_create_destroy),
+	KTEST_INFO(hptsi_start_stop),
 };
 
 KTEST_MODULE_DECLARE(ktest_tcphpts, tests);
