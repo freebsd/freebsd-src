@@ -387,7 +387,7 @@ file_set::file_mark(void)
 
 	int i = ftruncate(fd, where);
 	if (i < 0)
-		errx(17, "truncate error, %s to %zd", name, where);
+		errx(17, "truncate error, %s to %jd", name, (intmax_t)where);
 	assert(close(fd) >= 0);
 	fd = -1;
 }
