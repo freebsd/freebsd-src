@@ -101,7 +101,7 @@ sysctl_net_inet_tcp_nolocaltimewait(SYSCTL_HANDLER_ARGS)
 	if (error == 0 && req->newptr) {
 		V_nolocaltimewait = new;
 		gone_in(16, "net.inet.tcp.nolocaltimewait is obsolete."
-		    " Use net.inet.tcp.local_msl instead.\n");
+		    " Use net.inet.tcp.msl_local instead.\n");
 	}
 	return (error);
 }
