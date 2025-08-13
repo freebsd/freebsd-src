@@ -1021,8 +1021,7 @@ IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
 
 .if make(distributeworld)
-CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
-CERTCTLFLAGS+=	-d /base
+CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}/base
 .else
 CERTCTLDESTDIR=	${DESTDIR}
 .endif
@@ -1541,14 +1540,10 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .endif # make(distributeworld)
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
-.if !make(packageworld) && ${MK_CAROOT} != "no"
-	@if which openssl>/dev/null; then \
-		PATH=${TMPPATH:Q}:${PATH:Q} \
-		LOCALBASE=${LOCALBASE:Q} \
-		    sh ${SRCTOP}/usr.sbin/certctl/certctl.sh ${CERTCTLFLAGS} rehash; \
-	else \
-		echo "No openssl on the host, not rehashing certificates target -- /etc/ssl may not be populated."; \
-	fi
+.if !make(packageworld) && ${MK_CAROOT} != "no" && ${MK_OPENSSL} != "no"
+	PATH=${TMPPATH:Q}:${PATH:Q} \
+	LOCALBASE=${LOCALBASE:Q} \
+	    certctl ${CERTCTLFLAGS} rehash
 .endif
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
@@ -2712,6 +2707,11 @@ _basic_bootstrap_tools+=sbin/md5
 _basic_bootstrap_tools+=usr.sbin/tzsetup
 .endif
 
+# certctl is needed as an install tool
+.if ${MK_CAROOT} != "no" && ${MK_OPENSSL} != "no"
+_certctl=usr.sbin/certctl
+.endif
+
 .if defined(BOOTSTRAP_ALL_TOOLS)
 _other_bootstrap_tools+=${_basic_bootstrap_tools}
 .for _subdir _links in ${_basic_bootstrap_tools_multilink}
@@ -2775,6 +2775,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_strfile} \
     usr.bin/dtc \
     ${_cat} \
+    ${_certctl} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
     ${_libkldelf} \
