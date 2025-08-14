@@ -3,7 +3,6 @@
 MLX5_1.0 {
 	global:
 		mlx5dv_query_device;
-		mlx5dv_init_obj;
 	local: *;
 };
 
@@ -11,3 +10,8 @@ MLX5_1.1 {
 	global:
 		mlx5dv_create_cq;
 } MLX5_1.0;
+
+MLX5_1.2 {
+	global:
+		mlx5dv_init_obj;
+} MLX5_1.1;
