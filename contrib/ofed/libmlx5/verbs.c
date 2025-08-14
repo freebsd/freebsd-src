@@ -2122,6 +2122,7 @@ int mlx5_query_device_ex(struct ibv_context *context,
 
 	mctx->cqe_comp_caps = resp.cqe_comp_caps;
 	mctx->sw_parsing_caps = resp.sw_parsing_caps;
+	mctx->striding_rq_caps = resp.striding_rq_caps.caps;
 
 	major     = (raw_fw_ver >> 32) & 0xffff;
 	minor     = (raw_fw_ver >> 16) & 0xffff;

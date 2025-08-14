@@ -273,6 +273,7 @@ struct mlx5_context {
 	struct mlx5dv_cqe_comp_caps	cqe_comp_caps;
 	struct mlx5dv_ctx_allocators	extern_alloc;
 	struct mlx5dv_sw_parsing_caps	sw_parsing_caps;
+	struct mlx5dv_striding_rq_caps	striding_rq_caps;
 };
 
 struct mlx5_bitmap {

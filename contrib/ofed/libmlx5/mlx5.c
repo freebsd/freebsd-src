@@ -666,6 +666,12 @@ int mlx5dv_query_device(struct ibv_context *ctx_in,
 		comp_mask_out |= MLX5DV_CONTEXT_MASK_SWP;
 	}
 
+	if (attrs_out->comp_mask & MLX5DV_CONTEXT_MASK_STRIDING_RQ) {
+		attrs_out->striding_rq_caps = mctx->striding_rq_caps;
+		comp_mask_out |= MLX5DV_CONTEXT_MASK_STRIDING_RQ;
+	}
+
+
 	attrs_out->comp_mask = comp_mask_out;
 
 	return 0;

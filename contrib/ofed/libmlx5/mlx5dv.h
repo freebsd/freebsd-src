@@ -59,7 +59,8 @@ enum {
 enum mlx5dv_context_comp_mask {
 	MLX5DV_CONTEXT_MASK_CQE_COMPRESION	= 1 << 0,
 	MLX5DV_CONTEXT_MASK_SWP			= 1 << 1,
-	MLX5DV_CONTEXT_MASK_RESERVED		= 1 << 2,
+	MLX5DV_CONTEXT_MASK_STRIDING_RQ		= 1 << 2,
+	MLX5DV_CONTEXT_MASK_RESERVED		= 1 << 3,
 };
 
 struct mlx5dv_cqe_comp_caps {
@@ -72,6 +73,14 @@ struct mlx5dv_sw_parsing_caps {
 	uint32_t supported_qpts;
 };
 
+struct mlx5dv_striding_rq_caps {
+	uint32_t min_single_stride_log_num_of_bytes;
+	uint32_t max_single_stride_log_num_of_bytes;
+	uint32_t min_single_wqe_log_num_of_strides;
+	uint32_t max_single_wqe_log_num_of_strides;
+	uint32_t supported_qpts;
+};
+
 /*
  * Direct verbs device-specific attributes
  */
@@ -81,6 +90,7 @@ struct mlx5dv_context {
 	uint64_t	comp_mask;
 	struct mlx5dv_cqe_comp_caps	cqe_comp_caps;
 	struct mlx5dv_sw_parsing_caps sw_parsing_caps;
+	struct mlx5dv_striding_rq_caps striding_rq_caps;
 };
 
 enum mlx5dv_context_flags {
