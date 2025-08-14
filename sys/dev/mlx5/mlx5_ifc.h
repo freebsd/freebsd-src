@@ -1765,8 +1765,7 @@ struct mlx5_ifc_tls_capabilities_bits {
 enum {
 	MLX5_WQ_TYPE_LINKED_LIST                 = 0x0,
 	MLX5_WQ_TYPE_CYCLIC                      = 0x1,
-	MLX5_WQ_TYPE_STRQ_LINKED_LIST            = 0x2,
-	MLX5_WQ_TYPE_STRQ_CYCLIC                 = 0x3,
+	MLX5_WQ_TYPE_CYCLIC_STRIDING_RQ          = 0x3,
 };
 
 enum rq_type {
