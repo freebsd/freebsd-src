@@ -259,6 +259,12 @@ vm_fault_unlock_vp(struct faultstate *fs)
 	}
 }
 
+static bool
+vm_fault_might_be_cow(struct faultstate *fs)
+{
+	return (fs->object != fs->first_object);
+}
+
 static void
 vm_fault_deallocate(struct faultstate *fs)
 {
@@ -266,7 +272,7 @@ vm_fault_deallocate(struct faultstate *fs)
 	vm_fault_page_release(&fs->m_cow);
 	vm_fault_page_release(&fs->m);
 	vm_object_pip_wakeup(fs->object);
-	if (fs->object != fs->first_object) {
+	if (vm_fault_might_be_cow(fs)) {
 		VM_OBJECT_WLOCK(fs->first_object);
 		vm_fault_page_free(&fs->first_m);
 		VM_OBJECT_WUNLOCK(fs->first_object);
@@ -990,7 +996,7 @@ vm_fault_cow(struct faultstate *fs)
 {
 	bool is_first_object_locked;
 
-	KASSERT(fs->object != fs->first_object,
+	KASSERT(vm_fault_might_be_cow(fs),
 	    ("source and target COW objects are identical"));
 
 	/*
@@ -1154,7 +1160,7 @@ vm_fault_zerofill(struct faultstate *fs)
 	 * If there's no object left, fill the page in the top
 	 * object with zeros.
 	 */
-	if (fs->object != fs->first_object) {
+	if (vm_fault_might_be_cow(fs)) {
 		vm_object_pip_wakeup(fs->object);
 		fs->object = fs->first_object;
 		fs->pindex = fs->first_pindex;
@@ -1417,7 +1423,7 @@ vm_fault_busy_sleep(struct faultstate *fs, int allocflags)
 	 * likely to reclaim it.
 	 */
 	vm_page_aflag_set(fs->m, PGA_REFERENCED);
-	if (fs->object != fs->first_object) {
+	if (vm_fault_might_be_cow(fs)) {
 		vm_fault_page_release(&fs->first_m);
 		vm_object_pip_wakeup(fs->first_object);
 	}
@@ -1711,7 +1717,7 @@ found:
 	 * top-level object, we have to copy it into a new page owned by the
 	 * top-level object.
 	 */
-	if (fs.object != fs.first_object) {
+	if (vm_fault_might_be_cow(&fs)) {
 		/*
 		 * We only really need to copy if we want to write it.
 		 */
