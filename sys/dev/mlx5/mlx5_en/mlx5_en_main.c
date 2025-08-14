@@ -4124,6 +4124,18 @@ mlx5e_priv_static_destroy(struct mlx5e_priv *priv, struct mlx5_core_dev *mdev,
 }
 
 static int
+sysctl_ifname(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	char name[IFNAMSIZ];
+	int error;
+
+	strncpy(name, if_name(priv->ifp), sizeof(name));
+	error = sysctl_handle_string(oidp, name, sizeof(name), req);
+	return (error);
+}
+
+static int
 sysctl_firmware(SYSCTL_HANDLER_ARGS)
 {
 	/*
@@ -4954,6 +4966,11 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		    "mlx5e_open_flow_rules() failed, %d (ignored)\n", err);
 	}
 	PRIV_UNLOCK(priv);
+
+	SYSCTL_ADD_PROC(&priv->sysctl_ctx,
+			SYSCTL_CHILDREN(device_get_sysctl_tree(mdev->pdev->dev.bsddev)),
+			OID_AUTO, "ifname", CTLTYPE_STRING | CTLFLAG_RD, priv, 0,
+			sysctl_ifname, "A", "ifname managed by driver");
 
 	return (priv);
 
