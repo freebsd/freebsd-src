@@ -1626,7 +1626,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_500[0x20];
 	u8	   num_of_uars_per_page[0x20];
-	u8         reserved_at_540[0x40];
+	u8         flex_parser_protocols[0x20];
+	u8         reserved_at_540[0x20];
 
 	u8         log_max_atomic_size_qp[0x8];
 	u8         reserved_67[0x10];
