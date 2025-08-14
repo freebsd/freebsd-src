@@ -201,5 +201,5 @@ mdtk_register_clocks(device_t dev, struct mdtk_clk_def *cldef)
 int
 mdtk_hwreset_by_idx(struct mdtk_clk_softc *sc, intptr_t idx, bool reset)
 {
-    device_printf(sc->dev, "idx %d, reset %b \n", idx, reset);
+    device_printf(sc->dev, "idx %ld, reset %d\n", idx, reset);
 }
