@@ -859,6 +859,19 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		}
 	}
 
+	if (field_avail(typeof(resp), packet_pacing_caps, uhw->outlen)) {
+		if (MLX5_CAP_QOS(mdev, packet_pacing) &&
+		    MLX5_CAP_GEN(mdev, qos)) {
+			resp.packet_pacing_caps.qp_rate_limit_max =
+				MLX5_CAP_QOS(mdev, packet_pacing_max_rate);
+			resp.packet_pacing_caps.qp_rate_limit_min =
+				MLX5_CAP_QOS(mdev, packet_pacing_min_rate);
+			resp.packet_pacing_caps.supported_qpts |=
+				1 << IB_QPT_RAW_PACKET;
+		}
+		resp.response_length += sizeof(resp.packet_pacing_caps);
+	}
+
 	if (field_avail(typeof(resp), mlx5_ib_support_multi_pkt_send_wqes,
 			uhw->outlen)) {
 		resp.mlx5_ib_support_multi_pkt_send_wqes =
