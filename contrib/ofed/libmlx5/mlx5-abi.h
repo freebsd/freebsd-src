@@ -289,6 +289,7 @@ struct mlx5_query_device_ex_resp {
 	struct mlx5_packet_pacing_caps	packet_pacing_caps;
 	__u32				support_multi_pkt_send_wqe;
 	__u32				reserved;
+	struct mlx5dv_sw_parsing_caps	sw_parsing_caps;
 };
 
 #endif /* MLX5_ABI_H */

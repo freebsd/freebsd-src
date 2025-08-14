@@ -2121,6 +2121,7 @@ int mlx5_query_device_ex(struct ibv_context *context,
 		mctx->vendor_cap_flags |= MLX5_VENDOR_CAP_FLAGS_ENHANCED_MPW;
 
 	mctx->cqe_comp_caps = resp.cqe_comp_caps;
+	mctx->sw_parsing_caps = resp.sw_parsing_caps;
 
 	major     = (raw_fw_ver >> 32) & 0xffff;
 	minor     = (raw_fw_ver >> 16) & 0xffff;

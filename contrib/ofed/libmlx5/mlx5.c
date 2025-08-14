@@ -661,6 +661,11 @@ int mlx5dv_query_device(struct ibv_context *ctx_in,
 	if (mctx->vendor_cap_flags & MLX5_VENDOR_CAP_FLAGS_ENHANCED_MPW)
 		attrs_out->flags |= MLX5DV_CONTEXT_FLAGS_ENHANCED_MPW;
 
+	if (attrs_out->comp_mask & MLX5DV_CONTEXT_MASK_SWP) {
+		attrs_out->sw_parsing_caps = mctx->sw_parsing_caps;
+		comp_mask_out |= MLX5DV_CONTEXT_MASK_SWP;
+	}
+
 	attrs_out->comp_mask = comp_mask_out;
 
 	return 0;

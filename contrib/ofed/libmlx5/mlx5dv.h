@@ -58,12 +58,18 @@ enum {
 
 enum mlx5dv_context_comp_mask {
 	MLX5DV_CONTEXT_MASK_CQE_COMPRESION	= 1 << 0,
-	MLX5DV_CONTEXT_MASK_RESERVED		= 1 << 1,
+	MLX5DV_CONTEXT_MASK_SWP			= 1 << 1,
+	MLX5DV_CONTEXT_MASK_RESERVED		= 1 << 2,
 };
 
 struct mlx5dv_cqe_comp_caps {
 	uint32_t max_num;
 	uint32_t supported_format; /* enum mlx5dv_cqe_comp_res_format */
+};
+
+struct mlx5dv_sw_parsing_caps {
+	uint32_t sw_parsing_offloads; /* Use enum mlx5dv_sw_parsing_offloads */
+	uint32_t supported_qpts;
 };
 
 /*
@@ -74,6 +80,7 @@ struct mlx5dv_context {
 	uint64_t	flags;
 	uint64_t	comp_mask;
 	struct mlx5dv_cqe_comp_caps	cqe_comp_caps;
+	struct mlx5dv_sw_parsing_caps sw_parsing_caps;
 };
 
 enum mlx5dv_context_flags {
@@ -314,6 +321,12 @@ enum mlx5dv_cqe_comp_res_format {
 	MLX5DV_CQE_RES_FORMAT_HASH		= 1 << 0,
 	MLX5DV_CQE_RES_FORMAT_CSUM		= 1 << 1,
 	MLX5DV_CQE_RES_FORMAT_RESERVED		= 1 << 2,
+};
+
+enum mlx5dv_sw_parsing_offloads {
+	MLX5DV_SW_PARSING		= 1 << 0,
+	MLX5DV_SW_PARSING_CSUM		= 1 << 1,
+	MLX5DV_SW_PARSING_LSO		= 1 << 2,
 };
 
 static MLX5DV_ALWAYS_INLINE

@@ -272,6 +272,7 @@ struct mlx5_context {
 	uint64_t			vendor_cap_flags; /* Use enum mlx5_vendor_cap_flags */
 	struct mlx5dv_cqe_comp_caps	cqe_comp_caps;
 	struct mlx5dv_ctx_allocators	extern_alloc;
+	struct mlx5dv_sw_parsing_caps	sw_parsing_caps;
 };
 
 struct mlx5_bitmap {
