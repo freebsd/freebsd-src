@@ -197,3 +197,10 @@ mdtk_register_clocks(device_t dev, struct mdtk_clk_def *cldef)
     if (bootverbose)
         clkdom_dump(sc->clkdom);
 }
+
+int
+mdtk_hwreset_by_idx(struct mdtk_clk_softc *sc, intptr_t idx, bool reset)
+{
+    device_printf(sc->dev, "idx %ld, reset %d\n", idx, reset);
+    return(0);
+}

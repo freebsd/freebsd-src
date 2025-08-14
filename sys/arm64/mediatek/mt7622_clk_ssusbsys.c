@@ -36,15 +36,9 @@
 #include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
 #include <dt-bindings/clock/mt7622-clk.h>
-
-#include <dev/clk/clk_fixed.h>
-#include <dev/clk/clk_div.h>
-#include <dev/clk/clk_mux.h>
+#include <dt-bindings/reset/mt7622-reset.h>
 #include <dev/clk/clk_gate.h>
-#include <dev/clk/clk_link.h>
-#include <arm64/mediatek/mdtk_clk.h>
 #include "clkdev_if.h"
 #include "hwreset_if.h"
 #include "mdtk_clk.h"
@@ -64,14 +58,8 @@ static struct clk_gate_def gates_ssusb_clk[] = {
 };
 
 static struct mdtk_clk_def clk_ssusb_def = {
-        .linked_def = NULL,
-        .num_linked = 0,
-        .fixed_def = NULL,
-        .num_fixed = 0,
         .gates_def = gates_ssusb_clk,
         .num_gates = nitems(gates_ssusb_clk),
-        .muxes_def = NULL,
-        .num_muxes = 0,
 };
 
 static int
@@ -117,6 +105,14 @@ mt7622_ssusbsys_clk_attach(device_t dev) {
     return (0);
 }
 
+static int
+mt7622_ssusbsys_clk_hwreset_assert(device_t dev, intptr_t id, bool value)
+{
+    struct mdtk_clk_softc *sc = device_get_softc(dev);
+
+    return (mdtk_hwreset_by_idx(sc, id, value));
+}
+
 static device_method_t mt7622_ssusbsys_methods[] = {
         /* Device interface */
         DEVMETHOD(device_probe,		 mt7622_ssusbsys_clk_probe),
@@ -129,6 +125,9 @@ static device_method_t mt7622_ssusbsys_methods[] = {
         DEVMETHOD(clkdev_modify_4,	    mdtk_clkdev_modify_4),
         DEVMETHOD(clkdev_device_lock,	mdtk_clkdev_device_lock),
         DEVMETHOD(clkdev_device_unlock,	mdtk_clkdev_device_unlock),
+
+        DEVMETHOD(hwreset_assert, mt7622_ssusbsys_clk_hwreset_assert),
+
         DEVMETHOD_END
 };
 
