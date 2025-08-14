@@ -1,4 +1,3 @@
-PACKAGE=	clibs
 LIB_CXX=	util++
 INTERNALLIB=	true
 SHLIB_MAJOR=	1
