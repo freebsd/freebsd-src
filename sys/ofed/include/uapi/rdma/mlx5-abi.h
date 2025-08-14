@@ -163,6 +163,8 @@ struct mlx5_ib_query_device_resp {
 	struct	mlx5_ib_tso_caps tso_caps;
 	struct	mlx5_ib_rss_caps rss_caps;
 	struct	mlx5_ib_cqe_comp_caps cqe_comp_caps;
+	__u32	mlx5_ib_support_multi_pkt_send_wqes;
+	__u32   reserved;
 };
 
 enum mlx5_ib_create_cq_flags {
