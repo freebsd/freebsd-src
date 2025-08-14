@@ -259,6 +259,23 @@ enum ibv_raw_packet_caps {
 	IBV_RAW_PACKET_CAP_IP_CSUM		= 1 << 2,
 };
 
+enum ibv_tm_cap_flags {
+	IBV_TM_CAP_RC		    = 1 << 0,
+};
+
+struct ibv_tm_caps {
+	/* Max size of rendezvous request header */
+	uint32_t max_rndv_hdr_size;
+	/* Max number of tagged buffers in a TM-SRQ matching list */
+	uint32_t max_num_tags;
+	/* From enum ibv_tm_cap_flags */
+	uint32_t flags;
+	/* Max number of outstanding list operations */
+	uint32_t max_ops;
+	/* Max number of SGEs in a tagged buffer */
+	uint32_t max_sge;
+};
+
 struct ibv_device_attr_ex {
 	struct ibv_device_attr	orig_attr;
 	uint32_t		comp_mask;
@@ -271,6 +288,7 @@ struct ibv_device_attr_ex {
 	uint32_t		max_wq_type_rq;
 	struct ibv_packet_pacing_caps packet_pacing_caps;
 	uint32_t		raw_packet_caps; /* Use ibv_raw_packet_caps */
+	struct ibv_tm_caps	tm_caps;
 };
 
 enum ibv_mtu {
@@ -654,7 +672,8 @@ struct ibv_srq_init_attr {
 
 enum ibv_srq_type {
 	IBV_SRQT_BASIC,
-	IBV_SRQT_XRC
+	IBV_SRQT_XRC,
+	IBV_SRQT_TM,
 };
 
 enum ibv_srq_init_attr_mask {
@@ -662,7 +681,13 @@ enum ibv_srq_init_attr_mask {
 	IBV_SRQ_INIT_ATTR_PD		= 1 << 1,
 	IBV_SRQ_INIT_ATTR_XRCD		= 1 << 2,
 	IBV_SRQ_INIT_ATTR_CQ		= 1 << 3,
-	IBV_SRQ_INIT_ATTR_RESERVED	= 1 << 4
+	IBV_SRQ_INIT_ATTR_TM		= 1 << 4,
+	IBV_SRQ_INIT_ATTR_RESERVED	= 1 << 5,
+};
+
+struct ibv_tm_cap {
+	uint32_t		max_num_tags;
+	uint32_t		max_ops;
 };
 
 struct ibv_srq_init_attr_ex {
@@ -674,6 +699,7 @@ struct ibv_srq_init_attr_ex {
 	struct ibv_pd	       *pd;
 	struct ibv_xrcd	       *xrcd;
 	struct ibv_cq	       *cq;
+	struct ibv_tm_cap	tm_cap;
 };
 
 enum ibv_wq_type {

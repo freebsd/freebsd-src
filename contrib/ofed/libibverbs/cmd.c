@@ -237,6 +237,23 @@ int ibv_cmd_query_device_ex(struct ibv_context *context,
 			attr->raw_packet_caps = resp->raw_packet_caps;
 	}
 
+	if (attr_size >= offsetof(struct ibv_device_attr_ex, tm_caps) +
+			 sizeof(attr->tm_caps)) {
+		if (resp->response_length >=
+		    offsetof(struct ibv_query_device_resp_ex, tm_caps) +
+		    sizeof(resp->tm_caps)) {
+			attr->tm_caps.max_rndv_hdr_size =
+				resp->tm_caps.max_rndv_hdr_size;
+			attr->tm_caps.max_num_tags =
+				resp->tm_caps.max_num_tags;
+			attr->tm_caps.flags = resp->tm_caps.flags;
+			attr->tm_caps.max_ops =
+				resp->tm_caps.max_ops;
+			attr->tm_caps.max_sge =
+				resp->tm_caps.max_sge;
+		}
+	}
+
 	return 0;
 }
 
@@ -703,6 +720,17 @@ int ibv_cmd_create_srq_ex(struct ibv_context *context,
 		vxrcd = container_of(attr_ex->xrcd, struct verbs_xrcd, xrcd);
 		cmd->xrcd_handle = vxrcd->handle;
 		cmd->cq_handle   = attr_ex->cq->handle;
+	} else if (attr_ex->comp_mask & IBV_SRQ_INIT_ATTR_TM) {
+		if (cmd->srq_type != IBV_SRQT_TM)
+			return EINVAL;
+		if (!(attr_ex->comp_mask & IBV_SRQ_INIT_ATTR_CQ) ||
+		    !attr_ex->tm_cap.max_num_tags)
+			return EINVAL;
+
+		cmd->cq_handle    = attr_ex->cq->handle;
+		cmd->max_num_tags = attr_ex->tm_cap.max_num_tags;
+	} else if (cmd->srq_type != IBV_SRQT_BASIC) {
+		return EINVAL;
 	}
 
 	ret = pthread_mutex_init(&srq->srq.mutex, NULL);

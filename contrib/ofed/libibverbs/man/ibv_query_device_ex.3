@@ -33,6 +33,7 @@ struct ibv_rss_caps    rss_caps;                   /* RSS capabilities */
 uint32_t               max_wq_type_rq;             /* Max Work Queue from type RQ */
 struct ibv_packet_pacing_caps packet_pacing_caps; /* Packet pacing capabilities */
 uint32_t               raw_packet_caps;            /* Raw packet capabilities, use enum ibv_raw_packet_caps */
+struct ibv_tm_caps     tm_caps; 		   /* Tag matching capabilities */
 .in -8
 };
 
@@ -81,6 +82,22 @@ enum ibv_raw_packet_caps {
 IBV_RAW_PACKET_CAP_CVLAN_STRIPPING	= 1 << 0, /* CVLAN stripping is supported */
 IBV_RAW_PACKET_CAP_SCATTER_FCS		= 1 << 1, /* FCS scattering is supported */
 IBV_RAW_PACKET_CAP_IP_CSUM		= 1 << 2, /* IP CSUM offload is supported */
+.in -8
+};
+
+enum ibv_tm_cap_flags {
+.in +8
+IBV_TM_CAP_RC   = 1 << 0,            /* Support tag matching on RC transport */
+.in -8
+};
+
+struct ibv_tm_caps {
+.in +8
+uint32_t        max_rndv_hdr_size;   /* Max size of rendezvous request header */
+uint32_t        max_num_tags;        /* Max number of tagged buffers in a TM-SRQ matching list */
+uint32_t        flags;    	     /* From enum ibv_tm_cap_flags */
+uint32_t        max_ops;             /* Max number of outstanding list operations */
+uint32_t        max_sge;             /* Max number of SGEs in a tagged buffer */
 .in -8
 };
 

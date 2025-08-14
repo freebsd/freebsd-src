@@ -360,6 +360,7 @@ struct mlx5_srq {
 	__be32				*db;
 	uint16_t			counter;
 	int				wq_sig;
+	struct ibv_qp			*cmd_qp;
 };
 
 struct wr_list {
