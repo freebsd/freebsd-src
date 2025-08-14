@@ -73,6 +73,7 @@ CIIMAGE=	ci-${OSRELEASE}-${GITREV}-${KERNCONF}.${FORMAT}
 CIDISK?=	${.OBJDIR}/${CIIMAGE}
 VMSIZE?=	6g
 CITYPE?=	full
+KYUA_TEST_FILTERS?=
 META_TAR!=mktemp /tmp/meta.XXXXXX
 META_DIR!=mktemp -d /tmp/meta.XXXXXX
 META_DIROUT!=mktemp -d /tmp/meta.XXXXXX
@@ -110,7 +111,7 @@ QEMUTGT=portinstall-qemu
 .  endif
 .endif
 QEMUTGT?=
-QEMU_DEVICES?=-device virtio-blk,drive=hd0 -device virtio-blk,drive=hd1
+QEMU_DEVICES?=
 QEMU_EXTRA_PARAM?=
 QEMU_MACHINE?=virt
 QEMUBIN=/usr/local/bin/qemu-system-${QEMU_ARCH}
@@ -134,7 +135,8 @@ METAMODE?=-DWITH_META_MODE
 .endif
 
 CLEANFILES+=	${.OBJDIR}/${CIIMAGE} ${.OBJDIR}/ci.img ${META_TAR}
-CLEANDIRS+=	${.OBJDIR}/ci-buildimage
+IMAGEDIR=	${.OBJDIR}/ci-buildimage
+CLEANDIRS+=	${IMAGEDIR}
 
 portinstall: portinstall-pkg portinstall-qemu portinstall-expect portinstall-${TARGET_ARCH:tl} .PHONY
 
@@ -157,7 +159,7 @@ portinstall-expect: portinstall-pkg .PHONY
 .endif
 
 beforeclean: .PHONY
-	chflags -R noschg ${.OBJDIR}/${.TARGET}
+	chflags -R noschg ${IMAGEDIR}
 
 .include <bsd.obj.mk>
 clean: beforeclean .PHONY
@@ -205,6 +207,7 @@ ci-create-meta: .PHONY
 
 ci-extract-meta: .PHONY
 	tar xfv ${META_TAR} -C ${META_DIROUT}
+	rm -rf ${META_TAR} ${META_DIR}
 	@echo "Extracted kyua reports to ${META_DIROUT}"
 
 ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
@@ -235,8 +238,10 @@ ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
 		-nographic \
 		-no-reboot \
 		${QEMU_EXTRA_PARAM} \
-		-drive if=none,file=${CIDISK},format=raw,id=hd0 \
-		-drive if=none,file=${META_TAR},format=raw,id=hd1 \
+		-device virtio-blk,drive=hd0 \
+		-device virtio-blk,drive=hd1 \
+		-blockdev driver=raw,node-name=hd0,file.driver=file,file.filename=${CIDISK} \
+		-blockdev driver=raw,node-name=hd1,file.driver=file,file.filename=${META_TAR} \
 		${QEMU_DEVICES}
 .endif
 
@@ -254,7 +259,7 @@ ci-checktarget: .PHONY
 
 ci-smoke: ci-set-smoke-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .PHONY
 
-ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} ci-extract-meta .PHONY
+ci-full: ci-set-full-var ci-create-meta ci-checktarget .WAIT ci-runtest-${TARGET_ARCH:tl} .WAIT ci-extract-meta .PHONY
 
 ci: ci-${CITYPE:tl} .PHONY
 

@@ -78,7 +78,7 @@ static void usage (void) __attribute__((noreturn));
 static void set_target (char *);
 
 static void
-usage ()
+usage (void)
 {
     fprintf (stderr, "usage: %s [ options ] service-name\n", prog);
     fprintf (stderr, "  service-name\tGSSAPI host-based service name (e.g., 'host@FQDN')\n");
@@ -249,7 +249,7 @@ do_accept (gss_buffer_desc *msg, int iter)
 }
 
 static gss_buffer_desc
-do_init ()
+do_init (void)
 {
     OM_uint32 maj_stat, min_stat;
     gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;

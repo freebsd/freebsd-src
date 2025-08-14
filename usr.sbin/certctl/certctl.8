@@ -24,7 +24,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 17, 2025
+.Dd August 11, 2025
 .Dt CERTCTL 8
 .Os
 .Sh NAME
@@ -32,63 +32,83 @@
 .Nd "tool for managing trusted and untrusted TLS certificates"
 .Sh SYNOPSIS
 .Nm
-.Op Fl v
+.Op Fl lv
 .Ic list
 .Nm
-.Op Fl v
+.Op Fl lv
 .Ic untrusted
 .Nm
-.Op Fl cnUv
+.Op Fl BnUv
 .Op Fl D Ar destdir
 .Op Fl M Ar metalog
 .Ic rehash
 .Nm
-.Op Fl cnv
-.Ic untrust Ar file
+.Op Fl nv
+.Ic untrust Ar
 .Nm
-.Op Fl cnv
-.Ic trust Ar file
+.Op Fl nv
+.Ic trust Ar
 .Sh DESCRIPTION
 The
 .Nm
 utility manages the list of TLS Certificate Authorities that are trusted by
 applications that use OpenSSL.
 .Pp
-Flags:
+The following options are available:
 .Bl -tag -width 4n
-.It Fl c
-Copy certificates instead of linking to them.
+.It Fl B
+Do not generate a bundle.
+This option is only valid in conjunction with the
+.Ic rehash
+command.
 .It Fl D Ar destdir
 Specify the DESTDIR (overriding values from the environment).
-.It Fl d Ar distbase
-Specify the DISTBASE (overriding values from the environment).
+.It Fl l
+When listing installed (trusted or untrusted) certificates, show the
+full path and distinguished name for each certificate.
 .It Fl M Ar metalog
-Specify the path of the METALOG file (default: $DESTDIR/METALOG).
+Specify the path of the METALOG file
+.Po
+default:
+.Pa ${DESTDIR}/METALOG
+.Pc .
+This option is only valid in conjunction with the
+.Ic rehash
+command.
 .It Fl n
-No-Op mode, do not actually perform any actions.
+Dry-run mode.
+Do not actually perform any actions except write the metalog.
 .It Fl v
-Be verbose, print details about actions before performing them.
+Verbose mode.
+Print detailed information about each action taken.
 .It Fl U
-Unprivileged mode, do not change the ownership of created links.
-Do record the ownership in the METALOG file.
+Unprivileged mode.
+Do not attempt to set the ownership of created files.
+This option is only valid in conjunction with the
+.Fl M
+option and the
+.Ic rehash
+command.
 .El
 .Pp
 Primary command functions:
 .Bl -tag -width untrusted
 .It Ic list
-List all currently trusted certificate authorities.
+List all currently trusted certificates.
 .It Ic untrusted
 List all currently untrusted certificates.
 .It Ic rehash
-Rebuild the list of trusted certificate authorities by scanning all directories
+Rebuild the list of trusted certificates by scanning all directories
 in
 .Ev TRUSTPATH
 and all untrusted certificates in
 .Ev UNTRUSTPATH .
-A symbolic link to each trusted certificate is placed in
+A copy of each trusted certificate is placed in
 .Ev CERTDESTDIR
 and each untrusted certificate in
 .Ev UNTRUSTDESTDIR .
+In addition, a bundle containing the trusted certificates is placed in
+.Ev BUNDLEFILE .
 .It Ic untrust
 Add the specified file to the untrusted list.
 .It Ic trust
@@ -98,8 +118,6 @@ Remove the specified file from the untrusted list.
 .Bl -tag -width UNTRUSTDESTDIR
 .It Ev DESTDIR
 Alternate destination directory to operate on.
-.It Ev DISTBASE
-Additional path component to include when operating on certificate directories.
 .It Ev LOCALBASE
 Location for local programs.
 Defaults to the value of the user.localbase sysctl which is usually
@@ -107,32 +125,34 @@ Defaults to the value of the user.localbase sysctl which is usually
 .It Ev TRUSTPATH
 List of paths to search for trusted certificates.
 Default:
-.Pa <DESTDIR><DISTBASE>/usr/share/certs/trusted
-.Pa <DESTDIR><DISTBASE>/usr/local/share/certs
-.Pa <DESTDIR><DISTBASE><LOCALBASE>/etc/ssl/certs
+.Pa ${DESTDIR}/usr/share/certs/trusted
+.Pa ${DESTDIR}${LOCALBASE}/share/certs/trusted
+.Pa ${DESTDIR}${LOCALBASE}/share/certs
 .It Ev UNTRUSTPATH
 List of paths to search for untrusted certificates.
 Default:
-.Pa <DESTDIR><DISTBASE>/usr/share/certs/untrusted
-.Pa <DESTDIR><DISTBASE><LOCALBASE>/etc/ssl/untrusted
-.Pa <DESTDIR><DISTBASE><LOCALBASE>/etc/ssl/blacklisted
-.It Ev CERTDESTDIR
+.Pa ${DESTDIR}/usr/share/certs/untrusted
+.Pa ${DESTDIR}${LOCALBASE}/share/certs/untrusted
+.It Ev TRUSTDESTDIR
 Destination directory for symbolic links to trusted certificates.
 Default:
-.Pa <DESTDIR><DISTBASE>/etc/ssl/certs
+.Pa ${DESTDIR}/etc/ssl/certs
 .It Ev UNTRUSTDESTDIR
 Destination directory for symbolic links to untrusted certificates.
 Default:
-.Pa <DESTDIR><DISTBASE>/etc/ssl/untrusted
-.It Ev EXTENSIONS
-List of file extensions to read as certificate files.
-Default: *.pem *.crt *.cer *.crl *.0
+.Pa ${DESTDIR}/etc/ssl/untrusted
+.It Ev BUNDLE
+File name of bundle to produce.
 .El
 .Sh SEE ALSO
 .Xr openssl 1
 .Sh HISTORY
 .Nm
 first appeared in
-.Fx 12.2
+.Fx 12.2 .
 .Sh AUTHORS
-.An Allan Jude Aq Mt allanjude@freebsd.org
+.An -nosplit
+The original shell implementation was written by
+.An Allan Jude Aq Mt allanjude@FreeBSD.org .
+The current C implementation was written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

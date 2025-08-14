@@ -1205,6 +1205,8 @@
         ..
         seq
         ..
+        sockstat
+        ..
         soelim
         ..
         sort
@@ -1253,6 +1255,8 @@
         ..
     ..
     usr.sbin
+        certctl
+        ..
         chown
         ..
         ctladm

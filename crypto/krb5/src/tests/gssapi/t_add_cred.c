@@ -43,7 +43,7 @@
 #include "common.h"
 
 int
-main()
+main(void)
 {
     OM_uint32 minor, major;
     gss_cred_id_t cred1, cred2;

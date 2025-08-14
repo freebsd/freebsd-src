@@ -6,7 +6,7 @@
 PACKAGE=	runtime
 
 PROG=	grep
-MAN1=	grep.1 zgrep.1
+MAN=	grep.1 zgrep.1
 
 SRCS=	file.c grep.c queue.c util.c
 

@@ -433,15 +433,15 @@ want(struct utmpx *bp)
 				return (YES);
 			break;
 		case HOST_TYPE:
-			if (!strcasecmp(step->name, bp->ut_host))
+			if (strcasecmp(step->name, bp->ut_host) == 0)
 				return (YES);
 			break;
 		case TTY_TYPE:
-			if (!strcmp(step->name, bp->ut_line))
+			if (strcmp(step->name, bp->ut_line) == 0)
 				return (YES);
 			break;
 		case USER_TYPE:
-			if (!strcmp(step->name, bp->ut_user))
+			if (strcmp(step->name, bp->ut_user) == 0)
 				return (YES);
 			break;
 		}
@@ -478,7 +478,7 @@ hostconv(char *arg)
 	static char *hostdot, name[MAXHOSTNAMELEN];
 	char *argdot;
 
-	if (!(argdot = strchr(arg, '.')))
+	if ((argdot = strchr(arg, '.')) == NULL)
 		return;
 	if (first) {
 		first = 0;
@@ -486,7 +486,7 @@ hostconv(char *arg)
 			xo_err(1, "gethostname");
 		hostdot = strchr(name, '.');
 	}
-	if (hostdot && !strcasecmp(hostdot, argdot))
+	if (hostdot != NULL && strcasecmp(hostdot, argdot) == 0)
 		*argdot = '\0';
 }
 
@@ -504,19 +504,16 @@ ttyconv(char *arg)
 	 * a two character suffix.
 	 */
 	if (strlen(arg) == 2) {
-		/* either 6 for "ttyxx" or 8 for "console" */
-		if ((mval = malloc(8)) == NULL)
+		if (strcmp(arg, "co") == 0)
+			mval = strdup("console");
+		else
+			asprintf(&mval, "tty%s", arg);
+		if (mval == NULL)
 			xo_errx(1, "malloc failure");
-		if (!strcmp(arg, "co"))
-			(void)strcpy(mval, "console");
-		else {
-			(void)strcpy(mval, "tty");
-			(void)strcpy(mval + 3, arg);
-		}
 		return (mval);
 	}
-	if (!strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1))
-		return (arg + 5);
+	if (strncmp(arg, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		return (arg + strlen(_PATH_DEV));
 	return (arg);
 }
 

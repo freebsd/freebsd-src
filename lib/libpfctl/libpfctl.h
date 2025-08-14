@@ -143,9 +143,18 @@ struct pfctl_eth_anchor {
 	int				 match;	/* XXX: used for pfctl black magic */
 };
 
+struct pfctl_pooladdr {
+	struct pf_addr_wrap		 addr;
+	TAILQ_ENTRY(pfctl_pooladdr)	 entries;
+	char				 ifname[IFNAMSIZ];
+	sa_family_t		 	 af;
+};
+
+TAILQ_HEAD(pfctl_palist, pfctl_pooladdr);
+
 struct pfctl_pool {
-	struct pf_palist	 list;
-	struct pf_pooladdr	*cur;
+	struct pfctl_palist	 list;
+	struct pfctl_pooladdr	*cur;
 	struct pf_poolhashkey	 key;
 	struct pf_addr		 counter;
 	struct pf_mape_portset	 mape;
@@ -383,6 +392,7 @@ struct pfctl_state {
 	uint8_t			 set_prio[2];
 	uint8_t			 rt;
 	char			 rt_ifname[IFNAMSIZ];
+	sa_family_t		 rt_af;
 	uint8_t			 src_node_flags;
 };
 
@@ -414,7 +424,7 @@ struct pfctl_src_node {
 	uint32_t		states;
 	uint32_t		conn;
 	sa_family_t		af;
-	sa_family_t		naf;
+	sa_family_t		raf;
 	uint8_t			ruletype;
 	uint64_t		creation;
 	uint64_t		expire;
@@ -501,8 +511,12 @@ int	pfctl_clear_nat(int dev, const char *anchorname);
 int	pfctl_clear_eth_rules(int dev, const char *anchorname);
 int	pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s);
 int	pfctl_get_syncookies(int dev, struct pfctl_syncookies *s);
+int	pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+	    *addr, int size, int *nadd, int flags);
 int	pfctl_table_add_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *nadd, int flags);
+int	pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
+	    struct pfr_addr *addr, int size, int *ndel, int flags);
 int	pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int size, int *ndel, int flags);
 int     pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr

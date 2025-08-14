@@ -83,13 +83,18 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 		str_len = RNDUP(str_len);
 		buf += str_len / sizeof (int32_t);
 		xcr->cr_uid = IXDR_GET_UINT32(buf);
-		xcr->cr_groups[0] = IXDR_GET_UINT32(buf);
+		xcr->cr_gid = IXDR_GET_UINT32(buf);
 		gid_len = (size_t)IXDR_GET_UINT32(buf);
 		if (gid_len > NGRPS) {
 			stat = AUTH_BADCRED;
 			goto done;
 		}
 		for (i = 0; i < gid_len; i++) {
+			/*
+			 * Note that this is a `struct xucred`, which maintains
+			 * its historical layout of preserving the egid in
+			 * cr_ngroups and cr_groups[0] == egid.
+			 */
 			if (i + 1 < XU_NGROUPS)
 				xcr->cr_groups[i + 1] = IXDR_GET_INT32(buf);
 			else

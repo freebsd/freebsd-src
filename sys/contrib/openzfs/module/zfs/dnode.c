@@ -86,6 +86,19 @@ int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
 static kmem_cbrc_t dnode_move(void *, void *, size_t, void *);
 #endif /* _KERNEL */
 
+static char *
+rt_name(dnode_t *dn, const char *name)
+{
+	struct objset *os = dn->dn_objset;
+
+	return (kmem_asprintf("{spa=%s objset=%llu obj=%llu %s}",
+	    spa_name(os->os_spa),
+	    (u_longlong_t)(os->os_dsl_dataset ?
+	    os->os_dsl_dataset->ds_object : DMU_META_OBJSET),
+	    (u_longlong_t)dn->dn_object,
+	    name));
+}
+
 static int
 dbuf_compare(const void *x1, const void *x2)
 {
@@ -201,7 +214,7 @@ dnode_dest(void *arg, void *unused)
 
 	for (int i = 0; i < TXG_SIZE; i++) {
 		ASSERT(!multilist_link_active(&dn->dn_dirty_link[i]));
-		ASSERT3P(dn->dn_free_ranges[i], ==, NULL);
+		ASSERT0P(dn->dn_free_ranges[i]);
 		list_destroy(&dn->dn_dirty_records[i]);
 		ASSERT0(dn->dn_next_nblkptr[i]);
 		ASSERT0(dn->dn_next_nlevels[i]);
@@ -218,10 +231,10 @@ dnode_dest(void *arg, void *unused)
 	ASSERT0(dn->dn_assigned_txg);
 	ASSERT0(dn->dn_dirty_txg);
 	ASSERT0(dn->dn_dirtyctx);
-	ASSERT3P(dn->dn_dirtyctx_firstset, ==, NULL);
-	ASSERT3P(dn->dn_bonus, ==, NULL);
+	ASSERT0P(dn->dn_dirtyctx_firstset);
+	ASSERT0P(dn->dn_bonus);
 	ASSERT(!dn->dn_have_spill);
-	ASSERT3P(dn->dn_zio, ==, NULL);
+	ASSERT0P(dn->dn_zio);
 	ASSERT0(dn->dn_oldused);
 	ASSERT0(dn->dn_oldflags);
 	ASSERT0(dn->dn_olduid);
@@ -305,7 +318,7 @@ dnode_kstats_update(kstat_t *ksp, int rw)
 void
 dnode_init(void)
 {
-	ASSERT(dnode_cache == NULL);
+	ASSERT0P(dnode_cache);
 	dnode_cache = kmem_cache_create("dnode_t", sizeof (dnode_t),
 	    0, dnode_cons, dnode_dest, NULL, NULL, NULL, KMC_RECLAIMABLE);
 	kmem_cache_set_move(dnode_cache, dnode_move);
@@ -496,7 +509,7 @@ dnode_buf_byteswap(void *vbuf, size_t size)
 	int i = 0;
 
 	ASSERT3U(sizeof (dnode_phys_t), ==, (1<<DNODE_SHIFT));
-	ASSERT((size & (sizeof (dnode_phys_t)-1)) == 0);
+	ASSERT0((size & (sizeof (dnode_phys_t)-1)));
 
 	while (i < size) {
 		dnode_phys_t *dnp = (void *)(((char *)vbuf) + i);
@@ -660,7 +673,7 @@ dnode_destroy(dnode_t *dn)
 	objset_t *os = dn->dn_objset;
 	boolean_t complete_os_eviction = B_FALSE;
 
-	ASSERT((dn->dn_id_flags & DN_ID_NEW_EXIST) == 0);
+	ASSERT0((dn->dn_id_flags & DN_ID_NEW_EXIST));
 
 	mutex_enter(&os->os_lock);
 	POINTER_INVALIDATE(&dn->dn_objset);
@@ -767,7 +780,7 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 		ASSERT0(dn->dn_next_maxblkid[i]);
 		ASSERT(!multilist_link_active(&dn->dn_dirty_link[i]));
 		ASSERT3P(list_head(&dn->dn_dirty_records[i]), ==, NULL);
-		ASSERT3P(dn->dn_free_ranges[i], ==, NULL);
+		ASSERT0P(dn->dn_free_ranges[i]);
 	}
 
 	dn->dn_type = ot;
@@ -945,7 +958,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ndn->dn_dirty_txg = odn->dn_dirty_txg;
 	ndn->dn_dirtyctx = odn->dn_dirtyctx;
 	ndn->dn_dirtyctx_firstset = odn->dn_dirtyctx_firstset;
-	ASSERT(zfs_refcount_count(&odn->dn_tx_holds) == 0);
+	ASSERT0(zfs_refcount_count(&odn->dn_tx_holds));
 	zfs_refcount_transfer(&ndn->dn_holds, &odn->dn_holds);
 	ASSERT(avl_is_empty(&ndn->dn_dbufs));
 	avl_swap(&ndn->dn_dbufs, &odn->dn_dbufs);
@@ -2291,7 +2304,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 		if ((off >> blkshift) > dn->dn_maxblkid)
 			return;
 	} else {
-		ASSERT(dn->dn_maxblkid == 0);
+		ASSERT0(dn->dn_maxblkid);
 		if (off == 0 && len >= blksz) {
 			/*
 			 * Freeing the whole block; fast-track this request.
@@ -2436,8 +2449,10 @@ done:
 	{
 		int txgoff = tx->tx_txg & TXG_MASK;
 		if (dn->dn_free_ranges[txgoff] == NULL) {
-			dn->dn_free_ranges[txgoff] = zfs_range_tree_create(NULL,
-			    ZFS_RANGE_SEG64, NULL, 0, 0);
+			dn->dn_free_ranges[txgoff] =
+			    zfs_range_tree_create_flags(
+			    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+			    ZFS_RT_F_DYN_NAME, rt_name(dn, "dn_free_ranges"));
 		}
 		zfs_range_tree_clear(dn->dn_free_ranges[txgoff], blkid, nblks);
 		zfs_range_tree_add(dn->dn_free_ranges[txgoff], blkid, nblks);
@@ -2509,7 +2524,7 @@ dnode_diduse_space(dnode_t *dn, int64_t delta)
 	}
 	space += delta;
 	if (spa_version(dn->dn_objset->os_spa) < SPA_VERSION_DNODE_BYTES) {
-		ASSERT((dn->dn_phys->dn_flags & DNODE_FLAG_USED_BYTES) == 0);
+		ASSERT0((dn->dn_phys->dn_flags & DNODE_FLAG_USED_BYTES));
 		ASSERT0(P2PHASE(space, 1<<DEV_BSHIFT));
 		dn->dn_phys->dn_used = space >> DEV_BSHIFT;
 	} else {

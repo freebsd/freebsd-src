@@ -32,7 +32,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-int main()
+int main(void)
 {
     uid_t my_uid;
     struct passwd *pwd, pwx;

@@ -84,8 +84,9 @@ static unsigned int zvol_blk_mq_blocks_per_thread = 8;
 static inline void
 zvol_end_io(struct bio *bio, struct request *rq, int error)
 {
+	ASSERT3U(error, >=, 0);
 	if (bio) {
-		bio->bi_status = errno_to_bi_status(-error);
+		bio->bi_status = errno_to_bi_status(error);
 		bio_endio(bio);
 	} else {
 		blk_mq_end_request(rq, errno_to_bi_status(error));
@@ -208,8 +209,14 @@ zvol_write(zv_request_t *zvr)
 	disk = zv->zv_zso->zvo_disk;
 
 	/* bio marked as FLUSH need to flush before write */
-	if (io_is_flush(bio, rq))
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+	if (io_is_flush(bio, rq)) {
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
+		if (error != 0) {
+			rw_exit(&zv->zv_suspend_lock);
+			zvol_end_io(bio, rq, -error);
+			return;
+		}
+	}
 
 	/* Some requests are just for flush and nothing else. */
 	if (io_size(bio, rq) == 0) {
@@ -273,8 +280,8 @@ zvol_write(zv_request_t *zvr)
 	dataset_kstats_update_write_kstats(&zv->zv_kstat, nwritten);
 	task_io_account_write(nwritten);
 
-	if (sync)
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+	if (error == 0 && sync)
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 
 	rw_exit(&zv->zv_suspend_lock);
 
@@ -282,7 +289,7 @@ zvol_write(zv_request_t *zvr)
 		blk_generic_end_io_acct(q, disk, WRITE, bio, start_time);
 	}
 
-	zvol_end_io(bio, rq, -error);
+	zvol_end_io(bio, rq, error);
 }
 
 static void
@@ -361,7 +368,7 @@ zvol_discard(zv_request_t *zvr)
 	zfs_rangelock_exit(lr);
 
 	if (error == 0 && sync)
-		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+		error = zil_commit(zv->zv_zilog, ZVOL_OBJ);
 
 unlock:
 	rw_exit(&zv->zv_suspend_lock);
@@ -371,7 +378,7 @@ unlock:
 		    start_time);
 	}
 
-	zvol_end_io(bio, rq, -error);
+	zvol_end_io(bio, rq, error);
 }
 
 static void
@@ -449,7 +456,7 @@ zvol_read(zv_request_t *zvr)
 		blk_generic_end_io_acct(q, disk, READ, bio, start_time);
 	}
 
-	zvol_end_io(bio, rq, -error);
+	zvol_end_io(bio, rq, error);
 }
 
 static void
@@ -480,7 +487,7 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 	int rw = io_data_dir(bio, rq);
 
 	if (unlikely(zv->zv_flags & ZVOL_REMOVING)) {
-		zvol_end_io(bio, rq, -SET_ERROR(ENXIO));
+		zvol_end_io(bio, rq, SET_ERROR(ENXIO));
 		goto out;
 	}
 
@@ -499,7 +506,7 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 		    (long long unsigned)offset,
 		    (long unsigned)size);
 
-		zvol_end_io(bio, rq, -SET_ERROR(EIO));
+		zvol_end_io(bio, rq, SET_ERROR(EIO));
 		goto out;
 	}
 
@@ -512,8 +519,8 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 #ifdef HAVE_BLK_MQ_RQ_HCTX
 		blk_mq_hw_queue = rq->mq_hctx->queue_num;
 #else
-		blk_mq_hw_queue =
-		    rq->q->queue_hw_ctx[rq->q->mq_map[rq->cpu]]->queue_num;
+		blk_mq_hw_queue = rq->q->queue_hw_ctx[
+		    rq->q->mq_map[raw_smp_processor_id()]]->queue_num;
 #endif
 	taskq_hash = cityhash3((uintptr_t)zv, offset >> ZVOL_TASKQ_OFFSET_SHIFT,
 	    blk_mq_hw_queue);
@@ -521,7 +528,7 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 
 	if (rw == WRITE) {
 		if (unlikely(zv->zv_flags & ZVOL_RDONLY)) {
-			zvol_end_io(bio, rq, -SET_ERROR(EROFS));
+			zvol_end_io(bio, rq, SET_ERROR(EROFS));
 			goto out;
 		}
 
@@ -886,16 +893,18 @@ zvol_ioctl(struct block_device *bdev, fmode_t mode,
 
 	case BLKZNAME:
 		mutex_enter(&zv->zv_state_lock);
-		error = copy_to_user((void *)arg, zv->zv_name, MAXNAMELEN);
+		error = -copy_to_user((void *)arg, zv->zv_name, MAXNAMELEN);
 		mutex_exit(&zv->zv_state_lock);
+		if (error)
+			error = SET_ERROR(error);
 		break;
 
 	default:
-		error = -ENOTTY;
+		error = SET_ERROR(ENOTTY);
 		break;
 	}
 
-	return (SET_ERROR(error));
+	return (-error);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1302,27 +1311,30 @@ zvol_alloc_blk_mq(zvol_state_t *zv, zvol_queue_limits_t *limits)
  * Allocate memory for a new zvol_state_t and setup the required
  * request queue and generic disk structures for the block device.
  */
-static zvol_state_t *
-zvol_alloc(dev_t dev, const char *name, uint64_t volblocksize)
+static int
+zvol_alloc(dev_t dev, const char *name, uint64_t volsize, uint64_t volblocksize,
+    zvol_state_t **zvp)
 {
 	zvol_state_t *zv;
 	struct zvol_state_os *zso;
 	uint64_t volmode;
 	int ret;
 
-	if (dsl_prop_get_integer(name, "volmode", &volmode, NULL) != 0)
-		return (NULL);
+	ret = dsl_prop_get_integer(name, "volmode", &volmode, NULL);
+	if (ret)
+		return (ret);
 
 	if (volmode == ZFS_VOLMODE_DEFAULT)
 		volmode = zvol_volmode;
 
 	if (volmode == ZFS_VOLMODE_NONE)
-		return (NULL);
+		return (0);
 
 	zv = kmem_zalloc(sizeof (zvol_state_t), KM_SLEEP);
 	zso = kmem_zalloc(sizeof (struct zvol_state_os), KM_SLEEP);
 	zv->zv_zso = zso;
 	zv->zv_volmode = volmode;
+	zv->zv_volsize = volsize;
 	zv->zv_volblocksize = volblocksize;
 
 	list_link_init(&zv->zv_next);
@@ -1396,12 +1408,13 @@ zvol_alloc(dev_t dev, const char *name, uint64_t volblocksize)
 	snprintf(zso->zvo_disk->disk_name, DISK_NAME_LEN, "%s%d",
 	    ZVOL_DEV_NAME, (dev & MINORMASK));
 
-	return (zv);
+	*zvp = zv;
+	return (ret);
 
 out_kmem:
 	kmem_free(zso, sizeof (struct zvol_state_os));
 	kmem_free(zv, sizeof (zvol_state_t));
-	return (NULL);
+	return (ret);
 }
 
 /*
@@ -1422,7 +1435,7 @@ zvol_os_free(zvol_state_t *zv)
 	ASSERT(!RW_LOCK_HELD(&zv->zv_suspend_lock));
 	ASSERT(!MUTEX_HELD(&zv->zv_state_lock));
 	ASSERT0(zv->zv_open_count);
-	ASSERT3P(zv->zv_zso->zvo_disk->private_data, ==, NULL);
+	ASSERT0P(zv->zv_zso->zvo_disk->private_data);
 
 	rw_destroy(&zv->zv_suspend_lock);
 	zfs_rangelock_fini(&zv->zv_rangelock);
@@ -1470,7 +1483,9 @@ __zvol_os_add_disk(struct gendisk *disk)
 {
 	int error = 0;
 #ifdef HAVE_ADD_DISK_RET
-	error = add_disk(disk);
+	error = -add_disk(disk);
+	if (error)
+		error = SET_ERROR(error);
 #else
 	add_disk(disk);
 #endif
@@ -1562,7 +1577,7 @@ zvol_os_add_disk(struct gendisk *disk)
 int
 zvol_os_create_minor(const char *name)
 {
-	zvol_state_t *zv;
+	zvol_state_t *zv = NULL;
 	objset_t *os;
 	dmu_object_info_t *doi;
 	uint64_t volsize;
@@ -1611,18 +1626,16 @@ zvol_os_create_minor(const char *name)
 	if (error)
 		goto out_dmu_objset_disown;
 
-	zv = zvol_alloc(MKDEV(zvol_major, minor), name,
-	    doi->doi_data_block_size);
-	if (zv == NULL) {
-		error = SET_ERROR(EAGAIN);
+	error = zvol_alloc(MKDEV(zvol_major, minor), name,
+	    volsize, doi->doi_data_block_size, &zv);
+	if (error || zv == NULL)
 		goto out_dmu_objset_disown;
-	}
+
 	zv->zv_hash = hash;
 
 	if (dmu_objset_is_snapshot(os))
 		zv->zv_flags |= ZVOL_RDONLY;
 
-	zv->zv_volsize = volsize;
 	zv->zv_objset = os;
 
 	/* Default */
@@ -1647,11 +1660,11 @@ zvol_os_create_minor(const char *name)
 	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, zv->zv_zso->zvo_queue);
 #endif
 
-	ASSERT3P(zv->zv_kstat.dk_kstats, ==, NULL);
+	ASSERT0P(zv->zv_kstat.dk_kstats);
 	error = dataset_kstats_create(&zv->zv_kstat, zv->zv_objset);
 	if (error)
 		goto out_dmu_objset_disown;
-	ASSERT3P(zv->zv_zilog, ==, NULL);
+	ASSERT0P(zv->zv_zilog);
 	zv->zv_zilog = zil_open(os, zvol_get_data, &zv->zv_kstat.dk_zil_sums);
 	if (spa_writeable(dmu_objset_spa(os))) {
 		if (zil_replay_disable)
@@ -1689,7 +1702,7 @@ out_doi:
 	 * zvol_open()->zvol_first_open() and zvol_release()->zvol_last_close()
 	 * directly as well.
 	 */
-	if (error == 0) {
+	if (error == 0 && zv) {
 		rw_enter(&zvol_state_lock, RW_WRITER);
 		zvol_insert(zv);
 		rw_exit(&zvol_state_lock);
@@ -1701,7 +1714,7 @@ out_doi:
 	return (error);
 }
 
-void
+int
 zvol_os_rename_minor(zvol_state_t *zv, const char *newname)
 {
 	int readonly = get_disk_ro(zv->zv_zso->zvo_disk);
@@ -1728,6 +1741,8 @@ zvol_os_rename_minor(zvol_state_t *zv, const char *newname)
 	set_disk_ro(zv->zv_zso->zvo_disk, readonly);
 
 	dataset_kstats_rename(&zv->zv_kstat, newname);
+
+	return (0);
 }
 
 void
@@ -1755,10 +1770,10 @@ zvol_init(void)
 		return (error);
 	}
 
-	error = register_blkdev(zvol_major, ZVOL_DRIVER);
+	error = -register_blkdev(zvol_major, ZVOL_DRIVER);
 	if (error) {
 		printk(KERN_INFO "ZFS: register_blkdev() failed %d\n", error);
-		return (error);
+		return (SET_ERROR(error));
 	}
 
 	if (zvol_blk_mq_queue_depth == 0) {

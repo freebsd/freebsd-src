@@ -31,6 +31,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <dev/vmm/vmm_mem.h>
 #include <machine/vmm.h>
 
 #include <err.h>

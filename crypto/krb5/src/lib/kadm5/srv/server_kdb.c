@@ -67,11 +67,10 @@ krb5_error_code kdb_init_master(kadm5_server_handle_t handle,
     if (ret)
         goto done;
 
-    if ((ret = krb5_db_fetch_mkey_list(handle->context, master_princ,
-                                       &master_keyblock))) {
+    ret = krb5_db_fetch_mkey_list(handle->context, master_princ,
+                                  &master_keyblock);
+    if (ret)
         krb5_db_fini(handle->context);
-        return (ret);
-    }
 
 done:
     if (r == NULL)
@@ -411,9 +410,7 @@ kdb_delete_entry(kadm5_server_handle_t handle, krb5_principal name)
     krb5_error_code ret;
 
     ret = krb5_db_delete_principal(handle->context, name);
-    if (ret == KRB5_KDB_NOENTRY)
-        ret = 0;
-    return ret;
+    return (ret == KRB5_KDB_NOENTRY) ? KADM5_UNK_PRINC : ret;
 }
 
 typedef struct _iter_data {

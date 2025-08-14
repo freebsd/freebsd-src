@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include "../Makefile.inc"
 
 PROG=	krb5kdc
@@ -46,28 +44,6 @@ CFLAGS+=${DEFINES} \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
 	-I${.OBJDIR}
-
-GEN_KDC5_ERR=		kdc5_err.et
-GEN_KDC5_ERR_C=	${GEN_KDC5_ERR:S/.et$/.c/}
-GEN_KDC5_ERR_H=	${GEN_KDC5_ERR:S/.et$/.h/}
-CLEANFILES+=	${GEN_KDC5_ERR_C} ${GEN_KDC5_ERR_H}
-GEN+=		${GEN_KDC5_ERR_C}
-GENI+=		${GEN_KDC5_ERR_H}
-
-${GEN_KDC5_ERR:[2..-1]}: .NOMETA
-${GEN_KDC5_ERR_H}: ${GEN_KDC5_ERR}
-	rm -f et-h-${.PREFIX}.et et-h-${.PREFIX}.c et-h-${.PREFIX}.h
-	cp ${.ALLSRC} et-h-${.PREFIX}.et
-	${COMPILE_ET} et-h-${.PREFIX}.et
-	mv et-h-${.PREFIX}.h ${.PREFIX}.h
-	rm -f et-h-${.PREFIX}.et et-h-${.PREFIX}.h
-
-${GEN_KDC5_ERR_C}: ${GEN_KDC5_ERR}
-	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c et-c-${.PREFIX}.h
-	cp ${.ALLSRC} et-c-${.PREFIX}.et
-	${COMPILE_ET} et-c-${.PREFIX}.et
-	mv et-c-${.PREFIX}.c ${.PREFIX}.c
-	rm -f et-c-${.PREFIX}.et et-c-${.PREFIX}.c
 
 CLEANFILES+=	krb5kdc.8
 

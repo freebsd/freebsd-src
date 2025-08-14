@@ -44,6 +44,7 @@
  * Flags for cr_flags.
  */
 #define	CRED_FLAG_CAPMODE	0x00000001	/* In capability mode. */
+#define	CRED_FLAG_GROUPSET	0x00000002	/* Groups have been set. */
 
 /*
  * Number of groups inlined in 'struct ucred'.  It must stay reasonably low as
@@ -76,15 +77,12 @@ struct ucred {
 	u_int	cr_users;		/* (c) proc + thread using this cred */
 	u_int	cr_flags;		/* credential flags */
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
+	int	cr_ngroups;		/* number of supplementary groups */
 #define	cr_startcopy cr_uid
 	uid_t	cr_uid;			/* effective user id */
 	uid_t	cr_ruid;		/* real user id */
 	uid_t	cr_svuid;		/* saved user id */
-	/*
-	 * XXXOC: On the next ABI change, please move 'cr_ngroups' out of the
-	 * copied area (crcopy() already copes with this change).
-	 */
-	int	cr_ngroups;		/* number of groups */
+	gid_t	cr_gid;			/* effective group id */
 	gid_t	cr_rgid;		/* real group id */
 	gid_t	cr_svgid;		/* saved group id */
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
@@ -111,17 +109,26 @@ struct ucred {
 struct xucred {
 	u_int	cr_version;		/* structure layout version */
 	uid_t	cr_uid;			/* effective user id */
-	short	cr_ngroups;		/* number of groups */
-	gid_t	cr_groups[XU_NGROUPS];	/* groups */
+	short	cr_ngroups;		/* number of groups (incl. cr_gid). */
+	union {
+		/*
+		 * Special little hack to avoid needing a cr_gid macro, which
+		 * would cause problems if one were to use it with struct ucred
+		 * which also has a cr_groups member.
+		 */
+		struct {
+			gid_t	cr_gid;		/* effective group id */
+			gid_t	cr_sgroups[XU_NGROUPS - 1];
+		};
+
+		gid_t	cr_groups[XU_NGROUPS];	/* groups */
+	};
 	union {
 		void	*_cr_unused1;	/* compatibility with old ucred */
 		pid_t	cr_pid;
 	};
 };
 #define	XUCRED_VERSION	0
-
-/* This can be used for both ucred and xucred structures. */
-#define	cr_gid cr_groups[0]
 
 struct mac;
 /*
@@ -235,8 +242,8 @@ void	crcowfree(struct thread *td);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	cru2xt(struct thread *td, struct xucred *xcr);
 void	crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups);
-void	crsetgroups_fallback(struct ucred *cr, int ngrp, const gid_t *groups,
-	    const gid_t fallback);
+void	crsetgroups_and_egid(struct ucred *cr, int ngrp, const gid_t *groups,
+	    const gid_t default_egid);
 bool	cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred);
 
 /*

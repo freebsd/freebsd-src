@@ -70,27 +70,25 @@ make_packet(krb5_context ctx, const krb5_data *username,
     if (retval != 0)
         goto out;
 
-    retval = krad_attrset_add(set, krad_attr_name2num("User-Name"), username);
+    retval = krad_attrset_add(set, KRAD_ATTR_USER_NAME, username);
     if (retval != 0)
         goto out;
 
-    retval = krad_attrset_add(set, krad_attr_name2num("User-Password"),
+    retval = krad_attrset_add(set, KRAD_ATTR_USER_PASSWORD,
                               password);
     if (retval != 0)
         goto out;
 
-    retval = krad_attrset_add(set, krad_attr_name2num("NAS-Identifier"),
-                              &nas_id);
+    retval = krad_attrset_add(set, KRAD_ATTR_NAS_IDENTIFIER, &nas_id);
     if (retval != 0)
         goto out;
 
-    retval = krad_packet_new_request(ctx, "foo",
-                                     krad_code_name2num("Access-Request"),
+    retval = krad_packet_new_request(ctx, "foo", KRAD_CODE_ACCESS_REQUEST,
                                      set, iterator, &i, &tmp);
     if (retval != 0)
         goto out;
 
-    data = krad_packet_get_attr(tmp, krad_attr_name2num("User-Name"), 0);
+    data = krad_packet_get_attr(tmp, KRAD_ATTR_USER_NAME, 0);
     if (data == NULL) {
         retval = ENOENT;
         goto out;
@@ -156,7 +154,7 @@ do_auth(krb5_context ctx, struct addrinfo *ai, const char *secret,
         goto out;
     }
 
-    *auth = krad_packet_get_code(rsp) == krad_code_name2num("Access-Accept");
+    *auth = krad_packet_get_code(rsp) == KRAD_CODE_ACCESS_ACCEPT;
 
 out:
     krad_packet_free(rsp);
@@ -172,6 +170,9 @@ main(int argc, const char **argv)
     krb5_data username, password;
     krb5_boolean auth = FALSE;
     krb5_context ctx;
+    const krad_packet *dupreq;
+    const krb5_data *encpkt;
+    krad_packet *decreq;
 
     username = string2data("testUser");
 
@@ -184,9 +185,17 @@ main(int argc, const char **argv)
 
     password = string2data("accept");
     noerror(make_packet(ctx, &username, &password, &packets[ACCEPT_PACKET]));
+    encpkt = krad_packet_encode(packets[ACCEPT_PACKET]);
+    noerror(krad_packet_decode_request(ctx, "foo", encpkt, NULL, NULL,
+                                       &dupreq, &decreq));
+    krad_packet_free(decreq);
 
     password = string2data("reject");
     noerror(make_packet(ctx, &username, &password, &packets[REJECT_PACKET]));
+    encpkt = krad_packet_encode(packets[REJECT_PACKET]);
+    noerror(krad_packet_decode_request(ctx, "foo", encpkt, NULL, NULL,
+                                       &dupreq, &decreq));
+    krad_packet_free(decreq);
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;

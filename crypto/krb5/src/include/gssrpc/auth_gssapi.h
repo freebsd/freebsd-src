@@ -82,14 +82,12 @@ bool_t xdr_authgssapi_init_res(XDR *, auth_gssapi_init_res *);
 
 bool_t auth_gssapi_wrap_data
 (OM_uint32 *major, OM_uint32 *minor,
-	   gss_ctx_id_t context, uint32_t seq_num, XDR
-	   *out_xdrs, bool_t (*xdr_func)(), caddr_t
-	   xdr_ptr);
+	   gss_ctx_id_t context, uint32_t seq_num,
+	   XDR *out_xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr);
 bool_t auth_gssapi_unwrap_data
 (OM_uint32 *major, OM_uint32 *minor,
-	   gss_ctx_id_t context, uint32_t seq_num, XDR
-	   *in_xdrs, bool_t (*xdr_func)(), caddr_t
-	   xdr_ptr);
+	   gss_ctx_id_t context, uint32_t seq_num,
+	   XDR *in_xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr);
 
 AUTH *auth_gssapi_create
 (CLIENT *clnt,

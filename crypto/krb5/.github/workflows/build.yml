@@ -26,6 +26,7 @@ jobs:
                     - name: linux-gcc
                       os: ubuntu-latest
                       compiler: gcc
+                      makevars: CPPFLAGS=-D_FORTIFY_SOURCE=3
         steps:
             - name: Checkout repository
               uses: actions/checkout@v1
@@ -33,7 +34,7 @@ jobs:
               if: startsWith(matrix.os, 'ubuntu')
               run: |
                 sudo apt-get update -qq
-                sudo apt-get install -y bison gettext keyutils ldap-utils libcmocka-dev libldap2-dev libkeyutils-dev libsasl2-dev libssl-dev python3-kdcproxy python3-pip slapd tcsh
+                sudo apt-get install -y bison gettext keyutils ldap-utils libcmocka-dev libldap2-dev libkeyutils-dev libsasl2-dev libssl-dev python3-kdcproxy python3-pip slapd tcsh yasm softhsm2 opensc
                 pip3 install pyrad
             - name: Build
               env:
@@ -41,12 +42,17 @@ jobs:
                 MAKEVARS: ${{ matrix.makevars }}
                 CONFIGURE_OPTS:  ${{ matrix.configureopts }}
               run: |
+                # For the ksu tests, allow homedir access from other users.
+                umask 022
+                chmod a+rx $HOME
+                chmod -R a+rX src
                 cd src
                 autoreconf
                 ./configure --enable-maintainer-mode --with-ldap $CONFIGURE_OPTS --prefix=$HOME/inst
                 make $MAKEVARS
                 make check
                 make install
+                (cd clients/ksu && make check-ksu)
             - name: Display skipped tests
               run: cat src/skiptests
             - name: Check for files unexpectedly not removed by make distclean
@@ -64,6 +70,8 @@ jobs:
         runs-on: windows-latest
         env:
             KRB_INSTALL_DIR: C:\kfw
+            OPENSSL_DIR: C:\Program Files\OpenSSL
+            OPENSSL_VERSION: 1_1
         steps:
             - name: Checkout repository
               uses: actions/checkout@v1
@@ -73,32 +81,19 @@ jobs:
                 mkdir %KRB_INSTALL_DIR%
             - uses: ilammy/msvc-dev-cmd@v1
               with:
-                arch: x86
-            - name: Build 32-bit
-              shell: cmd
+                arch: x64
+            - name: Build
+              working-directory: src
               run: |
-                cd src
-                set
-                set PATH=%PATH%;%wix%bin
+                $env:Path += ';' + $env:WindowsSdkVerBinPath + '\\x86'
                 nmake -f Makefile.in prep-windows
                 nmake
-                nmake install
-                cd windows\installer\wix
-                nmake
-                rename kfw.msi kfw32.msi
-            - uses: ilammy/msvc-dev-cmd@v1
-              with:
-                arch: x64
-            - name: Build 64-bit
-              shell: cmd
+            - name: Populate install dir
+              working-directory: src
               run: |
-                cd src
-                set
-                set PATH=%PATH%;%wix%bin;"%WindowsSdkVerBinPath%"\x86
-                nmake clean
-                nmake
                 nmake install
-                cd windows\installer\wix
-                nmake clean
+            - name: Build installer
+              working-directory: src\windows\installer\wix
+              run: |
+                $env:Path += ';' + $env:wix + 'bin'
                 nmake
-                rename kfw.msi kfw64.msi

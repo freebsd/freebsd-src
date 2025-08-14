@@ -260,13 +260,24 @@ struct prison_racct {
 #define	PR_ALLOW_ADJTIME		0x00080000
 #define	PR_ALLOW_SETTIME		0x00100000
 #define	PR_ALLOW_ROUTING		0x00200000
-#define	PR_ALLOW_ALL_STATIC		0x003f87ff
+#define	PR_ALLOW_UNPRIV_PARENT_TAMPER	0x00400000
+
+/*
+ * PR_ALLOW_PRISON0 are the allow flags that we apply by default to prison0,
+ * while PR_ALLOW_ALL_STATIC are all of the allow bits that we have allocated at
+ * build time.  PR_ALLOW_ALL_STATIC should contain any bit above that we expect
+ * to be used on the system, while PR_ALLOW_PRISON0 will be some subset of that.
+ */
+#define	PR_ALLOW_ALL_STATIC		0x007f87ff
+#define	PR_ALLOW_PRISON0		\
+    (PR_ALLOW_ALL_STATIC & ~(PR_ALLOW_UNPRIV_PARENT_TAMPER))
 
 /*
  * PR_ALLOW_DIFFERENCES determines which flags are able to be
  * different between the parent and child jail upon creation.
  */
-#define	PR_ALLOW_DIFFERENCES		(PR_ALLOW_UNPRIV_DEBUG)
+#define	PR_ALLOW_DIFFERENCES		\
+    (PR_ALLOW_UNPRIV_DEBUG | PR_ALLOW_UNPRIV_PARENT_TAMPER)
 
 /*
  * OSD methods
@@ -435,7 +446,7 @@ void prison0_init(void);
 bool prison_allow(struct ucred *, unsigned);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
 bool prison_check_nfsd(struct ucred *cred);
-bool prison_owns_vnet(struct ucred *);
+bool prison_owns_vnet(struct prison *pr);
 int prison_canseemount(struct ucred *cred, struct mount *mp);
 void prison_enforce_statfs(struct ucred *cred, struct mount *mp,
     struct statfs *sp);

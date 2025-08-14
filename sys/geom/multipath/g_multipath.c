@@ -321,7 +321,7 @@ g_multipath_resize(struct g_consumer *cp)
 	if (sc->sc_uuid[0] != 0) {
 		pp = cp->provider;
 		strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
-		memcpy(md.md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
+		memcpy(md.md_uuid, sc->sc_uuid, sizeof(sc->sc_uuid));
 		strlcpy(md.md_name, sc->sc_name, sizeof(md.md_name));
 		md.md_version = G_MULTIPATH_VERSION;
 		md.md_size = size;
@@ -552,8 +552,8 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 	gp = g_new_geomf(mp, "%s", md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "multipath", NULL, MTX_DEF);
-	memcpy(sc->sc_uuid, md->md_uuid, sizeof (sc->sc_uuid));
-	memcpy(sc->sc_name, md->md_name, sizeof (sc->sc_name));
+	memcpy(sc->sc_uuid, md->md_uuid, sizeof(sc->sc_uuid));
+	memcpy(sc->sc_name, md->md_name, sizeof(sc->sc_name));
 	sc->sc_active_active = md->md_active_active;
 	sc->sc_size = md->md_size;
 	gp->softc = sc;
@@ -906,7 +906,7 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			char buf[16];
 			u_long rand = random();
 
-			snprintf(buf, sizeof (buf), "%s-%lu", md.md_name, rand);
+			snprintf(buf, sizeof(buf), "%s-%lu", md.md_name, rand);
 			printf("GEOM_MULTIPATH: geom %s/%s exists already\n",
 			    sc->sc_name, sc->sc_uuid);
 			printf("GEOM_MULTIPATH: %s will be (temporarily) %s\n",
@@ -1200,7 +1200,7 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		cp = sc->sc_active;
 		pp = cp->provider;
 		strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
-		memcpy(md.md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
+		memcpy(md.md_uuid, sc->sc_uuid, sizeof(sc->sc_uuid));
 		strlcpy(md.md_name, name, sizeof(md.md_name));
 		md.md_version = G_MULTIPATH_VERSION;
 		md.md_size = pp->mediasize;

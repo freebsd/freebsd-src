@@ -38,6 +38,9 @@ request kadmin_modprinc, "Modify principal",
 request kadmin_renameprinc, "Rename principal",
 	rename_principal, renprinc;
 
+request kadmin_addalias, "Add alias",
+	add_alias, alias;
+
 request kadmin_cpw, "Change password",
 	change_password, cpw;
 

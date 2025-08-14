@@ -104,7 +104,7 @@ const uint64_t vectors[64] = {
 };
 
 static void
-test_siphash()
+test_siphash(void)
 {
     uint8_t seq[64];
     uint64_t k0, k1, hval;
@@ -122,7 +122,7 @@ test_siphash()
 }
 
 static void
-test_hashtab()
+test_hashtab(void)
 {
     int st;
     struct k5_hashtab *ht;
@@ -168,7 +168,7 @@ test_hashtab()
 }
 
 int
-main()
+main(void)
 {
     test_siphash();
     test_hashtab();

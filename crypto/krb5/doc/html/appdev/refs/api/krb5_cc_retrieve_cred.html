@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>krb5_cc_retrieve_cred - Retrieve a specified credentials from a credential cache. &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-    <script src="../../../_static/jquery.js"></script>
-    <script src="../../../_static/underscore.js"></script>
-    <script src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
@@ -53,14 +51,14 @@
           <div class="body" role="main">
             
   <section id="krb5-cc-retrieve-cred-retrieve-a-specified-credentials-from-a-credential-cache">
-<h1>krb5_cc_retrieve_cred -  Retrieve a specified credentials from a credential cache.<a class="headerlink" href="#krb5-cc-retrieve-cred-retrieve-a-specified-credentials-from-a-credential-cache" title="Permalink to this headline">¶</a></h1>
+<h1>krb5_cc_retrieve_cred -  Retrieve a specified credentials from a credential cache.<a class="headerlink" href="#krb5-cc-retrieve-cred-retrieve-a-specified-credentials-from-a-credential-cache" title="Link to this heading">¶</a></h1>
 <dl class="c function">
 <dt class="sig sig-object c" id="c.krb5_cc_retrieve_cred">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_cc_retrieve_cred</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_ccache.html#c.krb5_ccache" title="krb5_ccache"><span class="n"><span class="pre">krb5_ccache</span></span></a><span class="w"> </span><span class="n"><span class="pre">cache</span></span>, <a class="reference internal" href="../types/krb5_flags.html#c.krb5_flags" title="krb5_flags"><span class="n"><span class="pre">krb5_flags</span></span></a><span class="w"> </span><span class="n"><span class="pre">flags</span></span>, <a class="reference internal" href="../types/krb5_creds.html#c.krb5_creds" title="krb5_creds"><span class="n"><span class="pre">krb5_creds</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">mcreds</span></span>, <a class="reference internal" href="../types/krb5_creds.html#c.krb5_creds" title="krb5_creds"><span class="n"><span class="pre">krb5_creds</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">creds</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_cc_retrieve_cred" title="Permalink to this definition">¶</a><br /></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_cc_retrieve_cred</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_ccache.html#c.krb5_ccache" title="krb5_ccache"><span class="n"><span class="pre">krb5_ccache</span></span></a><span class="w"> </span><span class="n"><span class="pre">cache</span></span>, <a class="reference internal" href="../types/krb5_flags.html#c.krb5_flags" title="krb5_flags"><span class="n"><span class="pre">krb5_flags</span></span></a><span class="w"> </span><span class="n"><span class="pre">flags</span></span>, <a class="reference internal" href="../types/krb5_creds.html#c.krb5_creds" title="krb5_creds"><span class="n"><span class="pre">krb5_creds</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">mcreds</span></span>, <a class="reference internal" href="../types/krb5_creds.html#c.krb5_creds" title="krb5_creds"><span class="n"><span class="pre">krb5_creds</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">creds</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_cc_retrieve_cred" title="Link to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
 <dl class="field-list">
-<dt class="field-odd">param</dt>
+<dt class="field-odd">param<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>[in]</strong> <strong>context</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>cache</strong> - Credential cache handle</p>
 <p><strong>[in]</strong> <strong>flags</strong> - Flags bit mask</p>
@@ -69,7 +67,7 @@
 </dd>
 </dl>
 <dl class="field-list simple">
-<dt class="field-odd">retval</dt>
+<dt class="field-odd">retval<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p>0   Success; otherwise - Kerberos error codes</p></li>
 </ul>
@@ -80,16 +78,16 @@
 <blockquote>
 <div><blockquote>
 <div><ul class="simple">
-<li><p>#KRB5_TC_MATCH_TIMES The requested lifetime must be at least as great as in <em>mcreds</em> .</p></li>
-<li><p>#KRB5_TC_MATCH_IS_SKEY The <em>is_skey</em> field much match exactly.</p></li>
-<li><p>#KRB5_TC_MATCH_FLAGS Flags set in <em>mcreds</em> must be set.</p></li>
-<li><p>#KRB5_TC_MATCH_TIMES_EXACT The requested lifetime must match exactly.</p></li>
-<li><p>#KRB5_TC_MATCH_FLAGS_EXACT Flags must match exactly.</p></li>
-<li><p>#KRB5_TC_MATCH_AUTHDATA The authorization data must match.</p></li>
-<li><p>#KRB5_TC_MATCH_SRV_NAMEONLY Only the name portion of the principal name must match, not the realm.</p></li>
-<li><p>#KRB5_TC_MATCH_2ND_TKT The second tickets must match.</p></li>
-<li><p>#KRB5_TC_MATCH_KTYPE The encryption key types must match.</p></li>
-<li><p>#KRB5_TC_SUPPORTED_KTYPES Check all matching entries that have any supported encryption type and return the one with the encryption type listed earliest.</p></li>
+<li><p>KRB5_TC_MATCH_TIMES The requested lifetime must be at least as great as in <em>mcreds</em> .</p></li>
+<li><p>KRB5_TC_MATCH_IS_SKEY The <em>is_skey</em> field much match exactly.</p></li>
+<li><p>KRB5_TC_MATCH_FLAGS Flags set in <em>mcreds</em> must be set.</p></li>
+<li><p>KRB5_TC_MATCH_TIMES_EXACT The requested lifetime must match exactly.</p></li>
+<li><p>KRB5_TC_MATCH_FLAGS_EXACT Flags must match exactly.</p></li>
+<li><p>KRB5_TC_MATCH_AUTHDATA The authorization data must match.</p></li>
+<li><p>KRB5_TC_MATCH_SRV_NAMEONLY Only the name portion of the principal name must match, not the realm.</p></li>
+<li><p>KRB5_TC_MATCH_2ND_TKT The second tickets must match.</p></li>
+<li><p>KRB5_TC_MATCH_KTYPE The encryption key types must match.</p></li>
+<li><p>KRB5_TC_SUPPORTED_KTYPES Check all matching entries that have any supported encryption type and return the one with the encryption type listed earliest.</p></li>
 </ul>
 </div></blockquote>
 <p>Use krb5_free_cred_contents() to free <em>creds</em> when it is no longer needed.</p>
@@ -155,8 +153,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

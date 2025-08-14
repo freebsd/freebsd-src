@@ -48,11 +48,11 @@ The local address in *auth_context* must be set, and is used to form the sender 
 
 
 
-If the #KRB5_AUTH_CONTEXT_DO_TIME flag is set in *auth_context* , a timestamp is included in the KRB-SAFE message, and an entry for the message is entered in an in-memory replay cache to detect if the message is reflected by an attacker. If #KRB5_AUTH_CONTEXT_DO_TIME is not set, no replay cache is used. If #KRB5_AUTH_CONTEXT_RET_TIME is set in *auth_context* , a timestamp is included in the KRB-SAFE message and is stored in *rdata_out* .
+If the KRB5_AUTH_CONTEXT_DO_TIME flag is set in *auth_context* , a timestamp is included in the KRB-SAFE message, and an entry for the message is entered in an in-memory replay cache to detect if the message is reflected by an attacker. If KRB5_AUTH_CONTEXT_DO_TIME is not set, no replay cache is used. If KRB5_AUTH_CONTEXT_RET_TIME is set in *auth_context* , a timestamp is included in the KRB-SAFE message and is stored in *rdata_out* .
 
 
 
-If either #KRB5_AUTH_CONTEXT_DO_SEQUENCE or #KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the *auth_context* local sequence number is included in the KRB-SAFE message and then incremented. If #KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the sequence number used is stored in *rdata_out* .
+If either KRB5_AUTH_CONTEXT_DO_SEQUENCE or KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the *auth_context* local sequence number is included in the KRB-SAFE message and then incremented. If KRB5_AUTH_CONTEXT_RET_SEQUENCE is set, the sequence number used is stored in *rdata_out* .
 
 
 
@@ -76,7 +76,7 @@ Use krb5_free_data_contents() to free *der_out* when it is no longer needed.
 
 .. note::
 
-	 The *rdata_out* argument is required if the #KRB5_AUTH_CONTEXT_RET_TIME or #KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .
+	 The *rdata_out* argument is required if the KRB5_AUTH_CONTEXT_RET_TIME or KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .
  
 
 

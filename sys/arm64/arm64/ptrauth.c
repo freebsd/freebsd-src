@@ -149,6 +149,10 @@ ptrauth_enable(const struct cpu_feat *feat __unused,
 	enable_ptrauth = true;
 	elf64_addr_mask.code |= PAC_ADDR_MASK;
 	elf64_addr_mask.data |= PAC_ADDR_MASK;
+#ifdef COMPAT_FREEBSD14
+	elf64_addr_mask_14.code |= PAC_ADDR_MASK_14;
+	elf64_addr_mask_14.data |= PAC_ADDR_MASK_14;
+#endif
 }
 
 

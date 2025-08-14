@@ -4,7 +4,7 @@
  *
  * Sphinx stylesheet -- basic theme.
  *
- * :copyright: Copyright 2007-2021 by the Sphinx team, see AUTHORS.
+ * :copyright: Copyright 2007-2023 by the Sphinx team, see AUTHORS.
  * :license: BSD, see LICENSE for details.
  *
  */
@@ -222,7 +222,7 @@ table.modindextable td {
 /* -- general body styles --------------------------------------------------- */
 
 div.body {
-    min-width: 450px;
+    min-width: 360px;
     max-width: 800px;
 }
 
@@ -237,14 +237,8 @@ a.headerlink {
     visibility: hidden;
 }
 
-a.brackets:before,
-span.brackets > a:before{
-    content: "[";
-}
-
-a.brackets:after,
-span.brackets > a:after {
-    content: "]";
+a:visited {
+    color: #551A8B;
 }
 
 h1:hover > a.headerlink,
@@ -335,12 +329,16 @@ p.sidebar-title {
     font-weight: bold;
 }
 
+nav.contents,
+aside.topic,
 div.admonition, div.topic, blockquote {
     clear: left;
 }
 
 /* -- topics ---------------------------------------------------------------- */
 
+nav.contents,
+aside.topic,
 div.topic {
     border: 1px solid #ccc;
     padding: 7px;
@@ -379,6 +377,8 @@ div.body p.centered {
 
 div.sidebar > :last-child,
 aside.sidebar > :last-child,
+nav.contents > :last-child,
+aside.topic > :last-child,
 div.topic > :last-child,
 div.admonition > :last-child {
     margin-bottom: 0;
@@ -386,6 +386,8 @@ div.admonition > :last-child {
 
 div.sidebar::after,
 aside.sidebar::after,
+nav.contents::after,
+aside.topic::after,
 div.topic::after,
 div.admonition::after,
 blockquote::after {
@@ -426,10 +428,6 @@ table.docutils td, table.docutils th {
     border-left: 0;
     border-right: 0;
     border-bottom: 1px solid #aaa;
-}
-
-table.footnote td, table.footnote th {
-    border: 0 !important;
 }
 
 th {
@@ -615,19 +613,26 @@ ul.simple p {
     margin-bottom: 0;
 }
 
-dl.footnote > dt,
-dl.citation > dt {
+aside.footnote > span,
+div.citation > span {
     float: left;
-    margin-right: 0.5em;
 }
-
-dl.footnote > dd,
-dl.citation > dd {
+aside.footnote > span:last-of-type,
+div.citation > span:last-of-type {
+  padding-right: 0.5em;
+}
+aside.footnote > p {
+  margin-left: 2em;
+}
+div.citation > p {
+  margin-left: 4em;
+}
+aside.footnote > p:last-of-type,
+div.citation > p:last-of-type {
     margin-bottom: 0em;
 }
-
-dl.footnote > dd:after,
-dl.citation > dd:after {
+aside.footnote > p:last-of-type:after,
+div.citation > p:last-of-type:after {
     content: "";
     clear: both;
 }
@@ -642,10 +647,6 @@ dl.field-list > dt {
     word-break: break-word;
     padding-left: 0.5em;
     padding-right: 5px;
-}
-
-dl.field-list > dt:after {
-    content: ":";
 }
 
 dl.field-list > dd {
@@ -671,6 +672,16 @@ dd {
     margin-top: 3px;
     margin-bottom: 10px;
     margin-left: 30px;
+}
+
+.sig dd {
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+.sig dl {
+    margin-top: 0px;
+    margin-bottom: 0px;
 }
 
 dl > dd:last-child,
@@ -741,6 +752,14 @@ abbr, acronym {
     cursor: help;
 }
 
+.translated {
+    background-color: rgba(207, 255, 207, 0.2)
+}
+
+.untranslated {
+    background-color: rgba(255, 207, 207, 0.2)
+}
+
 /* -- code displays --------------------------------------------------------- */
 
 pre {
@@ -757,6 +776,7 @@ span.pre {
     -ms-hyphens: none;
     -webkit-hyphens: none;
     hyphens: none;
+    white-space: nowrap;
 }
 
 div[class*="highlight-"] {

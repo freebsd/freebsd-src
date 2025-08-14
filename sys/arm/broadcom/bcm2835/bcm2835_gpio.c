@@ -840,10 +840,11 @@ bcm_gpio_attach(device_t dev)
 
 	fdt_pinctrl_register(dev, "brcm,pins");
 	fdt_pinctrl_configure_tree(dev);
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL)
 		goto fail;
 
+	bus_attach_children(dev);
 	return (0);
 
 fail:

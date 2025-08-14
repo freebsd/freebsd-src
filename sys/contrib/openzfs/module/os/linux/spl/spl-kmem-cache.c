@@ -296,7 +296,7 @@ spl_slab_free(spl_kmem_slab_t *sks,
 	spl_kmem_cache_t *skc;
 
 	ASSERT(sks->sks_magic == SKS_MAGIC);
-	ASSERT(sks->sks_ref == 0);
+	ASSERT0(sks->sks_ref);
 
 	skc = sks->sks_cache;
 	ASSERT(skc->skc_magic == SKC_MAGIC);
@@ -598,7 +598,7 @@ static void
 spl_magazine_free(spl_kmem_magazine_t *skm)
 {
 	ASSERT(skm->skm_magic == SKM_MAGIC);
-	ASSERT(skm->skm_avail == 0);
+	ASSERT0(skm->skm_avail);
 	kfree(skm);
 }
 
@@ -610,7 +610,7 @@ spl_magazine_create(spl_kmem_cache_t *skc)
 {
 	int i = 0;
 
-	ASSERT((skc->skc_flags & KMC_SLAB) == 0);
+	ASSERT0((skc->skc_flags & KMC_SLAB));
 
 	skc->skc_mag = kzalloc(sizeof (spl_kmem_magazine_t *) *
 	    num_possible_cpus(), kmem_flags_convert(KM_SLEEP));
@@ -640,7 +640,7 @@ spl_magazine_destroy(spl_kmem_cache_t *skc)
 	spl_kmem_magazine_t *skm;
 	int i = 0;
 
-	ASSERT((skc->skc_flags & KMC_SLAB) == 0);
+	ASSERT0((skc->skc_flags & KMC_SLAB));
 
 	for_each_possible_cpu(i) {
 		skm = skc->skc_mag[i];
@@ -679,8 +679,8 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 	/*
 	 * Unsupported flags
 	 */
-	ASSERT(vmp == NULL);
-	ASSERT(reclaim == NULL);
+	ASSERT0P(vmp);
+	ASSERT0P(reclaim);
 
 	might_sleep();
 
@@ -863,11 +863,11 @@ spl_kmem_cache_destroy(spl_kmem_cache_t *skc)
 	 * Validate there are no objects in use and free all the
 	 * spl_kmem_slab_t, spl_kmem_obj_t, and object buffers.
 	 */
-	ASSERT3U(skc->skc_slab_alloc, ==, 0);
-	ASSERT3U(skc->skc_obj_alloc, ==, 0);
-	ASSERT3U(skc->skc_slab_total, ==, 0);
-	ASSERT3U(skc->skc_obj_total, ==, 0);
-	ASSERT3U(skc->skc_obj_emergency, ==, 0);
+	ASSERT0(skc->skc_slab_alloc);
+	ASSERT0(skc->skc_obj_alloc);
+	ASSERT0(skc->skc_slab_total);
+	ASSERT0(skc->skc_obj_total);
+	ASSERT0(skc->skc_obj_emergency);
 	ASSERT(list_empty(&skc->skc_complete_list));
 
 	ASSERT3U(percpu_counter_sum(&skc->skc_linux_alloc), ==, 0);
@@ -986,7 +986,7 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 
 	ASSERT0(flags & ~KM_PUBLIC_MASK);
 	ASSERT(skc->skc_magic == SKC_MAGIC);
-	ASSERT((skc->skc_flags & KMC_SLAB) == 0);
+	ASSERT0((skc->skc_flags & KMC_SLAB));
 
 	*obj = NULL;
 

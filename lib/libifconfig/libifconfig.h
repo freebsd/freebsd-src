@@ -69,6 +69,8 @@ struct ifconfig_bridge_status {
 	size_t members_count;		/**< how many member interfaces */
 	uint32_t cache_size;		/**< size of address cache */
 	uint32_t cache_lifetime;	/**< address cache entry lifetime */
+	ifbr_flags_t flags;		/**< bridge flags */
+	ether_vlanid_t defpvid;		/**< default pvid */
 };
 
 struct ifconfig_capabilities {

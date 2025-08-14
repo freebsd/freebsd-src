@@ -412,7 +412,7 @@ vdev_raidz_map_free(raidz_map_t *rm)
 		    rm->rm_nphys_cols);
 	}
 
-	ASSERT3P(rm->rm_lr, ==, NULL);
+	ASSERT0P(rm->rm_lr);
 	kmem_free(rm, offsetof(raidz_map_t, rm_row[rm->rm_nrows]));
 }
 
@@ -2206,11 +2206,7 @@ vdev_raidz_close(vdev_t *vd)
 
 /*
  * Return the logical width to use, given the txg in which the allocation
- * happened.  Note that BP_GET_BIRTH() is usually the txg in which the
- * BP was allocated.  Remapped BP's (that were relocated due to device
- * removal, see remap_blkptr_cb()), will have a more recent physical birth
- * which reflects when the BP was relocated, but we can ignore these because
- * they can't be on RAIDZ (device removal doesn't support RAIDZ).
+ * happened.
  */
 static uint64_t
 vdev_raidz_get_logical_width(vdev_raidz_t *vdrz, uint64_t txg)
@@ -2249,10 +2245,9 @@ vdev_raidz_asize_to_psize(vdev_t *vd, uint64_t asize, uint64_t txg)
 	vdev_raidz_t *vdrz = vd->vdev_tsd;
 	uint64_t psize;
 	uint64_t ashift = vd->vdev_top->vdev_ashift;
-	uint64_t cols = vdrz->vd_original_width;
 	uint64_t nparity = vdrz->vd_nparity;
 
-	cols = vdev_raidz_get_logical_width(vdrz, txg);
+	uint64_t cols = vdev_raidz_get_logical_width(vdrz, txg);
 
 	ASSERT0(asize % (1 << ashift));
 
@@ -2285,10 +2280,9 @@ vdev_raidz_psize_to_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
 	vdev_raidz_t *vdrz = vd->vdev_tsd;
 	uint64_t asize;
 	uint64_t ashift = vd->vdev_top->vdev_ashift;
-	uint64_t cols = vdrz->vd_original_width;
 	uint64_t nparity = vdrz->vd_nparity;
 
-	cols = vdev_raidz_get_logical_width(vdrz, txg);
+	uint64_t cols = vdev_raidz_get_logical_width(vdrz, txg);
 
 	asize = ((psize - 1) >> ashift) + 1;
 	asize += nparity * ((asize + cols - nparity - 1) / (cols - nparity));
@@ -2345,7 +2339,7 @@ vdev_raidz_io_verify(zio_t *zio, raidz_map_t *rm, raidz_row_t *rr, int col)
 	logical_rs.rs_start = rr->rr_offset;
 	logical_rs.rs_end = logical_rs.rs_start +
 	    vdev_raidz_psize_to_asize(zio->io_vd, rr->rr_size,
-	    BP_GET_BIRTH(zio->io_bp));
+	    BP_GET_PHYSICAL_BIRTH(zio->io_bp));
 
 	raidz_col_t *rc = &rr->rr_col[col];
 	vdev_t *cvd = zio->io_vd->vdev_child[rc->rc_devidx];
@@ -2437,7 +2431,7 @@ raidz_start_skip_writes(zio_t *zio)
 		vdev_t *cvd = vd->vdev_child[rc->rc_devidx];
 		if (rc->rc_size != 0)
 			continue;
-		ASSERT3P(rc->rc_abd, ==, NULL);
+		ASSERT0P(rc->rc_abd);
 
 		ASSERT3U(rc->rc_offset, <,
 		    cvd->vdev_psize - VDEV_LABEL_END_SIZE);
@@ -2568,7 +2562,7 @@ vdev_raidz_io_start(zio_t *zio)
 	raidz_map_t *rm;
 
 	uint64_t logical_width = vdev_raidz_get_logical_width(vdrz,
-	    BP_GET_BIRTH(zio->io_bp));
+	    BP_GET_PHYSICAL_BIRTH(zio->io_bp));
 	if (logical_width != vdrz->vd_physical_width) {
 		zfs_locked_range_t *lr = NULL;
 		uint64_t synced_offset = UINT64_MAX;
@@ -2691,7 +2685,7 @@ raidz_checksum_verify(zio_t *zio)
 	 */
 	if (zio->io_flags & ZIO_FLAG_DIO_READ && ret == ECKSUM) {
 		zio->io_error = ret;
-		zio->io_flags |= ZIO_FLAG_DIO_CHKSUM_ERR;
+		zio->io_post |= ZIO_POST_DIO_CHKSUM_ERR;
 		zio_dio_chksum_verify_error_report(zio);
 		zio_checksum_verified(zio);
 		return (0);
@@ -3048,7 +3042,7 @@ raidz_reconstruct(zio_t *zio, int *ltgts, int ntgts, int nparity)
 
 	/* Check for success */
 	if (raidz_checksum_verify(zio) == 0) {
-		if (zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR)
+		if (zio->io_post & ZIO_POST_DIO_CHKSUM_ERR)
 			return (0);
 
 		/* Reconstruction succeeded - report errors */
@@ -3369,7 +3363,7 @@ vdev_raidz_io_done_reconstruct_known_missing(zio_t *zio, raidz_map_t *rm,
 		 * also have been fewer parity errors than parity
 		 * columns or, again, we wouldn't be in this code path.
 		 */
-		ASSERT(parity_untried == 0);
+		ASSERT0(parity_untried);
 		ASSERT(parity_errors < rr->rr_firstdatacol);
 
 		/*
@@ -3514,7 +3508,7 @@ vdev_raidz_io_done(zio_t *zio)
 		}
 
 		if (raidz_checksum_verify(zio) == 0) {
-			if (zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR)
+			if (zio->io_post & ZIO_POST_DIO_CHKSUM_ERR)
 				goto done;
 
 			for (int i = 0; i < rm->rm_nrows; i++) {
@@ -4591,8 +4585,10 @@ spa_raidz_expand_thread(void *arg, zthr_t *zthr)
 		uint64_t shift, start;
 		zfs_range_seg_type_t type = metaslab_calculate_range_tree_type(
 		    raidvd, msp, &start, &shift);
-		zfs_range_tree_t *rt = zfs_range_tree_create(NULL, type, NULL,
-		    start, shift);
+		zfs_range_tree_t *rt = zfs_range_tree_create_flags(
+		    NULL, type, NULL, start, shift, ZFS_RT_F_DYN_NAME,
+		    metaslab_rt_name(msp->ms_group, msp,
+		    "spa_raidz_expand_thread:rt"));
 		zfs_range_tree_add(rt, msp->ms_start, msp->ms_size);
 		zfs_range_tree_walk(msp->ms_allocatable, zfs_range_tree_remove,
 		    rt);
@@ -4747,7 +4743,7 @@ spa_raidz_expand_thread(void *arg, zthr_t *zthr)
 void
 spa_start_raidz_expansion_thread(spa_t *spa)
 {
-	ASSERT3P(spa->spa_raidz_expand_zthr, ==, NULL);
+	ASSERT0P(spa->spa_raidz_expand_zthr);
 	spa->spa_raidz_expand_zthr = zthr_create("raidz_expand",
 	    spa_raidz_expand_thread_check, spa_raidz_expand_thread,
 	    spa, defclsyspri);

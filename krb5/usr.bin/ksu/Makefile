@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 PROG=	ksu
 .if defined(ENABLE_SUID_K5SU)
 BINMODE=4555
@@ -25,7 +23,8 @@ SRCS=	authorization.c \
 	xmalloc.c
 
 CFLAGS+=-I${KRB5_DIR}/include \
-	-I${KRB5_SRCTOP}/include
+	-I${KRB5_SRCTOP}/include \
+	-DGET_TGT_VIA_PASSWD
 
 MAN=	ksu.1
 

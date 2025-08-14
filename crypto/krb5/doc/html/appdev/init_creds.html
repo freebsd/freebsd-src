@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Initial credentials &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="initial-credentials">
-<h1>Initial credentials<a class="headerlink" href="#initial-credentials" title="Permalink to this headline">¶</a></h1>
+<h1>Initial credentials<a class="headerlink" href="#initial-credentials" title="Link to this heading">¶</a></h1>
 <p>Software that performs tasks such as logging users into a computer
 when they type their Kerberos password needs to get initial
 credentials (usually ticket granting tickets) from Kerberos.  Such
@@ -99,7 +97,7 @@ password:</p>
 </pre></div>
 </div>
 <section id="options-for-get-init-creds">
-<h2>Options for get_init_creds<a class="headerlink" href="#options-for-get-init-creds" title="Permalink to this headline">¶</a></h2>
+<h2>Options for get_init_creds<a class="headerlink" href="#options-for-get-init-creds" title="Link to this heading">¶</a></h2>
 <p>The function <a class="reference internal" href="refs/api/krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_password()</span></code></a> takes an options
 parameter (which can be a null pointer).  Use the function
 <a class="reference internal" href="refs/api/krb5_get_init_creds_opt_alloc.html#c.krb5_get_init_creds_opt_alloc" title="krb5_get_init_creds_opt_alloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_opt_alloc()</span></code></a> to allocate an options
@@ -127,7 +125,7 @@ example:</p>
 </div>
 </section>
 <section id="getting-anonymous-credentials">
-<h2>Getting anonymous credentials<a class="headerlink" href="#getting-anonymous-credentials" title="Permalink to this headline">¶</a></h2>
+<h2>Getting anonymous credentials<a class="headerlink" href="#getting-anonymous-credentials" title="Link to this heading">¶</a></h2>
 <p>As of release 1.8, it is possible to obtain fully anonymous or
 partially anonymous (realm-exposed) credentials, if the KDC supports
 it.  The MIT KDC supports issuing fully anonymous credentials as of
@@ -160,7 +158,7 @@ will take place as it normally does; if successful, the client
 principal of the resulting tickets will be <code class="docutils literal notranslate"><span class="pre">WELLKNOWN/ANONYMOUS&#64;</span></code><em>realmname</em>.</p>
 </section>
 <section id="user-interaction">
-<h2>User interaction<a class="headerlink" href="#user-interaction" title="Permalink to this headline">¶</a></h2>
+<h2>User interaction<a class="headerlink" href="#user-interaction" title="Link to this heading">¶</a></h2>
 <p>Authenticating a user usually requires the entry of secret
 information, such as a password.  A password can be supplied directly
 to <a class="reference internal" href="refs/api/krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_password()</span></code></a> via the <em>password</em>
@@ -170,7 +168,7 @@ queried for other secret information such as a PIN, informed of
 impending password expiration, or prompted to change a password which
 has expired.</p>
 <section id="prompter-callback">
-<h3>Prompter callback<a class="headerlink" href="#prompter-callback" title="Permalink to this headline">¶</a></h3>
+<h3>Prompter callback<a class="headerlink" href="#prompter-callback" title="Link to this heading">¶</a></h3>
 <p>A prompter callback can be specified via the <em>prompter</em> and <em>data</em>
 parameters to <a class="reference internal" href="refs/api/krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_password()</span></code></a>.  The prompter
 will be invoked each time the krb5 library has a question to ask or
@@ -199,7 +197,7 @@ example:</p>
 </div>
 </section>
 <section id="responder-callback">
-<h3>Responder callback<a class="headerlink" href="#responder-callback" title="Permalink to this headline">¶</a></h3>
+<h3>Responder callback<a class="headerlink" href="#responder-callback" title="Link to this heading">¶</a></h3>
 <p>A responder callback can be specified through the init_creds options
 using the <a class="reference internal" href="refs/api/krb5_get_init_creds_opt_set_responder.html#c.krb5_get_init_creds_opt_set_responder" title="krb5_get_init_creds_opt_set_responder"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_get_init_creds_opt_set_responder()</span></code></a> function.
 Responder callbacks can present a more sophisticated user interface
@@ -220,13 +218,13 @@ understand a question type, it cannot interpret the challenge or
 provide an answer.  Failing to answer a question typically results in
 the prompter callback being used as a fallback.</p>
 <section id="password-question">
-<h4>Password question<a class="headerlink" href="#password-question" title="Permalink to this headline">¶</a></h4>
+<h4>Password question<a class="headerlink" href="#password-question" title="Link to this heading">¶</a></h4>
 <p>The <code class="xref c c-macro docutils literal notranslate"><span class="pre">KRB5_RESPONDER_QUESTION_PASSWORD</span></code> (or <code class="docutils literal notranslate"><span class="pre">&quot;password&quot;</span></code>)
 question type requests the user’s password.  This question does not
 have a challenge, and the response is simply the password string.</p>
 </section>
 <section id="one-time-password-question">
-<h4>One-time password question<a class="headerlink" href="#one-time-password-question" title="Permalink to this headline">¶</a></h4>
+<h4>One-time password question<a class="headerlink" href="#one-time-password-question" title="Link to this heading">¶</a></h4>
 <p>The <code class="xref c c-macro docutils literal notranslate"><span class="pre">KRB5_RESPONDER_QUESTION_OTP</span></code> (or <code class="docutils literal notranslate"><span class="pre">&quot;otp&quot;</span></code>) question
 type requests a choice among one-time password tokens and the PIN and
 value for the chosen token.  The challenge and answer are JSON-encoded
@@ -239,7 +237,7 @@ token information elements from the challenge and supplies the value
 and pin for that token.</p>
 </section>
 <section id="pkinit-password-or-pin-question">
-<h4>PKINIT password or PIN question<a class="headerlink" href="#pkinit-password-or-pin-question" title="Permalink to this headline">¶</a></h4>
+<h4>PKINIT password or PIN question<a class="headerlink" href="#pkinit-password-or-pin-question" title="Link to this heading">¶</a></h4>
 <p>The <code class="xref c c-macro docutils literal notranslate"><span class="pre">KRB5_RESPONDER_QUESTION_PKINIT</span></code> (or <code class="docutils literal notranslate"><span class="pre">&quot;pkinit&quot;</span></code>) question
 type requests PINs for hardware devices and/or passwords for encrypted
 credentials which are stored on disk, potentially also supplying
@@ -253,7 +251,7 @@ supply the PIN or password for a particular client credential, and can
 be called multiple times.</p>
 </section>
 <section id="example">
-<h4>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h4>
+<h4>Example<a class="headerlink" href="#example" title="Link to this heading">¶</a></h4>
 <p>Here is an example of using a responder callback:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">static</span> <span class="n">krb5_error_code</span>
 <span class="n">my_responder</span><span class="p">(</span><span class="n">krb5_context</span> <span class="n">context</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span>
@@ -310,7 +308,7 @@ be called multiple times.</p>
 </section>
 </section>
 <section id="verifying-initial-credentials">
-<h2>Verifying initial credentials<a class="headerlink" href="#verifying-initial-credentials" title="Permalink to this headline">¶</a></h2>
+<h2>Verifying initial credentials<a class="headerlink" href="#verifying-initial-credentials" title="Link to this heading">¶</a></h2>
 <p>Use the function <a class="reference internal" href="refs/api/krb5_verify_init_creds.html#c.krb5_verify_init_creds" title="krb5_verify_init_creds"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_verify_init_creds()</span></code></a> to verify initial
 credentials.  It takes an options structure (which can be a null
 pointer).  Use <a class="reference internal" href="refs/api/krb5_verify_init_creds_opt_init.html#c.krb5_verify_init_creds_opt_init" title="krb5_verify_init_creds_opt_init"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_verify_init_creds_opt_init()</span></code></a> to initialize
@@ -409,8 +407,8 @@ that the users would access reside on networked servers.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -47,7 +47,7 @@
  */
 
 static void
-usage()
+usage(void)
 {
     errout("Usage: t_enctypes [-i initenctypes] [-a accenctypes] "
            "targetname");

@@ -2896,8 +2896,9 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	}
 
 	if (bootverbose)
-		pci_printf(cfg, "Transition from D%d to D%d\n", oldstate,
-		    state);
+		pci_printf(cfg, "Transition from %s to %s\n",
+		    pci_powerstate_to_str(oldstate),
+		    pci_powerstate_to_str(state));
 
 	PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_location + PCIR_POWER_STATUS,
 	    status, 2);

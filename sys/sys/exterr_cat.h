@@ -18,6 +18,9 @@
 #define	EXTERR_CAT_FUSE		4
 #define	EXTERR_CAT_INOTIFY	5
 #define	EXTERR_CAT_GENIO	6
+#define	EXTERR_CAT_BRIDGE	7
+#define	EXTERR_CAT_SWAP		8
+#define	EXTERR_CAT_VFSSYSCALL	9
 
 #endif
 

@@ -398,7 +398,7 @@ ddt_object_create(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 
 	ddt_object_name(ddt, type, class, name);
 
-	ASSERT3U(*objectp, ==, 0);
+	ASSERT0(*objectp);
 	VERIFY0(ddt_ops[type]->ddt_op_create(os, objectp, tx, prehash));
 	ASSERT3U(*objectp, !=, 0);
 
@@ -725,10 +725,13 @@ ddt_phys_extend(ddt_univ_phys_t *ddp, ddt_phys_variant_t v, const blkptr_t *bp)
 		dvas[2] = bp->blk_dva[2];
 
 	if (ddt_phys_birth(ddp, v) == 0) {
-		if (v == DDT_PHYS_FLAT)
-			ddp->ddp_flat.ddp_phys_birth = BP_GET_BIRTH(bp);
-		else
-			ddp->ddp_trad[v].ddp_phys_birth = BP_GET_BIRTH(bp);
+		if (v == DDT_PHYS_FLAT) {
+			ddp->ddp_flat.ddp_phys_birth =
+			    BP_GET_PHYSICAL_BIRTH(bp);
+		} else {
+			ddp->ddp_trad[v].ddp_phys_birth =
+			    BP_GET_PHYSICAL_BIRTH(bp);
+		}
 	}
 }
 
@@ -892,14 +895,14 @@ ddt_phys_select(const ddt_t *ddt, const ddt_entry_t *dde, const blkptr_t *bp)
 
 	if (ddt->ddt_flags & DDT_FLAG_FLAT) {
 		if (DVA_EQUAL(BP_IDENTITY(bp), &ddp->ddp_flat.ddp_dva[0]) &&
-		    BP_GET_BIRTH(bp) == ddp->ddp_flat.ddp_phys_birth) {
+		    BP_GET_PHYSICAL_BIRTH(bp) == ddp->ddp_flat.ddp_phys_birth) {
 			return (DDT_PHYS_FLAT);
 		}
 	} else /* traditional phys */ {
 		for (int p = 0; p < DDT_PHYS_MAX; p++) {
 			if (DVA_EQUAL(BP_IDENTITY(bp),
 			    &ddp->ddp_trad[p].ddp_dva[0]) &&
-			    BP_GET_BIRTH(bp) ==
+			    BP_GET_PHYSICAL_BIRTH(bp) ==
 			    ddp->ddp_trad[p].ddp_phys_birth) {
 				return (p);
 			}
@@ -1011,7 +1014,7 @@ ddt_free(const ddt_t *ddt, ddt_entry_t *dde)
 {
 	if (dde->dde_io != NULL) {
 		for (int p = 0; p < DDT_NPHYS(ddt); p++)
-			ASSERT3P(dde->dde_io->dde_lead_zio[p], ==, NULL);
+			ASSERT0P(dde->dde_io->dde_lead_zio[p]);
 
 		if (dde->dde_io->dde_repair_abd != NULL)
 			abd_free(dde->dde_io->dde_repair_abd);
@@ -1421,7 +1424,7 @@ ddt_key_compare(const void *x1, const void *x2)
 static void
 ddt_create_dir(ddt_t *ddt, dmu_tx_t *tx)
 {
-	ASSERT3U(ddt->ddt_dir_object, ==, 0);
+	ASSERT0(ddt->ddt_dir_object);
 	ASSERT3U(ddt->ddt_version, ==, DDT_VERSION_FDT);
 
 	char name[DDT_NAMELEN];
@@ -2395,7 +2398,7 @@ ddt_sync(spa_t *spa, uint64_t txg)
 	 * scan's root zio here so that we can wait for any scan IOs in
 	 * addition to the regular ddt IOs.
 	 */
-	ASSERT3P(scn->scn_zio_root, ==, NULL);
+	ASSERT0P(scn->scn_zio_root);
 	scn->scn_zio_root = rio;
 
 	for (enum zio_checksum c = 0; c < ZIO_CHECKSUM_FUNCTIONS; c++) {

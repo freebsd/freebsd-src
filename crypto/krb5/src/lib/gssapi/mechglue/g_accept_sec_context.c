@@ -128,30 +128,13 @@ allow_mech_by_default(gss_OID mech)
 }
 
 OM_uint32 KRB5_CALLCONV
-gss_accept_sec_context (minor_status,
-                        context_handle,
-                        verifier_cred_handle,
-                        input_token_buffer,
-                        input_chan_bindings,
-                        src_name,
-                        mech_type,
-                        output_token,
-                        ret_flags,
-                        time_rec,
-                        d_cred)
-
-OM_uint32 *		minor_status;
-gss_ctx_id_t *		context_handle;
-gss_cred_id_t		verifier_cred_handle;
-gss_buffer_t		input_token_buffer;
-gss_channel_bindings_t	input_chan_bindings;
-gss_name_t *		src_name;
-gss_OID *		mech_type;
-gss_buffer_t		output_token;
-OM_uint32 *		ret_flags;
-OM_uint32 *		time_rec;
-gss_cred_id_t *		d_cred;
-
+gss_accept_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
+		       gss_cred_id_t verifier_cred_handle,
+		       gss_buffer_t input_token_buffer,
+		       gss_channel_bindings_t input_chan_bindings,
+		       gss_name_t *src_name, gss_OID *mech_type,
+		       gss_buffer_t output_token, OM_uint32 *ret_flags,
+		       OM_uint32 *time_rec, gss_cred_id_t *d_cred)
 {
     OM_uint32		status, temp_status, temp_minor_status;
     OM_uint32		temp_ret_flags = 0;

@@ -32,7 +32,7 @@ SRCDIR= ${SRCTOP}/contrib/pam-krb5
 	${SRCDIR}/pam-util \
 	${SRCDIR}
 
-PACKAGE=	krb5
+PACKAGE=	kerberos
 LIB=	pam_krb5
 LIBADD=	com_err krb5
 
@@ -63,7 +63,6 @@ MLINKS=	pam-krb5.8 pam_krb5.8
 CFLAGS=	-I${SRCDIR} \
 	-I${.CURDIR} \
 	-fno-strict-aliasing \
-	-Wno-error=incompatible-pointer-types-discards-qualifiers \
 	-DHAVE_CONFIG_H
 
 WARNS?=	3

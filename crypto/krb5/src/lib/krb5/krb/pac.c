@@ -146,7 +146,7 @@ k5_pac_locate_buffer(krb5_context context, const krb5_pac pac, uint32_t type,
     if (buffer == NULL)
         return ENOENT;
 
-    assert(buffer->offset < pac->data.length);
+    assert(buffer->offset <= pac->data.length);
     assert(buffer->size <= pac->data.length - buffer->offset);
 
     if (data_out != NULL)
@@ -557,9 +557,11 @@ verify_pac_checksums(krb5_context context, const krb5_pac pac,
         ret = k5_pac_locate_buffer(context, pac, KRB5_PAC_SERVER_CHECKSUM,
                                    &server_checksum);
         if (ret)
-            return ret;
-        if (server_checksum.length < PAC_SIGNATURE_DATA_LENGTH)
-            return KRB5_BAD_MSIZE;
+            goto cleanup;
+        if (server_checksum.length < PAC_SIGNATURE_DATA_LENGTH) {
+            ret = KRB5_BAD_MSIZE;
+            goto cleanup;
+        }
         server_checksum.data += PAC_SIGNATURE_DATA_LENGTH;
         server_checksum.length -= PAC_SIGNATURE_DATA_LENGTH;
 
@@ -956,7 +958,7 @@ mspac_get_attribute_types(krb5_context context, krb5_authdata_context actx,
                           krb5_data **attrs_out)
 {
     struct mspac_context *pacctx = (struct mspac_context *)request_context;
-    unsigned int i, j;
+    size_t i, j;
     krb5_data *attrs;
     krb5_error_code ret;
 

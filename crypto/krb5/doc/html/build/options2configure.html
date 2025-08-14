@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Options to configure &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,11 +51,11 @@
           <div class="body" role="main">
             
   <section id="options-to-configure">
-<span id="options2configure"></span><h1>Options to <em>configure</em><a class="headerlink" href="#options-to-configure" title="Permalink to this headline">¶</a></h1>
+<span id="options2configure"></span><h1>Options to <em>configure</em><a class="headerlink" href="#options-to-configure" title="Link to this heading">¶</a></h1>
 <p>There are a number of options to configure which you can use to
 control how the Kerberos distribution is built.</p>
 <section id="most-commonly-used-options">
-<h2>Most commonly used options<a class="headerlink" href="#most-commonly-used-options" title="Permalink to this headline">¶</a></h2>
+<h2>Most commonly used options<a class="headerlink" href="#most-commonly-used-options" title="Link to this heading">¶</a></h2>
 <dl>
 <dt><strong>-</strong><strong>-help</strong></dt><dd><p>Provides help to configure.  This will list the set of commonly
 used options for building Kerberos.</p>
@@ -123,7 +121,7 @@ versions that we haven’t investigated sufficiently yet.)</p>
 </dl>
 </section>
 <section id="environment-variables">
-<h2>Environment variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h2>
+<h2>Environment variables<a class="headerlink" href="#environment-variables" title="Link to this heading">¶</a></h2>
 <dl>
 <dt><strong>CC=</strong><em>COMPILER</em></dt><dd><p>Use <em>COMPILER</em> as the C compiler.</p>
 </dd>
@@ -184,7 +182,7 @@ default value of <code class="docutils literal notranslate"><span class="pre">-d
 </dl>
 </section>
 <section id="fine-tuning-of-the-installation-directories">
-<h2>Fine tuning of the installation directories<a class="headerlink" href="#fine-tuning-of-the-installation-directories" title="Permalink to this headline">¶</a></h2>
+<h2>Fine tuning of the installation directories<a class="headerlink" href="#fine-tuning-of-the-installation-directories" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt><strong>-</strong><strong>-bindir=</strong><em>DIR</em></dt><dd><p>User executables.  Defaults to <code class="docutils literal notranslate"><span class="pre">EXECPREFIX/bin</span></code>, where
 <em>EXECPREFIX</em> is the path specified by <strong>-</strong><strong>-exec-prefix</strong>
@@ -224,7 +222,7 @@ configuration option.</p>
 </dl>
 </section>
 <section id="program-names">
-<h2>Program names<a class="headerlink" href="#program-names" title="Permalink to this headline">¶</a></h2>
+<h2>Program names<a class="headerlink" href="#program-names" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt><strong>-</strong><strong>-program-prefix=</strong><em>PREFIX</em></dt><dd><p>Prepend <em>PREFIX</em> to the names of the programs when installing
 them. For example, specifying <code class="docutils literal notranslate"><span class="pre">--program-prefix=mit-</span></code> at the
@@ -242,7 +240,7 @@ sed script).</p>
 </dl>
 </section>
 <section id="system-types">
-<h2>System types<a class="headerlink" href="#system-types" title="Permalink to this headline">¶</a></h2>
+<h2>System types<a class="headerlink" href="#system-types" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt><strong>-</strong><strong>-build=</strong><em>BUILD</em></dt><dd><p>Configure for building on <em>BUILD</em>
 (e.g., <code class="docutils literal notranslate"><span class="pre">--build=x86_64-linux-gnu</span></code>).</p>
@@ -254,7 +252,7 @@ configuration will look for “build” option.</p>
 </dl>
 </section>
 <section id="optional-features">
-<h2>Optional features<a class="headerlink" href="#optional-features" title="Permalink to this headline">¶</a></h2>
+<h2>Optional features<a class="headerlink" href="#optional-features" title="Link to this heading">¶</a></h2>
 <dl class="simple">
 <dt><strong>-</strong><strong>-disable-option-checking</strong></dt><dd><p>Ignore unrecognized –enable/–with options.</p>
 </dd>
@@ -283,10 +281,12 @@ first use.</p>
 given, it controls the -fsanitize compilation flag value (the
 default is “address”).</p>
 </dd>
+<dt><strong>-</strong><strong>-enable-ossfuzz</strong></dt><dd><p>Enable building fuzzing targets with OSS-Fuzz build support.</p>
+</dd>
 </dl>
 </section>
 <section id="optional-packages">
-<h2>Optional packages<a class="headerlink" href="#optional-packages" title="Permalink to this headline">¶</a></h2>
+<h2>Optional packages<a class="headerlink" href="#optional-packages" title="Link to this heading">¶</a></h2>
 <dl>
 <dt><strong>-</strong><strong>-with-</strong><em>PACKAGE</em>[=ARG]</dt><dd><p>Use <em>PACKAGE</em> (e.g., <code class="docutils literal notranslate"><span class="pre">--with-imap</span></code>).  The default value of <em>ARG</em>
 is <code class="docutils literal notranslate"><span class="pre">yes</span></code>.</p>
@@ -359,7 +359,7 @@ credential cache type.</p>
 </dl>
 </section>
 <section id="examples">
-<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h2>
 <p>For example, in order to configure Kerberos on a Solaris machine using
 the suncc compiler with the optimizer turned on, run the configure
 script with the following options:</p>
@@ -441,8 +441,8 @@ Kerberos might be done thus:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

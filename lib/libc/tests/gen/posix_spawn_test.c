@@ -29,14 +29,21 @@
  * IEEE Std. 1003.1-2008.
  */
 
+#include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <spawn.h>
 
 #include <atf-c.h>
+
+static const char true_script[] =
+    "#!/usr/bin/env\n"
+    "/usr/bin/true\n";
 
 char *myenv[2] = { "answer=42", NULL };
 
@@ -124,6 +131,48 @@ ATF_TC_BODY(posix_spawnp_enoexec_fallback_null_argv0, tc)
 	ATF_REQUIRE(error == EINVAL);
 }
 
+ATF_TC(posix_spawnp_eacces);
+ATF_TC_HEAD(posix_spawnp_eacces, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Verify EACCES behavior in posix_spawnp");
+	atf_tc_set_md_var(tc, "require.user", "unprivileged");
+}
+ATF_TC_BODY(posix_spawnp_eacces, tc)
+{
+	const struct spawnp_eacces_tc {
+		const char	*pathvar;
+		int		 error_expected;
+	} spawnp_eacces_tests[] = {
+		{ ".",			EACCES }, /* File exists, but not +x */
+		{ "unsearchable",	ENOENT }, /* File exists, dir not +x */
+	};
+	char *myargs[2] = { "eacces", NULL };
+	int error;
+
+	error = mkdir("unsearchable", 0755);
+	ATF_REQUIRE(error == 0);
+	error = symlink("/usr/bin/true", "unsearchable/eacces");
+	ATF_REQUIRE(error == 0);
+
+	(void)chmod("unsearchable", 0444);
+
+	/* this will create a non-executable file */
+	atf_utils_create_file("eacces", true_script);
+
+	for (size_t i = 0; i < nitems(spawnp_eacces_tests); i++) {
+		const struct spawnp_eacces_tc *tc = &spawnp_eacces_tests[i];
+		pid_t pid;
+
+		error = setenv("PATH", tc->pathvar, 1);
+		ATF_REQUIRE_EQ(0, error);
+
+		error = posix_spawnp(&pid, myargs[0], NULL, NULL, myargs,
+		    myenv);
+		ATF_CHECK_INTEQ_MSG(tc->error_expected, error,
+		    "path '%s'", tc->pathvar);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -131,6 +180,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, posix_spawn_no_such_command_negative_test);
 	ATF_TP_ADD_TC(tp, posix_spawnp_enoexec_fallback);
 	ATF_TP_ADD_TC(tp, posix_spawnp_enoexec_fallback_null_argv0);
+	ATF_TP_ADD_TC(tp, posix_spawnp_eacces);
 
 	return (atf_no_error());
 }

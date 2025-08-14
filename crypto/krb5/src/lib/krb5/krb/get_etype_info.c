@@ -33,6 +33,7 @@
 #include "k5-int.h"
 #include "fast.h"
 #include "init_creds_ctx.h"
+#include "os-proto.h"
 
 /* Extract etype info from the error message pkt into icc, if it is a
  * PREAUTH_REQUIRED error.  Otherwise return the protocol error code. */
@@ -96,7 +97,7 @@ krb5_get_etype_info(krb5_context context, krb5_principal principal,
     krb5_data reply = empty_data(), req = empty_data(), realm = empty_data();
     krb5_data salt = empty_data(), s2kparams = empty_data();
     unsigned int flags;
-    int primary, tcp_only;
+    int no_udp;
     krb5_error_code ret;
 
     *enctype_out = ENCTYPE_NULL;
@@ -116,11 +117,10 @@ krb5_get_etype_info(krb5_context context, krb5_principal principal,
     }
 
     /* Send the packet (possibly once with UDP and again with TCP). */
-    tcp_only = 0;
+    no_udp = 0;
     for (;;) {
-        primary = 0;
-        ret = krb5_sendto_kdc(context, &req, &realm, &reply, &primary,
-                              tcp_only);
+        ret = k5_sendto_kdc(context, &req, &realm, FALSE, no_udp, &reply,
+                            NULL);
         if (ret)
             goto cleanup;
 
@@ -128,8 +128,8 @@ krb5_get_etype_info(krb5_context context, krb5_principal principal,
         if (krb5_is_krb_error(&reply)) {
             ret = get_from_error(context, &reply, icc);
             if (ret) {
-                if (!tcp_only && ret == KRB5KRB_ERR_RESPONSE_TOO_BIG) {
-                    tcp_only = 1;
+                if (!no_udp && ret == KRB5KRB_ERR_RESPONSE_TOO_BIG) {
+                    no_udp = 1;
                     krb5_free_data_contents(context, &reply);
                     continue;
                 }

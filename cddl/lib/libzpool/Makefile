@@ -175,6 +175,8 @@ KERNEL_C = \
 	zfeature.c \
 	zfs_byteswap.c \
         zfs_chksum.c \
+	zfs_crrd.c \
+	zfs_debug_common.c \
 	zfs_fm.c \
 	zfs_fuid.c \
 	zfs_sa.c \

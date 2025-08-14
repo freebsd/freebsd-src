@@ -97,6 +97,8 @@ typedef	struct _plandata *creat_f(struct _option *, char ***);
 #define	F_TIME2_B	0x00080000	/* one of -newer?B */
 #endif
 #define F_LINK		0x00100000	/* lname or ilname */
+/* Notes about execution */
+#define F_HAS_WARNED	0x10000000	/* Has issued a warning for maybe bad input */
 
 /* node definition */
 typedef struct _plandata {
@@ -133,6 +135,7 @@ typedef struct _plandata {
 		char *_a_data[2];		/* array of char pointers */
 		char *_c_data;			/* char pointer */
 		regex_t *_re_data;		/* regex */
+		FILE *_fprint_file;		/* file stream for -fprint */
 	} p_un;
 } PLAN;
 #define	a_data	p_un._a_data
@@ -160,6 +163,7 @@ typedef struct _plandata {
 #define e_pbsize p_un.ex._e_pbsize
 #define e_psizemax p_un.ex._e_psizemax
 #define e_next p_un.ex._e_next
+#define	fprint_file	p_un._fprint_file
 
 typedef struct _option {
 	const char *name;		/* option name */

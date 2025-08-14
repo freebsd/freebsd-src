@@ -33,7 +33,7 @@ from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.vnet import VnetTestTemplate
 
 class TestNAT64(VnetTestTemplate):
-    REQUIRED_MODULES = [ "pf" ]
+    REQUIRED_MODULES = [ "pf", "pflog" ]
     TOPOLOGY = {
         "vnet1": {"ifaces": ["if1"]},
         "vnet2": {"ifaces": ["if1", "if2"]},
@@ -92,11 +92,16 @@ class TestNAT64(VnetTestTemplate):
     def vnet2_handler(self, vnet):
         ifname = vnet.iface_alias_map["if1"].name
 
+        ToolsHelper.print_output("/sbin/sysctl net.inet6.ip6.forwarding=1")
         ToolsHelper.print_output("/sbin/route add default 192.0.2.2")
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
-            "pass inet6 proto icmp6",
-            "pass in on %s inet6 af-to inet from 192.0.2.1" % ifname])
+            "block",
+            "pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }",
+            "pass in on %s inet6 af-to inet from 192.0.2.1" % ifname,
+        ])
+
+        vnet.pipe.send(socket.if_nametoindex("pflog0"))
 
     @pytest.mark.require_user("root")
     @pytest.mark.require_progs(["scapy"])
@@ -287,3 +292,67 @@ class TestNAT64(VnetTestTemplate):
         reply = sp.sr1(packet, timeout=3)
         # We don't expect a reply to a corrupted packet
         assert not reply
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_noip6(self):
+        """
+            PR 288263: link-local target address in icmp6 ADVERT can cause NULL deref
+        """
+        ifname = self.vnet.iface_alias_map["if1"].name
+        gw_mac = self.vnet.iface_alias_map["if1"].epairb.ether
+        scopeid = self.wait_object(self.vnet_map["vnet2"].pipe)
+        ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
+
+        import scapy.all as sp
+
+        pkt = sp.Ether(dst=gw_mac) \
+            / sp.IPv6(dst="64:ff9b::203.0.113.2") \
+            / sp.ICMPv6ND_NA(tgt="FFA2:%x:2821:125F:1D27:B3B2:3F6F:C43C" % scopeid)
+        pkt.show()
+        sp.hexdump(pkt)
+        s = DelayedSend(pkt, sendif=ifname)
+
+        packets = sp.sniff(iface=ifname, timeout=5)
+        for r in packets:
+            r.show()
+
+        # Try scope id that likely doesn't have an interface at all
+        pkt = sp.Ether(dst=gw_mac) \
+            / sp.IPv6(dst="64:ff9b::203.0.113.2") \
+            / sp.ICMPv6ND_NA(tgt="FFA2:%x:2821:125F:1D27:B3B2:3F6F:C43C" % 255)
+        pkt.show()
+        sp.hexdump(pkt)
+        s = DelayedSend(pkt, sendif=ifname)
+
+        packets = sp.sniff(iface=ifname, timeout=5)
+        for r in packets:
+            r.show()
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_ttl_zero(self):
+        """
+            PR 288274: we can use an mbuf after free on TTL = 0
+        """
+        ifname = self.vnet.iface_alias_map["if1"].name
+        gw_mac = self.vnet.iface_alias_map["if1"].epairb.ether
+        ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
+
+        import scapy.all as sp
+
+        pkt = sp.Ether(dst=gw_mac) \
+            / sp.IPv6(dst="64:ff9b::192.0.2.2", hlim=0) \
+            / sp.SCTP(sport=1111, dport=2222) \
+            / sp.SCTPChunkInit(init_tag=1, n_in_streams=1, n_out_streams=1, \
+                a_rwnd=1500, params=[ \
+                    sp.SCTPChunkParamIPv4Addr() \
+                ])
+        pkt.show()
+        sp.hexdump(pkt)
+        s = DelayedSend(pkt, sendif=ifname)
+
+        packets = sp.sniff(iface=ifname, timeout=5)
+        for r in packets:
+            r.show()
+

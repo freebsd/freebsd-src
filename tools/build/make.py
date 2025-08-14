@@ -34,12 +34,24 @@
 # On FreeBSD you can use it the same way as just calling make:
 # `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py buildworld -DWITH_FOO`
 #
-# On Linux and MacOS you will either need to set XCC/XCXX/XLD/XCPP or pass
-# --cross-bindir to specify the path to the cross-compiler bindir:
-# `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py
-# --cross-bindir=/path/to/cross/compiler buildworld -DWITH_FOO TARGET=foo
-# TARGET_ARCH=bar`
+# On Linux and MacOS you may need to explicitly indicate the cross toolchain
+# to use.  You can do this by:
+# - setting XCC/XCXX/XLD/XCPP to the paths of each tool
+# - using --cross-bindir to specify the path to the cross-compiler bindir:
+#   `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py
+#    --cross-bindir=/path/to/cross/compiler buildworld -DWITH_FOO TARGET=foo
+#    TARGET_ARCH=bar`
+# - using --cross-toolchain to specify the package containing the cross-compiler
+#   (MacOS only currently):
+#   `MAKEOBJDIRPREFIX=~/obj ./tools/build/make.py
+#    --cross-toolchain=llvm@NN buildworld -DWITH_FOO TARGET=foo
+#    TARGET_ARCH=bar`
+#
+# On MacOS, this tool will search for an llvm toolchain installed via brew and
+# use it as the cross toolchain if an explicit toolchain is not specified.
+
 import argparse
+import functools
 import os
 import shlex
 import shutil
@@ -159,7 +171,8 @@ def check_required_make_env_var(varname, binary_name, bindir):
         return
     if not bindir:
         sys.exit("Could not infer value for $" + varname + ". Either set $" +
-                 varname + " or pass --cross-bindir=/cross/compiler/dir/bin")
+                 varname + " or pass --cross-bindir=/cross/compiler/dir/bin" +
+                 " or --cross-toolchain=<package>")
     # try to infer the path to the tool
     guess = os.path.join(bindir, binary_name)
     if not os.path.isfile(guess):
@@ -178,24 +191,45 @@ def check_xtool_make_env_var(varname, binary_name):
         return
     global parsed_args
     if parsed_args.cross_bindir is None:
-        parsed_args.cross_bindir = default_cross_toolchain()
+        cross_bindir = cross_toolchain_bindir(binary_name,
+                                              parsed_args.cross_toolchain)
+    else:
+        cross_bindir = parsed_args.cross_bindir
     return check_required_make_env_var(varname, binary_name,
-                                       parsed_args.cross_bindir)
+                                       cross_bindir)
 
 
-def default_cross_toolchain():
+@functools.cache
+def brew_prefix(package: str) -> str:
+    path = subprocess.run(["brew", "--prefix", package], stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE).stdout.strip()
+    debug("Inferred", package, "dir as", path)
+    return path.decode("utf-8")
+
+def binary_path(bindir: str, binary_name: str) -> "Optional[str]":
+    try:
+        if bindir and Path(bindir, "bin", binary_name).exists():
+            return str(Path(bindir, "bin"))
+    except OSError:
+        pass
+    return None
+
+def cross_toolchain_bindir(binary_name: str, package: "Optional[str]") -> str:
     # default to homebrew-installed clang on MacOS if available
     if sys.platform.startswith("darwin"):
         if shutil.which("brew"):
-            llvm_dir = subprocess.run([
-                "brew", "--prefix", "llvm"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
-            debug("Inferred LLVM dir as", llvm_dir)
-            try:
-                if llvm_dir and Path(llvm_dir.decode("utf-8"), "bin").exists():
-                    return str(Path(llvm_dir.decode("utf-8"), "bin"))
-            except OSError:
-                return None
+            if not package:
+                package = "llvm"
+            bindir = binary_path(brew_prefix(package), binary_name)
+            if bindir:
+                return bindir
+
+            # brew installs lld as a separate package for LLVM 19 and later
+            if binary_name == "ld.lld":
+                lld_package = package.replace("llvm", "lld")
+                bindir = binary_path(brew_prefix(lld_package), binary_name)
+                if bindir:
+                    return bindir
     return None
 
 
@@ -215,6 +249,10 @@ if __name__ == "__main__":
                         help="Compiler type to find in --cross-bindir (only "
                              "needed if XCC/XCPP/XLD are not set)"
                              "Note: using CC is currently highly experimental")
+    parser.add_argument("--cross-toolchain", default=None,
+                        help="Name of package containing cc/c++/cpp/ld to build "
+                             "target binaries (only needed if XCC/XCPP/XLD "
+                             "are not set)")
     parser.add_argument("--host-compiler-type", choices=("cc", "clang", "gcc"),
                         default="cc",
                         help="Compiler type to find in --host-bindir (only "

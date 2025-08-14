@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -24,10 +22,6 @@ VERSION_MAP=	${.CURDIR}/version.map
 # .include "${KRB5_CRYPTOLIBDIR}/krb/Makefile.inc"
 # .include "${KRB5_CRYPTOLIBDIR}/builtin/Makefile.inc"
 # .include "${KRB5_CRYPTOLIBDIR}/openssl/Makefile.inc"
-
-.include "${KRB5_SRCTOP}/lib/krb5/error_tables/Makefile.inc"
-
-SRCS+=	${GEN_ET}
 
 .include "${KRB5_SRCTOP}/lib/crypto/krb/Makefile.inc"
 .include "${KRB5_SRCTOP}/lib/crypto/builtin/Makefile.inc"

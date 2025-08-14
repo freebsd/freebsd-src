@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>kdb5_ldap_util &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css?v=6a0b3979" />
+    <script src="../../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
@@ -53,9 +51,9 @@
           <div class="body" role="main">
             
   <section id="kdb5-ldap-util">
-<span id="kdb5-ldap-util-8"></span><h1>kdb5_ldap_util<a class="headerlink" href="#kdb5-ldap-util" title="Permalink to this headline">¶</a></h1>
+<span id="kdb5-ldap-util-8"></span><h1>kdb5_ldap_util<a class="headerlink" href="#kdb5-ldap-util" title="Link to this heading">¶</a></h1>
 <section id="synopsis">
-<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Link to this heading">¶</a></h2>
 <p id="kdb5-ldap-util-synopsis"><strong>kdb5_ldap_util</strong>
 [<strong>-D</strong> <em>user_dn</em> [<strong>-w</strong> <em>passwd</em>]]
 [<strong>-H</strong> <em>ldapuri</em>]
@@ -63,12 +61,12 @@
 [<em>command_options</em>]</p>
 </section>
 <section id="description">
-<span id="kdb5-ldap-util-synopsis-end"></span><h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<span id="kdb5-ldap-util-synopsis-end"></span><h2>DESCRIPTION<a class="headerlink" href="#description" title="Link to this heading">¶</a></h2>
 <p>kdb5_ldap_util allows an administrator to manage realms, Kerberos
 services and ticket policies.</p>
 </section>
 <section id="command-line-options">
-<h2>COMMAND-LINE OPTIONS<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<h2>COMMAND-LINE OPTIONS<a class="headerlink" href="#command-line-options" title="Link to this heading">¶</a></h2>
 <dl class="simple" id="kdb5-ldap-util-options">
 <dt><strong>-r</strong> <em>realm</em></dt><dd><p>Specifies the realm to be operated on.</p>
 </dd>
@@ -87,9 +85,9 @@ server in the same manner as :ref:kadmind(8)` would given the
 parameters in <a class="reference internal" href="../conf_files/kdc_conf.html#dbdefaults"><span class="std std-ref">[dbdefaults]</span></a> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.</p>
 </section>
 <section id="commands">
-<span id="kdb5-ldap-util-options-end"></span><h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<span id="kdb5-ldap-util-options-end"></span><h2>COMMANDS<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
 <section id="create">
-<h3>create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
+<h3>create<a class="headerlink" href="#create" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-create">
 <div><p><strong>create</strong>
 [<strong>-subtrees</strong> <em>subtree_dn_list</em>]
@@ -164,7 +162,7 @@ documented in the description of the <strong>add_principal</strong> command in
 </div>
 </section>
 <section id="modify">
-<span id="kdb5-ldap-util-create-end"></span><h3>modify<a class="headerlink" href="#modify" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-create-end"></span><h3>modify<a class="headerlink" href="#modify" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-modify">
 <div><p><strong>modify</strong>
 [<strong>-subtrees</strong> <em>subtree_dn_list</em>]
@@ -207,7 +205,7 @@ documented in the description of the <strong>add_principal</strong> command in
 </div>
 </section>
 <section id="view">
-<span id="kdb5-ldap-util-modify-end"></span><h3>view<a class="headerlink" href="#view" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-modify-end"></span><h3>view<a class="headerlink" href="#view" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-view">
 <div><p><strong>view</strong></p>
 </div></blockquote>
@@ -227,7 +225,7 @@ documented in the description of the <strong>add_principal</strong> command in
 </div>
 </section>
 <section id="destroy">
-<span id="kdb5-ldap-util-view-end"></span><h3>destroy<a class="headerlink" href="#destroy" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-view-end"></span><h3>destroy<a class="headerlink" href="#destroy" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-destroy">
 <div><p><strong>destroy</strong> [<strong>-f</strong>]</p>
 </div></blockquote>
@@ -248,7 +246,7 @@ shell%
 </div>
 </section>
 <section id="list">
-<span id="kdb5-ldap-util-destroy-end"></span><h3>list<a class="headerlink" href="#list" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-destroy-end"></span><h3>list<a class="headerlink" href="#list" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-list">
 <div><p><strong>list</strong></p>
 </div></blockquote>
@@ -265,7 +263,7 @@ shell%
 </div>
 </section>
 <section id="stashsrvpw">
-<span id="kdb5-ldap-util-list-end"></span><h3>stashsrvpw<a class="headerlink" href="#stashsrvpw" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-list-end"></span><h3>stashsrvpw<a class="headerlink" href="#stashsrvpw" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-stashsrvpw">
 <div><p><strong>stashsrvpw</strong>
 [<strong>-f</strong> <em>filename</em>]
@@ -297,7 +295,7 @@ name it will use as given by the <strong>ldap_kdc_sasl_authcid</strong> or
 </div>
 </section>
 <section id="create-policy">
-<span id="kdb5-ldap-util-stashsrvpw-end"></span><h3>create_policy<a class="headerlink" href="#create-policy" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-stashsrvpw-end"></span><h3>create_policy<a class="headerlink" href="#create-policy" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-create-policy">
 <div><p><strong>create_policy</strong>
 [<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
@@ -331,7 +329,7 @@ command in <a class="reference internal" href="kadmin_local.html#kadmin-1"><span
 </div>
 </section>
 <section id="modify-policy">
-<span id="kdb5-ldap-util-create-policy-end"></span><h3>modify_policy<a class="headerlink" href="#modify-policy" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-create-policy-end"></span><h3>modify_policy<a class="headerlink" href="#modify-policy" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-modify-policy">
 <div><p><strong>modify_policy</strong>
 [<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
@@ -351,7 +349,7 @@ command in <a class="reference internal" href="kadmin_local.html#kadmin-1"><span
 </div>
 </section>
 <section id="view-policy">
-<span id="kdb5-ldap-util-modify-policy-end"></span><h3>view_policy<a class="headerlink" href="#view-policy" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-modify-policy-end"></span><h3>view_policy<a class="headerlink" href="#view-policy" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-view-policy">
 <div><p><strong>view_policy</strong>
 <em>policy_name</em></p>
@@ -369,7 +367,7 @@ command in <a class="reference internal" href="kadmin_local.html#kadmin-1"><span
 </div>
 </section>
 <section id="destroy-policy">
-<span id="kdb5-ldap-util-view-policy-end"></span><h3>destroy_policy<a class="headerlink" href="#destroy-policy" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-view-policy-end"></span><h3>destroy_policy<a class="headerlink" href="#destroy-policy" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-destroy-policy">
 <div><p><strong>destroy_policy</strong>
 [<strong>-force</strong>]
@@ -394,7 +392,7 @@ This will delete the policy object &#39;tktpolicy&#39;, are you sure?
 </div>
 </section>
 <section id="list-policy">
-<span id="kdb5-ldap-util-destroy-policy-end"></span><h3>list_policy<a class="headerlink" href="#list-policy" title="Permalink to this headline">¶</a></h3>
+<span id="kdb5-ldap-util-destroy-policy-end"></span><h3>list_policy<a class="headerlink" href="#list-policy" title="Link to this heading">¶</a></h3>
 <blockquote id="kdb5-ldap-util-list-policy">
 <div><p><strong>list_policy</strong></p>
 </div></blockquote>
@@ -411,12 +409,12 @@ This will delete the policy object &#39;tktpolicy&#39;, are you sure?
 </section>
 </section>
 <section id="environment">
-<span id="kdb5-ldap-util-list-policy-end"></span><h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<span id="kdb5-ldap-util-list-policy-end"></span><h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Link to this heading">¶</a></h2>
 <p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
 variables.</p>
 </section>
 <section id="see-also">
-<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
 <p><a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
 </section>
 </section>
@@ -527,8 +525,8 @@ variables.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

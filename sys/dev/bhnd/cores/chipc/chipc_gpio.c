@@ -173,11 +173,13 @@ chipc_gpio_attach(device_t dev)
 	if (CC_GPIO_QUIRK(sc, NO_GPIOC)) {
 		sc->gpiobus = NULL;
 	} else {
-		if ((sc->gpiobus = gpiobus_attach_bus(dev)) == NULL) {
+		if ((sc->gpiobus = gpiobus_add_bus(dev)) == NULL) {
 			device_printf(dev, "failed to attach gpiobus\n");
 			error = ENXIO;
 			goto failed;
 		}
+
+		bus_attach_children(dev);
 	}
 
 	/* Register as the bus GPIO provider */

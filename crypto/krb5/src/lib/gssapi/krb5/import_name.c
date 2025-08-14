@@ -119,13 +119,10 @@ parse_hostbased(const char *str, size_t len,
     return 0;
 }
 
-OM_uint32 KRB5_CALLCONV
-krb5_gss_import_name(minor_status, input_name_buffer,
-                     input_name_type, output_name)
-    OM_uint32 *minor_status;
-    gss_buffer_t input_name_buffer;
-    gss_OID input_name_type;
-    gss_name_t *output_name;
+static OM_uint32 KRB5_CALLCONV
+import_name(OM_uint32 *minor_status, gss_buffer_t input_name_buffer,
+            gss_OID input_name_type, krb5_boolean iakerb,
+            gss_name_t *output_name)
 {
     krb5_context context;
     krb5_principal princ = NULL;
@@ -308,6 +305,9 @@ krb5_gss_import_name(minor_status, input_name_buffer,
 
         /* At this point, stringrep is set, or if not, code is. */
         if (stringrep) {
+            /* For IAKERB, use realm discovery instead of the default realm. */
+            if (iakerb)
+                flags |= KRB5_PRINCIPAL_PARSE_NO_DEF_REALM;
             code = krb5_parse_name_flags(context, stringrep, flags, &princ);
             if (code)
                 goto cleanup;
@@ -343,4 +343,20 @@ cleanup:
     free(service);
     free(host);
     return status;
+}
+
+OM_uint32 KRB5_CALLCONV
+krb5_gss_import_name(OM_uint32 *minor_status, gss_buffer_t input_name_buffer,
+                     gss_OID input_name_type, gss_name_t *output_name)
+{
+    return import_name(minor_status, input_name_buffer, input_name_type, FALSE,
+                       output_name);
+}
+
+OM_uint32 KRB5_CALLCONV
+iakerb_gss_import_name(OM_uint32 *minor_status, gss_buffer_t input_name_buffer,
+                       gss_OID input_name_type, gss_name_t *output_name)
+{
+    return import_name(minor_status, input_name_buffer, input_name_type, TRUE,
+                       output_name);
 }

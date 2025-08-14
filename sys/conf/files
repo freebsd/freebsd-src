@@ -359,6 +359,7 @@ contrib/openzfs/module/zfs/zcp_synctask.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfeature.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_byteswap.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_chksum.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/zfs_crrd.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_fm.c		optional zfs compile-with "${ZFS_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 contrib/openzfs/module/zfs/zfs_fuid.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_impl.c		optional zfs compile-with "${ZFS_C}"
@@ -3768,6 +3769,7 @@ gnu/gcov/gcov_subr.c		optional gcov
 
 kern/bus_if.m			standard
 kern/clock_if.m			standard
+kern/coredump_vnode.c		standard
 kern/cpufreq_if.m		standard
 kern/device_if.m		standard
 kern/imgact_binmisc.c		optional imgact_binmisc
@@ -3856,6 +3858,7 @@ kern/kern_time.c		standard
 kern/kern_timeout.c		standard
 kern/kern_tslog.c		optional tslog
 kern/kern_ubsan.c		optional kubsan
+kern/kern_ucoredump.c		standard
 kern/kern_umtx.c		standard
 kern/kern_uuid.c		standard
 kern/kern_vnodedumper.c		standard

@@ -499,6 +499,81 @@ atf_test_case "6in6" "cleanup"
 	ovpn_cleanup
 }
 
+atf_test_case "linklocal" "cleanup"
+linklocal_head()
+{
+	atf_set descr 'Use IPv6 link-local addresses'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+linklocal_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a inet6 fe80::a/64 up no_dad
+	vnet_mkjail b ${l}b
+	jexec b ifconfig ${l}b inet6 fe80::b/64 up no_dad
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping6 -c 1 fe80::b%${l}a
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp6
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local fe80::a%${l}a
+		server-ipv6 2001:db8:1::/64
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote fe80::a%${l}b
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+	jexec a ifconfig
+
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 2001:db8:1::1
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 -z 16 2001:db8:1::1
+}
+
+linklocal_cleanup()
+{
+	ovpn_cleanup
+}
+
 atf_test_case "timeout_client" "cleanup"
 timeout_client_head()
 {
@@ -1149,6 +1224,261 @@ destroy_unused_cleanup()
 	ovpn_cleanup
 }
 
+atf_test_case "multihome4" "cleanup"
+multihome4_head()
+{
+	atf_set descr 'Test multihome IPv4 with OpenVPN'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+multihome4_body()
+{
+	pft_init
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	atf_check jexec a ifconfig ${l}a inet 192.0.2.1/24
+	atf_check jexec a ifconfig ${l}a alias 192.0.2.2/24
+	vnet_mkjail b ${l}b
+	atf_check jexec b ifconfig ${l}b inet 192.0.2.3/24
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec b ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore jexec b ping -c 1 192.0.2.2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp4
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		multihome
+		server 198.51.100.0 255.255.255.0
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.2
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Block packets from the primary address, openvpn should only use the
+	# configured remote address.
+	jexec b pfctl -e
+	pft_set_rules b \
+		"block in quick from 192.0.2.1 to any" \
+		"pass all"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
+}
+
+multihome4_cleanup()
+{
+	ovpn_cleanup
+	pft_cleanup
+}
+
+multihome6_head()
+{
+	atf_set descr 'Test multihome IPv6 with OpenVPN'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+multihome6_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	atf_check jexec a ifconfig ${l}a inet6 2001:db8::1/64 no_dad
+	atf_check jexec a ifconfig ${l}a inet6 alias 2001:db8::2/64 no_dad
+	vnet_mkjail b ${l}b
+	atf_check jexec b ifconfig ${l}b inet6 2001:db8::3/64 no_dad
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 1 2001:db8::1
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 1 2001:db8::2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp6
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		multihome
+		server-ipv6 2001:db8:1::/64
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 2001:db8::2
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Block packets from the primary address, openvpn should only use the
+	# configured remote address.
+	jexec b pfctl -e
+	pft_set_rules b \
+		"block in quick from 2001:db8::1 to any" \
+		"pass all"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 2001:db8:1::1
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 -z 16 2001:db8:1::1
+}
+
+multihome6_cleanup()
+{
+	ovpn_cleanup
+}
+
+atf_test_case "float" "cleanup"
+float_head()
+{
+	atf_set descr 'Test peer float notification'
+	atf_set require.user root
+}
+
+float_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a 192.0.2.1/24 up
+	jexec a ifconfig lo0 127.0.0.1/8 up
+	vnet_mkjail b ${l}b
+	jexec b ifconfig ${l}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping -c 1 192.0.2.2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp4
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local 192.0.2.1
+		server 198.51.100.0 255.255.255.0
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 2 10
+
+		management 192.0.2.1 1234
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 2 10
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
+
+	# We expect the client on 192.0.2.2
+	if ! echo "status" | jexec a nc -N 192.0.2.1 1234 | grep 192.0.2.2; then
+		atf_fail "Client not found in status list!"
+	fi
+
+	# Now change the client IP
+	jexec b ifconfig ${l}b 192.0.2.3/24 up
+
+	# And wait for keepalives to trigger the float notification
+	sleep 5
+
+	# So the client now has the new address in userspace
+	if ! echo "status" | jexec a nc -N 192.0.2.1 1234 | grep 192.0.2.3; then
+		atf_fail "Client not found in status list!"
+	fi
+}
+
+float_cleanup()
+{
+	ovpn_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "4in4"
@@ -1157,6 +1487,7 @@ atf_init_test_cases()
 	atf_add_test_case "6in4"
 	atf_add_test_case "6in6"
 	atf_add_test_case "4in6"
+	atf_add_test_case "linklocal"
 	atf_add_test_case "timeout_client"
 	atf_add_test_case "explicit_exit"
 	atf_add_test_case "multi_client"
@@ -1165,4 +1496,7 @@ atf_init_test_cases()
 	atf_add_test_case "chacha"
 	atf_add_test_case "gcm_128"
 	atf_add_test_case "destroy_unused"
+	atf_add_test_case "multihome4"
+	atf_add_test_case "multihome6"
+	atf_add_test_case "float"
 }

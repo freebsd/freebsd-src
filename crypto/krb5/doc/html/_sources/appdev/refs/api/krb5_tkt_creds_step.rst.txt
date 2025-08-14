@@ -42,7 +42,7 @@ This function constructs the next KDC request for a TGS exchange, allowing the c
 
 
 
-If more requests are needed, *flags* will be set to #KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and the next request will be placed in *out* . If no more requests are needed, *flags* will not contain #KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and *out* will be empty.
+If more requests are needed, *flags* will be set to KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and the next request will be placed in *out* . If no more requests are needed, *flags* will not contain KRB5_TKT_CREDS_STEP_FLAG_CONTINUE and *out* will be empty.
 
 
 

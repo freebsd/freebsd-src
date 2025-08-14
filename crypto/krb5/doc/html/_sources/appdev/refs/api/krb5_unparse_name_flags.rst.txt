@@ -43,13 +43,13 @@ Similar to krb5_unparse_name(), this function converts a krb5_principal structur
 
 The following flags are valid: 
  
-	 - #KRB5_PRINCIPAL_UNPARSE_SHORT - omit realm if it is the local realm
+	 - KRB5_PRINCIPAL_UNPARSE_SHORT - omit realm if it is the local realm
  
  
-	 - #KRB5_PRINCIPAL_UNPARSE_NO_REALM - omit realm
+	 - KRB5_PRINCIPAL_UNPARSE_NO_REALM - omit realm
  
  
-	 - #KRB5_PRINCIPAL_UNPARSE_DISPLAY - do not quote special characters
+	 - KRB5_PRINCIPAL_UNPARSE_DISPLAY - do not quote special characters
  
  Use krb5_free_unparsed_name() to free *name* when it is no longer needed.
 

@@ -15,11 +15,8 @@
 #include "copyright.h"
 
 
-void ss_help (argc, argv, sci_idx, info_ptr)
-    int argc;
-    char const * const *argv;
-    int sci_idx;
-    pointer info_ptr;
+void
+ss_help(int argc, char const * const *argv, int sci_idx, pointer info_ptr)
 {
     char buffer[MAXPATHLEN];
     char const *request_name;
@@ -81,15 +78,11 @@ got_it:
         ss_page_stdin();
     default:
         (void) close(fd); /* what can we do if it fails? */
-#ifdef WAIT_USES_INT
-        while (wait((int *)NULL) != child) {
-#else
-            while (wait((union wait *)NULL) != child) {
-#endif
-                /* do nothing if wrong pid */
-            };
-        }
+        while (wait(NULL) != child) {
+            /* do nothing if wrong pid */
+        };
     }
+}
 
 #ifndef USE_DIRENT_H
 #include <sys/dir.h>
@@ -97,60 +90,56 @@ got_it:
 #include <dirent.h>
 #endif
 
-    void ss_add_info_dir(sci_idx, info_dir, code_ptr)
-        int sci_idx;
-    char *info_dir;
-    int *code_ptr;
-    {
-        ss_data *info;
-        DIR *d;
-        int n_dirs;
-        char **dirs;
+void
+ss_add_info_dir(int sci_idx, char *info_dir, int *code_ptr)
+{
+    ss_data *info;
+    DIR *d;
+    int n_dirs;
+    char **dirs;
 
-        info = ss_info(sci_idx);
-        if ((info_dir == NULL) || (*info_dir == '\0')) {
-            *code_ptr = SS_ET_NO_INFO_DIR;
-            return;
-        }
-        if ((d = opendir(info_dir)) == (DIR *)NULL) {
-            *code_ptr = errno;
-            return;
-        }
-        closedir(d);
-        dirs = info->info_dirs;
-        for (n_dirs = 0; dirs[n_dirs] != (char *)NULL; n_dirs++)
-            ;               /* get number of non-NULL dir entries */
-        dirs = (char **)realloc((char *)dirs,
-                                (unsigned)(n_dirs + 2)*sizeof(char *));
-        if (dirs == (char **)NULL) {
-            info->info_dirs = (char **)NULL;
-            *code_ptr = errno;
-            return;
-        }
-        info->info_dirs = dirs;
-        dirs[n_dirs + 1] = (char *)NULL;
-        dirs[n_dirs] = strdup(info_dir);
-        *code_ptr = 0;
-    }
-
-    void ss_delete_info_dir(sci_idx, info_dir, code_ptr)
-        int sci_idx;
-    char *info_dir;
-    int *code_ptr;
-    {
-        char **i_d;
-        char **info_dirs;
-
-        info_dirs = ss_info(sci_idx)->info_dirs;
-        for (i_d = info_dirs; *i_d; i_d++) {
-            if (!strcmp(*i_d, info_dir)) {
-                while (*i_d) {
-                    *i_d = *(i_d+1);
-                    i_d++;
-                }
-                *code_ptr = 0;
-                return;
-            }
-        }
+    info = ss_info(sci_idx);
+    if ((info_dir == NULL) || (*info_dir == '\0')) {
         *code_ptr = SS_ET_NO_INFO_DIR;
+        return;
     }
+    if ((d = opendir(info_dir)) == (DIR *)NULL) {
+        *code_ptr = errno;
+        return;
+    }
+    closedir(d);
+    dirs = info->info_dirs;
+    for (n_dirs = 0; dirs[n_dirs] != (char *)NULL; n_dirs++)
+        ;               /* get number of non-NULL dir entries */
+    dirs = (char **)realloc((char *)dirs,
+                            (unsigned)(n_dirs + 2)*sizeof(char *));
+    if (dirs == (char **)NULL) {
+        info->info_dirs = (char **)NULL;
+        *code_ptr = errno;
+        return;
+    }
+    info->info_dirs = dirs;
+    dirs[n_dirs + 1] = (char *)NULL;
+    dirs[n_dirs] = strdup(info_dir);
+    *code_ptr = 0;
+}
+
+void
+ss_delete_info_dir(int sci_idx, char *info_dir, int *code_ptr)
+{
+    char **i_d;
+    char **info_dirs;
+
+    info_dirs = ss_info(sci_idx)->info_dirs;
+    for (i_d = info_dirs; *i_d; i_d++) {
+        if (!strcmp(*i_d, info_dir)) {
+            while (*i_d) {
+                *i_d = *(i_d+1);
+                i_d++;
+            }
+            *code_ptr = 0;
+            return;
+        }
+    }
+    *code_ptr = SS_ET_NO_INFO_DIR;
+}

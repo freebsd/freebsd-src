@@ -39,9 +39,7 @@ char *yes = "yes\n";                    /* \n to compare against result of
                                            fgets */
 
 void
-kdb5_destroy(argc, argv)
-    int argc;
-    char *argv[];
+kdb5_destroy(int argc, char *argv[])
 {
     extern int optind;
     int optchar;

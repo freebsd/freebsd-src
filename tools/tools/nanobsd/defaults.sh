@@ -79,7 +79,12 @@ CONF_BUILD=' '
 CONF_INSTALL=' '
 
 # Options to put in make.conf during both build- & installworld.
-CONF_WORLD=' '
+CONF_WORLD='
+WITHOUT_DEBUG_FILES=true
+WITHOUT_LIB32=true
+WITHOUT_KERNEL_SYMBOLS=true
+WITHOUT_TESTS=true
+'
 
 # Kernel config file to use
 NANO_KERNEL=GENERIC
@@ -104,7 +109,7 @@ NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
 NANO_DRIVE=ada0
 
 # Target media size in 512 bytes sectors
-NANO_MEDIASIZE=2000000
+NANO_MEDIASIZE=4000000
 
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2

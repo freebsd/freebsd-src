@@ -1,4 +1,5 @@
-KRB5_PREAUTH_OTP {
+HIDDEN { local: __*; _rest*; _save*; *; };
+otp_0_MIT {
 	global:
 		kdcpreauth_otp_initvt;
 };

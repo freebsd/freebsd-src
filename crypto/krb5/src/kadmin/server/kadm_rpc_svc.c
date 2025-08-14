@@ -9,6 +9,7 @@
 #include <gssapi/gssapi_krb5.h> /* for gss_nt_krb5_name */
 #include <syslog.h>
 #include <kadm5/kadm_rpc.h>
+#include <kadm5/admin_xdr.h>
 #include <krb5.h>
 #include <kadm5/admin.h>
 #include <adm_proto.h>
@@ -36,9 +37,8 @@ static int check_rpcsec_auth(struct svc_req *);
  * Modifies:
  */
 
-void kadm_1(rqstp, transp)
-   struct svc_req *rqstp;
-   SVCXPRT *transp;
+void
+kadm_1(struct svc_req *rqstp, SVCXPRT *transp)
 {
      union {
 	  cprinc_arg create_principal_2_arg;
@@ -59,6 +59,7 @@ void kadm_1(rqstp, transp)
 	  setkey3_arg setkey_principal3_2_arg;
 	  setkey4_arg setkey_principal4_2_arg;
 	  getpkeys_arg get_principal_keys_2_arg;
+	  calias_arg create_alias_2_arg;
      } argument;
      union {
 	  generic_ret gen_ret;
@@ -73,8 +74,8 @@ void kadm_1(rqstp, transp)
 	  getpkeys_ret get_principal_keys_ret;
      } result;
      bool_t retval;
-     bool_t (*xdr_argument)(), (*xdr_result)();
-     bool_t (*local)();
+     xdrproc_t xdr_argument, xdr_result;
+     bool_t (*local)(char *, void *, struct svc_req *);
 
      if (rqstp->rq_cred.oa_flavor != AUTH_GSSAPI &&
 	 !check_rpcsec_auth(rqstp)) {
@@ -92,153 +93,159 @@ void kadm_1(rqstp, transp)
 	  return;
 
      case CREATE_PRINCIPAL:
-	  xdr_argument = xdr_cprinc_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) create_principal_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_cprinc_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))create_principal_2_svc;
 	  break;
 
      case DELETE_PRINCIPAL:
-	  xdr_argument = xdr_dprinc_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) delete_principal_2_svc;
+          xdr_argument = (xdrproc_t)xdr_dprinc_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))delete_principal_2_svc;
 	  break;
 
      case MODIFY_PRINCIPAL:
-	  xdr_argument = xdr_mprinc_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) modify_principal_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_mprinc_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))modify_principal_2_svc;
 	  break;
 
      case RENAME_PRINCIPAL:
-	  xdr_argument = xdr_rprinc_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) rename_principal_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_rprinc_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))rename_principal_2_svc;
 	  break;
 
      case GET_PRINCIPAL:
-	  xdr_argument = xdr_gprinc_arg;
-	  xdr_result = xdr_gprinc_ret;
-	  local = (bool_t (*)()) get_principal_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_gprinc_arg;
+	  xdr_result = (xdrproc_t)xdr_gprinc_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))get_principal_2_svc;
 	  break;
 
      case GET_PRINCS:
-	  xdr_argument = xdr_gprincs_arg;
-	  xdr_result = xdr_gprincs_ret;
-	  local = (bool_t (*)()) get_princs_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_gprincs_arg;
+	  xdr_result = (xdrproc_t)xdr_gprincs_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))get_princs_2_svc;
 	  break;
 
      case CHPASS_PRINCIPAL:
-	  xdr_argument = xdr_chpass_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) chpass_principal_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_chpass_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))chpass_principal_2_svc;
 	  break;
 
      case SETKEY_PRINCIPAL:
-	  xdr_argument = xdr_setkey_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) setkey_principal_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_setkey_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))setkey_principal_2_svc;
 	  break;
 
      case CHRAND_PRINCIPAL:
-	  xdr_argument = xdr_chrand_arg;
-	  xdr_result = xdr_chrand_ret;
-	  local = (bool_t (*)()) chrand_principal_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_chrand_arg;
+	  xdr_result = (xdrproc_t)xdr_chrand_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))chrand_principal_2_svc;
 	  break;
 
      case CREATE_POLICY:
-	  xdr_argument = xdr_cpol_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) create_policy_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_cpol_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))create_policy_2_svc;
 	  break;
 
      case DELETE_POLICY:
-	  xdr_argument = xdr_dpol_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) delete_policy_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_dpol_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))delete_policy_2_svc;
 	  break;
 
      case MODIFY_POLICY:
-	  xdr_argument = xdr_mpol_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) modify_policy_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_mpol_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))modify_policy_2_svc;
 	  break;
 
      case GET_POLICY:
-	  xdr_argument = xdr_gpol_arg;
-	  xdr_result = xdr_gpol_ret;
-	  local = (bool_t (*)()) get_policy_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_gpol_arg;
+	  xdr_result = (xdrproc_t)xdr_gpol_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))get_policy_2_svc;
 	  break;
 
      case GET_POLS:
-	  xdr_argument = xdr_gpols_arg;
-	  xdr_result = xdr_gpols_ret;
-	  local = (bool_t (*)()) get_pols_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_gpols_arg;
+	  xdr_result = (xdrproc_t)xdr_gpols_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))get_pols_2_svc;
 	  break;
 
      case GET_PRIVS:
-	  xdr_argument = xdr_u_int32;
-	  xdr_result = xdr_getprivs_ret;
-	  local = (bool_t (*)()) get_privs_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_u_int32;
+	  xdr_result = (xdrproc_t)xdr_getprivs_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))get_privs_2_svc;
 	  break;
 
      case INIT:
-	  xdr_argument = xdr_u_int32;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) init_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_u_int32;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))init_2_svc;
 	  break;
 
      case CREATE_PRINCIPAL3:
-	  xdr_argument = xdr_cprinc3_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) create_principal3_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_cprinc3_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))create_principal3_2_svc;
 	  break;
 
      case CHPASS_PRINCIPAL3:
-	  xdr_argument = xdr_chpass3_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) chpass_principal3_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_chpass3_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))chpass_principal3_2_svc;
 	  break;
 
      case CHRAND_PRINCIPAL3:
-	  xdr_argument = xdr_chrand3_arg;
-	  xdr_result = xdr_chrand_ret;
-	  local = (bool_t (*)()) chrand_principal3_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_chrand3_arg;
+	  xdr_result = (xdrproc_t)xdr_chrand_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))chrand_principal3_2_svc;
 	  break;
 
      case SETKEY_PRINCIPAL3:
-	  xdr_argument = xdr_setkey3_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) setkey_principal3_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_setkey3_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))setkey_principal3_2_svc;
 	  break;
 
      case PURGEKEYS:
-	  xdr_argument = xdr_purgekeys_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) purgekeys_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_purgekeys_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))purgekeys_2_svc;
 	  break;
 
      case GET_STRINGS:
-	  xdr_argument = xdr_gstrings_arg;
-	  xdr_result = xdr_gstrings_ret;
-	  local = (bool_t (*)()) get_strings_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_gstrings_arg;
+	  xdr_result = (xdrproc_t)xdr_gstrings_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))get_strings_2_svc;
 	  break;
 
      case SET_STRING:
-	  xdr_argument = xdr_sstring_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) set_string_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_sstring_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))set_string_2_svc;
 	  break;
 
      case SETKEY_PRINCIPAL4:
-	  xdr_argument = xdr_setkey4_arg;
-	  xdr_result = xdr_generic_ret;
-	  local = (bool_t (*)()) setkey_principal4_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_setkey4_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))setkey_principal4_2_svc;
 	  break;
 
      case EXTRACT_KEYS:
-	  xdr_argument = xdr_getpkeys_arg;
-	  xdr_result = xdr_getpkeys_ret;
-	  local = (bool_t (*)()) get_principal_keys_2_svc;
+	  xdr_argument = (xdrproc_t)xdr_getpkeys_arg;
+	  xdr_result = (xdrproc_t)xdr_getpkeys_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))get_principal_keys_2_svc;
+	  break;
+
+     case CREATE_ALIAS:
+	  xdr_argument = (xdrproc_t)xdr_calias_arg;
+	  xdr_result = (xdrproc_t)xdr_generic_ret;
+	  local = (bool_t (*)(char *, void *, struct svc_req *))create_alias_2_svc;
 	  break;
 
      default:
@@ -253,7 +260,7 @@ void kadm_1(rqstp, transp)
 	  return;
      }
      memset(&result, 0, sizeof(result));
-     retval = (*local)(&argument, &result, rqstp);
+     retval = (*local)((char *)&argument, &result, rqstp);
      if (retval && !svc_sendreply(transp, xdr_result, (void *)&result)) {
 	  krb5_klog_syslog(LOG_ERR, "WARNING! Unable to send function results, "
 		 "continuing.");

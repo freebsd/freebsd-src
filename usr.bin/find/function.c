@@ -866,6 +866,49 @@ c_follow(OPTION *option, char ***argvp __unused)
 	return palloc(option);
 }
 
+/*
+ * -fprint functions --
+ *
+ *	Always true, causes the current pathname to be written to
+ *	specified file followed by a newline
+ */
+int
+f_fprint(PLAN *plan, FTSENT *entry)
+{
+	fprintf(plan->fprint_file, "%s\n", entry->fts_path);
+	return 1;
+}
+
+PLAN *
+c_fprint(OPTION *option, char ***argvp)
+{
+	PLAN *new;
+	char *fn;
+
+	isoutput = 1;
+
+	new = palloc(option);
+	fn = nextarg(option, argvp);
+	new->fprint_file = fopen(fn, "w");
+	if (new->fprint_file == NULL)
+		err(1, "fprint: cannot create %s", fn);
+
+	return (new);
+}
+
+/*
+ * -fprint0 functions --
+ *
+ *	Always true, causes the current pathname to be written to
+ *	specified file followed by a NUL
+ */
+int
+f_fprint0(PLAN *plan, FTSENT *entry)
+{
+	fprintf(plan->fprint_file, "%s%c", entry->fts_path, '\0');
+	return 1;
+}
+
 #if HAVE_STRUCT_STATFS_F_FSTYPENAME
 /*
  * -fstype functions --
@@ -1387,6 +1430,37 @@ f_print0(PLAN *plan __unused, FTSENT *entry)
 }
 
 /* c_print0 is the same as c_print */
+
+/*
+ * -printf functions --
+ *
+ *	Always true. Causes information as specified in the
+ *	argument to be written to standard output.
+ */
+int
+f_printf(PLAN *plan, FTSENT *entry)
+{
+	do_printf(plan, entry, stdout);
+	return 1;
+}
+
+PLAN *
+c_printf(OPTION *option, char ***argvp)
+{
+	PLAN *new;
+
+	/*
+	 * XXX We could scan the format looking for stat-dependent formats, and
+	 * turn off the nostat bit for trival cases: `%p`/`%f`/`%h`.
+	 */
+	isoutput = 1;
+	ftsoptions &= ~FTS_NOSTAT;
+
+	new = palloc(option);
+	new->c_data = nextarg(option, argvp);
+
+	return (new);
+}
 
 /*
  * -prune functions --

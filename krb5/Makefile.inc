@@ -9,6 +9,8 @@
 
 .include <src.opts.mk>
 
+KRB5_VERSION=	1.22-final
+
 # MIT KRB5 uses KRB5_DIR. Heimdal uses KRB5DIR.
 KRB5_SRCTOP=	${SRCTOP}/krb5
 KRB5_DIR=	${SRCTOP}/crypto/krb5/src
@@ -22,7 +24,6 @@ MAKE_COMMANDS=	${KRB5_OBJTOP}/util/ss/mk_cmds
 
 # There are no WARNS levels for this.
 CFLAGS+=	-Wno-deprecated-non-prototype \
-		-Wno-macro-redefined \
 		-Wno-unused-parameter
 
 WARNS?=		1

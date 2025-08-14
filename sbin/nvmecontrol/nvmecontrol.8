@@ -303,7 +303,8 @@ data associated with that drive.
 .El
 .Ss logpage
 The logpage command knows how to print log pages of various types.
-It also knows about vendor specific log pages from hgst/wdc, samsung and intel.
+It also knows about vendor specific log pages from HGST/WDC, Samsung,
+Micron and Intel.
 Note that some vendors use the same log page numbers for different data.
 .Pp
 .Bl -tag -compact -width "Page 0x00"
@@ -328,13 +329,15 @@ Advanced SMART information (WDC/HGST)
 .It Dv Page 0xc1
 Read latency stats (Intel)
 .It Dv Page 0xc2
-Wite latency stats (Intel)
+Write latency stats (Intel)
 .It Dv Page 0xc5
 Temperature stats (Intel)
 .It Dv Page 0xca
 Advanced SMART information (Intel)
 .It Dv Page 0xca
 Extended SMART information (Samsung)
+.It Dv Page 0xca
+Vendor Unique SMART information (Micron)
 .El
 .Pp
 Specifying

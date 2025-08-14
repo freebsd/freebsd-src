@@ -33,8 +33,8 @@
 #include "com_err.h"
 #include "copyright.h"
 
-char * ss_name(sci_idx)
-    int sci_idx;
+char *
+ss_name(int sci_idx)
 {
     ss_data *infop;
 
@@ -50,7 +50,8 @@ char * ss_name(sci_idx)
     }
 }
 
-void ss_error (int sci_idx, long code, const char * fmt, ...)
+void
+ss_error(int sci_idx, long code, const char *fmt, ...)
 {
     char *whoami;
     va_list pvar;
@@ -61,10 +62,8 @@ void ss_error (int sci_idx, long code, const char * fmt, ...)
     va_end(pvar);
 }
 
-void ss_perror (sci_idx, code, msg) /* for compatibility */
-    int sci_idx;
-    long code;
-    char const *msg;
+void
+ss_perror(int sci_idx, long code, char const *msg) /* for compatibility */
 {
     ss_error (sci_idx, code, "%s", msg);
 }

@@ -42,6 +42,7 @@
 #include <sys/queue.h>
 
 #include <string.h>
+#include <stdbool.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -89,17 +90,10 @@ sendip(struct iodesc *d, void *pkt, size_t len, uint8_t proto)
 	struct ip *ip;
 	u_char *ea;
 
-#ifdef NET_DEBUG
-	if (debug) {
-		printf("sendip: proto: %x d=%p called.\n", proto, (void *)d);
-		if (d) {
-			printf("saddr: %s:%d",
-			    inet_ntoa(d->myip), ntohs(d->myport));
-			printf(" daddr: %s:%d\n",
-			    inet_ntoa(d->destip), ntohs(d->destport));
-		}
-	}
-#endif
+	DEBUG_PRINTF(1, ("sendip: proto: %x d=%p called.\n", proto, (void *)d));
+	DEBUG_PRINTF(1, ("saddr: %s:%d daddr: %s:%d\n",
+	    inet_ntoa(d->myip), ntohs(d->myport),
+	    inet_ntoa(d->destip), ntohs(d->destport)));
 
 	ip = (struct ip *)pkt - 1;
 	len += sizeof(*ip);
@@ -143,137 +137,123 @@ ip_reasm_free(struct ip_reasm *ipr)
 	free(ipr);
 }
 
-static int
+static bool
 ip_reasm_add(struct ip_reasm *ipr, void *pkt, struct ip *ip)
 {
-	struct ip_queue *ipq, *prev, *p;
+	struct ip_queue *ipq, *p;
+	uint16_t off_q, off_ip;
 
-	if ((ipq = calloc(1, sizeof (*ipq))) == NULL)
-		return (1);
+	if ((ipq = calloc(1, sizeof(*ipq))) == NULL)
+		return (false);
 
 	ipq->ipq_pkt = pkt;
 	ipq->ipq_hdr = ip;
 
-	prev = NULL;
 	STAILQ_FOREACH(p, &ipr->ip_queue, ipq_next) {
-		if ((ntohs(p->ipq_hdr->ip_off) & IP_OFFMASK) <
-		    (ntohs(ip->ip_off) & IP_OFFMASK)) {
-			prev = p;
-			continue;
-		}
-		if (prev == NULL)
-			break;
+		off_q = ntohs(p->ipq_hdr->ip_off) & IP_OFFMASK;
+		off_ip = ntohs(ip->ip_off) & IP_OFFMASK;
 
-		STAILQ_INSERT_AFTER(&ipr->ip_queue, prev, ipq, ipq_next);
-		return (0);
+		if (off_q == off_ip) {	/* duplicate */
+			free(pkt);
+			free(ipq);
+			return (true);
+		}
+
+		if (off_ip < off_q) {
+			/*
+			 * Everything in queue has larger offset,
+			 * drop out of loop and insert to HEAD.
+			 */
+			break;
+		}
+
+		/*
+		 * p in queue is smaller than ip, check if we need to put
+		 * ip after p or after p->next.
+		 */
+		struct ip_queue *next = STAILQ_NEXT(p, ipq_next);
+		if (next == NULL) {
+			/* insert after p */
+			STAILQ_INSERT_AFTER(&ipr->ip_queue, p, ipq, ipq_next);
+			return (true);
+		}
+
+		off_q = ntohs(next->ipq_hdr->ip_off) & IP_OFFMASK;
+		if (off_ip < off_q) {
+			/* next fragment offset is larger, insert after p. */
+			STAILQ_INSERT_AFTER(&ipr->ip_queue, p, ipq, ipq_next);
+			return (true);
+		}
+		/* next fragment offset is smaller, loop */
 	}
 	STAILQ_INSERT_HEAD(&ipr->ip_queue, ipq, ipq_next);
-	return (0);
+	return (true);
 }
 
 /*
  * Receive a IP packet and validate it is for us.
  */
 static ssize_t
-readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
-    uint8_t proto)
+readipv4(struct iodesc *d, void **pkt, void **payload, ssize_t n)
 {
-	ssize_t n;
+	struct ip *ip = *payload;
 	size_t hlen;
 	struct ether_header *eh;
-	struct ip *ip;
 	struct udphdr *uh;
-	uint16_t etype;		/* host order */
-	char *ptr;
+	char *ptr = *pkt;
 	struct ip_reasm *ipr;
 	struct ip_queue *ipq, *last;
+	bool morefrag, isfrag;
+	uint16_t fragoffset;
 
-#ifdef NET_DEBUG
-	if (debug)
-		printf("readip: called\n");
-#endif
-
-	ip = NULL;
-	ptr = NULL;
-	n = readether(d, (void **)&ptr, (void **)&ip, tleft, &etype);
-	if (n == -1 || n < sizeof(*ip) + sizeof(*uh)) {
-		free(ptr);
-		return (-1);
-	}
-
-	/* Ethernet address checks now in readether() */
-
-	/* Need to respond to ARP requests. */
-	if (etype == ETHERTYPE_ARP) {
-		struct arphdr *ah = (void *)ip;
-		if (ah->ar_op == htons(ARPOP_REQUEST)) {
-			/* Send ARP reply */
-			arp_reply(d, ah);
-		}
+	if (n < sizeof(*ip)) {
 		free(ptr);
 		errno = EAGAIN;	/* Call me again. */
-		return (-1);
-	}
-
-	if (etype != ETHERTYPE_IP) {
-#ifdef NET_DEBUG
-		if (debug)
-			printf("readip: not IP. ether_type=%x\n", etype);
-#endif
-		free(ptr);
-		return (-1);
-	}
-
-	/* Check ip header */
-	if (ip->ip_v != IPVERSION ||	/* half char */
-	    ip->ip_p != proto) {
-#ifdef NET_DEBUG
-		if (debug) {
-			printf("readip: IP version or proto. ip_v=%d ip_p=%d\n",
-			    ip->ip_v, ip->ip_p);
-		}
-#endif
-		free(ptr);
 		return (-1);
 	}
 
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(*ip) ||
 	    in_cksum(ip, hlen) != 0) {
-#ifdef NET_DEBUG
-		if (debug)
-			printf("readip: short hdr or bad cksum.\n");
-#endif
+		DEBUG_PRINTF(1, ("%s: short hdr or bad cksum.\n", __func__));
 		free(ptr);
+		errno = EAGAIN;	/* Call me again. */
 		return (-1);
 	}
+
 	if (n < ntohs(ip->ip_len)) {
-#ifdef NET_DEBUG
-		if (debug)
-			printf("readip: bad length %d < %d.\n",
-			       (int)n, ntohs(ip->ip_len));
-#endif
+		DEBUG_PRINTF(1, ("readip: bad length %zd < %d.\n",
+		       n, ntohs(ip->ip_len)));
 		free(ptr);
+		errno = EAGAIN; /* Call me again. */
 		return (-1);
 	}
+
+	fragoffset = (ntohs(ip->ip_off) & IP_OFFMASK) * 8;
+	morefrag = (ntohs(ip->ip_off) & IP_MF) == 0 ? false : true;
+	isfrag = morefrag || fragoffset != 0;
+
+	uh = (struct udphdr *)((uintptr_t)ip + sizeof(*ip));
+
 	if (d->myip.s_addr && ip->ip_dst.s_addr != d->myip.s_addr) {
-#ifdef NET_DEBUG
-		if (debug) {
-			printf("readip: bad saddr %s != ", inet_ntoa(d->myip));
-			printf("%s\n", inet_ntoa(ip->ip_dst));
-		}
-#endif
+		DEBUG_PRINTF(1, ("%s: not for us: saddr %s (%d) != %s (%d)\n",
+		    __func__, inet_ntoa(d->myip), ntohs(d->myport),
+		    inet_ntoa(ip->ip_dst), ntohs(uh->uh_dport)));
 		free(ptr);
+		errno = EAGAIN; /* Call me again. */
 		return (-1);
 	}
 
 	/* Unfragmented packet. */
-	if ((ntohs(ip->ip_off) & IP_MF) == 0 &&
-	    (ntohs(ip->ip_off) & IP_OFFMASK) == 0) {
-		uh = (struct udphdr *)((uintptr_t)ip + sizeof (*ip));
+	if (!isfrag) {
+		DEBUG_PRINTF(1, ("%s: unfragmented saddr %s:%d -> %s:%d\n",
+		    __func__,
+		    inet_ntoa(ip->ip_src), ntohs(uh->uh_sport),
+		    inet_ntoa(ip->ip_dst), ntohs(uh->uh_dport)));
 		/* If there were ip options, make them go away */
 		if (hlen != sizeof(*ip)) {
-			bcopy(((u_char *)ip) + hlen, uh, uh->uh_ulen - hlen);
+			bcopy(((u_char *)ip) + hlen, uh,
+			    ntohs(uh->uh_ulen) - hlen);
 			ip->ip_len = htons(sizeof(*ip));
 			n -= hlen - sizeof(*ip);
 		}
@@ -295,7 +275,7 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 
 	/* Allocate new reassembly entry */
 	if (ipr == NULL) {
-		if ((ipr = calloc(1, sizeof (*ipr))) == NULL) {
+		if ((ipr = calloc(1, sizeof(*ipr))) == NULL) {
 			free(ptr);
 			return (-1);
 		}
@@ -307,34 +287,19 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 		ipr->ip_ttl = MAXTTL;
 		STAILQ_INIT(&ipr->ip_queue);
 		STAILQ_INSERT_TAIL(&ire_list, ipr, ip_next);
-	}
-
-	if (ip_reasm_add(ipr, ptr, ip) != 0) {
-		STAILQ_REMOVE(&ire_list, ipr, ip_reasm, ip_next);
-		free(ipr);
-		free(ptr);
-		return (-1);
-	}
-
-	if ((ntohs(ip->ip_off) & IP_MF) == 0) {
-		ipr->ip_total_size = (8 * (ntohs(ip->ip_off) & IP_OFFMASK));
-		ipr->ip_total_size += n + sizeof (*ip);
-		ipr->ip_total_size += sizeof (struct ether_header);
-
-		ipr->ip_pkt = malloc(ipr->ip_total_size + 2);
-		if (ipr->ip_pkt == NULL) {
-			STAILQ_REMOVE(&ire_list, ipr, ip_reasm, ip_next);
-			ip_reasm_free(ipr);
-			return (-1);
-		}
+		DEBUG_PRINTF(1, ("%s: new reassembly ID=%d %s -> %s\n",
+		    __func__, ntohs(ip->ip_id), inet_ntoa(ip->ip_src),
+		    inet_ntoa(ip->ip_dst)));
 	}
 
 	/*
-	 * If we do not have re-assembly buffer ipr->ip_pkt, we are still
-	 * missing fragments, so just restart the read.
+	 * NOTE: with ip_reasm_add() ptr will be stored in reassembly
+	 * queue and we can not free it without destroying the queue.
 	 */
-	if (ipr->ip_pkt == NULL) {
-		errno = EAGAIN;
+	if (!ip_reasm_add(ipr, ptr, ip)) {
+		STAILQ_REMOVE(&ire_list, ipr, ip_reasm, ip_next);
+		free(ipr);
+		free(ptr);
 		return (-1);
 	}
 
@@ -345,35 +310,59 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	n = 0;
 	last = NULL;
 	STAILQ_FOREACH(ipq, &ipr->ip_queue, ipq_next) {
-		if ((ntohs(ipq->ipq_hdr->ip_off) & IP_OFFMASK) != n / 8) {
-			STAILQ_REMOVE(&ire_list, ipr, ip_reasm, ip_next);
-			ip_reasm_free(ipr);
+		fragoffset = (ntohs(ipq->ipq_hdr->ip_off) & IP_OFFMASK) * 8;
+		if (fragoffset != n) {
+			DEBUG_PRINTF(1, ("%s: need more fragments %d %s -> ",
+			    __func__, ntohs(ipq->ipq_hdr->ip_id),
+			    inet_ntoa(ipq->ipq_hdr->ip_src)));
+			DEBUG_PRINTF(1, ("%s offset=%d MF=%d\n",
+			    inet_ntoa(ipq->ipq_hdr->ip_dst),
+			    fragoffset,
+			    (ntohs(ipq->ipq_hdr->ip_off) & IP_MF) != 0));
+			errno = EAGAIN;
 			return (-1);
 		}
 
 		n += ntohs(ipq->ipq_hdr->ip_len) - (ipq->ipq_hdr->ip_hl << 2);
 		last = ipq;
 	}
+
+	/* complete queue has last packet with MF 0 */
 	if ((ntohs(last->ipq_hdr->ip_off) & IP_MF) != 0) {
+		DEBUG_PRINTF(1, ("%s: need more fragments %d %s -> ",
+		    __func__, ntohs(last->ipq_hdr->ip_id),
+		    inet_ntoa(last->ipq_hdr->ip_src)));
+		DEBUG_PRINTF(1, ("%s offset=%d MF=%d\n",
+		    inet_ntoa(last->ipq_hdr->ip_dst),
+		    (ntohs(last->ipq_hdr->ip_off) & IP_OFFMASK) * 8,
+		    (ntohs(last->ipq_hdr->ip_off) & IP_MF) != 0));
 		errno = EAGAIN;
+		return (-1);
+	}
+
+	ipr->ip_total_size = n + sizeof(*ip) + sizeof(struct ether_header);
+	ipr->ip_pkt = malloc(ipr->ip_total_size + 2);
+	if (ipr->ip_pkt == NULL) {
+		STAILQ_REMOVE(&ire_list, ipr, ip_reasm, ip_next);
+		ip_reasm_free(ipr);
 		return (-1);
 	}
 
 	ipq = STAILQ_FIRST(&ipr->ip_queue);
 	/* Fabricate ethernet header */
 	eh = (struct ether_header *)((uintptr_t)ipr->ip_pkt + 2);
-	bcopy((void *)((uintptr_t)ipq->ipq_pkt + 2), eh, sizeof (*eh));
+	bcopy((void *)((uintptr_t)ipq->ipq_pkt + 2), eh, sizeof(*eh));
 
 	/* Fabricate IP header */
-	ipr->ip_hdr = (struct ip *)((uintptr_t)eh + sizeof (*eh));
-	bcopy(ipq->ipq_hdr, ipr->ip_hdr, sizeof (*ipr->ip_hdr));
-	ipr->ip_hdr->ip_hl = sizeof (*ipr->ip_hdr) >> 2;
+	ipr->ip_hdr = (struct ip *)((uintptr_t)eh + sizeof(*eh));
+	bcopy(ipq->ipq_hdr, ipr->ip_hdr, sizeof(*ipr->ip_hdr));
+	ipr->ip_hdr->ip_hl = sizeof(*ipr->ip_hdr) >> 2;
 	ipr->ip_hdr->ip_len = htons(n);
 	ipr->ip_hdr->ip_sum = 0;
-	ipr->ip_hdr->ip_sum = in_cksum(ipr->ip_hdr, sizeof (*ipr->ip_hdr));
+	ipr->ip_hdr->ip_sum = in_cksum(ipr->ip_hdr, sizeof(*ipr->ip_hdr));
 
 	n = 0;
-	ptr = (char *)((uintptr_t)ipr->ip_hdr + sizeof (*ipr->ip_hdr));
+	ptr = (char *)((uintptr_t)ipr->ip_hdr + sizeof(*ipr->ip_hdr));
 	STAILQ_FOREACH(ipq, &ipr->ip_queue, ipq_next) {
 		char *data;
 		size_t len;
@@ -395,6 +384,9 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 		STAILQ_REMOVE_HEAD(&ire_list, ip_next);
 		ip_reasm_free(ipr);
 	}
+	DEBUG_PRINTF(1, ("%s: completed fragments ID=%d %s -> %s\n",
+	    __func__, ntohs(ip->ip_id), inet_ntoa(ip->ip_src),
+	    inet_ntoa(ip->ip_dst)));
 	return (n);
 }
 
@@ -410,15 +402,63 @@ readip(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 
 	t = getsecs();
 	while ((getsecs() - t) < tleft) {
+		ssize_t n;
+		uint16_t etype; /* host order */
+		void *ptr = NULL;
+		void *data = NULL;
+
 		errno = 0;
-		ret = readipv4(d, pkt, payload, tleft, proto);
-		if (ret >= 0)
-			return (ret);
-		/* Bubble up the error if it wasn't successful */
-		if (errno != EAGAIN)
-			return (-1);
+		n = readether(d, &ptr, &data, tleft, &etype);
+		if (n == -1) {
+			free(ptr);
+			continue;
+		}
+		/* Ethernet address checks are done in readether() */
+
+		/* Need to respond to ARP requests. */
+		if (etype == ETHERTYPE_ARP) {
+			struct arphdr *ah = data;
+
+			DEBUG_PRINTF(1, ("%s: ARP request\n", __func__));
+
+			if (ah->ar_op == htons(ARPOP_REQUEST)) {
+				/* Send ARP reply */
+				arp_reply(d, ah);
+			}
+			free(ptr);
+			continue;	/* Get next packet */
+		}
+
+		if (etype == ETHERTYPE_IP) {
+			struct ip *ip = data;
+
+			if (ip->ip_v == IPVERSION &&	/* half char */
+			    ip->ip_p == proto) {
+				errno = 0;
+				ret = readipv4(d, &ptr, &data, n);
+				if (ret >= 0) {
+					*pkt = ptr;
+					*payload = data;
+					return (ret);
+				}
+
+				/*
+				 * Bubble up the error if it wasn't successful
+				 */
+				if (errno != EAGAIN)
+					return (-1);
+				continue;
+			}
+			DEBUG_PRINTF(1, ("%s: IP version or proto. "
+			    "ip_v=%d ip_p=%d\n",
+			    __func__, ip->ip_v, ip->ip_p));
+			free(ptr);
+			continue;
+		}
+		free(ptr);
 	}
 	/* We've exhausted tleft; timeout */
 	errno = ETIMEDOUT;
+	DEBUG_PRINTF(1, ("%s: timeout\n", __func__));
 	return (-1);
 }

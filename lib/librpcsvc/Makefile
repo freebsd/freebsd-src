@@ -14,7 +14,7 @@ OTHERSRCS=  rnusers.c rstat.c rwall.c
 SECRPCSRCS= secretkey.c xcrypt.c
 
 .if ${MK_NIS} != "no"
-OTHERSRCS+= yp_passwd.c yp_update.c
+OTHERSRCS+= yp_passwd.c
 .endif
 
 RPCCOM=	RPCGEN_CPP=${CPP:Q} rpcgen -C

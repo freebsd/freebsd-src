@@ -402,7 +402,7 @@ cc_int32 ccs_server_send_reply (ccs_pipe_t     in_reply_pipe,
 
 /* ------------------------------------------------------------------------ */
 
-cc_uint64 ccs_server_client_count ()
+cc_uint64 ccs_server_client_count (void)
 {
     return ccs_client_array_count (g_client_array);
 }

@@ -38,6 +38,7 @@
 
 #include <dev/io/iodev.h>
 #include <dev/pci/pcireg.h>
+#include <dev/vmm/vmm_mem.h>
 
 #include <vm/vm.h>
 
@@ -78,6 +79,14 @@ static int pcifd = -1;
 
 SET_DECLARE(passthru_dev_set, struct passthru_dev);
 
+struct passthru_bar_handler {
+	TAILQ_ENTRY(passthru_bar_handler) chain;
+	uint64_t off;
+	uint64_t size;
+	passthru_read_handler read;
+	passthru_write_handler write;
+};
+
 struct passthru_softc {
 	struct pci_devinst *psc_pi;
 	/* ROM is handled like a BAR */
@@ -95,6 +104,9 @@ struct passthru_softc {
 	struct passthru_mmio_mapping psc_mmio_map[PASSTHRU_MMIO_MAX];
 	cfgread_handler psc_pcir_rhandler[PCI_REGMAX + 1];
 	cfgwrite_handler psc_pcir_whandler[PCI_REGMAX + 1];
+
+	TAILQ_HEAD(,
+	    passthru_bar_handler) psc_bar_handler[PCI_BARMAX_WITH_ROM + 1];
 };
 
 static int
@@ -740,6 +752,45 @@ set_pcir_handler(struct passthru_softc *sc, int reg, int len,
 	return (0);
 }
 
+int
+passthru_set_bar_handler(struct passthru_softc *sc, int baridx, uint64_t off,
+    uint64_t size, passthru_read_handler rhandler,
+    passthru_write_handler whandler)
+{
+	struct passthru_bar_handler *handler_new;
+	struct passthru_bar_handler *handler;
+
+	assert(sc->psc_bar[baridx].type == PCIBAR_IO ||
+	    sc->psc_bar[baridx].type == PCIBAR_MEM32 ||
+	    sc->psc_bar[baridx].type == PCIBAR_MEM64);
+	assert(sc->psc_bar[baridx].size >= off + size);
+	assert(off < off + size);
+
+	handler_new = malloc(sizeof(struct passthru_bar_handler));
+	if (handler_new == NULL) {
+		return (ENOMEM);
+	}
+
+	handler_new->off = off;
+	handler_new->size = size;
+	handler_new->read = rhandler;
+	handler_new->write = whandler;
+
+	TAILQ_FOREACH(handler, &sc->psc_bar_handler[baridx], chain) {
+		if (handler->off < handler_new->off) {
+			assert(handler->off + handler->size < handler_new->off);
+			continue;
+		}
+		assert(handler->off > handler_new->off + handler_new->size);
+		TAILQ_INSERT_BEFORE(handler, handler_new, chain);
+		return (0);
+	}
+
+	TAILQ_INSERT_TAIL(&sc->psc_bar_handler[baridx], handler_new, chain);
+
+	return (0);
+}
+
 static int
 passthru_legacy_config(nvlist_t *nvl, const char *opts)
 {
@@ -945,6 +996,9 @@ passthru_init(struct pci_devinst *pi, nvlist_t *nvl)
 
 	pi->pi_arg = sc;
 	sc->psc_pi = pi;
+
+	for (uint8_t i = 0; i < PCI_BARMAX_WITH_ROM + 1; ++i)
+		TAILQ_INIT(&sc->psc_bar_handler[i]);
 
 	/* initialize config space */
 	if ((error = cfginit(pi, bus, slot, func)) != 0)
@@ -1165,6 +1219,7 @@ passthru_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
     uint64_t value)
 {
 	struct passthru_softc *sc;
+	struct passthru_bar_handler *handler;
 	struct pci_bar_ioreq pio;
 
 	sc = pi->pi_arg;
@@ -1172,9 +1227,27 @@ passthru_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
 	if (baridx == pci_msix_table_bar(pi)) {
 		msix_table_write(sc, offset, size, value);
 	} else {
-		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
 		assert(size == 1 || size == 2 || size == 4);
-		assert(offset <= UINT32_MAX && offset + size <= UINT32_MAX);
+
+		TAILQ_FOREACH(handler, &sc->psc_bar_handler[baridx], chain) {
+			if (offset >= handler->off + handler->size) {
+				continue;
+			} else if (offset < handler->off) {
+				assert(offset + size < handler->off);
+				/*
+				 * The list is sorted in ascending order, so all
+				 * remaining handlers will have an even larger
+				 * offset.
+				 */
+				break;
+			}
+
+			assert(offset + size <= handler->off + handler->size);
+
+			handler->write(pi, baridx,
+			    offset - handler->off, size, value);
+			return;
+		}
 
 		bzero(&pio, sizeof(pio));
 		pio.pbi_sel = sc->psc_sel;
@@ -1192,6 +1265,7 @@ static uint64_t
 passthru_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct passthru_softc *sc;
+	struct passthru_bar_handler *handler;
 	struct pci_bar_ioreq pio;
 	uint64_t val;
 
@@ -1200,9 +1274,26 @@ passthru_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 	if (baridx == pci_msix_table_bar(pi)) {
 		val = msix_table_read(sc, offset, size);
 	} else {
-		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
 		assert(size == 1 || size == 2 || size == 4);
-		assert(offset <= UINT32_MAX && offset + size <= UINT32_MAX);
+
+		TAILQ_FOREACH(handler, &sc->psc_bar_handler[baridx], chain) {
+			if (offset >= handler->off + handler->size) {
+				continue;
+			} else if (offset < handler->off) {
+				assert(offset + size < handler->off);
+				/*
+				 * The list is sorted in ascending order, so all
+				 * remaining handlers will have an even larger
+				 * offset.
+				 */
+				break;
+			}
+
+			assert(offset + size <= handler->off + handler->size);
+
+			return (handler->read(pi, baridx,
+			    offset - handler->off, size));
+		}
 
 		bzero(&pio, sizeof(pio));
 		pio.pbi_sel = sc->psc_sel;
@@ -1271,27 +1362,64 @@ passthru_msix_addr(struct pci_devinst *pi, int baridx, int enabled,
 	}
 }
 
-static void
-passthru_mmio_addr(struct pci_devinst *pi, int baridx, int enabled,
-    uint64_t address)
+static int
+passthru_mmio_map(struct pci_devinst *pi, int baridx, int enabled,
+    uint64_t address, uint64_t off, uint64_t size)
 {
 	struct passthru_softc *sc;
 
 	sc = pi->pi_arg;
 	if (!enabled) {
 		if (vm_unmap_pptdev_mmio(pi->pi_vmctx, sc->psc_sel.pc_bus,
-					 sc->psc_sel.pc_dev,
-					 sc->psc_sel.pc_func, address,
-					 sc->psc_bar[baridx].size) != 0)
+		    sc->psc_sel.pc_dev, sc->psc_sel.pc_func, address + off,
+		    size) != 0) {
 			warnx("pci_passthru: unmap_pptdev_mmio failed");
+			return (-1);
+		}
 	} else {
 		if (vm_map_pptdev_mmio(pi->pi_vmctx, sc->psc_sel.pc_bus,
-				       sc->psc_sel.pc_dev,
-				       sc->psc_sel.pc_func, address,
-				       sc->psc_bar[baridx].size,
-				       sc->psc_bar[baridx].addr) != 0)
+		    sc->psc_sel.pc_dev, sc->psc_sel.pc_func, address + off,
+		    size, sc->psc_bar[baridx].addr + off) != 0) {
 			warnx("pci_passthru: map_pptdev_mmio failed");
+			return (-1);
+		}
 	}
+
+	return (0);
+}
+
+static void
+passthru_mmio_addr(struct pci_devinst *pi, int baridx, int enabled,
+    uint64_t address)
+{
+	struct passthru_softc *sc;
+	struct passthru_bar_handler *handler;
+	uint64_t off;
+
+	sc = pi->pi_arg;
+
+	off = 0;
+
+	/* The queue is sorted by offset in ascending order. */
+	TAILQ_FOREACH(handler, &sc->psc_bar_handler[baridx], chain) {
+		uint64_t handler_off = trunc_page(handler->off);
+		uint64_t handler_end = round_page(handler->off + handler->size);
+
+		/*
+		 * When two handlers point to the same page, handler_off can be
+		 * lower than off. That's fine because we have nothing to do in
+		 * that case.
+		 */
+		if (handler_off > off) {
+			passthru_mmio_map(pi, baridx, enabled, address, off,
+			    handler_off - off);
+		}
+
+		off = handler_end;
+	}
+
+	passthru_mmio_map(pi, baridx, enabled, address, off,
+	    sc->psc_bar[baridx].size - off);
 }
 
 static void

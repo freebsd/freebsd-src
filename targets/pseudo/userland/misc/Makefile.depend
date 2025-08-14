@@ -54,7 +54,6 @@ DIRDEPS.x86sys= \
 .if ${MK_ZFS} != "no"
 DIRDEPS.x86sys+= \
 	stand/i386/gptzfsboot \
-	stand/i386/zfsboot \
 	stand/i386/zfsloader \
 
 DIRDEPS+= \

@@ -74,45 +74,41 @@ main(int argc, const char **argv)
 
     tmp = string2data("testUser");
     noerror(krad_attrset_new(kctx, &attrs));
-    noerror(krad_attrset_add(attrs, krad_attr_name2num("User-Name"), &tmp));
+    noerror(krad_attrset_add(attrs, KRAD_ATTR_USER_NAME, &tmp));
 
     /* Test accept. */
     tmp = string2data("accept");
-    noerror(krad_attrset_add(attrs, krad_attr_name2num("User-Password"),
-                             &tmp));
-    noerror(krad_client_send(rc, krad_code_name2num("Access-Request"), attrs,
-                             "localhost", "foo", 1000, 3, callback, NULL));
+    noerror(krad_attrset_add(attrs, KRAD_ATTR_USER_PASSWORD, &tmp));
+    noerror(krad_client_send(rc, KRAD_CODE_ACCESS_REQUEST, attrs, "localhost",
+                             "foo", 1000, 3, callback, NULL));
     verto_run(vctx);
 
     /* Test reject. */
     tmp = string2data("reject");
-    krad_attrset_del(attrs, krad_attr_name2num("User-Password"), 0);
-    noerror(krad_attrset_add(attrs, krad_attr_name2num("User-Password"),
-                             &tmp));
-    noerror(krad_client_send(rc, krad_code_name2num("Access-Request"), attrs,
-                             "localhost", "foo", 1000, 3, callback, NULL));
+    krad_attrset_del(attrs, KRAD_ATTR_USER_PASSWORD, 0);
+    noerror(krad_attrset_add(attrs, KRAD_ATTR_USER_PASSWORD, &tmp));
+    noerror(krad_client_send(rc, KRAD_CODE_ACCESS_REQUEST, attrs, "localhost",
+                             "foo", 1000, 3, callback, NULL));
     verto_run(vctx);
 
     /* Test timeout. */
     daemon_stop();
-    noerror(krad_client_send(rc, krad_code_name2num("Access-Request"), attrs,
-                             "localhost", "foo", 1000, 3, callback, NULL));
+    noerror(krad_client_send(rc, KRAD_CODE_ACCESS_REQUEST, attrs, "localhost",
+                             "foo", 1000, 3, callback, NULL));
     verto_run(vctx);
 
     /* Test outstanding packet freeing. */
-    noerror(krad_client_send(rc, krad_code_name2num("Access-Request"), attrs,
-                             "localhost", "foo", 1000, 3, callback, NULL));
+    noerror(krad_client_send(rc, KRAD_CODE_ACCESS_REQUEST, attrs, "localhost",
+                             "foo", 1000, 3, callback, NULL));
     krad_client_free(rc);
     rc = NULL;
 
     /* Verify the results. */
     insist(record.count == EVENT_COUNT);
     insist(record.events[0].error == FALSE);
-    insist(record.events[0].result.code ==
-           krad_code_name2num("Access-Accept"));
+    insist(record.events[0].result.code == KRAD_CODE_ACCESS_ACCEPT);
     insist(record.events[1].error == FALSE);
-    insist(record.events[1].result.code ==
-           krad_code_name2num("Access-Reject"));
+    insist(record.events[1].result.code == KRAD_CODE_ACCESS_REJECT);
     insist(record.events[2].error == TRUE);
     insist(record.events[2].result.retval == ETIMEDOUT);
     insist(record.events[3].error == TRUE);

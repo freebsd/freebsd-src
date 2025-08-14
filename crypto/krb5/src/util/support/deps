@@ -114,3 +114,6 @@ getopt_long.so getopt_long.po $(OUTPRE)getopt_long.$(OBJEXT): \
 secure_getenv.so secure_getenv.po $(OUTPRE)secure_getenv.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h secure_getenv.c
+regex.so regex.po $(OUTPRE)regex.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-regex.h \
+  $(top_srcdir)/include/k5-thread.h regex.cpp

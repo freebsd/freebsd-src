@@ -384,7 +384,7 @@ static int
 tmpfs_access_locked(struct vnode *vp, struct tmpfs_node *node,
     accmode_t accmode, struct ucred *cred)
 {
-#ifdef DEBUG_VFS_LOCKS
+#ifdef INVARIANTS
 	if (!mtx_owned(TMPFS_NODE_MTX(node))) {
 		ASSERT_VOP_LOCKED(vp,
 		    "tmpfs_access_locked needs locked vnode or node");

@@ -24,6 +24,7 @@ local util = require("tools.util")
 local config = {
 	sysnames = "syscalls.c",
 	syshdr = "../sys/syscall.h",
+	syshdr_extra = nil;
 	sysmk = "/dev/null",
 	syssw = "init_sysent.c",
 	systrace = "systrace_args.c",

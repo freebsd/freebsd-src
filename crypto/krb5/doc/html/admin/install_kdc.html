@@ -1,19 +1,17 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="../">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Installing KDCs &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css?v=6a0b3979" />
+    <script src="../_static/documentation_options.js?v=236fef3b"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -53,7 +51,7 @@
           <div class="body" role="main">
             
   <section id="installing-kdcs">
-<h1>Installing KDCs<a class="headerlink" href="#installing-kdcs" title="Permalink to this headline">¶</a></h1>
+<h1>Installing KDCs<a class="headerlink" href="#installing-kdcs" title="Link to this heading">¶</a></h1>
 <p>When setting up Kerberos in a production environment, it is best to
 have multiple replica KDCs alongside with a primary KDC to ensure the
 continued availability of the Kerberized services.  Each KDC contains
@@ -83,7 +81,7 @@ database.</p></li>
 </ul>
 </div>
 <section id="install-and-configure-the-primary-kdc">
-<h2>Install and configure the primary KDC<a class="headerlink" href="#install-and-configure-the-primary-kdc" title="Permalink to this headline">¶</a></h2>
+<h2>Install and configure the primary KDC<a class="headerlink" href="#install-and-configure-the-primary-kdc" title="Link to this heading">¶</a></h2>
 <p>Install Kerberos either from the OS-provided packages or from the
 source (See <a class="reference internal" href="../build/doing_build.html#do-build"><span class="std std-ref">Building within a single tree</span></a>).</p>
 <div class="admonition note">
@@ -103,7 +101,7 @@ paths to your system environment.</p>
 </div>
 </section>
 <section id="edit-kdc-configuration-files">
-<h2>Edit KDC configuration files<a class="headerlink" href="#edit-kdc-configuration-files" title="Permalink to this headline">¶</a></h2>
+<h2>Edit KDC configuration files<a class="headerlink" href="#edit-kdc-configuration-files" title="Link to this heading">¶</a></h2>
 <p>Modify the configuration files, <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> and
 <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>, to reflect the correct information (such as
 domain-realm mappings and Kerberos servers names) for your realm.
@@ -122,7 +120,7 @@ example:</p>
 </pre></div>
 </div>
 <section id="krb5-conf">
-<h3>krb5.conf<a class="headerlink" href="#krb5-conf" title="Permalink to this headline">¶</a></h3>
+<h3>krb5.conf<a class="headerlink" href="#krb5-conf" title="Link to this heading">¶</a></h3>
 <p>If you are not using DNS TXT records (see <a class="reference internal" href="realm_config.html#mapping-hostnames"><span class="std std-ref">Mapping hostnames onto Kerberos realms</span></a>),
 you must specify the <strong>default_realm</strong> in the <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>
 section.  If you are not using DNS URI or SRV records (see
@@ -145,7 +143,7 @@ tag must be set in the
 </div>
 </section>
 <section id="kdc-conf">
-<h3>kdc.conf<a class="headerlink" href="#kdc-conf" title="Permalink to this headline">¶</a></h3>
+<h3>kdc.conf<a class="headerlink" href="#kdc-conf" title="Link to this heading">¶</a></h3>
 <p>The kdc.conf file can be used to control the listening ports of the
 KDC and kadmind, as well as realm-specific defaults, the database type
 and location, and logging.</p>
@@ -187,7 +185,7 @@ your Kerberos realm and server respectively.</p>
 </section>
 </section>
 <section id="create-the-kdc-database">
-<span id="create-db"></span><h2>Create the KDC database<a class="headerlink" href="#create-the-kdc-database" title="Permalink to this headline">¶</a></h2>
+<span id="create-db"></span><h2>Create the KDC database<a class="headerlink" href="#create-the-kdc-database" title="Link to this heading">¶</a></h2>
 <p>You will use the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> command on the primary KDC to
 create the Kerberos database and the optional <a class="reference internal" href="../basic/stash_file_def.html#stash-definition"><span class="std std-ref">stash file</span></a>.</p>
 <div class="admonition note">
@@ -237,7 +235,7 @@ option.</p></li>
 <a class="reference internal" href="database.html#db-operations"><span class="std std-ref">Operations on the Kerberos database</span></a>.</p>
 </section>
 <section id="add-administrators-to-the-acl-file">
-<span id="admin-acl"></span><h2>Add administrators to the ACL file<a class="headerlink" href="#add-administrators-to-the-acl-file" title="Permalink to this headline">¶</a></h2>
+<span id="admin-acl"></span><h2>Add administrators to the ACL file<a class="headerlink" href="#add-administrators-to-the-acl-file" title="Link to this heading">¶</a></h2>
 <p>Next, you need create an Access Control List (ACL) file and put the
 Kerberos principal of at least one of the administrators into it.
 This file is used by the <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> daemon to control which
@@ -247,7 +245,7 @@ variable in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-con
 <p>For more information on Kerberos ACL file see <a class="reference internal" href="conf_files/kadm5_acl.html#kadm5-acl-5"><span class="std std-ref">kadm5.acl</span></a>.</p>
 </section>
 <section id="add-administrators-to-the-kerberos-database">
-<span id="addadmin-kdb"></span><h2>Add administrators to the Kerberos database<a class="headerlink" href="#add-administrators-to-the-kerberos-database" title="Permalink to this headline">¶</a></h2>
+<span id="addadmin-kdb"></span><h2>Add administrators to the Kerberos database<a class="headerlink" href="#add-administrators-to-the-kerberos-database" title="Link to this heading">¶</a></h2>
 <p>Next you need to add administrative principals (i.e., principals who
 are allowed to administer Kerberos database) to the Kerberos database.
 You <em>must</em> add at least one principal now to allow communication
@@ -275,7 +273,7 @@ is created:</p>
 </div>
 </section>
 <section id="start-the-kerberos-daemons-on-the-primary-kdc">
-<span id="start-kdc-daemons"></span><h2>Start the Kerberos daemons on the primary KDC<a class="headerlink" href="#start-the-kerberos-daemons-on-the-primary-kdc" title="Permalink to this headline">¶</a></h2>
+<span id="start-kdc-daemons"></span><h2>Start the Kerberos daemons on the primary KDC<a class="headerlink" href="#start-the-kerberos-daemons-on-the-primary-kdc" title="Link to this heading">¶</a></h2>
 <p>At this point, you are ready to start the Kerberos KDC
 (<a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a>) and administrative daemons on the primary KDC.  To
 do so, type:</p>
@@ -310,7 +308,7 @@ against the principals that you have created on the previous step
 </div>
 </section>
 <section id="install-the-replica-kdcs">
-<h2>Install the replica KDCs<a class="headerlink" href="#install-the-replica-kdcs" title="Permalink to this headline">¶</a></h2>
+<h2>Install the replica KDCs<a class="headerlink" href="#install-the-replica-kdcs" title="Link to this heading">¶</a></h2>
 <p>You are now ready to start configuring the replica KDCs.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -321,7 +319,7 @@ the replica KDCs, unless these instructions specify
 otherwise.</p>
 </div>
 <section id="create-host-keytabs-for-replica-kdcs">
-<span id="replica-host-key"></span><h3>Create host keytabs for replica KDCs<a class="headerlink" href="#create-host-keytabs-for-replica-kdcs" title="Permalink to this headline">¶</a></h3>
+<span id="replica-host-key"></span><h3>Create host keytabs for replica KDCs<a class="headerlink" href="#create-host-keytabs-for-replica-kdcs" title="Link to this heading">¶</a></h3>
 <p>Each KDC needs a <code class="docutils literal notranslate"><span class="pre">host</span></code> key in the Kerberos database.  These keys
 are used for mutual authentication when propagating the database dump
 file from the primary KDC to the secondary KDC servers.</p>
@@ -374,7 +372,7 @@ temporary keytab file for that machine’s keytab:</p>
 <code class="docutils literal notranslate"><span class="pre">/etc/krb5.keytab</span></code> on the host <code class="docutils literal notranslate"><span class="pre">kerberos-1.mit.edu</span></code>.</p>
 </section>
 <section id="configure-replica-kdcs">
-<h3>Configure replica KDCs<a class="headerlink" href="#configure-replica-kdcs" title="Permalink to this headline">¶</a></h3>
+<h3>Configure replica KDCs<a class="headerlink" href="#configure-replica-kdcs" title="Link to this heading">¶</a></h3>
 <p>Database propagation copies the contents of the primary’s database,
 but does not propagate configuration files, stash files, or the kadm5
 ACL file.  The following files must be copied by hand to each replica
@@ -427,7 +425,7 @@ you’ll need to propagate the database from the primary server.</p>
 of the primary’s database.</p>
 </section>
 <section id="propagate-the-database-to-each-replica-kdc">
-<span id="kprop-to-replicas"></span><h3>Propagate the database to each replica KDC<a class="headerlink" href="#propagate-the-database-to-each-replica-kdc" title="Permalink to this headline">¶</a></h3>
+<span id="kprop-to-replicas"></span><h3>Propagate the database to each replica KDC<a class="headerlink" href="#propagate-the-database-to-each-replica-kdc" title="Link to this heading">¶</a></h3>
 <p>First, create a dump file of the database on the primary KDC, as
 follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kdb5_util</span> <span class="n">dump</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">krb5kdc</span><span class="o">/</span><span class="n">replica_datatrans</span>
@@ -470,7 +468,7 @@ start the krb5kdc daemon:</p>
 the KDCs’ <code class="docutils literal notranslate"><span class="pre">/etc/rc</span></code> or <code class="docutils literal notranslate"><span class="pre">/etc/inittab</span></code> files, so they will start
 the krb5kdc daemon automatically at boot time.</p>
 <section id="propagation-failed">
-<h4>Propagation failed?<a class="headerlink" href="#propagation-failed" title="Permalink to this headline">¶</a></h4>
+<h4>Propagation failed?<a class="headerlink" href="#propagation-failed" title="Link to this heading">¶</a></h4>
 <p>You may encounter the following error messages. For a more detailed
 discussion on possible causes and solutions click on the error link
 to be redirected to <a class="reference internal" href="troubleshoot.html#troubleshoot"><span class="std std-ref">Troubleshooting</span></a> section.</p>
@@ -483,7 +481,7 @@ to be redirected to <a class="reference internal" href="troubleshoot.html#troubl
 </section>
 </section>
 <section id="add-kerberos-principals-to-the-database">
-<h2>Add Kerberos principals to the database<a class="headerlink" href="#add-kerberos-principals-to-the-database" title="Permalink to this headline">¶</a></h2>
+<h2>Add Kerberos principals to the database<a class="headerlink" href="#add-kerberos-principals-to-the-database" title="Link to this heading">¶</a></h2>
 <p>Once your KDCs are set up and running, you are ready to use
 <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> to load principals for your users, hosts, and other
 services into the Kerberos database.  This procedure is described
@@ -494,7 +492,7 @@ if your primary KDC has a disk crash.  See the following section for
 the instructions.</p>
 </section>
 <section id="switching-primary-and-replica-kdcs">
-<span id="switch-primary-replica"></span><h2>Switching primary and replica KDCs<a class="headerlink" href="#switching-primary-and-replica-kdcs" title="Permalink to this headline">¶</a></h2>
+<span id="switch-primary-replica"></span><h2>Switching primary and replica KDCs<a class="headerlink" href="#switching-primary-and-replica-kdcs" title="Link to this heading">¶</a></h2>
 <p>You may occasionally want to use one of your replica KDCs as the
 primary.  This might happen if you are upgrading the primary KDC, or
 if your primary KDC has a disk crash.</p>
@@ -521,7 +519,7 @@ client machine in your Kerberos realm.</p></li>
 </ol>
 </section>
 <section id="incremental-database-propagation">
-<h2>Incremental database propagation<a class="headerlink" href="#incremental-database-propagation" title="Permalink to this headline">¶</a></h2>
+<h2>Incremental database propagation<a class="headerlink" href="#incremental-database-propagation" title="Link to this heading">¶</a></h2>
 <p>If you expect your Kerberos database to become large, you may wish to
 set up incremental propagation to replica KDCs.  See
 <a class="reference internal" href="database.html#incr-db-prop"><span class="std std-ref">Incremental database propagation</span></a> for details.</p>
@@ -629,8 +627,8 @@ set up incremental propagation to replica KDCs.  See
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 

@@ -456,8 +456,13 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 			return (0);
 		}
 
-		if (zfsvfs->z_log != NULL)
-			zil_commit(zfsvfs->z_log, 0);
+		if (zfsvfs->z_log != NULL) {
+			error = zil_commit(zfsvfs->z_log, 0);
+			if (error != 0) {
+				zfs_exit(zfsvfs, FTAG);
+				return (error);
+			}
+		}
 
 		zfs_exit(zfsvfs, FTAG);
 	} else {
@@ -1173,7 +1178,7 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 	if (mounting) {
 		boolean_t readonly;
 
-		ASSERT3P(zfsvfs->z_kstat.dk_kstats, ==, NULL);
+		ASSERT0P(zfsvfs->z_kstat.dk_kstats);
 		error = dataset_kstats_create(&zfsvfs->z_kstat, zfsvfs->z_os);
 		if (error)
 			return (error);
@@ -1291,6 +1296,8 @@ zfs_set_fuid_feature(zfsvfs_t *zfsvfs)
 	zfsvfs->z_use_sa = USE_SA(zfsvfs->z_version, zfsvfs->z_os);
 }
 
+extern int zfs_xattr_compat;
+
 static int
 zfs_domount(vfs_t *vfsp, char *osname)
 {
@@ -1374,6 +1381,16 @@ zfs_domount(vfs_t *vfsp, char *osname)
 		if ((error = zfsvfs_setup(zfsvfs, B_TRUE)))
 			goto out;
 	}
+
+#if __FreeBSD_version >= 1500040
+	/*
+	 * Named attributes can only work if the xattr property is set to
+	 * on/dir and not sa.  Also, zfs_xattr_compat must be set.
+	 */
+	if ((zfsvfs->z_flags & ZSB_XATTR) != 0 && !zfsvfs->z_xattr_sa &&
+	    zfs_xattr_compat)
+		vfsp->mnt_flag |= MNT_NAMEDATTR;
+#endif
 
 	vfs_mountedfrom(vfsp, osname);
 
@@ -1906,6 +1923,14 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		err = vn_lock(*vpp, flags);
 		if (err != 0)
 			vrele(*vpp);
+#if __FreeBSD_version >= 1500040
+		else if ((zp->z_pflags & ZFS_XATTR) != 0) {
+			if ((*vpp)->v_type == VDIR)
+				vn_irflag_set_cond(*vpp, VIRF_NAMEDDIR);
+			else
+				vn_irflag_set_cond(*vpp, VIRF_NAMEDATTR);
+		}
+#endif
 	}
 	if (err != 0)
 		*vpp = NULL;
@@ -2058,9 +2083,17 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 	*vpp = ZTOV(zp);
 	zfs_exit(zfsvfs, FTAG);
 	err = vn_lock(*vpp, flags);
-	if (err == 0)
+	if (err == 0) {
 		vnode_create_vobject(*vpp, zp->z_size, curthread);
-	else
+#if __FreeBSD_version >= 1500040
+		if ((zp->z_pflags & ZFS_XATTR) != 0) {
+			if ((*vpp)->v_type == VDIR)
+				vn_irflag_set_cond(*vpp, VIRF_NAMEDDIR);
+			else
+				vn_irflag_set_cond(*vpp, VIRF_NAMEDATTR);
+		}
+#endif
+	} else
 		*vpp = NULL;
 	return (err);
 }

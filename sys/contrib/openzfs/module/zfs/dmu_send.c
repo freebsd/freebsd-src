@@ -962,7 +962,7 @@ do_dump(dmu_send_cookie_t *dscp, struct send_range *range)
 		char *data = NULL;
 		if (srdp->abd != NULL) {
 			data = abd_to_buf(srdp->abd);
-			ASSERT3P(srdp->abuf, ==, NULL);
+			ASSERT0P(srdp->abuf);
 		} else if (srdp->abuf != NULL) {
 			data = srdp->abuf->b_data;
 		}
@@ -1084,7 +1084,7 @@ send_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	 */
 	if (sta->os->os_encrypted &&
 	    !BP_IS_HOLE(bp) && !BP_USES_CRYPT(bp)) {
-		spa_log_error(spa, zb, BP_GET_LOGICAL_BIRTH(bp));
+		spa_log_error(spa, zb, BP_GET_PHYSICAL_BIRTH(bp));
 		return (SET_ERROR(EIO));
 	}
 
@@ -1210,7 +1210,7 @@ send_traverse_thread(void *arg)
 
 	err = traverse_dataset_resume(st_arg->os->os_dsl_dataset,
 	    st_arg->fromtxg, &st_arg->resume,
-	    st_arg->flags, send_cb, st_arg);
+	    st_arg->flags | TRAVERSE_LOGICAL, send_cb, st_arg);
 
 	if (err != EINTR)
 		st_arg->error_code = err;
@@ -2514,7 +2514,7 @@ dmu_send_impl(struct dmu_send_params *dspp)
 	 * list in the stream.
 	 */
 	if (dspp->numfromredactsnaps != NUM_SNAPS_NOT_REDACTED) {
-		ASSERT3P(from_rl, ==, NULL);
+		ASSERT0P(from_rl);
 		fnvlist_add_uint64_array(nvl, BEGINNV_REDACT_FROM_SNAPS,
 		    dspp->fromredactsnaps, (uint_t)dspp->numfromredactsnaps);
 		if (dspp->numfromredactsnaps > 0) {
@@ -2891,7 +2891,7 @@ dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
 			    &fromds);
 
 			if (err != 0) {
-				ASSERT3P(fromds, ==, NULL);
+				ASSERT0P(fromds);
 			} else {
 				/*
 				 * We need to make a deep copy of the redact

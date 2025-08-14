@@ -65,7 +65,7 @@ struct uuid;
 union semun;
 
 __BEGIN_DECLS
-typedef void (__sys_exit_t)(int);
+typedef void (__sys__exit_t)(int);
 typedef int (__sys_fork_t)(void);
 typedef ssize_t (__sys_read_t)(int, void *, size_t);
 typedef ssize_t (__sys_write_t)(int, const void *, size_t);
@@ -180,7 +180,7 @@ typedef int (__sys_pathconf_t)(const char *, int);
 typedef int (__sys_fpathconf_t)(int, int);
 typedef int (__sys_getrlimit_t)(u_int, struct rlimit *);
 typedef int (__sys_setrlimit_t)(u_int, struct rlimit *);
-typedef int (__sys___sysctl_t)(int *, u_int, void *, size_t *, const void *, size_t);
+typedef int (__sys___sysctl_t)(const int *, u_int, void *, size_t *, const void *, size_t);
 typedef int (__sys_mlock_t)(const void *, size_t);
 typedef int (__sys_munlock_t)(const void *, size_t);
 typedef int (__sys_undelete_t)(const char *);
@@ -469,7 +469,7 @@ typedef int (__sys_exterrctl_t)(u_int, u_int, void *);
 typedef int (__sys_inotify_add_watch_at_t)(int, int, const char *, uint32_t);
 typedef int (__sys_inotify_rm_watch_t)(int, int);
 
-void __sys_exit(int rval);
+_Noreturn void __sys__exit(int rval);
 int __sys_fork(void);
 ssize_t __sys_read(int fd, void * buf, size_t nbyte);
 ssize_t __sys_write(int fd, const void * buf, size_t nbyte);
@@ -584,7 +584,7 @@ int __sys_pathconf(const char * path, int name);
 int __sys_fpathconf(int fd, int name);
 int __sys_getrlimit(u_int which, struct rlimit * rlp);
 int __sys_setrlimit(u_int which, struct rlimit * rlp);
-int __sys___sysctl(int * name, u_int namelen, void * old, size_t * oldlenp, const void * new, size_t newlen);
+int __sys___sysctl(const int * name, u_int namelen, void * old, size_t * oldlenp, const void * new, size_t newlen);
 int __sys_mlock(const void * addr, size_t len);
 int __sys_munlock(const void * addr, size_t len);
 int __sys_undelete(const char * path);

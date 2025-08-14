@@ -828,7 +828,7 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 	    == (ND_NFSV4 | ND_V4WCCATTR)) {
 		error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
 		    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
-		    NULL, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 		if (error)
 			return (error);
 		/*
@@ -963,7 +963,8 @@ nfscl_loadsbinfo(struct nfsmount *nmp, struct nfsstatfs *sfp, void *statfs)
  * Use the fsinfo stuff to update the mount point.
  */
 void
-nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp)
+nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp,
+    uint32_t clone_blksize)
 {
 
 	if ((nmp->nm_wsize == 0 || fsp->fs_wtpref < nmp->nm_wsize) &&
@@ -1003,6 +1004,14 @@ nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp)
 	    fsp->fs_maxfilesize < nmp->nm_maxfilesize)
 		nmp->nm_maxfilesize = fsp->fs_maxfilesize;
 	nmp->nm_mountp->mnt_stat.f_iosize = newnfs_iosize(nmp);
+
+	/*
+	 * Although ZFS reports a clone_blksize of 16Mbytes,
+	 * 128Kbytes usually works, so set it to that.
+	 */
+	if (clone_blksize > 128 * 1024)
+		clone_blksize = 128 * 1024;
+	nmp->nm_cloneblksize = clone_blksize;
 	nmp->nm_state |= NFSSTA_GOTFSINFO;
 }
 

@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -30,7 +28,8 @@ SRCS=	alt_prof.c \
 
 .include "${KRB5_SRCTOP}/lib/kadm5clnt/clnt/Makefile.inc"
 
-CFLAGS+=-I${KRB5_DIR}/lib/kadm5 \
+CFLAGS+=-I${KRB5_DIR}/lib \
+	-I${KRB5_DIR}/lib/kadm5 \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_OBJTOP}/include/krb5_private \
 	-I${KRB5_SRCTOP}/include \
@@ -38,10 +37,6 @@ CFLAGS+=-I${KRB5_DIR}/lib/kadm5 \
 
 INCSDIR=${INCLUDEDIR}/kadm5
 INCS=	admin.h \
-	admin_internal.h \
-	admin_xdr.h \
-	kadm_rpc.h \
-	server_internal.h \
 	${GENI}
 
 KADM_ERR=	kadm_err.et

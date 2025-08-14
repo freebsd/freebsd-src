@@ -25,6 +25,7 @@ Frequently used public interfaces
    krb5_change_password.rst
    krb5_chpw_message.rst
    krb5_expand_hostname.rst
+   krb5_free_config_files.rst
    krb5_free_context.rst
    krb5_free_error_message.rst
    krb5_free_principal.rst
@@ -33,6 +34,7 @@ Frequently used public interfaces
    krb5_get_error_message.rst
    krb5_get_host_realm.rst
    krb5_get_credentials.rst
+   krb5_get_default_config_files.rst
    krb5_get_fallback_host_realm.rst
    krb5_get_init_creds_keytab.rst
    krb5_get_init_creds_opt_alloc.rst

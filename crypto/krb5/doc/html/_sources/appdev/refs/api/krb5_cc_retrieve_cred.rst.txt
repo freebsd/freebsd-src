@@ -46,34 +46,34 @@ Valid values for *flags* are:
 
  
  
-	 - #KRB5_TC_MATCH_TIMES The requested lifetime must be at least as great as in *mcreds* .
+	 - KRB5_TC_MATCH_TIMES The requested lifetime must be at least as great as in *mcreds* .
  
  
-	 - #KRB5_TC_MATCH_IS_SKEY The *is_skey* field much match exactly.
+	 - KRB5_TC_MATCH_IS_SKEY The *is_skey* field much match exactly.
  
  
-	 - #KRB5_TC_MATCH_FLAGS Flags set in *mcreds* must be set.
+	 - KRB5_TC_MATCH_FLAGS Flags set in *mcreds* must be set.
  
  
-	 - #KRB5_TC_MATCH_TIMES_EXACT The requested lifetime must match exactly.
+	 - KRB5_TC_MATCH_TIMES_EXACT The requested lifetime must match exactly.
  
  
-	 - #KRB5_TC_MATCH_FLAGS_EXACT Flags must match exactly.
+	 - KRB5_TC_MATCH_FLAGS_EXACT Flags must match exactly.
  
  
-	 - #KRB5_TC_MATCH_AUTHDATA The authorization data must match.
+	 - KRB5_TC_MATCH_AUTHDATA The authorization data must match.
  
  
-	 - #KRB5_TC_MATCH_SRV_NAMEONLY Only the name portion of the principal name must match, not the realm.
+	 - KRB5_TC_MATCH_SRV_NAMEONLY Only the name portion of the principal name must match, not the realm.
  
  
-	 - #KRB5_TC_MATCH_2ND_TKT The second tickets must match.
+	 - KRB5_TC_MATCH_2ND_TKT The second tickets must match.
  
  
-	 - #KRB5_TC_MATCH_KTYPE The encryption key types must match.
+	 - KRB5_TC_MATCH_KTYPE The encryption key types must match.
  
  
-	 - #KRB5_TC_SUPPORTED_KTYPES Check all matching entries that have any supported encryption type and return the one with the encryption type listed earliest.
+	 - KRB5_TC_SUPPORTED_KTYPES Check all matching entries that have any supported encryption type and return the one with the encryption type listed earliest.
  
  Use krb5_free_cred_contents() to free *creds* when it is no longer needed.
 

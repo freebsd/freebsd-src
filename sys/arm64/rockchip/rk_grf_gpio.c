@@ -181,11 +181,12 @@ rk_grf_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

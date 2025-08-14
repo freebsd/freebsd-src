@@ -3680,6 +3680,7 @@ vnet_ipfw_init(const void *unused)
 
 	IPFW_LOCK_INIT(chain);
 
+	ipfw_dyn_init(chain);
 	/* fill and insert the default rule */
 	rule = ipfw_alloc_rule(chain, sizeof(struct ip_fw));
 	rule->flags |= IPFW_RULE_NOOPT;
@@ -3689,7 +3690,6 @@ vnet_ipfw_init(const void *unused)
 	chain->default_rule = rule;
 	ipfw_add_protected_rule(chain, rule, 0);
 
-	ipfw_dyn_init(chain);
 	ipfw_eaction_init(chain, first);
 	ipfw_init_skipto_cache(chain);
 	ipfw_bpf_init(first);

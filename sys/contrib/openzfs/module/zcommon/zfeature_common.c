@@ -734,6 +734,12 @@ zpool_feature_init(void)
 	    ZFEATURE_FLAG_READONLY_COMPAT, ZFEATURE_TYPE_BOOLEAN, NULL,
 	    sfeatures);
 
+	zfeature_register(SPA_FEATURE_BLOCK_CLONING_ENDIAN,
+	    "com.truenas:block_cloning_endian", "block_cloning_endian",
+	    "Fixes BRT ZAP endianness on new pools.",
+	    ZFEATURE_FLAG_READONLY_COMPAT, ZFEATURE_TYPE_BOOLEAN, NULL,
+	    sfeatures);
+
 	zfeature_register(SPA_FEATURE_AVZ_V2,
 	    "com.klarasystems:vdev_zaps_v2", "vdev_zaps_v2",
 	    "Support for root vdev ZAP.",
@@ -786,6 +792,24 @@ zpool_feature_init(void)
 		    "Support for microzaps larger than 128KB.",
 		    ZFEATURE_FLAG_PER_DATASET | ZFEATURE_FLAG_READONLY_COMPAT,
 		    ZFEATURE_TYPE_BOOLEAN, large_microzap_deps, sfeatures);
+	}
+
+	zfeature_register(SPA_FEATURE_DYNAMIC_GANG_HEADER,
+	    "com.klarasystems:dynamic_gang_header", "dynamic_gang_header",
+	    "Support for dynamically sized gang headers",
+	    ZFEATURE_FLAG_MOS | ZFEATURE_FLAG_NO_UPGRADE,
+	    ZFEATURE_TYPE_BOOLEAN, NULL, sfeatures);
+
+	{
+		static const spa_feature_t physical_rewrite_deps[] = {
+			SPA_FEATURE_EXTENSIBLE_DATASET,
+			SPA_FEATURE_NONE
+		};
+		zfeature_register(SPA_FEATURE_PHYSICAL_REWRITE,
+		    "com.truenas:physical_rewrite", "physical_rewrite",
+		    "Support for preserving logical birth time during rewrite.",
+		    ZFEATURE_FLAG_READONLY_COMPAT | ZFEATURE_FLAG_PER_DATASET,
+		    ZFEATURE_TYPE_BOOLEAN, physical_rewrite_deps, sfeatures);
 	}
 
 	zfs_mod_list_supported_free(sfeatures);

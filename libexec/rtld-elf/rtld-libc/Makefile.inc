@@ -96,7 +96,11 @@ CLEANFILES+=${_obj}.pico
 
 # We insert all the .o files from libc_nossp_pic.a into a new rtld_libc.a file
 # to ensure that only .o files that are actually used end up being included.
-rtld_libc.a: ${LIBC_NOSSP_PIC} ${LIBSYS_PIC} ${SRCTOP}/libexec/rtld-elf/rtld-libc/Makefile.inc
+#
+# XXX: we add dependencies on the source libraries in ../Makefile after
+# bsd.prog.mk includes bsd.libnames.mk since variables in dependencies are
+# expanded when parsed.
+rtld_libc.a: ${SRCTOP}/libexec/rtld-elf/rtld-libc/Makefile.inc
 	@rm -f ${.TARGET}
 	${AR} x ${LIBC_NOSSP_PIC} ${_rtld_libc_objs}
 	${AR} x ${LIBSYS_PIC} ${_rtld_libsys_objs}

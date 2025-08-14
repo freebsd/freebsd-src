@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 27, 2025
+.Dd July 28, 2025
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -766,8 +766,7 @@ to any pointer type.
 .Pp
 Values in
 .Ic return
-statements should be enclosed in parentheses where possible.
-For example, parentheses cannot be used if the value is a C++ braced-init-list.
+statements should be enclosed in parentheses.
 .Pp
 Use
 .Xr err 3
@@ -918,6 +917,161 @@ Only use the annotation for the entire if statement,
 rather than individual clauses.
 Do not add these annotations without empirical evidence of the likelihood of the
 branch.
+.Ss C++
+KNF style was originally defined as a style for C.
+C++ introduces several new idioms which do not have an existing corollary
+in KNF C such as inline function definitions in classes.
+C++ is also not always compatible with some KNF guidelines such as
+enclosing return values in parentheses.
+For C++ code, FreeBSD aims to follow broadly accepted C++ practices while
+also following the general shape of KNF.
+This section enumerates C++ specific guidelines that differ from KNF C.
+.Pp
+The preferred suffixes for C++ source files are
+.Dq .cc
+and
+.Dq .hh .
+Header files should always use a suffix,
+unlike headers from the C++ standard library.
+.Pp
+Return values should not be enclosed in parentheses.
+When converting existing C code to C++,
+existing return values may remain in parentheses.
+.Pp
+The opening curly brace for namespace declarations should be on the first line
+similar to structure and class definitions.
+Nested namespaces should be declared using a single namespace declaration.
+.Bd -literal
+namespace foo::bar {
+}
+.Ed
+.Pp
+Member function declarations should follow the same style used for standalone
+function protoypes except that a space should be used between a function's
+return type and name.
+.Pp
+Function definitions at the top level should use a newline after the function
+type similar to C function definitions.
+.Pp
+Nested member function definitions inside of a class, structure, or union
+should not use a newline after the function type.
+Instead, these should follow the style of member function declarations.
+This is more common C++ style and is more compact for small methods such as
+getters and setters.
+.Pp
+Inline functions whose body consists of a single statement may use a single
+line for the function body.
+Inline functions with an empty body should always use a single line.
+.Bd -literal
+struct widget {
+	int foo() { return 4; }
+	int bar();
+};
+
+int
+widget::bar()
+{
+	return 6;
+}
+.Ed
+.Pp
+Default and deleted methods should be declared as a single line.
+.Bd -literal
+class box {
+	~box() = default;
+};
+.Ed
+.Pp
+In template declarations, the
+.Ic template
+keyword and list of template parameters should be followed by a newline
+before the templated declaration.
+.Bd -literal
+template <typename T>
+class box {
+	T data;
+};
+.Ed
+.Pp
+The
+.Ic &
+for reference variables should be placed on the variable name rather
+than the type similar to the style used with
+.Ic *
+for pointers.
+.Bd -literal
+	int x;
+	int &xp = x;
+.Ed
+.Pp
+Variables may be declared at any point within a function,
+not just at the start of blocks.
+.Pp
+Standard library containers should be used in preference to
+.Xr queue 3
+or
+.Xr tree 3
+macros.
+.Pp
+.Ic nullptr
+should be used instead of
+.Dv NULL
+or 0.
+.Pp
+Use standard library types for managing strings such as
+.Vt std::string
+and
+.Vt std::string_view
+rather than
+.Vt "char *"
+and
+.Vt "const char *" .
+C types may be used when interfacing with C code.
+.Pp
+The
+.Ic auto
+keyword can be used in various contexts which improve readability.
+Examples include iterators, non-trivial types of ranged-for values,
+and return values of obvious types,
+such as
+.Ic static_cast
+or
+.Fn std::make_unique .
+Place any qualifiers before
+.Ic auto ,
+for example:
+.Ic const auto .
+.Pp
+Use the
+.Vt std::unique_ptr
+and
+.Vt std::shared_ptr
+smart pointers to manage the lifetime of dynamically allocated objects
+instead of
+.Ic new
+and
+.Ic delete .
+Construct smart pointers with
+.Fn std::make_unique
+or
+.Fn std::make_shared .
+Do not use
+.Xr malloc 3
+except when necessary to interface with C code.
+.Pp
+Do not import any namespaces with
+.Ic using
+at global scope in header files.
+Namespaces other than the
+.Ic std
+namespace (for example,
+.Ic std::literals )
+may be imported in source files and in function scope in header files.
+.Pp
+Define type aliases using
+.Ic using
+instead of
+.Ic typedef .
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /usr/src/tools/build/checkstyle9.pl

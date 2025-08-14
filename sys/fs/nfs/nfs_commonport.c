@@ -258,7 +258,7 @@ newnfs_copycred(struct nfscred *nfscr, struct ucred *cr)
 	KASSERT(nfscr->nfsc_ngroups >= 0,
 	    ("newnfs_copycred: negative nfsc_ngroups"));
 	cr->cr_uid = nfscr->nfsc_uid;
-	crsetgroups_fallback(cr, nfscr->nfsc_ngroups, nfscr->nfsc_groups,
+	crsetgroups_and_egid(cr, nfscr->nfsc_ngroups, nfscr->nfsc_groups,
 	    GID_NOGROUP);
 }
 
@@ -379,8 +379,8 @@ newnfs_setroot(struct ucred *cred)
 {
 
 	cred->cr_uid = 0;
-	cred->cr_groups[0] = 0;
-	cred->cr_ngroups = 1;
+	cred->cr_gid = 0;
+	cred->cr_ngroups = 0;
 }
 
 /*

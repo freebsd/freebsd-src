@@ -1,5 +1,7 @@
 .include <src.opts.mk>
 
+PACKAGE=	bsdconfig
+
 SUBDIR=	console \
 	diskmgmt \
 	docsinstall \

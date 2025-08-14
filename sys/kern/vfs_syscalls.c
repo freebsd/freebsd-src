@@ -37,6 +37,7 @@
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
 
+#define	EXTERR_CATEGORY		EXTERR_CAT_VFSSYSCALL
 #include <sys/systm.h>
 #ifdef COMPAT_FREEBSD11
 #include <sys/abi_compat.h>
@@ -46,6 +47,7 @@
 #include <sys/capsicum.h>
 #include <sys/disk.h>
 #include <sys/dirent.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -982,13 +984,16 @@ kern_chroot(struct thread *td, struct vnode *vp)
 	error = priv_check(td, PRIV_VFS_CHROOT);
 	if (error != 0) {
 		p = td->td_proc;
-		PROC_LOCK(p);
-		if (unprivileged_chroot == 0 ||
-		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
-			PROC_UNLOCK(p);
+		if (unprivileged_chroot == 0) {
+			error = EXTERROR(EPERM,
+		    "security.bsd.unprivileged_chroot sysctl not enabled");
 			goto e_vunlock;
 		}
-		PROC_UNLOCK(p);
+		if ((p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
+			error = EXTERROR(EPERM,
+			    "PROC_NO_NEW_PRIVS not enabled");
+			goto e_vunlock;
+		}
 	}
 
 	error = change_dir(vp, td);
@@ -2253,10 +2258,10 @@ kern_accessat(struct thread *td, int fd, const char *path,
 	cred = td->td_ucred;
 	if ((flag & AT_EACCESS) == 0 &&
 	    ((cred->cr_uid != cred->cr_ruid ||
-	    cred->cr_rgid != cred->cr_groups[0]))) {
+	    cred->cr_rgid != cred->cr_gid))) {
 		usecred = crdup(cred);
 		usecred->cr_uid = cred->cr_ruid;
-		usecred->cr_groups[0] = cred->cr_rgid;
+		usecred->cr_gid = cred->cr_rgid;
 		td->td_ucred = usecred;
 	} else
 		usecred = cred;
@@ -5045,15 +5050,16 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	size_t retlen;
 	void *rl_rcookie, *rl_wcookie;
 	off_t inoff, outoff, savinoff, savoutoff;
-	bool foffsets_locked;
+	bool foffsets_locked, foffsets_set;
 
 	infp = outfp = NULL;
 	rl_rcookie = rl_wcookie = NULL;
 	foffsets_locked = false;
+	foffsets_set = false;
 	error = 0;
 	retlen = 0;
 
-	if (flags != 0) {
+	if ((flags & ~COPY_FILE_RANGE_USERFLAGS) != 0) {
 		error = EINVAL;
 		goto out;
 	}
@@ -5117,6 +5123,8 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 		}
 		foffset_lock_pair(infp1, &inoff, outfp1, &outoff, 0);
 		foffsets_locked = true;
+	} else {
+		foffsets_set = true;
 	}
 	savinoff = inoff;
 	savoutoff = outoff;
@@ -5175,11 +5183,12 @@ out:
 		vn_rangelock_unlock(invp, rl_rcookie);
 	if (rl_wcookie != NULL)
 		vn_rangelock_unlock(outvp, rl_wcookie);
+	if ((foffsets_locked || foffsets_set) &&
+	    (error == EINTR || error == ERESTART)) {
+		inoff = savinoff;
+		outoff = savoutoff;
+	}
 	if (foffsets_locked) {
-		if (error == EINTR || error == ERESTART) {
-			inoff = savinoff;
-			outoff = savoutoff;
-		}
 		if (inoffp == NULL)
 			foffset_unlock(infp, inoff, 0);
 		else
@@ -5188,6 +5197,9 @@ out:
 			foffset_unlock(outfp, outoff, 0);
 		else
 			*outoffp = outoff;
+	} else if (foffsets_set) {
+		*inoffp = inoff;
+		*outoffp = outoff;
 	}
 	if (outfp != NULL)
 		fdrop(outfp, td);

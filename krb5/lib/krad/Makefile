@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5-lib
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -25,10 +23,6 @@ SRCS=	attr.c \
 	code.c \
 	packet.c \
 	remote.c
-
-INCS=	internal.h \
-	t_daemon.h \
-	t_test.h
 
 CFLAGS+=-I${KRB5_DIR}/lib/krad \
 	-I${KRB5_DIR}/include \

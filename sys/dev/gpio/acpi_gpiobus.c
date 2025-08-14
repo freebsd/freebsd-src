@@ -383,7 +383,8 @@ acpi_gpiobus_detach(device_t dev)
 }
 
 static int
-acpi_gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+acpi_gpiobus_read_ivar(device_t dev, device_t child, int which,
+    uintptr_t *result)
 {
 	struct acpi_gpiobus_ivar *devi = device_get_ivars(child);
 

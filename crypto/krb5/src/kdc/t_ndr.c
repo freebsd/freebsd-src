@@ -173,7 +173,7 @@ test_dec_enc(uint8_t *blob, size_t len, char *name, int fail)
 #define RUN_TEST_FAIL(blob) test_dec_enc(blob, sizeof(blob), #blob, 1)
 
 int
-main()
+main(void)
 {
     printf("Running NDR tests...\n");
 

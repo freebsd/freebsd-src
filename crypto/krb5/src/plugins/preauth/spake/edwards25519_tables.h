@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 
-/* From BoringSSL third-party/fiat/curve25519_tables.h */
+/* From BoringSSL crypto/curve25519/curve25519_tables.h */
 
 static const fe d = {{
 #if defined(BORINGSSL_CURVE25519_64BIT)

@@ -68,14 +68,8 @@ val_exp_sec_ctx_args(
 
 
 OM_uint32 KRB5_CALLCONV
-gss_export_sec_context(minor_status,
-                       context_handle,
-                       interprocess_token)
-
-OM_uint32 *		minor_status;
-gss_ctx_id_t *		context_handle;
-gss_buffer_t		interprocess_token;
-
+gss_export_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
+		       gss_buffer_t interprocess_token)
 {
     OM_uint32		status;
     OM_uint32 		length;

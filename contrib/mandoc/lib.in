@@ -131,6 +131,7 @@ LINE("libugidfw",	"File System Firewall Interface Library (libugidfw, \\-lugidfw
 LINE("libulog",		"User Login Record Library (libulog, \\-lulog)")
 LINE("libusbhid",	"USB Human Interface Devices Library (libusbhid, \\-lusbhid)")
 LINE("libutil",		"System Utilities Library (libutil, \\-lutil)")
+LINE("libutil++",	"C++ Utilities Library (libutil++, \\-lutil++)")
 LINE("libvgl",		"Video Graphics Library (libvgl, \\-lvgl)")
 LINE("libx86_64",	"x86_64 Architecture Library (libx86_64, \\-lx86_64)")
 LINE("libxo",		"Text, XML, JSON, and HTML Output Emission Library (libxo, \\-lxo)")

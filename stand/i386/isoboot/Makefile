@@ -1,7 +1,7 @@
 .include <bsd.init.mk>
 
 .PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/gptboot \
-		${BOOTSRC}/i386/common ${SASRC}
+		${BOOTSRC}/i386/common
 
 FILES=		isoboot
 MAN=		isoboot.8
@@ -51,12 +51,12 @@ gptldr.out: gptldr.o
 	${LD} ${LD_FLAGS} -e start --defsym ORG=${ORG1} -T ${LDSCRIPT} -o ${.TARGET} gptldr.o
 
 CLEANFILES+=	isoboot.bin isoboot.out isoboot.o sio.o drv.o \
-		cons.o ${OPENCRYPTO_XTS}
+		cons.o
 
 isoboot.bin: isoboot.out
 	${OBJCOPY} -S -O binary isoboot.out ${.TARGET}
 
-isoboot.out: ${BTXCRT} isoboot.o sio.o drv.o cons.o ${OPENCRYPTO_XTS}
+isoboot.out: ${BTXCRT} isoboot.o sio.o drv.o cons.o
 	${LD} ${LD_FLAGS} --defsym ORG=${ORG2} -T ${LDSCRIPT} -o ${.TARGET} ${.ALLSRC} ${LIBSA32}
 
 .include <bsd.prog.mk>

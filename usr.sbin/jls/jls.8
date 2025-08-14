@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 13, 2025
+.Dd July 25, 2025
 .Dt JLS 8
 .Os
 .Sh NAME
@@ -35,6 +35,10 @@
 .Op Fl dhNnqsv
 .Op Fl j Ar jail
 .Op Ar parameter ...
+.Nm
+.Fl c
+.Op Fl d
+.Fl j Ar jail
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,10 +58,20 @@ for a description of some core parameters.
 If no
 .Ar parameters
 or any of the options
-.Fl hns
+.Fl chns
 are given, the following four columns will be printed:
 jail identifier (jid), IP address (ip4.addr), hostname (host.hostname),
 and path (path).
+.Pp
+When the
+.Fl c
+option is used,
+.Nm
+will not emit any output except for usage errors.
+This mode is intended solely to check for a single jail's existence, and it does
+not accept any
+.Ar parameter
+or print-option flags.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -68,6 +82,8 @@ in a selection of different human and machine readable formats.
 See
 .Xr xo_options 7
 for details on command line arguments.
+.It Fl c
+Only check for the jail's existence.
 .It Fl d
 List
 .Va dying

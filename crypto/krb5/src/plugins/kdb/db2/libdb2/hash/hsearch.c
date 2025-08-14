@@ -50,8 +50,7 @@ static DB *dbp = NULL;
 static ENTRY retval;
 
 extern int
-hcreate(nel)
-	u_int nel;
+hcreate(u_int nel)
 {
 	HASHINFO info;
 
@@ -66,9 +65,7 @@ hcreate(nel)
 }
 
 extern ENTRY *
-hsearch(item, action)
-	ENTRY item;
-	ACTION action;
+hsearch(ENTRY item, ACTION action)
 {
 	DBT key, val;
 	int status;
@@ -98,7 +95,7 @@ hsearch(item, action)
 }
 
 extern void
-hdestroy()
+hdestroy(void)
 {
 	if (dbp) {
 		(void)(dbp->close)(dbp);

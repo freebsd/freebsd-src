@@ -39,7 +39,6 @@ SRCS+=	accept_sec_context.c \
 	k5sealiov.c \
 	k5sealv3.c \
 	k5sealv3iov.c \
-	k5unseal.c \
 	k5unsealiov.c \
 	krb5_gss_glue.c \
 	lucid_context.c \
@@ -54,11 +53,13 @@ SRCS+=	accept_sec_context.c \
 	set_allowable_enctypes.c \
 	set_ccache.c \
 	store_cred.c \
+	unwrap.c \
 	util_cksum.c \
 	util_crypt.c \
 	util_seed.c \
 	util_seqnum.c \
 	val_cred.c \
+	verify_mic.c \
 	wrap_size_limit.c \
 	${K5GEN} \
 	${K5GENI}

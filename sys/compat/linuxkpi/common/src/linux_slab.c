@@ -297,6 +297,23 @@ lkpi_kmalloc(size_t size, gfp_t flags)
 }
 
 static void
+lkpi_kvmalloc_cb(void *ctx)
+{
+	struct lkpi_kmalloc_ctx *lmc = ctx;
+
+	lmc->addr = malloc(lmc->size, M_KMALLOC, linux_check_m_flags(lmc->flags));
+}
+
+void *
+lkpi_kvmalloc(size_t size, gfp_t flags)
+{
+	struct lkpi_kmalloc_ctx lmc = { .size = size, .flags = flags };
+
+	lkpi_fpu_safe_exec(&lkpi_kvmalloc_cb, &lmc);
+	return(lmc.addr);
+}
+
+static void
 linux_kfree_async_fn(void *context, int pending)
 {
 	struct llist_node *freed;

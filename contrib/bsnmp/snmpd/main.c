@@ -237,7 +237,6 @@ static struct request_info req;
 #endif
 
 /* transports */
-extern const struct transport_def udp_trans;
 extern const struct transport_def lsock_trans;
 
 struct transport_list transport_list = TAILQ_HEAD_INITIALIZER(transport_list);
@@ -1187,12 +1186,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		if (tport->transport->vtab->send != NULL)
-			slen = tport->transport->vtab->send(tport, sndbuf,
-			    sndlen, pi->peer, pi->peerlen);
-		else
-			slen = tport->transport->vtab->send2(tport, sndbuf,
-			    sndlen, pi);
+		slen = tport->transport->vtab->send(tport, sndbuf, sndlen, pi);
 		if (slen == -1)
 			syslog(LOG_ERR, "send*: %m");
 		else if ((size_t)slen != sndlen)
@@ -1215,6 +1209,11 @@ void
 snmp_send_port(void *targ, const struct asn_oid *port, struct snmp_pdu *pdu,
     const struct sockaddr *addr, socklen_t addrlen)
 {
+	struct port_input pi = {
+		.fd = -1,
+		.peer = __DECONST(struct sockaddr *, addr),
+		.peerlen = addrlen,
+	};
 	struct transport *trans = targ;
 	struct tport *tp;
 	u_char *sndbuf;
@@ -1232,10 +1231,7 @@ snmp_send_port(void *targ, const struct asn_oid *port, struct snmp_pdu *pdu,
 
 	snmp_output(pdu, sndbuf, &sndlen, "SNMP PROXY");
 
-	if (trans->vtab->send != NULL)
-		len = trans->vtab->send(tp, sndbuf, sndlen, addr, addrlen);
-	else
-		len = trans->vtab->send2(tp, sndbuf, sndlen, NULL);
+	len = trans->vtab->send(tp, sndbuf, sndlen, &pi);
 
 	if (len == -1)
 		syslog(LOG_ERR, "sendto: %m");
@@ -1661,8 +1657,6 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "atexit failed: %m");
 		exit(1);
 	}
-	if (udp_trans.start() != SNMP_ERR_NOERROR)
-		syslog(LOG_WARNING, "cannot start UDP transport");
 	if (lsock_trans.start() != SNMP_ERR_NOERROR)
 		syslog(LOG_WARNING, "cannot start LSOCK transport");
 	if (inet_trans.start() != SNMP_ERR_NOERROR)

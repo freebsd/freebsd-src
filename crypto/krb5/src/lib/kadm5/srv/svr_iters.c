@@ -6,25 +6,11 @@
  */
 
 #include "autoconf.h"
-#if defined(HAVE_COMPILE) && defined(HAVE_STEP)
-#define SOLARIS_REGEXPS
-#elif defined(HAVE_REGCOMP) && defined(HAVE_REGEXEC)
-#define POSIX_REGEXPS
-#elif defined(HAVE_RE_COMP) && defined(HAVE_RE_EXEC)
-#define BSD_REGEXPS
-#else
-#error I cannot find any regexp functions
-#endif
 
 #include        <sys/types.h>
 #include        <string.h>
 #include        <kadm5/admin.h>
-#ifdef SOLARIS_REGEXPS
-#include        <regexpr.h>
-#endif
-#ifdef POSIX_REGEXPS
-#include        <regex.h>
-#endif
+#include        "k5-regex.h"
 #include <stdlib.h>
 
 #include        "server_internal.h"
@@ -35,12 +21,7 @@ struct iter_data {
     int n_names, sz_names;
     unsigned int malloc_failed;
     char *exp;
-#ifdef SOLARIS_REGEXPS
-    char *expbuf;
-#endif
-#ifdef POSIX_REGEXPS
     regex_t preg;
-#endif
 };
 
 /* XXX Duplicated in kdb5_util!  */
@@ -56,9 +37,9 @@ struct iter_data {
  * Effects:
  *
  * regexp is filled in with allocated memory contained a regular
- * expression to be used with re_comp/compile that matches what the
- * shell-style glob would match.  If glob does not contain an "@"
- * character and realm is not NULL, "@*" is appended to the regexp.
+ * expression that matches what the shell-style glob would match.
+ * If glob does not contain an "@" character and realm is not
+ * NULL, "@*" is appended to the regexp.
  *
  * Conversion algorithm:
  *
@@ -130,15 +111,7 @@ static kadm5_ret_t glob_to_regexp(char *glob, char *realm, char **regexp)
 static void get_either_iter(struct iter_data *data, char *name)
 {
     int match;
-#ifdef SOLARIS_REGEXPS
-    match = (step(name, data->expbuf) != 0);
-#endif
-#ifdef POSIX_REGEXPS
     match = (regexec(&data->preg, name, 0, NULL, 0) == 0);
-#endif
-#ifdef BSD_REGEXPS
-    match = (re_exec(name) != 0);
-#endif
     if (match) {
         if (data->n_names == data->sz_names) {
             int new_sz = data->sz_names * 2;
@@ -184,9 +157,6 @@ static kadm5_ret_t kadm5_get_either(int princ,
                                     int *count)
 {
     struct iter_data data;
-#ifdef BSD_REGEXPS
-    char *msg;
-#endif
     char *regexp = NULL;
     int i, ret;
     kadm5_server_handle_t handle = server_handle;
@@ -202,18 +172,7 @@ static kadm5_ret_t kadm5_get_either(int princ,
                               &regexp)) != KADM5_OK)
         return ret;
 
-    if (
-#ifdef SOLARIS_REGEXPS
-        ((data.expbuf = compile(regexp, NULL, NULL)) == NULL)
-#endif
-#ifdef POSIX_REGEXPS
-        ((regcomp(&data.preg, regexp, REG_NOSUB)) != 0)
-#endif
-#ifdef BSD_REGEXPS
-        ((msg = (char *) re_comp(regexp)) != NULL)
-#endif
-    )
-    {
+    if (regcomp(&data.preg, regexp, REG_NOSUB) != 0) {
         /* XXX syslog msg or regerr(regerrno) */
         free(regexp);
         return EINVAL;
@@ -236,9 +195,7 @@ static kadm5_ret_t kadm5_get_either(int princ,
     }
 
     free(regexp);
-#ifdef POSIX_REGEXPS
     regfree(&data.preg);
-#endif
     if ( !ret && data.malloc_failed)
         ret = ENOMEM;
     if ( ret ) {

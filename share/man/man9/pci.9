@@ -664,10 +664,14 @@ Buses in this state can cause devices to lose some context.
 Devices
 .Em must
 be prepared for the bus to be in this state or higher.
-.It Dv PCI_POWERSTATE_D3
+.It Dv PCI_POWERSTATE_D3_HOT
 State in which the device is off and not running.
 Device context is lost, and power from the device can
-be removed.
+be (but is not necessarily) removed.
+.It Dv PCI_POWERSTATE_D3_COLD
+Same as
+.Dv PCI_POWERSTATE_D3_HOT ,
+except power has been removed from the device.
 .It Dv PCI_POWERSTATE_UNKNOWN
 State of the device is unknown.
 .El

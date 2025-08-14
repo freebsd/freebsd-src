@@ -902,7 +902,9 @@ vdev_trim_thread(void *arg)
 	ta.trim_vdev = vd;
 	ta.trim_extent_bytes_max = zfs_trim_extent_bytes_max;
 	ta.trim_extent_bytes_min = zfs_trim_extent_bytes_min;
-	ta.trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
+	ta.trim_tree = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "trim_tree"));
 	ta.trim_type = TRIM_TYPE_MANUAL;
 	ta.trim_flags = 0;
 
@@ -1008,7 +1010,7 @@ vdev_trim(vdev_t *vd, uint64_t rate, boolean_t partial, boolean_t secure)
 	ASSERT(MUTEX_HELD(&vd->vdev_trim_lock));
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 	ASSERT(vdev_is_concrete(vd));
-	ASSERT3P(vd->vdev_trim_thread, ==, NULL);
+	ASSERT0P(vd->vdev_trim_thread);
 	ASSERT(!vd->vdev_detached);
 	ASSERT(!vd->vdev_trim_exit_wanted);
 	ASSERT(!vd->vdev_top->vdev_removing);
@@ -1030,7 +1032,7 @@ vdev_trim_stop_wait_impl(vdev_t *vd)
 	while (vd->vdev_trim_thread != NULL)
 		cv_wait(&vd->vdev_trim_cv, &vd->vdev_trim_lock);
 
-	ASSERT3P(vd->vdev_trim_thread, ==, NULL);
+	ASSERT0P(vd->vdev_trim_thread);
 	vd->vdev_trim_exit_wanted = B_FALSE;
 }
 
@@ -1305,8 +1307,10 @@ vdev_autotrim_thread(void *arg)
 			 * Allocate an empty range tree which is swapped in
 			 * for the existing ms_trim tree while it is processed.
 			 */
-			trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
-			    NULL, 0, 0);
+			trim_tree = zfs_range_tree_create_flags(
+			    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+			    ZFS_RT_F_DYN_NAME,
+			    vdev_rt_name(vd, "autotrim_tree"));
 			zfs_range_tree_swap(&msp->ms_trim, &trim_tree);
 			ASSERT(zfs_range_tree_is_empty(msp->ms_trim));
 
@@ -1360,8 +1364,10 @@ vdev_autotrim_thread(void *arg)
 				if (!cvd->vdev_ops->vdev_op_leaf)
 					continue;
 
-				ta->trim_tree = zfs_range_tree_create(NULL,
-				    ZFS_RANGE_SEG64, NULL, 0, 0);
+				ta->trim_tree = zfs_range_tree_create_flags(
+				    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+				    ZFS_RT_F_DYN_NAME,
+				    vdev_rt_name(vd, "autotrim_tree"));
 				zfs_range_tree_walk(trim_tree,
 				    vdev_trim_range_add, ta);
 			}
@@ -1533,7 +1539,7 @@ vdev_autotrim_stop_wait(vdev_t *tvd)
 		cv_wait(&tvd->vdev_autotrim_cv,
 		    &tvd->vdev_autotrim_lock);
 
-		ASSERT3P(tvd->vdev_autotrim_thread, ==, NULL);
+		ASSERT0P(tvd->vdev_autotrim_thread);
 		tvd->vdev_autotrim_exit_wanted = B_FALSE;
 	}
 	mutex_exit(&tvd->vdev_autotrim_lock);
@@ -1600,7 +1606,9 @@ vdev_trim_l2arc_thread(void *arg)
 	vd->vdev_trim_secure = 0;
 
 	ta.trim_vdev = vd;
-	ta.trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
+	ta.trim_tree = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "trim_tree"));
 	ta.trim_type = TRIM_TYPE_MANUAL;
 	ta.trim_extent_bytes_max = zfs_trim_extent_bytes_max;
 	ta.trim_extent_bytes_min = SPA_MINBLOCKSIZE;
@@ -1704,7 +1712,7 @@ vdev_trim_l2arc(spa_t *spa)
 		mutex_enter(&vd->vdev_trim_lock);
 		ASSERT(vd->vdev_ops->vdev_op_leaf);
 		ASSERT(vdev_is_concrete(vd));
-		ASSERT3P(vd->vdev_trim_thread, ==, NULL);
+		ASSERT0P(vd->vdev_trim_thread);
 		ASSERT(!vd->vdev_detached);
 		ASSERT(!vd->vdev_trim_exit_wanted);
 		ASSERT(!vd->vdev_top->vdev_removing);
@@ -1735,7 +1743,9 @@ vdev_trim_simple(vdev_t *vd, uint64_t start, uint64_t size)
 	ASSERT(!vd->vdev_top->vdev_rz_expanding);
 
 	ta.trim_vdev = vd;
-	ta.trim_tree = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64, NULL, 0, 0);
+	ta.trim_tree = zfs_range_tree_create_flags(
+	    NULL, ZFS_RANGE_SEG64, NULL, 0, 0,
+	    ZFS_RT_F_DYN_NAME, vdev_rt_name(vd, "trim_tree"));
 	ta.trim_type = TRIM_TYPE_SIMPLE;
 	ta.trim_extent_bytes_max = zfs_trim_extent_bytes_max;
 	ta.trim_extent_bytes_min = SPA_MINBLOCKSIZE;

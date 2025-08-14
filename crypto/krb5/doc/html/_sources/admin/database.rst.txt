@@ -93,6 +93,10 @@ To view the attributes of a principal, use the kadmin`
 To generate a listing of principals, use the kadmin
 **list_principals** command.
 
+To give a principal additional names, use the kadmin **add_alias**
+command to create aliases to the principal (new in release 1.22).
+Aliases can be removed with the **delete_principal** command.
+
 
 .. _policies:
 

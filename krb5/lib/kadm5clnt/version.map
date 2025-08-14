@@ -1,4 +1,4 @@
-KRB5_KADM5_CLNT_1.0 {
+kadm5clnt_mit_12_MIT {
 	global:
 		_kadm5_check_handle;
 		_kadm5_chpass_principal_util;
@@ -115,4 +115,7 @@ KRB5_KADM5_CLNT_1.0 {
 		xdr_setkey_arg;
 		xdr_ui_4;
 		kadm5_init_iprop;
+		xdr_calias_arg;
+		kadm5_create_alias;
 };
+HIDDEN { local: __*; _rest*; _save*; *; };

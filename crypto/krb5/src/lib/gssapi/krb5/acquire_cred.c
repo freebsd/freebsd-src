@@ -546,8 +546,7 @@ set_refresh_time(krb5_context context, krb5_ccache ccache,
     krb5_clear_error_message(context);
 }
 
-/* Return true if it's time to refresh cred from the client keytab.  If
- * returning true, avoid retrying for 30 seconds. */
+/* Return true if it's time to refresh cred from the client keytab. */
 krb5_boolean
 kg_cred_time_to_refresh(krb5_context context, krb5_gss_cred_id_rec *cred)
 {
@@ -556,17 +555,18 @@ kg_cred_time_to_refresh(krb5_context context, krb5_gss_cred_id_rec *cred)
     if (krb5_timeofday(context, &now))
         return FALSE;
     soon = ts_incr(now, 30);
+
+    /* If a refresh time is set and has elapsed, attempt a refresh, and set a
+     * new refresh time to avoid retrying for 30 seconds. */
     if (cred->refresh_time != 0 && !ts_after(cred->refresh_time, now)) {
         set_refresh_time(context, cred->ccache, soon);
         return TRUE;
     }
 
-    /* If the creds will expire soon, try to refresh even if they weren't
+    /* If the creds will expire soon, attempt a refresh even if they weren't
      * acquired with a client keytab. */
-    if (ts_after(soon, cred->expire)) {
-        set_refresh_time(context, cred->ccache, soon);
+    if (ts_after(soon, cred->expire))
         return TRUE;
-    }
 
     return FALSE;
 }
@@ -1283,8 +1283,8 @@ acquire_cred_from(OM_uint32 *minor_status, const gss_name_t desired_name,
             ret = GSS_S_BAD_NAME;
             goto out;
         }
-        if (cred_usage == GSS_C_ACCEPT || desired_name == GSS_C_NO_NAME ||
-            ccache != NULL || client_keytab != NULL) {
+        if (cred_usage == GSS_C_ACCEPT || ccache != NULL ||
+            client_keytab != NULL) {
             *minor_status = (OM_uint32)G_BAD_USAGE;
             ret = GSS_S_FAILURE;
             goto out;

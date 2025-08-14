@@ -10,6 +10,66 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+cce64f2e6851:
+	Add support for the NFSv4.2 Clone operation, which uses
+	block cloning to "copy on write" files on an NFS server.
+	This only works for exported ZFS file systems that have
+	block cloning enabled, at this time.
+
+7ac276298b72, 7b8c9de17448, 1271b1d747a7, 9dcb984251b3:
+	Support for Secure RPC DES authentication has been removed.  This
+	includes publickey(5), keyserv(8) and the rpc_secure(3) routines which
+	rely on keyserv.  The libc symbols are still present for backward
+	compatibility, but all functions will unconditionally return an error.
+
+37b2cb5ecb0f:
+	Add support to VOP_COPY_FILE_RANGE() for block cloning.
+	At this time, ZFS is the only local file system that supports
+	this and only if block cloning is enabled.  NFSv4.2 also supports it.
+	See pathconf(2) and copy_file_range(2) for more information.
+
+2ec2ba7e232d, df58e8b1506f (openzfs 2957eabbe), f61844833ee8, b1b607bd200f,
+	ee95e4d02dbd:
+	Add Solaris style extended attributes (called named attributes
+	in NFSv4).  At this time, only ZFS when the ZFS property called
+	xattr=dir and NFSv4 support them.  The attributes are presented
+	in a directory as regular files.  See named_attribute(7) for
+	more information.
+
+ef2a572bf6:
+	Inline IPSEC offload infrastructure and driver support for mlx5(4)
+	Nvidia ConnectX-6+ network cards were added.
+
+68ba38dad3:
+	amd64: handling of the %fsbase/%gsbase registers and tls base
+	were reworked, making it more useful for apps that directly
+	manipulate CPU context.
+
+78aaab9f1cf:
+	rtld: added support for -z initfirst
+
+e36f069ecb4, c069ca085b:
+	Reliability of UFS on volumes with more than 2G of inodes is
+	significantly improved.  The underlying issue was the invalid
+	interpretation of the 32bit inode number as signed, which got
+	sign-extended into ino_t.
+
+d390633cf8c:
+	On modern amd64 machines (which have the LA57 CPU feature),
+	FreeBSD is able to utilize more than 4TB of RAM.
+
+2bd157bc732a:
+	The readdir_r(3) function is deprecated and may be removed in future
+	releases.  Using it in a program will result in compile-time and
+	link-time warnings.
+
+9ba51cce8bbd:
+	bsnmpd(1) no longer supports legacy UDP transport.  Users, that have
+	not updated their /etc/snmpd.config since 12.0-RELEASE or older will
+	need to merge in the new configuration.  In particular, the transport
+	definition shall be changed from begemotSnmpdPortStatus OID to
+	begemotSnmpdTransInetStatus.
+
 1349a733cf28:
 	Add a driver supporting a new storage controller interface,
 	Universal Flash Storage Host Controller Interface, supporting
@@ -200,10 +260,11 @@ e962b37bf0ff:
 7398d1ece5cf:
 	hw.snd.version is removed.
 
-a15f7c96a276,a8089ea5aee5:
+a15f7c96a276,66b5296f1b29:
 	NVMe over Fabrics controller.  The nvmft(4) kernel module adds
 	a new frontend to the CAM target layer which exports ctl(4)
-	LUNs as NVMe namespaces to remote hosts.  The nvmfd(8) daemon
+	LUNs as NVMe namespaces to remote hosts.  The ctld(8) daemon
+	now supports NVMe controllers in addition to iSCSI targets and
 	is responsible for accepting incoming connection requests and
 	handing off connected queue pairs to nvmft(4).
 

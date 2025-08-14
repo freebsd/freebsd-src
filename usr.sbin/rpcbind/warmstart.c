@@ -87,7 +87,7 @@ write_struct(char *filename, xdrproc_t structproc, void *list)
 			return (FALSE);
 		}
 	}
-	(void) umask(omask);
+	(void)umask(omask);
 	xdrstdio_create(&xdrs, fp, XDR_ENCODE);
 
 	if (structproc(&xdrs, list) == FALSE) {
@@ -143,9 +143,9 @@ error:	fprintf(stderr, "rpcbind: will start from scratch\n");
 void
 write_warmstart(void)
 {
-	(void) write_struct(RPCBFILE, (xdrproc_t)xdr_rpcblist_ptr, &list_rbl);
+	(void)write_struct(RPCBFILE, (xdrproc_t)xdr_rpcblist_ptr, &list_rbl);
 #ifdef PORTMAP
-	(void) write_struct(PMAPFILE, (xdrproc_t)xdr_pmaplist_ptr, &list_pml);
+	(void)write_struct(PMAPFILE, (xdrproc_t)xdr_pmaplist_ptr, &list_pml);
 #endif
 
 }
@@ -166,13 +166,13 @@ read_warmstart(void)
 	ok2 = read_struct(PMAPFILE, (xdrproc_t)xdr_pmaplist_ptr, &tmp_pmapl);
 #endif
 	if (ok2 == FALSE) {
-		xdr_free((xdrproc_t) xdr_rpcblist_ptr, (char *)&tmp_rpcbl);
+		xdr_free((xdrproc_t)xdr_rpcblist_ptr, &tmp_rpcbl);
 		return;
 	}
-	xdr_free((xdrproc_t) xdr_rpcblist_ptr, (char *)&list_rbl);
+	xdr_free((xdrproc_t)xdr_rpcblist_ptr, &list_rbl);
 	list_rbl = tmp_rpcbl;
 #ifdef PORTMAP
-	xdr_free((xdrproc_t) xdr_pmaplist_ptr, (char *)&list_pml);
+	xdr_free((xdrproc_t)xdr_pmaplist_ptr, &list_pml);
 	list_pml = tmp_pmapl;
 #endif
 }

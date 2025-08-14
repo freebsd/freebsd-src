@@ -58,24 +58,13 @@ static int	auth_krb5(pam_handle_t *, krb5_context, const char *,
 #define KRB5_DEFAULT_CCFILE_ROOT "/tmp/krb5cc_"
 #define KRB5_DEFAULT_CCROOT "FILE:" KRB5_DEFAULT_CCFILE_ROOT
 
-/*
- * XXX We will replace krb5_build_principal_va() with
- * XXX krb5_build_principal_alloc_va() when Heimdal is finally
- * XXX removed.
- */
-krb5_error_code KRB5_CALLCONV
-krb5_build_principal_va(krb5_context context,
-			krb5_principal princ,
-			unsigned int rlen,
-			const char *realm,
-			va_list ap);
 typedef char *heim_general_string;
 typedef heim_general_string Realm;
 typedef Realm krb5_realm;
 typedef const char *krb5_const_realm;
 
 static krb5_error_code
-krb5_make_principal(krb5_context context, krb5_principal principal,
+krb5_make_principal(krb5_context context, krb5_principal *principal,
 	krb5_const_realm realm, ...)
 {
 	krb5_realm temp_realm = NULL;
@@ -88,15 +77,9 @@ krb5_make_principal(krb5_context context, krb5_principal principal,
 		realm=temp_realm;
 	}
 	va_start(ap, realm);
-	/*
-	 * XXX Ideally we should be using krb5_build_principal_alloc_va()
-	 * XXX here because krb5_build_principal_va() is deprecated. But,
-	 * XXX this would require changes elsewhere in the calling code
-	 * XXX to call krb5_free_principal() elsewhere to free the
-	 * XXX principal. We can do that after Heimdal is removed from
-	 * XXX our tree.
-	 */
-	rc = krb5_build_principal_va(context, principal, strlen(realm), realm, ap);
+
+	rc = krb5_build_principal_alloc_va(context, principal, strlen(realm),
+	    realm, ap);
 	va_end(ap);
 	if (temp_realm)
 		free(temp_realm);
@@ -273,13 +256,7 @@ get_su_principal(krb5_context context, const char *target_user, const char *curr
 	if (rv != 0)
 		return (errno);
 	if (default_principal == NULL) {
-#ifdef MK_MITKRB5
-		/* For MIT KRB5. */
-		rv = krb5_make_principal(context, default_principal, NULL, current_user, NULL);
-#else
-		/* For Heimdal. */
 		rv = krb5_make_principal(context, &default_principal, NULL, current_user, NULL);
-#endif
 		if (rv != 0) {
 			PAM_LOG("Could not determine default principal name.");
 			return (rv);

@@ -298,7 +298,6 @@ KeccakF1600:
 .byte	0,12,4,1,0x80,18,1,0
 .long	0
 .size	KeccakF1600,.-KeccakF1600
-
 .type	dword_le_load,@function
 .align	5
 dword_le_load:
@@ -324,7 +323,6 @@ dword_le_load:
 .byte	0,12,0x14,0,0,0,1,0
 .long	0
 .size	dword_le_load,.-dword_le_load
-
 .globl	SHA3_absorb
 .type	SHA3_absorb,@function
 .type	SHA3_absorb,@function
@@ -571,6 +569,8 @@ SHA3_squeeze:
 	subi	29,4,1
 	mr	30,5
 	mr	31,6
+	cmplwi	7,0
+	bne	.Lnext_block
 	b	.Loop_squeeze
 
 .align	4
@@ -601,6 +601,7 @@ SHA3_squeeze:
 	subic.	6,6,8
 	bgt	.Loop_squeeze
 
+.Lnext_block:
 	mr	3,28
 	bl	KeccakF1600
 	subi	3,28,8

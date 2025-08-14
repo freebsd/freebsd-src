@@ -398,12 +398,13 @@ ftgpio_attach(device_t dev)
 	FTGPIO_VERBOSE_PRINTF(sc->dev, "groups GPIO1..GPIO6 enabled\n");
 
 	GPIO_UNLOCK(sc);
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		GPIO_LOCK_DESTROY(sc);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

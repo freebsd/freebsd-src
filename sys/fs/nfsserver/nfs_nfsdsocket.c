@@ -371,7 +371,7 @@ int (*nfsrv4_ops2[NFSV42_NOPS])(struct nfsrv_descript *,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
-	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
+	nfsrvd_clone,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
@@ -1425,7 +1425,7 @@ nfsrv_createrootcred(void)
 
 	cr = crget();
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = UID_ROOT;
-	crsetgroups_fallback(cr, 0, NULL, GID_WHEEL);
+	crsetgroups_and_egid(cr, 0, NULL, GID_WHEEL);
 	cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 	cr->cr_prison = curthread->td_ucred->cr_prison;
 	prison_hold(cr->cr_prison);

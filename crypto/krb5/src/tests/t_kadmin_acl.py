@@ -25,20 +25,32 @@ all_modify = make_client('all_modify')
 all_rename = make_client('all_rename')
 all_wildcard = make_client('all_wildcard')
 all_extract = make_client('all_extract')
+all_alias = make_client('all_alias')
 some_add = make_client('some_add')
 some_changepw = make_client('some_changepw')
 some_delete = make_client('some_delete')
 some_inquire = make_client('some_inquire')
 some_modify = make_client('some_modify')
 some_rename = make_client('some_rename')
+some_extract = make_client('some_extract')
+some_alias = make_client('some_alias')
 restricted_add = make_client('restricted_add')
 restricted_modify = make_client('restricted_modify')
 restricted_rename = make_client('restricted_rename')
+restricted_alias = make_client('restricted_alias')
 wctarget = make_client('wctarget')
 admin = make_client('user/admin')
 none = make_client('none')
 restrictions = make_client('restrictions')
 onetwothreefour = make_client('one/two/three/four')
+
+realm.run([kadminl, 'alias', 'aliastonone', 'none'])
+aliastonone = os.path.join(realm.testdir, 'kadmin_ccache_aliastonone')
+realm.kinit('aliastonone', password('none'),
+            flags=['-S', 'kadmin/admin', '-c', aliastonone])
+
+realm.run([kadminl, 'alias', 'aliastounselected', 'unselected'])
+realm.run([kadminl, 'alias', 'aliastoselected', 'selected'])
 
 realm.run([kadminl, 'addpol', '-minlife', '1 day', 'minlife'])
 
@@ -53,16 +65,27 @@ all_modify         im
 all_rename         ad
 all_wildcard       x
 all_extract        ie
+all_alias          am
 some_add           a   selected
+some_add           a   aliastounselected
 some_changepw      c   selected
+some_changepw      c   aliastounselected
 some_delete        d   selected
+some_delete        d   aliastounselected
 some_inquire       i   selected
+some_inquire       i   aliastounselected
 some_modify        im  selected
+some_modify        im  aliastounselected
+some_extract       ie  selected
+some_extract       ie  aliastounselected
 some_rename        d   from
 some_rename        a   to
+some_alias         a   aliasname
+some_alias         m   canon
 restricted_add     a   *         +preauth
 restricted_modify  im  *         +preauth
 restricted_rename  ad  *         +preauth
+restricted_alias   ai  *         +preauth
 
 */*                d   *2/*1
 # The next line is a regression test for #8154; it is not used directly.
@@ -92,7 +115,13 @@ for pw in (['-pw', 'newpw'], ['-randkey']):
                   expected_msg=msg)
         kadmin_as(some_changepw, ['cpw'] + args + ['unselected'],
                   expected_code=1, expected_msg=msg)
+        # Verify that the ACL check is canonicalized.
+        kadmin_as(some_changepw, ['cpw'] + args + ['aliastounselected'],
+                  expected_code=1, expected_msg=msg)
+        kadmin_as(some_changepw, ['cpw'] + args + ['aliastoselected'])
         kadmin_as(none, ['cpw'] + args + ['none'])
+        kadmin_as(aliastonone, ['cpw'] + args + ['none'],
+                  expected_code=1, expected_msg=msg)
         realm.run([kadminl, 'modprinc', '-policy', 'minlife', 'none'])
         msg = "Current password's minimum life has not expired"
         kadmin_as(none, ['cpw'] + args + ['none'], expected_code=1,
@@ -123,6 +152,12 @@ for ks in ([], ['-e', 'aes256-cts']):
               expected_msg="Operation requires ``add'' privilege")
     kadmin_as(some_add, ['addprinc'] + args + ['unselected'], expected_code=1,
               expected_msg="Operation requires ``add'' privilege")
+    # Verify that the ACL check isn't canonicalized.  (We need the alias
+    # to resolve or we will overwrite it, currently.)
+    realm.addprinc('unselected')
+    kadmin_as(some_add, ['addprinc'] + args + ['aliastounselected'],
+              expected_code=1, expected_msg='already exists')
+    realm.run([kadminl, 'delprinc', 'unselected'])
 
 mark('delprinc')
 realm.addprinc('unselected', 'pw')
@@ -133,6 +168,11 @@ realm.addprinc('unselected', 'pw')
 kadmin_as(none, ['delprinc', 'unselected'], expected_code=1,
           expected_msg="Operation requires ``delete'' privilege")
 kadmin_as(some_delete, ['delprinc', 'unselected'], expected_code=1,
+          expected_msg="Operation requires ``delete'' privilege")
+# Verify that the ACL check isn't canonicalized.
+kadmin_as(some_delete, ['delprinc', 'aliastounselected'])
+realm.run([kadminl, 'alias', 'aliastounselected', 'unselected'])
+kadmin_as(some_delete, ['delprinc', 'aliastoselected'], expected_code=1,
           expected_msg="Operation requires ``delete'' privilege")
 realm.run([kadminl, 'delprinc', 'unselected'])
 
@@ -155,6 +195,11 @@ kadmin_as(none, ['getprinc', 'selected'], expected_code=1,
           expected_msg="Operation requires ``get'' privilege")
 kadmin_as(some_inquire, ['getprinc', 'unselected'], expected_code=1,
           expected_msg="Operation requires ``get'' privilege")
+# Verify that the ACL check is canonicalized.
+kadmin_as(some_inquire, ['getprinc', 'aliastounselected'], expected_code=1,
+          expected_msg="Operation requires ``get'' privilege")
+kadmin_as(some_inquire, ['getprinc', 'aliastoselected'],
+          expected_msg='Principal: selected@KRBTEST.COM')
 kadmin_as(none, ['getprinc', 'none'],
           expected_msg='Principal: none@KRBTEST.COM')
 realm.run([kadminl, 'delprinc', 'selected'])
@@ -176,6 +221,11 @@ kadmin_as(none, ['getstrs', 'selected'], expected_code=1,
           expected_msg="Operation requires ``get'' privilege")
 kadmin_as(some_inquire, ['getstrs', 'unselected'], expected_code=1,
           expected_msg="Operation requires ``get'' privilege")
+# Verify that the ACL check is canonicalized.
+kadmin_as(some_inquire, ['getstrs', 'aliastounselected'], expected_code=1,
+          expected_msg="Operation requires ``get'' privilege")
+kadmin_as(some_inquire, ['getstrs', 'aliastoselected'],
+          expected_msg='key: value')
 kadmin_as(none, ['getstrs', 'none'], expected_msg='(No string attributes.)')
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
@@ -201,6 +251,10 @@ kadmin_as(all_inquire, ['modprinc', '-maxlife', '1 hour', 'selected'],
           expected_msg="Operation requires ``modify'' privilege")
 kadmin_as(some_modify, ['modprinc', '-maxlife', '1 hour', 'unselected'],
           expected_code=1, expected_msg='Operation requires')
+# Verify that the ACL check is canonicalized.
+kadmin_as(some_modify, ['modprinc', '-maxlife', '1 hour', 'aliastounselected'],
+          expected_code=1, expected_msg='Operation requires')
+kadmin_as(some_modify, ['modprinc', '-maxlife', '2 hours', 'aliastoselected'])
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
@@ -213,6 +267,10 @@ kadmin_as(none, ['purgekeys', 'selected'], expected_code=1,
           expected_msg="Operation requires ``modify'' privilege")
 kadmin_as(some_modify, ['purgekeys', 'unselected'], expected_code=1,
           expected_msg="Operation requires ``modify'' privilege")
+# Verify that the ACL check is canonicalized.
+kadmin_as(some_modify, ['purgekeys', 'aliastounselected'], expected_code=1,
+          expected_msg="Operation requires ``modify'' privilege")
+kadmin_as(some_modify, ['purgekeys', 'aliastoselected'])
 kadmin_as(none, ['purgekeys', 'none'])
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
@@ -232,6 +290,15 @@ kadmin_as(some_rename, ['renprinc', 'from', 'notto'], expected_code=1,
 realm.run([kadminl, 'renprinc', 'from', 'notfrom'])
 kadmin_as(some_rename, ['renprinc', 'notfrom', 'to'], expected_code=1,
           expected_msg="Insufficient authorization for operation")
+# Verify that the ACL check isn't canonicalized.
+realm.run([kadminl, 'alias', 'aliastofrom', 'from'])
+realm.run([kadminl, 'alias', 'aliastoto', 'to'])
+kadmin_as(some_rename, ['renprinc', 'aliastofrom', 'to'], expected_code=1,
+          expected_msg="Insufficient authorization for operation")
+kadmin_as(some_rename, ['renprinc', 'from', 'aliastoto'], expected_code=1,
+          expected_msg="Insufficient authorization for operation")
+realm.run([kadminl, 'delprinc', 'aliastofrom'])
+realm.run([kadminl, 'delprinc', 'aliastoto'])
 kadmin_as(restricted_rename, ['renprinc', 'notfrom', 'to'], expected_code=1,
           expected_msg="Insufficient authorization for operation")
 realm.run([kadminl, 'delprinc', 'notfrom'])
@@ -245,6 +312,10 @@ kadmin_as(none, ['setstr', 'selected',  'key', 'value'], expected_code=1,
           expected_msg="Operation requires ``modify'' privilege")
 kadmin_as(some_modify, ['setstr', 'unselected', 'key', 'value'],
           expected_code=1, expected_msg='Operation requires')
+# Verify that the ACL check is canonicalized.
+kadmin_as(some_modify, ['setstr', 'aliastounselected', 'key', 'value'],
+          expected_code=1, expected_msg='Operation requires')
+kadmin_as(some_modify, ['setstr', 'aliastoselected', 'key', 'value'])
 realm.run([kadminl, 'delprinc', 'selected'])
 realm.run([kadminl, 'delprinc', 'unselected'])
 
@@ -283,13 +354,24 @@ realm.run([kadminl, 'getprinc', 'type3'],
           expected_msg='Maximum renewable life: 0 days 02:00:00')
 
 mark('extract')
+realm.addprinc('selected')
+realm.addprinc('unselected')
 realm.run([kadminl, 'addprinc', '-pw', 'pw', 'extractkeys'])
+msg = "Operation requires ``extract-keys'' privilege"
 kadmin_as(all_wildcard, ['ktadd', '-norandkey', 'extractkeys'],
-          expected_code=1,
-          expected_msg="Operation requires ``extract-keys'' privilege")
+          expected_code=1, expected_msg=msg)
 kadmin_as(all_extract, ['ktadd', '-norandkey', 'extractkeys'])
 realm.kinit('extractkeys', flags=['-k'])
+kadmin_as(some_extract, ['ktadd', '-norandkey', 'selected'])
+kadmin_as(some_extract, ['ktadd', '-norandkey', 'unselected'], expected_code=1,
+          expected_msg=msg)
+# Verify that the ACL check is canonicalized.
+kadmin_as(some_extract, ['ktadd', '-norandkey', 'aliastounselected'],
+          expected_code=1, expected_msg=msg)
+kadmin_as(some_extract, ['ktadd', '-norandkey', 'aliastoselected'])
 os.remove(realm.keytab)
+realm.run([kadminl, 'delprinc', 'selected'])
+realm.run([kadminl, 'delprinc', 'unselected'])
 
 mark('lockdown_keys')
 kadmin_as(all_modify, ['modprinc', '+lockdown_keys', 'extractkeys'])
@@ -311,6 +393,22 @@ realm.run([kadminl, 'modprinc', '-lockdown_keys', 'extractkeys'])
 kadmin_as(all_extract, ['ktadd', '-norandkey', 'extractkeys'])
 realm.kinit('extractkeys', flags=['-k'])
 os.remove(realm.keytab)
+
+mark('alias')
+kadmin_as(all_alias, ['alias', 'aliasname', 'canon'])
+realm.run([kadminl, 'delprinc', 'aliasname'])
+kadmin_as(some_alias, ['alias', 'aliasname', 'canon'])
+realm.run([kadminl, 'delprinc', 'aliasname'])
+kadmin_as(all_add, ['alias', 'aliasname', 'canon'], expected_code=1,
+          expected_msg="Insufficient authorization for operation")
+kadmin_as(all_inquire, ['alias', 'aliasname', 'canon'], expected_code=1,
+          expected_msg="Insufficient authorization for operation")
+kadmin_as(some_alias, ['alias', 'aliasname', 'notcanon'], expected_code=1,
+          expected_msg="Insufficient authorization for operation")
+kadmin_as(some_alias, ['alias', 'notaliasname', 'canon'], expected_code=1,
+          expected_msg="Insufficient authorization for operation")
+kadmin_as(restricted_alias, ['alias', 'aliasname', 'canon'], expected_code=1,
+          expected_msg="Insufficient authorization for operation")
 
 # Verify that self-service key changes require an initial ticket.
 mark('self-service initial ticket')

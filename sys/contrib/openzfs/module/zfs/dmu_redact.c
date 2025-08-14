@@ -370,8 +370,8 @@ redact_traverse_thread(void *arg)
 #endif
 
 	err = traverse_dataset_resume(rt_arg->ds, rt_arg->txg,
-	    &rt_arg->resume, TRAVERSE_PRE | TRAVERSE_PREFETCH_METADATA,
-	    redact_cb, rt_arg);
+	    &rt_arg->resume, TRAVERSE_PRE | TRAVERSE_PREFETCH_METADATA |
+	    TRAVERSE_LOGICAL, redact_cb, rt_arg);
 
 	if (err != EINTR)
 		rt_arg->error_code = err;
@@ -1067,7 +1067,7 @@ dmu_redact_snap(const char *snapname, nvlist_t *redactnvl,
 	}
 	if (err != 0)
 		goto out;
-	VERIFY3P(nvlist_next_nvpair(redactnvl, pair), ==, NULL);
+	VERIFY0P(nvlist_next_nvpair(redactnvl, pair));
 
 	boolean_t resuming = B_FALSE;
 	zfs_bookmark_phys_t bookmark;

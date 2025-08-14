@@ -167,149 +167,149 @@ typedef struct _ip_fw3_opheader {
  */
 
 enum ipfw_opcodes {		/* arguments (4 byte each)	*/
-	O_NOP,
+	O_NOP		= 0,
 
-	O_IP_SRC,		/* u32 = IP			*/
-	O_IP_SRC_MASK,		/* ip = IP/mask			*/
-	O_IP_SRC_ME,		/* none				*/
-	O_IP_SRC_SET,		/* u32=base, arg1=len, bitmap	*/
+	O_IP_SRC	= 1,	/* u32 = IP			*/
+	O_IP_SRC_MASK	= 2,	/* ip = IP/mask			*/
+	O_IP_SRC_ME	= 3,	/* none				*/
+	O_IP_SRC_SET	= 4,	/* u32=base, arg1=len, bitmap	*/
 
-	O_IP_DST,		/* u32 = IP			*/
-	O_IP_DST_MASK,		/* ip = IP/mask			*/
-	O_IP_DST_ME,		/* none				*/
-	O_IP_DST_SET,		/* u32=base, arg1=len, bitmap	*/
+	O_IP_DST	= 5,	/* u32 = IP			*/
+	O_IP_DST_MASK	= 6,	/* ip = IP/mask			*/
+	O_IP_DST_ME	= 7,	/* none				*/
+	O_IP_DST_SET	= 8,	/* u32=base, arg1=len, bitmap	*/
 
-	O_IP_SRCPORT,		/* (n)port list:mask 4 byte ea	*/
-	O_IP_DSTPORT,		/* (n)port list:mask 4 byte ea	*/
-	O_PROTO,		/* arg1=protocol		*/
+	O_IP_SRCPORT	= 9,	/* (n)port list:mask 4 byte ea	*/
+	O_IP_DSTPORT	= 10,	/* (n)port list:mask 4 byte ea	*/
+	O_PROTO		= 11,	/* arg1=protocol		*/
 
-	O_MACADDR2,		/* 2 mac addr:mask		*/
-	O_MAC_TYPE,		/* same as srcport		*/
+	O_MACADDR2	= 12,	/* 2 mac addr:mask		*/
+	O_MAC_TYPE	= 13,	/* same as srcport		*/
 
-	O_LAYER2,		/* none				*/
-	O_IN,			/* none				*/
-	O_FRAG,			/* none				*/
+	O_LAYER2	= 14,	/* none				*/
+	O_IN		= 15,	/* none				*/
+	O_FRAG		= 16,	/* none				*/
 
-	O_RECV,			/* none				*/
-	O_XMIT,			/* none				*/
-	O_VIA,			/* none				*/
+	O_RECV		= 17,	/* none				*/
+	O_XMIT		= 18,	/* none				*/
+	O_VIA		= 19,	/* none				*/
 
-	O_IPOPT,		/* arg1 = 2*u8 bitmap		*/
-	O_IPLEN,		/* arg1 = len			*/
-	O_IPID,			/* arg1 = id			*/
+	O_IPOPT		= 20,	/* arg1 = 2*u8 bitmap		*/
+	O_IPLEN		= 21,	/* arg1 = len			*/
+	O_IPID		= 22,	/* arg1 = id			*/
 
-	O_IPTOS,		/* arg1 = id			*/
-	O_IPPRECEDENCE,		/* arg1 = precedence << 5	*/
-	O_IPTTL,		/* arg1 = TTL			*/
+	O_IPTOS		= 23,	/* arg1 = id			*/
+	O_IPPRECEDENCE	= 24,	/* arg1 = precedence << 5	*/
+	O_IPTTL		= 25,	/* arg1 = TTL			*/
 
-	O_IPVER,		/* arg1 = version		*/
-	O_UID,			/* u32 = id			*/
-	O_GID,			/* u32 = id			*/
-	O_ESTAB,		/* none (tcp established)	*/
-	O_TCPFLAGS,		/* arg1 = 2*u8 bitmap		*/
-	O_TCPWIN,		/* arg1 = desired win		*/
-	O_TCPSEQ,		/* u32 = desired seq.		*/
-	O_TCPACK,		/* u32 = desired seq.		*/
-	O_ICMPTYPE,		/* u32 = icmp bitmap		*/
-	O_TCPOPTS,		/* arg1 = 2*u8 bitmap		*/
+	O_IPVER		= 26,	/* arg1 = version		*/
+	O_UID		= 27,	/* u32 = id			*/
+	O_GID		= 28,	/* u32 = id			*/
+	O_ESTAB		= 29,	/* none (tcp established)	*/
+	O_TCPFLAGS	= 30,	/* arg1 = 2*u8 bitmap		*/
+	O_TCPWIN	= 31,	/* arg1 = desired win		*/
+	O_TCPSEQ	= 32,	/* u32 = desired seq.		*/
+	O_TCPACK	= 33,	/* u32 = desired seq.		*/
+	O_ICMPTYPE	= 34,	/* u32 = icmp bitmap		*/
+	O_TCPOPTS	= 35,	/* arg1 = 2*u8 bitmap		*/
 
-	O_VERREVPATH,		/* none				*/
-	O_VERSRCREACH,		/* none				*/
+	O_VERREVPATH	= 36,	/* none				*/
+	O_VERSRCREACH	= 37,	/* none				*/
 
-	O_PROBE_STATE,		/* v0:arg1=kidx, v1:kidx=kidx	*/
-	O_KEEP_STATE,		/* v0:arg1=kidx, v1:kidx=kidx	*/
-	O_LIMIT,		/* ipfw_insn_limit		*/
-	O_LIMIT_PARENT,		/* dyn_type, not an opcode.	*/
+	O_PROBE_STATE	= 38,	/* v0:arg1=kidx, v1:kidx=kidx	*/
+	O_KEEP_STATE	= 39,	/* v0:arg1=kidx, v1:kidx=kidx	*/
+	O_LIMIT		= 40,	/* ipfw_insn_limit		*/
+	O_LIMIT_PARENT	= 41,	/* dyn_type, not an opcode.	*/
 
 	/*
 	 * These are really 'actions'.
 	 */
 
-	O_LOG,			/* ipfw_insn_log		*/
-	O_PROB,			/* u32 = match probability	*/
+	O_LOG		= 42,	/* ipfw_insn_log		*/
+	O_PROB		= 43,	/* u32 = match probability	*/
 
-	O_CHECK_STATE,		/* v0:arg1=kidx, v1:kidx=kidx	*/
-	O_ACCEPT,		/* none				*/
-	O_DENY,			/* none 			*/
-	O_REJECT,		/* arg1=icmp arg (same as deny)	*/
-	O_COUNT,		/* none				*/
-	O_SKIPTO,		/* v0:arg1=next rule number	*/
+	O_CHECK_STATE	= 44,	/* v0:arg1=kidx, v1:kidx=kidx	*/
+	O_ACCEPT	= 45,	/* none				*/
+	O_DENY		= 46,	/* none				*/
+	O_REJECT	= 47,	/* arg1=icmp arg (same as deny)	*/
+	O_COUNT		= 48,	/* none				*/
+	O_SKIPTO	= 49,	/* v0:arg1=next rule number	*/
 				/* v1:kidx= next rule number	*/
-	O_PIPE,			/* arg1=pipe number		*/
-	O_QUEUE,		/* arg1=queue number		*/
-	O_DIVERT,		/* arg1=port number		*/
-	O_TEE,			/* arg1=port number		*/
-	O_FORWARD_IP,		/* fwd sockaddr			*/
-	O_FORWARD_MAC,		/* fwd mac			*/
-	O_NAT,                  /* nope                         */
-	O_REASS,                /* none                         */
+	O_PIPE		= 50,	/* arg1=pipe number		*/
+	O_QUEUE		= 51,	/* arg1=queue number		*/
+	O_DIVERT	= 52,	/* arg1=port number		*/
+	O_TEE		= 53,	/* arg1=port number		*/
+	O_FORWARD_IP	= 54,	/* fwd sockaddr			*/
+	O_FORWARD_MAC	= 55,	/* fwd mac			*/
+	O_NAT		= 56,	/* nope                         */
+	O_REASS		= 57,	/* none                         */
 
 	/*
 	 * More opcodes.
 	 */
-	O_IPSEC,		/* has ipsec history 		*/
-	O_IP_SRC_LOOKUP,	/* v0:arg1=table number, u32=value */
+	O_IPSEC		= 58,	/* has ipsec history 		*/
+	O_IP_SRC_LOOKUP	= 59,	/* v0:arg1=table number, u32=value */
 				/* v1:kidx=name, u32=value, arg1=key */
-	O_IP_DST_LOOKUP,	/* arg1=table number, u32=value	*/
+	O_IP_DST_LOOKUP	= 60,	/* arg1=table number, u32=value	*/
 				/* v1:kidx=name, u32=value, arg1=key */
-	O_ANTISPOOF,		/* none				*/
-	O_JAIL,			/* u32 = id			*/
-	O_ALTQ,			/* u32 = altq classif. qid	*/
-	O_DIVERTED,		/* arg1=bitmap (1:loop, 2:out)	*/
-	O_TCPDATALEN,		/* arg1 = tcp data len		*/
-	O_IP6_SRC,		/* address without mask		*/
-	O_IP6_SRC_ME,		/* my addresses			*/
-	O_IP6_SRC_MASK,		/* address with the mask	*/
-	O_IP6_DST,
-	O_IP6_DST_ME,
-	O_IP6_DST_MASK,
-	O_FLOW6ID,		/* for flow id tag in the ipv6 pkt */
-	O_ICMP6TYPE,		/* icmp6 packet type filtering	*/
-	O_EXT_HDR,		/* filtering for ipv6 extension header */
-	O_IP6,
+	O_ANTISPOOF	= 61,	/* none				*/
+	O_JAIL		= 62,	/* u32 = id			*/
+	O_ALTQ		= 63,	/* u32 = altq classif. qid	*/
+	O_DIVERTED	= 64,	/* arg1=bitmap (1:loop, 2:out)	*/
+	O_TCPDATALEN	= 65,	/* arg1 = tcp data len		*/
+	O_IP6_SRC	= 66,	/* address without mask		*/
+	O_IP6_SRC_ME	= 67,	/* my addresses			*/
+	O_IP6_SRC_MASK	= 68,	/* address with the mask	*/
+	O_IP6_DST	= 69,
+	O_IP6_DST_ME	= 70,
+	O_IP6_DST_MASK	= 71,
+	O_FLOW6ID	= 72,	/* for flow id tag in the ipv6 pkt */
+	O_ICMP6TYPE	= 73,	/* icmp6 packet type filtering	*/
+	O_EXT_HDR	= 74,	/* filtering for ipv6 extension header */
+	O_IP6		= 75,
 
 	/*
 	 * actions for ng_ipfw
 	 */
-	O_NETGRAPH,		/* send to ng_ipfw		*/
-	O_NGTEE,		/* copy to ng_ipfw		*/
+	O_NETGRAPH	= 76,	/* send to ng_ipfw		*/
+	O_NGTEE		= 77,	/* copy to ng_ipfw		*/
 
-	O_IP4,
+	O_IP4		= 78,
 
-	O_UNREACH6,		/* arg1=icmpv6 code arg (deny)  */
+	O_UNREACH6	= 79,	/* arg1=icmpv6 code arg (deny)  */
 
-	O_TAG,   		/* arg1=tag number */
-	O_TAGGED,		/* arg1=tag number */
+	O_TAG		= 80,	/* arg1=tag number */
+	O_TAGGED	= 81,	/* arg1=tag number */
 
-	O_SETFIB,		/* arg1=FIB number */
-	O_FIB,			/* arg1=FIB desired fib number */
+	O_SETFIB	= 82,	/* arg1=FIB number */
+	O_FIB		= 83,	/* arg1=FIB desired fib number */
 
-	O_SOCKARG,		/* socket argument */
+	O_SOCKARG	= 84,	/* socket argument */
 
-	O_CALLRETURN,		/* v0:arg1=called rule number */
+	O_CALLRETURN	= 85,	/* v0:arg1=called rule number */
 				/* v1:kidx=called rule number */
 
-	O_FORWARD_IP6,		/* fwd sockaddr_in6             */
+	O_FORWARD_IP6	= 86,	/* fwd sockaddr_in6             */
 
-	O_DSCP,			/* 2 u32 = DSCP mask */
-	O_SETDSCP,		/* arg1=DSCP value */
-	O_IP_FLOW_LOOKUP,	/* v0:arg1=table number, u32=value	*/
+	O_DSCP		= 87,	/* 2 u32 = DSCP mask */
+	O_SETDSCP	= 88,	/* arg1=DSCP value */
+	O_IP_FLOW_LOOKUP = 89,	/* v0:arg1=table number, u32=value	*/
 				/* v1:kidx=name, u32=value */
 
-	O_EXTERNAL_ACTION,	/* v0:arg1=id of external action handler */
+	O_EXTERNAL_ACTION = 90,	/* v0:arg1=id of external action handler */
 				/* v1:kidx=id of external action handler */
-	O_EXTERNAL_INSTANCE,	/* v0:arg1=id of eaction handler instance */
+	O_EXTERNAL_INSTANCE = 91, /* v0:arg1=id of eaction handler instance */
 				/* v1:kidx=id of eaction handler instance */
-	O_EXTERNAL_DATA,	/* variable length data */
+	O_EXTERNAL_DATA	= 92,	/* variable length data */
 
-	O_SKIP_ACTION,		/* none				*/
-	O_TCPMSS,		/* arg1=MSS value */
+	O_SKIP_ACTION	= 93,	/* none				*/
+	O_TCPMSS	= 94,	/* arg1=MSS value */
 
-	O_MAC_SRC_LOOKUP,	/* kidx=name, u32=value, arg1=key */
-	O_MAC_DST_LOOKUP,	/* kidx=name, u32=value, arg1=key */
+	O_MAC_SRC_LOOKUP = 95,	/* kidx=name, u32=value, arg1=key */
+	O_MAC_DST_LOOKUP = 96,	/* kidx=name, u32=value, arg1=key */
 
-	O_SETMARK,		/* u32 = value */
-	O_MARK,			/* 2 u32 = value, bitmask */
+	O_SETMARK	= 97,	/* u32 = value */
+	O_MARK		= 98,	/* 2 u32 = value, bitmask */
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };

@@ -134,3 +134,5 @@ __readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 }
 
 __strong_reference(__readdir_r, readdir_r);
+__warn_references(readdir_r,
+    "warning: this program uses readdir_r(), which is unsafe.");

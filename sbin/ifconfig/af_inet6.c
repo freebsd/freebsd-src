@@ -759,7 +759,7 @@ static struct afswtch af_inet6 = {
 #else
 	.af_difaddr	= NL_RTM_DELADDR,
 	.af_aifaddr	= NL_RTM_NEWADDR,
-	.af_ridreq	= &in6_add,
+	.af_ridreq	= &in6_del,
 	.af_addreq	= &in6_add,
 	.af_exec	= in6_exec_nl,
 #endif

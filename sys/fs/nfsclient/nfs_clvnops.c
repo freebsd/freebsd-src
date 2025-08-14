@@ -4027,31 +4027,51 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct vattr va, *vap;
 	struct uio io;
 	struct nfsmount *nmp;
+	struct nfsnode *np;
 	size_t len, len2;
 	ssize_t r;
 	int error, inattrflag, outattrflag, ret, ret2, invp_lock;
 	off_t inoff, outoff;
-	bool consecutive, must_commit, tryoutcred;
+	bool consecutive, must_commit, onevp, toeof, tryclone, tryoutcred;
+	bool mustclone;
 
 	/*
 	 * NFSv4.2 Copy is not permitted for infile == outfile.
+	 * The NFSv4.2 Clone operation does work on non-overlapping
+	 * byte ranges in the same file, but only if offsets
+	 * (and len if not to EOF) are aligned properly.
 	 * TODO: copy_file_range() between multiple NFS mountpoints
+	 * --> This is not possible now, since each mount appears to
+	 *     the NFSv4.n server as a separate client.
 	 */
-	if (invp == outvp || invp->v_mount != outvp->v_mount) {
+	if ((invp == outvp && (ap->a_flags & COPY_FILE_RANGE_CLONE) == 0) ||
+	    (invp != outvp && invp->v_mount != outvp->v_mount)) {
 generic_copy:
 		return (ENOSYS);
 	}
-
-	invp_lock = LK_SHARED;
+	if (invp == outvp) {
+		onevp = true;
+		invp_lock = LK_EXCLUSIVE;
+	} else {
+		onevp = false;
+		invp_lock = LK_SHARED;
+	}
+	mustclone = false;
+	if (onevp || (ap->a_flags & COPY_FILE_RANGE_CLONE) != 0)
+		mustclone = true;
 relock:
+	inoff = *ap->a_inoffp;
+	outoff = *ap->a_outoffp;
 
-	/* Lock both vnodes, avoiding risk of deadlock. */
+	/* Lock vnode(s), avoiding risk of deadlock. */
 	do {
 		mp = NULL;
 		error = vn_start_write(outvp, &mp, V_WAIT);
 		if (error == 0) {
 			error = vn_lock(outvp, LK_EXCLUSIVE);
 			if (error == 0) {
+				if (onevp)
+					break;
 				error = vn_lock(invp, invp_lock | LK_NOWAIT);
 				if (error == 0)
 					break;
@@ -4071,16 +4091,24 @@ relock:
 		return (error);
 
 	/*
-	 * More reasons to avoid nfs copy: not NFSv4.2, or explicitly
-	 * disabled.
+	 * More reasons to avoid nfs copy/clone: not NFSv4.2, explicitly
+	 * disabled or requires cloning and unable to clone.
+	 * Only clone if the clone_blksize attribute is supported
+	 * and the clone_blksize is greater than 0.
+	 * Alignment of offsets and length will be checked later.
 	 */
 	nmp = VFSTONFS(invp->v_mount);
+	np = VTONFS(invp);
 	mtx_lock(&nmp->nm_mtx);
+	if ((nmp->nm_privflag & NFSMNTP_NOCOPY) != 0)
+		mustclone = true;
 	if (!NFSHASNFSV4(nmp) || nmp->nm_minorvers < NFSV42_MINORVERSION ||
-	    (nmp->nm_privflag & NFSMNTP_NOCOPY) != 0) {
+	    (mustclone && (!NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+	     NFSATTRBIT_CLONEBLKSIZE) || nmp->nm_cloneblksize == 0))) {
 		mtx_unlock(&nmp->nm_mtx);
 		VOP_UNLOCK(invp);
-		VOP_UNLOCK(outvp);
+		if (!onevp)
+			VOP_UNLOCK(outvp);	/* For onevp, same as invp. */
 		if (mp != NULL)
 			vn_finished_write(mp);
 		goto generic_copy;
@@ -4111,6 +4139,8 @@ relock:
 		invp_obj = invp->v_object;
 		if (invp_obj != NULL && vm_object_mightbedirty(invp_obj)) {
 			if (invp_lock != LK_EXCLUSIVE) {
+				KASSERT(!onevp, ("nfs_copy_file_range: "
+				    "invp_lock LK_SHARED for onevp"));
 				invp_lock = LK_EXCLUSIVE;
 				VOP_UNLOCK(invp);
 				VOP_UNLOCK(outvp);
@@ -4134,10 +4164,10 @@ relock:
 	else
 		consecutive = false;
 	mtx_unlock(&nmp->nm_mtx);
-	inoff = *ap->a_inoffp;
-	outoff = *ap->a_outoffp;
 	tryoutcred = true;
 	must_commit = false;
+	toeof = false;
+
 	if (error == 0) {
 		vap = &VTONFS(invp)->n_vattr.na_vattr;
 		error = VOP_GETATTR(invp, vap, ap->a_incred);
@@ -4169,29 +4199,63 @@ relock:
 					if (error == 0 && ret != 0)
 						error = ret;
 				}
-			} else if (inoff + len > vap->va_size)
+			} else if (inoff + len >= vap->va_size) {
+				toeof = true;
 				*ap->a_lenp = len = vap->va_size - inoff;
+			}
 		} else
 			error = 0;
 	}
 
 	/*
+	 * For cloning, the offsets must be clone blksize aligned and
+	 * the len must be blksize aligned unless it goes to EOF on
+	 * the input file.
+	 */
+	tryclone = false;
+	if (len > 0) {
+		if (error == 0 && NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+		    NFSATTRBIT_CLONEBLKSIZE) && nmp->nm_cloneblksize != 0 &&
+		    (inoff % nmp->nm_cloneblksize) == 0 &&
+		    (outoff % nmp->nm_cloneblksize) == 0 &&
+		    (toeof || (len % nmp->nm_cloneblksize) == 0))
+			tryclone = true;
+		else if (mustclone)
+			error = ENOSYS;
+	}
+
+	/*
 	 * len will be set to 0 upon a successful Copy RPC.
-	 * As such, this only loops when the Copy RPC needs to be retried.
+	 * As such, this only loops when the Copy/Clone RPC needs to be retried.
 	 */
 	while (len > 0 && error == 0) {
 		inattrflag = outattrflag = 0;
 		len2 = len;
-		if (tryoutcred)
-			error = nfsrpc_copy_file_range(invp, ap->a_inoffp,
-			    outvp, ap->a_outoffp, &len2, ap->a_flags,
-			    &inattrflag, &innfsva, &outattrflag, &outnfsva,
-			    ap->a_outcred, consecutive, &must_commit);
-		else
-			error = nfsrpc_copy_file_range(invp, ap->a_inoffp,
-			    outvp, ap->a_outoffp, &len2, ap->a_flags,
-			    &inattrflag, &innfsva, &outattrflag, &outnfsva,
-			    ap->a_incred, consecutive, &must_commit);
+		if (tryclone) {
+			if (tryoutcred)
+				error = nfsrpc_clone(invp, ap->a_inoffp, outvp,
+				    ap->a_outoffp, &len2, toeof, &inattrflag,
+				    &innfsva, &outattrflag, &outnfsva,
+				    ap->a_outcred);
+			else
+				error = nfsrpc_clone(invp, ap->a_inoffp, outvp,
+				    ap->a_outoffp, &len2, toeof, &inattrflag,
+				    &innfsva, &outattrflag, &outnfsva,
+				    ap->a_incred);
+		} else {
+			if (tryoutcred)
+				error = nfsrpc_copy_file_range(invp,
+				    ap->a_inoffp, outvp, ap->a_outoffp, &len2,
+				    ap->a_flags, &inattrflag, &innfsva,
+				    &outattrflag, &outnfsva,
+				    ap->a_outcred, consecutive, &must_commit);
+			else
+				error = nfsrpc_copy_file_range(invp,
+				    ap->a_inoffp, outvp, ap->a_outoffp, &len2,
+				    ap->a_flags, &inattrflag, &innfsva,
+				    &outattrflag, &outnfsva,
+				    ap->a_incred, consecutive, &must_commit);
+		}
 		if (inattrflag != 0)
 			ret = nfscl_loadattrcache(&invp, &innfsva, NULL, 0, 1);
 		if (outattrflag != 0)
@@ -4230,6 +4294,13 @@ relock:
 			/* Try again with incred. */
 			tryoutcred = false;
 			error = 0;
+		} else if (tryclone && error != 0) {
+			if (mustclone) {
+				error = ENOSYS;
+			} else {
+				tryclone = false;
+				error = 0;
+			}
 		}
 		if (error == NFSERR_STALEWRITEVERF) {
 			/*
@@ -4243,11 +4314,12 @@ relock:
 		}
 	}
 	VOP_UNLOCK(invp);
-	VOP_UNLOCK(outvp);
+	if (!onevp)
+		VOP_UNLOCK(outvp);	/* For onevp, same as invp. */
 	if (mp != NULL)
 		vn_finished_write(mp);
 	if (error == NFSERR_NOTSUPP || error == NFSERR_OFFLOADNOREQS ||
-	    error == NFSERR_ACCES) {
+	    error == NFSERR_ACCES || error == ENOSYS) {
 		/*
 		 * Unlike the NFSv4.2 Copy, vn_generic_copy_file_range() can
 		 * use a_incred for the read and a_outcred for the write, so
@@ -4255,7 +4327,7 @@ relock:
 		 * For NFSERR_NOTSUPP and NFSERR_OFFLOADNOREQS, the Copy can
 		 * never succeed, so disable it.
 		 */
-		if (error != NFSERR_ACCES) {
+		if (error != NFSERR_ACCES && error != ENOSYS) {
 			/* Can never do Copy on this mount. */
 			mtx_lock(&nmp->nm_mtx);
 			nmp->nm_privflag |= NFSMNTP_NOCOPY;
@@ -4596,6 +4668,7 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	struct nfsmount *nmp;
 	struct thread *td = curthread;
 	off_t off;
+	uint32_t clone_blksize;
 	bool eof, has_namedattr, named_enabled;
 	int attrflag, error;
 	struct nfsnode *np;
@@ -4604,19 +4677,22 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	np = VTONFS(vp);
 	named_enabled = false;
 	has_namedattr = false;
+	clone_blksize = 0;
 	if ((NFS_ISV34(vp) && (ap->a_name == _PC_LINK_MAX ||
 	    ap->a_name == _PC_NAME_MAX || ap->a_name == _PC_CHOWN_RESTRICTED ||
 	    ap->a_name == _PC_NO_TRUNC)) ||
 	    (NFS_ISV4(vp) && (ap->a_name == _PC_ACL_NFS4 ||
-	     ap->a_name == _PC_HAS_NAMEDATTR))) {
+	     ap->a_name == _PC_HAS_NAMEDATTR ||
+	     ap->a_name == _PC_CLONE_BLKSIZE))) {
 		/*
 		 * Since only the above 4 a_names are returned by the NFSv3
 		 * Pathconf RPC, there is no point in doing it for others.
 		 * For NFSv4, the Pathconf RPC (actually a Getattr Op.) can
-		 * be used for _PC_ACL_NFS4 and _PC_HAS_NAMEDATTR as well.
+		 * be used for _PC_ACL_NFS4, _PC_HAS_NAMEDATTR and
+		 * _PC_CLONE_BLKSIZE as well.
 		 */
-		error = nfsrpc_pathconf(vp, &pc, &has_namedattr, td->td_ucred,
-		    td, &nfsva, &attrflag);
+		error = nfsrpc_pathconf(vp, &pc, &has_namedattr, &clone_blksize,
+		    td->td_ucred, td, &nfsva, &attrflag);
 		if (attrflag != 0)
 			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		if (error != 0)
@@ -4770,6 +4846,9 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 			*ap->a_retval = 1;
 		else
 			*ap->a_retval = 0;
+		break;
+	case _PC_CLONE_BLKSIZE:
+		*ap->a_retval = clone_blksize;
 		break;
 
 	default:

@@ -308,7 +308,7 @@ rcc_gpio_attach(device_t dev)
 	RCC_WRITE(sc, RCC_GPIO_GP_LVL, sc->sc_output);
 
 	/* Attach the gpiobus. */
-	sc->sc_busdev = gpiobus_attach_bus(dev);
+	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_io_rid,
 		    sc->sc_io_res);
@@ -316,6 +316,7 @@ rcc_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

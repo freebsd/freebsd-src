@@ -275,62 +275,36 @@ iichid_cmd_read(struct iichid_softc* sc, void *buf, iichid_size_t maxlen,
 	 * 6.1.3 - Retrieval of Input Reports
 	 * DEVICE returns the length (2 Bytes) and the entire Input Report.
 	 */
-	uint8_t actbuf[2] = { 0, 0 };
-	/* Read actual input report length. */
+
+	memset(buf, 0xaa, 2);   // In case nothing gets read
 	struct iic_msg msgs[] = {
-	    { sc->addr, IIC_M_RD | IIC_M_NOSTOP, sizeof(actbuf), actbuf },
+	    { sc->addr, IIC_M_RD, maxlen, buf },
 	};
-	uint16_t actlen;
 	int error;
 
 	error = iicbus_transfer(sc->dev, msgs, nitems(msgs));
 	if (error != 0)
 		return (error);
 
-	actlen = actbuf[0] | actbuf[1] << 8;
-#ifdef IICHID_SAMPLING
-	if ((actlen == 0 && sc->sampling_rate_slow < 0) ||
-	    (maxlen == 0 && sc->sampling_rate_slow >= 0)) {
-#else
+	DPRINTFN(sc, 5, "%*D\n", msgs[0].len, msgs[0].buf, " ");
+
+	uint16_t actlen = le16dec(buf);
+
 	if (actlen == 0) {
-#endif
-		/* Read and discard reset command response. */
-		msgs[0] = (struct iic_msg)
-		    { sc->addr, IIC_M_RD | IIC_M_NOSTART,
-		        le16toh(sc->desc.wMaxInputLength) - 2, sc->intr_buf };
-		actlen = 0;
 		if (!sc->reset_acked) {
 			mtx_lock(&sc->mtx);
 			sc->reset_acked = true;
 			wakeup(&sc->reset_acked);
 			mtx_unlock(&sc->mtx);
 		}
-#ifdef IICHID_SAMPLING
-	} else if ((actlen <= 2 || actlen == 0xFFFF) &&
-		    sc->sampling_rate_slow >= 0) {
-		/* Read and discard 1 byte to send I2C STOP condition. */
-		msgs[0] = (struct iic_msg)
-		    { sc->addr, IIC_M_RD | IIC_M_NOSTART, 1, actbuf };
-		actlen = 0;
-#endif
-	} else {
-		actlen -= 2;
-		if (actlen > maxlen) {
-			DPRINTF(sc, "input report too big. requested=%d "
-			    "received=%d\n", maxlen, actlen);
-			actlen = maxlen;
-		}
-		/* Read input report itself. */
-		msgs[0] = (struct iic_msg)
-		    { sc->addr, IIC_M_RD | IIC_M_NOSTART, actlen, buf };
 	}
 
-	error = iicbus_transfer(sc->dev, msgs, 1);
-	if (error == 0 && actual_len != NULL)
+	if (actlen <= 2 || actlen > maxlen) {
+		actlen = 0;
+	}
+	if (actual_len != NULL) {
 		*actual_len = actlen;
-
-	DPRINTFN(sc, 5,
-	    "%*D - %*D\n", 2, actbuf, " ", msgs[0].len, msgs[0].buf, " ");
+	}
 
 	return (error);
 }
@@ -566,7 +540,7 @@ iichid_sampling_task(void *context, int pending)
 	error = iichid_cmd_read(sc, sc->intr_buf, sc->intr_bufsize, &actual);
 	if (error == 0) {
 		if (actual > 0) {
-			sc->intr_handler(sc->intr_ctx, sc->intr_buf, actual);
+			sc->intr_handler(sc->intr_ctx, sc->intr_buf + 2, actual);
 			sc->missing_samples = 0;
 			if (sc->dup_size != actual ||
 			    memcmp(sc->dup_buf, sc->intr_buf, actual) != 0) {
@@ -577,7 +551,7 @@ iichid_sampling_task(void *context, int pending)
 				++sc->dup_samples;
 		} else {
 			if (++sc->missing_samples == 1)
-				sc->intr_handler(sc->intr_ctx, sc->intr_buf, 0);
+				sc->intr_handler(sc->intr_ctx, sc->intr_buf + 2, 0);
 			sc->dup_samples = 0;
 		}
 	} else
@@ -632,7 +606,7 @@ iichid_intr(void *context)
 	if (error == 0) {
 		if (sc->power_on && sc->open) {
 			if (actual != 0)
-				sc->intr_handler(sc->intr_ctx, sc->intr_buf,
+				sc->intr_handler(sc->intr_ctx, sc->intr_buf + 2,
 				    actual);
 			else
 				DPRINTF(sc, "no data received\n");
@@ -842,11 +816,12 @@ iichid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
 
 	sc = device_get_softc(dev);
 	/*
-	 * Do not rely on wMaxInputLength, as some devices may set it to
-	 * a wrong length. Find the longest input report in report descriptor.
+	 * Do not rely just on wMaxInputLength, as some devices (which?)
+	 * may set it to a wrong length.  Also find the longest input report
+	 * in report descriptor, and add two for the length field.
 	 */
-	rdesc->rdsize =
-	    MAX(rdesc->isize, le16toh(sc->desc.wMaxInputLength) - 2);
+	rdesc->rdsize = 2 +
+	    MAX(rdesc->isize, le16toh(sc->desc.wMaxInputLength));
 	/* Write and get/set_report sizes are limited by I2C-HID protocol. */
 	rdesc->grsize = rdesc->srsize = IICHID_SIZE_MAX;
 	rdesc->wrsize = IICHID_SIZE_MAX;
@@ -919,7 +894,7 @@ iichid_intr_poll(device_t dev, device_t child __unused)
 	sc = device_get_softc(dev);
 	error = iichid_cmd_read(sc, sc->intr_buf, sc->intr_bufsize, &actual);
 	if (error == 0 && actual != 0)
-		sc->intr_handler(sc->intr_ctx, sc->intr_buf, actual);
+		sc->intr_handler(sc->intr_ctx, sc->intr_buf + 2, actual);
 }
 
 /*
@@ -946,6 +921,7 @@ iichid_read(device_t dev, device_t child __unused, void *buf,
 {
 	struct iichid_softc *sc;
 	device_t parent;
+	uint8_t *tmpbuf;
 	int error;
 
 	if (maxlen > IICHID_SIZE_MAX)
@@ -954,8 +930,12 @@ iichid_read(device_t dev, device_t child __unused, void *buf,
 	parent = device_get_parent(sc->dev);
 	error = iicbus_request_bus(parent, sc->dev, IIC_WAIT);
 	if (error == 0) {
-		error = iichid_cmd_read(sc, buf, maxlen, actlen);
+		tmpbuf = malloc(maxlen + 2, M_DEVBUF, M_WAITOK | M_ZERO);
+		error = iichid_cmd_read(sc, tmpbuf, maxlen + 2, actlen);
 		iicbus_release_bus(parent, sc->dev);
+		if (*actlen > 0)
+			memcpy(buf, tmpbuf + 2, *actlen);
+		free(tmpbuf, M_DEVBUF);
 	}
 	return (iic2errno(error));
 }

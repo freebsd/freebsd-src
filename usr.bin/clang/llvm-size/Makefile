@@ -1,5 +1,6 @@
 .include <src.opts.mk>
 
+PACKAGE=	toolchain
 PROG_CXX=	llvm-size
 
 SRCDIR=		llvm/tools/llvm-size

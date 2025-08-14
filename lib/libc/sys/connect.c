@@ -34,8 +34,6 @@
 #include <sys/socket.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_connect, __connect);
-
 #pragma weak connect
 int
 connect(int s, const struct sockaddr *addr, socklen_t addrlen)

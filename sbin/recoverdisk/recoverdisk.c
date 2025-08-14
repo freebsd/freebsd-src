@@ -715,7 +715,7 @@ main(int argc, char * const argv[])
 	int64_t sz;
 	int error;
 	time_t t_now, t_report, t_save;
-	unsigned snapshot = 60, unsaved;
+	time_t snapshot = 60, unsaved;
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 

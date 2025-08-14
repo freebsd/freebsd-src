@@ -112,6 +112,51 @@ errcode_t profile_create_node(const char *name, const char *value,
     return 0;
 }
 
+/* Return a copy of oldnode.  Recursively copy oldnode's children, but leave
+ * the parent, next, and prev pointers as null. */
+struct profile_node *profile_copy_node(struct profile_node *oldnode)
+{
+    struct profile_node *node = NULL, *p, *q, **nextp, *last;
+
+    if (oldnode->magic != PROF_MAGIC_NODE)
+        return NULL;
+
+    node = calloc(1, sizeof(*node));
+    node->magic = PROF_MAGIC_NODE;
+    node->name = strdup(oldnode->name);
+    if (node->name == NULL)
+        goto errout;
+    if (oldnode->value != NULL) {
+        node->value = strdup(oldnode->value);
+        if (oldnode->value == NULL)
+            goto errout;
+    }
+    node->group_level = oldnode->group_level;
+    node->final = oldnode->final;
+    node->deleted = oldnode->deleted;
+
+    nextp = &node->first_child;
+    last = NULL;
+    for (p = oldnode->first_child; p != NULL; p = p->next) {
+        q = profile_copy_node(p);
+        if (q == NULL)
+            goto errout;
+
+        /* Link in the new child and prepare for the next. */
+        q->parent = node;
+        q->prev = last;
+        last = q;
+        *nextp = q;
+        nextp = &q->next;
+    }
+
+    return node;
+
+errout:
+    profile_free_node(node);
+    return NULL;
+}
+
 /*
  * This function verifies that all of the representation invariants of
  * the profile are true.  If not, we have a programming bug somewhere,
@@ -145,10 +190,12 @@ errcode_t profile_verify_node(struct profile_node *node)
 }
 
 /*
- * Add a node to a particular section
+ * Add a node to a particular section.  If check_final is true, don't add the
+ * node if we find a final node for the same name.
  */
 errcode_t profile_add_node(struct profile_node *section, const char *name,
-                           const char *value, struct profile_node **ret_node)
+                           const char *value, int check_final,
+                           struct profile_node **ret_node)
 {
     errcode_t retval;
     struct profile_node *p, *last, *new;
@@ -172,7 +219,14 @@ errcode_t profile_add_node(struct profile_node *section, const char *name,
         } else if (value == NULL && cmp == 0 &&
                    p->value == NULL && p->deleted != 1) {
             /* Found duplicate subsection, so don't make a new one. */
-            *ret_node = p;
+            if (ret_node)
+                *ret_node = p;
+            return 0;
+        } else if (check_final && cmp == 0 && p->final) {
+            /* This key already exists with the final flag and we were asked
+             * to check it, so don't add this node. */
+            if (ret_node)
+                *ret_node = NULL;
             return 0;
         }
     }
@@ -326,7 +380,8 @@ errcode_t profile_find_node(struct profile_node *section, const char *name,
  */
 errcode_t profile_find_node_relation(struct profile_node *section,
                                      const char *name, void **state,
-                                     char **ret_name, char **value)
+                                     char **ret_name, char **value,
+                                     int *ret_final)
 {
     struct profile_node *p;
     errcode_t       retval;
@@ -340,6 +395,8 @@ errcode_t profile_find_node_relation(struct profile_node *section,
             *value = p->value;
         if (ret_name)
             *ret_name = p->name;
+        if (ret_final)
+            *ret_final = p->final;
     }
     return 0;
 }
@@ -569,6 +626,8 @@ get_new_file:
         }
         if (p->deleted)
             continue;
+        if (p->final)
+            iter->flags |= PROFILE_ITER_FINAL_SEEN;
         break;
     }
     iter->num++;

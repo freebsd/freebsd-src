@@ -406,7 +406,7 @@ pci_xhci_usbcmd_write(struct pci_xhci_softc *sc, uint32_t cmd)
 				 * XHCI 4.19.3 USB2 RxDetect->Polling,
 				 *             USB3 Polling->U0
 				 */
-				if (dev->dev_ue->ue_usbver == 2)
+				if (dev->hci.hci_usbver == 2)
 					port->portsc |=
 					    XHCI_PS_PLS_SET(UPS_PORT_LS_POLL);
 				else
@@ -2588,9 +2588,9 @@ pci_xhci_reset_port(struct pci_xhci_softc *sc, int portn, int warm)
 	if (dev) {
 		port->portsc &= ~(XHCI_PS_PLS_MASK | XHCI_PS_PR | XHCI_PS_PRC);
 		port->portsc |= XHCI_PS_PED |
-		    XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
+		    XHCI_PS_SPEED_SET(dev->hci.hci_speed);
 
-		if (warm && dev->dev_ue->ue_usbver == 3) {
+		if (warm && dev->hci.hci_usbver == 3) {
 			port->portsc |= XHCI_PS_WRC;
 		}
 
@@ -2620,13 +2620,13 @@ pci_xhci_init_port(struct pci_xhci_softc *sc, int portn)
 		port->portsc = XHCI_PS_CCS |		/* connected */
 		               XHCI_PS_PP;		/* port power */
 
-		if (dev->dev_ue->ue_usbver == 2) {
+		if (dev->hci.hci_usbver == 2) {
 			port->portsc |= XHCI_PS_PLS_SET(UPS_PORT_LS_POLL) |
-		               XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
+			    XHCI_PS_SPEED_SET(dev->hci.hci_speed);
 		} else {
 			port->portsc |= XHCI_PS_PLS_SET(UPS_PORT_LS_U0) |
-		               XHCI_PS_PED |		/* enabled */
-		               XHCI_PS_SPEED_SET(dev->dev_ue->ue_usbspeed);
+			    XHCI_PS_PED | /* enabled */
+			    XHCI_PS_SPEED_SET(dev->hci.hci_speed);
 		}
 
 		DPRINTF(("Init port %d 0x%x", portn, port->portsc));
@@ -2785,8 +2785,8 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 
 	cookie = NULL;
 	while ((name = nvlist_next(slots_nvl, &type, &cookie)) != NULL) {
-		if (usb2_port == ((sc->usb2_port_start) + XHCI_MAX_DEVS/2) ||
-		    usb3_port == ((sc->usb3_port_start) + XHCI_MAX_DEVS/2)) {
+		if (usb2_port == ((sc->usb2_port_start) + XHCI_MAX_DEVS / 2) ||
+		    usb3_port == ((sc->usb3_port_start) + XHCI_MAX_DEVS / 2)) {
 			WPRINTF(("pci_xhci max number of USB 2 or 3 "
 			     "devices reached, max %d", XHCI_MAX_DEVS/2));
 			goto bad;
@@ -2833,12 +2833,26 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 		dev->hci.hci_sc = dev;
 		dev->hci.hci_intr = pci_xhci_dev_intr;
 		dev->hci.hci_event = pci_xhci_dev_event;
+		dev->hci.hci_speed = USB_SPEED_MAX;
+		dev->hci.hci_usbver = -1;
 
-		if (ue->ue_usbver == 2) {
+		devsc = ue->ue_probe(&dev->hci, nvl);
+		if (devsc == NULL) {
+			free(dev);
+			goto bad;
+		}
+		dev->dev_sc = devsc;
+
+		if (dev->hci.hci_usbver == -1)
+			dev->hci.hci_usbver = ue->ue_usbver;
+
+		if (dev->hci.hci_usbver == 2) {
 			if (usb2_port == sc->usb2_port_start +
 			    XHCI_MAX_DEVS / 2) {
 				WPRINTF(("pci_xhci max number of USB 2 devices "
 				     "reached, max %d", XHCI_MAX_DEVS / 2));
+				free(dev->dev_sc);
+				free(dev);
 				goto bad;
 			}
 			dev->hci.hci_port = usb2_port;
@@ -2848,6 +2862,8 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 			    XHCI_MAX_DEVS / 2) {
 				WPRINTF(("pci_xhci max number of USB 3 devices "
 				     "reached, max %d", XHCI_MAX_DEVS / 2));
+				free(dev->dev_sc);
+				free(dev);
 				goto bad;
 			}
 			dev->hci.hci_port = usb3_port;
@@ -2856,13 +2872,12 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 		XHCI_DEVINST_PTR(sc, dev->hci.hci_port) = dev;
 
 		dev->hci.hci_address = 0;
-		devsc = ue->ue_init(&dev->hci, nvl);
-		if (devsc == NULL) {
+		if (ue->ue_init(dev->dev_sc))
 			goto bad;
-		}
 
 		dev->dev_ue = ue;
-		dev->dev_sc = devsc;
+		if (dev->hci.hci_speed == USB_SPEED_MAX)
+			dev->hci.hci_speed = ue->ue_usbspeed;
 
 		XHCI_SLOTDEV_PTR(sc, slot) = dev;
 		ndevices++;
@@ -2882,6 +2897,8 @@ portsfinal:
 
 bad:
 	for (i = 1; i <= XHCI_MAX_DEVS; i++) {
+		if (XHCI_DEVINST_PTR(sc, i) != NULL)
+			free(XHCI_DEVINST_PTR(sc, i)->dev_sc);
 		free(XHCI_DEVINST_PTR(sc, i));
 	}
 
@@ -3228,6 +3245,8 @@ pci_xhci_snapshot(struct vm_snapshot_meta *meta)
 		/* devices[i]->hci */
 		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_address, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_port, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_speed, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_usbver, meta, ret, done);
 	}
 
 	SNAPSHOT_VAR_OR_LEAVE(sc->usb2_port_start, meta, ret, done);

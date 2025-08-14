@@ -439,7 +439,7 @@ cleanup:
 }
 
 char *
-k5_primary_domain()
+k5_primary_domain(void)
 {
     return NULL;
 }
@@ -497,7 +497,7 @@ errout:
 }
 
 char *
-k5_primary_domain()
+k5_primary_domain(void)
 {
     char *domain;
     DECLARE_HANDLE(h);

@@ -757,6 +757,9 @@ kadm5_free_config_params(krb5_context context, kadm5_config_params *params)
     free(params->acl_file);
     free(params->realm);
     free(params->iprop_logfile);
+    free(params->iprop_listen);
+    free(params->kadmind_listen);
+    free(params->kpasswd_listen);
     return 0;
 }
 

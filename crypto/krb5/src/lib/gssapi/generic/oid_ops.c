@@ -68,8 +68,7 @@
 OM_uint32
 generic_gss_release_oid(OM_uint32 *minor_status, gss_OID *oid)
 {
-    if (minor_status)
-        *minor_status = 0;
+    *minor_status = 0;
 
     if (oid == NULL || *oid == GSS_C_NO_OID)
         return(GSS_S_COMPLETE);
@@ -245,8 +244,7 @@ generic_gss_oid_to_str(OM_uint32 *minor_status,
     unsigned char       *cp;
     struct k5buf        buf;
 
-    if (minor_status != NULL)
-        *minor_status = 0;
+    *minor_status = 0;
 
     if (oid_str != GSS_C_NO_BUFFER) {
         oid_str->length = 0;
@@ -353,8 +351,7 @@ generic_gss_str_to_oid(OM_uint32 *minor_status,
     int brace = 0;
     gss_OID oid;
 
-    if (minor_status != NULL)
-        *minor_status = 0;
+    *minor_status = 0;
 
     if (oid_out != NULL)
         *oid_out = GSS_C_NO_OID;

@@ -28,6 +28,7 @@
 #define KRB5_INT_FUNC_PROTO__
 
 struct krb5int_fast_request_state;
+struct kdclist;
 
 typedef struct k5_response_items_st k5_response_items;
 
@@ -201,7 +202,7 @@ k5_ccselect_free_context(krb5_context context);
 
 krb5_error_code
 k5_init_creds_get(krb5_context context, krb5_init_creds_context ctx,
-                  int *use_primary);
+                  krb5_boolean use_primary, struct kdclist *kdcs);
 
 krb5_error_code
 k5_init_creds_current_time(krb5_context context, krb5_init_creds_context ctx,
@@ -286,13 +287,12 @@ k5_encrypt_keyhelper(krb5_context context, krb5_key key,
                      krb5_keyusage keyusage, const krb5_data *plain,
                      krb5_enc_data *cipher);
 
-krb5_error_code KRB5_CALLCONV
+krb5_error_code
 k5_get_init_creds(krb5_context context, krb5_creds *creds,
                   krb5_principal client, krb5_prompter_fct prompter,
                   void *prompter_data, krb5_deltat start_time,
                   const char *in_tkt_service, krb5_get_init_creds_opt *options,
-                  get_as_key_fn gak, void *gak_data, int *primary,
-                  krb5_kdc_rep **as_reply);
+                  get_as_key_fn gak, void *gak_data, krb5_kdc_rep **as_reply);
 
 /*
  * Make AS requests with the canonicalize flag set, stopping when we get a

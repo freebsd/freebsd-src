@@ -33,6 +33,7 @@
 #include <sys/sha2.h>
 #include <sys/tslog.h>
 
+
 typedef struct {
 	const char *name;
 	const char *impl;
@@ -340,7 +341,7 @@ chksum_benchmark(void)
 		}
 	}
 	blake3->setid(id_save);
-	TSEXIT();
+
 	switch (chksum_stat_limit) {
 	case AT_STARTUP:
 		/* next time we want a full benchmark */
@@ -351,6 +352,7 @@ chksum_benchmark(void)
 		chksum_stat_limit = AT_DONE;
 		break;
 	}
+	TSEXIT();
 }
 
 void

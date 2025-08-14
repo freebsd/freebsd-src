@@ -279,19 +279,14 @@ zfs_sync(struct super_block *sb, int wait, cred_t *cr)
 		return (err);
 
 	/*
-	 * If the pool is suspended, just return an error. This is to help
-	 * with shutting down with pools suspended, as we don't want to block
-	 * in that case.
+	 * Sync any pending writes, but do not block if the pool is suspended.
+	 * This is to help with shutting down with pools suspended, as we don't
+	 * want to block in that case.
 	 */
-	if (spa_suspended(zfsvfs->z_os->os_spa)) {
-		zfs_exit(zfsvfs, FTAG);
-		return (SET_ERROR(EIO));
-	}
-
-	zil_commit(zfsvfs->z_log, 0);
+	err = zil_commit_flags(zfsvfs->z_log, 0, ZIL_COMMIT_NOW);
 	zfs_exit(zfsvfs, FTAG);
 
-	return (0);
+	return (err);
 }
 
 static void
@@ -883,7 +878,7 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 	 * operations out since we closed the ZIL.
 	 */
 	if (mounting) {
-		ASSERT3P(zfsvfs->z_kstat.dk_kstats, ==, NULL);
+		ASSERT0P(zfsvfs->z_kstat.dk_kstats);
 		error = dataset_kstats_create(&zfsvfs->z_kstat, zfsvfs->z_os);
 		if (error)
 			return (error);
@@ -1217,6 +1212,63 @@ zfs_root(zfsvfs_t *zfsvfs, struct inode **ipp)
 }
 
 /*
+ * Dentry and inode caches referenced by a task in non-root memcg are
+ * not going to be scanned by the kernel-provided shrinker. So, if
+ * kernel prunes nothing, fall back to this manual walk to free dnodes.
+ * To avoid scanning the same znodes multiple times they are always rotated
+ * to the end of the z_all_znodes list. New znodes are inserted at the
+ * end of the list so we're always scanning the oldest znodes first.
+ */
+static int
+zfs_prune_aliases(zfsvfs_t *zfsvfs, unsigned long nr_to_scan)
+{
+	znode_t **zp_array, *zp;
+	int max_array = MIN(nr_to_scan, PAGE_SIZE * 8 / sizeof (znode_t *));
+	int objects = 0;
+	int i = 0, j = 0;
+
+	zp_array = vmem_zalloc(max_array * sizeof (znode_t *), KM_SLEEP);
+
+	mutex_enter(&zfsvfs->z_znodes_lock);
+	while ((zp = list_head(&zfsvfs->z_all_znodes)) != NULL) {
+
+		if ((i++ > nr_to_scan) || (j >= max_array))
+			break;
+
+		ASSERT(list_link_active(&zp->z_link_node));
+		list_remove(&zfsvfs->z_all_znodes, zp);
+		list_insert_tail(&zfsvfs->z_all_znodes, zp);
+
+		/* Skip active znodes and .zfs entries */
+		if (MUTEX_HELD(&zp->z_lock) || zp->z_is_ctldir)
+			continue;
+
+		if (igrab(ZTOI(zp)) == NULL)
+			continue;
+
+		zp_array[j] = zp;
+		j++;
+	}
+	mutex_exit(&zfsvfs->z_znodes_lock);
+
+	for (i = 0; i < j; i++) {
+		zp = zp_array[i];
+
+		ASSERT3P(zp, !=, NULL);
+		d_prune_aliases(ZTOI(zp));
+
+		if (atomic_read(&ZTOI(zp)->i_count) == 1)
+			objects++;
+
+		zrele(zp);
+	}
+
+	vmem_free(zp_array, max_array * sizeof (znode_t *));
+
+	return (objects);
+}
+
+/*
  * The ARC has requested that the filesystem drop entries from the dentry
  * and inode caches.  This can occur when the ARC needs to free meta data
  * blocks but can't because they are all pinned by entries in these caches.
@@ -1266,6 +1318,14 @@ zfs_prune(struct super_block *sb, unsigned long nr_to_scan, int *objects)
 #else
 	*objects = (*shrinker->scan_objects)(shrinker, &sc);
 #endif
+
+	/*
+	 * Fall back to zfs_prune_aliases if kernel's shrinker did nothing
+	 * due to dentry and inode caches being referenced by a task running
+	 * in non-root memcg.
+	 */
+	if (*objects == 0)
+		*objects = zfs_prune_aliases(zfsvfs, nr_to_scan);
 
 	zfs_exit(zfsvfs, FTAG);
 
@@ -1611,7 +1671,7 @@ zfs_umount(struct super_block *sb)
 
 	if (zfsvfs->z_arc_prune != NULL)
 		arc_remove_prune_callback(zfsvfs->z_arc_prune);
-	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
+	VERIFY0(zfsvfs_teardown(zfsvfs, B_TRUE));
 	os = zfsvfs->z_os;
 
 	/*
@@ -1737,8 +1797,8 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 		ASSERT(*ipp != NULL);
 
 		if (object == ZFSCTL_INO_SNAPDIR) {
-			VERIFY(zfsctl_root_lookup(*ipp, "snapshot", ipp,
-			    0, kcred, NULL, NULL) == 0);
+			VERIFY0(zfsctl_root_lookup(*ipp, "snapshot", ipp,
+			    0, kcred, NULL, NULL));
 		} else {
 			/*
 			 * Must have an existing ref, so igrab()
@@ -1840,7 +1900,7 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 		goto bail;
 
 	ds->ds_dir->dd_activity_cancelled = B_FALSE;
-	VERIFY(zfsvfs_setup(zfsvfs, B_FALSE) == 0);
+	VERIFY0(zfsvfs_setup(zfsvfs, B_FALSE));
 
 	zfs_set_fuid_feature(zfsvfs);
 	zfsvfs->z_rollback_time = jiffies;
@@ -2013,7 +2073,7 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 		    ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
 		ASSERT0(error);
 
-		VERIFY(0 == sa_set_sa_object(os, sa_obj));
+		VERIFY0(sa_set_sa_object(os, sa_obj));
 		sa_register_update_callback(os, zfs_sa_upgrade);
 	}
 

@@ -571,7 +571,7 @@ threadinit(void)
 
 	/*
 	 * Thread structures are specially aligned so that (at least) the
-	 * 5 lower bits of a pointer to 'struct thead' must be 0.  These bits
+	 * 5 lower bits of a pointer to 'struct thread' must be 0.  These bits
 	 * are used by synchronization primitives to store flags in pointers to
 	 * such structures.
 	 */

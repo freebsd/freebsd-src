@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <jail.h>
@@ -59,6 +60,7 @@
 #define	PRINT_SKIP	0x10
 #define	PRINT_VERBOSE	0x20
 #define	PRINT_JAIL_NAME	0x40
+#define	PRINT_EXISTS	0x80
 
 static struct jailparam *params;
 static int *param_parent;
@@ -81,6 +83,14 @@ static void quoted_print(int pflags, char *name, char *value);
 static void emit_ip_addr_list(int af_family, const char *list_name,
 		struct jailparam *param);
 
+static void
+usage(void)
+{
+	xo_errx(1,
+	    "usage: jls [-dhNnqv] [-j jail] [param ...]\n"
+	    "            jls -c [-d] -j jail");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -94,11 +104,14 @@ main(int argc, char **argv)
         xo_set_version(JLS_XO_VERSION);
 	jname = NULL;
 	pflags = jflags = jid = 0;
-	while ((c = getopt(argc, argv, "adj:hNnqsv")) >= 0)
+	while ((c = getopt(argc, argv, "acdj:hNnqsv")) >= 0)
 		switch (c) {
 		case 'a':
 		case 'd':
 			jflags |= JAIL_DYING;
+			break;
+		case 'c':
+			pflags |= PRINT_EXISTS;
 			break;
 		case 'j':
 			jid = strtoul(optarg, &ep, 10);
@@ -130,7 +143,7 @@ main(int argc, char **argv)
 			    PRINT_VERBOSE;
 			break;
 		default:
-			xo_errx(1, "usage: jls [-dhNnqv] [-j jail] [param ...]");
+			usage();
 		}
 
 #ifdef INET6
@@ -140,8 +153,28 @@ main(int argc, char **argv)
 	ip4_ok = feature_present("inet");
 #endif
 
+	argc -= optind;
+	argv += optind;
+
 	/* Add the parameters to print. */
-	if (optind == argc) {
+	if ((pflags & PRINT_EXISTS) != 0) {
+		if ((pflags & ~PRINT_EXISTS) != 0) {
+			xo_warnx("-c is incompatible with other print options");
+			usage();
+		} else if (argc != 0) {
+			xo_warnx("-c does not accept non-option arguments");
+			usage();
+		} else if (jid == 0 && jname == NULL) {
+			xo_warnx("-j jail to check must be provided for -c");
+			usage();
+		}
+
+		/*
+		 * Force libxo to be silent, as well -- we're only wanting our
+		 * exit status.
+		 */
+		xo_set_style(NULL, XO_STYLE_TEXT);
+	} else if (argc == 0) {
 		if (pflags & (PRINT_HEADER | PRINT_NAMEVAL))
 			add_param("all", NULL, (size_t)0, NULL, JP_USER);
 		else if (pflags & PRINT_VERBOSE) {
@@ -179,9 +212,8 @@ main(int argc, char **argv)
 		}
 	} else {
 		pflags &= ~PRINT_VERBOSE;
-		while (optind < argc)
-			add_param(argv[optind++], NULL, (size_t)0, NULL,
-			    JP_USER);
+		for (i = 0; i < argc; i++)
+			add_param(argv[i], NULL, (size_t)0, NULL, JP_USER);
 	}
 
 	if (pflags & PRINT_SKIP) {
@@ -237,9 +269,17 @@ main(int argc, char **argv)
 	xo_open_list("jail");
 	/* Fetch the jail(s) and print the parameters. */
 	if (jid != 0 || jname != NULL) {
-		if (print_jail(pflags, jflags) < 0)
+		if (print_jail(pflags, jflags) < 0) {
+			/*
+			 * We omit errors from existential issues if we're just
+			 * doing a -c check that the jail exists.
+			 */
+			if (pflags & PRINT_EXISTS)
+				exit(1);
 			xo_errx(1, "%s", jail_errmsg);
+		}
 	} else {
+		assert((pflags & PRINT_EXISTS) == 0);
 		for (lastjid = 0;
 		     (lastjid = print_jail(pflags, jflags)) >= 0; )
 			;
@@ -390,6 +430,8 @@ print_jail(int pflags, int jflags)
 	jid = jailparam_get(params, nparams, jflags);
 	if (jid < 0)
 		return jid;
+	else if (pflags & PRINT_EXISTS)
+		return 0;
 
 	xo_open_instance("jail");
 

@@ -165,7 +165,7 @@ cc_free_NC_info,
 
 #define KFW_LOGON_EVENT_NAME TEXT("MIT Kerberos")
 
-BOOLEAN APIENTRY DllEntryPoint(HANDLE dll, DWORD reason, PVOID reserved);
+BOOLEAN WINAPI DllMain(HANDLE dll, DWORD reason, PVOID reserved);
 
 DWORD APIENTRY NPGetCaps(DWORD index);
 

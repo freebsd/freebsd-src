@@ -1165,13 +1165,13 @@ krb5_db2_set_lockmode(krb5_context context, krb5_boolean mode)
  *     DAL API functions
  */
 krb5_error_code
-krb5_db2_lib_init()
+krb5_db2_lib_init(void)
 {
     return 0;
 }
 
 krb5_error_code
-krb5_db2_lib_cleanup()
+krb5_db2_lib_cleanup(void)
 {
     /* right now, no cleanup required */
     return 0;

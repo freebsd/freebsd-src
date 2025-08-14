@@ -32,7 +32,7 @@ krb5_sname_match -  Test whether a principal matches a matching principal.
 
 
 
-If *matching* is NULL, return TRUE. If *matching* is not a matching principal, return the value of krb5_principal_compare(context, matching, princ).
+If *matching* is NULL, return TRUE. If *matching* is not a matching principal, return the value of krb5_principal_compare(context, matching,princ).
 
 
 

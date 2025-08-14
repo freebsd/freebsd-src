@@ -83,7 +83,6 @@ const char *out_name = "Standard Output";	/* will always point to name
 						 * of output file */
 const char *simple_backup_suffix = ".BAK";	/* Suffix to use for backup
 						 * files */
-char        bakfile[MAXPATHLEN] = "";
 
 int
 main(int argc, char **argv)
@@ -1231,41 +1230,35 @@ check_type:
 }
 
 /*
- * copy input file to backup file if in_name is /blah/blah/blah/file, then
- * backup file will be ".Bfile" then make the backup file the input and
+ * copy input file to backup file then make the backup file the input and
  * original input file the output
  */
 static void
 bakcopy(void)
 {
-    int         n,
-                bakchn;
-    char        buff[8 * 1024];
-    const char *p;
+    static char buff[8 * 1024];
+    char *bakfile;
+    ssize_t len;
+    int bakfd;
 
-    /* construct file name .Bfile */
-    for (p = in_name; *p; p++);	/* skip to end of string */
-    while (p > in_name && *p != '/')	/* find last '/' */
-	p--;
-    if (*p == '/')
-	p++;
-    sprintf(bakfile, "%s%s", p, simple_backup_suffix);
+    /* generate the backup file name */
+    if (asprintf(&bakfile, "%s%s", in_name, simple_backup_suffix) < 0)
+	err(1, "%s%s", in_name, simple_backup_suffix);
 
     /* copy in_name to backup file */
-    bakchn = creat(bakfile, 0600);
-    if (bakchn < 0)
+    bakfd = open(bakfile, O_RDWR | O_CREAT | O_TRUNC, 0600);
+    if (bakfd < 0)
 	err(1, "%s", bakfile);
-    while ((n = read(fileno(input), buff, sizeof(buff))) > 0)
-	if (write(bakchn, buff, n) != n)
+    while ((len = read(fileno(input), buff, sizeof(buff))) > 0)
+	if (write(bakfd, buff, len) != len)
 	    err(1, "%s", bakfile);
-    if (n < 0)
+    if (len < 0)
 	err(1, "%s", in_name);
-    close(bakchn);
     fclose(input);
 
     /* re-open backup file as the input file */
-    input = fopen(bakfile, "r");
-    if (input == NULL)
+    input = fdopen(bakfd, "r");
+    if (input == NULL || fseek(input, 0, SEEK_SET) != 0)
 	err(1, "%s", bakfile);
     /* now the original input file will be the output */
     output = fopen(in_name, "w");
@@ -1273,6 +1266,7 @@ bakcopy(void)
 	unlink(bakfile);
 	err(1, "%s", in_name);
     }
+    free(bakfile);
 }
 
 static void

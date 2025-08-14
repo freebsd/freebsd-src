@@ -29,10 +29,7 @@
 static const unsigned char zeros[16] = {0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0};
 
 krb5_error_code
-kg_make_seed(context, key, seed)
-    krb5_context context;
-    krb5_key key;
-    unsigned char *seed;
+kg_make_seed(krb5_context context, krb5_key key, unsigned char *seed)
 {
     krb5_error_code code;
     krb5_key rkey = NULL;

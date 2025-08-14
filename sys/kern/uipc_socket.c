@@ -1211,7 +1211,8 @@ solisten_clone(struct socket *head)
 	so->so_rcv.sb_timeo = head->sol_sbrcv_timeo;
 	so->so_snd.sb_timeo = head->sol_sbsnd_timeo;
 	so->so_rcv.sb_flags = head->sol_sbrcv_flags & SB_AUTOSIZE;
-	so->so_snd.sb_flags = head->sol_sbsnd_flags & SB_AUTOSIZE;
+	so->so_snd.sb_flags = head->sol_sbsnd_flags &
+	    (SB_AUTOSIZE | SB_AUTOLOWAT);
 	if ((so->so_proto->pr_flags & PR_SOCKBUF) == 0) {
 		so->so_snd.sb_mtx = &so->so_snd_mtx;
 		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
@@ -2988,8 +2989,8 @@ dontblock:
 	 */
 	moff = 0;
 	offset = 0;
-	while (m != NULL && !(m->m_flags & M_NOTAVAIL) && uio->uio_resid > 0
-	    && error == 0) {
+	while (m != NULL && !(m->m_flags & M_NOTREADY) && uio->uio_resid > 0 &&
+	    error == 0) {
 		/*
 		 * If the type of mbuf has changed since the last mbuf
 		 * examined ('type'), end the receive operation.
@@ -3341,7 +3342,7 @@ deliver:
 			for (m = sb->sb_mb;
 			     m != NULL && m->m_len <= len;
 			     m = m->m_next) {
-				KASSERT(!(m->m_flags & M_NOTAVAIL),
+				KASSERT(!(m->m_flags & M_NOTREADY),
 				    ("%s: m %p not available", __func__, m));
 				len -= m->m_len;
 				uio->uio_resid -= m->m_len;
@@ -4514,6 +4515,9 @@ sokqfilter_generic(struct socket *so, struct knote *kn)
 		SOCK_BUF_LOCK(so, which);
 		knlist_add(knl, kn, 1);
 		sb->sb_flags |= SB_KNOTE;
+		if ((kn->kn_sfflags & NOTE_LOWAT) &&
+		    (sb->sb_flags & SB_AUTOLOWAT))
+			sb->sb_flags &= ~SB_AUTOLOWAT;
 		SOCK_BUF_UNLOCK(so, which);
 	}
 	SOCK_UNLOCK(so);

@@ -30,65 +30,189 @@
 .Os
 .Sh NAME
 .Nm tcopy
-.Nd copy and/or verify mag tapes
+.Nd read, write, copy and verify tapes
 .Sh SYNOPSIS
 .Nm
-.Op Fl cvx
+.Op Fl crvx
+.Op Fl l Ar logfile
 .Op Fl s Ar maxblk
 .Oo Ar src Op Ar dest
 .Oc
 .Sh DESCRIPTION
 The
 .Nm
-utility is designed to copy magnetic tapes.
+utility is designed to read, write and copy tapes.
+.Pp
 The only assumption made
 about the tape layout is that there are two sequential EOF marks
 at the end.
-By default, the
-.Nm
-utility will print
-information about the sizes of records and files found
-on the
-.Pa /dev/sa0
-tape, or on the tape specified by the
+.Pp
+The
 .Ar src
-argument.
-If a destination tape is also specified by the
+argument can be a tape device and defaults to
+.Pa /dev/sa0
+or it can be data in SIMH-TAP format.
+If
+.Ar src
+is
+.Dq Cm -
+the standard input is read.
+.Pp
+If the
 .Ar dest
-argument, a copy of the source tape will be made.
-The blocking on the
-destination tape will be identical to that used on the source tape.
-Copying
-a tape will yield the same program output as if just printing the sizes.
+argument is also specified, a copy of the
+.Ar src
+will be made onto the
+.Ar dest .
+If
+.Ar dest
+is
+.Dq Cm -
+standard output will be written to.
+.Pp
+If
+.Ar dest
+is a tape device, the file and record structure will be the same.
+.Pp
+If
+.Ar dest
+is a filename ending in
+.Dq Cm .000
+the contents each file on
+.Ar src
+will be written to sequentially numbered files
+.Dq Cm .000 ,
+.Dq Cm .001 ,
+.Dq Cm .002
+etc.
+Information about record sizes will be lost.
+.Pp
+If the
+.Fl r
+flag is specified, only the data will be written, information about
+file and record layout is lost.
+.Pp
+Otherwise the data, file and record structure of
+.Ar src
+will be written in SIMH-TAP format.
+.Pp
+The
+.Nm
+utility will report information about the layout of
+.Ar src
+like this on standard output:
+.Bd -literal -offset indent
+file 0: block size 80: 6 records
+file 0: eof after 6 records: 480 bytes
+file 1: block size 3072: records 0 to 262
+file 1: block size 612: record 262
+file 1: eof after 263 records: 805476 bytes
+[…]
+eot
+total length: 972851280 bytes time: 41 s rate: 22934.8 kB/s
+.Ed
+.Pp
+If
+.Ar dest
+is
+.Dq Cm -
+or if
+.Fl x
+is specified this goes to standard error instead,
+and can also be redirected with
+.Fl l Ar logfile ,
+in which case the final total line will also be reported on standard error.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal, current counts are reported on standard error.
 .Pp
 The following options are available:
 .Bl -tag -width ".Fl s Ar maxblk"
 .It Fl c
-Copy
+Rewind both tapes, copy
 .Ar src
 to
-.Ar dest
-and then verify that the two tapes are identical.
+.Ar dest ,
+rewind again and verify that the two tapes are now identical.
+.It Fl l Ar logfile
+Output all informational messages to
+.Ar logfile .
+.It Fl r
+Write only the contents of all data blocks to the output.
+The file and record structure of the input will be lost.
 .It Fl s Ar maxblk
 Specify a maximum block size,
 .Ar maxblk .
+The default is
+.Va kern.maxphys .
 .It Fl v
-Given the two tapes
+Verify that
 .Ar src
 and
-.Ar dest ,
-verify that they are identical.
+.Ar dest
+are identical.
+Note that the tapes are not rewound prior to the comparison.
 .It Fl x
 Output all informational messages to the standard error
 instead of the standard output.
-This option is useful when
+This option is automatic if
 .Ar dest
 is given as
-.Pa /dev/stdout .
+.Dq Cm - .
 .El
+.Sh EXIT STATUS
+Unfortunately all over the place, but zero always means succeess.
+.Sh EXAMPLES
+Verify that the tape in /dev/sa0 can be read and see the layout
+of its content:
+.Bd -literal -offset indent
+tcopy
+.Ed
+.Pp
+Copy a tape using two tape drives:
+.Bd -literal -offset indent
+tcopy  /dev/sa0 /dev/sa1
+.Ed
+.Pp
+Copy a tape using only a single tape drive, and verify the result:
+.Bd -literal -offset indent
+tcopy /dev/sa0 /tmp/temp.tapfile
+# change tape
+tcopy -c /tmp/temp.tapfile /dev/sa0
+.Ed
+.Pp
+Make a cryptographic hash of both the contents and the layout of the tape in
+/dev/sa1:
+.Pp
+.Bd -literal -offset indent
+tcopy /dev/sa1 - | sha256
+.Ed
+.Pp
+Copy a tape to a tape drive on another machine:
+.Bd -literal -offset indent
+tcopy /dev/sa0 - | ssh otherhost tcopy - /dev/sa0
+.Ed
+.Pp
+Extract the tape files into individual files:
+.Bd -literal -offset indent
+tcopy /dev/sa0 /tmp/_.tape.000
+.Ed
+.Pp
+Ignore all structure on the tape and feed all data to
+.Xr tar 1 :
+.Bd -literal -offset indent
+tcopy -l /dev/null -r /dev/sa0 - | tar tvf -
+.Ed
 .Sh SEE ALSO
 .Xr mt 1 ,
+.Xr sa 4 ,
 .Xr mtio 4
+.Sh STANDARDS
+The SIMH-TAP format is documented in the open-simh github repos:
+.Pa https://github.com/open-simh/simh/blob/master/doc/simh_magtape.doc
 .Sh HISTORY
 The
 .Nm
@@ -99,18 +223,15 @@ command appeared in
 .It
 Modern tape drives may return a SCSI "Incorrect Length Indicator (ILI)"
 for each read with a different block size that what is on the
-tape, and that slows things down a lot.
+tape, and that slows
+.Nm
+down a lot.
 This can be disabled with the
 .Xr mt 1
 command:
 .Bd -literal -offset indent
-$ mt param sili -s 1
+mt param sili -s 1
 .Ed
-.It
-Writing an image of a tape to a file does not preserve much more than
-the raw data.
-Block size(s) and tape EOF marks are lost which would
-otherwise be preserved in a tape-to-tape copy.
 .It
 End of data (EOD) is determined by two sequential EOF marks
 with no data between them.
@@ -120,13 +241,7 @@ The
 .Nm
 utility will erroneously stop copying early in this case.
 .It
-When using the copy/verify option
-.Fl c ,
-.Nm
-does not rewind the tapes prior to start.
-A rewind is performed
-after writing, prior to the verification stage.
-If one does not start
-at the beginning-of-tape (BOT) then the comparison
-may not be of the intended data.
+With
+.Fl c
+the tape drives are not rewound at the same time, but one after the other.
 .El

@@ -3239,7 +3239,7 @@ ATF_TC_BODY(ptrace__PT_REGSET, tc)
 	ATF_REQUIRE(ptrace(PT_GETREGSET, wpid, (caddr_t)&vec,
 	    NT_ARM_ADDR_MASK) != -1);
 	REQUIRE_EQ(addr_mask.code, addr_mask.data);
-	ATF_REQUIRE(addr_mask.code == 0 ||
+	ATF_REQUIRE(addr_mask.code == 0xff00000000000000ul ||
 	    addr_mask.code == 0xff7f000000000000UL);
 #endif
 

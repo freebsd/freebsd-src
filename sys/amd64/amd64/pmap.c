@@ -104,6 +104,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_kstack_pages.h"
 #include "opt_pmap.h"
 #include "opt_vm.h"
 
@@ -2903,6 +2904,9 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 		/*
 		 * Promotion: flush every 4KB page mapping from the TLB,
 		 * including any global (PG_G) mappings.
+		 *
+		 * This function is only used on older processors that
+		 * do not support the invpcid instruction.
 		 */
 		invltlb_glob();
 	}
@@ -3049,13 +3053,13 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
  *	local user page: INVLPG
  *	local kernel page: INVLPG
  *	local user total: reload %cr3
- *	local kernel total: invltlb_glob()
+ *	local kernel total: INVPCID(CTXGLOB) or invltlb_glob()
  *	remote user page, inactive pmap: -
  *	remote user page, active pmap: IPI:INVLPG
  *	remote kernel page: IPI:INVLPG
  *	remote user total, inactive pmap: -
  *	remote user total, active pmap: IPI:(reload %cr3)
- *	remote kernel total: IPI:invltlb_glob()
+ *	remote kernel total: IPI:INVPCID(CTXGLOB) or invltlb_glob()
  *  Since on return to user mode, the reload of %cr3 with ucr3 causes
  *  TLB invalidation, no specific action is required for user page table.
  *
@@ -3355,7 +3359,8 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 }
 
 static inline void
-pmap_invalidate_all_pcid_cb(pmap_t pmap, bool invpcid_works1)
+pmap_invalidate_all_cb_template(pmap_t pmap, bool pmap_pcid_enabled1,
+    bool invpcid_works1)
 {
 	struct invpcid_descr d;
 	uint64_t kcr3;
@@ -3369,57 +3374,63 @@ pmap_invalidate_all_pcid_cb(pmap_t pmap, bool invpcid_works1)
 			invltlb_glob();
 		}
 	} else if (pmap == PCPU_GET(curpmap)) {
-		CRITICAL_ASSERT(curthread);
+		if (pmap_pcid_enabled1) {
+			CRITICAL_ASSERT(curthread);
 
-		pcid = pmap_get_pcid(pmap);
-		if (invpcid_works1) {
-			d.pcid = pcid;
-			d.pad = 0;
-			d.addr = 0;
-			invpcid(&d, INVPCID_CTX);
+			pcid = pmap_get_pcid(pmap);
+			if (invpcid_works1) {
+				d.pcid = pcid;
+				d.pad = 0;
+				d.addr = 0;
+				invpcid(&d, INVPCID_CTX);
+			} else {
+				kcr3 = pmap->pm_cr3 | pcid;
+				load_cr3(kcr3);
+			}
+			if (pmap->pm_ucr3 != PMAP_NO_CR3)
+				PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 		} else {
-			kcr3 = pmap->pm_cr3 | pcid;
-			load_cr3(kcr3);
+			invltlb();
 		}
-		if (pmap->pm_ucr3 != PMAP_NO_CR3)
-			PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 	}
 }
 
 static void
-pmap_invalidate_all_pcid_invpcid_cb(pmap_t pmap)
+pmap_invalidate_all_pcid_invpcid_cb(pmap_t pmap, vm_offset_t addr1 __unused,
+    vm_offset_t addr2 __unused)
 {
-	pmap_invalidate_all_pcid_cb(pmap, true);
+	pmap_invalidate_all_cb_template(pmap, true, true);
 }
 
 static void
-pmap_invalidate_all_pcid_noinvpcid_cb(pmap_t pmap)
+pmap_invalidate_all_pcid_noinvpcid_cb(pmap_t pmap, vm_offset_t addr1 __unused,
+    vm_offset_t addr2 __unused)
 {
-	pmap_invalidate_all_pcid_cb(pmap, false);
+	pmap_invalidate_all_cb_template(pmap, true, false);
 }
 
 static void
-pmap_invalidate_all_nopcid_cb(pmap_t pmap)
+pmap_invalidate_all_nopcid_invpcid_cb(pmap_t pmap, vm_offset_t addr1 __unused,
+    vm_offset_t addr2 __unused)
 {
-	if (pmap == kernel_pmap)
-		invltlb_glob();
-	else if (pmap == PCPU_GET(curpmap))
-		invltlb();
+	pmap_invalidate_all_cb_template(pmap, false, true);
 }
 
-DEFINE_IFUNC(static, void, pmap_invalidate_all_cb, (pmap_t))
+static void
+pmap_invalidate_all_nopcid_noinvpcid_cb(pmap_t pmap, vm_offset_t addr1 __unused,
+    vm_offset_t addr2 __unused)
+{
+	pmap_invalidate_all_cb_template(pmap, false, false);
+}
+
+DEFINE_IFUNC(static, void, pmap_invalidate_all_curcpu_cb, (pmap_t, vm_offset_t,
+    vm_offset_t))
 {
 	if (pmap_pcid_enabled)
 		return (invpcid_works ? pmap_invalidate_all_pcid_invpcid_cb :
 		    pmap_invalidate_all_pcid_noinvpcid_cb);
-	return (pmap_invalidate_all_nopcid_cb);
-}
-
-static void
-pmap_invalidate_all_curcpu_cb(pmap_t pmap, vm_offset_t addr1 __unused,
-    vm_offset_t addr2 __unused)
-{
-	pmap_invalidate_all_cb(pmap);
+	return (invpcid_works ? pmap_invalidate_all_nopcid_invpcid_cb :
+	    pmap_invalidate_all_nopcid_noinvpcid_cb);
 }
 
 void
@@ -5962,17 +5973,18 @@ pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	if (mpte == NULL) {
 		/*
 		 * Invalidate the 2MB page mapping and return "failure" if the
-		 * mapping was never accessed.
+		 * mapping was never accessed and not wired.
 		 */
 		if ((oldpde & PG_A) == 0) {
-			KASSERT((oldpde & PG_W) == 0,
-		    ("pmap_demote_pde: a wired mapping is missing PG_A"));
-			pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
-			return (false);
-		}
-
-		mpte = pmap_remove_pt_page(pmap, va);
-		if (mpte == NULL) {
+			if ((oldpde & PG_W) == 0) {
+				pmap_demote_pde_abort(pmap, va, pde, oldpde,
+				    lockp);
+				return (false);
+			}
+			mpte = pmap_remove_pt_page(pmap, va);
+			/* Fill the PTP with PTEs that have PG_A cleared. */
+			mpte->valid = 0;
+		} else if ((mpte = pmap_remove_pt_page(pmap, va)) == NULL) {
 			KASSERT((oldpde & PG_W) == 0,
     ("pmap_demote_pde: page table page for a wired mapping is missing"));
 
@@ -6024,7 +6036,7 @@ pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	/*
 	 * If the PTP is not leftover from an earlier promotion or it does not
 	 * have PG_A set in every PTE, then fill it.  The new PTEs will all
-	 * have PG_A set.
+	 * have PG_A set, unless this is a wired mapping with PG_A clear.
 	 */
 	if (!vm_page_all_valid(mpte))
 		pmap_fill_ptp(firstpte, newpte);

@@ -64,13 +64,10 @@ seq_read(struct linux_file *f, char *ubuf, size_t size, off_t *ppos)
 		return (-EINVAL);
 
 	size = min(rc - *ppos, size);
-	rc = strscpy(ubuf, sbuf_data(sbuf) + *ppos, size + 1);
+	memcpy(ubuf, sbuf_data(sbuf) + *ppos, size);
+	*ppos += size;
 
-	/* add 1 for null terminator */
-	if (rc > 0)
-		rc += 1;
-
-	return (rc);
+	return (size);
 }
 
 int

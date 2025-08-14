@@ -1940,6 +1940,7 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_RT, .off = _OUT(rt), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_RT_IFNAME, .off = _OUT(rt_ifname), .cb = snl_attr_store_ifname },
 	{ .type = PF_ST_SRC_NODE_FLAGS, .off = _OUT(src_node_flags), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_RT_AF, .off = _OUT(rt_af), .cb = snl_attr_get_uint8 },
 };
 #undef _IN
 #undef _OUT
@@ -2396,6 +2397,151 @@ pfctl_table_add_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	return (0);
 }
 
+static void
+snl_add_msg_attr_table(struct snl_writer *nw, uint32_t type,
+    const struct pfr_table *tbl)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_string(nw, PF_T_ANCHOR, tbl->pfrt_anchor);
+	snl_add_msg_attr_string(nw, PF_T_NAME, tbl->pfrt_name);
+	snl_add_msg_attr_u32(nw, PF_T_TABLE_FLAGS, tbl->pfrt_flags);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_pfr_addr(struct snl_writer *nw, uint32_t type,
+    const struct pfr_addr *addr)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_u8(nw, PFR_A_AF, addr->pfra_af);
+	snl_add_msg_attr_u8(nw, PFR_A_NET, addr->pfra_net);
+	snl_add_msg_attr_bool(nw, PFR_A_NOT, addr->pfra_not);
+	snl_add_msg_attr_ip6(nw, PFR_A_ADDR, &addr->pfra_ip6addr);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static struct snl_attr_parser ap_table_add_addr[] = {
+	{ .type = PF_TA_NBR_ADDED, .off = 0, .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_PARSER(table_add_addr_parser, struct genlmsghdr, snl_f_p_empty, ap_table_add_addr);
+
+static int
+_pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+    *addrs, int size, int *nadd, int flags)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	uint32_t added;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_TABLE_ADD_ADDR);
+
+	snl_add_msg_attr_table(&nw, PF_TA_TABLE, tbl);
+	snl_add_msg_attr_u32(&nw, PF_TA_FLAGS, flags);
+	for (int i = 0; i < size && i < 256; i++)
+		snl_add_msg_attr_pfr_addr(&nw, PF_TA_ADDR, &addrs[i]);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_add_addr_parser, &added))
+			continue;
+	}
+
+	if (nadd)
+		*nadd = added;
+
+	return (e.error);
+}
+
+int
+pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+    *addr, int size, int *nadd, int flags)
+{
+	int ret;
+	int off = 0;
+	int partial_added;
+
+	do {
+		ret = _pfctl_table_add_addrs_h(h, tbl, &addr[off], size - off, &partial_added, flags);
+		if (ret != 0)
+			break;
+		if (nadd)
+			*nadd += partial_added;
+		off += partial_added;
+	} while (off < size);
+
+	if (nadd)
+		*nadd = off;
+
+	return (ret);
+}
+
+static struct snl_attr_parser ap_table_del_addr[] = {
+	{ .type = PF_TA_NBR_DELETED, .off = 0, .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_PARSER(table_del_addr_parser, struct genlmsghdr, snl_f_p_empty, ap_table_del_addr);
+static int
+_pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+    *addrs, int size, int *ndel, int flags)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	uint32_t deleted;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_TABLE_DEL_ADDR);
+
+	snl_add_msg_attr_table(&nw, PF_TA_TABLE, tbl);
+	snl_add_msg_attr_u32(&nw, PF_TA_FLAGS, flags);
+	for (int i = 0; i < size && i < 256; i++)
+		snl_add_msg_attr_pfr_addr(&nw, PF_TA_ADDR, &addrs[i]);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_del_addr_parser, &deleted))
+			continue;
+	}
+
+	if (ndel)
+		*ndel = deleted;
+
+	return (e.error);
+}
+
 int
 pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
     *addr, int size, int *ndel, int flags)
@@ -2417,6 +2563,30 @@ pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	if (ndel != NULL)
 		*ndel = io.pfrio_ndel;
 	return (0);
+}
+
+int
+pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pfr_addr
+    *addr, int size, int *ndel, int flags)
+{
+	int ret;
+	int off = 0;
+	int partial_deleted;
+
+	do {
+		ret = _pfctl_table_del_addrs_h(h, tbl, &addr[off], size - off,
+		    &partial_deleted, flags);
+		if (ret != 0)
+			break;
+		if (ndel)
+			*ndel += partial_deleted;
+		off += partial_deleted;
+	} while (off < size);
+
+	if (ndel)
+		*ndel = off;
+
+	return (ret);
 }
 
 int
@@ -3043,7 +3213,7 @@ static struct snl_attr_parser ap_srcnode[] = {
 	{ .type = PF_SN_CREATION, .off = _OUT(creation), .cb = snl_attr_get_uint64 },
 	{ .type = PF_SN_EXPIRE, .off = _OUT(expire), .cb = snl_attr_get_uint64 },
 	{ .type = PF_SN_CONNECTION_RATE, .off = _OUT(conn_rate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
-	{ .type = PF_SN_NAF, .off = _OUT(naf), .cb = snl_attr_get_uint8 },
+	{ .type = PF_SN_RAF, .off = _OUT(raf), .cb = snl_attr_get_uint8 },
 	{ .type = PF_SN_NODE_TYPE, .off = _OUT(type), .cb = snl_attr_get_uint8 },
 };
 #undef _OUT
@@ -3348,6 +3518,11 @@ pfctl_clear_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
 	return (e.error);
 }
 
+static struct snl_attr_parser ap_clr_addrs[] = {
+	{ .type = PF_T_NBR_DELETED, .off = 0, .cb = snl_attr_get_uint64 },
+};
+SNL_DECLARE_PARSER(clr_addrs_parser, struct genlmsghdr, snl_f_p_empty, ap_clr_addrs);
+
 int
 pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
     int *ndel, int flags)
@@ -3380,7 +3555,7 @@ pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
 		return (ENXIO);
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
-		if (!snl_parse_nlmsg(&h->ss, hdr, &tstats_clr_parser, &del))
+		if (!snl_parse_nlmsg(&h->ss, hdr, &clr_addrs_parser, &del))
 			continue;
 		if (ndel)
 			*ndel = (uint32_t)del;

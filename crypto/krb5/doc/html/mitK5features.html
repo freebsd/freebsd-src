@@ -1,25 +1,23 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en" data-content_root="./">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>MIT Kerberos features &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/agogo.css" />
-    <link rel="stylesheet" type="text/css" href="_static/kerb.css" />
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/agogo.css?v=879f3c71" />
+    <link rel="stylesheet" type="text/css" href="_static/kerb.css?v=6a0b3979" />
+    <script src="_static/documentation_options.js?v=236fef3b"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="copyright" title="Copyright" href="copyright.html" />
     <link rel="next" title="MIT Kerberos License information" href="mitK5license.html" />
-    <link rel="prev" title="PKINIT freshness tokens" href="formats/freshness_token.html" /> 
+    <link rel="prev" title="Kerberos Database (KDB) Formats" href="formats/database_formats.html" /> 
   </head><body>
     <div class="header-wrapper">
         <div class="header">
@@ -31,7 +29,7 @@
                 
         <a href="index.html" title="Full Table of Contents"
             accesskey="C">Contents</a> |
-        <a href="formats/freshness_token.html" title="PKINIT freshness tokens"
+        <a href="formats/database_formats.html" title="Kerberos Database (KDB) Formats"
             accesskey="P">previous</a> |
         <a href="mitK5license.html" title="MIT Kerberos License information"
             accesskey="N">next</a> |
@@ -55,15 +53,15 @@
   <div class="toctree-wrapper compound">
 </div>
 <section id="mit-kerberos-features">
-<span id="mitk5features"></span><h1>MIT Kerberos features<a class="headerlink" href="#mit-kerberos-features" title="Permalink to this headline">¶</a></h1>
+<span id="mitk5features"></span><h1>MIT Kerberos features<a class="headerlink" href="#mit-kerberos-features" title="Link to this heading">¶</a></h1>
 <p><a class="reference external" href="https://web.mit.edu/kerberos">https://web.mit.edu/kerberos</a></p>
 <section id="quick-facts">
-<h2>Quick facts<a class="headerlink" href="#quick-facts" title="Permalink to this headline">¶</a></h2>
+<h2>Quick facts<a class="headerlink" href="#quick-facts" title="Link to this heading">¶</a></h2>
 <p>License - <a class="reference internal" href="mitK5license.html#mitk5license"><span class="std std-ref">MIT Kerberos License information</span></a></p>
 <dl class="simple">
 <dt>Releases:</dt><dd><ul class="simple">
-<li><p>Latest stable: <a class="reference external" href="https://web.mit.edu/kerberos/krb5-1.20/">https://web.mit.edu/kerberos/krb5-1.20/</a></p></li>
-<li><p>Supported: <a class="reference external" href="https://web.mit.edu/kerberos/krb5-1.19/">https://web.mit.edu/kerberos/krb5-1.19/</a></p></li>
+<li><p>Latest stable: <a class="reference external" href="https://web.mit.edu/kerberos/krb5-1.22/">https://web.mit.edu/kerberos/krb5-1.22/</a></p></li>
+<li><p>Supported: <a class="reference external" href="https://web.mit.edu/kerberos/krb5-1.21/">https://web.mit.edu/kerberos/krb5-1.21/</a></p></li>
 <li><p>Release cycle: approximately 12 months</p></li>
 </ul>
 </dd>
@@ -85,7 +83,7 @@
 <p>DES support: Kerberos 5 release &lt; 1.18 (See <a class="reference internal" href="admin/advanced/retiring-des.html#retiring-des"><span class="std std-ref">Retiring DES</span></a>)</p>
 </section>
 <section id="interoperability">
-<h2>Interoperability<a class="headerlink" href="#interoperability" title="Permalink to this headline">¶</a></h2>
+<h2>Interoperability<a class="headerlink" href="#interoperability" title="Link to this heading">¶</a></h2>
 <p><cite>Microsoft</cite></p>
 <p>Starting from release 1.7:</p>
 <ul class="simple">
@@ -102,7 +100,7 @@ NTLM implementation for improved compatibility with older releases
 of Microsoft Windows.</p></li>
 <li><p>KDC support for principal aliases, if the back end supports them.
 Currently, only the LDAP back end supports aliases.</p></li>
-<li><p>Support Microsoft set/change password (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc3244.html"><strong>RFC 3244</strong></a>) protocol in
+<li><p>Support Microsoft set/change password (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc3244.html"><strong>RFC 3244</strong></a>) protocol in
 kadmind.</p></li>
 <li><p>Implement client and KDC support for GSS_C_DELEG_POLICY_FLAG, which
 allows a GSS application to request credential delegation only if
@@ -118,29 +116,29 @@ permitted by KDC policy.</p></li>
 </ul>
 </section>
 <section id="feature-list">
-<h2>Feature list<a class="headerlink" href="#feature-list" title="Permalink to this headline">¶</a></h2>
+<h2>Feature list<a class="headerlink" href="#feature-list" title="Link to this heading">¶</a></h2>
 <p>For more information on the specific project see <a class="reference external" href="https://k5wiki.kerberos.org/wiki/Projects">https://k5wiki.kerberos.org/wiki/Projects</a></p>
 <dl class="simple">
 <dt>Release 1.7</dt><dd><ul class="simple">
-<li><p>Credentials delegation                   <span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5896.html"><strong>RFC 5896</strong></a></p></li>
-<li><p>Cross-realm authentication and referrals <span class="target" id="index-2"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6806.html"><strong>RFC 6806</strong></a></p></li>
+<li><p>Credentials delegation                   <span class="target" id="index-1"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5896.html"><strong>RFC 5896</strong></a></p></li>
+<li><p>Cross-realm authentication and referrals <span class="target" id="index-2"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6806.html"><strong>RFC 6806</strong></a></p></li>
 <li><p>Master key migration</p></li>
-<li><p>PKINIT                                   <span class="target" id="index-3"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a> <a class="reference internal" href="admin/pkinit.html#pkinit"><span class="std std-ref">PKINIT configuration</span></a></p></li>
+<li><p>PKINIT                                   <span class="target" id="index-3"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc4556.html"><strong>RFC 4556</strong></a> <a class="reference internal" href="admin/pkinit.html#pkinit"><span class="std std-ref">PKINIT configuration</span></a></p></li>
 </ul>
 </dd>
 <dt>Release 1.8</dt><dd><ul class="simple">
-<li><p>Anonymous PKINIT         <span class="target" id="index-4"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6112.html"><strong>RFC 6112</strong></a> <a class="reference internal" href="admin/pkinit.html#anonymous-pkinit"><span class="std std-ref">Anonymous PKINIT</span></a></p></li>
+<li><p>Anonymous PKINIT         <span class="target" id="index-4"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6112.html"><strong>RFC 6112</strong></a> <a class="reference internal" href="admin/pkinit.html#anonymous-pkinit"><span class="std std-ref">Anonymous PKINIT</span></a></p></li>
 <li><p>Constrained delegation</p></li>
 <li><p>IAKERB                   <a class="reference external" href="https://tools.ietf.org/html/draft-ietf-krb-wg-iakerb-02">https://tools.ietf.org/html/draft-ietf-krb-wg-iakerb-02</a></p></li>
 <li><p>Heimdal bridge plugin for KDC backend</p></li>
 <li><p>GSS-API S4U extensions   <a class="reference external" href="https://msdn.microsoft.com/en-us/library/cc246071">https://msdn.microsoft.com/en-us/library/cc246071</a></p></li>
-<li><p>GSS-API naming extensions                            <span class="target" id="index-5"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6680.html"><strong>RFC 6680</strong></a></p></li>
-<li><p>GSS-API extensions for storing delegated credentials <span class="target" id="index-6"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5588.html"><strong>RFC 5588</strong></a></p></li>
+<li><p>GSS-API naming extensions                            <span class="target" id="index-5"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6680.html"><strong>RFC 6680</strong></a></p></li>
+<li><p>GSS-API extensions for storing delegated credentials <span class="target" id="index-6"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5588.html"><strong>RFC 5588</strong></a></p></li>
 </ul>
 </dd>
 <dt>Release 1.9</dt><dd><ul class="simple">
 <li><p>Advance warning on password expiry</p></li>
-<li><p>Camellia encryption (CTS-CMAC mode)       <span class="target" id="index-7"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6803.html"><strong>RFC 6803</strong></a></p></li>
+<li><p>Camellia encryption (CTS-CMAC mode)       <span class="target" id="index-7"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6803.html"><strong>RFC 6803</strong></a></p></li>
 <li><p>KDC support for SecurID preauthentication</p></li>
 <li><p>kadmin over IPv6</p></li>
 <li><p>Trace logging                             <a class="reference internal" href="admin/troubleshoot.html#trace-logging"><span class="std std-ref">Trace logging</span></a></p></li>
@@ -148,7 +146,7 @@ permitted by KDC policy.</p></li>
 <li><p>Plugin to test password quality           <a class="reference internal" href="plugindev/pwqual.html#pwqual-plugin"><span class="std std-ref">Password quality interface (pwqual)</span></a></p></li>
 <li><p>Plugin to synchronize password changes    <a class="reference internal" href="plugindev/kadm5_hook.html#kadm5-hook-plugin"><span class="std std-ref">KADM5 hook interface (kadm5_hook)</span></a></p></li>
 <li><p>Parallel KDC</p></li>
-<li><p>GSS-API extensions for SASL GS2 bridge    <span class="target" id="index-8"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5801.html"><strong>RFC 5801</strong></a> <span class="target" id="index-9"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5587.html"><strong>RFC 5587</strong></a></p></li>
+<li><p>GSS-API extensions for SASL GS2 bridge    <span class="target" id="index-8"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5801.html"><strong>RFC 5801</strong></a> <span class="target" id="index-9"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc5587.html"><strong>RFC 5587</strong></a></p></li>
 <li><p>Purging old keys</p></li>
 <li><p>Naming extensions for delegation chain</p></li>
 <li><p>Password expiration API</p></li>
@@ -162,7 +160,7 @@ permitted by KDC policy.</p></li>
 </ul>
 </dd>
 <dt>Release 1.11</dt><dd><ul class="simple">
-<li><p>Client support for FAST OTP               <span class="target" id="index-10"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6560.html"><strong>RFC 6560</strong></a></p></li>
+<li><p>Client support for FAST OTP               <span class="target" id="index-10"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6560.html"><strong>RFC 6560</strong></a></p></li>
 <li><p>GSS-API extensions for credential locations</p></li>
 <li><p>Responder mechanism</p></li>
 </ul>
@@ -698,15 +696,75 @@ processes when used with asan.</p></li>
 </ul>
 </li>
 </ul>
+<p>Release 1.22</p>
+<ul class="simple">
+<li><p>User experience:</p>
+<ul>
+<li><p>The libdefaults configuration variable “request_timeout” can be
+set to limit the total timeout for KDC requests.  When making a
+KDC request, the client will now wait indefinitely (or until the
+request timeout has elapsed) on a KDC which accepts a TCP
+connection, without contacting any additional KDCs.  Clients will
+make fewer DNS queries in some configurations.</p></li>
+<li><p>The realm configuration variable “sitename” can be set to cause
+the client to query site-specific DNS records when making KDC
+requests.</p></li>
+</ul>
+</li>
+<li><p>Administrator experience:</p>
+<ul>
+<li><p>Principal aliases are supported in the DB2 and LMDB KDB modules
+and in the kadmin protocol.  (The LDAP KDB module has supported
+aliases since release 1.7.)</p></li>
+<li><p>UNIX domain sockets are supported for the Kerberos and kpasswd
+protocols.</p></li>
+<li><p>systemd socket activation is supported for krb5kdc and kadmind.</p></li>
+</ul>
+</li>
+<li><p>Developer experience:</p>
+<ul>
+<li><p>KDB modules can be be implemented in terms of other modules using
+the new krb5_db_load_module() function.</p></li>
+<li><p>The profile library supports the modification of empty profiles
+and the copying of modified profiles, making it possible to
+construct an in-memory profile and pass it to
+krb5_init_context_profile().</p></li>
+<li><p>GSS-API applications can pass the GSS_C_CHANNEL_BOUND flag to
+gss_init_sec_context() to request strict enforcement of channel
+bindings by the acceptor.</p></li>
+</ul>
+</li>
+<li><p>Protocol evolution:</p>
+<ul>
+<li><p>The PKINIT preauth module supports elliptic curve client
+certificates, ECDH key exchange, and the Microsoft paChecksum2
+field.</p></li>
+<li><p>The IAKERB implementation has been changed to comply with the most
+recent draft standard and to support realm discovery.</p></li>
+<li><p>Message-Authenticator is supported in the RADIUS implementation
+used by the OTP kdcpreauth module.</p></li>
+</ul>
+</li>
+<li><p>Code quality:</p>
+<ul>
+<li><p>Removed old-style function declarations, to accomodate compilers
+which have removed support for them.</p></li>
+<li><p>Added OSS-Fuzz to the project’s continuous integration
+infrastructure.</p></li>
+<li><p>Rewrote the GSS per-message token parsing code for improved
+safety.</p></li>
+</ul>
+</li>
+</ul>
 <p><cite>Pre-authentication mechanisms</cite></p>
 <ul class="simple">
-<li><p>PW-SALT                                         <span class="target" id="index-11"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4120.html#section-5.2.7.3"><strong>RFC 4120#section-5.2.7.3</strong></a></p></li>
-<li><p>ENC-TIMESTAMP                                   <span class="target" id="index-12"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4120.html#section-5.2.7.2"><strong>RFC 4120#section-5.2.7.2</strong></a></p></li>
+<li><p>PW-SALT                                         <span class="target" id="index-11"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc4120.html#section-5.2.7.3"><strong>RFC 4120#section-5.2.7.3</strong></a></p></li>
+<li><p>ENC-TIMESTAMP                                   <span class="target" id="index-12"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc4120.html#section-5.2.7.2"><strong>RFC 4120#section-5.2.7.2</strong></a></p></li>
 <li><p>SAM-2</p></li>
-<li><p>FAST negotiation framework   (release 1.8)      <span class="target" id="index-13"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a></p></li>
-<li><p>PKINIT with FAST on client   (release 1.10)     <span class="target" id="index-14"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a></p></li>
-<li><p>PKINIT                                          <span class="target" id="index-15"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a></p></li>
-<li><p>FX-COOKIE                                       <span class="target" id="index-16"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html#section-5.2"><strong>RFC 6113#section-5.2</strong></a></p></li>
+<li><p>FAST negotiation framework   (release 1.8)      <span class="target" id="index-13"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6113.html"><strong>RFC 6113</strong></a></p></li>
+<li><p>PKINIT with FAST on client   (release 1.10)     <span class="target" id="index-14"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6113.html"><strong>RFC 6113</strong></a></p></li>
+<li><p>PKINIT                                          <span class="target" id="index-15"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc4556.html"><strong>RFC 4556</strong></a></p></li>
+<li><p>FX-COOKIE                                       <span class="target" id="index-16"></span><a class="rfc reference external" href="https://datatracker.ietf.org/doc/html/rfc6113.html#section-5.2"><strong>RFC 6113#section-5.2</strong></a></p></li>
 <li><p>S4U-X509-USER                (release 1.8)      <a class="reference external" href="https://msdn.microsoft.com/en-us/library/cc246091">https://msdn.microsoft.com/en-us/library/cc246091</a></p></li>
 <li><p>OTP                          (release 1.12)     <a class="reference internal" href="admin/otp.html#otp-preauth"><span class="std std-ref">OTP Preauthentication</span></a></p></li>
 <li><p>SPAKE                        (release 1.17)     <a class="reference internal" href="admin/spake.html#spake"><span class="std std-ref">SPAKE Preauthentication</span></a></p></li>
@@ -765,14 +823,14 @@ processes when used with asan.</p></li>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.3</i><br />
-                &copy; <a href="copyright.html">Copyright</a> 1985-2024, MIT.
+            <div class="right" ><i>Release: 1.22-final</i><br />
+                &copy; <a href="copyright.html">Copyright</a> 1985-2025, MIT.
             </div>
             <div class="left">
                 
         <a href="index.html" title="Full Table of Contents"
             >Contents</a> |
-        <a href="formats/freshness_token.html" title="PKINIT freshness tokens"
+        <a href="formats/database_formats.html" title="Kerberos Database (KDB) Formats"
             >previous</a> |
         <a href="mitK5license.html" title="MIT Kerberos License information"
             >next</a> |

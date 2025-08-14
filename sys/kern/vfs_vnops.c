@@ -3453,6 +3453,11 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	interrupted = 0;
 	dat = NULL;
 
+	if ((flags & COPY_FILE_RANGE_CLONE) != 0) {
+		error = ENOSYS;
+		goto out;
+	}
+
 	error = vn_lock(invp, LK_SHARED);
 	if (error != 0)
 		goto out;

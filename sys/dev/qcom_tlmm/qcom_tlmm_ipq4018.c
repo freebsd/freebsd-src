@@ -346,13 +346,14 @@ qcom_tlmm_ipq4018_attach(device_t dev)
 	fdt_pinctrl_register(dev, NULL);
 	fdt_pinctrl_configure_by_name(dev, "default");
 
-	sc->busdev = gpiobus_attach_bus(dev);
+	sc->busdev = gpiobus_add_bus(dev);
 	if (sc->busdev == NULL) {
 		device_printf(dev, "%s: failed to attach bus\n", __func__);
 		qcom_tlmm_ipq4018_detach(dev);
 		return (ENXIO);
 	}
 
+	bus_attach_children(dev);
 	return (0);
 }
 

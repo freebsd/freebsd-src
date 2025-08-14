@@ -1,0 +1,5 @@
+comment = "Kerberos key distribution center"
+desc = <<EOD
+The Kerberos KDC, which manages the Kerberos database and issues tickets
+to clients.
+EOD

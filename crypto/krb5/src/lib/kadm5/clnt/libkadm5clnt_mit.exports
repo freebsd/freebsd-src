@@ -3,6 +3,7 @@ _kadm5_chpass_principal_util
 kadm5_chpass_principal
 kadm5_chpass_principal_3
 kadm5_chpass_principal_util
+kadm5_create_alias
 kadm5_create_policy
 kadm5_create_principal
 kadm5_create_principal_3
@@ -62,6 +63,7 @@ krb5_klog_reopen
 krb5_klog_set_context
 krb5_klog_syslog
 krb5_string_to_keysalts
+xdr_calias_arg
 xdr_chpass3_arg
 xdr_chpass_arg
 xdr_chrand3_arg

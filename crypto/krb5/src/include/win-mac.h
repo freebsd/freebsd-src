@@ -236,4 +236,8 @@ HINSTANCE get_lib_instance(void);
 #define KRB5_CALLCONV_C
 #endif
 
+#ifndef PKCS11_MODNAME
+#define PKCS11_MODNAME "C:\\Program Files\\OpenSC Project\\OpenSC\\pkcs11\\opensc-pkcs11.dll"
+#endif
+
 #endif /* _KRB5_WIN_MAC_H */

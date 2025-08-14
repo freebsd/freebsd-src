@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	krb5
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -67,10 +65,6 @@ SRCS=	auth_gss.c \
 	xdr_sizeof.c \
 	xdr_stdio.c
 
-INCS=	dyn.h \
-	dynP.h \
-	gssrpcint.h
-
 CFLAGS+=-I${KRB5_DIR}/lib/rpc \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include \
@@ -80,7 +74,5 @@ CFLAGS+=-I${KRB5_DIR}/lib/rpc \
 	-DGSSRPC__IMPL
 
 .include <bsd.lib.mk>
-
-.SUFFIXES: .h .c
 
 .PATH:	${KRB5_DIR}/lib/rpc
