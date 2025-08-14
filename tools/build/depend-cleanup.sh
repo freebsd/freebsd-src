@@ -360,3 +360,6 @@ if [ -f "$OBJTOP"/lib/clang/liblldb/liblldb.a ]; then
 	echo "Removing old static liblldb library"
         run rm -f "$OBJTOP"/lib/clang/liblldb/liblldb.a
 fi
+
+# 20250813  4f766afc1ca0    tcopy converted to C++
+clean_dep   usr.bin/tcopy   tcopy c
