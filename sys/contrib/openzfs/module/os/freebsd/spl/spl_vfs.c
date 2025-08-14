@@ -41,6 +41,7 @@
 #include <sys/taskq.h>
 
 #include <sys/ccompat.h>
+#include <sys/tslog.h>
 
 MALLOC_DECLARE(M_MOUNT);
 
@@ -125,6 +126,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	vnode_t *vp, *mvp;
 	int error;
 
+	TSENTER();
 	ASSERT_VOP_ELOCKED(*vpp, "mount_snapshot");
 
 	vp = *vpp;
@@ -156,6 +158,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	}
 	if (error != 0) {
 		vput(vp);
+		TSENTER();
 		return (error);
 	}
 	vn_seqc_write_begin(vp);
@@ -210,6 +213,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 		vfs_freeopts(mp->mnt_optnew);
 		mp->mnt_vnodecovered = NULL;
 		vfs_mount_destroy(mp);
+		TSEXIT();
 		return (error);
 	}
 
@@ -254,6 +258,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	vfs_op_exit(mp);
 	vfs_unbusy(mp);
 	*vpp = mvp;
+	TSEXIT();
 	return (0);
 }
 

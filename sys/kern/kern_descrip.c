@@ -4385,8 +4385,12 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	struct proc *p;
 	int nrele;
 
+	TSENTER();
 	if (vrefcnt(olddp) == 1)
+	{
+		TSEXIT();
 		return;
+	}
 	nrele = 0;
 	newpwd = pwd_alloc();
 	sx_slock(&allproc_lock);
@@ -4457,6 +4461,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	sx_sunlock(&allprison_lock);
 	while (nrele--)
 		vrele(olddp);
+	TSEXIT();
 }
 
 int

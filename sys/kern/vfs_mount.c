@@ -64,6 +64,7 @@
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
+#include <sys/tslog.h>
 #include <vm/uma.h>
 
 #include <geom/geom.h>
@@ -665,6 +666,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 {
 	struct mount *mp;
 
+	TSENTER();
 	mp = uma_zalloc(mount_zone, M_WAITOK);
 	bzero(&mp->mnt_startzero,
 	    __rangeof(struct mount, mnt_startzero, mnt_endzero));
@@ -704,6 +706,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	TAILQ_INIT(&mp->mnt_notify);
 	mp->mnt_taskqueue_flags = 0;
 	mp->mnt_unmount_retries = 0;
+	TSEXIT();
 	return (mp);
 }
 
@@ -1123,6 +1126,7 @@ vfs_domount_first(
 	int error, error1;
 	bool unmounted;
 
+	TSENTER();
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
 
@@ -1133,6 +1137,7 @@ vfs_domount_first(
 	if (jailed(td->td_ucred) && (!prison_allow(td->td_ucred,
 	    vfsp->vfc_prison_flag) || vp == td->td_ucred->cr_prison->pr_root)) {
 		vput(vp);
+		TSEXIT();
 		return (EPERM);
 	}
 
@@ -1169,6 +1174,7 @@ vfs_domount_first(
 	}
 	if (error != 0) {
 		vput(vp);
+		TSEXIT();
 		return (error);
 	}
 	vn_seqc_write_begin(vp);
@@ -1230,6 +1236,7 @@ vfs_domount_first(
 		}
 		vn_seqc_write_end(vp);
 		vrele(vp);
+		TSEXIT();
 		return (error);
 	}
 	vn_seqc_write_begin(newdp);
@@ -1293,6 +1300,8 @@ vfs_domount_first(
 		vfs_allocate_syncvnode(mp);
 	vfs_op_exit(mp);
 	vfs_unbusy(mp);
+
+	TSEXIT();
 	return (0);
 }
 
@@ -1319,6 +1328,7 @@ vfs_domount_update(
 	fsid_t *fsid_up;
 	bool vfs_suser_failed;
 
+	TSENTER();
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) != 0, ("MNT_UPDATE should be here"));
 	mp = vp->v_mount;
@@ -1330,6 +1340,7 @@ vfs_domount_update(
 		else
 			error = EINVAL;
 		vput(vp);
+		TSEXIT();
 		return (error);
 	}
 
@@ -1340,6 +1351,7 @@ vfs_domount_update(
 	flag = mp->mnt_flag;
 	if ((fsflags & MNT_RELOAD) != 0 && (flag & MNT_RDONLY) == 0) {
 		vput(vp);
+		TSEXIT();
 		return (EOPNOTSUPP);	/* Needs translation */
 	}
 	/*
@@ -1362,10 +1374,12 @@ vfs_domount_update(
 	}
 	if (error != 0) {
 		vput(vp);
+		TSEXIT();
 		return (error);
 	}
 	if (vfs_busy(mp, MBF_NOWAIT)) {
 		vput(vp);
+		TSEXIT();
 		return (EBUSY);
 	}
 	VI_LOCK(vp);
@@ -1373,6 +1387,7 @@ vfs_domount_update(
 		VI_UNLOCK(vp);
 		vfs_unbusy(mp);
 		vput(vp);
+		TSEXIT();
 		return (EBUSY);
 	}
 	vp->v_iflag |= VI_MOUNT;
@@ -1575,6 +1590,7 @@ end:
 	vp->v_iflag &= ~VI_MOUNT;
 	VI_UNLOCK(vp);
 	vrele(vp);
+	TSEXIT();
 	return (error != 0 ? error : export_error);
 }
 
@@ -1597,21 +1613,31 @@ vfs_domount(
 	char *pathbuf;
 	int error;
 
+	TSENTER();
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
+	{
+		TSEXIT();
 		return (ENAMETOOLONG);
+	}
 
 	if (jail_export) {
 		error = priv_check(td, PRIV_NFS_DAEMON);
 		if (error)
+		{
+			TSEXIT();
 			return (error);
+		}
 	} else if (jailed(td->td_ucred) || usermount == 0) {
 		if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
+		{
+			TSEXIT();
 			return (error);
+		}
 	}
 
 	/*
@@ -1620,12 +1646,18 @@ vfs_domount(
 	if (fsflags & MNT_EXPORTED) {
 		error = priv_check(td, PRIV_VFS_MOUNT_EXPORTED);
 		if (error)
+		{
+			TSEXIT();
 			return (error);
+		}
 	}
 	if (fsflags & MNT_SUIDDIR) {
 		error = priv_check(td, PRIV_VFS_MOUNT_SUIDDIR);
 		if (error)
+		{
+			TSEXIT();
 			return (error);
+		}
 	}
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_USER for unprivileged users.
@@ -1641,10 +1673,16 @@ vfs_domount(
 		/* Don't try to load KLDs if we're mounting the root. */
 		if (fsflags & MNT_ROOTFS) {
 			if ((vfsp = vfs_byname(fstype)) == NULL)
+			{
+				TSEXIT();
 				return (ENODEV);
+			}
 		} else {
 			if ((vfsp = vfs_byname_kld(fstype, td, &error)) == NULL)
+			{
+				TSEXIT();
 				return (error);
+			}
 		}
 	}
 
@@ -1655,7 +1693,10 @@ vfs_domount(
 	    UIO_SYSSPACE, fspath);
 	error = namei(&nd);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 	vp = nd.ni_vp;
 	/*
 	 * Don't allow stacking file mounts to work around problems with the way
@@ -1693,10 +1734,12 @@ vfs_domount(
 		error = vfs_domount_update(td, vp, fsflags, jail_export,
 		    optlist);
 
+	TSEXIT();
 out:
 	NDFREE_PNBUF(&nd);
 	vrele(nd.ni_dvp);
 
+	TSEXIT();
 	return (error);
 }
 
@@ -2522,6 +2565,7 @@ vfs_getopt(struct vfsoptlist *opts, const char *name, void **buf, int *len)
 {
 	struct vfsopt *opt;
 
+	TSENTER();
 	KASSERT(opts != NULL, ("vfs_getopt: caller passed 'opts' as NULL"));
 
 	TAILQ_FOREACH(opt, opts, link) {
@@ -2531,9 +2575,11 @@ vfs_getopt(struct vfsoptlist *opts, const char *name, void **buf, int *len)
 				*len = opt->len;
 			if (buf != NULL)
 				*buf = opt->value;
+			TSEXIT();
 			return (0);
 		}
 	}
+	TSEXIT();
 	return (ENOENT);
 }
 
@@ -3025,6 +3071,7 @@ vfs_remount_ro(struct mount *mp)
 	struct vnode *vp_covered, *rootvp;
 	int error;
 
+	TSENTER();
 	vfs_op_enter(mp);
 	KASSERT(mp->mnt_lockref > 0,
 	    ("vfs_remount_ro: mp %p is not busied", mp));
@@ -3036,6 +3083,7 @@ vfs_remount_ro(struct mount *mp)
 	error = vget(vp_covered, LK_EXCLUSIVE | LK_NOWAIT);
 	if (error != 0) {
 		vfs_op_exit(mp);
+		TSEXIT();
 		return (error);
 	}
 	VI_LOCK(vp_covered);
@@ -3043,6 +3091,7 @@ vfs_remount_ro(struct mount *mp)
 		VI_UNLOCK(vp_covered);
 		vput(vp_covered);
 		vfs_op_exit(mp);
+		TSEXIT();
 		return (EBUSY);
 	}
 	vp_covered->v_iflag |= VI_MOUNT;
@@ -3097,6 +3146,7 @@ out:
 		vn_seqc_write_end(rootvp);
 		vrele(rootvp);
 	}
+	TSEXIT();
 	return (error);
 }
 

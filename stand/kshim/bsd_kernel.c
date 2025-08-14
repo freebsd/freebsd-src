@@ -893,13 +893,16 @@ device_get_method(device_t dev, const char *what)
 {
 	const struct device_method *mtod;
 
+	TSENTER();
 	mtod = dev->dev_module->driver->methods;
 	while (mtod->func != NULL) {
 		if (strcmp(mtod->desc, what) == 0) {
+			TSEXIT();
 			return (mtod->func);
 		}
 		mtod++;
 	}
+	TSEXIT();
 	return ((void *)&default_method);
 }
 

@@ -80,6 +80,7 @@ void
 g_waitidle(struct thread *td)
 {
 
+	TSENTER();
 	g_topology_assert_not();
 
 	mtx_lock(&g_eventlock);
@@ -90,6 +91,8 @@ g_waitidle(struct thread *td)
 	TSUNWAIT("GEOM events");
 	mtx_unlock(&g_eventlock);
 	td->td_pflags &= ~TDP_GEOM;
+	TSEXIT();
+
 }
 
 static void

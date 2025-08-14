@@ -71,35 +71,49 @@ devfs_mount(struct mount *mp)
 	struct thread *td = curthread;
 	int injail, rsnum;
 
+	TSENTER();
 	if (devfs_unr == NULL)
 		devfs_unr = new_unrhdr(0, INT_MAX, NULL);
 
 	error = 0;
 
 	if (mp->mnt_flag & MNT_ROOTFS)
+	{
+		TSEXIT();
 		return (EOPNOTSUPP);
+	}
 
 	rsnum = 0;
 	injail = jailed(td->td_ucred);
 
 	if (mp->mnt_optnew != NULL) {
 		if (vfs_filteropt(mp->mnt_optnew, devfs_opts))
+		{
+			TSEXIT();
 			return (EINVAL);
+		}
 
 		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+		{
+			TSEXIT();
 			return (EOPNOTSUPP);
+		}
 
 		if (vfs_getopt(mp->mnt_optnew, "ruleset", NULL, NULL) == 0 &&
 		    (vfs_scanopt(mp->mnt_optnew, "ruleset", "%d",
 		    &rsnum) != 1 || rsnum < 0 || rsnum > 65535)) {
 			vfs_mount_error(mp, "%s",
 			    "invalid ruleset specification");
+			TSEXIT();
 			return (EINVAL);
 		}
 
 		if (injail && rsnum != 0 &&
 		    rsnum != td->td_ucred->cr_prison->pr_devfs_rsnum)
+		{
+			TSEXIT();
 			return (EPERM);
+		}
 	}
 
 	/* jails enforce their ruleset */
@@ -116,6 +130,7 @@ devfs_mount(struct mount *mp)
 				sx_xunlock(&fmp->dm_lock);
 			}
 		}
+		TSEXIT();
 		return (0);
 	}
 
@@ -143,6 +158,7 @@ devfs_mount(struct mount *mp)
 		sx_destroy(&fmp->dm_lock);
 		free_unr(devfs_unr, fmp->dm_idx);
 		free(fmp, M_DEVFS);
+		TSEXIT();
 		return (error);
 	}
 
@@ -157,6 +173,7 @@ devfs_mount(struct mount *mp)
 
 	vfs_mountedfrom(mp, "devfs");
 
+	TSEXIT();
 	return (0);
 }
 

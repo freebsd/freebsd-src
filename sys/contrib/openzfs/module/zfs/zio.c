@@ -585,11 +585,15 @@ zio_decrypt(zio_t *zio, abd_t *data, uint64_t size)
 	uint8_t mac[ZIO_DATA_MAC_LEN];
 	boolean_t no_crypt = B_FALSE;
 
+	TSENTER();
 	ASSERT(BP_USES_CRYPT(bp));
 	ASSERT3U(size, !=, 0);
 
 	if (zio->io_error != 0)
+	{
+		TSEXIT();
 		return;
+	}
 
 	/*
 	 * Verify the cksum of MACs stored in an indirect bp. It will always
@@ -632,6 +636,7 @@ zio_decrypt(zio_t *zio, abd_t *data, uint64_t size)
 		if (ret != 0)
 			goto error;
 
+		TSEXIT();
 		return;
 	}
 
@@ -659,6 +664,7 @@ zio_decrypt(zio_t *zio, abd_t *data, uint64_t size)
 		if (ret != 0)
 			goto error;
 
+		TSEXIT();
 		return;
 	}
 
@@ -681,6 +687,7 @@ zio_decrypt(zio_t *zio, abd_t *data, uint64_t size)
 	if (ret != 0)
 		goto error;
 
+	TSEXIT();
 	return;
 
 error:
@@ -702,6 +709,7 @@ error:
 	} else {
 		zio->io_error = ret;
 	}
+	TSEXIT();
 }
 
 /*
@@ -1926,17 +1934,22 @@ zio_write_compress(zio_t *zio)
 	uint64_t psize = zio->io_size;
 	uint32_t pass = 1;
 
+	TSENTER();
 	/*
 	 * If our children haven't all reached the ready stage,
 	 * wait for them and then repeat this pipeline stage.
 	 */
 	if (zio_wait_for_children(zio, ZIO_CHILD_LOGICAL_BIT |
 	    ZIO_CHILD_GANG_BIT, ZIO_WAIT_READY)) {
+		TSEXIT();
 		return (NULL);
 	}
 
 	if (!IO_IS_ALLOCATING(zio))
+	{
+		TSEXIT();
 		return (zio);
+	}
 
 	if (zio->io_children_ready != NULL) {
 		/*
@@ -2011,6 +2024,7 @@ zio_write_compress(zio_t *zio)
 			zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
 			ASSERT(spa_feature_is_active(spa,
 			    SPA_FEATURE_EMBEDDED_DATA));
+			TSEXIT();
 			return (zio);
 		} else {
 			/*
@@ -2133,6 +2147,7 @@ zio_write_compress(zio_t *zio)
 			zio->io_pipeline |= ZIO_STAGE_NOP_WRITE;
 		}
 	}
+	TSEXIT();
 	return (zio);
 }
 

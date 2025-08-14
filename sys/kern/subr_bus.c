@@ -2557,14 +2557,21 @@ device_probe_and_attach(device_t dev)
 {
 	int error;
 
+	TSENTER();
 	bus_topo_assert();
 
 	error = device_probe(dev);
 	if (error == -1)
+	{
+		TSEXIT();
 		return (0);
+	}
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
-
+	}
+	TSEXIT();
 	return (device_attach(dev));
 }
 
@@ -2594,6 +2601,7 @@ device_attach(device_t dev)
 	uint16_t attachentropy;
 	int error;
 
+	TSENTER();
 	if (resource_disabled(dev->driver->name, dev->unit)) {
 		/*
 		 * Mostly detach the device, but leave it attached to
@@ -2604,6 +2612,7 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		if (bootverbose)
 			 device_printf(dev, "disabled via hints entry\n");
+		TSEXIT();
 		return (ENXIO);
 	}
 
@@ -2644,6 +2653,7 @@ device_attach(device_t dev)
 			dev->state = DS_NOTPRESENT;
 		}
 		CURVNET_RESTORE();
+		TSEXIT();
 		return (error);
 	}
 	CURVNET_RESTORE();
@@ -2658,6 +2668,7 @@ device_attach(device_t dev)
 	dev->state = DS_ATTACHED;
 	dev->flags &= ~DF_DONENOMATCH;
 	EVENTHANDLER_DIRECT_INVOKE(device_attach, dev);
+	TSEXIT();
 	return (0);
 }
 
@@ -3456,7 +3467,9 @@ bus_identify_children(device_t dev)
 int
 bus_generic_attach(device_t dev)
 {
+	TSENTER();
 	bus_attach_children(dev);
+	TSEXIT();
 	return (0);
 }
 
@@ -3475,9 +3488,11 @@ bus_attach_children(device_t dev)
 {
 	device_t child;
 
+	TSENTER();
 	TAILQ_FOREACH(child, &dev->children, link) {
 		device_probe_and_attach(child);
 	}
+	TSEXIT();
 }
 
 /**
@@ -3679,6 +3694,7 @@ bus_helper_reset_post(device_t dev, int flags)
 	device_t child;
 	int error, error1;
 
+	TSENTER();
 	error = 0;
 	TAILQ_FOREACH(child, &dev->children,link) {
 		BUS_RESET_POST(dev, child);
@@ -3688,15 +3704,20 @@ bus_helper_reset_post(device_t dev, int flags)
 		if (error == 0 && error1 != 0)
 			error = error1;
 	}
+	TSEXIT();
 	return (error);
 }
 
 static void
 bus_helper_reset_prepare_rollback(device_t dev, device_t child, int flags)
 {
+	TSENTER();
 	child = TAILQ_NEXT(child, link);
 	if (child == NULL)
+	{
+		TSEXIT();
 		return;
+	}
 	TAILQ_FOREACH_FROM(child, &dev->children,link) {
 		BUS_RESET_POST(dev, child);
 		if ((flags & DEVF_RESET_DETACH) != 0)
@@ -3704,6 +3725,7 @@ bus_helper_reset_prepare_rollback(device_t dev, device_t child, int flags)
 		else
 			BUS_RESUME_CHILD(dev, child);
 	}
+	TSEXIT();
 }
 
 /**
@@ -3723,8 +3745,12 @@ bus_helper_reset_prepare(device_t dev, int flags)
 	device_t child;
 	int error;
 
+	TSENTER();
 	if (dev->state != DS_ATTACHED)
+	{
+		TSEXIT();
 		return (EBUSY);
+	}
 
 	TAILQ_FOREACH_REVERSE(child, &dev->children, device_list, link) {
 		if ((flags & DEVF_RESET_DETACH) != 0) {
@@ -3744,9 +3770,11 @@ bus_helper_reset_prepare(device_t dev, int flags)
 		}
 		if (error != 0) {
 			bus_helper_reset_prepare_rollback(dev, child, flags);
+			TSEXIT();
 			return (error);
 		}
 	}
+	TSEXIT();
 	return (0);
 }
 
@@ -3880,11 +3908,13 @@ bus_generic_driver_added(device_t dev, driver_t *driver)
 {
 	device_t child;
 
+	TSENTER();
 	DEVICE_IDENTIFY(driver, dev);
 	TAILQ_FOREACH(child, &dev->children, link) {
 		if (child->state == DS_NOTPRESENT)
 			device_probe_and_attach(child);
 	}
+	TSEXIT();
 }
 
 /**
@@ -3904,6 +3934,7 @@ bus_generic_new_pass(device_t dev)
 	devclass_t dc;
 	device_t child;
 
+	TSENTER();
 	dc = dev->devclass;
 	TAILQ_FOREACH(dl, &dc->drivers, link) {
 		if (dl->pass == bus_current_pass)
@@ -3915,6 +3946,7 @@ bus_generic_new_pass(device_t dev)
 		else if (child->state == DS_NOTPRESENT)
 			device_probe_and_attach(child);
 	}
+	TSEXIT();
 }
 
 /**
@@ -5748,6 +5780,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	device_t dev;
 	int error, old;
 
+	TSENTER();
 	/* Locate the device to control. */
 	bus_topo_lock();
 	req = (struct devreq *)data;
@@ -5780,6 +5813,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 	if (error) {
 		bus_topo_unlock();
+		TSEXIT();
 		return (error);
 	}
 
@@ -6033,6 +6067,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 	}
 	bus_topo_unlock();
+	TSEXIT();
 	return (error);
 }
 

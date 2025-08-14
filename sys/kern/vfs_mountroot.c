@@ -256,6 +256,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 	struct mount *mp;
 	int error;
 
+	TSENTER();
 	*mpp = NULL;
 
 	if (rootdevmp != NULL) {
@@ -264,25 +265,37 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 		 */
 		error = vfs_busy(rootdevmp, 0);
 		if (error != 0)
+		{
+			TSEXIT();
 			return (error);
+		}
 		*mpp = rootdevmp;
 	} else {
 		vfsp = vfs_byname("devfs");
 		KASSERT(vfsp != NULL, ("Could not find devfs by name"));
 		if (vfsp == NULL)
+		{
+			TSEXIT();
 			return (ENOENT);
+		}
 
 		mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
 
 		error = VFS_MOUNT(mp);
 		KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
 		if (error)
+		{
+			TSEXIT();
 			return (error);
+		}
 
 		error = VFS_STATFS(mp, &mp->mnt_stat);
 		KASSERT(error == 0, ("VFS_STATFS(devfs) failed %d", error));
 		if (error)
+		{
+			TSEXIT();
 			return (error);
+		}
 
 		opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
 		TAILQ_INIT(opts);
@@ -303,6 +316,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 	if (error)
 		printf("kern_symlink /dev -> / returns %d\n", error);
 
+	TSEXIT();
 	return (error);
 }
 
@@ -315,6 +329,7 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	char *fspath;
 	int error;
 
+	TSENTER();
 	mpnroot = TAILQ_NEXT(mpdevfs, mnt_list);
 
 	/* Shuffle the mountlist. */
@@ -426,6 +441,7 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 			printf("mountroot: unable to unlink /dev/dev "
 			    "(error %d)\n", error);
 	}
+	TSEXIT();
 }
 
 /*
@@ -528,6 +544,7 @@ parse_dir_ask(char **conf)
 	char *mnt;
 	int error;
 
+	TSENTER();
 	vfs_mountroot_wait();
 
 	printf("\nLoader variables:\n");
@@ -570,6 +587,7 @@ parse_dir_ask(char **conf)
 			printf("Invalid file system specification.\n");
 	} while (error != 0);
 
+	TSEXIT();
 	return (error);
 }
 
@@ -832,6 +850,7 @@ vfs_mountroot_parse(struct sbuf *sb, struct mount *mpdevfs)
 	char *conf;
 	int error;
 
+	TSENTER();
 	root_mount_mddev = -1;
 
 retry:
@@ -873,7 +892,10 @@ retry:
 		mp = TAILQ_NEXT(mpdevfs, mnt_list);
 	}
 	if (mp != NULL)
+	{
+		TSEXIT();
 		return (0);
+	}
 
 	/*
 	 * We failed to mount (a new) root.
@@ -891,6 +913,7 @@ retry:
 		/* NOTREACHED */
 	}
 
+	TSEXIT();
 	return (error);
 }
 
@@ -900,6 +923,7 @@ vfs_mountroot_conf0(struct sbuf *sb)
 	char *s, *tok, *mnt, *opt;
 	int error;
 
+	TSENTER();
 	sbuf_cat(sb, ".onfail panic\n");
 	sbuf_printf(sb, ".timeout %d\n", root_mount_timeout);
 	if (boothowto & RB_ASKNAME)
@@ -939,6 +963,7 @@ vfs_mountroot_conf0(struct sbuf *sb)
 #endif
 	if (!(boothowto & RB_ASKNAME))
 		sbuf_cat(sb, ".ask\n");
+	TSEXIT();
 }
 
 static int
@@ -1018,6 +1043,7 @@ static int
 vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 {
 	int delay, timeout;
+	TSENTER();
 
 	/*
 	 * In case of ZFS and NFS we don't have a way to wait for
@@ -1028,6 +1054,7 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 	    strcmp(fs, "p9fs") == 0 ||
 	    dev[0] == '\0' || root_mount_always_wait != 0) {
 		vfs_mountroot_wait();
+		TSEXIT();
 		return (0);
 	}
 
@@ -1038,7 +1065,10 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 	 */
 	g_waitidle(curthread);
 	if (parse_mount_dev_present(dev))
+	{
+		TSEXIT();
 		return (0);
+	}
 
 	/*
 	 * No luck.  Let's wait.  This code looks weird, but it's that way
@@ -1046,7 +1076,10 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 	 */
 	vfs_mountroot_wait();
 	if (parse_mount_dev_present(dev))
+	{
+		TSEXIT();
 		return (0);
+	}
 	printf("mountroot: waiting for device %s...\n", dev);
 	delay = hz / 10;
 	timeout = root_mount_timeout * hz;
@@ -1056,8 +1089,12 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 	} while (timeout > 0 && !parse_mount_dev_present(dev));
 
 	if (timeout <= 0)
+	{
+		TSEXIT();
 		return (ENODEV);
+	}
 
+	TSEXIT();
 	return (0);
 }
 

@@ -84,6 +84,7 @@
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
+#include <sys/tslog.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -880,6 +881,7 @@ vfs_busy(struct mount *mp, int flags)
 {
 	struct mount_pcpu *mpcpu;
 
+	TSENTER();
 	MPASS((flags & ~MBF_MASK) == 0);
 	CTR3(KTR_VFS, "%s: mp %p with flags %d", __func__, mp, flags);
 
@@ -892,6 +894,7 @@ vfs_busy(struct mount *mp, int flags)
 		vfs_op_thread_exit(mp, mpcpu);
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_unlock(&mountlist_mtx);
+		TSEXIT();
 		return (0);
 	}
 
@@ -918,6 +921,7 @@ vfs_busy(struct mount *mp, int flags)
 			MNT_IUNLOCK(mp);
 			CTR1(KTR_VFS, "%s: failed busying before sleeping",
 			    __func__);
+			TSEXIT();
 			return (ENOENT);
 		}
 		if (flags & MBF_MNTLSTLOCK)
@@ -932,6 +936,7 @@ vfs_busy(struct mount *mp, int flags)
 		mtx_unlock(&mountlist_mtx);
 	mp->mnt_lockref++;
 	MNT_IUNLOCK(mp);
+	TSEXIT();
 	return (0);
 }
 
@@ -7021,6 +7026,7 @@ vfs_cache_root_clear(struct mount *mp)
 {
 	struct vnode *vp;
 
+	TSENTER();
 	/*
 	 * ops > 0 guarantees there is nobody who can see this vnode
 	 */
@@ -7029,6 +7035,7 @@ vfs_cache_root_clear(struct mount *mp)
 	if (vp != NULL)
 		vn_seqc_write_begin(vp);
 	mp->mnt_rootvnode = NULL;
+	TSEXIT();
 	return (vp);
 }
 
@@ -7342,10 +7349,11 @@ vn_seqc_write_begin_locked(struct vnode *vp)
 void
 vn_seqc_write_begin(struct vnode *vp)
 {
-
+	TSENTER();
 	VI_LOCK(vp);
 	vn_seqc_write_begin_locked(vp);
 	VI_UNLOCK(vp);
+	TSEXIT();
 }
 
 void

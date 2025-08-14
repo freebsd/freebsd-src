@@ -53,6 +53,7 @@
 #include <sys/timers.h>
 #include <sys/timetc.h>
 #include <sys/vnode.h>
+#include <sys/tslog.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -1150,6 +1151,7 @@ eventratecheck(struct timeval *lasttime, int *cureps, int maxeps)
 {
 	int now;
 
+	TSENTER();
 	/*
 	 * Reset the last time and counter if this is the first call
 	 * or more than a second has passed since the last update of
@@ -1159,9 +1161,11 @@ eventratecheck(struct timeval *lasttime, int *cureps, int maxeps)
 	if (lasttime->tv_sec == 0 || (u_int)(now - lasttime->tv_sec) >= hz) {
 		lasttime->tv_sec = now;
 		*cureps = 1;
+		TSEXIT();
 		return (maxeps != 0);
 	} else {
 		(*cureps)++;		/* NB: ignore potential overflow */
+		TSEXIT();
 		return (maxeps < 0 || *cureps <= maxeps);
 	}
 }

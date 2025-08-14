@@ -1994,6 +1994,7 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	struct mount *mp;
 	int error;
 
+	TSENTER();
 	KASSERT((flags & ~V_VALID_FLAGS) == 0,
 	    ("%s: invalid flags passed %d\n", __func__, flags));
 
@@ -2006,12 +2007,19 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 		if ((error = VOP_GETWRITEMOUNT(vp, mpp)) != 0) {
 			*mpp = NULL;
 			if (error != EOPNOTSUPP)
+			{
+				TSEXIT();
 				return (error);
+			}
+			TSEXIT();
 			return (0);
 		}
 	}
 	if ((mp = *mpp) == NULL)
+	{
+		TSEXIT();
 		return (0);
+	}
 
 	/*
 	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
@@ -2026,6 +2034,8 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	error = vn_start_write_refed(mp, flags, false);
 	if (error != 0 && (flags & V_NOWAIT) == 0)
 		*mpp = NULL;
+
+	TSEXIT();
 	return (error);
 }
 

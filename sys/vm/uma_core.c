@@ -4002,6 +4002,7 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int rdomain, const int flags)
 	int aflags, domain;
 	bool rr;
 
+	TSENTER();
 	KASSERT((flags & (M_WAITOK | M_NOVM)) != (M_WAITOK | M_NOVM),
 	    ("%s: invalid flags %#x", __func__, flags));
 
@@ -4027,7 +4028,10 @@ restart:
 	for (;;) {
 		slab = keg_fetch_free_slab(keg, domain, rr, flags);
 		if (slab != NULL)
+		{
+			TSEXIT();
 			return (slab);
+		}
 
 		/*
 		 * M_NOVM is used to break the recursion that can otherwise
@@ -4036,7 +4040,10 @@ restart:
 		if ((flags & M_NOVM) == 0) {
 			slab = keg_alloc_slab(keg, zone, domain, flags, aflags);
 			if (slab != NULL)
+			{
+				TSEXIT();
 				return (slab);
+			}
 		}
 
 		if (!rr) {
@@ -4067,8 +4074,12 @@ restart:
 	 * fail.
 	 */
 	if ((slab = keg_fetch_free_slab(keg, domain, rr, flags)) != NULL)
+	{
+		TSEXIT();
 		return (slab);
+	}
 
+	TSEXIT();
 	return (NULL);
 }
 
@@ -4113,6 +4124,7 @@ zone_import(void *arg, void **bucket, int max, int domain, int flags)
 #endif
 	int i;
 
+	TSENTER();
 	zone = arg;
 	slab = NULL;
 	keg = zone->uz_keg;
@@ -4157,6 +4169,7 @@ zone_import(void *arg, void **bucket, int max, int domain, int flags)
 		flags |= M_NOWAIT;
 	}
 out:
+	TSEXIT();
 	return i;
 }
 
@@ -5241,6 +5254,7 @@ uma_prealloc(uma_zone_t zone, int items)
 	uma_keg_t keg;
 	int aflags, domain, slabs;
 
+	TSENTER();
 	KEG_GET(zone, keg);
 	slabs = howmany(items, keg->uk_ipers);
 	while (slabs-- > 0) {
@@ -5267,6 +5281,7 @@ uma_prealloc(uma_zone_t zone, int items)
 				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask, 0);
 		}
 	}
+	TSEXIT();
 }
 
 /*

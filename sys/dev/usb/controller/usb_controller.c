@@ -166,12 +166,14 @@ usb_root_mount_rel(struct usb_bus *bus)
 static int
 usb_attach(device_t dev)
 {
+	TSENTER();
 	struct usb_bus *bus = device_get_ivars(dev);
 
 	DPRINTF("\n");
 
 	if (bus == NULL) {
 		device_printf(dev, "USB device has no ivars\n");
+		TSEXIT();
 		return (ENXIO);
 	}
 
@@ -183,6 +185,7 @@ usb_attach(device_t dev)
 #endif
 	usb_attach_sub(dev, bus);
 
+	TSEXIT();
 	return (0);			/* return success */
 }
 

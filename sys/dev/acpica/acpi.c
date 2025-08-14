@@ -474,6 +474,7 @@ acpi_attach(device_t dev)
     UINT8		TypeA, TypeB;
     char		*env;
 
+    TSENTER();
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = device_get_softc(dev);
@@ -738,7 +739,10 @@ acpi_attach(device_t dev)
 
     error = 0;
 
+    TSEXIT();
+
  out:
+    TSEXIT();
     return_VALUE (error);
 }
 

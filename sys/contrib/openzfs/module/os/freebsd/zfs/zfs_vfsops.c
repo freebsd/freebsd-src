@@ -807,39 +807,56 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	int error;
 	uint64_t val;
 
+	TSENTER();
 	zfsvfs->z_max_blksz = SPA_OLD_MAXBLOCKSIZE;
 	zfsvfs->z_show_ctldir = ZFS_SNAPDIR_VISIBLE;
 	zfsvfs->z_os = os;
 
 	error = zfs_get_zplprop(os, ZFS_PROP_VERSION, &zfsvfs->z_version);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 	if (zfsvfs->z_version >
 	    zfs_zpl_version_map(spa_version(dmu_objset_spa(os)))) {
 		(void) printf("Can't mount a version %lld file system "
 		    "on a version %lld pool\n. Pool must be upgraded to mount "
 		    "this file system.", (u_longlong_t)zfsvfs->z_version,
 		    (u_longlong_t)spa_version(dmu_objset_spa(os)));
+		TSEXIT();
 		return (SET_ERROR(ENOTSUP));
 	}
 	error = zfs_get_zplprop(os, ZFS_PROP_NORMALIZE, &val);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 	zfsvfs->z_norm = (int)val;
 
 	error = zfs_get_zplprop(os, ZFS_PROP_UTF8ONLY, &val);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 	zfsvfs->z_utf8 = (val != 0);
 
 	error = zfs_get_zplprop(os, ZFS_PROP_CASE, &val);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 	zfsvfs->z_case = (uint_t)val;
 
 	error = zfs_get_zplprop(os, ZFS_PROP_ACLTYPE, &val);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 	zfsvfs->z_acl_type = (uint_t)val;
 
 	/*
@@ -859,7 +876,10 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 		error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_SA_ATTRS, 8, 1,
 		    &sa_obj);
 		if (error != 0)
+		{
+			TSEXIT();
 			return (error);
+		}
 
 		error = zfs_get_zplprop(os, ZFS_PROP_XATTR, &val);
 		if (error == 0 && val == ZFS_XATTR_SA)
@@ -869,37 +889,58 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSERQUOTA,
 	    &zfsvfs->z_defaultuserquota);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPQUOTA,
 	    &zfsvfs->z_defaultgroupquota);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTQUOTA,
 	    &zfsvfs->z_defaultprojectquota);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSEROBJQUOTA,
 	    &zfsvfs->z_defaultuserobjquota);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPOBJQUOTA,
 	    &zfsvfs->z_defaultgroupobjquota);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTOBJQUOTA,
 	    &zfsvfs->z_defaultprojectobjquota);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = sa_setup(os, sa_obj, zfs_attr_table, ZPL_END,
 	    &zfsvfs->z_attr_table);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	if (zfsvfs->z_version >= ZPL_VERSION_SA)
 		sa_register_update_callback(os, zfs_sa_upgrade);
@@ -907,13 +948,19 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_ROOT_OBJ, 8, 1,
 	    &zfsvfs->z_root);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 	ASSERT3U(zfsvfs->z_root, !=, 0);
 
 	error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_UNLINKED_SET, 8, 1,
 	    &zfsvfs->z_unlinkedobj);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ,
 	    zfs_userquota_prop_prefixes[ZFS_PROP_USERQUOTA],
@@ -921,7 +968,10 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	if (error == ENOENT)
 		zfsvfs->z_userquota_obj = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ,
 	    zfs_userquota_prop_prefixes[ZFS_PROP_GROUPQUOTA],
@@ -929,7 +979,10 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	if (error == ENOENT)
 		zfsvfs->z_groupquota_obj = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ,
 	    zfs_userquota_prop_prefixes[ZFS_PROP_PROJECTQUOTA],
@@ -937,7 +990,10 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	if (error == ENOENT)
 		zfsvfs->z_projectquota_obj = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ,
 	    zfs_userquota_prop_prefixes[ZFS_PROP_USEROBJQUOTA],
@@ -945,7 +1001,10 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	if (error == ENOENT)
 		zfsvfs->z_userobjquota_obj = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ,
 	    zfs_userquota_prop_prefixes[ZFS_PROP_GROUPOBJQUOTA],
@@ -953,7 +1012,10 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	if (error == ENOENT)
 		zfsvfs->z_groupobjquota_obj = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ,
 	    zfs_userquota_prop_prefixes[ZFS_PROP_PROJECTOBJQUOTA],
@@ -961,21 +1023,30 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	if (error == ENOENT)
 		zfsvfs->z_projectobjquota_obj = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_FUID_TABLES, 8, 1,
 	    &zfsvfs->z_fuid_obj);
 	if (error == ENOENT)
 		zfsvfs->z_fuid_obj = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_SHARES_DIR, 8, 1,
 	    &zfsvfs->z_shares_dir);
 	if (error == ENOENT)
 		zfsvfs->z_shares_dir = 0;
 	else if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	/*
 	 * Only use the name cache if we are looking for a
@@ -989,6 +1060,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    ((zfsvfs->z_case == ZFS_CASE_MIXED) &&
 	    !(zfsvfs->z_norm & ~U8_TEXTPREP_TOUPPER));
 
+	TSEXIT();
 	return (0);
 }
 
@@ -1007,6 +1079,7 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	objset_t *os;
 	zfsvfs_t *zfsvfs;
 	int error;
+	TSENTER();
 	boolean_t ro = (readonly || (strchr(osname, '@') != NULL));
 
 	/*
@@ -1018,7 +1091,10 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	 * 'zfs unmount' to think it's not mounted when it is.
 	 */
 	if (strlen(osname) >= MNAMELEN)
+	{
+		TSEXIT();
 		return (SET_ERROR(ENAMETOOLONG));
+	}
 
 	zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
 
@@ -1026,11 +1102,13 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	    &os);
 	if (error != 0) {
 		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		TSEXIT();
 		return (error);
 	}
 
 	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
 
+	TSEXIT();
 	return (error);
 }
 
@@ -1040,6 +1118,7 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 {
 	int error;
 
+	TSENTER();
 	zfsvfs->z_vfs = NULL;
 	zfsvfs->z_parent = zfsvfs;
 
@@ -1060,10 +1139,12 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 		dmu_objset_disown(os, B_TRUE, zfsvfs);
 		*zfvp = NULL;
 		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		TSEXIT();
 		return (error);
 	}
 
 	*zfvp = zfsvfs;
+	TSEXIT();
 	return (0);
 }
 
@@ -1217,12 +1298,16 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	int error = 0;
 	zfsvfs_t *zfsvfs;
 
+	TSENTER();
 	ASSERT3P(vfsp, !=, NULL);
 	ASSERT3P(osname, !=, NULL);
 
 	error = zfsvfs_create(osname, vfsp->mnt_flag & MNT_RDONLY, &zfsvfs);
 	if (error)
+	{
+		TSEXIT();
 		return (error);
+	}
 	zfsvfs->z_vfs = vfsp;
 
 	if ((error = dsl_prop_get_integer(osname,
@@ -1294,6 +1379,7 @@ zfs_domount(vfs_t *vfsp, char *osname)
 
 	if (!zfsvfs->z_issnap)
 		zfsctl_create(zfsvfs);
+	TSEXIT();
 out:
 	if (error) {
 		dmu_objset_disown(zfsvfs->z_os, B_TRUE, zfsvfs);
@@ -1302,6 +1388,7 @@ out:
 		atomic_inc_32(&zfs_active_fs_count);
 	}
 
+	TSEXIT();
 	return (error);
 }
 
@@ -1355,8 +1442,12 @@ zfs_mount(vfs_t *vfsp)
 	int		canwrite;
 	bool		checkpointrewind, isctlsnap = false;
 
+	TSENTER();
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
+	{
+		TSEXIT();
 		return (SET_ERROR(EINVAL));
+	}
 
 	/*
 	 * If full-owner-access is enabled and delegated administration is
@@ -1477,8 +1568,10 @@ zfs_mount(vfs_t *vfsp)
 	DROP_GIANT();
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
+	TSEXIT();
 
 out:
+	TSEXIT();
 	return (error);
 }
 

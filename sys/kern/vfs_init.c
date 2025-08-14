@@ -45,6 +45,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/tslog.h>
 
 static int	vfs_register(struct vfsconf *);
 static int	vfs_unregister(struct vfsconf *);
@@ -108,13 +109,18 @@ vfs_byname_locked(const char *name)
 {
 	struct vfsconf *vfsp;
 
+	TSENTER();
 	sx_assert(&vfsconf_sx, SA_LOCKED);
 	if (!strcmp(name, "ffs"))
 		name = "ufs";
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 		if (!strcmp(name, vfsp->vfc_name))
+		{
+			TSEXIT();
 			return (vfsp);
+		}
 	}
+	TSEXIT();
 	return (NULL);
 }
 
@@ -123,9 +129,11 @@ vfs_byname(const char *name)
 {
 	struct vfsconf *vfsp;
 
+	TSENTER();
 	vfsconf_slock();
 	vfsp = vfs_byname_locked(name);
 	vfsconf_sunlock();
+	TSEXIT();
 	return (vfsp);
 }
 
@@ -135,9 +143,13 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 	struct vfsconf *vfsp;
 	int fileid, loaded;
 
+	TSENTER();
 	vfsp = vfs_byname(fstype);
 	if (vfsp != NULL)
+	{
+		TSEXIT();
 		return (vfsp);
+	}
 
 	/* Try to load the respective module. */
 	*error = kern_kldload(td, fstype, &fileid);
@@ -146,6 +158,7 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 		*error = 0;
 	if (*error) {
 		*error = ENODEV;
+		TSEXIT();
 		return (NULL);
 	}
 
@@ -155,8 +168,10 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 		if (loaded)
 			(void)kern_kldunload(td, fileid, LINKER_UNLOAD_FORCE);
 		*error = ENODEV;
+		TSEXIT();
 		return (NULL);
 	}
+	TSEXIT();
 	return (vfsp);
 }
 
