@@ -196,6 +196,7 @@ struct mlx5_ib_striding_rq_caps {
 	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
 	 */
 	__u32 supported_qpts;
+	__u32   reserved;
 };
 
 enum mlx5_ib_tunnel_offloads {
