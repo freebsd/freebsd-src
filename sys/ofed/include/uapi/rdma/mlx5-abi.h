@@ -44,6 +44,7 @@
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
+	MLX5_QP_FLAG_TUNNEL_OFFLOADS	= 1 << 2,
 	MLX5_QP_FLAG_BFREG_INDEX	= 1 << 3,
 	MLX5_QP_FLAG_UAR_PAGE_INDEX     = 1 << 10,
 };
@@ -197,6 +198,14 @@ struct mlx5_ib_striding_rq_caps {
 	__u32 supported_qpts;
 };
 
+enum mlx5_ib_tunnel_offloads {
+	MLX5_IB_TUNNELED_OFFLOADS_VXLAN		= 1 << 0,
+	MLX5_IB_TUNNELED_OFFLOADS_GRE		= 1 << 1,
+	MLX5_IB_TUNNELED_OFFLOADS_GENEVE	= 1 << 2,
+	MLX5_IB_TUNNELED_OFFLOADS_MPLS_GRE	= 1 << 3,
+	MLX5_IB_TUNNELED_OFFLOADS_MPLS_UDP	= 1 << 4,
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
@@ -208,6 +217,8 @@ struct mlx5_ib_query_device_resp {
 	__u32   reserved;
 	struct  mlx5_ib_sw_parsing_caps sw_parsing_caps;
 	struct  mlx5_ib_striding_rq_caps striding_rq_caps;
+	__u32	tunnel_offloads_caps; /* enum mlx5_ib_tunnel_offloads */
+	__u32	reserved3;
 };
 
 enum mlx5_ib_create_cq_flags {
@@ -286,7 +297,9 @@ enum mlx5_rx_hash_fields {
 	MLX5_RX_HASH_SRC_PORT_TCP	= 1 << 4,
 	MLX5_RX_HASH_DST_PORT_TCP	= 1 << 5,
 	MLX5_RX_HASH_SRC_PORT_UDP	= 1 << 6,
-	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7
+	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7,
+	/* Save bits for future fields */
+	MLX5_RX_HASH_INNER		= 1 << 31
 };
 
 struct mlx5_ib_create_qp_rss {
@@ -296,7 +309,7 @@ struct mlx5_ib_create_qp_rss {
 	__u8 reserved[6];
 	__u8 rx_hash_key[128]; /* valid only for Toeplitz */
 	__u32   comp_mask;
-	__u32   reserved1;
+	__u32   flags;
 };
 
 struct mlx5_ib_create_qp_resp {
