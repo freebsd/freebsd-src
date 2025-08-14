@@ -741,7 +741,7 @@ irintl(long double x)
 } while (0)
 
 /*
- * For a double entity split into high and low parts, compute ilogb.
+ * For a subnormal double entity split into high and low parts, compute ilogb.
  */
 static inline int32_t
 subnormal_ilogb(int32_t hi, int32_t lo)
@@ -757,6 +757,20 @@ subnormal_ilogb(int32_t hi, int32_t lo)
 	    i = (uint32_t)hi << 11;
 
 	for (; i < 0x7fffffff; i <<= 1) j -= 1;
+
+	return (j);
+}
+
+/*
+ * For a subnormal float entity represented as an int32_t, compute ilogb.
+ */
+static inline int32_t
+subnormal_ilogbf(int32_t hx)
+{
+	int32_t j;
+	uint32_t i;
+	i = (uint32_t) hx << 8;
+	for (j = -126; i < 0x7fffffff; i <<= 1) j -=1;
 
 	return (j);
 }
