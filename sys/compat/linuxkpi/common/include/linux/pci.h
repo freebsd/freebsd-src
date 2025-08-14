@@ -98,7 +98,7 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 
 #define PCI_VDEVICE(_vendor, _device)					\
 	    .vendor = PCI_VENDOR_ID_##_vendor, .device = (_device),	\
-	    .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
+	    .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, 0, 0
 #define	PCI_DEVICE(_vendor, _device)					\
 	    .vendor = (_vendor), .device = (_device),			\
 	    .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID

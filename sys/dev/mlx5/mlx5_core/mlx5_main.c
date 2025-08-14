@@ -2111,21 +2111,21 @@ static void shutdown_one(struct pci_dev *pdev)
  * contrib/ofed/libmlx5/mlx5.c or libibverbs will reject the device.
  */
 static const struct pci_device_id mlx5_core_pci_table[] = {
-	{ PCI_VDEVICE(MELLANOX, 4113) }, /* Connect-IB */
-	{ PCI_VDEVICE(MELLANOX, 4114) }, /* Connect-IB VF */
-	{ PCI_VDEVICE(MELLANOX, 4115) }, /* ConnectX-4 */
-	{ PCI_VDEVICE(MELLANOX, 4116) }, /* ConnectX-4 VF */
-	{ PCI_VDEVICE(MELLANOX, 4117) }, /* ConnectX-4LX */
-	{ PCI_VDEVICE(MELLANOX, 4118) }, /* ConnectX-4LX VF */
-	{ PCI_VDEVICE(MELLANOX, 4119) }, /* ConnectX-5, PCIe 3.0 */
-	{ PCI_VDEVICE(MELLANOX, 4120) }, /* ConnectX-5 VF */
-	{ PCI_VDEVICE(MELLANOX, 4121) }, /* ConnectX-5 Ex */
-	{ PCI_VDEVICE(MELLANOX, 4122) }, /* ConnectX-5 Ex VF */
-	{ PCI_VDEVICE(MELLANOX, 4123) }, /* ConnectX-6 */
-	{ PCI_VDEVICE(MELLANOX, 4124) }, /* ConnectX-6 VF */
-	{ PCI_VDEVICE(MELLANOX, 4125) }, /* ConnectX-6 Dx */
-	{ PCI_VDEVICE(MELLANOX, 4126) }, /* ConnectX Family mlx5Gen Virtual Function */
-	{ PCI_VDEVICE(MELLANOX, 4127) }, /* ConnectX-6 LX */
+	{ PCI_VDEVICE(MELLANOX, 4113) },			/* Connect-IB */
+	{ PCI_VDEVICE(MELLANOX, 4114), MLX5_PCI_DEV_IS_VF},	/* Connect-IB VF */
+	{ PCI_VDEVICE(MELLANOX, 4115) },			/* ConnectX-4 */
+	{ PCI_VDEVICE(MELLANOX, 4116), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4 VF */
+	{ PCI_VDEVICE(MELLANOX, 4117) },			/* ConnectX-4LX */
+	{ PCI_VDEVICE(MELLANOX, 4118), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4LX VF */
+	{ PCI_VDEVICE(MELLANOX, 4119) },			/* ConnectX-5, PCIe 3.0 */
+	{ PCI_VDEVICE(MELLANOX, 4120), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
+	{ PCI_VDEVICE(MELLANOX, 4121) },			/* ConnectX-5 Ex */
+	{ PCI_VDEVICE(MELLANOX, 4122), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 Ex VF */
+	{ PCI_VDEVICE(MELLANOX, 4123) },			/* ConnectX-6 */
+	{ PCI_VDEVICE(MELLANOX, 4124), MLX5_PCI_DEV_IS_VF},	/* ConnectX-6 VF */
+	{ PCI_VDEVICE(MELLANOX, 4125) },			/* ConnectX-6 Dx */
+	{ PCI_VDEVICE(MELLANOX, 4126), MLX5_PCI_DEV_IS_VF},	/* ConnectX Family mlx5Gen Virtual Function */
+	{ PCI_VDEVICE(MELLANOX, 4127) },			/* ConnectX-6 LX */
 	{ PCI_VDEVICE(MELLANOX, 4128) },
 	{ PCI_VDEVICE(MELLANOX, 4129) }, /* ConnectX-7 */
 	{ PCI_VDEVICE(MELLANOX, 4130) },
@@ -2144,7 +2144,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4143) },
 	{ PCI_VDEVICE(MELLANOX, 4144) },
 	{ PCI_VDEVICE(MELLANOX, 0xa2d2) }, /* BlueField integrated ConnectX-5 network controller */
-	{ PCI_VDEVICE(MELLANOX, 0xa2d3) }, /* BlueField integrated ConnectX-5 network controller VF */
+	{ PCI_VDEVICE(MELLANOX, 0xa2d3), MLX5_PCI_DEV_IS_VF }, /* BlueField integrated ConnectX-5 network controller VF */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d6) }, /* BlueField-2 integrated ConnectX-6 Dx network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2dc) }, /* BlueField-3 integrated ConnectX-7 network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2df) }, /* BlueField-4 Family integrated network controller */
