@@ -53,6 +53,7 @@ static struct mlx5_db_page *__add_page(struct mlx5_context *context)
 	int pp;
 	int i;
 	int nlong;
+	int ret;
 
 	pp = ps / context->cache_line_size;
 	nlong = (pp + 8 * sizeof(long) - 1) / (8 * sizeof(long));
@@ -61,7 +62,11 @@ static struct mlx5_db_page *__add_page(struct mlx5_context *context)
 	if (!page)
 		return NULL;
 
-	if (mlx5_alloc_buf(&page->buf, ps, ps)) {
+	if (mlx5_is_extern_alloc(context))
+		ret = mlx5_alloc_buf_extern(context, &page->buf, ps);
+	else
+		ret = mlx5_alloc_buf(&page->buf, ps, ps);
+	if (ret) {
 		free(page);
 		return NULL;
 	}
@@ -139,7 +144,11 @@ void mlx5_free_db(struct mlx5_context *context, __be32 *db)
 		if (page->next)
 			page->next->prev = page->prev;
 
-		mlx5_free_buf(&page->buf);
+		if (page->buf.type == MLX5_ALLOC_TYPE_EXTERNAL)
+			mlx5_free_buf_extern(context, &page->buf);
+		else
+			mlx5_free_buf(&page->buf);
+
 		free(page);
 	}
 

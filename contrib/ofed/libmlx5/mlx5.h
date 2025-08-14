@@ -162,6 +162,7 @@ enum mlx5_alloc_type {
 	MLX5_ALLOC_TYPE_CONTIG,
 	MLX5_ALLOC_TYPE_PREFER_HUGE,
 	MLX5_ALLOC_TYPE_PREFER_CONTIG,
+	MLX5_ALLOC_TYPE_EXTERNAL,
 	MLX5_ALLOC_TYPE_ALL
 };
 
@@ -268,6 +269,7 @@ struct mlx5_context {
 	uint32_t			uar_size;
 	uint64_t			vendor_cap_flags; /* Use enum mlx5_vendor_cap_flags */
 	struct mlx5dv_cqe_comp_caps	cqe_comp_caps;
+	struct mlx5dv_ctx_allocators	extern_alloc;
 };
 
 struct mlx5_bitmap {
@@ -558,10 +560,15 @@ int mlx5_alloc_prefered_buf(struct mlx5_context *mctx,
 			    enum mlx5_alloc_type alloc_type,
 			    const char *component);
 int mlx5_free_actual_buf(struct mlx5_context *ctx, struct mlx5_buf *buf);
-void mlx5_get_alloc_type(const char *component,
+void mlx5_get_alloc_type(struct mlx5_context *context,
+			 const char *component,
 			 enum mlx5_alloc_type *alloc_type,
 			 enum mlx5_alloc_type default_alloc_type);
 int mlx5_use_huge(const char *key);
+bool mlx5_is_extern_alloc(struct mlx5_context *context);
+int mlx5_alloc_buf_extern(struct mlx5_context *ctx, struct mlx5_buf *buf,
+		size_t size);
+void mlx5_free_buf_extern(struct mlx5_context *ctx, struct mlx5_buf *buf);
 
 __be32 *mlx5_alloc_dbrec(struct mlx5_context *context);
 void mlx5_free_db(struct mlx5_context *context, __be32 *db);

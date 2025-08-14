@@ -15,4 +15,5 @@ MLX5_1.1 {
 MLX5_1.2 {
 	global:
 		mlx5dv_init_obj;
+		mlx5dv_set_context_attr;
 } MLX5_1.1;

@@ -320,6 +320,36 @@ static void free_huge_buf(struct mlx5_context *ctx, struct mlx5_buf *buf)
 		mlx5_spin_unlock(&ctx->hugetlb_lock);
 }
 
+void mlx5_free_buf_extern(struct mlx5_context *ctx, struct mlx5_buf *buf)
+{
+	ibv_dofork_range(buf->buf, buf->length);
+	ctx->extern_alloc.free(buf->buf, ctx->extern_alloc.data);
+}
+
+int mlx5_alloc_buf_extern(struct mlx5_context *ctx, struct mlx5_buf *buf,
+		size_t size)
+{
+	void *addr;
+
+	addr = ctx->extern_alloc.alloc(size, ctx->extern_alloc.data);
+	if (addr || size == 0) {
+		if (ibv_dontfork_range(addr, size)) {
+			mlx5_dbg(stderr, MLX5_DBG_CONTIG,
+					"External mode dontfork_range failed\n");
+			ctx->extern_alloc.free(addr,
+					ctx->extern_alloc.data);
+			return -1;
+		}
+		buf->buf = addr;
+		buf->length = size;
+		buf->type = MLX5_ALLOC_TYPE_EXTERNAL;
+		return 0;
+	}
+
+	mlx5_dbg(stderr, MLX5_DBG_CONTIG, "External alloc failed\n");
+	return -1;
+}
+
 int mlx5_alloc_prefered_buf(struct mlx5_context *mctx,
 			    struct mlx5_buf *buf,
 			    size_t size, int page_size,
@@ -362,6 +392,9 @@ int mlx5_alloc_prefered_buf(struct mlx5_context *mctx,
 			 "Contig allocation failed, fallback to default mode\n");
 	}
 
+	if (type == MLX5_ALLOC_TYPE_EXTERNAL)
+		return mlx5_alloc_buf_extern(mctx, buf, size);
+
 	return mlx5_alloc_buf(buf, size, page_size);
 
 }
@@ -382,6 +415,11 @@ int mlx5_free_actual_buf(struct mlx5_context *ctx, struct mlx5_buf *buf)
 	case MLX5_ALLOC_TYPE_CONTIG:
 		mlx5_free_buf_contig(ctx, buf);
 		break;
+
+	case MLX5_ALLOC_TYPE_EXTERNAL:
+		mlx5_free_buf_extern(ctx, buf);
+		break;
+
 	default:
 		fprintf(stderr, "Bad allocation type\n");
 	}
@@ -414,13 +452,24 @@ static uint32_t mlx5_get_block_order(uint32_t v)
 	return r;
 }
 
-void mlx5_get_alloc_type(const char *component,
+bool mlx5_is_extern_alloc(struct mlx5_context *context)
+{
+	return context->extern_alloc.alloc && context->extern_alloc.free;
+}
+
+void mlx5_get_alloc_type(struct mlx5_context *context,
+			 const char *component,
 			 enum mlx5_alloc_type *alloc_type,
 			 enum mlx5_alloc_type default_type)
 
 {
 	char *env_value;
 	char name[128];
+
+	if (mlx5_is_extern_alloc(context)) {
+		*alloc_type = MLX5_ALLOC_TYPE_EXTERNAL;
+		return;
+	}
 
 	snprintf(name, sizeof(name), "%s_ALLOC_TYPE", component);
 

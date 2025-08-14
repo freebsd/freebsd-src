@@ -1499,7 +1499,7 @@ int mlx5_alloc_cq_buf(struct mlx5_context *mctx, struct mlx5_cq *cq,
 	if (mlx5_use_huge("HUGE_CQ"))
 		default_type = MLX5_ALLOC_TYPE_HUGE;
 
-	mlx5_get_alloc_type(MLX5_CQ_PREFIX, &type, default_type);
+	mlx5_get_alloc_type(mctx, MLX5_CQ_PREFIX, &type, default_type);
 
 	ret = mlx5_alloc_prefered_buf(mctx, buf,
 				      align(nent * cqe_sz, dev->page_size),

@@ -1093,7 +1093,7 @@ static int mlx5_alloc_qp_buf(struct ibv_context *context,
 	if (mlx5_use_huge(qp_huge_key))
 		default_alloc_type = MLX5_ALLOC_TYPE_HUGE;
 
-	mlx5_get_alloc_type(MLX5_QP_PREFIX, &alloc_type,
+	mlx5_get_alloc_type(to_mctx(context), MLX5_QP_PREFIX, &alloc_type,
 			    default_alloc_type);
 
 	err = mlx5_alloc_prefered_buf(to_mctx(context), &qp->buf,
@@ -2031,7 +2031,10 @@ static int mlx5_alloc_rwq_buf(struct ibv_context *context,
 			      int size)
 {
 	int err;
-	enum mlx5_alloc_type default_alloc_type = MLX5_ALLOC_TYPE_PREFER_CONTIG;
+	enum mlx5_alloc_type alloc_type;
+
+	mlx5_get_alloc_type(to_mctx(context), MLX5_RWQ_PREFIX,
+			    &alloc_type, MLX5_ALLOC_TYPE_ANON);
 
 	rwq->rq.wrid = malloc(rwq->rq.wqe_cnt * sizeof(uint64_t));
 	if (!rwq->rq.wrid) {
@@ -2043,7 +2046,7 @@ static int mlx5_alloc_rwq_buf(struct ibv_context *context,
 				      align(rwq->buf_size, to_mdev
 				      (context->device)->page_size),
 				      to_mdev(context->device)->page_size,
-				      default_alloc_type,
+				      alloc_type,
 				      MLX5_RWQ_PREFIX);
 
 	if (err) {
