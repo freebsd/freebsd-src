@@ -401,7 +401,7 @@ lkpi_80211_dump_stas(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static enum ieee80211_sta_rx_bw
+static enum ieee80211_sta_rx_bandwidth
 lkpi_cw_to_rx_bw(enum nl80211_chan_width cw)
 {
 	switch (cw) {
@@ -425,7 +425,7 @@ lkpi_cw_to_rx_bw(enum nl80211_chan_width cw)
 }
 
 static enum nl80211_chan_width
-lkpi_rx_bw_to_cw(enum ieee80211_sta_rx_bw rx_bw)
+lkpi_rx_bw_to_cw(enum ieee80211_sta_rx_bandwidth rx_bw)
 {
 	switch (rx_bw) {
 	case IEEE80211_STA_RX_BW_20:
@@ -446,7 +446,7 @@ lkpi_sync_chanctx_cw_from_rx_bw(struct ieee80211_hw *hw,
     struct ieee80211_vif *vif, struct ieee80211_sta *sta)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	enum ieee80211_sta_rx_bw old_bw;
+	enum ieee80211_sta_rx_bandwidth old_bw;
 	uint32_t changed;
 
 	chanctx_conf = rcu_dereference_protected(vif->bss_conf.chanctx_conf,
@@ -551,7 +551,7 @@ static void
 lkpi_sta_sync_vht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
     struct ieee80211_node *ni)
 {
-	enum ieee80211_sta_rx_bw bw;
+	enum ieee80211_sta_rx_bandwidth bw;
 	uint32_t width;
 	int rx_nss;
 	uint16_t rx_mcs_map;

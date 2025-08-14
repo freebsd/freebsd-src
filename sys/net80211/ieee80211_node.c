@@ -2673,7 +2673,7 @@ ieee80211_dump_node(struct ieee80211_node_table *nt __unused,
 		ni->ni_htctlchan, ni->ni_ht2ndchan);
 	net80211_printf("\thtopmode %x htstbc %x htchw %d (%s)\n",
 		ni->ni_htopmode, ni->ni_htstbc,
-		ni->ni_chw, ieee80211_ni_chw_to_str(ni->ni_chw));
+		ni->ni_chw, net80211_ni_chw_to_str(ni->ni_chw));
 	net80211_printf("\tvhtcap %x freq1 %d freq2 %d vhtbasicmcs %x\n",
 		ni->ni_vhtcap, (int) ni->ni_vht_chan1, (int) ni->ni_vht_chan2,
 		(int) ni->ni_vht_basicmcs);
@@ -2831,7 +2831,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
 	    /* XXX update for VHT string */
 	    ni->ni_flags & IEEE80211_NODE_HT ?
-		(ni->ni_chw == IEEE80211_STA_RX_BW_40 ? ", HT40" : ", HT20") : "",
+		(ni->ni_chw == NET80211_STA_RX_BW_40 ? ", HT40" : ", HT20") : "",
 	    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
 	    ni->ni_flags & IEEE80211_NODE_AMSDU ? " (+AMSDU)" : "",
 	    ni->ni_flags & IEEE80211_NODE_MIMO_RTS ? " (+SMPS-DYN)" :

@@ -737,7 +737,7 @@ struct ieee80211_link_sta {
 	struct ieee80211_he_6ghz_capa		he_6ghz_capa;
 	struct ieee80211_sta_eht_cap		eht_cap;
 	uint8_t					rx_nss;
-	enum ieee80211_sta_rx_bw		bandwidth;
+	enum ieee80211_sta_rx_bandwidth		bandwidth;
 	enum ieee80211_smps_mode		smps_mode;
 	struct ieee80211_sta_agg		agg;
 	struct ieee80211_sta_txpwr		txpwr;
