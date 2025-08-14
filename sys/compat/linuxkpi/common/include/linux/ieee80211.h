@@ -35,6 +35,7 @@
 #include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/if_ether.h>
 
 /* linux_80211.c */
