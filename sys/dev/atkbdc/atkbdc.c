@@ -879,8 +879,12 @@ read_aux_data_no_wait(KBDC p)
 {
     int f;
 
+    TSENTER();
     if (availq(&p->aux))
+    {
+        TSEXIT();
         return removeq(&p->aux);
+    }
     f = read_status(p) & KBDS_BUFFER_FULL;
     if (f == KBDS_KBD_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
@@ -889,8 +893,10 @@ read_aux_data_no_wait(KBDC p)
     }
     if (f == KBDS_AUX_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
+        TSEXIT();
         return read_data(p);
     }
+    TSEXIT();
     return -1;		/* no data */
 }
 
@@ -907,6 +913,7 @@ empty_kbd_buffer(KBDC p, int wait)
 #endif
     int delta = 2;
 
+    TSENTER();
     for (t = wait; t > 0; ) { 
         if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
@@ -931,6 +938,7 @@ empty_kbd_buffer(KBDC p, int wait)
 #endif
 
     emptyq(&p->kbd);
+    TSEXIT();
 }
 
 /* discard data from the aux device */
@@ -1039,10 +1047,11 @@ int
 reset_kbd(KBDC p)
 {
     int retry = KBD_MAXRETRY;
-    int again = KBD_MAXWAIT;
+//    int again = KBD_MAXWAIT;
     int c = KBD_RESEND;		/* keep the compiler happy */
 
     TSENTER();
+
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
         if (!write_kbd_command(p, KBDC_RESET_KBD))
@@ -1060,9 +1069,13 @@ reset_kbd(KBDC p)
         return FALSE;
     }
 
-    while (again-- > 0) {
+    int delay_us = 5000;
+    int max_wait_us = KBD_RESETDELAY*1000*KBD_MAXWAIT;
+    int attempts = max_wait_us / delay_us;
+
+    while (attempts-- > 0) {
         /* wait awhile, well, in fact we must wait quite loooooooooooong */
-        DELAY(KBD_RESETDELAY*1000);
+        DELAY(delay_us);
         c = read_controller_data(p);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
@@ -1142,7 +1155,7 @@ int
 test_controller(KBDC p)
 {
     int retry = KBD_MAXRETRY;
-    int again = KBD_MAXWAIT;
+ //   int again = KBD_MAXWAIT;
     int c = KBD_DIAG_FAIL;
 
     TSENTER();
@@ -1158,9 +1171,14 @@ test_controller(KBDC p)
     }
 
     emptyq(&p->kbd);
-    while (again-- > 0) {
+
+    int delay_us = 5000;
+    int max_wait_us = KBD_RESETDELAY*1000*KBD_MAXWAIT;
+    int attempts = max_wait_us / delay_us;
+
+    while (attempts-- > 0) {
         /* wait awhile */
-        DELAY(KBD_RESETDELAY*1000);
+        DELAY(delay_us);
         c = read_controller_data(p);	/* DIAG_DONE/DIAG_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
