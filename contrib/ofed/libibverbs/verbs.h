@@ -1280,6 +1280,8 @@ enum ibv_flow_spec_type {
 	IBV_FLOW_SPEC_TCP		= 0x40,
 	IBV_FLOW_SPEC_UDP		= 0x41,
 	IBV_FLOW_SPEC_VXLAN_TUNNEL	= 0x50,
+	IBV_FLOW_SPEC_GRE		= 0x51,
+	IBV_FLOW_SPEC_MPLS		= 0x60,
 	IBV_FLOW_SPEC_INNER		= 0x100,
 	IBV_FLOW_SPEC_ACTION_TAG	= 0x1000,
 	IBV_FLOW_SPEC_ACTION_DROP	= 0x1001,
@@ -1358,6 +1360,44 @@ struct ibv_flow_spec_tcp_udp {
 	struct ibv_flow_tcp_udp_filter mask;
 };
 
+struct ibv_flow_gre_filter {
+	/* c_ks_res0_ver field is bits 0-15 in offset 0 of a standard GRE header:
+	 * bit 0 - checksum present bit.
+	 * bit 1 - reserved. set to 0.
+	 * bit 2 - key present bit.
+	 * bit 3 - sequence number present bit.
+	 * bits 4:12 - reserved. set to 0.
+	 * bits 13:15 - GRE version.
+	 */
+	uint16_t c_ks_res0_ver;
+	uint16_t protocol;
+	uint32_t key;
+};
+
+struct ibv_flow_spec_gre {
+	enum ibv_flow_spec_type  type;
+	uint16_t  size;
+	struct ibv_flow_gre_filter val;
+	struct ibv_flow_gre_filter mask;
+};
+
+struct ibv_flow_mpls_filter {
+	/* The field includes the entire MPLS label:
+	 * bits 0:19 - label value field.
+	 * bits 20:22 - traffic class field.
+	 * bits 23 - bottom of stack bit.
+	 * bits 24:31 - ttl field.
+	 */
+	uint32_t label;
+};
+
+struct ibv_flow_spec_mpls {
+	enum ibv_flow_spec_type  type;
+	uint16_t  size;
+	struct ibv_flow_mpls_filter val;
+	struct ibv_flow_mpls_filter mask;
+};
+
 struct ibv_flow_tunnel_filter {
 	uint32_t tunnel_id;
 };
@@ -1392,6 +1432,8 @@ struct ibv_flow_spec {
 		struct ibv_flow_spec_ipv4_ext ipv4_ext;
 		struct ibv_flow_spec_ipv6 ipv6;
 		struct ibv_flow_spec_tunnel tunnel;
+		struct ibv_flow_spec_gre gre;
+		struct ibv_flow_spec_mpls mpls;
 		struct ibv_flow_spec_action_tag flow_tag;
 		struct ibv_flow_spec_action_drop drop;
 	};

@@ -67,6 +67,8 @@ IBV_FLOW_SPEC_IPV4_EXT                  = 0x32,   /* Extended flow specification
 IBV_FLOW_SPEC_TCP                       = 0x40,   /* Flow specification of TCP header */
 IBV_FLOW_SPEC_UDP                       = 0x41,   /* Flow specification of UDP header */
 IBV_FLOW_SPEC_VXLAN_TUNNEL             	= 0x50,   /* Flow specification of VXLAN header */
+IBV_FLOW_SPEC_GRE 			= 0x51,   /* Flow specification of GRE header */
+IBV_FLOW_SPEC_MPLS 			= 0x60,   /* Flow specification of MPLS header */
 IBV_FLOW_SPEC_INNER                    	= 0x100,  /* Flag making L2/L3/L4 specifications to be applied on the inner header */
 IBV_FLOW_SPEC_ACTION_TAG                = 0x1000, /* Action tagging matched packet */
 IBV_FLOW_SPEC_ACTION_DROP               = 0x1001, /* Action dropping matched packet */
@@ -103,7 +105,23 @@ In addition to the domain, there is priority within each of the domains.
 A lower priority numeric value (higher priority) takes precedence over matching rules with higher numeric priority value (lower priority).
 It is important to note that the priority value of a flow spec is used not only to establish the precedence of conflicting flow matches
 but also as a way to abstract the order on which flow specs are tested for matches. Flows with higher priorities will be tested before flows with lower priorities.
-.PP
+
+.SS Rules definition ordering
+An application can provide the ibv_flow_spec_xxx rules in an un-ordered scheme. In this case, each spec should be well
+defined and match a specific network header layer.
+In some cases, when certain flow spec types are present in the spec list, it is required to provide the list in an
+ordered manner so that the position of that flow spec type in the protocol stack is strictly defined.
+This is essential to represent many of the encapsulation tunnel protocols.
+.br
+
+The flow spec types which require this sort of ordering are:
+.br
+.B 1. IBV_FLOW_SPEC_MPLS -
+.br
+Since MPLS header can appear at several locations in the protocol stack and can also be
+encapsulated on top of different layers, it is required to place this spec according to its exact location in the
+protocol stack.
+.br
 .SS ibv_destroy_flow()
 destroys the flow
 .I flow_id\fR.

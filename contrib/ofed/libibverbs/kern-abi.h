@@ -1027,7 +1027,9 @@ struct ibv_kern_spec {
 		struct ibv_kern_spec_ipv4_ext ipv4_ext;
 		struct ibv_kern_spec_tcp_udp tcp_udp;
 		struct ibv_kern_spec_ipv6 ipv6;
+		struct ib_uverbs_flow_spec_gre gre;
 		struct ibv_kern_spec_tunnel tunnel;
+		struct ib_uverbs_flow_spec_mpls mpls;
 		struct ibv_kern_spec_action_tag flow_tag;
 		struct ibv_kern_spec_action_drop drop;
 	};
