@@ -104,8 +104,11 @@ Below members and functions are used in order to poll the current completion. Th
 .BI "uint32_t ibv_wc_read_byte_len(struct ibv_cq_ex " "*cq"); \c
  Get the vendor error from the current completion.
 
-.BI "uint32_t ibv_wc_read_imm_data(struct ibv_cq_ex " "*cq"); \c
+.BI "__be32 ibv_wc_read_imm_data(struct ibv_cq_ex " "*cq"); \c
  Get the immediate data field from the current completion.
+
+.BI "uint32_t ibv_wc_read_invalidated_rkey(struct ibv_cq_ex " "*cq"); \c
+ Get the rkey invalided by the SEND_INVAL from the current completion.
 
 .BI "uint32_t ibv_wc_read_qp_num(struct ibv_cq_ex " "*cq"); \c
  Get the QP number field from the current completion.

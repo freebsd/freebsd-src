@@ -112,7 +112,7 @@ enum mlx5dv_qp_comp_mask {
 };
 
 struct mlx5dv_qp {
-	uint32_t		*dbrec;
+	__be32			*dbrec;
 	struct {
 		void		*buf;
 		uint32_t	wqe_cnt;
@@ -133,7 +133,7 @@ struct mlx5dv_qp {
 
 struct mlx5dv_cq {
 	void			*buf;
-	uint32_t		*dbrec;
+	__be32			*dbrec;
 	uint32_t		cqe_cnt;
 	uint32_t		cqe_size;
 	void			*uar;
@@ -143,7 +143,7 @@ struct mlx5dv_cq {
 
 struct mlx5dv_srq {
 	void			*buf;
-	uint32_t		*dbrec;
+	__be32			*dbrec;
 	uint32_t		stride;
 	uint32_t		head;
 	uint32_t		tail;
@@ -152,7 +152,7 @@ struct mlx5dv_srq {
 
 struct mlx5dv_rwq {
 	void		*buf;
-	uint32_t	*dbrec;
+	__be32		*dbrec;
 	uint32_t	wqe_cnt;
 	uint32_t	stride;
 	uint64_t	comp_mask;
@@ -292,18 +292,18 @@ struct mlx5_cqe64 {
 	uint8_t		rsvd0[17];
 	uint8_t		ml_path;
 	uint8_t		rsvd20[4];
-	uint16_t	slid;
-	uint32_t	flags_rqpn;
+	__be16		slid;
+	__be32		flags_rqpn;
 	uint8_t		hds_ip_ext;
 	uint8_t		l4_hdr_type_etc;
-	uint16_t	vlan_info;
-	uint32_t	srqn_uidx;
-	uint32_t	imm_inval_pkey;
+	__be16		vlan_info;
+	__be32		srqn_uidx;
+	__be32		imm_inval_pkey;
 	uint8_t		rsvd40[4];
-	uint32_t	byte_cnt;
+	__be32		byte_cnt;
 	__be64		timestamp;
-	uint32_t	sop_drop_qpn;
-	uint16_t	wqe_counter;
+	__be32		sop_drop_qpn;
+	__be16		wqe_counter;
 	uint8_t		signature;
 	uint8_t		op_own;
 };
@@ -379,43 +379,43 @@ enum {
 
 struct mlx5_wqe_srq_next_seg {
 	uint8_t			rsvd0[2];
-	uint16_t		next_wqe_index;
+	__be16			next_wqe_index;
 	uint8_t			signature;
 	uint8_t			rsvd1[11];
 };
 
 struct mlx5_wqe_data_seg {
-	uint32_t		byte_count;
-	uint32_t		lkey;
-	uint64_t		addr;
+	__be32			byte_count;
+	__be32			lkey;
+	__be64			addr;
 };
 
 struct mlx5_wqe_ctrl_seg {
-	uint32_t	opmod_idx_opcode;
-	uint32_t	qpn_ds;
+	__be32		opmod_idx_opcode;
+	__be32		qpn_ds;
 	uint8_t		signature;
 	uint8_t		rsvd[2];
 	uint8_t		fm_ce_se;
-	uint32_t	imm;
+	__be32		imm;
 };
 
 struct mlx5_wqe_av {
 	union {
 		struct {
-			uint32_t	qkey;
-			uint32_t	reserved;
+			__be32		qkey;
+			__be32		reserved;
 		} qkey;
-		uint64_t	dc_key;
+		__be64		dc_key;
 	} key;
-	uint32_t	dqp_dct;
+	__be32		dqp_dct;
 	uint8_t		stat_rate_sl;
 	uint8_t		fl_mlid;
-	uint16_t	rlid;
+	__be16		rlid;
 	uint8_t		reserved0[4];
 	uint8_t		rmac[6];
 	uint8_t		tclass;
 	uint8_t		hop_limit;
-	uint32_t	grh_gid_fl;
+	__be32		grh_gid_fl;
 	uint8_t		rgid[16];
 };
 
@@ -424,14 +424,14 @@ struct mlx5_wqe_datagram_seg {
 };
 
 struct mlx5_wqe_raddr_seg {
-	uint64_t	raddr;
-	uint32_t	rkey;
-	uint32_t	reserved;
+	__be64		raddr;
+	__be32		rkey;
+	__be32		reserved;
 };
 
 struct mlx5_wqe_atomic_seg {
-	uint64_t	swap_add;
-	uint64_t	compare;
+	__be64		swap_add;
+	__be64		compare;
 };
 
 struct mlx5_wqe_inl_data_seg {
@@ -439,12 +439,12 @@ struct mlx5_wqe_inl_data_seg {
 };
 
 struct mlx5_wqe_eth_seg {
-	uint32_t	rsvd0;
+	__be32		rsvd0;
 	uint8_t		cs_flags;
 	uint8_t		rsvd1;
-	uint16_t	mss;
-	uint32_t	rsvd2;
-	uint16_t	inline_hdr_sz;
+	__be16		mss;
+	__be32		rsvd2;
+	__be16		inline_hdr_sz;
 	uint8_t		inline_hdr_start[2];
 	uint8_t		inline_hdr[16];
 };

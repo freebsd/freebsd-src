@@ -1579,7 +1579,7 @@ int mlx5_modify_qp(struct ibv_qp *qp, struct ibv_qp_attr *attr,
 	struct mlx5_qp *mqp = to_mqp(qp);
 	struct mlx5_context *context = to_mctx(qp->context);
 	int ret;
-	uint32_t *db;
+	__be32 *db;
 
 	if (mqp->rss_qp)
 		return ENOSYS;
@@ -1662,7 +1662,7 @@ struct ibv_ah *mlx5_create_ah(struct ibv_pd *pd, struct ibv_ah_attr *attr)
 	struct ibv_port_attr port_attr;
 	struct mlx5_ah *ah;
 	uint32_t gid_type;
-	uint32_t tmp;
+	__be32 tmp;
 	uint8_t grh;
 	int is_eth;
 

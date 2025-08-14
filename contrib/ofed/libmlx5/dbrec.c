@@ -80,10 +80,10 @@ static struct mlx5_db_page *__add_page(struct mlx5_context *context)
 	return page;
 }
 
-uint32_t *mlx5_alloc_dbrec(struct mlx5_context *context)
+__be32 *mlx5_alloc_dbrec(struct mlx5_context *context)
 {
 	struct mlx5_db_page *page;
-	uint32_t *db = NULL;
+	__be32 *db = NULL;
 	int i, j;
 
 	pthread_mutex_lock(&context->db_list_mutex);
@@ -113,7 +113,7 @@ out:
 	return db;
 }
 
-void mlx5_free_db(struct mlx5_context *context, uint32_t *db)
+void mlx5_free_db(struct mlx5_context *context, __be32 *db)
 {
 	struct mlx5_db_page *page;
 	uintptr_t ps = to_mdev(context->ibv_ctx.device)->page_size;

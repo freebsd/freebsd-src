@@ -947,9 +947,12 @@ struct ibv_send_wr {
 	int			num_sge;
 	enum ibv_wr_opcode	opcode;
 	int			send_flags;
+	/* When opcode is *_WITH_IMM: Immediate data in network byte order.
+	 * When opcode is *_INV: Stores the rkey to invalidate
+	 */
 	union {
-		__be32		imm_data;
-		u32		invalidate_rkey;
+		__be32			imm_data;
+		uint32_t		invalidate_rkey;
 	};
 	union {
 		struct {
@@ -1102,7 +1105,7 @@ struct ibv_cq_ex {
 	enum ibv_wc_opcode (*read_opcode)(struct ibv_cq_ex *current);
 	uint32_t (*read_vendor_err)(struct ibv_cq_ex *current);
 	uint32_t (*read_byte_len)(struct ibv_cq_ex *current);
-	uint32_t (*read_imm_data)(struct ibv_cq_ex *current);
+	__be32 (*read_imm_data)(struct ibv_cq_ex *current);
 	uint32_t (*read_qp_num)(struct ibv_cq_ex *current);
 	uint32_t (*read_src_qp)(struct ibv_cq_ex *current);
 	int (*read_wc_flags)(struct ibv_cq_ex *current);
@@ -1150,9 +1153,18 @@ static inline uint32_t ibv_wc_read_byte_len(struct ibv_cq_ex *cq)
 	return cq->read_byte_len(cq);
 }
 
-static inline uint32_t ibv_wc_read_imm_data(struct ibv_cq_ex *cq)
+static inline __be32 ibv_wc_read_imm_data(struct ibv_cq_ex *cq)
 {
 	return cq->read_imm_data(cq);
+}
+
+static inline uint32_t ibv_wc_read_invalidated_rkey(struct ibv_cq_ex *cq)
+{
+#ifdef __CHECKER__
+	return (__attribute__((force)) uint32_t)cq->read_imm_data(cq);
+#else
+	return cq->read_imm_data(cq);
+#endif
 }
 
 static inline uint32_t ibv_wc_read_qp_num(struct ibv_cq_ex *cq)

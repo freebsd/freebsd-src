@@ -325,7 +325,7 @@ struct mlx5_cq {
 	struct mlx5_spinlock		lock;
 	uint32_t			cqn;
 	uint32_t			cons_index;
-	uint32_t		       *dbrec;
+	__be32			       *dbrec;
 	int				arm_sn;
 	int				cqe_sz;
 	int				resize_cqe_sz;
@@ -353,7 +353,7 @@ struct mlx5_srq {
 	int				wqe_shift;
 	int				head;
 	int				tail;
-	uint32_t		       *db;
+	__be32				*db;
 	uint16_t			counter;
 	int				wq_sig;
 };
@@ -412,7 +412,7 @@ struct mlx5_qp {
 	uint8_t	                        sq_signal_bits;
 	struct mlx5_wq                  sq;
 
-	uint32_t                       *db;
+	__be32	                       *db;
 	struct mlx5_wq                  rq;
 	int                             wq_sig;
 	uint32_t			qp_cap_cache;
@@ -434,9 +434,9 @@ struct mlx5_rwq {
 	struct mlx5_buf buf;
 	int buf_size;
 	struct mlx5_wq rq;
-	uint32_t *db;
+	__be32 *db;
 	void	*pbuff;
-	uint32_t	*recv_db;
+	__be32	*recv_db;
 	int wq_sig;
 };
 
@@ -563,8 +563,8 @@ void mlx5_get_alloc_type(const char *component,
 			 enum mlx5_alloc_type default_alloc_type);
 int mlx5_use_huge(const char *key);
 
-uint32_t *mlx5_alloc_dbrec(struct mlx5_context *context);
-void mlx5_free_db(struct mlx5_context *context, uint32_t *db);
+__be32 *mlx5_alloc_dbrec(struct mlx5_context *context);
+void mlx5_free_db(struct mlx5_context *context, __be32 *db);
 
 int mlx5_query_device(struct ibv_context *context,
 		       struct ibv_device_attr *attr);
