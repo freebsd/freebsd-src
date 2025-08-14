@@ -43,6 +43,7 @@
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
+	MLX5_QP_FLAG_TUNNEL_OFFLOADS	= 1 << 2,
 };
 
 enum {
@@ -178,7 +179,7 @@ struct mlx5_create_qp_ex_rss {
 	__u8 reserved[6];
 	__u8 rx_hash_key[128];
 	__u32   comp_mask;
-	__u32   reserved1;
+	__u32   create_flags;
 };
 
 struct mlx5_create_qp_resp_ex {
@@ -302,6 +303,8 @@ struct mlx5_query_device_ex_resp {
 	__u32				reserved;
 	struct mlx5dv_sw_parsing_caps	sw_parsing_caps;
 	struct mlx5_striding_rq_caps	striding_rq_caps;
+	__u32				tunnel_offloads_caps;
+	__u32				reserved4;
 };
 
 #endif /* MLX5_ABI_H */

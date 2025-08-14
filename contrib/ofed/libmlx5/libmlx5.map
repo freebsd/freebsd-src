@@ -20,5 +20,6 @@ MLX5_1.2 {
 
 MLX5_1.3 {
 	global:
+		mlx5dv_create_qp;
 		mlx5dv_create_wq;
 } MLX5_1.2;

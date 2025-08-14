@@ -236,7 +236,8 @@ enum ibv_rx_hash_fields {
 	IBV_RX_HASH_SRC_PORT_TCP	= 1 << 4,
 	IBV_RX_HASH_DST_PORT_TCP	= 1 << 5,
 	IBV_RX_HASH_SRC_PORT_UDP	= 1 << 6,
-	IBV_RX_HASH_DST_PORT_UDP	= 1 << 7
+	IBV_RX_HASH_DST_PORT_UDP	= 1 << 7,
+	IBV_RX_HASH_INNER		= (1UL << 31),
 };
 
 struct ibv_rss_caps {

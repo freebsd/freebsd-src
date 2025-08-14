@@ -671,6 +671,10 @@ int mlx5dv_query_device(struct ibv_context *ctx_in,
 		comp_mask_out |= MLX5DV_CONTEXT_MASK_STRIDING_RQ;
 	}
 
+	if (attrs_out->comp_mask & MLX5DV_CONTEXT_MASK_TUNNEL_OFFLOADS) {
+		attrs_out->tunnel_offloads_caps = mctx->tunnel_offloads_caps;
+		comp_mask_out |= MLX5DV_CONTEXT_MASK_TUNNEL_OFFLOADS;
+	}
 
 	attrs_out->comp_mask = comp_mask_out;
 

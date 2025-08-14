@@ -1193,7 +1193,8 @@ static void mlx5_free_qp_buf(struct mlx5_qp *qp)
 
 static int mlx5_cmd_create_rss_qp(struct ibv_context *context,
 				 struct ibv_qp_init_attr_ex *attr,
-				 struct mlx5_qp *qp)
+				 struct mlx5_qp *qp,
+				 uint32_t mlx5_create_flags)
 {
 	struct mlx5_create_qp_ex_rss cmd_ex_rss = {};
 	struct mlx5_create_qp_resp_ex resp = {};
@@ -1207,6 +1208,7 @@ static int mlx5_cmd_create_rss_qp(struct ibv_context *context,
 	cmd_ex_rss.rx_hash_fields_mask = attr->rx_hash_conf.rx_hash_fields_mask;
 	cmd_ex_rss.rx_hash_function = attr->rx_hash_conf.rx_hash_function;
 	cmd_ex_rss.rx_key_len = attr->rx_hash_conf.rx_hash_key_len;
+	cmd_ex_rss.create_flags = mlx5_create_flags;
 	memcpy(cmd_ex_rss.rx_hash_key, attr->rx_hash_conf.rx_hash_key,
 			attr->rx_hash_conf.rx_hash_key_len);
 
@@ -1260,6 +1262,10 @@ enum {
 };
 
 enum {
+	MLX5_DV_CREATE_QP_SUP_COMP_MASK = MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS
+};
+
+enum {
 	MLX5_CREATE_QP_EX2_COMP_MASK = (IBV_QP_INIT_ATTR_CREATE_FLAGS |
 					IBV_QP_INIT_ATTR_MAX_TSO_HEADER |
 					IBV_QP_INIT_ATTR_IND_TABLE |
@@ -1267,7 +1273,8 @@ enum {
 };
 
 static struct ibv_qp *create_qp(struct ibv_context *context,
-			 struct ibv_qp_init_attr_ex *attr)
+				struct ibv_qp_init_attr_ex *attr,
+				struct mlx5dv_qp_init_attr *mlx5_qp_attr)
 {
 	struct mlx5_create_qp		cmd;
 	struct mlx5_create_qp_resp	resp;
@@ -1278,6 +1285,7 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
 	struct ibv_qp		       *ibqp;
 	int32_t				usr_idx = 0;
 	uint32_t			uuar_index;
+	uint32_t			mlx5_create_flags = 0;
 	FILE *fp = ctx->dbg_fp;
 
 	if (attr->comp_mask & ~MLX5_CREATE_QP_SUP_COMP_MASK)
@@ -1299,14 +1307,39 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
 	memset(&resp, 0, sizeof(resp));
 	memset(&resp_ex, 0, sizeof(resp_ex));
 
+	if (mlx5_qp_attr) {
+		if (!check_comp_mask(mlx5_qp_attr->comp_mask,
+				     MLX5_DV_CREATE_QP_SUP_COMP_MASK)) {
+			mlx5_dbg(fp, MLX5_DBG_QP,
+					"Unsupported vendor comp_mask for create_qp\n");
+			errno = EINVAL;
+			goto err;
+		}
+
+		if (mlx5_qp_attr->comp_mask &
+		    MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS) {
+			if (mlx5_qp_attr->create_flags &
+			    MLX5DV_QP_CREATE_TUNNEL_OFFLOADS) {
+				mlx5_create_flags = MLX5_QP_FLAG_TUNNEL_OFFLOADS;
+			} else {
+				mlx5_dbg(fp, MLX5_DBG_QP,
+					 "Unsupported creation flags requested for create_qp\n");
+				errno = EINVAL;
+				goto err;
+			}
+		}
+	}
+
 	if (attr->comp_mask & IBV_QP_INIT_ATTR_RX_HASH) {
-		ret = mlx5_cmd_create_rss_qp(context, attr, qp);
+		ret = mlx5_cmd_create_rss_qp(context, attr, qp,
+					     mlx5_create_flags);
 		if (ret)
 			goto err;
 
 		return ibqp;
 	}
 
+	cmd.flags = mlx5_create_flags;
 	qp->wq_sig = qp_sig_enabled();
 	if (qp->wq_sig)
 		cmd.flags |= MLX5_QP_FLAG_SIGNATURE;
@@ -1465,7 +1498,7 @@ struct ibv_qp *mlx5_create_qp(struct ibv_pd *pd,
 	memcpy(&attrx, attr, sizeof(*attr));
 	attrx.comp_mask = IBV_QP_INIT_ATTR_PD;
 	attrx.pd = pd;
-	qp = create_qp(pd->context, &attrx);
+	qp = create_qp(pd->context, &attrx, NULL);
 	if (qp)
 		memcpy(attr, &attrx, sizeof(*attr));
 
@@ -1793,7 +1826,14 @@ int mlx5_detach_mcast(struct ibv_qp *qp, const union ibv_gid *gid, uint16_t lid)
 struct ibv_qp *mlx5_create_qp_ex(struct ibv_context *context,
 				 struct ibv_qp_init_attr_ex *attr)
 {
-	return create_qp(context, attr);
+	return create_qp(context, attr, NULL);
+}
+
+struct ibv_qp *mlx5dv_create_qp(struct ibv_context *context,
+				struct ibv_qp_init_attr_ex *qp_attr,
+				struct mlx5dv_qp_init_attr *mlx5_qp_attr)
+{
+	return create_qp(context, qp_attr, mlx5_qp_attr);
 }
 
 int mlx5_get_srq_num(struct ibv_srq *srq, uint32_t *srq_num)
@@ -1887,7 +1927,7 @@ create_cmd_qp(struct ibv_context *context,
 	init_attr.send_cq = srq_attr->cq;
 	init_attr.recv_cq = srq_attr->cq;
 
-	qp = create_qp(context, &init_attr);
+	qp = create_qp(context, &init_attr, NULL);
 	if (!qp)
 		return NULL;
 
@@ -2140,6 +2180,7 @@ int mlx5_query_device_ex(struct ibv_context *context,
 	mctx->cqe_comp_caps = resp.cqe_comp_caps;
 	mctx->sw_parsing_caps = resp.sw_parsing_caps;
 	mctx->striding_rq_caps = resp.striding_rq_caps.caps;
+	mctx->tunnel_offloads_caps = resp.tunnel_offloads_caps;
 
 	major     = (raw_fw_ver >> 32) & 0xffff;
 	minor     = (raw_fw_ver >> 16) & 0xffff;
