@@ -974,7 +974,7 @@ ieee80211_vht_check_tx_vht40(const struct ieee80211_node *ni)
 
 	return (IEEE80211_IS_CHAN_VHT40(bss_chan) &&
 	    IEEE80211_IS_CHAN_VHT40(ni->ni_chan) &&
-	    (ni->ni_chw == IEEE80211_STA_RX_BW_40));
+	    (ni->ni_chw == NET80211_STA_RX_BW_40));
 }
 
 /*
@@ -1003,7 +1003,7 @@ ieee80211_vht_check_tx_vht80(const struct ieee80211_node *ni)
 	 */
 	return (IEEE80211_IS_CHAN_VHT80(bss_chan) &&
 	    IEEE80211_IS_CHAN_VHT80(ni->ni_chan) &&
-	    (ni->ni_chw != IEEE80211_STA_RX_BW_20));
+	    (ni->ni_chw != NET80211_STA_RX_BW_20));
 }
 
 /*
@@ -1030,7 +1030,7 @@ ieee80211_vht_check_tx_vht160(const struct ieee80211_node *ni)
 	 * If a HT TX width action frame sets it to 20MHz
 	 * then reject doing 160MHz.
 	 */
-	if (ni->ni_chw == IEEE80211_STA_RX_BW_20)
+	if (ni->ni_chw == NET80211_STA_RX_BW_20)
 		return (false);
 
 	if (IEEE80211_IS_CHAN_VHT160(bss_chan) &&
@@ -1062,19 +1062,19 @@ ieee80211_vht_check_tx_vht160(const struct ieee80211_node *ni)
  */
 bool
 ieee80211_vht_check_tx_bw(const struct ieee80211_node *ni,
-    enum ieee80211_sta_rx_bw bw)
+    enum net80211_sta_rx_bw bw)
 {
 
 	switch (bw) {
-	case IEEE80211_STA_RX_BW_20:
+	case NET80211_STA_RX_BW_20:
 		return (ieee80211_vht_check_tx_vht(ni));
-	case IEEE80211_STA_RX_BW_40:
+	case NET80211_STA_RX_BW_40:
 		return (ieee80211_vht_check_tx_vht40(ni));
-	case IEEE80211_STA_RX_BW_80:
+	case NET80211_STA_RX_BW_80:
 		return (ieee80211_vht_check_tx_vht80(ni));
-	case IEEE80211_STA_RX_BW_160:
+	case NET80211_STA_RX_BW_160:
 		return (ieee80211_vht_check_tx_vht160(ni));
-	case IEEE80211_STA_RX_BW_320:
+	case NET80211_STA_RX_BW_320:
 		return (false);
 	default:
 		return (false);
@@ -1096,7 +1096,7 @@ ieee80211_vht_check_tx_bw(const struct ieee80211_node *ni,
  */
 bool
 ieee80211_vht_node_check_tx_valid_mcs(const struct ieee80211_node *ni,
-    enum ieee80211_sta_rx_bw bw, uint8_t nss, uint8_t mcs)
+    enum net80211_sta_rx_bw bw, uint8_t nss, uint8_t mcs)
 {
 	uint8_t mc;
 

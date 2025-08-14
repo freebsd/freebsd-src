@@ -658,26 +658,26 @@ static uint16_t ieee80211_vht_mcs_allowed_list_160[] = {
  *
  * See 802.11-2020 21.5 (Parameters for VHT-MCSs) for more details.
  *
- * @param bw	channel bandwidth, via enum ieee80211_sta_rx_bw
+ * @param bw	channel bandwidth, via enum net80211_sta_rx_bw
  * @param nss	number of spatial streams, 1..8
  * @returns	bitmask of valid MCS rates from 0..9
  */
 uint16_t
-ieee80211_phy_vht_get_mcs_mask(enum ieee80211_sta_rx_bw bw, uint8_t nss)
+ieee80211_phy_vht_get_mcs_mask(enum net80211_sta_rx_bw bw, uint8_t nss)
 {
 	if (nss == 0 || nss > 8)
 		return (0);
 
 	switch (bw) {
-	case IEEE80211_STA_RX_BW_20:
+	case NET80211_STA_RX_BW_20:
 		return (ieee80211_vht_mcs_allowed_list_20[nss - 1]);
-	case IEEE80211_STA_RX_BW_40:
+	case NET80211_STA_RX_BW_40:
 		return (ieee80211_vht_mcs_allowed_list_40[nss - 1]);
-	case IEEE80211_STA_RX_BW_80:
+	case NET80211_STA_RX_BW_80:
 		return (ieee80211_vht_mcs_allowed_list_80[nss - 1]);
-	case IEEE80211_STA_RX_BW_160:
+	case NET80211_STA_RX_BW_160:
 		return (ieee80211_vht_mcs_allowed_list_160[nss - 1]);
-	case IEEE80211_STA_RX_BW_320:
+	case NET80211_STA_RX_BW_320:
 		/* invalid for VHT */
 		return (0);
 	}
@@ -689,14 +689,14 @@ ieee80211_phy_vht_get_mcs_mask(enum ieee80211_sta_rx_bw bw, uint8_t nss)
  *
  * See 802.11-2020 21.5 (Parameters for VHT-MCSs) for more details.
  *
- * @param bw	channel bandwidth, via enum ieee80211_sta_rx_bw
+ * @param bw	channel bandwidth, via enum net80211_sta_rx_bw
  * @param nss	number of spatial streams, 1..8
  * @param mcs	MCS rate, 0..9
  * @retval true		if the NSS / MCS / bandwidth combination is valid
  * @retval false	if the NSS / MCS / bandwidth combination is not valid
  */
 bool
-ieee80211_phy_vht_validate_mcs(enum ieee80211_sta_rx_bw bw, uint8_t nss,
+ieee80211_phy_vht_validate_mcs(enum net80211_sta_rx_bw bw, uint8_t nss,
     uint8_t mcs)
 {
 	uint16_t mask;
@@ -737,7 +737,7 @@ static struct mcs_entry mcs_entries[] = {
 /**
  * @brief Calculate the bitrate of the given VHT MCS rate.
  *
- * @param bw		Channel bandwidth (enum ieee80211_sta_rx_bw)
+ * @param bw		Channel bandwidth (enum net80211_sta_rx_bw)
  * @param nss		Number of spatial streams, 1..8
  * @param mcs		MCS, 0..9
  * @param is_shortgi	True if short guard-interval (400nS)
@@ -746,7 +746,7 @@ static struct mcs_entry mcs_entries[] = {
  * @returns		The bitrate in kbit/sec.
  */
 uint32_t
-ieee80211_phy_vht_get_mcs_kbit(enum ieee80211_sta_rx_bw bw,
+ieee80211_phy_vht_get_mcs_kbit(enum net80211_sta_rx_bw bw,
     uint8_t nss, uint8_t mcs, bool is_shortgi)
 {
 	uint32_t sym_len, n_carriers;
@@ -773,16 +773,16 @@ ieee80211_phy_vht_get_mcs_kbit(enum ieee80211_sta_rx_bw bw,
 	 * See 802.11-2020 Table 21-5 (Timing-related constraints.)
 	 */
 	switch (bw) {
-	case IEEE80211_STA_RX_BW_20:
+	case NET80211_STA_RX_BW_20:
 		n_carriers = 52;
 		break;
-	case IEEE80211_STA_RX_BW_40:
+	case NET80211_STA_RX_BW_40:
 		n_carriers = 108;
 		break;
-	case IEEE80211_STA_RX_BW_80:
+	case NET80211_STA_RX_BW_80:
 		n_carriers = 234;
 		break;
-	case IEEE80211_STA_RX_BW_160:
+	case NET80211_STA_RX_BW_160:
 		n_carriers = 468;
 		break;
 	default:
