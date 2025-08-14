@@ -801,6 +801,7 @@ vn_inotify_add_watch(struct vnode *vp, struct inotify_softc *sc, uint32_t mask,
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 			if (error != 0)
 				break;
+			NDFREE_PNBUF(&nd);
 			vn_irflag_set_cond(nd.ni_vp, VIRF_INOTIFY_PARENT);
 			vrele(nd.ni_vp);
 		}
