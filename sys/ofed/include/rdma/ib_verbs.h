@@ -1776,7 +1776,7 @@ struct ib_flow_eth_filter {
 };
 
 struct ib_flow_spec_eth {
-	enum ib_flow_spec_type	  type;
+	u32			  type;
 	u16			  size;
 	struct ib_flow_eth_filter val;
 	struct ib_flow_eth_filter mask;
@@ -1790,7 +1790,7 @@ struct ib_flow_ib_filter {
 };
 
 struct ib_flow_spec_ib {
-	enum ib_flow_spec_type	 type;
+	u32			 type;
 	u16			 size;
 	struct ib_flow_ib_filter val;
 	struct ib_flow_ib_filter mask;
@@ -1815,7 +1815,7 @@ struct ib_flow_ipv4_filter {
 };
 
 struct ib_flow_spec_ipv4 {
-	enum ib_flow_spec_type	   type;
+	u32			   type;
 	u16			   size;
 	struct ib_flow_ipv4_filter val;
 	struct ib_flow_ipv4_filter mask;
@@ -1833,7 +1833,7 @@ struct ib_flow_ipv6_filter {
 };
 
 struct ib_flow_spec_ipv6 {
-	enum ib_flow_spec_type	   type;
+	u32			   type;
 	u16			   size;
 	struct ib_flow_ipv6_filter val;
 	struct ib_flow_ipv6_filter mask;
@@ -1847,7 +1847,7 @@ struct ib_flow_tcp_udp_filter {
 };
 
 struct ib_flow_spec_tcp_udp {
-	enum ib_flow_spec_type	      type;
+	u32			      type;
 	u16			      size;
 	struct ib_flow_tcp_udp_filter val;
 	struct ib_flow_tcp_udp_filter mask;
