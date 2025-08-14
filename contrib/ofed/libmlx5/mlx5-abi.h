@@ -273,6 +273,12 @@ struct mlx5_packet_pacing_caps {
 	__u32  reserved;
 };
 
+enum mlx5_mpw_caps {
+	MLX5_MPW_OBSOLETE	= 1 << 0, /* Obsoleted, don't use */
+	MLX5_ALLOW_MPW		= 1 << 1,
+	MLX5_SUPPORT_EMPW	= 1 << 2,
+};
+
 struct mlx5_query_device_ex_resp {
 	struct ibv_query_device_resp_ex ibv_resp;
 	__u32				comp_mask;

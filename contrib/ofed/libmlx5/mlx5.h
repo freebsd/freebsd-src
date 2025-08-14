@@ -180,7 +180,9 @@ enum {
 };
 
 enum mlx5_vendor_cap_flags {
-	MLX5_VENDOR_CAP_FLAGS_MPW		= 1 << 0,
+	MLX5_VENDOR_CAP_FLAGS_MPW		= 1 << 0, /* Obsoleted */
+	MLX5_VENDOR_CAP_FLAGS_MPW_ALLOWED	= 1 << 1,
+	MLX5_VENDOR_CAP_FLAGS_ENHANCED_MPW	= 1 << 2,
 };
 
 enum {

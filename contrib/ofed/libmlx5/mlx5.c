@@ -650,13 +650,16 @@ int mlx5dv_query_device(struct ibv_context *ctx_in,
 	if (mctx->cqe_version == MLX5_CQE_VERSION_V1)
 		attrs_out->flags |= MLX5DV_CONTEXT_FLAGS_CQE_V1;
 
-	if (mctx->vendor_cap_flags & MLX5_VENDOR_CAP_FLAGS_MPW)
-		attrs_out->flags |= MLX5DV_CONTEXT_FLAGS_MPW;
+	if (mctx->vendor_cap_flags & MLX5_VENDOR_CAP_FLAGS_MPW_ALLOWED)
+		attrs_out->flags |= MLX5DV_CONTEXT_FLAGS_MPW_ALLOWED;
 
 	if (attrs_out->comp_mask & MLX5DV_CONTEXT_MASK_CQE_COMPRESION) {
 		attrs_out->cqe_comp_caps = mctx->cqe_comp_caps;
 		comp_mask_out |= MLX5DV_CONTEXT_MASK_CQE_COMPRESION;
 	}
+
+	if (mctx->vendor_cap_flags & MLX5_VENDOR_CAP_FLAGS_ENHANCED_MPW)
+		attrs_out->flags |= MLX5DV_CONTEXT_FLAGS_ENHANCED_MPW;
 
 	attrs_out->comp_mask = comp_mask_out;
 

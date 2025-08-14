@@ -81,7 +81,9 @@ enum mlx5dv_context_flags {
 	 * This flag indicates if CQE version 0 or 1 is needed.
 	 */
 	MLX5DV_CONTEXT_FLAGS_CQE_V1	= (1 << 0),
-	MLX5DV_CONTEXT_FLAGS_MPW	= (1 << 1),
+	MLX5DV_CONTEXT_FLAGS_OBSOLETE	= (1 << 1), /* Obsoleted, don't use */
+	MLX5DV_CONTEXT_FLAGS_MPW_ALLOWED = (1 << 2),
+	MLX5DV_CONTEXT_FLAGS_ENHANCED_MPW = (1 << 3),
 };
 
 enum mlx5dv_cq_init_attr_mask {
