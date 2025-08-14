@@ -203,6 +203,44 @@ enum mlx5dv_obj_type {
 	MLX5DV_OBJ_RWQ	= 1 << 3,
 };
 
+enum mlx5dv_wq_init_attr_mask {
+	MLX5DV_WQ_INIT_ATTR_MASK_STRIDING_RQ	= 1 << 0,
+};
+
+struct mlx5dv_striding_rq_init_attr {
+	uint32_t	single_stride_log_num_of_bytes;
+	uint32_t	single_wqe_log_num_of_strides;
+	uint8_t		two_byte_shift_en;
+};
+
+struct mlx5dv_wq_init_attr {
+	uint64_t				comp_mask; /* Use enum mlx5dv_wq_init_attr_mask */
+	struct mlx5dv_striding_rq_init_attr	striding_rq_attrs;
+};
+
+/*
+ * This function creates a work queue object with extra properties
+ * defined by mlx5dv_wq_init_attr struct.
+ *
+ * For each bit in the comp_mask, a field in mlx5dv_wq_init_attr
+ * should follow.
+ *
+ * MLX5DV_WQ_INIT_ATTR_MASK_STRIDING_RQ: Create a work queue with
+ * striding RQ capabilities.
+ * - single_stride_log_num_of_bytes represents the size of each stride in the
+ *   WQE and its value should be between min_single_stride_log_num_of_bytes
+ *   and max_single_stride_log_num_of_bytes that are reported in
+ *   mlx5dv_query_device.
+ * - single_wqe_log_num_of_strides represents the number of strides in each WQE.
+ *   Its value should be between min_single_wqe_log_num_of_strides and
+ *   max_single_wqe_log_num_of_strides that are reported in mlx5dv_query_device.
+ * - two_byte_shift_en: When enabled, hardware pads 2 bytes of zeroes
+ *   before writing the message to memory (e.g. for IP alignment)
+ */
+struct ibv_wq *mlx5dv_create_wq(struct ibv_context *context,
+		struct ibv_wq_init_attr *wq_init_attr,
+		struct mlx5dv_wq_init_attr *mlx5_wq_attr);
+
 /*
  * This function will initialize mlx5dv_xxx structs based on supplied type.
  * The information for initialization is taken from ibv_xx structs supplied
@@ -308,7 +346,9 @@ struct mlx5_err_cqe {
 };
 
 struct mlx5_cqe64 {
-	uint8_t		rsvd0[17];
+	uint8_t		rsvd0[2];
+	__be16		wqe_id;
+	uint8_t		rsvd4[13];
 	uint8_t		ml_path;
 	uint8_t		rsvd20[4];
 	__be16		slid;
@@ -422,6 +462,11 @@ struct mlx5_wqe_ctrl_seg {
 	uint8_t		rsvd[2];
 	uint8_t		fm_ce_se;
 	__be32		imm;
+};
+
+struct mlx5_mprq_wqe {
+	struct mlx5_wqe_srq_next_seg	nseg;
+	struct mlx5_wqe_data_seg	dseg;
 };
 
 struct mlx5_wqe_av {

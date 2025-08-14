@@ -17,3 +17,8 @@ MLX5_1.2 {
 		mlx5dv_init_obj;
 		mlx5dv_set_context_attr;
 } MLX5_1.1;
+
+MLX5_1.3 {
+	global:
+		mlx5dv_create_wq;
+} MLX5_1.2;

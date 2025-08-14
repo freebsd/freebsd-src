@@ -206,6 +206,10 @@ struct mlx5_create_qp_resp {
 	__u32				uuar_index;
 };
 
+enum mlx5_create_wq_comp_mask {
+	MLX5_IB_CREATE_WQ_STRIDING_RQ =		1 << 0,
+};
+
 struct mlx5_drv_create_wq {
 	__u64		buf_addr;
 	__u64		db_addr;
@@ -214,7 +218,9 @@ struct mlx5_drv_create_wq {
 	__u32		user_index;
 	__u32		flags;
 	__u32		comp_mask;
-	__u32		reserved;
+	__u32		single_stride_log_num_of_bytes;
+	__u32		single_wqe_log_num_of_strides;
+	__u32		two_byte_shift_en;
 };
 
 struct mlx5_create_wq {
