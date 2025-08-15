@@ -3000,7 +3000,7 @@ install_from_index () {
 			if [ -z "${LINK}" ]; then
 				# Create a file, without setting flags.
 				gunzip < files/${HASH}.gz > ${HASH}
-				install -S -o ${OWNER} -g ${GROUP}	\
+				install -o ${OWNER} -g ${GROUP}		\
 				    -m ${PERM} ${HASH} ${BASEDIR}/${FPATH}
 				rm ${HASH}
 			else
