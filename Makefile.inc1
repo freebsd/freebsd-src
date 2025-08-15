@@ -1082,7 +1082,7 @@ _cleanobj_fast_depend_hack: .PHONY
 	@echo ">>> Deleting stale dependencies...";
 	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH} \
 	    ALL_libcompats=${_ALL_libcompats:Q} \
-	    sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP}
+	    sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP} ${SRCTOP}
 
 _cleanworldtmp: .PHONY
 .if ${MK_CLEAN} == "yes"
@@ -1175,7 +1175,8 @@ _cleanobj:
 	${_+_}cd ${.CURDIR}; ${LIB${LIBCOMPAT}WMAKE} _NO_INCLUDE_COMPILERMK=t -f Makefile.inc1 ${CLEANDIR}
 .endfor
 .else
-	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
+	${_+_}cd ${.CURDIR}; env CLEANMK="_NO_INCLUDE_COMPILERMK=t ${CLEANDIR}" \
+	    MAKE=${MAKE} ${WMAKE} _cleanobj_fast_depend_hack
 .endif	# ${MK_CLEAN} == "yes"
 _obj:
 	@echo
