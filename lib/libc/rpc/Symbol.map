@@ -8,9 +8,13 @@ FBSD_1.0 {
 	xdr_desargs;
 	xdr_desresp;
 
+	authdes_seccreate;
+	authdes_pk_seccreate;
 	authnone_create;
 	authunix_create;
 	authunix_create_default;
+	xdr_authdes_cred;
+	xdr_authdes_verf;
 	xdr_authunix_parms;
 	bindresvport;
 	bindresvport_sa;
@@ -54,6 +58,15 @@ FBSD_1.0 {
 	endrpcent;
 	getrpcent;
 	getrpcport;
+	key_setsecret;
+	key_secretkey_is_set;
+	key_encryptsession_pk;
+	key_decryptsession_pk;
+	key_encryptsession;
+	key_decryptsession;
+	key_gendes;
+	key_setnet;
+	key_get_conv;
 	xdr_keystatus;
 	xdr_keybuf;
 	xdr_netnamestr;
@@ -117,6 +130,7 @@ FBSD_1.0 {
 	callrpc;
 	registerrpc;
 	clnt_broadcast;
+	authdes_create;
 	clntunix_create;
 	svcunix_create;
 	svcunixfd_create;
@@ -166,6 +180,8 @@ FBSD_1.0 {
 	_authenticate;
 	_svcauth_null;
 	svc_auth_reg;
+	_svcauth_des;
+	authdes_getucred;
 	_svcauth_unix;
 	_svcauth_short;
 	svc_dg_create;
@@ -189,6 +205,9 @@ FBSD_1.8 {
 
 FBSDprivate_1.0 {
 	__des_crypt_LOCAL;
+	__key_encryptsession_pk_LOCAL;
+	__key_decryptsession_pk_LOCAL;
+	__key_gendes_LOCAL;
 	__svc_clean_idle;
 	__rpc_gss_unwrap;
 	__rpc_gss_unwrap_stub;

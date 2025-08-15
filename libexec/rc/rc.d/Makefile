@@ -318,6 +318,7 @@ YP=		ypbind \
 		yppasswdd \
 		ypserv \
 		ypset \
+		ypupdated \
 		ypxfrd \
 		nisdomain
 YPPACKAGE=	yp
