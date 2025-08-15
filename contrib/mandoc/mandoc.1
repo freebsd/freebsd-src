@@ -1,4 +1,4 @@
-.\" $Id: mandoc.1,v 1.270 2025/03/03 14:07:51 schwarze Exp $
+.\" $Id: mandoc.1,v 1.272 2025/07/09 13:46:05 schwarze Exp $
 .\"
 .\" Copyright (c) 2012, 2014-2023, 2025 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 3 2025 $
+.Dd $Mdocdate: July 9 2025 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -292,19 +292,6 @@ Increasing this is not recommended; it may result in degraded formatting,
 for example overfull lines or ugly line breaks.
 When output is to a pager on a terminal that is less than 66 columns
 wide, the default is reduced to three columns.
-.It Cm mdoc
-Format
-.Xr man 7
-input files in
-.Xr mdoc 7
-output style.
-This prints the operating system name rather than the page title
-on the right side of the footer line.
-One useful application is for checking that
-.Fl T Cm man
-output formats in the same way as the
-.Xr mdoc 7
-source it was generated from.
 .It Cm tag Ns Op = Ns Ar term
 If the formatted manual page is opened in a pager,
 go to the definition of the
@@ -1121,17 +1108,21 @@ but leaving out the backslash might not be portable.
 .Ss Warnings related to the document prologue
 .Bl -ohang
 .It Sy "missing manual title, using UNTITLED"
-.Pq mdoc
+.Pq mdoc , man
 A
 .Ic \&Dt
-macro has no arguments, or there is no
+or
+.Ic \&TH
+macro has no arguments, its first argument is an empty string, or there is no
 .Ic \&Dt
-macro before the first non-prologue macro.
+macro before the first non-prologue
+.Xr mdoc 7
+macro.
 .It Sy "missing manual title, using \(dq\(dq"
 .Pq man
-There is no
+An input document does not contain any
 .Ic \&TH
-macro, or it has no arguments.
+macro.
 .It Sy "missing manual section, using \(dq\(dq"
 .Pq mdoc , man
 A
