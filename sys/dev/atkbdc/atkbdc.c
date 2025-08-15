@@ -1001,6 +1001,7 @@ empty_both_buffers(KBDC p, int wait)
 		if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) 
 		{
 			DELAY(KBDD_DELAYTIME);
+
 			(void)read_data(p);
 #if KBDIO_DEBUG >= 2
 			if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL)
@@ -1019,14 +1020,17 @@ empty_both_buffers(KBDC p, int wait)
 		* will thus hang in this procedure. Time out after delta seconds to
 		* avoid this hang -- the keyboard attach will fail later on.
 		*/
-		waited += (delta * 1000);
-		if (waited == (delta * 1000000))
+//		waited += (delta * 1000);
+//		if (waited == (delta * 1000000))
+		waited += delta;
+		if (waited == delta * 1000)
 		{
 			TSEXIT();
 			return;
 		}
 
-		DELAY(delta*1000);
+//		DELAY(delta*1000);
+		DELAY(delta);
 	}
 #if KBDIO_DEBUG >= 2
 	if ((c1 > 0) || (c2 > 0))
