@@ -454,22 +454,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* getgroups */
-	case 79: {
-		struct getgroups_args *p = params;
-		iarg[a++] = p->gidsetsize; /* int */
-		uarg[a++] = (intptr_t)p->gidset; /* gid_t * */
-		*n_args = 2;
-		break;
-	}
-	/* setgroups */
-	case 80: {
-		struct setgroups_args *p = params;
-		iarg[a++] = p->gidsetsize; /* int */
-		uarg[a++] = (intptr_t)p->gidset; /* const gid_t * */
-		*n_args = 2;
-		break;
-	}
 	/* getpgrp */
 	case 81: {
 		*n_args = 0;
@@ -3500,6 +3484,22 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* getgroups */
+	case 595: {
+		struct getgroups_args *p = params;
+		iarg[a++] = p->gidsetsize; /* int */
+		uarg[a++] = (intptr_t)p->gidset; /* gid_t * */
+		*n_args = 2;
+		break;
+	}
+	/* setgroups */
+	case 596: {
+		struct setgroups_args *p = params;
+		iarg[a++] = p->gidsetsize; /* int */
+		uarg[a++] = (intptr_t)p->gidset; /* const gid_t * */
+		*n_args = 2;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -4194,32 +4194,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "userland char *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* getgroups */
-	case 79:
-		switch (ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "userland gid_t *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* setgroups */
-	case 80:
-		switch (ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "userland const gid_t *";
 			break;
 		default:
 			break;
@@ -9367,6 +9341,32 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* getgroups */
+	case 595:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland gid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setgroups */
+	case 596:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland const gid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -9630,16 +9630,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mincore */
 	case 78:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* getgroups */
-	case 79:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* setgroups */
-	case 80:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -11362,6 +11352,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* inotify_rm_watch */
 	case 594:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getgroups */
+	case 595:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setgroups */
+	case 596:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

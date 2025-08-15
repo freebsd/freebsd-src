@@ -85,8 +85,8 @@
 				/* 76 is obsolete vhangup */
 				/* 77 is obsolete vlimit */
 #define	SYS_mincore	78
-#define	SYS_getgroups	79
-#define	SYS_setgroups	80
+#define	SYS_freebsd14_getgroups	79
+#define	SYS_freebsd14_setgroups	80
 #define	SYS_getpgrp	81
 #define	SYS_setpgid	82
 #define	SYS_setitimer	83
@@ -533,4 +533,6 @@
 #define	SYS_exterrctl	592
 #define	SYS_inotify_add_watch_at	593
 #define	SYS_inotify_rm_watch	594
-#define	SYS_MAXSYSCALL	595
+#define	SYS_getgroups	595
+#define	SYS_setgroups	596
+#define	SYS_MAXSYSCALL	597
