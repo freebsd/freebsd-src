@@ -101,7 +101,7 @@ main(void)
 {
         int     fd, len;
 
-        fd = open("/dev/vkbdctl0", O_RDWR);
+        fd = open("/dev/vkbdctl", O_RDWR);
         if (fd < 0)
                 err(1, "open");
 
