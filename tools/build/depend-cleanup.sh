@@ -63,6 +63,10 @@
 #   if [ "$MACHINE_ARCH" = "amd64" ]; then
 #           clean_dep lib/libc bcmp c
 #   fi
+#
+# We also have a big hammer at the top of the tree, .clean_build_epoch, to be
+# used in severe cases where we can't surgically remove just the parts that
+# need rebuilt.  This should be used sparingly.
 
 set -e
 set -u
@@ -80,7 +84,7 @@ err()
 
 usage()
 {
-	echo "usage: $(basename $0) [-v] [-n] objtop" >&2
+	echo "usage: $(basename $0) [-v] [-n] objtop srctop" >&2
 }
 
 VERBOSE=
@@ -101,15 +105,29 @@ while getopts vn o; do
 done
 shift $((OPTIND-1))
 
-if [ $# -ne 1 ]; then
+if [ $# -ne 2 ]; then
 	usage
 	exit 1
 fi
 
 OBJTOP=$1
 shift
+SRCTOP=$1
+shift
+
 if [ ! -d "$OBJTOP" ]; then
 	err "$OBJTOP: Not a directory"
+fi
+
+if [ ! -d "$SRCTOP" -o ! -f "$SRCTOP/Makefile.inc1" ]; then
+	err "$SRCTOP: Not the root of a src tree"
+fi
+
+: ${CLEANMK=""}
+if [ -n "$CLEANMK" ]; then
+	if [ -z "${MAKE+set}" ]; then
+		err "MAKE not set"
+	fi
 fi
 
 if [ -z "${MACHINE+set}" ]; then
@@ -150,6 +168,69 @@ clean_dep()
 		fi
 	done
 }
+
+extract_epoch()
+{
+	[ -s "$1" ] || return 0
+
+	awk 'int($1) > 0 { epoch = $1 } END { print epoch }' "$1"
+}
+
+clean_world()
+{
+	local buildepoch="$1"
+
+	# The caller may set CLEANMK in the environment to make target(s) that
+	# should be invoked instead of just destroying everything.  This is
+	# generally used after legacy/bootstrap tools to avoid over-cleansing
+	# since we're generally in the temporary tree's ancestor.
+	if [ -n "$CLEANMK" ]; then
+		echo "Cleaning up the object tree"
+		run $MAKE -C "$SRCTOP" -f "$SRCTOP"/Makefile.inc1 $CLEANMK
+	else
+		echo "Cleaning up the temporary build tree"
+		run rm -rf "$OBJTOP"
+	fi
+
+	# We don't assume that all callers will have grabbed the build epoch, so
+	# we'll do it here as needed.  This will be useful if we add other
+	# non-epoch reasons to force clean.
+	if  [ -z "$buildepoch" ]; then
+		buildepoch=$(extract_epoch "$SRCTOP"/.clean_build_epoch)
+	fi
+
+	mkdir -p "$OBJTOP"
+	echo "$buildepoch" > "$OBJTOP"/.clean_build_epoch
+
+	exit 0
+}
+
+check_epoch()
+{
+	local srcepoch objepoch
+
+	srcepoch=$(extract_epoch "$SRCTOP"/.clean_build_epoch)
+	if [ -z "$srcepoch" ]; then
+		err "Malformed .clean_build_epoch; please validate the last line"
+	fi
+
+	# We don't discriminate between the varying degrees of difference
+	# between epochs.  If it went backwards we could be bisecting across
+	# epochs, in which case the original need to clean likely still stands.
+	objepoch=$(extract_epoch "$OBJTOP"/.clean_build_epoch)
+	if [ -z "$objepoch" ] || [ "$srcepoch" -ne "$objepoch" ]; then
+		if [ "$VERBOSE" ]; then
+			echo "Cleaning - src epoch: $srcepoch, objdir epoch: ${objepoch:-unknown}"
+		fi
+
+		clean_world "$srcepoch"
+		# NORETURN
+	fi
+}
+
+check_epoch
+
+#### Typical dependency cleanup begins here.
 
 # Date      Rev      Description
 
