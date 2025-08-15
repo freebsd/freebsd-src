@@ -53,11 +53,22 @@
     <para>This manual describes jemalloc @jemalloc_version@.  More information
     can be found at the <ulink
     url="http://jemalloc.net/">jemalloc website</ulink>.</para>
+
+    <para>The following configuration options are enabled in libc's built-in
+    jemalloc: <option>--enable-fill</option>,
+    <option>--enable-lazy-lock</option>, <option>--enable-stats</option>,
+    <option>--enable-utrace</option>, <option>--enable-xmalloc</option>, and
+    <option>--with-malloc-conf=abort_conf:false</option>.
+    Additionally, <option>--enable-debug</option> is enabled in development
+    versions of FreeBSD (controlled by the
+    <constant>MK_MALLOC_PRODUCTION</constant> make variable).</para>
+
   </refsect1>
   <refsynopsisdiv>
     <title>SYNOPSIS</title>
     <funcsynopsis>
-      <funcsynopsisinfo>#include &lt;<filename class="headerfile">jemalloc/jemalloc.h</filename>&gt;</funcsynopsisinfo>
+      <funcsynopsisinfo>#include &lt;<filename class="headerfile">stdlib.h</filename>&gt;
+#include &lt;<filename class="headerfile">malloc_np.h</filename>&gt;</funcsynopsisinfo>
       <refsect2>
         <title>Standard API</title>
         <funcprototype>
@@ -3509,5 +3520,19 @@ malloc_conf = "narenas:1";]]></programlisting></para>
 
     <para>The <function>posix_memalign()</function> function conforms
     to IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>).</para>
+  </refsect1>
+  <refsect1 id="history">
+    <title>HISTORY</title>
+    <para>The <function>malloc_usable_size()</function> and
+    <function>posix_memalign()</function> functions first appeared in FreeBSD
+    7.0.</para>
+
+    <para>The <function>aligned_alloc()</function>,
+    <function>malloc_stats_print()</function>, and
+    <function>mallctl*()</function> functions first appeared in FreeBSD
+    10.0.</para>
+
+    <para>The <function>*allocx()</function> functions first appeared in FreeBSD
+    11.0.</para>
   </refsect1>
 </refentry>
