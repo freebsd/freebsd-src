@@ -1,6 +1,7 @@
-/* $Id: roff_term.c,v 1.25 2023/04/28 19:11:04 schwarze Exp $ */
+/* $Id: roff_term.c,v 1.26 2025/07/16 14:33:08 schwarze Exp $ */
 /*
- * Copyright (c) 2010,2014,2015,2017-2020 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2014, 2015, 2017-2021, 2025
+ *               Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -159,8 +160,13 @@ static void
 roff_term_pre_po(ROFF_TERM_ARGS)
 {
 	struct roffsu	 su;
-	static int	 po, pouse, polast;
-	int		 ponew;
+
+	/* Page offsets in basic units. */
+	static int	 polast;  /* Previously requested. */
+	static int	 po;      /* Currently requested. */
+	static int	 pouse;   /* Currently used. */
+	int		 pomax;   /* Maximum to be used. */
+	int		 ponew;   /* Newly requested. */
 
 	/* Revert the currently active page offset. */
 	p->tcol->offset -= pouse;
@@ -168,7 +174,7 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 	/* Determine the requested page offset. */
 	if (n->child != NULL &&
 	    a2roffsu(n->child->string, &su, SCALE_EM) != NULL) {
-		ponew = term_hen(p, &su);
+		ponew = term_hspan(p, &su);
 		if (*n->child->string == '+' ||
 		    *n->child->string == '-')
 			ponew += po;
@@ -180,8 +186,9 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 	po = ponew;
 
 	/* Truncate to the range [-offset, 60], remember, and apply it. */
-	pouse = po >= 60 ? 60 :
-	    po < -(int)p->tcol->offset ? -(int)p->tcol->offset : po;
+	pomax = term_len(p, 60);
+	pouse = po >= pomax ? pomax :
+	    po < -(int)p->tcol->offset ? -p->tcol->offset : po;
 	p->tcol->offset += pouse;
 }
 
@@ -219,9 +226,10 @@ static void
 roff_term_pre_ti(ROFF_TERM_ARGS)
 {
 	struct roffsu	 su;
-	const char	*cp;
-	const size_t	 maxoff = 72;
-	int		 len, sign;
+	const char	*cp;      /* Request argument. */
+	size_t		 maxoff;  /* Maximum indentation in basic units. */
+	int		 len;	  /* Request argument in basic units. */
+	int		 sign;
 
 	roff_term_pre_br(p, n);
 
@@ -239,7 +247,8 @@ roff_term_pre_ti(ROFF_TERM_ARGS)
 
 	if (a2roffsu(cp, &su, SCALE_EM) == NULL)
 		return;
-	len = term_hen(p, &su);
+	len = term_hspan(p, &su);
+	maxoff = term_len(p, 72);
 
 	switch (sign) {
 	case 1:

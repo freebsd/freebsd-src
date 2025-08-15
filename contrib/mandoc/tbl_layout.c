@@ -1,4 +1,4 @@
-/*	$Id: tbl_layout.c,v 1.51 2025/01/05 18:14:39 schwarze Exp $ */
+/* $Id: tbl_layout.c,v 1.52 2025/07/16 14:33:08 schwarze Exp $ */
 /*
  * Copyright (c) 2012, 2014, 2015, 2017, 2020, 2021, 2025
  *               Ingo Schwarze <schwarze@openbsd.org>
@@ -66,8 +66,8 @@ mods(struct tbl_node *tbl, struct tbl_cell *cp,
 		int ln, const char *p, int *pos)
 {
 	char		*endptr;
-	unsigned long	 spacing;
-	int		 isz;
+	unsigned long	 spacing;  /* Column spacing in EN units. */
+	int		 isz;      /* Width in basic units. */
 	enum mandoc_esc	 fontesc;
 
 mod:
@@ -145,8 +145,7 @@ mod:
 				mandoc_msg(MANDOCERR_TBLLAYOUT_WIDTH,
 				    ln, *pos, "%s", p + *pos);
 			else {
-				/* Convert from BU to EN and round. */
-				cp->width = (isz + 11) /24;
+				cp->width = isz;
 				(*pos)++;
 			}
 		} else {
@@ -155,6 +154,7 @@ mod:
 				cp->width *= 10;
 				cp->width += p[(*pos)++] - '0';
 			}
+			cp->width *= 24;
 			if (cp->width == 0)
 				mandoc_msg(MANDOCERR_TBLLAYOUT_WIDTH,
 				    ln, *pos, "%s", p + *pos);
