@@ -84,8 +84,8 @@ const char *syscallnames[] = {
 	"obs_vhangup",			/* 76 = obsolete vhangup */
 	"obs_vlimit",			/* 77 = obsolete vlimit */
 	"mincore",			/* 78 = mincore */
-	"getgroups",			/* 79 = getgroups */
-	"setgroups",			/* 80 = setgroups */
+	"compat14.getgroups",		/* 79 = freebsd14 getgroups */
+	"compat14.setgroups",		/* 80 = freebsd14 setgroups */
 	"getpgrp",			/* 81 = getpgrp */
 	"setpgid",			/* 82 = setpgid */
 	"setitimer",			/* 83 = setitimer */
@@ -600,4 +600,6 @@ const char *syscallnames[] = {
 	"exterrctl",			/* 592 = exterrctl */
 	"inotify_add_watch_at",			/* 593 = inotify_add_watch_at */
 	"inotify_rm_watch",			/* 594 = inotify_rm_watch */
+	"getgroups",			/* 595 = getgroups */
+	"setgroups",			/* 596 = setgroups */
 };

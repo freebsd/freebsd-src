@@ -65,8 +65,8 @@ MIASM =  \
 	mprotect.o \
 	madvise.o \
 	mincore.o \
-	getgroups.o \
-	setgroups.o \
+	freebsd14_getgroups.o \
+	freebsd14_setgroups.o \
 	getpgrp.o \
 	setpgid.o \
 	setitimer.o \
@@ -436,4 +436,6 @@ MIASM =  \
 	setcred.o \
 	exterrctl.o \
 	inotify_add_watch_at.o \
-	inotify_rm_watch.o
+	inotify_rm_watch.o \
+	getgroups.o \
+	setgroups.o

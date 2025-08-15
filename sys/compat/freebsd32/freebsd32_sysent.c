@@ -146,8 +146,8 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },	/* 76 = obsolete vhangup */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },	/* 77 = obsolete vlimit */
 	{ .sy_narg = AS(mincore_args), .sy_call = (sy_call_t *)sys_mincore, .sy_auevent = AUE_MINCORE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 78 = mincore */
-	{ .sy_narg = AS(getgroups_args), .sy_call = (sy_call_t *)sys_getgroups, .sy_auevent = AUE_GETGROUPS, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 79 = getgroups */
-	{ .sy_narg = AS(setgroups_args), .sy_call = (sy_call_t *)sys_setgroups, .sy_auevent = AUE_SETGROUPS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 80 = setgroups */
+	{ compat14(AS(freebsd14_getgroups_args),getgroups), .sy_auevent = AUE_GETGROUPS, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 79 = freebsd14 getgroups */
+	{ compat14(AS(freebsd14_setgroups_args),setgroups), .sy_auevent = AUE_SETGROUPS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 80 = freebsd14 setgroups */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_getpgrp, .sy_auevent = AUE_GETPGRP, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 81 = getpgrp */
 	{ .sy_narg = AS(setpgid_args), .sy_call = (sy_call_t *)sys_setpgid, .sy_auevent = AUE_SETPGRP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 82 = setpgid */
 	{ .sy_narg = AS(freebsd32_setitimer_args), .sy_call = (sy_call_t *)freebsd32_setitimer, .sy_auevent = AUE_SETITIMER, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 83 = freebsd32_setitimer */
@@ -662,4 +662,6 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(exterrctl_args), .sy_call = (sy_call_t *)sys_exterrctl, .sy_auevent = AUE_NULL, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 592 = exterrctl */
 	{ .sy_narg = AS(inotify_add_watch_at_args), .sy_call = (sy_call_t *)sys_inotify_add_watch_at, .sy_auevent = AUE_INOTIFY, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 593 = inotify_add_watch_at */
 	{ .sy_narg = AS(inotify_rm_watch_args), .sy_call = (sy_call_t *)sys_inotify_rm_watch, .sy_auevent = AUE_INOTIFY, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 594 = inotify_rm_watch */
+	{ .sy_narg = AS(getgroups_args), .sy_call = (sy_call_t *)sys_getgroups, .sy_auevent = AUE_GETGROUPS, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 595 = getgroups */
+	{ .sy_narg = AS(setgroups_args), .sy_call = (sy_call_t *)sys_setgroups, .sy_auevent = AUE_SETGROUPS, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 596 = setgroups */
 };
