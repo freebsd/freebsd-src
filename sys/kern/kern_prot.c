@@ -2921,7 +2921,8 @@ crextend(struct ucred *cr, int n)
  * Normalizes a set of groups to be applied to a 'struct ucred'.
  *
  * Normalization ensures that the supplementary groups are sorted in ascending
- * order and do not contain duplicates.
+ * order and do not contain duplicates.  This allows group_is_supplementary
+ * to do a binary search.
  */
 static void
 groups_normalize(int *ngrp, gid_t *groups)
