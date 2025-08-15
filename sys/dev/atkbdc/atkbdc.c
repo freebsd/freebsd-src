@@ -1113,7 +1113,8 @@ reset_aux_dev(KBDC p)
 	emptyq(&p->aux);
 	/* NOTE: Compaq Armada laptops require extra delay here. XXX */
 	for (again = KBD_MAXWAIT; again > 0; --again) {
-            DELAY(KBD_RESETDELAY*1000);
+            //DELAY(KBD_RESETDELAY*1000);
+            DELAY(KBD_RESETDELAY);
             c = read_aux_data_no_wait(p);
 	    if (c != -1)
 		break;
@@ -1131,7 +1132,8 @@ reset_aux_dev(KBDC p)
 
     for (again = KBD_MAXWAIT; again > 0; --again) {
         /* wait awhile, well, quite looooooooooooong */
-        DELAY(KBD_RESETDELAY*1000);
+        //DELAY(KBD_RESETDELAY*1000);
+	DELAY(KBD_RESETDELAY);
         c = read_aux_data_no_wait(p);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
