@@ -332,7 +332,7 @@ freebsd14_getgroups(struct thread *td, struct freebsd14_getgroups_args *uap)
 	}
 
 	error = copyout(&cred->cr_gid, uap->gidset, sizeof(gid_t));
-	if (error != 0)
+	if (error == 0)
 		error = copyout(cred->cr_groups, uap->gidset + 1,
 		    (ngrp - 1) * sizeof(gid_t));
 
