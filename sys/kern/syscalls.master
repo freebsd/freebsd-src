@@ -552,13 +552,13 @@
 		    _Out_writes_bytes_(len/PAGE_SIZE) char *vec
 		);
 	}
-79	AUE_GETGROUPS	STD|CAPENABLED {
+79	AUE_GETGROUPS	STD|CAPENABLED|COMPAT14 {
 		int getgroups(
 		    int gidsetsize,
 		    _Out_writes_opt_(gidsetsize) gid_t *gidset
 		);
 	}
-80	AUE_SETGROUPS	STD {
+80	AUE_SETGROUPS	STD|COMPAT14 {
 		int setgroups(
 		    int gidsetsize,
 		    _In_reads_(gidsetsize) const gid_t *gidset
@@ -3369,6 +3369,18 @@
 		int inotify_rm_watch(
 		    int fd,
 		    int wd
+		);
+	}
+595	AUE_GETGROUPS	STD|CAPENABLED {
+		int getgroups(
+		    int gidsetsize,
+		    _Out_writes_opt_(gidsetsize) gid_t *gidset
+		);
+	}
+596	AUE_SETGROUPS	STD {
+		int setgroups(
+		    int gidsetsize,
+		    _In_reads_(gidsetsize) const gid_t *gidset
 		);
 	}
 

@@ -69,6 +69,9 @@ __sym_compat(kevent, freebsd11_kevent, FBSD_1.0);
 
 __sym_compat(swapoff, freebsd13_swapoff, FBSD_1.0);
 
+__sym_compat(getgroups, freebsd14_getgroups, FBSD_1.0);
+__sym_compat(setgroups, freebsd14_setgroups, FBSD_1.0);
+
 #undef __sym_compat
 
 #define	__weak_reference(sym,alias)	\

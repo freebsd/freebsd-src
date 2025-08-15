@@ -89,7 +89,6 @@ FBSD_1.0 {
 	geteuid;
 	getfh;
 	getgid;
-	getgroups;
 	getitimer;
 	getpagesize;
 	getpeername;
@@ -204,7 +203,6 @@ FBSD_1.0 {
 	setegid;
 	seteuid;
 	setgid;
-	setgroups;
 	setitimer;
 	setlogin;
 	setpgid;
@@ -380,11 +378,13 @@ FBSD_1.7 {
 FBSD_1.8 {
 	exterrctl;
 	fchroot;
+	getgroups;
 	getrlimitusage;
 	inotify_add_watch_at;
 	inotify_rm_watch;
 	kcmp;
 	setcred;
+	setgroups;
 };
 
 FBSDprivate_1.0 {
