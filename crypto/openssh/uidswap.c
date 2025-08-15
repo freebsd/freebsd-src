@@ -14,9 +14,6 @@
 
 #include "includes.h"
 
-#ifdef __FreeBSD__
-#include <assert.h>
-#endif
 #include <errno.h>
 #include <pwd.h>
 #include <string.h>
@@ -124,20 +121,8 @@ temporarily_use_uid(struct passwd *pw)
 		fatal("setgroups: %.100s", strerror(errno));
 #ifndef SAVED_IDS_WORK_WITH_SETEUID
 	/* Propagate the privileged gid to all of our gids. */
-#ifdef __FreeBSD__
-	/*
-	 * FreeBSD traditionally includes the egid as the first element.  If we
-	 * use getegid() here then we effectively propagate user_groups[0],
-	 * which is probably pw->pw_gid.  Fix it to work as intended by using
-	 * the egid we already have stashed off.
-	 */
-	assert(saved_egroupslen > 0);
-	if (setgid(saved_egroups[0]) == -1)
-		debug("setgid %u: %.100s", (u_int) saved_egroups[0], strerror(errno));
-#else
 	if (setgid(getegid()) == -1)
 		debug("setgid %u: %.100s", (u_int) getegid(), strerror(errno));
-#endif
 	/* Propagate the privileged uid to all of our uids. */
 	if (setuid(geteuid()) == -1)
 		debug("setuid %u: %.100s", (u_int) geteuid(), strerror(errno));
