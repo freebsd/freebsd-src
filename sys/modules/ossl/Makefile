@@ -29,6 +29,7 @@ SRCS.arm= \
 
 SRCS.aarch64= \
 	chacha-armv8.S \
+	chacha-armv8-sve.S \
 	poly1305-armv8.S \
 	sha1-armv8.S \
 	sha256-armv8.S \
