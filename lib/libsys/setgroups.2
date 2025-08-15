@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 19, 2018
+.Dd August 1, 2025
 .Dt SETGROUPS 2
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 The
 .Fn setgroups
 system call
-sets the group access list of the current user process
+sets the supplementary group list of the current user process
 according to the array
 .Fa gidset .
 The
@@ -50,26 +50,12 @@ The
 argument
 indicates the number of entries in the array and must be no
 more than
-.Dv {NGROUPS_MAX}+1 .
+.Dv {NGROUPS_MAX} .
+The
+.Fa ngroups
+argument may be set to 0 to clear the supplementary group list.
 .Pp
-Only the super-user may set a new group list.
-.Pp
-The first entry of the group array
-.Pq Va gidset[0]
-is used as the effective group-ID for the process.
-This entry is over-written when a setgid program is run.
-To avoid losing access to the privileges of the
-.Va gidset[0]
-entry, it should be duplicated later in the group array.
-By convention,
-this happens because the group value indicated
-in the password file also appears in
-.Pa /etc/group .
-The group value in the password file is placed in
-.Va gidset[0]
-and that value then gets added a second time when the
-.Pa /etc/group
-file is scanned to create the group set.
+Only the super-user may set a new supplementary group list.
 .Sh RETURN VALUES
 .Rv -std setgroups
 .Sh ERRORS
@@ -99,3 +85,11 @@ The
 .Fn setgroups
 system call appeared in
 .Bx 4.2 .
+.Pp
+Before
+.Fx 15.0 ,
+the
+.Fn setgroups
+system call would set the effective group ID for the process to the first
+element of
+.Fa gidset .
