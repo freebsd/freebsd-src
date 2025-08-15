@@ -2910,7 +2910,9 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	struct if_rxd_info ri;
 	int err, budget_left, rx_bytes, rx_pkts;
 	iflib_fl_t fl;
+#if defined(INET6) || defined(INET)
 	int lro_enabled;
+#endif
 	uint8_t retval = 0;
 
 	/*
@@ -2936,7 +2938,9 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		return (retval);
 	}
 
+#if defined(INET6) || defined(INET)
 	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
+#endif
 
 	/* pfil needs the vnet to be set */
 	CURVNET_SET_QUIET(if_getvnet(ifp));
