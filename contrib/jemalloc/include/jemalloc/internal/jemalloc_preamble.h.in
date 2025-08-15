@@ -8,6 +8,9 @@
 #include <sys/ktrace.h>
 #endif
 
+#include "un-namespace.h"
+#include "libc_private.h"
+
 #define JEMALLOC_NO_DEMANGLE
 #ifdef JEMALLOC_JET
 #  undef JEMALLOC_IS_MALLOC
@@ -79,13 +82,7 @@ static const bool config_fill =
     false
 #endif
     ;
-static const bool config_lazy_lock =
-#ifdef JEMALLOC_LAZY_LOCK
-    true
-#else
-    false
-#endif
-    ;
+static const bool config_lazy_lock = true;
 static const char * const config_malloc_conf = JEMALLOC_CONFIG_MALLOC_CONF;
 static const bool config_prof =
 #ifdef JEMALLOC_PROF
