@@ -109,13 +109,11 @@ local_qsort(void *a, size_t n, size_t es, cmp_t *cmp, void *thunk)
 	char *pa, *pb, *pc, *pd, *pl, *pm, *pn;
 	size_t d1, d2;
 	int cmp_result;
-	int swap_cnt;
 
 	/* if there are less than 2 elements, then sorting is not needed */
 	if (__predict_false(n < 2))
 		return;
 loop:
-	swap_cnt = 0;
 	if (n < 7) {
 		for (pm = (char *)a + es; pm < (char *)a + n * es; pm += es)
 			for (pl = pm; 
@@ -144,7 +142,6 @@ loop:
 	for (;;) {
 		while (pb <= pc && (cmp_result = CMP(thunk, pb, a)) <= 0) {
 			if (cmp_result == 0) {
-				swap_cnt = 1;
 				swapfunc(pa, pb, es);
 				pa += es;
 			}
@@ -152,7 +149,6 @@ loop:
 		}
 		while (pb <= pc && (cmp_result = CMP(thunk, pc, a)) >= 0) {
 			if (cmp_result == 0) {
-				swap_cnt = 1;
 				swapfunc(pc, pd, es);
 				pd -= es;
 			}
@@ -161,17 +157,8 @@ loop:
 		if (pb > pc)
 			break;
 		swapfunc(pb, pc, es);
-		swap_cnt = 1;
 		pb += es;
 		pc -= es;
-	}
-	if (swap_cnt == 0) {  /* Switch to insertion sort */
-		for (pm = (char *)a + es; pm < (char *)a + n * es; pm += es)
-			for (pl = pm; 
-			     pl > (char *)a && CMP(thunk, pl - es, pl) > 0;
-			     pl -= es)
-				swapfunc(pl, pl - es, es);
-		return;
 	}
 
 	pn = (char *)a + n * es;
