@@ -42,6 +42,7 @@ pthread_create(pthread_t *__restrict thread,
 JEMALLOC_EXPORT int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
     void *(calloc_cb)(size_t, size_t));
 
+#ifndef JEMALLOC_NO_PRIVATE_NAMESPACE
 #pragma weak _pthread_mutex_init_calloc_cb
 int
 _pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
@@ -52,6 +53,7 @@ _pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
 	    __libc_interposing[INTERPOS__pthread_mutex_init_calloc_cb])(mutex,
 	    calloc_cb));
 }
+#endif
 #endif
 
 void
