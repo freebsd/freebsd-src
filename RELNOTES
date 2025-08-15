@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+c43cad871720:
+	jemalloc 5.3.0 has landed. See contrib/jemalloc/ChangeLog
+	for the long list of changes.
+
 cce64f2e6851:
 	Add support for the NFSv4.2 Clone operation, which uses
 	block cloning to "copy on write" files on an NFS server.
