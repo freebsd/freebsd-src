@@ -536,6 +536,12 @@ typedef struct zio_gbh {
 	offsetof(vdev_label_t, vl_uberblock[(n) << VDEV_UBERBLOCK_SHIFT(vd)])
 #define	VDEV_UBERBLOCK_SIZE(vd)		(1ULL << VDEV_UBERBLOCK_SHIFT(vd))
 
+#define	ASHIFT_UBERBLOCK_SHIFT(ashift)  \
+	MIN(MAX(ashift, UBERBLOCK_SHIFT), \
+	MAX_UBERBLOCK_SHIFT)
+#define	ASHIFT_UBERBLOCK_SIZE(ashift) \
+	(1ULL << ASHIFT_UBERBLOCK_SHIFT(ashift))
+
 typedef struct vdev_phys {
 	char		vp_nvlist[VDEV_PHYS_SIZE - sizeof (zio_eck_t)];
 	zio_eck_t	vp_zbt;
