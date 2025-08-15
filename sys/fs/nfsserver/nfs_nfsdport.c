@@ -3589,6 +3589,7 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, nfsexargp->fspec);
 		if ((error = namei(&nd)) != 0)
 			goto out;
+		NDFREE_PNBUF(&nd);
 		error = nfsvno_getfh(nd.ni_vp, &fh, p);
 		vrele(nd.ni_vp);
 		if (!error) {

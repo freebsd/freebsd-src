@@ -7724,6 +7724,7 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 	NFSD_DEBUG(4, "lookup=%d\n", error);
 	if (error != 0)
 		return (error);
+	NDFREE_PNBUF(&nd);
 	if (nd.ni_vp->v_type != VDIR) {
 		vput(nd.ni_vp);
 		NFSD_DEBUG(4, "dspath not dir\n");
@@ -7760,6 +7761,7 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 		NFSD_DEBUG(4, "dsdirpath=%s lookup=%d\n", dsdirpath, error);
 		if (error != 0)
 			break;
+		NDFREE_PNBUF(&nd);
 		if (nd.ni_vp->v_type != VDIR) {
 			vput(nd.ni_vp);
 			error = ENOTDIR;
@@ -7788,6 +7790,7 @@ nfsrv_setdsserver(char *dspathp, char *mdspathp, NFSPROC_T *p,
 		NFSD_DEBUG(4, "mds lookup=%d\n", error);
 		if (error != 0)
 			goto out;
+		NDFREE_PNBUF(&nd);
 		if (nd.ni_vp->v_type != VDIR) {
 			vput(nd.ni_vp);
 			error = ENOTDIR;
@@ -8647,6 +8650,7 @@ nfsrv_mdscopymr(char *mdspathp, char *dspathp, char *curdspathp, char *buf,
 	NFSD_DEBUG(4, "lookup=%d\n", error);
 	if (error != 0)
 		return (error);
+	NDFREE_PNBUF(&nd);
 	if (nd.ni_vp->v_type != VREG) {
 		vput(nd.ni_vp);
 		NFSD_DEBUG(4, "mdspath not reg\n");
@@ -8668,6 +8672,7 @@ nfsrv_mdscopymr(char *mdspathp, char *dspathp, char *curdspathp, char *buf,
 			vput(vp);
 			return (error);
 		}
+		NDFREE_PNBUF(&nd);
 		if (nd.ni_vp->v_type != VDIR) {
 			vput(nd.ni_vp);
 			vput(vp);
@@ -8710,6 +8715,7 @@ nfsrv_mdscopymr(char *mdspathp, char *dspathp, char *curdspathp, char *buf,
 				vput(curvp);
 			return (error);
 		}
+		NDFREE_PNBUF(&nd);
 		if (nd.ni_vp->v_type != VDIR || nd.ni_vp == curvp) {
 			vput(nd.ni_vp);
 			vput(vp);
