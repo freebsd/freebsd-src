@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: ypupdated
+# REQUIRE: rpcbind ypserv
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ypupdated"
+rcvar="rpc_ypupdated_enable"
+
+: ${ypupdated_svcj_options:="net_basic"}
+
+load_rc_config $name
+
+command="/usr/sbin/rpc.${name}"
+start_precmd="rpc_ypupdated_precmd"
+
+rpc_ypupdated_precmd()
+{
+	local _domain
+
+	force_depend rpcbind || return 1
+	force_depend ypserv nis_server || return 1
+
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

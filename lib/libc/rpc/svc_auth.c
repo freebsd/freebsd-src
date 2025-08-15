@@ -114,6 +114,11 @@ _authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 	case AUTH_SHORT:
 		dummy = _svcauth_short(rqst, msg);
 		return (dummy);
+#ifdef DES_BUILTIN
+	case AUTH_DES:
+		dummy = _svcauth_des(rqst, msg);
+		return (dummy);
+#endif
 	default:
 		break;
 	}
@@ -181,6 +186,9 @@ svc_auth_reg(int cred_flavor,
 	    case AUTH_NULL:
 	    case AUTH_SYS:
 	    case AUTH_SHORT:
+#ifdef DES_BUILTIN
+	    case AUTH_DES:
+#endif
 		/* already registered */
 		return (1);
 

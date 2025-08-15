@@ -246,6 +246,19 @@ extern AUTH *authunix_create_default(void);	/* takes no parameters */
 extern AUTH *authnone_create(void);		/* takes no parameters */
 extern AUTH *authtls_create(void);		/* takes no parameters */
 __END_DECLS
+/*
+ * DES style authentication
+ * AUTH *authsecdes_create(servername, window, timehost, ckey)
+ * 	char *servername;		- network name of server
+ *	u_int window;			- time to live
+ * 	const char *timehost;			- optional hostname to sync with
+ * 	des_block *ckey;		- optional conversation key to use
+ */
+__BEGIN_DECLS
+extern AUTH *authdes_create (char *, u_int, struct sockaddr *, des_block *);
+extern AUTH *authdes_seccreate (const char *, const u_int, const  char *,
+    const  des_block *);
+__END_DECLS
 
 __BEGIN_DECLS
 extern bool_t xdr_opaque_auth		(XDR *, struct opaque_auth *);
@@ -264,6 +277,19 @@ extern int user2netname(char *, const uid_t, const char *);
 extern int netname2user(char *, uid_t *, gid_t *, int *, gid_t *);
 extern int netname2host(char *, char *, const int);
 extern void passwd2des ( char *, char * );
+__END_DECLS
+
+/*
+ *
+ * These routines interface to the keyserv daemon
+ *
+ */
+__BEGIN_DECLS
+extern int key_decryptsession(const char *, des_block *);
+extern int key_encryptsession(const char *, des_block *);
+extern int key_gendes(des_block *);
+extern int key_setsecret(const char *);
+extern int key_secretkey_is_set(void);
 __END_DECLS
 
 /*

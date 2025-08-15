@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250815:
+	The removal of Secure RPC DES authentication notced in 20250810
+	has been reverted.  (However, it is still non-functional.)
+
 20250813:
 	Commit cce64f2e6851 changed the internal KAPI between the NFS
 	modules.  As such, all of them need to be rebuilt from sources.
