@@ -8,8 +8,10 @@
 #include <sys/ktrace.h>
 #endif
 
+#ifndef JEMALLOC_PRIVATE_NAMESPACE
 #include "un-namespace.h"
 #include "libc_private.h"
+#endif
 
 #define JEMALLOC_NO_DEMANGLE
 #ifdef JEMALLOC_JET
