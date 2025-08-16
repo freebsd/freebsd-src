@@ -1,4 +1,4 @@
-// Copyright 2024 The Kyua Authors.
+// Copyright 2025 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,40 +26,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "os/freebsd/main.hpp"
-
-#include "engine/execenv/execenv.hpp"
-#include "os/freebsd/execenv_jail_manager.hpp"
-
-#include "engine/requirements.hpp"
 #include "os/freebsd/reqs_checker_kmods.hpp"
 
-namespace execenv = engine::execenv;
+#include "model/metadata.hpp"
 
-/// FreeBSD related features initialization.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-freebsd::main(const int, const char* const* const)
+extern "C" {
+#include "libutil.h"
+}
+
+std::string
+freebsd::reqs_checker_kmods::exec(const model::metadata& md,
+                                  const utils::config::tree&,
+                                  const std::string&,
+                                  const utils::fs::path&) const
 {
-    execenv::register_execenv(
-        std::shared_ptr< execenv::manager >(new freebsd::execenv_jail_manager())
-    );
-
-#ifdef __FreeBSD__
-    engine::register_reqs_checker(
-        std::shared_ptr< engine::reqs_checker >(
-            new freebsd::reqs_checker_kmods()
-        )
-    );
-#endif
-
-    return 0;
+    std::string reason = "";
+    for (auto& kmod : md.required_kmods())
+        if (!::kld_isloaded((kmod).c_str()))
+            reason += " " + kmod;
+    if (!reason.empty())
+        reason = "Required kmods are not loaded:" + reason + ".";
+    return reason;
 }

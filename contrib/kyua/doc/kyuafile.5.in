@@ -290,6 +290,16 @@ it can run.
 .Pp
 ATF:
 .Va require.files
+.It Va required_kmods
+Whitespace-separated list of kernel module names that the test requires to
+be loaded before it can run.
+This requirement checking is platform-dependent.
+It is ignored for a non-supported platform.
+Supported platforms:
+.Fx .
+.Pp
+ATF:
+.Va require.kmods
 .It Va required_memory
 Amount of physical memory that the test needs to run successfully.
 .Pp

@@ -256,9 +256,7 @@ init_tree(config::tree& tree)
     tree.define< bytes_node >("required_disk_space");
     tree.define< paths_set_node >("required_files");
     tree.define< bytes_node >("required_memory");
-#ifdef __FreeBSD__
     tree.define< config::strings_set_node >("required_kmods");
-#endif
     tree.define< paths_set_node >("required_programs");
     tree.define< user_node >("required_user");
     tree.define< delta_node >("timeout");
@@ -285,9 +283,7 @@ set_defaults(config::tree& tree)
     tree.set< bytes_node >("required_disk_space", units::bytes(0));
     tree.set< paths_set_node >("required_files", model::paths_set());
     tree.set< bytes_node >("required_memory", units::bytes(0));
-#ifdef __FreeBSD__
     tree.set< config::strings_set_node >("required_kmods", model::strings_set());
-#endif
     tree.set< paths_set_node >("required_programs", model::paths_set());
     tree.set< user_node >("required_user", "");
     // TODO(jmmv): We shouldn't be setting a default timeout like this.  See
@@ -603,20 +599,20 @@ model::metadata::required_memory(void) const
 }
 
 
-#ifdef __FreeBSD__
-/// Returns the list of kmods needed by the test.
+/// Returns the list of kernel modules needed by the test.
 ///
-/// \return Set of strings.
+/// \return Set of kernel module names.
 const model::strings_set&
 model::metadata::required_kmods(void) const
 {
     if (_pimpl->props.is_set("required_kmods")) {
-        return _pimpl->props.lookup< config::strings_set_node >("required_kmods");
+        return _pimpl->props.lookup< config::strings_set_node >(
+            "required_kmods");
     } else {
-	return get_defaults().lookup< config::strings_set_node >("required_kmods");
+        return get_defaults().lookup< config::strings_set_node >(
+            "required_kmods");
     }
 }
-#endif
 
 
 /// Returns the list of programs needed by the test.
