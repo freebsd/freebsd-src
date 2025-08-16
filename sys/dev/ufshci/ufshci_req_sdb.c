@@ -26,12 +26,6 @@ ufshci_req_sdb_cmd_desc_destroy(struct ufshci_req_queue *req_queue)
 		tr = hwq->act_tr[i];
 		bus_dmamap_destroy(req_queue->dma_tag_payload,
 		    tr->payload_dma_map);
-		free(tr, M_UFSHCI);
-	}
-
-	if (hwq->act_tr) {
-		free(hwq->act_tr, M_UFSHCI);
-		hwq->act_tr = NULL;
 	}
 
 	if (req_queue->ucd) {
@@ -76,7 +70,6 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
     uint32_t num_entries, struct ufshci_controller *ctrlr)
 {
 	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
-	struct ufshci_tracker *tr;
 	size_t ucd_allocsz, payload_allocsz;
 	uint8_t *ucdmem;
 	int i, error;
@@ -134,27 +127,14 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 		goto out;
 	}
 
-	hwq->act_tr = malloc_domainset(sizeof(struct ufshci_tracker *) *
-		req_queue->num_entries,
-	    M_UFSHCI, DOMAINSET_PREF(req_queue->domain), M_ZERO | M_WAITOK);
-
 	for (i = 0; i < req_queue->num_trackers; i++) {
-		tr = malloc_domainset(sizeof(struct ufshci_tracker), M_UFSHCI,
-		    DOMAINSET_PREF(req_queue->domain), M_ZERO | M_WAITOK);
-
 		bus_dmamap_create(req_queue->dma_tag_payload, 0,
-		    &tr->payload_dma_map);
+		    &hwq->act_tr[i]->payload_dma_map);
 
-		tr->req_queue = req_queue;
-		tr->slot_num = i;
-		tr->slot_state = UFSHCI_SLOT_STATE_FREE;
-
-		tr->ucd = (struct ufshci_utp_cmd_desc *)ucdmem;
-		tr->ucd_bus_addr = hwq->ucd_bus_addr[i];
+		hwq->act_tr[i]->ucd = (struct ufshci_utp_cmd_desc *)ucdmem;
+		hwq->act_tr[i]->ucd_bus_addr = hwq->ucd_bus_addr[i];
 
 		ucdmem += sizeof(struct ufshci_utp_cmd_desc);
-
-		hwq->act_tr[i] = tr;
 	}
 
 	return (0);
@@ -163,25 +143,16 @@ out:
 	return (ENOMEM);
 }
 
-static bool
-ufshci_req_sdb_is_doorbell_cleared(struct ufshci_controller *ctrlr,
-    uint8_t slot)
-{
-	uint32_t utrldbr;
-
-	utrldbr = ufshci_mmio_read_4(ctrlr, utrldbr);
-	return (!(utrldbr & (1 << slot)));
-}
-
 int
 ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue, uint32_t num_entries, bool is_task_mgmt)
 {
 	struct ufshci_hw_queue *hwq;
-	size_t allocsz;
+	size_t desc_size, alloc_size;
 	uint64_t queuemem_phys;
 	uint8_t *queuemem;
-	int error;
+	struct ufshci_tracker *tr;
+	int i, error;
 
 	req_queue->ctrlr = ctrlr;
 	req_queue->is_task_mgmt = is_task_mgmt;
@@ -209,10 +180,13 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	 * Descriptor (UTRD) or UTP Task Management Request Descriptor (UTMRD))
 	 * Note: UTRD/UTMRD format is restricted to 1024-byte alignment.
 	 */
-	allocsz = num_entries * sizeof(struct ufshci_utp_xfer_req_desc);
+	desc_size = is_task_mgmt ?
+	    sizeof(struct ufshci_utp_task_mgmt_req_desc) :
+	    sizeof(struct ufshci_utp_xfer_req_desc);
+	alloc_size = num_entries * desc_size;
 	error = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev), 1024,
 	    ctrlr->page_size, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-	    allocsz, 1, allocsz, 0, NULL, NULL, &hwq->dma_tag_queue);
+	    alloc_size, 1, alloc_size, 0, NULL, NULL, &hwq->dma_tag_queue);
 	if (error != 0) {
 		ufshci_printf(ctrlr, "request queue tag create failed %d\n",
 		    error);
@@ -227,7 +201,7 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	}
 
 	if (bus_dmamap_load(hwq->dma_tag_queue, hwq->queuemem_map, queuemem,
-		allocsz, ufshci_single_map, &queuemem_phys, 0) != 0) {
+		alloc_size, ufshci_single_map, &queuemem_phys, 0) != 0) {
 		ufshci_printf(ctrlr, "failed to load request queue memory\n");
 		bus_dmamem_free(hwq->dma_tag_queue, hwq->utrd,
 		    hwq->queuemem_map);
@@ -238,12 +212,29 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	hwq->num_intr_handler_calls = 0;
 	hwq->num_retries = 0;
 	hwq->num_failures = 0;
-	hwq->utrd = (struct ufshci_utp_xfer_req_desc *)queuemem;
 	hwq->req_queue_addr = queuemem_phys;
+
+	/* Allocate trackers */
+	hwq->act_tr = malloc_domainset(sizeof(struct ufshci_tracker *) *
+		req_queue->num_entries,
+	    M_UFSHCI, DOMAINSET_PREF(req_queue->domain), M_ZERO | M_WAITOK);
+
+	for (i = 0; i < req_queue->num_trackers; i++) {
+		tr = malloc_domainset(sizeof(struct ufshci_tracker), M_UFSHCI,
+		    DOMAINSET_PREF(req_queue->domain), M_ZERO | M_WAITOK);
+
+		tr->req_queue = req_queue;
+		tr->slot_num = i;
+		tr->slot_state = UFSHCI_SLOT_STATE_FREE;
+
+		hwq->act_tr[i] = tr;
+	}
 
 	if (is_task_mgmt) {
 		/* UTP Task Management Request (UTMR) */
 		uint32_t utmrlba, utmrlbau;
+
+		hwq->utmrd = (struct ufshci_utp_task_mgmt_req_desc *)queuemem;
 
 		utmrlba = hwq->req_queue_addr & 0xffffffff;
 		utmrlbau = hwq->req_queue_addr >> 32;
@@ -252,6 +243,8 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	} else {
 		/* UTP Transfer Request (UTR) */
 		uint32_t utrlba, utrlbau;
+
+		hwq->utrd = (struct ufshci_utp_xfer_req_desc *)queuemem;
 
 		/*
 		 * Allocate physical memory for the command descriptor.
@@ -284,9 +277,21 @@ ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue)
 {
 	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
+	struct ufshci_tracker *tr;
+	int i;
 
 	if (!req_queue->is_task_mgmt)
 		ufshci_req_sdb_cmd_desc_destroy(&ctrlr->transfer_req_queue);
+
+	for (i = 0; i < req_queue->num_trackers; i++) {
+		tr = hwq->act_tr[i];
+		free(tr, M_UFSHCI);
+	}
+
+	if (hwq->act_tr) {
+		free(hwq->act_tr, M_UFSHCI);
+		hwq->act_tr = NULL;
+	}
 
 	if (hwq->utrd != NULL) {
 		bus_dmamap_unload(hwq->dma_tag_queue, hwq->queuemem_map);
@@ -389,7 +394,18 @@ ufshci_req_sdb_reserve_slot(struct ufshci_req_queue *req_queue,
 }
 
 void
-ufshci_req_sdb_clear_cpl_ntf(struct ufshci_controller *ctrlr,
+ufshci_req_sdb_utmr_clear_cpl_ntf(struct ufshci_controller *ctrlr,
+    struct ufshci_tracker *tr)
+{
+	/*
+	 * NOP
+	 * UTP Task Management does not have a Completion Notification
+	 * Register.
+	 */
+}
+
+void
+ufshci_req_sdb_utr_clear_cpl_ntf(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr)
 {
 	uint32_t utrlcnr;
@@ -399,7 +415,19 @@ ufshci_req_sdb_clear_cpl_ntf(struct ufshci_controller *ctrlr,
 }
 
 void
-ufshci_req_sdb_ring_doorbell(struct ufshci_controller *ctrlr,
+ufshci_req_sdb_utmr_ring_doorbell(struct ufshci_controller *ctrlr,
+    struct ufshci_tracker *tr)
+{
+	uint32_t utmrldbr = 0;
+
+	utmrldbr |= 1 << tr->slot_num;
+	ufshci_mmio_write_4(ctrlr, utmrldbr, utmrldbr);
+
+	tr->req_queue->hwq[UFSHCI_SDB_Q].num_cmds++;
+}
+
+void
+ufshci_req_sdb_utr_ring_doorbell(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr)
 {
 	uint32_t utrldbr = 0;
@@ -408,9 +436,26 @@ ufshci_req_sdb_ring_doorbell(struct ufshci_controller *ctrlr,
 	ufshci_mmio_write_4(ctrlr, utrldbr, utrldbr);
 
 	tr->req_queue->hwq[UFSHCI_SDB_Q].num_cmds++;
+}
 
-	// utrldbr = ufshci_mmio_read_4(ctrlr, utrldbr);
-	// printf("DB=0x%08x\n", utrldbr);
+bool
+ufshci_req_sdb_utmr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+    uint8_t slot)
+{
+	uint32_t utmrldbr;
+
+	utmrldbr = ufshci_mmio_read_4(ctrlr, utmrldbr);
+	return (!(utmrldbr & (1 << slot)));
+}
+
+bool
+ufshci_req_sdb_utr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+    uint8_t slot)
+{
+	uint32_t utrldbr;
+
+	utrldbr = ufshci_mmio_read_4(ctrlr, utrldbr);
+	return (!(utrldbr & (1 << slot)));
 }
 
 bool
@@ -435,7 +480,7 @@ ufshci_req_sdb_process_cpl(struct ufshci_req_queue *req_queue)
 		 * is cleared.
 		 */
 		if (tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED &&
-		    ufshci_req_sdb_is_doorbell_cleared(req_queue->ctrlr,
+		    req_queue->qops.is_doorbell_cleared(req_queue->ctrlr,
 			slot)) {
 			ufshci_req_queue_complete_tracker(tr);
 			done = true;
