@@ -258,6 +258,7 @@ Metadata:
     required_configs is empty
     required_disk_space = 0
     required_files is empty
+    required_kmods is empty
     required_memory = 0
     required_programs is empty
     required_user is empty

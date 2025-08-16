@@ -57,6 +57,7 @@ ATF_TEST_CASE_BODY(defaults)
     ATF_REQUIRE(md.required_configs().empty());
     ATF_REQUIRE_EQ(units::bytes(0), md.required_disk_space());
     ATF_REQUIRE(md.required_files().empty());
+    ATF_REQUIRE(md.required_kmods().empty());
     ATF_REQUIRE_EQ(units::bytes(0), md.required_memory());
     ATF_REQUIRE(md.required_programs().empty());
     ATF_REQUIRE(md.required_user().empty());
@@ -322,6 +323,7 @@ ATF_TEST_CASE_BODY(to_properties)
     props["required_configs"] = "";
     props["required_disk_space"] = "0";
     props["required_files"] = "bar foo";
+    props["required_kmods"] = "";
     props["required_memory"] = "1.00K";
     props["required_programs"] = "";
     props["required_user"] = "";
@@ -412,7 +414,7 @@ ATF_TEST_CASE_BODY(output__defaults)
                    "has_cleanup='false', is_exclusive='false', "
                    "required_configs='', "
                    "required_disk_space='0', required_files='', "
-                   "required_memory='0', "
+                   "required_kmods='', required_memory='0', "
                    "required_programs='', required_user='', timeout='300'}",
                    str.str());
 }
@@ -435,7 +437,7 @@ ATF_TEST_CASE_BODY(output__some_values)
         "has_cleanup='false', is_exclusive='true', "
         "required_configs='', "
         "required_disk_space='0', required_files='bar foo', "
-        "required_memory='1.00K', "
+        "required_kmods='', required_memory='1.00K', "
         "required_programs='', required_user='', timeout='300'}",
         str.str());
 }
