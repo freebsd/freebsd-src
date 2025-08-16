@@ -2,6 +2,9 @@ SHLIBDIR?=	/lib
 .if !defined(LIBCRYPTO_WITHOUT_SUBDIRS)
 SUBDIR=		engines modules
 .endif
+.if defined(LIBCRYPTO_WITHOUT_SCTP)
+CFLAGS+=	-DOPENSSL_NO_SCTP
+.endif
 
 .include <bsd.own.mk>
 .include <src.opts.mk>

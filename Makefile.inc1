@@ -2708,8 +2708,17 @@ _basic_bootstrap_tools+=sbin/md5
 _basic_bootstrap_tools+=usr.sbin/tzsetup
 .endif
 
-# certctl is needed as an install tool
+# certctl is needed as an install tool.  libcrypto is rather light, so we'll
+# build that alongside it for platforms that don't expose headers for OpenSSL,
+# like macOS.
 .if ${MK_CAROOT} != "no" && ${MK_OPENSSL} != "no"
+.if ${.MAKE.OS} == "Darwin" || ${.MAKE.OS} == "FreeBSD"
+BSTOOL_ARGS+=	-DLIBCRYPTO_WITHOUT_SUBDIRS
+BSTOOL_ARGS+=	-DLIBCRYPTO_WITHOUT_SCTP
+BSTOOL_ARGS+=	-DWITHOUT_AUTO_ASM
+_bootstrap_libcrypto=secure/lib/libcrypto
+${_bt}-usr.sbin/certctl: ${_bt}-secure/lib/libcrypto
+.endif
 _certctl=usr.sbin/certctl
 .endif
 
@@ -2776,6 +2785,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_strfile} \
     usr.bin/dtc \
     ${_cat} \
+    ${_bootstrap_libcrypto} \
     ${_certctl} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
@@ -2813,8 +2823,9 @@ ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 		if [ "${_tool}" = "usr.bin/lex" ]; then \
 			${MAKE} DIRPRFX=${_tool}/ bootstrap; \
 		fi; \
-		${MAKE} DIRPRFX=${_tool}/ all; \
-		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP}/legacy install
+		${MAKE} DIRPRFX=${_tool}/ ${BSTOOL_ARGS} all; \
+		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP}/legacy \
+		    ${BSTOOL_ARGS} install
 
 bootstrap-tools: ${_bt}-${_tool}
 .endfor
