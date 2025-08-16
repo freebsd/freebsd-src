@@ -8,6 +8,32 @@
 #include "ufshci_private.h"
 
 void
+ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
+    ufshci_cb_fn_t cb_fn, void *cb_arg, uint8_t function, uint8_t lun,
+    uint8_t task_tag, uint8_t iid)
+{
+	struct ufshci_request *req;
+	struct ufshci_task_mgmt_request_upiu *upiu;
+
+	req = ufshci_allocate_request_vaddr(NULL, 0, M_WAITOK, cb_fn, cb_arg);
+
+	req->request_size = sizeof(struct ufshci_task_mgmt_request_upiu);
+	req->response_size = sizeof(struct ufshci_task_mgmt_response_upiu);
+
+	upiu = (struct ufshci_task_mgmt_request_upiu *)&req->request_upiu;
+	memset(upiu, 0, req->request_size);
+	upiu->header.trans_type =
+	    UFSHCI_UPIU_TRANSACTION_CODE_TASK_MANAGEMENT_REQUEST;
+	upiu->header.lun = lun;
+	upiu->header.ext_iid_or_function = function;
+	upiu->input_param1 = lun;
+	upiu->input_param2 = task_tag;
+	upiu->input_param3 = iid;
+
+	ufshci_ctrlr_submit_task_mgmt_request(ctrlr, req);
+}
+
+void
 ufshci_ctrlr_cmd_send_nop(struct ufshci_controller *ctrlr, ufshci_cb_fn_t cb_fn,
     void *cb_arg)
 {
