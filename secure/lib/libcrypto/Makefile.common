@@ -6,7 +6,7 @@ CFLAGS+=	-DL_ENDIAN
 CFLAGS+=	-DB_ENDIAN
 .endif
 
-.ifndef WITHOUT_AUTO_ASM
+.if !defined(WITHOUT_AUTO_ASM) && !defined(BOOTSTRAPPING)
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386"
 ASM_${MACHINE_CPUARCH}=

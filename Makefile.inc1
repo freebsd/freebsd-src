@@ -2709,8 +2709,14 @@ _basic_bootstrap_tools+=sbin/md5
 _basic_bootstrap_tools+=usr.sbin/tzsetup
 .endif
 
-# certctl is needed as an install tool
+# certctl is needed as an install tool.  libcrypto is rather heavy, so we'll
+# build that alongside it only for platforms that don't expose headers for
+# OpenSSL, like macOS.
 .if ${MK_CAROOT} != "no" && ${MK_OPENSSL} != "no"
+.if ${.MAKE.OS} == "Darwin"
+_bootstrap_libcrypto=secure/lib/libcrypto
+${_bt}-usr.sbin/certctl: ${_bt}-secure/lib/libcrypto
+.endif
 _certctl=usr.sbin/certctl
 .endif
 
@@ -2777,6 +2783,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_strfile} \
     usr.bin/dtc \
     ${_cat} \
+    ${_bootstrap_libcrypto} \
     ${_certctl} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
