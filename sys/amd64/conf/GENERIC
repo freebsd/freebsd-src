@@ -184,6 +184,9 @@ device		mrsas			# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 device		nvme			# base NVMe driver
 device		nvd			# expose NVMe namespaces as disks, depends on nvme
 
+# Universal Flash Storage Host Controller Interface support
+device 		ufshci			# UFS host controller
+
 # Intel Volume Management Device (VMD) support
 device		vmd
 
