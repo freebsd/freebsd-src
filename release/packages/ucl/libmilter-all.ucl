@@ -1,0 +1,6 @@
+comment = "Sendmail mail filter (milter) library"
+desc = <<EOD
+The Sendmail milter interface allows a mail transport agent to filter mail
+through a separate process, called a milter.  libmilter provides support
+for applications implementing the milter interface.
+EOD
