@@ -1735,7 +1735,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	/*
 	 * Quit if directory has been removed (posix)
 	 */
-	if ((*eofp = zp->z_unlinked) != 0) {
+	if ((*eofp = (zp->z_unlinked != 0)) != 0) {
 		zfs_exit(zfsvfs, FTAG);
 		return (0);
 	}
