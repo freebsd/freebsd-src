@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250816:
+	Sendmail's libmilter has been moved to its own package.  If you want
+	to compile applications that use libmilter, you should install the
+	FreeBSD-libmilter* packages.
+
+	If you only have FreeBSD-sendmail installed for applications that
+	require libmilter, you can now remove it.
+
 20250815:
 	jemalloc 5.3.0 has been committed to the tree.
 
