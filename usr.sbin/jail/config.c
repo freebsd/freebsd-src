@@ -189,7 +189,7 @@ load_config(const char *cfname)
 		 * jail is created or found.
 		 */
 		if (j->intparams[KP_NAME] == NULL)
-			add_param(j, j->intparams[KP_JID], KP_NAME, NULL);
+			add_param(j, NULL, KP_NAME, j->name);
 
 		/* Resolve any variable substitutions. */
 		pgen = 0;
