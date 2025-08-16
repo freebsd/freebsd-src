@@ -606,11 +606,9 @@ tegra_pcib_msi_intr(void *arg)
 {
 	u_int irq, i, bit, reg;
 	struct tegra_pcib_softc *sc;
-	struct trapframe *tf;
 	struct tegra_pcib_irqsrc *tgi;
 
 	sc = (struct tegra_pcib_softc *)arg;
-	tf = curthread->td_intr_frame;
 
 	for (i = 0; i < AFI_MSI_REGS; i++) {
 		reg = AFI_RD4(sc, AFI_MSI_VEC(i));
@@ -621,7 +619,7 @@ tegra_pcib_msi_intr(void *arg)
 			AFI_WR4(sc, AFI_MSI_VEC(i), 1 << bit);
 			irq = i * AFI_MSI_INTR_IN_REG + bit;
 			tgi = &sc->isrcs[irq];
-			if (intr_isrc_dispatch(&tgi->isrc, tf) != 0) {
+			if (intr_isrc_dispatch(&tgi->isrc) != 0) {
 				/* Disable stray. */
 				tegra_pcib_isrc_mask(sc, tgi, 0);
 				device_printf(sc->dev,
