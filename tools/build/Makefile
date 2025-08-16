@@ -495,6 +495,7 @@ INSTALLDIR_LIST= \
 	bin \
 	lib/geom \
 	usr/include/casper \
+	usr/include/openssl \
 	usr/include/private/ucl \
 	usr/include/private/zstd \
 	usr/lib \
