@@ -1,6 +1,9 @@
 SHLIBDIR?=	/lib
-.if !defined(LIBCRYPTO_WITHOUT_SUBDIRS)
+.if !defined(LIBCRYPTO_WITHOUT_SUBDIRS) && !defined(BOOTSTRAPPING)
 SUBDIR=		engines modules
+.endif
+.ifdef BOOTSTRAPPING
+CFLAGS+=	-DOPENSSL_NO_SCTP
 .endif
 
 .include <bsd.own.mk>
