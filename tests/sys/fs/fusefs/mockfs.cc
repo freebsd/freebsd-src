@@ -472,7 +472,7 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 	sprintf(fdstr, "%d", m_fuse_fd);
 	build_iovec(&iov, &iovlen, "fd", fdstr, -1);
 	if (m_maxread > 0) {
-		char val[10];
+		char val[12];
 
 		snprintf(val, sizeof(val), "%d", m_maxread);
 		build_iovec(&iov, &iovlen, "max_read=", &val, -1);
