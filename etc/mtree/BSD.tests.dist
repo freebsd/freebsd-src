@@ -1255,8 +1255,6 @@
         ..
     ..
     usr.sbin
-        certctl
-        ..
         chown
         ..
         ctladm
