@@ -1326,7 +1326,7 @@ p9fs_read(struct vop_read_args *ap)
 	np = P9FS_VTON(vp);
 	error = 0;
 
-	if (vp->v_type == VCHR || vp->v_type == VBLK)
+	if (VN_ISDEV(vp))
 		return (EOPNOTSUPP);
 	if (vp->v_type != VREG)
 		return (EISDIR);

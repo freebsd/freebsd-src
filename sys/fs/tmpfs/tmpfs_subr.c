@@ -551,7 +551,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, __enum_uint8(vtype) 
 	MPASS(IMPLIES(tmp->tm_root == NULL, parent == NULL && type == VDIR));
 
 	MPASS((type == VLNK) ^ (target == NULL));
-	MPASS((type == VBLK || type == VCHR) ^ (rdev == VNOVAL));
+	MPASS(VTYPE_ISDEV(type) ^ (rdev == VNOVAL));
 
 	if (tmp->tm_nodes_inuse >= tmp->tm_nodes_max)
 		return (ENOSPC);

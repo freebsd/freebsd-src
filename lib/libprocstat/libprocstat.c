@@ -1330,8 +1330,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		return (1);
 	}
 	vn->vn_mntdir = getmnton(kd, vnode.v_mount);
-	if ((vnode.v_type == VBLK || vnode.v_type == VCHR) &&
-	    vnode.v_rdev != NULL){
+	if (VTYPE_ISDEV(vnode.v_type) && vnode.v_rdev != NULL) {
 		vn->vn_dev = dev2udev(kd, vnode.v_rdev);
 		(void)kdevtoname(kd, vnode.v_rdev, vn->vn_devname);
 	} else {
