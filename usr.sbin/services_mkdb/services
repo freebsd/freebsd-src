@@ -896,7 +896,7 @@ biff		512/udp	   comsat	#used by mail system to notify users
 #					processes on the same machine
 login		513/tcp	   #remote login a la telnet;
 #			   automatic authentication performed
-#			   based on priviledged port numbers
+#			   based on privileged port numbers
 #			   and distributed data bases which
 #			   identify "authentication domains"
 who		513/udp	   whod		#maintains data bases showing who's
