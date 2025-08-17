@@ -5170,7 +5170,7 @@ bufstrategy(struct bufobj *bo, struct buf *bp)
 
 	vp = bp->b_vp;
 	KASSERT(vp == bo->bo_private, ("Inconsistent vnode bufstrategy"));
-	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
+	KASSERT(!VN_ISDEV(vp),
 	    ("Wrong vnode in bufstrategy(bp=%p, vp=%p)", bp, vp));
 	i = VOP_STRATEGY(vp, bp);
 	KASSERT(i == 0, ("VOP_STRATEGY failed bp=%p vp=%p", bp, bp->b_vp));
