@@ -542,7 +542,8 @@ ufs_stat(struct vop_stat_args *ap)
 	sb->st_uid = ip->i_uid;
 	sb->st_gid = ip->i_gid;
 	if (I_IS_UFS1(ip)) {
-		sb->st_rdev = ip->i_din1->di_rdev;
+		sb->st_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
+		    ip->i_din1->di_rdev : NODEV;
 		sb->st_size = ip->i_din1->di_size;
 		sb->st_mtim.tv_sec = ip->i_din1->di_mtime;
 		sb->st_mtim.tv_nsec = ip->i_din1->di_mtimensec;
@@ -553,7 +554,8 @@ ufs_stat(struct vop_stat_args *ap)
 		sb->st_blocks = dbtob((uint64_t)ip->i_din1->di_blocks) / S_BLKSIZE;
 		sb->st_filerev = ip->i_din1->di_modrev;
 	} else {
-		sb->st_rdev = ip->i_din2->di_rdev;
+		sb->st_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
+		    ip->i_din2->di_rdev : NODEV;
 		sb->st_size = ip->i_din2->di_size;
 		sb->st_mtim.tv_sec = ip->i_din2->di_mtime;
 		sb->st_mtim.tv_nsec = ip->i_din2->di_mtimensec;
@@ -605,7 +607,8 @@ ufs_getattr(
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
 	if (I_IS_UFS1(ip)) {
-		vap->va_rdev = ip->i_din1->di_rdev;
+		vap->va_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
+		    ip->i_din1->di_rdev : NODEV;
 		vap->va_size = ip->i_din1->di_size;
 		vap->va_mtime.tv_sec = ip->i_din1->di_mtime;
 		vap->va_mtime.tv_nsec = ip->i_din1->di_mtimensec;
@@ -614,7 +617,8 @@ ufs_getattr(
 		vap->va_bytes = dbtob((uint64_t)ip->i_din1->di_blocks);
 		vap->va_filerev = ip->i_din1->di_modrev;
 	} else {
-		vap->va_rdev = ip->i_din2->di_rdev;
+		vap->va_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
+		    ip->i_din2->di_rdev : NODEV;
 		vap->va_size = ip->i_din2->di_size;
 		vap->va_mtime.tv_sec = ip->i_din2->di_mtime;
 		vap->va_mtime.tv_nsec = ip->i_din2->di_mtimensec;
