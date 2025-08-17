@@ -69,6 +69,11 @@ __enum_uint8_decl(vtype) {
 	VLASTTYPE = VMARKER,
 };
 
+/*
+ * We frequently need to test is something is a device node.
+ */
+#define VTYPE_ISDEV(vtype)	((vtype) == VCHR || (vtype) == VBLK)
+
 __enum_uint8_decl(vstate) {
 	VSTATE_UNINITIALIZED,
 	VSTATE_CONSTRUCTED,
@@ -199,6 +204,8 @@ struct vnode {
 	int	v_seqc_users;			/* i modifications pending */
 };
 
+#define VN_ISDEV(vp)		VTYPE_ISDEV((vp)->v_type)
+
 #ifndef DEBUG_LOCKS
 #ifdef _LP64
 /*
@@ -303,6 +310,8 @@ struct vattr {
 	u_int		va_vaflags;	/* operations flags, see below */
 	long		va_spare;	/* remain quad aligned */
 };
+
+#define VATTR_ISDEV(vap)	VTYPE_ISDEV((vap)->va_type)
 
 /*
  * Flags for va_vaflags.

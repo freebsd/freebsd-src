@@ -1655,7 +1655,7 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	int error = 0, attrflag, dattrflag;
 	u_int32_t rdev;
 
-	if (vap->va_type == VCHR || vap->va_type == VBLK)
+	if (VATTR_ISDEV(vap))
 		rdev = vap->va_rdev;
 	else if (vap->va_type == VFIFO || vap->va_type == VSOCK)
 		rdev = 0xffffffff;

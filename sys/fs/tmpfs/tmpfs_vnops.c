@@ -280,8 +280,7 @@ tmpfs_mknod(struct vop_mknod_args *v)
 	struct componentname *cnp = v->a_cnp;
 	struct vattr *vap = v->a_vap;
 
-	if (vap->va_type != VBLK && vap->va_type != VCHR &&
-	    vap->va_type != VFIFO)
+	if (!VATTR_ISDEV(vap) && vap->va_type != VFIFO)
 		return (EINVAL);
 
 	return (tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL));
@@ -462,8 +461,7 @@ tmpfs_stat(struct vop_stat_args *v)
 	sb->st_nlink = node->tn_links;
 	sb->st_uid = node->tn_uid;
 	sb->st_gid = node->tn_gid;
-	sb->st_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
-		node->tn_rdev : NODEV;
+	sb->st_rdev = VN_ISDEV(vp) ? node->tn_rdev : NODEV;
 	sb->st_size = node->tn_size;
 	sb->st_atim.tv_sec = node->tn_atime.tv_sec;
 	sb->st_atim.tv_nsec = node->tn_atime.tv_nsec;
@@ -521,8 +519,7 @@ tmpfs_getattr(struct vop_getattr_args *v)
 	vap->va_birthtime = node->tn_birthtime;
 	vap->va_gen = node->tn_gen;
 	vap->va_flags = node->tn_flags;
-	vap->va_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
-	    node->tn_rdev : NODEV;
+	vap->va_rdev = VN_ISDEV(vp) ? node->tn_rdev : NODEV;
 	if (vp->v_type == VREG) {
 #ifdef __ILP32__
 		vm_object_t obj = node->tn_reg.tn_aobj;
@@ -1886,7 +1883,7 @@ tmpfs_deleteextattr(struct vop_deleteextattr_args *ap)
 
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
@@ -1924,7 +1921,7 @@ tmpfs_getextattr(struct vop_getextattr_args *ap)
 	int error;
 
 	node = VP_TO_TMPFS_NODE(vp);
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VREAD);
@@ -1961,7 +1958,7 @@ tmpfs_listextattr(struct vop_listextattr_args *ap)
 	int error;
 
 	node = VP_TO_TMPFS_NODE(vp);
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VREAD);
@@ -2005,7 +2002,7 @@ tmpfs_setextattr(struct vop_setextattr_args *ap)
 	tmp = VFS_TO_TMPFS(vp->v_mount);
 	attr_size = ap->a_uio->uio_resid;
 	diff = 0;
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);

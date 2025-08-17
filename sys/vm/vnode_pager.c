@@ -886,8 +886,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	int error, before, after, rbehind, rahead, poff, i;
 	int bytecount, secmask;
 
-	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
-	    ("%s does not support devices", __func__));
+	KASSERT(!VN_ISDEV(vp), ("%s does not support devices", __func__));
 
 	if (VN_IS_DOOMED(vp))
 		return (VM_PAGER_BAD);

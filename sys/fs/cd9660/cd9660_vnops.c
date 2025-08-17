@@ -127,7 +127,7 @@ cd9660_access(struct vop_access_args *ap)
 	uid_t uid;
 	gid_t gid;
 
-	if (vp->v_type == VCHR || vp->v_type == VBLK)
+	if (VN_ISDEV(vp))
 		return (EOPNOTSUPP);
 
 	/*
@@ -165,7 +165,7 @@ cd9660_open(struct vop_open_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
 
-	if (vp->v_type == VCHR || vp->v_type == VBLK)
+	if (VN_ISDEV(vp))
 		return (EOPNOTSUPP);
 
 	vnode_create_vobject(vp, ip->i_size, ap->a_td);
@@ -245,7 +245,7 @@ cd9660_ioctl(struct vop_ioctl_args *ap)
 		VOP_UNLOCK(vp);
 		return (EBADF);
 	}
-	if (vp->v_type == VCHR || vp->v_type == VBLK) {
+	if (VN_ISDEV(vp)) {
 		VOP_UNLOCK(vp);
 		return (EOPNOTSUPP);
 	}
@@ -283,7 +283,7 @@ cd9660_read(struct vop_read_args *ap)
 	int seqcount;
 	long size, n, on;
 
-	if (vp->v_type == VCHR || vp->v_type == VBLK)
+	if (VN_ISDEV(vp))
 		return (EOPNOTSUPP);
 
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
@@ -714,7 +714,7 @@ cd9660_strategy(struct vop_strategy_args *ap)
 	struct bufobj *bo;
 
 	ip = VTOI(vp);
-	if (vp->v_type == VBLK || vp->v_type == VCHR)
+	if (VN_ISDEV(vp))
 		panic("cd9660_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
 		bp->b_blkno = (ip->iso_start + bp->b_lblkno) <<
@@ -821,7 +821,7 @@ cd9660_getpages(struct vop_getpages_args *ap)
 	struct vnode *vp;
 
 	vp = ap->a_vp;
-	if (vp->v_type == VCHR || vp->v_type == VBLK)
+	if (VN_ISDEV(vp))
 		return (EOPNOTSUPP);
 
 	if (use_buf_pager)

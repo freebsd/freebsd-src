@@ -1742,7 +1742,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 
 	if (fuse_isdeadfs(vp))
 		return ENXIO;
-	if (vp->v_type == VCHR || vp->v_type == VBLK || vp->v_type == VFIFO)
+	if (VN_ISDEV(vp) || vp->v_type == VFIFO)
 		return (EOPNOTSUPP);
 	if ((a_mode & (FREAD | FWRITE | FEXEC)) == 0)
 		return EINVAL;

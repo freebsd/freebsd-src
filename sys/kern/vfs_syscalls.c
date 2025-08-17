@@ -2755,7 +2755,7 @@ setfflags(struct thread *td, struct vnode *vp, u_long flags)
 	 * if they are allowed to set flags and programs assume that
 	 * chown can't fail when done as root.
 	 */
-	if (vp->v_type == VCHR || vp->v_type == VBLK) {
+	if (VN_ISDEV(vp)) {
 		error = priv_check(td, PRIV_VFS_CHFLAGS_DEV);
 		if (error != 0)
 			return (error);
