@@ -256,3 +256,4 @@ static device_method_t mt7622_eth_dev_methods[] ={
 
 static DEFINE_CLASS_0(mt7622_eth, mt7622_eth_driver, mt7622_eth_dev_methods,
 sizeof(struct rt_softc));
+DRIVER_MODULE(mt7622_eth, simplebus, mt7622_eth_driver, NULL, NULL);
