@@ -861,7 +861,8 @@ iichid_intr_start(device_t dev, device_t child __unused)
 
 	sc = device_get_softc(dev);
 	DPRINTF(sc, "iichid device open\n");
-	iichid_set_power_state(sc, IICHID_PS_ON, IICHID_PS_NULL);
+	if (!sc->open)
+		iichid_set_power_state(sc, IICHID_PS_ON, IICHID_PS_NULL);
 
 	return (0);
 }
