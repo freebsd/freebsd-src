@@ -114,6 +114,7 @@ struct usbhid_xfer_ctx {
 	void *cb_ctx;
 	int waiters;
 	bool influx;
+	bool no_readahead;
 };
 
 struct usbhid_softc {
@@ -272,7 +273,7 @@ usbhid_intr_handler_cb(struct usbhid_xfer_ctx *xfer_ctx)
 	sc->sc_intr_handler(sc->sc_intr_ctx, xfer_ctx->buf,
 	    xfer_ctx->req.intr.actlen);
 
-	return (0);
+	return (xfer_ctx->no_readahead ? ECANCELED : 0);
 }
 
 static int
@@ -430,6 +431,7 @@ usbhid_intr_start(device_t dev, device_t child __unused)
 		.cb = usbhid_intr_handler_cb,
 		.cb_ctx = sc,
 		.buf = sc->sc_intr_buf,
+		.no_readahead = hid_test_quirk(&sc->sc_hw, HQ_NO_READAHEAD),
 	};
 	sc->sc_xfer_ctx[POLL_XFER(USBHID_INTR_IN_DT)] = (struct usbhid_xfer_ctx) {
 		.req.intr.maxlen =

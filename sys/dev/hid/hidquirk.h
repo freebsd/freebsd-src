@@ -50,6 +50,7 @@
 	HQ(IS_XBOX360GP), 	/* device is XBox 360 GamePad */	\
 	HQ(NOWRITE),		/* device does not support writes */	\
 	HQ(IICHID_SAMPLING),	/* IIC backend runs in sampling mode */	\
+	HQ(NO_READAHEAD),	/* Disable interrupt after one report */\
 									\
 	/* Various quirks */						\
 	HQ(HID_IGNORE),		/* device should be ignored by hid class */ \
