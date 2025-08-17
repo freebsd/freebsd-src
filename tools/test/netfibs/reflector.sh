@@ -897,7 +897,7 @@ testrx_run_test()
 	*)	_opts="-d" ;;
 	esac
 
-	# Convert netcat options to reflect aguments.
+	# Convert netcat options to reflect arguments.
 	case "${_o}" in
 	-i)	_opts="${_opts} -T TCP6" ;;	# Use TCP for START/DONE.
 	-u)	_opts="${_opts} -T UDP6" ;;
