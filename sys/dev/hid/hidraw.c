@@ -85,6 +85,12 @@ SYSCTL_INT(_hw_hid_hidraw, OID_AUTO, debug, CTLFLAG_RWTUN,
 		free((buf), M_DEVBUF);			\
 	}
 
+#ifdef HIDRAW_MAKE_UHID_ALIAS
+#define	HIDRAW_NAME	"uhid"
+#else
+#define	HIDRAW_NAME	"hidraw"
+#endif
+
 struct hidraw_softc {
 	device_t sc_dev;		/* base device */
 
@@ -183,8 +189,8 @@ hidraw_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
 
-	if (device_find_child(parent, "hidraw", DEVICE_UNIT_ANY) == NULL) {
-		child = BUS_ADD_CHILD(parent, 0, "hidraw",
+	if (device_find_child(parent, HIDRAW_NAME, DEVICE_UNIT_ANY) == NULL) {
+		child = BUS_ADD_CHILD(parent, 0, HIDRAW_NAME,
 		    device_get_unit(parent));
 		if (child != NULL)
 			hidbus_set_index(child, HIDRAW_INDEX);
@@ -1050,7 +1056,7 @@ static device_method_t hidraw_methods[] = {
 };
 
 static driver_t hidraw_driver = {
-	"hidraw",
+	HIDRAW_NAME,
 	hidraw_methods,
 	sizeof(struct hidraw_softc)
 };
