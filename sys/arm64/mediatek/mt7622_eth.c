@@ -46,6 +46,7 @@ mt7622_eth_probe(device_t dev)
     if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
         return (ENXIO);
 
+    device_printf(dev, "%s\n", __func__ );
     device_set_desc(dev, "Mediatek 7622 ethernet driver");
     return (BUS_PROBE_DEFAULT);
 }
@@ -59,7 +60,7 @@ mt7622_eth_attach(device_t dev)
     phandle_t node;
 	char fdtval[32];
 
-
+    device_printf(dev, "%s\n", __func__ );
     sc = device_get_softc(dev);
     sc->dev = dev;
     node = ofw_bus_get_node(sc->dev);
@@ -214,9 +215,6 @@ mt7622_eth_attach(device_t dev)
                device_get_nameunit(dev));
         goto fail;
     }
-#ifdef IF_RT_DEBUG
-    device_printf(dev, "debug var at %#08x\n", (u_int)&(sc->debug));
-#endif
 
     return (0);
 
