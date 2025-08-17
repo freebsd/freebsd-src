@@ -2571,8 +2571,6 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 	}
 	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED);
 	NDFREE_PNBUF(&nd);
-	KASSERT(error != 0 || VN_ISDEV(nd.ni_vp) || sbp->st_rdev == NODEV,
-	    ("st_rdev should be NODEV unless the file is a device node"));
 	vput(nd.ni_vp);
 #ifdef __STAT_TIME_T_EXT
 	sbp->st_atim_ext = 0;
