@@ -707,6 +707,10 @@ usbhid_ioctl(device_t dev, device_t child __unused, unsigned long cmd,
 		if (error == 0)
 			ucr->ucr_actlen = UGETW(req.ctrl.wLength);
 		break;
+	case USB_GET_DEVICEINFO:
+		error = usbd_fill_deviceinfo(sc->sc_udev,
+		    (struct usb_device_info *)data);
+		break;
 	default:
 		error = EINVAL;
 	}
