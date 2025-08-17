@@ -65,7 +65,7 @@ struct hidbus_ivars {
 	struct mtx			*mtx;		/* child intr mtx */
 	hid_intr_t			*intr_handler;	/* executed under mtx*/
 	void				*intr_ctx;
-	unsigned int			refcnt;		/* protected by mtx */
+	bool				active;		/* protected by mtx */
 	struct epoch_context		epoch_ctx;
 	CK_STAILQ_ENTRY(hidbus_ivars)	link;
 };
@@ -398,7 +398,7 @@ hidbus_child_detached(device_t bus, device_t child)
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *tlc = device_get_ivars(child);
 
-	KASSERT(tlc->refcnt == 0, ("Child device is running"));
+	KASSERT(!tlc->active, ("Child device is running"));
 	tlc->mtx = &sc->mtx;
 	tlc->intr_handler = NULL;
 	tlc->flags &= ~HIDBUS_FLAG_CAN_POLL;
@@ -423,7 +423,7 @@ hidbus_child_deleted(device_t bus, device_t child)
 	struct hidbus_ivars *tlc = device_get_ivars(child);
 
 	sx_xlock(&sc->sx);
-	KASSERT(tlc->refcnt == 0, ("Child device is running"));
+	KASSERT(!tlc->active, ("Child device is running"));
 	CK_STAILQ_REMOVE(&sc->tlcs, tlc, hidbus_ivars, link);
 	sx_unlock(&sc->sx);
 	epoch_call(INPUT_EPOCH, hidbus_ivar_dtor, &tlc->epoch_ctx);
@@ -572,7 +572,7 @@ hidbus_intr(void *context, void *buf, hid_size_t len)
 	if (!HID_IN_POLLING_MODE())
 		epoch_enter_preempt(INPUT_EPOCH, &et);
 	CK_STAILQ_FOREACH(tlc, &sc->tlcs, link) {
-		if (tlc->refcnt == 0 || tlc->intr_handler == NULL)
+		if (!tlc->active || tlc->intr_handler == NULL)
 			continue;
 		if (HID_IN_POLLING_MODE()) {
 			if ((tlc->flags & HIDBUS_FLAG_CAN_POLL) != 0)
@@ -602,21 +602,14 @@ hidbus_intr_start(device_t bus, device_t child)
 	MPASS(bus == device_get_parent(child));
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
-	struct hidbus_ivars *tlc;
-	bool refcnted = false;
 	int error;
 
 	if (sx_xlock_sig(&sc->sx) != 0)
 		return (EINTR);
-	CK_STAILQ_FOREACH(tlc, &sc->tlcs, link) {
-		refcnted |= (tlc->refcnt != 0);
-		if (tlc == ivar) {
-			mtx_lock(tlc->mtx);
-			++tlc->refcnt;
-			mtx_unlock(tlc->mtx);
-		}
-	}
-	error = refcnted ? 0 : hid_intr_start(bus);
+	mtx_lock(ivar->mtx);
+	ivar->active = true;
+	mtx_unlock(ivar->mtx);
+	error = hid_intr_start(bus);
 	sx_unlock(&sc->sx);
 
 	return (error);
@@ -629,21 +622,17 @@ hidbus_intr_stop(device_t bus, device_t child)
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
 	struct hidbus_ivars *tlc;
-	bool refcnted = false;
+	bool active = false;
 	int error;
 
 	if (sx_xlock_sig(&sc->sx) != 0)
 		return (EINTR);
-	CK_STAILQ_FOREACH(tlc, &sc->tlcs, link) {
-		if (tlc == ivar) {
-			mtx_lock(tlc->mtx);
-			MPASS(tlc->refcnt != 0);
-			--tlc->refcnt;
-			mtx_unlock(tlc->mtx);
-		}
-		refcnted |= (tlc->refcnt != 0);
-	}
-	error = refcnted ? 0 : hid_intr_stop(bus);
+	mtx_lock(ivar->mtx);
+	ivar->active = false;
+	mtx_unlock(ivar->mtx);
+	CK_STAILQ_FOREACH(tlc, &sc->tlcs, link)
+		active |= tlc->active;
+	error = active ? 0 : hid_intr_stop(bus);
 	sx_unlock(&sc->sx);
 
 	return (error);
