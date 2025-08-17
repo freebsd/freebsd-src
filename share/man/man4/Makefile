@@ -594,6 +594,7 @@ MAN=	aac.4 \
 	tty.4 \
 	tun.4 \
 	tws.4 \
+	u2f.4 \
 	udp.4 \
 	udplite.4 \
 	${_ufshci.4} \

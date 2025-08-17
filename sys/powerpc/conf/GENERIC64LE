@@ -274,3 +274,4 @@ device          virtio_balloon          # VirtIO Memory Balloon device
 options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
 device		hidbus			# Generic HID Bus
+options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/u2f/
