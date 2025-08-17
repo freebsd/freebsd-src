@@ -153,7 +153,7 @@ pmu_parse_intr(device_t dev, struct pmu_softc *sc)
 	if (intr_is_per_cpu(sc->irq[0].res)) {
 		if (has_affinity) {
 			device_printf(dev,
-			    "Per CPU interupt have declared affinity\n");
+			    "Per CPU interrupt have declared affinity\n");
 			err = ENXIO;
 			goto done;
 		}
@@ -180,7 +180,7 @@ pmu_parse_intr(device_t dev, struct pmu_softc *sc)
 
 		if (intr_is_per_cpu(sc->irq[i].res))
 		{
-			device_printf(dev, "Unexpected per CPU interupt\n");
+			device_printf(dev, "Unexpected per CPU interrupt\n");
 			err = ENXIO;
 			goto done;
 		}
