@@ -40,8 +40,6 @@
  * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
 
-#include "opt_hid.h"
-
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -928,11 +926,7 @@ static device_method_t uhid_methods[] = {
 };
 
 static driver_t uhid_driver = {
-#ifdef HIDRAW_MAKE_UHID_ALIAS
-	.name = "hidraw",
-#else
 	.name = "uhid",
-#endif
 	.methods = uhid_methods,
 	.size = sizeof(struct uhid_softc),
 };
