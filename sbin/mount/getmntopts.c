@@ -192,6 +192,7 @@ getmntpoint(const char *name)
 				strncpy(statfsp->f_mntfromname, device, len);
 		}
 		if (stat(ddevname, &mntdevstat) == 0 &&
+		    S_ISCHR(mntdevstat.st_mode) &&
 		    mntdevstat.st_rdev == devstat.st_rdev)
 			return (statfsp);
 	}
