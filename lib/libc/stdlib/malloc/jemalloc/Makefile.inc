@@ -14,6 +14,8 @@ CFLAGS+=-I${SRCTOP}/contrib/jemalloc/include -I${LIBC_SRCTOP}/stdlib/malloc/jema
 .if ${MK_JEMALLOC_LG_VADDR_WIDE} != no
 CFLAGS+=-D_USE_LG_VADDR_WIDE
 .endif
+CFLAGS.gcc+=-Wno-error=missing-braces
+
 
 .for src in ${JEMALLOCSRCS}
 MISRCS+=jemalloc_${src}
