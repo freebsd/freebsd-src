@@ -313,7 +313,7 @@ enum ice_dyn_idx_t {
 	ICE_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
 };
 
-/* By convenction ITR0 is used for RX, and ITR1 is used for TX */
+/* By convention ITR0 is used for RX, and ITR1 is used for TX */
 #define ICE_RX_ITR ICE_IDX_ITR0
 #define ICE_TX_ITR ICE_IDX_ITR1
 

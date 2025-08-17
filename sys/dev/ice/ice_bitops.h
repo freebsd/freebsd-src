@@ -198,7 +198,7 @@ static inline void ice_zero_bitmap(ice_bitmap_t *bmp, u16 size)
  * ice_and_bitmap - bitwise AND 2 bitmaps and store result in dst bitmap
  * @dst: Destination bitmap that receive the result of the operation
  * @bmp1: The first bitmap to intersect
- * @bmp2: The second bitmap to intersect wit the first
+ * @bmp2: The second bitmap to intersect with the first
  * @size: Size of the bitmaps in bits
  *
  * This function performs a bitwise AND on two "source" bitmaps of the same size
@@ -237,7 +237,7 @@ ice_and_bitmap(ice_bitmap_t *dst, const ice_bitmap_t *bmp1,
  * ice_or_bitmap - bitwise OR 2 bitmaps and store result in dst bitmap
  * @dst: Destination bitmap that receive the result of the operation
  * @bmp1: The first bitmap to intersect
- * @bmp2: The second bitmap to intersect wit the first
+ * @bmp2: The second bitmap to intersect with the first
  * @size: Size of the bitmaps in bits
  *
  * This function performs a bitwise OR on two "source" bitmaps of the same size
