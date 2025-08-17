@@ -159,27 +159,27 @@ ufs_itimes_locked(struct vnode *vp)
 	if ((vp->v_type == VBLK || vp->v_type == VCHR) && !DOINGSOFTDEP(vp))
 		UFS_INODE_SET_FLAG(ip, IN_LAZYMOD);
 	else if (((vp->v_mount->mnt_kern_flag &
-		    (MNTK_SUSPENDED | MNTK_SUSPEND)) == 0) ||
-		    (ip->i_flag & (IN_CHANGE | IN_UPDATE)))
+	    (MNTK_SUSPENDED | MNTK_SUSPEND)) == 0) ||
+	    (ip->i_flag & (IN_CHANGE | IN_UPDATE)) != 0)
 		UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
-	else if (ip->i_flag & IN_ACCESS)
+	else if ((ip->i_flag & IN_ACCESS) != 0)
 		UFS_INODE_SET_FLAG(ip, IN_LAZYACCESS);
 	vfs_timestamp(&ts);
-	if (ip->i_flag & IN_ACCESS) {
+	if ((ip->i_flag & IN_ACCESS) != 0) {
 		DIP_SET(ip, i_atime, ts.tv_sec);
 		DIP_SET(ip, i_atimensec, ts.tv_nsec);
 	}
-	if (ip->i_flag & IN_UPDATE) {
+	if ((ip->i_flag & IN_UPDATE) != 0) {
 		DIP_SET(ip, i_mtime, ts.tv_sec);
 		DIP_SET(ip, i_mtimensec, ts.tv_nsec);
 	}
-	if (ip->i_flag & IN_CHANGE) {
+	if ((ip->i_flag & IN_CHANGE) != 0) {
 		DIP_SET(ip, i_ctime, ts.tv_sec);
 		DIP_SET(ip, i_ctimensec, ts.tv_nsec);
 		DIP_SET(ip, i_modrev, DIP(ip, i_modrev) + 1);
 	}
 
- out:
+out:
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
 }
 
