@@ -1046,7 +1046,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	/*
 	 * Synthesize a disk geometry. Some partitioning schemes
 	 * depend on it and since some file systems need it even
-	 * when the partitition scheme doesn't, we do it here in
+	 * when the partition scheme doesn't, we do it here in
 	 * scheme-independent code.
 	 */
 	g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
@@ -1539,7 +1539,7 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 		/*
 		 * Synthesize a disk geometry. Some partitioning schemes
 		 * depend on it and since some file systems need it even
-		 * when the partitition scheme doesn't, we do it here in
+		 * when the partition scheme doesn't, we do it here in
 		 * scheme-independent code.
 		 */
 		pp = cp->provider;
@@ -2023,7 +2023,7 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/*
 	 * Synthesize a disk geometry. Some partitioning schemes
 	 * depend on it and since some file systems need it even
-	 * when the partitition scheme doesn't, we do it here in
+	 * when the partition scheme doesn't, we do it here in
 	 * scheme-independent code.
 	 */
 	g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
