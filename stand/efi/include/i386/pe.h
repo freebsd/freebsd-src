@@ -83,7 +83,7 @@ typedef struct _IMAGE_FILE_HEADER {
 #define IMAGE_SIZEOF_FILE_HEADER             20
 
 #define IMAGE_FILE_RELOCS_STRIPPED           0x0001  // Relocation info stripped from file.
-#define IMAGE_FILE_EXECUTABLE_IMAGE          0x0002  // File is executable  (i.e. no unresolved externel references).
+#define IMAGE_FILE_EXECUTABLE_IMAGE          0x0002  // File is executable  (i.e. no unresolved external references).
 #define IMAGE_FILE_LINE_NUMS_STRIPPED        0x0004  // Line nunbers stripped from file.
 #define IMAGE_FILE_LOCAL_SYMS_STRIPPED       0x0008  // Local symbols stripped from file.
 #define IMAGE_FILE_BYTES_REVERSED_LO         0x0080  // Bytes of machine word are reversed.
