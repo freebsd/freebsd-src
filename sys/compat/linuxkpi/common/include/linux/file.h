@@ -39,6 +39,11 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <linux/errno.h>
+#include <linux/cleanup.h>
+
 struct linux_file;
 
 #undef file

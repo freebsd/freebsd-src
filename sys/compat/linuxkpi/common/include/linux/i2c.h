@@ -31,7 +31,14 @@
 #include <sys/errno.h>
 #include <sys/systm.h>
 
+#include <linux/bits.h>
+#include <linux/mod_devicetable.h>
 #include <linux/device.h>
+#include <linux/sched.h>
+#include <linux/mutex.h>
+#include <linux/regulator/consumer.h>
+#include <linux/irqdomain.h>
+#include <linux/of.h>
 
 #define	I2C_MAX_ADAPTER_NAME_LENGTH	32
 

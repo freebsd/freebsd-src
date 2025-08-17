@@ -32,6 +32,11 @@
 #include <sys/types.h>
 #include <sys/eventhandler.h>
 
+#include <linux/errno.h>
+#include <linux/mutex.h>
+#include <linux/rwsem.h>
+#include <linux/srcu.h>
+
 #define	NOTIFY_DONE		0
 #define	NOTIFY_OK		0x0001
 #define	NOTIFY_STOP_MASK	0x8000
