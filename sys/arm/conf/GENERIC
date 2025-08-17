@@ -261,6 +261,7 @@ device		aw_thermal	# Allwinner Thermal Sensor Controller
 # HID support
 device		hid		# Generic HID support
 device		hidbus		# Generic HID Bus
+options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/u2f/
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
