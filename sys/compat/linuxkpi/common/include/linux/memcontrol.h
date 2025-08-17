@@ -1,17 +1,18 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
+ * Copyright (c) 2025 The FreeBSD Foundation
  * Copyright (c) 2025 Jean-Sébastien Pédron <dumbbell@FreeBSD.org>
  *
+ * This software was developed by Jean-Sébastien Pédron under sponsorship
+ * from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
+ * modification, are permitted provided that the following conditions
+ * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -26,18 +27,17 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LINUXKPI_LINUX_CGROUP_H_
-#define _LINUXKPI_LINUX_CGROUP_H_
 
-#include <linux/sched.h>
-#include <linux/nodemask.h>
-#include <linux/list.h>
-#include <linux/rculist.h>
-#include <linux/fs.h>
-#include <linux/seq_file.h>
+#ifndef _LINUXKPI_LINUX_MEMCONTROL_H_
+#define	_LINUXKPI_LINUX_MEMCONTROL_H_
+
+#include <linux/cgroup.h>
+#include <linux/hardirq.h>
 #include <linux/jump_label.h>
-#include <linux/types.h>
-#include <linux/refcount.h>
-#include <linux/kernel_stat.h>
+#include <linux/kernel.h>
+#include <linux/eventfd.h>
+#include <linux/mm.h>
+#include <linux/page-flags.h>
+#include <linux/shrinker.h>
 
-#endif	/* _LINUXKPI_LINUX_CGROUP_H_ */
+#endif /* defined(_LINUXKPI_LINUX_MEMCONTROL_H_) */

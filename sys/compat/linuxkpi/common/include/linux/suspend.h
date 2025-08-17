@@ -3,6 +3,12 @@
 #ifndef _LINUXKPI_LINUX_SUSPEND_H_
 #define _LINUXKPI_LINUX_SUSPEND_H_
 
+#include <linux/swap.h>
+#include <linux/notifier.h>
+#include <linux/init.h>
+#include <linux/pm.h>
+#include <linux/mm.h>
+
 typedef int suspend_state_t;
 
 extern suspend_state_t pm_suspend_target_state;
