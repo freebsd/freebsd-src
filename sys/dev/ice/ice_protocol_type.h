@@ -143,7 +143,7 @@ enum ice_prot_id {
 	ICE_PROT_LLDP_OF	= 117,
 	ICE_PROT_ARP_OF		= 118,
 	ICE_PROT_EAPOL_OF	= 120,
-	ICE_PROT_META_ID	= 255, /* when offset == metaddata */
+	ICE_PROT_META_ID	= 255, /* when offset == metadata */
 	ICE_PROT_INVALID	= 255  /* when offset == ICE_FV_OFFSET_INVAL */
 };
 

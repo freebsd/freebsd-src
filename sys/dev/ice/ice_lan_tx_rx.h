@@ -630,7 +630,7 @@ enum ice_rxdid {
 	ICE_RXDID_LAST			= 63,
 };
 
-/* Recceive Flex descriptor Dword Index */
+/* Receive Flex descriptor Dword Index */
 enum ice_flex_word {
 	ICE_RX_FLEX_DWORD_0 = 0,
 	ICE_RX_FLEX_DWORD_1,
