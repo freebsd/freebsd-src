@@ -2436,7 +2436,7 @@ options 	HID_DEBUG	# enable debug msgs
 device		hidbus		# HID bus
 device		hidmap		# HID to evdev mapping
 device		hidraw		# Raw access driver
-options 	HIDRAW_MAKE_UHID_ALIAS	# install /dev/uhid alias
+options 	HIDRAW_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/hidraw
 device		hconf		# Multitouch configuration TLC
 device		hcons		# Consumer controls
 device		hgame		# Generic game controllers
