@@ -10,12 +10,15 @@
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
+.include "${KRB5_SRCTOP}/Makefile.pc"
 
 LIB=		gssapi_krb5
-# SHLIB_MAJOR=	2
-LDFLAGS=-Wl,--no-undefined
-LIBADD=	krb5 k5crypto com_err krb5profile krb5support
+LDFLAGS=	-Wl,--no-undefined
+LIBADD=		krb5 k5crypto com_err krb5profile krb5support
 VERSION_MAP=	${.CURDIR}/version.map
+PCFILES=	krb5-gssapi.pc \
+		mit-krb5-gssapi.pc
+CLEANFILES+=	${PCFILES}
 
 # This is a contcatonation of:
 #	crypto/krb5/src/lib/gssapi/libgssapi_krb5.exports
@@ -44,4 +47,8 @@ CFLAGS+=${DEFINES} \
 
 .include <bsd.lib.mk>
 
+all: ${PCFILES}
+
 .SUFFIXES: .h .c .et
+
+.PATH: ${KRB5_DIR}/build-tools
