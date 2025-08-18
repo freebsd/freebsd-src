@@ -15,6 +15,44 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/clock.h>
+#include <sys/condvar.h>
+#include <sys/firmware.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
+#include <sys/systm.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/pmap.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+
+#include <dev/clk/clk.h>
+#include <dev/hwreset/hwreset.h>
+#include <dev/phy/phy.h>
+#include <dev/regulator/regulator.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/controller/xhci.h>
+#include <dev/usb/controller/xhcireg.h>
+#include "usbdevs.h"
+
+
 #define MTXHCI_MAX_PORTS	4
 
 /* registers */
@@ -39,16 +77,10 @@
 #define  CFG_PORT_PWRDN		(1 << 1)
 #define  CFG_PORT_DISABLE	(1 << 0)
 
-static struct ofw_compat_data compat_data[] = {
-        { "mediatek,mt7622-xhci",	1 },
-        { "mediatek,mtk-xhci", 1},
-        { NULL, 0 }
-};
-
 struct xhci_soc;
 struct mt_xhci_softc {
     device_t  dev;
-    struct xhci_softc xhci;
+    struct xhci_softc xhci_softc;
     struct xhci_soc	*soc;
     struct mtx mtx;
     struct resource *mem_mac;
@@ -71,11 +103,23 @@ struct xhci_soc {
     char 		**phy_names;
 };
 
+
 static char *mt_xhci_phy_names[] = {
         "u2port0",
         "u3port0",
         "u2port1",
         NULL
+};
+
+static struct xhci_soc mt_soc =
+        {
+            .phy_names = mt_xhci_phy_names,
+        };
+
+static struct ofw_compat_data compat_data[] = {
+        { "mediatek,mt7622-xhci",	(uintptr_t)&mt_soc},
+        { "mediatek,mtk-xhci", (uintptr_t)&mt_soc},
+        { NULL, 0 }
 };
 
 static int
@@ -92,23 +136,137 @@ mt_xhci_probe(device_t dev)
 }
 
 static int
+init_hw(struct mt_xhci_softc *sc)
+{
+    uint32_t mask, val;
+    int i, ntries;
+
+    /* port capabilities */
+    val = bus_read_4(sc->mem_mac, MTXHCI_CAPS);
+    sc->ports_usb3 = MIN(MTXHCI_MAX_PORTS, CAP_USB3_PORTS(val));
+    sc->ports_usb2 = MIN(MTXHCI_MAX_PORTS, CAP_USB2_PORTS(val));
+
+    if (sc->ports_usb3 == 0 && sc->ports_usb2 == 0)
+        return ENXIO;
+
+    /* enable phys */
+    //phy_enable_idx(sc->port_node, -1);
+
+    /* reset */
+    val = bus_read_4(sc->mem_mac, MTXHCI_RESET);
+    val |= RESET_ASSERT;
+    bus_write_4(sc->mem_mac, MTXHCI_RESET, val);
+    //delay(10);
+    val &= ~RESET_ASSERT;
+    bus_write_4(sc->mem_mac, MTXHCI_RESET, val);
+    //delay(10);
+
+    /* disable device mode */
+    val = bus_read_4(sc->mem_mac, MTXHCI_CFG_DEV);
+    val |= CFG_PWRDN;
+    bus_write_4(sc->mem_mac, MTXHCI_CFG_DEV, val);
+
+    /* enable host mode */
+    val = bus_read_4(sc->mem_mac, MTXHCI_CFG_HOST);
+    val &= ~CFG_PWRDN;
+    bus_write_4(sc->mem_mac, MTXHCI_CFG_HOST, val);
+
+    mask = (STA_XHCI | STA_PLL | STA_SYS | STA_REF);
+    if (sc->ports_usb3) {
+        mask |= STA_USB3;
+
+        /* disable PCIe mode */
+        val = bus_read_4(sc->mem_mac, MTXHCI_CFG_PCIE);
+        val |= CFG_PWRDN;
+        bus_write_4(sc->mem_mac, MTXHCI_CFG_PCIE, val);
+    }
+
+    /* configure host ports */
+    for (i = 0; i < sc->ports_usb3; i++) {
+        val = bus_read_4(sc->mem_mac, MTXHCI_USB3_PORT(i));
+        val &= ~(CFG_PORT_DISABLE | CFG_PORT_PWRDN);
+        val |= CFG_PORT_HOST;
+        bus_write_4(sc->mem_mac, MTXHCI_USB3_PORT(i), val);
+    }
+    for (i = 0; i < sc->ports_usb2; i++) {
+        val = bus_read_4(sc->mem_mac, MTXHCI_USB2_PORT(i));
+        val &= ~(CFG_PORT_DISABLE | CFG_PORT_PWRDN);
+        val |= CFG_PORT_HOST;
+        bus_write_4(sc->mem_mac, MTXHCI_USB2_PORT(i), val);
+    }
+
+    for (ntries = 0; ntries < 100; ntries++) {
+        val = bus_read_4(sc->mem_mac, MTXHCI_STA);
+        if ((val & mask) == mask)
+            break;
+
+    }
+    if (ntries == 100)
+        return ETIMEDOUT;
+
+    return 0;
+
+}
+
+static int
+mt_xhci_detach(device_t dev)
+{
+    struct mt_xhci_softc *sc;
+    struct xhci_softc *xsc;
+    int error;
+
+    sc = device_get_softc(dev);
+    xsc = &sc->xhci_softc;
+
+    /* during module unload there are lots of children leftover */
+    error = bus_generic_detach(dev);
+    if (error != 0)
+        return (error);
+
+    if (sc->xhci_inited) {
+        usb_callout_drain(&xsc->sc_callout);
+        xhci_halt_controller(xsc);
+    }
+
+    if (xsc->sc_irq_res && xsc->sc_intr_hdl) {
+        bus_teardown_intr(dev, xsc->sc_irq_res, xsc->sc_intr_hdl);
+        xsc->sc_intr_hdl = NULL;
+    }
+    if (xsc->sc_irq_res) {
+        bus_release_resource(dev, SYS_RES_IRQ,
+                             rman_get_rid(xsc->sc_irq_res), xsc->sc_irq_res);
+        xsc->sc_irq_res = NULL;
+    }
+    if (xsc->sc_io_res != NULL) {
+        bus_release_resource(dev, SYS_RES_MEMORY,
+                             rman_get_rid(xsc->sc_io_res), xsc->sc_io_res);
+        xsc->sc_io_res = NULL;
+    }
+    if (sc->xhci_inited)
+        xhci_uninit(xsc);
+    if (sc->irq_hdl_mbox != NULL)
+        bus_teardown_intr(dev, sc->irq_res_mbox, sc->irq_hdl_mbox);
+
+    mtx_destroy(&sc->mtx);
+    return (0);
+}
+
+static int
 mt_xhci_attach(device_t dev)
 {
     struct mt_xhci_softc *sc;
     struct xhci_softc *xsc;
     int rv, rid;
-    phandle_t node;
 
     sc = device_get_softc(dev);
     sc->dev = dev;
     sc->soc = (struct xhci_soc *)ofw_bus_search_compatible(dev,
                                                            compat_data)->ocd_data;
-    node = ofw_bus_get_node(dev);
     xsc = &sc->xhci_softc;
 
     mtx_init(&sc->mtx, device_get_nameunit(sc->dev), "mt_xhci", MTX_DEF);
 
-    for (i = 0; sc->soc->phy_names[i] != NULL; i++) {
+    for (int i = 0; sc->soc->phy_names[i] != NULL; i++) {
         if (i >= nitems(sc->phys)) {
             device_printf(sc->dev,
                           "Too many phys present in DT.\n");
@@ -136,13 +294,13 @@ mt_xhci_attach(device_t dev)
         return (ENXIO);
     }
     rv = clk_get_by_ofw_name(sc->dev, 0, "mcu_ck",
-                             &sc->clk_mcu_ck);
+                             &sc->clk_xusb_mcu_ck);
     if (rv != 0) {
         device_printf(sc->dev, "Cannot get 'mcu_ck' clock\n");
         return (ENXIO);
     }
     rv = clk_get_by_ofw_name(sc->dev, 0, "dma_ck",
-                             &sc->clk_dma_ck);
+                             &sc->clk_xusb_dma_ck);
     if (rv != 0) {
         device_printf(sc->dev, "Cannot get 'dma_ck' clock\n");
         return (ENXIO);
@@ -161,13 +319,13 @@ mt_xhci_attach(device_t dev)
                       "Cannot enable 'clk_xusb_ref_ck' clock\n");
         return (rv);
     }
-    rv = clk_enable(sc->clk_mcu_ck);
+    rv = clk_enable(sc->clk_xusb_mcu_ck);
     if (rv != 0) {
         device_printf(sc->dev,
                       "Cannot enable 'clk_mcu_ck' clock\n");
         return (rv);
     }
-    rv = clk_enable(sc->clk_dma_ck);
+    rv = clk_enable(sc->clk_xusb_dma_ck);
     if (rv != 0) {
         device_printf(sc->dev,
                       "Cannot enable 'clk_dma_ck' clock\n");
@@ -175,7 +333,7 @@ mt_xhci_attach(device_t dev)
     }
 
     /* Phys. */
-    for (i = 0; i < nitems(sc->phys); i++) {
+    for (int i = 0; i < nitems(sc->phys); i++) {
         if (sc->phys[i] == NULL)
             continue;
         rv = phy_enable(sc->phys[i]);
@@ -187,7 +345,7 @@ mt_xhci_attach(device_t dev)
     }
 
     // Allocate memory resource */
-    id = 0;
+    rid = 0;
     xsc->sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
                                             RF_ACTIVE);
     if (xsc->sc_io_res == NULL) {
@@ -226,6 +384,11 @@ mt_xhci_attach(device_t dev)
     }
 
     /*/ Init HW */
+    rv = init_hw(sc);
+    if (rv != 0) {
+        device_printf(dev, "Could not initialize  XUSB hardware\n");
+        goto error;
+    }
 
     /* Fill data for XHCI driver. */
     xsc->sc_bus.parent = dev;
@@ -260,14 +423,6 @@ mt_xhci_attach(device_t dev)
         goto error;
     }
 
-    rv = bus_setup_intr(dev, sc->irq_res_mbox, INTR_TYPE_MISC | INTR_MPSAFE,
-                        NULL, intr_mbox, sc, &sc->irq_hdl_mbox);
-    if (rv != 0) {
-        device_printf(dev, "Could not setup error IRQ: %d\n",rv);
-        xsc->sc_intr_hdl = NULL;
-        goto error;
-    }
-
     rv = bus_setup_intr(dev, xsc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
                         NULL, (driver_intr_t *)xhci_interrupt, xsc, &xsc->sc_intr_hdl);
     if (rv != 0) {
@@ -286,19 +441,18 @@ mt_xhci_attach(device_t dev)
     return (0);
 
     error:
-        ///panic("XXXXX");
-        //tegra_xhci_detach(dev);
+        //panic("XXXXX");
+        mt_xhci_detach(dev);
 
     return (rv);
 
 }
 
-
 static device_method_t mt_xhci_methods[] = {
         /* Device interface */
         DEVMETHOD(device_probe, mt_xhci_probe),
         DEVMETHOD(device_attach, mt_xhci_attach),
-        //DEVMETHOD(device_detach, mt_xhci_detach),
+        DEVMETHOD(device_detach, mt_xhci_detach),
         DEVMETHOD(device_suspend, bus_generic_suspend),
         DEVMETHOD(device_resume, bus_generic_resume),
         DEVMETHOD(device_shutdown, bus_generic_shutdown),
@@ -309,6 +463,7 @@ static device_method_t mt_xhci_methods[] = {
         DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(mt__xhci, mt_xhci_driver, mt_xhci_methods,  sizeof(struct mt_xhci_softc));
-DRIVER_MODULE(mt_xhci, simplebus, mt_xhci_driver, NULL, NULL);
+static DEFINE_CLASS_0(mt_xhci, mt_xhci_driver, mt_xhci_methods,  sizeof(struct mt_xhci_softc));
+EARLY_DRIVER_MODULE(mt_xhci, simplebus, mt_xhci_driver, NULL, NULL,
+        BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);
 MODULE_DEPEND(mt_xhci, usb, 1, 1, 1);
