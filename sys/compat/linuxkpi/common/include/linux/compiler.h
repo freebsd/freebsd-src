@@ -130,4 +130,10 @@
 #define is_signed_type(t)	((t)-1 < (t)1)
 #define is_unsigned_type(t)	((t)-1 > (t)1)
 
+#if __has_builtin(__builtin_dynamic_object_size)
+#define	__struct_size(_s)	__builtin_dynamic_object_size(_s, 0)
+#else
+#define	__struct_size(_s)	__builtin_object_size(_s, 0)
+#endif
+
 #endif	/* _LINUXKPI_LINUX_COMPILER_H_ */
