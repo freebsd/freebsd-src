@@ -10,12 +10,15 @@
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
+.include "${KRB5_SRCTOP}/Makefile.pc"
 
 LIB=		krb5
-LDFLAGS=-Wl,--no-undefined
-LIBADD=	krb5profile k5crypto com_err krb5support
-# SHLIB_MAJOR=	3
+LDFLAGS=	-Wl,--no-undefined
+LIBADD=		krb5profile k5crypto com_err krb5support
 VERSION_MAP=	${.CURDIR}/version.map
+PCFILES=	krb5.pc \
+		mit-krb5.pc
+CLEANFILES+=	${PCFILES}
 
 SRCS=	krb5_libinit.c
 
@@ -67,6 +70,8 @@ KDCPACKAGE=	kerberos-kdc
 
 .include <bsd.lib.mk>
 
+all: ${PCFILES}
+
 .SUFFIXES: .et .man
 
 .man.5:
@@ -75,5 +80,6 @@ KDCPACKAGE=	kerberos-kdc
 .man.7:
 	@cp ${.ALLSRC} ${.TARGET}
 
-.PATH:	${KRB5_DIR}/lib/krb5 \
+.PATH:	${KRB5_DIR}/build-tools \
+	${KRB5_DIR}/lib/krb5 \
 	${KRB5_DIR}/man
