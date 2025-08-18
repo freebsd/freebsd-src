@@ -25,6 +25,14 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the 
 second edition of the AWK book was published in September 2023.
 
+Aug 04, 2025
+	Fix incorrect divisor in rand() - it was returning
+	even random numbers only. Thanks to Ozan Yigit.
+
+	Fix a syntax issue with /= that caused constants to
+	turn into variables [eg. 42 /= 7]. Thanks to Arnold
+	Robbins.
+
 Jan 14, 2025
 	Fix incorrect error line number issues. unput has
 	no business managing lineno. Thanks to Ozan Yigit.
