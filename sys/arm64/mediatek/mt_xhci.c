@@ -82,11 +82,8 @@ struct mt_xhci_softc {
     device_t  dev;
     struct xhci_softc xhci_softc;
     struct xhci_soc	*soc;
-    struct mtx mtx;
     struct resource *mem_mac;
     struct resource *mem_ippc;
-    struct resource	*irq_res_mbox;
-    void *irq_hdl_mbox;
     void *intr_cookie;
     int ports_usb2;
     int ports_usb3;
@@ -131,7 +128,7 @@ mt_xhci_probe(device_t dev)
     if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
         return (ENXIO);
 
-    device_set_desc(dev, "MediaTek xhxi drivers");
+    device_set_desc(dev, "MediaTek xhci driver");
     return (BUS_PROBE_DEFAULT);
 }
 
@@ -141,7 +138,7 @@ init_hw(struct mt_xhci_softc *sc)
     uint32_t mask, val;
     int i, ntries;
 
-    /* port capabilities */
+/* port capabilities (MAC window) */
     val = bus_read_4(sc->mem_mac, MTXHCI_CAPS);
     sc->ports_usb3 = MIN(MTXHCI_MAX_PORTS, CAP_USB3_PORTS(val));
     sc->ports_usb2 = MIN(MTXHCI_MAX_PORTS, CAP_USB2_PORTS(val));
@@ -149,25 +146,24 @@ init_hw(struct mt_xhci_softc *sc)
     if (sc->ports_usb3 == 0 && sc->ports_usb2 == 0)
         return ENXIO;
 
-    /* enable phys */
-    //phy_enable_idx(sc->port_node, -1);
+/* enable phys */
+    //phy_enable_idx(sc->sc_port_route, -1);
 
-    /* reset */
-    val = bus_read_4(sc->mem_mac, MTXHCI_RESET);
+/* reset (MAC/IPPC dle toho, kam MTXHCI_RESET patří) */
+    val  = bus_read_4(sc->mem_mac, MTXHCI_RESET);
     val |= RESET_ASSERT;
     bus_write_4(sc->mem_mac, MTXHCI_RESET, val);
-    //delay(10);
+
     val &= ~RESET_ASSERT;
     bus_write_4(sc->mem_mac, MTXHCI_RESET, val);
-    //delay(10);
 
-    /* disable device mode */
-    val = bus_read_4(sc->mem_mac, MTXHCI_CFG_DEV);
+/* disable device mode */
+    val  = bus_read_4(sc->mem_mac, MTXHCI_CFG_DEV);
     val |= CFG_PWRDN;
     bus_write_4(sc->mem_mac, MTXHCI_CFG_DEV, val);
 
-    /* enable host mode */
-    val = bus_read_4(sc->mem_mac, MTXHCI_CFG_HOST);
+/* enable host mode */
+    val  = bus_read_4(sc->mem_mac, MTXHCI_CFG_HOST);
     val &= ~CFG_PWRDN;
     bus_write_4(sc->mem_mac, MTXHCI_CFG_HOST, val);
 
@@ -176,20 +172,20 @@ init_hw(struct mt_xhci_softc *sc)
         mask |= STA_USB3;
 
         /* disable PCIe mode */
-        val = bus_read_4(sc->mem_mac, MTXHCI_CFG_PCIE);
+        val  = bus_read_4(sc->mem_mac, MTXHCI_CFG_PCIE);
         val |= CFG_PWRDN;
         bus_write_4(sc->mem_mac, MTXHCI_CFG_PCIE, val);
     }
 
-    /* configure host ports */
+/* configure host ports */
     for (i = 0; i < sc->ports_usb3; i++) {
-        val = bus_read_4(sc->mem_mac, MTXHCI_USB3_PORT(i));
+        val  = bus_read_4(sc->mem_mac, MTXHCI_USB3_PORT(i));
         val &= ~(CFG_PORT_DISABLE | CFG_PORT_PWRDN);
         val |= CFG_PORT_HOST;
         bus_write_4(sc->mem_mac, MTXHCI_USB3_PORT(i), val);
     }
     for (i = 0; i < sc->ports_usb2; i++) {
-        val = bus_read_4(sc->mem_mac, MTXHCI_USB2_PORT(i));
+        val  = bus_read_4(sc->mem_mac, MTXHCI_USB2_PORT(i));
         val &= ~(CFG_PORT_DISABLE | CFG_PORT_PWRDN);
         val |= CFG_PORT_HOST;
         bus_write_4(sc->mem_mac, MTXHCI_USB2_PORT(i), val);
@@ -199,13 +195,11 @@ init_hw(struct mt_xhci_softc *sc)
         val = bus_read_4(sc->mem_mac, MTXHCI_STA);
         if ((val & mask) == mask)
             break;
-
     }
     if (ntries == 100)
         return ETIMEDOUT;
 
     return 0;
-
 }
 
 static int
@@ -244,10 +238,7 @@ mt_xhci_detach(device_t dev)
     }
     if (sc->xhci_inited)
         xhci_uninit(xsc);
-    if (sc->irq_hdl_mbox != NULL)
-        bus_teardown_intr(dev, sc->irq_res_mbox, sc->irq_hdl_mbox);
 
-    mtx_destroy(&sc->mtx);
     return (0);
 }
 
@@ -257,16 +248,15 @@ mt_xhci_attach(device_t dev)
     struct mt_xhci_softc *sc;
     struct xhci_softc *xsc;
     int rv, rid;
-
+    phandle_t node;
+    node = ofw_bus_get_node(dev);
     sc = device_get_softc(dev);
     sc->dev = dev;
     sc->soc = (struct xhci_soc *)ofw_bus_search_compatible(dev,
                                                            compat_data)->ocd_data;
     xsc = &sc->xhci_softc;
 
-    mtx_init(&sc->mtx, device_get_nameunit(sc->dev), "mt_xhci", MTX_DEF);
-
-    for (int i = 0; sc->soc->phy_names[i] != NULL; i++) {
+    /*for (int i = 0; sc->soc->phy_names[i] != NULL; i++) {
         if (i >= nitems(sc->phys)) {
             device_printf(sc->dev,
                           "Too many phys present in DT.\n");
@@ -305,9 +295,9 @@ mt_xhci_attach(device_t dev)
         device_printf(sc->dev, "Cannot get 'dma_ck' clock\n");
         return (ENXIO);
     }
-
+*/
     /* Enable rest of clocks */
-    rv = clk_enable(sc->clk_xusb_sys_ck);
+  /*  rv = clk_enable(sc->clk_xusb_sys_ck);
     if (rv != 0) {
         device_printf(sc->dev,
                       "Cannot enable 'clk_xusb_sys_ck' clock\n");
@@ -332,7 +322,7 @@ mt_xhci_attach(device_t dev)
         return (rv);
     }
 
-    /* Phys. */
+    
     for (int i = 0; i < nitems(sc->phys); i++) {
         if (sc->phys[i] == NULL)
             continue;
@@ -342,10 +332,32 @@ mt_xhci_attach(device_t dev)
                           sc->soc->phy_names[i]);
             return (rv);
         }
+    }*/
+    rid = 0;
+    if (ofw_bus_find_string_index(node, "reg-names", "mac", &rid) != 0) {
+        device_printf(dev, "Cannot locate mac control resource\n");
+        return (ENXIO);
+    }
+    sc->mem_mac = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+                                          RF_ACTIVE);
+    if (sc->mem_mac == NULL) {
+        device_printf(dev, "Cannot allocate mac esource\n");
+        return (ENXIO);
     }
 
-    // Allocate memory resource */
-    rid = 0;
+    /*if (ofw_bus_find_string_index(node, "reg-names", "ippc", &rid) != 0) {
+        device_printf(dev, "Cannot locate mac control resource\n");
+        return (ENXIO);
+    }
+    sc->mem_ippc = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+                                         RF_ACTIVE);
+    if (sc->mem_ippc == NULL) {
+        device_printf(dev, "Cannot allocate ippc resource\n");
+        return (ENXIO);
+    }*/
+
+    /* Allocate memory resource */
+    rid = 2;
     xsc->sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
                                             RF_ACTIVE);
     if (xsc->sc_io_res == NULL) {
@@ -354,36 +366,17 @@ mt_xhci_attach(device_t dev)
         rv = ENXIO;
         goto error;
     }
-    rid = 1;
-    sc->mem_mac = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-                                              RF_ACTIVE);
-    if (sc->mem_mac == NULL) {
-        device_printf(dev,
-                      "Could not allocate MAC memory resources\n");
-        rv = ENXIO;
-        goto error;
-    }
-    rid = 2;
-    sc->mem_ippc = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-                                              RF_ACTIVE);
-    if (sc->mem_ippc == NULL) {
-        device_printf(dev,
-                      "Could not allocate IPPC memory resources\n");
-        rv = ENXIO;
-        goto error;
-    }
 
-
-    rid = 0;
+    rid = 3;
     xsc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
                                              RF_ACTIVE);
     if (xsc->sc_irq_res == NULL) {
-        device_printf(dev, "Could not allocate HCD IRQ resources\n");
+        device_printf(dev, "Could not allocate IRQ resources\n");
         rv = ENXIO;
         goto error;
     }
 
-    /*/ Init HW */
+    /* Init HW */
     rv = init_hw(sc);
     if (rv != 0) {
         device_printf(dev, "Could not initialize  XUSB hardware\n");
