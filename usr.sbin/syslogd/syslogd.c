@@ -1830,15 +1830,14 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			case EHOSTUNREACH:
 			case EHOSTDOWN:
 			case EADDRNOTAVAIL:
+			case EAGAIN:
+			case ECONNREFUSED:
 				break;
 			/* case EBADF: */
 			/* case EACCES: */
 			/* case ENOTSOCK: */
 			/* case EFAULT: */
 			/* case EMSGSIZE: */
-			/* case EAGAIN: */
-			/* case ENOBUFS: */
-			/* case ECONNREFUSED: */
 			default:
 				dprintf("removing entry: errno=%d\n", e);
 				f->f_type = F_UNUSED;
