@@ -59,8 +59,8 @@
 #error "Kernel only file. Please use sbin/pfctl/pf_ruleset.c instead."
 #endif
 
-#define rs_malloc(x)		malloc(x, M_TEMP, M_NOWAIT|M_ZERO)
-#define rs_free(x)		free(x, M_TEMP)
+#define rs_malloc(x)		malloc(x, M_PF, M_NOWAIT|M_ZERO)
+#define rs_free(x)		free(x, M_PF)
 
 VNET_DEFINE(struct pf_kanchor_global,	pf_anchors);
 VNET_DEFINE(struct pf_kanchor,		pf_main_anchor);
