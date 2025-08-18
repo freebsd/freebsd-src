@@ -122,6 +122,9 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 {
 	int ret;
 
+	if (*nadd)
+		*nadd = 0;
+
 	ret = pfctl_table_add_addrs_h(pfh, tbl, addr, size, nadd, flags);
 	if (ret) {
 		errno = ret;
