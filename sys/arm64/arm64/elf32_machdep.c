@@ -193,7 +193,7 @@ freebsd32_fetch_syscall_args(struct thread *td)
 	register_t *ap;
 	struct syscall_args *sa;
 	int error, i, nap, narg;
-	unsigned int args[4];
+	unsigned int args[6];
 
 	nap = 4;
 	p = td->td_proc;
