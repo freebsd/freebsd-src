@@ -208,6 +208,7 @@ ci-create-meta: .PHONY
 ci-extract-meta: .PHONY
 	tar xfv ${META_TAR} -C ${META_DIROUT}
 	rm -rf ${META_TAR} ${META_DIR}
+	chmod 0755 ${META_DIROUT}
 	@echo "Extracted kyua reports to ${META_DIROUT}"
 
 ci-runtest: ci-buildimage-${TARGET_ARCH:tl} portinstall .PHONY
