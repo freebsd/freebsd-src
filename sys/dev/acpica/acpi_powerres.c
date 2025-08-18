@@ -117,6 +117,8 @@ static struct acpi_powerresource
 			*acpi_pwr_find_resource(ACPI_HANDLE res);
 static struct acpi_powerconsumer
 			*acpi_pwr_find_consumer(ACPI_HANDLE consumer);
+static ACPI_STATUS	acpi_pwr_infer_state(struct acpi_powerconsumer *pc);
+static ACPI_STATUS	acpi_pwr_get_state_locked(ACPI_HANDLE consumer, int *state);
 
 /*
  * Register a power resource.
@@ -344,8 +346,9 @@ acpi_pwr_register_consumer(ACPI_HANDLE consumer)
 	return_ACPI_STATUS (status);
     }
 
-    /* XXX we should try to find its current state */
-    pc->ac_state = ACPI_STATE_UNKNOWN;
+    /* Find its initial state. */
+    if (ACPI_FAILURE(acpi_pwr_get_state_locked(consumer, &pc->ac_state)))
+	pc->ac_state = ACPI_STATE_UNKNOWN;
 
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "registered power consumer %s\n",
 		     acpi_name(consumer)));
@@ -389,7 +392,137 @@ acpi_pwr_deregister_consumer(ACPI_HANDLE consumer)
 }
 
 /*
- * Set a power consumer to a particular power state.
+ * The _PSC control method isn't required if it's possible to infer the D-state
+ * from the _PRx control methods.  (See 7.3.6.)
+ * We can infer that a given D-state has been achieved when all the dependencies
+ * are in the ON state.
+ */
+static ACPI_STATUS
+acpi_pwr_infer_state(struct acpi_powerconsumer *pc)
+{
+    ACPI_HANDLE		*res;
+    uint32_t		on;
+    bool		all_on = false;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
+
+    /* It is important we go from the hottest to the coldest state. */
+    for (
+	pc->ac_state = ACPI_STATE_D0;
+	pc->ac_state <= ACPI_STATE_D3_HOT && !all_on;
+	pc->ac_state++
+    ) {
+	MPASS(pc->ac_state <= sizeof(pc->ac_prx) / sizeof(*pc->ac_prx));
+
+	if (!pc->ac_prx[pc->ac_state].prx_has)
+	    continue;
+
+	all_on = true;
+
+	for (size_t i = 0; i < pc->ac_prx[pc->ac_state].prx_count; i++) {
+	    res = pc->ac_prx[pc->ac_state].prx_deps[i];
+	    /* If failure, better to assume D-state is hotter than colder. */
+	    if (ACPI_FAILURE(acpi_GetInteger(res, "_STA", &on)))
+		continue;
+	    if (on == 0) {
+		all_on = false;
+		break;
+	    }
+	}
+    }
+
+    MPASS(pc->ac_state != ACPI_STATE_D0);
+
+    /*
+     * If none of the power resources required for the shallower D-states are
+     * on, then we can assume it is unpowered (i.e. D3cold).  A device is not
+     * required to support D3cold however; in that case, _PR3 is not explicitly
+     * provided.  Those devices should default to D3hot instead.
+     *
+     * See comments of first row of table 7.1 in ACPI spec.
+     */
+    if (!all_on)
+	pc->ac_state = pc->ac_prx[ACPI_STATE_D3_HOT].prx_has ?
+	    ACPI_STATE_D3_COLD : ACPI_STATE_D3_HOT;
+    else
+	pc->ac_state--;
+
+    return_ACPI_STATUS (AE_OK);
+}
+
+static ACPI_STATUS
+acpi_pwr_get_state_locked(ACPI_HANDLE consumer, int *state)
+{
+    struct acpi_powerconsumer	*pc;
+    ACPI_HANDLE			method_handle;
+    ACPI_STATUS			status;
+    ACPI_BUFFER			result;
+    ACPI_OBJECT			*object = NULL;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
+
+    if (consumer == NULL)
+	return_ACPI_STATUS (AE_NOT_FOUND);
+
+    if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
+	if (ACPI_FAILURE(status = acpi_pwr_register_consumer(consumer)))
+	    goto out;
+	if ((pc = acpi_pwr_find_consumer(consumer)) == NULL)
+	    panic("acpi added power consumer but can't find it");
+    }
+
+    status = AcpiGetHandle(consumer, "_PSC", &method_handle);
+    if (ACPI_FAILURE(status)) {
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "no _PSC object - %s\n",
+			 AcpiFormatException(status)));
+	status = acpi_pwr_infer_state(pc);
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "couldn't infer D-state - %s\n",
+				 AcpiFormatException(status)));
+		pc->ac_state = ACPI_STATE_UNKNOWN;
+	}
+	goto out;
+    }
+
+    result.Pointer = NULL;
+    result.Length = ACPI_ALLOCATE_BUFFER;
+    status = AcpiEvaluateObjectTyped(method_handle, NULL, NULL, &result, ACPI_TYPE_INTEGER);
+    if (ACPI_FAILURE(status) || result.Pointer == NULL) {
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "failed to get state with _PSC - %s\n",
+			 AcpiFormatException(status)));
+	pc->ac_state = ACPI_STATE_UNKNOWN;
+	goto out;
+    }
+
+    object = (ACPI_OBJECT *)result.Pointer;
+    pc->ac_state = ACPI_STATE_D0 + object->Integer.Value;
+    status = AE_OK;
+
+out:
+    if (object != NULL)
+	AcpiOsFree(object);
+    *state = pc->ac_state;
+    return_ACPI_STATUS (status);
+}
+
+/*
+ * Get a power consumer's D-state.
+ */
+ACPI_STATUS
+acpi_pwr_get_state(ACPI_HANDLE consumer, int *state)
+{
+	ACPI_STATUS	res;
+
+	ACPI_SERIAL_BEGIN(powerres);
+	res = acpi_pwr_get_state_locked(consumer, state);
+	ACPI_SERIAL_END(powerres);
+	return (res);
+}
+
+/*
+ * Set a power consumer to a particular D-state.
  */
 ACPI_STATUS
 acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
@@ -400,6 +533,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     ACPI_OBJECT			*reslist_object;
     ACPI_STATUS			status;
     char			*method_name, *reslist_name = NULL;
+    int				new_state;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -601,8 +735,28 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	}
     }
 
-    /* Transition was successful */
-    pc->ac_state = state;
+    /*
+     * Make sure the transition succeeded.  If getting new state failed,
+     * just assume the new state is what we wanted.  This was the behaviour
+     * before we were checking D-states.
+     */
+    if (ACPI_FAILURE(acpi_pwr_get_state_locked(consumer, &new_state))) {
+	printf("%s: failed to get new D-state\n", __func__);
+	pc->ac_state = state;
+    } else {
+	if (new_state != state)
+	    printf("%s: new power state %s is not the one requested %s\n",
+		   __func__, acpi_d_state_to_str(new_state),
+		   acpi_d_state_to_str(state));
+	pc->ac_state = new_state;
+    }
+
+    /*
+     * We consider the transition successful even if the state we got doesn't
+     * reflect what we set it to.  This is because we weren't previously
+     * checking the new state at all, so there might exist buggy platforms on
+     * which suspend would otherwise succeed if we failed here.
+     */
     status = AE_OK;
 
 out:
