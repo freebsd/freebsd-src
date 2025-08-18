@@ -11,7 +11,7 @@ device 		etherswitch
 device 		miibus
 device      mt7531_switch
 device 		mdio
-device		mt7622_eth
+#device		mt7622_eth
 
 options         FDT
 # DTBs
