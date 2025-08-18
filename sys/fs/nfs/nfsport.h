@@ -902,15 +902,6 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	NFSBZERO(s, l)		bzero((s), (l))
 
 /*
- * Some queue.h files don't have these dfined in them.
- */
-#ifndef LIST_END
-#define	LIST_END(head)		NULL
-#define	SLIST_END(head)		NULL
-#define	TAILQ_END(head)		NULL
-#endif
-
-/*
  * This must be defined to be a global variable that increments once
  * per second, but never stops or goes backwards, even when a "date"
  * command changes the TOD clock. It is used for delta times for
@@ -1030,9 +1021,6 @@ void ncl_copy_vattr(struct vattr *dst, struct vattr *src);
 #define	NFSINCRGLOBAL(a)	((a)++)
 #define	NFSDECRGLOBAL(a)	((a)--)
 
-/*
- * Assorted funky stuff to make things work under Darwin8.
- */
 /*
  * These macros checks for a field in vattr being set.
  */
