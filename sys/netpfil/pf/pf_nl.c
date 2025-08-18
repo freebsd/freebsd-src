@@ -1951,7 +1951,7 @@ pf_handle_get_tstats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	n = pfr_table_count(&attrs.pfrio_table, attrs.pfrio_flags);
 	pfrtstats = mallocarray(n,
-	    sizeof(struct pfr_tstats), M_TEMP, M_NOWAIT | M_ZERO);
+	    sizeof(struct pfr_tstats), M_PF, M_NOWAIT | M_ZERO);
 
 	error = pfr_get_tstats(&attrs.pfrio_table, pfrtstats,
 	    &n, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
@@ -2003,7 +2003,7 @@ pf_handle_get_tstats(struct nlmsghdr *hdr, struct nl_pstate *npt)
 			}
 		}
 	}
-	free(pfrtstats, M_TEMP);
+	free(pfrtstats, M_PF);
 
 	if (!nlmsg_end_dump(npt->nw, error, hdr)) {
 		NL_LOG(LOG_DEBUG, "Unable to finalize the dump");

@@ -326,6 +326,7 @@ pf_counter_u64_zero(struct pf_counter_u64 *pfcu64)
 _Static_assert(sizeof(time_t) == 4 || sizeof(time_t) == 8, "unexpected time_t size");
 
 SYSCTL_DECL(_net_pf);
+MALLOC_DECLARE(M_PF);
 MALLOC_DECLARE(M_PFHASH);
 MALLOC_DECLARE(M_PF_RULE_ITEM);
 
