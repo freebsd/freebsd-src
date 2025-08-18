@@ -12,7 +12,6 @@
 #include <net/bpf.h>
 
 #include <machine/bus.h>
-#include <machine/cache.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <vm/vm_param.h>
