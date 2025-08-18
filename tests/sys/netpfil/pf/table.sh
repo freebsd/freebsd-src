@@ -641,9 +641,31 @@ large_body()
 	    -e match:"${expected}/${expected} addresses added." \
 	    jexec alcatraz pfctl -t foo -T add -f ${pwd}/foo.lst
 	actual=$(jexec alcatraz pfctl -t foo -T show | wc -l | awk '{ print $1; }')
-	if [[ $actual -ne $expected ]]; then
+	if [ $actual -ne $expected ]; then
 		atf_fail "Unexpected number of table entries $expected $acual"
 	fi
+
+	# The second pass should work too, but confirm we've inserted everything
+	atf_check -s exit:0 \
+	    -e match:"0/${expected} addresses added." \
+	    jexec alcatraz pfctl -t foo -T add -f ${pwd}/foo.lst
+
+	echo '42.42.42.42' >> ${pwd}/foo.lst
+	expected=$((${expected} + 1))
+
+	# And we can also insert one additional address
+	atf_check -s exit:0 \
+	    -e match:"1/${expected} addresses added." \
+	    jexec alcatraz pfctl -t foo -T add -f ${pwd}/foo.lst
+
+	# Try to delete one address
+	atf_check -s exit:0 \
+	    -e match:"1/1 addresses deleted." \
+	    jexec alcatraz pfctl -t foo -T delete 42.42.42.42
+	# And again, for the same address
+	atf_check -s exit:0 \
+	    -e match:"0/1 addresses deleted." \
+	    jexec alcatraz pfctl -t foo -T delete 42.42.42.42
 }
 
 large_cleanup()

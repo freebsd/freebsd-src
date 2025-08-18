@@ -2453,7 +2453,7 @@ _pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct p
 
 	snl_add_msg_attr_table(&nw, PF_TA_TABLE, tbl);
 	snl_add_msg_attr_u32(&nw, PF_TA_FLAGS, flags);
-	for (int i = 0; i < size && i < 256; i++)
+	for (int i = 0; i < size; i++)
 		snl_add_msg_attr_pfr_addr(&nw, PF_TA_ADDR, &addrs[i]);
 
 	if ((hdr = snl_finalize_msg(&nw)) == NULL)
@@ -2481,18 +2481,17 @@ pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pf
 	int ret;
 	int off = 0;
 	int partial_added;
+	int chunk_size;
 
 	do {
-		ret = _pfctl_table_add_addrs_h(h, tbl, &addr[off], size - off, &partial_added, flags);
+		chunk_size = MIN(size - off, 256);
+		ret = _pfctl_table_add_addrs_h(h, tbl, &addr[off], chunk_size, &partial_added, flags);
 		if (ret != 0)
 			break;
 		if (nadd)
 			*nadd += partial_added;
-		off += partial_added;
+		off += chunk_size;
 	} while (off < size);
-
-	if (nadd)
-		*nadd = off;
 
 	return (ret);
 }
@@ -2521,7 +2520,7 @@ _pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct p
 
 	snl_add_msg_attr_table(&nw, PF_TA_TABLE, tbl);
 	snl_add_msg_attr_u32(&nw, PF_TA_FLAGS, flags);
-	for (int i = 0; i < size && i < 256; i++)
+	for (int i = 0; i < size; i++)
 		snl_add_msg_attr_pfr_addr(&nw, PF_TA_ADDR, &addrs[i]);
 
 	if ((hdr = snl_finalize_msg(&nw)) == NULL)
@@ -2572,19 +2571,18 @@ pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pf
 	int ret;
 	int off = 0;
 	int partial_deleted;
+	int chunk_size;
 
 	do {
-		ret = _pfctl_table_del_addrs_h(h, tbl, &addr[off], size - off,
+		chunk_size = MIN(size - off, 256);
+		ret = _pfctl_table_del_addrs_h(h, tbl, &addr[off], chunk_size,
 		    &partial_deleted, flags);
 		if (ret != 0)
 			break;
 		if (ndel)
 			*ndel += partial_deleted;
-		off += partial_deleted;
+		off += chunk_size;
 	} while (off < size);
-
-	if (ndel)
-		*ndel = off;
 
 	return (ret);
 }
