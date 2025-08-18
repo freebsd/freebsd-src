@@ -1004,7 +1004,7 @@ nfs_getattr(struct vop_getattr_args *ap)
 	 * cached attributes should be ignored.
 	 */
 	if (nmp->nm_fhsize > 0 && ncl_getattrcache(vp, &vattr) == 0) {
-		ncl_copy_vattr(vap, &vattr);
+		ncl_copy_vattr(vp, vap, &vattr);
 
 		/*
 		 * Get the local modify time for the case of a write
