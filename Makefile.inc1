@@ -2777,7 +2777,6 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_strfile} \
     usr.bin/dtc \
     ${_cat} \
-    ${_certctl} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
     ${_libkldelf} \
@@ -2944,6 +2943,7 @@ cross-tools: .MAKE .PHONY
 .for _tool in \
     ${LOCAL_XTOOL_DIRS} \
     ${_ar} \
+    ${_certctl} \
     ${_clang_libs} \
     ${_clang} \
     ${_lld} \
