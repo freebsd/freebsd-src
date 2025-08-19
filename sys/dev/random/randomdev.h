@@ -103,8 +103,8 @@ struct random_source {
 	random_source_read_t		*rs_read;
 };
 
-void random_source_register(struct random_source *);
-void random_source_deregister(struct random_source *);
+void random_source_register(const struct random_source *);
+void random_source_deregister(const struct random_source *);
 
 #endif /* _KERNEL */
 
