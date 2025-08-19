@@ -114,3 +114,29 @@ ixgbe_link_speed_to_baudrate(ixgbe_link_speed speed)
 
 	return baudrate;
 }
+
+void
+ixgbe_init_lock(struct ixgbe_lock *lock)
+{
+	mtx_init(&lock->mutex, "mutex",
+	    "ixgbe ACI lock", MTX_DEF | MTX_DUPOK);
+}
+
+void
+ixgbe_acquire_lock(struct ixgbe_lock *lock)
+{
+	mtx_lock(&lock->mutex);
+}
+
+void
+ixgbe_release_lock(struct ixgbe_lock *lock)
+{
+	mtx_unlock(&lock->mutex);
+}
+
+void
+ixgbe_destroy_lock(struct ixgbe_lock *lock)
+{
+	if (mtx_initialized(&lock->mutex))
+		mtx_destroy(&lock->mutex);
+}
