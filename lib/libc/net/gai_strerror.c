@@ -45,7 +45,7 @@
  * Entries EAI_ADDRFAMILY (1) and EAI_NODATA (7) were omitted from RFC 3493,
  * but are or may be used as extensions or in old code.
  */
-static const char *ai_errlist[] = {
+static const char *const ai_errlist[] = {
 	[0] =			"Success",
 	[EAI_ADDRFAMILY] =	"Address family for hostname not supported",
 	[EAI_AGAIN] =		"Name could not be resolved at this time",
