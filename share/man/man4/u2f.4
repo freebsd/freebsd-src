@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: ISC
+.\"
 .\" $OpenBSD: fido.4,v 1.4 2020/08/21 19:02:46 mglocker Exp $
 .\"
 .\" Copyright (c) 2019 Reyk Floeter <reyk@openbsd.org>
@@ -20,21 +23,17 @@
 .Os
 .Sh NAME
 .Nm u2f
-.Nd FIDO/U2F security keys
+.Nd FIDO/U2F USB security keys
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
 .Cd "device u2f"
-.Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-u2f_load="YES"
-.Ed
+.Cd u2f_load="YES"
+.Pp
+In
+.Xr sysctl.conf 5 :
+.Cd hw.hid.u2f.debug
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,6 +52,10 @@ operations of the generic
 device but only accepts the optional HID
 .Xr ioctl 2
 calls from u2f group users.
+.Sh HARDWARE
+The
+.Nm
+driver supports FIDO/U2F-compatible USB security keys.
 .Sh SYSCTL VARIABLES
 The following variables are available as both
 .Xr sysctl 8
