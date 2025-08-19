@@ -1667,7 +1667,6 @@ pf_state_key_addr_setup(struct pf_pdesc *pd,
 #ifdef INET6
 	struct nd_neighbor_solicit nd;
 	struct pf_addr *target;
-	u_short action, reason;
 
 	if (pd->af == AF_INET || pd->proto != IPPROTO_ICMPV6)
 		goto copy;
@@ -1676,7 +1675,8 @@ pf_state_key_addr_setup(struct pf_pdesc *pd,
 	case ND_NEIGHBOR_SOLICIT:
 		if (multi)
 			return (-1);
-		if (!pf_pull_hdr(pd->m, pd->off, &nd, sizeof(nd), &action, &reason, pd->af))
+		if (!pf_pull_hdr(pd->m, pd->off, &nd, sizeof(nd), NULL,
+		    NULL, pd->af))
 			return (-1);
 		target = (struct pf_addr *)&nd.nd_ns_target;
 		daddr = target;
@@ -1684,7 +1684,8 @@ pf_state_key_addr_setup(struct pf_pdesc *pd,
 	case ND_NEIGHBOR_ADVERT:
 		if (multi)
 			return (-1);
-		if (!pf_pull_hdr(pd->m, pd->off, &nd, sizeof(nd), &action, &reason, pd->af))
+		if (!pf_pull_hdr(pd->m, pd->off, &nd, sizeof(nd), NULL,
+		    NULL, pd->af))
 			return (-1);
 		target = (struct pf_addr *)&nd.nd_ns_target;
 		saddr = target;
