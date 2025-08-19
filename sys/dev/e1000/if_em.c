@@ -2002,18 +2002,7 @@ em_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 	    (sc->hw.phy.media_type == e1000_media_type_internal_serdes)) {
 		if (sc->hw.mac.type == e1000_82545)
 			fiber_type = IFM_1000_LX;
-		switch (sc->link_speed) {
-		case 10:
-			ifmr->ifm_active |= IFM_10_FL;
-			break;
-		case 100:
-			ifmr->ifm_active |= IFM_100_FX;
-			break;
-		case 1000:
-		default:
-			ifmr->ifm_active |= fiber_type | IFM_FDX;
-			break;
-		}
+		ifmr->ifm_active |= fiber_type | IFM_FDX;
 	} else {
 		switch (sc->link_speed) {
 		case 10:
@@ -2026,12 +2015,11 @@ em_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 			ifmr->ifm_active |= IFM_1000_T;
 			break;
 		}
+		if (sc->link_duplex == FULL_DUPLEX)
+			ifmr->ifm_active |= IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_HDX;
 	}
-
-	if (sc->link_duplex == FULL_DUPLEX)
-		ifmr->ifm_active |= IFM_FDX;
-	else
-		ifmr->ifm_active |= IFM_HDX;
 }
 
 /*********************************************************************
@@ -2065,26 +2053,6 @@ em_if_media_change(if_ctx_t ctx)
 		sc->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
 	case IFM_100_TX:
-		sc->hw.mac.autoneg = DO_AUTO_NEG;
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
-			sc->hw.phy.autoneg_advertised = ADVERTISE_100_FULL;
-			sc->hw.mac.forced_speed_duplex = ADVERTISE_100_FULL;
-		} else {
-			sc->hw.phy.autoneg_advertised = ADVERTISE_100_HALF;
-			sc->hw.mac.forced_speed_duplex = ADVERTISE_100_HALF;
-		}
-		break;
-	case IFM_10_T:
-		sc->hw.mac.autoneg = DO_AUTO_NEG;
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
-			sc->hw.phy.autoneg_advertised = ADVERTISE_10_FULL;
-			sc->hw.mac.forced_speed_duplex = ADVERTISE_10_FULL;
-		} else {
-			sc->hw.phy.autoneg_advertised = ADVERTISE_10_HALF;
-			sc->hw.mac.forced_speed_duplex = ADVERTISE_10_HALF;
-		}
-		break;
-	case IFM_100_FX:
 		sc->hw.mac.autoneg = false;
 		sc->hw.phy.autoneg_advertised = 0;
 		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
@@ -2092,7 +2060,7 @@ em_if_media_change(if_ctx_t ctx)
 		else
 			sc->hw.mac.forced_speed_duplex = ADVERTISE_100_HALF;
 		break;
-	case IFM_10_FL:
+	case IFM_10_T:
 		sc->hw.mac.autoneg = false;
 		sc->hw.phy.autoneg_advertised = 0;
 		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
