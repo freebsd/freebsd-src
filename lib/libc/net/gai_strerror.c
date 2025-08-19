@@ -82,7 +82,9 @@ gai_strerror(int ecode)
 #if defined(NLS)
 	nl_catd catd;
 	char *buf;
+	int saved_errno;
 
+	saved_errno = errno;
 	if (thr_main() != 0)
 		buf = gai_buf;
 	else {
@@ -110,9 +112,11 @@ gai_strerror(int ecode)
 		strlcpy(buf, catgets(catd, 3, NL_MSGMAX, "Unknown error"),
 		    sizeof(gai_buf));
 	catclose(catd);
+	errno = saved_errno;
 	return (buf);
 
 thr_err:
+	errno = saved_errno;
 #endif
 	if (ecode >= 0 && ecode < EAI_MAX)
 		return (ai_errlist[ecode]);
