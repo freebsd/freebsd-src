@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-# $FreeBSD$
-
 SUBDIR=	kadmin.local kdb5_util sim_server gss-server
 
 SUBDIR_PARALLEL=
