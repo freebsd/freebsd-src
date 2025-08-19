@@ -493,9 +493,9 @@ random_healthtest_init(enum random_entropy_source source)
 	 * The RCT limit comes from the formula in section 4.4.1.
 	 *
 	 * The APT cutoff is calculated using the formula in section 4.4.2
-	 * footnote 10 with the window size changed from 512 to 511, since the
-	 * test as written counts the number of samples equal to the first
-	 * sample in the window, and thus tests W-1 samples.
+	 * footnote 10 with the number of Bernoulli trials changed from W to
+	 * W-1, since the test as written counts the number of samples equal to
+	 * the first sample in the window, and thus tests W-1 samples.
 	 */
 	ht->ht_rct_limit = 35;
 	ht->ht_apt_cutoff = 330;
