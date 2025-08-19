@@ -86,6 +86,7 @@
 #include "ixgbe_phy.h"
 #include "ixgbe_vf.h"
 #include "ixgbe_features.h"
+#include "ixgbe_e610.h"
 
 /* Tunables */
 
@@ -194,6 +195,15 @@
 #define CSUM_OFFLOAD	(CSUM_IP_TSO|CSUM_IP6_TSO|CSUM_IP| \
 			    CSUM_IP_UDP|CSUM_IP_TCP|CSUM_IP_SCTP| \
 			    CSUM_IP6_UDP|CSUM_IP6_TCP|CSUM_IP6_SCTP)
+
+/* All BASE-T Physical layers */
+#define IXGBE_PHYSICAL_LAYERS_BASE_T_ALL \
+	(IXGBE_PHYSICAL_LAYER_10GBASE_T |\
+	 IXGBE_PHYSICAL_LAYER_5000BASE_T |\
+	 IXGBE_PHYSICAL_LAYER_2500BASE_T |\
+	 IXGBE_PHYSICAL_LAYER_1000BASE_T |\
+	 IXGBE_PHYSICAL_LAYER_100BASE_TX |\
+	 IXGBE_PHYSICAL_LAYER_10BASE_T)
 
 #define IXGBE_CAPS (IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_TSO | \
 		    IFCAP_LRO | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO | \
@@ -464,6 +474,7 @@ struct ixgbe_softc {
 	/* Feature capable/enabled flags.  See ixgbe_features.h */
 	u32			feat_cap;
 	u32			feat_en;
+	u16                     lse_mask;
 };
 
 /* Precision Time Sync (IEEE 1588) defines */

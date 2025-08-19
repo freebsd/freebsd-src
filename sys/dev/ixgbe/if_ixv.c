@@ -68,6 +68,8 @@ static const pci_vendor_info_t ixv_vendor_info_array[] =
 	    "Intel(R) X552 Virtual Function"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF,
 	    "Intel(R) X553 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_VF,
+	    "Intel(R) E610 Virtual Function"),
 	/* required last entry */
 	PVID_END
 };
@@ -1020,6 +1022,9 @@ ixv_identify_hardware(if_ctx_t ctx)
 	case IXGBE_DEV_ID_X550EM_A_VF:
 		hw->mac.type = ixgbe_mac_X550EM_a_vf;
 		break;
+	case IXGBE_DEV_ID_E610_VF:
+		hw->mac.type = ixgbe_mac_E610_vf;
+		break;
 	default:
 		device_printf(dev, "unknown mac type\n");
 		hw->mac.type = ixgbe_mac_unknown;
@@ -1955,6 +1960,7 @@ ixv_init_device_features(struct ixgbe_softc *sc)
 	case ixgbe_mac_X550_vf:
 	case ixgbe_mac_X550EM_x_vf:
 	case ixgbe_mac_X550EM_a_vf:
+	case ixgbe_mac_E610_vf:
 		sc->feat_cap |= IXGBE_FEATURE_NEEDS_CTXD;
 		sc->feat_cap |= IXGBE_FEATURE_RSS;
 		break;
