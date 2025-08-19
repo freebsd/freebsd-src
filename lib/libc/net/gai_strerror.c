@@ -72,7 +72,7 @@ static int		gai_keycreated = 0;
 static void
 gai_keycreate(void)
 {
-	gai_keycreated = (thr_keycreate(&gai_key, free) == 0);
+	gai_keycreated = thr_keycreate(&gai_key, free) == 0;
 }
 #endif
 
@@ -110,11 +110,11 @@ gai_strerror(int ecode)
 		strlcpy(buf, catgets(catd, 3, NL_MSGMAX, "Unknown error"),
 		    sizeof(gai_buf));
 	catclose(catd);
-	return buf;
+	return (buf);
 
 thr_err:
 #endif
 	if (ecode >= 0 && ecode < EAI_MAX)
-		return ai_errlist[ecode];
-	return "Unknown error";
+		return (ai_errlist[ecode]);
+	return ("Unknown error");
 }
