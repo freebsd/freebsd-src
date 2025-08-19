@@ -1177,28 +1177,28 @@ kqueue_init(struct kqueue *kq)
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 }
 
-int
-kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
+static int
+kern_kqueue_alloc(struct thread *td, struct filedesc *fdp, int *fdip,
+    struct file **fpp, int flags, struct filecaps *fcaps,
+    struct kqueue **kqp)
 {
-	struct filedesc *fdp;
-	struct kqueue *kq;
-	struct file *fp;
 	struct ucred *cred;
-	int fd, error;
+	struct kqueue *kq;
+	int error;
 
-	fdp = td->td_proc->p_fd;
 	cred = td->td_ucred;
 	if (!chgkqcnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_KQUEUES)))
 		return (ENOMEM);
 
-	error = falloc_caps(td, &fp, &fd, flags, fcaps);
+	error = fdip != NULL ? falloc_caps(td, fpp, fdip, flags, fcaps) :
+	    _falloc_noinstall(td, fpp, 2);
 	if (error != 0) {
 		chgkqcnt(cred->cr_ruidinfo, -1, 0);
 		return (error);
 	}
 
 	/* An extra reference on `fp' has been held for us by falloc(). */
-	kq = malloc(sizeof *kq, M_KQUEUE, M_WAITOK | M_ZERO);
+	kq = malloc(sizeof(*kq), M_KQUEUE, M_WAITOK | M_ZERO);
 	kqueue_init(kq);
 	kq->kq_fdp = fdp;
 	kq->kq_cred = crhold(cred);
@@ -1206,6 +1206,22 @@ kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 	FILEDESC_XLOCK(fdp);
 	TAILQ_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
 	FILEDESC_XUNLOCK(fdp);
+
+	*kqp = kq;
+	return (0);
+}
+
+int
+kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
+{
+	struct kqueue *kq;
+	struct file *fp;
+	int fd, error;
+
+	error = kern_kqueue_alloc(td, td->td_proc->p_fd, &fd, &fp, flags,
+	    fcaps, &kq);
+	if (error != 0)
+		return (error);
 
 	finit(fp, FREAD | FWRITE, DTYPE_KQUEUE, kq, &kqueueops);
 	fdrop(fp, td);
