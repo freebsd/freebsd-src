@@ -112,11 +112,15 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 	case ixgbe_mac_X550EM_a:
 		status = ixgbe_init_ops_X550EM_a(hw);
 		break;
+	case ixgbe_mac_E610:
+		status = ixgbe_init_ops_E610(hw);
+		break;
 	case ixgbe_mac_82599_vf:
 	case ixgbe_mac_X540_vf:
 	case ixgbe_mac_X550_vf:
 	case ixgbe_mac_X550EM_x_vf:
 	case ixgbe_mac_X550EM_a_vf:
+	case ixgbe_mac_E610_vf:
 		status = ixgbe_init_ops_vf(hw);
 		break;
 	default:
@@ -238,6 +242,18 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_A_VF:
 	case IXGBE_DEV_ID_X550EM_A_VF_HV:
 		hw->mac.type = ixgbe_mac_X550EM_a_vf;
+		hw->mvals = ixgbe_mvals_X550EM_a;
+		break;
+	case IXGBE_DEV_ID_E610_BACKPLANE:
+	case IXGBE_DEV_ID_E610_SFP:
+	case IXGBE_DEV_ID_E610_10G_T:
+	case IXGBE_DEV_ID_E610_2_5G_T:
+	case IXGBE_DEV_ID_E610_SGMII:
+		hw->mac.type = ixgbe_mac_E610;
+		hw->mvals = ixgbe_mvals_X550EM_a;
+		break;
+	case IXGBE_DEV_ID_E610_VF:
+		hw->mac.type = ixgbe_mac_E610_vf;
 		hw->mvals = ixgbe_mvals_X550EM_a;
 		break;
 	default:

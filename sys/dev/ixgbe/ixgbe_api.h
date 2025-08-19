@@ -48,6 +48,7 @@ extern s32 ixgbe_init_ops_X550(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_ops_X550EM(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_ops_X550EM_x(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_ops_X550EM_a(struct ixgbe_hw *hw);
+extern s32 ixgbe_init_ops_E610(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw);
 
 s32 ixgbe_set_mac_type(struct ixgbe_hw *hw);
