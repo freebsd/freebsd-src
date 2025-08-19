@@ -1151,13 +1151,20 @@ ixl_if_enable_intr(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 	struct i40e_hw		*hw = vsi->hw;
-	struct ixl_rx_queue	*que = vsi->rx_queues;
+	struct ixl_rx_queue	*rx_que = vsi->rx_queues;
 
 	ixl_enable_intr0(hw);
 	/* Enable queue interrupts */
-	for (int i = 0; i < vsi->num_rx_queues; i++, que++)
-		/* TODO: Queue index parameter is probably wrong */
-		ixl_enable_queue(hw, que->rxr.me);
+	if (vsi->shared->isc_intr == IFLIB_INTR_MSIX) {
+		for (int i = 0; i < vsi->num_rx_queues; i++, rx_que++)
+			ixl_enable_queue(hw, rx_que->rxr.me);
+	} else {
+		/*
+		 * Set PFINT_LNKLST0 FIRSTQ_INDX to 0x0 to enable
+		 * triggering interrupts by queues.
+		 */
+		wr32(hw, I40E_PFINT_LNKLST0, 0x0);
+	}
 }
 
 /*
@@ -1175,11 +1182,13 @@ ixl_if_disable_intr(if_ctx_t ctx)
 
 	if (vsi->shared->isc_intr == IFLIB_INTR_MSIX) {
 		for (int i = 0; i < vsi->num_rx_queues; i++, rx_que++)
-			ixl_disable_queue(hw, rx_que->msix - 1);
+			ixl_disable_queue(hw, rx_que->rxr.me);
 	} else {
-		// Set PFINT_LNKLST0 FIRSTQ_INDX to 0x7FF
-		// stops queues from triggering interrupts
-		wr32(hw, I40E_PFINT_LNKLST0, 0x7FF);
+		/*
+		 * Set PFINT_LNKLST0 FIRSTQ_INDX to End of List (0x7FF)
+		 * to stop queues from triggering interrupts.
+		 */
+		wr32(hw, I40E_PFINT_LNKLST0, IXL_QUEUE_EOL);
 	}
 }
 
