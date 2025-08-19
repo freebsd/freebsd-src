@@ -1871,17 +1871,8 @@ done:
 }
 
 static int
-kqueue_acquire(struct file *fp, struct kqueue **kqp)
+kqueue_acquire_ref(struct kqueue *kq)
 {
-	int error;
-	struct kqueue *kq;
-
-	error = 0;
-
-	kq = fp->f_data;
-	if (fp->f_type != DTYPE_KQUEUE || kq == NULL)
-		return (EINVAL);
-	*kqp = kq;
 	KQ_LOCK(kq);
 	if ((kq->kq_state & KQ_CLOSING) == KQ_CLOSING) {
 		KQ_UNLOCK(kq);
@@ -1889,8 +1880,22 @@ kqueue_acquire(struct file *fp, struct kqueue **kqp)
 	}
 	kq->kq_refcnt++;
 	KQ_UNLOCK(kq);
+	return (0);
+}
 
-	return error;
+static int
+kqueue_acquire(struct file *fp, struct kqueue **kqp)
+{
+	struct kqueue *kq;
+	int error;
+
+	kq = fp->f_data;
+	if (fp->f_type != DTYPE_KQUEUE || kq == NULL)
+		return (EINVAL);
+	error = kqueue_acquire_ref(kq);
+	if (error == 0)
+		*kqp = kq;
+	return (error);
 }
 
 static void
