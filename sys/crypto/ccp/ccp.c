@@ -79,7 +79,7 @@ static struct pciid {
 	{ 0x15df1022, "AMD CCP-5a" },
 };
 
-static struct random_source random_ccp = {
+static const struct random_source random_ccp = {
 	.rs_ident = "AMD CCP TRNG",
 	.rs_source = RANDOM_PURE_CCP,
 	.rs_read = random_ccp_read,
