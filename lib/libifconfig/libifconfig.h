@@ -171,7 +171,6 @@ int ifconfig_set_name(ifconfig_handle_t *h, const char *name,
     const char *newname);
 int ifconfig_get_orig_name(ifconfig_handle_t *h, const char *ifname,
     char **orig_name);
-int ifconfig_set_fib(ifconfig_handle_t *h, const char *name, int fib);
 int ifconfig_get_fib(ifconfig_handle_t *h, const char *name, int *fib);
 int ifconfig_set_mtu(ifconfig_handle_t *h, const char *name, const int mtu);
 int ifconfig_get_mtu(ifconfig_handle_t *h, const char *name, int *mtu);
