@@ -44,7 +44,7 @@
 
 static u_int random_nehemiah_read(void *, u_int);
 
-static struct random_source random_nehemiah = {
+static const struct random_source random_nehemiah = {
 	.rs_ident = "VIA Nehemiah Padlock RNG",
 	.rs_source = RANDOM_PURE_NEHEMIAH,
 	.rs_read = random_nehemiah_read

@@ -51,7 +51,7 @@
 static bool has_rdrand, has_rdseed;
 static u_int random_ivy_read(void *, u_int);
 
-static struct random_source random_ivy = {
+static const struct random_source random_ivy = {
 	.rs_ident = "Intel Secure Key RNG",
 	.rs_source = RANDOM_PURE_RDRAND,
 	.rs_read = random_ivy_read
