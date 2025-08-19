@@ -104,7 +104,7 @@ static int
 epoll_create_common(struct thread *td, int flags)
 {
 
-	return (kern_kqueue(td, flags, NULL));
+	return (kern_kqueue(td, flags, false, NULL));
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
