@@ -1354,7 +1354,7 @@ pf_normalize_ip6(int off, u_short *reason,
 		pf_rule_to_actions(r, &pd->act);
 	}
 
-	if (!pf_pull_hdr(pd->m, off, &frag, sizeof(frag), NULL, reason, AF_INET6))
+	if (!pf_pull_hdr(pd->m, off, &frag, sizeof(frag), reason, AF_INET6))
 		return (PF_DROP);
 
 	/* Offset now points to data portion. */
@@ -1542,7 +1542,7 @@ pf_normalize_tcp_init(struct pf_pdesc *pd, struct tcphdr *th,
 
 	olen = (th->th_off << 2) - sizeof(*th);
 	if (olen < TCPOLEN_TIMESTAMP || !pf_pull_hdr(pd->m,
-	    pd->off + sizeof(*th), opts, olen, NULL, NULL, pd->af))
+	    pd->off + sizeof(*th), opts, olen, NULL, pd->af))
 		return (0);
 
 	opt = opts;
@@ -1645,7 +1645,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 	if (olen >= TCPOLEN_TIMESTAMP &&
 	    ((src->scrub && (src->scrub->pfss_flags & PFSS_TIMESTAMP)) ||
 	    (dst->scrub && (dst->scrub->pfss_flags & PFSS_TIMESTAMP))) &&
-	    pf_pull_hdr(pd->m, pd->off + sizeof(*th), opts, olen, NULL, NULL, pd->af)) {
+	    pf_pull_hdr(pd->m, pd->off + sizeof(*th), opts, olen, NULL, pd->af)) {
 		/* Modulate the timestamps.  Can be used for NAT detection, OS
 		 * uptime determination or reboot detection.
 		 */
@@ -1975,7 +1975,7 @@ pf_normalize_mss(struct pf_pdesc *pd)
 	olen = (pd->hdr.tcp.th_off << 2) - sizeof(struct tcphdr);
 	optsoff = pd->off + sizeof(struct tcphdr);
 	if (olen < TCPOLEN_MAXSEG ||
-	    !pf_pull_hdr(pd->m, optsoff, opts, olen, NULL, NULL, pd->af))
+	    !pf_pull_hdr(pd->m, optsoff, opts, olen, NULL, pd->af))
 		return (0);
 
 	opt = opts;
@@ -2009,7 +2009,7 @@ pf_scan_sctp(struct pf_pdesc *pd)
 	int ret;
 
 	while (pd->off + chunk_off < pd->tot_len) {
-		if (!pf_pull_hdr(pd->m, pd->off + chunk_off, &ch, sizeof(ch), NULL,
+		if (!pf_pull_hdr(pd->m, pd->off + chunk_off, &ch, sizeof(ch),
 		    NULL, pd->af))
 			return (PF_DROP);
 
@@ -2026,7 +2026,7 @@ pf_scan_sctp(struct pf_pdesc *pd)
 			struct sctp_init_chunk init;
 
 			if (!pf_pull_hdr(pd->m, pd->off + chunk_start, &init,
-			    sizeof(init), NULL, NULL, pd->af))
+			    sizeof(init), NULL, pd->af))
 				return (PF_DROP);
 
 			/*

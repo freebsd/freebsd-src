@@ -82,7 +82,7 @@ pf_osfp_fingerprint(struct pf_pdesc *pd, const struct tcphdr *tcp)
 		ip6 = mtod(pd->m, struct ip6_hdr *);
 		break;
 	}
-	if (!pf_pull_hdr(pd->m, pd->off, hdr, tcp->th_off << 2, NULL, NULL,
+	if (!pf_pull_hdr(pd->m, pd->off, hdr, tcp->th_off << 2, NULL,
 	    pd->af)) return (NULL);
 
 	return (pf_osfp_fingerprint_hdr(ip, ip6, (struct tcphdr *)hdr));
