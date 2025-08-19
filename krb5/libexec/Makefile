@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-#DIR $FreeBSD$
-
 SUBDIR=	kdc kadmind kpropd kprop kproplog
 
 SUBDIR_PARALLEL=
