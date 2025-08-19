@@ -7091,7 +7091,7 @@ pushfile(const char *name, int secret)
 			free(nfile);
 			return (NULL);
 		}
-	} else if ((nfile->stream = fopen(nfile->name, "r")) == NULL) {
+	} else if ((nfile->stream = pfctl_fopen(nfile->name, "r")) == NULL) {
 		warn("%s: %s", __func__, nfile->name);
 		free(nfile->name);
 		free(nfile);
