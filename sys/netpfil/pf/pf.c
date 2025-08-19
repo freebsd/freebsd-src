@@ -1676,7 +1676,7 @@ pf_state_key_addr_setup(struct pf_pdesc *pd,
 		if (multi)
 			return (-1);
 		if (!pf_pull_hdr(pd->m, pd->off, &nd, sizeof(nd), NULL,
-		    NULL, pd->af))
+		    pd->af))
 			return (-1);
 		target = (struct pf_addr *)&nd.nd_ns_target;
 		daddr = target;
@@ -1685,7 +1685,7 @@ pf_state_key_addr_setup(struct pf_pdesc *pd,
 		if (multi)
 			return (-1);
 		if (!pf_pull_hdr(pd->m, pd->off, &nd, sizeof(nd), NULL,
-		    NULL, pd->af))
+		    pd->af))
 			return (-1);
 		target = (struct pf_addr *)&nd.nd_ns_target;
 		saddr = target;
@@ -4044,7 +4044,7 @@ pf_modulate_sack(struct pf_pdesc *pd, struct tcphdr *th,
 	optsoff = pd->off + sizeof(struct tcphdr);
 #define	TCPOLEN_MINSACK	(TCPOLEN_SACK + 2)
 	if (olen < TCPOLEN_MINSACK ||
-	    !pf_pull_hdr(pd->m, optsoff, opts, olen, NULL, NULL, pd->af))
+	    !pf_pull_hdr(pd->m, optsoff, opts, olen, NULL, pd->af))
 		return (0);
 
 	eoh = opts + olen;
@@ -5107,7 +5107,7 @@ pf_get_wscale(struct pf_pdesc *pd)
 
 	olen = (pd->hdr.tcp.th_off << 2) - sizeof(struct tcphdr);
 	if (olen < TCPOLEN_WINDOW || !pf_pull_hdr(pd->m,
-	    pd->off + sizeof(struct tcphdr), opts, olen, NULL, NULL, pd->af))
+	    pd->off + sizeof(struct tcphdr), opts, olen, NULL, pd->af))
 		return (0);
 
 	opt = opts;
@@ -5132,7 +5132,7 @@ pf_get_mss(struct pf_pdesc *pd)
 
 	olen = (pd->hdr.tcp.th_off << 2) - sizeof(struct tcphdr);
 	if (olen < TCPOLEN_MAXSEG || !pf_pull_hdr(pd->m,
-	    pd->off + sizeof(struct tcphdr), opts, olen, NULL, NULL, pd->af))
+	    pd->off + sizeof(struct tcphdr), opts, olen, NULL, pd->af))
 		return (0);
 
 	opt = opts;
@@ -7660,7 +7660,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 	while (off < len) {
 		struct sctp_paramhdr h;
 
-		if (!pf_pull_hdr(pd->m, start + off, &h, sizeof(h), NULL, NULL,
+		if (!pf_pull_hdr(pd->m, start + off, &h, sizeof(h), NULL,
 		    pd->af))
 			return (PF_DROP);
 
@@ -7680,7 +7680,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 				return (PF_DROP);
 
 			if (!pf_pull_hdr(pd->m, start + off + sizeof(h), &t, sizeof(t),
-			    NULL, NULL, pd->af))
+			    NULL, pd->af))
 				return (PF_DROP);
 
 			if (in_nullhost(t))
@@ -7724,7 +7724,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 				return (PF_DROP);
 
 			if (!pf_pull_hdr(pd->m, start + off + sizeof(h), &t, sizeof(t),
-			    NULL, NULL, pd->af))
+			    NULL, pd->af))
 				return (PF_DROP);
 			if (memcmp(&t, &pd->src->v6, sizeof(t)) == 0)
 				break;
@@ -7754,7 +7754,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			struct sctp_asconf_paramhdr ah;
 
 			if (!pf_pull_hdr(pd->m, start + off, &ah, sizeof(ah),
-			    NULL, NULL, pd->af))
+			    NULL, pd->af))
 				return (PF_DROP);
 
 			ret = pf_multihome_scan(start + off + sizeof(ah),
@@ -7769,7 +7769,7 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			struct sctp_asconf_paramhdr ah;
 
 			if (!pf_pull_hdr(pd->m, start + off, &ah, sizeof(ah),
-			    NULL, NULL, pd->af))
+			    NULL, pd->af))
 				return (PF_DROP);
 			ret = pf_multihome_scan(start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd,
@@ -8051,7 +8051,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			ipoff2 = pd->off + ICMP_MINLEN;
 
 			if (!pf_pull_hdr(pd->m, ipoff2, &h2, sizeof(h2),
-			    NULL, reason, pd2.af)) {
+			    reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "pf: ICMP error message too short "
 				    "(ip)");
@@ -8083,7 +8083,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			ipoff2 = pd->off + sizeof(struct icmp6_hdr);
 
 			if (!pf_pull_hdr(pd->m, ipoff2, &h2_6, sizeof(h2_6),
-			    NULL, reason, pd2.af)) {
+			    reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "pf: ICMP error message too short "
 				    "(ip6)");
@@ -8136,7 +8136,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			 * expected. Don't access any TCP header fields after
 			 * th_seq, an ackskew test is not possible.
 			 */
-			if (!pf_pull_hdr(pd->m, pd2.off, th, 8, NULL, reason,
+			if (!pf_pull_hdr(pd->m, pd2.off, th, 8, reason,
 			    pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "pf: ICMP error message too short "
@@ -8332,7 +8332,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			int			 action;
 
 			if (!pf_pull_hdr(pd->m, pd2.off, uh, sizeof(*uh),
-			    NULL, reason, pd2.af)) {
+			    reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "pf: ICMP error message too short "
 				    "(udp)");
@@ -8463,7 +8463,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			int			 copyback = 0;
 			int			 action;
 
-			if (! pf_pull_hdr(pd->m, pd2.off, sh, sizeof(*sh), NULL, reason,
+			if (! pf_pull_hdr(pd->m, pd2.off, sh, sizeof(*sh), reason,
 			    pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "pf: ICMP error message too short "
@@ -8619,7 +8619,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			}
 
 			if (!pf_pull_hdr(pd->m, pd2.off, iih, ICMP_MINLEN,
-			    NULL, reason, pd2.af)) {
+			    reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "pf: ICMP error message too short i"
 				    "(icmp)");
@@ -8739,7 +8739,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			}
 
 			if (!pf_pull_hdr(pd->m, pd2.off, iih,
-			    sizeof(struct icmp6_hdr), NULL, reason, pd2.af)) {
+			    sizeof(struct icmp6_hdr), reason, pd2.af)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "pf: ICMP error message too short "
 				    "(icmp6)");
@@ -8921,7 +8921,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
  */
 void *
 pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
-    u_short *actionp, u_short *reasonp, sa_family_t af)
+    u_short *reasonp, sa_family_t af)
 {
 	int iplen = 0;
 	switch (af) {
@@ -8931,12 +8931,7 @@ pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
 		u_int16_t	 fragoff = (ntohs(h->ip_off) & IP_OFFMASK) << 3;
 
 		if (fragoff) {
-			if (fragoff >= len)
-				ACTION_SET(actionp, PF_PASS);
-			else {
-				ACTION_SET(actionp, PF_DROP);
-				REASON_SET(reasonp, PFRES_FRAG);
-			}
+			REASON_SET(reasonp, PFRES_FRAG);
 			return (NULL);
 		}
 		iplen = ntohs(h->ip_len);
@@ -8953,7 +8948,6 @@ pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
 #endif /* INET6 */
 	}
 	if (m->m_pkthdr.len < off + len || iplen < off + len) {
-		ACTION_SET(actionp, PF_DROP);
 		REASON_SET(reasonp, PFRES_SHORT);
 		return (NULL);
 	}
@@ -10052,7 +10046,7 @@ pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
 			    end < pd->off + sizeof(ext))
 				return (PF_PASS);
 			if (!pf_pull_hdr(pd->m, pd->off, &ext, sizeof(ext),
-				NULL, reason, AF_INET)) {
+				reason, AF_INET)) {
 				DPFPRINTF(PF_DEBUG_MISC, "IP short exthdr");
 				return (PF_DROP);
 			}
@@ -10078,7 +10072,7 @@ pf_walk_option6(struct pf_pdesc *pd, struct ip6_hdr *h, int off, int end,
 
 	while (off < end) {
 		if (!pf_pull_hdr(pd->m, off, &opt.ip6o_type,
-		    sizeof(opt.ip6o_type), NULL, reason, AF_INET6)) {
+		    sizeof(opt.ip6o_type), reason, AF_INET6)) {
 			DPFPRINTF(PF_DEBUG_MISC, "IPv6 short opt type");
 			return (PF_DROP);
 		}
@@ -10086,7 +10080,7 @@ pf_walk_option6(struct pf_pdesc *pd, struct ip6_hdr *h, int off, int end,
 			off++;
 			continue;
 		}
-		if (!pf_pull_hdr(pd->m, off, &opt, sizeof(opt), NULL,
+		if (!pf_pull_hdr(pd->m, off, &opt, sizeof(opt),
 		    reason, AF_INET6)) {
 			DPFPRINTF(PF_DEBUG_MISC, "IPv6 short opt");
 			return (PF_DROP);
@@ -10111,7 +10105,7 @@ pf_walk_option6(struct pf_pdesc *pd, struct ip6_hdr *h, int off, int end,
 				REASON_SET(reason, PFRES_IPOPTIONS);
 				return (PF_DROP);
 			}
-			if (!pf_pull_hdr(pd->m, off, &jumbo, sizeof(jumbo), NULL,
+			if (!pf_pull_hdr(pd->m, off, &jumbo, sizeof(jumbo),
 				reason, AF_INET6)) {
 				DPFPRINTF(PF_DEBUG_MISC, "IPv6 short jumbo");
 				return (PF_DROP);
@@ -10160,7 +10154,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 			break;
 		case IPPROTO_HOPOPTS:
 			if (!pf_pull_hdr(pd->m, pd->off, &ext, sizeof(ext),
-			    NULL, reason, AF_INET6)) {
+			    reason, AF_INET6)) {
 				DPFPRINTF(PF_DEBUG_MISC, "IPv6 short exthdr");
 				return (PF_DROP);
 			}
@@ -10187,7 +10181,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 				return (PF_DROP);
 			}
 			if (!pf_pull_hdr(pd->m, pd->off, &frag, sizeof(frag),
-			    NULL, reason, AF_INET6)) {
+			    reason, AF_INET6)) {
 				DPFPRINTF(PF_DEBUG_MISC, "IPv6 short fragment");
 				return (PF_DROP);
 			}
@@ -10215,7 +10209,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 				return (PF_PASS);
 			}
 			if (!pf_pull_hdr(pd->m, pd->off, &rthdr, sizeof(rthdr),
-			    NULL, reason, AF_INET6)) {
+			    reason, AF_INET6)) {
 				DPFPRINTF(PF_DEBUG_MISC, "IPv6 short rthdr");
 				return (PF_DROP);
 			}
@@ -10236,7 +10230,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 		case IPPROTO_AH:
 		case IPPROTO_DSTOPTS:
 			if (!pf_pull_hdr(pd->m, pd->off, &ext, sizeof(ext),
-			    NULL, reason, AF_INET6)) {
+			    reason, AF_INET6)) {
 				DPFPRINTF(PF_DEBUG_MISC, "IPv6 short exthdr");
 				return (PF_DROP);
 			}
@@ -10269,7 +10263,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 				return (PF_PASS);
 			}
 			if (!pf_pull_hdr(pd->m, pd->off, &icmp6, sizeof(icmp6),
-				NULL, reason, AF_INET6)) {
+				reason, AF_INET6)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    "IPv6 short icmp6hdr");
 				return (PF_DROP);
@@ -10502,7 +10496,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	case IPPROTO_TCP: {
 		struct tcphdr *th = &pd->hdr.tcp;
 
-		if (!pf_pull_hdr(pd->m, pd->off, th, sizeof(*th), action,
+		if (!pf_pull_hdr(pd->m, pd->off, th, sizeof(*th),
 			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
@@ -10518,7 +10512,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	case IPPROTO_UDP: {
 		struct udphdr *uh = &pd->hdr.udp;
 
-		if (!pf_pull_hdr(pd->m, pd->off, uh, sizeof(*uh), action,
+		if (!pf_pull_hdr(pd->m, pd->off, uh, sizeof(*uh),
 			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
@@ -10539,7 +10533,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	}
 	case IPPROTO_SCTP: {
 		if (!pf_pull_hdr(pd->m, pd->off, &pd->hdr.sctp, sizeof(pd->hdr.sctp),
-		    action, reason, af)) {
+		    reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
@@ -10569,7 +10563,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	}
 	case IPPROTO_ICMP: {
 		if (!pf_pull_hdr(pd->m, pd->off, &pd->hdr.icmp, ICMP_MINLEN,
-			action, reason, af)) {
+			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
@@ -10583,7 +10577,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		size_t icmp_hlen = sizeof(struct icmp6_hdr);
 
 		if (!pf_pull_hdr(pd->m, pd->off, &pd->hdr.icmp6, icmp_hlen,
-			action, reason, af)) {
+			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
@@ -10609,7 +10603,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		}
 		if (icmp_hlen > sizeof(struct icmp6_hdr) &&
 		    !pf_pull_hdr(pd->m, pd->off, &pd->hdr.icmp6, icmp_hlen,
-			action, reason, af)) {
+			reason, af)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
