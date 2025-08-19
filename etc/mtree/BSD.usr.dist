@@ -267,6 +267,8 @@
         ..
         dtrace
         ..
+        et
+        ..
         examples
             BSD_daemon
             ..
