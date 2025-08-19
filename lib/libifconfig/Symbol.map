@@ -40,7 +40,6 @@ FBSD_1.6 {
 	ifconfig_open;
 	ifconfig_set_capability;
 	ifconfig_set_description;
-	ifconfig_set_fib;
 	ifconfig_set_metric;
 	ifconfig_set_mtu;
 	ifconfig_set_name;
@@ -81,7 +80,6 @@ FBSD_1.6 {
 	ifconfig_sfp_fc_speed_symbol;
 	ifconfig_sfp_id_description;
 	ifconfig_sfp_id_display;
-	ifconfig_sfp_id_is_qsfp;
 	ifconfig_sfp_id_symbol;
 	ifconfig_sfp_rev_description;
 	ifconfig_sfp_rev_symbol;
