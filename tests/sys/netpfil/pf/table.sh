@@ -673,6 +673,43 @@ large_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "show_recursive" "cleanup"
+show_recursive_head()
+{
+	atf_set descr 'Test displaying tables in every anchor'
+	atf_set require.user root
+}
+
+show_recursive_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+
+	pft_set_rules alcatraz \
+
+	(echo "table <bar> persist"
+	 echo "block in quick from <bar> to any"
+	) | jexec alcatraz pfctl -a anchorage -f -
+
+	pft_set_rules noflush alcatraz \
+	    "table <foo> counters { 192.0.2.1 }" \
+	    "pass in from <foo>" \
+	    "anchor anchorage"
+
+	jexec alcatraz pfctl -sr -a "*"
+
+	atf_check -s exit:0 -e ignore -o match:'-pa-r--	bar@anchorage' \
+	    jexec alcatraz pfctl -v -a "*" -sT
+	atf_check -s exit:0 -e ignore -o match:'--a-r-C	foo' \
+	    jexec alcatraz pfctl -v -a "*" -sT
+}
+
+show_recursive_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -689,4 +726,5 @@ atf_init_test_cases()
 	atf_add_test_case "anchor"
 	atf_add_test_case "flush"
 	atf_add_test_case "large"
+	atf_add_test_case "show_recursive"
 }
