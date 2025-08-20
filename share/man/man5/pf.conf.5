@@ -267,6 +267,10 @@ which corresponds to the connection state.
 Each packet which matches this state will reset the TTL.
 Tuning these values may improve the performance of the
 firewall at the risk of dropping valid idle connections.
+Alternatively, these values may be adjusted collectively
+in a manner suitable for a specific environment using
+.Cm set optimization
+(see above).
 .Pp
 .Bl -tag -width xxxx -compact
 .It Ar tcp.first
