@@ -179,6 +179,7 @@ static void	filt_timerdetach(struct knote *kn);
 static void	filt_timerstart(struct knote *kn, sbintime_t to);
 static void	filt_timertouch(struct knote *kn, struct kevent *kev,
 		    u_long type);
+static int	filt_timercopy(struct knote *kn, struct proc *p1);
 static int	filt_timervalidate(struct knote *kn, sbintime_t *to);
 static int	filt_timer(struct knote *kn, long hint);
 static int	filt_userattach(struct knote *kn);
@@ -215,6 +216,7 @@ static const struct filterops timer_filtops = {
 	.f_detach = filt_timerdetach,
 	.f_event = filt_timer,
 	.f_touch = filt_timertouch,
+	.f_copy =  filt_timercopy,
 };
 static const struct filterops user_filtops = {
 	.f_attach = filt_userattach,
@@ -940,6 +942,30 @@ filt_timerattach(struct knote *kn)
 	callout_init(&kc->c, 1);
 	filt_timerstart(kn, to);
 
+	return (0);
+}
+
+static int
+filt_timercopy(struct knote *kn, struct proc *p)
+{
+	struct kq_timer_cb_data *kc_src, *kc;
+
+	if (atomic_fetchadd_int(&kq_ncallouts, 1) + 1 > kq_calloutmax) {
+		atomic_subtract_int(&kq_ncallouts, 1);
+		return (ENOMEM);
+	}
+
+	kn->kn_status &= ~KN_DETACHED;
+	kc_src = kn->kn_ptr.p_v;
+	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
+	kc->kn = kn;
+	kc->p = p;
+	kc->flags = kc_src->flags & ~KQ_TIMER_CB_ENQUEUED;
+	kc->next = kc_src->next;
+	kc->to = kc_src->to;
+	kc->cpuid = PCPU_GET(cpuid);
+	callout_init(&kc->c, 1);
+	kqtimer_sched_callout(kc);
 	return (0);
 }
 
