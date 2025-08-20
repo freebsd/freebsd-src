@@ -154,7 +154,8 @@ dpaa2_buf_seed_rxb(device_t dev, struct dpaa2_buf *buf, int size,
 	if (__predict_true(buf->m == NULL)) {
 		buf->m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (__predict_false(buf->m == NULL)) {
-			device_printf(dev, "%s: m_getjcl() failed\n", __func__);
+			device_printf(dev, "%s: m_getjcl(%d) failed\n",
+			    __func__, size);
 			error = ENOMEM;
 			goto fail_mbuf_alloc;
 		}
