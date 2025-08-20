@@ -1171,30 +1171,6 @@ done:
 	return (rc);
 }
 
-static int
-vdev_init_from_label(spa_t *spa, const nvlist_t *nvlist)
-{
-	uint64_t top_guid, label_guid, txg;
-	nvlist_t *vdevs;
-	int rc;
-
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
-	    NULL, &top_guid, NULL) ||
-	    nvlist_find(nvlist, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
-	    NULL, &label_guid, NULL) != 0 ||
-	    nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
-	    NULL, &txg, NULL) != 0 ||
-	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
-	    NULL, &vdevs, NULL)) {
-		printf("ZFS: can't find vdev details\n");
-		return (ENOENT);
-	}
-
-	rc = vdev_from_nvlist(spa, top_guid, label_guid, txg, vdevs);
-	nvlist_destroy(vdevs);
-	return (rc);
-}
-
 static void
 vdev_set_state(vdev_t *vdev)
 {
@@ -2079,7 +2055,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	vdev_t vtmp;
 	spa_t *spa;
 	vdev_t *vdev, *top;
-	nvlist_t *nvl;
+	nvlist_t *nvl, *vdevs;
 	uint64_t val;
 	uint64_t guid, pool_guid, top_guid, txg;
 	const char *pool_name;
@@ -2230,7 +2206,15 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 		return (EIO);
 	}
 
-	rc = vdev_init_from_label(spa, nvl);
+	if (nvlist_find(nvl, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST, NULL,
+	    &vdevs, NULL)) {
+		printf("ZFS: can't find vdev details\n");
+		nvlist_destroy(nvl);
+		return (ENOENT);
+	}
+
+	rc = vdev_from_nvlist(spa, top_guid, guid, txg, vdevs);
+	nvlist_destroy(vdevs);
 	nvlist_destroy(nvl);
 	if (rc != 0)
 		return (rc);
