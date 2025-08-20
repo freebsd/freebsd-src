@@ -41,8 +41,8 @@ extern "C" {
  *
  * An lwb will start out in the "new" state, and transition to the "opened"
  * state via a call to zil_lwb_write_open() on first itx assignment.  When
- * transitioning from "new" to "opened" the zilog's "zl_issuer_lock" must be
- * held.
+ * transitioning from "new" to "opened" the zilog's "zl_issuer_lock" and
+ * LWB's "lwb_lock" must be held.
  *
  * After the lwb is "opened", it can be assigned number of itxs and transition
  * into the "closed" state via zil_lwb_write_close() when full or on timeout.
@@ -100,16 +100,22 @@ typedef enum {
  * holding the "zl_issuer_lock". After the lwb is issued, the zilog's
  * "zl_lock" is used to protect the lwb against concurrent access.
  */
+typedef enum {
+	LWB_FLAG_SLIM =		(1<<0),	/* log block has slim format */
+	LWB_FLAG_SLOG =		(1<<1),	/* lwb_blk is on SLOG device */
+	LWB_FLAG_CRASHED =	(1<<2),	/* lwb is on the crash list */
+} lwb_flag_t;
+
 typedef struct lwb {
 	zilog_t		*lwb_zilog;	/* back pointer to log struct */
 	blkptr_t	lwb_blk;	/* on disk address of this log blk */
-	boolean_t	lwb_slim;	/* log block has slim format */
-	boolean_t	lwb_slog;	/* lwb_blk is on SLOG device */
+	lwb_flag_t	lwb_flags;	/* extra info about this lwb */
 	int		lwb_error;	/* log block allocation error */
 	int		lwb_nmax;	/* max bytes in the buffer */
 	int		lwb_nused;	/* # used bytes in buffer */
 	int		lwb_nfilled;	/* # filled bytes in buffer */
 	int		lwb_sz;		/* size of block and buffer */
+	int		lwb_min_sz;	/* min size for range allocation */
 	lwb_state_t	lwb_state;	/* the state of this lwb */
 	char		*lwb_buf;	/* log write buffer */
 	zio_t		*lwb_child_zio;	/* parent zio for children */
@@ -124,7 +130,7 @@ typedef struct lwb {
 	list_t		lwb_itxs;	/* list of itx's */
 	list_t		lwb_waiters;	/* list of zil_commit_waiter's */
 	avl_tree_t	lwb_vdev_tree;	/* vdevs to flush after lwb write */
-	kmutex_t	lwb_vdev_lock;	/* protects lwb_vdev_tree */
+	kmutex_t	lwb_lock;	/* protects lwb_vdev_tree and size */
 } lwb_t;
 
 /*
@@ -149,7 +155,7 @@ typedef struct zil_commit_waiter {
 	list_node_t	zcw_node;	/* linkage in lwb_t:lwb_waiter list */
 	lwb_t		*zcw_lwb;	/* back pointer to lwb when linked */
 	boolean_t	zcw_done;	/* B_TRUE when "done", else B_FALSE */
-	int		zcw_zio_error;	/* contains the zio io_error value */
+	int		zcw_error;	/* result to return from zil_commit() */
 } zil_commit_waiter_t;
 
 /*

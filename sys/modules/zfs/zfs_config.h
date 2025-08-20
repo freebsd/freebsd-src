@@ -704,6 +704,11 @@
 /* iops->setattr() takes struct user_namespace* */
 /* #undef HAVE_USERNS_IOPS_SETATTR */
 
+#ifdef __amd64__
+/* Define if host toolchain supports VAES */
+#define HAVE_VAES 1
+#endif
+
 /* fops->clone_file_range() is available */
 /* #undef HAVE_VFS_CLONE_FILE_RANGE */
 
@@ -742,6 +747,11 @@
 
 /* __vmalloc page flags exists */
 /* #undef HAVE_VMALLOC_PAGE_KERNEL */
+
+#ifdef __amd64__
+/* Define if host toolchain supports VPCLMULQDQ */
+#define HAVE_VPCLMULQDQ 1
+#endif
 
 /* int (*writepage_t)() takes struct folio* */
 /* #undef HAVE_WRITEPAGE_T_FOLIO */
@@ -830,7 +840,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-539-FreeBSD_g1d0b94c4e"
+#define ZFS_META_ALIAS "zfs-2.3.99-571-FreeBSD_ga9410ccbd"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -839,7 +849,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.15"
+#define ZFS_META_KVER_MAX "6.16"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -860,7 +870,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "539-FreeBSD_g1d0b94c4e"
+#define ZFS_META_RELEASE "571-FreeBSD_ga9410ccbd"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.3.99"
