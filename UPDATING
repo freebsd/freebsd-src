@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250820:
+	Commits 08c7dd2fbe4f and a4197ea47777 have changed the ABI between
+	libvmmapi and the vmm device. If using a custom kernel configuration,
+	please ensure that the COMPAT_FREEBSD14 option is included so older
+	versions of libvmmapi continue working as expected.
+
 20250819:
 	The CLEAN option has been switched back from default-on to default-off.
 	This reverts the 20250808 change below, which had reverted the 20240729
