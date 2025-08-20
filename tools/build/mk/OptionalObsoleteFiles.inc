@@ -2262,13 +2262,13 @@ OLD_FILES+=usr/share/man/man3/gpio_pin_tristate.3.gz
 OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
 .endif
 
-.if ${MK_GSSAPI} == "no" || ${MK_KERBEROS_SUPPORT} == "no"
+.if ${MK_KERBEROS_SUPPORT} == "no"
 OLD_FILES+=etc/rc.d/gssd
 OLD_FILES+=usr/sbin/gssd
 OLD_FILES+=usr/share/man/man8/gssd.8.gz
 .endif
 
-.if ${MK_GSSAPI} == no
+.if ${MK_KERBEROS} == no
 OLD_FILES+=usr/include/gssapi/gssapi.h
 OLD_DIRS+=usr/include/gssapi
 OLD_FILES+=usr/include/gssapi.h

@@ -3387,7 +3387,7 @@ secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 secure/lib/libssh__L: lib/libldns__L
 .endif
 
-.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_KERBEROS_SUPPORT} != "no"
 .if ${MK_MITKRB5} != "no"
 secure/lib/libssh__L: krb5/lib/gssapi__L krb5/lib/krb5__L \
      krb5/lib/crypto__L krb5/util/et__L lib/libmd__L krb5/util/support__L
@@ -3446,10 +3446,8 @@ kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbas
 
 lib/libsqlite3__L: lib/libthr__L
 
-.if ${MK_GSSAPI} != "no"
-.if ${MK_MITKRB5} == "no"
+.if ${MK_KERBEROS} != "no" && ${MK_MITKRB5} == "no"
 _lib_libgssapi=	lib/libgssapi
-.endif
 .endif
 
 .if ${MK_KERBEROS} != "no"
