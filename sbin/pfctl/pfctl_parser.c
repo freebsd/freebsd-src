@@ -844,7 +844,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 {
 	static const char *actiontypes[] = { "pass", "block", "scrub",
 	    "no scrub", "nat", "no nat", "binat", "no binat", "rdr", "no rdr",
-	    "", "", "match"};
+	    "synproxy drop", "defer", "match", "af-rt", "route-to" };
 	static const char *anchortypes[] = { "anchor", "anchor", "anchor",
 	    "anchor", "nat-anchor", "nat-anchor", "binat-anchor",
 	    "binat-anchor", "rdr-anchor", "rdr-anchor" };
