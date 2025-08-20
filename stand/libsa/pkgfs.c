@@ -41,6 +41,7 @@ static off_t pkg_atol(const char *, unsigned);
 
 struct fs_ops pkgfs_fsops = {
 	.fs_name = "pkg",
+	.fs_flags = FS_OPS_NO_DEVOPEN,
 	.fo_open = pkg_open,
 	.fo_close = pkg_close,
 	.fo_read = pkg_read,

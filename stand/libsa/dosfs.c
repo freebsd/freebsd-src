@@ -61,6 +61,7 @@ static int	dos_unmount(const char *dev, void *data);
 
 struct fs_ops dosfs_fsops = {
 	.fs_name = "dosfs",
+	.fs_flags = 0,
 	.fo_open = dos_open,
 	.fo_close = dos_close,
 	.fo_read = dos_read,
