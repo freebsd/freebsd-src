@@ -2081,6 +2081,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 
 	if (nvlist_find(nvl, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
 	    NULL, &txg, NULL) != 0 ||
+	    txg == 0 ||
 	    nvlist_find(nvl, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
 	    NULL, &top_guid, NULL) != 0 ||
 	    nvlist_find(nvl, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
@@ -2090,7 +2091,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	    nvlist_find(nvl, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
 	    NULL, &guid, NULL) != 0) {
 		/*
-		 * Cache and spare devices end up here - just ignore
+		 * Cache, spare and replaced devices end up here - just ignore
 		 * them.
 		 */
 		nvlist_destroy(nvl);
