@@ -1035,22 +1035,19 @@ vdev_init(uint64_t guid, const nvlist_t *nvlist, vdev_t **vdevp)
  * STAILQ_INSERT_AFTER.
  */
 static vdev_t *
-vdev_find_previous(vdev_t *top_vdev, vdev_t *vdev)
+vdev_find_previous(vdev_t *top_vdev, uint64_t id)
 {
 	vdev_t *v, *previous;
 
-	if (STAILQ_EMPTY(&top_vdev->v_children))
-		return (NULL);
-
 	previous = NULL;
 	STAILQ_FOREACH(v, &top_vdev->v_children, v_childlink) {
-		if (v->v_id > vdev->v_id)
+		if (v->v_id > id)
 			return (previous);
 
-		if (v->v_id == vdev->v_id)
+		if (v->v_id == id)
 			return (v);
 
-		if (v->v_id < vdev->v_id)
+		if (v->v_id < id)
 			previous = v;
 	}
 	return (previous);
@@ -1085,7 +1082,7 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 	 * so we can use either STAILQ_INSERT_HEAD or STAILQ_INSERT_AFTER
 	 * as STAILQ does not have insert before.
 	 */
-	previous = vdev_find_previous(top_vdev, vdev);
+	previous = vdev_find_previous(top_vdev, vdev->v_id);
 
 	if (previous == NULL) {
 		STAILQ_INSERT_HEAD(&top_vdev->v_children, vdev, v_childlink);
