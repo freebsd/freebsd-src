@@ -605,10 +605,8 @@ virtqueue_poll(struct virtqueue *vq, uint32_t *len)
 {
 	void *cookie;
 
-	VIRTIO_BUS_POLL(vq->vq_dev);
 	while ((cookie = virtqueue_dequeue(vq, len)) == NULL) {
 		cpu_spinwait();
-		VIRTIO_BUS_POLL(vq->vq_dev);
 	}
 
 	return (cookie);
