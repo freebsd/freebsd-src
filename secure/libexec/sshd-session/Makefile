@@ -38,7 +38,7 @@ LIBADD+= blacklist
 LDFLAGS+=-L${LIBBLACKLISTDIR}
 .endif
 
-.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_KERBEROS_SUPPORT} != "no"
 .if ${MK_MITKRB5} != "no"
 LIBADD+=	gssapi_krb5 krb5
 .include "../../krb5/Makefile.inc"

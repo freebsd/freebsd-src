@@ -28,6 +28,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250820:
+	The WITHOUT_GSSAPI src.conf knob has been removed.  This was already
+	a no-op for MIT Kerberos, so this only affects builds which set
+	WITHOUT_MITKRB5=1, in which case you now always get libgssapi.
+
+	Also, Heimdal's compile_et and libcom_err are now controlled by
+	WITHOUT_KERBEROS, not WITHOUT_KERBEROS_SUPPORT.  This matches
+	the behaviour of the MIT Kerberos versions.
+
+20250820:
 	Commits 08c7dd2fbe4f and a4197ea47777 have changed the ABI between
 	libvmmapi and the vmm device. If using a custom kernel configuration,
 	please ensure that the COMPAT_FREEBSD14 option is included so older
