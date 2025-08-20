@@ -139,6 +139,8 @@ typedef int fo_fspacectl_t(struct file *fp, int cmd,
 		    off_t *offset, off_t *length, int flags,
 		    struct ucred *active_cred, struct thread *td);
 typedef int fo_cmp_t(struct file *fp, struct file *fp1, struct thread *td);
+typedef	int fo_fork_t(struct filedesc *fdp, struct file *fp, struct file **fp1,
+		    struct proc *p1, struct thread *td);
 typedef int fo_spare_t(struct file *fp);
 typedef	int fo_flags_t;
 
@@ -163,12 +165,14 @@ struct fileops {
 	fo_fallocate_t	*fo_fallocate;
 	fo_fspacectl_t	*fo_fspacectl;
 	fo_cmp_t	*fo_cmp;
+	fo_fork_t	*fo_fork;
 	fo_spare_t	*fo_spares[8];	/* Spare slots */
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 
 #define DFLAG_PASSABLE	0x01	/* may be passed via unix sockets. */
 #define DFLAG_SEEKABLE	0x02	/* seekable / nonsequential */
+#define	DFLAG_FORK	0x04	/* copy on fork */
 #endif /* _KERNEL */
 
 #if defined(_KERNEL) || defined(_WANT_FILE)

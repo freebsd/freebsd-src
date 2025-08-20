@@ -2519,10 +2519,13 @@ fdcopy(struct filedesc *fdp)
 {
 	struct filedesc *newfdp;
 	struct filedescent *nfde, *ofde;
+	struct file *fp;
 	int i, lastfile;
+	bool fork_pass;
 
 	MPASS(fdp != NULL);
 
+	fork_pass = false;
 	newfdp = fdinit();
 	FILEDESC_SLOCK(fdp);
 	for (;;) {
@@ -2533,10 +2536,35 @@ fdcopy(struct filedesc *fdp)
 		fdgrowtable(newfdp, lastfile + 1);
 		FILEDESC_SLOCK(fdp);
 	}
-	/* copy all passable descriptors (i.e. not kqueue) */
+
+	/*
+	 * Copy all passable descriptors (i.e. not kqueue), and
+	 * prepare to handle copyable but not passable descriptors
+	 * (kqueues).
+	 *
+	 * The pass to handle copying is performed after all passable
+	 * files are installed into the new file descriptor's table,
+	 * since kqueues need all referenced file descriptors already
+	 * valid, including other kqueues. For the same reason the
+	 * copying is done in two passes by itself, first installing
+	 * not fully initialized ('empty') copyable files into the new
+	 * fd table, and then giving the subsystems a second chance to
+	 * really fill the copied file backing structure with the
+	 * content.
+	 */
 	newfdp->fd_freefile = fdp->fd_freefile;
 	FILEDESC_FOREACH_FDE(fdp, i, ofde) {
-		if ((ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0 ||
+		const struct fileops *ops;
+
+		ops = ofde->fde_file->f_ops;
+		fp = NULL;
+		if ((ops->fo_flags & DFLAG_FORK) != 0 &&
+		    (ofde->fde_flags & UF_FOCLOSE) == 0) {
+			if (ops->fo_fork(newfdp, ofde->fde_file, &fp, p1,
+			    curthread) != 0)
+				continue;
+			fork_pass = true;
+		} else if ((ops->fo_flags & DFLAG_PASSABLE) == 0 ||
 		    (ofde->fde_flags & UF_FOCLOSE) != 0 ||
 		    !fhold(ofde->fde_file)) {
 			if (newfdp->fd_freefile == fdp->fd_freefile)
@@ -2545,11 +2573,30 @@ fdcopy(struct filedesc *fdp)
 		}
 		nfde = &newfdp->fd_ofiles[i];
 		*nfde = *ofde;
+		if (fp != NULL)
+			nfde->fde_file = fp;
 		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps, true);
 		fdused_init(newfdp, i);
 	}
 	MPASS(newfdp->fd_freefile != -1);
 	FILEDESC_SUNLOCK(fdp);
+
+	/*
+	 * Now handle copying kqueues, since all fds, including
+	 * kqueues, are in place.
+	 */
+	if (__predict_false(fork_pass)) {
+		FILEDESC_FOREACH_FDE(newfdp, i, nfde) {
+			const struct fileops *ops;
+
+			ops = nfde->fde_file->f_ops;
+			if ((ops->fo_flags & DFLAG_FORK) == 0 ||
+			    nfde->fde_file == NULL)
+				continue;
+			ops->fo_fork(newfdp, NULL, &nfde->fde_file, p1,
+			    curthread);
+		}
+	}
 	return (newfdp);
 }
 
