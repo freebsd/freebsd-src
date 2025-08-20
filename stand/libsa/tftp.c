@@ -73,6 +73,7 @@ static int tftp_preload(struct open_file *);
 
 struct fs_ops tftp_fsops = {
 	.fs_name = "tftp",
+	.fs_flags = 0,
 	.fo_open = tftp_open,
 	.fo_close = tftp_close,
 	.fo_read = tftp_read,

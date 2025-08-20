@@ -93,6 +93,7 @@ static int	ufs_unmount(const char *dev, void *data);
 
 struct fs_ops ufs_fsops = {
 	.fs_name = "ufs",
+	.fs_flags = 0,
 	.fo_open = ufs_open,
 	.fo_close = ufs_close,
 	.fo_read = ufs_read,

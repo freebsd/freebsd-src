@@ -106,6 +106,7 @@ static int dtmap[] = { DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR,
 
 struct fs_ops ext2fs_fsops = {
 	.fs_name = "ext2fs",
+	.fs_flags = 0,
 	.fo_open = ext2fs_open,
 	.fo_close = ext2fs_close,
 	.fo_read = ext2fs_read,

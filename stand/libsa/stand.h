@@ -94,6 +94,8 @@ __BEGIN_DECLS
 
 struct open_file;
 
+#define FS_OPS_NO_DEVOPEN 1
+
 /*
  * This structure is used to define file system operations in a file system
  * independent way.
@@ -104,6 +106,7 @@ struct open_file;
  */
 struct fs_ops {
     const char	*fs_name;
+    int		fs_flags;
     int		(*fo_open)(const char *path, struct open_file *f);
     int		(*fo_close)(struct open_file *f);
     int		(*fo_read)(struct open_file *f, void *buf,
