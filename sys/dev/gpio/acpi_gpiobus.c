@@ -52,12 +52,11 @@ struct acpi_gpiobus_ctx {
 
 struct acpi_gpiobus_ivar
 {
-	struct gpiobus_ivar	gpiobus;	/* Must come first */
-	ACPI_HANDLE		dev_handle;	/* ACPI handle for bus */
-	uint32_t		flags;
+	struct gpiobus_ivar	gpiobus;
+	ACPI_HANDLE		handle;
 };
 
-static uint32_t
+uint32_t
 acpi_gpiobus_convflags(ACPI_RESOURCE_GPIO *gpio_res)
 {
 	uint32_t flags = 0;
@@ -150,70 +149,24 @@ acpi_gpiobus_enumerate_res(ACPI_RESOURCE *res, void *context)
 	return (AE_OK);
 }
 
-static struct acpi_gpiobus_ivar *
-acpi_gpiobus_setup_devinfo(device_t bus, device_t child,
-    ACPI_RESOURCE_GPIO *gpio_res)
-{
-	struct acpi_gpiobus_ivar *devi;
-
-	devi = malloc(sizeof(*devi), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (devi == NULL)
-		return (NULL);
-	resource_list_init(&devi->gpiobus.rl);
-
-	devi->flags = acpi_gpiobus_convflags(gpio_res);
-	if (acpi_quirks & ACPI_Q_AEI_NOPULL)
-		devi->flags &= ~GPIO_PIN_PULLUP;
-
-	devi->gpiobus.npins = 1;
-	if (gpiobus_alloc_ivars(&devi->gpiobus) != 0) {
-		free(devi, M_DEVBUF);
-		return (NULL);
-	}
-
-	for (int i = 0; i < devi->gpiobus.npins; i++)
-		devi->gpiobus.pins[i] = gpio_res->PinTable[i];
-
-	return (devi);
-}
-
 static ACPI_STATUS
 acpi_gpiobus_enumerate_aei(ACPI_RESOURCE *res, void *context)
 {
 	ACPI_RESOURCE_GPIO *gpio_res = &res->Data.Gpio;
-	struct acpi_gpiobus_ctx *ctx = context;
-	device_t bus = ctx->sc->sc_busdev;
-	device_t child;
-	struct acpi_gpiobus_ivar *devi;
+	uint32_t *npins = context, *pins = npins + 1;
 
-	/* Check that we have a GpioInt object. */
+	/*
+	 * Check that we have a GpioInt object.
+	 * Note that according to the spec this
+	 * should always be the case.
+	 */
 	if (res->Type != ACPI_RESOURCE_TYPE_GPIO)
 		return (AE_OK);
 	if (gpio_res->ConnectionType != ACPI_RESOURCE_GPIO_TYPE_INT)
 		return (AE_OK);
 
-	/* Add a child. */
-	child = device_add_child_ordered(bus, 0, "gpio_aei", DEVICE_UNIT_ANY);
-	if (child == NULL)
-		return (AE_OK);
-	devi = acpi_gpiobus_setup_devinfo(bus, child, gpio_res);
-	if (devi == NULL) {
-		device_delete_child(bus, child);
-		return (AE_OK);
-	}
-	device_set_ivars(child, devi);
-
-	for (int i = 0; i < devi->gpiobus.npins; i++) {
-		if (GPIOBUS_PIN_SETFLAGS(bus, child, 0, devi->flags &
-		    ~GPIO_INTR_MASK)) {
-			device_delete_child(bus, child);
-			return (AE_OK);
-		}
-	}
-
-	/* Pass ACPI information to children. */
-	devi->dev_handle = ctx->dev_handle;
-
+	for (int i = 0; i < gpio_res->PinTableLength; i++)
+		pins[(*npins)++] = gpio_res->PinTable[i];
 	return (AE_OK);
 }
 
@@ -296,6 +249,63 @@ err:
 	return (AE_BAD_PARAMETER);
 }
 
+static void
+acpi_gpiobus_attach_aei(struct acpi_gpiobus_softc *sc, ACPI_HANDLE handle)
+{
+	struct acpi_gpiobus_ivar *devi;
+	ACPI_HANDLE aei_handle;
+	device_t child;
+	uint32_t *pins;
+	ACPI_STATUS status;
+	int err;
+
+	status = AcpiGetHandle(handle, "_AEI", &aei_handle);
+	if (ACPI_FAILURE(status))
+		return;
+
+	/* pins[0] specifies the length of the array. */
+	pins = mallocarray(sc->super_sc.sc_npins + 1,
+	    sizeof(uint32_t), M_DEVBUF, M_WAITOK);
+	pins[0] = 0;
+
+	status = AcpiWalkResources(handle, "_AEI",
+	    acpi_gpiobus_enumerate_aei, pins);
+	if (ACPI_FAILURE(status)) {
+		device_printf(sc->super_sc.sc_busdev,
+		    "Failed to enumerate AEI resources\n");
+		free(pins, M_DEVBUF);
+		return;
+	}
+
+	child = BUS_ADD_CHILD(sc->super_sc.sc_busdev, 0, "gpio_aei",
+	    DEVICE_UNIT_ANY);
+	if (child == NULL) {
+		device_printf(sc->super_sc.sc_busdev,
+		    "Failed to add gpio_aei child\n");
+		free(pins, M_DEVBUF);
+		return;
+	}
+
+	devi = device_get_ivars(child);
+	devi->gpiobus.npins = pins[0];
+	devi->handle = aei_handle;
+
+	err = gpiobus_alloc_ivars(&devi->gpiobus);
+	if (err != 0) {
+		device_printf(sc->super_sc.sc_busdev,
+		    "Failed to allocate gpio_aei ivars\n");
+		device_delete_child(sc->super_sc.sc_busdev, child);
+		free(pins, M_DEVBUF);
+		return;
+	}
+
+	for (int i = 0; i < pins[0]; i++)
+		devi->gpiobus.pins[i] = pins[i + 1];
+	free(pins, M_DEVBUF);
+
+	bus_attach_children(sc->super_sc.sc_busdev);
+}
+
 static int
 acpi_gpiobus_probe(device_t dev)
 {
@@ -353,13 +363,8 @@ acpi_gpiobus_attach(device_t dev)
 	if (ACPI_FAILURE(status))
 		device_printf(dev, "Failed to enumerate GPIO resources\n");
 
-	/* Look for AEI children */
-	status = AcpiWalkResources(handle, "_AEI", acpi_gpiobus_enumerate_aei,
-	    &ctx);
-
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
-		device_printf(dev, "Failed to enumerate AEI resources\n");
-
+	/* Look for AEI child */
+	acpi_gpiobus_attach_aei(sc, handle);
 	return (0);
 }
 
@@ -390,16 +395,20 @@ acpi_gpiobus_read_ivar(device_t dev, device_t child, int which,
 
 	switch (which) {
 	case ACPI_GPIOBUS_IVAR_HANDLE:
-		*result = (uintptr_t)devi->dev_handle;
-		break;
-	case ACPI_GPIOBUS_IVAR_FLAGS:
-		*result = (uintptr_t)devi->flags;
+		*result = (uintptr_t)devi->handle;
 		break;
 	default:
 		return (gpiobus_read_ivar(dev, child, which, result));
 	}
 
 	return (0);
+}
+
+static device_t
+acpi_gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
+{
+	return (gpiobus_add_child_common(dev, order, name, unit,
+	    sizeof(struct acpi_gpiobus_ivar)));
 }
 
 static device_method_t acpi_gpiobus_methods[] = {
@@ -410,6 +419,7 @@ static device_method_t acpi_gpiobus_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	acpi_gpiobus_read_ivar),
+	DEVMETHOD(bus_add_child,	acpi_gpiobus_add_child),
 
 	DEVMETHOD_END
 };
