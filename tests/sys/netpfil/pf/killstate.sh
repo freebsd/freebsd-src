@@ -105,6 +105,68 @@ v4_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "src_dst" "cleanup"
+src_dst_head()
+{
+	atf_set descr 'Test killing a state with source and destination specified'
+	atf_set require.user root
+}
+
+src_dst_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz "block all" \
+		"pass in proto icmp" \
+		"set skip on lo"
+
+	# Sanity check & establish state
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Change rules to now deny the ICMP traffic
+	pft_set_rules noflush alcatraz "block all"
+	if ! find_state;
+	then
+		atf_fail "Setting new rules removed the state."
+	fi
+
+	# Killing with the wrong source IP doesn't affect our state
+	jexec alcatraz pfctl -k 192.0.2.3 -k 192.0.2.2
+	if ! find_state;
+	then
+		atf_fail "Killing with the wrong source IP removed our state."
+	fi
+
+	# Killing with the wrong destination IP doesn't affect our state
+	jexec alcatraz pfctl -k 192.0.2.1 -k 192.0.2.3
+	if ! find_state;
+	then
+		atf_fail "Killing with the wrong destination IP removed our state."
+	fi
+
+	# But it does with the correct one
+	jexec alcatraz pfctl -k 192.0.2.1 -k 192.0.2.2
+	if find_state;
+	then
+		atf_fail "Killing with the correct IPs did not remove our state."
+	fi
+}
+
+src_dst_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "v6" "cleanup"
 v6_head()
 {
@@ -698,6 +760,7 @@ nat_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
+	atf_add_test_case "src_dst"
 	atf_add_test_case "v6"
 	atf_add_test_case "label"
 	atf_add_test_case "multilabel"
