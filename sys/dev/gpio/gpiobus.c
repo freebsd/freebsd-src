@@ -57,7 +57,6 @@ static int gpiobus_suspend(device_t);
 static int gpiobus_resume(device_t);
 static void gpiobus_probe_nomatch(device_t, device_t);
 static int gpiobus_print_child(device_t, device_t);
-static int gpiobus_child_location(device_t, device_t, struct sbuf *);
 static device_t gpiobus_add_child(device_t, u_int, const char *, int);
 static void gpiobus_hinted_child(device_t, const char *, int);
 
@@ -662,7 +661,7 @@ gpiobus_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-static int
+int
 gpiobus_child_location(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct gpiobus_ivar *devi;
