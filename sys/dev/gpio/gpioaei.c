@@ -45,13 +45,21 @@ enum gpio_aei_type {
 	ACPI_AEI_TYPE_EVT
 };
 
-struct gpio_aei_softc {
-	ACPI_HANDLE handle;
-	enum gpio_aei_type type;
-	int pin;
+struct gpio_aei_ctx {
+	SLIST_ENTRY(gpio_aei_ctx) next;
 	struct resource * intr_res;
-	int intr_rid;
 	void * intr_cookie;
+	ACPI_HANDLE handle;
+	gpio_pin_t gpio;
+	uint32_t pin;
+	int intr_rid;
+	enum gpio_aei_type type;
+};
+
+struct gpio_aei_softc {
+	SLIST_HEAD(, gpio_aei_ctx) aei_ctx;
+	ACPI_HANDLE dev_handle;
+	device_t dev;
 };
 
 static int
@@ -65,69 +73,157 @@ gpio_aei_probe(device_t dev)
 static void
 gpio_aei_intr(void * arg)
 {
-	struct gpio_aei_softc * sc = arg;
+	struct gpio_aei_ctx * ctx = arg;
 
 	/* Ask ACPI to run the appropriate _EVT, _Exx or _Lxx method. */
-	if (sc->type == ACPI_AEI_TYPE_EVT)
-		acpi_SetInteger(sc->handle, NULL, sc->pin);
+	if (ctx->type == ACPI_AEI_TYPE_EVT)
+		acpi_SetInteger(ctx->handle, NULL, ctx->pin);
 	else
-		AcpiEvaluateObject(sc->handle, NULL, NULL, NULL);
+		AcpiEvaluateObject(ctx->handle, NULL, NULL, NULL);
+}
+
+static ACPI_STATUS
+gpio_aei_enumerate(ACPI_RESOURCE * res, void * context)
+{
+	ACPI_RESOURCE_GPIO * gpio_res = &res->Data.Gpio;
+	struct gpio_aei_softc * sc = context;
+	uint32_t flags, maxpin;
+	device_t busdev;
+	int err;
+
+	/*
+	 * Check that we have a GpioInt object.
+	 * Note that according to the spec this
+	 * should always be the case.
+	 */
+	if (res->Type != ACPI_RESOURCE_TYPE_GPIO)
+		return (AE_OK);
+	if (gpio_res->ConnectionType != ACPI_RESOURCE_GPIO_TYPE_INT)
+		return (AE_OK);
+
+	flags = acpi_gpiobus_convflags(gpio_res);
+	if (acpi_quirks & ACPI_Q_AEI_NOPULL)
+		flags &= ~GPIO_PIN_PULLUP;
+
+	err = GPIO_PIN_MAX(acpi_get_device(sc->dev_handle), &maxpin);
+	if (err != 0)
+		return (AE_ERROR);
+
+	busdev = GPIO_GET_BUS(acpi_get_device(sc->dev_handle));
+	for (int i = 0; i < gpio_res->PinTableLength; i++) {
+		struct gpio_aei_ctx * ctx;
+		uint32_t pin = gpio_res->PinTable[i];
+
+		if (__predict_false(pin > maxpin)) {
+			device_printf(sc->dev,
+			    "Invalid pin 0x%x, max: 0x%x (bad ACPI tables?)\n",
+			    pin, maxpin);
+			continue;
+		}
+
+		ctx = malloc(sizeof(struct gpio_aei_ctx), M_DEVBUF, M_WAITOK);
+		ctx->type = ACPI_AEI_TYPE_UNKNOWN;
+		if (pin <= 255) {
+			char objname[5];	/* "_EXX" or "_LXX" */
+			sprintf(objname, "_%c%02X",
+			    (flags & GPIO_INTR_EDGE_MASK) ? 'E' : 'L', pin);
+			if (ACPI_SUCCESS(AcpiGetHandle(sc->dev_handle, objname,
+			    &ctx->handle)))
+				ctx->type = ACPI_AEI_TYPE_ELX;
+		}
+
+		if (ctx->type == ACPI_AEI_TYPE_UNKNOWN) {
+			if (ACPI_SUCCESS(AcpiGetHandle(sc->dev_handle, "_EVT",
+			    &ctx->handle)))
+				ctx->type = ACPI_AEI_TYPE_EVT;
+			else {
+				device_printf(sc->dev,
+				    "AEI Device type is unknown for pin 0x%x\n",
+				    pin);
+
+				free(ctx, M_DEVBUF);
+				continue;
+			}
+		}
+
+		err = gpio_pin_get_by_bus_pinnum(busdev, pin, &ctx->gpio);
+		if (err != 0) {
+			device_printf(sc->dev, "Cannot acquire pin 0x%x\n",
+			    pin);
+
+			free(ctx, M_DEVBUF);
+			continue;
+		}
+
+		err = gpio_pin_setflags(ctx->gpio, flags & ~GPIO_INTR_MASK);
+		if (err != 0) {
+			device_printf(sc->dev,
+			    "Cannot set pin flags for pin 0x%x\n", pin);
+
+			gpio_pin_release(ctx->gpio);
+			free(ctx, M_DEVBUF);
+			continue;
+		}
+
+		ctx->intr_rid = 0;
+		ctx->intr_res = gpio_alloc_intr_resource(sc->dev,
+		    &ctx->intr_rid, RF_ACTIVE, ctx->gpio,
+		    flags & GPIO_INTR_MASK);
+		if (ctx->intr_res == NULL) {
+			device_printf(sc->dev,
+			    "Cannot allocate an IRQ for pin 0x%x\n", pin);
+
+			gpio_pin_release(ctx->gpio);
+			free(ctx, M_DEVBUF);
+			continue;
+		}
+
+		err = bus_setup_intr(sc->dev, ctx->intr_res, INTR_TYPE_MISC |
+		    INTR_MPSAFE | INTR_EXCL | INTR_SLEEPABLE, NULL,
+		    gpio_aei_intr, ctx, &ctx->intr_cookie);
+		if (err != 0) {
+			device_printf(sc->dev,
+			    "Cannot set up an IRQ for pin 0x%x\n", pin);
+
+			bus_release_resource(sc->dev, ctx->intr_res);
+			gpio_pin_release(ctx->gpio);
+			free(ctx, M_DEVBUF);
+			continue;
+		}
+
+		ctx->pin = pin;
+		SLIST_INSERT_HEAD(&sc->aei_ctx, ctx, next);
+	}
+
+	return (AE_OK);
 }
 
 static int
 gpio_aei_attach(device_t dev)
 {
 	struct gpio_aei_softc * sc = device_get_softc(dev);
-	gpio_pin_t pin;
-	uint32_t flags;
 	ACPI_HANDLE handle;
-	int err;
+	ACPI_STATUS status;
 
 	/* This is us. */
 	device_set_desc(dev, "ACPI Event Information Device");
 
-	/* Store parameters needed by gpio_aei_intr. */
 	handle = acpi_gpiobus_get_handle(dev);
-	if (gpio_pin_get_by_child_index(dev, 0, &pin) != 0) {
-		device_printf(dev, "Unable to get the input pin\n");
+	status = AcpiGetParent(handle, &sc->dev_handle);
+	if (ACPI_FAILURE(status)) {
+		device_printf(dev, "Cannot get parent of %s\n",
+		    acpi_name(handle));
 		return (ENXIO);
 	}
 
-	sc->type = ACPI_AEI_TYPE_UNKNOWN;
-	sc->pin = pin->pin;
+	SLIST_INIT(&sc->aei_ctx);
+	sc->dev = dev;
 
-	flags = acpi_gpiobus_get_flags(dev);
-	if (pin->pin <= 255) {
-		char objname[5];	/* "_EXX" or "_LXX" */
-		sprintf(objname, "_%c%02X",
-		    (flags & GPIO_INTR_EDGE_MASK) ? 'E' : 'L', pin->pin);
-		if (ACPI_SUCCESS(AcpiGetHandle(handle, objname, &sc->handle)))
-			sc->type = ACPI_AEI_TYPE_ELX;
-	}
-	if (sc->type == ACPI_AEI_TYPE_UNKNOWN) {
-		if (ACPI_SUCCESS(AcpiGetHandle(handle, "_EVT", &sc->handle)))
-			sc->type = ACPI_AEI_TYPE_EVT;
-	}
-
-	if (sc->type == ACPI_AEI_TYPE_UNKNOWN) {
-		device_printf(dev, "ACPI Event Information Device type is unknown");
-		return (ENOTSUP);
-	}
-
-	/* Set up the interrupt. */
-	if ((sc->intr_res = gpio_alloc_intr_resource(dev, &sc->intr_rid,
-	    RF_ACTIVE, pin, flags & GPIO_INTR_MASK)) == NULL) {
-		device_printf(dev, "Cannot allocate an IRQ\n");
-		return (ENOTSUP);
-	}
-	err = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE |
-	    INTR_EXCL | INTR_SLEEPABLE, NULL, gpio_aei_intr, sc,
-	    &sc->intr_cookie);
-	if (err != 0) {
-		device_printf(dev, "Cannot set up IRQ\n");
-		bus_release_resource(dev, SYS_RES_IRQ, sc->intr_rid,
-		    sc->intr_res);
-		return (err);
+	status = AcpiWalkResources(sc->dev_handle, "_AEI",
+	    gpio_aei_enumerate, sc);
+	if (ACPI_FAILURE(status)) {
+		device_printf(dev, "Failed to enumerate AEI resources\n");
+		return (ENXIO);
 	}
 
 	return (0);
@@ -137,9 +233,15 @@ static int
 gpio_aei_detach(device_t dev)
 {
 	struct gpio_aei_softc * sc = device_get_softc(dev);
+	struct gpio_aei_ctx * ctx, * tctx;
 
-	bus_teardown_intr(dev, sc->intr_res, sc->intr_cookie);
-	bus_release_resource(dev, SYS_RES_IRQ, sc->intr_rid, sc->intr_res);
+	SLIST_FOREACH_SAFE(ctx, &sc->aei_ctx, next, tctx) {
+		bus_teardown_intr(dev, ctx->intr_res, ctx->intr_cookie);
+		bus_release_resource(dev, ctx->intr_res);
+		gpio_pin_release(ctx->gpio);
+		free(ctx, M_DEVBUF);
+	}
+
 	return (0);
 }
 
