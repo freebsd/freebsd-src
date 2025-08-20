@@ -50,12 +50,12 @@
 # - Replacing generated files with files committed to the tree.  This is special
 #   case of moving from one directory to another.  The stale generated file also
 #   needs to be deleted, so that it isn't found in make's .PATH.  Note the
-#   unconditional `rm -f`: there's no need for an extra call to first check for
+#   unconditional `rm -fv`: there's no need for an extra call to first check for
 #   the file's existence.
 #
 #   # 20250110  3863fec1ce2d  add strlen SIMD implementation
 #   clean_dep   lib/libc strlen S arm-optimized-routines
-#   run rm -f "$OBJTOP"/lib/libc/strlen.S
+#   run rm -fv "$OBJTOP"/lib/libc/strlen.S
 #
 # A rule may be required for only one architecture:
 #
@@ -152,6 +152,11 @@ run()
 	fi
 }
 
+# Clean the depend and object files for a given source file if the
+# depend file matches a regex (which defaults to the source file
+# name).  This is typically used if a file was renamed, especially if
+# only its extension was changed (e.g. from .c to .cc).
+#
 # $1 directory
 # $2 source filename w/o extension
 # $3 source extension
@@ -162,8 +167,29 @@ clean_dep()
 		dirprfx=${libcompat:+obj-lib${libcompat}/}
 		if egrep -qw "${4:-$2\.$3}" "$OBJTOP"/$dirprfx$1/.depend.$2.*o 2>/dev/null; then
 			echo "Removing stale ${libcompat:+lib${libcompat} }dependencies and objects for $2.$3"
-			run rm -f \
+			run rm -fv \
 			    "$OBJTOP"/$dirprfx$1/.depend.$2.* \
+			    "$OBJTOP"/$dirprfx$1/$2.*o
+		fi
+	done
+}
+
+# Clean the object file for a given source file if it exists and
+# matches a regex.  This is typically used if a a change in CFLAGS or
+# similar caused a change in the generated code without a change in
+# the sources.
+#
+# $1 directory
+# $2 source filename w/o extension
+# $3 source extension
+# $4 regex for egrep -w
+clean_obj()
+{
+	for libcompat in "" $ALL_libcompats; do
+		dirprfx=${libcompat:+obj-lib${libcompat}/}
+		if strings "$OBJTOP"/$dirprfx$1/$2.*o 2>/dev/null | egrep -qw "${4}"; then
+			echo "Removing stale ${libcompat:+lib${libcompat} }objects for $2.$3"
+			run rm -fv \
 			    "$OBJTOP"/$dirprfx$1/$2.*o
 		fi
 	done
@@ -243,7 +269,7 @@ fi
 if stat "$OBJTOP"/tests/sys/kqueue/libkqueue/*kqtest* \
     "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.kqtest* >/dev/null 2>&1; then
 	echo "Removing old kqtest"
-	run rm -f "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.* \
+	run rm -fv "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.* \
 	   "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 fi
 
@@ -317,7 +343,7 @@ fi
 if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
     ! grep -q 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
 	echo "removing rescue.mk without nvme_util.o"
-	run rm -f "$OBJTOP"/rescue/rescue/rescue.mk
+	run rm -fv "$OBJTOP"/rescue/rescue/rescue.mk
 fi
 
 # 20240910  e2df9bb44109
@@ -337,7 +363,7 @@ if [ ${MACHINE} = riscv ]; then
 		fi
 		if ! grep -q 'lib/libc/csu/riscv/reloc\.c' "$f"; then
 			echo "Removing stale dependencies and objects for libc_start1.c"
-			run rm -f \
+			run rm -fv \
 			    "$OBJTOP"/lib/libc/.depend.libc_start1.* \
 			    "$OBJTOP"/lib/libc/libc_start1.*o
 			break
@@ -351,28 +377,28 @@ f="$p"/arm_mve_builtin_sema.inc
 if [ -e "$f" ]; then
 	if grep -q SemaBuiltinConstantArgRange "$f"; then
 		echo "Removing pre-llvm19 clang-tblgen output"
-		run rm -f "$p"/*.inc
+		run rm -fv "$p"/*.inc
 	fi
 fi
 
 # 20241025  cb5e41b16083  Unbundle hash functions fom lib/libcrypt
-clean_dep   lib/libcrypt crypt-md5    c
-clean_dep   lib/libcrypt crypt-nthash c
-clean_dep   lib/libcrypt crypt-sha256 c
-clean_dep   lib/libcrypt crypt-sha512 c
+clean_obj   lib/libcrypt crypt-md5    c __MD5Init
+clean_obj   lib/libcrypt crypt-nthash c __MD4Init
+clean_obj   lib/libcrypt crypt-sha256 c __SHA256Init
+clean_obj   lib/libcrypt crypt-sha512 c __SHA512Init
 
 # 20241213  b55f5e1c4ae3  jemalloc: Move generated jemalloc.3 into lib/libc tree
 if [ -h "$OBJTOP"/lib/libc/jemalloc.3 ]; then
 	# Have to cleanup the jemalloc.3 in the obj tree since make gets
 	# confused and won't use the one in lib/libc/malloc/jemalloc/jemalloc.3
 	echo "Removing stale jemalloc.3 object"
-	run rm -f "$OBJTOP"/lib/libc/jemalloc.3
+	run rm -fv "$OBJTOP"/lib/libc/jemalloc.3
 fi
 
 if [ $MACHINE_ARCH = aarch64 ]; then
 	# 20250110  5e7d93a60440  add strcmp SIMD implementation
 	ALL_libcompats= clean_dep   lib/libc strcmp S arm-optimized-routines
-	run rm -f "$OBJTOP"/lib/libc/strcmp.S
+	run rm -fv "$OBJTOP"/lib/libc/strcmp.S
 
 	# 20250110  b91003acffe7  add strspn optimized implementation
 	ALL_libcompats= clean_dep   lib/libc strspn c
@@ -391,7 +417,7 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 
 	# 20250110  25c485e14769  add strncmp SIMD implementation
 	ALL_libcompats= clean_dep   lib/libc strncmp S arm-optimized-routines
-	run rm -f "$OBJTOP"/lib/libc/strncmp.S
+	run rm -fv "$OBJTOP"/lib/libc/strncmp.S
 
 	# 20250110  bad17991c06d  add memccpy SIMD implementation
 	ALL_libcompats= clean_dep   lib/libc memccpy c
@@ -402,11 +428,11 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 	# 20250110  bea89d038ac5  add strlcat SIMD implementation, and move memchr
 	ALL_libcompats= clean_dep   lib/libc strlcat c "libc.string.strlcat.c"
 	ALL_libcompats= clean_dep   lib/libc memchr S "[[:space:]]memchr.S"
-	run rm -f "$OBJTOP"/lib/libc/memchr.S
+	run rm -fv "$OBJTOP"/lib/libc/memchr.S
 
 	# 20250110  3863fec1ce2d  add strlen SIMD implementation
 	ALL_libcompats= clean_dep   lib/libc strlen S arm-optimized-routines
-	run rm -f "$OBJTOP"/lib/libc/strlen.S
+	run rm -fv "$OBJTOP"/lib/libc/strlen.S
 
 	# 20250110  79e01e7e643c  add bcopy & bzero wrapper
 	ALL_libcompats= clean_dep   lib/libc bcopy c "libc.string.bcopy.c"
@@ -431,15 +457,15 @@ clean_dep   usr.sbin/ctld   uclparse c
 # 20250425  2e47f35be5dc    libllvm, libclang and liblldb became shared libraries
 if [ -f "$OBJTOP"/lib/clang/libllvm/libllvm.a ]; then
 	echo "Removing old static libllvm library"
-        run rm -f "$OBJTOP"/lib/clang/libllvm/libllvm.a
+        run rm -fv "$OBJTOP"/lib/clang/libllvm/libllvm.a
 fi
 if [ -f "$OBJTOP"/lib/clang/libclang/libclang.a ]; then
 	echo "Removing old static libclang library"
-        run rm -f "$OBJTOP"/lib/clang/libclang/libclang.a
+        run rm -fv "$OBJTOP"/lib/clang/libclang/libclang.a
 fi
 if [ -f "$OBJTOP"/lib/clang/liblldb/liblldb.a ]; then
 	echo "Removing old static liblldb library"
-        run rm -f "$OBJTOP"/lib/clang/liblldb/liblldb.a
+        run rm -fv "$OBJTOP"/lib/clang/liblldb/liblldb.a
 fi
 
 # 20250813  4f766afc1ca0    tcopy converted to C++
