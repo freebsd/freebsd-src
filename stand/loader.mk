@@ -101,8 +101,6 @@ SRCS+=	interp_simple.c
 .error Unknown interpreter ${LOADER_INTERP}
 .endif
 
-.include "${BOOTSRC}/veriexec.mk"
-
 .if defined(BOOT_PROMPT_123)
 CFLAGS+=	-DBOOT_PROMPT_123
 .endif

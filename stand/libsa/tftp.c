@@ -50,6 +50,10 @@
 #include <netinet/in_systm.h>
 #include <arpa/tftp.h>
 
+#ifdef LOADER_VERIEXEC
+#include <verify_file.h>
+#endif
+
 #include <string.h>
 
 #include "stand.h"
@@ -85,7 +89,6 @@ struct fs_ops tftp_fsops = {
 };
 
 static int	tftpport = 2000;
-static int	is_open = 0;
 
 /*
  * The legacy TFTP_BLKSIZE value was SEGSIZE(512).
@@ -99,10 +102,14 @@ static int	is_open = 0;
  * Jumbo frames in the future.
  */
 #define	TFTP_MAX_BLKSIZE 9008
-#define TFTP_TRIES 2
+#define TFTP_TRIES 3
 
 struct tftp_handle {
 	struct iodesc  *iodesc;
+	struct iodesc	io;
+	int		id;
+	ino_t		ino;
+	int		port;
 	int		currblock;	/* contents of lastdata */
 	unsigned int	islastblock:1;	/* flag */
 	unsigned int	tries:4;	/* number of read attempts */
@@ -178,6 +185,9 @@ tftp_sendack(struct tftp_handle *h, u_short block)
 	wbuf.t.th_block = htons(block);
 	wtail += 2;
 
+	DEBUG_PRINTF(5,("%s: myport=%hu xid=%lu, block=%hu\n",
+	    __func__, h->iodesc->myport, h->iodesc->xid, block));
+
 	sendudp(h->iodesc, &wbuf.t, wtail - (char *)&wbuf.t);
 }
 
@@ -191,6 +201,7 @@ recvtftp(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	void *ptr = NULL;
 	ssize_t len;
 	int tftp_error;
+	unsigned short block;
 
 	errno = 0;
 	extra = recv_extra;
@@ -204,19 +215,22 @@ recvtftp(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	}
 
 	extra->rtype = ntohs(t->th_opcode);
-	switch (ntohs(t->th_opcode)) {
+	block = ntohs(t->th_block);
+	DEBUG_PRINTF(6,("%s: myport=%hu xid=%lu, block=%hu, opcode=%hu\n",
+	    __func__, d->myport, d->xid, block, extra->rtype));
+	switch (extra->rtype) {
 	case DATA: {
 		int got;
 
-		if (htons(t->th_block) < (u_short)d->xid) {
+		if (block < (u_short)d->xid) {
 			/*
 			 * Apparently our ACK was missed, re-send.
 			 */
-			tftp_sendack(h, htons(t->th_block));
+			tftp_sendack(h, block);
 			free(ptr);
 			return (-1);
 		}
-		if (htons(t->th_block) != (u_short)d->xid) {
+		if (block != (u_short)d->xid) {
 			/*
 			 * Packet from the future, drop this.
 			 */
@@ -242,9 +256,7 @@ recvtftp(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 			printf("illegal tftp error %d\n", tftp_error);
 			errno = EIO;
 		} else {
-#ifdef TFTP_DEBUG
-			printf("tftp-error %d\n", tftp_error);
-#endif
+			DEBUG_PRINTF(0, ("tftp-error %d\n", tftp_error));
 			errno = tftperrors[tftp_error];
 		}
 		free(ptr);
@@ -285,9 +297,7 @@ recvtftp(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 		return (0);
 	}
 	default:
-#ifdef TFTP_DEBUG
-		printf("tftp type %d not handled\n", ntohs(t->th_opcode));
-#endif
+		DEBUG_PRINTF(0, ("tftp type %hu not handled\n", extra->rtype));
 		free(ptr);
 		return (-1);
 	}
@@ -344,7 +354,7 @@ tftp_makereq(struct tftp_handle *h)
 	bcopy("0", wtail, 2);
 	wtail += 2;
 
-	h->iodesc->myport = htons(tftpport + (getsecs() & 0x3ff));
+	h->iodesc->myport = htons(h->port +  (getsecs() & 0x3ff));
 	h->iodesc->destport = htons(IPPORT_TFTP);
 	h->iodesc->xid = 1;	/* expected block */
 
@@ -352,11 +362,15 @@ tftp_makereq(struct tftp_handle *h)
 	h->islastblock = 0;
 	h->validsize = 0;
 
+	DEBUG_PRINTF(5,("%s: %s: id=%d port=%d myport=%hu xid=1\n",
+	    __func__, h->path, h->id, h->port, ntohs(h->iodesc->myport)));
 	pkt = NULL;
 	recv_extra.tftp_handle = h;
 	res = sendrecv(h->iodesc, &sendudp, &wbuf.t, wtail - (char *)&wbuf.t,
 	    &recvtftp, &pkt, (void **)&t, &recv_extra);
 	if (res == -1) {
+		DEBUG_PRINTF(3,("%s: %s: id=%d errno=%d\n",
+			__func__, h->path, h->id, errno));
 		free(pkt);
 		return (errno);
 	}
@@ -411,12 +425,18 @@ tftp_getnextblock(struct tftp_handle *h)
 
 	h->iodesc->xid = h->currblock + 1;	/* expected block */
 
+	DEBUG_PRINTF(5,("%s: %s: id=%d port=%d myport=%hu xid=%lu\n",
+	    __func__, h->path, h->id, h->port,
+	    ntohs(h->iodesc->myport), h->iodesc->xid));
+
 	pkt = NULL;
 	recv_extra.tftp_handle = h;
 	res = sendrecv(h->iodesc, &sendudp, &wbuf.t, wtail - (char *)&wbuf.t,
 	    &recvtftp, &pkt, (void **)&t, &recv_extra);
 
 	if (res == -1) {		/* 0 is OK! */
+		DEBUG_PRINTF(3,("%s: %s: id=%d errno=%d\n",
+		    __func__, h->path, h->id, errno));
 		free(pkt);
 		return (errno);
 	}
@@ -429,14 +449,23 @@ tftp_getnextblock(struct tftp_handle *h)
 	if (res < h->tftp_blksize)
 		h->islastblock = 1;	/* EOF */
 
-	if (h->islastblock == 1) {
+	DEBUG_PRINTF(5,("%s: %s: id=%d res=%d blksz=%d last=%d\n",
+		__func__, h->path, h->id, res, h->tftp_blksize, h->islastblock));
+	
+	if (h->islastblock) {
 		/* Send an ACK for the last block */
-		wbuf.t.th_block = htons((u_short)h->currblock);
-		sendudp(h->iodesc, &wbuf.t, wtail - (char *)&wbuf.t);
+		tftp_sendack(h, h->currblock);
 	}
 
 	return (0);
 }
+
+/*
+ * If doing verification we need to handle multiple
+ * files at the same time.
+ */
+#define TOPEN_MAX 8
+static struct tftp_handle *handles[TOPEN_MAX];
 
 static int
 tftp_open(const char *path, struct open_file *f)
@@ -444,6 +473,8 @@ tftp_open(const char *path, struct open_file *f)
 	struct devdesc *dev;
 	struct tftp_handle *tftpfile;
 	struct iodesc	*io;
+	static int	lx = 0;
+	int		i, x;
 	int		res;
 	size_t		pathsize;
 	const char	*extraslash;
@@ -451,24 +482,39 @@ tftp_open(const char *path, struct open_file *f)
 	if (netproto != NET_TFTP)
 		return (EINVAL);
 
-	if (f->f_dev->dv_type != DEVT_NET)
+	if (f->f_dev == NULL || f->f_dev->dv_type != DEVT_NET)
 		return (EINVAL);
 
-	if (is_open)
+	tftpfile = NULL;
+	for (x = lx + 1, i = 0; i < TOPEN_MAX; i++, x++) {
+		x %= TOPEN_MAX;
+		if (handles[x] == NULL) {
+			handles[x] = tftpfile = calloc(1, sizeof(*tftpfile));
+			if (tftpfile == NULL)
+				return (ENOMEM);
+			/* id allows us to clear the slot on close */
+			tftpfile->id = lx = x;
+			/* port ensures a different session with server */
+			tftpfile->port = (tftpport + (x * tftpport)) & 0xffff;
+			DEBUG_PRINTF(1, ("%s(%s) id=%d port=%d\n",
+			    __func__, path, tftpfile->id, tftpfile->port));
+			break;
+		}
+	}
+	if (tftpfile == NULL) {
+		DEBUG_PRINTF(1, ("%s: EBUSY\n", __func__));
 		return (EBUSY);
-
-	tftpfile = calloc(1, sizeof(*tftpfile));
-	if (!tftpfile)
-		return (ENOMEM);
-
+	}
 	tftpfile->tftp_blksize = TFTP_REQUESTED_BLKSIZE;
 	dev = f->f_devdata;
-	tftpfile->iodesc = io = socktodesc(*(int *)(dev->d_opendata));
+	io = socktodesc(*(int *)(dev->d_opendata));
 	if (io == NULL) {
 		free(tftpfile);
 		return (EINVAL);
 	}
 
+	memcpy(&tftpfile->io, io, sizeof(tftpfile->io));
+	io = tftpfile->iodesc = &tftpfile->io;
 	io->destip = rootip;
 	tftpfile->off = 0;
 	pathsize = (strlen(rootpath) + 1 + strlen(path) + 1) * sizeof(char);
@@ -481,8 +527,11 @@ tftp_open(const char *path, struct open_file *f)
 		extraslash = "";
 	else
 		extraslash = "/";
-	res = snprintf(tftpfile->path, pathsize, "%s%s%s",
-	    rootpath, extraslash, path);
+	if (rootpath[0] == '/' && rootpath[1] == '\0' && path[0] == '/')
+		res = strlcpy(tftpfile->path, path, pathsize);
+	else
+		res = snprintf(tftpfile->path, pathsize, "%s%s%s",
+		    rootpath, extraslash, path);
 	if (res < 0 || res > pathsize) {
 		free(tftpfile->path);
 		free(tftpfile);
@@ -492,13 +541,13 @@ tftp_open(const char *path, struct open_file *f)
 	res = tftp_makereq(tftpfile);
 
 	if (res) {
+		handles[tftpfile->id] = NULL;
 		free(tftpfile->path);
 		free(tftpfile->pkt);
 		free(tftpfile);
 		return (res);
 	}
 	f->f_fsdata = tftpfile;
-	is_open = 1;
 	return (0);
 }
 
@@ -548,9 +597,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 			rc = tftp_getnextblock(tftpfile);
 			if (rc) {	/* no answer */
-#ifdef TFTP_DEBUG
-				printf("tftp: read error\n");
-#endif
+				DEBUG_PRINTF(0, ("tftp: read error\n"));
 				if (tftpfile->tries > TFTP_TRIES) {
 					return (rc);
 				} else {
@@ -569,10 +616,8 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 			inbuffer = tftpfile->validsize - offinblock;
 			if (inbuffer < 0) {
-#ifdef TFTP_DEBUG
-				printf("tftp: invalid offset %d\n",
-				    tftpfile->off);
-#endif
+				DEBUG_PRINTF(0, ("tftp: invalid offset %d\n",
+				    tftpfile->off));
 				return (EINVAL);
 			}
 			count = (size < inbuffer ? size : inbuffer);
@@ -587,15 +632,15 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 			if ((tftpfile->islastblock) && (count == inbuffer))
 				break;	/* EOF */
 		} else {
-#ifdef TFTP_DEBUG
-			printf("tftp: block %d not found\n", needblock);
-#endif
+			DEBUG_PRINTF(0, ("tftp: block %d not found\n", needblock));
 			return (EINVAL);
 		}
 
 	}
 
 out:
+	DEBUG_PRINTF(4, ("%s(%s) res=%ld\n", __func__, tftpfile->path,
+	    (tftpfile->tftp_tsize - tftpfile->off)));
 	if (resid != NULL)
 		*resid = res;
 	return (rc);
@@ -611,14 +656,17 @@ tftp_close(struct open_file *f)
 		tftp_senderr(tftpfile, 0, "No error: file closed");
 
 	if (tftpfile) {
+		DEBUG_PRINTF(1, ("%s(%d): %s\n", __func__,
+		    tftpfile->id, tftpfile->path));
+		handles[tftpfile->id] = NULL;
 		free(tftpfile->path);
 		free(tftpfile->pkt);
 		free(tftpfile->tftp_cache);
 		free(tftpfile);
 	}
-	is_open = 0;
 	return (0);
 }
+
 
 static int
 tftp_stat(struct open_file *f, struct stat *sb)
@@ -631,6 +679,29 @@ tftp_stat(struct open_file *f, struct stat *sb)
 	sb->st_uid = 0;
 	sb->st_gid = 0;
 	sb->st_size = tftpfile->tftp_tsize;
+	sb->st_mtime = 0;
+#ifdef LOADER_VERIEXEC
+	/* libsecureboot needs st_dev and st_ino at minimum;
+	 * we need to fake something that will be close enough to
+	 * unique.
+	 */
+	sb->st_dev = (dev_t)tftpfile->iodesc->destip.s_addr;
+	/* we don't want to compute this more than once */
+	if (tftpfile->ino == 0) {
+		union {
+			unsigned char digest[SHA_DIGEST_LENGTH];
+			ino_t ino;
+		} u;
+
+		hash_string(tftpfile->path, 0, u.digest, sizeof(u.digest));
+
+		tftpfile->ino = u.ino & 0x7fffffff;
+		DEBUG_PRINTF(2,("%s(%s) dev=%lu ino=%lu\n", __func__,
+		    tftpfile->path, (unsigned long)sb->st_dev,
+		    (unsigned long)tftpfile->ino));
+	}
+	sb->st_ino = tftpfile->ino;
+#endif
 	return (0);
 }
 
@@ -828,9 +899,7 @@ tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len)
 		return (-1);
 	}
 
-#ifdef TFTP_DEBUG
-	printf("tftp_blksize: %u\n", h->tftp_blksize);
-	printf("tftp_tsize: %lu\n", h->tftp_tsize);
-#endif
+	DEBUG_PRINTF(2, ("tftp_blksize: %u\n", h->tftp_blksize));
+	DEBUG_PRINTF(2, ("tftp_tsize: %lu\n", h->tftp_tsize));
 	return (0);
 }

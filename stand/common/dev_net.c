@@ -66,6 +66,10 @@
 #include "dev_net.h"
 #include "bootstrap.h"
 
+#ifndef NETPROTO_DEFAULT
+# define NETPROTO_DEFAULT NET_NFS
+#endif
+
 static char *netdev_name;
 static int netdev_sock = -1;
 static int netdev_opens;
@@ -304,7 +308,7 @@ net_getparams(int sock)
 		return (EIO);
 	}
 exit:
-	if ((rootaddr = net_parse_rootpath()) != INADDR_NONE)
+	if ((rootaddr = net_parse_rootpath()) != htonl(INADDR_NONE))
 		rootip.s_addr = rootaddr;
 
 	DEBUG_PRINTF(1,("%s: proto: %d\n", __func__, netproto));
@@ -355,7 +359,7 @@ is_tftp(void)
  * Parses the rootpath if present
  *
  * The rootpath format can be in the form
- * <scheme>://ip/path
+ * <scheme>://ip[:port]/path
  * <scheme>:/path
  *
  * For compatibility with previous behaviour it also accepts as an NFS scheme
@@ -370,10 +374,10 @@ is_tftp(void)
 uint32_t
 net_parse_rootpath(void)
 {
-	n_long addr = htonl(INADDR_NONE);
+	n_long addr = 0;
 	size_t i;
 	char ip[FNAME_SIZE];
-	char *ptr, *val;
+	char *ptr, *portp, *val;
 
 	netproto = NET_NONE;
 
@@ -388,7 +392,7 @@ net_parse_rootpath(void)
 	ptr = rootpath;
 	/* Fallback for compatibility mode */
 	if (netproto == NET_NONE) {
-		netproto = NET_NFS;
+		netproto = NETPROTO_DEFAULT;
 		(void)strsep(&ptr, ":");
 		if (ptr != NULL) {
 			addr = inet_addr(rootpath);
@@ -401,16 +405,21 @@ net_parse_rootpath(void)
 		if (*ptr == '/') {
 			/* we are in the form <scheme>://, we do expect an ip */
 			ptr++;
-			/*
-			 * XXX when http will be there we will need to check for
-			 * a port, but right now we do not need it yet
-			 */
+			portp = val = strchr(ptr, ':');
+			if (val != NULL) {
+				val++;
+				rootport = strtol(val, NULL, 10);
+			}
 			val = strchr(ptr, '/');
 			if (val != NULL) {
+				if (portp == NULL)
+					portp = val;
 				snprintf(ip, sizeof(ip), "%.*s",
-				    (int)((uintptr_t)val - (uintptr_t)ptr),
+				    (int)(portp - ptr),
 				    ptr);
 				addr = inet_addr(ip);
+				DEBUG_PRINTF(1,("ip=%s addr=%#x\n",
+					ip, addr));
 				bcopy(val, rootpath, strlen(val) + 1);
 			}
 		} else {
@@ -418,6 +427,7 @@ net_parse_rootpath(void)
 			bcopy(ptr, rootpath, strlen(ptr) + 1);
 		}
 	}
-
+	if (addr == 0)
+		addr = htonl(INADDR_NONE);
 	return (addr);
 }
