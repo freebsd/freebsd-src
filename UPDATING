@@ -27,6 +27,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250819:
+	The CLEAN option has been switched back from default-on to default-off.
+	This reverts the 20250808 change below, which had reverted the 20240729
+	change before it.  Note that some src.conf(5) options are known to break
+	ABI or compatibility in ways that may require a clean build initially
+	when switched.
+
 20250816:
 	Sendmail's libmilter has been moved to its own package.  If you want
 	to compile applications that use libmilter, you should install the
