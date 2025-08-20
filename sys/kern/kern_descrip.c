@@ -2486,7 +2486,7 @@ fdunshare(struct thread *td)
 	if (refcount_load(&p->p_fd->fd_refcnt) == 1)
 		return;
 
-	tmp = fdcopy(p->p_fd);
+	tmp = fdcopy(p->p_fd, p);
 	fdescfree(td);
 	p->p_fd = tmp;
 }
@@ -2515,7 +2515,7 @@ pdunshare(struct thread *td)
  * this is to ease callers, not catch errors.
  */
 struct filedesc *
-fdcopy(struct filedesc *fdp)
+fdcopy(struct filedesc *fdp, struct proc *p1)
 {
 	struct filedesc *newfdp;
 	struct filedescent *nfde, *ofde;
