@@ -37,6 +37,7 @@
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/acpi_gpiobusvar.h>
 #include <dev/gpio/gpiobus_internal.h>
+#include <sys/sbuf.h>
 
 #include "gpiobus_if.h"
 
@@ -411,6 +412,21 @@ acpi_gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	    sizeof(struct acpi_gpiobus_ivar)));
 }
 
+static int
+acpi_gpiobus_child_location(device_t bus, device_t child, struct sbuf *sb)
+{
+	struct acpi_gpiobus_ivar *devi;
+	int err;
+
+	err = gpiobus_child_location(bus, child, sb);
+	if (err != 0)
+		return (err);
+
+	devi = device_get_ivars(child);
+	sbuf_printf(sb, " handle=%s", acpi_name(devi->handle));
+	return (0);
+}
+
 static device_method_t acpi_gpiobus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		acpi_gpiobus_probe),
@@ -420,6 +436,7 @@ static device_method_t acpi_gpiobus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	acpi_gpiobus_read_ivar),
 	DEVMETHOD(bus_add_child,	acpi_gpiobus_add_child),
+	DEVMETHOD(bus_child_location,	acpi_gpiobus_child_location),
 
 	DEVMETHOD_END
 };
