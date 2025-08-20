@@ -138,6 +138,8 @@ open(const char *fname, int mode)
 	struct fs_ops *fs;
 	struct open_file *f;
 	int fd, i, error, besterror;
+	bool is_dir;
+	size_t n;
 	const char *file;
 
 	TSENTER();
@@ -182,8 +184,14 @@ open(const char *fname, int mode)
 
 	/* pass file name to the different filesystem open routines */
 	besterror = ENOENT;
+	n = strlen(file);
+	is_dir = (n > 0 && file[n - 1] == '/');
 	for (i = 0; file_system[i] != NULL; i++) {
 		fs = file_system[i];
+		if (is_dir && is_tftp()) {
+			error = EOPNOTSUPP;
+			goto err;
+		}
 		error = (fs->fo_open)(file, f);
 		if (error == 0)
 			goto ok;

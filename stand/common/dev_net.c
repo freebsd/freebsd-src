@@ -182,6 +182,7 @@ net_open(struct open_file *f, ...)
 			setenv("boot.netif.mtu", mtu, 1);
 		}
 
+		DEBUG_PRINTF(1,("%s: netproto=%d\n", __func__, netproto));
 	}
 	netdev_opens++;
 	dev->d_opendata = &netdev_sock;
@@ -193,7 +194,7 @@ net_close(struct open_file *f)
 {
 	struct devdesc *dev;
 
-	DEBUG_PRINTF(1,("%s: opens=%d\n", __func__, netdev_opens));
+	DEBUG_PRINTF(2,("%s: opens=%d\n", __func__, netdev_opens));
 
 	dev = f->f_devdata;
 	dev->d_opendata = NULL;
@@ -342,6 +343,12 @@ net_print(int verbose)
 		}
 	}
 	return (ret);
+}
+
+bool
+is_tftp(void)
+{
+    return (netproto == NET_TFTP);
 }
 
 /*
