@@ -107,11 +107,6 @@ typedef struct indirect_vsd {
 } indirect_vsd_t;
 
 /*
- * List of all vdevs, chained through v_alllink.
- */
-static vdev_list_t zfs_vdevs;
-
-/*
  * List of supported read-incompatible ZFS features.  Do not add here features
  * marked as ZFEATURE_FLAG_READONLY_COMPAT, they are irrelevant for read-only!
  */
@@ -167,7 +162,6 @@ vdev_indirect_mapping_entry_phys_t *
 static void
 zfs_init(void)
 {
-	STAILQ_INIT(&zfs_vdevs);
 	STAILQ_INIT(&zfs_pools);
 
 	dnode_cache_buf = malloc(SPA_MAXBLOCKSIZE);
@@ -840,15 +834,18 @@ vdev_replacing_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 }
 
 static vdev_t *
-vdev_find(uint64_t guid)
+vdev_find(vdev_list_t *list, uint64_t guid)
 {
-	vdev_t *vdev;
+	vdev_t *vdev, *safe;
 
-	STAILQ_FOREACH(vdev, &zfs_vdevs, v_alllink)
+	STAILQ_FOREACH_SAFE(vdev, list, v_childlink, safe) {
 		if (vdev->v_guid == guid)
 			return (vdev);
+		if ((vdev = vdev_find(&vdev->v_children, guid)) != NULL)
+			return (vdev);
+	}
 
-	return (0);
+	return (NULL);
 }
 
 static vdev_t *
@@ -871,7 +868,6 @@ vdev_create(uint64_t guid, vdev_read_t *_read)
 		if (_read != NULL) {
 			vic = &vdev->vdev_indirect_config;
 			vic->vic_prev_indirect_vdev = UINT64_MAX;
-			STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
 		}
 	}
 
@@ -1069,7 +1065,7 @@ vdev_child_count(vdev_t *vdev)
 /*
  * Insert vdev into top_vdev children list. List is ordered by v_id.
  */
-static void
+static vdev_t *
 vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 {
 	vdev_t *previous;
@@ -1091,7 +1087,8 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 		 * This vdev was configured from label config,
 		 * do not insert duplicate.
 		 */
-		return;
+		free(vdev);
+		return (previous);
 	} else {
 		STAILQ_INSERT_AFTER(&top_vdev->v_children, previous, vdev,
 		    v_childlink);
@@ -1100,6 +1097,7 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 	count = vdev_child_count(top_vdev);
 	if (top_vdev->v_nchildren < count)
 		top_vdev->v_nchildren = count;
+	return (vdev);
 }
 
 static int
@@ -1111,7 +1109,7 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
 	int rc, nkids;
 
 	/* Get top vdev. */
-	top_vdev = vdev_find(top_guid);
+	top_vdev = vdev_find(&spa->spa_root_vdev->v_children, top_guid);
 	if (top_vdev == NULL) {
 		rc = vdev_init(top_guid, nvlist, &top_vdev);
 		if (rc != 0)
@@ -1119,7 +1117,7 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
 		top_vdev->v_spa = spa;
 		top_vdev->v_top = top_vdev;
 		top_vdev->v_txg = txg;
-		vdev_insert(spa->spa_root_vdev, top_vdev);
+		(void )vdev_insert(spa->spa_root_vdev, top_vdev);
 	}
 
 	/* Add children if there are any. */
@@ -1140,7 +1138,7 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
 
 			vdev->v_spa = spa;
 			vdev->v_top = top_vdev;
-			vdev_insert(top_vdev, vdev);
+			vdev = vdev_insert(top_vdev, vdev);
 		}
 	} else {
 		/*
@@ -1227,14 +1225,14 @@ vdev_set_state(vdev_t *vdev)
 }
 
 static int
-vdev_update_from_nvlist(uint64_t top_guid, const nvlist_t *nvlist)
+vdev_update_from_nvlist(vdev_t *root, uint64_t top_guid, const nvlist_t *nvlist)
 {
 	vdev_t *vdev;
 	nvlist_t **kids = NULL;
 	int rc, nkids;
 
 	/* Update top vdev. */
-	vdev = vdev_find(top_guid);
+	vdev = vdev_find(&root->v_children, top_guid);
 	if (vdev != NULL)
 		vdev_set_initial_state(vdev, nvlist);
 
@@ -1250,7 +1248,7 @@ vdev_update_from_nvlist(uint64_t top_guid, const nvlist_t *nvlist)
 			if (rc != 0)
 				break;
 
-			vdev = vdev_find(guid);
+			vdev = vdev_find(&root->v_children, guid);
 			if (vdev != NULL)
 				vdev_set_initial_state(vdev, kids[i]);
 		}
@@ -1266,10 +1264,6 @@ vdev_update_from_nvlist(uint64_t top_guid, const nvlist_t *nvlist)
 	return (rc);
 }
 
-/*
- * Shall not be called on root vdev, that is not linked into zfs_vdevs.
- * See comment in vdev_create().
- */
 static void
 vdev_free(struct vdev *vdev)
 {
@@ -1277,7 +1271,6 @@ vdev_free(struct vdev *vdev)
 
 	STAILQ_FOREACH_SAFE(kid, &vdev->v_children, v_childlink, safe)
 		vdev_free(kid);
-	STAILQ_REMOVE(&zfs_vdevs, vdev, vdev, v_alllink);
 	free(vdev);
 }
 
@@ -1324,7 +1317,7 @@ vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 		    NULL, &guid, NULL);
 		if (rc != 0)
 			break;
-		vdev = vdev_find(guid);
+		vdev = vdev_find(&spa->spa_root_vdev->v_children, guid);
 		/*
 		 * Top level vdev is missing, create it.
 		 * XXXGL: how can this happen?
@@ -1332,7 +1325,8 @@ vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 		if (vdev == NULL)
 			rc = vdev_from_nvlist(spa, guid, 0, kids[i]);
 		else
-			rc = vdev_update_from_nvlist(guid, kids[i]);
+			rc = vdev_update_from_nvlist(spa->spa_root_vdev, guid,
+			    kids[i]);
 		if (rc != 0)
 			break;
 	}
@@ -2138,7 +2132,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	 * be some kind of alias (overlapping slices, dangerously dedicated
 	 * disks etc).
 	 */
-	vdev = vdev_find(guid);
+	vdev = vdev_find(&spa->spa_root_vdev->v_children, guid);
 	/* Has this vdev already been inited? */
 	if (vdev && vdev->v_phys_read) {
 		nvlist_destroy(nvl);
@@ -2154,7 +2148,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 	 * We should already have created an incomplete vdev for this
 	 * vdev. Find it and initialise it with our read proc.
 	 */
-	vdev = vdev_find(guid);
+	vdev = vdev_find(&spa->spa_root_vdev->v_children, guid);
 	if (vdev != NULL) {
 		vdev->v_phys_read = _read;
 		vdev->v_phys_write = _write;
