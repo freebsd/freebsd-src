@@ -507,6 +507,9 @@ extern void *reallocf(void *, size_t);
  */
 caddr_t ptov(uintptr_t);
 
+/* dev_net.c */
+bool is_tftp(void);
+
 /* features.c */
 typedef void (feature_iter_fn)(void *, const char *, const char *, bool);
 
