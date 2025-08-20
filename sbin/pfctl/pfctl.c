@@ -701,7 +701,7 @@ pfctl_kill_src_nodes(int dev, int opts)
 
 				dests++;
 
-				copy_satopfaddr(&psnk.psnk_src.addr.v.a.addr,
+				copy_satopfaddr(&psnk.psnk_dst.addr.v.a.addr,
 				    resp[1]->ai_addr);
 				if (ioctl(dev, DIOCKILLSRCNODES, &psnk))
 					err(1, "DIOCKILLSRCNODES");
@@ -790,7 +790,7 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 
 				dests++;
 
-				copy_satopfaddr(&kill.src.addr.v.a.addr,
+				copy_satopfaddr(&kill.dst.addr.v.a.addr,
 				    resp[1]->ai_addr);
 
 				if ((ret = pfctl_kill_states_h(pfh, &kill, &newkilled)) != 0)
