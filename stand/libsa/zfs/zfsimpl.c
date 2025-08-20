@@ -833,6 +833,14 @@ vdev_replacing_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	return (kid->v_read(kid, bp, buf, offset, bytes));
 }
 
+/*
+ * List of vdevs that were fully initialized from their own label, but later a
+ * newer label was found that obsoleted the stale label, freeing its
+ * configuration tree.  We keep those vdevs around, since a new configuration
+ * may include them.
+ */
+static vdev_list_t orphans = STAILQ_HEAD_INITIALIZER(orphans);
+
 static vdev_t *
 vdev_find(vdev_list_t *list, uint64_t guid)
 {
@@ -853,6 +861,11 @@ vdev_create(uint64_t guid, vdev_read_t *_read)
 {
 	vdev_t *vdev;
 	vdev_indirect_config_t *vic;
+
+	if ((vdev = vdev_find(&orphans, guid))) {
+		STAILQ_REMOVE(&orphans, vdev, vdev, v_childlink);
+		return (vdev);
+	}
 
 	vdev = calloc(1, sizeof(vdev_t));
 	if (vdev != NULL) {
@@ -1101,8 +1114,8 @@ vdev_insert(vdev_t *top_vdev, vdev_t *vdev)
 }
 
 static int
-vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
-    const nvlist_t *nvlist)
+vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t label_guid,
+    uint64_t txg, const nvlist_t *nvlist)
 {
 	vdev_t *top_vdev, *vdev;
 	nvlist_t **kids = NULL;
@@ -1116,6 +1129,7 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, uint64_t txg,
 			return (rc);
 		top_vdev->v_spa = spa;
 		top_vdev->v_top = top_vdev;
+		top_vdev->v_label = label_guid;
 		top_vdev->v_txg = txg;
 		(void )vdev_insert(spa->spa_root_vdev, top_vdev);
 	}
@@ -1160,12 +1174,14 @@ done:
 static int
 vdev_init_from_label(spa_t *spa, const nvlist_t *nvlist)
 {
-	uint64_t top_guid, txg;
+	uint64_t top_guid, label_guid, txg;
 	nvlist_t *vdevs;
 	int rc;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
 	    NULL, &top_guid, NULL) ||
+	    nvlist_find(nvlist, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
+	    NULL, &label_guid, NULL) != 0 ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
 	    NULL, &txg, NULL) != 0 ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
@@ -1174,7 +1190,7 @@ vdev_init_from_label(spa_t *spa, const nvlist_t *nvlist)
 		return (ENOENT);
 	}
 
-	rc = vdev_from_nvlist(spa, top_guid, txg, vdevs);
+	rc = vdev_from_nvlist(spa, top_guid, label_guid, txg, vdevs);
 	nvlist_destroy(vdevs);
 	return (rc);
 }
@@ -1271,7 +1287,10 @@ vdev_free(struct vdev *vdev)
 
 	STAILQ_FOREACH_SAFE(kid, &vdev->v_children, v_childlink, safe)
 		vdev_free(kid);
-	free(vdev);
+	if (vdev->v_phys_read != NULL)
+		STAILQ_INSERT_HEAD(&orphans, vdev, v_childlink);
+	else
+		free(vdev);
 }
 
 static int
@@ -1323,7 +1342,7 @@ vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 		 * XXXGL: how can this happen?
 		 */
 		if (vdev == NULL)
-			rc = vdev_from_nvlist(spa, guid, 0, kids[i]);
+			rc = vdev_from_nvlist(spa, guid, 0, 0, kids[i]);
 		else
 			rc = vdev_update_from_nvlist(spa->spa_root_vdev, guid,
 			    kids[i]);
@@ -1342,6 +1361,53 @@ vdev_init_from_nvlist(spa_t *spa, const nvlist_t *nvlist)
 	vdev_set_state(spa->spa_root_vdev);
 
 	return (rc);
+}
+
+static bool
+nvlist_find_child_guid(const nvlist_t *nvlist, uint64_t guid)
+{
+	nvlist_t **kids = NULL;
+	int nkids, i;
+	bool rv = false;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
+	    &nkids, &kids, NULL) != 0)
+		nkids = 0;
+
+	for (i = 0; i < nkids; i++) {
+		uint64_t kid_guid;
+
+		if (nvlist_find(kids[i], ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
+		    NULL, &kid_guid, NULL) != 0)
+			break;
+		if (kid_guid == guid)
+			rv = true;
+		else
+			rv = nvlist_find_child_guid(kids[i], guid);
+		if (rv)
+			break;
+	}
+
+	for (i = 0; i < nkids; i++)
+		nvlist_destroy(kids[i]);
+	free(kids);
+
+	return (rv);
+}
+
+static bool
+nvlist_find_vdev_guid(const nvlist_t *nvlist, uint64_t guid)
+{
+	nvlist_t *vdevs;
+	bool rv;
+
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST, NULL,
+	    &vdevs, NULL) != 0)
+		return (false);
+	rv = nvlist_find_child_guid(vdevs, guid);
+	nvlist_destroy(vdevs);
+
+	return (rv);
 }
 
 static spa_t *
@@ -2012,7 +2078,7 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 {
 	vdev_t vtmp;
 	spa_t *spa;
-	vdev_t *vdev;
+	vdev_t *vdev, *top;
 	nvlist_t *nvl;
 	uint64_t val;
 	uint64_t guid, pool_guid, top_guid, txg;
@@ -2109,22 +2175,47 @@ vdev_probe(vdev_phys_read_t *_read, vdev_phys_write_t *_write, void *priv,
 			nvlist_destroy(nvl);
 			return (ENOMEM);
 		}
-	} else {
-		struct vdev *kid;
-
-		STAILQ_FOREACH(kid, &spa->spa_root_vdev->v_children,
-		    v_childlink)
-			if (kid->v_guid == top_guid && kid->v_txg < txg) {
-				printf("ZFS: pool %s vdev %s ignoring stale "
-				    "label from txg 0x%jx, using 0x%jx@0x%jx\n",
-				    spa->spa_name, kid->v_name,
-				    kid->v_txg, guid, txg);
-				STAILQ_REMOVE(&spa->spa_root_vdev->v_children,
-				    kid, vdev, v_childlink);
-				vdev_free(kid);
-				break;
-			}
 	}
+
+	/*
+	 * Check if configuration is already known.  If configuration is known
+	 * and txg numbers don't match, we got 2x2 scenarios here.  First, is
+	 * the label being read right now _newer_ than the one read before.
+	 * Second, is the vdev that provided the stale label _present_ in the
+	 * newer configuration.  If neither is true, we completely ignore the
+	 * label.
+	 */
+	STAILQ_FOREACH(top, &spa->spa_root_vdev->v_children, v_childlink)
+		if (top->v_guid == top_guid) {
+			bool newer, present;
+
+			if (top->v_txg == txg)
+				break;
+			newer = (top->v_txg < txg);
+			present = newer ?
+			    nvlist_find_vdev_guid(nvl, top->v_label) :
+			    (vdev_find(&top->v_children, guid) != NULL);
+			printf("ZFS: pool %s vdev %s %s stale label from "
+			    "0x%jx@0x%jx, %s 0x%jx@0x%jx\n",
+			    spa->spa_name, top->v_name,
+			    present ? "using" : "ignoring",
+			    newer ? top->v_label : guid,
+			    newer ? top->v_txg : txg,
+			    present ? "referred by" : "using",
+			    newer ? guid : top->v_label,
+			    newer ? txg : top->v_txg);
+			if (newer) {
+				STAILQ_REMOVE(&spa->spa_root_vdev->v_children,
+				    top, vdev, v_childlink);
+				vdev_free(top);
+				break;
+			} else if (present) {
+				break;
+			} else {
+				nvlist_destroy(nvl);
+				return (EIO);
+			}
+		}
 
 	/*
 	 * Get the vdev tree and create our in-core copy of it.
