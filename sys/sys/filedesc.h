@@ -265,7 +265,7 @@ int	fdcheckstd(struct thread *td);
 void	fdclose(struct thread *td, struct file *fp, int idx);
 void	fdcloseexec(struct thread *td);
 void	fdsetugidsafety(struct thread *td);
-struct	filedesc *fdcopy(struct filedesc *fdp);
+struct	filedesc *fdcopy(struct filedesc *fdp, struct proc *p1);
 void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
 int	fdlastfile(struct filedesc *fdp);
