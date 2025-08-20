@@ -11,6 +11,7 @@ ASM_SOURCES_AS = \
         asm-x86_64/aes/aes_aesni.S \
         asm-x86_64/modes/gcm_pclmulqdq.S \
         asm-x86_64/modes/aesni-gcm-x86_64.S \
+        asm-x86_64/modes/aesni-gcm-avx2-vaes.S \
         asm-x86_64/sha2/sha256-x86_64.S \
         asm-x86_64/sha2/sha512-x86_64.S \
         asm-x86_64/blake3/blake3_avx2.S \
@@ -109,6 +110,7 @@ CFLAGS.aes_amd64.S+= -DLOCORE
 CFLAGS.aes_aesni.S+= -DLOCORE
 CFLAGS.gcm_pclmulqdq.S+= -DLOCORE
 CFLAGS.aesni-gcm-x86_64.S+= -DLOCORE
+CFLAGS.aesni-gcm-avx2-vaes.S+= -DLOCORE
 CFLAGS.ghash-x86_64.S+= -DLOCORE
 CFLAGS.sha256-x86_64.S+= -DLOCORE
 CFLAGS.sha512-x86_64.S+= -DLOCORE
