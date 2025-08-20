@@ -853,21 +853,22 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 
 	if (verbose)
 		printf("@%d ", r->nr);
-	if (r->action == PF_MATCH)
-		printf("match");
-	else if (r->action > PF_NORDR)
-		printf("action(%d)", r->action);
-	else if (anchor_call[0]) {
-		p = strrchr(anchor_call, '/');
-		if (p ? p[1] == '_' : anchor_call[0] == '_')
-			printf("%s", anchortypes[r->action]);
-		else
-			printf("%s \"%s\"", anchortypes[r->action],
-			    anchor_call);
+	if (anchor_call[0]) {
+		if (r->action >= nitems(anchortypes)) {
+			printf("anchor(%d)", r->action);
+		} else {
+			p = strrchr(anchor_call, '/');
+			if (p ? p[1] == '_' : anchor_call[0] == '_')
+				printf("%s", anchortypes[r->action]);
+			else
+				printf("%s \"%s\"", anchortypes[r->action],
+				    anchor_call);
+		}
 	} else {
-		printf("%s", actiontypes[r->action]);
-		if (r->natpass)
-			printf(" pass");
+		if (r->action >= nitems(actiontypes))
+			printf("action(%d)", r->action);
+	else
+			printf("%s", actiontypes[r->action]);
 	}
 	if (r->action == PF_DROP) {
 		if (r->rule_flag & PFRULE_RETURN)
