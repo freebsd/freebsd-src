@@ -2024,7 +2024,8 @@ typedef struct vdev {
 	vdev_list_t	v_children;	/* children of this vdev */
 	const char	*v_name;	/* vdev name */
 	uint64_t	v_guid;		/* vdev guid */
-	uint64_t	v_txg;		/* most recent transaction */
+	uint64_t	v_label;	/* label instantiated from (top vdev) */
+	uint64_t	v_txg;		/* most recent transaction (top vdev) */
 	uint64_t	v_id;		/* index in parent */
 	uint64_t	v_psize;	/* physical device capacity */
 	int		v_ashift;	/* offset to block shift */
