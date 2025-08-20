@@ -982,7 +982,7 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl, int running)
 					*separator ? fputs(separator, fp) : putc(0, fp);
 				else
 					printsep = 1;
-				print_param(fp, p, ',', 1);
+				print_param(fp, p, *separator ? ',' : '\n', 1);
 			}
 		if (*separator)
 			putc('\n', fp);
