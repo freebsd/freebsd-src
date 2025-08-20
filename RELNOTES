@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+dc5ba6b8b4f0:
+	The WITHOUT_GSSAPI src.conf(5) option has been removed.  The GSSAPI
+	libraries are now always built unless WITHOUT_KERBEROS is set.
+
 c43cad871720:
 	jemalloc 5.3.0 has landed. See contrib/jemalloc/ChangeLog
 	for the long list of changes.
