@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
 .include <bsd.linker.mk>
@@ -43,23 +42,6 @@ SONAME?=	${SHLIB_NAME}
 
 .if defined(CRUNCH_CFLAGS)
 CFLAGS+=	${CRUNCH_CFLAGS}
-.endif
-
-.if ${MK_ASSERT_DEBUG} == "no"
-CFLAGS+= -DNDEBUG
-# XXX: shouldn't we ensure that !asserts marks potentially unused variables as
-# __unused instead of disabling -Werror globally?
-MK_WERROR=	no
-.endif
-
-.if defined(DEBUG_FLAGS)
-CFLAGS+= ${DEBUG_FLAGS}
-
-.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
-CTFFLAGS+= -g
-.endif
-.else
-STRIP?=	-s
 .endif
 
 .for _libcompat in ${_ALL_libcompats}
@@ -130,18 +112,6 @@ CXXFLAGS+= -fzero-call-used-regs=${ZEROREG_TYPE}
 # bsd.sanitizer.mk is not installed, so don't require it (e.g. for ports).
 .sinclude "bsd.sanitizer.mk"
 
-.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
-    empty(DEBUG_FLAGS:M-gdwarf*)
-.if !${COMPILER_FEATURES:Mcompressed-debug}
-CFLAGS+= ${DEBUG_FILES_CFLAGS:N-gz*}
-CXXFLAGS+= ${DEBUG_FILES_CFLAGS:N-gz*}
-.else
-CFLAGS+= ${DEBUG_FILES_CFLAGS}
-CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
-.endif
-CTFFLAGS+= -g
-.endif
-
 .if ${MACHINE_CPUARCH} == "riscv" && ${LINKER_FEATURES:Mriscv-relaxations} == ""
 CFLAGS += -mno-relax
 .endif
@@ -156,6 +126,7 @@ _SHLIBDIR:=${SHLIBDIR}
 .if defined(SHLIB_NAME)
 .if ${MK_DEBUG_FILES} != "no"
 SHLIB_NAME_FULL=${SHLIB_NAME}.full
+DEBUGFILE= ${SHLIB_NAME}.debug
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
 .if ${_SHLIBDIR} == "/boot" ||\
     ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
@@ -272,16 +243,16 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .endif
 
 .if ${MK_DEBUG_FILES} != "no"
-CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
-${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
+CLEANFILES+=	${SHLIB_NAME_FULL} ${DEBUGFILE}
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${DEBUGFILE}
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${DEBUGFILE} \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
 	# Note: This uses ln instead of ${INSTALL_LIBSYMLINK} since we are in OBJDIR
 	@${LN:Uln} -fs ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 
-${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
+${DEBUGFILE}: ${SHLIB_NAME_FULL}
 	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
 .endif #defined(SHLIB_NAME)
@@ -392,8 +363,8 @@ installpcfiles-${pcfile}: ${pcfile}
 installpcfiles: .PHONY
 
 .if !defined(INTERNALLIB)
-realinstall: _libinstall installpcfiles
-.ORDER: beforeinstall _libinstall
+realinstall: _libinstall installpcfiles _debuginstall
+.ORDER: beforeinstall _libinstall _debuginstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
@@ -403,14 +374,6 @@ _libinstall:
 	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}/
-.if ${MK_DEBUG_FILES} != "no"
-.if defined(DEBUGMKDIR)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dbg} -d ${DESTDIR}${DEBUGFILEDIR}/
-.endif
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dbg} -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
-	    ${_INSTALLFLAGS} \
-	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}/
-.endif
 .if defined(SHLIB_LINK)
 .if commands(${SHLIB_LINK:R}.ld)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -S -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
@@ -501,6 +464,7 @@ SUBDIR_TARGETS+=	check
 TESTS_LD_LIBRARY_PATH+=	${.OBJDIR}
 .endif
 
+.include <bsd.debug.mk>
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
