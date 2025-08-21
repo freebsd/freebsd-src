@@ -220,3 +220,16 @@ set_currdev(const char *devname)
 	env_setenv("loaddev", EV_VOLATILE | EV_NOHOOK, devname, env_noset,
 	    env_nounset);
 }
+
+#ifndef LOADER_NET_SUPPORT
+/*
+ * This api is normally provided by dev_net.c
+ * This stub keeps libsa happy when LOADER_NET_SUPPORT
+ * is not enabled.
+ */
+bool
+is_tftp(void)
+{
+    return false;
+}
+#endif
