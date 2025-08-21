@@ -78,6 +78,7 @@ ATF_TC_WITH_CLEANUP(tcp);
 ATF_TC_HEAD(tcp, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
+	atf_tc_set_md_var(tc, "require.kmods", "if_ovpn");
 }
 
 ATF_TC_BODY(tcp, tc)
@@ -86,10 +87,6 @@ ATF_TC_BODY(tcp, tc)
 	struct sockaddr_in sock_in;
 	int ret;
 	nvlist_t *nvl;
-
-	/* Ensure the module is loaded. */
-	if (kldfind("if_ovpn") == -1 && errno == ENOENT)
-		atf_tc_skip("if_ovpn not loaded");
 
 	ovpn_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 

@@ -69,14 +69,8 @@ clientsock(struct sockaddr_in *sin)
 static void
 accfon(int l, struct accept_filter_arg *af)
 {
-
 	if (setsockopt(l, SOL_SOCKET, SO_ACCEPTFILTER, af, sizeof(*af)) != 0) {
-		if (errno == ENOENT)
-			atf_tc_skip("Accept filter %s not loaded in kernel",
-			    af->af_name);
-		else
-			atf_tc_fail("setsockopt(SO_ACCEPTFILTER): %s",
-			    strerror(errno));
+		atf_tc_fail("setsockopt(SO_ACCEPTFILTER): %s", strerror(errno));
 	}
 }
 
@@ -95,7 +89,11 @@ usend(int s, const void *msg, size_t len)
 	return (rv);
 }
 
-ATF_TC_WITHOUT_HEAD(data);
+ATF_TC(data);
+ATF_TC_HEAD(data, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "accf_data");
+}
 ATF_TC_BODY(data, tc)
 {
 	struct accept_filter_arg afa = {
@@ -113,7 +111,11 @@ ATF_TC_BODY(data, tc)
 	ATF_REQUIRE((a = accept(l, NULL, 0)) > 0);
 }
 
-ATF_TC_WITHOUT_HEAD(http);
+ATF_TC(http);
+ATF_TC_HEAD(http, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "accf_http");
+}
 ATF_TC_BODY(http, tc)
 {
 	struct accept_filter_arg afa = {
@@ -152,7 +154,11 @@ ATF_TC_BODY(http, tc)
 	ATF_REQUIRE((a = accept(l, NULL, 0)) > 0);
 }
 
-ATF_TC_WITHOUT_HEAD(tls);
+ATF_TC(tls);
+ATF_TC_HEAD(tls, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "accf_tls");
+}
 ATF_TC_BODY(tls, tc)
 {
 	struct accept_filter_arg afa = {
@@ -210,7 +216,11 @@ ATF_TC_BODY(tls, tc)
 }
 
 /* Check changing to a different filter. */
-ATF_TC_WITHOUT_HEAD(change);
+ATF_TC(change);
+ATF_TC_HEAD(change, tc)
+{
+	atf_tc_set_md_var(tc, "require.kmods", "accf_data accf_http");
+}
 ATF_TC_BODY(change, tc)
 {
 	struct accept_filter_arg dfa = {
