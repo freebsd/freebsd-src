@@ -437,14 +437,19 @@ print_table(const struct pfr_table *ta, int verbose, int debug)
 int
 print_tstats(const struct pfr_tstats *ts, int debug)
 {
-	time_t	time = ts->pfrts_tzero;
-	int	dir, op;
+	time_t	 time = ts->pfrts_tzero;
+	int	 dir, op;
+	char	*ct;
 
 	if (!debug && !(ts->pfrts_flags & PFR_TFLAG_ACTIVE))
 		return (0);
+	ct = ctime(&time);
 	print_table(&ts->pfrts_t, 1, debug);
 	printf("\tAddresses:   %d\n", ts->pfrts_cnt);
-	printf("\tCleared:     %s", ctime(&time));
+	if (ct)
+		printf("\tCleared:     %s", ct);
+	else
+		printf("\tCleared:     %lld\n", (long long)time);
 	printf("\tReferences:  [ Anchors: %-18d Rules: %-18d ]\n",
 	    ts->pfrts_refcnt[PFR_REFCNT_ANCHOR],
 	    ts->pfrts_refcnt[PFR_REFCNT_RULE]);
@@ -543,12 +548,17 @@ nonzero_astats(struct pfr_astats *as)
 void
 print_astats(struct pfr_astats *as, int dns)
 {
-	time_t	time = as->pfras_tzero;
-	int	dir, op;
+	time_t	 time = as->pfras_tzero;
+	int	 dir, op;
+	char	*ct;
 
+	ct = ctime(&time);
 	print_addrx(&as->pfras_a, NULL, dns);
-	printf("\tCleared:     %s", ctime(&time));
- 	if (as->pfras_a.pfra_fback == PFR_FB_NOCOUNT)
+	if (ct)
+		printf("\tCleared:     %s", ct);
+	else
+		printf("\tCleared:     %lld\n", (long long)time);
+	if (as->pfras_a.pfra_fback == PFR_FB_NOCOUNT)
 		return;
 	for (dir = 0; dir < PFR_DIR_MAX; dir++)
 		for (op = 0; op < PFR_OP_ADDR_MAX; op++)
@@ -653,8 +663,9 @@ pfctl_show_ifaces(const char *filter, int opts)
 void
 print_iface(struct pfi_kif *p, int opts)
 {
-	time_t	tzero = p->pfik_tzero;
-	int	i, af, dir, act;
+	time_t	 tzero = p->pfik_tzero;
+	int	 i, af, dir, act;
+	char	*ct;
 
 	printf("%s", p->pfik_name);
 	if (opts & PF_OPT_VERBOSE) {
@@ -665,7 +676,11 @@ print_iface(struct pfi_kif *p, int opts)
 
 	if (!(opts & PF_OPT_VERBOSE2))
 		return;
-	printf("\tCleared:     %s", ctime(&tzero));
+	ct = ctime(&tzero);
+	if (ct)
+		printf("\tCleared:     %s", ct);
+	else
+		printf("\tCleared:     %lld\n", (long long)tzero);
 	printf("\tReferences:  %-18d\n", p->pfik_rulerefs);
 	for (i = 0; i < 8; i++) {
 		af = (i>>2) & 1;
