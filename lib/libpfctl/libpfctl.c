@@ -391,6 +391,8 @@ static const struct snl_attr_parser ap_getstatus[] = {
 	{ .type = PF_GS_CHKSUM, .off = _OUT(pf_chksum), .arg_u32 = PF_MD5_DIGEST_LENGTH, .cb = snl_attr_get_bytes },
 	{ .type = PF_GS_BCOUNTERS, .off = _OUT(bcounters), .arg_u32 = 2 * 2, .cb = snl_attr_get_uint64_array },
 	{ .type = PF_GS_PCOUNTERS, .off = _OUT(pcounters), .arg_u32 = 2 * 2 * 2, .cb = snl_attr_get_uint64_array },
+	{ .type = PF_GS_NCOUNTERS, .off = _OUT(ncounters), .cb = snl_attr_get_counters },
+	{ .type = PF_GS_FRAGMENTS, .off = _OUT(fragments), .cb = snl_attr_get_uint64 },
 };
 SNL_DECLARE_PARSER(getstatus_parser, struct genlmsghdr, snl_f_p_empty, ap_getstatus);
 #undef _OUT
@@ -429,6 +431,7 @@ pfctl_get_status_h(struct pfctl_handle *h)
 	TAILQ_INIT(&status->lcounters);
 	TAILQ_INIT(&status->fcounters);
 	TAILQ_INIT(&status->scounters);
+	TAILQ_INIT(&status->ncounters);
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
 		if (! snl_parse_nlmsg(&h->ss, hdr, &getstatus_parser, status))

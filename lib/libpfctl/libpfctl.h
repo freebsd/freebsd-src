@@ -62,6 +62,8 @@ struct pfctl_status {
 	struct pfctl_status_counters	 lcounters;
 	struct pfctl_status_counters	 fcounters;
 	struct pfctl_status_counters	 scounters;
+	struct pfctl_status_counters	 ncounters;
+	uint64_t	fragments;
 	uint64_t	pcounters[2][2][2];
 	uint64_t	bcounters[2][2];
 };

@@ -352,6 +352,8 @@ enum pf_get_status_types_t {
 	PF_GS_CHKSUM		= 14, /* byte array */
 	PF_GS_PCOUNTERS		= 15, /* u64 array */
 	PF_GS_BCOUNTERS		= 16, /* u64 array */
+	PF_GS_NCOUNTERS		= 17, /* nested, */
+	PF_GS_FRAGMENTS		= 18, /* u64, */
 };
 
 enum pf_natlook_types_t {

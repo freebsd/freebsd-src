@@ -1234,6 +1234,9 @@ pf_handle_get_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	    V_pf_status.fcounters);
 	nlattr_add_counters(nw, PF_GS_SCOUNTERS, SCNT_MAX, pf_fcounter,
 	    V_pf_status.scounters);
+	nlattr_add_counters(nw, PF_GS_NCOUNTERS, NCNT_MAX, pf_fcounter,
+	    V_pf_status.ncounters);
+	nlattr_add_u64(nw, PF_GS_FRAGMENTS, pf_normalize_get_frag_count());
 
 	pfi_update_status(V_pf_status.ifname, &s);
 	nlattr_add_u64_array(nw, PF_GS_BCOUNTERS, 2 * 2, (uint64_t *)s.bcounters);
