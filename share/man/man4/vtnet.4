@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 29, 2025
+.Dd August 21, 2025
 .Dt VTNET 4
 .Os
 .Sh NAME
@@ -68,20 +68,29 @@ prompt before booting the kernel or stored in
 .Bl -tag -width "xxxxxx"
 .It Va hw.vtnet.csum_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .csum_disable
-This tunable disables receive and send checksum offload.
+This tunable disables receive and transmission checksum offloading for TCP and
+UDP.
+This also implies that TCP segmentation offloading and large receive offload
+are disabled.
 The default value is 0.
 .It Va hw.vtnet.fixup_needs_csum
 .It Va hw.vtnet. Ns Ar X Ns Va .fixup_needs_csum
-This tunable enforces the calculation of a valid checksum for NEEDS_CSUM
-packets.
+This tunable enforces the calculation of a valid TCP or UDP checksum for
+packets received with 
+.Dv VIRTIO_NET_HDR_F_NEEDS_CSUM
+being set in the
+.Va flags
+field of the structure
+.Vt struct virtio_net_hdr .
+It also marks the checksum as being correct in the mbuf packet header.
 The default value is 0.
 .It Va hw.vtnet.tso_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .tso_disable
-This tunable disables TSO.
+This tunable disables TCP segmentation offloading.
 The default value is 0.
 .It Va hw.vtnet.lro_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .lro_disable
-This tunable disables LRO.
+This tunable disables large receive offload.
 The default value is 0.
 .It Va hw.vtnet.mq_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .mq_disable
@@ -116,6 +125,127 @@ The default value is 0.
 This tunable disables ALTQ support, allowing the use of multiqueue instead.
 This option applies to all interfaces.
 The default value is 0.
+.El
+.Sh TRANSMIT QUEUE STATISTICS
+.Bl -tag -width "xxxxxx"
+For each transmit queue of each interface the following read-only statistics
+are provided:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .rescheduled
+The number of times the transmit interrupt handler was rescheduled.
+.It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .tso
+The number of times TCP segment offloading was performed.
+.It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .csum
+The number of times transmission checksum offloading for UDP or TCP was
+performed.
+.It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .omcasts
+The number of multicast packets that were transmitted.
+.It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .obytes
+The number of bytes that were transmitted (based on Ethernet frames).
+.It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .opackets
+The number of packets that were transmitted (Ethernet frames).
+.El
+.Sh RECEIVE QUEUE STATISTICS
+For each receive queue of each interface the following read-only statistics
+are provided:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .rescheduled
+The number of times the receive interrupt handler was rescheduled.
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .host_lro
+The number of times TCP large receive offload was performed.
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .csum_failed
+Currently not used.
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .csum
+The number of times receive checksum offloading for UDP or TCP was performed.
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .ierrors
+The number of times an error occurred during input processing.
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .iqdrops
+The number of times a packet was dropped during input processing.
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .ibytes
+The number of bytes that were received (based on Ethernet frames).
+.It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .ipackets
+The number of packets that were received (Ethernet frames).
+.El
+.Sh INTERFACE TRANSMIT STATISTICS
+For each interface the following read-only transmit statistics are provided:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_task_rescheduled
+The sum of
+.Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .rescheduled
+over all transmit queues of the interface.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_tso_offloaded
+The sum of
+.Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .tso
+over all transmit queues of the interface.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_csum_offloaded
+The sum of
+.Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .csum
+over all transmit queues of the interface.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_defrag_failed
+The number of times an attempt to defragment an mbuf chain failed during a
+transmit operation.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_defragged
+The number of times an mbuf chain was defragmented during a transmit operation.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_tso_without_csum
+The number of times TCP segment offloading was attempted without transmission
+checksum offloading.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_tso_not_tcp
+The number of times TCP segment offloading was attempted for a non-TCP packet.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_csum_proto_mismatch
+The number of times the IP protocol version of the transmission checksum
+offloading request did not match the IP protocol version of the packet.
+.It Va dev.vtnet. Ns Ar X Ns Va .tx_csum_unknown_ethtype
+The number of times a transmission offload operation was requested for an
+ethernet frame for which the EtherType was neither IPv4 nor IPv6
+(considering simple VLAN tagging).
+.El
+.Sh INTERFACE RECEIVE STATISTICS
+For each interface the following read-only receive statistics are provided:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_task_rescheduled
+The sum of
+.Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .rescheduled
+over all receive queues of the interface.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_offloaded
+The sum of
+.Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .csum
+over all receive queues of the interface.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_failed
+The sum of
+.Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .csum_failed
+over all receive queues of the interface.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_proto
+Currently unused.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_offset
+Currently unused.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_ipproto
+Currently unused.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_ethtype
+The number of times fixing the checksum required by
+.Va hw.vtnet.fixup_needs_csum
+or
+.Va hw.vtnet. Ns Ar X Ns Va .fixup_needs_csum
+was attempted for a packet with an EtherType other than IPv4 or IPv6.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_mergeable_failed
+The number of times receiving a mergable buffer failed.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_enq_replacement_failed
+The number of times the enqueuing the replacement receive mbuf chain failed.
+.It Va dev.vtnet. Ns Ar X Ns Va .rx_frame_too_large
+The number of times the frame was loger than the mbuf chain during large
+receive offload without mergeable buffers.
+.It Va dev.vtnet. Ns Ar X Ns Va .mbuf_alloc_failed
+The number of times an mbuf cluster allocation for the receive buffer failed.
+.El
+.Sh INTERFACE CONFIGURATION PARAMETER
+For each interface the following read-only configuration parameters are
+provided:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vtnet. Ns Ar X Ns Va .act_vq_pairs
+The number of active virtqueue pairs.
+.It Va dev.vtnet. Ns Ar X Ns Va .req_vq_pairs
+The number of requested virtqueue pairs.
+.It Va dev.vtnet. Ns Ar X Ns Va .max_vq_pairs
+The maximum number of supported virtqueue pairs.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
