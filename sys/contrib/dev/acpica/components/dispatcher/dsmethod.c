@@ -646,8 +646,6 @@ AcpiDsCallControlMethod (
     ACPI_WALK_STATE         *NextWalkState = NULL;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_EVALUATE_INFO      *Info;
-    UINT32                  i;
-
 
     ACPI_FUNCTION_TRACE_PTR (DsCallControlMethod, ThisWalkState);
 
@@ -669,6 +667,23 @@ AcpiDsCallControlMethod (
     {
         return_ACPI_STATUS (AE_NULL_OBJECT);
     }
+
+    if (ThisWalkState->NumOperands < ObjDesc->Method.ParamCount)
+    {
+        ACPI_ERROR ((AE_INFO, "Missing argument(s) for method [%4.4s]", 
+            AcpiUtGetNodeName (MethodNode)));
+
+        return_ACPI_STATUS (AE_AML_TOO_FEW_ARGUMENTS);
+    }
+
+    else if (ThisWalkState->NumOperands > ObjDesc->Method.ParamCount)
+    {
+        ACPI_ERROR ((AE_INFO, "Too many arguments for method [%4.4s]",
+            AcpiUtGetNodeName (MethodNode)));
+
+        return_ACPI_STATUS (AE_AML_TOO_MANY_ARGUMENTS);
+    }
+
 
     /* Init for new method, possibly wait on method mutex */
 
@@ -726,15 +741,7 @@ AcpiDsCallControlMethod (
      * Delete the operands on the previous walkstate operand stack
      * (they were copied to new objects)
      */
-    for (i = 0; i < ObjDesc->Method.ParamCount; i++)
-    {
-        AcpiUtRemoveReference (ThisWalkState->Operands [i]);
-        ThisWalkState->Operands [i] = NULL;
-    }
-
-    /* Clear the operand stack */
-
-    ThisWalkState->NumOperands = 0;
+    AcpiDsClearOperands (ThisWalkState);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "**** Begin nested execution of [%4.4s] **** WalkState=%p\n",
