@@ -95,14 +95,16 @@
 
 #ifdef HID_DEBUG
 static int hkbd_debug = 0;
+#endif
 static int hkbd_no_leds = 0;
 
 static SYSCTL_NODE(_hw_hid, OID_AUTO, hkbd, CTLFLAG_RW, 0, "USB keyboard");
+#ifdef HID_DEBUG
 SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, debug, CTLFLAG_RWTUN,
     &hkbd_debug, 0, "Debug level");
+#endif
 SYSCTL_INT(_hw_hid_hkbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,
     &hkbd_no_leds, 0, "Disables setting of keyboard leds");
-#endif
 
 #define	INPUT_EPOCH	global_epoch_preempt
 
@@ -1596,8 +1598,16 @@ hkbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		sc->sc_state &= ~LOCK_MASK;
 		sc->sc_state |= *(int *)arg;
 
-		/* set LEDs and quit */
-		return (hkbd_ioctl_locked(kbd, KDSETLED, arg));
+		/*
+		 * Attempt to set the keyboard LEDs; ignore the return value
+		 * intentionally. Note: Some hypervisors/emulators (e.g., QEMU,
+		 * Parallels—at least as of the time of writing) may fail when
+		 * setting LEDs. This can prevent kbdmux from attaching the
+		 * keyboard, which in turn may block the console from accessing
+		 * it.
+		 */
+		(void)hkbd_ioctl_locked(kbd, KDSETLED, arg);
+		return (0);
 
 	case KDSETREPEAT:		/* set keyboard repeat rate (new
 					 * interface) */
@@ -1766,10 +1776,8 @@ hkbd_set_leds(struct hkbd_softc *sc, uint8_t leds)
 	SYSCONS_LOCK_ASSERT();
 	DPRINTF("leds=0x%02x\n", leds);
 
-#ifdef HID_DEBUG
 	if (hkbd_no_leds)
 		return (0);
-#endif
 
 	memset(sc->sc_buffer, 0, HKBD_BUFFER_SIZE);
 
@@ -1820,6 +1828,7 @@ hkbd_set_leds(struct hkbd_softc *sc, uint8_t leds)
 	SYSCONS_UNLOCK();
 	error = hid_write(sc->sc_dev, buf, len);
 	SYSCONS_LOCK();
+	DPRINTF(("error %d", error));
 
 	return (error);
 }
