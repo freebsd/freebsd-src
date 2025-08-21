@@ -68,7 +68,7 @@ prompt before booting the kernel or stored in
 .Bl -tag -width "xxxxxx"
 .It Va hw.vtnet.csum_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .csum_disable
-This tunable disables receive and transmission checksum offloading for TCP and
+This tunable disables receive and transmit checksum offloading for TCP and
 UDP.
 This also implies that TCP segmentation offloading and large receive offload
 are disabled.
@@ -136,7 +136,7 @@ The number of times the transmit interrupt handler was rescheduled.
 .It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .tso
 The number of times TCP segment offloading was performed.
 .It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .csum
-The number of times transmission checksum offloading for UDP or TCP was
+The number of times transmit checksum offloading for UDP or TCP was
 performed.
 .It Va dev.vtnet. Ns Ar X Ns Va .txq Ns Ar Y Ns Va .omcasts
 The number of multicast packets that were transmitted.
@@ -187,15 +187,15 @@ transmit operation.
 .It Va dev.vtnet. Ns Ar X Ns Va .tx_defragged
 The number of times an mbuf chain was defragmented during a transmit operation.
 .It Va dev.vtnet. Ns Ar X Ns Va .tx_tso_without_csum
-The number of times TCP segment offloading was attempted without transmission
+The number of times TCP segment offloading was attempted without transmit
 checksum offloading.
 .It Va dev.vtnet. Ns Ar X Ns Va .tx_tso_not_tcp
 The number of times TCP segment offloading was attempted for a non-TCP packet.
 .It Va dev.vtnet. Ns Ar X Ns Va .tx_csum_proto_mismatch
-The number of times the IP protocol version of the transmission checksum
+The number of times the IP protocol version of the transmit checksum
 offloading request did not match the IP protocol version of the packet.
 .It Va dev.vtnet. Ns Ar X Ns Va .tx_csum_unknown_ethtype
-The number of times a transmission offload operation was requested for an
+The number of times a transmit offload operation was requested for an
 ethernet frame for which the EtherType was neither IPv4 nor IPv6
 (considering simple VLAN tagging).
 .El
