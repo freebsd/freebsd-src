@@ -211,6 +211,12 @@ pf_normalize_cleanup(void)
 	mtx_destroy(&V_pf_frag_mtx);
 }
 
+uint64_t
+pf_normalize_get_frag_count(void)
+{
+	return (uma_zone_get_cur(V_pf_frent_z));
+}
+
 static int
 pf_frnode_compare(struct pf_frnode *a, struct pf_frnode *b)
 {
@@ -314,6 +320,7 @@ pf_free_fragment(struct pf_fragment *frag)
 	/* Free all fragment entries */
 	while ((frent = TAILQ_FIRST(&frag->fr_queue)) != NULL) {
 		TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
+		counter_u64_add(V_pf_status.ncounters[NCNT_FRAG_REMOVALS], 1);
 
 		m_freem(frent->fe_m);
 		uma_zfree(V_pf_frent_z, frent);
@@ -331,6 +338,7 @@ pf_find_fragment(struct pf_frnode *key, uint32_t id)
 	PF_FRAG_ASSERT();
 
 	frnode = RB_FIND(pf_frnode_tree, &V_pf_frnode_tree, key);
+	counter_u64_add(V_pf_status.ncounters[NCNT_FRAG_SEARCH], 1);
 	if (frnode == NULL)
 		return (NULL);
 	MPASS(frnode->fn_fragments >= 1);
@@ -438,6 +446,7 @@ pf_frent_insert(struct pf_fragment *frag, struct pf_frent *frent,
 		    ("overlapping fragment"));
 		TAILQ_INSERT_AFTER(&frag->fr_queue, prev, frent, fr_next);
 	}
+	counter_u64_add(V_pf_status.ncounters[NCNT_FRAG_INSERT], 1);
 
 	if (frag->fr_firstoff[index] == NULL) {
 		KASSERT(prev == NULL || pf_frent_index(prev) < index,
@@ -496,6 +505,7 @@ pf_frent_remove(struct pf_fragment *frag, struct pf_frent *frent)
 	}
 
 	TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
+	counter_u64_add(V_pf_status.ncounters[NCNT_FRAG_REMOVALS], 1);
 
 	KASSERT(frag->fr_entries[index] > 0, ("No fragments remaining"));
 	frag->fr_entries[index]--;
@@ -768,6 +778,7 @@ pf_join_fragment(struct pf_fragment *frag)
 
 	frent = TAILQ_FIRST(&frag->fr_queue);
 	TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
+	counter_u64_add(V_pf_status.ncounters[NCNT_FRAG_REMOVALS], 1);
 
 	m = frent->fe_m;
 	if ((frent->fe_hdrlen + frent->fe_len) < m->m_pkthdr.len)
@@ -775,6 +786,7 @@ pf_join_fragment(struct pf_fragment *frag)
 	uma_zfree(V_pf_frent_z, frent);
 	while ((frent = TAILQ_FIRST(&frag->fr_queue)) != NULL) {
 		TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
+		counter_u64_add(V_pf_status.ncounters[NCNT_FRAG_REMOVALS], 1);
 
 		m2 = frent->fe_m;
 		/* Strip off ip header. */

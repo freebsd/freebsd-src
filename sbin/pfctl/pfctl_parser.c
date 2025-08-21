@@ -614,6 +614,20 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 				printf("%14s\n", "");
 		}
 	}
+	if (opts & PF_OPT_VERBOSE) {
+		printf("Fragments\n");
+		printf("  %-25s %14ju %14s\n", "current entries",
+		    s->fragments, "");
+		TAILQ_FOREACH(c, &s->ncounters, entry) {
+			printf("  %-25s %14ju ", c->name,
+			    c->counter);
+			if (runtime > 0)
+				printf("%14.1f/s\n",
+				    (double)c->counter / (double)runtime);
+			else
+				printf("%14s\n", "");
+		}
+	}
 	printf("Counters\n");
 	TAILQ_FOREACH(c, &s->counters, entry) {
 		printf("  %-25s %14ju ", c->name, c->counter);

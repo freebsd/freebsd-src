@@ -247,6 +247,12 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define SCNT_SRC_NODE_REMOVALS	2
 #define SCNT_MAX		3
 
+/* fragment counters */
+#define NCNT_FRAG_SEARCH	0
+#define NCNT_FRAG_INSERT	1
+#define NCNT_FRAG_REMOVALS	2
+#define NCNT_MAX		3
+
 #define	PF_TABLE_NAME_SIZE	32
 #define	PF_QNAME_SIZE		64
 
