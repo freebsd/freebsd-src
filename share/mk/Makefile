@@ -22,6 +22,7 @@ FILES=	\
 	bsd.confs.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
+	bsd.debug.mk \
 	bsd.dep.mk \
 	bsd.dirs.mk \
 	bsd.doc.mk \
