@@ -62,7 +62,6 @@ struct pfr_anchoritem {
 
 SLIST_HEAD(pfr_anchors, pfr_anchoritem);
 
-int	 pfr_get_fd(void);
 int	 pfr_add_table(struct pfr_table *, int *, int);
 int	 pfr_del_table(struct pfr_table *, int *, int);
 int	 pfr_get_tables(struct pfr_table *, struct pfr_table *, int *, int);
@@ -85,7 +84,6 @@ int	 pfr_buf_load(struct pfr_buffer *, char *, int,
 	    int (*)(struct pfr_buffer *, char *, int, int), int);
 char	*pf_strerror(int);
 int	 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
-int	 pfi_clr_istats(const char *, int *, int);
 
 void	 pfctl_print_title(char *);
 int	 pfctl_do_clear_tables(const char *, int);
