@@ -38,7 +38,7 @@ mlx5_vsc.c \
 mlx5_wq.c \
 mlx5_gid.c
 SRCS+=	${LINUXKPI_GENSRCS}
-SRCS+=	opt_inet.h opt_inet6.h opt_rss.h opt_ratelimit.h
+SRCS+=	opt_inet.h opt_inet6.h opt_ipsec.h opt_rss.h opt_ratelimit.h
 
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
 CFLAGS+= -I${SRCTOP}/sys/ofed/include/uapi
