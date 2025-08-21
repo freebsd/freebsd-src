@@ -147,9 +147,9 @@ enum ieee80211_vht_max_ampdu_len_exp {
 
 enum wlan_ht_cap_sm_ps {
 	WLAN_HT_CAP_SM_PS_STATIC		= 0,
-	WLAN_HT_CAP_SM_PS_DYNAMIC,
-	WLAN_HT_CAP_SM_PS_INVALID,
-	WLAN_HT_CAP_SM_PS_DISABLED,
+	WLAN_HT_CAP_SM_PS_DYNAMIC		= 1,
+	WLAN_HT_CAP_SM_PS_INVALID		= 2,
+	WLAN_HT_CAP_SM_PS_DISABLED		= 3
 };
 
 #define	WLAN_MAX_KEY_LEN			32
