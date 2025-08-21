@@ -44,6 +44,10 @@
 #
 # DEBUGMODE	Mode for debug files. [${NOBINMODE}]
 #
+# DEBUGOWN      Owner for debug info files. [root]
+#
+# DEBUGGRP      Group for debug info files. [wheel]
+#
 #
 # KMODDIR	Base path for loadable kernel modules
 #		(see kld(4)). [/boot/modules]
@@ -199,7 +203,8 @@ LIBMODE?=	${NOBINMODE}
 
 DEBUGDIR?=	/usr/lib/debug
 DEBUGMODE?=	${NOBINMODE}
-
+DEBUGOWN?=	${BINOWN}
+DEBUGGRP?=	${BINGRP}
 
 # Share files
 SHAREDIR?=	/usr/share
