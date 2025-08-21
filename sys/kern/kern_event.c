@@ -1576,7 +1576,7 @@ kqueue_fo_release(int filt)
 
 	mtx_lock(&filterops_lock);
 	KASSERT(sysfilt_ops[~filt].for_refcnt > 0,
-	    ("filter object refcount not valid on release"));
+	    ("filter object %d refcount not valid on release", filt));
 	sysfilt_ops[~filt].for_refcnt--;
 	mtx_unlock(&filterops_lock);
 }
