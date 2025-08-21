@@ -408,13 +408,13 @@ scrub_abbrs(struct state *sp)
  *	     1 if the time zone has changed
  */
 static int
-tzfile_changed(const char *name)
+tzfile_changed(const char *name, int fd)
 {
 	static char old_name[PATH_MAX];
 	static struct stat old_sb;
 	struct stat sb;
 
-	if (stat(name, &sb) != 0)
+	if (_fstat(fd, &sb) != 0)
 		return -1;
 
 	if (strcmp(name, old_name) != 0) {
@@ -446,8 +446,10 @@ union input_buffer {
 	   + 4 * TZ_MAX_TIMES];
 };
 
+#ifndef __FreeBSD__
 /* TZDIR with a trailing '/' rather than a trailing '\0'.  */
 static char const tzdirslash[sizeof TZDIR] = TZDIR "/";
+#endif /* !__FreeBSD__ */
 
 /* Local storage needed for 'tzloadbody'.  */
 union local_storage {
@@ -460,6 +462,7 @@ union local_storage {
     struct state st;
   } u;
 
+#ifndef __FreeBSD__
   /* The name of the file to be opened.  Ideally this would have no
      size limits, to support arbitrarily long Zone names.
      Limiting Zone names to 1024 bytes should suffice for practical use.
@@ -467,6 +470,7 @@ union local_storage {
      file_analysis as that struct is allocated anyway, as the other
      union member.  */
   char fullname[max(sizeof(struct file_analysis), sizeof tzdirslash + 1024)];
+#endif /* !__FreeBSD__ */
 };
 
 /* Load tz data from the file named NAME into *SP.  Read extended
@@ -480,7 +484,11 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 	register int			fid;
 	register int			stored;
 	register ssize_t		nread;
+#ifdef __FreeBSD__
+	int serrno;
+#else /* !__FreeBSD__ */
 	register bool doaccess;
+#endif /* !__FreeBSD__ */
 	register union input_buffer *up = &lsp->u.u;
 	register int tzheadsize = sizeof(struct tzhead);
 
@@ -494,6 +502,7 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 
 	if (name[0] == ':')
 		++name;
+#ifndef __FreeBSD__
 #ifdef SUPPRESS_TZDIR
 	/* Do not prepend TZDIR.  This is intended for specialized
 	   applications only, due to its security implications.  */
@@ -502,9 +511,7 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 	doaccess = name[0] == '/';
 #endif
 	if (!doaccess) {
-#ifndef __FreeBSD__
 		char const *dot;
-#endif /* !__FreeBSD__ */
 		if (sizeof lsp->fullname - sizeof tzdirslash <= strlen(name))
 		  return ENAMETOOLONG;
 
@@ -514,7 +521,6 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 		memcpy(lsp->fullname, tzdirslash, sizeof tzdirslash);
 		strcpy(lsp->fullname + sizeof tzdirslash, name);
 
-#ifndef __FreeBSD__
 		/* Set doaccess if NAME contains a ".." file name
 		   component, as such a name could read a file outside
 		   the TZDIR virtual subtree.  */
@@ -524,35 +530,49 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 		    doaccess = true;
 		    break;
 		  }
-#endif /* !__FreeBSD__ */
 
 		name = lsp->fullname;
 	}
-#ifndef __FreeBSD__
 	if (doaccess && access(name, R_OK) != 0)
 	  return errno;
-#endif /* !__FreeBSD__ */
-#ifdef DETECT_TZ_CHANGES
-	if (doextend) {
-		/*
-		 * Detect if the timezone file has changed.  Check
-		 * 'doextend' to ignore TZDEFRULES; the tzfile_changed()
-		 * function can only keep state for a single file.
-		 */
-		switch (tzfile_changed(name)) {
-		case -1:
-			return errno;
-		case 0:
-			return 0;
-		case 1:
-			break;
-		}
-	}
-#endif /* DETECT_TZ_CHANGES */
+#else /* __FreeBSD__ */
+        if (issetugid()) {
+          const char *relname = name;
+          if (strncmp(relname, TZDIR "/", strlen(TZDIR) + 1) == 0)
+            relname += strlen(TZDIR) + 1;
+          int dd = _open(TZDIR, O_DIRECTORY | O_RDONLY);
+          if (dd < 0)
+            return errno;
+          fid = _openat(dd, relname, O_RDONLY | O_BINARY, AT_RESOLVE_BENEATH);
+          serrno = errno;
+          _close(dd);
+          errno = serrno;
+        } else
+#endif
 	fid = _open(name, O_RDONLY | O_BINARY);
 	if (fid < 0)
 	  return errno;
 
+#ifdef DETECT_TZ_CHANGES
+	if (doextend) {
+          /*
+           * Detect if the timezone file has changed.  Check 'doextend' to
+           * ignore TZDEFRULES; the tzfile_changed() function can only
+           * keep state for a single file.
+           */
+          switch (tzfile_changed(name, fid)) {
+          case -1:
+            serrno = errno;
+            _close(fid);
+            return serrno;
+          case 0:
+            _close(fid);
+            return 0;
+          case 1:
+            break;
+          }
+	}
+#endif /* DETECT_TZ_CHANGES */
 	nread = _read(fid, up->buf, sizeof up->buf);
 	if (nread < tzheadsize) {
 	  int err = nread < 0 ? errno : EINVAL;
