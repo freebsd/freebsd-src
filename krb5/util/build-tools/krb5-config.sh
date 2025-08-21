@@ -26,7 +26,7 @@
 
 # Configurable parameters set by autoconf
 # Disreagard the above. Edit this by hand in the bespoke FreeBSD build.
-version_string="Kerberos 5 release 1.22.0"
+version_string="Kerberos 5 release 1.22.1"
 
 prefix=/usr
 exec_prefix=${prefix}

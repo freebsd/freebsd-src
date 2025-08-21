@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KDB5_UTIL" "8" " " "1.22" "MIT Kerberos"
+.TH "KDB5_UTIL" "8" " " "1.22.1" "MIT Kerberos"
 .SH NAME
 kdb5_util \- Kerberos database maintenance utility
 .SH SYNOPSIS
