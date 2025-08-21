@@ -265,6 +265,7 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_SSDT, "Secondary System Description Table (AML table)"},
     {ACPI_SIG_STAO, "Status Override Table"},
     {ACPI_SIG_SVKL, "Storage Volume Key Location Table"},
+    {ACPI_SIG_SWFT, "SoundWire File Table"},
     {ACPI_SIG_TCPA, "Trusted Computing Platform Alliance Table"},
     {ACPI_SIG_TDEL, "TD-Event Log Table"},
     {ACPI_SIG_TPM2, "Trusted Platform Module hardware interface Table"},

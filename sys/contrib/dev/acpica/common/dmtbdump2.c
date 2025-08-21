@@ -2637,7 +2637,7 @@ AcpiDmDumpRhct (
                     RhctIsaString, RhctIsaString->IsaLength, AcpiDmTableInfoRhctIsa1);
             if (Subtable->Length > IsaPadOffset)
             {
-                Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
+                Status = AcpiDmDumpTable (Table->Length, Offset + IsaPadOffset,
                          ACPI_ADD_PTR (UINT8, Subtable, IsaPadOffset),
                          (Subtable->Length - IsaPadOffset), AcpiDmTableInfoRhctIsaPad);
             }

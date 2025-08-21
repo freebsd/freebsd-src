@@ -1,11 +1,29 @@
 ----------------------------------------
+7 August 2025. Summary of changes for version 20250807:
+
+Major changes:
+
+Added option to skip the global lock for SMM - Huacai Chen
+
+Fixed non-NUL terminated string implementations - Ahmed Salem
+
+Fixed CCEL and CDAT templates - Ahmed Salem
+
+Fixed a major Linux kernel bug (UAF) that was triggered by unequal number of method parameters (definition) vs arguments (invocation) in different places - Peter Williams, Hans de Goede, Rafael Wysocki
+
+Define distinct D3 states (D3Hot and D3Cold) that help clarify the device behavior support - Aymeric Wibo
+
+A few cleanups, improvements to existing table supports, small fixes, spelling corrections etc.
+
+
+----------------------------------------
 4 April 2025. Summary of changes for version 20250404:
 
 Major changes:
 
 Update all the copyright continuation year to 2025 in the license header of all files
 
-Add complete support for 3 new ACPI tables ? MRRM,ERDT and RIMT (Tony Luck & V L Sunil)
+Add complete support for 3 new ACPI tables - MRRM,ERDT and RIMT (Tony Luck & V L Sunil)
 
 Add a license file to the project which is a great improvement (Dionna Glaze)
 
@@ -21,11 +39,11 @@ Major changes:
 
 Fix 2 critical CVE addressing memory leaks - Seunghun Han
 
-EINJ V2 updates ? Zaid Alali (Ampere Computing)
+EINJ V2 updates - Zaid Alali (Ampere Computing)
 
-CDAT updates ? Ira Weiny (Intel Corporation)
+CDAT updates - Ira Weiny (Intel Corporation)
 
-Fix mutex handling, don?t release ones that were never acquired ? Daniil Tatianin
+Fix mutex handling, do not release ones that were never acquired - Daniil Tatianin
 
 Experiment with new tag name format Ryyyy_mm_dd to solve chronological sorting problems
 
@@ -39,7 +57,7 @@ Fix the acpixf.h file which caused issues for the last release (before this) 202
 
 Fix the pointer offset for the SLIC table
 
-Verify the local environment and GitHub commits are all in sync which was a problem with the second from last release (before this)20240322 (aka 20240323 – date issue) 
+Verify the local environment and GitHub commits are all in sync which was a problem with the second from last release (before this)20240322 (aka 20240323 - date issue) 
 
 
 
