@@ -2392,8 +2392,6 @@ extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
 extern u_int16_t		 pf_proto_cksum_fixup(struct mbuf *, u_int16_t,
 				    u_int16_t, u_int16_t, u_int8_t);
 
-VNET_DECLARE(struct ifnet *,		 sync_ifp);
-#define	V_sync_ifp		 	 VNET(sync_ifp);
 VNET_DECLARE(struct pf_krule,		 pf_default_rule);
 #define	V_pf_default_rule		  VNET(pf_default_rule)
 extern void			 pf_addrcpy(struct pf_addr *, const struct pf_addr *,
