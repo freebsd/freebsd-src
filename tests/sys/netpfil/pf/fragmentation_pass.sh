@@ -648,6 +648,72 @@ dummynet_fragmented_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "counters" "cleanup"
+counters_head()
+{
+	atf_set descr 'Test fragment counters'
+	atf_set require.user root
+}
+
+counters_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b inet 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.2/24 up
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set reassemble yes" \
+		"pass keep state"
+
+	# All fragment counters are zero
+	counters=$(jexec alcatraz pfctl -si -v | grep -A 4 '^Fragments')
+	atf_check -s exit:0 -o match:"current entries[[:space:]]+0" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"searches[[:space:]]+0" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"inserts[[:space:]]+0" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"removals[[:space:]]+0" \
+	    echo $counters
+
+	# They remain zero after we've seen non-fragmented traffic
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.2
+	counters=$(jexec alcatraz pfctl -si -v | grep -A 4 '^Fragments')
+	atf_check -s exit:0 -o match:"current entries[[:space:]]+0" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"searches[[:space:]]+0" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"inserts[[:space:]]+0" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"removals[[:space:]]+0" \
+	    echo $counters
+
+	# But once we've reassembled they're no longer zero
+	# (Count is 2, because in + out)
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 -s 2000 192.0.2.2
+	counters=$(jexec alcatraz pfctl -si -v | grep -A 4 '^Fragments')
+	atf_check -s exit:0 -o match:"current entries[[:space:]]+0" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"searches[[:space:]]+2" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"inserts[[:space:]]+2" \
+	    echo $counters
+	atf_check -s exit:0 -o match:"removals[[:space:]]+2" \
+	    echo $counters
+}
+
+counters_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
@@ -665,4 +731,5 @@ atf_init_test_cases()
 	atf_add_test_case "dummynet"
 	atf_add_test_case "dummynet_nat"
 	atf_add_test_case "dummynet_fragmented"
+	atf_add_test_case "counters"
 }
