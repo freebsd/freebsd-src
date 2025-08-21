@@ -28,6 +28,9 @@
 
 /* Driver for VirtIO network devices. */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
@@ -81,9 +84,6 @@
 #include <dev/virtio/network/virtio_net.h>
 #include <dev/virtio/network/if_vtnetvar.h>
 #include "virtio_if.h"
-
-#include "opt_inet.h"
-#include "opt_inet6.h"
 
 #if defined(INET) || defined(INET6)
 #include <machine/in_cksum.h>
