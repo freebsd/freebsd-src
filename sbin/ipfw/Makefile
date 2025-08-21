@@ -17,6 +17,9 @@ CFLAGS+=-DPF
 LIBADD=	jail util
 MAN=	ipfw.8
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}=     tests
+
 .include <bsd.prog.mk>
 
 CWARNFLAGS+= -Wno-cast-align
