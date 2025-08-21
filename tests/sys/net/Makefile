@@ -40,6 +40,7 @@ ${PACKAGE}FILESMODE_stp.py=		0555
 
 MAN=
 PROGS+=		randsleep
+PROGS+=		transient_tuntap
 
 CFLAGS+=        -I${.CURDIR:H:H}
 
