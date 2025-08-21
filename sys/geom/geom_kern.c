@@ -50,6 +50,7 @@
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
+#include <sys/tslog.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 
@@ -88,36 +89,39 @@ int g_notaste;
 static void
 g_up_procbody(void *arg)
 {
-
+	TSENTER();
 	thread_lock(g_up_td);
 	sched_prio(g_up_td, PRIBIO);
 	thread_unlock(g_up_td);
 	for(;;) {
 		g_io_schedule_up(g_up_td);
 	}
+	TSEXIT();
 }
 
 static void
 g_down_procbody(void *arg)
 {
-
+	TSENTER();
 	thread_lock(g_down_td);
 	sched_prio(g_down_td, PRIBIO);
 	thread_unlock(g_down_td);
 	for(;;) {
 		g_io_schedule_down(g_down_td);
 	}
+	TSEXIT();
 }
 
 static void
 g_event_procbody(void *arg)
 {
-
+	TSENTER();
 	thread_lock(g_event_td);
 	sched_prio(g_event_td, PRIBIO);
 	thread_unlock(g_event_td);
 	g_run_events();
 	/* NOTREACHED */
+	TSEXIT();
 }
 
 int
@@ -137,7 +141,7 @@ geom_shutdown(void *foo __unused)
 void
 g_init(void)
 {
-
+	TSENTER();
 	g_trace(G_T_TOPOLOGY, "g_ignition");
 	sx_init(&topology_lock, "GEOM topology");
 	g_io_init();
@@ -151,6 +155,7 @@ g_init(void)
 	    RFHIGHPID, 0, "geom", "g_down");
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, geom_shutdown, NULL,
 		SHUTDOWN_PRI_FIRST);
+	TSEXIT();
 }
 
 static int

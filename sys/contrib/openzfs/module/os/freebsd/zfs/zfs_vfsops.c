@@ -638,6 +638,7 @@ longname_changed_cb(void *arg, uint64_t newval)
 static int
 zfs_register_callbacks(vfs_t *vfsp)
 {
+	TSENTER();
 	struct dsl_dataset *ds = NULL;
 	objset_t *os = NULL;
 	zfsvfs_t *zfsvfs = NULL;
@@ -664,7 +665,10 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 * mount point, which isn't really supported.
 	 */
 	if (dmu_objset_is_snapshot(os))
+	{
+		TSEXIT();
 		return (EOPNOTSUPP);
+	}
 
 	/*
 	 * The act of registering our callbacks will destroy any mount
@@ -741,6 +745,7 @@ zfs_register_callbacks(vfs_t *vfsp)
 		nbmand = B_TRUE;
 	} else if ((error = dsl_prop_get_int_ds(ds, "nbmand", &nbmand)) != 0) {
 		dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
+		TSEXIT();
 		return (error);
 	}
 
@@ -794,10 +799,12 @@ zfs_register_callbacks(vfs_t *vfsp)
 
 	nbmand_changed_cb(zfsvfs, nbmand);
 
+	TSEXIT();
 	return (0);
 
 unregister:
 	dsl_prop_unregister_all(ds, zfsvfs);
+	TSEXIT();
 	return (error);
 }
 
@@ -1084,6 +1091,7 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	objset_t *os;
 	zfsvfs_t *zfsvfs;
 	int error;
+
 	TSENTER();
 	boolean_t ro = (readonly || (strchr(osname, '@') != NULL));
 
@@ -1412,10 +1420,12 @@ out:
 static void
 zfs_unregister_callbacks(zfsvfs_t *zfsvfs)
 {
+	TSENTER();
 	objset_t *os = zfsvfs->z_os;
 
 	if (!dmu_objset_is_snapshot(os))
 		dsl_prop_unregister_all(dmu_objset_ds(os), zfsvfs);
+	TSEXIT();
 }
 
 static int
@@ -1440,12 +1450,14 @@ static void
 fetch_osname_options(char *name, bool *checkpointrewind)
 {
 
+	TSENTER();
 	if (name[0] == '!') {
 		*checkpointrewind = true;
 		memmove(name, name + 1, strlen(name));
 	} else {
 		*checkpointrewind = false;
 	}
+	TSEXIT();
 }
 
 static int

@@ -65,6 +65,7 @@
 #include <sys/spa_impl.h>
 #include <sys/dmu_recv.h>
 #include <sys/zfs_project.h>
+#include <sys/tslog.h>
 #include "zfs_namecheck.h"
 #include <sys/vdev_impl.h>
 #include <sys/arc.h>
@@ -821,19 +822,25 @@ dmu_objset_own(const char *name, dmu_objset_type_t type,
 	int err;
 	ds_hold_flags_t flags;
 
+	TSENTER();
 	flags = (decrypt) ? DS_HOLD_FLAG_DECRYPT : DS_HOLD_FLAG_NONE;
 	err = dsl_pool_hold(name, FTAG, &dp);
 	if (err != 0)
+	{
+		TSEXIT();
 		return (err);
+	}
 	err = dsl_dataset_own(dp, name, flags, tag, &ds);
 	if (err != 0) {
 		dsl_pool_rele(dp, FTAG);
+		TSEXIT();
 		return (err);
 	}
 	err = dmu_objset_own_impl(ds, type, readonly, decrypt, tag, osp);
 	if (err != 0) {
 		dsl_dataset_disown(ds, flags, tag);
 		dsl_pool_rele(dp, FTAG);
+		TSEXIT();
 		return (err);
 	}
 
@@ -854,6 +861,7 @@ dmu_objset_own(const char *name, dmu_objset_type_t type,
 	}
 
 	dsl_pool_rele(dp, FTAG);
+	TSEXIT();
 	return (0);
 }
 

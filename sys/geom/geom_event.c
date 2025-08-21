@@ -50,6 +50,7 @@
 #include <sys/errno.h>
 #include <sys/stdarg.h>
 #include <sys/time.h>
+#include <sys/tslog.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 
@@ -278,6 +279,7 @@ void
 g_run_events(void)
 {
 
+	TSENTER();
 	for (;;) {
 		g_topology_lock();
 		while (one_event())
@@ -295,6 +297,7 @@ g_run_events(void)
 		}
 	}
 	/* NOTREACHED */
+	TSEXIT();
 }
 
 void

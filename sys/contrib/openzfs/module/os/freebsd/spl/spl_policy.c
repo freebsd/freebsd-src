@@ -36,7 +36,7 @@
 #include <sys/policy.h>
 #include <sys/zfs_vfsops.h>
 #include <sys/zfs_znode.h>
-
+#include <sys/tslog.h>
 
 int
 secpolicy_nfs(cred_t *cr)
@@ -399,6 +399,7 @@ void
 secpolicy_fs_mount_clearopts(cred_t *cr, struct mount *vfsp)
 {
 
+	TSENTER();
 	if (priv_check_cred(cr, PRIV_VFS_MOUNT_NONUSER) != 0) {
 		MNT_ILOCK(vfsp);
 		vfsp->vfs_flag |= VFS_NOSETUID | MNT_USER;
@@ -406,6 +407,7 @@ secpolicy_fs_mount_clearopts(cred_t *cr, struct mount *vfsp)
 		vfs_setmntopt(vfsp, MNTOPT_NOSETUID, NULL, 0);
 		MNT_IUNLOCK(vfsp);
 	}
+	TSEXIT();
 }
 
 /*

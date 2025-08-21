@@ -51,6 +51,7 @@
 #include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/vmem.h>
+#include <sys/tslog.h>
 #include <machine/stack.h>
 
 #include <sys/errno.h>
@@ -795,6 +796,7 @@ g_io_schedule_down(struct thread *tp __unused)
 	struct bio *bp;
 	int error;
 
+	TSENTER();
 	for(;;) {
 		g_bioq_lock(&g_bio_run_down);
 		bp = g_bioq_first(&g_bio_run_down);
@@ -849,6 +851,7 @@ g_io_schedule_down(struct thread *tp __unused)
 		bp->bio_to->geom->start(bp);
 		THREAD_SLEEPING_OK();
 	}
+	TSEXIT();
 }
 
 void
@@ -856,6 +859,7 @@ g_io_schedule_up(struct thread *tp __unused)
 {
 	struct bio *bp;
 
+	TSENTER();
 	for(;;) {
 		g_bioq_lock(&g_bio_run_up);
 		bp = g_bioq_first(&g_bio_run_up);
@@ -873,6 +877,7 @@ g_io_schedule_up(struct thread *tp __unused)
 		biodone(bp);
 		THREAD_SLEEPING_OK();
 	}
+	TSEXIT();
 }
 
 void *

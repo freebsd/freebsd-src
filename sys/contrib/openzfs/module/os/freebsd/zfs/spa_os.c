@@ -69,6 +69,7 @@
 #include <sys/abd.h>
 #include <sys/callb.h>
 #include <sys/zone.h>
+#include <sys/tslog.h>
 
 #include "zfs_prop.h"
 #include "zfs_comutil.h"
@@ -188,6 +189,7 @@ spa_import_rootpool(const char *name, bool checkpointrewind)
 	const char *pname;
 	int error;
 
+	TSENTER();
 	/*
 	 * Read the label from the boot device and generate a configuration.
 	 */
@@ -206,6 +208,7 @@ spa_import_rootpool(const char *name, bool checkpointrewind)
 			if (spa->spa_state == POOL_STATE_ACTIVE) {
 				mutex_exit(&spa_namespace_lock);
 				fnvlist_free(config);
+				TSEXIT();
 				return (0);
 			}
 
@@ -230,6 +233,7 @@ spa_import_rootpool(const char *name, bool checkpointrewind)
 		fnvlist_free(config);
 		cmn_err(CE_NOTE, "Cannot find the pool label for '%s'",
 		    name);
+		TSEXIT();
 		return (EIO);
 	} else {
 		config = fnvlist_dup(spa->spa_config);
@@ -253,6 +257,7 @@ spa_import_rootpool(const char *name, bool checkpointrewind)
 		fnvlist_free(config);
 		cmn_err(CE_NOTE, "Can not parse the config for pool '%s'",
 		    name);
+		TSEXIT();
 		return (error);
 	}
 
@@ -262,6 +267,7 @@ spa_import_rootpool(const char *name, bool checkpointrewind)
 	mutex_exit(&spa_namespace_lock);
 
 	fnvlist_free(config);
+	TSEXIT();
 	return (0);
 }
 

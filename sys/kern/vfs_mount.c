@@ -2646,6 +2646,7 @@ vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 {
 	struct vfsopt *opt;
 
+	TSENTER();
 	*error = 0;
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) != 0)
@@ -2654,11 +2655,14 @@ vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 		if (opt->len == 0 ||
 		    ((char *)opt->value)[opt->len - 1] != '\0') {
 			*error = EINVAL;
+			TSEXIT();
 			return (NULL);
 		}
+		TSEXIT();
 		return (opt->value);
 	}
 	*error = ENOENT;
+	TSEXIT();
 	return (NULL);
 }
 
