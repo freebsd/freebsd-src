@@ -107,9 +107,8 @@ g_verify_token_header(struct k5input *in, gss_const_OID expected_mech)
     gss_OID_desc mech;
     size_t tlen, orig_len = in->len;
 
-    if (!g_get_token_header(in, &mech, &tlen) || tlen != orig_len)
-        return 0;
-    if (!g_OID_equal(&mech, expected_mech)) {
+    if (!g_get_token_header(in, &mech, &tlen) || tlen != orig_len ||
+        !g_OID_equal(&mech, expected_mech)) {
         *in = orig;
         return 0;
     }

@@ -79,9 +79,13 @@
 #include "gssapiP_krb5.h"
 
 /*
- * The following samples contain context parameters and otherwise valid seal
- * tokens where the plain text is padded with byte value 100 instead of the
- * proper value 1.
+ * The following samples contain:
+ * - context parameters
+ * - otherwise valid seal tokens where the plain text is padded with byte value
+ *   100 instead of the proper value 1.
+ * - valid MIC tokens for the message "message"
+ * - two valid wrap tokens for the message "message", one without
+ *   confidentiality and one with
  */
 struct test {
     krb5_enctype enctype;
@@ -93,6 +97,12 @@ struct test {
     const char *keydata;
     size_t toklen;
     const char *token;
+    size_t miclen;
+    const char *mic;
+    size_t wrap1len;
+    const char *wrap1;
+    size_t wrap2len;
+    const char *wrap2;
 } tests[] = {
     {
         ENCTYPE_DES3_CBC_SHA1, ENCTYPE_DES3_CBC_RAW,
@@ -104,7 +114,21 @@ struct test {
         "\x60\x3F\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x02\x01\x04"
         "\x00\x02\x00\xFF\xFF\xEB\xF3\x9A\x89\x24\x57\xB8\x63\x95\x25\xE8"
         "\x6E\x8E\x79\xE6\x2E\xCA\xD3\xFF\x57\x9F\x8C\xAB\xEF\xDD\x28\x10"
-        "\x2F\x93\x21\x2E\xF2\x52\xB6\x6F\xA8\xBB\x8A\x6D\xAA\x6F\xB7\xF4\xD4"
+        "\x2F\x93\x21\x2E\xF2\x52\xB6\x6F\xA8\xBB\x8A\x6D\xAA\x6F\xB7\xF4\xD4",
+        49,
+        "\x60\x2F\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x01\x01\x04"
+        "\x00\xFF\xFF\xFF\xFF\x57\xF5\x77\xC6\xC0\x72\x26\x97\x00\x89\xB2"
+        "\xEE\xD9\xD1\x90\xE7\x11\x50\x4F\xE9\x59\x18\xB1\x8F\x82\x8E\x8F\x5E",
+        65,
+        "\x60\x3F\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x02\x01\x04"
+        "\x00\xFF\xFF\xFF\xFF\x0B\x81\x56\x4A\x02\x1B\xBE\x83\x2B\x35\x08"
+        "\x7B\x49\x15\x07\x97\x6A\x64\xEF\xDD\x32\x52\xF0\xA2\xE2\x62\x9B"
+        "\xA7\x72\xF7\x3D\x6B\x2D\xAC\x21\xE9\x6D\x65\x73\x73\x61\x67\x65\x01",
+        65,
+        "\x60\x3F\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x02\x01\x04"
+        "\x00\x02\x00\xFF\xFF\x66\x5A\xE1\xC8\x4F\x69\x33\x97\x5D\x05\xE2"
+        "\x86\x40\x14\x15\x14\x27\x01\x9F\x32\x9D\x82\xF4\xE1\xC5\x3E\xFA"
+        "\x6D\x7D\x05\x39\xAE\x21\x44\xA0\x87\xA6\x24\xED\xFC\xA3\x53\xF1\x30"
     },
     {
         ENCTYPE_ARCFOUR_HMAC, ENCTYPE_ARCFOUR_HMAC,
@@ -115,7 +139,21 @@ struct test {
         "\x60\x33\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x02\x01\x11"
         "\x00\x10\x00\xFF\xFF\x35\xD4\x79\xF3\x8C\x47\x8F\x6E\x23\x6F\x3E"
         "\xCC\x5E\x57\x5C\x6A\x89\xF0\xA2\x03\x4F\x0B\x51\x11\xEE\x89\x7E"
-        "\xD6\xF6\xB5\xD6\x51"
+        "\xD6\xF6\xB5\xD6\x51",
+        37,
+        "\x60\x23\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x01\x01\x11"
+        "\x00\xFF\xFF\xFF\xFF\x5D\xE7\x51\xF6\xFB\x6C\x25\x5B\x23\x93\x5A"
+        "\x30\x20\x57\xDC\xB5",
+        53,
+        "\x60\x33\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x02\x01\x11"
+        "\x00\xFF\xFF\xFF\xFF\xAD\xB5\x1D\x01\x39\x7B\xA2\x16\x4C\x1B\x68"
+        "\x18\xEC\xAC\xD9\xE5\x9E\xD1\x41\x7A\x89\xE8\xCB\x24\x6D\x65\x73"
+        "\x73\x61\x67\x65\x01",
+        53,
+        "\x60\x33\x06\x09\x2A\x86\x48\x86\xF7\x12\x01\x02\x02\x02\x01\x11"
+        "\x00\x10\x00\xFF\xFF\xDD\x6D\x04\xEA\x64\x5C\xE7\x31\x50\xD0\x09"
+        "\x44\x9E\x67\xA4\x30\xEC\xFB\xFF\xC0\xF7\x16\x1E\x14\x1A\x82\x42"
+        "\xDD\x26\x23\x2B\x02"
     }
 };
 
@@ -397,6 +435,144 @@ test_iov_large_asn1_wrapper(gss_ctx_id_t ctx)
     free(iov[0].buffer.value);
 }
 
+/* Verify that token is a valid MIC token for ctx and message, and that
+ * changing any of the input bytes yields one of the expected errors. */
+static void
+mictest(gss_ctx_id_t ctx, gss_buffer_t message, gss_buffer_t token)
+{
+    OM_uint32 major, minor;
+    size_t i;
+    uint8_t *p;
+
+    major = gss_verify_mic(&minor, ctx, message, token, NULL);
+    check_gsserr("gss_verify_mic", major, minor);
+
+    p = token->value;
+    for (i = 0; i < token->length; i++) {
+        /* Skip sequence number bytes for RC4. */
+        if (load_16_le(p + 15) == SGN_ALG_HMAC_MD5 && i >= 21 && i <= 24)
+            continue;
+        p[i]++;
+        major = gss_verify_mic(&minor, ctx, message, token, NULL);
+        if (major != GSS_S_DEFECTIVE_TOKEN && major != GSS_S_BAD_SIG)
+            abort();
+        p[i]--;
+    }
+    p = message->value;
+    for (i = 0; i < message->length; i++) {
+        p[i]++;
+        major = gss_verify_mic(&minor, ctx, message, token, NULL);
+        if (major != GSS_S_DEFECTIVE_TOKEN && major != GSS_S_BAD_SIG)
+            abort();
+        p[i]--;
+    }
+}
+
+static void
+test_cfx_verify_mic(gss_ctx_id_t ctx)
+{
+    gss_buffer_desc message, token;
+    uint8_t msg[] = "message";
+    uint8_t mic[] = "\x04\x04\x00\xFF\xFF\xFF\xFF\xFF"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x97\xE9\x63\x3F\x9D\x82\x2B\x74"
+        "\x67\x94\x8A\xD0";
+
+    message.value = msg;
+    message.length = sizeof(msg) - 1;
+    token.value = mic;
+    token.length = sizeof(mic) - 1;
+    mictest(ctx, &message, &token);
+}
+
+static void
+test_verify_mic(gss_ctx_id_t ctx, const struct test *test)
+{
+    gss_buffer_desc message, token;
+    uint8_t msg[] = "message", buf[128];
+
+    assert(test->miclen <= sizeof(buf));
+    memcpy(buf, test->mic, test->miclen);
+
+    message.value = msg;
+    message.length = sizeof(msg) - 1;
+    token.value = buf;
+    token.length = test->miclen;
+    mictest(ctx, &message, &token);
+}
+
+/* Verify that token is a valid wrap token for ctx unwrapping to message, and
+ * that changing any of the token bytes yields one of the expected errors. */
+static void
+unwraptest(gss_ctx_id_t ctx, gss_buffer_t message, gss_buffer_t token)
+{
+    OM_uint32 major, minor;
+    gss_buffer_desc unwrapped;
+    size_t i;
+    uint8_t *p;
+
+    major = gss_unwrap(&minor, ctx, token, &unwrapped, NULL, NULL);
+    check_gsserr("gss_unwrap", major, minor);
+    if (unwrapped.length != message->length ||
+        memcmp(unwrapped.value, message->value, unwrapped.length) != 0)
+        abort();
+    gss_release_buffer(&minor, &unwrapped);
+
+    p = token->value;
+    for (i = 0; i < token->length; i++) {
+        /* Skip sequence number bytes for RC4. */
+        if (load_16_le(p + 15) == SGN_ALG_HMAC_MD5 && i >= 21 && i <= 24)
+            continue;
+        p[i]++;
+        major = gss_unwrap(&minor, ctx, token, &unwrapped, NULL, NULL);
+        if (major != GSS_S_DEFECTIVE_TOKEN && major != GSS_S_BAD_SIG)
+            abort();
+        p[i]--;
+    }
+}
+
+static void
+test_cfx_unwrap(gss_ctx_id_t ctx)
+{
+    gss_buffer_desc message, token;
+    uint8_t msg[] = "message";
+    uint8_t token1[] = "\x05\x04\x00\xFF\x00\x0C\x00\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x6D\x65\x73\x73\x61\x67\x65\xDF"
+        "\x57\xB9\x5E\xA2\xB1\x73\x31\xDB\xCE\x61\x62";
+    uint8_t token2[] = "\x05\x04\x02\xFF\x00\x00\x00\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x72\xBB\xD7\xCF\xDE\xB0\xF9\x20"
+        "\xE2\x9A\x98\xA7\xA4\xE7\xC9\x9B\x30\xD3\xFE\x61\x51\x2E\x1B\x56"
+        "\x88\xB7\x8A\xF5\xA9\xBF\x8F\x82\xB1\xEB\xCC\x88\xE6\x33\x13\xBF"
+        "\x52\x4B\xC0\x3B\x24\x3F\x3E\xF5\xF1\xE0\x64";
+
+    message.value = msg;
+    message.length = sizeof(msg) - 1;
+    token.value = token1;
+    token.length = sizeof(token1) - 1;
+    unwraptest(ctx, &message, &token);
+    token.value = token2;
+    token.length = sizeof(token2) - 1;
+    unwraptest(ctx, &message, &token);
+}
+
+static void
+test_unwrap(gss_ctx_id_t ctx, const struct test *test)
+{
+    gss_buffer_desc message, token;
+    uint8_t msg[] = "message", buf[128];
+
+    assert(test->wrap1len <= sizeof(buf) && test->wrap2len <= sizeof(buf));
+    token.value = buf;
+
+    message.value = msg;
+    message.length = sizeof(msg) - 1;
+    memcpy(buf, test->wrap1, test->wrap1len);
+    token.length = test->wrap1len;
+    unwraptest(ctx, &message, &token);
+    memcpy(buf, test->wrap2, test->wrap2len);
+    token.length = test->wrap2len;
+    unwraptest(ctx, &message, &token);
+}
+
 /* Process wrap and MIC tokens with incomplete headers. */
 static void
 test_short_header(gss_ctx_id_t ctx)
@@ -598,6 +774,8 @@ main(int argc, char **argv)
     test_cfx_short_plaintext(ctx, cfx_subkey);
     test_cfx_large_ec(ctx, cfx_subkey);
     test_iov_large_asn1_wrapper(ctx);
+    test_cfx_verify_mic(ctx);
+    test_cfx_unwrap(ctx);
     free_fake_context(ctx);
 
     for (i = 0; i < sizeof(tests) / sizeof(*tests); i++) {
@@ -606,6 +784,8 @@ main(int argc, char **argv)
         test_short_header_iov(ctx, &tests[i]);
         test_short_checksum(ctx, &tests[i]);
         test_bad_pad(ctx, &tests[i]);
+        test_verify_mic(ctx, &tests[i]);
+        test_unwrap(ctx, &tests[i]);
         free_fake_context(ctx);
     }
 
