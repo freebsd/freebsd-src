@@ -269,6 +269,68 @@ AcpiExGetTraceEventName (
 
 #endif
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExTraceArgs
+ *
+ * PARAMETERS:  Params            - AML method arguments
+ *              Count             - numer of method arguments
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Trace any arguments
+ *
+ ******************************************************************************/
+
+void
+AcpiExTraceArgs(ACPI_OPERAND_OBJECT **Params, UINT32 Count)
+{
+    UINT32 i;
+
+    ACPI_FUNCTION_NAME(ExTraceArgs);
+
+    for (i = 0; i < Count; i++)
+    {
+        ACPI_OPERAND_OBJECT *obj_desc = Params[i];
+
+        if (!i)
+        {
+            ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT, " "));
+        }
+
+        switch (obj_desc->Common.Type)
+        {
+        case ACPI_TYPE_INTEGER:
+            ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "%lx", obj_desc->Integer.Value));
+            break;
+
+        case ACPI_TYPE_STRING:
+            if (!obj_desc->String.Length)
+            {
+                ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "NULL"));
+                break;
+            }
+            if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_TRACE_POINT, _COMPONENT))
+            {
+                AcpiUtPrintString(obj_desc->String.Pointer, ACPI_UINT8_MAX);
+            }
+            break;
+
+        default:
+            ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "Unknown"));
+            break;
+        }
+
+        if ((i + 1) == Count)
+        {
+            ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "\n"));
+        }
+        else
+        {
+            ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, ", "));
+        }
+    }
+}
 
 /*******************************************************************************
  *
@@ -299,9 +361,9 @@ AcpiExTracePoint (
     if (Pathname)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_TRACE_POINT,
-            "%s %s [0x%p:%s] execution.\n",
+            "%s %s [%s] execution.\n",
             AcpiExGetTraceEventName (Type), Begin ? "Begin" : "End",
-            Aml, Pathname));
+            Pathname));
     }
     else
     {
