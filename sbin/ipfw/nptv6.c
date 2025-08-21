@@ -153,10 +153,10 @@ static struct _s_x nptv6newcmds[] = {
       { NULL, 0 }
 };
 
-
 static void
 nptv6_parse_prefix(const char *arg, struct in6_addr *prefix, int *len)
 {
+	long plen;
 	char *p, *l;
 
 	p = strdup(arg);
@@ -167,13 +167,15 @@ nptv6_parse_prefix(const char *arg, struct in6_addr *prefix, int *len)
 	if (inet_pton(AF_INET6, p, prefix) != 1)
 		errx(EX_USAGE, "Bad prefix: %s", p);
 	if (l != NULL) {
-		*len = (int)strtol(l, &l, 10);
-		if (*l != '\0' || *len <= 0 || *len > 64)
+		plen = strtol(l, &l, 10);
+		if (*l != '\0' || plen < 8 || plen > 64)
 			errx(EX_USAGE, "Bad prefix length: %s", arg);
+		*len = plen;
 	} else
 		*len = 0;
 	free(p);
 }
+
 /*
  * Creates new nptv6 instance
  * ipfw nptv6 <NAME> create int_prefix <prefix> ext_prefix <prefix>
@@ -189,10 +191,10 @@ nptv6_create(const char *name, uint8_t set, int ac, char *av[])
 	struct in6_addr mask;
 	ipfw_nptv6_cfg *cfg;
 	ipfw_obj_lheader *olh;
-	int tcmd, flags, plen;
+	int tcmd, flags, iplen, eplen, pplen;
 	char *p;
 
-	plen = 0;
+	iplen = eplen = pplen = 0;
 	memset(buf, 0, sizeof(buf));
 	olh = (ipfw_obj_lheader *)buf;
 	cfg = (ipfw_nptv6_cfg *)(olh + 1);
@@ -205,10 +207,8 @@ nptv6_create(const char *name, uint8_t set, int ac, char *av[])
 		switch (tcmd) {
 		case TOK_INTPREFIX:
 			NEED1("IPv6 prefix required");
-			nptv6_parse_prefix(*av, &cfg->internal, &plen);
+			nptv6_parse_prefix(*av, &cfg->internal, &iplen);
 			flags |= NPTV6_HAS_INTPREFIX;
-			if (plen > 0)
-				goto check_prefix;
 			ac--; av++;
 			break;
 		case TOK_EXTPREFIX:
@@ -216,10 +216,8 @@ nptv6_create(const char *name, uint8_t set, int ac, char *av[])
 				errx(EX_USAGE,
 				    "Only one ext_prefix or ext_if allowed");
 			NEED1("IPv6 prefix required");
-			nptv6_parse_prefix(*av, &cfg->external, &plen);
+			nptv6_parse_prefix(*av, &cfg->external, &eplen);
 			flags |= NPTV6_HAS_EXTPREFIX;
-			if (plen > 0)
-				goto check_prefix;
 			ac--; av++;
 			break;
 		case TOK_EXTIF:
@@ -236,22 +234,27 @@ nptv6_create(const char *name, uint8_t set, int ac, char *av[])
 			break;
 		case TOK_PREFIXLEN:
 			NEED1("IPv6 prefix length required");
-			plen = strtol(*av, &p, 10);
-check_prefix:
-			if (*p != '\0' || plen < 8 || plen > 64)
+			pplen = strtol(*av, &p, 10);
+			if (*p != '\0' || pplen < 8 || pplen > 64)
 				errx(EX_USAGE, "wrong prefix length: %s", *av);
-			/* RFC 6296 Sec. 3.1 */
-			if (cfg->plen > 0 && cfg->plen != plen) {
-				warnx("Prefix length mismatch (%d vs %d).  "
-				    "It was extended up to %d",
-				    cfg->plen, plen, MAX(plen, cfg->plen));
-				plen = MAX(plen, cfg->plen);
-			}
-			cfg->plen = plen;
-			flags |= NPTV6_HAS_PREFIXLEN;
 			ac--; av++;
 			break;
 		}
+	}
+
+	/* RFC 6296 Sec. 3.1 */
+	if (pplen != 0) {
+		if ((eplen != 0 && eplen != pplen) ||
+		    (iplen != 0 && iplen != pplen))
+			errx(EX_USAGE, "prefix length mismatch");
+		cfg->plen = pplen;
+		flags |= NPTV6_HAS_PREFIXLEN;
+	} else if (eplen != 0 || iplen != 0) {
+		if (eplen != 0 && iplen != 0 && eplen != iplen)
+			errx(EX_USAGE, "prefix length mismatch");
+		warnx("use prefixlen instead");
+		cfg->plen = eplen ? eplen : iplen;
+		flags |= NPTV6_HAS_PREFIXLEN;
 	}
 
 	/* Check validness */
