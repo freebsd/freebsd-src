@@ -44,7 +44,7 @@ SYSCTL_INT(_security_mac_do, OID_AUTO, print_parse_error, CTLFLAG_RWTUN,
     &print_parse_error, 0, "Print parse errors on setting rules "
     "(via sysctl(8)).");
 
-static MALLOC_DEFINE(M_DO, "do_rule", "Rules for mac_do");
+static MALLOC_DEFINE(M_MAC_DO, "mac_do", "mac_do(4) security module");
 
 #define MAC_RULE_STRING_LEN	1024
 
@@ -319,17 +319,17 @@ toast_rules(struct rules *const rules)
 	struct rule *rule, *rule_next;
 
 	STAILQ_FOREACH_SAFE(rule, head, r_entries, rule_next) {
-		free(rule->uids, M_DO);
-		free(rule->gids, M_DO);
-		free(rule, M_DO);
+		free(rule->uids, M_MAC_DO);
+		free(rule->gids, M_MAC_DO);
+		free(rule, M_MAC_DO);
 	}
-	free(rules, M_DO);
+	free(rules, M_MAC_DO);
 }
 
 static struct rules *
 alloc_rules(void)
 {
-	struct rules *const rules = malloc(sizeof(*rules), M_DO, M_WAITOK);
+	struct rules *const rules = malloc(sizeof(*rules), M_MAC_DO, M_WAITOK);
 
 	_Static_assert(MAC_RULE_STRING_LEN > 0, "MAC_RULE_STRING_LEN <= 0!");
 	rules->string[0] = 0;
@@ -433,7 +433,7 @@ static void
 make_parse_error(struct parse_error **const parse_error, const size_t pos,
     const char *const fmt, ...)
 {
-	struct parse_error *const err = malloc(sizeof(*err), M_DO, M_WAITOK);
+	struct parse_error *const err = malloc(sizeof(*err), M_MAC_DO, M_WAITOK);
 	va_list ap;
 
 	err->pos = pos;
@@ -448,7 +448,7 @@ make_parse_error(struct parse_error **const parse_error, const size_t pos,
 static void
 free_parse_error(struct parse_error *const parse_error)
 {
-	free(parse_error, M_DO);
+	free(parse_error, M_MAC_DO);
 }
 
 static int
@@ -733,7 +733,7 @@ parse_target_clause(char *to, struct rule *const rule,
 		    "Too many target clauses of type '%s'.", to_type);
 		return (EOVERFLOW);
 	}
-	ie = malloc(sizeof(*ie), M_DO, M_WAITOK);
+	ie = malloc(sizeof(*ie), M_MAC_DO, M_WAITOK);
 	ie->spec = is;
 	STAILQ_INSERT_TAIL(list, ie, ie_entries);
 	check_type_and_id_spec(type, &is);
@@ -784,7 +784,7 @@ pour_list_into_rule(const id_type_t type, struct id_list *const list,
 	STAILQ_FOREACH_SAFE(ie, list, ie_entries, ie_next) {
 		MPASS(idx < *nb);
 		array[idx] = ie->spec;
-		free(ie, M_DO);
+		free(ie, M_MAC_DO);
 		++idx;
 	}
 	MPASS(idx == *nb);
@@ -874,7 +874,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 	STAILQ_INIT(&gid_list);
 
 	/* Freed when the 'struct rules' container is freed. */
-	new = malloc(sizeof(*new), M_DO, M_WAITOK | M_ZERO);
+	new = malloc(sizeof(*new), M_MAC_DO, M_WAITOK | M_ZERO);
 
 	from_type = strsep_noblanks(&rule, "=");
 	MPASS(from_type != NULL); /* Because 'rule' was not NULL. */
@@ -933,7 +933,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 	} while (to_list != NULL);
 
 	if (new->uids_nb != 0) {
-		new->uids = malloc(sizeof(*new->uids) * new->uids_nb, M_DO,
+		new->uids = malloc(sizeof(*new->uids) * new->uids_nb, M_MAC_DO,
 		    M_WAITOK);
 		error = pour_list_into_rule(IT_UID, &uid_list, new->uids,
 		    &new->uids_nb, parse_error);
@@ -949,7 +949,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 	}
 
 	if (new->gids_nb != 0) {
-		new->gids = malloc(sizeof(*new->gids) * new->gids_nb, M_DO,
+		new->gids = malloc(sizeof(*new->gids) * new->gids_nb, M_MAC_DO,
 		    M_WAITOK);
 		error = pour_list_into_rule(IT_GID, &gid_list, new->gids,
 		    &new->gids_nb, parse_error);
@@ -969,13 +969,13 @@ parse_single_rule(char *rule, struct rules *const rules,
 	return (0);
 
 einval:
-	free(new->gids, M_DO);
-	free(new->uids, M_DO);
-	free(new, M_DO);
+	free(new->gids, M_MAC_DO);
+	free(new->uids, M_MAC_DO);
+	free(new, M_MAC_DO);
 	STAILQ_FOREACH_SAFE(ie, &gid_list, ie_entries, ie_next)
-	    free(ie, M_DO);
+	    free(ie, M_MAC_DO);
 	STAILQ_FOREACH_SAFE(ie, &uid_list, ie_entries, ie_next)
-	    free(ie, M_DO);
+	    free(ie, M_MAC_DO);
 	MPASS(*parse_error != NULL);
 	return (EINVAL);
 }
@@ -1028,7 +1028,7 @@ parse_rules(const char *const string, struct rules **const rulesp,
 	bcopy(string, rules->string, len + 1);
 	MPASS(rules->string[len] == '\0'); /* Catch some races. */
 
-	copy = malloc(len + 1, M_DO, M_WAITOK);
+	copy = malloc(len + 1, M_MAC_DO, M_WAITOK);
 	bcopy(string, copy, len + 1);
 	MPASS(copy[len] == '\0'); /* Catch some races. */
 
@@ -1046,7 +1046,7 @@ parse_rules(const char *const string, struct rules **const rulesp,
 
 	*rulesp = rules;
 out:
-	free(copy, M_DO);
+	free(copy, M_MAC_DO);
 	return (error);
 }
 
@@ -1226,7 +1226,7 @@ parse_and_set_rules(struct prison *const pr, const char *rules_string,
 static int
 mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 {
-	char *const buf = malloc(MAC_RULE_STRING_LEN, M_DO, M_WAITOK);
+	char *const buf = malloc(MAC_RULE_STRING_LEN, M_MAC_DO, M_WAITOK);
 	struct prison *const td_pr = req->td->td_ucred->cr_prison;
 	struct prison *pr;
 	struct rules *rules;
@@ -1250,7 +1250,7 @@ mac_do_sysctl_rules(SYSCTL_HANDLER_ARGS)
 		free_parse_error(parse_error);
 	}
 out:
-	free(buf, M_DO);
+	free(buf, M_MAC_DO);
 	return (error);
 }
 
@@ -1573,7 +1573,7 @@ set_data_header(void *const data, const size_t size, const int priv,
 static void *
 alloc_data(void *const data, const size_t size)
 {
-	struct mac_do_data_header *const hdr = realloc(data, size, M_DO,
+	struct mac_do_data_header *const hdr = realloc(data, size, M_MAC_DO,
 	    M_WAITOK);
 
 	MPASS(size >= sizeof(struct mac_do_data_header));
@@ -1602,7 +1602,7 @@ alloc_data(void *const data, const size_t size)
 static void
 dealloc_thread_osd(void *const value)
 {
-	free(value, M_DO);
+	free(value, M_MAC_DO);
 }
 
 /*
