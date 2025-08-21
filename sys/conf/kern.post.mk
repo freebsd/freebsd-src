@@ -467,7 +467,7 @@ config.o env.o hints.o vers.o vnode_if.o:
 
 NEWVERS_ENV+= MAKE="${MAKE}"
 .if ${MK_REPRODUCIBLE_BUILD} != "no"
-NEWVERS_ARGS+= -R
+NEWVERS_ARGS+= -R -d ${PREFIX_OBJDIR}
 .endif
 vers.c: .NOMETA_CMP $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP:Nvers.*}
 	${NEWVERS_ENV} sh $S/conf/newvers.sh ${NEWVERS_ARGS} ${KERN_IDENT}

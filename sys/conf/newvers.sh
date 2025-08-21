@@ -110,13 +110,17 @@ COPYRIGHT="$COPYRIGHT
 
 # We expand include_metadata later since we may set it to the
 # future value of modified.
+builddir=$(pwd)
 include_metadata=yes
 modified=no
-while getopts crRvV: opt; do
+while getopts cd:rRvV: opt; do
 	case "$opt" in
 	c)
 		echo "$COPYRIGHT"
 		exit 0
+		;;
+	d)
+		builddir=$OPTARG
 		;;
 	r)
 		include_metadata=no
@@ -187,7 +191,7 @@ fi
 touch version
 v=$(cat version)
 u=${USER:-root}
-d=$(pwd)
+d=$builddir
 h=${HOSTNAME:-$(hostname)}
 if [ -n "$SOURCE_DATE_EPOCH" ]; then
 	if ! t=$(date -ur $SOURCE_DATE_EPOCH 2>/dev/null); then
