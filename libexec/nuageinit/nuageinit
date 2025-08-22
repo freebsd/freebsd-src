@@ -46,7 +46,15 @@ local function open_config(name)
 	return openat("/etc/rc.conf.d", name)
 end
 
-local function get_ifaces()
+local function open_resolv_conf()
+	return openat("/etc", "resolv.conf")
+end
+
+local function open_resolvconf_conf()
+	return openat("/etc", "resolvconf.conf")
+end
+
+local function get_ifaces_by_mac()
 	local parser = ucl.parser()
 	-- grab ifaces
 	local ns = io.popen("netstat -i --libxo json")
@@ -75,6 +83,10 @@ local function sethostname(obj)
 	elseif obj.hostname then
 		nuage.sethostname(obj.hostname)
 	end
+end
+
+local function settimezone(obj)
+	nuage.settimezone(obj.timezone)
 end
 
 local function groups(obj)
@@ -171,6 +183,59 @@ local function ssh_authorized_keys(obj)
 	end
 end
 
+local function nameservers(interface, obj)
+	local resolvconf_conf_handler = open_resolvconf_conf()
+
+	if obj.search then
+		local with_space = false
+
+		resolvconf_conf_handler:write('search_domains="')
+
+		for _, d in ipairs(obj.search) do
+			if with_space then
+				resolvconf_conf_handler:write(" " .. d)
+			else
+				resolvconf_conf_handler:write(d)
+				with_space = true
+			end
+		end
+
+		resolvconf_conf_handler:write('"\n')
+	end
+
+	if obj.addresses then
+		local with_space = false
+
+		resolvconf_conf_handler:write('name_servers="')
+
+		for _, a in ipairs(obj.addresses) do
+			if with_space then
+				resolvconf_conf_handler:write(" " .. a)
+			else
+				resolvconf_conf_handler:write(a)
+				with_space = true
+			end
+		end
+
+		resolvconf_conf_handler:write('"\n')
+	end
+
+	resolvconf_conf_handler:close()
+
+	local resolv_conf = root .. "/etc/resolv.conf"
+
+	resolv_conf_attr = lfs.attributes(resolv_conf)
+
+	if resolv_conf_attr == nil then
+		resolv_conf_handler = open_resolv_conf()
+		resolv_conf_handler:close()
+	end
+
+	if not os.execute("resolvconf -a " .. interface .. " < " .. resolv_conf) then
+		nuage.warn("Failed to execute resolvconf(8)")
+	end
+end
+
 local function install_packages(packages)
 	if not nuage.pkg_bootstrap() then
 		nuage.warn("Failed to bootstrap pkg, skip installing packages")
@@ -185,6 +250,85 @@ local function install_packages(packages)
 			nuage.warn("Invalid type: " .. type(p) .. " for packages entry number " .. n)
 		end
 	end
+end
+
+local function list_ifaces()
+	local proc = io.popen("ifconfig -l")
+	local raw_ifaces = proc:read("*a")
+	proc:close()
+	local ifaces = {}
+	for i in raw_ifaces:gmatch("[^%s]+") do
+		table.insert(ifaces, i)
+	end
+	return ifaces
+end
+
+local function get_ifaces_by_driver()
+	local proc = io.popen("ifconfig -D")
+	local drivers = {}
+	local last_interface = nil
+	for line in proc:lines() do
+	    local interface = line:match("^([%S]+): ")
+
+	    if interface then
+		last_interface = interface
+	    end
+
+	    local driver = line:match("^[%s]+drivername: ([%S]+)$")
+
+	    if driver then
+		drivers[driver] = last_interface
+	    end
+	end
+	proc:close()
+
+	return drivers
+end
+
+local function match_rules(rules)
+	-- To comply with the cloud-init specification, all rules must match and a table
+	-- with the matching interfaces must be returned. This changes the way we initially
+	-- thought about our implementation, since at first we only needed one interface,
+	-- but cloud-init performs actions on a group of matching interfaces.
+	local interfaces = {}
+	if rules.macaddress then
+		local ifaces = get_ifaces_by_mac()
+		local interface = ifaces[rules.macaddress]
+		if not interface then
+			nuage.warn("not interface matching by MAC address: " .. rules.macaddress)
+			return
+		end
+		interfaces[interface] = 1
+	end
+	if rules.name then
+		local match = false
+		for _, i in pairs(list_ifaces()) do
+			if i:match(rules.name) then
+				match = true
+				interfaces[i] = 1
+			end
+		end
+		if not match then
+			nuage.warn("not interface matching by name: " .. rules.name)
+			return
+		end
+	end
+	if rules.driver then
+		local match = false
+		local drivers = get_ifaces_by_driver()
+		for d in pairs(drivers) do
+			if d:match(rules.driver) then
+				match = true
+				interface = drivers[d]
+				interfaces[interface] = 1
+			end
+		end
+		if not match then
+			nuage.warn("not interface matching by driver: " .. rules.driver)
+			return
+		end
+	end
+	return interfaces
 end
 
 local function write_files(files, defer)
@@ -210,41 +354,76 @@ end
 local function network_config(obj)
 	if obj.network == nil then return end
 
-	local ifaces = get_ifaces()
 	local network = open_config("network")
 	local routing = open_config("routing")
 	local ipv6 = {}
-	for _, v in pairs(obj.network.ethernets) do
-		if not v.match then
-			goto next
+	local set_defaultrouter = true
+	local set_defaultrouter6 = true
+	local set_nameservers = true
+	for i, v in pairs(obj.network.ethernets) do
+		local interfaces = {}
+		if v.match then
+			interfaces = match_rules(v.match)
+
+			if next(interfaces) == nil then
+				goto next
+			end
+		else
+			interfaces[i] = 1
 		end
-		if not v.match.macaddress then
-			goto next
+		local extra_opts = ""
+		if v.wakeonlan then
+			extra_opts = extra_opts .. " wol"
 		end
-		if not ifaces[v.match.macaddress] then
-			nuage.warn("not interface matching: " .. v.match.macaddress)
-			goto next
-		end
-		local interface = ifaces[v.match.macaddress]
-		if v.dhcp4 then
-			network:write("ifconfig_" .. interface .. '="DHCP"\n')
-		elseif v.addresses then
-			for _, a in pairs(v.addresses) do
-				if a:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)") then
-					network:write("ifconfig_" .. interface .. '="inet ' .. a .. '"\n')
-				else
-					network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. a .. '"\n')
-					ipv6[#ipv6 + 1] = interface
-				end
+		if v.mtu then
+			if type(v.mtu) == "number" then
+				mtu = tostring(v.mtu)
+			else
+				mtu = v.mtu
+			end
+			if mtu:match("%d") then
+				extra_opts = extra_opts .. " mtu " .. mtu
+			else
+				nuage.warn("MTU is not set because the specified value is invalid: " .. mtu)
 			end
 		end
-		if v.gateway4 then
-			routing:write('defaultrouter="' .. v.gateway4 .. '"\n')
-		end
-		if v.gateway6 then
-			routing:write('ipv6_defaultrouter="' .. v.gateway6 .. '"\n')
-			routing:write("ipv6_route_" .. interface .. '="' .. v.gateway6)
-			routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+		for interface in pairs(interfaces) do
+			if v.match and v.match.macaddress and v["set-name"] then
+				local ifaces = get_ifaces_by_mac()
+				local matched = ifaces[v.match.macaddress]
+				if matched and matched == interface then
+					network:write("ifconfig_" .. interface .. '_name=' .. v["set-name"] .. '\n')
+					interface = v["set-name"]
+				end
+			end
+			if v.dhcp4 then
+				network:write("ifconfig_" .. interface .. '="DHCP"' .. extra_opts .. '\n')
+			elseif v.addresses then
+				for _, a in pairs(v.addresses) do
+					if a:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)") then
+						network:write("ifconfig_" .. interface .. '="inet ' .. a .. extra_opts .. '"\n')
+					else
+						network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. a .. extra_opts .. '"\n')
+						ipv6[#ipv6 + 1] = interface
+					end
+				end
+				if set_nameservers and v.nameservers then
+					set_nameservers = false
+					nameservers(interface, v.nameservers)
+				end
+				if set_defaultrouter and v.gateway4 then
+					set_defaultrouter = false
+					routing:write('defaultrouter="' .. v.gateway4 .. '"\n')
+				end
+				if v.gateway6 then
+					if set_defaultrouter6 then
+						set_defaultrouter6 = false
+						routing:write('ipv6_defaultrouter="' .. v.gateway6 .. '"\n')
+					end
+					routing:write("ipv6_route_" .. interface .. '="' .. v.gateway6)
+					routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+				end
+			end
 		end
 		::next::
 	end
@@ -316,7 +495,7 @@ local function config2_network(p)
 	end
 	local obj = parser:get_object()
 
-	local ifaces = get_ifaces()
+	local ifaces = get_ifaces_by_mac()
 	if not ifaces then
 		nuage.warn("no network interfaces found")
 		return
@@ -468,6 +647,7 @@ f:close()
 if line == "#cloud-config" then
 	local pre_network_calls = {
 		sethostname,
+		settimezone,
 		groups,
 		create_default_user,
 		ssh_keys,
