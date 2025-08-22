@@ -197,21 +197,26 @@ rules are specified, an arbitrary name can be used
 .It Ic match
 This selects a subset of available physical devices by various hardware properties.
 The following configuration will then apply to all matching devices, as soon as
-they appear. All specified properties must match. The following properties for
+they appear.
+All specified properties must match.
+The following properties for
 creating matches are supported:
 .Bl -tag -width "macaddress"
 .It Ic macaddress
 .No Device's MAC address in the form Sy xx:xx:xx:xx:xx:xx Ns .
 Letters should be lowercase.
 .It Ic name
-Current interface name. Lua pattern-matching expressions are supported.
+Current interface name.
+Lua pattern-matching expressions are supported.
 .It Ic driver
-Interface driver name and unit number of the interface. Lua pattern-natching expressions
+Interface driver name and unit number of the interface.
+Lua pattern-natching expressions
 are supported.
 .El
 .It Ic set-name
 When matching on unique properties such as MAC, match rules can be written so that they
-match only one device. Then this property can be used to give that device a more
+match only one device.
+Then this property can be used to give that device a more
 specific/desirable/nicer name than the default.
 .Pp
 While multiple properties can be used in a match,
@@ -221,7 +226,8 @@ is required for nuageinit to perform the rename.
 The MTU key represents a device's Maximum Transmission Unit, the largest size packet
 or frame.
 .It Ic wakeonlan
-Enable wake on LAN. Off by default.
+Enable wake on LAN.
+Off by default.
 .It Ic dhcp4
 Configure the interface to use DHCP.
 .Pp
@@ -231,14 +237,16 @@ when both are specified.
 .It Ic addresses
 List of strings representing IPv4 or IPv6 addresses.
 .It Ic gateway4
-Set default gateway for IPv4, for manual address configuration. This requires setting
+Set default gateway for IPv4, for manual address configuration.
+This requires setting
 .Sy addresses
 too.
 .Pp
 Since only one default router can be configured at a time, this parameter is applied
 when processing the first entry, and any others are silently ignored.
 .It Ic gateway6
-Set default gateway for IPv6, for manual address configuration. This requires setting
+Set default gateway for IPv6, for manual address configuration.
+This requires setting
 .Sy addresses
 too.
 .Pp
