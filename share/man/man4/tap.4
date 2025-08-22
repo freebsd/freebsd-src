@@ -203,6 +203,21 @@ The argument should be a pointer to a
 The interface name will be returned in the
 .Va ifr_name
 field.
+.It Dv TAPSTRANSIENT
+The argument should be a pointer to an
+.Va int ;
+this sets the transient flag on
+the
+.Nm
+device.
+A transient
+.Nm
+will be destroyed upon last close.
+.It Dv TAPGTRANSIENT
+The argument should be a pointer to an
+.Va int ;
+this stores the current state (enabled or disabled) of the transient flag into
+it.
 .It Dv FIONBIO
 Turn non-blocking I/O for reads off or on, according as the argument
 .Va int Ns 's

@@ -198,7 +198,7 @@ clean_jails()
 	fi
 
 	while read jail; do
-		if jls -e -j "$jail"; then
+		if jls -c -j "$jail"; then
 			jail -r "$jail"
 		fi
 	done < jails.lst
@@ -211,10 +211,23 @@ jid_name_set_body()
 	echo "basejail" >> jails.lst
 	echo "$jid { name = basejail; persist; }" > jail.conf
 	atf_check -o match:"$jid: created" jail -f jail.conf -c "$jid"
+	# Confirm that we didn't override the explicitly-set name with the jid
+	# as the name.
+	atf_check -o match:"basejail" jls -j "$jid" name
+	atf_check -o match:"$jid: removed" jail -f jail.conf -r "$jid"
+
+	echo "$jid { host.hostname = \"\${name}\"; persist; }" > jail.conf
+	atf_check -o match:"$jid: created" jail -f jail.conf -c "$jid"
+	# Confirm that ${name} expanded and expanded correctly to the
+	# jid-implied name.
+	atf_check -o match:"$jid" jls -j "$jid" host.hostname
 	atf_check -o match:"$jid: removed" jail -f jail.conf -r "$jid"
 
 	echo "basejail { jid = $jid; persist; }" > jail.conf
 	atf_check -o match:"basejail: created" jail -f jail.conf -c basejail
+	# Confirm that our jid assigment in the definition worked out and we
+	# did in-fact create the jail there.
+	atf_check -o match:"$jid" jls -j "basejail" jid
 	atf_check -o match:"basejail: removed" jail -f jail.conf -r basejail
 }
 

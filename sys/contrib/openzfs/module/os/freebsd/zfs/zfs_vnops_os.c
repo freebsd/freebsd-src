@@ -1695,6 +1695,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	objset_t	*os;
 	caddr_t		outbuf;
 	size_t		bufsize;
+	ssize_t		orig_resid;
 	zap_cursor_t	zc;
 	zap_attribute_t	*zap;
 	uint_t		bytes_wanted;
@@ -1735,7 +1736,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	/*
 	 * Quit if directory has been removed (posix)
 	 */
-	if ((*eofp = zp->z_unlinked) != 0) {
+	if ((*eofp = (zp->z_unlinked != 0)) != 0) {
 		zfs_exit(zfsvfs, FTAG);
 		return (0);
 	}
@@ -1743,6 +1744,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	error = 0;
 	os = zfsvfs->z_os;
 	offset = zfs_uio_offset(uio);
+	orig_resid = zfs_uio_resid(uio);
 	prefetch = zp->z_zn_prefetch;
 	zap = zap_attribute_long_alloc();
 
@@ -1922,7 +1924,7 @@ update:
 		kmem_free(outbuf, bufsize);
 
 	if (error == ENOENT)
-		error = 0;
+		error = orig_resid == zfs_uio_resid(uio) ? EINVAL : 0;
 
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 
@@ -2013,7 +2015,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		vap->va_rdev = zfs_cmpldev(rdev);
 	else
-		vap->va_rdev = 0;
+		vap->va_rdev = NODEV;
 	vap->va_gen = zp->z_gen;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
 	vap->va_filerev = zp->z_seq;

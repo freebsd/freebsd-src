@@ -481,12 +481,12 @@ AdDisassembleOneTable (
             "FieldName : FieldValue (in hex)\n */\n\n");
 
         AcpiDmDumpDataTable (Table);
-        fprintf (stderr, "Acpi Data Table [%4.4s] decoded\n",
+        fprintf (stdout, "Acpi Data Table [%4.4s] decoded\n",
             AcpiGbl_CDAT ? (char *) AcpiGbl_CDAT : Table->Signature);
 
         if (File)
         {
-            fprintf (stderr, "Formatted output:  %s - %u bytes\n",
+            fprintf (stdout, "Formatted output:  %s - %u bytes\n",
                 DisasmFilename, CmGetFileSize (File));
         }
 
@@ -584,16 +584,16 @@ AdDisassembleOneTable (
 
         AcpiDmDumpDataTable (Table);
 
-        fprintf (stderr, "Disassembly completed\n");
+        fprintf (stdout, "Disassembly completed\n");
         if (File)
         {
-            fprintf (stderr, "ASL Output:    %s - %u bytes\n",
+            fprintf (stdout, "ASL Output:    %s - %u bytes\n",
                 DisasmFilename, CmGetFileSize (File));
         }
 
         if (AslGbl_MapfileFlag)
         {
-            fprintf (stderr, "%14s %s - %u bytes\n",
+            fprintf (stdout, "%14s %s - %u bytes\n",
                 AslGbl_FileDescs[ASL_FILE_MAP_OUTPUT].ShortDescription,
                 AslGbl_Files[ASL_FILE_MAP_OUTPUT].Filename,
                 FlGetFileSize (ASL_FILE_MAP_OUTPUT));
@@ -630,7 +630,7 @@ AdReparseOneTable (
     ACPI_COMMENT_ADDR_NODE  *AddrListHead;
 
 
-    fprintf (stderr,
+    fprintf (stdout,
         "\nFound %u external control methods, "
         "reparsing with new information\n",
         AcpiDmGetUnresolvedExternalMethodCount ());

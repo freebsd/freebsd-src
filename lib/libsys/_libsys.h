@@ -121,8 +121,6 @@ typedef int (__sys_munmap_t)(void *, size_t);
 typedef int (__sys_mprotect_t)(void *, size_t, int);
 typedef int (__sys_madvise_t)(void *, size_t, int);
 typedef int (__sys_mincore_t)(const void *, size_t, char *);
-typedef int (__sys_getgroups_t)(int, gid_t *);
-typedef int (__sys_setgroups_t)(int, const gid_t *);
 typedef int (__sys_getpgrp_t)(void);
 typedef int (__sys_setpgid_t)(int, int);
 typedef int (__sys_setitimer_t)(int, const struct itimerval *, struct itimerval *);
@@ -468,6 +466,8 @@ typedef int (__sys_setcred_t)(u_int, const struct setcred *, size_t);
 typedef int (__sys_exterrctl_t)(u_int, u_int, void *);
 typedef int (__sys_inotify_add_watch_at_t)(int, int, const char *, uint32_t);
 typedef int (__sys_inotify_rm_watch_t)(int, int);
+typedef int (__sys_getgroups_t)(int, gid_t *);
+typedef int (__sys_setgroups_t)(int, const gid_t *);
 
 _Noreturn void __sys__exit(int rval);
 int __sys_fork(void);
@@ -525,8 +525,6 @@ int __sys_munmap(void * addr, size_t len);
 int __sys_mprotect(void * addr, size_t len, int prot);
 int __sys_madvise(void * addr, size_t len, int behav);
 int __sys_mincore(const void * addr, size_t len, char * vec);
-int __sys_getgroups(int gidsetsize, gid_t * gidset);
-int __sys_setgroups(int gidsetsize, const gid_t * gidset);
 int __sys_getpgrp(void);
 int __sys_setpgid(int pid, int pgid);
 int __sys_setitimer(int which, const struct itimerval * itv, struct itimerval * oitv);
@@ -872,6 +870,8 @@ int __sys_setcred(u_int flags, const struct setcred * wcred, size_t size);
 int __sys_exterrctl(u_int op, u_int flags, void * ptr);
 int __sys_inotify_add_watch_at(int fd, int dfd, const char * path, uint32_t mask);
 int __sys_inotify_rm_watch(int fd, int wd);
+int __sys_getgroups(int gidsetsize, gid_t * gidset);
+int __sys_setgroups(int gidsetsize, const gid_t * gidset);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */

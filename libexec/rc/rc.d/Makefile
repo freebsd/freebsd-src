@@ -215,7 +215,7 @@ FTPD=		ftpd
 FTPDPACKAGE=	ftpd
 .endif
 
-.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_KERBEROS_SUPPORT} != "no"
 CONFGROUPS+=	GSSD
 GSSD=		gssd
 GSSDPACKAGE=	gssd
@@ -318,6 +318,7 @@ YP=		ypbind \
 		yppasswdd \
 		ypserv \
 		ypset \
+		ypupdated \
 		ypxfrd \
 		nisdomain
 YPPACKAGE=	yp

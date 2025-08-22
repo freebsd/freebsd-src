@@ -1,0 +1,4 @@
+Clean before building world and/or kernel.
+Note that recording a new epoch in
+.Pa .clean_build_epoch
+in the root of the source tree will also force a clean world build.

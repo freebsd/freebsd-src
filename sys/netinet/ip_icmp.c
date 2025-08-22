@@ -391,7 +391,6 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) -
 	nip->ip_hl = 5;
 	nip->ip_p = IPPROTO_ICMP;
 	nip->ip_tos = 0;
-	nip->ip_off = 0;
 
 	if (V_error_keeptags)
 		m_tag_copy_chain(m, n, M_NOWAIT);
@@ -872,6 +871,8 @@ match:
 	mac_netinet_icmp_replyinplace(m);
 #endif
 	ip->ip_src = t;
+	/* ip->ip_tos will be reflected. */
+	ip->ip_off = htons(0);
 	ip->ip_ttl = V_ip_defttl;
 
 	if (optlen > 0) {

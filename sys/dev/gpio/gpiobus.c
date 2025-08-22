@@ -57,7 +57,6 @@ static int gpiobus_suspend(device_t);
 static int gpiobus_resume(device_t);
 static void gpiobus_probe_nomatch(device_t, device_t);
 static int gpiobus_print_child(device_t, device_t);
-static int gpiobus_child_location(device_t, device_t, struct sbuf *);
 static device_t gpiobus_add_child(device_t, u_int, const char *, int);
 static void gpiobus_hinted_child(device_t, const char *, int);
 
@@ -662,7 +661,7 @@ gpiobus_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-static int
+int
 gpiobus_child_location(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct gpiobus_ivar *devi;
@@ -674,16 +673,19 @@ gpiobus_child_location(device_t bus, device_t child, struct sbuf *sb)
 	return (0);
 }
 
-static device_t
-gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
+device_t
+gpiobus_add_child_common(device_t dev, u_int order, const char *name, int unit,
+    size_t ivars_size)
 {
 	device_t child;
 	struct gpiobus_ivar *devi;
 
+	KASSERT(ivars_size >= sizeof(struct gpiobus_ivar),
+	    ("child ivars must include gpiobus_ivar as their first member"));
 	child = device_add_child_ordered(dev, order, name, unit);
 	if (child == NULL) 
 		return (child);
-	devi = malloc(sizeof(struct gpiobus_ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
+	devi = malloc(ivars_size, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (devi == NULL) {
 		device_delete_child(dev, child);
 		return (NULL);
@@ -692,6 +694,13 @@ gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	device_set_ivars(child, devi);
 
 	return (child);
+}
+
+static device_t
+gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
+{
+	return (gpiobus_add_child_common(dev, order, name, unit,
+	    sizeof(struct gpiobus_ivar)));
 }
 
 static void

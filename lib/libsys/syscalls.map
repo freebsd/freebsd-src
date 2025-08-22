@@ -117,10 +117,6 @@ FBSDprivate_1.0 {
 	__sys_madvise;
 	_mincore;
 	__sys_mincore;
-	_getgroups;
-	__sys_getgroups;
-	_setgroups;
-	__sys_setgroups;
 	_getpgrp;
 	__sys_getpgrp;
 	_setpgid;
@@ -813,4 +809,8 @@ FBSDprivate_1.0 {
 	__sys_inotify_add_watch_at;
 	_inotify_rm_watch;
 	__sys_inotify_rm_watch;
+	_getgroups;
+	__sys_getgroups;
+	_setgroups;
+	__sys_setgroups;
 };

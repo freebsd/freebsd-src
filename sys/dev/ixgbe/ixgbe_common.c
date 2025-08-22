@@ -178,6 +178,7 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_X550EM_A_SFP_N:
 		case IXGBE_DEV_ID_X550EM_A_QSFP:
 		case IXGBE_DEV_ID_X550EM_A_QSFP_N:
+		case IXGBE_DEV_ID_E610_SFP:
 			supported = false;
 			break;
 		default:
@@ -210,6 +211,8 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_X550EM_A_10G_T:
 		case IXGBE_DEV_ID_X550EM_A_1G_T:
 		case IXGBE_DEV_ID_X550EM_A_1G_T_L:
+		case IXGBE_DEV_ID_E610_10G_T:
+		case IXGBE_DEV_ID_E610_2_5G_T:
 			supported = true;
 			break;
 		default:
@@ -616,7 +619,8 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 		}
 	}
 
-	if (hw->mac.type == ixgbe_mac_X550 || hw->mac.type == ixgbe_mac_X540) {
+	if (hw->mac.type == ixgbe_mac_X540 ||
+	    hw->mac.type == ixgbe_mac_X550) {
 		if (hw->phy.id == 0)
 			ixgbe_identify_phy(hw);
 		hw->phy.ops.read_reg(hw, IXGBE_PCRC8ECL,
@@ -1037,6 +1041,9 @@ void ixgbe_set_pci_config_data_generic(struct ixgbe_hw *hw, u16 link_status)
 	case IXGBE_PCI_LINK_SPEED_8000:
 		hw->bus.speed = ixgbe_bus_speed_8000;
 		break;
+	case IXGBE_PCI_LINK_SPEED_16000:
+		hw->bus.speed = ixgbe_bus_speed_16000;
+		break;
 	default:
 		hw->bus.speed = ixgbe_bus_speed_unknown;
 		break;
@@ -1059,7 +1066,9 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 	DEBUGFUNC("ixgbe_get_bus_info_generic");
 
 	/* Get the negotiated link width and speed from PCI config space */
-	link_status = IXGBE_READ_PCIE_WORD(hw, IXGBE_PCI_LINK_STATUS);
+	link_status = IXGBE_READ_PCIE_WORD(hw, hw->mac.type == ixgbe_mac_E610 ?
+					   IXGBE_PCI_LINK_STATUS_E610 :
+					   IXGBE_PCI_LINK_STATUS);
 
 	ixgbe_set_pci_config_data_generic(hw, link_status);
 
@@ -1877,7 +1886,6 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 	u32 swsm;
 
 	DEBUGFUNC("ixgbe_get_eeprom_semaphore");
-
 
 	/* Get SMBI software semaphore between device drivers first */
 	for (i = 0; i < timeout; i++) {
@@ -3363,7 +3371,6 @@ s32 ixgbe_disable_sec_rx_path_generic(struct ixgbe_hw *hw)
 
 	DEBUGFUNC("ixgbe_disable_sec_rx_path_generic");
 
-
 	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
 	secrxreg |= IXGBE_SECRXCTRL_RX_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, secrxreg);
@@ -3690,6 +3697,10 @@ u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw)
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
 		pcie_offset = IXGBE_PCIE_MSIX_82599_CAPS;
+		max_msix_count = IXGBE_MAX_MSIX_VECTORS_82599;
+		break;
+	case ixgbe_mac_E610:
+		pcie_offset = IXGBE_PCIE_MSIX_E610_CAPS;
 		max_msix_count = IXGBE_MAX_MSIX_VECTORS_82599;
 		break;
 	default:
@@ -4139,7 +4150,6 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
 	return IXGBE_SUCCESS;
 }
 
-
 /**
  * ixgbe_toggle_txdctl_generic - Toggle VF's queues
  * @hw: pointer to hardware structure
@@ -4323,7 +4333,8 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		break;
 	case IXGBE_LINKS_SPEED_100_82599:
 		*speed = IXGBE_LINK_SPEED_100_FULL;
-		if (hw->mac.type == ixgbe_mac_X550) {
+		if (hw->mac.type == ixgbe_mac_X550 ||
+		    hw->mac.type == ixgbe_mac_E610) {
 			if (links_reg & IXGBE_LINKS_SPEED_NON_STD)
 				*speed = IXGBE_LINK_SPEED_5GB_FULL;
 		}
@@ -5494,6 +5505,7 @@ void ixgbe_get_nvm_version(struct ixgbe_hw *hw,
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
+	case ixgbe_mac_E610:
 		/* version of eeprom section */
 		if (ixgbe_read_eeprom(hw, NVM_EEP_OFFSET_X540, &word))
 			word = NVM_VER_INVALID;
@@ -5512,6 +5524,7 @@ void ixgbe_get_nvm_version(struct ixgbe_hw *hw,
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_X550EM_a:
+	case ixgbe_mac_E610:
 		/* intel phy firmware version */
 		if (ixgbe_read_eeprom(hw, NVM_EEP_PHY_OFF_X540, &word))
 			word = NVM_VER_INVALID;

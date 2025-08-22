@@ -27,8 +27,9 @@
 /* Driver for ptnet paravirtualized network device. */
 
 #include <sys/cdefs.h>
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -74,9 +75,6 @@
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-
-#include "opt_inet.h"
-#include "opt_inet6.h"
 
 #include <sys/selinfo.h>
 #include <net/netmap.h>

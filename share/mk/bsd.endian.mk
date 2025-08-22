@@ -20,10 +20,17 @@ LOCALEDEF_ENDIAN= -b
 #
 # During bootstrapping on !FreeBSD OSes, we need to define some value.  Short of
 # having an exhaustive list for all variants of Linux and MacOS we simply do not
-# set TARGET_ENDIANNESS and poison the other variables. They should be unused
-# during the bootstrap phases (apart from one place that's adequately protected
-# in bsd.compiler.mk) where we're building the bootstrap tools.
+# set TARGET_ENDIANNESS (on Linux) and poison the other variables. They should
+# be unused during the bootstrap phases (apart from one place that's adequately
+# protected in bsd.compiler.mk) where we're building the bootstrap tools.
 #
+.if ${.MAKE.OS} == "Darwin"
+# We do assume the endianness on macOS because Apple's modern hardware is all
+# little-endian.  This might need revisited in the far future, but for the time
+# being Apple Silicon's reign of terror continues.  We only set this one up
+# because libcrypto is now built in bootstrap.
+TARGET_ENDIANNESS= 1234
+.endif
 CAP_MKDB_ENDIAN= -B	# Poisoned value, invalid flags for both cap_mkdb
 LOCALEDEF_ENDIAN= -B	# and localedef.
 .endif

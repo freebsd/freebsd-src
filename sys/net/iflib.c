@@ -142,6 +142,7 @@ struct iflib_ctx;
 static void iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid);
 static void iflib_timer(void *arg);
 static void iflib_tqg_detach(if_ctx_t ctx);
+static int  iflib_simple_transmit(if_t ifp, struct mbuf *m);
 
 typedef struct iflib_filter_info {
 	driver_filter_t *ifi_filter;
@@ -198,6 +199,7 @@ struct iflib_ctx {
 	uint8_t  ifc_sysctl_use_logical_cores;
 	uint16_t ifc_sysctl_extra_msix_vectors;
 	bool     ifc_cpus_are_physical_cores;
+	bool     ifc_sysctl_simple_tx;
 
 	qidx_t ifc_sysctl_ntxds[8];
 	qidx_t ifc_sysctl_nrxds[8];
@@ -725,6 +727,7 @@ static void iflib_free_intr_mem(if_ctx_t ctx);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf *iflib_fixup_rx(struct mbuf *m);
 #endif
+static __inline int iflib_completed_tx_reclaim(iflib_txq_t txq, int thresh);
 
 static SLIST_HEAD(cpu_offset_list, cpu_offset) cpu_offsets =
     SLIST_HEAD_INITIALIZER(cpu_offsets);
@@ -2624,8 +2627,10 @@ iflib_stop(if_ctx_t ctx)
 #endif /* DEV_NETMAP */
 		CALLOUT_UNLOCK(txq);
 
-		/* clean any enqueued buffers */
-		iflib_ifmp_purge(txq);
+		if (!ctx->ifc_sysctl_simple_tx) {
+			/* clean any enqueued buffers */
+			iflib_ifmp_purge(txq);
+		}
 		/* Free any existing tx buffers. */
 		for (j = 0; j < txq->ift_size; j++) {
 			iflib_txsd_free(ctx, txq, j);
@@ -2910,7 +2915,9 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	struct if_rxd_info ri;
 	int err, budget_left, rx_bytes, rx_pkts;
 	iflib_fl_t fl;
+#if defined(INET6) || defined(INET)
 	int lro_enabled;
+#endif
 	uint8_t retval = 0;
 
 	/*
@@ -2936,7 +2943,9 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		return (retval);
 	}
 
+#if defined(INET6) || defined(INET)
 	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
+#endif
 
 	/* pfil needs the vnet to be set */
 	CURVNET_SET_QUIET(if_getvnet(ifp));
@@ -3631,13 +3640,16 @@ defrag:
 	 *        cxgb
 	 */
 	if (__predict_false(nsegs + 2 > TXQ_AVAIL(txq))) {
-		txq->ift_no_desc_avail++;
-		bus_dmamap_unload(buf_tag, map);
-		DBG_COUNTER_INC(encap_txq_avail_fail);
-		DBG_COUNTER_INC(encap_txd_encap_fail);
-		if ((txq->ift_task.gt_task.ta_flags & TASK_ENQUEUED) == 0)
-			GROUPTASK_ENQUEUE(&txq->ift_task);
-		return (ENOBUFS);
+		(void)iflib_completed_tx_reclaim(txq, RECLAIM_THRESH(ctx));
+		if (__predict_false(nsegs + 2 > TXQ_AVAIL(txq))) {
+			txq->ift_no_desc_avail++;
+			bus_dmamap_unload(buf_tag, map);
+			DBG_COUNTER_INC(encap_txq_avail_fail);
+			DBG_COUNTER_INC(encap_txd_encap_fail);
+			if ((txq->ift_task.gt_task.ta_flags & TASK_ENQUEUED) == 0)
+				GROUPTASK_ENQUEUE(&txq->ift_task);
+			return (ENOBUFS);
+		}
 	}
 	/*
 	 * On Intel cards we can greatly reduce the number of TX interrupts
@@ -4010,6 +4022,12 @@ _task_fn_tx(void *context)
 	    netmap_tx_irq(ifp, txq->ift_id))
 		goto skip_ifmp;
 #endif
+        if (ctx->ifc_sysctl_simple_tx) {
+                mtx_lock(&txq->ift_mtx);
+                (void)iflib_completed_tx_reclaim(txq, RECLAIM_THRESH(ctx));
+                mtx_unlock(&txq->ift_mtx);
+                goto skip_ifmp;
+        }
 #ifdef ALTQ
 	if (if_altq_is_enabled(ifp))
 		iflib_altq_if_start(ifp);
@@ -4023,9 +4041,8 @@ _task_fn_tx(void *context)
 	 */
 	if (abdicate)
 		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
-#ifdef DEV_NETMAP
+
 skip_ifmp:
-#endif
 	if (ctx->ifc_flags & IFC_LEGACY)
 		IFDI_INTR_ENABLE(ctx);
 	else
@@ -5127,7 +5144,14 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 
 	scctx = &ctx->ifc_softc_ctx;
 	ifp = ctx->ifc_ifp;
-
+	if (ctx->ifc_sysctl_simple_tx) {
+#ifndef ALTQ
+		if_settransmitfn(ifp, iflib_simple_transmit);
+		device_printf(dev, "using simple if_transmit\n");
+#else
+		device_printf(dev, "ALTQ prevents using simple if_transmit\n");
+#endif
+	}
 	iflib_reset_qvalues(ctx);
 	IFNET_WLOCK();
 	CTX_LOCK(ctx);
@@ -6762,6 +6786,9 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	SYSCTL_ADD_CONST_STRING(ctx_list, oid_list, OID_AUTO, "driver_version",
 	    CTLFLAG_RD, ctx->ifc_sctx->isc_driver_version, "driver version");
 
+	SYSCTL_ADD_BOOL(ctx_list, oid_list, OID_AUTO, "simple_tx",
+	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_simple_tx, 0,
+	    "use simple tx ring");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_ntxqs",
 	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_ntxqs, 0,
 	    "# of txqs to use, 0 => use default #");
@@ -7084,3 +7111,48 @@ iflib_debugnet_poll(if_t ifp, int count)
 	return (0);
 }
 #endif /* DEBUGNET */
+
+
+static inline iflib_txq_t
+iflib_simple_select_queue(if_ctx_t ctx, struct mbuf *m)
+{
+	int qidx;
+
+	if ((NTXQSETS(ctx) > 1) && M_HASHTYPE_GET(m))
+		qidx = QIDX(ctx, m);
+	else
+		qidx = NTXQSETS(ctx) + FIRST_QSET(ctx) - 1;
+	return (&ctx->ifc_txqs[qidx]);
+}
+
+static int
+iflib_simple_transmit(if_t ifp, struct mbuf *m)
+{
+	if_ctx_t ctx;
+	iflib_txq_t txq;
+	int error;
+	int bytes_sent = 0, pkt_sent = 0, mcast_sent = 0;
+
+
+	ctx = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return (EBUSY);
+	txq = iflib_simple_select_queue(ctx, m);
+	mtx_lock(&txq->ift_mtx);
+	error = iflib_encap(txq, &m);
+	if (error == 0) {
+		pkt_sent++;
+		bytes_sent += m->m_pkthdr.len;
+		mcast_sent += !!(m->m_flags & M_MCAST);
+		(void)iflib_txd_db_check(txq, true);
+	}
+	(void)iflib_completed_tx_reclaim(txq, RECLAIM_THRESH(ctx));
+	mtx_unlock(&txq->ift_mtx);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, bytes_sent);
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, pkt_sent);
+	if (mcast_sent)
+		if_inc_counter(ifp, IFCOUNTER_OMCASTS, mcast_sent);
+
+	return (error);
+}

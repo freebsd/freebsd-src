@@ -42,7 +42,7 @@ CFLAGS+=	${CFCOMMONFLAG}
 CFLAGS+=	-fmacro-prefix-map=${SRCTOP}=/usr/src -fdebug-prefix-map=${SRCTOP}=/usr/src
 .endif
 
-DEFAULTWARNS=	6
+DEFAULTWARNS?=	6
 
 # tempting, but bsd.compiler.mk causes problems this early
 # probably need to remove dependence on bsd.own.mk 

@@ -60,41 +60,77 @@ ZWUPHYWKKTVEFBJOLLPDAIKGRDFVXZID $collhash
 EOF
 }
 
+sortfile() {
+	for filename; do
+		sort "${filename}" >"${filename}"-
+		mv "${filename}"- "${filename}"
+	done
+}
+
 certctl_setup()
 {
 	export DESTDIR="$PWD"
 
 	# Create input directories
-	mkdir -p usr/share/certs/trusted
-	mkdir -p usr/share/certs/untrusted
-	mkdir -p usr/local/share/certs
+	mkdir -p ${DESTDIR}${DISTBASE}/usr/share/certs/trusted
+	mkdir -p ${DESTDIR}${DISTBASE}/usr/share/certs/untrusted
+	mkdir -p ${DESTDIR}/usr/local/share/certs
 
 	# Create output directories
-	mkdir -p etc/ssl/certs
-	mkdir -p etc/ssl/untrusted
+	mkdir -p ${DESTDIR}${DISTBASE}/etc/ssl/certs
+	mkdir -p ${DESTDIR}${DISTBASE}/etc/ssl/untrusted
 
 	# Generate a random key
 	keyname="testkey"
 	gen_key ${keyname}
 
 	# Generate certificates
+	:>metalog.expect
+	:>trusted.expect
+	:>untrusted.expect
+	metalog() {
+		echo ".${DISTBASE}$@ type=file" >>metalog.expect
+	}
+	trusted() {
+		local crtname=$1
+		local filename=$2
+		printf "%s\t%s\n" "${filename}" "${crtname}" >>trusted.expect
+		metalog "/etc/ssl/certs/${filename}"
+	}
+	untrusted() {
+		local crtname=$1
+		local filename=$2
+		printf "%s\t%s\n" "${filename}" "${crtname}" >>untrusted.expect
+		metalog "/etc/ssl/untrusted/${filename}"
+	}
 	set1 | while read crtname hash ; do
 		gen_crt ${crtname} ${keyname}
-		mv ${crtname}.crt usr/share/certs/trusted
+		mv ${crtname}.crt ${DESTDIR}${DISTBASE}/usr/share/certs/trusted
+		trusted "${crtname}" "${hash}.0"
 	done
+	local c=0
 	coll | while read crtname hash ; do
 		gen_crt ${crtname} ${keyname}
-		mv ${crtname}.crt usr/share/certs/trusted
+		mv ${crtname}.crt ${DESTDIR}${DISTBASE}/usr/share/certs/trusted
+		trusted "${crtname}" "${hash}.${c}"
+		c=$((c+1))
 	done
 	set2 | while read crtname hash ; do
 		gen_crt ${crtname} ${keyname}
 		openssl x509 -in ${crtname}.crt
 		rm ${crtname}.crt
+		trusted "${crtname}" "${hash}.0"
 	done >usr/local/share/certs/bundle.crt
 	set3 | while read crtname hash ; do
 		gen_crt ${crtname} ${keyname}
-		mv ${crtname}.crt usr/share/certs/untrusted
+		mv ${crtname}.crt ${DESTDIR}${DISTBASE}/usr/share/certs/untrusted
+		untrusted "${crtname}" "${hash}.0"
 	done
+	metalog "/etc/ssl/cert.pem"
+	unset -f untrusted
+	unset -f trusted
+	unset -f metalog
+	sortfile *.expect
 }
 
 check_trusted() {
@@ -102,12 +138,12 @@ check_trusted() {
 	local subject="$(subject ${crtname})"
 	local c=${2:-1}
 
-	atf_check -o match:"found: ${c}\$" \
+	atf_check -e ignore -o match:"found: ${c}\$" \
 	    openssl storeutl -noout -subject "${subject}" \
-	    etc/ssl/certs
-	atf_check -o match:"found: 0\$" \
+	    ${DESTDIR}${DISTBASE}/etc/ssl/certs
+	atf_check -e ignore -o not-match:"found: [1-9]"  \
 	    openssl storeutl -noout -subject "${subject}" \
-	    etc/ssl/untrusted
+	    ${DESTDIR}${DISTBASE}/etc/ssl/untrusted
 }
 
 check_untrusted() {
@@ -115,23 +151,25 @@ check_untrusted() {
 	local subject="$(subject ${crtname})"
 	local c=${2:-1}
 
-	atf_check -o match:"found: 0\$" \
+	atf_check -e ignore -o not-match:"found: [1-9]" \
 	    openssl storeutl -noout -subject "${subject}" \
-	    etc/ssl/certs
-	atf_check -o match:"found: ${c}\$" \
+	    ${DESTDIR}/${DISTBASE}/etc/ssl/certs
+	atf_check -e ignore -o match:"found: ${c}\$" \
 	    openssl storeutl -noout -subject "${subject}" \
-	    etc/ssl/untrusted
+	    ${DESTDIR}/${DISTBASE}/etc/ssl/untrusted
 }
 
 check_in_bundle() {
+	local b=${DISTBASE}${DISTBASE+/}
 	local crtfile=$1
 	local line
 
 	line=$(tail +5 "${crtfile}" | head -1)
-	atf_check grep -q "${line}" etc/ssl/cert.pem
+	atf_check grep -q "${line}" ${DESTDIR}${DISTBASE}/etc/ssl/cert.pem
 }
 
 check_not_in_bundle() {
+	local b=${DISTBASE}${DISTBASE+/}
 	local crtfile=$1
 	local line
 
@@ -150,7 +188,7 @@ rehash_body()
 	atf_check certctl rehash
 
 	# Verify non-colliding trusted certificates
-	(set1 ; set2) > trusted
+	(set1; set2) >trusted
 	while read crtname hash ; do
 		check_trusted "${crtname}"
 	done <trusted
@@ -167,13 +205,38 @@ rehash_body()
 		check_untrusted "${crtname}"
 	done <untrusted
 
-	# Verify bundle; storeutl is no help here
+	# Verify bundle
 	for f in etc/ssl/certs/*.? ; do
 		check_in_bundle "${f}"
 	done
 	for f in etc/ssl/untrusted/*.? ; do
 		check_not_in_bundle "${f}"
 	done
+}
+
+atf_test_case list
+list_head()
+{
+	atf_set "descr" "Test the list and untrusted commands"
+}
+list_body()
+{
+	certctl_setup
+	atf_check certctl rehash
+
+	atf_check -o save:trusted.out certctl list
+	sortfile trusted.out
+	# the ordering of the colliding certificates is partly
+	# determined by fields that change every time we regenerate
+	# them, so ignore them in the diff
+	atf_check diff -u \
+	    --ignore-matching-lines $collhash \
+	    trusted.expect trusted.out
+
+	atf_check -o save:untrusted.out certctl untrusted
+	sortfile untrusted.out
+	atf_check diff -u \
+	    untrusted.expect untrusted.out
 }
 
 atf_test_case trust
@@ -185,7 +248,7 @@ trust_body()
 {
 	certctl_setup
 	atf_check certctl rehash
-	crtname=NJWIRLPWAIICVJBKXXHFHLCPAERZATRL
+	crtname=$(set3 | (read crtname hash ; echo ${crtname}))
 	crtfile=usr/share/certs/untrusted/${crtname}.crt
 	check_untrusted ${crtname}
 	check_not_in_bundle ${crtfile}
@@ -204,7 +267,7 @@ untrust_body()
 {
 	certctl_setup
 	atf_check certctl rehash
-	crtname=AVOYKJHSLFHWPVQMKBHENUAHJTEGMCCB
+	crtname=$(set1 | (read crtname hash ; echo ${crtname}))
 	crtfile=usr/share/certs/trusted/${crtname}.crt
 	check_trusted "${crtname}"
 	check_in_bundle ${crtfile}
@@ -213,9 +276,57 @@ untrust_body()
 	check_not_in_bundle ${crtfile}
 }
 
+atf_test_case metalog
+metalog_head()
+{
+	atf_set "descr" "Verify the metalog"
+}
+metalog_body()
+{
+	export DISTBASE=/base
+	certctl_setup
+
+	# certctl gets DESTDIR and DISTBASE from environment
+	rm -f metalog.orig
+	atf_check certctl -U -M metalog.orig rehash
+	sed -E 's/(type=file) .*/\1/' metalog.orig | sort >metalog.short
+	atf_check diff -u metalog.expect metalog.short
+
+	# certctl gets DESTDIR and DISTBASE from command line
+	rm -f metalog.orig
+	atf_check env -uDESTDIR -uDISTBASE \
+	    certctl -D ${DESTDIR} -d ${DISTBASE} -U -M metalog.orig rehash
+	sed -E 's/(type=file) .*/\1/' metalog.orig | sort >metalog.short
+	atf_check diff -u metalog.expect metalog.short
+
+	# as above, but intentionally add trailing slashes
+	rm -f metalog.orig
+	atf_check env -uDESTDIR -uDISTBASE \
+	    certctl -D ${DESTDIR}// -d ${DISTBASE}/ -U -M metalog.orig rehash
+	sed -E 's/(type=file) .*/\1/' metalog.orig | sort >metalog.short
+	atf_check diff -u metalog.expect metalog.short
+}
+
+atf_test_case misc
+misc_head()
+{
+	atf_set "descr" "Test miscellaneous edge cases"
+}
+misc_body()
+{
+	# certctl rejects DISTBASE that does not begin with a slash
+	atf_check -s exit:1 -e match:"begin with a slash" \
+	    certctl -d base -n rehash
+	atf_check -s exit:1 -e match:"begin with a slash" \
+	    env DISTBASE=base certctl -n rehash
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case rehash
+	atf_add_test_case list
 	atf_add_test_case trust
 	atf_add_test_case untrust
+	atf_add_test_case metalog
+	atf_add_test_case misc
 }

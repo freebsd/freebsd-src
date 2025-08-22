@@ -594,6 +594,7 @@ MAN=	aac.4 \
 	tty.4 \
 	tun.4 \
 	tws.4 \
+	u2f.4 \
 	udp.4 \
 	udplite.4 \
 	${_ufshci.4} \
@@ -846,7 +847,7 @@ _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
 _ftgpio.4=	ftgpio.4
 _ftwd.4=	ftwd.4
-_hn.4=		_hn.4
+_hn.4=		hn.4
 _hpt27xx.4=	hpt27xx.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4

@@ -73,6 +73,8 @@ SRCS+=	rio_notifier.c poll_builder.c
 
 .if ${MK_OPENSSL_KTLS} == "no"
 CFLAGS+=-DOPENSSL_NO_KTLS
+.else
+SRCS+=	ktls_meth.c
 .endif
 
 LIBADD=	crypto

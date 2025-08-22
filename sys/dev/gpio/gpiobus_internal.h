@@ -42,6 +42,8 @@ void gpiobus_free_ivars(struct gpiobus_ivar *);
 int gpiobus_read_ivar(device_t, device_t, int, uintptr_t *);
 int gpiobus_acquire_pin(device_t, uint32_t);
 void gpiobus_release_pin(device_t, uint32_t);
+int gpiobus_child_location(device_t, device_t, struct sbuf *);
+device_t gpiobus_add_child_common(device_t, u_int, const char *, int, size_t);
 
 extern driver_t gpiobus_driver;
 #endif

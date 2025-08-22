@@ -53,8 +53,8 @@
 static void	pfsync_print(netdissect_options *, struct pfsync_header *,
 		    const u_char *, u_int);
 static void	print_src_dst(netdissect_options *,
-		    const struct pfsync_state_peer *,
-		    const struct pfsync_state_peer *, uint8_t);
+		    const struct pf_state_peer_export *,
+		    const struct pf_state_peer_export *, uint8_t);
 static void	print_state(netdissect_options *, union pfsync_state_union *, int);
 
 void
@@ -330,7 +330,7 @@ print_host(netdissect_options *ndo, struct pf_addr *addr, uint16_t port,
 }
 
 static void
-print_seq(netdissect_options *ndo, const struct pfsync_state_peer *p)
+print_seq(netdissect_options *ndo, const struct pf_state_peer_export *p)
 {
 	if (p->seqdiff)
 		ND_PRINT("[%u + %u](+%u)", ntohl(p->seqlo),
@@ -341,8 +341,8 @@ print_seq(netdissect_options *ndo, const struct pfsync_state_peer *p)
 }
 
 static void
-print_src_dst(netdissect_options *ndo, const struct pfsync_state_peer *src,
-    const struct pfsync_state_peer *dst, uint8_t proto)
+print_src_dst(netdissect_options *ndo, const struct pf_state_peer_export *src,
+    const struct pf_state_peer_export *dst, uint8_t proto)
 {
 
 	if (proto == IPPROTO_TCP) {
@@ -390,7 +390,7 @@ print_src_dst(netdissect_options *ndo, const struct pfsync_state_peer *src,
 static void
 print_state(netdissect_options *ndo, union pfsync_state_union *s, int version)
 {
-	struct pfsync_state_peer *src, *dst;
+	struct pf_state_peer_export *src, *dst;
 	struct pfsync_state_key *sk, *nk;
 	int min, sec;
 

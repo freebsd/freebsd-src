@@ -29,9 +29,7 @@ ETSRCS=	\
 	${KRB5DIR}/lib/wind/wind_err.et \
 	${KRB5DIR}/lib/ntlm/ntlm_err.et
 
-.if ${MK_GSSAPI} != "no"
 ETSRCS+=	${KRB5DIR}/lib/gssapi/krb5/gkrb5_err.et
-.endif
 
 .for ET in ${ETSRCS}
 .for _ET in ${ET:T:R}

@@ -56,8 +56,30 @@ basic_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "transient" "cleanup"
+transient_head()
+{
+	atf_set descr "Test transient tunnel support"
+	atf_set require.user root
+}
+transient_body()
+{
+	vnet_init
+	vnet_mkjail one
+
+	tun=$(jexec one ifconfig tun create)
+	atf_check -s exit:0 -o not-empty jexec one ifconfig ${tun}
+	jexec one $(atf_get_srcdir)/transient_tuntap /dev/${tun}
+	atf_check -s not-exit:0 -e not-empty jexec one ifconfig ${tun}
+}
+transient_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "235704"
 	atf_add_test_case "basic"
+	atf_add_test_case "transient"
 }

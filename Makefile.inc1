@@ -1021,7 +1021,8 @@ IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
 
 .if make(distributeworld)
-CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}/base
+CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
+CERTCTLFLAGS+=	-d /base
 .else
 CERTCTLDESTDIR=	${DESTDIR}
 .endif
@@ -1050,7 +1051,7 @@ DESTDIR_MTREE=	${DISTR_MTREECMD} ${DESTDIR_MTREEFLAGS}
 METALOG_SORT_CMD=	env -i LC_COLLATE=C sort
 
 # kernel stage
-KMAKEENV=	${WMAKEENV:NSYSROOT=*}
+KMAKEENV=	${WMAKEENV}
 KMAKE=		${TIME_ENV} ${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 
 #
@@ -1082,7 +1083,7 @@ _cleanobj_fast_depend_hack: .PHONY
 	@echo ">>> Deleting stale dependencies...";
 	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH} \
 	    ALL_libcompats=${_ALL_libcompats:Q} \
-	    sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP}
+	    sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP} ${SRCTOP}
 
 _cleanworldtmp: .PHONY
 .if ${MK_CLEAN} == "yes"
@@ -1175,7 +1176,8 @@ _cleanobj:
 	${_+_}cd ${.CURDIR}; ${LIB${LIBCOMPAT}WMAKE} _NO_INCLUDE_COMPILERMK=t -f Makefile.inc1 ${CLEANDIR}
 .endfor
 .else
-	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
+	${_+_}cd ${.CURDIR}; env CLEANMK="_NO_INCLUDE_COMPILERMK=t ${CLEANDIR}" \
+	    MAKE=${MAKE} ${WMAKE} _cleanobj_fast_depend_hack
 .endif	# ${MK_CLEAN} == "yes"
 _obj:
 	@echo
@@ -1415,7 +1417,7 @@ _sysctl=sysctl
 .endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown cmp cp \
-	date echo egrep find grep id install ${_install-info} \
+	date echo egrep find grep id install \
 	ln make mkdir mtree mv pwd_mkdb \
 	rm sed services_mkdb sh sort strip ${_sysctl} test time true uname wc
 
@@ -2707,8 +2709,14 @@ _basic_bootstrap_tools+=sbin/md5
 _basic_bootstrap_tools+=usr.sbin/tzsetup
 .endif
 
-# certctl is needed as an install tool
+# certctl is needed as an install tool.  libcrypto is rather heavy, so we'll
+# build that alongside it only for platforms that don't expose headers for
+# OpenSSL, like macOS.
 .if ${MK_CAROOT} != "no" && ${MK_OPENSSL} != "no"
+.if ${.MAKE.OS} == "Darwin"
+_bootstrap_libcrypto=secure/lib/libcrypto
+${_bt}-usr.sbin/certctl: ${_bt}-secure/lib/libcrypto
+.endif
 _certctl=usr.sbin/certctl
 .endif
 
@@ -2775,6 +2783,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_strfile} \
     usr.bin/dtc \
     ${_cat} \
+    ${_bootstrap_libcrypto} \
     ${_certctl} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
@@ -3378,7 +3387,7 @@ secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 secure/lib/libssh__L: lib/libldns__L
 .endif
 
-.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_KERBEROS_SUPPORT} != "no"
 .if ${MK_MITKRB5} != "no"
 secure/lib/libssh__L: krb5/lib/gssapi__L krb5/lib/krb5__L \
      krb5/lib/crypto__L krb5/util/et__L lib/libmd__L krb5/util/support__L
@@ -3437,10 +3446,8 @@ kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbas
 
 lib/libsqlite3__L: lib/libthr__L
 
-.if ${MK_GSSAPI} != "no"
-.if ${MK_MITKRB5} == "no"
+.if ${MK_KERBEROS} != "no" && ${MK_MITKRB5} == "no"
 _lib_libgssapi=	lib/libgssapi
-.endif
 .endif
 
 .if ${MK_KERBEROS} != "no"

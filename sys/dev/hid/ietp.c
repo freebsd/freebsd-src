@@ -102,6 +102,7 @@ struct ietp_softc {
 	device_t		dev;
 
 	struct evdev_dev	*evdev;
+	bool			open;
 	uint8_t			report_id;
 	hid_size_t		report_len;
 
@@ -217,13 +218,25 @@ static const struct evdev_methods ietp_evdev_methods = {
 static int
 ietp_ev_open(struct evdev_dev *evdev)
 {
-	return (hid_intr_start(evdev_get_softc(evdev)));
+	struct ietp_softc *sc = evdev_get_softc(evdev);
+	int error;
+
+	error = hid_intr_start(sc->dev);
+	if (error == 0)
+		sc->open = true;
+	return (error);
 }
 
 static int
 ietp_ev_close(struct evdev_dev *evdev)
 {
-	return (hid_intr_stop(evdev_get_softc(evdev)));
+	struct ietp_softc *sc = evdev_get_softc(evdev);
+	int error;
+
+	error = hid_intr_stop(sc->dev);
+	if (error == 0)
+		sc->open = false;
+	return (error);
 }
 
 static int
@@ -275,7 +288,7 @@ ietp_attach(struct ietp_softc *sc)
 	evdev_set_id(sc->evdev, hw->idBus, hw->idVendor, hw->idProduct,
 	    hw->idVersion);
 	evdev_set_serial(sc->evdev, hw->serial);
-	evdev_set_methods(sc->evdev, sc->dev, &ietp_evdev_methods);
+	evdev_set_methods(sc->evdev, sc, &ietp_evdev_methods);
 	evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_STCOMPAT);
 	evdev_set_flag(sc->evdev, EVDEV_FLAG_EXT_EPOCH); /* hidbus child */
 
@@ -584,11 +597,13 @@ ietp_iic_set_absolute_mode(device_t dev, bool enable)
 	 * Some ASUS touchpads need to be powered on to enter absolute mode.
 	 */
 	require_wakeup = false;
-	for (i = 0; i < nitems(special_fw); i++) {
-		if (sc->ic_type == special_fw[i].ic_type &&
-		    sc->product_id == special_fw[i].product_id) {
-			require_wakeup = true;
-			break;
+	if (!sc->open) {
+		for (i = 0; i < nitems(special_fw); i++) {
+			if (sc->ic_type == special_fw[i].ic_type &&
+			    sc->product_id == special_fw[i].product_id) {
+				require_wakeup = true;
+				break;
+			}
 		}
 	}
 

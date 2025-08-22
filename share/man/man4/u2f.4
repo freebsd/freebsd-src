@@ -1,0 +1,96 @@
+.\"
+.\" SPDX-License-Identifier: ISC
+.\"
+.\" $OpenBSD: fido.4,v 1.4 2020/08/21 19:02:46 mglocker Exp $
+.\"
+.\" Copyright (c) 2019 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2023 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd August 21, 2023
+.Dt U2F 4
+.Os
+.Sh NAME
+.Nm u2f
+.Nd FIDO/U2F USB security keys
+.Sh SYNOPSIS
+.Cd "device u2f"
+.Pp
+In
+.Xr loader.conf 5 :
+.Cd u2f_load="YES"
+.Pp
+In
+.Xr sysctl.conf 5 :
+.Cd hw.hid.u2f.debug
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for FIDO/U2F-compatible USB security keys.
+They are Human Interface Devices (HID) which can be accessed via the
+.Pa /dev/u2f/N
+interface.
+.Pp
+The driver is compatible with the
+.Xr read 2 ,
+.Xr write 2 ,
+and
+.Xr ioctl 2
+operations of the generic
+.Xr uhid 4
+device but only accepts the optional HID
+.Xr ioctl 2
+calls from u2f group users.
+.Sh HARDWARE
+The
+.Nm
+driver supports FIDO/U2F-compatible USB security keys.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.hid.u2f.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width /dev/u2f/* -compact
+.It Pa /dev/u2f/*
+.El
+.Sh SEE ALSO
+.Xr uhid 4 ,
+.Xr usbhid 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org
+based on the
+.Ox
+.Xr fido 4
+manual page.

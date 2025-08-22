@@ -1,15 +1,21 @@
 .PATH: ${LIBC_SRCTOP}/stdlib/malloc/jemalloc
 
 JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bin.c bitmap.c \
-	ckh.c ctl.c div.c extent.c extent_dss.c extent_mmap.c hash.c hook.c \
-	large.c log.c malloc_io.c mutex.c mutex_pool.c nstime.c pages.c \
-	prng.c prof.c rtree.c safety_check.c sc.c stats.c sz.c tcache.c \
-	test_hooks.c ticker.c tsd.c witness.c
+	ckh.c ctl.c div.c extent.c extent_dss.c extent_mmap.c hook.c \
+	large.c log.c malloc_io.c mutex.c nstime.c pages.c \
+	prof.c rtree.c safety_check.c sc.c stats.c sz.c tcache.c \
+	test_hooks.c ticker.c tsd.c witness.c \
+	bin_info.c san.c san_bump.c counter.c prof_data.c prof_log.c prof_recent.c prof_stats.c prof_sys.c \
+	emap.c edata.c edata_cache.c pa.c pa_extra.c pac.c decay.c hpa.c hpa_hooks.c fxp.c hpdata.c pai.c \
+	ecache.c ehooks.c eset.c sec.c cache_bin.c peak_event.c psset.c inspect.c exp_grow.c thread_event.c \
+	buf_writer.c
 
 CFLAGS+=-I${SRCTOP}/contrib/jemalloc/include -I${LIBC_SRCTOP}/stdlib/malloc/jemalloc/include
 .if ${MK_JEMALLOC_LG_VADDR_WIDE} != no
 CFLAGS+=-D_USE_LG_VADDR_WIDE
 .endif
+CFLAGS.gcc+=-Wno-error=missing-braces
+
 
 .for src in ${JEMALLOCSRCS}
 MISRCS+=jemalloc_${src}

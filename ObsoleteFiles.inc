@@ -54,10 +54,6 @@
 # 20250812: Remove a bogus manlink
 OLD_FILES+=usr/share/man/man3/quota_statfs.3.gz
 
-# 20250810: Removal of remaining Secure RPC (DES) bits
-OLD_FILES+=usr/sbin/rpc.ypupdated
-OLD_FILES+=etc/rc.d/ypupdated
-
 # 20250808: nvmfd removed from base install
 OLD_FILES+=usr/sbin/nvmfd
 OLD_FILES+=usr/share/man/man8/nvmfd.8.gz
@@ -80,7 +76,6 @@ OLD_FILES+=usr/lib/libopencsd.so
 
 # 20250801: Move compile_et to /usr/sbin
 OLD_FILES+=usr/share/et/compile_et
-OLD_DIRS+=usr/share/et
 
 # 20250728: zfsboot (MBR) removed
 OLD_FILES+=boot/zfsboot

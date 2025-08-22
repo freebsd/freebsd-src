@@ -61,7 +61,7 @@
  *
  * @brief This file defines all of the SATA releated constants, enumerations,
  *        and types. Please note that this file does not necessarily contain
- *        an exhaustive list of all contants and commands.
+ *        an exhaustive list of all constants and commands.
  */
 
 /**

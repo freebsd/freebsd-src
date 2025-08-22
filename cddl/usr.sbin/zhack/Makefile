@@ -1,8 +1,11 @@
-.PATH: ${SRCTOP}/sys/contrib/openzfs/cmd
+ZFSTOP= ${SRCTOP}/sys/contrib/openzfs
+
+.PATH: ${ZFSTOP}/cmd
+.PATH: ${ZFSTOP}/man/man1
 
 PACKAGE=	zfs
 PROG=	zhack
-MAN=
+MAN=	zhack.1
 
 WARNS?=	0
 CSTD=	c99

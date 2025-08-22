@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/if_ether.h>
 #include <linux/ethtool.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/random.h>
@@ -722,8 +723,10 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_EML_CAP_TRANSITION_TIMEOUT_128TU		0x04
 #define	IEEE80211_EML_CAP_EMLSR_PADDING_DELAY			0x08
 #define	IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_32US		0x10
+#define	IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_256US		0x10
 #define	IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY		0x20
 #define	IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_64US		0x40
+#define	IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_256US		0x40
 
 #define	VENDOR_CMD_RAW_DATA	(void *)(uintptr_t)(-ENOENT)
 
@@ -2063,6 +2066,18 @@ nl80211_chan_width_to_mhz(enum nl80211_chan_width width)
 		break;
 	}
 }
+
+static __inline ssize_t
+wiphy_locked_debugfs_read(struct wiphy *wiphy, struct file *file,
+    char *buf, size_t bufsize, const char __user *userbuf, size_t count,
+    loff_t *ppos,
+    ssize_t (*handler)(struct wiphy *, struct file *, char *, size_t, void *),
+    void *data)
+{
+	TODO();
+	return (-ENXIO);
+}
+
 
 static __inline ssize_t
 wiphy_locked_debugfs_write(struct wiphy *wiphy, struct file *file,

@@ -738,7 +738,7 @@ main(int argc, char *argv[])
 				warnx("illegal block size");
 				usage();
 			}
-			if (maxblk <= 0) {
+			if (tmp <= 0) {
 				warnx("illegal block size");
 				usage();
 			}

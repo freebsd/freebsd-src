@@ -113,7 +113,6 @@ static int zfs__fini(void);
 static void zfs_shutdown(void *, int);
 
 static eventhandler_tag zfs_shutdown_event_tag;
-static eventhandler_tag zfs_mountroot_event_tag;
 
 #define	ZFS_MIN_KSTACK_PAGES 4
 
@@ -318,9 +317,6 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 			zfs_shutdown_event_tag = EVENTHANDLER_REGISTER(
 			    shutdown_post_sync, zfs_shutdown, NULL,
 			    SHUTDOWN_PRI_FIRST);
-			zfs_mountroot_event_tag = EVENTHANDLER_REGISTER(
-			    mountroot, spa_boot_init, NULL,
-			    SI_ORDER_ANY);
 		}
 		TSEXIT();
 		return (err);
@@ -330,9 +326,6 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 			if (zfs_shutdown_event_tag != NULL)
 				EVENTHANDLER_DEREGISTER(shutdown_post_sync,
 				    zfs_shutdown_event_tag);
-			if (zfs_mountroot_event_tag != NULL)
-				EVENTHANDLER_DEREGISTER(mountroot,
-				    zfs_mountroot_event_tag);
 		}
 		TSEXIT();
 		return (err);

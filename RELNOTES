@@ -10,17 +10,19 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+dc5ba6b8b4f0:
+	The WITHOUT_GSSAPI src.conf(5) option has been removed.  The GSSAPI
+	libraries are now always built unless WITHOUT_KERBEROS is set.
+
+c43cad871720:
+	jemalloc 5.3.0 has landed. See contrib/jemalloc/ChangeLog
+	for the long list of changes.
+
 cce64f2e6851:
 	Add support for the NFSv4.2 Clone operation, which uses
 	block cloning to "copy on write" files on an NFS server.
 	This only works for exported ZFS file systems that have
 	block cloning enabled, at this time.
-
-7ac276298b72, 7b8c9de17448, 1271b1d747a7, 9dcb984251b3:
-	Support for Secure RPC DES authentication has been removed.  This
-	includes publickey(5), keyserv(8) and the rpc_secure(3) routines which
-	rely on keyserv.  The libc symbols are still present for backward
-	compatibility, but all functions will unconditionally return an error.
 
 37b2cb5ecb0f:
 	Add support to VOP_COPY_FILE_RANGE() for block cloning.
@@ -86,6 +88,16 @@ f1f230439fa4:
 	For example: For a FreeBSD kernel build with both src
 	and obj NFSv4 mounted, the total RPC count dropped from
 	5461286 to 945643, with a 20% drop in elapsed time.
+
+c3fc0db3bc50
+	The default value of the sysctl variable
+	net.inet.tcp.nolocaltimewait has changed from 1 to 0. This means
+	that FreeBSD does not skip the TIME_WAIT state anymore for
+	endpoints for which the remote address is local. The new sysctl
+	variable net.inet.tcp.msl_local can be used to control the time
+	these endpoints stay in the TIME_WAIT state. The sysctl variable
+	net.inet.tcp.nolocaltimewait is deprecated and intended to be
+	removed in FreeBSD 16.
 
 cd240957d7ba
 	Making a connection to INADDR_ANY (i.e., using INADDR_ANY as an alias

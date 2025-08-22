@@ -58,7 +58,7 @@ static device_attach_t trng_attach;
 
 static unsigned trng_read(void *, unsigned);
 
-static struct random_source random_trng = {
+static const struct random_source random_trng = {
 	.rs_ident = "Arm SMCCC TRNG",
 	.rs_source = RANDOM_PURE_ARM_TRNG,
 	.rs_read = trng_read,

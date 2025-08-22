@@ -19,21 +19,36 @@
 static void ufshci_req_queue_submit_tracker(struct ufshci_req_queue *req_queue,
     struct ufshci_tracker *tr, enum ufshci_data_direction data_direction);
 
-static const struct ufshci_qops sdb_qops = {
+static const struct ufshci_qops sdb_utmr_qops = {
 	.construct = ufshci_req_sdb_construct,
 	.destroy = ufshci_req_sdb_destroy,
 	.get_hw_queue = ufshci_req_sdb_get_hw_queue,
 	.enable = ufshci_req_sdb_enable,
 	.reserve_slot = ufshci_req_sdb_reserve_slot,
 	.reserve_admin_slot = ufshci_req_sdb_reserve_slot,
-	.ring_doorbell = ufshci_req_sdb_ring_doorbell,
-	.clear_cpl_ntf = ufshci_req_sdb_clear_cpl_ntf,
+	.ring_doorbell = ufshci_req_sdb_utmr_ring_doorbell,
+	.is_doorbell_cleared = ufshci_req_sdb_utmr_is_doorbell_cleared,
+	.clear_cpl_ntf = ufshci_req_sdb_utmr_clear_cpl_ntf,
+	.process_cpl = ufshci_req_sdb_process_cpl,
+	.get_inflight_io = ufshci_req_sdb_get_inflight_io,
+};
+
+static const struct ufshci_qops sdb_utr_qops = {
+	.construct = ufshci_req_sdb_construct,
+	.destroy = ufshci_req_sdb_destroy,
+	.get_hw_queue = ufshci_req_sdb_get_hw_queue,
+	.enable = ufshci_req_sdb_enable,
+	.reserve_slot = ufshci_req_sdb_reserve_slot,
+	.reserve_admin_slot = ufshci_req_sdb_reserve_slot,
+	.ring_doorbell = ufshci_req_sdb_utr_ring_doorbell,
+	.is_doorbell_cleared = ufshci_req_sdb_utr_is_doorbell_cleared,
+	.clear_cpl_ntf = ufshci_req_sdb_utr_clear_cpl_ntf,
 	.process_cpl = ufshci_req_sdb_process_cpl,
 	.get_inflight_io = ufshci_req_sdb_get_inflight_io,
 };
 
 int
-ufshci_utm_req_queue_construct(struct ufshci_controller *ctrlr)
+ufshci_utmr_req_queue_construct(struct ufshci_controller *ctrlr)
 {
 	struct ufshci_req_queue *req_queue;
 	int error;
@@ -44,7 +59,7 @@ ufshci_utm_req_queue_construct(struct ufshci_controller *ctrlr)
 	 */
 	req_queue = &ctrlr->task_mgmt_req_queue;
 	req_queue->queue_mode = UFSHCI_Q_MODE_SDB;
-	req_queue->qops = sdb_qops;
+	req_queue->qops = sdb_utmr_qops;
 
 	error = req_queue->qops.construct(ctrlr, req_queue, UFSHCI_UTRM_ENTRIES,
 	    /*is_task_mgmt*/ true);
@@ -53,21 +68,21 @@ ufshci_utm_req_queue_construct(struct ufshci_controller *ctrlr)
 }
 
 void
-ufshci_utm_req_queue_destroy(struct ufshci_controller *ctrlr)
+ufshci_utmr_req_queue_destroy(struct ufshci_controller *ctrlr)
 {
 	ctrlr->task_mgmt_req_queue.qops.destroy(ctrlr,
 	    &ctrlr->task_mgmt_req_queue);
 }
 
 int
-ufshci_utm_req_queue_enable(struct ufshci_controller *ctrlr)
+ufshci_utmr_req_queue_enable(struct ufshci_controller *ctrlr)
 {
 	return (ctrlr->task_mgmt_req_queue.qops.enable(ctrlr,
 	    &ctrlr->task_mgmt_req_queue));
 }
 
 int
-ufshci_ut_req_queue_construct(struct ufshci_controller *ctrlr)
+ufshci_utr_req_queue_construct(struct ufshci_controller *ctrlr)
 {
 	struct ufshci_req_queue *req_queue;
 	int error;
@@ -79,7 +94,7 @@ ufshci_ut_req_queue_construct(struct ufshci_controller *ctrlr)
 	 */
 	req_queue = &ctrlr->transfer_req_queue;
 	req_queue->queue_mode = UFSHCI_Q_MODE_SDB;
-	req_queue->qops = sdb_qops;
+	req_queue->qops = sdb_utr_qops;
 
 	error = req_queue->qops.construct(ctrlr, req_queue, UFSHCI_UTR_ENTRIES,
 	    /*is_task_mgmt*/ false);
@@ -88,14 +103,14 @@ ufshci_ut_req_queue_construct(struct ufshci_controller *ctrlr)
 }
 
 void
-ufshci_ut_req_queue_destroy(struct ufshci_controller *ctrlr)
+ufshci_utr_req_queue_destroy(struct ufshci_controller *ctrlr)
 {
 	ctrlr->transfer_req_queue.qops.destroy(ctrlr,
 	    &ctrlr->transfer_req_queue);
 }
 
 int
-ufshci_ut_req_queue_enable(struct ufshci_controller *ctrlr)
+ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr)
 {
 	return (ctrlr->transfer_req_queue.qops.enable(ctrlr,
 	    &ctrlr->transfer_req_queue));
@@ -213,20 +228,30 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 	struct ufshci_req_queue *req_queue = tr->req_queue;
 	struct ufshci_request *req = tr->req;
 	struct ufshci_completion cpl;
-	struct ufshci_utp_xfer_req_desc *desc;
 	uint8_t ocs;
 	bool retry, error, retriable;
 
 	mtx_assert(&tr->hwq->qlock, MA_NOTOWNED);
 
-	bus_dmamap_sync(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	/* Copy the response from the Request Descriptor or UTP Command
+	 * Descriptor. */
+	if (req_queue->is_task_mgmt) {
+		cpl.size = tr->response_size;
+		memcpy(&cpl.response_upiu,
+		    (void *)tr->hwq->utmrd[tr->slot_num].response_upiu,
+		    cpl.size);
 
-	cpl.size = tr->response_size;
-	memcpy(&cpl.response_upiu, (void *)tr->ucd->response_upiu, cpl.size);
+		ocs = tr->hwq->utmrd[tr->slot_num].overall_command_status;
+	} else {
+		bus_dmamap_sync(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	desc = &tr->hwq->utrd[tr->slot_num];
-	ocs = desc->overall_command_status;
+		cpl.size = tr->response_size;
+		memcpy(&cpl.response_upiu, (void *)tr->ucd->response_upiu,
+		    cpl.size);
+
+		ocs = tr->hwq->utrd[tr->slot_num].overall_command_status;
+	}
 
 	error = ufshci_req_queue_response_is_error(req_queue, ocs,
 	    &cpl.response_upiu);
@@ -358,7 +383,19 @@ ufshci_req_queue_prepare_prdt(struct ufshci_tracker *tr)
 }
 
 static void
-ufshci_req_queue_fill_descriptor(struct ufshci_utp_xfer_req_desc *desc,
+ufshci_req_queue_fill_utmr_descriptor(
+    struct ufshci_utp_task_mgmt_req_desc *desc, struct ufshci_request *req)
+{
+	memset(desc, 0, sizeof(struct ufshci_utp_task_mgmt_req_desc));
+	desc->interrupt = true;
+	/* Set the initial value to Invalid. */
+	desc->overall_command_status = UFSHCI_UTMR_OCS_INVALID;
+
+	memcpy(desc->request_upiu, &req->request_upiu, req->request_size);
+}
+
+static void
+ufshci_req_queue_fill_utr_descriptor(struct ufshci_utp_xfer_req_desc *desc,
     uint8_t data_direction, const uint64_t paddr, const uint16_t response_off,
     const uint16_t response_len, const uint16_t prdt_off,
     const uint16_t prdt_entry_cnt)
@@ -378,7 +415,7 @@ ufshci_req_queue_fill_descriptor(struct ufshci_utp_xfer_req_desc *desc,
 	desc->data_direction = data_direction;
 	desc->interrupt = true;
 	/* Set the initial value to Invalid. */
-	desc->overall_command_status = UFSHCI_OCS_INVALID;
+	desc->overall_command_status = UFSHCI_UTR_OCS_INVALID;
 	desc->utp_command_descriptor_base_address = (uint32_t)(paddr &
 	    0xffffffff);
 	desc->utp_command_descriptor_base_address_upper = (uint32_t)(paddr >>
@@ -407,26 +444,32 @@ ufshci_req_queue_submit_tracker(struct ufshci_req_queue *req_queue,
 
 	/* TODO: Check timeout */
 
-	request_len = req->request_size;
-	response_off = UFSHCI_UTP_XFER_REQ_SIZE;
-	response_len = req->response_size;
+	if (req_queue->is_task_mgmt) {
+		/* Prepare UTP Task Management Request Descriptor. */
+		ufshci_req_queue_fill_utmr_descriptor(&tr->hwq->utmrd[slot_num],
+		    req);
+	} else {
+		request_len = req->request_size;
+		response_off = UFSHCI_UTP_XFER_REQ_SIZE;
+		response_len = req->response_size;
 
-	/* Prepare UTP Command Descriptor */
-	memcpy(tr->ucd, &req->request_upiu, request_len);
-	memset((uint8_t *)tr->ucd + response_off, 0, response_len);
+		/* Prepare UTP Command Descriptor */
+		memcpy(tr->ucd, &req->request_upiu, request_len);
+		memset((uint8_t *)tr->ucd + response_off, 0, response_len);
 
-	/* Prepare PRDT */
-	if (req->payload_valid)
-		ufshci_req_queue_prepare_prdt(tr);
+		/* Prepare PRDT */
+		if (req->payload_valid)
+			ufshci_req_queue_prepare_prdt(tr);
 
-	bus_dmamap_sync(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		/* Prepare UTP Transfer Request Descriptor. */
+		ucd_paddr = tr->ucd_bus_addr;
+		ufshci_req_queue_fill_utr_descriptor(&tr->hwq->utrd[slot_num],
+		    data_direction, ucd_paddr, response_off, response_len,
+		    tr->prdt_off, tr->prdt_entry_cnt);
 
-	/* Prepare UTP Transfer Request Descriptor. */
-	ucd_paddr = tr->ucd_bus_addr;
-	ufshci_req_queue_fill_descriptor(&tr->hwq->utrd[slot_num],
-	    data_direction, ucd_paddr, response_off, response_len, tr->prdt_off,
-	    tr->prdt_entry_cnt);
+		bus_dmamap_sync(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	}
 
 	bus_dmamap_sync(tr->hwq->dma_tag_queue, tr->hwq->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);

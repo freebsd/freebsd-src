@@ -132,6 +132,7 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support
 device		hidbus		# Generic HID Bus
+options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/u2f/
 
 # Serial (COM) ports
 device		uart		# Generic UART driver

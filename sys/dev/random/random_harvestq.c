@@ -110,7 +110,7 @@ __read_frequently u_int hc_source_mask;
 
 struct random_sources {
 	CK_LIST_ENTRY(random_sources)	 rrs_entries;
-	struct random_source		*rrs_source;
+	const struct random_source	*rrs_source;
 };
 
 static CK_LIST_HEAD(sources_head, random_sources) source_list =
@@ -493,9 +493,9 @@ random_healthtest_init(enum random_entropy_source source)
 	 * The RCT limit comes from the formula in section 4.4.1.
 	 *
 	 * The APT cutoff is calculated using the formula in section 4.4.2
-	 * footnote 10 with the window size changed from 512 to 511, since the
-	 * test as written counts the number of samples equal to the first
-	 * sample in the window, and thus tests W-1 samples.
+	 * footnote 10 with the number of Bernoulli trials changed from W to
+	 * W-1, since the test as written counts the number of samples equal to
+	 * the first sample in the window, and thus tests W-1 samples.
 	 */
 	ht->ht_rct_limit = 35;
 	ht->ht_apt_cutoff = 330;
@@ -849,7 +849,7 @@ random_harvest_deregister_source(enum random_entropy_source source)
 }
 
 void
-random_source_register(struct random_source *rsource)
+random_source_register(const struct random_source *rsource)
 {
 	struct random_sources *rrs;
 
@@ -868,7 +868,7 @@ random_source_register(struct random_source *rsource)
 }
 
 void
-random_source_deregister(struct random_source *rsource)
+random_source_deregister(const struct random_source *rsource)
 {
 	struct random_sources *rrs = NULL;
 

@@ -3031,7 +3031,7 @@ load_kpreload(const void *addr)
 	}
 
 	obj->mapbase = __DECONST(caddr_t, addr);
-	obj->mapsize = segn->p_vaddr + segn->p_memsz - (Elf_Addr)addr;
+	obj->mapsize = segn->p_vaddr + segn->p_memsz;
 	obj->vaddrbase = 0;
 	obj->relocbase = obj->mapbase;
 
@@ -3060,7 +3060,8 @@ load_kpreload(const void *addr)
 	linkmap_add(obj); /* for GDB & dlinfo() */
 	max_stack_flags |= obj->stack_flags;
 
-	LD_UTRACE(UTRACE_LOAD_OBJECT, obj, obj->mapbase, 0, 0, obj->path);
+	LD_UTRACE(UTRACE_LOAD_OBJECT, obj, obj->mapbase, obj->mapsize, 0,
+	    obj->path);
 	return (0);
 }
 

@@ -1020,7 +1020,7 @@ struct pf_state_scrub_export {
 #define PF_SCRUB_FLAG_VALID		0x01
 	uint8_t		scrub_flag;
 	uint32_t	pfss_ts_mod;	/* timestamp modulation	*/
-};
+} __packed;
 
 struct pf_state_key_export {
 	struct pf_addr	 addr[2];
@@ -1037,7 +1037,7 @@ struct pf_state_peer_export {
 	uint8_t		state;		/* active state level		*/
 	uint8_t		wscale;		/* window scaling factor	*/
 	uint8_t		dummy[6];
-};
+} __packed;
 _Static_assert(sizeof(struct pf_state_peer_export) == 32, "size incorrect");
 
 struct pf_state_export {
@@ -1179,26 +1179,6 @@ struct pf_test_ctx {
  * Unified state structures for pulling states out of the kernel
  * used by pfsync(4) and the pf(4) ioctl.
  */
-struct pfsync_state_scrub {
-	u_int16_t	pfss_flags;
-	u_int8_t	pfss_ttl;	/* stashed TTL		*/
-#define PFSYNC_SCRUB_FLAG_VALID		0x01
-	u_int8_t	scrub_flag;
-	u_int32_t	pfss_ts_mod;	/* timestamp modulation	*/
-} __packed;
-
-struct pfsync_state_peer {
-	struct pfsync_state_scrub scrub;	/* state is scrubbed	*/
-	u_int32_t	seqlo;		/* Max sequence number sent	*/
-	u_int32_t	seqhi;		/* Max the other end ACKd + win	*/
-	u_int32_t	seqdiff;	/* Sequence number modulator	*/
-	u_int16_t	max_win;	/* largest window (pre scaling)	*/
-	u_int16_t	mss;		/* Maximum segment size option	*/
-	u_int8_t	state;		/* active state level		*/
-	u_int8_t	wscale;		/* window scaling factor	*/
-	u_int8_t	pad[6];
-} __packed;
-
 struct pfsync_state_key {
 	struct pf_addr	 addr[2];
 	u_int16_t	 port[2];
@@ -1208,8 +1188,8 @@ struct pfsync_state_1301 {
 	u_int64_t	 id;
 	char		 ifname[IFNAMSIZ];
 	struct pfsync_state_key	key[2];
-	struct pfsync_state_peer src;
-	struct pfsync_state_peer dst;
+	struct pf_state_peer_export src;
+	struct pf_state_peer_export dst;
 	struct pf_addr	 rt_addr;
 	u_int32_t	 rule;
 	u_int32_t	 anchor;
@@ -1235,8 +1215,8 @@ struct pfsync_state_1400 {
 	u_int64_t	 id;
 	char		 ifname[IFNAMSIZ];
 	struct pfsync_state_key	key[2];
-	struct pfsync_state_peer src;
-	struct pfsync_state_peer dst;
+	struct pf_state_peer_export src;
+	struct pf_state_peer_export dst;
 	struct pf_addr	 rt_addr;
 	u_int32_t	 rule;
 	u_int32_t	 anchor;
@@ -1323,39 +1303,10 @@ extern pflog_packet_t		*pflog_packet_ptr;
 
 /* for copies to/from network byte order */
 /* ioctl interface also uses network byte order */
-#define pf_state_peer_hton(s,d) do {		\
-	(d)->seqlo = htonl((s)->seqlo);		\
-	(d)->seqhi = htonl((s)->seqhi);		\
-	(d)->seqdiff = htonl((s)->seqdiff);	\
-	(d)->max_win = htons((s)->max_win);	\
-	(d)->mss = htons((s)->mss);		\
-	(d)->state = (s)->state;		\
-	(d)->wscale = (s)->wscale;		\
-	if ((s)->scrub) {						\
-		(d)->scrub.pfss_flags = 				\
-		    htons((s)->scrub->pfss_flags & PFSS_TIMESTAMP);	\
-		(d)->scrub.pfss_ttl = (s)->scrub->pfss_ttl;		\
-		(d)->scrub.pfss_ts_mod = htonl((s)->scrub->pfss_ts_mod);\
-		(d)->scrub.scrub_flag = PFSYNC_SCRUB_FLAG_VALID;	\
-	}								\
-} while (0)
-
-#define pf_state_peer_ntoh(s,d) do {		\
-	(d)->seqlo = ntohl((s)->seqlo);		\
-	(d)->seqhi = ntohl((s)->seqhi);		\
-	(d)->seqdiff = ntohl((s)->seqdiff);	\
-	(d)->max_win = ntohs((s)->max_win);	\
-	(d)->mss = ntohs((s)->mss);		\
-	(d)->state = (s)->state;		\
-	(d)->wscale = (s)->wscale;		\
-	if ((s)->scrub.scrub_flag == PFSYNC_SCRUB_FLAG_VALID && 	\
-	    (d)->scrub != NULL) {					\
-		(d)->scrub->pfss_flags =				\
-		    ntohs((s)->scrub.pfss_flags) & PFSS_TIMESTAMP;	\
-		(d)->scrub->pfss_ttl = (s)->scrub.pfss_ttl;		\
-		(d)->scrub->pfss_ts_mod = ntohl((s)->scrub.pfss_ts_mod);\
-	}								\
-} while (0)
+void	 pf_state_peer_hton(const struct pf_state_peer *,
+	    struct pf_state_peer_export *);
+void	 pf_state_peer_ntoh(const struct pf_state_peer_export *,
+	    struct pf_state_peer *);
 
 #define pf_state_counter_hton(s,d) do {				\
 	d[0] = htonl((s>>32)&0xffffffff);			\

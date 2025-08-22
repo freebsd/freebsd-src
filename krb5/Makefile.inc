@@ -1,5 +1,5 @@
 #
-# SPDX-License-Idendifier: BSD-2-Clause
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2025 FreeBSD Foundation
 #
@@ -14,7 +14,7 @@ KRB5_VERSION=	1.22-final
 # MIT KRB5 uses KRB5_DIR. Heimdal uses KRB5DIR.
 KRB5_SRCTOP=	${SRCTOP}/krb5
 KRB5_DIR=	${SRCTOP}/crypto/krb5/src
-KRB5_ETDIR?=	${DESTDIR}/usr/share/et
+KRB5_ETDIR?=	/usr/share/et
 KRB5_SRCLIBDIR=	${KRB5_DIR}/lib
 
 KRB5_OBJTOP=	${OBJTOP}/krb5

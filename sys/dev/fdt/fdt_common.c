@@ -62,8 +62,6 @@
 SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Flattened Device Tree");
 
-struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
-
 static int
 fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
     u_long *size)

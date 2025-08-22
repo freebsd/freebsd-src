@@ -56,7 +56,7 @@
 
 static u_int random_darn_read(void *, u_int);
 
-static struct random_source random_darn = {
+static const struct random_source random_darn = {
 	.rs_ident = "PowerISA DARN random number generator",
 	.rs_source = RANDOM_PURE_DARN,
 	.rs_read = random_darn_read

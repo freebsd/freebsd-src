@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 10, 2024
+.Dd August 18, 2025
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -308,6 +308,21 @@ OpenSSH configuration files; see
 .Xr ssh 1
 .It Pa ssl/
 OpenSSL configuration files
+.Pp
+.Bl -tag -width "untrusted/" -compact
+.It Pa cert.pem
+System trust store in bundle form; see
+.Xr certctl 8 .
+.It Pa certs/
+System trust store in OpenSSL hashed-directory form; see
+.Xr certctl 8 .
+.It Pa openssl.cnf
+OpenSSL configuration file; see
+.Xr openssl.cnf 5 .
+.It Pa untrusted/
+Explicitly distrusted certificates; see
+.Xr certctl 8 .
+.El
 .It Pa sysctl.conf
 kernel state defaults; see
 .Xr sysctl.conf 5

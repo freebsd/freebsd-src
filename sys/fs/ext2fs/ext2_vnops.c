@@ -222,7 +222,7 @@ ext2_itimes_locked(struct vnode *vp)
 	ip = VTOI(vp);
 	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
 		return;
-	if ((vp->v_type == VBLK || vp->v_type == VCHR))
+	if (VN_ISDEV(vp))
 		ip->i_flag |= IN_LAZYMOD;
 	else
 		ip->i_flag |= IN_MODIFIED;
@@ -276,7 +276,7 @@ static int
 ext2_open(struct vop_open_args *ap)
 {
 
-	if (ap->a_vp->v_type == VBLK || ap->a_vp->v_type == VCHR)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 
 	/*
@@ -360,7 +360,7 @@ ext2_getattr(struct vop_getattr_args *ap)
 	vap->va_nlink = ip->i_nlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
-	vap->va_rdev = ip->i_rdev;
+	vap->va_rdev = VN_ISDEV(vp) ? ip->i_rdev : NODEV;
 	vap->va_size = ip->i_size;
 	vap->va_atime.tv_sec = ip->i_atime;
 	vap->va_atime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_atimensec : 0;
@@ -1571,7 +1571,7 @@ ext2_strategy(struct vop_strategy_args *ap)
 	daddr_t blkno;
 	int error;
 
-	if (vp->v_type == VBLK || vp->v_type == VCHR)
+	if (VN_ISDEV(vp))
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
 		if (VTOI(ap->a_vp)->i_flag & IN_E4EXTENTS)
@@ -1733,7 +1733,7 @@ ext2_deleteextattr(struct vop_deleteextattr_args *ap)
 	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
 		return (EOPNOTSUPP);
 
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1771,7 +1771,7 @@ ext2_getextattr(struct vop_getextattr_args *ap)
 	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
 		return (EOPNOTSUPP);
 
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1814,7 +1814,7 @@ ext2_listextattr(struct vop_listextattr_args *ap)
 	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
 		return (EOPNOTSUPP);
 
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1855,7 +1855,7 @@ ext2_setextattr(struct vop_setextattr_args *ap)
 	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
 		return (EOPNOTSUPP);
 
-	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+	if (VN_ISDEV(ap->a_vp))
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,

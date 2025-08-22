@@ -154,12 +154,12 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	/* TODO: Initialize interrupt Aggregation Control Register (UTRIACR) */
 
 	/* Allocate and initialize UTP Task Management Request List. */
-	error = ufshci_utm_req_queue_construct(ctrlr);
+	error = ufshci_utmr_req_queue_construct(ctrlr);
 	if (error)
 		return (error);
 
 	/* Allocate and initialize UTP Transfer Request List or SQ/CQ. */
-	error = ufshci_ut_req_queue_construct(ctrlr);
+	error = ufshci_utr_req_queue_construct(ctrlr);
 	if (error)
 		return (error);
 
@@ -179,8 +179,8 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 	/* TODO: Flush In-flight IOs */
 
 	/* Release resources */
-	ufshci_utm_req_queue_destroy(ctrlr);
-	ufshci_ut_req_queue_destroy(ctrlr);
+	ufshci_utmr_req_queue_destroy(ctrlr);
+	ufshci_utr_req_queue_destroy(ctrlr);
 
 	if (ctrlr->tag)
 		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);
@@ -215,8 +215,8 @@ ufshci_ctrlr_reset(struct ufshci_controller *ctrlr)
 	ufshci_mmio_write_4(ctrlr, ie, 0);
 
 	/* Release resources */
-	ufshci_utm_req_queue_destroy(ctrlr);
-	ufshci_ut_req_queue_destroy(ctrlr);
+	ufshci_utmr_req_queue_destroy(ctrlr);
+	ufshci_utr_req_queue_destroy(ctrlr);
 
 	/* Reset Host Controller */
 	error = ufshci_ctrlr_enable_host_ctrlr(ctrlr);
@@ -232,16 +232,25 @@ ufshci_ctrlr_reset(struct ufshci_controller *ctrlr)
 	ufshci_mmio_write_4(ctrlr, ie, ie);
 
 	/* Allocate and initialize UTP Task Management Request List. */
-	error = ufshci_utm_req_queue_construct(ctrlr);
+	error = ufshci_utmr_req_queue_construct(ctrlr);
 	if (error)
 		return (error);
 
 	/* Allocate and initialize UTP Transfer Request List or SQ/CQ. */
-	error = ufshci_ut_req_queue_construct(ctrlr);
+	error = ufshci_utr_req_queue_construct(ctrlr);
 	if (error)
 		return (error);
 
 	return (0);
+}
+
+int
+ufshci_ctrlr_submit_task_mgmt_request(struct ufshci_controller *ctrlr,
+    struct ufshci_request *req)
+{
+	return (
+	    ufshci_req_queue_submit_request(&ctrlr->task_mgmt_req_queue, req,
+		/*is_admin*/ false));
 }
 
 int
@@ -360,8 +369,8 @@ ufshci_ctrlr_start_config_hook(void *arg)
 
 	TSENTER();
 
-	if (ufshci_utm_req_queue_enable(ctrlr) == 0 &&
-	    ufshci_ut_req_queue_enable(ctrlr) == 0)
+	if (ufshci_utmr_req_queue_enable(ctrlr) == 0 &&
+	    ufshci_utr_req_queue_enable(ctrlr) == 0)
 		ufshci_ctrlr_start(ctrlr);
 	else
 		ufshci_ctrlr_fail(ctrlr, false);
@@ -445,9 +454,9 @@ ufshci_ctrlr_poll(struct ufshci_controller *ctrlr)
 	}
 	/* UTP Task Management Request Completion Status */
 	if (is & UFSHCIM(UFSHCI_IS_REG_UTMRCS)) {
-		ufshci_printf(ctrlr, "TODO: Implement UTMR completion\n");
 		ufshci_mmio_write_4(ctrlr, is, UFSHCIM(UFSHCI_IS_REG_UTMRCS));
-		/* TODO: Implement UTMR completion */
+		ufshci_req_queue_process_completions(
+		    &ctrlr->task_mgmt_req_queue);
 	}
 	/* UTP Transfer Request Completion Status */
 	if (is & UFSHCIM(UFSHCI_IS_REG_UTRCS)) {

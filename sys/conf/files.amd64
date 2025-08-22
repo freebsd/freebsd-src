@@ -419,6 +419,9 @@ contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_avx512.S    optional zfs com
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_sse2.S      optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_sse41.S     optional zfs compile-with "${ZFS_S}"
 
+# zfs AVX2 implementation of aes-gcm from BoringSSL
+contrib/openzfs/module/icp/asm-x86_64/modes/aesni-gcm-avx2-vaes.S	optional zfs compile-with "${ZFS_S}"
+
 # zfs sha2 hash support
 zfs-sha256-x86_64.o		optional	zfs			\
 	dependency "$S/contrib/openzfs/module/icp/asm-x86_64/sha2/sha256-x86_64.S" \

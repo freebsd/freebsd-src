@@ -184,6 +184,9 @@ device		mrsas			# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 device		nvme			# base NVMe driver
 device		nvd			# expose NVMe namespaces as disks, depends on nvme
 
+# Universal Flash Storage Host Controller Interface support
+device 		ufshci			# UFS host controller
+
 # Intel Volume Management Device (VMD) support
 device		vmd
 
@@ -383,6 +386,7 @@ options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
 device		hidbus			# Generic HID Bus
 options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support
+options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/u2f/
 
 # EFI devices
 device		efidev			# EFI pseudo-device

@@ -2436,7 +2436,7 @@ options 	HID_DEBUG	# enable debug msgs
 device		hidbus		# HID bus
 device		hidmap		# HID to evdev mapping
 device		hidraw		# Raw access driver
-options 	HIDRAW_MAKE_UHID_ALIAS	# install /dev/uhid alias
+options 	HIDRAW_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/hidraw
 device		hconf		# Multitouch configuration TLC
 device		hcons		# Consumer controls
 device		hgame		# Generic game controllers
@@ -2446,6 +2446,8 @@ device		hmt		# HID multitouch (MS-compatible)
 device		hpen		# Generic pen driver
 device		hsctrl		# System controls
 device		ps4dshock	# Sony PS4 DualShock 4 gamepad driver
+device		u2f		# FIDO/U2F authenticator
+options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/u2f/
 device		xb360gp		# XBox 360 gamepad driver
 
 #####################################################################
