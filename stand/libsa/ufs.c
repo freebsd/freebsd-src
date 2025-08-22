@@ -891,6 +891,12 @@ ufs_readdir(struct open_file *f, struct dirent *d)
 		if (error)
 			return (error);
 		dp = (struct direct *)buf;
+		/*
+		 * Check for corrupt directory entry and bail out rather
+		 * than spin forever hoping that the user has other options.
+		 */
+		if (dp->d_reclen == 0)
+			return (0);
 		fp->f_seekp += dp->d_reclen;
 	} while (dp->d_ino == (ino_t)0);
 
