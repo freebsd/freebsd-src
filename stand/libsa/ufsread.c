@@ -108,6 +108,13 @@ fsfind(const char *name, ufs_ino_t * ino)
 				*ino = d.d_ino;
 				return d.d_type;
 			}
+			/*
+			 * Check for corrupt directory entry and bail out
+			 * rather than spin forever hoping that the user
+			 * has other options.
+			 */
+			if (d.d_reclen == 0)
+				return 0;
 			s += d.d_reclen;
 		}
 	if (n != -1 && ls)
