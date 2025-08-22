@@ -1,4 +1,12 @@
-comment = "DMA Mail Agent Utilities"
+comment = "DragonFly Mail Agent"
 desc = <<EOD
-DMA Mail Agent Utilities
+The DragonFly Mail Agent (dma) is a lightweight mail transport agent intended
+for home and office use.  dma can accept mail from local users and deliver it
+either locally or remotely (via SMTP).  dma can be configured to route remote
+mail via an SMTP smart host, optionally using STARTTLS and/or authentication.
+
+dma does not implement an SMTP server and cannot receive mail from remote
+systems, nor act as a mail exchanger for other hosts.  If an SMTP server
+is required, or when more advanced mail routing is needed, consider using
+the $PKG_NAME_PREFIX-sendmail package instead.
 EOD
