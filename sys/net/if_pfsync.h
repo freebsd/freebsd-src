@@ -62,9 +62,10 @@ enum pfsync_msg_versions {
 	PFSYNC_MSG_VERSION_UNSPECIFIED = 0,
 	PFSYNC_MSG_VERSION_1301 = 1301,
 	PFSYNC_MSG_VERSION_1400 = 1400,
+	PFSYNC_MSG_VERSION_1500 = 1500,
 };
 
-#define PFSYNC_MSG_VERSION_DEFAULT PFSYNC_MSG_VERSION_1400
+#define PFSYNC_MSG_VERSION_DEFAULT PFSYNC_MSG_VERSION_1500
 
 #define	PFSYNC_ACT_CLR		0	/* clear all states */
 #define	PFSYNC_ACT_INS_1301	1	/* insert state */
@@ -81,7 +82,9 @@ enum pfsync_msg_versions {
 #define	PFSYNC_ACT_EOF		12	/* end of frame */
 #define PFSYNC_ACT_INS_1400	13	/* insert state */
 #define PFSYNC_ACT_UPD_1400	14	/* update state */
-#define	PFSYNC_ACT_MAX		15
+#define PFSYNC_ACT_INS_1500	15	/* insert state */
+#define PFSYNC_ACT_UPD_1500	16	/* update state */
+#define	PFSYNC_ACT_MAX		17
 
 /*
  * A pfsync frame is built from a header followed by several sections which

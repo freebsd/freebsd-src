@@ -116,7 +116,6 @@ static int		 pf_rollback_altq(u_int32_t);
 static int		 pf_commit_altq(u_int32_t);
 static int		 pf_enable_altq(struct pf_altq *);
 static int		 pf_disable_altq(struct pf_altq *);
-static uint16_t		 pf_qname2qid(const char *);
 static void		 pf_qid_unref(uint16_t);
 #endif /* ALTQ */
 static int		 pf_begin_rules(u_int32_t *, int, const char *);
@@ -214,8 +213,7 @@ static void		 pf_init_tagset(struct pf_tagset *, unsigned int *,
 static void		 pf_cleanup_tagset(struct pf_tagset *);
 static uint16_t		 tagname2hashindex(const struct pf_tagset *, const char *);
 static uint16_t		 tag2hashindex(const struct pf_tagset *, uint16_t);
-static u_int16_t	 tagname2tag(struct pf_tagset *, const char *);
-static u_int16_t	 pf_tagname2tag(const char *);
+static u_int16_t	 tagname2tag(struct pf_tagset *, const char *, bool);
 static void		 tag_unref(struct pf_tagset *, u_int16_t);
 
 struct cdev *pf_dev;
@@ -286,6 +284,7 @@ int pf_end_threads;
 struct proc *pf_purge_proc;
 
 VNET_DEFINE(struct rmlock, pf_rules_lock);
+VNET_DEFINE(struct rmlock, pf_tags_lock);
 VNET_DEFINE_STATIC(struct sx, pf_ioctl_lock);
 #define	V_pf_ioctl_lock		VNET(pf_ioctl_lock)
 struct sx			pf_end_lock;
@@ -687,19 +686,50 @@ tag2hashindex(const struct pf_tagset *ts, uint16_t tag)
 }
 
 static u_int16_t
-tagname2tag(struct pf_tagset *ts, const char *tagname)
+tagname2tag(struct pf_tagset *ts, const char *tagname, bool add_new)
 {
 	struct pf_tagname	*tag;
 	u_int32_t		 index;
 	u_int16_t		 new_tagid;
 
-	PF_RULES_WASSERT();
+	PF_TAGS_RLOCK_TRACKER;
+
+	PF_TAGS_RLOCK();
 
 	index = tagname2hashindex(ts, tagname);
 	TAILQ_FOREACH(tag, &ts->namehash[index], namehash_entries)
 		if (strcmp(tagname, tag->name) == 0) {
 			tag->ref++;
-			return (tag->tag);
+			new_tagid = tag->tag;
+			PF_TAGS_RUNLOCK();
+			return (new_tagid);
+		}
+
+	/*
+	 * When used for pfsync with queues we must not create new entries.
+	 * Pf tags can be created just fine by this function, but queues
+	 * require additional configuration. If they are missing on the target
+	 * system we just ignore them
+	 */
+	if (add_new == false) {
+		printf("%s: Not creating a new tag\n", __func__);
+		PF_TAGS_RUNLOCK();
+		return (0);
+	}
+
+	/*
+	 * If a new entry must be created do it under a write lock.
+	 * But first search again, somebody could have created the tag
+	 * between unlocking the read lock and locking the write lock.
+	 */
+	PF_TAGS_RUNLOCK();
+	PF_TAGS_WLOCK();
+	TAILQ_FOREACH(tag, &ts->namehash[index], namehash_entries)
+		if (strcmp(tagname, tag->name) == 0) {
+			tag->ref++;
+			new_tagid = tag->tag;
+			PF_TAGS_WUNLOCK();
+			return (new_tagid);
 		}
 
 	/*
@@ -716,16 +746,20 @@ tagname2tag(struct pf_tagset *ts, const char *tagname)
 	 * to rounding of the number of bits in the vector up to a multiple
 	 * of the vector word size at declaration/allocation time.
 	 */
-	if ((new_tagid == 0) || (new_tagid > TAGID_MAX))
+	if ((new_tagid == 0) || (new_tagid > TAGID_MAX)) {
+		PF_TAGS_WUNLOCK();
 		return (0);
+	}
 
 	/* Mark the tag as in use.  Bits are 0-based for BIT_CLR() */
 	BIT_CLR(TAGID_MAX, new_tagid - 1, &ts->avail);
 
 	/* allocate and fill new struct pf_tagname */
 	tag = uma_zalloc(V_pf_tag_z, M_NOWAIT);
-	if (tag == NULL)
+	if (tag == NULL) {
+		PF_TAGS_WUNLOCK();
 		return (0);
+	}
 	strlcpy(tag->name, tagname, sizeof(tag->name));
 	tag->tag = new_tagid;
 	tag->ref = 1;
@@ -737,7 +771,29 @@ tagname2tag(struct pf_tagset *ts, const char *tagname)
 	index = tag2hashindex(ts, new_tagid);
 	TAILQ_INSERT_TAIL(&ts->taghash[index], tag, taghash_entries);
 
-	return (tag->tag);
+	PF_TAGS_WUNLOCK();
+	return (new_tagid);
+}
+
+static char *
+tag2tagname(struct pf_tagset *ts, u_int16_t tag)
+{
+	struct pf_tagname	*t;
+	uint16_t		 index;
+
+	PF_TAGS_RLOCK_TRACKER;
+
+	PF_TAGS_RLOCK();
+
+	index = tag2hashindex(ts, tag);
+	TAILQ_FOREACH(t, &ts->taghash[index], taghash_entries)
+		if (tag == t->tag) {
+			PF_TAGS_RUNLOCK();
+			return (t->name);
+		}
+
+	PF_TAGS_RUNLOCK();
+	return (NULL);
 }
 
 static void
@@ -746,7 +802,7 @@ tag_unref(struct pf_tagset *ts, u_int16_t tag)
 	struct pf_tagname	*t;
 	uint16_t		 index;
 
-	PF_RULES_WASSERT();
+	PF_TAGS_WLOCK();
 
 	index = tag2hashindex(ts, tag);
 	TAILQ_FOREACH(t, &ts->taghash[index], taghash_entries)
@@ -763,12 +819,20 @@ tag_unref(struct pf_tagset *ts, u_int16_t tag)
 			}
 			break;
 		}
+
+	PF_TAGS_WUNLOCK();
 }
 
-static uint16_t
+uint16_t
 pf_tagname2tag(const char *tagname)
 {
-	return (tagname2tag(&V_pf_tags, tagname));
+	return (tagname2tag(&V_pf_tags, tagname, true));
+}
+
+static const char *
+pf_tag2tagname(uint16_t tag)
+{
+	return (tag2tagname(&V_pf_tags, tag));
 }
 
 static int
@@ -899,10 +963,16 @@ pf_commit_eth(uint32_t ticket, const char *anchor)
 }
 
 #ifdef ALTQ
-static uint16_t
-pf_qname2qid(const char *qname)
+uint16_t
+pf_qname2qid(const char *qname, bool add_new)
 {
-	return (tagname2tag(&V_pf_qids, qname));
+	return (tagname2tag(&V_pf_qids, qname, add_new));
+}
+
+static const char *
+pf_qid2qname(uint16_t qid)
+{
+	return (tag2tagname(&V_pf_qids, qid));
 }
 
 static void
@@ -1151,7 +1221,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 		}
 		bcopy(a1, a2, sizeof(struct pf_altq));
 
-		if ((a2->qid = pf_qname2qid(a2->qname)) == 0) {
+		if ((a2->qid = pf_qname2qid(a2->qname, true)) == 0) {
 			error = EBUSY;
 			free(a2, M_PFALTQ);
 			break;
@@ -1606,7 +1676,7 @@ pf_export_kaltq(struct pf_altq *q, struct pfioc_altq_v1 *pa, size_t ioc_size)
 #define ASSIGN_OPT(x) exported_q->pq_u.hfsc_opts.x = q->pq_u.hfsc_opts.x
 #define ASSIGN_OPT_SATU32(x) exported_q->pq_u.hfsc_opts.x = \
 			    SATU32(q->pq_u.hfsc_opts.x)
-			
+
 			ASSIGN_OPT_SATU32(rtsc_m1);
 			ASSIGN_OPT(rtsc_d);
 			ASSIGN_OPT_SATU32(rtsc_m2);
@@ -1620,7 +1690,7 @@ pf_export_kaltq(struct pf_altq *q, struct pfioc_altq_v1 *pa, size_t ioc_size)
 			ASSIGN_OPT_SATU32(ulsc_m2);
 
 			ASSIGN_OPT(flags);
-			
+
 #undef ASSIGN_OPT
 #undef ASSIGN_OPT_SATU32
 		} else
@@ -1728,7 +1798,7 @@ pf_import_kaltq(struct pfioc_altq_v1 *pa, struct pf_altq *q, size_t ioc_size)
 			ASSIGN_OPT(ulsc_m2);
 
 			ASSIGN_OPT(flags);
-			
+
 #undef ASSIGN_OPT
 		} else
 			COPY(pq_u);
@@ -1760,7 +1830,7 @@ pf_import_kaltq(struct pfioc_altq_v1 *pa, struct pf_altq *q, size_t ioc_size)
 		ASSIGN(qid);
 		break;
 	}
-	default:	
+	default:
 		panic("%s: unhandled struct pfioc_altq version", __func__);
 		break;
 	}
@@ -2191,11 +2261,11 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 #ifdef ALTQ
 	/* set queue IDs */
 	if (rule->qname[0] != 0) {
-		if ((rule->qid = pf_qname2qid(rule->qname)) == 0)
+		if ((rule->qid = pf_qname2qid(rule->qname, true)) == 0)
 			ERROUT(EBUSY);
 		else if (rule->pqname[0] != 0) {
 			if ((rule->pqid =
-			    pf_qname2qid(rule->pqname)) == 0)
+			    pf_qname2qid(rule->pqname, true)) == 0)
 				ERROUT(EBUSY);
 		} else
 			rule->pqid = rule->qid;
@@ -3314,7 +3384,7 @@ DIOCGETETHRULE_error:
 #ifdef ALTQ
 		/* set queue IDs */
 		if (rule->qname[0] != 0) {
-			if ((rule->qid = pf_qname2qid(rule->qname)) == 0)
+			if ((rule->qid = pf_qname2qid(rule->qname, true)) == 0)
 				error = EBUSY;
 			else
 				rule->qid = rule->qid;
@@ -3865,11 +3935,11 @@ DIOCGETRULENV_error:
 			/* set queue IDs */
 			if (newrule->qname[0] != 0) {
 				if ((newrule->qid =
-				    pf_qname2qid(newrule->qname)) == 0)
+				    pf_qname2qid(newrule->qname, true)) == 0)
 					error = EBUSY;
 				else if (newrule->pqname[0] != 0) {
 					if ((newrule->pqid =
-					    pf_qname2qid(newrule->pqname)) == 0)
+					    pf_qname2qid(newrule->pqname, true)) == 0)
 						error = EBUSY;
 				} else
 					newrule->pqid = newrule->qid;
@@ -4400,7 +4470,7 @@ DIOCGETSTATESV2_full:
 		 * copy the necessary fields
 		 */
 		if (altq->qname[0] != 0) {
-			if ((altq->qid = pf_qname2qid(altq->qname)) == 0) {
+			if ((altq->qid = pf_qname2qid(altq->qname, true)) == 0) {
 				PF_RULES_WUNLOCK();
 				error = EBUSY;
 				free(altq, M_PFALTQ);
@@ -5723,6 +5793,7 @@ fail:
 void
 pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_version)
 {
+	const char	*tagname;
 	bzero(sp, sizeof(union pfsync_state_union));
 
 	/* copy from state key */
@@ -5734,8 +5805,6 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 	sp->pfs_1301.key[PF_SK_STACK].addr[1] = st->key[PF_SK_STACK]->addr[1];
 	sp->pfs_1301.key[PF_SK_STACK].port[0] = st->key[PF_SK_STACK]->port[0];
 	sp->pfs_1301.key[PF_SK_STACK].port[1] = st->key[PF_SK_STACK]->port[1];
-	sp->pfs_1301.proto = st->key[PF_SK_WIRE]->proto;
-	sp->pfs_1301.af = st->key[PF_SK_WIRE]->af;
 
 	/* copy from state */
 	strlcpy(sp->pfs_1301.ifname, st->kif->pfik_name, sizeof(sp->pfs_1301.ifname));
@@ -5747,16 +5816,31 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 	else
 		sp->pfs_1301.expire = htonl(sp->pfs_1301.expire - time_uptime);
 
-	sp->pfs_1301.direction = st->direction;
-	sp->pfs_1301.log = st->act.log;
-	sp->pfs_1301.timeout = st->timeout;
-
 	switch (msg_version) {
 		case PFSYNC_MSG_VERSION_1301:
 			sp->pfs_1301.state_flags = st->state_flags;
+			sp->pfs_1301.direction = st->direction;
+			sp->pfs_1301.log = st->act.log;
+			sp->pfs_1301.timeout = st->timeout;
+			sp->pfs_1301.proto = st->key[PF_SK_WIRE]->proto;
+			sp->pfs_1301.af = st->key[PF_SK_WIRE]->af;
+			/*
+			 * XXX Why do we bother pfsyncing source node information if source
+			 * nodes are not synced? Showing users that there is source tracking
+			 * when there is none seems useless.
+			 */
+			if (st->sns[PF_SN_LIMIT] != NULL)
+				sp->pfs_1301.sync_flags |= PFSYNC_FLAG_SRCNODE;
+			if (st->sns[PF_SN_NAT] != NULL || st->sns[PF_SN_ROUTE])
+				sp->pfs_1301.sync_flags |= PFSYNC_FLAG_NATSRCNODE;
 			break;
 		case PFSYNC_MSG_VERSION_1400:
 			sp->pfs_1400.state_flags = htons(st->state_flags);
+			sp->pfs_1400.direction = st->direction;
+			sp->pfs_1400.log = st->act.log;
+			sp->pfs_1400.timeout = st->timeout;
+			sp->pfs_1400.proto = st->key[PF_SK_WIRE]->proto;
+			sp->pfs_1400.af = st->key[PF_SK_WIRE]->af;
 			sp->pfs_1400.qid = htons(st->act.qid);
 			sp->pfs_1400.pqid = htons(st->act.pqid);
 			sp->pfs_1400.dnpipe = htons(st->act.dnpipe);
@@ -5772,21 +5856,52 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 				strlcpy(sp->pfs_1400.rt_ifname,
 				    st->act.rt_kif->pfik_name,
 				    sizeof(sp->pfs_1400.rt_ifname));
+			/*
+			 * XXX Why do we bother pfsyncing source node information if source
+			 * nodes are not synced? Showing users that there is source tracking
+			 * when there is none seems useless.
+			 */
+			if (st->sns[PF_SN_LIMIT] != NULL)
+				sp->pfs_1400.sync_flags |= PFSYNC_FLAG_SRCNODE;
+			if (st->sns[PF_SN_NAT] != NULL || st->sns[PF_SN_ROUTE])
+				sp->pfs_1400.sync_flags |= PFSYNC_FLAG_NATSRCNODE;
+			break;
+		case PFSYNC_MSG_VERSION_1500:
+			sp->pfs_1500.state_flags = htons(st->state_flags);
+			sp->pfs_1500.direction = st->direction;
+			sp->pfs_1500.log = st->act.log;
+			sp->pfs_1500.timeout = st->timeout;
+			sp->pfs_1500.wire_proto = st->key[PF_SK_WIRE]->proto;
+			sp->pfs_1500.wire_af = st->key[PF_SK_WIRE]->af;
+			sp->pfs_1500.stack_proto = st->key[PF_SK_STACK]->proto;
+			sp->pfs_1500.stack_af = st->key[PF_SK_STACK]->af;
+			sp->pfs_1500.qid = htons(st->act.qid);
+			sp->pfs_1500.pqid = htons(st->act.pqid);
+			sp->pfs_1500.dnpipe = htons(st->act.dnpipe);
+			sp->pfs_1500.dnrpipe = htons(st->act.dnrpipe);
+			sp->pfs_1500.rtableid = htonl(st->act.rtableid);
+			sp->pfs_1500.min_ttl = st->act.min_ttl;
+			sp->pfs_1500.set_tos = st->act.set_tos;
+			sp->pfs_1500.max_mss = htons(st->act.max_mss);
+			sp->pfs_1500.set_prio[0] = st->act.set_prio[0];
+			sp->pfs_1500.set_prio[1] = st->act.set_prio[1];
+			sp->pfs_1500.rt = st->act.rt;
+			sp->pfs_1500.rt_af = st->act.rt_af;
+			if (st->act.rt_kif)
+				strlcpy(sp->pfs_1500.rt_ifname,
+				    st->act.rt_kif->pfik_name,
+				    sizeof(sp->pfs_1500.rt_ifname));
+			strlcpy(sp->pfs_1500.orig_ifname,
+			    st->orig_kif->pfik_name,
+			    sizeof(sp->pfs_1500.orig_ifname));
+			if ((tagname = pf_tag2tagname(st->tag)) != NULL)
+				strlcpy(sp->pfs_1500.tagname, tagname,
+				    sizeof(sp->pfs_1500.tagname));
 			break;
 		default:
 			panic("%s: Unsupported pfsync_msg_version %d",
 			    __func__, msg_version);
 	}
-
-	/*
-	 * XXX Why do we bother pfsyncing source node information if source
-	 * nodes are not synced? Showing users that there is source tracking
-	 * when there is none seems useless.
-	 */
-	if (st->sns[PF_SN_LIMIT] != NULL)
-		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_SRCNODE;
-	if (st->sns[PF_SN_NAT] != NULL || st->sns[PF_SN_ROUTE])
-		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_NATSRCNODE;
 
 	sp->pfs_1301.id = st->id;
 	sp->pfs_1301.creatorid = st->creatorid;
@@ -6842,6 +6957,7 @@ pf_load_vnet(void)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	rm_init_flags(&V_pf_rules_lock, "pf rulesets", RM_RECURSE);
+	rm_init_flags(&V_pf_tags_lock, "pf tags and queues", RM_RECURSE);
 	sx_init(&V_pf_ioctl_lock, "pf ioctl");
 
 	pf_init_tagset(&V_pf_tags, &pf_rule_tag_hashsize,
@@ -6993,7 +7109,7 @@ vnet_pf_init(void *unused __unused)
 
 	pf_load_vnet();
 }
-VNET_SYSINIT(vnet_pf_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD, 
+VNET_SYSINIT(vnet_pf_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_pf_init, NULL);
 
 static void
@@ -7001,7 +7117,7 @@ vnet_pf_uninit(const void *unused __unused)
 {
 
 	pf_unload_vnet();
-} 
+}
 SYSUNINIT(pf_unload, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND, pf_unload, NULL);
 VNET_SYSUNINIT(vnet_pf_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_pf_uninit, NULL);
