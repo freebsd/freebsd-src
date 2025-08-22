@@ -2613,7 +2613,7 @@ print_vmx_info(void)
 		"\020EPT#VE"		/* EPT-violation #VE */
 		"\021XSAVES"		/* Enable XSAVES/XRSTORS */
 		);
-	printf("\n        Exit Controls=0x%b", mask,
+	printf("\n        Exit Controls=0x%b", exit,
 	"\020"
 	"\003DR"		/* Save debug controls */
 				/* Ignore Host address-space size */
@@ -2625,7 +2625,7 @@ print_vmx_info(void)
 	"\026EFER-LD"		/* Load MSR_EFER */
 	"\027PTMR-SV"		/* Save VMX-preemption timer value */
 	);
-	printf("\n        Entry Controls=0x%b", mask,
+	printf("\n        Entry Controls=0x%b", entry,
 	"\020"
 	"\003DR"		/* Save debug controls */
 				/* Ignore IA-32e mode guest */
