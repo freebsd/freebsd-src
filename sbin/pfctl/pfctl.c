@@ -2065,6 +2065,41 @@ pfctl_load_eth_rule(struct pfctl *pf, char *path, struct pfctl_eth_rule *r,
 	return (0);
 }
 
+static int
+pfctl_load_tables(struct pfctl *pf, char *path, struct pfctl_anchor *a,
+    int rs_num)
+{
+	struct pfr_ktable *kt, *ktw;
+	struct pfr_uktable *ukt;
+	char anchor_path[PF_ANCHOR_MAXPATH];
+	int e;
+
+	RB_FOREACH_SAFE(kt, pfr_ktablehead, &pfr_ktables, ktw) {
+		if (strcmp(kt->pfrkt_anchor, a->path) != 0)
+			continue;
+
+		if (path != NULL && *path) {
+			strlcpy(anchor_path, kt->pfrkt_anchor,
+			    sizeof(anchor_path));
+			snprintf(kt->pfrkt_anchor, PF_ANCHOR_MAXPATH, "%s/%s",
+			    path, anchor_path);
+		}
+		ukt = (struct pfr_uktable *)kt;
+		e = pfr_ina_define(&ukt->pfrukt_t, ukt->pfrukt_addrs.pfrb_caddr,
+		    ukt->pfrukt_addrs.pfrb_size, NULL, NULL,
+		    pf->anchor->ruleset.tticket,
+		    ukt->pfrukt_init_addr ? PFR_FLAG_ADDRSTOO : 0);
+		if (e != 0)
+			err(1, "%s pfr_ina_define() %s@%s", __func__,
+			    kt->pfrkt_name, kt->pfrkt_anchor);
+		RB_REMOVE(pfr_ktablehead, &pfr_ktables, kt);
+		pfr_buf_clear(&ukt->pfrukt_addrs);
+		free(ukt);
+	}
+
+	return (0);
+}
+
 int
 pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
     int rs_num, int depth)
@@ -2113,6 +2148,8 @@ pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
 			if ((error = pfctl_load_ruleset(pf, path,
 			    &r->anchor->ruleset, rs_num, depth + 1)))
 				goto error;
+			if ((error = pfctl_load_tables(pf, path, r->anchor, rs_num)))
+				goto error;
 		} else if (pf->opts & PF_OPT_VERBOSE)
 			printf("\n");
 		free(r);
@@ -2135,15 +2172,17 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 {
 	u_int8_t		rs_num = pf_get_ruleset_number(r->action);
 	char			*name;
-	u_int32_t		ticket;
 	char			anchor[PF_ANCHOR_NAME_SIZE];
 	int			len = strlen(path);
 	int			error;
 	bool			was_present;
 
 	/* set up anchor before adding to path for anchor_call */
-	if ((pf->opts & PF_OPT_NOACTION) == 0)
-		ticket = pfctl_get_ticket(pf->trans, rs_num, path);
+	if ((pf->opts & PF_OPT_NOACTION) == 0) {
+		if (pf->trans == NULL)
+			errx(1, "pfctl_load_rule: no transaction");
+		pf->anchor->ruleset.tticket = pfctl_get_ticket(pf->trans, rs_num, path);
+	}
 	if (strlcpy(anchor, path, sizeof(anchor)) >= sizeof(anchor))
 		errx(1, "pfctl_load_rule: strlcpy");
 
@@ -2175,7 +2214,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 			return (1);
 		if (pfctl_add_pool(pf, &r->route, PF_RT))
 			return (1);
-		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
+		error = pfctl_add_rule_h(pf->h, r, anchor, name, pf->anchor->ruleset.tticket,
 		    pf->paddr.ticket);
 		switch (error) {
 		case 0:
@@ -2245,6 +2284,8 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	RB_INIT(&pf_anchors);
 	memset(&pf_main_anchor, 0, sizeof(pf_main_anchor));
 	pf_init_ruleset(&pf_main_anchor.ruleset);
+	memset(&pf, 0, sizeof(pf));
+	memset(&trs, 0, sizeof(trs));
 	pf_main_anchor.ruleset.anchor = &pf_main_anchor;
 
 	memset(&pf_eth_main_anchor, 0, sizeof(pf_eth_main_anchor));
@@ -2254,6 +2295,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	if (trans == NULL) {
 		bzero(&buf, sizeof(buf));
 		buf.pfrb_type = PFRB_TRANS;
+		pf.trans = &buf;
 		t = &buf;
 		osize = 0;
 	} else {
@@ -2364,7 +2406,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 
 	if (trans == NULL) {
 		/* process "load anchor" directives */
-		if (pfctl_load_anchors(dev, &pf, t) == -1)
+		if (pfctl_load_anchors(dev, &pf) == -1)
 			ERRX("load anchors");
 
 		if ((opts & PF_OPT_NOACTION) == 0) {

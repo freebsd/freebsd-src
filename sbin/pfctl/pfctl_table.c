@@ -570,19 +570,50 @@ print_astats(struct pfr_astats *as, int dns)
 
 int
 pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
-    struct pfr_buffer *ab, u_int32_t ticket)
+    struct pfr_buffer *ab, u_int32_t ticket, struct pfr_uktable *ukt)
 {
-	struct pfr_table tbl;
+	struct pfr_table tbl_buf;
+	struct pfr_table *tbl;
 
-	bzero(&tbl, sizeof(tbl));
-	if (strlcpy(tbl.pfrt_name, name, sizeof(tbl.pfrt_name)) >=
-	    sizeof(tbl.pfrt_name) || strlcpy(tbl.pfrt_anchor, anchor,
-	    sizeof(tbl.pfrt_anchor)) >= sizeof(tbl.pfrt_anchor))
-		errx(1, "pfctl_define_table: strlcpy");
-	tbl.pfrt_flags = flags;
+	if (ukt == NULL) {
+		bzero(&tbl_buf, sizeof(tbl_buf));
+		tbl = &tbl_buf;
+	} else {
+		if (ab->pfrb_size != 0) {
+			/*
+			 * copy IP addresses which come with table from
+			 * temporal buffer to buffer attached to table.
+			 */
+			ukt->pfrukt_addrs = *ab;
+			ab->pfrb_size = 0;
+			ab->pfrb_msize = 0;
+			ab->pfrb_caddr = NULL;
+		} else
+			memset(&ukt->pfrukt_addrs, 0,
+			    sizeof(struct pfr_buffer));
 
-	return pfr_ina_define(&tbl, ab->pfrb_caddr, ab->pfrb_size, NULL,
-	    NULL, ticket, addrs ? PFR_FLAG_ADDRSTOO : 0);
+		tbl = &ukt->pfrukt_t;
+	}
+
+	if (strlcpy(tbl->pfrt_name, name, sizeof(tbl->pfrt_name)) >=
+	    sizeof(tbl->pfrt_name) ||
+	    strlcpy(tbl->pfrt_anchor, anchor, sizeof(tbl->pfrt_anchor)) >=
+	    sizeof(tbl->pfrt_anchor))
+		errx(1, "%s: strlcpy", __func__);
+	tbl->pfrt_flags = flags;
+	DBGPRINT("%s %s@%s [%x]\n", __func__, tbl->pfrt_name, tbl->pfrt_anchor,
+	    tbl->pfrt_flags);
+
+	/*
+	 * non-root anchors processed by parse.y are loaded to kernel later.
+	 * Here we load tables, which are either created for root anchor
+	 * or by 'pfctl -t ... -T ...' command.
+	 */
+	if (ukt != NULL)
+		return (0);
+
+	return (pfr_ina_define(tbl, ab->pfrb_caddr, ab->pfrb_size, NULL, NULL,
+	    ticket, addrs ? PFR_FLAG_ADDRSTOO : 0));
 }
 
 void
