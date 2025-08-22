@@ -710,6 +710,43 @@ show_recursive_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "in_anchor" "cleanup"
+in_anchor_head()
+{
+	atf_set descr 'Test declaring tables in anchors'
+	atf_set require.user root
+}
+
+in_anchor_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "block all" \
+	    "anchor \"foo\" {\n
+	        table <bar> counters { 192.0.2.1 }\n
+	        pass in from <bar>\n
+	    }\n"
+
+	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
+
+	jexec alcatraz pfctl -sr -a "*" -vv
+	jexec alcatraz pfctl -sT -a "*" -vv
+}
+
+in_anchor_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -727,4 +764,5 @@ atf_init_test_cases()
 	atf_add_test_case "flush"
 	atf_add_test_case "large"
 	atf_add_test_case "show_recursive"
+	atf_add_test_case "in_anchor"
 }
