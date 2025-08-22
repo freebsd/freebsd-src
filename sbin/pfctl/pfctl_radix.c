@@ -48,12 +48,26 @@
 #include <err.h>
 
 #include "pfctl.h"
+#include "pfctl_parser.h"
 
 #define BUF_SIZE 256
 
 extern int dev;
 
 static int	 pfr_next_token(char buf[BUF_SIZE], FILE *);
+
+struct pfr_ktablehead	pfr_ktables = { 0 };
+RB_GENERATE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
+
+int
+pfr_ktable_compare(struct pfr_ktable *p, struct pfr_ktable *q)
+{
+	int d;
+
+	if ((d = strncmp(p->pfrkt_name, q->pfrkt_name, PF_TABLE_NAME_SIZE)))
+		return (d);
+	return (strcmp(p->pfrkt_anchor, q->pfrkt_anchor));
+}
 
 static void
 pfr_report_error(struct pfr_table *tbl, struct pfioc_table *io,
@@ -256,6 +270,7 @@ pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfioc_table io;
 
 	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
+		DBGPRINT("%s %p %d %p\n", __func__, tbl, size, addr);
 		errno = EINVAL;
 		return (-1);
 	}

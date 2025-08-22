@@ -420,6 +420,8 @@ int	 rt_tableid_max(void);
 
 void	 mv_rules(struct pfctl_ruleset *, struct pfctl_ruleset *);
 void	 mv_eth_rules(struct pfctl_eth_ruleset *, struct pfctl_eth_ruleset *);
+void	 mv_tables(struct pfctl *, struct pfr_ktablehead *,
+		    struct pfctl_anchor *, struct pfctl_anchor *);
 void	 decide_address_family(struct node_host *, sa_family_t *);
 void	 remove_invalid_hosts(struct node_host **, sa_family_t *);
 int	 invalid_redirect(struct node_host *, sa_family_t);
@@ -949,6 +951,7 @@ anchorname	: STRING			{
 
 pfa_anchorlist	: /* empty */
 		| pfa_anchorlist '\n'
+		| pfa_anchorlist tabledef '\n'
 		| pfa_anchorlist pfrule '\n'
 		| pfa_anchorlist anchorrule '\n'
 		| pfa_anchorlist include '\n'
@@ -974,7 +977,7 @@ pfa_anchor	: '{'
 			snprintf(ta, PF_ANCHOR_NAME_SIZE, "_%d", pf->bn);
 			rs = pf_find_or_create_ruleset(ta);
 			if (rs == NULL)
-				err(1, "pfa_anchor: pf_find_or_create_ruleset");
+				err(1, "pfa_anchor: pf_find_or_create_ruleset (%s)", ta);
 			pf->astack[pf->asd] = rs->anchor;
 			pf->anchor = rs->anchor;
 		} '\n' pfa_anchorlist '}'
@@ -1026,6 +1029,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 					}
 					mv_rules(&pf->alast->ruleset,
 					    &r.anchor->ruleset);
+					mv_tables(pf, &pfr_ktables, r.anchor, pf->alast);
 				}
 				pf_remove_if_empty_ruleset(&pf->alast->ruleset);
 				pf->alast = r.anchor;
@@ -5456,6 +5460,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 {
 	struct pfr_buffer	 ab;
 	struct node_tinit	*ti;
+	struct pfr_uktable	*ukt;
 	unsigned long		 maxcount;
 	size_t			 s = sizeof(maxcount);
 
@@ -5488,9 +5493,23 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 	else if (pf->opts & PF_OPT_VERBOSE)
 		fprintf(stderr, "%s:%d: skipping duplicate table checks"
 		    " for <%s>\n", file->name, yylval.lineno, name);
+	/*
+	 * postpone definition of non-root tables to moment
+	 * when path is fully resolved.
+	 */
+	if (pf->asd > 0) {
+		ukt = calloc(1, sizeof(struct pfr_uktable));
+		if (ukt == NULL) {
+			DBGPRINT(
+			    "%s:%d: not enough memory for <%s>\n", file->name,
+			    yylval.lineno, name);
+			goto _error;
+		}
+	} else
+		ukt = NULL;
 	if (!(pf->opts & PF_OPT_NOACTION) &&
 	    pfctl_define_table(name, opts->flags, opts->init_addr,
-	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket)) {
+	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket, ukt)) {
 
 		if (sysctlbyname("net.pf.request_maxcount", &maxcount, &s,
 		    NULL, 0) == -1)
@@ -5506,6 +5525,28 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 
 		goto _error;
 	}
+
+	if (ukt != NULL) {
+		ukt->pfrukt_init_addr = opts->init_addr;
+		if (RB_INSERT(pfr_ktablehead, &pfr_ktables,
+		    &ukt->pfrukt_kt) != NULL) {
+			/*
+			 * I think this should not happen, because
+			 * pfctl_define_table() above  does the same check
+			 * effectively.
+			 */
+			DBGPRINT(
+			    "%s:%d table %s already exists in %s\n",
+			    file->name, yylval.lineno,
+			    ukt->pfrukt_name, pf->anchor->path);
+			free(ukt);
+			goto _error;
+		}
+		DBGPRINT("%s %s@%s inserted to tree\n",
+		    __func__, ukt->pfrukt_name, pf->anchor->path);
+	} else
+		DBGPRINT("%s ukt is null\n", __func__);
+
 	pf->tdirty = 1;
 	pfr_buf_clear(&ab);
 	return (0);
@@ -7277,6 +7318,61 @@ mv_eth_rules(struct pfctl_eth_ruleset *src, struct pfctl_eth_ruleset *dst)
 }
 
 void
+mv_tables(struct pfctl *pf, struct pfr_ktablehead *ktables,
+    struct pfctl_anchor *a, struct pfctl_anchor *alast)
+{
+	struct pfr_ktable *kt, *kt_safe;
+	char new_path[PF_ANCHOR_MAXPATH];
+	char *path_cut;
+	int sz;
+	struct pfr_uktable *ukt;
+	SLIST_HEAD(, pfr_uktable) ukt_list;
+
+	/*
+	 * Here we need to rename anchor path from temporal names such as
+	 * _1/_2/foo to _1/bar/foo etc.
+	 *
+	 * This also means we need to remove and insert table to ktables
+	 * tree as anchor path is being updated.
+	 */
+	SLIST_INIT(&ukt_list);
+	DBGPRINT("%s [ %s ] (%s)\n", __func__, a->path, alast->path);
+	RB_FOREACH_SAFE(kt, pfr_ktablehead, ktables, kt_safe) {
+		path_cut = strstr(kt->pfrkt_anchor, alast->path);
+		if (path_cut != NULL) {
+			path_cut += strlen(alast->path);
+			if (*path_cut)
+				sz = snprintf(new_path, sizeof (new_path),
+				    "%s%s", a->path, path_cut);
+			else
+				sz = snprintf(new_path, sizeof (new_path),
+				    "%s", a->path);
+			if (sz >= sizeof (new_path))
+				errx(1, "new path is too long for %s@%s\n",
+				    kt->pfrkt_name, kt->pfrkt_anchor);
+
+			DBGPRINT("%s %s@%s -> %s@%s\n", __func__,
+			    kt->pfrkt_name, kt->pfrkt_anchor,
+			    kt->pfrkt_name, new_path);
+			    RB_REMOVE(pfr_ktablehead, ktables, kt);
+			strlcpy(kt->pfrkt_anchor, new_path,
+			    sizeof(kt->pfrkt_anchor));
+			SLIST_INSERT_HEAD(&ukt_list, (struct pfr_uktable *)kt,
+			    pfrukt_entry);
+		}
+	}
+
+	while ((ukt = SLIST_FIRST(&ukt_list)) != NULL) {
+		SLIST_REMOVE_HEAD(&ukt_list, pfrukt_entry);
+		if (RB_INSERT(pfr_ktablehead, ktables,
+		    (struct pfr_ktable *)ukt) != NULL)
+			errx(1, "%s@%s exists already\n",
+			    ukt->pfrukt_name,
+			    ukt->pfrukt_anchor);
+	}
+}
+
+void
 decide_address_family(struct node_host *n, sa_family_t *af)
 {
 	if (*af != 0 || n == NULL)
@@ -7485,7 +7581,7 @@ parseport(char *port, struct range *r, int extensions)
 }
 
 int
-pfctl_load_anchors(int dev, struct pfctl *pf, struct pfr_buffer *trans)
+pfctl_load_anchors(int dev, struct pfctl *pf)
 {
 	struct loadanchors	*la;
 
@@ -7494,7 +7590,7 @@ pfctl_load_anchors(int dev, struct pfctl *pf, struct pfr_buffer *trans)
 			fprintf(stderr, "\nLoading anchor %s from %s\n",
 			    la->anchorname, la->filename);
 		if (pfctl_rules(dev, la->filename, pf->opts, pf->optimize,
-		    la->anchorname, trans) == -1)
+		    la->anchorname, pf->trans) == -1)
 			return (-1);
 	}
 
