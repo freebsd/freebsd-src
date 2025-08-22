@@ -242,6 +242,7 @@ gfx_fb_evalcolor(const char *envname, teken_color_t *cattr,
 {
 	const char *ptr;
 	char env[10];
+	int eflags = EV_VOLATILE | EV_NOKENV;
 	bool from_env = false;
 
 	ptr = getenv(envname);
@@ -257,10 +258,16 @@ gfx_fb_evalcolor(const char *envname, teken_color_t *cattr,
 		if (unsetenv(envname) != 0)
 			return (true);
 		from_env = true;
+
+		/*
+		 * If we're carrying over an existing value, we *do* want that
+		 * to propagate to the kenv.
+		 */
+		eflags &= ~EV_NOKENV;
 	}
 
 	snprintf(env, sizeof(env), "%d", *cattr);
-	env_setenv(envname, EV_VOLATILE, env, sethook, unsethook);
+	env_setenv(envname, eflags, env, sethook, unsethook);
 
 	return (from_env);
 }
