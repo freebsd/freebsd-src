@@ -1041,28 +1041,7 @@ cons_update_mode(bool use_gfx_mode)
 			a = teken_get_defattr(&gfx_state.tg_teken);
 			attr = *a;
 
-			/*
-			 * On first run, we set up the efi_set_colors()
-			 * callback. If the env is already set, we
-			 * pick up fg and bg color values from the environment.
-			 */
-			ptr = getenv("teken.fg_color");
-			if (ptr != NULL) {
-				attr.ta_fgcolor = strtol(ptr, NULL, 10);
-				ptr = getenv("teken.bg_color");
-				attr.ta_bgcolor = strtol(ptr, NULL, 10);
-
-				teken_set_defattr(&gfx_state.tg_teken, &attr);
-			} else {
-				snprintf(env, sizeof(env), "%d",
-				    attr.ta_fgcolor);
-				env_setenv("teken.fg_color", EV_VOLATILE, env,
-				    efi_set_colors, env_nounset);
-				snprintf(env, sizeof(env), "%d",
-				    attr.ta_bgcolor);
-				env_setenv("teken.bg_color", EV_VOLATILE, env,
-				    efi_set_colors, env_nounset);
-			}
+			gfx_fb_setcolors(&attr, efi_set_colors, env_nounset);
 		}
 	}
 
