@@ -452,6 +452,16 @@ VNET_DECLARE(struct rmlock, pf_rules_lock);
 #define	PF_RULES_RASSERT()	rm_assert(&V_pf_rules_lock, RA_RLOCKED)
 #define	PF_RULES_WASSERT()	rm_assert(&V_pf_rules_lock, RA_WLOCKED)
 
+VNET_DECLARE(struct rmlock, pf_tags_lock);
+#define	V_pf_tags_lock		VNET(pf_tags_lock)
+
+#define	PF_TAGS_RLOCK_TRACKER	struct rm_priotracker _pf_tags_tracker
+#define	PF_TAGS_RLOCK()		rm_rlock(&V_pf_tags_lock, &_pf_tags_tracker)
+#define	PF_TAGS_RUNLOCK()	rm_runlock(&V_pf_tags_lock, &_pf_tags_tracker)
+#define	PF_TAGS_WLOCK()		rm_wlock(&V_pf_tags_lock)
+#define	PF_TAGS_WUNLOCK()	rm_wunlock(&V_pf_tags_lock)
+#define	PF_TAGS_WASSERT()	rm_assert(&V_pf_tags_lock, RA_WLOCKED)
+
 extern struct mtx_padalign pf_table_stats_lock;
 #define	PF_TABLE_STATS_LOCK()	mtx_lock(&pf_table_stats_lock)
 #define	PF_TABLE_STATS_UNLOCK()	mtx_unlock(&pf_table_stats_lock)
@@ -1209,11 +1219,11 @@ struct pfsync_state_1301 {
 	u_int8_t	 state_flags;
 	u_int8_t	 timeout;
 	u_int8_t	 sync_flags;
-	u_int8_t	 updates;
+	u_int8_t	 updates;	/* unused */
 } __packed;
 
 struct pfsync_state_1400 {
-	/* The beginning of the struct is compatible with previous versions */
+	/* The beginning of the struct is compatible with pfsync_state_1301 */
 	u_int64_t	 id;
 	char		 ifname[IFNAMSIZ];
 	struct pfsync_state_key	key[2];
@@ -1236,7 +1246,7 @@ struct pfsync_state_1400 {
 	u_int8_t	 __spare;
 	u_int8_t	 timeout;
 	u_int8_t	 sync_flags;
-	u_int8_t	 updates;
+	u_int8_t	 updates;	/* unused */
 	/* The rest is not */
 	u_int16_t	 qid;
 	u_int16_t	 pqid;
@@ -1249,12 +1259,54 @@ struct pfsync_state_1400 {
 	u_int8_t	 set_prio[2];
 	u_int8_t	 rt;
 	char		 rt_ifname[IFNAMSIZ];
+} __packed;
 
+struct pfsync_state_1500 {
+	/* The beginning of the struct is compatible with pfsync_state_1301 */
+	u_int64_t	 id;
+	char		 ifname[IFNAMSIZ];
+	struct pfsync_state_key	key[2];
+	struct pf_state_peer_export src;
+	struct pf_state_peer_export dst;
+	struct pf_addr	 rt_addr;
+	u_int32_t	 rule;
+	u_int32_t	 anchor;
+	u_int32_t	 nat_rule;
+	u_int32_t	 creation;
+	u_int32_t	 expire;
+	u_int32_t	 packets[2][2];
+	u_int32_t	 bytes[2][2];
+	u_int32_t	 creatorid;
+	/* The rest is not, use the opportunity to fix alignment */
+	char		 tagname[PF_TAG_NAME_SIZE];
+	char		 rt_ifname[IFNAMSIZ];
+	char		 orig_ifname[IFNAMSIZ];
+	int32_t		 rtableid;
+	u_int16_t	 state_flags;
+	u_int16_t	 qid;
+	u_int16_t	 pqid;
+	u_int16_t	 dnpipe;
+	u_int16_t	 dnrpipe;
+	u_int16_t	 max_mss;
+	sa_family_t	 wire_af;
+	sa_family_t	 stack_af;
+	sa_family_t	 rt_af;
+	u_int8_t	 wire_proto;
+	u_int8_t	 stack_proto;
+	u_int8_t	 log;
+	u_int8_t	 timeout;
+	u_int8_t	 direction;
+	u_int8_t	 rt;
+	u_int8_t	 min_ttl;
+	u_int8_t	 set_tos;
+	u_int8_t	 set_prio[2];
+	u_int8_t	 spare[3];	/* Improve struct alignment */
 } __packed;
 
 union pfsync_state_union {
 	struct pfsync_state_1301 pfs_1301;
 	struct pfsync_state_1400 pfs_1400;
+	struct pfsync_state_1500 pfs_1500;
 } __packed;
 
 #ifdef _KERNEL
@@ -2462,6 +2514,10 @@ int	pf_translate(struct pf_pdesc *, struct pf_addr *, u_int16_t,
 	    struct pf_addr *, u_int16_t, u_int16_t, int);
 int	pf_translate_af(struct pf_pdesc *);
 bool	pf_init_threshold(struct pf_kthreshold *, uint32_t, uint32_t);
+uint16_t	pf_tagname2tag(const char *);
+#ifdef ALTQ
+uint16_t	pf_qname2qid(const char *, bool);
+#endif /* ALTQ */
 
 void	pfr_initialize(void);
 void	pfr_cleanup(void);

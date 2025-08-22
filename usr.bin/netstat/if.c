@@ -84,8 +84,10 @@ static const char* pfsyncacts[] = {
 	/* PFSYNC_ACT_BUS */		"bulk update mark",
 	/* PFSYNC_ACT_TDB */		"TDB replay counter update",
 	/* PFSYNC_ACT_EOF */		"end of frame mark",
-	/* PFSYNC_ACT_INS_1400 */	"state insert",
-	/* PFSYNC_ACT_UPD_1400 */	"state update",
+	/* PFSYNC_ACT_INS_1400 */	"14.0 state insert",
+	/* PFSYNC_ACT_UPD_1400 */	"14.0 state update",
+	/* PFSYNC_ACT_INS_1500 */	"state insert",
+	/* PFSYNC_ACT_UPD_1500 */	"state update",
 };
 
 static const char* pfsyncacts_name[] = {
@@ -102,8 +104,10 @@ static const char* pfsyncacts_name[] = {
 	/* PFSYNC_ACT_BUS */		"bulk-update-mark",
 	/* PFSYNC_ACT_TDB */		"TDB-replay-counter-update",
 	/* PFSYNC_ACT_EOF */		"end-of-frame-mark",
-	/* PFSYNC_ACT_INS_1400 */	"state-insert",
-	/* PFSYNC_ACT_UPD_1400 */	"state-update",
+	/* PFSYNC_ACT_INS_1400 */	"state-insert-1400",
+	/* PFSYNC_ACT_UPD_1400 */	"state-update-1400",
+	/* PFSYNC_ACT_INS_1500 */	"state-insert",
+	/* PFSYNC_ACT_UPD_1500 */	"state-update",
 };
 
 static void

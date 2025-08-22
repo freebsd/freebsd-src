@@ -102,6 +102,7 @@ struct pfsync_actions {
 static void	pfsync_print_clr(netdissect_options *, const void *);
 static void	pfsync_print_state_1301(netdissect_options *, const void *);
 static void	pfsync_print_state_1400(netdissect_options *, const void *);
+static void	pfsync_print_state_1500(netdissect_options *, const void *);
 static void	pfsync_print_ins_ack(netdissect_options *, const void *);
 static void	pfsync_print_upd_c(netdissect_options *, const void *);
 static void	pfsync_print_upd_req(netdissect_options *, const void *);
@@ -131,6 +132,8 @@ struct pfsync_actions actions[] = {
 	{ "eof", 0,					NULL },
 	{ "insert", sizeof(struct pfsync_state_1400),	pfsync_print_state_1400 },
 	{ "update", sizeof(struct pfsync_state_1400),	pfsync_print_state_1400 },
+	{ "insert", sizeof(struct pfsync_state_1500),	pfsync_print_state_1500 },
+	{ "update", sizeof(struct pfsync_state_1500),	pfsync_print_state_1500 },
 };
 
 static void
@@ -228,10 +231,19 @@ pfsync_print_state_1301(netdissect_options *ndo, const void *bp)
 static void
 pfsync_print_state_1400(netdissect_options *ndo, const void *bp)
 {
-	struct pfsync_state_1301 *st = (struct pfsync_state_1301 *)bp;
+	struct pfsync_state_1400 *st = (struct pfsync_state_1400 *)bp;
 
 	fn_print_char(ndo, '\n');
 	print_state(ndo, (union pfsync_state_union *)st, PFSYNC_MSG_VERSION_1400);
+}
+
+static void
+pfsync_print_state_1500(netdissect_options *ndo, const void *bp)
+{
+	struct pfsync_state_1500 *st = (struct pfsync_state_1500 *)bp;
+
+	fn_print_char(ndo, '\n');
+	print_state(ndo, (union pfsync_state_union *)st, PFSYNC_MSG_VERSION_1500);
 }
 
 static void
