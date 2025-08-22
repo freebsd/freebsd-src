@@ -232,6 +232,37 @@ gfx_parse_mode_str(char *str, int *x, int *y, int *depth)
 	return (true);
 }
 
+void
+gfx_fb_setcolors(teken_attr_t *attr, ev_sethook_t sethook,
+     ev_unsethook_t unsethook)
+{
+	const char *ptr;
+	char env[10];
+
+	/*
+	 * On first run, we setup an environment hook to process any color
+	 * changes.  If the env is already set, we pick up fg and bg color
+	 * values from the environment.
+	 */
+	ptr = getenv("teken.fg_color");
+	if (ptr != NULL) {
+		attr->ta_fgcolor = strtol(ptr, NULL, 10);
+		ptr = getenv("teken.bg_color");
+		attr->ta_bgcolor = strtol(ptr, NULL, 10);
+
+		teken_set_defattr(&gfx_state.tg_teken, attr);
+	} else {
+		snprintf(env, sizeof(env), "%d",
+		    attr->ta_fgcolor);
+		env_setenv("teken.fg_color", EV_VOLATILE, env,
+		    sethook, unsethook);
+		snprintf(env, sizeof(env), "%d",
+		    attr->ta_bgcolor);
+		env_setenv("teken.bg_color", EV_VOLATILE, env,
+		    sethook, unsethook);
+	}
+}
+
 static uint32_t
 rgb_color_map(uint8_t index, uint32_t rmax, int roffset,
     uint32_t gmax, int goffset, uint32_t bmax, int boffset)
