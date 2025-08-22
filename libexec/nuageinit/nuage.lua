@@ -451,6 +451,23 @@ local function chpasswd(obj)
 	end
 end
 
+local function settimezone(timezone)
+	if timezone == nil then
+		return
+	end
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	if not root then
+		root = "/"
+	end
+
+	f, _, rc = os.execute("tzsetup -s -C " .. root .. " " .. timezone)
+
+	if not f then
+		warnmsg("Impossible to configure time zone ( rc = " .. rc .. " )")
+		return
+	end
+end
+
 local function pkg_bootstrap()
 	if os.getenv("NUAGE_RUN_TESTS") then
 		return true
@@ -480,7 +497,7 @@ local function install_package(package)
 end
 
 local function run_pkg_cmd(subcmd)
-	local cmd = "pkg " .. subcmd .. " -y"
+	local cmd = "env ASSUME_ALWAYS_YES=yes pkg " .. subcmd
 	if os.getenv("NUAGE_RUN_TESTS") then
 		print(cmd)
 		return true
@@ -556,6 +573,7 @@ local n = {
 	dirname = dirname,
 	mkdir_p = mkdir_p,
 	sethostname = sethostname,
+	settimezone = settimezone,
 	adduser = adduser,
 	addgroup = addgroup,
 	addsshkey = addsshkey,

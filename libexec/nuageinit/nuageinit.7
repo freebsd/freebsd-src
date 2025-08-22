@@ -143,6 +143,11 @@ Specify a fully qualified domain name for the instance.
 Specify the hostname of the instance if
 .Qq Ic fqdn
 is not set.
+.It Ic timezone
+Sets the system timezone based on the value provided.
+.Pp
+See also
+.Xr tzfile 3 Ns .
 .It Ic groups
 An array of strings or objects to be created:
 .Bl -bullet
@@ -176,6 +181,81 @@ boolean which determines the value of the
 configuration in
 .Pa /etc/ssh/sshd_config
 .It Ic network
+Network configuration parameters.
+.Bl -tag -width "ethernets"
+.It Ic ethernets
+Mapping representing a generic configuration for existing network interfaces.
+.Pp
+Each key is an interface name that is only used when no
+.Sy match
+rule is specified.
+If
+.Sy match
+rules are specified, an arbitrary name can be used
+.Po e.g.: id0 Pc Ns .
+.Bl -tag -width "nameservers"
+.It Ic match
+This selects a subset of available physical devices by various hardware properties.
+The following configuration will then apply to all matching devices, as soon as
+they appear. All specified properties must match. The following properties for
+creating matches are supported:
+.Bl -tag -width "macaddress"
+.It Ic macaddress
+.No Device's MAC address in the form Sy xx:xx:xx:xx:xx:xx Ns .
+Letters should be lowercase.
+.It Ic name
+Current interface name. Lua pattern-matching expressions are supported.
+.It Ic driver
+Interface driver name and unit number of the interface. Lua pattern-natching expressions
+are supported.
+.El
+.It Ic set-name
+When matching on unique properties such as MAC, match rules can be written so that they
+match only one device. Then this property can be used to give that device a more
+specific/desirable/nicer name than the default.
+.Pp
+While multiple properties can be used in a match,
+.Sy macaddress
+is required for nuageinit to perform the rename.
+.It Ic mtu
+The MTU key represents a device's Maximum Transmission Unit, the largest size packet
+or frame.
+.It Ic wakeonlan
+Enable wake on LAN. Off by default.
+.It Ic dhcp4
+Configure the interface to use DHCP.
+.Pp
+This takes precedence over
+.Sy addresses
+when both are specified.
+.It Ic addresses
+List of strings representing IPv4 or IPv6 addresses.
+.It Ic gateway4
+Set default gateway for IPv4, for manual address configuration. This requires setting
+.Sy addresses
+too.
+.Pp
+Since only one default router can be configured at a time, this parameter is applied
+when processing the first entry, and any others are silently ignored.
+.It Ic gateway6
+Set default gateway for IPv6, for manual address configuration. This requires setting
+.Sy addresses
+too.
+.Pp
+Since only one default router can be configured at a time, this parameter is applied
+when processing the first entry, and any others are silently ignored.
+.It Ic nameservers
+Set DNS servers and search domains, for manual address configuration.
+.Pp
+There are two supported fields:
+.Bl -tag -width "addresses"
+.It Ic search
+Search list for host-name lookup.
+.It Ic addresses
+List of IPv4 or IPv6 name server addresses that the resolver should query.
+.El
+.El
+.El
 .It Ic runcmd
 An array of commands to be run at the end of the boot process
 .It Ic packages
@@ -186,7 +266,7 @@ Update the remote package metadata.
 Upgrade the packages installed to their latest version.
 .It Ic users
 Specify a list of users to be created:
-.Bl -tag -width "plain_text_passwd"
+.Bl -tag -width "ssh_authorized_keys"
 .It Ic name
 Name of the user.
 .It Ic gecos
@@ -201,6 +281,8 @@ The list of other groups the user should belong to.
 A boolean which determines if the home directory should be created or not.
 .It Ic shell
 The shell that should be used for the user.
+.It Ic ssh_authorized_keys
+List of SSH keys for the user.
 .It Ic passwd
 The encrypted password for the user.
 .It Ic plain_text_passwd
@@ -287,7 +369,7 @@ users:
   - name: user
     gecos: Foo B. Bar
     sudo: ALL=(ALL) NOPASSWD:ALL
-    ssh-authorized-keys:
+    ssh_authorized_keys:
       - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr...
 packages:
   - neovim
@@ -303,6 +385,12 @@ ssh_keys:
     ...
     -----END OPENSSH PRIVATE KEY-----
   ed25519_public: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK+MH4E8KO32N5CXRvXVqvyZVl0+6ue4DobdhU0FqFd+
+network:
+  ethernets:
+    vtnet0:
+      addresses:
+        - 192.168.8.2/24
+      gateway4: 192.168.8.1
 .Ed
 .Sh SEE ALSO
 .Xr kenv 2 ,
