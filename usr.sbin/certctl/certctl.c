@@ -101,6 +101,28 @@ static char *bundle_dest;
 static FILE *mlf;
 
 /*
+ * Create a directory and its parents as needed.
+ */
+static void
+mkdirp(const char *dir)
+{
+	struct stat sb;
+	const char *sep;
+	char *parent;
+
+	if (stat(dir, &sb) == 0)
+		return;
+	if ((sep = strrchr(dir, '/')) != NULL) {
+		parent = xasprintf("%.*s", (int)(sep - dir), dir);
+		mkdirp(parent);
+		free(parent);
+	}
+	info("creating %s", dir);
+	if (mkdir(dir, 0755) != 0)
+		err(1, "mkdir %s", dir);
+}
+
+/*
  * Remove duplicate and trailing slashes from a path.
  */
 static char *
@@ -685,7 +707,7 @@ save_trusted(void)
 {
 	int ret;
 
-	/* save untrusted certs */
+	mkdirp(trusted_dest);
 	ret = write_certs(trusted_dest, &trusted);
 	return (ret);
 }
@@ -700,6 +722,7 @@ save_untrusted(void)
 {
 	int ret;
 
+	mkdirp(untrusted_dest);
 	ret = write_certs(untrusted_dest, &untrusted);
 	return (ret);
 }
@@ -721,6 +744,7 @@ save_bundle(void)
 	} else {
 		dir = xasprintf("%.*s", (int)(sep - bundle_dest), bundle_dest);
 		file = sep + 1;
+		mkdirp(dir);
 	}
 	ret = write_bundle(dir, file, &trusted);
 	free(dir);
@@ -995,17 +1019,17 @@ set_defaults(void)
 
 	if ((value = getenv("TRUSTDESTDIR")) != NULL ||
 	    (value = getenv("CERTDESTDIR")) != NULL)
-		trusted_dest = xstrdup(value);
+		trusted_dest = normalize_path(value);
 	else
 		trusted_dest = expand_path(TRUSTED_PATH);
 
 	if ((value = getenv("UNTRUSTDESTDIR")) != NULL)
-		untrusted_dest = xstrdup(value);
+		untrusted_dest = normalize_path(value);
 	else
 		untrusted_dest = expand_path(UNTRUSTED_PATH);
 
 	if ((value = getenv("BUNDLE")) != NULL)
-		bundle_dest = xstrdup(value);
+		bundle_dest = normalize_path(value);
 	else
 		bundle_dest = expand_path(BUNDLE_PATH);
 

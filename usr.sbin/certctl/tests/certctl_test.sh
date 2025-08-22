@@ -76,9 +76,9 @@ certctl_setup()
 	mkdir -p ${DESTDIR}${DISTBASE}/usr/share/certs/untrusted
 	mkdir -p ${DESTDIR}/usr/local/share/certs
 
-	# Create output directories
-	mkdir -p ${DESTDIR}${DISTBASE}/etc/ssl/certs
-	mkdir -p ${DESTDIR}${DISTBASE}/etc/ssl/untrusted
+	# Do not create output directories; certctl will take care of it
+	#mkdir -p ${DESTDIR}${DISTBASE}/etc/ssl/certs
+	#mkdir -p ${DESTDIR}${DISTBASE}/etc/ssl/untrusted
 
 	# Generate a random key
 	keyname="testkey"
