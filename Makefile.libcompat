@@ -57,6 +57,7 @@ build${libcompat}: .PHONY
 	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
 .endif
 	${_+_}cd ${.CURDIR}; \
+	    PATH=${BPATH:Q}:${PATH:Q} \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    ${MAKE} -f Makefile.inc1 \
