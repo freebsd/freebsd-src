@@ -7,11 +7,20 @@
 export NUAGE_FAKE_ROOTDIR="$PWD"
 
 atf_test_case sethostname
+atf_test_case settimezone
 atf_test_case addsshkey
 atf_test_case adduser
 atf_test_case adduser_passwd
 atf_test_case addgroup
 atf_test_case addfile
+
+settimezone_body()
+{
+	atf_check /usr/libexec/flua $(atf_get_srcdir)/settimezone.lua
+	if [ ! -f etc/localtime ]; then
+		atf_fail "localtime not written"
+	fi
+}
 
 sethostname_body()
 {
