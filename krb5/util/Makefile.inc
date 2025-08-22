@@ -9,5 +9,7 @@
 
 .include "../Makefile.inc"
 
+LIB_PACKAGE=
+
 SHLIBDIR?=		/usr/lib
 SHLIB_MAJOR?=		122

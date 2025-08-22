@@ -52,10 +52,30 @@ TAGS+=	lib${_libcompat}
 
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
-TAGS+=		package=${PACKAGE:Uutilities}
+TAGS+=	package=${PACKAGE:Uutilities}
 .endif
+
+# By default, if PACKAGE=foo, then the native runtime libraries will go into
+# the FreeBSD-foo package, and subpackages will be created for -dev, -lib32,
+# and so on.  If LIB_PACKAGE is set, then we also create a subpackage for
+# runtime libraries with a -lib suffix.  This is used when a package has
+# libraries and some other content (e.g., executables) to allow consumers to
+# depend on the libraries.
+.if defined(LIB_PACKAGE) && ! ${TAGS:Mlib*}
+.if !defined(PACKAGE)
+.error LIB_PACKAGE cannot be used without PACKAGE
+.endif
+
+LIB_TAG_ARGS=	${TAG_ARGS},lib
+.else
+LIB_TAG_ARGS=	${TAG_ARGS}
+.endif
+
 TAG_ARGS=	-T ${TAGS:ts,:[*]}
-.endif
+
+DBG_TAG_ARGS=	${TAG_ARGS},dbg
+DEV_TAG_ARGS=	${TAG_ARGS},dev
+.endif	# !defined(NO_ROOT)
 
 # ELF hardening knobs
 .if ${MK_BIND_NOW} != "no"
@@ -355,7 +375,7 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 installpcfiles: installpcfiles-${pcfile}
 
 installpcfiles-${pcfile}: ${pcfile}
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${DEV_TAG_ARGS} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} \
 	    ${.ALLSRC} ${DESTDIR}${LIBDATADIR}/pkgconfig/
 .endfor
@@ -367,37 +387,38 @@ realinstall: _libinstall installpcfiles _debuginstall
 .ORDER: beforeinstall _libinstall _debuginstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${DEV_TAG_ARGS} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}${_STATICLIB_SUFFIX}.a ${DESTDIR}${_LIBDIR}/
 .endif
 .if defined(SHLIB_NAME)
-	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${LIB_TAG_ARGS} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}/
 .if defined(SHLIB_LINK)
 .if commands(${SHLIB_LINK:R}.ld)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -S -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${DEV_TAG_ARGS} -S -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
-	${INSTALL_LIBSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${TAG_ARGS} ${SHLIB_LINK} \
-	    ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
+	${INSTALL_LIBSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${LIB_TAG_ARGS} \
+	    ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
 .endfor
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
 .if ${SHLIB_LINK:Mlib*}
-	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${DEV_TAG_ARGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .else
-	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${TAG_ARGS} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
+	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${LIB_TAG_ARGS} \
+	    ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .endif
 .else
 .if ${SHLIB_LINK:Mlib*}
-	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${DEV_TAG_ARGS} \
 	    ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .else
-	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${TAG_ARGS} \
+	${INSTALL_RSYMLINK} ${_SHLINSTALLSYMLINKFLAGS} ${LIB_TAG_ARGS} \
 	    ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .endif
 .if exists(${DESTDIR}${_LIBDIR}/${SHLIB_NAME})
@@ -409,7 +430,7 @@ _libinstall:
 .endif # SHLIB_LINK
 .endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${DEV_TAG_ARGS} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}/
 .endif
 .endif # !defined(INTERNALLIB)
@@ -429,7 +450,7 @@ LINKGRP?=	${LIBGRP}
 LINKMODE?=	${LIBMODE}
 SYMLINKOWN?=	${LIBOWN}
 SYMLINKGRP?=	${LIBGRP}
-LINKTAGS=	dev
+LINKTAGS=	dev${_COMPAT_TAG}
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)

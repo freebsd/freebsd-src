@@ -7,12 +7,11 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	kerberos-lib
-
 .include "../Makefile.inc"
 
 SCRIPTS=	krb5-config.sh
 BINDIR?=	/usr/bin
+TAGS=		dev
 
 MAN=	krb5-config.1
 

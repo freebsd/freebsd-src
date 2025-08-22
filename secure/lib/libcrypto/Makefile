@@ -9,7 +9,6 @@ CFLAGS+=	-DOPENSSL_NO_SCTP
 .include <bsd.own.mk>
 .include <src.opts.mk>
 
-PACKAGE=	openssl-lib
 LIB=		crypto
 SHLIB_MAJOR=	35
 VERSION_MAP=	${.CURDIR}/Version.map

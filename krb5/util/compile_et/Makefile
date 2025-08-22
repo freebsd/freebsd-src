@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	kerberos
-
 .include "../Makefile.inc"
 
 SRC_ETDIR=	${KRB5_DIR}/util/et
@@ -18,6 +16,7 @@ SCRIPTS=	compile_et
 BINDIR?=	/usr/bin
 MAN=		compile_et.1
 CLEANFILES=	compile_et
+TAGS+=		dev
 
 compile_et: compile_et.sh
 	sh ${SRC_ETDIR}/config_script ${SRC_ETDIR}/compile_et.sh \

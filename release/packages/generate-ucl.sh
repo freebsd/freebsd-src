@@ -49,6 +49,9 @@ main() {
 		*-lib32)
 			outname="${outname%%-lib32}"
 			;;
+		*-lib)
+			outname="${outname%%-lib}"
+			;;
 		*-man)
 			outname="${outname%%-man}"
 			;;

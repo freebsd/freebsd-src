@@ -28,6 +28,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250823:
+	The set of pkgbase packages for Kerberos and OpenSSL has changed.
+	After updating past 250e77d4f0a5, you should check 'pkg orphans'
+	and remove any orphaned packages, then examine the output of
+	'pkg install -r base -g FreeBSD-openssl\* FreeBSD-kerberos\*'
+	and install any new packages you need.
+
+20250823:
 	To restore bridge(4)'s ABI compatibility with ifconfig from 14.x or
 	earlier, the size of struct ifbreq has changed, so you must update
 	the kernel and /sbin/ifconfig at the same time or you will not be

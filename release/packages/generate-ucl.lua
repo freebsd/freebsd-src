@@ -39,6 +39,10 @@ pkg_suffixes = {
 		"applications on a 64-bit host.",
 	},
 	{
+		"%-lib$", "(libraries)",
+		"This package contains runtime shared libraries.",
+	},
+	{
 		"%-dev$", "(development files)",
 		"This package contains development files for "..
 		"compiling applications."
@@ -96,6 +100,9 @@ function add_gen_dep(pkgname, pkggenname)
 		return false
 	end
 	if no_gen_deps[pkgname] ~= nil then
+		return false
+	end
+	if pkgname:match("%-lib$") ~= nil then
 		return false
 	end
 	if pkggenname == "kernel" then

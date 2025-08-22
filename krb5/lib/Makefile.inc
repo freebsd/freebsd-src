@@ -9,7 +9,7 @@
 
 .include "../Makefile.inc"
 
-PACKAGE?=		kerberos-lib
+LIB_PACKAGE=
 
 KRB5_KRB5LIBDIR=	${KRB5_SRCLIBDIR}/krb5
 KRB5_K5CRYPTODIR=	${KRB5_SRCLIBDIR}/crypto

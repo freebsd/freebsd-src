@@ -1,5 +1,8 @@
 .include <bsd.own.mk>
 
+PACKAGE=	openssl
+LIB_PACKAGE=
+
 # OpenSSL version used for manual page generation
 .include "Makefile.version"
 
