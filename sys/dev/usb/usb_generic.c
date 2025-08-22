@@ -2376,6 +2376,28 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		 */
 		usbd_set_parent_iface(f->udev, n, n);
 		break;
+	case USB_IFACE_DRIVER_ATTACH:
+
+		error = priv_check(curthread, PRIV_DRIVER);
+
+		if (error)
+			break;
+
+		n = *u.pint & 0xFF;
+
+		if (n == USB_IFACE_INDEX_ANY) {
+			error = EINVAL;
+			break;
+		}
+
+		/*
+		 * Attach the currently detached driver.
+		 */
+		usbd_set_parent_iface(f->udev, n, USB_IFACE_INDEX_ANY);
+
+		usb_probe_and_attach(f->udev, n);
+
+		break;
 
 	case USB_SET_POWER_MODE:
 		error = ugen_set_power_mode(f, *u.pint);

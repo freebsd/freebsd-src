@@ -80,6 +80,7 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_get_stats (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
+#define	dummy_attach_kernel_driver (void *)dummy_int
 #define	dummy_do_request_sync (void *)dummy_int
 #define	dummy_tr_open (void *)dummy_int
 #define	dummy_tr_close (void *)dummy_int
@@ -633,6 +634,16 @@ libusb20_dev_detach_kernel_driver(struct libusb20_device *pdev, uint8_t ifaceInd
 	int error;
 
 	error = pdev->methods->detach_kernel_driver(pdev, ifaceIndex);
+	return (error);
+}
+
+int
+libusb20_dev_attach_kernel_driver(struct libusb20_device *pdev,
+    uint8_t ifaceIndex)
+{
+	int error;
+
+	error = pdev->methods->attach_kernel_driver(pdev, ifaceIndex);
 	return (error);
 }
 

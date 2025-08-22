@@ -1052,10 +1052,14 @@ libusb_detach_kernel_driver(struct libusb20_device *pdev, int interface)
 int
 libusb_attach_kernel_driver(struct libusb20_device *pdev, int interface)
 {
+	int err;
+
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
-	/* stub - currently not supported by libusb20 */
-	return (0);
+
+	err = libusb20_dev_attach_kernel_driver(pdev, interface);
+
+	return (err ? LIBUSB_ERROR_OTHER : 0);
 }
 
 int

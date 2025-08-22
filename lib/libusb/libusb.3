@@ -95,8 +95,10 @@ supports hotplug notifications.
 can access HID devices without requiring user intervention.
 .It Va LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER
 .Nm
-supports detaching of the default USB driver with
-.Fn libusb_detach_kernel_driver .
+supports detaching and attaching of the default USB driver with
+.Fn libusb_detach_kernel_driver
+and
+.Fn libusb_attach_kernel_driver .
 .El
 .Pp
 .Ft const char *
@@ -869,6 +871,7 @@ The library is also compliant with LibUSB version 0.1.12.
 .Fn usb_check_connected
 .Fn usb_get_driver_np
 .Fn usb_detach_kernel_driver_np
+.Fn usb_attach_kernel_driver_np
 .Sh SEE ALSO
 .Xr libusb20 3 ,
 .Xr usb 4 ,

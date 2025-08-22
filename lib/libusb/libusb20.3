@@ -126,6 +126,8 @@ USB access library (libusb -lusb)
 .Ft int
 .Fn libusb20_dev_detach_kernel_driver "struct libusb20_device *pdev" "uint8_t iface_index"
 .Ft int
+.Fn libusb20_dev_attach_kernel_driver "struct libusb20_device *pdev" "uint8_t iface_index"
+.Ft int
 .Fn libusb20_dev_set_config_index "struct libusb20_device *pdev" "uint8_t configIndex"
 .Ft int
 .Fn libusb20_dev_get_debug "struct libusb20_device *pdev"
@@ -616,6 +618,15 @@ returned.
 .
 .Fn libusb20_dev_detach_kernel_driver
 will try to detach the kernel driver for the USB interface given by
+.Fa iface_index .
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_attach_kernel_driver
+will try to attach the kernel driver for the USB interface given by
 .Fa iface_index .
 .
 This function returns zero on success else a LIBUSB20_ERROR value is

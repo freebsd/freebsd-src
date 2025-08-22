@@ -93,6 +93,7 @@ struct options {
 	uint8_t	got_do_request:1;
 	uint8_t	got_detach_kernel_driver:1;
 	uint8_t opt_dump_in_list_mode:1;
+	uint8_t	got_attach_kernel_driver:1;
 };
 
 struct token {
@@ -129,6 +130,7 @@ enum {
 	T_RESET,
 	T_LIST,
 	T_DO_REQUEST,
+	T_ATTACH_KERNEL_DRIVER,
 };
 
 static struct options options;
@@ -143,6 +145,7 @@ static const struct token token[] = {
 	{"add_quirk", T_ADD_QUIRK, 1},
 	{"remove_quirk", T_REMOVE_QUIRK, 1},
 	{"detach_kernel_driver", T_DETACH_KERNEL_DRIVER, 0},
+	{"attach_kernel_driver", T_ATTACH_KERNEL_DRIVER, 0},
 	{"dump_quirk_names", T_DUMP_QUIRK_NAMES, 0},
 	{"dump_device_quirks", T_DUMP_DEVICE_QUIRKS, 0},
 	{"dump_all_desc", T_DUMP_ALL_DESC, 0},
@@ -283,6 +286,7 @@ usage(int exitcode)
 	    "  add_quirk <quirk>" "\n"
 	    "  remove_quirk <quirk>" "\n"
 	    "  detach_kernel_driver" "\n"
+	    "  attach_kernel_driver" "\n"
 	    "  dump_quirk_names" "\n"
 	    "  dump_device_quirks" "\n"
 	    "  dump_all_desc" "\n"
@@ -496,6 +500,11 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 				err(1, "could not detach kernel driver");
 			}
 		}
+		if (opt->got_attach_kernel_driver) {
+			if (libusb20_dev_attach_kernel_driver(pdev, opt->iface)) {
+				err(1, "could not attach kernel driver");
+			}
+		}
 		dump_any =
 		    (opt->got_dump_all_desc ||
 		    opt->got_dump_device_desc ||
@@ -685,6 +694,13 @@ main(int argc, char **argv)
 			if (opt->got_detach_kernel_driver)
 				duplicate_option(argv[n]);
 			opt->got_detach_kernel_driver = 1;
+			opt->got_any++;
+			break;
+
+		case T_ATTACH_KERNEL_DRIVER:
+			if (opt->got_attach_kernel_driver)
+				duplicate_option(argv[n]);
+			opt->got_attach_kernel_driver = 1;
 			opt->got_any++;
 			break;
 
