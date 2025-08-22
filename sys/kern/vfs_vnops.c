@@ -3444,7 +3444,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	dat = NULL;
 
 	if ((flags & COPY_FILE_RANGE_CLONE) != 0) {
-		error = ENOSYS;
+		error = EOPNOTSUPP;
 		goto out;
 	}
 
