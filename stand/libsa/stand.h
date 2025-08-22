@@ -352,6 +352,7 @@ extern int	pager_file(const char *fname);
 #define EV_DYNAMIC	(1<<0)		/* value was dynamically allocated, free if changed/unset */
 #define EV_VOLATILE	(1<<1)		/* value is volatile, make a copy of it */
 #define EV_NOHOOK	(1<<2)		/* don't call hook when setting */
+#define EV_NOKENV	(1<<3)		/* don't add to kenv (loader-only) */
 
 struct env_var;
 typedef char	*(ev_format_t)(struct env_var *ev);

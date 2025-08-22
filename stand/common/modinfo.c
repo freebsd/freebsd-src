@@ -172,6 +172,8 @@ md_copyenv(vm_offset_t start)
 
 	/* Traverse the environment. */
 	for (ep = environ; ep != NULL; ep = ep->ev_next) {
+		if ((ep->ev_flags & EV_NOKENV) != 0)
+			continue;
 		len = strlen(ep->ev_name);
 		if ((size_t)archsw.arch_copyin(ep->ev_name, addr, len) != len)
 			break;
