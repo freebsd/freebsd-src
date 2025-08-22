@@ -98,16 +98,16 @@
         ssh
         ..
         ssl
-            certs
+            certs		tags=package=caroot
             ..
-            untrusted
+            untrusted		tags=package=caroot
             ..
         ..
         sysctl.kld.d
         ..
         syslog.d
         ..
-        zfs
+        zfs			tags=package=zfs
             compatibility.d
             ..
         ..
