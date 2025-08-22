@@ -1,4 +1,15 @@
-comment = "Sendmail Utilities"
+comment = "sendmail mail transport agent"
 desc = <<EOD
-Sendmail Utilities
+The sendmail mail transport agent allows the system to send and receive mail
+for both local and remote users.   sendmail can also act as a mail exchanger
+for other hosts, and has a flexible configuration format that can be used to
+rewrite, filter or otherwise process mail before delivering it.
+
+sendmail supports multiple mail transport protocols, including Internet SMTP,
+LMTP, UUCP and DECnet.  Support for protocols other than SMTP and LMTP needs
+third-party software not shipped with the base system.
+
+When the full functionality of sendmail is not required, consider using the
+$PKG_NAME_PREFIX-dma package instead, a lightweight MTA which can send (but
+not receive) mail over SMTP.
 EOD
