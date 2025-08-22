@@ -27,6 +27,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250823:
+	To restore bridge(4)'s ABI compatibility with ifconfig from 14.x or
+	earlier, the size of struct ifbreq has changed, so you must update
+	the kernel and /sbin/ifconfig at the same time or you will not be
+	able to add interfaces to bridge.  This is particularly important
+	if you require bridge for network access during boot, in which case
+	you should install the new kernel and the new /sbin/ifconfig prior
+	to rebooting.
+
 20250820:
 	The WITHOUT_GSSAPI src.conf knob has been removed.  This was already
 	a no-op for MIT Kerberos, so this only affects builds which set
