@@ -44,6 +44,98 @@
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include "mt_tphy_if.h"
+
+struct mt7622_tphy_sc {
+	device_t dev;
+	struct resource *res_mem;
+	int rid;
+	clk_t clk;
+	hwreset_t rst;
+};
+
+static struct ofw_compat_data compat_data_phy[] = {
+	{"mediatek,mt7622-tphy", 1},
+	{"mediatek,generic-tphy-v1", 1},
+	{NULL,			0}
+};
+
+static int
+mt7622_tphy_probe(device_t dev)
+{
+	if (!ofw_bus_search_compatible(dev, compat_data_phy)->ocd_data) {
+		return (ENXIO);
+	}
+
+	device_set_desc(dev, "Mediatek mt7622 T-Phy");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+mt7622_tphy_attach(device_t dev)
+{
+	struct mt7622_tphy_sc *sc = device_get_softc(dev);
+	sc->dev = dev;
+	sc->rid = 0;
+
+	sc->res_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
+	    RF_ACTIVE);
+	if (sc->res_mem == NULL) {
+		device_printf(dev, "Cannot allocate resource\n");
+		return (ENXIO);
+	}
+
+	/* Optional clock/reset wiring via FDT */
+	if (clk_get_by_ofw_index(dev, 0, 0, &sc->clk) == 0) {
+		clk_enable(sc->clk);
+	}
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &sc->rst) == 0) {
+		hwreset_deassert(sc->rst);
+	}
+
+	device_printf(dev, "mt7622 t-phy attached\n");
+	return (0);
+}
+
+static int
+mt7622_tphy_detach(device_t dev)
+{
+	struct mt7622_tphy_sc *sc = device_get_softc(dev);
+
+	if (sc->res_mem) {
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid, sc->res_mem);
+	}
+	if (sc->clk) {
+		clk_release(sc->clk);
+	}
+	if (sc->rst) {
+		hwreset_release(sc->rst);
+	}
+
+	return (0);
+}
+
+
+
+static device_method_t mt7622_tphy_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, mt7622_tphy_probe),
+	DEVMETHOD(device_attach, mt7622_tphy_attach),
+	DEVMETHOD(device_detach, mt7622_tphy_detach),
+
+	//DEVMETHOD(mtk_tphy_power_on, mt7622_tphy_power_on),
+	//DEVMETHOD(mtk_tphy_power_off, mt7622_tphy_power_off),
+
+	DEVMETHOD_END
+};
+
+static DEFINE_CLASS_0(mt7622_tphy, mt7622_tphy_driver, mt7622_tphy_methods,
+    sizeof(struct mt7622_tphy_sc));
+DRIVER_MODULE(mt7622_tphy, simplebus, mt7622_tphy_driver, NULL, NULL);
+MODULE_DEPEND(mt7622_tphy, ofwbus, 1, 1, 1);
+MODULE_DEPEND(mt7622_tphy, clk, 1, 1, 1);
+MODULE_DEPEND(mt7622_tphy, reset, 1, 1, 1);
+
 
 struct mt7622_ahci_sc {
     struct ahci_controller	ctlr;
