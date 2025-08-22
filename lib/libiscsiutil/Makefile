@@ -1,6 +1,5 @@
 LIB=		iscsiutil
 INTERNALLIB=
-PACKAGE=	iscsi
 
 INCS=		libiscsiutil.h
 
