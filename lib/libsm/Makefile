@@ -1,6 +1,5 @@
 .include <src.opts.mk>
 
-PACKAGE=sendmail
 SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libsm
 
