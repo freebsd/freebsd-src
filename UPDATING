@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250822:
+	A build system bug which caused some files to be installed in the wrong
+	package has been fixed.  As a result some files have moved to different
+	packages; in particular, files under /usr/share/examples are now in the
+	new FreeBSD-examples package.
+
+	This change only affects pkgbase users.
+
 20250713:
 	LinuxKPI dma-mapping.h were pulled into the tree from drm-kmod.
 	LinuxKPI acpi changes effecting drivers and drm-kmod.
