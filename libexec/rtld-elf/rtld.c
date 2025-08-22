@@ -2437,11 +2437,21 @@ parse_rtld_phdr(Obj_Entry *obj)
 {
 	const Elf_Phdr *ph;
 	Elf_Addr note_start, note_end;
+	bool first_seg;
 
+	first_seg = true;
 	obj->stack_flags = PF_X | PF_R | PF_W;
 	for (ph = obj->phdr;
 	    (const char *)ph < (const char *)obj->phdr + obj->phsize; ph++) {
 		switch (ph->p_type) {
+		case PT_LOAD:
+			if (first_seg) {
+				obj->vaddrbase = rtld_trunc_page(ph->p_vaddr);
+				first_seg = false;
+			}
+			obj->mapsize = rtld_round_page(ph->p_vaddr +
+			    ph->p_memsz) - obj->vaddrbase;
+			break;
 		case PT_GNU_STACK:
 			obj->stack_flags = ph->p_flags;
 			break;
