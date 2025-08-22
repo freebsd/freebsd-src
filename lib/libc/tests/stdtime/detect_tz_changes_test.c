@@ -20,6 +20,26 @@
 
 #include <atf-c.h>
 
+static const struct tzcase {
+	const char *tzfn;
+	const char *expect;
+} tzcases[] = {
+	/*
+	 * A handful of time zones and the expected result of
+	 * strftime("%z (%Z)", tm) when that time zone is active
+	 * and tm represents a date in the summer of 2025.
+	 */
+	{ "America/Vancouver",	"-0700 (PDT)"	},
+	{ "America/New_York",	"-0400 (EDT)"	},
+	{ "Europe/London",	"+0100 (BST)"	},
+	{ "Europe/Paris",	"+0200 (CEST)"	},
+	{ "Asia/Kolkata",	"+0530 (IST)"	},
+	{ "Asia/Tokyo",		"+0900 (JST)"	},
+	{ "Australia/Canberra",	"+1000 (AEST)"	},
+	{ "UTC",		"+0000 (UTC)"	},
+	{ 0 },
+};
+
 static const time_t then = 1751328000; /* 2025-07-01 00:00:00 UTC */
 static const char *tz_change_interval_sym = "__tz_change_interval";
 static int *tz_change_interval_p;
@@ -91,25 +111,6 @@ ATF_TC_HEAD(detect_tz_changes, tc)
 }
 ATF_TC_BODY(detect_tz_changes, tc)
 {
-	static const struct tzcase {
-		const char *tzfn;
-		const char *expect;
-	} tzcases[] = {
-		/*
-		 * A handful of time zones and the expected result of
-		 * strftime("%z (%Z)", tm) when that time zone is active
-		 * and tm represents a date in the summer of 2025.
-		 */
-		{ "America/Vancouver",	"-0700 (PDT)"	},
-		{ "America/New_York",	"-0400 (EDT)"	},
-		{ "Europe/London",	"+0100 (BST)"	},
-		{ "Europe/Paris",	"+0200 (CEST)"	},
-		{ "Asia/Kolkata",	"+0530 (IST)"	},
-		{ "Asia/Tokyo",		"+0900 (JST)"	},
-		{ "Australia/Canberra",	"+1000 (AEST)"	},
-		{ "UTC",		"+0000 (UTC)"	},
-		{ 0 },
-	};
 	char obuf[1024] = "";
 	char ebuf[1024] = "";
 	struct pollfd fds[3];
@@ -272,10 +273,32 @@ ATF_TC_BODY(detect_tz_changes, tc)
 	ATF_REQUIRE_EQ(0, WEXITSTATUS(status));
 }
 
+ATF_TC(tz_env);
+ATF_TC_HEAD(tz_env, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test TZ environment variable");
+}
+ATF_TC_BODY(tz_env, tc)
+{
+	char buf[128];
+	const struct tzcase *tzcase = NULL;
+	struct tm *tm;
+	size_t len;
+
+	for (tzcase = tzcases; tzcase->tzfn != NULL; tzcase++) {
+		setenv("TZ", tzcase->tzfn, 1);
+		ATF_REQUIRE((tm = localtime(&then)) != NULL);
+		len = strftime(buf, sizeof(buf), "%z (%Z)", tm);
+		ATF_REQUIRE(len > 0);
+		ATF_REQUIRE_STREQ(tzcase->expect, buf);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	debugging = !getenv("__RUNNING_INSIDE_ATF_RUN") &&
 	    isatty(STDERR_FILENO);
 	ATF_TP_ADD_TC(tp, detect_tz_changes);
+	ATF_TP_ADD_TC(tp, tz_env);
 	return (atf_no_error());
 }

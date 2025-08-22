@@ -535,21 +535,22 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 	}
 	if (doaccess && access(name, R_OK) != 0)
 	  return errno;
+	fid = _open(name, O_RDONLY | O_BINARY);
 #else /* __FreeBSD__ */
-        if (issetugid()) {
+        {
           const char *relname = name;
           if (strncmp(relname, TZDIR "/", strlen(TZDIR) + 1) == 0)
             relname += strlen(TZDIR) + 1;
           int dd = _open(TZDIR, O_DIRECTORY | O_RDONLY);
           if (dd < 0)
             return errno;
-          fid = _openat(dd, relname, O_RDONLY | O_BINARY, AT_RESOLVE_BENEATH);
+          fid = _openat(dd, relname, O_RDONLY | O_BINARY,
+                        issetugid() ? AT_RESOLVE_BENEATH : 0);
           serrno = errno;
           _close(dd);
           errno = serrno;
-        } else
-#endif
-	fid = _open(name, O_RDONLY | O_BINARY);
+        }
+#endif /* __FreeBSD__ */
 	if (fid < 0)
 	  return errno;
 
