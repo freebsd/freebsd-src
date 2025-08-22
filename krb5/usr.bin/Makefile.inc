@@ -9,5 +9,4 @@
 
 .include "../Makefile.inc"
 
-PACKAGE?=	kerberos
 BINDIR?=	/usr/bin

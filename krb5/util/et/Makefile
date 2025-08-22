@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	kerberos-lib
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
@@ -44,6 +42,7 @@ ETSCRIPTS=	et_c.awk \
 
 ETSCRIPTSDIR=	${KRB5_ETDIR}
 ETSCRIPTSMODE=	0444
+ETSCRIPTSTAGS=	dev
 
 .include <bsd.lib.mk>
 

@@ -9,6 +9,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE?=	kerberos
 KRB5_VERSION=	1.22-final
 
 # MIT KRB5 uses KRB5_DIR. Heimdal uses KRB5DIR.

@@ -9,5 +9,5 @@
 
 .include "../Makefile.inc"
 
-PACKAGE?=	kerberos-kdc
+PACKAGE=	kerberos-kdc
 BINDIR?=	/usr/libexec

@@ -7,8 +7,6 @@
 # under sponsorship from the FreeBSD Foundation.
 #
 
-PACKAGE=	kerberos-lib
-
 .include <src.opts.mk>
 
 .include "../Makefile.inc"
