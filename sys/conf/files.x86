@@ -146,6 +146,7 @@ dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
 dev/hyperv/vmbus/vmbus_res.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
+dev/ichwd/i6300esbwd.c		optional	ichwd
 dev/ichwd/ichwd.c		optional	ichwd
 dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
