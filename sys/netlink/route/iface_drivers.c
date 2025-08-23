@@ -105,6 +105,24 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 		}
 	}
 
+	if (lattrs->ifla_address != NULL) {
+		if (nlp_has_priv(npt->nlp, PRIV_NET_SETIFMAC)) {
+			error = if_setlladdr(ifp,
+			    NLA_DATA(lattrs->ifla_address),
+			    NLA_DATA_LEN(lattrs->ifla_address));
+			if (error != 0) {
+				nlmsg_report_err_msg(npt,
+				    "setting IFLA_ADDRESS failed with error code: %d",
+				    error);
+				return (error);
+			}
+		} else {
+			nlmsg_report_err_msg(npt,
+			    "Not enough privileges to set IFLA_ADDRESS");
+			return (EPERM);
+		}
+	}
+
 	return (0);
 }
 
