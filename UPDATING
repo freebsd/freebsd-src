@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250823:
+	Commit 3f61ececacd8 changed the internal KAPI between
+	the NFS modules.  As such, they all need to be rebuilt
+	from sources.
+
 20250822:
 	A build system bug which caused some files to be installed in the wrong
 	package has been fixed.  As a result some files have moved to different
