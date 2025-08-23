@@ -1828,7 +1828,7 @@ hkbd_set_leds(struct hkbd_softc *sc, uint8_t leds)
 	SYSCONS_UNLOCK();
 	error = hid_write(sc->sc_dev, buf, len);
 	SYSCONS_LOCK();
-	DPRINTF(("error %d", error));
+	DPRINTF("error %d", error);
 
 	return (error);
 }
