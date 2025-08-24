@@ -1741,12 +1741,15 @@ ieee80211_request_smps(struct ieee80211_vif *vif, u_int link_id,
 		"SMPS_STATIC",
 		"SMPS_DYNAMIC",
 		"SMPS_AUTOMATIC",
-		"SMPS_NUM_MODES"
 	};
 
-	if (linuxkpi_debug_80211 & D80211_TODO)
-		printf("%s:%d: XXX LKPI80211 TODO smps %d %s\n",
-		    __func__, __LINE__, smps, smps_mode_name[smps]);
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (smps >= nitems(smps_mode_name))
+		panic("%s: unsupported smps value: %d\n", __func__, smps);
+
+	IMPROVE("XXX LKPI80211 TODO smps %d %s\n", smps, smps_mode_name[smps]);
 }
 
 static __inline void
