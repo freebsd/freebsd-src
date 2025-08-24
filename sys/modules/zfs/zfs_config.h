@@ -840,7 +840,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-571-FreeBSD_ga9410ccbd"
+#define ZFS_META_ALIAS "zfs-2.4.0-rc1-FreeBSD_g00dfa094a"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -870,10 +870,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "571-FreeBSD_ga9410ccbd"
+#define ZFS_META_RELEASE "zfs-2.4.0-rc1-FreeBSD_g00dfa094a"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.3.99"
+#define ZFS_META_VERSION "2.4.0"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
