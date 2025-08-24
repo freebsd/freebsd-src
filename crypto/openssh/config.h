@@ -1898,7 +1898,7 @@
 #define SSH_PRIVSEP_USER "sshd"
 
 /* Use tunnel device compatibility to OpenBSD */
-/* #undef SSH_TUN_COMPAT_AF */
+#define SSH_TUN_COMPAT_AF 1
 
 /* Open tunnel devices the FreeBSD way */
 #define SSH_TUN_FREEBSD 1
