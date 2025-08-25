@@ -128,11 +128,10 @@ rk3568_pcie_get_link(device_t dev, bool *status)
 	    (RDLH_LINK_UP | SMLH_LINK_UP)) &&
 	    ((val & SMLH_LTSSM_STATE_MASK) == SMLH_LTSSM_STATE_LINK_UP))
 		*status = true;
-    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
+        device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 	else
-    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 		*status = false;
-    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
+        device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 	return (0);
 }
 
