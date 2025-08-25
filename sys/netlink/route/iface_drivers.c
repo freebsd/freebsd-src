@@ -82,9 +82,12 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 		}
 	}
 
-	if ((lattrs->ifi_change & IFF_UP) && (lattrs->ifi_flags & IFF_UP) == 0) {
-		/* Request to down the interface */
-		if_down(ifp);
+	if ((lattrs->ifi_change & IFF_UP) != 0 || lattrs->ifi_change == 0) {
+		/* Request to up or down the interface */
+		if (lattrs->ifi_flags & IFF_UP)
+			if_up(ifp);
+		else
+			if_down(ifp);
 	}
 
 	if (lattrs->ifla_mtu > 0) {
