@@ -2761,12 +2761,10 @@ enter_recovery:
 				if ((tp->snd_nxt == tp->snd_max) &&
 				    (tp->t_rxtshift == 0))
 					tp->snd_cwnd =
-					    SEQ_SUB(tp->snd_nxt,
-						    tp->snd_una) -
-						tcp_sack_adjust(tp);
+					    SEQ_SUB(tp->snd_nxt, tp->snd_una);
 				tp->snd_cwnd +=
-				    (tp->t_dupacks - tp->snd_limited) *
-				    maxseg - tcp_sack_adjust(tp);
+				    (tp->t_dupacks - tp->snd_limited) * maxseg;
+				tp->snd_cwnd -= tcp_sack_adjust(tp);
 				/*
 				 * Only call tcp_output when there
 				 * is new data available to be sent
