@@ -48,7 +48,7 @@ SDT_PROVIDER_DEFINE(ice_fwlog);
 
 /*
  * SDT DTrace probe fired when a firmware log message is received over the
- * AdminQ. It passes the buffer of the firwmare log message along with its
+ * AdminQ. It passes the buffer of the firmware log message along with its
  * length in bytes to the DTrace framework.
  */
 SDT_PROBE_DEFINE2(ice_fwlog, , , message, "uint8_t *", "int");
