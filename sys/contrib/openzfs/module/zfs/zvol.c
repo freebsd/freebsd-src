@@ -2028,6 +2028,7 @@ zvol_create_minors(const char *name)
 	zvol_task_t *task;
 	taskqid_t id;
 
+	TSENTER();
 	if (spa_open(name, &spa, FTAG) != 0)
 		return;
 
@@ -2039,6 +2040,7 @@ zvol_create_minors(const char *name)
 		taskq_wait_id(spa->spa_zvol_taskq, id);
 
 	spa_close(spa, FTAG);
+	TSEXIT();
 }
 
 void

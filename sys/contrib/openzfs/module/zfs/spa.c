@@ -91,6 +91,7 @@
 #include <sys/zfeature.h>
 #include <sys/dsl_destroy.h>
 #include <sys/zvol.h>
+#include <sys/tslog.h>
 
 #ifdef	_KERNEL
 #include <sys/fm/protocol.h>
@@ -1704,6 +1705,7 @@ extern metaslab_ops_t *metaslab_allocator(spa_t *spa);
 static void
 spa_activate(spa_t *spa, spa_mode_t mode)
 {
+	TSENTER();
 	metaslab_ops_t *msp = metaslab_allocator(spa);
 	ASSERT(spa->spa_state == POOL_STATE_UNINITIALIZED);
 
@@ -1827,6 +1829,7 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 	 */
 	spa->spa_upgrade_taskq = taskq_create("z_upgrade", 100,
 	    defclsyspri, 1, INT_MAX, TASKQ_DYNAMIC | TASKQ_THREADS_CPU_PCT);
+	TSEXIT();
 }
 
 /*
@@ -1835,6 +1838,7 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 static void
 spa_deactivate(spa_t *spa)
 {
+	TSENTER();
 	ASSERT(spa->spa_sync_on == B_FALSE);
 	ASSERT0P(spa->spa_dsl_pool);
 	ASSERT0P(spa->spa_root_vdev);
@@ -1940,6 +1944,7 @@ spa_deactivate(spa_t *spa)
 	}
 
 	spa_deactivate_os(spa);
+	TSEXIT();
 
 }
 
@@ -2018,6 +2023,7 @@ spa_should_flush_logs_on_unload(spa_t *spa)
 static void
 spa_unload_log_sm_flush_all(spa_t *spa)
 {
+	TSENTER();
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
 	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 
@@ -2026,6 +2032,7 @@ spa_unload_log_sm_flush_all(spa_t *spa)
 
 	dmu_tx_commit(tx);
 	txg_wait_synced(spa_get_dsl(spa), spa->spa_log_flushall_txg);
+	TSEXIT();
 }
 
 static void
@@ -3578,6 +3585,7 @@ spa_try_repair(spa_t *spa, nvlist_t *config)
 static int
 spa_load(spa_t *spa, spa_load_state_t state, spa_import_type_t type)
 {
+	TSENTER();
 	const char *ereport = FM_EREPORT_ZFS_POOL;
 	int error;
 
@@ -3611,6 +3619,7 @@ spa_load(spa_t *spa, spa_load_state_t state, spa_import_type_t type)
 	(void) spa_import_progress_set_state(spa_guid(spa),
 	    spa_load_state(spa));
 
+	TSEXIT();
 	return (error);
 }
 
@@ -5503,6 +5512,7 @@ spa_ld_mos_with_trusted_config(spa_t *spa, spa_import_type_t type,
 static int
 spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 {
+	TSENTER();
 	int error = 0;
 	boolean_t missing_feat_write = B_FALSE;
 	boolean_t checkpoint_rewind =
@@ -5517,7 +5527,10 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 
 	error = spa_ld_mos_with_trusted_config(spa, type, &update_config_cache);
 	if (error != 0)
+	{
+		TSEXIT();
 		return (error);
+	}
 
 	/*
 	 * If we are rewinding to the checkpoint then we need to repeat
@@ -5540,7 +5553,10 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 */
 		error = spa_ld_checkpoint_rewind(spa);
 		if (error != 0)
+		{
+			TSEXIT();
 			return (error);
+		}
 
 		/*
 		 * Redo the loading process again with the
@@ -5550,7 +5566,10 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		spa_load_note(spa, "LOADING checkpointed uberblock");
 		error = spa_ld_mos_with_trusted_config(spa, type, NULL);
 		if (error != 0)
+		{
+			TSEXIT();
 			return (error);
+		}
 	}
 
 	/*
@@ -5795,11 +5814,13 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	spa_async_request(spa, SPA_ASYNC_L2CACHE_REBUILD);
 
 	spa_load_note(spa, "LOADED");
+	TSEXIT();
 fail:
 	mutex_enter(&spa_namespace_lock);
 	spa->spa_load_thread = NULL;
 	cv_broadcast(&spa_namespace_cv);
 
+	TSEXIT();
 	return (error);
 
 }
@@ -5807,6 +5828,7 @@ fail:
 static int
 spa_load_retry(spa_t *spa, spa_load_state_t state)
 {
+	TSENTER();
 	spa_mode_t mode = spa->spa_mode;
 
 	spa_unload(spa);
@@ -5820,6 +5842,7 @@ spa_load_retry(spa_t *spa, spa_load_state_t state)
 	spa_load_note(spa, "spa_load_retry: rewind, max txg: %llu",
 	    (u_longlong_t)spa->spa_load_max_txg);
 
+	TSEXIT();
 	return (spa_load(spa, state, SPA_IMPORT_EXISTING));
 }
 
@@ -5840,6 +5863,7 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 	uint64_t safe_rewind_txg;
 	uint64_t min_txg;
 
+	TSENTER();
 	if (spa->spa_load_txg && state == SPA_LOAD_RECOVER) {
 		spa->spa_load_max_txg = spa->spa_load_txg;
 		spa_set_log_state(spa, SPA_LOG_CLEAR);
@@ -5851,7 +5875,10 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 
 	load_error = rewind_error = spa_load(spa, state, SPA_IMPORT_EXISTING);
 	if (load_error == 0)
+	{
+		TSEXIT();
 		return (0);
+	}
 	if (load_error == ZFS_ERR_NO_CHECKPOINT) {
 		/*
 		 * When attempting checkpoint-rewind on a pool with no
@@ -5860,6 +5887,7 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 		 */
 		ASSERT(spa->spa_import_flags & ZFS_IMPORT_CHECKPOINT);
 		spa_import_progress_remove(spa_guid(spa));
+		TSEXIT();
 		return (load_error);
 	}
 
@@ -5872,6 +5900,7 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 	if (rewind_flags & ZPOOL_NEVER_REWIND) {
 		nvlist_free(config);
 		spa_import_progress_remove(spa_guid(spa));
+		TSEXIT();
 		return (load_error);
 	}
 
@@ -5915,6 +5944,7 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 	if (state == SPA_LOAD_RECOVER) {
 		ASSERT0P(loadinfo);
 		spa_import_progress_remove(spa_guid(spa));
+		TSEXIT();
 		return (rewind_error);
 	} else {
 		/* Store the rewind info as part of the initial load info */
@@ -5926,6 +5956,7 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 		spa->spa_load_info = loadinfo;
 
 		spa_import_progress_remove(spa_guid(spa));
+		TSEXIT();
 		return (load_error);
 	}
 }
@@ -5952,6 +5983,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 	int locked = B_FALSE;
 	int firstopen = B_FALSE;
 
+	TSENTER();
 	*spapp = NULL;
 
 	/*
@@ -5968,6 +6000,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 	if ((spa = spa_lookup(pool)) == NULL) {
 		if (locked)
 			mutex_exit(&spa_namespace_lock);
+		TSEXIT();
 		return (SET_ERROR(ENOENT));
 	}
 
@@ -6005,6 +6038,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 			spa_remove(spa);
 			if (locked)
 				mutex_exit(&spa_namespace_lock);
+			TSEXIT();
 			return (SET_ERROR(ENOENT));
 		}
 
@@ -6026,6 +6060,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 			if (locked)
 				mutex_exit(&spa_namespace_lock);
 			*spapp = NULL;
+			TSEXIT();
 			return (error);
 		}
 	}
@@ -6056,6 +6091,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 
 	*spapp = spa;
 
+	TSEXIT();
 	return (0);
 }
 
@@ -9587,6 +9623,7 @@ spa_sync_nvlist(spa_t *spa, uint64_t obj, nvlist_t *nv, dmu_tx_t *tx)
 	size_t nvsize = 0;
 	dmu_buf_t *db;
 
+	TSENTER();
 	VERIFY0(nvlist_size(nv, &nvsize, NV_ENCODE_XDR));
 
 	/*
@@ -9609,6 +9646,7 @@ spa_sync_nvlist(spa_t *spa, uint64_t obj, nvlist_t *nv, dmu_tx_t *tx)
 	dmu_buf_will_dirty(db, tx);
 	*(uint64_t *)db->db_data = nvsize;
 	dmu_buf_rele(db, FTAG);
+	TSEXIT();
 }
 
 static void

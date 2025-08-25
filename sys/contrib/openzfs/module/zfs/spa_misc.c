@@ -621,6 +621,7 @@ spa_lookup(const char *name)
 	avl_index_t where;
 	char *cp;
 
+	TSENTER();
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 retry:
@@ -636,7 +637,10 @@ retry:
 
 	spa = avl_find(&spa_namespace_avl, &search, &where);
 	if (spa == NULL)
+	{
+		TSEXIT();
 		return (NULL);
+	}
 
 	/*
 	 * Avoid racing with import/export, which don't hold the namespace
@@ -650,6 +654,7 @@ retry:
 		goto retry;
 	}
 
+	TSEXIT();
 	return (spa);
 }
 
@@ -698,6 +703,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	spa_t *spa;
 	spa_config_dirent_t *dp;
 
+	TSENTER();
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 	spa = kmem_zalloc(sizeof (spa_t), KM_SLEEP);
@@ -824,6 +830,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	list_create(&spa->spa_leaf_list, sizeof (vdev_t),
 	    offsetof(vdev_t, vdev_leaf_node));
 
+	TSEXIT();
 	return (spa);
 }
 
@@ -837,6 +844,7 @@ spa_remove(spa_t *spa)
 {
 	spa_config_dirent_t *dp;
 
+	TSENTER();
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 	ASSERT(spa_state(spa) == POOL_STATE_UNINITIALIZED);
 	ASSERT3U(zfs_refcount_count(&spa->spa_refcount), ==, 0);
@@ -907,6 +915,7 @@ spa_remove(spa_t *spa)
 	mutex_destroy(&spa->spa_txg_log_time_lock);
 
 	kmem_free(spa, sizeof (spa_t));
+	TSEXIT();
 }
 
 /*
@@ -937,10 +946,12 @@ spa_next(spa_t *prev)
 void
 spa_open_ref(spa_t *spa, const void *tag)
 {
+	TSENTER();
 	ASSERT(zfs_refcount_count(&spa->spa_refcount) >= spa->spa_minref ||
 	    MUTEX_HELD(&spa_namespace_lock) ||
 	    spa->spa_load_thread == curthread);
 	(void) zfs_refcount_add(&spa->spa_refcount, tag);
+	TSEXIT();
 }
 
 /*
@@ -2117,12 +2128,14 @@ spa_evicting_os_deregister(spa_t *spa, objset_t *os)
 void
 spa_evicting_os_wait(spa_t *spa)
 {
+	TSENTER();
 	mutex_enter(&spa->spa_evicting_os_lock);
 	while (!list_is_empty(&spa->spa_evicting_os_list))
 		cv_wait(&spa->spa_evicting_os_cv, &spa->spa_evicting_os_lock);
 	mutex_exit(&spa->spa_evicting_os_lock);
 
 	dmu_buf_user_evict_wait();
+	TSEXIT();
 }
 
 int
@@ -2355,12 +2368,16 @@ int
 spa_import_progress_set_state(uint64_t pool_guid,
     spa_load_state_t load_state)
 {
+	TSENTER();
 	spa_history_list_t *shl = spa_import_progress_list;
 	spa_import_progress_t *sip;
 	int error = ENOENT;
 
 	if (shl->size == 0)
+	{
+		TSEXIT();
 		return (0);
+	}
 
 	mutex_enter(&shl->procfs_list.pl_lock);
 	for (sip = list_tail(&shl->procfs_list.pl_list); sip != NULL;
@@ -2377,6 +2394,7 @@ spa_import_progress_set_state(uint64_t pool_guid,
 	}
 	mutex_exit(&shl->procfs_list.pl_lock);
 
+	TSEXIT();
 	return (error);
 }
 
@@ -2384,12 +2402,16 @@ static void
 spa_import_progress_set_notes_impl(spa_t *spa, boolean_t log_dbgmsg,
     const char *fmt, va_list adx)
 {
+	TSENTER();
 	spa_history_list_t *shl = spa_import_progress_list;
 	spa_import_progress_t *sip;
 	uint64_t pool_guid = spa_guid(spa);
 
 	if (shl->size == 0)
+	{
+		TSEXIT();
 		return;
+	}
 
 	char *notes = kmem_vasprintf(fmt, adx);
 
@@ -2411,16 +2433,19 @@ spa_import_progress_set_notes_impl(spa_t *spa, boolean_t log_dbgmsg,
 	mutex_exit(&shl->procfs_list.pl_lock);
 	if (notes != NULL)
 		kmem_strfree(notes);
+	TSEXIT();
 }
 
 void
 spa_import_progress_set_notes(spa_t *spa, const char *fmt, ...)
 {
+	TSENTER();
 	va_list adx;
 
 	va_start(adx, fmt);
 	spa_import_progress_set_notes_impl(spa, B_TRUE, fmt, adx);
 	va_end(adx);
+	TSEXIT();
 }
 
 void
@@ -2512,6 +2537,7 @@ spa_import_progress_add(spa_t *spa)
 void
 spa_import_progress_remove(uint64_t pool_guid)
 {
+	TSENTER();
 	spa_history_list_t *shl = spa_import_progress_list;
 	spa_import_progress_t *sip;
 
@@ -2530,6 +2556,7 @@ spa_import_progress_remove(uint64_t pool_guid)
 		}
 	}
 	mutex_exit(&shl->procfs_list.pl_lock);
+	TSEXIT();
 }
 
 /*

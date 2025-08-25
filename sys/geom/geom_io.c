@@ -164,6 +164,7 @@ g_alloc_bio(void)
 {
 	struct bio *bp;
 
+	TSENTER();
 	bp = uma_zalloc(biozone, M_WAITOK | M_ZERO);
 #ifdef KTR
 	if (KTR_GEOM_ENABLED) {
@@ -174,6 +175,7 @@ g_alloc_bio(void)
 		CTRSTACK(KTR_GEOM, &st, 3);
 	}
 #endif
+	TSEXIT();
 	return (bp);
 }
 

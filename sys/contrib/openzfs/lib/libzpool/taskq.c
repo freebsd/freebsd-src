@@ -192,17 +192,21 @@ taskq_dispatch_ent(taskq_t *tq, task_func_t func, void *arg, uint_t flags,
 void
 taskq_wait(taskq_t *tq)
 {
+	TSENTER();
 	mutex_enter(&tq->tq_lock);
 	while (tq->tq_task.tqent_next != &tq->tq_task || tq->tq_active != 0)
 		cv_wait(&tq->tq_wait_cv, &tq->tq_lock);
 	mutex_exit(&tq->tq_lock);
+	TSEXIT();
 }
 
 void
 taskq_wait_id(taskq_t *tq, taskqid_t id)
 {
+	TSENTER();
 	(void) id;
 	taskq_wait(tq);
+	TSEXIT();
 }
 
 void

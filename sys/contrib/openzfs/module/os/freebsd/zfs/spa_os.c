@@ -88,8 +88,12 @@ spa_generate_rootconf(const char *name)
 	uint64_t i;
 	uint_t   nholes;
 
+	TSENTER();
 	if (vdev_geom_read_pool_label(name, &configs, &count) != 0)
+	{
+		TSEXIT();
 		return (NULL);
+	}
 
 	ASSERT3U(count, !=, 0);
 	best_txg = 0;
@@ -177,6 +181,7 @@ spa_generate_rootconf(const char *name)
 		fnvlist_free(tops[i]);
 	kmem_free(tops, nchildren * sizeof (void *));
 	fnvlist_free(nvroot);
+	TSEXIT();
 	return (config);
 }
 

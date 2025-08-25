@@ -162,10 +162,14 @@ spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent,
 	boolean_t ccw_failure;
 	int error = 0;
 
+	TSENTER();
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 	if (!(spa_mode_global & SPA_MODE_WRITE))
+	{
+		TSEXIT();
 		return;
+	}
 
 	/*
 	 * Iterate over all cachefiles for the pool, past or present.  When the
@@ -272,6 +276,7 @@ spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent,
 		for (int i = 0; i < target->spa_spares.sav_count; i++)
 			vdev_post_kobj_evt(target->spa_spares.sav_vdevs[i]);
 	}
+	TSEXIT();
 }
 
 /*
@@ -334,6 +339,7 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	uint64_t split_guid;
 	const char *pool_name;
 
+	TSENTER();
 	if (vd == NULL) {
 		vd = rvd;
 		locked = B_TRUE;
@@ -467,6 +473,7 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	if (locked)
 		spa_config_exit(spa, SCL_CONFIG | SCL_STATE, FTAG);
 
+	TSEXIT();
 	return (config);
 }
 

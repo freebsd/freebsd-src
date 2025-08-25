@@ -38,6 +38,7 @@
 #include <sys/vdev_os.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
+#include <sys/tslog.h>
 #include <vm/vm_page.h>
 #include <geom/geom.h>
 #include <geom/geom_disk.h>
@@ -215,6 +216,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 	struct g_consumer *cp;
 	int error;
 
+	TSENTER();
 	g_topology_assert();
 
 	ZFS_LOG(1, "Attaching to %s.", pp->name);
@@ -229,6 +231,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 			ZFS_LOG(1, "Failing attach of %s. "
 			    "Incompatible mediasize %ju\n",
 			    pp->name, pp->mediasize);
+			TSEXIT();
 			return (NULL);
 		}
 	}
@@ -252,6 +255,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 			ZFS_LOG(1, "%s(%d): g_attach failed: %d\n", __func__,
 			    __LINE__, error);
 			vdev_geom_detach(cp, B_FALSE);
+			TSEXIT();
 			return (NULL);
 		}
 		error = g_access(cp, 1, 0, 1);
@@ -259,6 +263,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 			ZFS_LOG(1, "%s(%d): g_access failed: %d\n", __func__,
 			    __LINE__, error);
 			vdev_geom_detach(cp, B_FALSE);
+			TSEXIT();
 			return (NULL);
 		}
 		ZFS_LOG(1, "Created geom and consumer for %s.", pp->name);
@@ -277,6 +282,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 				ZFS_LOG(1, "%s(%d): g_attach failed: %d\n",
 				    __func__, __LINE__, error);
 				vdev_geom_detach(cp, B_FALSE);
+				TSEXIT();
 				return (NULL);
 			}
 			error = g_access(cp, 1, 0, 1);
@@ -284,6 +290,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 				ZFS_LOG(1, "%s(%d): g_access failed: %d\n",
 				    __func__, __LINE__, error);
 				vdev_geom_detach(cp, B_FALSE);
+				TSEXIT();
 				return (NULL);
 			}
 			ZFS_LOG(1, "Created consumer for %s.", pp->name);
@@ -292,6 +299,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 			if (error != 0) {
 				ZFS_LOG(1, "%s(%d): g_access failed: %d\n",
 				    __func__, __LINE__, error);
+				TSEXIT();
 				return (NULL);
 			}
 			ZFS_LOG(1, "Used existing consumer for %s.", pp->name);
@@ -302,6 +310,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 		vd->vdev_tsd = cp;
 
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
+	TSEXIT();
 	return (cp);
 }
 
@@ -310,6 +319,7 @@ vdev_geom_detach(struct g_consumer *cp, boolean_t open_for_read)
 {
 	struct g_geom *gp;
 
+	TSENTER();
 	g_topology_assert();
 
 	ZFS_LOG(1, "Detaching from %s.",
@@ -334,6 +344,7 @@ vdev_geom_detach(struct g_consumer *cp, boolean_t open_for_read)
 		ZFS_LOG(1, "Destroyed geom %s.", gp->name);
 		g_wither_geom(gp, ENXIO);
 	}
+	TSEXIT();
 }
 
 static void
@@ -380,6 +391,7 @@ vdev_geom_io(struct g_consumer *cp, int *cmds, void **datas, off_t *offsets,
 	int i, n_bios, j;
 	size_t bios_size;
 
+	TSENTER();
 	maxio = maxphys - (maxphys % cp->provider->sectorsize);
 	n_bios = 0;
 
@@ -425,6 +437,7 @@ vdev_geom_io(struct g_consumer *cp, int *cmds, void **datas, off_t *offsets,
 		}
 	}
 	kmem_free(bios, bios_size);
+	TSEXIT();
 }
 
 /*
@@ -448,6 +461,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **configp)
 	int errors[VDEV_LABELS];
 	int l, nlabels;
 
+	TSENTER();
 	g_topology_assert_not();
 
 	pp = cp->provider;
@@ -511,6 +525,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **configp)
 	for (l = 0; l < VDEV_LABELS; l++)
 		kmem_free(vdev_lists[l], size);
 
+	TSEXIT();
 	return (nlabels);
 }
 
@@ -542,6 +557,7 @@ process_vdev_config(nvlist_t ***configs, uint64_t *count, nvlist_t *cfg,
 	uint64_t id, txg, known_txg;
 	const char *pname;
 
+	TSENTER();
 	if (nvlist_lookup_string(cfg, ZPOOL_CONFIG_POOL_NAME, &pname) != 0 ||
 	    strcmp(pname, name) != 0)
 		goto ignore;
@@ -577,10 +593,12 @@ process_vdev_config(nvlist_t ***configs, uint64_t *count, nvlist_t *cfg,
 	}
 
 	(*configs)[id] = cfg;
+	TSEXIT();
 	return;
 
 ignore:
 	nvlist_free(cfg);
+	TSEXIT();
 }
 
 int
@@ -595,6 +613,7 @@ vdev_geom_read_pool_label(const char *name,
 	uint64_t pool_guid;
 	int nlabels;
 
+	TSENTER();
 	DROP_GIANT();
 	g_topology_lock();
 
@@ -629,6 +648,7 @@ vdev_geom_read_pool_label(const char *name,
 	g_topology_unlock();
 	PICKUP_GIANT();
 
+	TSEXIT();
 	return (*count > 0 ? 0 : ENOENT);
 }
 

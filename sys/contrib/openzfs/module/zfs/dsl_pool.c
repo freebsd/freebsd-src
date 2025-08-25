@@ -51,6 +51,7 @@
 #include <sys/dsl_userhold.h>
 #include <sys/trace_zfs.h>
 #include <sys/mmp.h>
+#include <sys/tslog.h>
 
 /*
  * ZFS Write Throttle
@@ -1397,11 +1398,14 @@ dsl_pool_hold(const char *name, const void *tag, dsl_pool_t **dp)
 	spa_t *spa;
 	int error;
 
+	TSENTER();
 	error = spa_open(name, &spa, tag);
 	if (error == 0) {
 		*dp = spa_get_dsl(spa);
 		dsl_pool_config_enter(*dp, tag);
 	}
+
+	TSEXIT();
 	return (error);
 }
 

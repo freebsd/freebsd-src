@@ -39,6 +39,7 @@
 #include <sys/nvpair.h>
 #include "zfs_comutil.h"
 #include <sys/zfs_ratelimit.h>
+#include <sys/tslog.h>
 
 /*
  * Are there allocatable vdevs?
@@ -101,6 +102,8 @@ zpool_get_load_policy(nvlist_t *nvl, zpool_load_policy_t *zlpp)
 	nvpair_t *elem;
 	const char *nm;
 
+	TSENTER();
+
 	/* Defaults */
 	zlpp->zlp_rewind = ZPOOL_NO_REWIND;
 	zlpp->zlp_maxmeta = 0;
@@ -131,6 +134,7 @@ zpool_get_load_policy(nvlist_t *nvl, zpool_load_policy_t *zlpp)
 	}
 	if (zlpp->zlp_rewind == 0)
 		zlpp->zlp_rewind = ZPOOL_NO_REWIND;
+	TSEXIT();
 }
 
 typedef struct zfs_version_spa_map {
