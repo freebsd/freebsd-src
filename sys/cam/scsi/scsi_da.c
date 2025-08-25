@@ -6545,7 +6545,7 @@ scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries,
 			/*
 			 * For SEND FPDMA QUEUED, the transfer length is
 			 * encoded in the FEATURE register, and 0 means
-			 * that 65536 512 byte blocks are to be tranferred.
+			 * that 65536 512 byte blocks are to be transferred.
 			 * In practice, it seems unlikely that we'll see
 			 * a transfer that large, and it may confuse the
 			 * the SAT layer, because generally that means that
@@ -6631,7 +6631,7 @@ scsi_ata_zac_mgmt_in(struct ccb_scsiio *csio, uint32_t retries,
 		/*
 		 * For RECEIVE FPDMA QUEUED, the transfer length is
 		 * encoded in the FEATURE register, and 0 means
-		 * that 65536 512 byte blocks are to be tranferred.
+		 * that 65536 512 byte blocks are to be transferred.
 		 * In practice, it seems unlikely that we'll see
 		 * a transfer that large, and it may confuse the
 		 * the SAT layer, because generally that means that
