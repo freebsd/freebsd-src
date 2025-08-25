@@ -5,10 +5,9 @@
 #include <openssl/provider.h>
 
 #if defined(OPENSSL_VERSION_MAJOR) && (OPENSSL_VERSION_MAJOR >= 3)
-#define CRYPTO_LIBRARY "/lib/libcrypto.so.30"
+#define CRYPTO_LIBRARY "/lib/libcrypto.so.35"
 static void fbsd_ossl_provider_unload(void);
 static void print_dlerror(char *);
-static OSSL_PROVIDER *legacy;
 static OSSL_PROVIDER *deflt;
 static int providers_loaded = 0;
 static OSSL_PROVIDER * (*ossl_provider_load)(OSSL_LIB_CTX *, const char*) = NULL;
@@ -25,7 +24,6 @@ fbsd_ossl_provider_unload(void)
 		}
 	}
 	if (providers_loaded == 1) {
-		(*ossl_provider_unload)(legacy);
 		(*ossl_provider_unload)(deflt);
 		providers_loaded = 0;
 	}
@@ -61,10 +59,7 @@ fbsd_ossl_provider_load(void)
 	}
 
 	if (providers_loaded == 0) {
-		if ((legacy = (*ossl_provider_load)(NULL, "legacy")) == NULL)
-			return (EINVAL);
 		if ((deflt = (*ossl_provider_load)(NULL, "default")) == NULL) {
-			(*ossl_provider_unload)(legacy);
 			return (EINVAL);
 		}
 		if (atexit(fbsd_ossl_provider_unload)) {
