@@ -43,6 +43,9 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
+#include <sys/tslog.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #if defined(__amd64__)
 #include <machine/clock.h>
@@ -102,6 +105,21 @@ static int wait_for_kbd_data(atkbdc_softc_t *kbdc);
 static int wait_for_kbd_ack(atkbdc_softc_t *kbdc);
 static int wait_for_aux_data(atkbdc_softc_t *kbdc);
 static int wait_for_aux_ack(atkbdc_softc_t *kbdc);
+
+static int atkbd_fast_delay = 1;   /* 1 = fast (default), 0 = slow */
+
+/* Create hw.atkbd sysctl node (defines _hw_atkbd) */
+SYSCTL_NODE(_hw, OID_AUTO, atkbd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "AT keyboard controller");
+
+/* loader tunable: hw.atkbd.fast_delay */
+TUNABLE_INT("hw.atkbd.fast_delay", &atkbd_fast_delay);
+
+/* sysctl knob: hw.atkbd.fast_delay */
+SYSCTL_DECL(_hw_atkbd);
+SYSCTL_INT(_hw_atkbd, OID_AUTO, fast_delay, CTLFLAG_RWTUN,
+    &atkbd_fast_delay, 0,
+    "Keyboard delays: 1=fast (default), 0=slow/conservative");
 
 struct atkbdc_quirks {
     const char *bios_vendor;
@@ -948,9 +966,37 @@ empty_both_buffers(KBDC p, int wait)
             else
 		++c2;
 #endif
-	    t = wait;
-	} else {
-	    t -= delta;
+			t = wait;
+		} else
+		{
+			t -= delta;
+		}
+
+		/*
+		* Some systems (Intel/IBM blades) do not have keyboard devices and
+		* will thus hang in this procedure. Time out after delta seconds to
+		* avoid this hang -- the keyboard attach will fail later on.
+		*/
+		if (atkbd_fast_delay){
+			waited += delta;
+			if (waited == delta * 1000)
+			{
+				TSEXIT();
+				return;
+			}
+			DELAY(delta);
+		}
+		else {
+			waited += (delta * 1000);
+			if (waited == (delta * 1000000))
+			{
+				TSEXIT();
+				return;
+			}
+
+			DELAY(delta*1000);
+		}
+>>>>>>> 9efedda29dce (Added the parameter from /boot/loader.conf named hw.atkbd.fast_delay)
 	}
 
 	/*
@@ -1035,7 +1081,12 @@ reset_aux_dev(KBDC p)
 	emptyq(&p->aux);
 	/* NOTE: Compaq Armada laptops require extra delay here. XXX */
 	for (again = KBD_MAXWAIT; again > 0; --again) {
-            DELAY(KBD_RESETDELAY*1000);
+            if (atkbd_fast_delay){
+                DELAY(KBD_RESETDELAY);
+            }
+            else{
+                DELAY(KBD_RESETDELAY*1000);
+            }
             c = read_aux_data_no_wait(p);
 	    if (c != -1)
 		break;
@@ -1050,7 +1101,11 @@ reset_aux_dev(KBDC p)
 
     for (again = KBD_MAXWAIT; again > 0; --again) {
         /* wait awhile, well, quite looooooooooooong */
-        DELAY(KBD_RESETDELAY*1000);
+        if (atkbd_fast_delay){
+            DELAY(KBD_RESETDELAY);
+        } else {
+            DELAY(KBD_RESETDELAY*1000);
+        }
         c = read_aux_data_no_wait(p);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
