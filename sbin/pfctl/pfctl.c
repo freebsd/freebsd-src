@@ -110,6 +110,8 @@ int	 pfctl_show_status(int, int);
 int	 pfctl_show_running(int);
 int	 pfctl_show_timeouts(int, int);
 int	 pfctl_show_limits(int, int);
+void	 pfctl_read_limits(struct pfctl_handle *);
+void	 pfctl_restore_limits(void);
 void	 pfctl_debug(int, u_int32_t, int);
 int	 pfctl_test_altqsupport(int, int);
 int	 pfctl_show_anchors(int, int, char *);
@@ -188,6 +190,8 @@ static const struct {
 	{ "eth-anchors",	PF_LIMIT_ETH_ANCHORS },
 	{ NULL,			0 }
 };
+
+static unsigned int	limit_curr[PF_LIMIT_MAX];
 
 struct pf_hint {
 	const char	*name;
@@ -1781,6 +1785,31 @@ pfctl_show_limits(int dev, int opts)
 }
 
 void
+pfctl_read_limits(struct pfctl_handle *h)
+{
+	int i;
+
+	for (i = 0; pf_limits[i].name; i++) {
+		if (pfctl_get_limit(h, i, &limit_curr[i]))
+			err(1, "DIOCGETLIMIT");
+	}
+}
+
+void
+pfctl_restore_limits(void)
+{
+	int i;
+
+	if (pfh == NULL)
+		return;
+
+	for (i = 0; pf_limits[i].name; i++) {
+		if (pfctl_set_limit(pfh, i, limit_curr[i]))
+			warn("DIOCSETLIMIT (%s)", pf_limits[i].name);
+	}
+}
+
+void
 pfctl_show_creators(int opts)
 {
 	int ret;
@@ -2487,8 +2516,14 @@ pfctl_init_options(struct pfctl *pf)
 
 	pf->limit[PF_LIMIT_STATES] = PFSTATE_HIWAT;
 	pf->limit[PF_LIMIT_FRAGS] = PFFRAG_FRENT_HIWAT;
-	pf->limit[PF_LIMIT_SRC_NODES] = PFSNODE_HIWAT;
-	pf->limit[PF_LIMIT_TABLE_ENTRIES] = PFR_KENTRY_HIWAT;
+
+	pf->limit[PF_LIMIT_SRC_NODES] = (limit_curr[PF_LIMIT_SRC_NODES] == 0) ?
+	    PFSNODE_HIWAT : limit_curr[PF_LIMIT_SRC_NODES];
+	pf->limit[PF_LIMIT_TABLE_ENTRIES] =
+	    (limit_curr[PF_LIMIT_TABLE_ENTRIES] == 0) ?
+	       PFR_KENTRY_HIWAT : limit_curr[PF_LIMIT_TABLE_ENTRIES];
+	pf->limit[PF_LIMIT_ANCHORS] = (limit_curr[PF_LIMIT_ANCHORS] == 0) ?
+	    PF_ANCHOR_HIWAT : limit_curr[PF_LIMIT_ANCHORS];
 
 	pf->debug = PF_DEBUG_URGENT;
 	pf->reassemble = 0;
@@ -2588,6 +2623,9 @@ pfctl_apply_limit(struct pfctl *pf, const char *opt, unsigned int limit)
 
 	if (pf->opts & PF_OPT_VERBOSE)
 		printf("set limit %s %d\n", opt, limit);
+
+	if ((pf->opts & PF_OPT_NOACTION) == 0)
+		pfctl_load_options(pf);
 
 	return (0);
 }
@@ -3452,6 +3490,11 @@ main(int argc, char *argv[])
 	if (pfh == NULL)
 		err(1, "Failed to open netlink");
 
+	if ((opts & PF_OPT_NOACTION) == 0) {
+		pfctl_read_limits(pfh);
+		atexit(pfctl_restore_limits);
+	}
+
 	if (opts & PF_OPT_DISABLE)
 		if (pfctl_disable(dev, opts))
 			exit_val = 1;
@@ -3695,7 +3738,18 @@ main(int argc, char *argv[])
 		}
 	}
 
-	exit(exit_val);
+	/*
+	 * prevent pfctl_restore_limits() exit handler from restoring
+	 * pf(4) options settings on successful exit.
+	 */
+	if (exit_val == 0) {
+		close(dev);
+		dev = -1;
+		pfctl_close(pfh);
+		pfh = NULL;
+	}
+
+	return (exit_val);
 }
 
 char *
