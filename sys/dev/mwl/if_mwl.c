@@ -1797,7 +1797,7 @@ mwl_updateslot(struct ieee80211com *ic)
 		return;
 
 	/*
-	 * Calculate the ERP flags.  The firwmare will use
+	 * Calculate the ERP flags.  The firmware will use
 	 * this to carry out the appropriate measures.
 	 */
 	prot = 0;
