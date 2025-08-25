@@ -8048,6 +8048,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 				return (PF_DROP);
 
 			pd2.tot_len = ntohs(h2.ip_len);
+			pd2.ttl = h2.ip_ttl;
 			pd2.src = (struct pf_addr *)&h2.ip_src;
 			pd2.dst = (struct pf_addr *)&h2.ip_dst;
 			pd2.ip_sum = &h2.ip_sum;
@@ -8070,6 +8071,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 
 			pd2.tot_len = ntohs(h2_6.ip6_plen) +
 			    sizeof(struct ip6_hdr);
+			pd2.ttl = h2_6.ip6_hlim;
 			pd2.src = (struct pf_addr *)&h2_6.ip6_src;
 			pd2.dst = (struct pf_addr *)&h2_6.ip6_dst;
 			pd2.ip_sum = NULL;
