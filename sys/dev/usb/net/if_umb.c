@@ -666,7 +666,7 @@ umb_ncm_setup(struct umb_softc *sc, struct usb_config * config)
 	struct ncm_ntb_parameters np;
 	usb_error_t error;
 
-	/* Query NTB tranfers sizes */
+	/* Query NTB transfers sizes */
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;
 	req.bRequest = NCM_GET_NTB_PARAMETERS;
 	USETW(req.wValue, 0);
