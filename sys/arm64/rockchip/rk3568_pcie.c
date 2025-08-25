@@ -297,35 +297,38 @@ rk3568_pcie_attach(device_t dev)
 
 	sc->dev = dev;
 	sc->node = ofw_bus_get_node(dev);
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Setup resources */
 	if ((error = ofw_bus_find_string_index(sc->node, "reg-names", "apb",
 	    &sc->apb_rid))) {
 		device_printf(dev, "Cannot get APB memory: %d\n", error);
 		goto fail;
 	}
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if (!(sc->apb_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->apb_rid, RF_ACTIVE))) {
 		device_printf(dev, "Cannot allocate APB resource\n");
 		goto fail;
 	}
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if ((error = ofw_bus_find_string_index(sc->node, "reg-names", "dbi",
 	    &sc->dbi_rid))) {
 		device_printf(dev, "Cannot get DBI memory: %d\n", error);
 		goto fail;
 	}
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if (!(sc->dw_sc.dbi_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->dbi_rid, RF_ACTIVE))) {
 		device_printf(dev, "Cannot allocate DBI resource\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if (!(sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &sc->irq_rid, RF_ACTIVE | RF_SHAREABLE))) {
 		device_printf(dev, "Cannot allocate IRQ resource\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Get regulator if present */
 	error = regulator_get_by_ofw_property(dev, 0, "vpcie3v3-supply",
 	    &sc->regulator);
@@ -333,13 +336,13 @@ rk3568_pcie_attach(device_t dev)
 		device_printf(dev, "Cannot get regulator\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Get reset */
 	if (hwreset_get_by_ofw_name(dev, 0, "pipe", &sc->hwreset)) {
 		device_printf(dev, "Can not get reset\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Get GPIO reset */
 	error = gpio_pin_get_by_ofw_property(dev, sc->node, "reset-gpios",
 		    &sc->reset_gpio);
@@ -347,46 +350,53 @@ rk3568_pcie_attach(device_t dev)
 		device_printf(dev, "Cannot get reset-gpios\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Get clocks */
 	if (clk_get_by_ofw_name(dev, 0, "aclk_mst", &sc->aclk_mst)) {
 		device_printf(dev, "Can not get aclk_mst clk\n");
 		goto fail;
 	}
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if (clk_get_by_ofw_name(dev, 0, "aclk_slv", &sc->aclk_slv)) {
 		device_printf(dev, "Can not get aclk_slv clk\n");
 		goto fail;
 	}
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if (clk_get_by_ofw_name(dev, 0, "aclk_dbi", &sc->aclk_dbi)) {
 		device_printf(dev, "Can not get aclk_dbi clk\n");
 		goto fail;
 	}
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if (clk_get_by_ofw_name(dev, 0, "pclk", &sc->pclk)) {
 		device_printf(dev, "Can not get pclk clk\n");
 		goto fail;
 	}
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if (clk_get_by_ofw_name(dev, 0, "aux", &sc->aux)) {
 		device_printf(dev, "Can not get aux clk\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Get PHY */
 	if (phy_get_by_ofw_name(dev, 0, "pcie-phy", &sc->phy)) {
 		device_printf(dev, "Cannot get 'pcie-phy'\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	if ((error = rk3568_pcie_init_soc(dev)))
 		goto fail;
 
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Enable interrupt */
 	if ((bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
 	    NULL, rk3568_intr, sc, &sc->irq_handle))) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto fail;
 	}
-
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	bus_attach_children(dev);
+	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	return (0);
 fail:
 	rk3568_pcie_detach(dev);
