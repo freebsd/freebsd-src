@@ -8,6 +8,7 @@
 ##  Copyright (c) 2011, 2013 Matthias Andree <mandree@FreeBSD.org>
 ##  All rights reserved.
 ##  Copyright (c) 2018, Allan Jude <allanjude@FreeBSD.org>
+##  Copyright (c) 2025 Dag-Erling Smørgrav <des@FreeBSD.org>
 ##
 ##  Redistribution and use in source and binary forms, with or without
 ##  modification, are permitted provided that the following conditions are
@@ -34,6 +35,7 @@
 ##  POSSIBILITY OF SUCH DAMAGE.
 
 use strict;
+use warnings;
 use Carp;
 use MIME::Base64;
 use Getopt::Long;
@@ -44,10 +46,12 @@ my $generated = '@' . 'generated';
 my $inputfh = *STDIN;
 my $debug = 0;
 my $infile;
-my $outputdir;
+my $trustdir = "trusted";
+my $untrustdir = "untrusted";
 my %labels;
 my %certs;
 my %trusts;
+my %expires;
 
 $debug++
     if defined $ENV{'WITH_DEBUG'}
@@ -56,8 +60,9 @@ $debug++
 GetOptions (
 	"debug+" => \$debug,
 	"infile:s" => \$infile,
-	"outputdir:s" => \$outputdir)
-  or die("Error in command line arguments\n$0 [-d] [-i input-file] [-o output-dir]\n");
+	"trustdir:s" => \$trustdir,
+        "untrustdir:s" => \$untrustdir)
+  or die("Error in command line arguments\n$0 [-d] [-i input-file] [-t trust-dir] [-u untrust-dir]\n");
 
 if ($infile) {
     open($inputfh, "<", $infile) or die "Failed to open $infile";
@@ -68,8 +73,7 @@ sub print_header($$)
     my $dstfile = shift;
     my $label = shift;
 
-    if ($outputdir) {
-	print $dstfile <<EOFH;
+    print $dstfile <<EOFH;
 ##
 ##  $label
 ##
@@ -77,38 +81,17 @@ sub print_header($$)
 ##  Authority (CA). It was automatically extracted from Mozilla's
 ##  root CA list (the file `certdata.txt' in security/nss).
 ##
-##  It contains a certificate trusted for server authentication.
-##
-##  Extracted from nss
-##
 ##  $generated
 ##
 EOFH
-    } else {
-	print $dstfile <<EOH;
-##
-##  ca-root-nss.crt -- Bundle of CA Root Certificates
-##
-##  This is a bundle of X.509 certificates of public Certificate
-##  Authorities (CA). These were automatically extracted from Mozilla's
-##  root CA list (the file `certdata.txt').
-##
-##  It contains certificates trusted for server authentication.
-##
-##  Extracted from nss
-##
-##  $generated
-##
-EOH
-    }
 }
 
 sub printcert($$$)
 {
     my ($fh, $label, $certdata) = @_;
     return unless $certdata;
-    open(OUT, "|openssl x509 -text -inform DER -fingerprint")
-            or die "could not pipe to openssl x509";
+    open(OUT, "|-", qw(openssl x509 -text -inform DER -fingerprint))
+	or die "could not pipe to openssl x509";
     print OUT $certdata;
     close(OUT) or die "openssl x509 failed with exit code $?";
 }
@@ -118,13 +101,11 @@ sub printcert($$$)
 sub graboct($)
 {
     my $ifh = shift;
-    my $data;
+    my $data = "";
 
     while (<$ifh>) {
 	last if /^END/;
-	my (undef,@oct) = split /\\/;
-	my @bin = map(chr(oct), @oct);
-	$data .= join('', @bin);
+	$data .= join('', map { chr(oct($_)) } m/\\([0-7]{3})/g);
     }
 
     return $data;
@@ -158,18 +139,8 @@ sub grabcert($)
 	{
 	    my $distrust_after = graboct($ifh);
 	    my ($year, $mon, $mday, $hour, $min, $sec) = unpack "A2A2A2A2A2A2", $distrust_after;
-	    $distrust_after = timegm_posix( $sec, $min, $hour, $mday, $mon - 1, $year + 100);
-	    my $time_now = time;
-	    # When a CA is distrusted before its NotAfter date, issued certificates
-	    # are valid for a maximum of 398 days after that date.
-	    if ($time_now >= $distrust_after + 398 * 24 * 60 * 60) { $distrust = 1; }
-	    if ($debug) {
-	        printf STDERR "line $.: $cka_label ser #%d: distrust 398 days after %s, now: %s -> distrust $distrust\n", $serial,
-	                strftime("%FT%TZ", gmtime($distrust_after)), strftime("%FT%TZ", gmtime($time_now));
-	    }
-	    if ($distrust) {
-		return undef;
-	    }
+	    $distrust_after = timegm_posix($sec, $min, $hour, $mday, $mon - 1, $year + 100);
+	    $expires{$cka_label."\0".$serial} = $distrust_after;
 	}
     }
     return ($serial, $cka_label, $certdata);
@@ -194,8 +165,7 @@ sub grabtrust($) {
 	    $serial = graboct($ifh);
 	}
 
-	if (/^CKA_TRUST_SERVER_AUTH CK_TRUST (\S+)$/)
-	{
+	if (/^CKA_TRUST_SERVER_AUTH CK_TRUST (\S+)$/) {
 	    if ($1 eq      'CKT_NSS_NOT_TRUSTED') {
 		$distrust = 1;
 	    } elsif ($1 eq 'CKT_NSS_TRUSTED_DELEGATOR') {
@@ -216,12 +186,6 @@ sub grabtrust($) {
     return ($serial, $cka_label, $trust);
 }
 
-if (!$outputdir) {
-	print_header(*STDOUT, "");
-}
-
-my $untrusted = 0;
-
 while (<$inputfh>) {
     if (/^CKA_CLASS CK_OBJECT_CLASS CKO_CERTIFICATE/) {
 	my ($serial, $label, $certdata) = grabcert($inputfh);
@@ -229,12 +193,10 @@ while (<$inputfh>) {
 	    warn "Certificate $label duplicated!\n";
 	}
 	if (defined $certdata) {
-		$certs{$label."\0".$serial} = $certdata;
-		# We store the label in a separate hash because truncating the key
-		# with \0 was causing garbage data after the end of the text.
-		$labels{$label."\0".$serial} = $label;
-	} else { # $certdata undefined? distrust_after in effect
-		$untrusted ++;
+	    $certs{$label."\0".$serial} = $certdata;
+	    # We store the label in a separate hash because truncating the key
+	    # with \0 was causing garbage data after the end of the text.
+	    $labels{$label."\0".$serial} = $label;
 	}
     } elsif (/^CKA_CLASS CK_OBJECT_CLASS CKO_NSS_TRUST/) {
 	my ($serial, $label, $trust) = grabtrust($inputfh);
@@ -254,52 +216,38 @@ sub label_to_filename(@) {
     return wantarray ? @res : $res[0];
 }
 
-# weed out untrusted certificates
-foreach my $it (keys %trusts) {
-    if (!$trusts{$it}) {
-	if (!exists($certs{$it})) {
-	    warn "Found trust for nonexistent certificate $labels{$it}\n" if $debug;
-	} else {
-	    delete $certs{$it};
-	    warn "Skipping untrusted $labels{$it}\n" if $debug;
-	    $untrusted++;
-	}
-    }
-}
+my $untrusted = 0;
+my $trusted = 0;
+my $now = time;
 
-if (!$outputdir) {
-    print		"##  Untrusted certificates omitted from this bundle: $untrusted\n\n";
-}
-print STDERR	"##  Untrusted certificates omitted from this bundle: $untrusted\n";
-
-my $certcount = 0;
 foreach my $it (sort {uc($a) cmp uc($b)} keys %certs) {
     my $fh = *STDOUT;
+    my $outputdir;
     my $filename;
-    if (!exists($trusts{$it})) {
-	die "Found certificate without trust block,\naborting";
+    if (exists($expires{$it}) &&
+	$now >= $expires{$it} + 398 * 24 * 60 * 60) {
+	print(STDERR "## Expired: $labels{$it}\n");
+	$outputdir = $untrustdir;
+	$untrusted++;
+    } elsif (!$trusts{$it}) {
+	print(STDERR "## Untrusted: $labels{$it}\n");
+	$outputdir = $untrustdir;
+	$untrusted++;
+    } else {
+	print(STDERR "## Trusted: $labels{$it}\n");
+	$outputdir = $trustdir;
+	$trusted++;
     }
-    if ($outputdir) {
-	$filename = label_to_filename($labels{$it});
-	open($fh, ">", "$outputdir/$filename") or die "Failed to open certificate $filename";
-	print_header($fh, $labels{$it});
-    }
+    $filename = label_to_filename($labels{$it});
+    open($fh, ">", "$outputdir/$filename") or die "Failed to open certificate $outputdir/$filename";
+    print_header($fh, $labels{$it});
     printcert($fh, $labels{$it}, $certs{$it});
     if ($outputdir) {
 	close($fh) or die "Unable to close: $filename";
     } else {
 	print $fh "\n\n\n";
     }
-    $certcount++;
-    print STDERR "Trusting $certcount: $labels{$it}\n" if $debug;
 }
 
-if ($certcount < 25) {
-    die "Certificate count of $certcount is implausibly low.\nAbort";
-}
-
-if (!$outputdir) {
-    print "##  Number of certificates: $certcount\n";
-    print "##  End of file.\n";
-}
-print STDERR	"##  Number of certificates: $certcount\n";
+printf STDERR "##  Trusted certificates:   %4d\n", $trusted;
+printf STDERR "##  Untrusted certificates: %4d\n", $untrusted;
