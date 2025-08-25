@@ -93,7 +93,12 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	if (lattrs->ifla_mtu > 0) {
 		if (nlp_has_priv(npt->nlp, PRIV_NET_SETIFMTU)) {
 			struct ifreq ifr = { .ifr_mtu = lattrs->ifla_mtu };
-			error = ifhwioctl(SIOCSIFMTU, ifp, (char *)&ifr, curthread);
+			error = ifhwioctl(SIOCSIFMTU, ifp, (char *)&ifr,
+			    curthread);
+			if (error != 0) {
+				nlmsg_report_err_msg(npt, "Failed to set mtu");
+				return (error);
+			}
 		} else {
 			nlmsg_report_err_msg(npt, "Not enough privileges to set mtu");
 			return (EPERM);
