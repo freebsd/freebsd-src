@@ -119,16 +119,20 @@ rk3568_intr(void *data)
 static int
 rk3568_pcie_get_link(device_t dev, bool *status)
 {
+    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 	struct rk3568_pcie_softc *sc = device_get_softc(dev);
 	uint32_t val;
-	
+    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 	val = bus_read_4(sc->apb_res, PCIE_CLIENT_LTSSM_STATUS);
 	if (((val & (RDLH_LINK_UP | SMLH_LINK_UP)) ==
 	    (RDLH_LINK_UP | SMLH_LINK_UP)) &&
 	    ((val & SMLH_LTSSM_STATE_MASK) == SMLH_LTSSM_STATE_LINK_UP))
 		*status = true;
+    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 	else
+    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 		*status = false;
+    device_printf(dev, "debug pcie_get_link:  %d", __LINE__);
 	return (0);
 }
 
@@ -291,11 +295,12 @@ rk3568_pcie_detach(device_t dev)
 
 static int
 rk3568_pcie_attach(device_t dev)
-{
+{	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	struct rk3568_pcie_softc *sc = device_get_softc(dev);
 	int error;
-
+    device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	sc->dev = dev;
+    device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	sc->node = ofw_bus_get_node(dev);
 	device_printf(dev, "debug pci_attach:  %d", __LINE__);
 	/* Setup resources */
