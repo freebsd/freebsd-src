@@ -659,7 +659,7 @@ cc_modevent(module_t mod, int event_type, void *data)
 	case MOD_SHUTDOWN:
 		break;
 	case MOD_QUIESCE:
-		/* Stop any new assigments */
+		/* Stop any new assignments */
 		err = cc_stop_new_assignments(algo);
 		break;
 	case MOD_UNLOAD:
