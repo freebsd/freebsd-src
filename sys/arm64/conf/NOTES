@@ -48,6 +48,7 @@ options 	SOC_ROCKCHIP
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_ROCKCHIP_RK3399
 options 	SOC_ROCKCHIP_RK3568
+options		SOC_ROCKCHIP_BPI_R2_PRO
 options 	SOC_XILINX_ZYNQ
 
 # Timer drivers
