@@ -476,7 +476,7 @@ ACPI_EXPORT_SYMBOL (AcpiWriteBitRegister)
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 
-
+#ifndef _STANDALONE
 /*******************************************************************************
  *
  * FUNCTION:    AcpiGetSleepTypeData
@@ -644,3 +644,5 @@ FinalCleanup:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiGetSleepTypeData)
+
+#endif /* !_STANDALONE */
