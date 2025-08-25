@@ -28,6 +28,14 @@ The
 program prints the current time in each
 .Ar timezone
 named on the command line.
+A
+.Ar timezone
+of
+.Li -
+is treated as if it were
+.Pa /dev/stdin ;
+this can be used to pipe TZif data into
+.Nm .
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -106,7 +114,7 @@ then a line
 where
 .Ar string
 is a double-quoted string giving the timezone, a second line
-.Dq "\*- \*- \fIinterval\fP"
+.Dq "\- \- \fIinterval\fP"
 describing the time interval before the first transition if any, and
 zero or more following lines
 .Dq "\fIdate time interval\fP",
@@ -138,11 +146,11 @@ the seconds are omitted if they are zero, and
 the minutes are also omitted if they are also zero.
 Positive UT
 offsets are east of Greenwich.
-The UT offset \*-00 denotes a UT
+The UT offset \-00 denotes a UT
 placeholder in areas where the actual offset is unspecified; by
 convention, this occurs when the UT offset is zero and the time zone
 abbreviation begins with
-.Dq "-"
+.Dq "\-"
 or is
 .Dq "zzz".
 .Pp

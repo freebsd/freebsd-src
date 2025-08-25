@@ -14,10 +14,6 @@
 #include "private.h"
 #include <stdio.h>
 
-#ifndef HAVE_SNPRINTF
-# define HAVE_SNPRINTF (!PORT_TO_C89 || 199901 <= __STDC_VERSION__)
-#endif
-
 #ifndef HAVE_LOCALTIME_R
 # define HAVE_LOCALTIME_R 1
 #endif
@@ -148,17 +144,6 @@ sumsize(ptrdiff_t a, ptrdiff_t b)
   size_overflow();
 }
 
-/* Return the size of of the string STR, including its trailing NUL.
-   Report an error and exit if this would exceed INDEX_MAX which means
-   pointer subtraction wouldn't work.  */
-static ptrdiff_t
-xstrsize(char const *str)
-{
-  size_t len = strlen(str);
-  if (len < INDEX_MAX)
-    return len + 1;
-  size_overflow();
-}
 
 /* Return a pointer to a newly allocated buffer of size SIZE, exiting
    on failure.  SIZE should be positive.  */
@@ -266,7 +251,7 @@ tzalloc(char const *val)
   static ptrdiff_t fakeenv0size;
   void *freeable = NULL;
   char **env = fakeenv, **initial_environ;
-  ptrdiff_t valsize = xstrsize(val);
+  ptrdiff_t valsize = strlen(val) + 1;
   if (fakeenv0size < valsize) {
     char **e = environ, **to;
     ptrdiff_t initial_nenvptrs = 1;  /* Counting the trailing NULL pointer.  */
@@ -427,7 +412,7 @@ saveabbr(char **buf, ptrdiff_t *bufalloc, struct tm const *tmp)
   if (HAVE_LOCALTIME_RZ)
     return ab;
   else {
-    ptrdiff_t absize = xstrsize(ab);
+    ptrdiff_t absize = strlen(ab) + 1;
     if (*bufalloc < absize) {
       free(*buf);
 
@@ -489,6 +474,7 @@ main(int argc, char *argv[])
 	register time_t		cuthitime;
 	time_t			now;
 	bool iflag = false;
+	size_t arglenmax = 0;
 
 	cutlotime = absolute_min_time;
 	cuthitime = absolute_max_time;
@@ -588,15 +574,21 @@ main(int argc, char *argv[])
 	  now = time(NULL);
 	  now |= !now;
 	}
-	longest = 0;
 	for (i = optind; i < argc; i++) {
 	  size_t arglen = strlen(argv[i]);
-	  if (longest < arglen)
-	    longest = min(arglen, INT_MAX);
+	  if (arglenmax < arglen)
+	    arglenmax = arglen;
 	}
+	if (!HAVE_SETENV && INDEX_MAX <= arglenmax)
+	  size_overflow();
+	longest = min(arglenmax, INT_MAX - 2);
 
 	for (i = optind; i < argc; ++i) {
-		timezone_t tz = tzalloc(argv[i]);
+		/* Treat "-" as standard input on platforms with /dev/stdin.
+		   It's not worth the bother of supporting "-" on other
+		   platforms, as that would need temp files.  */
+		timezone_t tz = tzalloc(strcmp(argv[i], "-") == 0
+					? "/dev/stdin" : argv[i]);
 		char const *ab;
 		time_t t;
 		struct tm tm, newtm;
@@ -697,7 +689,7 @@ yeartot(intmax_t y)
 				return absolute_max_time;
 			seconds = diff400 * SECSPER400YEARS;
 			years = diff400 * 400;
-                } else {
+		} else {
 			seconds = isleap(myy) ? SECSPERLYEAR : SECSPERNYEAR;
 			years = 1;
 		}
@@ -928,13 +920,10 @@ showextrema(timezone_t tz, char *zone, time_t lo, struct tm *lotmp, time_t hi)
   }
 }
 
-#if HAVE_SNPRINTF
-# define my_snprintf snprintf
-#else
+/* On pre-C99 platforms, a snprintf substitute good enough for us.  */
+#if !HAVE_SNPRINTF
 # include <stdarg.h>
-
-/* A substitute for snprintf that is good enough for zdump.  */
-static int
+ATTRIBUTE_FORMAT((printf, 3, 4)) static int
 my_snprintf(char *s, size_t size, char const *format, ...)
 {
   int n;
@@ -962,6 +951,7 @@ my_snprintf(char *s, size_t size, char const *format, ...)
   va_end(args);
   return n;
 }
+# define snprintf my_snprintf
 #endif
 
 /* Store into BUF, of size SIZE, a formatted local time taken from *TM.
@@ -976,10 +966,10 @@ format_local_time(char *buf, ptrdiff_t size, struct tm const *tm)
 {
   int ss = tm->tm_sec, mm = tm->tm_min, hh = tm->tm_hour;
   return (ss
-	  ? my_snprintf(buf, size, "%02d:%02d:%02d", hh, mm, ss)
+	  ? snprintf(buf, size, "%02d:%02d:%02d", hh, mm, ss)
 	  : mm
-	  ? my_snprintf(buf, size, "%02d:%02d", hh, mm)
-	  : my_snprintf(buf, size, "%02d", hh));
+	  ? snprintf(buf, size, "%02d:%02d", hh, mm)
+	  : snprintf(buf, size, "%02d", hh));
 }
 
 /* Store into BUF, of size SIZE, a formatted UT offset for the
@@ -1014,10 +1004,10 @@ format_utc_offset(char *buf, ptrdiff_t size, struct tm const *tm, time_t t)
   mm = off / 60 % 60;
   hh = off / 60 / 60;
   return (ss || 100 <= hh
-	  ? my_snprintf(buf, size, "%c%02ld%02d%02d", sign, hh, mm, ss)
+	  ? snprintf(buf, size, "%c%02ld%02d%02d", sign, hh, mm, ss)
 	  : mm
-	  ? my_snprintf(buf, size, "%c%02ld%02d", sign, hh, mm)
-	  : my_snprintf(buf, size, "%c%02ld", sign, hh));
+	  ? snprintf(buf, size, "%c%02ld%02d", sign, hh, mm)
+	  : snprintf(buf, size, "%c%02ld", sign, hh));
 }
 
 /* Store into BUF (of size SIZE) a quoted string representation of P.
@@ -1120,7 +1110,7 @@ istrftime(char *buf, ptrdiff_t size, char const *time_fmt,
 	    for (abp = ab; is_alpha(*abp); abp++)
 	      continue;
 	    len = (!*abp && *ab
-		   ? my_snprintf(b, s, "%s", ab)
+		   ? snprintf(b, s, "%s", ab)
 		   : format_quoted_string(b, s, ab));
 	    if (s <= len)
 	      return false;
@@ -1128,7 +1118,7 @@ istrftime(char *buf, ptrdiff_t size, char const *time_fmt,
 	  }
 	  formatted_len
 	    = (tm->tm_isdst
-	       ? my_snprintf(b, s, &"\t\t%d"[show_abbr], tm->tm_isdst)
+	       ? snprintf(b, s, &"\t\t%d"[show_abbr], tm->tm_isdst)
 	       : 0);
 	}
 	break;

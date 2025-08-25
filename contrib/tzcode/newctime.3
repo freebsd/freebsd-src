@@ -5,43 +5,34 @@
 asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 .SH SYNOPSIS
 .nf
-.ie \n(.g .ds - \f(CR-\fP
-.el .ds - \-
 .B #include <time.h>
 .PP
-.B [[deprecated]] char *ctime(time_t const *clock);
-.PP
-/* Only in POSIX.1-2017 and earlier.  */
-.B char *ctime_r(time_t const *clock, char *buf);
-.PP
-.B double difftime(time_t time1, time_t time0);
-.PP
-.B [[deprecated]] char *asctime(struct tm const *tm);
-.PP
-/* Only in POSIX.1-2017 and earlier.  */
-.B "char *asctime_r(struct tm const *restrict tm,"
-.B "    char *restrict result);"
-.PP
 .B struct tm *localtime(time_t const *clock);
-.PP
 .B "struct tm *localtime_r(time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
-.PP
 .B "struct tm *localtime_rz(timezone_t restrict zone,"
 .B "    time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .PP
 .B struct tm *gmtime(time_t const *clock);
-.PP
 .B "struct tm *gmtime_r(time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .PP
 .B time_t mktime(struct tm *tm);
-.PP
 .B "time_t mktime_z(timezone_t restrict zone,"
 .B "    struct tm *restrict tm);"
 .PP
-.B cc ... \*-ltz
+.B double difftime(time_t time1, time_t time0);
+.PP
+.B [[deprecated]] char *asctime(struct tm const *tm);
+.B [[deprecated]] char *ctime(time_t const *clock);
+.PP
+/* Only in POSIX.1-2017 and earlier.  */
+.B char *ctime_r(time_t const *clock, char *buf);
+.B "char *asctime_r(struct tm const *restrict tm,"
+.B "    char *restrict result);"
+.PP
+.B cc ... \-ltz
 .fi
 .SH DESCRIPTION
 .ie '\(en'' .ds en \-
@@ -54,30 +45,26 @@ asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 \\$3\*(lq\\$1\*(rq\\$2
 ..
 The
-.B ctime
-function
-converts a long integer, pointed to by
+.B localtime
+and
+.B gmtime
+functions
+convert an integer, pointed to by
 .IR clock ,
-and returns a pointer to a
-string of the form
-.br
-.ce
-.eo
-Thu Nov 24 18:22:48 1986\n\0
-.br
-.ec
-Years requiring fewer than four characters are padded with leading zeroes.
-For years longer than four characters, the string is of the form
-.br
-.ce
-.eo
-Thu Nov 24 18:22:48     81986\n\0
-.ec
-.br
-with five spaces before the year.
-These unusual formats are designed to make it less likely that older
-software that expects exactly 26 bytes of output will mistakenly output
-misleading values for out-of-range years.
+and
+return pointers to
+.q "tm"
+structures, described below.
+If the integer is out of range for conversion,
+these functions return a null pointer.
+The
+.B localtime
+function
+corrects for the time zone and any time zone adjustments
+(such as Daylight Saving Time in the United States).
+The
+.B gmtime
+function converts to Coordinated Universal Time.
 .PP
 The
 .BI * clock
@@ -89,47 +76,6 @@ Many implementations extend POSIX by allowing negative timestamps,
 and can therefore represent timestamps that predate the
 introduction of UTC and are some other flavor of Universal Time (UT).
 Some implementations support leap seconds, in contradiction to POSIX.
-.PP
-The
-.B ctime
-function is deprecated starting in C23.
-Callers can use
-.B localtime_r
-and
-.B strftime
-instead.
-.PP
-The
-.B localtime
-and
-.B gmtime
-functions
-return pointers to
-.q "tm"
-structures, described below.
-The
-.B localtime
-function
-corrects for the time zone and any time zone adjustments
-(such as Daylight Saving Time in the United States).
-.PP
-The
-.B gmtime
-function
-converts to Coordinated Universal Time.
-.PP
-The
-.B asctime
-function
-converts a time value contained in a
-.q "tm"
-structure to a string,
-as shown in the above example,
-and returns a pointer to the string.
-This function is deprecated starting in C23.
-Callers can use
-.B strftime
-instead.
 .PP
 The
 .B mktime
@@ -202,6 +148,52 @@ returns the difference between two calendar times,
 \-
 .IR time0 ),
 expressed in seconds.
+.PP
+The
+.B asctime
+function
+converts a time value contained in a
+.q "tm"
+structure to a pointer to a
+string of the form
+.br
+.ce
+.eo
+Thu Nov 24 18:22:48 1986\n\0
+.br
+.ec
+Years requiring fewer than four characters are padded with leading zeroes.
+For years longer than four characters, the string is of the form
+.br
+.ce
+.eo
+Thu Nov 24 18:22:48     81986\n\0
+.ec
+.br
+with five spaces before the year.
+This unusual format is designed to make it less likely that older
+software that expects exactly 26 bytes of output will mistakenly output
+misleading values for out-of-range years.
+This function is deprecated starting in C23.
+Callers can use
+.B strftime
+instead.
+.PP
+The
+.B ctime
+function is equivalent to calliing
+.B localtime
+and then calling
+.B asctime
+on the result.
+Like
+.BR asctime ,
+this function is deprecated starting in C23.
+Callers can use
+.B localtime
+and
+.B strftime
+instead.
 .PP
 The
 .BR ctime_r ,

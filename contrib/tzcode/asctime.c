@@ -7,6 +7,7 @@
 
 /*
 ** Avoid the temptation to punt entirely to strftime;
+** strftime can behave badly when tm components are out of range, and
 ** the output of strftime is supposed to be locale specific
 ** whereas the output of asctime is supposed to be constant.
 */
@@ -17,27 +18,6 @@
 #include "private.h"
 #include "un-namespace.h"
 #include <stdio.h>
-
-/*
-** All years associated with 32-bit time_t values are exactly four digits long;
-** some years associated with 64-bit time_t values are not.
-** Vintage programs are coded for years that are always four digits long
-** and may assume that the newline always lands in the same place.
-** For years that are less than four digits, we pad the output with
-** leading zeroes to get the newline in the traditional place.
-** The -4 ensures that we get four characters of output even if
-** we call a strftime variant that produces fewer characters for some years.
-** This conforms to recent ISO C and POSIX standards, which say behavior
-** is undefined when the year is less than 1000 or greater than 9999.
-*/
-static char const ASCTIME_FMT[] = "%s %s%3d %.2d:%.2d:%.2d %-4s\n";
-/*
-** For years that are more than four digits we put extra spaces before the year
-** so that code trying to overwrite the newline won't end up overwriting
-** a digit within a year and truncating the year (operating on the assumption
-** that no output is better than wrong output).
-*/
-static char const ASCTIME_FMT_B[] = "%s %s%3d %.2d:%.2d:%.2d     %s\n";
 
 enum { STD_ASCTIME_BUF_SIZE = 26 };
 /*
@@ -52,14 +32,24 @@ enum { STD_ASCTIME_BUF_SIZE = 26 };
 */
 static char buf_asctime[2*3 + 5*INT_STRLEN_MAXIMUM(int) + 7 + 2 + 1 + 1];
 
-/* A similar buffer for ctime.
-   C89 requires that they be the same buffer.
-   This requirement was removed in C99, so support it only if requested,
-   as support is more likely to lead to bugs in badly written programs.  */
-#if SUPPORT_C89
-# define buf_ctime buf_asctime
-#else
-static char buf_ctime[sizeof buf_asctime];
+/* On pre-C99 platforms, a snprintf substitute good enough for us.  */
+#if !HAVE_SNPRINTF
+# include <stdarg.h>
+ATTRIBUTE_FORMAT((printf, 3, 4)) static int
+my_snprintf(char *s, size_t size, char const *format, ...)
+{
+  int n;
+  va_list args;
+  char stackbuf[sizeof buf_asctime];
+  va_start(args, format);
+  n = vsprintf(stackbuf, format, args);
+  va_end (args);
+  if (0 <= n && n < size)
+    memcpy (s, stackbuf, n + 1);
+  return n;
+}
+# undef snprintf
+# define snprintf my_snprintf
 #endif
 
 /* Publish asctime_r and ctime_r only when supporting older POSIX.  */
@@ -84,14 +74,19 @@ asctime_r(struct tm const *restrict timeptr, char *restrict buf)
 		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 	};
-	const char *	wn;
-	const char *	mn;
-	char			year[INT_STRLEN_MAXIMUM(int) + 2];
-	char result[sizeof buf_asctime];
+	register const char *	wn;
+	register const char *	mn;
+	int year, mday, hour, min, sec;
+	long long_TM_YEAR_BASE = TM_YEAR_BASE;
+	size_t bufsize = (buf == buf_asctime
+			  ? sizeof buf_asctime : STD_ASCTIME_BUF_SIZE);
 
 	if (timeptr == NULL) {
+		strcpy(buf, "??? ??? ?? ??:??:?? ????\n");
+		/* Set errno now, since strcpy might change it in
+		   POSIX.1-2017 and earlier.  */
 		errno = EINVAL;
-		return strcpy(buf, "??? ??? ?? ??:??:?? ????\n");
+		return buf;
 	}
 	if (timeptr->tm_wday < 0 || timeptr->tm_wday >= DAYSPERWEEK)
 		wn = "???";
@@ -99,25 +94,41 @@ asctime_r(struct tm const *restrict timeptr, char *restrict buf)
 	if (timeptr->tm_mon < 0 || timeptr->tm_mon >= MONSPERYEAR)
 		mn = "???";
 	else	mn = mon_name[timeptr->tm_mon];
-	/*
-	** Use strftime's %Y to generate the year, to avoid overflow problems
-	** when computing timeptr->tm_year + TM_YEAR_BASE.
-	** Assume that strftime is unaffected by other out-of-range members
-	** (e.g., timeptr->tm_mday) when processing "%Y".
-	*/
-	strftime(year, sizeof year, "%Y", timeptr);
-	/*
-	** We avoid using snprintf since it's not available on all systems.
-	*/
-	sprintf(result,
-		((strlen(year) <= 4) ? ASCTIME_FMT : ASCTIME_FMT_B),
-		wn, mn,
-		timeptr->tm_mday, timeptr->tm_hour,
-		timeptr->tm_min, timeptr->tm_sec,
-		year);
-	if (strlen(result) < STD_ASCTIME_BUF_SIZE
-	    || buf == buf_ctime || buf == buf_asctime)
-		return strcpy(buf, result);
+
+	year = timeptr->tm_year;
+	mday = timeptr->tm_mday;
+	hour = timeptr->tm_hour;
+	min = timeptr->tm_min;
+	sec = timeptr->tm_sec;
+
+	/* Vintage programs are coded for years that are always four bytes long
+	   and may assume that the newline always lands in the same place.
+	   For years that are less than four bytes, pad the output with
+	   leading zeroes to get the newline in the traditional place.
+	   For years longer than four bytes, put extra spaces before the year
+	   so that vintage code trying to overwrite the newline
+	   won't overwrite a digit within a year and truncate the year,
+	   using the principle that no output is better than wrong output.
+	   This conforms to ISO C and POSIX standards, which say behavior
+	   is undefined when the year is less than 1000 or greater than 9999.
+
+	   Also, avoid overflow when formatting tm_year + TM_YEAR_BASE.  */
+
+	if ((year <= LONG_MAX - TM_YEAR_BASE
+	     ? snprintf (buf, bufsize,
+			 ((-999 - TM_YEAR_BASE <= year
+			   && year <= 9999 - TM_YEAR_BASE)
+			  ? "%s %s%3d %.2d:%.2d:%.2d %04ld\n"
+			  : "%s %s%3d %.2d:%.2d:%.2d     %ld\n"),
+			 wn, mn, mday, hour, min, sec,
+			 year + long_TM_YEAR_BASE)
+	     : snprintf (buf, bufsize,
+			 "%s %s%3d %.2d:%.2d:%.2d     %d%d\n",
+			 wn, mn, mday, hour, min, sec,
+			 year / 10 + TM_YEAR_BASE / 10,
+			 year % 10))
+	    < bufsize)
+		return buf;
 	else {
 		errno = EOVERFLOW;
 		return NULL;
@@ -142,5 +153,8 @@ ctime_r(const time_t *timep, char *buf)
 char *
 ctime(const time_t *timep)
 {
-  return ctime_r(timep, buf_ctime);
+  /* Do not call localtime_r, as C23 requires ctime to initialize the
+     static storage that localtime updates.  */
+  struct tm *tmp = localtime(timep);
+  return tmp ? asctime(tmp) : NULL;
 }
