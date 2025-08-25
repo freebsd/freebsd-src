@@ -281,7 +281,7 @@ ffs_rawread_main(struct vnode *vp,
 			if (error != 0)
 				break;
 			
-			if (resid > bp->b_bufsize) { /* Setup fist readahead */
+			if (resid > bp->b_bufsize) { /* Setup first readahead */
 				if (rawreadahead != 0) 
 					nbp = uma_zalloc(ffsraw_pbuf_zone,
 					    M_NOWAIT);
