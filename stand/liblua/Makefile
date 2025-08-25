@@ -29,6 +29,11 @@ SRCS+=	lfs.c
 .PATH:	${FLUALIB}/libhash
 SRCS+=	lhash.c
 
+# ACPI
+.PATH: ${LIBLUASRC}/acpi ${EFISRC}/acpica
+SRCS+=  lacpi_object.c init_acpi.c
+CFLAGS+= -I${LIBLUASRC}/acpi -I${EFISRC}/acpica/include -I${SYSDIR}/contrib/dev/acpica/include
+
 WARNS?=	3
 
 CFLAGS+= -DLUA_PATH=\"${LUAPATH}\" -DLUA_PATH_DEFAULT=\"${LUAPATH}/\?.lua\"
