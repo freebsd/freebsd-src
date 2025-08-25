@@ -165,6 +165,7 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 	static int	 polast;  /* Previously requested. */
 	static int	 po;      /* Currently requested. */
 	static int	 pouse;   /* Currently used. */
+	int		 pomin;   /* Minimum to be used. */
 	int		 pomax;   /* Maximum to be used. */
 	int		 ponew;   /* Newly requested. */
 
@@ -186,9 +187,9 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 	po = ponew;
 
 	/* Truncate to the range [-offset, 60], remember, and apply it. */
+	pomin = -p->tcol->offset;
 	pomax = term_len(p, 60);
-	pouse = po >= pomax ? pomax :
-	    po < -(int)p->tcol->offset ? -p->tcol->offset : po;
+	pouse = po > pomax ? pomax : po < pomin ? pomin : po;
 	p->tcol->offset += pouse;
 }
 
