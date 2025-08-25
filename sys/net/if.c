@@ -2589,16 +2589,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		 * flip.  They require special handling because in-kernel
 		 * consumers may indepdently toggle them.
 		 */
-		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
-			if (new_flags & IFF_PPROMISC)
-				ifp->if_flags |= IFF_PROMISC;
-			else if (ifp->if_pcount == 0)
-				ifp->if_flags &= ~IFF_PROMISC;
-			if (log_promisc_mode_change)
-                                if_printf(ifp, "permanently promiscuous mode %s\n",
-                                    ((new_flags & IFF_PPROMISC) ?
-                                     "enabled" : "disabled"));
-		}
+		if_setppromisc(ifp, new_flags & IFF_PPROMISC);
 		if ((ifp->if_flags ^ new_flags) & IFF_PALLMULTI) {
 			if (new_flags & IFF_PALLMULTI)
 				ifp->if_flags |= IFF_ALLMULTI;
@@ -4454,6 +4445,32 @@ if_getmtu_family(const if_t ifp, int family)
 	}
 
 	return (ifp->if_mtu);
+}
+
+void
+if_setppromisc(if_t ifp, bool ppromisc)
+{
+	int new_flags;
+
+	if (ppromisc)
+		new_flags = ifp->if_flags | IFF_PPROMISC;
+	else
+		new_flags = ifp->if_flags & ~IFF_PPROMISC;
+	if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
+		if (new_flags & IFF_PPROMISC)
+			new_flags |= IFF_PROMISC;
+		/*
+		 * Only unset IFF_PROMISC if there are no more consumers of
+		 * promiscuity, i.e. the ifp->if_pcount refcount is 0.
+		 */
+		else if (ifp->if_pcount == 0)
+			new_flags &= ~IFF_PROMISC;
+		if (log_promisc_mode_change)
+                        if_printf(ifp, "permanently promiscuous mode %s\n",
+                            ((new_flags & IFF_PPROMISC) ?
+                             "enabled" : "disabled"));
+	}
+	ifp->if_flags = new_flags;
 }
 
 /*
