@@ -34,6 +34,14 @@ int __tz_change_interval = DETECT_TZ_CHANGES_INTERVAL;
 #include "un-namespace.h"
 #endif /* __FreeBSD__ */
 
+#if HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#if !defined S_ISREG && defined S_IFREG
+/* Ancient UNIX or recent MS-Windows.  */
+# define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
+#endif
+
 #if defined THREAD_SAFE && THREAD_SAFE
 # include <pthread.h>
 #ifdef __FreeBSD__
@@ -48,6 +56,73 @@ static int lock(void) { return 0; }
 static void unlock(void) { }
 #endif
 
+/* Unless intptr_t is missing, pacify gcc -Wcast-qual on char const * exprs.
+   Use this carefully, as the casts disable type checking.
+   This is a macro so that it can be used in static initializers.  */
+#ifdef INTPTR_MAX
+# define UNCONST(a) ((char *) (intptr_t) (a))
+#else
+# define UNCONST(a) ((char *) (a))
+#endif
+
+/* A signed type wider than int, so that we can add 1900 + tm_mon/12 to tm_year
+   without overflow.  The static_assert checks that it is indeed wider
+   than int; if this fails on your platform please let us know.  */
+#if INT_MAX < LONG_MAX
+typedef long iinntt;
+# define IINNTT_MIN LONG_MIN
+# define IINNTT_MAX LONG_MAX
+#elif INT_MAX < LLONG_MAX
+typedef long long iinntt;
+# define IINNTT_MIN LLONG_MIN
+# define IINNTT_MAX LLONG_MAX
+#else
+typedef intmax_t iinntt;
+# define IINNTT_MIN INTMAX_MIN
+# define IINNTT_MAX INTMAX_MAX
+#endif
+static_assert(IINNTT_MIN < INT_MIN && INT_MAX < IINNTT_MAX);
+
+/* On platforms where offtime or mktime might overflow,
+   strftime.c defines USE_TIMEX_T to be true and includes us.
+   This tells us to #define time_t to an internal type timex_t that is
+   wide enough so that strftime %s never suffers from integer overflow,
+   and to #define offtime (if TM_GMTOFF is defined) or mktime (otherwise)
+   to a static function that returns the redefined time_t.
+   It also tells us to define only data and code needed
+   to support the offtime or mktime variant.  */
+#ifndef USE_TIMEX_T
+# define USE_TIMEX_T false
+#endif
+#if USE_TIMEX_T
+# undef TIME_T_MIN
+# undef TIME_T_MAX
+# undef time_t
+# define time_t timex_t
+# if MKTIME_FITS_IN(LONG_MIN, LONG_MAX)
+typedef long timex_t;
+# define TIME_T_MIN LONG_MIN
+# define TIME_T_MAX LONG_MAX
+# elif MKTIME_FITS_IN(LLONG_MIN, LLONG_MAX)
+typedef long long timex_t;
+# define TIME_T_MIN LLONG_MIN
+# define TIME_T_MAX LLONG_MAX
+# else
+typedef intmax_t timex_t;
+# define TIME_T_MIN INTMAX_MIN
+# define TIME_T_MAX INTMAX_MAX
+# endif
+
+# ifdef TM_GMTOFF
+#  undef timeoff
+#  define timeoff timex_timeoff
+#  undef EXTERN_TIMEOFF
+# else
+#  undef mktime
+#  define mktime timex_mktime
+# endif
+#endif
+
 #ifndef TZ_ABBR_CHAR_SET
 # define TZ_ABBR_CHAR_SET \
 	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 :+-._"
@@ -57,12 +132,23 @@ static void unlock(void) { }
 # define TZ_ABBR_ERR_CHAR '_'
 #endif /* !defined TZ_ABBR_ERR_CHAR */
 
-/*
-** Support non-POSIX platforms that distinguish between text and binary files.
-*/
+/* Port to platforms that lack some O_* flags.  Unless otherwise
+   specified, the flags are standardized by POSIX.  */
 
 #ifndef O_BINARY
-# define O_BINARY 0
+# define O_BINARY 0 /* MS-Windows */
+#endif
+#ifndef O_CLOEXEC
+# define O_CLOEXEC 0
+#endif
+#ifndef O_CLOFORK
+# define O_CLOFORK 0
+#endif
+#ifndef O_IGNORE_CTTY
+# define O_IGNORE_CTTY 0 /* GNU/Hurd */
+#endif
+#ifndef O_NOCTTY
+# define O_NOCTTY 0
 #endif
 
 #ifndef WILDABBR
@@ -91,7 +177,10 @@ static void unlock(void) { }
 static const char	wildabbr[] = WILDABBR;
 
 static char const etc_utc[] = "Etc/UTC";
+
+#if !USE_TIMEX_T || defined TM_ZONE || !defined TM_GMTOFF
 static char const *utc = etc_utc + sizeof "Etc/" - 1;
+#endif
 
 /*
 ** The DST rules to use if TZ has no rules and we can't load TZDEFRULES.
@@ -103,10 +192,31 @@ static char const *utc = etc_utc + sizeof "Etc/" - 1;
 # define TZDEFRULESTRING ",M3.2.0,M11.1.0"
 #endif
 
+/* Limit to time zone abbreviation length in proleptic TZ strings.
+   This is distinct from TZ_MAX_CHARS, which limits TZif file contents.
+   It defaults to 254, not 255, so that desigidx_type can be an unsigned char.
+   unsigned char suffices for TZif files, so the only reason to increase
+   TZNAME_MAXIMUM is to support TZ strings specifying abbreviations
+   longer than 254 bytes.  There is little reason to do that, though,
+   as strings that long are hardly "abbreviations".  */
+#ifndef TZNAME_MAXIMUM
+# define TZNAME_MAXIMUM 254
+#endif
+
+#if TZNAME_MAXIMUM < UCHAR_MAX
+typedef unsigned char desigidx_type;
+#elif TZNAME_MAXIMUM < INT_MAX
+typedef int desigidx_type;
+#elif TZNAME_MAXIMUM < PTRDIFF_MAX
+typedef ptrdiff_t desigidx_type;
+#else
+# error "TZNAME_MAXIMUM too large"
+#endif
+
 struct ttinfo {				/* time type information */
-	int_fast32_t	tt_utoff;	/* UT offset in seconds */
+	int_least32_t	tt_utoff;	/* UT offset in seconds */
+	desigidx_type	tt_desigidx;	/* abbreviation list index */
 	bool		tt_isdst;	/* used to set tm_isdst */
-	int		tt_desigidx;	/* abbreviation list index */
 	bool		tt_ttisstd;	/* transition is std time */
 	bool		tt_ttisut;	/* transition is UT */
 };
@@ -124,12 +234,6 @@ static char const UNSPEC[] = "-00";
    data isn't properly terminated, and it also needs to be big enough
    for ttunspecified to work without crashing.  */
 enum { CHARS_EXTRA = max(sizeof UNSPEC, 2) - 1 };
-
-/* Limit to time zone abbreviation length in proleptic TZ strings.
-   This is distinct from TZ_MAX_CHARS, which limits TZif file contents.  */
-#ifndef TZNAME_MAXIMUM
-# define TZNAME_MAXIMUM 255
-#endif
 
 /* A representation of the contents of a TZif file.  Ideally this
    would have no size limits; the following sizes should suffice for
@@ -173,7 +277,6 @@ static struct tm *gmtsub(struct state const *, time_t const *, int_fast32_t,
 static bool increment_overflow(int *, int);
 static bool increment_overflow_time(time_t *, int_fast32_t);
 static int_fast32_t leapcorr(struct state const *, time_t);
-static bool normalize_overflow32(int_fast32_t *, int *, int);
 static struct tm *timesub(time_t const *, int_fast32_t, struct state const *,
 			  struct tm *);
 static bool tzparse(char const *, struct state *, struct state const *);
@@ -194,8 +297,10 @@ static struct state *const gmtptr = &gmtmem;
 # define TZ_STRLEN_MAX 255
 #endif /* !defined TZ_STRLEN_MAX */
 
+#if !USE_TIMEX_T || !defined TM_GMTOFF
 static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
+#endif
 #ifdef __FreeBSD__
 static pthread_once_t	gmt_once = PTHREAD_ONCE_INIT;
 static pthread_once_t	gmtime_once = PTHREAD_ONCE_INIT;
@@ -221,27 +326,29 @@ static int		localtime_key_error;
 ** trigger latent bugs in programs.
 */
 
-#if SUPPORT_C89
+#if !USE_TIMEX_T
+
+# if SUPPORT_C89
 static struct tm	tm;
 #endif
 
-#if 2 <= HAVE_TZNAME + TZ_TIME_T
-char *			tzname[2] = {
-	(char *) wildabbr,
-	(char *) wildabbr
-};
-#endif
-#if 2 <= USG_COMPAT + TZ_TIME_T
+# if 2 <= HAVE_TZNAME + TZ_TIME_T
+char *tzname[2] = { UNCONST(wildabbr), UNCONST(wildabbr) };
+# endif
+# if 2 <= USG_COMPAT + TZ_TIME_T
 long			timezone;
 int			daylight;
-#endif
-#if 2 <= ALTZONE + TZ_TIME_T
+# endif
+# if 2 <= ALTZONE + TZ_TIME_T
 long			altzone;
+# endif
+
 #endif
 
 /* Initialize *S to a value based on UTOFF, ISDST, and DESIGIDX.  */
 static void
-init_ttinfo(struct ttinfo *s, int_fast32_t utoff, bool isdst, int desigidx)
+init_ttinfo(struct ttinfo *s, int_fast32_t utoff, bool isdst,
+	    desigidx_type desigidx)
 {
   s->tt_utoff = utoff;
   s->tt_isdst = isdst;
@@ -305,20 +412,22 @@ detzcode64(const char *const codep)
 	return result;
 }
 
+#if !USE_TIMEX_T || !defined TM_GMTOFF
+
 static void
 update_tzname_etc(struct state const *sp, struct ttinfo const *ttisp)
 {
-#if HAVE_TZNAME
-  tzname[ttisp->tt_isdst] = (char *) &sp->chars[ttisp->tt_desigidx];
-#endif
-#if USG_COMPAT
+# if HAVE_TZNAME
+  tzname[ttisp->tt_isdst] = UNCONST(&sp->chars[ttisp->tt_desigidx]);
+# endif
+# if USG_COMPAT
   if (!ttisp->tt_isdst)
     timezone = - ttisp->tt_utoff;
-#endif
-#if ALTZONE
+# endif
+# if ALTZONE
   if (ttisp->tt_isdst)
     altzone = - ttisp->tt_utoff;
-#endif
+# endif
 }
 
 /* If STDDST_MASK indicates that SP's TYPE provides useful info,
@@ -349,18 +458,18 @@ settzname(void)
 	   When STDDST_MASK becomes zero we can stop looking.  */
 	int stddst_mask = 0;
 
-#if HAVE_TZNAME
-	tzname[0] = tzname[1] = (char *) (sp ? wildabbr : utc);
+# if HAVE_TZNAME
+	tzname[0] = tzname[1] = UNCONST(sp ? wildabbr : utc);
 	stddst_mask = 3;
-#endif
-#if USG_COMPAT
+# endif
+# if USG_COMPAT
 	timezone = 0;
 	stddst_mask = 3;
-#endif
-#if ALTZONE
+# endif
+# if ALTZONE
 	altzone = 0;
 	stddst_mask |= 2;
-#endif
+# endif
 	/*
 	** And to get the latest time zone abbreviations into tzname. . .
 	*/
@@ -370,9 +479,9 @@ settzname(void)
 	  for (i = sp->typecnt - 1; stddst_mask && 0 <= i; i--)
 	    stddst_mask = may_update_tzname_etc(stddst_mask, sp, i);
 	}
-#if USG_COMPAT
+# if USG_COMPAT
 	daylight = stddst_mask >> 1 ^ 1;
-#endif
+# endif
 }
 
 /* Replace bogus characters in time zone abbreviations.
@@ -398,6 +507,8 @@ scrub_abbrs(struct state *sp)
 
 	return 0;
 }
+
+#endif
 
 #ifdef DETECT_TZ_CHANGES
 /*
@@ -473,11 +584,15 @@ union local_storage {
 #endif /* !__FreeBSD__ */
 };
 
-/* Load tz data from the file named NAME into *SP.  Read extended
-   format if DOEXTEND.  Use *LSP for temporary storage.  Return 0 on
+/* These tzload flags can be ORed together, and fit into 'char'.  */
+enum { TZLOAD_FROMENV = 1 }; /* The TZ string came from the environment.  */
+enum { TZLOAD_TZSTRING = 2 }; /* Read any newline-surrounded TZ string.  */
+
+/* Load tz data from the file named NAME into *SP.  Respect TZLOADFLAGS.
+   Use *LSP for temporary storage.  Return 0 on
    success, an errno value on failure.  */
 static int
-tzloadbody(char const *name, struct state *sp, bool doextend,
+tzloadbody(char const *name, struct state *sp, char tzloadflags,
 	   union local_storage *lsp)
 {
 	register int			i;
@@ -485,7 +600,9 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 	register int			stored;
 	register ssize_t		nread;
 #ifdef __FreeBSD__
-	int serrno;
+	struct stat sb;
+	const char *relname;
+	int dd, serrno;
 #else /* !__FreeBSD__ */
 	register bool doaccess;
 #endif /* !__FreeBSD__ */
@@ -533,45 +650,75 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 
 		name = lsp->fullname;
 	}
-	if (doaccess && access(name, R_OK) != 0)
-	  return errno;
-	fid = _open(name, O_RDONLY | O_BINARY);
+	if (doaccess && (tzloadflags & TZLOAD_FROMENV)) {
+	  /* Check for security violations and for devices whose mere
+	     opening could have unwanted side effects.  Although these
+	     checks are racy, they're better than nothing and there is
+	     no portable way to fix the races.  */
+	  if (access(name, R_OK) < 0)
+	    return errno;
+#ifdef S_ISREG
+	  {
+	    struct stat st;
+	    if (stat(name, &st) < 0)
+	      return errno;
+	    if (!S_ISREG(st.st_mode))
+	      return EINVAL;
+	  }
+#endif
+	}
+	fid = _open(name, (O_RDONLY | O_BINARY | O_CLOEXEC | O_CLOFORK
+			  | O_IGNORE_CTTY | O_NOCTTY));
 #else /* __FreeBSD__ */
-        {
-          const char *relname = name;
-          if (strncmp(relname, TZDIR "/", strlen(TZDIR) + 1) == 0)
-            relname += strlen(TZDIR) + 1;
-          int dd = _open(TZDIR, O_DIRECTORY | O_RDONLY);
-          if (dd < 0)
-            return errno;
-          fid = _openat(dd, relname, O_RDONLY | O_BINARY,
-                        issetugid() ? AT_RESOLVE_BENEATH : 0);
-          serrno = errno;
-          _close(dd);
-          errno = serrno;
-        }
+	relname = name;
+	if (strncmp(relname, TZDIR "/", strlen(TZDIR) + 1) == 0)
+	  relname += strlen(TZDIR) + 1;
+	dd = _open(TZDIR, O_DIRECTORY | O_RDONLY);
+	if (issetugid() && (tzloadflags & TZLOAD_FROMENV)) {
+	  if (dd < 0)
+	    return errno;
+	  if (fstatat(dd, name, &sb, AT_RESOLVE_BENEATH) < 0) {
+	    fid = -1;
+	  } else if (!S_ISREG(sb.st_mode)) {
+	    fid = -1;
+	    errno = EINVAL;
+	  } else {
+	    fid = _openat(dd, relname, O_RDONLY | O_BINARY, AT_RESOLVE_BENEATH);
+	  }
+	} else {
+	  if (dd < 0) {
+	    relname = name;
+	    dd = AT_FDCWD;
+	  }
+	  fid = _openat(dd, relname, O_RDONLY | O_BINARY, 0);
+	}
+	if (dd != AT_FDCWD && dd >= 0) {
+	  serrno = errno;
+	  _close(dd);
+	  errno = serrno;
+	}
 #endif /* __FreeBSD__ */
 	if (fid < 0)
 	  return errno;
 
 #ifdef DETECT_TZ_CHANGES
-	if (doextend) {
-          /*
-           * Detect if the timezone file has changed.  Check 'doextend' to
-           * ignore TZDEFRULES; the tzfile_changed() function can only
-           * keep state for a single file.
-           */
-          switch (tzfile_changed(name, fid)) {
-          case -1:
-            serrno = errno;
-            _close(fid);
-            return serrno;
-          case 0:
-            _close(fid);
-            return 0;
-          case 1:
-            break;
-          }
+	if (tzloadflags) {
+	  /*
+	   * Detect if the timezone file has changed.  Check tzloadflags
+	   * to ignore TZDEFRULES; the tzfile_changed() function can only
+	   * keep state for a single file.
+	   */
+	  switch (tzfile_changed(name, fid)) {
+	  case -1:
+	    serrno = errno;
+	    _close(fid);
+	    return serrno;
+	  case 0:
+	    _close(fid);
+	    return 0;
+	  case 1:
+	    break;
+	  }
 	}
 #endif /* DETECT_TZ_CHANGES */
 	nread = _read(fid, up->buf, sizeof up->buf);
@@ -697,7 +844,7 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 		     correction must differ from the previous one's by 1
 		     second or less, except that the first correction can be
 		     any value; these requirements are more generous than
-		     RFC 8536, to allow future RFC extensions.  */
+		     RFC 9636, to allow future RFC extensions.  */
 		  if (! (i == 0
 			 || (prevcorr < corr
 			     ? corr == prevcorr + 1
@@ -748,7 +895,7 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 	    if (!version)
 	      break;
 	}
-	if (doextend && nread > 2 &&
+	if ((tzloadflags & TZLOAD_TZSTRING) && nread > 2 &&
 		up->buf[0] == '\n' && up->buf[nread - 1] == '\n' &&
 		sp->typecnt + 2 <= TZ_MAX_TYPES) {
 			struct state	*ts = &lsp->u.st;
@@ -823,23 +970,23 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 	return 0;
 }
 
-/* Load tz data from the file named NAME into *SP.  Read extended
-   format if DOEXTEND.  Return 0 on success, an errno value on failure.  */
+/* Load tz data from the file named NAME into *SP.  Respect TZLOADFLAGS.
+   Return 0 on success, an errno value on failure.  */
 static int
-tzload(char const *name, struct state *sp, bool doextend)
+tzload(char const *name, struct state *sp, char tzloadflags)
 {
 #ifdef ALL_STATE
   union local_storage *lsp = malloc(sizeof *lsp);
   if (!lsp) {
     return HAVE_MALLOC_ERRNO ? errno : ENOMEM;
   } else {
-    int err = tzloadbody(name, sp, doextend, lsp);
+    int err = tzloadbody(name, sp, tzloadflags, lsp);
     free(lsp);
     return err;
   }
 #else
   union local_storage ls;
-  return tzloadbody(name, sp, doextend, &ls);
+  return tzloadbody(name, sp, tzloadflags, &ls);
 #endif
 }
 
@@ -1180,7 +1327,7 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 	  sp->leapcnt = basep->leapcnt;
 	  memcpy(sp->lsis, basep->lsis, sp->leapcnt * sizeof *sp->lsis);
 	} else {
-	  load_ok = tzload(TZDEFRULES, sp, false) == 0;
+	  load_ok = tzload(TZDEFRULES, sp, 0) == 0;
 	  if (!load_ok)
 	    sp->leapcnt = 0;	/* So, we're off a little.  */
 	}
@@ -1417,7 +1564,7 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 static void
 gmtload(struct state *const sp)
 {
-	if (tzload(etc_utc, sp, true) != 0)
+	if (tzload(etc_utc, sp, TZLOAD_TZSTRING) != 0)
 	  tzparse("UTC0", sp, NULL);
 }
 
@@ -1444,10 +1591,13 @@ tzdata_is_fresh(void)
 }
 #endif /* DETECT_TZ_CHANGES */
 
+#if !USE_TIMEX_T || !defined TM_GMTOFF
+
 /* Initialize *SP to a value appropriate for the TZ setting NAME.
+   Respect TZLOADFLAGS.
    Return 0 on success, an errno value on failure.  */
 static int
-zoneinit(struct state *sp, char const *name)
+zoneinit(struct state *sp, char const *name, char tzloadflags)
 {
   if (name && ! name[0]) {
     /*
@@ -1462,7 +1612,7 @@ zoneinit(struct state *sp, char const *name)
     strcpy(sp->chars, utc);
     return 0;
   } else {
-    int err = tzload(name, sp, true);
+    int err = tzload(name, sp, tzloadflags);
     if (err != 0 && name && name[0] != ':' && tzparse(name, sp, NULL))
       err = 0;
     if (err == 0)
@@ -1492,13 +1642,15 @@ tzset_unlocked_name(char const *name)
     if (tzdata_is_fresh() == 0)
 #endif /* DETECT_TZ_CHANGES */
     return;
-#ifdef ALL_STATE
+# ifdef ALL_STATE
   if (! sp)
     lclptr = sp = malloc(sizeof *lclptr);
-#endif /* defined ALL_STATE */
+# endif
   if (sp) {
-    if (zoneinit(sp, name) != 0)
-      zoneinit(sp, "");
+    if (zoneinit(sp, name, TZLOAD_FROMENV | TZLOAD_TZSTRING) != 0) {
+      zoneinit(sp, "", 0);
+      strcpy(sp->chars, UNSPEC);
+    }
     if (0 < lcl)
       strcpy(lcl_TZname, name);
   }
@@ -1506,6 +1658,9 @@ tzset_unlocked_name(char const *name)
   lcl_is_set = lcl;
 }
 
+#endif
+
+#if !USE_TIMEX_T
 void
 tzset(void)
 {
@@ -1514,6 +1669,7 @@ tzset(void)
   tzset_unlocked();
   unlock();
 }
+#endif
 
 #ifdef __FreeBSD__
 void
@@ -1548,14 +1704,14 @@ gmtcheck(void)
 #define gmtcheck() _once(&gmt_once, gmtcheck)
 #endif
 
-#if NETBSD_INSPIRED
+#if NETBSD_INSPIRED && !USE_TIMEX_T
 
 timezone_t
 tzalloc(char const *name)
 {
   timezone_t sp = malloc(sizeof *sp);
   if (sp) {
-    int err = zoneinit(sp, name);
+    int err = zoneinit(sp, name, TZLOAD_TZSTRING);
     if (err != 0) {
       free(sp);
       errno = err;
@@ -1583,6 +1739,8 @@ tzfree(timezone_t sp)
 */
 
 #endif
+
+#if !USE_TIMEX_T || !defined TM_GMTOFF
 
 /*
 ** The easy way to behave "as if no library function calls" localtime
@@ -1638,14 +1796,14 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 					return NULL;	/* "cannot happen" */
 			result = localsub(sp, &newt, setname, tmp);
 			if (result) {
-#if defined ckd_add && defined ckd_sub
+# if defined ckd_add && defined ckd_sub
 				if (t < sp->ats[0]
 				    ? ckd_sub(&result->tm_year,
 					      result->tm_year, years)
 				    : ckd_add(&result->tm_year,
 					      result->tm_year, years))
 				  return NULL;
-#else
+# else
 				register int_fast64_t newy;
 
 				newy = result->tm_year;
@@ -1655,7 +1813,7 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 				if (! (INT_MIN <= newy && newy <= INT_MAX))
 					return NULL;
 				result->tm_year = newy;
-#endif
+# endif
 			}
 			return result;
 	}
@@ -1684,25 +1842,26 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 	result = timesub(&t, ttisp->tt_utoff, sp, tmp);
 	if (result) {
 	  result->tm_isdst = ttisp->tt_isdst;
-#ifdef TM_ZONE
-	  result->TM_ZONE = (char *) &sp->chars[ttisp->tt_desigidx];
-#endif /* defined TM_ZONE */
+# ifdef TM_ZONE
+	  result->TM_ZONE = UNCONST(&sp->chars[ttisp->tt_desigidx]);
+# endif
 	  if (setname)
 	    update_tzname_etc(sp, ttisp);
 	}
 	return result;
 }
+#endif
 
-#if NETBSD_INSPIRED
+#if !USE_TIMEX_T
 
+# if NETBSD_INSPIRED
 struct tm *
 localtime_rz(struct state *restrict sp, time_t const *restrict timep,
 	     struct tm *restrict tmp)
 {
   return localsub(sp, timep, 0, tmp);
 }
-
-#endif
+# endif
 
 static struct tm *
 localtime_tzset(time_t const *timep, struct tm *tmp, bool setname)
@@ -1731,9 +1890,9 @@ localtime_key_init(void)
 struct tm *
 localtime(const time_t *timep)
 {
-#if !SUPPORT_C89
+# if !SUPPORT_C89
   static struct tm tm;
-#endif
+# endif
 #ifdef __FreeBSD__
   struct tm *p_tm = &tm;
 
@@ -1762,6 +1921,7 @@ localtime_r(const time_t *restrict timep, struct tm *restrict tmp)
 {
   return localtime_tzset(timep, tmp, false);
 }
+#endif
 
 /*
 ** gmtsub is to gmtime as localsub is to localtime.
@@ -1780,11 +1940,13 @@ gmtsub(ATTRIBUTE_MAYBE_UNUSED struct state const *sp, time_t const *timep,
 	** "+xx" or "-xx" if offset is non-zero,
 	** but this is no time for a treasure hunt.
 	*/
-	tmp->TM_ZONE = ((char *)
-			(offset ? wildabbr : gmtptr ? gmtptr->chars : utc));
+	tmp->TM_ZONE = UNCONST(offset ? wildabbr
+			       : gmtptr ? gmtptr->chars : utc);
 #endif /* defined TM_ZONE */
 	return result;
 }
+
+#if !USE_TIMEX_T
 
 /*
 * Re-entrant version of gmtime.
@@ -1807,9 +1969,9 @@ gmtime_key_init(void)
 struct tm *
 gmtime(const time_t *timep)
 {
-#if !SUPPORT_C89
+# if !SUPPORT_C89
   static struct tm tm;
-#endif
+# endif
 #ifdef __FreeBSD__
   struct tm *p_tm = &tm;
 
@@ -1833,7 +1995,7 @@ gmtime(const time_t *timep)
   return gmtime_r(timep, p_tm);
 }
 
-#if STD_INSPIRED
+# if STD_INSPIRED
 
 /* This function is obsolescent and may disappear in future releases.
    Callers can instead use localtime_rz with a fixed-offset zone.  */
@@ -1855,9 +2017,9 @@ offtime_key_init(void)
 struct tm *
 offtime(const time_t *timep, long offset)
 {
-#if !SUPPORT_C89
+#  if !SUPPORT_C89
   static struct tm tm;
-#endif
+#  endif
 #ifdef __FreeBSD__
   struct tm *p_tm = &tm;
 
@@ -1881,6 +2043,7 @@ offtime(const time_t *timep, long offset)
   return offtime_r(timep, offset, p_tm);
 }
 
+# endif
 #endif
 
 /*
@@ -1939,7 +2102,7 @@ timesub(const time_t *timep, int_fast32_t offset,
 	dayoff = offset / SECSPERDAY - corr / SECSPERDAY + rem / SECSPERDAY - 3;
 	rem %= SECSPERDAY;
 	/* y = (EPOCH_YEAR
-	        + floor((tdays + dayoff) / DAYSPERREPEAT) * YEARSPERREPEAT),
+		+ floor((tdays + dayoff) / DAYSPERREPEAT) * YEARSPERREPEAT),
 	   sans overflow.  But calculate against 1570 (EPOCH_YEAR -
 	   YEARSPERREPEAT) instead of against 1970 so that things work
 	   for localtime values before 1970 when time_t is unsigned.  */
@@ -2056,17 +2219,17 @@ increment_overflow(int *ip, int j)
 }
 
 static bool
-increment_overflow32(int_fast32_t *const lp, int const m)
+increment_overflow_time_iinntt(time_t *tp, iinntt j)
 {
 #ifdef ckd_add
-	return ckd_add(lp, *lp, m);
+  return ckd_add(tp, *tp, j);
 #else
-	register int_fast32_t const	l = *lp;
-
-	if ((l >= 0) ? (m > INT_FAST32_MAX - l) : (m < INT_FAST32_MIN - l))
-		return true;
-	*lp += m;
-	return false;
+  if (j < 0
+      ? (TYPE_SIGNED(time_t) ? *tp < TIME_T_MIN - j : *tp <= -1 - j)
+      : TIME_T_MAX - j < *tp)
+    return true;
+  *tp += j;
+  return false;
 #endif
 }
 
@@ -2088,30 +2251,6 @@ increment_overflow_time(time_t *tp, int_fast32_t j)
 	*tp += j;
 	return false;
 #endif
-}
-
-static bool
-normalize_overflow(int *const tensptr, int *const unitsptr, const int base)
-{
-	register int	tensdelta;
-
-	tensdelta = (*unitsptr >= 0) ?
-		(*unitsptr / base) :
-		(-1 - (-1 - *unitsptr) / base);
-	*unitsptr -= tensdelta * base;
-	return increment_overflow(tensptr, tensdelta);
-}
-
-static bool
-normalize_overflow32(int_fast32_t *tensptr, int *unitsptr, int base)
-{
-	register int	tensdelta;
-
-	tensdelta = (*unitsptr >= 0) ?
-		(*unitsptr / base) :
-		(-1 - (-1 - *unitsptr) / base);
-	*unitsptr -= tensdelta * base;
-	return increment_overflow32(tensptr, tensdelta);
 }
 
 static int
@@ -2158,11 +2297,9 @@ time2sub(struct tm *const tmp,
 {
 	register int			dir;
 	register int			i, j;
-	register int			saved_seconds;
-	register int_fast32_t		li;
 	register time_t			lo;
 	register time_t			hi;
-	int_fast32_t			y;
+	iinntt y, mday, hour, min, saved_seconds;
 	time_t				newt;
 	time_t				t;
 	struct tm			yourtm, mytm;
@@ -2170,36 +2307,57 @@ time2sub(struct tm *const tmp,
 	*okayp = false;
 	mktmcpy(&yourtm, tmp);
 
+	min = yourtm.tm_min;
 	if (do_norm_secs) {
-		if (normalize_overflow(&yourtm.tm_min, &yourtm.tm_sec,
-			SECSPERMIN))
-				return WRONG;
+	  min += yourtm.tm_sec / SECSPERMIN;
+	  yourtm.tm_sec %= SECSPERMIN;
+	  if (yourtm.tm_sec < 0) {
+	    yourtm.tm_sec += SECSPERMIN;
+	    min--;
+	  }
 	}
-	if (normalize_overflow(&yourtm.tm_hour, &yourtm.tm_min, MINSPERHOUR))
-		return WRONG;
-	if (normalize_overflow(&yourtm.tm_mday, &yourtm.tm_hour, HOURSPERDAY))
-		return WRONG;
+
+	hour = yourtm.tm_hour;
+	hour += min / MINSPERHOUR;
+	yourtm.tm_min = min % MINSPERHOUR;
+	if (yourtm.tm_min < 0) {
+	  yourtm.tm_min += MINSPERHOUR;
+	  hour--;
+	}
+
+	mday = yourtm.tm_mday;
+	mday += hour / HOURSPERDAY;
+	yourtm.tm_hour = hour % HOURSPERDAY;
+	if (yourtm.tm_hour < 0) {
+	  yourtm.tm_hour += HOURSPERDAY;
+	  mday--;
+	}
+
 	y = yourtm.tm_year;
-	if (normalize_overflow32(&y, &yourtm.tm_mon, MONSPERYEAR))
-		return WRONG;
+	y += yourtm.tm_mon / MONSPERYEAR;
+	yourtm.tm_mon %= MONSPERYEAR;
+	if (yourtm.tm_mon < 0) {
+	  yourtm.tm_mon += MONSPERYEAR;
+	  y--;
+	}
+
 	/*
 	** Turn y into an actual year number for now.
 	** It is converted back to an offset from TM_YEAR_BASE later.
 	*/
-	if (increment_overflow32(&y, TM_YEAR_BASE))
-		return WRONG;
-	while (yourtm.tm_mday <= 0) {
-		if (increment_overflow32(&y, -1))
-			return WRONG;
-		li = y + (1 < yourtm.tm_mon);
-		yourtm.tm_mday += year_lengths[isleap(li)];
+	y += TM_YEAR_BASE;
+
+	while (mday <= 0) {
+	  iinntt li = y - (yourtm.tm_mon <= 1);
+	  mday += year_lengths[isleap(li)];
+	  y--;
 	}
-	while (yourtm.tm_mday > DAYSPERLYEAR) {
-		li = y + (1 < yourtm.tm_mon);
-		yourtm.tm_mday -= year_lengths[isleap(li)];
-		if (increment_overflow32(&y, 1))
-			return WRONG;
+	while (DAYSPERLYEAR < mday) {
+	  iinntt li = y + (1 < yourtm.tm_mon);
+	  mday -= year_lengths[isleap(li)];
+	  y++;
 	}
+	yourtm.tm_mday = mday;
 	for ( ; ; ) {
 		i = mon_lengths[isleap(y)][yourtm.tm_mon];
 		if (yourtm.tm_mday <= i)
@@ -2207,16 +2365,14 @@ time2sub(struct tm *const tmp,
 		yourtm.tm_mday -= i;
 		if (++yourtm.tm_mon >= MONSPERYEAR) {
 			yourtm.tm_mon = 0;
-			if (increment_overflow32(&y, 1))
-				return WRONG;
+			y++;
 		}
 	}
 #ifdef ckd_add
 	if (ckd_add(&yourtm.tm_year, y, -TM_YEAR_BASE))
 	  return WRONG;
 #else
-	if (increment_overflow32(&y, -TM_YEAR_BASE))
-		return WRONG;
+	y -= TM_YEAR_BASE;
 	if (! (INT_MIN <= y && y <= INT_MAX))
 		return WRONG;
 	yourtm.tm_year = y;
@@ -2232,9 +2388,8 @@ time2sub(struct tm *const tmp,
 		** not in the same minute that a leap second was deleted from,
 		** which is a safer assumption than using 58 would be.
 		*/
-		if (increment_overflow(&yourtm.tm_sec, 1 - SECSPERMIN))
-			return WRONG;
 		saved_seconds = yourtm.tm_sec;
+		saved_seconds -= SECSPERMIN - 1;
 		yourtm.tm_sec = SECSPERMIN - 1;
 	} else {
 		saved_seconds = yourtm.tm_sec;
@@ -2343,10 +2498,8 @@ time2sub(struct tm *const tmp,
 		return WRONG;
 	}
 label:
-	newt = t + saved_seconds;
-	if ((newt < t) != (saved_seconds < 0))
+	if (increment_overflow_time_iinntt(&t, saved_seconds))
 		return WRONG;
-	t = newt;
 	if (funcp(sp, &t, offset, tmp))
 		*okayp = true;
 	return t;
@@ -2443,6 +2596,8 @@ time1(struct tm *const tmp,
 	return WRONG;
 }
 
+#if !defined TM_GMTOFF || !USE_TIMEX_T
+
 static time_t
 mktime_tzname(struct state *sp, struct tm *tmp, bool setname)
 {
@@ -2454,16 +2609,9 @@ mktime_tzname(struct state *sp, struct tm *tmp, bool setname)
   }
 }
 
-#if NETBSD_INSPIRED
-
-time_t
-mktime_z(struct state *restrict sp, struct tm *restrict tmp)
-{
-  return mktime_tzname(sp, tmp, false);
-}
-
-#endif
-
+# if USE_TIMEX_T
+static
+# endif
 time_t
 mktime(struct tm *tmp)
 {
@@ -2479,7 +2627,17 @@ mktime(struct tm *tmp)
   return t;
 }
 
-#if STD_INSPIRED
+#endif
+
+#if NETBSD_INSPIRED && !USE_TIMEX_T
+time_t
+mktime_z(struct state *restrict sp, struct tm *restrict tmp)
+{
+  return mktime_tzname(sp, tmp, false);
+}
+#endif
+
+#if STD_INSPIRED && !USE_TIMEX_T
 /* This function is obsolescent and may disappear in future releases.
    Callers can instead use mktime.  */
 time_t
@@ -2491,12 +2649,14 @@ timelocal(struct tm *tmp)
 }
 #endif
 
-#ifndef EXTERN_TIMEOFF
-# ifndef timeoff
-#  define timeoff my_timeoff /* Don't collide with OpenBSD 7.4 <time.h>.  */
+#if defined TM_GMTOFF || !USE_TIMEX_T
+
+# ifndef EXTERN_TIMEOFF
+#  ifndef timeoff
+#   define timeoff my_timeoff /* Don't collide with OpenBSD 7.4 <time.h>.  */
+#  endif
+#  define EXTERN_TIMEOFF static
 # endif
-# define EXTERN_TIMEOFF static
-#endif
 
 /* This function is obsolescent and may disappear in future releases.
    Callers can instead use mktime_z with a fixed-offset zone.  */
@@ -2508,7 +2668,9 @@ timeoff(struct tm *tmp, long offset)
   gmtcheck();
   return time1(tmp, gmtsub, gmtptr, offset);
 }
+#endif
 
+#if !USE_TIMEX_T
 time_t
 timegm(struct tm *tmp)
 {
@@ -2521,6 +2683,7 @@ timegm(struct tm *tmp)
     *tmp = tmcpy;
   return t;
 }
+#endif
 
 static int_fast32_t
 leapcorr(struct state const *sp, time_t t)
@@ -2541,15 +2704,16 @@ leapcorr(struct state const *sp, time_t t)
 ** XXX--is the below the right way to conditionalize??
 */
 
-#if STD_INSPIRED
+#if !USE_TIMEX_T
+# if STD_INSPIRED
 
 /* NETBSD_INSPIRED_EXTERN functions are exported to callers if
    NETBSD_INSPIRED is defined, and are private otherwise.  */
-# if NETBSD_INSPIRED
-#  define NETBSD_INSPIRED_EXTERN
-# else
-#  define NETBSD_INSPIRED_EXTERN static
-# endif
+#  if NETBSD_INSPIRED
+#   define NETBSD_INSPIRED_EXTERN
+#  else
+#   define NETBSD_INSPIRED_EXTERN static
+#  endif
 
 /*
 ** IEEE Std 1003.1 (POSIX) says that 536457599
@@ -2630,17 +2794,13 @@ posix2time(time_t t)
   return t;
 }
 
-#endif /* STD_INSPIRED */
+# endif /* STD_INSPIRED */
 
-#if TZ_TIME_T
+# if TZ_TIME_T
 
-# if !USG_COMPAT
-#  define daylight 0
-#  define timezone 0
-# endif
-# if !ALTZONE
-#  define altzone 0
-# endif
+#  if !USG_COMPAT
+#   define timezone 0
+#  endif
 
 /* Convert from the underlying system's time_t to the ersatz time_tz,
    which is called 'time_t' in this file.  Typically, this merely
@@ -2658,9 +2818,9 @@ time(time_t *p)
 {
   time_t r = sys_time(0);
   if (r != (time_t) -1) {
-    int_fast32_t offset = EPOCH_LOCAL ? (daylight ? timezone : altzone) : 0;
-    if (increment_overflow32(&offset, -EPOCH_OFFSET)
-	|| increment_overflow_time(&r, offset)) {
+    iinntt offset = EPOCH_LOCAL ? timezone : 0;
+    if (offset < IINNTT_MIN + EPOCH_OFFSET
+	|| increment_overflow_time_iinntt(&r, offset - EPOCH_OFFSET)) {
       errno = EOVERFLOW;
       r = -1;
     }
@@ -2670,4 +2830,5 @@ time(time_t *p)
   return r;
 }
 
+# endif
 #endif
