@@ -1872,13 +1872,13 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 			vif->bss_conf.beacon_int = 16;
 		bss_changed |= BSS_CHANGED_BEACON_INT;
 	}
-	if (vif->bss_conf.dtim_period != vap->iv_dtim_period &&
-	    vap->iv_dtim_period > 0) {
-		vif->bss_conf.dtim_period = vap->iv_dtim_period;
+	if (vif->bss_conf.dtim_period != ni->ni_dtim_period &&
+	    ni->ni_dtim_period > 0) {
+		vif->bss_conf.dtim_period = ni->ni_dtim_period;
 		bss_changed |= BSS_CHANGED_BEACON_INFO;
 	}
 
-	vif->bss_conf.sync_dtim_count = vap->iv_dtim_count;
+	vif->bss_conf.sync_dtim_count = ni->ni_dtim_count;
 	vif->bss_conf.sync_tsf = le64toh(ni->ni_tstamp.tsf);
 	/* vif->bss_conf.sync_device_ts = set in linuxkpi_ieee80211_rx. */
 
