@@ -13,5 +13,5 @@ cleancerts: .PHONY
 	@${MAKE} -C ${.CURDIR}/trusted ${.TARGET}
 
 updatecerts: .PHONY cleancerts fetchcerts
-	perl ${.CURDIR}/MAca-bundle.pl -i certdata.txt \
+	perl ${.CURDIR}/ca-extract.pl -i certdata.txt \
 	    -t ${.CURDIR}/trusted -u ${.CURDIR}/untrusted
