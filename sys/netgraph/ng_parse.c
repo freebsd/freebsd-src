@@ -1199,14 +1199,14 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 	int *off, const u_char *const start, u_char *const buf, int *buflen,
 	const enum comptype ctype)
 {
-	const int num = ng_get_composite_len(type, start, buf, ctype);
 	int nextIndex = 0;		/* next implicit array index */
 	u_int index;			/* field or element index */
 	int *foff;			/* field value offsets in string */
 	int align, len, blen, error = 0;
 
 	/* Initialize */
-	if (num < 0)
+	const int num = ng_get_composite_len(type, start, buf, ctype);
+	if (num < 0 || num > INT_MAX / sizeof(*foff))
 		return (EINVAL);
 	foff = malloc(num * sizeof(*foff), M_NETGRAPH_PARSE, M_NOWAIT | M_ZERO);
 	if (foff == NULL) {
