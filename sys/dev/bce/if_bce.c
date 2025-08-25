@@ -1221,7 +1221,7 @@ bce_attach(device_t dev)
 			sc->bce_bc_ver[j++] = '.';
 	}
 
-	/* Check if any management firwmare is enabled. */
+	/* Check if any management firmware is enabled. */
 	val = bce_shmem_rd(sc, BCE_PORT_FEATURE);
 	if (val & BCE_PORT_FEATURE_ASF_ENABLED) {
 		sc->bce_flags |= BCE_MFW_ENABLE_FLAG;
