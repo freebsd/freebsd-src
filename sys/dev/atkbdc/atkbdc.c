@@ -1037,26 +1037,18 @@ empty_both_buffers(KBDC p, int wait)
 		* will thus hang in this procedure. Time out after delta seconds to
 		* avoid this hang -- the keyboard attach will fail later on.
 		*/
-		if (atkbd_fast_delay){
-			waited += delta;
-			if (waited == delta * 1000)
-			{
-				TSEXIT();
-				return;
-			}
-			DELAY(delta);
-		}
-		else {
-			waited += (delta * 1000);
-			if (waited == (delta * 1000000))
-			{
-				TSEXIT();
-				return;
-			}
+		unsigned int effective_delay = atkbd_fast_delay ? delta : delta *1000;
+		waited += effective_delay;
 
-			DELAY(delta*1000);
+		if (waited == effective_delay * 1000)
+		{
+			TSEXIT();
+			return;
 		}
+
+		DELAY(delta);
 	}
+
 #if KBDIO_DEBUG >= 2
 	if ((c1 > 0) || (c2 > 0))
 		log(LOG_DEBUG, "kbdc: %d:%d char read (empty_both_buffers)\n", c1, c2);
@@ -1138,12 +1130,7 @@ reset_aux_dev(KBDC p)
 	emptyq(&p->aux);
 	/* NOTE: Compaq Armada laptops require extra delay here. XXX */
 	for (again = KBD_MAXWAIT; again > 0; --again) {
-            if (atkbd_fast_delay){
-                DELAY(KBD_RESETDELAY);
-            }
-            else{
-                DELAY(KBD_RESETDELAY*1000);
-            }
+            DELAY(atkbd_fast_delay ? KBD_RESETDELAY : KBD_RESETDELAY * 1000);
             c = read_aux_data_no_wait(p);
 	    if (c != -1)
 		break;
@@ -1161,11 +1148,7 @@ reset_aux_dev(KBDC p)
 
     for (again = KBD_MAXWAIT; again > 0; --again) {
         /* wait awhile, well, quite looooooooooooong */
-        if (atkbd_fast_delay){
-            DELAY(KBD_RESETDELAY);
-        } else {
-            DELAY(KBD_RESETDELAY*1000);
-        }
+	DELAY(atkbd_fast_delay ? KBD_RESETDELAY : KBD_RESETDELAY * 1000);
         c = read_aux_data_no_wait(p);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
