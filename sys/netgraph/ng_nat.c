@@ -818,7 +818,8 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 
 	if (ip->ip_v != IPVERSION)
 		goto send;		/* other IP version, let it pass */
-	if (m->m_pkthdr.len < ipofs + ntohs(ip->ip_len))
+	uint16_t ip_len = ntohs(ip->ip_len);
+	if (m->m_pkthdr.len < (ipofs + ip_len))
 		goto send;		/* packet too short (i.e. fragmented or broken) */
 
 	/*
@@ -852,50 +853,68 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 
 	if (rval == PKT_ALIAS_RESPOND)
 		m->m_flags |= M_SKIP_FIREWALL;
-	m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len) + ipofs;
 
-	if ((ip->ip_off & htons(IP_OFFMASK)) == 0 &&
-	    ip->ip_p == IPPROTO_TCP) {
-		struct tcphdr *th = (struct tcphdr *)((caddr_t)ip +
-		    (ip->ip_hl << 2));
+	/* Re-read just in case it has been updated */
+	ip_len = ntohs(ip->ip_len);
+	int new_m_len = ip_len + ipofs;
 
+	if (new_m_len > (m->m_len +  M_TRAILINGSPACE(m))) {
 		/*
-		 * Here is our terrible HACK.
-		 *
-		 * Sometimes LibAlias edits contents of TCP packet.
-		 * In this case it needs to recompute full TCP
-		 * checksum. However, the problem is that LibAlias
-		 * doesn't have any idea about checksum offloading
-		 * in kernel. To workaround this, we do not do
-		 * checksumming in LibAlias, but only mark the
-		 * packets with TH_RES1 in the th_x2 field. If we
-		 * receive a marked packet, we calculate correct
-		 * checksum for it aware of offloading.
-		 *
-		 * Why do I do such a terrible hack instead of
-		 * recalculating checksum for each packet?
-		 * Because the previous checksum was not checked!
-		 * Recalculating checksums for EVERY packet will
-		 * hide ALL transmission errors. Yes, marked packets
-		 * still suffer from this problem. But, sigh, natd(8)
-		 * has this problem, too.
+		 * This is just a safety railguard to make sure LibAlias has not
+		 * screwed the IP packet up somehow, should probably be KASSERT()
+		 * at some point. Calling in_delayed_cksum() will parse IP packet
+		 * again and reliably panic if there is less data than the IP
+		 * header declares, there might be some other places too.
 		 */
-
-		if (tcp_get_flags(th) & TH_RES1) {
-			uint16_t ip_len = ntohs(ip->ip_len);
-
-			tcp_set_flags(th, tcp_get_flags(th) & ~TH_RES1);
-			th->th_sum = in_pseudo(ip->ip_src.s_addr,
-			    ip->ip_dst.s_addr, htons(IPPROTO_TCP +
-			    ip_len - (ip->ip_hl << 2)));
-
-			if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
-				m->m_pkthdr.csum_data = offsetof(struct tcphdr,
-				    th_sum);
-				in_delayed_cksum(m);
-			}
-		}
+		log(LOG_ERR, "ng_nat_rcvdata: outgoing packet corrupted, "
+		    "not enough data: expected %d, available (%d - %d)\n",
+		    ip_len, m->m_len + (int)M_TRAILINGSPACE(m), ipofs);
+		NG_FREE_ITEM(item);
+		return (ENXIO);
 	}
+
+	m->m_pkthdr.len = m->m_len = new_m_len;
+
+	if ((ip->ip_off & htons(IP_OFFMASK)) != 0 || ip->ip_p != IPPROTO_TCP)
+		goto send;
+
+	uint16_t pl_offset = ip->ip_hl << 2;
+	struct tcphdr *th = (struct tcphdr *)((caddr_t)ip + pl_offset);
+
+	/*
+	 * Here is our terrible HACK.
+	 *
+	 * Sometimes LibAlias edits contents of TCP packet.
+	 * In this case it needs to recompute full TCP
+	 * checksum. However, the problem is that LibAlias
+	 * doesn't have any idea about checksum offloading
+	 * in kernel. To workaround this, we do not do
+	 * checksumming in LibAlias, but only mark the
+	 * packets with TH_RES1 in the th_x2 field. If we
+	 * receive a marked packet, we calculate correct
+	 * checksum for it aware of offloading.
+	 *
+	 * Why do I do such a terrible hack instead of
+	 * recalculating checksum for each packet?
+	 * Because the previous checksum was not checked!
+	 * Recalculating checksums for EVERY packet will
+	 * hide ALL transmission errors. Yes, marked packets
+	 * still suffer from this problem. But, sigh, natd(8)
+	 * has this problem, too.
+	 */
+
+	if (!(tcp_get_flags(th) & TH_RES1))
+		goto send;
+
+	tcp_set_flags(th, tcp_get_flags(th) & ~TH_RES1);
+	th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+	    htons(IPPROTO_TCP + ip_len - pl_offset));
+
+	if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+		goto send;
+
+	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+	in_delayed_cksum_o(m, ipofs);
 
 send:
 	if (hook == priv->in)
