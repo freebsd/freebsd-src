@@ -3547,7 +3547,7 @@ check-old-libs: .PHONY
 list-old-dirs: .PHONY
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | sed -E 's/[[:space:]]+/\n/g' | sort -r
+	    -V "OLD_DIRS:ts\n" | sort -r
 
 delete-old-dirs: .PHONY
 	@echo ">>> Removing old directories"
