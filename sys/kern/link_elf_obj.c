@@ -255,11 +255,6 @@ link_elf_protect(elf_file_t ef)
 	vm_prot_t gapprot, prot, segprot;
 	int i;
 
-#if PAGE_SIZE != PAGE_SIZE_4K
-	/* XXX skip this for now */
-	return;
-#endif
-
 	/*
 	 * If the file was preloaded, the last page may contain other preloaded
 	 * data which may need to be writeable.  ELF files are always
