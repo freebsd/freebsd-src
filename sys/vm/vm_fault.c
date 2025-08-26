@@ -1995,32 +1995,43 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 }
 
 /*
- * Hold each of the physical pages that are mapped by the specified range of
- * virtual addresses, ["addr", "addr" + "len"), if those mappings are valid
- * and allow the specified types of access, "prot".  If all of the implied
- * pages are successfully held, then the number of held pages is returned
- * together with pointers to those pages in the array "ma".  However, if any
- * of the pages cannot be held, -1 is returned.
+ * Hold each of the physical pages that are mapped by the specified
+ * range of virtual addresses, ["addr", "addr" + "len"), if those
+ * mappings are valid and allow the specified types of access, "prot".
+ * If all of the implied pages are successfully held, then the number
+ * of held pages is assigned to *ppages_count, together with pointers
+ * to those pages in the array "ma". The returned value is zero.
+ *
+ * However, if any of the pages cannot be held, an error is returned,
+ * and no pages are held.
+ * Error values:
+ *   ENOMEM - the range is not valid
+ *   EINVAL - the provided vm_page array is too small to hold all pages
+ *   EAGAIN - a page was not mapped, and the thread is in nofaulting mode
+ *   EFAULT - a page with requested permissions cannot be mapped
+ *            (more detailed result from vm_fault() is lost)
  */
 int
-vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
-    vm_prot_t prot, vm_page_t *ma, int max_count)
+vm_fault_quick_hold_pages_e(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count, int *ppages_count)
 {
 	vm_offset_t end, va;
 	vm_page_t *mp;
-	int count;
+	int count, error;
 	boolean_t pmap_failed;
 
-	if (len == 0)
+	if (len == 0) {
+		*ppages_count = 0;
 		return (0);
+	}
 	end = round_page(addr + len);
 	addr = trunc_page(addr);
 
 	if (!vm_map_range_valid(map, addr, end))
-		return (-1);
+		return (ENOMEM);
 
 	if (atop(end - addr) > max_count)
-		panic("vm_fault_quick_hold_pages: count > max_count");
+		return (EINVAL);
 	count = atop(end - addr);
 
 	/*
@@ -2062,19 +2073,49 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 		 * the proper behaviour explicitly.
 		 */
 		if ((prot & VM_PROT_QUICK_NOFAULT) != 0 &&
-		    (curthread->td_pflags & TDP_NOFAULTING) != 0)
-			goto error;
-		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE)
+		    (curthread->td_pflags & TDP_NOFAULTING) != 0) {
+			error = EAGAIN;
+			goto fail;
+		}
+		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE) {
 			if (*mp == NULL && vm_fault(map, va, prot,
-			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS)
-				goto error;
+			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS) {
+				error = EFAULT;
+				goto fail;
+			}
+		}
 	}
-	return (count);
-error:	
+	*ppages_count = count;
+	return (0);
+fail:
 	for (mp = ma; mp < ma + count; mp++)
 		if (*mp != NULL)
 			vm_page_unwire(*mp, PQ_INACTIVE);
-	return (-1);
+	return (error);
+}
+
+ /*
+ * Hold each of the physical pages that are mapped by the specified range of
+ * virtual addresses, ["addr", "addr" + "len"), if those mappings are valid
+ * and allow the specified types of access, "prot".  If all of the implied
+ * pages are successfully held, then the number of held pages is returned
+ * together with pointers to those pages in the array "ma".  However, if any
+ * of the pages cannot be held, -1 is returned.
+ */
+int
+vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count)
+{
+	int error, pages_count;
+
+	error = vm_fault_quick_hold_pages_e(map, addr, len, prot, ma,
+	    max_count, &pages_count);
+	if (error != 0) {
+		if (error == EINVAL)
+			panic("vm_fault_quick_hold_pages: count > max_count");
+		return (-1);
+	}
+	return (pages_count);
 }
 
 /*
