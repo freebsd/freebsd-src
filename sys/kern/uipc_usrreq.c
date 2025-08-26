@@ -3667,11 +3667,14 @@ unp_internalize(struct mbuf *control, struct mchain *mc, struct thread *td)
 			cmcred->cmcred_uid = td->td_ucred->cr_ruid;
 			cmcred->cmcred_gid = td->td_ucred->cr_rgid;
 			cmcred->cmcred_euid = td->td_ucred->cr_uid;
-			cmcred->cmcred_ngroups = MIN(td->td_ucred->cr_ngroups,
+			_Static_assert(CMGROUP_MAX >= 1,
+			    "Room needed for the effective GID.");
+			cmcred->cmcred_ngroups = MIN(td->td_ucred->cr_ngroups + 1,
 			    CMGROUP_MAX);
-			for (i = 0; i < cmcred->cmcred_ngroups; i++)
+			cmcred->cmcred_groups[0] = td->td_ucred->cr_gid;
+			for (i = 1; i < cmcred->cmcred_ngroups; i++)
 				cmcred->cmcred_groups[i] =
-				    td->td_ucred->cr_groups[i];
+				    td->td_ucred->cr_groups[i - 1];
 			break;
 
 		case SCM_RIGHTS:
