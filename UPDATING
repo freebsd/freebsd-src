@@ -83,7 +83,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	jemalloc 5.3.0 has been committed to the tree.
 
 20250815:
-	The removal of Secure RPC DES authentication notced in 20250810
+	The removal of Secure RPC DES authentication noted in 20250810
 	has been reverted.  (However, it is still non-functional.)
 
 20250813:
