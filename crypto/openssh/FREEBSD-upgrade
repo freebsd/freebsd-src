@@ -166,8 +166,15 @@
 
 9) Retired patches
 
-   We no longer have client-side VersionAddendum, but we recognize and ignore
-   the configuration options to avoid breaking existing configurations.
+   We added support for client-side VersionAddendum in 2002 (commit
+   9e2cbe04ff4f) and provided a default value (e.g. FreeBSD-20220415).
+   Support was removed in commit bffe60ead024 ("ssh: retire client
+   VersionAddendum") to reduce the size of our patch set.  Upstream later
+   added the same functionality in the 10.0p2 release.  We have not restored
+   setting a default value on FreeBSD.
+
+   We recognize and ignore the configuration options to avoid breaking
+   existing configurations.
 
 10) PrintLastLog bugfix
 
