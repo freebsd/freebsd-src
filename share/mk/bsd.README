@@ -259,6 +259,9 @@ MLINKS		List of manual page links (using a .1 - .9 suffix).  The
 		linked-to file must come first, the linked file second,
 		and there may be multiple pairs.  The files are hard-linked.
 
+MANSRC.${MAN:T} Name of source file for an individual manual page.
+		Defaults to the manual page name.
+
 The include file <bsd.man.mk> includes a file named "../Makefile.inc" if
 it exists.
 
