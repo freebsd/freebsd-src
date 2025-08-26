@@ -21,6 +21,7 @@ jobs:
       REMOTE: ${{ startsWith(matrix.host, 'remote') }}
       VM: ${{ startsWith(matrix.host, 'libvirt') || startsWith(matrix.host, 'persist') }}
       SSHFS: ${{ startsWith(matrix.host, 'libvirt') || startsWith(matrix.host, 'persist') || startsWith(matrix.host, 'remote') }}
+      BIGENDIAN: ${{ matrix.target == 'aix51' || matrix.target == 'fbsd14-ppc64' || matrix.target == 'openwrt-mips' }}
     strategy:
       fail-fast: false
       # We use a matrix in two parts: firstly all of the VMs are tested with the
@@ -40,11 +41,11 @@ jobs:
           - fbsd12
           - fbsd13
           - fbsd14
-          - minix3
           - nbsd3
           - nbsd4
           - nbsd8
           - nbsd9
+          - nbsd10
           - obsd51
           - obsd67
           - obsd72
@@ -62,6 +63,7 @@ jobs:
         include:
           # Long-running/slow tests have access to high priority runners.
           - { target: aix51, config: default, host: libvirt-hipri }
+          - { target: fbsd14-ppc64, config: default, host: libvirt-hipri }
           - { target: openindiana, config: pam, host: libvirt-hipri }
           - { target: sol10,  config: default, host: libvirt-hipri }
           - { target: sol10,  config: pam, host: libvirt-hipri }
@@ -96,14 +98,9 @@ jobs:
           - { target: ARM64, config: pam, host: ARM64 }
           # Physical hosts with remote runners.
           - { target: debian-riscv64, config: default, host: remote-debian-riscv64 }
-
           - { target: openwrt-mips, config: default, host: remote-openwrt-mips }
           - { target: openwrt-mipsel, config: default, host: remote-openwrt-mipsel }
     steps:
-    - name: unmount stale workspace
-      if: env.SSHFS == 'true'
-      run: fusermount -u ${GITHUB_WORKSPACE} || true
-      working-directory: ${{ runner.temp }}
     - name: shutdown VM if running
       if: env.VM == 'true'
       run: vmshutdown
@@ -146,6 +143,60 @@ jobs:
     - name: unmount workspace
       if: always() && env.SSHFS == 'true'
       run: fusermount -u ${GITHUB_WORKSPACE} || true
+      working-directory: ${{ runner.temp }}
+
+    - name: bigendian interop - mount regress
+      if: env.SSHFS == 'true' && env.BIGENDIAN == 'true'
+      run: |
+        set -x
+        vmrun sudo chown -R $LOGNAME ~/$(basename ${GITHUB_WORKSPACE}) || true
+        vmrun "cd $(basename ${GITHUB_WORKSPACE}/regress) && sudo make clean"
+        sshfs_mount regress
+        vmrun "sudo mkdir -p $(dirname ${GITHUB_WORKSPACE})"
+        vmrun "sudo ln -s ~/$(basename ${GITHUB_WORKSPACE}) ${GITHUB_WORKSPACE}"
+      working-directory: ${{ runner.temp }}
+
+    - name: bigendian interop - host build
+      if: env.SSHFS == 'true' && env.BIGENDIAN == 'true'
+      run: |
+        set -x
+        ./.github/configure.sh ${{ matrix.config }}
+        pwd
+        ls -ld regress || true
+        ls -l regress/check-perm || true
+        make clean
+        make
+
+    - name: bigendian interop - test
+      if: env.SSHFS == 'true' && env.BIGENDIAN == 'true'
+      env:
+        TEST_SSH_UNSAFE_PERMISSIONS: 1
+      run: |
+        set -x
+        echo "#!/bin/sh" >remote_sshd
+        echo "exec /usr/bin/ssh ${TARGET_DOMAIN} exec /home/builder/$(basename ${GITHUB_WORKSPACE})/sshd "'$@' >>remote_sshd
+        chmod 755 remote_sshd
+        make t-exec TEST_SSH_SSHD=`pwd`/remote_sshd LTESTS="try-ciphers kextype keytype"
+
+    - name: bigendian interop - save logs
+      if: failure() && env.BIGENDIAN == 'true'
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ matrix.target }}-${{ matrix.config }}-interop-logs
+        path: |
+          config.h
+          config.log
+          regress/*.log
+          regress/log/*
+
+    - name: bigendian interop - unmount regress
+      if: always() && env.SSHFS == 'true' && env.BIGENDIAN == 'true'
+      run: fusermount -z -u ${GITHUB_WORKSPACE}/regress || true
+      working-directory: ${{ runner.temp }}
+
+    - name: lazily unmount workspace
+      if: always() && env.SSHFS == 'true'
+      run: fusermount -z -u ${GITHUB_WORKSPACE} || true
       working-directory: ${{ runner.temp }}
     - name: shutdown VM
       if: always() && env.VM == 'true'

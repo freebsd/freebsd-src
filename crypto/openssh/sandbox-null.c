@@ -57,16 +57,4 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 	/* Nothing to do here */
 }
 
-void
-ssh_sandbox_parent_finish(struct ssh_sandbox *box)
-{
-	free(box);
-}
-
-void
-ssh_sandbox_parent_preauth(struct ssh_sandbox *box, pid_t child_pid)
-{
-	/* Nothing to do here */
-}
-
 #endif /* SANDBOX_NULL */

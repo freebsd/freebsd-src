@@ -79,6 +79,9 @@ struct logininfo {
 	unsigned int tv_sec;
 	unsigned int tv_usec;
 	union login_netinfo hostaddr;       /* caller's host address(es) */
+#ifdef USE_WTMPDB
+	int64_t wtmpdb_id;                  /* ID for wtmpdb_logout */
+#endif
 }; /* struct logininfo */
 
 /*

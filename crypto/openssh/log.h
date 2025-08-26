@@ -1,4 +1,4 @@
-/* $OpenBSD: log.h,v 1.34 2024/06/27 22:36:44 djm Exp $ */
+/* $OpenBSD: log.h,v 1.35 2024/12/07 10:05:37 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -80,6 +80,30 @@ void	 sshfatal(const char *, const char *, int, int,
     __attribute__((format(printf, 7, 8)));
 void	 sshlogdirect(LogLevel, int, const char *, ...)
     __attribute__((format(printf, 3, 4)));
+
+struct log_ratelimit_ctx {
+	/* configuration */
+	u_int threshold;	/* events per second */
+	u_int max_accum;	/* max events to accumulate */
+	u_int hysteresis;	/* seconds */
+	u_int log_every;	/* seconds */
+
+	/* state */
+	time_t last_event;
+	u_int accumulated_events; /* used for threshold comparisons */
+
+	/* state while actively rate-limiting */
+	int ratelimit_active;
+	time_t ratelimit_start;
+	time_t last_log;
+	time_t hysteresis_start;
+	u_int ratelimited_events;
+};
+
+void log_ratelimit_init(struct log_ratelimit_ctx *rl, u_int threshold,
+    u_int max_accum, u_int hysteresis, u_int log_every);
+int log_ratelimit(struct log_ratelimit_ctx *rl, time_t now, int *active,
+    u_int *events_dropped);
 
 #define do_log2(level, ...)	sshlog(__FILE__, __func__, __LINE__, 0, level, NULL, __VA_ARGS__)
 #define debug3(...)		sshlog(__FILE__, __func__, __LINE__, 0, SYSLOG_LEVEL_DEBUG3, NULL, __VA_ARGS__)

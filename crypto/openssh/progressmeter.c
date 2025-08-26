@@ -1,4 +1,4 @@
-/* $OpenBSD: progressmeter.c,v 1.53 2023/04/12 14:22:04 jsg Exp $ */
+/* $OpenBSD: progressmeter.c,v 1.54 2024/09/22 12:56:21 jsg Exp $ */
 /*
  * Copyright (c) 2003 Nils Nordman.  All rights reserved.
  *
@@ -46,7 +46,6 @@
 
 #define DEFAULT_WINSIZE 80
 #define MAX_WINSIZE 512
-#define PADDING 1		/* padding between the progress indicators */
 #define UPDATE_INTERVAL 1	/* update the progress meter every second */
 #define STALL_TIME 5		/* we're stalled after this many seconds */
 

@@ -55,9 +55,9 @@ void ssh_libcrypto_init(void);
 # endif
 #endif
 
-#ifdef OPENSSL_IS_BORINGSSL
+#if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
 /*
- * BoringSSL (rightly) got rid of the BN_FLG_CONSTTIME flag, along with
+ * BoringSSL and AWS-LC (rightly) got rid of the BN_FLG_CONSTTIME flag, along with
  * the entire BN_set_flags() interface.
  * https://boringssl.googlesource.com/boringssl/+/0a211dfe9
  */

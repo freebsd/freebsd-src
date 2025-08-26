@@ -1,4 +1,4 @@
-#	$OpenBSD: dropbear-ciphers.sh,v 1.3 2024/06/20 08:23:18 dtucker Exp $
+#	$OpenBSD: dropbear-ciphers.sh,v 1.4 2025/03/11 07:43:03 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="dropbear ciphers"
@@ -26,7 +26,7 @@ for c in $ciphers ; do
     for kt in $keytype; do
 	verbose "$tid: cipher $c mac $m kt $kt"
 	rm -f ${COPY}
-	env HOME=$OBJ dbclient -y -i $OBJ/.dropbear/$kt 2>$OBJ/dbclient.log \
+	env HOME=$OBJ ${DBCLIENT} -y -i $OBJ/.dropbear/$kt 2>$OBJ/dbclient.log \
 	    -c $c -m $m -J "$OBJ/ssh_proxy.sh" somehost cat ${DATA} > ${COPY}
 	if [ $? -ne 0 ]; then
 		fail "ssh cat $DATA failed"

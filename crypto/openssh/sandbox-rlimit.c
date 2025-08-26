@@ -37,7 +37,7 @@
 /* Minimal sandbox that sets zero nfiles, nprocs and filesize rlimits */
 
 struct ssh_sandbox {
-	pid_t child_pid;
+	int junk;
 };
 
 struct ssh_sandbox *
@@ -51,8 +51,6 @@ ssh_sandbox_init(struct monitor *monitor)
 	 */
 	debug3_f("preparing rlimit sandbox");
 	box = xcalloc(1, sizeof(*box));
-	box->child_pid = 0;
-
 	return box;
 }
 
@@ -78,19 +76,6 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 		fatal_f("setrlimit(RLIMIT_NPROC, { 0, 0 }): %s",
 			strerror(errno));
 #endif
-}
-
-void
-ssh_sandbox_parent_finish(struct ssh_sandbox *box)
-{
-	free(box);
-	debug3_f("finished");
-}
-
-void
-ssh_sandbox_parent_preauth(struct ssh_sandbox *box, pid_t child_pid)
-{
-	box->child_pid = child_pid;
 }
 
 #endif /* SANDBOX_RLIMIT */

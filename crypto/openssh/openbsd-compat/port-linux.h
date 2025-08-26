@@ -30,6 +30,10 @@ void oom_adjust_restore(void);
 void oom_adjust_setup(void);
 #endif
 
+#ifdef LINUX_MEMLOCK_ONFAULT
+void memlock_onfault_setup(void);
+#endif
+
 #ifdef SYSTEMD_NOTIFY
 void ssh_systemd_notify_ready(void);
 void ssh_systemd_notify_reload(void);

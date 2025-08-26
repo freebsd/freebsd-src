@@ -319,6 +319,19 @@ oom_adjust_restore(void)
 }
 #endif /* LINUX_OOM_ADJUST */
 
+#ifdef LINUX_MEMLOCK_ONFAULT
+#include <sys/mman.h>
+
+void
+memlock_onfault_setup(void)
+{
+	if (mlockall(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT) < 0)
+		verbose("unable to lock memory: %s", strerror(errno));
+	else
+		debug("memory locked");
+}
+#endif /* LINUX_MEMLOCK_ONFAULT */
+
 #ifdef SYSTEMD_NOTIFY
 
 static void ssh_systemd_notify(const char *, ...)
