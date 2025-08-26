@@ -233,8 +233,6 @@ Machine-dependent type sizes:
 .It amd64       Ta 8 Ta  8 Ta 16 Ta 8
 .It armv7       Ta 4 Ta  4 Ta  8 Ta 8
 .It i386        Ta 4 Ta  4 Ta 12 Ta 4
-.It powerpc     Ta 4 Ta  4 Ta  8 Ta 8
-.It powerpcspe  Ta 4 Ta  4 Ta  8 Ta 8
 .It powerpc64   Ta 8 Ta  8 Ta  8 Ta 8
 .It powerpc64le Ta 8 Ta  8 Ta  8 Ta 8
 .It riscv64     Ta 8 Ta  8 Ta 16 Ta 8
@@ -251,8 +249,6 @@ is 8 bytes on all supported architectures except i386.
 .It amd64       Ta little Ta   signed Ta signed
 .It armv7       Ta little Ta unsigned Ta unsigned
 .It i386        Ta little Ta   signed Ta signed
-.It powerpc     Ta big    Ta unsigned Ta signed
-.It powerpcspe  Ta big    Ta unsigned Ta signed
 .It powerpc64   Ta big    Ta unsigned Ta signed
 .It powerpc64le Ta little Ta unsigned Ta signed
 .It riscv64     Ta little Ta   signed Ta signed
@@ -266,8 +262,6 @@ is 8 bytes on all supported architectures except i386.
 .It amd64       Ta 4K, 2M, 1G
 .It armv7       Ta 4K, 1M
 .It i386        Ta 4K, 2M (PAE), 4M
-.It powerpc     Ta 4K
-.It powerpcspe  Ta 4K
 .It powerpc64   Ta 4K
 .It powerpc64le Ta 4K
 .It riscv64     Ta 4K, 2M, 1G
@@ -282,8 +276,6 @@ is 8 bytes on all supported architectures except i386.
 .It amd64 (LA57)   Ta 0x0100000000000000 Ta 64PiB
 .It armv7          Ta 0xbfc00000         Ta 3GiB
 .It i386           Ta 0xffc00000         Ta 4GiB
-.It powerpc        Ta 0xfffff000         Ta 4GiB
-.It powerpcspe     Ta 0x7ffff000         Ta 2GiB
 .It powerpc64      Ta 0x000fffffc0000000 Ta 4PiB
 .It powerpc64le    Ta 0x000fffffc0000000 Ta 4PiB
 .It riscv64 (Sv39) Ta 0x0000004000000000 Ta 256GiB
@@ -338,8 +330,6 @@ currently supports Sv39 and Sv48 and defaults to using Sv39.
 .It amd64       Ta hard Ta hard, 80 bit
 .It armv7       Ta hard Ta hard, double precision
 .It i386        Ta hard Ta hard, 80 bit
-.It powerpc     Ta hard Ta hard, double precision
-.It powerpcspe  Ta hard Ta hard, double precision
 .It powerpc64   Ta hard Ta hard, double precision
 .It powerpc64le Ta hard Ta hard, double precision
 .It riscv64     Ta hard Ta hard, quad precision
@@ -374,7 +364,7 @@ or similar things like boot sequences.
 .It amd64 Ta amd64 Ta amd64
 .It arm Ta arm Ta armv7
 .It i386 Ta i386 Ta i386
-.It powerpc Ta powerpc Ta powerpc, powerpcspe, powerpc64, powerpc64le
+.It powerpc Ta powerpc Ta powerpc64, powerpc64le
 .It riscv Ta riscv Ta riscv64, riscv64c
 .El
 .Ss Predefined Macros
@@ -426,8 +416,6 @@ Architecture-specific macros:
 .It amd64       Ta Dv __amd64__ , Dv __x86_64__
 .It armv7       Ta Dv __arm__ , Dv __ARM_ARCH >= 7
 .It i386        Ta Dv __i386__
-.It powerpc     Ta Dv __powerpc__
-.It powerpcspe  Ta Dv __powerpc__ , Dv __SPE__
 .It powerpc64   Ta Dv __powerpc__ , Dv __powerpc64__
 .It powerpc64le Ta Dv __powerpc__ , Dv __powerpc64__
 .It riscv64     Ta Dv __riscv , Dv __riscv_xlen == 64
@@ -499,7 +487,7 @@ It, along with
 defines the ABI used by the system.
 Generally, the plain CPU name specifies the most common (or at least
 first) variant of the CPU.
-This is why powerpc and powerpc64 imply 'big endian' while armv7 and aarch64
+This is why powerpc64 implies 'big endian' while armv7 and aarch64
 imply little endian.
 If we ever were to support the so-called x32 ABI (using 32-bit
 pointers on the amd64 architecture), it would most likely be encoded
