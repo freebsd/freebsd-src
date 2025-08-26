@@ -301,7 +301,7 @@ AcpiExTraceArgs(ACPI_OPERAND_OBJECT **Params, UINT32 Count)
         switch (obj_desc->Common.Type)
         {
         case ACPI_TYPE_INTEGER:
-            ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "%lx", obj_desc->Integer.Value));
+            ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "%jx", (uintmax_t)obj_desc->Integer.Value));
             break;
 
         case ACPI_TYPE_STRING:
