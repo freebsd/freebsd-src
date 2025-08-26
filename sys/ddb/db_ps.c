@@ -459,12 +459,11 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		db_printf("??? (%#x)\n", p->p_state);
 	}
 	if (p->p_ucred != NULL) {
-		db_printf(" uid: %d  gids: ", p->p_ucred->cr_uid);
-		for (i = 0; i < p->p_ucred->cr_ngroups; i++) {
-			db_printf("%d", p->p_ucred->cr_groups[i]);
-			if (i < (p->p_ucred->cr_ngroups - 1))
-				db_printf(", ");
-		}
+		db_printf(" uid: %d gid: %d supp gids: ",
+		    p->p_ucred->cr_uid, p->p_ucred->cr_gid);
+		for (i = 0; i < p->p_ucred->cr_ngroups; i++)
+			db_printf(i == 0 ? "%d" : ", %d",
+			    p->p_ucred->cr_groups[i]);
 		db_printf("\n");
 	}
 	if (p->p_pptr != NULL)
