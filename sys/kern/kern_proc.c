@@ -2944,8 +2944,11 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	cred = crhold(p->p_ucred);
 	PROC_UNLOCK(p);
 
-	error = SYSCTL_OUT(req, cred->cr_groups,
-	    cred->cr_ngroups * sizeof(gid_t));
+	error = SYSCTL_OUT(req, &cred->cr_gid, sizeof(gid_t));
+	if (error == 0)
+		error = SYSCTL_OUT(req, cred->cr_groups,
+		    cred->cr_ngroups * sizeof(gid_t));
+
 	crfree(cred);
 	return (error);
 }
