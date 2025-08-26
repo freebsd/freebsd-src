@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250826: Remove a misspelled manual
+OLD_FILES+=usr/share/man/man3/sysdecode_syscallnames.3.gz
+
 # 20250812: Remove a bogus manlink
 OLD_FILES+=usr/share/man/man3/quota_statfs.3.gz
 
