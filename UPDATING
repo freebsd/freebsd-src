@@ -74,6 +74,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	require libmilter, you can now remove it.
 
 20250815:
+	The [gs}etgroups(2)syscalls have changed. To maintain backwards
+	compatibility with existing programs, you need COMPAT_FREEBSD14 in
+	your kernel config until all applications which use this are
+	rebuild/reinstalled.
+
+20250815:
 	jemalloc 5.3.0 has been committed to the tree.
 
 20250815:
