@@ -66,7 +66,6 @@
 #include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_media.h>
-#include <net/if_var.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
