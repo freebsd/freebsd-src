@@ -158,6 +158,7 @@ test_one(const uint8_t* s, size_t slen)
 		    SYSLOG_FACILITY_AUTH, 1);
 		devnull = devnull_or_die();
 		allowed_providers = xstrdup("");
+		websafe_allowlist = xstrdup("*");
 		setenv("DISPLAY", "", 1); /* ban askpass */
 	}
 
