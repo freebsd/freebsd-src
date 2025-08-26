@@ -14,7 +14,7 @@ Changes to this file should not be MFCed.
 	Lua updated to 5.4.8, which is minor bug fixes from 5.4.7.
 
 b45a181a74c8:
-	Awk updates to August 04, 2025 verison, with minor bug fixes.
+	Awk updates to August 04, 2025 version, with minor bug fixes.
 
 dc5ba6b8b4f0:
 	The WITHOUT_GSSAPI src.conf(5) option has been removed.  The GSSAPI
