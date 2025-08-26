@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+2b74ff5fceb6:
+	Introduced support for watchdog timer in Intel 6300ESB I/O controller
+	hub via the i6300esbwd driver, now included in ichwd.ko.
+	This driver is intended primarily for QEMU users, where it serves as
+	the default and only watchdog timer for x86 virtual machines.
+
 3068d706eabe:
 	Lua updated to 5.4.8, which is minor bug fixes from 5.4.7.
 
