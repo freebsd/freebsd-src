@@ -464,7 +464,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	    (type == PAGELIST_READ ? VM_PROT_WRITE : 0 ) | VM_PROT_READ, pages, num_pages);
 
 	if (actual_pages != num_pages) {
-		vm_page_unhold_pages(pages, actual_pages);
+		if (actual_pages > 0)
+			vm_page_unhold_pages(pages, actual_pages);
 		free(pagelist, M_VCPAGELIST);
 		return (-ENOMEM);
 	}
