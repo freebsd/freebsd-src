@@ -358,12 +358,14 @@ pte_load_datapg(pt_entry_t *ptep)
 	__unused pt_entry_t apte, cpte;
 	int i;
 
-	pte = *ptep;
-	apte = pte & PG_FRAME;
+	pte = pte_load(ptep);
+	apte = pte & ~(X86_PG_M | X86_PG_A);
 	KASSERT((pte & (PAGE_MASK & ~PAGE_MASK_PT)) == 0,
 	    ("ptep %p not aligned", ptep));
 	for (i = 1; i < PAGE_SIZE_PTES; i++) {
-		cpte = *(ptep + i) & PG_FRAME;
+		cpte = pte_load(ptep + i);
+		pte |= cpte & (X86_PG_A | X86_PG_M);
+		cpte &= ~(X86_PG_A | X86_PG_M);
 		KASSERT(cpte == (apte | (i << PAGE_SHIFT_PT)) ||
 		    apte == 0 && cpte == 0,
 		    ("pte_load_datapg: mismatch ptep %p i %d apte 0x%lx cpte 0x%lx",
@@ -9233,7 +9235,7 @@ restart:
 			}
 		}
 		pte = pmap_pte(pmap, pv->pv_va);
-		if ((*pte & PG_W) != 0)
+		if ((pte_load_datapg(pte) & PG_W) != 0)
 			count++;
 		PMAP_UNLOCK(pmap);
 	}
@@ -9548,7 +9550,7 @@ restart:
 			PG_V = pmap_valid_bit(pmap);
 			mask |= PG_V | PG_A;
 		}
-		rv = (*pte & mask) == mask;
+		rv = (pte_load_datapg(pte) & mask) == mask;
 		PMAP_UNLOCK(pmap);
 		if (rv)
 			goto out;
@@ -9776,7 +9778,7 @@ pmap_ts_referenced(vm_page_t m)
 	pmap_t pmap;
 	struct rwlock *lock;
 	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte, PG_A, PG_M, PG_RW;
+	pt_entry_t oldpte, *pte, PG_A, PG_M, PG_RW;
 	vm_offset_t va;
 	vm_paddr_t pa;
 	int cleared, md_gen, not_cleared, pvh_gen;
@@ -9924,14 +9926,15 @@ small_mappings:
 		    ("pmap_ts_referenced: found a 2mpage in page %p's pv list",
 		    m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
-		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+		oldpte = pte_load_datapg(pte);
+		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
-		if ((*pte & PG_A) != 0) {
-			if (safe_to_clear_referenced(pmap, *pte)) {
+		if ((oldpte & PG_A) != 0) {
+			if (safe_to_clear_referenced(pmap, oldpte)) {
 				atomic_clear_long_datapg(pte, PG_A);
 				pmap_invalidate_page_datapg(pmap, pv->pv_va);
 				cleared++;
-			} else if ((*pte & PG_W) == 0) {
+			} else if ((oldpte & PG_W) == 0) {
 				/*
 				 * Wired pages cannot be paged out so
 				 * doing accessed bit emulation for

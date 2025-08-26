@@ -282,6 +282,7 @@ extern u_int64_t KPML5phys;	/* physical address of kernel level 5 */
 pt_entry_t *vtopte(vm_offset_t);
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
+#define	pte_load(ptep) 			atomic_load_long(ptep)
 #define	pte_load_store(ptep, pte)	atomic_swap_long(ptep, pte)
 #define	pte_load_clear(ptep)		atomic_swap_long(ptep, 0)
 #define	pte_store(ptep, pte) do { \
