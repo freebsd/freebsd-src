@@ -23,17 +23,17 @@
 .\" SUCH DAMAGE.
 .\"
 .Dd October 17, 2016
-.Dt sysdecode_syscallnames 3
+.Dt sysdecode_syscallname 3
 .Os
 .Sh NAME
-.Nm sysdecode_syscallnames
+.Nm sysdecode_syscallname
 .Nd lookup name of system calls
 .Sh LIBRARY
 .Lb libsysdecode
 .Sh SYNOPSIS
 .In sysdecode.h
 .Ft const char *
-.Fn sysdecode_syscallnames "enum sysdecode_abi abi" "unsigned int code"
+.Fn sysdecode_syscallname "enum sysdecode_abi abi" "unsigned int code"
 .Sh DESCRIPTION
 This function returns a pointer to the name of a system call identified by
 .Fa code
