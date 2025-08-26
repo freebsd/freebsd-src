@@ -948,6 +948,14 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 	end = trunc_page(start + size);
 	start = round_page(start);
 
+	/*
+	 * If rounding to page boundaries leaves us with nothing to free,
+	 * just return now.  vmem_add() will fail an assertion if we call it
+	 * with a zero size.
+	 */
+	if (end <= start)
+		return;
+
 #ifdef __amd64__
 	/*
 	 * Preloaded files do not have execute permissions by default on amd64.
