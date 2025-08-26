@@ -2610,11 +2610,13 @@ note_procstat_groups(void *arg, struct sbuf *sb, size_t *sizep)
 	int structsize;
 
 	p = arg;
-	size = sizeof(structsize) + p->p_ucred->cr_ngroups * sizeof(gid_t);
+	size = sizeof(structsize) +
+	    (1 + p->p_ucred->cr_ngroups) * sizeof(gid_t);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
 		structsize = sizeof(gid_t);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sbuf_bcat(sb, &p->p_ucred->cr_gid, sizeof(gid_t));
 		sbuf_bcat(sb, p->p_ucred->cr_groups, p->p_ucred->cr_ngroups *
 		    sizeof(gid_t));
 	}
