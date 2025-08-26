@@ -153,7 +153,7 @@ SYSCTL_INT(ELF_NODE_OID, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
 #endif
 
-static u_long __elfN(pie_base) = ET_DYN_LOAD_ADDR;
+static u_long __elfN(pie_base) = round_page(ET_DYN_LOAD_ADDR);
 static int
 sysctl_pie_base(SYSCTL_HANDLER_ARGS)
 {
