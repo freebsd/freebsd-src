@@ -621,7 +621,6 @@ static int
 gpioc_detach(device_t dev)
 {
 	struct gpioc_softc *sc = device_get_softc(dev);
-	int err;
 
 	if (sc->sc_ctl_dev)
 		destroy_dev(sc->sc_ctl_dev);
@@ -631,9 +630,6 @@ gpioc_detach(device_t dev)
 		MPASS(sc->sc_pin_intr[i].pin == NULL);
 	}
 	free(sc->sc_pin_intr, M_GPIOC);
-
-	if ((err = bus_generic_detach(dev)) != 0)
-		return (err);
 
 	return (0);
 }
@@ -1066,9 +1062,6 @@ static device_method_t gpioc_methods[] = {
 	DEVMETHOD(device_probe,		gpioc_probe),
 	DEVMETHOD(device_attach,	gpioc_attach),
 	DEVMETHOD(device_detach,	gpioc_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	DEVMETHOD_END
 };
