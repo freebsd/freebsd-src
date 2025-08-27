@@ -112,15 +112,21 @@ struct xucred {
 	short	cr_ngroups;		/* number of groups (incl. cr_gid). */
 	union {
 		/*
-		 * Special little hack to avoid needing a cr_gid macro, which
-		 * would cause problems if one were to use it with struct ucred
-		 * which also has a cr_groups member.
+		 * The effective GID has been the first element of cr_groups[]
+		 * for historical reasons.  It should be accessed using the
+		 * 'cr_gid' identifier.  Supplementary groups should be accessed
+		 * using cr_sgroups[].  Note that 'cr_ngroups' currently
+		 * includes the effective GID.
+		 *
+		 * XXXOC: On the next API change (requires versioning), please
+		 * replace this union with a true unaliased field 'cr_gid' and
+		 * make sure that cr_groups[]/'cr_ngroups' only account for
+		 * supplementary groups.
 		 */
 		struct {
 			gid_t	cr_gid;		/* effective group id */
 			gid_t	cr_sgroups[XU_NGROUPS - 1];
 		};
-
 		gid_t	cr_groups[XU_NGROUPS];	/* groups */
 	};
 	union {
