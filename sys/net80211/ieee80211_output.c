@@ -1082,6 +1082,12 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	uint8_t *frm;
 	int ret;
 
+	/* Don't send NULL frames if we've been configured not to do so. */
+	if ((ic->ic_flags_ext & IEEE80211_FEXT_NO_NULLDATA) != 0) {
+		ieee80211_node_decref(ni);
+		return (0);
+	}
+
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT | IEEE80211_MSG_DOTH,
 		    ni, "block %s frame in CAC state", "null data");
