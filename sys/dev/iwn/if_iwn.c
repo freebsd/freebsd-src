@@ -586,6 +586,8 @@ iwn_attach(device_t dev)
 
 	/* Driver / firmware assigned sequence numbers */
 	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+	/* Don't originate null data frames in net80211 */
+	ic->ic_flags_ext |= IEEE80211_FEXT_NO_NULLDATA;
 
 	/* Read MAC address, channels, etc from EEPROM. */
 	if ((error = iwn_read_eeprom(sc, ic->ic_macaddr)) != 0) {
