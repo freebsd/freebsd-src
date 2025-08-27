@@ -1885,19 +1885,22 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_gids, CTLFLAG_RW,
 static int
 cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 {
-	if (!see_other_gids) {
-		if (realgroupmember(u1->cr_rgid, u2))
+	if (see_other_gids)
+		return (0);
+
+	/* Restriction in force. */
+
+	if (realgroupmember(u1->cr_rgid, u2))
+		return (0);
+
+	for (int i = 0; i < u1->cr_ngroups; i++)
+		if (realgroupmember(u1->cr_groups[i], u2))
 			return (0);
 
-		for (int i = 0; i < u1->cr_ngroups; i++)
-			if (realgroupmember(u1->cr_groups[i], u2))
-				return (0);
+	if (priv_check_cred(u1, PRIV_SEEOTHERGIDS) == 0)
+		return (0);
 
-		if (priv_check_cred(u1, PRIV_SEEOTHERGIDS) != 0)
-			return (ESRCH);
-	}
-
-	return (0);
+	return (ESRCH);
 }
 
 /*
