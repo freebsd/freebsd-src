@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.176 2024/05/17 02:39:11 jsg Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.177 2025/03/11 07:48:51 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -2091,6 +2091,7 @@ sftp_upload(struct sftp_conn *conn, const char *local_path,
 			close(local_fd);
 			return -1;
 		}
+		highwater = c.size;
 	}
 
 	openmode = SSH2_FXF_WRITE|SSH2_FXF_CREAT;

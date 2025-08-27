@@ -228,7 +228,7 @@ decrypt_v3(krb5_context context, OM_uint32 *minor_status,
     ret = krb5_k_decrypt(context, key, usage, NULL, &cipher, &plain);
     if (ret) {
         *minor_status = ret;
-        major = GSS_S_FAILURE;
+        major = GSS_S_BAD_SIG;
         goto cleanup;
     }
 

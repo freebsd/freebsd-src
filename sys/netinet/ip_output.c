@@ -1044,14 +1044,14 @@ done:
 }
 
 void
-in_delayed_cksum(struct mbuf *m)
+in_delayed_cksum_o(struct mbuf *m, uint16_t iph_offset)
 {
 	struct ip *ip;
 	struct udphdr *uh;
 	uint16_t cklen, csum, offset;
 
-	ip = mtod(m, struct ip *);
-	offset = ip->ip_hl << 2 ;
+	ip = (struct ip *)mtodo(m, iph_offset);
+	offset = iph_offset + (ip->ip_hl << 2);
 
 	if (m->m_pkthdr.csum_flags & CSUM_UDP) {
 		/* if udp header is not in the first mbuf copy udplen */
@@ -1076,6 +1076,13 @@ in_delayed_cksum(struct mbuf *m)
 		m_copyback(m, offset, sizeof(csum), (caddr_t)&csum);
 	else
 		*(u_short *)mtodo(m, offset) = csum;
+}
+
+void
+in_delayed_cksum(struct mbuf *m)
+{
+
+	in_delayed_cksum_o(m, 0);
 }
 
 /*

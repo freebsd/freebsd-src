@@ -1,5 +1,6 @@
 .include <bsd.own.mk>
 
+PACKAGE=	toolchain
 INTERNALLIB=
 
 ELFTCDIR=	${SRCTOP}/contrib/elftoolchain

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -20,7 +22,29 @@
 
 #include <atf-c.h>
 
+static const struct tzcase {
+	const char *tzfn;
+	const char *expect;
+} tzcases[] = {
+	/*
+	 * A handful of time zones and the expected result of
+	 * strftime("%z (%Z)", tm) when that time zone is active
+	 * and tm represents a date in the summer of 2025.
+	 */
+	{ "America/Vancouver",	"-0700 (PDT)"	},
+	{ "America/New_York",	"-0400 (EDT)"	},
+	{ "Europe/London",	"+0100 (BST)"	},
+	{ "Europe/Paris",	"+0200 (CEST)"	},
+	{ "Asia/Kolkata",	"+0530 (IST)"	},
+	{ "Asia/Tokyo",		"+0900 (JST)"	},
+	{ "Australia/Canberra",	"+1000 (AEST)"	},
+	{ "UTC",		"+0000 (UTC)"	},
+	{ 0 },
+};
+
 static const time_t then = 1751328000; /* 2025-07-01 00:00:00 UTC */
+
+#ifdef DETECT_TZ_CHANGES
 static const char *tz_change_interval_sym = "__tz_change_interval";
 static int *tz_change_interval_p;
 static const int tz_change_interval = 3;
@@ -91,25 +115,6 @@ ATF_TC_HEAD(detect_tz_changes, tc)
 }
 ATF_TC_BODY(detect_tz_changes, tc)
 {
-	static const struct tzcase {
-		const char *tzfn;
-		const char *expect;
-	} tzcases[] = {
-		/*
-		 * A handful of time zones and the expected result of
-		 * strftime("%z (%Z)", tm) when that time zone is active
-		 * and tm represents a date in the summer of 2025.
-		 */
-		{ "America/Vancouver",	"-0700 (PDT)"	},
-		{ "America/New_York",	"-0400 (EDT)"	},
-		{ "Europe/London",	"+0100 (BST)"	},
-		{ "Europe/Paris",	"+0200 (CEST)"	},
-		{ "Asia/Kolkata",	"+0530 (IST)"	},
-		{ "Asia/Tokyo",		"+0900 (JST)"	},
-		{ "Australia/Canberra",	"+1000 (AEST)"	},
-		{ "UTC",		"+0000 (UTC)"	},
-		{ 0 },
-	};
 	char obuf[1024] = "";
 	char ebuf[1024] = "";
 	struct pollfd fds[3];
@@ -271,11 +276,60 @@ ATF_TC_BODY(detect_tz_changes, tc)
 	ATF_REQUIRE(WIFEXITED(status));
 	ATF_REQUIRE_EQ(0, WEXITSTATUS(status));
 }
+#endif /* DETECT_TZ_CHANGES */
+
+static void
+test_tz_env(const char *tzval, const char *expect)
+{
+	char buf[128];
+	struct tm *tm;
+	size_t len;
+
+	setenv("TZ", tzval, 1);
+	ATF_REQUIRE((tm = localtime(&then)) != NULL);
+	len = strftime(buf, sizeof(buf), "%z (%Z)", tm);
+	ATF_REQUIRE(len > 0);
+	ATF_CHECK_STREQ(expect, buf);
+}
+
+ATF_TC(tz_env);
+ATF_TC_HEAD(tz_env, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test TZ environment variable");
+}
+ATF_TC_BODY(tz_env, tc)
+{
+	const struct tzcase *tzcase;
+
+	for (tzcase = tzcases; tzcase->tzfn != NULL; tzcase++)
+		test_tz_env(tzcase->tzfn, tzcase->expect);
+}
+
+ATF_TC(tz_env_setugid);
+ATF_TC_HEAD(tz_env_setugid, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test TZ environment variable "
+		"in setugid process");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(tz_env_setugid, tc)
+{
+	const struct tzcase *tzcase;
+
+	ATF_REQUIRE_EQ(0, seteuid(UID_NOBODY));
+	ATF_REQUIRE(issetugid());
+	for (tzcase = tzcases; tzcase->tzfn != NULL; tzcase++)
+		test_tz_env(tzcase->tzfn, tzcase->expect);
+}
 
 ATF_TP_ADD_TCS(tp)
 {
+#ifdef DETECT_TZ_CHANGES
 	debugging = !getenv("__RUNNING_INSIDE_ATF_RUN") &&
 	    isatty(STDERR_FILENO);
 	ATF_TP_ADD_TC(tp, detect_tz_changes);
+#endif /* DETECT_TZ_CHANGES */
+	ATF_TP_ADD_TC(tp, tz_env);
+	ATF_TP_ADD_TC(tp, tz_env_setugid);
 	return (atf_no_error());
 }

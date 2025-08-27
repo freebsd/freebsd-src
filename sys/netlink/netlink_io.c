@@ -216,15 +216,16 @@ nl_send(struct nl_writer *nw, struct nlpcb *nlp)
 		    hdr->nlmsg_len);
 	}
 
-	if (nlp->nl_linux && linux_netlink_p != NULL &&
-	    __predict_false(!linux_netlink_p->msgs_to_linux(nw, nlp))) {
+	if (nlp->nl_linux && linux_netlink_p != NULL) {
+		nb = linux_netlink_p->msgs_to_linux(nw->buf, nlp);
 		nl_buf_free(nw->buf);
 		nw->buf = NULL;
-		return (false);
+		if (nb == NULL)
+			return (false);
+	} else {
+		nb = nw->buf;
+		nw->buf = NULL;
 	}
-
-	nb = nw->buf;
-	nw->buf = NULL;
 
 	SOCK_RECVBUF_LOCK(so);
 	if (!nw->ignore_limit && __predict_false(sb->sb_hiwat <= sb->sb_ccc)) {

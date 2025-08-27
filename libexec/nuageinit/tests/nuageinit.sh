@@ -815,7 +815,7 @@ config2_userdata_update_packages_body()
 package_update: true
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg update -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	atf_check -o inline:"env ASSUME_ALWAYS_YES=yes pkg update\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_upgrade_packages_body()
@@ -829,7 +829,7 @@ config2_userdata_upgrade_packages_body()
 package_upgrade: true
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg upgrade -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	atf_check -o inline:"env ASSUME_ALWAYS_YES=yes pkg upgrade\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_shebang_body()

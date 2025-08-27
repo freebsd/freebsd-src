@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KINIT" "1" " " "1.22" "MIT Kerberos"
+.TH "KINIT" "1" " " "1.22.1" "MIT Kerberos"
 .SH NAME
 kinit \- obtain and cache Kerberos ticket-granting ticket
 .SH SYNOPSIS

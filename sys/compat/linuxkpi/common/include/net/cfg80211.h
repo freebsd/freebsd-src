@@ -57,8 +57,8 @@ extern int linuxkpi_debug_80211;
 #endif
 #define	TODO(fmt, ...)		if (linuxkpi_debug_80211 & D80211_TODO)	\
     printf("%s:%d: XXX LKPI80211 TODO " fmt "\n",  __func__, __LINE__, ##__VA_ARGS__)
-#define	IMPROVE(...)	if (linuxkpi_debug_80211 & D80211_IMPROVE)	\
-    printf("%s:%d: XXX LKPI80211 IMPROVE\n", __func__, __LINE__)
+#define	IMPROVE(fmt, ...)	if (linuxkpi_debug_80211 & D80211_IMPROVE)	\
+    printf("%s:%d: XXX LKPI80211 IMPROVE " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
 
 enum rfkill_hard_block_reasons {
 	RFKILL_HARD_BLOCK_NOT_OWNER		= BIT(0),
@@ -128,19 +128,24 @@ struct ieee80211_txrx_stypes {
 	uint16_t	rx;
 };
 
-/* XXX net80211 has an ieee80211_channel as well. */
+/*
+ * net80211 has an ieee80211_channel as well; we use the linuxkpi_ version
+ * interally in LinuxKPI and re-define ieee80211_channel for the drivers
+ * at the end of the file.
+ */
 struct linuxkpi_ieee80211_channel {
-	/* TODO FIXME */
-	uint32_t				hw_value;	/* ic_ieee */
-	uint32_t				center_freq;	/* ic_freq */
-	enum ieee80211_channel_flags		flags;		/* ic_flags */
+	uint32_t				center_freq;
+	uint16_t				hw_value;
+	enum ieee80211_channel_flags		flags;
 	enum nl80211_band			band;
-	int8_t					max_power;	/* ic_maxpower */
 	bool					beacon_found;
-	int     max_antenna_gain, max_reg_power;
-	int     orig_flags;
-	int	dfs_cac_ms, dfs_state;
-	int	orig_mpwr;
+	enum nl80211_dfs_state			dfs_state;
+	unsigned int				dfs_cac_ms;
+	int					max_antenna_gain;
+	int					max_power;
+	int					max_reg_power;
+	uint32_t				orig_flags;
+	int					orig_mpwr;
 };
 
 struct cfg80211_bitrate_mask {
@@ -1299,10 +1304,9 @@ reg_query_regdb_wmm(uint8_t *alpha2, uint32_t center_freq,
     struct ieee80211_reg_rule *rule)
 {
 
-	/* ETSI has special rules. FreeBSD regdb needs to learn about them. */
-	TODO();
+	IMPROVE("regdomain.xml needs to grow wmm information for at least ETSI");
 
-	return (-ENXIO);
+	return (-ENODATA);
 }
 
 static __inline const u8 *

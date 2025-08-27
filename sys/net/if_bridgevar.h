@@ -159,7 +159,7 @@ struct ifbreq {
 	uint32_t	ifbr_addrexceeded;	/* member if addr violations */
 	ether_vlanid_t	ifbr_pvid;		/* member if PVID */
 	uint16_t	ifbr_vlanproto;		/* member if VLAN protocol */
-	uint8_t		pad[32];
+	uint8_t		pad[28];
 };
 
 /* BRDGGIFFLAGS, BRDGSIFFLAGS */

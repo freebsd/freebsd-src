@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.402 2024/09/09 14:41:21 naddy Exp $
-.Dd $Mdocdate: September 9 2024 $
+.\" $OpenBSD: ssh_config.5,v 1.413 2025/03/03 06:53:09 dtucker Exp $
+.Dd $Mdocdate: March 3 2025 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -145,9 +145,11 @@ The available criteria keywords are:
 .Cm host ,
 .Cm originalhost ,
 .Cm tagged ,
+.Cm command ,
 .Cm user ,
+.Cm localuser ,
 and
-.Cm localuser .
+.Cm version .
 The
 .Cm all
 criteria must appear alone or immediately after
@@ -212,6 +214,7 @@ The other keywords' criteria must be single entries or comma-separated
 lists and may use the wildcard and negation operators described in the
 .Sx PATTERNS
 section.
+.Pp
 The criteria for the
 .Cm host
 keyword are matched against the target hostname, after any substitution
@@ -223,6 +226,7 @@ options.
 The
 .Cm originalhost
 keyword matches against the hostname as it was specified on the command-line.
+.Pp
 The
 .Cm tagged
 keyword matches a tag name specified by a prior
@@ -233,6 +237,22 @@ command-line using the
 .Fl P
 flag.
 The
+.Cm command
+keyword matches the remote command that has been requested, or the subsystem
+name that is being invoked (e.g.\&
+.Qq sftp
+for an SFTP session).
+The empty string will match the case where a command or tag has not been
+specified, i.e.\&
+.Sq Match tag \&"\&" .
+The
+.Cm version
+keyword matches against the version string of
+.Xr ssh 1 ,
+for example
+.Dq OpenSSH_10.0 .
+.Pp
+The
 .Cm user
 keyword matches against the target username on the remote host.
 The
@@ -242,6 +262,24 @@ keyword matches against the name of the local user running
 (this keyword may be useful in system-wide
 .Nm
 files).
+.Pp
+Finally, the
+.Cm sessiontype
+keyword matches the requested session type, which may be one of
+.Cm shell
+for interactive sessions,
+.Cm exec
+for command execution sessions,
+.Cm subsystem
+for subsystem invocations such as
+.Xr sftp 1 ,
+or
+.Cm none
+for transport-only sessions, such as when
+.Xr ssh 1
+is started with the
+.Fl N
+flag.
 .It Cm AddKeysToAgent
 Specifies whether keys should be automatically added to a running
 .Xr ssh-agent 1 .
@@ -581,8 +619,8 @@ chacha20-poly1305@openssh.com
 The default is:
 .Bd -literal -offset indent
 chacha20-poly1305@openssh.com,
-aes128-ctr,aes192-ctr,aes256-ctr,
-aes128-gcm@openssh.com,aes256-gcm@openssh.com
+aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+aes128-ctr,aes192-ctr,aes256-ctr
 .Ed
 .Pp
 The list of available ciphers may also be obtained using
@@ -1286,8 +1324,8 @@ default set.
 .Pp
 The default is:
 .Bd -literal -offset indent
-sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,
 mlkem768x25519-sha256,
+sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,
 curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
@@ -1344,9 +1382,11 @@ This directive is ignored unless
 .Cm PermitLocalCommand
 has been enabled.
 .It Cm LocalForward
-Specifies that a TCP port on the local machine be forwarded over
-the secure channel to the specified host and port from the remote machine.
-The first argument specifies the listener and may be
+Specifies that a TCP port or Unix-domain socket on the local machine
+be forwarded over
+the secure channel to the specified host and port (or Unix-domain socket)
+from the remote machine.
+For a TCP port, the first argument must be
 .Sm off
 .Oo Ar bind_address : Oc Ar port
 .Sm on
@@ -1356,6 +1396,11 @@ The second argument is the destination and may be
 or a Unix domain socket path if the remote host supports it.
 .Pp
 IPv6 addresses can be specified by enclosing addresses in square brackets.
+.Pp
+If either argument contains a '/' in it, that argument will be
+interpreted as a Unix-domain socket (on the corresponding host) rather
+than a TCP port.
+.Pp
 Multiple forwardings may be specified, and additional forwardings can be
 given on the command line.
 Only the superuser can forward privileged ports.
@@ -1584,14 +1629,12 @@ ProxyCommand /usr/bin/nc -X connect -x 192.0.2.0:8080 %h %p
 .Ed
 .It Cm ProxyJump
 Specifies one or more jump proxies as either
-.Xo
 .Sm off
 .Op Ar user No @
 .Ar host
 .Op : Ns Ar port
 .Sm on
-or an ssh URI
-.Xc .
+or an ssh URI.
 Multiple proxies may be separated by comma characters and will be visited
 sequentially.
 Setting this option will cause
@@ -1707,9 +1750,10 @@ accept the tokens described in the
 .Sx TOKENS
 section.
 .It Cm RemoteForward
-Specifies that a TCP port on the remote machine be forwarded over
-the secure channel.
+Specifies that a TCP port or Unix-domain socket on the remote machine
+be forwarded over the secure channel.
 The remote port may either be forwarded to a specified host and port
+or Unix-domain socket
 from the local machine, or may act as a SOCKS 4/5 proxy that allows a remote
 client to connect to arbitrary destinations from the local machine.
 The first argument is the listening specification and may be
@@ -1727,6 +1771,11 @@ restricted by
 .Cm PermitRemoteOpen .
 .Pp
 IPv6 addresses can be specified by enclosing addresses in square brackets.
+.Pp
+If either argument contains a '/' in it, that argument will be
+interpreted as a Unix-domain socket (on the corresponding host) rather
+than a TCP port.
+.Pp
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
 Privileged ports can be forwarded only when
@@ -1894,12 +1943,21 @@ option) or
 (shell or command execution).
 .It Cm SetEnv
 Directly specify one or more environment variables and their contents to
-be sent to the server.
+be sent to the server in the form
+.Dq NAME=VALUE .
 Similarly to
 .Cm SendEnv ,
 with the exception of the
 .Ev TERM
 variable, the server must be prepared to accept the environment variable.
+.Pp
+The
+.Dq VALUE
+may use the tokens described in the
+.Sx TOKENS
+section and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
+section.
 .It Cm StdinNull
 Redirects stdin from
 .Pa /dev/null
@@ -2099,6 +2157,15 @@ Specifies the user to log in as.
 This can be useful when a different user name is used on different machines.
 This saves the trouble of
 having to remember to give the user name on the command line.
+Arguments to
+.Cm User
+may use the tokens described in the
+.Sx TOKENS
+section
+(with the exception of %r and %C)
+and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
+section.
 .It Cm UserKnownHostsFile
 Specifies one or more files to use for the user
 host key database, separated by whitespace.
@@ -2138,6 +2205,11 @@ See also
 .Sx VERIFYING HOST KEYS
 in
 .Xr ssh 1 .
+.It Cm VersionAddendum
+Optionally specifies additional text to append to the SSH protocol banner
+sent by the client upon connection.
+The default is
+.Cm none .
 .It Cm VisualHostKey
 If this flag is set to
 .Cm yes ,
@@ -2283,8 +2355,9 @@ The local username.
 .Cm RemoteCommand ,
 .Cm RemoteForward ,
 .Cm RevokedHostKeys ,
-and
 .Cm UserKnownHostsFile
+and
+.Cm VersionAddendum
 accept the tokens %%, %C, %d, %h, %i, %j, %k, %L, %l, %n, %p, %r, and %u.
 .Pp
 .Cm KnownHostsCommand

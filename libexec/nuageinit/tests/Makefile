@@ -15,6 +15,7 @@ ${PACKAGE}FILES+=	adduser_passwd.lua
 ${PACKAGE}FILES+=	dirname.lua
 ${PACKAGE}FILES+=	err.lua
 ${PACKAGE}FILES+=	sethostname.lua
+${PACKAGE}FILES+=	settimezone.lua
 ${PACKAGE}FILES+=	warn.lua
 ${PACKAGE}FILES+=	addfile.lua
 

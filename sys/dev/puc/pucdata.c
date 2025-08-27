@@ -64,6 +64,7 @@ static puc_config_f puc_config_quatech;
 static puc_config_f puc_config_syba;
 static puc_config_f puc_config_siig;
 static puc_config_f puc_config_sunix;
+static puc_config_f puc_config_systembase;
 static puc_config_f puc_config_timedia;
 static puc_config_f puc_config_titan;
 
@@ -1705,6 +1706,23 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x10, 0, 8,
 	    .config_function = puc_config_icbook
 	},
+
+	/*
+	 * Systembase cards using SB16C1050 UARTs:
+	 */
+	{   0x14a1, 0x0008, 0x14a1, 0x0008,
+	    "Systembase SB16C1058",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, 8,
+	    .config_function = puc_config_systembase,
+	},
+	{   0x14a1, 0x0004, 0x14a1, 0x0004,
+	    "Systembase SB16C1054",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	    .config_function = puc_config_systembase,
+	},
+
 	{ 0xffff, 0, 0xffff, 0, NULL, 0 }
 };
 
@@ -2288,6 +2306,31 @@ puc_config_titan(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd,
 		return (0);
 	case PUC_CFG_GET_RID:
 		*res = 0x14 + ((port >= 2) ? 0x0c : port << 2);
+		return (0);
+	default:
+		break;
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_systembase(struct puc_softc *sc __unused,
+		      enum puc_cfg_cmd cmd, int port, intptr_t *res)
+{
+	struct puc_bar *bar;
+
+	switch (cmd) {
+	case PUC_CFG_SETUP:
+		bar = puc_get_bar(sc, 0x14);
+		if (bar == NULL)
+			return (ENXIO);
+
+		/*
+		 * The Systembase SB16C1058 (and probably other devices
+		 * based on the SB16C1050 UART core) require poking a
+		 * register in the *other* RID to turn on interrupts.
+		 */
+		bus_write_1(bar->b_res, /* OPT_IMRREG0 */ 0xc, 0xff);
 		return (0);
 	default:
 		break;

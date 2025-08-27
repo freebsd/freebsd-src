@@ -242,24 +242,9 @@ nlmsg_copy_nla(const struct nlattr *nla_orig, struct nl_writer *nw)
 }
 
 /*
- * Translate a FreeBSD interface name to a Linux interface name.
- */
-static bool
-nlmsg_translate_ifname_nla(struct nlattr *nla, struct nl_writer *nw)
-{
-	char ifname[LINUX_IFNAMSIZ];
-
-	if (ifname_bsd_to_linux_name((char *)(nla + 1), ifname,
-	    sizeof(ifname)) <= 0)
-		return (false);
-	return (nlattr_add_string(nw, IFLA_IFNAME, ifname));
-}
-
-#define	LINUX_NLA_UNHANDLED	-1
-/*
  * Translate a FreeBSD attribute to a Linux attribute.
- * Returns LINUX_NLA_UNHANDLED when the attribute is not processed
- * and the caller must take care of it, otherwise the result is returned.
+ * Returns false when the attribute is not processed and the caller must take
+ * care of it.
  */
 static int
 nlmsg_translate_all_nla(struct nlmsghdr *hdr, struct nlattr *nla,
@@ -271,22 +256,27 @@ nlmsg_translate_all_nla(struct nlmsghdr *hdr, struct nlattr *nla,
 	case NL_RTM_DELLINK:
 	case NL_RTM_GETLINK:
 		switch (nla->nla_type) {
-		case IFLA_IFNAME:
-			return (nlmsg_translate_ifname_nla(nla, nw));
+		case IFLA_IFNAME: {
+			char ifname[LINUX_IFNAMSIZ];
+
+			if (ifname_bsd_to_linux_name((char *)(nla + 1), ifname,
+			    sizeof(ifname)) > 0)
+				return (true);
+			break;
+		}
 		default:
 			break;
 		}
 	default:
 		break;
 	}
-	return (LINUX_NLA_UNHANDLED);
+	return (false);
 }
 
 static bool
 nlmsg_copy_all_nla(struct nlmsghdr *hdr, int raw_hdrlen, struct nl_writer *nw)
 {
 	struct nlattr *nla;
-	int ret;
 
 	int hdrlen = NETLINK_ALIGN(raw_hdrlen);
 	int attrs_len = hdr->nlmsg_len - sizeof(struct nlmsghdr) - hdrlen;
@@ -297,15 +287,12 @@ nlmsg_copy_all_nla(struct nlmsghdr *hdr, int raw_hdrlen, struct nl_writer *nw)
 		if (nla->nla_len < sizeof(struct nlattr)) {
 			return (false);
 		}
-		ret = nlmsg_translate_all_nla(hdr, nla, nw);
-		if (ret == LINUX_NLA_UNHANDLED)
-			ret = nlmsg_copy_nla(nla, nw);
-		if (!ret)
+		if (!nlmsg_translate_all_nla(hdr, nla, nw) &&
+		    !nlmsg_copy_nla(nla, nw))
 			return (false);
 	}
 	return (true);
 }
-#undef LINUX_NLA_UNHANDLED
 
 static unsigned int
 rtnl_if_flags_to_linux(unsigned int if_flags)
@@ -563,22 +550,15 @@ nlmsg_to_linux(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_writer *nw)
 	}
 }
 
-static bool
-nlmsgs_to_linux(struct nl_writer *nw, struct nlpcb *nlp)
+static struct nl_buf *
+nlmsgs_to_linux(struct nl_buf *orig, struct nlpcb *nlp)
 {
-	struct nl_buf *nb, *orig;
-	u_int offset, msglen, orig_messages;
+	struct nl_writer nw;
+	u_int offset, msglen;
 
-	RT_LOG(LOG_DEBUG3, "%p: in %u bytes %u messages", __func__,
-	    nw->buf->datalen, nw->num_messages);
-
-	orig = nw->buf;
-	nb = nl_buf_alloc(orig->datalen + SCRATCH_BUFFER_SIZE, M_NOWAIT);
-	if (__predict_false(nb == NULL))
-		return (false);
-	nw->buf = nb;
-	orig_messages = nw->num_messages;
-	nw->num_messages = 0;
+	if (__predict_false(!nl_writer_unicast(&nw,
+	    orig->datalen + SCRATCH_BUFFER_SIZE, nlp, false)))
+		return (NULL);
 
 	/* Assume correct headers. Buffer IS mutable */
 	for (offset = 0;
@@ -587,22 +567,18 @@ nlmsgs_to_linux(struct nl_writer *nw, struct nlpcb *nlp)
 		struct nlmsghdr *hdr = (struct nlmsghdr *)&orig->data[offset];
 
 		msglen = NLMSG_ALIGN(hdr->nlmsg_len);
-		if (!nlmsg_to_linux(hdr, nlp, nw)) {
+		if (!nlmsg_to_linux(hdr, nlp, &nw)) {
 			RT_LOG(LOG_DEBUG, "failed to process msg type %d",
 			    hdr->nlmsg_type);
-			nl_buf_free(nb);
-			nw->buf = orig;
-			nw->num_messages = orig_messages;
-			return (false);
+			nl_buf_free(nw.buf);
+			return (NULL);
 		}
 	}
 
-	MPASS(nw->num_messages == orig_messages);
-	MPASS(nw->buf == nb);
-	nl_buf_free(orig);
-	RT_LOG(LOG_DEBUG3, "%p: out %u bytes", __func__, offset);
+	RT_LOG(LOG_DEBUG3, "%p: in %u bytes %u messages", __func__,
+	    nw.buf->datalen, nw.num_messages);
 
-	return (true);
+	return (nw.buf);
 }
 
 static struct linux_netlink_provider linux_netlink_v1 = {

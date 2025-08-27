@@ -97,6 +97,18 @@ removed.
 Beginning with the krb5-1.18 release, all support for single-DES
 encryption types has been removed.
 
+Major changes in 1.22.1 (2025-08-20)
+------------------------------------
+
+This is a bug fix release.
+
+* Fix a vulnerability in GSS MIC verification [CVE-2025-57736].
+
+krb5-1.22.1 changes by ticket ID
+--------------------------------
+
+9181    verify_mic_v3 broken in 1.22
+
 Major changes in 1.22 (2025-08-05)
 ----------------------------------
 
@@ -383,6 +395,7 @@ reports, suggestions, and valuable resources:
     Roland Dowdeswell
     Ken Dreyer
     Dorian Ducournau
+    Francis Dupont
     Viktor Dukhovni
     Jason Edgecombe
     Mark Eichin

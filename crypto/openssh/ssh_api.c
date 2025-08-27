@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh_api.c,v 1.31 2024/09/09 02:39:57 djm Exp $ */
+/* $OpenBSD: ssh_api.c,v 1.32 2024/10/18 05:14:51 djm Exp $ */
 /*
  * Copyright (c) 2012 Markus Friedl.  All rights reserved.
  *
@@ -532,7 +532,7 @@ _ssh_order_hostkeyalgs(struct ssh *ssh)
 	char *orig, *avail, *oavail = NULL, *alg, *replace = NULL;
 	char **proposal;
 	size_t maxlen;
-	int ktype, r;
+	int ktype, nid, r;
 
 	/* XXX we de-serialize ssh->kex->my, modify it, and change it */
 	if ((r = kex_buf2prop(ssh->kex->my, NULL, &proposal)) != 0)
@@ -551,15 +551,20 @@ _ssh_order_hostkeyalgs(struct ssh *ssh)
 	while ((alg = strsep(&avail, ",")) && *alg != '\0') {
 		if ((ktype = sshkey_type_from_name(alg)) == KEY_UNSPEC)
 			continue;
+		nid = sshkey_ecdsa_nid_from_name(alg);
 		TAILQ_FOREACH(k, &ssh->public_keys, next) {
-			if (k->key->type == ktype ||
-			    (sshkey_is_cert(k->key) && k->key->type ==
-			    sshkey_type_plain(ktype))) {
-				if (*replace != '\0')
-					strlcat(replace, ",", maxlen);
-				strlcat(replace, alg, maxlen);
-				break;
-			}
+			if (k->key->type != ktype &&
+			    (!sshkey_is_cert(k->key) ||
+			    k->key->type != sshkey_type_plain(ktype)))
+				continue;
+			if (sshkey_type_plain(k->key->type) == KEY_ECDSA &&
+			    k->key->ecdsa_nid != nid)
+				continue;
+			/* Candidate */
+			if (*replace != '\0')
+				strlcat(replace, ",", maxlen);
+			strlcat(replace, alg, maxlen);
+			break;
 		}
 	}
 	if (*replace != '\0') {

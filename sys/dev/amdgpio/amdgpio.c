@@ -3,6 +3,10 @@
  *
  * Copyright (c) 2018 Advanced Micro Devices
  * All rights reserved.
+ * Copyright (c) 2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Aymeric Wibo
+ * <obiwac@freebsd.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,11 +55,11 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/gpio/gpiobusvar.h>
 
-#include "gpio_if.h"
 #include "amdgpio.h"
 
 static struct resource_spec amdgpio_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
 	{ -1, 0, 0 }
 };
 
@@ -196,7 +200,7 @@ static int
 amdgpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct amdgpio_softc *sc;
-	uint32_t reg, val, allowed;
+	uint32_t reg, val;
 
 	sc = device_get_softc(dev);
 
@@ -204,18 +208,19 @@ amdgpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (!amdgpio_valid_pin(sc, pin))
 		return (EINVAL);
 
-	allowed = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
+	if ((flags & ~AMDGPIO_DEFAULT_CAPS) != 0) {
+		device_printf(dev, "disallowed flags (0x%x) trying to be set "
+		    "(allowed is 0x%x)\n", flags, AMDGPIO_DEFAULT_CAPS);
+		return (EINVAL);
+	}
 
-	/*
-	 * Only directtion flag allowed
-	 */
-	if (flags & ~allowed)
+	/* Either input or output must be selected. */
+	if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) == 0)
 		return (EINVAL);
 
-	/*
-	 * Not both directions simultaneously
-	 */
-	if ((flags & allowed) == allowed)
+	/* Not both directions simultaneously. */
+	if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) ==
+	    (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT))
 		return (EINVAL);
 
 	/* Set the GPIO mode and state */
@@ -224,16 +229,21 @@ amdgpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	reg = AMDGPIO_PIN_REGISTER(pin);
 	val = amdgpio_read_4(sc, reg);
 
-	if (flags & GPIO_PIN_INPUT) {
+	if ((flags & GPIO_PIN_INPUT) != 0)
 		val &= ~BIT(OUTPUT_ENABLE_OFF);
-		sc->sc_gpio_pins[pin].gp_flags = GPIO_PIN_INPUT;
-	} else {
+	else
 		val |= BIT(OUTPUT_ENABLE_OFF);
-		sc->sc_gpio_pins[pin].gp_flags = GPIO_PIN_OUTPUT;
-	}
+
+	val &= ~(BIT(PULL_DOWN_ENABLE_OFF) | BIT(PULL_UP_ENABLE_OFF));
+
+	if ((flags & GPIO_PIN_PULLDOWN) != 0)
+		val |= BIT(PULL_DOWN_ENABLE_OFF);
+	if ((flags & GPIO_PIN_PULLUP) != 0)
+		val |= BIT(PULL_UP_ENABLE_OFF);
 
 	amdgpio_write_4(sc, reg, val);
 
+	sc->sc_gpio_pins[pin].gp_flags = flags;
 	dprintf("pin %d flags 0x%x val 0x%x gp_flags 0x%x\n",
 		pin, flags, val, sc->sc_gpio_pins[pin].gp_flags);
 
@@ -359,11 +369,73 @@ amdgpio_probe(device_t dev)
 	return (rv);
 }
 
+static void
+amdgpio_eoi_locked(struct amdgpio_softc *sc)
+{
+	uint32_t master_reg = amdgpio_read_4(sc, WAKE_INT_MASTER_REG);
+
+	AMDGPIO_ASSERT_LOCKED(sc);
+	master_reg |= EOI_MASK;
+	amdgpio_write_4(sc, WAKE_INT_MASTER_REG, master_reg);
+}
+
+static void
+amdgpio_eoi(struct amdgpio_softc *sc)
+{
+	AMDGPIO_LOCK(sc);
+	amdgpio_eoi_locked(sc);
+	AMDGPIO_UNLOCK(sc);
+}
+
+static int
+amdgpio_intr_filter(void *arg)
+{
+	struct amdgpio_softc *sc = arg;
+	int off, rv = FILTER_STRAY;
+	uint32_t reg;
+
+	/* We can lock in the filter routine as it is MTX_SPIN. */
+	AMDGPIO_LOCK(sc);
+
+	/*
+	 * TODO Instead of just reading the registers of all pins, we should
+	 * read WAKE_INT_STATUS_REG0/1.  A bit set in here denotes a group of
+	 * 4 pins where at least one has an interrupt for us.  Then we can just
+	 * iterate over those 4 pins.
+	 *
+	 * See GPIO_Interrupt_Status_Index_0 in BKDG.
+	 */
+	for (size_t pin = 0; pin < AMD_GPIO_PINS_EXPOSED; pin++) {
+		off = AMDGPIO_PIN_REGISTER(pin);
+		reg = amdgpio_read_4(sc, off);
+		if ((reg & UNSERVICED_INTERRUPT_MASK) == 0)
+			continue;
+		/*
+		 * Must write 1's to wake/interrupt status bits to clear them.
+		 * We can do this simply by writing back to the register.
+		 */
+		amdgpio_write_4(sc, off, reg);
+	}
+
+	amdgpio_eoi_locked(sc);
+	AMDGPIO_UNLOCK(sc);
+
+	rv = FILTER_HANDLED;
+	return (rv);
+}
+
+static void
+amdgpio_intr_handler(void *arg)
+{
+	/* TODO */
+}
+
 static int
 amdgpio_attach(device_t dev)
 {
 	struct amdgpio_softc *sc;
-	int i, pin, bank;
+	int i, pin, bank, reg;
+	uint32_t flags;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -386,6 +458,14 @@ amdgpio_attach(device_t dev)
 	sc->sc_bst = rman_get_bustag(sc->sc_res[0]);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_res[0]);
 
+	/* Set up interrupt handler. */
+	if (bus_setup_intr(dev, sc->sc_res[1], INTR_TYPE_MISC | INTR_MPSAFE,
+	    amdgpio_intr_filter, amdgpio_intr_handler, sc, &sc->sc_intr_handle)
+	    != 0) {
+		device_printf(dev, "couldn't set up interrupt\n");
+		goto err_intr;
+	}
+
 	/* Initialize all possible pins to be Invalid */
 	for (i = 0; i < AMD_GPIO_PINS_MAX ; i++) {
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,
@@ -395,7 +475,12 @@ amdgpio_attach(device_t dev)
 		sc->sc_gpio_pins[i].gp_flags = 0;
 	}
 
-	/* Initialize only driver exposed pins with appropriate capabilities */
+	/*
+	 * Initialize only driver exposed pins with appropriate capabilities.
+	 *
+	 * XXX Also mask and disable interrupts on all pins, since we don't
+	 * support them at the moment.
+	 */
 	for (i = 0; i < AMD_GPIO_PINS_EXPOSED ; i++) {
 		pin = kernzp_pins[i].pin_num;
 		bank = pin/AMD_GPIO_PINS_PER_BANK;
@@ -406,7 +491,14 @@ amdgpio_attach(device_t dev)
 		sc->sc_gpio_pins[pin].gp_flags =
 		    amdgpio_is_pin_output(sc, pin) ?
 		    GPIO_PIN_OUTPUT : GPIO_PIN_INPUT;
+
+		reg = AMDGPIO_PIN_REGISTER(pin);
+		flags = amdgpio_read_4(sc, reg);
+		flags &= ~(1 << INTERRUPT_ENABLE_OFF);
+		flags &= ~(1 << INTERRUPT_MASK_OFF);
+		amdgpio_write_4(sc, reg, flags);
 	}
+	amdgpio_eoi(sc);
 
 	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
@@ -418,8 +510,9 @@ amdgpio_attach(device_t dev)
 	return (0);
 
 err_bus:
+	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_intr_handle);
+err_intr:
 	bus_release_resources(dev, amdgpio_spec, sc->sc_res);
-
 err_rsrc:
 	AMDGPIO_LOCK_DESTROY(sc);
 
@@ -434,7 +527,8 @@ amdgpio_detach(device_t dev)
 
 	if (sc->sc_busdev)
 		gpiobus_detach_bus(dev);
-
+	if (sc->sc_intr_handle)
+		bus_teardown_intr(dev, sc->sc_res[1], sc->sc_intr_handle);
 	bus_release_resources(dev, amdgpio_spec, sc->sc_res);
 
 	AMDGPIO_LOCK_DESTROY(sc);

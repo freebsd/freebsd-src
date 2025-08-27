@@ -93,7 +93,12 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	if (lattrs->ifla_mtu > 0) {
 		if (nlp_has_priv(npt->nlp, PRIV_NET_SETIFMTU)) {
 			struct ifreq ifr = { .ifr_mtu = lattrs->ifla_mtu };
-			error = ifhwioctl(SIOCSIFMTU, ifp, (char *)&ifr, curthread);
+			error = ifhwioctl(SIOCSIFMTU, ifp, (char *)&ifr,
+			    curthread);
+			if (error != 0) {
+				nlmsg_report_err_msg(npt, "Failed to set mtu");
+				return (error);
+			}
 		} else {
 			nlmsg_report_err_msg(npt, "Not enough privileges to set mtu");
 			return (EPERM);
@@ -101,11 +106,31 @@ _nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	}
 
 	if ((lattrs->ifi_change & IFF_PROMISC) != 0 ||
-	    lattrs->ifi_change == 0) {
-		error = ifpromisc(ifp, lattrs->ifi_flags & IFF_PROMISC);
-		if (error != 0) {
-			nlmsg_report_err_msg(npt, "unable to set promisc");
-			return (error);
+	    lattrs->ifi_change == 0)
+		/*
+		 * When asking for IFF_PROMISC, set permanent flag instead
+		 * (IFF_PPROMISC) as we have no way of doing promiscuity
+		 * reference counting through ifpromisc().  Every call to this
+		 * function either sets or unsets IFF_PROMISC, and ifi_change
+		 * is usually set to 0xFFFFFFFF.
+		 */
+		if_setppromisc(ifp, (lattrs->ifi_flags & IFF_PROMISC) != 0);
+
+	if (lattrs->ifla_address != NULL) {
+		if (nlp_has_priv(npt->nlp, PRIV_NET_SETIFMAC)) {
+			error = if_setlladdr(ifp,
+			    NLA_DATA(lattrs->ifla_address),
+			    NLA_DATA_LEN(lattrs->ifla_address));
+			if (error != 0) {
+				nlmsg_report_err_msg(npt,
+				    "setting IFLA_ADDRESS failed with error code: %d",
+				    error);
+				return (error);
+			}
+		} else {
+			nlmsg_report_err_msg(npt,
+			    "Not enough privileges to set IFLA_ADDRESS");
+			return (EPERM);
 		}
 	}
 
