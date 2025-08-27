@@ -1861,43 +1861,18 @@ pfctl_init_rule(struct pfctl_rule *r)
 	TAILQ_INIT(&(r->route.list));
 }
 
-int
-pfctl_append_rule(struct pfctl *pf, struct pfctl_rule *r,
-    const char *anchor_call)
+void
+pfctl_append_rule(struct pfctl *pf, struct pfctl_rule *r)
 {
 	u_int8_t		rs_num;
 	struct pfctl_rule	*rule;
 	struct pfctl_ruleset	*rs;
-	char 			*p;
 
 	rs_num = pf_get_ruleset_number(r->action);
 	if (rs_num == PF_RULESET_MAX)
 		errx(1, "Invalid rule type %d", r->action);
 
 	rs = &pf->anchor->ruleset;
-
-	if (anchor_call[0] && r->anchor == NULL) {
-		/* 
-		 * Don't make non-brace anchors part of the main anchor pool.
-		 */
-		if ((r->anchor = calloc(1, sizeof(*r->anchor))) == NULL)
-			err(1, "pfctl_append_rule: calloc");
-		
-		pf_init_ruleset(&r->anchor->ruleset);
-		r->anchor->ruleset.anchor = r->anchor;
-		if (strlcpy(r->anchor->path, anchor_call,
-		    sizeof(rule->anchor->path)) >= sizeof(rule->anchor->path))
-			errx(1, "pfctl_append_rule: strlcpy");
-		if ((p = strrchr(anchor_call, '/')) != NULL) {
-			if (!strlen(p))
-				err(1, "pfctl_append_rule: bad anchor name %s",
-				    anchor_call);
-		} else
-			p = (char *)anchor_call;
-		if (strlcpy(r->anchor->name, p,
-		    sizeof(rule->anchor->name)) >= sizeof(rule->anchor->name))
-			errx(1, "pfctl_append_rule: strlcpy");
-	}
 
 	if ((rule = calloc(1, sizeof(*rule))) == NULL)
 		err(1, "calloc");
@@ -1910,7 +1885,6 @@ pfctl_append_rule(struct pfctl *pf, struct pfctl_rule *r,
 	pfctl_move_pool(&r->route, &rule->route);
 
 	TAILQ_INSERT_TAIL(rs->rules[rs_num].active.ptr, rule, entries);
-	return (0);
 }
 
 int
