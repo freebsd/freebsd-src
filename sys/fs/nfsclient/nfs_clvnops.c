@@ -3474,7 +3474,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 	u_quad_t size;
 	struct nfsmount *nmp;
 
-	error = NFSVOPLOCK(vp, LK_SHARED);
+	error = NFSVOPLOCK(vp, LK_EXCLUSIVE);
 	if (error != 0)
 		return (EBADF);
 	nmp = VFSTONFS(vp->v_mount);
@@ -3511,11 +3511,6 @@ nfs_advlock(struct vop_advlock_args *ap)
 			cred = p->p_ucred;
 		else
 			cred = td->td_ucred;
-		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
-		if (VN_IS_DOOMED(vp)) {
-			error = EBADF;
-			goto out;
-		}
 
 		/*
 		 * If this is unlocking a write locked region, flush and
