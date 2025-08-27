@@ -235,14 +235,11 @@ init_param1(void)
 	 * specification for <limits.h>, paragraph "Runtime Increasable
 	 * Values").
 	 *
-	 * On the other hand, INT_MAX would result in an overflow for the common
-	 * 'ngroups_max + 1' computation (to obtain the size of the internal
-	 * groups array, its first element being reserved for the effective
-	 * GID).  Also, the number of allocated bytes for the group array must
-	 * not overflow on 32-bit machines.  For all these reasons, we limit the
-	 * number of supplementary groups to some very high number that we
-	 * expect will never be reached in all practical uses and ensures we
-	 * avoid the problems just exposed, even if 'gid_t' was to be enlarged
+	 * On the other hand, a too high value would result in an overflow when
+	 * computing the number of bytes to allocate for the groups array.  We
+	 * thus limit the number of supplementary groups to some very high
+	 * number that we expect will never be reached in all practical uses,
+	 * avoiding the problem just exposed even if 'gid_t' were to be enlarged
 	 * by a magnitude.
 	 */
 	ngroups_max = NGROUPS_MAX;
