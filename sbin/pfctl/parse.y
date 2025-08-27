@@ -2396,8 +2396,14 @@ pfrule		: action dir logquick interface route af proto fromto
 			r.quick = $3.quick;
 			r.af = $6;
 
-			if ($9.marker & FOM_ONCE)
+			if ($9.marker & FOM_ONCE) {
+				if (r.action == PF_MATCH) {
+					yyerror("can't specify once for "
+					    "match rules");
+					YYERROR;
+				}
 				r.rule_flag |= PFRULE_ONCE;
+			}
 
 			if (filteropts_to_rule(&r, &$9))
 				YYERROR;
