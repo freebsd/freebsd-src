@@ -103,6 +103,16 @@ struct vattr va_null;
  * Routines having to do with the management of the vnode table.
  */
 
+void
+vfs_unref_vfsconf(struct vfsconf *vfsp)
+{
+	vfsconf_lock();
+	KASSERT(vfsp->vfc_refcount > 0,
+	    ("vfs %p refcount underflow %d", vfsp, vfsp->vfc_refcount));
+	vfsp->vfc_refcount--;
+	vfsconf_unlock();
+}
+
 static struct vfsconf *
 vfs_byname_locked(const char *name)
 {
@@ -123,9 +133,11 @@ vfs_byname(const char *name)
 {
 	struct vfsconf *vfsp;
 
-	vfsconf_slock();
+	vfsconf_lock();
 	vfsp = vfs_byname_locked(name);
-	vfsconf_sunlock();
+	if (vfsp != NULL)
+		vfsp->vfc_refcount++;
+	vfsconf_unlock();
 	return (vfsp);
 }
 
