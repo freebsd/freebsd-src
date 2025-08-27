@@ -1061,12 +1061,6 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 				}
 			}
 
-			if ($9.marker & FOM_ONCE) {
-				yyerror("cannot specify 'once' "
-				    "on anchors");
-					YYERROR;
-			}
-
 			if (filteropts_to_rule(&r, &$9))
 				YYERROR;
 
@@ -2395,15 +2389,6 @@ pfrule		: action dir logquick interface route af proto fromto
 			r.logif = $3.logif;
 			r.quick = $3.quick;
 			r.af = $6;
-
-			if ($9.marker & FOM_ONCE) {
-				if (r.action == PF_MATCH) {
-					yyerror("can't specify once for "
-					    "match rules");
-					YYERROR;
-				}
-				r.rule_flag |= PFRULE_ONCE;
-			}
 
 			if (filteropts_to_rule(&r, &$9))
 				YYERROR;
@@ -7757,6 +7742,14 @@ node_mac_from_string_mask(const char *str, const char *mask)
 int
 filteropts_to_rule(struct pfctl_rule *r, struct filter_opts *opts)
 {
+	if (opts->marker & FOM_ONCE) {
+		if (r->action != PF_PASS && r->action != PF_MATCH) {
+			yyerror("'once' only applies to pass/block rules");
+			return (1);
+		}
+		r->rule_flag |= PFRULE_ONCE;
+	}
+
 	r->keep_state = opts->keep.action;
 	r->pktrate.limit = opts->pktrate.limit;
 	r->pktrate.seconds = opts->pktrate.seconds;
