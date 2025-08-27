@@ -1,5 +1,0 @@
-include COPYING
-recursive-include include *.h
-recursive-include src *.h
-recursive-include klib *.h
-recursive-include uthash *.h
