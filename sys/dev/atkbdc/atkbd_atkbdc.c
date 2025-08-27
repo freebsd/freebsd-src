@@ -123,14 +123,14 @@ atkbdattach(device_t dev)
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, rid);
 	flags = device_get_flags(dev);
 	error = atkbd_attach_unit(dev, &kbd, irq, flags);
-	if (error){
+	if (error) {
 		TSEXIT();
 		return error;
 	}
 
 	/* declare our interrupt handler */
 	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-	if (sc->intr == NULL){
+	if (sc->intr == NULL) {
 		TSEXIT();
 		return ENXIO;
 	}

@@ -33,19 +33,20 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_kbd.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/rman.h>
 #include <sys/tslog.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+
+#include "opt_kbd.h"
 
 #if defined(__amd64__)
 #include <machine/clock.h>
@@ -341,14 +342,12 @@ atkbdc_open(int unit)
 	TSENTER();
 	if (unit <= 0)
 		unit = 0;
-	if (unit >= MAXKBDC)
-	{
+	if (unit >= MAXKBDC) {
 		TSEXIT();
 		return NULL;
 	}
 	if ((atkbdc_softc[unit]->port0 != NULL)
-		|| (atkbdc_softc[unit]->ioh0 != 0))		/* XXX */
-	{
+	|| (atkbdc_softc[unit]->ioh0 != 0)) {
 		TSEXIT();
 		return atkbdc_softc[unit];
 	}
@@ -473,8 +472,7 @@ wait_while_controller_busy(struct atkbdc_softc *kbdc)
 	    addq(&kbdc->aux, read_data(kbdc));
 	}
         DELAY(KBDC_DELAYTIME);
-        if (--retry < 0)
-        {
+        if (--retry < 0) {
             TSEXIT();
     	    return FALSE;
         }
@@ -607,8 +605,7 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
             b = read_data(kbdc);
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_AUX_BUFFER_FULL) {
 		if ((b == PSM_ACK) || (b == PSM_RESEND) 
-		    || (b == PSM_RESET_FAIL))
-                {
+		    || (b == PSM_RESET_FAIL)) {
 		    TSEXIT();
 		    return b;
 		}
@@ -628,8 +625,7 @@ int
 write_controller_command(KBDC p, int c)
 {
     TSENTER();
-    if (!wait_while_controller_busy(p))
-    {
+    if (!wait_while_controller_busy(p)) {
         TSEXIT();
 	return FALSE;
     }
@@ -643,8 +639,7 @@ int
 write_controller_data(KBDC p, int c)
 {
     TSENTER();
-    if (!wait_while_controller_busy(p))
-    {
+    if (!wait_while_controller_busy(p)) {
         TSEXIT();
 	return FALSE;
     }
@@ -768,14 +763,12 @@ send_aux_command_and_data(KBDC p, int c, int d)
         res = wait_for_aux_ack(p);
         if (res == PSM_ACK)
     	    break;
-        else if (res != PSM_RESEND)
-        {
+        else if (res != PSM_RESEND) {
             TSEXIT();
     	    return res;
         }
     }
-    if (retry <= 0)
-    {
+    if (retry <= 0) {
         TSEXIT();
 	return res;
     }
@@ -800,18 +793,15 @@ int
 read_controller_data(KBDC p)
 {
     TSENTER();
-    if (availq(&p->kbd))
-    {
+    if (availq(&p->kbd)) {
         TSEXIT();
         return removeq(&p->kbd);
     }
-    if (availq(&p->aux))
-    {
+    if (availq(&p->aux)) {
         TSEXIT();
         return removeq(&p->aux);
     }
-    if (!wait_for_data(p))
-    {
+    if (!wait_for_data(p)) {
         TSEXIT();
         return -1;		/* timeout */
     }
@@ -897,8 +887,7 @@ read_aux_data_no_wait(KBDC p)
     int f;
 
     TSENTER();
-    if (availq(&p->aux))
-    {
+    if (availq(&p->aux)) {
         TSEXIT();
         return removeq(&p->aux);
     }
@@ -1013,10 +1002,8 @@ empty_both_buffers(KBDC p, int wait)
 	int delta = 2;
 
 	TSENTER();
-	for (t = wait; t > 0; ) 
-	{ 
-		if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) 
-		{
+	for (t = wait; t > 0; ) {
+		if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) {
 			DELAY(KBDD_DELAYTIME);
 
 			(void)read_data(p);
@@ -1027,8 +1014,7 @@ empty_both_buffers(KBDC p, int wait)
 				++c2;
 #endif
 			t = wait;
-		} else
-		{
+		} else {
 			t -= delta;
 		}
 
@@ -1037,11 +1023,10 @@ empty_both_buffers(KBDC p, int wait)
 		* will thus hang in this procedure. Time out after delta seconds to
 		* avoid this hang -- the keyboard attach will fail later on.
 		*/
-		unsigned int effective_delay = atkbd_fast_delay ? delta : delta *1000;
+		unsigned int effective_delay = ATKBD_DELAY(delta);
 		waited += effective_delay;
 
-		if (waited == effective_delay * 1000)
-		{
+		if (waited == effective_delay * 1000) {
 			TSEXIT();
 			return;
 		}
@@ -1068,7 +1053,6 @@ int
 reset_kbd(KBDC p)
 {
     int retry = KBD_MAXRETRY;
-//    int again = KBD_MAXWAIT;
     int c = KBD_RESEND;		/* keep the compiler happy */
 
     TSENTER();
@@ -1084,8 +1068,7 @@ reset_kbd(KBDC p)
         if (c == KBD_ACK)	/* keyboard has agreed to reset itself... */
     	    break;
     }
-    if (retry < 0)
-    {
+    if (retry < 0) {
         TSEXIT();
         return FALSE;
     }
@@ -1103,8 +1086,7 @@ reset_kbd(KBDC p)
     }
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_KBD status:%04x\n", c);
-    if (c != KBD_RESET_DONE)
-    {
+    if (c != KBD_RESET_DONE) {
         TSEXIT();
         return FALSE;
     }
@@ -1140,8 +1122,7 @@ reset_aux_dev(KBDC p)
         if (c == PSM_ACK)	/* aux dev is about to reset... */
     	    break;
     }
-    if (retry < 0)
-    {
+    if (retry < 0) {
         TSEXIT();
         return FALSE;
     }
@@ -1155,8 +1136,7 @@ reset_aux_dev(KBDC p)
     }
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_AUX status:%04x\n", c);
-    if (c != PSM_RESET_DONE)	/* reset status */
-    {
+    if (c != PSM_RESET_DONE) { /* reset status */
         TSEXIT();
         return FALSE;
     }
@@ -1176,7 +1156,6 @@ int
 test_controller(KBDC p)
 {
     int retry = KBD_MAXRETRY;
- //   int again = KBD_MAXWAIT;
     int c = KBD_DIAG_FAIL;
 
     TSENTER();
@@ -1185,8 +1164,7 @@ test_controller(KBDC p)
         if (write_controller_command(p, KBDC_DIAGNOSE))
     	    break;
     }
-    if (retry < 0)
-    {
+    if (retry < 0) {
         TSEXIT();
         return FALSE;
     }
@@ -1223,8 +1201,7 @@ test_kbd_port(KBDC p)
         if (write_controller_command(p, KBDC_TEST_KBD_PORT))
     	    break;
     }
-    if (retry < 0)
-    {
+    if (retry < 0) {
         TSEXIT();
         return FALSE;
     }
@@ -1255,8 +1232,7 @@ test_aux_port(KBDC p)
         if (write_controller_command(p, KBDC_TEST_AUX_PORT))
     	    break;
     }
-    if (retry < 0)
-    {
+    if (retry < 0) {
 	TSEXIT();
         return FALSE;
     }
@@ -1294,13 +1270,11 @@ int
 get_controller_command_byte(KBDC p)
 {
 	TSENTER();
-	if (p->command_byte != -1)
-	{
+	if (p->command_byte != -1) {
 		TSEXIT();
 		return p->command_byte;
 	}
-	if (!write_controller_command(p, KBDC_GET_COMMAND_BYTE))
-	{
+	if (!write_controller_command(p, KBDC_GET_COMMAND_BYTE)) {
 		TSEXIT();
 		return -1;
 	}
@@ -1314,27 +1288,23 @@ int
 set_controller_command_byte(KBDC p, int mask, int command)
 {
     TSENTER();
-    if (get_controller_command_byte(p) == -1)
-    {
+    if (get_controller_command_byte(p) == -1) {
         TSEXIT();
 	return FALSE;
     }
 
     command = (p->command_byte & ~mask) | (command & mask);
     if (command & KBD_DISABLE_KBD_PORT) {
-	if (!write_controller_command(p, KBDC_DISABLE_KBD_PORT))
-        {
+	if (!write_controller_command(p, KBDC_DISABLE_KBD_PORT)) {
             TSEXIT();
 	    return FALSE;
         }
     }
-    if (!write_controller_command(p, KBDC_SET_COMMAND_BYTE))
-    {
+    if (!write_controller_command(p, KBDC_SET_COMMAND_BYTE)) {
         TSEXIT();
 	return FALSE;
     }
-    if (!write_controller_data(p, command))
-    {
+    if (!write_controller_data(p, command)) {
         TSEXIT();
 	return FALSE;
     }

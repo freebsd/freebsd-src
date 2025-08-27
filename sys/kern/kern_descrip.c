@@ -4386,8 +4386,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	int nrele;
 
 	TSENTER();
-	if (vrefcnt(olddp) == 1)
-	{
+	if (vrefcnt(olddp) == 1) {
 		TSEXIT();
 		return;
 	}

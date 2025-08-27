@@ -4027,8 +4027,7 @@ restart:
 
 	for (;;) {
 		slab = keg_fetch_free_slab(keg, domain, rr, flags);
-		if (slab != NULL)
-		{
+		if (slab != NULL) {
 			TSEXIT();
 			return (slab);
 		}
@@ -4039,8 +4038,7 @@ restart:
 		 */
 		if ((flags & M_NOVM) == 0) {
 			slab = keg_alloc_slab(keg, zone, domain, flags, aflags);
-			if (slab != NULL)
-			{
+			if (slab != NULL) {
 				TSEXIT();
 				return (slab);
 			}
@@ -4073,8 +4071,7 @@ restart:
 	 * could have while we were unlocked.  Check again before we
 	 * fail.
 	 */
-	if ((slab = keg_fetch_free_slab(keg, domain, rr, flags)) != NULL)
-	{
+	if ((slab = keg_fetch_free_slab(keg, domain, rr, flags)) != NULL) {
 		TSEXIT();
 		return (slab);
 	}

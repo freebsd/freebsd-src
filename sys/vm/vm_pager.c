@@ -502,8 +502,7 @@ pbuf_init(void *mem, int size, int flags)
 	TSENTER();
 
 	bp->b_kvabase = (void *)kva_alloc(ptoa(PBUF_PAGES));
-	if (bp->b_kvabase == NULL)
-	{
+	if (bp->b_kvabase == NULL) {
 		TSEXIT();
 		return (ENOMEM);
 	}

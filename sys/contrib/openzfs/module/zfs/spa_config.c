@@ -42,6 +42,7 @@
 #include <sys/zfs_file.h>
 #include <sys/zfs_context.h>
 #include <sys/tslog.h>
+
 #ifdef _KERNEL
 #include <sys/zone.h>
 #endif
@@ -165,8 +166,7 @@ spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent,
 	TSENTER();
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
-	if (!(spa_mode_global & SPA_MODE_WRITE))
-	{
+	if (!(spa_mode_global & SPA_MODE_WRITE)) {
 		TSEXIT();
 		return;
 	}

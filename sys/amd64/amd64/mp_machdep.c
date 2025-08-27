@@ -490,14 +490,14 @@ start_ap(int apic_id, vm_paddr_t boot_address)
 
 	/* Wait up to 5 seconds for it to start. */
 	for (ms = 0; ms < 5000; ms++) {
-		if (mp_naps > cpus)
-		{
+		if (mp_naps > cpus) {
 			TSEXIT();
 			return 1;	/* return SUCCESS */
 		}
 		DELAY(1000);
 	}
 	TSEXIT();
+
 	return 0;		/* return FAILURE */
 }
 

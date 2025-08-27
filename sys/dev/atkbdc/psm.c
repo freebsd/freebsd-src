@@ -82,10 +82,10 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
-
 #include <sys/limits.h>
 #include <sys/mouse.h>
 #include <sys/tslog.h>
+
 #include <machine/resource.h>
 
 #ifdef DEV_ISA
@@ -825,8 +825,7 @@ get_mouse_status(KBDC kbdc, int *status, int flag, int len)
 	res = send_aux_command(kbdc, cmd);
 	VLOG(2, (LOG_DEBUG, "psm: SEND_AUX_DEV_%s return code:%04x\n",
 	    (flag == 1) ? "DATA" : "STATUS", res));
-	if (res != PSM_ACK)
-	{
+	if (res != PSM_ACK) {
 		TSEXIT();
 		return (0);
 	}
@@ -857,8 +856,7 @@ get_aux_id(KBDC kbdc)
 	empty_aux_buffer(kbdc, 5);
 	res = send_aux_command(kbdc, PSMC_SEND_DEV_ID);
 	VLOG(2, (LOG_DEBUG, "psm: SEND_DEV_ID return code:%04x\n", res));
-	if (res != PSM_ACK)
-	{
+	if (res != PSM_ACK) {
 		TSEXIT();
 		return (-1);
 	}
@@ -952,15 +950,13 @@ get_mouse_buttons(KBDC kbdc)
 	 * mouse status bytes is the number of available buttons.
 	 * Some manufactures also support this sequence.
 	 */
-	if (set_mouse_resolution(kbdc, PSMD_RES_LOW) != PSMD_RES_LOW)
-	{
+	if (set_mouse_resolution(kbdc, PSMD_RES_LOW) != PSMD_RES_LOW) {
 		TSEXIT();
 		return (c);
 	}
 	if (set_mouse_scaling(kbdc, 1) && set_mouse_scaling(kbdc, 1) &&
 	    set_mouse_scaling(kbdc, 1) &&
-	    get_mouse_status(kbdc, status, 0, 3) >= 3 && status[1] != 0)
-	{
+	    get_mouse_status(kbdc, status, 0, 3) >= 3 && status[1] != 0) {
 		TSEXIT();
 		return (status[1]);
 	}
@@ -988,7 +984,7 @@ is_a_mouse(int id)
 	int i;
 
 	for (i = 0; valid_ids[i] >= 0; ++i)
-	if (valid_ids[i] == id){
+	if (valid_ids[i] == id) {
 		TSEXIT();
 		return (TRUE);
 	}
@@ -1441,8 +1437,7 @@ psmprobe(device_t dev)
 
 	sc->dev = dev;
 	sc->kbdc = atkbdc_open(device_get_unit(device_get_parent(dev)));
-	if (sc->kbdc == NULL)
-	{
+	if (sc->kbdc == NULL) {
 		TSEXIT();
 		return (ENXIO);
 	}
@@ -6381,15 +6376,13 @@ enable_synaptics_mux(struct psm_softc *sc, enum probearg arg)
 	sc->muxsinglesyna = FALSE;
 
 	if (mux_disabled == 1 || (mux_disabled == -1 &&
-	    (kbdc->quirks & KBDC_QUIRK_DISABLE_MUX_PROBE) != 0))
-	{
+	    (kbdc->quirks & KBDC_QUIRK_DISABLE_MUX_PROBE) != 0)) {
 		TSEXIT();
 		return (FALSE);
 	}
 
 	version = enable_aux_mux(kbdc);
-	if (version == -1)
-	{
+	if (version == -1) {
 		TSEXIT();
 		return (FALSE);
 	}
@@ -7665,13 +7658,11 @@ create_a_copy(device_t atkbdc, device_t me)
 	/* find the PS/2 mouse device instance under the keyboard controller */
 	psm = device_find_child(atkbdc, PSM_DRIVER_NAME,
 	    device_get_unit(atkbdc));
-	if (psm == NULL)
-	{
+	if (psm == NULL) {
 		TSEXIT();
 		return (ENXIO);
 	}
-	if (device_get_state(psm) != DS_NOTPRESENT)
-	{
+	if (device_get_state(psm) != DS_NOTPRESENT) {
 		TSEXIT();
 		return (0);
 	}
@@ -7701,8 +7692,7 @@ psmcpnp_probe(device_t dev)
 		sc->type = PSMCPNP_TOPBUTTONPAD;
 	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids) == 0)
 		sc->type = PSMCPNP_GENERIC;
-	else
-	{
+	else {
 		TSEXIT();
 		return (ENXIO);
 	}

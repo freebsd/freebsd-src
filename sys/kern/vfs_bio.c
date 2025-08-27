@@ -80,6 +80,7 @@
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
 #include <sys/tslog.h>
+
 #include <geom/geom.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -4522,13 +4523,11 @@ biowait(struct bio *bp, const char *wmesg)
 	while ((bp->bio_flags & BIO_DONE) == 0)
 		msleep(bp, mtxp, PRIBIO, wmesg, 0);
 	mtx_unlock(mtxp);
-	if (bp->bio_error != 0)
-	{
+	if (bp->bio_error != 0) {
 		TSEXIT();
 		return (bp->bio_error);
 	}
-	if (!(bp->bio_flags & BIO_ERROR))
-	{
+	if (!(bp->bio_flags & BIO_ERROR)) {
 		TSEXIT();
 		return (0);
 	}

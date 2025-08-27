@@ -664,8 +664,7 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 * This function can be called for a snapshot when we update snapshot's
 	 * mount point, which isn't really supported.
 	 */
-	if (dmu_objset_is_snapshot(os))
-	{
+	if (dmu_objset_is_snapshot(os)) {
 		TSEXIT();
 		return (EOPNOTSUPP);
 	}
@@ -825,8 +824,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	zfsvfs->z_os = os;
 
 	error = zfs_get_zplprop(os, ZFS_PROP_VERSION, &zfsvfs->z_version);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -840,32 +838,28 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 		return (SET_ERROR(ENOTSUP));
 	}
 	error = zfs_get_zplprop(os, ZFS_PROP_NORMALIZE, &val);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 	zfsvfs->z_norm = (int)val;
 
 	error = zfs_get_zplprop(os, ZFS_PROP_UTF8ONLY, &val);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 	zfsvfs->z_utf8 = (val != 0);
 
 	error = zfs_get_zplprop(os, ZFS_PROP_CASE, &val);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 	zfsvfs->z_case = (uint_t)val;
 
 	error = zfs_get_zplprop(os, ZFS_PROP_ACLTYPE, &val);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -887,8 +881,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 		/* should either have both of these objects or none */
 		error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_SA_ATTRS, 8, 1,
 		    &sa_obj);
-		if (error != 0)
-		{
+		if (error != 0) {
 			TSEXIT();
 			return (error);
 		}
@@ -900,56 +893,49 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSERQUOTA,
 	    &zfsvfs->z_defaultuserquota);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPQUOTA,
 	    &zfsvfs->z_defaultgroupquota);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTQUOTA,
 	    &zfsvfs->z_defaultprojectquota);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSEROBJQUOTA,
 	    &zfsvfs->z_defaultuserobjquota);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPOBJQUOTA,
 	    &zfsvfs->z_defaultgroupobjquota);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 
 	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTOBJQUOTA,
 	    &zfsvfs->z_defaultprojectobjquota);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
 
 	error = sa_setup(os, sa_obj, zfs_attr_table, ZPL_END,
 	    &zfsvfs->z_attr_table);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -959,8 +945,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_ROOT_OBJ, 8, 1,
 	    &zfsvfs->z_root);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -968,8 +953,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_UNLINKED_SET, 8, 1,
 	    &zfsvfs->z_unlinkedobj);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -979,8 +963,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    8, 1, &zfsvfs->z_userquota_obj);
 	if (error == ENOENT)
 		zfsvfs->z_userquota_obj = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -990,8 +973,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    8, 1, &zfsvfs->z_groupquota_obj);
 	if (error == ENOENT)
 		zfsvfs->z_groupquota_obj = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -1001,8 +983,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    8, 1, &zfsvfs->z_projectquota_obj);
 	if (error == ENOENT)
 		zfsvfs->z_projectquota_obj = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -1012,8 +993,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    8, 1, &zfsvfs->z_userobjquota_obj);
 	if (error == ENOENT)
 		zfsvfs->z_userobjquota_obj = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -1023,8 +1003,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    8, 1, &zfsvfs->z_groupobjquota_obj);
 	if (error == ENOENT)
 		zfsvfs->z_groupobjquota_obj = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -1034,8 +1013,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    8, 1, &zfsvfs->z_projectobjquota_obj);
 	if (error == ENOENT)
 		zfsvfs->z_projectobjquota_obj = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -1044,8 +1022,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    &zfsvfs->z_fuid_obj);
 	if (error == ENOENT)
 		zfsvfs->z_fuid_obj = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -1054,8 +1031,7 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	    &zfsvfs->z_shares_dir);
 	if (error == ENOENT)
 		zfsvfs->z_shares_dir = 0;
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -1103,8 +1079,7 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	 * enumerated, so libzfs_mnttab_find() returns NULL, which causes
 	 * 'zfs unmount' to think it's not mounted when it is.
 	 */
-	if (strlen(osname) >= MNAMELEN)
-	{
+	if (strlen(osname) >= MNAMELEN) {
 		TSEXIT();
 		return (SET_ERROR(ENAMETOOLONG));
 	}
@@ -1158,6 +1133,7 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 
 	*zfvp = zfsvfs;
 	TSEXIT();
+
 	return (0);
 }
 
@@ -1318,8 +1294,7 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	ASSERT3P(osname, !=, NULL);
 
 	error = zfsvfs_create(osname, vfsp->mnt_flag & MNT_RDONLY, &zfsvfs);
-	if (error)
-	{
+	if (error) {
 		TSEXIT();
 		return (error);
 	}
@@ -1472,8 +1447,7 @@ zfs_mount(vfs_t *vfsp)
 	bool		checkpointrewind, isctlsnap = false;
 
 	TSENTER();
-	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
-	{
+	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL)) {
 		TSEXIT();
 		return (SET_ERROR(EINVAL));
 	}

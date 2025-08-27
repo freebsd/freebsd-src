@@ -37,9 +37,10 @@
 #include <sys/types.h>
 #include <sys/fs/zfs.h>
 #include <sys/nvpair.h>
-#include "zfs_comutil.h"
 #include <sys/zfs_ratelimit.h>
 #include <sys/tslog.h>
+
+#include "zfs_comutil.h"
 
 /*
  * Are there allocatable vdevs?

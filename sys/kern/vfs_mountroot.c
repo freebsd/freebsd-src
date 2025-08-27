@@ -264,8 +264,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 		 * Already have /dev; this happens during rerooting.
 		 */
 		error = vfs_busy(rootdevmp, 0);
-		if (error != 0)
-		{
+		if (error != 0) {
 			TSEXIT();
 			return (error);
 		}
@@ -273,8 +272,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 	} else {
 		vfsp = vfs_byname("devfs");
 		KASSERT(vfsp != NULL, ("Could not find devfs by name"));
-		if (vfsp == NULL)
-		{
+		if (vfsp == NULL) {
 			TSEXIT();
 			return (ENOENT);
 		}
@@ -283,16 +281,14 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 
 		error = VFS_MOUNT(mp);
 		KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
-		if (error)
-		{
+		if (error) {
 			TSEXIT();
 			return (error);
 		}
 
 		error = VFS_STATFS(mp, &mp->mnt_stat);
 		KASSERT(error == 0, ("VFS_STATFS(devfs) failed %d", error));
-		if (error)
-		{
+		if (error) {
 			TSEXIT();
 			return (error);
 		}
@@ -891,8 +887,7 @@ retry:
 		}
 		mp = TAILQ_NEXT(mpdevfs, mnt_list);
 	}
-	if (mp != NULL)
-	{
+	if (mp != NULL) {
 		TSEXIT();
 		return (0);
 	}
@@ -1064,8 +1059,7 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 	 * eg for geom_part(4) to finish tasting.
 	 */
 	g_waitidle(curthread);
-	if (parse_mount_dev_present(dev))
-	{
+	if (parse_mount_dev_present(dev)) {
 		TSEXIT();
 		return (0);
 	}
@@ -1075,8 +1069,7 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 	 * to behave exactly as it used to work before.
 	 */
 	vfs_mountroot_wait();
-	if (parse_mount_dev_present(dev))
-	{
+	if (parse_mount_dev_present(dev)) {
 		TSEXIT();
 		return (0);
 	}
@@ -1088,8 +1081,7 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 		timeout -= delay;
 	} while (timeout > 0 && !parse_mount_dev_present(dev));
 
-	if (timeout <= 0)
-	{
+	if (timeout <= 0) {
 		TSEXIT();
 		return (ENODEV);
 	}

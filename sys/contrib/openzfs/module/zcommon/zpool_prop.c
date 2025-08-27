@@ -33,7 +33,6 @@
 #include <sys/zfs_ioctl.h>
 #include <sys/fs/zfs.h>
 #include <sys/tslog.h>
-#include <sys/tslog.h>
 
 #include "zfs_prop.h"
 

@@ -24,6 +24,7 @@
  */
 
 #include <bsd_global.h>
+
 #include <sys/tslog.h>
 
 struct usb_process usb_process[USB_PROC_MAX];
@@ -125,7 +126,7 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, unsigned int flags)
 
 	TSENTER();
 	res = malloc(sizeof(*res), XXX, XXX);
-	if (res == NULL){
+	if (res == NULL) {
 		TSEXIT();
 		return (NULL);
 	}
@@ -133,13 +134,13 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, unsigned int flags)
 	if (res->__r_i == NULL) {
 		free(res, XXX);
 		TSEXIT();
+
 		return (NULL);
 	}
 
 	if (bus_alloc_resource_any_cb != NULL)
 		ret = (*bus_alloc_resource_any_cb)(res, dev, type, rid, flags);
-	if (ret == 0)
-	{
+	if (ret == 0) {
 		TSEXIT();
 		return (res);
 	}
@@ -147,6 +148,7 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, unsigned int flags)
 	free(res->__r_i, XXX);
 	free(res, XXX);
 	TSEXIT();
+
 	return (NULL);
 }
 
@@ -943,8 +945,7 @@ device_probe_and_attach(device_t dev)
 	devclass_t dc;
 
 	TSENTER();
-	if (dev->dev_attached)
-	{
+	if (dev->dev_attached) {
 		TSEXIT();
 		return (0);		/* fail-safe */
 	}
@@ -1030,8 +1031,7 @@ void   *
 device_get_softc(device_t dev)
 {
 	TSENTER();
-	if (dev == NULL)
-	{
+	if (dev == NULL) {
 		TSEXIT();
 		return (NULL);
 	}
@@ -1097,8 +1097,7 @@ devclass_find(const char *classname)
 
 	TSENTER();
 	TAILQ_FOREACH(dc, &devclasses, link) {
-		if (strcmp(dc->name, classname) == 0)
-		{
+		if (strcmp(dc->name, classname) == 0) {
 			TSEXIT();
 			return (dc);
 		}

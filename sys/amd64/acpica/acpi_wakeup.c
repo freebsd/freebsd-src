@@ -119,6 +119,7 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 		DELAY(1000);
 	}
 	TSEXIT();
+
 	return (0);		/* return FAILURE */
 }
 

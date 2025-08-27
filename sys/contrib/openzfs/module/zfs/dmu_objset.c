@@ -71,7 +71,6 @@
 #include <sys/arc.h>
 #include <cityhash.h>
 #include <sys/cred.h>
-#include <sys/tslog.h>
 
 /*
  * Needed to close a window in dnode_move() that allows the objset to be freed
@@ -805,8 +804,7 @@ dmu_objset_own_impl(dsl_dataset_t *ds, dmu_objset_type_t type,
 		    ZB_ROOT_LEVEL, ZB_ROOT_BLKID);
 		err = arc_untransform((*osp)->os_phys_buf, (*osp)->os_spa,
 		    &zb, B_FALSE);
-		if (err != 0)
-		{
+		if (err != 0) {
 			TSEXIT();
 			return (err);
 		}
@@ -835,8 +833,7 @@ dmu_objset_own(const char *name, dmu_objset_type_t type,
 	TSENTER();
 	flags = (decrypt) ? DS_HOLD_FLAG_DECRYPT : DS_HOLD_FLAG_NONE;
 	err = dsl_pool_hold(name, FTAG, &dp);
-	if (err != 0)
-	{
+	if (err != 0) {
 		TSEXIT();
 		return (err);
 	}

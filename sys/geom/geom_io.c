@@ -52,12 +52,13 @@
 #include <sys/sysctl.h>
 #include <sys/vmem.h>
 #include <sys/tslog.h>
+#include <sys/errno.h>
+#include <sys/devicestat.h>
+
 #include <machine/stack.h>
 
-#include <sys/errno.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <sys/devicestat.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>

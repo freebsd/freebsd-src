@@ -1404,8 +1404,8 @@ dsl_pool_hold(const char *name, const void *tag, dsl_pool_t **dp)
 		*dp = spa_get_dsl(spa);
 		dsl_pool_config_enter(*dp, tag);
 	}
-
 	TSEXIT();
+
 	return (error);
 }
 

@@ -8237,8 +8237,7 @@ zfs_kmod_init(void)
 	int error;
 
 	TSENTER();
-	if ((error = zvol_init()) != 0)
-	{
+	if ((error = zvol_init()) != 0) {
 		TSEXIT();
 		return (error);
 	}

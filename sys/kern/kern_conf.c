@@ -975,8 +975,7 @@ make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
 	    ("make_dev_alias_v: invalid flags specified (flags=%02x)", flags));
 
 	dev = devfs_alloc(flags);
-	if (dev == NULL)
-	{
+	if (dev == NULL) {
 		TSEXIT();
 		return (ENOMEM);
 	}

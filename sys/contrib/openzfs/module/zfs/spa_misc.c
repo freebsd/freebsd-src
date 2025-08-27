@@ -636,8 +636,7 @@ retry:
 		*cp = '\0';
 
 	spa = avl_find(&spa_namespace_avl, &search, &where);
-	if (spa == NULL)
-	{
+	if (spa == NULL) {
 		TSEXIT();
 		return (NULL);
 	}
@@ -2373,8 +2372,7 @@ spa_import_progress_set_state(uint64_t pool_guid,
 	spa_import_progress_t *sip;
 	int error = ENOENT;
 
-	if (shl->size == 0)
-	{
+	if (shl->size == 0) {
 		TSEXIT();
 		return (0);
 	}
@@ -2407,8 +2405,7 @@ spa_import_progress_set_notes_impl(spa_t *spa, boolean_t log_dbgmsg,
 	spa_import_progress_t *sip;
 	uint64_t pool_guid = spa_guid(spa);
 
-	if (shl->size == 0)
-	{
+	if (shl->size == 0) {
 		TSEXIT();
 		return;
 	}

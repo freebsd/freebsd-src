@@ -64,11 +64,12 @@
 #include <sys/fm/protocol.h>
 #include <sys/kstat.h>
 #include <sys/zfs_context.h>
+#include <sys/tslog.h>
+
 #ifdef _KERNEL
 #include <sys/atomic.h>
 #include <sys/condvar.h>
 #include <sys/zfs_ioctl.h>
-#include <sys/tslog.h>
 
 static uint_t zfs_zevent_len_max = 512;
 

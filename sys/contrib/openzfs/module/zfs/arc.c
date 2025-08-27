@@ -303,16 +303,17 @@
 #include <sys/callb.h>
 #include <sys/kstat.h>
 #include <sys/zthr.h>
-#include <zfs_fletcher.h>
 #include <sys/arc_impl.h>
 #include <sys/trace_zfs.h>
 #include <sys/aggsum.h>
 #include <sys/wmsum.h>
-#include <cityhash.h>
 #include <sys/vdev_trim.h>
 #include <sys/zfs_racct.h>
 #include <sys/zstd/zstd.h>
 #include <sys/tslog.h>
+
+#include <zfs_fletcher.h>
+#include <cityhash.h>
 
 #ifndef _KERNEL
 /* set with ZFS_DEBUG=watch, to enable watchpoints on frozen buffers */

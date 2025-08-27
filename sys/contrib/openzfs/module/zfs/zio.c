@@ -589,8 +589,7 @@ zio_decrypt(zio_t *zio, abd_t *data, uint64_t size)
 	ASSERT(BP_USES_CRYPT(bp));
 	ASSERT3U(size, !=, 0);
 
-	if (zio->io_error != 0)
-	{
+	if (zio->io_error != 0) {
 		TSEXIT();
 		return;
 	}
@@ -1940,8 +1939,7 @@ zio_write_compress(zio_t *zio)
 		return (NULL);
 	}
 
-	if (!IO_IS_ALLOCATING(zio))
-	{
+	if (!IO_IS_ALLOCATING(zio)) {
 		TSEXIT();
 		return (zio);
 	}

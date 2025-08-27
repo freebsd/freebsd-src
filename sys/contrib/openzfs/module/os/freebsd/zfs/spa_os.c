@@ -89,8 +89,7 @@ spa_generate_rootconf(const char *name)
 	uint_t   nholes;
 
 	TSENTER();
-	if (vdev_geom_read_pool_label(name, &configs, &count) != 0)
-	{
+	if (vdev_geom_read_pool_label(name, &configs, &count) != 0) {
 		TSEXIT();
 		return (NULL);
 	}

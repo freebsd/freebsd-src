@@ -5526,8 +5526,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	spa_load_note(spa, "LOADING");
 
 	error = spa_ld_mos_with_trusted_config(spa, type, &update_config_cache);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -5552,8 +5551,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * uberblock to the labels, making the rewind permanent.
 		 */
 		error = spa_ld_checkpoint_rewind(spa);
-		if (error != 0)
-		{
+		if (error != 0) {
 			TSEXIT();
 			return (error);
 		}
@@ -5565,8 +5563,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		spa_ld_prepare_for_reload(spa);
 		spa_load_note(spa, "LOADING checkpointed uberblock");
 		error = spa_ld_mos_with_trusted_config(spa, type, NULL);
-		if (error != 0)
-		{
+		if (error != 0) {
 			TSEXIT();
 			return (error);
 		}
@@ -5874,8 +5871,7 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 	}
 
 	load_error = rewind_error = spa_load(spa, state, SPA_IMPORT_EXISTING);
-	if (load_error == 0)
-	{
+	if (load_error == 0) {
 		TSEXIT();
 		return (0);
 	}

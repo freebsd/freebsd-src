@@ -114,8 +114,7 @@ vfs_byname_locked(const char *name)
 	if (!strcmp(name, "ffs"))
 		name = "ufs";
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
-		if (!strcmp(name, vfsp->vfc_name))
-		{
+		if (!strcmp(name, vfsp->vfc_name)) {
 			TSEXIT();
 			return (vfsp);
 		}
@@ -145,8 +144,7 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 
 	TSENTER();
 	vfsp = vfs_byname(fstype);
-	if (vfsp != NULL)
-	{
+	if (vfsp != NULL) {
 		TSEXIT();
 		return (vfsp);
 	}

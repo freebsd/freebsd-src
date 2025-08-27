@@ -34,6 +34,7 @@
 #include <string.h>
 #include <limits.h>
 #include <libzutil.h>
+
 #include <sys/crypto/icp.h>
 #include <sys/processor.h>
 #include <sys/rrwlock.h>
@@ -49,6 +50,7 @@
 #include <sys/zstd/zstd.h>
 #include <sys/zvol.h>
 #include <sys/tslog.h>
+
 #include <zfs_fletcher.h>
 #include <zlib.h>
 

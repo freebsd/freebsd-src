@@ -208,8 +208,7 @@ kbd_register(keyboard_t *kbd)
 			break;
 	}
 	if (index >= keyboards) {
-		if (kbd_realloc_array())
-		{
+		if (kbd_realloc_array()) {
 			TSEXIT();
 			return (-1);
 		}
@@ -280,8 +279,7 @@ kbd_get_switch(char *driver)
 	
 	TSENTER();
 	SLIST_FOREACH(p, &keyboard_drivers, link) {
-		if (strcmp(p->name, driver) == 0)
-		{
+		if (strcmp(p->name, driver) == 0) {
 			TSEXIT();
 			return (p->kbdsw);
 		}
@@ -465,13 +463,11 @@ int
 kbd_attach(keyboard_t *kbd)
 {
 	TSENTER();
-	if (kbd->kb_index >= keyboards)
-	{
+	if (kbd->kb_index >= keyboards) {
 		TSEXIT();
 		return (EINVAL);
 	}
-	if (keyboard[kbd->kb_index] != kbd)
-	{
+	if (keyboard[kbd->kb_index] != kbd) {
 		TSEXIT();
 		return (EINVAL);
 	}

@@ -255,9 +255,10 @@ chksum_benchmark(void)
 	const zfs_impl_t *sha512 = zfs_impl_get_ops("sha512");
 
 	/* benchmarks are done */
-	if (chksum_stat_limit == AT_DONE)
+	if (chksum_stat_limit == AT_DONE) {
+		TSEXIT();
 		return;
-
+	}
 
 	/* count implementations */
 	chksum_stat_cnt = 1;  /* edonr */

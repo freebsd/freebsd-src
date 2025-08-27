@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/zfs_sysfs.h>
 #include <sys/tslog.h>
+
 #include "zfeature_common.h"
 
 /*

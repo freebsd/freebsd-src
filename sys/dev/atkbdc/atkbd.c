@@ -123,8 +123,7 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 
 	TSENTER();
 	sw = kbd_get_switch(ATKBD_DRIVER_NAME);
-	if (sw == NULL)
-	{
+	if (sw == NULL) {
 		TSEXIT();
 		return ENXIO;
 	}
@@ -135,13 +134,12 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 	args[1] = irq;
 	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
-	if (error)
-	{
+	if (error) {
 		TSEXIT();
 		return error;
 	}
 	error = (*sw->init)(unit, kbd, args, flags);
-	if (error){
+	if (error) {
 		TSEXIT();
 		return error;
 	}
@@ -150,8 +148,7 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 #ifdef KBD_INSTALL_CDEV
 	/* attach a virtual keyboard cdev */
 	error = kbd_attach(*kbd);
-	if (error)
-	{
+	if (error) {
 		TSEXIT();
 		return error;
 	}
@@ -349,13 +346,11 @@ atkbd_configure(int flags)
 	arg[0] = -1;
 	arg[1] = -1;
 	kbd = NULL;
-	if (atkbd_probe(ATKBD_DEFAULT, arg, flags))
-	{
+	if (atkbd_probe(ATKBD_DEFAULT, arg, flags)) {
 		TSEXIT();
 		return 0;
 	}
-	if (atkbd_init(ATKBD_DEFAULT, &kbd, arg, flags))
-	{
+	if (atkbd_init(ATKBD_DEFAULT, &kbd, arg, flags)) {
 		TSEXIT();
 		return 0;
 	}
@@ -412,8 +407,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	/* XXX */
 	if (unit == ATKBD_DEFAULT) {
 		*kbdp = kbd = &default_kbd;
-		if (KBD_IS_INITIALIZED(kbd) && KBD_IS_CONFIGURED(kbd))
-		{
+		if (KBD_IS_INITIALIZED(kbd) && KBD_IS_CONFIGURED(kbd)) {
 			TSEXIT();
 			return 0;
 		}
@@ -590,8 +584,7 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
 	}
 
-	if (state->ks_polling)
-	{
+	if (state->ks_polling) {
 		TSEXIT();
 		return 0;
 	}
@@ -1094,8 +1087,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	case KDSETREPEAT:	/* set keyboard repeat rate (new interface) */
 		splx(s);
-		if (!KBD_HAS_DEVICE(kbd))
-		{
+		if (!KBD_HAS_DEVICE(kbd)) {
 			TSEXIT();
 			return 0;
 		}
@@ -1122,8 +1114,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 #endif
 	case KDSETRAD:		/* set keyboard repeat rate (old interface) */
 		splx(s);
-		if (!KBD_HAS_DEVICE(kbd))
-		{
+		if (!KBD_HAS_DEVICE(kbd)) {
 			TSEXIT();
 			return 0;
 		}
@@ -1157,6 +1148,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	splx(s);
 	TSEXIT();
+
 	return 0;
 }
 
@@ -1314,8 +1306,7 @@ get_kbd_echo(KBDC kbdc)
 
 	TSENTER();
 	/* enable the keyboard port, but disable the keyboard intr. */
-	if (setup_kbd_port(kbdc, TRUE, FALSE))
-	{
+	if (setup_kbd_port(kbdc, TRUE, FALSE)) {
 		/* CONTROLLER ERROR: there is very little we can do... */
 		TSEXIT();
 		return ENXIO;
@@ -1648,8 +1639,7 @@ get_kbd_id(KBDC kbdc)
 	TSENTER();
 	empty_both_buffers(kbdc, 10);
 	id1 = id2 = -1;
-	if (send_kbd_command(kbdc, KBDC_SEND_DEV_ID) != KBD_ACK)
-	{
+	if (send_kbd_command(kbdc, KBDC_SEND_DEV_ID) != KBD_ACK) {
 		TSEXIT();
 		return -1;
 	}

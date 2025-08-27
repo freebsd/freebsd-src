@@ -189,8 +189,7 @@ abd_t *
 abd_alloc(size_t size, boolean_t is_metadata)
 {
 	TSENTER();
-	if (abd_size_alloc_linear(size))
-	{
+	if (abd_size_alloc_linear(size)) {
 		TSEXIT();
 		return (abd_alloc_linear(size, is_metadata));
 	}
@@ -306,8 +305,7 @@ void
 abd_free(abd_t *abd)
 {
 	TSENTER();
-	if (abd == NULL)
-	{
+	if (abd == NULL) {
 		TSEXIT();
 		return;
 	}

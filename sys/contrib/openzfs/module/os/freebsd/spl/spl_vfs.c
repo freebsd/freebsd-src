@@ -35,11 +35,9 @@
 #include <sys/vfs.h>
 #include <sys/priv.h>
 #include <sys/libkern.h>
-
 #include <sys/mutex.h>
 #include <sys/vnode.h>
 #include <sys/taskq.h>
-
 #include <sys/ccompat.h>
 #include <sys/tslog.h>
 

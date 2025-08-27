@@ -56,6 +56,7 @@
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/tslog.h>
+
 #ifdef INTRNG
 #include <sys/intr.h>
 #endif
@@ -411,9 +412,8 @@ DEFINE_CLASS(null, null_methods, 0);
 void
 bus_topo_assert(void)
 {
-	TSENTER();
-	GIANT_REQUIRED;	
-	TSEXIT();
+
+	GIANT_REQUIRED;
 }
 
 struct mtx *
@@ -1400,13 +1400,13 @@ make_device(device_t parent, const char *name, int unit)
 	dev->devflags = 0;
 	dev->flags = DF_ENABLED;
 	dev->order = 0;
-	TSEXIT();
 	if (unit == DEVICE_UNIT_ANY)
 		dev->flags |= DF_WILDCARD;
 	if (name) {
 		dev->flags |= DF_FIXEDCLASS;
 		if (devclass_add_device(dc, dev)) {
 			kobj_delete((kobj_t) dev, M_BUS);
+			TSEXIT();
 			return (NULL);
 		}
 	}
@@ -1421,6 +1421,8 @@ make_device(device_t parent, const char *name, int unit)
 	TAILQ_INSERT_TAIL(&bus_data_devices, dev, devlink);
 
 	bus_data_generation_update();
+	TSEXIT();
+
 	return (dev);
 }
 
@@ -1489,14 +1491,13 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 	device_t child;
 	device_t place;
 
+	TSENTER();
 	PDEBUG(("%s at %s with order %u as unit %d",
 	    name, DEVICENAME(dev), order, unit));
 	KASSERT(name != NULL || unit == DEVICE_UNIT_ANY,
 	    ("child device with wildcard name and specific unit number"));
 
-	TSENTER();
 	child = make_device(dev, name, unit);
-
 	if (child == NULL)
 		return (child);
 	child->order = order;
@@ -1629,21 +1630,27 @@ device_find_child(device_t dev, const char *classname, int unit)
 
 	TSENTER();
 	dc = devclass_find(classname);
-	TSEXIT();
-	if (!dc)
+	if (!dc) {
+		TSEXIT();
 		return (NULL);
+	}
 
 	if (unit != DEVICE_UNIT_ANY) {
 		child = devclass_get_device(dc, unit);
-		if (child && child->parent == dev)
+		if (child && child->parent == dev) {
+			TSEXIT();
 			return (child);
+		}
 	} else {
 		for (unit = 0; unit < devclass_get_maxunit(dc); unit++) {
 			child = devclass_get_device(dc, unit);
-			if (child && child->parent == dev)
+			if (child && child->parent == dev) {
+				TSEXIT();
 				return (child);
+			}
 		}
 	}
+	TSEXIT();
 	return (NULL);
 }
 
@@ -1977,10 +1984,12 @@ device_print_prettyname(device_t dev)
 {
 	TSENTER();
 	const char *name = device_get_name(dev);
-	TSEXIT();
 
-	if (name == NULL)
+	if (name == NULL) {
+		TSEXIT();
 		return (printf("unknown: "));
+	}
+	TSEXIT();
 	return (printf("%s%d: ", name, device_get_unit(dev)));
 }
 
@@ -2561,13 +2570,11 @@ device_probe_and_attach(device_t dev)
 	bus_topo_assert();
 
 	error = device_probe(dev);
-	if (error == -1)
-	{
+	if (error == -1) {
 		TSEXIT();
 		return (0);
 	}
-	else if (error != 0)
-	{
+	else if (error != 0) {
 		TSEXIT();
 		return (error);
 	}
@@ -2654,6 +2661,7 @@ device_attach(device_t dev)
 		}
 		CURVNET_RESTORE();
 		TSEXIT();
+
 		return (error);
 	}
 	CURVNET_RESTORE();
@@ -2669,6 +2677,7 @@ device_attach(device_t dev)
 	dev->flags &= ~DF_DONENOMATCH;
 	EVENTHANDLER_DIRECT_INVOKE(device_attach, dev);
 	TSEXIT();
+
 	return (0);
 }
 
@@ -3713,8 +3722,7 @@ bus_helper_reset_prepare_rollback(device_t dev, device_t child, int flags)
 {
 	TSENTER();
 	child = TAILQ_NEXT(child, link);
-	if (child == NULL)
-	{
+	if (child == NULL) {
 		TSEXIT();
 		return;
 	}
@@ -3746,8 +3754,7 @@ bus_helper_reset_prepare(device_t dev, int flags)
 	int error;
 
 	TSENTER();
-	if (dev->state != DS_ATTACHED)
-	{
+	if (dev->state != DS_ATTACHED) {
 		TSEXIT();
 		return (EBUSY);
 	}

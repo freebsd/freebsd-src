@@ -40,18 +40,16 @@
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/tslog.h>
+#include <sys/pciio.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpi_pcivar.h>
-
-#include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
-
 #include <dev/iommu/iommu.h>
 
 /* Hooks for the ACPI CA debugging infrastructure. */

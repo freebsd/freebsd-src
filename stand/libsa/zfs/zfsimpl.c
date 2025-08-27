@@ -35,6 +35,7 @@
 #include <sys/list.h>
 #include <sys/zfs_bootenv.h>
 #include <sys/tslog.h>
+
 #include <machine/_inttypes.h>
 
 #include "zfsimpl.h"
@@ -170,6 +171,7 @@ zfs_init(void)
 
 	zfs_init_crc();
 	TSEXIT();
+
 #ifdef HAS_ZSTD_ZFS
 	zstd_init();
 #endif

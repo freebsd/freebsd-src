@@ -57,6 +57,7 @@
 #include <sys/range_tree.h>
 #include <sys/dbuf.h>
 #include <sys/tslog.h>
+
 #ifdef _KERNEL
 #include <sys/zfs_vfsops.h>
 #endif

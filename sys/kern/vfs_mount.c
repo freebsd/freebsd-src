@@ -65,6 +65,7 @@
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
 #include <sys/tslog.h>
+
 #include <vm/uma.h>
 
 #include <geom/geom.h>
@@ -1619,22 +1620,19 @@ vfs_domount(
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
-	{
+	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN) {
 		TSEXIT();
 		return (ENAMETOOLONG);
 	}
 
 	if (jail_export) {
 		error = priv_check(td, PRIV_NFS_DAEMON);
-		if (error)
-		{
+		if (error) {
 			TSEXIT();
 			return (error);
 		}
 	} else if (jailed(td->td_ucred) || usermount == 0) {
-		if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
-		{
+		if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0) {
 			TSEXIT();
 			return (error);
 		}
@@ -1645,16 +1643,14 @@ vfs_domount(
 	 */
 	if (fsflags & MNT_EXPORTED) {
 		error = priv_check(td, PRIV_VFS_MOUNT_EXPORTED);
-		if (error)
-		{
+		if (error) {
 			TSEXIT();
 			return (error);
 		}
 	}
 	if (fsflags & MNT_SUIDDIR) {
 		error = priv_check(td, PRIV_VFS_MOUNT_SUIDDIR);
-		if (error)
-		{
+		if (error) {
 			TSEXIT();
 			return (error);
 		}
@@ -1672,14 +1668,12 @@ vfs_domount(
 	if ((fsflags & MNT_UPDATE) == 0) {
 		/* Don't try to load KLDs if we're mounting the root. */
 		if (fsflags & MNT_ROOTFS) {
-			if ((vfsp = vfs_byname(fstype)) == NULL)
-			{
+			if ((vfsp = vfs_byname(fstype)) == NULL) {
 				TSEXIT();
 				return (ENODEV);
 			}
 		} else {
-			if ((vfsp = vfs_byname_kld(fstype, td, &error)) == NULL)
-			{
+			if ((vfsp = vfs_byname_kld(fstype, td, &error)) == NULL) {
 				TSEXIT();
 				return (error);
 			}
@@ -1692,8 +1686,7 @@ vfs_domount(
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1 | WANTPARENT,
 	    UIO_SYSSPACE, fspath);
 	error = namei(&nd);
-	if (error != 0)
-	{
+	if (error != 0) {
 		TSEXIT();
 		return (error);
 	}

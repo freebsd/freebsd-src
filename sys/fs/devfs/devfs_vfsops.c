@@ -77,8 +77,7 @@ devfs_mount(struct mount *mp)
 
 	error = 0;
 
-	if (mp->mnt_flag & MNT_ROOTFS)
-	{
+	if (mp->mnt_flag & MNT_ROOTFS) {
 		TSEXIT();
 		return (EOPNOTSUPP);
 	}
@@ -87,14 +86,12 @@ devfs_mount(struct mount *mp)
 	injail = jailed(td->td_ucred);
 
 	if (mp->mnt_optnew != NULL) {
-		if (vfs_filteropt(mp->mnt_optnew, devfs_opts))
-		{
+		if (vfs_filteropt(mp->mnt_optnew, devfs_opts)) {
 			TSEXIT();
 			return (EINVAL);
 		}
 
-		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
-		{
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
 			TSEXIT();
 			return (EOPNOTSUPP);
 		}
@@ -109,8 +106,7 @@ devfs_mount(struct mount *mp)
 		}
 
 		if (injail && rsnum != 0 &&
-		    rsnum != td->td_ucred->cr_prison->pr_devfs_rsnum)
-		{
+		    rsnum != td->td_ucred->cr_prison->pr_devfs_rsnum) {
 			TSEXIT();
 			return (EPERM);
 		}

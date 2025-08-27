@@ -2006,8 +2006,7 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	if (vp != NULL) {
 		if ((error = VOP_GETWRITEMOUNT(vp, mpp)) != 0) {
 			*mpp = NULL;
-			if (error != EOPNOTSUPP)
-			{
+			if (error != EOPNOTSUPP) {
 				TSEXIT();
 				return (error);
 			}
@@ -2015,8 +2014,7 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 			return (0);
 		}
 	}
-	if ((mp = *mpp) == NULL)
-	{
+	if ((mp = *mpp) == NULL) {
 		TSEXIT();
 		return (0);
 	}
