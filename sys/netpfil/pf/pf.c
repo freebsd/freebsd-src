@@ -5747,7 +5747,7 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 				if ((rule_flag & PFRULE_EXPIRED) == 0 &&
 				    atomic_cmpset_int(&r->rule_flag, rule_flag,
 				    rule_flag | PFRULE_EXPIRED)) {
-					//r->exptime = gettime();
+					r->exptime = time_uptime;
 				} else {
 					r = TAILQ_NEXT(r, entries);
 					continue;
