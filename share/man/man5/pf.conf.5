@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 25, 2025
+.Dd August 27, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2258,6 +2258,10 @@ When the rate is exceeded, all ICMP is blocked until the rate falls below
 .It Ar max-pkt-size Aq Ar number
 Limit each packet to be no more than the specified number of bytes.
 This includes the IP header, but not any layer 2 header.
+.It Ar once
+Creates a one shot rule that will remove itself from an active ruleset after
+the first match.
+.Pp
 .It Xo Ar queue Aq Ar queue
 .No \*(Ba ( Aq Ar queue ,
 .Aq Ar queue )
@@ -3443,7 +3447,7 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  [ "(" state-opts ")" ] |
                  "fragment" | "no-df" | "min-ttl" number | "set-tos" tos |
                  "max-mss" number | "random-id" | "reassemble tcp" |
-                 fragmentation | "allow-opts" |
+                 fragmentation | "allow-opts" | "once" |
                  "label" string | "tag" string | [ "!" ] "tagged" string |
                  "max-pkt-rate" number "/" seconds |
                  "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
