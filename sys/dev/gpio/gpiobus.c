@@ -961,7 +961,7 @@ gpiobus_pin_getflags(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_GETFLAGS(sc->sc_dev, devi->pins[pin], flags);
+	return (GPIO_PIN_GETFLAGS(sc->sc_dev, devi->pins[pin], flags));
 }
 
 static int
@@ -974,7 +974,7 @@ gpiobus_pin_getcaps(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_GETCAPS(sc->sc_dev, devi->pins[pin], caps);
+	return (GPIO_PIN_GETCAPS(sc->sc_dev, devi->pins[pin], caps));
 }
 
 static int
@@ -987,7 +987,7 @@ gpiobus_pin_set(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_SET(sc->sc_dev, devi->pins[pin], value);
+	return (GPIO_PIN_SET(sc->sc_dev, devi->pins[pin], value));
 }
 
 static int
@@ -1000,7 +1000,7 @@ gpiobus_pin_get(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_GET(sc->sc_dev, devi->pins[pin], value);
+	return (GPIO_PIN_GET(sc->sc_dev, devi->pins[pin], value));
 }
 
 static int
@@ -1012,7 +1012,7 @@ gpiobus_pin_toggle(device_t dev, device_t child, uint32_t pin)
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_TOGGLE(sc->sc_dev, devi->pins[pin]);
+	return (GPIO_PIN_TOGGLE(sc->sc_dev, devi->pins[pin]));
 }
 
 static int
