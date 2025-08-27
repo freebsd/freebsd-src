@@ -1650,7 +1650,7 @@ rule_grant_supplementary_groups(const struct rule *const rule,
 	const bool current_has_supp = (gid_flags & MDF_CURRENT) != 0 &&
 	    (gid_flags & MDF_SUPP_MASK) != 0;
 	id_nb_t rule_idx = 0;
-	int old_idx = 1, new_idx = 1;
+	int old_idx = 0, new_idx = 0;
 
 	if ((gid_flags & MDF_ANY_SUPP) != 0 &&
 	    (gid_flags & MDF_MAY_REJ_SUPP) == 0)
