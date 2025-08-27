@@ -267,7 +267,7 @@ static struct filter_opts {
 #define FOM_SETTOS	0x0100
 #define FOM_SCRUB_TCP	0x0200
 #define FOM_SETPRIO	0x0400
-#define FOM_ONCE	0x1000 /* not yet implemmented */
+#define FOM_ONCE	0x1000
 #define FOM_PRIO	0x2000
 #define FOM_SETDELAY	0x4000
 #define FOM_FRAGCACHE	0x8000 /* does not exist in OpenBSD */
@@ -541,7 +541,7 @@ int	parseport(char *, struct range *r, int);
 %token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
 %token	UPPERLIMIT QUEUE PRIORITY QLIMIT HOGS BUCKETS RTABLE TARGET INTERVAL
 %token	DNPIPE DNQUEUE RIDENTIFIER
-%token	LOAD RULESET_OPTIMIZATION PRIO
+%token	LOAD RULESET_OPTIMIZATION PRIO ONCE
 %token	STICKYADDRESS ENDPI MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW ALLOW_RELATED
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
@@ -1059,6 +1059,12 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 						    "applies to tcp");
 					YYERROR;
 				}
+			}
+
+			if ($9.marker & FOM_ONCE) {
+				yyerror("cannot specify 'once' "
+				    "on anchors");
+					YYERROR;
 			}
 
 			if (filteropts_to_rule(&r, &$9))
@@ -2390,6 +2396,9 @@ pfrule		: action dir logquick interface route af proto fromto
 			r.quick = $3.quick;
 			r.af = $6;
 
+			if ($9.marker & FOM_ONCE)
+				r.rule_flag |= PFRULE_ONCE;
+
 			if (filteropts_to_rule(&r, &$9))
 				YYERROR;
 
@@ -3035,6 +3044,9 @@ filter_opt	: USER uids {
 				YYERROR;
 			}
 			filter_opts.max_pkt_size = $2;
+		}
+		| ONCE {
+			filter_opts.marker |= FOM_ONCE;
 		}
 		| filter_sets
 		;
@@ -6725,6 +6737,7 @@ lookup(char *s)
 		{ "no-route",		NOROUTE},
 		{ "no-sync",		NOSYNC},
 		{ "on",			ON},
+		{ "once",		ONCE},
 		{ "optimization",	OPTIMIZATION},
 		{ "os",			OS},
 		{ "out",		OUT},
