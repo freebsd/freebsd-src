@@ -1015,6 +1015,56 @@ gpiobus_pin_toggle(device_t dev, device_t child, uint32_t pin)
 	return (GPIO_PIN_TOGGLE(sc->sc_dev, devi->pins[pin]));
 }
 
+/*
+ * Verify that a child has all the pins they are requesting
+ * to access in their ivars.
+ */
+static bool
+gpiobus_pin_verify_32(struct gpiobus_ivar *devi, uint32_t first_pin,
+    uint32_t num_pins)
+{
+	if (first_pin + num_pins > devi->npins)
+		return (false);
+
+	/* Make sure the pins are consecutive. */
+	for (uint32_t pin = first_pin; pin < first_pin + num_pins - 1; pin++) {
+		if (devi->pins[pin] + 1 != devi->pins[pin + 1])
+			return (false);
+	}
+
+	return (true);
+}
+
+static int
+gpiobus_pin_access_32(device_t dev, device_t child, uint32_t first_pin,
+    uint32_t clear_pins, uint32_t change_pins, uint32_t *orig_pins)
+{
+	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
+	struct gpiobus_ivar *devi = GPIOBUS_IVAR(child);
+
+	if (!gpiobus_pin_verify_32(devi, first_pin, 32))
+		return (EINVAL);
+
+	return (GPIO_PIN_ACCESS_32(sc->sc_dev, devi->pins[first_pin],
+	    clear_pins, change_pins, orig_pins));
+}
+
+static int
+gpiobus_pin_config_32(device_t dev, device_t child, uint32_t first_pin,
+    uint32_t num_pins, uint32_t *pin_flags)
+{
+	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
+	struct gpiobus_ivar *devi = GPIOBUS_IVAR(child);
+
+	if (num_pins > 32)
+		return (EINVAL);
+	if (!gpiobus_pin_verify_32(devi, first_pin, num_pins))
+		return (EINVAL);
+
+	return (GPIO_PIN_CONFIG_32(sc->sc_dev,
+	    devi->pins[first_pin], num_pins, pin_flags));
+}
+
 static int
 gpiobus_pin_getname(device_t dev, uint32_t pin, char *name)
 {
@@ -1093,6 +1143,8 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(gpiobus_pin_get,	gpiobus_pin_get),
 	DEVMETHOD(gpiobus_pin_set,	gpiobus_pin_set),
 	DEVMETHOD(gpiobus_pin_toggle,	gpiobus_pin_toggle),
+	DEVMETHOD(gpiobus_pin_access_32,gpiobus_pin_access_32),
+	DEVMETHOD(gpiobus_pin_config_32,gpiobus_pin_config_32),
 	DEVMETHOD(gpiobus_pin_getname,	gpiobus_pin_getname),
 	DEVMETHOD(gpiobus_pin_setname,	gpiobus_pin_setname),
 
