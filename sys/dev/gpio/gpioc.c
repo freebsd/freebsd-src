@@ -45,7 +45,6 @@
 
 #include <dev/gpio/gpiobusvar.h>
 
-#include "gpio_if.h"
 #include "gpiobus_if.h"
 
 #undef GPIOC_DEBUG
@@ -59,7 +58,7 @@
 
 struct gpioc_softc {
 	device_t		sc_dev;		/* gpiocX dev */
-	device_t		sc_pdev;	/* gpioX dev */
+	device_t		sc_pdev;	/* gpiobusX dev */
 	struct cdev		*sc_ctl_dev;	/* controller device */
 	int			sc_unit;
 	int			sc_npins;
@@ -69,6 +68,7 @@ struct gpioc_softc {
 struct gpioc_pin_intr {
 	struct gpioc_softc				*sc;
 	gpio_pin_t					pin;
+	uint32_t					intr_mode;
 	bool						config_locked;
 	int						intr_rid;
 	struct resource					*intr_res;
@@ -112,8 +112,10 @@ struct gpioc_pin_event {
 
 static MALLOC_DEFINE(M_GPIOC, "gpioc", "gpioc device data");
 
-static int	gpioc_allocate_pin_intr(struct gpioc_pin_intr*, uint32_t);
-static int	gpioc_release_pin_intr(struct gpioc_pin_intr*);
+static int	gpioc_allocate_pin_intr(struct gpioc_softc*,
+		    struct gpioc_pin_intr*, uint32_t, uint32_t);
+static int	gpioc_release_pin_intr(struct gpioc_softc*,
+		    struct gpioc_pin_intr*);
 static int	gpioc_attach_priv_pin(struct gpioc_cdevpriv*,
 		    struct gpioc_pin_intr*);
 static int	gpioc_detach_priv_pin(struct gpioc_cdevpriv*,
@@ -191,30 +193,36 @@ number_of_events(struct gpioc_cdevpriv *priv)
 }
 
 static int
-gpioc_allocate_pin_intr(struct gpioc_pin_intr *intr_conf, uint32_t flags)
+gpioc_allocate_pin_intr(struct gpioc_softc *sc,
+    struct gpioc_pin_intr *intr_conf, uint32_t pin, uint32_t flags)
 {
 	int err;
 
 	intr_conf->config_locked = true;
 	mtx_unlock(&intr_conf->mtx);
 
-	intr_conf->intr_res = gpio_alloc_intr_resource(intr_conf->pin->dev,
+	MPASS(intr_conf->pin == NULL);
+	err = gpio_pin_get_by_bus_pinnum(sc->sc_pdev, pin, &intr_conf->pin);
+	if (err != 0)
+		goto error_exit;
+
+	intr_conf->intr_res = gpio_alloc_intr_resource(sc->sc_dev,
 	    &intr_conf->intr_rid, RF_ACTIVE, intr_conf->pin, flags);
 	if (intr_conf->intr_res == NULL) {
 		err = ENXIO;
-		goto error_exit;
+		goto error_pin;
 	}
 
-	err = bus_setup_intr(intr_conf->pin->dev, intr_conf->intr_res,
+	err = bus_setup_intr(sc->sc_dev, intr_conf->intr_res,
 	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, gpioc_interrupt_handler,
 	    intr_conf, &intr_conf->intr_cookie);
 	if (err != 0) {
 		bus_release_resource(sc->sc_dev, intr_conf->intr_res);
 		intr_conf->intr_res = NULL;
-		goto error_exit;
+		goto error_pin;
 	}
 
-	intr_conf->pin->flags = flags;
+	intr_conf->intr_mode = flags;
 
 error_exit:
 	mtx_lock(&intr_conf->mtx);
@@ -222,10 +230,15 @@ error_exit:
 	wakeup(&intr_conf->config_locked);
 
 	return (err);
+
+error_pin:
+	gpio_pin_release(intr_conf->pin);
+	intr_conf->pin = NULL;
+	goto error_exit;
 }
 
 static int
-gpioc_release_pin_intr(struct gpioc_pin_intr *intr_conf)
+gpioc_release_pin_intr(struct gpioc_softc *sc, struct gpioc_pin_intr *intr_conf)
 {
 	int err;
 
@@ -233,8 +246,8 @@ gpioc_release_pin_intr(struct gpioc_pin_intr *intr_conf)
 	mtx_unlock(&intr_conf->mtx);
 
 	if (intr_conf->intr_cookie != NULL) {
-		err = bus_teardown_intr(intr_conf->pin->dev,
-		    intr_conf->intr_res, intr_conf->intr_cookie);
+		err = bus_teardown_intr(sc->sc_dev, intr_conf->intr_res,
+		    intr_conf->intr_cookie);
 		if (err != 0)
 			goto error_exit;
 		else
@@ -242,7 +255,7 @@ gpioc_release_pin_intr(struct gpioc_pin_intr *intr_conf)
 	}
 
 	if (intr_conf->intr_res != NULL) {
-		err = bus_release_resource(intr_conf->pin->dev, SYS_RES_IRQ,
+		err = bus_release_resource(sc->sc_dev, SYS_RES_IRQ,
 		    intr_conf->intr_rid, intr_conf->intr_res);
 		if (err != 0)
 			goto error_exit;
@@ -252,7 +265,10 @@ gpioc_release_pin_intr(struct gpioc_pin_intr *intr_conf)
 		}
 	}
 
-	intr_conf->pin->flags = 0;
+	gpio_pin_release(intr_conf->pin);
+	intr_conf->pin = NULL;
+
+	intr_conf->intr_mode = 0;
 	err = 0;
 
 error_exit:
@@ -389,7 +405,7 @@ gpioc_get_intr_config(struct gpioc_softc *sc, struct gpioc_cdevpriv *priv,
 	struct gpioc_privs	*priv_link;
 	uint32_t		flags;
 
-	flags = intr_conf->pin->flags;
+	flags = intr_conf->intr_mode;
 
 	if (flags == 0)
 		return (0);
@@ -414,7 +430,7 @@ gpioc_set_intr_config(struct gpioc_softc *sc, struct gpioc_cdevpriv *priv,
 	int res;
 
 	res = 0;
-	if (intr_conf->pin->flags == 0 && flags == 0) {
+	if (intr_conf->intr_mode == 0 && flags == 0) {
 		/* No interrupt configured and none requested: Do nothing. */
 		return (0);
 	}
@@ -422,17 +438,17 @@ gpioc_set_intr_config(struct gpioc_softc *sc, struct gpioc_cdevpriv *priv,
 	while (intr_conf->config_locked == true)
 		mtx_sleep(&intr_conf->config_locked, &intr_conf->mtx, 0,
 		    "gpicfg", 0);
-	if (intr_conf->pin->flags == 0 && flags != 0) {
+	if (intr_conf->intr_mode == 0 && flags != 0) {
 		/*
 		 * No interrupt is configured, but one is requested: Allocate
 		 * and setup interrupt on the according pin.
 		 */
-		res = gpioc_allocate_pin_intr(intr_conf, flags);
+		res = gpioc_allocate_pin_intr(sc, intr_conf, pin, flags);
 		if (res == 0)
 			res = gpioc_attach_priv_pin(priv, intr_conf);
 		if (res == EEXIST)
 			res = 0;
-	} else if (intr_conf->pin->flags == flags) {
+	} else if (intr_conf->intr_mode == flags) {
 		/*
 		 * Same interrupt requested as already configured: Attach the
 		 * cdevpriv to the corresponding pin.
@@ -440,14 +456,14 @@ gpioc_set_intr_config(struct gpioc_softc *sc, struct gpioc_cdevpriv *priv,
 		res = gpioc_attach_priv_pin(priv, intr_conf);
 		if (res == EEXIST)
 			res = 0;
-	} else if (intr_conf->pin->flags != 0 && flags == 0) {
+	} else if (intr_conf->intr_mode != 0 && flags == 0) {
 		/*
 		 * Interrupt configured, but none requested: Teardown and
 		 * release the pin when no other cdevpriv is attached. Otherwise
 		 * just detach pin and cdevpriv from each other.
 		 */
 		if (gpioc_intr_reconfig_allowed(priv, intr_conf)) {
-			res = gpioc_release_pin_intr(intr_conf);
+			res = gpioc_release_pin_intr(sc, intr_conf);
 		}
 		if (res == 0)
 			res = gpioc_detach_priv_pin(priv, intr_conf);
@@ -459,9 +475,10 @@ gpioc_set_intr_config(struct gpioc_softc *sc, struct gpioc_cdevpriv *priv,
 		if (!gpioc_intr_reconfig_allowed(priv, intr_conf))
 			res = EBUSY;
 		else {
-			res = gpioc_release_pin_intr(intr_conf);
+			res = gpioc_release_pin_intr(sc, intr_conf);
 			if (res == 0)
-				res = gpioc_allocate_pin_intr(intr_conf, flags);
+				res = gpioc_allocate_pin_intr(sc, intr_conf,
+				    pin, flags);
 			if (res == 0)
 				res = gpioc_attach_priv_pin(priv, intr_conf);
 			if (res == EEXIST)
@@ -478,18 +495,16 @@ gpioc_interrupt_handler(void *arg)
 {
 	struct gpioc_pin_intr *intr_conf;
 	struct gpioc_privs *privs;
-	struct gpioc_softc *sc;
 	sbintime_t evtime;
-	uint32_t pin_state;
+	bool pin_state;
 
 	intr_conf = arg;
-	sc = intr_conf->sc;
 
 	/* Capture time and pin state first. */
 	evtime = sbinuptime();
-	if (intr_conf->pin->flags & GPIO_INTR_EDGE_BOTH)
-		GPIO_PIN_GET(sc->sc_pdev, intr_conf->pin->pin, &pin_state);
-	else if (intr_conf->pin->flags & GPIO_INTR_EDGE_RISING)
+	if (intr_conf->intr_mode & GPIO_INTR_EDGE_BOTH)
+		gpio_pin_is_active(intr_conf->pin, &pin_state);
+	else if (intr_conf->intr_mode & GPIO_INTR_EDGE_RISING)
 		pin_state = true;
 	else
 		pin_state = false;
@@ -578,18 +593,11 @@ gpioc_attach(device_t dev)
 	sc->sc_pdev = device_get_parent(dev);
 	sc->sc_unit = device_get_unit(dev);
 
-	err = GPIO_PIN_MAX(sc->sc_pdev, &sc->sc_npins);
-	sc->sc_npins++; /* Number of pins is one more than max pin number. */
-	if (err != 0)
-		return (err);
+	sc->sc_npins = gpiobus_get_npins(dev);
 	sc->sc_pin_intr = malloc(sizeof(struct gpioc_pin_intr) * sc->sc_npins,
 	    M_GPIOC, M_WAITOK | M_ZERO);
 	for (int i = 0; i < sc->sc_npins; i++) {
-		sc->sc_pin_intr[i].pin = malloc(sizeof(struct gpiobus_pin),
-		    M_GPIOC, M_WAITOK | M_ZERO);
 		sc->sc_pin_intr[i].sc = sc;
-		sc->sc_pin_intr[i].pin->pin = i;
-		sc->sc_pin_intr[i].pin->dev = sc->sc_pdev;
 		mtx_init(&sc->sc_pin_intr[i].mtx, "gpioc pin", NULL, MTX_DEF);
 		SLIST_INIT(&sc->sc_pin_intr[i].privs);
 	}
@@ -620,7 +628,7 @@ gpioc_detach(device_t dev)
 
 	for (int i = 0; i < sc->sc_npins; i++) {
 		mtx_destroy(&sc->sc_pin_intr[i].mtx);
-		free(sc->sc_pin_intr[i].pin, M_GPIOC);
+		MPASS(sc->sc_pin_intr[i].pin == NULL);
 	}
 	free(sc->sc_pin_intr, M_GPIOC);
 
@@ -658,7 +666,7 @@ gpioc_cdevpriv_dtor(void *data)
 		KASSERT(consistency == 1,
 		    ("inconsistent links between pin config and cdevpriv"));
 		if (gpioc_intr_reconfig_allowed(priv, pin_link->pin)) {
-			gpioc_release_pin_intr(pin_link->pin);
+			gpioc_release_pin_intr(priv->sc, pin_link->pin);
 		}
 		mtx_unlock(&pin_link->pin->mtx);
 		SLIST_REMOVE(&priv->pins, pin_link, gpioc_pins, next);
@@ -781,7 +789,6 @@ static int
 gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag, 
     struct thread *td)
 {
-	device_t bus;
 	int max_pin, res;
 	struct gpioc_softc *sc = cdev->si_drv1;
 	struct gpioc_cdevpriv *priv;
@@ -792,30 +799,32 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 	struct gpio_event_config *evcfg;
 	uint32_t caps, intrflags;
 
-	bus = GPIO_GET_BUS(sc->sc_pdev);
-	if (bus == NULL)
-		return (EINVAL);
 	switch (cmd) {
 	case GPIOMAXPIN:
-		max_pin = -1;
-		res = GPIO_PIN_MAX(sc->sc_pdev, &max_pin);
+		res = 0;
+		max_pin = sc->sc_npins - 1;
 		bcopy(&max_pin, arg, sizeof(max_pin));
 		break;
 	case GPIOGETCONFIG:
 		bcopy(arg, &pin, sizeof(pin));
 		dprintf("get config pin %d\n", pin.gp_pin);
-		res = GPIO_PIN_GETFLAGS(sc->sc_pdev, pin.gp_pin,
+		res = GPIOBUS_PIN_GETFLAGS(sc->sc_pdev, sc->sc_dev, pin.gp_pin,
 		    &pin.gp_flags);
 		/* Fail early */
-		if (res)
+		if (res != 0)
 			break;
 		res = devfs_get_cdevpriv((void **)&priv);
-		if (res)
+		if (res != 0)
 			break;
 		pin.gp_flags |= gpioc_get_intr_config(sc, priv,
 		    pin.gp_pin);
-		GPIO_PIN_GETCAPS(sc->sc_pdev, pin.gp_pin, &pin.gp_caps);
-		GPIOBUS_PIN_GETNAME(bus, pin.gp_pin, pin.gp_name);
+		res = GPIOBUS_PIN_GETCAPS(sc->sc_pdev, sc->sc_dev, pin.gp_pin,
+		    &pin.gp_caps);
+		if (res != 0)
+			break;
+		res = GPIOBUS_PIN_GETNAME(sc->sc_pdev, pin.gp_pin, pin.gp_name);
+		if (res != 0)
+			break;
 		bcopy(&pin, arg, sizeof(pin));
 		break;
 	case GPIOSETCONFIG:
@@ -824,7 +833,8 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		res = devfs_get_cdevpriv((void **)&priv);
 		if (res != 0)
 			break;
-		res = GPIO_PIN_GETCAPS(sc->sc_pdev, pin.gp_pin, &caps);
+		res = GPIOBUS_PIN_GETCAPS(sc->sc_pdev, sc->sc_dev,
+		    pin.gp_pin, &caps);
 		if (res != 0)
 			break;
 		res = gpio_check_flags(caps, pin.gp_flags);
@@ -850,8 +860,8 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		}
 		if (res != 0)
 			break;
-		res = GPIO_PIN_SETFLAGS(sc->sc_pdev, pin.gp_pin,
-		    (pin.gp_flags & ~GPIO_INTR_MASK));
+		res = GPIOBUS_PIN_SETFLAGS(sc->sc_pdev, sc->sc_dev, pin.gp_pin,
+		    pin.gp_flags & ~GPIO_INTR_MASK);
 		if (res != 0)
 			break;
 		res = gpioc_set_intr_config(sc, priv, pin.gp_pin,
@@ -859,40 +869,43 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		break;
 	case GPIOGET:
 		bcopy(arg, &req, sizeof(req));
-		res = GPIO_PIN_GET(sc->sc_pdev, req.gp_pin,
+		res = GPIOBUS_PIN_GET(sc->sc_pdev, sc->sc_dev, req.gp_pin,
 		    &req.gp_value);
-		dprintf("read pin %d -> %d\n", 
+		if (res != 0)
+			break;
+		dprintf("read pin %d -> %d\n",
 		    req.gp_pin, req.gp_value);
 		bcopy(&req, arg, sizeof(req));
 		break;
 	case GPIOSET:
 		bcopy(arg, &req, sizeof(req));
-		res = GPIO_PIN_SET(sc->sc_pdev, req.gp_pin, 
+		res = GPIOBUS_PIN_SET(sc->sc_pdev, sc->sc_dev, req.gp_pin,
 		    req.gp_value);
-		dprintf("write pin %d -> %d\n", 
+		dprintf("write pin %d -> %d\n",
 		    req.gp_pin, req.gp_value);
 		break;
 	case GPIOTOGGLE:
 		bcopy(arg, &req, sizeof(req));
-		dprintf("toggle pin %d\n", 
+		dprintf("toggle pin %d\n",
 		    req.gp_pin);
-		res = GPIO_PIN_TOGGLE(sc->sc_pdev, req.gp_pin);
+		res = GPIOBUS_PIN_TOGGLE(sc->sc_pdev, sc->sc_dev, req.gp_pin);
 		break;
 	case GPIOSETNAME:
 		bcopy(arg, &pin, sizeof(pin));
 		dprintf("set name on pin %d\n", pin.gp_pin);
-		res = GPIOBUS_PIN_SETNAME(bus, pin.gp_pin,
+		res = GPIOBUS_PIN_SETNAME(sc->sc_pdev, pin.gp_pin,
 		    pin.gp_name);
 		break;
 	case GPIOACCESS32:
 		a32 = (struct gpio_access_32 *)arg;
-		res = GPIO_PIN_ACCESS_32(sc->sc_pdev, a32->first_pin,
-		    a32->clear_pins, a32->change_pins, &a32->orig_pins);
+		res = GPIOBUS_PIN_ACCESS_32(sc->sc_pdev, sc->sc_dev,
+		    a32->first_pin, a32->clear_pins, a32->change_pins,
+		    &a32->orig_pins);
 		break;
 	case GPIOCONFIG32:
 		c32 = (struct gpio_config_32 *)arg;
-		res = GPIO_PIN_CONFIG_32(sc->sc_pdev, c32->first_pin,
-		    c32->num_pins, c32->pin_flags);
+		res = GPIOBUS_PIN_CONFIG_32(sc->sc_pdev, sc->sc_dev,
+		    c32->first_pin, c32->num_pins, c32->pin_flags);
 		break;
 	case GPIOCONFIGEVENTS:
 		evcfg = (struct gpio_event_config *)arg;
@@ -1066,5 +1079,5 @@ driver_t gpioc_driver = {
 	sizeof(struct gpioc_softc)
 };
 
-DRIVER_MODULE(gpioc, gpio, gpioc_driver, 0, 0);
+DRIVER_MODULE(gpioc, gpiobus, gpioc_driver, 0, 0);
 MODULE_VERSION(gpioc, 1);

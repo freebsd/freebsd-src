@@ -319,10 +319,6 @@ gpiobus_add_bus(device_t dev)
 	busdev = device_add_child(dev, "gpiobus", DEVICE_UNIT_ANY);
 	if (busdev == NULL)
 		return (NULL);
-	if (device_add_child(dev, "gpioc", DEVICE_UNIT_ANY) == NULL) {
-		device_delete_child(dev, busdev);
-		return (NULL);
-	}
 #ifdef FDT
 	ofw_gpiobus_register_provider(dev);
 #endif
@@ -369,6 +365,37 @@ gpiobus_init_softc(device_t dev)
 	GPIOBUS_LOCK_INIT(sc);
 
 	return (0);
+}
+
+int
+gpiobus_add_gpioc(device_t dev)
+{
+	struct gpiobus_ivar *devi;
+	struct gpiobus_softc *sc;
+	device_t gpioc;
+	int err;
+
+	gpioc = BUS_ADD_CHILD(dev, 0, "gpioc", DEVICE_UNIT_ANY);
+	if (gpioc == NULL)
+		return (ENXIO);
+
+	sc = device_get_softc(dev);
+	devi = device_get_ivars(gpioc);
+
+	devi->npins = sc->sc_npins;
+	err = gpiobus_alloc_ivars(devi);
+	if (err != 0) {
+		device_delete_child(dev, gpioc);
+		return (err);
+	}
+
+	err = GPIO_GET_PIN_LIST(sc->sc_dev, devi->pins);
+	if (err != 0) {
+		device_delete_child(dev, gpioc);
+		gpiobus_free_ivars(devi);
+	}
+
+	return (err);
 }
 
 int
@@ -559,6 +586,10 @@ gpiobus_attach(device_t dev)
 	int err;
 
 	err = gpiobus_init_softc(dev);
+	if (err != 0)
+		return (err);
+
+	err = gpiobus_add_gpioc(dev);
 	if (err != 0)
 		return (err);
 

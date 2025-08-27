@@ -426,6 +426,9 @@ ofw_gpiobus_attach(device_t dev)
 	err = gpiobus_init_softc(dev);
 	if (err != 0)
 		return (err);
+	err = gpiobus_add_gpioc(dev);
+	if (err != 0)
+		return (err);
 	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 	/*
