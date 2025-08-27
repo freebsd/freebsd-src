@@ -271,6 +271,11 @@ rtwn_attach(struct rtwn_softc *sc)
 	/* Enable seqno offload */
 	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 
+#ifdef RTWN_WITHOUT_UCODE
+	/* Don't originate NULL data frames - let firmware do this */
+	ic->ic_flags_ext |= IEEE80211_FEXT_NO_NULLDATA;
+#endif
+
 	/* Adjust capabilities. */
 	rtwn_adj_devcaps(sc);
 
