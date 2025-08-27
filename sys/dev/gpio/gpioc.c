@@ -208,8 +208,11 @@ gpioc_allocate_pin_intr(struct gpioc_pin_intr *intr_conf, uint32_t flags)
 	err = bus_setup_intr(intr_conf->pin->dev, intr_conf->intr_res,
 	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, gpioc_interrupt_handler,
 	    intr_conf, &intr_conf->intr_cookie);
-	if (err != 0)
+	if (err != 0) {
+		bus_release_resource(sc->sc_dev, intr_conf->intr_res);
+		intr_conf->intr_res = NULL;
 		goto error_exit;
+	}
 
 	intr_conf->pin->flags = flags;
 
