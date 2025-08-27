@@ -57,6 +57,62 @@ module_param_named(support_vht, rtw_vht_support, bool, 0644);
 MODULE_PARM_DESC(support_vht, "Set to Y to enable VHT support");
 #endif
 
+#if defined(__FreeBSD__)
+/* Macros based on rtw89::core.c. */
+#define	RTW88_DEF_CHAN(_freq, _hw_val, _flags, _band)		\
+	{ .center_freq = _freq, .hw_value = _hw_val, .flags = _flags, .band = _band, }
+#define	RTW88_DEF_CHAN_2G(_freq, _hw_val)			\
+        RTW88_DEF_CHAN(_freq, _hw_val, 0, NL80211_BAND_2GHZ)
+#define	RTW88_DEF_CHAN_5G(_freq, _hw_val)			\
+        RTW88_DEF_CHAN(_freq, _hw_val, 0, NL80211_BAND_5GHZ)
+#define	RTW88_DEF_CHAN_5G_NO_HT40MINUS(_freq, _hw_val)		\
+        RTW88_DEF_CHAN(_freq, _hw_val, IEEE80211_CHAN_NO_HT40MINUS, NL80211_BAND_5GHZ)
+
+static struct ieee80211_channel rtw_channeltable_2g[] = {
+	RTW88_DEF_CHAN_2G(2412, 1),
+	RTW88_DEF_CHAN_2G(2417, 2),
+	RTW88_DEF_CHAN_2G(2422, 3),
+	RTW88_DEF_CHAN_2G(2427, 4),
+	RTW88_DEF_CHAN_2G(2432, 5),
+	RTW88_DEF_CHAN_2G(2437, 6),
+	RTW88_DEF_CHAN_2G(2442, 7),
+	RTW88_DEF_CHAN_2G(2447, 8),
+	RTW88_DEF_CHAN_2G(2452, 9),
+	RTW88_DEF_CHAN_2G(2457, 10),
+	RTW88_DEF_CHAN_2G(2462, 11),
+	RTW88_DEF_CHAN_2G(2467, 12),
+	RTW88_DEF_CHAN_2G(2472, 13),
+	RTW88_DEF_CHAN_2G(2484, 14),
+};
+
+static struct ieee80211_channel rtw_channeltable_5g[] = {
+	RTW88_DEF_CHAN_5G(5180, 36),
+	RTW88_DEF_CHAN_5G(5200, 40),
+	RTW88_DEF_CHAN_5G(5220, 44),
+	RTW88_DEF_CHAN_5G(5240, 48),
+	RTW88_DEF_CHAN_5G(5260, 52),
+	RTW88_DEF_CHAN_5G(5280, 56),
+	RTW88_DEF_CHAN_5G(5300, 60),
+	RTW88_DEF_CHAN_5G(5320, 64),
+	RTW88_DEF_CHAN_5G(5500, 100),
+	RTW88_DEF_CHAN_5G(5520, 104),
+	RTW88_DEF_CHAN_5G(5540, 108),
+	RTW88_DEF_CHAN_5G(5560, 112),
+	RTW88_DEF_CHAN_5G(5580, 116),
+	RTW88_DEF_CHAN_5G(5600, 120),
+	RTW88_DEF_CHAN_5G(5620, 124),
+	RTW88_DEF_CHAN_5G(5640, 128),
+	RTW88_DEF_CHAN_5G(5660, 132),
+	RTW88_DEF_CHAN_5G(5680, 136),
+	RTW88_DEF_CHAN_5G(5700, 140),
+	RTW88_DEF_CHAN_5G(5720, 144),
+	RTW88_DEF_CHAN_5G(5745, 149),
+	RTW88_DEF_CHAN_5G(5765, 153),
+	RTW88_DEF_CHAN_5G(5785, 157),
+	RTW88_DEF_CHAN_5G(5805, 161),
+	RTW88_DEF_CHAN_5G_NO_HT40MINUS(5825, 165),
+};
+#elif deifned(__linux__)
 static struct ieee80211_channel rtw_channeltable_2g[] = {
 	{.center_freq = 2412, .hw_value = 1,},
 	{.center_freq = 2417, .hw_value = 2,},
@@ -102,6 +158,7 @@ static struct ieee80211_channel rtw_channeltable_5g[] = {
 	{.center_freq = 5825, .hw_value = 165,
 	 .flags = IEEE80211_CHAN_NO_HT40MINUS},
 };
+#endif
 
 static struct ieee80211_rate rtw_ratetable[] = {
 	{.bitrate = 10, .hw_value = 0x00,},
