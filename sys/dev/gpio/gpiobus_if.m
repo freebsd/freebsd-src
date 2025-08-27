@@ -107,6 +107,36 @@ METHOD int pin_setflags {
 };
 
 #
+# Simultaneously read and/or change up to 32 adjacent pins.
+# If the device cannot change the pins simultaneously, returns EOPNOTSUPP.
+#
+# More details about using this interface can be found in sys/gpio.h
+#
+METHOD int pin_access_32 {
+	device_t dev;
+	device_t child;
+	uint32_t first_pin;
+	uint32_t clear_pins;
+	uint32_t change_pins;
+	uint32_t *orig_pins;
+};
+
+#
+# Simultaneously configure up to 32 adjacent pins.
+# This is intended to change the configuration of all the pins simultaneously,
+# but unlike pin_access_32, this will not fail if the hardware can't do so.
+#
+# More details about using this interface can be found in sys/gpio.h
+#
+METHOD int pin_config_32 {
+	device_t dev;
+	device_t child;
+	uint32_t first_pin;
+	uint32_t num_pins;
+	uint32_t *pin_flags;
+};
+
+#
 # Get the pin name
 #
 METHOD int pin_getname {
