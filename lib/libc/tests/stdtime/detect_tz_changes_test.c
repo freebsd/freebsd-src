@@ -44,12 +44,6 @@ static const struct tzcase {
 
 static const time_t then = 1751328000; /* 2025-07-01 00:00:00 UTC */
 
-#ifdef DETECT_TZ_CHANGES
-static const char *tz_change_interval_sym = "__tz_change_interval";
-static int *tz_change_interval_p;
-static const int tz_change_interval = 3;
-static int tz_change_timeout = 90;
-
 static bool debugging;
 
 static void
@@ -89,6 +83,35 @@ change_tz(const char *tzn)
 	debug("time zone %s installed", tzn);
 }
 
+ATF_TC(thin_jail);
+ATF_TC_HEAD(thin_jail, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test typical thin jail scenario");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(thin_jail, tc)
+{
+	const struct tzcase *tzcase = tzcases;
+	char buf[128];
+	struct tm *tm;
+	size_t len;
+
+	/* prepare chroot */
+	ATF_REQUIRE_EQ(0, mkdir("root", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("root/etc", 0755));
+	change_tz(tzcase->tzfn);
+	/* enter chroot */
+	ATF_REQUIRE_EQ(0, chroot("root"));
+	ATF_REQUIRE_EQ(0, chdir("/"));
+	/* check timezone */
+	unsetenv("TZ");
+	ATF_REQUIRE((tm = localtime(&then)) != NULL);
+	len = strftime(buf, sizeof(buf), "%z (%Z)", tm);
+	ATF_REQUIRE(len > 0);
+	ATF_CHECK_STREQ(tzcase->expect, buf);
+}
+
+#ifdef DETECT_TZ_CHANGES
 /*
  * Test time zone change detection.
  *
@@ -106,6 +129,11 @@ change_tz(const char *tzn)
  * after we've received and discarded the first report from the child,
  * which should come almost immediately on startup.
  */
+static const char *tz_change_interval_sym = "__tz_change_interval";
+static int *tz_change_interval_p;
+static const int tz_change_interval = 3;
+static int tz_change_timeout = 90;
+
 ATF_TC(detect_tz_changes);
 ATF_TC_HEAD(detect_tz_changes, tc)
 {
@@ -324,9 +352,10 @@ ATF_TC_BODY(tz_env_setugid, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-#ifdef DETECT_TZ_CHANGES
 	debugging = !getenv("__RUNNING_INSIDE_ATF_RUN") &&
 	    isatty(STDERR_FILENO);
+	ATF_TP_ADD_TC(tp, thin_jail);
+#ifdef DETECT_TZ_CHANGES
 	ATF_TP_ADD_TC(tp, detect_tz_changes);
 #endif /* DETECT_TZ_CHANGES */
 	ATF_TP_ADD_TC(tp, tz_env);
