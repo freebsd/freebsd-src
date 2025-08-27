@@ -1889,7 +1889,7 @@ cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 		if (realgroupmember(u1->cr_rgid, u2))
 			return (0);
 
-		for (int i = 1; i < u1->cr_ngroups; i++)
+		for (int i = 0; i < u1->cr_ngroups; i++)
 			if (realgroupmember(u1->cr_groups[i], u2))
 				return (0);
 
@@ -2265,6 +2265,7 @@ cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred)
 		}
 	}
 	grpsubset = grpsubset &&
+	    groupmember(obj_cred->cr_gid, active_cred) &&
 	    groupmember(obj_cred->cr_rgid, active_cred) &&
 	    groupmember(obj_cred->cr_svgid, active_cred);
 
