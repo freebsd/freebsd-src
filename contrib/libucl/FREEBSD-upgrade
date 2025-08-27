@@ -1,0 +1,39 @@
+# FreeBSD libucl import instruction
+#
+# At least the following ports are required when importing libucl:
+# - devel/autoconf
+# - devel/automake
+# - devel/git
+# - devel/gmake
+# - devel/libtool
+#
+# 1. Vendor import
+#
+# $ git clone https://github.com/vstakhov/libucl.git /tmp/libucl
+# $ cd /tmp/libucl
+# $ git checkout <REF_BRANCH_TO_BE_IMPORTED>
+# $ cd /usr/src
+# $ git checkout vendor/libucl
+# $ rsync -va --delete --exclude=.git /tmp/libucl/ /usr/src/contrib/libucl/
+# $ git add .
+# $ git commit -m "vendor import libucl <REF_BRANCH_TO_BE_IMPORTED>"
+# $ git tag -a vendor/libucl/<REF_BRANCH_TO_BE_IMPORTED> -m "vendor import libucl <REF_BRANCH_TO_BE_IMPORTED>"
+# $ git push --follow-tags freebsd vendor/libucl/<REF_BRANCH_TO_BE_IMPORTED>
+#
+# 2. Test
+#
+# $ cd /usr/src
+# $ git checkout vendor/libucl/<REF_BRANCH_TO_BE_IMPORTED>
+# $ ./autogen.sh
+# $ ./configure
+# $ gmake
+# $ gmake check
+# $ gmake clean
+#
+# 3. Merge vendor tree
+#
+# $ git subtree merge -P contrib/libucl vendor/libucl/<REF_BRANCH_TO_BE_IMPORTED>
+# $ sh -c 'for F in `cat FREEBSD-Xlist | grep -v FreeBSD`; do rm -rf ./$F ; done'
+#
+# Recheck if there were any new files were added which are not necessary in the
+# contrib tree. If so, remove them and also add them to the FREEBSD-Xlist file.
