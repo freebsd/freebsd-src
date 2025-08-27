@@ -568,14 +568,14 @@ acpi_ibm_attach(device_t dev)
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_ibm_sysctls[i].name,
-			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 			    sc, i, acpi_ibm_sysctl, "I",
 			    acpi_ibm_sysctls[i].description);
 		} else {
 			SYSCTL_ADD_PROC(sc->sysctl_ctx,
 			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 			    acpi_ibm_sysctls[i].name,
-			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+			    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 			    sc, i, acpi_ibm_sysctl, "I",
 			    acpi_ibm_sysctls[i].description);
 		}
