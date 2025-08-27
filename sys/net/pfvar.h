@@ -901,6 +901,7 @@ struct pf_krule {
 	LIST_ENTRY(pf_krule)	 allrulelist;
 	bool			 allrulelinked;
 #endif
+	time_t			 exptime;
 };
 
 struct pf_krule_item {

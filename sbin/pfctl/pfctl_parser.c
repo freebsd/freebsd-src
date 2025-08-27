@@ -865,6 +865,9 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	int	i, ropts;
 	char	*p;
 
+	if ((r->rule_flag & PFRULE_EXPIRED) && (!verbose))
+		return;
+
 	if (verbose)
 		printf("@%d ", r->nr);
 	if (anchor_call[0]) {
