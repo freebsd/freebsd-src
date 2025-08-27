@@ -4413,15 +4413,31 @@ lkpi_scan_chan_list_resort(struct linuxkpi_ieee80211_channel **cpp, size_t nchan
 			}
 		}
 	}
+}
 
-#if 0
-	printf("SCANLIST (nchan=%zu):", nchan);
-	for (i = 0; i < nchan; i++) {
-		lc = *(cpp + i);
-		printf(" %d", ieee80211_mhz2ieee(lc->center_freq, lkpi_nl80211_band_to_net80211_band(lc->band)));
+static bool
+lkpi_scan_chan(struct linuxkpi_ieee80211_channel *c,
+    struct ieee80211com *ic, bool log)
+{
+
+	if ((c->flags & IEEE80211_CHAN_DISABLED) != 0) {
+		if (log)
+			TRACE_SCAN(ic, "Skipping disabled chan "
+			    "on band %s [%#x/%u/%#x]",
+			    lkpi_nl80211_band_name(c->band), c->hw_value,
+			    c->center_freq, c->flags);
+		return (false);
 	}
-	printf("\n");
-#endif
+	if (isclr(ic->ic_chan_active, ieee80211_mhz2ieee(c->center_freq,
+	    lkpi_nl80211_band_to_net80211_band(c->band)))) {
+		if (log)
+			TRACE_SCAN(ic, "Skipping !active chan "
+			    "on band %s [%#x/%u/%#x]",
+			    lkpi_nl80211_band_name(c->band), c->hw_value,
+			    c->center_freq, c->flags);
+		return (false);
+	}
+	return (true);
 }
 #endif
 
@@ -4529,8 +4545,17 @@ sw_scan:
 					continue;
 				}
 				if (hw->wiphy->bands[band] != NULL) {
-					nchan += hw->wiphy->bands[band]->n_channels;
+					struct linuxkpi_ieee80211_channel *channels;
+					int n;
+
 					band_mask |= (1 << band);
+
+					channels = hw->wiphy->bands[band]->channels;
+					n = hw->wiphy->bands[band]->n_channels;
+					for (i = 0; i < n; i++) {
+						if (lkpi_scan_chan(&channels[i], ic, true))
+							nchan++;
+					}
 				}
 			}
 #endif
@@ -4639,11 +4664,29 @@ sw_scan:
 				continue;
 
 			channels = supband->channels;
-			for (i = 0; i < supband->n_channels; i++)
-				*(cpp + n++) = &channels[i];
+			for (i = 0; i < supband->n_channels; i++) {
+				if (lkpi_scan_chan(&channels[i], ic, false))
+					*(cpp + n++) = &channels[i];
+			}
 		}
 		if (lkpi_order_scanlist)
 			lkpi_scan_chan_list_resort(cpp, nchan);
+
+		if ((linuxkpi_debug_80211 & D80211_SCAN) != 0) {
+			printf("%s:%d: %s SCAN Channel List (nchan=%zu): ",
+			    __func__, __LINE__, ic->ic_name, nchan);
+			for (i = 0; i < nchan; i++) {
+				struct linuxkpi_ieee80211_channel *xc;
+
+				xc = *(cpp + i);
+				printf(" %d(%d)",
+				    ieee80211_mhz2ieee(xc->center_freq,
+				        lkpi_nl80211_band_to_net80211_band(
+					xc->band)),
+				    xc->center_freq);
+			}
+			printf("\n");
+		}
 #endif
 
 		hw_req->req.n_ssids = ssid_count;
