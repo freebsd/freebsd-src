@@ -27,6 +27,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250827:
+	The names of pkg repositories defined in /etc/pkg/FreeBSD.conf have
+	changed: "FreeBSD" is now "FreeBSD-ports", and "FreeBSD-kmods" is now
+	"FreeBSD-ports-kmods".  Users with /usr/local/etc/pkg/repos files
+	which override these will need to adjust their configuration to match
+	the new names.
+
 20250823:
 	The set of pkgbase packages for Kerberos and OpenSSL has changed.
 	After updating past 250e77d4f0a5, you should check 'pkg orphans'
