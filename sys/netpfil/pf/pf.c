@@ -5633,6 +5633,9 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 			*ctx->rm = ctx->pd->related_rule;
 			break;
 		}
+		PF_TEST_ATTRIB(r->rule_flag & PFRULE_EXPIRED,
+		    TAILQ_NEXT(r, entries));
+		/* Don't count expired rule evaluations. */
 		pf_counter_u64_add(&r->evaluations, 1);
 		PF_TEST_ATTRIB(pfi_kkif_match(r->kif, pd->kif) == r->ifnot,
 			r->skip[PF_SKIP_IFP]);
@@ -5736,6 +5739,21 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 		if (r->tag)
 			ctx->tag = r->tag;
 		if (r->anchor == NULL) {
+
+			if (r->rule_flag & PFRULE_ONCE) {
+				uint32_t	rule_flag;
+
+				rule_flag = r->rule_flag;
+				if ((rule_flag & PFRULE_EXPIRED) == 0 &&
+				    atomic_cmpset_int(&r->rule_flag, rule_flag,
+				    rule_flag | PFRULE_EXPIRED)) {
+					//r->exptime = gettime();
+				} else {
+					r = TAILQ_NEXT(r, entries);
+					continue;
+				}
+			}
+
 			if (r->action == PF_MATCH) {
 				/*
 				 * Apply translations before increasing counters,
@@ -5812,6 +5830,7 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 		}
 		r = TAILQ_NEXT(r, entries);
 	}
+
 
 	return (ctx->test_status);
 }
