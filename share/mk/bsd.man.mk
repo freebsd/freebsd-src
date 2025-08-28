@@ -169,14 +169,16 @@ ${__target}: ${MANSRC.${__page:T}:U${__page}}
 .endfor
 .else
 .for __page in ${${__group}}
+.if defined(MANSRC.${__page:T})
 .for __target in ${__page:T:S/:/\:/g}
 all-man: ${__target}
-.if defined(MANSRC.${__page:T})
 CLEANFILES+=	${__target}
 ${__target}: ${MANSRC.${__page:T}}
 	${CP} ${.ALLSRC} ${.TARGET}
-.endif
 .endfor
+.else
+all-man: ${__page}
+.endif
 .endfor
 .endif
 .endif
