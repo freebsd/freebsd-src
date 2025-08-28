@@ -51,7 +51,7 @@
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
+#include <sys/fcntl.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -457,7 +457,7 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 	do {
 		IF_DEQUEUE(&priv->readq, m);
 		if (m == NULL) {
-			if (flag & IO_NDELAY)
+			if (flag & O_NONBLOCK)
 				return (EWOULDBLOCK);
 			mtx_lock(&priv->ngd_mtx);
 			priv->flags |= NGDF_RWAIT;
