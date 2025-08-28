@@ -1,4 +1,5 @@
-.\" -*- nroff -*-
+.\"
+.\" SPDX-License-Identifer: BSD-2-Clause
 .\"
 .\" Copyright (c) 2002 Hiten Pandya
 .\" Copyright (c) 2002 Robert N. M. Watson
@@ -25,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 29, 2025
+.Dd August 28, 2025
 .Dt DEVINFO 8
 .Os
 .Sh NAME
@@ -35,9 +36,9 @@
 .Nm
 .Op Fl rv
 .Nm
-.Fl u Op Fl v
-.Nm
 .Fl p Ar dev Op Fl v
+.Nm
+.Fl u Op Fl v
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,11 +47,16 @@ in the system, starting from the
 .Dq nexus
 device.
 .Pp
-The following options are accepted.
+The following options are accepted:
 .Bl -tag -width indent
+.It Fl p Ar dev
+Display the path of
+.Ar dev
+back to the root of the device tree.
 .It Fl r
-Causes hardware resource information (such as IRQ, I/O ports, I/O memory
-addresses) to be also listed, under each device that has reserved those resources.
+Causes hardware resource information
+.Pq such as IRQ, I/O ports, I/O memory addresses
+to be also listed, under each device that has reserved those resources.
 .It Fl u
 Displays the same information as with
 .Fl r
@@ -63,10 +69,6 @@ Display all devices in the driver tree, not just those that are attached or
 busy.
 Without this flag, only those devices that have attached are reported.
 This flag also displays verbose information about each device.
-.It Fl p Ar dev
-Display the path of
-.Ar dev
-back to the root of the device tree.
 .El
 .Sh SEE ALSO
 .Xr systat 1 ,
@@ -77,5 +79,10 @@ back to the root of the device tree.
 .Xr vmstat 8 ,
 .Xr devclass 9 ,
 .Xr device 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 .An Mike Smith Aq Mt msmith@FreeBSD.org
