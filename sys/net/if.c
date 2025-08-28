@@ -76,7 +76,6 @@
 #include <vm/uma.h>
 
 #include <net/bpf.h>
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_clone.h>
