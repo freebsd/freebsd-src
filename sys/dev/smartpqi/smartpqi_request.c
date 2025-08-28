@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -85,8 +85,8 @@ pqisrc_contiguous_free_elem(uint32_t pi, uint32_t ci, uint32_t elem_in_q)
 
 /* Subroutine to find out num of elements need for the request */
 static uint32_t
-pqisrc_num_elem_needed(pqisrc_softstate_t *softs, uint32_t SG_Count,
-                pqi_scsi_dev_t *devp, boolean_t is_write, IO_PATH_T io_path)
+pqisrc_num_elem_needed(pqisrc_softstate_t const *softs, uint32_t SG_Count,
+                pqi_scsi_dev_t const *devp, boolean_t is_write, IO_PATH_T io_path)
 {
 	uint32_t num_sg;
 	uint32_t num_elem_required = 1;
@@ -129,7 +129,7 @@ pqisrc_build_sgl(sgt_t *sg_array, rcb_t *rcb, iu_header_t *iu_hdr,
 
 	DBG_FUNC("IN\n");
 
-	/* DBG_IO("SGL_Count :%d",num_sg); */
+	/* DBG_IO("SGL_Count :%d\n",num_sg); */
 	if (0 == num_sg) {
 		goto out;
 	}
@@ -404,11 +404,11 @@ pqisrc_build_aio_common(pqisrc_softstate_t *softs, pqi_aio_req_t *aio_req,
 }
 /*Subroutine used to show standard AIO IU fields */
 void
-pqisrc_show_aio_common(pqisrc_softstate_t *softs, rcb_t *rcb,
+pqisrc_show_aio_common(pqisrc_softstate_t *softs, rcb_t const *rcb,
                        pqi_aio_req_t *aio_req)
 {
 #ifdef DEBUG_AIO
-	DBG_INFO("AIO IU Content, tag# 0x%08x", rcb->tag);
+	DBG_INFO("AIO IU Content, tag# 0x%08x\n", rcb->tag);
 	DBG_INFO("%15s: 0x%x\n", "iu_type",	aio_req->header.iu_type);
 	DBG_INFO("%15s: 0x%x\n", "comp_feat",	aio_req->header.comp_feature);
 	DBG_INFO("%15s: 0x%x\n", "length",	aio_req->header.iu_length);
@@ -453,11 +453,11 @@ pqisrc_build_aio_R1_write(pqisrc_softstate_t *softs,
 {
 	DBG_FUNC("IN\n");
 	if (!rcb->dvp) {
-		DBG_WARN("%s: DEBUG: dev ptr is null", __func__);
+		DBG_WARN("%s: DEBUG: dev ptr is NULL\n", __func__);
 		return;
 	}
 	if (!rcb->dvp->raid_map) {
-		DBG_WARN("%s: DEBUG: raid_map is null", __func__);
+		DBG_WARN("%s: DEBUG: raid_map is NULL\n", __func__);
 		return;
 	}
 
@@ -522,12 +522,12 @@ pqisrc_build_aio_R1_write(pqisrc_softstate_t *softs,
 
 /*Subroutine used to show AIO RAID1 Write bypass IU fields */
 void
-pqisrc_show_aio_R1_write(pqisrc_softstate_t *softs, rcb_t *rcb,
+pqisrc_show_aio_R1_write(pqisrc_softstate_t *softs, rcb_t const *rcb,
 	pqi_aio_raid1_write_req_t *aio_req)
 {
 
 #ifdef DEBUG_AIO
-	DBG_INFO("AIO RAID1 Write IU Content, tag# 0x%08x", rcb->tag);
+	DBG_INFO("AIO RAID1 Write IU Content, tag# 0x%08x\n", rcb->tag);
 	DBG_INFO("%15s: 0x%x\n", "iu_type",	aio_req->header.iu_type);
 	DBG_INFO("%15s: 0x%x\n", "comp_feat",	aio_req->header.comp_feature);
 	DBG_INFO("%15s: 0x%x\n", "length",	aio_req->header.iu_length);
@@ -674,7 +674,7 @@ pqisrc_build_aio_R5or6_write(pqisrc_softstate_t *softs,
 
 /*Subroutine used to show AIO RAID5/6 Write bypass IU fields */
 void
-pqisrc_show_aio_R5or6_write(pqisrc_softstate_t *softs, rcb_t *rcb,
+pqisrc_show_aio_R5or6_write(pqisrc_softstate_t *softs, rcb_t const *rcb,
 	pqi_aio_raid5or6_write_req_t *aio_req)
 {
 #ifdef DEBUG_AIO
@@ -724,7 +724,7 @@ pqisrc_show_aio_R5or6_write(pqisrc_softstate_t *softs, rcb_t *rcb,
 
 /* Is the cdb a read command? */
 boolean_t
-pqisrc_cdb_is_read(uint8_t *cdb)
+pqisrc_cdb_is_read(uint8_t const *cdb)
 {
 	if (cdb[0] == SCMD_READ_6 || cdb[0] == SCMD_READ_10 ||
 		cdb[0] == SCMD_READ_12 || cdb[0] == SCMD_READ_16)
@@ -734,7 +734,7 @@ pqisrc_cdb_is_read(uint8_t *cdb)
 
 /* Is the cdb a write command? */
 boolean_t
-pqisrc_cdb_is_write(uint8_t *cdb)
+pqisrc_cdb_is_write(uint8_t const *cdb)
 {
 	if (cdb == NULL)
 		return false;
@@ -1021,7 +1021,7 @@ pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 	/* coverity[unchecked_value] */
 	num_elem_needed = pqisrc_num_elem_needed(softs,
 		OS_GET_IO_SG_COUNT(rcb), devp, is_write, io_path);
-	DBG_IO("num_elem_needed :%u",num_elem_needed);
+	DBG_IO("num_elem_needed :%u\n",num_elem_needed);
 
 	do {
 		uint32_t num_elem_available;
@@ -1047,7 +1047,7 @@ pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 		}
 	}while(TraverseCount < 2);
 
-	DBG_IO("num_elem_alloted :%u",num_elem_alloted);
+	DBG_IO("num_elem_alloted :%u\n",num_elem_alloted);
 	if (num_elem_alloted == 0) {
 		DBG_WARN("OUT: IB Queues were full\n");
 		return PQI_STATUS_QFULL;
@@ -1131,7 +1131,7 @@ fill_lba_for_scsi_rw(pqisrc_softstate_t *softs, uint8_t *cdb, aio_req_locator_t 
 {
 
 	if (!l) {
-		DBG_INFO("No locator ptr: AIO ineligible");
+		DBG_INFO("No locator ptr: AIO ineligible\n");
 		return PQI_STATUS_FAILURE;
 	}
 
@@ -1172,7 +1172,7 @@ fill_lba_for_scsi_rw(pqisrc_softstate_t *softs, uint8_t *cdb, aio_req_locator_t 
 		break;
 	default:
 		/* Process via normal I/O path. */
-		DBG_AIO("NOT read or write 6/10/12/16: AIO ineligible");
+		DBG_AIO("NOT read or write 6/10/12/16: AIO ineligible\n");
 		return PQI_STATUS_FAILURE;
 	}
 	return PQI_STATUS_SUCCESS;
@@ -1180,9 +1180,9 @@ fill_lba_for_scsi_rw(pqisrc_softstate_t *softs, uint8_t *cdb, aio_req_locator_t 
 
 
 /* determine whether writes to certain types of RAID are supported. */
-static boolean_t
-pqisrc_is_supported_write(pqisrc_softstate_t *softs,
-	pqi_scsi_dev_t *device)
+inline boolean_t
+pqisrc_is_supported_write(pqisrc_softstate_t const *softs,
+	pqi_scsi_dev_t const *device)
 {
 
 	DBG_FUNC("IN\n");
@@ -1381,7 +1381,7 @@ pqisrc_is_r5or6_single_group(pqisrc_softstate_t *softs, aio_req_locator_t *l)
 				l->r5or6.row.blks_per_row;
 
 	if (l->group.first != l->group.last) {
-		DBG_AIO("AIO ineligible");
+		DBG_AIO("AIO ineligible\n");
 		ret = false;
 	}
 
@@ -1403,7 +1403,7 @@ pqisrc_is_r5or6_single_row(pqisrc_softstate_t *softs, aio_req_locator_t *l)
 	l->r5or6.row.last = l->block.last / l->stripesz;
 
 	if (l->r5or6.row.first != l->r5or6.row.last) {
-		DBG_AIO("AIO ineligible");
+		DBG_AIO("AIO ineligible\n");
 		ret = false;
 	}
 
@@ -1431,7 +1431,7 @@ pqisrc_is_r5or6_single_column(pqisrc_softstate_t *softs, aio_req_locator_t *l)
 	l->r5or6.col.last = l->r5or6.row.offset_last / l->strip_sz;
 
 	if (l->r5or6.col.first != l->r5or6.col.last) {
-		DBG_AIO("AIO ineligible");
+		DBG_AIO("AIO ineligible\n");
 		ret = false;
 	}
 
@@ -1492,9 +1492,9 @@ pqisrc_handle_blk_size_diffs(aio_req_locator_t *l)
  * handle based on dev type, Raid level, and encryption status.
  * TODO: make limits dynamic when this becomes possible.
  */
-static boolean_t
+inline boolean_t
 pqisrc_aio_req_too_big(pqisrc_softstate_t *softs,
-	pqi_scsi_dev_t *device, rcb_t *rcb,
+	pqi_scsi_dev_t *device, rcb_t const *rcb,
 	aio_req_locator_t *l, uint32_t disk_blk_cnt)
 {
 	boolean_t ret = false;
@@ -1537,7 +1537,7 @@ pqisrc_aio_req_too_big(pqisrc_softstate_t *softs,
 
 
 	if (size > dev_max) {
-		DBG_AIO("AIO ineligible: size=%u, max=%u", size, dev_max);
+		DBG_AIO("AIO ineligible: size=%u, max=%u\n", size, dev_max);
 		ret = true;
 	}
 
@@ -1547,7 +1547,7 @@ pqisrc_aio_req_too_big(pqisrc_softstate_t *softs,
 
 #ifdef DEBUG_RAID_MAP
 static inline void
-pqisrc_aio_show_raid_map(pqisrc_softstate_t *softs, struct raid_map *m)
+pqisrc_aio_show_raid_map(pqisrc_softstate_t const *softs, struct raid_map const *m)
 {
 	int i;
 
@@ -1583,7 +1583,7 @@ pqisrc_aio_show_raid_map(pqisrc_softstate_t *softs, struct raid_map *m)
 
 static inline void
 pqisrc_aio_show_locator_info(pqisrc_softstate_t *softs,
-	aio_req_locator_t *l, uint32_t disk_blk_cnt, rcb_t *rcb)
+	aio_req_locator_t *l, uint32_t disk_blk_cnt, rcb_t const *rcb)
 {
 #ifdef DEBUG_AIO_LOCATOR
 	pqisrc_aio_show_raid_map(softs, l->raid_map);
@@ -1636,7 +1636,7 @@ pqisrc_aio_show_locator_info(pqisrc_softstate_t *softs,
 }
 
 /* build the aio cdb */
-static void
+inline void
 pqisrc_aio_build_cdb(aio_req_locator_t *l,
 		uint32_t disk_blk_cnt, rcb_t *rcb, uint8_t *cdb)
 {
@@ -1665,7 +1665,7 @@ pqisrc_aio_build_cdb(aio_req_locator_t *l,
 
 /* print any arbitrary buffer of length total_len */
 void
-pqisrc_print_buffer(pqisrc_softstate_t *softs, char *msg, void *user_buf,
+pqisrc_print_buffer(pqisrc_softstate_t *softs, char const *msg, void *user_buf,
 		uint32_t total_len, uint32_t flags)
 {
 #define LINE_BUF_LEN 60
@@ -1713,7 +1713,7 @@ pqisrc_print_buffer(pqisrc_softstate_t *softs, char *msg, void *user_buf,
 
 /* print CDB with column header */
 void
-pqisrc_show_cdb(pqisrc_softstate_t *softs, char *msg, rcb_t *rcb, uint8_t *cdb)
+pqisrc_show_cdb(pqisrc_softstate_t *softs, char const *msg, rcb_t const *rcb, uint8_t *cdb)
 {
 	/* Print the CDB contents */
 	pqisrc_print_buffer(softs, msg, cdb, rcb->cmdlen, PRINT_FLAG_HDR_COLUMN);
@@ -1742,7 +1742,7 @@ pqisrc_show_rcb_details(pqisrc_softstate_t *softs, rcb_t *rcb, char *msg, void *
 	DBG_INFO("tag=0x%x dir=%u host_timeout=%ums\n", rcb->tag,
 		rcb->data_dir, (uint32_t)rcb->host_timeout_ms);
 
-	DBG_INFO("BTL: %d:%d:%d addr=0x%x\n", devp->bus, devp->target,
+	DBG_INFO("B%d:T%d:L%d addr=0x%x\n", devp->bus, devp->target,
 		devp->lun, GET_LE32(devp->scsi3addr));
 
 	if (rcb->path == AIO_PATH)
@@ -1786,7 +1786,7 @@ pqisrc_build_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 		return PQI_STATUS_FAILURE;
 	}
 	if (device->raid_map == NULL) {
-		DBG_INFO("tag=0x%x BTL: %d:%d:%d Raid map is NULL\n",
+		DBG_INFO("tag=0x%x B%d:T%d:L%d Raid map is NULL\n",
 			rcb->tag, device->bus, device->target, device->lun);
 		return PQI_STATUS_FAILURE;
 	}
@@ -1846,15 +1846,18 @@ pqisrc_build_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 	}
 
 	if (l->map.idx >= RAID_MAP_MAX_ENTRIES) {
-		DBG_INFO("AIO ineligible: index exceeds max map entries");
+		DBG_INFO("AIO ineligible: index exceeds max map entries\n");
 		return PQI_STATUS_FAILURE;
 	}
 
 	rcb->ioaccel_handle =
 		l->raid_map->dev_data[l->map.idx].ioaccel_handle;
 
+   /*
 	if (!pqisrc_calc_aio_block(l))
 		return PQI_STATUS_FAILURE;
+   */
+	pqisrc_calc_aio_block(l);
 
 	disk_blk_cnt = pqisrc_handle_blk_size_diffs(l);
 
@@ -1889,8 +1892,8 @@ pqisrc_build_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
  */
 
 static int
-pqisrc_send_aio_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
-                    rcb_t *rcb, rcb_t *rcb_to_manage, int tmf_type)
+pqisrc_send_aio_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t const *devp,
+                    rcb_t *rcb, rcb_t const *rcb_to_manage, int tmf_type)
 {
 	int rval = PQI_STATUS_SUCCESS;
 	pqi_aio_tmf_req_t tmf_req;
@@ -1966,8 +1969,8 @@ pqisrc_send_aio_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
 
 /* Function used to submit a Raid TMF to the adapter */
 static int
-pqisrc_send_raid_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
-                    rcb_t *rcb, rcb_t *rcb_to_manage, int tmf_type)
+pqisrc_send_raid_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t const *devp,
+                    rcb_t *rcb, rcb_t const *rcb_to_manage, int tmf_type)
 {
 	int rval = PQI_STATUS_SUCCESS;
 	pqi_raid_tmf_req_t tmf_req;
@@ -1997,9 +2000,6 @@ pqisrc_send_raid_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
 			tmf_type == SOP_TASK_MANAGEMENT_LUN_RESET) {
 		/* OS_TMF_TIMEOUT_SEC - 1 to accomodate driver processing */
 		tmf_req.timeout_in_sec = OS_TMF_TIMEOUT_SEC - 1;
-		/* if OS tmf timeout is 0, set minimum value for timeout */
-		if (!tmf_req.timeout_in_sec)
-			tmf_req.timeout_in_sec = 1;
 	}
 
 	op_ib_q = &softs->op_raid_ib_q[0];
@@ -2034,8 +2034,8 @@ pqisrc_send_raid_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
 	return rval;
 }
 
-void
-dump_tmf_details(pqisrc_softstate_t *softs, rcb_t *rcb, char *msg)
+static void
+dump_tmf_details(rcb_t *rcb, char const *msg)
 {
 	uint32_t qid = rcb->req_q ? rcb->req_q->q_id : -1;
 
@@ -2045,7 +2045,7 @@ dump_tmf_details(pqisrc_softstate_t *softs, rcb_t *rcb, char *msg)
 }
 
 int
-pqisrc_send_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
+pqisrc_send_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t const *devp,
                     rcb_t *rcb, rcb_t *rcb_to_manage, int tmf_type)
 {
 	int ret = PQI_STATUS_SUCCESS;
@@ -2062,11 +2062,11 @@ pqisrc_send_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
 	if (tmf_type == SOP_TASK_MANAGEMENT_FUNCTION_ABORT_TASK)
 	{
 		rcb_to_manage->host_wants_to_abort_this = true;
-		dump_tmf_details(softs, rcb_to_manage, "rcb_to_manage");
+		dump_tmf_details(rcb_to_manage, "rcb_to_manage");
 	}
 
 
-	dump_tmf_details(softs, rcb, "rcb");
+	dump_tmf_details(rcb, "rcb");
 
 	if(!devp->is_physical_device) {
 		if (tmf_type == SOP_TASK_MANAGEMENT_FUNCTION_ABORT_TASK) {
@@ -2167,7 +2167,7 @@ io_type_to_ascii(io_type_t io_type)
 
 /* return the io type based on cdb */
 io_type_t
-get_io_type_from_cdb(uint8_t *cdb)
+get_io_type_from_cdb(uint8_t const *cdb)
 {
 	if (cdb == NULL)
 		return UNKNOWN_IO_TYPE;
@@ -2223,9 +2223,9 @@ pqisrc_increment_io_counters(pqisrc_softstate_t *softs, rcb_t *rcb)
 #if 1 /* leave this enabled while we gain confidence for each io path */
 	if (ret_val == 1)
 	{
-		char *raid_type = counter_type_to_raid_ascii(type_index);
-		char *path = io_path_to_ascii(rcb->path);
-		char *io_ascii = io_type_to_ascii(io_type);
+		char const *raid_type = counter_type_to_raid_ascii(type_index);
+		char const *path = io_path_to_ascii(rcb->path);
+		char const *io_ascii = io_type_to_ascii(io_type);
 
 		DBG_INFO("Got first path/type hit. "
 			"Path=%s RaidType=%s IoType=%s\n",
@@ -2238,7 +2238,7 @@ pqisrc_increment_io_counters(pqisrc_softstate_t *softs, rcb_t *rcb)
 
 /* public routine to print a particular counter with header msg */
 void
-print_this_counter(pqisrc_softstate_t *softs, io_counters_t *pcounter, char *msg)
+print_this_counter(pqisrc_softstate_t const *softs, io_counters_t const *pcounter, char const *msg)
 {
 	io_counters_t counter;
 	uint32_t percent_reads;
@@ -2280,7 +2280,7 @@ print_this_counter(pqisrc_softstate_t *softs, io_counters_t *pcounter, char *msg
 boolean_t
 is_buffer_zero(void *buffer, uint32_t size)
 {
-	char *buf = buffer;
+	char const *buf = buffer;
 	DWORD ii;
 
 	if (buffer == NULL || size == 0)

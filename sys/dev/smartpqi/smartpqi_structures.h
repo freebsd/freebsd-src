@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +35,7 @@ struct bmic_host_wellness_driver_version {
 	uint8_t		driver_version_tag[2];
 	uint16_t	driver_version_length;
 	char		driver_version[32];
+	uint8_t		dont_write_tag[2];
 	uint8_t		end_tag[2];
 
 }OS_ATTRIBUTE_PACKED;
@@ -901,6 +902,8 @@ typedef struct pqi_scsi_device {
 	int	*offload_to_mirror;	/* Send next I/O accelerator RAID
 					   offload request to mirror drive. */
 	struct raid_map *raid_map;	/* I/O accelerator RAID map */
+	int	*temp_offload_to_mirror; /* Temporary stored offload_to_mirror which will be freed later */
+	struct raid_map *temp_raid_map;	/* Temporary stored RAID map which will be freed later */
 
 	int 	reset_in_progress;
 	int 	logical_unit_number;

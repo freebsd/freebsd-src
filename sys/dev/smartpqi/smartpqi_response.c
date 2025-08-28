@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -121,7 +121,7 @@ pqisrc_extract_sense_data(sense_data_u_t *sense_data, uint8_t *key, uint8_t *asc
 	if (sense_data->fixed_format.response_code == SCSI_SENSE_RESPONSE_70 ||
 		sense_data->fixed_format.response_code == SCSI_SENSE_RESPONSE_71)
 	{
-		sense_data_fixed_t *fixed = &sense_data->fixed_format;
+		sense_data_fixed_t const *fixed = &sense_data->fixed_format;
 
 		*key = fixed->sense_key;
 		*asc = fixed->sense_code;
@@ -130,7 +130,7 @@ pqisrc_extract_sense_data(sense_data_u_t *sense_data, uint8_t *key, uint8_t *asc
 	else if (sense_data->descriptor_format.response_code == SCSI_SENSE_RESPONSE_72 ||
 		sense_data->descriptor_format.response_code == SCSI_SENSE_RESPONSE_73)
 	{
-		sense_data_descriptor_t *desc = &sense_data->descriptor_format;
+		sense_data_descriptor_t const *desc = &sense_data->descriptor_format;
 
 		*key = desc->sense_key;
 		*asc = desc->sense_code;
@@ -146,7 +146,7 @@ pqisrc_extract_sense_data(sense_data_u_t *sense_data, uint8_t *key, uint8_t *asc
 
 /* Suppress common errors unless verbose debug flag is on */
 boolean_t
-suppress_innocuous_error_prints(pqisrc_softstate_t *softs, rcb_t *rcb)
+suppress_innocuous_error_prints(pqisrc_softstate_t const *softs, rcb_t *rcb)
 {
 	uint8_t opcode = rcb->cdbp ? rcb->cdbp[0] : 0xFF;
 
@@ -165,7 +165,7 @@ static void
 pqisrc_show_sense_data_simple(pqisrc_softstate_t *softs, rcb_t *rcb, sense_data_u_t *sense_data)
 {
 	uint8_t opcode = rcb->cdbp ? rcb->cdbp[0] : 0xFF;
-	char *path = io_path_to_ascii(rcb->path);
+	char const *path = io_path_to_ascii(rcb->path);
 	uint8_t key, asc, ascq;
 	pqisrc_extract_sense_data(sense_data, &key, &asc, &ascq);
 
@@ -393,7 +393,7 @@ pqisrc_process_task_management_response(pqisrc_softstate_t *softs,
 }
 
 static int
-pqisrc_process_vendor_general_response(pqi_vendor_general_response_t *response)
+pqisrc_process_vendor_general_response(pqi_vendor_general_response_t const *response)
 {
 
 	int ret = PQI_STATUS_SUCCESS;
@@ -448,7 +448,7 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 		rcb = &softs->rcb[tag];
 		/* Make sure we are processing a valid response. */
 		if ((rcb->tag != tag) || (rcb->req_pending == false)) {
-			DBG_ERR("No such request pending with tag : %x rcb->tag : %x", tag, rcb->tag);
+			DBG_ERR("No such request pending with tag : %x rcb->tag : %x\n", tag, rcb->tag);
 			oq_ci = (oq_ci + 1) % ob_q->num_elem;
 			break;
 		}
