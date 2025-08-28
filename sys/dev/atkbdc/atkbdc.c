@@ -848,12 +848,8 @@ read_aux_data_no_wait(KBDC p)
 {
     int f;
 
-    TSENTER();
     if (availq(&p->aux))
-    {
-        TSEXIT();
         return removeq(&p->aux);
-    }
     f = read_status(p) & KBDS_BUFFER_FULL;
     if (f == KBDS_KBD_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
@@ -862,10 +858,8 @@ read_aux_data_no_wait(KBDC p)
     }
     if (f == KBDS_AUX_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
-        TSEXIT();
         return read_data(p);
     }
-    TSEXIT();
     return -1;		/* no data */
 }
 
@@ -882,7 +876,6 @@ empty_kbd_buffer(KBDC p, int wait)
 #endif
     int delta = 2;
 
-    TSENTER();
     for (t = wait; t > 0; ) { 
         if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
@@ -907,7 +900,6 @@ empty_kbd_buffer(KBDC p, int wait)
 #endif
 
     emptyq(&p->kbd);
-    TSEXIT();
 }
 
 /* discard data from the aux device */
@@ -972,11 +964,10 @@ empty_both_buffers(KBDC p, int wait)
             else
 		++c2;
 #endif
-			t = wait;
-		} else
-		{
-			t -= delta;
-		}
+		t = wait;
+	} else {
+		t -= delta;
+	}
 
 		/*
 		* Some systems (Intel/IBM blades) do not have keyboard devices and
@@ -986,13 +977,12 @@ empty_both_buffers(KBDC p, int wait)
 		unsigned int effective_delay = ATKBD_DELAY(delta);
 		waited += effective_delay;
 
-		if (waited == effective_delay * 1000)
-		{
+		if (waited == effective_delay * MILISECOND_MULTIPLIER) {
 			TSEXIT();
 			return;
 		}
 
-		DELAY(delta);
+		DELAY(effective_delay);
 	}
 
 #if KBDIO_DEBUG >= 2
@@ -1014,8 +1004,6 @@ reset_kbd(KBDC p)
 {
     int retry = KBD_MAXRETRY;
     int c = KBD_RESEND;		/* keep the compiler happy */
-
-    TSENTER();
 
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
