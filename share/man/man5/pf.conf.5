@@ -2259,12 +2259,11 @@ When the rate is exceeded, all ICMP is blocked until the rate falls below
 Limit each packet to be no more than the specified number of bytes.
 This includes the IP header, but not any layer 2 header.
 .It Ar once
-Creates a one shot rule.
-The first matching packet marks the rule as expired;
-any expired rules are no longer evaluated.
-Expired rules are only shown in verbose mode (-vv):
+Create a one shot rule.
+The first matching packet marks the rule as expired.
+Expired rules are skipped and hidden, unless
 .Xr pfctl 8
-will append '# expired' to note any once rules which have already been hit.
+is used in debug or verbose mode.
 .Pp
 .It Xo Ar queue Aq Ar queue
 .No \*(Ba ( Aq Ar queue ,
