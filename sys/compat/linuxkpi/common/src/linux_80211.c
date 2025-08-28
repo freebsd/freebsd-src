@@ -7348,7 +7348,7 @@ lkpi_rx_log_beacon(struct mbuf *m, struct lkpi_hw *lhw,
 	}
 
 	/* We print skb, skb->data, m as we are seeing 'ghost beacons'. */
-	TRACE_SCAN(lhw->ic, "Beacon: scan_flags %b, band %s freq %u chan %-4d "
+	TRACE_SCAN_BEACON(lhw->ic, "Beacon: scan_flags %b, band %s freq %u chan %-4d "
 	    "len %d { %#06x %#06x %6D %6D %6D %#06x %ju %u %#06x SSID '%s' }",
 	    lhw->scan_flags, LKPI_LHW_SCAN_BITS,
 	    lkpi_nl80211_band_name(rx_status->band), rx_status->freq,
@@ -7421,11 +7421,11 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * We use the mbuf here as otherwise the variable part might
 	 * be in skb frags.
 	 */
-	if (is_beacon && ((linuxkpi_debug_80211 & D80211_SCAN) != 0))
+	if (is_beacon && ((linuxkpi_debug_80211 & D80211_SCAN_BEACON) != 0))
 		lkpi_rx_log_beacon(m, lhw, rx_status);
 
 	if (is_beacon && (linuxkpi_debug_80211 & D80211_TRACE_RX_BEACONS) == 0 &&
-	   (linuxkpi_debug_80211 & D80211_SCAN) == 0)
+	   (linuxkpi_debug_80211 & D80211_SCAN_BEACON) == 0)
 		goto no_trace_beacons;
 
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
@@ -7441,7 +7441,7 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	/* Implement a dump_rxcb() !!! */
 	if ((linuxkpi_debug_80211 & D80211_TRACE_RX) != 0 ||
-	    (linuxkpi_debug_80211 & D80211_SCAN) != 0)
+	    (linuxkpi_debug_80211 & D80211_SCAN_BEACON) != 0)
 		printf("TRACE-RX: %s: RXCB: %ju %ju %u, %b, %u, %#0x, %#0x, "
 		    "%u band %u, %u { %d %d %d %d }, %d, %#x %#x %#x %#x %u %u %u\n",
 			__func__,
