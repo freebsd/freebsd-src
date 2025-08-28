@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,7 +58,7 @@ void
 os_wellness_periodic(void *data)
 {
 	struct pqisrc_softstate *softs = (struct pqisrc_softstate *)data;
-	int ret = 0;
+	int ret;
 
 	/* update time to FW */
 	if (!pqisrc_ctrl_offline(softs)){
@@ -283,30 +283,6 @@ bsd_set_hint_adapter_cap(struct pqisrc_softstate *softs)
 
 	bsd_set_hint_adapter_queue_depth(softs);
 	bsd_set_hint_scatter_gather_config(softs);
-
-	DBG_FUNC("OUT\n");
-}
-
-void
-bsd_set_hint_adapter_cpu_config(struct pqisrc_softstate *softs)
-{
-	DBG_FUNC("IN\n");
-
-	/* online cpu count decides the no.of queues the driver can create,
-	 * and msi interrupt count as well.
-	 * If the cpu count is "zero" set by hint file then the driver
-	 * can have "one" queue and "one" legacy interrupt. (It shares event queue for
-	 * operational IB queue).
-	 * Check for os_get_intr_config function for interrupt assignment.*/
-
-	if (softs->hint.cpu_count > softs->num_cpus_online) {
-		/* Nothing to do here. Supported cpu count
-		 * already fetched from hardware */
-	}
-	else {
-		/* Set Device.Hint cpu count here */
-		softs->num_cpus_online = softs->hint.cpu_count;
-	}
 
 	DBG_FUNC("OUT\n");
 }

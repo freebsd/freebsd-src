@@ -1,4 +1,4 @@
-.\" Copyright (C) 2019-2023, Microchip Technology Inc. and its subsidiaries
+.\" Copyright (C) 2019-2025, Microchip Technology Inc. and its subsidiaries
 .\" Copyright (C) 2016-2018, Microsemi Corporation
 .\" Copyright (C) 2016, PMC-Sierra, Inc.
 .\" Written by John Hall <john.hall@microchip.com>
@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 24, 2023
+.Dd August 28, 2025
 .Dt SMARTPQI 4 amd64
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ smartpqi_load="YES"
 The
 .Nm
 driver provides support for Microchip Technology Inc. / Adaptec SmartRaid and
-SmartHBA SATA/SAS/NVME PCIe controllers
+SmartHBA SATA/SAS/NVMe PCIe controllers
 .Sh HARDWARE
 Controllers supported by the
 .Nm
@@ -63,6 +63,86 @@ Adaptec SmartRaid and SmartHBA Controllers
 OEM Controllers based on the Microchip Technology Inc. SmartROC
 and SmartIOC Chipsets
 .El
+.Sh DEBUGGING
+Driver diagnostic printing is controlled in
+.Xr loader.conf 5
+by using the global
+.Va hw.smartpqi.debug_level
+tunable.
+.Pp
+The
+.Va debug_level
+variable is set with an integer value.
+The default value is 0x0060 (warn && error).
+.Pp
+The following levels are available:
+.Bl -column "FlagXX" "NameXXXX" "Description" -offset indent
+.It Em Flag Ta Em Name Ta Em Description
+.It 0x0001 Ta init Ta System initialization operations
+.It 0x0002 Ta info Ta Basic information
+.It 0x0004 Ta function Ta Used to show function entry and exit
+.It 0x0008 Ta io Ta Logging data from controller
+.It 0x0010 Ta discovery Ta Device discovery
+.It 0x0020 Ta warning Ta Operational warnings
+.It 0x0040 Ta error Ta Parameter errors and programming bugs
+.It 0x0080 Ta note Ta More detailed information
+.El
+.Sh DEVICE HINTS
+The following tunable values can be set in
+.Pa /boot/device.hints
+to control the behavior of the
+.Nm
+driver.
+These hints are specified as:
+.Bd -literal -offset indent
+hint.smartpqi.<unit>.<variable>=<value>
+.Ed
+.Pp
+The supported variables are:
+.Bl -tag -width ".Va aio_raid1_write_disable"
+.It Va stream_disable
+If set to 0, disables Stream Detection.
+.Pp
+Default is (enabled).
+.It Va sata_unique_wwn_disable
+If set to 0, disables SATA Unique World Wide Number.
+.Pp
+Default is (enabled).
+.It Va aio_raid1_write_disable
+If set to 0, disables acceleration of RAID1 writes
+.Pp
+Default is (enabled).
+.It Va aio_raid5_write_disable
+If set to 0, disables acceleration of RAID5 writes
+.Pp
+Default is (enabled).
+.It Va aio_raid6_write_disable
+If set to 0, disables acceleration of RAID6 writes
+.Pp
+Default is (enabled).
+.It Va queue_depth
+Sets queue depth for the controller. If the queue depth value
+is greater than the maximum supported queue size of the driver or
+controller, it will be set to the lowest size. If the queue
+depth value is lower than the minimum queue depth then this will
+be set to the minimum queue depth.
+.Pp
+Default is driver-determined.
+.It Va sg_count
+Sets the scatter gather (sg) count. If this sg count is greater
+than maximum sg count it will be set to the maximum sg count.
+If this sg count is less than minimum sg count it will be set to
+the minimum sg count.
+.Pp
+Default is driver-determined.
+.El
+.Pp
+For example, to disable Stream Detection on the first controller, add
+the following line to
+.Pa /boot/device.hints :
+.Bd -literal -offset indent
+hint.smartpqi.0.stream_disable="0"
+.Ed
 .Sh FILES
 .Bl -tag -width /boot/kernel/smartpqi.ko -compact
 .It Pa /dev/smartpqi?

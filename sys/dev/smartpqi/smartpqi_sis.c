@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -84,7 +84,7 @@ sis_disable_intx(pqisrc_softstate_t *softs)
 void
 sis_disable_interrupt(pqisrc_softstate_t *softs)
 {
-	DBG_FUNC("IN");
+	DBG_FUNC("IN\n");
 
 	switch(softs->intr_type) {
 		case INTR_TYPE_FIXED:
@@ -100,7 +100,7 @@ sis_disable_interrupt(pqisrc_softstate_t *softs)
 			break;
 	}
 
-	DBG_FUNC("OUT");
+	DBG_FUNC("OUT\n");
 }
 
 

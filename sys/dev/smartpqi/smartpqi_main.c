@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,290 +29,14 @@
  */
 
 #include "smartpqi_includes.h"
+#include "smartpqi_controllers.h"
 
 CTASSERT(BSD_SUCCESS == PQI_STATUS_SUCCESS);
 
 /*
- * Supported devices
- */
-struct pqi_ident
-{
-	u_int16_t		vendor;
-	u_int16_t		device;
-	u_int16_t		subvendor;
-	u_int16_t		subdevice;
-	int			hwif;
-	char			*desc;
-} pqi_identifiers[] = {
-	/* (MSCC PM8205 8x12G based) */
-	{0x9005, 0x028f, 0x103c, 0x600,  PQI_HWIF_SRCV, "P408i-p SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x601,  PQI_HWIF_SRCV, "P408e-p SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x602,  PQI_HWIF_SRCV, "P408i-a SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x603,  PQI_HWIF_SRCV, "P408i-c SR Gen10"},
-	{0x9005, 0x028f, 0x1028, 0x1FE0, PQI_HWIF_SRCV, "SmartRAID 3162-8i/eDell"},
-	{0x9005, 0x028f, 0x9005, 0x608,  PQI_HWIF_SRCV, "SmartRAID 3162-8i/e"},
-	{0x9005, 0x028f, 0x103c, 0x609,  PQI_HWIF_SRCV, "P408i-sb SR G10"},
-
-	/* (MSCC PM8225 8x12G based) */
-	{0x9005, 0x028f, 0x103c, 0x650,  PQI_HWIF_SRCV, "E208i-p SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x651,  PQI_HWIF_SRCV, "E208e-p SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x652,  PQI_HWIF_SRCV, "E208i-c SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x654,  PQI_HWIF_SRCV, "E208i-a SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x655,  PQI_HWIF_SRCV, "P408e-m SR Gen10"},
-	{0x9005, 0x028f, 0x9005, 0x659,  PQI_HWIF_SRCV, "2100C8iOXS"},
-
-	/* (MSCC PM8221 8x12G based) */
-	{0x9005, 0x028f, 0x103c, 0x700,  PQI_HWIF_SRCV, "P204i-c SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x701,  PQI_HWIF_SRCV, "P204i-b SR Gen10"},
-	{0x9005, 0x028f, 0x193d, 0x1104, PQI_HWIF_SRCV, "UN RAID P2404-Mf-4i-2GB"},
-	{0x9005, 0x028f, 0x193d, 0x1106, PQI_HWIF_SRCV, "UN RAID P2404-Mf-4i-1GB"},
-	{0x9005, 0x028f, 0x193d, 0x1108, PQI_HWIF_SRCV, "UN RAID P4408-Ma-8i-2GB"},
-	{0x9005, 0x028f, 0x193d, 0x1109, PQI_HWIF_SRCV, "UN RAID P4408-Mr-8i-2GB"},
-
-	/* (MSCC PM8204 8x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x800,  PQI_HWIF_SRCV, "SmartRAID 3154-8i"},
-	{0x9005, 0x028f, 0x9005, 0x801,  PQI_HWIF_SRCV, "SmartRAID 3152-8i"},
-	{0x9005, 0x028f, 0x9005, 0x802,  PQI_HWIF_SRCV, "SmartRAID 3151-4i"},
-	{0x9005, 0x028f, 0x9005, 0x803,  PQI_HWIF_SRCV, "SmartRAID 3101-4i"},
-	{0x9005, 0x028f, 0x9005, 0x804,  PQI_HWIF_SRCV, "SmartRAID 3154-8e"},
-	{0x9005, 0x028f, 0x9005, 0x805,  PQI_HWIF_SRCV, "SmartRAID 3102-8i"},
-	{0x9005, 0x028f, 0x9005, 0x806,  PQI_HWIF_SRCV, "SmartRAID 3100"},
-	{0x9005, 0x028f, 0x9005, 0x807,  PQI_HWIF_SRCV, "SmartRAID 3162-8i"},
-	{0x9005, 0x028f, 0x152d, 0x8a22, PQI_HWIF_SRCV, "QS-8204-8i"},
-	{0x9005, 0x028f, 0x193d, 0xf460, PQI_HWIF_SRCV, "UN RAID P460-M4"},
-	{0x9005, 0x028f, 0x193d, 0xf461, PQI_HWIF_SRCV, "UN RAID P460-B4"},
-	{0x9005, 0x028f, 0x1bd4, 0x004b, PQI_HWIF_SRCV, "PM8204-2GB"},
-	{0x9005, 0x028f, 0x1bd4, 0x004c, PQI_HWIF_SRCV, "PM8204-4GB"},
-	{0x9005, 0x028f, 0x193d, 0x1105, PQI_HWIF_SRCV, "UN RAID P4408-Mf-8i-2GB"},
-	{0x9005, 0x028f, 0x193d, 0x1107, PQI_HWIF_SRCV, "UN RAID P4408-Mf-8i-4GB"},
-	{0x9005, 0x028f, 0x1d8d, 0x800,	 PQI_HWIF_SRCV, "Fiberhome SmartRAID AIS-8204-8i"},
-	{0x9005, 0x028f, 0x9005, 0x0808, PQI_HWIF_SRCV,	"SmartRAID 3101E-4i"},
-	{0x9005, 0x028f, 0x9005, 0x0809, PQI_HWIF_SRCV, "SmartRAID 3102E-8i"},
-	{0x9005, 0x028f, 0x9005, 0x080a, PQI_HWIF_SRCV, "SmartRAID 3152-8i/N"},
-	{0x9005, 0x028f, 0x1cc4, 0x0101, PQI_HWIF_SRCV, "Ramaxel FBGF-RAD PM8204"},
-
-	/* (MSCC PM8222 8x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x900,  PQI_HWIF_SRCV, "SmartHBA 2100-8i"},
-	{0x9005, 0x028f, 0x9005, 0x901,  PQI_HWIF_SRCV, "SmartHBA 2100-4i"},
-	{0x9005, 0x028f, 0x9005, 0x902,  PQI_HWIF_SRCV, "HBA 1100-8i"},
-	{0x9005, 0x028f, 0x9005, 0x903,  PQI_HWIF_SRCV, "HBA 1100-4i"},
-	{0x9005, 0x028f, 0x9005, 0x904,  PQI_HWIF_SRCV, "SmartHBA 2100-8e"},
-	{0x9005, 0x028f, 0x9005, 0x905,  PQI_HWIF_SRCV, "HBA 1100-8e"},
-	{0x9005, 0x028f, 0x9005, 0x906,  PQI_HWIF_SRCV, "SmartHBA 2100-4i4e"},
-	{0x9005, 0x028f, 0x9005, 0x907,  PQI_HWIF_SRCV, "HBA 1100"},
-	{0x9005, 0x028f, 0x9005, 0x908,  PQI_HWIF_SRCV, "SmartHBA 2100"},
-	{0x9005, 0x028f, 0x9005, 0x90a,  PQI_HWIF_SRCV, "SmartHBA 2100A-8i"},
-	{0x9005, 0x028f, 0x193d, 0x8460, PQI_HWIF_SRCV, "UN HBA H460-M1"},
-	{0x9005, 0x028f, 0x193d, 0x8461, PQI_HWIF_SRCV, "UN HBA H460-B1"},
-	{0x9005, 0x028f, 0x193d, 0xc460, PQI_HWIF_SRCV, "UN RAID P460-M2"},
-	{0x9005, 0x028f, 0x193d, 0xc461, PQI_HWIF_SRCV, "UN RAID P460-B2"},
-	{0x9005, 0x028f, 0x1bd4, 0x004a, PQI_HWIF_SRCV, "PM8222-SHBA"},
-	{0x9005, 0x028f, 0x13fe, 0x8312, PQI_HWIF_SRCV, "MIC-8312BridgeB"},
-	{0x9005, 0x028f, 0x1bd4, 0x004f, PQI_HWIF_SRCV, "PM8222-HBA"},
-	{0x9005, 0x028f, 0x1d8d, 0x908,	 PQI_HWIF_SRCV, "Fiberhome SmartHBA AIS-8222-8i"},
-	{0x9005, 0x028f, 0x1bd4, 0x006C, PQI_HWIF_SRCV, "RS0800M5E8i"},
-	{0x9005, 0x028f, 0x1bd4, 0x006D, PQI_HWIF_SRCV, "RS0800M5H8i"},
-	{0x9005, 0x028f, 0x1cc4, 0x0201, PQI_HWIF_SRCV, "Ramaxel FBGF-RAD PM8222"},
-
-	/* (SRCx MSCC FVB 24x12G based) */
-	{0x9005, 0x028f, 0x103c, 0x1001, PQI_HWIF_SRCV, "MSCC FVB"},
-
-	/* (MSCC PM8241 24x12G based) */
-
-	/* (MSCC PM8242 24x12G based) */
-	{0x9005, 0x028f, 0x152d, 0x8a37, PQI_HWIF_SRCV, "QS-8242-24i"},
-	{0x9005, 0x028f, 0x9005, 0x1300, PQI_HWIF_SRCV, "HBA 1100-8i8e"},
-	{0x9005, 0x028f, 0x9005, 0x1301, PQI_HWIF_SRCV, "HBA 1100-24i"},
-	{0x9005, 0x028f, 0x9005, 0x1302, PQI_HWIF_SRCV, "SmartHBA 2100-8i8e"},
-	{0x9005, 0x028f, 0x9005, 0x1303, PQI_HWIF_SRCV, "SmartHBA 2100-24i"},
-	{0x9005, 0x028f, 0x105b, 0x1321, PQI_HWIF_SRCV, "8242-24i"},
-	{0x9005, 0x028f, 0x1bd4, 0x0045, PQI_HWIF_SRCV, "SMART-HBA 8242-24i"},
-	{0x9005, 0x028f, 0x1bd4, 0x006B, PQI_HWIF_SRCV, "RS0800M5H24i"},
-	{0x9005, 0x028f, 0x1bd4, 0x0070, PQI_HWIF_SRCV, "RS0800M5E24i"},
-
-	/* (MSCC PM8236 16x12G based) */
-	{0x9005, 0x028f, 0x152d, 0x8a24, PQI_HWIF_SRCV, "QS-8236-16i"},
-	{0x9005, 0x028f, 0x9005, 0x1380, PQI_HWIF_SRCV, "SmartRAID 3154-16i"},
-	{0x9005, 0x028f, 0x1bd4, 0x0046, PQI_HWIF_SRCV, "RAID 8236-16i"},
-	{0x9005, 0x028f, 0x1d8d, 0x806,  PQI_HWIF_SRCV, "Fiberhome SmartRAID AIS-8236-16i"},
-	{0x9005, 0x028f, 0x1cf2, 0x0B27, PQI_HWIF_SRCV, "ZTE SmartROC3100 SDPSA/B-18i 4G"},
-	{0x9005, 0x028f, 0x1cf2, 0x0B45, PQI_HWIF_SRCV, "ZTE SmartROC3100 SDPSA/B_L-18i 2G"},
-	{0x9005, 0x028f, 0x1cf2, 0x5445, PQI_HWIF_SRCV, "ZTE SmartROC3100 RM241-18i 2G"},
-	{0x9005, 0x028f, 0x1cf2, 0x5446, PQI_HWIF_SRCV, "ZTE SmartROC3100 RM242-18i 4G"},
-	{0x9005, 0x028f, 0x1cf2, 0x5449, PQI_HWIF_SRCV, "ZTE SmartROC3100 RS241-18i 2G"},
-	{0x9005, 0x028f, 0x1cf2, 0x544A, PQI_HWIF_SRCV, "ZTE SmartROC3100 RS242-18i 4G"},
-	{0x9005, 0x028f, 0x1cf2, 0x544D, PQI_HWIF_SRCV, "ZTE SmartROC3100 RM241B-18i 2G"},
-	{0x9005, 0x028f, 0x1cf2, 0x544E, PQI_HWIF_SRCV, "ZTE SmartROC3100 RM242B-18i 4G"},
-	{0x9005, 0x028f, 0x1bd4, 0x006F, PQI_HWIF_SRCV, "RS0804M5R16i"},
-
-
-
-	/* (MSCC PM8237 24x12G based) */
-	{0x9005, 0x028f, 0x103c, 0x1100, PQI_HWIF_SRCV, "P816i-a SR Gen10"},
-	{0x9005, 0x028f, 0x103c, 0x1101, PQI_HWIF_SRCV, "P416ie-m SR G10"},
-
-	/* (MSCC PM8238 16x12G based) */
-	{0x9005, 0x028f, 0x152d, 0x8a23, PQI_HWIF_SRCV, "QS-8238-16i"},
-	{0x9005, 0x028f, 0x9005, 0x1280, PQI_HWIF_SRCV, "HBA 1100-16i"},
-	{0x9005, 0x028f, 0x9005, 0x1281, PQI_HWIF_SRCV, "HBA 1100-16e"},
-	{0x9005, 0x028f, 0x105b, 0x1211, PQI_HWIF_SRCV, "8238-16i"},
-	{0x9005, 0x028f, 0x1bd4, 0x0048, PQI_HWIF_SRCV, "SMART-HBA 8238-16i"},
-	{0x9005, 0x028f, 0x9005, 0x1282, PQI_HWIF_SRCV, "SmartHBA 2100-16i"},
-	{0x9005, 0x028f, 0x1d8d, 0x916,  PQI_HWIF_SRCV, "Fiberhome SmartHBA AIS-8238-16i"},
-	{0x9005, 0x028f, 0x1458, 0x1000, PQI_HWIF_SRCV, "GIGABYTE SmartHBA CLN1832"},
-	{0x9005, 0x028f, 0x1cf2, 0x0B29, PQI_HWIF_SRCV, "ZTE SmartIOC2100 SDPSA/B_I-18i"},
-	{0x9005, 0x028f, 0x1cf2, 0x5447, PQI_HWIF_SRCV, "ZTE SmartIOC2100 RM243-18i"},
-	{0x9005, 0x028f, 0x1cf2, 0x544B, PQI_HWIF_SRCV, "ZTE SmartIOC2100 RS243-18i"},
-	{0x9005, 0x028f, 0x1cf2, 0x544F, PQI_HWIF_SRCV, "ZTE SmartIOC2100 RM243B-18i"},
-	{0x9005, 0x028f, 0x1bd4, 0x0071, PQI_HWIF_SRCV, "RS0800M5H16i"},
-	{0x9005, 0x028f, 0x1bd4, 0x0072, PQI_HWIF_SRCV, "RS0800M5E16i"},
-
-	/* (MSCC PM8240 24x12G based) */
-	{0x9005, 0x028f, 0x152d, 0x8a36, PQI_HWIF_SRCV, "QS-8240-24i"},
-	{0x9005, 0x028f, 0x9005, 0x1200, PQI_HWIF_SRCV, "SmartRAID 3154-24i"},
-	{0x9005, 0x028f, 0x9005, 0x1201, PQI_HWIF_SRCV, "SmartRAID 3154-8i16e"},
-	{0x9005, 0x028f, 0x9005, 0x1202, PQI_HWIF_SRCV, "SmartRAID 3154-8i8e"},
-	{0x9005, 0x028f, 0x1bd4, 0x0047, PQI_HWIF_SRCV, "RAID 8240-24i"},
-	{0x9005, 0x028f, 0x1dfc, 0x3161, PQI_HWIF_SRCV, "NTCOM SAS3 RAID-24i"},
-	{0x9005, 0x028f, 0x1F0C, 0x3161, PQI_HWIF_SRCV, "NT RAID 3100-24i"},
-
-	/* Huawei ID's */
-	{0x9005, 0x028f, 0x19e5, 0xd227, PQI_HWIF_SRCV, "SR465C-M 4G"},
-	{0x9005, 0x028f, 0x19e5, 0xd22a, PQI_HWIF_SRCV, "SR765-M"},
-	{0x9005, 0x028f, 0x19e5, 0xd228, PQI_HWIF_SRCV, "SR455C-M 2G"},
-	{0x9005, 0x028f, 0x19e5, 0xd22c, PQI_HWIF_SRCV, "SR455C-M 4G"},
-	{0x9005, 0x028f, 0x19e5, 0xd229, PQI_HWIF_SRCV, "SR155-M"},
-	{0x9005, 0x028f, 0x19e5, 0xd22b, PQI_HWIF_SRCV, "SR455C-ME 4G"},
-
-	/* (MSCC PM8252 8x12G based) */
-	{0x9005, 0x028f, 0x193d, 0x110b, PQI_HWIF_SRCV, "UN HBA H4508-Mf-8i"},
-	{0x9005, 0x028f, 0x1bd4, 0x0052, PQI_HWIF_SRCV, "MT0801M6E"},
-	{0x9005, 0x028f, 0x1bd4, 0x0054, PQI_HWIF_SRCV, "MT0800M6H"},
-	{0x9005, 0x028f, 0x1bd4, 0x0086, PQI_HWIF_SRCV, "RT0800M7E"},
-	{0x9005, 0x028f, 0x1bd4, 0x0087, PQI_HWIF_SRCV, "RT0800M7H"},
-	{0x9005, 0x028f, 0x1f51, 0x1001, PQI_HWIF_SRCV, "SmartHBA P6600-8i"},
-	{0x9005, 0x028f, 0x1f51, 0x1003, PQI_HWIF_SRCV, "SmartHBA P6600-8e"},
-	{0x9005, 0x028f, 0x9005, 0x1460, PQI_HWIF_SRCV, "HBA 1200"},
-	{0x9005, 0x028f, 0x9005, 0x1461, PQI_HWIF_SRCV, "SmartHBA 2200"},
-	{0x9005, 0x028f, 0x9005, 0x1462, PQI_HWIF_SRCV, "HBA 1200-8i"},
-
-	/* (MSCC PM8254 32x12G based) */
-	{0x9005, 0x028f, 0x1bd4, 0x0051, PQI_HWIF_SRCV, "MT0804M6R"},
-	{0x9005, 0x028f, 0x1bd4, 0x0053, PQI_HWIF_SRCV, "MT0808M6R"},
-	{0x9005, 0x028f, 0x1bd4, 0x0088, PQI_HWIF_SRCV, "RT0804M7R"},
-	{0x9005, 0x028f, 0x1bd4, 0x0089, PQI_HWIF_SRCV, "RT0808M7R"},
-	{0x9005, 0x028f, 0x1f51, 0x1002, PQI_HWIF_SRCV, "SmartRAID P7604-8i"},
-	{0x9005, 0x028f, 0x1f51, 0x1004, PQI_HWIF_SRCV, "SmartRAID P7604-8e"},
-	{0x9005, 0x028f, 0x9005, 0x14a0, PQI_HWIF_SRCV, "SmartRAID 3254-8i"},
-	{0x9005, 0x028f, 0x9005, 0x14a1, PQI_HWIF_SRCV, "SmartRAID 3204-8i"},
-	{0x9005, 0x028f, 0x9005, 0x14a2, PQI_HWIF_SRCV, "SmartRAID 3252-8i"},
-	{0x9005, 0x028f, 0x9005, 0x14a4, PQI_HWIF_SRCV, "SmartRAID 3254-8i /e"},
-	{0x9005, 0x028f, 0x9005, 0x14a5, PQI_HWIF_SRCV, "SmartRAID 3252-8i /e"},
-	{0x9005, 0x028f, 0x9005, 0x14a6, PQI_HWIF_SRCV, "SmartRAID 3204-8i /e"},
-
-	/* (MSCC PM8262 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x14c0, PQI_HWIF_SRCV, "SmartHBA 2200-16i"},
-	{0x9005, 0x028f, 0x9005, 0x14c1, PQI_HWIF_SRCV, "HBA 1200-16i"},
-	{0x9005, 0x028f, 0x9005, 0x14c3, PQI_HWIF_SRCV, "HBA 1200-16e"},
-	{0x9005, 0x028f, 0x9005, 0x14c4, PQI_HWIF_SRCV, "HBA 1200-8e"},
-	{0x9005, 0x028f, 0x1f51, 0x1005, PQI_HWIF_SRCV, "SmartHBA P6600-16i"},
-	{0x9005, 0x028f, 0x1f51, 0x1007, PQI_HWIF_SRCV, "SmartHBA P6600-8i8e"},
-	{0x9005, 0x028f, 0x1f51, 0x1009, PQI_HWIF_SRCV, "SmartHBA P6600-16e"},
-	{0x9005, 0x028f, 0x1cf2, 0x54dc, PQI_HWIF_SRCV, "ZTE SmartIOC2200 RM346-16i"},
-	{0x9005, 0x028f, 0x1cf2, 0x0806, PQI_HWIF_SRCV, "ZTE SmartIOC2200 RS346-16i"},
-
-	/* (MSCC PM8264 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x14b0, PQI_HWIF_SRCV, "SmartRAID 3254-16i"},
-	{0x9005, 0x028f, 0x9005, 0x14b1, PQI_HWIF_SRCV, "SmartRAID 3258-16i"},
-	{0x9005, 0x028f, 0x1f51, 0x1006, PQI_HWIF_SRCV, "SmartRAID P7608-16i"},
-	{0x9005, 0x028f, 0x1f51, 0x1008, PQI_HWIF_SRCV, "SmartRAID P7608-8i8e"},
-	{0x9005, 0x028f, 0x1f51, 0x100a, PQI_HWIF_SRCV, "SmartRAID P7608-16e"},
-	{0x9005, 0x028f, 0x1cf2, 0x54da, PQI_HWIF_SRCV, "ZTE SmartROC3200 RM344-16i 4G"},
-	{0x9005, 0x028f, 0x1cf2, 0x54db, PQI_HWIF_SRCV, "ZTE SmartROC3200 RM345-16i 8G"},
-	{0x9005, 0x028f, 0x1cf2, 0x0804, PQI_HWIF_SRCV, "ZTE SmartROC3200 RS344-16i 4G"},
-	{0x9005, 0x028f, 0x1cf2, 0x0805, PQI_HWIF_SRCV, "ZTE SmartROC3200 RS345-16i 8G"},
-
-	/* (MSCC PM8265 16x12G based) */
-	{0x9005, 0x028f, 0x1590, 0x02dc, PQI_HWIF_SRCV, "SR416i-a Gen10+"},
-	{0x9005, 0x028f, 0x9005, 0x1470, PQI_HWIF_SRCV, "SmartRAID 3200"},
-	{0x9005, 0x028f, 0x9005, 0x1471, PQI_HWIF_SRCV, "SmartRAID 3254-16i /e"},
-	{0x9005, 0x028f, 0x9005, 0x1472, PQI_HWIF_SRCV, "SmartRAID 3258-16i /e"},
-	{0x9005, 0x028f, 0x9005, 0x1473, PQI_HWIF_SRCV, "SmartRAID 3284-16io /e/uC"},
-	{0x9005, 0x028f, 0x9005, 0x1474, PQI_HWIF_SRCV, "SmartRAID 3254-16io /e"},
-	{0x9005, 0x028f, 0x9005, 0x1475, PQI_HWIF_SRCV, "SmartRAID 3254-16e /e"},
-
-	/* (MSCC PM8266 16x12G based) */
-	{0x9005, 0x028f, 0x1014, 0x0718, PQI_HWIF_SRCV, "IBM 4-Port 24G SAS"},
-	{0x9005, 0x028f, 0x9005, 0x1490, PQI_HWIF_SRCV, "HBA 1200p Ultra"},
-	{0x9005, 0x028f, 0x9005, 0x1491, PQI_HWIF_SRCV, "SmartHBA 2200p Ultra"},
-	{0x9005, 0x028f, 0x9005, 0x1402, PQI_HWIF_SRCV, "HBA Ultra 1200P-16i"},
-	{0x9005, 0x028f, 0x9005, 0x1441, PQI_HWIF_SRCV, "HBA Ultra 1200P-32i"},
-
-	/* (MSCC PM8268 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x14d0, PQI_HWIF_SRCV, "SmartRAID Ultra 3258P-16i"},
-
-	/* (MSCC PM8269 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x1400, PQI_HWIF_SRCV, "SmartRAID Ultra 3258P-16i /e"},
-
-	/* (MSCC PM8270 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x1410, PQI_HWIF_SRCV, "HBA Ultra 1200P-16e"},
-	{0x9005, 0x028f, 0x9005, 0x1411, PQI_HWIF_SRCV, "HBA 1200 Ultra"},
-	{0x9005, 0x028f, 0x9005, 0x1412, PQI_HWIF_SRCV, "SmartHBA 2200 Ultra"},
-	{0x9005, 0x028f, 0x9005, 0x1463, PQI_HWIF_SRCV, "SmartHBA 2200-8io /e"},
-	{0x9005, 0x028f, 0x9005, 0x14c2, PQI_HWIF_SRCV, "SmartHBA 2200-16io /e"},
-
-	/* (MSCC PM8271 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x14e0, PQI_HWIF_SRCV, "SmartIOC PM8271"},
-
-	/* (MSCC PM8272 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x1420, PQI_HWIF_SRCV, "SmartRAID Ultra 3254-16e"},
-
-	/* (MSCC PM8273 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x1430, PQI_HWIF_SRCV, "SmartRAID Ultra 3254-16e /e"},
-
-	/* (MSCC PM8274 16x12G based) */
-	{0x9005, 0x028f, 0x1e93, 0x1000, PQI_HWIF_SRCV, "ByteHBA JGH43024-8"},
-	{0x9005, 0x028f, 0x1e93, 0x1001, PQI_HWIF_SRCV, "ByteHBA JGH43034-8"},
-	{0x9005, 0x028f, 0x1e93, 0x1005, PQI_HWIF_SRCV, "ByteHBA JGH43014-8"},
-
-	/* (MSCC PM8275 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x14f0, PQI_HWIF_SRCV, "SmartIOC PM8275"},
-
-	/* (MSCC PM8276 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x1480, PQI_HWIF_SRCV, "SmartRAID 3200 Ultra"},
-	{0x9005, 0x028f, 0x1e93, 0x1002, PQI_HWIF_SRCV, "ByteHBA JGH44014-8"},
-
-	/* (MSCC PM8278 16x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x1440, PQI_HWIF_SRCV, "SmartRAID Ultra 3258P-32i"},
-
-	/* (MSCC PM8279 32x12G based) */
-	{0x9005, 0x028f, 0x9005, 0x1450, PQI_HWIF_SRCV, "SmartRAID Ultra 3258P-32i /e"},
-	{0x9005, 0x028f, 0x1590, 0x0294, PQI_HWIF_SRCV, "SR932i-p Gen10+"},
-	{0x9005, 0x028f, 0x1590, 0x0381, PQI_HWIF_SRCV, "SR932i-p Gen11"},
-	{0x9005, 0x028f, 0x1590, 0x0382, PQI_HWIF_SRCV, "SR308i-p Gen11"},
-	{0x9005, 0x028f, 0x1590, 0x0383, PQI_HWIF_SRCV, "SR308i-o Gen11"},
-	{0x9005, 0x028f, 0x1590, 0x02db, PQI_HWIF_SRCV, "SR416ie-m Gen11"},
-	{0x9005, 0x028f, 0x1590, 0x032e, PQI_HWIF_SRCV, "SR416i-o Gen11"},
-	{0x9005, 0x028f, 0x9005, 0x1452, PQI_HWIF_SRCV, "SmartRAID 3200p Ultra"},
-
-	/* (MSCC HBA/SMARTHBA/CFF SmartRAID - Lenovo 8X12G 16X12G based)  */
-	{0x9005, 0x028f, 0x1d49, 0x0220, PQI_HWIF_SRCV, "4350-8i SAS/SATA HBA"},
-	{0x9005, 0x028f, 0x1d49, 0x0221, PQI_HWIF_SRCV, "4350-16i SAS/SATA HBA"},
-	{0x9005, 0x028f, 0x1d49, 0x0520, PQI_HWIF_SRCV, "5350-8i"},
-	{0x9005, 0x028f, 0x1d49, 0x0522, PQI_HWIF_SRCV, "5350-8i INTR"},
-	{0x9005, 0x028f, 0x1d49, 0x0620, PQI_HWIF_SRCV, "9350-8i 2GB Flash"},
-	{0x9005, 0x028f, 0x1d49, 0x0621, PQI_HWIF_SRCV, "9350-8i 2GB Flash INTR"},
-	{0x9005, 0x028f, 0x1d49, 0x0622, PQI_HWIF_SRCV, "9350-16i 4GB Flash"},
-	{0x9005, 0x028f, 0x1d49, 0x0623, PQI_HWIF_SRCV, "9350-16i 4GB Flash INTR"},
-
-	{0, 0, 0, 0, 0, 0}
-};
-
-struct pqi_ident
-pqi_family_identifiers[] = {
-	{0x9005, 0x028f, 0, 0, PQI_HWIF_SRCV, "Smart Array Storage Controller"},
-	{0, 0, 0, 0, 0, 0}
-};
+ * Logging levels global
+*/
+unsigned long logging_level  = PQISRC_LOG_LEVEL;
 
 /*
  * Function to identify the installed adapter.
@@ -404,10 +128,12 @@ static void read_device_hint_resource(struct pqisrc_softstate *softs,
 {
 	DBG_FUNC("IN\n");
 
+	long result = 0;
+
 	device_t dev = softs->os_specific.pqi_dev;
 
-	if (resource_long_value("smartpqi", device_get_unit(dev), keyword, (long *)value) == DEVICE_HINT_SUCCESS) {
-		if (*value) {
+	if (resource_long_value("smartpqi", device_get_unit(dev), keyword, &result) == DEVICE_HINT_SUCCESS) {
+		if (result) {
 			/* set resource to 1 for disabling the
 			 * firmware feature in device hint file. */
 			*value = 0;
@@ -434,11 +160,14 @@ static void read_device_hint_decimal_value(struct pqisrc_softstate *softs,
 {
 	DBG_FUNC("IN\n");
 
+	long result = 0;
+
 	device_t dev = softs->os_specific.pqi_dev;
 
-	if (resource_long_value("smartpqi", device_get_unit(dev), keyword, (long *)value) == DEVICE_HINT_SUCCESS) {
+	if (resource_long_value("smartpqi", device_get_unit(dev), keyword, &result) == DEVICE_HINT_SUCCESS) {
 		/* Nothing to do here. Value reads
 		 * directly from Device.Hint file */
+		*value = result;
 	}
 	else {
 		/* Set to max to determine the value */
@@ -482,13 +211,23 @@ static void smartpqi_read_all_device_hint_file_entries(struct pqisrc_softstate *
 	read_device_hint_decimal_value(softs, SCATTER_GATHER_COUNT, &value);
 	softs->hint.sg_segments = value;
 
-	/* hint.smartpqi.0.queue_count =  "0" */
-	read_device_hint_decimal_value(softs, QUEUE_COUNT, &value);
-	softs->hint.cpu_count = value;
-
 	DBG_FUNC("IN\n");
 }
 
+/* Get the driver parameter tunables. */
+static void
+smartpqi_get_tunables(void)
+{
+   /*
+    * Temp variable used to get the value from loader.conf.
+    * Initializing it with the current logging level value.
+    */
+	unsigned long logging_level_temp = PQISRC_LOG_LEVEL;
+
+	TUNABLE_ULONG_FETCH("hw.smartpqi.debug_level", &logging_level_temp);
+
+   DBG_SET_LOGGING_LEVEL(logging_level_temp);
+}
 
 /*
  * Allocate resources for our device, set up the bus interface.
@@ -506,7 +245,7 @@ smartpqi_attach(device_t dev)
 	rcb_t *rcbp = NULL;
 
 	/*
-	 * Initialise softc.
+	 * Initialize softc.
 	 */
 	softs = device_get_softc(dev);
 
@@ -517,6 +256,8 @@ smartpqi_attach(device_t dev)
 	}
 	memset(softs, 0, sizeof(*softs));
 	softs->os_specific.pqi_dev = dev;
+
+    smartpqi_get_tunables();
 
 	DBG_FUNC("IN\n");
 
@@ -830,4 +571,5 @@ static driver_t smartpqi_pci_driver = {
 };
 
 DRIVER_MODULE(smartpqi, pci, smartpqi_pci_driver, 0, 0);
+
 MODULE_DEPEND(smartpqi, pci, 1, 1, 1);

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -927,7 +927,7 @@ typedef struct pqi_pci_info
 typedef struct _driver_info
 {
 	unsigned char 	major_version;
-	unsigned long 	minor_version;
+	unsigned char 	minor_version;
 	unsigned char 	release_version;
 	unsigned long 	build_revision;
 	unsigned long 	max_targets;
@@ -938,9 +938,13 @@ typedef struct _driver_info
 typedef uint8_t *passthru_buf_type_t;
 
 #define PQISRC_DRIVER_MAJOR		__FreeBSD__
-#define PQISRC_DRIVER_MINOR	   4410
+#if __FreeBSD__ <= 14
+#define PQISRC_DRIVER_MINOR	   4660
+#else
+#define PQISRC_DRIVER_MINOR	   0
+#endif
 #define PQISRC_DRIVER_RELEASE	   0
-#define PQISRC_DRIVER_REVISION   2005
+#define PQISRC_DRIVER_REVISION   2002
 
 #define STR(s)                          # s
 #define PQISRC_VERSION(a, b, c, d)      STR(a.b.c-d)
@@ -1234,19 +1238,21 @@ typedef struct sema OS_SEMA_LOCK_T;
 
 /* Debug facility */
 
-#define	PQISRC_FLAGS_MASK		0x0000ffff
-#define	PQISRC_FLAGS_INIT 		0x00000001
-#define	PQISRC_FLAGS_INFO 		0x00000002
-#define	PQISRC_FLAGS_FUNC		0x00000004
-#define	PQISRC_FLAGS_TRACEIO		0x00000008
-#define	PQISRC_FLAGS_DISC		0x00000010
-#define	PQISRC_FLAGS_WARN		0x00000020
-#define	PQISRC_FLAGS_ERROR		0x00000040
-#define	PQISRC_FLAGS_NOTE		0x00000080
+#define	PQISRC_FLAGS_MASK    0x0000000000ff
+#define	PQISRC_FLAGS_INIT    0x0001
+#define	PQISRC_FLAGS_INFO    0x0002
+#define	PQISRC_FLAGS_FUNC    0x0004
+#define	PQISRC_FLAGS_TRACEIO 0x0008
+#define	PQISRC_FLAGS_DISC    0x0010
+#define	PQISRC_FLAGS_WARN    0x0020
+#define	PQISRC_FLAGS_ERROR   0x0040
+#define	PQISRC_FLAGS_NOTE    0x0080
 
-#define PQISRC_LOG_LEVEL  (PQISRC_FLAGS_WARN | PQISRC_FLAGS_ERROR | PQISRC_FLAGS_NOTE)
+#define PQISRC_LOG_LEVEL  (PQISRC_FLAGS_WARN | PQISRC_FLAGS_ERROR)
 
-static int logging_level  = PQISRC_LOG_LEVEL;
+extern unsigned long logging_level;
+
+#define  DBG_SET_LOGGING_LEVEL(value) logging_level = value & PQISRC_FLAGS_MASK
 
 #define	DBG_INIT(fmt,args...)						\
 		do {							\
@@ -1273,13 +1279,6 @@ static int logging_level  = PQISRC_LOG_LEVEL;
 		do {							\
 			if (logging_level & PQISRC_FLAGS_DISC) { 	\
 				printf("[DISC]:[ %s ] [ %d ]"fmt,__func__,__LINE__,##args);			\
-			}						\
-		}while(0);
-
-#define	DBG_TRACEIO(fmt,args...)					\
-		do {							\
-			if (logging_level & PQISRC_FLAGS_TRACEIO) { 	\
-				printf("[TRACEIO]:[ %s ] [ %d ]"fmt,__func__,__LINE__,##args);			\
 			}						\
 		}while(0);
 

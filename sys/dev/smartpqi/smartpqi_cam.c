@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,7 +70,6 @@ update_sim_properties(struct cam_sim *sim, struct ccb_pathinq *cpi)
 	cpi->hba_device = pci_get_device(dev);
 	cpi->hba_subvendor = pci_get_subvendor(dev);
 	cpi->hba_subdevice = pci_get_subdevice(dev);
-
 
 	DBG_FUNC("OUT\n");
 }
@@ -154,10 +153,6 @@ os_remove_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 		}
 		xpt_async(AC_LOST_DEVICE, tmppath, NULL);
 		xpt_free_path(tmppath);
-		/* softs->device_list[device->target][device->lun] = NULL; */
-		int index = pqisrc_find_device_list_index(softs,device);
-		if (index >= 0 && index < PQI_MAX_DEVICES)
-			softs->dev_list[index] = NULL;
 		pqisrc_free_device(softs, device);
 	}
 
@@ -335,7 +330,7 @@ os_io_response_success(rcb_t *rcb)
 
 static void
 copy_sense_data_to_csio(struct ccb_scsiio *csio,
-		uint8_t *sense_data, uint16_t sense_data_len)
+		uint8_t const *sense_data, uint16_t sense_data_len)
 {
 	DBG_IO("IN csio = %p\n", csio);
 
@@ -740,7 +735,7 @@ smartpqi_target_rescan(struct pqisrc_softstate *softs)
 		/* if(softs->device_list[target][lun]){ */
 		if(softs->dev_list[index] != NULL) {
 			device = softs->dev_list[index];
-			DBG_INFO("calling smartpqi_lun_rescan with TL = %d:%d\n",device->target,device->lun);
+			DBG_INFO("calling smartpqi_lun_rescan with T%d:L%d\n",device->target,device->lun);
 			smartpqi_lun_rescan(softs, device->target, device->lun);
 		}
 	}
@@ -821,7 +816,6 @@ pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 
 	if (index == INVALID_ELEM) {
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
-		DBG_INFO("Invalid index/device!!!, Device BTL %u:%d:%d\n", softs->bus_id, target, lun);
 		return ENXIO;
 	}
 
@@ -850,7 +844,7 @@ pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 	}
 	/* Check device reset */
 	if (DEVICE_RESET(dvp)) {
-		ccb->ccb_h.status = CAM_SCSI_BUSY | CAM_REQ_INPROG | CAM_BUSY;
+		ccb->ccb_h.status = CAM_BUSY;
 		DBG_WARN("Device %d reset returned busy\n", ccb->ccb_h.target_id);
 		return EBUSY;
 	}
@@ -915,7 +909,7 @@ pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 }
 
 static inline int
-pqi_tmf_status_to_bsd_tmf_status(int pqi_status, rcb_t *rcb)
+pqi_tmf_status_to_bsd_tmf_status(int pqi_status, rcb_t const *rcb)
 {
 	if (PQI_STATUS_SUCCESS == pqi_status &&
 			PQI_STATUS_SUCCESS == rcb->status)
@@ -931,7 +925,7 @@ static int
 pqisrc_scsi_abort_task(pqisrc_softstate_t *softs,  union ccb *ccb)
 {
 	rcb_t *rcb = NULL;
-	struct ccb_hdr *ccb_h = &ccb->ccb_h;
+	struct ccb_hdr const *ccb_h = &ccb->ccb_h;
 	rcb_t *prcb = ccb->ccb_h.sim_priv.entries[0].ptr;
 	uint32_t tag;
 	int rval;
@@ -971,7 +965,7 @@ error_tmf:
 static int
 pqisrc_scsi_abort_task_set(pqisrc_softstate_t *softs, union ccb *ccb)
 {
-	struct ccb_hdr *ccb_h = &ccb->ccb_h;
+	struct ccb_hdr const *ccb_h = &ccb->ccb_h;
 	rcb_t *rcb = NULL;
 	uint32_t tag;
 	int rval;
@@ -1013,7 +1007,7 @@ pqisrc_target_reset( pqisrc_softstate_t *softs,  union ccb *ccb)
 {
 
 	/* pqi_scsi_dev_t *devp = softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun]; */
-	struct ccb_hdr  *ccb_h = &ccb->ccb_h;
+	struct ccb_hdr const *ccb_h = &ccb->ccb_h;
 	rcb_t *rcb = NULL;
 	uint32_t tag;
 	int rval;
@@ -1069,7 +1063,7 @@ static void
 smartpqi_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct pqisrc_softstate *softs = cam_sim_softc(sim);
-	struct ccb_hdr  *ccb_h = &ccb->ccb_h;
+	struct ccb_hdr const *ccb_h = &ccb->ccb_h;
 
 	DBG_FUNC("IN\n");
 
@@ -1209,22 +1203,19 @@ smartpqi_async(void *callback_arg, u_int32_t code,
 			}
 			uint32_t t_id = cgd->ccb_h.target_id;
 
-			/* if (t_id <= (PQI_CTLR_INDEX - 1)) { */
-			if (t_id >= PQI_CTLR_INDEX) {
-				if (softs != NULL) {
-					/* pqi_scsi_dev_t *dvp = softs->device_list[t_id][cgd->ccb_h.target_lun]; */
-					int lun = cgd->ccb_h.target_lun;
-					int index = pqisrc_find_btl_list_index(softs,softs->bus_id,t_id,lun);
-					if (index != INVALID_ELEM) {
-						pqi_scsi_dev_t *dvp = softs->dev_list[index];
-						if (dvp == NULL) {
-							DBG_ERR("Target is null, target id=%u\n", t_id);
-							break;
-						}
-						smartpqi_adjust_queue_depth(path, dvp->queue_depth);
-					}
-				}
-			}
+         if (softs != NULL) {
+            /* pqi_scsi_dev_t *dvp = softs->device_list[t_id][cgd->ccb_h.target_lun]; */
+            int lun = cgd->ccb_h.target_lun;
+            int index = pqisrc_find_btl_list_index(softs,softs->bus_id,t_id,lun);
+            if (index != INVALID_ELEM) {
+               pqi_scsi_dev_t const *dvp = softs->dev_list[index];
+               if (dvp == NULL) {
+                  DBG_ERR("Target is null, target id=%u\n", t_id);
+                  break;
+               }
+               smartpqi_adjust_queue_depth(path, dvp->queue_depth);
+            }
+         }
 			break;
 		}
 		default:
