@@ -1420,8 +1420,8 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 
 	req->cmd.opc = npc->opcode;
 	req->cmd.fuse = npc->flags;
-	req->cmd.rsvd2 = htole16(npc->cdw2);
-	req->cmd.rsvd3 = htole16(npc->cdw3);
+	req->cmd.rsvd2 = htole32(npc->cdw2);
+	req->cmd.rsvd3 = htole32(npc->cdw3);
 	req->cmd.cdw10 = htole32(npc->cdw10);
 	req->cmd.cdw11 = htole32(npc->cdw11);
 	req->cmd.cdw12 = htole32(npc->cdw12);
