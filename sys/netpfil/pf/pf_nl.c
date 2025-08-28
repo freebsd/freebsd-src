@@ -1025,7 +1025,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u64(nw, PF_RT_SRC_NODES_NAT, counter_u64_fetch(rule->src_nodes[PF_SN_NAT]));
 	nlattr_add_u64(nw, PF_RT_SRC_NODES_ROUTE, counter_u64_fetch(rule->src_nodes[PF_SN_ROUTE]));
 	nlattr_add_pf_threshold(nw, PF_RT_PKTRATE, &rule->pktrate);
-	nlattr_add_u64(nw, PF_RT_EXPTIME, time_second - (time_uptime - rule->exptime));
+	nlattr_add_time_t(nw, PF_RT_EXPTIME, time_second - (time_uptime - rule->exptime));
 
 	error = pf_kanchor_copyout(ruleset, rule, anchor_call, sizeof(anchor_call));
 	MPASS(error == 0);

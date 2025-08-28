@@ -631,6 +631,17 @@ snl_attr_get_int64(struct snl_state *ss, struct nlattr *nla, const void *arg,
 }
 
 static inline bool
+snl_attr_get_time_t(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	if (NLA_DATA_LEN(nla) == sizeof(time_t)) {
+		memcpy(target, NLA_DATA_CONST(nla), sizeof(time_t));
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
 snl_attr_get_string(struct snl_state *ss __unused, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
