@@ -983,7 +983,7 @@ empty_both_buffers(KBDC p, int wait)
 		* will thus hang in this procedure. Time out after delta seconds to
 		* avoid this hang -- the keyboard attach will fail later on.
 		*/
-		unsigned int effective_delay = atkbd_fast_delay ? delta : delta *1000;
+		unsigned int effective_delay = ATKBD_DELAY(delta);
 		waited += effective_delay;
 
 		if (waited == effective_delay * 1000)
