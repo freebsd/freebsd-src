@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -234,7 +234,7 @@ pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	DBG_INIT("softs->intr_count : %d  softs->num_cpus_online : %d",
+	DBG_INIT("softs->intr_count : %d  softs->num_cpus_online : %d\n",
 		softs->intr_count, softs->num_cpus_online);
 
 	/* TODO : Get the number of IB and OB queues from OS layer */
@@ -437,7 +437,6 @@ int
 pqi_reset(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	uint32_t val = 0;
 	pqi_reset_reg_t pqi_reset_reg;
 
 	DBG_FUNC("IN\n");
@@ -445,7 +444,7 @@ pqi_reset(pqisrc_softstate_t *softs)
 	if (true == softs->ctrl_in_pqi_mode) {
 
 		if (softs->pqi_reset_quiesce_allowed) {
-			val = PCI_MEM_GET32(softs, &softs->ioa_reg->host_to_ioa_db,
+			int val = PCI_MEM_GET32(softs, &softs->ioa_reg->host_to_ioa_db,
 					LEGACY_SIS_IDBR);
 			val |= SIS_PQI_RESET_QUIESCE;
 			PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
@@ -629,7 +628,7 @@ pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *softs)
 	int count = 0;
 	int ret = PQI_STATUS_SUCCESS;
 
-	DBG_NOTE("softs->taglist.num_elem : %u",softs->taglist.num_elem);
+	DBG_NOTE("softs->taglist.num_elem : %u\n",softs->taglist.num_elem);
 
 	if (softs->taglist.num_elem == softs->max_outstanding_io)
 		return ret;
@@ -650,7 +649,7 @@ pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *softs)
 				OS_SLEEP(1000);
 				count++;
 				if(count % 1000 == 0) {
-					DBG_WARN("Waited for %d seconds", count/1000);
+					DBG_WARN("Waited for %d seconds\n", count/1000);
 				}
 				if (count >= PQI_QUIESCE_TIMEOUT) {
 					return PQI_STATUS_FAILURE;
@@ -849,7 +848,7 @@ pqisrc_init(pqisrc_softstate_t *softs)
 	/* update driver version in to FW */
 	ret = pqisrc_write_driver_version_to_host_wellness(softs);
 	if (ret) {
-		DBG_ERR(" Failed to update driver version in to FW");
+		DBG_ERR(" Failed to update driver version in to FW\n");
 		goto err_host_wellness;
 	}
 
