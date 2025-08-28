@@ -432,6 +432,7 @@ int	 filteropts_to_rule(struct pfctl_rule *, struct filter_opts *);
 struct node_mac* node_mac_from_string(const char *);
 struct node_mac* node_mac_from_string_masklen(const char *, int);
 struct node_mac* node_mac_from_string_mask(const char *, const char *);
+static bool pfctl_setup_anchor(struct pfctl_rule *, struct pfctl *, char *);
 
 static TAILQ_HEAD(loadanchorshead, loadanchors)
     loadanchorshead = TAILQ_HEAD_INITIALIZER(loadanchorshead);
@@ -994,7 +995,6 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 		{
 			struct pfctl_rule	r;
 			struct node_proto	*proto;
-			char				*p;
 
 			if (check_rulestate(PFCTL_STATE_FILTER)) {
 				if ($2)
@@ -1003,68 +1003,9 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			}
 
 			pfctl_init_rule(&r);
+			if (! pfctl_setup_anchor(&r, pf, $2))
+				YYERROR;
 
-			if (pf->astack[pf->asd + 1]) {
-				if ($2 && strchr($2, '/') != NULL) {
-					free($2);
-					yyerror("anchor paths containing '/' "
-					   "cannot be used for inline anchors.");
-					YYERROR;
-				}
-
-				/* Move inline rules into relative location. */
-				pfctl_anchor_setup(&r,
-				    &pf->astack[pf->asd]->ruleset,
-				    $2 ? $2 : pf->alast->name);
-
-				if (r.anchor == NULL)
-					err(1, "anchorrule: unable to "
-					    "create ruleset");
-
-				if (pf->alast != r.anchor) {
-					if (r.anchor->match) {
-						yyerror("inline anchor '%s' "
-						    "already exists",
-						    r.anchor->name);
-						YYERROR;
-					}
-					mv_rules(&pf->alast->ruleset,
-					    &r.anchor->ruleset);
-					mv_tables(pf, &pfr_ktables, r.anchor, pf->alast);
-				}
-				pf_remove_if_empty_ruleset(&pf->alast->ruleset);
-				pf->alast = r.anchor;
-			} else {
-				if (!$2) {
-					yyerror("anchors without explicit "
-					    "rules must specify a name");
-					YYERROR;
-				}
-				/*
-				 * Don't make non-brace anchors part of the main anchor pool.
-				 */
-				if ((r.anchor = calloc(1, sizeof(*r.anchor))) == NULL) {
-					err(1, "anchorrule: calloc");
-				}
-				pf_init_ruleset(&r.anchor->ruleset);
-				r.anchor->ruleset.anchor = r.anchor;
-				if (strlcpy(r.anchor->path, $2,
-				    sizeof(r.anchor->path)) >= sizeof(r.anchor->path)) {
-					errx(1, "anchorrule: strlcpy");
-				}
-				if ((p = strrchr($2, '/')) != NULL) {
-					if (strlen(p) == 1) {
-						yyerror("anchorrule: bad anchor name %s",
-						    $2);
-						YYERROR;
-					}
-				} else
-					p = $2;
-				if (strlcpy(r.anchor->name, p,
-				    sizeof(r.anchor->name)) >= sizeof(r.anchor->name)) {
-					errx(1, "anchorrule: strlcpy");
-				}
-			}
 			r.direction = $3;
 			r.quick = $4.quick;
 			r.af = $6;
@@ -1113,6 +1054,8 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			}
 
 			pfctl_init_rule(&r);
+			if (! pfctl_setup_anchor(&r, pf, $2))
+				YYERROR;
 
 			r.action = PF_NAT;
 			r.af = $4;
@@ -1135,6 +1078,8 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			}
 
 			pfctl_init_rule(&r);
+			if (! pfctl_setup_anchor(&r, pf, $2))
+				YYERROR;
 
 			r.action = PF_RDR;
 			r.af = $4;
@@ -1178,6 +1123,8 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			}
 
 			pfctl_init_rule(&r);
+			if (! pfctl_setup_anchor(&r, pf, $2))
+				YYERROR;
 
 			r.action = PF_BINAT;
 			r.af = $4;
@@ -7859,4 +7806,74 @@ filteropts_to_rule(struct pfctl_rule *r, struct filter_opts *opts)
 	r->allow_opts = opts->allowopts;
 
 	return (0);
+}
+
+static bool
+pfctl_setup_anchor(struct pfctl_rule *r, struct pfctl *pf, char *anchorname)
+{
+	char	*p;
+
+	if (pf->astack[pf->asd + 1]) {
+		if (anchorname && strchr(anchorname, '/') != NULL) {
+			free(anchorname);
+			yyerror("anchor paths containing '/' "
+			   "cannot be used for inline anchors.");
+			return (false);
+		}
+
+		/* Move inline rules into relative location. */
+		pfctl_anchor_setup(r,
+		    &pf->astack[pf->asd]->ruleset,
+		    anchorname ? anchorname : pf->alast->name);
+
+		if (r->anchor == NULL)
+			err(1, "anchorrule: unable to "
+			    "create ruleset");
+
+		if (pf->alast != r->anchor) {
+			if (r->anchor->match) {
+				yyerror("inline anchor '%s' "
+				    "already exists",
+				    r->anchor->name);
+				return (false);
+			}
+			mv_rules(&pf->alast->ruleset,
+			    &r->anchor->ruleset);
+			mv_tables(pf, &pfr_ktables, r->anchor, pf->alast);
+		}
+		pf_remove_if_empty_ruleset(&pf->alast->ruleset);
+		pf->alast = r->anchor;
+	} else {
+		if (! anchorname) {
+			yyerror("anchors without explicit "
+			    "rules must specify a name");
+			return (false);
+		}
+		/*
+		 * Don't make non-brace anchors part of the main anchor pool.
+		 */
+		if ((r->anchor = calloc(1, sizeof(*r->anchor))) == NULL) {
+			err(1, "anchorrule: calloc");
+		}
+		pf_init_ruleset(&r->anchor->ruleset);
+		r->anchor->ruleset.anchor = r->anchor;
+		if (strlcpy(r->anchor->path, anchorname,
+		    sizeof(r->anchor->path)) >= sizeof(r->anchor->path)) {
+			errx(1, "anchorrule: strlcpy");
+		}
+		if ((p = strrchr(anchorname, '/')) != NULL) {
+			if (strlen(p) == 1) {
+				yyerror("anchorrule: bad anchor name %s",
+				    anchorname);
+				return (false);
+			}
+		} else
+			p = anchorname;
+		if (strlcpy(r->anchor->name, p,
+		    sizeof(r->anchor->name)) >= sizeof(r->anchor->name)) {
+			errx(1, "anchorrule: strlcpy");
+		}
+	}
+
+	return (true);
 }
