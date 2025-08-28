@@ -1045,8 +1045,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	crextend(newcred, ngrp);
 	p = td->td_proc;
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
-	crcopy(newcred, oldcred);
+	oldcred = crcopysafe(p, newcred);
 
 	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS)) != 0) {
 		PROC_UNLOCK(p);
