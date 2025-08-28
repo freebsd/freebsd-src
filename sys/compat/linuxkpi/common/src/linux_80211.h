@@ -201,6 +201,7 @@ struct lkpi_vif {
 				    struct mbuf *, int,
 				    const struct ieee80211_rx_stats *,
 				    int, int);
+	struct task		sw_scan_task;
 
 	struct list_head	lsta_list;
 

@@ -173,6 +173,7 @@ const struct cfg80211_ops linuxkpi_mac80211cfgops = {
 static struct lkpi_sta *lkpi_find_lsta_by_ni(struct lkpi_vif *,
     struct ieee80211_node *);
 #endif
+static void lkpi_sw_scan_task(void *, int);
 static void lkpi_80211_txq_tx_one(struct lkpi_sta *, struct mbuf *);
 static void lkpi_80211_txq_task(void *, int);
 static void lkpi_80211_lhw_rxq_task(void *, int);
@@ -3856,6 +3857,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	lvif = malloc(len, M_80211_VAP, M_WAITOK | M_ZERO);
 	mtx_init(&lvif->mtx, "lvif", NULL, MTX_DEF);
+	TASK_INIT(&lvif->sw_scan_task, 0, lkpi_sw_scan_task, lvif);
 	INIT_LIST_HEAD(&lvif->lsta_list);
 	lvif->lvif_bss = NULL;
 	refcount_init(&lvif->nt_unlocked, 0);
@@ -4093,6 +4095,8 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 
 	/* Clear up per-VIF/VAP sysctls. */
 	sysctl_ctx_free(&lvif->sysctl_ctx);
+
+	ieee80211_draintask(ic, &lvif->sw_scan_task);
 
 	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_REMOVE(&lhw->lvif_head, lvif, lvif_entry);
@@ -4485,7 +4489,7 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	if (!is_hw_scan) {
 		/* If hw_scan is cleared clear FEXT_SCAN_OFFLOAD too. */
 		vap->iv_flags_ext &= ~IEEE80211_FEXT_SCAN_OFFLOAD;
-sw_scan:
+
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
 
@@ -4498,6 +4502,8 @@ sw_scan:
 
 		lkpi_update_mcast_filter(ic);
 
+		TRACE_SCAN(vap->iv_ic, "Starting SW_SCAN: scan_flags %b",
+		    lhw->scan_flags, LKPI_LHW_SCAN_BITS);
 		lkpi_80211_mo_sw_scan_start(hw, vif, vif->addr);
 		/* net80211::scan_start() handled PS for us. */
 		IMPROVE();
@@ -4752,6 +4758,9 @@ sw_scan:
 
 		error = lkpi_80211_mo_hw_scan(hw, vif, hw_req);
 		if (error != 0) {
+			bool scan_done;
+			int e;
+
 			TRACE_SCAN(ic, "hw_scan failed; scan_flags %b, error %d",
 			    lhw->scan_flags, LKPI_LHW_SCAN_BITS, error);
 			ieee80211_cancel_scan(vap);
@@ -4770,14 +4779,35 @@ sw_scan:
 			 * So we cannot rely on that behaviour and have to check
 			 * and balance between both code paths.
 			 */
+			e = 0;
+			scan_done = true;
 			LKPI_80211_LHW_SCAN_LOCK(lhw);
 			if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0) {
+
 				free(lhw->hw_req, M_LKPI80211);
 				lhw->hw_req = NULL;
+				/*
+				 * The ieee80211_cancel_scan() above runs in a
+				 * taskq and it may take ages for the previous
+				 * scan to clear;  starting a new one right away
+				 * we run into the problem that the old one is
+				 * still active.
+				 */
+				e = msleep(lhw, &lhw->scan_mtx, 0, "lhwscanstop", hz);
+				scan_done = (lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0;
+
+				/*
+				 * Now we can clear running if no one else did.
+				 */
 				lhw->scan_flags &= ~LKPI_LHW_SCAN_RUNNING;
 			}
 			LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 			lkpi_update_mcast_filter(ic);
+			if (!scan_done) {
+				ic_printf(ic, "ERROR: %s: timeout/error to wait "
+				    "for ieee80211_cancel_scan: %d\n", __func__, e);
+				return;
+			}
 
 			/*
 			 * XXX-SIGH magic number.
@@ -4785,31 +4815,57 @@ sw_scan:
 			 * not possible.  Fall back to sw scan in that case.
 			 */
 			if (error == 1) {
-				LKPI_80211_LHW_SCAN_LOCK(lhw);
-				lhw->scan_flags &= ~LKPI_LHW_SCAN_HW;
-				LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 				/*
-				 * XXX If we clear this now and later a driver
-				 * thinks it * can do a hw_scan again, we will
-				 * currently not re-enable it?
+				 * We need to put this into some defered context
+				 * the net80211 scan may not be done yet
+				 * (ic_flags & IEEE80211_F_SCAN) and we cannot
+				 * wait here; if we do scan_curchan_task always
+				 * runs after our timeout to finalize the scan.
 				 */
-				vap->iv_flags_ext &= ~IEEE80211_FEXT_SCAN_OFFLOAD;
-				ieee80211_start_scan(vap,
-				    IEEE80211_SCAN_ACTIVE |
-				    IEEE80211_SCAN_NOPICK |
-				    IEEE80211_SCAN_ONCE,
-				    IEEE80211_SCAN_FOREVER,
-				    ss->ss_mindwell ? ss->ss_mindwell : msecs_to_ticks(20),
-				    ss->ss_maxdwell ? ss->ss_maxdwell : msecs_to_ticks(200),
-				    vap->iv_des_nssid, vap->iv_des_ssid);
-				goto sw_scan;
+				ieee80211_runtask(ic, &lvif->sw_scan_task);
+				return;
 			}
 
 			ic_printf(ic, "ERROR: %s: hw_scan returned %d\n",
 			    __func__, error);
-			ieee80211_cancel_scan(vap);
 		}
 	}
+}
+
+static void
+lkpi_sw_scan_task(void *arg, int pending __unused)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_vif *lvif;
+	struct ieee80211vap *vap;
+	struct ieee80211_scan_state *ss;
+
+	lvif = arg;
+	vap = LVIF_TO_VAP(lvif);
+	lhw = vap->iv_ic->ic_softc;
+	ss = vap->iv_ic->ic_scan;
+
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	/*
+	 * We will re-enable this at scan_end calling lkpi_enable_hw_scan().
+	 * IEEE80211_FEXT_SCAN_OFFLOAD will be cleared by lkpi_ic_scan_start.
+	 */
+	lhw->scan_flags &= ~LKPI_LHW_SCAN_HW;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+
+	TRACE_SCAN(vap->iv_ic, "Triggering SW_SCAN: pending %d, scan_flags %b",
+	    pending, lhw->scan_flags, LKPI_LHW_SCAN_BITS);
+
+	/*
+	 * This will call ic_scan_start() and we will get into the right path
+	 * unless other scans started in between.
+	 */
+	ieee80211_start_scan(vap,
+	    IEEE80211_SCAN_ONCE,
+	    msecs_to_ticks(10000), /* 10000 ms (=~ 50 chan * 200 ms) */
+	    ss->ss_mindwell ? ss->ss_mindwell : msecs_to_ticks(20),
+	    ss->ss_maxdwell ? ss->ss_maxdwell : msecs_to_ticks(200),
+	    vap->iv_des_nssid, vap->iv_des_ssid);
 }
 
 static void
@@ -4855,6 +4911,10 @@ lkpi_ic_scan_end(struct ieee80211com *ic)
 	 * switched to swscan, re-enable hw_scan if available.
 	 */
 	lkpi_enable_hw_scan(lhw);
+
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	wakeup(lhw);
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 }
 
 static void
@@ -6973,7 +7033,8 @@ linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *hw,
 	free(lhw->hw_req, M_LKPI80211);
 	lhw->hw_req = NULL;
 	lhw->scan_flags &= ~LKPI_LHW_SCAN_RUNNING;
-	wakeup(lhw);
+	/* The wakeup(lhw) will be called from lkpi_ic_scan_end(). */
+	/* wakeup(lhw); */
 	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 
 	return;
