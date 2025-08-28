@@ -1092,7 +1092,6 @@ int
 test_controller(KBDC p)
 {
     int retry = KBD_MAXRETRY;
- //   int again = KBD_MAXWAIT;
     int c = KBD_DIAG_FAIL;
 
     while (retry-- > 0) {
