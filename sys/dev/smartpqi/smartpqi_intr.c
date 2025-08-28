@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,7 +35,6 @@ os_get_processor_config(pqisrc_softstate_t *softs)
 {
 	DBG_FUNC("IN\n");
 	softs->num_cpus_online = mp_ncpus;
-	bsd_set_hint_adapter_cpu_config(softs);
 	DBG_FUNC("OUT\n");
 
 	return PQI_STATUS_SUCCESS;

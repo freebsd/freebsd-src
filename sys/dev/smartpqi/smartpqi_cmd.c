@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2023 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,7 +35,7 @@ pqisrc_submit_cmnd(pqisrc_softstate_t *softs, ib_queue_t *ib_q, void *req)
 {
 	char *slot = NULL;
 	uint32_t offset;
-	iu_header_t *hdr = (iu_header_t *)req;
+	iu_header_t const *hdr = (iu_header_t *)req;
 	/*TODO : Can be fixed a size copying of IU ? */
 	uint32_t iu_len = hdr->iu_length + 4 ; /* header size */
 	int i = 0;
