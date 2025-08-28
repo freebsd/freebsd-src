@@ -85,12 +85,12 @@ linux_lchown16(struct thread *td, struct linux_lchown16_args *args)
 int
 linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 {
+	const int ngrp = args->gidsetsize;
 	struct ucred *newcred, *oldcred;
 	l_gid16_t *linux_gidset;
-	int ngrp, error;
+	int error;
 	struct proc *p;
 
-	ngrp = args->gidsetsize;
 	if (ngrp < 0 || ngrp >= ngroups_max)
 		return (EINVAL);
 	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_LINUX, M_WAITOK);
@@ -100,6 +100,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 		free(linux_gidset, M_LINUX);
 		return (error);
 	}
+
 	newcred = crget();
 	p = td->td_proc;
 	PROC_LOCK(p);
@@ -133,34 +134,29 @@ out:
 int
 linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 {
-	struct ucred *cred;
+	const struct ucred *const cred = td->td_ucred;
 	l_gid16_t *linux_gidset;
-	gid_t *bsd_gidset;
-	int bsd_gidsetsz, ngrp, error;
+	int ngrp, error;
 
-	cred = td->td_ucred;
-	bsd_gidset = cred->cr_groups;
-	bsd_gidsetsz = cred->cr_ngroups;
+	ngrp = args->gidsetsize;
 
-	if ((ngrp = args->gidsetsize) == 0) {
-		td->td_retval[0] = bsd_gidsetsz;
+	if (ngrp == 0) {
+		td->td_retval[0] = cred->cr_ngroups;
 		return (0);
 	}
-
-	if (ngrp < bsd_gidsetsz)
+	if (ngrp < cred->cr_ngroups)
 		return (EINVAL);
 
-	ngrp = 0;
-	linux_gidset = malloc(bsd_gidsetsz * sizeof(*linux_gidset),
-	    M_LINUX, M_WAITOK);
-	while (ngrp < bsd_gidsetsz) {
-		linux_gidset[ngrp] = bsd_gidset[ngrp];
-		ngrp++;
-	}
+	ngrp = cred->cr_ngroups;
+
+	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_LINUX, M_WAITOK);
+	for (int i = 0; i < ngrp; ++i)
+		linux_gidset[i] = cred->cr_groups[i];
 
 	error = copyout(linux_gidset, args->gidset, ngrp * sizeof(l_gid16_t));
 	free(linux_gidset, M_LINUX);
-	if (error) {
+
+	if (error != 0) {
 		LIN_SDT_PROBE1(uid16, linux_getgroups16, copyout_error, error);
 		return (error);
 	}
