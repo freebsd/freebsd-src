@@ -33,16 +33,17 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_kbd.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
+
+#include "opt_kbd.h"
 
 #if defined(__amd64__)
 #include <machine/clock.h>
@@ -563,6 +564,8 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
     int f;
     int b;
 
+    TSENTER();
+
     /* CPU will stay inside the loop for 200msec at most */
     retry = kbdc->retry * 2;
 
@@ -572,8 +575,10 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
             b = read_data(kbdc);
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_AUX_BUFFER_FULL) {
 		if ((b == PSM_ACK) || (b == PSM_RESEND) 
-		    || (b == PSM_RESET_FAIL))
+		    || (b == PSM_RESET_FAIL)) {
+		    TSEXIT();
 		    return b;
+		}
 		addq(&kbdc->aux, b);
 	    } else if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL) {
 		addq(&kbdc->kbd, b);
@@ -581,6 +586,7 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
 	}
         DELAY(KBDC_DELAYTIME);
     }
+    TSEXIT();
     return -1;
 }
 
@@ -923,6 +929,8 @@ empty_both_buffers(KBDC p, int wait)
 {
     int t;
     int f;
+
+    TSENTER();
     int waited = 0;
 #if KBDIO_DEBUG >= 2
     int c1 = 0;
@@ -963,6 +971,7 @@ empty_both_buffers(KBDC p, int wait)
 
     emptyq(&p->kbd);
     emptyq(&p->aux);
+    TSEXIT();
 }
 
 /* keyboard and mouse device control */
@@ -977,6 +986,8 @@ reset_kbd(KBDC p)
     int again = KBD_MAXWAIT;
     int c = KBD_RESEND;		/* keep the compiler happy */
 
+    TSENTER();
+
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
         if (!write_kbd_command(p, KBDC_RESET_KBD))
@@ -988,8 +999,10 @@ reset_kbd(KBDC p)
         if (c == KBD_ACK)	/* keyboard has agreed to reset itself... */
     	    break;
     }
-    if (retry < 0)
+    if (retry < 0) {
+        TSEXIT();
         return FALSE;
+    }
 
     while (again-- > 0) {
         /* wait awhile, well, in fact we must wait quite loooooooooooong */
@@ -1000,8 +1013,11 @@ reset_kbd(KBDC p)
     }
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_KBD status:%04x\n", c);
-    if (c != KBD_RESET_DONE)
+    if (c != KBD_RESET_DONE) {
+        TSEXIT();
         return FALSE;
+    }
+    TSEXIT();
     return TRUE;
 }
 
@@ -1015,6 +1031,7 @@ reset_aux_dev(KBDC p)
     int again = KBD_MAXWAIT;
     int c = PSM_RESEND;		/* keep the compiler happy */
 
+    TSENTER();
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
         if (!write_aux_command(p, PSMC_RESET_DEV))
@@ -1032,8 +1049,10 @@ reset_aux_dev(KBDC p)
         if (c == PSM_ACK)	/* aux dev is about to reset... */
     	    break;
     }
-    if (retry < 0)
+    if (retry < 0) {
+        TSEXIT();
         return FALSE;
+    }
 
     for (again = KBD_MAXWAIT; again > 0; --again) {
         /* wait awhile, well, quite looooooooooooong */
@@ -1044,13 +1063,17 @@ reset_aux_dev(KBDC p)
     }
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_AUX status:%04x\n", c);
-    if (c != PSM_RESET_DONE)	/* reset status */
+    if (c != PSM_RESET_DONE) { /* reset status */
+        TSEXIT();
         return FALSE;
+    }
 
     c = read_aux_data(p);	/* device ID */
     if (verbose || bootverbose)
         log(LOG_DEBUG, "kbdc: RESET_AUX ID:%04x\n", c);
     /* NOTE: we could check the device ID now, but leave it later... */
+
+    TSEXIT();
     return TRUE;
 }
 

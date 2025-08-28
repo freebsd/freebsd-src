@@ -55,6 +55,7 @@
 #include <sys/smp.h>
 #include <sys/timetc.h>
 #include <sys/uuid.h>
+#include <sys/tslog.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/clock.h>
@@ -493,6 +494,7 @@ acpi_attach(device_t dev)
     char		*env;
     enum power_stype	stype;
 
+    TSENTER();
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = device_get_softc(dev);
@@ -769,7 +771,10 @@ acpi_attach(device_t dev)
 
     error = 0;
 
+    TSEXIT();
+
  out:
+    TSEXIT();
     return_VALUE (error);
 }
 
