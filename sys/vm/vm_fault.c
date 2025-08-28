@@ -2012,7 +2012,7 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
  *            (more detailed result from vm_fault() is lost)
  */
 int
-vm_fault_quick_hold_pages_e(vm_map_t map, vm_offset_t addr, vm_size_t len,
+vm_fault_hold_pages_e(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count, int *ppages_count)
 {
 	vm_offset_t end, va;
@@ -2108,7 +2108,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 {
 	int error, pages_count;
 
-	error = vm_fault_quick_hold_pages_e(map, addr, len, prot, ma,
+	error = vm_fault_hold_pages_e(map, addr, len, prot, ma,
 	    max_count, &pages_count);
 	if (error != 0) {
 		if (error == EINVAL)
