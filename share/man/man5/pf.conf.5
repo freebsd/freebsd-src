@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 27, 2025
+.Dd August 28, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2259,8 +2259,12 @@ When the rate is exceeded, all ICMP is blocked until the rate falls below
 Limit each packet to be no more than the specified number of bytes.
 This includes the IP header, but not any layer 2 header.
 .It Ar once
-Creates a one shot rule that will remove itself from an active ruleset after
-the first match.
+Creates a one shot rule.
+The first matching packet marks the rule as expired;
+any expired rules are no longer evaluated.
+Expired rules are only shown in verbose mode (-vv):
+.Xr pfctl 8
+will append '# expired' to note any once rules which have already been hit.
 .Pp
 .It Xo Ar queue Aq Ar queue
 .No \*(Ba ( Aq Ar queue ,
