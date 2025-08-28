@@ -4101,21 +4101,29 @@ vtnet_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 
 	stats = &rxq->vtnrx_stats;
 
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ipackets", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ipackets",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_ipackets, "Receive packets");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ibytes", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ibytes",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_ibytes, "Receive bytes");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "iqdrops", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "iqdrops",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_iqdrops, "Receive drops");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ierrors", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ierrors",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_ierrors, "Receive errors");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_csum, "Receive checksum offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum_failed", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum_failed",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_csum_failed, "Receive checksum offload failed");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "host_lro", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "host_lro",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_host_lro, "Receive host segmentation offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vrxs_rescheduled,
 	    "Receive interrupt handler rescheduled");
 }
@@ -4136,17 +4144,23 @@ vtnet_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 
 	stats = &txq->vtntx_stats;
 
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "opackets", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "opackets",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_opackets, "Transmit packets");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "obytes", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "obytes",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_obytes, "Transmit bytes");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "omcasts", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "omcasts",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_omcasts, "Transmit multicasts");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_csum, "Transmit checksum offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "tso", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "tso",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_tso, "Transmit TCP segmentation offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled",
+	    CTLFLAG_RD | CTLFLAG_STATS,
 	    &stats->vtxs_rescheduled,
 	    "Transmit interrupt handler rescheduled");
 }
@@ -4286,30 +4300,30 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	stats->tx_task_rescheduled = txaccum.vtxs_rescheduled;
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "mbuf_alloc_failed",
-	    CTLFLAG_RD, &stats->mbuf_alloc_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->mbuf_alloc_failed,
 	    "Mbuf cluster allocation failures");
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_frame_too_large",
-	    CTLFLAG_RD, &stats->rx_frame_too_large,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_frame_too_large,
 	    "Received frame larger than the mbuf chain");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_enq_replacement_failed",
-	    CTLFLAG_RD, &stats->rx_enq_replacement_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_enq_replacement_failed,
 	    "Enqueuing the replacement receive mbuf failed");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_mergeable_failed",
-	    CTLFLAG_RD, &stats->rx_mergeable_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_mergeable_failed,
 	    "Mergeable buffers receive failures");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_ethtype",
-	    CTLFLAG_RD, &stats->rx_csum_bad_ethtype,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_ethtype,
 	    "Received checksum offloaded buffer with unsupported "
 	    "Ethernet type");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_ipproto",
-	    CTLFLAG_RD, &stats->rx_csum_bad_ipproto,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_ipproto,
 	    "Received checksum offloaded buffer with incorrect IP protocol");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_offset",
-	    CTLFLAG_RD, &stats->rx_csum_bad_offset,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_offset,
 	    "Received checksum offloaded buffer with incorrect offset");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_proto",
-	    CTLFLAG_RD, &stats->rx_csum_bad_proto,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_proto,
 	    "Received checksum offloaded buffer with incorrect protocol");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_csum_failed",
 	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
@@ -4325,24 +4339,24 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	    "Times the receive interrupt task rescheduled itself");
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_unknown_ethtype",
-	    CTLFLAG_RD, &stats->tx_csum_unknown_ethtype,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_csum_unknown_ethtype,
 	    "Aborted transmit of checksum offloaded buffer with unknown "
 	    "Ethernet type");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_proto_mismatch",
-	    CTLFLAG_RD, &stats->tx_csum_proto_mismatch,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_csum_proto_mismatch,
 	    "Aborted transmit of checksum offloaded buffer because mismatched "
 	    "protocols");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_not_tcp",
-	    CTLFLAG_RD, &stats->tx_tso_not_tcp,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_tso_not_tcp,
 	    "Aborted transmit of TSO buffer with non TCP protocol");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_without_csum",
-	    CTLFLAG_RD, &stats->tx_tso_without_csum,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_tso_without_csum,
 	    "Aborted transmit of TSO buffer without TCP checksum offload");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_defragged",
-	    CTLFLAG_RD, &stats->tx_defragged,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_defragged,
 	    "Transmit mbufs defragged");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_defrag_failed",
-	    CTLFLAG_RD, &stats->tx_defrag_failed,
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->tx_defrag_failed,
 	    "Aborted transmit of buffer because defrag failed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_csum_offloaded",
 	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
