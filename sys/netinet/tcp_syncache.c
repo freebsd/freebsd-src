@@ -1294,7 +1294,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	} else
 		TCPSTAT_INC(tcps_sc_completed);
 
-/* how do we find the inp for the new socket? */
 	if (sc != &scs)
 		syncache_free(sc);
 	return (1);
