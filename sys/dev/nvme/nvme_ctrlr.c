@@ -597,7 +597,6 @@ nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 static bool
 is_log_page_id_valid(uint8_t page_id)
 {
-
 	switch (page_id) {
 	case NVME_LOG_ERROR:
 	case NVME_LOG_HEALTH_INFORMATION:
@@ -653,7 +652,6 @@ static void
 nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
     uint8_t state)
 {
-
 	if (state & NVME_CRIT_WARN_ST_AVAILABLE_SPARE)
 		nvme_printf(ctrlr, "SMART WARNING: available spare space below threshold\n");
 
@@ -781,7 +779,6 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 static void
 nvme_ctrlr_configure_int_coalescing(struct nvme_controller *ctrlr)
 {
-
 	ctrlr->int_coal_time = 0;
 	TUNABLE_INT_FETCH("hw.nvme.int_coal_time",
 	    &ctrlr->int_coal_time);
@@ -1776,7 +1773,6 @@ void
 nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
     struct nvme_request *req)
 {
-
 	nvme_qpair_submit_request(&ctrlr->adminq, req);
 }
 
@@ -1793,14 +1789,12 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 device_t
 nvme_ctrlr_get_device(struct nvme_controller *ctrlr)
 {
-
 	return (ctrlr->dev);
 }
 
 const struct nvme_controller_data *
 nvme_ctrlr_get_data(struct nvme_controller *ctrlr)
 {
-
 	return (&ctrlr->cdata);
 }
 
@@ -1853,7 +1847,6 @@ nvme_ctrlr_suspend(struct nvme_controller *ctrlr)
 int
 nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 {
-
 	/*
 	 * Can't touch failed controllers, so nothing to do to resume.
 	 */

@@ -129,7 +129,6 @@ static int
 nvme_ns_close(struct cdev *dev __unused, int flags, int fmt __unused,
     struct thread *td)
 {
-
 	return (0);
 }
 
@@ -231,7 +230,6 @@ nvme_ns_get_model_number(struct nvme_namespace *ns)
 const struct nvme_namespace_data *
 nvme_ns_get_data(struct nvme_namespace *ns)
 {
-
 	return (&ns->data);
 }
 
@@ -631,7 +629,6 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 void
 nvme_ns_destruct(struct nvme_namespace *ns)
 {
-
 	if (ns->cdev != NULL) {
 		if (ns->cdev->si_drv2 != NULL)
 			destroy_dev(ns->cdev->si_drv2);

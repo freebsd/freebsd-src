@@ -295,7 +295,6 @@ nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
 void
 nvme_unregister_consumer(struct nvme_consumer *consumer)
 {
-
 	consumer->id = INVALID_CONSUMER_ID;
 }
 

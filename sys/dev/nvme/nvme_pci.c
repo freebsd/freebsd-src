@@ -151,7 +151,6 @@ nvme_pci_probe (device_t device)
 static int
 nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 {
-
 	ctrlr->resource_id = PCIR_BAR(0);
 
 	ctrlr->resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
