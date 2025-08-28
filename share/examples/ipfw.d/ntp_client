@@ -1,0 +1,11 @@
+# REQUIRE: outbound
+# PROVIDE: ntp_client ntp_servers
+# BEFORE: final
+
+table ntp_servers create
+
+# Uncomment and your NTP servers (if they are on known ips in your network) to the following table:
+
+# table ntp_servers add x.x.x.x
+
+add allow ip from me to table(ntp_servers) 123 keep-state // NTP outbound
