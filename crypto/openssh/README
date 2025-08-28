@@ -1,19 +1,19 @@
-See https://www.openssh.com/releasenotes.html#9.9p2 for the release
+See https://www.openssh.com/releasenotes.html#10.0p1 for the release
 notes.
 
 Please read https://www.openssh.com/report.html for bug reporting
-instructions and note that we do not use Github for bug reporting or
-patch/pull-request management.
+instructions and note that we do not use Github for bug reporting.
 
 This is the port of OpenBSD's excellent OpenSSH[0] to Linux and other
 Unices.
 
 OpenSSH is based on the last free version of Tatu Ylonen's sample
-implementation with all patent-encumbered algorithms removed (to
-external libraries), all known security bugs fixed, new features
-reintroduced and many other clean-ups.  OpenSSH has been created by
-Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo de Raadt,
-and Dug Song. It has a homepage at https://www.openssh.com/
+implementation with all patent-encumbered algorithms removed (to external
+libraries), all known security bugs fixed, new features reintroduced and
+many other clean-ups.  OpenSSH was created by Aaron Campbell, Bob Beck,
+Markus Friedl, Niels Provos, Theo de Raadt, and Dug Song, and has been
+developed and maintained by Andre Lucas, Ben Lindstom, Damien Miller,
+Darren Tucker and Tim Rice. It has a homepage at https://www.openssh.com/
 
 This port consists of the re-introduction of autoconf support, PAM
 support, EGD/PRNGD support and replacements for OpenBSD library
@@ -22,10 +22,6 @@ has been best tested on AIX, Cygwin, HP-UX, Linux, MacOS/X,
 FreeBSD, NetBSD, OpenBSD, OpenServer, Solaris and UnixWare.
 
 This version actively tracks changes in the OpenBSD CVS repository.
-
-The PAM support is now more functional than the popular packages of
-commercial ssh-1.2.x. It checks "account" and "session" modules for
-all logins, not just when using password authentication.
 
 There is now several mailing lists for this port of OpenSSH. Please
 refer to https://www.openssh.com/list.html for details on how to join.

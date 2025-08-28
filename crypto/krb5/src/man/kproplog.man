@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "KPROPLOG" "8" " " "1.22" "MIT Kerberos"
+.TH "KPROPLOG" "8" " " "1.22.1" "MIT Kerberos"
 .SH NAME
 kproplog \- display the contents of the Kerberos principal update log
 .SH SYNOPSIS

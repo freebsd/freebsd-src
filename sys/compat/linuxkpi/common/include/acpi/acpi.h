@@ -37,7 +37,7 @@
 /*
  * LINUXKPI_WANT_LINUX_ACPI is a temporary workaround to allow drm-kmod
  * to update all needed branches without breaking builds.
- * Once that happened and checks are implemented based on __FreeBSD_verison
+ * Once that happened and checks are implemented based on __FreeBSD_version
  * we will remove these conditions again.
  */
 

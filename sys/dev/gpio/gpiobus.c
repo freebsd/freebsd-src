@@ -319,10 +319,6 @@ gpiobus_add_bus(device_t dev)
 	busdev = device_add_child(dev, "gpiobus", DEVICE_UNIT_ANY);
 	if (busdev == NULL)
 		return (NULL);
-	if (device_add_child(dev, "gpioc", DEVICE_UNIT_ANY) == NULL) {
-		device_delete_child(dev, busdev);
-		return (NULL);
-	}
 #ifdef FDT
 	ofw_gpiobus_register_provider(dev);
 #endif
@@ -369,6 +365,37 @@ gpiobus_init_softc(device_t dev)
 	GPIOBUS_LOCK_INIT(sc);
 
 	return (0);
+}
+
+int
+gpiobus_add_gpioc(device_t dev)
+{
+	struct gpiobus_ivar *devi;
+	struct gpiobus_softc *sc;
+	device_t gpioc;
+	int err;
+
+	gpioc = BUS_ADD_CHILD(dev, 0, "gpioc", DEVICE_UNIT_ANY);
+	if (gpioc == NULL)
+		return (ENXIO);
+
+	sc = device_get_softc(dev);
+	devi = device_get_ivars(gpioc);
+
+	devi->npins = sc->sc_npins;
+	err = gpiobus_alloc_ivars(devi);
+	if (err != 0) {
+		device_delete_child(dev, gpioc);
+		return (err);
+	}
+
+	err = GPIO_GET_PIN_LIST(sc->sc_dev, devi->pins);
+	if (err != 0) {
+		device_delete_child(dev, gpioc);
+		gpiobus_free_ivars(devi);
+	}
+
+	return (err);
 }
 
 int
@@ -559,6 +586,10 @@ gpiobus_attach(device_t dev)
 	int err;
 
 	err = gpiobus_init_softc(dev);
+	if (err != 0)
+		return (err);
+
+	err = gpiobus_add_gpioc(dev);
 	if (err != 0)
 		return (err);
 
@@ -961,7 +992,7 @@ gpiobus_pin_getflags(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_GETFLAGS(sc->sc_dev, devi->pins[pin], flags);
+	return (GPIO_PIN_GETFLAGS(sc->sc_dev, devi->pins[pin], flags));
 }
 
 static int
@@ -974,7 +1005,7 @@ gpiobus_pin_getcaps(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_GETCAPS(sc->sc_dev, devi->pins[pin], caps);
+	return (GPIO_PIN_GETCAPS(sc->sc_dev, devi->pins[pin], caps));
 }
 
 static int
@@ -987,7 +1018,7 @@ gpiobus_pin_set(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_SET(sc->sc_dev, devi->pins[pin], value);
+	return (GPIO_PIN_SET(sc->sc_dev, devi->pins[pin], value));
 }
 
 static int
@@ -1000,7 +1031,7 @@ gpiobus_pin_get(device_t dev, device_t child, uint32_t pin,
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_GET(sc->sc_dev, devi->pins[pin], value);
+	return (GPIO_PIN_GET(sc->sc_dev, devi->pins[pin], value));
 }
 
 static int
@@ -1012,7 +1043,57 @@ gpiobus_pin_toggle(device_t dev, device_t child, uint32_t pin)
 	if (pin >= devi->npins)
 		return (EINVAL);
 
-	return GPIO_PIN_TOGGLE(sc->sc_dev, devi->pins[pin]);
+	return (GPIO_PIN_TOGGLE(sc->sc_dev, devi->pins[pin]));
+}
+
+/*
+ * Verify that a child has all the pins they are requesting
+ * to access in their ivars.
+ */
+static bool
+gpiobus_pin_verify_32(struct gpiobus_ivar *devi, uint32_t first_pin,
+    uint32_t num_pins)
+{
+	if (first_pin + num_pins > devi->npins)
+		return (false);
+
+	/* Make sure the pins are consecutive. */
+	for (uint32_t pin = first_pin; pin < first_pin + num_pins - 1; pin++) {
+		if (devi->pins[pin] + 1 != devi->pins[pin + 1])
+			return (false);
+	}
+
+	return (true);
+}
+
+static int
+gpiobus_pin_access_32(device_t dev, device_t child, uint32_t first_pin,
+    uint32_t clear_pins, uint32_t change_pins, uint32_t *orig_pins)
+{
+	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
+	struct gpiobus_ivar *devi = GPIOBUS_IVAR(child);
+
+	if (!gpiobus_pin_verify_32(devi, first_pin, 32))
+		return (EINVAL);
+
+	return (GPIO_PIN_ACCESS_32(sc->sc_dev, devi->pins[first_pin],
+	    clear_pins, change_pins, orig_pins));
+}
+
+static int
+gpiobus_pin_config_32(device_t dev, device_t child, uint32_t first_pin,
+    uint32_t num_pins, uint32_t *pin_flags)
+{
+	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
+	struct gpiobus_ivar *devi = GPIOBUS_IVAR(child);
+
+	if (num_pins > 32)
+		return (EINVAL);
+	if (!gpiobus_pin_verify_32(devi, first_pin, num_pins))
+		return (EINVAL);
+
+	return (GPIO_PIN_CONFIG_32(sc->sc_dev,
+	    devi->pins[first_pin], num_pins, pin_flags));
 }
 
 static int
@@ -1093,6 +1174,8 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(gpiobus_pin_get,	gpiobus_pin_get),
 	DEVMETHOD(gpiobus_pin_set,	gpiobus_pin_set),
 	DEVMETHOD(gpiobus_pin_toggle,	gpiobus_pin_toggle),
+	DEVMETHOD(gpiobus_pin_access_32,gpiobus_pin_access_32),
+	DEVMETHOD(gpiobus_pin_config_32,gpiobus_pin_config_32),
 	DEVMETHOD(gpiobus_pin_getname,	gpiobus_pin_getname),
 	DEVMETHOD(gpiobus_pin_setname,	gpiobus_pin_setname),
 

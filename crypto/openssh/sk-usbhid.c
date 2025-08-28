@@ -1,4 +1,4 @@
-/* $OpenBSD: sk-usbhid.c,v 1.46 2023/03/28 06:12:38 dtucker Exp $ */
+/* $OpenBSD: sk-usbhid.c,v 1.47 2024/12/03 08:31:49 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl
  * Copyright (c) 2020 Pedro Martelletto
@@ -77,10 +77,11 @@
 #define FIDO_CRED_PROT_UV_OPTIONAL_WITH_ID 0
 #endif
 
+# include "misc.h"
+
 #ifndef SK_STANDALONE
 # include "log.h"
 # include "xmalloc.h"
-# include "misc.h"
 /*
  * If building as part of OpenSSH, then rename exported functions.
  * This must be done before including sk-api.h.
@@ -960,13 +961,15 @@ sk_enroll(uint32_t alg, const uint8_t *challenge, size_t challenge_len,
 			    fido_strerr(r));
 			goto out;
 		}
-	} else {
+	} else if (strcmp(fido_cred_fmt(cred), "none") != 0) {
 		skdebug(__func__, "self-attested credential");
 		if ((r = fido_cred_verify_self(cred)) != FIDO_OK) {
 			skdebug(__func__, "fido_cred_verify_self: %s",
 			    fido_strerr(r));
 			goto out;
 		}
+	} else {
+		skdebug(__func__, "no attestation data");
 	}
 	if ((response = calloc(1, sizeof(*response))) == NULL) {
 		skdebug(__func__, "calloc response failed");

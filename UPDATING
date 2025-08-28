@@ -27,6 +27,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250827:
+	The names of pkg repositories defined in /etc/pkg/FreeBSD.conf have
+	changed: "FreeBSD" is now "FreeBSD-ports", and "FreeBSD-kmods" is now
+	"FreeBSD-ports-kmods".  Users with /usr/local/etc/pkg/repos files
+	which override these will need to adjust their configuration to match
+	the new names.
+
 20250823:
 	The set of pkgbase packages for Kerberos and OpenSSL has changed.
 	After updating past 250e77d4f0a5, you should check 'pkg orphans'
@@ -74,10 +81,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	require libmilter, you can now remove it.
 
 20250815:
+	The [gs]etgroups(2)syscalls have changed. To maintain backwards
+	compatibility with existing programs, you need COMPAT_FREEBSD14 in
+	your kernel config until all applications which use this are
+	rebuild/reinstalled.
+
+20250815:
 	jemalloc 5.3.0 has been committed to the tree.
 
 20250815:
-	The removal of Secure RPC DES authentication notced in 20250810
+	The removal of Secure RPC DES authentication noted in 20250810
 	has been reverted.  (However, it is still non-functional.)
 
 20250813:
