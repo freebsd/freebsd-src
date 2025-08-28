@@ -3814,9 +3814,9 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 		if_printf(ifp, "error setting host MAC filter table\n");
 
 out:
-	if (promisc != 0 && vtnet_set_promisc(sc, true) != 0)
+	if (promisc && vtnet_set_promisc(sc, true) != 0)
 		if_printf(ifp, "cannot enable promiscuous mode\n");
-	if (allmulti != 0 && vtnet_set_allmulti(sc, true) != 0)
+	if (allmulti && vtnet_set_allmulti(sc, true) != 0)
 		if_printf(ifp, "cannot enable all-multicast mode\n");
 }
 
