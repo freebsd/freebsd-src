@@ -1349,7 +1349,7 @@ fetch_metadata_index () {
 fetch_metadata_bogus () {
 	echo
 	echo "The update metadata$1 is correctly signed, but"
-	echo "failed an integrity check."
+	echo "failed an integrity check ($2)."
 	echo "Cowardly refusing to proceed any further."
 	return 1
 }
@@ -1360,7 +1360,7 @@ fetch_metadata_index_merge () {
 	for METAFILE in $@; do
 		if [ `grep -E "^${METAFILE}\|" ${TINDEXHASH} | wc -l`	\
 		    -ne 1 ]; then
-			fetch_metadata_bogus " index"
+			fetch_metadata_bogus " index" "${METAFILE} count not 1"
 			return 1
 		fi
 
@@ -1383,7 +1383,7 @@ fetch_metadata_index_merge () {
 # specifically grepped out of ${TINDEXHASH}.
 fetch_metadata_index_sanity () {
 	if grep -qvE '^[0-9A-Z.-]+\|[0-9a-f]{64}$' tINDEX.new; then
-		fetch_metadata_bogus " index"
+		fetch_metadata_bogus " index" "unexpected entry in tINDEX.new"
 		return 1
 	fi
 }
@@ -1400,7 +1400,7 @@ fetch_metadata_sanity () {
 	# Check that the first four fields make sense.
 	if gunzip -c < files/$1.gz |
 	    grep -qvE "^[a-z]+\|[0-9a-z-]+\|${P}+\|[fdL-]\|"; then
-		fetch_metadata_bogus ""
+		fetch_metadata_bogus "" "invalid initial fields"
 		return 1
 	fi
 
@@ -1411,28 +1411,28 @@ fetch_metadata_sanity () {
 	# Sanity check entries with type 'f'
 	if grep -E '^f' sanitycheck.tmp |
 	    grep -qvE "^f\|${M}\|${H}\|${P}*\$"; then
-		fetch_metadata_bogus ""
+		fetch_metadata_bogus "" "invalid type f entry"
 		return 1
 	fi
 
 	# Sanity check entries with type 'd'
 	if grep -E '^d' sanitycheck.tmp |
 	    grep -qvE "^d\|${M}\|\|\$"; then
-		fetch_metadata_bogus ""
+		fetch_metadata_bogus "" "invalid type d entry"
 		return 1
 	fi
 
 	# Sanity check entries with type 'L'
 	if grep -E '^L' sanitycheck.tmp |
 	    grep -qvE "^L\|${M}\|${P}*\|\$"; then
-		fetch_metadata_bogus ""
+		fetch_metadata_bogus "" "invalid type L entry"
 		return 1
 	fi
 
 	# Sanity check entries with type '-'
 	if grep -E '^-' sanitycheck.tmp |
 	    grep -qvE "^-\|\|\|\|\|\|"; then
-		fetch_metadata_bogus ""
+		fetch_metadata_bogus "" "invalid type - entry"
 		return 1
 	fi
 
