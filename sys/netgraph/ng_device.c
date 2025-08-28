@@ -38,20 +38,21 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/epoch.h>
+#include <sys/fcntl.h>
+#include <sys/filio.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/epoch.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
-#include <sys/fcntl.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -135,9 +136,7 @@ static d_close_t ngdclose;
 static d_open_t ngdopen;
 static d_read_t ngdread;
 static d_write_t ngdwrite;
-#if 0
 static d_ioctl_t ngdioctl;
-#endif
 static d_poll_t ngdpoll;
 
 static struct cdevsw ngd_cdevsw = {
@@ -146,9 +145,7 @@ static struct cdevsw ngd_cdevsw = {
 	.d_close =	ngdclose,
 	.d_read =	ngdread,
 	.d_write =	ngdwrite,
-#if 0
 	.d_ioctl =	ngdioctl,
-#endif
 	.d_poll =	ngdpoll,
 	.d_name =	NG_DEVICE_DEVNAME,
 };
@@ -395,6 +392,36 @@ ngdclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	mtx_unlock(&priv->ngd_mtx);
 
 	return(0);
+}
+
+/*
+ * Process IOCTLs
+ *
+ * At this stage we only return success on FIONBIO to allow setting the device
+ * as non-blocking.
+ *
+ */
+static int
+ngdioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
+    struct thread *td)
+{
+    int error;
+
+    switch (cmd) {
+    case FIONBIO:
+        error = 0;
+        break;
+    case FIOASYNC:
+        if (*(int *)data != 0)
+            error = EINVAL;
+        else
+            error = 0;
+        break;
+    default:
+        error = ENOTTY;
+    }
+
+    return (error);
 }
 
 #if 0	/*
