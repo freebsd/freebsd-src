@@ -60,6 +60,7 @@
 #define	D80211_TRACE		0x00000010
 #define	D80211_TRACEOK		0x00000020
 #define	D80211_SCAN		0x00000040
+#define	D80211_SCAN_BEACON	0x00000080
 #define	D80211_TRACE_TX		0x00000100
 #define	D80211_TRACE_TX_DUMP	0x00000200
 #define	D80211_TRACE_RX		0x00001000
@@ -81,8 +82,13 @@
     if (linuxkpi_debug_80211 & D80211_SCAN)				\
 	printf("%s:%d: %s SCAN " fmt "\n",				\
 	    __func__, __LINE__, ic->ic_name, ##__VA_ARGS__)
+#define	TRACE_SCAN_BEACON(ic, fmt, ...)					\
+    if (linuxkpi_debug_80211 & D80211_SCAN_BEACON)			\
+	printf("%s:%d: %s SCAN " fmt "\n",				\
+	    __func__, __LINE__, ic->ic_name, ##__VA_ARGS__)
 #else
 #define	TRACE_SCAN(...)		do {} while (0)
+#define	TRACE_SCAN_BEACON(...)	do {} while (0)
 #endif
 
 #define	IMPROVE_TXQ(...)						\
