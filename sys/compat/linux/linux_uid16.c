@@ -102,6 +102,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	}
 
 	newcred = crget();
+	crextend(newcred, ngrp);
 	p = td->td_proc;
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
