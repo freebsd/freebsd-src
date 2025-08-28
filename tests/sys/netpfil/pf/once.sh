@@ -77,7 +77,56 @@ basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "anchor" "cleanup"
+anchor_head()
+{
+	atf_set descr 'Test one shot rule in anchors'
+	atf_set require.user root
+}
+
+anchor_body()
+{
+	pft_init
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "block" \
+	    "anchor \"once\" {\n
+	        pass in from 192.0.2.2 once\n
+	    }"
+
+	# First once succeeds
+	atf_check -s exit:0 -o ignore \
+	    ping -c 3 192.0.2.1
+
+	# Check for '# expired'
+	jexec alcatraz pfctl -sr -vv -a "*"
+	atf_check -s exit:0 -e ignore \
+	    -o match:'pass in inet from 192.0.2.2 to any flags S/SA keep state once # expired' \
+	    jexec alcatraz pfctl -sr -vv -a "*"
+
+	# The second one does not
+	atf_check -s exit:2 -o ignore \
+	    ping -c 3 192.0.2.1
+}
+
+anchor_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "anchor"
 }
