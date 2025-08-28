@@ -793,7 +793,6 @@ nvme_admin_qpair_destroy(struct nvme_qpair *qpair)
 void
 nvme_io_qpair_destroy(struct nvme_qpair *qpair)
 {
-
 	nvme_qpair_destroy(qpair);
 }
 
@@ -1202,7 +1201,6 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 void
 nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
-
 	mtx_lock(&qpair->lock);
 	_nvme_qpair_submit_request(qpair, req);
 	mtx_unlock(&qpair->lock);
@@ -1226,7 +1224,6 @@ nvme_qpair_enable(struct nvme_qpair *qpair)
 void
 nvme_qpair_reset(struct nvme_qpair *qpair)
 {
-
 	qpair->sq_head = qpair->sq_tail = qpair->cq_head = 0;
 
 	/*

@@ -301,7 +301,6 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 static void
 nvme_sim_poll(struct cam_sim *sim)
 {
-
 	nvme_ctrlr_poll(sim2ctrlr(sim));
 }
 

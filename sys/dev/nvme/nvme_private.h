@@ -459,8 +459,7 @@ int	nvme_detach(device_t dev);
  * vast majority of these without waiting for a tick plus scheduling delays. Since
  * these are on startup, this drastically reduces startup time.
  */
-static __inline
-void
+static __inline void
 nvme_completion_poll(struct nvme_completion_poll_status *status)
 {
 	int timeout = ticks + 10 * hz;

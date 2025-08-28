@@ -153,7 +153,6 @@ nvme_sysctl_timeout_period(SYSCTL_HANDLER_ARGS)
 static void
 nvme_qpair_reset_stats(struct nvme_qpair *qpair)
 {
-
 	/*
 	 * Reset the values. Due to sanity checks in
 	 * nvme_qpair_process_completions, we reset the number of interrupt
