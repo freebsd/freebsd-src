@@ -59,8 +59,11 @@
 /* constants */
 
 #define MAXKBDC				1	/* XXX */
-#define MILISECOND_MULTIPLIER		1000	/* micro second values will be multiplied to convert to mili seconds */
-#define RESET_DELAY_DIVISION_FACTOR	40	/* keyboard reset delay time division factor */
+#define MILLISECOND_MULTIPLIER		1000	/* micro second values will be
+						 * multiplied to convert to
+						 * milli seconds */
+#define RESET_DELAY_DIVISION_FACTOR	40	/* keyboard reset delay
+						 * time division factor */
 
 
 /* macros */
@@ -84,8 +87,10 @@
 #define write_command(k, d)	\
 			(bus_space_write_1((k)->iot, (k)->ioh1, 0, (d)))
 
-#define ATKBD_DELAY(x)	(atkbd_short_delay ? (x) : (x) * MILISECOND_MULTIPLIER)
-#define RESET_DELAY(x)	(atkbd_short_delay ? (x) * MILISECOND_MULTIPLIER : (x) * MILISECOND_MULTIPLIER / RESET_DELAY_DIVISION_FACTOR)
+#define ATKBD_DELAY(x)	(atkbd_short_delay ? (x) : (x) * MILLISECOND_MULTIPLIER)
+#define RESET_DELAY(x) \
+	(atkbd_short_delay ? (x) * MILLISECOND_MULTIPLIER : \
+	(x) * MILLISECOND_MULTIPLIER / RESET_DELAY_DIVISION_FACTOR)
 
 /* local variables */
 
@@ -985,7 +990,7 @@ empty_both_buffers(KBDC p, int wait)
 		unsigned int effective_delay = ATKBD_DELAY(delta);
 		waited += effective_delay;
 
-		if (waited == effective_delay * MILISECOND_MULTIPLIER) {
+		if (waited == effective_delay * MILLISECOND_MULTIPLIER) {
 			TSEXIT();
 			return;
 		}
@@ -1032,8 +1037,10 @@ reset_kbd(KBDC p)
         return FALSE;
     }
 
-    int delay_us = RESET_DELAY(KBD_RESETDELAY); /* if the atkbd_short_delay is activated, delay will be shorten */
-    int max_wait_us = KBD_RESETDELAY * MILISECOND_MULTIPLIER * KBD_MAXWAIT;
+    int delay_us = RESET_DELAY(KBD_RESETDELAY); /* if the atkbd_short_delay is
+						 * activated,
+						 * the delay will be shorten */
+    int max_wait_us = KBD_RESETDELAY * MILLISECOND_MULTIPLIER * KBD_MAXWAIT;
     int attempts = max_wait_us / delay_us;
 
     while (attempts-- > 0) {
@@ -1128,7 +1135,7 @@ test_controller(KBDC p)
     emptyq(&p->kbd);
 
     int delay_us = RESET_DELAY(KBD_RESETDELAY);
-    int max_wait_us = KBD_RESETDELAY * MILISECOND_MULTIPLIER * KBD_MAXWAIT;
+    int max_wait_us = KBD_RESETDELAY * MILLISECOND_MULTIPLIER * KBD_MAXWAIT;
     int attempts = max_wait_us / delay_us;
 
     while (attempts-- > 0) {
