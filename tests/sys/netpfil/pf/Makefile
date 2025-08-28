@@ -30,6 +30,7 @@ ATF_TESTS_SH+=	altq \
 		names \
 		nat \
 		nat64 \
+		once \
 		pass_block \
 		pflog \
 		pflow \
