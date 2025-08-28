@@ -1292,8 +1292,12 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		}
 	}
 
-	if (r->rule_flag & PFRULE_EXPIRED)
+	if (r->rule_flag & PFRULE_EXPIRED) {
 		printf(" # expired");
+
+		if (r->exptime != 0)
+			printf(" %s", ctime(&r->exptime));
+	}
 }
 
 void
