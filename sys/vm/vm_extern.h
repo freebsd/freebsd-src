@@ -93,6 +93,8 @@ int vm_fault_disable_pagefaults(void);
 void vm_fault_enable_pagefaults(int save);
 int vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count);
+int vm_fault_quick_hold_pages_e(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count, int *ppages_count);
 int vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, int *signo, int *ucode);
 int vm_forkproc(struct thread *, struct proc *, struct thread *,

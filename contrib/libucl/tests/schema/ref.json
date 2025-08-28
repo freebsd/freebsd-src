@@ -124,21 +124,5 @@
                 "valid": false
             }
         ]
-    },
-    {
-        "description": "remote ref, containing refs itself",
-        "schema": {"$ref": "http://highsecure.ru/ucl-schema/schema#"},
-        "tests": [
-            {
-                "description": "remote ref valid",
-                "data": {"minLength": 1},
-                "valid": true
-            },
-            {
-                "description": "remote ref invalid",
-                "data": {"minLength": -1},
-                "valid": false
-            }
-        ]
     }
 ]

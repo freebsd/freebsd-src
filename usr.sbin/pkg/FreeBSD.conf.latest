@@ -3,18 +3,18 @@
 # create a /usr/local/etc/pkg/repos/FreeBSD.conf file, e.g.:
 #
 #   mkdir -p /usr/local/etc/pkg/repos
-#   echo "FreeBSD: { enabled: no }" > /usr/local/etc/pkg/repos/FreeBSD.conf
-#   echo "FreeBSD-kmods: { enabled: no }" >> /usr/local/etc/pkg/repos/FreeBSD.conf
+#   echo "FreeBSD-ports: { enabled: no }" > /usr/local/etc/pkg/repos/FreeBSD.conf
+#   echo "FreeBSD-ports-kmods: { enabled: no }" >> /usr/local/etc/pkg/repos/FreeBSD.conf
 #
 
-FreeBSD: {
+FreeBSD-ports: {
   url: "pkg+https://pkg.FreeBSD.org/${ABI}/latest",
   mirror_type: "srv",
   signature_type: "fingerprints",
   fingerprints: "/usr/share/keys/pkg",
   enabled: yes
 }
-FreeBSD-kmods: {
+FreeBSD-ports-kmods: {
   url: "pkg+https://pkg.FreeBSD.org/${ABI}/kmods_latest",
   mirror_type: "srv",
   signature_type: "fingerprints",

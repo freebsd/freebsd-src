@@ -168,7 +168,16 @@ ${__target}: ${MANSRC.${__page:T}:U${__page}}
 .endfor
 .endfor
 .else
-all-man: ${${__group}}
+.for __page in ${${__group}}
+.for __target in ${__page:T:S/:/\:/g}
+all-man: ${__target}
+.if defined(MANSRC.${__page:T})
+CLEANFILES+=	${__target}
+${__target}: ${MANSRC.${__page:T}}
+	${CP} ${.ALLSRC} ${.TARGET}
+.endif
+.endfor
+.endfor
 .endif
 .endif
 .endif	# defined(MANFILTER)

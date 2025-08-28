@@ -207,7 +207,7 @@ fi
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
 cp /etc/resolv.conf $1/etc
-cp /etc/localtime $1/etc
+cp -P /etc/localtime $1/etc
 cp /var/db/zoneinfo $1/var/db
 
 # Run post-install script
