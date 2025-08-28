@@ -1291,6 +1291,9 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			    r->rdr.proxy_port[1], PF_RDR);
 		}
 	}
+
+	if (r->rule_flag & PFRULE_EXPIRED)
+		printf(" # expired");
 }
 
 void
