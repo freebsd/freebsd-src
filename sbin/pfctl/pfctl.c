@@ -1315,7 +1315,6 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	struct pfctl_rule rule;
 	char anchor_call[MAXPATHLEN];
 	u_int32_t nr, header = 0;
-	int rule_numbers = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
 	int numeric = opts & PF_OPT_NUMERIC;
 	int len = strlen(path), ret = 0;
 	char *npath, *p;
@@ -1413,7 +1412,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		case PFCTL_SHOW_RULES:
 			if (rule.label[0][0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
-			print_rule(&rule, anchor_call, rule_numbers, numeric);
+			print_rule(&rule, anchor_call, opts, numeric);
 			/*
 			 * Do not print newline, when we have not
 			 * printed expired rule.
@@ -1492,7 +1491,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			if (rule.label[0][0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
-			print_rule(&rule, anchor_call, rule_numbers, numeric);
+			print_rule(&rule, anchor_call, opts, numeric);
 
 			/*
 			 * If this is a 'unnamed' brace notation
