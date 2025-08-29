@@ -31,13 +31,13 @@ The following tunables are settable from the
 controls how many pages are allocated for the device request ring.
 A non-positive value will cause the driver to choose the value based on device
 capabilities.
-A non-zero value will use that many number of pages up to a maximum of 32.
+A nonzero value will use that many number of pages up to a maximum of 32.
 The default setting is 0.
 .It Va hw.pvscsi.max_queue_depth
 controls the queue size for the adapter.
 A non-positive value will cause the driver to choose the value based on number
 of request ring pages.
-A non-zero value will set the queue size up to a maximum allowed by the number
+A nonzero value will set the queue size up to a maximum allowed by the number
 of request ring pages.
 Default is 0.
 .It Va hw.pvscsi.use_msg
