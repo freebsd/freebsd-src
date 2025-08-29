@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd July 29, 2025
+.Dd August 29, 2025
 .Dt UCRED 9
 .Os
 .Sh NAME
@@ -113,28 +113,26 @@ The actual copying is performed by
 .Pp
 The
 .Fn crsetgroups
-and
-.Fn crsetgroups_and_egid
-functions set the
+function sets the
 .Va cr_groups
 and
 .Va cr_ngroups
-variables and allocates space as needed.
-They also truncate the group list to the current maximum number of
-groups.
+variables representing the supplementary groups, allocating space as needed.
+It also truncates the group list to the current maximum number of groups.
+The
+.Fn crsetgroups_and_egid
+function is similar, but interprets separately the first group of
+.Va groups
+as the effective GID to set, only setting the subsequent groups as supplementary
+ones.
+It will use
+.Va default_egid
+as the new effective GID if
+.Va groups
+is empty.
 No other mechanism should be used to modify the
 .Va cr_groups
 array.
-Note that
-.Fn crsetgroups_and_egid
-will interpret the first element of
-.Va groups
-as the new effective GID and the rest of the array as the supplementary groups,
-and
-.Va default_egid
-will be used as the new effective GID only if
-.Va groups
-is empty.
 .Pp
 The
 .Fn cru2x
