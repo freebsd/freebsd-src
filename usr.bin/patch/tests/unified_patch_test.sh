@@ -161,6 +161,23 @@ file_removal_body()
 	atf_check -o inline:"y\n" cat foo
 }
 
+atf_test_case namespace
+namespace_head()
+{
+	atf_set "descr" "Test that patch(1) handles files with spaces in the name"
+}
+namespace_body()
+{
+	echo "ABC" > "with spaces.orig"
+	echo "ZYX" > "with spaces"
+
+	atf_check -s not-exit:0 -o save:spaces.diff \
+	    diff -u "with spaces.orig" "with spaces"
+
+	atf_check mv "with spaces.orig" "with spaces"
+	atf_check -o not-empty patch < spaces.diff
+}
+
 atf_test_case plinelen
 plinelen_body()
 {
@@ -187,5 +204,6 @@ atf_init_test_cases()
 	atf_add_test_case file_creation
 	atf_add_test_case file_nodupe
 	atf_add_test_case file_removal
+	atf_add_test_case namespace
 	atf_add_test_case plinelen
 }
