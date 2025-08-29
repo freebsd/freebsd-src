@@ -120,7 +120,7 @@ enum sk_checksum_flags {
 	CHECKSUM_NONE			= 0x00,
 	CHECKSUM_UNNECESSARY		= 0x01,
 	CHECKSUM_PARTIAL		= 0x02,
-	CHECKSUM_COMPLETE		= 0x04,
+	CHECKSUM_COMPLETE		= 0x03,
 };
 
 struct skb_frag {
@@ -170,7 +170,7 @@ struct sk_buff {
 		};
 	};
 	uint16_t		protocol;
-	uint8_t			ip_summed;
+	uint8_t			ip_summed;		/* 2 bit only. */
 	/* uint8_t */
 
 	/* "Scratch" area for layers to store metadata. */
