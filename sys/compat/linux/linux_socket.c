@@ -2179,6 +2179,7 @@ static int
 linux_getsockopt_so_peergroups(struct thread *td,
     struct linux_getsockopt_args *args)
 {
+	l_gid_t *out = PTRIN(args->optval);
 	struct xucred xu;
 	socklen_t xulen, len;
 	int error, i;
@@ -2197,13 +2198,12 @@ linux_getsockopt_so_peergroups(struct thread *td,
 		return (error);
 	}
 
-	/*
-	 * "- 1" to skip the primary group.
-	 */
+	/* "- 1" to skip the primary group. */
 	for (i = 0; i < xu.cr_ngroups - 1; i++) {
-		error = copyout(xu.cr_groups + i + 1,
-		    (void *)(args->optval + i * sizeof(l_gid_t)),
-		    sizeof(l_gid_t));
+		/* Copy to cope with a possible type discrepancy. */
+		const l_gid_t g = xu.cr_groups[i + 1];
+
+		error = copyout(&g, out + i, sizeof(l_gid_t));
 		if (error != 0)
 			return (error);
 	}
