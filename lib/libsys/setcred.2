@@ -6,7 +6,7 @@
 .\" This documentation was written by Olivier Certner <olce.freebsd@certner.fr>
 .\" at Kumacom SARL under sponsorship from the FreeBSD Foundation.
 .\"
-.Dd December 19, 2024
+.Dd August 29, 2025
 .Dt SETCRED 2
 .Os
 .Sh NAME
@@ -119,11 +119,6 @@ It must be less than or equal to
 An array of IDs to set the supplementary groups to, if flag
 .Dv SETCREDF_SUPP_GROUPS
 is specified.
-Note that all groups in this array will be set as supplementary groups only, in
-contrast to
-.Xr setgroups 2
-which treats the first element specially as the new effective group, not adding
-it to supplementary groups.
 .It Fa sc_label
 A pointer to a valid MAC label structure, e.g., built with the
 .Xr mac_from_text 3
