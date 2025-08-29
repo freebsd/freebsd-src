@@ -3,6 +3,11 @@
  *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Olivier Certner
+ * <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+ * Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,22 +34,28 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
+/* For __sym_compat(). */
+#include <sys/cdefs.h>
 
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-int
-initgroups(const char *uname, gid_t agroup)
+/* For freebsd14_setgroups(). */
+#include "gen-compat.h"
+
+static int
+initgroups_impl(const char *uname, gid_t agroup,
+    int (*setgroups)(int, const gid_t *))
 {
-	int ngroups, ret;
-	long ngroups_max;
 	gid_t *groups;
+	long ngroups_max;
+	int ngroups, ret;
 
 	/*
-	 * Provide space for one group more than possible to allow
-	 * setgroups to fail and set errno.
+	 * Provide space for one group more than possible to allow setgroups()
+	 * to fail and set 'errno' in case we get back more than {NGROUPS_MAX} +
+	 * 1 groups.
 	 */
 	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 2;
 	groups = malloc(sizeof(*groups) * ngroups_max);
@@ -52,8 +63,23 @@ initgroups(const char *uname, gid_t agroup)
 		return (-1); /* malloc() set 'errno'. */
 
 	ngroups = (int)ngroups_max;
-	getgrouplist(uname, agroup, groups, &ngroups);
-	ret = setgroups(ngroups, groups);
+	(void)getgrouplist(uname, agroup, groups, &ngroups);
+	ret = (*setgroups)(ngroups, groups);
+
 	free(groups);
 	return (ret); /* setgroups() set 'errno'. */
 }
+
+int
+initgroups(const char *uname, gid_t agroup)
+{
+	return (initgroups_impl(uname, agroup, setgroups));
+}
+
+int
+freebsd14_initgroups(const char *uname, gid_t agroup)
+{
+	return (initgroups_impl(uname, agroup, freebsd14_setgroups));
+}
+
+__sym_compat(initgroups, freebsd14_initgroups, FBSD_1.0);
