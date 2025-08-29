@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# witness white space cleanup and style(9) tweeks
+91c0ef0f5a2afa17489b603a2f82edaa28e3cce7
 # iflib style tweaks
 a2989d11eabeb869b8c845a097d4214755d9a99f
 # queue(3) single space after all #define
