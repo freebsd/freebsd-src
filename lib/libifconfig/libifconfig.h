@@ -35,6 +35,8 @@
 #include <netinet/ip_carp.h>
 #include <netinet6/in6_var.h>
 
+#include <stdbool.h>
+
 #define ND6_IFF_DEFAULTIF    0x8000
 
 typedef enum {
@@ -381,3 +383,12 @@ int ifconfig_set_vlantag(ifconfig_handle_t *h, const char *name,
  * 		length of *lenp * IFNAMSIZ bytes.
  */
 int ifconfig_list_cloners(ifconfig_handle_t *h, char **bufp, size_t *lenp);
+
+/** Brings the interface up/down
+ * @param h	    An open ifconfig state object
+ * @param ifname    The interface name
+ * @param up	    true to bring the interface up, false to bring it down
+ * @return	    0 on success, nonzero on failure.
+ *		    On failure, the error info on the handle is set.
+ */
+int ifconfig_set_up(ifconfig_handle_t *h, const char *ifname, bool up);
