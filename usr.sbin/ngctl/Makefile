@@ -13,4 +13,9 @@ LIBADD=	netgraph
 CFLAGS+= -DEDITLINE
 LIBADD+=	edit pthread
 
+.if ${MK_JAIL} != "no"
+CFLAGS+= -DJAIL
+LIBADD+=	jail
+.endif
+
 .include <bsd.prog.mk>

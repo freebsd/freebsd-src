@@ -31,7 +31,7 @@
 .\" OF SUCH DAMAGE.
 .\" $Whistle: ngctl.8,v 1.6 1999/01/20 03:19:44 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd August 29, 2025
 .Dt NGCTL 8
 .Os
 .Sh NAME
@@ -39,9 +39,11 @@
 .Nd netgraph control utility
 .Sh SYNOPSIS
 .Nm
+.Op Fl j Ar jail
 .Op Fl d
 .Op Fl f Ar filename
 .Op Fl n Ar nodename
+.Op Ar command Op Ns Ar argument ...
 .Op Ar command ...
 .Sh DESCRIPTION
 The
@@ -73,12 +75,31 @@ form if the originating node supports conversion.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl f Ar nodeinfo
+.It Fl f Ar filename
 Read commands from the named file.
 A single dash represents the standard input.
 Blank lines and lines starting with a
 .Dq #
 are ignored.
+Note that when the
+.Fl j Ar jail
+option is specified, the file will be opened before attaching to the jail and
+then be processed inside the jail.
+.It Fl j Ar jail
+Perform the actions inside the
+.Ar jail .
+.Pp
+.Nm
+will first attach to the
+.Ar jail
+(by jail id or jail name) before performing the effects.
+.Pp
+This allows netgraph nodes of
+.Ar jail
+to be created, modified, and destroyed even if the
+.Nm
+binary is not available in
+.Ar jail .
 .It Fl n Ar nodename
 Assign
 .Em nodename
