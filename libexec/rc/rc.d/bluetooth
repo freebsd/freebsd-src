@@ -127,8 +127,17 @@ bluetooth_setup_stack()
 		> /dev/null 2>&1 || return 1
 
 	# Initilalize HCI node
-	${hccontrol} -n ${dev}hci reset \
-		> /dev/null 2>&1 || return 1
+	for loop in 1 2 3
+	do
+		${hccontrol} -n ${dev}hci reset \
+			> /dev/null 2>&1 && break
+		if [ ${loop} -eq 3 ]
+		then
+			warn Reset failed three times, giving up.
+			return 1
+		fi
+		warn Reset failed, retrying.
+	done
 
 	${hccontrol} -n ${dev}hci read_bd_addr \
 		> /dev/null 2>&1 || return 1
