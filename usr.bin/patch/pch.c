@@ -1054,7 +1054,7 @@ hunk_done:
 				p_end = fillnew;
 				malformed();
 			}
-			if (ch != ' ' && context > 0) {
+			if (ch != ' ' && context >= 0) {
 				if (context < p_context)
 					p_context = context;
 				context = -1000;
