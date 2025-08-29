@@ -2,6 +2,14 @@
 
 .include <src.opts.mk>
 
+# If you add a new file here, please consider adding an entry to the
+# hardware notes template (website/archetypes/release/hardware.adoc in
+# the doc repository); otherwise the automatically generated hardware
+# notes will not include your driver.
+
+# If you enable a driver for a different architecture, please remember
+# to update the arch specifier in the document title of the manual.
+
 MAN=	aac.4 \
 	aacraid.4 \
 	acpi.4 \
