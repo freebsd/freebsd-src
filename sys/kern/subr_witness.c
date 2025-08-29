@@ -57,7 +57,7 @@
  *	  b : public affirmation by word or example of usually
  *	      religious faith or conviction <the heroic witness to divine
  *	      life -- Pilot>
- *	6 capitalized : a member of the Jehovah's Witnesses 
+ *	6 capitalized : a member of the Jehovah's Witnesses
  */
 
 /*
@@ -131,7 +131,7 @@
 #define	LI_SLEEPABLE	0x00040000	/* Lock may be held while sleeping. */
 
 #ifndef WITNESS_COUNT
-#define	WITNESS_COUNT 		1536
+#define	WITNESS_COUNT		1536
 #endif
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
 #define	WITNESS_PENDLIST	(512 + (MAXCPU * 4))
@@ -158,20 +158,18 @@
  * These flags go in the witness relationship matrix and describe the
  * relationship between any two struct witness objects.
  */
-#define	WITNESS_UNRELATED        0x00    /* No lock order relation. */
-#define	WITNESS_PARENT           0x01    /* Parent, aka direct ancestor. */
-#define	WITNESS_ANCESTOR         0x02    /* Direct or indirect ancestor. */
-#define	WITNESS_CHILD            0x04    /* Child, aka direct descendant. */
-#define	WITNESS_DESCENDANT       0x08    /* Direct or indirect descendant. */
-#define	WITNESS_ANCESTOR_MASK    (WITNESS_PARENT | WITNESS_ANCESTOR)
-#define	WITNESS_DESCENDANT_MASK  (WITNESS_CHILD | WITNESS_DESCENDANT)
-#define	WITNESS_RELATED_MASK						\
-	(WITNESS_ANCESTOR_MASK | WITNESS_DESCENDANT_MASK)
-#define	WITNESS_REVERSAL         0x10    /* A lock order reversal has been
-					  * observed. */
-#define	WITNESS_RESERVED1        0x20    /* Unused flag, reserved. */
-#define	WITNESS_RESERVED2        0x40    /* Unused flag, reserved. */
-#define	WITNESS_LOCK_ORDER_KNOWN 0x80    /* This lock order is known. */
+#define	WITNESS_UNRELATED	0x00	/* No lock order relation. */
+#define	WITNESS_PARENT		0x01	/* Parent, aka direct ancestor. */
+#define	WITNESS_ANCESTOR	0x02	/* Direct or indirect ancestor. */
+#define	WITNESS_CHILD		0x04	/* Child, aka direct descendant. */
+#define	WITNESS_DESCENDANT	0x08	/* Direct or indirect descendant. */
+#define	WITNESS_ANCESTOR_MASK	(WITNESS_PARENT | WITNESS_ANCESTOR)
+#define	WITNESS_DESCENDANT_MASK	(WITNESS_CHILD | WITNESS_DESCENDANT)
+#define	WITNESS_RELATED_MASK	(WITNESS_ANCESTOR_MASK | WITNESS_DESCENDANT_MASK)
+#define	WITNESS_REVERSAL	0x10	/* A lock order reversal has been observed. */
+#define	WITNESS_RESERVED1	0x20	/* Unused flag, reserved. */
+#define	WITNESS_RESERVED2	0x40	/* Unused flag, reserved. */
+#define	WITNESS_LOCK_ORDER_KNOWN 0x80	/* This lock order is known. */
 
 /* Descendant to ancestor flags */
 #define	WITNESS_DTOA(x)	(((x) & WITNESS_RELATED_MASK) >> 2)
@@ -218,20 +216,18 @@ struct lock_list_entry {
  * (for example, "vnode interlock").
  */
 struct witness {
-	char  			w_name[MAX_W_NAME];
-	uint32_t 		w_index;  /* Index in the relationship matrix */
+	char			w_name[MAX_W_NAME];
+	uint32_t		w_index;	/* Index in the relationship matrix */
 	struct lock_class	*w_class;
-	STAILQ_ENTRY(witness) 	w_list;		/* List of all witnesses. */
-	STAILQ_ENTRY(witness) 	w_typelist;	/* Witnesses of a type. */
-	struct witness		*w_hash_next; /* Linked list in hash buckets. */
-	const char		*w_file; /* File where last acquired */
-	uint32_t 		w_line; /* Line where last acquired */
-	uint32_t 		w_refcount;
-	uint16_t 		w_num_ancestors; /* direct/indirect
-						  * ancestor count */
-	uint16_t 		w_num_descendants; /* direct/indirect
-						    * descendant count */
-	int16_t 		w_ddb_level;
+	STAILQ_ENTRY(witness)	w_list;		/* List of all witnesses. */
+	STAILQ_ENTRY(witness)	w_typelist;	/* Witnesses of a type. */
+	struct witness		*w_hash_next;	/* Linked list in hash buckets. */
+	const char		*w_file;	/* File where last acquired */
+	uint32_t		w_line;		/* Line where last acquired */
+	uint32_t		w_refcount;
+	uint16_t		w_num_ancestors;   /* direct/indirect ancestor count */
+	uint16_t		w_num_descendants; /* direct/indirect descendant count */
+	int16_t			w_ddb_level;
 	unsigned		w_displayed:1;
 	unsigned		w_reversed:1;
 };
@@ -265,7 +261,7 @@ struct witness_lock_order_data {
 /*
  * The witness lock order data hash table. Keys are witness index tuples
  * (struct witness_lock_order_key), elements are lock order data objects
- * (struct witness_lock_order_data). 
+ * (struct witness_lock_order_data).
  */
 struct witness_lock_order_hash {
 	struct witness_lock_order_data	*wloh_array[WITNESS_LO_HASH_SIZE];
@@ -295,7 +291,6 @@ struct witness_order_list_entry {
 static __inline int
 witness_lock_type_equal(struct witness *w1, struct witness *w2)
 {
-
 	return ((w1->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)) ==
 		(w2->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)));
 }
@@ -304,7 +299,6 @@ static __inline int
 witness_lock_order_key_equal(const struct witness_lock_order_key *a,
     const struct witness_lock_order_key *b)
 {
-
 	return (a->from == b->from && a->to == b->to);
 }
 
@@ -415,7 +409,7 @@ SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin,
 int badstack_sbuf_size;
 
 int witness_count = WITNESS_COUNT;
-SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN, 
+SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN,
     &witness_count, 0, "");
 
 /*
@@ -760,7 +754,6 @@ static int witness_spin_warn = 0;
 static const char *
 fixup_filename(const char *file)
 {
-
 	if (file == NULL)
 		return (NULL);
 	while (strncmp(file, "../", 3) == 0)
@@ -835,7 +828,7 @@ witness_startup(void *mem)
 	w_free_cnt--;
 
 	for (i = 0; i < witness_count; i++) {
-		memset(w_rmatrix[i], 0, sizeof(*w_rmatrix[i]) * 
+		memset(w_rmatrix[i], 0, sizeof(*w_rmatrix[i]) *
 		    (witness_count + 1));
 	}
 
@@ -989,16 +982,16 @@ witness_ddb_display_descendants(int(*prnt)(const char *fmt, ...),
 {
 	int i;
 
- 	for (i = 0; i < indent; i++)
- 		prnt(" ");
+	for (i = 0; i < indent; i++)
+		prnt(" ");
 	prnt("%s (type: %s, depth: %d, active refs: %d)",
 	     w->w_name, w->w_class->lc_name,
 	     w->w_ddb_level, w->w_refcount);
- 	if (w->w_displayed) {
- 		prnt(" -- (already displayed)\n");
- 		return;
- 	}
- 	w->w_displayed = 1;
+	if (w->w_displayed) {
+		prnt(" -- (already displayed)\n");
+		return;
+	}
+	w->w_displayed = 1;
 	if (w->w_file != NULL && w->w_line != 0)
 		prnt(" -- last acquired @ %s:%d\n", fixup_filename(w->w_file),
 		    w->w_line);
@@ -1079,7 +1072,6 @@ witness_ddb_display(int(*prnt)(const char *fmt, ...))
 int
 witness_defineorder(struct lock_object *lock1, struct lock_object *lock2)
 {
-
 	if (witness_watch == -1 || KERNEL_PANICKED())
 		return (0);
 
@@ -1257,7 +1249,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			w->w_reversed = 1;
 			mtx_unlock_spin(&w_mtx);
 			witness_output(
-			    "acquiring duplicate lock of same type: \"%s\"\n", 
+			    "acquiring duplicate lock of same type: \"%s\"\n",
 			    w->w_name);
 			witness_output(" 1st %s @ %s:%d\n", plock->li_lock->lo_name,
 			    fixup_filename(plock->li_file), plock->li_line);
@@ -1743,7 +1735,7 @@ found:
 
 	/*
 	 * In order to reduce contention on w_mtx, we want to keep always an
-	 * head object into lists so that frequent allocation from the 
+	 * head object into lists so that frequent allocation from the
 	 * free witness pool (and subsequent locking) is avoided.
 	 * In order to maintain the current code simple, when the head
 	 * object is totally unloaded it means also that we do not have
@@ -1781,7 +1773,7 @@ witness_thread_exit(struct thread *td)
 				n++;
 				witness_list_lock(&lle->ll_children[i],
 				    witness_output);
-				
+
 			}
 		kassert_panic(
 		    "Thread %p cannot exit while holding sleeplocks\n", td);
@@ -1948,7 +1940,6 @@ found:
 static void
 depart(struct witness *w)
 {
-
 	MPASS(w->w_refcount == 0);
 	if (w->w_class->lc_flags & LC_SLEEPLOCK) {
 		w_sleep_cnt--;
@@ -1999,18 +1990,18 @@ adopt(struct witness *parent, struct witness *child)
 		child->w_num_ancestors++;
 	}
 
-	/* 
-	 * Find each ancestor of 'pi'. Note that 'pi' itself is counted as 
+	/*
+	 * Find each ancestor of 'pi'. Note that 'pi' itself is counted as
 	 * an ancestor of 'pi' during this loop.
 	 */
 	for (i = 1; i <= w_max_used_index; i++) {
-		if ((w_rmatrix[i][pi] & WITNESS_ANCESTOR_MASK) == 0 && 
+		if ((w_rmatrix[i][pi] & WITNESS_ANCESTOR_MASK) == 0 &&
 		    (i != pi))
 			continue;
 
 		/* Find each descendant of 'i' and mark it as a descendant. */
 		for (j = 1; j <= w_max_used_index; j++) {
-			/* 
+			/*
 			 * Skip children that are already marked as
 			 * descendants of 'i'.
 			 */
@@ -2021,7 +2012,7 @@ adopt(struct witness *parent, struct witness *child)
 			 * We are only interested in descendants of 'ci'. Note
 			 * that 'ci' itself is counted as a descendant of 'ci'.
 			 */
-			if ((w_rmatrix[ci][j] & WITNESS_ANCESTOR_MASK) == 0 && 
+			if ((w_rmatrix[ci][j] & WITNESS_ANCESTOR_MASK) == 0 &&
 			    (j != ci))
 				continue;
 			w_rmatrix[i][j] |= WITNESS_ANCESTOR;
@@ -2029,16 +2020,16 @@ adopt(struct witness *parent, struct witness *child)
 			w_data[i].w_num_descendants++;
 			w_data[j].w_num_ancestors++;
 
-			/* 
+			/*
 			 * Make sure we aren't marking a node as both an
-			 * ancestor and descendant. We should have caught 
+			 * ancestor and descendant. We should have caught
 			 * this as a lock order reversal earlier.
 			 */
 			if ((w_rmatrix[i][j] & WITNESS_ANCESTOR_MASK) &&
 			    (w_rmatrix[i][j] & WITNESS_DESCENDANT_MASK)) {
 				printf("witness rmatrix paradox! [%d][%d]=%d "
 				    "both ancestor and descendant\n",
-				    i, j, w_rmatrix[i][j]); 
+				    i, j, w_rmatrix[i][j]);
 				kdb_backtrace();
 				printf("Witness disabled.\n");
 				witness_watch = -1;
@@ -2047,7 +2038,7 @@ adopt(struct witness *parent, struct witness *child)
 			    (w_rmatrix[j][i] & WITNESS_DESCENDANT_MASK)) {
 				printf("witness rmatrix paradox! [%d][%d]=%d "
 				    "both ancestor and descendant\n",
-				    j, i, w_rmatrix[j][i]); 
+				    j, i, w_rmatrix[j][i]);
 				kdb_backtrace();
 				printf("Witness disabled.\n");
 				witness_watch = -1;
@@ -2124,7 +2115,6 @@ _isitmyx(struct witness *w1, struct witness *w2, int rmask, const char *fname)
 static int
 isitmychild(struct witness *parent, struct witness *child)
 {
-
 	return (_isitmyx(parent, child, WITNESS_PARENT, __func__));
 }
 
@@ -2134,7 +2124,6 @@ isitmychild(struct witness *parent, struct witness *child)
 static int
 isitmydescendant(struct witness *ancestor, struct witness *descendant)
 {
-
 	return (_isitmyx(ancestor, descendant, WITNESS_ANCESTOR_MASK,
 	    __func__));
 }
@@ -2182,7 +2171,7 @@ witness_get(void)
 	STAILQ_REMOVE_HEAD(&w_free, w_list);
 	w_free_cnt--;
 	index = w->w_index;
-	MPASS(index > 0 && index == w_max_used_index+1 &&
+	MPASS(index > 0 && index == w_max_used_index + 1 &&
 	    index < witness_count);
 	bzero(w, sizeof(*w));
 	w->w_index = index;
@@ -2194,7 +2183,6 @@ witness_get(void)
 static void
 witness_free(struct witness *w)
 {
-
 	STAILQ_INSERT_HEAD(&w_free, w, w_list);
 	w_free_cnt++;
 }
@@ -2219,11 +2207,10 @@ witness_lock_list_get(void)
 	bzero(lle, sizeof(*lle));
 	return (lle);
 }
-		
+
 static void
 witness_lock_list_free(struct lock_list_entry *lle)
 {
-
 	mtx_lock_spin(&w_mtx);
 	lle->ll_next = w_lock_list_free;
 	w_lock_list_free = lle;
@@ -2297,7 +2284,6 @@ witness_voutput(const char *fmt, va_list ap)
 static int
 witness_thread_has_locks(struct thread *td)
 {
-
 	if (td->td_sleeplocks == NULL)
 		return (0);
 	return (td->td_sleeplocks->ll_count != 0);
@@ -2573,14 +2559,12 @@ witness_setflag(struct lock_object *lock, int flag, int set)
 void
 witness_norelease(struct lock_object *lock)
 {
-
 	witness_setflag(lock, LI_NORELEASE, 1);
 }
 
 void
 witness_releaseok(struct lock_object *lock)
 {
-
 	witness_setflag(lock, LI_NORELEASE, 0);
 }
 
@@ -2588,7 +2572,6 @@ witness_releaseok(struct lock_object *lock)
 static void
 witness_ddb_list(struct thread *td)
 {
-
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
 	KASSERT(kdb_active, ("%s: not in the debugger", __func__));
 
@@ -2653,7 +2636,6 @@ DB_SHOW_ALIAS_FLAGS(alllocks, db_witness_list_all, DB_CMD_MEMSAFE);
 
 DB_SHOW_COMMAND_FLAGS(witness, db_witness_display, DB_CMD_MEMSAFE)
 {
-
 	witness_ddb_display(db_printf);
 }
 #endif
@@ -2673,9 +2655,9 @@ sbuf_print_witness_badstacks(struct sbuf *sb, size_t *oldidx)
 	/* Allocate and init temporary storage space. */
 	tmp_w1 = malloc(sizeof(struct witness), M_TEMP, M_WAITOK | M_ZERO);
 	tmp_w2 = malloc(sizeof(struct witness), M_TEMP, M_WAITOK | M_ZERO);
-	tmp_data1 = malloc(sizeof(struct witness_lock_order_data), M_TEMP, 
+	tmp_data1 = malloc(sizeof(struct witness_lock_order_data), M_TEMP,
 	    M_WAITOK | M_ZERO);
-	tmp_data2 = malloc(sizeof(struct witness_lock_order_data), M_TEMP, 
+	tmp_data2 = malloc(sizeof(struct witness_lock_order_data), M_TEMP,
 	    M_WAITOK | M_ZERO);
 	stack_zero(&tmp_data1->wlod_stack);
 	stack_zero(&tmp_data2->wlod_stack);
@@ -2750,12 +2732,12 @@ restart:
 
 			sbuf_printf(sb,
 	    "\nLock order reversal between \"%s\"(%s) and \"%s\"(%s)!\n",
-			    tmp_w1->w_name, tmp_w1->w_class->lc_name, 
+			    tmp_w1->w_name, tmp_w1->w_class->lc_name,
 			    tmp_w2->w_name, tmp_w2->w_class->lc_name);
 			if (data1) {
 				sbuf_printf(sb,
 			"Lock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
-				    tmp_w1->w_name, tmp_w1->w_class->lc_name, 
+				    tmp_w1->w_name, tmp_w1->w_class->lc_name,
 				    tmp_w2->w_name, tmp_w2->w_class->lc_name);
 				stack_sbuf_print(sb, &tmp_data1->wlod_stack);
 				sbuf_putc(sb, '\n');
@@ -2763,7 +2745,7 @@ restart:
 			if (data2 && data2 != data1) {
 				sbuf_printf(sb,
 			"Lock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
-				    tmp_w2->w_name, tmp_w2->w_class->lc_name, 
+				    tmp_w2->w_name, tmp_w2->w_class->lc_name,
 				    tmp_w1->w_name, tmp_w1->w_class->lc_name);
 				stack_sbuf_print(sb, &tmp_data2->wlod_stack);
 				sbuf_putc(sb, '\n');
@@ -2823,7 +2805,6 @@ sysctl_debug_witness_badstacks(SYSCTL_HANDLER_ARGS)
 static int
 sbuf_db_printf_drain(void *arg __unused, const char *data, int len)
 {
-
 	return (db_printf("%.*s", len, data));
 }
 
@@ -3068,7 +3049,7 @@ witness_lock_order_get(struct witness *parent, struct witness *child)
 	    & WITNESS_LOCK_ORDER_KNOWN) == 0)
 		goto out;
 
-	hash = witness_hash_djb2((const char*)&key,
+	hash = witness_hash_djb2((const char *)&key,
 	    sizeof(key)) % w_lohash.wloh_size;
 	data = w_lohash.wloh_array[hash];
 	while (data != NULL) {
@@ -3089,7 +3070,6 @@ out:
 static int
 witness_lock_order_check(struct witness *parent, struct witness *child)
 {
-
 	if (parent != child &&
 	    w_rmatrix[parent->w_index][child->w_index]
 	    & WITNESS_LOCK_ORDER_KNOWN &&
@@ -3115,7 +3095,7 @@ witness_lock_order_add(struct witness *parent, struct witness *child)
 	    & WITNESS_LOCK_ORDER_KNOWN)
 		return (1);
 
-	hash = witness_hash_djb2((const char*)&key,
+	hash = witness_hash_djb2((const char *)&key,
 	    sizeof(key)) % w_lohash.wloh_size;
 	w_rmatrix[parent->w_index][child->w_index] |= WITNESS_LOCK_ORDER_KNOWN;
 	data = w_lofree;
@@ -3134,7 +3114,6 @@ witness_lock_order_add(struct witness *parent, struct witness *child)
 static void
 witness_increment_graph_generation(void)
 {
-
 	if (witness_cold == 0)
 		mtx_assert(&w_mtx, MA_OWNED);
 	w_generation++;
@@ -3143,7 +3122,6 @@ witness_increment_graph_generation(void)
 static int
 witness_output_drain(void *arg __unused, const char *data, int len)
 {
-
 	witness_output("%.*s", len, data);
 	return (len);
 }
