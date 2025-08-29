@@ -193,7 +193,6 @@ FBSD_1.0 {
 	__isinff;
 	__isinfl;
 	isatty;
-	initgroups;
 	jrand48;
 	lcong48;
 	ldexp;
@@ -462,6 +461,7 @@ FBSD_1.8 {
 	fdscandir_b;
 	fts_open_b;
 	glob_b;
+	initgroups;
 	inotify_add_watch;
 	inotify_init;
 	inotify_init1;
