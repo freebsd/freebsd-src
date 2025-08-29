@@ -1,5 +1,13 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,12 +33,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 1, 2025
+.Dd September 17, 2025
 .Dt GETGROUPS 2
 .Os
 .Sh NAME
 .Nm getgroups
-.Nd get group access list
+.Nd get the calling process' supplementary groups
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -40,36 +48,39 @@
 .Sh DESCRIPTION
 The
 .Fn getgroups
-system call
-gets the current supplementary groups of the user process and stores it in the
-array
-.Fa gidset .
-The
+system call gets the calling process' supplementary groups and stores them in
+the
+.Fa gidset
+array in strictly ascending order.
+The value of
 .Fa gidsetlen
-argument
-indicates the number of entries that may be placed in
+indicates the maximum number of entries that may be placed in
 .Fa gidset .
-The
-.Fn getgroups
-system call
-returns the actual number of groups returned in
-.Fa gidset .
-As many as {NGROUPS_MAX} values may be returned.
+.Pp
 If
 .Fa gidsetlen
 is zero,
 .Fn getgroups
-returns the number of supplementary group IDs associated with
-the calling process without modifying the array pointed to by
+returns the cardinal of the calling process' supplementary groups set and
+ignores argument
 .Fa gidset .
 .Pp
+No more than
+.Dv {NGROUPS_MAX}
+values may ever be returned.
 The value of
 .Dv {NGROUPS_MAX}
 should be obtained using
 .Xr sysconf 3
 to avoid hard-coding it into the executable.
 .Sh RETURN VALUES
-A successful call returns the number of groups in the group set.
+On success, the
+.Fn getgroups
+system call returns the cardinal of the supplementary groups set.
+It always succeeds if argument
+.Fa gidsetlen
+is zero.
+.Pp
 A value of -1 indicates that an error occurred, and the error
 code is stored in the global variable
 .Va errno .
@@ -81,12 +92,12 @@ are:
 .It Bq Er EINVAL
 The argument
 .Fa gidsetlen
-is smaller than the number of groups in the group set.
+is smaller than the number of supplementary groups
+.Pq but not zero .
 .It Bq Er EFAULT
-The argument
+An invalid address was encountered while reading from the
 .Fa gidset
-specifies
-an invalid address.
+array.
 .El
 .Sh SEE ALSO
 .Xr setgroups 2 ,
@@ -96,16 +107,51 @@ an invalid address.
 The
 .Fn getgroups
 system call conforms to
-.St -p1003.1-2008 .
+.St -p1003.1-2008
+with the additional properties that supplementary groups are reported in
+strictly ascending order and the returned size coincides with the cardinal of
+the set.
 .Sh HISTORY
 The
 .Fn getgroups
 system call appeared in
 .Bx 4.2 .
 .Pp
+Since
+.Fx 14.3 ,
+the
+.Fn getgroups
+system call has treated the supplementary groups as a set, reporting them in
+strictly ascending order and returning the cardinal of the set.
+.Pp
 Before
 .Fx 15.0 ,
 the
 .Fn getgroups
-system call always returned the effective group ID for the process as the first
+system call would additionally return the effective group ID as the first
 element of the array, before the supplementary groups.
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn getgroups
+system call gets the supplementary groups set in the
+.Fa gidset
+array.
+In particular, as evoked in
+.Sx HISTORY ,
+it does not anymore retrieve the effective GID in the first slot of
+.Fa gidset .
+Programs should not make any assumption about which group is placed in the first
+slot of
+.Fa gidset
+other than it being the supplementary group with smallest GID.
+.Pp
+The effective GID is present in the supplementary groups set if and only if it
+was explicitly set as a supplementary group.
+The function
+.Fn initgroups
+enforces that, while the
+.Fn setgroups
+system call does not.
+Please consult the
+.Xr initgroups 3
+manual page for the rationale.
