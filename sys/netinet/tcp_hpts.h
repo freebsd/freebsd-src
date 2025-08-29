@@ -180,12 +180,5 @@ tcp_get_usecs(struct timeval *tv)
 	return (tcp_tv_to_usec(tv));
 }
 
-/*
- * LRO HPTS initialization and uninitialization, only for internal use by the
- * HPTS code.
- */
-void tcp_lro_hpts_init(void);
-void tcp_lro_hpts_uninit(void);
-
 #endif /* _KERNEL */
 #endif /* __tcp_hpts_h__ */
