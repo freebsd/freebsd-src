@@ -1,5 +1,13 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -27,12 +35,12 @@
 .\"
 .\"     @(#)getgroups.2	8.2 (Berkeley) 4/16/94
 .\"
-.Dd January 21, 2011
+.Dd October 10, 2025
 .Dt GETGROUPS 2
 .Os
 .Sh NAME
 .Nm getgroups
-.Nd get group access list
+.Nd get the calling process' effective groups
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -42,36 +50,44 @@
 .Sh DESCRIPTION
 The
 .Fn getgroups
-system call
-gets the current group access list of the user process
-and stores it in the array
-.Fa gidset .
-The
+system call retrieves the calling process' effective groups, i.e., the effective
+group ID and the supplementary groups, and stores them in the
+.Fa gidset
+array.
+The value of
 .Fa gidsetlen
-argument
-indicates the number of entries that may be placed in
+indicates the maximum number of entries that may be placed in
 .Fa gidset .
-The
-.Fn getgroups
-system call
-returns the actual number of groups returned in
-.Fa gidset .
-At least one and as many as {NGROUPS_MAX}+1 values may be returned.
+.Pp
+If the value of
+.Fa gidsetlen
+is large enough, the effective group ID is stored in the first slot
+.Pq Va gidset[0]
+and the supplementary groups in subsequent ones in strictly ascending order.
 If
 .Fa gidsetlen
 is zero,
 .Fn getgroups
-returns the number of supplementary group IDs associated with
-the calling process without modifying the array pointed to by
+returns one more than the cardinal of the calling process' supplementary groups
+set and ignores argument
 .Fa gidset .
 .Pp
+No more than
+.Dv {NGROUPS_MAX}+1
+values may ever be returned.
 The value of
 .Dv {NGROUPS_MAX}
 should be obtained using
 .Xr sysconf 3
 to avoid hard-coding it into the executable.
 .Sh RETURN VALUES
-A successful call returns the number of groups in the group set.
+On success, the
+.Fn getgroups
+system call returns one more than the cardinal of the supplementary groups set.
+It always succeeds if argument
+.Fa gidsetlen
+is zero.
+.Pp
 A value of -1 indicates that an error occurred, and the error
 code is stored in the global variable
 .Va errno .
@@ -83,12 +99,12 @@ are:
 .It Bq Er EINVAL
 The argument
 .Fa gidsetlen
-is smaller than the number of groups in the group set.
+is smaller than the number of supplementary groups plus one
+.Pq but not zero .
 .It Bq Er EFAULT
-The argument
+An invalid address was encountered while reading from the
 .Fa gidset
-specifies
-an invalid address.
+array.
 .El
 .Sh SEE ALSO
 .Xr setgroups 2 ,
@@ -98,9 +114,41 @@ an invalid address.
 The
 .Fn getgroups
 system call conforms to
-.St -p1003.1-2008 .
+.St -p1003.1-2008 ,
+returning the effective group ID along with supplementary groups.
 .Sh HISTORY
 The
 .Fn getgroups
 system call appeared in
 .Bx 4.2 .
+.Pp
+Since
+.Fx 14.3 ,
+the
+.Fn getgroups
+system call has been reporting the supplementary groups in strictly ascending
+order.
+.Pp
+Starting with
+.Fx 15 ,
+the
+.Fn getgroups
+system call will change semantics.
+It will return only the supplementary groups, and not the effective group ID
+anymore.
+.Sh SECURITY CONSIDERATIONS
+On success, the group IDs reported in
+.Fa gidset
+are unique except that the effective group ID in the first slot may be
+duplicated in another slot if it is also included in the supplementary groups.
+.Pp
+Starting with
+.Fx 15 ,
+the
+.Fn getgroups
+system call will stop reporting the effective group ID as the first slot of the
+.Fa gidset
+array.
+Programs that process this slot in a specific way will need to be modified to
+obtain the effective group ID through other means, such as a call to
+.Xr getegid 2 .
