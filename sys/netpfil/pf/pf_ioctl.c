@@ -4125,8 +4125,10 @@ DIOCGETSTATES_retry:
 			PF_HASHROW_UNLOCK(ih);
 			error = copyout(pstore, out,
 			    sizeof(struct pfsync_state_1301) * count);
-			if (error)
+			if (error) {
+				free(pstore, M_PF);
 				goto fail;
+			}
 			out = ps->ps_states + nr;
 		}
 DIOCGETSTATES_full:
@@ -4203,8 +4205,10 @@ DIOCGETSTATESV2_retry:
 			PF_HASHROW_UNLOCK(ih);
 			error = copyout(pstore, out,
 			    sizeof(struct pf_state_export) * count);
-			if (error)
+			if (error) {
+				free(pstore, M_PF);
 				goto fail;
+			}
 			out = ps->ps_states + nr;
 		}
 DIOCGETSTATESV2_full:
