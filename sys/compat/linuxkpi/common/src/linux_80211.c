@@ -5959,6 +5959,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 
 	LKPI_80211_LHW_SCAN_LOCK_INIT(lhw);
 	LKPI_80211_LHW_TXQ_LOCK_INIT(lhw);
+	spin_lock_init(&lhw->txq_lock);
 	sx_init_flags(&lhw->lvif_sx, "lhw-lvif", SX_RECURSE | SX_DUPOK);
 	TAILQ_INIT(&lhw->lvif_head);
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
@@ -6058,6 +6059,7 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 	}
 
 	/* Cleanup more of lhw here or in wiphy_free()? */
+	spin_lock_destroy(&lhw->txq_lock);
 	LKPI_80211_LHW_TXQ_LOCK_DESTROY(lhw);
 	LKPI_80211_LHW_SCAN_LOCK_DESTROY(lhw);
 	sx_destroy(&lhw->lvif_sx);
@@ -8027,21 +8029,30 @@ lkpi_ieee80211_wake_queues_locked(struct ieee80211_hw *hw)
 void
 linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
 {
-	wiphy_lock(hw->wiphy);
+	struct lkpi_hw *lhw;
+	unsigned long flags;
+
+	lhw = HW_TO_LHW(hw);
+
+	spin_lock_irqsave(&lhw->txq_lock, flags);
 	lkpi_ieee80211_wake_queues_locked(hw);
-	wiphy_unlock(hw->wiphy);
+	spin_unlock_irqrestore(&lhw->txq_lock, flags);
 }
 
 void
 linuxkpi_ieee80211_wake_queue(struct ieee80211_hw *hw, int qnum)
 {
+	struct lkpi_hw *lhw;
+	unsigned long flags;
 
 	KASSERT(qnum < hw->queues, ("%s: qnum %d >= hw->queues %d, hw %p\n",
 	    __func__, qnum, hw->queues, hw));
 
-	wiphy_lock(hw->wiphy);
+	lhw = HW_TO_LHW(hw);
+
+	spin_lock_irqsave(&lhw->txq_lock, flags);
 	lkpi_ieee80211_wake_queues(hw, qnum);
-	wiphy_unlock(hw->wiphy);
+	spin_unlock_irqrestore(&lhw->txq_lock, flags);
 }
 
 /* This is just hardware queues. */

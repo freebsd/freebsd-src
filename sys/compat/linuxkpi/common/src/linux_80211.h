@@ -227,6 +227,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
 	TAILQ_HEAD(, lkpi_txq)		scheduled_txqs[IEEE80211_NUM_ACS];
+	spinlock_t			txq_lock;
 
 	/* Deferred RX path. */
 	struct task		rxq_task;
