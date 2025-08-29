@@ -318,7 +318,7 @@ main(int argc, char **argv)
 		fprintf(stderr, "Running syscall4 as root for %s.\n",
 				argv[1]);
 	else {
-		if (setgroups(1, &pw->pw_gid) ||
+		if (setgroups(0, NULL) ||
 		    setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
 		    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
 			err(1, "Can't drop privileges to \"nobody\"");
