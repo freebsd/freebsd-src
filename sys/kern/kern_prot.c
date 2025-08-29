@@ -291,11 +291,6 @@ sys_getgid(struct thread *td, struct getgid_args *uap)
 	return (0);
 }
 
-/*
- * Get effective group ID.  The "egid" is groups[0], and could be obtained
- * via getgroups.  This syscall exists because it is somewhat painful to do
- * correctly in a library function.
- */
 #ifndef _SYS_SYSPROTO_H_
 struct getegid_args {
         int     dummy;
