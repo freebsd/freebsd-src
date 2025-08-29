@@ -1,5 +1,13 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,12 +33,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 26, 2014
+.Dd September 17, 2025
 .Dt INITGROUPS 3
 .Os
 .Sh NAME
 .Nm initgroups
-.Nd initialize group access list
+.Nd initialize supplementary groups as per the group database
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -40,19 +48,18 @@
 .Sh DESCRIPTION
 The
 .Fn initgroups
-function
-uses the
-.Xr getgrouplist 3
-function to calculate the group access list for the user
-specified in
+function initializes the current process' supplementary groups as prescribed by
+its arguments and the system's group database.
+.Pp
+It first uses the
+.Fn getgrouplist
+function to compute a list of groups containing the passed
+.Fa basegid ,
+which typically is the user's initial numerical group ID from the password
+database, and the supplementary groups in the group database for the user named
 .Fa name .
-This group list is then setup for the current process using
-.Xr setgroups 2 .
-The
-.Fa basegid
-is automatically included in the groups list.
-Typically this value is given as
-the group number from the password file.
+It then installs this list as the current process' supplementary groups using
+.Fn setgroups .
 .Sh RETURN VALUES
 .Rv -std initgroups
 .Sh ERRORS
@@ -60,7 +67,7 @@ The
 .Fn initgroups
 function may fail and set
 .Va errno
-for any of the errors specified for the library function
+to any of the errors specified for the library function
 .Xr setgroups 2 .
 It may also return:
 .Bl -tag -width Er
@@ -77,3 +84,67 @@ The
 .Fn initgroups
 function appeared in
 .Bx 4.2 .
+.Pp
+The
+.Fn initgroups
+function changed semantics in
+.Fx 15 ,
+following that of
+.Xr setgroups 2
+in the same release.
+Before that, it would also set the effective group ID to
+.Fa basegid ,
+and would not include the latter in the supplementary groups except before
+.Fx 8 .
+Its current behavior in these respects is known to be compatible with that of
+the following systems up to the specified versions that are current at time of
+this writing:
+.Bl -dash -width "-" -compact
+.It
+Linux (up to 6.6) with the GNU libc (up to 2.42)
+.It
+.Nx 1.1 and greater (up to 10)
+.It
+.Ox (up to 7.7)
+.It
+Systems based on illumos (up to August 2025 sources)
+.El
+.Sh SECURITY CONSIDERATIONS
+As
+.Fa basegid
+is typically the user's initial numerical group ID, to which the current
+process' effective group ID is generally initialized, processes using functions
+to change their effective group ID
+.Pq via Xr setgid 2 or similar
+or that are spawned from executables with the set-group-ID mode bit set will not
+be able to relinquish the access rights deriving from being a member of
+.Fa basegid ,
+as these functions do not change the supplementary groups.
+.Pp
+This behavior is generally desirable in order to paper over the difference of
+treatment between the effective group and supplementary ones in this situation,
+as they are all in the end indiscriminately used in traditional UNIX
+discretionary access checks.
+It blends well with the practice of allocating each user its own private group,
+as processes launched from a set-group-ID executable keep the same user and
+consistently stay also in the same user's group.
+Finally, it was also chosen for compatibility with other systems
+.Po
+see the
+.Sx HISTORY
+section
+.Pc .
+.Pp
+This convention of including
+.Fa basegid
+in the supplementary groups is however only enforced by the
+.Fn initgroups
+function, and not by the
+.Xr setgroups 2
+system call, so applications expressly wanting to include in the supplementary
+groups only those specified by the group database can themselves call
+.Fn getgrouplist
+and then
+.Fn setgroups
+on the result with the first element skipped
+.Pq see Xr getgrouplist 3 .
