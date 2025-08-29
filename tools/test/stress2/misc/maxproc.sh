@@ -103,7 +103,7 @@ t1(int priv)
 			err(1, "no such user: nobody");
 
 		if (priv == 0) {
-			if (setgroups(1, &pw->pw_gid) ||
+			if (setgroups(0, NULL) ||
 			    setegid(pw->pw_gid) || setgid(pw->pw_gid) ||
 			    seteuid(pw->pw_uid) || setuid(pw->pw_uid))
 				err(1, "Can't drop privileges to \"nobody\"");
