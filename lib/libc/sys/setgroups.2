@@ -1,5 +1,13 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993, 1994
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -27,12 +35,12 @@
 .\"
 .\"     @(#)setgroups.2	8.2 (Berkeley) 4/16/94
 .\"
-.Dd January 19, 2018
+.Dd October 10, 2025
 .Dt SETGROUPS 2
 .Os
 .Sh NAME
 .Nm setgroups
-.Nd set group access list
+.Nd set the calling process' effective groups
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -43,35 +51,32 @@
 .Sh DESCRIPTION
 The
 .Fn setgroups
-system call
-sets the group access list of the current user process
-according to the array
-.Fa gidset .
+system call sets the calling process' effective group ID and supplementary
+groups according to the
+.Fa gidset
+array.
 The
 .Fa ngroups
-argument
-indicates the number of entries in the array and must be no
-more than
+argument indicates the number of entries in the array and must be no more than
 .Dv {NGROUPS_MAX}+1 .
 .Pp
-Only the super-user may set a new group list.
-.Pp
-The first entry of the group array
+The effective group ID of the calling process is set to the first entry of the
+.Fa gidset
+array
 .Pq Va gidset[0]
-is used as the effective group-ID for the process.
-This entry is over-written when a setgid program is run.
-To avoid losing access to the privileges of the
-.Va gidset[0]
-entry, it should be duplicated later in the group array.
-By convention,
-this happens because the group value indicated
-in the password file also appears in
-.Pa /etc/group .
-The group value in the password file is placed in
-.Va gidset[0]
-and that value then gets added a second time when the
-.Pa /etc/group
-file is scanned to create the group set.
+if
+.Fa ngroups
+is not zero.
+The other entries are used to form the new supplementary groups set.
+.Pp
+The
+.Fa ngroups
+argument may be set to zero, in which case
+.Fa gidset
+is ignored, the effective group ID remains unchanged and all supplementary
+groups are cleared.
+.Pp
+Only the super-user may install new effective groups.
 .Sh RETURN VALUES
 .Rv -std setgroups
 .Sh ERRORS
@@ -88,16 +93,63 @@ argument is larger than the
 .Dv {NGROUPS_MAX}+1
 limit.
 .It Bq Er EFAULT
-The address specified for
+Part of the groups array starting at
 .Fa gidset
-is outside the process
-address space.
+is outside the process address space.
 .El
 .Sh SEE ALSO
 .Xr getgroups 2 ,
+.Xr setcred 2 ,
 .Xr initgroups 3
 .Sh HISTORY
 The
 .Fn setgroups
 system call appeared in
 .Bx 4.2 .
+.Pp
+Starting with
+.Fx 15 ,
+the
+.Fn setgroups
+system call will change semantics.
+It will not anymore change the effective group ID, but only the supplementary
+groups set, which will be formed from the whole
+.Fa gidset
+array.
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn setgroups
+system call currently sets the effective group ID to the first element of
+.Fa gidset .
+Starting with
+.Fx 15 ,
+it will not do so anymore.
+Programs that rely solely on
+.Fn setgroups
+to change the effective group ID will have to be modified.
+For maximum compatibility, please make sure that some standard or traditional
+function changing the effective group ID, such as
+.Xr setgid 2
+or
+.Xr setegid 2 ,
+is used in conjunction with
+.Fn setgroups
+.Pq this should always be the case for portable programs .
+.Pp
+Processes using functions to change their effective group ID
+.Pq via Xr setgid 2 or similar
+or that are spawned from executables with the set-group-ID mode bit set
+relinquish the access rights deriving from being a member of the initial
+effective group ID, unless this group ID is also included in the supplementary
+groups.
+As, starting with
+.Fx 15 ,
+.Fn setgroups
+will include the first element of
+.Fa gidset
+in the supplementary groups as the others, programs passing the effective group
+ID in that slot will retain their former access rights in the above-mentioned
+scenario.
+This is in particular true for programs that use the
+.Xr initgroups 3
+function.
