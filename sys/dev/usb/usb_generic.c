@@ -143,6 +143,38 @@ SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RWTUN, &ugen_debug,
     0, "Debug level");
 #endif
 
+static const int usb_error_to_errno[USB_ERR_MAX] = {
+	[USB_ERR_NORMAL_COMPLETION] = 0,
+	[USB_ERR_PENDING_REQUESTS] = EALREADY,
+	[USB_ERR_NOT_STARTED] = EINVAL,
+	[USB_ERR_INVAL] = EINVAL,
+	[USB_ERR_NOMEM] = ENOMEM,
+	[USB_ERR_CANCELLED] = ECANCELED,
+	[USB_ERR_BAD_ADDRESS] = EFAULT,
+	[USB_ERR_BAD_BUFSIZE] = ENOBUFS,
+	[USB_ERR_BAD_FLAG] = EINVAL,
+	[USB_ERR_NO_CALLBACK] = EINVAL,
+	[USB_ERR_IN_USE] = EADDRINUSE,
+	[USB_ERR_NO_ADDR] = EADDRNOTAVAIL,
+	[USB_ERR_NO_PIPE] = ENOENT,
+	[USB_ERR_ZERO_NFRAMES] = EINVAL,
+	[USB_ERR_ZERO_MAXP] = EINVAL,
+	[USB_ERR_SET_ADDR_FAILED] = EADDRNOTAVAIL,
+	[USB_ERR_NO_POWER] = ENXIO,
+	[USB_ERR_TOO_DEEP] = EINVAL,
+	[USB_ERR_IOERROR] = EIO,
+	[USB_ERR_NOT_CONFIGURED] = ENXIO,
+	[USB_ERR_TIMEOUT] = ETIMEDOUT,
+	[USB_ERR_SHORT_XFER] = ERANGE,
+	[USB_ERR_STALLED] = EPIPE,
+	[USB_ERR_INTERRUPTED] = EINTR,
+	[USB_ERR_DMA_LOAD_FAILED] = EIO,
+	[USB_ERR_BAD_CONTEXT] = EBADMSG,
+	[USB_ERR_NO_ROOT_HUB] = EINVAL,
+	[USB_ERR_NO_INTR_THREAD] = EIO,
+	[USB_ERR_NOT_LOCKED] = EINVAL,
+};
+
 /* prototypes */
 
 static int
@@ -861,10 +893,16 @@ ugen_do_request(struct usb_fifo *f, struct usb_ctl_request *ur)
 
 	ur->ucr_actlen = actlen;
 
-	if (error) {
-		error = EIO;
-	}
-	return (error);
+	/*
+	 * Fall back to EIO for USB errors without a table entry, so
+	 * that an unmapped error cannot be reported as success.
+	 */
+	if (error < 0 || error >= USB_ERR_MAX ||
+	    (error != USB_ERR_NORMAL_COMPLETION &&
+	    usb_error_to_errno[error] == 0))
+		return (EIO);
+
+	return (usb_error_to_errno[error]);
 }
 
 #ifdef COMPAT_FREEBSD32
