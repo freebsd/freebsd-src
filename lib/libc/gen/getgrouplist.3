@@ -1,5 +1,13 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,12 +33,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 26, 2014
+.Dd August 29, 2025
 .Dt GETGROUPLIST 3
 .Os
 .Sh NAME
 .Nm getgrouplist
-.Nd calculate group access list
+.Nd produce a user's effective group list
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -40,16 +48,16 @@
 .Sh DESCRIPTION
 The
 .Fn getgrouplist
-function reads through the group file and calculates
-the group access list for the user specified in
-.Fa name .
-The
+function reads through the group database to retrieve the supplementary groups
+for the user specified in
+.Fa name ,
+and returns the effective group list, whose first group is the value of
 .Fa basegid
-is automatically included in the groups list.
-Typically this value is given as
-the group number from the password file.
+and the others are the retrieved supplementary groups.
+.Fa basegid
+typically is the user's group number from the password database.
 .Pp
-The resulting group list is returned in the array pointed to by
+The effective group list is returned in the array pointed to by
 .Fa groups .
 The caller specifies the size of the
 .Fa groups
@@ -70,6 +78,7 @@ Here, the group array will be filled with as many groups as will fit.
 group membership list
 .El
 .Sh SEE ALSO
+.Xr setcred 2 ,
 .Xr setgroups 2 ,
 .Xr initgroups 3
 .Sh HISTORY
