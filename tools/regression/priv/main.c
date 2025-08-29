@@ -423,12 +423,10 @@ setup_file(const char *test, char *fpathp, uid_t uid, gid_t gid, mode_t mode)
 static void
 set_creds(const char *test, uid_t uid, gid_t gid)
 {
-	gid_t gids[1] = { gid };
-
 	if (setgid(gid) < 0)
 		err(-1, "test %s: setegid(%d)", test, gid);
-	if (setgroups(sizeof(gids)/sizeof(gid_t), gids) < 0)
-		err(-1, "test %s: setgroups(%d)", test, gid);
+	if (setgroups(0, NULL) < 0)
+		err(-1, "test %s: setgroups(NULL)", test);
 	if (setuid(uid) < 0)
 		err(-1, "test %s: seteuid(%d)", test, uid);
 }
