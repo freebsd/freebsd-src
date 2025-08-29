@@ -1,5 +1,13 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993, 1994
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,12 +33,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 1, 2025
+.Dd September 17, 2025
 .Dt SETGROUPS 2
 .Os
 .Sh NAME
 .Nm setgroups
-.Nd set group access list
+.Nd set the calling process' supplementary groups
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -41,21 +49,21 @@
 .Sh DESCRIPTION
 The
 .Fn setgroups
-system call
-sets the supplementary group list of the current user process
-according to the array
-.Fa gidset .
+system call sets the calling process' supplementary groups according to the
+.Fa gidset
+array.
 The
 .Fa ngroups
-argument
-indicates the number of entries in the array and must be no
-more than
+argument indicates the number of entries in the array and must be no more than
 .Dv {NGROUPS_MAX} .
+.Pp
 The
 .Fa ngroups
-argument may be set to 0 to clear the supplementary group list.
+argument may be set to zero to clear all supplementary groups, in which case
+.Fa gidset
+is ignored.
 .Pp
-Only the super-user may set a new supplementary group list.
+Only the super-user may install a new supplementary groups set.
 .Sh RETURN VALUES
 .Rv -std setgroups
 .Sh ERRORS
@@ -69,16 +77,16 @@ The caller is not the super-user.
 The number specified in the
 .Fa ngroups
 argument is larger than the
-.Dv {NGROUPS_MAX}+1
+.Dv {NGROUPS_MAX}
 limit.
 .It Bq Er EFAULT
-The address specified for
+Part of the groups array starting at
 .Fa gidset
-is outside the process
-address space.
+is outside the process address space.
 .El
 .Sh SEE ALSO
 .Xr getgroups 2 ,
+.Xr setcred 2 ,
 .Xr initgroups 3
 .Sh HISTORY
 The
@@ -92,4 +100,63 @@ the
 .Fn setgroups
 system call would set the effective group ID for the process to the first
 element of
-.Fa gidset .
+.Fa gidset ,
+and only the other elements as supplementary groups.
+Despite treating the first element as the effective group ID to set, it accepted
+an empty
+.Fa gidset
+.Po
+.Fa ngroups
+being zero
+.Pc
+as a stance requiring to drop all supplementary groups, leaving the effective
+group ID unchanged.
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn setgroups
+system call sets the process' supplementary groups to those contained in the
+.Fa gidset
+array.
+In particular, as evoked in
+.Sx HISTORY ,
+it does not anymore treat the first element of
+.Fa gidset
+separately.
+Formerly, it would set it as the effective group ID while only the others were
+used as supplementary groups.
+.Pp
+Programs solely relying on
+.Fn setgroups
+to change the effective group ID must be modified, e.g., to also call
+.Xr setegid 2
+or to instead use
+.Xr setcred 2 ,
+else they will unwillingly keep their effective group ID.
+.Pp
+Programs using
+.Fn setgroups
+with the effective group ID as the first element of array
+.Fa gidset
+and not duplicating it in the rest of the array, which includes those using
+.Fn initgroups ,
+now insert this group ID in the supplementary groups set.
+This is in general desirable, as explained in the
+.Xr initgroups 3
+manual page, and has the consequence that subsequent process' effective group
+ID's changes do not remove membership of the original effective group ID, since
+these changes do not affect the supplementary groups.
+Applications that expressly do not want that must be modified to stop passing
+the effective group ID as the first element to
+.Fn setgroups .
+.Pp
+To clear all the calling process' supplementary groups, always use the statement
+.Bd -literal -offset indent
+setgroups(0, NULL);
+.Ed
+.Pp
+which works also on older FreeBSD version
+.Po
+see the
+.Sx HISTORY
+section
+.Pc .
