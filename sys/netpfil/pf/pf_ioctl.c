@@ -1212,7 +1212,7 @@ pf_begin_rules(u_int32_t *ticket, int rs_num, const char *anchor)
 		return (ENOMEM);
 	rs = pf_find_or_create_kruleset(anchor);
 	if (rs == NULL) {
-		free(tree, M_PF);
+		pf_rule_tree_free(tree);
 		return (EINVAL);
 	}
 	pf_rule_tree_free(rs->rules[rs_num].inactive.tree);
@@ -1433,7 +1433,7 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	rs->rules[rs_num].inactive.rcount = 0;
 	rs->rules[rs_num].inactive.open = 0;
 	pf_remove_if_empty_kruleset(rs);
-	free(old_tree, M_PF);
+	pf_rule_tree_free(old_tree);
 
 	return (0);
 }
