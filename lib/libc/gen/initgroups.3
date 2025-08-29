@@ -1,5 +1,13 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -27,12 +35,12 @@
 .\"
 .\"     @(#)initgroups.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd October 26, 2014
+.Dd October 9, 2025
 .Dt INITGROUPS 3
 .Os
 .Sh NAME
 .Nm initgroups
-.Nd initialize group access list
+.Nd initialize the effective groups using the group database
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -42,19 +50,19 @@
 .Sh DESCRIPTION
 The
 .Fn initgroups
-function
-uses the
-.Xr getgrouplist 3
-function to calculate the group access list for the user
-specified in
+function initializes the current process' effective and supplementary groups,
+collectively called the effective groups, as prescribed by its arguments and the
+system's group database.
+.Pp
+It first uses the
+.Fn getgrouplist
+function to compute a list of groups containing the passed
+.Fa basegid ,
+which typically is the user's initial numerical group ID from the password
+database, and the supplementary groups in the group database for the user named
 .Fa name .
-This group list is then setup for the current process using
-.Xr setgroups 2 .
-The
-.Fa basegid
-is automatically included in the groups list.
-Typically this value is given as
-the group number from the password file.
+It then installs this list as the current process' effective groups using
+.Fn setgroups .
 .Sh RETURN VALUES
 .Rv -std initgroups
 .Sh ERRORS
@@ -62,7 +70,7 @@ The
 .Fn initgroups
 function may fail and set
 .Va errno
-for any of the errors specified for the library function
+to any of the errors specified for the library function
 .Xr setgroups 2 .
 It may also return:
 .Bl -tag -width Er
@@ -79,3 +87,55 @@ The
 .Fn initgroups
 function appeared in
 .Bx 4.2 .
+.Pp
+The
+.Fn initgroups
+function has changed semantics in
+.Fx 15 ,
+following that of
+.Xr setgroups 2
+in the same release.
+In the current version,
+.Nm
+sets the effective group ID to
+.Fa basegid
+and does not include the latter in the supplementary groups.
+Starting with
+.Fx 15 ,
+.Nm
+leaves the effective group ID unchanged and includes
+.Fa basegid
+in the supplementary groups instead.
+.Sh SECURITY CONSIDERATIONS
+.Nm
+currently sets the effective group ID to
+.Fa basegid .
+Starting with
+.Fx 15 ,
+it will not do so anymore.
+Programs that rely solely on
+.Nm
+to change the effective group ID will have to be modified.
+For maximum compatibility, please make sure that some standard or traditional
+function changing the effective group ID, such as
+.Xr setgid 2
+or
+.Xr setegid 2 ,
+is used in conjunction with
+.Nm
+.Pq this should always be the case for portable programs .
+.Pp
+Processes requesting a change of effective group ID or that are spawned from
+executables with the set-group-ID mode bit set relinquish the access rights
+deriving from being a member of their initial effective group ID, unless the
+latter is also included in the supplementary groups.
+Duplication of the effective group ID in the supplementary groups currently only
+happens if the user's initial numerical group ID from the password database is
+seconded by a corresponding group entry listing the user in the group database.
+As, starting from
+.Fx 15 ,
+.Nm
+will put
+.Fa basegid
+in the supplementary groups set, such additional entries in the group database
+will become unnecessary.
