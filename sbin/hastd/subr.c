@@ -156,7 +156,6 @@ drop_privs(const struct hast_resource *res)
 	struct passwd *pw;
 	uid_t ruid, euid, suid;
 	gid_t rgid, egid, sgid;
-	gid_t gidset[1];
 	bool capsicum, jailed;
 
 	/*
@@ -285,7 +284,6 @@ drop_privs(const struct hast_resource *res)
 	PJDLOG_VERIFY(egid == pw->pw_gid);
 	PJDLOG_VERIFY(sgid == pw->pw_gid);
 	PJDLOG_VERIFY(getgroups(0, NULL) == 0);
-	PJDLOG_VERIFY(getgroups(1, gidset) == 0);
 
 	pjdlog_debug(1,
 	    "Privileges successfully dropped using %s%s+setgid+setuid.",
