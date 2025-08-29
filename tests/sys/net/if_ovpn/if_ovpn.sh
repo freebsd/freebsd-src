@@ -492,6 +492,7 @@ linklocal_head()
 linklocal_body()
 {
 	ovpn_init
+	ovpn_check_version 2.7.0
 
 	l=$(vnet_mkepair)
 
@@ -1365,6 +1366,7 @@ float_head()
 float_body()
 {
 	ovpn_init
+	ovpn_check_version 2.7.0
 
 	l=$(vnet_mkepair)
 
