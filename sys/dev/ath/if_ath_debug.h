@@ -110,12 +110,10 @@ extern	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
 extern	void ath_printtxstatbuf(struct ath_softc *sc, const struct ath_buf *bf,
 	const uint32_t *ds, u_int qnum, u_int ix, int done);
 #else	/* ATH_DEBUG */
-#define	ATH_KTR(_sc, _km, _kf, ...)	do { } while (0)
+#define	ATH_KTR(_sc, _km, _kf, ...) (void)(sizeof((__VA_ARGS__), 0))
 
 #define	IFF_DUMPPKTS(sc, m)	(0)
-#define	DPRINTF(sc, m, fmt, ...) do {				\
-	(void) sc;						\
-} while (0)
+#define	DPRINTF(sc, m, ...) (void)(sizeof((__VA_ARGS__), 0))
 #define	KEYPRINTF(sc, k, ix, mac) do {				\
 	(void) sc;						\
 } while (0)
