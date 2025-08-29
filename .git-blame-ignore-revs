@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# witness white space cleanup and style(9) tweeks
+f5377665253b2b107ee8a4690ad2e6682375b304
 # style fixes for device_if.m
 ab43dbe0187ecdf1697726170fd4e19c373effcc
 # iflib style tweaks
