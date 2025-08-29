@@ -334,6 +334,10 @@ tarfs_readdir(struct vop_readdir_args *ap)
 	    tnp, tnp->name, uio->uio_offset, uio->uio_resid);
 
 	if (uio->uio_offset == TARFS_COOKIE_EOF) {
+		if (eofflag != NULL) {
+			TARFS_DPF(VNODE, "%s: Setting EOF flag\n", __func__);
+			*eofflag = 1;
+		}
 		TARFS_DPF(VNODE, "%s: EOF\n", __func__);
 		return (0);
 	}
