@@ -8,6 +8,9 @@ MANPACKAGE=	kernel
 # the doc repository); otherwise the automatically generated hardware
 # notes will not include your driver.
 
+# If you enable a driver for a different architecture, please remember
+# to update the arch specifier in the document title of the manual.
+
 MAN=	aac.4 \
 	aacraid.4 \
 	acpi.4 \
