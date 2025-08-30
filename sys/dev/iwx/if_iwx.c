@@ -10474,6 +10474,8 @@ iwx_attach(device_t dev)
 	ic->ic_flags_ext = IEEE80211_FEXT_SCAN_OFFLOAD;
 	/* Enable seqno offload */
 	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+	/* Don't send null data frames; let firmware do it */
+	ic->ic_flags_ext |= IEEE80211_FEXT_NO_NULLDATA;
 
 	ic->ic_txstream = 2;
 	ic->ic_rxstream = 2;
