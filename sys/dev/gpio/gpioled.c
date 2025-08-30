@@ -55,13 +55,13 @@
     device_get_nameunit((_sc)->sc_dev), "gpioled", MTX_DEF)
 #define	GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
-struct gpioled_softc 
+struct gpioled_softc
 {
 	device_t	sc_dev;
 	device_t	sc_busdev;
 	struct mtx	sc_mtx;
 	struct cdev	*sc_leddev;
-	int		sc_invert;
+	int	sc_softinvert;
 };
 
 static void gpioled_control(void *, int);
@@ -69,20 +69,19 @@ static int gpioled_probe(device_t);
 static int gpioled_attach(device_t);
 static int gpioled_detach(device_t);
 
-static void 
+static void
 gpioled_control(void *priv, int onoff)
 {
 	struct gpioled_softc *sc;
 
 	sc = (struct gpioled_softc *)priv;
+	if (onoff == -1) /* Keep the current state. */
+		return;
+	if (sc->sc_softinvert)
+		onoff = !onoff;
 	GPIOLED_LOCK(sc);
-	if (GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
-	    GPIO_PIN_OUTPUT) == 0) {
-		if (sc->sc_invert)
-			onoff = !onoff;
-		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
-		    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
-	}
+	GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
 	GPIOLED_UNLOCK(sc);
 }
 
@@ -95,26 +94,101 @@ gpioled_probe(device_t dev)
 }
 
 static int
+gpioled_inv(device_t dev, uint32_t *pin_flags)
+{
+	struct gpioled_softc *sc;
+	int invert;
+	uint32_t pin_caps;
+
+	sc = device_get_softc(dev);
+
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "invert", &invert))
+		invert = 0;
+
+	if (GPIOBUS_PIN_GETCAPS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    &pin_caps) != 0) {
+		if (bootverbose)
+			device_printf(sc->sc_dev, "unable to get pin caps\n");
+		return (-1);
+	}
+	if (pin_caps & GPIO_PIN_INVOUT)
+		*pin_flags &= ~GPIO_PIN_INVOUT;
+	sc->sc_softinvert = 0;
+	if (invert) {
+		const char *invmode;
+
+		if (resource_string_value(device_get_name(dev),
+		    device_get_unit(dev), "invmode", &invmode))
+			invmode = NULL;
+
+		if (invmode) {
+			if (!strcmp(invmode, "sw"))
+				sc->sc_softinvert = 1;
+			else if (!strcmp(invmode, "hw")) {
+				if (pin_caps & GPIO_PIN_INVOUT)
+					*pin_flags |= GPIO_PIN_INVOUT;
+				else {
+					device_printf(sc->sc_dev, "hardware pin inversion not supported\n");
+					return (-1);
+				}
+			} else {
+				if (strcmp(invmode, "auto") != 0)
+					device_printf(sc->sc_dev, "invalid pin inversion mode\n");
+				invmode = NULL;
+			}
+		}
+		/*
+		 * auto inversion mode: use hardware support if available, else fallback to
+		 * software emulation.
+		 */
+		if (invmode == NULL) {
+			if (pin_caps & GPIO_PIN_INVOUT)
+				*pin_flags |= GPIO_PIN_INVOUT;
+			else
+				sc->sc_softinvert = 1;
+		}
+	}
+	MPASS(!invert ||
+	    (((*pin_flags & GPIO_PIN_INVOUT) != 0) && !sc->sc_softinvert) ||
+	    (((*pin_flags & GPIO_PIN_INVOUT) == 0) && sc->sc_softinvert));
+	return (invert);
+}
+
+static int
 gpioled_attach(device_t dev)
 {
 	struct gpioled_softc *sc;
 	int state;
 	const char *name;
+	uint32_t pin_flags;
+	int invert;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_busdev = device_get_parent(dev);
 	GPIOLED_LOCK_INIT(sc);
 
-	state = 0;
-
-	if (resource_string_value(device_get_name(dev), 
+	if (resource_string_value(device_get_name(dev),
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
-	resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "invert", &sc->sc_invert);
-	resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "state", &state);
+
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "state", &state))
+		state = 0;
+
+	pin_flags = GPIO_PIN_OUTPUT;
+	invert = gpioled_inv(dev, &pin_flags);
+	if (invert < 0)
+		return (ENXIO);
+	device_printf(sc->sc_dev, "state %d invert %s\n",
+	    state, (invert ? (sc->sc_softinvert ? "sw" : "hw") : "no"));
+	if (GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    pin_flags) != 0) {
+		if (bootverbose)
+			device_printf(sc->sc_dev, "unable to set pin flags, %#x\n", pin_flags);
+		return (ENXIO);
+	}
 
 	sc->sc_leddev = led_create_state(gpioled_control, sc, name ? name :
 	    device_get_nameunit(dev), state);
