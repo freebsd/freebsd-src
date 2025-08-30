@@ -712,7 +712,7 @@ static uint32_t iflib_txq_can_drain(struct ifmp_ring *);
 static void iflib_altq_if_start(if_t ifp);
 static int iflib_altq_if_transmit(if_t ifp, struct mbuf *m);
 #endif
-static int iflib_register(if_ctx_t);
+static void iflib_register(if_ctx_t);
 static void iflib_deregister(if_ctx_t);
 static void iflib_unregister_vlan_handlers(if_ctx_t ctx);
 static uint16_t iflib_get_mbuf_size_for(unsigned int size);
@@ -5136,10 +5136,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	ctx->ifc_dev = dev;
 	ctx->ifc_softc = sc;
 
-	if ((err = iflib_register(ctx)) != 0) {
-		device_printf(dev, "iflib_register failed %d\n", err);
-		goto fail_ctx_free;
-	}
+	iflib_register(ctx);
 	iflib_add_device_sysctl_pre(ctx);
 
 	scctx = &ctx->ifc_softc_ctx;
@@ -5387,7 +5384,6 @@ fail_unlock:
 	CTX_UNLOCK(ctx);
 	IFNET_WUNLOCK();
 	iflib_deregister(ctx);
-fail_ctx_free:
 	device_set_softc(ctx->ifc_dev, NULL);
 	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
 		free(ctx->ifc_softc, M_IFLIB);
@@ -5685,7 +5681,7 @@ _iflib_pre_assert(if_softc_ctx_t scctx)
 	MPASS(scctx->isc_txrx->ift_rxd_flush);
 }
 
-static int
+static void
 iflib_register(if_ctx_t ctx)
 {
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
@@ -5731,7 +5727,6 @@ iflib_register(if_ctx_t ctx)
 		ifmedia_init(ctx->ifc_mediap, IFM_IMASK,
 		    iflib_media_change, iflib_media_status);
 	}
-	return (0);
 }
 
 static void
