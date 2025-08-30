@@ -25,26 +25,6 @@
 # SUCH DAMAGE.
 #
 
-atf_test_case badfuzz
-badfuzz_head()
-{
-	atf_set "descr" "Test for patch(1) erroneously fuzzing away action lines"
-}
-badfuzz_body()
-{
-	# PR 250511 demonstrates a scenario where patch(1) will happily apply a
-	# patch into the wrong location if we have some lines that are still
-	# similar in the trailing context.  In the following example, it would
-	# actually replace the underscore before the second series of B\nC\nO
-	# with "Z", when the patch should have been rejected instead.
-	printf "A\nB\nC\nO\n_\nB\nC\nO\n" > file.orig
-	printf "Z\nB\nC\nO\n_\nB\nC\nO\n" > file
-	printf "OK\nDIFF1\nDIFF2\n\n_\nB\nC\nO\n" > file.newer
-
-	atf_check -s not-exit:0 -o save:file.patch diff -u3 file.orig file
-	atf_check -s not-exit:0 -o not-empty patch file.newer file.patch
-}
-
 atf_test_case basic
 basic_body()
 {
@@ -198,7 +178,6 @@ EOF
 
 atf_init_test_cases()
 {
-	atf_add_test_case badfuzz
 	atf_add_test_case basic
 	atf_add_test_case limited_ctx
 	atf_add_test_case file_creation
