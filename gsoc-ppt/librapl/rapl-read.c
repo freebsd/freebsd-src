@@ -154,7 +154,7 @@ static void do_cpuid(int fd, int level, cpuctl_cpuid_args_t *cpuid_data)
 	}
 }
 
-static int detect_cpu(void)
+int detect_cpu(void)
 {
 	int fd = open_msr(0);
 	cpuctl_cpuid_args_t cpuid_data;
@@ -251,7 +251,7 @@ static int detect_cpu(void)
 static int total_cores=0,total_packages=0;
 static int package_map[MAX_PACKAGES];
 
-static int detect_packages(void) {
+int detect_packages(void) {
 
 	char filename[BUFSIZ];
 	FILE *fff;
@@ -293,7 +293,7 @@ static int detect_packages(void) {
 /*******************************/
 /* MSR code                    */
 /*******************************/
-static int rapl_msr(int core, int cpu_model, int delay) {
+int rapl_msr(int core, int cpu_model, int delay) {
 
 	int fd;
 	long long result;
@@ -307,11 +307,221 @@ static int rapl_msr(int core, int cpu_model, int delay) {
 	double thermal_spec_power,minimum_power,maximum_power,time_window;
 	int j;
 
+	typedef struct {
+		double package_energy;
+		double powerplane0;
+		double powerplane1;
+		double DRAM;
+		double PSYS;
+	} outputs;
+
+	outputs energy_outputs;
+
+	int dram_avail=0,pp0_avail=0,pp1_avail=0,psys_avail=0;
+	int different_units=0;
+
+	if (cpu_model<0) {
+		printf("\tUnsupported CPU model %d\n",cpu_model);
+		return -1;
+	}
+
+	switch(cpu_model) {
+
+		case CPU_SANDYBRIDGE_EP:
+		case CPU_IVYBRIDGE_EP:
+			pp0_avail=1;
+			pp1_avail=0;
+			dram_avail=1;
+			different_units=0;
+			psys_avail=0;
+			break;
+
+		case CPU_HASWELL_EP:
+		case CPU_BROADWELL_EP:
+		case CPU_SKYLAKE_X:
+			pp0_avail=1;
+			pp1_avail=0;
+			dram_avail=1;
+			different_units=1;
+			psys_avail=0;
+			break;
+
+		case CPU_KNIGHTS_LANDING:
+		case CPU_KNIGHTS_MILL:
+			pp0_avail=0;
+			pp1_avail=0;
+			dram_avail=1;
+			different_units=1;
+			psys_avail=0;
+			break;
+
+		case CPU_SANDYBRIDGE:
+		case CPU_IVYBRIDGE:
+			pp0_avail=1;
+			pp1_avail=1;
+			dram_avail=0;
+			different_units=0;
+			psys_avail=0;
+			break;
+
+		case CPU_HASWELL:
+		case CPU_HASWELL_ULT:
+		case CPU_HASWELL_GT3E:
+		case CPU_BROADWELL:
+		case CPU_BROADWELL_GT3E:
+		case CPU_ATOM_GOLDMONT:
+		case CPU_ATOM_GEMINI_LAKE:
+		case CPU_ATOM_DENVERTON:
+			pp0_avail=1;
+			pp1_avail=1;
+			dram_avail=1;
+			different_units=0;
+			psys_avail=0;
+			break;
+
+		case CPU_SKYLAKE:
+		case CPU_SKYLAKE_HS:
+		case CPU_KABYLAKE:
+		case CPU_KABYLAKE_MOBILE:
+			pp0_avail=1;
+			pp1_avail=1;
+			dram_avail=1;
+			different_units=0;
+			psys_avail=1;
+			break;
+
+	}
+
+	for(j=0;j<total_packages;j++) {
+
+		fd=open_msr(package_map[j]);
+
+		/* Calculate the units used */
+		result=read_msr(fd,MSR_RAPL_POWER_UNIT);
+
+		power_units=pow(0.5,(double)(result&0xf));
+		cpu_energy_units[j]=pow(0.5,(double)((result>>8)&0x1f));
+		time_units=pow(0.5,(double)((result>>16)&0xf));
+
+		/* On Haswell EP and Knights Landing */
+		/* The DRAM units differ from the CPU ones */
+		if (different_units) {
+			dram_energy_units[j]=pow(0.5,(double)16);
+		}
+		else {
+			dram_energy_units[j]=cpu_energy_units[j];
+		}
+		
+		/* Package Energy */
+		result=read_msr(fd,MSR_PKG_ENERGY_STATUS);
+		package_before[j]=(double)result*cpu_energy_units[j];
+
+		/* PP0 energy */
+		/* Not available on Knights* */
+		/* Always returns zero on Haswell-EP? */
+		if (pp0_avail) {
+			result=read_msr(fd,MSR_PP0_ENERGY_STATUS);
+			pp0_before[j]=(double)result*cpu_energy_units[j];
+		}
+
+		/* PP1 energy */
+		/* not available on *Bridge-EP */
+		if (pp1_avail) {
+	 		result=read_msr(fd,MSR_PP1_ENERGY_STATUS);
+			pp1_before[j]=(double)result*cpu_energy_units[j];
+		}
+
+
+		/* Updated documentation (but not the Vol3B) says Haswell and	*/
+		/* Broadwell have DRAM support too				*/
+		if (dram_avail) {
+			result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
+			dram_before[j]=(double)result*dram_energy_units[j];
+		}
+
+
+		/* Skylake and newer for Psys				*/
+		if ((cpu_model==CPU_SKYLAKE) ||
+			(cpu_model==CPU_SKYLAKE_HS) ||
+			(cpu_model==CPU_KABYLAKE) ||
+			(cpu_model==CPU_KABYLAKE_MOBILE)) {
+
+			result=read_msr(fd,MSR_PLATFORM_ENERGY_STATUS);
+			psys_before[j]=(double)result*cpu_energy_units[j];
+		}
+
+		close(fd);
+	}
+
+  	printf("\n\tSleeping %d second\n\n", delay);
+	sleep(delay);
+
+	for(j=0;j<total_packages;j++) {
+
+		fd=open_msr(package_map[j]);
+
+		printf("\tPackage %d:\n",j);
+
+		result=read_msr(fd,MSR_PKG_ENERGY_STATUS);
+		package_after[j]=(double)result*cpu_energy_units[j];
+		printf("\t\tPackage energy: %.6fJ\n",
+			package_after[j]-package_before[j]);
+		energy_outputs.package_energy = package_after[j]-package_before[j];
+
+		result=read_msr(fd,MSR_PP0_ENERGY_STATUS);
+		pp0_after[j]=(double)result*cpu_energy_units[j];
+		printf("\t\tPowerPlane0 (cores): %.6fJ\n",
+			pp0_after[j]-pp0_before[j]);
+		energy_outputs.powerplane0 = pp0_after[j]-pp0_before[j];
+
+		/* not available on SandyBridge-EP */
+		if (pp1_avail) {
+			result=read_msr(fd,MSR_PP1_ENERGY_STATUS);
+			pp1_after[j]=(double)result*cpu_energy_units[j];
+			printf("\t\tPowerPlane1 (on-core GPU if avail): %.6f J\n",
+				pp1_after[j]-pp1_before[j]);
+			energy_outputs.powerplane1 = pp1_after[j]-pp1_before[j];
+		}
+
+		if (dram_avail) {
+			result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
+			dram_after[j]=(double)result*dram_energy_units[j];
+			printf("\t\tDRAM: %.6fJ\n",
+				dram_after[j]-dram_before[j]);
+			energy_outputs.DRAM = dram_after[j]-dram_before[j];
+		}
+
+		if (psys_avail) {
+			result=read_msr(fd,MSR_PLATFORM_ENERGY_STATUS);
+			psys_after[j]=(double)result*cpu_energy_units[j];
+			printf("\t\tPSYS: %.6fJ\n",
+				psys_after[j]-psys_before[j]);
+			energy_outputs.PSYS = psys_after[j]-psys_before[j];
+		}
+
+		close(fd);
+	}
+	printf("\n");
+	printf("Note: the energy measurements can overflow in 60s or so\n");
+	printf("      so try to sample the counters more often than that.\n\n");
+
+	return 0;
+}
+
+int static_output_rapl(int core, int cpu_model) {
+
+	int fd;
+	long long result;
+	double power_units,time_units;
+	double cpu_energy_units[MAX_PACKAGES],dram_energy_units[MAX_PACKAGES];
+	double thermal_spec_power,minimum_power,maximum_power,time_window;
+	int j;
+
 	int dram_avail=0,pp0_avail=0,pp1_avail=0,psys_avail=0;
 	int different_units=0;
 
 	printf("\nTrying /dev/cpuctl interface to gather results\n\n");
-
+	
 	if (cpu_model<0) {
 		printf("\tUnsupported CPU model %d\n",cpu_model);
 		return -1;
@@ -473,100 +683,9 @@ static int rapl_msr(int core, int cpu_model, int delay) {
 	}
 	printf("\n");
 
-	for(j=0;j<total_packages;j++) {
-
-		fd=open_msr(package_map[j]);
-
-		/* Package Energy */
-		result=read_msr(fd,MSR_PKG_ENERGY_STATUS);
-		package_before[j]=(double)result*cpu_energy_units[j];
-
-		/* PP0 energy */
-		/* Not available on Knights* */
-		/* Always returns zero on Haswell-EP? */
-		if (pp0_avail) {
-			result=read_msr(fd,MSR_PP0_ENERGY_STATUS);
-			pp0_before[j]=(double)result*cpu_energy_units[j];
-		}
-
-		/* PP1 energy */
-		/* not available on *Bridge-EP */
-		if (pp1_avail) {
-	 		result=read_msr(fd,MSR_PP1_ENERGY_STATUS);
-			pp1_before[j]=(double)result*cpu_energy_units[j];
-		}
-
-
-		/* Updated documentation (but not the Vol3B) says Haswell and	*/
-		/* Broadwell have DRAM support too				*/
-		if (dram_avail) {
-			result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
-			dram_before[j]=(double)result*dram_energy_units[j];
-		}
-
-
-		/* Skylake and newer for Psys				*/
-		if ((cpu_model==CPU_SKYLAKE) ||
-			(cpu_model==CPU_SKYLAKE_HS) ||
-			(cpu_model==CPU_KABYLAKE) ||
-			(cpu_model==CPU_KABYLAKE_MOBILE)) {
-
-			result=read_msr(fd,MSR_PLATFORM_ENERGY_STATUS);
-			psys_before[j]=(double)result*cpu_energy_units[j];
-		}
-
-		close(fd);
-	}
-
-  	printf("\n\tSleeping %d second\n\n", delay);
-	sleep(delay);
-
-	for(j=0;j<total_packages;j++) {
-
-		fd=open_msr(package_map[j]);
-
-		printf("\tPackage %d:\n",j);
-
-		result=read_msr(fd,MSR_PKG_ENERGY_STATUS);
-		package_after[j]=(double)result*cpu_energy_units[j];
-		printf("\t\tPackage energy: %.6fJ\n",
-			package_after[j]-package_before[j]);
-
-		result=read_msr(fd,MSR_PP0_ENERGY_STATUS);
-		pp0_after[j]=(double)result*cpu_energy_units[j];
-		printf("\t\tPowerPlane0 (cores): %.6fJ\n",
-			pp0_after[j]-pp0_before[j]);
-
-		/* not available on SandyBridge-EP */
-		if (pp1_avail) {
-			result=read_msr(fd,MSR_PP1_ENERGY_STATUS);
-			pp1_after[j]=(double)result*cpu_energy_units[j];
-			printf("\t\tPowerPlane1 (on-core GPU if avail): %.6f J\n",
-				pp1_after[j]-pp1_before[j]);
-		}
-
-		if (dram_avail) {
-			result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
-			dram_after[j]=(double)result*dram_energy_units[j];
-			printf("\t\tDRAM: %.6fJ\n",
-				dram_after[j]-dram_before[j]);
-		}
-
-		if (psys_avail) {
-			result=read_msr(fd,MSR_PLATFORM_ENERGY_STATUS);
-			psys_after[j]=(double)result*cpu_energy_units[j];
-			printf("\t\tPSYS: %.6fJ\n",
-				psys_after[j]-psys_before[j]);
-		}
-
-		close(fd);
-	}
-	printf("\n");
-	printf("Note: the energy measurements can overflow in 60s or so\n");
-	printf("      so try to sample the counters more often than that.\n\n");
-
 	return 0;
 }
+
 
 #define NUM_RAPL_DOMAINS	5
 
@@ -612,7 +731,7 @@ int main(int argc, char **argv) {
 
 	cpu_model=detect_cpu();
 	detect_packages();
-
+	//static_output_rapl(core, cpu_model);
 
 	result=rapl_msr(core,cpu_model,delay);
 
