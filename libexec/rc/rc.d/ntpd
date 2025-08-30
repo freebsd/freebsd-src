@@ -1,7 +1,6 @@
 #!/bin/sh
 #
 #
-
 # PROVIDE: ntpd
 # REQUIRE: DAEMON ntpdate FILESYSTEMS devfs
 # BEFORE:  LOGIN
@@ -9,34 +8,35 @@
 
 . /etc/rc.subr
 
-name="ntpd"
-desc="Network Time Protocol daemon"
-rcvar="ntpd_enable"
-command="/usr/sbin/${name}"
-extra_commands="fetch needfetch resume"
-fetch_cmd="ntpd_fetch_leapfile"
-needfetch_cmd="ntpd_needfetch_leapfile"
-resume_cmd="ntpd_resume"
-start_precmd="ntpd_precmd"
-
-_ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
-_ntp_default_dir="/var/db/ntp"
-_ntp_default_driftfile="${_ntp_default_dir}/ntpd.drift"
-_ntp_old_driftfile="/var/db/ntpd.drift"
-
-pidfile="${_ntp_default_dir}/${name}.pid"
+name=ntpd
+rcvar=ntpd_enable
+desc=Network Time Protocol daemon
 
 load_rc_config $name
 
-# doesn't make sense to run in a svcj: nojail keyword
-ntpd_svcj="NO"
+_ntp_tmp_leapfile=/var/run/ntpd.leap-seconds.list
+_ntp_default_dir=/var/db/ntp
+_ntp_default_driftfile="${_ntp_default_dir}/ntpd.drift"
+_ntp_old_driftfile=/var/db/ntpd.drift
 
-leapfile_is_disabled() {
+extra_commands=fetch needfetch resume
+fetch_cmd=ntpd_fetch_leapfile
+needfetch_cmd=ntpd_needfetch_leapfile
+resume_cmd=run_rc_command restart
+start_precmd=yntpd_precmd
+command="/usr/sbin/${name}"
+pidfile="${_ntp_default_dir}/${name}.pid"
+
+# doesn't make sense to run in a svcj: nojail keyword
+ntpd_svcj=NO
+
+leapfile_is_disabled()
+{
 	# Return true (0) if automatic leapfile handling is disabled.
 	case "$ntp_db_leapfile" in
 	[Nn][Oo] | [Nn][Oo][Nn][Ee] )
 		return 0;;
-	* )
+	*)
 		return 1;;
 	esac
 }
@@ -132,28 +132,30 @@ ntpd_precmd()
 	fi
 }
 
-current_ntp_ts() {
+current_ntp_ts()
+{
 	# Seconds between 1900-01-01 and 1970-01-01
 	# echo $(((70*365+17)*86400))
 	ntp_to_unix=2208988800
-
 	echo $(($(date -u +%s)+$ntp_to_unix))
 }
-	
-get_ntp_leapfile_ver() {
+
+get_ntp_leapfile_ver()
+{
 	# Leapfile update date (version number).
 	expr "$(awk '$1 == "#$" { print $2 }' "$1" 2>/dev/null)" : \
 		'^\([1-9][0-9]*\)$' \| 0
 }
 
-get_ntp_leapfile_expiry() {
+get_ntp_leapfile_expiry()
+{
 	# Leapfile expiry date.
 	expr "$(awk '$1 == "#@" { print $2 }' "$1" 2>/dev/null)" : \
 		'^\([1-9][0-9]*\)$' \| 0
 }
 
-ntpd_init_leapfile() {
-
+ntpd_init_leapfile()
+{
 	if leapfile_is_disabled; then
 		return
 	fi
@@ -167,7 +169,8 @@ ntpd_init_leapfile() {
 	fi
 }
 
-ntpd_needfetch_leapfile() {
+ntpd_needfetch_leapfile()
+{
 	local rc verbose
 
 	if leapfile_is_disabled; then
@@ -209,8 +212,8 @@ ntpd_needfetch_leapfile() {
 	return 1
 }
 
-ntpd_fetch_leapfile() {
-
+ntpd_fetch_leapfile()
+{
 	if leapfile_is_disabled; then
 		return
 	fi
@@ -240,11 +243,6 @@ ntpd_fetch_leapfile() {
 			$verbose using existing $ntp_db_leapfile
 		fi
 	fi
-}
-
-ntpd_resume()
-{
-	run_rc_command restart
 }
 
 run_rc_command "$1"
