@@ -9016,7 +9016,7 @@ sysctl_loadavg(SYSCTL_HANDLER_ARGS)
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4lavg");
 	if (rc)
 		return (rc);
-	if (hw_all_ok(sc))
+	if (!hw_all_ok(sc))
 		rc = ENXIO;
 	else {
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
