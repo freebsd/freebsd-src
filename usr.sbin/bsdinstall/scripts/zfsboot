@@ -152,7 +152,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Home directories separated so they are common to all BEs
 	/home		mountpoint=/home
 
-	# Compress /tmp, allow exec but not setuid
+	# Create /tmp and allow exec but not setuid
 	/tmp		mountpoint=/tmp,exec=on,setuid=off
 
 	# Don't mount /usr so that 'base' files go to the BEROOT
@@ -161,7 +161,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Ports tree
 	/usr/ports	setuid=off
 
-	# Source tree (compressed)
+	# Source tree
 	/usr/src
 
 	# Create /var and friends
