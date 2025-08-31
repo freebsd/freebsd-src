@@ -30,6 +30,10 @@ SRCS=	autoload.c \
 	gfx_fb.c \
 	8x16.c
 
+SRCS+= acpi_detect.c
+.PATH: ${EFISRC}/acpica
+CFLAGS+=	-I${EFISRC}/acpica/include
+
 CFLAGS+=	-I${.CURDIR}/../loader
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}

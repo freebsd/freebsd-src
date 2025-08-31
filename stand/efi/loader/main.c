@@ -69,6 +69,8 @@
 #include "actypes.h"
 #include "actbl.h"
 
+#include <acpi_detect.h>
+
 #include "loader_efi.h"
 
 struct arch_switch archsw = {	/* MI/MD interface boundary */
@@ -83,8 +85,6 @@ struct arch_switch archsw = {	/* MI/MD interface boundary */
 	.arch_zfs_probe = efi_zfs_probe,
 };
 
-EFI_GUID acpi = ACPI_TABLE_GUID;
-EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
 EFI_GUID devid = DEVICE_PATH_PROTOCOL;
 EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 EFI_GUID mps = MPS_TABLE_GUID;
@@ -119,11 +119,6 @@ UINT16 boot_current;
  * Image that we booted from.
  */
 EFI_LOADED_IMAGE *boot_img;
-
-/*
- * RSDP base table.
- */
-ACPI_TABLE_RSDP *rsdp;
 
 static bool
 has_keyboard(void)
@@ -1127,39 +1122,6 @@ caddr_t
 ptov(uintptr_t x)
 {
 	return ((caddr_t)x);
-}
-
-static void
-acpi_detect(void)
-{
-	char buf[24];
-	int revision;
-
-	feature_enable(FEATURE_EARLY_ACPI);
-	if ((rsdp = efi_get_table(&acpi20)) == NULL)
-		if ((rsdp = efi_get_table(&acpi)) == NULL)
-			return;
-
-	sprintf(buf, "0x%016"PRIxPTR, (uintptr_t)rsdp);
-	setenv("acpi.rsdp", buf, 1);
-	revision = rsdp->Revision;
-	if (revision == 0)
-		revision = 1;
-	sprintf(buf, "%d", revision);
-	setenv("acpi.revision", buf, 1);
-	strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
-	buf[sizeof(rsdp->OemId)] = '\0';
-	setenv("acpi.oem", buf, 1);
-	sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
-	setenv("acpi.rsdt", buf, 1);
-	if (revision >= 2) {
-		/* XXX extended checksum? */
-		sprintf(buf, "0x%016llx",
-		    (unsigned long long)rsdp->XsdtPhysicalAddress);
-		setenv("acpi.xsdt", buf, 1);
-		sprintf(buf, "%d", rsdp->Length);
-		setenv("acpi.xsdt_length", buf, 1);
-	}
 }
 
 static void
