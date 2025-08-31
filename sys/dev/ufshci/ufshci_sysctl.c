@@ -152,6 +152,7 @@ ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr)
 	struct sysctl_ctx_list *ctrlr_ctx;
 	struct sysctl_oid *ctrlr_tree, *que_tree, *ioq_tree;
 	struct sysctl_oid_list *ctrlr_list, *ioq_list;
+	struct ufshci_device *dev = &ctrlr->ufs_dev;
 #define QUEUE_NAME_LENGTH 16
 	char queue_name[QUEUE_NAME_LENGTH];
 	int i;
@@ -176,6 +177,25 @@ ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr)
 
 	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "cap", CTLFLAG_RD,
 	    &ctrlr->cap, 0, "Number of I/O queue pairs");
+
+	SYSCTL_ADD_BOOL(ctrlr_ctx, ctrlr_list, OID_AUTO, "wb_enabled",
+	    CTLFLAG_RD, &dev->is_wb_enabled, 0, "WriteBooster enable/disable");
+
+	SYSCTL_ADD_BOOL(ctrlr_ctx, ctrlr_list, OID_AUTO, "wb_flush_enabled",
+	    CTLFLAG_RD, &dev->is_wb_flush_enabled, 0,
+	    "WriteBooster flush enable/disable");
+
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "wb_buffer_type",
+	    CTLFLAG_RD, &dev->wb_buffer_type, 0, "WriteBooster type");
+
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "wb_buffer_size_mb",
+	    CTLFLAG_RD, &dev->wb_buffer_size_mb, 0,
+	    "WriteBooster buffer size in MB");
+
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "wb_user_space_config_option", CTLFLAG_RD,
+	    &dev->wb_user_space_config_option, 0,
+	    "WriteBooster preserve user space mode");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO, "timeout_period",
 	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, &ctrlr->timeout_period,

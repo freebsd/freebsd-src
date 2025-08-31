@@ -61,7 +61,7 @@ ufshci_ctrlr_enable_host_ctrlr(struct ufshci_controller *ctrlr)
 int
 ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 {
-	uint32_t ver, cap, hcs, ie;
+	uint32_t ver, cap, hcs, ie, ahit;
 	uint32_t timeout_period, retry_count;
 	int error;
 
@@ -126,6 +126,13 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	error = ufshci_uic_send_dme_link_startup(ctrlr);
 	if (error)
 		return (error);
+
+	/* Read the UECPA register to clear */
+	ufshci_mmio_read_4(ctrlr, uecpa);
+
+	/* Diable Auto-hibernate */
+	ahit = 0;
+	ufshci_mmio_write_4(ctrlr, ahit, ahit);
 
 	/*
 	 * The device_present(UFSHCI_HCS_REG_DP) bit becomes true if the host
@@ -342,17 +349,18 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr)
 		return;
 	}
 
-	/* Read Controller Descriptor (Device, Geometry)*/
+	/* Read Controller Descriptor (Device, Geometry) */
 	if (ufshci_dev_get_descriptor(ctrlr) != 0) {
 		ufshci_ctrlr_fail(ctrlr, false);
 		return;
 	}
 
-	/* TODO: Configure Write Protect */
+	if (ufshci_dev_config_write_booster(ctrlr)) {
+		ufshci_ctrlr_fail(ctrlr, false);
+		return;
+	}
 
 	/* TODO: Configure Background Operations */
-
-	/* TODO: Configure Write Booster */
 
 	if (ufshci_sim_attach(ctrlr) != 0) {
 		ufshci_ctrlr_fail(ctrlr, false);

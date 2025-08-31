@@ -14,7 +14,7 @@
 int
 ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr)
 {
-	uint32_t is;
+	uint32_t is, hcs;
 	int timeout;
 
 	/* Wait for the IS flag to change */
@@ -38,6 +38,15 @@ ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr)
 
 		/* TODO: Replace busy-wait with interrupt-based pause. */
 		DELAY(10);
+	}
+
+	/* Check HCS power mode change request status */
+	hcs = ufshci_mmio_read_4(ctrlr, hcs);
+	if (UFSHCIV(UFSHCI_HCS_REG_UPMCRS, hcs) != 0x01) {
+		ufshci_printf(ctrlr,
+		    "Power mode change request status error: 0x%x\n",
+		    UFSHCIV(UFSHCI_HCS_REG_UPMCRS, hcs));
+		return (ENXIO);
 	}
 
 	return (0);
@@ -112,6 +121,7 @@ ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
     struct ufshci_uic_cmd *uic_cmd, uint32_t *return_value)
 {
 	int error;
+	uint32_t config_result_code;
 
 	mtx_lock(&ctrlr->uic_cmd_lock);
 
@@ -133,6 +143,13 @@ ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
 
 	if (error)
 		return (ENXIO);
+
+	config_result_code = ufshci_mmio_read_4(ctrlr, ucmdarg2);
+	if (config_result_code) {
+		ufshci_printf(ctrlr,
+		    "Failed to send UIC command. (config result code = 0x%x)\n",
+		    config_result_code);
+	}
 
 	if (return_value != NULL)
 		*return_value = ufshci_mmio_read_4(ctrlr, ucmdarg3);

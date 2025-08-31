@@ -716,6 +716,42 @@ struct ufshci_device_descriptor {
 _Static_assert(sizeof(struct ufshci_device_descriptor) == 89,
     "bad size for ufshci_device_descriptor");
 
+/* Defines the bit field of dExtendedUfsFeaturesSupport. */
+enum ufshci_desc_wb_ext_ufs_feature {
+	UFSHCI_DESC_EXT_UFS_FEATURE_FFU = (1 << 0),
+	UFSHCI_DESC_EXT_UFS_FEATURE_PSA = (1 << 1),
+	UFSHCI_DESC_EXT_UFS_FEATURE_DEV_LIFE_SPAN = (1 << 2),
+	UFSHCI_DESC_EXT_UFS_FEATURE_REFRESH_OP = (1 << 3),
+	UFSHCI_DESC_EXT_UFS_FEATURE_TOO_HIGH_TEMP = (1 << 4),
+	UFSHCI_DESC_EXT_UFS_FEATURE_TOO_LOW_TEMP = (1 << 5),
+	UFSHCI_DESC_EXT_UFS_FEATURE_EXT_TEMP = (1 << 6),
+	UFSHCI_DESC_EXT_UFS_FEATURE_HPB_SUPPORT = (1 << 7),
+	UFSHCI_DESC_EXT_UFS_FEATURE_WRITE_BOOSTER = (1 << 8),
+	UFSHCI_DESC_EXT_UFS_FEATURE_PERF_THROTTLING = (1 << 9),
+	UFSHCI_DESC_EXT_UFS_FEATURE_ADVANCED_RPMB = (1 << 10),
+	UFSHCI_DESC_EXT_UFS_FEATURE_ZONED_UFS_EXTENSION = (1 << 11),
+	UFSHCI_DESC_EXT_UFS_FEATURE_DEV_LEVEL_EXCEPTION = (1 << 12),
+	UFSHCI_DESC_EXT_UFS_FEATURE_HID = (1 << 13),
+	UFSHCI_DESC_EXT_UFS_FEATURE_BARRIER = (1 << 14),
+	UFSHCI_DESC_EXT_UFS_FEATURE_CLEAR_ERROR_HISTORY = (1 << 15),
+	UFSHCI_DESC_EXT_UFS_FEATURE_EXT_IID = (1 << 16),
+	UFSHCI_DESC_EXT_UFS_FEATURE_FBO = (1 << 17),
+	UFSHCI_DESC_EXT_UFS_FEATURE_FAST_RECOVERY_MODE = (1 << 18),
+	UFSHCI_DESC_EXT_UFS_FEATURE_RPMB_VENDOR_CMD = (1 << 19),
+};
+
+/* Defines the bit field of bWriteBoosterBufferType. */
+enum ufshci_desc_wb_buffer_type {
+	UFSHCI_DESC_WB_BUF_TYPE_LU_DEDICATED = 0x00,
+	UFSHCI_DESC_WB_BUF_TYPE_SINGLE_SHARED = 0x01,
+};
+
+/* Defines the bit field of bWriteBoosterBufferPreserveUserSpaceEn. */
+enum ufshci_desc_user_space_config {
+	UFSHCI_DESC_WB_BUF_USER_SPACE_REDUCTION = 0x00,
+	UFSHCI_DESC_WB_BUF_PRESERVE_USER_SPACE = 0x01,
+};
+
 /*
  * UFS Spec 4.1, section 14.1.5.3 "Configuration Descriptor"
  * ConfigurationDescriptor use big-endian byte ordering.
@@ -1012,6 +1048,39 @@ enum ufshci_attributes {
 	UFSHCI_ATTR_B_REFRESH_FREQ = 0x2d,
 	UFSHCI_ATTR_B_REFRESH_UNIT = 0x2e,
 	UFSHCI_ATTR_B_REFRESH_METHOD = 0x2f,
+};
+
+/* bAvailableWriteBoosterBufferSize codes (UFS WriteBooster abailable buffer
+ * left %) */
+enum ufshci_wb_available_buffer_Size {
+	UFSHCI_ATTR_WB_AVAILABLE_0 = 0x00,   /* 0% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_10 = 0x01,  /* 10% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_20 = 0x02,  /* 20% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_30 = 0x03,  /* 30% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_40 = 0x04,  /* 40% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_50 = 0x05,  /* 50% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_60 = 0x06,  /* 60% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_70 = 0x07,  /* 70% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_80 = 0x08,  /* 80% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_90 = 0x09,  /* 90% buffer remains  */
+	UFSHCI_ATTR_WB_AVAILABLE_100 = 0x0A, /* 100% buffer remains  */
+};
+
+/* bWriteBoosterBufferLifeTimeEst codes (UFS WriteBooster buffer life %) */
+enum ufshci_wb_lifetime {
+	UFSHCI_ATTR_WB_LIFE_DISABLED = 0x00, /* Info not available */
+	UFSHCI_ATTR_WB_LIFE_0_10 = 0x01,     /*   0%–10% used  */
+	UFSHCI_ATTR_WB_LIFE_10_20 = 0x02,    /*  10%–20% used  */
+	UFSHCI_ATTR_WB_LIFE_20_30 = 0x03,    /*  20%–30% used  */
+	UFSHCI_ATTR_WB_LIFE_30_40 = 0x04,    /*  30%–40% used  */
+	UFSHCI_ATTR_WB_LIFE_40_50 = 0x05,    /*  40%–50% used  */
+	UFSHCI_ATTR_WB_LIFE_50_60 = 0x06,    /*  50%–60% used  */
+	UFSHCI_ATTR_WB_LIFE_60_70 = 0x07,    /*  60%–70% used  */
+	UFSHCI_ATTR_WB_LIFE_70_80 = 0x08,    /*  70%–80% used  */
+	UFSHCI_ATTR_WB_LIFE_80_90 = 0x09,    /*  80%–90% used  */
+	UFSHCI_ATTR_WB_LIFE_90_100 = 0x0A,   /* 90%–100% used  */
+	UFSHCI_ATTR_WB_LIFE_EXCEEDED =
+	    0x0B, /* Exceeded estimated life (treat as WB disabled) */
 };
 
 #endif /* __UFSHCI_H__ */
