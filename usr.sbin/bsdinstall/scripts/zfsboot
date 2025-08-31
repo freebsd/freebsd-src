@@ -144,7 +144,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/$ZFSBOOT_BEROOT_NAME				mountpoint=none
 	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
 
-	# Compress /tmp, allow exec but not setuid
+	# Create /tmp and allow exec but not setuid
 	/tmp		mountpoint=/tmp,exec=on,setuid=off
 
 	# Don't mount /usr so that 'base' files go to the BEROOT
@@ -156,7 +156,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Ports tree
 	/usr/ports	setuid=off
 
-	# Source tree (compressed)
+	# Source tree
 	/usr/src
 
 	# Create /var and friends
