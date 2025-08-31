@@ -146,6 +146,16 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 		return (ENXIO);
 	}
 
+	/* Allocate and initialize UTP Task Management Request List. */
+	error = ufshci_utmr_req_queue_construct(ctrlr);
+	if (error)
+		return (error);
+
+	/* Allocate and initialize UTP Transfer Request List or SQ/CQ. */
+	error = ufshci_utr_req_queue_construct(ctrlr);
+	if (error)
+		return (error);
+
 	/* Enable additional interrupts by programming the IE register. */
 	ie = ufshci_mmio_read_4(ctrlr, ie);
 	ie |= UFSHCIM(UFSHCI_IE_REG_UTRCE);  /* UTR Completion */
@@ -160,19 +170,12 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 
 	/* TODO: Initialize interrupt Aggregation Control Register (UTRIACR) */
 
-	/* Allocate and initialize UTP Task Management Request List. */
-	error = ufshci_utmr_req_queue_construct(ctrlr);
-	if (error)
-		return (error);
-
-	/* Allocate and initialize UTP Transfer Request List or SQ/CQ. */
-	error = ufshci_utr_req_queue_construct(ctrlr);
-	if (error)
-		return (error);
-
 	/* TODO: Separate IO and Admin slot */
-	/* max_hw_pend_io is the number of slots in the transfer_req_queue */
-	ctrlr->max_hw_pend_io = ctrlr->transfer_req_queue.num_entries;
+	/*
+	 * max_hw_pend_io is the number of slots in the transfer_req_queue.
+	 * Reduce num_entries by one to reserve an admin slot.
+	 */
+	ctrlr->max_hw_pend_io = ctrlr->transfer_req_queue.num_entries - 1;
 
 	return (0);
 }
