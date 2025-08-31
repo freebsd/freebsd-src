@@ -46,6 +46,8 @@ MALLOC_DECLARE(M_UFSHCI);
 #define UFSHCI_UTR_ENTRIES	      (32)
 #define UFSHCI_UTRM_ENTRIES	      (8)
 
+#define UFSHCI_SECTOR_SIZE	      (512)
+
 struct ufshci_controller;
 
 struct ufshci_completion_poll_status {
@@ -214,6 +216,15 @@ struct ufshci_device {
 	struct ufshci_geometry_descriptor geo_desc;
 
 	uint32_t unipro_version;
+
+	/* WriteBooster */
+	bool is_wb_enabled;
+	bool is_wb_flush_enabled;
+	uint32_t wb_buffer_type;
+	uint32_t wb_buffer_size_mb;
+	uint32_t wb_user_space_config_option;
+	uint8_t wb_dedicated_lu;
+	uint32_t write_booster_flush_threshold;
 };
 
 /*
@@ -229,7 +240,8 @@ struct ufshci_controller {
 	2 /* Need an additional 200 ms of PA_TActivate */
 #define UFSHCI_QUIRK_WAIT_AFTER_POWER_MODE_CHANGE \
 	4 /* Need to wait 1250us after power mode change */
-
+#define UFSHCI_QUIRK_CHANGE_LANE_AND_GEAR_SEPARATELY \
+	8 /* Need to change the number of lanes before changing HS-GEAR. */
 	uint32_t ref_clk;
 
 	struct cam_sim *ufshci_sim;
@@ -356,6 +368,7 @@ int ufshci_dev_init_unipro(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr);
 int ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr);
 int ufshci_dev_get_descriptor(struct ufshci_controller *ctrlr);
+int ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr);
 
 /* Controller Command */
 void ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,

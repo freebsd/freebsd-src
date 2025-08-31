@@ -60,6 +60,14 @@ ufshci_dev_read_geometry_descriptor(struct ufshci_controller *ctrlr,
 }
 
 static int
+ufshci_dev_read_unit_descriptor(struct ufshci_controller *ctrlr, uint8_t lun,
+    struct ufshci_unit_descriptor *desc)
+{
+	return (ufshci_dev_read_descriptor(ctrlr, UFSHCI_DESC_TYPE_UNIT, lun, 0,
+	    desc, sizeof(struct ufshci_unit_descriptor)));
+}
+
+static int
 ufshci_dev_read_flag(struct ufshci_controller *ctrlr,
     enum ufshci_flags flag_type, uint8_t *flag)
 {
@@ -109,6 +117,61 @@ ufshci_dev_set_flag(struct ufshci_controller *ctrlr,
 		ufshci_printf(ctrlr, "ufshci_dev_set_flag failed!\n");
 		return (ENXIO);
 	}
+
+	return (0);
+}
+
+static int
+ufshci_dev_clear_flag(struct ufshci_controller *ctrlr,
+    enum ufshci_flags flag_type)
+{
+	struct ufshci_completion_poll_status status;
+	struct ufshci_query_param param;
+
+	param.function = UFSHCI_QUERY_FUNC_STANDARD_WRITE_REQUEST;
+	param.opcode = UFSHCI_QUERY_OPCODE_CLEAR_FLAG;
+	param.type = flag_type;
+	param.index = 0;
+	param.selector = 0;
+	param.value = 0;
+
+	status.done = 0;
+	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
+	    &status, param);
+	ufshci_completion_poll(&status);
+	if (status.error) {
+		ufshci_printf(ctrlr, "ufshci_dev_clear_flag failed!\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+ufshci_dev_read_attribute(struct ufshci_controller *ctrlr,
+    enum ufshci_attributes attr_type, uint8_t index, uint8_t selector,
+    uint64_t *value)
+{
+	struct ufshci_completion_poll_status status;
+	struct ufshci_query_param param;
+
+	param.function = UFSHCI_QUERY_FUNC_STANDARD_READ_REQUEST;
+	param.opcode = UFSHCI_QUERY_OPCODE_READ_ATTRIBUTE;
+	param.type = attr_type;
+	param.index = index;
+	param.selector = selector;
+	param.value = 0;
+
+	status.done = 0;
+	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
+	    &status, param);
+	ufshci_completion_poll(&status);
+	if (status.error) {
+		ufshci_printf(ctrlr, "ufshci_dev_read_attribute failed!\n");
+		return (ENXIO);
+	}
+
+	*value = status.cpl.response_upiu.query_response_upiu.value_64;
 
 	return (0);
 }
@@ -270,7 +333,7 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 	 */
 	const uint32_t fast_mode = 1;
 	const uint32_t rx_bit_shift = 4;
-	const uint32_t power_mode = (fast_mode << rx_bit_shift) | fast_mode;
+	uint32_t power_mode, peer_granularity;
 
 	/* Update lanes with available TX/RX lanes */
 	if (ufshci_uic_send_dme_get(ctrlr, PA_AvailTxDataLanes,
@@ -294,6 +357,20 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 	if (ufshci_uic_send_dme_set(ctrlr, PA_ActiveRxDataLanes,
 		ctrlr->rx_lanes))
 		return (ENXIO);
+
+	if (ctrlr->quirks & UFSHCI_QUIRK_CHANGE_LANE_AND_GEAR_SEPARATELY) {
+		/* Before changing gears, first change the number of lanes. */
+		if (ufshci_uic_send_dme_get(ctrlr, PA_PWRMode, &power_mode))
+			return (ENXIO);
+		if (ufshci_uic_send_dme_set(ctrlr, PA_PWRMode, power_mode))
+			return (ENXIO);
+
+		/* Wait for power mode changed. */
+		if (ufshci_uic_power_mode_ready(ctrlr)) {
+			ufshci_reg_dump(ctrlr);
+			return (ENXIO);
+		}
+	}
 
 	/* Set HS-GEAR to max gear */
 	ctrlr->hs_gear = ctrlr->max_rx_hs_gear;
@@ -346,6 +423,7 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 		return (ENXIO);
 
 	/* Set TX/RX PWRMode */
+	power_mode = (fast_mode << rx_bit_shift) | fast_mode;
 	if (ufshci_uic_send_dme_set(ctrlr, PA_PWRMode, power_mode))
 		return (ENXIO);
 
@@ -366,7 +444,8 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 		pause_sbt("ufshci", ustosbt(1250), 0, C_PREL(1));
 
 		/* Test with dme_peer_get to make sure there are no errors. */
-		if (ufshci_uic_send_dme_peer_get(ctrlr, PA_Granularity, NULL))
+		if (ufshci_uic_send_dme_peer_get(ctrlr, PA_Granularity,
+			&peer_granularity))
 			return (ENXIO);
 	}
 
@@ -398,7 +477,7 @@ ufshci_dev_get_descriptor(struct ufshci_controller *ctrlr)
 		return (error);
 
 	ver = be16toh(device->dev_desc.wSpecVersion);
-	ufshci_printf(ctrlr, "UFS device spec version %u.%u%u\n",
+	ufshci_printf(ctrlr, "UFS device spec version %u.%u.%u\n",
 	    UFSHCIV(UFSHCI_VER_REG_MJR, ver), UFSHCIV(UFSHCI_VER_REG_MNR, ver),
 	    UFSHCIV(UFSHCI_VER_REG_VS, ver));
 	ufshci_printf(ctrlr, "%u enabled LUNs found\n",
@@ -426,3 +505,273 @@ ufshci_dev_get_descriptor(struct ufshci_controller *ctrlr)
 
 	return (0);
 }
+
+static int
+ufshci_dev_enable_write_booster(struct ufshci_controller *ctrlr)
+{
+	struct ufshci_device *dev = &ctrlr->ufs_dev;
+	int error;
+
+	/* Enable WriteBooster */
+	error = ufshci_dev_set_flag(ctrlr, UFSHCI_FLAG_F_WRITE_BOOSTER_EN);
+	if (error) {
+		ufshci_printf(ctrlr, "Failed to enable WriteBooster\n");
+		return (error);
+	}
+	dev->is_wb_enabled = true;
+
+	/* Enable WriteBooster buffer flush during hibernate */
+	error = ufshci_dev_set_flag(ctrlr,
+	    UFSHCI_FLAG_F_WB_BUFFER_FLUSH_DURING_HIBERNATE);
+	if (error) {
+		ufshci_printf(ctrlr,
+		    "Failed to enable WriteBooster buffer flush during hibernate\n");
+		return (error);
+	}
+
+	/* Enable WriteBooster buffer flush */
+	error = ufshci_dev_set_flag(ctrlr, UFSHCI_FLAG_F_WB_BUFFER_FLUSH_EN);
+	if (error) {
+		ufshci_printf(ctrlr,
+		    "Failed to enable WriteBooster buffer flush\n");
+		return (error);
+	}
+	dev->is_wb_flush_enabled = true;
+
+	return (0);
+}
+
+static int
+ufshci_dev_disable_write_booster(struct ufshci_controller *ctrlr)
+{
+	struct ufshci_device *dev = &ctrlr->ufs_dev;
+	int error;
+
+	/* Disable WriteBooster buffer flush */
+	error = ufshci_dev_clear_flag(ctrlr, UFSHCI_FLAG_F_WB_BUFFER_FLUSH_EN);
+	if (error) {
+		ufshci_printf(ctrlr,
+		    "Failed to disable WriteBooster buffer flush\n");
+		return (error);
+	}
+	dev->is_wb_flush_enabled = false;
+
+	/* Disable WriteBooster buffer flush during hibernate */
+	error = ufshci_dev_clear_flag(ctrlr,
+	    UFSHCI_FLAG_F_WB_BUFFER_FLUSH_DURING_HIBERNATE);
+	if (error) {
+		ufshci_printf(ctrlr,
+		    "Failed to disable WriteBooster buffer flush during hibernate\n");
+		return (error);
+	}
+
+	/* Disable WriteBooster */
+	error = ufshci_dev_clear_flag(ctrlr, UFSHCI_FLAG_F_WRITE_BOOSTER_EN);
+	if (error) {
+		ufshci_printf(ctrlr, "Failed to disable WriteBooster\n");
+		return (error);
+	}
+	dev->is_wb_enabled = false;
+
+	return (0);
+}
+
+static int
+ufshci_dev_is_write_booster_buffer_life_time_left(
+    struct ufshci_controller *ctrlr, bool *is_life_time_left)
+{
+	struct ufshci_device *dev = &ctrlr->ufs_dev;
+	uint8_t buffer_lun;
+	uint64_t life_time;
+	uint32_t error;
+
+	if (dev->wb_buffer_type == UFSHCI_DESC_WB_BUF_TYPE_LU_DEDICATED)
+		buffer_lun = dev->wb_dedicated_lu;
+	else
+		buffer_lun = 0;
+
+	error = ufshci_dev_read_attribute(ctrlr,
+	    UFSHCI_ATTR_B_WB_BUFFER_LIFE_TIME_EST, buffer_lun, 0, &life_time);
+	if (error)
+		return (error);
+
+	*is_life_time_left = (life_time != UFSHCI_ATTR_WB_LIFE_EXCEEDED);
+
+	return (0);
+}
+
+/*
+ * This function is not yet in use. It will be used when suspend/resume is
+ * implemented.
+ */
+static __unused int
+ufshci_dev_need_write_booster_buffer_flush(struct ufshci_controller *ctrlr,
+    bool *need_flush)
+{
+	struct ufshci_device *dev = &ctrlr->ufs_dev;
+	bool is_life_time_left = false;
+	uint64_t available_buffer_size, current_buffer_size;
+	uint8_t buffer_lun;
+	uint32_t error;
+
+	*need_flush = false;
+
+	if (!dev->is_wb_enabled)
+		return (0);
+
+	error = ufshci_dev_is_write_booster_buffer_life_time_left(ctrlr,
+	    &is_life_time_left);
+	if (error)
+		return (error);
+
+	if (!is_life_time_left)
+		return (ufshci_dev_disable_write_booster(ctrlr));
+
+	if (dev->wb_buffer_type == UFSHCI_DESC_WB_BUF_TYPE_LU_DEDICATED)
+		buffer_lun = dev->wb_dedicated_lu;
+	else
+		buffer_lun = 0;
+
+	error = ufshci_dev_read_attribute(ctrlr,
+	    UFSHCI_ATTR_B_AVAILABLE_WB_BUFFER_SIZE, buffer_lun, 0,
+	    &available_buffer_size);
+	if (error)
+		return (error);
+
+	switch (dev->wb_user_space_config_option) {
+	case UFSHCI_DESC_WB_BUF_USER_SPACE_REDUCTION:
+		*need_flush = (available_buffer_size <=
+		    UFSHCI_ATTR_WB_AVAILABLE_10);
+		break;
+	case UFSHCI_DESC_WB_BUF_PRESERVE_USER_SPACE:
+		/*
+		 * In PRESERVE USER SPACE mode, flush should be performed when
+		 * the current buffer is greater than 0 and the available buffer
+		 * below write_booster_flush_threshold is left.
+		 */
+		error = ufshci_dev_read_attribute(ctrlr,
+		    UFSHCI_ATTR_D_CURRENT_WB_BUFFER_SIZE, buffer_lun, 0,
+		    &current_buffer_size);
+		if (error)
+			return (error);
+
+		if (current_buffer_size == 0)
+			return (0);
+
+		*need_flush = (available_buffer_size <
+		    dev->write_booster_flush_threshold);
+		break;
+	default:
+		ufshci_printf(ctrlr,
+		    "Invalid bWriteBoosterBufferPreserveUserSpaceEn value");
+		return (EINVAL);
+	}
+
+	/*
+	 * TODO: Need to handle WRITEBOOSTER_FLUSH_NEEDED exception case from
+	 * wExceptionEventStatus attribute.
+	 */
+
+	return (0);
+}
+
+int
+ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr)
+{
+	struct ufshci_device *dev = &ctrlr->ufs_dev;
+	uint32_t extended_ufs_feature_support;
+	uint32_t alloc_units;
+	struct ufshci_unit_descriptor unit_desc;
+	uint8_t lun;
+	bool is_life_time_left;
+	uint32_t mega_byte = 1024 * 1024;
+	uint32_t error = 0;
+
+	extended_ufs_feature_support = be32toh(
+	    dev->dev_desc.dExtendedUfsFeaturesSupport);
+	if (!(extended_ufs_feature_support &
+		UFSHCI_DESC_EXT_UFS_FEATURE_WRITE_BOOSTER)) {
+		/* This device does not support Write Booster */
+		return (0);
+	}
+
+	if (ufshci_dev_enable_write_booster(ctrlr))
+		return (0);
+
+	/* Get WriteBooster buffer parameters */
+	dev->wb_buffer_type = dev->dev_desc.bWriteBoosterBufferType;
+	dev->wb_user_space_config_option =
+	    dev->dev_desc.bWriteBoosterBufferPreserveUserSpaceEn;
+
+	/*
+	 * Find the size of the write buffer.
+	 * With LU-dedicated (00h), the WriteBooster buffer is assigned
+	 * exclusively to one chosen LU (not one-per-LU), whereas Shared (01h)
+	 * uses a single device-wide buffer shared by multiple LUs.
+	 */
+	if (dev->wb_buffer_type == UFSHCI_DESC_WB_BUF_TYPE_SINGLE_SHARED) {
+		alloc_units = be32toh(
+		    dev->dev_desc.dNumSharedWriteBoosterBufferAllocUnits);
+		ufshci_printf(ctrlr,
+		    "WriteBooster buffer type = Shared, alloc_units=%d\n",
+		    alloc_units);
+	} else if (dev->wb_buffer_type ==
+	    UFSHCI_DESC_WB_BUF_TYPE_LU_DEDICATED) {
+		ufshci_printf(ctrlr, "WriteBooster buffer type = Dedicated\n");
+		for (lun = 0; lun < ctrlr->max_lun_count; lun++) {
+			/* Find a dedicated buffer using a unit descriptor */
+			if (ufshci_dev_read_unit_descriptor(ctrlr, lun,
+				&unit_desc))
+				continue;
+
+			alloc_units = be32toh(
+			    unit_desc.dLUNumWriteBoosterBufferAllocUnits);
+			if (alloc_units) {
+				dev->wb_dedicated_lu = lun;
+				break;
+			}
+		}
+	} else {
+		ufshci_printf(ctrlr,
+		    "Not supported WriteBooster buffer type: 0x%x\n",
+		    dev->wb_buffer_type);
+		goto out;
+	}
+
+	if (alloc_units == 0) {
+		ufshci_printf(ctrlr, "The WriteBooster buffer size is zero\n");
+		goto out;
+	}
+
+	dev->wb_buffer_size_mb = alloc_units *
+	    dev->geo_desc.bAllocationUnitSize *
+	    (be32toh(dev->geo_desc.dSegmentSize)) /
+	    (mega_byte / UFSHCI_SECTOR_SIZE);
+
+	/* Set to flush when 40% of the available buffer size remains */
+	dev->write_booster_flush_threshold = UFSHCI_ATTR_WB_AVAILABLE_40;
+
+	/*
+	 * Check if WriteBooster Buffer lifetime is left.
+	 * WriteBooster Buffer lifetime — percent of life used based on P/E
+	 * cycles. If "preserve user space" is enabled, writes to normal user
+	 * space also consume WB life since the area is shared.
+	 */
+	error = ufshci_dev_is_write_booster_buffer_life_time_left(ctrlr,
+	    &is_life_time_left);
+	if (error)
+		goto out;
+
+	if (!is_life_time_left) {
+		ufshci_printf(ctrlr,
+		    "There is no WriteBooster buffer life time left.\n");
+		goto out;
+	}
+
+	ufshci_printf(ctrlr, "WriteBooster Enabled\n");
+	return (0);
+out:
+	ufshci_dev_disable_write_booster(ctrlr);
+	return (error);
+}
+
