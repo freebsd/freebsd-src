@@ -27,7 +27,7 @@
 
 pci_get_class()
 {
-	local hexclass=$(echo $1 | sed 's/.*class=\(0x[0-9a-z]\{2\}\).*/\1/')
+	local hexclass=$(echo $1 | sed 's/.*class=\(0x[0-9a-f]\{2\}\).*/\1/')
 	case "${hexclass}" in
 		0x00)	echo "old" ;;		# built before class codes were finalized
 		0x02)	echo "network" ;;
@@ -38,7 +38,7 @@ pci_get_class()
 
 pci_get_vendor()
 {
-	local hexvendor=$(echo $1 | sed 's/.*\ vendor=\(0x[0-9a-z]*\).*/\1/')
+	local hexvendor=$(echo $1 | sed 's/.*\ vendor=\(0x[0-9a-f]*\).*/\1/')
 
 	case "${hexvendor}" in
 		0x1002)	echo "amd" ;;
@@ -52,7 +52,7 @@ pci_get_vendor()
 
 pci_get_device()
 {
-	local hexdevice=$(echo $1 | sed 's/.*\ device=\(0x[0-9a-z]*\).*/\1/')
+	local hexdevice=$(echo $1 | sed 's/.*\ device=\(0x[0-9a-f]*\).*/\1/')
 
 	echo ${hexdevice}
 }
