@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 10, 2024
+.Dd September 1, 2025
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -129,7 +129,7 @@ format.
 Parsing is done using
 .Xr strptime 3 .
 .It Fl I Ns Op Ar FMT
-Use
+Use extended
 .St -iso8601
 output format.
 .Ar FMT
@@ -154,9 +154,9 @@ is
 .Cm seconds ,
 or
 .Cm ns Pc ,
-the
+the extended
 .St -iso8601
-format includes the timezone.
+format includes the timezone offset.
 .It Fl j
 Do not try to set the date.
 This allows you to use the
