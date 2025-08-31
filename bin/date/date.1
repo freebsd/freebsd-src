@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\"
-.Dd February 27, 2023
+.Dd September 1, 2025
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -128,7 +128,7 @@ format.
 Parsing is done using
 .Xr strptime 3 .
 .It Fl I Ns Op Ar FMT
-Use
+Use extended
 .St -iso8601
 output format.
 .Ar FMT
@@ -151,9 +151,9 @@ is
 .Cm minutes
 or
 .Cm seconds ) ,
-the
+the extended
 .St -iso8601
-format includes the timezone.
+format includes the timezone offset.
 .It Fl j
 Do not try to set the date.
 This allows you to use the
