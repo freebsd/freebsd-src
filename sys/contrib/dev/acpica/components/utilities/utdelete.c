@@ -261,10 +261,12 @@ AcpiUtDeleteInternalObj (
      */
     case ACPI_TYPE_DEVICE:
 
+#ifndef _STANDALONE 
         if (Object->Device.GpeBlock)
         {
             (void) AcpiEvDeleteGpeBlock (Object->Device.GpeBlock);
         }
+#endif
 
         ACPI_FALLTHROUGH;
 
