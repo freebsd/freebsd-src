@@ -693,7 +693,7 @@ is:
 # Home directories separated so they are common to all BEs
 /home		mountpoint=/home
 
-# Compress /tmp, allow exec but not setuid
+# Create /tmp and allow exec but not setuid
 /tmp		mountpoint=/tmp,exec=on,setuid=off
 
 # Do not mount /usr so that 'base' files go to the BEROOT
@@ -702,7 +702,7 @@ is:
 # Ports tree
 /usr/ports	setuid=off
 
-# Source tree (compressed)
+# Source tree
 /usr/src
 
 # Create /var and friends
