@@ -358,6 +358,7 @@ AcpiEnableSubsystem (
 ACPI_EXPORT_SYMBOL_INIT (AcpiEnableSubsystem)
 
 
+#ifndef _STANDALONE
 /*******************************************************************************
  *
  * FUNCTION:    AcpiInitializeObjects
@@ -428,3 +429,5 @@ AcpiInitializeObjects (
 }
 
 ACPI_EXPORT_SYMBOL_INIT (AcpiInitializeObjects)
+
+#endif /* !_STANDALONE */
