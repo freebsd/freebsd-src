@@ -5,6 +5,7 @@ NO_OBJ=t
 SUBDIR.yes+=	libefi
 SUBDIR.${MK_LOADER_IA32}+=	libefi32
 SUBDIR.${MK_FDT}+=	fdt
+SUBDIR.yes+=	libacpi
 SUBDIR.yes+=	.WAIT
 
 SUBDIR.yes+=	boot1 gptboot
