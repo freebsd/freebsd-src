@@ -45,7 +45,7 @@ pci_video_amd()
 		0x13*)
 			addpkg "gpu-firmware-amd-kmod-kaveri"
 			;;
-		0x664*|0x664*)
+		0x664*|0x665*)
 			addpkg "gpu-firmware-amd-kmod-bonaire"
 			;;
 		0x67a*|0x67b*)
@@ -69,7 +69,7 @@ pci_video_amd()
 		0x987*)
 			addpkg "gpu-firmware-amd-kmod-carrizo"
 			;;
-		0x98e4*)
+		0x98e4)
 			addpkg "gpu-firmware-amd-kmod-stoney"
 			;;
 		0x67e*|0x67ff)
@@ -105,7 +105,10 @@ pci_video_amd()
 		0x734*)
 			addpkg "gpu-firmware-amd-kmod-navi14"
 			;;
-		0x15e7|0x1636|0x1638|0x164c)
+		0x15e7|0x1638)
+			addpkg "gpu-firmware-amd-kmod-renoir gpu-firmware-amd-kmod-green-sardine"
+			;;
+		0x1636|0x164c)
 			addpkg "gpu-firmware-amd-kmod-renoir"
 			;;
 		0x736*)
@@ -129,7 +132,7 @@ pci_video_amd()
 		0x740*|0x741*)
 			addpkg "gpu-firmware-amd-kmod-aldebaran"
 			;;
-		0x13fe)
+		0x13fe|0x143f)
 			addpkg "gpu-firmware-amd-kmod-cyan-skillfish2"
 			;;
 		0x742*|0x743*)
