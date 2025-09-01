@@ -64,9 +64,6 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x0bda, .product_id = 0xb00c },
 	{ .vendor_id = 0x0bda, .product_id = 0xc822 },
 
-	/* Realtek 8822CU Bluetooth devices */
-	{ .vendor_id = 0x13d3, .product_id = 0x3549 },
-
 	/* Realtek 8851BE Bluetooth devices */
 	{ .vendor_id = 0x13d3, .product_id = 0x3600 },
 
