@@ -258,8 +258,11 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		filtered = (*up->u_tun_func)(n, off, inp, (struct sockaddr *)&udp_in[0],
 		    up->u_tun_ctx);
 		INP_RLOCK(inp);
-		if (in_pcbrele_rlocked(inp))
+		if (in_pcbrele_rlocked(inp)) {
+			if (!filtered)
+				m_freem(n);
 			return (1);
+		}
 		if (filtered) {
 			INP_RUNLOCK(inp);
 			return (1);
