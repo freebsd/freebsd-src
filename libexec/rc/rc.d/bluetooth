@@ -130,7 +130,7 @@ bluetooth_setup_stack()
 	for loop in 1 2 3
 	do
 		${hccontrol} -n ${dev}hci reset \
-			> /dev/null 2>1 && break
+			> /dev/null 2>&1 && break
 		if [ ${loop} -eq 3 ]
 		then
 			warn Reset failed three times, giving up.
