@@ -522,8 +522,8 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred
 	/*
 	 * Check if bridge wants to allow adding addrs to member interfaces.
 	 */
-	if (ifp->if_bridge && bridge_member_ifaddrs_p &&
-	    !bridge_member_ifaddrs_p())
+	if (ifp->if_bridge != NULL && ifp->if_type != IFT_GIF &&
+	    bridge_member_ifaddrs_p != NULL && !bridge_member_ifaddrs_p())
 		return (EINVAL);
 
 	/*

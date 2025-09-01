@@ -1236,8 +1236,8 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 	int error;
 
 	/* Check if this interface is a bridge member */
-	if (ifp->if_bridge && bridge_member_ifaddrs_p &&
-	    !bridge_member_ifaddrs_p()) {
+	if (ifp->if_bridge != NULL && ifp->if_type != IFT_GIF &&
+	    bridge_member_ifaddrs_p != NULL && !bridge_member_ifaddrs_p()) {
 		error = EINVAL;
 		goto out;
 	}
