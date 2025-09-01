@@ -478,10 +478,22 @@ struct xhci_bos_desc {
 	struct usb_devcap_container_id_descriptor cidd;
 } __packed;
 
+struct xhci_ssp_bos_desc {
+	struct usb_bos_descriptor		bosd;
+	struct usb_devcap_usb2ext_descriptor	usb2extd;
+	struct usb_devcap_ss_descriptor		usbdcd;
+	struct usb_devcap_container_id_descriptor cidd;
+	struct usb_devcap_ss_plus_descriptor_header ssplus;
+	uDWord caps[8];
+} __packed;
+
 union xhci_hub_desc {
 	struct usb_status		stat;
 	struct usb_port_status		ps;
 	struct usb_hub_ss_descriptor	hubd;
+	struct usb_ext_status		ext_ps;
+	struct usb_device_descriptor	devd;
+	struct xhci_ssp_bos_desc	ssp_bos;
 	uint8_t				temp[128];
 };
 
@@ -548,6 +560,8 @@ struct xhci_softc {
 	uint8_t			sc_command_ccs;
 	/* number of XHCI device slots */
 	uint8_t			sc_noslot;
+	/* Enhanced SuperSpeed speed IDs of the controller, see XHCI_PSIV_BIT */
+	uint16_t		sc_ss_psiv;
 	/* number of ports on root HUB */
 	uint8_t			sc_noport;
 	/* root HUB device configuration */

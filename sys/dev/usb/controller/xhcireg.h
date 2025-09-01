@@ -127,6 +127,9 @@
 #define	XHCI_PS_SPEED_LOW	0x2			/* Low Speed USB */
 #define	XHCI_PS_SPEED_HIGH	0x3			/* High Speed USB */
 #define	XHCI_PS_SPEED_SS	0x4			/* Super Speed USB */
+#define	XHCI_PS_SPEED_SS_PLUS_GEN2	0x5			/* Super Speed Plus Gen2x1 */
+#define	XHCI_PS_SPEED_SS_PLUS_GEN1_x2	0x6			/* Super Speed Plus Gen1x2 */
+#define	XHCI_PS_SPEED_SS_PLUS_GEN2_x2	0x7			/* Super Speed Plus Gen2x2 */
 #define	XHCI_PS_PIC_GET(x)	(((x) >> 14) & 0x3)	/* RW - port indicator */
 #define	XHCI_PS_PIC_SET(x)	(((x) & 0x3) << 14)	/* RW - port indicator */
 #define	XHCI_PS_LWS		0x00010000	/* RW - port link state write strobe */
@@ -195,8 +198,17 @@
 /* XHCI legacy support */
 #define	XHCI_XECP_ID(x)		((x) & 0xFF)
 #define	XHCI_XECP_NEXT(x)	(((x) >> 8) & 0xFF)
+#define	XHCI_XECP_MAJOR(x)	(((x) >> 24) & 0xFF)
+#define	XHCI_XECP_MINOR(x)	(((x) >> 16) & 0xFF)
 #define	XHCI_XECP_BIOS_SEM	0x0002
 #define	XHCI_XECP_OS_SEM	0x0003
+
+/* Support protocol */
+#define XHCI_XECP_PSIC_GET(x)   (((x) >> 28) & 0x0F)
+#define XHCI_XECP_PSI_RSVD	0x00003E00
+#define XHCI_XECP_PSI_LP	0x0000C000
+#define XHCI_XECP_PSIV_GET(x)	((x) & 0x0F)
+#define XHCI_PSIV_BIT(x)	(1U << (x))
 
 /* XHCI capability ID's */
 #define	XHCI_ID_USB_LEGACY	0x0001
