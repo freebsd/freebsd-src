@@ -1675,7 +1675,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			sc->sc_tsoff = tcp_new_ts_offset(inc);
 		}
 		if ((to->to_flags & TOF_SCALE) && (V_tcp_do_rfc1323 != 3)) {
-			int wscale = 0;
+			u_int wscale = 0;
 
 			/*
 			 * Pick the smallest possible scaling factor that
@@ -2271,7 +2271,7 @@ syncookie_expand(struct in_conninfo *inc, const struct syncache_head *sch,
 	uint32_t hash;
 	uint8_t *secbits;
 	tcp_seq ack, seq;
-	int wnd, wscale = 0;
+	int wnd;
 	union syncookie cookie;
 
 	/*
@@ -2322,12 +2322,14 @@ syncookie_expand(struct in_conninfo *inc, const struct syncache_head *sch,
 
 	sc->sc_peer_mss = tcp_sc_msstab[cookie.flags.mss_idx];
 
-	/* We can simply recompute receive window scale we sent earlier. */
-	while (wscale < TCP_MAX_WINSHIFT && (TCP_MAXWIN << wscale) < sb_max)
-		wscale++;
-
 	/* Only use wscale if it was enabled in the orignal SYN. */
 	if (cookie.flags.wscale_idx > 0) {
+		u_int wscale = 0;
+
+		/* Recompute the receive window scale that was sent earlier. */
+		while (wscale < TCP_MAX_WINSHIFT &&
+		    (TCP_MAXWIN << wscale) < sb_max)
+			wscale++;
 		sc->sc_requested_r_scale = wscale;
 		sc->sc_requested_s_scale = tcp_sc_wstab[cookie.flags.wscale_idx];
 		sc->sc_flags |= SCF_WINSCALE;
