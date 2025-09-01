@@ -81,9 +81,6 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x0bda, 0xb00c, 0) },
 	{ USB_VPI(0x0bda, 0xc822, 0) },
 
-	/* Realtek 8822CU Bluetooth devices */
-	{ USB_VPI(0x13d3, 0x3549, 0) },
-
 	/* Realtek 8851BE Bluetooth devices */
 	{ USB_VPI(0x13d3, 0x3600, 0) },
 
