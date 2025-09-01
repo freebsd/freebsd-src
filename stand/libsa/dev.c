@@ -72,7 +72,7 @@ default_parsedev(struct devdesc **dev, const char *devspec,
 	int unit, err;
 	char *cp;
 
-	idev = malloc(sizeof(struct devdesc));
+	idev = calloc(sizeof(struct devdesc), 1);
 	if (idev == NULL)
 		return (ENOMEM);
 

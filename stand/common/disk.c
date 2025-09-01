@@ -468,7 +468,7 @@ disk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 
 	if (*cp != '\0' && *cp != ':')
 		return (EINVAL);
-	dev = malloc(sizeof(*dev));
+	dev = calloc(sizeof(*dev), 1);
 	if (dev == NULL)
 		return (ENOMEM);
 	dev->dd.d_unit = unit;

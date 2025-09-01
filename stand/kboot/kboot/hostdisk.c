@@ -465,7 +465,7 @@ hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 		return (EINVAL);
 	}
 	free(fn);
-	dev = malloc(sizeof(*dev));
+	dev = calloc(sizeof(*dev), 1);
 	if (dev == NULL)
 		return (ENOMEM);
 	dev->d_unit = 0;

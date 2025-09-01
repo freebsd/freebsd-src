@@ -98,7 +98,7 @@ ofw_common_parsedev(struct devdesc **dev, const char *devspec, const char **path
 
 	if (ofw_path_to_handle(devspec, ofwtype, &rem_path) == -1)
 		return (ENOENT);
-	idev = malloc(sizeof(struct ofw_devdesc));
+	idev = calloc(sizeof(struct ofw_devdesc), 1);
 	if (idev == NULL) {
 		printf("ofw_parsedev: malloc failed\n");
 		return (ENOMEM);
