@@ -82,7 +82,7 @@ vm_install_base() {
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
 	if [ "${VMFS}" != zfs ]; then
-		echo "/dev/${ROOTLABEL}/rootfs   /       ${VMFS}   rw      1       1" \
+		echo "/dev/${ROOTLABEL}/rootfs   /       ${VMFS}   rw,noatime      1       1" \
 			>> ${DESTDIR}/etc/fstab
 	fi
 	if [ -z "${NOSWAP}" ]; then
