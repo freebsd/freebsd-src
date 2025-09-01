@@ -1189,7 +1189,7 @@ pf_rule_tree_alloc(int flags)
 	return (tree);
 }
 
-static void
+void
 pf_rule_tree_free(struct pf_krule_global *tree)
 {
 
