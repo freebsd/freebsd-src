@@ -1447,10 +1447,10 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 #endif
 
 	/*
-	 * If member_ifaddrs is disabled, do not allow an interface with
-	 * assigned IP addresses to be added to a bridge.
+	 * If member_ifaddrs is disabled, do not allow an Ethernet-like
+	 * interface with assigned IP addresses to be added to a bridge.
 	 */
-	if (!V_member_ifaddrs) {
+	if (!V_member_ifaddrs && ifs->if_type != IFT_GIF) {
 		struct ifaddr *ifa;
 
 		CK_STAILQ_FOREACH(ifa, &ifs->if_addrhead, ifa_link) {
