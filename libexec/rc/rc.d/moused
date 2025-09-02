@@ -70,6 +70,7 @@ moused_start()
 	esac
 
 	for ttyv in /dev/ttyv* ; do
+		[ "$ttyv" = '/dev/ttyv*' ] && break
 		vidcontrol < ${ttyv} ${mousechar_arg} -m on
 	done
 }
