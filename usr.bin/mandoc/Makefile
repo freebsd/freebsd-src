@@ -4,7 +4,7 @@ MANDOCDIR=	${SRCTOP}/contrib/mandoc
 .PATH: ${MANDOCDIR}
 
 PROG=	mandoc
-MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 roff.7
+MAN=	mandoc.1 mandoc.db.5 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 roff.7
 MLINKS=	mandoc.1 mdocml.1
 .if ${MK_MAN_UTILS} != no
 MAN+=	apropos.1 makewhatis.8
