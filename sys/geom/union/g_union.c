@@ -358,6 +358,7 @@ fail2:
 fail1:
 	g_destroy_consumer(lowercp);
 	g_destroy_provider(newpp);
+	g_free(sc);
 	g_destroy_geom(gp);
 }
 
