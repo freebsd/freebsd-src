@@ -28,6 +28,11 @@
 #include <time.h>
 #include <unistd.h>
 
+/*
+ * This is a compromise between speed and wasted effort
+ */
+#define COMPROMISE_SIZE		(128<<10)
+
 struct lump {
 	uint64_t		start;
 	uint64_t		len;
@@ -51,6 +56,7 @@ static uint64_t medium_read;
 static uint64_t small_read;
 static uint64_t total_size;
 static uint64_t done_size;
+static uint64_t wasted_size;
 static char *input;
 static char *write_worklist_file = NULL;
 static char *read_worklist_file = NULL;
@@ -61,6 +67,7 @@ static FILE *log_file = NULL;
 static char *work_buf;
 static char *pattern_buf;
 static double error_pause;
+static double interval;
 
 static unsigned nlumps;
 static double n_reads, n_good_reads;
@@ -418,7 +425,8 @@ fill_buf(char *buf, int64_t len, const char *pattern)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: recoverdisk [-b big_read] [-r readlist] "
+	fprintf(stderr, "usage: recoverdisk "
+	    "[-b big_read] [-i interval ] [-r readlist] "
 	    "[-s interval] [-w writelist] source [destination]\n");
 	/* XXX update */
 	exit(1);
@@ -486,6 +494,7 @@ attempt_one_lump(time_t t_now)
 			fflush(log_file);
 		}
 	} else {
+		wasted_size += sz;
 		printf("%14ju %7ju read error %d: (%s)",
 		    (uintmax_t)lp->start,
 		    (uintmax_t)sz, error, strerror(error));
@@ -557,8 +566,6 @@ determine_read_sizes(void)
 	u_int sectorsize;
 	off_t stripesize;
 
-	determine_total_size();
-
 #ifdef DIOCGSECTORSIZE
 	if (small_read == 0) {
 		error = ioctl(read_fd, DIOCGSECTORSIZE, &sectorsize);
@@ -572,8 +579,8 @@ determine_read_sizes(void)
 #endif
 
 	if (small_read == 0) {
-		printf("Assuming 512 for small_read\n");
 		small_read = 512;
+		printf("# Defaulting small_read to %ju\n", (uintmax_t)small_read);
 	}
 
 	if (medium_read && (medium_read % small_read)) {
@@ -593,13 +600,13 @@ determine_read_sizes(void)
 #ifdef DIOCGSTRIPESIZE
 	if (medium_read == 0) {
 		error = ioctl(read_fd, DIOCGSTRIPESIZE, &stripesize);
-		if (error < 0 || stripesize < 0) {
+		if (error < 0 || stripesize <= 0) {
 			// nope
 		} else if ((uint64_t)stripesize < small_read) {
 			// nope
 		} else if (stripesize % small_read) {
 			// nope
-		} else if (0 < stripesize && stripesize < (128<<10)) {
+		} else if (stripesize <= COMPROMISE_SIZE) {
 			medium_read = stripesize;
 			printf("# Got medium_read from DIOCGSTRIPESIZE: %ju\n",
 			    (uintmax_t)medium_read
@@ -607,6 +614,7 @@ determine_read_sizes(void)
 		}
 	}
 #endif
+
 #if defined(DIOCGFWSECTORS) && defined(DIOCGFWHEADS)
 	if (medium_read == 0) {
 		u_int fwsectors = 0, fwheads = 0;
@@ -616,10 +624,16 @@ determine_read_sizes(void)
 		error = ioctl(read_fd, DIOCGFWHEADS, &fwheads);
 		if (error)
 			fwheads = 0;
-		if (fwsectors && fwheads) {
+		if (fwsectors * fwheads * small_read <= COMPROMISE_SIZE) {
 			medium_read = fwsectors * fwheads * small_read;
 			printf(
-			    "# Got medium_read from DIOCGFW{SECTORS,HEADS}: %ju\n",
+			    "# Got medium_read from DIOCGFW{SECTORS*HEADS}: %ju\n",
+			    (uintmax_t)medium_read
+			);
+		} else if (fwsectors * small_read <= COMPROMISE_SIZE) {
+			medium_read = fwsectors * small_read;
+			printf(
+			    "# Got medium_read from DIOCGFWSECTORS: %ju\n",
 			    (uintmax_t)medium_read
 			);
 		}
@@ -627,10 +641,11 @@ determine_read_sizes(void)
 #endif
 
 	if (big_read == 0 && medium_read != 0) {
-		if (medium_read > (64<<10)) {
+		if (medium_read * 2 > COMPROMISE_SIZE) {
 			big_read = medium_read;
+			medium_read = 0;
 		} else {
-			big_read = 128 << 10;
+			big_read = COMPROMISE_SIZE;
 			big_read -= big_read % medium_read;
 		}
 		printf("# Got big_read from medium_read: %ju\n",
@@ -639,11 +654,15 @@ determine_read_sizes(void)
 	}
 
 	if (big_read == 0) {
-		big_read = 128 << 10;
+		big_read = COMPROMISE_SIZE;
+		big_read -= big_read % small_read;
 		printf("# Defaulting big_read to %ju\n",
 		    (uintmax_t)big_read
 		);
 	}
+
+	if (medium_read >= big_read)
+		medium_read = 0;
 
 	if (medium_read == 0) {
 		/*
@@ -662,12 +681,20 @@ determine_read_sizes(void)
 		    (uintmax_t)medium_read
 		);
 	}
-	fprintf(stderr,
-	    "# Bigsize = %ju, medium_read = %ju, small_read = %ju\n",
+	printf("# Bigsize = %ju, medium_read = %ju, small_read = %ju\n",
 	    (uintmax_t)big_read, (uintmax_t)medium_read, (uintmax_t)small_read);
 
-}
+	assert(0 < small_read);
 
+	assert(0 < medium_read);
+	assert(medium_read >= small_read);
+	assert(medium_read <= big_read);
+	assert(medium_read % small_read == 0);
+
+	assert(0 < big_read);
+	assert(big_read >= medium_read);
+	assert(big_read % small_read == 0);
+}
 
 /**********************************************************************/
 
@@ -687,15 +714,14 @@ monitor_read_sizes(uint64_t failed_size)
 		);
 		big_read = medium_read;
 		medium_read = small_read;
+		wasted_size = 0;
 		return;
 	}
 
-	if (failed_size > small_read) {
-		if (n_reads < n_good_reads + 100)
-			return;
+	if (big_read > small_read && wasted_size / small_read > 200) {
 		fprintf(
 		    stderr,
-		    "Too many failures."
+		    "Too much wasted effort."
 		    " (%.0f bad of %.0f)"
 		    " Shifting to small_reads.\n",
 		    n_reads - n_good_reads, n_reads
@@ -719,10 +745,13 @@ main(int argc, char * const argv[])
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 
-	while ((ch = getopt(argc, argv, "b:l:p:m:r:w:s:t:u:v")) != -1) {
+	while ((ch = getopt(argc, argv, "b:i:l:p:m:r:w:s:t:u:v")) != -1) {
 		switch (ch) {
 		case 'b':
 			big_read = strtoul(optarg, NULL, 0);
+			break;
+		case 'i':
+			interval = strtod(optarg, NULL);
 			break;
 		case 'l':
 			log_file = fopen(optarg, "a");
@@ -774,6 +803,8 @@ main(int argc, char * const argv[])
 	if (read_fd < 0)
 		err(1, "Cannot open read descriptor %s", argv[0]);
 
+	determine_total_size();
+
 	determine_read_sizes();
 
 	work_buf = malloc(big_read);
@@ -816,6 +847,9 @@ main(int argc, char * const argv[])
 	t_save = t_first;
 	unsaved = 0;
 	while (!aborting) {
+		if (interval > 0) {
+			usleep((unsigned long)(1e6 * interval));
+		}
 		t_now = time(NULL);
 		sz = attempt_one_lump(t_now);
 		error = errno;
