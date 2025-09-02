@@ -1890,7 +1890,25 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 			vif->bss_conf.beacon_int = 16;
 		bss_changed |= BSS_CHANGED_BEACON_INT;
 	}
-	if (vif->bss_conf.dtim_period != ni->ni_dtim_period &&
+
+	/*
+	 * lkpi_iv_sta_recv_mgmt() will directly call into this function.
+	 * iwlwifi(4) in iwl_mvm_bss_info_changed_station_common() will
+	 * stop seesion protection the moment it sees
+	 * BSS_CHANGED_BEACON_INFO (with the expectations that it was
+	 * "a beacon from the associated AP"). It will also update
+	 * the beacon filter in that case.  This is the only place
+	 * we set the BSS_CHANGED_BEACON_INFO on the non-teardown
+	 * path so make sure we only do run this check once we are
+	 * assoc. (*iv_recv_mgmt)() will be called before we enter
+	 * here so the ni will be updates with information from the
+	 * beacon via net80211::sta_recv_mgmt().  We also need to
+	 * make sure we do not do it on every beacon we still may
+	 * get so only do if something changed.  vif->bss_conf.dtim_period
+	 * should be 0 as we start up (we also reset it on teardown).
+	 */
+	if (vif->cfg.assoc &&
+	    vif->bss_conf.dtim_period != ni->ni_dtim_period &&
 	    ni->ni_dtim_period > 0) {
 		vif->bss_conf.dtim_period = ni->ni_dtim_period;
 		bss_changed |= BSS_CHANGED_BEACON_INFO;
