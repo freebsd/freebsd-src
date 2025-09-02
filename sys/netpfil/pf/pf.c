@@ -8854,6 +8854,11 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		default: {
 			int	action;
 
+			/*
+			 * Placeholder value, so future calls to pf_change_ap()
+			 * don't try to update a NULL checksum pointer.
+			 */
+			pd->pcksum = &pd->sctp_dummy_sum;
 			key.af = pd2.af;
 			key.proto = pd2.proto;
 			pf_addrcpy(&key.addr[pd2.sidx], pd2.src, key.af);
@@ -10614,12 +10619,21 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		break;
 	}
 #endif /* INET6 */
+	default:
+		/*
+		 * Placeholder value, so future calls to pf_change_ap() don't
+		 * try to update a NULL checksum pointer.
+		*/
+		pd->pcksum = &pd->sctp_dummy_sum;
+		break;
 	}
 
 	if (pd->sport)
 		pd->osport = pd->nsport = *pd->sport;
 	if (pd->dport)
 		pd->odport = pd->ndport = *pd->dport;
+
+	MPASS(pd->pcksum != NULL);
 
 	return (0);
 }
