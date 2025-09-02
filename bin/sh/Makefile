@@ -76,6 +76,6 @@ beforeinstallconfig:
 
 LINKMODE=${CONFMODE}
 afterinstallconfig:
-	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}/root/.profile ${DESTDIR}/.profile
+	${INSTALL_LINK} ${TAG_ARGS:D${TAG_ARGS},config} ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 
 .include <bsd.prog.mk>
