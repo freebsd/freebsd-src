@@ -18,7 +18,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd November 11, 2024
+.Dd September 1, 2025
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -44,8 +44,7 @@ reads a configuration file,
 normally
 .Pa /etc/newsyslog.conf ,
 to determine which logs may potentially be rotated and archived.
-Each line has five mandatory fields and four optional fields,
-separated with whitespace.
+.Pp
 Blank lines or lines beginning with
 .Ql #
 are ignored.
@@ -63,34 +62,73 @@ in this case preceding
 is removed and
 .Ql #
 is treated as an ordinary character.
+.Pp
+The special
+.Dq Ar <compress>
+and
+.Dq Ar <include>
+lines are defined as follows:
+.Bl -tag -width indent
+.It Ar <compress> Ns Ar none Ns | Ns Ar legacy Ns | Ns Ar bzip2 Ns | Ns Ar gzip Ns | Ns Ar xz Ns | Ns Ar zstd
+This special option sets the global compress method,
+it should be placed before all log file entries in
+.Nm
+configuration file.
+The global compress method applies to all log files flagged as
+compressible
+.Dq Sy J ,
+.Dq Sy X ,
+.Dq Sy Y ,
+.Dq Sy Z
+.Ar flags
+below.
+.Pp
+The following compression methods are available:
+.Bl -tag -width indent
+.It Cm none
+No compression is performed, even when a log file is marked as
+compressible. This is useful for filesystems that have native
+compression support.
+.It Cm legacy
+Interprets the
+.Sy J, X, Y, Z
+flags in the configuration file according to their historical meanings.
+This is the default method.
+.It Cm bzip2
+Use
+.Xr bzip2 1
+for all compressible log files.
+.It Cm gzip
+Use
+.Xr gzip 1
+for all compressible log files.
+.It Cm xz
+Use
+.Xr xz 1
+for all compressible log files.
+.It Cm zstd
+Use
+.Xr zstd 1
+for all compressible log files.
+.El
+.It Ar <include>
+The special <include> entry is used to include other configuration
+files and supports globbing.
+.El
+.Pp
+Each other line has five mandatory fields and four optional fields,
+separated with whitespace.
 The fields of the configuration file are as follows:
 .Bl -tag -width indent
 .It Ar logfile_name
 Name of the system log file to be archived,
-or one of the special strings
-.Dq Li <compress> ,
-.Dq Li <default> ,
-or
-.Dq Li <include> .
-The <compress> entry,
-which should be placed at the beginning of the
-.Nm
-configuration file,
-sets the global compress method.
-This method is applied when a log file is flagged as
-compressible,
-which has the same effect of passing a compress method to the
-.Fl c
-option on the
-.Xr newsyslog 8
-command line.
+or the special string
+.Dq Ar <default> .
 The special <default> entry will only be used if a log file
 name is given as a command line argument to
 .Xr newsyslog 8 ,
 and if that log file name is not matched by any other
 line in the configuration file.
-The include entry is used to include other configuration
-files and supports globbing.
 .It Ar owner : Ns Ar group
 This optional field specifies the owner and group for the archive file.
 The
@@ -432,7 +470,7 @@ can be the signal number, e.g., 30 for
 .El
 .Sh EXAMPLES
 The following is an example of the
-.Dq Aq Li include
+.Dq <include>
 entry:
 .Dl "<include> /etc/newsyslog-local.conf"
 .Sh SEE ALSO

@@ -701,18 +701,11 @@ parse_args(int argc, char **argv)
 	hostname_shortlen = strcspn(hostname, ".");
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:c:d:f:nrst:vCD:FNPR:S:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FNPR:S:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
 			archdirname = optarg;
-			break;
-		case 'c':
-			if (!parse_compression_type(optarg, &compress_type_override)) {
-				warnx("Unrecognized compression method '%s'.", optarg);
-				usage();
-			}
-			compress_type_set = true;
 			break;
 		case 'd':
 			destdir = optarg;
@@ -858,26 +851,10 @@ parse_doption(const char *doption)
 static void
 usage(void)
 {
-	int i;
-	char *alltypes = NULL, *tmp = NULL;
-
-	for (i = 0; i < COMPRESS_TYPES; i++) {
-		if (i == COMPRESS_NONE) {
-			(void)asprintf(&tmp, "%s|legacy", compress_type[i].name);
-		} else {
-			(void)asprintf(&tmp, "%s|%s", alltypes, compress_type[i].name);
-		}
-		if (alltypes)
-			free(alltypes);
-		alltypes = tmp;
-		tmp = NULL;
-	}
 
 	fprintf(stderr,
-	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-c %s]\n"
-	    "                 [-d directory] [-f config_file]\n"
-	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n",
-	    alltypes);
+	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-d directory] [-f config_file]\n"
+	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n");
 	exit(1);
 }
 
