@@ -31,7 +31,7 @@
 #error "Specify error category before including sys/exterrvar.h"
 #endif
 
-#ifdef	BLOAT_KERNEL_WITH_EXTERR
+#ifdef	EXTERR_STRINGS
 #define	SET_ERROR_MSG(mmsg)	(mmsg)
 #else
 #define	SET_ERROR_MSG(mmsg)	NULL
