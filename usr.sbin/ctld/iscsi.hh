@@ -66,7 +66,7 @@ private:
 	std::string		conn_initiator_name;
 	std::string		conn_initiator_addr;
 	std::string		conn_initiator_alias;
-	uint8_t			conn_initiator_isid[6];
+	uint8_t			conn_initiator_isid[6] = {};
 	const struct sockaddr	*conn_initiator_sa = nullptr;
 	int			conn_max_recv_data_segment_limit = 0;
 	int			conn_max_send_data_segment_limit = 0;
