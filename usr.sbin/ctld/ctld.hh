@@ -425,7 +425,7 @@ protected:
 	virtual struct portal_group *default_portal_group() = 0;
 
 	struct conf			*t_conf;
-	std::array<struct lun *, MAX_LUNS> t_luns;
+	std::array<struct lun *, MAX_LUNS> t_luns = {};
 	auth_group_sp			t_auth_group;
 	std::list<port *>		t_ports;
 	std::string			t_name;
@@ -434,7 +434,7 @@ protected:
 	std::string			t_redirection;
 	/* Name of this target's physical port, if any, i.e. "isp0" */
 	std::string			t_pport;
-	bool				t_private_auth;
+	bool				t_private_auth = false;
 };
 
 using target_up = std::unique_ptr<target>;
@@ -575,7 +575,7 @@ struct pport {
 private:
 	std::string			pp_name;
 	uint32_t			pp_ctl_port;
-	bool				pp_linked;
+	bool				pp_linked = false;
 };
 
 struct kports {
