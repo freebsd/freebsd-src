@@ -1643,7 +1643,7 @@ zfs_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 	spa = spa_find_by_name(poolname);
 	if (!spa)
 		return (ENXIO);
-	dev = calloc(sizeof(*dev), 1);
+	dev = malloc(sizeof(*dev));
 	if (dev == NULL)
 		return (ENOMEM);
 	dev->pool_guid = spa->spa_guid;
