@@ -1807,9 +1807,7 @@ uipc_filt_sowrite(struct knote *kn, long hint)
 	kn->kn_data = uipc_stream_sbspace(&so2->so_rcv);
 
 	if (so2->so_rcv.sb_state & SBS_CANTRCVMORE) {
-		/*
-		 * XXXGL: maybe kn->kn_flags |= EV_EOF ?
-		 */
+		kn->kn_flags |= EV_EOF;
 		return (1);
 	} else if (kn->kn_sfflags & NOTE_LOWAT)
 		return (kn->kn_data >= kn->kn_sdata);
