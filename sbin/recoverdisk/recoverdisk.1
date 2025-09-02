@@ -31,6 +31,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl b Ar bigsize
+.Op Fl i Ar interval
 .Op Fl r Ar readlist
 .Op Fl s Ar interval
 .Op Fl u Ar pattern
@@ -109,6 +110,11 @@ reports for character and block devices or
 if
 .Ar source
 is a regular file.
+.It Fl i Ar pause
+.Xr sleep 3
+this long between reads.  This reduces the load on the
+.Ar source
+device and the system in general.
 .It Fl p Ar pause
 .Xr sleep 3
 this long whenever a read fails.  This makes the
