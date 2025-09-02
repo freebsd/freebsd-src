@@ -467,6 +467,29 @@ ATF_TC_BODY(peershutdown_wakeup_kevent, tc)
 	});
 }
 
+ATF_TC_WITHOUT_HEAD(ourshutdown_kevent);
+ATF_TC_BODY(ourshutdown_kevent, tc)
+{
+	struct kevent kev;
+	int sv[2], kq;
+
+	do_socketpair(sv);
+	ATF_REQUIRE(kq = kqueue());
+
+	EV_SET(&kev, sv[1], EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+	ATF_REQUIRE(kevent(kq, &kev, 1, NULL, 0, NULL) == 0);
+
+	ATF_REQUIRE(shutdown(sv[1], SHUT_WR) == 0);
+
+	ATF_REQUIRE(kevent(kq, NULL, 0, &kev, 1, NULL) == 1);
+	ATF_REQUIRE(kev.ident == (uintptr_t)sv[1] &&
+	    kev.filter == EVFILT_WRITE &&
+	    kev.flags == EV_EOF);
+
+	close(sv[0]);
+	close(sv[1]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpeereid);
@@ -482,6 +505,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, peershutdown_wakeup_select);
 	ATF_TP_ADD_TC(tp, peershutdown_wakeup_poll);
 	ATF_TP_ADD_TC(tp, peershutdown_wakeup_kevent);
+	ATF_TP_ADD_TC(tp, ourshutdown_kevent);
 
 	return atf_no_error();
 }
