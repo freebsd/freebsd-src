@@ -655,8 +655,10 @@ pfi_kkif_update(struct pfi_kkif *kif)
 	/* again for all groups kif is member of */
 	if (kif->pfik_ifp != NULL) {
 		CK_STAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next)
-			pfi_kkif_update((struct pfi_kkif *)
-			    ifgl->ifgl_group->ifg_pf_kif);
+			if (ifgl->ifgl_group->ifg_pf_kif) {
+				pfi_kkif_update((struct pfi_kkif *)
+				    ifgl->ifgl_group->ifg_pf_kif);
+			}
 	}
 }
 
