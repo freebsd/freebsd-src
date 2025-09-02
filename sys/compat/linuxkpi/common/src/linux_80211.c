@@ -3828,6 +3828,7 @@ lkpi_iv_sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	enum ieee80211_bss_changed bss_changed;
 
 	lvif = VAP_TO_LVIF(ni->ni_vap);
+	vif = LVIF_TO_VIF(lvif);
 
 	lvif->iv_recv_mgmt(ni, m0, subtype, rxs, rssi, nf);
 
@@ -3835,13 +3836,18 @@ lkpi_iv_sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		break;
 	case IEEE80211_FC0_SUBTYPE_BEACON:
-		lvif->beacons++;
+		/*
+		 * Only count beacons when assoc. SCAN has its own logging.
+		 * This is for connection/beacon loss/session protection almost
+		 * over debugging when trying to get into a stable RUN state.
+		 */
+		if (vif->cfg.assoc)
+			lvif->beacons++;
 		break;
 	default:
 		return;
 	}
 
-	vif = LVIF_TO_VIF(lvif);
 	lhw = ni->ni_ic->ic_softc;
 	hw = LHW_TO_HW(lhw);
 
