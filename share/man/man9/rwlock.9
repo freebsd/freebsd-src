@@ -221,7 +221,7 @@ This will only succeed if the current thread holds the only shared lock on
 and it only holds a single shared lock.
 If the attempt succeeds
 .Fn rw_try_upgrade
-will return a non-zero value,
+will return a nonzero value,
 and the current thread will hold an exclusive lock.
 If the attempt fails
 .Fn rw_try_upgrade
@@ -239,7 +239,7 @@ For more details on the parameters to this function,
 see
 .Xr sleep 9 .
 .It Fn rw_initialized "const struct rwlock *rw"
-This function returns non-zero if
+This function returns nonzero if
 .Fa rw
 has been initialized, and zero otherwise.
 .It Fn rw_destroy "struct rwlock *rw"
@@ -249,7 +249,7 @@ The
 .Fa rw
 lock must be unlocked.
 .It Fn rw_wowned "const struct rwlock *rw"
-This function returns a non-zero value if the current thread owns an
+This function returns a nonzero value if the current thread owns an
 exclusive lock on
 .Fa rw .
 .It Fn rw_assert "const struct rwlock *rw" "int what"

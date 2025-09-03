@@ -66,7 +66,7 @@ The node supports an optional
 .Dq hot character .
 If the driver can not deliver data directly to the tty bypass hook then each
 character is input one at a time.
-If set to non-zero and bypass mode is unavailable, incoming
+If set to nonzero and bypass mode is unavailable, incoming
 data from the tty device is queued until this character is seen.
 This avoids sending lots of mbufs containing a small number of bytes,
 but introduces potentially infinite latency.
