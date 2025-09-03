@@ -344,10 +344,12 @@ static int		 pf_test_eth_rule(int, struct pfi_kkif *,
 			    struct mbuf **);
 static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    struct pf_pdesc *, struct pf_krule **,
-			    struct pf_kruleset **, u_short *, struct inpcb *);
+			    struct pf_kruleset **, u_short *, struct inpcb *,
+			    struct pf_krule_slist *);
 static int		 pf_create_state(struct pf_krule *,
 			    struct pf_test_ctx *,
-			    struct pf_kstate **, u_int16_t, u_int16_t);
+			    struct pf_kstate **, u_int16_t, u_int16_t,
+			    struct pf_krule_slist *match_rules);
 static int		 pf_state_key_addr_setup(struct pf_pdesc *,
 			    struct pf_state_key_cmp *, int);
 static int		 pf_tcp_track_full(struct pf_kstate *,
@@ -393,7 +395,7 @@ static bool		 pf_src_connlimit(struct pf_kstate *);
 static int		 pf_match_rcvif(struct mbuf *, struct pf_krule *);
 static void		 pf_counters_inc(int, struct pf_pdesc *,
 			    struct pf_kstate *, struct pf_krule *,
-			    struct pf_krule *);
+			    struct pf_krule *, struct pf_krule_slist *);
 static void		 pf_log_matches(struct pf_pdesc *, struct pf_krule *,
 			    struct pf_krule *, struct pf_kruleset *,
 			    struct pf_krule_slist *);
@@ -489,26 +491,30 @@ BOUND_IFACE(struct pf_kstate *st, struct pf_pdesc *pd)
 			counter_u64_add(s->anchor->states_cur, 1);	\
 			counter_u64_add(s->anchor->states_tot, 1);	\
 		}							\
-		if (s->nat_rule != NULL) {				\
-			counter_u64_add(s->nat_rule->states_cur, 1);\
-			counter_u64_add(s->nat_rule->states_tot, 1);\
+		if (s->nat_rule != NULL && s->nat_rule != s->rule) {	\
+			counter_u64_add(s->nat_rule->states_cur, 1);	\
+			counter_u64_add(s->nat_rule->states_tot, 1);	\
 		}							\
 		SLIST_FOREACH(mrm, &s->match_rules, entry) {		\
-			counter_u64_add(mrm->r->states_cur, 1);		\
-			counter_u64_add(mrm->r->states_tot, 1);		\
+			if (s->nat_rule != mrm->r) {			\
+				counter_u64_add(mrm->r->states_cur, 1);	\
+				counter_u64_add(mrm->r->states_tot, 1);	\
+			}						\
 		}							\
 	} while (0)
 
 #define	STATE_DEC_COUNTERS(s)						\
 	do {								\
 		struct pf_krule_item *mrm;				\
-		if (s->nat_rule != NULL)				\
-			counter_u64_add(s->nat_rule->states_cur, -1);\
-		if (s->anchor != NULL)				\
-			counter_u64_add(s->anchor->states_cur, -1);	\
 		counter_u64_add(s->rule->states_cur, -1);		\
+		if (s->anchor != NULL)					\
+			counter_u64_add(s->anchor->states_cur, -1);	\
+		if (s->nat_rule != NULL && s->nat_rule != s->rule)	\
+			counter_u64_add(s->nat_rule->states_cur, -1);	\
 		SLIST_FOREACH(mrm, &s->match_rules, entry)		\
-			counter_u64_add(mrm->r->states_cur, -1);	\
+			if (s->nat_rule != mrm->r) {			\
+				counter_u64_add(mrm->r->states_cur, -1);\
+			}						\
 	} while (0)
 
 MALLOC_DEFINE(M_PFHASH, "pf_hash", "pf(4) hash header structures");
@@ -2869,20 +2875,24 @@ pf_alloc_state(int flags)
 	return (uma_zalloc(V_pf_state_z, flags | M_ZERO));
 }
 
+static __inline void
+pf_free_match_rules(struct pf_krule_slist *match_rules) {
+	struct pf_krule_item	*ri;
+
+	while ((ri = SLIST_FIRST(match_rules))) {
+		SLIST_REMOVE_HEAD(match_rules, entry);
+		free(ri, M_PF_RULE_ITEM);
+	}
+}
+
 void
 pf_free_state(struct pf_kstate *cur)
 {
-	struct pf_krule_item *ri;
-
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
 
-	while ((ri = SLIST_FIRST(&cur->match_rules))) {
-		SLIST_REMOVE_HEAD(&cur->match_rules, entry);
-		free(ri, M_PF_RULE_ITEM);
-	}
-
+	pf_free_match_rules(&(cur->match_rules));
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
 	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_REMOVALS], 1);
@@ -4733,7 +4743,8 @@ pf_tag_packet(struct pf_pdesc *pd, int tag)
 } while (0)
 
 enum pf_test_status
-pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
+pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r,
+    struct pf_krule_slist *match_rules)
 {
 	enum pf_test_status	rv;
 
@@ -4751,7 +4762,7 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 		struct pf_kanchor *child;
 		rv = PF_TEST_OK;
 		RB_FOREACH(child, pf_kanchor_node, &r->anchor->children) {
-			rv = pf_match_rule(ctx, &child->ruleset);
+			rv = pf_match_rule(ctx, &child->ruleset, match_rules);
 			if ((rv == PF_TEST_QUICK) || (rv == PF_TEST_FAIL)) {
 				/*
 				 * we either hit a rule with quick action
@@ -4762,7 +4773,7 @@ pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 			}
 		}
 	} else {
-		rv = pf_match_rule(ctx, &r->anchor->ruleset);
+		rv = pf_match_rule(ctx, &r->anchor->ruleset, match_rules);
 		/*
 		 * Unless errors occured, stop iff any rule matched
 		 * within quick anchors.
@@ -5611,9 +5622,10 @@ pf_rule_apply_nat(struct pf_test_ctx *ctx, struct pf_krule *r)
 }
 
 enum pf_test_status
-pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
+pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset,
+    struct pf_krule_slist *match_rules)
 {
-	struct pf_krule_item	*ri;
+	struct pf_krule_item	*ri, *rt;
 	struct pf_krule		*r;
 	struct pf_krule		*save_a;
 	struct pf_kruleset	*save_aruleset;
@@ -5752,11 +5764,14 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 					return (PF_TEST_FAIL);
 				}
 				ri->r = r;
-				SLIST_INSERT_HEAD(&ctx->rules, ri, entry);
-				pf_counter_u64_critical_enter();
-				pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
-				pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
-				pf_counter_u64_critical_exit();
+
+				if (SLIST_EMPTY(match_rules)) {
+					SLIST_INSERT_HEAD(match_rules, ri, entry);
+				} else {
+					SLIST_INSERT_AFTER(rt, ri, entry);
+				}
+				rt = ri;
+
 				pf_rule_to_actions(r, &pd->act);
 				if (r->log)
 					PFLOG_PACKET(r->action, PFRES_MATCH, r,
@@ -5780,7 +5795,7 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 				ctx->arsm = ctx->aruleset;
 			}
 			if (pd->act.log & PF_LOG_MATCHES)
-				pf_log_matches(pd, r, ctx->a, ruleset, &ctx->rules);
+				pf_log_matches(pd, r, ctx->a, ruleset, match_rules);
 			if (r->quick) {
 				ctx->test_status = PF_TEST_QUICK;
 				break;
@@ -5797,7 +5812,7 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 			 * Note: we don't need to restore if we are not going
 			 * to continue with ruleset evaluation.
 			 */
-			if (pf_step_into_anchor(ctx, r) != PF_TEST_OK) {
+			if (pf_step_into_anchor(ctx, r, match_rules) != PF_TEST_OK) {
 				break;
 			}
 			ctx->a = save_a;
@@ -5812,11 +5827,11 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 static int
 pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
     struct pf_pdesc *pd, struct pf_krule **am,
-    struct pf_kruleset **rsm, u_short *reason, struct inpcb *inp)
+    struct pf_kruleset **rsm, u_short *reason, struct inpcb *inp,
+    struct pf_krule_slist *match_rules)
 {
 	struct pf_krule		*r = NULL;
 	struct pf_kruleset	*ruleset = NULL;
-	struct pf_krule_item	*ri;
 	struct pf_test_ctx	 ctx;
 	u_short			 transerror;
 	int			 action = PF_PASS;
@@ -5833,7 +5848,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	ctx.rsm = rsm;
 	ctx.th = &pd->hdr.tcp;
 	ctx.reason = *reason;
-	SLIST_INIT(&ctx.rules);
 
 	pf_addrcpy(&pd->nsaddr, pd->src, pd->af);
 	pf_addrcpy(&pd->ndaddr, pd->dst, pd->af);
@@ -5926,7 +5940,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	}
 
 	ruleset = &pf_main_ruleset;
-	rv = pf_match_rule(&ctx, ruleset);
+	rv = pf_match_rule(&ctx, ruleset, match_rules);
 	if (rv == PF_TEST_FAIL) {
 		/*
 		 * Reason has been set in pf_match_rule() already.
@@ -5962,7 +5976,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		PFLOG_PACKET(r->action, ctx.reason, r, ctx.a, ruleset, pd, 1, NULL);
 	}
 	if (pd->act.log & PF_LOG_MATCHES)
-		pf_log_matches(pd, r, ctx.a, ruleset, &ctx.rules);
+		pf_log_matches(pd, r, ctx.a, ruleset, match_rules);
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
 	   (r->action == PF_DROP) &&
 	    ((r->rule_flag & PFRULE_RETURNRST) ||
@@ -6007,7 +6021,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	    (pd->flags & PFDESC_TCP_NORM)))) {
 		bool nat64;
 
-		action = pf_create_state(r, &ctx, sm, bproto_sum, bip_sum);
+		action = pf_create_state(r, &ctx, sm, bproto_sum, bip_sum,
+		    match_rules);
 		ctx.sk = ctx.nk = NULL;
 		if (action != PF_PASS) {
 			pf_udp_mapping_release(ctx.udp_mapping);
@@ -6053,11 +6068,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 				action = PF_AFRT;
 		}
 	} else {
-		while ((ri = SLIST_FIRST(&ctx.rules))) {
-			SLIST_REMOVE_HEAD(&ctx.rules, entry);
-			free(ri, M_PF_RULE_ITEM);
-		}
-
 		uma_zfree(V_pf_state_key_z, ctx.sk);
 		uma_zfree(V_pf_state_key_z, ctx.nk);
 		ctx.sk = ctx.nk = NULL;
@@ -6085,11 +6095,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	return (action);
 
 cleanup:
-	while ((ri = SLIST_FIRST(&ctx.rules))) {
-		SLIST_REMOVE_HEAD(&ctx.rules, entry);
-		free(ri, M_PF_RULE_ITEM);
-	}
-
 	uma_zfree(V_pf_state_key_z, ctx.sk);
 	uma_zfree(V_pf_state_key_z, ctx.nk);
 	pf_udp_mapping_release(ctx.udp_mapping);
@@ -6100,7 +6105,8 @@ cleanup:
 
 static int
 pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
-    struct pf_kstate **sm, u_int16_t bproto_sum, u_int16_t bip_sum)
+    struct pf_kstate **sm, u_int16_t bproto_sum, u_int16_t bip_sum,
+    struct pf_krule_slist *match_rules)
 {
 	struct pf_pdesc		*pd = ctx->pd;
 	struct pf_kstate	*s = NULL;
@@ -6114,7 +6120,6 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	struct tcphdr		*th = &pd->hdr.tcp;
 	u_int16_t		 mss = V_tcp_mssdflt;
 	u_short			 sn_reason;
-	struct pf_krule_item	*ri;
 
 	/* check maximums */
 	if (r->max_states &&
@@ -6166,7 +6171,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	s->rule = r;
 	s->nat_rule = ctx->nr;
 	s->anchor = ctx->a;
-	memcpy(&s->match_rules, &ctx->rules, sizeof(s->match_rules));
+	s->match_rules = *match_rules;
 	memcpy(&s->act, &pd->act, sizeof(struct pf_rule_actions));
 
 	if (pd->act.allow_opts)
@@ -6330,11 +6335,6 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	return (PF_PASS);
 
 csfailed:
-	while ((ri = SLIST_FIRST(&ctx->rules))) {
-		SLIST_REMOVE_HEAD(&ctx->rules, entry);
-		free(ri, M_PF_RULE_ITEM);
-	}
-
 	uma_zfree(V_pf_state_key_z, ctx->sk);
 	uma_zfree(V_pf_state_key_z, ctx->nk);
 
@@ -7484,6 +7484,7 @@ static void
 pf_sctp_multihome_delayed(struct pf_pdesc *pd, struct pfi_kkif *kif,
     struct pf_kstate *s, int action)
 {
+	struct pf_krule_slist		 match_rules;
 	struct pf_sctp_multihome_job	*j, *tmp;
 	struct pf_sctp_source		*i;
 	int			 ret;
@@ -7531,8 +7532,14 @@ again:
 			if (s->rule->rule_flag & PFRULE_ALLOW_RELATED) {
 				j->pd.related_rule = s->rule;
 			}
+			SLIST_INIT(&match_rules);
 			ret = pf_test_rule(&r, &sm,
-			    &j->pd, &ra, &rs, &reason, NULL);
+			    &j->pd, &ra, &rs, &reason, NULL, &match_rules);
+			/*
+			 * Nothing to do about match rules, the processed
+			 * packet has already increased the counters.
+			 */
+			pf_free_match_rules(&match_rules);
 			PF_RULES_RUNLOCK();
 			SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->pd.m, ret);
 			if (ret != PF_DROP && sm != NULL) {
@@ -10630,108 +10637,149 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	return (0);
 }
 
-static void
-pf_counters_inc(int action, struct pf_pdesc *pd,
-    struct pf_kstate *s, struct pf_krule *r, struct pf_krule *a)
+static __inline void
+pf_rule_counters_inc(struct pf_pdesc *pd, struct pf_krule *r, int dir_out,
+    int op_pass, sa_family_t af, struct pf_addr *src_host,
+    struct pf_addr *dst_host)
 {
-	struct pf_krule		*tr;
-	int			 dir = pd->dir;
-	int			 dirndx;
+	pf_counter_u64_add_protected(&(r->packets[dir_out]), 1);
+	pf_counter_u64_add_protected(&(r->bytes[dir_out]), pd->tot_len);
+	pf_update_timestamp(r);
+
+	if (r->src.addr.type == PF_ADDR_TABLE)
+		pfr_update_stats(r->src.addr.p.tbl, src_host, af,
+		    pd->tot_len, dir_out, op_pass, r->src.neg);
+	if (r->dst.addr.type == PF_ADDR_TABLE)
+		pfr_update_stats(r->dst.addr.p.tbl, dst_host, af,
+		    pd->tot_len, dir_out, op_pass, r->dst.neg);
+}
+
+static void
+pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
+    struct pf_krule *r, struct pf_krule *a, struct pf_krule_slist *match_rules)
+{
+	struct pf_krule_slist	*mr = match_rules;
+	struct pf_krule_item	*ri;
+	struct pf_krule		*nr = NULL;
+	struct pf_addr		*src_host = pd->src;
+	struct pf_addr		*dst_host = pd->dst;
+	struct pf_state_key	*key;
+	int			 dir_out = (pd->dir == PF_OUT);
+	int			 op_pass = (r->action == PF_PASS);
+	sa_family_t		 af = pd->af;
+	int			 s_dir_in, s_dir_out, s_dir_rev;
 
 	pf_counter_u64_critical_enter();
+
 	pf_counter_u64_add_protected(
-	    &pd->kif->pfik_bytes[pd->af == AF_INET6][dir == PF_OUT][action != PF_PASS],
+	    &pd->kif->pfik_bytes[pd->af == AF_INET6][dir_out][action != PF_PASS],
 	    pd->tot_len);
 	pf_counter_u64_add_protected(
-	    &pd->kif->pfik_packets[pd->af == AF_INET6][dir == PF_OUT][action != PF_PASS],
+	    &pd->kif->pfik_packets[pd->af == AF_INET6][dir_out][action != PF_PASS],
 	    1);
 
-	if (action == PF_PASS || action == PF_AFRT || r->action == PF_DROP) {
-		dirndx = (dir == PF_OUT);
-		pf_counter_u64_add_protected(&r->packets[dirndx], 1);
-		pf_counter_u64_add_protected(&r->bytes[dirndx], pd->tot_len);
-		pf_update_timestamp(r);
+	/* If the rule has failed to apply, don't increase its counters */
+	if (!(action == PF_PASS || action == PF_AFRT || r->action == PF_DROP)) {
+		pf_counter_u64_critical_exit();
+		return;
+	}
 
-		if (a != NULL) {
-			pf_counter_u64_add_protected(&a->packets[dirndx], 1);
-			pf_counter_u64_add_protected(&a->bytes[dirndx], pd->tot_len);
+	if (s != NULL) {
+		PF_STATE_LOCK_ASSERT(s);
+		mr = &(s->match_rules);
+
+		/*
+		 * For af-to on the inbound direction we can determine
+		 * the direction only by checking direction of AF translation,
+		 * since the state is always "in" and so is packet's direction.
+		 */
+		if (pd->af != pd->naf && s->direction == PF_IN) {
+			dir_out = (pd->naf == s->rule->naf);
+			s_dir_in = 1;
+			s_dir_out = 0;
+			s_dir_rev = (pd->naf != s->rule->naf);
 		}
-		if (s != NULL) {
-			struct pf_krule_item	*ri;
+		else {
+			dir_out = (pd->dir == PF_OUT);
+			s_dir_in = (s->direction == PF_IN);
+			s_dir_out = (s->direction == PF_OUT);
+			s_dir_rev = (pd->dir != s->direction);
+		}
 
-			if (s->nat_rule != NULL) {
-				pf_counter_u64_add_protected(&s->nat_rule->packets[dirndx],
+		s->packets[s_dir_rev]++;
+		s->bytes[s_dir_rev] += pd->tot_len;
+
+		/*
+		 * Source nodes are accessed unlocked here. But since we are
+		 * operating with stateful tracking and the state is locked,
+		 * those SNs could not have been freed.
+		 */
+		for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
+			if (s->sns[sn_type] != NULL) {
+				counter_u64_add(
+				    s->sns[sn_type]->packets[dir_out],
 				    1);
-				pf_counter_u64_add_protected(&s->nat_rule->bytes[dirndx],
+				counter_u64_add(
+				    s->sns[sn_type]->bytes[dir_out],
 				    pd->tot_len);
 			}
-			/*
-			 * Source nodes are accessed unlocked here.
-			 * But since we are operating with stateful tracking
-			 * and the state is locked, those SNs could not have
-			 * been freed.
-			 */
-			for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
-				if (s->sns[sn_type] != NULL) {
-					counter_u64_add(
-					    s->sns[sn_type]->packets[dirndx],
-					    1);
-					counter_u64_add(
-					    s->sns[sn_type]->bytes[dirndx],
-					    pd->tot_len);
-				}
-			}
-			dirndx = (dir == s->direction) ? 0 : 1;
-			s->packets[dirndx]++;
-			s->bytes[dirndx] += pd->tot_len;
-
-			SLIST_FOREACH(ri, &s->match_rules, entry) {
-				pf_counter_u64_add_protected(&ri->r->packets[dirndx], 1);
-				pf_counter_u64_add_protected(&ri->r->bytes[dirndx], pd->tot_len);
-
-				if (ri->r->src.addr.type == PF_ADDR_TABLE)
-					pfr_update_stats(ri->r->src.addr.p.tbl,
-					    (s == NULL) ? pd->src :
-					    &s->key[(s->direction == PF_IN)]->
-						addr[(s->direction == PF_OUT)],
-					    pd->af, pd->tot_len, dir == PF_OUT,
-					    r->action == PF_PASS, ri->r->src.neg);
-				if (ri->r->dst.addr.type == PF_ADDR_TABLE)
-					pfr_update_stats(ri->r->dst.addr.p.tbl,
-					    (s == NULL) ? pd->dst :
-					    &s->key[(s->direction == PF_IN)]->
-						addr[(s->direction == PF_IN)],
-					    pd->af, pd->tot_len, dir == PF_OUT,
-					    r->action == PF_PASS, ri->r->dst.neg);
-			}
 		}
 
-		tr = r;
-		if (s != NULL && s->nat_rule != NULL &&
-		    r == &V_pf_default_rule)
-			tr = s->nat_rule;
-
-		if (tr->src.addr.type == PF_ADDR_TABLE)
-			pfr_update_stats(tr->src.addr.p.tbl,
-			    (s == NULL) ? pd->src :
-			    &s->key[(s->direction == PF_IN)]->
-				addr[(s->direction == PF_OUT)],
-			    pd->af, pd->tot_len, dir == PF_OUT,
-			    r->action == PF_PASS, tr->src.neg);
-		if (tr->dst.addr.type == PF_ADDR_TABLE)
-			pfr_update_stats(tr->dst.addr.p.tbl,
-			    (s == NULL) ? pd->dst :
-			    &s->key[(s->direction == PF_IN)]->
-				addr[(s->direction == PF_IN)],
-			    pd->af, pd->tot_len, dir == PF_OUT,
-			    r->action == PF_PASS, tr->dst.neg);
+		/* Start with pre-NAT addresses */
+		key = s->key[(s->direction == PF_OUT)];
+		src_host = &(key->addr[s_dir_out]);
+		dst_host = &(key->addr[s_dir_in]);
+		af = key->af;
+		if (s->nat_rule) {
+			/* Old-style NAT rules */
+			if (s->nat_rule->action == PF_NAT ||
+			    s->nat_rule->action == PF_RDR ||
+			    s->nat_rule->action == PF_BINAT) {
+				nr = s->nat_rule;
+				pf_rule_counters_inc(pd, s->nat_rule, dir_out,
+				    op_pass, af, src_host, dst_host);
+				/* Use post-NAT addresses from now on */
+				key = s->key[s_dir_in];
+				src_host = &(key->addr[s_dir_out]);
+				dst_host = &(key->addr[s_dir_in]);
+				af = key->af;
+			}
+		}
 	}
+
+	SLIST_FOREACH(ri, mr, entry) {
+		pf_rule_counters_inc(pd, ri->r, dir_out, op_pass, af,
+		    src_host, dst_host);
+		if (s && s->nat_rule == ri->r) {
+			/* Use post-NAT addresses after a match NAT rule */
+			key = s->key[s_dir_in];
+			src_host = &(key->addr[s_dir_out]);
+			dst_host = &(key->addr[s_dir_in]);
+			af = key->af;
+		}
+	}
+
+	if (s == NULL) {
+		pf_free_match_rules(mr);
+	}
+
+	if (a != NULL) {
+		pf_rule_counters_inc(pd, a, dir_out, op_pass, af,
+		    src_host, dst_host);
+	}
+
+	if (r != nr) {
+		pf_rule_counters_inc(pd, r, dir_out, op_pass, af,
+		    src_host, dst_host);
+	}
+
 	pf_counter_u64_critical_exit();
 }
+
 static void
 pf_log_matches(struct pf_pdesc *pd, struct pf_krule *rm,
     struct pf_krule *am, struct pf_kruleset *ruleset,
-    struct pf_krule_slist *matchrules)
+    struct pf_krule_slist *match_rules)
 {
 	struct pf_krule_item	*ri;
 
@@ -10739,7 +10787,7 @@ pf_log_matches(struct pf_pdesc *pd, struct pf_krule *rm,
 	if (rm->log & PF_LOG_MATCHES)
 		return;
 
-	SLIST_FOREACH(ri, matchrules, entry)
+	SLIST_FOREACH(ri, match_rules, entry)
 		if (ri->r->log & PF_LOG_MATCHES)
 			PFLOG_PACKET(rm->action, PFRES_MATCH, rm, am,
 			    ruleset, pd, 1, ri->r);
@@ -10756,6 +10804,8 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
+	struct pf_krule_item	*ri;
+	struct pf_krule_slist	 match_rules;
 	struct pf_pdesc		 pd;
 	int			 use_2nd_queue = 0;
 	uint16_t		 tag;
@@ -10792,6 +10842,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	}
 
 	pf_init_pdesc(&pd, *m0);
+	SLIST_INIT(&match_rules);
 
 	if (pd.pf_mtag != NULL && (pd.pf_mtag->flags & PF_MTAG_FLAG_ROUTE_TO)) {
 		pd.pf_mtag->flags &= ~PF_MTAG_FLAG_ROUTE_TO;
@@ -10888,7 +10939,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			action = PF_DROP;
 		else
 			action = pf_test_rule(&r, &s, &pd, &a,
-			    &ruleset, &reason, inp);
+			    &ruleset, &reason, inp, &match_rules);
 		if (action != PF_PASS)
 			REASON_SET(&reason, PFRES_FRAG);
 		break;
@@ -10946,7 +10997,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 				break;
 			} else {
 				action = pf_test_rule(&r, &s, &pd,
-				    &a, &ruleset, &reason, inp);
+				    &a, &ruleset, &reason, inp, &match_rules);
 			}
 		}
 		break;
@@ -10967,7 +11018,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			a = s->anchor;
 		} else if (s == NULL) {
 			action = pf_test_rule(&r, &s,
-			    &pd, &a, &ruleset, &reason, inp);
+			    &pd, &a, &ruleset, &reason, inp, &match_rules);
 		}
 		break;
 
@@ -10995,7 +11046,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			a = s->anchor;
 		} else if (s == NULL)
 			action = pf_test_rule(&r, &s, &pd,
-			    &a, &ruleset, &reason, inp);
+			    &a, &ruleset, &reason, inp, &match_rules);
 		break;
 	}
 
@@ -11004,8 +11055,11 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 done:
 	PF_RULES_RUNLOCK();
 
-	if (pd.m == NULL)
+	/* if packet sits in reassembly queue, return without error */
+	if (pd.m == NULL) {
+		pf_free_match_rules(&match_rules);
 		goto eat_pkt;
+	}
 
 	if (s)
 		memcpy(&pd.act, &s->act, sizeof(s->act));
@@ -11102,6 +11156,8 @@ done:
 			    (dir == PF_IN) ? PF_DIVERT_MTAG_DIR_IN :
 			    PF_DIVERT_MTAG_DIR_OUT;
 
+			pf_counters_inc(action, &pd, s, r, a, &match_rules);
+
 			if (s)
 				PF_STATE_UNLOCK(s);
 
@@ -11143,7 +11199,6 @@ done:
 
 	if (pd.act.log) {
 		struct pf_krule		*lr;
-		struct pf_krule_item	*ri;
 
 		if (s != NULL && s->nat_rule != NULL &&
 		    s->nat_rule->log & PF_LOG_ALL)
@@ -11162,7 +11217,7 @@ done:
 		}
 	}
 
-	pf_counters_inc(action, &pd, s, r, a);
+	pf_counters_inc(action, &pd, s, r, a, &match_rules);
 
 	switch (action) {
 	case PF_SYNPROXY_DROP:
