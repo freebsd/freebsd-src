@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 1, 2015
+.Dd September 3, 2025
 .Dt GPIO 3
 .Os
 .Sh NAME
@@ -79,6 +79,10 @@
 .Fn gpio_pin_invout "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
 .Fn gpio_pin_pulsate "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_configure_events "gpio_handle_t handle" "uint32_t report_type" "uint32_t fifo_size"
+.Ft int
+.Fn gpio_fileno "gpio_handle_t handle"
 .Sh DESCRIPTION
 The
 .Nm libgpio
@@ -125,7 +129,7 @@ The pin number should also be passed in through the
 variable.
 All other structure members will be ignored by this function.
 The list of flags can be found in
-.Pa /usr/include/sys/gpio.h .
+.In sys/gpio.h .
 .Pp
 The get or set the state of a GPIO pin, the functions
 .Fn gpio_pin_get
@@ -156,6 +160,66 @@ and
 .Fn gpio_pin_pulsate
 are wrappers around
 .Fn gpio_pin_set_flags .
+.Pp
+The function
+.Fn gpio_configure_events
+configures the interrupt report type and FIFO size for buffered
+gpio interrupts.
+The report type is specified by one of the following values:
+.Bl -tag -width indent
+.It Dv GPIO_EVENT_REPORT_DETAIL
+Events are reported using
+.Ft struct gpio_event_detail .
+.It Dv GPIO_EVENT_REPORT_SUMMARY
+Events are reported using
+.Ft struct gpio_event_summary .
+.El
+.Pp
+By default, the report type is
+.Dv GPIO_EVENT_REPORT_DETAIL ,
+with a default FIFO size of 2 * number of pins belonging to the
+.Ft gpio_device_t
+instance.
+The FIFO argument is only meaningful when
+.Fa report_type
+is
+.Dv GPIO_EVENT_REPORT_DETAIL .
+The structures associated with each report type are defined in
+.In sys/gpio.h .
+This setting is tracked on a per device instance basis.
+The FIFO size cannot be reduced below the default value,
+nor can it be decreased after it has been increased.
+If any pin on the device has already been configured for interrupts,
+.Fn gpio_configure_events
+fails and returns -1.
+On success 0 is returned.
+.Pp
+The function
+.Fn gpio_fileno
+returns the file descriptor associated with the
+.Ft gpio_handle_t
+instance.
+.Pp
+File operations have the following semantics:
+.Bl -tag -width "read (2)"
+.It Xr read 2
+Read one or more gpio interrupts that have occured
+since the last successful
+.Xr read 2 .
+The results are placed into the output buffer
+of the type previously established via
+.Fn gpio_configure_events .
+If there are no pending interrupts,
+.Xr read 2
+blocks until an interrupt occurs, unless
+.Dv O_NONBLOCK
+is set.
+.It Xr poll 2
+When receiving notification via
+.Xr poll 2
+or similar interfaces, the file descriptor becomes readable when
+one or more gpio interrupts are pending.
+.El
 .Sh EXAMPLES
 The following example shows how to configure pin 16 as output and then
 drive it high:
