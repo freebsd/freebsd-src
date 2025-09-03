@@ -1166,7 +1166,6 @@ struct pf_test_ctx {
 	int			 rewrite;
 	u_short			 reason;
 	struct pf_src_node	*sns[PF_SN_MAX];
-	struct pf_krule_slist	 rules;
 	struct pf_krule		*nr;
 	struct pf_krule		*tr;
 	struct pf_krule		**rm;
@@ -2724,8 +2723,10 @@ int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 #ifdef _KERNEL
 void			 pf_print_host(struct pf_addr *, u_int16_t, sa_family_t);
 
-enum pf_test_status	 pf_step_into_anchor(struct pf_test_ctx *, struct pf_krule *);
-enum pf_test_status	 pf_match_rule(struct pf_test_ctx *, struct pf_kruleset *);
+enum pf_test_status	 pf_step_into_anchor(struct pf_test_ctx *, struct pf_krule *,
+			    struct pf_krule_slist *match_rules);
+enum pf_test_status	 pf_match_rule(struct pf_test_ctx *, struct pf_kruleset *,
+			    struct pf_krule_slist *);
 void			 pf_step_into_keth_anchor(struct pf_keth_anchor_stackframe *,
 			    int *, struct pf_keth_ruleset **,
 			    struct pf_keth_rule **, struct pf_keth_rule **,

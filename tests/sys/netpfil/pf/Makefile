@@ -5,6 +5,7 @@ TESTS_SUBDIRS+=	ioctl
 
 ATF_TESTS_SH+=	altq \
 		anchor \
+		counters \
 		debug \
 		divert-to \
 		dup \
