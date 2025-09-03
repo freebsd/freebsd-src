@@ -296,7 +296,7 @@ mi_startup(void)
 			BOOTTRACE_INIT("sysinit 0x%7x", sip->subsystem);
 
 #if defined(VERBOSE_SYSINIT)
-		if (sip->subsystem > last && verbose_sysinit != 0) {
+		if (sip->subsystem != last && verbose_sysinit != 0) {
 			verbose = 1;
 			printf("subsystem %x\n", sip->subsystem);
 		}
