@@ -673,6 +673,9 @@ pfsync_body()
 		atf_fail "Initial SCTP connection failed"
 	fi
 
+	# Give pfsync some time to do its thing
+	sleep 1
+
 	# Verify that two has the connection too
 	state=$(jexec ${j}two pfctl -ss | grep sctp)
 	if [ -z "${state}" ];
