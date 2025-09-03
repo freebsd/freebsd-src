@@ -156,12 +156,3 @@ terminal() {
 # modem    u    1
 # terminal u  0
 # 3wire    u  0
-
-# Initialize all ports on a Cyclades-8yo.
-# modem    c  00 01 02 03 04 05 06 07
-
-# Initialize all ports on a Cyclades-16ye.
-# modem    c  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
-
-# Initialize all ports on a Digiboard 8.
-# modem    D  00 01 02 03 04 05 06 07
