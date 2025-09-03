@@ -695,7 +695,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		 * seen by upper protocol layers.
 		 */
 		if (!ETHER_IS_MULTICAST(eh->ether_dhost) &&
-		    bcmp(IF_LLADDR(ifp), eh->ether_dhost, ETHER_ADDR_LEN) != 0)
+		    memcmp(IF_LLADDR(ifp), eh->ether_dhost, ETHER_ADDR_LEN) != 0)
 			m->m_flags |= M_PROMISC;
 	}
 
