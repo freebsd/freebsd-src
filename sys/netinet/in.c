@@ -1872,6 +1872,8 @@ in_domifdetach(struct ifnet *ifp, void *aux)
 {
 	struct in_ifinfo *ii = (struct in_ifinfo *)aux;
 
+	MPASS(ifp->if_afdata[AF_INET] == NULL);
+
 	igmp_domifdetach(ifp);
 	lltable_free(ii->ii_llt);
 	free(ii, M_IFADDR);
