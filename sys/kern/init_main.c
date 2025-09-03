@@ -284,7 +284,7 @@ restart:
 			continue;
 
 #if defined(VERBOSE_SYSINIT)
-		if ((*sipp)->subsystem > last && verbose_sysinit != 0) {
+		if ((*sipp)->subsystem != last && verbose_sysinit != 0) {
 			verbose = 1;
 			last = (*sipp)->subsystem;
 			printf("subsystem %x\n", last);
