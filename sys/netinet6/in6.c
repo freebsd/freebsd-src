@@ -2618,6 +2618,8 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 {
 	struct in6_ifextra *ext = (struct in6_ifextra *)aux;
 
+	MPASS(ifp->if_afdata[AF_INET6] == NULL);
+
 	mld_domifdetach(ifp);
 	scope6_ifdetach(ext->scope6_id);
 	nd6_ifdetach(ifp, ext->nd_ifinfo);

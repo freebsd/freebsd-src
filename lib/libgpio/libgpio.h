@@ -102,6 +102,19 @@ int		gpio_pin_pulldown(gpio_handle_t, gpio_pin_t);
 int		gpio_pin_invin(gpio_handle_t, gpio_pin_t);
 int		gpio_pin_invout(gpio_handle_t, gpio_pin_t);
 int		gpio_pin_pulsate(gpio_handle_t, gpio_pin_t);
+/*
+ * GPIO event reporting configuration
+ *
+ * Set the event reporting type, the default being GPIO_EVENT_REPORT_DETAIL,
+ * and fifo size of 2 * number of pins belonging to the gpioc device instance.
+ * FIFO size can only be changed when report_type is GPIO_EVENT_REPORT_DETAIL.
+ */
+int 		gpio_configure_events(gpio_handle_t, uint32_t, uint32_t);
+/*
+ * Retrieve the file descriptor associated with gpio_handle_t, which can
+ * be used for gpio interrupts.
+ */
+int		gpio_fileno(gpio_handle_t);
 
 __END_DECLS
 

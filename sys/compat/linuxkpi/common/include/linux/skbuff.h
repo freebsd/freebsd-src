@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2025 The FreeBSD Foundation
- * Copyright (c) 2021-2023 Bjoern A. Zeeb
+ * Copyright (c) 2021-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -47,13 +47,11 @@
 #include <linux/ktime.h>
 #include <linux/compiler.h>
 
-#include "opt_wlan.h"
-
-/* Currently this is only used for wlan so we can depend on that. */
-#if defined(IEEE80211_DEBUG) && !defined(SKB_DEBUG)
-#define	SKB_DEBUG
-#endif
-
+/*
+ * At least the net/intel-irdma-kmod port pulls this header in; likely through
+ * if_ether.h (see PR289268).  This means we no longer can rely on
+ * IEEE80211_DEBUG (opt_wlan.h) to automatically set SKB_DEBUG.
+ */
 /* #define	SKB_DEBUG */
 
 #ifdef SKB_DEBUG
