@@ -2714,9 +2714,10 @@ _basic_bootstrap_tools+=usr.sbin/tzsetup
 
 # certctl is needed as an install tool.  libcrypto is rather heavy, so we'll
 # build that alongside it only for platforms that don't expose headers for
-# OpenSSL, like macOS.
+# OpenSSL, like macOS, or when building on releases with OpenSSL 1.x.
 .if ${MK_CAROOT} != "no" && ${MK_OPENSSL} != "no"
-.if ${.MAKE.OS} == "Darwin"
+.if ${.MAKE.OS} == "Darwin" || \
+    (${.MAKE.OS} == "FreeBSD" && ${BOOTSTRAPPING} < 1400000)
 _bootstrap_libcrypto=secure/lib/libcrypto
 ${_bt}-usr.sbin/certctl: ${_bt}-secure/lib/libcrypto
 .endif
