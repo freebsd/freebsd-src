@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
 
 atf_test_case nominal
 nominal_head()
