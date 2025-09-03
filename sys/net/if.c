@@ -4867,18 +4867,6 @@ if_gethandle(u_char type)
 }
 
 void
-if_bpfmtap(if_t ifp, struct mbuf *m)
-{
-       bpf_mtap_if(ifp, m);
-}
-
-void
-if_etherbpfmtap(if_t ifp, struct mbuf *m)
-{
-       ether_bpf_mtap_if(ifp, m);
-}
-
-void
 if_vlancap(if_t ifp)
 {
 	VLAN_CAPABILITIES(ifp);

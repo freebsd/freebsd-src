@@ -1545,5 +1545,7 @@ ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
 	ether_gen_addr_byname(if_name(ifp), hwaddr);
 }
 
+__strong_reference(ether_bpf_mtap_if, if_etherbpfmtap);
+
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
 MODULE_VERSION(ether, 1);

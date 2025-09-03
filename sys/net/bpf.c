@@ -3223,6 +3223,8 @@ bpf_validate(const struct bpf_insn *f, int len)
 
 #endif /* !DEV_BPF && !NETGRAPH_BPF */
 
+__strong_reference(bpf_mtap_if, if_bpfmtap);
+
 #ifdef DDB
 static void
 bpf_show_bpf_if(struct bpf_if *bpf_if)
