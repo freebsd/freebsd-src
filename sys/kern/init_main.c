@@ -145,13 +145,6 @@ FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
 #endif
 
 /*
- * This ensures that there is at least one entry so that the sysinit_set
- * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never
- * executed.
- */
-SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL);
-
-/*
  * The sysinit linker set compiled into the kernel.  These are placed onto the
  * sysinit list by mi_startup; sysinit_add can add (e.g., from klds) additional
  * sysinits to the linked list but the linker set here does not change.
