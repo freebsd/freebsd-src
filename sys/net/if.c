@@ -1101,6 +1101,7 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 	struct ifaddr *ifa;
 	int i;
 	struct domain *dp;
+	void *if_afdata[AF_MAX];
 #ifdef VIMAGE
 	bool shutdown;
 
@@ -1224,15 +1225,30 @@ finish_vnet_shutdown:
 	IF_AFDATA_LOCK(ifp);
 	i = ifp->if_afdata_initialized;
 	ifp->if_afdata_initialized = 0;
+	if (i != 0) {
+		/*
+		 * Defer the dom_ifdetach call.
+		 */
+		_Static_assert(sizeof(if_afdata) == sizeof(ifp->if_afdata),
+		    "array size mismatch");
+		memcpy(if_afdata, ifp->if_afdata, sizeof(if_afdata));
+		memset(ifp->if_afdata, 0, sizeof(ifp->if_afdata));
+	}
 	IF_AFDATA_UNLOCK(ifp);
 	if (i == 0)
 		return;
+	/*
+	 * XXXZL: This net epoch wait is not necessary if we have done right.
+	 * But if we do not, at least we can make a guarantee that threads those
+	 * enter net epoch will see NULL address family dependent data,
+	 * e.g. if_afdata[AF_INET6]. A clear NULL pointer derefence is much
+	 * better than writing to freed memory.
+	 */
+	NET_EPOCH_WAIT();
 	SLIST_FOREACH(dp, &domains, dom_next) {
-		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family]) {
-			(*dp->dom_ifdetach)(ifp,
-			    ifp->if_afdata[dp->dom_family]);
-			ifp->if_afdata[dp->dom_family] = NULL;
-		}
+		if (dp->dom_ifdetach != NULL &&
+		    if_afdata[dp->dom_family] != NULL)
+			(*dp->dom_ifdetach)(ifp, if_afdata[dp->dom_family]);
 	}
 }
 
