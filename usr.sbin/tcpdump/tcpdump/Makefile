@@ -197,9 +197,6 @@ CFLAGS+= -D_U_="__attribute__((unused))"
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=	-DINET6 -DHAVE_OS_IPV6_SUPPORT
 .endif
-.if ${MACHINE_CPUARCH} != "i386"
-CFLAGS+=	-DLBL_ALIGN
-.endif
 
 LIBADD=	pcap
 .if ${MK_CASPER} != "no"
