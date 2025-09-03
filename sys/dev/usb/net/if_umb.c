@@ -177,9 +177,7 @@ static void	 umb_ncm_setup(struct umb_softc *, struct usb_config *);
 static void	 umb_close_bulkpipes(struct umb_softc *);
 static int	 umb_ioctl(if_t , u_long, caddr_t);
 static void	 umb_init(void *);
-#ifdef DEV_NETMAP
 static void	 umb_input(if_t , struct mbuf *);
-#endif
 static int	 umb_output(if_t , struct mbuf *,
 		    const struct sockaddr *, struct route *);
 static void	 umb_start(if_t );
@@ -585,9 +583,7 @@ umb_attach_task(struct usb_proc_msg *msg)
 	if_setsoftc(ifp, sc);
 	if_setflags(ifp, IFF_SIMPLEX | IFF_MULTICAST | IFF_POINTOPOINT);
 	if_setioctlfn(ifp, umb_ioctl);
-#ifdef DEV_NETMAP
 	if_setinputfn(ifp, umb_input);
-#endif
 	if_setoutputfn(ifp, umb_output);
 	if_setstartfn(ifp, umb_start);
 	if_setinitfn(ifp, umb_init);
