@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2016-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -35,6 +35,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/cleanup.h>
 
 #include <machine/atomic.h>
 
@@ -161,5 +162,7 @@ void linux_synchronize_rcu(unsigned type);
 #define	destroy_rcu_head(...)
 #define	init_rcu_head_on_stack(...)
 #define	destroy_rcu_head_on_stack(...)
+
+DEFINE_LOCK_GUARD_0(rcu, rcu_read_lock(), rcu_read_unlock())
 
 #endif					/* _LINUXKPI_LINUX_RCUPDATE_H_ */
