@@ -128,8 +128,25 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     "Enable/Disable TCP SACK support");
 
 VNET_DEFINE(int, tcp_do_newsack) = 1;
-SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, revised, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_do_newsack), 0,
+
+static int
+sysctl_net_inet_tcp_sack_revised(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int new;
+
+	new = V_tcp_do_newsack;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		V_tcp_do_newsack = new;
+		gone_in(16, "net.inet.tcp.sack.revised will be deprecated."
+		    " net.inet.tcp.sack.enable will always follow RFC6675 SACK.\n");
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp_sack, OID_AUTO, revised, CTLFLAG_VNET | CTLFLAG_RW | CTLTYPE_INT,
+    &VNET_NAME(tcp_do_newsack), 0, sysctl_net_inet_tcp_sack_revised, "CU",
     "Use revised SACK loss recovery per RFC 6675");
 
 VNET_DEFINE(int, tcp_do_lrd) = 1;
