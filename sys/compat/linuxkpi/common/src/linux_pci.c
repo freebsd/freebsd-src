@@ -68,6 +68,7 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/vmalloc.h>
+#define	WANT_NATIVE_PCI_GET_SLOT
 #include <linux/pci.h>
 #include <linux/compat.h>
 
@@ -461,6 +462,20 @@ lkpi_pci_get_domain_bus_and_slot(int domain, unsigned int bus,
 	struct pci_dev *pdev;
 
 	dev = pci_find_dbsf(domain, bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
+	if (dev == NULL)
+		return (NULL);
+
+	pdev = lkpinew_pci_dev(dev);
+	return (pdev);
+}
+
+struct pci_dev *
+lkpi_pci_get_slot(struct pci_bus *pbus, unsigned int devfn)
+{
+	device_t dev;
+	struct pci_dev *pdev;
+
+	dev = pci_find_bsf(pbus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	if (dev == NULL)
 		return (NULL);
 

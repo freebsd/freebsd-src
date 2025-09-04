@@ -1311,6 +1311,12 @@ struct pci_dev *lkpi_pci_get_domain_bus_and_slot(int domain,
 #define	pci_get_domain_bus_and_slot(domain, bus, devfn)	\
 	lkpi_pci_get_domain_bus_and_slot(domain, bus, devfn)
 
+struct pci_dev *lkpi_pci_get_slot(struct pci_bus *, unsigned int);
+#ifndef	WANT_NATIVE_PCI_GET_SLOT
+#define	pci_get_slot(_pbus, _devfn)				\
+    lkpi_pci_get_slot(_pbus, _devfn)
+#endif
+
 static inline int
 pci_domain_nr(struct pci_bus *pbus)
 {

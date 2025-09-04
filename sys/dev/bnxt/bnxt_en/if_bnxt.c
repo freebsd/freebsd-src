@@ -49,6 +49,7 @@
 #include <net/ethernet.h>
 #include <net/iflib.h>
 
+#define	WANT_NATIVE_PCI_GET_SLOT
 #include <linux/pci.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
