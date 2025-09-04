@@ -31,7 +31,6 @@
 #ifndef _PSEUDOFS_H_INCLUDED
 #define _PSEUDOFS_H_INCLUDED
 
-#include <sys/_sx.h>
 #include <sys/jail.h>
 
 /*
@@ -189,11 +188,9 @@ typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
 /*
  * pfs_info: describes a pseudofs instance
  *
- * The pi_mutex is used to avoid using the global subr_unit lock for unrhdr, and
- * the pi_mountlock is used to coordinate initialization of the consumer
- * filesystem on first mount.  The rest of struct pfs_info is only modified
- * during pi_init() and pi_uninit() of the consumer filesystem, which are fully
- * serialized.
+ * The pi_mutex is only used to avoid using the global subr_unit lock
+ * for unrhdr.  The rest of struct pfs_info is only modified during
+ * vfs_init() and vfs_uninit() of the consumer filesystem.
  */
 struct pfs_info {
 	char			 pi_name[PFS_FSNAMELEN];
@@ -201,11 +198,9 @@ struct pfs_info {
 	pfs_init_t		 pi_uninit;
 
 	/* members below this line are initialized at run time */
-	struct sx		 pi_mountlock;
 	struct pfs_node		*pi_root;
 	struct mtx		 pi_mutex;
 	struct unrhdr		*pi_unrhdr;
-	u_int			 pi_mounts;
 };
 
 /*
@@ -254,8 +249,8 @@ int		 pfs_unmount	(struct mount *mp, int mntflags);
 int		 pfs_root	(struct mount *mp, int flags,
 				 struct vnode **vpp);
 int		 pfs_statfs	(struct mount *mp, struct statfs *sbp);
-int		 pfs_vfsinit	(struct pfs_info *pi, struct vfsconf *vfc);
-int		 pfs_vfsuninit	(struct pfs_info *pi, struct vfsconf *vfc);
+int		 pfs_init	(struct pfs_info *pi, struct vfsconf *vfc);
+int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
 
 /*
  * Directory structure construction and manipulation
@@ -282,9 +277,9 @@ int		 pfs_destroy	(struct pfs_node *pn);
 #define PSEUDOFS(name, version, flags)					\
 									\
 static struct pfs_info name##_info = {					\
-	.pi_name = #name,						\
-	.pi_init = name##_init,						\
-	.pi_uninit = name##_uninit,					\
+	#name,								\
+	name##_init,							\
+	name##_uninit,							\
 };									\
 									\
 static int								\
@@ -293,22 +288,22 @@ _##name##_mount(struct mount *mp) {					\
 }									\
 									\
 static int								\
-_##name##_vfsinit(struct vfsconf *vfc) {				\
-	return (pfs_vfsinit(&name##_info, vfc));			\
+_##name##_init(struct vfsconf *vfc) {					\
+	return (pfs_init(&name##_info, vfc));				\
 }									\
 									\
 static int								\
-_##name##_vfsuninit(struct vfsconf *vfc) {				\
-	return (pfs_vfsuninit(&name##_info, vfc));			\
+_##name##_uninit(struct vfsconf *vfc) {					\
+	return (pfs_uninit(&name##_info, vfc));				\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\
 	.vfs_cmount =		pfs_cmount,				\
-	.vfs_init =		_##name##_vfsinit,			\
+	.vfs_init =		_##name##_init,				\
 	.vfs_mount =		_##name##_mount,			\
 	.vfs_root =		pfs_root,				\
 	.vfs_statfs =		pfs_statfs,				\
-	.vfs_uninit =		_##name##_vfsuninit,			\
+	.vfs_uninit =		_##name##_uninit,			\
 	.vfs_unmount =		pfs_unmount,				\
 };									\
 VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC | flags);			\
