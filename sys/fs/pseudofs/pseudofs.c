@@ -40,12 +40,17 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/sbuf.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
+
+static int pfs_setup(struct pfs_info *pi, struct vfsconf *vfc);
+static int pfs_teardown(struct pfs_info *pi, struct vfsconf *vfc);
 
 static MALLOC_DEFINE(M_PFSNODES, "pfs_nodes", "pseudofs nodes");
 
@@ -382,9 +387,19 @@ int
 pfs_mount(struct pfs_info *pi, struct mount *mp)
 {
 	struct statfs *sbp;
+	int error = 0;
 
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
+
+	sx_xlock(&pi->pi_mountlock);
+	if (pi->pi_root == NULL)
+		error = pfs_setup(pi, mp->mnt_vfc);
+	if (error == 0)
+		refcount_acquire(&pi->pi_mounts);
+	sx_xunlock(&pi->pi_mountlock);
+	if (error != 0)
+		return (error);
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
@@ -424,10 +439,23 @@ pfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 int
 pfs_unmount(struct mount *mp, int mntflags)
 {
+	struct pfs_info *pi;
 	int error;
 
 	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0,
 	    curthread);
+	if (error != 0)
+		return (error);
+
+	pi = (struct pfs_info *)mp->mnt_data;
+	sx_xlock(&pi->pi_mountlock);
+	if (!refcount_release_if_not_last(&pi->pi_mounts)) {
+		error = pfs_teardown(pi, mp->mnt_vfc);
+		if (error == 0)
+			refcount_release(&pi->pi_mounts);
+	}
+	sx_xunlock(&pi->pi_mountlock);
+
 	return (error);
 }
 
@@ -454,10 +482,35 @@ pfs_statfs(struct mount *mp, struct statfs *sbp)
 }
 
 /*
- * Initialize a pseudofs instance
+ * Initialize pseudofs synchronization bits.  These will generally be needed
+ * in order to avoid problems with parallel mounting of pseudofs consumers.
  */
 int
-pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
+pfs_vfsinit(struct pfs_info *pi, struct vfsconf *vfc)
+{
+
+	sx_init(&pi->pi_mountlock, "pfs mountlock");
+	refcount_init(&pi->pi_mounts, 0);
+	return (0);
+}
+
+int
+pfs_vfsuninit(struct pfs_info *pi, struct vfsconf *vfc)
+{
+
+	MPASS(pi->pi_root == NULL);
+	sx_destroy(&pi->pi_mountlock);
+
+	if (bootverbose)
+		printf("%s unregistered\n", pi->pi_name);
+	return (0);
+}
+
+/*
+ * Initialize a pseudofs instance
+ */
+static int
+pfs_setup(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	struct pfs_node *root;
 	int error;
@@ -487,18 +540,20 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 /*
  * Destroy a pseudofs instance
  */
-int
-pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
+static int
+pfs_teardown(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	int error;
+
+	MPASS(pi->pi_root != NULL);
+	error = (pi->pi_uninit)(pi, vfc);
+	if (error != 0)
+		return (error);
 
 	pfs_destroy(pi->pi_root);
 	pi->pi_root = NULL;
 	pfs_fileno_uninit(pi);
-	if (bootverbose)
-		printf("%s unregistered\n", pi->pi_name);
-	error = (pi->pi_uninit)(pi, vfc);
-	return (error);
+	return (0);
 }
 
 /*
