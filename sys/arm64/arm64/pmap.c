@@ -201,6 +201,8 @@ __exclusive_cache_line static struct pmap_large_md_page pv_dummy_large;
 #define pv_dummy pv_dummy_large.pv_page
 __read_mostly static struct pmap_large_md_page *pv_table;
 
+static __inline void pmap_s1_invalidate_all_kernel(void);
+
 static struct pmap_large_md_page *
 _pa_to_pmdp(vm_paddr_t pa)
 {
@@ -1297,7 +1299,7 @@ pmap_bootstrap_dmap(vm_size_t kernlen)
 		}
 	}
 
-	cpu_tlb_flushID();
+	pmap_s1_invalidate_all_kernel();
 
 	bs_state.dmap_valid = true;
 
@@ -1399,7 +1401,7 @@ pmap_bootstrap(void)
 	/* And the l3 tables for the early devmap */
 	pmap_bootstrap_l3(VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE));
 
-	cpu_tlb_flushID();
+	pmap_s1_invalidate_all_kernel();
 
 #define alloc_pages(var, np)						\
 	(var) = bs_state.freemempos;					\
@@ -1959,6 +1961,15 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		pmap_s1_invalidate_range(pmap, sva, eva, final_only);
 	else
 		pmap_s2_invalidate_range(pmap, sva, eva, final_only);
+}
+
+static __inline void
+pmap_s1_invalidate_all_kernel(void)
+{
+	dsb(ishst);
+	__asm __volatile("tlbi vmalle1is");
+	dsb(ish);
+	isb();
 }
 
 /*
@@ -7965,7 +7976,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 			pa += L2_SIZE;
 		}
 		if ((old_l2e & ATTR_DESCR_VALID) != 0)
-			pmap_s1_invalidate_all(kernel_pmap);
+			pmap_s1_invalidate_all_kernel();
 		else {
 			/*
 			 * Because the old entries were invalid and the new
@@ -8056,7 +8067,7 @@ pmap_unmapbios(void *p, vm_size_t size)
 		}
 	}
 	if (preinit_map) {
-		pmap_s1_invalidate_all(kernel_pmap);
+		pmap_s1_invalidate_all_kernel();
 		return;
 	}
 
