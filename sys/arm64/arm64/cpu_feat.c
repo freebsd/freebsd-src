@@ -40,10 +40,13 @@ static cpu_feat_errata_check_fn cpu_feat_check_cb = NULL;
 void
 enable_cpu_feat(uint32_t stage)
 {
+	char tunable[32];
 	struct cpu_feat **featp, *feat;
 	uint32_t midr;
 	u_int errata_count, *errata_list;
 	cpu_feat_errata errata_status;
+	cpu_feat_en check_status;
+	bool val;
 
 	MPASS((stage & ~CPU_FEAT_STAGE_MASK) == 0);
 
@@ -60,8 +63,25 @@ enable_cpu_feat(uint32_t stage)
 		    PCPU_GET(cpuid) != 0)
 			continue;
 
-		if (feat->feat_check != NULL && !feat->feat_check(feat, midr))
+		if (feat->feat_check != NULL)
 			continue;
+
+		check_status = feat->feat_check(feat, midr);
+		/* Ignore features that are not present */
+		if (check_status == FEAT_ALWAYS_DISABLE)
+			continue;
+
+		snprintf(tunable, sizeof(tunable), "hw.feat.%s",
+		    feat->feat_name);
+		if (TUNABLE_BOOL_FETCH(tunable, &val)) {
+			/* Is the feature disabled by the tunable? */
+			if (!val)
+				continue;
+			/* If enabled by the tunable then enable it */
+		} else if (check_status == FEAT_DEFAULT_DISABLE) {
+			/* No tunable set and disabled by default */
+			continue;
+		}
 
 		/*
 		 * Check if the feature has any errata that may need a
