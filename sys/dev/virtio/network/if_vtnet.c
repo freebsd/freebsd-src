@@ -3052,12 +3052,10 @@ vtnet_get_counter(if_t ifp, ift_counter cnt)
 		return (rxaccum.vrxs_ibytes);
 	case IFCOUNTER_OPACKETS:
 		return (txaccum.vtxs_opackets);
-#ifndef VTNET_LEGACY_TX
 	case IFCOUNTER_OBYTES:
 		return (txaccum.vtxs_obytes);
 	case IFCOUNTER_OMCASTS:
 		return (txaccum.vtxs_omcasts);
-#endif
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
