@@ -70,7 +70,7 @@ SRSC+=	tls_pad.c
 SRCS+=	poll_immediate.c
 SRCS+=	rio_notifier.c poll_builder.c
 
-.if ${MK_OPENSSL_KTLS} == "no"
+.if ${MK_OPENSSL_KTLS} == "no" || defined(BOOTSTRAPPING)
 CFLAGS+=-DOPENSSL_NO_KTLS
 .else
 SRCS+=	ktls_meth.c

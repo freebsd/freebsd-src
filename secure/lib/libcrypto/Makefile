@@ -649,10 +649,11 @@ _cmd1=/%%NO_ASM%%/d
 .else
 _cmd1=s/%%NO_ASM%%//
 .endif
-.if ${MK_OPENSSL_KTLS} != "no"
+.if ${MK_OPENSSL_KTLS} != "no" && !defined(BOOTSTRAPPING)
 _cmd2=/%%NO_KTLS%%/d
 .else
 _cmd2=s/%%NO_KTLS%%//
+CFLAGS+= -DOPENSSL_NO_KTLS
 .endif
 
 buildinf.h: Makefile
