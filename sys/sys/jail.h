@@ -144,6 +144,7 @@ MALLOC_DECLARE(M_PRISON);
 #define	JAIL_META_PRIVATE	"meta"
 #define	JAIL_META_SHARED	"env"
 
+struct knlist;
 struct racct;
 struct prison_racct;
 
@@ -189,7 +190,8 @@ struct prison {
 	struct vnode	*pr_root;			/* (c) vnode to rdir */
 	struct prison_ip  *pr_addrs[PR_FAMILY_MAX];	/* (p,n) IPs of jail */
 	struct prison_racct *pr_prison_racct;		/* (c) racct jail proxy */
-	void		*pr_sparep[3];
+	struct knlist	*pr_klist;			/* (m) attached knotes */
+	void		*pr_sparep[2];
 	int		 pr_childcount;			/* (a) number of child jails */
 	int		 pr_childmax;			/* (p) maximum child jails */
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
@@ -425,10 +427,11 @@ SYSCTL_DECL(_security_jail_param);
 /*
  * Kernel support functions for jail().
  */
-struct ucred;
+struct knote;
 struct mount;
 struct sockaddr;
 struct statfs;
+struct ucred;
 struct vfsconf;
 
 /*
