@@ -193,9 +193,6 @@
     (((mask) & PCPU_GET(midr)) ==			\
     ((mask) & CPU_ID_RAW((impl), (part), (var), (rev))))
 
-#define	CPU_MATCH_RAW(mask, devid)			\
-    (((mask) & PCPU_GET(midr)) == ((mask) & (devid)))
-
 #if !defined(__ASSEMBLER__)
 static inline bool
 midr_check_var_part_range(u_int midr, u_int impl, u_int part, u_int var_low,
