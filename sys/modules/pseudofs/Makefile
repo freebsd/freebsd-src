@@ -13,8 +13,8 @@ EXPORT_SYMS=	pfs_cmount 	\
 		pfs_unmount	\
 		pfs_root	\
 		pfs_statfs	\
-		pfs_init	\
-		pfs_uninit	\
+		pfs_vfsinit	\
+		pfs_vfsuninit	\
 		pfs_create_dir	\
 		pfs_create_file	\
 		pfs_create_link	\
