@@ -536,8 +536,8 @@ adf_exit_accel_units(struct adf_accel_dev *accel_dev)
 }
 
 static const char *
-get_obj_name(struct adf_accel_dev *accel_dev,
-	     enum adf_accel_unit_services service)
+get_obj_name_4xxx(struct adf_accel_dev *accel_dev,
+		  enum adf_accel_unit_services service)
 {
 	switch (service) {
 	case ADF_ACCEL_ASYM:
@@ -548,6 +548,24 @@ get_obj_name(struct adf_accel_dev *accel_dev,
 		return ADF_4XXX_DC_OBJ;
 	case ADF_ACCEL_ADMIN:
 		return ADF_4XXX_ADMIN_OBJ;
+	default:
+		return NULL;
+	}
+}
+
+static const char *
+get_obj_name_402xx(struct adf_accel_dev *accel_dev,
+		   enum adf_accel_unit_services service)
+{
+	switch (service) {
+	case ADF_ACCEL_ASYM:
+		return ADF_402XX_ASYM_OBJ;
+	case ADF_ACCEL_CRYPTO:
+		return ADF_402XX_SYM_OBJ;
+	case ADF_ACCEL_COMPRESSION:
+		return ADF_402XX_DC_OBJ;
+	case ADF_ACCEL_ADMIN:
+		return ADF_402XX_ADMIN_OBJ;
 	default:
 		return NULL;
 	}
@@ -982,8 +1000,23 @@ adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 id)
 	hw_data->clock_frequency = ADF_4XXX_AE_FREQ;
 	hw_data->get_sku = get_sku;
 	hw_data->heartbeat_ctr_num = ADF_NUM_HB_CNT_PER_AE;
-	hw_data->fw_name = ADF_4XXX_FW;
-	hw_data->fw_mmp_name = ADF_4XXX_MMP;
+	switch (id) {
+	case ADF_402XX_PCI_DEVICE_ID:
+		hw_data->fw_name = ADF_402XX_FW;
+		hw_data->fw_mmp_name = ADF_402XX_MMP;
+		hw_data->asym_ae_active_thd_mask = DEFAULT_4XXX_ASYM_AE_MASK;
+		break;
+	case ADF_401XX_PCI_DEVICE_ID:
+		hw_data->fw_name = ADF_4XXX_FW;
+		hw_data->fw_mmp_name = ADF_4XXX_MMP;
+		hw_data->asym_ae_active_thd_mask = DEFAULT_401XX_ASYM_AE_MASK;
+		break;
+
+	default:
+		hw_data->fw_name = ADF_4XXX_FW;
+		hw_data->fw_mmp_name = ADF_4XXX_MMP;
+		hw_data->asym_ae_active_thd_mask = DEFAULT_4XXX_ASYM_AE_MASK;
+	}
 	hw_data->init_admin_comms = adf_init_admin_comms;
 	hw_data->exit_admin_comms = adf_exit_admin_comms;
 	hw_data->send_admin_init = adf_4xxx_send_admin_init;
@@ -1002,7 +1035,13 @@ adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 id)
 	hw_data->get_ring_svc_map_data = get_ring_svc_map_data;
 	hw_data->admin_ae_mask = ADF_4XXX_ADMIN_AE_MASK;
 	hw_data->get_objs_num = get_objs_num;
-	hw_data->get_obj_name = get_obj_name;
+	switch (id) {
+	case ADF_402XX_PCI_DEVICE_ID:
+		hw_data->get_obj_name = get_obj_name_402xx;
+		break;
+	default:
+		hw_data->get_obj_name = get_obj_name_4xxx;
+	}
 	hw_data->get_obj_cfg_ae_mask = get_obj_cfg_ae_mask;
 	hw_data->get_service_type = adf_4xxx_get_service_type;
 	hw_data->set_msix_rttable = set_msix_default_rttable;
@@ -1021,15 +1060,6 @@ adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 id)
 	hw_data->measure_clock = measure_clock;
 	hw_data->query_storage_cap = 1;
 	hw_data->ring_pair_reset = adf_gen4_ring_pair_reset;
-
-	switch (id) {
-	case ADF_401XX_PCI_DEVICE_ID:
-		hw_data->asym_ae_active_thd_mask = DEFAULT_401XX_ASYM_AE_MASK;
-		break;
-	case ADF_4XXX_PCI_DEVICE_ID:
-	default:
-		hw_data->asym_ae_active_thd_mask = DEFAULT_4XXX_ASYM_AE_MASK;
-	}
 
 	adf_gen4_init_hw_csr_info(&hw_data->csr_info);
 	adf_gen4_init_pf_pfvf_ops(&hw_data->csr_info.pfvf_ops);
