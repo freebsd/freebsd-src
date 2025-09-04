@@ -78,6 +78,8 @@ struct pci_conf {
 	char		pd_name[PCI_MAXNAMELEN + 1];  /* device name */
 	u_long		pd_unit;	/* device unit number */
 	int		pd_numa_domain;	/* device NUMA domain */
+	size_t		pc_reported_len;/* length of PCI data reported */
+	char		pc_spare[64];	/* space for future fields */
 };
 
 struct pci_match_conf {
