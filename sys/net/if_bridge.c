@@ -522,7 +522,7 @@ SYSCTL_BOOL(_net_link_bridge, OID_AUTO, log_mac_flap,
     "Log MAC address port flapping");
 
 /* allow IP addresses on bridge members */
-VNET_DEFINE_STATIC(bool, member_ifaddrs) = false;
+VNET_DEFINE_STATIC(bool, member_ifaddrs) = true;
 #define	V_member_ifaddrs	VNET(member_ifaddrs)
 SYSCTL_BOOL(_net_link_bridge, OID_AUTO, member_ifaddrs,
     CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(member_ifaddrs), false,
