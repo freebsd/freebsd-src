@@ -2272,25 +2272,13 @@ static const struct mrs_user_reg user_regs[] = {
 static bool
 user_ctr_has_neoverse_n1_1542419(uint32_t midr, uint64_t ctr)
 {
-	/* Skip non-Neoverse-N1 */
-	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
-	    CPU_PART_NEOVERSE_N1, 0, 0))
-		return (false);
-
-	switch (CPU_VAR(midr)) {
-	default:
-		break;
-	case 4:
-		/* Fixed in r4p1 */
-		if (CPU_REV(midr) > 0)
-			break;
-		/* FALLTHROUGH */
-	case 3:
-		/* If DIC is enabled (coherent icache) then we are affected */
-		return (CTR_DIC_VAL(ctr) != 0);
-	}
-
-	return (false);
+	/*
+	 * Neoverse-N1 erratum 1542419
+	 * Present in r3p0 - r4p0
+	 * Fixed in r4p1
+	 */
+	return (midr_check_var_part_range(midr, CPU_IMPL_ARM,
+	    CPU_PART_NEOVERSE_N1, 3, 0, 4, 0) && CTR_DIC_VAL(ctr) != 0);
 }
 
 static cpu_feat_en
