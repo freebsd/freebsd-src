@@ -1,5 +1,3 @@
-PACKAGE=	kerberos-lib
-
 LIB=	gssapi_spnego
 LDFLAGS+= -Wl,-Bsymbolic -Wl,--no-undefined
 LIBADD=	gssapi heimbase asn1 roken
