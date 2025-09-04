@@ -9760,6 +9760,7 @@ pf_pdesc_to_dnflow(const struct pf_pdesc *pd, const struct pf_krule *r,
     const struct pf_kstate *s, struct ip_fw_args *dnflow)
 {
 	int dndir = r->direction;
+	sa_family_t af  = pd->naf;
 
 	if (s && dndir == PF_INOUT) {
 		dndir = s->direction;
@@ -9800,19 +9801,45 @@ pf_pdesc_to_dnflow(const struct pf_pdesc *pd, const struct pf_krule *r,
 
 	dnflow->f_id.proto = pd->proto;
 	dnflow->f_id.extra = dnflow->rule.info;
-	switch (pd->naf) {
+	if (s)
+		af = s->key[PF_SK_STACK]->af;
+
+	switch (af) {
 	case AF_INET:
 		dnflow->f_id.addr_type = 4;
-		dnflow->f_id.src_ip = ntohl(pd->src->v4.s_addr);
-		dnflow->f_id.dst_ip = ntohl(pd->dst->v4.s_addr);
+		if (s) {
+			dnflow->f_id.src_ip = htonl(
+			    s->key[PF_SK_STACK]->addr[pd->sidx].v4.s_addr);
+			dnflow->f_id.dst_ip = htonl(
+			    s->key[PF_SK_STACK]->addr[pd->didx].v4.s_addr);
+		} else {
+			dnflow->f_id.src_ip = ntohl(pd->src->v4.s_addr);
+			dnflow->f_id.dst_ip = ntohl(pd->dst->v4.s_addr);
+		}
 		break;
 	case AF_INET6:
-		dnflow->flags |= IPFW_ARGS_IP6;
 		dnflow->f_id.addr_type = 6;
-		dnflow->f_id.src_ip6 = pd->src->v6;
-		dnflow->f_id.dst_ip6 = pd->dst->v6;
+
+		if (s) {
+			dnflow->f_id.src_ip6 =
+			    s->key[PF_SK_STACK]->addr[pd->sidx].v6;
+			dnflow->f_id.dst_ip6 =
+			    s->key[PF_SK_STACK]->addr[pd->didx].v6;
+		} else {
+			dnflow->f_id.src_ip6 = pd->src->v6;
+			dnflow->f_id.dst_ip6 = pd->dst->v6;
+		}
 		break;
 	}
+
+	/*
+	 * Separate this out, because while we pass the pre-NAT addresses to
+	 * dummynet we want the post-nat address family in case of nat64.
+	 * Dummynet may call ip_output/ip6_output itself, and we need it to
+	 * call the correct one.
+	 */
+	if (pd->naf == AF_INET6)
+		dnflow->flags |= IPFW_ARGS_IP6;
 
 	return (true);
 }
