@@ -111,6 +111,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_iov_uninit, linux_pci_iov_uninit),
 	DEVMETHOD(pci_iov_add_vf, linux_pci_iov_add_vf),
 
+	/* Bus interface. */
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
+
 	/* backlight interface */
 	DEVMETHOD(backlight_update_status, linux_backlight_update_status),
 	DEVMETHOD(backlight_get_status, linux_backlight_get_status),
