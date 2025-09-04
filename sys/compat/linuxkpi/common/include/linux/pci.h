@@ -1445,6 +1445,9 @@ linuxkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 	return (lkpi_pci_get_device(vendor, device, odev));
 }
 
+#define	for_each_pci_dev(_pdev)						\
+    while ((_pdev = linuxkpi_pci_get_device(PCI_ANY_ID, PCI_ANY_ID, _pdev)) != NULL)
+
 /* This is a FreeBSD extension so we can use bus_*(). */
 static inline void
 linuxkpi_pcim_want_to_use_bus_functions(struct pci_dev *pdev)

@@ -289,12 +289,18 @@ lkpi_pci_get_device(uint32_t vendor, uint32_t device, struct pci_dev *odev)
 {
 	struct pci_dev *pdev, *found;
 
-	KASSERT(odev == NULL, ("%s: odev argument not yet supported\n", __func__));
-
 	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (pdev->vendor == vendor && pdev->device == device) {
+		/* Walk until we find odev. */
+		if (odev != NULL) {
+			if (pdev == odev)
+				odev = NULL;
+			continue;
+		}
+
+		if ((pdev->vendor == vendor || vendor == PCI_ANY_ID) &&
+		    (pdev->device == device || device == PCI_ANY_ID)) {
 			found = pdev;
 			break;
 		}
