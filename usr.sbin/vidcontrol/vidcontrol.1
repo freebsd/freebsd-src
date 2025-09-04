@@ -282,11 +282,17 @@ Show the current changes.
 .El
 .It Fl d
 Print out current output screen map.
+Supported only with
+.Xr syscons 4 .
 .It Fl E Ar emulator
 Set the terminal emulator to
 .Ar emulator .
+Supported only with
+.Xr syscons 4 .
 .It Fl e
 Show the active and available terminal emulators.
+Supported only with
+.Xr syscons 4 .
 .It Xo
 .Fl f
 .Oo
@@ -358,13 +364,12 @@ Shows the possible video modes with the current video hardware.
 .It Fl l Ar screen_map
 Install screen output map file from
 .Ar screen_map .
-See also
-.Xr syscons 4
-or
-.Xr vt 4
-(depending on which driver you use).
+Supported only with
+.Xr syscons 4 .
 .It Fl L
 Install default screen output map.
+Supported only with
+.Xr syscons 4 .
 .It Fl M Ar char
 Sets the base character used to render the mouse pointer to
 .Ar char .
