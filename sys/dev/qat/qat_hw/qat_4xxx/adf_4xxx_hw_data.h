@@ -87,6 +87,12 @@
 #define ADF_4XXX_SYM_OBJ "qat_4xxx_sym.bin"
 #define ADF_4XXX_ASYM_OBJ "qat_4xxx_asym.bin"
 #define ADF_4XXX_ADMIN_OBJ "qat_4xxx_admin.bin"
+#define ADF_402XX_FW "qat_402xx_fw"
+#define ADF_402XX_MMP "qat_402xx_mmp_fw"
+#define ADF_402XX_DC_OBJ "qat_402xx_dc.bin"
+#define ADF_402XX_SYM_OBJ "qat_402xx_sym.bin"
+#define ADF_402XX_ASYM_OBJ "qat_402xx_asym.bin"
+#define ADF_402XX_ADMIN_OBJ "qat_402xx_admin.bin"
 
 /* Only 3 types of images can be loaded including the admin image */
 #define ADF_4XXX_MAX_OBJ 3
