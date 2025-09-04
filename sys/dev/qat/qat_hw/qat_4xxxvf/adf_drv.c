@@ -22,12 +22,14 @@ static MALLOC_DEFINE(M_QAT_4XXXVF, "qat_4xxxvf", "qat_4xxxvf");
 		PCI_VENDOR_ID_INTEL, device_id                                 \
 	}
 
-static const struct pci_device_id adf_pci_tbl[] =
-    { ADF_SYSTEM_DEVICE(ADF_4XXXIOV_PCI_DEVICE_ID),
-      ADF_SYSTEM_DEVICE(ADF_401XXIOV_PCI_DEVICE_ID),
-      {
-	  0,
-      } };
+static const struct pci_device_id adf_pci_tbl[] = {
+	ADF_SYSTEM_DEVICE(ADF_4XXXIOV_PCI_DEVICE_ID),
+	ADF_SYSTEM_DEVICE(ADF_401XXIOV_PCI_DEVICE_ID),
+	ADF_SYSTEM_DEVICE(ADF_402XXIOV_PCI_DEVICE_ID),
+	{
+	    0,
+	}
+};
 
 static int
 adf_probe(device_t dev)
@@ -76,6 +78,7 @@ adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		switch (pci_get_device(accel_pci_dev->pci_dev)) {
 		case ADF_4XXXIOV_PCI_DEVICE_ID:
 		case ADF_401XXIOV_PCI_DEVICE_ID:
+		case ADF_402XXIOV_PCI_DEVICE_ID:
 			adf_clean_hw_data_4xxxiov(accel_dev->hw_device);
 			break;
 		default:
