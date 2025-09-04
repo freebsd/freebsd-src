@@ -267,6 +267,8 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 	struct pci_devinfo *dinfo;
 	char *device, *host, *new_path, *devname;
 
+	children = NULL;
+	device = host = NULL;
 	new_path = path;
 	devname = malloc(16, M_TEMP, M_WAITOK);
 
@@ -294,6 +296,10 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 				strcat(new_path, device);
 				dir = pfs_create_dir(dir, device,
 				    NULL, NULL, NULL, 0);
+				if (dir == NULL) {
+					error = EEXIST;
+					goto out;
+				}
 				cur_file = pfs_create_file(dir, "vendor",
 				    &linsysfs_fill_vendor, NULL, NULL, NULL,
 				    PFS_RD);
@@ -338,10 +344,10 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 					    NULL, NULL, NULL, 0);
 					scsi_host = malloc(sizeof(
 					    struct scsi_host_queue),
-					    M_DEVBUF, M_NOWAIT);
+					    M_DEVBUF, M_WAITOK);
 					scsi_host->path = malloc(
 					    strlen(new_path) + 1,
-					    M_DEVBUF, M_NOWAIT);
+					    M_DEVBUF, M_WAITOK);
 					scsi_host->path[0] = '\000';
 					bcopy(new_path, scsi_host->path,
 					    strlen(new_path) + 1);
@@ -360,8 +366,6 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 					TAILQ_INSERT_TAIL(&scsi_host_q,
 					    scsi_host, scsi_host_next);
 				}
-				free(device, M_TEMP);
-				free(host, M_TEMP);
 			}
 		}
 
@@ -401,17 +405,37 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 
 	error = device_get_children(dev, &children, &nchildren);
 	if (error == 0) {
-		for (i = 0; i < nchildren; i++)
-			if (children[i])
-				linsysfs_run_bus(children[i], dir, scsi,
+		for (i = 0; i < nchildren; i++) {
+			if (children[i]) {
+				error = linsysfs_run_bus(children[i], dir, scsi,
 				    chardev, drm, new_path, prefix);
-		free(children, M_TEMP);
+				if (error != 0) {
+					printf(
+					    "linsysfs_run_bus: %s omitted from sysfs tree, error %d\n",
+					    device_get_nameunit(children[i]),
+					    error);
+				}
+			}
+		}
+
+		/*
+		 * We override the error to avoid cascading failures; the
+		 * innermost device that failed in a tree is probably the most
+		 * significant one for diagnostics, its parents would be noise.
+		 */
+		error = 0;
 	}
+
+out:
+	free(host, M_TEMP);
+	free(device, M_TEMP);
+	if (children != NULL)
+		free(children, M_TEMP);
 	if (new_path != path)
 		free(new_path, M_TEMP);
 	free(devname, M_TEMP);
 
-	return (1);
+	return (error);
 }
 
 /*
@@ -509,6 +533,10 @@ linsysfs_init(PFS_INIT_ARGS)
 		return (0);
 	}
 
+	/*
+	 * This assumes that the root node is unlikely to error out in
+	 * linsysfs_run_bus, which may or may not be true.
+	 */
 	dev = devclass_get_device(devclass, 0);
 	linsysfs_run_bus(dev, pci, scsi, chardev, drm, "/pci0000:00", "0000");
 

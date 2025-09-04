@@ -133,7 +133,7 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 	for (iter = parent->pn_nodes; iter != NULL; iter = iter->pn_next) {
 		if (strcmp(pn->pn_name, iter->pn_name) != 0)
 			continue;
-		printf("pfs_add_node: homonymous siblings: '%s/%s' type %d",
+		printf("pfs_add_node: homonymous siblings: '%s/%s' type %d\n",
 		    parent->pn_name, pn->pn_name, pn->pn_type);
 		/* Do not detach, because we are not yet attached. */
 		pn->pn_parent = NULL;
