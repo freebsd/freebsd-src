@@ -3042,13 +3042,9 @@ vtnet_get_counter(if_t ifp, ift_counter cnt)
 	case IFCOUNTER_OPACKETS:
 		return (txaccum.vtxs_opackets);
 	case IFCOUNTER_OBYTES:
-		if (!VTNET_ALTQ_ENABLED)
-			return (txaccum.vtxs_obytes);
-		/* FALLTHROUGH */
+		return (txaccum.vtxs_obytes);
 	case IFCOUNTER_OMCASTS:
-		if (!VTNET_ALTQ_ENABLED)
-			return (txaccum.vtxs_omcasts);
-		/* FALLTHROUGH */
+		return (txaccum.vtxs_omcasts);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
