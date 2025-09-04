@@ -15,13 +15,9 @@
 
 #include "rand48.h"
 
-extern unsigned short _rand48_seed[3];
-
 long
 mrand48(void)
 {
-
-	_dorand48(_rand48_seed);
-	return ((int32_t)(((uint32_t)_rand48_seed[2] << 16) |
-	    (uint32_t)_rand48_seed[1]));
+	_DORAND48(_rand48_seed);
+	return ((int)((_rand48_seed >> 16) & 0xffffffff));
 }

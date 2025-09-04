@@ -13,10 +13,10 @@
 
 #include "rand48.h"
 
-extern unsigned short _rand48_seed[3];
-
 double
 drand48(void)
 {
-	return erand48(_rand48_seed);
+	ERAND48_BEGIN;
+	_DORAND48(_rand48_seed);
+	ERAND48_END(_rand48_seed);
 }
