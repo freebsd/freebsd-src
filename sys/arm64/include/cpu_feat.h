@@ -64,6 +64,16 @@ struct cpu_feat {
 };
 SET_DECLARE(cpu_feat_set, struct cpu_feat);
 
+#define	CPU_FEAT(name, check, has_errata, enable, flags)	\
+static struct cpu_feat name = {						\
+	.feat_name		= #name,				\
+	.feat_check		= check,				\
+	.feat_has_errata	= has_errata,				\
+	.feat_enable		= enable,				\
+	.feat_flags		= flags,				\
+};									\
+DATA_SET(cpu_feat_set, name)
+
 /*
  * Allow drivers to mark an erratum as worked around, e.g. the Errata
  * Management ABI may know the workaround isn't needed on a given system.

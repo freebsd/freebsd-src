@@ -2358,14 +2358,9 @@ user_ctr_enable(const struct cpu_feat *feat __unused,
 	isb();
 }
 
-static struct cpu_feat user_ctr = {
-	.feat_name		= "Trap CTR_EL0",
-	.feat_check		= user_ctr_check,
-	.feat_has_errata	= user_ctr_has_errata,
-	.feat_enable		= user_ctr_enable,
-	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
-};
-DATA_SET(cpu_feat_set, user_ctr);
+CPU_FEAT(trap_ctr,
+    user_ctr_check, user_ctr_has_errata, user_ctr_enable,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
 static bool
 user_ctr_handler(uint64_t esr, struct trapframe *frame)

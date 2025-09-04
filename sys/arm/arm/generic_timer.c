@@ -901,13 +901,9 @@ wfxt_enable(const struct cpu_feat *feat __unused,
 	enable_wfxt = true;
 }
 
-static struct cpu_feat feat_wfxt = {
-	.feat_name		= "FEAT_WFXT",
-	.feat_check		= wfxt_check,
-	.feat_enable		= wfxt_enable,
-	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_SYSTEM,
-};
-DATA_SET(cpu_feat_set, feat_wfxt);
+CPU_FEAT(feat_wfxt,
+    wfxt_check, NULL, wfxt_enable,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_SYSTEM);
 #endif
 
 static uint32_t

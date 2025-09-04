@@ -155,14 +155,9 @@ ptrauth_enable(const struct cpu_feat *feat __unused,
 #endif
 }
 
-
-static struct cpu_feat feat_pauth = {
-	.feat_name		= "FEAT_PAuth",
-	.feat_check		= ptrauth_check,
-	.feat_enable		= ptrauth_enable,
-	.feat_flags		= CPU_FEAT_EARLY_BOOT | CPU_FEAT_SYSTEM,
-};
-DATA_SET(cpu_feat_set, feat_pauth);
+CPU_FEAT(feat_pauth,
+    ptrauth_check, NULL, ptrauth_enable,
+    CPU_FEAT_EARLY_BOOT | CPU_FEAT_SYSTEM);
 
 /* Copy the keys when forking a new process */
 void
