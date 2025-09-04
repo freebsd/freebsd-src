@@ -1178,6 +1178,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	if (sc->vtnet_max_mtu >= ETHERMTU_JUMBO)
 		if_setcapabilitiesbit(ifp, IFCAP_JUMBO_MTU, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
 
 	/*
 	 * Capabilities after here are not enabled by default.
@@ -3047,6 +3048,8 @@ vtnet_get_counter(if_t ifp, ift_counter cnt)
 		return (rxaccum.vrxs_iqdrops);
 	case IFCOUNTER_IERRORS:
 		return (rxaccum.vrxs_ierrors);
+	case IFCOUNTER_IBYTES:
+		return (rxaccum.vrxs_ibytes);
 	case IFCOUNTER_OPACKETS:
 		return (txaccum.vtxs_opackets);
 #ifndef VTNET_LEGACY_TX
