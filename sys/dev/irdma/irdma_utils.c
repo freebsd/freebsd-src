@@ -876,7 +876,7 @@ irdma_terminate_done(struct irdma_sc_qp *qp, int timeout_occurred)
 static void
 irdma_terminate_timeout(struct timer_list *t)
 {
-	struct irdma_qp *iwqp = from_timer(iwqp, t, terminate_timer);
+	struct irdma_qp *iwqp = timer_container_of(iwqp, t, terminate_timer);
 	struct irdma_sc_qp *qp = &iwqp->sc_qp;
 
 	irdma_terminate_done(qp, 1);
@@ -1528,7 +1528,7 @@ static void
 irdma_hw_stats_timeout(struct timer_list *t)
 {
 	struct irdma_vsi_pestat *pf_devstat =
-	from_timer(pf_devstat, t, stats_timer);
+	timer_container_of(pf_devstat, t, stats_timer);
 	struct irdma_sc_vsi *sc_vsi = pf_devstat->vsi;
 
 	if (sc_vsi->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
