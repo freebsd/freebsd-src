@@ -1854,6 +1854,8 @@ command_chain(int argc, char *argv[])
 	EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
 	EFI_HANDLE loaderhandle;
 	EFI_LOADED_IMAGE *loaded_image;
+	UINTN ExitDataSize;
+	CHAR16 *ExitData = NULL;
 	EFI_STATUS status;
 	struct stat st;
 	struct devdesc *dev;
@@ -1969,9 +1971,16 @@ command_chain(int argc, char *argv[])
 	}
 
 	dev_cleanup();
-	status = BS->StartImage(loaderhandle, NULL, NULL);
+
+	status = BS->StartImage(loaderhandle, &ExitDataSize, &ExitData);
 	if (status != EFI_SUCCESS) {
-		command_errmsg = "StartImage failed";
+		printf("StartImage failed (%lu)", EFI_ERROR_CODE(status));
+		if (ExitData != NULL) {
+			printf(": %S", ExitData);
+			BS->FreePool(ExitData);
+		}
+		putchar('\n');
+		command_errmsg = "";
 		free(loaded_image->LoadOptions);
 		loaded_image->LoadOptions = NULL;
 		status = BS->UnloadImage(loaded_image);
