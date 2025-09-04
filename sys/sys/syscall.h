@@ -535,4 +535,6 @@
 #define	SYS_inotify_rm_watch	594
 #define	SYS_getgroups	595
 #define	SYS_setgroups	596
-#define	SYS_MAXSYSCALL	597
+#define	SYS_jail_attach_jd	597
+#define	SYS_jail_remove_jd	598
+#define	SYS_MAXSYSCALL	599

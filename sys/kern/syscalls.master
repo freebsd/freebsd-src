@@ -3383,5 +3383,15 @@
 		    _In_reads_(gidsetsize) const gid_t *gidset
 		);
 	}
+597	AUE_JAIL_ATTACH	STD {
+		int jail_attach_jd(
+		    int fd
+		);
+	}
+598	AUE_JAIL_REMOVE	STD {
+		int jail_remove_jd(
+		    int fd
+		);
+	}
 
 ; vim: syntax=off

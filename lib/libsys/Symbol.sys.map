@@ -382,6 +382,8 @@ FBSD_1.8 {
 	getrlimitusage;
 	inotify_add_watch_at;
 	inotify_rm_watch;
+	jail_attach_jd;
+	jail_remove_jd;
 	kcmp;
 	setcred;
 	setgroups;
