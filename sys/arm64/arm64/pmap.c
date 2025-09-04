@@ -1716,14 +1716,9 @@ pmap_dbm_enable(const struct cpu_feat *feat __unused,
 	isb();
 }
 
-static struct cpu_feat feat_dbm = {
-	.feat_name		= "FEAT_HAFDBS (DBM)",
-	.feat_check		= pmap_dbm_check,
-	.feat_has_errata	= pmap_dbm_has_errata,
-	.feat_enable		= pmap_dbm_enable,
-	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
-};
-DATA_SET(cpu_feat_set, feat_dbm);
+CPU_FEAT(feat_hafdbs,
+    pmap_dbm_check, pmap_dbm_has_errata, pmap_dbm_enable,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
 /*
  *	Initialize the pmap module.

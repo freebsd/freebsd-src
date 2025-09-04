@@ -202,13 +202,9 @@ pan_enable(const struct cpu_feat *feat __unused,
 	    ".arch_extension nopan	\n");
 }
 
-static struct cpu_feat feat_pan = {
-	.feat_name		= "FEAT_PAN",
-	.feat_check		= pan_check,
-	.feat_enable		= pan_enable,
-	.feat_flags		= CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU,
-};
-DATA_SET(cpu_feat_set, feat_pan);
+CPU_FEAT(feat_pan,
+    pan_check, NULL, pan_enable,
+    CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU);
 
 bool
 has_hyp(void)
