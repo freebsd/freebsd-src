@@ -42,6 +42,11 @@ vnet_init()
 vnet_mkepair()
 {
 	ifname=$(ifconfig epair create)
+	# When transmit checksum offloading is enabled, if_epair does not
+	# compute checksums, it just marks packets that this computation still
+	# needs to be done. However, some test cases verify the checksum.
+	# Therefore disable this for IPv4 and IPv6.
+	ifconfig ${ifname} -txcsum -txcsum6
 	list_interface $ifname
 	list_interface ${ifname%a}b
 	echo ${ifname%a}

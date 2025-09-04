@@ -103,6 +103,7 @@ class VnetInterface(object):
         if1 = cls(alias_name, name)
         ret = [if1]
         if name.startswith("epair"):
+            run_cmd("/sbin/ifconfig {} -txcsum -txcsum6".format(name))
             if2 = cls(alias_name, name[:-1] + "b")
             if1.epairb = if2
             ret.append(if2);
