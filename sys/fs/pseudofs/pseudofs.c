@@ -475,6 +475,7 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 	if (error) {
 		pfs_destroy(root);
 		pi->pi_root = NULL;
+		pfs_fileno_uninit(pi);
 		return (error);
 	}
 
