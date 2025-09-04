@@ -273,6 +273,7 @@ JAILPACKAGE=	jail
 .if ${MK_LEGACY_CONSOLE} != "no"
 CONFGROUPS+=	CONSOLE
 CONSOLE+=	moused
+CONSOLE+=	msconvd
 CONSOLE+=	syscons
 CONSOLEPACKAGE=	console-tools
 .endif

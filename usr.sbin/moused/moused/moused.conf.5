@@ -1,0 +1,422 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 19, 2025
+.Dt MOUSED.CONF 5
+.Os
+.Sh NAME
+.Nm moused.conf
+.Nd mouse daemon configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file specifies how the
+.Xr moused 8
+(mouse daemon) should operate. It provides ability to adjust certain
+mice parameters on per-device basis.
+.Pp
+Configuration file format is derrived from
+.Xr libinput 1
+device quirk files.
+A file may contain multiple section headers ([some identifier])
+followed by one or more MatchFoo=Bar directives, followed by at least
+one of MousedFoo=bar or AttrFoo=bar directive.
+A configuration file must contain at least one section, each section
+must have at least one
+.Sq Match
+tag and at least one of either
+.Sq Attr
+or
+.Sq Moused .
+Section names are free-form and may contain spaces.
+.Ss List of currently available matches.
+.Bl -tag -width indent
+.It MatchName, MatchUniq
+Match on the NAME or UNIQ udev property on this device. These
+properties are typically derived from the device’s kernel name or uniq.
+These matches use
+.Fn fnmatch
+globs.
+.It MatchBus
+A lower-case bus name. Currently supported are usb, bluetooth, ps2,
+rmi, i2c, and spi.
+.It MatchVendor, MatchProduct, MatchVersion
+The hexadecmial 4-digit vendor ID, product ID or driver version as
+exported, without a 0x prefix.
+.It MatchDMIModalias, MatchDeviceTree
+An
+.Fn fnmatch
+glob for the DMI modalias or the DeviceTree compatible string.
+.It MatchDevType
+One of touchpad, mouse, pointingstick, keyboard, joystick, tablet,
+tablet-pad.
+Only touchpad and mouse types are suppported.
+.El
+.Ss List of currently available Moused tags.
+.Bl -tag -width indent
+.It MousedGrabDevice
+Only for evdev interface.
+Become the sole recipient of all incoming input events.
+This prevents other processes from getting input events on the device.
+.Pp
+Use
+.Fl g
+option alternatively.
+.It MousedIgnoreDevice
+Ignore given device.
+.It MousedClickThreshold
+Set double click speed as the maximum interval in msec between button clicks.
+Without this option, the default value of 500 msec will be assumed.
+This option will have effect only on the cut and paste operations
+in the text mode console.
+The user program which is reading mouse data
+via
+.Xr sysmouse 4
+will not be affected.
+.Pp
+Use
+.Fl C
+option alternatively.
+.It MousedEmulateThirdButton
+Emulate the third (middle) button for 2-button mice.
+It is emulated
+by pressing the left and right physical buttons simultaneously.
+.Pp
+Use
+.Fl 3
+option alternatively.
+.It MousedEmulateThirdButtonTimeout
+When the third button emulation is enabled
+(see above),
+the
+.Xr moused 8
+utility waits
+.Ar MousedEmulateThirdButtonTimeout
+msec at most before deciding whether two buttons are being pressed
+simultaneously.
+The default timeout is 100 msec.
+.Pp
+Use
+.Fl E
+option alternatively.
+.It MousedLinearAccelX
+.It MousedLinearAccelY
+.It MousedLinearAccelZ
+Accelerate or decelerate the mouse input.
+This is a linear acceleration only.
+Values less than 1.0 slow down movement, values greater than 1.0 speed it
+up.
+.Pp
+You can use the
+.Ar MousedLinearAccel
+and
+.Ar MousedExponentialAccel
+options at the same time to have the combined effect
+of linear and exponential acceleration.
+.Pp
+Use
+.Fl a
+option alternatively.
+.It MousedExponentialAccel
+.It MousedExponentialOffset
+Apply exponential (dynamic) acceleration to mouse movements:
+the faster you move the mouse, the more it will be accelerated.
+That means that small mouse movements are not accelerated,
+so they are still very accurate, while a faster movement will
+drive the pointer quickly across the screen.
+.Pp
+The
+.Ar MousedExponentialAccel
+value specifies the exponent, which is basically
+the amount of acceleration.  Useful values are in the
+range 1.1 to 2.0, but it depends on your mouse hardware
+and your personal preference.  A value of 1.0 means no
+exponential acceleration.  A value of 2.0 means squared
+acceleration (i.e. if you move the mouse twice as fast,
+the pointer will move four times as fast on the screen).
+Values beyond 2.0 are possible but not recommended.
+A good value to start is probably 1.5.
+.Pp
+The optional
+.Ar MousedExponentialOffset
+value specifies the distance at which the acceleration
+begins.  The default is 1.0, which means that the
+acceleration is applied to movements larger than one unit.
+If you specify a larger value, it takes more speed for
+the acceleration to kick in, i.e. the speed range for
+small and accurate movements is wider.
+Usually the default should be sufficient, but if you're
+not satisfied with the behaviour, try a value of 2.0.
+.Pp
+Note that the
+.Fl A
+option interacts badly with the X server's own acceleration,
+which doesn't work very well anyway.  Therefore it is
+recommended to switch it off if necessary:
+.Dq xset m 1 .
+.Pp
+Use
+.Fl A
+option alternatively.
+.It MousedMapZAxis
+Map Z axis (roller/wheel) movement to another axis or to virtual buttons.
+Does not supported yet.
+Use
+.Fl z
+option instead.
+.It MousedVirtualScrollEnable
+Enable
+.Dq Virtual Scrolling .
+With this option set, holding the middle mouse
+button down will cause motion to be interpreted as scrolling.
+Use the
+.Ar MousedVirtualScrollThreshold
+option to set the distance the mouse must move before the scrolling mode is
+activated and the
+.Ar MousedVirtualScrollSpeed
+option to set the scrolling speed.
+.Pp
+Use
+.Fl V
+option alternatively.
+.It MousedHorVirtualScrollEnable
+Enable
+.Dq Horizontal Virtual Scrolling .
+With this option set, holding the middle mouse
+button down will cause motion to be interpreted as
+horizontal scrolling.
+Use the
+.Ar MousedVirtualScrollThreshold
+option to set the distance the mouse must move before the scrolling mode is
+activated and the
+.Ar MousedVirtualScrollSpeed
+option to set the scrolling speed.
+This option may be used with or without the
+.Ar MousedVirtualScrollEnable
+option.
+.Pp
+Use
+.Fl H
+option alternatively.
+.It MousedVirtualScrollSpeed= Ar distance
+When
+.Dq Virtual Scrolling
+is enabled, the
+.Ar MousedVirtualScrollSpeed
+option can be used to set the
+.Ar distance
+(in pixels) that the mouse must move before a scroll event
+is generated.
+This effectively controls the scrolling speed.
+The default
+.Ar distance
+is 2 pixels.
+.Pp
+Use
+.Fl L
+option alternatively.
+.It MousedVirtualScrollThreshold= Ar distance
+When
+.Dq Virtual Scrolling
+is enabled, the
+.Ar MousedVirtualScrollThreshold
+option can be used to set the
+.Ar distance
+(in pixels) that the mouse must move before the scrolling
+mode is activated.
+The default
+.Ar distance
+is 3 pixels.
+.Pp
+Use
+.Fl U
+option alternatively.
+.It MousedWMode= Ar N
+Make the physical button
+.Ar N
+act as the wheel mode button.
+While this button is pressed, X and Y axis movement is reported to be zero
+and the Y axis movement is mapped to Z axis.
+You may further map the Z axis movement to virtual buttons by the
+.Ar MousedMapZAxis
+tag.
+.Pp
+Use
+.Fl w
+option alternatively.
+.El
+.Ss List of currently available Moused mice specific tags.
+.Bl -tag -width indent
+.It MousedDriftTerminate
+.It MousedDriftDistance
+.It MousedDriftTime
+.It MousedDriftAfter
+Terminate drift.
+Use this option if mouse pointer slowly wanders when mouse is not moved.
+Movements up to
+.Ar MousedDriftDistance
+(for example 4) pixels (X+Y) in
+.Ar MousedDriftTime
+msec (default 500) are ignored, except during
+.Ar MousedDriftAfter
+msec (default 4000) since last real mouse movement.
+.Pp
+Use
+.Fl T
+option alternatively.
+.El
+.Ss List of currently available Moused touchpad specific tags.
+.Bl -tag -width indent
+.It MousedTwoFingerScroll
+Enable two finger scrolling.
+.It MousedNaturalScroll
+Enable natural scrolling.
+.It MousedThreeFingerDrag
+Enable dragging with three fingers.
+.It MousedSoftButton2X
+Horisontal position of 2-nd softbutton left edge in percents.
+(0-disable)
+.It MousedSoftButton3X
+Horisontal position of 3-rd softbutton left edge in percents.
+(0-disable)
+.It MousedSoftButtonsY
+Vertical size of softbuttons area in percents.
+Use negative values to place softbutton area at top of touchpad.
+.It MousedTapTimeout
+Tap timeout in milliseconds
+.It MousedTapPressureThreshold
+Pressure threshold to detect tap.
+.It MousedTapMaxDelta
+Length of finger movement above which a tap is ignored measured in mm.
+.It MousedTapholdTimeout
+Maximum elapsed time between two taps to consider a tap-hold action.
+.It MousedVScrollMinDelta
+Minimum movement to consider virtual scrolling.
+.It MousedVScrollHorArea
+ Area reserved for horizontal virtual scrolling in mm.
+.It MousedVScrollVerArea
+Area reserved for vertical virtual scrolling in mm.
+.El
+.Ss List of currently available libinput-compatible tags.
+.Bl -tag -width indent
+.It AttrSizeHint
+Hints at the width x height of the device in mm.
+.It AttrTouchSizeRange
+Not supported yet.
+.It AttrPalmSizeThreshold
+Maximum finger width to detect palm in mm.
+.It AttrLidSwitchReliability
+Not supported yet.
+.It AttrKeyboardIntegration
+Not supported yet.
+.It AttrPointingStickIntegration
+Not supported yet.
+.It AttrTPKComboLayout
+Not supported yet.
+.It AttrPressureRange= Ar N : Ar M
+Specifies the touch pressure required to trigger a press
+.Ar N
+and to trigger a release
+.Ar M .
+.It AttrPalmPressureThreshold
+Maximum pressure to detect palm.
+.It AttrResolutionHint
+Hints at the resolution of the x/y axis in units/mm.
+.It AttrTrackpointMultiplier
+Not supported yet.
+.It AttrThumbPressureThreshold
+Not supported yet.
+.It AttrUseVelocityAveraging
+Not supported yet.
+.It AttrTabletSmoothing
+Not supported yet.
+.It AttrThumbSizeThreshold
+Not supported yet.
+.It AttrMscTimestamp
+Not supported yet.
+.It AttrEventCode
+Enables or disables the evdev event type/code tuples on the device.
+The prefix for each entry is either
+.Sq +
+(enable) or
+.Sq -
+(disable).
+Entries may be a named event type, or a named event code, or a named
+event type with a hexadecimal event code, separated by a single colon.
+.It AttrInputProp
+Enables or disables the evdev input property on the device.
+The prefix for each entry is either
+,Sq +
+(enable) or
+.Sq -
+(disable).
+Entries may be a named input property or the hexadecimal value of that
+property.
+.El
+.Pp
+All
+.Xr libinput 1
+.Sq Model
+quirks are currently ignored.
+.Sh FILES
+.Bl -tag -width /usr/local/etc/moused.conf -compact
+.It Pa /usr/local/etc/moused.conf
+The file
+.Nm
+resides in
+.Pa /usr/local/etc .
+.It Pa /usr/local/share/moused/*.quirks
+Predefined quirks processed before
+.Nm .
+.El
+.Sh EXAMPLES
+Set touch pressure and palm detection thesholds for PS/2 Synaptics
+touchpad:
+.Bd -literal -offset indent
+[SynPS/2 Synaptics TouchPad]
+MatchDevType=touchpad
+MatchName=SynPS/2 Synaptics TouchPad
+AttrPressureRange=35:30
+AttrPalmPressureThreshold=220
+.Ed
+.Sh SEE ALSO
+.Xr moused 8
+.Pp
+.Xr libinput 1
+device quirk format:
+.Lk https://wayland.freedesktop.org/libinput/doc/latest/device-quirks.html
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org
+based on
+. Xr moused 8
+manual page and
+.Xr libinput 1
+documentation.
