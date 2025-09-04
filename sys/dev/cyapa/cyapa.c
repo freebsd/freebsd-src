@@ -761,42 +761,60 @@ again:
 		/*
 		 * Generate report
 		 */
-		c0 = 0;
-		if (delta_x < 0)
-			c0 |= 0x10;
-		if (delta_y < 0)
-			c0 |= 0x20;
-		c0 |= 0x08;
-		if (but & CYAPA_FNGR_LEFT)
-			c0 |= 0x01;
-		if (but & CYAPA_FNGR_MIDDLE)
-			c0 |= 0x04;
-		if (but & CYAPA_FNGR_RIGHT)
-			c0 |= 0x02;
-
-		fifo_write_char(sc, &sc->rfifo, c0);
-		fifo_write_char(sc, &sc->rfifo, (uint8_t)delta_x);
-		fifo_write_char(sc, &sc->rfifo, (uint8_t)delta_y);
-		switch(sc->zenabled) {
-		case 1:
-			/* Z axis all 8 bits */
-			fifo_write_char(sc, &sc->rfifo, (uint8_t)delta_z);
-			break;
-		case 2:
-			/*
-			 * Z axis low 4 bits + 4th button and 5th button
-			 * (high 2 bits must be left 0).  Auto-scale
-			 * delta_z to fit to avoid a wrong-direction
-			 * overflow (don't try to retain the remainder).
-			 */
-			while (delta_z > 7 || delta_z < -8)
-				delta_z >>= 1;
-			c0 = (uint8_t)delta_z & 0x0F;
+		if (sc->mode.level == 1) {
+			c0 = MOUSE_SYS_SYNC;
+			if (but & CYAPA_FNGR_LEFT)
+				c0 |= MOUSE_SYS_BUTTON1UP;
+			if (but & CYAPA_FNGR_MIDDLE)
+				c0 |= MOUSE_SYS_BUTTON2UP;
+			if (but & CYAPA_FNGR_RIGHT)
+				c0 |= MOUSE_SYS_BUTTON3UP;
 			fifo_write_char(sc, &sc->rfifo, c0);
-			break;
-		default:
-			/* basic PS/2 */
-			break;
+			fifo_write_char(sc, &sc->rfifo, delta_x >> 1);
+			fifo_write_char(sc, &sc->rfifo, delta_y >> 1);
+			fifo_write_char(sc, &sc->rfifo, delta_x - (delta_x >> 1));
+			fifo_write_char(sc, &sc->rfifo, delta_y - (delta_y >> 1));
+			fifo_write_char(sc, &sc->rfifo, delta_z >> 1);
+			fifo_write_char(sc, &sc->rfifo, delta_z - (delta_z >> 1));
+			fifo_write_char(sc, &sc->rfifo, MOUSE_SYS_EXTBUTTONS);
+		} else {
+			c0 = 0;
+			if (delta_x < 0)
+				c0 |= 0x10;
+			if (delta_y < 0)
+				c0 |= 0x20;
+			c0 |= 0x08;
+			if (but & CYAPA_FNGR_LEFT)
+				c0 |= 0x01;
+			if (but & CYAPA_FNGR_MIDDLE)
+				c0 |= 0x04;
+			if (but & CYAPA_FNGR_RIGHT)
+				c0 |= 0x02;
+
+			fifo_write_char(sc, &sc->rfifo, c0);
+			fifo_write_char(sc, &sc->rfifo, (uint8_t)delta_x);
+			fifo_write_char(sc, &sc->rfifo, (uint8_t)delta_y);
+			switch(sc->zenabled) {
+			case 1:
+				/* Z axis all 8 bits */
+				fifo_write_char(sc, &sc->rfifo, (uint8_t)delta_z);
+				break;
+			case 2:
+				/*
+				 * Z axis low 4 bits + 4th button and 5th button
+				 * (high 2 bits must be left 0).  Auto-scale
+				 * delta_z to fit to avoid a wrong-direction
+				 * overflow (don't try to retain the remainder).
+				 */
+				while (delta_z > 7 || delta_z < -8)
+					delta_z >>= 1;
+				c0 = (uint8_t)delta_z & 0x0F;
+				fifo_write_char(sc, &sc->rfifo, c0);
+				break;
+			default:
+				/* basic PS/2 */
+				break;
+			}
 		}
 		cyapa_notify(sc);
 	}
@@ -1205,6 +1223,11 @@ cyapaioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread 
 			((mousemode_t *)data)->packetsize =
 			    MOUSE_PS2_PACKETSIZE;
 			break;
+		case 1:
+			((mousemode_t *)data)->protocol = MOUSE_PROTO_SYSMOUSE;
+			((mousemode_t *)data)->packetsize =
+			    MOUSE_SYS_PACKETSIZE;
+			break;
 		case 2:
 			((mousemode_t *)data)->protocol = MOUSE_PROTO_PS2;
 			((mousemode_t *)data)->packetsize =
@@ -1223,7 +1246,7 @@ cyapaioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread 
 			error = EINVAL;
 			break;
 		}
-		sc->mode.level = *(int *)data ? 2 : 0;
+		sc->mode.level = *(int *)data;
 		sc->zenabled = sc->mode.level ? 1 : 0;
 		break;
 
