@@ -908,11 +908,7 @@ int rtw89_build_phy_tbl_from_elm(struct rtw89_dev *rtwdev,
 	case RTW89_FW_ELEMENT_ID_RADIO_B:
 	case RTW89_FW_ELEMENT_ID_RADIO_C:
 	case RTW89_FW_ELEMENT_ID_RADIO_D:
-#if defined(__linux__)
 		rf_path = arg.rf_path;
-#elif defined(__FreeBSD__)
-		rf_path = __DECONST(enum rtw89_rf_path, arg.rf_path);
-#endif
 		idx = elm->u.reg2.idx;
 
 		elm_info->rf_radio[idx] = tbl;
