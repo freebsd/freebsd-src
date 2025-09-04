@@ -2293,16 +2293,16 @@ user_ctr_has_neoverse_n1_1542419(uint32_t midr, uint64_t ctr)
 	return (false);
 }
 
-static bool
-user_ctr_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+static cpu_feat_en
+user_ctr_check(const struct cpu_feat *feat __unused, u_int midr)
 {
 	if (emulate_ctr)
-		return (true);
+		return (FEAT_DEFAULT_ENABLE);
 
 	if (user_ctr_has_neoverse_n1_1542419(midr, READ_SPECIALREG(ctr_el0)))
-		return (true);
+		return (FEAT_DEFAULT_ENABLE);
 
-	return (false);
+	return (FEAT_ALWAYS_DISABLE);
 }
 
 static bool

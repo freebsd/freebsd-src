@@ -40,6 +40,31 @@ typedef enum {
 				/* kernel component. */
 } cpu_feat_errata;
 
+typedef enum {
+	/*
+	 * Don't implement the feature or erratum wrokarount,
+	 * e.g. the feature is not implemented or erratum is
+	 * for another CPU.
+	 */
+	FEAT_ALWAYS_DISABLE,
+
+	/*
+	 * Disable by default, but allow the user to enable,
+	 * e.g. For a rare erratum with a workaround, Arm
+	 * Category B (rare) or similar.
+	 */
+	FEAT_DEFAULT_DISABLE,
+
+	/*
+	 * Enabled by default, bit allow the user to disable,
+	 * e.g. For a common erratum with a workaround, Arm
+	 * Category A or B or similar.
+	 */
+	FEAT_DEFAULT_ENABLE,
+
+	/* We could add FEAT_ALWAYS_ENABLE if a need was found. */
+} cpu_feat_en;
+
 #define	CPU_FEAT_STAGE_MASK	0x00000001
 #define	CPU_FEAT_EARLY_BOOT	0x00000000
 #define	CPU_FEAT_AFTER_DEV	0x00000001
@@ -50,7 +75,7 @@ typedef enum {
 
 struct cpu_feat;
 
-typedef bool (cpu_feat_check)(const struct cpu_feat *, u_int);
+typedef cpu_feat_en (cpu_feat_check)(const struct cpu_feat *, u_int);
 typedef bool (cpu_feat_has_errata)(const struct cpu_feat *, u_int,
     u_int **, u_int *);
 typedef bool (cpu_feat_enable)(const struct cpu_feat *, cpu_feat_errata,

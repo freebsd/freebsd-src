@@ -1656,14 +1656,17 @@ pmap_init_pv_table(void)
 	}
 }
 
-static bool
+static cpu_feat_en
 pmap_dbm_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64mmfr1;
 
 	id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	return (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=
-	    ID_AA64MMFR1_HAFDBS_AF_DBS);
+	if (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=
+	    ID_AA64MMFR1_HAFDBS_AF_DBS)
+		return (FEAT_DEFAULT_ENABLE);
+
+	return (FEAT_ALWAYS_DISABLE);
 }
 
 static bool

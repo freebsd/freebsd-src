@@ -882,14 +882,17 @@ DELAY(int usec)
 	TSEXIT();
 }
 
-static bool
+static cpu_feat_en
 wfxt_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64isar2;
 
 	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
-		return (false);
-	return (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) != ID_AA64ISAR2_WFxT_NONE);
+		return (FEAT_ALWAYS_DISABLE);
+	if (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) >= ID_AA64ISAR2_WFxT_NONE)
+		return (FEAT_DEFAULT_ENABLE);
+
+	return (FEAT_ALWAYS_DISABLE);
 }
 
 static bool
