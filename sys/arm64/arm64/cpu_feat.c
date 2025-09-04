@@ -32,6 +32,8 @@
 #include <machine/cpu.h>
 #include <machine/cpu_feat.h>
 
+SYSCTL_NODE(_hw, OID_AUTO, feat, CTLFLAG_RD, 0, "CPU features/errata");
+
 /* TODO: Make this a list if we ever grow a callback other than smccc_errata */
 static cpu_feat_errata_check_fn cpu_feat_check_cb = NULL;
 
@@ -97,8 +99,9 @@ enable_cpu_feat(uint32_t stage)
 		/* Shouldn't be possible */
 		MPASS(errata_status != ERRATA_UNKNOWN);
 
-		feat->feat_enable(feat, errata_status, errata_list,
-		    errata_count);
+		if (feat->feat_enable(feat, errata_status, errata_list,
+		    errata_count))
+			feat->feat_enabled = true;
 	}
 }
 

@@ -1695,7 +1695,7 @@ pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
 	return (false);
 }
 
-static void
+static bool
 pmap_dbm_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status, u_int *errata_list __unused,
     u_int errata_count)
@@ -1704,7 +1704,7 @@ pmap_dbm_enable(const struct cpu_feat *feat __unused,
 
 	/* Skip if there is an erratum affecting DBM */
 	if (errata_status != ERRATA_NONE)
-		return;
+		return (false);
 
 	tcr = READ_SPECIALREG(tcr_el1) | TCR_HD;
 	WRITE_SPECIALREG(tcr_el1, tcr);
@@ -1714,9 +1714,11 @@ pmap_dbm_enable(const struct cpu_feat *feat __unused,
 	__asm __volatile("tlbi vmalle1");
 	dsb(nsh);
 	isb();
+
+	return (true);
 }
 
-CPU_FEAT(feat_hafdbs,
+CPU_FEAT(feat_hafdbs, "Hardware management of the Access flag and dirty state",
     pmap_dbm_check, pmap_dbm_has_errata, pmap_dbm_enable,
     CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 

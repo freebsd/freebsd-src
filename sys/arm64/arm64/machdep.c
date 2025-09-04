@@ -182,7 +182,7 @@ pan_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	return (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE);
 }
 
-static void
+static bool
 pan_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
     u_int errata_count __unused)
@@ -200,9 +200,11 @@ pan_enable(const struct cpu_feat *feat __unused,
 	    ".arch_extension pan	\n"
 	    "msr pan, #1		\n"
 	    ".arch_extension nopan	\n");
+
+	return (true);
 }
 
-CPU_FEAT(feat_pan,
+CPU_FEAT(feat_pan, "Privileged access never",
     pan_check, NULL, pan_enable,
     CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU);
 
