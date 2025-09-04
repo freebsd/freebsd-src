@@ -57,7 +57,7 @@ end:
 static void
 timer_handler(struct timer_list *tl)
 {
-	struct adf_int_timer *int_timer = from_timer(int_timer, tl, timer);
+	struct adf_int_timer *int_timer = timer_container_of(int_timer, tl, timer);
 	struct adf_accel_dev *accel_dev = int_timer->accel_dev;
 	struct adf_hb_timer_data *hb_timer_data = NULL;
 	u64 timeout_val = adf_get_next_timeout(int_timer->timeout_val);
