@@ -40,8 +40,10 @@
 #include <linux/compat.h>
 #include <linux/types.h>
 #include <linux/gfp.h>
+#include <linux/err.h>
 #include <linux/llist.h>
 #include <linux/overflow.h>
+#include <linux/cleanup.h>
 
 MALLOC_DECLARE(M_KMALLOC);
 
@@ -152,6 +154,8 @@ kfree(const void *ptr)
 {
 	lkpi_kfree(ptr);
 }
+
+DEFINE_FREE(kfree, void *, if (!IS_ERR_OR_NULL(_T)) kfree(_T))
 
 /*
  * Other k*alloc() funtions using the above as underlying allocator.
