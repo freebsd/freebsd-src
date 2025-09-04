@@ -343,6 +343,7 @@ lkpi_pci_dev_release(struct device *dev)
 static int
 lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 {
+	struct pci_devinfo *dinfo;
 	int error;
 
 	error = kobject_init_and_add(&pdev->dev.kobj, &linux_dev_ktype,
@@ -363,15 +364,24 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->path_name = kasprintf(GFP_KERNEL, "%04d:%02d:%02d.%d",
 	    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
 	    pci_get_function(dev));
+
 	pdev->bus = malloc(sizeof(*pdev->bus), M_DEVBUF, M_WAITOK | M_ZERO);
-	/*
-	 * This should be the upstream bridge; pci_upstream_bridge()
-	 * handles that case on demand as otherwise we'll shadow the
-	 * entire PCI hierarchy.
-	 */
-	pdev->bus->self = pdev;
 	pdev->bus->number = pci_get_bus(dev);
 	pdev->bus->domain = pci_get_domain(dev);
+
+	/* Check if we have reached the root to satisfy pci_is_root_bus() */
+	dinfo = device_get_ivars(dev);
+	if (dinfo->cfg.pcie.pcie_location != 0 &&
+	    dinfo->cfg.pcie.pcie_type == PCIEM_TYPE_ROOT_PORT) {
+		pdev->bus->self = NULL;
+	} else {
+		/*
+		 * This should be the upstream bridge; pci_upstream_bridge()
+		 * handles that case on demand as otherwise we'll shadow the
+		 * entire PCI hierarchy.
+		 */
+		pdev->bus->self = pdev;
+	}
 	pdev->dev.bsddev = dev;
 	pdev->dev.parent = &linux_root_device;
 	pdev->dev.release = lkpi_pci_dev_release;
@@ -396,7 +406,7 @@ lkpinew_pci_dev_release(struct device *dev)
 	pdev = to_pci_dev(dev);
 	if (pdev->root != NULL)
 		pci_dev_put(pdev->root);
-	if (pdev->bus->self != pdev)
+	if (pdev->bus->self != pdev && pdev->bus->self != NULL)
 		pci_dev_put(pdev->bus->self);
 	free(pdev->bus, M_DEVBUF);
 	if (pdev->msi_desc != NULL) {
@@ -534,6 +544,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 {
 	struct resource_list_entry *rle;
 	device_t parent;
+	struct pci_dev *pbus, *ppbus;
 	uintptr_t rid;
 	int error;
 	bool isdrm;
@@ -577,6 +588,27 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	list_add(&pdev->links, &pci_devices);
 	spin_unlock(&pci_lock);
 
+	/*
+	 * Create the hierarchy now as we cannot on demand later.
+	 * Take special care of DRM as there is a non-PCI device in the chain.
+	 */
+	pbus = pdev;
+	if (isdrm) {
+		pbus = lkpinew_pci_dev(parent);
+		if (pbus == NULL) {
+			error = ENXIO;
+			goto out_dma_init;
+		}
+	}
+	pcie_find_root_port(pbus);
+	if (isdrm)
+		pdev->root = pbus->root;
+	ppbus = pci_upstream_bridge(pbus);
+	while (ppbus != NULL && ppbus != pbus) {
+		pbus = ppbus;
+		ppbus = pci_upstream_bridge(pbus);
+	}
+
 	if (pdrv != NULL) {
 		error = pdrv->probe(pdev, id);
 		if (error)
@@ -584,6 +616,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	}
 	return (0);
 
+/* XXX the cleanup does not match the allocation up there. */
 out_probe:
 	free(pdev->bus, M_DEVBUF);
 	spin_lock_destroy(&pdev->pcie_cap_lock);
