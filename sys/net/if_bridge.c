@@ -526,7 +526,7 @@ VNET_DEFINE_STATIC(bool, member_ifaddrs) = false;
 #define	V_member_ifaddrs	VNET(member_ifaddrs)
 SYSCTL_BOOL(_net_link_bridge, OID_AUTO, member_ifaddrs,
     CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(member_ifaddrs), false,
-    "Allow layer 3 addresses on bridge members");
+    "Allow layer 3 addresses on bridge members (deprecated)");
 
 static bool
 bridge_member_ifaddrs(void)
@@ -1447,25 +1447,31 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 #endif
 
 	/*
-	 * If member_ifaddrs is disabled, do not allow an Ethernet-like
-	 * interface with assigned IP addresses to be added to a bridge.
+	 * If member_ifaddrs is disabled, do not allow an interface with
+	 * assigned IP addresses to be added to a bridge.  Skip this check
+	 * for gif interfaces, because the IP address assigned to a gif
+	 * interface is separate from the bridge's Ethernet segment.
 	 */
-	if (!V_member_ifaddrs && ifs->if_type != IFT_GIF) {
+	if (ifs->if_type != IFT_GIF) {
 		struct ifaddr *ifa;
 
 		CK_STAILQ_FOREACH(ifa, &ifs->if_addrhead, ifa_link) {
-#ifdef INET
-			if (ifa->ifa_addr->sa_family == AF_INET)
+			if (ifa->ifa_addr->sa_family != AF_INET &&
+			    ifa->ifa_addr->sa_family != AF_INET6)
+				continue;
+
+			if (V_member_ifaddrs) {
+				if_printf(sc->sc_ifp,
+				    "WARNING: Adding member interface %s which "
+				    "has an IP address assigned is deprecated "
+				    "and will be unsupported in a future "
+				    "release.\n", ifs->if_xname);
+				break;
+			} else {
 				return (EXTERROR(EINVAL,
 				    "Member interface may not have "
-				    "an IPv4 address configured"));
-#endif
-#ifdef INET6
-			if (ifa->ifa_addr->sa_family == AF_INET6)
-				return (EXTERROR(EINVAL,
-				    "Member interface may not have "
-				    "an IPv6 address configured"));
-#endif
+				    "an IP address assigned"));
+			}
 		}
 	}
 
