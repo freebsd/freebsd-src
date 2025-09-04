@@ -69,6 +69,7 @@
 #include <net/if_media.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
+#include <net/if_vlan_var.h>
 #include <net/netisr.h>
 #ifdef RSS
 #include <net/rss_config.h>
@@ -434,6 +435,21 @@ epair_media_status(struct ifnet *ifp __unused, struct ifmediareq *imr)
 	imr->ifm_active = IFM_ETHER | IFM_10G_T | IFM_FDX;
 }
 
+/*
+ * Update ifp->if_hwassist according to the current value of ifp->if_capenable.
+ */
+static void
+epair_caps_changed(struct ifnet *ifp)
+{
+	uint64_t hwassist = 0;
+
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		hwassist |= CSUM_IP_TCP | CSUM_IP_UDP;
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		hwassist |= CSUM_IP6_TCP | CSUM_IP6_UDP;
+	ifp->if_hwassist = hwassist;
+}
+
 static int
 epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
@@ -458,6 +474,44 @@ epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFMTU:
 		/* We basically allow all kinds of MTUs. */
 		ifp->if_mtu = ifr->ifr_mtu;
+		error = 0;
+		break;
+
+	case SIOCGIFCAP:
+		ifr->ifr_reqcap = ifp->if_capabilities;
+		ifr->ifr_curcap = ifp->if_capenable;
+		error = 0;
+		break;
+	case SIOCSIFCAP:
+		/*
+		 * Enable/disable capabilities as requested, besides
+		 * IFCAP_RXCSUM(_IPV6), which always remain enabled.
+		 * Incoming packets may have the mbuf flag CSUM_DATA_VALID set.
+		 * Without IFCAP_RXCSUM(_IPV6), this flag would have to be
+		 * removed, which does not seem helpful.
+		 */
+		ifp->if_capenable = ifr->ifr_reqcap | IFCAP_RXCSUM |
+		    IFCAP_RXCSUM_IPV6;
+		epair_caps_changed(ifp);
+		/*
+		 * If IFCAP_TXCSUM(_IPV6) has been changed, change it on the
+		 * other epair interface as well.
+		 * A bridge disables IFCAP_TXCSUM(_IPV6) when adding one epair
+		 * interface if another interface in the bridge has it disabled.
+		 * In that case this capability needs to be disabled on the
+		 * other epair interface to avoid sending packets in the bridge
+		 * that rely on this capability.
+		 */
+		sc = ifp->if_softc;
+		if ((ifp->if_capenable ^ sc->oifp->if_capenable) &
+		    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) {
+			sc->oifp->if_capenable &=
+			    ~(IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			sc->oifp->if_capenable |= ifp->if_capenable &
+			    (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			epair_caps_changed(sc->oifp);
+		}
+		VLAN_CAPABILITIES(ifp);
 		error = 0;
 		break;
 
@@ -572,8 +626,11 @@ epair_setup_ifp(struct epair_softc *sc, char *name, int unit)
 	ifp->if_dname = epairname;
 	ifp->if_dunit = unit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_capenable = IFCAP_VLAN_MTU;
+	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_TXCSUM |
+	    IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	ifp->if_capenable = IFCAP_VLAN_MTU | IFCAP_TXCSUM |
+	    IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	epair_caps_changed(ifp);
 	ifp->if_transmit = epair_transmit;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_start = epair_start;
