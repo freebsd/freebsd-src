@@ -146,6 +146,7 @@
 #include <vm/uma.h>
 
 #include <machine/asan.h>
+#include <machine/cpu_feat.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -182,6 +183,8 @@
 
 #define	PMAP_SAN_PTE_BITS	(ATTR_DEFAULT | ATTR_S1_XN |	\
 	ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | ATTR_S1_AP(ATTR_S1_AP_RW))
+
+static bool __read_mostly pmap_multiple_tlbi = false;
 
 struct pmap_large_md_page {
 	struct rwlock   pv_lock;
@@ -1540,6 +1543,51 @@ pmap_init_pv_table(void)
 	}
 }
 
+static cpu_feat_en
+pmap_multiple_tlbi_check(const struct cpu_feat *feat __unused, u_int midr)
+{
+	/*
+	 * Cortex-A55 erratum 2441007 (Cat B rare)
+	 * Present in all revisions
+	 */
+	if (CPU_IMPL(midr) == CPU_IMPL_ARM &&
+	    CPU_PART(midr) == CPU_PART_CORTEX_A55)
+		return (FEAT_DEFAULT_DISABLE);
+
+	/*
+	 * Cortex-A76 erratum 1286807 (Cat B rare)
+	 * Present in r0p0 - r3p0
+	 * Fixed in r3p1
+	 */
+	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A76,
+	    0, 0, 3, 0))
+		return (FEAT_DEFAULT_DISABLE);
+
+	/*
+	 * Cortex-A510 erratum 2441009 (Cat B rare)
+	 * Present in r0p0 - r1p1
+	 * Fixed in r1p2
+	 */
+	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
+	    0, 0, 1, 1))
+		return (FEAT_DEFAULT_DISABLE);
+
+	return (FEAT_ALWAYS_DISABLE);
+}
+
+static bool
+pmap_multiple_tlbi_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status, u_int *errata_list __unused,
+    u_int errata_count __unused)
+{
+	pmap_multiple_tlbi = true;
+	return (true);
+}
+
+CPU_FEAT(errata_multi_tlbi, "Multiple TLBI errata",
+    pmap_multiple_tlbi_check, NULL, pmap_multiple_tlbi_enable, NULL,
+    CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU);
+
 /*
  *	Initialize the pmap module.
  *
@@ -1654,9 +1702,17 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 	r = TLBI_VA(va);
 	if (pmap == kernel_pmap) {
 		pmap_s1_invalidate_kernel(r, final_only);
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			pmap_s1_invalidate_kernel(r, final_only);
+		}
 	} else {
 		r |= ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		pmap_s1_invalidate_user(r, final_only);
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			pmap_s1_invalidate_user(r, final_only);
+		}
 	}
 	dsb(ish);
 	isb();
@@ -1698,12 +1754,24 @@ pmap_s1_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		end = TLBI_VA(eva);
 		for (r = start; r < end; r += TLBI_VA_L3_INCR)
 			pmap_s1_invalidate_kernel(r, final_only);
+
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			for (r = start; r < end; r += TLBI_VA_L3_INCR)
+				pmap_s1_invalidate_kernel(r, final_only);
+		}
 	} else {
 		start = end = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		start |= TLBI_VA(sva);
 		end |= TLBI_VA(eva);
 		for (r = start; r < end; r += TLBI_VA_L3_INCR)
 			pmap_s1_invalidate_user(r, final_only);
+
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			for (r = start; r < end; r += TLBI_VA_L3_INCR)
+				pmap_s1_invalidate_user(r, final_only);
+		}
 	}
 	dsb(ish);
 	isb();
@@ -1734,6 +1802,10 @@ pmap_s1_invalidate_all_kernel(void)
 	dsb(ishst);
 	__asm __volatile("tlbi vmalle1is");
 	dsb(ish);
+	if (pmap_multiple_tlbi) {
+		__asm __volatile("tlbi vmalle1is");
+		dsb(ish);
+	}
 	isb();
 }
 
@@ -1751,9 +1823,17 @@ pmap_s1_invalidate_all(pmap_t pmap)
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
 		__asm __volatile("tlbi vmalle1is");
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			__asm __volatile("tlbi vmalle1is");
+		}
 	} else {
 		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		__asm __volatile("tlbi aside1is, %0" : : "r" (r));
+		if (pmap_multiple_tlbi) {
+			dsb(ish);
+			__asm __volatile("tlbi aside1is, %0" : : "r" (r));
+		}
 	}
 	dsb(ish);
 	isb();
