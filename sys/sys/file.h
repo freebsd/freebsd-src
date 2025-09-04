@@ -72,6 +72,7 @@ struct nameidata;
 #define	DTYPE_EVENTFD	13	/* eventfd */
 #define	DTYPE_TIMERFD	14	/* timerfd */
 #define	DTYPE_INOTIFY	15	/* inotify descriptor */
+#define	DTYPE_JAILDESC	16	/* jail descriptor */
 
 #ifdef _KERNEL
 

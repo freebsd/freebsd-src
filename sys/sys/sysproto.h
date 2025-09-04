@@ -1901,6 +1901,12 @@ struct setgroups_args {
 	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
 	char gidset_l_[PADL_(const gid_t *)]; const gid_t * gidset; char gidset_r_[PADR_(const gid_t *)];
 };
+struct jail_attach_jd_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+};
+struct jail_remove_jd_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+};
 int	sys__exit(struct thread *, struct _exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2305,6 +2311,8 @@ int	sys_inotify_add_watch_at(struct thread *, struct inotify_add_watch_at_args *
 int	sys_inotify_rm_watch(struct thread *, struct inotify_rm_watch_args *);
 int	sys_getgroups(struct thread *, struct getgroups_args *);
 int	sys_setgroups(struct thread *, struct setgroups_args *);
+int	sys_jail_attach_jd(struct thread *, struct jail_attach_jd_args *);
+int	sys_jail_remove_jd(struct thread *, struct jail_remove_jd_args *);
 
 #ifdef COMPAT_43
 
@@ -3301,6 +3309,8 @@ int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 #define	SYS_AUE_inotify_rm_watch	AUE_INOTIFY
 #define	SYS_AUE_getgroups	AUE_GETGROUPS
 #define	SYS_AUE_setgroups	AUE_SETGROUPS
+#define	SYS_AUE_jail_attach_jd	AUE_JAIL_ATTACH
+#define	SYS_AUE_jail_remove_jd	AUE_JAIL_REMOVE
 
 #undef PAD_
 #undef PADL_
