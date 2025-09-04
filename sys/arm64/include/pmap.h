@@ -166,6 +166,8 @@ int	pmap_fault(pmap_t, uint64_t, uint64_t);
 
 struct pcb *pmap_switch(struct thread *);
 
+void	pmap_s1_invalidate_all_kernel(void);
+
 extern void (*pmap_clean_stage2_tlbi)(void);
 extern void (*pmap_invalidate_vpipt_icache)(void);
 extern void (*pmap_stage2_invalidate_range)(uint64_t, vm_offset_t, vm_offset_t,

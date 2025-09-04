@@ -985,7 +985,7 @@ initarm(struct arm64_bootparams *abp)
 
 	cninit();
 	set_ttbr0(abp->kern_ttbr0);
-	cpu_tlb_flushID();
+	pmap_s1_invalidate_all_kernel();
 
 	if (!valid)
 		panic("Invalid bus configuration: %s",

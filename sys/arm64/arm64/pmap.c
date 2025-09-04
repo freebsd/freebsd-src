@@ -194,8 +194,6 @@ __exclusive_cache_line static struct pmap_large_md_page pv_dummy_large;
 #define pv_dummy pv_dummy_large.pv_page
 __read_mostly static struct pmap_large_md_page *pv_table;
 
-static __inline void pmap_s1_invalidate_all_kernel(void);
-
 static struct pmap_large_md_page *
 _pa_to_pmdp(vm_paddr_t pa)
 {
@@ -1730,7 +1728,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		pmap_s2_invalidate_range(pmap, sva, eva, final_only);
 }
 
-static __inline void
+void
 pmap_s1_invalidate_all_kernel(void)
 {
 	dsb(ishst);
