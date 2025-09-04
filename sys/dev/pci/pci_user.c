@@ -80,6 +80,8 @@ struct pci_conf32 {
 	char		pd_name[PCI_MAXNAMELEN + 1];  /* device name */
 	u_int32_t	pd_unit;	/* device unit number */
 	int		pd_numa_domain;	/* device NUMA domain */
+	u_int32_t	pc_reported_len;/* length of PCI data reported */
+	char		pc_spare[64];	/* space for future fields */
 };
 
 struct pci_match_conf32 {
@@ -885,8 +887,11 @@ pci_conf_for_copyout(const struct pci_conf *pcp, union pci_conf_union *pcup,
 		strlcpy(pcup->pc32.pd_name, pcp->pd_name,
 		    sizeof(pcup->pc32.pd_name));
 		pcup->pc32.pd_unit = (uint32_t)pcp->pd_unit;
-		if (cmd == PCIOCGETCONF32)
+		if (cmd == PCIOCGETCONF32) {
 			pcup->pc32.pd_numa_domain = pcp->pd_numa_domain;
+			pcup->pc32.pc_reported_len =
+			    (uint32_t)offsetof(struct pci_conf32, pc_spare);
+		}
 		return;
 #endif /* COMPAT_FREEBSD32 */
 
@@ -1325,6 +1330,9 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 					error = 0;
 					break;
 				}
+
+				dinfo->conf.pc_reported_len =
+				    offsetof(struct pci_conf, pc_spare);
 
 				pci_conf_for_copyout(&dinfo->conf, &pcu, cmd);
 				error = copyout(&pcu,
