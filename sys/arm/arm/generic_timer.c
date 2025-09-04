@@ -892,16 +892,17 @@ wfxt_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	return (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) != ID_AA64ISAR2_WFxT_NONE);
 }
 
-static void
+static bool
 wfxt_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
     u_int errata_count __unused)
 {
 	/* will be called if wfxt_check returns true */
 	enable_wfxt = true;
+	return (true);
 }
 
-CPU_FEAT(feat_wfxt,
+CPU_FEAT(feat_wfxt, "WFE and WFI instructions with timeout",
     wfxt_check, NULL, wfxt_enable,
     CPU_FEAT_AFTER_DEV | CPU_FEAT_SYSTEM);
 #endif

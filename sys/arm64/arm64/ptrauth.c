@@ -141,7 +141,7 @@ out:
 	return (false);
 }
 
-static void
+static bool
 ptrauth_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
     u_int errata_count __unused)
@@ -153,9 +153,11 @@ ptrauth_enable(const struct cpu_feat *feat __unused,
 	elf64_addr_mask_14.code |= PAC_ADDR_MASK_14;
 	elf64_addr_mask_14.data |= PAC_ADDR_MASK_14;
 #endif
+
+	return (true);
 }
 
-CPU_FEAT(feat_pauth,
+CPU_FEAT(feat_pauth, "Pointer Authentication",
     ptrauth_check, NULL, ptrauth_enable,
     CPU_FEAT_EARLY_BOOT | CPU_FEAT_SYSTEM);
 

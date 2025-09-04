@@ -2320,7 +2320,7 @@ user_ctr_has_errata(const struct cpu_feat *feat __unused, u_int midr,
 	return (false);
 }
 
-static void
+static bool
 user_ctr_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status, u_int *errata_list, u_int errata_count)
 {
@@ -2356,9 +2356,11 @@ user_ctr_enable(const struct cpu_feat *feat __unused,
 	WRITE_SPECIALREG(sctlr_el1,
 	    READ_SPECIALREG(sctlr_el1) & ~SCTLR_UCT);
 	isb();
+
+	return (true);
 }
 
-CPU_FEAT(trap_ctr,
+CPU_FEAT(trap_ctr, "Trap CTR_EL0",
     user_ctr_check, user_ctr_has_errata, user_ctr_enable,
     CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 

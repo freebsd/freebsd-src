@@ -29,6 +29,7 @@
 #define	_MACHINE_CPU_FEAT_H_
 
 #include <sys/linker_set.h>
+#include <sys/sysctl.h>
 
 typedef enum {
 	ERRATA_UNKNOWN,		/* Unknown erratum */
@@ -52,7 +53,7 @@ struct cpu_feat;
 typedef bool (cpu_feat_check)(const struct cpu_feat *, u_int);
 typedef bool (cpu_feat_has_errata)(const struct cpu_feat *, u_int,
     u_int **, u_int *);
-typedef void (cpu_feat_enable)(const struct cpu_feat *, cpu_feat_errata,
+typedef bool (cpu_feat_enable)(const struct cpu_feat *, cpu_feat_errata,
     u_int *, u_int);
 
 struct cpu_feat {
@@ -61,18 +62,24 @@ struct cpu_feat {
 	cpu_feat_has_errata	*feat_has_errata;
 	cpu_feat_enable		*feat_enable;
 	uint32_t		 feat_flags;
+	bool			 feat_enabled;
 };
 SET_DECLARE(cpu_feat_set, struct cpu_feat);
 
-#define	CPU_FEAT(name, check, has_errata, enable, flags)	\
+SYSCTL_DECL(_hw_feat);
+
+#define	CPU_FEAT(name, descr, check, has_errata, enable, flags)	\
 static struct cpu_feat name = {						\
 	.feat_name		= #name,				\
 	.feat_check		= check,				\
 	.feat_has_errata	= has_errata,				\
 	.feat_enable		= enable,				\
 	.feat_flags		= flags,				\
+	.feat_enabled		= false,				\
 };									\
-DATA_SET(cpu_feat_set, name)
+DATA_SET(cpu_feat_set, name);						\
+SYSCTL_BOOL(_hw_feat, OID_AUTO, name, CTLFLAG_RD, &name.feat_enabled,	\
+    0, descr)
 
 /*
  * Allow drivers to mark an erratum as worked around, e.g. the Errata
