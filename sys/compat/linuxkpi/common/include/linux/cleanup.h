@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -42,5 +42,17 @@
 #define	guard(_n)							\
     guard_ ## _n ## _t guard_ ## _n ## _ ## __COUNTER__			\
 	__cleanup(guard_ ## _n ## _destroy) = guard_ ## _n ## _create
+
+#define	DEFINE_FREE(_n, _t, _f)						\
+    static inline void							\
+    __free_ ## _n(void *p)						\
+    {									\
+	_t _T;								\
+									\
+	_T = *(_t *)p;							\
+	_f;								\
+    }
+
+#define	__free(_n)		__cleanup(__free_##_n)
 
 #endif	/* _LINUXKPI_LINUX_CLEANUP_H */
