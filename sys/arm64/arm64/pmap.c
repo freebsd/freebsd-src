@@ -1674,8 +1674,8 @@ pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
     u_int **errata_list, u_int *errata_count)
 {
 	/* Disable on Cortex-A55 for erratum 1024718 - all revisions */
-	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
-	    CPU_PART_CORTEX_A55, 0, 0)) {
+	if (CPU_IMPL(midr) == CPU_IMPL_ARM &&
+	    CPU_PART(midr) == CPU_PART_CORTEX_A55) {
 		static u_int errata_id = 1024718;
 
 		*errata_list = &errata_id;
@@ -1684,15 +1684,13 @@ pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
 	}
 
 	/* Disable on Cortex-A510 for erratum 2051678 - r0p0 to r0p2 */
-	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_VAR_MASK,
-	    CPU_IMPL_ARM, CPU_PART_CORTEX_A510, 0, 0)) {
-		if (CPU_REV(PCPU_GET(midr)) < 3) {
-			static u_int errata_id = 2051678;
+	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
+	    0, 0, 0, 2)) {
+		static u_int errata_id = 2051678;
 
-			*errata_list = &errata_id;
-			*errata_count = 1;
-			return (true);
-		}
+		*errata_list = &errata_id;
+		*errata_count = 1;
+		return (true);
 	}
 
 	return (false);
