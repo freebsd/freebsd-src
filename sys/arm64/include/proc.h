@@ -75,6 +75,7 @@ struct mdthread {
 
 struct mdproc {
 	uint64_t md_tcr;		/* TCR_EL1 fields to update */
+	uint64_t md_reserved[2];
 };
 #endif /* !LOCORE */
 
