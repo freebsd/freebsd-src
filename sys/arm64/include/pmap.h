@@ -69,6 +69,7 @@ struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 	int			pv_gen;
 	vm_memattr_t		pv_memattr;
+	uint8_t			pv_reserve[3];
 };
 
 enum pmap_stage {
