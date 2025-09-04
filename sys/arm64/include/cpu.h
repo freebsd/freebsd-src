@@ -202,6 +202,31 @@
 #define	CPU_MATCH_RAW(mask, devid)			\
     (((mask) & PCPU_GET(midr)) == ((mask) & (devid)))
 
+#if !defined(__ASSEMBLER__)
+static inline bool
+midr_check_var_part_range(u_int midr, u_int impl, u_int part, u_int var_low,
+    u_int part_low, u_int var_high, u_int part_high)
+{
+	/* Check for the correct part */
+	if (CPU_IMPL(midr) != impl || CPU_PART(midr) != part)
+		return (false);
+
+	/* Check if the variant is between var_low and var_high inclusive */
+	if (CPU_VAR(midr) < var_low || CPU_VAR(midr) > var_high)
+		return (false);
+
+	/* If the variant is the low value, check if the part is high enough */
+	if (CPU_VAR(midr) == var_low && CPU_PART(midr) < part_low)
+		return (false);
+
+	/* If the variant is the high value, check if the part is low enough */
+	if (CPU_VAR(midr) == var_high && CPU_PART(midr) > part_high)
+		return (false);
+
+	return (true);
+}
+#endif
+
 /*
  * Chip-specific errata. This defines are intended to be
  * booleans used within if statements. When an appropriate
