@@ -1,0 +1,9 @@
+#
+# MINIMAL-DEBUG -- WITNESS and INVARIANTS enabled kernel configuration file
+#			       for FreeBSD/amd64
+#
+
+include MINIMAL
+include "std.debug"
+
+ident   MINIMAL-DEBUG
