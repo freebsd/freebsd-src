@@ -1,0 +1,4 @@
+include GENERIC
+
+# Boot profiling
+options		TSLOG
