@@ -337,9 +337,9 @@ rm_wowned(const struct rmlock *rm)
 }
 
 void
-rm_sysinit(void *arg)
+rm_sysinit(const void *arg)
 {
-	struct rm_args *args;
+	const struct rm_args *args;
 
 	args = arg;
 	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_flags);
