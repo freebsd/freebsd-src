@@ -65,9 +65,6 @@ options 	KDB_TRACE		# Print a stack trace for a panic.
 
 options		USB_DEBUG		# Enable usb debug support code
 
-# For full debugger support use (turn off in stable branch):
-include "std.debug"
-
 # Optional extras, never enabled by default:
 #options 	BOOTVERBOSE
 #options 	DEBUG			# May result in extreme spewage

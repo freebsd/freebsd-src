@@ -167,8 +167,6 @@ device		xilinx_spi	# Xilinx AXI SPI Controller
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
-# For full debugger support use (turn off in stable branch):
-include "std.debug"
 # options 	EARLY_PRINTF=sbi
 
 # Kernel dump features.
