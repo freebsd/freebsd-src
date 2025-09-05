@@ -112,6 +112,8 @@ amdiommu_map_msi_intr(device_t src, u_int cpu, u_int vector,
 {
 	struct amdiommu_ctx *ctx;
 	struct amdiommu_unit *unit;
+	device_t requester;
+	int error __diagused;
 	uint16_t rid;
 	bool is_iommu;
 
@@ -180,7 +182,8 @@ amdiommu_map_msi_intr(device_t src, u_int cpu, u_int vector,
 			*addr |= ((uint64_t)cpu & 0xffffff00) << 32;
 	}
 
-	iommu_get_requester(src, &rid);
+	error = iommu_get_requester(src, &requester, &rid);
+	MPASS(error == 0);
 	AMDIOMMU_LOCK(unit);
 	amdiommu_qi_invalidate_ir_locked(unit, rid);
 	AMDIOMMU_UNLOCK(unit);
@@ -220,6 +223,7 @@ static struct amdiommu_ctx *
 amdiommu_ir_find(device_t src, uint16_t *ridp, bool *is_iommu)
 {
 	devclass_t src_class;
+	device_t requester;
 	struct amdiommu_unit *unit;
 	struct amdiommu_ctx *ctx;
 	uint32_t edte;
@@ -251,7 +255,8 @@ amdiommu_ir_find(device_t src, uint16_t *ridp, bool *is_iommu)
 		error = amdiommu_find_unit(src, &unit, &rid, &dte, &edte,
 		    bootverbose);
 		if (error == 0) {
-			iommu_get_requester(src, &rid);
+			error = iommu_get_requester(src, &requester, &rid);
+			MPASS(error == 0);
 			ctx = amdiommu_get_ctx_for_dev(unit, src,
 			    rid, 0, false /* XXXKIB */, false, dte, edte);
 		}
@@ -266,6 +271,8 @@ amdiommu_ir_free_irte(struct amdiommu_ctx *ctx, device_t src,
     u_int cookie)
 {
 	struct amdiommu_unit *unit;
+	device_t requester;
+	int error __diagused;
 	uint16_t rid;
 
 	MPASS(ctx != NULL);
@@ -291,7 +298,8 @@ amdiommu_ir_free_irte(struct amdiommu_ctx *ctx, device_t src,
 		atomic_thread_fence_rel();
 		bzero(irte, sizeof(*irte));
 	}
-	iommu_get_requester(src, &rid);
+	error = iommu_get_requester(src, &requester, &rid);
+	MPASS(error == 0);
 	AMDIOMMU_LOCK(unit);
 	amdiommu_qi_invalidate_ir_locked(unit, rid);
 	AMDIOMMU_UNLOCK(unit);
