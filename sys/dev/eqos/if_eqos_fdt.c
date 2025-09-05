@@ -245,14 +245,6 @@ eqos_fdt_init(device_t dev)
 	    EQOS_GMAC_RXCLK_DLY_ENABLE |
 	    EQOS_GMAC_TXCLK_DLY_ENABLE);
 
-	if (!regulator_get_by_ofw_property(dev, 0, "phy-supply",
-	    &eqos_supply)) {
-		if (regulator_enable(eqos_supply))
-			device_printf(dev, "cannot enable 'phy' regulator\n");
-	}
-	else
-		device_printf(dev, "no phy-supply property\n");
-
 	if (eqos_phy_reset(dev))
 		return (ENXIO);
 
