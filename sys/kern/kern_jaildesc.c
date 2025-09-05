@@ -133,12 +133,12 @@ jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning)
 		mode = 0;
 	jd = malloc(sizeof(*jd), M_JAILDESC, M_WAITOK | M_ZERO);
 	error = falloc_caps(td, &fp, fdp, 0, NULL);
-	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0
-	    ? FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
 	if (error != 0) {
 		free(jd, M_JAILDESC);
 		return (error);
 	}
+	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0
+	    ? FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
 	JAILDESC_LOCK_INIT(jd);
 	jd->jd_uid = fp->f_cred->cr_uid;
 	jd->jd_gid = fp->f_cred->cr_gid;
@@ -234,7 +234,6 @@ jaildesc_close(struct file *fp, struct thread *td)
 		JAILDESC_LOCK_DESTROY(jd);
 		free(jd, M_JAILDESC);
 	}
-	finit(fp, 0, DTYPE_NONE, NULL, &badfileops);
 	return (0);
 }
 
