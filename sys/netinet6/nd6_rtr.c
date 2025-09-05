@@ -1182,9 +1182,9 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	struct ifnet *ifp = pr->ndpr_ifp;
 	struct ifaddr *ifa;
 	struct in6_aliasreq ifra;
-	struct in6_ifaddr *ia, *ib;
+	struct in6_ifaddr *ia = NULL, *ib = NULL;
 	int error, plen0;
-	struct in6_addr mask;
+	struct in6_addr *ifid_addr = NULL, mask;
 	int prefixlen = pr->ndpr_plen;
 	int updateflags;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1212,18 +1212,42 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	 * with different interface identifiers.
 	 */
 	ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp, 0); /* 0 is OK? */
-	if (ifa)
+	if (ifa) {
 		ib = (struct in6_ifaddr *)ifa;
-	else
-		return NULL;
+		ifid_addr = &ib->ia_addr.sin6_addr;
 
-	/* prefixlen + ifidlen must be equal to 128 */
-	plen0 = in6_mask2len(&ib->ia_prefixmask.sin6_addr, NULL);
-	if (prefixlen != plen0) {
-		ifa_free(ifa);
+		/* prefixlen + ifidlen must be equal to 128 */
+		plen0 = in6_mask2len(&ib->ia_prefixmask.sin6_addr, NULL);
+		if (prefixlen != plen0) {
+			ifa_free(ifa);
+			ifid_addr = NULL;
+			nd6log((LOG_DEBUG,
+			    "%s: wrong prefixlen for %s (prefix=%d ifid=%d)\n",
+			    __func__, if_name(ifp), prefixlen, 128 - plen0));
+		}
+	}
+
+	/* No suitable LL address, get the ifid directly */
+	if (ifid_addr == NULL) {
+		struct in6_addr taddr;
+		ifa = ifa_alloc(sizeof(taddr), M_WAITOK);
+		if (ifa) {
+			ib = (struct in6_ifaddr *)ifa;
+			ifid_addr = &ib->ia_addr.sin6_addr;
+			if(in6_get_ifid(ifp, NULL, ifid_addr) != 0) {
+				nd6log((LOG_DEBUG,
+				    "%s: failed to get ifid for %s\n",
+				    __func__, if_name(ifp)));
+				ifa_free(ifa);
+				ifid_addr = NULL;
+			}
+		}
+	}
+
+	if (ifid_addr == NULL) {
 		nd6log((LOG_INFO,
-		    "%s: wrong prefixlen for %s (prefix=%d ifid=%d)\n",
-		    __func__, if_name(ifp), prefixlen, 128 - plen0));
+		    "%s: could not determine ifid for %s\n",
+		    __func__, if_name(ifp)));
 		return NULL;
 	}
 
@@ -1233,13 +1257,13 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr, &mask);
 	/* interface ID */
 	ifra.ifra_addr.sin6_addr.s6_addr32[0] |=
-	    (ib->ia_addr.sin6_addr.s6_addr32[0] & ~mask.s6_addr32[0]);
+	    (ifid_addr->s6_addr32[0] & ~mask.s6_addr32[0]);
 	ifra.ifra_addr.sin6_addr.s6_addr32[1] |=
-	    (ib->ia_addr.sin6_addr.s6_addr32[1] & ~mask.s6_addr32[1]);
+	    (ifid_addr->s6_addr32[1] & ~mask.s6_addr32[1]);
 	ifra.ifra_addr.sin6_addr.s6_addr32[2] |=
-	    (ib->ia_addr.sin6_addr.s6_addr32[2] & ~mask.s6_addr32[2]);
+	    (ifid_addr->s6_addr32[2] & ~mask.s6_addr32[2]);
 	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
-	    (ib->ia_addr.sin6_addr.s6_addr32[3] & ~mask.s6_addr32[3]);
+	    (ifid_addr->s6_addr32[3] & ~mask.s6_addr32[3]);
 	ifa_free(ifa);
 
 	/* lifetimes. */

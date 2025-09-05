@@ -83,7 +83,6 @@ VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
 static int get_rand_ifid(struct ifnet *, struct in6_addr *);
-static int get_ifid(struct ifnet *, struct ifnet *, struct in6_addr *);
 static int in6_ifattach_linklocal(struct ifnet *, struct ifnet *);
 static int in6_ifattach_loopback(struct ifnet *);
 static void in6_purgemaddrs(struct ifnet *);
@@ -271,8 +270,8 @@ found:
  *
  * altifp - secondary EUI64 source
  */
-static int
-get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
+int
+in6_get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
     struct in6_addr *in6)
 {
 	struct ifnet *ifp;
@@ -356,7 +355,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		ifra.ifra_addr.sin6_addr.s6_addr32[3] = htonl(1);
 	} else {
 		NET_EPOCH_ENTER(et);
-		error = get_ifid(ifp, altifp, &ifra.ifra_addr.sin6_addr);
+		error = in6_get_ifid(ifp, altifp, &ifra.ifra_addr.sin6_addr);
 		NET_EPOCH_EXIT(et);
 		if (error != 0) {
 			nd6log((LOG_ERR,
