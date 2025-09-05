@@ -266,9 +266,9 @@ _rw_destroy(volatile uintptr_t *c)
 }
 
 void
-rw_sysinit(void *arg)
+rw_sysinit(const void *arg)
 {
-	struct rw_args *args;
+	const struct rw_args *args;
 
 	args = arg;
 	rw_init_flags((struct rwlock *)args->ra_rw, args->ra_desc,
