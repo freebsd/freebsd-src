@@ -146,7 +146,6 @@ eqos_fdt_init(device_t dev)
 	struct eqos_softc *sc = device_get_softc(dev);
 	phandle_t node = ofw_bus_get_node(dev);
 	hwreset_t eqos_reset;
-	regulator_t eqos_supply;
 	uint32_t rx_delay, tx_delay;
 	uint8_t buffer[16];
 	clk_t stmmaceth, mac_clk_rx, mac_clk_tx, aclk_mac, pclk_mac;
