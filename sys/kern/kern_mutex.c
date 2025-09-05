@@ -1136,9 +1136,9 @@ __mtx_assert(const volatile uintptr_t *c, int what, const char *file, int line)
  * General init routine used by the MTX_SYSINIT() macro.
  */
 void
-mtx_sysinit(void *arg)
+mtx_sysinit(const void *arg)
 {
-	struct mtx_args *margs = arg;
+	const struct mtx_args *margs = arg;
 
 	mtx_init((struct mtx *)margs->ma_mtx, margs->ma_desc, NULL,
 	    margs->ma_opts);
