@@ -534,7 +534,7 @@ apple_aic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 #ifdef SMP
 static void
-apple_aic_ipi_received(struct apple_aic_softc *sc, struct trapframe *tf)
+apple_aic_ipi_received(struct apple_aic_softc *sc)
 {
 	uint32_t mask;
 	uint32_t ipi;
@@ -559,10 +559,8 @@ apple_aic_irq(void *arg)
 	struct apple_aic_softc *sc;
 	uint32_t die, event, irq, type;
 	struct apple_aic_irqsrc	*aisrc;
-	struct trapframe *tf;
 
 	sc = arg;
-	tf = curthread->td_intr_frame;
 
 	event = bus_read_4(sc->sc_mem, AIC_EVENT);
 	type = AIC_EVENT_TYPE(event);
@@ -586,7 +584,7 @@ apple_aic_irq(void *arg)
 		panic("%s: unexpected irq %d", __func__, irq);
 
 	aisrc = &sc->sc_isrcs[die][irq];
-	if (intr_isrc_dispatch(&aisrc->ai_isrc, tf) != 0) {
+	if (intr_isrc_dispatch(&aisrc->ai_isrc) != 0) {
 		device_printf(sc->sc_dev, "Stray irq %u:%u disabled\n",
 		    die, irq);
 		return (FILTER_STRAY);
@@ -600,16 +598,14 @@ apple_aic_fiq(void *arg)
 {
 	struct apple_aic_softc *sc;
 	struct apple_aic_irqsrc *isrcs;
-	struct trapframe *tf;
 
 	sc = arg;
-	tf = curthread->td_intr_frame;
 
 #ifdef SMP
 	/* Handle IPIs. */
 	if ((READ_SPECIALREG(AIC_IPI_SR_EL1) & AIC_IPI_SR_EL1_PENDING) != 0) {
 		WRITE_SPECIALREG(AIC_IPI_SR_EL1, AIC_IPI_SR_EL1_PENDING);
-		apple_aic_ipi_received(sc, tf);
+		apple_aic_ipi_received(sc);
 	}
 #endif
 
@@ -621,24 +617,23 @@ apple_aic_fiq(void *arg)
 	isrcs = sc->sc_isrcs[0];
 	if ((READ_SPECIALREG(cntv_ctl_el0) & CNTV_CTL_BITS) ==
 	    (CNTV_CTL_ENABLE | CNTV_CTL_ISTATUS)) {
-		intr_isrc_dispatch(&isrcs[AIC_TMR_GUEST_VIRT].ai_isrc, tf);
+		intr_isrc_dispatch(&isrcs[AIC_TMR_GUEST_VIRT].ai_isrc);
 	}
 
 	if (has_hyp()) {
 		uint64_t reg;
 
 		if ((READ_SPECIALREG(cntp_ctl_el0) & CNTV_CTL_ISTATUS) != 0) {
-			intr_isrc_dispatch(&isrcs[AIC_TMR_GUEST_PHYS].ai_isrc,
-			    tf);
+			intr_isrc_dispatch(&isrcs[AIC_TMR_GUEST_PHYS].ai_isrc);
 		}
 
 		reg = READ_SPECIALREG(AIC_FIQ_VM_TIMER);
 		if ((reg & AIC_FIQ_VM_TIMER_PEN) != 0) {
-			intr_isrc_dispatch(&isrcs[AIC_TMR_HV_PHYS].ai_isrc, tf);
+			intr_isrc_dispatch(&isrcs[AIC_TMR_HV_PHYS].ai_isrc);
 		}
 
 		if ((reg & AIC_FIQ_VM_TIMER_VEN) != 0) {
-			intr_isrc_dispatch(&isrcs[AIC_TMR_HV_VIRT].ai_isrc, tf);
+			intr_isrc_dispatch(&isrcs[AIC_TMR_HV_VIRT].ai_isrc);
 		}
 	}
 
