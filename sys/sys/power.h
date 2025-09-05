@@ -28,6 +28,7 @@
 
 #ifndef _SYS_POWER_H_
 #define _SYS_POWER_H_
+#ifdef _KERNEL
 
 #include <sys/_eventhandler.h>
 
@@ -60,4 +61,5 @@ extern void	power_profile_set_state(int);
 typedef void (*power_profile_change_hook)(void *, int);
 EVENTHANDLER_DECLARE(power_profile_change, power_profile_change_hook);
 
+#endif	/* _KERNEL */
 #endif	/* !_SYS_POWER_H_ */
