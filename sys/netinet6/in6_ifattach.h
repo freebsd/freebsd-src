@@ -41,6 +41,7 @@ void in6_ifdetach(struct ifnet *);
 void in6_ifdetach_destroy(struct ifnet *);
 void in6_tmpaddrtimer(void *);
 int in6_get_hw_ifid(struct ifnet *, struct in6_addr *);
+int in6_get_ifid(struct ifnet *, struct ifnet *, struct in6_addr *);
 int in6_nigroup(struct ifnet *, const char *, int, struct in6_addr *);
 int in6_nigroup_oldmcprefix(struct ifnet *, const char *, int, struct in6_addr *);
 #endif /* _KERNEL */
