@@ -29,6 +29,16 @@ SRCS+=	lfs.c
 .PATH:	${FLUALIB}/libhash
 SRCS+=	lhash.c
 
+# ACPI
+.if ${MACHINE_CPUARCH} == "amd64"
+.PATH: ${LIBLUASRC}/acpi
+SRCS+=  lacpi.c lacpi_object.c lacpi_factory.c
+CFLAGS+= -I${LIBLUASRC}/acpi -I${SYSDIR}/contrib/dev/acpica/include \
+	 -I${EFISRC}/acpica/include
+DPADD+=	${LIBACPI}
+LDADD+= ${LIBACPI}
+.endif
+
 WARNS?=	3
 
 CFLAGS+= -DLUA_PATH=\"${LUAPATH}\" -DLUA_PATH_DEFAULT=\"${LUAPATH}/\?.lua\"
