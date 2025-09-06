@@ -146,7 +146,6 @@ eqos_fdt_init(device_t dev)
 	struct eqos_softc *sc = device_get_softc(dev);
 	phandle_t node = ofw_bus_get_node(dev);
 	hwreset_t eqos_reset;
-	regulator_t eqos_supply;
 	uint32_t rx_delay, tx_delay;
 	uint8_t buffer[16];
 	clk_t stmmaceth, mac_clk_rx, mac_clk_tx, aclk_mac, pclk_mac;
@@ -244,14 +243,6 @@ eqos_fdt_init(device_t dev)
 	    EQOS_GMAC_PHY_INTF_SEL_RGMII |
 	    EQOS_GMAC_RXCLK_DLY_ENABLE |
 	    EQOS_GMAC_TXCLK_DLY_ENABLE);
-
-	if (!regulator_get_by_ofw_property(dev, 0, "phy-supply",
-	    &eqos_supply)) {
-		if (regulator_enable(eqos_supply))
-			device_printf(dev, "cannot enable 'phy' regulator\n");
-	}
-	else
-		device_printf(dev, "no phy-supply property\n");
 
 	if (eqos_phy_reset(dev))
 		return (ENXIO);
