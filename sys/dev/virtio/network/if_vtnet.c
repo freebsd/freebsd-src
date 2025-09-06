@@ -133,12 +133,14 @@ static int	vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *,
 static int	vtnet_rxq_replace_buf(struct vtnet_rxq *, struct mbuf *, int);
 static int	vtnet_rxq_enqueue_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_new_buf(struct vtnet_rxq *);
+#if defined(INET) || defined(INET6)
 static int	vtnet_rxq_csum_needs_csum(struct vtnet_rxq *, struct mbuf *,
 		     bool, int, struct virtio_net_hdr *);
 static void	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
 		    int);
 static int	vtnet_rxq_csum(struct vtnet_rxq *, struct mbuf *,
 		     struct virtio_net_hdr *);
+#endif
 static void	vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *, int);
 static void	vtnet_rxq_discard_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_merged_eof(struct vtnet_rxq *, struct mbuf *, int);
@@ -1761,6 +1763,7 @@ vtnet_rxq_new_buf(struct vtnet_rxq *rxq)
 	return (error);
 }
 
+#if defined(INET) || defined(INET6)
 static int
 vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, bool isipv6,
     int protocol, struct virtio_net_hdr *hdr)
@@ -1918,6 +1921,7 @@ vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
 
 	return (0);
 }
+#endif
 
 static void
 vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *rxq, int nbufs)
@@ -2040,10 +2044,15 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 
 	if (hdr->flags &
 	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID)) {
+#if defined(INET) || defined(INET6)
 		if (vtnet_rxq_csum(rxq, m, hdr) == 0)
 			rxq->vtnrx_stats.vrxs_csum++;
 		else
 			rxq->vtnrx_stats.vrxs_csum_failed++;
+#else
+		sc->vtnet_stats.rx_csum_bad_ethtype++;
+		rxq->vtnrx_stats.vrxs_csum_failed++;
+#endif
 	}
 
 	if (hdr->gso_size != 0) {
