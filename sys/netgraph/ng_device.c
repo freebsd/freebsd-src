@@ -51,7 +51,8 @@
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
+#include <sys/fcntl.h>
+#include <sys/filio.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -135,9 +136,7 @@ static d_close_t ngdclose;
 static d_open_t ngdopen;
 static d_read_t ngdread;
 static d_write_t ngdwrite;
-#if 0
 static d_ioctl_t ngdioctl;
-#endif
 static d_poll_t ngdpoll;
 
 static struct cdevsw ngd_cdevsw = {
@@ -146,9 +145,7 @@ static struct cdevsw ngd_cdevsw = {
 	.d_close =	ngdclose,
 	.d_read =	ngdread,
 	.d_write =	ngdwrite,
-#if 0
 	.d_ioctl =	ngdioctl,
-#endif
 	.d_poll =	ngdpoll,
 	.d_name =	NG_DEVICE_DEVNAME,
 };
@@ -397,6 +394,20 @@ ngdclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	return(0);
 }
 
+/*
+ * Process IOCTLs
+ *
+ * At this stage we only return success on FIONBIO to allow setting the device
+ * as non-blocking.
+ *
+ */
+static int
+ngdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+{
+    if (cmd == FIONBIO)
+        return (0);
+    return (ENOTTY);
+}
 #if 0	/*
 	 * The ioctl is transformed into netgraph control message.
 	 * We do not process them, yet.
@@ -457,7 +468,7 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 	do {
 		IF_DEQUEUE(&priv->readq, m);
 		if (m == NULL) {
-			if (flag & IO_NDELAY)
+			if (flag & O_NONBLOCK)
 				return (EWOULDBLOCK);
 			mtx_lock(&priv->ngd_mtx);
 			priv->flags |= NGDF_RWAIT;
