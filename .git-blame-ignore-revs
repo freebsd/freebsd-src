@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# sys/cpu.h style(9) fixes
+0737e2a961cd712fff5b548bb6b823e48a8b527d
 # witness white space cleanup and style(9) tweeks
 f5377665253b2b107ee8a4690ad2e6682375b304
 # style fixes for device_if.m
