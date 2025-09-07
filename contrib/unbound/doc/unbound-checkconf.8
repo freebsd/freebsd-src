@@ -1,4 +1,4 @@
-.TH "unbound-checkconf" "8" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
+.TH "unbound-checkconf" "8" "Jul 16, 2025" "NLnet Labs" "unbound 1.23.1"
 .\"
 .\" unbound-checkconf.8 -- unbound configuration checker manual
 .\"
@@ -14,6 +14,7 @@ unbound\-checkconf
 .B unbound\-checkconf
 .RB [ \-h ]
 .RB [ \-f ]
+.RB [ \-q ]
 .RB [ \-o
 .IR option ]
 .RI [ cfgfile ]
@@ -37,6 +38,9 @@ Print full pathname, with chroot applied to it.  Use with the \-o option.
 If given, after checking the config file the value of this option is
 printed to stdout.  For "" (disabled) options an empty line is printed.
 .TP
+.B \-q
+Make the operation quiet, suppress output on success.
+.TP
 .I cfgfile
 The config file to read with settings for Unbound. It is checked.
 If omitted, the config file at the default location is checked.
@@ -45,7 +49,7 @@ The unbound\-checkconf program exits with status code 1 on error,
 0 for a correct config file.
 .SH "FILES"
 .TP
-.I @ub_conf_file@
+.I /var/unbound/unbound.conf
 Unbound configuration file.
 .SH "SEE ALSO"
 \fIunbound.conf\fR(5),
