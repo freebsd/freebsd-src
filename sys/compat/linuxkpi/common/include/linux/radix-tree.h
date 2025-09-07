@@ -38,12 +38,19 @@
 #define	RADIX_TREE_MAX_HEIGHT \
 	howmany(sizeof(long) * NBBY, RADIX_TREE_MAP_SHIFT)
 
+#define	RADIX_TREE_MAX_TAGS	3
+#define	RADIX_TREE_TAG_LONGS	RADIX_TREE_MAP_SIZE
+
 #define	RADIX_TREE_ENTRY_MASK 3UL
 #define	RADIX_TREE_EXCEPTIONAL_ENTRY 2UL
 #define	RADIX_TREE_EXCEPTIONAL_SHIFT 2
 
+#define	RADIX_TREE_ITER_TAG_MASK	0x0f
+#define	RADIX_TREE_ITER_TAGGED		0x10
+
 struct radix_tree_node {
 	void		*slots[RADIX_TREE_MAP_SIZE];
+	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
 	int		count;
 };
 
@@ -51,6 +58,8 @@ struct radix_tree_root {
 	struct radix_tree_node	*rnode;
 	gfp_t			gfp_mask;
 	int			height;
+	/* Linux stores root tags inside `gfp_mask`. */
+	unsigned long		tags[RADIX_TREE_MAX_TAGS];
 };
 
 struct radix_tree_iter {
@@ -64,9 +73,16 @@ struct radix_tree_iter {
 #define	RADIX_TREE(name, mask)						\
 	    struct radix_tree_root name = RADIX_TREE_INIT(mask)
 
-#define	radix_tree_for_each_slot(slot, root, iter, start) \
-	for ((iter)->index = (start);			  \
-	     radix_tree_iter_find(root, iter, &(slot)); (iter)->index++)
+#define	radix_tree_for_each_slot(slot, root, iter, start)		\
+	for ((iter)->index = (start);					\
+	     radix_tree_iter_find(root, iter, &(slot), 0);		\
+	     (iter)->index++)
+
+#define	radix_tree_for_each_slot_tagged(slot, root, iter, start, tag)	\
+	for ((iter)->index = (start);					\
+	     radix_tree_iter_find(root, iter, &(slot),			\
+	         RADIX_TREE_ITER_TAGGED | tag);				\
+	     (iter)->index++)
 
 static inline void *
 radix_tree_deref_slot(void **slot)
@@ -84,7 +100,12 @@ void	*radix_tree_lookup(const struct radix_tree_root *, unsigned long);
 void	*radix_tree_delete(struct radix_tree_root *, unsigned long);
 int	radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
 int	radix_tree_store(struct radix_tree_root *, unsigned long, void **);
-bool	radix_tree_iter_find(const struct radix_tree_root *, struct radix_tree_iter *, void ***);
+bool	radix_tree_iter_find(const struct radix_tree_root *, struct radix_tree_iter *, void ***, int);
 void	radix_tree_iter_delete(struct radix_tree_root *, struct radix_tree_iter *, void **);
+void	*radix_tree_tag_set(struct radix_tree_root *root, unsigned long index, unsigned int tag);
+void	*radix_tree_tag_clear(struct radix_tree_root *root, unsigned long index, unsigned int tag);
+int	radix_tree_tagged(const struct radix_tree_root *root, unsigned int tag);
+unsigned int	radix_tree_gang_lookup(const struct radix_tree_root *root, void **results, unsigned long first_index, unsigned int max_items);
+unsigned int	radix_tree_gang_lookup_tag(const struct radix_tree_root *root, void **results, unsigned long first_index, unsigned int max_items, unsigned int tag);
 
 #endif	/* _LINUXKPI_LINUX_RADIX_TREE_H_ */
