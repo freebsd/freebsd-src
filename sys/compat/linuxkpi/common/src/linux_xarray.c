@@ -389,7 +389,7 @@ __xa_empty(struct xarray *xa)
 
 	XA_ASSERT_LOCKED(xa);
 
-	return (!radix_tree_iter_find(&xa->xa_head, &iter, &temp));
+	return (!radix_tree_iter_find(&xa->xa_head, &iter, &temp, 0));
 }
 
 bool
@@ -426,7 +426,7 @@ __xa_next(struct xarray *xa, unsigned long *pindex, bool not_first)
 			return (NULL);
 	}
 
-	found = radix_tree_iter_find(&xa->xa_head, &iter, &ppslot);
+	found = radix_tree_iter_find(&xa->xa_head, &iter, &ppslot, 0);
 	if (likely(found)) {
 		retval = *ppslot;
 		if (retval == NULL_VALUE)

@@ -52,6 +52,81 @@ radix_pos(long id, int height)
 	return (id >> (RADIX_TREE_MAP_SHIFT * height)) & RADIX_TREE_MAP_MASK;
 }
 
+static inline int
+root_tag_get(const struct radix_tree_root *root, unsigned tag)
+{
+	return (test_bit(tag, root->tags));
+}
+
+static inline void
+root_tag_set(struct radix_tree_root *root, unsigned tag)
+{
+	set_bit(tag, root->tags);
+}
+
+static inline void
+root_tag_clear(struct radix_tree_root *root, unsigned tag)
+{
+	clear_bit(tag, root->tags);
+}
+
+static inline int
+tag_get(const struct radix_tree_node *node, unsigned int tag, int pos)
+{
+	return (test_bit(pos, node->tags[tag]));
+}
+
+static inline void
+tag_set(struct radix_tree_node *node, unsigned int tag, int pos)
+{
+	set_bit(pos, node->tags[tag]);
+}
+
+static inline void
+tag_clear(struct radix_tree_node *node, unsigned int tag, int pos)
+{
+	clear_bit(pos, node->tags[tag]);
+}
+
+static inline bool
+any_tag_set(const struct radix_tree_node *node, unsigned int tag)
+{
+	unsigned int pos;
+
+	for (pos = 0; pos < RADIX_TREE_TAG_LONGS; pos++)
+		if (node->tags[tag][pos])
+			return (true);
+
+	return (false);
+}
+
+static void
+node_tag_clear(struct radix_tree_root *root, struct radix_tree_node *stack[],
+    unsigned long index, unsigned int tag)
+{
+	struct radix_tree_node *node;
+	int height, pos;
+
+	height = 1;
+	node = stack[height];
+
+	while (node && height <= root->height - 1) {
+		pos = radix_pos(index, height);
+		if (!tag_get(node, tag, pos))
+			return;
+
+		tag_clear(node, tag, pos);
+		if (any_tag_set(node, tag))
+			return;
+
+		height++;
+		node = stack[height];
+	}
+
+	if (root_tag_get(root, tag))
+		root_tag_clear(root, tag);
+}
+
 static void
 radix_tree_clean_root_node(struct radix_tree_root *root)
 {
@@ -84,13 +159,69 @@ out:
 	return (item);
 }
 
+unsigned int
+radix_tree_gang_lookup(const struct radix_tree_root *root, void **results,
+    unsigned long first_index, unsigned int max_items)
+{
+	struct radix_tree_iter iter;
+	void **slot;
+	int count;
+
+	count = 0;
+	if (max_items == 0)
+		return (count);
+
+	radix_tree_for_each_slot(slot, root, &iter, first_index) {
+		results[count] = *slot;
+		if (results[count] == NULL)
+			continue;
+
+		count++;
+		if (count == max_items)
+			break;
+	}
+
+	return (count);
+}
+
+unsigned int
+radix_tree_gang_lookup_tag(const struct radix_tree_root *root,
+    void **results, unsigned long first_index, unsigned int max_items,
+    unsigned int tag)
+{
+	struct radix_tree_iter iter;
+	void **slot;
+	int count;
+
+	count = 0;
+	if (max_items == 0)
+		return (count);
+
+	radix_tree_for_each_slot_tagged(slot, root, &iter, first_index, tag) {
+		results[count] = *slot;
+		if (results[count] == NULL)
+			continue;
+
+		count++;
+		if (count == max_items)
+			break;
+	}
+
+	return (count);
+}
+
 bool
 radix_tree_iter_find(const struct radix_tree_root *root,
-    struct radix_tree_iter *iter, void ***pppslot)
+    struct radix_tree_iter *iter, void ***pppslot, int flags)
 {
 	struct radix_tree_node *node;
 	unsigned long index = iter->index;
+	unsigned int tag;
 	int height;
+
+	tag = flags & RADIX_TREE_ITER_TAG_MASK;
+	if ((flags & RADIX_TREE_ITER_TAGGED) && !root_tag_get(root, tag))
+		return (false);
 
 restart:
 	node = root->rnode;
@@ -109,7 +240,9 @@ restart:
 		*pppslot = node->slots + pos;
 
 		next = node->slots[pos];
-		if (next == NULL) {
+		if (next == NULL ||
+		    (flags & RADIX_TREE_ITER_TAGGED &&
+		     !tag_get(next, tag, pos))) {
 			index += step;
 			index &= -step;
 			if ((index & mask) == 0)
@@ -131,6 +264,7 @@ radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 	void *item;
 	int height;
 	int idx;
+	int tag;
 
 	item = NULL;
 	node = root->rnode;
@@ -144,9 +278,15 @@ radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 		stack[height] = node;
 		node = node->slots[radix_pos(index, height--)];
 	}
-	idx = radix_pos(index, 0);
-	if (node)
+
+	if (node) {
+		idx = radix_pos(index, 0);
 		item = node->slots[idx];
+
+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+			node_tag_clear(root, stack, index, tag);
+	}
+
 	/*
 	 * If we removed something reduce the height of the tree.
 	 */
@@ -379,4 +519,75 @@ radix_tree_store(struct radix_tree_root *root, unsigned long index, void **ppite
 	if (pitem == NULL)
 		node->count++;
 	return (0);
+}
+
+void *
+radix_tree_tag_set(struct radix_tree_root *root, unsigned long index,
+    unsigned int tag)
+{
+	struct radix_tree_node *node;
+	void *item;
+	int height, pos;
+
+	item = NULL;
+	node = root->rnode;
+	height = root->height - 1;
+	if (index > radix_max(root))
+		goto out;
+
+	while (height) {
+		KASSERT(
+		    node != NULL,
+		    ("Node at index %lu does not exist in radix tree %p",
+		    index, root));
+
+		pos = radix_pos(index, height--);
+		node = node->slots[pos];
+
+		if (!tag_get(node, tag, pos))
+			tag_set(node, tag, pos);
+	}
+
+	item = node->slots[radix_pos(index, 0)];
+
+	root_tag_set(root, tag);
+
+out:
+	return (item);
+}
+
+void *
+radix_tree_tag_clear(struct radix_tree_root *root,
+    unsigned long index, unsigned int tag)
+{
+	struct radix_tree_node *stack[RADIX_TREE_MAX_HEIGHT];
+	struct radix_tree_node *node;
+	void *item;
+	int height;
+
+	item = NULL;
+	node = root->rnode;
+	height = root->height - 1;
+	if (index > radix_max(root))
+		goto out;
+
+	while (height && node) {
+		stack[height] = node;
+		node = node->slots[radix_pos(index, height--)];
+	}
+
+	if (node) {
+		item = node->slots[radix_pos(index, 0)];
+
+		node_tag_clear(root, stack, index, tag);
+	}
+
+out:
+	return (item);
+}
+
+int
+radix_tree_tagged(const struct radix_tree_root *root, unsigned int tag)
+{
+	return (root_tag_get(root, tag));
 }
