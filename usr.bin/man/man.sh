@@ -495,13 +495,21 @@ man_display_page_groff() {
 # Usage: man_find_and_display page
 # Search through the manpaths looking for the given page.
 man_find_and_display() {
-	local found_page locpath p path sect
+	local found_page has_slash locpath p path sect
 
 	# Check to see if it's a file. But only if it has a '/' in
-	# the filename.
+	# the filename or if -l was specified.
 	case "$1" in
-	*/*)	if [ -f "$1" -a -r "$1" ]; then
+	*/*)	has_slash=yes
+		;;
+	esac
+	if [ -n "$has_slash" -o -n "$lflag" ]; then
+		if [ -f "$1" -a -r "$1" ]; then
 			decho "Found a usable page, displaying that"
+			if [ -z "$lflag" ]; then
+				echo "Opening a file directly is deprecated," \
+				    "use -l instead." >&2
+			fi
 			unset use_cat
 			manpage="$1"
 			setup_cattool "$manpage"
@@ -510,9 +518,12 @@ man_find_and_display() {
 				man_display_page
 			fi
 			return
+		elif [ -n "$lflag" ]; then
+			echo "Cannot read $1" >&2
+			ret=1
+			return
 		fi
-		;;
-	esac
+	fi
 
 	IFS=:
 	for sect in $MANSECT; do
@@ -580,7 +591,7 @@ man_parse_opts() {
 	local cmd_arg
 
 	OPTIND=1
-	while getopts 'M:P:S:adfhkm:op:tw' cmd_arg; do
+	while getopts 'M:P:S:adfhklm:op:tw' cmd_arg; do
 		case "${cmd_arg}" in
 		M)	MANPATH=$OPTARG ;;
 		P)	MANPAGER=$OPTARG ;;
@@ -590,6 +601,7 @@ man_parse_opts() {
 		f)	fflag=fflag ;;
 		h)	man_usage 0 ;;
 		k)	kflag=kflag ;;
+		l)	lflag=lflag ;;
 		m)	mflag=$OPTARG ;;
 		o)	oflag=oflag ;;
 		p)	MANROFFSEQ=$OPTARG ;;
@@ -602,12 +614,15 @@ man_parse_opts() {
 	shift $(( $OPTIND - 1 ))
 
 	# Check the args for incompatible options.
-	case "${fflag}${kflag}${tflag}${wflag}" in
+	case "${fflag}${kflag}${lflag}${tflag}${wflag}" in
 	fflagkflag*)	echo "Incompatible options: -f and -k"; man_usage ;;
+	fflag*lflag*)	echo "Incompatible options: -f and -l"; man_usage ;;
 	fflag*tflag*)	echo "Incompatible options: -f and -t"; man_usage ;;
 	fflag*wflag)	echo "Incompatible options: -f and -w"; man_usage ;;
-	*kflagtflag*)	echo "Incompatible options: -k and -t"; man_usage ;;
+	*kflaglflag*)	echo "Incompatible options: -k and -l"; man_usage ;;
+	*kflag*tflag*)	echo "Incompatible options: -k and -t"; man_usage ;;
 	*kflag*wflag)	echo "Incompatible options: -k and -w"; man_usage ;;
+	*lflag*wflag)	echo "Incompatible options: -l and -w"; man_usage ;;
 	*tflagwflag)	echo "Incompatible options: -t and -w"; man_usage ;;
 	esac
 
