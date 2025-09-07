@@ -9163,26 +9163,8 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 				} else {
 					dst->sin.sin_addr = ip->ip_dst;
 				}
-
-				/*
-				 * Bind to the correct interface if we're
-				 * if-bound. We don't know which interface
-				 * that will be until here, so we've inserted
-				 * the state on V_pf_all. Fix that now.
-				 */
-				if (s->kif == V_pfi_all && ifp != NULL &&
-				    r->rule_flag & PFRULE_IFBOUND)
-					s->kif = ifp->if_pf_kif;
 			}
 		}
-
-		if (r->rule_flag & PFRULE_IFBOUND &&
-		    pd->act.rt == PF_REPLYTO &&
-		    s->kif == V_pfi_all) {
-			s->kif = pd->act.rt_kif;
-			s->orig_kif = oifp->if_pf_kif;
-		}
-
 		PF_STATE_UNLOCK(s);
 	}
 
@@ -9195,6 +9177,20 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 		action = PF_DROP;
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 		goto bad;
+	}
+
+	/*
+	 * Bind to the correct interface if we're if-bound. We don't know which
+	 * interface that will be until here, so we've inserted the state
+	 * on V_pf_all. Fix that now.
+	 */
+	if (s != NULL && s->kif == V_pfi_all && r->rule_flag & PFRULE_IFBOUND) {
+		/* Verify that we're here because of BOUND_IFACE */
+		MPASS(r->rt == PF_REPLYTO || (pd->af != pd->naf && s->direction == PF_IN));
+		s->kif = ifp->if_pf_kif;
+		if (pd->act.rt == PF_REPLYTO) {
+			s->orig_kif = oifp->if_pf_kif;
+		}
 	}
 
 	if (r->rt == PF_DUPTO)
@@ -9477,26 +9473,8 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 					    sizeof(dst.sin6_addr));
 				else
 					dst.sin6_addr = ip6->ip6_dst;
-
-				/*
-				 * Bind to the correct interface if we're
-				 * if-bound. We don't know which interface
-				 * that will be until here, so we've inserted
-				 * the state on V_pf_all. Fix that now.
-				 */
-				if (s->kif == V_pfi_all && ifp != NULL &&
-				    r->rule_flag & PFRULE_IFBOUND)
-					s->kif = ifp->if_pf_kif;
 			}
 		}
-
-		if (r->rule_flag & PFRULE_IFBOUND &&
-		    pd->act.rt == PF_REPLYTO &&
-		    s->kif == V_pfi_all) {
-			s->kif = pd->act.rt_kif;
-			s->orig_kif = oifp->if_pf_kif;
-		}
-
 		PF_STATE_UNLOCK(s);
 	}
 
@@ -9516,6 +9494,20 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 		action = PF_DROP;
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
+	}
+
+	/*
+	 * Bind to the correct interface if we're if-bound. We don't know which
+	 * interface that will be until here, so we've inserted the state
+	 * on V_pf_all. Fix that now.
+	 */
+	if (s != NULL && s->kif == V_pfi_all && r->rule_flag & PFRULE_IFBOUND) {
+		/* Verify that we're here because of BOUND_IFACE */
+		MPASS(r->rt == PF_REPLYTO || (pd->af != pd->naf && s->direction == PF_IN));
+		s->kif = ifp->if_pf_kif;
+		if (pd->act.rt == PF_REPLYTO) {
+			s->orig_kif = oifp->if_pf_kif;
+		}
 	}
 
 	if (r->rt == PF_DUPTO)

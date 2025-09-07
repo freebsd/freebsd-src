@@ -1039,13 +1039,14 @@ route_to_body()
 	    "pass in on ${epair}b route-to (${epair_link}a 192.0.2.2) inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::192.0.2.2
 
 	states=$(mktemp) || exit 1
 	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
 
 	for state_regexp in \
-		"${epair}b ipv6-icmp 192.0.2.1:.* \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:8 \(64:ff9b::c000:202\[[0-9]+\]\).*4:2 pkts.*route-to: 192.0.2.2@${epair_link}a" \
+		"${epair_link}a ipv6-icmp 192.0.2.1:.* \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:8 \(64:ff9b::c000:202\[[0-9]+\]\).*6:6 pkts.*route-to: 192.0.2.2@${epair_link}a origif: ${epair}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
@@ -1094,6 +1095,7 @@ reply_to_body()
 	    "pass in on ${epair}b reply-to (${epair}b 2001:db8::2) inet6 from any to 64:ff9b::/96 af-to inet from 192.0.2.1"
 
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::192.0.2.2
 }
 
@@ -1155,8 +1157,10 @@ v6_gateway_body()
 	    "pass in on ${epair_lan}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_wan_one}a)"
 
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::192.0.2.2
 	atf_check -s exit:0 -o ignore \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
 	    ping6 -c 3 64:ff9b::198.51.100.1
 }
 

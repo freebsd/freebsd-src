@@ -565,9 +565,9 @@ mixed_af_body()
 	# FIXME: Sticky-address is broken for af-to pools!
 	#        The SN is created but apparently not used, as seen in states.
 	for state_regexp in \
-		"${epair_tester}b tcp 203.0.113.0:4201 \(2001:db8:44::1\[4201\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 2001:db8:4202::2@${epair_server2}a" \
-		"${epair_tester}b tcp 203.0.113.1:4202 \(2001:db8:44::1\[4202\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 2001:db8:4202::2@${epair_server2}a" \
-		"${epair_tester}b tcp 203.0.113.2:4203 \(2001:db8:44::2\[4203\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 198.51.100.18@${epair_server1}a" \
+		"${epair_server2}a tcp 203.0.113.0:4201 \(2001:db8:44::1\[4201\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 2001:db8:4202::2@${epair_server2}a origif: ${epair_tester}b" \
+		"${epair_server2}a tcp 203.0.113.1:4202 \(2001:db8:44::1\[4202\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 2001:db8:4202::2@${epair_server2}a origif: ${epair_tester}b" \
+		"${epair_server1}a tcp 203.0.113.2:4203 \(2001:db8:44::2\[4203\]\) -> 192.0.2.100:9 \(64:ff9b::c000:264\[9\]\) .* route-to: 198.51.100.18@${epair_server1}a origif: ${epair_tester}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
