@@ -1903,7 +1903,7 @@ kqueue_acquire(struct file *fp, struct kqueue **kqp)
 
 	kq = fp->f_data;
 	if (fp->f_type != DTYPE_KQUEUE || kq == NULL)
-		return (EBADF);
+		return (EINVAL);
 	*kqp = kq;
 	KQ_LOCK(kq);
 	if ((kq->kq_state & KQ_CLOSING) == KQ_CLOSING) {
