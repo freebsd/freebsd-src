@@ -27,6 +27,10 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 #ifdef __dead2
 #define NORETURN __dead2
 #else
@@ -698,5 +702,9 @@ xo_retain_clear_all (void);
 
 void
 xo_retain_clear (const char *fmt);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* INCLUDE_XO_H */

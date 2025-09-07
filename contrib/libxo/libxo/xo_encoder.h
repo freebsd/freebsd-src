@@ -20,6 +20,10 @@
 
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 /*
  * Expose libxo's memory allocation functions
  */
@@ -166,5 +170,9 @@ xo_encoder_op_name (xo_encoder_op_t op);
  */
 void
 xo_failure (xo_handle_t *xop, const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* XO_ENCODER_H */
