@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Apr 24, 2025" "NLnet Labs" "unbound 1.23.0"
+.TH "unbound-control" "8" "Jul 16, 2025" "NLnet Labs" "unbound 1.23.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
