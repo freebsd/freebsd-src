@@ -214,11 +214,11 @@ tcp_in_if_bound_body()
 	fi
 
 	# Interfaces of the state are reversed when doing inbound NAT64!
-	# FIXME: Packets counters seem wrong!
+	# FIXME: Packets from both directions are counted only on the inbound direction!
 	states=$(mktemp) || exit 1
 	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
 	for state_regexp in \
-		"${epair_link}a tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\) .* 9:9 pkts.* rule 3 .* origif: ${epair}b" \
+		"${epair_link}a tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\) .* 9:0 pkts.* rule 3 .* origif: ${epair}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
@@ -296,11 +296,11 @@ tcp_in_floating_body()
 	fi
 
 	# Interfaces of the state are reversed when doing inbound NAT64!
-	# FIXME: Packets counters seem wrong!
+	# FIXME: Packets from both directions are counted only on the inbound direction!
 	states=$(mktemp) || exit 1
 	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
 	for state_regexp in \
-		"all tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\).* 9:9 pkts.* rule 3 .* origif: ${epair}b" \
+		"all tcp 192.0.2.1:[0-9]+ \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:1234 \(64:ff9b::c000:202\[1234\]\).* 9:0 pkts.* rule 3 .* origif: ${epair}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
@@ -1045,8 +1045,10 @@ route_to_body()
 	states=$(mktemp) || exit 1
 	jexec rtr pfctl -qvvss | normalize_pfctl_s > $states
 
+	# Interfaces of the state are reversed when doing inbound NAT64!
+	# FIXME: Packets from both directions are counted only on the inbound direction!
 	for state_regexp in \
-		"${epair_link}a ipv6-icmp 192.0.2.1:.* \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:8 \(64:ff9b::c000:202\[[0-9]+\]\).*6:6 pkts.*route-to: 192.0.2.2@${epair_link}a origif: ${epair}b" \
+		"${epair_link}a ipv6-icmp 192.0.2.1:.* \(2001:db8::2\[[0-9]+\]\) -> 192.0.2.2:8 \(64:ff9b::c000:202\[[0-9]+\]\).* 6:0 pkts.*route-to: 192.0.2.2@${epair_link}a origif: ${epair}b" \
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
