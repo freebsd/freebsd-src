@@ -9193,7 +9193,7 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 		}
 	}
 
-	if (r->rt == PF_DUPTO)
+	if (r->rt == PF_DUPTO || (pd->af != pd->naf && s->direction == PF_IN))
 		skip_test = true;
 
 	if (pd->dir == PF_IN && !skip_test) {
@@ -9510,7 +9510,7 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 		}
 	}
 
-	if (r->rt == PF_DUPTO)
+	if (r->rt == PF_DUPTO || (pd->af != pd->naf && s->direction == PF_IN))
 		skip_test = true;
 
 	if (pd->dir == PF_IN && !skip_test) {
