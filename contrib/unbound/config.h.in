@@ -48,13 +48,13 @@
    internal symbols */
 #undef EXPORT_ALL_SYMBOLS
 
-/* Define to 1 if you have the `accept4' function. */
+/* Define to 1 if you have the 'accept4' function. */
 #undef HAVE_ACCEPT4
 
-/* Define to 1 if you have the `arc4random' function. */
+/* Define to 1 if you have the 'arc4random' function. */
 #undef HAVE_ARC4RANDOM
 
-/* Define to 1 if you have the `arc4random_uniform' function. */
+/* Define to 1 if you have the 'arc4random_uniform' function. */
 #undef HAVE_ARC4RANDOM_UNIFORM
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
@@ -78,7 +78,7 @@
 /* If we have be64toh */
 #undef HAVE_BE64TOH
 
-/* Define to 1 if you have the `BIO_set_callback_ex' function. */
+/* Define to 1 if you have the 'BIO_set_callback_ex' function. */
 #undef HAVE_BIO_SET_CALLBACK_EX
 
 /* Define to 1 if you have the <bsd/stdlib.h> header file. */
@@ -87,241 +87,241 @@
 /* Define to 1 if you have the <bsd/string.h> header file. */
 #undef HAVE_BSD_STRING_H
 
-/* Define to 1 if you have the `chown' function. */
+/* Define to 1 if you have the 'chown' function. */
 #undef HAVE_CHOWN
 
-/* Define to 1 if you have the `chroot' function. */
+/* Define to 1 if you have the 'chroot' function. */
 #undef HAVE_CHROOT
 
-/* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
+/* Define to 1 if you have the 'CRYPTO_cleanup_all_ex_data' function. */
 #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
 
-/* Define to 1 if you have the `CRYPTO_THREADID_set_callback' function. */
+/* Define to 1 if you have the 'CRYPTO_THREADID_set_callback' function. */
 #undef HAVE_CRYPTO_THREADID_SET_CALLBACK
 
-/* Define to 1 if you have the `ctime_r' function. */
+/* Define to 1 if you have the 'ctime_r' function. */
 #undef HAVE_CTIME_R
 
-/* Define to 1 if you have the `daemon' function. */
+/* Define to 1 if you have the 'daemon' function. */
 #undef HAVE_DAEMON
 
-/* Define to 1 if you have the declaration of `arc4random', and to 0 if you
+/* Define to 1 if you have the declaration of 'arc4random', and to 0 if you
    don't. */
 #undef HAVE_DECL_ARC4RANDOM
 
-/* Define to 1 if you have the declaration of `arc4random_uniform', and to 0
+/* Define to 1 if you have the declaration of 'arc4random_uniform', and to 0
    if you don't. */
 #undef HAVE_DECL_ARC4RANDOM_UNIFORM
 
-/* Define to 1 if you have the declaration of `evsignal_assign', and to 0 if
+/* Define to 1 if you have the declaration of 'evsignal_assign', and to 0 if
    you don't. */
 #undef HAVE_DECL_EVSIGNAL_ASSIGN
 
-/* Define to 1 if you have the declaration of `inet_ntop', and to 0 if you
+/* Define to 1 if you have the declaration of 'inet_ntop', and to 0 if you
    don't. */
 #undef HAVE_DECL_INET_NTOP
 
-/* Define to 1 if you have the declaration of `inet_pton', and to 0 if you
+/* Define to 1 if you have the declaration of 'inet_pton', and to 0 if you
    don't. */
 #undef HAVE_DECL_INET_PTON
 
-/* Define to 1 if you have the declaration of `nghttp2_session_server_new',
+/* Define to 1 if you have the declaration of 'nghttp2_session_server_new',
    and to 0 if you don't. */
 #undef HAVE_DECL_NGHTTP2_SESSION_SERVER_NEW
 
-/* Define to 1 if you have the declaration of `ngtcp2_conn_server_new', and to
+/* Define to 1 if you have the declaration of 'ngtcp2_conn_server_new', and to
    0 if you don't. */
 #undef HAVE_DECL_NGTCP2_CONN_SERVER_NEW
 
-/* Define to 1 if you have the declaration of `ngtcp2_crypto_encrypt_cb', and
+/* Define to 1 if you have the declaration of 'ngtcp2_crypto_encrypt_cb', and
    to 0 if you don't. */
 #undef HAVE_DECL_NGTCP2_CRYPTO_ENCRYPT_CB
 
-/* Define to 1 if you have the declaration of `NID_ED25519', and to 0 if you
+/* Define to 1 if you have the declaration of 'NID_ED25519', and to 0 if you
    don't. */
 #undef HAVE_DECL_NID_ED25519
 
-/* Define to 1 if you have the declaration of `NID_ED448', and to 0 if you
+/* Define to 1 if you have the declaration of 'NID_ED448', and to 0 if you
    don't. */
 #undef HAVE_DECL_NID_ED448
 
-/* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
+/* Define to 1 if you have the declaration of 'NID_secp384r1', and to 0 if you
    don't. */
 #undef HAVE_DECL_NID_SECP384R1
 
-/* Define to 1 if you have the declaration of `NID_X9_62_prime256v1', and to 0
+/* Define to 1 if you have the declaration of 'NID_X9_62_prime256v1', and to 0
    if you don't. */
 #undef HAVE_DECL_NID_X9_62_PRIME256V1
 
-/* Define to 1 if you have the declaration of `reallocarray', and to 0 if you
+/* Define to 1 if you have the declaration of 'reallocarray', and to 0 if you
    don't. */
 #undef HAVE_DECL_REALLOCARRAY
 
-/* Define to 1 if you have the declaration of `redisConnect', and to 0 if you
+/* Define to 1 if you have the declaration of 'redisConnect', and to 0 if you
    don't. */
 #undef HAVE_DECL_REDISCONNECT
 
-/* Define to 1 if you have the declaration of `sk_SSL_COMP_pop_free', and to 0
+/* Define to 1 if you have the declaration of 'sk_SSL_COMP_pop_free', and to 0
    if you don't. */
 #undef HAVE_DECL_SK_SSL_COMP_POP_FREE
 
 /* Define to 1 if you have the declaration of
-   `SSL_COMP_get_compression_methods', and to 0 if you don't. */
+   'SSL_COMP_get_compression_methods', and to 0 if you don't. */
 #undef HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS
 
-/* Define to 1 if you have the declaration of `SSL_CTX_set_ecdh_auto', and to
+/* Define to 1 if you have the declaration of 'SSL_CTX_set_ecdh_auto', and to
    0 if you don't. */
 #undef HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
 
-/* Define to 1 if you have the declaration of `strlcat', and to 0 if you
+/* Define to 1 if you have the declaration of 'strlcat', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRLCAT
 
-/* Define to 1 if you have the declaration of `strlcpy', and to 0 if you
+/* Define to 1 if you have the declaration of 'strlcpy', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRLCPY
 
-/* Define to 1 if you have the declaration of `XML_StopParser', and to 0 if
+/* Define to 1 if you have the declaration of 'XML_StopParser', and to 0 if
    you don't. */
 #undef HAVE_DECL_XML_STOPPARSER
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
-/* Define to 1 if you have the `DSA_SIG_set0' function. */
+/* Define to 1 if you have the 'DSA_SIG_set0' function. */
 #undef HAVE_DSA_SIG_SET0
 
 /* Define to 1 if you have the <endian.h> header file. */
 #undef HAVE_ENDIAN_H
 
-/* Define to 1 if you have the `endprotoent' function. */
+/* Define to 1 if you have the 'endprotoent' function. */
 #undef HAVE_ENDPROTOENT
 
-/* Define to 1 if you have the `endpwent' function. */
+/* Define to 1 if you have the 'endpwent' function. */
 #undef HAVE_ENDPWENT
 
-/* Define to 1 if you have the `endservent' function. */
+/* Define to 1 if you have the 'endservent' function. */
 #undef HAVE_ENDSERVENT
 
-/* Define to 1 if you have the `ENGINE_cleanup' function. */
+/* Define to 1 if you have the 'ENGINE_cleanup' function. */
 #undef HAVE_ENGINE_CLEANUP
 
-/* Define to 1 if you have the `ERR_free_strings' function. */
+/* Define to 1 if you have the 'ERR_free_strings' function. */
 #undef HAVE_ERR_FREE_STRINGS
 
-/* Define to 1 if you have the `ERR_load_crypto_strings' function. */
+/* Define to 1 if you have the 'ERR_load_crypto_strings' function. */
 #undef HAVE_ERR_LOAD_CRYPTO_STRINGS
 
-/* Define to 1 if you have the `event_assign' function. */
+/* Define to 1 if you have the 'event_assign' function. */
 #undef HAVE_EVENT_ASSIGN
 
-/* Define to 1 if you have the `event_base_free' function. */
+/* Define to 1 if you have the 'event_base_free' function. */
 #undef HAVE_EVENT_BASE_FREE
 
-/* Define to 1 if you have the `event_base_get_method' function. */
+/* Define to 1 if you have the 'event_base_get_method' function. */
 #undef HAVE_EVENT_BASE_GET_METHOD
 
-/* Define to 1 if you have the `event_base_new' function. */
+/* Define to 1 if you have the 'event_base_new' function. */
 #undef HAVE_EVENT_BASE_NEW
 
-/* Define to 1 if you have the `event_base_once' function. */
+/* Define to 1 if you have the 'event_base_once' function. */
 #undef HAVE_EVENT_BASE_ONCE
 
 /* Define to 1 if you have the <event.h> header file. */
 #undef HAVE_EVENT_H
 
-/* Define to 1 if you have the `EVP_aes_256_cbc' function. */
+/* Define to 1 if you have the 'EVP_aes_256_cbc' function. */
 #undef HAVE_EVP_AES_256_CBC
 
-/* Define to 1 if you have the `EVP_cleanup' function. */
+/* Define to 1 if you have the 'EVP_cleanup' function. */
 #undef HAVE_EVP_CLEANUP
 
-/* Define to 1 if you have the `EVP_default_properties_is_fips_enabled'
+/* Define to 1 if you have the 'EVP_default_properties_is_fips_enabled'
    function. */
 #undef HAVE_EVP_DEFAULT_PROPERTIES_IS_FIPS_ENABLED
 
-/* Define to 1 if you have the `EVP_DigestVerify' function. */
+/* Define to 1 if you have the 'EVP_DigestVerify' function. */
 #undef HAVE_EVP_DIGESTVERIFY
 
-/* Define to 1 if you have the `EVP_dss1' function. */
+/* Define to 1 if you have the 'EVP_dss1' function. */
 #undef HAVE_EVP_DSS1
 
-/* Define to 1 if you have the `EVP_EncryptInit_ex' function. */
+/* Define to 1 if you have the 'EVP_EncryptInit_ex' function. */
 #undef HAVE_EVP_ENCRYPTINIT_EX
 
-/* Define to 1 if you have the `EVP_MAC_CTX_set_params' function. */
+/* Define to 1 if you have the 'EVP_MAC_CTX_set_params' function. */
 #undef HAVE_EVP_MAC_CTX_SET_PARAMS
 
-/* Define to 1 if you have the `EVP_MD_CTX_new' function. */
+/* Define to 1 if you have the 'EVP_MD_CTX_new' function. */
 #undef HAVE_EVP_MD_CTX_NEW
 
-/* Define to 1 if you have the `EVP_sha1' function. */
+/* Define to 1 if you have the 'EVP_sha1' function. */
 #undef HAVE_EVP_SHA1
 
-/* Define to 1 if you have the `EVP_sha256' function. */
+/* Define to 1 if you have the 'EVP_sha256' function. */
 #undef HAVE_EVP_SHA256
 
-/* Define to 1 if you have the `EVP_sha512' function. */
+/* Define to 1 if you have the 'EVP_sha512' function. */
 #undef HAVE_EVP_SHA512
 
-/* Define to 1 if you have the `ev_default_loop' function. */
+/* Define to 1 if you have the 'ev_default_loop' function. */
 #undef HAVE_EV_DEFAULT_LOOP
 
-/* Define to 1 if you have the `ev_loop' function. */
+/* Define to 1 if you have the 'ev_loop' function. */
 #undef HAVE_EV_LOOP
 
 /* Define to 1 if you have the <expat.h> header file. */
 #undef HAVE_EXPAT_H
 
-/* Define to 1 if you have the `explicit_bzero' function. */
+/* Define to 1 if you have the 'explicit_bzero' function. */
 #undef HAVE_EXPLICIT_BZERO
 
-/* Define to 1 if you have the `fcntl' function. */
+/* Define to 1 if you have the 'fcntl' function. */
 #undef HAVE_FCNTL
 
-/* Define to 1 if you have the `FIPS_mode' function. */
+/* Define to 1 if you have the 'FIPS_mode' function. */
 #undef HAVE_FIPS_MODE
 
-/* Define to 1 if you have the `fork' function. */
+/* Define to 1 if you have the 'fork' function. */
 #undef HAVE_FORK
 
-/* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
+/* Define to 1 if fseeko (and ftello) are declared in stdio.h. */
 #undef HAVE_FSEEKO
 
-/* Define to 1 if you have the `fsync' function. */
+/* Define to 1 if you have the 'fsync' function. */
 #undef HAVE_FSYNC
 
 /* Whether getaddrinfo is available */
 #undef HAVE_GETADDRINFO
 
-/* Define to 1 if you have the `getauxval' function. */
+/* Define to 1 if you have the 'getauxval' function. */
 #undef HAVE_GETAUXVAL
 
-/* Define to 1 if you have the `getentropy' function. */
+/* Define to 1 if you have the 'getentropy' function. */
 #undef HAVE_GETENTROPY
 
-/* Define to 1 if you have the `getifaddrs' function. */
+/* Define to 1 if you have the 'getifaddrs' function. */
 #undef HAVE_GETIFADDRS
 
 /* Define to 1 if you have the <getopt.h> header file. */
 #undef HAVE_GETOPT_H
 
-/* Define to 1 if you have the `getpwnam' function. */
+/* Define to 1 if you have the 'getpwnam' function. */
 #undef HAVE_GETPWNAM
 
-/* Define to 1 if you have the `getrlimit' function. */
+/* Define to 1 if you have the 'getrlimit' function. */
 #undef HAVE_GETRLIMIT
 
-/* Define to 1 if you have the `gettid' function. */
+/* Define to 1 if you have the 'gettid' function. */
 #undef HAVE_GETTID
 
-/* Define to 1 if you have the `glob' function. */
+/* Define to 1 if you have the 'glob' function. */
 #undef HAVE_GLOB
 
 /* Define to 1 if you have the <glob.h> header file. */
 #undef HAVE_GLOB_H
 
-/* Define to 1 if you have the `gmtime_r' function. */
+/* Define to 1 if you have the 'gmtime_r' function. */
 #undef HAVE_GMTIME_R
 
 /* Define to 1 if you have the <grp.h> header file. */
@@ -330,7 +330,7 @@
 /* Define to 1 if you have the <hiredis/hiredis.h> header file. */
 #undef HAVE_HIREDIS_HIREDIS_H
 
-/* Define to 1 if you have the `HMAC_Init_ex' function. */
+/* Define to 1 if you have the 'HMAC_Init_ex' function. */
 #undef HAVE_HMAC_INIT_EX
 
 /* If we have htobe64 */
@@ -339,19 +339,19 @@
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #undef HAVE_IFADDRS_H
 
-/* Define to 1 if you have the `if_nametoindex' function. */
+/* Define to 1 if you have the 'if_nametoindex' function. */
 #undef HAVE_IF_NAMETOINDEX
 
-/* Define to 1 if you have the `inet_aton' function. */
+/* Define to 1 if you have the 'inet_aton' function. */
 #undef HAVE_INET_ATON
 
-/* Define to 1 if you have the `inet_ntop' function. */
+/* Define to 1 if you have the 'inet_ntop' function. */
 #undef HAVE_INET_NTOP
 
-/* Define to 1 if you have the `inet_pton' function. */
+/* Define to 1 if you have the 'inet_pton' function. */
 #undef HAVE_INET_PTON
 
-/* Define to 1 if you have the `initgroups' function. */
+/* Define to 1 if you have the 'initgroups' function. */
 #undef HAVE_INITGROUPS
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -363,10 +363,10 @@
 /* Define to 1 if you have the <iphlpapi.h> header file. */
 #undef HAVE_IPHLPAPI_H
 
-/* Define to 1 if you have the `isblank' function. */
+/* Define to 1 if you have the 'isblank' function. */
 #undef HAVE_ISBLANK
 
-/* Define to 1 if you have the `kill' function. */
+/* Define to 1 if you have the 'kill' function. */
 #undef HAVE_KILL
 
 /* Use portable libbsd functions */
@@ -384,7 +384,7 @@
 /* Define to 1 if you have the <linux/net_tstamp.h> header file. */
 #undef HAVE_LINUX_NET_TSTAMP_H
 
-/* Define to 1 if you have the `localtime_r' function. */
+/* Define to 1 if you have the 'localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
 /* Define to 1 if you have the <login_cap.h> header file. */
@@ -393,7 +393,7 @@
 /* If have GNU libc compatible malloc */
 #undef HAVE_MALLOC
 
-/* Define to 1 if you have the `memmove' function. */
+/* Define to 1 if you have the 'memmove' function. */
 #undef HAVE_MEMMOVE
 
 /* Define to 1 if you have the <minix/config.h> header file. */
@@ -435,49 +435,49 @@
 /* Define this to use ngtcp2. */
 #undef HAVE_NGTCP2
 
-/* Define to 1 if you have the `ngtcp2_ccerr_default' function. */
+/* Define to 1 if you have the 'ngtcp2_ccerr_default' function. */
 #undef HAVE_NGTCP2_CCERR_DEFAULT
 
-/* Define to 1 if you have the `ngtcp2_conn_encode_0rtt_transport_params'
+/* Define to 1 if you have the 'ngtcp2_conn_encode_0rtt_transport_params'
    function. */
 #undef HAVE_NGTCP2_CONN_ENCODE_0RTT_TRANSPORT_PARAMS
 
-/* Define to 1 if you have the `ngtcp2_conn_get_max_local_streams_uni'
+/* Define to 1 if you have the 'ngtcp2_conn_get_max_local_streams_uni'
    function. */
 #undef HAVE_NGTCP2_CONN_GET_MAX_LOCAL_STREAMS_UNI
 
-/* Define to 1 if you have the `ngtcp2_conn_get_num_scid' function. */
+/* Define to 1 if you have the 'ngtcp2_conn_get_num_scid' function. */
 #undef HAVE_NGTCP2_CONN_GET_NUM_SCID
 
-/* Define to 1 if you have the `ngtcp2_conn_in_closing_period' function. */
+/* Define to 1 if you have the 'ngtcp2_conn_in_closing_period' function. */
 #undef HAVE_NGTCP2_CONN_IN_CLOSING_PERIOD
 
-/* Define to 1 if you have the `ngtcp2_conn_in_draining_period' function. */
+/* Define to 1 if you have the 'ngtcp2_conn_in_draining_period' function. */
 #undef HAVE_NGTCP2_CONN_IN_DRAINING_PERIOD
 
 /* Define if ngtcp2_conn_shutdown_stream has 4 arguments. */
 #undef HAVE_NGTCP2_CONN_SHUTDOWN_STREAM4
 
-/* Define to 1 if you have the `ngtcp2_conn_tls_early_data_rejected' function.
+/* Define to 1 if you have the 'ngtcp2_conn_tls_early_data_rejected' function.
    */
 #undef HAVE_NGTCP2_CONN_TLS_EARLY_DATA_REJECTED
 
-/* Define to 1 if you have the `ngtcp2_crypto_encrypt_cb' function. */
+/* Define to 1 if you have the 'ngtcp2_crypto_encrypt_cb' function. */
 #undef HAVE_NGTCP2_CRYPTO_ENCRYPT_CB
 
 /* Define to 1 if you have the
-   `ngtcp2_crypto_quictls_configure_client_context' function. */
+   'ngtcp2_crypto_quictls_configure_client_context' function. */
 #undef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
 
 /* Define to 1 if you have the
-   `ngtcp2_crypto_quictls_configure_server_context' function. */
+   'ngtcp2_crypto_quictls_configure_server_context' function. */
 #undef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_SERVER_CONTEXT
 
 /* Define to 1 if you have the
-   `ngtcp2_crypto_quictls_from_ossl_encryption_level' function. */
+   'ngtcp2_crypto_quictls_from_ossl_encryption_level' function. */
 #undef HAVE_NGTCP2_CRYPTO_QUICTLS_FROM_OSSL_ENCRYPTION_LEVEL
 
-/* Define to 1 if the system has the type `ngtcp2_encryption_level'. */
+/* Define to 1 if the system has the type 'ngtcp2_encryption_level'. */
 #undef HAVE_NGTCP2_ENCRYPTION_LEVEL
 
 /* Define to 1 if you have the <ngtcp2/ngtcp2_crypto_openssl.h> header file.
@@ -494,13 +494,13 @@
 /* Use libnss for crypto */
 #undef HAVE_NSS
 
-/* Define to 1 if you have the `OpenSSL_add_all_digests' function. */
+/* Define to 1 if you have the 'OpenSSL_add_all_digests' function. */
 #undef HAVE_OPENSSL_ADD_ALL_DIGESTS
 
 /* Define to 1 if you have the <openssl/bn.h> header file. */
 #undef HAVE_OPENSSL_BN_H
 
-/* Define to 1 if you have the `OPENSSL_config' function. */
+/* Define to 1 if you have the 'OPENSSL_config' function. */
 #undef HAVE_OPENSSL_CONFIG
 
 /* Define to 1 if you have the <openssl/conf.h> header file. */
@@ -521,10 +521,10 @@
 /* Define to 1 if you have the <openssl/err.h> header file. */
 #undef HAVE_OPENSSL_ERR_H
 
-/* Define to 1 if you have the `OPENSSL_init_crypto' function. */
+/* Define to 1 if you have the 'OPENSSL_init_crypto' function. */
 #undef HAVE_OPENSSL_INIT_CRYPTO
 
-/* Define to 1 if you have the `OPENSSL_init_ssl' function. */
+/* Define to 1 if you have the 'OPENSSL_init_ssl' function. */
 #undef HAVE_OPENSSL_INIT_SSL
 
 /* Define to 1 if you have the <openssl/param_build.h> header file. */
@@ -539,10 +539,10 @@
 /* Define to 1 if you have the <openssl/ssl.h> header file. */
 #undef HAVE_OPENSSL_SSL_H
 
-/* Define to 1 if you have the `OSSL_PARAM_BLD_new' function. */
+/* Define to 1 if you have the 'OSSL_PARAM_BLD_new' function. */
 #undef HAVE_OSSL_PARAM_BLD_NEW
 
-/* Define to 1 if you have the `poll' function. */
+/* Define to 1 if you have the 'poll' function. */
 #undef HAVE_POLL
 
 /* Define to 1 if you have the <poll.h> header file. */
@@ -554,10 +554,10 @@
 /* Have PTHREAD_PRIO_INHERIT. */
 #undef HAVE_PTHREAD_PRIO_INHERIT
 
-/* Define to 1 if the system has the type `pthread_rwlock_t'. */
+/* Define to 1 if the system has the type 'pthread_rwlock_t'. */
 #undef HAVE_PTHREAD_RWLOCK_T
 
-/* Define to 1 if the system has the type `pthread_spinlock_t'. */
+/* Define to 1 if the system has the type 'pthread_spinlock_t'. */
 #undef HAVE_PTHREAD_SPINLOCK_T
 
 /* Define to 1 if you have the <pwd.h> header file. */
@@ -566,101 +566,101 @@
 /* Define if you have Python libraries and header files. */
 #undef HAVE_PYTHON
 
-/* Define to 1 if you have the `random' function. */
+/* Define to 1 if you have the 'random' function. */
 #undef HAVE_RANDOM
 
-/* Define to 1 if you have the `RAND_cleanup' function. */
+/* Define to 1 if you have the 'RAND_cleanup' function. */
 #undef HAVE_RAND_CLEANUP
 
 /* If we have reallocarray(3) */
 #undef HAVE_REALLOCARRAY
 
-/* Define to 1 if you have the `recvmsg' function. */
+/* Define to 1 if you have the 'recvmsg' function. */
 #undef HAVE_RECVMSG
 
-/* Define to 1 if you have the `sendmsg' function. */
+/* Define to 1 if you have the 'sendmsg' function. */
 #undef HAVE_SENDMSG
 
-/* Define to 1 if you have the `setregid' function. */
+/* Define to 1 if you have the 'setregid' function. */
 #undef HAVE_SETREGID
 
-/* Define to 1 if you have the `setresgid' function. */
+/* Define to 1 if you have the 'setresgid' function. */
 #undef HAVE_SETRESGID
 
-/* Define to 1 if you have the `setresuid' function. */
+/* Define to 1 if you have the 'setresuid' function. */
 #undef HAVE_SETRESUID
 
-/* Define to 1 if you have the `setreuid' function. */
+/* Define to 1 if you have the 'setreuid' function. */
 #undef HAVE_SETREUID
 
-/* Define to 1 if you have the `setrlimit' function. */
+/* Define to 1 if you have the 'setrlimit' function. */
 #undef HAVE_SETRLIMIT
 
-/* Define to 1 if you have the `setsid' function. */
+/* Define to 1 if you have the 'setsid' function. */
 #undef HAVE_SETSID
 
-/* Define to 1 if you have the `setusercontext' function. */
+/* Define to 1 if you have the 'setusercontext' function. */
 #undef HAVE_SETUSERCONTEXT
 
-/* Define to 1 if you have the `SHA512_Update' function. */
+/* Define to 1 if you have the 'SHA512_Update' function. */
 #undef HAVE_SHA512_UPDATE
 
-/* Define to 1 if you have the `shmget' function. */
+/* Define to 1 if you have the 'shmget' function. */
 #undef HAVE_SHMGET
 
-/* Define to 1 if you have the `sigprocmask' function. */
+/* Define to 1 if you have the 'sigprocmask' function. */
 #undef HAVE_SIGPROCMASK
 
-/* Define to 1 if you have the `sleep' function. */
+/* Define to 1 if you have the 'sleep' function. */
 #undef HAVE_SLEEP
 
-/* Define to 1 if you have the `snprintf' function. */
+/* Define to 1 if you have the 'snprintf' function. */
 #undef HAVE_SNPRINTF
 
-/* Define to 1 if you have the `socketpair' function. */
+/* Define to 1 if you have the 'socketpair' function. */
 #undef HAVE_SOCKETPAIR
 
 /* Using Solaris threads */
 #undef HAVE_SOLARIS_THREADS
 
-/* Define to 1 if you have the `srandom' function. */
+/* Define to 1 if you have the 'srandom' function. */
 #undef HAVE_SRANDOM
 
 /* Define if you have the SSL libraries installed. */
 #undef HAVE_SSL
 
-/* Define to 1 if you have the `SSL_CTX_set_alpn_protos' function. */
+/* Define to 1 if you have the 'SSL_CTX_set_alpn_protos' function. */
 #undef HAVE_SSL_CTX_SET_ALPN_PROTOS
 
-/* Define to 1 if you have the `SSL_CTX_set_alpn_select_cb' function. */
+/* Define to 1 if you have the 'SSL_CTX_set_alpn_select_cb' function. */
 #undef HAVE_SSL_CTX_SET_ALPN_SELECT_CB
 
-/* Define to 1 if you have the `SSL_CTX_set_ciphersuites' function. */
+/* Define to 1 if you have the 'SSL_CTX_set_ciphersuites' function. */
 #undef HAVE_SSL_CTX_SET_CIPHERSUITES
 
-/* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
+/* Define to 1 if you have the 'SSL_CTX_set_security_level' function. */
 #undef HAVE_SSL_CTX_SET_SECURITY_LEVEL
 
-/* Define to 1 if you have the `SSL_CTX_set_tlsext_ticket_key_evp_cb'
+/* Define to 1 if you have the 'SSL_CTX_set_tlsext_ticket_key_evp_cb'
    function. */
 #undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_EVP_CB
 
-/* Define to 1 if you have the `SSL_CTX_set_tmp_ecdh' function. */
+/* Define to 1 if you have the 'SSL_CTX_set_tmp_ecdh' function. */
 #undef HAVE_SSL_CTX_SET_TMP_ECDH
 
-/* Define to 1 if you have the `SSL_get0_alpn_selected' function. */
+/* Define to 1 if you have the 'SSL_get0_alpn_selected' function. */
 #undef HAVE_SSL_GET0_ALPN_SELECTED
 
-/* Define to 1 if you have the `SSL_get0_peername' function. */
+/* Define to 1 if you have the 'SSL_get0_peername' function. */
 #undef HAVE_SSL_GET0_PEERNAME
 
-/* Define to 1 if you have the `SSL_get1_peer_certificate' function. */
+/* Define to 1 if you have the 'SSL_get1_peer_certificate' function. */
 #undef HAVE_SSL_GET1_PEER_CERTIFICATE
 
-/* Define to 1 if you have the `SSL_is_quic' function. */
+/* Define to 1 if you have the 'SSL_is_quic' function. */
 #undef HAVE_SSL_IS_QUIC
 
-/* Define to 1 if you have the `SSL_set1_host' function. */
+/* Define to 1 if you have the 'SSL_set1_host' function. */
 #undef HAVE_SSL_SET1_HOST
 
 /* Define to 1 if you have the <stdarg.h> header file. */
@@ -681,7 +681,7 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the `strftime' function. */
+/* Define to 1 if you have the 'strftime' function. */
 #undef HAVE_STRFTIME
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -690,39 +690,39 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the `strlcat' function. */
+/* Define to 1 if you have the 'strlcat' function. */
 #undef HAVE_STRLCAT
 
-/* Define to 1 if you have the `strlcpy' function. */
+/* Define to 1 if you have the 'strlcpy' function. */
 #undef HAVE_STRLCPY
 
-/* Define to 1 if you have the `strptime' function. */
+/* Define to 1 if you have the 'strptime' function. */
 #undef HAVE_STRPTIME
 
-/* Define to 1 if you have the `strsep' function. */
+/* Define to 1 if you have the 'strsep' function. */
 #undef HAVE_STRSEP
 
-/* Define to 1 if `ipi_spec_dst' is a member of `struct in_pktinfo'. */
+/* Define to 1 if 'ipi_spec_dst' is a member of 'struct in_pktinfo'. */
 #undef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST
 
-/* Define to 1 if `tokenlen' is a member of `struct ngtcp2_pkt_hd'. */
+/* Define to 1 if 'tokenlen' is a member of 'struct ngtcp2_pkt_hd'. */
 #undef HAVE_STRUCT_NGTCP2_PKT_HD_TOKENLEN
 
-/* Define to 1 if `max_tx_udp_payload_size' is a member of `struct
+/* Define to 1 if 'max_tx_udp_payload_size' is a member of 'struct
    ngtcp2_settings'. */
 #undef HAVE_STRUCT_NGTCP2_SETTINGS_MAX_TX_UDP_PAYLOAD_SIZE
 
-/* Define to 1 if `tokenlen' is a member of `struct ngtcp2_settings'. */
+/* Define to 1 if 'tokenlen' is a member of 'struct ngtcp2_settings'. */
 #undef HAVE_STRUCT_NGTCP2_SETTINGS_TOKENLEN
 
-/* Define to 1 if `original_dcid_present' is a member of `struct
+/* Define to 1 if 'original_dcid_present' is a member of 'struct
    ngtcp2_transport_params'. */
 #undef HAVE_STRUCT_NGTCP2_TRANSPORT_PARAMS_ORIGINAL_DCID_PRESENT
 
-/* Define to 1 if the system has the type `struct ngtcp2_version_cid'. */
+/* Define to 1 if the system has the type 'struct ngtcp2_version_cid'. */
 #undef HAVE_STRUCT_NGTCP2_VERSION_CID
 
-/* Define to 1 if `sun_len' is a member of `struct sockaddr_un'. */
+/* Define to 1 if 'sun_len' is a member of 'struct sockaddr_un'. */
 #undef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
 
 /* Define if you have Swig libraries and header files. */
@@ -782,16 +782,16 @@
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
 
-/* Define to 1 if you have the `tzset' function. */
+/* Define to 1 if you have the 'tzset' function. */
 #undef HAVE_TZSET
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the `usleep' function. */
+/* Define to 1 if you have the 'usleep' function. */
 #undef HAVE_USLEEP
 
-/* Define to 1 if you have the `vfork' function. */
+/* Define to 1 if you have the 'vfork' function. */
 #undef HAVE_VFORK
 
 /* Define to 1 if you have the <vfork.h> header file. */
@@ -809,22 +809,22 @@
 /* Define to 1 if you have the <winsock2.h> header file. */
 #undef HAVE_WINSOCK2_H
 
-/* Define to 1 if `fork' works. */
+/* Define to 1 if 'fork' works. */
 #undef HAVE_WORKING_FORK
 
-/* Define to 1 if `vfork' works. */
+/* Define to 1 if 'vfork' works. */
 #undef HAVE_WORKING_VFORK
 
-/* Define to 1 if you have the `writev' function. */
+/* Define to 1 if you have the 'writev' function. */
 #undef HAVE_WRITEV
 
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #undef HAVE_WS2TCPIP_H
 
-/* Define to 1 if you have the `X509_VERIFY_PARAM_set1_host' function. */
+/* Define to 1 if you have the 'X509_VERIFY_PARAM_set1_host' function. */
 #undef HAVE_X509_VERIFY_PARAM_SET1_HOST
 
-/* Define to 1 if you have the `_beginthreadex' function. */
+/* Define to 1 if you have the '_beginthreadex' function. */
 #undef HAVE__BEGINTHREADEX
 
 /* If HMAC_Init_ex() returns void */
@@ -923,16 +923,16 @@
 /* Shared data */
 #undef SHARE_DIR
 
-/* The size of `pthread_t', as computed by sizeof. */
+/* The size of 'pthread_t', as computed by sizeof. */
 #undef SIZEOF_PTHREAD_T
 
-/* The size of `size_t', as computed by sizeof. */
+/* The size of 'size_t', as computed by sizeof. */
 #undef SIZEOF_SIZE_T
 
-/* The size of `time_t', as computed by sizeof. */
+/* The size of 'time_t', as computed by sizeof. */
 #undef SIZEOF_TIME_T
 
-/* The size of `unsigned long', as computed by sizeof. */
+/* The size of 'unsigned long', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_LONG
 
 /* define if (v)snprintf does not return length needed, (but length used) */
@@ -941,7 +941,7 @@
 /* Define to 1 if libsodium supports sodium_set_misuse_handler */
 #undef SODIUM_MISUSE_HANDLER
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
@@ -1035,7 +1035,7 @@
 /* Define this to enable SHA256 and SHA512 support. */
 #undef USE_SHA2
 
-/* Enable extensions on AIX 3, Interix.  */
+/* Enable extensions on AIX, Interix, z/OS.  */
 #ifndef _ALL_SOURCE
 # undef _ALL_SOURCE
 #endif
@@ -1096,11 +1096,15 @@
 #ifndef __STDC_WANT_IEC_60559_DFP_EXT__
 # undef __STDC_WANT_IEC_60559_DFP_EXT__
 #endif
+/* Enable extensions specified by C23 Annex F.  */
+#ifndef __STDC_WANT_IEC_60559_EXT__
+# undef __STDC_WANT_IEC_60559_EXT__
+#endif
 /* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
 #ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
 # undef __STDC_WANT_IEC_60559_FUNCS_EXT__
 #endif
-/* Enable extensions specified by ISO/IEC TS 18661-3:2015.  */
+/* Enable extensions specified by C23 Annex H and ISO/IEC TS 18661-3:2015.  */
 #ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
 # undef __STDC_WANT_IEC_60559_TYPES_EXT__
 #endif
@@ -1141,30 +1145,36 @@
 /* Define if you want PyUnbound. */
 #undef WITH_PYUNBOUND
 
-/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
-   `char[]'. */
+/* Define to 1 if 'lex' declares 'yytext' as a 'char *' by default, not a
+   'char[]'. */
 #undef YYTEXT_POINTER
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 
-/* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2). */
+/* Define to 1 if necessary to make fseeko visible. */
 #undef _LARGEFILE_SOURCE
 
-/* Define for large files, on AIX-style hosts. */
+/* Define to 1 on platforms where this makes off_t a 64-bit type. */
 #undef _LARGE_FILES
 
 /* Enable for compile on Minix */
 #undef _NETBSD_SOURCE
 
+/* Number of bits in time_t, on hosts where this is settable. */
+#undef _TIME_BITS
+
+/* Define to 1 on platforms where this makes time_t a 64-bit type. */
+#undef __MINGW_USE_VC2005_COMPAT
+
 /* defined to use gcc ansi snprintf and sscanf that understands %lld when
    compiled for windows. */
 #undef __USE_MINGW_ANSI_STDIO
 
-/* Define to empty if `const' does not conform to ANSI C. */
+/* Define to empty if 'const' does not conform to ANSI C. */
 #undef const
 
-/* Define to `int' if <sys/types.h> doesn't define. */
+/* Define as 'int' if <sys/types.h> doesn't define. */
 #undef gid_t
 
 /* in_addr_t */
@@ -1173,28 +1183,28 @@
 /* in_port_t */
 #undef in_port_t
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler
+/* Define to '__inline__' or '__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 #undef inline
 #endif
 
-/* Define to `short' if <sys/types.h> does not define. */
+/* Define to 'short' if <sys/types.h> does not define. */
 #undef int16_t
 
-/* Define to `int' if <sys/types.h> does not define. */
+/* Define to 'int' if <sys/types.h> does not define. */
 #undef int32_t
 
-/* Define to `long long' if <sys/types.h> does not define. */
+/* Define to 'long long' if <sys/types.h> does not define. */
 #undef int64_t
 
-/* Define to `signed char' if <sys/types.h> does not define. */
+/* Define to 'signed char' if <sys/types.h> does not define. */
 #undef int8_t
 
 /* Define if replacement function should be used. */
 #undef malloc
 
-/* Define to `long int' if <sys/types.h> does not define. */
+/* Define to 'long int' if <sys/types.h> does not define. */
 #undef off_t
 
 /* Define as a signed integer type capable of holding a process identifier. */
@@ -1203,34 +1213,34 @@
 /* Define to 'int' if not defined */
 #undef rlim_t
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
 #undef size_t
 
 /* Define to 'int' if not defined */
 #undef socklen_t
 
-/* Define to `int' if <sys/types.h> does not define. */
+/* Define to 'int' if <sys/types.h> does not define. */
 #undef ssize_t
 
 /* Define to 'unsigned char if not defined */
 #undef u_char
 
-/* Define to `int' if <sys/types.h> doesn't define. */
+/* Define as 'int' if <sys/types.h> doesn't define. */
 #undef uid_t
 
-/* Define to `unsigned short' if <sys/types.h> does not define. */
+/* Define to 'unsigned short' if <sys/types.h> does not define. */
 #undef uint16_t
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define to 'unsigned int' if <sys/types.h> does not define. */
 #undef uint32_t
 
-/* Define to `unsigned long long' if <sys/types.h> does not define. */
+/* Define to 'unsigned long long' if <sys/types.h> does not define. */
 #undef uint64_t
 
-/* Define to `unsigned char' if <sys/types.h> does not define. */
+/* Define to 'unsigned char' if <sys/types.h> does not define. */
 #undef uint8_t
 
-/* Define as `fork' if `vfork' does not work. */
+/* Define as 'fork' if 'vfork' does not work. */
 #undef vfork
 
 #if defined(OMITTED__D_GNU_SOURCE) && !defined(_GNU_SOURCE)
