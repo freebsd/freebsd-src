@@ -28,6 +28,7 @@ SRCS=	linux_compat.c \
 	linux_shmemfs.c \
 	linux_shrinker.c \
 	linux_simple_attr.c \
+	linux_siphash.c \
 	linux_skbuff.c \
 	linux_slab.c \
 	linux_tasklet.c \
