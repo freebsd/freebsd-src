@@ -286,8 +286,6 @@
             ..
             dma
             ..
-            drivers
-            ..
             dwatch
             ..
             etc
