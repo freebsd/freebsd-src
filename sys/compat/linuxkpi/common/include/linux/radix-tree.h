@@ -68,6 +68,12 @@ struct radix_tree_iter {
 	for ((iter)->index = (start);			  \
 	     radix_tree_iter_find(root, iter, &(slot)); (iter)->index++)
 
+static inline void *
+radix_tree_deref_slot(void **slot)
+{
+	return (*slot);
+}
+
 static inline int
 radix_tree_exception(void *arg)
 {
