@@ -1548,10 +1548,10 @@ Do not apply the Relocation Read-Only (RELRO) vulnerability mitigation.
 See also the
 .Va BIND_NOW
 option.
-.It Va WITH_REPRODUCIBLE_BUILD
-Exclude build metadata (such as the build time, user, or host)
-from the kernel, boot loaders, and uname output, so that builds produce
-bit-for-bit identical output.
+.It Va WITHOUT_REPRODUCIBLE_BUILD
+Include build metadata (such as the build time, user, and host)
+in the kernel, boot loaders, and uname output.
+Successive builds will not be bit-for-bit identical.
 .It Va WITHOUT_RESCUE
 Do not build
 .Xr rescue 8 .
