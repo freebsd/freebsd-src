@@ -278,8 +278,15 @@ random_sources_feed(void)
 		epoch_enter_preempt(rs_epoch, &et);
 	CK_LIST_FOREACH(rrs, &source_list, rrs_entries) {
 		for (i = 0; i < npools; i++) {
+			if (rrs->rrs_source->rs_read == NULL) {
+				/* Source pushes entropy asynchronously. */
+				continue;
+			}
 			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
-			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%u > %zu)", __func__, n, sizeof(entropy)));
+			KASSERT((n <= sizeof(entropy)),
+			    ("%s: rs_read returned too much data (%u > %zu)",
+			    __func__, n, sizeof(entropy)));
+
 			/*
 			 * Sometimes the HW entropy source doesn't have anything
 			 * ready for us.  This isn't necessarily untrustworthy.
@@ -867,20 +874,6 @@ random_harvest_direct_(const void *entropy, u_int size, enum random_entropy_sour
 }
 
 void
-random_harvest_register_source(enum random_entropy_source source)
-{
-
-	hc_source_mask |= (1 << source);
-}
-
-void
-random_harvest_deregister_source(enum random_entropy_source source)
-{
-
-	hc_source_mask &= ~(1 << source);
-}
-
-void
 random_source_register(const struct random_source *rsource)
 {
 	struct random_sources *rrs;
@@ -890,10 +883,9 @@ random_source_register(const struct random_source *rsource)
 	rrs = malloc(sizeof(*rrs), M_ENTROPY, M_WAITOK);
 	rrs->rrs_source = rsource;
 
-	random_harvest_register_source(rsource->rs_source);
-
 	printf("random: registering fast source %s\n", rsource->rs_ident);
 
+	hc_source_mask |= (1 << rsource->rs_source);
 	RANDOM_HARVEST_LOCK();
 	CK_LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
 	RANDOM_HARVEST_UNLOCK();
@@ -906,8 +898,7 @@ random_source_deregister(const struct random_source *rsource)
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	random_harvest_deregister_source(rsource->rs_source);
-
+	hc_source_mask &= ~(1 << rsource->rs_source);
 	RANDOM_HARVEST_LOCK();
 	CK_LIST_FOREACH(rrs, &source_list, rrs_entries)
 		if (rrs->rrs_source == rsource) {
