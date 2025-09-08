@@ -347,6 +347,17 @@ kern_thr_exit(struct thread *td)
 	p = td->td_proc;
 
 	/*
+	 * Clear kernel ASTs in advance of selecting the last exiting
+	 * thread and acquiring schedulers locks.  It is fine to
+	 * clear the ASTs here even if we are not going to exit after
+	 * all.  On the other hand, leaving them pending could trigger
+	 * execution in subsystems in a context where they are not
+	 * prepared to handle top kernel actions, even in execution of
+	 * an unrelated thread.
+	 */
+	ast_kclear(td);
+
+	/*
 	 * If all of the threads in a process call this routine to
 	 * exit (e.g. all threads call pthread_exit()), exactly one
 	 * thread should return to the caller to terminate the process
