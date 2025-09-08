@@ -343,7 +343,17 @@ copy_event(uint32_t dst[static HARVESTSIZE + 1],
 {
 	memset(dst, 0, sizeof(uint32_t) * (HARVESTSIZE + 1));
 	memcpy(dst, event->he_entropy, event->he_size);
-	dst[HARVESTSIZE] = event->he_somecounter;
+	if (event->he_source <= RANDOM_ENVIRONMENTAL_END) {
+		/*
+		 * For pure entropy sources the timestamp counter is generally
+		 * quite determinstic since samples are taken at regular
+		 * intervals, so does not contribute much to the entropy.  To
+		 * make health tests more effective, exclude it from the sample,
+		 * since it might otherwise defeat the health tests in a
+		 * scenario where the source is stuck.
+		 */
+		dst[HARVESTSIZE] = event->he_somecounter;
+	}
 }
 
 static void
