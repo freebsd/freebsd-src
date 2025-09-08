@@ -133,6 +133,7 @@ static const struct {
 	{ HDA_INTEL_PCH,     "Intel Ibex Peak",	0, 0 },
 	{ HDA_INTEL_PCH2,    "Intel Ibex Peak",	0, 0 },
 	{ HDA_INTEL_ELLK,    "Intel Elkhart Lake",	0, 0 },
+	{ HDA_INTEL_ELLK2,   "Intel Elkhart Lake",	0, 0 },
 	{ HDA_INTEL_JLK2,    "Intel Jasper Lake",	0, 0 },
 	{ HDA_INTEL_BXTNP,   "Intel Broxton-P",	0, 0 },
 	{ HDA_INTEL_SCH,     "Intel SCH",	0, 0 },
