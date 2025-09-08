@@ -464,7 +464,7 @@ SYSCTL_BOOL(_kern_random, OID_AUTO, nist_healthtest_enabled,
     "Enable NIST SP 800-90B health tests for noise sources");
 
 static void
-random_healthtest_init(enum random_entropy_source source)
+random_healthtest_init(enum random_entropy_source source, int min_entropy)
 {
 	struct health_test_softc *ht;
 
@@ -485,20 +485,52 @@ random_healthtest_init(enum random_entropy_source source)
 	}
 
 	/*
-	 * Set cutoff values for the two tests, assuming that each sample has
-	 * min-entropy of 1 bit and allowing for an error rate of 1 in 2^{34}.
-	 * With a sample rate of RANDOM_KTHREAD_HZ, we expect to see an false
-	 * positive once in ~54.5 years.
+	 * Set cutoff values for the two tests, given a min-entropy estimate for
+	 * the source and allowing for an error rate of 1 in 2^{34}.  With a
+	 * min-entropy estimate of 1 bit and a sample rate of RANDOM_KTHREAD_HZ,
+	 * we expect to see an false positive once in ~54.5 years.
 	 *
 	 * The RCT limit comes from the formula in section 4.4.1.
 	 *
-	 * The APT cutoff is calculated using the formula in section 4.4.2
+	 * The APT cutoffs are calculated using the formula in section 4.4.2
 	 * footnote 10 with the number of Bernoulli trials changed from W to
 	 * W-1, since the test as written counts the number of samples equal to
-	 * the first sample in the window, and thus tests W-1 samples.
+	 * the first sample in the window, and thus tests W-1 samples.  We
+	 * provide cutoffs for estimates up to sizeof(uint32_t)*HARVESTSIZE*8
+	 * bits.
 	 */
-	ht->ht_rct_limit = 35;
-	ht->ht_apt_cutoff = 330;
+	const int apt_cutoffs[] = {
+		[1] = 329,
+		[2] = 195,
+		[3] = 118,
+		[4] = 73,
+		[5] = 48,
+		[6] = 33,
+		[7] = 23,
+		[8] = 17,
+		[9] = 13,
+		[10] = 11,
+		[11] = 9,
+		[12] = 8,
+		[13] = 7,
+		[14] = 6,
+		[15] = 5,
+		[16] = 5,
+		[17 ... 19] = 4,
+		[20 ... 25] = 3,
+		[26 ... 42] = 2,
+		[43 ... 64] = 1,
+	};
+	const int error_rate = 34;
+
+	if (min_entropy == 0)
+		min_entropy = 1;
+	else if (min_entropy < 0 || min_entropy >= nitems(apt_cutoffs)) {
+		panic("invalid min_entropy %d for %s", min_entropy,
+		    random_source_descr[source]);
+	}
+	ht->ht_rct_limit = 1 + howmany(error_rate, min_entropy);
+	ht->ht_apt_cutoff = apt_cutoffs[min_entropy];
 }
 
 static int
@@ -653,7 +685,7 @@ random_harvestq_init(void *unused __unused)
 	harvest_context.hc_active_buf = 0;
 
 	for (int i = 0; i < ENTROPYSOURCE; i++)
-		random_healthtest_init(i);
+		random_healthtest_init(i, 0);
 }
 SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_THIRD, random_harvestq_init, NULL);
 
