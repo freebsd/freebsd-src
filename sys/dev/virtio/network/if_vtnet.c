@@ -134,9 +134,9 @@ static int	vtnet_rxq_replace_buf(struct vtnet_rxq *, struct mbuf *, int);
 static int	vtnet_rxq_enqueue_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_new_buf(struct vtnet_rxq *);
 static int	vtnet_rxq_csum_needs_csum(struct vtnet_rxq *, struct mbuf *,
-		     uint16_t, int, struct virtio_net_hdr *);
-static int	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
-		     uint16_t, int, struct virtio_net_hdr *);
+		     bool, int, struct virtio_net_hdr *);
+static void	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
+		    int);
 static int	vtnet_rxq_csum(struct vtnet_rxq *, struct mbuf *,
 		     struct virtio_net_hdr *);
 static void	vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *, int);
@@ -1762,137 +1762,82 @@ vtnet_rxq_new_buf(struct vtnet_rxq *rxq)
 }
 
 static int
-vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, uint16_t etype,
-    int hoff, struct virtio_net_hdr *hdr)
+vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, bool isipv6,
+    int protocol, struct virtio_net_hdr *hdr)
 {
 	struct vtnet_softc *sc;
-	int error;
-
-	sc = rxq->vtnrx_sc;
 
 	/*
-	 * NEEDS_CSUM corresponds to Linux's CHECKSUM_PARTIAL, but FreeBSD does
-	 * not have an analogous CSUM flag. The checksum has been validated,
-	 * but is incomplete (TCP/UDP pseudo header).
-	 *
-	 * The packet is likely from another VM on the same host that itself
-	 * performed checksum offloading so Tx/Rx is basically a memcpy and
-	 * the checksum has little value.
-	 *
-	 * Default to receiving the packet as-is for performance reasons, but
-	 * this can cause issues if the packet is to be forwarded because it
-	 * does not contain a valid checksum. This patch may be helpful:
-	 * https://reviews.freebsd.org/D6611. In the meantime, have the driver
-	 * compute the checksum if requested.
-	 *
-	 * BMV: Need to add an CSUM_PARTIAL flag?
+	 * The packet is likely from another VM on the same host or from the
+	 * host that itself performed checksum offloading so Tx/Rx is basically
+	 * a memcpy and the checksum has little value so far.
 	 */
+
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
+
+	/*
+	 * If the user don't want us to fix it up here by computing the
+	 * checksum, just forward the order to compute the checksum by setting
+	 * the corresponding mbuf flag (e.g., CSUM_TCP).
+	 */
+	sc = rxq->vtnrx_sc;
 	if ((sc->vtnet_flags & VTNET_FLAG_FIXUP_NEEDS_CSUM) == 0) {
-		error = vtnet_rxq_csum_data_valid(rxq, m, etype, hoff, hdr);
-		return (error);
+		switch (protocol) {
+		case IPPROTO_TCP:
+			m->m_pkthdr.csum_flags |=
+			    (isipv6 ? CSUM_TCP_IPV6 : CSUM_TCP);
+			break;
+		case IPPROTO_UDP:
+			m->m_pkthdr.csum_flags |=
+			    (isipv6 ? CSUM_UDP_IPV6 : CSUM_UDP);
+			break;
+		}
+		m->m_pkthdr.csum_data = hdr->csum_offset;
+		return (0);
 	}
 
 	/*
 	 * Compute the checksum in the driver so the packet will contain a
 	 * valid checksum. The checksum is at csum_offset from csum_start.
 	 */
-	switch (etype) {
-#if defined(INET) || defined(INET6)
-	case ETHERTYPE_IP:
-	case ETHERTYPE_IPV6: {
-		int csum_off, csum_end;
-		uint16_t csum;
+	int csum_off, csum_end;
+	uint16_t csum;
 
-		csum_off = hdr->csum_start + hdr->csum_offset;
-		csum_end = csum_off + sizeof(uint16_t);
+	csum_off = hdr->csum_start + hdr->csum_offset;
+	csum_end = csum_off + sizeof(uint16_t);
 
-		/* Assume checksum will be in the first mbuf. */
-		if (m->m_len < csum_end || m->m_pkthdr.len < csum_end)
-			return (1);
-
-		/*
-		 * Like in_delayed_cksum()/in6_delayed_cksum(), compute the
-		 * checksum and write it at the specified offset. We could
-		 * try to verify the packet: csum_start should probably
-		 * correspond to the start of the TCP/UDP header.
-		 *
-		 * BMV: Need to properly handle UDP with zero checksum. Is
-		 * the IPv4 header checksum implicitly validated?
-		 */
-		csum = in_cksum_skip(m, m->m_pkthdr.len, hdr->csum_start);
-		*(uint16_t *)(mtodo(m, csum_off)) = csum;
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	}
-#endif
-	default:
-		sc->vtnet_stats.rx_csum_bad_ethtype++;
+	/* Assume checksum will be in the first mbuf. */
+	if (m->m_len < csum_end || m->m_pkthdr.len < csum_end) {
+		sc->vtnet_stats.rx_csum_bad_offset++;
 		return (1);
 	}
+
+	/*
+	 * Like in_delayed_cksum()/in6_delayed_cksum(), compute the
+	 * checksum and write it at the specified offset. We could
+	 * try to verify the packet: csum_start should probably
+	 * correspond to the start of the TCP/UDP header.
+	 *
+	 * BMV: Need to properly handle UDP with zero checksum. Is
+	 * the IPv4 header checksum implicitly validated?
+	 */
+	csum = in_cksum_skip(m, m->m_pkthdr.len, hdr->csum_start);
+	*(uint16_t *)(mtodo(m, csum_off)) = csum;
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+	m->m_pkthdr.csum_data = 0xFFFF;
 
 	return (0);
 }
 
-static int
-vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m,
-    uint16_t etype, int hoff, struct virtio_net_hdr *hdr __unused)
+static void
+vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m, int protocol)
 {
-#if 0
-	struct vtnet_softc *sc;
-#endif
-	int protocol;
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
 
-#if 0
-	sc = rxq->vtnrx_sc;
-#endif
-
-	switch (etype) {
-#if defined(INET)
-	case ETHERTYPE_IP:
-		if (__predict_false(m->m_len < hoff + sizeof(struct ip)))
-			protocol = IPPROTO_DONE;
-		else {
-			struct ip *ip = (struct ip *)(m->m_data + hoff);
-			protocol = ip->ip_p;
-		}
-		break;
-#endif
-#if defined(INET6)
-	case ETHERTYPE_IPV6:
-		if (__predict_false(m->m_len < hoff + sizeof(struct ip6_hdr))
-		    || ip6_lasthdr(m, hoff, IPPROTO_IPV6, &protocol) < 0)
-			protocol = IPPROTO_DONE;
-		break;
-#endif
-	default:
-		protocol = IPPROTO_DONE;
-		break;
-	}
-
-	switch (protocol) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	default:
-		/*
-		 * FreeBSD does not support checksum offloading of this
-		 * protocol. Let the stack re-verify the checksum later
-		 * if the protocol is supported.
-		 */
-#if 0
-		if_printf(sc->vtnet_ifp,
-		    "%s: checksum offload of unsupported protocol "
-		    "etype=%#x protocol=%d csum_start=%d csum_offset=%d\n",
-		    __func__, etype, protocol, hdr->csum_start,
-		    hdr->csum_offset);
-#endif
-		break;
-	}
-
-	return (0);
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+	m->m_pkthdr.csum_data = 0xFFFF;
 }
 
 static int
@@ -1900,8 +1845,14 @@ vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
     struct virtio_net_hdr *hdr)
 {
 	const struct ether_header *eh;
-	int hoff;
+	struct vtnet_softc *sc;
+	int hoff, protocol;
 	uint16_t etype;
+	bool isipv6;
+
+	KASSERT(hdr->flags &
+	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID),
+	    ("%s: missing checksum offloading flag %x", __func__, hdr->flags));
 
 	eh = mtod(m, const struct ether_header *);
 	etype = ntohs(eh->ether_type);
@@ -1914,10 +1865,58 @@ vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
 	} else
 		hoff = sizeof(struct ether_header);
 
+	sc = rxq->vtnrx_sc;
+
+	/* Check whether ethernet type is IP or IPv6, and get protocol. */
+	switch (etype) {
+#if defined(INET)
+	case ETHERTYPE_IP:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip))) {
+			sc->vtnet_stats.rx_csum_inaccessible_ipproto++;
+			return (1);
+		} else {
+			struct ip *ip = (struct ip *)(m->m_data + hoff);
+			protocol = ip->ip_p;
+		}
+		isipv6 = false;
+		break;
+#endif
+#if defined(INET6)
+	case ETHERTYPE_IPV6:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip6_hdr))
+		    || ip6_lasthdr(m, hoff, IPPROTO_IPV6, &protocol) < 0) {
+			sc->vtnet_stats.rx_csum_inaccessible_ipproto++;
+			return (1);
+		}
+		isipv6 = true;
+		break;
+#endif
+	default:
+		sc->vtnet_stats.rx_csum_bad_ethtype++;
+		return (1);
+	}
+
+	/* Check whether protocol is TCP or UDP. */
+	switch (protocol) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		break;
+	default:
+		/*
+		 * FreeBSD does not support checksum offloading of this
+		 * protocol here.
+		 */
+		sc->vtnet_stats.rx_csum_bad_ipproto++;
+		return (1);
+	}
+
 	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)
-		return (vtnet_rxq_csum_needs_csum(rxq, m, etype, hoff, hdr));
+		return (vtnet_rxq_csum_needs_csum(rxq, m, isipv6, protocol,
+		    hdr));
 	else /* VIRTIO_NET_HDR_F_DATA_VALID */
-		return (vtnet_rxq_csum_data_valid(rxq, m, etype, hoff, hdr));
+		vtnet_rxq_csum_data_valid(rxq, m, protocol);
+
+	return (0);
 }
 
 static void
@@ -2498,6 +2497,10 @@ vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
 		hdr->csum_start = vtnet_gtoh16(sc, csum_start);
 		hdr->csum_offset = vtnet_gtoh16(sc, m->m_pkthdr.csum_data);
 		txq->vtntx_stats.vtxs_csum++;
+	} else if ((flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) &&
+	           (proto == IPPROTO_TCP || proto == IPPROTO_UDP) &&
+	           (m->m_pkthdr.csum_data == 0xFFFF)) {
+		hdr->flags |= VIRTIO_NET_HDR_F_DATA_VALID;
 	}
 
 	if (flags & (CSUM_IP_TSO | CSUM_IP6_TSO)) {
@@ -2611,7 +2614,8 @@ vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head, int flags)
 		m->m_flags &= ~M_VLANTAG;
 	}
 
-	if (m->m_pkthdr.csum_flags & VTNET_CSUM_ALL_OFFLOAD) {
+	if (m->m_pkthdr.csum_flags &
+	    (VTNET_CSUM_ALL_OFFLOAD | CSUM_DATA_VALID)) {
 		m = vtnet_txq_offload(txq, m, hdr);
 		if ((*m_head = m) == NULL) {
 			error = ENOBUFS;
@@ -4321,9 +4325,9 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_offset",
 	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_offset,
 	    "Received checksum offloaded buffer with incorrect offset");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_bad_proto",
-	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_bad_proto,
-	    "Received checksum offloaded buffer with incorrect protocol");
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "rx_csum_inaccessible_ipproto",
+	    CTLFLAG_RD | CTLFLAG_STATS, &stats->rx_csum_inaccessible_ipproto,
+	    "Received checksum offloaded buffer with inaccessible IP protocol");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_csum_failed",
 	    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
 	    sc, 0, vtnet_sysctl_rx_csum_failed, "QU",
