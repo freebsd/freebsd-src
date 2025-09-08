@@ -25,8 +25,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/random.h>
+#include <dev/random/randomdev.h>
 
 #include "tpm20.h"
 
@@ -184,6 +184,13 @@ tpm20_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	return (ENOTTY);
 }
 
+#ifdef TPM_HARVEST
+static const struct random_source random_tpm = {
+	.rs_ident = "TPM",
+	.rs_source = RANDOM_PURE_TPM,
+};
+#endif
+
 int
 tpm20_init(struct tpm_sc *sc)
 {
@@ -206,7 +213,7 @@ tpm20_init(struct tpm_sc *sc)
 		tpm20_release(sc);
 
 #ifdef TPM_HARVEST
-	random_harvest_register_source(RANDOM_PURE_TPM);
+	random_source_register(&random_tpm);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->harvest_task, 0,
 	    tpm20_harvest, sc);
 	taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task, 0);
@@ -223,7 +230,7 @@ tpm20_release(struct tpm_sc *sc)
 #ifdef TPM_HARVEST
 	if (device_is_attached(sc->dev))
 		taskqueue_drain_timeout(taskqueue_thread, &sc->harvest_task);
-	random_harvest_deregister_source(RANDOM_PURE_TPM);
+	random_source_deregister(&random_tpm);
 #endif
 
 	if (sc->buf != NULL)
