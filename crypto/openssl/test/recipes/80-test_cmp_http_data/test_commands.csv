@@ -132,6 +132,7 @@ expected,description, -section,val, -cmd,val,val2, -cacertsout,val,val2, -infoty
 1,rspin, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK
 0,rspin too few files - server must reject, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK,-secret,_PBM_SECRET
 0,rspin too few files - no server, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK, -server,""""
+0,reqout_only ir with -port, -section,, -cmd,ir,,-reqout_only,_RESULT_DIR/ir1.der,,BLANK,,BLANK, -server,"""", -port,0
 1,reqout_only ir - no server, -section,, -cmd,ir,,-reqout_only,_RESULT_DIR/ir2.der,,BLANK,,BLANK, -server,""""
 0,reqout_only non-existing directory and file, -section,, -cmd,ir,,-reqout_only,idontexist/idontexist,,BLANK,,BLANK, -server,""""
 0,reqin ir - no newkey, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir2.der,,-newkey,"""",-newkey,"""",-key,"""",-cert,"""",-secret,_PBM_SECRET
@@ -146,6 +147,7 @@ expected,description, -section,val, -cmd,val,val2, -cacertsout,val,val2, -infoty
 0,using popo 1 with -centralkeygen, -section,, -cmd,cr,, -centralkeygen, -popo,1, -newkeyout,_RESULT_DIR/newkeyout.pem
 1, using popo -1 redundantly with -centralkeygen, -section,, -cmd,cr,, -centralkeygen, -popo,-1, -newkeyout,_RESULT_DIR/newkeyout2.pem
 1, using popo -1 alternatively to -centralkeygen, -section,, -cmd,cr,, -popo,-1, -newkeyout,_RESULT_DIR/newkeyout3.pem, -newkeypass,pass:12345, -certout,_RESULT_DIR/test.cert3.pem
-1, using centrally generated key (and cert) , -section,, -cmd,cr,,-cert,_RESULT_DIR/test.cert3.pem, -key,_RESULT_DIR/newkeyout3.pem, -keypass,pass:12345
+1, using centrally generated key (and cert) with existing chain, -section,, -cmd,cr,,-cert,_RESULT_DIR/test.cert3.pem, -key,_RESULT_DIR/newkeyout3.pem, -keypass,pass:12345, -extracerts, issuing.crt
+1, using centrally generated key (and cert) without giving chain (requires sender cert caching), -section,, -cmd,cr,,-cert,_RESULT_DIR/test.cert3.pem, -key,_RESULT_DIR/newkeyout3.pem, -keypass,pass:12345, -extracerts, ""
 0, using centrally generated key with wrong password, -section,, -cmd,cr,,-cert,_RESULT_DIR/test.cert3.pem, -key,_RESULT_DIR/newkeyout3.pem, -keypass,pass:wrong
 0, using popo -1 (instead of -centralkeygen) without -newkeyout, -section,, -cmd,cr,, -popo,-1,,BLANK,,BLANK,,BLANK,,BLANK

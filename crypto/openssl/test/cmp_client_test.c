@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -35,7 +35,7 @@ static EVP_PKEY *server_key = NULL;
 static X509 *server_cert = NULL;
 static EVP_PKEY *client_key = NULL;
 static X509 *client_cert = NULL;
-static unsigned char ref[CMP_TEST_REFVALUE_LENGTH];
+static unsigned char ref[CMP_TEST_REFVALUE_LENGTH]; /* not actually used */
 
 /*
  * For these unit tests, the client abandons message protection, and for
@@ -51,6 +51,30 @@ static void tear_down(CMP_SES_TEST_FIXTURE *fixture)
     OPENSSL_free(fixture);
 }
 
+static int set_simple_trust(OSSL_CMP_CTX *ctx, X509 *trusted)
+{
+    X509_STORE *ts = X509_STORE_new();
+    X509_VERIFY_PARAM *vpm;
+
+    /*
+     * not simply using OSSL_CMP_CTX_set1_srvCert() (to pin the server cert)
+     * in order to make sure that validated server cert gets cached,
+     * which is needed for the negative test case test_exec_KUR_bad_pkiConf_protection
+     */
+    if (ts == NULL || !X509_STORE_add_cert(ts, trusted))
+        goto err;
+
+    vpm = X509_STORE_get0_param(ts);
+    if (!X509_VERIFY_PARAM_set_flags(vpm, X509_V_FLAG_NO_CHECK_TIME | X509_V_FLAG_PARTIAL_CHAIN)
+        || !OSSL_CMP_CTX_set0_trusted(ctx, ts))
+        goto err;
+
+    return 1;
+err:
+    X509_STORE_free(ts);
+    return 0;
+}
+
 static CMP_SES_TEST_FIXTURE *set_up(const char *const test_case_name)
 {
     CMP_SES_TEST_FIXTURE *fixture;
@@ -61,30 +85,29 @@ static CMP_SES_TEST_FIXTURE *set_up(const char *const test_case_name)
         return NULL;
     fixture->test_case_name = test_case_name;
     if (!TEST_ptr(fixture->srv_ctx = ossl_cmp_mock_srv_new(libctx, NULL))
-            || !OSSL_CMP_SRV_CTX_set_accept_unprotected(fixture->srv_ctx, 1)
-            || !ossl_cmp_mock_srv_set1_refCert(fixture->srv_ctx, client_cert)
-            || !ossl_cmp_mock_srv_set1_certOut(fixture->srv_ctx, client_cert)
-            || (srv_cmp_ctx =
-                OSSL_CMP_SRV_CTX_get0_cmp_ctx(fixture->srv_ctx)) == NULL
-            || !OSSL_CMP_CTX_set1_cert(srv_cmp_ctx, server_cert)
-            || !OSSL_CMP_CTX_set1_pkey(srv_cmp_ctx, server_key))
+        || !OSSL_CMP_SRV_CTX_set_accept_unprotected(fixture->srv_ctx, 1)
+        || !ossl_cmp_mock_srv_set1_refCert(fixture->srv_ctx, client_cert)
+        || !ossl_cmp_mock_srv_set1_certOut(fixture->srv_ctx, client_cert)
+        || (srv_cmp_ctx = OSSL_CMP_SRV_CTX_get0_cmp_ctx(fixture->srv_ctx)) == NULL
+        || !OSSL_CMP_CTX_set1_cert(srv_cmp_ctx, server_cert)
+        || !OSSL_CMP_CTX_set1_pkey(srv_cmp_ctx, server_key))
         goto err;
     if (!TEST_ptr(fixture->cmp_ctx = ctx = OSSL_CMP_CTX_new(libctx, NULL))
-            || !OSSL_CMP_CTX_set_log_cb(fixture->cmp_ctx, print_to_bio_out)
-            || !OSSL_CMP_CTX_set_transfer_cb(ctx, OSSL_CMP_CTX_server_perform)
-            || !OSSL_CMP_CTX_set_transfer_cb_arg(ctx, fixture->srv_ctx)
-            || !OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_UNPROTECTED_SEND, 1)
-            || !OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_UNPROTECTED_ERRORS, 1)
-            || !OSSL_CMP_CTX_set1_oldCert(ctx, client_cert)
-            || !OSSL_CMP_CTX_set1_pkey(ctx, client_key)
-            /* client_key is by default used also for newPkey */
-            || !OSSL_CMP_CTX_set1_srvCert(ctx, server_cert)
-            || !OSSL_CMP_CTX_set1_referenceValue(ctx, ref, sizeof(ref)))
+        || !OSSL_CMP_CTX_set_log_cb(fixture->cmp_ctx, print_to_bio_out)
+        /* using default verbosity: OSSL_CMP_LOG_INFO */
+        || !OSSL_CMP_CTX_set_transfer_cb(ctx, ossl_cmp_mock_server_perform)
+        || !OSSL_CMP_CTX_set_transfer_cb_arg(ctx, fixture->srv_ctx)
+        || !OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_UNPROTECTED_SEND, 1)
+        || !OSSL_CMP_CTX_set1_oldCert(ctx, client_cert)
+        || !OSSL_CMP_CTX_set1_pkey(ctx, client_key)
+        /* client_key is by default used also for newPkey */
+        || !set_simple_trust(ctx, server_cert)
+        || !OSSL_CMP_CTX_set1_referenceValue(ctx, ref, sizeof(ref))) /* not actually needed */
         goto err;
     fixture->req_type = -1;
     return fixture;
 
- err:
+err:
     tear_down(fixture);
     return NULL;
 }
@@ -92,9 +115,9 @@ static CMP_SES_TEST_FIXTURE *set_up(const char *const test_case_name)
 static int execute_exec_RR_ses_test(CMP_SES_TEST_FIXTURE *fixt)
 {
     return TEST_int_eq(OSSL_CMP_CTX_get_status(fixt->cmp_ctx),
-                       OSSL_CMP_PKISTATUS_unspecified)
+               OSSL_CMP_PKISTATUS_unspecified)
         && TEST_int_eq(OSSL_CMP_exec_RR_ses(fixt->cmp_ctx),
-                       fixt->expected == OSSL_CMP_PKISTATUS_accepted)
+            fixt->expected == OSSL_CMP_PKISTATUS_accepted)
         && TEST_int_eq(OSSL_CMP_CTX_get_status(fixt->cmp_ctx), fixt->expected);
 }
 
@@ -110,8 +133,9 @@ static int execute_exec_GENM_ses_test_single(CMP_SES_TEST_FIXTURE *fixture)
 
     sk_OSSL_CMP_ITAV_pop_free(itavs, OSSL_CMP_ITAV_free);
     return TEST_int_eq(OSSL_CMP_CTX_get_status(ctx), fixture->expected)
-        && fixture->expected == OSSL_CMP_PKISTATUS_accepted ?
-        TEST_ptr(itavs) : TEST_ptr_null(itavs);
+            && fixture->expected == OSSL_CMP_PKISTATUS_accepted
+        ? TEST_ptr(itavs)
+        : TEST_ptr_null(itavs);
 }
 
 static int execute_exec_GENM_ses_test(CMP_SES_TEST_FIXTURE *fixture)
@@ -128,9 +152,7 @@ static int execute_exec_certrequest_ses_test(CMP_SES_TEST_FIXTURE *fixture)
     int status = OSSL_CMP_CTX_get_status(ctx);
 
     OSSL_CMP_CTX_print_errors(ctx);
-    if (!TEST_int_eq(status, fixture->expected)
-        && !(fixture->expected == OSSL_CMP_PKISTATUS_waiting
-             && TEST_int_eq(status, OSSL_CMP_PKISTATUS_trans)))
+    if (!TEST_int_eq(status, fixture->expected))
         return 0;
     if (fixture->expected != OSSL_CMP_PKISTATUS_accepted)
         return TEST_ptr_null(res);
@@ -153,7 +175,7 @@ static int test_exec_RR_ses(int request_error)
     if (request_error)
         OSSL_CMP_CTX_set1_oldCert(fixture->cmp_ctx, NULL);
     fixture->expected = request_error ? OSSL_CMP_PKISTATUS_request
-        : OSSL_CMP_PKISTATUS_accepted;
+                                      : OSSL_CMP_PKISTATUS_accepted;
     EXECUTE_TEST(execute_exec_RR_ses_test, tear_down);
     return result;
 }
@@ -172,9 +194,9 @@ static int test_exec_RR_ses_receive_error(void)
 {
     SETUP_TEST_FIXTURE(CMP_SES_TEST_FIXTURE, set_up);
     ossl_cmp_mock_srv_set_statusInfo(fixture->srv_ctx,
-                                     OSSL_CMP_PKISTATUS_rejection,
-                                     OSSL_CMP_CTX_FAILINFO_signerNotTrusted,
-                                     "test string");
+        OSSL_CMP_PKISTATUS_rejection,
+        OSSL_CMP_CTX_FAILINFO_signerNotTrusted,
+        "test string");
     ossl_cmp_mock_srv_set_sendError(fixture->srv_ctx, OSSL_CMP_PKIBODY_RR);
     fixture->expected = OSSL_CMP_PKISTATUS_rejection;
     EXECUTE_TEST(execute_exec_RR_ses_test, tear_down);
@@ -198,8 +220,8 @@ static int test_exec_IR_ses(void)
 }
 
 static int test_exec_REQ_ses_poll(int req_type, int check_after,
-                                  int poll_count, int total_timeout,
-                                  int expect)
+    int poll_count, int total_timeout,
+    int expect)
 {
     SETUP_TEST_FIXTURE(CMP_SES_TEST_FIXTURE, set_up);
     fixture->req_type = req_type;
@@ -207,7 +229,7 @@ static int test_exec_REQ_ses_poll(int req_type, int check_after,
     ossl_cmp_mock_srv_set_checkAfterTime(fixture->srv_ctx, check_after);
     ossl_cmp_mock_srv_set_pollCount(fixture->srv_ctx, poll_count);
     OSSL_CMP_CTX_set_option(fixture->cmp_ctx,
-                            OSSL_CMP_OPT_TOTAL_TIMEOUT, total_timeout);
+        OSSL_CMP_OPT_TOTAL_TIMEOUT, total_timeout);
 
     if (req_type == OSSL_CMP_PKIBODY_IR) {
         EXECUTE_TEST(execute_exec_certrequest_ses_test, tear_down);
@@ -221,22 +243,22 @@ static int checkAfter = 1;
 static int test_exec_IR_ses_poll_ok(void)
 {
     return test_exec_REQ_ses_poll(OSSL_CMP_PKIBODY_IR, checkAfter, 2, 0,
-                                  OSSL_CMP_PKISTATUS_accepted);
+        OSSL_CMP_PKISTATUS_accepted);
 }
 
 static int test_exec_IR_ses_poll_no_timeout(void)
 {
     return test_exec_REQ_ses_poll(OSSL_CMP_PKIBODY_IR, checkAfter,
-                                  2 /* pollCount */,
-                                  checkAfter + 14, /* usually 4 is sufficient */
-                                  OSSL_CMP_PKISTATUS_accepted);
+        2 /* pollCount */,
+        checkAfter + 14, /* usually 4 is sufficient */
+        OSSL_CMP_PKISTATUS_accepted);
 }
 
 static int test_exec_IR_ses_poll_total_timeout(void)
 {
-    return !test_exec_REQ_ses_poll(OSSL_CMP_PKIBODY_IR, checkAfter + 1,
-                                   3 /* pollCount */, checkAfter + 6,
-                                   OSSL_CMP_PKISTATUS_waiting);
+    return test_exec_REQ_ses_poll(OSSL_CMP_PKIBODY_IR, checkAfter + 1,
+        3 /* pollCount */, checkAfter + 6,
+        OSSL_CMP_PKISTATUS_trans);
 }
 
 static int test_exec_CR_ses(int implicit_confirm, int granted, int reject)
@@ -244,12 +266,12 @@ static int test_exec_CR_ses(int implicit_confirm, int granted, int reject)
     SETUP_TEST_FIXTURE(CMP_SES_TEST_FIXTURE, set_up);
     fixture->req_type = OSSL_CMP_PKIBODY_CR;
     OSSL_CMP_CTX_set_option(fixture->cmp_ctx,
-                            OSSL_CMP_OPT_IMPLICIT_CONFIRM, implicit_confirm);
+        OSSL_CMP_OPT_IMPLICIT_CONFIRM, implicit_confirm);
     OSSL_CMP_SRV_CTX_set_grant_implicit_confirm(fixture->srv_ctx, granted);
     ossl_cmp_mock_srv_set_sendError(fixture->srv_ctx,
-                                    reject ? OSSL_CMP_PKIBODY_CERTCONF : -1);
+        reject ? OSSL_CMP_PKIBODY_CERTCONF : -1);
     fixture->expected = reject ? OSSL_CMP_PKISTATUS_rejection
-        : OSSL_CMP_PKISTATUS_accepted;
+                               : OSSL_CMP_PKISTATUS_accepted;
     EXECUTE_TEST(execute_exec_certrequest_ses_test, tear_down);
     return result;
 }
@@ -266,7 +288,9 @@ static int test_exec_CR_ses_implicit_confirm(void)
         && test_exec_CR_ses(1, 1 /* granted */, 0);
 }
 
-static int test_exec_KUR_ses(int transfer_error, int pubkey, int raverified)
+/* the KUR transactions include certConf/pkiConf */
+static int test_exec_KUR_ses(int transfer_error, int server_use_bad_protection,
+    int pubkey, int raverified)
 {
     SETUP_TEST_FIXTURE(CMP_SES_TEST_FIXTURE, set_up);
     fixture->req_type = OSSL_CMP_PKIBODY_KUR;
@@ -274,6 +298,8 @@ static int test_exec_KUR_ses(int transfer_error, int pubkey, int raverified)
 
     if (transfer_error)
         OSSL_CMP_CTX_set_transfer_cb_arg(fixture->cmp_ctx, NULL);
+    (void)ossl_cmp_mock_srv_set_useBadProtection(fixture->srv_ctx, server_use_bad_protection);
+
     if (pubkey) {
         EVP_PKEY *key = raverified /* wrong key */ ? server_key : client_key;
 
@@ -285,27 +311,33 @@ static int test_exec_KUR_ses(int transfer_error, int pubkey, int raverified)
     }
     if (pubkey || raverified)
         OSSL_CMP_CTX_set_option(fixture->cmp_ctx, OSSL_CMP_OPT_POPO_METHOD,
-                                OSSL_CRMF_POPO_RAVERIFIED);
-    fixture->expected = transfer_error ? OSSL_CMP_PKISTATUS_trans :
-        raverified ? OSSL_CMP_PKISTATUS_rejection : OSSL_CMP_PKISTATUS_accepted;
+            OSSL_CRMF_POPO_RAVERIFIED);
+    fixture->expected = transfer_error ? OSSL_CMP_PKISTATUS_trans : raverified ? (pubkey ? OSSL_CMP_PKISTATUS_rejected_by_client : OSSL_CMP_PKISTATUS_rejection)
+        : server_use_bad_protection != -1                                      ? OSSL_CMP_PKISTATUS_checking_response
+                                                                               : OSSL_CMP_PKISTATUS_accepted;
     EXECUTE_TEST(execute_exec_certrequest_ses_test, tear_down);
     return result;
 }
 
 static int test_exec_KUR_ses_ok(void)
 {
-    return test_exec_KUR_ses(0, 0, 0);
+    return test_exec_KUR_ses(0, -1, 0, 0);
 }
 
 static int test_exec_KUR_ses_transfer_error(void)
 {
-    return test_exec_KUR_ses(1, 0, 0);
+    return test_exec_KUR_ses(1, -1, 0, 0);
+}
+
+static int test_exec_KUR_bad_pkiConf_protection(void)
+{
+    return test_exec_KUR_ses(0, -1 /* disabled: OSSL_CMP_PKIBODY_PKICONF */, 0, 0);
 }
 
 static int test_exec_KUR_ses_wrong_popo(void)
 {
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* cf ossl_cmp_verify_popo() */
-    return test_exec_KUR_ses(0, 0, 1);
+    return test_exec_KUR_ses(0, -1, 0, 1);
 #else
     return 1;
 #endif
@@ -313,16 +345,16 @@ static int test_exec_KUR_ses_wrong_popo(void)
 
 static int test_exec_KUR_ses_pub(void)
 {
-    return test_exec_KUR_ses(0, 1, 0);
+    return test_exec_KUR_ses(0, -1, 1, 0);
 }
 
 static int test_exec_KUR_ses_wrong_pub(void)
 {
-    return test_exec_KUR_ses(0, 1, 1);
+    return test_exec_KUR_ses(0, -1, 1, 1);
 }
 
 static int test_certConf_cb(OSSL_CMP_CTX *ctx, X509 *cert, int fail_info,
-                            const char **txt)
+    const char **txt)
 {
     int *reject = OSSL_CMP_CTX_get_certConf_cb_arg(ctx);
 
@@ -340,8 +372,8 @@ static int test_exec_P10CR_ses(int reject)
 
     SETUP_TEST_FIXTURE(CMP_SES_TEST_FIXTURE, set_up);
     fixture->req_type = OSSL_CMP_PKIBODY_P10CR;
-    fixture->expected = reject ? OSSL_CMP_PKISTATUS_rejection
-        : OSSL_CMP_PKISTATUS_accepted;
+    fixture->expected = reject ? OSSL_CMP_PKISTATUS_rejected_by_client
+                               : OSSL_CMP_PKISTATUS_accepted;
     ctx = fixture->cmp_ctx;
     if (!TEST_ptr(csr = load_csr_der(pkcs10_f, libctx))
         || !TEST_true(OSSL_CMP_CTX_set1_p10CSR(ctx, csr))
@@ -381,9 +413,9 @@ static int execute_try_certreq_poll_test(CMP_SES_TEST_FIXTURE *fixture)
         && check_after == CHECK_AFTER
         && TEST_ptr_eq(OSSL_CMP_CTX_get0_newCert(ctx), NULL)
         && TEST_int_eq(fixture->expected,
-                       OSSL_CMP_try_certreq(ctx, TYPE, NULL, NULL))
+            OSSL_CMP_try_certreq(ctx, TYPE, NULL, NULL))
         && TEST_int_eq(0,
-                       X509_cmp(OSSL_CMP_CTX_get0_newCert(ctx), client_cert));
+            X509_cmp(OSSL_CMP_CTX_get0_newCert(ctx), client_cert));
 }
 
 static int test_try_certreq_poll(void)
@@ -407,7 +439,7 @@ static int execute_try_certreq_poll_abort_test(CMP_SES_TEST_FIXTURE *fixture)
         && check_after == CHECK_AFTER
         && TEST_ptr_eq(OSSL_CMP_CTX_get0_newCert(ctx), NULL)
         && TEST_int_eq(fixture->expected,
-                       OSSL_CMP_try_certreq(ctx, -1 /* abort */, NULL, NULL))
+            OSSL_CMP_try_certreq(ctx, -1 /* abort */, NULL, NULL))
         && TEST_ptr_eq(OSSL_CMP_CTX_get0_newCert(fixture->cmp_ctx), NULL);
 }
 
@@ -422,21 +454,21 @@ static int test_try_certreq_poll_abort(void)
 static int test_exec_GENM_ses_poll_ok(void)
 {
     return test_exec_REQ_ses_poll(OSSL_CMP_PKIBODY_GENM, checkAfter, 2, 0,
-                                  OSSL_CMP_PKISTATUS_accepted);
+        OSSL_CMP_PKISTATUS_accepted);
 }
 
 static int test_exec_GENM_ses_poll_no_timeout(void)
 {
     return test_exec_REQ_ses_poll(OSSL_CMP_PKIBODY_GENM, checkAfter,
-                                  1 /* pollCount */, checkAfter + 1,
-                                  OSSL_CMP_PKISTATUS_accepted);
+        1 /* pollCount */, checkAfter + 1,
+        OSSL_CMP_PKISTATUS_accepted);
 }
 
 static int test_exec_GENM_ses_poll_total_timeout(void)
 {
     return test_exec_REQ_ses_poll(OSSL_CMP_PKIBODY_GENM, checkAfter + 1,
-                                  3 /* pollCount */, checkAfter + 2,
-                                  OSSL_CMP_PKISTATUS_waiting);
+        3 /* pollCount */, checkAfter + 2,
+        OSSL_CMP_PKISTATUS_trans);
 }
 
 static int test_exec_GENM_ses(int transfer_error, int total_timeout, int expect)
@@ -471,21 +503,19 @@ static int test_exec_GENM_ses_total_timeout(void)
 
 static int execute_exchange_certConf_test(CMP_SES_TEST_FIXTURE *fixture)
 {
-    int res =
-        ossl_cmp_exchange_certConf(fixture->cmp_ctx, OSSL_CMP_CERTREQID,
-                                   OSSL_CMP_PKIFAILUREINFO_addInfoNotAvailable,
-                                   "abcdefg");
+    int res = ossl_cmp_exchange_certConf(fixture->cmp_ctx, OSSL_CMP_CERTREQID,
+        OSSL_CMP_PKIFAILUREINFO_addInfoNotAvailable,
+        "abcdefg");
 
     return TEST_int_eq(fixture->expected, res);
 }
 
 static int execute_exchange_error_test(CMP_SES_TEST_FIXTURE *fixture)
 {
-    int res =
-        ossl_cmp_exchange_error(fixture->cmp_ctx,
-                                OSSL_CMP_PKISTATUS_rejection,
-                                1 << OSSL_CMP_PKIFAILUREINFO_unsupportedVersion,
-                                "foo_status", 999, "foo_details");
+    int res = ossl_cmp_exchange_error(fixture->cmp_ctx,
+        OSSL_CMP_PKISTATUS_rejection,
+        1 << OSSL_CMP_PKIFAILUREINFO_unsupportedVersion,
+        "foo_status", 999, "foo_details");
 
     return TEST_int_eq(fixture->expected, res);
 }
@@ -533,10 +563,10 @@ int setup_tests(void)
     }
 
     if (!TEST_ptr(server_key_f = test_get_argument(0))
-            || !TEST_ptr(server_cert_f = test_get_argument(1))
-            || !TEST_ptr(client_key_f = test_get_argument(2))
-            || !TEST_ptr(client_cert_f = test_get_argument(3))
-            || !TEST_ptr(pkcs10_f = test_get_argument(4))) {
+        || !TEST_ptr(server_cert_f = test_get_argument(1))
+        || !TEST_ptr(client_key_f = test_get_argument(2))
+        || !TEST_ptr(client_cert_f = test_get_argument(3))
+        || !TEST_ptr(pkcs10_f = test_get_argument(4))) {
         TEST_error("usage: cmp_client_test %s", USAGE);
         return 0;
     }
@@ -545,10 +575,10 @@ int setup_tests(void)
         return 0;
 
     if (!TEST_ptr(server_key = load_pkey_pem(server_key_f, libctx))
-            || !TEST_ptr(server_cert = load_cert_pem(server_cert_f, libctx))
-            || !TEST_ptr(client_key = load_pkey_pem(client_key_f, libctx))
-            || !TEST_ptr(client_cert = load_cert_pem(client_cert_f, libctx))
-            || !TEST_int_eq(1, RAND_bytes_ex(libctx, ref, sizeof(ref), 0))) {
+        || !TEST_ptr(server_cert = load_cert_pem(server_cert_f, libctx))
+        || !TEST_ptr(client_key = load_pkey_pem(client_key_f, libctx))
+        || !TEST_ptr(client_cert = load_cert_pem(client_cert_f, libctx))
+        || !TEST_int_eq(1, RAND_bytes_ex(libctx, ref, sizeof(ref), 0))) { /* not actually used */
         cleanup_tests();
         return 0;
     }
@@ -564,6 +594,7 @@ int setup_tests(void)
     ADD_TEST(test_exec_IR_ses_poll_total_timeout);
     ADD_TEST(test_exec_KUR_ses_ok);
     ADD_TEST(test_exec_KUR_ses_transfer_error);
+    ADD_TEST(test_exec_KUR_bad_pkiConf_protection);
     ADD_TEST(test_exec_KUR_ses_wrong_popo);
     ADD_TEST(test_exec_KUR_ses_pub);
     ADD_TEST(test_exec_KUR_ses_wrong_pub);

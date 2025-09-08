@@ -6,7 +6,7 @@ EVP_SIGNATURE-ED25519,
 EVP_SIGNATURE-ED448,
 Ed25519,
 Ed448
-- EVP_PKEY Ed25519 and Ed448 support
+- The EVP_PKEY B<Ed25519> and B<Ed448> signature implementations
 
 =head1 DESCRIPTION
 
@@ -134,6 +134,9 @@ since version 1.1.1.
 Valid algorithm names are B<ed25519>, B<ed448> and B<eddsa>. If B<eddsa> is
 specified, then both Ed25519 and Ed448 are benchmarked.
 
+Since Ed25519ctx is not included in FIPS 186-5, it is not present
+in the FIPS provider.
+
 =head1 EXAMPLES
 
 To sign a message using an ED25519 EVP_PKEY structure:
@@ -172,7 +175,7 @@ L<EVP_DigestVerifyInit(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

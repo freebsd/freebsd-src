@@ -12,7 +12,9 @@ LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
 
 CAT?=		/bin/cat
+CC?=		cc
 GMAKE?=		gmake
+LD?=		ld
 MV?=		/bin/mv
 PERL?=		perl
 SETENVI=	/usr/bin/env -i
@@ -26,10 +28,13 @@ CONFIGURATION_H_ORIG=	${CONFIGURATION_H}.orig
 .ORDER: configure patch all
 
 LOCALBASE=	/usr/local
-WRK_ENV=	PATH=${LOCALBASE}/bin:/bin:/usr/bin
+WRK_ENV=	CC=${CC} \
+		LD=${LD} \
+		PATH=${LOCALBASE}/bin:/bin:/usr/bin
 
 configure:
 	@(cd ${.CURDIR} && ${SETENVI} \
+	    ${WRK_ENV} \
 	    ${PERL} ./Configure \
 	    disable-aria \
 	    disable-egd \
