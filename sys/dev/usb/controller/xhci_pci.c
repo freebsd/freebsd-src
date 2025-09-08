@@ -178,6 +178,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Tiger Lake-H USB 3.2 controller");
 	case 0x461e8086:
 		return ("Intel Alder Lake-P Thunderbolt 4 USB controller");
+	case 0x4b7d8086:
+		return ("Intel Elkhart Lake USB 3.1 controller");
 	case 0x51ed8086:
 		return ("Intel Alder Lake USB 3.2 controller");
 	case 0x5aa88086:
