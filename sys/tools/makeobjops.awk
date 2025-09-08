@@ -315,7 +315,7 @@ function handle_method (static, doc)
 		printh("\t" join(";\n\t", arguments, num_arguments) ";");
 	}
 	else {
-		prototype = "static __inline " ret " " umname "(";
+		prototype = "static __inline " ret "\n" umname "(";
 		printh(format_line(prototype argument_list ")",
 		    line_width, length(prototype)));
 	}
@@ -327,7 +327,7 @@ function handle_method (static, doc)
 		firstvar = "((kobj_t)" firstvar ")";
 	if (prolog != "")
 		printh(prolog);
-	printh("\tKOBJOPLOOKUP(" firstvar "->ops," mname ");");
+	printh("\tKOBJOPLOOKUP(" firstvar "->ops, " mname ");");
 	rceq = (ret != "void") ? "rc = " : "";
 	printh("\t" rceq "((" mname "_t *) _m)(" varname_list ");");
 	if (epilog != "")
