@@ -766,7 +766,7 @@ man_setup_locale() {
 # Display usage for the man utility.
 man_usage() {
 	echo 'Usage:'
-	echo ' man [-adho] [-t | -w] [-M manpath] [-P pager] [-S mansect]'
+	echo ' man [-adhlo] [-t | -w] [-M manpath] [-P pager] [-S mansect]'
 	echo '     [-m arch[:machine]] [-p [eprtv]] [mansect] page [...]'
 	echo ' man -K | -f | -k expression [...] -- Search manual pages'
 
