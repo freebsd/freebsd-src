@@ -478,6 +478,7 @@ random_healthtest_init(enum random_entropy_source source, int min_entropy)
 	struct health_test_softc *ht;
 
 	ht = &healthtest[source];
+	memset(ht, 0, sizeof(*ht));
 	KASSERT(ht->ht_state == INIT,
 	    ("%s: health test state is %d for source %d",
 	    __func__, ht->ht_state, source));
@@ -532,12 +533,22 @@ random_healthtest_init(enum random_entropy_source source, int min_entropy)
 	};
 	const int error_rate = 34;
 
-	if (min_entropy == 0)
-		min_entropy = 1;
-	else if (min_entropy < 0 || min_entropy >= nitems(apt_cutoffs)) {
+	if (min_entropy == 0) {
+		/*
+		 * For environmental sources, the main source of entropy is the
+		 * associated timecounter value.  Since these sources can be
+		 * influenced by unprivileged users, we conservatively use a
+		 * min-entropy estimate of 1 bit per sample.  For "pure"
+		 * sources, we assume 8 bits per sample, as such sources provide
+		 * a variable amount of data per read and in particular might
+		 * only provide a single byte at a time.
+		 */
+		min_entropy = source >= RANDOM_PURE_START ? 8 : 1;
+	} else if (min_entropy < 0 || min_entropy >= nitems(apt_cutoffs)) {
 		panic("invalid min_entropy %d for %s", min_entropy,
 		    random_source_descr[source]);
 	}
+
 	ht->ht_rct_limit = 1 + howmany(error_rate, min_entropy);
 	ht->ht_apt_cutoff = apt_cutoffs[min_entropy];
 }
@@ -707,7 +718,7 @@ random_harvestq_init(void *unused __unused)
 	RANDOM_HARVEST_INIT_LOCK();
 	harvest_context.hc_active_buf = 0;
 
-	for (int i = 0; i < ENTROPYSOURCE; i++)
+	for (int i = RANDOM_START; i <= RANDOM_ENVIRONMENTAL_END; i++)
 		random_healthtest_init(i, 0);
 }
 SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_THIRD, random_harvestq_init, NULL);
@@ -900,6 +911,8 @@ random_source_register(const struct random_source *rsource)
 	rrs->rrs_source = rsource;
 
 	printf("random: registering fast source %s\n", rsource->rs_ident);
+
+	random_healthtest_init(rsource->rs_source, rsource->rs_min_entropy);
 
 	RANDOM_HARVEST_LOCK();
 	hc_source_mask |= (1 << rsource->rs_source);
