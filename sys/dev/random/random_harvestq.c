@@ -103,8 +103,10 @@ static const char *random_source_descr[ENTROPYSOURCE];
 volatile int random_kthread_control;
 
 
-/* Allow the sysadmin to select the broad category of
- * entropy types to harvest.
+/*
+ * Allow the sysadmin to select the broad category of entropy types to harvest.
+ *
+ * Updates are synchronized by the harvest mutex.
  */
 __read_frequently u_int hc_source_mask;
 
@@ -572,9 +574,9 @@ random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 	    _RANDOM_HARVEST_ETHER_OFF | _RANDOM_HARVEST_UMA_OFF;
 
 	int error;
-	u_int value, orig_value;
+	u_int value;
 
-	orig_value = value = hc_source_mask;
+	value = atomic_load_int(&hc_source_mask);
 	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
@@ -585,12 +587,14 @@ random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Disallow userspace modification of pure entropy sources.
 	 */
+	RANDOM_HARVEST_LOCK();
 	hc_source_mask = (value & ~user_immutable_mask) |
-	    (orig_value & user_immutable_mask);
+	    (hc_source_mask & user_immutable_mask);
+	RANDOM_HARVEST_UNLOCK();
 	return (0);
 }
 SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     random_check_uint_harvestmask, "IU",
     "Entropy harvesting mask");
 
@@ -602,9 +606,16 @@ random_print_harvestmask(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
+		u_int mask;
+
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-		for (i = ENTROPYSOURCE - 1; i >= 0; i--)
-			sbuf_cat(&sbuf, (hc_source_mask & (1 << i)) ? "1" : "0");
+		mask = atomic_load_int(&hc_source_mask);
+		for (i = ENTROPYSOURCE - 1; i >= 0; i--) {
+			bool present;
+
+			present = (mask & (1u << i)) != 0;
+			sbuf_cat(&sbuf, present ? "1" : "0");
+		}
 		error = sbuf_finish(&sbuf);
 		sbuf_delete(&sbuf);
 	}
@@ -658,16 +669,21 @@ random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
 	first = true;
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
+		u_int mask;
+
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+		mask = atomic_load_int(&hc_source_mask);
 		for (i = ENTROPYSOURCE - 1; i >= 0; i--) {
-			if (i >= RANDOM_PURE_START &&
-			    (hc_source_mask & (1 << i)) == 0)
+			bool present;
+
+			present = (mask & (1u << i)) != 0;
+			if (i >= RANDOM_PURE_START && !present)
 				continue;
 			if (!first)
 				sbuf_cat(&sbuf, ",");
-			sbuf_cat(&sbuf, !(hc_source_mask & (1 << i)) ? "[" : "");
+			sbuf_cat(&sbuf, !present ? "[" : "");
 			sbuf_cat(&sbuf, random_source_descr[i]);
-			sbuf_cat(&sbuf, !(hc_source_mask & (1 << i)) ? "]" : "");
+			sbuf_cat(&sbuf, !present ? "]" : "");
 			first = false;
 		}
 		error = sbuf_finish(&sbuf);
@@ -885,8 +901,8 @@ random_source_register(const struct random_source *rsource)
 
 	printf("random: registering fast source %s\n", rsource->rs_ident);
 
-	hc_source_mask |= (1 << rsource->rs_source);
 	RANDOM_HARVEST_LOCK();
+	hc_source_mask |= (1 << rsource->rs_source);
 	CK_LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
 	RANDOM_HARVEST_UNLOCK();
 }
@@ -898,8 +914,8 @@ random_source_deregister(const struct random_source *rsource)
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	hc_source_mask &= ~(1 << rsource->rs_source);
 	RANDOM_HARVEST_LOCK();
+	hc_source_mask &= ~(1 << rsource->rs_source);
 	CK_LIST_FOREACH(rrs, &source_list, rrs_entries)
 		if (rrs->rrs_source == rsource) {
 			CK_LIST_REMOVE(rrs, rrs_entries);
