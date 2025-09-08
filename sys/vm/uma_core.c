@@ -4009,21 +4009,15 @@ restart:
 	/*
 	 * Use the keg's policy if upper layers haven't already specified a
 	 * domain (as happens with first-touch zones).
-	 *
-	 * To avoid races we run the iterator with the keg lock held, but that
-	 * means that we cannot allow the vm_domainset layer to sleep.  Thus,
-	 * clear M_WAITOK and handle low memory conditions locally.
 	 */
 	rr = rdomain == UMA_ANYDOMAIN;
+	aflags = flags;
 	if (rr) {
-		aflags = (flags & ~M_WAITOK) | M_NOWAIT;
 		if (vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
 		    &aflags) != 0)
 			return (NULL);
-	} else {
-		aflags = flags;
+	} else
 		domain = rdomain;
-	}
 
 	for (;;) {
 		slab = keg_fetch_free_slab(keg, domain, rr, flags);
@@ -4053,13 +4047,8 @@ restart:
 			if ((flags & M_WAITOK) == 0)
 				break;
 			vm_wait_domain(domain);
-		} else if (vm_domainset_iter_policy(&di, &domain) != 0) {
-			if ((flags & M_WAITOK) != 0) {
-				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask, 0);
-				goto restart;
-			}
+		} else if (vm_domainset_iter_policy(&di, &domain) != 0)
 			break;
-		}
 	}
 
 	/*
@@ -5245,7 +5234,7 @@ uma_prealloc(uma_zone_t zone, int items)
 	KEG_GET(zone, keg);
 	slabs = howmany(items, keg->uk_ipers);
 	while (slabs-- > 0) {
-		aflags = M_NOWAIT;
+		aflags = M_WAITOK;
 		if (vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
 		    &aflags) != 0)
 			panic("%s: Domainset is empty", __func__);
@@ -5266,7 +5255,8 @@ uma_prealloc(uma_zone_t zone, int items)
 				break;
 			}
 			if (vm_domainset_iter_policy(&di, &domain) != 0)
-				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask, 0);
+				panic("%s: Cannot allocate from any domain",
+				    __func__);
 		}
 	}
 }
