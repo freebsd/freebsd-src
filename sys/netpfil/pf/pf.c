@@ -9231,25 +9231,38 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 	if (r->rt == PF_DUPTO || (pd->af != pd->naf && s->direction == PF_IN))
 		skip_test = true;
 
-	if (pd->dir == PF_IN && !skip_test) {
-		if (pf_test(AF_INET, PF_OUT, PFIL_FWD, ifp, &m0, inp,
-		    &pd->act) != PF_PASS) {
-			action = PF_DROP;
-			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
-			goto bad;
-		} else if (m0 == NULL) {
-			action = PF_DROP;
-			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
-			goto done;
+	if (pd->dir == PF_IN) {
+		if (skip_test) {
+			struct pfi_kkif *out_kif = (struct pfi_kkif *)ifp->if_pf_kif;
+			MPASS(s != NULL);
+			pf_counter_u64_critical_enter();
+			pf_counter_u64_add_protected(
+			    &out_kif->pfik_bytes[pd->naf == AF_INET6][1]
+			    [action != PF_PASS && action != PF_AFRT], pd->tot_len);
+			pf_counter_u64_add_protected(
+			    &out_kif->pfik_packets[pd->naf == AF_INET6][1]
+			    [action != PF_PASS && action != PF_AFRT], 1);
+			pf_counter_u64_critical_exit();
+		} else {
+			if (pf_test(AF_INET, PF_OUT, PFIL_FWD, ifp, &m0, inp,
+			    &pd->act) != PF_PASS) {
+				action = PF_DROP;
+				SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+				goto bad;
+			} else if (m0 == NULL) {
+				action = PF_DROP;
+				SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+				goto done;
+			}
+			if (m0->m_len < sizeof(struct ip)) {
+				DPFPRINTF(PF_DEBUG_URGENT,
+				    "%s: m0->m_len < sizeof(struct ip)", __func__);
+				SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+				action = PF_DROP;
+				goto bad;
+			}
+			ip = mtod(m0, struct ip *);
 		}
-		if (m0->m_len < sizeof(struct ip)) {
-			DPFPRINTF(PF_DEBUG_URGENT,
-			    "%s: m0->m_len < sizeof(struct ip)", __func__);
-			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
-			action = PF_DROP;
-			goto bad;
-		}
-		ip = mtod(m0, struct ip *);
 	}
 
 	if (ifp->if_flags & IFF_LOOPBACK)
@@ -9548,26 +9561,39 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	if (r->rt == PF_DUPTO || (pd->af != pd->naf && s->direction == PF_IN))
 		skip_test = true;
 
-	if (pd->dir == PF_IN && !skip_test) {
-		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD | PF_PFIL_NOREFRAGMENT,
-		    ifp, &m0, inp, &pd->act) != PF_PASS) {
-			action = PF_DROP;
-			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
-			goto bad;
-		} else if (m0 == NULL) {
-			action = PF_DROP;
-			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
-			goto done;
+	if (pd->dir == PF_IN) {
+		if (skip_test) {
+			struct pfi_kkif *out_kif = (struct pfi_kkif *)ifp->if_pf_kif;
+			MPASS(s != NULL);
+			pf_counter_u64_critical_enter();
+			pf_counter_u64_add_protected(
+			    &out_kif->pfik_bytes[pd->naf == AF_INET6][1]
+			    [action != PF_PASS && action != PF_AFRT], pd->tot_len);
+			pf_counter_u64_add_protected(
+			    &out_kif->pfik_packets[pd->naf == AF_INET6][1]
+			    [action != PF_PASS && action != PF_AFRT], 1);
+			pf_counter_u64_critical_exit();
+		} else {
+			if (pf_test(AF_INET6, PF_OUT, PFIL_FWD | PF_PFIL_NOREFRAGMENT,
+			    ifp, &m0, inp, &pd->act) != PF_PASS) {
+				action = PF_DROP;
+				SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
+				goto bad;
+			} else if (m0 == NULL) {
+				action = PF_DROP;
+				SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
+				goto done;
+			}
+			if (m0->m_len < sizeof(struct ip6_hdr)) {
+				DPFPRINTF(PF_DEBUG_URGENT,
+				    "%s: m0->m_len < sizeof(struct ip6_hdr)",
+				    __func__);
+				action = PF_DROP;
+				SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
+				goto bad;
+			}
+			ip6 = mtod(m0, struct ip6_hdr *);
 		}
-		if (m0->m_len < sizeof(struct ip6_hdr)) {
-			DPFPRINTF(PF_DEBUG_URGENT,
-			    "%s: m0->m_len < sizeof(struct ip6_hdr)",
-			    __func__);
-			action = PF_DROP;
-			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
-			goto bad;
-		}
-		ip6 = mtod(m0, struct ip6_hdr *);
 	}
 
 	if (ifp->if_flags & IFF_LOOPBACK)
@@ -10720,21 +10746,32 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 	struct pf_addr		*dst_host = pd->dst;
 	struct pf_state_key	*key;
 	int			 dir_out = (pd->dir == PF_OUT);
-	int			 op_pass = (r->action == PF_PASS);
-	sa_family_t		 af = pd->af;
+	int			 op_r_pass = (r->action == PF_PASS);
+	int			 op_pass = (action == PF_PASS || action == PF_AFRT);
 	int			 s_dir_in, s_dir_out, s_dir_rev;
+	sa_family_t		 af = pd->af;
 
 	pf_counter_u64_critical_enter();
 
+	/*
+	 * Set AF for interface counters, it will be later overwritten for
+	 * rule and state counters with value from proper state key.
+	 */
+	if (action == PF_AFRT) {
+		MPASS(s != NULL);
+		if (s->direction == PF_OUT && dir_out)
+			af = pd->naf;
+	}
+
 	pf_counter_u64_add_protected(
-	    &pd->kif->pfik_bytes[pd->af == AF_INET6][dir_out][action != PF_PASS],
+	    &pd->kif->pfik_bytes[af == AF_INET6][dir_out][!op_pass],
 	    pd->tot_len);
 	pf_counter_u64_add_protected(
-	    &pd->kif->pfik_packets[pd->af == AF_INET6][dir_out][action != PF_PASS],
+	    &pd->kif->pfik_packets[af == AF_INET6][dir_out][!op_pass],
 	    1);
 
 	/* If the rule has failed to apply, don't increase its counters */
-	if (!(action == PF_PASS || action == PF_AFRT || r->action == PF_DROP)) {
+	if (!(op_pass || r->action == PF_DROP)) {
 		pf_counter_u64_critical_exit();
 		return;
 	}
@@ -10745,22 +10782,32 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 
 		/*
 		 * For af-to on the inbound direction we can determine
-		 * the direction only by checking direction of AF translation,
-		 * since the state is always "in" and so is packet's direction.
+		 * the direction of passing packet only by checking direction
+		 * of AF translation. The af-to in "in" direction covers both
+		 * the inbound and the outbound side of state tracking,
+		 * so pd->dir is always PF_IN. We set dir_out and s_dir_rev
+		 * in a way to count packets as if the state was outbound,
+		 * because pfctl -ss shows the state with "->", as if it was
+		 * oubound.
 		 */
-		if (pd->af != pd->naf && s->direction == PF_IN) {
+		if (action == PF_AFRT && s->direction == PF_IN) {
 			dir_out = (pd->naf == s->rule->naf);
 			s_dir_in = 1;
 			s_dir_out = 0;
-			s_dir_rev = (pd->naf != s->rule->naf);
-		}
-		else {
+			s_dir_rev = (pd->naf == s->rule->af);
+		} else {
 			dir_out = (pd->dir == PF_OUT);
 			s_dir_in = (s->direction == PF_IN);
 			s_dir_out = (s->direction == PF_OUT);
 			s_dir_rev = (pd->dir != s->direction);
 		}
 
+		/* pd->tot_len is a problematic with af-to rules. Sure, we can
+		 * agree that it's the post-af-to packet length that was
+		 * forwarded through a state, but what about tables which match
+		 * on pre-af-to addresses? We don't have access the the original
+		 * packet length anymore.
+		 */
 		s->packets[s_dir_rev]++;
 		s->bytes[s_dir_rev] += pd->tot_len;
 
@@ -10792,7 +10839,7 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 			    s->nat_rule->action == PF_BINAT) {
 				nr = s->nat_rule;
 				pf_rule_counters_inc(pd, s->nat_rule, dir_out,
-				    op_pass, af, src_host, dst_host);
+				    op_r_pass, af, src_host, dst_host);
 				/* Use post-NAT addresses from now on */
 				key = s->key[s_dir_in];
 				src_host = &(key->addr[s_dir_out]);
@@ -10803,7 +10850,7 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 	}
 
 	SLIST_FOREACH(ri, mr, entry) {
-		pf_rule_counters_inc(pd, ri->r, dir_out, op_pass, af,
+		pf_rule_counters_inc(pd, ri->r, dir_out, op_r_pass, af,
 		    src_host, dst_host);
 		if (s && s->nat_rule == ri->r) {
 			/* Use post-NAT addresses after a match NAT rule */
@@ -10819,12 +10866,12 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 	}
 
 	if (a != NULL) {
-		pf_rule_counters_inc(pd, a, dir_out, op_pass, af,
+		pf_rule_counters_inc(pd, a, dir_out, op_r_pass, af,
 		    src_host, dst_host);
 	}
 
 	if (r != nr) {
-		pf_rule_counters_inc(pd, r, dir_out, op_pass, af,
+		pf_rule_counters_inc(pd, r, dir_out, op_r_pass, af,
 		    src_host, dst_host);
 	}
 

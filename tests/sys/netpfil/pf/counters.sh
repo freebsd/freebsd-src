@@ -684,7 +684,7 @@ nat64_in_body()
 		"table <tbl_dst_match> { 64:ff9b::${net_server1_4_host_server} }" \
 		"table <tbl_src_pass>  { ${net_tester_6_host_tester} }" \
 		"table <tbl_dst_pass>  { 64:ff9b::${net_server1_4_host_server} }" \
-		"block" \
+		"block log" \
 		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 		"match  in on ${epair_tester}b inet6 proto tcp from <tbl_src_match> to <tbl_dst_match> scrub (random-id)" \
 		"pass   in on ${epair_tester}b inet6 proto tcp from <tbl_src_pass>  to <tbl_dst_pass> \
@@ -726,6 +726,13 @@ nat64_in_body()
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
+
+	echo " === interfaces === "
+	echo " === tester === "
+	jexec router pfctl -qvvsI -i ${epair_tester}b
+	echo " === server === "
+	jexec router pfctl -qvvsI -i ${epair_server1}a
+	echo " === "
 }
 
 nat64_in_cleanup()
@@ -753,7 +760,7 @@ nat64_out_body()
 		"table <tbl_dst_match> { 64:ff9b::${net_server1_4_host_server} }" \
 		"table <tbl_src_pass>  { ${net_tester_6_host_tester} }" \
 		"table <tbl_dst_pass>  { 64:ff9b::${net_server1_4_host_server} }" \
-		"block" \
+		"block log " \
 		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
 		"pass  in  on ${epair_tester}b inet6 proto tcp keep state" \
 		"match out on ${epair_server1}a inet6 proto tcp from <tbl_src_match> to <tbl_dst_match> scrub (random-id)" \
@@ -794,6 +801,13 @@ nat64_out_body()
 	; do
 		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
 	done
+
+	echo " === interfaces === "
+	echo " === tester === "
+	jexec router pfctl -qvvsI -i ${epair_tester}b
+	echo " === server === "
+	jexec router pfctl -qvvsI -i ${epair_server1}a
+	echo " === "
 }
 
 nat64_out_cleanup()
