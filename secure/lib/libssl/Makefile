@@ -76,7 +76,7 @@ CFLAGS+=-DOPENSSL_NO_KTLS
 SRCS+=	ktls_meth.c
 .endif
 
-LIBADD=	crypto
+LIBADD=	pthread crypto
 
 CFLAGS+=	-I${LCRYPTO_SRC}/ssl
 CFLAGS+=	-I${.OBJDIR:H}/libcrypto
