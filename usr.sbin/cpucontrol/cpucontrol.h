@@ -43,6 +43,7 @@ typedef void ucode_update_t(const struct ucode_update_params *params);
 extern int verbosity_level;
 
 #ifdef DEBUG
+#include <stdio.h>
 # define WARNX(level, ...)					\
 	if ((level) <= verbosity_level) {			\
 		fprintf(stderr, "%s:%d ", __FILE__, __LINE__);	\
