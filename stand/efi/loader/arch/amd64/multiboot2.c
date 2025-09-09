@@ -79,7 +79,6 @@ loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 	void			*multiboot = NULL;
 	ssize_t			 search_size;
 	struct multiboot_header	*header;
-	char			*cmdline;
 	struct mb2hdr		 hdr;
 	bool			 keep_bs = false;
 
@@ -495,7 +494,6 @@ static int
 obj_loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 {
 	struct preloaded_file	*mfp, *kfp, *rfp;
-	struct kernel_module	*kmp;
 	int			 error;
 
 	/* See if there's a multiboot kernel loaded */
