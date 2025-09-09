@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 4, 2025
+.Dd September 9, 2025
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -402,15 +402,6 @@ The
 system call
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EBADF
-The
-.Va desc
-parameter does not refer to a valid jail descriptor,
-and either the
-.Dv JAIL_USE_DESC
-or
-.Dv JAIL_AT_DESC
-flag was set.
 .It Bq Er EACCES
 Write permission is denied on the jail descriptor in the
 .Va desc
@@ -514,15 +505,6 @@ The
 system call
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EBADF
-The
-.Va desc
-parameter does not refer to a valid jail descriptor,
-and either the
-.Dv JAIL_USE_DESC
-or
-.Dv JAIL_AT_DESC
-flag was set.
 .It Bq Er EACCES
 Read permission is denied on the jail descriptor in the
 .Va desc
@@ -563,6 +545,10 @@ parameter has been removed
 .Pq even if the Dv JAIL_CREATE flag has been set .
 .It Bq Er EINVAL
 A supplied parameter is the wrong size.
+.It Bq Er EINVAL
+A supplied parameter is out of range.
+.It Bq Er EINVAL
+A supplied string parameter is not null-terminated.
 .It Bq Er EINVAL
 A supplied parameter name does not match any known parameters.
 .It Bq Er EMFILE
@@ -607,7 +593,7 @@ and
 system calls
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EBADF
+.It Bq Er EINVAL
 The
 .Fa fd
 argument is not a valid jail descriptor.
