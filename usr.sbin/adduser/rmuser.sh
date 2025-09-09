@@ -303,7 +303,7 @@ if [ ! "$userlist" ]; then
 		show_usage
 		exit 1
 	else
-		echo -n "Please enter one or more usernames: "
+		echo -n "Please enter one or more usernames, or press enter to exit: "
 		read userlist
 	fi
 fi
@@ -333,11 +333,11 @@ for _user in $userlist ; do
 		echo
 		echo $userrec
 		echo
-		if ! prompt_yesno "Is this the entry you wish to remove? " ; then
+		if ! prompt_yesno "Is this the entry you wish to remove? (yes/no): " ; then
 			continue
 		fi
 		_homedir=`echo $userrec | awk -F: '{print $9}'`
-		if prompt_yesno "Remove user's home directory ($_homedir)? "; then
+		if prompt_yesno "Remove user's home directory? [$_homedir] (yes/no): "; then
 			pw_rswitch="-r"
 		fi
 	else
