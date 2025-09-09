@@ -1612,7 +1612,7 @@ display(void)
 		}
 	}
 	if (opt_j >= 0)
-		return;
+		goto out;
 	SLIST_FOREACH(s, &nosocks, socket_list) {
 		if (!check_ports(s))
 			continue;
@@ -1637,6 +1637,7 @@ display(void)
 		display_sock(s, &cw, buf, bufsize);
 		xo_close_instance("socket");
 	}
+out:
 	xo_close_list("socket");
 	xo_close_container("sockstat");
 	if (xo_finish() < 0)
