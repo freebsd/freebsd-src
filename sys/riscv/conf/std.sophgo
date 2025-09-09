@@ -1,0 +1,8 @@
+#
+# Sophgo SoC support
+#
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/sophgo"
+
+files		"../sophgo/files.sophgo"
