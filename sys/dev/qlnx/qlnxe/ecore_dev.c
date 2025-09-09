@@ -5268,7 +5268,7 @@ ecore_hw_get_nvm_info(struct ecore_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_LINK,
-		   "Read default link: Speed 0x%08x, Adv. Speed 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x EEE: %02x [%08x usec]\n",
+		   "Read default link: Speed %u Mb/sec, Adv. Speeds 0x%08x, AN: 0x%02x, PAUSE AN: 0x%02x EEE: %02x [%u usec]\n",
 		   link->speed.forced_speed, link->speed.advertised_speeds,
 		   link->speed.autoneg, link->pause.autoneg,
 		   p_caps->default_eee, p_caps->eee_lpi_timer);
@@ -6860,7 +6860,7 @@ int __ecore_configure_pf_max_bandwidth(struct ecore_hwfn *p_hwfn,
 			      p_hwfn->qm_info.pf_rl);
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_LINK,
-		   "Configured MAX bandwidth to be %08x Mb/sec\n",
+		   "Configured MAX bandwidth to be %u Mb/sec\n",
 		   p_link->speed);
 
 	return rc;
@@ -6918,7 +6918,7 @@ int __ecore_configure_pf_min_bandwidth(struct ecore_hwfn *p_hwfn,
 	rc = ecore_init_pf_wfq(p_hwfn, p_ptt, p_hwfn->rel_pf_id, min_bw);
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_LINK,
-		   "Configured MIN bandwidth to be %d Mb/sec\n",
+		   "Configured MIN bandwidth to be %u Mb/sec\n",
 		   p_link->min_pf_rate);
 
 	return rc;
