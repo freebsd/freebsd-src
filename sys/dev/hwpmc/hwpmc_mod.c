@@ -1041,7 +1041,7 @@ pmc_can_attach(struct pmc *pm, struct proc *t)
 	 */
 
 	if ((o = pm->pm_owner->po_owner) == t)
-		return (false);
+		return (true);
 
 	PROC_LOCK(o);
 	oc = o->p_ucred;
