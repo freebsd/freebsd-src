@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
 #include <sys/tree.h>
