@@ -1120,6 +1120,8 @@ read_loader_env(const char *name, char *def_fn, bool once)
 		printf("    Reading loader env vars from %s\n", fn);
 		parse_loader_efi_config(boot_img->DeviceHandle, fn);
 	}
+
+	free(freeme);
 }
 
 caddr_t
