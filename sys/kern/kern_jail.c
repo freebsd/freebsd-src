@@ -1033,13 +1033,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	char numbuf[12];
 
 	mypr = td->td_ucred->cr_prison;
-	if (((flags & (JAIL_CREATE | JAIL_AT_DESC)) == JAIL_CREATE)
-	    && mypr->pr_childmax == 0)
+	if (((flags & (JAIL_CREATE | JAIL_AT_DESC)) == JAIL_CREATE) &&
+	    mypr->pr_childmax == 0)
 		return (EPERM);
 	if (flags & ~JAIL_SET_MASK)
 		return (EINVAL);
-	if ((flags & (JAIL_USE_DESC | JAIL_AT_DESC))
-	    == (JAIL_USE_DESC | JAIL_AT_DESC))
+	if ((flags & (JAIL_USE_DESC | JAIL_AT_DESC)) ==
+	    (JAIL_USE_DESC | JAIL_AT_DESC))
 		return (EINVAL);
 	prison_hold(mypr);
 
@@ -1098,9 +1098,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			error = jaildesc_find(td, jfd_in, &desc_in, &mypr,
 			    NULL);
 			if (error != 0) {
-				vfs_opterror(opts, error == ENOENT
-				    ? "descriptor to dead jail"
-				    : "not a jail descriptor");
+				vfs_opterror(opts, error == ENOENT ?
+				    "descriptor to dead jail" :
+				    "not a jail descriptor");
 				goto done_errmsg;
 			}
 			/*
@@ -1518,9 +1518,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		/* Get the jail from its descriptor. */
 		error = jaildesc_find(td, jfd_in, &desc_in, &pr, &jdcred);
 		if (error) {
-			vfs_opterror(opts, error == ENOENT
-			    ? "descriptor to dead jail"
-			    : "not a jail descriptor");
+			vfs_opterror(opts, error == ENOENT ?
+			    "descriptor to dead jail" :
+			    "not a jail descriptor");
 			goto done_deref;
 		}
 		drflags |= PD_DEREF;
@@ -2512,8 +2512,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 
 	if (flags & ~JAIL_GET_MASK)
 		return (EINVAL);
-	if ((flags & (JAIL_USE_DESC | JAIL_AT_DESC))
-	    == (JAIL_USE_DESC | JAIL_AT_DESC))
+	if ((flags & (JAIL_USE_DESC | JAIL_AT_DESC)) ==
+	    (JAIL_USE_DESC | JAIL_AT_DESC))
 		return (EINVAL);
 
 	/* Get the parameter list. */
@@ -2549,9 +2549,9 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 			/* Get the jail from its descriptor. */
 			error = jaildesc_find(td, jfd_in, &desc_in, &pr, NULL);
 			if (error) {
-				vfs_opterror(opts, error == ENOENT
-				    ? "descriptor to dead jail"
-				    : "not a jail descriptor");
+				vfs_opterror(opts, error == ENOENT ?
+				    "descriptor to dead jail" :
+				    "not a jail descriptor");
 				goto done;
 			}
 			drflags |= PD_DEREF;
@@ -2576,9 +2576,9 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 			error = jaildesc_find(td, jfd_in, &desc_in, &mypr,
 			    NULL);
 			if (error != 0) {
-				vfs_opterror(opts, error == ENOENT
-				    ? "descriptor to dead jail"
-				    : "not a jail descriptor");
+				vfs_opterror(opts, error == ENOENT ?
+				    "descriptor to dead jail" :
+				    "not a jail descriptor");
 				goto done;
 			}
 			error = vaccess(VREG, desc_in->jd_mode, desc_in->jd_uid,
