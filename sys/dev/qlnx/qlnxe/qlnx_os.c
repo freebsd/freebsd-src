@@ -2375,18 +2375,15 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 		ifmedia_add(&ha->media, (IFM_ETHER | IFM_40G_CR4), 0, NULL);
         } else if ((device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
 			(device_id == QLOGIC_PCI_DEVICE_ID_8070)) {
-		ifmedia_add(&ha->media, (IFM_ETHER | QLNX_IFM_25G_SR), 0, NULL);
-		ifmedia_add(&ha->media, (IFM_ETHER | QLNX_IFM_25G_CR), 0, NULL);
+		ifmedia_add(&ha->media, (IFM_ETHER | IFM_25G_SR), 0, NULL);
+		ifmedia_add(&ha->media, (IFM_ETHER | IFM_25G_CR), 0, NULL);
         } else if (device_id == QLOGIC_PCI_DEVICE_ID_1654) {
 		ifmedia_add(&ha->media, (IFM_ETHER | IFM_50G_KR2), 0, NULL);
 		ifmedia_add(&ha->media, (IFM_ETHER | IFM_50G_CR2), 0, NULL);
         } else if (device_id == QLOGIC_PCI_DEVICE_ID_1644) {
-		ifmedia_add(&ha->media,
-			(IFM_ETHER | QLNX_IFM_100G_LR4), 0, NULL);
-		ifmedia_add(&ha->media,
-			(IFM_ETHER | QLNX_IFM_100G_SR4), 0, NULL);
-		ifmedia_add(&ha->media,
-			(IFM_ETHER | QLNX_IFM_100G_CR4), 0, NULL);
+		ifmedia_add(&ha->media, (IFM_ETHER | IFM_100G_LR4), 0, NULL);
+		ifmedia_add(&ha->media, (IFM_ETHER | IFM_100G_SR4), 0, NULL);
+		ifmedia_add(&ha->media, (IFM_ETHER | IFM_100G_CR4), 0, NULL);
 	}
 
         ifmedia_add(&ha->media, (IFM_ETHER | IFM_FDX), 0, NULL);
@@ -3808,11 +3805,11 @@ qlnx_get_optics(qlnx_host_t *ha, struct qlnx_link_output *if_link)
 	case MEDIA_MODULE_FIBER:
 	case MEDIA_UNSPECIFIED:
 		if (if_link->speed == (100 * 1000))
-			ifm_type = QLNX_IFM_100G_SR4;
+			ifm_type = IFM_100G_SR4;
 		else if (if_link->speed == (40 * 1000))
 			ifm_type = IFM_40G_SR4;
 		else if (if_link->speed == (25 * 1000))
-			ifm_type = QLNX_IFM_25G_SR;
+			ifm_type = IFM_25G_SR;
 		else if (if_link->speed == (10 * 1000))
 			ifm_type = (IFM_10G_LR | IFM_10G_SR);
 		else if (if_link->speed == (1 * 1000))
@@ -3822,11 +3819,11 @@ qlnx_get_optics(qlnx_host_t *ha, struct qlnx_link_output *if_link)
 
 	case MEDIA_DA_TWINAX:
 		if (if_link->speed == (100 * 1000))
-			ifm_type = QLNX_IFM_100G_CR4;
+			ifm_type = IFM_100G_CR4;
 		else if (if_link->speed == (40 * 1000))
 			ifm_type = IFM_40G_CR4;
 		else if (if_link->speed == (25 * 1000))
-			ifm_type = QLNX_IFM_25G_CR;
+			ifm_type = IFM_25G_CR;
 		else if (if_link->speed == (10 * 1000))
 			ifm_type = IFM_10G_TWINAX;
 
