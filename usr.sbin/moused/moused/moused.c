@@ -1168,7 +1168,7 @@ pause_mouse(__unused int sig)
 static int
 connect_devd(void)
 {
-	const static struct sockaddr_un sa = {
+	static const struct sockaddr_un sa = {
 		.sun_family = AF_UNIX,
 		.sun_path = "/var/run/devd.seqpacket.pipe",
 	};
