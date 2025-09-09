@@ -61,6 +61,7 @@ CWARNFLAGS.main.c+=	-Wno-format
 .PATH: ${.CURDIR}/../loader/arch/${__arch}
 .include "${.CURDIR}/../loader/arch/${__arch}/Makefile.inc"
 
+CFLAGS+=	-Wall
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/arch/${__arch}
 CFLAGS+=	-I${EFISRC}/include
