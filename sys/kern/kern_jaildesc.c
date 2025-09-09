@@ -137,14 +137,14 @@ jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning)
 		free(jd, M_JAILDESC);
 		return (error);
 	}
-	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0
-	    ? FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
+	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0 ?
+	    FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
 	JAILDESC_LOCK_INIT(jd);
 	jd->jd_uid = fp->f_cred->cr_uid;
 	jd->jd_gid = fp->f_cred->cr_gid;
-	jd->jd_mode = S_IFREG | S_IRUSR | S_IRGRP | S_IROTH | mode
-	    | (priv_check(td, PRIV_JAIL_SET) == 0 ? S_IWUSR | S_IXUSR : 0)
-	    | (priv_check(td, PRIV_JAIL_ATTACH) == 0 ? S_IXUSR : 0);
+	jd->jd_mode = S_IFREG | S_IRUSR | S_IRGRP | S_IROTH | mode |
+	    (priv_check(td, PRIV_JAIL_SET) == 0 ? S_IWUSR | S_IXUSR : 0) |
+	    (priv_check(td, PRIV_JAIL_ATTACH) == 0 ? S_IXUSR : 0);
 	*fpp = fp;
 	return (0);
 }
@@ -167,7 +167,7 @@ jaildesc_set_prison(struct file *fp, struct prison *pr)
 }
 
 /*
- * Detach the all jail descriptors from a prison.
+ * Detach all the jail descriptors from a prison.
  */
 void
 jaildesc_prison_cleanup(struct prison *pr)
@@ -264,13 +264,13 @@ jaildesc_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
 	int error;
 
 	/* Reject permissions that the creator doesn't have. */
-	if (((mode & (S_IWUSR | S_IWGRP | S_IWOTH))
-	    && priv_check_cred(fp->f_cred, PRIV_JAIL_SET) != 0)
-	    || ((mode & (S_IXUSR | S_IXGRP | S_IXOTH))
-	    && priv_check_cred(fp->f_cred, PRIV_JAIL_ATTACH) != 0
-	    && priv_check_cred(fp->f_cred, PRIV_JAIL_SET) != 0)
-	    || ((mode & S_ISTXT)
-	    && priv_check_cred(fp->f_cred, PRIV_JAIL_REMOVE) != 0))
+	if (((mode & (S_IWUSR | S_IWGRP | S_IWOTH)) &&
+	    priv_check_cred(fp->f_cred, PRIV_JAIL_SET) != 0) ||
+	    ((mode & (S_IXUSR | S_IXGRP | S_IXOTH)) &&
+	    priv_check_cred(fp->f_cred, PRIV_JAIL_ATTACH) != 0 &&
+	    priv_check_cred(fp->f_cred, PRIV_JAIL_SET) != 0) ||
+	    ((mode & S_ISTXT) &&
+	    priv_check_cred(fp->f_cred, PRIV_JAIL_REMOVE) != 0))
 		return (EPERM);
 	if (mode & (S_ISUID | S_ISGID))
 		return (EINVAL);
