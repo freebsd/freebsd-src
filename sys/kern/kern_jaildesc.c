@@ -87,7 +87,7 @@ jaildesc_find(struct thread *td, int fd, struct jaildesc **jdp,
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_JAILDESC) {
-		error = EBADF;
+		error = EINVAL;
 		goto out;
 	}
 	jd = fp->f_data;
