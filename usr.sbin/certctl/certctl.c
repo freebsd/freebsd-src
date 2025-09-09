@@ -379,7 +379,7 @@ static int
 read_certs(const char *path, struct cert_tree *tree, struct cert_tree *exclude)
 {
 	struct stat sb;
-	char *paths[] = { (char *)(uintptr_t)path, NULL };
+	char *paths[] = { __DECONST(char *, path), NULL };
 	FTS *fts;
 	FTSENT *ent;
 	int fts_options = FTS_LOGICAL | FTS_NOCHDIR;
