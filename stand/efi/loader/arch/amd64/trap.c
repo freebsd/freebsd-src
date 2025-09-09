@@ -87,7 +87,6 @@ report_exc(struct trapframe *tf)
 	struct frame *fp;
 	uintptr_t pc, base;
 	char buf[80];
-	int ret;
 
 	base = (uintptr_t)boot_img->ImageBase;
 	/*

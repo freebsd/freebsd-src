@@ -276,7 +276,6 @@ void
 gfx_fb_setcolors(teken_attr_t *attr, ev_sethook_t sethook,
      ev_unsethook_t unsethook)
 {
-	const char *ptr;
 	bool need_setattr = false;
 
 	/*
