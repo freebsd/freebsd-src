@@ -248,7 +248,7 @@ static int
 command_staging_slop(int argc, char *argv[])
 {
 	char *endp;
-	u_long new, prev;
+	u_long new;
 
 	if (argc > 2) {
 		goto err;
