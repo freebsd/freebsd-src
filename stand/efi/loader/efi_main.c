@@ -49,7 +49,7 @@ void
 exit(int status)
 {
 
-	efi_exit(EFI_LOAD_ERROR);
+	efi_exit(errno_to_efi_status(status));
 }
 
 static CHAR16 *
