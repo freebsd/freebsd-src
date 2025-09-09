@@ -66,6 +66,15 @@ do
 		do_installkernel=false
 		shift
 		;;
+	-I)
+		do_world=false
+		do_kernel=false
+		do_installworld=false
+		do_installkernel=false
+		do_prep_image=false
+		do_image=true
+		shift
+		;;
 	-K)
 		do_installkernel=false
 		shift
@@ -122,15 +131,6 @@ do
 		;;
 	-w)
 		do_world=false
-		shift
-		;;
-	-I)
-		do_world=false
-		do_kernel=false
-		do_installworld=false
-		do_installkernel=false
-		do_prep_image=false
-		do_image=true
 		shift
 		;;
 	--)
