@@ -1249,7 +1249,7 @@ options 	MAC
 options 	MAC_BIBA
 options 	MAC_BSDEXTENDED
 options 	MAC_DDB
-options		MAC_DO
+options 	MAC_DO
 options 	MAC_IFOFF
 options 	MAC_IPACL
 options 	MAC_LOMAC
