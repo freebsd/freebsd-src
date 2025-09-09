@@ -3616,8 +3616,9 @@ get_params "$@"
 # Disallow use with packaged base.
 if check_pkgbase; then
 	cat <<EOF
-freebsd-update is incompatible with the use of packaged base.  Please see
-https://wiki.freebsd.org/PkgBase for more information.
+Systems that use pkgbase can not use this version of freebsd-update.
+Please see
+https://docs.freebsd.org/en/books/handbook/cutting-edge/#pkgbase 
 EOF
 	exit 1
 fi
