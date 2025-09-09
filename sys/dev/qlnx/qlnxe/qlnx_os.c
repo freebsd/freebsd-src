@@ -2753,7 +2753,9 @@ qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		QL_DPRINT4(ha, "SIOCSIFMEDIA/SIOCGIFMEDIA (0x%lx)\n", cmd);
+	case SIOCGIFXMEDIA:
+		QL_DPRINT4(ha,
+		    "SIOCSIFMEDIA/SIOCGIFMEDIA/SIOCGIFXMEDIA (0x%lx)\n", cmd);
 
 		ret = ifmedia_ioctl(ifp, ifr, &ha->media, cmd);
 		break;
