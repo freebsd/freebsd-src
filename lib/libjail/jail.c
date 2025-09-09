@@ -95,8 +95,8 @@ jail_setv(int flags, ...)
 			goto error;
 		if (jailparam_import(jp + njp, value) < 0)
 			goto error;
-		if (!strcmp(name, "desc")
-		    && (flags & (JAIL_GET_DESC | JAIL_OWN_DESC))) {
+		if (!strcmp(name, "desc") &&
+		    (flags & (JAIL_GET_DESC | JAIL_OWN_DESC))) {
 			jp_desc = jp + njp;
 			desc_value = value;
 		}
@@ -145,8 +145,8 @@ jail_getv(int flags, ...)
 			va_end(tap);
 			goto error;
 		}
-		if (!strcmp(jp[njp].jp_name, "desc")
-		    && (flags & (JAIL_USE_DESC | JAIL_AT_DESC))) {
+		if (!strcmp(jp[njp].jp_name, "desc") &&
+		    (flags & (JAIL_USE_DESC | JAIL_AT_DESC))) {
 			jp_desc = jp + njp;
 			desc_value = value;
 		} else if (!strcmp(jp[njp].jp_name, "lastjid")) {
@@ -181,8 +181,8 @@ jail_getv(int flags, ...)
 	}
 	if (jailparam_import(jp_key, key_value) < 0)
 		goto error;
-	if (jp_desc != NULL && jp_desc != jp_key
-	    && jailparam_import(jp_desc, desc_value) < 0)
+	if (jp_desc != NULL && jp_desc != jp_key &&
+	    jailparam_import(jp_desc, desc_value) < 0)
 		goto error;
 	/* Get the jail and export the parameters. */
 	jid = jailparam_get(jp, njp, flags);
@@ -604,8 +604,8 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	jp_desc = jp_lastjid = jp_jid = jp_name = NULL;
 	arrays = 0;
 	for (ai = j = 0; j < njp; j++) {
-		if (!strcmp(jp[j].jp_name, "desc")
-		    && (flags & (JAIL_USE_DESC | JAIL_AT_DESC)))
+		if (!strcmp(jp[j].jp_name, "desc") &&
+		    (flags & (JAIL_USE_DESC | JAIL_AT_DESC)))
 			jp_desc = jp + j;
 		else if (!strcmp(jp[j].jp_name, "lastjid"))
 			jp_lastjid = jp + j;
