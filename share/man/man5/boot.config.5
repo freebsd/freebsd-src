@@ -21,12 +21,12 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.Dd October 12, 2020
+.Dd November 14, 2025
 .Dt BOOT.CONFIG 5
 .Os
 .Sh NAME
 .Nm boot.config
-.Nd "Configuration file for the boot blocks"
+.Nd "Configuration file for the legacy boot blocks"
 .Sh DESCRIPTION
 The
 .Nm
@@ -34,9 +34,9 @@ file contains options for the
 .Fx
 boot block code.
 .Pp
-When the
+When the first- and second-stage
 .Fx
-boot loader runs, it searches the
+boot loaders run, they search the
 .Dq Li a
 slice of the boot partition for a
 .Nm
