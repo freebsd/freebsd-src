@@ -630,7 +630,7 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 			gfx_state->tg_fb_type = FB_UGA;
 			gfx_state->tg_private = uga;
 		} else {
-			return (1);
+			return (efi_status_to_errno(status));
 		}
 	}
 
@@ -644,8 +644,11 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 		break;
 
 	default:
-		return (1);
+		return (EINVAL);
 	}
+
+	if (rv != 0)
+		return (rv);
 
 	gfx_state->tg_fb.fb_addr = efifb.fb_addr;
 	gfx_state->tg_fb.fb_size = efifb.fb_size;
