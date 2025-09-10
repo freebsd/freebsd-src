@@ -144,7 +144,9 @@ main(int ac, char *av[])
 	char		name[NG_NODESIZ];
 	int		interactive = isatty(0) && isatty(1);
 	FILE		*fp = NULL;
+#ifdef JAIL
 	const char	*jail_name = NULL;
+#endif
 	int		ch, rtn = 0;
 
 	/* Set default node name */
@@ -181,6 +183,7 @@ main(int ac, char *av[])
 	ac -= optind;
 	av += optind;
 
+#ifdef JAIL
 	if (jail_name != NULL) {
 		int jid;
 
@@ -196,6 +199,7 @@ main(int ac, char *av[])
 			errx((errno == EPERM) ? EX_NOPERM : EX_OSERR,
 			    "cannot attach to jail");
 	}
+#endif
 
 	/* Create a new socket node */
 	if (NgMkSockNode(name, &csock, &dsock) < 0)
