@@ -4031,7 +4031,7 @@ ixgbe_if_stop(if_ctx_t ctx)
  * ixgbe_link_speed_to_str - Convert link speed to string
  *
  *   Helper function to convert link speed constants to human-readable
- *   string representations in Gbps.
+ *   string representations in conventional Gbps or Mbps.
  ************************************************************************/
 static const char *
 ixgbe_link_speed_to_str(u32 link_speed)
