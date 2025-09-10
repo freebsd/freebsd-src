@@ -1400,40 +1400,6 @@ s32 ixgbe_aci_set_link_restart_an(struct ixgbe_hw *hw, bool ena_link)
 }
 
 /**
- * ixgbe_is_media_cage_present - check if media cage is present
- * @hw: pointer to the HW struct
- *
- * Identify presence of media cage using the ACI command (0x06E0).
- *
- * Return: true if media cage is present, else false. If no cage, then
- * media type is backplane or BASE-T.
- */
-static bool ixgbe_is_media_cage_present(struct ixgbe_hw *hw)
-{
-	struct ixgbe_aci_cmd_get_link_topo *cmd;
-	struct ixgbe_aci_desc desc;
-
-	cmd = &desc.params.get_link_topo;
-
-	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_link_topo);
-
-	cmd->addr.topo_params.node_type_ctx =
-		(IXGBE_ACI_LINK_TOPO_NODE_CTX_PORT <<
-		 IXGBE_ACI_LINK_TOPO_NODE_CTX_S);
-
-	/* set node type */
-	cmd->addr.topo_params.node_type_ctx |=
-		(IXGBE_ACI_LINK_TOPO_NODE_TYPE_M &
-		 IXGBE_ACI_LINK_TOPO_NODE_TYPE_CAGE);
-
-	/* Node type cage can be used to determine if cage is present. If AQC
-	 * returns error (ENOENT), then no cage present. If no cage present then
-	 * connection type is backplane or BASE-T.
-	 */
-	return ixgbe_aci_get_netlist_node(hw, cmd, NULL, NULL);
-}
-
-/**
  * ixgbe_get_media_type_from_phy_type - Gets media type based on phy type
  * @hw: pointer to the HW struct
  *
