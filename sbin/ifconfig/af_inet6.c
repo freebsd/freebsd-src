@@ -753,7 +753,7 @@ static struct afswtch af_inet6 = {
 #ifdef WITHOUT_NETLINK
 	.af_difaddr	= SIOCDIFADDR_IN6,
 	.af_aifaddr	= SIOCAIFADDR_IN6,
-	.af_ridreq	= &in6_addreq,
+	.af_ridreq	= &in6_ridreq,
 	.af_addreq	= &in6_addreq,
 	.af_exec	= af_exec_ioctl,
 #else
