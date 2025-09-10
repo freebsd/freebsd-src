@@ -6864,8 +6864,8 @@ em_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 		    stats->ruc + stats->roc +
 		    stats->mpc + stats->cexterr);
 	case IFCOUNTER_OERRORS:
-		return (stats->ecol + stats->latecol +
-		    sc->watchdog_events);
+		return (if_get_counter_default(ifp, cnt) +
+		    stats->ecol + stats->latecol + sc->watchdog_events);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
