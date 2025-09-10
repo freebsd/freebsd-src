@@ -2635,7 +2635,7 @@ print_indirect(spa_t *spa, blkptr_t *bp, const zbookmark_phys_t *zb,
 		if (BP_GET_LEVEL(bp) != zb->zb_level) {
 			(void) printf(" (ERROR: Block pointer level "
 			    "(%llu) does not match bookmark level (%lld))",
-			    BP_GET_LEVEL(bp), (u_longlong_t)zb->zb_level);
+			    BP_GET_LEVEL(bp), (longlong_t)zb->zb_level);
 			corruption_found = B_TRUE;
 		}
 	}
