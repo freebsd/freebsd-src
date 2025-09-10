@@ -340,31 +340,6 @@ work the same as
 and
 .Fn jail_remove ,
 except that they operate on the jail referred to by the passed descriptor.
-.Pp
-Jail operations via descriptors can be done by processes that do not
-normally have permission to see or affect the jail,
-as long as they are allowed by the file permissions of the jail
-descriptor itself.
-These permissions can be changed by the descriptor owner via
-.Xr fchmod 2
-and
-.Xr fchown 2 .
-.Fn jail_get
-requires read permission,
-.Fn jail_set
-and
-.Fn jail_remove
-require write permission,
-and
-.Fn jail_attach
-requires execute permission.
-Also, use of a descriptor with the
-.Dv JAIL_AT_DESC
-flag requires execute permission.
-An owning descriptor is identified by the
-.Em sticky bit ,
-which may also be changed via
-.Xr fchmod 2 .
 .Sh RETURN VALUES
 If successful,
 .Fn jail ,
@@ -402,22 +377,6 @@ The
 system call
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EACCES
-Write permission is denied on the jail descriptor in the
-.Va desc
-parameter,
-and the
-.Dv JAIL_USE_DESC
-flag was set.
-.It Bq Er EACCES
-Execute permission is denied on the jail descriptor in the
-.Va desc
-parameter,
-and either the
-.Dv JAIL_AT_DESC
-or
-.Dv JAIL_ATTACH
-flag was set.
 .It Bq Er EPERM
 This process is not allowed to create a jail, either because it is not
 the super-user, or because it would exceed the jail's
@@ -505,24 +464,6 @@ The
 system call
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EACCES
-Read permission is denied on the jail descriptor in the
-.Va desc
-parameter,
-and the
-.Dv JAIL_USE_DESC
-flag was set.
-.It Bq Er EACCES
-Execute permission is denied on the jail descriptor in the
-.Va desc
-parameter,
-and the
-.Dv JAIL_AT_DESC
-flag was set.
-.It Bq Er EFAULT
-.Fa Iov ,
-or one of the addresses contained within it,
-points to an address outside the allocated address space of the process.
 .It Bq Er ENOENT
 The jail referred to by a
 .Va jid
@@ -597,14 +538,6 @@ will fail if:
 The
 .Fa fd
 argument is not a valid jail descriptor.
-.It Bq Er EACCES
-Permission is denied on the jail descriptor
-.Po
-execute permission for
-.Fn jail_attach_fd ,
-or write permission for
-.Fn jail_remove_fd
-.Pc .
 .It Bq Er EPERM
 The jail descriptor was created by a user other than the super-user.
 .It Bq Er EINVAL
