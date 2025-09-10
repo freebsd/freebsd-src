@@ -41,14 +41,13 @@
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 
 MALLOC_DEFINE(M_JAILDESC, "jaildesc", "jail descriptors");
 
 static fo_stat_t	jaildesc_stat;
 static fo_close_t	jaildesc_close;
-static fo_chmod_t	jaildesc_chmod;
-static fo_chown_t	jaildesc_chown;
 static fo_fill_kinfo_t	jaildesc_fill_kinfo;
 static fo_cmp_t		jaildesc_cmp;
 
@@ -61,8 +60,8 @@ static struct fileops jaildesc_ops = {
 	.fo_kqfilter = invfo_kqfilter,
 	.fo_stat = jaildesc_stat,
 	.fo_close = jaildesc_close,
-	.fo_chmod = jaildesc_chmod,
-	.fo_chown = jaildesc_chown,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
 	.fo_fill_kinfo = jaildesc_fill_kinfo,
 	.fo_cmp = jaildesc_cmp,
@@ -70,13 +69,13 @@ static struct fileops jaildesc_ops = {
 };
 
 /*
- * Given a jail descriptor number, return the jaildesc, its prison,
- * and its credential.  The jaildesc will be returned locked, and
- * prison and the credential will be returned held.
+ * Given a jail descriptor number, return its prison and/or its
+ * credential.  They are returned held, and will need to be released
+ * by the caller.
  */
 int
-jaildesc_find(struct thread *td, int fd, struct jaildesc **jdp,
-    struct prison **prp, struct ucred **ucredp)
+jaildesc_find(struct thread *td, int fd, struct prison **prp,
+    struct ucred **ucredp)
 {
 	struct file *fp;
 	struct jaildesc *jd;
@@ -98,12 +97,11 @@ jaildesc_find(struct thread *td, int fd, struct jaildesc **jdp,
 		JAILDESC_UNLOCK(jd);
 		goto out;
 	}
-	prison_hold(pr);
-	*prp = pr;
-	if (jdp != NULL)
-		*jdp = jd;
-	else
-		JAILDESC_UNLOCK(jd);
+	if (prp != NULL) {
+		prison_hold(pr);
+		*prp = pr;
+	}
+	JAILDESC_UNLOCK(jd);
 	if (ucredp != NULL)
 		*ucredp = crhold(fp->f_cred);
  out:
@@ -122,15 +120,12 @@ jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning)
 	struct file *fp;
 	struct jaildesc *jd;
 	int error;
-	mode_t mode;
 
 	if (owning) {
 		error = priv_check(td, PRIV_JAIL_REMOVE);
 		if (error != 0)
 			return (error);
-		mode = S_ISTXT;
-	} else
-		mode = 0;
+	}
 	jd = malloc(sizeof(*jd), M_JAILDESC, M_WAITOK | M_ZERO);
 	error = falloc_caps(td, &fp, fdp, 0, NULL);
 	if (error != 0) {
@@ -140,11 +135,8 @@ jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning)
 	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0 ?
 	    FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
 	JAILDESC_LOCK_INIT(jd);
-	jd->jd_uid = fp->f_cred->cr_uid;
-	jd->jd_gid = fp->f_cred->cr_gid;
-	jd->jd_mode = S_IFREG | S_IRUSR | S_IRGRP | S_IROTH | mode |
-	    (priv_check(td, PRIV_JAIL_SET) == 0 ? S_IWUSR | S_IXUSR : 0) |
-	    (priv_check(td, PRIV_JAIL_ATTACH) == 0 ? S_IXUSR : 0);
+	if (owning)
+		jd->jd_flags |= JDF_OWNING;
 	*fpp = fp;
 	return (0);
 }
@@ -206,7 +198,7 @@ jaildesc_close(struct file *fp, struct thread *td)
 			 */
 			prison_hold(pr);
 			JAILDESC_UNLOCK(jd);
-			if (jd->jd_mode & S_ISTXT) {
+			if (jd->jd_flags & JDF_OWNING) {
 				sx_xlock(&allprison_lock);
 				prison_lock(pr);
 				if (jd->jd_prison != NULL) {
@@ -246,10 +238,8 @@ jaildesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 	jd = fp->f_data;
 	JAILDESC_LOCK(jd);
 	if (jd->jd_prison != NULL) {
-		sb->st_ino = jd->jd_prison ? jd->jd_prison->pr_id : 0;
-		sb->st_uid = jd->jd_uid;
-		sb->st_gid = jd->jd_gid;
-		sb->st_mode = jd->jd_mode;
+		sb->st_ino = jd->jd_prison->pr_id;
+		sb->st_mode = S_IFREG | S_IRWXU;
 	} else
 		sb->st_mode = S_IFREG;
 	JAILDESC_UNLOCK(jd);
@@ -257,63 +247,15 @@ jaildesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 }
 
 static int
-jaildesc_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
-    struct thread *td)
-{
-	struct jaildesc *jd;
-	int error;
-
-	/* Reject permissions that the creator doesn't have. */
-	if (((mode & (S_IWUSR | S_IWGRP | S_IWOTH)) &&
-	    priv_check_cred(fp->f_cred, PRIV_JAIL_SET) != 0) ||
-	    ((mode & (S_IXUSR | S_IXGRP | S_IXOTH)) &&
-	    priv_check_cred(fp->f_cred, PRIV_JAIL_ATTACH) != 0 &&
-	    priv_check_cred(fp->f_cred, PRIV_JAIL_SET) != 0) ||
-	    ((mode & S_ISTXT) &&
-	    priv_check_cred(fp->f_cred, PRIV_JAIL_REMOVE) != 0))
-		return (EPERM);
-	if (mode & (S_ISUID | S_ISGID))
-		return (EINVAL);
-	jd = fp->f_data;
-	JAILDESC_LOCK(jd);
-	error = vaccess(VREG, jd->jd_mode, jd->jd_uid, jd->jd_gid, VADMIN,
-		active_cred);
-	if (error == 0)
-		jd->jd_mode = S_IFREG | (mode & ALLPERMS);
-	JAILDESC_UNLOCK(jd);
-	return (error);
-}
-
-static int
-jaildesc_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
-    struct thread *td)
-{
-	struct jaildesc *jd;
-	int error;
-
-	error = 0;
-	jd = fp->f_data;
-	JAILDESC_LOCK(jd);
-	if (uid == (uid_t)-1)
-		uid = jd->jd_uid;
-	if (gid == (gid_t)-1)
-		gid = jd->jd_gid;
-	if ((uid != jd->jd_uid && uid != active_cred->cr_uid) ||
-	    (gid != jd->jd_gid && !groupmember(gid, active_cred)))
-		error = priv_check_cred(active_cred, PRIV_VFS_CHOWN);
-	if (error == 0) {
-		jd->jd_uid = uid;
-		jd->jd_gid = gid;
-	}
-	JAILDESC_UNLOCK(jd);
-	return (error);
-}
-
-static int
 jaildesc_fill_kinfo(struct file *fp, struct kinfo_file *kif,
     struct filedesc *fdp)
 {
-	return (EINVAL);
+	struct jaildesc *jd;
+
+	jd = fp->f_data;
+	kif->kf_type = KF_TYPE_JAILDESC;
+	kif->kf_un.kf_jail.kf_jid = jd->jd_prison ? jd->jd_prison->pr_id : 0;
+	return (0);
 }
 
 static int
