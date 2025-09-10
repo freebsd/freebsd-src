@@ -249,15 +249,8 @@ struct sysinit_tslog {
 	const void *data;
 	const char *name;
 };
-static inline void
-sysinit_tslog_shim(const void *data)
-{
-	const struct sysinit_tslog *x = data;
+void sysinit_tslog_shim(const void *);
 
-	TSRAW(curthread, TS_ENTER, "SYSINIT", x->name);
-	(x->func)(x->data);
-	TSRAW(curthread, TS_EXIT, "SYSINIT", x->name);
-}
 #define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit_tslog uniquifier ## _sys_init_tslog = {	\
 		func,						\
