@@ -478,7 +478,7 @@ nvlist_dump_error_check(const nvlist_t *nvl, int fd, int level)
 void
 nvlist_dump(const nvlist_t *nvl, int fd)
 {
-	const nvlist_t *tmpnvl;
+	const nvlist_t *tmpnvl, *top;
 	nvpair_t *nvp, *tmpnvp;
 	void *cookie;
 	int level;
@@ -487,6 +487,7 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 	if (nvlist_dump_error_check(nvl, fd, level))
 		return;
 
+	top = nvl;
 	nvp = nvlist_first_nvpair(nvl);
 	while (nvp != NULL) {
 		dprintf(fd, "%*s%s (%s):", level * 4, "", nvpair_name(nvp),
@@ -645,6 +646,8 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
 			do {
+				if (nvl == top)
+					return;
 				cookie = NULL;
 				if (nvlist_in_array(nvl))
 					dprintf(fd, "%*s,\n", level * 4, "");
@@ -847,7 +850,7 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 {
 	unsigned char *buf, *ptr;
 	size_t left, size;
-	const nvlist_t *tmpnvl;
+	const nvlist_t *tmpnvl, *top;
 	nvpair_t *nvp, *tmpnvp;
 	void *cookie;
 
@@ -868,6 +871,7 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 
 	ptr = nvlist_pack_header(nvl, ptr, &left);
 
+	top = nvl;
 	nvp = nvlist_first_nvpair(nvl);
 	while (nvp != NULL) {
 		NVPAIR_ASSERT(nvp);
@@ -958,6 +962,8 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 			goto fail;
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
 			do {
+				if (nvl == top)
+					goto out;
 				cookie = NULL;
 				if (nvlist_in_array(nvl)) {
 					ptr = nvpair_pack_nvlist_array_next(ptr,
