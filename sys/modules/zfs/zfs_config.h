@@ -258,6 +258,9 @@
 /* dops->d_revalidate() takes 4 args */
 /* #undef HAVE_D_REVALIDATE_4ARGS */
 
+/* Define if d_set_d_op() is available */
+/* #undef HAVE_D_SET_D_OP */
+
 /* Define to 1 if you have the 'execvpe' function. */
 #define HAVE_EXECVPE 1
 
@@ -482,9 +485,6 @@
 
 /* building against unsupported kernel version */
 /* #undef HAVE_LINUX_EXPERIMENTAL */
-
-/* Define to 1 if you have the <linux/stat.h> header file. */
-/* #undef HAVE_LINUX_STAT_H */
 
 /* makedev() is declared in sys/mkdev.h */
 /* #undef HAVE_MAKEDEV_IN_MKDEV */
@@ -840,7 +840,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.0-rc1-FreeBSD_g00dfa094a"
+#define ZFS_META_ALIAS "zfs-2.4.99-29-FreeBSD_g7939bad5e"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -870,10 +870,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "zfs-2.4.0-rc1-FreeBSD_g00dfa094a"
+#define ZFS_META_RELEASE "29-FreeBSD_g7939bad5e"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.4.0"
+#define ZFS_META_VERSION "2.4.99"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
