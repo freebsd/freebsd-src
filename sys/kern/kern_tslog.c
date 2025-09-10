@@ -220,3 +220,13 @@ SYSCTL_PROC(_debug, OID_AUTO, tslog_user,
     CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_SKIP,
     0, 0, sysctl_debug_tslog_user,
     "", "Dump recorded userland event timestamps");
+
+void
+sysinit_tslog_shim(const void *data)
+{
+	const struct sysinit_tslog *x = data;
+
+	tslog(curthread, TS_ENTER, "SYSINIT", x->name);
+	(x->func)(x->data);
+	tslog(curthread, TS_EXIT, "SYSINIT", x->name);
+}
