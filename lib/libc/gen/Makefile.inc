@@ -342,7 +342,6 @@ MLINKS+=directory.3 closedir.3 \
 	directory.3 fdopendir.3 \
 	directory.3 opendir.3 \
 	directory.3 readdir.3 \
-	directory.3 readdir_r.3 \
 	directory.3 rewinddir.3 \
 	directory.3 seekdir.3 \
 	directory.3 telldir.3

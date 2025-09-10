@@ -60,7 +60,4 @@ struct _dirdesc {
 
 #define	_dirfd(dirp)	((dirp)->dd_fd)
 
-struct dirent;
-int __readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
-
 #endif /* !_GEN_PRIVATE_H_ */

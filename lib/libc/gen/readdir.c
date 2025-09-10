@@ -41,6 +41,8 @@
 #include "gen-private.h"
 #include "telldir.h"
 
+#include "gen-compat.h"
+
 /*
  * get next entry in a directory.
  */
@@ -104,7 +106,7 @@ readdir(DIR *dirp)
 }
 
 int
-__readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
+freebsd15_readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
 	struct dirent *dp;
 	int saved_errno;
@@ -133,6 +135,4 @@ __readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 	return (0);
 }
 
-__strong_reference(__readdir_r, readdir_r);
-__warn_references(readdir_r,
-    "warning: this program uses readdir_r(), which is unsafe.");
+__sym_compat(readdir_r, freebsd15_readdir_r, FBSD_1.5);
