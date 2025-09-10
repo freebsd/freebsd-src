@@ -1343,7 +1343,8 @@ enetc_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_IERRORS:
 		return (ENETC_PORT_RD8(sc, ENETC_PM0_RERR));
 	case IFCOUNTER_OERRORS:
-		return (ENETC_PORT_RD8(sc, ENETC_PM0_TERR));
+		return (if_get_counter_default(ifp, cnt) +
+		    ENETC_PORT_RD8(sc, ENETC_PM0_TERR));
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}

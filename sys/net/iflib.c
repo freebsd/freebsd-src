@@ -3646,6 +3646,12 @@ defrag:
 			bus_dmamap_unload(buf_tag, map);
 			DBG_COUNTER_INC(encap_txq_avail_fail);
 			DBG_COUNTER_INC(encap_txd_encap_fail);
+			if (ctx->ifc_sysctl_simple_tx) {
+				*m_headp = m_head = iflib_remove_mbuf(txq);
+				m_freem(*m_headp);
+				DBG_COUNTER_INC(tx_frees);
+				*m_headp = NULL;
+			}
 			if ((txq->ift_task.gt_task.ta_flags & TASK_ENQUEUED) == 0)
 				GROUPTASK_ENQUEUE(&txq->ift_task);
 			return (ENOBUFS);
@@ -4298,6 +4304,10 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 		m_freem(m);
 		DBG_COUNTER_INC(tx_frees);
+		if (err == ENOBUFS)
+			if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
+		else
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	return (err);
@@ -7141,6 +7151,11 @@ iflib_simple_transmit(if_t ifp, struct mbuf *m)
 		bytes_sent += m->m_pkthdr.len;
 		mcast_sent += !!(m->m_flags & M_MCAST);
 		(void)iflib_txd_db_check(txq, true);
+	} else {
+		if (error == ENOBUFS)
+			if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
+		else
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 	(void)iflib_completed_tx_reclaim(txq, RECLAIM_THRESH(ctx));
 	mtx_unlock(&txq->ift_mtx);

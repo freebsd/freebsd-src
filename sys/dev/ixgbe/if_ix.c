@@ -1350,8 +1350,6 @@ ixgbe_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 		return (0);
 	case IFCOUNTER_IQDROPS:
 		return (sc->iqdrops);
-	case IFCOUNTER_OQDROPS:
-		return (0);
 	case IFCOUNTER_IERRORS:
 		return (sc->ierrors);
 	default:
