@@ -135,10 +135,13 @@ assemble_udp_ip_header(unsigned char *buf, int *bufix, u_int32_t from,
 	udp.uh_ulen = htons(sizeof(udp) + len);
 	memset(&udp.uh_sum, 0, sizeof(udp.uh_sum));
 
-	udp.uh_sum = wrapsum(checksum((unsigned char *)&udp, sizeof(udp),
-	    checksum(data, len, checksum((unsigned char *)&ip.ip_src,
+	udp.uh_sum = wrapsum(checksum(data, len, checksum((unsigned char *)&udp,
+	    sizeof(udp), checksum((unsigned char *)&ip.ip_src,
 	    2 * sizeof(ip.ip_src),
 	    IPPROTO_UDP + (u_int32_t)ntohs(udp.uh_ulen)))));
+
+	if (udp.uh_sum == htons(0))
+		udp.uh_sum = htons(0xffff);
 
 	memcpy(&buf[*bufix], &udp, sizeof(udp));
 	*bufix += sizeof(udp);
@@ -166,7 +169,7 @@ decode_udp_ip_header(unsigned char *buf, int bufix, struct sockaddr_in *from,
 	struct ip *ip;
 	struct udphdr *udp;
 	u_int32_t ip_len = (buf[bufix] & 0xf) << 2;
-	u_int32_t sum, usum;
+	u_int32_t sum, usum, pseudo_sum;
 	static int ip_packets_seen;
 	static int ip_packets_bad_checksum;
 	static int udp_packets_seen;
@@ -224,23 +227,37 @@ decode_udp_ip_header(unsigned char *buf, int bufix, struct sockaddr_in *from,
 	}
 
 	usum = udp->uh_sum;
-	udp->uh_sum = 0;
-
-	sum = wrapsum(checksum((unsigned char *)udp, sizeof(*udp),
-	    checksum(data, len, checksum((unsigned char *)&ip->ip_src,
-	    2 * sizeof(ip->ip_src),
-	    IPPROTO_UDP + (u_int32_t)ntohs(udp->uh_ulen)))));
-
 	udp_packets_seen++;
-	if (usum && usum != sum) {
-		udp_packets_bad_checksum++;
-		if (udp_packets_seen > 4 && udp_packets_bad_checksum != 0 &&
-		    (udp_packets_seen / udp_packets_bad_checksum) < 2) {
-			note("%d bad udp checksums in %d packets",
-			    udp_packets_bad_checksum, udp_packets_seen);
-			udp_packets_seen = udp_packets_bad_checksum = 0;
+
+	if (usum != htons(0)) {
+		udp->uh_sum = 0;
+
+		pseudo_sum = checksum((unsigned char *)&ip->ip_src,
+		    2 * sizeof(ip->ip_src),
+		    IPPROTO_UDP + (u_int32_t)ntohs(udp->uh_ulen));
+		sum = wrapsum(checksum(data, len,
+		    checksum((unsigned char *)udp, sizeof(*udp), pseudo_sum)));
+		if (sum == htons(0))
+			sum = htons(0xffff);
+
+		/*
+		 * In addition to accepting UDP packets with the correct
+		 * checksum in the checksum field, accept also the ones which
+		 * have the correct pseudo header checksum in the checksum
+		 * field. This allows to process UDP packets, which have been
+		 * marked for transmit checksum offloading by the sender side.
+		 */
+		if (usum != sum && usum != htons(pseudo_sum & 0x0000ffff)) {
+			udp_packets_bad_checksum++;
+			if (udp_packets_seen > 4 &&
+			    udp_packets_bad_checksum != 0 &&
+			    (udp_packets_seen / udp_packets_bad_checksum) < 2) {
+				note("%d bad udp checksums in %d packets",
+				    udp_packets_bad_checksum, udp_packets_seen);
+				udp_packets_seen = udp_packets_bad_checksum = 0;
+			}
+			return (-1);
 		}
-		return (-1);
 	}
 
 	memcpy(&from->sin_port, &udp->uh_sport, sizeof(udp->uh_sport));
