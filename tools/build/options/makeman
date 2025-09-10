@@ -222,8 +222,11 @@ variables that control the aspects of how the system builds.
 .Pp
 The default location of
 .Nm
-is
-.Pa /etc/src.conf ,
+is the top level of the source tree, or
+.Pa /etc/src.conf
+if no
+.Nm
+is found in the source tree itself,
 though an alternative location can be specified in the
 .Xr make 1
 variable
