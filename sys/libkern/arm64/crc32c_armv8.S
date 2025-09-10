@@ -39,14 +39,14 @@ ENTRY(armv8_crc32c)
 	cbz	w2, end
 	tbz	x1, #0x0, half_word_aligned
 	sub	w2, w2, 0x1
-	ldr	w10, [x1], #0x1
+	ldrb	w10, [x1], #0x1
 	crc32cb	w0, w0, w10
 half_word_aligned:
 	cmp	w2, #0x2
 	b.lo	last_byte
 	tbz	x1, #0x1, word_aligned
 	sub	w2, w2, 0x2
-	ldr	w10, [x1], #0x2
+	ldrh	w10, [x1], #0x2
 	crc32ch	w0, w0, w10
 word_aligned:
 	cmp	w2, #0x4
@@ -69,11 +69,11 @@ last_word:
 	crc32cw	w0, w0, w10
 last_half_word:
 	tbz	w2, #0x1, last_byte
-	ldr	w10, [x1], #0x2
+	ldrh	w10, [x1], #0x2
 	crc32ch	w0, w0, w10
 last_byte:
 	tbz	w2, #0x0, end 
-	ldr	w10, [x1], #0x1
+	ldrb	w10, [x1], #0x1
 	crc32cb	w0, w0, w10
 end:
 	ret
