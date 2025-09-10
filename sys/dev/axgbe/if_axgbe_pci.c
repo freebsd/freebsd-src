@@ -2415,7 +2415,8 @@ axgbe_if_get_counter(if_ctx_t ctx, ift_counter cnt)
         case IFCOUNTER_OPACKETS:
                 return (pstats->txframecount_gb);
         case IFCOUNTER_OERRORS:
-                return (pstats->txframecount_gb - pstats->txframecount_g);
+                return (if_get_counter_default(ifp, cnt) +
+		    pstats->txframecount_gb - pstats->txframecount_g);
         case IFCOUNTER_IBYTES:
                 return (pstats->rxoctetcount_gb);
         case IFCOUNTER_OBYTES:
