@@ -45,7 +45,7 @@ static const struct i6300esbwd_pci_id {
 	{ DEVICEID_6300ESB_2, "6300ESB Watchdog Timer" },
 };
 
-static uint16_t
+static uint16_t __unused
 i6300esbwd_cfg_read(struct i6300esbwd_softc *sc)
 {
 	return (pci_read_config(sc->dev, WDT_CONFIG_REG, 2));
