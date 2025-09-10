@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250907:
+	The MANSPLITPKG knob has been turned off by default, so pkgbase builds
+	will no longer generate "-man" subpackages; instead the manpages will
+	be shipped in the packages they belong to.  If you want to continue
+	building split man packages, set WITH_MANSPLITPKG=1.
+
 20250905:
 	FreeBSD 16.0-CURRENT.
 
