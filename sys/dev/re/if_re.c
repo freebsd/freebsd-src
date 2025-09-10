@@ -3560,6 +3560,7 @@ re_ioctl(if_t ifp, u_long command, caddr_t data)
 static void
 re_watchdog(struct rl_softc *sc)
 {
+	struct epoch_tracker et;
 	if_t ifp;
 
 	RL_LOCK_ASSERT(sc);
@@ -3580,7 +3581,9 @@ re_watchdog(struct rl_softc *sc)
 	if_printf(ifp, "watchdog timeout\n");
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
+	NET_EPOCH_ENTER(et);
 	re_rxeof(sc, NULL);
+	NET_EPOCH_EXIT(et);
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	re_init_locked(sc);
 	if (!if_sendq_empty(ifp))
