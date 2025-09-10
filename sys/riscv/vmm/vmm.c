@@ -1036,10 +1036,14 @@ vm_raise_msi(struct vm *vm, uint64_t msg, uint64_t addr, int bus, int slot,
 static int
 vm_handle_wfi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 {
+	struct vm *vm;
 
+	vm = vcpu->vm;
 	vcpu_lock(vcpu);
-
 	while (1) {
+		if (vm->suspend)
+			break;
+
 		if (aplic_check_pending(vcpu->cookie))
 			break;
 

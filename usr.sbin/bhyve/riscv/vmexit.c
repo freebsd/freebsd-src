@@ -121,6 +121,8 @@ vmexit_suspend(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 		exit(1);
 	case VM_SUSPEND_HALT:
 		exit(2);
+	case VM_SUSPEND_DESTROY:
+		exit(4);
 	default:
 		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
 		exit(100);
