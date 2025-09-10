@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250916:
+	If SRCCONF is unset and a file named src.conf is present at
+	the top of the source tree, it will now be used instead of
+	/etc/src.conf.
+
 20250905:
 	__FreeBSD_version 1500064 after branching stable/15 from main.
 
