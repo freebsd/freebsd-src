@@ -17,6 +17,11 @@ and/or ports.
 	has changed.  An NFS server that exports any of these file systems will
 	need its clients to unmount and remount the exports.
 
+20250916:
+	If SRCCONF is unset and a file named src.conf is present at
+	the top of the source tree, it will now be used instead of
+	/etc/src.conf.
+
 20240419:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 18.1.6. It is important that you run `make delete-old`
