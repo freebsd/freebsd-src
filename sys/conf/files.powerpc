@@ -31,9 +31,11 @@ zfs-sha512-ppc.o		optional	zfs			\
 
 # openssl ppc common files
 crypto/openssl/ossl_ppc.c	optional	ossl powerpc64 | ossl powerpc64le
+crypto/openssl/ossl_aes_gcm.c	optional	ossl powerpc64 | ossl powerpc64le
 
 # openssl assembly files (powerpc64le)
 crypto/openssl/powerpc64le/aes-ppc.S			optional	ossl powerpc64le
+crypto/openssl/powerpc64le/aes-gcm-ppc.S			optional	ossl powerpc64le
 crypto/openssl/powerpc64le/aesp8-ppc.S			optional	ossl powerpc64le
 crypto/openssl/powerpc64le/chacha-ppc.S			optional	ossl powerpc64le
 crypto/openssl/powerpc64le/ecp_nistz256-ppc64.S		optional	ossl powerpc64le
@@ -54,6 +56,7 @@ crypto/openssl/powerpc64le/x25519-ppc64.S		optional	ossl powerpc64le
 
 # openssl assembly files (powerpc64)
 crypto/openssl/powerpc64/aes-ppc.S			optional	ossl powerpc64
+crypto/openssl/powerpc64/aes-gcm-ppc.S			optional	ossl powerpc64
 crypto/openssl/powerpc64/aesp8-ppc.S			optional	ossl powerpc64
 crypto/openssl/powerpc64/chacha-ppc.S			optional	ossl powerpc64
 crypto/openssl/powerpc64/ecp_nistz256-ppc64.S		optional	ossl powerpc64
