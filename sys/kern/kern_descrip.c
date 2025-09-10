@@ -664,20 +664,26 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		} while (atomic_cmpset_int(&fp->f_flag, flg, tmp) == 0);
 		got_set = tmp & ~flg;
 		got_cleared = flg & ~tmp;
-		tmp = fp->f_flag & FNONBLOCK;
-		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
-		if (error != 0)
-			goto revert_f_setfl;
-		tmp = fp->f_flag & FASYNC;
-		error = fo_ioctl(fp, FIOASYNC, &tmp, td->td_ucred, td);
-		if (error == 0) {
-			fdrop(fp, td);
-			break;
+		if (((got_set | got_cleared) & FNONBLOCK) != 0) {
+			tmp = fp->f_flag & FNONBLOCK;
+			error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
+			if (error != 0)
+				goto revert_flags;
 		}
-		atomic_clear_int(&fp->f_flag, FNONBLOCK);
-		tmp = 0;
-		(void)fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
-revert_f_setfl:
+		if (((got_set | got_cleared) & FASYNC) != 0) {
+			tmp = fp->f_flag & FASYNC;
+			error = fo_ioctl(fp, FIOASYNC, &tmp, td->td_ucred, td);
+			if (error != 0)
+				goto revert_nonblock;
+		}
+		fdrop(fp, td);
+		break;
+revert_nonblock:
+		if (((got_set | got_cleared) & FNONBLOCK) != 0) {
+			tmp = ~fp->f_flag & FNONBLOCK;
+			(void)fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
+		}
+revert_flags:
 		do {
 			tmp = flg = fp->f_flag;
 			tmp &= ~FCNTLFLAGS;
