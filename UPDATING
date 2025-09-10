@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250918:
+	The MANSPLITPKG knob has been turned off by default, so pkgbase builds
+	will no longer generate "-man" subpackages; instead the manpages will
+	be shipped in the packages they belong to.  If you want to continue
+	building split man packages, set WITH_MANSPLITPKG=1.
+
 20250916:
 	If SRCCONF is unset and a file named src.conf is present at
 	the top of the source tree, it will now be used instead of
