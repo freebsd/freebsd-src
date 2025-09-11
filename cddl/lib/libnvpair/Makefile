@@ -2,10 +2,12 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libnvpair
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 
+PACKAGE=	zfs
+LIB_PACKAGE=
+
 LIB=	nvpair
 LIBADD=	spl
 
-PACKAGE=	libzfs
 # user
 INCS=	libnvpair.h
 SRCS=	libnvpair.c \

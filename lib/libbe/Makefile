@@ -3,6 +3,7 @@ SHLIBDIR?=	/lib
 .include <src.opts.mk>
 
 PACKAGE=	zfs
+LIB_PACKAGE=
 LIB=		be
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
