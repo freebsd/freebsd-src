@@ -1,11 +1,12 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libtpool
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 
+PACKAGE=	zfs
+LIB_PACKAGE=
 
-LIB=	tpool
+LIB=		tpool
 SHLIBDIR?=	/lib
-LIBADD=	spl
-PACKAGE=	libzfs
+LIBADD=		spl
 
 INCS=	thread_pool_impl.h
 SRCS=	thread_pool.c

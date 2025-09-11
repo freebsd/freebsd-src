@@ -4,9 +4,11 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libspl
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 
+PACKAGE=	zfs
+LIB_PACKAGE=
+
 LIB=	spl
 LIBADD=
-PACKAGE=	libzfs
 
 SRCS = \
         assert.c \

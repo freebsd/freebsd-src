@@ -1,8 +1,10 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzdb
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 
-LIB=	zdb
 PACKAGE=	zfs
+LIB_PACKAGE=
+
+LIB=	zdb
 
 INCS = libzdb.h
 
