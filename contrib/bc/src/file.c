@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -291,11 +291,12 @@ bc_file_vprintf(BcFile* restrict f, const char* fmt, va_list args)
 
 		// This mess is to silence a warning.
 #if BC_CLANG
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
 #endif // BC_CLANG
 		r = vfprintf(f->f, fmt, args);
 #if BC_CLANG
-#pragma clang diagnostic warning "-Wformat-nonliteral"
+#pragma clang diagnostic pop
 #endif // BC_CLANG
 
 		// Just print and propagate the error.
