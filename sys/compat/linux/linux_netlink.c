@@ -242,9 +242,24 @@ nlmsg_copy_nla(const struct nlattr *nla_orig, struct nl_writer *nw)
 }
 
 /*
+ * Translate a FreeBSD interface name to a Linux interface name.
+ */
+static bool
+nlmsg_translate_ifname_nla(struct nlattr *nla, struct nl_writer *nw)
+{
+	char ifname[LINUX_IFNAMSIZ];
+
+	if (ifname_bsd_to_linux_name((char *)(nla + 1), ifname,
+	    sizeof(ifname)) <= 0)
+		return (false);
+	return (nlattr_add_string(nw, IFLA_IFNAME, ifname));
+}
+
+#define	LINUX_NLA_UNHANDLED	-1
+/*
  * Translate a FreeBSD attribute to a Linux attribute.
- * Returns false when the attribute is not processed and the caller must take
- * care of it.
+ * Returns LINUX_NLA_UNHANDLED when the attribute is not processed
+ * and the caller must take care of it, otherwise the result is returned.
  */
 static int
 nlmsg_translate_all_nla(struct nlmsghdr *hdr, struct nlattr *nla,
@@ -256,27 +271,22 @@ nlmsg_translate_all_nla(struct nlmsghdr *hdr, struct nlattr *nla,
 	case NL_RTM_DELLINK:
 	case NL_RTM_GETLINK:
 		switch (nla->nla_type) {
-		case IFLA_IFNAME: {
-			char ifname[LINUX_IFNAMSIZ];
-
-			if (ifname_bsd_to_linux_name((char *)(nla + 1), ifname,
-			    sizeof(ifname)) > 0)
-				return (true);
-			break;
-		}
+		case IFLA_IFNAME:
+			return (nlmsg_translate_ifname_nla(nla, nw));
 		default:
 			break;
 		}
 	default:
 		break;
 	}
-	return (false);
+	return (LINUX_NLA_UNHANDLED);
 }
 
 static bool
 nlmsg_copy_all_nla(struct nlmsghdr *hdr, int raw_hdrlen, struct nl_writer *nw)
 {
 	struct nlattr *nla;
+	int ret;
 
 	int hdrlen = NETLINK_ALIGN(raw_hdrlen);
 	int attrs_len = hdr->nlmsg_len - sizeof(struct nlmsghdr) - hdrlen;
@@ -287,12 +297,15 @@ nlmsg_copy_all_nla(struct nlmsghdr *hdr, int raw_hdrlen, struct nl_writer *nw)
 		if (nla->nla_len < sizeof(struct nlattr)) {
 			return (false);
 		}
-		if (!nlmsg_translate_all_nla(hdr, nla, nw) &&
-		    !nlmsg_copy_nla(nla, nw))
+		ret = nlmsg_translate_all_nla(hdr, nla, nw);
+		if (ret == LINUX_NLA_UNHANDLED)
+			ret = nlmsg_copy_nla(nla, nw);
+		if (!ret)
 			return (false);
 	}
 	return (true);
 }
+#undef LINUX_NLA_UNHANDLED
 
 static unsigned int
 rtnl_if_flags_to_linux(unsigned int if_flags)
