@@ -882,6 +882,8 @@ send_mss_flowc_wr(struct adapter *sc, struct toepcb *toep)
 	flowc->mnemval[0].val = htobe32(toep->params.emss);
 
 	txsd = &toep->txsd[toep->txsd_pidx];
+	_Static_assert(flowclen16 <= MAX_OFLD_TX_SDESC_CREDITS,
+	    "MAX_OFLD_TX_SDESC_CREDITS too small");
 	txsd->tx_credits = flowclen16;
 	txsd->plen = 0;
 	toep->tx_credits -= txsd->tx_credits;

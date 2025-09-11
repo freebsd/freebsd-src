@@ -191,6 +191,8 @@ tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
 	t4_tls_key_ctx(tls, direction, kctx);
 
 	txsd = &toep->txsd[toep->txsd_pidx];
+	_Static_assert(DIV_ROUND_UP(TLS_KEY_WR_SZ, 16) <=
+	    MAX_OFLD_TX_SDESC_CREDITS, "MAX_OFLD_TX_SDESC_CREDITS too small");
 	txsd->tx_credits = DIV_ROUND_UP(TLS_KEY_WR_SZ, 16);
 	txsd->plen = 0;
 	toep->tx_credits -= txsd->tx_credits;
@@ -694,6 +696,8 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 			toep->flags |= TPF_TX_SUSPENDED;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+		KASSERT(m->m_len <= MAX_OFLD_TX_SDESC_PLEN,
+		    ("%s: plen %u too large", __func__, m->m_len));
 		txsd->plen = m->m_len;
 		txsd->tx_credits = credits;
 		txsd++;
