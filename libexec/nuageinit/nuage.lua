@@ -8,6 +8,17 @@ local unistd = require("posix.unistd")
 local sys_stat = require("posix.sys.stat")
 local lfs = require("lfs")
 
+local function getlocalbase()
+	local f = io.popen("sysctl -in user.localbase 2> /dev/null")
+	local localbase = f:read("*l")
+	f:close()
+	if localbase == nil or localbase:len() == 0 then
+		-- fallback
+		localbase = "/usr/local"
+	end
+	return localbase
+end
+
 local function decode_base64(input)
 	local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 	input = string.gsub(input, '[^'..b..'=]', '')
@@ -277,11 +288,59 @@ local function addsshkey(homedir, key)
 	end
 end
 
+local function adddoas(pwd)
+	local chmodetcdir = false
+	local chmoddoasconf = false
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local localbase = getlocalbase()
+	local etcdir = localbase .. "/etc"
+	if root then
+		etcdir= root .. etcdir
+	end
+	local doasconf = etcdir .. "/doas.conf"
+	local doasconf_attr = lfs.attributes(doasconf)
+	if doasconf_attr == nil then
+		chmoddoasconf = true
+		local dirattrs = lfs.attributes(etcdir)
+		if dirattrs == nil then
+			local r, err = mkdir_p(etcdir)
+			if not r then
+				return nil, err .. " (creating " .. etcdir .. ")"
+			end
+			chmodetcdir = true
+		end
+	end
+	local f = io.open(doasconf, "a")
+	if not f then
+		warnmsg("impossible to open " .. doasconf)
+		return
+	end
+	if type(pwd.doas) == "string" then
+		local rule = pwd.doas
+		rule = rule:gsub("%%u", pwd.name)
+		f:write(rule .. "\n")
+	elseif type(pwd.doas) == "table" then
+		for _, str in ipairs(pwd.doas) do
+			local rule = str
+			rule = rule:gsub("%%u", pwd.name)
+			f:write(rule .. "\n")
+		end
+	end
+	f:close()
+	if chmoddoasconf then
+		chmod(doasconf, "0640")
+	end
+	if chmodetcdir then
+		chmod(etcdir, "0755")
+	end
+end
+
 local function addsudo(pwd)
 	local chmodsudoersd = false
 	local chmodsudoers = false
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
-	local sudoers_dir = "/usr/local/etc/sudoers.d"
+	local localbase = getlocalbase()
+	local sudoers_dir = localbase .. "/etc/sudoers.d"
 	if root then
 		sudoers_dir= root .. sudoers_dir
 	end
@@ -585,6 +644,7 @@ local n = {
 	update_packages = update_packages,
 	upgrade_packages = upgrade_packages,
 	addsudo = addsudo,
+	adddoas = adddoas,
 	addfile = addfile
 }
 

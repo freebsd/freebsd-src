@@ -140,6 +140,9 @@ local function users(obj)
 			if u.sudo then
 				nuage.addsudo(u)
 			end
+			if u.doas then
+				nuage.adddoas(u)
+			end
 		else
 			nuage.warn("invalid type : " .. type(u) .. " for users entry number " .. n)
 		end
