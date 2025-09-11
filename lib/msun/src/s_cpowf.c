@@ -57,7 +57,10 @@ cpowf(float complex a, float complex z)
 	y = cimagf(z);
 	absa = cabsf (a);
 	if (absa == 0.0f) {
-		return (CMPLXF(0.0f, 0.0f));
+		if (x == 0 && y == 0)
+		    return (CMPLXF(1.f, 0.f));
+		else
+		    return (CMPLXF(0.f, 0.f));
 	}
 	arga = cargf (a);
 	r = powf (absa, x);
