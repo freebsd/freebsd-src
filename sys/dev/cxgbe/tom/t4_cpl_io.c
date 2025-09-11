@@ -148,6 +148,8 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 
 	KASSERT(paramidx == nparams, ("nparams mismatch"));
 
+	KASSERT(howmany(flowclen, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
+	    ("%s: tx_credits %u too large", __func__, howmany(flowclen, 16)));
 	txsd->tx_credits = howmany(flowclen, 16);
 	txsd->plen = 0;
 	KASSERT(toep->tx_credits >= txsd->tx_credits && toep->txsd_avail > 0,
@@ -215,6 +217,8 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		else
 			flowc->mnemval[0].val = htobe32(tc_idx);
 
+		KASSERT(flowclen16 <= MAX_OFLD_TX_SDESC_CREDITS,
+		    ("%s: tx_credits %u too large", __func__, flowclen16));
 		txsd->tx_credits = flowclen16;
 		txsd->plen = 0;
 		toep->tx_credits -= txsd->tx_credits;
@@ -491,6 +495,9 @@ t4_close_conn(struct adapter *sc, struct toepcb *toep)
 #define MIN_TX_CREDITS(iso)						\
 	(MIN_OFLD_TX_CREDITS + ((iso) ? MIN_ISO_TX_CREDITS : 0))
 
+_Static_assert(MAX_OFLD_TX_CREDITS <= MAX_OFLD_TX_SDESC_CREDITS,
+    "MAX_OFLD_TX_SDESC_CREDITS too small");
+
 /* Maximum amount of immediate data we could stuff in a WR */
 static inline int
 max_imm_payload(int tx_credits, int iso)
@@ -705,6 +712,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 
 			if ((m->m_flags & M_NOTREADY) != 0)
 				break;
+			if (plen + m->m_len > MAX_OFLD_TX_SDESC_PLEN)
+				break;
 			if (m->m_flags & M_EXTPG) {
 #ifdef KERN_TLS
 				if (m->m_epg_tls != NULL) {
@@ -870,6 +879,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			toep->flags |= TPF_TX_SUSPENDED;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+		KASSERT(plen <= MAX_OFLD_TX_SDESC_PLEN,
+		    ("%s: plen %u too large", __func__, plen));
 		txsd->plen = plen;
 		txsd->tx_credits = credits;
 		txsd++;
@@ -1211,6 +1222,8 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			toep->flags |= TPF_TX_SUSPENDED;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+		KASSERT(plen <= MAX_OFLD_TX_SDESC_PLEN,
+		    ("%s: plen %u too large", __func__, plen));
 		txsd->plen = plen;
 		txsd->tx_credits = credits;
 		txsd++;
@@ -1969,6 +1982,9 @@ t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
 	req->val = htobe64(val);
 	if (wrq->eq.type == EQ_OFLD) {
 		txsd = &toep->txsd[toep->txsd_pidx];
+		_Static_assert(howmany(sizeof(*req), 16) <=
+		    MAX_OFLD_TX_SDESC_CREDITS,
+		    "MAX_OFLD_TX_SDESC_CREDITS too small");
 		txsd->tx_credits = howmany(sizeof(*req), 16);
 		txsd->plen = 0;
 		KASSERT(toep->tx_credits >= txsd->tx_credits &&
