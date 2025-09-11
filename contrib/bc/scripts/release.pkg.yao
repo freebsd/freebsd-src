@@ -1,0 +1,1410 @@
+/**
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+PROG: str = path.realpath(sys.program);
+REAL: str = path.realpath(PROG +~ "..");
+
+SCRIPTDIR: str = path.dirname(PROG);
+
+WINDOWS: bool = (host.os == "Windows");
+
+DEFOPT: str = if WINDOWS { "/D"; } else { "-D"; };
+C11OPT: str = if WINDOWS { "/std:c11"; } else { "-std=c11"; };
+C99OPT: str = if WINDOWS { "/std:c99"; } else { "-std=c99"; };
+
+/**
+ * Turns a string array into a string by joining all strings together with
+ * spaces.
+ * @param arr  The array to join.
+ * @return     The joined array.
+ */
+fn strv2str(arr: []str) -> str
+{
+	ret: !str = "";
+
+	for item: arr
+	{
+		if ret == ""
+		{
+			ret! = item;
+		}
+		else
+		{
+			ret! = ret +~ " " +~ item;
+		}
+	}
+
+	return ret;
+}
+
+opts: Gaml = @(gaml){
+	help: [
+		"Runs the testing part of the release process.\n"
+		"\n"
+		"Usage: ", $PROG, " [-h|--help] [<options> \n"
+	]
+	options: {
+		no64: {
+			help: "Turn off building and testing 64-bit builds."
+			long: @no-64
+			type: @NONE
+		}
+		no128: {
+			help: "Turn off building and testing builds with 128-bit integers."
+			long: @no-128
+			type: @NONE
+		}
+		C: {
+			help: "Turn off building under Clang."
+			short: @C
+			long: @no-clang
+			type: @NONE
+		}
+		C11: {
+			help: "Turn off building under C11."
+			long: @no-c11
+			type: @NONE
+		}
+		G: {
+			help: "Turn off building under GCC."
+			short: @G
+			long: @no-gcc
+			type: @NONE
+		}
+		GEN: {
+			help: "Turn off running the gen script."
+			short: @G
+			long: @no-gen-script
+			type: @NONE
+		}
+		MAKE: {
+			help: "Turn off running the build with `configure.sh` and `make`."
+			long: @no-make
+			type: @NONE
+		}
+		RIG: {
+			help: "Turn off running the build with Rig."
+			long: @no-rig
+			type: @NONE
+		}
+		T: {
+			help: "Turn off running tests."
+			short: @T
+			long: @no-tests
+			type: @NONE
+		}
+		computed-goto: {
+			help: "Whether to test with computed goto or not."
+			long: @computed-goto
+			type: @NONE
+		}
+		e: {
+			help: "Whether to test with editline or not."
+			short: @e
+			long: @editline
+			type: @NONE
+		}
+		g: {
+			help: "Whether generate tests that are generated or not."
+			short: @g
+			long: @generate
+			type: @NONE
+		}
+		history: {
+			help: "Whether to test with history or not."
+			long: @history
+			type: @NONE
+		}
+		k: {
+			help: "Whether to run the Karatsuba tests or not."
+			short: @k
+			long: @karatsuba
+			type: @NONE
+		}
+		p: {
+			help: "Whether to run problematic tests or not."
+			short: @p
+			long: @problematic-tests
+			type: @NONE
+		}
+		r: {
+			help: "Whether to test with readline or not."
+			short: @r
+			long: @readline
+			type: @NONE
+		}
+		s: {
+			help: "Whether to run tests under sanitizers or not."
+			short: @s
+			long: @sanitizers
+			type: @NONE
+		}
+		settings: {
+			help: "Whether to test settings or not."
+			long: @settings
+			type: @NONE
+		}
+		v: {
+			help: "Whether to run under Valgrind or not."
+			short: @v
+			long: @valgrind
+			type: @NONE
+		}
+	}
+};
+
+// These are the booleans for the command-line flags.
+no64: !bool = false;
+no128: !bool = false;
+clang: !bool = true;
+c11: !bool = true;
+gcc: !bool = true;
+gen_host: !bool = true;
+run_make: !bool = !WINDOWS;
+run_rig: !bool = true;
+tests: !bool = true;
+computed_goto: !bool = false;
+editline: !bool = false;
+generated: !bool = false;
+history: !bool = false;
+karatsuba: !bool = false;
+problematic: !bool = false;
+readline: !bool = false;
+sanitizers: !bool = false;
+settings: !bool = false;
+valgrind: !bool = false;
+
+defcc: str = if clang { "clang"; } else if gcc { "gcc"; } else { "c99"; };
+defbits: usize = if no64 { usize(32); } else { usize(64); };
+
+cgoto_flags: []str = if !computed_goto { @[ "-DBC_NO_COMPUTED_GOTO" ]; };
+
+// Set some strict warning flags. Clang's -Weverything can be way too strict, so
+// we actually have to turn off some things.
+CLANG_FLAGS: []str = @[ "-Weverything", "-Wno-padded",
+                        "-Wno-unsafe-buffer-usage",
+                        "-Wno-poison-system-directories",
+                        "-Wno-switch-default", "-Wno-unknown-warning-option",
+                        "-Wno-pre-c11-compat" ] +~ cgoto_flags;
+GCC_FLAGS: []str = @[ "-Wno-clobbered" ] +~ cgoto_flags;
+
+CLANG_FLAGS_STR: str = strv2str(CLANG_FLAGS);
+
+GCC_FLAGS_STR: str = strv2str(GCC_FLAGS);
+
+// Common CFLAGS.
+CFLAGS: []str = @[ "-Wall", "-Wextra", "-Werror", "-pedantic" ];
+
+CFLAGS_STR: str = strv2str(CFLAGS);
+
+// Common debug and release flags.
+DEBUG_CFLAGS: []str = CFLAGS +~ @[ "-fno-omit-frame-pointer" ];
+DEBUG_CFLAGS_STR: str = CFLAGS_STR +~ " -fno-omit-frame-pointer";
+RELEASE_CFLAGS: []str = CFLAGS +~ @[ "-DNDEBUG" ];
+RELEASE_CFLAGS_STR: str = CFLAGS_STR +~ " -DNDEBUG";
+
+/**
+ * Print a header with a message. This is just to make it easy to track
+ * progress.
+ * @param msg  The message to print in the header.
+ */
+fn header(msg: str) -> void
+{
+	io.eprint("\n*******************\n");
+	io.eprint(msg);
+	io.eprint("\n*******************\n\n");
+}
+
+/**
+ * An easy way to call `make`.
+ * @param args  The arguments to pass to `make`, if any.
+ */
+fn do_make(args: []str) -> void
+{
+	$ make -j64 %(args);
+}
+
+/**
+ * An easy way to call Rig.
+ * @param args  The arguments to pass to Rig, if any.
+ */
+fn do_rig(args: []str) -> void
+{
+	$ rig -j64 %(args);
+}
+
+/**
+ * Runs `configure.sh`.
+ * @param cflags    The C compiler flags.
+ * @param cc        The C compiler.
+ * @param flags     The flags to pass to `configure.sh` itself.
+ * @param gen       The setting for `GEN_HOST`.
+ * @param long_bit  The number of bits in longs.
+ */
+fn configure(
+	cflags: str,
+	cc: str,
+	flags: str,
+	gen: bool,
+	long_bit: usize
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	extra_flags: str =
+	if !generated
+	{
+		if !problematic { "-GP"; } else { "-G"; }
+	}
+	else if !problematic
+	{
+		"-P";
+	};
+
+	extra_cflags: str =
+	if cc == "clang"
+	{
+		// We need to quiet this warning from Clang because the configure.sh
+		// docs have this warning, so people should know. Also, I want this
+		// script to work.
+		CLANG_FLAGS_STR +~ (if !gen_host { " -Wno-overlength-strings"; });
+	}
+	else if cc == "gcc"
+	{
+		// We need to quiet this warning from GCC because the configure.sh docs
+		// have this warning, so people should know. Also, I want this script to
+		// work.
+		GCC_FLAGS_STR +~ (if !gen_host { "-Wno-overlength-strings"; });
+	};
+
+	all_flags: str = flags +~ " " +~ extra_flags;
+	all_cflags: str = cflags +~ " " +~ extra_cflags;
+
+	hdr := "Running configure.sh " +~ all_flags +~
+	       "..." +~
+	       "\n    CC=\"" +~ cc +~ "\"\n" +~
+	       "\n    CFLAGS=\"" +~ all_cflags +~ "\"\n" +~
+	       "\n    LONG_BIT=" +~ str(long_bit) +~
+	       "\n    GEN_HOST=" +~ str(gen);
+
+	// Print the header and do the job.
+	header(hdr);
+
+	env.set env.str("CFLAGS", str(cflags +~ extra_cflags)),
+	        env.str("CC", cc), env.str("GEN_HOST", str(gen)),
+	        env.str("LONG_BIT", str(long_bit))
+	{
+		$ @(path.join(REAL, "configure.sh")) $flags $extra_flags > /dev/null
+		  !> /dev/null;
+	}
+}
+
+/**
+ * Build with `make`. This function also captures and outputs any warnings if
+ * they exist because as far as I am concerned, warnings are not acceptable for
+ * release.
+ * @param cflags    The C compiler flags.
+ * @param cc        The C compiler.
+ * @param flags     The flags to pass to `configure.sh` itself.
+ * @param gen       The setting for `GEN_HOST`.
+ * @param long_bit  The number of bits in longs.
+ */
+fn build_make(
+	cflags: str,
+	cc: str,
+	flags: str,
+	gen: bool,
+	long_bit: usize
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	configure(cflags, cc, flags, gen, long_bit);
+
+	hdr := "Building with `make`...\n    CC=" +~ cc +~
+	       "\n    CFLAGS=\"" +~ cflags +~
+	       "\n    LONG_BIT=" +~ str(long_bit) +~
+	       "\n    GEN_HOST=" +~ str(gen);
+
+	header(hdr);
+
+	res := $ make;
+
+	if res.stderr.len != 0
+	{
+		io.eprint(cc +~ "generated warning(s):\n\n");
+		io.eprint(str(res.stderr));
+		sys.exit(1);
+	}
+
+	if res.exitcode != 0
+	{
+		sys.exit(res.exitcode);
+	}
+}
+
+/**
+ * Build with Rig. This function also captures and outputs any warnings if they
+ * exist because as far as I am concerned, warnings are not acceptable for
+ * release.
+ * @param cflags    The C compiler flags.
+ * @param cc        The C compiler.
+ * @param flags     The flags to pass to `configure.sh` itself.
+ * @param long_bit  The number of bits in longs.
+ */
+fn build_rig(
+	cflags: []str,
+	cc: str,
+	flags: []str,
+	long_bit: usize
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	cflags_str: str = strv2str(cflags);
+
+	hdr := "Building with Rig...\n    CC=" +~ cc +~
+	       "\n    CFLAGS=\"" +~ cflags_str +~
+	       "\n    LONG_BIT=" +~ str(long_bit);
+
+	header(hdr);
+
+	res := $ rig;
+
+	if res.stderr.len != 0
+	{
+		io.eprint(cc +~ "generated warning(s):\n\n");
+		io.eprint(str(res.stderr));
+		sys.exit(1);
+	}
+
+	if res.exitcode != 0
+	{
+		sys.exit(res.exitcode);
+	}
+}
+
+/**
+ * Run tests with `make`.
+ * @param args  Any arguments to pass to `make`, if any.
+ */
+fn run_test_make(args: []str) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	header("Running `make` tests");
+
+	if args.len > 0
+	{
+		do_make(args);
+	}
+	else
+	{
+		do_make(@[ "test" ]);
+
+		if history
+		{
+			do_make(@[ "test_history" ]);
+		}
+	}
+}
+
+/**
+ * Run tests with Rig.
+ * @param args  Any arguments to pass to Rig, if any.
+ */
+fn run_test_rig(args: []str) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	header("Running Rig tests");
+
+	if args.len > 0
+	{
+		do_rig(args);
+	}
+	else
+	{
+		do_rig(@[ "test" ]);
+
+		if history
+		{
+			do_rig(@[ "test_history" ]);
+		}
+	}
+}
+
+/**
+ * Builds and runs tests using `make` with both calculators, then bc only, then
+ * dc only. If `tests` is false, then it just does the builds.
+ * @param cflags    The C compiler flags.
+ * @param cc        The C compiler.
+ * @param flags     The flags to pass to `configure.sh` itself.
+ * @param gen       The setting for `GEN_HOST`.
+ * @param long_bit  The number of bits in longs.
+ */
+fn run_config_tests_make(
+	cflags: str,
+	cc: str,
+	flags: str,
+	gen: bool,
+	long_bit: usize,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	header_start: str =
+	if tests
+	{
+		"Running tests with configure flags and `make`";
+	}
+	else
+	{
+		"Building with configure flags and `make`";
+	};
+
+	header("\"" +~ header_start +~ "\" ...\n" +~
+	       "    CC=" +~ cc +~ "\n" +~
+	       "    CFLAGS=\"" +~ cflags +~ "\"\n" +~
+	       "    LONG_BIT=" +~ str(long_bit) +~ "\n" +~
+	       "    GEN_HOST=" +~ str(gen));
+
+	build_make(cflags, cc, flags, gen, long_bit);
+
+	if tests
+	{
+		run_test_make(@[]);
+	}
+
+	do_make(@[ "clean" ]);
+
+	build_make(cflags, cc, flags +~ " -b", gen, long_bit);
+
+	if tests
+	{
+		run_test_make(@[]);
+	}
+
+	do_make(@[ "clean" ]);
+
+	build_make(cflags, cc, flags +~ " -d", gen, long_bit);
+
+	if tests
+	{
+		run_test_make(@[]);
+	}
+
+	do_make(@[ "clean" ]);
+}
+
+/**
+ * Builds and runs tests using Rig with both calculators, then bc only, then dc
+ * only. If `tests` is false, then it just does the builds.
+ * @param cflags    The C compiler flags.
+ * @param cc        The C compiler.
+ * @param flags     The flags to pass to Rig itself.
+ * @param long_bit  The number of bits in longs.
+ */
+fn run_config_tests_rig(
+	cflags: []str,
+	cc: str,
+	flags: []str,
+	long_bit: usize,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	header_start: str =
+	if tests
+	{
+		"Running tests with Rig";
+	}
+	else
+	{
+		"Building with Rig";
+	};
+
+	header("\"" +~ header_start +~ "\" ...\n" +~
+	       "    CC=" +~ cc +~ "\n" +~
+	       "    CFLAGS=\"" +~ strv2str(cflags) +~ "\"\n" +~
+	       "    flags=\"" +~ strv2str(flags) +~ "\"\n" +~
+	       "    LONG_BIT=" +~ str(long_bit));
+
+	build_rig(cflags, cc, flags, long_bit);
+
+	if tests
+	{
+		run_test_rig(@[]);
+	}
+
+	do_rig(@[ "clean" ]);
+
+	build_rig(cflags, cc, flags +~ @[ "-Dbuild_mode=bc" ], long_bit);
+
+	if tests
+	{
+		run_test_rig(@[]);
+	}
+
+	do_rig(@[ "clean" ]);
+
+	build_rig(cflags, cc, flags +~ @[ "-Dbuild_mode=dc" ], long_bit);
+
+	if tests
+	{
+		run_test_rig(@[]);
+	}
+
+	do_rig(@[ "clean" ]);
+}
+
+/**
+ * Builds and runs tests using `run_config_tests_make()` with both calculators,
+ * then bc only, then dc only. If `tests` is false, then it just does the
+ * builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to `configure.sh` itself.
+ */
+fn run_config_series_make(
+	cflags: str,
+	cc: str,
+	flags: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	if !no64
+	{
+		if !no128
+		{
+			run_config_tests_make(cflags, cc, flags, true, usize(64));
+		}
+
+		if gen_host
+		{
+			run_config_tests_make(cflags, cc, flags, false, usize(64));
+		}
+
+		run_config_tests_make(cflags +~ " " +~ DEFOPT +~ "BC_RAND_BUILTIN=0",
+		                      cc, flags, true, usize(64));
+
+		// Test Editline if history is not turned off.
+		if editline && !(flags contains "H")
+		{
+			run_config_tests_make(cflags +~ " " +~ DEFOPT +~
+			                          "BC_RAND_BUILTIN=0",
+			                      cc, flags +~ " -e", true, usize(64));
+		}
+
+		// Test Readline if history is not turned off.
+		if readline && !(flags contains "H")
+		{
+			run_config_tests_make(cflags +~ " " +~ DEFOPT +~
+			                          "BC_RAND_BUILTIN=0",
+			                      cc, flags +~ " -r", true, usize(64));
+		}
+	}
+
+	run_config_tests_make(cflags, cc, flags, true, usize(32));
+
+	if gen_host
+	{
+		run_config_tests_make(cflags, cc, flags, false, usize(32));
+	}
+}
+
+/**
+ * Builds and runs tests using `run_config_tests_rig()` with both calculators,
+ * then bc only, then dc only. If `tests` is false, then it just does the
+ * builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to Rig itself.
+ */
+fn run_config_series_rig(
+	cflags: []str,
+	cc: str,
+	flags: []str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	if !no64
+	{
+		if !no128
+		{
+			run_config_tests_rig(cflags, cc, flags, usize(64));
+		}
+
+		run_config_tests_rig(cflags +~ @[ DEFOPT +~ "BC_RAND_BUILTIN=0" ], cc,
+		                     flags, usize(64));
+
+		// Test Editline if history is not turned off.
+		if editline && !(flags contains "-Dhistory=none")
+		{
+			run_config_tests_rig(cflags +~ @[ DEFOPT +~ "BC_RAND_BUILTIN=0" ],
+			                     cc, flags +~ @[ "-Dhistory=editline" ],
+			                     usize(64));
+		}
+
+		// Test Readline if history is not turned off.
+		if readline && !(flags contains "-Dhistory=none")
+		{
+			run_config_tests_rig(cflags +~ @[ DEFOPT +~ "BC_RAND_BUILTIN=0" ],
+			                     cc, flags +~ @[ "-Dhistory=readline" ],
+			                     usize(64));
+		}
+	}
+
+	run_config_tests_rig(cflags, cc, flags, usize(32));
+}
+
+/**
+ * Builds and runs tests with each setting combo running
+ * `run_config_series_make()`. If `tests` is false, it just does the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to `configure.sh` itself.
+ */
+fn run_settings_series_make(
+	cflags: str,
+	cc: str,
+	flags: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	if settings
+	{
+		settings_path: str = path.join(SCRIPTDIR, "release_settings_make.txt");
+		settings_txt: str = io.read_file(settings_path);
+		lines: []str = settings_txt.split("\n");
+
+		for line: lines
+		{
+			run_config_series_make(cflags, cc, flags +~ " " +~ line);
+		}
+	}
+	else
+	{
+		run_config_series_make(cflags, cc, flags);
+	}
+}
+
+/**
+ * Builds and runs tests with each setting combo running
+ * `run_config_series_rig()`. If `tests` is false, it just does the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to Rig itself.
+ */
+fn run_settings_series_rig(
+	cflags: []str,
+	cc: str,
+	flags: []str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	if settings
+	{
+		settings_path: str = path.join(SCRIPTDIR, "release_settings_rig.txt");
+		settings_txt: str = io.read_file(settings_path);
+		lines: []str = settings_txt.split("\n");
+
+		for line: lines
+		{
+			opts_list: []str =
+			for opt: line.split(" ")
+			{
+				DEFOPT +~ opt;
+			};
+
+			run_config_series_rig(cflags, cc, flags +~ opts_list);
+		}
+	}
+	else
+	{
+		run_config_series_rig(cflags, cc, flags);
+	}
+}
+
+/**
+ * Builds and runs tests with each build type running
+ * `run_settings_series_make()`. If `tests` is false, it just does the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to `configure.sh` itself.
+ */
+fn run_test_series_make(
+	cflags: str,
+	cc: str,
+	flags: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	series_flags: []str = @[ "E", "H", "N", "EH", "EN", "HN", "EHN" ];
+
+	run_settings_series_make(cflags, cc, flags);
+
+	for sflag: series_flags
+	{
+		run_settings_series_make(cflags, cc, flags +~ " -" +~ sflag);
+	}
+}
+
+/**
+ * Builds and runs tests with each build type running
+ * `run_settings_series_rig()`. If `tests` is false, it just does the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to Rig itself.
+ */
+fn run_test_series_rig(
+	cflags: []str,
+	cc: str,
+	flags: []str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	series_path: str = path.join(SCRIPTDIR, "release_flags_rig.txt");
+	series_txt: str = io.read_file(series_path);
+	series_flags: []str = series_txt.split("\n");
+
+	run_settings_series_rig(cflags, cc, flags);
+
+	for line: series_flags
+	{
+		opts_list: []str =
+		for opt: line.split(" ")
+		{
+			DEFOPT +~ opt;
+		};
+
+		run_settings_series_rig(cflags, cc, flags +~ opts_list);
+	}
+}
+
+/**
+ * Builds and runs tests for `bcl` with `make`. If `tests` is false, it just
+ * does the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to `configure.sh` itself.
+ */
+fn run_lib_tests_make(
+	cflags: str,
+	cc: str,
+	flags: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	build_make(cflags +~ " -a", cc, flags, true, usize(64));
+
+	if tests
+	{
+		run_test_make(@[ "test" ]);
+	}
+
+	build_make(cflags +~ " -a", cc, flags, true, usize(32));
+
+	if tests
+	{
+		run_test_make(@[ "test" ]);
+	}
+}
+
+/**
+ * Builds and runs tests for `bcl` with Rig. If `tests` is false, it just does
+ * the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to Rig itself.
+ */
+fn run_lib_tests_rig(
+	cflags: []str,
+	cc: str,
+	flags: []str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	build_rig(cflags, cc, flags +~ @[ "-Dbuild_mode=library" ], usize(64));
+
+	if tests
+	{
+		run_test_rig(@[ "test" ]);
+	}
+
+	build_rig(cflags, cc, flags +~ @[ "-Dbuild_mode=library" ], usize(32));
+
+	if tests
+	{
+		run_test_rig(@[ "test" ]);
+	}
+}
+
+/**
+ * Builds and runs tests under C99, then C11, if requested, using
+ * `run_test_series_make()`. If run_tests is false, it just does the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to Rig itself.
+ */
+fn run_tests_make(
+	cflags: str,
+	cc: str,
+	flags: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	run_test_series_make(cflags +~ " " +~ C99OPT, cc, flags);
+
+	if c11
+	{
+		run_test_series_make(cflags +~ " " +~ C11OPT, cc, flags);
+	}
+}
+
+/**
+ * Builds and runs tests under C99, then C11, if requested, using
+ * `run_test_series_rig()`. If run_tests is false, it just does the builds.
+ * @param cflags  The C compiler flags.
+ * @param cc      The C compiler.
+ * @param flags   The flags to pass to Rig itself.
+ */
+fn run_tests_rig(
+	cflags: []str,
+	cc: str,
+	flags: []str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	run_test_series_rig(cflags +~ @[ C99OPT ], cc, flags);
+
+	if c11
+	{
+		run_test_series_rig(cflags +~ @[ C11OPT ], cc, flags);
+	}
+}
+
+/**
+ * Runs the Karatsuba tests with `make`.
+ */
+fn karatsuba_make() -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	header("Running Karatsuba tests");
+
+	do_make(@[ "karatsuba_test" ]);
+}
+
+/**
+ * Runs the Karatsuba tests with Rig.
+ */
+fn karatsuba_rig() -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	header("Running Karatsuba tests");
+
+	build_rig(RELEASE_CFLAGS, defcc, @[ "-O3" ], usize(64));
+
+	do_rig(@[ "karatsuba_test" ]);
+}
+
+/**
+ * Builds with `make` and runs under valgrind. It runs both, bc only, then dc
+ * only, then the library.
+ */
+fn vg_make() -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	header("Running Valgrind under `make`");
+
+	build_make(DEBUG_CFLAGS_STR +~ " -std=c99", "gcc", "-O3 -gv", true,
+	           defbits);
+	run_test_make(@[ "test" ]);
+
+	do_make(@[ "clean_config" ]);
+
+	build_make(DEBUG_CFLAGS_STR +~ " -std=c99", "gcc", "-O3 -gvb", true,
+	           defbits);
+	run_test_make(@[ "test" ]);
+
+	do_make(@[ "clean_config" ]);
+
+	build_make(DEBUG_CFLAGS_STR +~ " -std=c99", "gcc", "-O3 -gvd", true,
+	           defbits);
+	run_test_make(@[ "test" ]);
+
+	do_make(@[ "clean_config" ]);
+
+	build_make(DEBUG_CFLAGS_STR +~ " -std=c99", "gcc", "-O3 -gva", true,
+	           defbits);
+	run_test_make(@[ "test" ]);
+
+	do_make(@[ "clean_config" ]);
+}
+
+fn vg_rig() -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	header("Running Valgrind under Rig");
+
+	build_rig(DEBUG_CFLAGS +~ @[ "-std=c99" ], "gcc", @[ "-O3", "-gv" ],
+	          defbits);
+	run_test_rig(@[ "test" ]);
+
+	do_rig(@[ "clean_config" ]);
+
+	build_rig(DEBUG_CFLAGS +~ @[ "-std=c99" ], "gcc", @[ "-O3", "-gvb" ],
+	          defbits);
+	run_test_rig(@[ "test" ]);
+
+	do_rig(@[ "clean_config" ]);
+
+	build_rig(DEBUG_CFLAGS +~ @[ "-std=c99" ], "gcc", @[ "-O3", "-gvd" ],
+	          defbits);
+	run_test_rig(@[ "test" ]);
+
+	do_rig(@[ "clean_config" ]);
+
+	build_rig(DEBUG_CFLAGS +~ @[ "-std=c99" ], "gcc", @[ "-O3", "-gva" ],
+	          defbits);
+	run_test_rig(@[ "test" ]);
+
+	do_rig(@[ "clean_config" ]);
+}
+
+/**
+ * Builds the debug series with `make` and runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn debug_make(
+	cc: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	if cc == "clang" && sanitizers
+	{
+		run_tests_make(DEBUG_CFLAGS_STR +~ " -fsanitize=undefined", cc, "-mg");
+	}
+	else
+	{
+		run_tests_make(DEBUG_CFLAGS_STR, cc, "-g");
+	}
+}
+
+/**
+ * Builds the release series with `make` and runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn release_make(
+	cc: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	run_tests_make(RELEASE_CFLAGS_STR, cc, "-O3");
+	run_lib_tests_make(RELEASE_CFLAGS_STR, cc, "-O3");
+}
+
+/**
+ * Builds the release debug series with `make` and runs the tests if `tests`
+ * allows.
+ * @param cc  The C compiler.
+ */
+fn reldebug_make(
+	cc: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	if cc == "clang" && sanitizers
+	{
+		run_tests_make(DEBUG_CFLAGS_STR +~ " -fsanitize=address", cc, "-mgO3");
+		run_tests_make(DEBUG_CFLAGS_STR +~ " -fsanitize=memory", cc, "-mgO3");
+	}
+	else
+	{
+		run_tests_make(DEBUG_CFLAGS_STR, cc, "-gO3");
+	}
+
+	if cc == "clang" && sanitizers
+	{
+		run_lib_tests_make(DEBUG_CFLAGS_STR +~ " -fsanitize=address", cc,
+		                   "-mgO3");
+		run_lib_tests_make(DEBUG_CFLAGS_STR +~ " -fsanitize=memory", cc,
+		                   "-mgO3");
+	}
+	else
+	{
+		run_lib_tests_make(DEBUG_CFLAGS_STR, cc, "-gO3");
+	}
+}
+
+/**
+ * Builds the min size release with `make` and runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn minsize_make(
+	cc: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	run_tests_make(RELEASE_CFLAGS_STR, cc, "-Os");
+	run_lib_tests_make(RELEASE_CFLAGS_STR, cc, "-Os");
+}
+
+/**
+ * Builds all sets with `make`: debug, release, release debug, and min size, and
+ * runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn build_set_make(
+	cc: str,
+) -> void
+{
+	if !run_make
+	{
+		sys.panic("Cannot run `configure.sh` or make");
+	}
+
+	debug_make(cc);
+	release_make(cc);
+	reldebug_make(cc);
+	minsize_make(cc);
+
+	if karatsuba
+	{
+		karatsuba_make();
+	}
+
+	if valgrind
+	{
+		vg_make();
+	}
+}
+
+/**
+ * Builds the debug series with Rig and runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn debug_rig(
+	cc: str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	if cc == "clang" && sanitizers
+	{
+		run_tests_rig(DEBUG_CFLAGS +~ @[ " -fsanitize=undefined" ], cc,
+		              @[ "-Dmemcheck=1", "-Ddebug=1" ]);
+	}
+	else
+	{
+		run_tests_rig(DEBUG_CFLAGS, cc, @[ "-Ddebug=1" ]);
+	}
+}
+
+/**
+ * Builds the release series with Rig and runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn release_rig(
+	cc: str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	run_tests_rig(RELEASE_CFLAGS, cc, @[ "-Doptimization=3" ]);
+	run_lib_tests_rig(RELEASE_CFLAGS, cc, @[ "-Doptimization=3" ]);
+}
+
+/**
+ * Builds the release debug series with Rig and runs the tests if `tests`
+ * allows.
+ * @param cc  The C compiler.
+ */
+fn reldebug_rig(
+	cc: str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	if cc == "clang" && sanitizers
+	{
+		run_tests_rig(DEBUG_CFLAGS +~ @[ " -fsanitize=address" ], cc,
+		              @[ "-Dmemcheck=1", "-Ddebug=1", "-Doptimization=3" ]);
+		run_tests_rig(DEBUG_CFLAGS +~ @[ " -fsanitize=memory" ], cc,
+		              @[ "-Dmemcheck=1", "-Ddebug=1", "-Doptimization=3" ]);
+	}
+	else
+	{
+		run_tests_rig(DEBUG_CFLAGS, cc, @[ "-gO3" ]);
+	}
+
+	if cc == "clang" && sanitizers
+	{
+		run_lib_tests_rig(DEBUG_CFLAGS +~ @[ " -fsanitize=address" ], cc,
+		                  @[ "-Dmemcheck=1", "-Ddebug=1", "-Doptimization=3" ]);
+		run_lib_tests_rig(DEBUG_CFLAGS +~ @[ " -fsanitize=memory" ], cc,
+		                  @[ "-Dmemcheck=1", "-Ddebug=1", "-Doptimization=3" ]);
+	}
+	else
+	{
+		run_lib_tests_rig(DEBUG_CFLAGS, cc,
+		                  @[ "-Ddebug=1", "-Doptimization=3" ]);
+	}
+}
+
+/**
+ * Builds the min size release with Rig and runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn minsize_rig(
+	cc: str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	run_tests_rig(RELEASE_CFLAGS, cc, @[ "-Doptimization=s" ]);
+	run_lib_tests_rig(RELEASE_CFLAGS, cc, @[ "-Doptimization=s" ]);
+}
+
+/**
+ * Builds all sets with Rig: debug, release, release debug, and min size, and
+ * runs the tests if `tests` allows.
+ * @param cc  The C compiler.
+ */
+fn build_set_rig(
+	cc: str,
+) -> void
+{
+	if !run_rig
+	{
+		sys.panic("Cannot run Rig");
+	}
+
+	debug_rig(cc);
+	release_rig(cc);
+	reldebug_rig(cc);
+	minsize_rig(cc);
+
+	if karatsuba
+	{
+		karatsuba_rig();
+	}
+
+	if valgrind
+	{
+		vg_rig();
+	}
+}
+
+/**
+ * Builds all sets with `make` under all compilers.
+ */
+fn build_sets_make() -> void
+{
+	header("Running math library under --standard with Rig");
+
+	build_make(DEBUG_CFLAGS_STR +~ " -std=c99", defcc, "-g", true,
+	           defbits);
+
+	$ bin/bc -ls << @("quit\n");
+
+	do_rig(@[ "clean_tests" ]);
+
+	if clang
+	{
+		build_set_make("clang");
+	}
+
+	if gcc
+	{
+		build_set_make("gcc");
+	}
+}
+
+/**
+ * Builds all sets with Rig under all compilers.
+ */
+fn build_sets_rig() -> void
+{
+	header("Running math library under --standard with Rig");
+
+	build_rig(DEBUG_CFLAGS +~ @[ "-std=c99" ], defcc, @[ "-Ddebug=1" ],
+	          defbits);
+
+	$ build/bc -ls << @("quit\n");
+
+	do_rig(@[ "clean_tests" ]);
+
+	if clang
+	{
+		build_set_rig("clang");
+	}
+
+	if gcc
+	{
+		build_set_rig("gcc");
+	}
+}
+
+fn build_sets() -> void
+{
+	if !run_make
+	{
+		build_sets_rig();
+	}
+	else if !run_rig
+	{
+		build_sets_make();
+	}
+	else
+	{
+		parallel.map @[ "rig", "make" ]:
+		(builder: str) -> void
+		{
+			if builder == "rig"
+			{
+				build_sets_rig();
+			}
+			else if builder == "make"
+			{
+				build_sets_make();
+			}
+			else
+			{
+				sys.panic("Bad builder: " +~ builder +~ "\n");
+			}
+		}
+	}
+
+	io.eprint("\nTests successful.\n");
+}
