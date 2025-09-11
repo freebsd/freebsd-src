@@ -1,5 +1,8 @@
 comment = "Timezone database"
+
 desc = <<EOD
 The timezone database allows applications to convert dates and times between
 UTC and local timezones.
 EOD
+
+licenses = [ "PD" ]
