@@ -1785,7 +1785,7 @@ t4_write_page_pods_for_rcvbuf(struct adapter *sc, struct sge_wrq *wrq, int tid,
 	return (0);
 }
 
-static struct mbuf *
+struct mbuf *
 alloc_raw_wr_mbuf(int len)
 {
 	struct mbuf *m;
