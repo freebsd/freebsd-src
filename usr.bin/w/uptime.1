@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 18, 2020
+.Dd September 11, 2025
 .Dt UPTIME 1
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Nd show how long system has been running
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Sh DESCRIPTION
 The
 .Nm
@@ -40,6 +41,17 @@ utility displays the current time,
 the length of time the system has been up,
 the number of users, and the load average of the system over the last
 1, 5, and 15 minutes.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_options 7
+for details on command line arguments.
+.El
 .Sh FILES
 .Bl -tag -width /boot/kernel/kernel
 .It Pa /boot/kernel/kernel
@@ -51,7 +63,9 @@ $ uptime
 11:23AM  up  3:01, 8 users, load averages: 21.09, 15.43, 12.79
 .Ed
 .Sh SEE ALSO
-.Xr w 1
+.Xr w 1 ,
+.Xr libxo 3 ,
+.Xr xo_options 7
 .Sh HISTORY
 The
 .Nm
