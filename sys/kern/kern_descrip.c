@@ -658,6 +658,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EBADF;
 			break;
 		}
+		fsetfl_lock(fp);
 		do {
 			tmp = flg = fp->f_flag;
 			tmp &= ~FCNTLFLAGS;
@@ -677,6 +678,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			if (error != 0)
 				goto revert_nonblock;
 		}
+		fsetfl_unlock(fp);
 		fdrop(fp, td);
 		break;
 revert_nonblock:
@@ -691,6 +693,7 @@ revert_flags:
 			tmp |= got_cleared;
 			tmp &= ~got_set;
 		} while (atomic_cmpset_int(&fp->f_flag, flg, tmp) == 0);
+		fsetfl_unlock(fp);
 		fdrop(fp, td);
 		break;
 
