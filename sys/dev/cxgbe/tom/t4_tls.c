@@ -61,11 +61,21 @@
 
 static void
 t4_set_tls_tcb_field(struct toepcb *toep, uint16_t word, uint64_t mask,
-    uint64_t val)
+    uint64_t val, int reply, int cookie)
 {
 	struct adapter *sc = td_adapter(toep->td);
+	struct mbuf *m;
 
-	t4_set_tcb_field(sc, &toep->ofld_txq->wrq, toep, word, mask, val, 0, 0);
+	m = alloc_raw_wr_mbuf(sizeof(struct cpl_set_tcb_field));
+	if (m == NULL) {
+		/* XXX */
+		panic("%s: out of memory", __func__);
+	}
+
+	write_set_tcb_field(sc, mtod(m, void *), toep, word, mask, val, reply,
+	    cookie);
+
+	t4_raw_wr_tx(sc, toep, m);
 }
 
 /* TLS and DTLS common routines */
@@ -88,10 +98,9 @@ tls_tx_key(struct toepcb *toep)
 static void
 t4_set_rx_quiesce(struct toepcb *toep)
 {
-	struct adapter *sc = td_adapter(toep->td);
 
-	t4_set_tcb_field(sc, &toep->ofld_txq->wrq, toep, W_TCB_T_FLAGS,
-	    V_TF_RX_QUIESCE(1), V_TF_RX_QUIESCE(1), 1, CPL_COOKIE_TOM);
+	t4_set_tls_tcb_field(toep, W_TCB_T_FLAGS, V_TF_RX_QUIESCE(1),
+	    V_TF_RX_QUIESCE(1), 1, CPL_COOKIE_TOM);
 }
 
 /* Clear TF_RX_QUIESCE to re-enable receive. */
@@ -99,7 +108,7 @@ static void
 t4_clear_rx_quiesce(struct toepcb *toep)
 {
 
-	t4_set_tls_tcb_field(toep, W_TCB_T_FLAGS, V_TF_RX_QUIESCE(1), 0);
+	t4_set_tls_tcb_field(toep, W_TCB_T_FLAGS, V_TF_RX_QUIESCE(1), 0, 0, 0);
 }
 
 /* TLS/DTLS content type  for CPL SFO */
@@ -145,16 +154,15 @@ get_tp_plen_max(struct ktls_session *tls)
 	return (tls->params.max_frame_len <= 8192 ? plen : FC_TP_PLEN_MAX);
 }
 
-/* Send request to get the key-id */
+/* Send request to save the key in on-card memory. */
 static int
 tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
     int direction)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	struct adapter *sc = td_adapter(toep->td);
-	struct ofld_tx_sdesc *txsd;
 	int keyid;
-	struct wrqe *wr;
+	struct mbuf *m;
 	struct tls_key_req *kwr;
 	struct tls_keyctx *kctx;
 
@@ -173,12 +181,12 @@ tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
 		return (ENOSPC);
 	}
 
-	wr = alloc_wrqe(TLS_KEY_WR_SZ, &toep->ofld_txq->wrq);
-	if (wr == NULL) {
+	m = alloc_raw_wr_mbuf(TLS_KEY_WR_SZ);
+	if (m == NULL) {
 		t4_free_tls_keyid(sc, keyid);
 		return (ENOMEM);
 	}
-	kwr = wrtod(wr);
+	kwr = mtod(m, struct tls_key_req *);
 	memset(kwr, 0, TLS_KEY_WR_SZ);
 
 	t4_write_tlskey_wr(tls, direction, toep->tid, F_FW_WR_COMPL, keyid,
@@ -190,17 +198,7 @@ tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
 		tls_ofld->rx_key_addr = keyid;
 	t4_tls_key_ctx(tls, direction, kctx);
 
-	txsd = &toep->txsd[toep->txsd_pidx];
-	_Static_assert(DIV_ROUND_UP(TLS_KEY_WR_SZ, 16) <=
-	    MAX_OFLD_TX_SDESC_CREDITS, "MAX_OFLD_TX_SDESC_CREDITS too small");
-	txsd->tx_credits = DIV_ROUND_UP(TLS_KEY_WR_SZ, 16);
-	txsd->plen = 0;
-	toep->tx_credits -= txsd->tx_credits;
-	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
-		toep->txsd_pidx = 0;
-	toep->txsd_avail--;
-
-	t4_wrq_tx(sc, wr);
+	t4_raw_wr_tx(sc, toep, m);
 
 	return (0);
 }
@@ -1099,7 +1097,7 @@ out:
 static void
 tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
 {
-	struct wrqe *wr;
+	struct mbuf *m;
 	struct work_request_hdr *wrh;
 	struct ulp_txpkt *ulpmc;
 	int fields, key_offset, len;
@@ -1128,14 +1126,14 @@ tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
 	KASSERT(len <= SGE_MAX_WR_LEN,
 	    ("%s: WR with %d TCB field updates too large", __func__, fields));
 
-	wr = alloc_wrqe(len, toep->ctrlq);
-	if (wr == NULL) {
+	m = alloc_raw_wr_mbuf(len);
+	if (m == NULL) {
 		/* XXX */
 		panic("%s: out of memory", __func__);
 	}
 
-	wrh = wrtod(wr);
-	INIT_ULPTX_WRH(wrh, len, 1, 0);	/* atomic */
+	wrh = mtod(m, struct work_request_hdr *);
+	INIT_ULPTX_WRH(wrh, len, 1, toep->tid);	/* atomic */
 	ulpmc = (struct ulp_txpkt *)(wrh + 1);
 
 	/*
@@ -1180,7 +1178,7 @@ tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
 	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_T_FLAGS,
 	    V_TF_RX_QUIESCE(1), 0);
 
-	t4_wrq_tx(sc, wr);
+	t4_raw_wr_tx(sc, toep, m);
 }
 
 /*
