@@ -2039,24 +2039,15 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
+write_set_tcb_field(struct adapter *sc, void *dst, struct toepcb *toep,
     uint16_t word, uint64_t mask, uint64_t val, int reply, int cookie)
 {
-	struct wrqe *wr;
-	struct cpl_set_tcb_field *req;
-	struct ofld_tx_sdesc *txsd;
+	struct cpl_set_tcb_field *req = dst;
 
 	MPASS((cookie & ~M_COOKIE) == 0);
 	if (reply) {
 		MPASS(cookie != CPL_COOKIE_RESERVED);
 	}
-
-	wr = alloc_wrqe(sizeof(*req), wrq);
-	if (wr == NULL) {
-		/* XXX */
-		panic("%s: allocation failure.", __func__);
-	}
-	req = wrtod(wr);
 
 	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
 	req->reply_ctrl = htobe16(V_QUEUENO(toep->ofld_rxq->iq.abs_id));
@@ -2065,12 +2056,29 @@ t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
+}
+
+void
+t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
+    uint16_t word, uint64_t mask, uint64_t val, int reply, int cookie)
+{
+	struct wrqe *wr;
+	struct ofld_tx_sdesc *txsd;
+	const u_int len = sizeof(struct cpl_set_tcb_field);
+
+	wr = alloc_wrqe(len, wrq);
+	if (wr == NULL) {
+		/* XXX */
+		panic("%s: allocation failure.", __func__);
+	}
+	write_set_tcb_field(sc, wrtod(wr), toep, word, mask, val, reply,
+	    cookie);
+
 	if (wrq->eq.type == EQ_OFLD) {
 		txsd = &toep->txsd[toep->txsd_pidx];
-		_Static_assert(howmany(sizeof(*req), 16) <=
-		    MAX_OFLD_TX_SDESC_CREDITS,
+		_Static_assert(howmany(len, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
 		    "MAX_OFLD_TX_SDESC_CREDITS too small");
-		txsd->tx_credits = howmany(sizeof(*req), 16);
+		txsd->tx_credits = howmany(len, 16);
 		txsd->plen = 0;
 		KASSERT(toep->tx_credits >= txsd->tx_credits &&
 		    toep->txsd_avail > 0,
