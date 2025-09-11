@@ -93,6 +93,8 @@ void foffset_lock_pair(struct file *fp1, off_t *off1p, struct file *fp2,
 void foffset_lock_uio(struct file *fp, struct uio *uio, int flags);
 void foffset_unlock(struct file *fp, off_t val, int flags);
 void foffset_unlock_uio(struct file *fp, struct uio *uio, int flags);
+void fsetfl_lock(struct file *fp);
+void fsetfl_unlock(struct file *fp);
 
 static inline off_t
 foffset_get(struct file *fp)
@@ -228,6 +230,8 @@ struct file {
 
 #define	FILE_V_FOFFSET_LOCKED		0x0001
 #define	FILE_V_FOFFSET_LOCK_WAITING	0x0002
+#define	FILE_V_SETFL_LOCKED		0x0004
+#define	FILE_V_SETFL_LOCK_WAITING	0x0008
 #endif /* __BSD_VISIBLE */
 
 #endif /* _KERNEL || _WANT_FILE */

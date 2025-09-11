@@ -902,6 +902,18 @@ foffset_read(struct file *fp)
 	return (atomic_load_long(&fp->f_offset));
 }
 
+void
+fsetfl_lock(struct file *fp)
+{
+	file_v_lock(fp, FILE_V_SETFL_LOCKED, FILE_V_SETFL_LOCK_WAITING);
+}
+
+void
+fsetfl_unlock(struct file *fp)
+{
+	file_v_unlock(fp, FILE_V_SETFL_LOCKED, FILE_V_SETFL_LOCK_WAITING);
+}
+
 #else	/* OFF_MAX <= LONG_MAX */
 
 static void
@@ -976,6 +988,30 @@ foffset_read(struct file *fp)
 {
 
 	return (foffset_lock(fp, FOF_NOLOCK));
+}
+
+void
+fsetfl_lock(struct file *fp)
+{
+	struct mtx *mtxp;
+
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+	mtx_lock(mtxp);
+	file_v_lock_mtxp(fp, mtxp, FILE_V_SETFL_LOCKED,
+	    FILE_V_SETFL_LOCK_WAITING);
+	mtx_unlock(mtxp);
+}
+
+void
+fsetfl_unlock(struct file *fp)
+{
+	struct mtx *mtxp;
+
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+	mtx_lock(mtxp);
+	file_v_unlock_mtxp(fp, mtxp, FILE_V_SETFL_LOCKED,
+	    FILE_V_SETFL_LOCK_WAITING);
+	mtx_unlock(mtxp);
 }
 #endif
 
