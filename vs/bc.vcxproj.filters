@@ -66,9 +66,6 @@
     <ClInclude Include="..\include\vector.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\version.h">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\vm.h">
       <Filter>include</Filter>
     </ClInclude>

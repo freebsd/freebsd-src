@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -81,6 +81,9 @@ base=$(basename "$timeconst")
 # If the script does not exist, just skip. Running this test is not necessary.
 if [ ! -f "$timeconst" ]; then
 	printf 'Warning: %s does not exist\n' "$timeconst"
+	printf '%s is not part of this bc because of license incompatibility\n' "$timeconst"
+	printf 'Get it at https://github.com/torvalds/linux/blob/master/kernel/time/timeconst.bc\n'
+	printf 'if you want to test it\n'
 	printf 'Skipping...\n'
 	exit 0
 fi

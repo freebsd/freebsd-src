@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1093,6 +1093,7 @@ bc_num_as(BcNum* a, BcNum* b, BcNum* restrict c, size_t sub)
 
 	max_len = max_int + max_rdx;
 
+	// Figure out the max length and also if we need to reverse the operation.
 	if (do_sub)
 	{
 		// Check whether b has to be subtracted from a or a from b.
