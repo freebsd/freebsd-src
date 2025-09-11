@@ -1,8 +1,0 @@
-comment = "Low-level access to UFS filesystems"
-desc = <<EOD
-The libufs library and the functions it provides are used for implementing
-utilities which need to access a UFS file system at a low level from userland.
-Facilities provided are used to implement utilities such as newfs(8) and
-dumpfs(8).  The libufs library is designed to be simple, and to provide
-functions that are traditionally useful to have.
-EOD

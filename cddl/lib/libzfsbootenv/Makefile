@@ -2,6 +2,8 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 
 PACKAGE=	zfs
+LIB_PACKAGE=
+
 LIB=		zfsbootenv
 SHLIB_MAJOR=	1
 

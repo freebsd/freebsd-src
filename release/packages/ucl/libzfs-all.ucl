@@ -1,5 +1,0 @@
-comment = "ZFS filesystem library"
-desc = <<EOD
-libzfs allows applications to manage ZFS pools and filesystems.  Several
-libraries which libzfs requires are also provided.
-EOD
