@@ -122,9 +122,12 @@ struct conn_params {
 };
 
 struct ofld_tx_sdesc {
-	uint32_t plen;		/* payload length */
-	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
+	uint32_t plen : 26;		/* payload length */
+	uint32_t tx_credits : 6;	/* firmware tx credits (unit is 16B) */
 };
+
+#define	MAX_OFLD_TX_SDESC_PLEN		((1u << 26) - 1)
+#define	MAX_OFLD_TX_SDESC_CREDITS	((1u << 6) - 1)
 
 struct ppod_region {
 	u_int pr_start;

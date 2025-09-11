@@ -1053,6 +1053,8 @@ send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_TXDATAPLEN_MAX;
 	flowc->mnemval[0].val = htobe32(maxlen);
 
+	KASSERT(howmany(flowclen, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
+	    ("%s: tx_credits %u too large", __func__, howmany(flowclen, 16)));
 	txsd->tx_credits = howmany(flowclen, 16);
 	txsd->plen = 0;
 	KASSERT(toep->tx_credits >= txsd->tx_credits && toep->txsd_avail > 0,

@@ -1326,6 +1326,8 @@ creds(struct toepcb *toep, struct inpcb *inp, size_t wrsize)
 		return (EINVAL);
 	}
 	txsd = &toep->txsd[toep->txsd_pidx];
+	KASSERT(howmany(wrsize, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
+	    ("%s: tx_credits %zu too large", __func__, howmany(wrsize, 16)));
 	txsd->tx_credits = howmany(wrsize, 16);
 	txsd->plen = 0;
 	KASSERT(toep->tx_credits >= txsd->tx_credits && toep->txsd_avail > 0,
