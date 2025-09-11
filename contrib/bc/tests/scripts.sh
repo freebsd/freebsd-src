@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -40,7 +40,7 @@ usage() {
 	if [ $# -eq 1 ]; then
 		printf '%s\n\n' "$1"
 	fi
-	printf 'usage: %s [-n] dir [run_extra_tests] [run_stack_tests] [generate_tests] [time_tests] [exec args...]\n' "$script"
+	printf 'usage: %s [-n] dir [run_extra_tests] [run_stack_tests] [generate_tests] [exec args...]\n' "$script"
 	exit 1
 }
 
@@ -96,15 +96,6 @@ else
 fi
 
 if [ "$#" -gt 0 ]; then
-	time_tests="$1"
-	shift
-	check_bool_arg "$time_tests"
-else
-	time_tests=0
-	check_bool_arg "$time_tests"
-fi
-
-if [ "$#" -gt 0 ]; then
 	exe="$1"
 	shift
 	check_exec_arg "$exe"
@@ -124,11 +115,11 @@ for s in $scripts; do
 
 	if [ "$pll" -ne 0 ]; then
 		sh "$testdir/script.sh" "$d" "$f" "$run_extra_tests" "$run_stack_tests" \
-			"$generate" "$time_tests" "$exe" "$@" &
+			"$generate" "$exe" "$@" &
 		pids="$pids $!"
 	else
 		sh "$testdir/script.sh" "$d" "$f" "$run_extra_tests" "$run_stack_tests" \
-			"$generate" "$time_tests" "$exe" "$@"
+			"$generate" "$exe" "$@"
 	fi
 
 done

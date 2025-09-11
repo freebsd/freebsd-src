@@ -1,0 +1,2345 @@
+/*
+ * *****************************************************************************
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The build package file.
+ *
+ */
+
+/// The path to the safe install script.
+SAFE_INSTALL: str = path.join(src_dir, "scripts/safe-install.sh");
+
+/// The file mode for executables, as an argument to the safe install script.
+EXEC_INSTALL_MODE: str = "-Dm755";
+
+/// The file mode for man pages and other files, as an argument to the safe
+/// install script.
+MANPAGE_INSTALL_MODE: str = "-Dm644";
+
+// Save this.
+OS: str = platform.os;
+
+DESTDIR: str = str(config["destdir"]);
+
+EXECPREFIX: str = str(config["execprefix"]);
+EXECSUFFIX: str = str(config["execsuffix"]);
+
+/**
+ * Generates the true executable name for the given base name.
+ * @param name  The base name of the executable.
+ * @return      The true name of the executable, including prefix, suffix, and
+                extension.
+ */
+fn exe_name(name: str) -> str
+{
+	temp: str = EXECPREFIX +~ name +~ EXECSUFFIX;
+	return if OS == "Windows" { temp +~ ".exe"; } else { temp; };
+}
+
+/**
+ * Generates the default executable name for the given base name.
+ * @param name  The base name of the executable.
+ * @return      The true name of the executable, including prefix, suffix, and
+                extension.
+ */
+fn default_exe_name(name: str) -> str
+{
+	return if OS == "Windows" { name +~ ".exe"; } else { name; };
+}
+
+/**
+ * Generates the true library name for the given base name.
+ * @param name  The base name of the library.
+ * @return      The true name of the library, including prefix and extension.
+ */
+fn lib_name(name: str) -> str
+{
+	ext: str = if OS == "Windows" { ".lib"; } else { ".a"; };
+	return "lib" +~ name +~ ext;
+}
+
+BC_BIN: str = exe_name("bc");
+DC_BIN: str = exe_name("dc");
+LIBRARY: str = lib_name("libbcl");
+
+BC_MANPAGE: str = EXECPREFIX +~ "bc" +~ EXECSUFFIX +~ ".1";
+DC_MANPAGE: str = EXECPREFIX +~ "dc" +~ EXECSUFFIX +~ ".1";
+BCL_MANPAGE: str = "bcl.3";
+
+BCL_HEADER: str = "bcl.h";
+BCL_HEADER_PATH: str = path.join(src_dir, path.join("include", BCL_HEADER));
+PC_FILE: str = "bcl.pc";
+
+/**
+ * Returns the string value of the define for a prompt default define for an
+ * executable.
+ * @param name  The base name of the executable.
+ * @return      The string value of the compiler define for the prompt default.
+ */
+fn prompt(name: str) -> str
+{
+	opt: sym = sym(config[name +~ "/default_prompt"]);
+
+	ret: str =
+	if opt == @off
+	{
+		"0";
+	}
+	else if opt == @tty_mode
+	{
+		str(uint(bool(config[name +~ "/default_tty_mode"])));
+	}
+	else
+	{
+		"1";
+	};
+
+	return ret;
+}
+
+HEADERS: []str = find_src_ext("include", "h");
+
+FORCE: bool = bool(config["force"]);
+
+BUILD_MODE: sym = sym(config["build_mode"]);
+
+BC_ENABLED: str = str(uint(BUILD_MODE == @both || BUILD_MODE == @bc));
+DC_ENABLED: str = str(uint(BUILD_MODE == @both || BUILD_MODE == @dc));
+LIBRARY_ENABLED: str = str(uint(BUILD_MODE == @library));
+
+EXTRA_MATH_ENABLED: str = str(uint(bool(config["extra_math"])));
+
+HISTORY: sym = sym(config["history"]);
+HISTORY_ENABLED: str = str(uint(HISTORY != @none));
+EDITLINE_ENABLED: str = str(uint(HISTORY == @editline));
+READLINE_ENABLED: str = str(uint(HISTORY == @readline));
+
+NLS_ENABLED: str =
+if OS == "Windows" || BUILD_MODE == @library
+{
+	"0";
+}
+else
+{
+	str(uint(sym(config["locales"]) != @none));
+};
+
+BUILD_TYPE: str =
+if EXTRA_MATH_ENABLED != "0" && HISTORY_ENABLED != "0" && NLS_ENABLED != "0"
+{
+	"A";
+}
+else
+{
+	t: str = if EXTRA_MATH_ENABLED != "0" { ""; } else { "E"; } +~
+	         if HISTORY_ENABLED != "0" { ""; } else { "H"; } +~
+	         if NLS_ENABLED != "0" { ""; } else { "N"; };
+
+	t;
+};
+
+OPTIMIZE: str = str(config["optimization"]);
+
+VALGRIND_ARGS: []str = @[
+	"valgrind",
+	"--error-exitcode=100",
+	"--leak-check=full",
+	"--show-leak-kinds=all",
+	"--errors-for-leak-kinds=all",
+	"--track-fds=yes",
+	"--track-origins=yes",
+];
+
+// Get the compiler. The user might have set one at the command line.
+CC: str = language.compiler;
+
+// Set optimization to "0" if it is empty.
+CFLAGS_OPT: str = if OPTIMIZE == "" { "0"; } else { OPTIMIZE; };
+
+// Get the command-line option for defining a preprocessor variable.
+DEFOPT: str = compiler_db["opt.define"];
+
+// Get the command-line string for the optimization option for the compiler.
+OPTOPT: str = compiler_db["opt.optimization"] +~ CFLAGS_OPT;
+
+// Get the compiler option for the object file to output to.
+OBJOUTOPT: str = compiler_db["opt.objout"];
+EXEOUTOPT: str = compiler_db["opt.exeout"];
+
+// Get the compiler option for outputting an object file rather than an
+// executable.
+OBJOPT: str = compiler_db["opt.obj"];
+
+// Get the compiler option for setting an include directory.
+INCOPT: str = compiler_db["opt.include"] +~ path.join(src_dir, "include");
+
+COVERAGE_CFLAGS: []str =
+if bool(config["coverage"])
+{
+	@[ "-fprofile-arcs", "-ftest-coverage", "-g", "-O0", DEFOPT +~ "NDEBUG" ];
+};
+
+MAINEXEC: str =
+if BUILD_MODE == @both || BUILD_MODE == @bc || BUILD_MODE == @library
+{
+	BC_BIN;
+}
+else
+{
+	DC_BIN;
+};
+
+MAINEXEC_FLAGS: []str = @[ DEFOPT +~ "MAINEXEC=" +~ MAINEXEC ];
+
+// XXX: Library needs these defines to be true.
+BC_DEF: str = if LIBRARY_ENABLED == "0" { BC_ENABLED; } else { "1"; };
+DC_DEF: str = if LIBRARY_ENABLED == "0" { DC_ENABLED; } else { "1"; };
+
+CFLAGS1: []str = config_list["cflags"] +~ @[ OPTOPT, INCOPT ] +~
+                 COVERAGE_CFLAGS +~ MAINEXEC_FLAGS;
+CFLAGS2: []str = @[
+	DEFOPT +~ "BC_ENABLED=" +~ BC_DEF,
+	DEFOPT +~ "DC_ENABLED=" +~ DC_DEF,
+	DEFOPT +~ "BUILD_TYPE=" +~ BUILD_TYPE,
+	DEFOPT +~ "EXECPREFIX=" +~ str(config["execprefix"]),
+	DEFOPT +~ "BC_NUM_KARATSUBA_LEN=" +~ str(num(config["karatsuba_len"])),
+	DEFOPT +~ "BC_ENABLE_LIBRARY=" +~ LIBRARY_ENABLED,
+	DEFOPT +~ "BC_ENABLE_NLS=" +~ NLS_ENABLED,
+	DEFOPT +~ "BC_ENABLE_EXTRA_MATH=" +~ EXTRA_MATH_ENABLED,
+	DEFOPT +~ "BC_ENABLE_HISTORY=" +~ HISTORY_ENABLED,
+	DEFOPT +~ "BC_ENABLE_EDITLINE=" +~ EDITLINE_ENABLED,
+	DEFOPT +~ "BC_ENABLE_READLINE=" +~ READLINE_ENABLED,
+	DEFOPT +~ "BC_ENABLE_MEMCHECK=" +~ str(uint(bool(config["memcheck"]))),
+	DEFOPT +~ "BC_ENABLE_AFL=" +~ str(uint(bool(config["afl"]))),
+	DEFOPT +~ "BC_ENABLE_OSSFUZZ=" +~ str(uint(bool(config["ossfuzz"]))),
+	DEFOPT +~ "BC_DEFAULT_BANNER=" +~
+	    str(uint(bool(config["bc/default_banner"]))),
+	DEFOPT +~ "BC_DEFAULT_SIGINT_RESET=" +~
+	    str(uint(bool(config["bc/default_sigint_reset"]))),
+	DEFOPT +~ "BC_DEFAULT_TTY_MODE=" +~
+	    str(uint(bool(config["bc/default_tty_mode"]))),
+	DEFOPT +~ "BC_DEFAULT_PROMPT=" +~ prompt("bc"),
+	DEFOPT +~ "BC_DEFAULT_EXPR_EXIT=" +~
+	    str(uint(bool(config["bc/default_expr_exit"]))),
+	DEFOPT +~ "BC_DEFAULT_DIGIT_CLAMP=" +~
+	    str(uint(bool(config["bc/default_digit_clamp"]))),
+	DEFOPT +~ "DC_DEFAULT_SIGINT_RESET=" +~
+	    str(uint(bool(config["dc/default_sigint_reset"]))),
+	DEFOPT +~ "DC_DEFAULT_TTY_MODE=" +~
+	    str(uint(bool(config["dc/default_tty_mode"]))),
+	DEFOPT +~ "DC_DEFAULT_PROMPT=" +~ prompt("dc"),
+	DEFOPT +~ "DC_DEFAULT_EXPR_EXIT=" +~
+	    str(uint(bool(config["dc/default_expr_exit"]))),
+	DEFOPT +~ "DC_DEFAULT_DIGIT_CLAMP=" +~
+	    str(uint(bool(config["dc/default_digit_clamp"]))),
+];
+CFLAGS: []str = CFLAGS1 +~ CFLAGS2;
+
+LDFLAGS: []str = config_list["ldflags"];
+
+COMMON_C_FILES: []str = @[
+	"src/data.c",
+	"src/num.c",
+	"src/rand.c",
+	"src/vector.c",
+	"src/vm.c",
+];
+
+EXEC_C_FILES: []str = @[
+	"src/args.c",
+	"src/file.c",
+	"src/lang.c",
+	"src/lex.c",
+	"src/main.c",
+	"src/opt.c",
+	"src/parse.c",
+	"src/program.c",
+	"src/read.c",
+];
+
+BC_C_FILES: []str = @[
+	"src/bc.c",
+	"src/bc_lex.c",
+	"src/bc_parse.c",
+];
+
+DC_C_FILES: []str = @[
+	"src/dc.c",
+	"src/dc_lex.c",
+	"src/dc_parse.c",
+];
+
+HISTORY_C_FILES: []str = @[
+	"src/history.c",
+];
+
+LIBRARY_C_FILES: []str = @[
+	"src/library.c",
+];
+
+GEN_HEADER1: str =
+    "// Copyright (c) 2018-2025 Gavin D. Howard and contributors.\n" +~
+    "// Licensed under the 2-clause BSD license.\n" +~
+    "// *** AUTOMATICALLY GENERATED FROM ";
+GEN_HEADER2: str = ". DO NOT MODIFY. ***\n\n";
+
+GEN_LABEL1: str = "const char *";
+GEN_LABEL2: str = " = \"";
+GEN_LABEL3: str = "\";\n\n";
+GEN_NAME1: str = "const char ";
+GEN_NAME2: str = "[] = {\n";
+
+GEN_LABEL_EXTERN1: str = "extern const char *";
+GEN_LABEL_EXTERN2: str = ";\n\n";
+GEN_NAME_EXTERN1: str = "extern const char ";
+GEN_NAME_EXTERN2: str = "[];\n\n";
+
+GEN_IFDEF1: str = "#if ";
+GEN_IFDEF2: str = "\n";
+GEN_ENDIF1: str = "#endif // ";
+GEN_ENDIF2: str = "\n";
+
+GEN_EX_START: str = "{{ A H N HN }}";
+GEN_EX_END: str = "{{ end }}";
+
+/// This is the max width to print characters to strgen files. This is to ensure
+/// that lines don't go much over 80 characters.
+MAX_WIDTH: usize = usize(72);
+
+/**
+ * A function to generate a C file that contains a C character array with the
+ * contents of a text file. For more detail, see the `gen/strgen.c` program;
+ * this function is exactly equivalent to that or should be.
+ * @param input        The input file name.
+ * @param output       The output file name.
+ * @param exclude      True if extra math stuff should be excluded, false if
+ *                     they should be included.
+ * @param name         The name of the array.
+ * @param label        If not equal to "", this is the label for the array,
+ *                     which is essentially the "file name" in `bc` and `dc`.
+ * @param define       If not equal to "", this is the preprocessor define
+ *                     expression that should be used to guard the array with a
+ *                     `#if`/`#endif` combo.
+ * @param remove_tabs  True if tabs should be ignored, false if they should be
+ *                     included.
+ */
+fn strgen(
+	input: str,
+	output: str,
+	exclude: bool,
+	name: str,
+	label: str,
+	def: str,
+	remove_tabs: bool,
+) -> void
+{
+	in: str = io.read_file(input);
+
+	io.open(output, "w"): f
+	{
+		f.print(GEN_HEADER1 +~ input +~ GEN_HEADER2);
+
+		if label != ""
+		{
+			f.print(GEN_LABEL_EXTERN1 +~ label +~ GEN_LABEL_EXTERN2);
+		}
+
+		f.print(GEN_NAME_EXTERN1 +~ name +~ GEN_NAME_EXTERN2);
+
+		if def != ""
+		{
+			f.print(GEN_IFDEF1 +~ def +~ GEN_IFDEF2);
+		}
+
+		if label != ""
+		{
+			f.print(GEN_LABEL1 +~ label +~ GEN_LABEL2 +~ name +~ GEN_LABEL3);
+		}
+
+		f.print(GEN_NAME1 +~ name +~ GEN_NAME2);
+
+		i: !usize = usize(0);
+		count: !usize = usize(0);
+		slashes: !usize = usize(0);
+
+		// This is where the end of the license comment is found.
+		while slashes < 2 && in[i] > 0
+		{
+			if slashes == 1 && in[i] == '*' && in[i + 1] == '/' &&
+			   (in[i + 2] == '\n' || in[i + 2] == '\r')
+			{
+				slashes! = slashes + usize(1);
+				i! = i + usize(2);
+			}
+			else if slashes == 0 && in[i] == '/' && in[i + 1] == '*'
+			{
+				slashes! = slashes + usize(1);
+				i! = i + usize(1);
+			}
+
+			i! = i + usize(1);
+		}
+
+		// The file is invalid if the end of the license comment could not be
+		// found.
+		if i == in.len
+		{
+			error("Could not find end of license comment");
+		}
+
+		i! = i + usize(1);
+
+		// Do not put extra newlines at the beginning of the char array.
+		while in[i] == '\n' || in[i] == '\r'
+		{
+			i! = i + usize(1);
+		}
+
+		// This loop is what generates the actual char array. It counts how many
+		// chars it has printed per line in order to insert newlines at
+		// appropriate places. It also skips tabs if they should be removed.
+		while i < in.len
+		{
+			if in[i] == '\r'
+			{
+				i! = i + usize(1);
+				continue;
+			}
+
+			// If we should output the character, i.e., it is not a tab or we
+			// can remove tabs...
+			if !remove_tabs || in[i] != '\t'
+			{
+				// Check for excluding something for extra math.
+				if in[i] == '{'
+				{
+					if i + GEN_EX_START.len <= in.len &&
+					   in.slice(i, i + GEN_EX_START.len) == GEN_EX_START
+					{
+						if exclude
+						{
+							// Get past the braces.
+							i! = i + usize(2);
+
+							// Find the end of the end.
+							while in[i] != '{' &&
+							      in.slice(i, i + GEN_EX_END.len) != GEN_EX_END
+							{
+								i! = i + usize(1);
+							}
+
+							i! = i + GEN_EX_END.len;
+
+							// Skip the last newline.
+							if in[i] == '\r'
+							{
+								i! = i + usize(1);
+							}
+
+							i! = i + usize(1);
+
+							continue;
+						}
+					}
+					else if !exclude &&
+					        in.slice(i, i + GEN_EX_END.len) == GEN_EX_END
+					{
+						i! = i + GEN_EX_END.len;
+
+						// Skip the last newline.
+						if in[i] == '\r'
+						{
+							i! = i + usize(1);
+						}
+
+						i! = i + usize(1);
+
+						continue;
+					}
+				}
+
+				// Print a tab if we are at the beginning of a line.
+				if count == 0
+				{
+					f.print("\t");
+				}
+
+				val: str = str(in[i]) +~ ",";
+
+				// Print the character.
+				f.print(val);
+
+				// Adjust the count.
+				count! = count + val.len;
+
+				if count > MAX_WIDTH
+				{
+					count! = usize(0);
+					f.print("\n");
+				}
+			}
+
+			i! = i + usize(1);
+		}
+
+		// Make sure the end looks nice.
+		if count == 0
+		{
+			f.print("  ");
+		}
+
+		// Insert the NUL byte at the end.
+		f.print("0\n};\n");
+
+		if def != ""
+		{
+			f.print(GEN_ENDIF1 +~ def +~ GEN_ENDIF2);
+		}
+	}
+}
+
+/**
+ * Creates a target to generate an object file from the given C file and returns
+ * the target name of the new target.
+ * @param c_file  The name of the C file target.
+ * @return        The name of the object file target.
+ */
+fn c2o(c_file: str) -> str
+{
+	o_file: str = c_file +~ (if OS == "Windows" { ".obj"; } else { ".o"; });
+
+	target o_file: c_file, HEADERS
+	{
+		$ $CC %(config_list["other_cflags"]) %(CFLAGS) $OBJOPT $OBJOUTOPT @(tgt)
+		  @(file_dep);
+	}
+
+	return o_file;
+}
+
+/**
+ * Generates a target to turn a text file into a C file with the text file's
+ * contents as a char array, then generates a target to generate an object file
+ * from that C file, then returns the name of the object file target.
+ * @param txt_file     The name of the text file.
+ * @param name         The name of the char array in the C file.
+ * @param label        The label for the array, if any. (See the @a strgen()
+ *                     function for more information.)
+ * @param def          The preprocessor define(s) to guard the array, if any.
+ *                     (See the @a strgen() function for more information.)
+ * @param remove_tabs  True if tabs should be ignored, false otherwise. (See the
+ *                     @a strgen() function for more information.)
+ * @return             The name of the object file target.
+ */
+fn txt2o(
+	txt_file: str,
+	name: str,
+	label: str,
+	def: str,
+	remove_tabs: bool,
+) -> str
+{
+	c_file: str = txt_file +~ ".c";
+
+	c_config: Gaml = @(gaml){
+		strgen_name: $name
+		strgen_label: $label
+		strgen_define: $def
+		strgen_remove_tabs: $remove_tabs
+	};
+
+	push c_config: config_stack
+	{
+		target c_file: txt_file
+		{
+			strgen(file_dep, tgt, EXTRA_MATH_ENABLED == "0",
+			       str(config["strgen_name"]), str(config["strgen_label"]),
+			       str(config["strgen_define"]),
+			       bool(config["strgen_remove_tabs"]));
+		}
+	}
+
+	return c2o(c_file);
+}
+
+/**
+ * Generates a target for an executable and returns its name.
+ * @param name     The name of the executable.
+ * @param o_files  The object files for the executable.
+ * @return         The name of the generated target.
+ */
+fn exe(name: str, o_files: []str) -> void
+{
+	target name: o_files
+	{
+		$ $CC %(config_list["other_cflags"]) %(config_list["strip_flag"])
+		  %(CFLAGS) %(LDFLAGS) $EXEOUTOPT @(tgt) %(file_deps);
+	}
+}
+
+/**
+ * Generates a target for a link.
+ * @param name  The name of the link.
+ * @param exec  The name of the executable target.
+ */
+fn ln(name: str, exec: str) -> void
+{
+	if OS == "Windows"
+	{
+		target name: exec
+		{
+			$ copy /v /y /b @(file_dep) @(tgt);
+		}
+	}
+	else
+	{
+		target name: exec
+		{
+			$ ln -fs @("./" +~ path.basename(file_dep)) @(tgt);
+		}
+	}
+}
+
+/**
+ * Generates a target for a library.
+ * @param name  The name of the library.
+ * @param exec  The name of the executable target.
+ */
+fn lib(name: str, o_files: []str) -> void
+{
+	if OS == "WINDOWS"
+	{
+		exe(name, o_files);
+	}
+	else
+	{
+		target name: o_files
+		{
+			$ ar -r -cu @(tgt) %(file_deps);
+		}
+	}
+}
+
+fn check_err_test(
+	name: str,
+	res: CmdResult,
+) -> void
+{
+	if res.exitcode > 127
+	{
+		error("Test \"" +~ name +~ "\" crashed");
+	}
+
+	if res.exitcode == 0
+	{
+		error("Test \"" +~ name +~ "\" returned no error");
+	}
+
+	if res.exitcode == 100
+	{
+		error("Test \"" +~ name +~ "\" had memory errors on non-fatal error\n");
+	}
+
+	if res.stderr.len <= 1
+	{
+		error("Test \"" +~ name +~ "\" produced no error message");
+	}
+}
+
+fn check_test_retcode(
+	name: str,
+	exitcode: uint,
+) -> void
+{
+	if exitcode != 0
+	{
+		error("Test \"" +~ name +~ "\" failed with exitcode: " +~
+		      str(exitcode) +~ "\n");
+	}
+}
+
+fn check_test(
+	name: str,
+	res: CmdResult,
+	exp_path: str,
+) -> void
+{
+	check_test_retcode(name, res.exitcode);
+
+	exp := io.read_file_bytes(exp_path);
+
+	if exp != res.stdout_full
+	{
+		error("Test \"" +~ name +~ "\" failed\n" +~ str(res.stderr));
+	}
+}
+
+fn register_standard_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+	extra: bool,
+) -> void
+{
+	all_file: str = path.join(src_testdir, "all.txt");
+	tests: []str = io.read_file(all_file).split("\n");
+
+	extra_path := path.join(src_dir, "tests/extra_required.txt");
+	extra_required: []str = io.read_file(extra_path).split("\n");
+
+	for t: tests
+	{
+		if t == ""
+		{
+			continue;
+		}
+
+		// Skip extra math tests if it is not enabled.
+		if !extra && extra_required contains t
+		{
+			continue;
+		}
+
+		test sym(path.join(testdir, t)): bin
+		{
+			halt: str = str(config["halt"]);
+
+			name: str = path.basename(tgt_name);
+			testdir: str = path.dirname(tgt_name);
+			calc: str = path.basename(testdir);
+
+			test_file: str = tgt_name +~ ".txt";
+			test_result_file: str = tgt_name +~ "_results.txt";
+
+			src_test_file: str = path.join(src_dir, test_file);
+			src_test_result_file: str = path.join(src_dir, test_result_file);
+
+			actual_test_file: str =
+			if !path.isfile(src_test_file)
+			{
+				// If we shouldn't generate tests, skip.
+				if !bool(config["generated_tests"])
+				{
+					io.eprint("Skipping test " +~ tgt_name +~ "\n");
+					return;
+				}
+
+				script_name: str = name +~ "." +~ calc;
+
+				scriptdir: str = path.join(testdir, "scripts");
+				src_scriptdir: str = path.join(src_dir, scriptdir);
+				src_script_name: str = path.join(src_scriptdir, script_name);
+
+				$ @(default_exe_name(calc)) $src_script_name > $test_file;
+
+				test_file;
+			}
+			else
+			{
+				src_test_file;
+			};
+
+			exp_result_file: str =
+			if !path.isfile(src_test_result_file)
+			{
+				tmpfile: str = path.tmp(calc +~ "_test_result");
+
+				$ @(default_exe_name(calc)) %(config_list["gen_options"])
+				  $actual_test_file << $halt > $tmpfile;
+
+				tmpfile;
+			}
+			else
+			{
+				src_test_result_file;
+			};
+
+			res := $ %(config_list["args"]) %(config_list["options"])
+			         $actual_test_file << $halt;
+
+			check_test(tgt_name, res, exp_result_file);
+		}
+	}
+}
+
+fn register_script_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+	extra: bool,
+) -> void
+{
+	scriptdir: str = path.join(testdir, "scripts");
+	src_scriptdir: str = path.join(src_testdir, "scripts");
+	all_file: str = path.join(src_scriptdir, "all.txt");
+	tests: []str = io.read_file(all_file).split("\n");
+
+	for t: tests
+	{
+		if t == ""
+		{
+			continue;
+		}
+
+		// Skip extra math tests if it is not enabled.
+		if !extra && (t == "rand.bc" || t == "root.bc" || t == "i2rand.bc")
+		{
+			continue;
+		}
+
+		test sym(path.join(scriptdir, t)): bin
+		{
+			halt: str = str(config["halt"]);
+
+			name: str = path.basename(tgt_name);
+			testdir: str = path.dirname(tgt_name);
+			testdir2: str = path.dirname(testdir);
+			calc: str = path.basename(testdir2);
+
+			test_file: str = tgt_name;
+			test_file_dir: str = path.dirname(tgt_name);
+			test_file_name: str = path.basename(tgt_name, "." +~ calc);
+			test_result_file: str = path.join(test_file_dir,
+			                                  test_file_name +~ ".txt");
+
+			src_test_file: str = path.join(src_dir, test_file);
+			src_test_result_file: str = path.join(src_dir, test_result_file);
+
+			exp_result_file: str =
+			if !path.isfile(src_test_result_file)
+			{
+				tmpfile: str = path.tmp(calc +~ "_script_test_result");
+
+				// This particular test needs to be generated straight. Also, on
+				// Windows, we don't have `sed`, and the `bc`/`dc` there is
+				// probably this one anyway.
+				if name == "stream.dc" || host.os == "Windows"
+				{
+					$ @(default_exe_name(calc)) $src_test_file << $halt
+					  > $tmpfile;
+				}
+				else
+				{
+					root_testdir: str = path.join(src_dir, "tests");
+
+					// This sed and the script are to remove an incompatibility
+					// with GNU bc, where GNU bc is wrong. See the development
+					// manual (manuals/development.md#script-tests) for more
+					// information.
+					$ @(default_exe_name(calc)) $src_test_file << $halt |
+					  sed -n -f @(path.join(root_testdir, "script.sed"))
+					  > $tmpfile;
+				}
+
+				tmpfile;
+			}
+			else
+			{
+				src_test_result_file;
+			};
+
+			if calc == "bc"
+			{
+				res1 := $ %(config_list["args"]) -g
+				          %(config_list["script_options"]) $src_test_file
+				          << $halt;
+
+				check_test(tgt_name, res1, exp_result_file);
+			}
+
+			// These tests do not need to run without global stacks.
+			if name == "globals.bc" || name == "references.bc" ||
+			   name == "rand.bc"
+			{
+				return;
+			}
+
+			res2 := $ %(config_list["args"]) %(config_list["script_options"])
+			          $src_test_file << $halt;
+
+			check_test(tgt_name, res2, exp_result_file);
+		}
+	}
+}
+
+fn register_stdin_test(
+	bin: str,
+	testdir: str,
+	name: str
+) -> void
+{
+	test sym(path.join(testdir, name)): bin
+	{
+		name: str = path.basename(tgt_name);
+		testdir: str = path.dirname(tgt_name);
+		calc: str = path.basename(testdir);
+
+		halt: str = if name == "bc" { "halt"; } else { "q"; };
+
+		test_file: str = tgt_name +~ ".txt";
+		test_result_file: str = tgt_name +~ "_results.txt";
+
+		src_test_file: str = path.join(src_dir, test_file);
+		src_test_result_file: str = path.join(src_dir, test_result_file);
+
+		res := $ %(config_list["args"]) %(config_list["options"])
+		         < $src_test_file;
+
+		check_test(tgt_name, res, src_test_result_file);
+	}
+}
+
+fn register_stdin_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+) -> void
+{
+	calc: str = path.basename(testdir);
+
+	if calc == "bc"
+	{
+		for t: @[ "stdin", "stdin1", "stdin2" ]
+		{
+			register_stdin_test(bin, testdir, t);
+		}
+	}
+	else
+	{
+		// dc only needs one.
+		register_stdin_test(bin, testdir, "stdin");
+	}
+}
+
+fn register_read_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+) -> void
+{
+	calc: str = path.basename(testdir);
+
+	read_call: str = if calc == "bc" { "read()"; } else { "?"; };
+	read_expr: str =
+	if calc == "bc"
+	{
+		read_call +~ "\n5+5;";
+	}
+	else
+	{
+		read_call;
+	};
+	read_multiple: str =
+	if calc == "bc"
+	{
+		"3\n2\n1\n";
+	}
+	else
+	{
+		"3pR\n2pR\n1pR\n";
+	};
+
+	read_test_config: Gaml = @(gaml){
+		read_call: $read_call
+		read_expr: $read_expr
+		read_multiple: $read_multiple
+	};
+
+	push read_test_config: config_stack
+	{
+		// First test is the regular read test.
+		test sym(path.join(testdir, "read")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			test_file: str = tgt_name +~ ".txt";
+			src_test_file: str = path.join(src_dir, test_file);
+
+			read_call: str = str(config["read_call"]);
+
+			lines: []str = io.read_file(src_test_file).split("\n");
+
+			for l: lines
+			{
+				if l == ""
+				{
+					continue;
+				}
+
+				res := $ %(config_list["args"]) %(config_list["options"])
+				         << @(read_call +~ "\n" +~ l +~ "\n");
+
+				check_test(tgt_name, res,
+				           path.join(src_testdir, "read_results.txt"));
+			}
+		}
+
+		// Next test is reading multiple times.
+		test sym(path.join(testdir, "read_multiple")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+
+			test_file: str = tgt_name +~ ".txt";
+
+			path.mkdirp(path.dirname(test_file));
+
+			read_call: str = str(config["read_call"]);
+
+			exp_path: str = path.tmp("read_multiple_results");
+
+			io.open(exp_path, "w"): f
+			{
+				f.print("3\n2\n1\n");
+			}
+
+			res := $ %(config_list["args"]) %(config_list["options"])
+			         -e $read_call -e $read_call -e $read_call
+			         << @(str(config["read_multiple"]));
+
+			check_test(tgt_name, res, exp_path);
+		}
+
+		// Next test is the read errors test.
+		test sym(path.join(testdir, "read_errors")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			test_file: str = tgt_name +~ ".txt";
+			src_test_file: str = path.join(src_dir, test_file);
+
+			path.mkdirp(path.dirname(test_file));
+
+			read_call: str = str(config["read_call"]);
+
+			lines: []str = io.read_file(src_test_file).split("\n");
+
+			for l: lines
+			{
+				if l == ""
+				{
+					continue;
+				}
+
+				res := $ %(config_list["args"]) %(config_list["options"])
+				         << @(read_call +~ "\n" +~ l +~ "\n");
+
+				check_err_test(tgt_name, res);
+			}
+		}
+
+		// Next test is the empty read test.
+		test sym(path.join(testdir, "read_empty")): bin
+		{
+			read_call: str = str(config["read_call"]);
+
+			res := $ %(config_list["args"]) %(config_list["options"])
+			         << @(read_call +~ "\n");
+
+			check_err_test(tgt_name, res);
+		}
+
+		// Next test is the read EOF test.
+		test sym(path.join(testdir, "read_EOF")): bin
+		{
+			read_call: str = str(config["read_call"]);
+
+			res := $ %(config_list["args"]) %(config_list["options"])
+			         << $read_call;
+
+			check_err_test(tgt_name, res);
+		}
+	}
+}
+
+fn run_error_lines_test(name: str) -> void
+{
+	file: str = path.join(src_dir, name);
+
+	lines: []str = io.read_file(file).split("\n");
+
+	for l: lines
+	{
+		if l == ""
+		{
+			continue;
+		}
+
+		res := $ %(config_list["args"]) %(config_list["options"])
+		         %(config_list["error_options"]) << @(l +~ "\n");
+
+		check_err_test(name, res);
+	}
+}
+
+fn register_error_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+) -> void
+{
+	calc: str = path.basename(testdir);
+
+	// First test is command-line expression error.
+	test sym(path.join(testdir, "command-line_expr_error")): bin
+	{
+		halt: str = str(config["halt"]);
+
+		res := $ %(config_list["args"]) %(config_list["options"]) -e "1+1" -f-
+		         -e "2+2" << $halt;
+
+		check_err_test(tgt_name, res);
+	}
+
+	// First test is command-line file expression error.
+	test sym(path.join(testdir, "command-line_file_expr_error")): bin
+	{
+		testdir: str = path.dirname(tgt_name);
+		halt: str = str(config["halt"]);
+
+		res := $ %(config_list["args"]) %(config_list["options"]) -e "1+1" -f-
+		         -f @(path.join(testdir, "decimal.txt")) << $halt;
+
+		check_err_test(tgt_name, res);
+	}
+
+	if calc == "bc"
+	{
+		test sym(path.join(testdir, "posix_warning")): bin
+		{
+			res := $ %(config_list["args"]) %(config_list["options"]) -w
+			         << @("line");
+
+			if res.exitcode != 0
+			{
+				error("Test \"" +~ tgt_name +~ "\" returned an error (" +~
+				      str(res.exitcode) +~ ")");
+			}
+
+			output: str = str(res.stderr);
+
+			if output == "" || output == "\n"
+			{
+				error("Test \"" +~ tgt_name +~ "\" did not print a warning");
+			}
+		}
+
+		test sym(path.join(testdir, "posix_errors.txt")): bin
+		{
+			run_error_lines_test(tgt_name);
+		}
+	}
+
+	test sym(path.join(testdir, "errors.txt")): bin
+	{
+		run_error_lines_test(tgt_name);
+	}
+
+	errors_dir: str = path.join(testdir, "errors");
+
+	for f: find_src_ext(errors_dir, "txt")
+	{
+		// Skip the problematic test, if requested.
+		if calc == "bc" && f contains "33.txt" &&
+		   !bool(config["problematic_tests"])
+		{
+			continue;
+		}
+
+		test sym(f): bin
+		{
+			errors_dir: str = path.dirname(tgt_name);
+			testdir: str = path.dirname(errors_dir);
+			calc: str = path.basename(testdir);
+
+			halt: str = str(config["halt"]);
+
+			res1 := $ %(config_list["args"]) %(config_list["error_options"]) -c
+			          @(tgt_name) << $halt;
+
+			check_err_test(tgt_name, res1);
+
+			res2 := $ %(config_list["args"]) %(config_list["error_options"]) -C
+			          @(tgt_name) << $halt;
+
+			check_err_test(tgt_name, res2);
+
+			res3 := $ %(config_list["args"]) %(config_list["error_options"]) -c
+			          < @(path.join(src_dir, tgt_name));
+
+			check_err_test(tgt_name, res3);
+
+			res4 := $ %(config_list["args"]) %(config_list["error_options"]) -C
+			          < @(path.join(src_dir, tgt_name));
+
+			check_err_test(tgt_name, res4);
+		}
+	}
+}
+
+fn check_kwredef_test(
+	name: str,
+	res: CmdResult,
+) -> void
+{
+	testdir: str = path.dirname(name);
+	redefine_exp: str = path.join(testdir, "redefine_exp.txt");
+
+	check_test(tgt_name, res, redefine_exp);
+}
+
+OTHER_LINE_LEN_RESULTS_NAME: str = "line_length_test_results.txt";
+OTHER_LINE_LEN70_RESULTS_NAME: str = "line_length70_test_results.txt";
+OTHER_MATHLIB_SCALE_RESULTS_NAME: str = "mathlib_scale_results.txt";
+
+fn register_other_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+	extra: bool,
+) -> void
+{
+	calc: str = path.basename(testdir);
+
+	path.mkdirp(testdir);
+
+	// Halt test.
+	test sym(path.join(testdir, "halt")): bin
+	{
+		halt: str = str(config["halt"]) +~ "\n";
+
+		res := $ %(config_list["args"]) << $halt;
+
+		check_test_retcode(tgt_name, res.exitcode);
+	}
+
+	if calc == "bc"
+	{
+		// bc has two halt or quit commands, so test the second as well.
+		test sym(path.join(testdir, "quit")): bin
+		{
+			res := $ %(config_list["args"]) << @("quit\n");
+
+			check_test_retcode(tgt_name, res.exitcode);
+		}
+
+		// Also, make sure quit only quits after an expression.
+		test sym(path.join(testdir, "quit_after_expr")): bin
+		{
+			res := $ %(config_list["args"]) -e "1+1" << @("quit\n");
+
+			check_test_retcode(tgt_name, res.exitcode);
+
+			if str(res.stdout) != "2"
+			{
+				error("Test \"" +~ tgt_name +~
+				      "\" did not have the right output");
+			}
+		}
+
+		test sym(path.join(testdir, "env_args1")): bin
+		{
+			env.set env.str("BC_ENV_ARGS", " '-l' '' -q")
+			{
+				res := $ %(config_list["args"]) << @("s(.02893)\n");
+
+				check_test_retcode(tgt_name, res.exitcode);
+			}
+		}
+
+		test sym(path.join(testdir, "env_args2")): bin
+		{
+			env.set env.str("BC_ENV_ARGS", " '-l' '' -q")
+			{
+				res := $ %(config_list["args"]) -e 4 << @("halt\n");
+
+				check_test_retcode(tgt_name, res.exitcode);
+			}
+		}
+
+		redefine_exp: str = path.join(testdir, "redefine_exp.txt");
+
+		io.open(redefine_exp, "w"): f
+		{
+			f.print("5\n0\n");
+		}
+
+		test sym(path.join(testdir, "keyword_redefinition1")): bin
+		{
+			res := $ %(config_list["args"]) --redefine=print -e
+			         "define print(x) { x }" -e "print(5)" << @("halt\n");
+
+			check_kwredef_test(tgt_name, res);
+		}
+
+		test sym(path.join(testdir, "keyword_redefinition2")): bin
+		{
+			res := $ %(config_list["args"]) -r abs -r else -e
+			         "abs = 5; else = 0" -e "abs;else" << @("halt\n");
+
+			check_kwredef_test(tgt_name, res);
+		}
+
+		if extra
+		{
+			test sym(path.join(testdir, "keyword_redefinition_lib2")): bin
+			{
+				res := $ %(config_list["args"]) -lr abs -e "perm(5, 1)" -e 0
+				         << @("halt\n");
+
+				check_kwredef_test(tgt_name, res);
+			}
+
+			test sym(path.join(testdir, "leading_zero_script")): bin
+			{
+				testdir: str = path.dirname(tgt_name);
+				src_testdir: str = path.join(src_dir, testdir);
+
+				res := $ %(config_list["args"]) -lz
+				         @(path.join(src_testdir, "leadingzero.txt"))
+				         << @(str(config["halt"]));
+
+				check_test(tgt_name, res,
+				           path.join(src_testdir, "leadingzero_results.txt"));
+			}
+		}
+
+		test sym(path.join(testdir, "keyword_redefinition3")): bin
+		{
+			res := $ %(config_list["args"]) -r abs -r else -e
+			         "abs = 5; else = 0" -e "abs;else" << @("halt\n");
+
+			check_kwredef_test(tgt_name, res);
+		}
+
+		test sym(path.join(testdir, "keyword_redefinition_error")): bin
+		{
+			res := $ %(config_list["args"]) -r break -e "define break(x) { x }";
+
+			check_err_test(tgt_name, res);
+		}
+
+		test sym(path.join(testdir,
+		                   "keyword_redefinition_without_redefine")): bin
+		{
+			res := $ %(config_list["args"]) -e "define read(x) { x }";
+
+			check_err_test(tgt_name, res);
+		}
+
+		test sym(path.join(testdir, "multiline_comment_in_expr_file")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			// tests/bc/misc1.txt happens to have a multiline comment in it.
+			src_test_file: str = path.join(src_testdir, "misc1.txt");
+			src_test_results_file: str = path.join(src_testdir,
+			                                       "misc1_results.txt");
+
+			res := $ %(config_list["args"]) -f $src_test_file << @("halt\n");
+
+			check_test(tgt_name, res, src_test_results_file);
+		}
+
+		test sym(path.join(testdir,
+		                   "multiline_comment_error_in_expr_file")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			src_test_file: str = path.join(src_testdir, "errors/05.txt");
+
+			res := $ %(config_list["args"]) -f $src_test_file << @("halt\n");
+
+			check_err_test(tgt_name, res);
+		}
+
+		test sym(path.join(testdir, "multiline_string_in_expr_file")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			// tests/bc/strings.txt happens to have a multiline string in it.
+			src_test_file: str = path.join(src_testdir, "strings.txt");
+			src_test_results_file: str = path.join(src_testdir,
+			                                       "strings_results.txt");
+
+			res := $ %(config_list["args"]) -f $src_test_file << @("halt\n");
+
+			check_test(tgt_name, res, src_test_results_file);
+		}
+
+		tst := path.join(testdir,
+		                 "multiline_string_with_backslash_error_in_expr_file");
+
+		test sym(tst): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			src_test_file: str = path.join(src_testdir, "errors/16.txt");
+
+			res := $ %(config_list["args"]) -f $src_test_file << @("halt\n");
+
+			check_err_test(tgt_name, res);
+		}
+
+		tst2 := path.join(testdir, "multiline_string_error_in_expr_file");
+
+		test sym(tst2): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			src_test_file: str = path.join(src_testdir, "errors/04.txt");
+
+			res := $ %(config_list["args"]) -f $src_test_file << @("halt\n");
+
+			check_err_test(tgt_name, res);
+		}
+
+		test sym(path.join(testdir, "interactive_halt")): bin
+		{
+			res := $ %(config_list["args"]) -i << @("halt\n");
+
+			check_test_retcode(tgt_name, res.exitcode);
+		}
+	}
+	else
+	{
+		test sym(path.join(testdir, "env_args1")): bin
+		{
+			env.set env.str("DC_ENV_ARGS", "'-x'"), env.str("DC_EXPR_EXIT", "1")
+			{
+				res := $ %(config_list["args"]) << @("4s stuff\n");
+
+				check_test_retcode(tgt_name, res.exitcode);
+			}
+		}
+
+		test sym(path.join(testdir, "env_args2")): bin
+		{
+			env.set env.str("DC_ENV_ARGS", "'-x'"), env.str("DC_EXPR_EXIT", "1")
+			{
+				res := $ %(config_list["args"]) -e 4pR;
+
+				check_test_retcode(tgt_name, res.exitcode);
+			}
+		}
+
+		test sym(path.join(testdir, "extended_register_command1")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			results: str = tgt_name +~ ".txt";
+
+			path.mkdirp(testdir);
+
+			io.open(results, "w"): f
+			{
+				f.print("0\n");
+			}
+
+			res := $ %(config_list["args"]) -e gxpR << @("q\n");
+
+			check_test(tgt_name, res, results);
+		}
+
+		test sym(path.join(testdir, "extended_register_command2")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			results: str = tgt_name +~ ".txt";
+
+			path.mkdirp(testdir);
+
+			io.open(results, "w"): f
+			{
+				f.print("1\n");
+			}
+
+			res := $ %(config_list["args"]) -x -e gxpR << @("q\n");
+
+			check_test(tgt_name, res, results);
+		}
+	}
+
+	path.mkdirp(testdir);
+
+	other_tests_results: []str = config_list["other_tests_results"];
+
+	io.open(path.join(testdir, OTHER_LINE_LEN_RESULTS_NAME), "w"): f
+	{
+		f.print(other_tests_results[0] +~ "\n");
+	}
+
+	io.open(path.join(testdir, OTHER_LINE_LEN70_RESULTS_NAME), "w"): f
+	{
+		f.print(other_tests_results[1] +~ "\n");
+	}
+
+	test sym(path.join(testdir, "line_length1")): bin
+	{
+		env.set env.str(str(config["var"]), "80")
+		{
+			testdir: str = path.dirname(tgt_name);
+
+			other_tests: []str = config_list["other_tests"];
+
+			res := $ %(config_list["args"]) << @(other_tests[3]);
+
+			check_test(tgt_name, res,
+			           path.join(testdir, OTHER_LINE_LEN_RESULTS_NAME));
+		}
+	}
+
+	test sym(path.join(testdir, "line_length2")): bin
+	{
+		env.set env.str(str(config["var"]), "2147483647")
+		{
+			testdir: str = path.dirname(tgt_name);
+
+			other_tests: []str = config_list["other_tests"];
+
+			res := $ %(config_list["args"]) << @(other_tests[3]);
+
+			check_test(tgt_name, res,
+			           path.join(testdir, OTHER_LINE_LEN70_RESULTS_NAME));
+		}
+	}
+
+	test sym(path.join(testdir, "expr_and_file_args_test")): bin
+	{
+		testdir: str = path.dirname(tgt_name);
+		src_testdir: str = path.join(src_dir, testdir);
+
+		input_file: str = path.join(src_testdir, "add.txt");
+		input: str = io.read_file(input_file);
+		results_file: str = path.join(src_testdir, "add_results.txt");
+		results: str = io.read_file(results_file);
+
+		output_file: str = path.join(testdir, "expr_file_args.txt");
+
+		io.open(output_file, "w"): f
+		{
+			f.print(results +~ results +~ results +~ results);
+		}
+
+		res := $ %(config_list["args"]) -e $input -f $input_file
+		         --expression $input --file $input_file
+		         -e @(str(config["halt"]));
+
+		check_test(tgt_name, res, output_file);
+	}
+
+	test sym(path.join(testdir, "files_test")): bin
+	{
+		env.set env.str(str(config["var"]), "2147483647")
+		{
+			testdir: str = path.dirname(tgt_name);
+			src_testdir: str = path.join(src_dir, testdir);
+
+			input_file: str = path.join(src_testdir, "add.txt");
+			input: str = io.read_file(input_file);
+			results_file: str = path.join(src_testdir, "add_results.txt");
+			results: str = io.read_file(results_file);
+
+			output_file: str = path.join(testdir, "files.txt");
+
+			io.open(output_file, "w"): f
+			{
+				f.print(results +~ results +~ results +~ results);
+			}
+
+			res := $ %(config_list["args"]) -- $input_file $input_file
+			         $input_file $input_file << @(str(config["halt"]));
+
+			check_test(tgt_name, res, output_file);
+		}
+	}
+
+	test sym(path.join(testdir, "line_length3")): bin
+	{
+		env.set env.str(str(config["var"]), "62")
+		{
+			testdir: str = path.dirname(tgt_name);
+
+			other_tests: []str = config_list["other_tests"];
+
+			res := $ %(config_list["args"]) -L << @(other_tests[3]);
+
+			check_test(tgt_name, res,
+			           path.join(testdir, OTHER_LINE_LEN_RESULTS_NAME));
+		}
+	}
+
+	test sym(path.join(testdir, "line_length_func")): bin
+	{
+		env.set env.str(str(config["var"]), "62")
+		{
+			testdir: str = path.dirname(tgt_name);
+			results: str = tgt_name +~ ".txt";
+
+			path.mkdirp(testdir);
+
+			io.open(results, "w"): f
+			{
+				f.print("0\n");
+			}
+
+			other_tests: []str = config_list["other_tests"];
+
+			res := $ %(config_list["args"]) -L << @(other_tests[2]);
+
+			check_test(tgt_name, res, results);
+		}
+	}
+
+	test sym(path.join(testdir, "arg")): bin
+	{
+		halt: str = str(config["halt"]);
+
+		res1 := $ %(config_list["args"]) -h << $halt;
+		check_test_retcode(tgt_name, res1.exitcode);
+
+		res2 := $ %(config_list["args"]) -P << $halt;
+		check_test_retcode(tgt_name, res2.exitcode);
+
+		res3 := $ %(config_list["args"]) -R << $halt;
+		check_test_retcode(tgt_name, res3.exitcode);
+
+		res4 := $ %(config_list["args"]) -v << $halt;
+		check_test_retcode(tgt_name, res4.exitcode);
+
+		res5 := $ %(config_list["args"]) -V << $halt;
+		check_test_retcode(tgt_name, res5.exitcode);
+	}
+
+	test sym(path.join(testdir, "leading_zero_arg")): bin
+	{
+		testdir: str = path.dirname(tgt_name);
+		calc: str = path.basename(testdir);
+
+		expected_file: str = tgt_name +~ ".txt";
+
+		expected: str = "0.1\n-0.1\n1.1\n-1.1\n0.1\n-0.1\n";
+
+		io.open(expected_file, "w"): f
+		{
+			f.print(expected);
+		}
+
+		data: str =
+		if calc == "bc"
+		{
+			"0.1\n-0.1\n1.1\n-1.1\n.1\n-.1\n";
+		}
+		else
+		{
+			"0.1pR\n_0.1pR\n1.1pR\n_1.1pR\n.1pR\n_.1pR\n";
+		};
+
+		res := $ %(config_list["args"]) -z << $data;
+
+		check_test(tgt_name, res, expected_file);
+	}
+
+	test sym(path.join(testdir, "invalid_file_arg")): bin
+	{
+		res := $ %(config_list["args"]) -f
+		         "astoheusanotehynstahonsetihaotsnuhynstahoaoetusha.txt";
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "invalid_option_arg")): bin
+	{
+		other_tests: []str = config_list["other_tests"];
+
+		res := $ %(config_list["args"]) @("-" +~ other_tests[0])
+		         -e @(str(config["halt"]));
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "invalid_long_option_arg")): bin
+	{
+		other_tests: []str = config_list["other_tests"];
+
+		res := $ %(config_list["args"]) @("--" +~ other_tests[1])
+		         -e @(str(config["halt"]));
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "unrecognized_option_arg")): bin
+	{
+		res := $ %(config_list["args"]) -u -e @(str(config["halt"]));
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "unrecognized_long_option_arg")): bin
+	{
+		res := $ %(config_list["args"]) --uniform -e @(str(config["halt"]));
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "no_required_arg_for_option")): bin
+	{
+		res := $ %(config_list["args"]) -f;
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "no_required_arg_for_long_option")): bin
+	{
+		res := $ %(config_list["args"]) --file;
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "given_arg_for_long_option_with_no_arg")): bin
+	{
+		res := $ %(config_list["args"]) --version=5;
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "colon_option")): bin
+	{
+		res := $ %(config_list["args"]) -:;
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "colon_long_option")): bin
+	{
+		res := $ %(config_list["args"]) --:;
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "builtin_variable_arg_test")): bin
+	{
+		testdir: str = path.dirname(tgt_name);
+		calc: str = path.basename(testdir);
+
+		extra: bool = bool(config["extra_math"]);
+
+		output: str =
+		if extra
+		{
+			"14\n15\n16\n17.25\n";
+		}
+		else
+		{
+			"14\n15\n16\n";
+		};
+
+		output_file: str = tgt_name +~ ".txt";
+
+		io.open(output_file, "w"): f
+		{
+			f.print(output);
+		}
+
+		data: str =
+		if extra
+		{
+			if calc == "bc"
+			{
+				"s=scale;i=ibase;o=obase;t=seed@2;ibase=A;obase=A;s;i;o;t;";
+			}
+			else
+			{
+				"J2@OIKAiAopRpRpRpR";
+			}
+		}
+		else
+		{
+			if calc == "bc"
+			{
+				"s=scale;i=ibase;o=obase;ibase=A;obase=A;s;i;o;";
+			}
+			else
+			{
+				"OIKAiAopRpRpR";
+			}
+		};
+
+		args: []str =
+		if extra
+		{
+			@[ "-S14", "-I15", "-O16", "-E17.25" ];
+		}
+		else
+		{
+			@[ "-S14", "-I15", "-O16" ];
+		};
+
+		res1 := $ %(config_list["args"]) %(args) << $data;
+		check_test(tgt_name, res1, output_file);
+
+		long_args: []str =
+		if extra
+		{
+			@[ "--scale=14", "--ibase=15", "--obase=16", "--seed=17.25" ];
+		}
+		else
+		{
+			@[ "--scale=14", "--ibase=15", "--obase=16" ];
+		};
+
+		res2 := $ %(config_list["args"]) %(long_args) << $data;
+		check_test(tgt_name, res2, output_file);
+	}
+
+	if calc == "bc"
+	{
+		io.open(path.join(testdir, OTHER_MATHLIB_SCALE_RESULTS_NAME), "w"): f
+		{
+			f.print("100\n");
+		}
+
+		test sym(path.join(testdir, "builtin_var_arg_with_lib")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			results_file: str = path.join(testdir,
+			                              OTHER_MATHLIB_SCALE_RESULTS_NAME);
+
+			res := $ %(config_list["args"]) -S100 -l << @("scale\n");
+
+			check_test(tgt_name, res, results_file);
+		}
+
+		test sym(path.join(testdir, "builtin_variable_long_arg_with_lib")): bin
+		{
+			testdir: str = path.dirname(tgt_name);
+			results_file: str = path.join(testdir,
+			                              OTHER_MATHLIB_SCALE_RESULTS_NAME);
+
+			res := $ %(config_list["args"]) --scale=100 --mathlib <<
+			         @("scale\n");
+
+			check_test(tgt_name, res, results_file);
+		}
+
+		test sym(path.join(testdir, "builtin_var_arg_with_lib_env_arg")): bin
+		{
+			env.set env.str("BC_ENV_ARGS", "-l")
+			{
+				testdir: str = path.dirname(tgt_name);
+				results_file: str = path.join(testdir,
+				                              OTHER_MATHLIB_SCALE_RESULTS_NAME);
+
+				res := $ %(config_list["args"]) -S100 << @("scale\n");
+
+				check_test(tgt_name, res, results_file);
+			}
+		}
+
+		test sym(path.join(testdir,
+			               "builtin_var_long_arg_with_lib_env_arg")): bin
+		{
+			env.set env.str("BC_ENV_ARGS", "-l")
+			{
+				testdir: str = path.dirname(tgt_name);
+				results_file: str = path.join(testdir,
+				                              OTHER_MATHLIB_SCALE_RESULTS_NAME);
+
+				res := $ %(config_list["args"]) --scale=100 << @("scale\n");
+
+				check_test(tgt_name, res, results_file);
+			}
+		}
+
+		test sym(path.join(testdir, "builtin_var_env_arg_with_lib_arg")): bin
+		{
+			env.set env.str("BC_ENV_ARGS", "-S100")
+			{
+				testdir: str = path.dirname(tgt_name);
+				results_file: str = path.join(testdir,
+				                              OTHER_MATHLIB_SCALE_RESULTS_NAME);
+
+				res := $ %(config_list["args"]) -l << @("scale\n");
+
+				check_test(tgt_name, res, results_file);
+			}
+		}
+
+		test sym(path.join(testdir,
+		                   "builtin_var_long_env_arg_with_lib_arg")): bin
+		{
+			env.set env.str("BC_ENV_ARGS", "--scale=100")
+			{
+				testdir: str = path.dirname(tgt_name);
+				results_file: str = path.join(testdir,
+				                              OTHER_MATHLIB_SCALE_RESULTS_NAME);
+
+				res := $ %(config_list["args"]) -l << @("scale\n");
+
+				check_test(tgt_name, res, results_file);
+			}
+		}
+
+		test sym(path.join(testdir, "limits")): bin
+		{
+			res := $ %(config_list["args"]) << @("limits\n");
+
+			check_test_retcode(tgt_name, res.exitcode);
+
+			if str(res.stdout) == "" || str(res.stdout) == "\n"
+			{
+				error("Test \"" +~ tgt_name +~ "\" did not produce output");
+			}
+		}
+	}
+
+	test sym(path.join(testdir, "bad_arg_for_builtin_var_option")): bin
+	{
+		testdir: str = path.dirname(tgt_name);
+		calc: str = path.basename(testdir);
+
+		scale: str = if calc == "bc" { "scale\n"; } else { "K\n"; };
+
+		res1 := $ %(config_list["args"]) --scale=18923c.rlg << $scale;
+
+		check_err_test(tgt_name, res1);
+
+		if bool(config["extra_math"])
+		{
+			seed: str = if calc == "bc" { "seed\n"; } else { "J\n"; };
+
+			res2 := $ %(config_list["args"]) --seed=18923c.rlg << $seed;
+
+			check_err_test(tgt_name, res2);
+		}
+	}
+
+	test sym(path.join(testdir, "directory_as_file")): bin
+	{
+		testdir: str = path.dirname(tgt_name);
+
+		res := $ %(config_list["args"]) $testdir;
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "binary_file")): bin
+	{
+		res := $ %(config_list["args"]) @(file_dep);
+
+		check_err_test(tgt_name, res);
+	}
+
+	test sym(path.join(testdir, "binary_stdin")): bin
+	{
+		res := $ %(config_list["args"]) < @(file_dep);
+
+		check_err_test(tgt_name, res);
+	}
+}
+
+fn register_timeconst_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+) -> void
+{
+	timeconst: str = path.join(testdir, "scripts/timeconst.bc");
+
+	if !path.isfile(path.join(src_dir, timeconst))
+	{
+		io.eprint("Warning: " +~ timeconst +~ " does not exist\n");
+		io.eprint(timeconst +~ " is not part of this bc because of " +~
+		          "license incompatibility\n");
+		io.eprint("To test it, get it from the Linux kernel at " +~
+		          "`kernel/time/timeconst.bc`\n");
+		io.eprint("Skipping...\n");
+
+		return;
+	}
+
+	for i: range(1001)
+	{
+		test sym(path.join(timeconst, str(i)))
+		{
+			idx: str = path.basename(tgt_name) +~ "\n";
+			file: str = path.join(src_dir, path.dirname(tgt_name));
+
+			// Generate.
+			res1 := $ bc -q $file << $idx;
+
+			if res1.exitcode != 0
+			{
+				io.eprint("Other bc is not GNU compatible. Skipping...\n");
+				return;
+			}
+
+			// Run.
+			res2 := $ %(config_list["args"]) -q $file << $idx;
+
+			if res2.exitcode != 0 || res2.stdout != res1.stdout
+			{
+				error("\nFailed on input: " +~ idx +~ "\n");
+			}
+		}
+	}
+}
+
+fn register_history_tests(
+	bin: str,
+	testdir: str,
+	src_testdir: str,
+) -> void
+{
+	calc: str = path.basename(testdir);
+
+	src_test_scriptdir: str = path.dirname(src_testdir);
+
+	len_res := $ @(path.join(src_test_scriptdir, "history.py")) $calc -a;
+
+	if len_res.exitcode != 0
+	{
+		io.eprint("Python 3 with pexpect doesn't work. Skipping history tests");
+		return;
+	}
+
+	len: usize = usize(str(len_res.stdout));
+
+	for i: range(len)
+	{
+		test sym(calc +~ "/history/" +~ str(i)): bin
+		{
+			name: str = tgt_name;
+			parts: []str = name.split("/");
+
+			calc: str = parts[0];
+			idx: str= parts[2];
+
+			src_testdir: str = path.join(src_dir, "tests");
+
+			$ @(path.join(src_testdir, "history.py")) -t $calc $idx @(file_dep);
+		}
+	}
+}
+
+/**
+ * Generates all of the test targets for an executable.
+ * @param name  The base name of the executable.
+ * @param targets  The targets that tests should depend on.
+ */
+fn exe_tests(name: str) -> void
+{
+	bin: str = exe_name(name);
+
+	testdir: str = path.join("tests", name);
+	src_testdir: str = path.join(src_dir, testdir);
+
+	halt: str = if name == "bc" { "halt"; } else { "q"; };
+	gen_options: []str = if name == "bc" { @[ "-lq" ]; };
+	options: []str = if name == "bc" { @[ "-lqc" ]; } else { @[ "-xc" ]; };
+
+	other_num: str = "10000000000000000000000000000000000000000000000000" +~
+	                 "0000000000000000000000000000";
+	other_num70: str = "10000000000000000000000000000000000000000000000" +~
+	                   "000000000000000000000\\\n0000000000";
+
+	other_tests: []str =
+	if name == "bc"
+	{
+		@[ "x", "extended-register", "line_length()", other_num ];
+	}
+	else
+	{
+		@[ "l", "mathlib", "glpR", other_num +~ "pR" ];
+	};
+
+	other_tests_results: []str = @[ other_num, other_num70 ];
+
+	var: str = name.toupper() +~ "_LINE_LENGTH";
+
+	script_options: []str =
+	if name == "bc"
+	{
+		@[ "-lqC" ];
+	}
+	else
+	{
+		@[ "-xC" ];
+	};
+
+	error_options: []str = if name == "bc" { @[ "-ls" ]; } else { @[ "-x" ]; };
+
+	args: []str =
+	if bool(config["valgrind"])
+	{
+		VALGRIND_ARGS +~ @[ "./" +~ bin ];
+	}
+	else
+	{
+		@[ "./" +~ bin ];
+	};
+
+	test_config: Gaml = @(gaml){
+		args: $args
+		halt: $halt
+		gen_options: $gen_options
+		options: $options
+		script_options: $script_options
+		error_options: $error_options
+		other_tests: $other_tests
+		other_tests_results: $other_tests_results
+		var: $var
+	};
+
+	push test_config: config_stack
+	{
+		extra: bool = bool(config["extra_math"]);
+
+		register_standard_tests(bin, testdir, src_testdir, extra);
+		register_script_tests(bin, testdir, src_testdir, extra);
+		register_stdin_tests(bin, testdir, src_testdir);
+		register_read_tests(bin, testdir, src_testdir);
+		register_error_tests(bin, testdir, src_testdir);
+		register_other_tests(bin, testdir, src_testdir, extra);
+
+		if name == "bc" && bool(config["generated_tests"]) &&
+		   path.isfile(path.join(src_testdir, "scripts/timeconst.bc"))
+		{
+			register_timeconst_tests(bin, testdir, src_testdir);
+		}
+
+		if host.os != "Windows" && sym(config["history"]) == @builtin
+		{
+			register_history_tests(bin, testdir, src_testdir);
+		}
+	}
+}
+
+/**
+ * Gets the `$BINDIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$BINDIR`, with the `$DESTDIR`.
+ */
+fn get_bindir() -> str
+{
+	temp: str = str(config["bindir"]);
+
+	bindir: str =
+	if temp == ""
+	{
+		path.join(str(config["prefix"]), "bin");
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, bindir);
+}
+
+/**
+ * Gets the `$LIBDIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$LIBDIR`, with the `$DESTDIR`.
+ */
+fn get_libdir() -> str
+{
+	temp: str = str(config["libdir"]);
+
+	libdir: str =
+	if temp == ""
+	{
+		path.join(str(config["prefix"]), "lib");
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, libdir);
+}
+
+/**
+ * Gets the `$INCLUDEDIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$INCLUDEDIR`, with the `$DESTDIR`.
+ */
+fn get_includedir() -> str
+{
+	temp: str = str(config["includedir"]);
+
+	includedir: str =
+	if temp == ""
+	{
+		path.join(str(config["prefix"]), "include");
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, includedir);
+}
+
+/**
+ * Gets the `$PC_PATH`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$PC_PATH`, with the `$DESTDIR`.
+ */
+fn get_pc_path() -> str
+{
+	pc_path: str =
+	if str(config["pc_path"]) == ""
+	{
+		res := $ pkg-config --variable=pc_path pkg-config;
+
+		str(res.stdout);
+	}
+	else
+	{
+		str(config["pc_path"]);
+	};
+
+	return path.join(DESTDIR, pc_path);
+}
+
+/**
+ * Gets the `$DATAROOTDIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$DATAROOTDIR`, with the `$DESTDIR`.
+ */
+fn get_datarootdir() -> str
+{
+	temp: str = str(config["datarootdir"]);
+
+	datarootdir: str =
+	if temp == ""
+	{
+		path.join(str(config["prefix"]), "share");
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, datarootdir);
+}
+
+/**
+ * Gets the `$DATADIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$DATADIR`, with the `$DESTDIR`.
+ */
+fn get_datadir() -> str
+{
+	temp: str = str(config["datadir"]);
+
+	datadir: str =
+	if temp == ""
+	{
+		get_datarootdir();
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, datadir);
+}
+
+/**
+ * Gets the `$MANDIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$MANDIR`, with the `$DESTDIR`.
+ */
+fn get_mandir() -> str
+{
+	temp: str = str(config["mandir"]);
+
+	mandir: str =
+	if temp == ""
+	{
+		path.join(get_datadir(), "man");
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, mandir);
+}
+
+/**
+ * Gets the `$MAN1DIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$MAN1DIR`, with the `$DESTDIR`.
+ */
+fn get_man1dir() -> str
+{
+	temp: str = str(config["man1dir"]);
+
+	man1dir: str =
+	if temp == ""
+	{
+		path.join(get_mandir(), "man1");
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, man1dir);
+}
+
+/**
+ * Gets the `$MAN3DIR`, including the `$DESTDIR`. This generates the default
+ * value if it wasn't set.
+ * @return  The `$MAN3DIR`, with the `$DESTDIR`.
+ */
+fn get_man3dir() -> str
+{
+	temp: str = str(config["man3dir"]);
+
+	man3dir: str =
+	if temp == ""
+	{
+		path.join(get_mandir(), "man3");
+	}
+	else
+	{
+		temp;
+	};
+
+	return path.join(DESTDIR, man3dir);
+}

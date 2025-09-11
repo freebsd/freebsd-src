@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -39,7 +39,7 @@ usage() {
 	if [ $# -eq 1 ]; then
 		printf '%s\n\n' "$1"
 	fi
-	print 'usage: %s [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [run_problematic_tests] [time_tests] [exec args...]\n' \
+	print 'usage: %s [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [run_problematic_tests] [exec args...]\n' \
 		"$script"
 	exit 1
 }
@@ -103,15 +103,6 @@ else
 fi
 
 if [ "$#" -lt 1 ]; then
-	time_tests=0
-	check_bool_arg "$time_tests"
-else
-	time_tests="$1"
-	shift
-	check_bool_arg "$time_tests"
-fi
-
-if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
 	check_exec_arg "$exe"
 else
@@ -155,10 +146,10 @@ while read t; do
 	fi
 
 	if [ "$pll" -ne 0 ]; then
-		sh "$testdir/test.sh" "$d" "$t" "$generate_tests" "$time_tests" "$exe" "$@" &
+		sh "$testdir/test.sh" "$d" "$t" "$generate_tests" "$exe" "$@" &
 		pids="$pids $!"
 	else
-		sh "$testdir/test.sh" "$d" "$t" "$generate_tests" "$time_tests" "$exe" "$@"
+		sh "$testdir/test.sh" "$d" "$t" "$generate_tests" "$exe" "$@"
 	fi
 
 done < "$testdir/$d/all.txt"
@@ -174,19 +165,11 @@ fi
 # Script tests.
 if [ "$pll" -ne 0 ]; then
 	sh "$testdir/scripts.sh" "$d" "$extra" "$run_stack_tests" "$generate_tests" \
-		"$time_tests" "$exe" "$@" &
+		"$exe" "$@" &
 	pids="$pids $!"
 else
 	sh "$testdir/scripts.sh" -n "$d" "$extra" "$run_stack_tests" "$generate_tests" \
-		"$time_tests" "$exe" "$@"
-fi
-
-# Read tests.
-if [ "$pll" -ne 0 ]; then
-	sh "$testdir/read.sh" "$d" "$exe" "$@" &
-	pids="$pids $!"
-else
-	sh "$testdir/read.sh" "$d" "$exe" "$@"
+		"$exe" "$@"
 fi
 
 # Error tests.
@@ -198,8 +181,9 @@ else
 fi
 
 # Test all the files in the errors directory. While the other error test (in
-# tests/errors.sh) does a test for every line, this does one test per file, but
-# it runs the file through stdin and as a file on the command-line.
+# tests/errors.sh) does a test for every line of certain error files in the main
+# directory, this does one test per file in the errors directory, but it runs
+# the file through stdin and as a file on the command-line.
 for testfile in $testdir/$d/errors/*.txt; do
 
 	b=$(basename "$testfile")
@@ -212,14 +196,6 @@ for testfile in $testdir/$d/errors/*.txt; do
 	fi
 
 done
-
-# Other tests.
-if [ "$pll" -ne 0 ]; then
-	sh "$testdir/other.sh" "$d" "$extra" "$exe" "$@" &
-	pids="$pids $!"
-else
-	sh "$testdir/other.sh" "$d" "$extra" "$exe" "$@"
-fi
 
 if [ "$pll" -ne 0 ]; then
 

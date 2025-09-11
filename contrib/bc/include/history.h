@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -119,30 +119,6 @@ typedef struct BcHistory
 // The path to the editrc and its length.
 extern const char bc_history_editrc[];
 extern const size_t bc_history_editrc_len;
-
-#ifdef __APPLE__
-
-/**
- * Returns true if the line is a valid line, false otherwise.
- * @param line  The line.
- * @param len   The length of the line.
- * @return      True if the line is valid, false otherwise.
- */
-#define BC_HISTORY_INVALID_LINE(line, len) \
-	((line) == NULL && ((len) == -1 || errno == EINTR))
-
-#else // __APPLE__
-
-/**
- * Returns true if the line is a valid line, false otherwise.
- * @param line  The line.
- * @param len   The length of the line.
- * @return      True if the line is valid, false otherwise.
- */
-#define BC_HISTORY_INVALID_LINE(line, len) \
-	((line) == NULL && (len) == -1 && errno == EINTR)
-
-#endif // __APPLE__
 
 #else // BC_ENABLE_EDITLINE
 

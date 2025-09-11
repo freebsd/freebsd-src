@@ -1,0 +1,9 @@
+perm(10, 2)
+comb(10, 2)
+perm(6, 2)
+comb(6, 2)
+perm(12, 10)
+comb(12, 10)
+perm(24, 15)
+comb(24, 15)
+

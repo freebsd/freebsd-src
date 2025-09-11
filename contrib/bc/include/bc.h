@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -265,9 +265,9 @@ bc_lex_token(BcLex* l);
  * @return    An expression entry for bc_parse_exprs[].
  */
 #define BC_PARSE_EXPR_ENTRY(e1, e2, e3, e4, e5, e6, e7, e8)               \
-	((UINTMAX_C(e1) << 7) | (UINTMAX_C(e2) << 6) | (UINTMAX_C(e3) << 5) | \
-	 (UINTMAX_C(e4) << 4) | (UINTMAX_C(e5) << 3) | (UINTMAX_C(e6) << 2) | \
-	 (UINTMAX_C(e7) << 1) | (UINTMAX_C(e8) << 0))
+	((UINT8_C(e1) << 7) | (UINT8_C(e2) << 6) | (UINT8_C(e3) << 5) | \
+	 (UINT8_C(e4) << 4) | (UINT8_C(e5) << 3) | (UINT8_C(e6) << 2) | \
+	 (UINT8_C(e7) << 1) | (UINT8_C(e8) << 0))
 
 /**
  * Returns true if token @a i is a token that belongs in an expression.

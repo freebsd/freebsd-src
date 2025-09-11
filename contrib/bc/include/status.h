@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -683,12 +683,7 @@ typedef enum BcMode
 #define BC_NO_SIG_EXC(vm) \
 	BC_LIKELY((vm)->status == (sig_atomic_t) BC_STATUS_SUCCESS && !(vm)->sig)
 
-#ifndef _WIN32
-#define BC_SIG_INTERRUPT(vm) \
-	BC_UNLIKELY((vm)->sig != 0 && (vm)->sig != SIGWINCH)
-#else // _WIN32
 #define BC_SIG_INTERRUPT(vm) BC_UNLIKELY((vm)->sig != 0)
-#endif // _WIN32
 
 #if BC_DEBUG
 

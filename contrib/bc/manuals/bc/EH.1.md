@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -1483,7 +1483,7 @@ This bc(1) supports error messages for different locales, and thus, it supports
 Before version **6.1.0**, this bc(1) had incorrect behavior for the **quit**
 statement.
 
-No other bugs are known. Report bugs at https://git.gavinhoward.com/gavin/bc .
+No other bugs are known. Report bugs at https://github.com/gavinhoward/bc .
 
 # AUTHORS
 

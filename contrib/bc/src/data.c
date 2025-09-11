@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -70,8 +70,8 @@ const uchar dc_sig_msg_len = (uchar) (sizeof(dc_sig_msg) - 1);
 
 /// The copyright banner.
 const char bc_copyright[] =
-	"Copyright (c) 2018-2024 Gavin D. Howard and contributors\n"
-	"Report bugs at: https://git.gavinhoward.com/gavin/bc\n\n"
+	"Copyright (c) 2018-2025 Gavin D. Howard and contributors\n"
+	"Report bugs at: https://github.com/gavinhoward/bc\n\n"
 	"This is free software with ABSOLUTELY NO WARRANTY.\n";
 
 // clang-format on
@@ -850,51 +850,51 @@ const char bc_parse_one[2] = "1";
 
 /// A list of keywords for bc. This needs to be updated if keywords change.
 const BcLexKeyword bc_lex_kws[] = {
-	BC_LEX_KW_ENTRY("auto", 4, true),
-	BC_LEX_KW_ENTRY("break", 5, true),
-	BC_LEX_KW_ENTRY("continue", 8, false),
-	BC_LEX_KW_ENTRY("define", 6, true),
-	BC_LEX_KW_ENTRY("for", 3, true),
-	BC_LEX_KW_ENTRY("if", 2, true),
-	BC_LEX_KW_ENTRY("limits", 6, false),
-	BC_LEX_KW_ENTRY("return", 6, true),
-	BC_LEX_KW_ENTRY("while", 5, true),
-	BC_LEX_KW_ENTRY("halt", 4, false),
-	BC_LEX_KW_ENTRY("last", 4, false),
-	BC_LEX_KW_ENTRY("ibase", 5, true),
-	BC_LEX_KW_ENTRY("obase", 5, true),
-	BC_LEX_KW_ENTRY("scale", 5, true),
+	BC_LEX_KW_ENTRY("auto", 4, 1),
+	BC_LEX_KW_ENTRY("break", 5, 1),
+	BC_LEX_KW_ENTRY("continue", 8, 0),
+	BC_LEX_KW_ENTRY("define", 6, 1),
+	BC_LEX_KW_ENTRY("for", 3, 1),
+	BC_LEX_KW_ENTRY("if", 2, 1),
+	BC_LEX_KW_ENTRY("limits", 6, 0),
+	BC_LEX_KW_ENTRY("return", 6, 1),
+	BC_LEX_KW_ENTRY("while", 5, 1),
+	BC_LEX_KW_ENTRY("halt", 4, 0),
+	BC_LEX_KW_ENTRY("last", 4, 0),
+	BC_LEX_KW_ENTRY("ibase", 5, 1),
+	BC_LEX_KW_ENTRY("obase", 5, 1),
+	BC_LEX_KW_ENTRY("scale", 5, 1),
 #if BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("seed", 4, false),
+	BC_LEX_KW_ENTRY("seed", 4, 0),
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("length", 6, true),
-	BC_LEX_KW_ENTRY("print", 5, false),
-	BC_LEX_KW_ENTRY("sqrt", 4, true),
-	BC_LEX_KW_ENTRY("abs", 3, false),
-	BC_LEX_KW_ENTRY("is_number", 9, false),
-	BC_LEX_KW_ENTRY("is_string", 9, false),
+	BC_LEX_KW_ENTRY("length", 6, 1),
+	BC_LEX_KW_ENTRY("print", 5, 0),
+	BC_LEX_KW_ENTRY("sqrt", 4, 1),
+	BC_LEX_KW_ENTRY("abs", 3, 0),
+	BC_LEX_KW_ENTRY("is_number", 9, 0),
+	BC_LEX_KW_ENTRY("is_string", 9, 0),
 #if BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("irand", 5, false),
+	BC_LEX_KW_ENTRY("irand", 5, 0),
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("asciify", 7, false),
-	BC_LEX_KW_ENTRY("modexp", 6, false),
-	BC_LEX_KW_ENTRY("divmod", 6, false),
-	BC_LEX_KW_ENTRY("quit", 4, true),
-	BC_LEX_KW_ENTRY("read", 4, false),
+	BC_LEX_KW_ENTRY("asciify", 7, 0),
+	BC_LEX_KW_ENTRY("modexp", 6, 0),
+	BC_LEX_KW_ENTRY("divmod", 6, 0),
+	BC_LEX_KW_ENTRY("quit", 4, 1),
+	BC_LEX_KW_ENTRY("read", 4, 0),
 #if BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("rand", 4, false),
+	BC_LEX_KW_ENTRY("rand", 4, 0),
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("maxibase", 8, false),
-	BC_LEX_KW_ENTRY("maxobase", 8, false),
-	BC_LEX_KW_ENTRY("maxscale", 8, false),
+	BC_LEX_KW_ENTRY("maxibase", 8, 0),
+	BC_LEX_KW_ENTRY("maxobase", 8, 0),
+	BC_LEX_KW_ENTRY("maxscale", 8, 0),
 #if BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("maxrand", 7, false),
+	BC_LEX_KW_ENTRY("maxrand", 7, 0),
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_LEX_KW_ENTRY("line_length", 11, false),
-	BC_LEX_KW_ENTRY("global_stacks", 13, false),
-	BC_LEX_KW_ENTRY("leading_zero", 12, false),
-	BC_LEX_KW_ENTRY("stream", 6, false),
-	BC_LEX_KW_ENTRY("else", 4, false),
+	BC_LEX_KW_ENTRY("line_length", 11, 0),
+	BC_LEX_KW_ENTRY("global_stacks", 13, 0),
+	BC_LEX_KW_ENTRY("leading_zero", 12, 0),
+	BC_LEX_KW_ENTRY("stream", 6, 0),
+	BC_LEX_KW_ENTRY("else", 4, 0),
 };
 
 /// The length of the list of bc keywords.
@@ -917,64 +917,64 @@ _Static_assert(sizeof(bc_lex_kws) / sizeof(BcLexKeyword) == BC_LEX_NKWS,
 const uint8_t bc_parse_exprs[] = {
 
 	// Starts with BC_LEX_EOF.
-	BC_PARSE_EXPR_ENTRY(false, false, true, true, true, true, true, true),
+	BC_PARSE_EXPR_ENTRY(0, 0, 1, 1, 1, 1, 1, 1),
 
 	// Starts with BC_LEX_OP_MULTIPLY if extra math is enabled, BC_LEX_OP_DIVIDE
 	// otherwise.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, true),
+	BC_PARSE_EXPR_ENTRY(1, 1, 1, 1, 1, 1, 1, 1),
 
 	// Starts with BC_LEX_OP_REL_EQ if extra math is enabled, BC_LEX_OP_REL_LT
 	// otherwise.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, true),
+	BC_PARSE_EXPR_ENTRY(1, 1, 1, 1, 1, 1, 1, 1),
 
 #if BC_ENABLE_EXTRA_MATH
 
 	// Starts with BC_LEX_OP_ASSIGN_POWER.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, true),
+	BC_PARSE_EXPR_ENTRY(1, 1, 1, 1, 1, 1, 1, 1),
 
 	// Starts with BC_LEX_OP_ASSIGN_RSHIFT.
-	BC_PARSE_EXPR_ENTRY(true, true, false, false, true, true, false, false),
+	BC_PARSE_EXPR_ENTRY(1, 1, 0, 0, 1, 1, 0, 0),
 
 	// Starts with BC_LEX_RBRACKET.
-	BC_PARSE_EXPR_ENTRY(false, false, false, false, true, true, true, false),
+	BC_PARSE_EXPR_ENTRY(0, 0, 0, 0, 1, 1, 1, 0),
 
 	// Starts with BC_LEX_KW_BREAK.
-	BC_PARSE_EXPR_ENTRY(false, false, false, false, false, false, false, false),
+	BC_PARSE_EXPR_ENTRY(0, 0, 0, 0, 0, 0, 0, 0),
 
 	// Starts with BC_LEX_KW_HALT.
-	BC_PARSE_EXPR_ENTRY(false, true, true, true, true, true, true, false),
+	BC_PARSE_EXPR_ENTRY(0, 1, 1, 1, 1, 1, 1, 0),
 
 	// Starts with BC_LEX_KW_SQRT.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, true),
+	BC_PARSE_EXPR_ENTRY(1, 1, 1, 1, 1, 1, 1, 1),
 
 	// Starts with BC_LEX_KW_QUIT.
-	BC_PARSE_EXPR_ENTRY(false, true, true, true, true, true, true, true),
+	BC_PARSE_EXPR_ENTRY(0, 1, 1, 1, 1, 1, 1, 1),
 
 	// Starts with BC_LEX_KW_GLOBAL_STACKS.
-	BC_PARSE_EXPR_ENTRY(true, true, false, false, 0, 0, 0, 0)
+	BC_PARSE_EXPR_ENTRY(1, 1, 0, 0, 0, 0, 0, 0)
 
 #else // BC_ENABLE_EXTRA_MATH
 
 	// Starts with BC_LEX_OP_ASSIGN_PLUS.
-	BC_PARSE_EXPR_ENTRY(true, true, true, false, false, true, true, false),
+	BC_PARSE_EXPR_ENTRY(1, 1, 1, 0, 0, 1, 1, 0),
 
 	// Starts with BC_LEX_COMMA.
-	BC_PARSE_EXPR_ENTRY(false, false, false, false, false, true, true, true),
+	BC_PARSE_EXPR_ENTRY(0, 0, 0, 0, 0, 1, 1, 1),
 
 	// Starts with BC_LEX_KW_AUTO.
-	BC_PARSE_EXPR_ENTRY(false, false, false, false, false, false, false, false),
+	BC_PARSE_EXPR_ENTRY(0, 0, 0, 0, 0, 0, 0, 0),
 
 	// Starts with BC_LEX_KW_WHILE.
-	BC_PARSE_EXPR_ENTRY(false, false, true, true, true, true, true, false),
+	BC_PARSE_EXPR_ENTRY(0, 0, 1, 1, 1, 1, 1, 0),
 
 	// Starts with BC_LEX_KW_SQRT.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, false),
+	BC_PARSE_EXPR_ENTRY(1, 1, 1, 1, 1, 1, 1, 0),
 
 	// Starts with BC_LEX_KW_MAXIBASE.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, false),
+	BC_PARSE_EXPR_ENTRY(1, 1, 1, 1, 1, 1, 1, 0),
 
 	// Starts with  BC_LEX_KW_ELSE.
-	BC_PARSE_EXPR_ENTRY(false, 0, 0, 0, 0, 0, 0, 0)
+	BC_PARSE_EXPR_ENTRY(0, 0, 0, 0, 0, 0, 0, 0)
 
 #endif // BC_ENABLE_EXTRA_MATH
 };
@@ -982,25 +982,25 @@ const uint8_t bc_parse_exprs[] = {
 /// An array of data for operators that correspond to token types. Note that a
 /// lower precedence *value* means a higher precedence.
 const uchar bc_parse_ops[] = {
-	BC_PARSE_OP(0, false), BC_PARSE_OP(0, false), BC_PARSE_OP(1, false),
-	BC_PARSE_OP(1, false),
+	BC_PARSE_OP(0, 0), BC_PARSE_OP(0, 0), BC_PARSE_OP(1, 0),
+	BC_PARSE_OP(1, 0),
 #if BC_ENABLE_EXTRA_MATH
-	BC_PARSE_OP(2, false),
+	BC_PARSE_OP(2, 0),
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_PARSE_OP(4, false), BC_PARSE_OP(5, true),  BC_PARSE_OP(5, true),
-	BC_PARSE_OP(5, true),  BC_PARSE_OP(6, true),  BC_PARSE_OP(6, true),
+	BC_PARSE_OP(4, 0), BC_PARSE_OP(5, 1),  BC_PARSE_OP(5, 1),
+	BC_PARSE_OP(5, 1),  BC_PARSE_OP(6, 1),  BC_PARSE_OP(6, 1),
 #if BC_ENABLE_EXTRA_MATH
-	BC_PARSE_OP(3, false), BC_PARSE_OP(7, true),  BC_PARSE_OP(7, true),
+	BC_PARSE_OP(3, 0), BC_PARSE_OP(7, 1),  BC_PARSE_OP(7, 1),
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_PARSE_OP(9, true),  BC_PARSE_OP(9, true),  BC_PARSE_OP(9, true),
-	BC_PARSE_OP(9, true),  BC_PARSE_OP(9, true),  BC_PARSE_OP(9, true),
-	BC_PARSE_OP(11, true), BC_PARSE_OP(10, true), BC_PARSE_OP(8, false),
-	BC_PARSE_OP(8, false), BC_PARSE_OP(8, false), BC_PARSE_OP(8, false),
-	BC_PARSE_OP(8, false), BC_PARSE_OP(8, false),
+	BC_PARSE_OP(9, 1),  BC_PARSE_OP(9, 1),  BC_PARSE_OP(9, 1),
+	BC_PARSE_OP(9, 1),  BC_PARSE_OP(9, 1),  BC_PARSE_OP(9, 1),
+	BC_PARSE_OP(11, 1), BC_PARSE_OP(10, 1), BC_PARSE_OP(8, 0),
+	BC_PARSE_OP(8, 0), BC_PARSE_OP(8, 0), BC_PARSE_OP(8, 0),
+	BC_PARSE_OP(8, 0), BC_PARSE_OP(8, 0),
 #if BC_ENABLE_EXTRA_MATH
-	BC_PARSE_OP(8, false), BC_PARSE_OP(8, false), BC_PARSE_OP(8, false),
+	BC_PARSE_OP(8, 0), BC_PARSE_OP(8, 0), BC_PARSE_OP(8, 0),
 #endif // BC_ENABLE_EXTRA_MATH
-	BC_PARSE_OP(8, false),
+	BC_PARSE_OP(8, 0),
 };
 
 // These identify what tokens can come after expressions in certain cases.

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ usage() {
 	if [ $# -eq 1 ]; then
 		printf '%s\n\n' "$1"
 	fi
-	printf 'usage: %s dir test [generate_tests] [time_tests] [exe [args...]]\n' "$0"
+	printf 'usage: %s dir test [generate_tests] [exe [args...]]\n' "$0"
 	printf 'valid dirs are:\n'
 	printf '\n'
 	cat "$testdir/all.txt"
@@ -75,15 +75,6 @@ if [ "$#" -gt 0 ]; then
 else
 	generate_tests=1
 	check_bool_arg "$generate_tests"
-fi
-
-if [ "$#" -gt 0 ]; then
-	time_tests="$1"
-	shift
-	check_bool_arg "$time_tests"
-else
-	time_tests=0
-	check_bool_arg "$time_tests"
 fi
 
 if [ "$#" -gt 0 ]; then
@@ -155,15 +146,8 @@ set +e
 
 printf 'Running %s %s...' "$d" "$t"
 
-if [ "$time_tests" -ne 0 ]; then
-	printf '\n'
-	printf '%s\n' "$halt" 2> /dev/null | /usr/bin/time -p "$exe" "$@" $options "$name" > "$out"
-	err="$?"
-	printf '\n'
-else
-	printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $options "$name" > "$out"
-	err="$?"
-fi
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $options "$name" > "$out"
+err="$?"
 
 checktest "$d" "$err" "$t" "$results" "$out"
 
