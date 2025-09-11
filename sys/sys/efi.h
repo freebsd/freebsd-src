@@ -40,9 +40,9 @@
 	{0xf2fd1544,0x9794,0x4a2c,{0x99,0x2e,0xe5,0xbb,0xcf,0x20,0xe3,0x94}}
 #define	EFI_TABLE_ESRT					\
 	{0xb122a263,0x3661,0x4f68,{0x99,0x29,0x78,0xf8,0xb0,0xd6,0x21,0x80}}
-#define	EFI_PROPERTIES_TABLE			\
+#define	EFI_PROPERTIES_TABLE				\
 	{0x880aaca3,0x4adc,0x4a04,{0x90,0x79,0xb7,0x47,0x34,0x08,0x25,0xe5}}
-#define	EFI_MEMORY_ATTRIBUTES_TABLE		\
+#define	EFI_MEMORY_ATTRIBUTES_TABLE			\
 	{0xdcfa911d,0x26eb,0x469f,{0xa2,0x20,0x38,0xb7,0xdc,0x46,0x12,0x20}}
 #define LINUX_EFI_MEMRESERVE_TABLE			\
 	{0x888eb0c6,0x8ede,0x4ff5,{0xa8,0xf0,0x9a,0xee,0x5c,0xb9,0x77,0xc2}}
@@ -54,7 +54,7 @@ enum efi_reset {
 };
 
 typedef uint16_t	efi_char;
-typedef unsigned long efi_status;
+typedef unsigned long	efi_status;
 
 /*
  * This type-puns to a struct uuid, but all the EDK2 headers use this variation,
@@ -62,10 +62,10 @@ typedef unsigned long efi_status;
  * can use EDK2 definitions both places.
  */
 typedef struct efi_guid {
-	uint32_t  Data1;
-	uint16_t  Data2;
-	uint16_t  Data3;
-	uint8_t   Data4[8];
+	uint32_t	Data1;
+	uint16_t	Data2;
+	uint16_t	Data3;
+	uint8_t		Data4[8];
 } efi_guid_t;	/* Type puns with GUID and EFI_GUID */
 
 struct efi_cfgtbl {
@@ -293,100 +293,99 @@ struct efi_ops {
 extern const struct efi_ops *active_efi_ops;
 
 /* Public MI EFI functions */
-static inline int efi_rt_ok(void)
+static inline int
+efi_rt_ok(void)
 {
-
 	if (active_efi_ops->rt_ok == NULL)
 		return (ENXIO);
 	return (active_efi_ops->rt_ok());
 }
 
-static inline int efi_get_table(efi_guid_t *guid, void **ptr)
+static inline int
+efi_get_table(efi_guid_t *guid, void **ptr)
 {
-
         if (active_efi_ops->get_table == NULL)
 		return (ENXIO);
 	return (active_efi_ops->get_table(guid, ptr));
 }
 
-static inline int efi_copy_table(efi_guid_t *guid, void **buf,
-    size_t buf_len, size_t *table_len)
+static inline int
+efi_copy_table(efi_guid_t *guid, void **buf, size_t buf_len, size_t *table_len)
 {
-
 	if (active_efi_ops->copy_table == NULL)
 		return (ENXIO);
 	return (active_efi_ops->copy_table(guid, buf, buf_len, table_len));
 }
 
-static inline int efi_get_time(struct efi_tm *tm)
+static inline int
+efi_get_time(struct efi_tm *tm)
 {
-
 	if (active_efi_ops->get_time == NULL)
 		return (ENXIO);
 	return (active_efi_ops->get_time(tm));
 }
 
-static inline int efi_get_time_capabilities(struct efi_tmcap *tmcap)
+static inline int
+efi_get_time_capabilities(struct efi_tmcap *tmcap)
 {
-
 	if (active_efi_ops->get_time_capabilities == NULL)
 		return (ENXIO);
 	return (active_efi_ops->get_time_capabilities(tmcap));
 }
 
-static inline int efi_reset_system(enum efi_reset type)
+static inline int
+efi_reset_system(enum efi_reset type)
 {
-
 	if (active_efi_ops->reset_system == NULL)
 		return (ENXIO);
 	return (active_efi_ops->reset_system(type));
 }
 
-static inline int efi_set_time(struct efi_tm *tm)
+static inline int
+efi_set_time(struct efi_tm *tm)
 {
-
 	if (active_efi_ops->set_time == NULL)
 		return (ENXIO);
 	return (active_efi_ops->set_time(tm));
 }
 
-static inline int efi_get_waketime(uint8_t *enabled, uint8_t *pending,
-    struct efi_tm *tm)
+static inline int
+efi_get_waketime(uint8_t *enabled, uint8_t *pending, struct efi_tm *tm)
 {
 	if (active_efi_ops->get_waketime == NULL)
 		return (ENXIO);
 	return (active_efi_ops->get_waketime(enabled, pending, tm));
 }
 
-static inline int efi_set_waketime(uint8_t enable, struct efi_tm *tm)
+static inline int
+efi_set_waketime(uint8_t enable, struct efi_tm *tm)
 {
 	if (active_efi_ops->set_waketime == NULL)
 		return (ENXIO);
 	return (active_efi_ops->set_waketime(enable, tm));
 }
 
-static inline int efi_var_get(uint16_t *name, efi_guid_t *vendor,
-    uint32_t *attrib, size_t *datasize, void *data)
+static inline int
+efi_var_get(uint16_t *name, efi_guid_t *vendor, uint32_t *attrib,
+    size_t *datasize, void *data)
 {
-
 	if (active_efi_ops->var_get == NULL)
 		return (ENXIO);
 	return (active_efi_ops->var_get(name, vendor, attrib, datasize, data));
 }
 
-static inline int efi_var_nextname(size_t *namesize, uint16_t *name,
-    efi_guid_t *vendor)
+static inline int
+efi_var_nextname(size_t *namesize, uint16_t *name, efi_guid_t *vendor)
 {
-
 	if (active_efi_ops->var_nextname == NULL)
 		return (ENXIO);
 	return (active_efi_ops->var_nextname(namesize, name, vendor));
 }
 
-static inline int efi_var_set(uint16_t *name, efi_guid_t *vendor,
-    uint32_t attrib, size_t datasize, void *data)
+static inline int
+efi_var_set(uint16_t *name, efi_guid_t *vendor, uint32_t attrib,
+    size_t datasize, void *data)
 {
-
 	if (active_efi_ops->var_set == NULL)
 		return (ENXIO);
 	return (active_efi_ops->var_set(name, vendor, attrib, datasize, data));
