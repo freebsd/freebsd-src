@@ -496,6 +496,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
+	struct mbufq *pduq = &toep->ulp_pduq;
 	int tls_size, tx_credits, shove, sowwakeup;
 	struct ofld_tx_sdesc *txsd;
 	char *buf;
@@ -537,6 +538,18 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 	txsd = &toep->txsd[toep->txsd_pidx];
 	for (;;) {
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
+
+		if (__predict_false((m = mbufq_first(pduq)) != NULL)) {
+			if (!t4_push_raw_wr(sc, toep, m)) {
+				toep->flags |= TPF_TX_SUSPENDED;
+				return;
+			}
+
+			(void)mbufq_dequeue(pduq);
+
+			txsd = &toep->txsd[toep->txsd_pidx];
+			continue;
+		}
 
 		SOCKBUF_LOCK(sb);
 		sowwakeup = drop;

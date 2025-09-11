@@ -619,6 +619,48 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
 	    __func__, nsegs, start, stop));
 }
 
+bool
+t4_push_raw_wr(struct adapter *sc, struct toepcb *toep, struct mbuf *m)
+{
+#ifdef INVARIANTS
+	struct inpcb *inp = toep->inp;
+#endif
+	struct wrqe *wr;
+	struct ofld_tx_sdesc *txsd;
+	u_int credits, plen;
+
+	INP_WLOCK_ASSERT(inp);
+	MPASS(mbuf_raw_wr(m));
+	plen = m->m_pkthdr.len;
+	credits = howmany(plen, 16);
+	if (credits > toep->tx_credits)
+		return (false);
+
+	wr = alloc_wrqe(roundup2(plen, 16), &toep->ofld_txq->wrq);
+	if (wr == NULL)
+		return (false);
+
+	m_copydata(m, 0, plen, wrtod(wr));
+	m_freem(m);
+
+	toep->tx_credits -= credits;
+	if (toep->tx_credits < MIN_OFLD_TX_CREDITS)
+		toep->flags |= TPF_TX_SUSPENDED;
+
+	KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+	KASSERT(credits <= MAX_OFLD_TX_SDESC_CREDITS,
+	    ("%s: tx_credits %u too large", __func__, credits));
+	txsd = &toep->txsd[toep->txsd_pidx];
+	txsd->plen = 0;
+	txsd->tx_credits = credits;
+	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
+		toep->txsd_pidx = 0;
+	toep->txsd_avail--;
+
+	t4_wrq_tx(sc, wr);
+	return (true);
+}
+
 /*
  * Max number of SGL entries an offload tx work request can have.  This is 41
  * (1 + 40) for a full 512B work request.
@@ -651,6 +693,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
+	struct mbufq *pduq = &toep->ulp_pduq;
 	int tx_credits, shove, compl, sowwakeup;
 	struct ofld_tx_sdesc *txsd;
 	bool nomap_mbuf_seen;
@@ -694,6 +737,19 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
 		max_imm = max_imm_payload(tx_credits, 0);
 		max_nsegs = max_dsgl_nsegs(tx_credits, 0);
+
+		if (__predict_false((sndptr = mbufq_first(pduq)) != NULL)) {
+			if (!t4_push_raw_wr(sc, toep, sndptr)) {
+				toep->flags |= TPF_TX_SUSPENDED;
+				return;
+			}
+
+			m = mbufq_dequeue(pduq);
+			MPASS(m == sndptr);
+
+			txsd = &toep->txsd[toep->txsd_pidx];
+			continue;
+		}
 
 		SOCKBUF_LOCK(sb);
 		sowwakeup = drop;
@@ -1251,6 +1307,35 @@ t4_push_data(struct adapter *sc, struct toepcb *toep, int drop)
 		t4_push_ktls(sc, toep, drop);
 	else
 		t4_push_frames(sc, toep, drop);
+}
+
+void
+t4_raw_wr_tx(struct adapter *sc, struct toepcb *toep, struct mbuf *m)
+{
+#ifdef INVARIANTS
+	struct inpcb *inp = toep->inp;
+#endif
+
+	INP_WLOCK_ASSERT(inp);
+
+	/*
+	 * If there are other raw WRs enqueued, enqueue to preserve
+	 * FIFO ordering.
+	 */
+	if (!mbufq_empty(&toep->ulp_pduq)) {
+		mbufq_enqueue(&toep->ulp_pduq, m);
+		return;
+	}
+
+	/*
+	 * Cannot call t4_push_data here as that will lock so_snd and
+	 * some callers of this run in rx handlers with so_rcv locked.
+	 * Instead, just try to transmit this WR.
+	 */
+	if (!t4_push_raw_wr(sc, toep, m)) {
+		mbufq_enqueue(&toep->ulp_pduq, m);
+		toep->flags |= TPF_TX_SUSPENDED;
+	}
 }
 
 int
