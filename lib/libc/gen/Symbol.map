@@ -418,6 +418,7 @@ FBSD_1.5 {
 	globfree;
 	nftw;
 	readdir;
+	readdir_r;
 	scandir;
 	sem_clockwait_np;
 	setproctitle_fast;

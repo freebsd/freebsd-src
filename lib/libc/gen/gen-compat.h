@@ -37,7 +37,6 @@ struct freebsd11_dirent;
 struct freebsd11_stat;
 struct freebsd11_statfs;
 
-int	freebsd15_readdir_r(DIR *, struct dirent *, struct dirent **);
 struct freebsd11_dirent *freebsd11_readdir(DIR *);
 int	freebsd11_readdir_r(DIR *, struct freebsd11_dirent *,
 	    struct freebsd11_dirent **);

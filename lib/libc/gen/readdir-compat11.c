@@ -95,7 +95,7 @@ freebsd11_readdir_r(DIR *dirp, struct freebsd11_dirent *entry,
 	struct dirent xentry, *xresult;
 	int error;
 
-	error = freebsd15_readdir_r(dirp, &xentry, &xresult);
+	error = __readdir_r(dirp, &xentry, &xresult);
 	if (error != 0)
 		return (error);
 	if (xresult != NULL) {
