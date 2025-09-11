@@ -531,6 +531,8 @@ void t4_set_tcb_field(struct adapter *, struct sge_wrq *, struct toepcb *,
 void t4_push_pdus(struct adapter *, struct toepcb *, int);
 bool t4_push_raw_wr(struct adapter *, struct toepcb *, struct mbuf *);
 void t4_raw_wr_tx(struct adapter *, struct toepcb *, struct mbuf *);
+void write_set_tcb_field(struct adapter *, void *, struct toepcb *, uint16_t,
+    uint64_t, uint64_t, int, int);
 
 /* t4_ddp.c */
 int t4_init_ppod_region(struct ppod_region *, struct t4_range *, u_int,
