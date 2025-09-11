@@ -556,6 +556,7 @@ int t4_aio_queue_ddp(struct socket *, struct kaiocb *);
 int t4_enable_ddp_rcv(struct socket *, struct toepcb *);
 void t4_ddp_mod_load(void);
 void t4_ddp_mod_unload(void);
+struct mbuf *alloc_raw_wr_mbuf(int);
 void ddp_assert_empty(struct toepcb *);
 void ddp_uninit_toep(struct toepcb *);
 void ddp_queue_toep(struct toepcb *);
