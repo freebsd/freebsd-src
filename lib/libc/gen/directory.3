@@ -25,13 +25,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 5, 2025
+.Dd August 1, 2020
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
 .Nm opendir ,
 .Nm fdopendir ,
 .Nm readdir ,
+.Nm readdir_r ,
 .Nm telldir ,
 .Nm seekdir ,
 .Nm rewinddir ,
@@ -49,6 +50,8 @@
 .Fn fdopendir "int fd"
 .Ft struct dirent *
 .Fn readdir "DIR *dirp"
+.Ft int
+.Fn readdir_r "DIR *dirp" "struct dirent *entry" "struct dirent **result"
 .Ft long
 .Fn telldir "DIR *dirp"
 .Ft void
@@ -62,6 +65,15 @@
 .Ft int
 .Fn dirfd "DIR *dirp"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn readdir_r
+interface is deprecated
+because it cannot be used correctly unless
+.Brq Va NAME_MAX
+is a fixed value.
+.Ef
+.Pp
 The
 .Fn opendir
 function
@@ -100,6 +112,7 @@ or to modify the state of the associated description other than by means
 of
 .Fn closedir ,
 .Fn readdir ,
+.Fn readdir_r ,
 or
 .Fn rewinddir ,
 the behavior is undefined.
@@ -129,6 +142,34 @@ In the event of an error,
 may be set to any of the values documented for the
 .Xr getdirentries 2
 system call.
+.Pp
+The
+.Fn readdir_r
+function
+provides the same functionality as
+.Fn readdir ,
+but the caller must provide a directory
+.Fa entry
+buffer to store the results in.
+The buffer must be large enough for a
+.Vt struct dirent
+with a
+.Va d_name
+array with
+.Brq Va NAME_MAX
++ 1 elements.
+If the read succeeds,
+.Fa result
+is pointed at the
+.Fa entry ;
+upon reaching the end of the directory
+.Fa result
+is set to
+.Dv NULL .
+The
+.Fn readdir_r
+function
+returns 0 on success or an error number to indicate failure.
 .Pp
 The
 .Fn telldir
@@ -264,7 +305,9 @@ is not associated with a directory.
 .Pp
 The
 .Fn readdir
-function may also fail and set
+and
+.Fn readdir_r
+functions may also fail and set
 .Va errno
 for any of the errors specified for the routine
 .Xr getdents 2 .
@@ -295,6 +338,7 @@ The
 .Fn fdopendir ,
 .Fn opendir ,
 .Fn readdir ,
+.Fn readdir_r ,
 .Fn rewinddir ,
 .Fn seekdir
 and
@@ -347,8 +391,7 @@ will always set the correct location to return the same value as that last
 .Fn readdir
 performed.
 This is enough for some applications which want to
-.Dq push back the last entry read ,
-e.g. Samba.
+"push back the last entry read", e.g., Samba.
 Seeks back to any other location,
 other than the beginning of the directory,
 may result in unexpected behaviour if deletes are present.
