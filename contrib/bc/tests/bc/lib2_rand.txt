@@ -1,0 +1,11 @@
+b = brand()
+b < 2
+b >= 0
+i = irand(maxrand() + 1)
+i <= maxrand()
+i >= 0
+f = frand(10)
+scale(f) == 10
+fi = ifrand(123, 28)
+scale(fi) == 28
+fi < 128

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -444,108 +444,77 @@ define void uint64(x){uintn(x,8)}
 define void int64(x){intn(x,8)}
 define void uint(x){uintn(x,ubytes(x))}
 define void int(x){intn(x,sbytes(x))}
-define bunrev(t){
-	auto a,s,m[]
-	s=scale
-	scale=0
-	t=abs(t)$
-	while(t!=1){
-		t=divmod(t,2,m[])
-		a*=2
-		a+=m[0]
-	}
-	scale=s
-	return a
-}
 define band(a,b){
-	auto s,t,m[],n[]
+	auto r,p,s,m[]
 	a=abs(a)$
 	b=abs(b)$
-	if(b>a){
-		t=b
-		b=a
-		a=t
-	}
+	r=0
+	p=1
 	s=scale
 	scale=0
-	t=1
-	while(b){
+	while(a&&b) {
 		a=divmod(a,2,m[])
-		b=divmod(b,2,n[])
-		t*=2
-		t+=(m[0]&&n[0])
+		if(m[0]){
+			b=divmod(b,2,m[])
+			if(m[0])r+=p
+		}else b/=2
+		p*=2
 	}
 	scale=s
-	return bunrev(t)
+	return r
 }
 define bor(a,b){
-	auto s,t,m[],n[]
+	auto r,p,s,m[]
 	a=abs(a)$
 	b=abs(b)$
-	if(b>a){
-		t=b
-		b=a
-		a=t
-	}
+	r=0
+	p=1
 	s=scale
 	scale=0
-	t=1
-	while(b){
+	while(a||b){
 		a=divmod(a,2,m[])
-		b=divmod(b,2,n[])
-		t*=2
-		t+=(m[0]||n[0])
-	}
-	while(a){
-		a=divmod(a,2,m[])
-		t*=2
-		t+=m[0]
+		if(!m[0])b=divmod(b,2,m[])
+		else b/=2
+		if(m[0])r+=p
+		p*=2
 	}
 	scale=s
-	return bunrev(t)
+	return r
 }
 define bxor(a,b){
-	auto s,t,m[],n[]
+	auto r,p,s,m[],n[]
 	a=abs(a)$
 	b=abs(b)$
-	if(b>a){
-		t=b
-		b=a
-		a=t
-	}
+	r=0
+	p=1
 	s=scale
 	scale=0
-	t=1
-	while(b){
+	while(a||b){
 		a=divmod(a,2,m[])
 		b=divmod(b,2,n[])
-		t*=2
-		t+=(m[0]+n[0]==1)
-	}
-	while(a){
-		a=divmod(a,2,m[])
-		t*=2
-		t+=m[0]
+		if(m[0]+n[0]==1)r+=p
+		p*=2
 	}
 	scale=s
-	return bunrev(t)
+	return r
 }
 define bshl(a,b){return abs(a)$*2^abs(b)$}
 define bshr(a,b){return(abs(a)$/2^abs(b)$)$}
 define bnotn(x,n){
-	auto s,t,m[]
+	auto r,p,s,t,m[]
 	s=scale
 	scale=0
-	t=2^(abs(n)$*8)
-	x=abs(x)$%t+t
-	t=1
+	r=2^(abs(n)$*8)
+	x=abs(x)$%r+r
+	r=0
+	p=1
 	while(x!=1){
 		x=divmod(x,2,m[])
-		t*=2
-		t+=!m[0]
+		if(!m[0])r+=p
+		p*=2
 	}
 	scale=s
-	return bunrev(t)
+	return r
 }
 define bnot8(x){return bnotn(x,1)}
 define bnot16(x){return bnotn(x,2)}
@@ -553,13 +522,19 @@ define bnot32(x){return bnotn(x,4)}
 define bnot64(x){return bnotn(x,8)}
 define bnot(x){return bnotn(x,ubytes(x))}
 define brevn(x,n){
-	auto s,t,m[]
+	auto a,s,m[]
 	s=scale
 	scale=0
-	t=2^(abs(n)$*8)
-	x=abs(x)$%t+t
+	a=2^(abs(n)$*8)
+	x=abs(x)$%a+a
+	a=0
+	while(x!=1){
+		x=divmod(x,2,m[])
+		a*=2
+		a+=m[0]
+	}
 	scale=s
-	return bunrev(x)
+	return a
 }
 define brev8(x){return brevn(x,1)}
 define brev16(x){return brevn(x,2)}

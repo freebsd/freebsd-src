@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2025 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -128,7 +128,7 @@ def write_str(child, s):
 def bc_banner(child):
 	bc_banner1 = "bc [0-9]+\\.[0-9]+\\.[0-9]+\r\n"
 	bc_banner2 = "Copyright \\(c\\) 2018-[2-9][0-9][0-9][0-9] Gavin D. Howard and contributors\r\n"
-	bc_banner3 = "Report bugs at: https://git.gavinhoward.com/gavin/bc\r\n\r\n"
+	bc_banner3 = "Report bugs at: https://github.com/gavinhoward/bc\r\n\r\n"
 	bc_banner4 = "This is free software with ABSOLUTELY NO WARRANTY.\r\n\r\n"
 	expect(child, bc_banner1)
 	expect(child, bc_banner2)

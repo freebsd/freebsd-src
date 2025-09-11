@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -199,6 +199,7 @@ bc_history_init(BcHistory* h)
 
 	h->el = el_init(vm->name, stdin, stdout, stderr);
 	if (BC_ERR(h->el == NULL)) bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
+	el_set(h->el, EL_SIGNAL, 1);
 
 	// I want history and a prompt.
 	history(h->hist, &bc_history_event, H_SETSIZE, 100);
@@ -264,18 +265,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	errno = EINTR;
 
 	// Get the line.
-	//
-	// XXX: Why have a macro here? Because macOS needs to be special. Honestly,
-	// it's starting to feel special like Windows at this point. Anyway, the
-	// second SIGWINCH signal of multiple will  return a valid line length on
-	// macOS, so we need to allow for that on macOS. However, FreeBSD's editline
-	// is different and will mess up the terminal if we do it that way.
-	//
-	// There is one limitation with this, however: Ctrl+D won't work on macOS.
-	// But it's because of macOS that this problem exists, and I can't really do
-	// anything about it. So macOS should fix their broken editline; once they
-	// do, I'll fix Ctrl+D on macOS.
-	while (BC_HISTORY_INVALID_LINE(line, len))
+	while (line == NULL && len == -1 && errno == EINTR)
 	{
 		line = el_gets(h->el, &len);
 		bc_history_use_prompt = false;

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2025 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -533,6 +533,10 @@ typedef enum BcType
 } BcType;
 
 #if BC_ENABLED
+
+/// Check if type array or array reference
+#define BC_IS_ARRAY(e) (e == BC_TYPE_ARRAY || e == BC_TYPE_REF)
+
 /// An auto variable in bc.
 typedef struct BcAuto
 {

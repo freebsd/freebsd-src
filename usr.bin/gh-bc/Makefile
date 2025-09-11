@@ -4,6 +4,7 @@ PROG=		gh-bc
 PROGNAME=	bc
 
 BCDIR=		${SRCTOP}/contrib/${PROGNAME}
+VERSION!=	cat ${SRCTOP}/contrib/${PROGNAME}/VERSION.txt
 
 SRCS=		args.c bc.c bc_lex.c bc_parse.c data.c dc.c dc_lex.c dc_parse.c file.c history.c
 SRCS+=		lang.c lex.c main.c num.c opt.c parse.c program.c rand.c read.c vector.c  vm.c
@@ -31,6 +32,8 @@ CATALOGS+=	zh_CN.UTF-8 zh_CN.eucCN zh_CN.GB18030 zh_CN.GB2312 zh_CN.GBK
 NLSNAME=	bc
 NLSSRCDIR=	${BCDIR}/locales
 
+CFLAGS+=	-I${BCDIR}/include
+
 CFLAGS+=	-DBC_DEFAULT_BANNER=0
 CFLAGS+=	-DBC_DEFAULT_DIGIT_CLAMP=0
 CFLAGS+=	-DBC_DEFAULT_EXPR_EXIT=1
@@ -57,7 +60,8 @@ CFLAGS+=	-DBUILD_TYPE=A
 CFLAGS+=	-DMAINEXEC=${PROGNAME}
 CFLAGS+=	-DNDEBUG
 CFLAGS+=	-DNLSPATH=/usr/share/nls/%L/%N.cat
-CFLAGS+=	-I${BCDIR}/include
+
+CFLAGS+=	-DVERSION=${VERSION}
 
 # prevent floating point incompatibilities caused by -flto on some architectures
 .if ${MACHINE_ARCH} != riscv64
