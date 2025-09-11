@@ -311,10 +311,10 @@ local function addsudo(pwd)
 	end
 	f:close()
 	if chmodsudoers then
-		chmod(sudoers, "0640")
+		chmod(sudoers, "0440")
 	end
 	if chmodsudoersd then
-		chmod(sudoers, "0740")
+		chmod(sudoers_dir, "0750")
 	end
 end
 
