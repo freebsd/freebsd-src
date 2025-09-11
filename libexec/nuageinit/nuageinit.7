@@ -308,7 +308,14 @@ Ignored if an encrypted password is already provided.
 Boolean to determine if the user account should be locked.
 .It Ic sudo
 A string or an array of strings which should be appended to
-.Pa /usr/local/etc/sudoers.d/90-nuageinit-users
+.Pa ${LOCALBASE}/etc/sudoers.d/90-nuageinit-users
+.It Ic doas
+A string or an array of strings which should be appended to
+.Pa ${LOCALBASE}/etc/doas.conf
+.Pp
+Instead of hardcoding the username, you can use
+.Sy %u Ns ,
+which will be replaced by the current username.
 .El
 .Pp
 A special case exist: if the entry is a simple string with the value
