@@ -39,8 +39,21 @@ cleanup() {
 }
 
 metalog_add_data() {
+	local file mode type
+
 	if [ -n "${NO_ROOT}" ]; then
-		echo "$1 type=file uname=root gname=wheel mode=0644" >> \
+		file=$1
+		if [ -f ${DESTDIR}/${file} ]; then
+			type=file
+			mode=${2:-0644}
+		elif [ -d ${DESTDIR}/${file} ]; then
+			type=dir
+			mode=${2:-0755}
+		else
+			echo "metalog_add_data: ${file} not found" >&2
+			return 1
+		fi
+		echo "${file} type=${type} uname=root gname=wheel mode=${mode}" >> \
 		    ${DESTDIR}/METALOG
 	fi
 }
