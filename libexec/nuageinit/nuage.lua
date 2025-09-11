@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright(c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
+-- Copyright(c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 
 local unistd = require("posix.unistd")
 local sys_stat = require("posix.sys.stat")
