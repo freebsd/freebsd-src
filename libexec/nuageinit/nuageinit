@@ -583,6 +583,26 @@ local function config2_network(p)
 	routing:close()
 end
 
+local function parse_network_config()
+	local nc_file = ni_path .. "/network-config"
+	local nc_file_attr = lfs.attributes(nc_file)
+	if nc_file_attr == nil then
+		return
+	end
+	local f, err = io.open(nc_file)
+	if err then
+		nuage.err("error parsing nocloud network-config: " .. err)
+	end
+	local obj = yaml.load(f:read("*a"))
+	f:close()
+	if not obj then
+		nuage.err("error parsing nocloud network-config")
+	end
+	local netobj = {}
+	netobj["network"] = obj
+	return netobj
+end
+
 if citype == "config-2" then
 	local parser = ucl.parser()
 	local res, err = parser:parse_file(ni_path .. "/meta_data.json")
@@ -679,7 +699,16 @@ if line == "#cloud-config" then
 	end
 
 	for i = 1, #calls_table do
-		calls_table[i](obj)
+		if citype == "nocloud" and calls_table[i] == network_config then
+			netobj = parse_network_config()
+			if netobj == nil then
+				network_config(obj)
+			else
+				network_config(netobj)
+			end
+		else
+			calls_table[i](obj)
+		end
 	end
 elseif line:sub(1, 2) == "#!" then
 	-- delay for execution at rc.local time --

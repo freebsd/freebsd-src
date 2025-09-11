@@ -183,6 +183,13 @@ configuration in
 .Pa /etc/ssh/sshd_config
 .It Ic network
 Network configuration parameters.
+.Pp
+Specifying the following parameters from a file named
+.Pa network-config
+takes precedence over their specification from the
+.Ic network
+parameter of
+.Pa user-data Ns .
 .Bl -tag -width "ethernets"
 .It Ic ethernets
 Mapping representing a generic configuration for existing network interfaces.
