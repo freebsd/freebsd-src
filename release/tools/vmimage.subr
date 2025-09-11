@@ -185,7 +185,6 @@ vm_extra_enable_services() {
 			${DESTDIR}/etc/rc.conf
 		# Expand the filesystem to fill the disk.
 		echo 'growfs_enable="YES"' >> ${DESTDIR}/etc/rc.conf
-		touch ${DESTDIR}/firstboot
 	fi
 
 	return 0
@@ -396,6 +395,11 @@ vm_create_disk() {
 			>> ${DESTDIR}/etc/fstab
 	fi
 
+	# Add a marker file which indicates that this image has never
+	# been booted.  Some services run only upon the first boot.
+	touch ${DESTDIR}/firstboot
+	metalog_add_data ./firstboot
+
 	echo "Building filesystem...  Please wait."
 	buildfs
 
@@ -419,9 +423,4 @@ vm_create_disk() {
 vm_extra_create_disk() {
 
 	return 0
-}
-
-touch_firstboot() {
-	touch ${DESTDIR}/firstboot
-	metalog_add_data ./firstboot
 }
