@@ -10942,23 +10942,15 @@ iwx_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_AES_CCM) {
 		return 1;
 	}
-	if (!(&vap->iv_nw_keys[0] <= k &&
-	     k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
-		/*
-		 * Not in the global key table, the driver should handle this
-		 * by allocating a slot in the h/w key table/cache.  In
-		 * lieu of that return key slot 0 for any unicast key
-		 * request.  We disallow the request if this is a group key.
-		 * This default policy does the right thing for legacy hardware
-		 * with a 4 key table.  It also handles devices that pass
-		 * packets through untouched when marked with the WEP bit
-		 * and key index 0.
-		 */
-		if (k->wk_flags & IEEE80211_KEY_GROUP)
-			return 0;
+
+	if (ieee80211_is_key_unicast(vap, k)) {
 		*keyix = 0;	/* NB: use key index 0 for ucast key */
-	} else {
+	} else if (ieee80211_is_key_global(vap, k)) {
 		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
+	} else {
+		net80211_vap_printf(vap, "%s: invalid crypto key type\n",
+		    __func__);
+		return (0);
 	}
 	*rxkeyix = IEEE80211_KEYIX_NONE;	/* XXX maybe *keyix? */
 	return 1;
@@ -10978,7 +10970,6 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		return 1;
 	}
 
-	IWX_LOCK(sc);
 	/*
 	 * Keys are stored in 'ni' so 'k' is valid if 'ni' is valid.
 	 * Currently we only implement station mode where 'ni' is always
@@ -10987,26 +10978,33 @@ iwx_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	if (k->wk_flags & IEEE80211_KEY_GROUP) {
+	if (ieee80211_is_key_global(vap, k)) {
+		id = ieee80211_crypto_get_key_wepidx(vap, k);
 		DPRINTF(("%s: adding group key\n", __func__));
-	} else {
+	} else if (ieee80211_is_key_unicast(vap, k)) {
 		DPRINTF(("%s: adding key\n", __func__));
+		id = 0; /* net80211 currently only supports unicast key 0 */
+	} else {
+		net80211_vap_printf(vap, "%s: unknown key type\n", __func__);
+		return (ENXIO);
 	}
-	if (k >= &vap->iv_nw_keys[0] &&
-	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
-		id = (k - vap->iv_nw_keys);
-	else
-		id = (0);
+
+	IWX_LOCK(sc);
+
 	DPRINTF(("%s: setting keyid=%i\n", __func__, id));
 	cmd.common.key_flags = htole16(IWX_STA_KEY_FLG_CCM |
 	    IWX_STA_KEY_FLG_WEP_KEY_MAP |
 	    ((id << IWX_STA_KEY_FLG_KEYID_POS) &
 	    IWX_STA_KEY_FLG_KEYID_MSK));
-	if (k->wk_flags & IEEE80211_KEY_GROUP) {
+	if (ieee80211_is_key_global(vap, k)) {
 		cmd.common.key_offset = 1;
 		cmd.common.key_flags |= htole16(IWX_STA_KEY_MULTICAST);
-	} else {
+	} else if (ieee80211_is_key_unicast(vap, k)) {
 		cmd.common.key_offset = 0;
+	} else {
+		net80211_vap_printf(vap, "%s: unknown key type\n", __func__);
+		IWX_UNLOCK(sc);
+		return (ENXIO);
 	}
 	memcpy(cmd.common.key, k->wk_key, MIN(sizeof(cmd.common.key),
 	    k->wk_keylen));
