@@ -1,4 +1,10 @@
-comment = "FWGET Utility"
+comment = "Install firmware packages for the running system"
+
 desc = <<EOD
-FWGET Utility
+The fwget(8) utility can be used to detect and install firmware packages for
+hardware devices present on a running system.
 EOD
+
+annotations {
+	set = minimal
+}

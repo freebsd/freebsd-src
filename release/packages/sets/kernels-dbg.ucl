@@ -1,0 +1,6 @@
+comment = "Base system kernels debugging symbols (metapackage)"
+
+desc = <<EOD
+This metapackage installs debugging symbols for the operating system kernels
+provided with the base system.
+EOD

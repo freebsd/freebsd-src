@@ -1,5 +1,10 @@
 comment = "Userland PPP implementation"
+
 desc = <<EOD
 ppp(8) is a userland implementations of the Point to Point Protocol for serial
 lines and Ethernet (PPPoE).
 EOD
+
+annotations {
+	set = minimal
+}

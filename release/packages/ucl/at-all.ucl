@@ -2,3 +2,7 @@ comment = "AT Utilities"
 desc = <<EOD
 AT Utilities
 EOD
+
+annotations {
+	set = minimal
+}

@@ -1,4 +1,11 @@
-comment = "Rescue Utilities"
+comment = "Rescue system"
+
 desc = <<EOD
-Rescue Utilities
+The rescue system, installed in /rescue, provides a basic set of tools that
+may be used to recover from a system failure which prevents the standard
+utilities from working.
 EOD
+
+annotations {
+	set = minimal
+}

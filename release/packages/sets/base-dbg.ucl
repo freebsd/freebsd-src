@@ -1,0 +1,16 @@
+comment = "Base system debug symbols (metapackage)"
+
+desc = <<EOD
+This metapackage installs debugging symbols for the complete base system.
+EOD
+
+deps {
+	"set-minimal-dbg" {
+		version = "${VERSION}"
+		origin = "base"
+	},
+	"set-devel-dbg" {
+		version = "${VERSION}"
+		origin = "base"
+	}
+}

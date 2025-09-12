@@ -1,4 +1,9 @@
 comment = "Locale definitions"
+
 desc = <<EOD
 Provides the locale definitions (LC_*) for supported locales.
 EOD
+
+annotations {
+	set = minimal
+}

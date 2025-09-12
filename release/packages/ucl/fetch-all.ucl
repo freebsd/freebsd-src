@@ -1,4 +1,10 @@
-comment = "Fetch Utility"
+comment = "Retrieve a file from a remote URL"
+
 desc = <<EOD
-Fetch Utility
+The fetch(1) utility can be used to retieve files from a remote URL via
+HTTP or FTP.
 EOD
+
+annotations {
+	set = minimal
+}

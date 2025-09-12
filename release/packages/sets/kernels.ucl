@@ -1,0 +1,6 @@
+comment = "Base system kernels (metapackage)"
+
+desc = <<EOD
+This metapackage installs the operating system kernels provided with the
+base system.
+EOD

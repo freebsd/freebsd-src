@@ -1,4 +1,5 @@
 vital: true
+
 scripts: {
     post-install = <<EOD
     pwd_mkdb -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd

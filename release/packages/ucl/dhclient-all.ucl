@@ -1,4 +1,9 @@
 comment = "DHCP Client"
+
 desc = <<EOD
 DHCP Client
 EOD
+
+annotations {
+	set = minimal
+}

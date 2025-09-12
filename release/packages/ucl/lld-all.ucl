@@ -4,3 +4,7 @@ ld.lld is the ELF linker provided by LLVM.
 EOD
 
 licenses = [ NCSA ]
+
+annotations {
+	set = devel
+}
