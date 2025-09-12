@@ -25,8 +25,7 @@
 # SUCH DAMAGE.
 #
 
-PROGS=	cryptocheck cryptotest cryptostats \
-	hifnstats ipsecstats safestats
+PROGS=	cryptocheck cryptostats hifnstats ipsecstats safestats
 MAN=
 BINDIR?=	/usr/local/bin
 
@@ -37,7 +36,5 @@ LIBADD.cryptocheck+=	crypto util
 # hifnstats: print statistics kept by the HIFN driver
 # safestats: statistics kept by the SafeNet driver
 # ipsecstats: print statistics kept by fast ipsec
-
-CLEANFILES+=	core a.out
 
 .include <bsd.progs.mk>
