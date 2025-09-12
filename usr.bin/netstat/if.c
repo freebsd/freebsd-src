@@ -282,7 +282,8 @@ next_ifma(struct ifmaddrs *ifma, const char *name, const sa_family_t family)
 
 		sdl = (struct sockaddr_dl *)ifma->ifma_name;
 		if (ifma->ifma_addr->sa_family == family &&
-		    strcmp(sdl->sdl_data, name) == 0)
+		    sdl->sdl_nlen == strlen(name) &&
+		    strncmp(sdl->sdl_data, name, sdl->sdl_nlen) == 0)
 			break;
 	}
 
