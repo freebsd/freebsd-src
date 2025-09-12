@@ -601,11 +601,9 @@ main(void)
         test_run(TT_TIMESTAMP, i, 1,
           "send()/recvmsg(), setsockopt(SO_TIMESTAMP, 1)");
         printf("OK\n");
-        if (i == 0) {
-            test_run(TT_BINTIME, i, 1,
-              "send()/recvmsg(), setsockopt(SO_BINTIME, 1)");
-            printf("OK\n");
-        }
+        test_run(TT_BINTIME, i, 1,
+          "send()/recvmsg(), setsockopt(SO_BINTIME, 1)");
+        printf("OK\n");
         test_run(TT_REALTIME_MICRO, i, 1,
           "send()/recvmsg(), setsockopt(SO_TS_CLOCK, SO_TS_REALTIME_MICRO)");
         printf("OK\n");
