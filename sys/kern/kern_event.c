@@ -51,6 +51,7 @@
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
+#include <sys/jaildesc.h>
 #include <sys/kthread.h>
 #include <sys/selinfo.h>
 #include <sys/queue.h>
@@ -376,6 +377,7 @@ static struct {
 	[~EVFILT_SENDFILE] = { &null_filtops },
 	[~EVFILT_EMPTY] = { &file_filtops, 1 },
 	[~EVFILT_JAIL] = { &jail_filtops, 1 },
+	[~EVFILT_JAILDESC] = { &file_filtops, 1 },
 };
 
 /*
@@ -682,15 +684,15 @@ filt_jail(struct knote *kn, long hint)
 	    (u_int)hint & NOTE_JAIL_CTRLMASK;
 
 	/* If the user is interested in this event, record it. */
-	if (kn->kn_sfflags & event)
+	if (kn->kn_sfflags & event) {
 		kn->kn_fflags |= event;
-
-	/* Report the created jail id or attached process id. */
-	if (event == NOTE_JAIL_CHILD || event == NOTE_JAIL_ATTACH) {
-		if (kn->kn_data != 0)
-			kn->kn_fflags |= NOTE_JAIL_MULTI;
-		kn->kn_data = (kn->kn_fflags & NOTE_JAIL_MULTI) ? 0U :
-		    (u_int)hint & ~event;
+		/* Report the created jail id or attached process id. */
+		if (event == NOTE_JAIL_CHILD || event == NOTE_JAIL_ATTACH) {
+			if (kn->kn_data != 0)
+				kn->kn_fflags |= NOTE_JAIL_MULTI;
+			kn->kn_data = (kn->kn_fflags & NOTE_JAIL_MULTI) ? 0U :
+			    (u_int)hint & ~event;
+		}
 	}
 
 	/* Prison is gone, so flag the event as finished. */

@@ -36,6 +36,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/poll.h>
 #include <sys/priv.h>
 #include <sys/stat.h>
 #include <sys/sysproto.h>
@@ -46,6 +47,8 @@
 
 MALLOC_DEFINE(M_JAILDESC, "jaildesc", "jail descriptors");
 
+static fo_poll_t	jaildesc_poll;
+static fo_kqfilter_t	jaildesc_kqfilter;
 static fo_stat_t	jaildesc_stat;
 static fo_close_t	jaildesc_close;
 static fo_fill_kinfo_t	jaildesc_fill_kinfo;
@@ -56,8 +59,8 @@ static struct fileops jaildesc_ops = {
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,
 	.fo_ioctl = invfo_ioctl,
-	.fo_poll = invfo_poll,
-	.fo_kqfilter = invfo_kqfilter,
+	.fo_poll = jaildesc_poll,
+	.fo_kqfilter = jaildesc_kqfilter,
 	.fo_stat = jaildesc_stat,
 	.fo_close = jaildesc_close,
 	.fo_chmod = invfo_chmod,
@@ -135,6 +138,7 @@ jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning)
 	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0 ?
 	    FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
 	JAILDESC_LOCK_INIT(jd);
+	knlist_init_mtx(&jd->jd_selinfo.si_note, &jd->jd_lock);
 	if (owning)
 		jd->jd_flags |= JDF_OWNING;
 	*fpp = fp;
@@ -173,6 +177,36 @@ jaildesc_prison_cleanup(struct prison *pr)
 		jd->jd_prison = NULL;
 		JAILDESC_UNLOCK(jd);
 		prison_free(pr);
+	}
+}
+
+/*
+ * Pass a note to all listening kqueues.
+ */
+void
+jaildesc_knote(struct prison *pr, long hint)
+{
+	struct jaildesc *jd;
+	int prison_locked;
+
+	if (!LIST_EMPTY(&pr->pr_descs)) {
+		prison_locked = mtx_owned(&pr->pr_mtx);
+		if (!prison_locked)
+			prison_lock(pr);
+		LIST_FOREACH(jd, &pr->pr_descs, jd_list) {
+			JAILDESC_LOCK(jd);
+			if (hint == NOTE_JAIL_REMOVE) {
+				jd->jd_flags |= JDF_REMOVED;
+				if (jd->jd_flags & JDF_SELECTED) {
+					jd->jd_flags &= ~JDF_SELECTED;
+					selwakeup(&jd->jd_selinfo);
+				}
+			}
+			KNOTE_LOCKED(&jd->jd_selinfo.si_note, hint);
+			JAILDESC_UNLOCK(jd);
+		}
+		if (!prison_locked)
+			prison_unlock(pr);
 	}
 }
 
@@ -223,10 +257,110 @@ jaildesc_close(struct file *fp, struct thread *td)
 			}
 			prison_free(pr);
 		}
+		knlist_destroy(&jd->jd_selinfo.si_note);
 		JAILDESC_LOCK_DESTROY(jd);
 		free(jd, M_JAILDESC);
 	}
 	return (0);
+}
+
+static int
+jaildesc_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct jaildesc *jd;
+	int revents;
+
+	revents = 0;
+	jd = fp->f_data;
+	JAILDESC_LOCK(jd);
+	if (jd->jd_flags & JDF_REMOVED)
+		revents |= POLLHUP;
+	if (revents == 0) {
+		selrecord(td, &jd->jd_selinfo);
+		jd->jd_flags |= JDF_SELECTED;
+	}
+	JAILDESC_UNLOCK(jd);
+	return (revents);
+}
+
+static void
+jaildesc_kqops_detach(struct knote *kn)
+{
+	struct jaildesc *jd;
+
+	jd = kn->kn_fp->f_data;
+	knlist_remove(&jd->jd_selinfo.si_note, kn, 0);
+}
+
+static int
+jaildesc_kqops_event(struct knote *kn, long hint)
+{
+	struct jaildesc *jd;
+	u_int event;
+
+	jd = kn->kn_fp->f_data;
+	if (hint == 0) {
+		/*
+		 * Initial test after registration. Generate a
+		 * NOTE_JAIL_REMOVE in case the prison already died
+		 * before registration.
+		 */
+		event = jd->jd_flags & JDF_REMOVED ? NOTE_JAIL_REMOVE : 0;
+	} else {
+		/*
+		 * Mask off extra data.  In the NOTE_JAIL_CHILD case,
+		 * that's everything except the NOTE_JAIL_CHILD bit
+		 * itself, since a JID is any positive integer.
+		 */
+		event = ((u_int)hint & NOTE_JAIL_CHILD) ? NOTE_JAIL_CHILD :
+		    (u_int)hint & NOTE_JAIL_CTRLMASK;
+	}
+
+	/* If the user is interested in this event, record it. */
+	if (kn->kn_sfflags & event) {
+		kn->kn_fflags |= event;
+		/* Report the created jail id or attached process id. */
+		if (event == NOTE_JAIL_CHILD || event == NOTE_JAIL_ATTACH) {
+			if (kn->kn_data != 0)
+				kn->kn_fflags |= NOTE_JAIL_MULTI;
+			kn->kn_data = (kn->kn_fflags & NOTE_JAIL_MULTI) ? 0U :
+			    (u_int)hint & ~event;
+		}
+	}
+
+	/* Prison is gone, so flag the event as finished. */
+	if (event == NOTE_JAIL_REMOVE) {
+		kn->kn_flags |= EV_EOF | EV_ONESHOT;
+		if (kn->kn_fflags == 0)
+			kn->kn_flags |= EV_DROP;
+		return (1);
+	}
+
+	return (kn->kn_fflags != 0);
+}
+
+static const struct filterops jaildesc_kqops = {
+	.f_isfd = 1,
+	.f_detach = jaildesc_kqops_detach,
+	.f_event = jaildesc_kqops_event,
+};
+
+static int
+jaildesc_kqfilter(struct file *fp, struct knote *kn)
+{
+	struct jaildesc *jd;
+
+	jd = fp->f_data;
+	switch (kn->kn_filter) {
+	case EVFILT_JAILDESC:
+		kn->kn_fop = &jaildesc_kqops;
+		kn->kn_flags |= EV_CLEAR;
+		knlist_add(&jd->jd_selinfo.si_note, kn, 0);
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 static int

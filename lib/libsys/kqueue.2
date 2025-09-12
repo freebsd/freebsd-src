@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 11, 2025
+.Dd September 12, 2025
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -638,6 +638,19 @@ or
 .Dv NOTE_JAIL_CHILD
 event has been received since the last call to
 .Fn kevent .
+.It Dv EVFILT_JAILDESC
+Takes a jail descriptor returned by
+.Xr jail_set 2
+or
+.Xr jail_get 2
+as the identifier and the events to watch for in
+.Va fflags ,
+and returns when the jail performs one or more of the requested events.
+The events to monitor and the resulting
+.Va fflags
+are the same as those listed in
+.Dv EVFILT_JAIL ,
+above.
 .It Dv EVFILT_TIMER
 Establishes an arbitrary timer identified by
 .Va ident .
