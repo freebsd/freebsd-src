@@ -119,7 +119,8 @@ tap_init(struct net_backend *be, const char *devname,
 		goto error;
 	}
 
-	if (ioctl(be->fd, VMIO_SIOCSIFFLAGS, up)) {
+	if (strncmp("ngd", be->prefix, 3) &&
+	    ioctl(be->fd, VMIO_SIOCSIFFLAGS, up)) {
 		EPRINTLN("tap device link up failed");
 		goto error;
 	}
@@ -273,8 +274,24 @@ static struct net_backend vmnet_backend = {
 	.set_cap = tap_set_cap,
 };
 
+/* A clone of the tap backend, with a different prefix. */
+static struct net_backend ngd_backend = {
+	.prefix = "ngd",
+	.priv_size = sizeof(struct tap_priv),
+	.init = tap_init,
+	.cleanup = tap_cleanup,
+	.send = tap_send,
+	.peek_recvlen = tap_peek_recvlen,
+	.recv = tap_recv,
+	.recv_enable = tap_recv_enable,
+	.recv_disable = tap_recv_disable,
+	.get_cap = tap_get_cap,
+	.set_cap = tap_set_cap,
+};
+
 DATA_SET(net_backend_set, tap_backend);
 DATA_SET(net_backend_set, vmnet_backend);
+DATA_SET(net_backend_set, ngd_backend);
 
 int
 netbe_legacy_config(nvlist_t *nvl, const char *opts)
