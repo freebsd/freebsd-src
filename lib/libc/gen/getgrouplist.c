@@ -29,14 +29,8 @@
  * SUCH DAMAGE.
  */
 
-/*
- * get credential
- */
 #include <sys/types.h>
 
-#include <grp.h>
-#include <string.h>
-#include <unistd.h>
 #include <ssp/ssp.h>
 
 extern int __getgroupmembership(const char *, gid_t, gid_t *, int, int *);
@@ -46,4 +40,3 @@ __ssp_real(getgrouplist)(const char *uname, gid_t agroup, gid_t *groups, int *gr
 {
 	return __getgroupmembership(uname, agroup, groups, *grpcnt, grpcnt);
 }
-
