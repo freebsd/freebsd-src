@@ -29,6 +29,8 @@ FILES=	cli.lua \
 	gfx-orbbw.lua \
 	menu.lua \
 	password.lua \
+	object.lua \
+	walk.lua \
 	screen.lua
 
 .include <bsd.prog.mk>
