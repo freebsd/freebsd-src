@@ -2221,9 +2221,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 */
 	if (created) {
 		sx_assert(&allprison_lock, SX_XLOCKED);
-		mtx_lock(&ppr->pr_mtx);
-		knote_fork(ppr->pr_klist, pr->pr_id);
-		mtx_unlock(&ppr->pr_mtx);
+		prison_knote(ppr, NOTE_JAIL_CHILD | pr->pr_id);
 		mtx_lock(&pr->pr_mtx);
 		drflags |= PD_LOCKED;
 		pr->pr_state = PRISON_STATE_ALIVE;
