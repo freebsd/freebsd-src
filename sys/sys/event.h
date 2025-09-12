@@ -46,7 +46,8 @@
 #define EVFILT_SENDFILE		(-12)	/* attached to sendfile requests */
 #define EVFILT_EMPTY		(-13)	/* empty send socket buf */
 #define EVFILT_JAIL		(-14)	/* attached to struct prison */
-#define EVFILT_SYSCOUNT		14
+#define EVFILT_JAILDESC		(-15)	/* attached to jail descriptors */
+#define EVFILT_SYSCOUNT		15
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 #define	EV_SET(kevp_, a, b, c, d, e, f) do {	\
@@ -210,7 +211,7 @@ struct freebsd11_kevent32 {
 #define	NOTE_TRACKERR	0x00000002		/* could not track child */
 #define	NOTE_CHILD	0x00000004		/* am a child process */
 
-/* data/hint flags for EVFILT_JAIL */
+/* data/hint flags for EVFILT_JAIL and EVFILT_JAILDESC */
 #define	NOTE_JAIL_CHILD		0x80000000	/* child jail was created */
 #define	NOTE_JAIL_SET		0x40000000	/* jail was modified */
 #define	NOTE_JAIL_ATTACH	0x20000000	/* jail was attached to */

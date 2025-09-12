@@ -5371,6 +5371,7 @@ prison_knote(struct prison *pr, long hint)
 	if (!locked)
 		mtx_lock(&pr->pr_mtx);
 	KNOTE_LOCKED(pr->pr_klist, hint);
+	jaildesc_knote(pr, hint);
 	if (!locked)
 		mtx_unlock(&pr->pr_mtx);
 }
