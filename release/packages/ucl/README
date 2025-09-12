@@ -1,0 +1,21 @@
+This directory contains package manifests for the base packages in UCL format.
+There are two types of manifest: "<package>.ucl" applies specifically to the
+package called "<package>", and "<package>-all.ucl" applies to all of that
+package's subpackages.
+
+For example, if a Makefile sets PACKAGE=foo, then the build might generate the
+following packages:
+
+	FreeBSD-foo
+	FreeBSD-foo-dev
+	FreeBSD-foo-lib32
+	FreeBSD-foo-man
+
+All of these packages will include "foo-all.ucl", but "foo.ucl" will only be
+included by FreeBSD-foo, "foo-dev.ucl" will only be included by FreeBSD-foo-dev,
+and so on.
+
+In general, dependencies and post-install scripts should be added in the
+package-specific manifests, while comment and description should be set
+in the "-all" manifest.
+

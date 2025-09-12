@@ -2,3 +2,7 @@ comment = "cron(8) and crontab(1)"
 desc = <<EOD
 cron(8) and crontab(1)
 EOD
+
+annotations {
+	set = minimal
+}

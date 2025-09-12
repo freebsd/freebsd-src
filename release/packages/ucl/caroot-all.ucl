@@ -2,3 +2,7 @@ comment = "SSL Certificates"
 desc = <<EOD
 SSL Certificates
 EOD
+
+annotations {
+	set = minimal
+}

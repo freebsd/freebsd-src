@@ -1,4 +1,9 @@
 comment = "CTF Utilities"
+
 desc = <<EOD
 CTF Utilities
 EOD
+
+annotations {
+	set = devel
+}

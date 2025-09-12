@@ -1,4 +1,10 @@
-comment = "Syslog Daemon"
+comment = "System logging daemon"
+
 desc = <<EOD
-Syslog Daemon
+The syslogd(8) daemon receives log messages from local and remote processes and
+writes them to an appropriate log file.
 EOD
+
+annotations {
+	set = minimal
+}

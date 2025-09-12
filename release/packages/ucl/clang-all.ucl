@@ -3,3 +3,7 @@ desc = <<EOD
 Clang Utilities
 EOD
 licenses = [ NCSA ]
+
+annotations {
+	set = devel
+}

@@ -1,4 +1,9 @@
 comment = "Devd Utility and scripts"
+
 desc = <<EOD
 Devd Utility and scripts
 EOD
+
+annotations {
+	set = minimal
+}

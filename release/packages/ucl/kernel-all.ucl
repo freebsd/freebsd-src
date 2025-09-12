@@ -1,4 +1,9 @@
 comment = "FreeBSD ${KERNEL_NAME} Kernel ${KERNEL_FLAVOR}"
+
 desc = <<EOD
 FreeBSD ${KERNEL_NAME} Kernel ${KERNEL_FLAVOR}
 EOD
+
+annotations {
+	set = kernels
+}

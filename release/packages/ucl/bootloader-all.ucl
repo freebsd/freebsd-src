@@ -2,3 +2,7 @@ comment = "Bootloader"
 desc = <<EOD
 Bootloader and configuration files
 EOD
+
+annotations {
+	set = minimal
+}

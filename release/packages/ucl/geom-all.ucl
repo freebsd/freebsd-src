@@ -1,4 +1,11 @@
-comment = "GEOM Utilitites"
+comment = "GEOM configuration utilities"
+
 desc = <<EOD
-GEOM Utilitites
+The geom(4) subsystem provides a modular, generic interface to manage disk
+devices, including disk partitioning, basic RAID, and block-level encryption.
+This package provides the command-line utilities used to manage GEOM.
 EOD
+
+annotations {
+	set = minimal
+}

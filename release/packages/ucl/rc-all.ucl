@@ -1,4 +1,11 @@
-comment = "RC Scripts"
+comment = "rc(8) subsystem"
+
 desc = <<EOD
-RC Scripts
+The rc(8) subsystem provides a method to start services at system startup and
+stop them at shutdown.  This package provides the rc(8) subsystem itself and
+the service scripts for the base system.
 EOD
+
+annotations {
+	set = minimal
+}

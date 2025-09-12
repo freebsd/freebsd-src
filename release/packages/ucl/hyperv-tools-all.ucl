@@ -1,4 +1,10 @@
-comment = "Microsoft HyperV Utilities"
+comment = "Microsoft Hyper-V utilities"
+
 desc = <<EOD
-Microsoft HyperV Utilities
+This package provides utilities used when running on the Microsoft Hyper-V
+virtualisation platform.
 EOD
+
+annotations {
+	set = minimal
+}
