@@ -205,19 +205,18 @@ struct freebsd11_kevent32 {
 #define	NOTE_PCTRLMASK	0xf0000000		/* mask for hint bits */
 #define	NOTE_PDATAMASK	0x000fffff		/* mask for pid */
 
-/* data/hint flags for EVFILT_JAIL */
-#define	NOTE_JAIL_SET		0x80000000	/* jail was modified */
-#define	NOTE_JAIL_CHILD		0x40000000	/* child jail was created */
-#define	NOTE_JAIL_ATTACH	0x20000000	/* jail was attached to */
-#define	NOTE_JAIL_REMOVE	0x10000000	/* jail was removed */
-#define NOTE_JAIL_ATTACH_MULTI	0x08000000	/* multiple procs attached */
-#define	NOTE_JAIL_CTRLMASK	0xf0000000	/* mask for hint bits */
-#define	NOTE_JAIL_DATAMASK	0x000fffff	/* mask for pid */
-
-/* additional flags for EVFILT_PROC and EVFILT_JAIL */
+/* additional flags for EVFILT_PROC */
 #define	NOTE_TRACK	0x00000001		/* follow across fork/create */
 #define	NOTE_TRACKERR	0x00000002		/* could not track child */
-#define	NOTE_CHILD	0x00000004		/* am a child process/jail */
+#define	NOTE_CHILD	0x00000004		/* am a child process */
+
+/* data/hint flags for EVFILT_JAIL */
+#define	NOTE_JAIL_CHILD		0x80000000	/* child jail was created */
+#define	NOTE_JAIL_SET		0x40000000	/* jail was modified */
+#define	NOTE_JAIL_ATTACH	0x20000000	/* jail was attached to */
+#define	NOTE_JAIL_REMOVE	0x10000000	/* jail was removed */
+#define NOTE_JAIL_MULTI		0x08000000	/* multiple child or attach */
+#define	NOTE_JAIL_CTRLMASK	0xf0000000	/* mask for hint bits */
 
 /* additional flags for EVFILT_TIMER */
 #define NOTE_SECONDS		0x00000001	/* data is seconds */
