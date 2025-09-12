@@ -2404,6 +2404,12 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m,
 		return (EINVAL);
 	}
 
+	/* Do VLAN filtering. */
+	if (!bridge_vfilter_out(bif, m)) {
+		m_freem(m);
+		return (0);
+	}
+
 	/* We may be sending a fragment so traverse the mbuf */
 	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
@@ -2823,10 +2829,6 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE)
 		goto drop;
 
-	/* Do VLAN filtering. */
-	if (!bridge_vfilter_out(dbif, m))
-		goto drop;
-
 	if ((dbif->bif_flags & IFBIF_STP) &&
 	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
 		goto drop;
@@ -3195,10 +3197,6 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		if (sbif && (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE))
 			continue;
 
-		/* Do VLAN filtering. */
-		if (!bridge_vfilter_out(dbif, m))
-			continue;
-
 		if ((dbif->bif_flags & IFBIF_STP) &&
 		    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
 			continue;
@@ -3363,6 +3361,14 @@ bridge_vfilter_out(const struct bridge_iflist *dbif, const struct mbuf *m)
 	ether_vlanid_t vlan;
 
 	NET_EPOCH_ASSERT();
+
+	/*
+	 * If the interface is in span mode, then bif_sc will be NULL.
+	 * Since the purpose of span interfaces is to receive all frames,
+	 * pass everything.
+	 */
+	if (dbif->bif_sc == NULL)
+		return (true);
 
 	/* If VLAN filtering isn't enabled, pass everything. */
 	if ((dbif->bif_sc->sc_flags & IFBRF_VLANFILTER) == 0)
