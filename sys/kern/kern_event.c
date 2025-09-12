@@ -539,8 +539,7 @@ filt_proc(struct knote *kn, long hint)
  * process forked. Additionally, for each knote attached to the
  * parent, check whether user wants to track the new process. If so
  * attach a new knote to it, and immediately report an event with the
- * child's pid. This is also called on jail creation, which is treated
- * the same way by jail events.
+ * child's pid.
  */
 void
 knote_fork(struct knlist *list, int pid)
@@ -567,8 +566,6 @@ knote_fork(struct knlist *list, int pid)
 		/*
 		 * The same as knote(), activate the event.
 		 */
-		_Static_assert(NOTE_JAIL_CHILD == NOTE_FORK,
-		    "NOTE_JAIL_CHILD should be the same as NOTE_FORK");
 		if ((kn->kn_sfflags & NOTE_TRACK) == 0) {
 			if (kn->kn_fop->f_event(kn, NOTE_FORK))
 				KNOTE_ACTIVATE(kn, 1);
@@ -632,30 +629,11 @@ int
 filt_jailattach(struct knote *kn)
 {
 	struct prison *pr;
-	bool immediate;
 
-	immediate = false;
 	if (kn->kn_id == 0) {
 		/* Let jid=0 watch the current prison (including prison0). */
 		pr = curthread->td_ucred->cr_prison;
 		mtx_lock(&pr->pr_mtx);
-	} else if (kn->kn_flags & (EV_FLAG1 | EV_FLAG2)) {
-		/*
-		 * The kernel registers prisons before they are valid,
-		 * so prison_find_child will fail.
-		 */
-		TAILQ_FOREACH(pr, &allprison, pr_list) {
-			if (pr->pr_id < kn->kn_id)
-				continue;
-			if (pr->pr_id > kn->kn_id) {
-				pr = NULL;
-				break;
-			}
-			mtx_lock(&pr->pr_mtx);
-			break;
-		}
-		if (pr == NULL)
-			return (ENOENT);
 	} else {
 		sx_slock(&allprison_lock);
 		pr = prison_find_child(curthread->td_ucred->cr_prison,
@@ -670,32 +648,7 @@ filt_jailattach(struct knote *kn)
 	}
 	kn->kn_ptr.p_prison = pr;
 	kn->kn_flags |= EV_CLEAR;
-
-	/*
-	 * Internal flag indicating registration done by kernel for the
-	 * purposes of getting a NOTE_CHILD notification.
-	 */
-	if (kn->kn_flags & EV_FLAG2) {
-		kn->kn_flags &= ~EV_FLAG2;
-		kn->kn_data = kn->kn_sdata;		/* parent id */
-		kn->kn_fflags = NOTE_CHILD;
-		kn->kn_sfflags &= ~NOTE_JAIL_CTRLMASK;
-		immediate = true; /* Force immediate activation of child note. */
-	}
-	/*
-	 * Internal flag indicating registration done by kernel (for other than
-	 * NOTE_CHILD).
-	 */
-	if (kn->kn_flags & EV_FLAG1) {
-		kn->kn_flags &= ~EV_FLAG1;
-	}
-
 	knlist_add(pr->pr_klist, kn, 1);
-
-	/* Immediately activate any child notes. */
-	if (immediate)
-		KNOTE_ACTIVATE(kn, 0);
-
 	mtx_unlock(&pr->pr_mtx);
 	return (0);
 }
@@ -720,18 +673,24 @@ filt_jail(struct knote *kn, long hint)
 	if (pr == NULL) /* already activated, from attach filter */
 		return (0);
 
-	/* Mask off extra data. */
-	event = (u_int)hint & NOTE_JAIL_CTRLMASK;
+	/*
+	 * Mask off extra data.  In the NOTE_JAIL_CHILD case, that's
+	 * everything except the NOTE_JAIL_CHILD bit itself, since a
+	 * JID is any positive integer.
+	 */
+	event = ((u_int)hint & NOTE_JAIL_CHILD) ? NOTE_JAIL_CHILD :
+	    (u_int)hint & NOTE_JAIL_CTRLMASK;
 
 	/* If the user is interested in this event, record it. */
 	if (kn->kn_sfflags & event)
 		kn->kn_fflags |= event;
 
-	/* Report the attached process id. */
-	if (event == NOTE_JAIL_ATTACH) {
+	/* Report the created jail id or attached process id. */
+	if (event == NOTE_JAIL_CHILD || event == NOTE_JAIL_ATTACH) {
 		if (kn->kn_data != 0)
-			kn->kn_fflags |= NOTE_JAIL_ATTACH_MULTI;
-		kn->kn_data = hint & NOTE_JAIL_DATAMASK;
+			kn->kn_fflags |= NOTE_JAIL_MULTI;
+		kn->kn_data = (kn->kn_fflags & NOTE_JAIL_MULTI) ? 0U :
+		    (u_int)hint & ~event;
 	}
 
 	/* Prison is gone, so flag the event as finished. */
@@ -1729,8 +1688,8 @@ findkn:
 		/*
 		 * If possible, find an existing knote to use for this kevent.
 		 */
-		if ((kev->filter == EVFILT_PROC || kev->filter == EVFILT_JAIL)
-		    && (kev->flags & (EV_FLAG1 | EV_FLAG2)) != 0) {
+		if (kev->filter == EVFILT_PROC &&
+		    (kev->flags & (EV_FLAG1 | EV_FLAG2)) != 0) {
 			/* This is an internal creation of a process tracking
 			 * note. Don't attempt to coalesce this with an
 			 * existing note.
