@@ -31,14 +31,7 @@
 
 #include <sys/cdefs.h>
 __SCCSID("@(#)getgrouplist.c	8.2 (Berkeley) 12/8/94");
-/*
- * get credential
- */
 #include <sys/types.h>
-
-#include <grp.h>
-#include <string.h>
-#include <unistd.h>
 
 extern int __getgroupmembership(const char *, gid_t, gid_t *, int, int *);
 
@@ -47,4 +40,3 @@ getgrouplist(const char *uname, gid_t agroup, gid_t *groups, int *grpcnt)
 {
 	return __getgroupmembership(uname, agroup, groups, *grpcnt, grpcnt);
 }
-
