@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250912:
+	If SRCCONF is unset and a file named src.conf is present at
+	the top of the source tree, it will now be used instead of
+	/etc/src.conf.
+
 20250907:
 	The MANSPLITPKG knob has been turned off by default, so pkgbase builds
 	will no longer generate "-man" subpackages; instead the manpages will
