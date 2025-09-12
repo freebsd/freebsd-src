@@ -1,4 +1,10 @@
-comment = "Newsyslog Utility"
+comment = "Create and rotate system log files"
+
 desc = <<EOD
-Newsyslog Utility
+The newsyslog(8) utility, usually run automatically from cron(8), is used to
+create log files in /var/log and periodically rotate existing log files.
 EOD
+
+annotations {
+	set = minimal
+}

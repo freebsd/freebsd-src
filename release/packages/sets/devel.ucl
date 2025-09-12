@@ -1,0 +1,13 @@
+comment = "Developments tools (metapackage)"
+
+desc = <<EOD
+This metapackage installs development support for the base system, including
+compilers, toolchain utilities, header files, and static libraries.
+EOD
+
+deps {
+	"set-minimal" {
+		version = "${VERSION}"
+		origin = "base"
+	},
+}

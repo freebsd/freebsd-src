@@ -1,4 +1,10 @@
-comment = "FreeBSD Base System"
+comment = "Core system"
+
 desc = <<EOD
-FreeBSD Base System
+This is the core system, including utilities, libraries and configuration files
+required for basic multi-user operation.
 EOD
+
+annotations {
+	set = minimal
+}

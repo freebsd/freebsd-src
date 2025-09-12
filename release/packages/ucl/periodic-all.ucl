@@ -1,4 +1,11 @@
-comment = "Periodic Utility"
+comment = "Run periodic system functions"
+
 desc = <<EOD
-Periodic Utility
+The periodic(8) utility, usually run from cron(8), provides a system for
+scheduling regular system maintenance tasks.  This package also provides
+the base periodic tasks for the base system.
 EOD
+
+annotations {
+	set = minimal
+}

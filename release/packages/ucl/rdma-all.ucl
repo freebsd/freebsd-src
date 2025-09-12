@@ -1,1 +1,4 @@
 comment = "RDMA Utilities"
+desc = <<EOD
+RDMA Utilities
+EOD

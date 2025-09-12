@@ -1,4 +1,9 @@
 comment = "vt(4) fonts and keymaps"
+
 desc = <<EOD
 Fonts and keymaps for use with the vt(4) video console driver.
 EOD
+
+annotations {
+	set = minimal
+}

@@ -1,4 +1,9 @@
 comment = "FreeBSD Devicetree Blobs"
+
 desc = <<EOD
 FreeBSD Devicetree Blobs
 EOD
+
+annotations {
+	set = minimal
+}

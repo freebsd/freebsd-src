@@ -1,4 +1,10 @@
-comment = "Vi Editor"
+comment = "Text editor"
+
 desc = <<EOD
-Vi Editor
+This package provides ex(1), an extended version of the ed(1) line-oriented
+text editor, and vi(1), a user-friendly full-screen text editor based on ex.
 EOD
+
+annotations {
+	set = minimal
+}

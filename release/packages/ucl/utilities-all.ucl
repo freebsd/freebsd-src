@@ -1,4 +1,9 @@
 comment = "Non-vital programs and libraries"
+
 desc = <<EOD
 Non-vital programs and libraries
 EOD
+
+annotations {
+	set = minimal
+}

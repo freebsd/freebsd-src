@@ -6,3 +6,7 @@ UTC and local timezones.
 EOD
 
 licenses = [ "PD" ]
+
+annotations {
+	set = minimal
+}

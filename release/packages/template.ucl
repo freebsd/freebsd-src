@@ -1,19 +1,36 @@
-#
-#
+# This is the default set of options applied to all packages, unless overridden
+# in the package-specific manifests.
 
+# The name of the package.  $PKG_NAME_PREFIX is "FreeBSD", or might be replaced
+# by a downstream packager.
 name = "${PKG_NAME_PREFIX}-${PKGNAME}"
+
+# Base packages always install to /.
+prefix = "/"
+
+# For base packages, origin is always "base".
 origin = "base"
-version = "${VERSION}"
-comment = "${PKGNAME} package"
 categories = [ base ]
+
+# $VERSION is the version of the base system being built.
+version = "${VERSION}"
+
+# Maintainer and WWW point to freebsd.org by default.  This should not be
+# changed in package-specific manifests even for third-party packages.
 maintainer = "${PKG_MAINTAINER}"
 www = "${PKG_WWW}"
-prefix = "/"
+
+# Default the license to BSD2CLAUSE since this is the standard license for
+# the base system.
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
-desc = <<EOD
-${PKGNAME} package
-EOD
+
+# By default, packages go in the "base" set which includes everything.
+annotations {
+	set = base
+}
+
+# Include the package-specific UCL.
 .include(try=false,duplicate=rewrite) "${UCLFILES}/${PKGGENNAME}-all.ucl"
 .include(try=true,duplicate=rewrite) "${UCLFILES}/${PKGNAME}.ucl"
 .include(try=true,duplicate=rewrite) "${UCLFILES}/${FORCEINCLUDE}.ucl"

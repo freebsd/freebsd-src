@@ -1,4 +1,11 @@
-comment = "pkg bootstrap Utility"
+comment = "pkg(7) bootstrap utility"
+
 desc = <<EOD
-pkg bootstrap Utility
+/usr/sbin/pkg is a minimal bootstrap tool used to install the full pkg(8)
+package management system.  This package also contains the PGP keys for
+the FreeBSD.org package repository.
 EOD
+
+annotations {
+	set = minimal
+}

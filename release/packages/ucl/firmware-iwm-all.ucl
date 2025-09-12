@@ -1,4 +1,10 @@
-comment = "iwm(4) firmwares"
+comment = "Firmware for iwm(4) Intel 802.11ac network interfaces"
+
 desc = <<EOD
-iwm(4) firmwares
+This firmware is required for Intel 802.11ac wireless network cards supported
+by the iwm(4) driver.
 EOD
+
+annotations {
+	set = minimal
+}

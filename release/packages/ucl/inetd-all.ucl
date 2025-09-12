@@ -1,4 +1,11 @@
 comment = "Internet super-server"
+
 desc = <<EOD
-Internet super-server
+The inetd(8) server listens for incoming network connections and spawns a
+process to handle the connection based on its configuration file.  Some
+built-in servers for basic services are also provided.
 EOD
+
+annotations {
+	set = minimal
+}

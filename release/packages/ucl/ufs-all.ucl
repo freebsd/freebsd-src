@@ -1,4 +1,9 @@
 comment = "UFS Libraries and Utilities"
+
 desc = <<EOD
 UFS Libraries and Utilities
 EOD
+
+annotations {
+	set = minimal
+}
