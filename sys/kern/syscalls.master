@@ -552,13 +552,13 @@
 		    _Out_writes_bytes_(len/PAGE_SIZE) char *vec
 		);
 	}
-79	AUE_GETGROUPS	STD|CAPENABLED|COMPAT14 {
+79	AUE_GETGROUPS	COMPAT14|CAPENABLED {
 		int getgroups(
 		    int gidsetsize,
 		    _Out_writes_opt_(gidsetsize) gid_t *gidset
 		);
 	}
-80	AUE_SETGROUPS	STD|COMPAT14 {
+80	AUE_SETGROUPS	COMPAT14 {
 		int setgroups(
 		    int gidsetsize,
 		    _In_reads_(gidsetsize) const gid_t *gidset
