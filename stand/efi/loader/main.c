@@ -315,9 +315,9 @@ probe_md_currdev(void)
 static bool
 try_as_currdev(pdinfo_t *hd, pdinfo_t *pp)
 {
+#ifdef EFI_ZFS_BOOT
 	uint64_t guid;
 
-#ifdef EFI_ZFS_BOOT
 	/*
 	 * If there's a zpool on this device, try it as a ZFS
 	 * filesystem, which has somewhat different setup than all
