@@ -4935,7 +4935,6 @@ sysctl_jail_param(SYSCTL_HANDLER_ARGS)
  * jail creation time but cannot be changed in an existing jail.
  */
 SYSCTL_JAIL_PARAM(, jid, CTLTYPE_INT | CTLFLAG_RDTUN, "I", "Jail ID");
-SYSCTL_JAIL_PARAM(, desc, CTLTYPE_INT | CTLFLAG_RW, "I", "Jail descriptor");
 SYSCTL_JAIL_PARAM(, parent, CTLTYPE_INT | CTLFLAG_RD, "I", "Jail parent ID");
 SYSCTL_JAIL_PARAM_STRING(, name, CTLFLAG_RW, MAXHOSTNAMELEN, "Jail name");
 SYSCTL_JAIL_PARAM_STRING(, path, CTLFLAG_RDTUN, MAXPATHLEN, "Jail root path");
