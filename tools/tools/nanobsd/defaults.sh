@@ -886,7 +886,7 @@ pprint ( ) (
 
 usage ( ) {
 	(
-	echo "Usage: $0 [-BbfhIiKknqvWwX] [-c config_file]"
+	echo "Usage: $0 [-BbfhIiKknpqvWwX] [-c config_file]"
 	echo "	-B	suppress installs (both kernel and world)"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
@@ -897,6 +897,7 @@ usage ( ) {
 	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
+	echo "	-p	suppress preparing the image"
 	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
 	echo "	-W	suppress installworld"
