@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 
+#include <unistd.h>
 #include <ssp/ssp.h>
 
 extern int __getgroupmembership(const char *, gid_t, gid_t *, int, int *);
