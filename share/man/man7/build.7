@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 8, 2025
+.Dd September 13, 2025
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -193,6 +193,20 @@ the compiler, linker, assembler, headers and libraries) has been
 built; see the
 .Cm toolchain
 target below.
+.Pp
+.Va BUILDENV_SHELL ,
+which defaults to
+.Pa /bin/sh ,
+is executed.
+This can be set to a command that does something in this build environment,
+like cross build an application.
+If that application has dependencies, though, the
+.Pa devel/poudriere
+package or port provides a more generic solution.
+.It Cm buildenvvars
+Print the shell variables that are set for a
+.Cm buildenv
+envirnoment and exit.
 .It Cm buildworld
 Build everything but the kernel, configure files in
 .Pa etc ,
