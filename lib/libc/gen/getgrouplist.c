@@ -33,6 +33,8 @@
 __SCCSID("@(#)getgrouplist.c	8.2 (Berkeley) 12/8/94");
 #include <sys/types.h>
 
+#include <unistd.h>
+
 extern int __getgroupmembership(const char *, gid_t, gid_t *, int, int *);
 
 int
