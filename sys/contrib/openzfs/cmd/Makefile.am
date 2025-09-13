@@ -98,20 +98,15 @@ endif
 
 
 if USING_PYTHON
-bin_SCRIPTS      += arc_summary     arcstat        dbufstat        zilstat
-CLEANFILES       += arc_summary     arcstat        dbufstat        zilstat
-dist_noinst_DATA += %D%/arc_summary %D%/arcstat.in %D%/dbufstat.in %D%/zilstat.in
+bin_SCRIPTS      += zarcsummary     zarcstat        dbufstat        zilstat
+CLEANFILES       += zarcsummary     zarcstat        dbufstat        zilstat
+dist_noinst_DATA += %D%/zarcsummary %D%/zarcstat.in %D%/dbufstat.in %D%/zilstat.in
 
-$(call SUBST,arcstat,%D%/)
+$(call SUBST,zarcstat,%D%/)
 $(call SUBST,dbufstat,%D%/)
 $(call SUBST,zilstat,%D%/)
-arc_summary: %D%/arc_summary
+zarcsummary: %D%/zarcsummary
 	$(AM_V_at)cp $< $@
-
-cmd-rename-install-exec-hook:
-	$(LN_S) -f arcstat $(DESTDIR)$(bindir)/zarcstat
-	$(LN_S) -f arc_summary $(DESTDIR)$(bindir)/zarcsummary
-INSTALL_EXEC_HOOKS += cmd-rename-install-exec-hook
 endif
 
 PHONY += cmd

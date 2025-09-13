@@ -840,7 +840,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-29-FreeBSD_g7939bad5e"
+#define ZFS_META_ALIAS "zfs-2.4.99-52-FreeBSD_g3f4312a0a"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -870,7 +870,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "29-FreeBSD_g7939bad5e"
+#define ZFS_META_RELEASE "52-FreeBSD_g3f4312a0a"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"
