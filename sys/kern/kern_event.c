@@ -3127,7 +3127,7 @@ sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	td = curthread;
-#ifdef FREEBSD_COMPAT32
+#ifdef COMPAT_FREEBSD32
 	compat32 = SV_CURPROC_FLAG(SV_ILP32);
 #else
 	compat32 = false;
