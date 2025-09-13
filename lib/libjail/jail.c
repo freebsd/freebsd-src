@@ -920,11 +920,19 @@ jailparam_type(struct jailparam *jp)
 	} desc;
 	int mib[CTL_MAXNAME];
 
-	/* The "lastjid" parameter isn't real. */
+	/*
+	 * Some pseudo-parameters don't show up in the sysctl
+	 * parameter list.
+	 */
 	name = jp->jp_name;
 	if (!strcmp(name, "lastjid")) {
 		jp->jp_valuelen = sizeof(int);
 		jp->jp_ctltype = CTLTYPE_INT | CTLFLAG_WR;
+		return (0);
+	}
+	if (!strcmp(name, "desc")) {
+		jp->jp_valuelen = sizeof(int);
+		jp->jp_ctltype = CTLTYPE_INT | CTLFLAG_RW;
 		return (0);
 	}
 
