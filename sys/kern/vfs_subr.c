@@ -4507,6 +4507,17 @@ vgonel(struct vnode *vp)
 	/*
 	 * Done with purge, reset to the standard lock and invalidate
 	 * the vnode.
+	 *
+	 * FIXME: this is buggy for vnode ops with custom locking primitives.
+	 *
+	 * vget used to be gated with a special flag serializing it against vgone,
+	 * which got lost in the process of SMP-ifying the VFS layer.
+	 *
+	 * Suppose a custom locking routine references ->v_data.
+	 *
+	 * Since now it is possible to start executing it as vgone is
+	 * progressing, this very well may crash as ->v_data gets invalidated
+	 * and memory used to back it is freed.
 	 */
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
