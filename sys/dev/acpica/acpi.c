@@ -734,7 +734,8 @@ acpi_attach(device_t dev)
 	goto out;
 
     /* Register ACPI again to pass the correct argument of pm_func. */
-    power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc);
+    power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc,
+	acpi_supported_stypes);
 
     acpi_platform_osc(dev);
 
@@ -4776,7 +4777,8 @@ acpi_pm_register(void *arg)
     if (!cold || resource_disabled("acpi", 0))
 	return;
 
-    power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
+    power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL,
+	acpi_supported_stypes);
 }
 
 SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, NULL);
