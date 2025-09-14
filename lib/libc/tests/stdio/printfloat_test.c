@@ -406,7 +406,7 @@ ATF_TC_BODY(hexadecimal_rounding_fullprec, tc)
 
 #if defined(__aarch64__)
 	/* On arm64, long double is IEEE binary128 (mantissa=113) */
-	testfmt("0x1.3c0ca428c59fbbbbbbbbbbbbbbbbp+0", "%.28La", 0x1.3c0ca428c59fbbbbbbbbbbbbbbbbp + 0L);
+	testfmt("0x1.3c0ca428c59fbbbbbbbbbbbbbbbbp+0", "%.28La", 0x1.3c0ca428c59fbbbbbbbbbbbbbbbbp+0L);
 #endif
 }
 
