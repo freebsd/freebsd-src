@@ -4,6 +4,10 @@
  * Copyright (c) 2000, 2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
+ * Copyright (c) 2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Aymeric Wibo
+ * <obiwac@freebsd.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -181,7 +185,8 @@ static const char *acpi_sstate2sname(int sstate);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
-static int	acpi_pm_func(u_long cmd, void *arg, ...);
+static int	acpi_stype_to_sstate(struct acpi_softc *sc, enum power_stype stype);
+static int	acpi_pm_func(u_long cmd, void *arg, enum power_stype stype);
 static void	acpi_enable_pcie(void);
 static void	acpi_reset_interfaces(device_t dev);
 
@@ -739,6 +744,28 @@ acpi_attach(device_t dev)
 
  out:
     return_VALUE (error);
+}
+
+static int
+acpi_stype_to_sstate(struct acpi_softc *sc, enum power_stype stype)
+{
+	switch (stype) {
+	case POWER_STYPE_AWAKE:
+		return (ACPI_STATE_S0);
+	case POWER_STYPE_STANDBY:
+		return (sc->acpi_standby_sx);
+	case POWER_STYPE_SUSPEND_TO_MEM:
+		return (ACPI_STATE_S3);
+	case POWER_STYPE_HIBERNATE:
+		return (ACPI_STATE_S4);
+	case POWER_STYPE_POWEROFF:
+		return (ACPI_STATE_S5);
+	case POWER_STYPE_SUSPEND_TO_IDLE:
+	case POWER_STYPE_COUNT:
+	case POWER_STYPE_UNKNOWN:
+		return (ACPI_STATE_UNKNOWN);
+	}
+	return (ACPI_STATE_UNKNOWN);
 }
 
 static void
@@ -4621,12 +4648,10 @@ acpi_reset_interfaces(device_t dev)
 }
 
 static int
-acpi_pm_func(u_long cmd, void *arg, ...)
+acpi_pm_func(u_long cmd, void *arg, enum power_stype stype)
 {
-	int	state, acpi_state;
-	int	error;
+	int	error, sstate;
 	struct	acpi_softc *sc;
-	va_list	ap;
 
 	error = 0;
 	switch (cmd) {
@@ -4636,27 +4661,8 @@ acpi_pm_func(u_long cmd, void *arg, ...)
 			error = EINVAL;
 			goto out;
 		}
-
-		va_start(ap, arg);
-		state = va_arg(ap, int);
-		va_end(ap);
-
-		switch (state) {
-		case POWER_SLEEP_STATE_STANDBY:
-			acpi_state = sc->acpi_standby_sx;
-			break;
-		case POWER_SLEEP_STATE_SUSPEND:
-			acpi_state = sc->acpi_suspend_sx;
-			break;
-		case POWER_SLEEP_STATE_HIBERNATE:
-			acpi_state = ACPI_STATE_S4;
-			break;
-		default:
-			error = EINVAL;
-			goto out;
-		}
-
-		if (ACPI_FAILURE(acpi_EnterSleepState(sc, acpi_state)))
+		sstate = acpi_stype_to_sstate(sc, stype);
+		if (ACPI_FAILURE(acpi_EnterSleepState(sc, sstate)))
 			error = ENXIO;
 		break;
 	default:
