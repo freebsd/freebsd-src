@@ -88,7 +88,7 @@ main(int argc, char *argv[])
 	warn("cwd=%s, top=%s. flag=%0.6x. fstatf(%s) = %2d (expect %2d). %4s",
 	    cwd, dir, flag, obj, r, exp, s);
 
-	return (r == exp ? 0 : errno);
+	return (r != exp);
 }
 EOF
 cc -o beneath4 -Wall -Wextra -O2 -g beneath4.c || exit 1
@@ -129,5 +129,5 @@ $dir/beneath4 $top $top/..                   0x2000 93 || s=1
 $dir/beneath4 $top ../a                      0x2000 93 || s=1
 printf "\nNo flag\n"
 $dir/beneath4 $top ../a                      0x0000  0 || s=1
-rm -rf $top
+rm -rf $dir
 exit $s

@@ -32,6 +32,10 @@
 . ../default.cfg
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
+[ -z "$nfs_export" ] && exit 0
+ping -c 2 `echo $nfs_export | sed 's/:.*//'` > /dev/null 2>&1 ||
+    exit 0
+
 export LANG=C
 dir=/tmp
 odir=`pwd`
@@ -40,10 +44,6 @@ sed '1,/^EOF/d' < $odir/$0 > $dir/temp.c
 mycc -o temp -Wall -Wextra -O0 -g temp.c || exit 1
 rm -f temp.c
 cd $odir
-
-[ -z "$nfs_export" ] && exit 0
-ping -c 2 `echo $nfs_export | sed 's/:.*//'` > /dev/null 2>&1 ||
-    exit 0
 
 mount | grep "on $mntpoint " | grep -q nfs && umount $mntpoint
 mount -t nfs -o tcp -o retrycnt=3 -o soft -o rw $nfs_export $mntpoint

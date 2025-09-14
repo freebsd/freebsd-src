@@ -88,5 +88,5 @@ cc -o /tmp/kevent16 -Wall -Wextra -O2 /tmp/kevent16.c || exit 1
 
 /tmp/kevent16; s=$?
 
-rm -f /tmp/kevent16.c kevent16 kevent16.core
+rm -f /tmp/kevent16.c /tmp/kevent16 kevent16.core
 exit $s

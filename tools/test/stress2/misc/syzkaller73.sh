@@ -533,5 +533,5 @@ done
 while pkill swap; do :; done
 wait
 
-rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core
+rm -rf /tmp/$prog /tmp/$prog.c /tmp/$prog.core /tmp/syzkaller.*
 exit 0

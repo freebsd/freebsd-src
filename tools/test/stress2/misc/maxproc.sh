@@ -32,12 +32,12 @@
 
 . ../default.cfg
 
+[ `sysctl -n kern.maxproc` -gt 37028 ] && exit 0	# Excessive run time
 here=`pwd`
 cd /tmp
 sed '1,/^EOF/d' < $here/$0 > maxproc.c
 mycc -o maxproc -Wall -Wextra maxproc.c -lkvm || exit 1
 rm -f maxproc.c
-[ `sysctl -n kern.maxproc` -gt 37028 ] && exit 0	# Excessive run time
 cd $here
 
 /tmp/maxproc
