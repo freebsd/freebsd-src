@@ -4890,11 +4890,19 @@ iwx_rx_bmiss(struct iwx_softc *sc, struct iwx_rx_packet *pkt,
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 	    BUS_DMASYNC_POSTREAD);
 
+	IWX_DPRINTF(sc, IWX_DEBUG_BEACON,
+	    "%s: mac_id=%u, cmslrx=%u, cmb=%u, neb=%d, nrb=%u\n",
+	    __func__,
+	    le32toh(mbn->mac_id),
+	    le32toh(mbn->consec_missed_beacons_since_last_rx),
+	    le32toh(mbn->consec_missed_beacons),
+	    le32toh(mbn->num_expected_beacons),
+	    le32toh(mbn->num_recvd_beacons));
+
 	missed = le32toh(mbn->consec_missed_beacons_since_last_rx);
 	if (missed > vap->iv_bmissthreshold) {
 		ieee80211_beacon_miss(ic);
 	}
-
 }
 
 static int
@@ -8985,10 +8993,10 @@ iwx_rx_pkt(struct iwx_softc *sc, struct iwx_rx_data *data, struct mbuf *ml)
 			break;
 
 		case IWX_MISSED_BEACONS_NOTIFICATION:
+			IWX_DPRINTF(sc, IWX_DEBUG_BEACON,
+			    "%s: IWX_MISSED_BEACONS_NOTIFICATION\n",
+			    __func__);
 			iwx_rx_bmiss(sc, pkt, data);
-			DPRINTF(("%s: IWX_MISSED_BEACONS_NOTIFICATION\n",
-			    __func__));
-			ieee80211_beacon_miss(ic);
 			break;
 
 		case IWX_MFUART_LOAD_NOTIFICATION:
