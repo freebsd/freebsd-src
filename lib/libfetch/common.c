@@ -135,7 +135,7 @@ static struct fetcherr socks5_errlist[] = {
 };
 
 /* End-of-Line */
-static const char ENDL[2] = "\r\n";
+static const char ENDL[2] = { '\r', '\n' };
 
 
 /*** Error-reporting functions ***********************************************/
