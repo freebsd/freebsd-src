@@ -177,5 +177,5 @@ start=`date +%s`
 while [ $((`date +%s` - start)) -lt 300 ]; do
 	./$prog > /dev/null 2>&1
 done
-rm -f /tmp/$prog /tmp/$ptog.c /tmp/$prog.core
+rm -f /tmp/$prog /tmp/$prog.c /tmp/$prog.core
 exit 0
