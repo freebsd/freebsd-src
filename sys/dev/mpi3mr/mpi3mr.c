@@ -2799,10 +2799,11 @@ retry_init:
 
 			U32 fault = mpi3mr_regread(sc, MPI3_SYSIF_FAULT_OFFSET) &
 						   MPI3_SYSIF_FAULT_CODE_MASK;
-			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER)
+			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER) {
 				mpi3mr_dprint(sc, MPI3MR_INFO,
 					      "controller faulted due to insufficient power, try by connecting it in a different slot\n");
 				goto err;
+			}
 
 			U32 host_diagnostic;
 			timeout = MPI3_SYSIF_DIAG_SAVE_TIMEOUT * 10;
