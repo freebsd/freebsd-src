@@ -331,7 +331,7 @@ iicbb_getack(device_t dev)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
 	int noack, err;
-	int t;
+	int t = 0;
 
 	/* Release SDA so that the slave can drive it. */
 	err = iicbb_clockin(dev, 1);
@@ -341,12 +341,13 @@ iicbb_getack(device_t dev)
 	}
 
 	/* Sample SDA until ACK (low) or udelay runs out. */
-	for (t = 0; t < sc->udelay; t++) {
+	do {
 		noack = I2C_GETSDA(dev);
 		if (!noack)
 			break;
 		DELAY(1);
-	}
+		t++;
+	} while(t < sc->udelay);
 
 	DELAY(sc->udelay - t);
 	iicbb_clockout(dev);
