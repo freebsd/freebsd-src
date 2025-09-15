@@ -582,10 +582,7 @@ _mlx5ib=	mlx5ib
 _ena=		ena
 _gve=		gve
 _igc=		igc
-# gcc13 and earlier lack __builtin_bitcountg used by linux emulation
-.if !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 140000)
 _iwlwifi=	iwlwifi
-.endif
 _rtw88=		rtw88
 _rtw89=		rtw89
 _vmware=	vmware
