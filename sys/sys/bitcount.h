@@ -39,6 +39,28 @@
 
 #include <sys/_types.h>
 
+#define	__const_bitcount8(x) ( \
+    !!((x) & (1 << 0)) + \
+    !!((x) & (1 << 1)) + \
+    !!((x) & (1 << 2)) + \
+    !!((x) & (1 << 3)) + \
+    !!((x) & (1 << 4)) + \
+    !!((x) & (1 << 5)) + \
+    !!((x) & (1 << 6)) + \
+    !!((x) & (1 << 7)))
+
+#define	__const_bitcount16(x) ( \
+    __const_bitcount8(x) + \
+    __const_bitcount8((x) >> 8))
+
+#define	__const_bitcount32(x) ( \
+    __const_bitcount16(x) + \
+    __const_bitcount16((x) >> 16))
+
+#define	__const_bitcount64(x) ( \
+    __const_bitcount32(x) + \
+    __const_bitcount32((x) >> 32))
+
 #ifdef __POPCNT__
 #define	__bitcount64(x)	__builtin_popcountll((__uint64_t)(x))
 #define	__bitcount32(x)	__builtin_popcount((__uint32_t)(x))
