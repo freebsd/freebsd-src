@@ -40,6 +40,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
   template <class _Tp>                                                                                                 \
   struct NAME<_Tp, __void_t<typename _Tp::PROPERTY > > : true_type {}
 
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
 // __pointer
 template <class _Tp,
           class _Alloc,
@@ -67,6 +68,7 @@ struct __const_pointer<_Tp, _Ptr, _Alloc, false> {
   using type _LIBCPP_NODEBUG = typename pointer_traits<_Ptr>::template rebind<const _Tp>;
 #endif
 };
+_LIBCPP_SUPPRESS_DEPRECATED_POP
 
 // __void_pointer
 _LIBCPP_ALLOCATOR_TRAITS_HAS_XXX(__has_void_pointer, void_pointer);
