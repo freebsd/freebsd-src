@@ -299,7 +299,7 @@ dsp_close(void *data)
 			CHN_LOCK(rdch);
 			chn_abort(rdch); /* won't sleep */
 			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
 			chn_reset(rdch, 0, 0);
 			chn_release(rdch);
 			if (rdch->flags & CHN_F_VIRTUAL) {
@@ -323,7 +323,7 @@ dsp_close(void *data)
 			CHN_LOCK(wrch);
 			chn_flush(wrch); /* may sleep */
 			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
 			chn_reset(wrch, 0, 0);
 			chn_release(wrch);
 			if (wrch->flags & CHN_F_VIRTUAL) {
