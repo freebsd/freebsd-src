@@ -1456,11 +1456,10 @@ vm_fault_getpages(struct faultstate *fs, int *behindp, int *aheadp)
  * and we could end up trying to pagein and pageout the same page
  * simultaneously.
  *
- * We can theoretically allow the busy case on a read fault if the page
- * is marked valid, but since such pages are typically already pmap'd,
- * putting that special case in might be more effort then it is worth.
- * We cannot under any circumstances mess around with a shared busied
- * page except, perhaps, to pmap it.
+ * We allow the busy case on a read fault if the page is valid.  We
+ * cannot under any circumstances mess around with a shared busied
+ * page except, perhaps, to pmap it.  This is controlled by the
+ * VM_ALLOC_SBUSY bit in the allocflags argument.
  */
 static void
 vm_fault_busy_sleep(struct faultstate *fs, int allocflags)
