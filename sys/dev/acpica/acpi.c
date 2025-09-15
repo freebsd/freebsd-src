@@ -3425,7 +3425,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
     enum acpi_sleep_state slp_state;
     int sleep_result;
 
-    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, stype);
 
     if (stype <= POWER_STYPE_AWAKE || stype >= POWER_STYPE_COUNT)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -3939,7 +3939,7 @@ acpi_system_eventhandler_sleep(void *arg, enum power_stype stype)
     struct acpi_softc *sc = (struct acpi_softc *)arg;
     int ret;
 
-    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, stype);
 
     /* Check if button action is disabled or unknown. */
     if (stype == ACPI_STATE_UNKNOWN)
