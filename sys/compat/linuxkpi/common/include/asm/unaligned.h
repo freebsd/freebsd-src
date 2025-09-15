@@ -48,6 +48,13 @@ get_unaligned_le32(const void *p)
 	return (le32_to_cpup((const __le32 *)p));
 }
 
+static __inline uint64_t
+get_unaligned_le64(const void *p)
+{
+
+	return (le64_to_cpup((const __le64 *)p));
+}
+
 static __inline void
 put_unaligned_le16(__le16 v, void *p)
 {
