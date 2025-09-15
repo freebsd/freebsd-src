@@ -26,6 +26,8 @@
                     ..
                 ..
             ..
+            samplerate
+            ..
             sqlite3
             ..
             ucl
