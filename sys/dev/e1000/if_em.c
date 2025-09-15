@@ -4815,7 +4815,8 @@ em_if_get_vf_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_IERRORS:
 		return sc->dropped_pkts;
 	case IFCOUNTER_OERRORS:
-		return sc->watchdog_events;
+		return (if_get_counter_default(ifp, cnt) +
+		    sc->watchdog_events);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
