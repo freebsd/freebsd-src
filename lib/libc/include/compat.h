@@ -80,4 +80,3 @@ __sym_compat(setgroups, freebsd14_setgroups, FBSD_1.0);
 #undef __weak_reference
 
 #endif	/* __LIBC_COMPAT_H__ */
-
