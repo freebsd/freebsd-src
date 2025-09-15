@@ -889,7 +889,7 @@ wfxt_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 
 	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
 		return (FEAT_ALWAYS_DISABLE);
-	if (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) >= ID_AA64ISAR2_WFxT_NONE)
+	if (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) >= ID_AA64ISAR2_WFxT_IMPL)
 		return (FEAT_DEFAULT_ENABLE);
 
 	return (FEAT_ALWAYS_DISABLE);
