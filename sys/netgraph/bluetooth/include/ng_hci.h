@@ -448,7 +448,7 @@ typedef struct {
 typedef bdaddr_t *	bdaddr_p;
 
 /* Any BD_ADDR. Note: This is actually 7 bytes (count '\0' terminator) */
-#define NG_HCI_BDADDR_ANY	((bdaddr_p) "\000\000\000\000\000\000")
+#define NG_HCI_BDADDR_ANY	(&(const bdaddr_t){"\000\000\000\000\000\000"})
 
 /* HCI status return parameter */
 typedef struct {
