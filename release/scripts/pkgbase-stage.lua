@@ -50,10 +50,12 @@ local function select_packages(pkg, media, all_libcompats)
 			package ~= "FreeBSD-kernel-man"
 		then
 			-- Kernels other than FreeBSD-kernel-generic are ignored
-			if package == "FreeBSD-kernel-generic" then
-				table.insert(components["kernel"], package)
-			elseif package == "FreeBSD-kernel-generic-dbg" then
+			-- Note that on powerpc64 and powerpc64le the names are
+			-- slightly different.
+			if package:match("^FreeBSD%-kernel%-generic.*%-dbg") then
 				table.insert(components["kernel_dbg"], package)
+			elseif package:match("^FreeBSD%-kernel%-generic.*") then
+				table.insert(components["kernel"], package)
 			end
 		elseif package:match(".*%-dbg$") then
 			table.insert(components["base_dbg"], package)
