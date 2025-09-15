@@ -904,9 +904,11 @@ ovpn_create_kkey_dir(struct ovpn_kkey_dir **kdirp,
 	kdir->cipher = cipher;
 	kdir->keylen = keylen;
 	kdir->tx_seq = 1;
-	memcpy(kdir->key, key, keylen);
+	if (keylen != 0)
+		memcpy(kdir->key, key, keylen);
 	kdir->noncelen = ivlen;
-	memcpy(kdir->nonce, iv, ivlen);
+	if (ivlen != 0)
+		memcpy(kdir->nonce, iv, ivlen);
 
 	if (kdir->cipher != OVPN_CIPHER_ALG_NONE) {
 		/* Crypto init */
