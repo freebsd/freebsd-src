@@ -29,6 +29,7 @@ _PRIVATELIBS=	\
 		heimipcs \
 		kldelf \
 		ldns \
+		samplerate \
 		sqlite3 \
 		ssh \
 		ucl \
@@ -72,7 +73,6 @@ _INTERNALLIBS=	\
 		pfctl \
 		pkgecc \
 		pmcstat \
-		samplerate \
 		sl \
 		sm \
 		smdb \
