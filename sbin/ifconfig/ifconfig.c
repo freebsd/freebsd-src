@@ -472,6 +472,9 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 {
 	char options[1024];
 	struct option *p;
+#ifdef JAIL
+	int jid;
+#endif
 	int c;
 
 	/* Parse leading line options */
@@ -503,7 +506,11 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 #ifdef JAIL
 			if (optarg == NULL)
 				usage();
-			args->jail_name = optarg;
+			jid = jail_getid(optarg);
+			if (jid == -1)
+				Perror("jail not found");
+			if (jail_attach(jid) != 0)
+				Perror("cannot attach to jail");
 #else
 			Perror("not built with jail support");
 #endif
@@ -620,9 +627,6 @@ main(int ac, char *av[])
 {
 	char *envformat;
 	int flags;
-#ifdef JAIL
-	int jid;
-#endif
 	struct ifconfig_args _args = {};
 	struct ifconfig_args *args = &_args;
 
@@ -646,16 +650,6 @@ main(int ac, char *av[])
 	atexit(printifnamemaybe);
 
 	args_parse(args, ac, av);
-
-#ifdef JAIL
-	if (args->jail_name) {
-		jid = jail_getid(args->jail_name);
-		if (jid == -1)
-			Perror("jail not found");
-		if (jail_attach(jid) != 0)
-			Perror("cannot attach to jail");
-	}
-#endif
 
 	if (!args->all && !args->namesonly) {
 		/* not listing, need an argument */
