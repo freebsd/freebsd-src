@@ -174,7 +174,15 @@ static void* write_th(void* arg) {
 
 	if (sem)
 		sem_wait(sem);
-	fd = open("mountpoint/some_file.txt", O_RDWR);
+	/*
+	 * Open the file in direct mode.
+	 * The race condition affects both direct and non-direct writes, and
+	 * they have separate code paths.  However, in the non-direct case, the
+	 * kernel updates last_local_modify _before_ sending FUSE_WRITE to the
+	 * server.  So the technique that this test program uses to invoke the
+	 * race cannot work.  Therefore, test with O_DIRECT only.
+	 */
+	fd = open("mountpoint/some_file.txt", O_RDWR | O_DIRECT);
 	if (fd < 0)
 		return (void*)(intptr_t)errno;
 
@@ -332,7 +340,7 @@ TEST_P(LastLocalModify, lookup)
 	/* Wait for FUSE_SETATTR to be sent */
 	sem_wait(&sem);
 
-	/* Lookup again, which will race with setattr */
+	/* Lookup again, which will race with the mutator */
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
 	ASSERT_EQ((off_t)newsize, sb.st_size);
 
