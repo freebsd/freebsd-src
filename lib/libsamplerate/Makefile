@@ -3,7 +3,7 @@
 PACKAGE=	sound
 
 LIB=		samplerate
-INTERNALLIB=
+PRIVATELIB=
 
 SRCS=		samplerate.c \
 		src_linear.c \
