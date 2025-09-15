@@ -22,7 +22,7 @@
 #  WORLDDIR: location of src tree -- must have built world and default kernel
 #            (by default, the directory above this one)
 #  NODISTSETS: if set, do not include dist sets or MANIFEST
-#  PKGBASE:  if set, include pkgbase packages rather than dist tarballs in
+#  NOPKGBASE:  if set, include dist tarballs rather than pkgbase packages in
 #            disc1 and dvd1 installation media
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  XTRADIR:  xtra-bits-dir argument for <arch>/mkisoimages.sh
@@ -188,7 +188,7 @@ bootonly: packagesystem
 dvd: packagesystem
 .endif
 
-.if defined(PKGBASE)
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
 PKGBASE_REPO=	pkgbase-repo
 PKG_ABI=	$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/usr/bin/uname config ABI)
 .endif
@@ -207,7 +207,7 @@ disc1: ${PKGBASE_REPO}
 	    MK_TOOLCHAIN=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no)
-.if defined(PKGBASE)
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
 # Create offline pkgbase repo on release media
 	mkdir -p ${.TARGET}/usr/freebsd-packages/repos/
 	${.CURDIR}/scripts/pkgbase-stage.lua disc \
@@ -226,7 +226,7 @@ disc1: ${PKGBASE_REPO}
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
-.if !defined(PKGBASE)
+.if defined(NOPKGBASE) && !empty(NOPKGBASE)
 # Copy distfiles
 	for dist in $$(ls *.txz | grep -v container | grep -vE -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); do \
 	    cp $${dist} ${.TARGET}/usr/freebsd-dist; \
@@ -301,7 +301,7 @@ dvd: ${PKGBASE_REPO}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no)
-.if defined(PKGBASE)
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
 # Create offline pkgbase repo on release media
 	mkdir -p ${.TARGET}/usr/freebsd-packages/repos/
 	${.CURDIR}/scripts/pkgbase-stage.lua dvd \
@@ -320,7 +320,7 @@ dvd: ${PKGBASE_REPO}
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
-.if !defined(PKGBASE)
+.if defined(NOPKGBASE) && !empty(NOPKGBASE)
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in $$(ls *.txz | grep -v container); do \
