@@ -711,7 +711,7 @@ typedef struct {
  * @return returns 0 for success, a negative error code value for failure.
  */
 
-extern int ocs_sem_init(ocs_sem_t *sem, int val, const char *name, ...) __attribute__((format(printf, 3, 4)));
+extern int ocs_sem_init(ocs_sem_t *sem, int val, const char *name, ...) __printflike(3, 4);
 
 /**
  * @brief execute a P (decrement) operation
