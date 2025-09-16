@@ -1,15 +1,7 @@
 #!/bin/sh
 
-# Seen:
-# [root@mercat1 /usr/src/tools/test/stress2/misc]# pgrep syzkaller61 | xargs procstat -k
-#   PID    TID COMM                TDNAME              KSTACK                       
-#   13332 106396 syzkaller61         -                   mi_switch thread_suspend_check ast_suspend ast_handler ast doreti_ast 
-#   13332 560662 syzkaller61         -                   mi_switch sleepq_switch sleepq_catch_signals sleepq_wait_sig _sleep umtxq_sleep do_wait __umtx_op_wait_uint_private sys__umtx_op amd64_syscall fast_syscall_common 
-#   13332 560776 syzkaller61         -                   mi_switch thread_suspend_switch thread_single fork1 sys_rfork amd64_syscall fast_syscall_common 
-#   13662 356440 syzkaller61         -                   mi_switch thread_suspend_check ast_suspend ast_handler ast doreti_ast 
-#   13662 561098 syzkaller61         -                   mi_switch sleepq_switch sleepq_catch_signals sleepq_wait_sig _sleep umtxq_sleep do_wait __umtx_op_wait_uint_private sys__umtx_op amd64_syscall fast_syscall_common 
-#   13662 561160 syzkaller61         -                   mi_switch thread_suspend_switch thread_single fork1 sys_rfork amd64_syscall fast_syscall_common 
-#   [root@mercat1 /usr/src/tools/test/stress2/misc]# 
+# "panic: inconsistent boundary count 2" seen.
+# Fixed by: 8321d0da2ce2 - main - kern/kern_thread.c: improve assert in thread_single_end()
 
 [ `uname -p` != "amd64" ] && exit 0
 
@@ -276,7 +268,7 @@ void execute_call(int call)
 {
   switch (call) {
   case 0:
-    NONFAILING(*(uint32_t*)0x20001f00 = 0x16);
+    NONFAILING(*(uint32_t*)0x20001f00 = 0x16); /* SIGTTOU */
     NONFAILING(*(uint32_t*)0x20001f04 = 0);
     NONFAILING(*(uint32_t*)0x20001f08 = 0);
     NONFAILING(*(uint32_t*)0x20001f0c = 0);
@@ -302,18 +294,16 @@ mycc -o /tmp/syzkaller61 -Wall -Wextra -O0 /tmp/syzkaller61.c -lpthread ||
 
 (cd ../testcases/swap; ./swap -t 3m -i 10 -l 100 > /dev/null 2>&1) &
 for i in `jot 300`; do
-	(cd /tmp; timeout -k 3s 2s ./syzkaller61) &
+	(cd /tmp; su -m $testuser -c ./syzkaller61) &
 	pids="$pids $!"
 done
 sleep 5
-pkill -9 syzkaller61 swap; sleep 1
-pgrep -q syzkaller61 && { pgrep syzkaller61 | xargs ps -lHp; exit 1; }
-for pid in $pids; do
-	wait $pid
-done
+kill -9 $pids
+wait $pids
+while pkill -9 syzkaller61; do :; done
 while pkill swap; do :; done
 wait
 
 rm -rf /tmp/syzkaller61 /tmp/syzkaller61.c /tmp/syzkaller61.core \
     /tmp/syzkaller.??????
-exit 0 
+exit 0
