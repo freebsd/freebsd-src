@@ -270,7 +270,7 @@ int xs_scanf(struct xs_transaction t,
  */
 int xs_printf(struct xs_transaction t, const char *dir,
     const char *node, const char *fmt, ...)
-    __attribute__((format(printf, 4, 5)));
+    __printflike(4, 5);
 
 /**
  * va_list version of xenbus_printf().
