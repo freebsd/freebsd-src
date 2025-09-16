@@ -681,8 +681,9 @@ In that case, this feature doesn't work as expected.
 .Bl -bullet
 .Sm off
 .It
-.Oo Cm target Ns = Ns Oo ID : Oc Ar /dev/cam/ctl Oo Ar pp Cm \&. Ar vp Oc Oc
+.Oo Cm target Ns = Ns Oo ID : Oc Ar path Ns Oc
 .Oo Cm \&, Ar scsi-device-options Oc
+.Oo Cm \&, Ar backend-specific-options Oc
 .Sm on
 .El
 .Pp
@@ -708,31 +709,46 @@ All
 .Pa target
 .Ar ID Ns s
 must be unique per instance.
-The
+The meaning of the
 .Ar path
-must point to a valid CAM target layer
-.Po CTL
-.Pc
-device node.
-If no
-.Pa target
-is configured, a single default target backed by
-.Sy /dev/cam/ctl
-will be created.
+argument is specific to each backend:
+.Bl -column "Backend" "/dev/cam/ctl[pp.vp]"
+.It Sy Backend Ta Sy Path Ta Sy Description
+.It ctl Ta Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc Ta
+The path of a CAM target layer (CTL) device node.
+If no target is configured, a single target backed by
+.Qq /dev/cam/ctl
+will be configured by default.
+.El
 .Pp
 The
 .Ar scsi-device-options
 are:
 .Bl -tag -width 10n
-.It Cm iid= Ns Ar IID
-Initiator ID to use when sending requests to specified CTL port.
-The default value is 0.
+.It Cm backend= Ns Ar backend
+The virtio-scsi backend to use.
+The backend name is case-insensitive.
+There is currently only one backend
+.Qq ctl ,
+which is also the default backend.
 .It Li bootindex= Ns Ar index
 Add the device to the boot order at
 .Ar index .
 A fw_cfg file is used to specify the boot order.
 The guest firmware may ignore or not support this fw_cfg file.
 In that case, this feature doesn't work as expected.
+.El
+.Pp
+The
+.Ar backend-specific-options
+for the
+.Sy CTL
+backend are:
+.Bl -tag -width 10n
+.It Cm iid= Ns Ar IID
+Initiator ID to use when sending requests to
+.Sy CTL .
+The default value is 0.
 .El
 .Ss 9P device backends
 .Bl -bullet

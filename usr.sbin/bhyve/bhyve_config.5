@@ -762,13 +762,14 @@ If specified, it must be a unicast MAC address.
 The largest supported MTU advertised to the guest.
 .El
 .Ss VirtIO SCSI Settings
-.Bl -column "target" "integer" "/dev/cam/ctl"
+.Bl -column "backend" "string" "/dev/cam/ctl"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
-.It Va iid Ta integer Ta 0 Ta
-Initiator ID to use when sending requests to the CTL port.
-.It Va target Ta Oo Va ID : Oc Ns path Ta Sy /dev/cam/ctl Ta
-The path of a CAM target layer (CTL) device to use:
-.Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc
+.It Va backend Ta string Ta ctl Ta
+The virtio-scsi backend to use (case-insensitive).
+.It Va target Ta Oo Va ID : Oc Ns path Ta /dev/cam/ctl Ta
+The backend
+.Ar path
+of a target to configure.
 Optionally, a numeric target
 .Ar ID
 in the range from 0 to 255 may be specified before the
@@ -789,6 +790,22 @@ configured so far, or 0 for the first target configured.
 The target
 .Ar ID Ns s
 must be unique within each virtio-scsi instance.
+.Pp
+The meaning of the
+.Ar path
+argument is specific to each backend:
+.Bl -column "Backend" "/dev/cam/ctl[pp.vp]"
+.It Sy Backend Ta Sy Path Ta Sy Description
+.It ctl Ta Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc Ta
+The path of a CAM target layer (CTL) device to configure as a target.
+.El
+.Pp
+The following backend-specific variables are supported for VirtIO SCSI:
+.Bl -column "Backend" "Name" "integer" "Default"
+.It Sy Backend Ta Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It ctl Ta Va iid Ta integer Ta 0 Ta
+Initiator ID to use when sending requests to CTL.
+.El
 .Sh SEE ALSO
 .Xr expand_number 3 ,
 .Xr getaddrinfo 3 ,
