@@ -3,3 +3,7 @@ desc = <<EOD
 The source code used to rebuild the system, located in /usr/src.
 This package includes the kernel source code.
 EOD
+
+annotations {
+	set = src
+}
