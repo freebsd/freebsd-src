@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 8, 2025
+.Dd September 16, 2025
 .Dt VTNET 4
 .Os
 .Sh NAME
@@ -84,6 +84,8 @@ field of the structure
 .Vt struct virtio_net_hdr .
 It also marks the checksum as being correct in the mbuf packet header.
 The default value is 0.
+This tunable is deprecated and will be removed in
+.Fx 16 .
 .It Va hw.vtnet.tso_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .tso_disable
 This tunable disables TCP segmentation offloading.
