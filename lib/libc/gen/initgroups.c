@@ -31,11 +31,7 @@
 
 #include <sys/param.h>
 
-#include "namespace.h"
-#include <err.h>
-#include "un-namespace.h"
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -51,12 +47,13 @@ initgroups(const char *uname, gid_t agroup)
 	 * setgroups to fail and set errno.
 	 */
 	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 2;
-	if ((groups = malloc(sizeof(*groups) * ngroups_max)) == NULL)
-		return (ENOMEM);
+	groups = malloc(sizeof(*groups) * ngroups_max);
+	if (groups == NULL)
+		return (-1); /* malloc() set 'errno'. */
 
 	ngroups = (int)ngroups_max;
 	getgrouplist(uname, agroup, groups, &ngroups);
 	ret = setgroups(ngroups, groups);
 	free(groups);
-	return (ret);
+	return (ret); /* setgroups() set 'errno'. */
 }
