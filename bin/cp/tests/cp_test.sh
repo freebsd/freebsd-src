@@ -384,7 +384,7 @@ samefile_body()
 
 file_is_sparse()
 {
-	atf_check ${0%/*}/sparse "$1"
+	atf_check -o match:"^[0-9]+-[0-9]" stat -h "$1"
 }
 
 files_are_equal()
