@@ -163,19 +163,32 @@ vm_extra_enable_services() {
 }
 
 vm_extra_install_packages() {
-	if [ -n "${WITHOUT_QEMU}" ]; then
-		return 0
-	fi
-
 	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
 		return 0
 	fi
-	chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-		/usr/sbin/pkg bootstrap -y
-	for p in ${VM_EXTRA_PACKAGES}; do
+	if [ -n "${NO_ROOT}" ]; then
+		for pkg in ${VM_EXTRA_PACKAGES}; do
+			INSTALL_AS_USER=yes \
+			${PKG_CMD} \
+			    -o METALOG=${DESTDIR}/METALOG.pkg \
+			    -o REPOS_DIR=${PKG_REPOS_DIR} \
+			    -o PKG_DBDIR=${DESTDIR}/var/db/pkg \
+			    -r ${DESTDIR} \
+			    install -y -r ${PKG_REPO_NAME} $pkg
+		done
+		metalog_add_data ./var/db/pkg/local.sqlite
+	else
+		if [ -n "${WITHOUT_QEMU}" ]; then
+			return 0
+		fi
+
 		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
-			/usr/sbin/pkg install -y ${p}
-	done
+			/usr/sbin/pkg bootstrap -y
+		for p in ${VM_EXTRA_PACKAGES}; do
+			chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
+				/usr/sbin/pkg install -y ${p}
+		done
+	fi
 
 	return 0
 }
@@ -218,6 +231,10 @@ vm_extra_pkg_rmcache() {
 
 buildfs() {
 	local md tmppool
+
+	if [ -f ${DESTDIR}/METALOG.pkg ]; then
+		cat ${DESTDIR}/METALOG.pkg >> ${DESTDIR}/METALOG
+	fi
 
 	case "${VMFS}" in
 	ufs)
