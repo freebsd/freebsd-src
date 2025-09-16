@@ -592,6 +592,8 @@ sys_getauid(struct thread *td, struct getauid_args *uap)
 {
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
@@ -607,6 +609,8 @@ sys_setauid(struct thread *td, struct setauid_args *uap)
 	au_id_t id;
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = copyin(uap->auid, &id, sizeof(id));
 	if (error)
 		return (error);
@@ -646,6 +650,8 @@ sys_getaudit(struct thread *td, struct getaudit_args *uap)
 	int error;
 
 	cred = td->td_ucred;
+	if (jailed(cred))
+		return (ENOSYS);
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
@@ -668,6 +674,8 @@ sys_setaudit(struct thread *td, struct setaudit_args *uap)
 	struct auditinfo ai;
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = copyin(uap->auditinfo, &ai, sizeof(ai));
 	if (error)
 		return (error);
@@ -707,6 +715,8 @@ sys_getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	if (uap->length < sizeof(*uap->auditinfo_addr))
 		return (EOVERFLOW);
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
@@ -724,6 +734,8 @@ sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	struct auditinfo_addr aia;
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = copyin(uap->auditinfo_addr, &aia, sizeof(aia));
 	if (error)
 		return (error);
