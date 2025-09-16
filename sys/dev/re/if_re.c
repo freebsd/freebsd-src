@@ -353,6 +353,8 @@ static driver_t re_driver = {
 
 DRIVER_MODULE(re, pci, re_driver, 0, 0);
 DRIVER_MODULE(miibus, re, miibus_driver, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;U32:#;D:#", pci, re, re_devs,
+    nitems(re_devs) - 1);
 
 #define EE_SET(x)					\
 	CSR_WRITE_1(sc, RL_EECMD,			\
