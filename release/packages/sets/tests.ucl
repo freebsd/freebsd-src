@@ -1,0 +1,5 @@
+comment = "System test suite"
+
+desc = <<EOD
+This metapackage installs the system test suite.
+EOD
