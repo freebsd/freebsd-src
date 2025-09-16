@@ -12,6 +12,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250916:
+	14.2-RELEASE-p6	EN-25:15.arm64
+			EN-25:16.vfs
+			EN-25:17.bnxt
+
+	Fix arm64 syscall(2) allows unprivileged user to panic kernel. [EN-25:15.arm64]
+
+	Fix copy_file_range(2) failing to set output parameters. [EN-25:16.vfs]
+
+	Fix bnxt(4) failing to set media type in some cases. [EN-25:17.bnxt]
+
 20250808:
 	14.3-RELEASE-p2	EN-25:12.efi
 			EN-25:13.wlan_tkip
