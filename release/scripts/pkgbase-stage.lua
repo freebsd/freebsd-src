@@ -18,87 +18,47 @@ local function capture(command)
 	return output:match("(.-)\n$") or output
 end
 
-local function append_list(list, other)
-	for _, item in ipairs(other) do
-		table.insert(list, item)
-	end
-end
-
 -- Returns a list of packages to be included in the given media
 local function select_packages(pkg, media, all_libcompats)
-	local components = {
-		kernel = {},
-		kernel_dbg = {},
-		base = {},
-		base_dbg = {},
-		src = {},
-		tests = {},
-	}
-
-	for compat in all_libcompats:gmatch("%S+") do
-		components["lib" .. compat] = {}
-		components["lib" .. compat .. "_dbg"] = {}
-	end
-
+	local components = {}
 	local rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")
 	for package in rquery:gmatch("[^\n]+") do
-		if package == "FreeBSD-src" or package:match("^FreeBSD%-src%-.*") then
-			table.insert(components["src"], package)
-		elseif package == "FreeBSD-tests" or package:match("^FreeBSD%-tests%-.*") then
-			table.insert(components["tests"], package)
-		elseif package:match("^FreeBSD%-kernel%-.*") and
-			package ~= "FreeBSD-kernel-man"
-		then
-			-- Kernels other than FreeBSD-kernel-generic are ignored
-			if package == "FreeBSD-kernel-generic" then
-				table.insert(components["kernel"], package)
-			elseif package == "FreeBSD-kernel-generic-dbg" then
-				table.insert(components["kernel_dbg"], package)
-			end
-		elseif package:match(".*%-dbg$") then
-			table.insert(components["base_dbg"], package)
-		else
-			local found = false
-			for compat in all_libcompats:gmatch("%S+") do
-				if package:match(".*%-dbg%-lib" .. compat .. "$") then
-					table.insert(components["lib" .. compat .. "_dbg"], package)
-					found = true
-					break
-				elseif package:match(".*%-lib" .. compat .. "$") then
-					table.insert(components["lib" .. compat], package)
-					found = true
-					break
-				end
-			end
-			if not found then
-				table.insert(components["base"], package)
-			end
+		local set = package:match("^FreeBSD%-set%-(.*)$")
+		if set then
+			components[set] = package
+		-- Kernels other than FreeBSD-kernel-generic are ignored
+		-- Note that on powerpc64 and powerpc64le the names are
+		-- slightly different.
+		elseif package:match("^FreeBSD%-kernel%-generic.*-dbg") then
+			components["kernel-dbg"] = package
+		elseif package:match("^FreeBSD%-kernel%-generic.*") then
+			components["kernel"] = package
 		end
 	end
-	assert(#components["kernel"] == 1)
-	assert(#components["base"] > 0)
+	assert(components["kernel"])
+	assert(components["base"])
 
 	local selected = {}
 	if media == "disc" then
-		append_list(selected, components["base"])
-		append_list(selected, components["kernel"])
-		append_list(selected, components["kernel_dbg"])
-		append_list(selected, components["src"])
-		append_list(selected, components["tests"])
+		table.insert(selected, components["base"])
+		table.insert(selected, components["kernel"])
+		table.insert(selected, components["kernel-dbg"])
+		table.insert(selected, components["src"])
+		table.insert(selected, components["tests"])
 		for compat in all_libcompats:gmatch("%S+") do
-			append_list(selected, components["lib" .. compat])
+			table.insert(selected, components["lib" .. compat])
 		end
 	else
 		assert(media == "dvd")
-		append_list(selected, components["base"])
-		append_list(selected, components["base_dbg"])
-		append_list(selected, components["kernel"])
-		append_list(selected, components["kernel_dbg"])
-		append_list(selected, components["src"])
-		append_list(selected, components["tests"])
+		table.insert(selected, components["base"])
+		table.insert(selected, components["base-dbg"])
+		table.insert(selected, components["kernel"])
+		table.insert(selected, components["kernel-dbg"])
+		table.insert(selected, components["src"])
+		table.insert(selected, components["tests"])
 		for compat in all_libcompats:gmatch("%S+") do
-			append_list(selected, components["lib" .. compat])
-			append_list(selected, components["lib" .. compat .. "_dbg"])
+			table.insert(selected, components["lib" .. compat])
+			table.insert(selected, components["lib" .. compat .. "-dbg"])
 		end
 	end
 
@@ -136,7 +96,7 @@ local function main()
 
 	local packages = select_packages(pkg, media, all_libcompats)
 
-	assert(os.execute(pkg .. "fetch -o " .. target .. " " .. table.concat(packages, " ")))
+	assert(os.execute(pkg .. "fetch -d -o " .. target .. " " .. table.concat(packages, " ")))
 	assert(os.execute(pkg .. "repo " .. target))
 end
 
