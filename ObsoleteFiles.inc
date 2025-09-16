@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250911: This tool is no longer needed
+OLD_FILES+=usr/tests/bin/cp/sparse
+
 # 20250826: Remove a misspelled manual
 OLD_FILES+=usr/share/man/man3/sysdecode_syscallnames.3.gz
 
