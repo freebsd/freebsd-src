@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250916:
+	14.2-RELEASE-p6	EN-25:15.arm64
+
+	Fix arm64 syscall(2) allows unprivileged user to panic kernel. [EN-25:15.arm64]
+
 20250808:
 	14.2-RELEASE-p5	EN-25:14.route
 			SA-25:07.libarchive
