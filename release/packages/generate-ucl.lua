@@ -191,6 +191,10 @@ elseif pkgname:match("%-lib32$") then
 -- support or you don't.
 elseif pkgname:match("%-dev$") or pkgname:match("^lib.*%-man$") then
 	set = "devel"
+-- Don't separate tests and tests-dbg into 2 sets, if the user wants tests
+-- they should be able to debug failures.
+elseif set == "tests" then
+	set = set
 -- If this is a -dbg package, it goes in <set>-dbg, which means the user can
 -- install debug symbols only for the sets they have installed.
 elseif pkgname:match("%-dbg$") then
