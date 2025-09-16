@@ -39,9 +39,9 @@
 .macro	save_registers_head el
 .if \el == 1
 	mov	x18, sp
-	stp	x0,  x1,  [sp, #(TF_X - TF_SIZE - 128)]!
+	stp	x0,  x1,  [sp, #-(TF_SIZE - TF_X + 128)]!
 .else
-	stp	x0,  x1,  [sp, #(TF_X - TF_SIZE)]!
+	stp	x0,  x1,  [sp, #-(TF_SIZE - TF_X)]!
 .endif
 	stp	x2,  x3,  [sp, #(2  * 8)]
 	stp	x4,  x5,  [sp, #(4  * 8)]
