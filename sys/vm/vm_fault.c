@@ -694,21 +694,18 @@ _Static_assert(UCODE_PAGEFLT == T_PAGEFLT, "T_PAGEFLT");
 #endif
 
 /*
- *	vm_fault_trap:
+ * vm_fault_trap:
  *
- *	Handle a page fault occurring at the given address,
- *	requiring the given permissions, in the map specified.
- *	If successful, the page is inserted into the
- *	associated physical map.
+ * Helper for the page fault trap handlers, wrapping vm_fault().
+ * Issues ktrace(2) tracepoints for the faults.
  *
- *	NOTE: the given address should be truncated to the
- *	proper page address.
+ * If a fault cannot be handled successfully by satisfying the
+ * required mapping, and the faulted instruction cannot be restarted,
+ * the signal number and si_code values are returned for trapsignal()
+ * to deliver.
  *
- *	KERN_SUCCESS is returned if the page fault is handled; otherwise,
- *	a standard error specifying why the fault is fatal is returned.
- *
- *	The map in question must be referenced, and remains so.
- *	Caller may hold no locks.
+ * Returns Mach error codes, but callers should only check for
+ * KERN_SUCCESS.
  */
 int
 vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
@@ -1546,6 +1543,27 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	return (res);
 }
 
+/*
+ * vm_fault:
+ *
+ * Handle a page fault occurring at the given address, requiring the
+ * given permissions, in the map specified.  If successful, the page
+ * is inserted into the associated physical map, and optionally
+ * referenced and returned in *m_hold.
+ *
+ * The given address should be truncated to the proper page address.
+ *
+ * KERN_SUCCESS is returned if the page fault is handled; otherwise, a
+ * Mach error specifying why the fault is fatal is returned.
+ *
+ * The map in question must be alive, either being the map for current
+ * process, or the owner process hold count incremented to prevent
+ * exit().
+ *
+ * If the thread private TDP_NOFAULTING flag is set, any fault results
+ * in immediate protection failure.  Otherwise the fault is processed,
+ * and caller may hold no locks.
+ */
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
