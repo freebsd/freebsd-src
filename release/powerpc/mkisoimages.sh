@@ -109,7 +109,7 @@ if [ -n "${METALOG}" ]; then
 fi
 makefs -D -N ${BASEBITSDIR}/etc -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$MAKEFSARG" "$@"
 rm -f "$BASEBITSDIR/etc/fstab"
-if [ n "$bootable" ]; then
+if [ -n "$bootable" ]; then
 	rm $BOOTBLOCK
 fi
 rm -rf "$BASEBITSDIR/ppc"
