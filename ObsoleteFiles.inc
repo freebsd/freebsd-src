@@ -600,6 +600,10 @@ OLD_FILES+=usr/share/examples/dma/auth.conf
 # 20251006: Remove libnss_tacplus.a (it never should have been installed)
 OLD_FILES+=usr/lib/libnss_tacplus.a
 
+# 20250917: Remove a miscapitalized manual
+OLD_FILES+=usr/share/man/man9/vnet.9.gz
+OLD_FILES+=usr/share/man/man9/vimage.9.gz
+
 # 20250826: Remove a misspelled manual
 OLD_FILES+=usr/share/man/man3/sysdecode_syscallnames.3.gz
 

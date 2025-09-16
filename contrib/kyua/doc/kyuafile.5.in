@@ -485,7 +485,7 @@ plain_test_program{name='the_test',
 .Ss FreeBSD jail execution environment
 The following example configures the test to be run within a temporary jail
 with
-.Xr vnet 9
+.Xr VNET 9
 support and the permission to create raw sockets:
 .Bd -literal -offset indent
 syntax(2)
