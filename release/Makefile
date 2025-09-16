@@ -307,7 +307,7 @@ dvd: ${PKGBASE_REPO}
 	${.CURDIR}/scripts/pkgbase-stage.lua dvd \
 	    ${.OBJDIR}/pkgbase-repo/${PKG_ABI}/latest \
 	    ${.TARGET}/usr/freebsd-packages/offline \
-	    "${_ALL_libcompats}"
+	    "${_ALL_libcompats}" ${PKG_ABI}
 	cp ${.CURDIR}/scripts/FreeBSD-base-offline.conf \
 		${.TARGET}/usr/freebsd-packages/repos/
 	mtree -c -p ${.TARGET}/usr/freebsd-packages | \
