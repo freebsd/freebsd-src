@@ -103,10 +103,8 @@ extern int32_t ocs_textbuf_init(ocs_t *ocs, ocs_textbuf_t *textbuf, void *buffer
 extern void ocs_textbuf_free(ocs_t *ocs, ocs_textbuf_t *textbuf);
 extern void ocs_textbuf_putc(ocs_textbuf_t *textbuf, uint8_t c);
 extern void ocs_textbuf_puts(ocs_textbuf_t *textbuf, char *s);
-__attribute__((format(printf,2,3)))
-extern void ocs_textbuf_printf(ocs_textbuf_t *textbuf, const char *fmt, ...);
-__attribute__((format(printf,2,0)))
-extern void ocs_textbuf_vprintf(ocs_textbuf_t *textbuf, const char *fmt, va_list ap);
+extern void ocs_textbuf_printf(ocs_textbuf_t *textbuf, const char *fmt, ...) __printflike(2, 3);
+extern void ocs_textbuf_vprintf(ocs_textbuf_t *textbuf, const char *fmt, va_list ap) __printflike(2, 0);
 extern void ocs_textbuf_buffer(ocs_textbuf_t *textbuf, uint8_t *buffer, uint32_t buffer_length);
 extern void ocs_textbuf_copy(ocs_textbuf_t *textbuf, uint8_t *buffer, uint32_t buffer_length);
 extern int32_t ocs_textbuf_remaining(ocs_textbuf_t *textbuf);
@@ -325,10 +323,8 @@ typedef struct ocs_ramlog_s ocs_ramlog_t;
 extern ocs_ramlog_t *ocs_ramlog_init(ocs_t *ocs, uint32_t buffer_len, uint32_t buffer_count);
 extern void ocs_ramlog_free(ocs_t *ocs, ocs_ramlog_t *ramlog);
 extern void ocs_ramlog_clear(ocs_t *ocs, ocs_ramlog_t *ramlog, int clear_start_of_day, int clear_recent);
-__attribute__((format(printf,2,3)))
-extern int32_t ocs_ramlog_printf(void *os, const char *fmt, ...);
-__attribute__((format(printf,2,0)))
-extern int32_t ocs_ramlog_vprintf(ocs_ramlog_t *ramlog, const char *fmt, va_list ap);
+extern int32_t ocs_ramlog_printf(void *os, const char *fmt, ...) __printflike(2, 3);
+extern int32_t ocs_ramlog_vprintf(ocs_ramlog_t *ramlog, const char *fmt, va_list ap) __printflike(2, 0);
 extern int32_t ocs_ddump_ramlog(ocs_textbuf_t *textbuf, ocs_ramlog_t *ramlog);
 
 #endif 
