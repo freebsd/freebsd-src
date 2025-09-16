@@ -13,7 +13,7 @@ Items affecting the ports and packages system can be found in
 and/or ports.
 
 20250916:
-	14.2-RELEASE-p6	EN-25:15.arm64
+	14.3-RELEASE-p3	EN-25:15.arm64
 			EN-25:16.vfs
 			EN-25:17.bnxt
 
