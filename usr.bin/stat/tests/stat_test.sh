@@ -1,6 +1,7 @@
 #
 # Copyright (c) 2017 Dell EMC
 # All rights reserved.
+# Copyright (c) 2025 Klara, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -43,6 +44,76 @@ F_flag_body()
 	atf_check -o match:'.* c\*' stat -Fn c
 	atf_check -o match:'.* d@' stat -Fn d
 	atf_check -o match:'.* f\|' stat -Fn f
+}
+
+atf_test_case h_flag cleanup
+h_flag_head()
+{
+	atf_set "descr" "Verify the output format for -h"
+	atf_set "require.user" "root"
+}
+h_flag_body()
+{
+	# POSIX defines a hole as “[a] contiguous region of bytes
+	# within a file, all having the value of zero” and requires
+	# that “all seekable files shall have a virtual hole starting
+	# at the current size of the file” but says “it is up to the
+	# implementation to define when sparse files can be created
+	# and with what granularity for the size of holes”.  It also
+	# defines a sparse file as “[a] file that contains more holes
+	# than just the virtual hole at the end of the file”.  That's
+	# pretty much the extent of its discussion of holes, apart
+	# from the description of SEEK_HOLE and SEEK_DATA in the lseek
+	# manual page.  In other words, there is no portable way to
+	# reliably create a hole in a file on any given file system.
+	#
+	# On FreeBSD, this test is likely to run on either tmpfs, ufs
+	# (ffs2), or zfs.  Of those three, only tmpfs has predictable
+	# semantics and supports all possible configurations (the
+	# minimum hole size on zfs is variable for small files, and
+	# ufs will not allow a file to end in a hole).
+	atf_check mkdir mnt
+	atf_check mount -t tmpfs tmpfs mnt
+	cd mnt
+
+	# For a directory, prints the minimum hole size, which on
+	# tmpfs is the system page size.
+	ps=$(sysctl -n hw.pagesize)
+	atf_check -o inline:"$((ps)) .\n" stat -h .
+	atf_check -o inline:"$((ps)) ." stat -hn .
+
+	# For a file, prints a list of holes.
+	atf_check truncate -s 0 foo
+	atf_check -o inline:"0 foo" \
+	    stat -hn foo
+	atf_check truncate -s "$((ps))" foo
+	atf_check -o inline:"0-$((ps-1)) foo" \
+	    stat -hn foo
+	atf_check dd status=none if=/COPYRIGHT of=foo \
+	    oseek="$((ps))" bs=1 count=1
+	atf_check -o inline:"0-$((ps-1)),$((ps+1)) foo" \
+	    stat -hn foo
+	atf_check truncate -s "$((ps*3))" foo
+	atf_check -o inline:"0-$((ps-1)),$((ps*2))-$((ps*3-1)) foo" \
+	    stat -hn foo
+
+	# Test multiple files.
+	atf_check dd status=none if=/COPYRIGHT of=bar
+	sz=$(stat -f%z bar)
+	atf_check -o inline:"0-$((ps-1)),$((ps*2))-$((ps*3-1)) foo
+$((sz)) bar
+" \
+	    stat -h foo bar
+
+	# For a device, fail.
+	atf_check -s exit:1 -e match:"/dev/null: Illegal seek" \
+	    stat -h /dev/null
+}
+h_flag_cleanup()
+{
+	if [ -d mnt ]; then
+		umount mnt || true
+	fi
 }
 
 atf_test_case l_flag
@@ -233,6 +304,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case F_flag
 	#atf_add_test_case H_flag
+	atf_add_test_case h_flag
 	#atf_add_test_case L_flag
 	#atf_add_test_case f_flag
 	atf_add_test_case l_flag
