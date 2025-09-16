@@ -66,6 +66,7 @@
 #include <net/route/nhop.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
+#include <net/if_gif.h>
 
 #include <netpfil/pf/pf_mtag.h>
 
@@ -1700,6 +1701,12 @@ do {								\
 
 			case IPPROTO_IPV4:	/* RFC 2893 */
 				PULLUP_TO(hlen, ulp, struct ip);
+				break;
+
+			case IPPROTO_ETHERIP:	/* RFC 3378 */
+				PULLUP_LEN(hlen, ulp,
+				    sizeof(struct etherip_header) +
+				    sizeof(struct ether_header));
 				break;
 
 			default:
