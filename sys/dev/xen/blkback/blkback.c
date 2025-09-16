@@ -152,7 +152,7 @@ struct xbb_softc;
 struct xbb_xen_req;
 
 static void xbb_attach_failed(struct xbb_softc *xbb, int err, const char *fmt,
-			      ...) __attribute__((format(printf, 3, 4)));
+			      ...) __printflike(3, 4);
 static int  xbb_shutdown(struct xbb_softc *xbb);
 
 /*------------------------------ Data Structures -----------------------------*/

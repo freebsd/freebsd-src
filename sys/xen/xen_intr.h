@@ -182,7 +182,7 @@ void xen_intr_unbind(xen_intr_handle_t *handle);
  */
 int
 xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
-	__attribute__((format(printf, 2, 3)));
+	__printflike(2, 3);
 
 /**
  * Signal the remote peer of an interrupt source associated with an
