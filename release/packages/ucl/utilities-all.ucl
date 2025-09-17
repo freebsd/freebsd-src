@@ -5,5 +5,5 @@ Non-vital programs and libraries
 EOD
 
 annotations {
-	set = minimal
+	set = "minimal,minimal-jail"
 }

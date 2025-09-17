@@ -5,5 +5,5 @@ Core C Libraries
 EOD
 
 annotations {
-	set = minimal
+	set = "minimal,minimal-jail"
 }

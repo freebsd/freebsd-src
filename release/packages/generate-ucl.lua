@@ -166,12 +166,14 @@ if add_gen_dep(pkgname, pkggenname) then
 end
 
 --
--- Handle the 'set' annotation.
+-- Handle the 'set' annotation, a comma-separated list of sets which this
+-- package should be placed in.  If it's not specified, the package goes
+-- in the default set which is base.
 --
 -- Ensure we have an annotations table to work with.
 obj["annotations"] = obj["annotations"] or {}
 -- If no set is provided, use the default set which is "base".
-set = obj["annotations"]["set"] or "base"
+sets = obj["annotations"]["set"] or "base"
 -- For subpackages, we may need to rewrite the set name.  This is done a little
 -- differently from the normal pkg suffix processing, because we don't need sets
 -- to be as a granular as the base packages.
@@ -181,27 +183,32 @@ set = obj["annotations"]["set"] or "base"
 -- However, lib32 debug symbols still go into their own package since they're
 -- quite large.
 if pkgname:match("%-dbg%-lib32$") then
-	set = "lib32-dbg"
+	sets = "lib32-dbg"
 elseif pkgname:match("%-lib32$") then
-	set = "lib32"
+	sets = "lib32"
 -- If this is a -dev package, put it in a single set called "devel" which
 -- contains all development files.  Also include lib*-man packages, which
 -- contain manpages for libraries. Having a separate <set>-dev for every
 -- set is not necessary, because generally you either want development
 -- support or you don't.
 elseif pkgname:match("%-dev$") or pkgname:match("^lib.*%-man$") then
-	set = "devel"
+	sets = "devel"
 -- Don't separate tests and tests-dbg into 2 sets, if the user wants tests
 -- they should be able to debug failures.
-elseif set == "tests" then
-	set = set
--- If this is a -dbg package, it goes in <set>-dbg, which means the user can
--- install debug symbols only for the sets they have installed.
+elseif sets == "tests" then
+	sets = sets
+-- If this is a -dbg package, put it in the -dbg subpackage of each set,
+-- which means the user can install debug symbols only for the sets they
+-- have installed.
 elseif pkgname:match("%-dbg$") then
-	set = set .. "-dbg"
+	local newsets = {}
+	for set in sets:gmatch("[^,]+") do
+		newsets[#newsets + 1] = set .. "-dbg"
+	end
+	sets = table.concat(newsets, ",")
 end
--- Put our new set back into the package.
-obj["annotations"]["set"] = set
+-- Put our new sets back into the package.
+obj["annotations"]["set"] = sets
 
 -- If PKG_NAME_PREFIX is provided, rewrite the names of dependency packages.
 -- We can't do this in UCL since variable substitution doesn't work in array
