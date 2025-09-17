@@ -484,7 +484,7 @@ tsadc_init_tsensor(struct tsadc_softc *sc, struct tsensor *sensor)
 	WR4(sc, TSADC_INT_EN, val);
 
 	/* Shutdown temperature */
-	val =  tsadc_raw_to_temp(sc, sc->shutdown_temp);
+	val =  tsadc_temp_to_raw(sc, sc->shutdown_temp);
 	WR4(sc, TSADC_COMP_SHUT(sensor->channel), val);
 	val = RD4(sc, TSADC_AUTO_CON);
 	val |= TSADC_AUTO_SRC_EN(sensor->channel);
