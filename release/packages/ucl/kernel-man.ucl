@@ -1,5 +1,10 @@
 comment = "Kernel manual pages"
+
 desc = <<EOD
 Manual pages for kernel interfaces and drivers (section 4) and the kernel
 developer manual pages (section 9).
 EOD
+
+annotations {
+	set = "minimal"
+}
