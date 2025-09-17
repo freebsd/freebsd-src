@@ -47,7 +47,7 @@ install_packages() {
 	# metadata for what was installed). This trims more than 40Mb from the
 	# resulting image.
 	env IGNORE_OSVERSION=yes ABI=${abi} pkg --rootdir ${rootdir} --repo-conf-dir ${workdir}/repos \
-		install -yq "$@" || exit $?
+		install -yq -g "$@" || exit $?
 	rm -rf ${rootdir}/var/db/pkg/repos
 }
 

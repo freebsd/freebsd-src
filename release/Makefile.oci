@@ -3,7 +3,7 @@
 #
 
 .if defined(WITH_OCIIMAGES) && !empty(WITH_OCIIMAGES)
-OCI_IMAGES= static dynamic runtime
+OCI_IMAGES= static dynamic runtime notoolchain toolchain
 .endif
 
 oci-install:
@@ -16,8 +16,10 @@ oci-install:
 
 OCI_TARGETS=
 OCI_DEPS_static=
-OCI_DEPS_dynamic= container-image-static.txz
-OCI_DEPS_runtime= container-image-dynamic.txz
+OCI_DEPS_dynamic=container-image-static.txz
+OCI_DEPS_runtime=container-image-dynamic.txz
+OCI_DEPS_notoolchain=container-image-runtime.txz
+OCI_DEPS_toolchain=container-image-notoolchain.txz
 
 .for _IMG in ${OCI_IMAGES}
 OCI_TARGETS+= container-image-${_IMG}.txz
