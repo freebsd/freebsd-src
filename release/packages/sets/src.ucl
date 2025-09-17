@@ -1,5 +1,7 @@
 comment = "System source code"
 
+vital = yes
+
 desc = <<EOD
 This metapackage installs source code for the base system and kernel.
 EOD
