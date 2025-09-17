@@ -6547,6 +6547,11 @@ shutdown_pf(void)
 
 		pf_kill_srcnodes(NULL);
 
+		for (int i = 0; i < PF_RULESET_MAX; i++) {
+			pf_rule_tree_free(pf_main_ruleset.rules[i].active.tree);
+			pf_rule_tree_free(pf_main_ruleset.rules[i].inactive.tree);
+		}
+
 		/* status does not use malloced mem so no need to cleanup */
 		/* fingerprints and interfaces have their own cleanup code */
 	} while(0);

@@ -336,12 +336,6 @@ pf_remove_if_empty_kruleset(struct pf_kruleset *ruleset)
 	int			 i;
 
 	while (ruleset != NULL) {
-		for (int i = 0; i < PF_RULESET_MAX; i++) {
-			pf_rule_tree_free(ruleset->rules[i].active.tree);
-			ruleset->rules[i].active.tree = NULL;
-			pf_rule_tree_free(ruleset->rules[i].inactive.tree);
-			ruleset->rules[i].inactive.tree = NULL;
-		}
 		if (ruleset == &pf_main_ruleset ||
 		    !RB_EMPTY(&ruleset->anchor->children) ||
 		    ruleset->anchor->refcnt > 0 || ruleset->tables > 0 ||
@@ -352,6 +346,12 @@ pf_remove_if_empty_kruleset(struct pf_kruleset *ruleset)
 			    !TAILQ_EMPTY(ruleset->rules[i].inactive.ptr) ||
 			    ruleset->rules[i].inactive.open)
 				return;
+		for (int i = 0; i < PF_RULESET_MAX; i++) {
+			pf_rule_tree_free(ruleset->rules[i].active.tree);
+			ruleset->rules[i].active.tree = NULL;
+			pf_rule_tree_free(ruleset->rules[i].inactive.tree);
+			ruleset->rules[i].inactive.tree = NULL;
+		}
 		RB_REMOVE(pf_kanchor_global, &V_pf_anchors, ruleset->anchor);
 		if ((parent = ruleset->anchor->parent) != NULL)
 			RB_REMOVE(pf_kanchor_node, &parent->children,
