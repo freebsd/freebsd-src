@@ -968,6 +968,7 @@ table_loop_head()
 {
 	atf_set descr 'Check that iterating over tables poperly loops'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 table_loop_body()
@@ -1032,6 +1033,7 @@ roundrobin_head()
 {
 	atf_set descr 'multiple gateways of mixed AF, including prefixes and tables, for IPv6 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 roundrobin_body()
@@ -1094,6 +1096,7 @@ random_table_head()
 {
 	atf_set descr 'Pool with random flag and a table for IPv6'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 random_table_body()
@@ -1131,6 +1134,7 @@ random_prefix_head()
 {
 	atf_set descr 'Pool with random flag and a table for IPv4'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 random_prefix_body()
@@ -1167,6 +1171,7 @@ prefer_ipv6_nexthop_single_ipv4_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for a single IPv4 gateway'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_single_ipv4_body()
@@ -1219,6 +1224,7 @@ prefer_ipv6_nexthop_single_ipv6_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for a single IPv6 gateway'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_single_ipv6_body()
@@ -1269,6 +1275,7 @@ prefer_ipv6_nexthop_mixed_af_roundrobin_ipv4_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for multiple gateways of mixed AF with prefixes and tables, round robin selection, for IPv4 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_mixed_af_roundrobin_ipv4_body()
@@ -1337,6 +1344,7 @@ prefer_ipv6_nexthop_mixed_af_roundrobin_ipv6_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for multiple gateways of mixed AF with prefixes and tables, round-robin selection, for IPv6 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_mixed_af_roundrobin_ipv6_body()
@@ -1407,6 +1415,7 @@ prefer_ipv6_nexthop_mixed_af_random_table_ipv4_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for a mixed-af table with random selection for IPv4 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_mixed_af_random_table_ipv4_body()
@@ -1444,6 +1453,7 @@ prefer_ipv6_nexthop_ipv4_random_table_ipv4_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for an IPv4-only table with random selection for IPv4 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_ipv4_random_table_ipv4_body()
@@ -1479,6 +1489,7 @@ prefer_ipv6_nexthop_ipv4_random_table_ipv6_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for an IPv4-only table with random selection for IPv6 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_ipv4_random_table_ipv6_body()
@@ -1516,6 +1527,7 @@ prefer_ipv6_nexthop_ipv6_random_prefix_ipv4_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for an IPv6 prefix with random selection for IPv4 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_ipv6_random_prefix_ipv4_body()
@@ -1544,6 +1556,7 @@ prefer_ipv6_nexthop_ipv6_random_prefix_ipv6_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for an IPv6 prefix with random selection for IPv6 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_ipv6_random_prefix_ipv6_body()
@@ -1572,6 +1585,7 @@ prefer_ipv6_nexthop_ipv4_random_prefix_ipv4_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for an IPv4 prefix with random selection for IPv4 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_ipv4_random_prefix_ipv4_body()
@@ -1600,6 +1614,7 @@ prefer_ipv6_nexthop_ipv4_random_prefix_ipv6_head()
 {
 	atf_set descr 'prefer-ipv6-nexthop option for an IPv4 prefix with random selection for IPv6 packets'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 prefer_ipv6_nexthop_ipv4_random_prefix_ipv6_body()
