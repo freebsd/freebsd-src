@@ -25,10 +25,12 @@ for pkg in "$repodir"/*.pkg; do
 
 	set -- $(pkg query -F "$pkg" '%At %n %Av' | grep '^set ')
 	pkgname="$2"
-	set="$3"
-	SETS="$SETS $set"
-	setvar="$(echo "$set" | tr - _)"
-	eval PKGS_${setvar}=\"\$PKGS_${setvar} $pkgname\"
+	sets="$(echo "$3" | tr , ' ')"
+	for set in $sets; do
+		SETS="$SETS $set"
+		setvar="$(echo "$set" | tr - _)"
+		eval PKGS_${setvar}=\"\$PKGS_${setvar} $pkgname\"
+	done
 done
 
 for set in $(echo $SETS | tr ' ' '\n' | sort | uniq); do

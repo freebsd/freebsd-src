@@ -4,5 +4,5 @@ SSL Certificate Utility
 EOD
 
 annotations {
-	set = minimal
+	set = "minimal,minimal-jail"
 }

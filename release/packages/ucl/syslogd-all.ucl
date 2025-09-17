@@ -6,5 +6,5 @@ writes them to an appropriate log file.
 EOD
 
 annotations {
-	set = minimal
+	set = "minimal,minimal-jail"
 }
