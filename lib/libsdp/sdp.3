@@ -24,7 +24,7 @@
 .\"
 .\" $Id: sdp.3,v 1.1 2003/09/07 20:34:19 max Exp $
 .\"
-.Dd April 30, 2018
+.Dd September 16, 2025
 .Dt SDP 3
 .Os
 .Sh NAME
@@ -87,7 +87,7 @@
 .Fn sdp_uuid2desc "uint16_t uuid"
 .Ft int32_t
 .Fo sdp_register_service
-.Fa "void *xss" "uint16_t uuid" "bdaddr_p const bdaddr" "uint8_t const *data"
+.Fa "void *xss" "uint16_t uuid" "const bdaddr_t *bdaddr" "uint8_t const *data"
 .Fa "uint32_t datalen" "uint32_t *handle"
 .Fc
 .Ft int32_t
