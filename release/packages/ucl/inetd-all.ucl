@@ -7,5 +7,5 @@ built-in servers for basic services are also provided.
 EOD
 
 annotations {
-	set = minimal
+	set = "minimal,minimal-jail"
 }

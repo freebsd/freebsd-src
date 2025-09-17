@@ -6,5 +6,5 @@ text editor, and vi(1), a user-friendly full-screen text editor based on ex.
 EOD
 
 annotations {
-	set = minimal
+	set = "minimal,minimal-jail"
 }
