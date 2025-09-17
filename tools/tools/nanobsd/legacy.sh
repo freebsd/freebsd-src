@@ -34,7 +34,7 @@
 # Functions and variable definitions used by the legacy nanobsd
 # image building system.
 
-calculate_partitioning ( ) (
+calculate_partitioning() {
 	echo $NANO_MEDIASIZE $NANO_IMAGES \
 		$NANO_SECTS $NANO_HEADS \
 		$NANO_CODESIZE $NANO_CONFSIZE $NANO_DATASIZE |
@@ -90,9 +90,9 @@ calculate_partitioning ( ) (
 		}
 	}
 	' > ${NANO_LOG}/_.partitioning
-)
+}
 
-create_code_slice ( ) (
+create_code_slice() {
 	pprint 2 "build code slice"
 	pprint 3 "log: ${NANO_OBJ}/_.cs"
 
@@ -142,10 +142,10 @@ create_code_slice ( ) (
 	trap - 1 2 15 EXIT
 
 	) > ${NANO_OBJ}/_.cs 2>&1
-)
+}
 
 
-create_diskimage ( ) (
+create_diskimage() {
 	pprint 2 "build diskimage"
 	pprint 3 "log: ${NANO_OBJ}/_.di"
 
@@ -243,4 +243,4 @@ create_diskimage ( ) (
 	trap - 1 2 15 EXIT
 
 	) > ${NANO_LOG}/_.di 2>&1
-)
+}

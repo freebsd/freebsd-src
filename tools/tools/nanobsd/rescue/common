@@ -1,5 +1,5 @@
-#
-#
+#!/bin/sh
+
 #NANO_SRC=$(pwd)
 #NANO_SRC=${NANO_SRC%/tools/tools/nanobsd/rescue}
 #NANO_OBJ=${NANO_SRC}/../nanobsd-builds/${NANO_NAME}/obj
@@ -24,12 +24,12 @@ NANO_MD_BACKING=file
 # Options to put in make.conf during buildworld only
 CONF_BUILD='
 '
-# Options to put in make.conf during installworld only                          
+# Options to put in make.conf during installworld only
 CONF_INSTALL='
 '
-# Options to put in make.conf during both build- & installworld.                
-CONF_WORLD='                                                                    
-CFLAGS=-O -pipe                                                                
+# Options to put in make.conf during both build- & installworld.
+CONF_WORLD='
+CFLAGS=-O -pipe
 # We do not need these for rescue
 WITHOUT_TESTS=true
 WITHOUT_DEBUG_FILES=true
@@ -71,9 +71,9 @@ customize_cmd cust_install_files
 
 #customize_cmd cust_pkgng
 
-cust_etc_cfg () (
-  cd ${NANO_WORLDDIR}
-#  mkdir -pv scratch
+cust_etc_cfg() {
+	cd ${NANO_WORLDDIR}
+	# mkdir -pv scratch
 	echo "hostname=\"rescue\"" > etc/rc.conf
 	echo "font8x14=\"iso15-8x14\"" >> etc/rc.conf
 	echo "font8x16=\"iso15-8x16\"" >> etc/rc.conf
@@ -85,12 +85,12 @@ cust_etc_cfg () (
 	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
 	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
 	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
-#	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
+	# echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
 	/usr/sbin/pwd_mkdb -d etc etc/master.passwd
-)
+}
 customize_cmd cust_etc_cfg
 
-setup_nanobsd_etc ( ) (
+setup_nanobsd_etc() {
 	pprint 2 "configure nanobsd /etc"
 	(
 	cd ${NANO_WORLDDIR}
@@ -102,8 +102,8 @@ setup_nanobsd_etc ( ) (
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
 	mkdir -p cfg
 	)
-)
-last_orders () (
+}
+last_orders() {
 	pprint 2 "last orders"
 	(
 	cd ${NANO_WORLDDIR}
@@ -112,7 +112,7 @@ last_orders () (
 	echo "/dev/iso9660/${BIGLABEL} / cd9660 ro,noatime 0 0" > etc/fstab
 	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
 	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
-#	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
+	# echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
 	rm -f conf/default/etc/remount
 	touch conf/default/etc/.keepme
 	touch conf/default/var/.keepme
@@ -125,4 +125,4 @@ last_orders () (
 	-o label="${BIGLABEL}" -o publisher="RMX" \
 	-o bootimage="i386;_.w/boot/cdboot" -o no-emul-boot _.disk.iso _.w/
 	)
-)
+}
