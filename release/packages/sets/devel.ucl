@@ -1,4 +1,6 @@
-comment = "Developments tools (metapackage)"
+comment = "Development tools (metapackage)"
+
+vital = true
 
 desc = <<EOD
 This metapackage installs development support for the base system, including

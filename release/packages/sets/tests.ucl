@@ -1,5 +1,7 @@
 comment = "System test suite"
 
+vital = yes
+
 desc = <<EOD
 This metapackage installs the system test suite.
 EOD

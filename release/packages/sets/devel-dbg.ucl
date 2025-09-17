@@ -1,4 +1,4 @@
-comment = "Developments tools debugging symbols (metapackage)"
+comment = "Development tools debugging symbols (metapackage)"
 
 desc = <<EOD
 This metapackage installs debugging symbols for the base system compiler and
