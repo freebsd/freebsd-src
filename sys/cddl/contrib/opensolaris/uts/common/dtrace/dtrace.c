@@ -707,6 +707,31 @@ dtrace_error(uint32_t *counter)
 	} while (dtrace_cas32(counter, oval, nval) != oval);
 }
 
+void
+dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
+{
+	cpuset_t cpus;
+
+	if (cpu == DTRACE_CPUALL)
+		cpus = all_cpus;
+	else
+		CPU_SETOF(cpu, &cpus);
+
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
+	    smp_no_rendezvous_barrier, arg);
+}
+
+static void
+dtrace_sync_func(void)
+{
+}
+
+void
+dtrace_sync(void)
+{
+	dtrace_xcall(DTRACE_CPUALL, (dtrace_xcall_t)dtrace_sync_func, NULL);
+}
+
 /*
  * Use the DTRACE_LOADFUNC macro to define functions for each of loading a
  * uint8_t, a uint16_t, a uint32_t and a uint64_t.

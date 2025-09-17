@@ -123,31 +123,6 @@ dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 	 */
 }
 
-void
-dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
-{
-	cpuset_t cpus;
-
-	if (cpu == DTRACE_CPUALL)
-		cpus = all_cpus;
-	else
-		CPU_SETOF(cpu, &cpus);
-
-	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
-			smp_no_rendezvous_barrier, arg);
-}
-
-static void
-dtrace_sync_func(void)
-{
-}
-
-void
-dtrace_sync(void)
-{
-	dtrace_xcall(DTRACE_CPUALL, (dtrace_xcall_t)dtrace_sync_func, NULL);
-}
-
 static int64_t	tgt_cpu_tsc;
 static int64_t	hst_cpu_tsc;
 static int64_t	timebase_skew[MAXCPU];
