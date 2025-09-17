@@ -702,7 +702,7 @@ typedef struct sdp_panu_profile		sdp_panu_profile_t;
 typedef struct sdp_panu_profile *	sdp_panu_profile_p;
 
 int32_t	sdp_register_service	(void *xss, uint16_t uuid,
-				 bdaddr_p const bdaddr, uint8_t const *data,
+				 const bdaddr_t *bdaddr, uint8_t const *data,
 				 uint32_t datalen, uint32_t *handle);
 int32_t	sdp_unregister_service	(void *xss, uint32_t handle);
 int32_t	sdp_change_service	(void *xss, uint32_t handle,
