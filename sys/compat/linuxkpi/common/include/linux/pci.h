@@ -1136,19 +1136,28 @@ pci_num_vf(struct pci_dev *dev)
 static inline enum pci_bus_speed
 pcie_get_speed_cap(struct pci_dev *dev)
 {
+	struct pci_dev *pbus;
 	device_t root;
 	uint32_t lnkcap, lnkcap2;
 	int error, pos;
 
-	root = device_get_parent(dev->dev.bsddev);
-	if (root == NULL)
-		return (PCI_SPEED_UNKNOWN);
-	root = device_get_parent(root);
-	if (root == NULL)
-		return (PCI_SPEED_UNKNOWN);
-	root = device_get_parent(root);
-	if (root == NULL)
-		return (PCI_SPEED_UNKNOWN);
+	/*
+	 * We should always be called on a PCI device.
+	 * The only current consumer I could find was amdgpu which either
+	 * calls us directly on a pdev(drmn?) or with the result of
+	 * pci_upstream_bridge().
+	 *
+	 * Treat "drmn" as special again as it is not a PCI device.
+	 */
+	if (dev->pdrv != NULL && dev->pdrv->isdrm) {
+		pbus = pci_upstream_bridge(dev);
+		if (pbus == NULL)
+			return (PCI_SPEED_UNKNOWN);
+	} else
+		pbus = dev;
+
+	/* "root" may be misleading as it may not be that. */
+	root = pbus->dev.bsddev;
 
 	if (pci_get_vendor(root) == PCI_VENDOR_ID_VIA ||
 	    pci_get_vendor(root) == PCI_VENDOR_ID_SERVERWORKS)
