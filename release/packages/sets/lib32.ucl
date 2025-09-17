@@ -1,5 +1,7 @@
 comment = "32-bit compatibility libraries (metapackage)"
 
+vital = true
+
 desc = <<EOD
 This metapackage installs compatibility libraries required for building and
 running 32-bit applications on a 64-bit host system.

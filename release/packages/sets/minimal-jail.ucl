@@ -1,5 +1,7 @@
 comment = "Basic multi-user jail system (metapackage)"
 
+vital = true
+
 desc = <<EOD
 This metapackage installs the packages required to bring up a basic multi-user
 jail.  This is equivalent to the minimal set, but without hardware support.
