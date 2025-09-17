@@ -1515,6 +1515,10 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	else
 		lock_list = PCPU_PTR(spinlocks);
 
+	/* Update per-witness last file and line acquire. */
+	w->w_file = file;
+	w->w_line = line;
+
 	/* Check to see if we are recursing on a lock we already own. */
 	instance = find_instance(*lock_list, lock);
 	if (instance != NULL) {
@@ -1522,14 +1526,8 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		CTR4(KTR_WITNESS, "%s: pid %d recursed on %s r=%d", __func__,
 		    td->td_proc->p_pid, lock->lo_name,
 		    instance->li_flags & LI_RECURSEMASK);
-		instance->li_file = file;
-		instance->li_line = line;
 		return;
 	}
-
-	/* Update per-witness last file and line acquire. */
-	w->w_file = file;
-	w->w_line = line;
 
 	/* Find the next open lock instance in the list and fill it. */
 	lle = *lock_list;
