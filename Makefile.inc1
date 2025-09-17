@@ -2039,12 +2039,14 @@ update-packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
 
 package-pkg: .PHONY
+.if exists(${PORTSDIR})
 	rm -rf /tmp/ports.${TARGET} || :
-	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
+	env ${WMAKEENV} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
 		PKG_CMD=${PKG_CMD} PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} \
 		WSTAGEDIR=${WSTAGEDIR} \
 		OSVERSION="${SRCRELDATE}" \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
+.endif
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
 
@@ -2127,7 +2129,7 @@ create-packages-source:	_pkgbootstrap _repodir .PHONY
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-source-packages
 
-create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source create-packages-sets
+create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source package-pkg create-packages-sets
 
 create-source-src-package: _pkgbootstrap .PHONY
 	rm -f ${SSTAGEDIR}/src.plist 2>/dev/null || :
