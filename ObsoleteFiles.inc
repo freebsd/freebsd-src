@@ -53,6 +53,7 @@
 
 # 20250917: Remove a miscapitalized manual
 OLD_FILES+=usr/share/man/man9/vnet.9.gz
+OLD_FILES+=usr/share/man/man9/vimage.9.gz
 
 # 20250911: This tool is no longer needed
 OLD_FILES+=usr/tests/bin/cp/sparse
