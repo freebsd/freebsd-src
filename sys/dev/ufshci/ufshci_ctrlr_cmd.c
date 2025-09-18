@@ -15,7 +15,7 @@ ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
 	struct ufshci_request *req;
 	struct ufshci_task_mgmt_request_upiu *upiu;
 
-	req = ufshci_allocate_request_vaddr(NULL, 0, M_WAITOK, cb_fn, cb_arg);
+	req = ufshci_allocate_request_vaddr(NULL, 0, M_NOWAIT, cb_fn, cb_arg);
 
 	req->request_size = sizeof(struct ufshci_task_mgmt_request_upiu);
 	req->response_size = sizeof(struct ufshci_task_mgmt_response_upiu);

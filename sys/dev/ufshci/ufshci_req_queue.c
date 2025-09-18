@@ -24,6 +24,7 @@ static const struct ufshci_qops sdb_utmr_qops = {
 	.destroy = ufshci_req_sdb_destroy,
 	.get_hw_queue = ufshci_req_sdb_get_hw_queue,
 	.enable = ufshci_req_sdb_enable,
+	.disable = ufshci_req_sdb_disable,
 	.reserve_slot = ufshci_req_sdb_reserve_slot,
 	.reserve_admin_slot = ufshci_req_sdb_reserve_slot,
 	.ring_doorbell = ufshci_req_sdb_utmr_ring_doorbell,
@@ -38,6 +39,7 @@ static const struct ufshci_qops sdb_utr_qops = {
 	.destroy = ufshci_req_sdb_destroy,
 	.get_hw_queue = ufshci_req_sdb_get_hw_queue,
 	.enable = ufshci_req_sdb_enable,
+	.disable = ufshci_req_sdb_disable,
 	.reserve_slot = ufshci_req_sdb_reserve_slot,
 	.reserve_admin_slot = ufshci_req_sdb_reserve_slot,
 	.ring_doorbell = ufshci_req_sdb_utr_ring_doorbell,
@@ -74,6 +76,13 @@ ufshci_utmr_req_queue_destroy(struct ufshci_controller *ctrlr)
 	    &ctrlr->task_mgmt_req_queue);
 }
 
+void
+ufshci_utmr_req_queue_disable(struct ufshci_controller *ctrlr)
+{
+	ctrlr->task_mgmt_req_queue.qops.disable(ctrlr,
+	    &ctrlr->task_mgmt_req_queue);
+}
+
 int
 ufshci_utmr_req_queue_enable(struct ufshci_controller *ctrlr)
 {
@@ -106,6 +115,13 @@ void
 ufshci_utr_req_queue_destroy(struct ufshci_controller *ctrlr)
 {
 	ctrlr->transfer_req_queue.qops.destroy(ctrlr,
+	    &ctrlr->transfer_req_queue);
+}
+
+void
+ufshci_utr_req_queue_disable(struct ufshci_controller *ctrlr)
+{
+	ctrlr->transfer_req_queue.qops.disable(ctrlr,
 	    &ctrlr->transfer_req_queue);
 }
 
@@ -226,31 +242,30 @@ void
 ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 {
 	struct ufshci_req_queue *req_queue = tr->req_queue;
+	struct ufshci_hw_queue *hwq = tr->hwq;
 	struct ufshci_request *req = tr->req;
 	struct ufshci_completion cpl;
 	uint8_t ocs;
 	bool retry, error, retriable;
 
-	mtx_assert(&tr->hwq->qlock, MA_NOTOWNED);
+	mtx_assert(&hwq->qlock, MA_NOTOWNED);
 
 	/* Copy the response from the Request Descriptor or UTP Command
 	 * Descriptor. */
+	cpl.size = tr->response_size;
 	if (req_queue->is_task_mgmt) {
-		cpl.size = tr->response_size;
 		memcpy(&cpl.response_upiu,
-		    (void *)tr->hwq->utmrd[tr->slot_num].response_upiu,
-		    cpl.size);
+		    (void *)hwq->utmrd[tr->slot_num].response_upiu, cpl.size);
 
-		ocs = tr->hwq->utmrd[tr->slot_num].overall_command_status;
+		ocs = hwq->utmrd[tr->slot_num].overall_command_status;
 	} else {
 		bus_dmamap_sync(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-		cpl.size = tr->response_size;
 		memcpy(&cpl.response_upiu, (void *)tr->ucd->response_upiu,
 		    cpl.size);
 
-		ocs = tr->hwq->utrd[tr->slot_num].overall_command_status;
+		ocs = hwq->utrd[tr->slot_num].overall_command_status;
 	}
 
 	error = ufshci_req_queue_response_is_error(req_queue, ocs,
@@ -262,9 +277,9 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 	retry = error && retriable &&
 	    req->retries < req_queue->ctrlr->retry_count;
 	if (retry)
-		tr->hwq->num_retries++;
+		hwq->num_retries++;
 	if (error && req->retries >= req_queue->ctrlr->retry_count && retriable)
-		tr->hwq->num_failures++;
+		hwq->num_failures++;
 
 	KASSERT(tr->req, ("there is no request assigned to the tracker\n"));
 	KASSERT(cpl.response_upiu.header.task_tag ==
@@ -282,7 +297,7 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 			req->cb_fn(req->cb_arg, &cpl, error);
 	}
 
-	mtx_lock(&tr->hwq->qlock);
+	mtx_lock(&hwq->qlock);
 
 	/* Clear the UTRL Completion Notification register */
 	req_queue->qops.clear_cpl_ntf(req_queue->ctrlr, tr);
@@ -301,6 +316,9 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 		ufshci_free_request(req);
 		tr->req = NULL;
 		tr->slot_state = UFSHCI_SLOT_STATE_FREE;
+
+		TAILQ_REMOVE(&hwq->outstanding_tr, tr, tailq);
+		TAILQ_INSERT_HEAD(&hwq->free_tr, tr, tailq);
 	}
 
 	mtx_unlock(&tr->hwq->qlock);
@@ -309,7 +327,16 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 bool
 ufshci_req_queue_process_completions(struct ufshci_req_queue *req_queue)
 {
-	return (req_queue->qops.process_cpl(req_queue));
+	struct ufshci_hw_queue *hwq;
+	bool done;
+
+	hwq = req_queue->qops.get_hw_queue(req_queue);
+
+	mtx_lock(&hwq->recovery_lock);
+	done = req_queue->qops.process_cpl(req_queue);
+	mtx_unlock(&hwq->recovery_lock);
+
+	return (done);
 }
 
 static void
@@ -427,6 +454,225 @@ ufshci_req_queue_fill_utr_descriptor(struct ufshci_utp_xfer_req_desc *desc,
 	desc->prdt_length = prdt_entry_cnt;
 }
 
+static void
+ufshci_req_queue_timeout_recovery(struct ufshci_controller *ctrlr,
+    struct ufshci_hw_queue *hwq)
+{
+	/* TODO: Step 2. Logical unit reset */
+	/* TODO: Step 3. Target device reset */
+	/* TODO: Step 4. Bus reset */
+
+	/*
+	 * Step 5. All previous commands were timeout.
+	 * Recovery failed, reset the host controller.
+	 */
+	ufshci_printf(ctrlr,
+	    "Recovery step 5: Resetting controller due to a timeout.\n");
+	hwq->recovery_state = RECOVERY_WAITING;
+
+	ufshci_ctrlr_reset(ctrlr);
+}
+
+static void
+ufshci_abort_complete(void *arg, const struct ufshci_completion *status,
+    bool error)
+{
+	struct ufshci_tracker *tr = arg;
+
+	/*
+	 * We still need to check the active tracker array, to cover race where
+	 * I/O timed out at same time controller was completing the I/O. An
+	 * abort request always is on the Task Management Request queue, but
+	 * affects either an Task Management Request or an I/O (UTRL) queue, so
+	 * take the appropriate queue lock for the original command's queue,
+	 * since we'll need it to avoid races with the completion code and to
+	 * complete the command manually.
+	 */
+	mtx_lock(&tr->hwq->qlock);
+	if (tr->slot_state != UFSHCI_SLOT_STATE_FREE) {
+		mtx_unlock(&tr->hwq->qlock);
+		/*
+		 * An I/O has timed out, and the controller was unable to abort
+		 * it for some reason.  And we've not processed a completion for
+		 * it yet. Construct a fake completion status, and then complete
+		 * the I/O's tracker manually.
+		 */
+		ufshci_printf(tr->hwq->ctrlr,
+		    "abort task request failed, aborting task manually\n");
+		ufshci_req_queue_manual_complete_tracker(tr,
+		    UFSHCI_DESC_ABORTED, UFSHCI_RESPONSE_CODE_GENERAL_FAILURE);
+
+		if ((status->response_upiu.task_mgmt_response_upiu
+			    .output_param1 ==
+			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_COMPLETE) ||
+		    (status->response_upiu.task_mgmt_response_upiu
+			    .output_param1 ==
+			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_SUCCEEDED)) {
+			ufshci_printf(tr->hwq->ctrlr,
+			    "Warning: the abort task request completed \
+			    successfully, but the original task is still incomplete.");
+			return;
+		}
+
+		/* Abort Task failed. Perform recovery steps 2-5 */
+		ufshci_req_queue_timeout_recovery(tr->hwq->ctrlr, tr->hwq);
+	} else {
+		mtx_unlock(&tr->hwq->qlock);
+	}
+}
+
+static void
+ufshci_req_queue_timeout(void *arg)
+{
+	struct ufshci_hw_queue *hwq = arg;
+	struct ufshci_controller *ctrlr = hwq->ctrlr;
+	struct ufshci_tracker *tr;
+	sbintime_t now;
+	bool idle = true;
+	bool fast;
+
+	mtx_assert(&hwq->recovery_lock, MA_OWNED);
+
+	/*
+	 * If the controller is failed, then stop polling. This ensures that any
+	 * failure processing that races with the hwq timeout will fail safely.
+	 */
+	if (ctrlr->is_failed) {
+		ufshci_printf(ctrlr,
+		    "Failed controller, stopping watchdog timeout.\n");
+		hwq->timer_armed = false;
+		return;
+	}
+
+	/*
+	 * Shutdown condition: We set hwq->timer_armed to false in
+	 * ufshci_req_sdb_destroy before calling callout_drain. When we call
+	 * that, this routine might get called one last time. Exit w/o setting a
+	 * timeout. None of the watchdog stuff needs to be done since we're
+	 * destroying the hwq.
+	 */
+	if (!hwq->timer_armed) {
+		ufshci_printf(ctrlr,
+		    "Timeout fired during ufshci_utr_req_queue_destroy\n");
+		return;
+	}
+
+	switch (hwq->recovery_state) {
+	case RECOVERY_NONE:
+		/*
+		 * See if there's any recovery needed. First, do a fast check to
+		 * see if anything could have timed out. If not, then skip
+		 * everything else.
+		 */
+		fast = false;
+		mtx_lock(&hwq->qlock);
+		now = getsbinuptime();
+		TAILQ_FOREACH(tr, &hwq->outstanding_tr, tailq) {
+			/*
+			 * If the first real transaction is not in timeout, then
+			 * we're done. Otherwise, we try recovery.
+			 */
+			idle = false;
+			if (now <= tr->deadline)
+				fast = true;
+			break;
+		}
+		mtx_unlock(&hwq->qlock);
+		if (idle || fast)
+			break;
+
+		/*
+		 * There's a stale transaction at the start of the queue whose
+		 * deadline has passed. Poll the competions as a last-ditch
+		 * effort in case an interrupt has been missed.
+		 */
+		hwq->req_queue->qops.process_cpl(hwq->req_queue);
+
+		/*
+		 * Now that we've run the ISR, re-rheck to see if there's any
+		 * timed out commands and abort them or reset the card if so.
+		 */
+		mtx_lock(&hwq->qlock);
+		idle = true;
+		TAILQ_FOREACH(tr, &hwq->outstanding_tr, tailq) {
+			/*
+			 * If we know this tracker hasn't timed out, we also
+			 * know all subsequent ones haven't timed out. The tr
+			 * queue is in submission order and all normal commands
+			 * in a queue have the same timeout (or the timeout was
+			 * changed by the user, but we eventually timeout then).
+			 */
+			idle = false;
+			if (now <= tr->deadline)
+				break;
+
+			/*
+			 * Timeout recovery is performed in five steps. If
+			 * recovery fails at any step, the process continues to
+			 * the next one:
+			 * next steps:
+			 * Step 1. Abort task
+			 * Step 2. Logical unit reset 	(TODO)
+			 * Step 3. Target device reset 	(TODO)
+			 * Step 4. Bus reset 		(TODO)
+			 * Step 5. Host controller reset
+			 *
+			 * If the timeout occurred in the Task Management
+			 * Request queue, ignore Step 1.
+			 */
+			if (ctrlr->enable_aborts &&
+			    !hwq->req_queue->is_task_mgmt &&
+			    tr->req->cb_fn != ufshci_abort_complete) {
+				/*
+				 * Step 1. Timeout expired, abort the task.
+				 *
+				 * This isn't an abort command, ask for a
+				 * hardware abort. This goes to the Task
+				 * Management Request queue which will reset the
+				 * task if it times out.
+				 */
+				ufshci_printf(ctrlr,
+				    "Recovery step 1: Timeout occurred. aborting the task(%d).\n",
+				    tr->req->request_upiu.header.task_tag);
+				ufshci_ctrlr_cmd_send_task_mgmt_request(ctrlr,
+				    ufshci_abort_complete, tr,
+				    UFSHCI_TASK_MGMT_FUNCTION_ABORT_TASK,
+				    tr->req->request_upiu.header.lun,
+				    tr->req->request_upiu.header.task_tag, 0);
+			} else {
+				/* Recovery Step 2-5 */
+				ufshci_req_queue_timeout_recovery(ctrlr, hwq);
+				idle = false;
+				break;
+			}
+		}
+		mtx_unlock(&hwq->qlock);
+		break;
+
+	case RECOVERY_WAITING:
+		/*
+		 * These messages aren't interesting while we're suspended. We
+		 * put the queues into waiting state while suspending.
+		 * Suspending takes a while, so we'll see these during that time
+		 * and they aren't diagnostic. At other times, they indicate a
+		 * problem that's worth complaining about.
+		 */
+		if (!device_is_suspended(ctrlr->dev))
+			ufshci_printf(ctrlr, "Waiting for reset to complete\n");
+		idle = false; /* We want to keep polling */
+		break;
+	}
+
+	/*
+	 * Rearm the timeout.
+	 */
+	if (!idle) {
+		callout_schedule_sbt(&hwq->timer, SBT_1S / 2, SBT_1S / 2, 0);
+	} else {
+		hwq->timer_armed = false;
+	}
+}
+
 /*
  * Submit the tracker to the hardware.
  */
@@ -436,13 +682,30 @@ ufshci_req_queue_submit_tracker(struct ufshci_req_queue *req_queue,
 {
 	struct ufshci_controller *ctrlr = req_queue->ctrlr;
 	struct ufshci_request *req = tr->req;
+	struct ufshci_hw_queue *hwq;
 	uint64_t ucd_paddr;
 	uint16_t request_len, response_off, response_len;
 	uint8_t slot_num = tr->slot_num;
+	int timeout;
 
-	mtx_assert(&req_queue->qops.get_hw_queue(req_queue)->qlock, MA_OWNED);
+	hwq = req_queue->qops.get_hw_queue(req_queue);
 
-	/* TODO: Check timeout */
+	mtx_assert(&hwq->qlock, MA_OWNED);
+
+	if (req->cb_fn == ufshci_completion_poll_cb)
+		timeout = 1;
+	else
+		timeout = ctrlr->timeout_period;
+	tr->deadline = getsbinuptime() + timeout * SBT_1S;
+	if (!hwq->timer_armed) {
+		hwq->timer_armed = true;
+		/*
+		 * It wakes up once every 0.5 seconds to check if the deadline
+		 * has passed.
+		 */
+		callout_reset_sbt_on(&hwq->timer, SBT_1S / 2, SBT_1S / 2,
+		    ufshci_req_queue_timeout, hwq, hwq->cpu, 0);
+	}
 
 	if (req_queue->is_task_mgmt) {
 		/* Prepare UTP Task Management Request Descriptor. */
@@ -507,6 +770,9 @@ _ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
 	tr->response_size = req->response_size;
 	tr->deadline = SBT_MAX;
 	tr->req = req;
+
+	TAILQ_REMOVE(&tr->hwq->free_tr, tr, tailq);
+	TAILQ_INSERT_TAIL(&tr->hwq->outstanding_tr, tr, tailq);
 
 	ufshci_req_queue_submit_tracker(req_queue, tr, req->data_direction);
 
