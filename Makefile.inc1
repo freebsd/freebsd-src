@@ -1992,7 +1992,15 @@ PKG_ABI!=	${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI
 
 _pkgbootstrap: .PHONY
 .if make(*package*) && !exists(${LOCALBASE}/sbin/pkg)
+.if exists(${PORTSDIR}/ports-mgmt/pkg/Makefile)
+	env - UNAME_r=${UNAME_r} PATH=$$PATH \
+	    make -C ${PORTSDIR}/ports-mgmt/pkg \
+	    I_DONT_CARE_IF_MY_BUILDS_TARGET_THE_WRONG_RELEASE=1 \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
+.else
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
+.endif
 .endif
 
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
