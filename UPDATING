@@ -28,6 +28,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250918:
+	mandoc (including /usr/bin/man) has been moved to a new package,
+	FreeBSD-mandoc.  If you have the minimal set installed, this package
+	will be installed automatically, otherwise you may want to install it.
+
 	Kyua has been moved to the FreeBSD-kyua package, and ATF has been moved
 	to the FreeBSD-atf* packages.  If you have FreeBSD-tests installed,
 	these packages will be installed automatically, otherwise you should
