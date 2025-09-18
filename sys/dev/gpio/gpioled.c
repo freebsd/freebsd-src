@@ -75,8 +75,6 @@ gpioled_control(void *priv, int onoff)
 	struct gpioled_softc *sc;
 
 	sc = (struct gpioled_softc *)priv;
-	if (onoff == -1) /* Keep the current state. */
-		return;
 	if (sc->sc_softinvert)
 		onoff = !onoff;
 	GPIOLED_LOCK(sc);
