@@ -115,7 +115,11 @@ mkdir_home_parents(int dfd, const char *dir)
 			*tmp = '\0';
 			if (fstatat(dfd, dirs, &st, 0) == -1) {
 				if (mkdirat(dfd, dirs, _DEF_DIRMODE) == -1)
-					err(EX_OSFILE,  "'%s' (home parent) is not a directory", dirs);
+					err(EX_OSFILE,
+				    "'%s' (home parent) is not a directory",
+					    dirs);
+				if (fchownat(dfd, dirs, 0, 0, 0) != 0)
+					warn("chown(%s)", dirs);
 			}
 			*tmp = '/';
 		}
