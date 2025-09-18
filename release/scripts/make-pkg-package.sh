@@ -13,6 +13,7 @@ export WRKDIR=$(make -C ${PORTSDIR}/ports-mgmt/pkg -V WRKDIR)
 
 make -C ${PORTSDIR}/ports-mgmt/pkg TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CONFIGURE_ARGS="--host=$(uname -m)-portbld-freebsd${REVISION}" \
+	I_DONT_CARE_IF_MY_BUILDS_TARGET_THE_WRONG_RELEASE=YES \
 	BATCH=YES stage create-manifest
 
 ${PKG_CMD} -o ABI=${PKG_ABI} \
