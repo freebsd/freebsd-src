@@ -257,8 +257,6 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
-				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootdir     alternate root directory\n"
 				"\t-D             set user defaults\n"
 				"\t-b dir         default home root dir\n"
 				"\t-e period      default expiry period\n"
