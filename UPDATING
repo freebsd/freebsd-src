@@ -19,6 +19,11 @@ and/or ports.
 	building split man packages, set WITH_MANSPLITPKG=1.
 
 20250918:
+	mandoc (including /usr/bin/man) has been moved to a new package,
+	FreeBSD-mandoc.  If you have the minimal set installed, this package
+	will be installed automatically, otherwise you may want to install it.
+
+20250918:
 	Kyua has been moved to the FreeBSD-kyua package, and ATF has been moved
 	to the FreeBSD-atf* packages.  If you have FreeBSD-tests installed,
 	these packages will be installed automatically, otherwise you should

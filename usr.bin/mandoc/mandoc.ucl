@@ -1,0 +1,18 @@
+path_glob: "/usr/share/man/*"
+
+cleanup: {
+	type: lua
+	sandbox: false
+	script: <<EOD
+	os.remove("/usr/share/man/mandoc.db")
+EOD
+}
+
+trigger: {
+	type: lua
+	sandbox: false
+	script: <<EOD
+	print("Generating apropos(1) database...")
+	pkg.exec({"/usr/bin/makewhatis", "/usr/share/man"})
+EOD
+}
