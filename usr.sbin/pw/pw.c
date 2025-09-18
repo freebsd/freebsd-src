@@ -132,7 +132,11 @@ main(int argc, char *argv[])
 	while (argc > 1) {
 		if (*argv[1] == '-') {
 			/*
-			 * Special case, allow pw -V<dir> <operation> [args] for scripts etc.
+			 * Special case, allow pw -V<dir> <operation> [args] for
+			 * scripts etc.
+			 *
+			 * The -M option before the keyword is handled
+			 * differently from -M after a keyword.
 			 */
 			arg = argv[1][1];
 			if (arg == 'V' || arg == 'R') {
@@ -164,6 +168,23 @@ main(int argc, char *argv[])
 				    "%s%s", optarg, arg == 'R' ?
 				    _PATH_PWD : "");
 				conf.altroot = true;
+			} else if (mode == -1 && which == -1 && arg == 'M') {
+				int fd;
+
+				optarg = &argv[1][2];
+				if (*optarg == '\0') {
+					optarg = argv[2];
+					++argv;
+					--argc;
+				}
+				fd = open(optarg,
+				    O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC,
+				    0644);
+				if (fd == -1)
+					errx(EX_OSERR,
+					    "Cannot open metalog `%s'",
+					    optarg);
+				conf.metalog = fdopen(fd, "ae");
 			} else
 				break;
 		} else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
@@ -194,6 +215,10 @@ main(int argc, char *argv[])
 	conf.rootfd = open(conf.rootdir, O_DIRECTORY|O_CLOEXEC);
 	if (conf.rootfd == -1)
 		errx(EXIT_FAILURE, "Unable to open '%s'", conf.rootdir);
+
+	if (conf.metalog != NULL && (which != W_USER || mode != M_ADD))
+		errx(EXIT_FAILURE,
+	    "metalog can only be specified with 'useradd'");
 
 	return (cmdfunc[which][mode](argc, argv, arg1));
 }
@@ -233,10 +258,11 @@ cmdhelp(int mode, int which)
 		static const char *help[W_NUM][M_NUM] =
 		{
 			{
-				"usage: pw useradd [name] [switches]\n"
+				"usage: pw [-M metalog] useradd [name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
 				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
+				"\t-M metalog     mtree file, must precede 'useradd'\n"
 				"\t-q             quiet operation\n"
 				"  Adding users:\n"
 				"\t-n name        login name\n"
