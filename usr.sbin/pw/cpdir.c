@@ -36,10 +36,10 @@
 #include "pw.h"
 
 void
-copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
+copymkdir(int rootfd, char const *dir, int skelfd, mode_t mode, uid_t uid,
     gid_t gid, int flags)
 {
-	char		*p, lnk[MAXPATHLEN], copybuf[4096];
+	char		*p, lnk[MAXPATHLEN];
 	int		len, homefd, srcfd, destfd;
 	ssize_t		sz;
 	struct stat     st;
@@ -120,8 +120,12 @@ copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
 			continue;
 		}
 
-		while ((sz = read(srcfd, copybuf, sizeof(copybuf))) > 0)
-			write(destfd, copybuf, sz);
+		do {
+			sz = copy_file_range(srcfd, NULL, destfd, NULL,
+			    SSIZE_MAX, 0);
+		} while (sz > 0);
+		if (sz < 0)
+			warn("copy_file_range");
 
 		close(srcfd);
 		/*
