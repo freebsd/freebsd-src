@@ -2038,7 +2038,7 @@ packages: .PHONY
 update-packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
 
-package-pkg: .PHONY
+package-pkg: _pkgbootstrap _repodir .PHONY
 .if exists(${PORTSDIR})
 	rm -rf /tmp/ports.${TARGET} || :
 	env ${WMAKEENV} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
