@@ -1,4 +1,3 @@
-
 # Import helper functions
 . $(atf_get_srcdir)/helper_functions.shin
 
@@ -357,15 +356,28 @@ user_add_skel_body() {
 	echo "c" > ${HOME}/skel/c/d/dot.c
 	mkdir ${HOME}/home
 	ln -sf /nonexistent ${HOME}/skel/c/foo
-	atf_check -s exit:0 ${RPW} useradd foo -k /skel -m
+	atf_check -s exit:0 ${RPW} -M METALOG useradd foo -k /skel -m
 	test -d ${HOME}/home/foo || atf_fail "Directory not created"
 	test -f ${HOME}/home/foo/.a || atf_fail "File not created"
 	atf_check -o file:${HOME}/skel/.a -s exit:0 cat ${HOME}/home/foo/.a
 	atf_check -o file:${HOME}/skel/b -s exit:0 cat ${HOME}/home/foo/b
-	test -d ${HOME}/home/foo/c || atf_fail "Dotted directory in skel not copied"
-	test -d ${HOME}/home/foo/.plop || atf_fail "Directory in skell not created"
+	test -d ${HOME}/home/foo/c || atf_fail "Directory in skel not copied"
+	test -d ${HOME}/home/foo/.plop || atf_fail "Dotted directory in skel not created"
 	atf_check -o inline:"/nonexistent\n" -s ignore readlink -f ${HOME}/home/foo/c/foo
 	atf_check -o file:${HOME}/skel/c/d/dot.c -s exit:0 cat ${HOME}/home/foo/c/d/.c
+
+	cat <<__EOF__ >METALOG.expected
+./home/foo type=dir mode=0755 uid=1001 gid=1001
+./home/foo/.a type=file mode=0644 uid=1001 gid=1001
+./home/foo/.plop type=dir mode=0755 uid=1001 gid=1001
+./home/foo/b type=file mode=0644 uid=1001 gid=1001
+./home/foo/c type=dir mode=0755 uid=1001 gid=1001
+./home/foo/c/d type=dir mode=0755 uid=1001 gid=1001
+./home/foo/c/d/.c type=file mode=0644 uid=1001 gid=1001
+./home/foo/c/foo type=link mode=0755 uid=1001 gid=1001 link=/nonexistent
+__EOF__
+	atf_check -o save:METALOG.out sort METALOG
+	atf_check diff METALOG.out METALOG.expected
 }
 
 atf_test_case user_add_uid0

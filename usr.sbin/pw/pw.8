@@ -30,6 +30,7 @@
 .Nd create, remove, modify & display system users and groups
 .Sh SYNOPSIS
 .Nm
+.Op Fl M Ar metalog
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm useradd
@@ -464,6 +465,21 @@ option, bearing the name of the new account.
 This can be overridden by the
 .Fl d
 option on the command line, if desired.
+.It Fl M Ar metalog
+Specify a path to a
+.Xr mtree 5
+metalog file.
+.Nm
+will add entries for all files added to a user's home directory.
+This is useful when building images as a non-root user, as the
+metalog can be used as input to
+.Xr tar 1
+or
+.Xr makefs 8 .
+Note that this option must precede the
+.Ql useradd
+string on the command line, otherwise it will be interpreted as the mode
+option.
 .It Fl M Ar mode
 Create the user's home directory with the specified
 .Ar mode ,
