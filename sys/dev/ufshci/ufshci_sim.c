@@ -241,7 +241,6 @@ ufshci_cam_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case XPT_ABORT:
-		/* TODO: Implement Task Management CMD*/
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		break;
 	case XPT_SET_TRAN_SETTINGS:

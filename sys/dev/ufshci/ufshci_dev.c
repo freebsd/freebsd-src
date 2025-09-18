@@ -774,4 +774,3 @@ out:
 	ufshci_dev_disable_write_booster(ctrlr);
 	return (error);
 }
-
