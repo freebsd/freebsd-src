@@ -74,7 +74,14 @@ LIB_TAG_ARGS=	${TAG_ARGS}
 TAG_ARGS=	-T ${TAGS:ts,:[*]}
 
 DBG_TAG_ARGS=	${TAG_ARGS},dbg
+# Usually we want to put development files (e.g., static libraries) into a
+# separate -dev packages but for a few cases, like tests, that's not wanted,
+# so allow the caller to disable it by setting NO_DEV_PACKAGE.
+.if !defined(NO_DEV_PACKAGE)
 DEV_TAG_ARGS=	${TAG_ARGS},dev
+.else
+DEV_TAG_ARGS=	${TAG_ARGS}
+.endif
 .endif	# !defined(NO_ROOT)
 
 # ELF hardening knobs
@@ -450,7 +457,11 @@ LINKGRP?=	${LIBGRP}
 LINKMODE?=	${LIBMODE}
 SYMLINKOWN?=	${LIBOWN}
 SYMLINKGRP?=	${LIBGRP}
+.if !defined(NO_DEV_PACKAGE)
 LINKTAGS=	dev${_COMPAT_TAG}
+.else
+LINKTAGS=	${_COMPAT_TAG}
+.endif
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)

@@ -10,7 +10,7 @@ KYUA_VERSION=	0.13
 KYUA_SRCDIR=	${SRCTOP}/contrib/kyua
 .PATH: ${KYUA_SRCDIR}
 
-PACKAGE=	tests
+PACKAGE=	kyua
 PROG_CXX=	kyua
 SRCS=		main.cpp
 LIBADD=		lutok sqlite3 util

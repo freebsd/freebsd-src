@@ -1,0 +1,20 @@
+comment = "Testing framework for infrastructure software"
+
+desc = <<EOD
+Kyua is a testing framework for infrastructure software, originally designed
+to equip BSD-based operating systems with a test suite.  This means that Kyua
+is lightweight and simple, and that Kyua integrates well with various build
+systems and continuous integration frameworks.
+
+Kyua features an expressive test suite definition language, a safe runtime
+engine for test suites and a powerful report generation engine.
+
+Kyua is for both developers and users, from the developer applying a simple
+fix to a library to the system administrator deploying a new release on a
+production machine.
+
+Kyua is able to execute test programs written with a plethora of testing
+libraries and languages.  The test program library of choice is ATF, which
+kyua's design originated from.  However, framework-less test programs and
+TAP-compliant test programs can also be executed through kyua.
+EOD
