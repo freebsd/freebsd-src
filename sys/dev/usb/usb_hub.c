@@ -53,6 +53,7 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/tslog.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -1202,6 +1203,7 @@ uhub_query_info(struct usb_device *udev, uint8_t *pnports, uint8_t *ptt)
 int
 uhub_attach(device_t dev)
 {
+	TSENTER();
 	struct uhub_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct usb_device *udev = uaa->device;
@@ -1526,6 +1528,7 @@ uhub_attach(device_t dev)
 
 	usbd_set_power_mode(udev, USB_POWER_MODE_SAVE);
 
+	TSEXIT();
 	return (0);
 
 error:
@@ -1538,6 +1541,7 @@ error:
 
 	mtx_destroy(&sc->sc_mtx);
 
+	TSEXIT();
 	return (ENXIO);
 }
 
