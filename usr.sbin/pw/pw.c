@@ -166,8 +166,7 @@ main(int argc, char *argv[])
 				conf.altroot = true;
 			} else
 				break;
-		}
-		else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
+		} else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
 			mode = tmp;
 		else if (which == -1 && (tmp = getindex(Which, argv[1])) != -1)
 			which = tmp;
@@ -179,7 +178,7 @@ main(int argc, char *argv[])
 		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL)
 			cmdhelp(mode, which);
 		else if (which != -1 && mode != -1)
-				arg1 = argv[1];
+			arg1 = argv[1];
 		else
 			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
 		++argv;
