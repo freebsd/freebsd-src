@@ -235,7 +235,7 @@ apmdtor(void *data)
 	acpi_sc = clone->acpi_sc;
 
 	/* We are about to lose a reference so check if suspend should occur */
-	if (acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE &&
+	if (acpi_sc->acpi_next_sstate != 0 &&
 	    clone->notify_status != APM_EV_ACKED)
 		acpi_AckSleepState(clone, 0);
 
@@ -283,10 +283,10 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	case APMIO_SUSPEND:
 		if ((flag & FWRITE) == 0)
 			return (EPERM);
-		if (acpi_sc->acpi_next_stype == POWER_STYPE_AWAKE) {
-			if (power_suspend_stype != POWER_STYPE_POWEROFF) {
+		if (acpi_sc->acpi_next_sstate == 0) {
+			if (acpi_sc->acpi_suspend_sx != ACPI_STATE_S5) {
 				error = acpi_ReqSleepState(acpi_sc,
-				    power_suspend_stype);
+				    acpi_sc->acpi_suspend_sx);
 			} else {
 				printf(
 			"power off via apm suspend not supported\n");
@@ -298,10 +298,10 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	case APMIO_STANDBY:
 		if ((flag & FWRITE) == 0)
 			return (EPERM);
-		if (acpi_sc->acpi_next_stype == POWER_STYPE_AWAKE) {
-			if (power_standby_stype != POWER_STYPE_POWEROFF) {
+		if (acpi_sc->acpi_next_sstate == 0) {
+			if (acpi_sc->acpi_standby_sx != ACPI_STATE_S5) {
 				error = acpi_ReqSleepState(acpi_sc,
-				    power_standby_stype);
+				    acpi_sc->acpi_standby_sx);
 			} else {
 				printf(
 			"power off via apm standby not supported\n");
@@ -313,11 +313,10 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	case APMIO_NEXTEVENT:
 		printf("apm nextevent start\n");
 		ACPI_LOCK(acpi);
-		if (acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE &&
-		    clone->notify_status == APM_EV_NONE) {
+		if (acpi_sc->acpi_next_sstate != 0 && clone->notify_status ==
+		    APM_EV_NONE) {
 			ev_info = (struct apm_event_info *)addr;
-			/* XXX Check this. */
-			if (acpi_sc->acpi_next_stype == POWER_STYPE_STANDBY)
+			if (acpi_sc->acpi_next_sstate <= ACPI_STATE_S3)
 				ev_info->type = PMEV_STANDBYREQ;
 			else
 				ev_info->type = PMEV_SUSPENDREQ;
@@ -393,7 +392,7 @@ apmpoll(struct cdev *dev, int events, struct thread *td)
 	revents = 0;
 	devfs_get_cdevpriv((void **)&clone);
 	ACPI_LOCK(acpi);
-	if (clone->acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE)
+	if (clone->acpi_sc->acpi_next_sstate)
 		revents |= events & (POLLIN | POLLRDNORM);
 	else
 		selrecord(td, &clone->sel_read);
@@ -434,7 +433,7 @@ apmreadfilt(struct knote *kn, long hint)
 
 	ACPI_LOCK(acpi);
 	clone = kn->kn_hook;
-	sleeping = clone->acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE;
+	sleeping = clone->acpi_sc->acpi_next_sstate ? 1 : 0;
 	ACPI_UNLOCK(acpi);
 	return (sleeping);
 }
