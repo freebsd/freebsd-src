@@ -18,6 +18,14 @@ and/or ports.
 	be shipped in the packages they belong to.  If you want to continue
 	building split man packages, set WITH_MANSPLITPKG=1.
 
+20250918:
+	Kyua has been moved to the FreeBSD-kyua package, and ATF has been moved
+	to the FreeBSD-atf* packages.  If you have FreeBSD-tests installed,
+	these packages will be installed automatically, otherwise you should
+	manually install them if you need these tools.
+
+	This only affects pkgbase users.
+
 20250916:
 	If SRCCONF is unset and a file named src.conf is present at
 	the top of the source tree, it will now be used instead of

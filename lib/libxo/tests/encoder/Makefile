@@ -1,4 +1,5 @@
 PACKAGE=	tests
+NO_DEV_PACKAGE=
 
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 

@@ -27,7 +27,6 @@
 .include <src.opts.mk>
 .include <bsd.init.mk>
 
-PACKAGE=	tests
 LIB=		atf-c
 PRIVATELIB=	true
 SHLIB_MAJOR=	1

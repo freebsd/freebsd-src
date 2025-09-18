@@ -30,7 +30,6 @@
 ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/atf-sh
 
-PACKAGE=	tests
 PROG_CXX=	atf-sh
 SRCS=		atf-sh.cpp
 MAN=		atf-sh.1 atf-sh.3
