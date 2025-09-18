@@ -1822,6 +1822,39 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 	    : "cc", "memory");
 }
 
+extern const char wrmsr_early_safe_gp_handler[];
+static struct region_descriptor wrmsr_early_safe_orig_efi_idt;
+
+void
+wrmsr_early_safe_start(void)
+{
+	struct region_descriptor efi_idt;
+	struct gate_descriptor *gpf_descr;
+
+	sidt(&wrmsr_early_safe_orig_efi_idt);
+	efi_idt.rd_limit = 32 * sizeof(idt0[0]);
+	efi_idt.rd_base = (uintptr_t)idt0;
+	lidt(&efi_idt);
+
+	gpf_descr = &idt0[IDT_GP];
+	gpf_descr->gd_looffset = (uintptr_t)wrmsr_early_safe_gp_handler;
+	gpf_descr->gd_hioffset = (uintptr_t)wrmsr_early_safe_gp_handler >> 16;
+	gpf_descr->gd_selector = rcs();
+	gpf_descr->gd_type = SDT_SYSTGT;
+	gpf_descr->gd_p = 1;
+}
+
+void
+wrmsr_early_safe_end(void)
+{
+	struct gate_descriptor *gpf_descr;
+
+	lidt(&wrmsr_early_safe_orig_efi_idt);
+
+	gpf_descr = &idt0[IDT_GP];
+	memset(gpf_descr, 0, sizeof(*gpf_descr));
+}
+
 #ifdef KDB
 
 /*
