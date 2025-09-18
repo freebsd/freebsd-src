@@ -77,37 +77,57 @@ end
 -- traditional tarball component selection dialog.
 local function select_components(components, options)
 	local descriptions = {
-		kernel_dbg = "Kernel debug info",
-		base_dbg = "Base system debug info",
-		src = "System source tree",
-		tests = "Test suite",
-		lib32 = "32-bit compatibility libraries",
-		lib32_dbg = "32-bit compatibility libraries debug info",
+		["kernel-dbg"] = "Debug symbols for the kernel",
+		["devel"] = "C/C++ compilers and related utilities",
+		["base"] = "The complete base system (includes devel)",
+		["src"] = "System source tree",
+		["tests"] = "Test suite",
+		["lib32"] = "32-bit compatibility libraries",
+		["debug"] = "Debug symbols for the selected components",
 	}
+
+	-- These defaults match what the non-pkgbase installer selects
+	-- by default.
 	local defaults = {
-		kernel_dbg = "on",
-		base_dbg = "off",
-		src = "off",
-		tests = "off",
-		lib32 = "on",
-		lib32_dbg = "off",
+		["base"] = "on",
+		["kernel-dbg"] = "on",
 	}
+	-- Enable compat sets by default.
+	for compat in all_libcompats:gmatch("%S+") do
+		defaults["lib" .. compat] = "on"
+	end
 
 	-- Sorting the components is necessary to ensure that the ordering is
 	-- consistent in the UI.
 	local sorted_components = {}
 	for component, _ in pairs(components) do
-		table.insert(sorted_components, component)
+		-- Decide which sets we want to offer to the user:
+		--
+		-- "minimal" is not offered since it's always included.
+		--
+		-- "-dbg" sets are never offered, because those are handled
+		-- via the "debug" component.
+		--
+		-- "kernels" is never offered because we only want one kernel,
+		-- which is handled separately.
+		--
+		-- Sets whose name ends in "-jail" are intended for jails, and
+		-- are only offered if no_kernel is set.
+		if not component:match("^minimal") and
+		   not component:match("%-dbg$") and
+		   not (component == "kernels") and
+		   not (not options.no_kernel and component:match("%-jail$")) then
+			table.insert(sorted_components, component)
+		end
 	end
 	table.sort(sorted_components)
 
 	local checklist_items = {}
 	for _, component in ipairs(sorted_components) do
-		if component ~= "base" and component ~= "kernel" and
-		    not (component == "kernel_dbg" and options.no_kernel) and
-		    #components[component] > 0 then
-			local description = descriptions[component] or "''"
-			local default = defaults[component]  or "off"
+		if component ~= "kernel" and not
+		    (component == "kernel-dbg" and options.no_kernel) then
+			local description = descriptions[component] or ""
+			local default = defaults[component] or "off"
 			table.insert(checklist_items, component)
 			table.insert(checklist_items, description)
 			table.insert(checklist_items, default)
@@ -120,7 +140,10 @@ local function select_components(components, options)
 		"--nocancel",
 		"--disable-esc",
 		"--separate-output",
-		"--checklist", "Choose optional system components to install:",
+		"--checklist",
+		"A minimal set of packages suitable for a multi-user system "..
+		"is always installed.  Select additional packages you wish "..
+		"to install:",
 		"0", "0", "0", -- autosize
 	}
 	append_list(bsddialog_args, checklist_items)
@@ -132,10 +155,16 @@ local function select_components(components, options)
 	-- hopefully useful stack trace.
 	assert(exit_code == 0)
 
-	local selected = {"base"}
+	-- Always install the minimal set, since it's required for the system
+	-- to work.  The base set depends on minimal, but it's fine to install
+	-- both, and this way the user can remove the base set without pkg
+	-- autoremove then trying to remove minimal.
+	local selected = {"minimal"}
+
 	if not options.no_kernel then
 		table.insert(selected, "kernel")
 	end
+
 	for component in output:gmatch("[^\n]+") do
 		table.insert(selected, component)
 	end
@@ -145,26 +174,21 @@ end
 
 -- Returns a list of pkgbase packages selected by the user
 local function select_packages(pkg, options)
+	-- These are the components which aren't generated automatically from
+	-- package sets.
 	local components = {
-		kernel = {},
-		kernel_dbg = {},
-		base = {},
-		base_dbg = {},
-		src = {},
-		tests = {},
+		["kernel"] = {},
+		["kernel-dbg"] = {},
+		["debug"] = {},
 	}
-
-	for compat in all_libcompats:gmatch("%S+") do
-		components["lib" .. compat] = {}
-		components["lib" .. compat .. "_dbg"] = {}
-	end
 
 	local rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")
 	for package in rquery:gmatch("[^\n]+") do
-		if package == "FreeBSD-src" or package:match("^FreeBSD%-src%-.*") then
-			table.insert(components["src"], package)
-		elseif package == "FreeBSD-tests" or package:match("^FreeBSD%-tests%-.*") then
-			table.insert(components["tests"], package)
+		local setname = package:match("^FreeBSD%-set%-(.+)$")
+
+		if setname then
+			components[setname] = components[setname] or {}
+			table.insert(components[setname], package)
 		elseif package:match("^FreeBSD%-kernel%-.*") and
 			package ~= "FreeBSD-kernel-man"
 		then
@@ -172,40 +196,51 @@ local function select_packages(pkg, options)
 			if package == "FreeBSD-kernel-generic" then
 				table.insert(components["kernel"], package)
 			elseif package == "FreeBSD-kernel-generic-dbg" then
-				table.insert(components["kernel_dbg"], package)
-			end
-		elseif package:match(".*%-dbg$") then
-			table.insert(components["base_dbg"], package)
-		else
-			local found = false
-			for compat in all_libcompats:gmatch("%S+") do
-				if package:match(".*%-dbg%-lib" .. compat .. "$") then
-					table.insert(components["lib" .. compat .. "_dbg"], package)
-					found = true
-					break
-				elseif package:match(".*%-lib" .. compat .. "$") then
-					table.insert(components["lib" .. compat], package)
-					found = true
-					break
-				end
-			end
-			if not found then
-				table.insert(components["base"], package)
+				table.insert(components["kernel-dbg"], package)
 			end
 		end
 	end
-	-- Don't assert the existence of dbg, tests, and src packages here. If using
-	-- a custom local repository with BSDINSTALL_PKG_REPOS_DIR we shouldn't
-	-- require it to have all packages.
-	assert(#components["kernel"] == 1)
-	assert(#components["base"] > 0)
 
-	local selected = {}
-	for _, component in ipairs(select_components(components, options)) do
-		append_list(selected, components[component])
+	-- Assert that both a kernel and the "minimal" set are available, since
+	-- those are both required to install a functional system.  Don't worry
+	-- if other sets are missing (e.g. base or src), which might happen
+	-- when using custom install media.
+	assert(#components["kernel"] == 1)
+	assert(#components["minimal"] == 1)
+
+	-- Prompt the user for what to install.
+	local selected = select_components(components, options)
+
+	-- Determine if the "debug" component was selected.
+	local debug = false
+	for _, component in ipairs(selected) do
+		if component == "debug" then
+			debug = true
+			break
+		end
 	end
 
-	return selected
+	local packages = {}
+	for _, component in ipairs(selected) do
+		local pkglist = components[component]
+		append_list(packages, pkglist)
+
+		-- If the debug component was selected, install the -dbg
+		-- package for each set.  We have to check if the dbg set
+		-- actually exists, because some sets (src, tests) don't
+		-- have a -dbg subpackage.
+		for _, c in ipairs(pkglist) do
+			local setname = c:match("^FreeBSD%-set%-(.*)$")
+			if debug and setname then
+				local dbgset = setname.."-dbg"
+				if components[dbgset] then
+					append_list(packages, components[dbgset])
+				end
+			end
+		end
+	end
+
+	return packages
 end
 
 local function parse_options()
