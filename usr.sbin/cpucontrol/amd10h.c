@@ -93,7 +93,7 @@ amd10h_update(const struct ucode_update_params *params)
 	size_t fw_size;
 	size_t selected_size;
 	uint32_t revision;
-	uint32_t new_rev;
+	uint32_t new_rev, old_rev;
 	uint32_t signature;
 	int devfd;
 	int error;
@@ -121,15 +121,16 @@ amd10h_update(const struct ucode_update_params *params)
 		WARN(0, "ioctl(%s)", dev);
 		goto done;
 	}
-	revision = (uint32_t)msrargs.data;
+	old_rev = revision = (uint32_t)msrargs.data;
 
-	selected_fw = ucode_amd_find(path, signature, revision, fw_image,
+	selected_fw = ucode_amd_find(path, signature, &revision, fw_image,
 	    fw_size, &selected_size);
 
 	if (selected_fw != NULL) {
 		WARNX(1, "selected ucode size is %zu", selected_size);
-		fprintf(stderr, "%s: updating cpu %s to revision %#x... ",
-		    path, dev, revision);
+		fprintf(stderr,
+		    "%s: updating cpu %s from rev %#x to rev %#x... ",
+		    path, dev, old_rev, revision);
 
 		args.data = __DECONST(void *, selected_fw);
 		args.size = selected_size;

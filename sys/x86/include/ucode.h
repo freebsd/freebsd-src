@@ -63,7 +63,7 @@ struct ucode_intel_extsig_table {
 };
 
 const void *ucode_amd_find(const char *path, uint32_t signature,
-	    uint32_t revision, const uint8_t *fw_data, size_t fw_size,
+	    uint32_t *revision, const uint8_t *fw_data, size_t fw_size,
 	    size_t *selected_sizep);
 int	ucode_intel_load(const void *data, bool unsafe,
 	    uint64_t *nrevp, uint64_t *orevp);
