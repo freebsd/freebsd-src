@@ -3,6 +3,8 @@
 MANDOCDIR=	${SRCTOP}/contrib/mandoc
 .PATH: ${MANDOCDIR}
 
+PACKAGE=	mandoc
+
 PROG=	mandoc
 MAN=	mandoc.1 mandoc.db.5 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 roff.7
 MLINKS=	mandoc.1 mdocml.1
@@ -15,6 +17,10 @@ LINKS=	${BINDIR}/mandoc ${BINDIR}/whatis \
 .elif defined(BOOTSTRAPPING)
 .error MK_MAN_UTILS should be set to yes when bootstrapping
 .endif
+
+FILESGROUPS=	TRIGGERS
+TRIGGERS=	mandoc.ucl
+TRIGGERSDIR=	/usr/share/pkg/triggers
 
 LIBMAN_SRCS=	man.c \
 		man_macro.c \
