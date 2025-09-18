@@ -127,8 +127,10 @@ copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
 		/*
 		 * Propagate special filesystem flags
 		 */
-		fchown(destfd, uid, gid);
-		fchflags(destfd, st.st_flags);
+		if (fchown(destfd, uid, gid) != 0)
+			warn("chown(%s)", p);
+		if (fchflags(destfd, st.st_flags) != 0)
+			warn("chflags(%s)", p);
 		close(destfd);
 	}
 	closedir(d);

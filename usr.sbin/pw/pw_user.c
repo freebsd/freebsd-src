@@ -123,7 +123,8 @@ mkdir_home_parents(int dfd, const char *dir)
 	if (fstatat(dfd, dirs, &st, 0) == -1) {
 		if (mkdirat(dfd, dirs, _DEF_DIRMODE) == -1)
 			err(EX_OSFILE,  "'%s' (home parent) is not a directory", dirs);
-		fchownat(dfd, dirs, 0, 0, 0);
+		if (fchownat(dfd, dirs, 0, 0, 0) != 0)
+			warn("chown(%s)", dirs);
 	}
 
 	free(dirs);
