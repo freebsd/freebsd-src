@@ -211,6 +211,7 @@ igoro [label="Igor Ostapenko\nigoro@FreeBSD.org\n2024/08/22"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 ivy [label="Lexi Winter\nivy@FreeBSD.org\n2025/04/18"]
+jaeyoon [label="Jaeyoon Choi\njaeyoon@FreeBSD.org\n2025/09/09"]
 jah [label="Jason A. Harmening\njah@FreeBSD.org\n2015/03/08"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
@@ -642,6 +643,7 @@ imp -> toshi
 imp -> tsoome
 imp -> uch
 imp -> vexeduxr
+imp -> jaeyoon
 
 jake -> bms
 jake -> gordon
