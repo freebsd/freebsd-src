@@ -94,7 +94,7 @@ typedef struct container_header {
  * source code.
  */
 const void *
-ucode_amd_find(const char *path, uint32_t signature, uint32_t revision,
+ucode_amd_find(const char *path, uint32_t signature, uint32_t *revision,
     const uint8_t *fw_data, size_t fw_size, size_t *selected_sizep)
 {
 	const amd_10h_fw_header_t *fw_header;
@@ -112,7 +112,7 @@ ucode_amd_find(const char *path, uint32_t signature, uint32_t revision,
 	    (signature >> 4) & 0x0f,
 	    (signature >> 0) & 0x0f, (signature >> 20) & 0xff,
 	    (signature >> 16) & 0x0f);
-	WARNX(1, "microcode revision %#x", revision);
+	WARNX(1, "microcode revision %#x", *revision);
 
 nextfile:
 	WARNX(1, "checking %s for update.", path);
@@ -212,9 +212,9 @@ nextfile:
 			    fw_header->processor_rev_id, equiv_id);
 			continue; /* different cpu */
 		}
-		if (fw_header->patch_id <= revision) {
+		if (fw_header->patch_id <= *revision) {
 			WARNX(1, "patch_id %x, revision %x",
-			    fw_header->patch_id, revision);
+			    fw_header->patch_id, *revision);
 			continue; /* not newer revision */
 		}
 		if (fw_header->nb_dev_id != 0 || fw_header->sb_dev_id != 0) {
@@ -222,7 +222,7 @@ nextfile:
 		}
 
 		WARNX(3, "selecting revision: %x", fw_header->patch_id);
-		revision = fw_header->patch_id;
+		*revision = fw_header->patch_id;
 		selected_fw = fw_header;
 		selected_size = section_header->size;
 	}
