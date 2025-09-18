@@ -143,12 +143,13 @@ main(int argc, char *argv[])
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
 					if (stat(argv[2], &st) != 0)
-						errx(EX_OSFILE, \
+						errx(EX_OSFILE,
 						    "no such directory `%s'",
 						    argv[2]);
 					if (!S_ISDIR(st.st_mode))
-						errx(EX_OSFILE, "`%s' not a "
-						    "directory", argv[2]);
+						errx(EX_OSFILE,
+						    "`%s' not a directory",
+						    argv[2]);
 					optarg = argv[2];
 					++argv;
 					--argc;
