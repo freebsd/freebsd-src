@@ -1565,6 +1565,22 @@ msr_onfault:
 	POP_FRAME_POINTER
 	ret
 
+ENTRY(wrmsr_early_safe)
+	movl	%edi,%ecx
+	movl	%esi,%eax
+	sarq	$32,%rsi
+	movl	%esi,%edx
+	wrmsr
+	xorl	%eax,%eax
+wrmsr_early_faulted:
+	ret
+
+ENTRY(wrmsr_early_safe_gp_handler)
+	addq	$8,%rsp
+	movl	$EFAULT,%eax
+	movq	$wrmsr_early_faulted,(%rsp)
+	iretq
+
 /*
  * void pmap_pti_pcid_invalidate(uint64_t ucr3, uint64_t kcr3);
  * Invalidates address space addressed by ucr3, then returns to kcr3.
