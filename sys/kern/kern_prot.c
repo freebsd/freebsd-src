@@ -291,11 +291,6 @@ sys_getgid(struct thread *td, struct getgid_args *uap)
 	return (0);
 }
 
-/*
- * Get effective group ID.  The "egid" is groups[0], and could be obtained
- * via getgroups.  This syscall exists because it is somewhat painful to do
- * correctly in a library function.
- */
 #ifndef _SYS_SYSPROTO_H_
 struct getegid_args {
         int     dummy;
@@ -1803,12 +1798,6 @@ groupmember(gid_t gid, const struct ucred *cred)
 bool
 realgroupmember(gid_t gid, const struct ucred *cred)
 {
-	/*
-	 * Although the equality test on 'cr_rgid' below doesn't access
-	 * 'cr_groups', we check for the latter's length here as we assume that,
-	 * if 'cr_ngroups' is 0, the passed 'struct ucred' is invalid, and
-	 * 'cr_rgid' may not have been filled.
-	 */
 	groups_check_positive_len(cred->cr_ngroups);
 
 	if (gid == cred->cr_rgid)
@@ -1896,19 +1885,22 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_gids, CTLFLAG_RW,
 static int
 cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 {
-	if (!see_other_gids) {
-		if (realgroupmember(u1->cr_rgid, u2))
+	if (see_other_gids)
+		return (0);
+
+	/* Restriction in force. */
+
+	if (realgroupmember(u1->cr_rgid, u2))
+		return (0);
+
+	for (int i = 0; i < u1->cr_ngroups; i++)
+		if (realgroupmember(u1->cr_groups[i], u2))
 			return (0);
 
-		for (int i = 1; i < u1->cr_ngroups; i++)
-			if (realgroupmember(u1->cr_groups[i], u2))
-				return (0);
+	if (priv_check_cred(u1, PRIV_SEEOTHERGIDS) == 0)
+		return (0);
 
-		if (priv_check_cred(u1, PRIV_SEEOTHERGIDS) != 0)
-			return (ESRCH);
-	}
-
-	return (0);
+	return (ESRCH);
 }
 
 /*
@@ -2276,6 +2268,7 @@ cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred)
 		}
 	}
 	grpsubset = grpsubset &&
+	    groupmember(obj_cred->cr_gid, active_cred) &&
 	    groupmember(obj_cred->cr_rgid, active_cred) &&
 	    groupmember(obj_cred->cr_svgid, active_cred);
 
@@ -2921,8 +2914,8 @@ crextend(struct ucred *cr, int n)
  * Normalizes a set of groups to be applied to a 'struct ucred'.
  *
  * Normalization ensures that the supplementary groups are sorted in ascending
- * order and do not contain duplicates.  This allows group_is_supplementary
- * to do a binary search.
+ * order and do not contain duplicates.  This allows group_is_supplementary() to
+ * do a binary search.
  */
 static void
 groups_normalize(int *ngrp, gid_t *groups)
@@ -2985,9 +2978,9 @@ crsetgroups_internal(struct ucred *cr, int ngrp, const gid_t *groups)
  * Copy groups in to a credential after expanding it if required.
  *
  * May sleep in order to allocate memory (except if, e.g., crextend() was called
- * before with 'ngrp' or greater).  Truncates the list to ngroups_max if
+ * before with 'ngrp' or greater).  Truncates the list to 'ngroups_max' if
  * it is too large.  Array 'groups' doesn't need to be sorted.  'ngrp' must be
- * strictly positive.
+ * positive.
  */
 void
 crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups)
@@ -3018,8 +3011,8 @@ crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups)
  * Same as crsetgroups() but sets the effective GID as well.
  *
  * This function ensures that an effective GID is always present in credentials.
- * An empty array will only set the effective GID to the default_egid, while a
- * non-empty array will peel off groups[0] to set as the effective GID and use
+ * An empty array will only set the effective GID to 'default_egid', while
+ * a non-empty array will peel off groups[0] to set as the effective GID and use
  * the remainder, if any, as supplementary groups.
  */
 void

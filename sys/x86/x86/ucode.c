@@ -277,7 +277,8 @@ ucode_amd_match(const uint8_t *data, size_t *len)
 	signature = regs[0];
 	revision = rdmsr(MSR_BIOS_SIGN);
 
-	return (ucode_amd_find("loader blob", signature, revision, data, *len, len));
+	return (ucode_amd_find("loader blob", signature, &revision, data, *len,
+	    len));
 }
 
 /*

@@ -67,9 +67,8 @@
 static int
 bi_getboothowto(char *kargs)
 {
-#ifdef EFI
-	const char *sw, *tmp;
-	char *opts;
+#if defined(EFI) && (defined(__i386__) || defined(__amd64__))
+	const char *tmp;
 	int speed, port;
 	char buf[50];
 #endif

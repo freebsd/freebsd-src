@@ -52,7 +52,9 @@ random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
 }
 #endif /* SYSCTL_DECL */
 
+#ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_ENTROPY);
+#endif
 
 extern bool random_bypass_before_seeding;
 extern bool read_random_bypassed_before_seeding;
@@ -101,6 +103,7 @@ struct random_source {
 	const char			*rs_ident;
 	enum random_entropy_source	 rs_source;
 	random_source_read_t		*rs_read;
+	int				 rs_min_entropy;
 };
 
 void random_source_register(const struct random_source *);

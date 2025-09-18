@@ -6,6 +6,8 @@
 .\" This code is derived from software contributed to The NetBSD Foundation
 .\" by Andrew Brown and Jan Schaumann.
 .\"
+.\" Copyright (c) 2025 Klara, Inc.
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -27,7 +29,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 22, 2017
+.Dd September 9, 2025
 .Dt STAT 1
 .Os
 .Sh NAME
@@ -36,7 +38,7 @@
 .Nd display file status
 .Sh SYNOPSIS
 .Nm
-.Op Fl FHLnq
+.Op Fl FHhLnq
 .Op Fl f Ar format | Fl l | r | s | x
 .Op Fl t Ar timefmt
 .Op Ar
@@ -129,6 +131,45 @@ and use
 instead of
 .Xr lstat 2 .
 This requires root privileges.
+.It Fl h
+For each file argument, print a line consisting of a comma-separated
+list of holes, a space, and the file name.
+Each hole is reported as its starting offset as a decimal number
+followed by a hyphen and the ending offset (one less than the starting
+offset of the data region that follows the hole) as a decimal number.
+If the file ends in a hole, the ending offset of the final hole will
+be one less than the size of the file.
+Otherwise, the final entry in the list (indeed, the only entry in the
+list, if the file is not sparse), is a single decimal number
+corresponding to the size of the file, representing the virtual hole
+at the end of the file.
+.Pp
+If the argument is a directory, instead of a list of holes, a single
+number is printed, corresponding to the minimum hole size for that
+directory as reported by
+.Xr pathconf 2 ,
+followed by a space and the directory name.
+.Pp
+Please note that the only way to retrieve information about the holes
+in a file is to open it and walk the list of holes and data regions
+using
+.Xr lseek 2 .
+If the file is being modified by another process at the same time as
+.Nm
+is inspecting it, the result may be inconsistent.
+.Pp
+This option cannot be combined with the
+.Fl F ,
+.Fl f ,
+.Fl H ,
+.Fl L ,
+.Fl l ,
+.Fl r ,
+.Fl s ,
+.Fl t ,
+or
+.Fl x
+options.
 .It Fl L
 Use
 .Xr stat 2

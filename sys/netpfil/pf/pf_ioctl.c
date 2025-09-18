@@ -421,6 +421,8 @@ pfattach_vnet(void)
 		pf_counter_u64_init(&V_pf_status.fcounters[i], M_WAITOK);
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < NCNT_MAX; i++)
+		V_pf_status.ncounters[i] = counter_u64_alloc(M_WAITOK);
 
 	if (swi_add(&V_pf_swi_ie, "pf send", pf_intr, curvnet, SWI_NET,
 	    INTR_MPSAFE, &V_pf_swi_cookie) != 0)
@@ -2508,6 +2510,8 @@ pf_ioctl_clear_status(void)
 		pf_counter_u64_zero(&V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_zero(V_pf_status.scounters[i]);
+	for (int i = 0; i < NCNT_MAX; i++)
+		counter_u64_zero(V_pf_status.ncounters[i]);
 	for (int i = 0; i < KLCNT_MAX; i++)
 		counter_u64_zero(V_pf_status.lcounters[i]);
 	V_pf_status.since = time_uptime;
@@ -6547,6 +6551,11 @@ shutdown_pf(void)
 
 		pf_kill_srcnodes(NULL);
 
+		for (int i = 0; i < PF_RULESET_MAX; i++) {
+			pf_rule_tree_free(pf_main_ruleset.rules[i].active.tree);
+			pf_rule_tree_free(pf_main_ruleset.rules[i].inactive.tree);
+		}
+
 		/* status does not use malloced mem so no need to cleanup */
 		/* fingerprints and interfaces have their own cleanup code */
 	} while(0);
@@ -6949,6 +6958,8 @@ pf_unload_vnet(void)
 		pf_counter_u64_deinit(&V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_free(V_pf_status.scounters[i]);
+	for (int i = 0; i < NCNT_MAX; i++)
+		counter_u64_free(V_pf_status.ncounters[i]);
 
 	rm_destroy(&V_pf_rules_lock);
 	sx_destroy(&V_pf_ioctl_lock);

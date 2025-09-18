@@ -222,9 +222,9 @@ owner_sx(const struct lock_object *lock, struct thread **owner)
 #endif
 
 void
-sx_sysinit(void *arg)
+sx_sysinit(const void *arg)
 {
-	struct sx_args *sargs = arg;
+	const struct sx_args *sargs = arg;
 
 	sx_init_flags(sargs->sa_sx, sargs->sa_desc, sargs->sa_flags);
 }

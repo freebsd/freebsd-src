@@ -129,7 +129,7 @@ procdesc_find(struct thread *td, int fd, const cap_rights_t *rightsp,
 	if (error)
 		return (error);
 	if (fp->f_type != DTYPE_PROCDESC) {
-		error = EBADF;
+		error = EINVAL;
 		goto out;
 	}
 	pd = fp->f_data;

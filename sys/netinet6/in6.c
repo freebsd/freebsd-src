@@ -1235,11 +1235,20 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 	int carp_attached = 0;
 	int error;
 
-	/* Check if this interface is a bridge member */
+	/*
+	 * Check if bridge wants to allow adding addrs to member interfaces.
+	 */
 	if (ifp->if_bridge != NULL && ifp->if_type != IFT_GIF &&
-	    bridge_member_ifaddrs_p != NULL && !bridge_member_ifaddrs_p()) {
-		error = EINVAL;
-		goto out;
+	    bridge_member_ifaddrs_p != NULL) {
+		if (bridge_member_ifaddrs_p()) {
+			if_printf(ifp, "WARNING: Assigning an IP address to "
+			    "an interface which is also a bridge member is "
+			    "deprecated and will be unsupported in a future "
+			    "release.\n");
+		} else {
+			error = EINVAL;
+			goto out;
+		}
 	}
 
 	/*

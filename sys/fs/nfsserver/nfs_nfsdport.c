@@ -2607,6 +2607,7 @@ again:
 	 * rpc reply
 	 */
 	if (siz == 0) {
+ateof:
 		vput(vp);
 		if (nd->nd_flag & ND_NFSV3)
 			nfsrv_postopattr(nd, getret, &at);
@@ -2648,6 +2649,8 @@ again:
 		ncookies--;
 	}
 	if (cpos >= cend || ncookies == 0) {
+		if (eofflag != 0)
+			goto ateof;
 		siz = fullsiz;
 		toff = off;
 		goto again;
@@ -3475,11 +3478,6 @@ nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
 		     (nd->nd_flag & ND_AUTHNONE) != 0) {
 			nd->nd_cred->cr_uid = credanon->cr_uid;
 			nd->nd_cred->cr_gid = credanon->cr_gid;
-			/*
-			 * 'credanon' is already a 'struct ucred' that was built
-			 * internally with calls to crsetgroups_and_egid(), so
-			 * we don't need a fallback here.
-			 */
 			crsetgroups(nd->nd_cred, credanon->cr_ngroups,
 			    credanon->cr_groups);
 		} else if ((nd->nd_flag & ND_GSS) == 0) {

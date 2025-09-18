@@ -645,14 +645,14 @@ out:
 static int
 sysctl_net_inet_default_tcp_functions(SYSCTL_HANDLER_ARGS)
 {
-	int error = ENOENT;
 	struct tcp_function_set fs;
 	struct tcp_function_block *blk;
+	int error;
 
-	memset(&fs, 0, sizeof(fs));
+	memset(&fs, 0, sizeof(struct tcp_function_set));
 	rw_rlock(&tcp_function_lock);
 	blk = find_tcp_fb_locked(V_tcp_func_set_ptr, NULL);
-	if (blk) {
+	if (blk != NULL) {
 		/* Found him */
 		strcpy(fs.function_set_name, blk->tfb_tcp_block_name);
 		fs.pcbcnt = blk->tfb_refcnt;

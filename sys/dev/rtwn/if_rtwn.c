@@ -268,6 +268,9 @@ rtwn_attach(struct rtwn_softc *sc)
 	ic->ic_flags_ext |= IEEE80211_FEXT_WATCHDOG;
 #endif
 
+	/* Enable seqno offload */
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	/* Adjust capabilities. */
 	rtwn_adj_devcaps(sc);
 

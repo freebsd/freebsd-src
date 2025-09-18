@@ -407,6 +407,7 @@ static int	em_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int,
     int);
 static void	em_if_queues_free(if_ctx_t);
 
+static uint64_t	em_if_get_vf_counter(if_ctx_t, ift_counter);
 static uint64_t	em_if_get_counter(if_ctx_t, ift_counter);
 static void	em_if_init(if_ctx_t);
 static void	em_if_stop(if_ctx_t);
@@ -440,6 +441,7 @@ static int	igb_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
 static void	em_if_multi_set(if_ctx_t);
 static void	em_if_update_admin_status(if_ctx_t);
 static void	em_if_debug(if_ctx_t);
+static void	em_update_vf_stats_counters(struct e1000_softc *);
 static void	em_update_stats_counters(struct e1000_softc *);
 static void	em_add_hw_stats(struct e1000_softc *);
 static int	em_if_set_promisc(if_ctx_t, int);
@@ -1377,6 +1379,11 @@ em_if_attach_post(if_ctx_t ctx)
 	em_reset(ctx);
 
 	/* Initialize statistics */
+	if (sc->vf_ifp)
+		sc->ustats.vf_stats = (struct e1000_vf_stats){};
+	else
+		sc->ustats.stats = (struct e1000_hw_stats){};
+
 	em_update_stats_counters(sc);
 	hw->mac.get_link_status = 1;
 	em_if_update_admin_status(ctx);
@@ -4668,102 +4675,150 @@ em_disable_aspm(struct e1000_softc *sc)
 static void
 em_update_stats_counters(struct e1000_softc *sc)
 {
-	u64 prev_xoffrxc = sc->stats.xoffrxc;
+	struct e1000_hw_stats *stats;
+	u64 prev_xoffrxc;
+
+	if (sc->vf_ifp) {
+		em_update_vf_stats_counters(sc);
+		return;
+	}
+
+	stats = &sc->ustats.stats;
+	prev_xoffrxc = stats->xoffrxc;
 
 	if(sc->hw.phy.media_type == e1000_media_type_copper ||
 	   (E1000_READ_REG(&sc->hw, E1000_STATUS) & E1000_STATUS_LU)) {
-		sc->stats.symerrs += E1000_READ_REG(&sc->hw, E1000_SYMERRS);
-		sc->stats.sec += E1000_READ_REG(&sc->hw, E1000_SEC);
+		stats->symerrs += E1000_READ_REG(&sc->hw, E1000_SYMERRS);
+		stats->sec += E1000_READ_REG(&sc->hw, E1000_SEC);
 	}
-	sc->stats.crcerrs += E1000_READ_REG(&sc->hw, E1000_CRCERRS);
-	sc->stats.mpc += E1000_READ_REG(&sc->hw, E1000_MPC);
-	sc->stats.scc += E1000_READ_REG(&sc->hw, E1000_SCC);
-	sc->stats.ecol += E1000_READ_REG(&sc->hw, E1000_ECOL);
+	stats->crcerrs += E1000_READ_REG(&sc->hw, E1000_CRCERRS);
+	stats->mpc += E1000_READ_REG(&sc->hw, E1000_MPC);
+	stats->scc += E1000_READ_REG(&sc->hw, E1000_SCC);
+	stats->ecol += E1000_READ_REG(&sc->hw, E1000_ECOL);
 
-	sc->stats.mcc += E1000_READ_REG(&sc->hw, E1000_MCC);
-	sc->stats.latecol += E1000_READ_REG(&sc->hw, E1000_LATECOL);
-	sc->stats.colc += E1000_READ_REG(&sc->hw, E1000_COLC);
-	sc->stats.dc += E1000_READ_REG(&sc->hw, E1000_DC);
-	sc->stats.rlec += E1000_READ_REG(&sc->hw, E1000_RLEC);
-	sc->stats.xonrxc += E1000_READ_REG(&sc->hw, E1000_XONRXC);
-	sc->stats.xontxc += E1000_READ_REG(&sc->hw, E1000_XONTXC);
-	sc->stats.xoffrxc += E1000_READ_REG(&sc->hw, E1000_XOFFRXC);
+	stats->mcc += E1000_READ_REG(&sc->hw, E1000_MCC);
+	stats->latecol += E1000_READ_REG(&sc->hw, E1000_LATECOL);
+	stats->colc += E1000_READ_REG(&sc->hw, E1000_COLC);
+	stats->dc += E1000_READ_REG(&sc->hw, E1000_DC);
+	stats->rlec += E1000_READ_REG(&sc->hw, E1000_RLEC);
+	stats->xonrxc += E1000_READ_REG(&sc->hw, E1000_XONRXC);
+	stats->xontxc += E1000_READ_REG(&sc->hw, E1000_XONTXC);
+	stats->xoffrxc += E1000_READ_REG(&sc->hw, E1000_XOFFRXC);
 	/*
 	 ** For watchdog management we need to know if we have been
 	 ** paused during the last interval, so capture that here.
 	*/
-	if (sc->stats.xoffrxc != prev_xoffrxc)
+	if (stats->xoffrxc != prev_xoffrxc)
 		sc->shared->isc_pause_frames = 1;
-	sc->stats.xofftxc += E1000_READ_REG(&sc->hw, E1000_XOFFTXC);
-	sc->stats.fcruc += E1000_READ_REG(&sc->hw, E1000_FCRUC);
-	sc->stats.prc64 += E1000_READ_REG(&sc->hw, E1000_PRC64);
-	sc->stats.prc127 += E1000_READ_REG(&sc->hw, E1000_PRC127);
-	sc->stats.prc255 += E1000_READ_REG(&sc->hw, E1000_PRC255);
-	sc->stats.prc511 += E1000_READ_REG(&sc->hw, E1000_PRC511);
-	sc->stats.prc1023 += E1000_READ_REG(&sc->hw, E1000_PRC1023);
-	sc->stats.prc1522 += E1000_READ_REG(&sc->hw, E1000_PRC1522);
-	sc->stats.gprc += E1000_READ_REG(&sc->hw, E1000_GPRC);
-	sc->stats.bprc += E1000_READ_REG(&sc->hw, E1000_BPRC);
-	sc->stats.mprc += E1000_READ_REG(&sc->hw, E1000_MPRC);
-	sc->stats.gptc += E1000_READ_REG(&sc->hw, E1000_GPTC);
+	stats->xofftxc += E1000_READ_REG(&sc->hw, E1000_XOFFTXC);
+	stats->fcruc += E1000_READ_REG(&sc->hw, E1000_FCRUC);
+	stats->prc64 += E1000_READ_REG(&sc->hw, E1000_PRC64);
+	stats->prc127 += E1000_READ_REG(&sc->hw, E1000_PRC127);
+	stats->prc255 += E1000_READ_REG(&sc->hw, E1000_PRC255);
+	stats->prc511 += E1000_READ_REG(&sc->hw, E1000_PRC511);
+	stats->prc1023 += E1000_READ_REG(&sc->hw, E1000_PRC1023);
+	stats->prc1522 += E1000_READ_REG(&sc->hw, E1000_PRC1522);
+	stats->gprc += E1000_READ_REG(&sc->hw, E1000_GPRC);
+	stats->bprc += E1000_READ_REG(&sc->hw, E1000_BPRC);
+	stats->mprc += E1000_READ_REG(&sc->hw, E1000_MPRC);
+	stats->gptc += E1000_READ_REG(&sc->hw, E1000_GPTC);
 
 	/* For the 64-bit byte counters the low dword must be read first. */
 	/* Both registers clear on the read of the high dword */
 
-	sc->stats.gorc += E1000_READ_REG(&sc->hw, E1000_GORCL) +
+	stats->gorc += E1000_READ_REG(&sc->hw, E1000_GORCL) +
 	    ((u64)E1000_READ_REG(&sc->hw, E1000_GORCH) << 32);
-	sc->stats.gotc += E1000_READ_REG(&sc->hw, E1000_GOTCL) +
+	stats->gotc += E1000_READ_REG(&sc->hw, E1000_GOTCL) +
 	    ((u64)E1000_READ_REG(&sc->hw, E1000_GOTCH) << 32);
 
-	sc->stats.rnbc += E1000_READ_REG(&sc->hw, E1000_RNBC);
-	sc->stats.ruc += E1000_READ_REG(&sc->hw, E1000_RUC);
-	sc->stats.rfc += E1000_READ_REG(&sc->hw, E1000_RFC);
-	sc->stats.roc += E1000_READ_REG(&sc->hw, E1000_ROC);
-	sc->stats.rjc += E1000_READ_REG(&sc->hw, E1000_RJC);
+	stats->rnbc += E1000_READ_REG(&sc->hw, E1000_RNBC);
+	stats->ruc += E1000_READ_REG(&sc->hw, E1000_RUC);
+	stats->rfc += E1000_READ_REG(&sc->hw, E1000_RFC);
+	stats->roc += E1000_READ_REG(&sc->hw, E1000_ROC);
+	stats->rjc += E1000_READ_REG(&sc->hw, E1000_RJC);
 
-	sc->stats.mgprc += E1000_READ_REG(&sc->hw, E1000_MGTPRC);
-	sc->stats.mgpdc += E1000_READ_REG(&sc->hw, E1000_MGTPDC);
-	sc->stats.mgptc += E1000_READ_REG(&sc->hw, E1000_MGTPTC);
+	stats->mgprc += E1000_READ_REG(&sc->hw, E1000_MGTPRC);
+	stats->mgpdc += E1000_READ_REG(&sc->hw, E1000_MGTPDC);
+	stats->mgptc += E1000_READ_REG(&sc->hw, E1000_MGTPTC);
 
-	sc->stats.tor += E1000_READ_REG(&sc->hw, E1000_TORH);
-	sc->stats.tot += E1000_READ_REG(&sc->hw, E1000_TOTH);
+	stats->tor += E1000_READ_REG(&sc->hw, E1000_TORH);
+	stats->tot += E1000_READ_REG(&sc->hw, E1000_TOTH);
 
-	sc->stats.tpr += E1000_READ_REG(&sc->hw, E1000_TPR);
-	sc->stats.tpt += E1000_READ_REG(&sc->hw, E1000_TPT);
-	sc->stats.ptc64 += E1000_READ_REG(&sc->hw, E1000_PTC64);
-	sc->stats.ptc127 += E1000_READ_REG(&sc->hw, E1000_PTC127);
-	sc->stats.ptc255 += E1000_READ_REG(&sc->hw, E1000_PTC255);
-	sc->stats.ptc511 += E1000_READ_REG(&sc->hw, E1000_PTC511);
-	sc->stats.ptc1023 += E1000_READ_REG(&sc->hw, E1000_PTC1023);
-	sc->stats.ptc1522 += E1000_READ_REG(&sc->hw, E1000_PTC1522);
-	sc->stats.mptc += E1000_READ_REG(&sc->hw, E1000_MPTC);
-	sc->stats.bptc += E1000_READ_REG(&sc->hw, E1000_BPTC);
+	stats->tpr += E1000_READ_REG(&sc->hw, E1000_TPR);
+	stats->tpt += E1000_READ_REG(&sc->hw, E1000_TPT);
+	stats->ptc64 += E1000_READ_REG(&sc->hw, E1000_PTC64);
+	stats->ptc127 += E1000_READ_REG(&sc->hw, E1000_PTC127);
+	stats->ptc255 += E1000_READ_REG(&sc->hw, E1000_PTC255);
+	stats->ptc511 += E1000_READ_REG(&sc->hw, E1000_PTC511);
+	stats->ptc1023 += E1000_READ_REG(&sc->hw, E1000_PTC1023);
+	stats->ptc1522 += E1000_READ_REG(&sc->hw, E1000_PTC1522);
+	stats->mptc += E1000_READ_REG(&sc->hw, E1000_MPTC);
+	stats->bptc += E1000_READ_REG(&sc->hw, E1000_BPTC);
 
 	/* Interrupt Counts */
 
-	sc->stats.iac += E1000_READ_REG(&sc->hw, E1000_IAC);
-	sc->stats.icrxptc += E1000_READ_REG(&sc->hw, E1000_ICRXPTC);
-	sc->stats.icrxatc += E1000_READ_REG(&sc->hw, E1000_ICRXATC);
-	sc->stats.ictxptc += E1000_READ_REG(&sc->hw, E1000_ICTXPTC);
-	sc->stats.ictxatc += E1000_READ_REG(&sc->hw, E1000_ICTXATC);
-	sc->stats.ictxqec += E1000_READ_REG(&sc->hw, E1000_ICTXQEC);
-	sc->stats.ictxqmtc += E1000_READ_REG(&sc->hw, E1000_ICTXQMTC);
-	sc->stats.icrxdmtc += E1000_READ_REG(&sc->hw, E1000_ICRXDMTC);
-	sc->stats.icrxoc += E1000_READ_REG(&sc->hw, E1000_ICRXOC);
+	stats->iac += E1000_READ_REG(&sc->hw, E1000_IAC);
+	stats->icrxptc += E1000_READ_REG(&sc->hw, E1000_ICRXPTC);
+	stats->icrxatc += E1000_READ_REG(&sc->hw, E1000_ICRXATC);
+	stats->ictxptc += E1000_READ_REG(&sc->hw, E1000_ICTXPTC);
+	stats->ictxatc += E1000_READ_REG(&sc->hw, E1000_ICTXATC);
+	stats->ictxqec += E1000_READ_REG(&sc->hw, E1000_ICTXQEC);
+	stats->ictxqmtc += E1000_READ_REG(&sc->hw, E1000_ICTXQMTC);
+	stats->icrxdmtc += E1000_READ_REG(&sc->hw, E1000_ICRXDMTC);
+	stats->icrxoc += E1000_READ_REG(&sc->hw, E1000_ICRXOC);
 
 	if (sc->hw.mac.type >= e1000_82543) {
-		sc->stats.algnerrc +=
+		stats->algnerrc +=
 		E1000_READ_REG(&sc->hw, E1000_ALGNERRC);
-		sc->stats.rxerrc +=
+		stats->rxerrc +=
 		E1000_READ_REG(&sc->hw, E1000_RXERRC);
-		sc->stats.tncrs +=
+		stats->tncrs +=
 		E1000_READ_REG(&sc->hw, E1000_TNCRS);
-		sc->stats.cexterr +=
+		stats->cexterr +=
 		E1000_READ_REG(&sc->hw, E1000_CEXTERR);
-		sc->stats.tsctc +=
+		stats->tsctc +=
 		E1000_READ_REG(&sc->hw, E1000_TSCTC);
-		sc->stats.tsctfc +=
+		stats->tsctfc +=
 		E1000_READ_REG(&sc->hw, E1000_TSCTFC);
+	}
+}
+
+static void
+em_update_vf_stats_counters(struct e1000_softc *sc)
+{
+	struct e1000_vf_stats *stats;
+
+	if (sc->link_speed == 0)
+		return;
+
+	stats = &sc->ustats.vf_stats;
+
+	UPDATE_VF_REG(E1000_VFGPRC,
+	    stats->last_gprc, stats->gprc);
+	UPDATE_VF_REG(E1000_VFGORC,
+	    stats->last_gorc, stats->gorc);
+	UPDATE_VF_REG(E1000_VFGPTC,
+	    stats->last_gptc, stats->gptc);
+	UPDATE_VF_REG(E1000_VFGOTC,
+	    stats->last_gotc, stats->gotc);
+	UPDATE_VF_REG(E1000_VFMPRC,
+	    stats->last_mprc, stats->mprc);
+}
+
+static uint64_t
+em_if_get_vf_counter(if_ctx_t ctx, ift_counter cnt)
+{
+	struct e1000_softc *sc = iflib_get_softc(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
+
+	switch (cnt) {
+	case IFCOUNTER_IERRORS:
+		return sc->dropped_pkts;
+	case IFCOUNTER_OERRORS:
+		return (if_get_counter_default(ifp, cnt) +
+		    sc->watchdog_events);
+	default:
+		return (if_get_counter_default(ifp, cnt));
 	}
 }
 
@@ -4771,19 +4826,25 @@ static uint64_t
 em_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
+	struct e1000_hw_stats *stats;
 	if_t ifp = iflib_get_ifp(ctx);
+
+	if (sc->vf_ifp)
+		return (em_if_get_vf_counter(ctx, cnt));
+
+	stats = &sc->ustats.stats;
 
 	switch (cnt) {
 	case IFCOUNTER_COLLISIONS:
-		return (sc->stats.colc);
+		return (stats->colc);
 	case IFCOUNTER_IERRORS:
-		return (sc->dropped_pkts + sc->stats.rxerrc +
-		    sc->stats.crcerrs + sc->stats.algnerrc +
-		    sc->stats.ruc + sc->stats.roc +
-		    sc->stats.mpc + sc->stats.cexterr);
+		return (sc->dropped_pkts + stats->rxerrc +
+		    stats->crcerrs + stats->algnerrc +
+		    stats->ruc + stats->roc +
+		    stats->mpc + stats->cexterr);
 	case IFCOUNTER_OERRORS:
-		return (sc->stats.ecol + sc->stats.latecol +
-		    sc->watchdog_events);
+		return (if_get_counter_default(ifp, cnt) +
+		    stats->ecol + stats->latecol + sc->watchdog_events);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -4884,7 +4945,7 @@ em_add_hw_stats(struct e1000_softc *sc)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
-	struct e1000_hw_stats *stats = &sc->stats;
+	struct e1000_hw_stats *stats;
 
 	struct sysctl_oid *stat_node, *queue_node, *int_node;
 	struct sysctl_oid_list *stat_list, *queue_list, *int_list;
@@ -4975,6 +5036,33 @@ em_add_hw_stats(struct e1000_softc *sc)
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Statistics");
 	stat_list = SYSCTL_CHILDREN(stat_node);
 
+	/*
+	** VF adapter has a very limited set of stats
+	** since its not managing the metal, so to speak.
+	*/
+	if (sc->vf_ifp) {
+		struct e1000_vf_stats *vfstats = &sc->ustats.vf_stats;
+
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_recvd",
+		    CTLFLAG_RD, &vfstats->gprc,
+		    "Good Packets Received");
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
+		    CTLFLAG_RD, &vfstats->gptc,
+		    "Good Packets Transmitted");
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_recvd",
+		    CTLFLAG_RD, &vfstats->gorc,
+		    "Good Octets Received");
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
+		    CTLFLAG_RD, &vfstats->gotc,
+		    "Good Octets Transmitted");
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_recvd",
+		    CTLFLAG_RD, &vfstats->mprc,
+		    "Multicast Packets Received");
+		return;
+	}
+
+	stats = &sc->ustats.stats;
+
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "excess_coll",
 	    CTLFLAG_RD, &stats->ecol,
 	    "Excessive collisions");
@@ -4991,147 +5079,147 @@ em_add_hw_stats(struct e1000_softc *sc)
 	    CTLFLAG_RD, &stats->colc,
 	    "Collision Count");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "symbol_errors",
-	    CTLFLAG_RD, &sc->stats.symerrs,
+	    CTLFLAG_RD, &stats->symerrs,
 	    "Symbol Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "sequence_errors",
-	    CTLFLAG_RD, &sc->stats.sec,
+	    CTLFLAG_RD, &stats->sec,
 	    "Sequence Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "defer_count",
-	    CTLFLAG_RD, &sc->stats.dc,
+	    CTLFLAG_RD, &stats->dc,
 	    "Defer Count");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "missed_packets",
-	    CTLFLAG_RD, &sc->stats.mpc,
+	    CTLFLAG_RD, &stats->mpc,
 	    "Missed Packets");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_length_errors",
-	    CTLFLAG_RD, &sc->stats.rlec,
+	    CTLFLAG_RD, &stats->rlec,
 	    "Receive Length Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_no_buff",
-	    CTLFLAG_RD, &sc->stats.rnbc,
+	    CTLFLAG_RD, &stats->rnbc,
 	    "Receive No Buffers");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_undersize",
-	    CTLFLAG_RD, &sc->stats.ruc,
+	    CTLFLAG_RD, &stats->ruc,
 	    "Receive Undersize");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
-	    CTLFLAG_RD, &sc->stats.rfc,
+	    CTLFLAG_RD, &stats->rfc,
 	    "Fragmented Packets Received ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_oversize",
-	    CTLFLAG_RD, &sc->stats.roc,
+	    CTLFLAG_RD, &stats->roc,
 	    "Oversized Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_jabber",
-	    CTLFLAG_RD, &sc->stats.rjc,
+	    CTLFLAG_RD, &stats->rjc,
 	    "Recevied Jabber");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_errs",
-	    CTLFLAG_RD, &sc->stats.rxerrc,
+	    CTLFLAG_RD, &stats->rxerrc,
 	    "Receive Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "crc_errs",
-	    CTLFLAG_RD, &sc->stats.crcerrs,
+	    CTLFLAG_RD, &stats->crcerrs,
 	    "CRC errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "alignment_errs",
-	    CTLFLAG_RD, &sc->stats.algnerrc,
+	    CTLFLAG_RD, &stats->algnerrc,
 	    "Alignment Errors");
 	/* On 82575 these are collision counts */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "coll_ext_errs",
-	    CTLFLAG_RD, &sc->stats.cexterr,
+	    CTLFLAG_RD, &stats->cexterr,
 	    "Collision/Carrier extension errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xon_recvd",
-	    CTLFLAG_RD, &sc->stats.xonrxc,
+	    CTLFLAG_RD, &stats->xonrxc,
 	    "XON Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xon_txd",
-	    CTLFLAG_RD, &sc->stats.xontxc,
+	    CTLFLAG_RD, &stats->xontxc,
 	    "XON Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_recvd",
-	    CTLFLAG_RD, &sc->stats.xoffrxc,
+	    CTLFLAG_RD, &stats->xoffrxc,
 	    "XOFF Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_txd",
-	    CTLFLAG_RD, &sc->stats.xofftxc,
+	    CTLFLAG_RD, &stats->xofftxc,
 	    "XOFF Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "unsupported_fc_recvd",
-	    CTLFLAG_RD, &sc->stats.fcruc,
+	    CTLFLAG_RD, &stats->fcruc,
 	    "Unsupported Flow Control Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_recvd",
-	    CTLFLAG_RD, &sc->stats.mgprc,
+	    CTLFLAG_RD, &stats->mgprc,
 	    "Management Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_drop",
-	    CTLFLAG_RD, &sc->stats.mgpdc,
+	    CTLFLAG_RD, &stats->mgpdc,
 	    "Management Packets Dropped");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_txd",
-	    CTLFLAG_RD, &sc->stats.mgptc,
+	    CTLFLAG_RD, &stats->mgptc,
 	    "Management Packets Transmitted");
 
 	/* Packet Reception Stats */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_recvd",
-	    CTLFLAG_RD, &sc->stats.tpr,
+	    CTLFLAG_RD, &stats->tpr,
 	    "Total Packets Received ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_recvd",
-	    CTLFLAG_RD, &sc->stats.gprc,
+	    CTLFLAG_RD, &stats->gprc,
 	    "Good Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_recvd",
-	    CTLFLAG_RD, &sc->stats.bprc,
+	    CTLFLAG_RD, &stats->bprc,
 	    "Broadcast Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_recvd",
-	    CTLFLAG_RD, &sc->stats.mprc,
+	    CTLFLAG_RD, &stats->mprc,
 	    "Multicast Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_64",
-	    CTLFLAG_RD, &sc->stats.prc64,
+	    CTLFLAG_RD, &stats->prc64,
 	    "64 byte frames received ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_65_127",
-	    CTLFLAG_RD, &sc->stats.prc127,
+	    CTLFLAG_RD, &stats->prc127,
 	    "65-127 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_128_255",
-	    CTLFLAG_RD, &sc->stats.prc255,
+	    CTLFLAG_RD, &stats->prc255,
 	    "128-255 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_256_511",
-	    CTLFLAG_RD, &sc->stats.prc511,
+	    CTLFLAG_RD, &stats->prc511,
 	    "256-511 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_512_1023",
-	    CTLFLAG_RD, &sc->stats.prc1023,
+	    CTLFLAG_RD, &stats->prc1023,
 	    "512-1023 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_1024_1522",
-	    CTLFLAG_RD, &sc->stats.prc1522,
+	    CTLFLAG_RD, &stats->prc1522,
 	    "1023-1522 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_recvd",
-	    CTLFLAG_RD, &sc->stats.gorc,
+	    CTLFLAG_RD, &stats->gorc,
 	    "Good Octets Received");
 
 	/* Packet Transmission Stats */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
-	    CTLFLAG_RD, &sc->stats.gotc,
+	    CTLFLAG_RD, &stats->gotc,
 	    "Good Octets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
-	    CTLFLAG_RD, &sc->stats.tpt,
+	    CTLFLAG_RD, &stats->tpt,
 	    "Total Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
-	    CTLFLAG_RD, &sc->stats.gptc,
+	    CTLFLAG_RD, &stats->gptc,
 	    "Good Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
-	    CTLFLAG_RD, &sc->stats.bptc,
+	    CTLFLAG_RD, &stats->bptc,
 	    "Broadcast Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
-	    CTLFLAG_RD, &sc->stats.mptc,
+	    CTLFLAG_RD, &stats->mptc,
 	    "Multicast Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_64",
-	    CTLFLAG_RD, &sc->stats.ptc64,
+	    CTLFLAG_RD, &stats->ptc64,
 	    "64 byte frames transmitted ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_65_127",
-	    CTLFLAG_RD, &sc->stats.ptc127,
+	    CTLFLAG_RD, &stats->ptc127,
 	    "65-127 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_128_255",
-	    CTLFLAG_RD, &sc->stats.ptc255,
+	    CTLFLAG_RD, &stats->ptc255,
 	    "128-255 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_256_511",
-	    CTLFLAG_RD, &sc->stats.ptc511,
+	    CTLFLAG_RD, &stats->ptc511,
 	    "256-511 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_512_1023",
-	    CTLFLAG_RD, &sc->stats.ptc1023,
+	    CTLFLAG_RD, &stats->ptc1023,
 	    "512-1023 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
-	    CTLFLAG_RD, &sc->stats.ptc1522,
+	    CTLFLAG_RD, &stats->ptc1522,
 	    "1024-1522 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tso_txd",
-	    CTLFLAG_RD, &sc->stats.tsctc,
+	    CTLFLAG_RD, &stats->tsctc,
 	    "TSO Contexts Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tso_ctx_fail",
-	    CTLFLAG_RD, &sc->stats.tsctfc,
+	    CTLFLAG_RD, &stats->tsctfc,
 	    "TSO Contexts Failed");
 
 	/* Interrupt Stats */
@@ -5140,39 +5228,39 @@ em_add_hw_stats(struct e1000_softc *sc)
 	int_list = SYSCTL_CHILDREN(int_node);
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "asserts",
-	    CTLFLAG_RD, &sc->stats.iac,
+	    CTLFLAG_RD, &stats->iac,
 	    "Interrupt Assertion Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "rx_pkt_timer",
-	    CTLFLAG_RD, &sc->stats.icrxptc,
+	    CTLFLAG_RD, &stats->icrxptc,
 	    "Interrupt Cause Rx Pkt Timer Expire Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "rx_abs_timer",
-	    CTLFLAG_RD, &sc->stats.icrxatc,
+	    CTLFLAG_RD, &stats->icrxatc,
 	    "Interrupt Cause Rx Abs Timer Expire Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "tx_pkt_timer",
-	    CTLFLAG_RD, &sc->stats.ictxptc,
+	    CTLFLAG_RD, &stats->ictxptc,
 	    "Interrupt Cause Tx Pkt Timer Expire Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "tx_abs_timer",
-	    CTLFLAG_RD, &sc->stats.ictxatc,
+	    CTLFLAG_RD, &stats->ictxatc,
 	    "Interrupt Cause Tx Abs Timer Expire Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "tx_queue_empty",
-	    CTLFLAG_RD, &sc->stats.ictxqec,
+	    CTLFLAG_RD, &stats->ictxqec,
 	    "Interrupt Cause Tx Queue Empty Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "tx_queue_min_thresh",
-	    CTLFLAG_RD, &sc->stats.ictxqmtc,
+	    CTLFLAG_RD, &stats->ictxqmtc,
 	    "Interrupt Cause Tx Queue Min Thresh Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "rx_desc_min_thresh",
-	    CTLFLAG_RD, &sc->stats.icrxdmtc,
+	    CTLFLAG_RD, &stats->icrxdmtc,
 	    "Interrupt Cause Rx Desc Min Thresh Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "rx_overrun",
-	    CTLFLAG_RD, &sc->stats.icrxoc,
+	    CTLFLAG_RD, &stats->icrxoc,
 	    "Interrupt Cause Receiver Overrun Count");
 }
 

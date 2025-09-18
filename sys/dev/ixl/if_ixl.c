@@ -1785,7 +1785,7 @@ ixl_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_OPACKETS:
 		return (vsi->opackets);
 	case IFCOUNTER_OERRORS:
-		return (vsi->oerrors);
+		return (if_get_counter_default(ifp, cnt) + vsi->oerrors);
 	case IFCOUNTER_COLLISIONS:
 		/* Collisions are by standard impossible in 40G/10G Ethernet */
 		return (0);
@@ -1800,7 +1800,7 @@ ixl_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_IQDROPS:
 		return (vsi->iqdrops);
 	case IFCOUNTER_OQDROPS:
-		return (vsi->oqdrops);
+		return (if_get_counter_default(ifp, cnt) + vsi->oqdrops);
 	case IFCOUNTER_NOPROTO:
 		return (vsi->noproto);
 	default:

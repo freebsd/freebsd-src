@@ -585,10 +585,10 @@ BRANCH_EXT=	${MAJOR_REVISION}.snap
 EXTRA_REVISION=	.snap${_TIMENOW}
 .elif ${_BRANCH:MALPHA*}
 BRANCH_EXT=	alpha
-EXTRA_REVISION=	.${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
+EXTRA_REVISION=	.a${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:MBETA*}
 BRANCH_EXT=	beta
-EXTRA_REVISION=	.${_BRANCH:C/BETA([0-9]+).*/\1/}.${_TIMENOW}
+EXTRA_REVISION=	.b${_BRANCH:C/BETA([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:MRC*}
 BRANCH_EXT=	rc
 EXTRA_REVISION=	.rc${_BRANCH:C/RC([0-9]+).*/\1/}.${_TIMENOW}
@@ -1992,7 +1992,15 @@ PKG_ABI!=	${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI
 
 _pkgbootstrap: .PHONY
 .if make(*package*) && !exists(${LOCALBASE}/sbin/pkg)
+.if exists(${PORTSDIR}/ports-mgmt/pkg/Makefile)
+	env - UNAME_r=${UNAME_r} PATH=$$PATH \
+	    make -C ${PORTSDIR}/ports-mgmt/pkg \
+	    I_DONT_CARE_IF_MY_BUILDS_TARGET_THE_WRONG_RELEASE=1 \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
+.else
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
+.endif
 .endif
 
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
@@ -2038,13 +2046,15 @@ packages: .PHONY
 update-packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
 
-package-pkg: .PHONY
+package-pkg: _pkgbootstrap _repodir .PHONY
+.if exists(${PORTSDIR})
 	rm -rf /tmp/ports.${TARGET} || :
-	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
+	env ${WMAKEENV} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
 		PKG_CMD=${PKG_CMD} PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} \
 		WSTAGEDIR=${WSTAGEDIR} \
 		OSVERSION="${SRCRELDATE}" \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
+.endif
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
 
@@ -2097,6 +2107,14 @@ create-packages-world:	_pkgbootstrap _repodir .PHONY
 			DESTDIR=${WSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} create-world-packages
 
+.ORDER: create-packages-world create-packages-sets
+.ORDER: create-packages-kernel create-packages-sets
+create-packages-sets:	_pkgbootstrap _repodir .PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 \
+			DESTDIR=${WSTAGEDIR} \
+			PKG_VERSION=${PKG_VERSION} create-sets-packages
+
 create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
@@ -2109,6 +2127,8 @@ create-packages-kernel-repo: .PHONY create-packages-kernel sign-packages
 
 create-packages-world-repo: .PHONY create-packages-world sign-packages
 
+create-packages-sets-repo: .PHONY create-packages-sets sign-packages
+
 create-packages-source:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
@@ -2117,7 +2137,7 @@ create-packages-source:	_pkgbootstrap _repodir .PHONY
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-source-packages
 
-create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
+create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source package-pkg create-packages-sets
 
 create-source-src-package: _pkgbootstrap .PHONY
 	rm -f ${SSTAGEDIR}/src.plist 2>/dev/null || :
@@ -2213,6 +2233,24 @@ create-world-package-${pkgname}: .PHONY
 		-r ${WSTAGEDIR} \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .endfor
+
+create-sets-packages-jobs: .PHONY create-sets-packages
+create-sets-packages: .PHONY
+	@echo "==> Creating set metapackages."
+	sh "${SRCDIR}/release/packages/create-sets.sh" "${SRCDIR}" \
+		"${WSTAGEDIR}" "${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}" \
+		VERSION "${PKG_VERSION}" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}"
+	@for manifest in ${WSTAGEDIR}/set-*.ucl; do \
+		echo "--> Processing manifest: $$manifest"; \
+		${PKG_CMD} -o ABI=${PKG_ABI} -o OSVERSION="${SRCRELDATE}" \
+			create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
+			-M $$manifest \
+			-o "${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}" \
+			|| exit 1; \
+	done
 
 _default_flavor=	-default
 .if make(*package*) && exists(${KSTAGEDIR}/kernel.meta)

@@ -183,6 +183,10 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 		}
 	}
 
+	/* seqno allocate, only if AMPDU isn't running */
+	if ((m->m_flags & M_AMPDU_MPDU) == 0)
+		ieee80211_output_seqno_assign(ni, -1, m);
+
 	cipher = IEEE80211_CIPHER_NONE;
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m);
@@ -228,6 +232,10 @@ rtwn_tx_raw(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	struct rtwn_tx_buf buf;
 	uint8_t type;
 	u_int cipher;
+
+	/* seqno allocate, only if AMPDU isn't running */
+	if ((m->m_flags & M_AMPDU_MPDU) == 0)
+		ieee80211_output_seqno_assign(ni, -1, m);
 
 	/* Encrypt the frame if need be. */
 	cipher = IEEE80211_CIPHER_NONE;

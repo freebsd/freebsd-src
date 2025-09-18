@@ -4,7 +4,7 @@
  * Copyright (c) 2010 Panasas, Inc.
  * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
- * Copyright (c) 2021-2022 The FreeBSD Foundation
+ * Copyright (c) 2021-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -284,7 +284,8 @@ int lkpi_devres_destroy(struct device *, void(*release)(struct device *, void *)
 void lkpi_devres_release_free_list(struct device *);
 void lkpi_devres_unlink(struct device *, void *);
 void lkpi_devm_kmalloc_release(struct device *, void *);
-#define	devm_kfree(_d, _p)		lkpi_devm_kmalloc_release(_d, _p)
+void lkpi_devm_kfree(struct device *, const void *);
+#define	devm_kfree(_d, _p)		lkpi_devm_kfree(_d, _p)
 
 static inline const char *
 dev_driver_string(const struct device *dev)

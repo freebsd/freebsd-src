@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=	kernel
+PACKAGE=	kernel-man
 
 MAN=	accept_filter.9 \
 	accf_data.9 \
@@ -417,7 +417,7 @@ MAN=	accept_filter.9 \
 	vn_deallocate.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
-	vnet.9 \
+	VNET.9 \
 	vnode.9 \
 	vnode_pager_setsize.9 \
 	vnode_pager_purge_range.9 \
@@ -2474,7 +2474,7 @@ MLINKS+=VOP_OPENCLOSE.9 VOP_CLOSE.9 \
 MLINKS+=VOP_RDWR.9 VOP_READ.9 \
 	VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
-MLINKS+=vnet.9 vimage.9
+MLINKS+=VNET.9 VIMAGE.9
 MLINKS+=vref.9 VREF.9 \
 	vref.9 vrefl.9
 MLINKS+=vrele.9 vput.9 \

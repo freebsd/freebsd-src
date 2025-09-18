@@ -105,15 +105,16 @@ manlinksinstall: manlinksinstall-${__group}
 ${__group}OWN?=		${MANOWN}
 ${__group}GRP?=		${MANGRP}
 ${__group}MODE?=	${MANMODE}
+${__group}PACKAGE?=	${PACKAGE:Uutilities}
 
 # Tag processing is only done for NO_ROOT installs.
 .if defined(NO_ROOT)
 
 .if !defined(${__group}TAGS) || ! ${${__group}TAGS:Mpackage=*}
-.if ${MK_MANSPLITPKG} == "no"
-${__group}TAGS+=	package=${${__group}PACKAGE:U${PACKAGE:Uutilities}}
+.if ${MK_MANSPLITPKG} == "no" || ${${__group}PACKAGE:M*-man}
+${__group}TAGS+=	package=${${__group}PACKAGE}
 .else
-${__group}TAGS+=	package=${${__group}PACKAGE:U${PACKAGE:Uutilities}}-man
+${__group}TAGS+=	package=${${__group}PACKAGE}-man
 .endif
 .endif
 

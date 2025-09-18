@@ -1,6 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2025 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" Copyright (c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 .\"
 .Dd June 26, 2025
 .Dt NUAGEINIT 7
@@ -182,6 +183,13 @@ configuration in
 .Pa /etc/ssh/sshd_config
 .It Ic network
 Network configuration parameters.
+.Pp
+Specifying the following parameters from a file named
+.Pa network-config
+takes precedence over their specification from the
+.Ic network
+parameter of
+.Pa user-data Ns .
 .Bl -tag -width "ethernets"
 .It Ic ethernets
 Mapping representing a generic configuration for existing network interfaces.
@@ -296,13 +304,18 @@ The encrypted password for the user.
 .It Ic plain_text_passwd
 The password in plain text for the user.
 Ignored if an encrypted password is already provided.
-.It Ic groups
-The list of other groups the user should belong to.
 .It Ic locked
 Boolean to determine if the user account should be locked.
 .It Ic sudo
 A string or an array of strings which should be appended to
-.Pa /usr/local/etc/sudoers.d/90-nuageinit-users
+.Pa ${LOCALBASE}/etc/sudoers.d/90-nuageinit-users
+.It Ic doas
+A string or an array of strings which should be appended to
+.Pa ${LOCALBASE}/etc/doas.conf
+.Pp
+Instead of hardcoding the username, you can use
+.Sy %u Ns ,
+which will be replaced by the current username.
 .El
 .Pp
 A special case exist: if the entry is a simple string with the value

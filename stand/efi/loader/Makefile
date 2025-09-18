@@ -30,6 +30,10 @@ SRCS=	autoload.c \
 	gfx_fb.c \
 	8x16.c
 
+SRCS+= acpi_detect.c
+.PATH: ${EFISRC}/acpica
+CFLAGS+=	-I${EFISRC}/acpica/include
+
 CFLAGS+=	-I${.CURDIR}/../loader
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}
@@ -61,6 +65,7 @@ CWARNFLAGS.main.c+=	-Wno-format
 .PATH: ${.CURDIR}/../loader/arch/${__arch}
 .include "${.CURDIR}/../loader/arch/${__arch}/Makefile.inc"
 
+CFLAGS+=	-Wall
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/arch/${__arch}
 CFLAGS+=	-I${EFISRC}/include

@@ -1185,13 +1185,15 @@ parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
 
 	/* Split strings from input. */
 	app_name_begin[app_name_length] = '\0';
-	m += app_name_length + 1;
+	m += app_name_length;
 	if (procid_begin != NULL) {
 		procid_begin[procid_length] = '\0';
+		/* Skip "[PID]". */
 		m += procid_length + 2;
 	}
 
-	*msg = m + 1;
+	/* Skip separator ": ". */
+	*msg = m + 2;
 	*app_name = app_name_begin;
 	*procid = procid_begin;
 	return;

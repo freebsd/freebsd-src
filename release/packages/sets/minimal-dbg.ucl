@@ -1,0 +1,6 @@
+comment = "Basic multi-user system debugging symbols (metapackage)"
+
+desc = <<EOD
+This metapackage installs debugging symbols for the packages required to bring
+up a basic multi-user system.
+EOD

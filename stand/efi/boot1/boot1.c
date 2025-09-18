@@ -299,9 +299,9 @@ efi_exit(EFI_STATUS s)
 }
 
 void
-exit(int error __unused)
+exit(int error)
 {
-	efi_exit(EFI_LOAD_ERROR);
+	efi_exit(errno_to_efi_status(error));
 }
 
 /*

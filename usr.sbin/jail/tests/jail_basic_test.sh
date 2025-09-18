@@ -306,6 +306,25 @@ param_consistency_cleanup()
 	fi
 }
 
+atf_test_case "setaudit"
+setaudit_head()
+{
+	atf_set descr 'Test that setaudit works in a jail when configured with allow.setaudit'
+	atf_set require.user root
+	atf_set require.progs setaudit
+}
+
+setaudit_body()
+{
+	# Try to modify the audit mask within a jail without
+	# allow.setaudit configured.
+	atf_check -s not-exit:0 -o empty -e not-empty jail -c name=setaudit_jail \
+	    command=setaudit -m fr ls /
+	# The command should succeed if allow.setaudit is configured.
+	atf_check -s exit:0 -o ignore -e empty jail -c name=setaudit_jail \
+	    allow.setaudit command=setaudit -m fr ls /
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -314,4 +333,5 @@ atf_init_test_cases()
 	atf_add_test_case "commands"
 	atf_add_test_case "jid_name_set"
 	atf_add_test_case "param_consistency"
+	atf_add_test_case "setaudit"
 }

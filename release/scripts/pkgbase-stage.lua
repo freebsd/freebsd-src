@@ -50,10 +50,12 @@ local function select_packages(pkg, media, all_libcompats)
 			package ~= "FreeBSD-kernel-man"
 		then
 			-- Kernels other than FreeBSD-kernel-generic are ignored
-			if package == "FreeBSD-kernel-generic" then
-				table.insert(components["kernel"], package)
-			elseif package == "FreeBSD-kernel-generic-dbg" then
+			-- Note that on powerpc64 and powerpc64le the names are
+			-- slightly different.
+			if package:match("^FreeBSD%-kernel%-generic.*%-dbg") then
 				table.insert(components["kernel_dbg"], package)
+			elseif package:match("^FreeBSD%-kernel%-generic.*") then
+				table.insert(components["kernel"], package)
 			end
 		elseif package:match(".*%-dbg$") then
 			table.insert(components["base_dbg"], package)
@@ -115,6 +117,8 @@ local function main()
 	local target = assert(arg[3])
 	-- =hitespace separated list of all libcompat names (e.g. "32")
 	local all_libcompats = assert(arg[4])
+	-- ABI of repository
+	local ABI = assert(arg[5])
 
 	assert(os.execute("mkdir -p pkgbase-repo-conf"))
 	local f <close> = assert(io.open("pkgbase-repo-conf/FreeBSD-base.conf", "w"))
@@ -127,6 +131,7 @@ local function main()
 	assert(f:close())
 
 	local pkg = "pkg -o ASSUME_ALWAYS_YES=yes -o IGNORE_OSVERSION=yes " ..
+	    "-o ABI=" .. ABI .. " " ..
 	    "-o INSTALL_AS_USER=1 -o PKG_DBDIR=./pkgdb -R ./pkgbase-repo-conf "
 
 	assert(os.execute(pkg .. "update"))

@@ -114,5 +114,5 @@ h1=`md5 < $data`
 ./setrlimit2 $data
 
 h2=`md5 < $data`
-rm -f /tmp/setrlimit2 /tmp/setrlimit2.c
+rm -f /tmp/setrlimit2 /tmp/setrlimit2.c $data
 [ $h1 = $h2 ] && exit 1 || exit 0

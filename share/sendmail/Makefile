@@ -6,8 +6,8 @@ FILESGROUPS+=	SM
 SENDMAIL_DIR=	${SRCTOP}/contrib/sendmail
 CFDIR=	cf
 CFPACKAGE=	sendmail
-CFDIRS!=	(cd ${SENDMAIL_DIR}; find -L ${CFDIR} \( \( -name CVS -o -name .svn \) -prune \) -o -type d -print)
-CFFILES!=	(cd ${SENDMAIL_DIR}; find -L ${CFDIR} \( \( -name CVS -o -name .svn \) -prune \) -o -type f -print)
+CFDIRS!=	(cd ${SENDMAIL_DIR}; find -s -L ${CFDIR} \( \( -name CVS -o -name .svn \) -prune \) -o -type d -print)
+CFFILES!=	(cd ${SENDMAIL_DIR}; find -s -L ${CFDIR} \( \( -name CVS -o -name .svn \) -prune \) -o -type f -print)
 SMFILES= 	${CFFILES}
 SMFILESDIR=	${DDIR}
 

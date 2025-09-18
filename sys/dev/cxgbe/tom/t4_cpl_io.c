@@ -148,6 +148,8 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 
 	KASSERT(paramidx == nparams, ("nparams mismatch"));
 
+	KASSERT(howmany(flowclen, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
+	    ("%s: tx_credits %u too large", __func__, howmany(flowclen, 16)));
 	txsd->tx_credits = howmany(flowclen, 16);
 	txsd->plen = 0;
 	KASSERT(toep->tx_credits >= txsd->tx_credits && toep->txsd_avail > 0,
@@ -215,6 +217,8 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		else
 			flowc->mnemval[0].val = htobe32(tc_idx);
 
+		KASSERT(flowclen16 <= MAX_OFLD_TX_SDESC_CREDITS,
+		    ("%s: tx_credits %u too large", __func__, flowclen16));
 		txsd->tx_credits = flowclen16;
 		txsd->plen = 0;
 		toep->tx_credits -= txsd->tx_credits;
@@ -491,6 +495,9 @@ t4_close_conn(struct adapter *sc, struct toepcb *toep)
 #define MIN_TX_CREDITS(iso)						\
 	(MIN_OFLD_TX_CREDITS + ((iso) ? MIN_ISO_TX_CREDITS : 0))
 
+_Static_assert(MAX_OFLD_TX_CREDITS <= MAX_OFLD_TX_SDESC_CREDITS,
+    "MAX_OFLD_TX_SDESC_CREDITS too small");
+
 /* Maximum amount of immediate data we could stuff in a WR */
 static inline int
 max_imm_payload(int tx_credits, int iso)
@@ -612,6 +619,48 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
 	    __func__, nsegs, start, stop));
 }
 
+bool
+t4_push_raw_wr(struct adapter *sc, struct toepcb *toep, struct mbuf *m)
+{
+#ifdef INVARIANTS
+	struct inpcb *inp = toep->inp;
+#endif
+	struct wrqe *wr;
+	struct ofld_tx_sdesc *txsd;
+	u_int credits, plen;
+
+	INP_WLOCK_ASSERT(inp);
+	MPASS(mbuf_raw_wr(m));
+	plen = m->m_pkthdr.len;
+	credits = howmany(plen, 16);
+	if (credits > toep->tx_credits)
+		return (false);
+
+	wr = alloc_wrqe(roundup2(plen, 16), &toep->ofld_txq->wrq);
+	if (wr == NULL)
+		return (false);
+
+	m_copydata(m, 0, plen, wrtod(wr));
+	m_freem(m);
+
+	toep->tx_credits -= credits;
+	if (toep->tx_credits < MIN_OFLD_TX_CREDITS)
+		toep->flags |= TPF_TX_SUSPENDED;
+
+	KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+	KASSERT(credits <= MAX_OFLD_TX_SDESC_CREDITS,
+	    ("%s: tx_credits %u too large", __func__, credits));
+	txsd = &toep->txsd[toep->txsd_pidx];
+	txsd->plen = 0;
+	txsd->tx_credits = credits;
+	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
+		toep->txsd_pidx = 0;
+	toep->txsd_avail--;
+
+	t4_wrq_tx(sc, wr);
+	return (true);
+}
+
 /*
  * Max number of SGL entries an offload tx work request can have.  This is 41
  * (1 + 40) for a full 512B work request.
@@ -644,6 +693,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
+	struct mbufq *pduq = &toep->ulp_pduq;
 	int tx_credits, shove, compl, sowwakeup;
 	struct ofld_tx_sdesc *txsd;
 	bool nomap_mbuf_seen;
@@ -688,6 +738,19 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		max_imm = max_imm_payload(tx_credits, 0);
 		max_nsegs = max_dsgl_nsegs(tx_credits, 0);
 
+		if (__predict_false((sndptr = mbufq_first(pduq)) != NULL)) {
+			if (!t4_push_raw_wr(sc, toep, sndptr)) {
+				toep->flags |= TPF_TX_SUSPENDED;
+				return;
+			}
+
+			m = mbufq_dequeue(pduq);
+			MPASS(m == sndptr);
+
+			txsd = &toep->txsd[toep->txsd_pidx];
+			continue;
+		}
+
 		SOCKBUF_LOCK(sb);
 		sowwakeup = drop;
 		if (drop) {
@@ -704,6 +767,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			int n;
 
 			if ((m->m_flags & M_NOTREADY) != 0)
+				break;
+			if (plen + m->m_len > MAX_OFLD_TX_SDESC_PLEN)
 				break;
 			if (m->m_flags & M_EXTPG) {
 #ifdef KERN_TLS
@@ -870,6 +935,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			toep->flags |= TPF_TX_SUSPENDED;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+		KASSERT(plen <= MAX_OFLD_TX_SDESC_PLEN,
+		    ("%s: plen %u too large", __func__, plen));
 		txsd->plen = plen;
 		txsd->tx_credits = credits;
 		txsd++;
@@ -1211,6 +1278,8 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			toep->flags |= TPF_TX_SUSPENDED;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
+		KASSERT(plen <= MAX_OFLD_TX_SDESC_PLEN,
+		    ("%s: plen %u too large", __func__, plen));
 		txsd->plen = plen;
 		txsd->tx_credits = credits;
 		txsd++;
@@ -1238,6 +1307,35 @@ t4_push_data(struct adapter *sc, struct toepcb *toep, int drop)
 		t4_push_ktls(sc, toep, drop);
 	else
 		t4_push_frames(sc, toep, drop);
+}
+
+void
+t4_raw_wr_tx(struct adapter *sc, struct toepcb *toep, struct mbuf *m)
+{
+#ifdef INVARIANTS
+	struct inpcb *inp = toep->inp;
+#endif
+
+	INP_WLOCK_ASSERT(inp);
+
+	/*
+	 * If there are other raw WRs enqueued, enqueue to preserve
+	 * FIFO ordering.
+	 */
+	if (!mbufq_empty(&toep->ulp_pduq)) {
+		mbufq_enqueue(&toep->ulp_pduq, m);
+		return;
+	}
+
+	/*
+	 * Cannot call t4_push_data here as that will lock so_snd and
+	 * some callers of this run in rx handlers with so_rcv locked.
+	 * Instead, just try to transmit this WR.
+	 */
+	if (!t4_push_raw_wr(sc, toep, m)) {
+		mbufq_enqueue(&toep->ulp_pduq, m);
+		toep->flags |= TPF_TX_SUSPENDED;
+	}
 }
 
 int
@@ -1941,24 +2039,15 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
+write_set_tcb_field(struct adapter *sc, void *dst, struct toepcb *toep,
     uint16_t word, uint64_t mask, uint64_t val, int reply, int cookie)
 {
-	struct wrqe *wr;
-	struct cpl_set_tcb_field *req;
-	struct ofld_tx_sdesc *txsd;
+	struct cpl_set_tcb_field *req = dst;
 
 	MPASS((cookie & ~M_COOKIE) == 0);
 	if (reply) {
 		MPASS(cookie != CPL_COOKIE_RESERVED);
 	}
-
-	wr = alloc_wrqe(sizeof(*req), wrq);
-	if (wr == NULL) {
-		/* XXX */
-		panic("%s: allocation failure.", __func__);
-	}
-	req = wrtod(wr);
 
 	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
 	req->reply_ctrl = htobe16(V_QUEUENO(toep->ofld_rxq->iq.abs_id));
@@ -1967,9 +2056,29 @@ t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
+}
+
+void
+t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
+    uint16_t word, uint64_t mask, uint64_t val, int reply, int cookie)
+{
+	struct wrqe *wr;
+	struct ofld_tx_sdesc *txsd;
+	const u_int len = sizeof(struct cpl_set_tcb_field);
+
+	wr = alloc_wrqe(len, wrq);
+	if (wr == NULL) {
+		/* XXX */
+		panic("%s: allocation failure.", __func__);
+	}
+	write_set_tcb_field(sc, wrtod(wr), toep, word, mask, val, reply,
+	    cookie);
+
 	if (wrq->eq.type == EQ_OFLD) {
 		txsd = &toep->txsd[toep->txsd_pidx];
-		txsd->tx_credits = howmany(sizeof(*req), 16);
+		_Static_assert(howmany(len, 16) <= MAX_OFLD_TX_SDESC_CREDITS,
+		    "MAX_OFLD_TX_SDESC_CREDITS too small");
+		txsd->tx_credits = howmany(len, 16);
 		txsd->plen = 0;
 		KASSERT(toep->tx_credits >= txsd->tx_credits &&
 		    toep->txsd_avail > 0,

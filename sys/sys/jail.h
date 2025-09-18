@@ -99,8 +99,12 @@ enum prison_state {
 #define	JAIL_UPDATE	0x02	/* Update parameters of existing jail */
 #define	JAIL_ATTACH	0x04	/* Attach to jail upon creation */
 #define	JAIL_DYING	0x08	/* Allow getting a dying jail */
-#define	JAIL_SET_MASK	0x0f	/* JAIL_DYING is deprecated/ignored here */
-#define	JAIL_GET_MASK	0x08
+#define JAIL_USE_DESC	0x10	/* Get/set jail in descriptor */
+#define JAIL_AT_DESC	0x20	/* Find/add jail under descriptor */
+#define	JAIL_GET_DESC	0x40	/* Return a new jail descriptor */
+#define	JAIL_OWN_DESC	0x80	/* Return a new owning jail descriptor */
+#define	JAIL_SET_MASK	0xff	/* JAIL_DYING is deprecated/ignored here */
+#define	JAIL_GET_MASK	0xf8
 
 #define	JAIL_SYS_DISABLE	0
 #define	JAIL_SYS_NEW		1
@@ -115,7 +119,9 @@ int jail(struct jail *);
 int jail_set(struct iovec *, unsigned int, int);
 int jail_get(struct iovec *, unsigned int, int);
 int jail_attach(int);
+int jail_attach_jd(int);
 int jail_remove(int);
+int jail_remove_jd(int);
 __END_DECLS
 
 #else /* _KERNEL */
@@ -144,6 +150,8 @@ MALLOC_DECLARE(M_PRISON);
 #define	JAIL_META_PRIVATE	"meta"
 #define	JAIL_META_SHARED	"env"
 
+struct jaildesc;
+struct knlist;
 struct racct;
 struct prison_racct;
 
@@ -189,7 +197,9 @@ struct prison {
 	struct vnode	*pr_root;			/* (c) vnode to rdir */
 	struct prison_ip  *pr_addrs[PR_FAMILY_MAX];	/* (p,n) IPs of jail */
 	struct prison_racct *pr_prison_racct;		/* (c) racct jail proxy */
-	void		*pr_sparep[3];
+	struct knlist	*pr_klist;			/* (m) attached knotes */
+	LIST_HEAD(, jaildesc) pr_descs;			/* (a) attached descriptors */
+	void		*pr_sparep;
 	int		 pr_childcount;			/* (a) number of child jails */
 	int		 pr_childmax;			/* (p) maximum child jails */
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
@@ -261,6 +271,7 @@ struct prison_racct {
 #define	PR_ALLOW_SETTIME		0x00100000
 #define	PR_ALLOW_ROUTING		0x00200000
 #define	PR_ALLOW_UNPRIV_PARENT_TAMPER	0x00400000
+#define	PR_ALLOW_SETAUDIT		0x00800000
 
 /*
  * PR_ALLOW_PRISON0 are the allow flags that we apply by default to prison0,
@@ -268,7 +279,7 @@ struct prison_racct {
  * build time.  PR_ALLOW_ALL_STATIC should contain any bit above that we expect
  * to be used on the system, while PR_ALLOW_PRISON0 will be some subset of that.
  */
-#define	PR_ALLOW_ALL_STATIC		0x007f87ff
+#define	PR_ALLOW_ALL_STATIC		0x00ff87ff
 #define	PR_ALLOW_PRISON0		\
     (PR_ALLOW_ALL_STATIC & ~(PR_ALLOW_UNPRIV_PARENT_TAMPER))
 
@@ -425,10 +436,11 @@ SYSCTL_DECL(_security_jail_param);
 /*
  * Kernel support functions for jail().
  */
-struct ucred;
+struct knote;
 struct mount;
 struct sockaddr;
 struct statfs;
+struct ucred;
 struct vfsconf;
 
 /*
@@ -463,6 +475,7 @@ void prison_proc_free(struct prison *);
 void prison_proc_link(struct prison *, struct proc *);
 void prison_proc_unlink(struct prison *, struct proc *);
 void prison_proc_iterate(struct prison *, void (*)(struct proc *, void *), void *);
+void prison_remove(struct prison *);
 void prison_set_allow(struct ucred *cred, unsigned flag, int enable);
 bool prison_ischild(struct prison *, struct prison *);
 bool prison_isalive(const struct prison *);

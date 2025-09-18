@@ -614,6 +614,20 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 				printf("%14s\n", "");
 		}
 	}
+	if (opts & PF_OPT_VERBOSE) {
+		printf("Fragments\n");
+		printf("  %-25s %14ju %14s\n", "current entries",
+		    s->fragments, "");
+		TAILQ_FOREACH(c, &s->ncounters, entry) {
+			printf("  %-25s %14ju ", c->name,
+			    c->counter);
+			if (runtime > 0)
+				printf("%14.1f/s\n",
+				    (double)c->counter / (double)runtime);
+			else
+				printf("%14s\n", "");
+		}
+	}
 	printf("Counters\n");
 	TAILQ_FOREACH(c, &s->counters, entry) {
 		printf("  %-25s %14ju ", c->name, c->counter);
@@ -844,7 +858,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 {
 	static const char *actiontypes[] = { "pass", "block", "scrub",
 	    "no scrub", "nat", "no nat", "binat", "no binat", "rdr", "no rdr",
-	    "", "", "match"};
+	    "synproxy drop", "defer", "match", "af-rt", "route-to" };
 	static const char *anchortypes[] = { "anchor", "anchor", "anchor",
 	    "anchor", "nat-anchor", "nat-anchor", "binat-anchor",
 	    "binat-anchor", "rdr-anchor", "rdr-anchor" };
@@ -853,21 +867,22 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 
 	if (verbose)
 		printf("@%d ", r->nr);
-	if (r->action == PF_MATCH)
-		printf("match");
-	else if (r->action > PF_NORDR)
-		printf("action(%d)", r->action);
-	else if (anchor_call[0]) {
-		p = strrchr(anchor_call, '/');
-		if (p ? p[1] == '_' : anchor_call[0] == '_')
-			printf("%s", anchortypes[r->action]);
-		else
-			printf("%s \"%s\"", anchortypes[r->action],
-			    anchor_call);
+	if (anchor_call[0]) {
+		if (r->action >= nitems(anchortypes)) {
+			printf("anchor(%d)", r->action);
+		} else {
+			p = strrchr(anchor_call, '/');
+			if (p ? p[1] == '_' : anchor_call[0] == '_')
+				printf("%s", anchortypes[r->action]);
+			else
+				printf("%s \"%s\"", anchortypes[r->action],
+				    anchor_call);
+		}
 	} else {
-		printf("%s", actiontypes[r->action]);
-		if (r->natpass)
-			printf(" pass");
+		if (r->action >= nitems(actiontypes))
+			printf("action(%d)", r->action);
+	else
+			printf("%s", actiontypes[r->action]);
 	}
 	if (r->action == PF_DROP) {
 		if (r->rule_flag & PFRULE_RETURN)

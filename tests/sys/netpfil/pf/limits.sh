@@ -112,8 +112,43 @@ zero_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "anchors" "cleanup"
+anchors_head()
+{
+	atf_set descr 'Test increasing maximum number of anchors'
+	atf_set require.user root
+}
+
+anchors_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "set limit anchors 1"
+
+	pft_set_rules alcatraz \
+	    "set limit anchors 2" \
+	    "pass" \
+	    "anchor \"foo\" {\n
+	        pass in\n
+	    }" \
+	    "anchor \"bar\" {\n
+	        pass out\n
+	    }"
+}
+
+anchors_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
 	atf_add_test_case "zero"
+	atf_add_test_case "anchors"
 }

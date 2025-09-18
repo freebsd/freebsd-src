@@ -132,7 +132,7 @@ libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 
 crypto/openssl/ossl_arm.c		optional ossl
-crypto/openssl/arm/ossl_aes_gcm.c	optional ossl
+crypto/openssl/arm/ossl_aes_gcm_neon.c	optional ossl
 crypto/openssl/arm/aes-armv4.S		optional ossl	\
 	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
 crypto/openssl/arm/bsaes-armv7.S	optional ossl	\

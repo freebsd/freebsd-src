@@ -3567,11 +3567,6 @@ enum vput_op { VRELE, VPUT, VUNREF };
  * exclusive lock on the vnode, while it is legal to call here with only a
  * shared lock (or no locks). If locking the vnode in an expected manner fails,
  * inactive processing gets deferred to the syncer.
- *
- * XXX Some filesystems pass in an exclusively locked vnode and strongly depend
- * on the lock being held all the way until VOP_INACTIVE. This in particular
- * happens with UFS which adds half-constructed vnodes to the hash, where they
- * can be found by other code.
  */
 static void
 vput_final(struct vnode *vp, enum vput_op func)
@@ -4507,6 +4502,17 @@ vgonel(struct vnode *vp)
 	/*
 	 * Done with purge, reset to the standard lock and invalidate
 	 * the vnode.
+	 *
+	 * FIXME: this is buggy for vnode ops with custom locking primitives.
+	 *
+	 * vget used to be gated with a special flag serializing it against vgone,
+	 * which got lost in the process of SMP-ifying the VFS layer.
+	 *
+	 * Suppose a custom locking routine references ->v_data.
+	 *
+	 * Since now it is possible to start executing it as vgone is
+	 * progressing, this very well may crash as ->v_data gets invalidated
+	 * and memory used to back it is freed.
 	 */
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;

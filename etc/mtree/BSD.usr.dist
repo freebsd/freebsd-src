@@ -26,6 +26,8 @@
                     ..
                 ..
             ..
+            samplerate
+            ..
             sqlite3
             ..
             ucl
@@ -285,8 +287,6 @@
             diskless
             ..
             dma
-            ..
-            drivers
             ..
             dwatch
             ..

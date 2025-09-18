@@ -523,8 +523,15 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred
 	 * Check if bridge wants to allow adding addrs to member interfaces.
 	 */
 	if (ifp->if_bridge != NULL && ifp->if_type != IFT_GIF &&
-	    bridge_member_ifaddrs_p != NULL && !bridge_member_ifaddrs_p())
-		return (EINVAL);
+	    bridge_member_ifaddrs_p != NULL) {
+		if (bridge_member_ifaddrs_p())
+			if_printf(ifp, "WARNING: Assigning an IP address to "
+			    "an interface which is also a bridge member is "
+			    "deprecated and will be unsupported in a future "
+			    "release.\n");
+		else
+			return (EINVAL);
+	}
 
 	/*
 	 * See whether address already exist.

@@ -1,0 +1,18 @@
+comment = "Base system (metapackage)"
+
+vital = true
+
+desc = <<EOD
+This metapackage installs all packages which are part of the base system.
+EOD
+
+deps {
+	"set-minimal" {
+		version = "${VERSION}"
+		origin = "base"
+	},
+	"set-devel" {
+		version = "${VERSION}"
+		origin = "base"
+	}
+}

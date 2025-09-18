@@ -1,4 +1,4 @@
-
+#!/bin/sh
 #-
 # Copyright (c) 2015 M. Warner Losh <imp@FreeBSD.org>
 # Copyright (c) 2010-2011 iXsystems, Inc.
@@ -113,18 +113,18 @@ NANO_FAT_DIR=${NANO_LOG}/_.fat
 
 customize_cmd cust_allow_ssh_root
 
-add_etc_make_conf ( ) (
+add_etc_make_conf() {
 	touch ${NANO_WORLDDIR}/etc/make.conf
-)
+}
 customize_cmd add_etc_make_conf
 
-cust_install_machine_files ( ) (
+cust_install_machine_files() {
 	echo "cd ${NANO_CFG_BASE}/Files"
 	cd ${NANO_CFG_BASE}/Files
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -dumpv ${NANO_WORLDDIR}
-)
+}
 customize_cmd cust_install_files
-customize_cmd cust_install_machine_files 
+customize_cmd cust_install_machine_files
 
 CONF_BUILD="
 LOCAL_XTOOL_DIRS=usr.bin/mkimg
@@ -173,13 +173,13 @@ NANO_PACKAGE_ONLY=1
 
 # Creates images for all the formats that use MBR / GPT
 # split later if the #ifdef soup gets too bad.
-create_diskimage_gpt ( ) (
+create_diskimage_gpt() {
 	pprint 2 "build diskimage gpt ${NANO_NAME}"
 
 	create_diskimage_mbr $*
-)
+}
 
-create_diskimage_mbr ( ) (
+create_diskimage_mbr() {
 
 	local fmt
 
@@ -314,7 +314,7 @@ create_diskimage_mbr ( ) (
 	rm -f ${out}.xz
 	xz -9 --keep ${out}
 	) > ${NANO_LOG}/_.di 2>&1
-)
+}
 
 die( ) {
 	echo "$*"
@@ -373,7 +373,7 @@ $var=$val"
 	fi
 done
 
-typical_embedded ( ) (
+typical_embedded() {
 	# Need to create rc.conf before we copy over /etc to /conf/base/etc
 	# so now's a good time.
 
@@ -388,10 +388,10 @@ typical_embedded ( ) (
 	# Make sure that firstboot scripts run so growfs works.
 	# Note: still some issues remvoing this XXX
 	touch ${NANO_WORLDDIR}/firstboot
-)
+}
 customize_cmd typical_embedded
 
-fix_pkg ( ) (
+fix_pkg() {
 	chdir ${NANO_WORLDDIR}
 	mkdir -p pkg
 	mkdir -p pkg/db
@@ -410,20 +410,20 @@ fix_pkg ( ) (
 	echo "./pkg/db type=dir uname=root gname=wheel mode=0755"
 	echo "./pkg/tmp type=dir uname=root gname=wheel mode=0755"
 	) >> ${NANO_METALOG}
-)
+}
 customize_cmd fix_pkg
 
-save_build ( ) (
+save_build() {
 	VERSION_FILE=${NANO_WORLDDIR}/etc/version
 	if [ "${SVNREVISION}" = "${REVISION}" ]; then
 		echo "${NANO_NAME}" > "${VERSION_FILE}"
 	else
 		echo "${NANO_NAME} (${SVNREVISION})" > "${VERSION_FILE}"
 	fi
-)
+}
 customize_cmd save_build
 
-shrink_md_fbsize ( ) (
+shrink_md_fbsize() {
 	# We have a lot of little files on our memory disks. Let's decrease
 	# the block and frag size to fit more little files on them (this
 	# halves our space requirement by ~50% on /etc and /var on 8.x --
@@ -431,12 +431,12 @@ shrink_md_fbsize ( ) (
 	# are 4 times larger).
 	sed -i '' -e 's,-S -i 4096,-S -i 4096 -b 4096 -f 512,' \
 		${NANO_WORLDDIR}/etc/rc.initdiskless
-)
+}
 customize_cmd shrink_md_fbsize
 
 customize_cmd cust_comconsole
 
-dos_boot_part ( ) (
+dos_boot_part() {
 	local d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
 	local f=${NANO_FAT_DIR}
 
@@ -453,7 +453,7 @@ dos_boot_part ( ) (
 
 	# Now we need to copy over dtb files from the build.
 	cp ${NANO_WORLDDIR}/boot/dtb/*.dtb .
-)
+}
 
 if [ -n "$NANO_BOOT_PKG" ]; then
 	d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
@@ -468,7 +468,7 @@ if [ -n "$NANO_BOOT_PKG" ]; then
 	customize_cmd dos_boot_part
 fi
 
-product_custom ( ) (
+product_custom() {
 	# not quite ready to tweak these in nopriv build
 	if [ -z ${NANO_NOPRIV_BUILD} ]; then
 		# Last second tweaks -- generally not needed
@@ -480,7 +480,7 @@ product_custom ( ) (
 		chown root:wheel ${NANO_WORLDDIR}/
 		chown root:wheel ${NANO_WORLDDIR}/usr
 	fi
-)
+}
 late_customize_cmd product_custom
 
 #
@@ -615,19 +615,19 @@ esac
 NANO_SLICE_DATA=		# Not included
 
 # These don't make any sense to this strategy, so stub them out.
-calculate_partitioning ( ) (
-)
+calculate_partitioning() {
+}
 
 # These don't make any sense to this strategy, so stub them out.
-create_code_slice ( ) (
-)
+create_code_slice() {
+}
 
 # Each major disk scheme has its own routine. Generally
 # this is for mbr, gpt, etc. These are generally are widely
 # shared, but some specialized formats won't be shared.
-create_diskimage ( ) (
+create_diskimage() {
 	eval create_diskimage_${NANO_DISK_SCHEME}
-)
+}
 
 # Set the path to the same path we use for buldworld to use latest mkimg
 NANO_TARGET=$(cd ${NANO_SRC}; ${NANO_MAKE} TARGET_ARCH=${NANO_ARCH} -V _TARGET)

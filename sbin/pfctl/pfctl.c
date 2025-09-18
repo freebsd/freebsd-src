@@ -110,6 +110,8 @@ int	 pfctl_show_status(int, int);
 int	 pfctl_show_running(int);
 int	 pfctl_show_timeouts(int, int);
 int	 pfctl_show_limits(int, int);
+void	 pfctl_read_limits(struct pfctl_handle *);
+void	 pfctl_restore_limits(void);
 void	 pfctl_debug(int, u_int32_t, int);
 int	 pfctl_test_altqsupport(int, int);
 int	 pfctl_show_anchors(int, int, char *);
@@ -137,6 +139,7 @@ int	 pfctl_recurse(int, int, const char *,
 int	 pfctl_call_clearrules(int, int, struct pfr_anchoritem *);
 int	 pfctl_call_cleartables(int, int, struct pfr_anchoritem *);
 int	 pfctl_call_clearanchors(int, int, struct pfr_anchoritem *);
+int	 pfctl_call_showtables(int, int, struct pfr_anchoritem *);
 
 static struct pfctl_anchor_global	 pf_anchors;
 struct pfctl_anchor	 pf_main_anchor;
@@ -187,6 +190,8 @@ static const struct {
 	{ "eth-anchors",	PF_LIMIT_ETH_ANCHORS },
 	{ NULL,			0 }
 };
+
+static unsigned int	limit_curr[PF_LIMIT_MAX];
 
 struct pf_hint {
 	const char	*name;
@@ -700,7 +705,7 @@ pfctl_kill_src_nodes(int dev, int opts)
 
 				dests++;
 
-				copy_satopfaddr(&psnk.psnk_src.addr.v.a.addr,
+				copy_satopfaddr(&psnk.psnk_dst.addr.v.a.addr,
 				    resp[1]->ai_addr);
 				if (ioctl(dev, DIOCKILLSRCNODES, &psnk))
 					err(1, "DIOCKILLSRCNODES");
@@ -789,7 +794,7 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 
 				dests++;
 
-				copy_satopfaddr(&kill.src.addr.v.a.addr,
+				copy_satopfaddr(&kill.dst.addr.v.a.addr,
 				    resp[1]->ai_addr);
 
 				if ((ret = pfctl_kill_states_h(pfh, &kill, &newkilled)) != 0)
@@ -1780,6 +1785,31 @@ pfctl_show_limits(int dev, int opts)
 }
 
 void
+pfctl_read_limits(struct pfctl_handle *h)
+{
+	int i;
+
+	for (i = 0; pf_limits[i].name; i++) {
+		if (pfctl_get_limit(h, i, &limit_curr[i]))
+			err(1, "DIOCGETLIMIT");
+	}
+}
+
+void
+pfctl_restore_limits(void)
+{
+	int i;
+
+	if (pfh == NULL)
+		return;
+
+	for (i = 0; pf_limits[i].name; i++) {
+		if (pfctl_set_limit(pfh, i, limit_curr[i]))
+			warn("DIOCSETLIMIT (%s)", pf_limits[i].name);
+	}
+}
+
+void
 pfctl_show_creators(int opts)
 {
 	int ret;
@@ -2064,6 +2094,41 @@ pfctl_load_eth_rule(struct pfctl *pf, char *path, struct pfctl_eth_rule *r,
 	return (0);
 }
 
+static int
+pfctl_load_tables(struct pfctl *pf, char *path, struct pfctl_anchor *a,
+    int rs_num)
+{
+	struct pfr_ktable *kt, *ktw;
+	struct pfr_uktable *ukt;
+	char anchor_path[PF_ANCHOR_MAXPATH];
+	int e;
+
+	RB_FOREACH_SAFE(kt, pfr_ktablehead, &pfr_ktables, ktw) {
+		if (strcmp(kt->pfrkt_anchor, a->path) != 0)
+			continue;
+
+		if (path != NULL && *path) {
+			strlcpy(anchor_path, kt->pfrkt_anchor,
+			    sizeof(anchor_path));
+			snprintf(kt->pfrkt_anchor, PF_ANCHOR_MAXPATH, "%s/%s",
+			    path, anchor_path);
+		}
+		ukt = (struct pfr_uktable *)kt;
+		e = pfr_ina_define(&ukt->pfrukt_t, ukt->pfrukt_addrs.pfrb_caddr,
+		    ukt->pfrukt_addrs.pfrb_size, NULL, NULL,
+		    pf->anchor->ruleset.tticket,
+		    ukt->pfrukt_init_addr ? PFR_FLAG_ADDRSTOO : 0);
+		if (e != 0)
+			err(1, "%s pfr_ina_define() %s@%s", __func__,
+			    kt->pfrkt_name, kt->pfrkt_anchor);
+		RB_REMOVE(pfr_ktablehead, &pfr_ktables, kt);
+		pfr_buf_clear(&ukt->pfrukt_addrs);
+		free(ukt);
+	}
+
+	return (0);
+}
+
 int
 pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
     int rs_num, int depth)
@@ -2112,6 +2177,8 @@ pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
 			if ((error = pfctl_load_ruleset(pf, path,
 			    &r->anchor->ruleset, rs_num, depth + 1)))
 				goto error;
+			if ((error = pfctl_load_tables(pf, path, r->anchor, rs_num)))
+				goto error;
 		} else if (pf->opts & PF_OPT_VERBOSE)
 			printf("\n");
 		free(r);
@@ -2134,15 +2201,17 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 {
 	u_int8_t		rs_num = pf_get_ruleset_number(r->action);
 	char			*name;
-	u_int32_t		ticket;
 	char			anchor[PF_ANCHOR_NAME_SIZE];
 	int			len = strlen(path);
 	int			error;
 	bool			was_present;
 
 	/* set up anchor before adding to path for anchor_call */
-	if ((pf->opts & PF_OPT_NOACTION) == 0)
-		ticket = pfctl_get_ticket(pf->trans, rs_num, path);
+	if ((pf->opts & PF_OPT_NOACTION) == 0) {
+		if (pf->trans == NULL)
+			errx(1, "pfctl_load_rule: no transaction");
+		pf->anchor->ruleset.tticket = pfctl_get_ticket(pf->trans, rs_num, path);
+	}
 	if (strlcpy(anchor, path, sizeof(anchor)) >= sizeof(anchor))
 		errx(1, "pfctl_load_rule: strlcpy");
 
@@ -2174,7 +2243,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 			return (1);
 		if (pfctl_add_pool(pf, &r->route, PF_RT))
 			return (1);
-		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
+		error = pfctl_add_rule_h(pf->h, r, anchor, name, pf->anchor->ruleset.tticket,
 		    pf->paddr.ticket);
 		switch (error) {
 		case 0:
@@ -2244,6 +2313,8 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	RB_INIT(&pf_anchors);
 	memset(&pf_main_anchor, 0, sizeof(pf_main_anchor));
 	pf_init_ruleset(&pf_main_anchor.ruleset);
+	memset(&pf, 0, sizeof(pf));
+	memset(&trs, 0, sizeof(trs));
 	pf_main_anchor.ruleset.anchor = &pf_main_anchor;
 
 	memset(&pf_eth_main_anchor, 0, sizeof(pf_eth_main_anchor));
@@ -2253,6 +2324,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	if (trans == NULL) {
 		bzero(&buf, sizeof(buf));
 		buf.pfrb_type = PFRB_TRANS;
+		pf.trans = &buf;
 		t = &buf;
 		osize = 0;
 	} else {
@@ -2363,7 +2435,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 
 	if (trans == NULL) {
 		/* process "load anchor" directives */
-		if (pfctl_load_anchors(dev, &pf, t) == -1)
+		if (pfctl_load_anchors(dev, &pf) == -1)
 			ERRX("load anchors");
 
 		if ((opts & PF_OPT_NOACTION) == 0) {
@@ -2444,8 +2516,14 @@ pfctl_init_options(struct pfctl *pf)
 
 	pf->limit[PF_LIMIT_STATES] = PFSTATE_HIWAT;
 	pf->limit[PF_LIMIT_FRAGS] = PFFRAG_FRENT_HIWAT;
-	pf->limit[PF_LIMIT_SRC_NODES] = PFSNODE_HIWAT;
-	pf->limit[PF_LIMIT_TABLE_ENTRIES] = PFR_KENTRY_HIWAT;
+
+	pf->limit[PF_LIMIT_SRC_NODES] = (limit_curr[PF_LIMIT_SRC_NODES] == 0) ?
+	    PFSNODE_HIWAT : limit_curr[PF_LIMIT_SRC_NODES];
+	pf->limit[PF_LIMIT_TABLE_ENTRIES] =
+	    (limit_curr[PF_LIMIT_TABLE_ENTRIES] == 0) ?
+	       PFR_KENTRY_HIWAT : limit_curr[PF_LIMIT_TABLE_ENTRIES];
+	pf->limit[PF_LIMIT_ANCHORS] = (limit_curr[PF_LIMIT_ANCHORS] == 0) ?
+	    PF_ANCHOR_HIWAT : limit_curr[PF_LIMIT_ANCHORS];
 
 	pf->debug = PF_DEBUG_URGENT;
 	pf->reassemble = 0;
@@ -2545,6 +2623,9 @@ pfctl_apply_limit(struct pfctl *pf, const char *opt, unsigned int limit)
 
 	if (pf->opts & PF_OPT_VERBOSE)
 		printf("set limit %s %d\n", opt, limit);
+
+	if ((pf->opts & PF_OPT_NOACTION) == 0)
+		pfctl_load_options(pf);
 
 	return (0);
 }
@@ -3057,6 +3138,13 @@ pfctl_call_clearanchors(int dev, int opts, struct pfr_anchoritem *pfra)
 }
 
 int
+pfctl_call_showtables(int dev, int opts, struct pfr_anchoritem *pfra)
+{
+	pfctl_show_tables(pfra->pfra_anchorname, opts);
+	return (0);
+}
+
+int
 pfctl_recurse(int dev, int opts, const char *anchorname,
     int(*walkf)(int, int, struct pfr_anchoritem *))
 {
@@ -3070,11 +3158,13 @@ pfctl_recurse(int dev, int opts, const char *anchorname,
 	 * so that failures on one anchor do not prevent clearing others.
 	 */
 	opts |= PF_OPT_IGNFAIL;
-	printf("Removing:\n");
+	if ((opts & PF_OPT_CALLSHOW) == 0)
+		printf("Removing:\n");
 	SLIST_FOREACH_SAFE(pfra, anchors, pfra_sle, pfra_save) {
-		printf("  %s\n",
-		    (*pfra->pfra_anchorname == '\0') ? "/" :
-		    pfra->pfra_anchorname);
+		if ((opts & PF_OPT_CALLSHOW) == 0)
+			printf("  %s\n",
+			    (*pfra->pfra_anchorname == '\0') ? "/" :
+			    pfra->pfra_anchorname);
 		rv |= walkf(dev, opts, pfra);
 		SLIST_REMOVE(anchors, pfra, pfr_anchoritem, pfra_sle);
 		free(pfra->pfra_anchorname);
@@ -3400,6 +3490,11 @@ main(int argc, char *argv[])
 	if (pfh == NULL)
 		err(1, "Failed to open netlink");
 
+	if ((opts & PF_OPT_NOACTION) == 0) {
+		pfctl_read_limits(pfh);
+		atexit(pfctl_restore_limits);
+	}
+
 	if (opts & PF_OPT_DISABLE)
 		if (pfctl_disable(dev, opts))
 			exit_val = 1;
@@ -3477,7 +3572,12 @@ main(int argc, char *argv[])
 			pfctl_show_fingerprints(opts);
 			break;
 		case 'T':
-			pfctl_show_tables(anchorname, opts);
+			if (opts & PF_OPT_RECURSE) {
+				opts |= PF_OPT_CALLSHOW;
+				pfctl_recurse(dev, opts, anchorname,
+				    pfctl_call_showtables);
+			} else
+				pfctl_show_tables(anchorname, opts);
 			break;
 		case 'o':
 			pfctl_load_fingerprints(dev, opts);
@@ -3638,7 +3738,18 @@ main(int argc, char *argv[])
 		}
 	}
 
-	exit(exit_val);
+	/*
+	 * prevent pfctl_restore_limits() exit handler from restoring
+	 * pf(4) options settings on successful exit.
+	 */
+	if (exit_val == 0) {
+		close(dev);
+		dev = -1;
+		pfctl_close(pfh);
+		pfh = NULL;
+	}
+
+	return (exit_val);
 }
 
 char *

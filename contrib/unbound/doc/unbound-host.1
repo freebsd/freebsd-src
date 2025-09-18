@@ -1,4 +1,4 @@
-.TH "unbound\-host" "1" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
+.TH "unbound\-host" "1" "Jul 16, 2025" "NLnet Labs" "unbound 1.23.1"
 .\"
 .\" unbound-host.1 -- unbound DNS lookup utility
 .\"
@@ -73,7 +73,7 @@ For example \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546
 .TP
 .B \-D
 Enables DNSSEC validation.  Reads the root anchor from the default configured
-root anchor at the default location, \fI@UNBOUND_ROOTKEY_FILE@\fR.
+root anchor at the default location, \fI/var/unbound/root.key\fR.
 .TP
 .B \-f \fIkeyfile
 Reads keys from a file. Every line has a DS or DNSKEY record, in the format

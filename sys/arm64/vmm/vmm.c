@@ -1342,8 +1342,14 @@ vm_handle_smccc_call(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 static int
 vm_handle_wfi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 {
+	struct vm *vm;
+
+	vm = vcpu->vm;
 	vcpu_lock(vcpu);
 	while (1) {
+		if (vm->suspend)
+			break;
+
 		if (vgic_has_pending_irq(vcpu->cookie))
 			break;
 

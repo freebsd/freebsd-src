@@ -248,7 +248,7 @@ static int
 command_staging_slop(int argc, char *argv[])
 {
 	char *endp;
-	u_long new, prev;
+	u_long new;
 
 	if (argc > 2) {
 		goto err;
@@ -405,7 +405,9 @@ efi_check_space(vm_offset_t end)
 		return (true);
 	}
 
+#if defined(__amd64__) || defined(__i386__)
 before_staging:
+#endif
 	/* Try allocating space before the previous allocation */
 	if (staging < nr_pages * EFI_PAGE_SIZE)
 		goto expand;

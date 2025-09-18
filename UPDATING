@@ -12,8 +12,8 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
-	FreeBSD 15.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
+	FreeBSD 16.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -26,6 +26,32 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	debugging, define WITH_MALLOC_PRODUCTION in /etc/src.conf and rebuild
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20250918:
+	mandoc (including /usr/bin/man) has been moved to a new package,
+	FreeBSD-mandoc.  If you have the minimal set installed, this package
+	will be installed automatically, otherwise you may want to install it.
+
+	Kyua has been moved to the FreeBSD-kyua package, and ATF has been moved
+	to the FreeBSD-atf* packages.  If you have FreeBSD-tests installed,
+	these packages will be installed automatically, otherwise you should
+	manually install them if you need these tools.
+
+	This only affects pkgbase users.
+
+20250912:
+	If SRCCONF is unset and a file named src.conf is present at
+	the top of the source tree, it will now be used instead of
+	/etc/src.conf.
+
+20250907:
+	The MANSPLITPKG knob has been turned off by default, so pkgbase builds
+	will no longer generate "-man" subpackages; instead the manpages will
+	be shipped in the packages they belong to.  If you want to continue
+	building split man packages, set WITH_MANSPLITPKG=1.
+
+20250905:
+	FreeBSD 16.0-CURRENT.
 
 20250903:
 	The BLOAT_KERNEL_WITH_EXTERR kernel config option has been renamed to
@@ -319,8 +345,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 
 20250106:
 	A new SOC_ROCKCHIP options appeared, so if you have a custom kernel configuration
-	targetting Rockchip SoC you need to add it so shared and mandatory drivers for
-	this SoC familly will be selected.
+	targeting Rockchip SoC you need to add it so shared and mandatory drivers for
+	this SoC family will be selected.
 	Also a new rk8xx device was added, this select the base driver for Rockchip PMIC.
 
 20241223:
@@ -515,7 +541,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 20230817:
 	Serial communication (in boot loaders, kernel, and userland) has
 	been changed to default to 115200 bps, in line with common industry
-	practice and typcial firmware serial console redirection
+	practice and typical firmware serial console redirection
 	configuration.
 
 	Note that the early x86 BIOS bootloader (i.e., boot0sio) does not
@@ -599,7 +625,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	runs
 		make -j${JOB_MAX} buildworld > ../buildworld.log 2>&1
 
-	where JOB_MAX is derrived from ncpus in local.sys.mk if not set in env.
+	where JOB_MAX is derived from ncpus in local.sys.mk if not set in env.
 
 20230316:
 	Video related devices for some arm devices have been renamed.
@@ -627,7 +653,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 20230130:
 	As of commit 7c40e2d5f685, the dependency on netlink(4) has been added
 	to the linux_common(4) module. Users relying on linux_common may need
-	to complile netlink(4) module if it is not present in their kernel.
+	to compile netlink(4) module if it is not present in their kernel.
 
 20230126:
 	The WITHOUT_CXX option has been removed. C++ components in the base
@@ -647,7 +673,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 
 20221205:
 	dma(8) has replaced sendmail(8) as the default mta.  For people willing
-	to reenable sendmail(8):
+	to re-enable sendmail(8):
 
 	$ cp /usr/share/examples/sendmail/mailer.conf /etc/mail/mailer.conf
 

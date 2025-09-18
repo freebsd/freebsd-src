@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 20, 2025
+.Dd September 11, 2025
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -286,6 +286,19 @@ is expected to exist by alternative means.
 Include base system packages for use with
 .Xr pkg 8
 on the install media, instead of legacy tarball distribution sets.
+.It Va PKG_CMD
+A path to the
+.Xr pkg 8
+executable to use when installing packages in release images as a non-root user.
+.It Va PKG_REPOS_DIR
+An optional path to a directory containing
+.Xr pkg 8
+repository configuration files.
+These configuration files will be used when installing packages in release
+images as a non-root user.
+.It Va PKG_REPO_NAME
+The name of the repository configuration to use when installing packages in
+release images as a non-root user.
 .El
 .Sh EMBEDDED BUILDS
 The following

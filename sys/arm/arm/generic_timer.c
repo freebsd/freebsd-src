@@ -882,32 +882,32 @@ DELAY(int usec)
 	TSEXIT();
 }
 
-static bool
+static cpu_feat_en
 wfxt_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64isar2;
 
 	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
-		return (false);
-	return (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) != ID_AA64ISAR2_WFxT_NONE);
+		return (FEAT_ALWAYS_DISABLE);
+	if (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) >= ID_AA64ISAR2_WFxT_IMPL)
+		return (FEAT_DEFAULT_ENABLE);
+
+	return (FEAT_ALWAYS_DISABLE);
 }
 
-static void
+static bool
 wfxt_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
     u_int errata_count __unused)
 {
 	/* will be called if wfxt_check returns true */
 	enable_wfxt = true;
+	return (true);
 }
 
-static struct cpu_feat feat_wfxt = {
-	.feat_name		= "FEAT_WFXT",
-	.feat_check		= wfxt_check,
-	.feat_enable		= wfxt_enable,
-	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_SYSTEM,
-};
-DATA_SET(cpu_feat_set, feat_wfxt);
+CPU_FEAT(feat_wfxt, "WFE and WFI instructions with timeout",
+    wfxt_check, NULL, wfxt_enable,
+    CPU_FEAT_AFTER_DEV | CPU_FEAT_SYSTEM);
 #endif
 
 static uint32_t

@@ -1,7 +1,7 @@
 .include <src.opts.mk>
 
 MANGROUPS=	MAN
-MANPACKAGE=	kernel
+MANPACKAGE=	kernel-man
 
 # If you add a new file here, please consider adding an entry to the
 # hardware notes template (website/archetypes/release/hardware.adoc in
@@ -1065,6 +1065,7 @@ MAN+=	\
 	ucom.4 \
 	ucycom.4 \
 	udav.4 \
+	udbc.4 \
 	udbp.4 \
 	udl.4 \
 	uep.4 \

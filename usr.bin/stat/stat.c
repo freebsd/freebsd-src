@@ -7,6 +7,8 @@
  * This code is derived from software contributed to The NetBSD Foundation
  * by Andrew Brown.
  *
+ * Copyright (c) 2025 Klara, Inc.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -47,18 +49,19 @@ __RCSID("$NetBSD: stat.c,v 1.33 2011/01/15 22:54:10 njoly Exp $"
 #endif /* HAVE_CONFIG_H */
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
 #include <locale.h>
 #include <paths.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -178,22 +181,24 @@ __RCSID("$NetBSD: stat.c,v 1.33 2011/01/15 22:54:10 njoly Exp $"
 #define SHOW_filename	'N'
 #define SHOW_sizerdev	'Z'
 
-void	usage(const char *);
-void	output(const struct stat *, const char *,
-	    const char *, int, int);
-int	format1(const struct stat *,	/* stat info */
+static void	 usage(const char *);
+static void	 output(const struct stat *, const char *, const char *, int);
+static int	 format1(const struct stat *,	/* stat info */
 	    const char *,		/* the file name */
 	    const char *, int,		/* the format string itself */
 	    char *, size_t,		/* a place to put the output */
 	    int, int, int, int,		/* the parsed format */
 	    int, int);
-int	hex2byte(const char [2]);
+static int	 hex2byte(const char [2]);
 #if HAVE_STRUCT_STAT_ST_FLAGS
-char   *xfflagstostr(unsigned long);
+static char	*xfflagstostr(unsigned long);
 #endif
+static int	 fdlistholes(int, const char *);
+static int	 listholes(const char *);
 
 static const char *timefmt;
 static int linkfail;
+static bool nonl;
 
 #define addchar(s, c, nl) \
 	do { \
@@ -205,20 +210,22 @@ int
 main(int argc, char *argv[])
 {
 	struct stat st;
-	int ch, rc, errs, am_readlink;
-	int lsF, fmtchar, usestat, nfs_handle, fn, nonl, quiet;
-	const char *statfmt, *options, *synopsis;
 	char dname[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
-	fhandle_t fhnd;
+	const char *statfmt, *options, *synopsis;
 	const char *file;
+	fhandle_t fhnd;
+	int ch, rc, errs, am_readlink, fn, fmtchar;
+	bool lsF, holes, usestat, nfs_handle, quiet;
 
 	am_readlink = 0;
-	lsF = 0;
+	errs = 0;
+	lsF = false;
 	fmtchar = '\0';
-	usestat = 0;
-	nfs_handle = 0;
-	nonl = 0;
-	quiet = 0;
+	holes = false;
+	usestat = false;
+	nfs_handle = false;
+	nonl = false;
+	quiet = false;
 	linkfail = 0;
 	statfmt = NULL;
 	timefmt = NULL;
@@ -231,28 +238,35 @@ main(int argc, char *argv[])
 		fmtchar = 'f';
 		quiet = 1;
 	} else {
-		options = "f:FHlLnqrst:x";
-		synopsis = "[-FLnq] [-f format | -l | -r | -s | -x] "
+		options = "Ff:HhLlnqrst:x";
+		synopsis = "[-FHhLnq] [-f format | -l | -r | -s | -x] "
 		    "[-t timefmt] [file|handle ...]";
 	}
 
 	while ((ch = getopt(argc, argv, options)) != -1)
 		switch (ch) {
 		case 'F':
-			lsF = 1;
+			lsF = true;
 			break;
                 case 'H':
-			nfs_handle = 1;
+			nfs_handle = true;
+			break;
+		case 'h':
+			holes = true;
 			break;
 		case 'L':
-			usestat = 1;
+			usestat = true;
 			break;
 		case 'n':
-			nonl = 1;
+			nonl = true;
+			break;
+		case 't':
+			timefmt = optarg;
 			break;
 		case 'q':
-			quiet = 1;
+			quiet = true;
 			break;
+		/* remaining cases are purposefully out of order */
 		case 'f':
 			if (am_readlink) {
 				statfmt = "%R";
@@ -269,9 +283,6 @@ main(int argc, char *argv[])
 				    fmtchar, ch);
 			fmtchar = ch;
 			break;
-		case 't':
-			timefmt = optarg;
-			break;
 		default:
 			usage(synopsis);
 		}
@@ -279,6 +290,28 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	fn = 1;
+
+	if (holes) {
+		if (fmtchar || lsF || nfs_handle || usestat || timefmt)
+			usage(synopsis);
+		if (argc > 0) {
+			while (argc-- > 0) {
+				if (listholes(*argv) != 0) {
+					if (!quiet)
+						warn("%s", *argv);
+					errs++;
+				}
+				argv++;
+			}
+		} else {
+			if (fdlistholes(STDIN_FILENO, "stdin") != 0) {
+				if (!quiet)
+					warn("stdin");
+				errs++;
+			}
+		}
+		exit(errs ? 1 : 0);
+	}
 
 	if (fmtchar == '\0') {
 		if (lsF)
@@ -318,7 +351,6 @@ main(int argc, char *argv[])
 	if (timefmt == NULL)
 		timefmt = TIME_FORMAT;
 
-	errs = 0;
 	do {
 		if (argc == 0) {
 			if (fdevname_r(STDIN_FILENO, dname +
@@ -361,8 +393,7 @@ main(int argc, char *argv[])
 				    errno == ENOENT &&
 				    (rc = lstat(file, &st)) == -1)
 					errno = ENOENT;
-			}
-			else
+			} else
 				rc = lstat(file, &st);
 		}
 
@@ -371,9 +402,8 @@ main(int argc, char *argv[])
 			linkfail = 1;
 			if (!quiet)
 				warn("%s", file);
-		}
-		else
-			output(&st, file, statfmt, fn, nonl);
+		} else
+			output(&st, file, statfmt, fn);
 
 		argv++;
 		argc--;
@@ -387,7 +417,7 @@ main(int argc, char *argv[])
 /*
  * fflagstostr() wrapper that leaks only once
  */
-char *
+static char *
 xfflagstostr(unsigned long fflags)
 {
 	static char *str = NULL;
@@ -402,10 +432,9 @@ xfflagstostr(unsigned long fflags)
 }
 #endif /* HAVE_STRUCT_STAT_ST_FLAGS */
 
-void
+static void
 usage(const char *synopsis)
 {
-
 	(void)fprintf(stderr, "usage: %s %s\n", getprogname(), synopsis);
 	exit(1);
 }
@@ -413,9 +442,8 @@ usage(const char *synopsis)
 /* 
  * Parses a format string.
  */
-void
-output(const struct stat *st, const char *file,
-    const char *statfmt, int fn, int nonl)
+static void
+output(const struct stat *st, const char *file, const char *statfmt, int fn)
 {
 	int flags, size, prec, ofmt, hilo, what;
 	char buf[PATH_MAX + 4 + 1];
@@ -606,7 +634,7 @@ output(const struct stat *st, const char *file,
 /*
  * Arranges output according to a single parsed format substring.
  */
-int
+static int
 format1(const struct stat *st,
     const char *file,
     const char *fmt, int flen,
@@ -1073,7 +1101,7 @@ format1(const struct stat *st,
 	(void)strcat(lfmt, "ll");
 	switch (ofmt) {
 	case FMTF_DECIMAL:	(void)strcat(lfmt, "d");	break;
-	case FMTF_OCTAL:		(void)strcat(lfmt, "o");	break;
+	case FMTF_OCTAL:	(void)strcat(lfmt, "o");	break;
 	case FMTF_UNSIGNED:	(void)strcat(lfmt, "u");	break;
 	case FMTF_HEX:		(void)strcat(lfmt, "x");	break;
 	}
@@ -1083,9 +1111,75 @@ format1(const struct stat *st,
 
 
 #define hex2nibble(c) (c <= '9' ? c - '0' : toupper(c) - 'A' + 10)
-int
+static int
 hex2byte(const char c[2]) {
 	if (!(ishexnumber(c[0]) && ishexnumber(c[1])))
 		return -1;
 	return (hex2nibble(c[0]) << 4) + hex2nibble(c[1]);
+}
+
+static int
+fdlistholes(int fd, const char *fn)
+{
+	struct stat sb;
+	off_t pos = 0, off;
+	long l;
+
+	if (fstat(fd, &sb) < 0)
+		return (-1);
+	if (S_ISDIR(sb.st_mode)) {
+		if ((l = fpathconf(fd, _PC_MIN_HOLE_SIZE)) < 0)
+			return (-1);
+		printf("%ld", l);
+	} else if (!S_ISREG(sb.st_mode)) {
+		errno = ESPIPE;
+		return (-1);
+	} else {
+		for (;;) {
+			if ((off = lseek(fd, pos, SEEK_HOLE)) < 0) {
+				if (errno != ENXIO)
+					return (-1);
+				/*
+				 * This can only happen if the file was
+				 * truncated while we were scanning it, or
+				 * on the initial seek if the file is
+				 * empty.  Report the virtual hole at the
+				 * end of the file at this position.
+				 */
+				off = pos;
+			}
+			printf("%jd", (intmax_t)off);
+			pos = off;
+			if ((off = lseek(fd, pos, SEEK_DATA)) < 0) {
+				if (errno != ENXIO)
+					return (-1);
+				/*
+				 * There are no more data regions in the
+				 * file, or it got truncated.  However, we
+				 * may not be at the end yet.
+				 */
+				if ((off = lseek(fd, 0, SEEK_END)) > pos)
+					printf("-%jd", (intmax_t)off - 1);
+				break;
+			}
+			printf("-%jd,", (intmax_t)off - 1);
+			pos = off;
+		}
+	}
+	printf(" %s", fn);
+	if (!nonl)
+		printf("\n");
+	return (0);
+}
+
+static int
+listholes(const char *fn)
+{
+	int fd, ret;
+
+	if ((fd = open(fn, O_RDONLY)) < 0)
+		return (-1);
+	ret = fdlistholes(fd, fn);
+	close(fd);
+	return (ret);
 }

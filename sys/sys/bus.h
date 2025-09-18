@@ -78,7 +78,7 @@ typedef enum device_property_type {
  * The strings are placed one after the other, separated by NUL characters.
  * Fields should be added after the last one and order maintained for compatibility
  */
-#define BUS_USER_BUFFER		(3*1024)
+#define BUS_USER_BUFFER		(3 * 1024)
 struct u_device {
 	uintptr_t	dv_handle;
 	uintptr_t	dv_parent;
@@ -247,8 +247,8 @@ typedef struct devclass		*devclass_t;
  * and may use regular mutexes.  However, it is prohibited from
  * sleeping on a sleep queue.
  */
-typedef int driver_filter_t(void*);
-typedef void driver_intr_t(void*);
+typedef int driver_filter_t(void *);
+typedef void driver_intr_t(void *);
 
 /**
  * @brief Interrupt type bits.
@@ -476,18 +476,18 @@ int	bus_generic_resume(device_t dev);
 int	bus_generic_resume_child(device_t dev, device_t child);
 int	bus_generic_setup_intr(device_t dev, device_t child,
 			       struct resource *irq, int flags,
-			       driver_filter_t *filter, driver_intr_t *intr, 
+			       driver_filter_t *filter, driver_intr_t *intr,
 			       void *arg, void **cookiep);
 
 struct resource *
-	bus_generic_rl_alloc_resource (device_t, device_t, int, int *,
-				       rman_res_t, rman_res_t, rman_res_t, u_int);
-void	bus_generic_rl_delete_resource (device_t, device_t, int, int);
-int	bus_generic_rl_get_resource (device_t, device_t, int, int, rman_res_t *,
-				     rman_res_t *);
-int	bus_generic_rl_set_resource (device_t, device_t, int, int, rman_res_t,
-				     rman_res_t);
-int	bus_generic_rl_release_resource (device_t, device_t, struct resource *);
+	bus_generic_rl_alloc_resource(device_t, device_t, int, int *,
+				      rman_res_t, rman_res_t, rman_res_t, u_int);
+void	bus_generic_rl_delete_resource(device_t, device_t, int, int);
+int	bus_generic_rl_get_resource(device_t, device_t, int, int, rman_res_t *,
+				    rman_res_t *);
+int	bus_generic_rl_set_resource(device_t, device_t, int, int, rman_res_t,
+				    rman_res_t);
+int	bus_generic_rl_release_resource(device_t, device_t, struct resource *);
 struct resource *
 	bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
 					int *rid, rman_res_t start,
@@ -562,7 +562,7 @@ int	bus_get_domain(device_t dev, int *domain);
 int	bus_release_resource(device_t dev, struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);
 int	bus_setup_intr(device_t dev, struct resource *r, int flags,
-		       driver_filter_t filter, driver_intr_t handler, 
+		       driver_filter_t filter, driver_intr_t handler,
 		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 int	bus_suspend_intr(device_t dev, struct resource *r);
@@ -687,9 +687,9 @@ int	device_probe_child(device_t bus, device_t dev);
 int	device_quiesce(device_t dev);
 void	device_quiet(device_t dev);
 void	device_quiet_children(device_t dev);
-void	device_set_desc(device_t dev, const char* desc);
-void	device_set_descf(device_t dev, const char* fmt, ...) __printflike(2, 3);
-void	device_set_desc_copy(device_t dev, const char* desc);
+void	device_set_desc(device_t dev, const char *desc);
+void	device_set_descf(device_t dev, const char *fmt, ...) __printflike(2, 3);
+void	device_set_desc_copy(device_t dev, const char *desc);
 int	device_set_devclass(device_t dev, const char *classname);
 int	device_set_devclass_fixed(device_t dev, const char *classname);
 bool	device_is_devclass_fixed(device_t dev);
@@ -887,7 +887,8 @@ DECLARE_MODULE(_name##_##busname, _name##_##busname##_mod,		\
  */
 #define __BUS_ACCESSOR(varp, var, ivarp, ivar, type)			\
 									\
-static __inline type varp ## _get_ ## var(device_t dev)			\
+static __inline type							\
+varp ## _get_ ## var(device_t dev)					\
 {									\
 	uintptr_t v;							\
 	int e __diagused;						\
@@ -899,7 +900,8 @@ static __inline type varp ## _get_ ## var(device_t dev)			\
 	return ((type) v);						\
 }									\
 									\
-static __inline void varp ## _set_ ## var(device_t dev, type t)		\
+static __inline void							\
+varp ## _set_ ## var(device_t dev, type t)				\
 {									\
 	uintptr_t v = (uintptr_t) t;					\
 	int e __diagused;						\

@@ -417,34 +417,39 @@ print_table(const struct pfr_table *ta, int verbose, int debug)
 {
 	if (!debug && !(ta->pfrt_flags & PFR_TFLAG_ACTIVE))
 		return;
-	if (verbose) {
-		printf("%c%c%c%c%c%c%c\t%s",
+	if (verbose)
+		printf("%c%c%c%c%c%c%c\t",
 		    (ta->pfrt_flags & PFR_TFLAG_CONST) ? 'c' : '-',
 		    (ta->pfrt_flags & PFR_TFLAG_PERSIST) ? 'p' : '-',
 		    (ta->pfrt_flags & PFR_TFLAG_ACTIVE) ? 'a' : '-',
 		    (ta->pfrt_flags & PFR_TFLAG_INACTIVE) ? 'i' : '-',
 		    (ta->pfrt_flags & PFR_TFLAG_REFERENCED) ? 'r' : '-',
 		    (ta->pfrt_flags & PFR_TFLAG_REFDANCHOR) ? 'h' : '-',
-		    (ta->pfrt_flags & PFR_TFLAG_COUNTERS) ? 'C' : '-',
-		    ta->pfrt_name);
-		if (ta->pfrt_anchor[0])
-			printf("\t%s", ta->pfrt_anchor);
-		puts("");
-	} else
-		puts(ta->pfrt_name);
+		    (ta->pfrt_flags & PFR_TFLAG_COUNTERS) ? 'C' : '-');
+
+	printf("%s", ta->pfrt_name);
+	if (ta->pfrt_anchor[0] != '\0')
+		printf("@%s", ta->pfrt_anchor);
+
+	printf("\n");
 }
 
 int
 print_tstats(const struct pfr_tstats *ts, int debug)
 {
-	time_t	time = ts->pfrts_tzero;
-	int	dir, op;
+	time_t	 time = ts->pfrts_tzero;
+	int	 dir, op;
+	char	*ct;
 
 	if (!debug && !(ts->pfrts_flags & PFR_TFLAG_ACTIVE))
 		return (0);
+	ct = ctime(&time);
 	print_table(&ts->pfrts_t, 1, debug);
 	printf("\tAddresses:   %d\n", ts->pfrts_cnt);
-	printf("\tCleared:     %s", ctime(&time));
+	if (ct)
+		printf("\tCleared:     %s", ct);
+	else
+		printf("\tCleared:     %lld\n", (long long)time);
 	printf("\tReferences:  [ Anchors: %-18d Rules: %-18d ]\n",
 	    ts->pfrts_refcnt[PFR_REFCNT_ANCHOR],
 	    ts->pfrts_refcnt[PFR_REFCNT_RULE]);
@@ -543,12 +548,17 @@ nonzero_astats(struct pfr_astats *as)
 void
 print_astats(struct pfr_astats *as, int dns)
 {
-	time_t	time = as->pfras_tzero;
-	int	dir, op;
+	time_t	 time = as->pfras_tzero;
+	int	 dir, op;
+	char	*ct;
 
+	ct = ctime(&time);
 	print_addrx(&as->pfras_a, NULL, dns);
-	printf("\tCleared:     %s", ctime(&time));
- 	if (as->pfras_a.pfra_fback == PFR_FB_NOCOUNT)
+	if (ct)
+		printf("\tCleared:     %s", ct);
+	else
+		printf("\tCleared:     %lld\n", (long long)time);
+	if (as->pfras_a.pfra_fback == PFR_FB_NOCOUNT)
 		return;
 	for (dir = 0; dir < PFR_DIR_MAX; dir++)
 		for (op = 0; op < PFR_OP_ADDR_MAX; op++)
@@ -560,19 +570,50 @@ print_astats(struct pfr_astats *as, int dns)
 
 int
 pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
-    struct pfr_buffer *ab, u_int32_t ticket)
+    struct pfr_buffer *ab, u_int32_t ticket, struct pfr_uktable *ukt)
 {
-	struct pfr_table tbl;
+	struct pfr_table tbl_buf;
+	struct pfr_table *tbl;
 
-	bzero(&tbl, sizeof(tbl));
-	if (strlcpy(tbl.pfrt_name, name, sizeof(tbl.pfrt_name)) >=
-	    sizeof(tbl.pfrt_name) || strlcpy(tbl.pfrt_anchor, anchor,
-	    sizeof(tbl.pfrt_anchor)) >= sizeof(tbl.pfrt_anchor))
-		errx(1, "pfctl_define_table: strlcpy");
-	tbl.pfrt_flags = flags;
+	if (ukt == NULL) {
+		bzero(&tbl_buf, sizeof(tbl_buf));
+		tbl = &tbl_buf;
+	} else {
+		if (ab->pfrb_size != 0) {
+			/*
+			 * copy IP addresses which come with table from
+			 * temporal buffer to buffer attached to table.
+			 */
+			ukt->pfrukt_addrs = *ab;
+			ab->pfrb_size = 0;
+			ab->pfrb_msize = 0;
+			ab->pfrb_caddr = NULL;
+		} else
+			memset(&ukt->pfrukt_addrs, 0,
+			    sizeof(struct pfr_buffer));
 
-	return pfr_ina_define(&tbl, ab->pfrb_caddr, ab->pfrb_size, NULL,
-	    NULL, ticket, addrs ? PFR_FLAG_ADDRSTOO : 0);
+		tbl = &ukt->pfrukt_t;
+	}
+
+	if (strlcpy(tbl->pfrt_name, name, sizeof(tbl->pfrt_name)) >=
+	    sizeof(tbl->pfrt_name) ||
+	    strlcpy(tbl->pfrt_anchor, anchor, sizeof(tbl->pfrt_anchor)) >=
+	    sizeof(tbl->pfrt_anchor))
+		errx(1, "%s: strlcpy", __func__);
+	tbl->pfrt_flags = flags;
+	DBGPRINT("%s %s@%s [%x]\n", __func__, tbl->pfrt_name, tbl->pfrt_anchor,
+	    tbl->pfrt_flags);
+
+	/*
+	 * non-root anchors processed by parse.y are loaded to kernel later.
+	 * Here we load tables, which are either created for root anchor
+	 * or by 'pfctl -t ... -T ...' command.
+	 */
+	if (ukt != NULL)
+		return (0);
+
+	return (pfr_ina_define(tbl, ab->pfrb_caddr, ab->pfrb_size, NULL, NULL,
+	    ticket, addrs ? PFR_FLAG_ADDRSTOO : 0));
 }
 
 void
@@ -653,8 +694,9 @@ pfctl_show_ifaces(const char *filter, int opts)
 void
 print_iface(struct pfi_kif *p, int opts)
 {
-	time_t	tzero = p->pfik_tzero;
-	int	i, af, dir, act;
+	time_t	 tzero = p->pfik_tzero;
+	int	 i, af, dir, act;
+	char	*ct;
 
 	printf("%s", p->pfik_name);
 	if (opts & PF_OPT_VERBOSE) {
@@ -665,7 +707,11 @@ print_iface(struct pfi_kif *p, int opts)
 
 	if (!(opts & PF_OPT_VERBOSE2))
 		return;
-	printf("\tCleared:     %s", ctime(&tzero));
+	ct = ctime(&tzero);
+	if (ct)
+		printf("\tCleared:     %s", ct);
+	else
+		printf("\tCleared:     %lld\n", (long long)tzero);
 	printf("\tReferences:  %-18d\n", p->pfik_rulerefs);
 	for (i = 0; i < 8; i++) {
 		af = (i>>2) & 1;

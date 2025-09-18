@@ -82,7 +82,7 @@ ptrauth_disable(void)
 	return (false);
 }
 
-static bool
+static cpu_feat_en
 ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t isar;
@@ -116,14 +116,14 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	if (get_kernel_reg(ID_AA64ISAR1_EL1, &isar)) {
 		if (ID_AA64ISAR1_APA_VAL(isar) > 0 ||
 		    ID_AA64ISAR1_API_VAL(isar) > 0) {
-			return (true);
+			return (FEAT_DEFAULT_ENABLE);
 		}
 	}
 
 	/* The QARMA3 algorithm is reported in ID_AA64ISAR2_EL1. */
 	if (get_kernel_reg(ID_AA64ISAR2_EL1, &isar)) {
 		if (ID_AA64ISAR2_APA3_VAL(isar) > 0) {
-			return (true);
+			return (FEAT_DEFAULT_ENABLE);
 		}
 	}
 
@@ -138,10 +138,10 @@ out:
 	    ID_AA64ISAR1_GPI_MASK, 0);
 	update_special_reg(ID_AA64ISAR2_EL1, ID_AA64ISAR2_APA3_MASK, 0);
 
-	return (false);
+	return (FEAT_ALWAYS_DISABLE);
 }
 
-static void
+static bool
 ptrauth_enable(const struct cpu_feat *feat __unused,
     cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
     u_int errata_count __unused)
@@ -153,16 +153,13 @@ ptrauth_enable(const struct cpu_feat *feat __unused,
 	elf64_addr_mask_14.code |= PAC_ADDR_MASK_14;
 	elf64_addr_mask_14.data |= PAC_ADDR_MASK_14;
 #endif
+
+	return (true);
 }
 
-
-static struct cpu_feat feat_pauth = {
-	.feat_name		= "FEAT_PAuth",
-	.feat_check		= ptrauth_check,
-	.feat_enable		= ptrauth_enable,
-	.feat_flags		= CPU_FEAT_EARLY_BOOT | CPU_FEAT_SYSTEM,
-};
-DATA_SET(cpu_feat_set, feat_pauth);
+CPU_FEAT(feat_pauth, "Pointer Authentication",
+    ptrauth_check, NULL, ptrauth_enable,
+    CPU_FEAT_EARLY_BOOT | CPU_FEAT_SYSTEM);
 
 /* Copy the keys when forking a new process */
 void

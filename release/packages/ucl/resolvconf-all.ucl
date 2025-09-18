@@ -1,4 +1,11 @@
-comment = "Resolvconf Utility and scripts"
+comment = "A framework for managing multiple DNS configurations"
+
 desc = <<EOD
-Resolvconf Utility and scripts
+resolvconf(8) is used to manage /etc/resolv.conf for systems which move between
+different networks, such as laptops.  It is typically invoked by dhclient(8) to
+provide new nameservers when connecting to a network.
 EOD
+
+annotations {
+	set = minimal
+}

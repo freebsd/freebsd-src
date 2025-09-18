@@ -1,0 +1,8 @@
+comment = "Automated Testing Framework"
+
+desc = <<EOD
+The Automated Testing Framework (ATF) is a collection of libraries to implement
+test programs in a variety of languages.  These libraries all offer similar
+functionality and any test program written with them exposes a consistent user
+interface.
+EOD

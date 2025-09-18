@@ -552,8 +552,6 @@ g_part_parm_provider(struct gctl_req *req, const char *name,
 	pname = gctl_get_asciiparam(req, name);
 	if (pname == NULL)
 		return (ENOATTR);
-	if (strncmp(pname, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-		pname += sizeof(_PATH_DEV) - 1;
 	pp = g_provider_by_name(pname);
 	if (pp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, pname);
@@ -998,7 +996,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	}
 
 	if (null == NULL)
-		gp = g_new_geomf(&g_part_class, "%s", pp->name);
+		gp = g_new_geom(&g_part_class, pp->name);
 	gp->softc = kobj_create((kobj_class_t)gpp->gpp_scheme, M_GEOM,
 	    M_WAITOK);
 	table = gp->softc;
@@ -1979,7 +1977,7 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 * With that we become part of the topology. Obtain read access
 	 * to the provider.
 	 */
-	gp = g_new_geomf(mp, "%s", pp->name);
+	gp = g_new_geom(mp, pp->name);
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);

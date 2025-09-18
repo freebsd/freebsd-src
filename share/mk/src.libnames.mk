@@ -29,6 +29,7 @@ _PRIVATELIBS=	\
 		heimipcs \
 		kldelf \
 		ldns \
+		samplerate \
 		sqlite3 \
 		ssh \
 		ucl \
@@ -72,7 +73,6 @@ _INTERNALLIBS=	\
 		pfctl \
 		pkgecc \
 		pmcstat \
-		samplerate \
 		sl \
 		sm \
 		smdb \
@@ -329,7 +329,7 @@ _DP_archive+=	md
 .endif
 .endif
 _DP_sqlite3=	pthread
-_DP_ssl=	crypto
+_DP_ssl=	pthread crypto
 _DP_ssh=	crypto crypt z
 .if ${MK_LDNS} != "no"
 _DP_ssh+=	ldns

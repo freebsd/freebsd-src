@@ -8,6 +8,12 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# sys/bus.h style fixes
+22238759c57d942865cf9d1a355a0d04819eb621
+# sys/efi.h style(9) tweaks
+e584c46d8b60662ffb1f67c41dec13f391d3f199
+# sys/cpu.h style(9) fixes
+0737e2a961cd712fff5b548bb6b823e48a8b527d
 # witness white space cleanup and style(9) tweeks
 f5377665253b2b107ee8a4690ad2e6682375b304
 # style fixes for device_if.m

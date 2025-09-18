@@ -1098,9 +1098,10 @@ newnfs_copyincred(struct ucred *cr, struct nfscred *nfscr)
 	KASSERT(cr->cr_ngroups >= 0,
 	    ("newnfs_copyincred: negative cr_ngroups"));
 	nfscr->nfsc_uid = cr->cr_uid;
-	nfscr->nfsc_ngroups = MIN(cr->cr_ngroups, NFS_MAXGRPS + 1);
-	for (i = 0; i < nfscr->nfsc_ngroups; i++)
-		nfscr->nfsc_groups[i] = cr->cr_groups[i];
+	nfscr->nfsc_ngroups = MIN(cr->cr_ngroups + 1, NFS_MAXGRPS + 1);
+	nfscr->nfsc_groups[0] = cr->cr_gid;
+	for (i = 1; i < nfscr->nfsc_ngroups; i++)
+		nfscr->nfsc_groups[i] = cr->cr_groups[i - 1];
 }
 
 /*

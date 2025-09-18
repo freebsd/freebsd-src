@@ -32,26 +32,27 @@
  */
 
 #if 0
-#define	DBG do { printf("ng_device: %s\n", __func__ ); } while (0)
+#define	DBG do { printf("ng_device: %s\n", __func__); } while (0)
 #else
 #define	DBG do {} while (0)
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/epoch.h>
+#include <sys/fcntl.h>
+#include <sys/filio.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/epoch.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -135,9 +136,7 @@ static d_close_t ngdclose;
 static d_open_t ngdopen;
 static d_read_t ngdread;
 static d_write_t ngdwrite;
-#if 0
 static d_ioctl_t ngdioctl;
-#endif
 static d_poll_t ngdpoll;
 
 static struct cdevsw ngd_cdevsw = {
@@ -146,16 +145,16 @@ static struct cdevsw ngd_cdevsw = {
 	.d_close =	ngdclose,
 	.d_read =	ngdread,
 	.d_write =	ngdwrite,
-#if 0
 	.d_ioctl =	ngdioctl,
-#endif
 	.d_poll =	ngdpoll,
 	.d_name =	NG_DEVICE_DEVNAME,
 };
 
-/******************************************************************************
+/*
+ *****************************************************************************
  *  Netgraph methods
- ******************************************************************************/
+ *****************************************************************************
+ */
 
 /*
  * Handle loading and unloading for this node type.
@@ -205,13 +204,13 @@ ng_device_constructor(node_p node)
 
 	priv->ngddev = make_dev(&ngd_cdevsw, priv->unit, UID_ROOT,
 	    GID_WHEEL, 0600, NG_DEVICE_DEVNAME "%d", priv->unit);
-	if(priv->ngddev == NULL) {
-		printf("%s(): make_dev() failed\n",__func__);
+	if (priv->ngddev == NULL) {
+		printf("%s(): make_dev() failed\n", __func__);
 		mtx_destroy(&priv->ngd_mtx);
 		mtx_destroy(&priv->readq.ifq_mtx);
 		free_unr(ngd_unit, priv->unit);
 		free(priv, M_NETGRAPH);
-		return(EINVAL);
+		return (EINVAL);
 	}
 	/* XXX: race here? */
 	priv->ngddev->si_drv1 = priv;
@@ -221,7 +220,7 @@ ng_device_constructor(node_p node)
 		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
 		    devtoname(priv->ngddev));
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -289,7 +288,7 @@ ng_device_newhook(node_p node, hook_p hook, const char *name)
 
 	priv->hook = hook;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -322,7 +321,7 @@ ng_device_rcvdata(hook_p hook, item_p item)
 	}
 	mtx_unlock(&priv->ngd_mtx);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -347,7 +346,7 @@ ng_device_disconnect(hook_p hook)
 
 	ng_rmnode_self(NG_HOOK_NODE(hook));
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -360,9 +359,11 @@ ng_device_shutdown(node_p node)
 	return (0);
 }
 
-/******************************************************************************
+/*
+ *****************************************************************************
  *  Device methods
- ******************************************************************************/
+ *****************************************************************************
+ */
 
 /*
  * the device is opened
@@ -370,7 +371,7 @@ ng_device_shutdown(node_p node)
 static int
 ngdopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p	priv = (priv_p)dev->si_drv1;
 
 	DBG;
 
@@ -378,7 +379,7 @@ ngdopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	priv->flags |= NGDF_OPEN;
 	mtx_unlock(&priv->ngd_mtx);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -387,14 +388,44 @@ ngdopen(struct cdev *dev, int flag, int mode, struct thread *td)
 static int
 ngdclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p	priv = (priv_p)dev->si_drv1;
 
 	DBG;
 	mtx_lock(&priv->ngd_mtx);
 	priv->flags &= ~NGDF_OPEN;
 	mtx_unlock(&priv->ngd_mtx);
 
-	return(0);
+	return (0);
+}
+
+/*
+ * Process IOCTLs
+ *
+ * At this stage we only return success on FIONBIO to allow setting the device
+ * as non-blocking.
+ *
+ */
+static int
+ngdioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
+    struct thread *td)
+{
+    int error;
+
+    switch (cmd) {
+    case FIONBIO:
+        error = 0;
+        break;
+    case FIOASYNC:
+        if (*(int *)data != 0)
+            error = EINVAL;
+        else
+            error = 0;
+        break;
+    default:
+        error = ENOTTY;
+    }
+
+    return (error);
 }
 
 #if 0	/*
@@ -408,21 +439,22 @@ ngdclose(struct cdev *dev, int flag, int mode, struct thread *td)
  *
  */
 static int
-ngdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+ngdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+    struct thread *td)
 {
 	struct ngd_softc *sc = &ngd_softc;
-	struct ngd_connection * connection = NULL;
-	struct ngd_connection * tmp;
+	struct ngd_connection *connection = NULL;
+	struct ngd_connection *tmp;
 	int error = 0;
 	struct ng_mesg *msg;
-	struct ngd_param_s * datap;
+	struct ngd_param_s *datap;
 
 	DBG;
 
 	NG_MKMESSAGE(msg, NGM_DEVICE_COOKIE, cmd, sizeof(struct ngd_param_s),
 			M_NOWAIT);
 	if (msg == NULL) {
-		printf("%s(): msg == NULL\n",__func__);
+		printf("%s(): msg == NULL\n", __func__);
 		goto nomsg;
 	}
 
@@ -431,12 +463,12 @@ ngdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	datap->p = addr;
 
 	NG_SEND_MSG_HOOK(error, sc->node, msg, connection->active_hook, 0);
-	if(error)
-		printf("%s(): NG_SEND_MSG_HOOK error: %d\n",__func__,error);
+	if (error)
+		printf("%s(): NG_SEND_MSG_HOOK error: %d\n", __func__, error);
 
 nomsg:
 
-	return(0);
+	return (0);
 }
 #endif /* if 0 */
 
@@ -447,7 +479,7 @@ nomsg:
 static int
 ngdread(struct cdev *dev, struct uio *uio, int flag)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p	priv = (priv_p)dev->si_drv1;
 	struct mbuf *m;
 	int len, error = 0;
 
@@ -457,7 +489,7 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 	do {
 		IF_DEQUEUE(&priv->readq, m);
 		if (m == NULL) {
-			if (flag & IO_NDELAY)
+			if (flag & O_NONBLOCK)
 				return (EWOULDBLOCK);
 			mtx_lock(&priv->ngd_mtx);
 			priv->flags |= NGDF_RWAIT;
@@ -483,14 +515,14 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 
 /*
  * This function is called when our device is written to.
- * We read the data from userland into mbuf chain and pass it to the remote hook.
- *
+ * We read the data from userland into mbuf chain and pass it to the remote
+ * hook.
  */
 static int
 ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct epoch_tracker et;
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p	priv = (priv_p)dev->si_drv1;
 	struct mbuf *m;
 	int error = 0;
 
@@ -520,7 +552,7 @@ ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 static int
 ngdpoll(struct cdev *dev, int events, struct thread *td)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p	priv = (priv_p)dev->si_drv1;
 	int revents = 0;
 
 	if (events & (POLLIN | POLLRDNORM) &&

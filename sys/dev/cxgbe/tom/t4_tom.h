@@ -122,9 +122,12 @@ struct conn_params {
 };
 
 struct ofld_tx_sdesc {
-	uint32_t plen;		/* payload length */
-	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
+	uint32_t plen : 26;		/* payload length */
+	uint32_t tx_credits : 6;	/* firmware tx credits (unit is 16B) */
 };
+
+#define	MAX_OFLD_TX_SDESC_PLEN		((1u << 26) - 1)
+#define	MAX_OFLD_TX_SDESC_CREDITS	((1u << 6) - 1)
 
 struct ppod_region {
 	u_int pr_start;
@@ -526,6 +529,10 @@ int t4_send_rst(struct toedev *, struct tcpcb *);
 void t4_set_tcb_field(struct adapter *, struct sge_wrq *, struct toepcb *,
     uint16_t, uint64_t, uint64_t, int, int);
 void t4_push_pdus(struct adapter *, struct toepcb *, int);
+bool t4_push_raw_wr(struct adapter *, struct toepcb *, struct mbuf *);
+void t4_raw_wr_tx(struct adapter *, struct toepcb *, struct mbuf *);
+void write_set_tcb_field(struct adapter *, void *, struct toepcb *, uint16_t,
+    uint64_t, uint64_t, int, int);
 
 /* t4_ddp.c */
 int t4_init_ppod_region(struct ppod_region *, struct t4_range *, u_int,
@@ -551,6 +558,7 @@ int t4_aio_queue_ddp(struct socket *, struct kaiocb *);
 int t4_enable_ddp_rcv(struct socket *, struct toepcb *);
 void t4_ddp_mod_load(void);
 void t4_ddp_mod_unload(void);
+struct mbuf *alloc_raw_wr_mbuf(int);
 void ddp_assert_empty(struct toepcb *);
 void ddp_uninit_toep(struct toepcb *);
 void ddp_queue_toep(struct toepcb *);

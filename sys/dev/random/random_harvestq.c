@@ -103,8 +103,10 @@ static const char *random_source_descr[ENTROPYSOURCE];
 volatile int random_kthread_control;
 
 
-/* Allow the sysadmin to select the broad category of
- * entropy types to harvest.
+/*
+ * Allow the sysadmin to select the broad category of entropy types to harvest.
+ *
+ * Updates are synchronized by the harvest mutex.
  */
 __read_frequently u_int hc_source_mask;
 
@@ -278,8 +280,15 @@ random_sources_feed(void)
 		epoch_enter_preempt(rs_epoch, &et);
 	CK_LIST_FOREACH(rrs, &source_list, rrs_entries) {
 		for (i = 0; i < npools; i++) {
+			if (rrs->rrs_source->rs_read == NULL) {
+				/* Source pushes entropy asynchronously. */
+				continue;
+			}
 			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
-			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%u > %zu)", __func__, n, sizeof(entropy)));
+			KASSERT((n <= sizeof(entropy)),
+			    ("%s: rs_read returned too much data (%u > %zu)",
+			    __func__, n, sizeof(entropy)));
+
 			/*
 			 * Sometimes the HW entropy source doesn't have anything
 			 * ready for us.  This isn't necessarily untrustworthy.
@@ -334,7 +343,17 @@ copy_event(uint32_t dst[static HARVESTSIZE + 1],
 {
 	memset(dst, 0, sizeof(uint32_t) * (HARVESTSIZE + 1));
 	memcpy(dst, event->he_entropy, event->he_size);
-	dst[HARVESTSIZE] = event->he_somecounter;
+	if (event->he_source <= RANDOM_ENVIRONMENTAL_END) {
+		/*
+		 * For pure entropy sources the timestamp counter is generally
+		 * quite determinstic since samples are taken at regular
+		 * intervals, so does not contribute much to the entropy.  To
+		 * make health tests more effective, exclude it from the sample,
+		 * since it might otherwise defeat the health tests in a
+		 * scenario where the source is stuck.
+		 */
+		dst[HARVESTSIZE] = event->he_somecounter;
+	}
 }
 
 static void
@@ -464,11 +483,12 @@ SYSCTL_BOOL(_kern_random, OID_AUTO, nist_healthtest_enabled,
     "Enable NIST SP 800-90B health tests for noise sources");
 
 static void
-random_healthtest_init(enum random_entropy_source source)
+random_healthtest_init(enum random_entropy_source source, int min_entropy)
 {
 	struct health_test_softc *ht;
 
 	ht = &healthtest[source];
+	memset(ht, 0, sizeof(*ht));
 	KASSERT(ht->ht_state == INIT,
 	    ("%s: health test state is %d for source %d",
 	    __func__, ht->ht_state, source));
@@ -485,20 +505,62 @@ random_healthtest_init(enum random_entropy_source source)
 	}
 
 	/*
-	 * Set cutoff values for the two tests, assuming that each sample has
-	 * min-entropy of 1 bit and allowing for an error rate of 1 in 2^{34}.
-	 * With a sample rate of RANDOM_KTHREAD_HZ, we expect to see an false
-	 * positive once in ~54.5 years.
+	 * Set cutoff values for the two tests, given a min-entropy estimate for
+	 * the source and allowing for an error rate of 1 in 2^{34}.  With a
+	 * min-entropy estimate of 1 bit and a sample rate of RANDOM_KTHREAD_HZ,
+	 * we expect to see an false positive once in ~54.5 years.
 	 *
 	 * The RCT limit comes from the formula in section 4.4.1.
 	 *
-	 * The APT cutoff is calculated using the formula in section 4.4.2
+	 * The APT cutoffs are calculated using the formula in section 4.4.2
 	 * footnote 10 with the number of Bernoulli trials changed from W to
 	 * W-1, since the test as written counts the number of samples equal to
-	 * the first sample in the window, and thus tests W-1 samples.
+	 * the first sample in the window, and thus tests W-1 samples.  We
+	 * provide cutoffs for estimates up to sizeof(uint32_t)*HARVESTSIZE*8
+	 * bits.
 	 */
-	ht->ht_rct_limit = 35;
-	ht->ht_apt_cutoff = 330;
+	const int apt_cutoffs[] = {
+		[1] = 329,
+		[2] = 195,
+		[3] = 118,
+		[4] = 73,
+		[5] = 48,
+		[6] = 33,
+		[7] = 23,
+		[8] = 17,
+		[9] = 13,
+		[10] = 11,
+		[11] = 9,
+		[12] = 8,
+		[13] = 7,
+		[14] = 6,
+		[15] = 5,
+		[16] = 5,
+		[17 ... 19] = 4,
+		[20 ... 25] = 3,
+		[26 ... 42] = 2,
+		[43 ... 64] = 1,
+	};
+	const int error_rate = 34;
+
+	if (min_entropy == 0) {
+		/*
+		 * For environmental sources, the main source of entropy is the
+		 * associated timecounter value.  Since these sources can be
+		 * influenced by unprivileged users, we conservatively use a
+		 * min-entropy estimate of 1 bit per sample.  For "pure"
+		 * sources, we assume 8 bits per sample, as such sources provide
+		 * a variable amount of data per read and in particular might
+		 * only provide a single byte at a time.
+		 */
+		min_entropy = source >= RANDOM_PURE_START ? 8 : 1;
+	} else if (min_entropy < 0 || min_entropy >= nitems(apt_cutoffs)) {
+		panic("invalid min_entropy %d for %s", min_entropy,
+		    random_source_descr[source]);
+	}
+
+	ht->ht_rct_limit = 1 + howmany(error_rate, min_entropy);
+	ht->ht_apt_cutoff = apt_cutoffs[min_entropy];
 }
 
 static int
@@ -533,9 +595,9 @@ random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 	    _RANDOM_HARVEST_ETHER_OFF | _RANDOM_HARVEST_UMA_OFF;
 
 	int error;
-	u_int value, orig_value;
+	u_int value;
 
-	orig_value = value = hc_source_mask;
+	value = atomic_load_int(&hc_source_mask);
 	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
@@ -546,12 +608,14 @@ random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Disallow userspace modification of pure entropy sources.
 	 */
+	RANDOM_HARVEST_LOCK();
 	hc_source_mask = (value & ~user_immutable_mask) |
-	    (orig_value & user_immutable_mask);
+	    (hc_source_mask & user_immutable_mask);
+	RANDOM_HARVEST_UNLOCK();
 	return (0);
 }
 SYSCTL_PROC(_kern_random_harvest, OID_AUTO, mask,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     random_check_uint_harvestmask, "IU",
     "Entropy harvesting mask");
 
@@ -563,9 +627,16 @@ random_print_harvestmask(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
+		u_int mask;
+
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-		for (i = ENTROPYSOURCE - 1; i >= 0; i--)
-			sbuf_cat(&sbuf, (hc_source_mask & (1 << i)) ? "1" : "0");
+		mask = atomic_load_int(&hc_source_mask);
+		for (i = ENTROPYSOURCE - 1; i >= 0; i--) {
+			bool present;
+
+			present = (mask & (1u << i)) != 0;
+			sbuf_cat(&sbuf, present ? "1" : "0");
+		}
 		error = sbuf_finish(&sbuf);
 		sbuf_delete(&sbuf);
 	}
@@ -619,16 +690,21 @@ random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
 	first = true;
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
+		u_int mask;
+
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+		mask = atomic_load_int(&hc_source_mask);
 		for (i = ENTROPYSOURCE - 1; i >= 0; i--) {
-			if (i >= RANDOM_PURE_START &&
-			    (hc_source_mask & (1 << i)) == 0)
+			bool present;
+
+			present = (mask & (1u << i)) != 0;
+			if (i >= RANDOM_PURE_START && !present)
 				continue;
 			if (!first)
 				sbuf_cat(&sbuf, ",");
-			sbuf_cat(&sbuf, !(hc_source_mask & (1 << i)) ? "[" : "");
+			sbuf_cat(&sbuf, !present ? "[" : "");
 			sbuf_cat(&sbuf, random_source_descr[i]);
-			sbuf_cat(&sbuf, !(hc_source_mask & (1 << i)) ? "]" : "");
+			sbuf_cat(&sbuf, !present ? "]" : "");
 			first = false;
 		}
 		error = sbuf_finish(&sbuf);
@@ -652,8 +728,8 @@ random_harvestq_init(void *unused __unused)
 	RANDOM_HARVEST_INIT_LOCK();
 	harvest_context.hc_active_buf = 0;
 
-	for (int i = 0; i < ENTROPYSOURCE; i++)
-		random_healthtest_init(i);
+	for (int i = RANDOM_START; i <= RANDOM_ENVIRONMENTAL_END; i++)
+		random_healthtest_init(i, 0);
 }
 SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_THIRD, random_harvestq_init, NULL);
 
@@ -835,20 +911,6 @@ random_harvest_direct_(const void *entropy, u_int size, enum random_entropy_sour
 }
 
 void
-random_harvest_register_source(enum random_entropy_source source)
-{
-
-	hc_source_mask |= (1 << source);
-}
-
-void
-random_harvest_deregister_source(enum random_entropy_source source)
-{
-
-	hc_source_mask &= ~(1 << source);
-}
-
-void
 random_source_register(const struct random_source *rsource)
 {
 	struct random_sources *rrs;
@@ -858,11 +920,12 @@ random_source_register(const struct random_source *rsource)
 	rrs = malloc(sizeof(*rrs), M_ENTROPY, M_WAITOK);
 	rrs->rrs_source = rsource;
 
-	random_harvest_register_source(rsource->rs_source);
-
 	printf("random: registering fast source %s\n", rsource->rs_ident);
 
+	random_healthtest_init(rsource->rs_source, rsource->rs_min_entropy);
+
 	RANDOM_HARVEST_LOCK();
+	hc_source_mask |= (1 << rsource->rs_source);
 	CK_LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
 	RANDOM_HARVEST_UNLOCK();
 }
@@ -874,9 +937,8 @@ random_source_deregister(const struct random_source *rsource)
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	random_harvest_deregister_source(rsource->rs_source);
-
 	RANDOM_HARVEST_LOCK();
+	hc_source_mask &= ~(1 << rsource->rs_source);
 	CK_LIST_FOREACH(rrs, &source_list, rrs_entries)
 		if (rrs->rrs_source == rsource) {
 			CK_LIST_REMOVE(rrs, rrs_entries);

@@ -4,3 +4,7 @@ lldb is a source-level debugger from the LLVM project.
 EOD
 
 licenses = [ NCSA ]
+
+annotations {
+	set = devel
+}

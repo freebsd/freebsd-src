@@ -813,4 +813,8 @@ FBSDprivate_1.0 {
 	__sys_getgroups;
 	_setgroups;
 	__sys_setgroups;
+	_jail_attach_jd;
+	__sys_jail_attach_jd;
+	_jail_remove_jd;
+	__sys_jail_remove_jd;
 };

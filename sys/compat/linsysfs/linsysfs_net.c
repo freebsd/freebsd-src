@@ -237,22 +237,22 @@ linsysfs_net_addif(if_t ifp, void *arg)
 
 	nic = pfs_find_node(dir, ifname);
 	if (nic == NULL) {
-		nic = pfs_create_dir(dir, ifname, NULL, linsysfs_if_visible,
+		pfs_create_dir(dir, &nic, ifname, NULL, linsysfs_if_visible,
 		    NULL, 0);
-		pfs_create_file(nic, "address", &linsysfs_if_addr,
+		pfs_create_file(nic, NULL, "address", &linsysfs_if_addr, NULL,
+		    NULL, NULL, PFS_RD);
+		pfs_create_file(nic, NULL, "addr_len", &linsysfs_if_addrlen,
 		    NULL, NULL, NULL, PFS_RD);
-		pfs_create_file(nic, "addr_len", &linsysfs_if_addrlen,
+		pfs_create_file(nic, NULL, "flags", &linsysfs_if_flags, NULL,
+		    NULL, NULL, PFS_RD);
+		pfs_create_file(nic, NULL, "ifindex", &linsysfs_if_ifindex,
 		    NULL, NULL, NULL, PFS_RD);
-		pfs_create_file(nic, "flags", &linsysfs_if_flags,
+		pfs_create_file(nic, NULL, "mtu", &linsysfs_if_mtu, NULL, NULL,
+		    NULL, PFS_RD);
+		pfs_create_file(nic, NULL, "tx_queue_len", &linsysfs_if_txq_len,
 		    NULL, NULL, NULL, PFS_RD);
-		pfs_create_file(nic, "ifindex", &linsysfs_if_ifindex,
-		    NULL, NULL, NULL, PFS_RD);
-		pfs_create_file(nic, "mtu", &linsysfs_if_mtu,
-		    NULL, NULL, NULL, PFS_RD);
-		pfs_create_file(nic, "tx_queue_len", &linsysfs_if_txq_len,
-		    NULL, NULL, NULL, PFS_RD);
-		pfs_create_file(nic, "type", &linsysfs_if_type,
-		NULL, NULL, NULL, PFS_RD);
+		pfs_create_file(nic, NULL, "type", &linsysfs_if_type, NULL,
+		    NULL, NULL, PFS_RD);
 	}
 	/*
 	 * There is a small window between registering the if_arrival

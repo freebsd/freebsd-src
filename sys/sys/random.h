@@ -142,9 +142,6 @@ random_harvest_direct(const void *entropy, u_int size, enum random_entropy_sourc
 		random_harvest_direct_(entropy, size, origin);
 }
 
-void random_harvest_register_source(enum random_entropy_source);
-void random_harvest_deregister_source(enum random_entropy_source);
-
 #if defined(RANDOM_ENABLE_UMA)
 #define random_harvest_fast_uma(a, b, c)	random_harvest_fast(a, b, c)
 #else /* !defined(RANDOM_ENABLE_UMA) */

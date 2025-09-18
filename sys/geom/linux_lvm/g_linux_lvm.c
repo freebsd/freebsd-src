@@ -537,7 +537,7 @@ g_llvm_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
-	gp = g_new_geomf(mp, "linux_lvm:taste");
+	gp = g_new_geom(mp, "linux_lvm:taste");
 	/* This orphan function should be never called. */
 	gp->orphan = g_llvm_taste_orphan;
 	cp = g_new_consumer(gp);
@@ -557,7 +557,7 @@ g_llvm_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	vg = md.md_vg;
 	if (vg->vg_geom == NULL) {
 		/* new volume group */
-		gp = g_new_geomf(mp, "%s", vg->vg_name);
+		gp = g_new_geom(mp, vg->vg_name);
 		gp->start = g_llvm_start;
 		gp->spoiled = g_llvm_orphan;
 		gp->orphan = g_llvm_orphan;

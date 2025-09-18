@@ -98,6 +98,12 @@ div64_u64_round_up(uint64_t dividend, uint64_t divisor)
 	return ((dividend + divisor - 1) / divisor);
 }
 
+static inline uint64_t
+roundup_u64(uint64_t x1, uint32_t x2)
+{
+	return (div_u64(x1 + x2 - 1, x2) * x2);
+}
+
 #define	DIV64_U64_ROUND_UP(...) \
 	div64_u64_round_up(__VA_ARGS__)
 

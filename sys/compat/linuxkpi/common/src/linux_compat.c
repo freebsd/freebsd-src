@@ -2120,7 +2120,7 @@ add_timer_on(struct timer_list *timer, int cpu)
 }
 
 int
-del_timer(struct timer_list *timer)
+timer_delete(struct timer_list *timer)
 {
 
 	if (callout_stop(&(timer)->callout) == -1)
@@ -2129,19 +2129,12 @@ del_timer(struct timer_list *timer)
 }
 
 int
-del_timer_sync(struct timer_list *timer)
+timer_delete_sync(struct timer_list *timer)
 {
 
 	if (callout_drain(&(timer)->callout) == -1)
 		return (0);
 	return (1);
-}
-
-int
-timer_delete_sync(struct timer_list *timer)
-{
-
-	return (del_timer_sync(timer));
 }
 
 int

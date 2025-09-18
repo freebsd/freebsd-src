@@ -549,7 +549,7 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 		}
 	}
 
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "multipath", NULL, MTX_DEF);
 	memcpy(sc->sc_uuid, md->md_uuid, sizeof(sc->sc_uuid));
@@ -821,7 +821,7 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 
-	gp = g_new_geomf(mp, "multipath:taste");
+	gp = g_new_geom(mp, "multipath:taste");
 	gp->start = g_multipath_start;
 	gp->access = g_multipath_access;
 	gp->orphan = g_multipath_orphan;
@@ -949,7 +949,6 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	const char *mpname;
-	static const char devpf[6] = _PATH_DEV;
 	int error;
 
 	g_topology_assert();
@@ -966,8 +965,6 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 	}
 	sc = gp->softc;
 
-	if (strncmp(name, devpf, 5) == 0)
-		name += 5;
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
 		gctl_error(req, "Provider %s is invalid", name);

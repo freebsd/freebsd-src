@@ -266,6 +266,7 @@ struct user {
 #define	KF_TYPE_EVENTFD	13
 #define	KF_TYPE_TIMERFD	14
 #define	KF_TYPE_INOTIFY	15
+#define	KF_TYPE_JAILDESC	16
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -452,6 +453,9 @@ struct kinfo_file {
 				uint32_t	kf_timerfd_flags;
 				uint64_t	kf_timerfd_addr;
 			} kf_timerfd;
+			struct {
+				int32_t		kf_jid;
+			} kf_jail;
 			struct {
 				uint64_t	kf_kqueue_addr;
 				int32_t		kf_kqueue_count;

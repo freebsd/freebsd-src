@@ -889,7 +889,7 @@ bootstrap_pkg(bool force, const char *fetchOpts, struct repository *repo)
 		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
 		    bootstrap_name);
 		snprintf(url, MAXPATHLEN, "%s/Latest/%s.pubkeysig",
-		    repo->url, bootstrap_name);
+		    packagesite, bootstrap_name);
 
 		if ((fd_sig = fetch_to_fd(repo, url, tmpsig, fetchOpts)) == -1) {
 			fprintf(stderr, "Signature for pkg not "

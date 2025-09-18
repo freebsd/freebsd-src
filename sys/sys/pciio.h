@@ -77,6 +77,9 @@ struct pci_conf {
 	u_int8_t	pc_revid;	/* chip revision ID */
 	char		pd_name[PCI_MAXNAMELEN + 1];  /* device name */
 	u_long		pd_unit;	/* device unit number */
+	int		pd_numa_domain;	/* device NUMA domain */
+	size_t		pc_reported_len;/* length of PCI data reported */
+	char		pc_spare[64];	/* space for future fields */
 };
 
 struct pci_match_conf {
@@ -165,7 +168,6 @@ struct pci_bar_ioreq {
 #define	PCIIO_BAR_MMAP_RW	0x04
 #define	PCIIO_BAR_MMAP_ACTIVATE	0x08
 
-#define	PCIOCGETCONF	_IOWR('p', 5, struct pci_conf_io)
 #define	PCIOCREAD	_IOWR('p', 2, struct pci_io)
 #define	PCIOCWRITE	_IOWR('p', 3, struct pci_io)
 #define	PCIOCATTACHED	_IOWR('p', 4, struct pci_io)
@@ -173,5 +175,6 @@ struct pci_bar_ioreq {
 #define	PCIOCLISTVPD	_IOWR('p', 7, struct pci_list_vpd_io)
 #define	PCIOCBARMMAP	_IOWR('p', 8, struct pci_bar_mmap)
 #define	PCIOCBARIO	_IOWR('p', 9, struct pci_bar_ioreq)
+#define	PCIOCGETCONF	_IOWR('p', 10, struct pci_conf_io)
 
 #endif /* !_SYS_PCIIO_H_ */
