@@ -40,6 +40,8 @@ ufshci_req_sdb_cmd_desc_destroy(struct ufshci_req_queue *req_queue)
 		bus_dma_tag_destroy(req_queue->dma_tag_ucd);
 		req_queue->dma_tag_ucd = NULL;
 	}
+
+	free(req_queue->hwq->ucd_bus_addr, M_UFSHCI);
 }
 
 static void
@@ -73,6 +75,10 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	size_t ucd_allocsz, payload_allocsz;
 	uint8_t *ucdmem;
 	int i, error;
+
+	req_queue->hwq->ucd_bus_addr = malloc(sizeof(bus_addr_t) *
+		req_queue->num_trackers,
+	    M_UFSHCI, M_ZERO | M_NOWAIT);
 
 	/*
 	 * Each component must be page aligned, and individual PRP lists
@@ -152,6 +158,9 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	uint64_t queuemem_phys;
 	uint8_t *queuemem;
 	struct ufshci_tracker *tr;
+	const size_t lock_name_len = 32;
+	char qlock_name[lock_name_len], recovery_lock_name[lock_name_len];
+	char *base;
 	int i, error;
 
 	req_queue->ctrlr = ctrlr;
@@ -169,11 +178,21 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	hwq = &req_queue->hwq[UFSHCI_SDB_Q];
 	hwq->num_entries = req_queue->num_entries;
 	hwq->num_trackers = req_queue->num_trackers;
-	req_queue->hwq->ucd_bus_addr = malloc(sizeof(bus_addr_t) *
-		req_queue->num_trackers,
-	    M_UFSHCI, M_ZERO | M_NOWAIT);
+	hwq->ctrlr = ctrlr;
+	hwq->req_queue = req_queue;
 
-	mtx_init(&hwq->qlock, "ufshci req_queue lock", NULL, MTX_DEF);
+	base = is_task_mgmt ? "ufshci utmrq" : "ufshci utrq";
+	snprintf(qlock_name, sizeof(qlock_name), "%s #%d lock", base,
+	    UFSHCI_SDB_Q);
+	snprintf(recovery_lock_name, sizeof(recovery_lock_name),
+	    "%s #%d recovery lock", base, UFSHCI_SDB_Q);
+
+	mtx_init(&hwq->qlock, qlock_name, NULL, MTX_DEF);
+	mtx_init(&hwq->recovery_lock, recovery_lock_name, NULL, MTX_DEF);
+
+	callout_init_mtx(&hwq->timer, &hwq->recovery_lock, 0);
+	hwq->timer_armed = false;
+	hwq->recovery_state = RECOVERY_WAITING;
 
 	/*
 	 * Allocate physical memory for request queue (UTP Transfer Request
@@ -219,6 +238,9 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 		req_queue->num_entries,
 	    M_UFSHCI, DOMAINSET_PREF(req_queue->domain), M_ZERO | M_WAITOK);
 
+	TAILQ_INIT(&hwq->free_tr);
+	TAILQ_INIT(&hwq->outstanding_tr);
+
 	for (i = 0; i < req_queue->num_trackers; i++) {
 		tr = malloc_domainset(sizeof(struct ufshci_tracker), M_UFSHCI,
 		    DOMAINSET_PREF(req_queue->domain), M_ZERO | M_WAITOK);
@@ -226,6 +248,7 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 		tr->req_queue = req_queue;
 		tr->slot_num = i;
 		tr->slot_state = UFSHCI_SLOT_STATE_FREE;
+		TAILQ_INSERT_HEAD(&hwq->free_tr, tr, tailq);
 
 		hwq->act_tr[i] = tr;
 	}
@@ -255,8 +278,6 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 			ctrlr) != 0) {
 			ufshci_printf(ctrlr,
 			    "failed to construct cmd descriptor memory\n");
-			bus_dmamem_free(hwq->dma_tag_queue, hwq->utrd,
-			    hwq->queuemem_map);
 			goto out;
 		}
 
@@ -279,6 +300,11 @@ ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
 	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
 	struct ufshci_tracker *tr;
 	int i;
+
+	mtx_lock(&hwq->recovery_lock);
+	hwq->timer_armed = false;
+	mtx_unlock(&hwq->recovery_lock);
+	callout_drain(&hwq->timer);
 
 	if (!req_queue->is_task_mgmt)
 		ufshci_req_sdb_cmd_desc_destroy(&ctrlr->transfer_req_queue);
@@ -305,10 +331,11 @@ ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
 		hwq->dma_tag_queue = NULL;
 	}
 
+	if (mtx_initialized(&hwq->recovery_lock))
+		mtx_destroy(&hwq->recovery_lock);
 	if (mtx_initialized(&hwq->qlock))
 		mtx_destroy(&hwq->qlock);
 
-	free(req_queue->hwq->ucd_bus_addr, M_UFSHCI);
 	free(req_queue->hwq, M_UFSHCI);
 }
 
@@ -318,10 +345,36 @@ ufshci_req_sdb_get_hw_queue(struct ufshci_req_queue *req_queue)
 	return &req_queue->hwq[UFSHCI_SDB_Q];
 }
 
+void
+ufshci_req_sdb_disable(struct ufshci_controller *ctrlr,
+    struct ufshci_req_queue *req_queue)
+{
+	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
+	struct ufshci_tracker *tr, *tr_temp;
+
+	mtx_lock(&hwq->recovery_lock);
+	mtx_lock(&hwq->qlock);
+
+	if (mtx_initialized(&hwq->recovery_lock))
+		mtx_assert(&hwq->recovery_lock, MA_OWNED);
+	if (mtx_initialized(&hwq->qlock))
+		mtx_assert(&hwq->qlock, MA_OWNED);
+
+	hwq->recovery_state = RECOVERY_WAITING;
+	TAILQ_FOREACH_SAFE(tr, &hwq->outstanding_tr, tailq, tr_temp) {
+		tr->deadline = SBT_MAX;
+	}
+
+	mtx_unlock(&hwq->qlock);
+	mtx_unlock(&hwq->recovery_lock);
+}
+
 int
 ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue)
 {
+	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
+
 	if (req_queue->is_task_mgmt) {
 		uint32_t hcs, utmrldbr, utmrlrsr;
 
@@ -372,6 +425,14 @@ ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
 		utrlrsr = UFSHCIM(UFSHCI_UTRLRSR_REG_UTRLRSR);
 		ufshci_mmio_write_4(ctrlr, utrlrsr, utrlrsr);
 	}
+
+	if (mtx_initialized(&hwq->recovery_lock))
+		mtx_assert(&hwq->recovery_lock, MA_OWNED);
+	if (mtx_initialized(&hwq->qlock))
+		mtx_assert(&hwq->qlock, MA_OWNED);
+	KASSERT(!req_queue->ctrlr->is_failed, ("Enabling a failed hwq\n"));
+
+	hwq->recovery_state = RECOVERY_NONE;
 
 	return (0);
 }
@@ -465,6 +526,8 @@ ufshci_req_sdb_process_cpl(struct ufshci_req_queue *req_queue)
 	struct ufshci_tracker *tr;
 	uint8_t slot;
 	bool done = false;
+
+	mtx_assert(&hwq->recovery_lock, MA_OWNED);
 
 	hwq->num_intr_handler_calls++;
 

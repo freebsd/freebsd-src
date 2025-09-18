@@ -68,7 +68,6 @@ struct ufshci_request {
 	bool is_admin;
 	int32_t retries;
 	bool payload_valid;
-	bool timeout;
 	bool spare[2]; /* Future use */
 	STAILQ_ENTRY(ufshci_request) stailq;
 };
@@ -82,6 +81,7 @@ enum ufshci_slot_state {
 };
 
 struct ufshci_tracker {
+	TAILQ_ENTRY(ufshci_tracker) tailq;
 	struct ufshci_request *req;
 	struct ufshci_req_queue *req_queue;
 	struct ufshci_hw_queue *hwq;
@@ -121,6 +121,8 @@ struct ufshci_qops {
 	    struct ufshci_req_queue *req_queue);
 	int (*enable)(struct ufshci_controller *ctrlr,
 	    struct ufshci_req_queue *req_queue);
+	void (*disable)(struct ufshci_controller *ctrlr,
+	    struct ufshci_req_queue *req_queue);
 	int (*reserve_slot)(struct ufshci_req_queue *req_queue,
 	    struct ufshci_tracker **tr);
 	int (*reserve_admin_slot)(struct ufshci_req_queue *req_queue,
@@ -137,15 +139,26 @@ struct ufshci_qops {
 
 #define UFSHCI_SDB_Q 0 /* Queue number for a single doorbell queue */
 
+enum ufshci_recovery {
+	RECOVERY_NONE = 0, /* Normal operations */
+	RECOVERY_WAITING,  /* waiting for the reset to complete */
+};
+
 /*
  * Generic queue container used by both SDB (fixed 32-slot bitmap) and MCQ
  * (ring buffer) modes. Fields are shared; some such as sq_head, sq_tail and
  * cq_head are not used in SDB but used in MCQ.
  */
 struct ufshci_hw_queue {
+	struct ufshci_controller *ctrlr;
+	struct ufshci_req_queue *req_queue;
 	uint32_t id;
 	int domain;
 	int cpu;
+
+	struct callout timer;		     /* recovery lock */
+	bool timer_armed;		     /* recovery lock */
+	enum ufshci_recovery recovery_state; /* recovery lock */
 
 	union {
 		struct ufshci_utp_xfer_req_desc *utrd;
@@ -160,6 +173,9 @@ struct ufshci_hw_queue {
 
 	uint32_t num_entries;
 	uint32_t num_trackers;
+
+	TAILQ_HEAD(, ufshci_tracker) free_tr;
+	TAILQ_HEAD(, ufshci_tracker) outstanding_tr;
 
 	/*
 	 * A Request List using the single doorbell method uses a dedicated
@@ -177,7 +193,13 @@ struct ufshci_hw_queue {
 	int64_t num_retries;
 	int64_t num_failures;
 
+	/*
+	 * Each lock may be acquired independently.
+	 * When both are required, acquire them in this order to avoid
+	 * deadlocks. (recovery_lock -> qlock)
+	 */
 	struct mtx_padalign qlock;
+	struct mtx_padalign recovery_lock;
 };
 
 struct ufshci_req_queue {
@@ -242,6 +264,9 @@ struct ufshci_controller {
 	4 /* Need to wait 1250us after power mode change */
 #define UFSHCI_QUIRK_CHANGE_LANE_AND_GEAR_SEPARATELY \
 	8 /* Need to change the number of lanes before changing HS-GEAR. */
+#define UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK \
+	16 /* QEMU does not support Task Management Request */
+
 	uint32_t ref_clk;
 
 	struct cam_sim *ufshci_sim;
@@ -264,6 +289,9 @@ struct ufshci_controller {
 	/* Fields for tracking progress during controller initialization. */
 	struct intr_config_hook config_hook;
 
+	struct task reset_task;
+	struct taskqueue *taskqueue;
+
 	/* For shared legacy interrupt. */
 	int rid;
 	struct resource *res;
@@ -271,6 +299,8 @@ struct ufshci_controller {
 
 	uint32_t major_version;
 	uint32_t minor_version;
+
+	uint32_t enable_aborts;
 
 	uint32_t num_io_queues;
 	uint32_t max_hw_pend_io;
@@ -345,7 +375,7 @@ void ufshci_sim_detach(struct ufshci_controller *ctrlr);
 /* Controller */
 int ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev);
-int ufshci_ctrlr_reset(struct ufshci_controller *ctrlr);
+void ufshci_ctrlr_reset(struct ufshci_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void ufshci_ctrlr_start_config_hook(void *arg);
 void ufshci_ctrlr_poll(struct ufshci_controller *ctrlr);
@@ -388,7 +418,9 @@ int ufshci_utmr_req_queue_construct(struct ufshci_controller *ctrlr);
 int ufshci_utr_req_queue_construct(struct ufshci_controller *ctrlr);
 void ufshci_utmr_req_queue_destroy(struct ufshci_controller *ctrlr);
 void ufshci_utr_req_queue_destroy(struct ufshci_controller *ctrlr);
+void ufshci_utmr_req_queue_disable(struct ufshci_controller *ctrlr);
 int ufshci_utmr_req_queue_enable(struct ufshci_controller *ctrlr);
+void ufshci_utr_req_queue_disable(struct ufshci_controller *ctrlr);
 int ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr);
 void ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
     struct ufshci_hw_queue *hwq);
@@ -403,6 +435,8 @@ int ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 void ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
 struct ufshci_hw_queue *ufshci_req_sdb_get_hw_queue(
+    struct ufshci_req_queue *req_queue);
+void ufshci_req_sdb_disable(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
 int ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
@@ -489,13 +523,12 @@ _ufshci_allocate_request(const int how, ufshci_cb_fn_t cb_fn, void *cb_arg)
 	struct ufshci_request *req;
 
 	KASSERT(how == M_WAITOK || how == M_NOWAIT,
-	    ("nvme_allocate_request: invalid how %d", how));
+	    ("ufshci_allocate_request: invalid how %d", how));
 
 	req = malloc(sizeof(*req), M_UFSHCI, how | M_ZERO);
 	if (req != NULL) {
 		req->cb_fn = cb_fn;
 		req->cb_arg = cb_arg;
-		req->timeout = true;
 	}
 	return (req);
 }
