@@ -122,15 +122,15 @@
         resolvconf
         ..
     ..
-    media
+    media           tags=package=runtime
     ..
-    mnt
+    mnt             tags=package=runtime
     ..
-    net
+    net             tags=package=autofs
     ..
-    proc            mode=0555
+    proc            mode=0555 tags=package=runtime
     ..
-    rescue
+    rescue          tags=package=rescue
     ..
     root            mode=0750
     ..
