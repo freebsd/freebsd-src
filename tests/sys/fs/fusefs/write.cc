@@ -32,9 +32,11 @@ extern "C" {
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <sys/un.h>
 
 #include <aio.h>
 #include <fcntl.h>
@@ -1396,6 +1398,77 @@ TEST_F(WriteBackAsync, eof)
 	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
 	EXPECT_EQ(offset + wbufsize, sb.st_size);
 	leak(fd);
+}
+
+/*
+ * Nothing bad should happen if a file with a dirty writeback cache is closed
+ * while the last copy lies in some socket's socket buffer.  Inspired by bug
+ * 289686 .
+ */
+TEST_F(WriteBackAsync, scm_rights)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	int s[2];
+	struct msghdr msg;
+	struct iovec iov;
+	char message[CMSG_SPACE(sizeof(int))];
+	union {
+		char buf[CMSG_SPACE(sizeof(fd))];
+		struct cmsghdr align;
+	} u;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	/* VOP_SETATTR will try to set timestamps during flush */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.size = bufsize;
+	})));
+
+	expect_write(ino, 0, bufsize, bufsize, CONTENTS);
+	expect_flush(ino, 1, ReturnErrno(0));
+	expect_release(ino, ReturnErrno(0));
+
+	/* Open a file on the fusefs file system */
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	/* Write to the file to dirty its writeback cache */
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+
+	/* Send the file into a socket */
+	ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, s)) << strerror(errno);
+	memset(&message, 0, sizeof(message));
+	memset(&msg, 0, sizeof(msg));
+	iov.iov_base = NULL;
+	iov.iov_len = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = u.buf,
+	msg.msg_controllen = sizeof(u.buf);
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+	memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+	ASSERT_GE(sendmsg(s[0], &msg, 0), 0) << strerror(errno);
+
+	close(fd);	// Close fd within our process
+	close(s[0]);
+	close(s[1]);	// The last copy of fd is within this socket's rcvbuf
 }
 
 /* 
