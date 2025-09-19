@@ -1,5 +1,4 @@
 [![Run Linux CI tasks](https://github.com/libexpat/libexpat/actions/workflows/linux.yml/badge.svg)](https://github.com/libexpat/libexpat/actions/workflows/linux.yml)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/libexpat/libexpat?svg=true)](https://ci.appveyor.com/project/libexpat/libexpat)
 [![Packaging status](https://repology.org/badge/tiny-repos/expat.svg)](https://repology.org/metapackage/expat/versions)
 [![Downloads SourceForge](https://img.shields.io/sourceforge/dt/expat?label=Downloads%20SourceForge)](https://sourceforge.net/projects/expat/files/)
 [![Downloads GitHub](https://img.shields.io/github/downloads/libexpat/libexpat/total?label=Downloads%20GitHub)](https://github.com/libexpat/libexpat/releases)
@@ -12,7 +11,7 @@
 > at the top of the `Changes` file.
 
 
-# Expat, Release 2.7.1
+# Expat, Release 2.7.2
 
 This is Expat, a C99 library for parsing
 [XML 1.0 Fourth Edition](https://www.w3.org/TR/2006/REC-xml-20060816/), started by
@@ -27,7 +26,8 @@ Expat supports the following C99 compilers:
 
 - GNU GCC >=4.5 (for use from C) or GNU GCC >=4.8.1 (for use from C++)
 - LLVM Clang >=3.5
-- Microsoft Visual Studio >=16.0/2019 (rolling `${today} minus 5 years`)
+- Microsoft Visual Studio >=17.0/2022
+  (the oldest version supported by the [official GitHub Actions Windows images](https://github.com/actions/runner-images))
 
 Windows users can use the
 [`expat-win32bin-*.*.*.{exe,zip}` download](https://github.com/libexpat/libexpat/releases),
