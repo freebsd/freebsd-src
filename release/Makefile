@@ -195,8 +195,9 @@ PKG_ABI=	$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/usr/bin/uname config ABI)
 
 pkgbase-repo:
 	mkdir -p pkgbase-repo
+	mkdir -p /tmp/ports /tmp/distfiles
 	( ${IMAKE} -C ${WORLDDIR} packages REPODIR=${.OBJDIR}/pkgbase-repo \
-	    INCLUDE_PKG_IN_PKGBASE_REPO=YES )
+	    INCLUDE_PKG_IN_PKGBASE_REPO=YES BOOTSTRAP_PKG_FROM_PORTS=YES )
 
 disc1: ${PKGBASE_REPO}
 # Install system
