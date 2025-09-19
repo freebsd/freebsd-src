@@ -39,6 +39,23 @@
 
 #define	VIRT_BITS	48
 
+/*
+ * Loads a 64-bit value into reg using 1 to 4 mov/movk instructions.
+ * This can be used early on when we don't know the CPUs endianness.
+ */
+.macro	mov_q reg, val
+	mov	\reg, :abs_g0_nc:\val
+.if (\val >> 16) & 0xffff != 0
+	movk	\reg, :abs_g1_nc:\val
+.endif
+.if (\val >> 32) & 0xffff != 0
+	movk	\reg, :abs_g2_nc:\val
+.endif
+.if (\val >> 48) & 0xffff != 0
+	movk	\reg, :abs_g3:\val
+.endif
+.endm
+
 #if PAGE_SIZE == PAGE_SIZE_16K
 /*
  * The number of level 3 tables to create. 32 will allow for 1G of address
@@ -324,15 +341,23 @@ LENTRY(enter_kernel_el)
 	cmp	x23, #(CURRENTEL_EL_EL2)
 	b.eq	1f
 
-	ldr	x2, =SCTLR_MMU_OFF
+	/*
+	 * Ensure there are no memory operations here. If the boot loader
+	 * enters the kernel in big-endian mode then loading sctlr will
+	 * be incorrect. As instructions are the same in both endians it is
+	 * safe to use mov instructions.
+	 */
+	mov_q	x2, SCTLR_MMU_OFF
 	msr	sctlr_el1, x2
-	/* SCTLR_EOS is set so eret is a context synchronizing event so we
+	/*
+	 * SCTLR_EOS is set to make eret a context synchronizing event. We
 	 * need an isb here to ensure it's observed by later instructions,
 	 * but don't need it in the eret below.
 	 */
 	isb
 
-	/* Ensure SPSR_EL1 and pstate are in sync. The only wat to set the
+	/*
+	 * Ensure SPSR_EL1 and pstate are in sync. The only way to set the
 	 * latter is to set the former and return from an exception with eret.
 	 */
 	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
@@ -346,10 +371,18 @@ LENTRY(enter_kernel_el)
 	 * Set just the reserved bits in sctlr_el2. This will disable the
 	 * MMU which may have broken the kernel if we enter the kernel in
 	 * EL2, e.g. when using VHE.
+	 *
+	 * As with sctlr_el1 above use mov instructions to ensure there are
+	 * no memory operations.
 	 */
-	ldr	x2, =(SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
+	mov_q	x2, (SCTLR_EL2_RES1 | SCTLR_EL2_EIS | SCTLR_EL2_EOS)
 	msr	sctlr_el2, x2
 	isb
+
+	/*
+	 * The hardware is now in little-endian mode so memory operations
+	 * are safe.
+	 */
 
 	/* Configure the Hypervisor */
 	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
