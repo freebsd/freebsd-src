@@ -1137,7 +1137,38 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_cmpset_short	atomic_cmpset_16
 #define	atomic_fcmpset_char	atomic_fcmpset_8
 #define	atomic_fcmpset_short	atomic_fcmpset_16
-#endif
+#define	atomic_set_short	atomic_set_16
+#define	atomic_clear_short	atomic_clear_16
+#else
+
+static __inline void
+atomic_set_short(volatile u_short *p, u_short bit)
+{
+	u_short v;
+
+	v = atomic_load_short(p);
+	for (;;) {
+		if (atomic_fcmpset_16(p, &v, v | bit))
+			break;
+	}
+}
+
+static __inline void
+atomic_clear_short(volatile u_short *p, u_short bit)
+{
+	u_short v;
+
+	v = atomic_load_short(p);
+	for (;;) {
+		if (atomic_fcmpset_16(p, &v, v & ~bit))
+			break;
+	}
+}
+
+#define	atomic_set_16		atomic_set_short
+#define	atomic_clear_16		atomic_clear_short
+
+#endif	/* ISA_206_ATOMICS */
 
 /* These need sys/_atomic_subword.h on non-ISA-2.06-atomic platforms. */
 ATOMIC_CMPSET_ACQ_REL(char);

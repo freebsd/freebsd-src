@@ -205,4 +205,32 @@ atomic_load_acq_16(const volatile uint16_t *p)
 #undef _ATOMIC_BYTE_SHIFT
 #undef _ATOMIC_HWORD_SHIFT
 
+#ifndef atomic_set_16
+static __inline void
+atomic_set_16(volatile uint16_t *p, uint16_t bit)
+{
+	uint16_t v;
+
+	v = atomic_load_16(p);
+	for (;;) {
+		if (atomic_fcmpset_16(p, &v, v | bit))
+			break;
+	}
+}
+#endif
+
+#ifndef atomic_clear_16
+static __inline void
+atomic_clear_16(volatile uint16_t *p, uint16_t bit)
+{
+	uint16_t v;
+
+	v = atomic_load_16(p);
+	for (;;) {
+		if (atomic_fcmpset_16(p, &v, v & ~bit))
+			break;
+	}
+}
+#endif
+
 #endif	/* _SYS__ATOMIC_SUBWORD_H_ */
