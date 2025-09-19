@@ -2617,10 +2617,12 @@
     (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_EIS | SCTLR_TSCXT | SCTLR_EOS)
 #define	SCTLR_MMU_ON			\
     (SCTLR_MMU_OFF |			\
+     SCTLR_EPAN |			\
      SCTLR_BT1 |			\
      SCTLR_BT0 |			\
      SCTLR_UCI |			\
      SCTLR_SPAN |			\
+     SCTLR_IESB |			\
      SCTLR_nTWE |			\
      SCTLR_nTWI |			\
      SCTLR_UCT |			\
