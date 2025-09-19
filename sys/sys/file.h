@@ -197,7 +197,7 @@ struct file {
 	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
 	struct ucred	*f_cred;	/* associated credentials. */
 	short		f_type;		/* descriptor type */
-	short		f_vflags;	/* (f) Sleep lock flags for members */
+	short		f_vnread_flags; /* (f) Sleep lock for f_offset */
 	/*
 	 *  DTYPE_VNODE specific fields.
 	 */
@@ -220,8 +220,8 @@ struct file {
 #define	f_cdevpriv	f_vnun.fvn_cdevpriv
 #define	f_advice	f_vnun.fvn_advice
 
-#define	FILE_V_FOFFSET_LOCKED		0x0001
-#define	FILE_V_FOFFSET_LOCK_WAITING	0x0002
+#define	FOFFSET_LOCKED       0x1
+#define	FOFFSET_LOCK_WAITING 0x2
 #endif /* __BSD_VISIBLE */
 
 #endif /* _KERNEL || _WANT_FILE */
