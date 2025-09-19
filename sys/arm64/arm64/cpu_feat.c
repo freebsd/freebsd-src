@@ -78,10 +78,11 @@ enable_cpu_feat(uint32_t stage)
 		    PCPU_GET(cpuid) != 0)
 			continue;
 
-		if (feat->feat_check != NULL)
-			continue;
-
-		check_status = feat->feat_check(feat, midr);
+		if (feat->feat_check != NULL) {
+			check_status = feat->feat_check(feat, midr);
+		} else {
+			check_status = FEAT_DEFAULT_ENABLE;
+		}
 		/* Ignore features that are not present */
 		if (check_status == FEAT_ALWAYS_DISABLE)
 			goto next;
