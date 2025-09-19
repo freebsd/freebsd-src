@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 10, 2020
+.Dd September 19, 2025
 .Dt VNET 9
 .Os
 .Sh NAME
@@ -162,26 +162,6 @@
 .Fa "int priority"
 .Fc
 .\" ------------------------------------------------------------
-.Ss "Sysctl Handling"
-.Fo SYSCTL_VNET_INT
-.Fa parent nbr name access ptr val descr
-.Fc
-.Fo SYSCTL_VNET_PROC
-.Fa parent nbr name access ptr arg handler fmt descr
-.Fc
-.Fo SYSCTL_VNET_STRING
-.Fa parent nbr name access arg len descr
-.Fc
-.Fo SYSCTL_VNET_STRUCT
-.Fa parent nbr name access ptr type descr
-.Fc
-.Fo SYSCTL_VNET_UINT
-.Fa parent nbr name access ptr val descr
-.Fc
-.Fo VNET_SYSCTL_ARG
-.Fa req arg1
-.Fc
-.\" ------------------------------------------------------------
 .Sh DESCRIPTION
 .Nm
 is the name of a technique to virtualize the network stack.
@@ -250,9 +230,6 @@ The
 .Fn VNET_NAME
 macro returns the offset within the memory region of the virtual network
 stack instance.
-It is usually only used with
-.Fn SYSCTL_VNET_*
-macros.
 .\" ------------------------------------------------------------
 .Ss "Virtual Instance Selection"
 .\"
@@ -459,30 +436,9 @@ call will be ignored.
 .\"
 A
 .Xr sysctl 9
-can be virtualized by using one of the
-.Fn SYSCTL_VNET_*
-macros.
-.Pp
-They take the same arguments as the standard
-.Xr sysctl 9
-functions, with the only difference, that the
-.Fa ptr
-argument has to be passed as
-.Ql &VNET_NAME(foo)
-instead of
-.Ql &foo
-so that the variable can be selected from the correct memory
-region of the virtual network stack instance of the caller.
-.Pp
-For the very rare case a sysctl handler function would want to
-handle
-.Fa arg1
-itself the
-.Fn VNET_SYSCTL_ARG req arg1
-is provided that will translate the
-.Fa arg1
-argument to the correct memory address in the virtual network stack
-context of the caller.
+can be virtualized by adding the
+.Dv CTLFLAG_VNET
+control flag to the ctlflags bitmask of the macros.
 .\" ------------------------------------------------------------
 .Sh SEE ALSO
 .Xr jail 2 ,
