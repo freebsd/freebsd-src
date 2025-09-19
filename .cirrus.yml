@@ -194,11 +194,13 @@ precommit_task:
   matrix:
     - name: amd64 smoke test using internal ci systems
       only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      trigger_type: manual
       env:
         TARGET: amd64
         TARGET_ARCH: amd64
     - name: aarch64 smoke test using internal ci systems
       only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      trigger_type: manual
       env:
         TARGET: arm64
         TARGET_ARCH: aarch64
