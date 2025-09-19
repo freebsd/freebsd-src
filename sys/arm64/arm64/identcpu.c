@@ -2353,7 +2353,7 @@ user_ctr_enable(const struct cpu_feat *feat __unused,
 }
 
 CPU_FEAT(trap_ctr, "Trap CTR_EL0",
-    user_ctr_check, user_ctr_has_errata, user_ctr_enable,
+    user_ctr_check, user_ctr_has_errata, user_ctr_enable, NULL,
     CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
 static bool

@@ -1722,7 +1722,7 @@ pmap_dbm_enable(const struct cpu_feat *feat __unused,
 }
 
 CPU_FEAT(feat_hafdbs, "Hardware management of the Access flag and dirty state",
-    pmap_dbm_check, pmap_dbm_has_errata, pmap_dbm_enable,
+    pmap_dbm_check, pmap_dbm_has_errata, pmap_dbm_enable, NULL,
     CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
 static cpu_feat_en
@@ -1767,7 +1767,7 @@ pmap_multiple_tlbi_enable(const struct cpu_feat *feat __unused,
 }
 
 CPU_FEAT(errata_multi_tlbi, "Multiple TLBI errata",
-    pmap_multiple_tlbi_check, NULL, pmap_multiple_tlbi_enable,
+    pmap_multiple_tlbi_check, NULL, pmap_multiple_tlbi_enable, NULL,
     CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU);
 
 /*
