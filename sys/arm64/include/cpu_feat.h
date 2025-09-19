@@ -73,6 +73,9 @@ typedef enum {
 #define	CPU_FEAT_PER_CPU	0x00000000
 #define	CPU_FEAT_SYSTEM		0x00000010
 
+#define	CPU_FEAT_USER_ENABLED	0x40000000
+#define	CPU_FEAT_USER_DISABLED	0x80000000
+
 struct cpu_feat;
 
 typedef cpu_feat_en (cpu_feat_check)(const struct cpu_feat *, u_int);
