@@ -572,6 +572,15 @@ rss(void)
 	return (sel);
 }
 
+static __inline u_short
+rcs(void)
+{
+	u_short sel;
+
+	__asm __volatile("movw %%cs,%0" : "=rm" (sel));
+	return (sel);
+}
+
 static __inline void
 load_ds(u_short sel)
 {
