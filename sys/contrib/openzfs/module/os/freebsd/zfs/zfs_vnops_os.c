@@ -1561,7 +1561,6 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	objset_t	*os;
 	caddr_t		outbuf;
 	size_t		bufsize;
-	ssize_t		orig_resid;
 	zap_cursor_t	zc;
 	zap_attribute_t	zap;
 	uint_t		bytes_wanted;
@@ -1610,7 +1609,6 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	error = 0;
 	os = zfsvfs->z_os;
 	offset = zfs_uio_offset(uio);
-	orig_resid = zfs_uio_resid(uio);
 	prefetch = zp->z_zn_prefetch;
 
 	/*
@@ -1788,7 +1786,7 @@ update:
 		kmem_free(outbuf, bufsize);
 
 	if (error == ENOENT)
-		error = orig_resid == zfs_uio_resid(uio) ? EINVAL : 0;
+		error = 0;
 
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 
