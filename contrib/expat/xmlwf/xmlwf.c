@@ -11,7 +11,7 @@
    Copyright (c) 2001-2003 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2004-2009 Karl Waclawek <karl@waclawek.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
    Copyright (c) 2020      Joe Orton <jorton@redhat.com>
@@ -305,7 +305,7 @@ static XML_Char *
 xcsdup(const XML_Char *s) {
   XML_Char *result;
   int count = 0;
-  int numBytes;
+  size_t numBytes;
 
   /* Get the length of the string, including terminator */
   while (s[count++] != 0) {
@@ -913,11 +913,11 @@ usage(const XML_Char *prog, int rc) {
       T("  -t             write no XML output for [t]iming of plain parsing\n")
       T("  -N             enable adding doctype and [n]otation declarations\n")
       T("\n")
-      T("billion laughs attack protection:\n")
+      T("amplification attack protection (e.g. billion laughs):\n")
       T("  NOTE: If you ever need to increase these values for non-attack payload, please file a bug report.\n")
       T("\n")
       T("  -a FACTOR      set maximum tolerated [a]mplification factor (default: 100.0)\n")
-      T("  -b BYTES       set number of output [b]ytes needed to activate (default: 8 MiB)\n")
+      T("  -b BYTES       set number of output [b]ytes needed to activate (default: 8 MiB/64 MiB)\n")
       T("\n")
       T("reparse deferral:\n")
       T("  -q             disable reparse deferral, and allow [q]uadratic parse runtime with large tokens\n")
@@ -925,6 +925,16 @@ usage(const XML_Char *prog, int rc) {
       T("info arguments:\n")
       T("  -h, --help     show this [h]elp message and exit\n")
       T("  -v, --version  show program's [v]ersion number and exit\n")
+      T("\n")
+      T("environment variables:\n")
+      T("  EXPAT_ACCOUNTING_DEBUG=(0|1|2|3)\n")
+      T("                 Control verbosity of accounting debugging (default: 0)\n")
+      T("  EXPAT_ENTITY_DEBUG=(0|1)\n")
+      T("                 Control verbosity of entity debugging (default: 0)\n")
+      T("  EXPAT_ENTROPY_DEBUG=(0|1)\n")
+      T("                 Control verbosity of entropy debugging (default: 0)\n")
+      T("  EXPAT_MALLOC_DEBUG=(0|1|2)\n")
+      T("                 Control verbosity of allocation tracker (default: 0)\n")
       T("\n")
       T("exit status:\n")
       T("  0              the input files are well-formed and the output (if requested) was written successfully\n")
@@ -1171,12 +1181,15 @@ tmain(int argc, XML_Char **argv) {
 #if XML_GE == 1
       XML_SetBillionLaughsAttackProtectionMaximumAmplification(
           parser, attackMaximumAmplification);
+      XML_SetAllocTrackerMaximumAmplification(parser,
+                                              attackMaximumAmplification);
 #endif
     }
     if (attackThresholdGiven) {
 #if XML_GE == 1
       XML_SetBillionLaughsAttackProtectionActivationThreshold(
           parser, attackThresholdBytes);
+      XML_SetAllocTrackerActivationThreshold(parser, attackThresholdBytes);
 #else
       (void)attackThresholdBytes; // silence -Wunused-but-set-variable
 #endif

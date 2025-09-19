@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2024 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -89,15 +89,15 @@ start_element_event_handler2(void *userData, const XML_Char *name,
                              const XML_Char **attr) {
   StructData *storage = (StructData *)userData;
   UNUSED_P(attr);
-  StructData_AddItem(storage, name, XML_GetCurrentColumnNumber(g_parser),
-                     XML_GetCurrentLineNumber(g_parser), STRUCT_START_TAG);
+  StructData_AddItem(storage, name, (int)XML_GetCurrentColumnNumber(g_parser),
+                     (int)XML_GetCurrentLineNumber(g_parser), STRUCT_START_TAG);
 }
 
 void XMLCALL
 end_element_event_handler2(void *userData, const XML_Char *name) {
   StructData *storage = (StructData *)userData;
-  StructData_AddItem(storage, name, XML_GetCurrentColumnNumber(g_parser),
-                     XML_GetCurrentLineNumber(g_parser), STRUCT_END_TAG);
+  StructData_AddItem(storage, name, (int)XML_GetCurrentColumnNumber(g_parser),
+                     (int)XML_GetCurrentLineNumber(g_parser), STRUCT_END_TAG);
 }
 
 void XMLCALL
@@ -132,7 +132,7 @@ counting_start_element_handler(void *userData, const XML_Char *name,
     fail("ID not present");
     return;
   }
-  if (id != -1 && xcstrcmp(atts[id], info->id_name)) {
+  if (id != -1 && xcstrcmp(atts[id], info->id_name) != 0) {
     fail("ID does not have the correct name");
     return;
   }
@@ -147,7 +147,7 @@ counting_start_element_handler(void *userData, const XML_Char *name,
       fail("Attribute not recognised");
       return;
     }
-    if (xcstrcmp(atts[1], attr->value)) {
+    if (xcstrcmp(atts[1], attr->value) != 0) {
       fail("Attribute has wrong value");
       return;
     }
@@ -1110,7 +1110,7 @@ external_entity_devaluer(XML_Parser parser, const XML_Char *context,
   UNUSED_P(publicId);
   if (systemId == NULL || ! xcstrcmp(systemId, XCS("bar")))
     return XML_STATUS_OK;
-  if (xcstrcmp(systemId, XCS("foo")))
+  if (xcstrcmp(systemId, XCS("foo")) != 0)
     fail("Unexpected system ID");
   ext_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
   if (ext_parser == NULL)
@@ -1276,7 +1276,7 @@ external_entity_duff_loader(XML_Parser parser, const XML_Char *context,
   UNUSED_P(publicId);
   /* Try a few different allocation levels */
   for (i = 0; i < max_alloc_count; i++) {
-    g_allocation_count = i;
+    g_allocation_count = (int)i;
     new_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
     if (new_parser != NULL) {
       XML_ParserFree(new_parser);
@@ -1552,15 +1552,16 @@ verify_attlist_decl_handler(void *userData, const XML_Char *element_name,
                             const XML_Char *default_value, int is_required) {
   AttTest *at = (AttTest *)userData;
 
-  if (xcstrcmp(element_name, at->element_name))
+  if (xcstrcmp(element_name, at->element_name) != 0)
     fail("Unexpected element name in attribute declaration");
-  if (xcstrcmp(attr_name, at->attr_name))
+  if (xcstrcmp(attr_name, at->attr_name) != 0)
     fail("Unexpected attribute name in attribute declaration");
-  if (xcstrcmp(attr_type, at->attr_type))
+  if (xcstrcmp(attr_type, at->attr_type) != 0)
     fail("Unexpected attribute type in attribute declaration");
   if ((default_value == NULL && at->default_value != NULL)
       || (default_value != NULL && at->default_value == NULL)
-      || (default_value != NULL && xcstrcmp(default_value, at->default_value)))
+      || (default_value != NULL
+          && xcstrcmp(default_value, at->default_value) != 0))
     fail("Unexpected default value in attribute declaration");
   if (is_required != at->is_required)
     fail("Requirement mismatch in attribute declaration");
@@ -1751,7 +1752,7 @@ param_entity_match_handler(void *userData, const XML_Char *entityName,
      * going to overflow an int.
      */
     if (value_length != (int)xcstrlen(entity_value_to_match)
-        || xcstrncmp(value, entity_value_to_match, value_length)) {
+        || xcstrncmp(value, entity_value_to_match, value_length) != 0) {
       entity_match_flag = ENTITY_MATCH_FAIL;
     } else {
       entity_match_flag = ENTITY_MATCH_SUCCESS;
