@@ -29,6 +29,9 @@
  */
 
 extern "C" {
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #include <fcntl.h>
 #include <unistd.h>
 }
@@ -186,6 +189,57 @@ TEST_F(Release, ok)
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(0, close(fd)) << strerror(errno);
+}
+
+/*
+ * Nothing bad should happen when closing a Unix-domain named socket that
+ * contains a fusefs file descriptor within its receive buffer.
+ * Regression test for
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=289686
+ */
+TEST_F(Release, scm_rights)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	struct msghdr msg;
+	struct iovec iov;
+	char message[CMSG_SPACE(sizeof(int))];
+	uint64_t ino = 42;
+	int fd;
+	int s[2];
+	union {
+		char buf[CMSG_SPACE(sizeof(fd))];
+		struct cmsghdr align;
+	} u;
+
+	expect_lookup(RELPATH, ino, 1);
+	expect_open(ino, 0, 1);
+	expect_flush(ino, 1, ReturnErrno(0));
+	expect_release(ino, getpid(), O_RDONLY, 0);
+
+	ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, s)) << strerror(errno);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	memset(&message, 0, sizeof(message));
+	memset(&msg, 0, sizeof(msg));
+	iov.iov_base = NULL;
+	iov.iov_len = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = u.buf,
+	msg.msg_controllen = sizeof(u.buf);
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+	memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+	ASSERT_GE(sendmsg(s[0], &msg, 0), 0) << strerror(errno);
+
+	close(fd);	// Close fd within our process
+	close(s[0]);
+	close(s[1]);	// The last copy of fd is within this socket's rcvbuf
 }
 
 /* When closing a file with a POSIX file lock, release should release the lock*/
