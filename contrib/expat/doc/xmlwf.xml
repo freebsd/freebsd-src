@@ -21,7 +21,7 @@
           "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" [
   <!ENTITY dhfirstname "<firstname>Scott</firstname>">
   <!ENTITY dhsurname   "<surname>Bronson</surname>">
-  <!ENTITY dhdate      "<date>March 27, 2025</date>">
+  <!ENTITY dhdate      "<date>September 16, 2025</date>">
   <!-- Please adjust this^^ date whenever cutting a new release. -->
   <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
   <!ENTITY dhemail     "<email>bronson@rinspin.com</email>">
@@ -158,19 +158,31 @@ supports both.
         <listitem>
           <para>
             Sets the maximum tolerated amplification factor
-            for protection against billion laughs attacks (default: 100.0).
+            for protection against amplification attacks
+            like the billion laughs attack
+            (default: 100.0
+            for the sum of direct and indirect output and also
+            for allocations of dynamic memory).
             The amplification factor is calculated as ..
           </para>
           <literallayout>
             amplification := (direct + indirect) / direct
           </literallayout>
           <para>
-            .. while parsing, whereas
+            .. with regard to use of entities and ..
+          </para>
+          <literallayout>
+            amplification := allocated / direct
+          </literallayout>
+          <para>
+            .. with regard to dynamic memory while parsing.
             &lt;direct&gt; is the number of bytes read
-              from the primary document in parsing and
+              from the primary document in parsing,
             &lt;indirect&gt; is the number of bytes
               added by expanding entities and reading of external DTD files,
-              combined.
+              combined, and
+            &lt;allocated&gt; is the total number of bytes of dynamic memory
+              allocated (and not freed) per hierarchy of parsers.
           </para>
           <para>
             <emphasis>NOTE</emphasis>:
@@ -185,8 +197,10 @@ supports both.
         <listitem>
           <para>
             Sets the number of output bytes (including amplification)
-            needed to activate protection against billion laughs attacks
-            (default: 8 MiB).
+            needed to activate protection against amplification attacks
+            like billion laughs
+            (default: 8 MiB for the sum of direct and indirect output,
+            and 64 MiB for allocations of dynamic memory).
             This can be thought of as an &quot;activation threshold&quot;.
           </para>
           <para>

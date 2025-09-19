@@ -70,7 +70,7 @@ START_TEST(test_misc_alloc_create_parser) {
 
   /* Something this simple shouldn't need more than 10 allocations */
   for (i = 0; i < max_alloc_count; i++) {
-    g_allocation_count = i;
+    g_allocation_count = (int)i;
     g_parser = XML_ParserCreate_MM(NULL, &memsuite, NULL);
     if (g_parser != NULL)
       break;
@@ -90,7 +90,7 @@ START_TEST(test_misc_alloc_create_parser_with_encoding) {
 
   /* Try several levels of allocation */
   for (i = 0; i < max_alloc_count; i++) {
-    g_allocation_count = i;
+    g_allocation_count = (int)i;
     g_parser = XML_ParserCreate_MM(XCS("us-ascii"), &memsuite, NULL);
     if (g_parser != NULL)
       break;
@@ -211,7 +211,8 @@ START_TEST(test_misc_version) {
   if (! versions_equal(&read_version, &parsed_version))
     fail("Version mismatch");
 
-  if (xcstrcmp(version_text, XCS("expat_2.7.1"))) /* needs bump on releases */
+  if (xcstrcmp(version_text, XCS("expat_2.7.2"))
+      != 0) /* needs bump on releases */
     fail("XML_*_VERSION in expat.h out of sync?\n");
 }
 END_TEST

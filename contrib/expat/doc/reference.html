@@ -52,7 +52,7 @@
   <div>
     <h1>
       The Expat XML Parser
-      <small>Release 2.7.1</small>
+      <small>Release 2.7.2</small>
     </h1>
   </div>
 <div class="content">
@@ -157,6 +157,8 @@ interface.</p>
       <ul>
         <li><a href="#XML_SetBillionLaughsAttackProtectionMaximumAmplification">XML_SetBillionLaughsAttackProtectionMaximumAmplification</a></li>
         <li><a href="#XML_SetBillionLaughsAttackProtectionActivationThreshold">XML_SetBillionLaughsAttackProtectionActivationThreshold</a></li>
+        <li><a href="#XML_SetAllocTrackerMaximumAmplification">XML_SetAllocTrackerMaximumAmplification</a></li>
+        <li><a href="#XML_SetAllocTrackerActivationThreshold">XML_SetAllocTrackerActivationThreshold</a></li>
         <li><a href="#XML_SetReparseDeferralEnabled">XML_SetReparseDeferralEnabled</a></li>
       </ul>
     </li>
@@ -319,7 +321,7 @@ directions in the next section. Otherwise if you have Microsoft's
 Developer Studio installed,
 you can use CMake to generate a <code>.sln</code> file, e.g.
 <code>
-cmake -G"Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
+cmake -G"Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
 </code>, and build Expat using <code>msbuild /m expat.sln</code> after.</p>
 
 <p>Alternatively, you may download the Win32 binary package that
@@ -1905,7 +1907,7 @@ struct XML_cp {
 <p>Sets a handler for element declarations in a DTD. The handler gets
 called with the name of the element in the declaration and a pointer
 to a structure that contains the element model. It's the user code's 
-responsibility to free model when finished with it. See <code>
+responsibility to free model when finished with via a call to <code>
 <a href="#XML_FreeContentModel">XML_FreeContentModel</a></code>.
 There is no need to free the model from the handler, it can be kept
 around and freed at a later stage.</p>
@@ -2198,13 +2200,13 @@ XML_SetBillionLaughsAttackProtectionMaximumAmplification(XML_Parser p,
     returns <code>XML_TRUE</code> upon success and <code>XML_FALSE</code> upon error.
   </p>
 
-  The amplification factor is calculated as ..
-  <pre>
-    amplification := (direct + indirect) / direct
-  </pre>
-  .. while parsing, whereas
-  <code>direct</code> is the number of bytes read from the primary document in parsing and
-  <code>indirect</code> is the number of bytes added by expanding entities and reading of external DTD files, combined.
+  <p>The amplification factor is calculated as ..</p>
+  <pre>amplification := (direct + indirect) / direct</pre>
+  <p>
+    .. while parsing, whereas
+    <code>direct</code> is the number of bytes read from the primary document in parsing and
+    <code>indirect</code> is the number of bytes added by expanding entities and reading of external DTD files, combined.
+  </p>
 
   <p>For a call to <code>XML_SetBillionLaughsAttackProtectionMaximumAmplification</code> to succeed:</p>
   <ul>
@@ -2264,6 +2266,120 @@ XML_SetBillionLaughsAttackProtectionActivationThreshold(XML_Parser p,
     Activation thresholds below 4 MiB are known to break support for
     <a href="https://en.wikipedia.org/wiki/Darwin_Information_Typing_Architecture">DITA</a> 1.3 payload
     and are hence not recommended.
+  </p>
+</div>
+
+<h4 id="XML_SetAllocTrackerMaximumAmplification">XML_SetAllocTrackerMaximumAmplification</h4>
+<pre class="fcndec">
+/* Added in Expat 2.7.2. */
+XML_Bool
+XML_SetAllocTrackerMaximumAmplification(XML_Parser p,
+                                        float maximumAmplificationFactor);
+</pre>
+<div class="fcndef">
+  <p>
+    Sets the maximum tolerated amplification factor
+    between direct input and bytes of dynamic memory allocated
+    (default: <code>100.0</code>)
+    of parser <code>p</code> to <code>maximumAmplificationFactor</code>, and
+    returns <code>XML_TRUE</code> upon success and <code>XML_FALSE</code> upon error.
+  </p>
+
+  <p>
+    <strong>Note:</strong>
+    There are three types of allocations that intentionally bypass tracking and limiting:
+  </p>
+  <ul>
+    <li>
+      application calls to functions
+      <code><a href="#XML_MemMalloc">XML_MemMalloc</a></code>
+      and
+      <code><a href="#XML_MemRealloc">XML_MemRealloc</a></code>
+      &mdash;
+      <em>healthy</em> use of these two functions continues to be a responsibility
+      of the application using Expat
+      &mdash;,
+    </li>
+    <li>
+      the main character buffer used by functions
+      <code><a href="#XML_GetBuffer">XML_GetBuffer</a></code>
+      and
+      <code><a href="#XML_ParseBuffer">XML_ParseBuffer</a></code>
+      (and thus also by plain
+      <code><a href="#XML_Parse">XML_Parse</a></code>), and
+    </li>
+    <li>
+      the <a href="#XML_SetElementDeclHandler">content model memory</a>
+      (that is passed to the
+      <a href="#XML_SetElementDeclHandler">element declaration handler</a>
+      and freed by a call to
+      <code><a href="#XML_FreeContentModel">XML_FreeContentModel</a></code>).
+    </li>
+  </ul>
+
+  <p>The amplification factor is calculated as ..</p>
+  <pre>amplification := allocated / direct</pre>
+  <p>
+    .. while parsing, whereas
+    <code>direct</code> is the number of bytes read from the primary document in parsing and
+    <code>allocated</code> is the number of bytes of dynamic memory allocated in the parser hierarchy.
+  </p>
+
+  <p>For a call to <code>XML_SetAllocTrackerMaximumAmplification</code> to succeed:</p>
+  <ul>
+    <li>parser <code>p</code> must be a non-<code>NULL</code> root parser (without any parent parsers) and</li>
+    <li><code>maximumAmplificationFactor</code> must be non-<code>NaN</code> and greater than or equal to <code>1.0</code>.</li>
+  </ul>
+
+  <p>
+    <strong>Note:</strong>
+    If you ever need to increase this value for non-attack payload,
+    please <a href="https://github.com/libexpat/libexpat/issues">file a bug report</a>.
+  </p>
+
+  <p>
+    <strong>Note:</strong>
+    Amplifications factors greater than 100 can been observed near the start of parsing
+    even with benign files in practice.
+
+    So if you do reduce the maximum allowed amplification,
+    please make sure that the activation threshold is still big enough
+    to not end up with undesired false positives (i.e. benign files being rejected).
+  </p>
+</div>
+
+<h4 id="XML_SetAllocTrackerActivationThreshold">XML_SetAllocTrackerActivationThreshold</h4>
+<pre class="fcndec">
+/* Added in Expat 2.7.2. */
+XML_Bool
+XML_SetAllocTrackerActivationThreshold(XML_Parser p,
+                                       unsigned long long activationThresholdBytes);
+</pre>
+<div class="fcndef">
+  <p>
+    Sets number of allocated bytes of dynamic memory
+    needed to activate protection against disproportionate use of RAM
+    (default: <code>64 MiB</code>)
+    of parser <code>p</code> to <code>activationThresholdBytes</code>, and
+    returns <code>XML_TRUE</code> upon success and <code>XML_FALSE</code> upon error.
+  </p>
+
+  <p>
+    <strong>Note:</strong>
+    For types of allocations that intentionally bypass tracking and limiting, please see
+    <code><a href="#XML_SetAllocTrackerMaximumAmplification">XML_SetAllocTrackerMaximumAmplification</a></code>
+    above.
+  </p>
+
+  <p>For a call to <code>XML_SetAllocTrackerActivationThreshold</code> to succeed:</p>
+  <ul>
+    <li>parser <code>p</code> must be a non-<code>NULL</code> root parser (without any parent parsers).</li>
+  </ul>
+
+  <p>
+    <strong>Note:</strong>
+    If you ever need to increase this value for non-attack payload,
+    please <a href="https://github.com/libexpat/libexpat/issues">file a bug report</a>.
   </p>
 </div>
 
