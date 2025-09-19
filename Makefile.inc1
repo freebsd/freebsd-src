@@ -2047,6 +2047,7 @@ update-packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
 
 package-pkg: _pkgbootstrap _repodir .PHONY
+.if defined(INCLUDE_PKG_IN_PKGBASE_REPO)
 .if exists(${PORTSDIR})
 	rm -rf /tmp/ports.${TARGET} || :
 	env ${WMAKEENV} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
@@ -2054,6 +2055,7 @@ package-pkg: _pkgbootstrap _repodir .PHONY
 		WSTAGEDIR=${WSTAGEDIR} \
 		OSVERSION="${SRCRELDATE}" \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
+.endif
 .endif
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
