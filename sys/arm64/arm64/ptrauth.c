@@ -97,11 +97,11 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	if (!pac_enable) {
 		if (boothowto & RB_VERBOSE)
 			printf("Pointer authentication is disabled\n");
-		goto out;
+		return (FEAT_ALWAYS_DISABLE);
 	}
 
 	if (ptrauth_disable())
-		goto out;
+		return (FEAT_ALWAYS_DISABLE);
 
 	/*
 	 * This assumes if there is pointer authentication on the boot CPU
@@ -127,17 +127,6 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 		}
 	}
 
-out:
-	/*
-	 * Pointer authentication may be disabled, mask out the ID fields we
-	 * expose to userspace and the rest of the kernel so they don't try
-	 * to use it.
-	 */
-	update_special_reg(ID_AA64ISAR1_EL1, ID_AA64ISAR1_API_MASK |
-	    ID_AA64ISAR1_APA_MASK | ID_AA64ISAR1_GPA_MASK |
-	    ID_AA64ISAR1_GPI_MASK, 0);
-	update_special_reg(ID_AA64ISAR2_EL1, ID_AA64ISAR2_APA3_MASK, 0);
-
 	return (FEAT_ALWAYS_DISABLE);
 }
 
@@ -157,8 +146,25 @@ ptrauth_enable(const struct cpu_feat *feat __unused,
 	return (true);
 }
 
+static void
+ptrauth_disabled(const struct cpu_feat *feat __unused)
+{
+	/*
+	 * Pointer authentication may be disabled, mask out the ID fields we
+	 * expose to userspace and the rest of the kernel so they don't try
+	 * to use it.
+	 */
+	if (PCPU_GET(cpuid) == 0) {
+		update_special_reg(ID_AA64ISAR1_EL1, ID_AA64ISAR1_API_MASK |
+		    ID_AA64ISAR1_APA_MASK | ID_AA64ISAR1_GPA_MASK |
+		    ID_AA64ISAR1_GPI_MASK, 0);
+		update_special_reg(ID_AA64ISAR2_EL1, ID_AA64ISAR2_APA3_MASK, 0);
+	}
+
+}
+
 CPU_FEAT(feat_pauth, "Pointer Authentication",
-    ptrauth_check, NULL, ptrauth_enable,
+    ptrauth_check, NULL, ptrauth_enable, ptrauth_disabled,
     CPU_FEAT_EARLY_BOOT | CPU_FEAT_SYSTEM);
 
 /* Copy the keys when forking a new process */

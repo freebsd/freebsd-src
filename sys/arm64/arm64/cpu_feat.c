@@ -69,18 +69,18 @@ enable_cpu_feat(uint32_t stage)
 		check_status = feat->feat_check(feat, midr);
 		/* Ignore features that are not present */
 		if (check_status == FEAT_ALWAYS_DISABLE)
-			continue;
+			goto next;
 
 		snprintf(tunable, sizeof(tunable), "hw.feat.%s",
 		    feat->feat_name);
 		if (TUNABLE_BOOL_FETCH(tunable, &val)) {
 			/* Is the feature disabled by the tunable? */
 			if (!val)
-				continue;
+				goto next;
 			/* If enabled by the tunable then enable it */
 		} else if (check_status == FEAT_DEFAULT_DISABLE) {
 			/* No tunable set and disabled by default */
-			continue;
+			goto next;
 		}
 
 		/*
@@ -122,6 +122,10 @@ enable_cpu_feat(uint32_t stage)
 		if (feat->feat_enable(feat, errata_status, errata_list,
 		    errata_count))
 			feat->feat_enabled = true;
+
+next:
+		if (!feat->feat_enabled && feat->feat_disabled != NULL)
+			feat->feat_disabled(feat);
 	}
 }
 

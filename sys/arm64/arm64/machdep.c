@@ -208,8 +208,15 @@ pan_enable(const struct cpu_feat *feat __unused,
 	return (true);
 }
 
+static void
+pan_disabled(const struct cpu_feat *feat __unused)
+{
+	if (PCPU_GET(cpuid) == 0)
+		update_special_reg(ID_AA64MMFR1_EL1, ID_AA64MMFR1_PAN_MASK, 0);
+}
+
 CPU_FEAT(feat_pan, "Privileged access never",
-    pan_check, NULL, pan_enable,
+    pan_check, NULL, pan_enable, pan_disabled,
     CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU);
 
 bool
