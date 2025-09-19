@@ -2656,9 +2656,11 @@ ptrace_coredumpreq(struct thread *td, struct proc *p,
 		return;
 	}
 
+	memset(&wctx, 0, sizeof(wctx));
 	wctx.vp = tcq->tc_vp;
 	wctx.fcred = NOCRED;
 
+	memset(&cdw, 0, sizeof(wctx));
 	cdw.ctx = &wctx;
 	cdw.write_fn = core_vn_write;
 	cdw.extend_fn = core_vn_extend;
