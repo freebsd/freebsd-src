@@ -23,8 +23,8 @@ EFIRT				opt_efirt.h
 VMM				opt_global.h
 
 # Early printf UART support
-UART_EARLY_REGSHIFT       opt_global.h
-UART_EARLY_IOWIDTH        opt_global.h
+UART_EARLY_REGSHIFT       opt_uart.h.h
+UART_EARLY_IOWIDTH        opt_uart.h.h
 
 # SoC Support
 SOC_ALLWINNER_A64		opt_soc.h
