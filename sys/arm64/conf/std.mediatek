@@ -4,7 +4,13 @@ options 	SOC_MEDIATEK
 device		uart_ns8250
 
 # GPIO / PINCTRL
-device      mt7622_pinctrl
+device mt7622_pinctrl
+device gpio
+device gpioiic
+
+device iic
+device iicbus
+device iicbb
 
 options         FDT
 # DTBs
