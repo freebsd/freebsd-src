@@ -1,12 +1,9 @@
 #
-# BANANAPI-R64 -- BANANAPI-R64 kernel configuration file for FreeBSD/arm64
+# MEDIATEK -- MEDIATEK kernel configuration file for FreeBSD/arm64
 #
 
 cpu             ARM64
-ident		BANANAPI-R64
-
-include		"std.arm64"
-include		"std.dev"
+ident		MEDIATEK
 
 makeoptions	DEBUG=-g  # Enable kernel debugging sybmbols
 makeoptions	WITH_KERNEL_BIN=1
@@ -22,4 +19,6 @@ options SOCDEV_PA=0x11002000
 options BOOTVERBOSE
 
 # Include SoC specific configuration
-include		"std.mediatek"
+#include		"std.mediatek"
+#include         "std.arm64"
+#include         "std.dev"
