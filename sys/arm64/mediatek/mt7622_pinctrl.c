@@ -779,7 +779,7 @@ static device_method_t mt7622_pinctrl_methods[] = {
         DEVMETHOD(device_detach, mt7622_pinctrl_detach),
         DEVMETHOD(fdt_pinctrl_configure, mt7622_pinctrl_configure),
 
-	DEVMETHOD(gpio_get_bus,	mt7622_gpio_get_bus),
+	/*DEVMETHOD(gpio_get_bus,	mt7622_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,	mt7622_gpio_pin_max),
 	DEVMETHOD(gpio_pin_get,	mt7622_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,	mt7622_gpio_pin_set),
@@ -787,7 +787,7 @@ static device_method_t mt7622_pinctrl_methods[] = {
 	DEVMETHOD(gpio_pin_getflags, mt7622_gpio_pin_getflags),
 	DEVMETHOD(gpio_pin_setflags, mt7622_gpio_pin_setflags),
 	DEVMETHOD(gpio_pin_getcaps, mt7622_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_getname, mt7622_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getname, mt7622_gpio_pin_getname),*/
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node, mt7622_gpio_get_node),
         DEVMETHOD_END
