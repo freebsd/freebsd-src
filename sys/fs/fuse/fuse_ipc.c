@@ -835,6 +835,10 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
+	case FUSE_IOCTL:
+		err = (blen >= sizeof(struct fuse_ioctl_out)) ? 0 : EINVAL;
+		break;
+
 	case FUSE_FALLOCATE:
 		err = (blen == 0) ? 0 : EINVAL;
 		break;
