@@ -52,6 +52,12 @@ int	freebsd11_getmntinfo(struct freebsd11_statfs **, int);
 char	*freebsd11_devname(__uint32_t dev, __mode_t type);
 char	*freebsd11_devname_r(__uint32_t dev, __mode_t type, char *buf, int len);
 
-int	freebsd14_setgroups(int gidsize, const __gid_t *gidset);
+#define	F14SG	int freebsd14_setgroups(int gidsize, const __gid_t *gidset)
+#ifdef PIC
+static F14SG __attribute__((__weakref__("setgroups@FBSD_1.0")));
+#else
+F14SG;
+#endif
+#undef F14SG
 
 #endif /* _GEN_COMPAT_H_ */
