@@ -22,4 +22,5 @@ options BOOTVERBOSE
 # Include SoC specific configuration
 include "std.arm64"
 include "std.dev"
-include "std.mediatek"
+include 	"std.mediatek"
+
