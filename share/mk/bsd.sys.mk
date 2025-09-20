@@ -93,6 +93,10 @@ CWARNFLAGS.clang+=	-Wno-error=unused-but-set-parameter
 # Similar to gcc >= 8.1 -Wno-error=cast-function-type below
 CWARNFLAGS.clang+=	-Wno-error=cast-function-type-mismatch
 .endif
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 210000
+# Until gtest is updated: https://github.com/google/googletest/issues/4762
+CXXWARNFLAGS.clang+=	-Wno-error=character-conversion
+.endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\

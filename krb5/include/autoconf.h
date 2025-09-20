@@ -691,7 +691,18 @@
 #define STDC_HEADERS 1
 
 /* Define to 1 if strerror_r returns char *. */
+/*
+ * glibc defines two versions of strerror_r, the char* returning one is used
+ * when _GNU_SOURCE is defined.
+ */
+#if defined(__linux__) && __has_include(<features.h>)
+#include <features.h>  /* get __GLIBC__ */
+#endif
+#if defined(__GLIBC__) && defined(__USE_GNU)
+#define STRERROR_R_CHAR_P 1
+#else
 /* #undef STRERROR_R_CHAR_P */
+#endif
 
 /* Define if sys_errlist is defined in errno.h */
 #define SYS_ERRLIST_DECLARED 1

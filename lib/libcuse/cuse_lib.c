@@ -92,7 +92,7 @@ static struct cuse_vm_allocation a_cuse[CUSE_ALLOC_UNIT_MAX]
 #define	CUSE_UNLOCK() \
 	pthread_mutex_unlock(&m_cuse)
 
-int
+int __no_lock_analysis /* No need for locking during init */
 cuse_init(void)
 {
 	pthread_mutexattr_t attr;

@@ -1866,7 +1866,13 @@ QuoteShell(const char *str, bool quoteDollar, LazyBuf *buf)
 static char *
 Hash(const char *str)
 {
-	static const char hexdigits[16] = "0123456789abcdef";
+	/*
+	 * Temporary FreeBSD diff: Disable -Wunterminated-string-initialization
+	 * warning by adding 1 to size. We can't use __nonstring unconditionally
+	 * in bmake since the bmake bootstrap headers don't define it.
+	 * TODO: add the __nonstring attribute and change size back to 16.
+	 */
+	static const char hexdigits[16 + 1] = "0123456789abcdef";
 	const unsigned char *ustr = (const unsigned char *)str;
 
 	uint32_t h = 0x971e137bU;
