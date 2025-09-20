@@ -235,6 +235,7 @@ ip6_vnet_init(void *arg __unused)
 	    &V_ip6_auto_linklocal);
 	TUNABLE_INT_FETCH("net.inet6.ip6.accept_rtadv", &V_ip6_accept_rtadv);
 	TUNABLE_INT_FETCH("net.inet6.ip6.no_radr", &V_ip6_no_radr);
+	TUNABLE_BOOL_FETCH("net.inet6.ip6.use_stableaddr", &V_ip6_use_stableaddr);
 
 	CK_STAILQ_INIT(&V_in6_ifaddrhead);
 	V_in6_ifaddrhashtbl = hashinit(IN6ADDR_NHASH, M_IFADDR,

@@ -609,6 +609,8 @@ struct ip6_mtuinfo {
 /*	IPV6CTL_RTMINEXPIRE	26	deprecated */
 /*	IPV6CTL_RTMAXCACHE	27	deprecated */
 
+#define IPV6CTL_STABLEADDR_NETIFSRC	30	/* semantically opaque addresses (RFC7217) hash algo netif parameter src */
+#define IPV6CTL_STABLEADDR_MAXRETRIES	31	/* semantically opaque addresses (RFC7217) max DAD retries */
 #define IPV6CTL_USETEMPADDR	32	/* use temporary addresses (RFC3041) */
 #define IPV6CTL_TEMPPLTIME	33	/* preferred lifetime for tmpaddrs */
 #define IPV6CTL_TEMPVLTIME	34	/* valid lifetime for tmpaddrs */
@@ -617,6 +619,7 @@ struct ip6_mtuinfo {
 #define IPV6CTL_PREFER_TEMPADDR	37	/* prefer temporary addr as src */
 #define IPV6CTL_ADDRCTLPOLICY	38	/* get/set address selection policy */
 #define IPV6CTL_USE_DEFAULTZONE	39	/* use default scope zone */
+#define IPV6CTL_USESTABLEADDR	40	/* use semantically opaque addresses (RFC7217) */
 
 #define IPV6CTL_MAXFRAGS	41	/* max fragments */
 #if 0
