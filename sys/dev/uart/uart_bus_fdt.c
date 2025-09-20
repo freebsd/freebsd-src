@@ -84,8 +84,15 @@ int
 uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 {
 
-	if ((OF_getencprop(node, "reg-shift", cell, sizeof(*cell))) <= 0)
+	if ((OF_getencprop(node, "reg-shift", cell, sizeof(*cell))) <= 0) {
+#ifdef UART_EARLY_REGSHIFT
+		*cell = UART_EARLY_REGSHIFT;
+		return (0);
+#else
 		return (-1);
+#endif
+	}
+
 	return (0);
 }
 
@@ -93,8 +100,15 @@ int
 uart_fdt_get_io_width(phandle_t node, pcell_t *cell)
 {
 
-	if ((OF_getencprop(node, "reg-io-width", cell, sizeof(*cell))) <= 0)
+	if ((OF_getencprop(node, "reg-io-width", cell, sizeof(*cell))) <= 0) {
+#ifdef UART_EARLY_IOWIDTH
+		*cell = UART_EARLY_IOWIDTH;
+		return (0);
+#else
 		return (-1);
+#endif
+	}
+
 	return (0);
 }
 

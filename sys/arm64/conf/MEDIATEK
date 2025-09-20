@@ -16,9 +16,10 @@ options BREAK_TO_DEBUGGER # If need to enter DDB from console
 
 options EARLY_PRINTF=ns8250
 options SOCDEV_PA=0x11002000
+options UART_EARLY_REGSHIFT=4
 options BOOTVERBOSE
 
 # Include SoC specific configuration
-#include		"std.mediatek"
-#include         "std.arm64"
-#include         "std.dev"
+#include "std.arm64"
+#include "std.dev"
+#include "std.mediatek"

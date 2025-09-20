@@ -74,6 +74,15 @@
 #define	UART_DEV_TOLERANCE_PCT	30
 #endif	/* UART_DEV_TOLERANCE_PCT */
 
+
+#ifndef UART_EARLY_REGSHIFT
+#define UART_EARLY_REGSHIFT 4
+#endif
+
+#ifndef UART_EARLY_IOWIDTH
+#define UART_EARLY_IOWIDTH 4
+#endif
+
 static int broken_txfifo = 0;
 SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
 	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
@@ -106,8 +115,8 @@ uart_ns8250_early_putc(int c)
 static void
 uart_ns8250_early_putc(int c)
 {
-	volatile uint32_t *stat = (uint32_t *)(socdev_va + REG_LSR * 4);
-	volatile uint32_t *tx = (uint32_t *)(socdev_va + REG_DATA * 4);
+	volatile uint32_t *stat = (uint32_t *)(socdev_va + REG_LSR * UART_EARLY_REGSHIFT);
+	volatile uint32_t *tx = (uint32_t *)(socdev_va + REG_DATA * UART_EARLY_REGSHIFT);
 	int limit = 1000000;
 	while ((*stat & LSR_THRE) == 0 && --limit > 0)
 		continue;
