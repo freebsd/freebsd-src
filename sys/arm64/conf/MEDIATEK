@@ -20,6 +20,6 @@ options UART_EARLY_REGSHIFT=4
 options BOOTVERBOSE
 
 # Include SoC specific configuration
-#include "std.arm64"
-#include "std.dev"
-#include "std.mediatek"
+include "std.arm64"
+include "std.dev"
+include "std.mediatek"
