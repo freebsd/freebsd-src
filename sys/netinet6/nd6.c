@@ -324,6 +324,13 @@ nd6_ifattach(struct ifnet *ifp)
 	/* XXX: we cannot call nd6_setmtu since ifp is not fully initialized */
 	nd6_setmtu0(ifp, nd);
 
+	/* Configure default value for stable addresses algorithm, skip loopback interface */
+	if (V_ip6_use_stableaddr && !(ifp->if_flags & IFF_LOOPBACK)) {
+		nd->flags |= ND6_IFF_STABLEADDR;
+	}
+
+	nd->dad_failures = counter_u64_alloc(M_WAITOK);
+
 	return nd;
 }
 
@@ -342,6 +349,8 @@ nd6_ifdetach(struct ifnet *ifp, struct nd_ifinfo *nd)
 		nd6_dad_stop(ifa);
 	}
 	NET_EPOCH_EXIT(et);
+
+	counter_u64_free(nd->dad_failures);
 
 	free(nd, M_IP6NDP);
 }

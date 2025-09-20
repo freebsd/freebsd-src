@@ -38,6 +38,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/counter.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
@@ -1466,9 +1467,14 @@ nd6_dad_timer(void *arg)
 			 * No duplicate address found.  Check IFDISABLED flag
 			 * again in case that it is changed between the
 			 * beginning of this function and here.
+			 *
+			 * Reset DAD failures counter if using stable addresses.
 			 */
-			if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) == 0)
+			if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) == 0) {
 				ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+				if ((ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY))
+					counter_u64_zero(ND_IFINFO(ifp)->dad_failures);
+			}
 
 			nd6log((LOG_DEBUG,
 			    "%s: DAD complete for %s - no duplicates found\n",
@@ -1497,20 +1503,39 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 	struct ifnet *ifp;
 	char ip6buf[INET6_ADDRSTRLEN];
 
+	ifp = ifa->ifa_ifp;
+
 	log(LOG_ERR, "%s: DAD detected duplicate IPv6 address %s: "
 	    "NS in/out/loopback=%d/%d/%d, NA in=%d\n",
-	    if_name(ifa->ifa_ifp), ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
+	    if_name(ifp), ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
 	    dp->dad_ns_icount, dp->dad_ns_ocount, dp->dad_ns_lcount,
 	    dp->dad_na_icount);
 
 	ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 	ia->ia6_flags |= IN6_IFF_DUPLICATED;
 
-	ifp = ifa->ifa_ifp;
 	log(LOG_ERR, "%s: DAD complete for %s - duplicate found\n",
 	    if_name(ifp), ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr));
-	log(LOG_ERR, "%s: manual intervention required\n",
-	    if_name(ifp));
+
+	/*
+	 * For RFC 7217 stable addresses, increment failure counter here if we still have retries.
+	 * More addresses will be generated as long as retries are not exhausted.
+	 */
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY)) {
+		uint64_t dad_failures = counter_u64_fetch(ND_IFINFO(ifp)->dad_failures);
+
+		if (dad_failures <= V_ip6_stableaddr_maxretries) {
+			counter_u64_add(ND_IFINFO(ifp)->dad_failures, 1);
+			/* if retries exhausted, output an informative error message */
+			if (dad_failures == V_ip6_stableaddr_maxretries)
+				log(LOG_ERR, "%s: manual intervention required, consider disabling \"stableaddr\" on the interface"
+				    " or checking hostuuid for uniqueness\n",
+				    if_name(ifp));
+		}
+	} else {
+		log(LOG_ERR, "%s: manual intervention required\n",
+		    if_name(ifp));
+	}
 
 	/*
 	 * If the address is a link-local address formed from an interface
