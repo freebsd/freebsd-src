@@ -328,7 +328,9 @@ chroot_build_target() {
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 	if [ -n "${WITH_OCIIMAGES}" ]; then
-		eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} packages
+		mkdir ${CHROOT}/tmp/ports ${CHROOT}/tmp/distfiles
+		eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} \
+		    BOOTSTRAP_PKG_FROM_PORTS=YES packages
 	fi
 
 	return 0
