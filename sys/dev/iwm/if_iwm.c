@@ -3773,6 +3773,10 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 
 	rinfo = iwm_tx_fill_cmd(sc, in, m, tx);
 
+	/* Offloaded sequence number assignment; non-AMPDU case */
+	if ((m->m_flags & M_AMPDU_MPDU) == 0)
+		ieee80211_output_seqno_assign(ni, -1, m);
+
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		/* Retrieve key for TX && do software encryption. */
