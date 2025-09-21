@@ -1658,6 +1658,7 @@ static const char *IFCAPBITS[] = {
 	[14] = "TOE4",
 	[15] = "TOE6",
 	[16] = "VLAN_HWFILTER",
+	[17] = "NV",
 	[18] = "VLAN_HWTSO",
 	[19] = "LINKSTATE",
 	[20] = "NETMAP",
