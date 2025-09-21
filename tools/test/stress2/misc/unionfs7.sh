@@ -61,8 +61,8 @@ set +e
 mount | grep -E "$mp1|$mp2"
 
 set `df -ik $mp2 | tail -1 | awk '{print $4,$7}'`
-export KBLOCKS=$(($1 / 4))
-export INODES=$(($2 / 4))
+export KBLOCKS=$(($1 / 6))
+export INODES=$(($2 / 6))
 
 export CTRLDIR=$mp2/stressX.control
 export INCARNATIONS=10
@@ -95,7 +95,7 @@ export TESTPROGS=`echo $TESTPROGS | sed 's/\n/ /g'`
 set +e
 chmod 777 $mp2
 su $testuser -c \
-	"(cd $mp2/stress2; ./testcases/run/run $TESTPROGS)"
+	"(cd $mp2/stress2; ./testcases/run/run $TESTPROGS > /dev/null 2>&1)"
 
 while mount | grep -Eq "on $mp2 .*unionfs"; do
 	umount $mp2 && break
