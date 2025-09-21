@@ -4805,6 +4805,8 @@ iwx_rx_tx_cmd(struct iwx_softc *sc, struct iwx_rx_packet *pkt,
 static void
 iwx_clear_oactive(struct iwx_softc *sc, struct iwx_tx_ring *ring)
 {
+	IWX_ASSERT_LOCKED(sc);
+
 	if (ring->queued < iwx_lomark) {
 		sc->qfullmsk &= ~(1 << ring->qid);
 		if (sc->qfullmsk == 0 /* && ifq_is_oactive(&ifp->if_snd) */) {
@@ -5629,6 +5631,8 @@ iwx_tx(struct iwx_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	int nsegs;
 	struct mbuf *m1;
 	size_t txcmd_size;
+
+	IWX_ASSERT_LOCKED(sc);
 
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
@@ -8533,6 +8537,8 @@ iwx_start(struct iwx_softc *sc)
 {
         struct ieee80211_node *ni;
         struct mbuf *m;
+
+        IWX_ASSERT_LOCKED(sc);
 
         while (sc->qfullmsk == 0 && (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
                 ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
