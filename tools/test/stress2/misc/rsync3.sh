@@ -30,7 +30,7 @@ if [ $s -eq 0 ]; then
 fi
 
 if [ $s -eq 0 ]; then
-	diff -rq /usr/src/sys $mntpoint/usr/src/sys > $log; s=$?
+	diff --no-dereference -rq /usr/src/sys $mntpoint/usr/src/sys > $log; s=$?
 	[ $s -ne 0 ] &&
 	    { echo "/usr/src $mntpoint/usr/src differ!"; head -10 $log; }
 fi
