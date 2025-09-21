@@ -100,7 +100,7 @@ static uint_t zfs_vdev_default_ms_shift = 29;
 /* upper limit for metaslab size (16G) */
 static uint_t zfs_vdev_max_ms_shift = 34;
 
-static int vdev_validate_skip = B_FALSE;
+int vdev_validate_skip = B_FALSE;
 
 /*
  * Since the DTL space map of a vdev is not expected to have a lot of
