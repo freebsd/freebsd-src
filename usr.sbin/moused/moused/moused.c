@@ -448,6 +448,7 @@ static const char *config_file = CONFDIR "/moused.conf";
 #endif
 static const char *quirks_path = QUIRKSDIR;
 static struct quirks_context *quirks;
+static enum device_if force_if = DEVICE_IF_UNKNOWN;
 
 static int	opt_rate = 0;
 static int	opt_resolution = MOUSE_RES_UNKNOWN;
@@ -529,7 +530,8 @@ main(int argc, char *argv[])
 	struct rodent *r;
 	pid_t mpid;
 	int c;
-	int	i;
+	u_int i;
+	int n;
 	u_long ul;
 	char *errstr;
 
@@ -552,26 +554,26 @@ main(int argc, char *argv[])
 			break;
 
 		case 'a':
-			i = sscanf(optarg, "%lf,%lf", &opt_accelx, &opt_accely);
-			if (i == 0) {
+			n = sscanf(optarg, "%lf,%lf", &opt_accelx, &opt_accely);
+			if (n == 0) {
 				warnx("invalid linear acceleration argument "
 				    "'%s'", optarg);
 				usage();
 			}
-			if (i == 1)
+			if (n == 1)
 				opt_accely = opt_accelx;
 			break;
 
 		case 'A':
 			opt_exp_accel = true;
-			i = sscanf(optarg, "%lf,%lf", &opt_expoaccel,
+			n = sscanf(optarg, "%lf,%lf", &opt_expoaccel,
 			    &opt_expoffset);
-			if (i == 0) {
+			if (n == 0) {
 				warnx("invalid exponential acceleration "
 				    "argument '%s'", optarg);
 				usage();
 			}
-			if (i == 1)
+			if (n == 1)
 				opt_expoffset = 1.0;
 			break;
 
@@ -646,8 +648,19 @@ main(int argc, char *argv[])
 			break;
 
 		case 't':
-			if (strcmp(optarg, "auto") != 0)
-				warnx("ignore mouse type `%s'", optarg);
+			if (strcmp(optarg, "auto") == 0) {
+				force_if = DEVICE_IF_UNKNOWN;
+				break;
+			}
+			for (i = 0; i < nitems(rifs); i++)
+				if (strcmp(optarg, rifs[i].name) == 0) {
+					force_if = i;
+					break;
+				}
+			if (i == nitems(rifs)) {
+				warnx("no such interface type `%s'", optarg);
+				usage();
+			}
 			break;
 
 		case 'w':
@@ -1224,7 +1237,7 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	    "usage: moused [-dfg] [-I file] [-F rate] [-r resolution]",
 	    "              [-VH [-U threshold]] [-a X[,Y]] [-C threshold] [-m N=M] [-w N]",
-	    "              [-z N] [-t <mousetype>] [-l level] [-3 [-E timeout]]",
+	    "              [-z N] [-t <interfacetype>] [-l level] [-3 [-E timeout]]",
 	    "              [-T distance[,time[,after]]] -p <port> [-q config] [-Q quirks]",
 	    "       moused [-d] -i <port|if|type|model|all> -p <port>");
 	exit(1);
@@ -1338,9 +1351,11 @@ r_identify_if(int fd)
 {
 	int dummy;
 
-	if (ioctl(fd, EVIOCGVERSION, &dummy) >= 0)
+	if ((force_if == DEVICE_IF_UNKNOWN || force_if == DEVICE_IF_EVDEV) &&
+	    ioctl(fd, EVIOCGVERSION, &dummy) >= 0)
 		return (DEVICE_IF_EVDEV);
-	if (ioctl(fd, MOUSE_GETLEVEL, &dummy) >= 0)
+	if ((force_if == DEVICE_IF_UNKNOWN || force_if == DEVICE_IF_SYSMOUSE) &&
+	    ioctl(fd, MOUSE_GETLEVEL, &dummy) >= 0)
 		return (DEVICE_IF_SYSMOUSE);
 	return (DEVICE_IF_UNKNOWN);
 }
