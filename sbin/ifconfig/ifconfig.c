@@ -1663,6 +1663,7 @@ static const char *IFCAPBITS[] = {
 	[20] = "NETMAP",
 	[21] = "RXCSUM_IPV6",
 	[22] = "TXCSUM_IPV6",
+	[23] = "HWSTATS",
 	[24] = "TXRTLMT",
 	[25] = "HWRXTSTMP",
 	[26] = "MEXTPG",
