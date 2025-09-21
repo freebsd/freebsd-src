@@ -16,6 +16,7 @@ start_cmd="moused_start"
 pidprefix="/var/run/moused"
 pidfile="${pidprefix}.pid"
 pidarg=
+typearg=
 load_rc_config $name
 
 # doesn't make sense to run in a svcj: nojail keyword
@@ -49,15 +50,17 @@ moused_start()
 		eval myflags=\${moused_${ms}_flags-$moused_flags}
 		eval myport=\${moused_${ms}_port-/dev/$ms}
 		eval mytype=\${moused_${ms}_type-$moused_type}
+		if [ -n "$mytype" ] && check_kern_features evdev_support; then
+			typearg="-t ${mytype}"
+		fi
 	else
 		ms="default"
 		myflags="$moused_flags"
 		myport="$moused_port"
-		mytype="$moused_type"
 	fi
 
 	startmsg -n "Starting ${ms} moused"
-	/usr/sbin/moused ${myflags} -p ${myport} -t ${mytype} ${pidarg}
+	/usr/sbin/moused ${myflags} -p ${myport} ${typearg} ${pidarg}
 	startmsg '.'
 
 	mousechar_arg=

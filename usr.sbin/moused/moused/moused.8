@@ -49,7 +49,7 @@
 .Op Fl m Ar N=M
 .Op Fl w Ar N
 .Op Fl z Ar target
-.Op Fl t Ar mousetype
+.Op Fl t Ar interfacetype
 .Op Fl l Ar level
 .Op Fl 3 Op Fl E Ar timeout
 .Op Fl T Ar distance Ns Op , Ns Ar time Ns Op , Ns Ar after
@@ -329,9 +329,32 @@ or
 .Ar high .
 This option may not be supported by all the device.
 .It Fl t Ar type
-Ignored.
-Used for compatibiliy with legacy
-.Nm .
+Force the interface type of the mouse attached to the port.
+You may explicitly specify a type listed below, or use
+.Ar auto
+to let the
+.Nm
+utility automatically select an appropriate protocol for the given
+character device.
+If you entirely omit this option in the command line,
+.Fl t Ar auto
+is assumed.
+.Pp
+Valid types for this option are listed below.
+.Bl -tag -compact -width systemmouse
+.It Ar evdev
+Input event device usualy residing in
+.Pa /dev/input .
+.It Ar sysmouse
+Traditional protocol used by e.g.
+.Xr ums 4
+and
+.Xr psm 4
+drivers.
+.El
+.Pp
+Note that this option restricts usage of the given port rather then gives
+a hint.
 .It Fl q Ar config
 Path to configuration file.
 .It Fl Q Ar quirks
