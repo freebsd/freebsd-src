@@ -517,12 +517,18 @@ vmmops_init(struct vm *vm, pmap_t pmap)
 {
 	struct hyp *hyp;
 	vm_size_t size;
+	uint64_t idreg;
 
 	size = el2_hyp_size(vm);
 	hyp = malloc_aligned(size, PAGE_SIZE, M_HYP, M_WAITOK | M_ZERO);
 
 	hyp->vm = vm;
 	hyp->vgic_attached = false;
+
+	if (get_kernel_reg(ID_AA64MMFR1_EL1, &idreg)) {
+		if (ID_AA64MMFR1_HCX_VAL(idreg) >= ID_AA64MMFR1_HCX_IMPL)
+			hyp->feats |= HYP_FEAT_HCX;
+	}
 
 	vtimer_vminit(hyp);
 	vgic_vminit(hyp);
