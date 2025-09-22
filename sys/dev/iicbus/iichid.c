@@ -540,7 +540,7 @@ iichid_sampling_task(void *context, int pending)
 	error = iichid_cmd_read(sc, sc->intr_buf, sc->intr_bufsize, &actual);
 	if (error == 0) {
 		if (actual > 0) {
-			sc->intr_handler(sc->intr_ctx, sc->intr_buf + 2, actual);
+			sc->intr_handler(sc->intr_ctx, sc->intr_buf + 2, actual - 2);
 			sc->missing_samples = 0;
 			if (sc->dup_size != actual ||
 			    memcmp(sc->dup_buf, sc->intr_buf, actual) != 0) {
@@ -607,7 +607,7 @@ iichid_intr(void *context)
 		if (sc->power_on && sc->open) {
 			if (actual != 0)
 				sc->intr_handler(sc->intr_ctx, sc->intr_buf + 2,
-				    actual);
+				    actual - 2);
 			else
 				DPRINTF(sc, "no data received\n");
 		}
@@ -822,7 +822,7 @@ iichid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
 	 * report in the descriptor, and add two for the length field.
 	 */
 	rdesc->rdsize = rdesc->rdsize == 0 ?
-	    le16toh(sc->desc.wMaxInputLength) : rdesc->isize + 2;
+	    le16toh(sc->desc.wMaxInputLength) - 2 : rdesc->isize;
 	/* Write and get/set_report sizes are limited by I2C-HID protocol. */
 	rdesc->grsize = rdesc->srsize = IICHID_SIZE_MAX;
 	rdesc->wrsize = IICHID_SIZE_MAX;
@@ -832,7 +832,7 @@ iichid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
 
 	sc->intr_handler = intr;
 	sc->intr_ctx = context;
-	sc->intr_bufsize = rdesc->rdsize;
+	sc->intr_bufsize = rdesc->rdsize + 2;
 	sc->intr_buf = realloc(sc->intr_buf, sc->intr_bufsize,
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 #ifdef IICHID_SAMPLING
@@ -1094,7 +1094,8 @@ iichid_probe(device_t dev)
 	}
 
 	if (le16toh(sc->desc.wHIDDescLength) != 30 ||
-	    le16toh(sc->desc.bcdVersion) != 0x100) {
+	    le16toh(sc->desc.bcdVersion) != 0x100 ||
+	    le16toh(sc->desc.wMaxInputLength) < 2) {
 		DPRINTF(sc, "HID descriptor is broken\n");
 		return (ENXIO);
 	}
