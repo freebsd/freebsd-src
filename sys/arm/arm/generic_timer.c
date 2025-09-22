@@ -231,6 +231,25 @@ get_cntxct(bool physical)
 	return (val);
 }
 
+#ifdef __aarch64__
+/*
+ * Read the self-syncronized counter. These cannot be read speculatively so
+ * don't need an isb before them.
+ */
+static uint64_t
+get_cntxctss(bool physical)
+{
+	uint64_t val;
+
+	if (physical)
+		val = READ_SPECIALREG(CNTPCTSS_EL0_REG);
+	else
+		val = READ_SPECIALREG(CNTVCTSS_EL0_REG);
+
+	return (val);
+}
+#endif
+
 static int
 set_ctrl(uint32_t val, bool physical)
 {
@@ -631,6 +650,7 @@ arm_tmr_attach(device_t dev)
 	pcell_t clock;
 #endif
 #ifdef __aarch64__
+	uint64_t id_aa64mmfr0_el1;
 	int user_phys;
 #endif
 	int error;
@@ -641,6 +661,11 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 
 	sc->get_cntxct = &get_cntxct;
+#ifdef __aarch64__
+	if (get_kernel_reg(ID_AA64MMFR0_EL1, &id_aa64mmfr0_el1) &&
+	    ID_AA64MMFR0_ECV_VAL(id_aa64mmfr0_el1) >= ID_AA64MMFR0_ECV_IMPL)
+		sc->get_cntxct = &get_cntxctss;
+#endif
 #ifdef FDT
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
