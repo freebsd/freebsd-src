@@ -816,12 +816,13 @@ iichid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
 
 	sc = device_get_softc(dev);
 	/*
-	 * Do not rely just on wMaxInputLength, as some devices (which?)
-	 * may set it to a wrong length.  Also find the longest input report
-	 * in report descriptor, and add two for the length field.
+	 * Start with wMaxInputLength to follow HID-over-I2C specs. Than if
+	 * semi-HID device like ietp(4) requested changing of input buffer
+	 * size with report descriptor overloading, find the longest input
+	 * report in the descriptor, and add two for the length field.
 	 */
-	rdesc->rdsize = 2 +
-	    MAX(rdesc->isize, le16toh(sc->desc.wMaxInputLength));
+	rdesc->rdsize = rdesc->rdsize == 0 ?
+	    le16toh(sc->desc.wMaxInputLength) : rdesc->isize + 2;
 	/* Write and get/set_report sizes are limited by I2C-HID protocol. */
 	rdesc->grsize = rdesc->srsize = IICHID_SIZE_MAX;
 	rdesc->wrsize = IICHID_SIZE_MAX;
