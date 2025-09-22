@@ -55,7 +55,6 @@
 #define timer_enabled(ctl)	\
     (!((ctl) & CNTP_CTL_IMASK) && ((ctl) & CNTP_CTL_ENABLE))
 
-static uint64_t cnthctl_el2_reg;
 static uint32_t tmr_frq;
 
 #define timer_condition_met(ctl)	((ctl) & CNTP_CTL_ISTATUS)
@@ -111,9 +110,8 @@ out:
 }
 
 int
-vtimer_init(uint64_t cnthctl_el2)
+vtimer_init(void)
 {
-	cnthctl_el2_reg = cnthctl_el2;
 	/*
 	 * The guest *MUST* use the same timer frequency as the host. The
 	 * register CNTFRQ_EL0 is accessible to the guest and a different value
@@ -129,7 +127,6 @@ vtimer_vminit(struct hyp *hyp)
 {
 	uint64_t now;
 
-	hyp->vtimer.cnthctl_el2 = cnthctl_el2_reg;
 
 	/*
 	 * Configure the Counter-timer Hypervisor Control Register for the VM.
