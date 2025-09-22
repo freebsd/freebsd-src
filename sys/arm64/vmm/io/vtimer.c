@@ -137,33 +137,38 @@ vtimer_vminit(struct hyp *hyp)
 	if (in_vhe()) {
 		/*
 		 * CNTHCTL_E2H_EL0PCTEN: trap EL0 access to CNTP{CT,CTSS}_EL0
-		 * CNTHCTL_E2H_EL1VCTEN: don't trap EL0 access to
-		 *                       CNTV{CT,CTSS}_EL0
+		 * CNTHCTL_E2H_EL0VCTEN: don't trap EL0 access to
+		 *                      CNTV{CT,CTXX}_EL0
 		 * CNTHCTL_E2H_EL0VTEN: don't trap EL0 access to
 		 *                      CNTV_{CTL,CVAL,TVAL}_EL0
 		 * CNTHCTL_E2H_EL0PTEN: trap EL0 access to
 		 *                      CNTP_{CTL,CVAL,TVAL}_EL0
-		 * CNTHCTL_E2H_EL1PCEN: trap EL1 access to
-		                        CNTP_{CTL,CVAL,TVAL}_EL0
 		 * CNTHCTL_E2H_EL1PCTEN: trap access to CNTPCT_EL0
+		 * CNTHCTL_E2H_EL1PTEN: trap access to
+		 *                      CNTP_{CTL,CVAL,TVAL}_EL0
+		 * CNTHCTL_E2H_EL1VCTEN: don't trap EL0 access to
+		 *                       CNTV{CT,CTSS}_EL0
+		 * CNTHCTL_E2H_EL1PCEN: trap EL1 access to
+		 *                      CNTP_{CTL,CVAL,TVAL}_EL0
 		 *
 		 * TODO: Don't trap when FEAT_ECV is present
 		 */
-		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL0PCTEN;
-		hyp->vtimer.cnthctl_el2 |= CNTHCTL_E2H_EL0VCTEN;
-		hyp->vtimer.cnthctl_el2 |= CNTHCTL_E2H_EL0VTEN;
-		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL0PTEN;
-
-		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL1PTEN;
-		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL1PCTEN;
+		hyp->vtimer.cnthctl_el2 =
+		    CNTHCTL_E2H_EL0PCTEN_TRAP |
+		    CNTHCTL_E2H_EL0VCTEN_NOTRAP |
+		    CNTHCTL_E2H_EL0VTEN_NOTRAP |
+		    CNTHCTL_E2H_EL0PTEN_TRAP |
+		    CNTHCTL_E2H_EL1PCTEN_TRAP |
+		    CNTHCTL_E2H_EL1PTEN_TRAP;
 	} else {
 		/*
 		 * CNTHCTL_EL1PCEN: trap access to CNTP_{CTL, CVAL, TVAL}_EL0
 		 *                  from EL1
 		 * CNTHCTL_EL1PCTEN: trap access to CNTPCT_EL0
 		 */
-		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_EL1PCEN;
-		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_EL1PCTEN;
+		hyp->vtimer.cnthctl_el2 =
+		    CNTHCTL_EL1PCTEN_TRAP |
+		    CNTHCTL_EL1PCEN_TRAP;
 	}
 
 	now = READ_SPECIALREG(cntpct_el0);
