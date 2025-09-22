@@ -127,9 +127,11 @@ arm64/vmm/vmm_reset.c				optional vmm
 arm64/vmm/vmm_handlers.c			optional vmm
 arm64/vmm/vmm_call.S				optional vmm
 arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
+	dependency	"$S/arm64/vmm/vmm_hyp_exception.S"		\
 	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 arm64/vmm/vmm_nvhe.c				optional vmm		\
+	dependency	"$S/arm64/vmm/vmm_hyp.c"			\
 	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
