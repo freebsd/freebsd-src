@@ -626,8 +626,6 @@ VMM_HYP_FUNC(read_reg)(uint64_t reg)
 	switch (reg) {
 	case HYP_REG_ICH_VTR:
 		return (READ_SPECIALREG(ich_vtr_el2));
-	case HYP_REG_CNTHCTL:
-		return (READ_SPECIALREG(cnthctl_el2));
 	}
 
 	return (0);
