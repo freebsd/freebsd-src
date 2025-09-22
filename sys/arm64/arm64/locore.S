@@ -418,7 +418,7 @@ LENTRY(enter_kernel_el)
 
 	msr	SCTLR_EL12_REG, x2
 	mov	x2, xzr /* CPTR_EL2 is managed by vfp.c */
-	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN | CNTHCTL_E2H_EL1PTEN)
+	ldr	x3, =(CNTHCTL_E2H_EL1PCTEN_NOTRAP | CNTHCTL_E2H_EL1PTEN_NOTRAP)
 	ldr	x5, =(PSR_DAIF | PSR_M_EL2h)
 	b	.Ldone_vhe
 
@@ -429,7 +429,7 @@ LENTRY(enter_kernel_el)
 	msr	vbar_el2, x2
 
 	ldr	x2, =(CPTR_RES1)
-	ldr	x3, =(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	ldr	x3, =(CNTHCTL_EL1PCTEN_NOTRAP | CNTHCTL_EL1PCEN_NOTRAP)
 	ldr	x5, =(PSR_DAIF | PSR_M_EL1h)
 
 .Ldone_vhe:
