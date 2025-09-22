@@ -129,16 +129,18 @@ local function main()
 	local author = os.getenv("USER") or ""
 	local dirspec = nil
 
-	local url = exec_command("git remote get-url freebsd")
-	local freebsd_repo = string.match(url, "[^/]+$")
-	freebsd_repo = string.gsub(freebsd_repo, ".git$", "")
+	local url = exec_command("git remote get-url freebsd 2>/dev/null")
+	local freebsd_repo
+	if url and url ~= "" then
+		freebsd_repo = string.match(url, "[^/]+$")
+		freebsd_repo = string.gsub(freebsd_repo, "%.git$", "")
+	end
 	if freebsd_repo == "ports" or freebsd_repo == "freebsd-ports" then
 		local year = os.date("%Y")
 		local month = os.date("%m")
 		local qtr = math.ceil(month / 3)
 		to_branch = "freebsd/" .. year .. "Q" .. qtr
 	elseif freebsd_repo == "src" or freebsd_repo == "freebsd-src" then
-		to_branch = "freebsd/stable/14"
 		-- If pwd is a stable or release branch tree, default to it.
 		local cur_branch = exec_command("git symbolic-ref --short HEAD")
 		if string.match(cur_branch, "^stable/") then
@@ -147,6 +149,11 @@ local function main()
 			to_branch = cur_branch
 			local major = string.match(cur_branch, "%d+")
 			from_branch = "freebsd/stable/" .. major
+		else
+			-- Use latest stable branch.
+			to_branch = exec_command("git for-each-ref --sort=-v:refname " ..
+				"--format='%(refname:lstrip=2)' " ..
+				"refs/remotes/freebsd/stable/* --count=1")
 		end
 	else
 		print("pwd is not under a ports or src repository.")
