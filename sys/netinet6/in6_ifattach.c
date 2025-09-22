@@ -377,7 +377,7 @@ in6_get_stableifid(struct ifnet *ifp, struct in6_addr *in6, int prefixlen)
 	}
 	hostuuid_len = strlen(hostuuid);
 
-	dad_failures = counter_u64_fetch(ND_IFINFO(ifp)->dad_failures);
+	dad_failures = counter_u64_fetch(DAD_FAILURES(ifp));
 
 	/*
 	 * RFC 7217 section 7

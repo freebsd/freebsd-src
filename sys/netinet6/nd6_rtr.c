@@ -1757,7 +1757,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		 * to fail and no further retries should happen.
 		 */
 		if (ND_IFINFO(ifp)->flags & ND6_IFF_STABLEADDR &&
-		    counter_u64_fetch(ND_IFINFO(ifp)->dad_failures) <= V_ip6_stableaddr_maxretries &&
+		    counter_u64_fetch(DAD_FAILURES(ifp)) <= V_ip6_stableaddr_maxretries &&
 		    ifa6->ia6_flags & (IN6_IFF_DUPLICATED | IN6_IFF_TEMPORARY))
 			continue;
 

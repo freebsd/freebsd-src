@@ -76,7 +76,6 @@ struct nd_ifinfo {
 	u_int8_t randomseed0[8]; /* upper 64 bits of MD5 digest */
 	u_int8_t randomseed1[8]; /* lower 64 bits (usually the EUI64 IFID) */
 	u_int8_t randomid[8];	/* current random ID */
-	counter_u64_t dad_failures;	/* DAD failures when using RFC 7217 stable addresses */
 };
 
 #define ND6_IFF_PERFORMNUD	0x1
