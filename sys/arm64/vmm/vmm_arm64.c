@@ -523,6 +523,11 @@ vmmops_init(struct vm *vm, pmap_t pmap)
 	hyp->vm = vm;
 	hyp->vgic_attached = false;
 
+	if (get_kernel_reg(ID_AA64MMFR0_EL1, &idreg)) {
+		if (ID_AA64MMFR0_ECV_VAL(idreg) >= ID_AA64MMFR0_ECV_POFF)
+			hyp->feats |= HYP_FEAT_ECV_POFF;
+	}
+
 	if (get_kernel_reg(ID_AA64MMFR1_EL1, &idreg)) {
 		if (ID_AA64MMFR1_HCX_VAL(idreg) >= ID_AA64MMFR1_HCX_IMPL)
 			hyp->feats |= HYP_FEAT_HCX;
