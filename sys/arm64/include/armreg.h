@@ -232,12 +232,28 @@
 #define	CNTP_CTL_IMASK		(1 << 1)
 #define	CNTP_CTL_ISTATUS	(1 << 2)
 
+/* CNTP_CTL_EL02 - Counter-timer Physical Timer Control register */
+#define	CNTP_CTL_EL02_REG	MRS_REG_ALT_NAME(CNTP_CTL_EL02)
+#define	CNTP_CTL_EL02_op0	3
+#define	CNTP_CTL_EL02_op1	5
+#define	CNTP_CTL_EL02_CRn	14
+#define	CNTP_CTL_EL02_CRm	2
+#define	CNTP_CTL_EL02_op2	1
+
 /* CNTP_CVAL_EL0 - Counter-timer Physical Timer CompareValue register */
 #define	CNTP_CVAL_EL0_op0	3
 #define	CNTP_CVAL_EL0_op1	3
 #define	CNTP_CVAL_EL0_CRn	14
 #define	CNTP_CVAL_EL0_CRm	2
 #define	CNTP_CVAL_EL0_op2	2
+
+/* CNTP_CVAL_EL02 - Counter-timer Physical Timer CompareValue register */
+#define	CNTP_CVAL_EL02_REG	MRS_REG_ALT_NAME(CNTP_CVAL_EL02)
+#define	CNTP_CVAL_EL02_op0	3
+#define	CNTP_CVAL_EL02_op1	5
+#define	CNTP_CVAL_EL02_CRn	14
+#define	CNTP_CVAL_EL02_CRm	2
+#define	CNTP_CVAL_EL02_op2	2
 
 /* CNTP_TVAL_EL0 - Counter-timer Physical Timer TimerValue register */
 #define	CNTP_TVAL_EL0_op0	3
@@ -253,6 +269,14 @@
 #define	CNTPCT_EL0_CRn		14
 #define	CNTPCT_EL0_CRm		0
 #define	CNTPCT_EL0_op2		1
+
+/* CNTPCTSS_EL0 - Counter-timer Self-Synchronized Physical Count register */
+#define	CNTPCTSS_EL0_REG	MRS_REG_ALT_NAME(CNTPCTSS_EL0)
+#define	CNTPCTSS_EL0_op0	3
+#define	CNTPCTSS_EL0_op1	3
+#define	CNTPCTSS_EL0_CRn	14
+#define	CNTPCTSS_EL0_CRm	0
+#define	CNTPCTSS_EL0_op2	5
 
 /* CNTV_CTL_EL0 - Counter-timer Virtual Timer Control register */
 #define	CNTV_CTL_EL0_op0	3
@@ -281,6 +305,14 @@
 #define	CNTV_CVAL_EL02_CRn	14
 #define	CNTV_CVAL_EL02_CRm	3
 #define	CNTV_CVAL_EL02_op2	2
+
+/* CNTVCTSS_EL0 - Counter-timer Self-Synchronized Virtual Count register */
+#define	CNTVCTSS_EL0_REG	MRS_REG_ALT_NAME(CNTVCTSS_EL0)
+#define	CNTVCTSS_EL0_op0	3
+#define	CNTVCTSS_EL0_op1	3
+#define	CNTVCTSS_EL0_CRn	14
+#define	CNTVCTSS_EL0_CRm	0
+#define	CNTVCTSS_EL0_op2	6
 
 /* CONTEXTIDR_EL1 - Context ID register */
 #define	CONTEXTIDR_EL1_REG	MRS_REG_ALT_NAME(CONTEXTIDR_EL1)
