@@ -234,6 +234,7 @@ static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
 static int pipe_create(struct pipe *pipe, bool backing);
+static void pipe_destroy(struct pipe *pipe);
 static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, bool catch);
 static __inline void pipeunlock(struct pipe *cpipe);
@@ -399,16 +400,7 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 		goto fail;
 	error = pipe_create(wpipe, false);
 	if (error != 0) {
-		/*
-		 * This cleanup leaves the pipe inode number for rpipe
-		 * still allocated, but never used.  We do not free
-		 * inode numbers for opened pipes, which is required
-		 * for correctness because numbers must be unique.
-		 * But also it avoids any memory use by the unr
-		 * allocator, so stashing away the transient inode
-		 * number is reasonable.
-		 */
-		pipe_free_kmem(rpipe);
+		pipe_destroy(rpipe);
 		goto fail;
 	}
 
@@ -741,6 +733,16 @@ pipe_create(struct pipe *pipe, bool large_backing)
 	if (error == 0)
 		pipe->pipe_ino = alloc_unr64(&pipeino_unr);
 	return (error);
+}
+
+static void
+pipe_destroy(struct pipe *pipe)
+{
+	pipe_free_kmem(pipe);
+	/*
+	 * Note: we "leak" pipe_ino -- by design the alloc_unr64 mechanism does
+	 * not undo allocations.
+	 */
 }
 
 /* ARGSUSED */
