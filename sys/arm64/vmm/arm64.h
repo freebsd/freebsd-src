@@ -130,6 +130,7 @@ struct hyp {
 	uint64_t	el2_addr;	/* The address of this in el2 space */
 	uint64_t	feats;		/* Which features are enabled */
 #define	HYP_FEAT_HCX		(0x1ul << 0)
+#define	HYP_FEAT_ECV_POFF	(0x1ul << 1)
 	bool		vgic_attached;
 	struct vgic_v3	*vgic;
 	struct hypctx	*ctx[];
