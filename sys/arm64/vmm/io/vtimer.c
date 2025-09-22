@@ -36,6 +36,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
@@ -58,6 +59,14 @@
 static uint32_t tmr_frq;
 
 #define timer_condition_met(ctl)	((ctl) & CNTP_CTL_ISTATUS)
+
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, vtimer, CTLFLAG_RW, NULL, NULL);
+
+static bool allow_ecv_phys = false;
+SYSCTL_BOOL(_hw_vmm_vtimer, OID_AUTO, allow_ecv_phys, CTLFLAG_RW,
+    &allow_ecv_phys, 0,
+    "Enable hardware access to the physical timer if FEAT_ECV_POFF is supported");
 
 static void vtimer_schedule_irq(struct hypctx *hypctx, bool phys);
 
@@ -126,7 +135,12 @@ void
 vtimer_vminit(struct hyp *hyp)
 {
 	uint64_t now;
+	bool ecv_poff;
 
+	ecv_poff = false;
+
+	if (allow_ecv_phys && (hyp->feats & HYP_FEAT_ECV_POFF) != 0)
+		ecv_poff = true;
 
 	/*
 	 * Configure the Counter-timer Hypervisor Control Register for the VM.
@@ -151,22 +165,40 @@ vtimer_vminit(struct hyp *hyp)
 		 * TODO: Don't trap when FEAT_ECV is present
 		 */
 		hyp->vtimer.cnthctl_el2 =
-		    CNTHCTL_E2H_EL0PCTEN_TRAP |
 		    CNTHCTL_E2H_EL0VCTEN_NOTRAP |
-		    CNTHCTL_E2H_EL0VTEN_NOTRAP |
-		    CNTHCTL_E2H_EL0PTEN_TRAP |
-		    CNTHCTL_E2H_EL1PCTEN_TRAP |
-		    CNTHCTL_E2H_EL1PTEN_TRAP;
+		    CNTHCTL_E2H_EL0VTEN_NOTRAP;
+		if (ecv_poff) {
+			hyp->vtimer.cnthctl_el2 |=
+			    CNTHCTL_E2H_EL0PCTEN_NOTRAP |
+			    CNTHCTL_E2H_EL0PTEN_NOTRAP |
+			    CNTHCTL_E2H_EL1PCTEN_NOTRAP |
+			    CNTHCTL_E2H_EL1PTEN_NOTRAP;
+		} else {
+			hyp->vtimer.cnthctl_el2 |=
+			    CNTHCTL_E2H_EL0PCTEN_TRAP |
+			    CNTHCTL_E2H_EL0PTEN_TRAP |
+			    CNTHCTL_E2H_EL1PCTEN_TRAP |
+			    CNTHCTL_E2H_EL1PTEN_TRAP;
+		}
 	} else {
 		/*
 		 * CNTHCTL_EL1PCEN: trap access to CNTP_{CTL, CVAL, TVAL}_EL0
 		 *                  from EL1
 		 * CNTHCTL_EL1PCTEN: trap access to CNTPCT_EL0
 		 */
-		hyp->vtimer.cnthctl_el2 =
-		    CNTHCTL_EL1PCTEN_TRAP |
-		    CNTHCTL_EL1PCEN_TRAP;
+		if (ecv_poff) {
+			hyp->vtimer.cnthctl_el2 =
+			    CNTHCTL_EL1PCTEN_NOTRAP |
+			    CNTHCTL_EL1PCEN_NOTRAP;
+		} else {
+			hyp->vtimer.cnthctl_el2 =
+			    CNTHCTL_EL1PCTEN_TRAP |
+			    CNTHCTL_EL1PCEN_TRAP;
+		}
 	}
+
+	if (ecv_poff)
+		hyp->vtimer.cnthctl_el2 |= CNTHCTL_ECV_EN;
 
 	now = READ_SPECIALREG(cntpct_el0);
 	hyp->vtimer.cntvoff_el2 = now;
@@ -233,15 +265,10 @@ vtimer_cleanup(void)
 {
 }
 
-void
-vtimer_sync_hwstate(struct hypctx *hypctx)
+static void
+vtime_sync_timer(struct hypctx *hypctx, struct vtimer_timer *timer,
+    uint64_t cntpct_el0)
 {
-	struct vtimer_timer *timer;
-	uint64_t cntpct_el0;
-
-	timer = &hypctx->vtimer_cpu.virt_timer;
-	cntpct_el0 = READ_SPECIALREG(cntpct_el0) -
-	    hypctx->hyp->vtimer.cntvoff_el2;
 	if (!timer_enabled(timer->cntx_ctl_el0)) {
 		vgic_inject_irq(hypctx->hyp, vcpu_vcpuid(hypctx->vcpu),
 		    timer->irqid, false);
@@ -252,6 +279,21 @@ vtimer_sync_hwstate(struct hypctx *hypctx)
 		vgic_inject_irq(hypctx->hyp, vcpu_vcpuid(hypctx->vcpu),
 		    timer->irqid, false);
 		vtimer_schedule_irq(hypctx, false);
+	}
+}
+
+void
+vtimer_sync_hwstate(struct hypctx *hypctx)
+{
+	uint64_t cntpct_el0;
+
+	cntpct_el0 = READ_SPECIALREG(cntpct_el0) -
+	    hypctx->hyp->vtimer.cntvoff_el2;
+	vtime_sync_timer(hypctx, &hypctx->vtimer_cpu.virt_timer, cntpct_el0);
+	/* If FEAT_ECV_POFF is in use then we need to sync the physical timer */
+	if ((hypctx->hyp->vtimer.cnthctl_el2 & CNTHCTL_ECV_EN) != 0) {
+		vtime_sync_timer(hypctx, &hypctx->vtimer_cpu.phys_timer,
+		    cntpct_el0);
 	}
 }
 
