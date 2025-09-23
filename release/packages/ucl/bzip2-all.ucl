@@ -1,0 +1,12 @@
+comment = "A block-sorting data compressor"
+
+desc = <<EOD
+bzip2 compresses data using the Burrows-Wheeler block sorting text compression
+algorithm, and Huffman coding.  Compression is generally considerably better
+than that achieved by more conventional LZ77/LZ78-based compressors, and
+approaches the performance of the PPM family of statistical compressors.
+EOD
+
+annotations {
+	set = "minimal,minimal-jail"
+}
