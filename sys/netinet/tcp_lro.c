@@ -1428,17 +1428,6 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 {
 	int error;
 
-	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
-	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
-	    (m->m_pkthdr.csum_data != 0xffff)) {
-		/*
-		 * The checksum either did not have hardware offload
-		 * or it was a bad checksum. We can't LRO such
-		 * a packet.
-		 */
-		counter_u64_add(tcp_bad_csums, 1);
-		return (TCP_LRO_CANNOT);
-	}
 	/* get current time */
 	binuptime(&lc->lro_last_queue_time);
 	CURVNET_SET(lc->ifp->if_vnet);
