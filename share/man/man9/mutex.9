@@ -263,7 +263,7 @@ or
 mutex, respectively, pointed to by
 .Fa mutex .
 If the mutex cannot be immediately acquired, the functions will return 0,
-otherwise the mutex will be acquired and a non-zero value will be returned.
+otherwise the mutex will be acquired and a nonzero value will be returned.
 .Pp
 The
 .Fn mtx_trylock_flags
@@ -339,13 +339,13 @@ see
 .Pp
 The
 .Fn mtx_initialized
-function returns non-zero if
+function returns nonzero if
 .Fa mutex
 has been initialized and zero otherwise.
 .Pp
 The
 .Fn mtx_owned
-function returns non-zero
+function returns nonzero
 if the current thread holds
 .Fa mutex .
 If the current thread does not hold
@@ -354,7 +354,7 @@ zero is returned.
 .Pp
 The
 .Fn mtx_recursed
-function returns non-zero if the
+function returns nonzero if the
 .Fa mutex
 is recursed.
 This check should only be made if the running thread already owns
