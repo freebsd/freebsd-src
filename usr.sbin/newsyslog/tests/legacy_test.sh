@@ -522,6 +522,8 @@ tests_normal_rotate_recompress() {
 	ckfe ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.1${ext}
 	end
+
+	tmpdir_clean
 }
 
 echo 1..185
