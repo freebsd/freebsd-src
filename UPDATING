@@ -28,11 +28,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250923:
+	Several changes which affect pkgbase users (only):
+
 	powerd has been moved to a new FreeBSD-powerd package.  If you have
 	FreeBSD-set-minimal installed, the new package will be installed
 	automatically, otherwise you may want to install it by hand.
 
-	This only affects pkgbase users.
+	libpmc and related utilities (/usr/sbin/pmc*) have moved to the new
+	FreeBSD-pmc package.  If you use these, you may want to install the
+	package.
 
 20250918:
 	mandoc (including /usr/bin/man) has been moved to a new package,
