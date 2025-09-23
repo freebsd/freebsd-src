@@ -50,7 +50,6 @@ CONFS=	DAEMON \
 	${_nscd} \
 	${_opensm} \
 	os-release \
-	powerd \
 	pppoed \
 	pwcheck \
 	quota \
@@ -126,6 +125,10 @@ NFSPACKAGE=		nfs
 CONFGROUPS+=		NEWSYSLOG
 NEWSYSLOG=		newsyslog
 NEWSYSLOGPACKAGE=	newsyslog
+
+CONFGROUPS+=		POWERD
+POWERD=			powerd
+POWERDPACKAGE=		powerd
 
 CONFGROUPS+=		SYSLOGD
 SYSLOGD=		syslogd
