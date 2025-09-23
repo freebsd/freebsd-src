@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250924:
+	powerd has been moved to a new FreeBSD-powerd package.  If you have
+	FreeBSD-set-minimal installed, the new package will be installed
+	automatically, otherwise you may want to install it by hand.
+
+	This only affects pkgbase users.
+
 20250918:
 	The MANSPLITPKG knob has been turned off by default, so pkgbase builds
 	will no longer generate "-man" subpackages; instead the manpages will
