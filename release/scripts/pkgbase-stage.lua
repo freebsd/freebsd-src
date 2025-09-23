@@ -33,13 +33,17 @@ local function select_packages(pkg, media, all_libcompats)
 			components["kernel-dbg"] = package
 		elseif package:match("^FreeBSD%-kernel%-generic.*") then
 			components["kernel"] = package
+		elseif package == "pkg" then
+			components["pkg"] = package
 		end
 	end
 	assert(components["kernel"])
 	assert(components["base"])
+	assert(components["pkg"])
 
 	local selected = {}
 	if media == "disc" then
+		table.insert(selected, components["pkg"])
 		table.insert(selected, components["base"])
 		table.insert(selected, components["kernel"])
 		table.insert(selected, components["kernel-dbg"])
@@ -50,6 +54,7 @@ local function select_packages(pkg, media, all_libcompats)
 		end
 	else
 		assert(media == "dvd")
+		table.insert(selected, components["pkg"])
 		table.insert(selected, components["base"])
 		table.insert(selected, components["base-dbg"])
 		table.insert(selected, components["kernel"])
