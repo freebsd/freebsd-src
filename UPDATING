@@ -13,11 +13,15 @@ Items affecting the ports and packages system can be found in
 and/or ports.
 
 20250924:
+	Several changes which affect pkgbase users (only):
+
 	powerd has been moved to a new FreeBSD-powerd package.  If you have
 	FreeBSD-set-minimal installed, the new package will be installed
 	automatically, otherwise you may want to install it by hand.
 
-	This only affects pkgbase users.
+	libpmc and related utilities (/usr/sbin/pmc*) have moved to the new
+	FreeBSD-pmc package.  If you use these, you may want to install the
+	package.
 
 20250918:
 	The MANSPLITPKG knob has been turned off by default, so pkgbase builds

@@ -1,5 +1,6 @@
 .include <src.opts.mk>
 
+PACKAGE=	pmc
 PROG_CXX=	pmc
 MAN=	
 CWARNFLAGS.gcc+= -Wno-redundant-decls
