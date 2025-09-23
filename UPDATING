@@ -23,6 +23,11 @@ and/or ports.
 	FreeBSD-pmc package.  If you use these, you may want to install the
 	package.
 
+	The libbz2 package has been renamed to bzip2, and /usr/bin/bzip2 has
+	been moved to the new package.  If you have set-minimal installed,
+	the new package will be added automatically, otherwise you may want
+	to manually install it.
+
 20250918:
 	The MANSPLITPKG knob has been turned off by default, so pkgbase builds
 	will no longer generate "-man" subpackages; instead the manpages will
