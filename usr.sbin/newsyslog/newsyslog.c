@@ -837,13 +837,6 @@ parse_doption(const char *doption)
 		return (1);			/* successfully parsed */
 	}
 
-	/* XXX - This check could probably be dropped. */
-	if ((strcmp(doption, "neworder") == 0) || (strcmp(doption, "oldorder")
-	    == 0)) {
-		warnx("NOTE: newsyslog always uses 'neworder'.");
-		return (1);			/* successfully parsed */
-	}
-
 	warnx("Unknown -D (debug) option: '%s'", doption);
 	return (0);				/* failure */
 }
