@@ -803,5 +803,6 @@ arm64/mediatek/mt7622_sysirq.c			optional fdt soc_mediatek
 arm64/mediatek/mt7622_watchdog.c		optional fdt soc_mediatek
 arm64/mediatek/mt7622_ahci.c		    	optional fdt soc_mediatek
 arm64/mediatek/mt7622_tphy.c			optional fdt soc_mediatek
-#arm64/mediatek/mt_xhci.c                        optional fdt soc_mediatek
+arm64/mediatek/mt7622_rng.c                     optional fdt soc_mediatek
+#arm64/mediatek/mt_xhci.c                       optional fdt soc_mediatek
 arm64/mediatek/mt7531_switch.c		    	optional fdt mt7531_switch soc_mediatek
