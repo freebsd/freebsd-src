@@ -150,7 +150,7 @@ main(int argc, char **argv)
 			errx(1, "%s: Not a mount point", stfsbuf.f_mntonname);
 	}
 	if (cp != stfsbuf.f_mntonname)
-		strlcpy(stfsbuf.f_mntonname, cp, sizeof(stfsbuf.f_mntonname));
+		memmove(stfsbuf.f_mntonname, cp, strlen(cp) + 1);
 
 	/*
 	 * Having verified access to the directory in which the
