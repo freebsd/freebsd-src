@@ -79,11 +79,16 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 PKG_ENV+=	INSTALL_AS_USER=yes
 PKG_ENV+=	ASSUME_ALWAYS_YES=yes
 PKG_ARGS+=	-o METALOG=METALOG
-PKG_ARGS+=	-r ${.TARGET} -o REPOS_DIR=${.CURDIR}/pkg_repos
+PKG_ARGS+=	-r ${.TARGET}
+PKG_REPO_ARGS=	-o REPOS_DIR=${.CURDIR}/pkg_repos
+PKGBASE_REPO_ARGS=-o REPOS_DIR=${.OBJDIR}/pkgbase-repo-conf
 # Pass -f to make sure pkg writes to the METALOG even if the package
 # is already installed from a previous build
-PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} install -f
-PKG_CLEAN=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} clean -a
+PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} ${PKG_REPO_ARGS} install -f
+PKG_CLEAN=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} ${PKG_REPO_ARGS} clean -a
+# This installs from the pkgbase repo we created during build.
+PKGBASE_INSTALL=env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} ${PKGBASE_REPO_ARGS} install -f
+PKGBASE_CLEAN=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} ${PKGBASE_REPO_ARGS} clean -a
 .endif
 
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
@@ -238,7 +243,12 @@ disc1: ${PKGBASE_REPO}
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
+	${PKGBASE_INSTALL} pkg
+	${PKGBASE_CLEAN}
+.else
 	${PKG_INSTALL} pkg
+.endif
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
 	${PKG_CLEAN} || true
 .endif
@@ -278,8 +288,7 @@ bootonly:
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
-# Install packages onto release media.
-	${PKG_INSTALL} pkg
+	${PKG_INSTALL} pkg || true
 	${PKG_INSTALL} wifi-firmware-iwlwifi-kmod wifi-firmware-rtw88-kmod || true
 	${PKG_CLEAN} || true
 .endif
@@ -333,7 +342,12 @@ dvd: ${PKGBASE_REPO}
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
+.if !defined(NOPKGBASE) || empty(NOPKGBASE)
+	${PKGBASE_INSTALL} pkg
+	${PKGBASE_CLEAN}
+.else
 	${PKG_INSTALL} pkg
+.endif
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
 	${PKG_CLEAN} || true
 .endif
