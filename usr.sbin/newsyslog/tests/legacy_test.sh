@@ -206,7 +206,7 @@ tmpdir_clean()
 run_newsyslog()
 {
 
-	newsyslog -f ../newsyslog.conf -F -r "$@"
+	newsyslog -f ../newsyslog.conf -r "$@"
 }
 
 tests_normal_rotate() {
@@ -216,17 +216,17 @@ tests_normal_rotate() {
 	dir="$2"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args=" -a ${dir}"
+		newsyslog_args="-F -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args=""
+		newsyslog_args="-F"
 		name_postfix="${ext}"
 	fi
 
 	tmpdir_create
 
 	begin "create file ${name_postfix}" -newdir
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
 	end
@@ -294,17 +294,17 @@ tests_normal_rotate_keepn() {
 	dir="$3"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args=" -a ${dir}"
+		newsyslog_args="-F -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args=""
+		newsyslog_args="-F"
 		name_postfix="${ext}"
 	fi
 
 	tmpdir_create
 
 	begin "create file ${name_postfix}" -newdir
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
 	end
@@ -363,10 +363,10 @@ tests_time_rotate() {
 	dir="$2"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args="-t DEFAULT -a ${dir}"
+		newsyslog_args="-F -t DEFAULT -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args="-t DEFAULT"
+		newsyslog_args="-F -t DEFAULT"
 		name_postfix="${ext}"
 	fi
 
@@ -424,17 +424,17 @@ tests_rfc5424() {
 	dir="$2"
 
 	if [ -n "$dir" ]; then
-		newsyslog_args=" -a ${dir}"
+		newsyslog_args="-F -a ${dir}"
 		name_postfix="${ext} archive dir"
 	else
-		newsyslog_args=""
+		newsyslog_args="-F"
 		name_postfix="${ext}"
 	fi
 
 	tmpdir_create
 
 	begin "RFC-5424 - create file ${name_postfix}" -newdir
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
 	ckfe $LOGFNAME5424
@@ -466,23 +466,23 @@ tests_p_flag_rotate() {
 	tmpdir_create
 
 	begin "create file"
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
 	end
 
 	begin "rotate p flag 1 ${ext}"
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.1${ext}
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
@@ -501,13 +501,13 @@ tests_normal_rotate_recompress() {
 	tmpdir_create
 
 	begin "create file recompress"
-	run_newsyslog -C
+	run_newsyslog -CF
 	ckfe $LOGFNAME
 	cknt ${LOGFNAME}.0${ext}
 	end
 
 	begin "rotate normal 1"
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0${ext}
 	cknt ${LOGFNAME}.1${ext}
@@ -517,7 +517,7 @@ tests_normal_rotate_recompress() {
 	gunzip ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.0
 	cknt ${LOGFNAME}.0${ext}
-	run_newsyslog
+	run_newsyslog -F
 	ckfe $LOGFNAME
 	ckfe ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.1${ext}
