@@ -2021,7 +2021,7 @@ offtime_key_init(void)
 }
 #endif /* __FreeBSD__ */
 struct tm *
-offtime(const time_t *timep, long offset)
+offtime(time_t const *timep, long offset)
 {
 #  if !SUPPORT_C89
   static struct tm tm;
