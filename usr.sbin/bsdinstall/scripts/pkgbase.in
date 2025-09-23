@@ -182,6 +182,16 @@ local function select_packages(pkg, options)
 		["debug"] = {},
 	}
 
+	-- Note: if you update this list, you must also update the list in
+	-- release/scripts/pkgbase-stage.lua.
+	local kernel_packages = {
+		-- Most architectures use this
+		["FreeBSD-kernel-generic"] = true,
+		-- PowerPC uses either of these, depending on platform
+		["FreeBSD-kernel-generic64"] = true,
+		["FreeBSD-kernel-generic64le"] = true,
+	}
+
 	local rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")
 	for package in rquery:gmatch("[^\n]+") do
 		local setname = package:match("^FreeBSD%-set%-(.+)$")
@@ -189,15 +199,10 @@ local function select_packages(pkg, options)
 		if setname then
 			components[setname] = components[setname] or {}
 			table.insert(components[setname], package)
-		elseif package:match("^FreeBSD%-kernel%-.*") and
-			package ~= "FreeBSD-kernel-man"
-		then
-			-- Kernels other than FreeBSD-kernel-generic are ignored
-			if package == "FreeBSD-kernel-generic" then
-				table.insert(components["kernel"], package)
-			elseif package == "FreeBSD-kernel-generic-dbg" then
-				table.insert(components["kernel-dbg"], package)
-			end
+		elseif kernel_packages[package] then
+			table.insert(components["kernel"], package)
+		elseif kernel_packages[package:match("(.*)%-dbg$")] then
+			table.insert(components["kernel-dbg"], package)
 		end
 	end
 
