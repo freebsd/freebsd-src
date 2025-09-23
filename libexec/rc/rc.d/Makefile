@@ -50,7 +50,6 @@ CONFS=	DAEMON \
 	${_nscd} \
 	${_opensm} \
 	os-release \
-	pppoed \
 	pwcheck \
 	quota \
 	random \
@@ -129,6 +128,10 @@ NEWSYSLOGPACKAGE=	newsyslog
 CONFGROUPS+=		POWERD
 POWERD=			powerd
 POWERDPACKAGE=		powerd
+
+CONFGROUPS+=		PPPOED
+PPPOED=			pppoed
+PPPOEDPACKAGE=		ppp
 
 CONFGROUPS+=		SYSLOGD
 SYSLOGD=		syslogd
