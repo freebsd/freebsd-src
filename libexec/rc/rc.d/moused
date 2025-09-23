@@ -46,8 +46,8 @@ moused_start()
 	# the moused_port variable, which if not defined sets it to the
 	# passed in device name.
 	#
-	ms=`basename $1`
-	if [ -n "$ms" ]; then
+	if [ -n "$1" ]; then
+		ms=`basename $1`
 		eval myflags=\${moused_${ms}_flags-$moused_flags}
 		eval myport=\${moused_${ms}_port-/dev/$1}
 		eval mytype=\${moused_${ms}_type-$moused_type}
