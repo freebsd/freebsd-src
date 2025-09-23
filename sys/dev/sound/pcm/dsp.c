@@ -671,6 +671,43 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
 	return (0);
 }
 
+#ifdef COMPAT_FREEBSD32
+typedef struct _snd_chan_param32 {
+	uint32_t	play_rate;
+	uint32_t	rec_rate;
+	uint32_t	play_format;
+	uint32_t	rec_format;
+} snd_chan_param32;
+#define AIOGFMT32    _IOC_NEWTYPE(AIOGFMT, snd_chan_param32)
+#define AIOSFMT32    _IOC_NEWTYPE(AIOSFMT, snd_chan_param32)
+
+typedef struct _snd_capabilities32 {
+	uint32_t	rate_min, rate_max;
+	uint32_t	formats;
+	uint32_t	bufsize;
+	uint32_t	mixers;
+	uint32_t	inputs;
+	uint16_t	left, right;
+} snd_capabilities32;
+#define AIOGCAP32 _IOC_NEWTYPE(AIOGCAP, snd_capabilities32)
+
+typedef struct audio_errinfo32
+{
+	int32_t		play_underruns;
+	int32_t		rec_overruns;
+	uint32_t	play_ptradjust;
+	uint32_t	rec_ptradjust;
+	int32_t		play_errorcount;
+	int32_t		rec_errorcount;
+	int32_t		play_lasterror;
+	int32_t		rec_lasterror;
+	int32_t		play_errorparm;
+	int32_t		rec_errorparm;
+	int32_t		filler[16];
+} audio_errinfo32;
+#define SNDCTL_DSP_GETERROR32 _IOC_NEWTYPE(SNDCTL_DSP_GETERROR, audio_errinfo32)
+#endif
+
 static int
 dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td)
@@ -829,9 +866,25 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
     	case AIOSFMT:
     	case AIOGFMT:
+#ifdef COMPAT_FREEBSD32
+	case AIOSFMT32:
+	case AIOGFMT32:
+#endif
 		{
 	    		snd_chan_param *p = (snd_chan_param *)arg;
 
+#ifdef COMPAT_FREEBSD32
+			snd_chan_param32 *p32 = (snd_chan_param32 *)arg;
+			snd_chan_param param;
+
+			if (cmd == AIOSFMT32) {
+				p = &param;
+				p->play_rate = p32->play_rate;
+				p->rec_rate = p32->rec_rate;
+				p->play_format = p32->play_format;
+				p->rec_format = p32->rec_format;
+			}
+#endif
 			if (cmd == AIOSFMT &&
 			    ((p->play_format != 0 && p->play_rate == 0) ||
 			    (p->rec_format != 0 && p->rec_rate == 0))) {
@@ -872,15 +925,41 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	    			p->rec_format = 0;
 	    		}
 			PCM_RELEASE_QUICK(d);
+#ifdef COMPAT_FREEBSD32
+			if (cmd == AIOSFMT32 || cmd == AIOGFMT32) {
+				p32->play_rate = p->play_rate;
+				p32->rec_rate = p->rec_rate;
+				p32->play_format = p->play_format;
+				p32->rec_format = p->rec_format;
+			}
+#endif
 		}
 		break;
 
     	case AIOGCAP:     /* get capabilities */
+#ifdef COMPAT_FREEBSD32
+	case AIOGCAP32:
+#endif
 		{
 	    		snd_capabilities *p = (snd_capabilities *)arg;
 			struct pcmchan_caps *pcaps = NULL, *rcaps = NULL;
 			struct cdev *pdev;
+#ifdef COMPAT_FREEBSD32
+			snd_capabilities32 *p32 = (snd_capabilities32 *)arg;
+			snd_capabilities capabilities;
 
+			if (cmd == AIOGCAP32) {
+				p = &capabilities;
+				p->rate_min = p32->rate_min;
+				p->rate_max = p32->rate_max;
+				p->formats = p32->formats;
+				p->bufsize = p32->bufsize;
+				p->mixers = p32->mixers;
+				p->inputs = p32->inputs;
+				p->left = p32->left;
+				p->right = p32->right;
+			}
+#endif
 			PCM_LOCK(d);
 			if (rdch) {
 				CHN_LOCK(rdch);
@@ -913,6 +992,18 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			if (rdch)
 				CHN_UNLOCK(rdch);
 			PCM_UNLOCK(d);
+#ifdef COMPAT_FREEBSD32
+			if (cmd == AIOGCAP32) {
+				p32->rate_min = p->rate_min;
+				p32->rate_max = p->rate_max;
+				p32->formats = p->formats;
+				p32->bufsize = p->bufsize;
+				p32->mixers = p->mixers;
+				p32->inputs = p->inputs;
+				p32->left = p->left;
+				p32->right = p->right;
+			}
+#endif
 		}
 		break;
 
@@ -1635,6 +1726,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		break;
 
 	case SNDCTL_DSP_GETERROR:
+#ifdef COMPAT_FREEBSD32
+	case SNDCTL_DSP_GETERROR32:
+#endif
 	/*
 	 * OSSv4 docs:  "All errors and counters will automatically be
 	 * cleared to zeroes after the call so each call will return only
@@ -1644,6 +1738,14 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 */
 		{
 			audio_errinfo *ei = (audio_errinfo *)arg;
+#ifdef COMPAT_FREEBSD32
+			audio_errinfo errinfo;
+			audio_errinfo32 *ei32 = (audio_errinfo32 *)arg;
+
+			if (cmd == SNDCTL_DSP_GETERROR32) {
+				ei = &errinfo;
+			}
+#endif
 
 			bzero((void *)ei, sizeof(*ei));
 
@@ -1659,6 +1761,21 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 				rdch->xruns = 0;
 				CHN_UNLOCK(rdch);
 			}
+#ifdef COMPAT_FREEBSD32
+			if (cmd == SNDCTL_DSP_GETERROR32) {
+				bzero((void *)ei32, sizeof(*ei32));
+				ei32->play_underruns = ei->play_underruns;
+				ei32->rec_overruns = ei->rec_overruns;
+				ei32->play_ptradjust = ei->play_ptradjust;
+				ei32->rec_ptradjust = ei->rec_ptradjust;
+				ei32->play_errorcount = ei->play_errorcount;
+				ei32->rec_errorcount = ei->rec_errorcount;
+				ei32->play_lasterror = ei->play_lasterror;
+				ei32->rec_lasterror = ei->rec_lasterror;
+				ei32->play_errorparm = ei->play_errorparm;
+				ei32->rec_errorparm = ei->rec_errorparm;
+			}
+#endif
 		}
 		break;
 
