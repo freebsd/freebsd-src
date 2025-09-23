@@ -1,3 +1,5 @@
+PACKAGE=	bzip2
+
 BZ2DIR=	${SRCTOP}/contrib/bzip2
 .PATH: ${BZ2DIR}
 

@@ -1,4 +1,6 @@
-PACKAGE=	lib${LIB}
+PACKAGE=	bzip2
+LIB_PACKAGE=
+
 BZ2DIR=	${SRCTOP}/contrib/bzip2
 .PATH: ${BZ2DIR}
 

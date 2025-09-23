@@ -1,0 +1,7 @@
+deps {
+	# newsyslog uses bzip2 to compress log files.
+	"bzip2" {
+		version = "${VERSION}"
+		origin = "base"
+	}
+}
