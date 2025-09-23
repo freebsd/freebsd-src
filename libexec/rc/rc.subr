@@ -804,7 +804,6 @@ wait_for_pids()
 		for _j in $_list; do
 			if kill -0 $_j 2>/dev/null; then
 				_nlist="${_nlist}${_nlist:+ }$_j"
-				[ -n "$_prefix" ] && sleep 1
 			fi
 		done
 		if [ -z "$_nlist" ]; then
@@ -814,6 +813,10 @@ wait_for_pids()
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
 		pwait -o $_list 2>/dev/null
+		# At least one of the processes we were waiting for
+		# has terminated.  Give init a chance to collect it
+		# before looping around and checking again.
+		sleep 1
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
