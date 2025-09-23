@@ -8,8 +8,7 @@ name = "${PKG_NAME_PREFIX}-${PKGNAME}"
 # Base packages always install to /.
 prefix = "/"
 
-# For base packages, origin is always "base".
-origin = "base"
+origin = "base/${PKG_NAME_PREFIX}-${PKGNAME}"
 categories = [ base ]
 
 # $VERSION is the version of the base system being built.
