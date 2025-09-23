@@ -40,6 +40,7 @@
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +50,6 @@
 static void
 usage(void)
 {
-
 	fprintf(stderr, "usage: pwait [-t timeout] [-ov] pid ...\n");
 	exit(EX_USAGE);
 }
@@ -62,15 +62,15 @@ main(int argc, char *argv[])
 {
 	struct itimerval itv;
 	struct kevent *e;
-	int oflag, tflag, verbose;
-	int i, kq, n, nleft, opt, status;
-	long pid;
 	char *end, *s;
 	double timeout;
+	long pid;
+	int i, kq, n, nleft, opt, status;
+	bool oflag, tflag, verbose;
 
-	oflag = 0;
-	tflag = 0;
-	verbose = 0;
+	oflag = false;
+	tflag = false;
+	verbose = false;
 	memset(&itv, 0, sizeof(itv));
 
 	while ((opt = getopt(argc, argv, "ot:v")) != -1) {
@@ -79,23 +79,29 @@ main(int argc, char *argv[])
 			oflag = 1;
 			break;
 		case 't':
-			tflag = 1;
+			tflag = true;
 			errno = 0;
 			timeout = strtod(optarg, &end);
 			if (end == optarg || errno == ERANGE || timeout < 0) {
 				errx(EX_DATAERR, "timeout value");
 			}
-			switch(*end) {
-			case 0:
+			switch (*end) {
+			case '\0':
+				break;
 			case 's':
+				end++;
 				break;
 			case 'h':
 				timeout *= 60;
 				/* FALLTHROUGH */
 			case 'm':
 				timeout *= 60;
+				end++;
 				break;
 			default:
+				errx(EX_DATAERR, "timeout unit");
+			}
+			if (*end != '\0') {
 				errx(EX_DATAERR, "timeout unit");
 			}
 			if (timeout > 100000000L) {
@@ -107,7 +113,7 @@ main(int argc, char *argv[])
 			    (suseconds_t)(timeout * 1000000UL);
 			break;
 		case 'v':
-			verbose = 1;
+			verbose = true;
 			break;
 		default:
 			usage();
@@ -135,7 +141,7 @@ main(int argc, char *argv[])
 	for (n = 0; n < argc; n++) {
 		s = argv[n];
 		/* Undocumented Solaris compat */
-		if (!strncmp(s, "/proc/", 6)) {
+		if (strncmp(s, "/proc/", 6) == 0) {
 			s += 6;
 		}
 		errno = 0;
