@@ -823,7 +823,7 @@ extern long altzone;
 struct tm *offtime(time_t const *, long);
 # endif
 # if TZ_TIME_T || !defined offtime_r
-struct tm *offtime_r(time_t const *, long, struct tm *);
+struct tm *offtime_r(time_t const *restrict, long, struct tm *restrict);
 # endif
 # if TZ_TIME_T || !defined timelocal
 time_t timelocal(struct tm *);
