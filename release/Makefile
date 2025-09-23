@@ -238,7 +238,7 @@ disc1: ${PKGBASE_REPO}
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
-	${PKG_INSTALL} pkg || true
+	${PKG_INSTALL} pkg
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
 	${PKG_CLEAN} || true
 .endif
@@ -279,7 +279,7 @@ bootonly:
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
-	${PKG_INSTALL} pkg || true
+	${PKG_INSTALL} pkg
 	${PKG_INSTALL} wifi-firmware-iwlwifi-kmod wifi-firmware-rtw88-kmod || true
 	${PKG_CLEAN} || true
 .endif
@@ -333,7 +333,7 @@ dvd: ${PKGBASE_REPO}
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
-	${PKG_INSTALL} pkg || true
+	${PKG_INSTALL} pkg
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
 	${PKG_CLEAN} || true
 .endif
