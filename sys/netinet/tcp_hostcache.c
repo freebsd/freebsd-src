@@ -202,7 +202,7 @@ SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, histo,
     "Print a histogram of hostcache hashbucket utilization");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_tcp_hc_purgenow, "I",
     "Immediately purge all entries");
 
