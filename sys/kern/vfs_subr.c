@@ -3352,13 +3352,22 @@ vget_abort(struct vnode *vp, enum vgetstate vs)
 	switch (vs) {
 	case VGET_USECOUNT:
 		vrele(vp);
-		break;
+		goto out_ok;
 	case VGET_HOLDCNT:
 		vdrop(vp);
+		goto out_ok;
+	case VGET_NONE:
 		break;
-	default:
-		__assert_unreachable();
 	}
+
+	__assert_unreachable();
+
+	/*
+	 * This is a goto label should the cases above have more in common than
+	 * just the 'return' statement.
+	 */
+out_ok:
+	return;
 }
 
 int
