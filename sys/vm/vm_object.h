@@ -235,9 +235,7 @@ extern struct mtx vm_object_list_mtx;	/* lock for object list and count */
 
 extern struct vm_object kernel_object_store;
 
-/* kernel and kmem are aliased for backwards KPI compat. */
 #define	kernel_object	(&kernel_object_store)
-#define	kmem_object	(&kernel_object_store)
 
 #define	VM_OBJECT_ASSERT_LOCKED(object)					\
 	rw_assert(&(object)->lock, RA_LOCKED)
