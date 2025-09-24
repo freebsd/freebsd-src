@@ -19,10 +19,6 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
-.if defined(WITHOUT_QEMU)
-CLOUDWARE_TYPES?= \
-		BASIC-CI
-.else
 CLOUDWARE_TYPES?= AZURE \
 		BASIC-CI \
 		BASIC-CLOUDINIT \
@@ -30,7 +26,6 @@ CLOUDWARE_TYPES?= AZURE \
 		GCE \
 		ORACLE \
 		VAGRANT
-.endif
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST?=	ufs zfs
 AZURE_DESC=	Microsoft Azure platform image
