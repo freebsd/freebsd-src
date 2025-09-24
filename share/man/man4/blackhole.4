@@ -10,12 +10,12 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.Dd September 23, 2025
+.Dd September 24, 2025
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
 .Nm blackhole
-.Nd quietly respond to refused SCTP, TCP, or UDP packets
+.Nd quietly drop refused SCTP, TCP, or UDP packets
 .Sh SYNOPSIS
 .Cd sysctl net.inet.sctp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
 .Cd sysctl net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2 | 3"
