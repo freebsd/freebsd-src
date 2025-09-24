@@ -14,6 +14,7 @@ SUBDIR.${MK_LOADER_IA32}+=	ficl32efi
 
 SUBDIR.yes+=	libacpi
 SUBDIR.${MK_LOADER_IA32}+=	libacpi32
+SUBDIR.yes+= ../liblua
 
 SUBDIR.yes+=	.WAIT
 
