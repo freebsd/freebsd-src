@@ -50,7 +50,7 @@ int	 syncache_pcblist(struct sysctl_req *);
 
 struct syncache {
 	TAILQ_ENTRY(syncache)	sc_hash;
-	struct		in_conninfo sc_inc;	/* addresses */
+	struct in_conninfo	sc_inc;		/* addresses */
 	int		sc_rxttime;		/* retransmit time */
 	u_int16_t	sc_rxmits;		/* retransmit counter */
 	u_int16_t	sc_port;		/* remote UDP encaps port */
@@ -59,7 +59,7 @@ struct syncache {
 	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
 	tcp_seq		sc_irs;			/* seq from peer */
 	tcp_seq		sc_iss;			/* our ISS */
-	struct		mbuf *sc_ipopts;	/* source route */
+	struct mbuf	*sc_ipopts;		/* source route */
 	u_int16_t	sc_peer_mss;		/* peer's MSS */
 	u_int16_t	sc_wnd;			/* advertised window */
 	u_int8_t	sc_ip_ttl;		/* TTL / Hop Limit */
