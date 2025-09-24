@@ -34,6 +34,8 @@ int	luaopen_pager(lua_State *);
 #include <sys/linker_set.h>
 
 typedef void lua_init_md_t(lua_State *);
+typedef void(*lua_acpi_registration_fn)(lua_State *L);
+extern lua_acpi_registration_fn lua_acpi_register;
 #define _LUA_COMPILE_SET Xlua_compile_set
 #define LUA_COMPILE_SET(func)	\
 	DATA_SET(_LUA_COMPILE_SET, func)

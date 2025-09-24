@@ -33,6 +33,11 @@
 #include "lutils.h"
 #include "bootstrap.h"
 
+#include <lacpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+
+lua_acpi_registration_fn lua_acpi_register = NULL;
+
 /*
  * Like loader.perform, except args are passed already parsed
  * on the stack.
@@ -443,6 +448,18 @@ lua_add_features(lua_State *L)
 	lua_setfield(L, -2, "features");
 }
 
+void
+register_lacpi_modules(lua_State *L)
+{
+	if (lua_acpi_register == NULL) {
+		lua_acpi_register_hook();
+	}
+
+	if (lua_acpi_register != NULL) {
+		lua_acpi_register(L);
+	}
+}
+
 int
 luaopen_loader(lua_State *L)
 {
@@ -469,6 +486,12 @@ luaopen_loader(lua_State *L)
 	lua_add_features(L);
 	/* Set global printc to loader.printc */
 	lua_register(L, "printc", lua_printc);
+
+#if defined(__amd64__)
+	// ACPICA Bindings
+	register_lacpi_modules(L);
+#endif
+
 	return 1;
 }
 
