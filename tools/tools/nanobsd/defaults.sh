@@ -253,13 +253,13 @@ nano_global_make_env() {
 # Create empty files in the target tree, and record the fact.  All paths
 # are relative to NANO_WORLDDIR.
 #
-tgt_touch() {
+tgt_touch() (
 	cd "${NANO_WORLDDIR}"
 	for i; do
 		touch $i
 		echo "./${i} type=file" >> ${NANO_METALOG}
 	done
-}
+)
 
 #
 # Convert a directory into a symlink. Takes two arguments, the
@@ -267,7 +267,7 @@ tgt_touch() {
 # directory is removed and a symlink is created. If we're doing
 # a nopriv build, then append this fact to the metalog
 #
-tgt_dir2symlink() {
+tgt_dir2symlink() (
 	local dir=$1
 	local symlink=$2
 
@@ -277,7 +277,7 @@ tgt_dir2symlink() {
 	if [ -n "$NANO_METALOG" ]; then
 		echo "./${dir} type=link mode=0777 link=${symlink}" >> ${NANO_METALOG}
 	fi
-}
+)
 
 # run in the world chroot, errors fatal
 CR() {
@@ -766,14 +766,14 @@ cust_allow_ssh_root() {
 #######################################################################
 # Install the stuff under ./Files
 
-cust_install_files() {
+cust_install_files() (
 	cd "${NANO_TOOLS}/Files"
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)/' | cpio ${CPIO_SYMLINK} -Ldumpv ${NANO_WORLDDIR}
 
 	if [ -n "${NANO_CUST_FILES_MTREE}" -a -f ${NANO_CUST_FILES_MTREE} ]; then
 		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
 	fi
-}
+)
 
 #######################################################################
 # Install packages from ${NANO_PACKAGE_DIR}
