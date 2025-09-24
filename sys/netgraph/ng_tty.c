@@ -485,9 +485,7 @@ ngt_rint(struct tty *tp, char c, int flags)
 	}
 
 	/* Add char to mbuf */
-	*mtod(m, u_char *) = c;
-	m->m_data++;
-	m->m_len++;
+	*(u_char *)mtodo(m, m->m_len++) = c;
 	m->m_pkthdr.len++;
 
 	/* Ship off mbuf if it's time */
