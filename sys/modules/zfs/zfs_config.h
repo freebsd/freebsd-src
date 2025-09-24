@@ -582,6 +582,9 @@
 /* iops->set_acl() takes 4 args, arg2 is struct dentry * */
 /* #undef HAVE_SET_ACL_USERNS_DENTRY_ARG2 */
 
+/* Define if set_default_d_op() is available */
+/* #undef HAVE_SET_DEFAULT_D_OP */
+
 /* shrinker_register exists */
 /* #undef HAVE_SHRINKER_REGISTER */
 
@@ -840,7 +843,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-52-FreeBSD_g3f4312a0a"
+#define ZFS_META_ALIAS "zfs-2.4.99-72-FreeBSD_gb2196fbed"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -870,7 +873,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "52-FreeBSD_g3f4312a0a"
+#define ZFS_META_RELEASE "72-FreeBSD_gb2196fbed"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"
