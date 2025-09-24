@@ -67,8 +67,9 @@
 #include "acconfig.h"
 #define ACPI_SYSTEM_XFACE
 
-#if defined(__amd64__)
+#if defined(__amd64__) && LACPI
 #include <init_acpi.h>
+#include <lacpi.h>
 #else
 #include <acpi.h>
 #endif
@@ -1235,11 +1236,13 @@ main(int argc, CHAR16 *argv[])
 
 	devinit();
 
-#if defined(__amd64__)
+#if defined(__amd64__) && LACPI
 	/* Initialize ACPI Subsystem and Tables. */
 	if ((ret = init_acpi()) != 0) {
 		printf("Failed to initialize ACPI\n.");
 	}
+
+	lacpi_interp_ref();
 #endif
 
 	/*

@@ -72,6 +72,7 @@ CFLAGS+=	-DEFI
 
 .if ${MACHINE} == "amd64" && ${DO32:U0} == 0
 CFLAGS+=	-I${EFISRC}/libacpi/acpi/include
+CFLAGS+=	-I${EFISRC}/../liblua/acpi/include
 .endif
 
 .if defined(HAVE_FDT) && ${MK_FDT} != "no"
@@ -127,6 +128,20 @@ LDFLAGS+=	-Wl,--threads=1
 
 CLEANFILES+=	${LOADER}.efi
 
+# ACPI Lua bindings compile set
+.if ${__arch} == "amd64" && ${DO32:U0} == 0 && ${LOADER} == "loader_lua"
+LACPI_COMPILE_SET= -j set_lua_acpi_modules
+.else
+LACPI_COMPILE_SET=
+.endif
+
+# To protect ACPI init and lua bindings
+.if ${LOADER} == "loader_lua"
+CFLAGS+= -DLACPI=1
+.else
+CFLAGS+= -DLACPI=0
+.endif
+
 ${LOADER}.efi: ${PROG}
 	@if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
@@ -137,6 +152,7 @@ ${LOADER}.efi: ${PROG}
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
 		-j set_X${LOADER_INTERP}_compile_set \
+		${LACPI_COMPILE_SET} \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a
