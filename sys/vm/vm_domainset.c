@@ -113,7 +113,6 @@ vm_domainset_iter_interleave(struct vm_domainset_iter *di, int *domain)
 	int d;
 
 	d = di->di_offset % di->di_domain->ds_cnt;
-	*di->di_iter = d;
 	*domain = di->di_domain->ds_order[d];
 }
 
@@ -260,9 +259,14 @@ vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
 	 * are immutable and unsynchronized.  Updates can race but pointer
 	 * loads are assumed to be atomic.
 	 */
-	if (obj != NULL && obj->domain.dr_policy != NULL)
+	if (obj != NULL && obj->domain.dr_policy != NULL) {
+		/*
+		 * This write lock protects non-atomic increments of the
+		 * iterator index in vm_domainset_iter_rr().
+		 */
+		VM_OBJECT_ASSERT_WLOCKED(obj);
 		dr = &obj->domain;
-	else
+	} else
 		dr = &curthread->td_domain;
 
 	vm_domainset_iter_init(di, dr->dr_policy, &dr->dr_iter, obj, pindex);
