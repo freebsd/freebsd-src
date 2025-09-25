@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 24, 2025
+.Dd September 25, 2025
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -264,13 +264,31 @@ defaults to
 and
 .Sy TARGET_ARCH
 must be defined.
+.It Cm packages
+Create a
+.Xr freebsd-base 7
+package repository containing packages that can be
+used to install or upgrade the base system.
+The repository is created in the object directory, under
+.Pa ${REPODIR}/${PKG_ABI}
+where
+.Ev REPODIR
+is the base directory where the repository will be created, and
+.Va PKG_ABI
+is the
+.Xr pkg 7
+ABI for the build target, for example,
+.Pa /usr/obj/${SRCDIR}/repo/FreeBSD:15:amd64 .
 .It Cm packageworld
 Archive the results of
 .Cm distributeworld ,
 placing the results in
 .Va DISTDIR .
-This target is used while building a release; see
-.Xr release 7 .
+This target is used while building a
+.Xr release 7
+and is unrelated to building
+.Xr freebsd-base 7
+packages.
 .It Cm installworld
 Install everything built by a preceding
 .Cm buildworld
@@ -351,6 +369,14 @@ and
 .Va XDDIR
 defaults to
 .Pa ${TARGET_ARCH}-freebsd .
+.It Cm update-packages
+Create or update the
+.Xr freebsd-base 7
+package repository for the base system.
+If an old repository is being updated,
+then packages whose contents have not changed since the previous version
+will be copied into the new repository to avoid needless updating of the
+version number.
 .It Cm xdev-build
 Builds for the
 .Cm xdev
@@ -397,26 +423,16 @@ Install the kernel to the directory
 .Pa ${DISTDIR}/kernel/boot/kernel .
 This target is used while building a release; see
 .Xr release 7 .
-.It Cm packages
-Create a
-.Xr pkg 7
-repository containing packages that can be used to create or upgrade an
-installation of the base system.
-The output repository is placed in the object directory, under
-.Pa repo/${PKG_ABI}
-where
-.Va PKG_ABI
-is the
-.Xr pkg 7
-ABI for the build target, for example,
-.Pa /usr/obj/${SRCDIR}/repo/FreeBSD:15:amd64 .
 .It Cm packagekernel
 Archive the results of
 .Cm distributekernel ,
 placing the results in
 .Va DISTDIR .
-This target is used while building a release; see
-.Xr release 7 .
+This target is used while building a
+.Xr release 7
+and is unrelated to building
+.Xr freebsd-base 7
+packages.
 .It Cm kernel
 Equivalent to
 .Cm buildkernel
@@ -644,11 +660,15 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm cross-tools
 target.
+.It Va OBJROOT
+The object directory root is defined as 
+.Pa ${OBJDIR}/${SRCDIR}/ .
+See
+.Pa share/mk/src.sys.obj.mk .
 .It Va PKG_FORMAT
 Specify a package compression format when building
-.Pa src
-into
-.Cm packages .
+.Xr freebsd-base 7
+packages.
 Default:
 .Ql tzst .
 Consider using
@@ -666,9 +686,8 @@ and
 .Cm installkernel
 process.
 This is currently incompatible with building
-.Pa src
-into
-.Cm packages .
+.Xr freebsd-base 7
+packages.
 Each port must be specified as
 .Ar category Ns Li / Ns Ar port Ns Op Li @ Ns Ar flavor ,
 e.g.
@@ -697,6 +716,13 @@ Specify a file to override the default
 The src.conf file controls the components to build.
 See
 .Xr src.conf 5
+.It Va REPODIR
+The root directory used to create the package repository for building
+.Xr packges 7 .
+Defaults to
+.Pa ${OBJROOT}/repo/ .
+This can also be set in
+.Xr src-env.conf 5 .
 .It Va STRIPBIN
 Command to use at install time when stripping binaries.
 Be sure to add any additional tools required to run
@@ -1094,6 +1120,7 @@ Study the examples above.
 .Xr src.conf 5 ,
 .Xr arch 7 ,
 .Xr development 7 ,
+.Xr freebsd-base 7 ,
 .Xr pkg 7 ,
 .Xr ports 7 ,
 .Xr release 7 ,
