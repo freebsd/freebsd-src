@@ -22,3 +22,7 @@ desc = <<EOD
 lib9p implements the server side of the 9p2000, 9p2000.u and 9p2000.L revisions
 of the 9P protocol.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

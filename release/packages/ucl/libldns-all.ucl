@@ -22,3 +22,7 @@ desc = <<EOD
 This package provides a private version of the NLnet Labs LDNS library for
 use by applications in the base system.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

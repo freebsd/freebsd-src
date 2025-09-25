@@ -23,3 +23,7 @@ The Easy Editor, ee(1), is a simple, user-friendly text editor.  It provides
 a full-screen editing interface similar to vi(1), but is easier to learn for
 new users.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

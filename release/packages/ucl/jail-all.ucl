@@ -30,3 +30,7 @@ This package provides the jail(8), jexec(8) and jls(8) utilities for managing
 jails, and an optional rc(8) service to start jails during system startup using
 the /etc/jail.conf configuration file.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -32,3 +32,7 @@ NFS server, and the mount_nfs(8) utility used to mount an NFS filesystem on
 the client.  Several other daemons and utilities are also provided which may
 be necessary depending on the NFS configuration.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

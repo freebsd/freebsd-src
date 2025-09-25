@@ -32,3 +32,7 @@ The DWARF Access Library provides functions that allow an application to read
 and write debugging information in object files.  The format of debugging
 information accessible through this API is defined by the DWARF standard.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

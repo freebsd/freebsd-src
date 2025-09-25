@@ -35,3 +35,7 @@ and related utilities for managing SSH keys, and the sshd(8) server daemon.
 EOD
 
 licenses = [ ISCL ]
+
+annotations {
+	set = "base,base-jail"
+}

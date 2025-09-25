@@ -22,3 +22,7 @@ desc = <<EOD
 The ftp(1) utility connects to a remote system implementing the Internet FTP
 protocol (RFC 959) to upload and download files.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

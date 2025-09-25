@@ -26,3 +26,7 @@ system packet filter.
 blacklistd(8) relies on each network daemon to report access attempts, so
 only daemons which have had blacklist support added will work.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -31,3 +31,7 @@ Wrappers using the tcpd(8) utility.
 This package also provides a periodic(8) script used to report TCP Wrappers
 activity.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

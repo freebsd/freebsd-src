@@ -35,3 +35,7 @@ the TLS protocol itself.
 OpenSSL also provides support for the obsolete Secure Sockets Layer (SSL)
 protocol, which was commonly used prior to the standardisation of TLS.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

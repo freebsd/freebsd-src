@@ -32,3 +32,7 @@ archives in various formats such as tar and cpio.  libarchive also supports
 reading and writing archives compressed using various compression filters
 such as gzip and bzip2.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

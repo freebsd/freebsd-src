@@ -28,3 +28,7 @@ to fetch authentication data such as Kerberos tickets from userland.
 
 This daemon is required when using Kerberos authentication with NFS.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

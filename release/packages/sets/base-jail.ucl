@@ -16,18 +16,22 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Print spooler"
+comment = "Base jail system (metapackage)"
+
+vital = true
 
 desc = <<EOD
-This package provides lp(1), the front-end to the standard print spooler,
-the print queue management utilities lpq(1), lpr(1), and lprm(1), and the
-spooler daemon lpd(8) which receives print jobs from local and remote users
-and dispatches them to an appropriate printer.
-
-Some sample lp filters for common printers are also provided in
-/usr/share/examples/printing.
+This metapackage installs the complete base system, excluding packages which
+are not generally useful in a jail(8) environment.
 EOD
 
-annotations {
-	set = "base,base-jail"
+deps {
+	"set-minimal-jail" {
+		version = "${VERSION}"
+		origin = "base"
+	},
+	"set-devel" {
+		version = "${VERSION}"
+		origin = "base"
+	}
 }
