@@ -427,7 +427,7 @@ ngt_rint_bypass(struct tty *tp, const void *buf, size_t len)
 	for (mb = m; mb != NULL; mb = mb->m_next) {
 		length = min(M_TRAILINGSPACE(mb), len - total);
 
-		memcpy(mtod(m, char *), (const char *)buf + total, length);
+		memcpy(mtod(mb, char *), (const char *)buf + total, length);
 		mb->m_len = length;
 		total += length;
 		m->m_pkthdr.len += length;
