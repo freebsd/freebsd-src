@@ -114,4 +114,4 @@ ENTRY(timingsafe_memcmp)
 	csetm	w0, lo
 	csinc	w0, w0, wzr, ls
 	ret
-END(timingsafe_bcmp)
+END(timingsafe_memcmp)
