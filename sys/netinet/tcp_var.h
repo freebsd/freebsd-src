@@ -1462,6 +1462,7 @@ int	 tcp_default_output(struct tcpcb *);
 void	 tcp_state_change(struct tcpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, uint16_t);
+bool	 tcp_challenge_ack_check(sbintime_t *, uint32_t *);
 void	 tcp_send_challenge_ack(struct tcpcb *, struct tcphdr *, struct mbuf *);
 bool	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
