@@ -240,6 +240,7 @@ struct pci_quirk {
 #define	PCI_QUIRK_DISABLE_MSIX	5 /* MSI-X doesn't work */
 #define	PCI_QUIRK_MSI_INTX_BUG	6 /* PCIM_CMD_INTxDIS disables MSI */
 #define	PCI_QUIRK_REALLOC_BAR	7 /* Can't allocate memory at the default address */
+#define	PCI_QUIRK_DISABLE_FLR	8 /* Function-Level Reset (FLR) not working. */
 	int	arg1;
 	int	arg2;
 };
@@ -319,6 +320,13 @@ static const struct pci_quirk pci_quirks[] = {
 	 * expected place.
 	 */
 	{ 0x98741002, PCI_QUIRK_REALLOC_BAR,	0, 	0 },
+
+	/*
+	 * With some MediaTek mt76 WiFi FLR does not work despite advertised.
+	 */
+	{ 0x061614c3, PCI_QUIRK_DISABLE_FLR,	0,	0 }, /* mt76 7922 */
+
+	/* end of table */
 	{ 0 }
 };
 
@@ -6743,6 +6751,8 @@ pcie_flr(device_t dev, u_int max_delay, bool force)
 		return (false);
 
 	if (!(pci_read_config(dev, cap + PCIER_DEVICE_CAP, 4) & PCIEM_CAP_FLR))
+		return (false);
+	if (pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_DISABLE_FLR))
 		return (false);
 
 	/*
