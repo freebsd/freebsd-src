@@ -91,6 +91,11 @@ struct rk_pin_irqsrc {
 	uint32_t		mode;
 };
 
+struct rk_gpio_reg {
+        uint8_t single;
+        uint8_t offset;
+};
+
 struct rk_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
@@ -104,7 +109,7 @@ struct rk_gpio_softc {
 	uint32_t		swporta_ddr;
 	uint32_t		version;
 	struct pin_cached	pin_cached[RK_GPIO_MAX_PINS];
-	uint8_t			regs[RK_GPIO_REGNUM];
+	struct rk_gpio_reg	regs[RK_GPIO_REGNUM];
 	void			*ihandle;
 	struct rk_pin_irqsrc	isrcs[RK_GPIO_MAX_PINS];
 };
@@ -139,14 +144,15 @@ static int rk_gpio_detach(device_t dev);
 static int
 rk_gpio_read_bit(struct rk_gpio_softc *sc, int reg, int bit)
 {
-	int offset = sc->regs[reg];
+	struct rk_gpio_reg *rk_reg = &sc->regs[reg];
 	uint32_t value;
 
-	if (sc->version == RK_GPIO_TYPE_V1) {
-		value = RK_GPIO_READ(sc, offset);
+	if (rk_reg->single) {
+		value = RK_GPIO_READ(sc, rk_reg->offset);
 		value >>= bit;
 	} else {
-		value = RK_GPIO_READ(sc, bit > 15 ? offset + 4 : offset);
+		value = RK_GPIO_READ(sc, bit > 15 ?
+		    rk_reg->offset + 4 : rk_reg->offset);
 		value >>= (bit % 16);
 	}
 	return (value & 1);
@@ -155,50 +161,53 @@ rk_gpio_read_bit(struct rk_gpio_softc *sc, int reg, int bit)
 static void
 rk_gpio_write_bit(struct rk_gpio_softc *sc, int reg, int bit, int data)
 {
-	int offset = sc->regs[reg];
+	struct rk_gpio_reg *rk_reg = &sc->regs[reg];
 	uint32_t value;
 
-	if (sc->version == RK_GPIO_TYPE_V1) {
-		value = RK_GPIO_READ(sc, offset);
+	if (rk_reg->single) {
+		value = RK_GPIO_READ(sc, rk_reg->offset);
 		if (data)
 			value |= (1 << bit);
 		else
 			value &= ~(1 << bit);
-		RK_GPIO_WRITE(sc, offset, value);
+		RK_GPIO_WRITE(sc, rk_reg->offset, value);
 	} else {
 		if (data)
 			value = (1 << (bit % 16));
 		else
 			value = 0;
 		value |= (1 << ((bit % 16) + 16));
-		RK_GPIO_WRITE(sc, bit > 15 ? offset + 4 : offset, value);
+		RK_GPIO_WRITE(sc, bit > 15 ?
+		    rk_reg->offset + 4 : rk_reg->offset, value);
 	}
 }
 
 static uint32_t
 rk_gpio_read_4(struct rk_gpio_softc *sc, int reg)
 {
-	int offset = sc->regs[reg];
+	struct rk_gpio_reg *rk_reg = &sc->regs[reg];
 	uint32_t value;
 
-	if (sc->version == RK_GPIO_TYPE_V1)
-		value = RK_GPIO_READ(sc, offset);
+	if (rk_reg->single)
+		value = RK_GPIO_READ(sc, rk_reg->offset);
 	else
-		value = (RK_GPIO_READ(sc, offset) & 0xffff) |
-		    (RK_GPIO_READ(sc, offset + 4) << 16);
+		value = (RK_GPIO_READ(sc, rk_reg->offset) & 0xffff) |
+		    (RK_GPIO_READ(sc, rk_reg->offset + 4) << 16);
 	return (value);
 }
 
 static void
 rk_gpio_write_4(struct rk_gpio_softc *sc, int reg, uint32_t value)
 {
-	int offset = sc->regs[reg];
+	struct rk_gpio_reg *rk_reg = &sc->regs[reg];
 
-	if (sc->version == RK_GPIO_TYPE_V1)
-		RK_GPIO_WRITE(sc, offset, value);
+	if (rk_reg->single)
+		RK_GPIO_WRITE(sc, rk_reg->offset, value);
 	else {
-		RK_GPIO_WRITE(sc, offset, (value & 0xffff) | 0xffff0000);
-		RK_GPIO_WRITE(sc, offset + 4, (value >> 16) | 0xffff0000);
+		RK_GPIO_WRITE(sc, rk_reg->offset,
+		    (value & 0xffff) | 0xffff0000);
+		RK_GPIO_WRITE(sc, rk_reg->offset + 4,
+		    (value >> 16) | 0xffff0000);
 	}
 }
 
@@ -314,31 +323,31 @@ rk_gpio_attach(device_t dev)
 
 	switch (sc->version) {
 	case RK_GPIO_TYPE_V1:
-		sc->regs[RK_GPIO_SWPORTA_DR] = 0x00;
-		sc->regs[RK_GPIO_SWPORTA_DDR] = 0x04;
-		sc->regs[RK_GPIO_INTEN] = 0x30;
-		sc->regs[RK_GPIO_INTMASK] = 0x34;
-		sc->regs[RK_GPIO_INTTYPE_LEVEL] = 0x38;
-		sc->regs[RK_GPIO_INT_POLARITY] = 0x3c;
-		sc->regs[RK_GPIO_INT_STATUS] = 0x40;
-		sc->regs[RK_GPIO_INT_RAWSTATUS] = 0x44;
-		sc->regs[RK_GPIO_DEBOUNCE] = 0x48;
-		sc->regs[RK_GPIO_PORTA_EOI] = 0x4c;
-		sc->regs[RK_GPIO_EXT_PORTA] = 0x50;
+		sc->regs[RK_GPIO_SWPORTA_DR] = (struct rk_gpio_reg){ 1, 0x00 };
+		sc->regs[RK_GPIO_SWPORTA_DDR] = (struct rk_gpio_reg){ 1, 0x04 };
+		sc->regs[RK_GPIO_INTEN] = (struct rk_gpio_reg){ 1, 0x30 };
+		sc->regs[RK_GPIO_INTMASK] = (struct rk_gpio_reg){ 1, 0x34 };
+		sc->regs[RK_GPIO_INTTYPE_LEVEL] = (struct rk_gpio_reg){ 1, 0x38 };
+		sc->regs[RK_GPIO_INT_POLARITY] = (struct rk_gpio_reg){ 1, 0x3c };
+		sc->regs[RK_GPIO_INT_STATUS] = (struct rk_gpio_reg){ 1, 0x40 };
+		sc->regs[RK_GPIO_INT_RAWSTATUS] = (struct rk_gpio_reg){ 1, 0x44 };
+		sc->regs[RK_GPIO_DEBOUNCE] = (struct rk_gpio_reg){ 1, 0x48 };
+		sc->regs[RK_GPIO_PORTA_EOI] = (struct rk_gpio_reg){ 1, 0x4c };
+		sc->regs[RK_GPIO_EXT_PORTA] = (struct rk_gpio_reg){ 1, 0x50 };
 		break;
 	case RK_GPIO_TYPE_V2:
-		sc->regs[RK_GPIO_SWPORTA_DR] = 0x00;
-		sc->regs[RK_GPIO_SWPORTA_DDR] = 0x08;
-		sc->regs[RK_GPIO_INTEN] = 0x10;
-		sc->regs[RK_GPIO_INTMASK] = 0x18;
-		sc->regs[RK_GPIO_INTTYPE_LEVEL] = 0x20;
-		sc->regs[RK_GPIO_INTTYPE_BOTH] = 0x30;
-		sc->regs[RK_GPIO_INT_POLARITY] = 0x28;
-		sc->regs[RK_GPIO_INT_STATUS] = 0x50;
-		sc->regs[RK_GPIO_INT_RAWSTATUS] = 0x58;
-		sc->regs[RK_GPIO_DEBOUNCE] = 0x38;
-		sc->regs[RK_GPIO_PORTA_EOI] = 0x60;
-		sc->regs[RK_GPIO_EXT_PORTA] = 0x70;
+		sc->regs[RK_GPIO_SWPORTA_DR] = (struct rk_gpio_reg){ 0, 0x00 };
+		sc->regs[RK_GPIO_SWPORTA_DDR] = (struct rk_gpio_reg){ 0, 0x08 };
+		sc->regs[RK_GPIO_INTEN] = (struct rk_gpio_reg){ 0, 0x10 };
+		sc->regs[RK_GPIO_INTMASK] = (struct rk_gpio_reg){ 0, 0x18 };
+		sc->regs[RK_GPIO_INTTYPE_LEVEL] = (struct rk_gpio_reg){ 0, 0x20 };
+		sc->regs[RK_GPIO_INTTYPE_BOTH] = (struct rk_gpio_reg){ 0, 0x30 };
+		sc->regs[RK_GPIO_INT_POLARITY] = (struct rk_gpio_reg){ 0, 0x28 };
+		sc->regs[RK_GPIO_INT_STATUS] = (struct rk_gpio_reg){ 1, 0x50 };
+		sc->regs[RK_GPIO_INT_RAWSTATUS] = (struct rk_gpio_reg){ 1, 0x58 };
+		sc->regs[RK_GPIO_DEBOUNCE] = (struct rk_gpio_reg){ 0, 0x38 };
+		sc->regs[RK_GPIO_PORTA_EOI] = (struct rk_gpio_reg){ 0, 0x60 };
+		sc->regs[RK_GPIO_EXT_PORTA] = (struct rk_gpio_reg){ 1, 0x70 };
 		break;
 	default:
 		device_printf(dev, "Unknown gpio version %08x\n", sc->version);
@@ -394,7 +403,7 @@ rk_gpio_detach(device_t dev)
 	mtx_destroy(&sc->sc_mtx);
 	clk_disable(sc->clk);
 
-	return(0);
+	return (0);
 }
 
 static device_t
@@ -471,7 +480,7 @@ rk_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
 
 	if (pin >= RK_GPIO_MAX_PINS)
-		return EINVAL;
+		return (EINVAL);
 
 	*caps = RK_GPIO_DEFAULT_CAPS;
 	return (0);
