@@ -24,3 +24,7 @@ with remote hosts over the network.  This includes the command-line utilities
 rwho, ruptime, rup, rusers and rwall and the daemons rwhod, rpc.rstatd,
 rpc.rusersd, and rpc.rwalld.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -22,3 +22,7 @@ desc = <<EOD
 A private library for reading and writing UCL files, for used by applications
 in the base system.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

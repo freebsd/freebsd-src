@@ -21,3 +21,7 @@ comment = "Private SQLite library"
 desc = <<EOD
 A private version of SQLite for use by applications in the base system.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

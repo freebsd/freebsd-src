@@ -25,3 +25,7 @@ This package provides the rc(8) services and utilities used to manage the
 packet filter, and periodic(8) reports for filter activity.  Some examples
 of configuring IP Filter are also provided in /usr/share/examples/ipfilter.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

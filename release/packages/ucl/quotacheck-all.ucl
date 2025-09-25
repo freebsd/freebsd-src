@@ -41,3 +41,7 @@ file for the file system.  If any inconsistencies are detected, both the quota
 file and the current system copy of the incorrect quotas are updated (the
 latter only occurs if an active file system is checked).
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -22,3 +22,7 @@ desc = <<EOD
 libpathconv provides the abs2rel() and rel2abs() functions to convert between
 absolute and relative pathnames.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

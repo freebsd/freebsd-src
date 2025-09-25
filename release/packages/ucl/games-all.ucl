@@ -26,3 +26,7 @@ Games distributed with the system:
 * caesar(6) and rot13(6) implement a trivial (and easily broken) text
   encryption system called a Caesar cipher.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

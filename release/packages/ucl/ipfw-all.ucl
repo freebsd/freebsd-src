@@ -28,3 +28,7 @@ This package provides the ipfw(8) utility used to manage ipfw, periodic(8)
 reports on filter activity, and rc(8) services to automatically start ipfw
 at system startup.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

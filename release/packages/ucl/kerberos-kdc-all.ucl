@@ -27,3 +27,7 @@ Unix systems, as well as many other platforms.
 This package provides the Kerberos key distribution center (KDC), which
 manages the Kerberos database and issues tickets to Kerberos users.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

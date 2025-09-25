@@ -41,3 +41,7 @@ no third party can access the data for a connection.
 The librpcsec_gss provides an API to allow applications to interact with the
 RPCSEC_GSS security mechanism.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

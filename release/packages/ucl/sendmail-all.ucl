@@ -32,3 +32,7 @@ When the full functionality of sendmail is not required, consider using the
 $PKG_NAME_PREFIX-dma package instead, a lightweight MTA which can send (but
 not receive) mail over SMTP.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

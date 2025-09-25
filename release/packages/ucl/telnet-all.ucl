@@ -27,3 +27,7 @@ particular, the Kerberos 5 support is limited to DES encryption) and
 should not be used to transfer sensitive data such as passwords.
 In most situations, the Secure Shell protocol is preferred over TELNET.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -26,3 +26,7 @@ with existing installations, or for users who require functionality not
 available in ipfw, such as Application Level Gateway (ALG) for the FTP
 or IRC protocols.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

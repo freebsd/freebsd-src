@@ -5,3 +5,7 @@ programs access to mail messages as they are being processed in order
 to filter meta-information and content.  libmilter provides support for
 applications implementing the milter interface.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -44,3 +44,7 @@ The rpoll(3) family of functions is designed to overcome these restrictions.
 They support the well known and understood technique of event driven programing
 and, in addition to select(2) and poll(2) also support timers.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

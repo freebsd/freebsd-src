@@ -40,3 +40,7 @@ Protocol).  It is intended to serve only the absolute basic MIBs and
 implement all other MIBs through loadable modules.  In this way the
 bsnmpd can be used in unexpected ways.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

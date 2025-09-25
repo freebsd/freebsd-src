@@ -46,3 +46,7 @@ systems, nor act as a mail exchanger for other hosts.  If an SMTP server
 is required, or when more advanced mail routing is needed, consider using
 the $PKG_NAME_PREFIX-sendmail package instead.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -25,3 +25,7 @@ routers.
 
 RIP and RIPng support is deprecated and will be removed in FreeBSD 16.0.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -27,3 +27,7 @@ bpf(4), tap(4), or raw sockets.
 This package provides libnetmap, a library used by applications to interact
 with netmap, and valectl(8), a utility to manage vale(4) network switches.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

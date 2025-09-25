@@ -33,3 +33,7 @@ The libstdbuf library can be preloaded with the LD_PRELOAD environment variable
 to change the initial buffering of standard input, standard output and standard
 error streams.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

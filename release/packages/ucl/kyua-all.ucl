@@ -52,3 +52,7 @@ libraries and languages.  The test program library of choice is ATF, which
 kyua's design originated from.  However, framework-less test programs and
 TAP-compliant test programs can also be executed through kyua.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

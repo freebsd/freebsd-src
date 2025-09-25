@@ -29,3 +29,7 @@ lastcomm(1) command to view this information.  However, system accounting
 is not intended as a security auditing mechanism; use the OpenBSM auditing
 system provided in the $PKG_NAME_PREFIX-audit package for that.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

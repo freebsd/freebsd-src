@@ -10,3 +10,7 @@ offered by the hwpmc(4) driver.
 The utilities pmc(8), pmcannotate(8), pmccontrol(8) and pmcstat(8) provide
 command-line access to the facilities provided by libpmc.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -22,3 +22,7 @@ desc = <<EOD
 libstdthreads provides the thread-control interface defined in the
 ISO/IEC 9899:2011 (C11) standard.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}
