@@ -23,6 +23,7 @@ MAN=	arch.7 \
 	named_attribute.7 \
 	operator.7 \
 	orders.7 \
+	freebsd-base.7 \
 	ports.7 \
 	release.7 \
 	sdoc.7 \
@@ -38,6 +39,7 @@ MAN=	arch.7 \
 
 MLINKS=	intro.7 miscellaneous.7
 MLINKS+= growfs.7 growfs_fstab.7
+MLINKS+= freebsd-base.7 pkgbase.7
 MLINKS+= security.7 securelevel.7
 MLINKS+= c.7 c78.7
 MLINKS+= c.7 c89.7
