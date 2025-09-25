@@ -193,7 +193,7 @@ u2f_attach(device_t dev)
 		u2f_detach(dev);
 		return (error);
 	}
-#ifdef U2F_MAKE_UHID_ALIAS
+#ifndef U2F_DROP_UHID_ALIAS
 	(void)make_dev_alias(sc->dev, "uhid%d", device_get_unit(dev));
 #endif
 
@@ -587,10 +587,10 @@ static device_method_t u2f_methods[] = {
 };
 
 static driver_t u2f_driver = {
-#ifdef U2F_MAKE_UHID_ALIAS
-	"uhid",
+#ifdef U2F_DROP_UHID_ALIAS
+	"uf2",
 #else
-	"u2f",
+	"uhid",
 #endif
 	u2f_methods,
 	sizeof(struct u2f_softc)
