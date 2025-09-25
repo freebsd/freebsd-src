@@ -174,7 +174,7 @@ static int mtw_read(struct mtw_softc *, uint16_t, uint32_t *);
 static int mtw_read_region_1(struct mtw_softc *, uint16_t, uint8_t *, int);
 static int mtw_write_2(struct mtw_softc *, uint16_t, uint16_t);
 static int mtw_write(struct mtw_softc *, uint16_t, uint32_t);
-static int mtw_write_region_1(struct mtw_softc *, uint16_t, uint8_t *, int);
+static int mtw_write_region_1(struct mtw_softc *, uint16_t, const uint8_t *, int);
 static int mtw_set_region_4(struct mtw_softc *, uint16_t, uint32_t, int);
 static int mtw_efuse_read_2(struct mtw_softc *, uint16_t, uint16_t *);
 static int mtw_bbp_read(struct mtw_softc *, uint8_t, uint8_t *);
@@ -1277,7 +1277,8 @@ mtw_write(struct mtw_softc *sc, uint16_t reg, uint32_t val)
 }
 
 static int
-mtw_write_region_1(struct mtw_softc *sc, uint16_t reg, uint8_t *buf, int len)
+mtw_write_region_1(struct mtw_softc *sc, uint16_t reg, const uint8_t *buf,
+    int len)
 {
 
 	usb_device_request_t req;
@@ -1286,7 +1287,8 @@ mtw_write_region_1(struct mtw_softc *sc, uint16_t reg, uint8_t *buf, int len)
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, len);
-	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, buf));
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req,
+	    __DECONST(uint8_t *, buf)));
 }
 
 static int
@@ -1911,7 +1913,7 @@ mtw_key_set_cb(void *arg)
 	/* map net80211 cipher to RT2860 security mode */
 	switch (cipher) {
 	case IEEE80211_CIPHER_WEP:
-		if (k->wk_keylen < 8)
+		if (ieee80211_crypto_get_key_len(k) < 8)
 			mode = MTW_MODE_WEP40;
 		else
 			mode = MTW_MODE_WEP104;
@@ -1936,13 +1938,19 @@ mtw_key_set_cb(void *arg)
 	}
 
 	if (cipher == IEEE80211_CIPHER_TKIP) {
-		mtw_write_region_1(sc, base, k->wk_key, 16);
-		mtw_write_region_1(sc, base + 16, &k->wk_key[24], 8);
-		mtw_write_region_1(sc, base + 24, &k->wk_key[16], 8);
+		/* TODO: note the direct use of tx/rx mic offsets! ew! */
+		mtw_write_region_1(sc, base,
+		    ieee80211_crypto_get_key_data(k), 16);
+		/* rxmic */
+		mtw_write_region_1(sc, base + 16,
+		    ieee80211_crypto_get_key_rxmic_data(k), 8);
+		/* txmic */
+		mtw_write_region_1(sc, base + 24,
+		    ieee80211_crypto_get_key_txmic_data(k), 8);
 	} else {
 		/* roundup len to 16-bit: XXX fix write_region_1() instead */
 		mtw_write_region_1(sc, base, k->wk_key,
-		    (k->wk_keylen + 1) & ~1);
+		    (ieee80211_crypto_get_key_len(k) + 1) & ~1);
 	}
 
 	if (!(k->wk_flags & IEEE80211_KEY_GROUP) ||
