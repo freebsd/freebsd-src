@@ -23,3 +23,7 @@ This package provides utilities for working with RDMA and InfiniBand
 networks, including the rping(1) and mckey(1) utilities used to test
 network functionality.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

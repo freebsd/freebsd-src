@@ -25,3 +25,7 @@ configuration, including services, networking and disks.
 This package also provides sysrc(8), a command-line utility for managing
 the rc.conf(5) configuration.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

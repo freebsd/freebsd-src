@@ -32,3 +32,7 @@ system startup, and a periodic(8) script to report connections denied by pf.
 
 Several example pf rulesets are also provided in /usr/share/examples/pf.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

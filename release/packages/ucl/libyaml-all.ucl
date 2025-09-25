@@ -22,3 +22,7 @@ desc = <<EOD
 The libprivateyaml library is used by the FreeBSD base system to parse YAML
 files.  This library is not intended for use outside of the base system.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

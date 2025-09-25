@@ -27,3 +27,7 @@ or to provide automated access to NFS servers via the /net mountpoint.
 This package provides the automountd(8) daemon which is responsible for
 managing this, as well as the management utility automount(8).
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

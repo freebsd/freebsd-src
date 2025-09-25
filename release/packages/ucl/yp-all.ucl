@@ -24,3 +24,7 @@ information across machines on a network.  This packages contain the YP
 server, YP management utilities, the YP-LDAP gateway (ypldap), YP client
 utilities and a sample Makefile for building the YP database.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

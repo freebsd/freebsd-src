@@ -32,3 +32,7 @@ applications to be integrated with Kerberos.
 This version of Kerberos implements version 5 of the Kerberos protocol,
 sometimes called Kerberos V.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

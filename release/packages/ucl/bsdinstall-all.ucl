@@ -35,3 +35,7 @@ bsdinstall is used for installation of new systems, both for system setup from
 installation media, e.g., CD-ROMs, and for use on live systems to prepare VM
 images and jails.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

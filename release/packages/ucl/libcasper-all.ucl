@@ -24,3 +24,7 @@ under the Capsicum capability-based security framework.  libcasper allows
 passing messages and capabilities between the sandboxed application and a
 helper process to allow restricted access to system and network resources.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

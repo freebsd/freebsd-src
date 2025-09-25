@@ -22,3 +22,7 @@ desc = <<EOD
 libmagic allows an application to identity a file based on its contents
 using the magic(5) magic number database.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

@@ -23,3 +23,7 @@ The BlocksRuntime library provides runtime support for Blocks, a
 non-standard extension to the C programming language which adds
 support for lambda expressions and closures.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

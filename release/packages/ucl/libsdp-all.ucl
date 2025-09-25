@@ -22,3 +22,7 @@ desc = <<EOD
 libsdp allows applications to interact with the Bluetooth Service Discovery
 Protocol.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

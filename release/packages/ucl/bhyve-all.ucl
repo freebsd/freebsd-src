@@ -40,3 +40,7 @@ loader.
 An example script is also provided in /usr/share/examples/bhyve/vmrun.sh
 which can be used to run simple virtual machines.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

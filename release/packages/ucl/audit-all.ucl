@@ -42,3 +42,7 @@ system.
 This packages provides the auditing daemon auditd(8) and various utilities
 used to manage the auditing system and work with audit data.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

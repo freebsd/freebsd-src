@@ -33,3 +33,7 @@ desc = <<EOD
 The libcuse library contains functions to create a character device in
 userspace.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}

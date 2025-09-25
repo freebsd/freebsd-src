@@ -22,3 +22,7 @@ desc = <<EOD
 liby provides default implementations of main() and yyerror() for applications
 which use the yacc(1) parser generator.
 EOD
+
+annotations {
+	set = "base,base-jail"
+}
