@@ -309,7 +309,6 @@ static int age_old_log(const char *file);
 static void savelog(char *from, char *to);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
-static int parse_signal(const char *str);
 
 /*
  * All the following take a parameter of 'int', but expect values in the
@@ -1485,8 +1484,7 @@ no_trimat:
 		working->sig = SIGHUP;
 		if (q && *q) {
 got_sig:
-			working->sig = parse_signal(q);
-			if (working->sig < 1 || working->sig >= sys_nsig) {
+			if (str2sig(q, &working->sig) != 0) {
 				badline(
 				    "illegal signal in config file:\n%s",
 				    errline);
@@ -2883,29 +2881,4 @@ change_attrs(const char *fname, const struct conf_entry *ent)
 		if (failed)
 			warn("can't chflags %s NODUMP", fname);
 	}
-}
-
-/*
- * Parse a signal number or signal name. Returns the signal number parsed or -1
- * on failure.
- */
-static int
-parse_signal(const char *str)
-{
-	int sig, i;
-	const char *errstr;
-
-	sig = strtonum(str, 1, sys_nsig - 1, &errstr);
-
-	if (errstr == NULL)
-		return (sig);
-	if (strncasecmp(str, "SIG", 3) == 0)
-		str += 3;
-
-	for (i = 1; i < sys_nsig; i++) {
-		if (strcasecmp(str, sys_signame[i]) == 0)
-			return (i);
-	}
-
-	return (-1);
 }
