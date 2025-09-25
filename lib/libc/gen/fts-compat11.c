@@ -43,9 +43,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "gen-compat.h"
 #include "fts-compat11.h"
 #include "un-namespace.h"
+#include "gen-compat.h"
 
 #include "gen-private.h"
 
