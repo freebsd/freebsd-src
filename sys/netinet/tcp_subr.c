@@ -2148,14 +2148,16 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 }
 
 /*
- * Send a challenge ack (no data, no SACK option), but not more than
- * V_tcp_ack_war_cnt per V_tcp_ack_war_time_window (per TCP connection).
+ * Check that no more than V_tcp_ack_war_cnt per V_tcp_ack_war_time_window
+ * are sent. *epoch_end is the end of the current epoch and is updated, if the
+ * current epoch ended in the past. *ack_cnt is the counter used during the
+ * current epoch. It might be reset and incremented.
+ * The function returns true if a challenge ACK should be sent.
  */
-void
-tcp_send_challenge_ack(struct tcpcb *tp, struct tcphdr *th, struct mbuf *m)
+bool
+tcp_challenge_ack_check(sbintime_t *epoch_end, uint32_t *ack_cnt)
 {
 	sbintime_t now;
-	bool send_challenge_ack;
 
 	/*
 	 * The sending of a challenge ACK could be triggered by a blind attacker
@@ -2164,29 +2166,39 @@ tcp_send_challenge_ack(struct tcpcb *tp, struct tcphdr *th, struct mbuf *m)
 	 * would have guessed wrongly.
 	 */
 	(void)badport_bandlim(BANDLIM_TCP_RST);
+
 	if (V_tcp_ack_war_time_window == 0 || V_tcp_ack_war_cnt == 0) {
 		/* ACK war protection is disabled. */
-		send_challenge_ack = true;
+		return (true);
 	} else {
 		/* Start new epoch, if the previous one is already over. */
 		now = getsbinuptime();
-		if (tp->t_challenge_ack_end < now) {
-			tp->t_challenge_ack_cnt = 0;
-			tp->t_challenge_ack_end = now +
-			    V_tcp_ack_war_time_window * SBT_1MS;
+		if (*epoch_end < now) {
+			*ack_cnt = 0;
+			*epoch_end = now + V_tcp_ack_war_time_window * SBT_1MS;
 		}
 		/*
 		 * Send a challenge ACK, if less than tcp_ack_war_cnt have been
 		 * sent in the current epoch.
 		 */
-		if (tp->t_challenge_ack_cnt < V_tcp_ack_war_cnt) {
-			send_challenge_ack = true;
-			tp->t_challenge_ack_cnt++;
+		if (*ack_cnt < V_tcp_ack_war_cnt) {
+			(*ack_cnt)++;
+			return (true);
 		} else {
-			send_challenge_ack = false;
+			return (false);
 		}
 	}
-	if (send_challenge_ack) {
+}
+
+/*
+ * Send a challenge ack (no data, no SACK option), but not more than
+ * V_tcp_ack_war_cnt per V_tcp_ack_war_time_window (per TCP connection).
+ */
+void
+tcp_send_challenge_ack(struct tcpcb *tp, struct tcphdr *th, struct mbuf *m)
+{
+	if (tcp_challenge_ack_check(&tp->t_challenge_ack_end,
+	    &tp->t_challenge_ack_cnt)) {
 		tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
 		    tp->snd_nxt, TH_ACK);
 		tp->last_ack_sent = tp->rcv_nxt;
