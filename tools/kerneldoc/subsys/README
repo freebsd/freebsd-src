@@ -20,12 +20,12 @@ The following environment variables can be used in the Doxyfile:
 
 For the PDF generation you may have to change some limits in the latex
 configuration (the build may fail and an error about e.g. "pool size" is
-shown), for print/teTeX this is done in
+shown), for print/texlive-full this is done in
 	/usr/local/share/texmf/web2c/texmf.cnf
 
 Programs needed to generate the API docs:
  - devel/doxygen
- - print/teTeX
+ - print/texlive-full
  - graphics/graphviz
 
 -- 
