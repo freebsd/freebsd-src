@@ -663,25 +663,88 @@ rk_gpio_get_node(device_t bus, device_t dev)
 }
 
 static int
+rk_gpio_pic_map_fdt(struct rk_gpio_softc *sc,
+    struct intr_map_data_fdt *daf,
+    u_int *irqp, uint32_t *modep)
+{
+	uint32_t irq;
+	uint32_t mode;
+
+	if (daf->ncells != 2)
+		return (EINVAL);
+
+	irq = daf->cells[0];
+	if (irq >= RK_GPIO_MAX_PINS)
+		return (EINVAL);
+
+	/* Only reasonable modes are supported. */
+	if (daf->cells[1] == 1)
+		mode = GPIO_INTR_EDGE_RISING;
+	else if (daf->cells[1] == 2)
+		mode = GPIO_INTR_EDGE_FALLING;
+	else if (daf->cells[1] == 3)
+		mode = GPIO_INTR_EDGE_BOTH;
+	else if (daf->cells[1] == 4)
+		mode = GPIO_INTR_LEVEL_HIGH;
+	else if (daf->cells[1] == 8)
+		mode = GPIO_INTR_LEVEL_LOW;
+	else
+		return (EINVAL);
+
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = mode;
+	return (0);
+}
+
+static int
+rk_gpio_pic_map_gpio(struct rk_gpio_softc *sc,
+    struct intr_map_data_gpio *dag,
+    u_int *irqp, uint32_t *modep)
+{
+	uint32_t irq;
+	irq = dag->gpio_pin_num;
+	if (irq >= RK_GPIO_MAX_PINS) {
+		device_printf(sc->sc_dev, "Invalid interrupt %u\n",
+		    irq);
+		return (EINVAL);
+	}
+
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = dag->gpio_intr_mode;
+	return (0);
+}
+
+static int
+rk_gpio_pic_map(struct rk_gpio_softc *sc, struct intr_map_data *data,
+    u_int *irqp, uint32_t *modep)
+{
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		return (rk_gpio_pic_map_fdt(sc,
+		    (struct intr_map_data_fdt *)data, irqp, modep));
+	case INTR_MAP_DATA_GPIO:
+		return (rk_gpio_pic_map_gpio(sc,
+		    (struct intr_map_data_gpio *)data, irqp, modep));
+	default:
+		device_printf(sc->sc_dev, "Wrong type\n");
+		return (ENOTSUP);
+	}
+}
+
+static int
 rk_pic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+	int error;
 	struct rk_gpio_softc *sc = device_get_softc(dev);
-	struct intr_map_data_gpio *gdata;
 	uint32_t irq;
 
-	if (data->type != INTR_MAP_DATA_GPIO) {
-		device_printf(dev, "Wrong type\n");
-		return (ENOTSUP);
-	}
-	gdata = (struct intr_map_data_gpio *)data;
-	irq = gdata->gpio_pin_num;
-	if (irq >= RK_GPIO_MAX_PINS) {
-		device_printf(dev, "Invalid interrupt %u\n", irq);
-		return (EINVAL);
-	}
-	*isrcp = RK_GPIO_ISRC(sc, irq);
-	return (0);
+	error = rk_gpio_pic_map(sc, data, &irq, NULL);
+	if (error == 0)
+		*isrcp = RK_GPIO_ISRC(sc, irq);
+	return (error);
 }
 
 static int
@@ -690,19 +753,18 @@ rk_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 {
 	struct rk_gpio_softc *sc = device_get_softc(dev);
 	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
-	struct intr_map_data_gpio *gdata;
 	uint32_t mode;
-	uint8_t pin;
+	uint32_t pin;
 
 	if (!data) {
 		device_printf(dev, "No map data\n");
 		return (ENOTSUP);
 	}
-	gdata = (struct intr_map_data_gpio *)data;
-	mode = gdata->gpio_intr_mode;
-	pin = gdata->gpio_pin_num;
 
-	if (rkisrc->irq != gdata->gpio_pin_num) {
+	if (rk_gpio_pic_map(sc, data, &pin, &mode) != 0)
+		return (EINVAL);
+
+	if (rkisrc->irq != pin) {
 		device_printf(dev, "Interrupts don't match\n");
 		return (EINVAL);
 	}
