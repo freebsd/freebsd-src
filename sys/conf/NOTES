@@ -2447,7 +2447,8 @@ device		hpen		# Generic pen driver
 device		hsctrl		# System controls
 device		ps4dshock	# Sony PS4 DualShock 4 gamepad driver
 device		u2f		# FIDO/U2F authenticator
-options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/u2f/
+options 	U2F_DROP_UHID_ALIAS	# Do not install /dev/uhid alias for
+				# /dev/u2f/ and rename driver from uhid to u2f
 device		xb360gp		# XBox 360 gamepad driver
 
 #####################################################################
