@@ -48,6 +48,7 @@ httperr.h: http.errors ${.CURDIR}/Makefile
 	@echo "    { -1, FETCH_UNKNOWN, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
+MLINKS+= fetch.3 fetchFreeResFields.3
 MLINKS+= fetch.3 fetchFreeURL.3
 MLINKS+= fetch.3 fetchGet.3
 MLINKS+= fetch.3 fetchGetFTP.3
@@ -77,5 +78,6 @@ MLINKS+= fetch.3 fetchXGetFTP.3
 MLINKS+= fetch.3 fetchXGetFile.3
 MLINKS+= fetch.3 fetchXGetHTTP.3
 MLINKS+= fetch.3 fetchXGetURL.3
+MLINKS+= fetch.3 fetchXReqHTTP.3
 
 .include <bsd.lib.mk>
