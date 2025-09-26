@@ -3340,12 +3340,10 @@ sys___realpathat(struct thread *td, struct __realpathat_args *uap)
 	    uap->flags, UIO_USERSPACE));
 }
 
-/*
- * Retrieve the full filesystem path that correspond to a vnode from the name
- * cache (if available)
- */
-int
-vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf)
+static int
+vn_fullpath_up_to_pwd_vnode(struct vnode *vp,
+    struct vnode *(*const get_pwd_vnode)(const struct pwd *),
+    char **retbuf, char **freebuf)
 {
 	struct pwd *pwd;
 	char *buf;
@@ -3359,11 +3357,13 @@ vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf)
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	vfs_smr_enter();
 	pwd = pwd_get_smr();
-	error = vn_fullpath_any_smr(vp, pwd->pwd_rdir, buf, retbuf, &buflen, 0);
+	error = vn_fullpath_any_smr(vp, get_pwd_vnode(pwd), buf, retbuf,
+	    &buflen, 0);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
 		pwd = pwd_hold(curthread);
-		error = vn_fullpath_any(vp, pwd->pwd_rdir, buf, retbuf, &buflen);
+		error = vn_fullpath_any(vp, get_pwd_vnode(pwd), buf, retbuf,
+		    &buflen);
 		pwd_drop(pwd);
 	}
 	if (error == 0)
@@ -3371,6 +3371,42 @@ vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf)
 	else
 		free(buf, M_TEMP);
 	return (error);
+}
+
+static inline struct vnode *
+get_rdir(const struct pwd *pwd)
+{
+	return (pwd->pwd_rdir);
+}
+
+/*
+ * Produce a filesystem path that starts from the current chroot directory and
+ * corresponds to the passed vnode, using the name cache (if available).
+ */
+int
+vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf)
+{
+	return (vn_fullpath_up_to_pwd_vnode(vp, get_rdir, retbuf, freebuf));
+}
+
+static inline struct vnode *
+get_jdir(const struct pwd *pwd)
+{
+	return (pwd->pwd_jdir);
+}
+
+/*
+ * Produce a filesystem path that starts from the current jail's root directory
+ * and corresponds to the passed vnode, using the name cache (if available).
+ *
+ * This function allows to ignore chroots done inside a jail (or the host),
+ * allowing path checks to remain unaffected by privileged or unprivileged
+ * chroot calls.
+ */
+int
+vn_fullpath_jail(struct vnode *vp, char **retbuf, char **freebuf)
+{
+	return (vn_fullpath_up_to_pwd_vnode(vp, get_jdir, retbuf, freebuf));
 }
 
 /*
