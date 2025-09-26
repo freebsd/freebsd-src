@@ -39,13 +39,14 @@
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
-enum power_stype	 power_standby_stype	= POWER_STYPE_STANDBY;
-enum power_stype	 power_suspend_stype	= POWER_STYPE_SUSPEND_TO_IDLE;
-enum power_stype	 power_hibernate_stype	= POWER_STYPE_HIBERNATE;
+enum power_stype	 power_standby_stype	= POWER_STYPE_UNKNOWN;
+enum power_stype	 power_suspend_stype	= POWER_STYPE_UNKNOWN;
+enum power_stype	 power_hibernate_stype	= POWER_STYPE_UNKNOWN;
 
 static u_int		 power_pm_type	= POWER_PM_TYPE_NONE;
 static power_pm_fn_t	 power_pm_fn	= NULL;
 static void		*power_pm_arg	= NULL;
+static bool		 power_pm_supported[POWER_STYPE_COUNT] = {0};
 static struct task	 power_pm_task;
 
 enum power_stype
@@ -71,6 +72,26 @@ power_stype_to_name(enum power_stype stype)
 }
 
 static int
+sysctl_supported_stypes(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct sbuf sb;
+	enum power_stype stype;
+
+	sbuf_new(&sb, NULL, 32, SBUF_AUTOEXTEND);
+	for (stype = 0; stype < POWER_STYPE_COUNT; stype++) {
+		if (power_pm_supported[stype])
+			sbuf_printf(&sb, "%s ", power_stype_to_name(stype));
+	}
+	sbuf_trim(&sb);
+	sbuf_finish(&sb);
+	error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	sbuf_delete(&sb);
+
+	return (error);
+}
+
+static int
 power_sysctl_stype(SYSCTL_HANDLER_ARGS)
 {
 	char			name[10];
@@ -86,7 +107,8 @@ power_sysctl_stype(SYSCTL_HANDLER_ARGS)
 	new_stype = power_name_to_stype(name);
 	if (new_stype == POWER_STYPE_UNKNOWN)
 		return (EINVAL);
-	/* TODO Check to see if the new stype is supported. */
+	if (!power_pm_supported[new_stype])
+		return (EOPNOTSUPP);
 	if (new_stype != old_stype)
 		*(enum power_stype *)oidp->oid_arg1 = new_stype;
 	return (0);
@@ -95,6 +117,9 @@ power_sysctl_stype(SYSCTL_HANDLER_ARGS)
 static SYSCTL_NODE(_kern, OID_AUTO, power, CTLFLAG_RW, 0,
     "Generic power management related sysctls");
 
+SYSCTL_PROC(_kern_power, OID_AUTO, supported_stype,
+    CTLTYPE_STRING | CTLFLAG_RD, 0, 0, sysctl_supported_stypes, "A",
+    "List supported sleep types");
 SYSCTL_PROC(_kern_power, OID_AUTO, standby, CTLTYPE_STRING | CTLFLAG_RW,
     &power_standby_stype, 0, power_sysctl_stype, "A",
     "Sleep type to enter on standby");
@@ -114,7 +139,8 @@ power_pm_deferred_fn(void *arg, int pending)
 }
 
 int
-power_pm_register(u_int pm_type, power_pm_fn_t pm_fn, void *pm_arg)
+power_pm_register(u_int pm_type, power_pm_fn_t pm_fn, void *pm_arg,
+    bool pm_supported[static POWER_STYPE_COUNT])
 {
 	int	error;
 
@@ -123,6 +149,16 @@ power_pm_register(u_int pm_type, power_pm_fn_t pm_fn, void *pm_arg)
 		power_pm_type	= pm_type;
 		power_pm_fn	= pm_fn;
 		power_pm_arg	= pm_arg;
+		memcpy(power_pm_supported, pm_supported,
+		    sizeof(power_pm_supported));
+		if (power_pm_supported[POWER_STYPE_STANDBY])
+			power_standby_stype = POWER_STYPE_STANDBY;
+		if (power_pm_supported[POWER_STYPE_SUSPEND_TO_MEM])
+			power_suspend_stype = POWER_STYPE_SUSPEND_TO_MEM;
+		else if (power_pm_supported[POWER_STYPE_SUSPEND_TO_IDLE])
+			power_suspend_stype = POWER_STYPE_SUSPEND_TO_IDLE;
+		if (power_pm_supported[POWER_STYPE_HIBERNATE])
+			power_hibernate_stype = POWER_STYPE_HIBERNATE;
 		error = 0;
 		TASK_INIT(&power_pm_task, 0, power_pm_deferred_fn, NULL);
 	} else {
